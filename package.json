@@ -1,0 +1,55 @@
+{
+  "name": "microsim-vscode",
+  "displayName": "MicroSim",
+  "version": "0.1.0",
+  "description": "Simulation de microcontrôleurs (Arduino Uno / Raspberry Pi Pico) directement dans VS Code, 100% offline.",
+  "publisher": "franksauret",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/franksauret/microsim-vscode"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Education",
+    "Visualization",
+    "Other"
+  ],
+  "keywords": [
+    "arduino",
+    "raspberry pi pico",
+    "microcontroller",
+    "simulator",
+    "avr",
+    "offline"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "microsim.openSimulator",
+        "title": "MicroSim : Ouvrir le simulateur",
+        "category": "MicroSim"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "node esbuild.js --production",
+    "watch": "node esbuild.js --watch",
+    "typecheck": "tsc --noEmit",
+    "verify": "node scripts/verify-blink.mjs"
+  },
+  "dependencies": {
+    "avr8js": "0.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.11.0",
+    "@types/vscode": "1.85.0",
+    "esbuild": "0.28.0",
+    "typescript": "6.0.3"
+  }
+}

@@ -1,0 +1,115 @@
+:root {
+  --board-green: #1a7a4c;
+  --board-green-dark: #115a37;
+}
+
+body {
+  font-family: var(--vscode-font-family, sans-serif);
+  color: var(--vscode-foreground);
+  margin: 0;
+  padding: 0;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--vscode-panel-border, #444);
+  flex-wrap: wrap;
+}
+
+.toolbar select,
+.toolbar button {
+  font: inherit;
+  color: var(--vscode-input-foreground, #fff);
+  background: var(--vscode-input-background, #333);
+  border: 1px solid var(--vscode-input-border, #555);
+  border-radius: 4px;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+}
+
+.toolbar button.primary {
+  background: var(--vscode-button-background, #0e639c);
+  color: var(--vscode-button-foreground, #fff);
+  border-color: transparent;
+}
+
+.toolbar button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.status {
+  margin-left: auto;
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.stage {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  align-items: center;
+}
+
+.board {
+  position: relative;
+  width: 320px;
+  height: 220px;
+  background: linear-gradient(160deg, var(--board-green), var(--board-green-dark));
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+.board__label {
+  position: absolute;
+  top: 10px;
+  left: 14px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.8rem;
+}
+
+.led {
+  position: absolute;
+  top: 90px;
+  right: 60px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #5a1d1d;
+  border: 2px solid #2c0e0e;
+  transition: background 60ms linear, box-shadow 60ms linear;
+}
+
+.led--on {
+  background: #ff4d4d;
+  box-shadow: 0 0 14px 5px rgba(255, 77, 77, 0.85);
+}
+
+.led__pin {
+  position: absolute;
+  top: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.log {
+  width: 100%;
+  max-width: 640px;
+  max-height: 160px;
+  overflow: auto;
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.8rem;
+  background: var(--vscode-textCodeBlock-background, rgba(0, 0, 0, 0.25));
+  border-radius: 6px;
+  white-space: pre-wrap;
+}
