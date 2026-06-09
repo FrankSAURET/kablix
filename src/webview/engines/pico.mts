@@ -1,37 +1,47 @@
 // Moteur de simulation Raspberry Pi Pico (RP2040) basé sur rp2040js.
-// Composant exposé : LED embarquée sur GPIO25.
+// Image bare-metal chargée en RAM (voir le moteur de compilation).
 import { RP2040, GPIOPinState } from 'rp2040js';
-import type { BoardLayout, EngineCallbacks, SimEngine } from './types.mjs';
+import type { SimEngine } from './types.mjs';
 
 const RAM_START = 0x20000000;
-const LED_GPIO = 25;
 const STEPS_PER_FRAME = 400_000;
 
+function gpioIndex(name: string): number | null {
+  const m = /^(?:GP)?(\d+)$/.exec(name);
+  if (!m) return null;
+  const n = Number(m[1]);
+  return n >= 0 && n < 30 ? n : null;
+}
+
 export class PicoEngine implements SimEngine {
-  readonly layout: BoardLayout = {
-    name: 'Raspberry Pi Pico (RP2040)',
-    cssClass: 'board--pico',
-    leds: [{ id: 'led', label: 'LED (GP25)', color: '#4dff7a' }],
-    hasButton: false,
-  };
+  onUpdate: (() => void) | null = null;
+  onSerial: ((chunk: string) => void) | null = null;
 
   private mcu: RP2040;
   private rafId: number | null = null;
   private running = false;
 
-  constructor(program: Uint8Array, private readonly cb: EngineCallbacks) {
+  constructor(program: Uint8Array) {
     this.mcu = new RP2040();
     this.mcu.sram.set(program, 0); // image chargée à 0x20000000
     this.mcu.core.VTOR = RAM_START;
     this.mcu.core.reset();
-
-    this.mcu.gpio[LED_GPIO].addListener((state) => {
-      this.cb.onLed('led', state === GPIOPinState.High);
-    });
+    for (const pin of this.mcu.gpio) {
+      pin.addListener(() => this.onUpdate?.());
+    }
   }
 
-  // Le Pico de démo n'a pas de bouton utilisateur.
-  setButton(): void {}
+  readDigital(name: string): boolean {
+    const i = gpioIndex(name);
+    if (i === null) return false;
+    return this.mcu.gpio[i].value === GPIOPinState.High;
+  }
+
+  setInput(name: string, value: boolean): void {
+    const i = gpioIndex(name);
+    if (i === null) return;
+    this.mcu.gpio[i].setInputValue(value);
+  }
 
   start(): void {
     if (this.running) return;

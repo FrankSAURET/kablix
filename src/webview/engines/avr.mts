@@ -1,59 +1,70 @@
 // Moteur de simulation Arduino Uno (ATmega328P) basé sur avr8js.
-// Composants exposés : LED D13 (PB5), LED D8 (PB0), bouton D2 (PD2), série USART0.
+// Expose un accès générique aux broches numériques 0–13 et A0–A5, ainsi que la
+// liaison série (USART0).
 import {
   CPU,
   avrInstruction,
   AVRIOPort,
   AVRUSART,
   portBConfig,
+  portCConfig,
   portDConfig,
   usart0Config,
   PinState,
 } from 'avr8js';
-import type { BoardLayout, EngineCallbacks, SimEngine } from './types.mjs';
+import type { SimEngine } from './types.mjs';
 
 const CLOCK_HZ = 16_000_000;
 
+type PortKey = 'B' | 'C' | 'D';
+
+// Broche Arduino (nom) -> port AVR + index de bit.
+const UNO_PINS: Record<string, [PortKey, number]> = {
+  '0': ['D', 0], '1': ['D', 1], '2': ['D', 2], '3': ['D', 3],
+  '4': ['D', 4], '5': ['D', 5], '6': ['D', 6], '7': ['D', 7],
+  '8': ['B', 0], '9': ['B', 1], '10': ['B', 2], '11': ['B', 3],
+  '12': ['B', 4], '13': ['B', 5],
+  'A0': ['C', 0], 'A1': ['C', 1], 'A2': ['C', 2],
+  'A3': ['C', 3], 'A4': ['C', 4], 'A5': ['C', 5],
+};
+
 export class AvrEngine implements SimEngine {
-  readonly layout: BoardLayout = {
-    name: 'Arduino Uno (ATmega328P)',
-    cssClass: 'board--uno',
-    leds: [
-      { id: 'd13', label: 'D13', color: '#ff4d4d' },
-      { id: 'd8', label: 'D8', color: '#4dff7a' },
-    ],
-    hasButton: true,
-    buttonLabel: 'D2',
-  };
+  onUpdate: (() => void) | null = null;
+  onSerial: ((chunk: string) => void) | null = null;
 
   private cpu: CPU;
-  private portB: AVRIOPort;
-  private portD: AVRIOPort;
+  private ports: Record<PortKey, AVRIOPort>;
   private usart: AVRUSART;
   private rafId: number | null = null;
   private running = false;
 
-  constructor(program: Uint16Array, private readonly cb: EngineCallbacks) {
+  constructor(program: Uint16Array) {
     this.cpu = new CPU(program.slice());
-    this.portB = new AVRIOPort(this.cpu, portBConfig);
-    this.portD = new AVRIOPort(this.cpu, portDConfig);
+    this.ports = {
+      B: new AVRIOPort(this.cpu, portBConfig),
+      C: new AVRIOPort(this.cpu, portCConfig),
+      D: new AVRIOPort(this.cpu, portDConfig),
+    };
     this.usart = new AVRUSART(this.cpu, usart0Config, CLOCK_HZ);
 
-    this.portB.addListener(() => {
-      this.cb.onLed('d13', this.portB.pinState(5) === PinState.High);
-      this.cb.onLed('d8', this.portB.pinState(0) === PinState.High);
-    });
-    this.usart.onByteTransmit = (b: number) => {
-      this.cb.onSerial(String.fromCharCode(b));
-    };
-
-    // Bouton relâché au départ : on émule le pull-up en pilotant la broche haut.
-    this.setButton(false);
+    for (const port of Object.values(this.ports)) {
+      port.addListener(() => this.onUpdate?.());
+    }
+    this.usart.onByteTransmit = (b: number) => this.onSerial?.(String.fromCharCode(b));
   }
 
-  setButton(pressed: boolean): void {
-    // Bouton câblé vers la masse : appuyé = niveau bas, relâché = pull-up (haut).
-    this.portD.setPin(2, !pressed);
+  readDigital(name: string): boolean {
+    const map = UNO_PINS[name];
+    if (!map) return false;
+    const [port, bit] = map;
+    return this.ports[port].pinState(bit) === PinState.High;
+  }
+
+  setInput(name: string, value: boolean): void {
+    const map = UNO_PINS[name];
+    if (!map) return;
+    const [port, bit] = map;
+    this.ports[port].setPin(bit, value);
   }
 
   start(): void {

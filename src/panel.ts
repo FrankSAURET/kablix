@@ -116,7 +116,9 @@ export class SimulatorPanel {
     const nonce = getNonce();
     const csp = [
       `default-src 'none'`,
-      `style-src ${webview.cspSource}`,
+      // Les composants @wokwi/elements (Lit) injectent des styles dans leur
+      // shadow DOM ; on autorise les styles inline pour la webview locale.
+      `style-src ${webview.cspSource} 'unsafe-inline'`,
       `script-src 'nonce-${nonce}'`,
       `img-src ${webview.cspSource} data:`,
     ].join('; ');
@@ -132,11 +134,7 @@ export class SimulatorPanel {
 </head>
 <body>
   <header class="toolbar">
-    <label for="board">Carte :</label>
-    <select id="board">
-      <option value="uno">Arduino Uno (ATmega328P)</option>
-      <option value="pico">Raspberry Pi Pico (RP2040)</option>
-    </select>
+    <strong class="brand">MicroSim</strong>
     <button id="run" class="primary">▶ Démarrer</button>
     <button id="stop" disabled>■ Arrêter</button>
     <button id="compile">⚙ Compiler &amp; exécuter le fichier actif</button>
@@ -144,7 +142,12 @@ export class SimulatorPanel {
   </header>
 
   <main class="stage">
-    <div id="board-view" class="board board--uno"></div>
+    <div class="workshop">
+      <aside id="palette" class="palette"><h3>Composants</h3></aside>
+      <div id="canvas" class="canvas">
+        <svg id="wires" class="wires"></svg>
+      </div>
+    </div>
 
     <section class="serial">
       <div class="serial__head">

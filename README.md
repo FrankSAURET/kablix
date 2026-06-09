@@ -7,29 +7,51 @@ La simulation s'appuie sur deux moteurs open-source embarqués dans l'extension 
 [rp2040js](https://github.com/wokwi/rp2040js) (RP2040), tous deux sous licence MIT.
 Aucun service en ligne n'est requis.
 
-## Fonctionnalités (v0.2.0)
+## Fonctionnalités (v0.3.0)
 
-- ✅ **Deux cartes** : Arduino Uno (ATmega328P) et Raspberry Pi Pico (RP2040)
+- ✅ **Atelier visuel** : palette de composants, placement, déplacement et
+  **câblage broche-à-broche** sur un canvas (composants SVG réalistes
+  [@wokwi/elements](https://github.com/wokwi/wokwi-elements), MIT)
+- ✅ **Composants** : Arduino Uno, LED, bouton poussoir, résistance, reliés par
+  une **netlist** qui pilote la simulation (une LED câblée sur une broche
+  s'allume réellement, un bouton tire la broche à la masse)
 - ✅ **Compilation du code réel** : compile le fichier C/C++ actif avec une
   toolchain locale (`arduino-cli` ou `avr-gcc` pour l'AVR, `arm-none-eabi-gcc`
   pour le RP2040) puis l'exécute dans le simulateur
-- ✅ **Composants** : plusieurs LEDs, bouton poussoir interactif, **moniteur
-  série** (USART)
-- ✅ **Programmes de démonstration** intégrés (compilés et embarqués)
+- ✅ **Moniteur série** (USART) et **deux moteurs** : Arduino Uno (avr8js) et
+  Raspberry Pi Pico (rp2040js)
 - ✅ **Empaquetage `.vsix`** prêt à installer
 
-Tout le pipeline (toolchain → émulateur → affichage) est couvert par des tests
+Tout le pipeline (netlist → émulateur → affichage) est couvert par des tests
 automatisés.
+
+> **En cours / à venir** : le visuel de la carte Raspberry Pi Pico (absent de
+> @wokwi/elements, nécessite un SVG maison MIT) n'est pas encore dans l'atelier ;
+> le moteur Pico fonctionne et est testé. Voir la feuille de route plus bas.
+
+## Feuille de route
+
+- **Phase A — Atelier visuel** *(en cours)* : composants + câblage. ✅ Uno ;
+  🔜 carte Pico (SVG maison), plus de composants (breadboard, capteurs…).
+- **Phase B — Moteur Pico « flash »** : chargement bootrom + image flash
+  (UF2/ELF) pour exécuter le C/C++ réel du Pico.
+- **Phase C — Intégration extensions** : détecter la sortie de
+  [Arduino-VsCode-IDE](https://github.com/FrankSAURET/Arduino-VsCode-IDE) et de
+  [pico-vscode](https://github.com/raspberrypi/pico-vscode).
+- **Phase D — MicroPython** sur Pico (firmware + LittleFS + `main.py`).
 
 ## Utilisation
 
 1. Palette de commandes (`Ctrl+Shift+P`) → **« MicroSim : Ouvrir le simulateur »**.
-2. Choisir la carte dans la barre d'outils. La démo intégrée se charge ; cliquer
-   sur **▶ Démarrer**.
-3. Pour exécuter votre propre code : ouvrir un fichier (voir `examples/`),
-   sélectionner la carte, puis **« ⚙ Compiler & exécuter le fichier actif »**
-   (bouton dans le simulateur ou commande **« MicroSim : Compiler & exécuter le
-   fichier actif »**).
+2. Un schéma de démarrage (Arduino Uno + LED sur D13 + bouton sur D2) est posé
+   sur le canvas. Cliquer **▶ Démarrer** : la LED clignote, le bouton est
+   interactif, la série s'affiche.
+3. **Construire son montage** : cliquer un composant de la palette pour le poser,
+   le déplacer par son bandeau, et **relier deux broches** en cliquant
+   successivement sur leurs pastilles. Cliquer un fil pour le supprimer.
+4. **Exécuter son propre code** : ouvrir un fichier (voir `examples/`) puis
+   **« ⚙ Compiler & exécuter le fichier actif »** (bouton du simulateur ou
+   commande **« MicroSim : Compiler & exécuter le fichier actif »**).
 
 ### Toolchains requises pour compiler votre code
 
@@ -51,8 +73,7 @@ npm run build          # compile extension + webview dans dist/
 npm run watch          # recompilation continue
 npm run typecheck      # vérification des types (tsc)
 npm run build:firmware # recompile les démos embarquées (nécessite les toolchains)
-npm run verify         # teste les moteurs avec les démos
-npm run verify:compiler# teste le service de compilation sur examples/
+npm run verify:all     # teste moteurs + compilation + netlist de l'atelier
 npm run package        # génère le .vsix
 ```
 
@@ -65,14 +86,17 @@ Dans VS Code, **F5** (« Lancer l'extension ») ouvre une fenêtre de développe
 | `src/extension.ts` | Point d'entrée : commandes |
 | `src/panel.ts` | Panneau webview (HTML, CSP, messagerie) |
 | `src/compiler.ts` | Détection de toolchain + compilation (hôte) |
-| `src/webview/sim.mts` | Contrôleur UI + sélection du moteur |
+| `src/webview/sim.mts` | Contrôleur : atelier + simulation |
+| `src/webview/diagram/catalog.mts` | Catalogue de composants + broches Uno |
+| `src/webview/diagram/model.mts` | Netlist (pure) + résolution LED/bouton |
+| `src/webview/diagram/editor.mts` | Éditeur DOM : palette, placement, câblage |
 | `src/webview/engines/avr.mts` | Moteur ATmega328P (avr8js) |
 | `src/webview/engines/pico.mts` | Moteur RP2040 (rp2040js) |
 | `src/webview/programs/*.mjs` | Firmwares de démo compilés (générés) |
 | `firmware/` | Sources C des démos + linker RP2040 |
-| `scripts/build-firmware.mjs` | Compile les démos → modules embarqués |
 | `scripts/verify-sim.mjs` | Test des moteurs |
 | `scripts/verify-compiler.mjs` | Test du service de compilation |
+| `scripts/verify-diagram.mjs` | Test de la netlist de l'atelier |
 
 ## Licence
 

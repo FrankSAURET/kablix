@@ -1,10 +1,3 @@
-:root {
-  --board-green: #1a7a4c;
-  --board-green-dark: #115a37;
-  --board-purple: #5a2a7a;
-  --board-purple-dark: #3c1a55;
-}
-
 body {
   font-family: var(--vscode-font-family, sans-serif);
   color: var(--vscode-foreground);
@@ -16,12 +9,15 @@ body {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 0.6rem 1rem;
+  padding: 0.5rem 1rem;
   border-bottom: 1px solid var(--vscode-panel-border, #444);
   flex-wrap: wrap;
 }
 
-.toolbar select,
+.brand {
+  letter-spacing: 0.05em;
+}
+
 .toolbar button {
   font: inherit;
   color: var(--vscode-input-foreground, #fff);
@@ -50,94 +46,139 @@ body {
 }
 
 .stage {
-  padding: 1.5rem;
+  padding: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 1.2rem;
-  align-items: center;
+  gap: 1rem;
 }
 
-.board {
-  position: relative;
-  width: 360px;
-  min-height: 220px;
-  padding: 2.4rem 1.2rem 1.4rem;
-  box-sizing: border-box;
-  background: linear-gradient(160deg, var(--board-green), var(--board-green-dark));
-  border-radius: 12px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+/* --- Atelier --------------------------------------------------------------- */
+.workshop {
+  display: flex;
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.palette {
+  flex: 0 0 150px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 1.2rem;
+  gap: 0.4rem;
+  padding: 0.6rem;
+  background: var(--vscode-editorWidget-background, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--vscode-panel-border, #444);
+  border-radius: 8px;
+  align-self: flex-start;
 }
 
-.board--pico {
-  background: linear-gradient(160deg, var(--board-purple), var(--board-purple-dark));
-}
-
-.board__label {
-  position: absolute;
-  top: 10px;
-  left: 14px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.85);
+.palette h3 {
+  margin: 0 0 0.3rem;
   font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
 }
 
-.led-row {
-  display: flex;
-  gap: 1.8rem;
-  justify-content: center;
-}
-
-.led-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.led {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: #3a3a3a;
-  border: 2px solid #1c1c1c;
-  transition: background 60ms linear, box-shadow 60ms linear;
-}
-
-.led--on {
-  background: var(--led-color, #ff4d4d);
-  box-shadow: 0 0 14px 5px color-mix(in srgb, var(--led-color, #ff4d4d) 75%, transparent);
-}
-
-.led__label {
-  font-size: 0.7rem;
-  color: rgba(255, 255, 255, 0.85);
-}
-
-.push-button {
+.palette__item {
   font: inherit;
-  padding: 0.4rem 1rem;
+  text-align: left;
+  padding: 0.4rem 0.6rem;
   border-radius: 6px;
-  border: 1px solid #1c1c1c;
-  background: #d7d7d7;
-  color: #1c1c1c;
+  border: 1px solid var(--vscode-input-border, #555);
+  background: var(--vscode-input-background, #2a2a2a);
+  color: var(--vscode-input-foreground, #fff);
   cursor: pointer;
+}
+
+.palette__item:hover {
+  border-color: var(--vscode-focusBorder, #0e639c);
+}
+
+.canvas {
+  position: relative;
+  flex: 1;
+  min-height: 460px;
+  background: var(--vscode-editor-background, #1e1e1e);
+  background-image:
+    linear-gradient(rgba(127, 127, 127, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(127, 127, 127, 0.12) 1px, transparent 1px);
+  background-size: 20px 20px;
+  border: 1px solid var(--vscode-panel-border, #444);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.wires {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.wire {
+  stroke: #2bb673;
+  stroke-width: 3;
+  stroke-linecap: round;
+  pointer-events: stroke;
+}
+
+.wire--temp {
+  stroke: #8fd6b4;
+  stroke-dasharray: 5 4;
+  pointer-events: none;
+}
+
+/* --- Composant posé -------------------------------------------------------- */
+.part {
+  position: absolute;
   user-select: none;
 }
 
-.push-button:active {
-  background: #9a9a9a;
+.part__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  border-radius: 4px 4px 0 0;
+  cursor: grab;
 }
 
-.serial {
-  width: 100%;
-  max-width: 640px;
+.part__del {
+  cursor: pointer;
+  opacity: 0.7;
 }
 
+.part__del:hover {
+  opacity: 1;
+  color: #ff6b6b;
+}
+
+.part__body {
+  position: relative;
+}
+
+.pin {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  border-radius: 50%;
+  background: rgba(255, 196, 0, 0.55);
+  border: 1px solid rgba(180, 130, 0, 0.9);
+  cursor: crosshair;
+}
+
+.pin:hover {
+  background: #ffd633;
+  box-shadow: 0 0 6px 2px rgba(255, 214, 51, 0.7);
+}
+
+/* --- Moniteur série -------------------------------------------------------- */
 .serial__head {
   display: flex;
   align-items: center;
@@ -158,7 +199,7 @@ body {
 }
 
 .serial__out {
-  height: 150px;
+  height: 130px;
   overflow: auto;
   margin: 0;
   padding: 0.6rem 0.8rem;
