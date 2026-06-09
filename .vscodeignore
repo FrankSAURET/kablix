@@ -2,6 +2,7 @@
 src/**
 scripts/**
 node_modules/**
+firmware/avr/**
 .gitignore
 .vscodeignore
 esbuild.js

@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { compile, type Board } from './compiler';
 
 /**
  * Gère le panneau webview du simulateur. Un seul panneau est ouvert à la fois ;
@@ -11,13 +12,14 @@ export class SimulatorPanel {
   private readonly panel: vscode.WebviewPanel;
   private readonly extensionUri: vscode.Uri;
   private readonly disposables: vscode.Disposable[] = [];
+  private currentBoard: Board = 'uno';
 
-  public static createOrShow(extensionUri: vscode.Uri): void {
+  public static createOrShow(extensionUri: vscode.Uri): SimulatorPanel {
     const column = vscode.window.activeTextEditor?.viewColumn;
 
     if (SimulatorPanel.current) {
       SimulatorPanel.current.panel.reveal(column);
-      return;
+      return SimulatorPanel.current;
     }
 
     const panel = vscode.window.createWebviewPanel(
@@ -35,10 +37,39 @@ export class SimulatorPanel {
     );
 
     SimulatorPanel.current = new SimulatorPanel(panel, extensionUri);
+    return SimulatorPanel.current;
   }
 
   public static dispose(): void {
     SimulatorPanel.current?.panel.dispose();
+  }
+
+  /** Compile le fichier actif pour la carte courante et l'exécute dans la webview. */
+  public async compileActiveFile(): Promise<void> {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      vscode.window.showWarningMessage('MicroSim : aucun fichier actif à compiler.');
+      return;
+    }
+    await editor.document.save();
+    const filePath = editor.document.uri.fsPath;
+    const board = this.currentBoard;
+
+    this.post({ type: 'status', text: 'Compilation…' });
+    try {
+      const result = await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: `MicroSim : compilation (${board})…` },
+        () => Promise.resolve(compile(board, filePath, this.extensionUri.fsPath))
+      );
+      this.post({ type: 'runProgram', board: result.board, bytes: result.bytes });
+      vscode.window.showInformationMessage(
+        `MicroSim : ${filePath.split(/[\\/]/).pop()} compilé et lancé (${result.bytes.length} ${board === 'uno' ? 'mots' : 'octets'}).`
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.post({ type: 'status', text: 'Échec de compilation' });
+      vscode.window.showErrorMessage(`MicroSim : ${message}`);
+    }
   }
 
   private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
@@ -46,6 +77,26 @@ export class SimulatorPanel {
     this.extensionUri = extensionUri;
     this.panel.webview.html = this.getHtml(this.panel.webview);
     this.panel.onDidDispose(() => this.onDispose(), null, this.disposables);
+    this.panel.webview.onDidReceiveMessage(
+      (msg) => this.onMessage(msg),
+      null,
+      this.disposables
+    );
+  }
+
+  private onMessage(msg: { type?: string; board?: Board }): void {
+    switch (msg?.type) {
+      case 'board':
+        if (msg.board) this.currentBoard = msg.board;
+        break;
+      case 'compile':
+        void this.compileActiveFile();
+        break;
+    }
+  }
+
+  private post(message: unknown): void {
+    void this.panel.webview.postMessage(message);
   }
 
   private onDispose(): void {
@@ -84,21 +135,24 @@ export class SimulatorPanel {
     <label for="board">Carte :</label>
     <select id="board">
       <option value="uno">Arduino Uno (ATmega328P)</option>
-      <option value="pico" disabled>Raspberry Pi Pico (à venir)</option>
+      <option value="pico">Raspberry Pi Pico (RP2040)</option>
     </select>
     <button id="run" class="primary">▶ Démarrer</button>
     <button id="stop" disabled>■ Arrêter</button>
+    <button id="compile">⚙ Compiler &amp; exécuter le fichier actif</button>
     <span id="status" class="status">Prêt</span>
   </header>
 
   <main class="stage">
-    <div class="board board--uno">
-      <div class="board__label">ARDUINO UNO</div>
-      <div class="led" id="led13" title="LED broche 13">
-        <span class="led__pin">D13</span>
+    <div id="board-view" class="board board--uno"></div>
+
+    <section class="serial">
+      <div class="serial__head">
+        <span>Moniteur série</span>
+        <button id="clear-serial">Effacer</button>
       </div>
-    </div>
-    <pre id="log" class="log" aria-live="polite"></pre>
+      <pre id="serial" class="serial__out" aria-live="polite"></pre>
+    </section>
   </main>
 
   <script nonce="${nonce}" src="${scriptUri}"></script>

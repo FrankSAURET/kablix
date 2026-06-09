@@ -1,6 +1,8 @@
 :root {
   --board-green: #1a7a4c;
   --board-green-dark: #115a37;
+  --board-purple: #5a2a7a;
+  --board-purple-dark: #3c1a55;
 }
 
 body {
@@ -57,11 +59,21 @@ body {
 
 .board {
   position: relative;
-  width: 320px;
-  height: 220px;
+  width: 360px;
+  min-height: 220px;
+  padding: 2.4rem 1.2rem 1.4rem;
+  box-sizing: border-box;
   background: linear-gradient(160deg, var(--board-green), var(--board-green-dark));
   border-radius: 12px;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.2rem;
+}
+
+.board--pico {
+  background: linear-gradient(160deg, var(--board-purple), var(--board-purple-dark));
 }
 
 .board__label {
@@ -69,47 +81,90 @@ body {
   top: 10px;
   left: 14px;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   color: rgba(255, 255, 255, 0.85);
   font-size: 0.8rem;
 }
 
+.led-row {
+  display: flex;
+  gap: 1.8rem;
+  justify-content: center;
+}
+
+.led-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .led {
-  position: absolute;
-  top: 90px;
-  right: 60px;
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: #5a1d1d;
-  border: 2px solid #2c0e0e;
+  background: #3a3a3a;
+  border: 2px solid #1c1c1c;
   transition: background 60ms linear, box-shadow 60ms linear;
 }
 
 .led--on {
-  background: #ff4d4d;
-  box-shadow: 0 0 14px 5px rgba(255, 77, 77, 0.85);
+  background: var(--led-color, #ff4d4d);
+  box-shadow: 0 0 14px 5px color-mix(in srgb, var(--led-color, #ff4d4d) 75%, transparent);
 }
 
-.led__pin {
-  position: absolute;
-  top: 30px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 0.65rem;
-  color: rgba(255, 255, 255, 0.8);
+.led__label {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.85);
 }
 
-.log {
+.push-button {
+  font: inherit;
+  padding: 0.4rem 1rem;
+  border-radius: 6px;
+  border: 1px solid #1c1c1c;
+  background: #d7d7d7;
+  color: #1c1c1c;
+  cursor: pointer;
+  user-select: none;
+}
+
+.push-button:active {
+  background: #9a9a9a;
+}
+
+.serial {
   width: 100%;
   max-width: 640px;
-  max-height: 160px;
+}
+
+.serial__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  margin-bottom: 0.3rem;
+}
+
+.serial__head button {
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-input-border, #555);
+  background: var(--vscode-input-background, #333);
+  color: var(--vscode-input-foreground, #fff);
+  cursor: pointer;
+}
+
+.serial__out {
+  height: 150px;
   overflow: auto;
   margin: 0;
   padding: 0.6rem 0.8rem;
   font-family: var(--vscode-editor-font-family, monospace);
   font-size: 0.8rem;
-  background: var(--vscode-textCodeBlock-background, rgba(0, 0, 0, 0.25));
+  background: var(--vscode-textCodeBlock-background, rgba(0, 0, 0, 0.3));
   border-radius: 6px;
   white-space: pre-wrap;
 }
