@@ -1,7 +1,7 @@
 {
   "name": "microsim-vscode",
   "displayName": "MicroSim",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Simulation de microcontrôleurs (Arduino Uno / Raspberry Pi Pico) directement dans VS Code, 100% offline.",
   "publisher": "franksauret",
   "license": "MIT",
@@ -37,6 +37,11 @@
       {
         "command": "microsim.compileAndRun",
         "title": "MicroSim : Compiler & exécuter le fichier actif",
+        "category": "MicroSim"
+      },
+      {
+        "command": "microsim.loadFromWorkspace",
+        "title": "MicroSim : Charger l'artefact compilé du workspace (.hex / .uf2)",
         "category": "MicroSim"
       }
     ]

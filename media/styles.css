@@ -18,6 +18,16 @@ body {
   letter-spacing: 0.05em;
 }
 
+.toolbar select {
+  font: inherit;
+  color: var(--vscode-input-foreground, #fff);
+  background: var(--vscode-input-background, #333);
+  border: 1px solid var(--vscode-input-border, #555);
+  border-radius: 4px;
+  padding: 0.3rem 0.4rem;
+  cursor: pointer;
+}
+
 .toolbar button {
   font: inherit;
   color: var(--vscode-input-foreground, #fff);

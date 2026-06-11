@@ -9,6 +9,10 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('microsim.compileAndRun', () => {
       const panel = SimulatorPanel.createOrShow(context.extensionUri);
       void panel.compileActiveFile();
+    }),
+    vscode.commands.registerCommand('microsim.loadFromWorkspace', () => {
+      const panel = SimulatorPanel.createOrShow(context.extensionUri);
+      void panel.loadFromWorkspace();
     })
   );
 }

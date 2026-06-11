@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { compile, type Board } from './compiler';
+import { compile, findWorkspaceHex, findWorkspacePicoOutput, type Board } from './compiler';
 
 /**
  * Gère le panneau webview du simulateur. Un seul panneau est ouvert à la fois ;
@@ -54,14 +54,15 @@ export class SimulatorPanel {
     await editor.document.save();
     const filePath = editor.document.uri.fsPath;
     const board = this.currentBoard;
+    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
     this.post({ type: 'status', text: 'Compilation…' });
     try {
       const result = await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: `MicroSim : compilation (${board})…` },
-        () => Promise.resolve(compile(board, filePath, this.extensionUri.fsPath))
+        () => Promise.resolve(compile(board, filePath, this.extensionUri.fsPath, workspaceRoot))
       );
-      this.post({ type: 'runProgram', board: result.board, bytes: result.bytes });
+      this.post({ type: 'runProgram', board: result.board, format: result.format, bytes: result.bytes });
       vscode.window.showInformationMessage(
         `MicroSim : ${filePath.split(/[\\/]/).pop()} compilé et lancé (${result.bytes.length} ${board === 'uno' ? 'mots' : 'octets'}).`
       );
@@ -70,6 +71,49 @@ export class SimulatorPanel {
       this.post({ type: 'status', text: 'Échec de compilation' });
       vscode.window.showErrorMessage(`MicroSim : ${message}`);
     }
+  }
+
+  /** Détecte et charge automatiquement l'artefact compilé le plus récent. */
+  public async loadFromWorkspace(): Promise<void> {
+    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (!workspaceRoot) {
+      vscode.window.showWarningMessage('MicroSim : aucun workspace ouvert.');
+      return;
+    }
+
+    let found: string | null = null;
+    if (this.currentBoard === 'uno') {
+      found = findWorkspaceHex(workspaceRoot);
+    } else {
+      found = findWorkspacePicoOutput(workspaceRoot);
+    }
+
+    if (!found) {
+      vscode.window.showWarningMessage(
+        `MicroSim : aucun artefact compilé (${this.currentBoard === 'uno' ? '.hex' : '.uf2'}) ` +
+        `trouvé dans le workspace. Compilez d'abord avec votre toolchain.`
+      );
+      return;
+    }
+
+    const fakeEditor = { document: { uri: vscode.Uri.file(found), save: async () => true } };
+    this.post({ type: 'status', text: 'Chargement…' });
+    try {
+      const result = await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: `MicroSim : chargement…` },
+        () => Promise.resolve(compile(this.currentBoard, found!, this.extensionUri.fsPath, workspaceRoot))
+      );
+      this.post({ type: 'runProgram', board: result.board, format: result.format, bytes: result.bytes });
+      vscode.window.showInformationMessage(
+        `MicroSim : ${found.split(/[\\/]/).pop()} chargé (${result.bytes.length} octets).`
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.post({ type: 'status', text: 'Échec du chargement' });
+      vscode.window.showErrorMessage(`MicroSim : ${message}`);
+    }
+
+    void fakeEditor;
   }
 
   private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
@@ -91,6 +135,9 @@ export class SimulatorPanel {
         break;
       case 'compile':
         void this.compileActiveFile();
+        break;
+      case 'loadWorkspace':
+        void this.loadFromWorkspace();
         break;
     }
   }
@@ -116,8 +163,6 @@ export class SimulatorPanel {
     const nonce = getNonce();
     const csp = [
       `default-src 'none'`,
-      // Les composants @wokwi/elements (Lit) injectent des styles dans leur
-      // shadow DOM ; on autorise les styles inline pour la webview locale.
       `style-src ${webview.cspSource} 'unsafe-inline'`,
       `script-src 'nonce-${nonce}'`,
       `img-src ${webview.cspSource} data:`,
@@ -135,9 +180,14 @@ export class SimulatorPanel {
 <body>
   <header class="toolbar">
     <strong class="brand">MicroSim</strong>
+    <select id="board" title="Carte cible">
+      <option value="uno">Arduino Uno</option>
+      <option value="pico">Raspberry Pi Pico</option>
+    </select>
     <button id="run" class="primary">▶ Démarrer</button>
     <button id="stop" disabled>■ Arrêter</button>
     <button id="compile">⚙ Compiler &amp; exécuter le fichier actif</button>
+    <button id="load-workspace" title="Charger l'artefact compilé le plus récent (.hex / .uf2)">↑ Charger workspace</button>
     <span id="status" class="status">Prêt</span>
   </header>
 

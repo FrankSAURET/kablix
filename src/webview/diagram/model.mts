@@ -1,6 +1,6 @@
 // Modèle de schéma (pur, sans DOM) : composants, fils, calcul de la netlist et
 // résolution logique des composants. Entièrement testable hors navigateur.
-import { partDef, unoPinRole } from './catalog.mjs';
+import { partDef, mcuPinRole, getMcuPins, type PartKind } from './catalog.mjs';
 
 export interface Endpoint {
   partId: string;
@@ -55,7 +55,6 @@ class DSU {
 }
 
 export interface Nets {
-  /** Identifiant de net pour une extrémité donnée. */
   netOf(e: Endpoint): string;
 }
 
@@ -76,13 +75,11 @@ export function buildNets(diagram: Diagram): Nets {
   return { netOf: (e) => dsu.find(key(e)) };
 }
 
-/** Niveau logique d'un net : 1 (haut/VCC), 0 (bas/GND) ou undefined (flottant). */
 export type Level = 0 | 1 | undefined;
 
 /**
- * Détermine le niveau d'un net en parcourant toutes les extrémités qui s'y
- * rattachent. GND est prioritaire sur VCC, lui-même prioritaire sur les broches
- * pilotées par le microcontrôleur.
+ * Détermine le niveau d'un net en parcourant tous les MCU du schéma.
+ * Supporte Arduino Uno (mcu-uno) et Raspberry Pi Pico (mcu-pico).
  */
 function netLevel(
   diagram: Diagram,
@@ -93,11 +90,11 @@ function netLevel(
   let mcuLevel: Level;
   for (const part of diagram.parts) {
     const def = partDef(part.type);
-    if (def.kind !== 'mcu-uno') continue;
-    // Les broches MCU pertinentes : on teste celles reliées à ce net.
-    for (const pin of MCU_PINS) {
+    const kind = def.kind as PartKind;
+    if (kind !== 'mcu-uno' && kind !== 'mcu-pico') continue;
+    for (const pin of getMcuPins(kind)) {
       if (nets.netOf({ partId: part.id, pin }) !== netId) continue;
-      const role = unoPinRole(pin);
+      const role = mcuPinRole(kind, pin);
       if (role.role === 'gnd') return 0;
       if (role.role === 'vcc') return 1;
       if (role.role === 'digital') mcuLevel = readPin(role.name) ? 1 : 0;
@@ -105,13 +102,6 @@ function netLevel(
   }
   return mcuLevel;
 }
-
-// Broches de l'Uno susceptibles d'être câblées (numériques, analogiques, alim).
-const MCU_PINS: readonly string[] = [
-  '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13',
-  'A0', 'A1', 'A2', 'A3', 'A4', 'A5',
-  'GND.1', 'GND.2', 'GND.3', '5V', '3.3V', 'VIN',
-];
 
 /** Une LED est allumée si son anode est au niveau haut et sa cathode au niveau bas. */
 export function ledOn(
@@ -125,15 +115,39 @@ export function ledOn(
   return anode === 1 && cathode === 0;
 }
 
+/** Niveau d'une broche d'une RGB LED (composante R, G ou B). */
+export function rgbLedChannel(
+  diagram: Diagram,
+  ledId: string,
+  channel: 'R' | 'G' | 'B',
+  readPin: (name: string) => boolean
+): boolean {
+  const nets = buildNets(diagram);
+  const sig = netLevel(diagram, nets, nets.netOf({ partId: ledId, pin: channel }), readPin);
+  const com = netLevel(diagram, nets, nets.netOf({ partId: ledId, pin: 'COM' }), readPin);
+  return sig === 1 && com === 0;
+}
+
+/** Un buzzer est actif si le signal est haut et la masse est reliée. */
+export function buzzerActive(
+  diagram: Diagram,
+  buzzerId: string,
+  readPin: (name: string) => boolean
+): boolean {
+  const nets = buildNets(diagram);
+  const sig = netLevel(diagram, nets, nets.netOf({ partId: buzzerId, pin: '1' }), readPin);
+  const gnd = netLevel(diagram, nets, nets.netOf({ partId: buzzerId, pin: '2' }), readPin);
+  return sig === 1 && gnd === 0;
+}
+
 export interface ButtonBinding {
   partId: string;
-  /** Broche numérique du MCU pilotée par ce bouton (mise à LOW à l'appui). */
   mcuPin: string;
 }
 
 /**
- * Repère les boutons câblés entre une broche du MCU et la masse : appuyer
- * tire la broche à LOW (le programme active typiquement le pull-up interne).
+ * Repère les boutons câblés entre une broche numérique du MCU et la masse.
+ * Fonctionne pour l'Uno (mcu-uno) et le Pico (mcu-pico).
  */
 export function buttonBindings(diagram: Diagram): ButtonBinding[] {
   const nets = buildNets(diagram);
@@ -157,10 +171,11 @@ export function buttonBindings(diagram: Diagram): ButtonBinding[] {
 
 function mcuDigitalOnNet(diagram: Diagram, nets: Nets, netId: string): string | null {
   for (const part of diagram.parts) {
-    if (partDef(part.type).kind !== 'mcu-uno') continue;
-    for (const pin of MCU_PINS) {
+    const kind = partDef(part.type).kind as PartKind;
+    if (kind !== 'mcu-uno' && kind !== 'mcu-pico') continue;
+    for (const pin of getMcuPins(kind)) {
       if (nets.netOf({ partId: part.id, pin }) !== netId) continue;
-      const role = unoPinRole(pin);
+      const role = mcuPinRole(kind, pin);
       if (role.role === 'digital') return role.name;
     }
   }
@@ -169,10 +184,11 @@ function mcuDigitalOnNet(diagram: Diagram, nets: Nets, netId: string): string | 
 
 function netHasGnd(diagram: Diagram, nets: Nets, netId: string): boolean {
   for (const part of diagram.parts) {
-    if (partDef(part.type).kind !== 'mcu-uno') continue;
-    for (const pin of MCU_PINS) {
+    const kind = partDef(part.type).kind as PartKind;
+    if (kind !== 'mcu-uno' && kind !== 'mcu-pico') continue;
+    for (const pin of getMcuPins(kind)) {
       if (nets.netOf({ partId: part.id, pin }) !== netId) continue;
-      if (unoPinRole(pin).role === 'gnd') return true;
+      if (mcuPinRole(kind, pin).role === 'gnd') return true;
     }
   }
   return false;
