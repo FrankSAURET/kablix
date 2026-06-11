@@ -55,6 +55,8 @@ export class Editor {
 
   /** Appelé quand la liste des composants personnalisés change (persistance). */
   onCustomPartsChange: ((parts: CustomPartData[]) => void) | null = null;
+  /** Appelé pour exporter un composant personnalisé en fichier .json. */
+  onExportCustomPart: ((part: CustomPartData) => void) | null = null;
 
   private rendered = new Map<string, Rendered>();
   private wirePaths = new Map<string, SVGPathElement>();
@@ -103,20 +105,33 @@ export class Editor {
       this.palette.appendChild(btn);
     }
 
-    // Composants personnalisés : bouton d'ajout + suppression du modèle (✕).
+    // Composants personnalisés : ajout, modification, export (.json), suppression.
     for (const def of listCustomParts()) {
+      const data = this.customData.get(def.type);
       const row = document.createElement('div');
       row.className = 'palette__custom';
       const btn = document.createElement('button');
       btn.className = 'palette__item';
       btn.textContent = `★ ${def.label}`;
+      btn.title = 'Clic : poser sur le canvas — double-clic : modifier le modèle';
       btn.addEventListener('click', () => this.addPart(def.type));
+      btn.addEventListener('dblclick', () => {
+        if (data) this.creator.open(data);
+      });
+      const exp = document.createElement('button');
+      exp.className = 'palette__custom-del';
+      exp.style.color = 'inherit';
+      exp.textContent = '⇩';
+      exp.title = 'Exporter ce composant (.json)';
+      exp.addEventListener('click', () => {
+        if (data) this.onExportCustomPart?.(data);
+      });
       const del = document.createElement('button');
       del.className = 'palette__custom-del';
       del.textContent = '✕';
       del.title = 'Supprimer ce modèle de composant';
       del.addEventListener('click', () => this.removeCustomPart(def.type));
-      row.append(btn, del);
+      row.append(btn, exp, del);
       this.palette.appendChild(row);
     }
 
@@ -125,6 +140,61 @@ export class Editor {
     create.textContent = '+ Créer un composant';
     create.addEventListener('click', () => this.creator.open());
     this.palette.appendChild(create);
+
+    // Import d'un composant depuis un fichier .json (format documenté).
+    const importBtn = document.createElement('button');
+    importBtn.className = 'palette__item palette__item--create';
+    importBtn.textContent = '⇪ Importer (.json)';
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.json,application/json';
+    fileInput.style.display = 'none';
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files?.[0];
+      if (!file) return;
+      void file.text().then((text) => {
+        try {
+          this.importCustomPart(JSON.parse(text));
+        } catch (err) {
+          this.showPaletteError(`Import impossible : ${err instanceof Error ? err.message : err}`);
+        }
+        fileInput.value = '';
+      });
+    });
+    importBtn.addEventListener('click', () => fileInput.click());
+    this.palette.append(importBtn, fileInput);
+  }
+
+  /** Valide puis enregistre un composant importé (fichier .json). */
+  private importCustomPart(raw: unknown): void {
+    const data = raw as Partial<CustomPartData>;
+    if (typeof data !== 'object' || data === null) throw new Error('JSON invalide.');
+    if (typeof data.label !== 'string' || !data.label) throw new Error('champ « label » manquant.');
+    if (typeof data.svg !== 'string' || !data.svg.includes('<svg')) throw new Error('champ « svg » manquant ou invalide.');
+    if (!Array.isArray(data.pins)) throw new Error('champ « pins » manquant.');
+    for (const pin of data.pins) {
+      if (typeof pin?.name !== 'string' || typeof pin?.x !== 'number' || typeof pin?.y !== 'number') {
+        throw new Error('chaque broche doit avoir name, x et y.');
+      }
+    }
+    this.saveCustomPart({
+      type: typeof data.type === 'string' && data.type ? data.type : `custom-${Date.now().toString(36)}`,
+      label: data.label,
+      kind: (data.kind as CustomPartData['kind']) ?? 'passive',
+      svg: data.svg,
+      pins: data.pins,
+      pinRoles: data.pinRoles,
+      attrs: data.attrs,
+    });
+  }
+
+  private showPaletteError(message: string): void {
+    const note = document.createElement('p');
+    note.className = 'inspector__hint';
+    note.style.color = '#ff8a8a';
+    note.textContent = message;
+    this.palette.appendChild(note);
+    setTimeout(() => note.remove(), 6000);
   }
 
   // --- Composants personnalisés ------------------------------------------------

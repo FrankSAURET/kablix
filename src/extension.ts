@@ -2,6 +2,20 @@ import * as vscode from 'vscode';
 import { SimulatorPanel } from './panel';
 
 export function activate(context: vscode.ExtensionContext): void {
+  // Vue de la barre d'activité : cliquer l'icône Kablix ouvre le simulateur.
+  const homeView = vscode.window.createTreeView('kablix.home', {
+    treeDataProvider: {
+      getChildren: () => [],
+      getTreeItem: (item: vscode.TreeItem) => item,
+    },
+  });
+  context.subscriptions.push(
+    homeView,
+    homeView.onDidChangeVisibility((e) => {
+      if (e.visible) SimulatorPanel.createOrShow(context);
+    })
+  );
+
   context.subscriptions.push(
     vscode.commands.registerCommand('kablix.openSimulator', () => {
       SimulatorPanel.createOrShow(context);

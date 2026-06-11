@@ -70,6 +70,10 @@ Aucun service en ligne n'est requis.
 Tout le pipeline (netlist → émulateur → affichage, parseurs UF2/ELF, exécution
 MicroPython de bout en bout) est couvert par des tests automatisés.
 
+> 📖 **Guide complet** : [docs/UTILISATION.md](docs/UTILISATION.md) — interface,
+> câblage, création de composants personnalisés, format `.kablix-part.json`,
+> sources de composants existants.
+
 ## Utilisation
 
 1. Palette de commandes (`Ctrl+Shift+P`) → **« Kablix : Ouvrir le simulateur »**.

@@ -302,6 +302,9 @@ exportBtn.addEventListener('click', () => {
 editor.onCustomPartsChange = (parts: CustomPartData[]) => {
   vscode.postMessage({ type: 'saveCustomParts', parts });
 };
+editor.onExportCustomPart = (part: CustomPartData) => {
+  vscode.postMessage({ type: 'exportCustomPart', part });
+};
 boardSelect.addEventListener('change', () => {
   board = boardSelect.value === 'pico' ? 'pico' : 'uno';
   vscode.postMessage({ type: 'board', board });

@@ -237,7 +237,7 @@ export class SimulatorPanel {
     );
   }
 
-  private onMessage(msg: { type?: string; board?: Board; svg?: string; parts?: unknown[] }): void {
+  private onMessage(msg: { type?: string; board?: Board; svg?: string; parts?: unknown[]; part?: unknown }): void {
     switch (msg?.type) {
       case 'ready':
         // Renvoie les composants personnalisés persistés.
@@ -263,7 +263,30 @@ export class SimulatorPanel {
       case 'saveCustomParts':
         void this.context.globalState.update(CUSTOM_PARTS_KEY, msg.parts ?? []);
         break;
+      case 'exportCustomPart':
+        if (msg.part) void this.saveCustomPartFile(msg.part as { label?: string });
+        break;
     }
+  }
+
+  /** Exporte un composant personnalisé en fichier .json (format documenté). */
+  private async saveCustomPartFile(part: { label?: string }): Promise<void> {
+    const safeName = (part.label ?? 'composant').replace(/[^\p{L}\p{N}_-]+/gu, '-').toLowerCase();
+    const folders = vscode.workspace.workspaceFolders;
+    const defaultUri = folders?.length
+      ? vscode.Uri.joinPath(folders[0].uri, `${safeName}.kablix-part.json`)
+      : vscode.Uri.file(`${safeName}.kablix-part.json`);
+    const target = await vscode.window.showSaveDialog({
+      defaultUri,
+      filters: { 'Composant Kablix': ['json'] },
+      title: 'Exporter le composant',
+    });
+    if (!target) return;
+    await vscode.workspace.fs.writeFile(
+      target,
+      new TextEncoder().encode(JSON.stringify(part, null, 2))
+    );
+    vscode.window.showInformationMessage(`Kablix : composant exporté vers ${target.fsPath}`);
   }
 
   /** Enregistre le schéma exporté en SVG via un dialogue de sauvegarde. */

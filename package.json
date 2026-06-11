@@ -1,7 +1,7 @@
 {
   "name": "kablix",
   "displayName": "Kablix",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Une application gauloise de simulation de microcontrôleurs (Arduino Uno / Raspberry Pi Pico) directement dans VS Code, 100% offline.",
   "publisher": "franksauret",
   "license": "MIT",
@@ -44,6 +44,29 @@
         "command": "kablix.loadWorkspaceArtifact",
         "title": "Kablix : Charger l'artefact compilé du workspace",
         "category": "Kablix"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "kablix",
+          "title": "Kablix",
+          "icon": "media/activity-icon.png"
+        }
+      ]
+    },
+    "views": {
+      "kablix": [
+        {
+          "id": "kablix.home",
+          "name": "Simulateur"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "kablix.home",
+        "contents": "Simulateur Arduino Uno / Raspberry Pi Pico, 100% offline.\n[▶ Ouvrir le simulateur](command:kablix.openSimulator)\n[⚙ Compiler & exécuter le fichier actif](command:kablix.compileAndRun)\n[↑ Charger l'artefact du workspace](command:kablix.loadWorkspaceArtifact)\n[📖 Documentation](https://github.com/franksauret/kablix/blob/main/docs/UTILISATION.md)"
       }
     ],
     "configuration": {
