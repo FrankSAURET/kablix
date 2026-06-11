@@ -8,19 +8,34 @@ La simulation s'appuie sur deux moteurs open-source embarqués dans l'extension 
 [rp2040js](https://github.com/wokwi/rp2040js) (RP2040), tous deux sous licence MIT.
 Aucun service en ligne n'est requis.
 
-## Fonctionnalités (v0.5.0)
+## Fonctionnalités (v0.6.0)
 
 - ✅ **Atelier visuel** : palette de composants, placement, **déplacement direct
-  à la souris** et **câblage broche-à-broche** sur un canvas (composants SVG
-  réalistes [@wokwi/elements](https://github.com/wokwi/wokwi-elements), MIT)
+  à la souris**, **rotation par pas de 45°** (touches `+` / `-`) et **câblage
+  broche-à-broche** sur un canvas (composants SVG réalistes
+  [@wokwi/elements](https://github.com/wokwi/wokwi-elements), MIT)
 - ✅ **Câblage multi-points** : cliquez une broche, posez des coudes en cliquant
   le fond (segments aimantés horizontal/vertical, **arrondi à chaque changement
   de direction**), terminez sur une broche — Échap annule
+- ✅ **Retouche des fils** : sélectionnez un fil pour faire apparaître les
+  **poignées de saisie** sur chaque coude (double-clic sur le fil pour en
+  ajouter) ; maintenez **Ctrl** pendant le glissement pour afficher un
+  **réticule H/V** et forcer les segments à l'horizontale/verticale
 - ✅ **Couleurs de fils Dupont** : les 10 couleurs des nappes arc-en-ciel,
   attribuées en rotation aux nouveaux fils et modifiables d'un clic
 - ✅ **Éditeur de composants** : panneau « Propriétés » — sélectionnez un
   composant (couleur de LED, valeur et angle de résistance, couleur de bouton,
   position du potentiomètre…) ou un fil (couleur, suppression) ; touche Suppr
+- ✅ **Créateur de composants** : bouton « + Créer un composant » — nom, dessin
+  SVG, points de connexion posés en cliquant l'aperçu, et modèle de simulation
+  (LED, bouton, résistance, buzzer, source numérique/analogique, décoratif)
+  avec correspondance des rôles de broches ; persistés entre les sessions
+- ✅ **Export SVG** : bouton « ⬇ SVG » — schéma complet (composants, rotations,
+  fils colorés) exporté en fichier SVG autonome
+- ✅ **Bibliothèque étendue** : afficheur 7 segments, barre de 10 LED,
+  interrupteur à glissière, DIP switch ×8, joystick analogique, potentiomètre
+  à glissière, photorésistance (LDR), détecteur de mouvement PIR, capteur
+  d'inclinaison, servomoteur — tous pilotés par la netlist
 - ✅ **Carte Raspberry Pi Pico** : élément SVG maison (`<kablix-pico-board>`)
   avec les 40 broches colorées (GP = or, GND = gris, alimentation = rouge),
   la **LED embarquée GP25** qui clignote visuellement, le connecteur USB et le

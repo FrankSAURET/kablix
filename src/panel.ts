@@ -8,6 +8,7 @@ import {
 } from './compiler';
 
 const ARTIFACT_EXTS = ['.hex', '.uf2', '.elf', '.bin'];
+const CUSTOM_PARTS_KEY = 'kablix.customParts';
 
 /**
  * Gère le panneau webview du simulateur. Un seul panneau est ouvert à la fois ;
@@ -19,10 +20,11 @@ export class SimulatorPanel {
 
   private readonly panel: vscode.WebviewPanel;
   private readonly extensionUri: vscode.Uri;
+  private readonly context: vscode.ExtensionContext;
   private readonly disposables: vscode.Disposable[] = [];
   private currentBoard: Board = 'uno';
 
-  public static createOrShow(extensionUri: vscode.Uri): SimulatorPanel {
+  public static createOrShow(context: vscode.ExtensionContext): SimulatorPanel {
     const column = vscode.window.activeTextEditor?.viewColumn;
 
     if (SimulatorPanel.current) {
@@ -30,6 +32,7 @@ export class SimulatorPanel {
       return SimulatorPanel.current;
     }
 
+    const extensionUri = context.extensionUri;
     const panel = vscode.window.createWebviewPanel(
       SimulatorPanel.viewType,
       'Kablix — Simulateur',
@@ -44,7 +47,7 @@ export class SimulatorPanel {
       }
     );
 
-    SimulatorPanel.current = new SimulatorPanel(panel, extensionUri);
+    SimulatorPanel.current = new SimulatorPanel(panel, context);
     return SimulatorPanel.current;
   }
 
@@ -221,9 +224,10 @@ export class SimulatorPanel {
     vscode.window.showErrorMessage(`Kablix : ${message}`);
   }
 
-  private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
+  private constructor(panel: vscode.WebviewPanel, context: vscode.ExtensionContext) {
     this.panel = panel;
-    this.extensionUri = extensionUri;
+    this.context = context;
+    this.extensionUri = context.extensionUri;
     this.panel.webview.html = this.getHtml(this.panel.webview);
     this.panel.onDidDispose(() => this.onDispose(), null, this.disposables);
     this.panel.webview.onDidReceiveMessage(
@@ -233,8 +237,15 @@ export class SimulatorPanel {
     );
   }
 
-  private onMessage(msg: { type?: string; board?: Board }): void {
+  private onMessage(msg: { type?: string; board?: Board; svg?: string; parts?: unknown[] }): void {
     switch (msg?.type) {
+      case 'ready':
+        // Renvoie les composants personnalisés persistés.
+        this.post({
+          type: 'customParts',
+          parts: this.context.globalState.get<unknown[]>(CUSTOM_PARTS_KEY, []),
+        });
+        break;
       case 'board':
         if (msg.board) this.currentBoard = msg.board;
         break;
@@ -246,7 +257,29 @@ export class SimulatorPanel {
         if (msg.board) this.currentBoard = msg.board;
         void this.loadWorkspaceArtifact();
         break;
+      case 'exportSvg':
+        if (msg.svg) void this.saveSvg(msg.svg);
+        break;
+      case 'saveCustomParts':
+        void this.context.globalState.update(CUSTOM_PARTS_KEY, msg.parts ?? []);
+        break;
     }
+  }
+
+  /** Enregistre le schéma exporté en SVG via un dialogue de sauvegarde. */
+  private async saveSvg(svg: string): Promise<void> {
+    const folders = vscode.workspace.workspaceFolders;
+    const defaultUri = folders?.length
+      ? vscode.Uri.joinPath(folders[0].uri, 'schema-kablix.svg')
+      : vscode.Uri.file('schema-kablix.svg');
+    const target = await vscode.window.showSaveDialog({
+      defaultUri,
+      filters: { 'Image SVG': ['svg'] },
+      title: 'Exporter le schéma en SVG',
+    });
+    if (!target) return;
+    await vscode.workspace.fs.writeFile(target, new TextEncoder().encode(svg));
+    vscode.window.showInformationMessage(`Kablix : schéma exporté vers ${target.fsPath}`);
   }
 
   private post(message: unknown): void {
@@ -297,6 +330,7 @@ export class SimulatorPanel {
     <button id="stop" disabled>■ Arrêter</button>
     <button id="compile">⚙ Compiler &amp; exécuter le fichier actif</button>
     <button id="load-workspace" title="Charge l'artefact compilé le plus récent du workspace">↑ Charger workspace</button>
+    <button id="export-svg" title="Exporter le schéma en SVG">⬇ SVG</button>
     <span id="status" class="status">Prêt</span>
   </header>
 

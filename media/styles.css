@@ -103,6 +103,32 @@ body {
   border-color: var(--vscode-focusBorder, #0e639c);
 }
 
+.palette__custom {
+  display: flex;
+  gap: 0.3rem;
+  align-items: stretch;
+}
+
+.palette__custom .palette__item {
+  flex: 1;
+}
+
+.palette__custom-del {
+  font: inherit;
+  font-size: 0.7rem;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-input-border, #555);
+  background: var(--vscode-input-background, #2a2a2a);
+  color: #ff8a8a;
+  cursor: pointer;
+  padding: 0 0.4rem;
+}
+
+.palette__item--create {
+  border-style: dashed;
+  opacity: 0.85;
+}
+
 .canvas {
   position: relative;
   flex: 1;
@@ -149,6 +175,31 @@ body {
   stroke-dasharray: 5 4;
   pointer-events: none;
   cursor: default;
+}
+
+/* Réticule d'alignement H/V (retouche d'un coude avec Ctrl) */
+.wire-guide {
+  stroke: var(--vscode-focusBorder, #4fa3ff);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+  pointer-events: none;
+}
+
+/* Poignée de saisie d'un coude du fil sélectionné */
+.wire-handle {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  margin: -5.5px 0 0 -5.5px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid var(--vscode-focusBorder, #0e639c);
+  cursor: grab;
+  z-index: 5;
+}
+
+.wire-handle:hover {
+  transform: scale(1.25);
 }
 
 /* --- Inspecteur (éditeur de composants) ------------------------------------- */
@@ -293,6 +344,124 @@ body {
 .pin:hover {
   background: #ffd633;
   box-shadow: 0 0 6px 2px rgba(255, 214, 51, 0.7);
+}
+
+/* --- Créateur de composants -------------------------------------------------- */
+.creator__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.creator {
+  width: min(760px, 92vw);
+  max-height: 88vh;
+  overflow: auto;
+  background: var(--vscode-editorWidget-background, #252526);
+  border: 1px solid var(--vscode-panel-border, #444);
+  border-radius: 10px;
+  padding: 1rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.creator h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.creator__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.creator__form,
+.creator__side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.creator__svg {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.75rem;
+  min-height: 140px;
+  resize: vertical;
+  color: var(--vscode-input-foreground, #fff);
+  background: var(--vscode-input-background, #1e1e1e);
+  border: 1px solid var(--vscode-input-border, #555);
+  border-radius: 4px;
+  padding: 0.4rem;
+}
+
+.creator__preview {
+  position: relative;
+  min-height: 120px;
+  background:
+    linear-gradient(rgba(127, 127, 127, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(127, 127, 127, 0.12) 1px, transparent 1px);
+  background-size: 10px 10px;
+  background-color: var(--vscode-editor-background, #1e1e1e);
+  border: 1px solid var(--vscode-input-border, #555);
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: crosshair;
+}
+
+.creator__pins {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-height: 160px;
+  overflow: auto;
+}
+
+.creator__pinrow {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.creator__pinrow input {
+  width: 90px;
+}
+
+.creator__pinrow button {
+  font: inherit;
+  font-size: 0.7rem;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-input-border, #555);
+  background: var(--vscode-input-background, #333);
+  color: #ff8a8a;
+  cursor: pointer;
+}
+
+.creator__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.creator__actions button {
+  font: inherit;
+  padding: 0.35rem 0.9rem;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-input-border, #555);
+  background: var(--vscode-input-background, #333);
+  color: var(--vscode-input-foreground, #fff);
+  cursor: pointer;
+}
+
+.creator__actions button.primary {
+  background: var(--vscode-button-background, #0e639c);
+  color: var(--vscode-button-foreground, #fff);
+  border-color: transparent;
 }
 
 /* --- Moniteur série -------------------------------------------------------- */

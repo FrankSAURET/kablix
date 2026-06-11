@@ -6,9 +6,19 @@
 // un point intermédiaire (aimanté horizontal/vertical) ; cliquer une autre
 // broche termine le fil. Échap annule. Les fils sont tracés avec un congé à
 // chaque changement de direction et colorés selon la nappe Dupont.
-import { CATALOG, partDef, type PropDef } from './catalog.mjs';
+import {
+  CATALOG,
+  listCustomParts,
+  partDef,
+  registerCustomPart,
+  unregisterCustomPart,
+  type CustomPartData,
+  type PropDef,
+} from './catalog.mjs';
 import type { Diagram, Endpoint, Part, Wire } from './model.mjs';
 import { DUPONT_COLORS, dupontHex, roundedWirePath, snapPoint, type XY } from './geometry.mjs';
+import { PartCreator } from './creator.mjs';
+import '../elements/custom-part.mjs';
 
 interface WokwiPin {
   name: string;
@@ -43,12 +53,19 @@ export class Editor {
   readonly diagram: Diagram = { parts: [], wires: [] };
   onChange: (() => void) | null = null;
 
+  /** Appelé quand la liste des composants personnalisés change (persistance). */
+  onCustomPartsChange: ((parts: CustomPartData[]) => void) | null = null;
+
   private rendered = new Map<string, Rendered>();
   private wirePaths = new Map<string, SVGPathElement>();
   private pending: PendingWire | null = null;
   private tempPath: SVGPathElement | null = null;
   private selection: Selection = null;
   private colorIndex = 0;
+  private customData = new Map<string, CustomPartData>();
+  private creator = new PartCreator((data) => this.saveCustomPart(data));
+  private handles: HTMLDivElement[] = [];
+  private guides: SVGLineElement[] = [];
 
   constructor(
     private readonly canvas: HTMLDivElement,
@@ -73,6 +90,11 @@ export class Editor {
 
   // --- Palette ---------------------------------------------------------------
   private buildPalette(): void {
+    this.palette.replaceChildren();
+    const title = document.createElement('h3');
+    title.textContent = 'Composants';
+    this.palette.appendChild(title);
+
     for (const def of CATALOG) {
       const btn = document.createElement('button');
       btn.className = 'palette__item';
@@ -80,6 +102,57 @@ export class Editor {
       btn.addEventListener('click', () => this.addPart(def.type));
       this.palette.appendChild(btn);
     }
+
+    // Composants personnalisés : bouton d'ajout + suppression du modèle (✕).
+    for (const def of listCustomParts()) {
+      const row = document.createElement('div');
+      row.className = 'palette__custom';
+      const btn = document.createElement('button');
+      btn.className = 'palette__item';
+      btn.textContent = `★ ${def.label}`;
+      btn.addEventListener('click', () => this.addPart(def.type));
+      const del = document.createElement('button');
+      del.className = 'palette__custom-del';
+      del.textContent = '✕';
+      del.title = 'Supprimer ce modèle de composant';
+      del.addEventListener('click', () => this.removeCustomPart(def.type));
+      row.append(btn, del);
+      this.palette.appendChild(row);
+    }
+
+    const create = document.createElement('button');
+    create.className = 'palette__item palette__item--create';
+    create.textContent = '+ Créer un composant';
+    create.addEventListener('click', () => this.creator.open());
+    this.palette.appendChild(create);
+  }
+
+  // --- Composants personnalisés ------------------------------------------------
+  /** Recharge les composants personnalisés persistés (envoyés par l'extension). */
+  loadCustomParts(parts: CustomPartData[]): void {
+    for (const data of parts) {
+      this.customData.set(data.type, data);
+      registerCustomPart(data);
+    }
+    this.buildPalette();
+  }
+
+  private saveCustomPart(data: CustomPartData): void {
+    this.customData.set(data.type, data);
+    registerCustomPart(data);
+    this.buildPalette();
+    this.onCustomPartsChange?.([...this.customData.values()]);
+  }
+
+  private removeCustomPart(type: string): void {
+    // Retire d'abord les instances posées sur le canvas.
+    for (const part of [...this.diagram.parts]) {
+      if (part.type === type) this.removePart(part.id);
+    }
+    this.customData.delete(type);
+    unregisterCustomPart(type);
+    this.buildPalette();
+    this.onCustomPartsChange?.([...this.customData.values()]);
   }
 
   // --- Ajout / suppression de composants -------------------------------------
@@ -167,12 +240,16 @@ export class Editor {
     const body = document.createElement('div');
     body.className = 'part__body';
     const el = document.createElement(def.tag) as WokwiElement;
+    if (def.custom) {
+      (el as unknown as { definition: typeof def }).definition = def;
+    }
     for (const [k, v] of Object.entries(part.attrs ?? def.attrs ?? {})) {
       if (v !== '') el.setAttribute(k, v);
     }
     body.appendChild(el);
     container.appendChild(body);
     this.canvas.appendChild(container);
+    this.applyRotation(part, body);
 
     // Déplacement : par tout le corps, sauf pour les composants interactifs
     // (bouton, potentiomètre) qu'on déplace par leur bandeau uniquement.
@@ -214,6 +291,26 @@ export class Editor {
     r.container.remove();
     this.rendered.delete(id);
     this.renderPart(r.part);
+  }
+
+  // --- Rotation ----------------------------------------------------------------
+  private applyRotation(part: Part, body: HTMLDivElement): void {
+    const deg = part.rotation ?? 0;
+    body.style.transformOrigin = 'center center';
+    body.style.transform = deg ? `rotate(${deg}deg)` : '';
+  }
+
+  /** Tourne le composant sélectionné de ±45° (touches + / -). */
+  rotateSelection(deltaDeg: number): void {
+    if (this.selection?.kind !== 'part') return;
+    const r = this.rendered.get(this.selection.id);
+    if (!r) return;
+    r.part.rotation = (((r.part.rotation ?? 0) + deltaDeg) % 360 + 360) % 360;
+    const body = r.container.querySelector('.part__body') as HTMLDivElement | null;
+    if (body) this.applyRotation(r.part, body);
+    // Les pastilles tournent avec le corps : leurs positions à l'écran changent.
+    this.redrawWires();
+    this.notify();
   }
 
   // --- Déplacement -----------------------------------------------------------
@@ -346,14 +443,18 @@ export class Editor {
   }
 
   private onKeyDown = (e: KeyboardEvent): void => {
+    const target = e.target as HTMLElement | null;
+    const typing = target && (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA');
     if (e.key === 'Escape') {
       this.cancelPending();
       this.select(null);
-    } else if (e.key === 'Delete' || e.key === 'Backspace') {
-      const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'SELECT')) return;
+    } else if ((e.key === 'Delete' || e.key === 'Backspace') && !typing) {
       if (this.selection?.kind === 'part') this.removePart(this.selection.id);
       else if (this.selection?.kind === 'wire') this.removeWire(this.selection.id);
+    } else if ((e.key === '+' || e.key === '=') && !typing) {
+      this.rotateSelection(45);
+    } else if (e.key === '-' && !typing) {
+      this.rotateSelection(-45);
     }
   };
 
@@ -367,9 +468,136 @@ export class Editor {
       if (this.pending) return;
       this.select({ kind: 'wire', id: wire.id });
     });
+    // Double-clic : insère un coude à cet endroit (retouche du tracé).
+    path.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      this.insertWirePoint(wire.id, this.canvasPoint(e.clientX, e.clientY));
+    });
     this.svg.appendChild(path);
     this.wirePaths.set(wire.id, path);
     this.positionWire(wire);
+  }
+
+  /** Insère un point de retouche dans le segment le plus proche du clic. */
+  private insertWirePoint(wireId: string, at: XY): void {
+    const wire = this.diagram.wires.find((w) => w.id === wireId);
+    if (!wire) return;
+    const a = this.hotspotCenter(wire.a);
+    const b = this.hotspotCenter(wire.b);
+    if (!a || !b) return;
+    const pts = [a, ...(wire.points ?? []), b];
+    // Segment le plus proche du point cliqué.
+    let bestIndex = 0;
+    let bestDist = Infinity;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const d = distToSegment(at, pts[i], pts[i + 1]);
+      if (d < bestDist) {
+        bestDist = d;
+        bestIndex = i;
+      }
+    }
+    wire.points = wire.points ?? [];
+    wire.points.splice(bestIndex, 0, at);
+    this.positionWire(wire);
+    this.select({ kind: 'wire', id: wireId }); // rafraîchit les poignées
+    this.notify();
+  }
+
+  // --- Poignées de retouche des coudes ----------------------------------------
+  private clearHandles(): void {
+    for (const h of this.handles) h.remove();
+    this.handles = [];
+    this.clearGuides();
+  }
+
+  private clearGuides(): void {
+    for (const g of this.guides) g.remove();
+    this.guides = [];
+  }
+
+  /** Affiche une poignée de saisie sur chaque coude du fil sélectionné. */
+  private buildHandles(wireId: string): void {
+    this.clearHandles();
+    const wire = this.diagram.wires.find((w) => w.id === wireId);
+    if (!wire?.points) return;
+    wire.points.forEach((pt, index) => {
+      const handle = document.createElement('div');
+      handle.className = 'wire-handle';
+      handle.style.left = `${pt.x}px`;
+      handle.style.top = `${pt.y}px`;
+      handle.title = 'Glisser pour déplacer — Ctrl : alignement H/V';
+      handle.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        this.dragHandle(wire, index, handle);
+      });
+      this.canvas.appendChild(handle);
+      this.handles.push(handle);
+    });
+  }
+
+  private dragHandle(wire: Wire, index: number, handle: HTMLDivElement): void {
+    const move = (ev: PointerEvent) => {
+      if (!wire.points) return;
+      let pos = this.canvasPoint(ev.clientX, ev.clientY);
+      if (ev.ctrlKey) {
+        // Réticule + forçage : aligne le coude sur ses voisins (segments H/V).
+        pos = this.alignToNeighbours(wire, index, pos);
+        this.showGuides(pos);
+      } else {
+        this.clearGuides();
+      }
+      wire.points[index] = pos;
+      handle.style.left = `${pos.x}px`;
+      handle.style.top = `${pos.y}px`;
+      this.positionWire(wire);
+    };
+    const end = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', end);
+      this.clearGuides();
+      this.notify();
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', end);
+  }
+
+  /** Force le coude sur l'horizontale/verticale de ses voisins (points ou broches). */
+  private alignToNeighbours(wire: Wire, index: number, pos: XY): XY {
+    const pts = wire.points ?? [];
+    const prev = index > 0 ? pts[index - 1] : this.hotspotCenter(wire.a);
+    const next = index < pts.length - 1 ? pts[index + 1] : this.hotspotCenter(wire.b);
+    let { x, y } = pos;
+    const SNAP = 14;
+    for (const n of [prev, next]) {
+      if (!n) continue;
+      if (Math.abs(x - n.x) <= SNAP) x = n.x; // segment vertical exact
+      if (Math.abs(y - n.y) <= SNAP) y = n.y; // segment horizontal exact
+    }
+    return { x, y };
+  }
+
+  /** Réticule horizontal + vertical passant par le point (mode Ctrl). */
+  private showGuides(at: XY): void {
+    if (this.guides.length === 0) {
+      for (let i = 0; i < 2; i++) {
+        const line = document.createElementNS(SVG_NS, 'line');
+        line.setAttribute('class', 'wire-guide');
+        this.svg.appendChild(line);
+        this.guides.push(line);
+      }
+    }
+    const w = this.canvas.clientWidth;
+    const h = this.canvas.clientHeight;
+    const [hLine, vLine] = this.guides;
+    hLine.setAttribute('x1', '0');
+    hLine.setAttribute('y1', String(at.y));
+    hLine.setAttribute('x2', String(w));
+    hLine.setAttribute('y2', String(at.y));
+    vLine.setAttribute('x1', String(at.x));
+    vLine.setAttribute('y1', '0');
+    vLine.setAttribute('x2', String(at.x));
+    vLine.setAttribute('y2', String(h));
   }
 
   removeWire(id: string): void {
@@ -410,10 +638,12 @@ export class Editor {
       this.wirePaths.get(this.selection.id)?.classList.remove('wire--selected');
     }
     this.selection = sel;
+    this.clearHandles();
     if (sel?.kind === 'part') {
       this.rendered.get(sel.id)?.container.classList.add('part--selected');
     } else if (sel?.kind === 'wire') {
       this.wirePaths.get(sel.id)?.classList.add('wire--selected');
+      this.buildHandles(sel.id);
     }
     this.renderInspector();
   }
@@ -571,4 +801,75 @@ export class Editor {
   private notify(): void {
     this.onChange?.();
   }
+
+  // --- Export SVG ----------------------------------------------------------------
+  /**
+   * Sérialise le schéma en SVG autonome : dessin de chaque composant (extrait
+   * de son shadow DOM), rotations appliquées, puis les fils colorés par-dessus.
+   */
+  exportSvg(): string {
+    const serializer = new XMLSerializer();
+    const parts: string[] = [];
+    let maxX = 400;
+    let maxY = 300;
+
+    for (const r of this.rendered.values()) {
+      const root = r.el.shadowRoot ?? r.el;
+      const svgEl = root.querySelector('svg');
+      if (!svgEl) continue;
+      const body = r.container.querySelector('.part__body') as HTMLElement | null;
+      const x = r.part.x;
+      const y = r.part.y + (body?.offsetTop ?? 0);
+      const w = r.el.offsetWidth || svgEl.width.baseVal.value || 80;
+      const h = r.el.offsetHeight || svgEl.height.baseVal.value || 60;
+      maxX = Math.max(maxX, x + w + 60);
+      maxY = Math.max(maxY, y + h + 60);
+
+      const clone = svgEl.cloneNode(true) as SVGSVGElement;
+      clone.setAttribute('x', String(x));
+      clone.setAttribute('y', String(y));
+      const inner = serializer.serializeToString(clone);
+      const deg = r.part.rotation ?? 0;
+      parts.push(
+        deg
+          ? `<g transform="rotate(${deg} ${x + w / 2} ${y + h / 2})">${inner}</g>`
+          : inner
+      );
+    }
+
+    const wires: string[] = [];
+    for (const wire of this.diagram.wires) {
+      const a = this.hotspotCenter(wire.a);
+      const b = this.hotspotCenter(wire.b);
+      if (!a || !b) continue;
+      const d = roundedWirePath([a, ...(wire.points ?? []), b]);
+      wires.push(
+        `<path d="${d}" fill="none" stroke="${dupontHex(wire.color ?? 'green')}" ` +
+          `stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`
+      );
+      for (const p of wire.points ?? []) {
+        maxX = Math.max(maxX, p.x + 40);
+        maxY = Math.max(maxY, p.y + 40);
+      }
+    }
+
+    return [
+      `<?xml version="1.0" encoding="UTF-8"?>`,
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.ceil(maxX)}" height="${Math.ceil(maxY)}" ` +
+        `viewBox="0 0 ${Math.ceil(maxX)} ${Math.ceil(maxY)}">`,
+      `<!-- Schéma exporté par Kablix -->`,
+      ...parts,
+      ...wires,
+      `</svg>`,
+    ].join('\n');
+  }
+}
+
+/** Distance d'un point à un segment [a,b]. */
+function distToSegment(p: XY, a: XY, b: XY): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy;
+  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2));
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
 }

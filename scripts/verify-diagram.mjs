@@ -18,7 +18,22 @@ await esbuild.build({
   format: 'esm',
   logLevel: 'silent',
 });
-const { ledOn, rgbLedState, buzzerOn, buttonBindings, potBindings } = await import(pathToFileURL(out).href);
+const {
+  ledOn, rgbLedState, buzzerOn, buttonBindings, potBindings,
+  sevenSegmentState, ledBarState, slideSwitchBindings, dipSwitchBindings,
+  joystickBindings, digitalSourceBindings, analogSourceBindings, servoBindings,
+} = await import(pathToFileURL(out).href);
+
+const outCat = join(mkdtempSync(join(tmpdir(), 'kablix-cat-')), 'catalog.mjs');
+await esbuild.build({
+  entryPoints: [join(root, 'src/webview/diagram/catalog.mts')],
+  outfile: outCat,
+  bundle: true,
+  platform: 'node',
+  format: 'esm',
+  logLevel: 'silent',
+});
+const { registerCustomPart, rolePin } = await import(pathToFileURL(outCat).href);
 
 const outGeo = join(mkdtempSync(join(tmpdir(), 'kablix-geo-')), 'geometry.mjs');
 await esbuild.build({
@@ -100,6 +115,71 @@ check('LED éteinte quand GP25 = LOW', !ledOn(picoDiagram, 'led', () => false));
   check('buzzer inactif quand GP14 = LOW', !buzzerOn(picoDiagram, 'bz', () => false));
   const rgb = rgbLedState(picoDiagram, 'rgb', (n) => n === 'GP16' || n === 'GP18');
   check('LED RGB : canaux rouge+bleu allumés, vert éteint', rgb.red && !rgb.green && rgb.blue);
+}
+
+// Schéma Uno : nouveaux composants (7 segments, interrupteurs, joystick, sources, servo).
+const extDiagram = {
+  parts: [
+    { id: 'uno', type: 'uno', x: 0, y: 0 },
+    { id: 'seg', type: '7seg', x: 0, y: 0 },
+    { id: 'bar', type: 'led-bar', x: 0, y: 0 },
+    { id: 'sw', type: 'slide-switch', x: 0, y: 0 },
+    { id: 'dip', type: 'dip-switch', x: 0, y: 0 },
+    { id: 'joy', type: 'joystick', x: 0, y: 0 },
+    { id: 'ldr', type: 'photoresistor', x: 0, y: 0, attrs: { value: '75' } },
+    { id: 'pir', type: 'pir', x: 0, y: 0, attrs: { state: '1' } },
+    { id: 'srv', type: 'servo', x: 0, y: 0 },
+  ],
+  wires: [
+    { id: 'x1', a: { partId: 'uno', pin: '3' }, b: { partId: 'seg', pin: 'A' } },
+    { id: 'x2', a: { partId: 'seg', pin: 'DIG1' }, b: { partId: 'uno', pin: 'GND.1' } },
+    { id: 'x3', a: { partId: 'uno', pin: '4' }, b: { partId: 'bar', pin: 'A1' } },
+    { id: 'x4', a: { partId: 'bar', pin: 'C1' }, b: { partId: 'uno', pin: 'GND.1' } },
+    { id: 'x5', a: { partId: 'uno', pin: '5' }, b: { partId: 'sw', pin: '1' } },
+    { id: 'x6', a: { partId: 'sw', pin: '2' }, b: { partId: 'uno', pin: 'GND.2' } },
+    { id: 'x7', a: { partId: 'uno', pin: '6' }, b: { partId: 'dip', pin: '3a' } },
+    { id: 'x8', a: { partId: 'dip', pin: '3b' }, b: { partId: 'uno', pin: 'GND.2' } },
+    { id: 'x9', a: { partId: 'joy', pin: 'VERT' }, b: { partId: 'uno', pin: 'A1' } },
+    { id: 'x10', a: { partId: 'joy', pin: 'SEL' }, b: { partId: 'uno', pin: '7' } },
+    { id: 'x11', a: { partId: 'ldr', pin: 'AO' }, b: { partId: 'uno', pin: 'A2' } },
+    { id: 'x12', a: { partId: 'pir', pin: 'OUT' }, b: { partId: 'uno', pin: '8' } },
+    { id: 'x13', a: { partId: 'uno', pin: '9' }, b: { partId: 'srv', pin: 'PWM' } },
+  ],
+};
+
+console.log('Nouveaux composants (netlist) :');
+{
+  const seg = sevenSegmentState(extDiagram, 'seg', (n) => n === '3');
+  check('7 segments : segment A allumé seul', seg[0] === 1 && seg.slice(1).every((v) => v === 0));
+  const bar = ledBarState(extDiagram, 'bar', (n) => n === '4');
+  check('barre LED : LED 1 allumée seule', bar[0] === 1 && bar.slice(1).every((v) => v === 0));
+  const sw = slideSwitchBindings(extDiagram);
+  check('interrupteur : côté 1 lié à D5', sw.length === 1 && sw[0].mcuPin === '5' && sw[0].side === 1);
+  const dip = dipSwitchBindings(extDiagram);
+  check('DIP : canal 3 lié à D6', dip.length === 1 && dip[0].mcuPin === '6' && dip[0].channel === 3);
+  const joy = joystickBindings(extDiagram);
+  check('joystick : VERT→A1, SEL→D7', joy.length === 1 && joy[0].vert === 'A1' && joy[0].sel === '7');
+  const ldr = analogSourceBindings(extDiagram);
+  check('photorésistance : AO→A2', ldr.length === 1 && ldr[0].mcuPin === 'A2');
+  const pir = digitalSourceBindings(extDiagram);
+  check('PIR : OUT→D8', pir.length === 1 && pir[0].mcuPin === '8');
+  const srv = servoBindings(extDiagram);
+  check('servo : PWM→D9', srv.length === 1 && srv[0].mcuPin === '9');
+}
+
+console.log('Composant personnalisé (rôles de broches) :');
+{
+  registerCustomPart({
+    type: 'custom-test',
+    label: 'Ma LED',
+    kind: 'led',
+    svg: '<svg width="20" height="20"></svg>',
+    pins: [{ name: 'plus', x: 5, y: 5 }, { name: 'moins', x: 15, y: 5 }],
+    pinRoles: { A: 'plus', C: 'moins' },
+  });
+  check('rolePin A → plus', rolePin('custom-test', 'A') === 'plus');
+  check('rolePin C → moins', rolePin('custom-test', 'C') === 'moins');
+  // Le modèle bundlé séparément a son propre registre : on y enregistre aussi.
 }
 
 console.log('Géométrie des fils :');

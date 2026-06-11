@@ -1,6 +1,6 @@
 // Modèle de schéma (pur, sans DOM) : composants, fils, calcul de la netlist et
 // résolution logique des composants. Entièrement testable hors navigateur.
-import { mcuPinRole, mcuPins, partDef, type BoardId } from './catalog.mjs';
+import { mcuPinRole, mcuPins, partDef, rolePin, type BoardId } from './catalog.mjs';
 
 export interface Endpoint {
   partId: string;
@@ -24,6 +24,8 @@ export interface Part {
   y: number;
   /** Attributs effectifs de l'élément (couleur de LED, valeur de résistance…). */
   attrs?: Record<string, string>;
+  /** Rotation en degrés (multiples de 45, sens horaire). */
+  rotation?: number;
 }
 
 export interface Diagram {
@@ -119,15 +121,20 @@ function netLevel(
   return mcuLevel;
 }
 
+function partType(diagram: Diagram, partId: string): string {
+  return diagram.parts.find((p) => p.id === partId)?.type ?? '';
+}
+
 /** Une LED est allumée si son anode est au niveau haut et sa cathode au niveau bas. */
 export function ledOn(
   diagram: Diagram,
   ledId: string,
   readPin: (name: string) => boolean
 ): boolean {
+  const type = partType(diagram, ledId);
   const nets = buildNets(diagram);
-  const anode = netLevel(diagram, nets, nets.netOf({ partId: ledId, pin: 'A' }), readPin);
-  const cathode = netLevel(diagram, nets, nets.netOf({ partId: ledId, pin: 'C' }), readPin);
+  const anode = netLevel(diagram, nets, nets.netOf({ partId: ledId, pin: rolePin(type, 'A') }), readPin);
+  const cathode = netLevel(diagram, nets, nets.netOf({ partId: ledId, pin: rolePin(type, 'C') }), readPin);
   return anode === 1 && cathode === 0;
 }
 
@@ -157,10 +164,44 @@ export function buzzerOn(
   partId: string,
   readPin: (name: string) => boolean
 ): boolean {
+  const type = partType(diagram, partId);
   const nets = buildNets(diagram);
-  const a = netLevel(diagram, nets, nets.netOf({ partId, pin: '1' }), readPin);
-  const b = netLevel(diagram, nets, nets.netOf({ partId, pin: '2' }), readPin);
+  const a = netLevel(diagram, nets, nets.netOf({ partId, pin: rolePin(type, '1') }), readPin);
+  const b = netLevel(diagram, nets, nets.netOf({ partId, pin: rolePin(type, '2') }), readPin);
   return (a === 1 && b === 0) || (a === 0 && b === 1);
+}
+
+/**
+ * Segments allumés d'un afficheur 7 segments (1 chiffre, cathode commune
+ * DIG1) : ordre A,B,C,D,E,F,G,DP — compatible avec la propriété `values`
+ * de wokwi-7segment.
+ */
+export function sevenSegmentState(
+  diagram: Diagram,
+  partId: string,
+  readPin: (name: string) => boolean
+): number[] {
+  const nets = buildNets(diagram);
+  const level = (pin: string): Level =>
+    netLevel(diagram, nets, nets.netOf({ partId, pin }), readPin);
+  const common = level('DIG1');
+  return ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'DP'].map(
+    (seg) => (level(seg) === 1 && common === 0 ? 1 : 0)
+  );
+}
+
+/** LED allumées d'une barre de 10 LED (anodes A1..A10, cathodes C1..C10). */
+export function ledBarState(
+  diagram: Diagram,
+  partId: string,
+  readPin: (name: string) => boolean
+): number[] {
+  const nets = buildNets(diagram);
+  const level = (pin: string): Level =>
+    netLevel(diagram, nets, nets.netOf({ partId, pin }), readPin);
+  return Array.from({ length: 10 }, (_, i) =>
+    level(`A${i + 1}`) === 1 && level(`C${i + 1}`) === 0 ? 1 : 0
+  );
 }
 
 export interface ButtonBinding {
@@ -179,8 +220,8 @@ export function buttonBindings(diagram: Diagram): ButtonBinding[] {
 
   for (const part of diagram.parts) {
     if (partDef(part.type).kind !== 'pushbutton') continue;
-    const netA = nets.netOf({ partId: part.id, pin: '1.l' });
-    const netB = nets.netOf({ partId: part.id, pin: '2.l' });
+    const netA = nets.netOf({ partId: part.id, pin: rolePin(part.type, '1.l') });
+    const netB = nets.netOf({ partId: part.id, pin: rolePin(part.type, '2.l') });
 
     const mcuA = mcuDigitalOnNet(diagram, nets, netA);
     const mcuB = mcuDigitalOnNet(diagram, nets, netB);
@@ -189,6 +230,123 @@ export function buttonBindings(diagram: Diagram): ButtonBinding[] {
 
     if (mcuA && gndB) bindings.push({ partId: part.id, mcuPin: mcuA });
     else if (mcuB && gndA) bindings.push({ partId: part.id, mcuPin: mcuB });
+  }
+  return bindings;
+}
+
+export interface SwitchBinding {
+  partId: string;
+  mcuPin: string;
+  /** Pour l'interrupteur à glissière : côté relié (broche 1 ou 3). */
+  side?: 1 | 3;
+  /** Pour le DIP switch : numéro de canal (1..8). */
+  channel?: number;
+}
+
+/**
+ * Interrupteurs à glissière câblés [broche 1 ou 3] ↔ MCU avec le commun (2)
+ * à la masse : la broche MCU est tirée à LOW quand l'interrupteur connecte
+ * ce côté.
+ */
+export function slideSwitchBindings(diagram: Diagram): SwitchBinding[] {
+  const nets = buildNets(diagram);
+  const bindings: SwitchBinding[] = [];
+  for (const part of diagram.parts) {
+    if (partDef(part.type).kind !== 'slide-switch') continue;
+    const common = nets.netOf({ partId: part.id, pin: '2' });
+    if (!netHasGnd(diagram, nets, common)) continue;
+    for (const side of [1, 3] as const) {
+      const mcuPin = mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin: String(side) }));
+      if (mcuPin) bindings.push({ partId: part.id, mcuPin, side });
+    }
+  }
+  return bindings;
+}
+
+/** Canaux de DIP switch câblés [na ↔ MCU, nb ↔ GND] (ou l'inverse). */
+export function dipSwitchBindings(diagram: Diagram): SwitchBinding[] {
+  const nets = buildNets(diagram);
+  const bindings: SwitchBinding[] = [];
+  for (const part of diagram.parts) {
+    if (partDef(part.type).kind !== 'dip-switch') continue;
+    for (let ch = 1; ch <= 8; ch++) {
+      const netA = nets.netOf({ partId: part.id, pin: `${ch}a` });
+      const netB = nets.netOf({ partId: part.id, pin: `${ch}b` });
+      const mcuA = mcuDigitalOnNet(diagram, nets, netA);
+      const mcuB = mcuDigitalOnNet(diagram, nets, netB);
+      if (mcuA && netHasGnd(diagram, nets, netB)) bindings.push({ partId: part.id, mcuPin: mcuA, channel: ch });
+      else if (mcuB && netHasGnd(diagram, nets, netA)) bindings.push({ partId: part.id, mcuPin: mcuB, channel: ch });
+    }
+  }
+  return bindings;
+}
+
+export interface JoystickBinding {
+  partId: string;
+  /** Axes analogiques reliés (VERT/HORZ) et bouton SEL. */
+  vert?: string;
+  horz?: string;
+  sel?: string;
+}
+
+/** Joysticks dont les sorties VERT/HORZ/SEL sont reliées au MCU. */
+export function joystickBindings(diagram: Diagram): JoystickBinding[] {
+  const nets = buildNets(diagram);
+  const bindings: JoystickBinding[] = [];
+  for (const part of diagram.parts) {
+    if (partDef(part.type).kind !== 'joystick') continue;
+    const analogOn = (pin: string): string | undefined =>
+      mcuAnalogOnNet(diagram, nets, nets.netOf({ partId: part.id, pin })) ?? undefined;
+    const binding: JoystickBinding = {
+      partId: part.id,
+      vert: analogOn('VERT'),
+      horz: analogOn('HORZ'),
+      sel: mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin: 'SEL' })) ?? undefined,
+    };
+    if (binding.vert || binding.horz || binding.sel) bindings.push(binding);
+  }
+  return bindings;
+}
+
+export interface SourceBinding {
+  partId: string;
+  mcuPin: string;
+}
+
+/** Sources numériques (PIR, capteur d'inclinaison…) reliées à une broche MCU. */
+export function digitalSourceBindings(diagram: Diagram): SourceBinding[] {
+  const nets = buildNets(diagram);
+  const bindings: SourceBinding[] = [];
+  for (const part of diagram.parts) {
+    const def = partDef(part.type);
+    if (def.kind !== 'digital-source' || !def.digitalPin) continue;
+    const mcuPin = mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin: def.digitalPin }));
+    if (mcuPin) bindings.push({ partId: part.id, mcuPin });
+  }
+  return bindings;
+}
+
+/** Sources analogiques (photorésistance…) reliées à une entrée analogique. */
+export function analogSourceBindings(diagram: Diagram): SourceBinding[] {
+  const nets = buildNets(diagram);
+  const bindings: SourceBinding[] = [];
+  for (const part of diagram.parts) {
+    const def = partDef(part.type);
+    if (def.kind !== 'analog-source' || !def.analogPin) continue;
+    const mcuPin = mcuAnalogOnNet(diagram, nets, nets.netOf({ partId: part.id, pin: def.analogPin }));
+    if (mcuPin) bindings.push({ partId: part.id, mcuPin });
+  }
+  return bindings;
+}
+
+/** Servomoteurs dont l'entrée PWM est reliée à une broche MCU. */
+export function servoBindings(diagram: Diagram): SourceBinding[] {
+  const nets = buildNets(diagram);
+  const bindings: SourceBinding[] = [];
+  for (const part of diagram.parts) {
+    if (partDef(part.type).kind !== 'servo') continue;
+    const mcuPin = mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin: 'PWM' }));
+    if (mcuPin) bindings.push({ partId: part.id, mcuPin });
   }
   return bindings;
 }
@@ -208,18 +366,23 @@ export function potBindings(diagram: Diagram): PotBinding[] {
   const bindings: PotBinding[] = [];
   for (const part of diagram.parts) {
     if (partDef(part.type).kind !== 'potentiometer') continue;
-    const sigNet = nets.netOf({ partId: part.id, pin: 'SIG' });
-    for (const { part: mcu, board } of mcuParts(diagram)) {
-      for (const pin of mcuPins(board)) {
-        if (nets.netOf({ partId: mcu.id, pin }) !== sigNet) continue;
-        const role = mcuPinRole(board, pin);
-        if (role.role === 'digital' && role.adcChannel !== undefined && role.name) {
-          bindings.push({ partId: part.id, mcuPin: role.name });
-        }
-      }
-    }
+    const sigNet = nets.netOf({ partId: part.id, pin: rolePin(part.type, 'SIG') });
+    const mcuPin = mcuAnalogOnNet(diagram, nets, sigNet);
+    if (mcuPin) bindings.push({ partId: part.id, mcuPin });
   }
   return bindings;
+}
+
+/** Première broche analogique du MCU présente sur un net. */
+function mcuAnalogOnNet(diagram: Diagram, nets: Nets, netId: string): string | null {
+  for (const { part, board } of mcuParts(diagram)) {
+    for (const pin of mcuPins(board)) {
+      if (nets.netOf({ partId: part.id, pin }) !== netId) continue;
+      const role = mcuPinRole(board, pin);
+      if (role.role === 'digital' && role.adcChannel !== undefined && role.name) return role.name;
+    }
+  }
+  return null;
 }
 
 function mcuDigitalOnNet(diagram: Diagram, nets: Nets, netId: string): string | null {

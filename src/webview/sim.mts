@@ -8,16 +8,35 @@ import '@wokwi/elements/dist/esm/resistor-element.js';
 import '@wokwi/elements/dist/esm/rgb-led-element.js';
 import '@wokwi/elements/dist/esm/buzzer-element.js';
 import '@wokwi/elements/dist/esm/potentiometer-element.js';
+import '@wokwi/elements/dist/esm/slide-potentiometer-element.js';
+import '@wokwi/elements/dist/esm/7segment-element.js';
+import '@wokwi/elements/dist/esm/led-bar-graph-element.js';
+import '@wokwi/elements/dist/esm/slide-switch-element.js';
+import '@wokwi/elements/dist/esm/dip-switch-8-element.js';
+import '@wokwi/elements/dist/esm/analog-joystick-element.js';
+import '@wokwi/elements/dist/esm/photoresistor-sensor-element.js';
+import '@wokwi/elements/dist/esm/pir-motion-sensor-element.js';
+import '@wokwi/elements/dist/esm/tilt-switch-element.js';
+import '@wokwi/elements/dist/esm/servo-element.js';
 import './elements/pico-board.mjs';
+import './elements/custom-part.mjs';
 
 import { Editor } from './diagram/editor.mjs';
-import { partDef, type BoardId } from './diagram/catalog.mjs';
+import { partDef, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
 import {
   ledOn,
   rgbLedState,
   buzzerOn,
+  sevenSegmentState,
+  ledBarState,
   buttonBindings,
   potBindings,
+  slideSwitchBindings,
+  dipSwitchBindings,
+  joystickBindings,
+  digitalSourceBindings,
+  analogSourceBindings,
+  servoBindings,
 } from './diagram/model.mjs';
 import { AvrEngine } from './engines/avr.mjs';
 import { PicoEngine, type PicoProgram } from './engines/pico.mjs';
@@ -36,6 +55,7 @@ const runBtn = document.getElementById('run') as HTMLButtonElement;
 const stopBtn = document.getElementById('stop') as HTMLButtonElement;
 const compileBtn = document.getElementById('compile') as HTMLButtonElement;
 const loadBtn = document.getElementById('load-workspace') as HTMLButtonElement;
+const exportBtn = document.getElementById('export-svg') as HTMLButtonElement;
 const statusEl = document.getElementById('status') as HTMLSpanElement;
 const serialEl = document.getElementById('serial') as HTMLPreElement;
 const serialInput = document.getElementById('serial-input') as HTMLInputElement;
@@ -85,13 +105,15 @@ function queueRefresh(): void {
 function refreshVisuals(): void {
   if (!engine) return;
   const read = (name: string): boolean => engine!.readDigital(name);
+  const servoTargets = new Map(servoBindings(editor.diagram).map((b) => [b.partId, b.mcuPin]));
   for (const part of editor.diagram.parts) {
     const def = partDef(part.type);
     const el = editor.elementOf(part.id);
     if (!el) continue;
     switch (def.kind) {
       case 'led':
-        el.value = ledOn(editor.diagram, part.id, read);
+        if (def.custom) el.active = ledOn(editor.diagram, part.id, read);
+        else el.value = ledOn(editor.diagram, part.id, read);
         break;
       case 'rgb-led': {
         const s = rgbLedState(editor.diagram, part.id, read);
@@ -101,8 +123,21 @@ function refreshVisuals(): void {
         break;
       }
       case 'buzzer':
-        el.hasSignal = buzzerOn(editor.diagram, part.id, read);
+        if (def.custom) el.active = buzzerOn(editor.diagram, part.id, read);
+        else el.hasSignal = buzzerOn(editor.diagram, part.id, read);
         break;
+      case '7segment':
+        el.values = sevenSegmentState(editor.diagram, part.id, read);
+        break;
+      case 'led-bar':
+        el.values = ledBarState(editor.diagram, part.id, read);
+        break;
+      case 'servo': {
+        // Comportement simplifié : bras à 90° quand la broche PWM est haute.
+        const pin = servoTargets.get(part.id);
+        if (pin) el.angle = engine.readDigital(pin) ? 90 : 0;
+        break;
+      }
       case 'mcu':
         // LED embarquée GP25 du Pico.
         if (def.board === 'pico') el.ledPower = engine.readDigital('GP25');
@@ -142,6 +177,69 @@ function bindInputs(): void {
     apply(); // pousse la position actuelle au démarrage
     el.addEventListener('input', apply);
     inputRemovers.push(() => el.removeEventListener('input', apply));
+  }
+
+  // Interrupteur à glissière : la broche du côté connecté est tirée à LOW.
+  for (const binding of slideSwitchBindings(editor.diagram)) {
+    const el = editor.elementOf(binding.partId);
+    if (!el) continue;
+    const apply = () => {
+      // value=0 → connecte le côté 1 ; value=1 → connecte le côté 3.
+      const connected = (Number(el.value ?? 0) === 0 ? 1 : 3) === binding.side;
+      engine?.setInput(binding.mcuPin, !connected);
+    };
+    apply();
+    el.addEventListener('input', apply);
+    inputRemovers.push(() => el.removeEventListener('input', apply));
+  }
+
+  // DIP switch : chaque canal fermé tire sa broche à LOW.
+  for (const binding of dipSwitchBindings(editor.diagram)) {
+    const el = editor.elementOf(binding.partId);
+    if (!el || binding.channel === undefined) continue;
+    const apply = () => {
+      const values = (el.values as number[]) ?? [];
+      engine?.setInput(binding.mcuPin, !values[binding.channel! - 1]);
+    };
+    apply();
+    el.addEventListener('switch-change', apply);
+    inputRemovers.push(() => el.removeEventListener('switch-change', apply));
+  }
+
+  // Joystick analogique : axes en 0..1 (repos à 0,5) + bouton SEL actif bas.
+  for (const binding of joystickBindings(editor.diagram)) {
+    const el = editor.elementOf(binding.partId);
+    if (!el) continue;
+    const apply = () => {
+      if (binding.vert) engine?.setAnalog(binding.vert, (Number(el.yValue ?? 0) + 1) / 2);
+      if (binding.horz) engine?.setAnalog(binding.horz, (Number(el.xValue ?? 0) + 1) / 2);
+    };
+    apply();
+    el.addEventListener('input', apply);
+    inputRemovers.push(() => el.removeEventListener('input', apply));
+    if (binding.sel) {
+      const selPin = binding.sel;
+      engine.setInput(selPin, true);
+      const press = () => engine?.setInput(selPin, false);
+      const release = () => engine?.setInput(selPin, true);
+      el.addEventListener('button-press', press);
+      el.addEventListener('button-release', release);
+      inputRemovers.push(() => {
+        el.removeEventListener('button-press', press);
+        el.removeEventListener('button-release', release);
+      });
+    }
+  }
+
+  // Sources pilotées par l'inspecteur (PIR, inclinaison, photorésistance…) :
+  // l'état vient des attributs du composant, relu à chaque changement.
+  for (const binding of digitalSourceBindings(editor.diagram)) {
+    const part = editor.diagram.parts.find((p) => p.id === binding.partId);
+    engine.setInput(binding.mcuPin, part?.attrs?.state === '1');
+  }
+  for (const binding of analogSourceBindings(editor.diagram)) {
+    const part = editor.diagram.parts.find((p) => p.id === binding.partId);
+    engine.setAnalog(binding.mcuPin, Number(part?.attrs?.value ?? 50) / 100);
   }
 }
 
@@ -196,6 +294,14 @@ compileBtn.addEventListener('click', () => {
 loadBtn.addEventListener('click', () => {
   vscode.postMessage({ type: 'loadWorkspace', board });
 });
+exportBtn.addEventListener('click', () => {
+  vscode.postMessage({ type: 'exportSvg', svg: editor.exportSvg() });
+});
+
+// Persistance des composants personnalisés (stockés côté extension).
+editor.onCustomPartsChange = (parts: CustomPartData[]) => {
+  vscode.postMessage({ type: 'saveCustomParts', parts });
+};
 boardSelect.addEventListener('change', () => {
   board = boardSelect.value === 'pico' ? 'pico' : 'uno';
   vscode.postMessage({ type: 'board', board });
@@ -242,6 +348,9 @@ window.addEventListener('message', (event: MessageEvent) => {
       break;
     case 'status':
       setStatus(String(msg.text));
+      break;
+    case 'customParts':
+      editor.loadCustomParts((msg.parts as CustomPartData[]) ?? []);
       break;
   }
 });

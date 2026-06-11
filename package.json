@@ -1,7 +1,7 @@
 {
   "name": "kablix",
   "displayName": "Kablix",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Une application gauloise de simulation de microcontrôleurs (Arduino Uno / Raspberry Pi Pico) directement dans VS Code, 100% offline.",
   "publisher": "franksauret",
   "license": "MIT",
