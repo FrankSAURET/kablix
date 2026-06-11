@@ -11,7 +11,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const tmp = mkdtempSync(join(tmpdir(), 'microsim-fw-'));
+const tmp = mkdtempSync(join(tmpdir(), 'kablix-fw-'));
 
 /** Analyse un fichier Intel HEX et renvoie un tableau d'octets (mémoire programme). */
 function parseIntelHex(text) {

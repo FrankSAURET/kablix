@@ -1,13 +1,14 @@
 {
-  "name": "microsim-vscode",
-  "displayName": "MicroSim",
+  "name": "kablix",
+  "displayName": "Kablix",
   "version": "0.3.0",
   "description": "Simulation de microcontrôleurs (Arduino Uno / Raspberry Pi Pico) directement dans VS Code, 100% offline.",
   "publisher": "franksauret",
   "license": "MIT",
+  "icon": "Kablix.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/franksauret/microsim-vscode"
+    "url": "https://github.com/franksauret/kablix"
   },
   "engines": {
     "vscode": "^1.85.0"
@@ -30,14 +31,14 @@
   "contributes": {
     "commands": [
       {
-        "command": "microsim.openSimulator",
-        "title": "MicroSim : Ouvrir le simulateur",
-        "category": "MicroSim"
+        "command": "kablix.openSimulator",
+        "title": "Kablix : Ouvrir le simulateur",
+        "category": "Kablix"
       },
       {
-        "command": "microsim.compileAndRun",
-        "title": "MicroSim : Compiler & exécuter le fichier actif",
-        "category": "MicroSim"
+        "command": "kablix.compileAndRun",
+        "title": "Kablix : Compiler & exécuter le fichier actif",
+        "category": "Kablix"
       }
     ]
   },

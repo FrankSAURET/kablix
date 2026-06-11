@@ -1,5 +1,5 @@
 /*
- * Démo MicroSim pour Raspberry Pi Pico (RP2040), bare-metal, exécutée en RAM.
+ * Démo Kablix pour Raspberry Pi Pico (RP2040), bare-metal, exécutée en RAM.
  * Fait clignoter la LED embarquée (GPIO25) via le bloc SIO.
  *
  * Aucun SDK requis : on configure directement IO_BANK0 (fonction SIO) puis

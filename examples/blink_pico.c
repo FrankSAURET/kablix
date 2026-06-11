@@ -1,5 +1,5 @@
 /*
- * Exemple MicroSim — Raspberry Pi Pico (RP2040), bare-metal exécuté en RAM.
+ * Exemple Kablix — Raspberry Pi Pico (RP2040), bare-metal exécuté en RAM.
  * Fait clignoter la LED embarquée (GPIO25).
  *
  * Contrainte : pour rester compatible avec le moteur du simulateur, le

@@ -1,4 +1,4 @@
-// Build de l'extension MicroSim.
+// Build de l'extension Kablix.
 // Produit deux bundles :
 //   - dist/extension.js : code de l'extension (hôte Node, externe : vscode)
 //   - dist/webview.js   : code du simulateur exécuté dans la webview (navigateur)

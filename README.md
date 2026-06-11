@@ -1,4 +1,8 @@
-# MicroSim-VSCode
+ <img src="Kablix.png" alt="Kablix" width="200" />
+
+# Kablix 
+
+
 
 Extension VS Code de simulation de microcontrôleurs (**Arduino Uno** / **Raspberry Pi Pico**), fonctionnant **100% offline**.
 
@@ -42,7 +46,7 @@ automatisés.
 
 ## Utilisation
 
-1. Palette de commandes (`Ctrl+Shift+P`) → **« MicroSim : Ouvrir le simulateur »**.
+1. Palette de commandes (`Ctrl+Shift+P`) → **« Kablix : Ouvrir le simulateur »**.
 2. Un schéma de démarrage (Arduino Uno + LED sur D13 + bouton sur D2) est posé
    sur le canvas. Cliquer **▶ Démarrer** : la LED clignote, le bouton est
    interactif, la série s'affiche.
@@ -51,7 +55,7 @@ automatisés.
    successivement sur leurs pastilles. Cliquer un fil pour le supprimer.
 4. **Exécuter son propre code** : ouvrir un fichier (voir `examples/`) puis
    **« ⚙ Compiler & exécuter le fichier actif »** (bouton du simulateur ou
-   commande **« MicroSim : Compiler & exécuter le fichier actif »**).
+  commande **« Kablix : Compiler & exécuter le fichier actif »**).
 
 ### Toolchains requises pour compiler votre code
 

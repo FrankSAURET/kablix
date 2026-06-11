@@ -6,7 +6,7 @@ import { compile, type Board } from './compiler';
  * un nouvel appel le révèle au lieu d'en créer un second.
  */
 export class SimulatorPanel {
-  public static readonly viewType = 'microsim.simulator';
+  public static readonly viewType = 'kablix.simulator';
   private static current: SimulatorPanel | undefined;
 
   private readonly panel: vscode.WebviewPanel;
@@ -24,7 +24,7 @@ export class SimulatorPanel {
 
     const panel = vscode.window.createWebviewPanel(
       SimulatorPanel.viewType,
-      'MicroSim — Simulateur',
+      'Kablix — Simulateur',
       column ?? vscode.ViewColumn.One,
       {
         enableScripts: true,
@@ -48,7 +48,7 @@ export class SimulatorPanel {
   public async compileActiveFile(): Promise<void> {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
-      vscode.window.showWarningMessage('MicroSim : aucun fichier actif à compiler.');
+      vscode.window.showWarningMessage('Kablix : aucun fichier actif à compiler.');
       return;
     }
     await editor.document.save();
@@ -58,17 +58,17 @@ export class SimulatorPanel {
     this.post({ type: 'status', text: 'Compilation…' });
     try {
       const result = await vscode.window.withProgress(
-        { location: vscode.ProgressLocation.Notification, title: `MicroSim : compilation (${board})…` },
+        { location: vscode.ProgressLocation.Notification, title: `Kablix : compilation (${board})…` },
         () => Promise.resolve(compile(board, filePath, this.extensionUri.fsPath))
       );
       this.post({ type: 'runProgram', board: result.board, bytes: result.bytes });
       vscode.window.showInformationMessage(
-        `MicroSim : ${filePath.split(/[\\/]/).pop()} compilé et lancé (${result.bytes.length} ${board === 'uno' ? 'mots' : 'octets'}).`
+        `Kablix : ${filePath.split(/[\\/]/).pop()} compilé et lancé (${result.bytes.length} ${board === 'uno' ? 'mots' : 'octets'}).`
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       this.post({ type: 'status', text: 'Échec de compilation' });
-      vscode.window.showErrorMessage(`MicroSim : ${message}`);
+      vscode.window.showErrorMessage(`Kablix : ${message}`);
     }
   }
 
@@ -130,11 +130,11 @@ export class SimulatorPanel {
   <meta http-equiv="Content-Security-Policy" content="${csp}" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link href="${styleUri}" rel="stylesheet" />
-  <title>MicroSim</title>
+  <title>Kablix</title>
 </head>
 <body>
   <header class="toolbar">
-    <strong class="brand">MicroSim</strong>
+    <strong class="brand">Kablix</strong>
     <button id="run" class="primary">▶ Démarrer</button>
     <button id="stop" disabled>■ Arrêter</button>
     <button id="compile">⚙ Compiler &amp; exécuter le fichier actif</button>

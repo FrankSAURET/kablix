@@ -9,7 +9,7 @@ import { CPU, avrInstruction, AVRIOPort, portBConfig, PinState } from 'avr8js';
 import { UNO_DEMO } from '../src/webview/programs/uno-demo.mjs';
 
 const root = new URL('..', import.meta.url).pathname;
-const out = join(mkdtempSync(join(tmpdir(), 'microsim-dg-')), 'model.mjs');
+const out = join(mkdtempSync(join(tmpdir(), 'kablix-dg-')), 'model.mjs');
 await esbuild.build({
   entryPoints: [join(root, 'src/webview/diagram/model.mts')],
   outfile: out,

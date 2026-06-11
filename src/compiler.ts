@@ -99,7 +99,7 @@ export function compile(
   extensionPath: string
 ): CompileResult {
   const tools = detectToolchain();
-  const tmp = mkdtempSync(join(tmpdir(), 'microsim-'));
+  const tmp = mkdtempSync(join(tmpdir(), 'kablix-'));
   const log: string[] = [];
 
   if (board === 'uno') {

@@ -16,7 +16,7 @@ import {
 import { RP2040, GPIOPinState } from 'rp2040js';
 
 const root = new URL('..', import.meta.url).pathname;
-const tmp = mkdtempSync(join(tmpdir(), 'microsim-vc-'));
+const tmp = mkdtempSync(join(tmpdir(), 'kablix-vc-'));
 const out = join(tmp, 'compiler.mjs');
 
 // Transpile le module TypeScript de l'extension pour pouvoir l'importer ici.

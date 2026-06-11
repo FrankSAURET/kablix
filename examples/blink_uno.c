@@ -1,5 +1,5 @@
 /*
- * Exemple MicroSim — Arduino Uno (compilable avec avr-gcc, sans Arduino).
+ * Exemple Kablix — Arduino Uno (compilable avec avr-gcc, sans Arduino).
  * Fait clignoter la LED D13 et recopie le bouton D2 sur la LED D8.
  *
  * Utilisation : ouvrir ce fichier, sélectionner la carte « Arduino Uno »

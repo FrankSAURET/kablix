@@ -1,5 +1,5 @@
 /*
- * Démo MicroSim pour Arduino Uno (ATmega328P), bare-metal (avr-libc).
+ * Démo Kablix pour Arduino Uno (ATmega328P), bare-metal (avr-libc).
  * Exerce les composants du simulateur :
  *   - LED D13 (PB5) clignotante
  *   - LED D8  (PB0) qui recopie l'état du bouton

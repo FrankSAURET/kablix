@@ -1,4 +1,4 @@
-// Contrôleur de la webview MicroSim : atelier visuel (placement + câblage),
+// Contrôleur de la webview Kablix : atelier visuel (placement + câblage),
 // simulation Arduino Uno (avr8js) et messagerie avec l'extension.
 import '@wokwi/elements/dist/esm/arduino-uno-element.js';
 import '@wokwi/elements/dist/esm/led-element.js';
