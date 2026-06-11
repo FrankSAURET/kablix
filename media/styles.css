@@ -28,6 +28,15 @@ body {
   cursor: pointer;
 }
 
+.toolbar select {
+  font: inherit;
+  color: var(--vscode-dropdown-foreground, #fff);
+  background: var(--vscode-dropdown-background, #333);
+  border: 1px solid var(--vscode-dropdown-border, #555);
+  border-radius: 4px;
+  padding: 0.3rem 0.4rem;
+}
+
 .toolbar button.primary {
   background: var(--vscode-button-background, #0e639c);
   color: var(--vscode-button-foreground, #fff);
@@ -208,4 +217,32 @@ body {
   background: var(--vscode-textCodeBlock-background, rgba(0, 0, 0, 0.3));
   border-radius: 6px;
   white-space: pre-wrap;
+}
+
+.serial__input {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+}
+
+.serial__input input {
+  flex: 1;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.8rem;
+  color: var(--vscode-input-foreground, #fff);
+  background: var(--vscode-input-background, #333);
+  border: 1px solid var(--vscode-input-border, #555);
+  border-radius: 4px;
+  padding: 0.3rem 0.5rem;
+}
+
+.serial__input button {
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-input-border, #555);
+  background: var(--vscode-input-background, #333);
+  color: var(--vscode-input-foreground, #fff);
+  cursor: pointer;
 }

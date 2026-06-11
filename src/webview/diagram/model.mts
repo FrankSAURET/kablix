@@ -1,6 +1,6 @@
 // Modèle de schéma (pur, sans DOM) : composants, fils, calcul de la netlist et
 // résolution logique des composants. Entièrement testable hors navigateur.
-import { partDef, unoPinRole } from './catalog.mjs';
+import { mcuPinRole, mcuPins, partDef, type BoardId } from './catalog.mjs';
 
 export interface Endpoint {
   partId: string;
@@ -79,8 +79,18 @@ export function buildNets(diagram: Diagram): Nets {
 /** Niveau logique d'un net : 1 (haut/VCC), 0 (bas/GND) ou undefined (flottant). */
 export type Level = 0 | 1 | undefined;
 
+/** Microcontrôleurs présents dans le schéma, avec leur carte. */
+function mcuParts(diagram: Diagram): Array<{ part: Part; board: BoardId }> {
+  const out: Array<{ part: Part; board: BoardId }> = [];
+  for (const part of diagram.parts) {
+    const def = partDef(part.type);
+    if (def.kind === 'mcu' && def.board) out.push({ part, board: def.board });
+  }
+  return out;
+}
+
 /**
- * Détermine le niveau d'un net en parcourant toutes les extrémités qui s'y
+ * Détermine le niveau d'un net en parcourant toutes les broches MCU qui s'y
  * rattachent. GND est prioritaire sur VCC, lui-même prioritaire sur les broches
  * pilotées par le microcontrôleur.
  */
@@ -91,27 +101,17 @@ function netLevel(
   readPin: (name: string) => boolean
 ): Level {
   let mcuLevel: Level;
-  for (const part of diagram.parts) {
-    const def = partDef(part.type);
-    if (def.kind !== 'mcu-uno') continue;
-    // Les broches MCU pertinentes : on teste celles reliées à ce net.
-    for (const pin of MCU_PINS) {
+  for (const { part, board } of mcuParts(diagram)) {
+    for (const pin of mcuPins(board)) {
       if (nets.netOf({ partId: part.id, pin }) !== netId) continue;
-      const role = unoPinRole(pin);
+      const role = mcuPinRole(board, pin);
       if (role.role === 'gnd') return 0;
       if (role.role === 'vcc') return 1;
-      if (role.role === 'digital') mcuLevel = readPin(role.name) ? 1 : 0;
+      if (role.role === 'digital' && role.name) mcuLevel = readPin(role.name) ? 1 : 0;
     }
   }
   return mcuLevel;
 }
-
-// Broches de l'Uno susceptibles d'être câblées (numériques, analogiques, alim).
-const MCU_PINS: readonly string[] = [
-  '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13',
-  'A0', 'A1', 'A2', 'A3', 'A4', 'A5',
-  'GND.1', 'GND.2', 'GND.3', '5V', '3.3V', 'VIN',
-];
 
 /** Une LED est allumée si son anode est au niveau haut et sa cathode au niveau bas. */
 export function ledOn(
@@ -123,6 +123,38 @@ export function ledOn(
   const anode = netLevel(diagram, nets, nets.netOf({ partId: ledId, pin: 'A' }), readPin);
   const cathode = netLevel(diagram, nets, nets.netOf({ partId: ledId, pin: 'C' }), readPin);
   return anode === 1 && cathode === 0;
+}
+
+/**
+ * État des trois canaux d'une LED RGB (cathode commune) : un canal est allumé
+ * si sa broche (R/G/B) est au niveau haut et la broche COM au niveau bas.
+ */
+export function rgbLedState(
+  diagram: Diagram,
+  partId: string,
+  readPin: (name: string) => boolean
+): { red: boolean; green: boolean; blue: boolean } {
+  const nets = buildNets(diagram);
+  const level = (pin: string): Level =>
+    netLevel(diagram, nets, nets.netOf({ partId, pin }), readPin);
+  const com = level('COM');
+  return {
+    red: level('R') === 1 && com === 0,
+    green: level('G') === 1 && com === 0,
+    blue: level('B') === 1 && com === 0,
+  };
+}
+
+/** Un buzzer est actif quand une tension existe entre ses deux broches. */
+export function buzzerOn(
+  diagram: Diagram,
+  partId: string,
+  readPin: (name: string) => boolean
+): boolean {
+  const nets = buildNets(diagram);
+  const a = netLevel(diagram, nets, nets.netOf({ partId, pin: '1' }), readPin);
+  const b = netLevel(diagram, nets, nets.netOf({ partId, pin: '2' }), readPin);
+  return (a === 1 && b === 0) || (a === 0 && b === 1);
 }
 
 export interface ButtonBinding {
@@ -155,24 +187,51 @@ export function buttonBindings(diagram: Diagram): ButtonBinding[] {
   return bindings;
 }
 
-function mcuDigitalOnNet(diagram: Diagram, nets: Nets, netId: string): string | null {
+export interface PotBinding {
+  partId: string;
+  /** Broche analogique du MCU reliée au curseur (SIG) du potentiomètre. */
+  mcuPin: string;
+}
+
+/**
+ * Repère les potentiomètres dont le curseur (SIG) est relié à une broche
+ * d'entrée analogique du MCU (A0–A5 sur Uno, GP26–GP28 sur Pico).
+ */
+export function potBindings(diagram: Diagram): PotBinding[] {
+  const nets = buildNets(diagram);
+  const bindings: PotBinding[] = [];
   for (const part of diagram.parts) {
-    if (partDef(part.type).kind !== 'mcu-uno') continue;
-    for (const pin of MCU_PINS) {
+    if (partDef(part.type).kind !== 'potentiometer') continue;
+    const sigNet = nets.netOf({ partId: part.id, pin: 'SIG' });
+    for (const { part: mcu, board } of mcuParts(diagram)) {
+      for (const pin of mcuPins(board)) {
+        if (nets.netOf({ partId: mcu.id, pin }) !== sigNet) continue;
+        const role = mcuPinRole(board, pin);
+        if (role.role === 'digital' && role.adcChannel !== undefined && role.name) {
+          bindings.push({ partId: part.id, mcuPin: role.name });
+        }
+      }
+    }
+  }
+  return bindings;
+}
+
+function mcuDigitalOnNet(diagram: Diagram, nets: Nets, netId: string): string | null {
+  for (const { part, board } of mcuParts(diagram)) {
+    for (const pin of mcuPins(board)) {
       if (nets.netOf({ partId: part.id, pin }) !== netId) continue;
-      const role = unoPinRole(pin);
-      if (role.role === 'digital') return role.name;
+      const role = mcuPinRole(board, pin);
+      if (role.role === 'digital' && role.name) return role.name;
     }
   }
   return null;
 }
 
 function netHasGnd(diagram: Diagram, nets: Nets, netId: string): boolean {
-  for (const part of diagram.parts) {
-    if (partDef(part.type).kind !== 'mcu-uno') continue;
-    for (const pin of MCU_PINS) {
+  for (const { part, board } of mcuParts(diagram)) {
+    for (const pin of mcuPins(board)) {
       if (nets.netOf({ partId: part.id, pin }) !== netId) continue;
-      if (unoPinRole(pin).role === 'gnd') return true;
+      if (mcuPinRole(board, pin).role === 'gnd') return true;
     }
   }
   return false;

@@ -9,3 +9,5 @@ esbuild.js
 tsconfig.json
 **/*.map
 **/.git/**
+test-assets/**
+images/**

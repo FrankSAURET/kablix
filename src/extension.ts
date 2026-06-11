@@ -9,6 +9,10 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('kablix.compileAndRun', () => {
       const panel = SimulatorPanel.createOrShow(context.extensionUri);
       void panel.compileActiveFile();
+    }),
+    vscode.commands.registerCommand('kablix.loadWorkspaceArtifact', () => {
+      const panel = SimulatorPanel.createOrShow(context.extensionUri);
+      void panel.loadWorkspaceArtifact();
     })
   );
 }

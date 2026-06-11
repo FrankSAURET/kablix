@@ -1,24 +1,41 @@
 // Catalogue des composants disponibles dans l'atelier.
-// Chaque entrée référence un élément web @wokwi/elements (licence MIT).
-export type PartKind = 'mcu-uno' | 'led' | 'pushbutton' | 'resistor';
+// Les composants visuels viennent de @wokwi/elements (licence MIT) sauf la
+// carte Pico qui est un élément maison (<kablix-pico-board>).
+
+export type PartKind =
+  | 'mcu'
+  | 'led'
+  | 'rgb-led'
+  | 'pushbutton'
+  | 'resistor'
+  | 'buzzer'
+  | 'potentiometer';
+
+export type BoardId = 'uno' | 'pico';
 
 export interface PartDef {
   /** Identifiant interne du type de composant. */
   type: string;
   /** Libellé affiché dans la palette. */
   label: string;
-  /** Tag de l'élément web @wokwi/elements. */
+  /** Tag de l'élément web. */
   tag: string;
   kind: PartKind;
+  /** Pour kind 'mcu' : carte correspondante. */
+  board?: BoardId;
   /** Attributs par défaut posés sur l'élément. */
   attrs?: Record<string, string>;
 }
 
 export const CATALOG: readonly PartDef[] = [
-  { type: 'uno', label: 'Arduino Uno', tag: 'wokwi-arduino-uno', kind: 'mcu-uno' },
+  { type: 'uno', label: 'Arduino Uno', tag: 'wokwi-arduino-uno', kind: 'mcu', board: 'uno' },
+  { type: 'pico', label: 'Raspberry Pi Pico', tag: 'kablix-pico-board', kind: 'mcu', board: 'pico' },
   { type: 'led', label: 'LED', tag: 'wokwi-led', kind: 'led', attrs: { color: 'red' } },
+  { type: 'rgb-led', label: 'LED RGB', tag: 'wokwi-rgb-led', kind: 'rgb-led' },
   { type: 'button', label: 'Bouton', tag: 'wokwi-pushbutton', kind: 'pushbutton', attrs: { color: 'green' } },
   { type: 'resistor', label: 'Résistance', tag: 'wokwi-resistor', kind: 'resistor', attrs: { value: '220', angle: '0' } },
+  { type: 'buzzer', label: 'Buzzer', tag: 'wokwi-buzzer', kind: 'buzzer' },
+  { type: 'pot', label: 'Potentiomètre', tag: 'wokwi-potentiometer', kind: 'potentiometer', attrs: { min: '0', max: '100', value: '50' } },
 ];
 
 export function partDef(type: string): PartDef {
@@ -28,20 +45,52 @@ export function partDef(type: string): PartDef {
 }
 
 /**
- * Correspondance des broches de l'Arduino Uno vers les signaux du moteur.
- * Les broches numériques 0–13 et analogiques A0–A5 portent leur nom ;
- * les broches GND/alimentation sont marquées comme telles.
+ * Rôle d'une broche de microcontrôleur. `name` est le nom logique compris par
+ * le moteur de simulation ('13', 'A0', 'GP25'…) ; `adcChannel` est présent pour
+ * les broches qui peuvent servir d'entrée analogique.
  */
-export type UnoPinRole =
-  | { role: 'digital'; name: string }
-  | { role: 'gnd' }
-  | { role: 'vcc' }
-  | { role: 'other' };
+export interface PinRole {
+  role: 'digital' | 'gnd' | 'vcc' | 'other';
+  name?: string;
+  adcChannel?: number;
+}
 
-export function unoPinRole(pin: string): UnoPinRole {
-  if (/^([0-9]|1[0-3])$/.test(pin)) return { role: 'digital', name: pin };
-  if (/^A[0-5]$/.test(pin)) return { role: 'digital', name: pin };
+export function mcuPinRole(board: BoardId, pin: string): PinRole {
+  if (board === 'uno') {
+    if (/^([0-9]|1[0-3])$/.test(pin)) return { role: 'digital', name: pin };
+    const a = /^A([0-5])$/.exec(pin);
+    if (a) return { role: 'digital', name: pin, adcChannel: Number(a[1]) };
+    if (pin.startsWith('GND')) return { role: 'gnd' };
+    if (pin === '5V' || pin === '3.3V' || pin === 'VIN' || pin === 'IOREF') return { role: 'vcc' };
+    return { role: 'other' };
+  }
+  // Raspberry Pi Pico : GP26..GP28 = ADC0..ADC2.
+  const gp = /^GP(\d+)$/.exec(pin);
+  if (gp) {
+    const n = Number(gp[1]);
+    if (n > 28) return { role: 'other' };
+    const adc = n >= 26 ? n - 26 : undefined;
+    return adc === undefined ? { role: 'digital', name: pin } : { role: 'digital', name: pin, adcChannel: adc };
+  }
   if (pin.startsWith('GND')) return { role: 'gnd' };
-  if (pin === '5V' || pin === '3.3V' || pin === 'VIN' || pin === 'IOREF') return { role: 'vcc' };
+  if (pin === '3V3' || pin === 'VBUS' || pin === 'VSYS') return { role: 'vcc' };
   return { role: 'other' };
+}
+
+const UNO_PINS: readonly string[] = [
+  '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13',
+  'A0', 'A1', 'A2', 'A3', 'A4', 'A5',
+  'GND.1', 'GND.2', 'GND.3', '5V', '3.3V', 'VIN',
+];
+
+const PICO_PINS: readonly string[] = [
+  ...Array.from({ length: 23 }, (_, i) => `GP${i}`), // GP0..GP22
+  'GP25', 'GP26', 'GP27', 'GP28',
+  'GND.1', 'GND.2', 'GND.3', 'GND.4', 'GND.5', 'GND.6', 'GND.7', 'GND.8',
+  '3V3', 'VBUS', 'VSYS',
+];
+
+/** Broches câblables d'une carte (utilisé pour résoudre la netlist). */
+export function mcuPins(board: BoardId): readonly string[] {
+  return board === 'uno' ? UNO_PINS : PICO_PINS;
 }

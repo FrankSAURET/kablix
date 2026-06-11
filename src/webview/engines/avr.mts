@@ -1,11 +1,13 @@
 // Moteur de simulation Arduino Uno (ATmega328P) basé sur avr8js.
-// Expose un accès générique aux broches numériques 0–13 et A0–A5, ainsi que la
-// liaison série (USART0).
+// Expose un accès générique aux broches numériques 0–13 et A0–A5, l'ADC
+// (entrées analogiques A0–A5) et la liaison série bidirectionnelle (USART0).
 import {
   CPU,
   avrInstruction,
   AVRIOPort,
   AVRUSART,
+  AVRADC,
+  adcConfig,
   portBConfig,
   portCConfig,
   portDConfig,
@@ -15,6 +17,7 @@ import {
 import type { SimEngine } from './types.mjs';
 
 const CLOCK_HZ = 16_000_000;
+const VREF = 5;
 
 type PortKey = 'B' | 'C' | 'D';
 
@@ -28,6 +31,11 @@ const UNO_PINS: Record<string, [PortKey, number]> = {
   'A3': ['C', 3], 'A4': ['C', 4], 'A5': ['C', 5],
 };
 
+// Broche analogique -> canal ADC.
+const ADC_CHANNELS: Record<string, number> = {
+  A0: 0, A1: 1, A2: 2, A3: 3, A4: 4, A5: 5,
+};
+
 export class AvrEngine implements SimEngine {
   onUpdate: (() => void) | null = null;
   onSerial: ((chunk: string) => void) | null = null;
@@ -35,8 +43,10 @@ export class AvrEngine implements SimEngine {
   private cpu: CPU;
   private ports: Record<PortKey, AVRIOPort>;
   private usart: AVRUSART;
+  private adc: AVRADC;
   private rafId: number | null = null;
   private running = false;
+  private rxQueue: number[] = [];
 
   constructor(program: Uint16Array) {
     this.cpu = new CPU(program.slice());
@@ -46,6 +56,7 @@ export class AvrEngine implements SimEngine {
       D: new AVRIOPort(this.cpu, portDConfig),
     };
     this.usart = new AVRUSART(this.cpu, usart0Config, CLOCK_HZ);
+    this.adc = new AVRADC(this.cpu, adcConfig);
 
     for (const port of Object.values(this.ports)) {
       port.addListener(() => this.onUpdate?.());
@@ -67,6 +78,17 @@ export class AvrEngine implements SimEngine {
     this.ports[port].setPin(bit, value);
   }
 
+  setAnalog(name: string, fraction: number): void {
+    const ch = ADC_CHANNELS[name];
+    if (ch === undefined) return;
+    this.adc.channelValues[ch] = Math.max(0, Math.min(1, fraction)) * VREF;
+  }
+
+  writeSerial(text: string): void {
+    for (const ch of text) this.rxQueue.push(ch.charCodeAt(0) & 0xff);
+    this.flushRx();
+  }
+
   start(): void {
     if (this.running) return;
     this.running = true;
@@ -85,6 +107,16 @@ export class AvrEngine implements SimEngine {
     this.stop();
   }
 
+  // L'USART ne peut recevoir qu'un octet à la fois : on vide la file dès que
+  // le récepteur est libre (réessai à la frame suivante sinon).
+  private flushRx(): void {
+    while (this.rxQueue.length > 0 && !this.usart.rxBusy) {
+      const ok = this.usart.writeByte(this.rxQueue[0]);
+      if (!ok) break;
+      this.rxQueue.shift();
+    }
+  }
+
   private loop = (): void => {
     if (!this.running) return;
     const deadline = this.cpu.cycles + CLOCK_HZ / 60;
@@ -92,6 +124,7 @@ export class AvrEngine implements SimEngine {
       avrInstruction(this.cpu);
       this.cpu.tick();
     }
+    this.flushRx();
     this.rafId = requestAnimationFrame(this.loop);
   };
 }

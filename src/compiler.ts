@@ -1,18 +1,39 @@
-// Service de compilation (hôte de l'extension). Détecte une toolchain installée
-// localement et compile le fichier actif vers une image exécutable par le
-// simulateur. Fonctionne hors-ligne : aucun service distant n'est sollicité.
+// Service de compilation et de chargement d'artefacts (hôte de l'extension).
+// Détecte une toolchain installée localement et compile le fichier actif vers
+// une image exécutable par le simulateur, ou charge directement un artefact
+// déjà compilé (.hex, .uf2, .elf, .bin). Fonctionne hors-ligne : aucun service
+// distant n'est sollicité.
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, extname, join } from 'node:path';
+import { parseUf2 } from './shared/uf2';
+import { parseElf32 } from './shared/elf';
 
 export type Board = 'uno' | 'pico';
 
+const FLASH_START = 0x10000000;
+const FLASH_END = 0x14000000;
+const RAM_START = 0x20000000;
+
+/**
+ * Programme prêt à être envoyé à la webview. Les images RP2040 transitent en
+ * base64 (les firmwares UF2 dépassent le mégaoctet, le JSON de nombres serait
+ * prohibitif).
+ */
+export type ProgramPayload =
+  | { board: 'uno'; format: 'avr-progmem'; bytes: number[] }
+  | { board: 'pico'; format: 'rp2040-ram'; b64: string }
+  | {
+      board: 'pico';
+      format: 'rp2040-flash';
+      segments: Array<{ addr: number; b64: string }>;
+      /** Script MicroPython à exécuter après le démarrage du firmware. */
+      script?: string;
+    };
+
 export interface CompileResult {
-  board: Board;
-  /** 'avr-progmem' : mots 16 bits ; 'rp2040-ram' : octets bruts pour la SRAM. */
-  format: 'avr-progmem' | 'rp2040-ram';
-  bytes: number[];
+  payload: ProgramPayload;
   log: string;
 }
 
@@ -81,6 +102,8 @@ function hexToProgmem(hexText: string): number[] {
   return words;
 }
 
+const toB64 = (data: Uint8Array): string => Buffer.from(data).toString('base64');
+
 function run(cmd: string, args: string[]): string {
   try {
     return execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
@@ -92,12 +115,90 @@ function run(cmd: string, args: string[]): string {
   }
 }
 
+// --- Chargement d'artefacts déjà compilés -----------------------------------
+
+/**
+ * Charge un artefact compilé d'après son extension :
+ *   .hex → Arduino Uno ; .uf2 → flash RP2040 ; .elf → flash ou RAM RP2040
+ *   selon les adresses de chargement ; .bin → image RAM RP2040.
+ */
+export function loadArtifact(filePath: string): CompileResult {
+  const ext = extname(filePath).toLowerCase();
+  const name = basename(filePath);
+
+  if (ext === '.hex') {
+    return {
+      payload: { board: 'uno', format: 'avr-progmem', bytes: hexToProgmem(readFileSync(filePath, 'utf8')) },
+      log: `Artefact Intel HEX chargé : ${name}`,
+    };
+  }
+  if (ext === '.uf2') {
+    const segments = parseUf2(new Uint8Array(readFileSync(filePath)));
+    return {
+      payload: {
+        board: 'pico',
+        format: 'rp2040-flash',
+        segments: segments.map((s) => ({ addr: s.addr, b64: toB64(s.data) })),
+      },
+      log: `Artefact UF2 chargé : ${name} (${segments.length} segment(s))`,
+    };
+  }
+  if (ext === '.elf') {
+    const image = parseElf32(new Uint8Array(readFileSync(filePath)));
+    const inFlash = image.segments.some((s) => s.paddr >= FLASH_START && s.paddr < FLASH_END);
+    if (inFlash) {
+      return {
+        payload: {
+          board: 'pico',
+          format: 'rp2040-flash',
+          segments: image.segments
+            .filter((s) => s.paddr >= FLASH_START && s.paddr < FLASH_END)
+            .map((s) => ({ addr: s.paddr, b64: toB64(s.data) })),
+        },
+        log: `Artefact ELF (flash) chargé : ${name}`,
+      };
+    }
+    // Image RAM : reconstitue un bloc unique à partir de 0x20000000.
+    const ramSegs = image.segments.filter((s) => s.paddr >= RAM_START);
+    if (ramSegs.length === 0) throw new Error(`${name} : aucun segment en flash ni en RAM.`);
+    const end = Math.max(...ramSegs.map((s) => s.paddr + s.data.length));
+    const image8 = new Uint8Array(end - RAM_START);
+    for (const s of ramSegs) image8.set(s.data, s.paddr - RAM_START);
+    return {
+      payload: { board: 'pico', format: 'rp2040-ram', b64: toB64(image8) },
+      log: `Artefact ELF (RAM) chargé : ${name}`,
+    };
+  }
+  if (ext === '.bin') {
+    return {
+      payload: { board: 'pico', format: 'rp2040-ram', b64: toB64(new Uint8Array(readFileSync(filePath))) },
+      log: `Image binaire RAM chargée : ${name}`,
+    };
+  }
+  throw new Error(`Extension non reconnue : ${ext} (.hex, .uf2, .elf ou .bin attendus).`);
+}
+
+/**
+ * Prépare l'exécution d'un script MicroPython : firmware UF2 + code source.
+ * Le script est injecté via le raw REPL une fois le firmware démarré.
+ */
+export function loadPythonProgram(firmwareUf2Path: string, scriptSource: string): CompileResult {
+  const segments = parseUf2(new Uint8Array(readFileSync(firmwareUf2Path)));
+  return {
+    payload: {
+      board: 'pico',
+      format: 'rp2040-flash',
+      segments: segments.map((s) => ({ addr: s.addr, b64: toB64(s.data) })),
+      script: scriptSource,
+    },
+    log: `Firmware MicroPython : ${basename(firmwareUf2Path)}`,
+  };
+}
+
+// --- Compilation ------------------------------------------------------------
+
 /** Compile le fichier indiqué pour la carte choisie. */
-export function compile(
-  board: Board,
-  filePath: string,
-  extensionPath: string
-): CompileResult {
+export function compile(board: Board, filePath: string, extensionPath: string): CompileResult {
   const tools = detectToolchain();
   const tmp = mkdtempSync(join(tmpdir(), 'kablix-'));
   const log: string[] = [];
@@ -114,7 +215,10 @@ export function compile(
       ]);
       const hexName = `${basename(filePath)}.hex`;
       const hex = readFileSync(join(tmp, hexName), 'utf8');
-      return { board, format: 'avr-progmem', bytes: hexToProgmem(hex), log: log.join('\n') };
+      return {
+        payload: { board, format: 'avr-progmem', bytes: hexToProgmem(hex) },
+        log: log.join('\n'),
+      };
     }
     if (tools.avrGcc) {
       // C/C++ bare-metal (avr-libc).
@@ -129,9 +233,7 @@ export function compile(
       ]);
       run('avr-objcopy', ['-O', 'ihex', '-R', '.eeprom', elf, hex]);
       return {
-        board,
-        format: 'avr-progmem',
-        bytes: hexToProgmem(readFileSync(hex, 'utf8')),
+        payload: { board, format: 'avr-progmem', bytes: hexToProgmem(readFileSync(hex, 'utf8')) },
         log: log.join('\n'),
       };
     }
@@ -159,9 +261,7 @@ export function compile(
   ]);
   run('arm-none-eabi-objcopy', ['-O', 'binary', elf, bin]);
   return {
-    board,
-    format: 'rp2040-ram',
-    bytes: Array.from(new Uint8Array(readFileSync(bin))),
+    payload: { board, format: 'rp2040-ram', b64: toB64(new Uint8Array(readFileSync(bin))) },
     log: log.join('\n'),
   };
 }

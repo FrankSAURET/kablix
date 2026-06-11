@@ -80,6 +80,17 @@ export class Editor {
     return this.rendered.get(id)?.el;
   }
 
+  /** Vide entièrement l'atelier (changement de carte, nouveau schéma). */
+  clear(): void {
+    for (const line of this.wireLines.values()) line.remove();
+    this.wireLines.clear();
+    for (const r of this.rendered.values()) r.container.remove();
+    this.rendered.clear();
+    this.diagram.parts = [];
+    this.diagram.wires = [];
+    this.notify();
+  }
+
   /** Ajoute un fil par programme (utilisé pour le schéma de démarrage). */
   addWire(a: Endpoint, b: Endpoint): void {
     const wire: Wire = { id: uid('w-'), a, b };

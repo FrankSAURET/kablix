@@ -1,7 +1,7 @@
 {
   "name": "kablix",
   "displayName": "Kablix",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Simulation de microcontrôleurs (Arduino Uno / Raspberry Pi Pico) directement dans VS Code, 100% offline.",
   "publisher": "franksauret",
   "license": "MIT",
@@ -39,8 +39,23 @@
         "command": "kablix.compileAndRun",
         "title": "Kablix : Compiler & exécuter le fichier actif",
         "category": "Kablix"
+      },
+      {
+        "command": "kablix.loadWorkspaceArtifact",
+        "title": "Kablix : Charger l'artefact compilé du workspace",
+        "category": "Kablix"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Kablix",
+      "properties": {
+        "kablix.micropythonUf2": {
+          "type": "string",
+          "default": "",
+          "description": "Chemin (absolu ou relatif au workspace) du firmware MicroPython .uf2 utilisé pour exécuter les fichiers .py sur le Pico simulé. Laisser vide pour détecter automatiquement micropython*.uf2 / RPI_PICO*.uf2 dans le workspace."
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run build",
@@ -51,7 +66,9 @@
     "verify": "node scripts/verify-sim.mjs",
     "verify:compiler": "node scripts/verify-compiler.mjs",
     "verify:diagram": "node scripts/verify-diagram.mjs",
-    "verify:all": "npm run verify && npm run verify:compiler && npm run verify:diagram",
+    "verify:uf2": "node scripts/verify-uf2.mjs",
+    "verify:micropython": "node scripts/verify-micropython.mjs",
+    "verify:all": "npm run verify && npm run verify:compiler && npm run verify:diagram && npm run verify:uf2 && npm run verify:micropython",
     "package": "vsce package --no-dependencies"
   },
   "dependencies": {
