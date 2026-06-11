@@ -44,8 +44,9 @@ const clearBtn = document.getElementById('clear-serial') as HTMLButtonElement;
 const canvas = document.getElementById('canvas') as HTMLDivElement;
 const palette = document.getElementById('palette') as HTMLDivElement;
 const wiresSvg = document.getElementById('wires') as unknown as SVGSVGElement;
+const inspector = document.getElementById('inspector') as HTMLDivElement;
 
-const editor = new Editor(canvas, palette, wiresSvg);
+const editor = new Editor(canvas, palette, wiresSvg, inspector);
 
 let board: BoardId = 'uno';
 let engine: SimEngine | null = null;
@@ -264,11 +265,11 @@ function buildStarter(): void {
     const led = editor.addPart('led', 470, 70);
     const button = editor.addPart('button', 360, 230);
 
-    editor.addWire({ partId: uno.id, pin: '13' }, { partId: resistor.id, pin: '1' });
-    editor.addWire({ partId: resistor.id, pin: '2' }, { partId: led.id, pin: 'A' });
-    editor.addWire({ partId: led.id, pin: 'C' }, { partId: uno.id, pin: 'GND.1' });
-    editor.addWire({ partId: uno.id, pin: '2' }, { partId: button.id, pin: '1.l' });
-    editor.addWire({ partId: button.id, pin: '2.l' }, { partId: uno.id, pin: 'GND.2' });
+    editor.addWire({ partId: uno.id, pin: '13' }, { partId: resistor.id, pin: '1' }, { color: 'yellow' });
+    editor.addWire({ partId: resistor.id, pin: '2' }, { partId: led.id, pin: 'A' }, { color: 'yellow' });
+    editor.addWire({ partId: led.id, pin: 'C' }, { partId: uno.id, pin: 'GND.1' }, { color: 'black' });
+    editor.addWire({ partId: uno.id, pin: '2' }, { partId: button.id, pin: '1.l' }, { color: 'green' });
+    editor.addWire({ partId: button.id, pin: '2.l' }, { partId: uno.id, pin: 'GND.2' }, { color: 'black' });
   } else {
     // Pico + LED externe sur GP25 (via résistance) + bouton sur GP13.
     const pico = editor.addPart('pico', 20, 60);
@@ -276,11 +277,11 @@ function buildStarter(): void {
     const led = editor.addPart('led', 550, 70);
     const button = editor.addPart('button', 440, 240);
 
-    editor.addWire({ partId: pico.id, pin: 'GP25' }, { partId: resistor.id, pin: '1' });
-    editor.addWire({ partId: resistor.id, pin: '2' }, { partId: led.id, pin: 'A' });
-    editor.addWire({ partId: led.id, pin: 'C' }, { partId: pico.id, pin: 'GND.1' });
-    editor.addWire({ partId: pico.id, pin: 'GP13' }, { partId: button.id, pin: '1.l' });
-    editor.addWire({ partId: button.id, pin: '2.l' }, { partId: pico.id, pin: 'GND.4' });
+    editor.addWire({ partId: pico.id, pin: 'GP25' }, { partId: resistor.id, pin: '1' }, { color: 'yellow' });
+    editor.addWire({ partId: resistor.id, pin: '2' }, { partId: led.id, pin: 'A' }, { color: 'yellow' });
+    editor.addWire({ partId: led.id, pin: 'C' }, { partId: pico.id, pin: 'GND.1' }, { color: 'black' });
+    editor.addWire({ partId: pico.id, pin: 'GP13' }, { partId: button.id, pin: '1.l' }, { color: 'green' });
+    editor.addWire({ partId: button.id, pin: '2.l' }, { partId: pico.id, pin: 'GND.4' }, { color: 'black' });
   }
   editor.redrawWires();
 }

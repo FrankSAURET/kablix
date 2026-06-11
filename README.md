@@ -1,19 +1,26 @@
  <img src="Kablix.png" alt="Kablix" width="200" />
 
 # Kablix
-
-Extension VS Code de simulation de microcontrôleurs (**Arduino Uno** / **Raspberry Pi Pico**), fonctionnant **100% offline**.
+Une application gauloise de simulation de microcontrôleurs (**Arduino Uno / Raspberry Pi Pico**) directement dans VS Code, **100% offline**.
 
 La simulation s'appuie sur deux moteurs open-source embarqués dans l'extension :
 [avr8js](https://github.com/wokwi/avr8js) (ATmega328P) et
 [rp2040js](https://github.com/wokwi/rp2040js) (RP2040), tous deux sous licence MIT.
 Aucun service en ligne n'est requis.
 
-## Fonctionnalités (v0.4.0)
+## Fonctionnalités (v0.5.0)
 
-- ✅ **Atelier visuel** : palette de composants, placement, déplacement et
-  **câblage broche-à-broche** sur un canvas (composants SVG réalistes
-  [@wokwi/elements](https://github.com/wokwi/wokwi-elements), MIT)
+- ✅ **Atelier visuel** : palette de composants, placement, **déplacement direct
+  à la souris** et **câblage broche-à-broche** sur un canvas (composants SVG
+  réalistes [@wokwi/elements](https://github.com/wokwi/wokwi-elements), MIT)
+- ✅ **Câblage multi-points** : cliquez une broche, posez des coudes en cliquant
+  le fond (segments aimantés horizontal/vertical, **arrondi à chaque changement
+  de direction**), terminez sur une broche — Échap annule
+- ✅ **Couleurs de fils Dupont** : les 10 couleurs des nappes arc-en-ciel,
+  attribuées en rotation aux nouveaux fils et modifiables d'un clic
+- ✅ **Éditeur de composants** : panneau « Propriétés » — sélectionnez un
+  composant (couleur de LED, valeur et angle de résistance, couleur de bouton,
+  position du potentiomètre…) ou un fil (couleur, suppression) ; touche Suppr
 - ✅ **Carte Raspberry Pi Pico** : élément SVG maison (`<kablix-pico-board>`)
   avec les 40 broches colorées (GP = or, GND = gris, alimentation = rouge),
   la **LED embarquée GP25** qui clignote visuellement, le connecteur USB et le

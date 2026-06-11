@@ -13,6 +13,19 @@ export type PartKind =
 
 export type BoardId = 'uno' | 'pico';
 
+/** Propriété éditable d'un composant (affichée dans l'éditeur de composants). */
+export interface PropDef {
+  /** Attribut HTML correspondant sur l'élément. */
+  attr: string;
+  label: string;
+  kind: 'select' | 'number';
+  /** Pour kind 'select' : valeurs proposées. */
+  options?: readonly string[];
+  min?: number;
+  max?: number;
+  step?: number;
+}
+
 export interface PartDef {
   /** Identifiant interne du type de composant. */
   type: string;
@@ -25,17 +38,44 @@ export interface PartDef {
   board?: BoardId;
   /** Attributs par défaut posés sur l'élément. */
   attrs?: Record<string, string>;
+  /** Propriétés modifiables dans l'éditeur de composants. */
+  props?: readonly PropDef[];
+  /** Composant interactif (bouton, potentiomètre) : déplacé par son bandeau uniquement. */
+  interactive?: boolean;
 }
 
 export const CATALOG: readonly PartDef[] = [
   { type: 'uno', label: 'Arduino Uno', tag: 'wokwi-arduino-uno', kind: 'mcu', board: 'uno' },
   { type: 'pico', label: 'Raspberry Pi Pico', tag: 'kablix-pico-board', kind: 'mcu', board: 'pico' },
-  { type: 'led', label: 'LED', tag: 'wokwi-led', kind: 'led', attrs: { color: 'red' } },
+  {
+    type: 'led', label: 'LED', tag: 'wokwi-led', kind: 'led', attrs: { color: 'red' },
+    props: [
+      { attr: 'color', label: 'Couleur', kind: 'select', options: ['red', 'green', 'blue', 'yellow', 'orange', 'white', 'purple'] },
+      { attr: 'flip', label: 'Retournée', kind: 'select', options: ['', '1'] },
+    ],
+  },
   { type: 'rgb-led', label: 'LED RGB', tag: 'wokwi-rgb-led', kind: 'rgb-led' },
-  { type: 'button', label: 'Bouton', tag: 'wokwi-pushbutton', kind: 'pushbutton', attrs: { color: 'green' } },
-  { type: 'resistor', label: 'Résistance', tag: 'wokwi-resistor', kind: 'resistor', attrs: { value: '220', angle: '0' } },
+  {
+    type: 'button', label: 'Bouton', tag: 'wokwi-pushbutton', kind: 'pushbutton', attrs: { color: 'green' }, interactive: true,
+    props: [
+      { attr: 'color', label: 'Couleur', kind: 'select', options: ['green', 'red', 'blue', 'yellow', 'black', 'white'] },
+    ],
+  },
+  {
+    type: 'resistor', label: 'Résistance', tag: 'wokwi-resistor', kind: 'resistor', attrs: { value: '220', angle: '0' },
+    props: [
+      { attr: 'value', label: 'Valeur (Ω)', kind: 'number', min: 1, max: 10_000_000, step: 1 },
+      { attr: 'angle', label: 'Angle', kind: 'select', options: ['0', '90', '180', '270'] },
+    ],
+  },
   { type: 'buzzer', label: 'Buzzer', tag: 'wokwi-buzzer', kind: 'buzzer' },
-  { type: 'pot', label: 'Potentiomètre', tag: 'wokwi-potentiometer', kind: 'potentiometer', attrs: { min: '0', max: '100', value: '50' } },
+  {
+    type: 'pot', label: 'Potentiomètre', tag: 'wokwi-potentiometer', kind: 'potentiometer',
+    attrs: { min: '0', max: '100', value: '50' }, interactive: true,
+    props: [
+      { attr: 'value', label: 'Position (%)', kind: 'number', min: 0, max: 100, step: 1 },
+    ],
+  },
 ];
 
 export function partDef(type: string): PartDef {

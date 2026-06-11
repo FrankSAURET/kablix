@@ -11,6 +11,10 @@ export interface Wire {
   id: string;
   a: Endpoint;
   b: Endpoint;
+  /** Points intermédiaires (coordonnées canvas) posés pendant le câblage. */
+  points?: Array<{ x: number; y: number }>;
+  /** Couleur Dupont du fil (identifiant de geometry.DUPONT_COLORS ou hex). */
+  color?: string;
 }
 
 export interface Part {
@@ -18,6 +22,8 @@ export interface Part {
   type: string;
   x: number;
   y: number;
+  /** Attributs effectifs de l'élément (couleur de LED, valeur de résistance…). */
+  attrs?: Record<string, string>;
 }
 
 export interface Diagram {

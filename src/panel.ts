@@ -306,6 +306,7 @@ export class SimulatorPanel {
       <div id="canvas" class="canvas">
         <svg id="wires" class="wires"></svg>
       </div>
+      <aside id="inspector" class="inspector"></aside>
     </div>
 
     <section class="serial">

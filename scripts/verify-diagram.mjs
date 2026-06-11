@@ -20,6 +20,17 @@ await esbuild.build({
 });
 const { ledOn, rgbLedState, buzzerOn, buttonBindings, potBindings } = await import(pathToFileURL(out).href);
 
+const outGeo = join(mkdtempSync(join(tmpdir(), 'kablix-geo-')), 'geometry.mjs');
+await esbuild.build({
+  entryPoints: [join(root, 'src/webview/diagram/geometry.mts')],
+  outfile: outGeo,
+  bundle: true,
+  platform: 'node',
+  format: 'esm',
+  logLevel: 'silent',
+});
+const { snapPoint, roundedWirePath, DUPONT_COLORS, dupontHex } = await import(pathToFileURL(outGeo).href);
+
 let failures = 0;
 const check = (label, ok) => {
   console.log(`${ok ? '  ✓' : '  ✗'} ${label}`);
@@ -89,6 +100,27 @@ check('LED éteinte quand GP25 = LOW', !ledOn(picoDiagram, 'led', () => false));
   check('buzzer inactif quand GP14 = LOW', !buzzerOn(picoDiagram, 'bz', () => false));
   const rgb = rgbLedState(picoDiagram, 'rgb', (n) => n === 'GP16' || n === 'GP18');
   check('LED RGB : canaux rouge+bleu allumés, vert éteint', rgb.red && !rgb.green && rgb.blue);
+}
+
+console.log('Géométrie des fils :');
+{
+  const o = { x: 100, y: 100 };
+  const h = snapPoint(o, { x: 200, y: 108 });
+  check('segment quasi horizontal aimanté (y conservé)', h.x === 200 && h.y === 100);
+  const v = snapPoint(o, { x: 95, y: 220 });
+  check('segment quasi vertical aimanté (x conservé)', v.x === 100 && v.y === 220);
+  const d = snapPoint(o, { x: 200, y: 200 });
+  check('diagonale franche non modifiée', d.x === 200 && d.y === 200);
+
+  const path = roundedWirePath([{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 80 }], 8);
+  check('tracé commence par M et finit sur le dernier point', path.startsWith('M 0 0') && path.endsWith('L 100 80'));
+  check('un congé (Q) au changement de direction', (path.match(/Q/g) ?? []).length === 1);
+  check('le congé passe par le sommet (100,0)', path.includes('Q 100 0'));
+  const direct = roundedWirePath([{ x: 0, y: 0 }, { x: 50, y: 50 }]);
+  check('fil direct sans coude : pas de congé', direct === 'M 0 0 L 50 50');
+
+  check('10 couleurs Dupont', DUPONT_COLORS.length === 10);
+  check('dupontHex résout un identifiant', dupontHex('red') === '#e53935');
 }
 
 console.log('Intégration avr8js (LED suit la broche 13) :');

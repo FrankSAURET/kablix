@@ -126,22 +126,130 @@ body {
 }
 
 .wire {
+  fill: none;
   stroke: #2bb673;
   stroke-width: 3;
   stroke-linecap: round;
+  stroke-linejoin: round;
   pointer-events: stroke;
+  cursor: pointer;
+}
+
+.wire:hover {
+  stroke-width: 5;
+}
+
+.wire--selected {
+  stroke-width: 5;
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.85));
 }
 
 .wire--temp {
-  stroke: #8fd6b4;
+  stroke: #8fd6b4 !important;
   stroke-dasharray: 5 4;
   pointer-events: none;
+  cursor: default;
+}
+
+/* --- Inspecteur (éditeur de composants) ------------------------------------- */
+.inspector {
+  flex: 0 0 190px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.6rem;
+  background: var(--vscode-editorWidget-background, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--vscode-panel-border, #444);
+  border-radius: 8px;
+  align-self: flex-start;
+}
+
+.inspector h3 {
+  margin: 0 0 0.3rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+}
+
+.inspector__subtitle {
+  margin: 0;
+  font-weight: bold;
+  font-size: 0.85rem;
+}
+
+.inspector__hint {
+  margin: 0;
+  font-size: 0.75rem;
+  opacity: 0.65;
+  line-height: 1.4;
+}
+
+.inspector__label {
+  font-size: 0.72rem;
+  opacity: 0.8;
+  margin-top: 0.3rem;
+}
+
+.inspector__control {
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--vscode-input-foreground, #fff);
+  background: var(--vscode-input-background, #333);
+  border: 1px solid var(--vscode-input-border, #555);
+  border-radius: 4px;
+  padding: 0.25rem 0.4rem;
+}
+
+.inspector__swatches {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
+}
+
+.inspector__swatch {
+  height: 22px;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+
+.inspector__swatch:hover {
+  border-color: var(--vscode-focusBorder, #0e639c);
+}
+
+.inspector__swatch--active {
+  border-color: #ffffff;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.6);
+}
+
+.inspector__delete {
+  margin-top: 0.6rem;
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-input-border, #555);
+  background: var(--vscode-input-background, #333);
+  color: #ff8a8a;
+  cursor: pointer;
+}
+
+.inspector__delete:hover {
+  background: rgba(255, 107, 107, 0.15);
 }
 
 /* --- Composant posé -------------------------------------------------------- */
 .part {
   position: absolute;
+  -webkit-user-select: none;
   user-select: none;
+}
+
+.part--selected {
+  outline: 2px dashed var(--vscode-focusBorder, #0e639c);
+  outline-offset: 3px;
+  border-radius: 4px;
 }
 
 .part__head {
