@@ -1,0 +1,5 @@
+- Les fil doivent passer par dessus la carte arduino ou la carte pico pi.
+- Le nom au dessus des composants doit pouvoir être masquable (bouton toggle dans le menu) mais la zone pour saisir et déplacer le composant reste.
+- Feuille de dessin vide au démarrage.
+- Ascenceur pour la bibliothèque des composants.
+- rajouter une platine d'essai multi tailles.
