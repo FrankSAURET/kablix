@@ -2,6 +2,8 @@
 
 Simulateur **Arduino Uno** / **Raspberry Pi Pico** intégré à VS Code, 100% offline.
 
+> English version: [USAGE.en.md](USAGE.en.md)
+
 ## Sommaire
 
 1. [Démarrage](#démarrage)
@@ -80,9 +82,14 @@ clignote, le bouton est interactif.
 3. Cliquer une **autre broche** termine le fil. `Échap` annule.
 4. Le glisser-déposer direct broche → broche fonctionne aussi.
 
-Chaque changement de direction est tracé avec un **arrondi**. Les couleurs
-suivent la rotation des **nappes Dupont arc-en-ciel** (10 couleurs) et se
-changent d'un clic dans l'inspecteur.
+Chaque changement de direction est tracé avec un **arrondi**. Couleurs :
+
+- un fil touchant une **masse** (GND) naît **noir** ;
+- un fil touchant une **alimentation** (5V, 3V3, VBUS, VSYS, VCC…) naît **rouge** ;
+- les autres suivent la rotation des **nappes Dupont arc-en-ciel** (10 couleurs).
+
+La couleur reste **modifiable d'un clic** dans l'inspecteur — elle n'est jamais
+ré-imposée.
 
 ### Retoucher un fil
 
@@ -225,6 +232,49 @@ Conseils pour le dessin SVG :
   (`fill`, `stroke`…) — ils survivent à l'export SVG du schéma.
 - Placez visuellement vos pastilles de connexion (cercles dorés par exemple) là
   où vous déclarez les `pins`.
+
+### Faire générer un composant par une IA
+
+Copiez le prompt ci-dessous dans votre assistant IA préféré (Claude, ChatGPT…),
+complétez la première ligne, puis importez le JSON obtenu via
+**⇪ Importer (.json)** :
+
+```text
+Crée un composant pour le simulateur Kablix : [DÉCRIS ICI TON COMPOSANT, ex.
+« un module relais 5V avec une LED témoin »].
+
+Réponds UNIQUEMENT avec un fichier JSON valide (aucun texte autour), au format :
+
+{
+  "label": "<nom court affiché dans la palette>",
+  "kind": "<modèle de simulation, voir liste>",
+  "svg": "<dessin SVG complet sur une seule ligne>",
+  "pins": [ { "name": "<nom>", "x": <px>, "y": <px> } ],
+  "pinRoles": { "<rôle>": "<nom de broche>" },
+  "attrs": {}
+}
+
+Contraintes :
+- "kind" parmi : "led" (allumé si rôle A=haut et C=bas), "pushbutton" (clic =
+  broche tirée à GND, rôles 1.l et 2.l), "resistor" (relie les rôles 1 et 2),
+  "buzzer" (actif si tension entre rôles 1 et 2), "digital-source" (sortie
+  numérique, rôle OUT, état réglé par l'utilisateur), "analog-source" (sortie
+  analogique, rôle AO, valeur 0-100 % réglée par l'utilisateur), "passive"
+  (décoratif, aucun rôle).
+- "pinRoles" : associe chaque rôle du kind choisi au "name" d'une de tes pins.
+- "attrs" : { "state": "0" } pour digital-source, { "value": "50" } pour
+  analog-source, {} sinon.
+- Le SVG : balise <svg> avec width/height en pixels (60 à 200), attributs de
+  présentation uniquement (fill, stroke…), pas de <style> ni de script, pas de
+  guillemets typographiques. Dessine des pastilles dorées (cercles ~4 px) aux
+  positions exactes des pins déclarées.
+- Les coordonnées x/y des pins sont en pixels depuis le coin haut-gauche du SVG.
+- Échappe correctement les guillemets dans la valeur "svg".
+```
+
+L'aide correspondante (rôles, champs, contraintes) est dans la section
+[Format de fichier](#format-de-fichier-des-composants-kablix-partjson) — le
+prompt en reprend l'essentiel pour que l'IA n'ait besoin d'aucun autre contexte.
 
 ## Où trouver des composants existants
 

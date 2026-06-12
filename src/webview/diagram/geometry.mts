@@ -60,16 +60,16 @@ export function roundedWirePath(points: XY[], radius = 8): string {
  * Utilisées en rotation pour les nouveaux fils, et proposées dans l'éditeur.
  */
 export const DUPONT_COLORS: ReadonlyArray<{ id: string; label: string; hex: string }> = [
-  { id: 'red', label: 'Rouge', hex: '#e53935' },
+  { id: 'red', label: 'Red', hex: '#e53935' },
   { id: 'orange', label: 'Orange', hex: '#fb8c00' },
-  { id: 'yellow', label: 'Jaune', hex: '#fdd835' },
-  { id: 'green', label: 'Vert', hex: '#43a047' },
-  { id: 'blue', label: 'Bleu', hex: '#1e88e5' },
-  { id: 'purple', label: 'Violet', hex: '#8e24aa' },
-  { id: 'gray', label: 'Gris', hex: '#9e9e9e' },
-  { id: 'white', label: 'Blanc', hex: '#fafafa' },
-  { id: 'black', label: 'Noir', hex: '#212121' },
-  { id: 'brown', label: 'Marron', hex: '#8d6e63' },
+  { id: 'yellow', label: 'Yellow', hex: '#fdd835' },
+  { id: 'green', label: 'Green', hex: '#43a047' },
+  { id: 'blue', label: 'Blue', hex: '#1e88e5' },
+  { id: 'purple', label: 'Purple', hex: '#8e24aa' },
+  { id: 'gray', label: 'Gray', hex: '#9e9e9e' },
+  { id: 'white', label: 'White', hex: '#fafafa' },
+  { id: 'black', label: 'Black', hex: '#212121' },
+  { id: 'brown', label: 'Brown', hex: '#8d6e63' },
 ];
 
 export function dupontHex(id: string): string {

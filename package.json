@@ -1,8 +1,8 @@
 {
   "name": "kablix",
   "displayName": "Kablix",
-  "version": "0.7.0",
-  "description": "Une application gauloise de simulation de microcontrôleurs (Arduino Uno / Raspberry Pi Pico) directement dans VS Code, 100% offline.",
+  "version": "0.8.0",
+  "description": "%kablix.description%",
   "publisher": "franksauret",
   "license": "MIT",
   "icon": "Kablix.png",
@@ -32,17 +32,17 @@
     "commands": [
       {
         "command": "kablix.openSimulator",
-        "title": "Kablix : Ouvrir le simulateur",
+        "title": "%kablix.cmd.openSimulator%",
         "category": "Kablix"
       },
       {
         "command": "kablix.compileAndRun",
-        "title": "Kablix : Compiler & exécuter le fichier actif",
+        "title": "%kablix.cmd.compileAndRun%",
         "category": "Kablix"
       },
       {
         "command": "kablix.loadWorkspaceArtifact",
-        "title": "Kablix : Charger l'artefact compilé du workspace",
+        "title": "%kablix.cmd.loadWorkspaceArtifact%",
         "category": "Kablix"
       }
     ],
@@ -59,14 +59,14 @@
       "kablix": [
         {
           "id": "kablix.home",
-          "name": "Simulateur"
+          "name": "%kablix.view.home%"
         }
       ]
     },
     "viewsWelcome": [
       {
         "view": "kablix.home",
-        "contents": "Simulateur Arduino Uno / Raspberry Pi Pico, 100% offline.\n[▶ Ouvrir le simulateur](command:kablix.openSimulator)\n[⚙ Compiler & exécuter le fichier actif](command:kablix.compileAndRun)\n[↑ Charger l'artefact du workspace](command:kablix.loadWorkspaceArtifact)\n[📖 Documentation](https://github.com/franksauret/kablix/blob/main/docs/UTILISATION.md)"
+        "contents": "%kablix.welcome%"
       }
     ],
     "configuration": {
@@ -75,7 +75,7 @@
         "kablix.micropythonUf2": {
           "type": "string",
           "default": "",
-          "description": "Chemin (absolu ou relatif au workspace) du firmware MicroPython .uf2 utilisé pour exécuter les fichiers .py sur le Pico simulé. Laisser vide pour détecter automatiquement micropython*.uf2 / RPI_PICO*.uf2 dans le workspace."
+          "description": "%kablix.config.micropythonUf2%"
         }
       }
     }
@@ -105,5 +105,6 @@
     "@vscode/vsce": "3.9.2",
     "esbuild": "0.28.0",
     "typescript": "6.0.3"
-  }
+  },
+  "l10n": "./l10n"
 }

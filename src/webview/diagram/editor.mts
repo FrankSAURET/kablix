@@ -10,6 +10,7 @@ import {
   CATALOG,
   listCustomParts,
   partDef,
+  pinElectricalRole,
   registerCustomPart,
   unregisterCustomPart,
   type CustomPartData,
@@ -19,6 +20,7 @@ import type { Diagram, Endpoint, Part, Wire } from './model.mjs';
 import { DUPONT_COLORS, dupontHex, roundedWirePath, snapPoint, type XY } from './geometry.mjs';
 import { PartCreator } from './creator.mjs';
 import '../elements/custom-part.mjs';
+import { t } from '../i18n.mjs';
 
 interface WokwiPin {
   name: string;
@@ -94,13 +96,13 @@ export class Editor {
   private buildPalette(): void {
     this.palette.replaceChildren();
     const title = document.createElement('h3');
-    title.textContent = 'Composants';
+    title.textContent = t('Components');
     this.palette.appendChild(title);
 
     for (const def of CATALOG) {
       const btn = document.createElement('button');
       btn.className = 'palette__item';
-      btn.textContent = def.label;
+      btn.textContent = t(def.label);
       btn.addEventListener('click', () => this.addPart(def.type));
       this.palette.appendChild(btn);
     }
@@ -113,7 +115,7 @@ export class Editor {
       const btn = document.createElement('button');
       btn.className = 'palette__item';
       btn.textContent = `★ ${def.label}`;
-      btn.title = 'Clic : poser sur le canvas — double-clic : modifier le modèle';
+      btn.title = t('Click: place on canvas — double-click: edit the model');
       btn.addEventListener('click', () => this.addPart(def.type));
       btn.addEventListener('dblclick', () => {
         if (data) this.creator.open(data);
@@ -122,14 +124,14 @@ export class Editor {
       exp.className = 'palette__custom-del';
       exp.style.color = 'inherit';
       exp.textContent = '⇩';
-      exp.title = 'Exporter ce composant (.json)';
+      exp.title = t('Export this part (.json)');
       exp.addEventListener('click', () => {
         if (data) this.onExportCustomPart?.(data);
       });
       const del = document.createElement('button');
       del.className = 'palette__custom-del';
       del.textContent = '✕';
-      del.title = 'Supprimer ce modèle de composant';
+      del.title = t('Delete this part model');
       del.addEventListener('click', () => this.removeCustomPart(def.type));
       row.append(btn, exp, del);
       this.palette.appendChild(row);
@@ -137,14 +139,14 @@ export class Editor {
 
     const create = document.createElement('button');
     create.className = 'palette__item palette__item--create';
-    create.textContent = '+ Créer un composant';
+    create.textContent = t('+ Create a part');
     create.addEventListener('click', () => this.creator.open());
     this.palette.appendChild(create);
 
     // Import d'un composant depuis un fichier .json (format documenté).
     const importBtn = document.createElement('button');
     importBtn.className = 'palette__item palette__item--create';
-    importBtn.textContent = '⇪ Importer (.json)';
+    importBtn.textContent = t('⇪ Import (.json)');
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = '.json,application/json';
@@ -156,7 +158,7 @@ export class Editor {
         try {
           this.importCustomPart(JSON.parse(text));
         } catch (err) {
-          this.showPaletteError(`Import impossible : ${err instanceof Error ? err.message : err}`);
+          this.showPaletteError(t('Import failed: {0}', err instanceof Error ? err.message : String(err)));
         }
         fileInput.value = '';
       });
@@ -168,13 +170,13 @@ export class Editor {
   /** Valide puis enregistre un composant importé (fichier .json). */
   private importCustomPart(raw: unknown): void {
     const data = raw as Partial<CustomPartData>;
-    if (typeof data !== 'object' || data === null) throw new Error('JSON invalide.');
-    if (typeof data.label !== 'string' || !data.label) throw new Error('champ « label » manquant.');
-    if (typeof data.svg !== 'string' || !data.svg.includes('<svg')) throw new Error('champ « svg » manquant ou invalide.');
-    if (!Array.isArray(data.pins)) throw new Error('champ « pins » manquant.');
+    if (typeof data !== 'object' || data === null) throw new Error(t('invalid JSON.'));
+    if (typeof data.label !== 'string' || !data.label) throw new Error(t('missing "label" field.'));
+    if (typeof data.svg !== 'string' || !data.svg.includes('<svg')) throw new Error(t('missing or invalid "svg" field.'));
+    if (!Array.isArray(data.pins)) throw new Error(t('missing "pins" field.'));
     for (const pin of data.pins) {
       if (typeof pin?.name !== 'string' || typeof pin?.x !== 'number' || typeof pin?.y !== 'number') {
-        throw new Error('chaque broche doit avoir name, x et y.');
+        throw new Error(t('each pin needs name, x and y.'));
       }
     }
     this.saveCustomPart({
@@ -272,11 +274,26 @@ export class Editor {
 
   /** Ajoute un fil par programme (schéma de démarrage). */
   addWire(a: Endpoint, b: Endpoint, opts?: { points?: XY[]; color?: string }): void {
-    const color = opts?.color ?? this.nextColor();
+    const color = opts?.color ?? this.autoColor(a, b);
     const wire: Wire = { id: uid('w-'), a, b, points: opts?.points, color };
     this.diagram.wires.push(wire);
     this.drawWire(wire);
     this.notify();
+  }
+
+  /**
+   * Couleur initiale d'un fil : noir s'il touche une masse, rouge s'il touche
+   * une alimentation, sinon rotation de la nappe Dupont. Modifiable ensuite
+   * dans l'inspecteur (la couleur n'est jamais ré-imposée).
+   */
+  private autoColor(a: Endpoint, b: Endpoint): string {
+    const roles = [a, b].map((e) => {
+      const part = this.diagram.parts.find((p) => p.id === e.partId);
+      return part ? pinElectricalRole(part.type, e.pin) : 'other';
+    });
+    if (roles.includes('gnd')) return 'black';
+    if (roles.includes('vcc')) return 'red';
+    return this.nextColor();
   }
 
   private nextColor(): string {
@@ -295,11 +312,11 @@ export class Editor {
 
     const head = document.createElement('div');
     head.className = 'part__head';
-    head.textContent = def.label;
+    head.textContent = t(def.label);
     const del = document.createElement('span');
     del.className = 'part__del';
     del.textContent = '✕';
-    del.title = 'Supprimer';
+    del.title = t('Delete');
     del.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
       this.removePart(part.id);
@@ -485,7 +502,7 @@ export class Editor {
       a: from,
       b: endpoint,
       points: points.length > 0 ? points : undefined,
-      color: this.nextColor(),
+      color: this.autoColor(from, endpoint),
     };
     this.diagram.wires.push(wire);
     this.drawWire(wire);
@@ -595,7 +612,7 @@ export class Editor {
       handle.className = 'wire-handle';
       handle.style.left = `${pt.x}px`;
       handle.style.top = `${pt.y}px`;
-      handle.title = 'Glisser pour déplacer — Ctrl : alignement H/V';
+      handle.title = t('Drag to move — Ctrl: H/V alignment');
       handle.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
         e.preventDefault();
@@ -740,15 +757,13 @@ export class Editor {
   private renderInspector(): void {
     this.inspector.replaceChildren();
     const title = document.createElement('h3');
-    title.textContent = 'Propriétés';
+    title.textContent = t('Properties');
     this.inspector.appendChild(title);
 
     if (!this.selection) {
       const hint = document.createElement('p');
       hint.className = 'inspector__hint';
-      hint.textContent =
-        'Cliquez un composant ou un fil pour le modifier. ' +
-        'Câblage : cliquez une broche, posez des coudes en cliquant le fond, terminez sur une broche (Échap : annuler).';
+      hint.textContent = t('Click a part or a wire to edit it. Wiring: click a pin, add corners by clicking the background, finish on a pin (Esc: cancel).');
       this.inspector.appendChild(hint);
       return;
     }
@@ -766,12 +781,12 @@ export class Editor {
 
     const subtitle = document.createElement('p');
     subtitle.className = 'inspector__subtitle';
-    subtitle.textContent = `Fil ${wire.a.pin} → ${wire.b.pin}`;
+    subtitle.textContent = t('Wire {0} → {1}', wire.a.pin, wire.b.pin);
     this.inspector.appendChild(subtitle);
 
     const label = document.createElement('label');
     label.className = 'inspector__label';
-    label.textContent = 'Couleur (nappe Dupont)';
+    label.textContent = t('Color (Dupont ribbon)');
     this.inspector.appendChild(label);
 
     const swatches = document.createElement('div');
@@ -780,7 +795,7 @@ export class Editor {
       const sw = document.createElement('button');
       sw.className = 'inspector__swatch' + (wire.color === color.id ? ' inspector__swatch--active' : '');
       sw.style.background = color.hex;
-      sw.title = color.label;
+      sw.title = t(color.label);
       sw.addEventListener('click', () => {
         this.setWireColor(wireId, color.id);
         this.renderInspector();
@@ -789,7 +804,7 @@ export class Editor {
     }
     this.inspector.appendChild(swatches);
 
-    this.appendDeleteButton('Supprimer le fil', () => this.removeWire(wireId));
+    this.appendDeleteButton(t('Delete the wire'), () => this.removeWire(wireId));
   }
 
   private renderPartInspector(partId: string): void {
@@ -799,7 +814,7 @@ export class Editor {
 
     const subtitle = document.createElement('p');
     subtitle.className = 'inspector__subtitle';
-    subtitle.textContent = def.label;
+    subtitle.textContent = t(def.label);
     this.inspector.appendChild(subtitle);
 
     for (const prop of def.props ?? []) {
@@ -808,17 +823,17 @@ export class Editor {
     if ((def.props ?? []).length === 0) {
       const hint = document.createElement('p');
       hint.className = 'inspector__hint';
-      hint.textContent = 'Aucune propriété modifiable pour ce composant.';
+      hint.textContent = t('No editable property for this part.');
       this.inspector.appendChild(hint);
     }
 
-    this.appendDeleteButton('Supprimer le composant', () => this.removePart(partId));
+    this.appendDeleteButton(t('Delete the part'), () => this.removePart(partId));
   }
 
   private appendPropControl(partId: string, part: Part, prop: PropDef): void {
     const label = document.createElement('label');
     label.className = 'inspector__label';
-    label.textContent = prop.label;
+    label.textContent = t(prop.label);
     this.inspector.appendChild(label);
 
     const current = part.attrs?.[prop.attr] ?? '';
@@ -828,7 +843,7 @@ export class Editor {
       for (const opt of prop.options ?? []) {
         const o = document.createElement('option');
         o.value = opt;
-        o.textContent = opt === '' ? 'non' : opt;
+        o.textContent = opt === '' ? t('no') : opt;
         if (opt === current) o.selected = true;
         select.appendChild(o);
       }

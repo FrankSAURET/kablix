@@ -70,9 +70,12 @@ Aucun service en ligne n'est requis.
 Tout le pipeline (netlist → émulateur → affichage, parseurs UF2/ELF, exécution
 MicroPython de bout en bout) est couvert par des tests automatisés.
 
-> 📖 **Guide complet** : [docs/UTILISATION.md](docs/UTILISATION.md) — interface,
-> câblage, création de composants personnalisés, format `.kablix-part.json`,
+> 📖 **Guide complet** : [docs/UTILISATION.md](docs/UTILISATION.md) (français) /
+> [docs/USAGE.en.md](docs/USAGE.en.md) (English) — interface, câblage, création
+> de composants personnalisés (avec prompt IA), format `.kablix-part.json`,
 > sources de composants existants.
+>
+> 🌍 **Interface bilingue** : français si VS Code est en français, anglais sinon.
 
 ## Utilisation
 

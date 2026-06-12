@@ -21,6 +21,7 @@ import '@wokwi/elements/dist/esm/servo-element.js';
 import './elements/pico-board.mjs';
 import './elements/custom-part.mjs';
 
+import { initLocale, t } from './i18n.mjs';
 import { Editor } from './diagram/editor.mjs';
 import { partDef, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
 import {
@@ -48,6 +49,12 @@ interface VsCodeApi {
   postMessage(message: unknown): void;
 }
 declare function acquireVsCodeApi(): VsCodeApi;
+declare global {
+  interface Window {
+    KABLIX_LANG?: string;
+  }
+}
+initLocale(window.KABLIX_LANG);
 const vscode = acquireVsCodeApi();
 
 const boardSelect = document.getElementById('board') as HTMLSelectElement;
@@ -254,7 +261,7 @@ function startRun(): void {
   try {
     engine = board === 'uno' ? new AvrEngine(unoProgram) : new PicoEngine(picoProgram);
   } catch (err) {
-    setStatus(`Erreur : ${err instanceof Error ? err.message : err}`);
+    setStatus(t('Error: {0}', err instanceof Error ? err.message : String(err)));
     return;
   }
   engine.onUpdate = queueRefresh;
@@ -264,7 +271,7 @@ function startRun(): void {
   runBtn.disabled = true;
   stopBtn.disabled = false;
   const isPython = board === 'pico' && picoProgram.kind === 'flash' && picoProgram.script;
-  setStatus(isPython ? 'Démarrage MicroPython… (quelques secondes)' : 'En cours…');
+  setStatus(isPython ? t('Starting MicroPython… (a few seconds)') : t('Running…'));
 }
 
 function stopRun(): void {
@@ -274,7 +281,7 @@ function stopRun(): void {
   engine = null;
   runBtn.disabled = false;
   stopBtn.disabled = true;
-  setStatus('Arrêté');
+  setStatus(t('Stopped'));
 }
 
 editor.onChange = () => {
@@ -288,7 +295,7 @@ clearBtn.addEventListener('click', () => {
   serialEl.textContent = '';
 });
 compileBtn.addEventListener('click', () => {
-  setStatus('Compilation…');
+  setStatus(t('Compiling…'));
   vscode.postMessage({ type: 'compile', board });
 });
 loadBtn.addEventListener('click', () => {
@@ -310,7 +317,7 @@ boardSelect.addEventListener('change', () => {
   vscode.postMessage({ type: 'board', board });
   stopRun();
   buildStarter();
-  setStatus(`Carte : ${board === 'uno' ? 'Arduino Uno' : 'Raspberry Pi Pico'}`);
+  setStatus(t('Board: {0}', board === 'uno' ? 'Arduino Uno' : 'Raspberry Pi Pico'));
 });
 
 // --- Moniteur série : envoi vers le microcontrôleur ---------------------------
@@ -399,5 +406,5 @@ function buildStarter(): void {
 }
 
 buildStarter();
-setStatus('Prêt');
+setStatus(t('Ready'));
 vscode.postMessage({ type: 'ready' });

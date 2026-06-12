@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+const l10n = vscode.l10n;
 import {
   compile,
   loadArtifact,
@@ -35,7 +36,7 @@ export class SimulatorPanel {
     const extensionUri = context.extensionUri;
     const panel = vscode.window.createWebviewPanel(
       SimulatorPanel.viewType,
-      'Kablix — Simulateur',
+      l10n.t('Kablix — Simulator'),
       column ?? vscode.ViewColumn.One,
       {
         enableScripts: true,
@@ -64,14 +65,14 @@ export class SimulatorPanel {
   public async compileActiveFile(): Promise<void> {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
-      vscode.window.showWarningMessage('Kablix : aucun fichier actif à compiler.');
+      vscode.window.showWarningMessage(l10n.t('Kablix: no active file to compile.'));
       return;
     }
     await editor.document.save();
     const filePath = editor.document.uri.fsPath;
     const ext = filePath.slice(filePath.lastIndexOf('.')).toLowerCase();
 
-    this.post({ type: 'status', text: 'Préparation…' });
+    this.post({ type: 'status', text: l10n.t('Preparing…') });
     try {
       let result: CompileResult;
       if (ext === '.py') {
@@ -82,7 +83,7 @@ export class SimulatorPanel {
       } else {
         const board = this.currentBoard;
         result = await vscode.window.withProgress(
-          { location: vscode.ProgressLocation.Notification, title: `Kablix : compilation (${board})…` },
+          { location: vscode.ProgressLocation.Notification, title: l10n.t('Kablix: compiling ({0})…', board) },
           () => Promise.resolve(compile(board, filePath, this.extensionUri.fsPath))
         );
       }
@@ -105,8 +106,8 @@ export class SimulatorPanel {
       if (!file) {
         vscode.window.showWarningMessage(
           board === 'uno'
-            ? 'Kablix : aucun fichier .hex trouvé dans le workspace.'
-            : 'Kablix : aucun fichier .uf2 trouvé dans le workspace (dossier build/).'
+            ? l10n.t('Kablix: no .hex file found in the workspace.')
+            : l10n.t('Kablix: no .uf2 file found in the workspace (build/ folder).')
         );
         return;
       }
@@ -188,7 +189,7 @@ export class SimulatorPanel {
           await vscode.workspace.fs.stat(uri);
           return uri.fsPath;
         } catch {
-          throw new Error(`Firmware MicroPython introuvable : ${configured} (réglage kablix.micropythonUf2).`);
+          throw new Error(l10n.t('MicroPython firmware not found: {0} (kablix.micropythonUf2 setting).', configured));
         }
       }
     }
@@ -200,9 +201,9 @@ export class SimulatorPanel {
     const best = await this.newest(found);
     if (!best) {
       throw new Error(
-        'Aucun firmware MicroPython (.uf2) trouvé dans le workspace. ' +
-          'Téléchargez-le sur https://micropython.org/download/RPI_PICO/ puis placez-le ' +
-          'dans le workspace ou renseignez le réglage « kablix.micropythonUf2 ».'
+        l10n.t(
+          'No MicroPython firmware (.uf2) found in the workspace. Download it from https://micropython.org/download/RPI_PICO/ then place it in the workspace or set the "kablix.micropythonUf2" setting.'
+        )
       );
     }
     return best.fsPath;
@@ -212,7 +213,7 @@ export class SimulatorPanel {
 
   private runProgram(result: CompileResult, label: string): void {
     this.post({ type: 'runProgram', ...result.payload });
-    vscode.window.showInformationMessage(`Kablix : ${label} chargé dans le simulateur.`);
+    vscode.window.showInformationMessage(l10n.t('Kablix: {0} loaded into the simulator.', label));
     if (result.log) {
       console.log(`[Kablix] ${result.log}`);
     }
@@ -220,7 +221,7 @@ export class SimulatorPanel {
 
   private reportError(err: unknown): void {
     const message = err instanceof Error ? err.message : String(err);
-    this.post({ type: 'status', text: 'Échec du chargement' });
+    this.post({ type: 'status', text: l10n.t('Load failed') });
     vscode.window.showErrorMessage(`Kablix : ${message}`);
   }
 
@@ -278,15 +279,15 @@ export class SimulatorPanel {
       : vscode.Uri.file(`${safeName}.kablix-part.json`);
     const target = await vscode.window.showSaveDialog({
       defaultUri,
-      filters: { 'Composant Kablix': ['json'] },
-      title: 'Exporter le composant',
+      filters: { [l10n.t('Kablix part')]: ['json'] },
+      title: l10n.t('Export the part'),
     });
     if (!target) return;
     await vscode.workspace.fs.writeFile(
       target,
       new TextEncoder().encode(JSON.stringify(part, null, 2))
     );
-    vscode.window.showInformationMessage(`Kablix : composant exporté vers ${target.fsPath}`);
+    vscode.window.showInformationMessage(l10n.t('Kablix: part exported to {0}', target.fsPath));
   }
 
   /** Enregistre le schéma exporté en SVG via un dialogue de sauvegarde. */
@@ -297,12 +298,12 @@ export class SimulatorPanel {
       : vscode.Uri.file('schema-kablix.svg');
     const target = await vscode.window.showSaveDialog({
       defaultUri,
-      filters: { 'Image SVG': ['svg'] },
-      title: 'Exporter le schéma en SVG',
+      filters: { [l10n.t('SVG image')]: ['svg'] },
+      title: l10n.t('Export the diagram as SVG'),
     });
     if (!target) return;
     await vscode.workspace.fs.writeFile(target, new TextEncoder().encode(svg));
-    vscode.window.showInformationMessage(`Kablix : schéma exporté vers ${target.fsPath}`);
+    vscode.window.showInformationMessage(l10n.t('Kablix: diagram exported to {0}', target.fsPath));
   }
 
   private post(message: unknown): void {
@@ -345,21 +346,21 @@ export class SimulatorPanel {
 <body>
   <header class="toolbar">
     <strong class="brand">Kablix</strong>
-    <select id="board" title="Carte simulée">
+    <select id="board" title="${l10n.t('Simulated board')}">
       <option value="uno" selected>Arduino Uno</option>
       <option value="pico">Raspberry Pi Pico</option>
     </select>
-    <button id="run" class="primary">▶ Démarrer</button>
-    <button id="stop" disabled>■ Arrêter</button>
-    <button id="compile">⚙ Compiler &amp; exécuter le fichier actif</button>
-    <button id="load-workspace" title="Charge l'artefact compilé le plus récent du workspace">↑ Charger workspace</button>
-    <button id="export-svg" title="Exporter le schéma en SVG">⬇ SVG</button>
+    <button id="run" class="primary">▶ ${l10n.t('Start')}</button>
+    <button id="stop" disabled>■ ${l10n.t('Stop')}</button>
+    <button id="compile">⚙ ${l10n.t('Compile &amp; run the active file')}</button>
+    <button id="load-workspace" title="${l10n.t('Loads the most recent compiled artifact of the workspace')}">↑ ${l10n.t('Load workspace')}</button>
+    <button id="export-svg" title="${l10n.t('Export the diagram as SVG')}">⬇ SVG</button>
     <span id="status" class="status">Prêt</span>
   </header>
 
   <main class="stage">
     <div class="workshop">
-      <aside id="palette" class="palette"><h3>Composants</h3></aside>
+      <aside id="palette" class="palette"></aside>
       <div id="canvas" class="canvas">
         <svg id="wires" class="wires"></svg>
       </div>
@@ -368,17 +369,18 @@ export class SimulatorPanel {
 
     <section class="serial">
       <div class="serial__head">
-        <span>Moniteur série</span>
-        <button id="clear-serial">Effacer</button>
+        <span>${l10n.t('Serial monitor')}</span>
+        <button id="clear-serial">${l10n.t('Clear')}</button>
       </div>
       <pre id="serial" class="serial__out" aria-live="polite"></pre>
       <div class="serial__input">
-        <input id="serial-input" type="text" placeholder="Envoyer au microcontrôleur (Entrée)…" />
-        <button id="serial-send">Envoyer</button>
+        <input id="serial-input" type="text" placeholder="${l10n.t('Send to the microcontroller (Enter)…')}" />
+        <button id="serial-send">${l10n.t('Send')}</button>
       </div>
     </section>
   </main>
 
+  <script nonce="${nonce}">window.KABLIX_LANG = ${JSON.stringify(vscode.env.language)};</script>
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;

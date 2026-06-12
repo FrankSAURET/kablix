@@ -33,7 +33,7 @@ await esbuild.build({
   format: 'esm',
   logLevel: 'silent',
 });
-const { registerCustomPart, rolePin } = await import(pathToFileURL(outCat).href);
+const { registerCustomPart, rolePin, pinElectricalRole } = await import(pathToFileURL(outCat).href);
 
 const outGeo = join(mkdtempSync(join(tmpdir(), 'kablix-geo-')), 'geometry.mjs');
 await esbuild.build({
@@ -180,6 +180,18 @@ console.log('Composant personnalisé (rôles de broches) :');
   check('rolePin A → plus', rolePin('custom-test', 'A') === 'plus');
   check('rolePin C → moins', rolePin('custom-test', 'C') === 'moins');
   // Le modèle bundlé séparément a son propre registre : on y enregistre aussi.
+}
+
+console.log('Rôle électrique des broches (couleur auto des fils) :');
+{
+  check('Uno GND.1 → gnd', pinElectricalRole('uno', 'GND.1') === 'gnd');
+  check('Uno 5V → vcc', pinElectricalRole('uno', '5V') === 'vcc');
+  check('Uno D13 → other', pinElectricalRole('uno', '13') === 'other');
+  check('Pico 3V3 → vcc', pinElectricalRole('pico', '3V3') === 'vcc');
+  check('Pico GP25 → other', pinElectricalRole('pico', 'GP25') === 'other');
+  check('potentiomètre GND → gnd', pinElectricalRole('pot', 'GND') === 'gnd');
+  check('servo V+ → vcc', pinElectricalRole('servo', 'V+') === 'vcc');
+  check('LED A → other', pinElectricalRole('led', 'A') === 'other');
 }
 
 console.log('Géométrie des fils :');

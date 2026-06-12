@@ -1,0 +1,126 @@
+// Internationalisation de la webview. Les chaînes sources (clés) sont en
+// anglais ; chaque langue fournit un dictionnaire clé → traduction. La langue
+// vient de vscode.env.language, injectée par l'extension dans window.KABLIX_LANG.
+// t() remplace les marqueurs {0}, {1}… par ses arguments.
+
+const FR: Record<string, string> = {
+  // Barre d'état / simulation
+  'Ready': 'Prêt',
+  'Stopped': 'Arrêté',
+  'Running…': 'En cours…',
+  'Compiling…': 'Compilation…',
+  'Starting MicroPython… (a few seconds)': 'Démarrage MicroPython… (quelques secondes)',
+  'Board: {0}': 'Carte : {0}',
+  'Error: {0}': 'Erreur : {0}',
+
+  // Palette
+  'Components': 'Composants',
+  '+ Create a part': '+ Créer un composant',
+  '⇪ Import (.json)': '⇪ Importer (.json)',
+  'Click: place on canvas — double-click: edit the model':
+    'Clic : poser sur le canvas — double-clic : modifier le modèle',
+  'Export this part (.json)': 'Exporter ce composant (.json)',
+  'Delete this part model': 'Supprimer ce modèle de composant',
+  'Import failed: {0}': 'Import impossible : {0}',
+  'invalid JSON.': 'JSON invalide.',
+  'missing "label" field.': 'champ « label » manquant.',
+  'missing or invalid "svg" field.': 'champ « svg » manquant ou invalide.',
+  'missing "pins" field.': 'champ « pins » manquant.',
+  'each pin needs name, x and y.': 'chaque broche doit avoir name, x et y.',
+
+  // Composants posés
+  'Delete': 'Supprimer',
+  'Drag to move — Ctrl: H/V alignment': 'Glisser pour déplacer — Ctrl : alignement H/V',
+
+  // Inspecteur
+  'Properties': 'Propriétés',
+  'Click a part or a wire to edit it. Wiring: click a pin, add corners by clicking the background, finish on a pin (Esc: cancel).':
+    'Cliquez un composant ou un fil pour le modifier. Câblage : cliquez une broche, posez des coudes en cliquant le fond, terminez sur une broche (Échap : annuler).',
+  'Wire {0} → {1}': 'Fil {0} → {1}',
+  'Color (Dupont ribbon)': 'Couleur (nappe Dupont)',
+  'Delete the wire': 'Supprimer le fil',
+  'Delete the part': 'Supprimer le composant',
+  'No editable property for this part.': 'Aucune propriété modifiable pour ce composant.',
+  'no': 'non',
+
+  // Créateur de composants
+  'Create a part': 'Créer un composant',
+  'Edit the part': 'Modifier le composant',
+  'Name': 'Nom',
+  'My sensor': 'Mon capteur',
+  'Simulation model': 'Modèle de simulation',
+  'SVG drawing': 'Dessin SVG',
+  'Click the preview to add a connection point.': "Cliquez l'aperçu pour poser un point de connexion.",
+  'Preview': 'Aperçu',
+  'Connection points': 'Points de connexion',
+  'No point — click the preview.': "Aucun point — cliquez l'aperçu.",
+  'Delete this point': 'Supprimer ce point',
+  'Pin for role "{0}"': 'Broche pour le rôle « {0} »',
+  'Cancel': 'Annuler',
+  'Save': 'Enregistrer',
+
+  // Libellés du catalogue
+  'RGB LED': 'LED RGB',
+  'Pushbutton': 'Bouton',
+  'Resistor': 'Résistance',
+  'Potentiometer': 'Potentiomètre',
+  'Slide potentiometer': 'Potentiomètre glissière',
+  '7-segment display': 'Afficheur 7 segments',
+  'LED bar graph': 'Barre de LED',
+  'Slide switch': 'Interrupteur glissière',
+  'Analog joystick': 'Joystick analogique',
+  'Photoresistor (LDR)': 'Photorésistance (LDR)',
+  'PIR motion sensor': 'Détecteur de mouvement (PIR)',
+  'Tilt sensor': "Capteur d'inclinaison",
+  'Servo motor': 'Servomoteur',
+
+  // Propriétés du catalogue
+  'Color': 'Couleur',
+  'Flipped': 'Retournée',
+  'Value (Ω)': 'Valeur (Ω)',
+  'Position (%)': 'Position (%)',
+  'Brightness (%)': 'Luminosité (%)',
+  'Motion detected': 'Mouvement détecté',
+  'Tilted': 'Incliné',
+  'Horn': 'Bras',
+  'State (0/1)': 'État (0/1)',
+
+  // Modèles du créateur
+  'LED (lit when A=high and C=low)': 'LED (allumée si A=haut et C=bas)',
+  'Pushbutton (pulls the pin to GND)': 'Bouton poussoir (tire la broche à GND)',
+  'Resistor (joins its two pins)': 'Résistance (relie ses deux broches)',
+  'Buzzer (active when voltage across 1 and 2)': 'Buzzer (actif si tension entre 1 et 2)',
+  'Digital source (state set in Properties)': 'Source numérique (état piloté dans Propriétés)',
+  'Analog source (value set in Properties)': 'Source analogique (valeur pilotée dans Propriétés)',
+  'Decorative (no behavior)': 'Décoratif (aucun comportement)',
+
+  // Couleurs Dupont
+  'Red': 'Rouge',
+  'Yellow': 'Jaune',
+  'Green': 'Vert',
+  'Blue': 'Bleu',
+  'Purple': 'Violet',
+  'Gray': 'Gris',
+  'White': 'Blanc',
+  'Black': 'Noir',
+  'Brown': 'Marron',
+};
+
+const DICTS: Record<string, Record<string, string>> = { fr: FR };
+
+let dict: Record<string, string> = {};
+
+/** Initialise la langue ('fr', 'fr-FR', 'en'…). Anglais par défaut. */
+export function initLocale(language: string | undefined): void {
+  const base = (language ?? 'en').toLowerCase().split(/[-_]/)[0];
+  dict = DICTS[base] ?? {};
+}
+
+/** Traduit une chaîne source et remplace {0}, {1}… par les arguments. */
+export function t(source: string, ...args: Array<string | number>): string {
+  let text = dict[source] ?? source;
+  args.forEach((arg, i) => {
+    text = text.replaceAll(`{${i}}`, String(arg));
+  });
+  return text;
+}

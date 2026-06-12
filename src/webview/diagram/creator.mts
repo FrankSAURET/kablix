@@ -3,6 +3,7 @@
 // l'aperçu) et modèle de simulation (LED, bouton, résistance, buzzer, source
 // numérique/analogique ou décoratif).
 import { CUSTOM_KINDS, type CustomPartData, type CustomPin, type PartKind } from './catalog.mjs';
+import { t } from '../i18n.mjs';
 
 const DEFAULT_SVG = `<svg width="80" height="60" xmlns="http://www.w3.org/2000/svg">
   <rect x="6" y="10" width="68" height="40" rx="6" fill="#3a6ea5" stroke="#1d3d5c" stroke-width="2"/>
@@ -29,28 +30,28 @@ export class PartCreator {
     overlay.appendChild(modal);
 
     modal.innerHTML = `
-      <h3>${existing ? 'Modifier le composant' : 'Créer un composant'}</h3>
+      <h3>${existing ? t('Edit the part') : t('Create a part')}</h3>
       <div class="creator__grid">
         <div class="creator__form">
-          <label class="inspector__label">Nom</label>
-          <input id="cr-name" class="inspector__control" type="text" placeholder="Mon capteur" />
-          <label class="inspector__label">Modèle de simulation</label>
+          <label class="inspector__label">${t('Name')}</label>
+          <input id="cr-name" class="inspector__control" type="text" placeholder="${t('My sensor')}" />
+          <label class="inspector__label">${t('Simulation model')}</label>
           <select id="cr-kind" class="inspector__control"></select>
           <div id="cr-roles"></div>
-          <label class="inspector__label">Dessin SVG</label>
+          <label class="inspector__label">${t('SVG drawing')}</label>
           <textarea id="cr-svg" class="creator__svg" spellcheck="false"></textarea>
-          <p class="inspector__hint">Cliquez l'aperçu pour poser un point de connexion.</p>
+          <p class="inspector__hint">${t('Click the preview to add a connection point.')}</p>
         </div>
         <div class="creator__side">
-          <label class="inspector__label">Aperçu</label>
+          <label class="inspector__label">${t('Preview')}</label>
           <div id="cr-preview" class="creator__preview"></div>
-          <label class="inspector__label">Points de connexion</label>
+          <label class="inspector__label">${t('Connection points')}</label>
           <div id="cr-pins" class="creator__pins"></div>
         </div>
       </div>
       <div class="creator__actions">
-        <button id="cr-cancel">Annuler</button>
-        <button id="cr-save" class="primary">Enregistrer</button>
+        <button id="cr-cancel">${t('Cancel')}</button>
+        <button id="cr-save" class="primary">${t('Save')}</button>
       </div>
     `;
 
@@ -65,7 +66,7 @@ export class PartCreator {
     for (const k of CUSTOM_KINDS) {
       const o = document.createElement('option');
       o.value = k.kind;
-      o.textContent = k.label;
+      o.textContent = t(k.label);
       kindSelect.appendChild(o);
     }
     nameInput.value = existing?.label ?? '';
@@ -156,7 +157,7 @@ export class PartCreator {
       coords.textContent = `(${pin.x}, ${pin.y})`;
       const del = document.createElement('button');
       del.textContent = '✕';
-      del.title = 'Supprimer ce point';
+      del.title = t('Delete this point');
       del.addEventListener('click', () => {
         this.pins.splice(i, 1);
         const preview = modal.querySelector('#cr-preview') as HTMLDivElement;
@@ -170,7 +171,7 @@ export class PartCreator {
     if (this.pins.length === 0) {
       const hint = document.createElement('p');
       hint.className = 'inspector__hint';
-      hint.textContent = 'Aucun point — cliquez l’aperçu.';
+      hint.textContent = t('No point — click the preview.');
       container.appendChild(hint);
     }
   }
@@ -183,7 +184,7 @@ export class PartCreator {
     for (const role of roles) {
       const label = document.createElement('label');
       label.className = 'inspector__label';
-      label.textContent = `Broche pour le rôle « ${role} »`;
+      label.textContent = t('Pin for role "{0}"', role);
       const select = document.createElement('select');
       select.className = 'inspector__control';
       select.dataset.role = role;

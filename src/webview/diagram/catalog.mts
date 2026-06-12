@@ -82,8 +82,8 @@ export interface CustomPartData {
   attrs?: Record<string, string>;
 }
 
-const STATE_PROP: PropDef = { attr: 'state', label: 'État (0/1)', kind: 'select', options: ['0', '1'] };
-const VALUE_PROP: PropDef = { attr: 'value', label: 'Valeur (%)', kind: 'number', min: 0, max: 100, step: 1 };
+const STATE_PROP: PropDef = { attr: 'state', label: 'State (0/1)', kind: 'select', options: ['0', '1'] };
+const VALUE_PROP: PropDef = { attr: 'value', label: 'Position (%)', kind: 'number', min: 0, max: 100, step: 1 };
 
 export const CATALOG: readonly PartDef[] = [
   { type: 'uno', label: 'Arduino Uno', tag: 'wokwi-arduino-uno', kind: 'mcu', board: 'uno' },
@@ -91,67 +91,67 @@ export const CATALOG: readonly PartDef[] = [
   {
     type: 'led', label: 'LED', tag: 'wokwi-led', kind: 'led', attrs: { color: 'red' },
     props: [
-      { attr: 'color', label: 'Couleur', kind: 'select', options: ['red', 'green', 'blue', 'yellow', 'orange', 'white', 'purple'] },
-      { attr: 'flip', label: 'Retournée', kind: 'select', options: ['', '1'] },
+      { attr: 'color', label: 'Color', kind: 'select', options: ['red', 'green', 'blue', 'yellow', 'orange', 'white', 'purple'] },
+      { attr: 'flip', label: 'Flipped', kind: 'select', options: ['', '1'] },
     ],
   },
-  { type: 'rgb-led', label: 'LED RGB', tag: 'wokwi-rgb-led', kind: 'rgb-led' },
+  { type: 'rgb-led', label: 'RGB LED', tag: 'wokwi-rgb-led', kind: 'rgb-led' },
   {
-    type: 'button', label: 'Bouton', tag: 'wokwi-pushbutton', kind: 'pushbutton', attrs: { color: 'green' }, interactive: true,
+    type: 'button', label: 'Pushbutton', tag: 'wokwi-pushbutton', kind: 'pushbutton', attrs: { color: 'green' }, interactive: true,
     props: [
-      { attr: 'color', label: 'Couleur', kind: 'select', options: ['green', 'red', 'blue', 'yellow', 'black', 'white'] },
+      { attr: 'color', label: 'Color', kind: 'select', options: ['green', 'red', 'blue', 'yellow', 'black', 'white'] },
     ],
   },
   {
-    type: 'resistor', label: 'Résistance', tag: 'wokwi-resistor', kind: 'resistor', attrs: { value: '220', angle: '0' },
+    type: 'resistor', label: 'Resistor', tag: 'wokwi-resistor', kind: 'resistor', attrs: { value: '220', angle: '0' },
     props: [
-      { attr: 'value', label: 'Valeur (Ω)', kind: 'number', min: 1, max: 10_000_000, step: 1 },
+      { attr: 'value', label: 'Value (Ω)', kind: 'number', min: 1, max: 10_000_000, step: 1 },
       { attr: 'angle', label: 'Angle', kind: 'select', options: ['0', '90', '180', '270'] },
     ],
   },
   { type: 'buzzer', label: 'Buzzer', tag: 'wokwi-buzzer', kind: 'buzzer' },
   {
-    type: 'pot', label: 'Potentiomètre', tag: 'wokwi-potentiometer', kind: 'potentiometer',
+    type: 'pot', label: 'Potentiometer', tag: 'wokwi-potentiometer', kind: 'potentiometer',
     attrs: { min: '0', max: '100', value: '50' }, interactive: true,
     props: [VALUE_PROP],
   },
   {
-    type: 'slide-pot', label: 'Potentiomètre glissière', tag: 'wokwi-slide-potentiometer', kind: 'potentiometer',
+    type: 'slide-pot', label: 'Slide potentiometer', tag: 'wokwi-slide-potentiometer', kind: 'potentiometer',
     attrs: { min: '0', max: '100', value: '50' }, interactive: true,
     props: [VALUE_PROP],
   },
   {
-    type: '7seg', label: 'Afficheur 7 segments', tag: 'wokwi-7segment', kind: '7segment',
+    type: '7seg', label: '7-segment display', tag: 'wokwi-7segment', kind: '7segment',
     attrs: { color: 'red' },
-    props: [{ attr: 'color', label: 'Couleur', kind: 'select', options: ['red', 'green', 'blue', 'yellow', 'white'] }],
+    props: [{ attr: 'color', label: 'Color', kind: 'select', options: ['red', 'green', 'blue', 'yellow', 'white'] }],
   },
   {
-    type: 'led-bar', label: 'Barre de LED', tag: 'wokwi-led-bar-graph', kind: 'led-bar',
+    type: 'led-bar', label: 'LED bar graph', tag: 'wokwi-led-bar-graph', kind: 'led-bar',
     attrs: { color: 'GYR' },
-    props: [{ attr: 'color', label: 'Couleur', kind: 'select', options: ['GYR', 'red', 'green', 'blue', 'yellow'] }],
+    props: [{ attr: 'color', label: 'Color', kind: 'select', options: ['GYR', 'red', 'green', 'blue', 'yellow'] }],
   },
-  { type: 'slide-switch', label: 'Interrupteur glissière', tag: 'wokwi-slide-switch', kind: 'slide-switch', interactive: true },
+  { type: 'slide-switch', label: 'Slide switch', tag: 'wokwi-slide-switch', kind: 'slide-switch', interactive: true },
   { type: 'dip-switch', label: 'DIP switch ×8', tag: 'wokwi-dip-switch-8', kind: 'dip-switch', interactive: true },
-  { type: 'joystick', label: 'Joystick analogique', tag: 'wokwi-analog-joystick', kind: 'joystick', interactive: true },
+  { type: 'joystick', label: 'Analog joystick', tag: 'wokwi-analog-joystick', kind: 'joystick', interactive: true },
   {
-    type: 'photoresistor', label: 'Photorésistance (LDR)', tag: 'wokwi-photoresistor-sensor', kind: 'analog-source',
+    type: 'photoresistor', label: 'Photoresistor (LDR)', tag: 'wokwi-photoresistor-sensor', kind: 'analog-source',
     analogPin: 'AO', attrs: { value: '50' },
-    props: [{ attr: 'value', label: 'Luminosité (%)', kind: 'number', min: 0, max: 100, step: 1 }],
+    props: [{ attr: 'value', label: 'Brightness (%)', kind: 'number', min: 0, max: 100, step: 1 }],
   },
   {
-    type: 'pir', label: 'Détecteur de mouvement (PIR)', tag: 'wokwi-pir-motion-sensor', kind: 'digital-source',
+    type: 'pir', label: 'PIR motion sensor', tag: 'wokwi-pir-motion-sensor', kind: 'digital-source',
     digitalPin: 'OUT', attrs: { state: '0' },
-    props: [{ ...STATE_PROP, label: 'Mouvement détecté' }],
+    props: [{ ...STATE_PROP, label: 'Motion detected' }],
   },
   {
-    type: 'tilt', label: "Capteur d'inclinaison", tag: 'wokwi-tilt-switch', kind: 'digital-source',
+    type: 'tilt', label: 'Tilt sensor', tag: 'wokwi-tilt-switch', kind: 'digital-source',
     digitalPin: 'OUT', attrs: { state: '0' },
-    props: [{ ...STATE_PROP, label: 'Incliné' }],
+    props: [{ ...STATE_PROP, label: 'Tilted' }],
   },
   {
-    type: 'servo', label: 'Servomoteur', tag: 'wokwi-servo', kind: 'servo',
+    type: 'servo', label: 'Servo motor', tag: 'wokwi-servo', kind: 'servo',
     attrs: { horn: 'single' },
-    props: [{ attr: 'horn', label: 'Bras', kind: 'select', options: ['single', 'double', 'cross'] }],
+    props: [{ attr: 'horn', label: 'Horn', kind: 'select', options: ['single', 'double', 'cross'] }],
   },
 ];
 
@@ -160,13 +160,13 @@ const customParts = new Map<string, PartDef>();
 
 /** Modèles de simulation proposés dans le créateur, avec leurs rôles de broches. */
 export const CUSTOM_KINDS: ReadonlyArray<{ kind: PartKind; label: string; roles: string[] }> = [
-  { kind: 'led', label: 'LED (allumée si A=haut et C=bas)', roles: ['A', 'C'] },
-  { kind: 'pushbutton', label: 'Bouton poussoir (tire la broche à GND)', roles: ['1.l', '2.l'] },
-  { kind: 'resistor', label: 'Résistance (relie ses deux broches)', roles: ['1', '2'] },
-  { kind: 'buzzer', label: 'Buzzer (actif si tension entre 1 et 2)', roles: ['1', '2'] },
-  { kind: 'digital-source', label: 'Source numérique (état piloté dans Propriétés)', roles: ['OUT'] },
-  { kind: 'analog-source', label: 'Source analogique (valeur pilotée dans Propriétés)', roles: ['AO'] },
-  { kind: 'passive', label: 'Décoratif (aucun comportement)', roles: [] },
+  { kind: 'led', label: 'LED (lit when A=high and C=low)', roles: ['A', 'C'] },
+  { kind: 'pushbutton', label: 'Pushbutton (pulls the pin to GND)', roles: ['1.l', '2.l'] },
+  { kind: 'resistor', label: 'Resistor (joins its two pins)', roles: ['1', '2'] },
+  { kind: 'buzzer', label: 'Buzzer (active when voltage across 1 and 2)', roles: ['1', '2'] },
+  { kind: 'digital-source', label: 'Digital source (state set in Properties)', roles: ['OUT'] },
+  { kind: 'analog-source', label: 'Analog source (value set in Properties)', roles: ['AO'] },
+  { kind: 'passive', label: 'Decorative (no behavior)', roles: [] },
 ];
 
 export function registerCustomPart(data: CustomPartData): PartDef {
@@ -211,6 +211,22 @@ export function partDef(type: string): PartDef {
  */
 export function rolePin(type: string, role: string): string {
   return partDef(type).custom?.pinRoles?.[role] ?? role;
+}
+
+/**
+ * Rôle électrique d'une broche de n'importe quel composant — utilisé pour la
+ * couleur automatique des fils (GND → noir, alimentation → rouge). Pour les
+ * cartes on s'appuie sur mcuPinRole ; pour les modules sur le nom de la broche.
+ */
+export function pinElectricalRole(type: string, pin: string): 'gnd' | 'vcc' | 'other' {
+  const def = partDef(type);
+  if (def.kind === 'mcu' && def.board) {
+    const role = mcuPinRole(def.board, pin).role;
+    return role === 'gnd' || role === 'vcc' ? role : 'other';
+  }
+  if (/^GND/i.test(pin)) return 'gnd';
+  if (/^(VCC|V\+|5V|3V3|3\.3V|VBUS|VSYS|VIN)$/i.test(pin)) return 'vcc';
+  return 'other';
 }
 
 /**
