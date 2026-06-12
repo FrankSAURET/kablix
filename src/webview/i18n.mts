@@ -40,6 +40,7 @@ const FR: Record<string, string> = {
 
   // Composants posés
   'Delete': 'Supprimer',
+  'Right-click drag to move': 'Glisser avec le clic droit pour déplacer',
   'Drag to move — Ctrl: H/V alignment': 'Glisser pour déplacer — Ctrl : alignement H/V',
 
   // Inspecteur

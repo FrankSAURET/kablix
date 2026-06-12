@@ -30,15 +30,9 @@ Three ways to open the simulator:
 - Command **“Kablix: Compile & run the active file”** (opens the simulator and
   loads the file being edited).
 
-On first display, a **starter diagram** is placed on the canvas:
-
-| Board | Diagram |
-| --- | --- |
-| Arduino Uno | LED on D13 (through a resistor) + pushbutton on D2 |
-| Raspberry Pi Pico | LED on GP25 (through a resistor) + pushbutton on GP13 |
-
-Click **▶ Start**: the demo program runs, the LED blinks, the button is
-interactive.
+On first display, the **drawing sheet is empty**: place your parts from the
+palette, wire them, then click **▶ Start** (built-in demo program: blinking
+LED on D13/GP25) or **⚙ Compile & run the active file** to run your own code.
 
 ## The interface
 
@@ -54,10 +48,16 @@ interactive.
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-- **Board selector**: Arduino Uno or Raspberry Pi Pico. Switching boards resets
-  the canvas with the matching starter diagram.
-- **Palette**: click a part to place it on the canvas. Custom parts (★) appear
-  below, with their ⇩ (export) and ✕ (delete model) buttons.
+- **Board selector**: Arduino Uno or Raspberry Pi Pico (the current circuit is
+  kept, the simulation stops).
+- **Palette**: click a part to place it on the canvas. Two sort modes (buttons
+  at the top): **AZ** (alphabetical) or **🗂** (by category — Boards,
+  Displays & LEDs, Controls, Sensors, Actuators, Passive). A **“Recently
+  used”** zone (10 max) stays at the top, and the palette scrolls when taller
+  than the window. Custom parts (★) keep their ⇩ (export) and ✕ (delete model)
+  buttons.
+- **🏷 Names**: forces the name above **every** part. When off (default), the
+  name only appears on the **selected** part.
 - **Properties** (inspector): edits the selected element — part (color, value,
   angle…) or wire (Dupont color, deletion).
 
@@ -66,12 +66,26 @@ interactive.
 ### Placing and moving
 
 - **Place**: click a part in the palette.
-- **Move**: drag the part (anywhere on its body). Interactive parts (button,
-  potentiometer, switches, joystick) are moved by their **title bar** so they
-  stay clickable.
+- **Move**: drag the part (anywhere on its body), or **drag with the right
+  mouse button** — essential for interactive parts (button, potentiometer,
+  switches, joystick) whose left click operates the control. You can also
+  select them (left click) then drag the **name bar** that appears above.
 - **Rotate**: select the part then press **`+`** (45° clockwise) or **`-`**
   (45° counter-clockwise). Pins and wires follow.
-- **Delete**: ✕ on the title bar, 🗑 button in the inspector, or `Del` key.
+- **Delete**: ✕ on the name bar (visible when selected), 🗑 button in the
+  inspector, or `Del` key.
+
+### Breadboard
+
+The **Breadboard** part (Boards category) comes in three sizes — *mini*
+(17 columns, no rails), *half* (30 columns) and *full* (63 columns) — set in
+**Properties**. Real internal connections are simulated: columns **a–e** and
+**f–j** joined per strip, **+/− rails** along the full length.
+
+While dragging a part over the breadboard, the **strips that would receive
+its pins light up in yellow**. On release the part **plugs in**: it snaps to
+the holes and the connections are made automatically (no visible wire). Wires
+are drawn over boards and breadboards.
 
 ### Wiring
 
@@ -104,6 +118,7 @@ re-imposed.
 | Part | Simulated behavior |
 | --- | --- |
 | Arduino Uno / Raspberry Pi Pico | Boards (simulated processor) |
+| Breadboard (mini/half/full) | Conductive a–e / f–j strips and +/− rails, automatic plug-in |
 | LED, RGB LED, 10-LED bar graph | Lit according to net levels (anode high, cathode low) |
 | 7-segment display | Segments A–G + dot, common cathode DIG1 |
 | Pushbutton | Pulls the MCU pin LOW when pressed (wired pin ↔ GND) |

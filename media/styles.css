@@ -354,8 +354,18 @@ body {
   border-radius: 4px;
 }
 
+/* Bandeau de nom : hors flux (au-dessus du corps, il n'en décale pas les
+   broches) et masqué par défaut. Il apparaît à la sélection du composant ou
+   quand l'affichage des noms est forcé (bouton 🏷 de la barre d'outils). */
 .part__head {
-  display: flex;
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  min-width: 100%;
+  width: max-content;
+  max-width: 170px;
+  box-sizing: border-box;
+  display: none;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
@@ -367,20 +377,15 @@ body {
   cursor: grab;
 }
 
+.part--selected .part__head,
+.canvas--show-labels .part__head {
+  display: flex;
+}
+
 .part__name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-/* Noms masqués (bouton 🏷 de la barre d'outils) : le bandeau reste comme
-   zone de saisie/déplacement, seul le texte disparaît. */
-.canvas--no-labels .part__name {
-  visibility: hidden;
-}
-
-.canvas--no-labels .part__head {
-  background: rgba(0, 0, 0, 0.18);
 }
 
 .part__del {

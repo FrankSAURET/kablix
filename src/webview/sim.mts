@@ -308,13 +308,15 @@ exportBtn.addEventListener('click', () => {
 });
 
 // --- Préférences d'interface (noms visibles, tri de palette, derniers utilisés)
-let showLabels = true;
+// Par défaut les noms n'apparaissent qu'à la sélection ; 🏷 force l'affichage.
+let showLabels = false;
 let paletteState: PaletteState = { sort: 'category', recents: [] };
 
 function applyShowLabels(): void {
-  canvas.classList.toggle('canvas--no-labels', !showLabels);
-  labelsBtn.classList.toggle('primary', !showLabels);
+  canvas.classList.toggle('canvas--show-labels', showLabels);
+  labelsBtn.classList.toggle('primary', showLabels);
 }
+applyShowLabels();
 
 function saveUiState(): void {
   vscode.postMessage({ type: 'saveUiState', state: { ...paletteState, showLabels } });

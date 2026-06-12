@@ -110,6 +110,8 @@ export class Editor {
     this.renderInspector();
     window.addEventListener('pointermove', this.onPointerMove);
     window.addEventListener('keydown', this.onKeyDown);
+    // Le clic droit sert au déplacement des composants : pas de menu contextuel.
+    this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     // Clic sur le fond : pose un point de fil, ou désélectionne.
     this.canvas.addEventListener('pointerdown', (e) => {
       if (e.target !== this.canvas && e.target !== this.svg) return;
@@ -458,14 +460,22 @@ export class Editor {
     this.canvas.appendChild(container);
     this.applyRotation(part, body);
 
-    // Déplacement : par tout le corps, sauf pour les composants interactifs
-    // (bouton, potentiomètre) qu'on déplace par leur bandeau uniquement.
+    // Déplacement : par tout le corps (clic gauche ou droit), sauf pour les
+    // composants interactifs (bouton, potentiomètre) dont le clic gauche
+    // actionne le contrôle : clic droit pour les déplacer, ou clic gauche pour
+    // les sélectionner puis glisser leur bandeau.
     head.addEventListener('pointerdown', (e) => this.startDrag(e, part));
-    if (!def.interactive) {
-      body.addEventListener('pointerdown', (e) => this.startDrag(e, part));
-    } else {
-      body.addEventListener('pointerdown', () => this.select({ kind: 'part', id: part.id }));
-    }
+    body.addEventListener('pointerdown', (e) => {
+      if (e.button === 2) {
+        e.stopPropagation();
+        this.startDrag(e, part);
+      } else if (!def.interactive) {
+        this.startDrag(e, part);
+      } else {
+        this.select({ kind: 'part', id: part.id });
+      }
+    });
+    if (def.interactive) body.title = t('Right-click drag to move');
 
     const hotspots = new Map<string, HTMLDivElement>();
     const pins = (el.pinInfo ?? []) as WokwiPin[];

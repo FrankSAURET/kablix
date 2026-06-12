@@ -30,15 +30,10 @@ Trois façons d'ouvrir le simulateur :
 - Commande **« Kablix : Compiler & exécuter le fichier actif »** (ouvre le
   simulateur et y charge le fichier en cours d'édition).
 
-Au premier affichage, un **schéma de démarrage** est posé sur le canvas :
-
-| Carte | Schéma |
-| --- | --- |
-| Arduino Uno | LED sur D13 (via résistance) + bouton sur D2 |
-| Raspberry Pi Pico | LED sur GP25 (via résistance) + bouton sur GP13 |
-
-Cliquez **▶ Démarrer** : le programme de démonstration s'exécute, la LED
-clignote, le bouton est interactif.
+Au premier affichage, la **feuille de dessin est vide** : posez vos composants
+depuis la palette, câblez-les, puis cliquez **▶ Démarrer** (programme de
+démonstration intégré : LED D13/GP25 clignotante) ou **⚙ Compiler & exécuter
+le fichier actif** pour exécuter votre propre code.
 
 ## L'interface
 
@@ -54,11 +49,16 @@ clignote, le bouton est interactif.
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-- **Sélecteur de carte** : Arduino Uno ou Raspberry Pi Pico. Changer de carte
-  réinitialise le canvas avec le schéma de démarrage correspondant.
-- **Palette** : cliquer un composant le pose sur le canvas. Les composants
-  personnalisés (★) apparaissent à la suite, avec leurs boutons ⇩ (export) et
-  ✕ (suppression du modèle).
+- **Sélecteur de carte** : Arduino Uno ou Raspberry Pi Pico (le montage en
+  cours est conservé, la simulation est arrêtée).
+- **Palette** : cliquer un composant le pose sur le canvas. Deux tris au choix
+  (boutons en haut) : **AZ** (alphabétique) ou **🗂** (par catégories — Cartes &
+  platines, Affichage & LED, Commandes, Capteurs, Actionneurs, Passifs). Une
+  zone **« Derniers utilisés »** (10 max) reste en tête, et la palette défile
+  (ascenseur) si elle dépasse la fenêtre. Les composants personnalisés (★)
+  gardent leurs boutons ⇩ (export) et ✕ (suppression du modèle).
+- **🏷 Noms** : force l'affichage du nom au-dessus de **tous** les composants.
+  Désactivé (défaut), le nom n'apparaît que sur le composant **sélectionné**.
 - **Propriétés** (inspecteur) : édite l'élément sélectionné — composant
   (couleur, valeur, angle…) ou fil (couleur Dupont, suppression).
 
@@ -67,12 +67,29 @@ clignote, le bouton est interactif.
 ### Poser et déplacer
 
 - **Poser** : clic sur un composant de la palette.
-- **Déplacer** : glisser le composant (n'importe où sur son corps). Les
-  composants interactifs (bouton, potentiomètre, interrupteurs, joystick) se
-  déplacent par leur **bandeau de titre** pour rester manipulables.
+- **Déplacer** : glisser le composant (n'importe où sur son corps), ou
+  **glisser avec le clic droit** — indispensable pour les composants
+  interactifs (bouton, potentiomètre, interrupteurs, joystick) dont le clic
+  gauche actionne le contrôle. On peut aussi les sélectionner (clic gauche)
+  puis les glisser par leur **bandeau de nom** qui apparaît au-dessus.
 - **Tourner** : sélectionner le composant puis touches **`+`** (45° horaire)
   ou **`-`** (45° antihoraire). Les broches et les fils suivent.
-- **Supprimer** : ✕ du bandeau, bouton 🗑 de l'inspecteur, ou touche `Suppr`.
+- **Supprimer** : ✕ du bandeau (visible à la sélection), bouton 🗑 de
+  l'inspecteur, ou touche `Suppr`.
+
+### Platine d'essai
+
+Le composant **Platine d'essai** (catégorie Cartes & platines) existe en trois
+tailles — *mini* (17 colonnes, sans rails), *half* (30 colonnes) et *full*
+(63 colonnes) — réglables dans **Propriétés**. Les connexions internes réelles
+sont simulées : colonnes **a–e** et **f–j** reliées par bande, **rails +/−**
+sur toute la longueur.
+
+Pendant le déplacement d'un composant au-dessus de la platine, les **bandes
+qui recevraient ses broches s'allument en jaune**. Au relâchement, le
+composant s'**enfiche** : il se cale sur les trous et les connexions sont
+établies automatiquement (sans fil visible). Les fils passent par-dessus les
+cartes et les platines.
 
 ### Câbler
 
@@ -105,6 +122,7 @@ ré-imposée.
 | Composant | Comportement simulé |
 | --- | --- |
 | Arduino Uno / Raspberry Pi Pico | Cartes (processeur simulé) |
+| Platine d'essai (mini/half/full) | Bandes a–e / f–j et rails +/− conducteurs, enfichage automatique |
 | LED, LED RGB, barre de 10 LED | Allumées selon les niveaux des nets (anode haute, cathode basse) |
 | Afficheur 7 segments | Segments A–G + point, cathode commune DIG1 |
 | Bouton poussoir | Tire la broche MCU à LOW à l'appui (câblé broche ↔ GND) |
