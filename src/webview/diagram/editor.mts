@@ -8,14 +8,18 @@
 // chaque changement de direction et colorés selon la nappe Dupont.
 import {
   CATALOG,
+  CATEGORY_ORDER,
   listCustomParts,
+  partCategory,
   partDef,
   pinElectricalRole,
   registerCustomPart,
   unregisterCustomPart,
   type CustomPartData,
+  type PartDef,
   type PropDef,
 } from './catalog.mjs';
+import { breadboardPins, normalizeSize, stripOfPin } from './breadboard.mjs';
 import type { Diagram, Endpoint, Part, Wire } from './model.mjs';
 import { DUPONT_COLORS, dupontHex, roundedWirePath, snapPoint, type XY } from './geometry.mjs';
 import { PartCreator } from './creator.mjs';
@@ -46,8 +50,27 @@ interface PendingWire {
 
 type Selection = { kind: 'part'; id: string } | { kind: 'wire'; id: string } | null;
 
+export type PaletteSort = 'category' | 'alpha';
+
+/** Préférences de palette persistées côté extension. */
+export interface PaletteState {
+  sort: PaletteSort;
+  recents: string[];
+}
+
+/** Trou de platine d'essai, en coordonnées canvas (cache pendant un drag). */
+interface BreadboardHole {
+  partId: string;
+  pin: string;
+  x: number;
+  y: number;
+}
+
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const DRAG_THRESHOLD = 4;
+/** Distance max (px) entre une broche et un trou de platine pour l'enfichage. */
+const BB_SNAP = 6;
+const MAX_RECENTS = 10;
 let idSeq = 0;
 const uid = (prefix: string): string => `${prefix}${++idSeq}`;
 
@@ -59,7 +82,11 @@ export class Editor {
   onCustomPartsChange: ((parts: CustomPartData[]) => void) | null = null;
   /** Appelé pour exporter un composant personnalisé en fichier .json. */
   onExportCustomPart: ((part: CustomPartData) => void) | null = null;
+  /** Appelé quand le tri de la palette ou les derniers utilisés changent. */
+  onPaletteStateChange: ((state: PaletteState) => void) | null = null;
 
+  private paletteSort: PaletteSort = 'category';
+  private recentTypes: string[] = [];
   private rendered = new Map<string, Rendered>();
   private wirePaths = new Map<string, SVGPathElement>();
   private pending: PendingWire | null = null;
@@ -70,6 +97,8 @@ export class Editor {
   private creator = new PartCreator((data) => this.saveCustomPart(data));
   private handles: HTMLDivElement[] = [];
   private guides: SVGLineElement[] = [];
+  /** Platines dont des trous sont actuellement en surbrillance. */
+  private highlightedBoards = new Set<string>();
 
   constructor(
     private readonly canvas: HTMLDivElement,
@@ -93,48 +122,129 @@ export class Editor {
   }
 
   // --- Palette ---------------------------------------------------------------
+  /** Recharge les préférences de palette persistées (tri + derniers utilisés). */
+  loadPaletteState(state: Partial<PaletteState> | undefined): void {
+    if (!state) return;
+    if (state.sort === 'alpha' || state.sort === 'category') this.paletteSort = state.sort;
+    if (Array.isArray(state.recents)) {
+      this.recentTypes = state.recents.filter((x): x is string => typeof x === 'string').slice(0, MAX_RECENTS);
+    }
+    this.buildPalette();
+  }
+
+  private notifyPaletteState(): void {
+    this.onPaletteStateChange?.({ sort: this.paletteSort, recents: [...this.recentTypes] });
+  }
+
+  /** Mémorise un type comme « dernier utilisé » (10 max, plus récent en tête). */
+  private recordRecent(type: string): void {
+    const next = [type, ...this.recentTypes.filter((x) => x !== type)].slice(0, MAX_RECENTS);
+    if (next.join('|') === this.recentTypes.join('|')) return;
+    this.recentTypes = next;
+    this.buildPalette();
+    this.notifyPaletteState();
+  }
+
+  private paletteSection(label: string): void {
+    const head = document.createElement('h4');
+    head.className = 'palette__section';
+    head.textContent = label;
+    this.palette.appendChild(head);
+  }
+
+  /** Bouton simple de la palette qui pose le composant sur le canvas. */
+  private paletteButton(def: PartDef, custom: boolean): HTMLButtonElement {
+    const btn = document.createElement('button');
+    btn.className = 'palette__item';
+    btn.textContent = custom ? `★ ${def.label}` : t(def.label);
+    btn.addEventListener('click', () => this.addPart(def.type));
+    return btn;
+  }
+
+  /** Ligne d'un composant personnalisé : pose, édition, export, suppression. */
+  private appendCustomRow(def: PartDef): void {
+    const data = this.customData.get(def.type);
+    const row = document.createElement('div');
+    row.className = 'palette__custom';
+    const btn = this.paletteButton(def, true);
+    btn.title = t('Click: place on canvas — double-click: edit the model');
+    btn.addEventListener('dblclick', () => {
+      if (data) this.creator.open(data);
+    });
+    const exp = document.createElement('button');
+    exp.className = 'palette__custom-del';
+    exp.style.color = 'inherit';
+    exp.textContent = '⇩';
+    exp.title = t('Export this part (.json)');
+    exp.addEventListener('click', () => {
+      if (data) this.onExportCustomPart?.(data);
+    });
+    const del = document.createElement('button');
+    del.className = 'palette__custom-del';
+    del.textContent = '✕';
+    del.title = t('Delete this part model');
+    del.addEventListener('click', () => this.removeCustomPart(def.type));
+    row.append(btn, exp, del);
+    this.palette.appendChild(row);
+  }
+
   private buildPalette(): void {
     this.palette.replaceChildren();
+    const head = document.createElement('div');
+    head.className = 'palette__title';
     const title = document.createElement('h3');
     title.textContent = t('Components');
-    this.palette.appendChild(title);
-
-    for (const def of CATALOG) {
+    const sortWrap = document.createElement('div');
+    sortWrap.className = 'palette__sort';
+    for (const [mode, glyph, label] of [
+      ['alpha', 'AZ', t('Alphabetical')],
+      ['category', '🗂', t('By category')],
+    ] as Array<[PaletteSort, string, string]>) {
       const btn = document.createElement('button');
-      btn.className = 'palette__item';
-      btn.textContent = t(def.label);
-      btn.addEventListener('click', () => this.addPart(def.type));
-      this.palette.appendChild(btn);
+      btn.className = 'palette__sort-btn' + (this.paletteSort === mode ? ' palette__sort-btn--active' : '');
+      btn.textContent = glyph;
+      btn.title = label;
+      btn.addEventListener('click', () => {
+        if (this.paletteSort === mode) return;
+        this.paletteSort = mode;
+        this.buildPalette();
+        this.notifyPaletteState();
+      });
+      sortWrap.appendChild(btn);
+    }
+    head.append(title, sortWrap);
+    this.palette.appendChild(head);
+
+    const customs = listCustomParts();
+    const byLabel = (a: PartDef, b: PartDef): number =>
+      t(a.label).localeCompare(t(b.label), undefined, { sensitivity: 'base' });
+
+    // Derniers utilisés (10 max), toujours en tête.
+    const recentDefs = this.recentTypes
+      .map((type) => CATALOG.find((d) => d.type === type) ?? customs.find((d) => d.type === type))
+      .filter((d): d is PartDef => d !== undefined);
+    if (recentDefs.length > 0) {
+      this.paletteSection(t('Recently used'));
+      for (const def of recentDefs) this.palette.appendChild(this.paletteButton(def, !!def.custom));
     }
 
-    // Composants personnalisés : ajout, modification, export (.json), suppression.
-    for (const def of listCustomParts()) {
-      const data = this.customData.get(def.type);
-      const row = document.createElement('div');
-      row.className = 'palette__custom';
-      const btn = document.createElement('button');
-      btn.className = 'palette__item';
-      btn.textContent = `★ ${def.label}`;
-      btn.title = t('Click: place on canvas — double-click: edit the model');
-      btn.addEventListener('click', () => this.addPart(def.type));
-      btn.addEventListener('dblclick', () => {
-        if (data) this.creator.open(data);
-      });
-      const exp = document.createElement('button');
-      exp.className = 'palette__custom-del';
-      exp.style.color = 'inherit';
-      exp.textContent = '⇩';
-      exp.title = t('Export this part (.json)');
-      exp.addEventListener('click', () => {
-        if (data) this.onExportCustomPart?.(data);
-      });
-      const del = document.createElement('button');
-      del.className = 'palette__custom-del';
-      del.textContent = '✕';
-      del.title = t('Delete this part model');
-      del.addEventListener('click', () => this.removeCustomPart(def.type));
-      row.append(btn, exp, del);
-      this.palette.appendChild(row);
+    if (this.paletteSort === 'alpha') {
+      // Liste plate, tous composants confondus, triée sur le libellé traduit.
+      for (const def of [...CATALOG, ...customs].sort(byLabel)) {
+        if (def.custom) this.appendCustomRow(def);
+        else this.palette.appendChild(this.paletteButton(def, false));
+      }
+    } else {
+      for (const category of CATEGORY_ORDER) {
+        const defs = CATALOG.filter((d) => partCategory(d) === category).sort(byLabel);
+        if (defs.length === 0) continue;
+        this.paletteSection(t(category));
+        for (const def of defs) this.palette.appendChild(this.paletteButton(def, false));
+      }
+      if (customs.length > 0) {
+        this.paletteSection(t('Custom parts'));
+        for (const def of [...customs].sort(byLabel)) this.appendCustomRow(def);
+      }
     }
 
     const create = document.createElement('button');
@@ -233,6 +343,7 @@ export class Editor {
     const part: Part = { id: uid(type + '-'), type, x, y, attrs: { ...def.attrs } };
     this.diagram.parts.push(part);
     this.renderPart(part);
+    this.recordRecent(type);
     this.notify();
     return part;
   }
@@ -307,12 +418,21 @@ export class Editor {
     const def = partDef(part.type);
     const container = document.createElement('div');
     container.className = 'part';
+    // Les cartes et platines passent sous les fils ; le reste au-dessus.
+    if (def.kind === 'mcu' || def.kind === 'breadboard') {
+      container.classList.add('part--under-wires');
+    }
+    // Trous serrés (pas de 10 px) : pastilles réduites pour rester cliquables.
+    if (def.kind === 'breadboard') container.classList.add('part--dense');
     container.style.left = `${part.x}px`;
     container.style.top = `${part.y}px`;
 
     const head = document.createElement('div');
     head.className = 'part__head';
-    head.textContent = t(def.label);
+    const name = document.createElement('span');
+    name.className = 'part__name';
+    name.textContent = t(def.label);
+    head.appendChild(name);
     const del = document.createElement('span');
     del.className = 'part__del';
     del.textContent = '✕';
@@ -411,6 +531,11 @@ export class Editor {
     const r = this.rendered.get(part.id);
     if (!r) return;
     let moved = false;
+    // Trous des platines d'essai du canvas (figés au début du geste) pour la
+    // surbrillance des bandes survolées et l'enfichage au relâchement.
+    const kind = partDef(part.type).kind;
+    const pluggable = kind !== 'mcu' && kind !== 'breadboard';
+    const holes = pluggable ? this.collectBreadboardHoles(part.id) : [];
 
     const move = (ev: PointerEvent) => {
       const dx = ev.clientX - startX;
@@ -422,14 +547,122 @@ export class Editor {
       r.container.style.left = `${part.x}px`;
       r.container.style.top = `${part.y}px`;
       this.redrawWires();
+      if (holes.length > 0) this.previewBreadboardSnap(part, holes);
     };
     const end = () => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', end);
+      this.clearBreadboardHighlights();
       if (!moved) this.select({ kind: 'part', id: part.id }); // simple clic = sélection
+      else if (pluggable) this.plugIntoBreadboard(part, holes);
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', end);
+  }
+
+  // --- Platine d'essai : surbrillance et enfichage -----------------------------
+  /** Trous de toutes les platines posées, en coordonnées canvas. */
+  private collectBreadboardHoles(excludeId: string): BreadboardHole[] {
+    const holes: BreadboardHole[] = [];
+    for (const r of this.rendered.values()) {
+      if (r.part.id === excludeId || partDef(r.part.type).kind !== 'breadboard') continue;
+      for (const pin of r.hotspots.keys()) {
+        const c = this.hotspotCenter({ partId: r.part.id, pin });
+        if (c) holes.push({ partId: r.part.id, pin, x: c.x, y: c.y });
+      }
+    }
+    return holes;
+  }
+
+  /** Pour chaque broche du composant, le trou de platine le plus proche (≤ BB_SNAP). */
+  private breadboardMatches(
+    part: Part,
+    holes: BreadboardHole[]
+  ): Array<{ pin: string; hole: BreadboardHole; dx: number; dy: number }> {
+    const r = this.rendered.get(part.id);
+    if (!r) return [];
+    const matches: Array<{ pin: string; hole: BreadboardHole; dx: number; dy: number }> = [];
+    for (const pin of r.hotspots.keys()) {
+      const c = this.hotspotCenter({ partId: part.id, pin });
+      if (!c) continue;
+      let best: BreadboardHole | null = null;
+      let bestD = BB_SNAP;
+      for (const hole of holes) {
+        const d = Math.hypot(hole.x - c.x, hole.y - c.y);
+        if (d <= bestD) {
+          bestD = d;
+          best = hole;
+        }
+      }
+      if (best) matches.push({ pin, hole: best, dx: best.x - c.x, dy: best.y - c.y });
+    }
+    return matches;
+  }
+
+  private boardHighlighter(partId: string): ((pins: string[]) => void) | null {
+    const el = this.rendered.get(partId)?.el as unknown as
+      | { setHighlight?: (pins: string[]) => void }
+      | undefined;
+    return el?.setHighlight ? (pins) => el.setHighlight!(pins) : null;
+  }
+
+  /** Surbrillance des bandes qui recevraient les broches du composant déplacé. */
+  private previewBreadboardSnap(part: Part, holes: BreadboardHole[]): void {
+    const byBoard = new Map<string, Set<string>>();
+    for (const m of this.breadboardMatches(part, holes)) {
+      const size = normalizeSize(this.rendered.get(m.hole.partId)?.part.attrs?.size);
+      const set = byBoard.get(m.hole.partId) ?? new Set<string>();
+      for (const p of stripOfPin(size, m.hole.pin)) set.add(p);
+      byBoard.set(m.hole.partId, set);
+    }
+    for (const id of new Set([...this.highlightedBoards, ...byBoard.keys()])) {
+      this.boardHighlighter(id)?.([...(byBoard.get(id) ?? [])]);
+    }
+    this.highlightedBoards = new Set(byBoard.keys());
+  }
+
+  private clearBreadboardHighlights(): void {
+    for (const id of this.highlightedBoards) this.boardHighlighter(id)?.([]);
+    this.highlightedBoards.clear();
+  }
+
+  /**
+   * Enfichage au relâchement : aligne le composant sur les trous touchés puis
+   * crée des fils implicites (invisibles, `auto`) broche ↔ trou pour la netlist.
+   */
+  private plugIntoBreadboard(part: Part, holes: BreadboardHole[]): void {
+    const before = this.diagram.wires.length;
+    this.diagram.wires = this.diagram.wires.filter(
+      (w) => !(w.auto && (w.a.partId === part.id || w.b.partId === part.id))
+    );
+    let changed = this.diagram.wires.length !== before;
+
+    let matches = holes.length > 0 ? this.breadboardMatches(part, holes) : [];
+    if (matches.length > 0) {
+      // Cale le composant pour que la première broche tombe pile sur son trou.
+      const { dx, dy } = matches[0];
+      if (dx !== 0 || dy !== 0) {
+        part.x += dx;
+        part.y += dy;
+        const r = this.rendered.get(part.id);
+        if (r) {
+          r.container.style.left = `${part.x}px`;
+          r.container.style.top = `${part.y}px`;
+        }
+        this.redrawWires();
+        matches = this.breadboardMatches(part, holes);
+      }
+      for (const m of matches) {
+        this.diagram.wires.push({
+          id: uid('w-'),
+          a: { partId: part.id, pin: m.pin },
+          b: { partId: m.hole.partId, pin: m.hole.pin },
+          auto: true,
+        });
+      }
+      changed = true;
+    }
+    if (changed) this.notify();
   }
 
   // --- Câblage ---------------------------------------------------------------
@@ -740,8 +973,22 @@ export class Editor {
     const r = this.rendered.get(partId);
     if (!r) return;
     r.part.attrs = { ...r.part.attrs, [attr]: value };
-    // L'angle (résistance) déplace les broches : re-rendu complet nécessaire.
-    if (attr === 'angle' || attr === 'flip') {
+    // Platine rétrécie : retire les fils pointant vers des trous disparus.
+    if (attr === 'size' && partDef(r.part.type).kind === 'breadboard') {
+      const valid = new Set(breadboardPins(normalizeSize(value)).map((p) => p.name));
+      this.diagram.wires = this.diagram.wires.filter((w) => {
+        for (const end of [w.a, w.b]) {
+          if (end.partId === partId && !valid.has(end.pin)) {
+            this.wirePaths.get(w.id)?.remove();
+            this.wirePaths.delete(w.id);
+            return false;
+          }
+        }
+        return true;
+      });
+    }
+    // L'angle ou la taille déplacent les broches : re-rendu complet nécessaire.
+    if (attr === 'angle' || attr === 'flip' || attr === 'size') {
       this.rerenderPart(partId);
       if (this.selection?.kind === 'part' && this.selection.id === partId) {
         this.rendered.get(partId)?.container.classList.add('part--selected');

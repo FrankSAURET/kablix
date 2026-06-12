@@ -19,6 +19,7 @@ export type PartKind =
   | 'analog-source'
   | 'digital-source'
   | 'servo'
+  | 'breadboard'
   | 'passive';
 
 export type BoardId = 'uno' | 'pico';
@@ -89,6 +90,11 @@ export const CATALOG: readonly PartDef[] = [
   { type: 'uno', label: 'Arduino Uno', tag: 'wokwi-arduino-uno', kind: 'mcu', board: 'uno' },
   { type: 'pico', label: 'Raspberry Pi Pico', tag: 'kablix-pico-board', kind: 'mcu', board: 'pico' },
   {
+    type: 'breadboard', label: 'Breadboard', tag: 'kablix-breadboard', kind: 'breadboard',
+    attrs: { size: 'half' },
+    props: [{ attr: 'size', label: 'Size', kind: 'select', options: ['mini', 'half', 'full'] }],
+  },
+  {
     type: 'led', label: 'LED', tag: 'wokwi-led', kind: 'led', attrs: { color: 'red' },
     props: [
       { attr: 'color', label: 'Color', kind: 'select', options: ['red', 'green', 'blue', 'yellow', 'orange', 'white', 'purple'] },
@@ -153,6 +159,45 @@ export const CATALOG: readonly PartDef[] = [
     attrs: { horn: 'single' },
     props: [{ attr: 'horn', label: 'Horn', kind: 'select', options: ['single', 'double', 'cross'] }],
   },
+];
+
+// --- Catégories de la palette --------------------------------------------------
+/** Catégorie d'affichage d'un composant dans la palette (clé i18n). */
+export function partCategory(def: PartDef): string {
+  switch (def.kind) {
+    case 'mcu':
+    case 'breadboard':
+      return 'Boards';
+    case 'led':
+    case 'rgb-led':
+    case '7segment':
+    case 'led-bar':
+      return 'Displays & LEDs';
+    case 'pushbutton':
+    case 'potentiometer':
+    case 'slide-switch':
+    case 'dip-switch':
+    case 'joystick':
+      return 'Controls';
+    case 'analog-source':
+    case 'digital-source':
+      return 'Sensors';
+    case 'buzzer':
+    case 'servo':
+      return 'Actuators';
+    default:
+      return 'Passive';
+  }
+}
+
+/** Ordre d'affichage des catégories dans la palette. */
+export const CATEGORY_ORDER: readonly string[] = [
+  'Boards',
+  'Displays & LEDs',
+  'Controls',
+  'Sensors',
+  'Actuators',
+  'Passive',
 ];
 
 // --- Composants personnalisés (créés par l'utilisateur) -----------------------

@@ -19,10 +19,11 @@ import '@wokwi/elements/dist/esm/pir-motion-sensor-element.js';
 import '@wokwi/elements/dist/esm/tilt-switch-element.js';
 import '@wokwi/elements/dist/esm/servo-element.js';
 import './elements/pico-board.mjs';
+import './elements/breadboard.mjs';
 import './elements/custom-part.mjs';
 
 import { initLocale, t } from './i18n.mjs';
-import { Editor } from './diagram/editor.mjs';
+import { Editor, type PaletteState } from './diagram/editor.mjs';
 import { partDef, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
 import {
   ledOn,
@@ -63,6 +64,7 @@ const stopBtn = document.getElementById('stop') as HTMLButtonElement;
 const compileBtn = document.getElementById('compile') as HTMLButtonElement;
 const loadBtn = document.getElementById('load-workspace') as HTMLButtonElement;
 const exportBtn = document.getElementById('export-svg') as HTMLButtonElement;
+const labelsBtn = document.getElementById('toggle-labels') as HTMLButtonElement;
 const statusEl = document.getElementById('status') as HTMLSpanElement;
 const serialEl = document.getElementById('serial') as HTMLPreElement;
 const serialInput = document.getElementById('serial-input') as HTMLInputElement;
@@ -305,6 +307,30 @@ exportBtn.addEventListener('click', () => {
   vscode.postMessage({ type: 'exportSvg', svg: editor.exportSvg() });
 });
 
+// --- Préférences d'interface (noms visibles, tri de palette, derniers utilisés)
+let showLabels = true;
+let paletteState: PaletteState = { sort: 'category', recents: [] };
+
+function applyShowLabels(): void {
+  canvas.classList.toggle('canvas--no-labels', !showLabels);
+  labelsBtn.classList.toggle('primary', !showLabels);
+}
+
+function saveUiState(): void {
+  vscode.postMessage({ type: 'saveUiState', state: { ...paletteState, showLabels } });
+}
+
+labelsBtn.addEventListener('click', () => {
+  showLabels = !showLabels;
+  applyShowLabels();
+  saveUiState();
+});
+
+editor.onPaletteStateChange = (state) => {
+  paletteState = state;
+  saveUiState();
+};
+
 // Persistance des composants personnalisés (stockés côté extension).
 editor.onCustomPartsChange = (parts: CustomPartData[]) => {
   vscode.postMessage({ type: 'saveCustomParts', parts });
@@ -316,7 +342,6 @@ boardSelect.addEventListener('change', () => {
   board = boardSelect.value === 'pico' ? 'pico' : 'uno';
   vscode.postMessage({ type: 'board', board });
   stopRun();
-  buildStarter();
   setStatus(t('Board: {0}', board === 'uno' ? 'Arduino Uno' : 'Raspberry Pi Pico'));
 });
 
@@ -362,6 +387,17 @@ window.addEventListener('message', (event: MessageEvent) => {
     case 'customParts':
       editor.loadCustomParts((msg.parts as CustomPartData[]) ?? []);
       break;
+    case 'uiState': {
+      const state = (msg.state ?? {}) as Partial<PaletteState> & { showLabels?: boolean };
+      if (typeof state.showLabels === 'boolean') showLabels = state.showLabels;
+      applyShowLabels();
+      paletteState = {
+        sort: state.sort === 'alpha' ? 'alpha' : 'category',
+        recents: Array.isArray(state.recents) ? state.recents : [],
+      };
+      editor.loadPaletteState(paletteState);
+      break;
+    }
   }
 });
 
@@ -371,40 +407,8 @@ function switchBoard(target: BoardId): void {
   board = target;
   boardSelect.value = target;
   stopRun();
-  buildStarter();
 }
 
-// --- Schémas de démarrage -------------------------------------------------------
-function buildStarter(): void {
-  editor.clear();
-  if (board === 'uno') {
-    // Uno + LED (D13) + bouton (D2).
-    const uno = editor.addPart('uno', 20, 50);
-    const resistor = editor.addPart('resistor', 360, 90);
-    const led = editor.addPart('led', 470, 70);
-    const button = editor.addPart('button', 360, 230);
-
-    editor.addWire({ partId: uno.id, pin: '13' }, { partId: resistor.id, pin: '1' }, { color: 'yellow' });
-    editor.addWire({ partId: resistor.id, pin: '2' }, { partId: led.id, pin: 'A' }, { color: 'yellow' });
-    editor.addWire({ partId: led.id, pin: 'C' }, { partId: uno.id, pin: 'GND.1' }, { color: 'black' });
-    editor.addWire({ partId: uno.id, pin: '2' }, { partId: button.id, pin: '1.l' }, { color: 'green' });
-    editor.addWire({ partId: button.id, pin: '2.l' }, { partId: uno.id, pin: 'GND.2' }, { color: 'black' });
-  } else {
-    // Pico + LED externe sur GP25 (via résistance) + bouton sur GP13.
-    const pico = editor.addPart('pico', 20, 60);
-    const resistor = editor.addPart('resistor', 440, 90);
-    const led = editor.addPart('led', 550, 70);
-    const button = editor.addPart('button', 440, 240);
-
-    editor.addWire({ partId: pico.id, pin: 'GP25' }, { partId: resistor.id, pin: '1' }, { color: 'yellow' });
-    editor.addWire({ partId: resistor.id, pin: '2' }, { partId: led.id, pin: 'A' }, { color: 'yellow' });
-    editor.addWire({ partId: led.id, pin: 'C' }, { partId: pico.id, pin: 'GND.1' }, { color: 'black' });
-    editor.addWire({ partId: pico.id, pin: 'GP13' }, { partId: button.id, pin: '1.l' }, { color: 'green' });
-    editor.addWire({ partId: button.id, pin: '2.l' }, { partId: pico.id, pin: 'GND.4' }, { color: 'black' });
-  }
-  editor.redrawWires();
-}
-
-buildStarter();
+// Feuille de dessin vide au démarrage : l'utilisateur compose son schéma.
 setStatus(t('Ready'));
 vscode.postMessage({ type: 'ready' });

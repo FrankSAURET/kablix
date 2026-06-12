@@ -15,6 +15,16 @@ const FR: Record<string, string> = {
 
   // Palette
   'Components': 'Composants',
+  'Recently used': 'Derniers utilisés',
+  'Alphabetical': 'Ordre alphabétique',
+  'By category': 'Par catégorie',
+  'Boards': 'Cartes & platines',
+  'Displays & LEDs': 'Affichage & LED',
+  'Controls': 'Commandes',
+  'Sensors': 'Capteurs',
+  'Actuators': 'Actionneurs',
+  'Passive': 'Passifs',
+  'Custom parts': 'Composants personnalisés',
   '+ Create a part': '+ Créer un composant',
   '⇪ Import (.json)': '⇪ Importer (.json)',
   'Click: place on canvas — double-click: edit the model':
@@ -60,6 +70,7 @@ const FR: Record<string, string> = {
   'Save': 'Enregistrer',
 
   // Libellés du catalogue
+  'Breadboard': "Platine d'essai",
   'RGB LED': 'LED RGB',
   'Pushbutton': 'Bouton',
   'Resistor': 'Résistance',
@@ -76,6 +87,7 @@ const FR: Record<string, string> = {
 
   // Propriétés du catalogue
   'Color': 'Couleur',
+  'Size': 'Taille',
   'Flipped': 'Retournée',
   'Value (Ω)': 'Valeur (Ω)',
   'Position (%)': 'Position (%)',

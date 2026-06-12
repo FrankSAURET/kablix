@@ -78,6 +78,10 @@ body {
   border: 1px solid var(--vscode-panel-border, #444);
   border-radius: 8px;
   align-self: flex-start;
+  /* Ascenseur : la bibliothèque ne déborde plus de la fenêtre */
+  max-height: calc(100vh - 260px);
+  min-height: 220px;
+  overflow-y: auto;
 }
 
 .palette h3 {
@@ -86,6 +90,45 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   opacity: 0.7;
+}
+
+.palette__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.3rem;
+}
+
+.palette__sort {
+  display: flex;
+  gap: 2px;
+}
+
+.palette__sort-btn {
+  font: inherit;
+  font-size: 0.65rem;
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-input-border, #555);
+  background: var(--vscode-input-background, #2a2a2a);
+  color: var(--vscode-input-foreground, #fff);
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.palette__sort-btn--active {
+  opacity: 1;
+  border-color: var(--vscode-focusBorder, #0e639c);
+}
+
+/* En-tête de section (catégorie, derniers utilisés) */
+.palette__section {
+  margin: 0.45rem 0 0;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.55;
+  font-weight: normal;
 }
 
 .palette__item {
@@ -149,6 +192,8 @@ body {
   width: 100%;
   height: 100%;
   pointer-events: none;
+  /* Les fils passent au-dessus des cartes/platines (z=1) mais sous les autres composants (z=3) */
+  z-index: 2;
 }
 
 .wire {
@@ -295,6 +340,12 @@ body {
   position: absolute;
   -webkit-user-select: none;
   user-select: none;
+  z-index: 3;
+}
+
+/* Cartes microcontrôleur et platines d'essai : sous les fils */
+.part--under-wires {
+  z-index: 1;
 }
 
 .part--selected {
@@ -314,6 +365,22 @@ body {
   color: #fff;
   border-radius: 4px 4px 0 0;
   cursor: grab;
+}
+
+.part__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Noms masqués (bouton 🏷 de la barre d'outils) : le bandeau reste comme
+   zone de saisie/déplacement, seul le texte disparaît. */
+.canvas--no-labels .part__name {
+  visibility: hidden;
+}
+
+.canvas--no-labels .part__head {
+  background: rgba(0, 0, 0, 0.18);
 }
 
 .part__del {
@@ -344,6 +411,20 @@ body {
 .pin:hover {
   background: #ffd633;
   box-shadow: 0 0 6px 2px rgba(255, 214, 51, 0.7);
+}
+
+/* Platine d'essai : trous au pas de 10 px → pastilles réduites et discrètes */
+.part--dense .pin {
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  background: transparent;
+  border-color: transparent;
+}
+
+.part--dense .pin:hover {
+  background: #ffd633;
+  border-color: rgba(180, 130, 0, 0.9);
 }
 
 /* --- Créateur de composants -------------------------------------------------- */

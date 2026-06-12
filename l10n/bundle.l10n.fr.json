@@ -24,5 +24,7 @@
   "Serial monitor": "Moniteur série",
   "Clear": "Effacer",
   "Send to the microcontroller (Enter)…": "Envoyer au microcontrôleur (Entrée)…",
-  "Send": "Envoyer"
+  "Send": "Envoyer",
+  "Show/hide part names": "Afficher/masquer les noms des composants",
+  "Names": "Noms"
 }

@@ -1,6 +1,7 @@
 // Modèle de schéma (pur, sans DOM) : composants, fils, calcul de la netlist et
 // résolution logique des composants. Entièrement testable hors navigateur.
 import { mcuPinRole, mcuPins, partDef, rolePin, type BoardId } from './catalog.mjs';
+import { breadboardStrips, normalizeSize } from './breadboard.mjs';
 
 export interface Endpoint {
   partId: string;
@@ -15,6 +16,8 @@ export interface Wire {
   points?: Array<{ x: number; y: number }>;
   /** Couleur Dupont du fil (identifiant de geometry.DUPONT_COLORS ou hex). */
   color?: string;
+  /** Fil implicite créé par l'enfichage d'un composant sur une platine d'essai. */
+  auto?: boolean;
 }
 
 export interface Part {
@@ -69,7 +72,8 @@ export interface Nets {
 
 /**
  * Construit la netlist. Les fils relient les broches ; une résistance se
- * comporte comme un fil entre ses deux pattes (1 ↔ 2).
+ * comporte comme un fil entre ses deux pattes (1 ↔ 2) ; une platine d'essai
+ * relie les trous de chaque bande (colonnes a–e / f–j et rails).
  */
 export function buildNets(diagram: Diagram): Nets {
   const dsu = new DSU();
@@ -77,8 +81,15 @@ export function buildNets(diagram: Diagram): Nets {
     dsu.union(key(wire.a), key(wire.b));
   }
   for (const part of diagram.parts) {
-    if (partDef(part.type).kind === 'resistor') {
+    const kind = partDef(part.type).kind;
+    if (kind === 'resistor') {
       dsu.union(`${part.id}/1`, `${part.id}/2`);
+    } else if (kind === 'breadboard') {
+      for (const strip of breadboardStrips(normalizeSize(part.attrs?.size))) {
+        for (let i = 1; i < strip.length; i++) {
+          dsu.union(`${part.id}/${strip[0]}`, `${part.id}/${strip[i]}`);
+        }
+      }
     }
   }
   return { netOf: (e) => dsu.find(key(e)) };

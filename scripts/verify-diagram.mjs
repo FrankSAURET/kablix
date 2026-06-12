@@ -167,6 +167,38 @@ console.log('Nouveaux composants (netlist) :');
   check('servo : PWM→D9', srv.length === 1 && srv[0].mcuPin === '9');
 }
 
+// Platine d'essai : LED enfichée sur les colonnes 4 et 5 (bande a–e), pilotée
+// par D10 via la colonne 4 ; cathode vers GND via la colonne 5. Le rail − du
+// bas relie GND au bouton.
+const bbDiagram = {
+  parts: [
+    { id: 'uno', type: 'uno', x: 0, y: 0 },
+    { id: 'bb', type: 'breadboard', x: 0, y: 0, attrs: { size: 'half' } },
+    { id: 'led', type: 'led', x: 0, y: 0 },
+    { id: 'btn', type: 'button', x: 0, y: 0 },
+  ],
+  wires: [
+    { id: 'b1', a: { partId: 'uno', pin: '10' }, b: { partId: 'bb', pin: 'a4' } },
+    // LED enfichée (fils implicites « auto ») : A en e4, C en e5.
+    { id: 'b2', a: { partId: 'led', pin: 'A' }, b: { partId: 'bb', pin: 'e4' }, auto: true },
+    { id: 'b3', a: { partId: 'led', pin: 'C' }, b: { partId: 'bb', pin: 'e5' }, auto: true },
+    { id: 'b4', a: { partId: 'bb', pin: 'a5' }, b: { partId: 'uno', pin: 'GND.1' } },
+    // Bouton entre D11 (colonne f10) et le rail − du bas relié à GND.
+    { id: 'b5', a: { partId: 'uno', pin: '11' }, b: { partId: 'bb', pin: 'f10' } },
+    { id: 'b6', a: { partId: 'btn', pin: '1.l' }, b: { partId: 'bb', pin: 'j10' }, auto: true },
+    { id: 'b7', a: { partId: 'btn', pin: '2.l' }, b: { partId: 'bb', pin: 'bn.3' }, auto: true },
+    { id: 'b8', a: { partId: 'bb', pin: 'bn.10' }, b: { partId: 'uno', pin: 'GND.2' } },
+  ],
+};
+
+console.log("Platine d'essai (bandes + rails) :");
+{
+  check('LED via la platine suit D10', ledOn(bbDiagram, 'led', (n) => n === '10'));
+  check('LED via la platine éteinte quand D10 = LOW', !ledOn(bbDiagram, 'led', () => false));
+  const binds = buttonBindings(bbDiagram);
+  check('bouton via bande f–j + rail − lié à D11', binds.length === 1 && binds[0].mcuPin === '11');
+}
+
 console.log('Composant personnalisé (rôles de broches) :');
 {
   registerCustomPart({

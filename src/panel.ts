@@ -10,6 +10,7 @@ import {
 
 const ARTIFACT_EXTS = ['.hex', '.uf2', '.elf', '.bin'];
 const CUSTOM_PARTS_KEY = 'kablix.customParts';
+const UI_STATE_KEY = 'kablix.uiState';
 
 /**
  * Gère le panneau webview du simulateur. Un seul panneau est ouvert à la fois ;
@@ -238,14 +239,21 @@ export class SimulatorPanel {
     );
   }
 
-  private onMessage(msg: { type?: string; board?: Board; svg?: string; parts?: unknown[]; part?: unknown }): void {
+  private onMessage(msg: { type?: string; board?: Board; svg?: string; parts?: unknown[]; part?: unknown; state?: unknown }): void {
     switch (msg?.type) {
       case 'ready':
-        // Renvoie les composants personnalisés persistés.
+        // Renvoie les composants personnalisés et les préférences d'interface.
         this.post({
           type: 'customParts',
           parts: this.context.globalState.get<unknown[]>(CUSTOM_PARTS_KEY, []),
         });
+        this.post({
+          type: 'uiState',
+          state: this.context.globalState.get<unknown>(UI_STATE_KEY, {}),
+        });
+        break;
+      case 'saveUiState':
+        void this.context.globalState.update(UI_STATE_KEY, msg.state ?? {});
         break;
       case 'board':
         if (msg.board) this.currentBoard = msg.board;
@@ -355,6 +363,7 @@ export class SimulatorPanel {
     <button id="compile">⚙ ${l10n.t('Compile &amp; run the active file')}</button>
     <button id="load-workspace" title="${l10n.t('Loads the most recent compiled artifact of the workspace')}">↑ ${l10n.t('Load workspace')}</button>
     <button id="export-svg" title="${l10n.t('Export the diagram as SVG')}">⬇ SVG</button>
+    <button id="toggle-labels" title="${l10n.t('Show/hide part names')}">🏷 ${l10n.t('Names')}</button>
     <span id="status" class="status">Prêt</span>
   </header>
 
