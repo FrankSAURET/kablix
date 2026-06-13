@@ -12,6 +12,10 @@ const FR: Record<string, string> = {
   'Starting MicroPython… (a few seconds)': 'Démarrage MicroPython… (quelques secondes)',
   'Board: {0}': 'Carte : {0}',
   'Error: {0}': 'Erreur : {0}',
+  'Paused': 'En pause',
+  'Pause': 'Pause',
+  'Resume': 'Reprendre',
+  'Line {0}': 'Ligne {0}',
 
   // Palette
   'Components': 'Composants',
@@ -42,6 +46,8 @@ const FR: Record<string, string> = {
   'Delete': 'Supprimer',
   'Right-click drag to move': 'Glisser avec le clic droit pour déplacer',
   'Drag to move — Ctrl: H/V alignment': 'Glisser pour déplacer — Ctrl : alignement H/V',
+  '+ or − to rotate the part': '+ ou − pour faire tourner le composant',
+  'Reset the view (zoom 100%)': 'Réinitialiser la vue (zoom 100 %)',
 
   // Inspecteur
   'Properties': 'Propriétés',

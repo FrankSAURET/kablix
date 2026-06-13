@@ -26,5 +26,15 @@
   "Send to the microcontroller (Enter)…": "Envoyer au microcontrôleur (Entrée)…",
   "Send": "Envoyer",
   "Show/hide part names": "Afficher/masquer les noms des composants",
-  "Names": "Noms"
+  "Names": "Noms",
+  "Pause / resume the simulation": "Mettre en pause / reprendre la simulation",
+  "Pause": "Pause",
+  "Run one source line then pause": "Exécute une ligne de code puis se met en pause",
+  "Step": "Pas",
+  "Simulation speed": "Vitesse de simulation",
+  "Variables": "Variables",
+  "Kablix: the simulation libraries are up to date.": "Kablix : les bibliothèques de simulation sont à jour.",
+  "Kablix: a newer version of the simulation libraries is available ({0}). Updating may break the extension; if a problem occurs, please open an issue on GitHub ({1}).": "Kablix : une version plus récente des bibliothèques de simulation est disponible ({0}). La mise à jour peut casser l'extension ; en cas de problème, ouvrez une demande sur GitHub ({1}).",
+  "See on npm": "Voir sur npm",
+  "Close": "Fermer"
 }

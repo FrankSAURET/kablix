@@ -11,12 +11,14 @@
 3. [Building a circuit](#building-a-circuit)
 4. [Running code](#running-code)
 5. [MicroPython on the Pico](#micropython-on-the-pico)
-6. [Serial monitor](#serial-monitor)
-7. [Exporting the diagram as SVG](#exporting-the-diagram-as-svg)
-8. [Creating your own parts](#creating-your-own-parts)
-9. [Part file format (.kablix-part.json)](#part-file-format-kablix-partjson)
-10. [Where to find existing parts](#where-to-find-existing-parts)
-11. [Keyboard shortcuts](#keyboard-shortcuts)
+6. [Step-by-step debugging](#step-by-step-debugging)
+7. [Serial monitor](#serial-monitor)
+8. [Exporting the diagram as SVG](#exporting-the-diagram-as-svg)
+9. [Creating your own parts](#creating-your-own-parts)
+10. [Part file format (.kablix-part.json)](#part-file-format-kablix-partjson)
+11. [Where to find existing parts](#where-to-find-existing-parts)
+12. [Library updates](#library-updates)
+13. [Keyboard shortcuts](#keyboard-shortcuts)
 
 ---
 
@@ -65,13 +67,17 @@ LED on D13/GP25) or **⚙ Compile & run the active file** to run your own code.
 
 ### Placing and moving
 
-- **Place**: click a part in the palette.
+- **Place**: click a part in the palette (placed at the center), or **drag and
+  drop** it from the palette to wherever you want on the canvas.
 - **Move**: drag the part (anywhere on its body), or **drag with the right
   mouse button** — essential for interactive parts (button, potentiometer,
   switches, joystick) whose left click operates the control. You can also
   select them (left click) then drag the **name bar** that appears above.
 - **Rotate**: select the part then press **`+`** (45° clockwise) or **`-`**
-  (45° counter-clockwise). Pins and wires follow.
+  (45° counter-clockwise). Pins and wires follow; a reminder shows in the
+  inspector help area.
+- **Zoom**: **mouse wheel** over the canvas (centered on the cursor). The
+  **⟳ %** badge at the bottom right shows the factor; click it to reset the view.
 - **Delete**: ✕ on the name bar (visible when selected), 🗑 button in the
   inspector, or `Del` key.
 
@@ -162,6 +168,29 @@ The firmware boots in the simulator (bootrom + flash + USB), then the script is
 injected through the **raw REPL**. `print()` output shows up in the serial
 monitor; when the script ends, the **interactive REPL** stays available through
 the input field.
+
+## Step-by-step debugging
+
+Designed for watching a program run in class, without an external debugger.
+
+- **⏸ Pause / ▶ Resume**: freezes the simulation; pin and LED states stay
+  visible. The 🐇/🐢/🐌 selector slows execution down (Uno).
+- **⏭ Step**: runs one line of the source file then pauses again. The
+  **Variables** panel (below the canvas) shows the current line and the
+  program's global variables; the line is also highlighted in the VS Code
+  editor.
+- **Breakpoints**: click in the editor gutter (left of the line numbers)
+  before or during the run; the simulation pauses when the line is reached.
+
+Requirements and limits:
+
+| Language | How | Limits |
+| --- | --- | --- |
+| C / Arduino (Uno) | DWARF info extracted at compile time (`avr-objdump`, shipped with arduino-cli or avr-gcc) | simple **global** variables (int, float, bool…); a long `delay()` advances in 0.25 s simulated slices |
+| MicroPython (Pico) | the script is instrumented automatically before injection | **global** variables only; pause takes effect on the next line; no slow motion |
+
+Artifacts loaded directly (`.hex`, `.uf2`, `.elf`, `.bin`) run without debug
+info: pause and slow motion still work, stepping does not.
 
 ## Serial monitor
 
@@ -303,6 +332,25 @@ Tips for the SVG drawing:
 - **Sharing**: an exported part (`.kablix-part.json`) can be imported on any
   other machine via **⇪ Import (.json)** — handy to distribute a classroom
   library.
+
+## Library updates
+
+Kablix bundles three simulation libraries (`avr8js`, `rp2040js`,
+`@wokwi/elements`). The extension is **offline by default**: no remote service
+is contacted without your consent.
+
+- **Manual check**: command palette (`Ctrl+Shift+P`) → **“Kablix: Check for
+  library updates”**. Kablix then queries the npm registry and tells you whether
+  a newer version exists (or that everything is up to date).
+- **Startup check** (optional): enable the **`kablix.checkUpdatesOnStartup`**
+  setting (off by default). A notification then appears only when an update is
+  available, silently otherwise.
+
+> **Warning**: updating these libraries may **break the extension** (API
+> changes). If a problem occurs, open an issue on the GitHub repository:
+> [github.com/franksauret/kablix/issues](https://github.com/franksauret/kablix/issues).
+> A missing or failed network check stays silent and does not affect offline
+> operation.
 
 ## Keyboard shortcuts
 

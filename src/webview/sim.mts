@@ -42,7 +42,7 @@ import {
 } from './diagram/model.mjs';
 import { AvrEngine } from './engines/avr.mjs';
 import { PicoEngine, type PicoProgram } from './engines/pico.mjs';
-import type { SimEngine } from './engines/types.mjs';
+import type { AvrDebugInfo, DebugPauseState, SimEngine } from './engines/types.mjs';
 import { UNO_DEMO } from './programs/uno-demo.mjs';
 import { PICO_BLINK } from './programs/pico-blink.mjs';
 
@@ -65,6 +65,12 @@ const compileBtn = document.getElementById('compile') as HTMLButtonElement;
 const loadBtn = document.getElementById('load-workspace') as HTMLButtonElement;
 const exportBtn = document.getElementById('export-svg') as HTMLButtonElement;
 const labelsBtn = document.getElementById('toggle-labels') as HTMLButtonElement;
+const pauseBtn = document.getElementById('pause') as HTMLButtonElement;
+const stepBtn = document.getElementById('step') as HTMLButtonElement;
+const speedSelect = document.getElementById('speed') as HTMLSelectElement;
+const debugSection = document.getElementById('debug') as HTMLElement;
+const debugLineEl = document.getElementById('debug-line') as HTMLSpanElement;
+const debugVarsEl = document.getElementById('debug-vars') as HTMLTableElement;
 const statusEl = document.getElementById('status') as HTMLSpanElement;
 const serialEl = document.getElementById('serial') as HTMLPreElement;
 const serialInput = document.getElementById('serial-input') as HTMLInputElement;
@@ -80,8 +86,10 @@ const editor = new Editor(canvas, palette, wiresSvg, inspector);
 let board: BoardId = 'uno';
 let engine: SimEngine | null = null;
 let unoProgram: Uint16Array = UNO_DEMO;
+let unoDebugInfo: AvrDebugInfo | null = null;
 let picoProgram: PicoProgram = { kind: 'ram', image: PICO_BLINK };
 let inputRemovers: Array<() => void> = [];
+let breakpointLines: number[] = []; // points d'arrêt envoyés par l'extension
 
 const setStatus = (text: string): void => {
   statusEl.textContent = text;
@@ -257,21 +265,72 @@ function rebind(): void {
   queueRefresh();
 }
 
+// --- Débogage : pause, pas à pas, panneau des variables -----------------------
+function renderDebugPause(state: DebugPauseState): void {
+  debugSection.hidden = false;
+  debugLineEl.textContent = state.line !== undefined ? t('Line {0}', state.line) : '';
+  debugVarsEl.innerHTML = '';
+  for (const v of state.variables) {
+    const row = debugVarsEl.insertRow();
+    row.insertCell().textContent = v.name;
+    row.insertCell().textContent = v.type ?? '';
+    row.insertCell().textContent = v.value;
+  }
+  // Signale la ligne courante à l'extension (surlignage dans l'éditeur).
+  if (state.line !== undefined) vscode.postMessage({ type: 'debugLine', line: state.line });
+  updateDebugButtons();
+}
+
+function updateDebugButtons(): void {
+  const paused = engine?.paused ?? false;
+  pauseBtn.disabled = !engine;
+  pauseBtn.textContent = paused ? `▶ ${t('Resume')}` : `⏸ ${t('Pause')}`;
+  pauseBtn.classList.toggle('primary', paused);
+  stepBtn.disabled = !engine || !engine.step;
+  if (paused) setStatus(t('Paused'));
+}
+
+pauseBtn.addEventListener('click', () => {
+  if (!engine) return;
+  if (engine.paused) {
+    engine.resume();
+    setStatus(t('Running…'));
+    vscode.postMessage({ type: 'debugResumed' });
+  } else {
+    engine.pause();
+  }
+  updateDebugButtons();
+});
+
+stepBtn.addEventListener('click', () => {
+  engine?.step?.();
+  updateDebugButtons();
+});
+
+speedSelect.addEventListener('change', () => {
+  engine?.setSpeed(Number(speedSelect.value) || 1);
+});
+
 // --- Cycle de vie de la simulation -------------------------------------------
 function startRun(): void {
   stopRun();
   try {
-    engine = board === 'uno' ? new AvrEngine(unoProgram) : new PicoEngine(picoProgram);
+    engine =
+      board === 'uno' ? new AvrEngine(unoProgram, unoDebugInfo) : new PicoEngine(picoProgram);
   } catch (err) {
     setStatus(t('Error: {0}', err instanceof Error ? err.message : String(err)));
     return;
   }
   engine.onUpdate = queueRefresh;
   engine.onSerial = appendSerial;
+  engine.onDebugPause = renderDebugPause;
+  engine.setSpeed(Number(speedSelect.value) || 1);
+  engine.setBreakpoints?.(breakpointLines);
   rebind();
   engine.start();
   runBtn.disabled = true;
   stopBtn.disabled = false;
+  updateDebugButtons();
   const isPython = board === 'pico' && picoProgram.kind === 'flash' && picoProgram.script;
   setStatus(isPython ? t('Starting MicroPython… (a few seconds)') : t('Running…'));
 }
@@ -283,6 +342,9 @@ function stopRun(): void {
   engine = null;
   runBtn.disabled = false;
   stopBtn.disabled = true;
+  debugSection.hidden = true;
+  vscode.postMessage({ type: 'debugResumed' });
+  updateDebugButtons();
   setStatus(t('Stopped'));
 }
 
@@ -365,6 +427,7 @@ window.addEventListener('message', (event: MessageEvent) => {
     case 'runProgram':
       if (msg.board === 'uno') {
         unoProgram = Uint16Array.from(msg.bytes as number[]);
+        unoDebugInfo = (msg.debug as AvrDebugInfo | undefined) ?? null;
         switchBoard('uno');
       } else if (msg.board === 'pico') {
         if (msg.format === 'rp2040-ram') {
@@ -385,6 +448,11 @@ window.addEventListener('message', (event: MessageEvent) => {
       break;
     case 'status':
       setStatus(String(msg.text));
+      break;
+    case 'breakpoints':
+      // Lignes cochées dans la gouttière de l'éditeur VS Code (1-based).
+      breakpointLines = Array.isArray(msg.lines) ? (msg.lines as number[]) : [];
+      engine?.setBreakpoints?.(breakpointLines);
       break;
     case 'customParts':
       editor.loadCustomParts((msg.parts as CustomPartData[]) ?? []);

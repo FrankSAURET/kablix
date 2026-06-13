@@ -1,7 +1,7 @@
 {
   "name": "kablix",
   "displayName": "Kablix",
-  "version": "0.9.1",
+  "version": "0.10.0",
   "description": "%kablix.description%",
   "publisher": "franksauret",
   "license": "MIT",
@@ -27,7 +27,9 @@
     "offline"
   ],
   "main": "./dist/extension.js",
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "contributes": {
     "commands": [
       {
@@ -43,6 +45,11 @@
       {
         "command": "kablix.loadWorkspaceArtifact",
         "title": "%kablix.cmd.loadWorkspaceArtifact%",
+        "category": "Kablix"
+      },
+      {
+        "command": "kablix.checkLibraryUpdates",
+        "title": "%kablix.cmd.checkLibraryUpdates%",
         "category": "Kablix"
       }
     ],
@@ -76,6 +83,11 @@
           "type": "string",
           "default": "",
           "description": "%kablix.config.micropythonUf2%"
+        },
+        "kablix.checkUpdatesOnStartup": {
+          "type": "boolean",
+          "default": false,
+          "description": "%kablix.config.checkUpdatesOnStartup%"
         }
       }
     }

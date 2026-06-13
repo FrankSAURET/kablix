@@ -71,6 +71,10 @@ const DRAG_THRESHOLD = 4;
 /** Distance max (px) entre une broche et un trou de platine pour l'enfichage. */
 const BB_SNAP = 6;
 const MAX_RECENTS = 10;
+/** Type MIME du glisser-déposer palette → canvas (pose d'un composant). */
+const DND_MIME = 'application/x-kablix-part';
+const ZOOM_MIN = 0.3;
+const ZOOM_MAX = 3;
 let idSeq = 0;
 const uid = (prefix: string): string => `${prefix}${++idSeq}`;
 
@@ -100,27 +104,103 @@ export class Editor {
   /** Platines dont des trous sont actuellement en surbrillance. */
   private highlightedBoards = new Set<string>();
 
+  /** Calque transformable (zoom + translation) contenant fils et composants. */
+  private readonly world: HTMLDivElement;
+  private zoom = 1;
+  private panX = 0;
+  private panY = 0;
+  private zoomBadge: HTMLButtonElement | null = null;
+
   constructor(
     private readonly canvas: HTMLDivElement,
     private readonly palette: HTMLDivElement,
     private readonly svg: SVGSVGElement,
     private readonly inspector: HTMLDivElement
   ) {
+    // Le « monde » regroupe les fils et les composants pour les transformer
+    // d'un bloc (le canvas reste la fenêtre fixe, qui rogne le débordement).
+    this.world = document.createElement('div');
+    this.world.className = 'canvas__world';
+    this.canvas.appendChild(this.world);
+    this.world.appendChild(this.svg); // reparent le SVG des fils dans le monde
+
     this.buildPalette();
     this.renderInspector();
+    this.buildZoomBadge();
     window.addEventListener('pointermove', this.onPointerMove);
     window.addEventListener('keydown', this.onKeyDown);
     // Le clic droit sert au déplacement des composants : pas de menu contextuel.
     this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     // Clic sur le fond : pose un point de fil, ou désélectionne.
     this.canvas.addEventListener('pointerdown', (e) => {
-      if (e.target !== this.canvas && e.target !== this.svg) return;
+      if (e.target !== this.canvas && e.target !== this.world && e.target !== this.svg) return;
       if (this.pending) {
         this.addPendingPoint(this.canvasPoint(e.clientX, e.clientY));
       } else {
         this.select(null);
       }
     });
+    // Zoom à la molette, centré sur le curseur.
+    this.canvas.addEventListener('wheel', this.onWheel, { passive: false });
+    // Dépôt d'un composant glissé depuis la palette, là où on le lâche.
+    this.canvas.addEventListener('dragover', (e) => {
+      if (e.dataTransfer?.types.includes(DND_MIME)) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+      }
+    });
+    this.canvas.addEventListener('drop', (e) => {
+      const type = e.dataTransfer?.getData(DND_MIME);
+      if (!type) return;
+      e.preventDefault();
+      const p = this.canvasPoint(e.clientX, e.clientY);
+      this.addPart(type, Math.max(0, Math.round(p.x)), Math.max(0, Math.round(p.y)));
+    });
+  }
+
+  // --- Zoom / déplacement de la vue -------------------------------------------
+  private applyTransform(): void {
+    this.world.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.zoom})`;
+    // La grille de fond suit le zoom et la translation pour rester cohérente.
+    const step = 20 * this.zoom;
+    this.canvas.style.backgroundSize = `${step}px ${step}px`;
+    this.canvas.style.backgroundPosition = `${this.panX}px ${this.panY}px`;
+    if (this.zoomBadge) this.zoomBadge.textContent = `⟳ ${Math.round(this.zoom * 100)} %`;
+  }
+
+  private onWheel = (e: WheelEvent): void => {
+    e.preventDefault();
+    const rect = this.canvas.getBoundingClientRect();
+    const cx = e.clientX - rect.left;
+    const cy = e.clientY - rect.top;
+    // Point du monde sous le curseur (conservé fixe pendant le zoom).
+    const wx = (cx - this.panX) / this.zoom;
+    const wy = (cy - this.panY) / this.zoom;
+    const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+    const z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, this.zoom * factor));
+    this.panX = cx - wx * z;
+    this.panY = cy - wy * z;
+    this.zoom = z;
+    this.applyTransform();
+  };
+
+  private resetView(): void {
+    this.zoom = 1;
+    this.panX = 0;
+    this.panY = 0;
+    this.applyTransform();
+  }
+
+  /** Badge flottant « ⟳ 100 % » : clic = réinitialise zoom et position. */
+  private buildZoomBadge(): void {
+    const badge = document.createElement('button');
+    badge.className = 'canvas__zoom';
+    badge.title = t('Reset the view (zoom 100%)');
+    badge.addEventListener('click', () => this.resetView());
+    badge.addEventListener('pointerdown', (e) => e.stopPropagation());
+    this.canvas.appendChild(badge);
+    this.zoomBadge = badge;
+    this.applyTransform();
   }
 
   // --- Palette ---------------------------------------------------------------
@@ -154,12 +234,17 @@ export class Editor {
     this.palette.appendChild(head);
   }
 
-  /** Bouton simple de la palette qui pose le composant sur le canvas. */
+  /** Bouton simple de la palette : clic = pose au centre ; glisser = pose au lâcher. */
   private paletteButton(def: PartDef, custom: boolean): HTMLButtonElement {
     const btn = document.createElement('button');
     btn.className = 'palette__item';
     btn.textContent = custom ? `★ ${def.label}` : t(def.label);
     btn.addEventListener('click', () => this.addPart(def.type));
+    btn.draggable = true;
+    btn.addEventListener('dragstart', (e) => {
+      e.dataTransfer?.setData(DND_MIME, def.type);
+      if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy';
+    });
     return btn;
   }
 
@@ -457,7 +542,7 @@ export class Editor {
     }
     body.appendChild(el);
     container.appendChild(body);
-    this.canvas.appendChild(container);
+    this.world.appendChild(container);
     this.applyRotation(part, body);
 
     // Déplacement : par tout le corps (clic gauche ou droit), sauf pour les
@@ -515,6 +600,38 @@ export class Editor {
     const deg = part.rotation ?? 0;
     body.style.transformOrigin = 'center center';
     body.style.transform = deg ? `rotate(${deg}deg)` : '';
+    const head = body.parentElement?.querySelector('.part__head') as HTMLDivElement | null;
+    if (head) this.positionHead(part, head, body);
+  }
+
+  /**
+   * Place le bandeau de nom au-dessus de l'encombrement réel du composant. Sans
+   * rotation : ancré sur le corps (CSS par défaut). Avec rotation : calé sur la
+   * boîte englobante tournée (calculée à partir des dimensions de mise en page,
+   * indépendantes du zoom), centré et large d'au moins cette boîte.
+   */
+  private positionHead(part: Part, head: HTMLDivElement, body: HTMLDivElement): void {
+    const deg = ((part.rotation ?? 0) % 360 + 360) % 360;
+    const w = body.offsetWidth;
+    const h = body.offsetHeight;
+    if (!deg || !w || !h) {
+      head.style.bottom = '';
+      head.style.top = '';
+      head.style.left = '';
+      head.style.minWidth = '';
+      head.style.transform = '';
+      return;
+    }
+    const rad = (deg * Math.PI) / 180;
+    const c = Math.abs(Math.cos(rad));
+    const s = Math.abs(Math.sin(rad));
+    const bw = w * c + h * s; // largeur de la boîte englobante tournée
+    const bh = w * s + h * c; // hauteur de la boîte englobante tournée
+    head.style.bottom = 'auto';
+    head.style.top = `${(h - bh) / 2}px`;
+    head.style.left = `${(w - bw) / 2}px`;
+    head.style.minWidth = `${bw}px`;
+    head.style.transform = 'translateY(-100%)'; // hisse le bandeau au-dessus
   }
 
   /** Tourne le composant sélectionné de ±45° (touches + / -). */
@@ -552,8 +669,9 @@ export class Editor {
       const dy = ev.clientY - startY;
       if (!moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
       moved = true;
-      part.x = Math.max(0, origX + dx);
-      part.y = Math.max(0, origY + dy);
+      // Le déplacement écran est converti en déplacement monde (zoom courant).
+      part.x = Math.max(0, origX + dx / this.zoom);
+      part.y = Math.max(0, origY + dy / this.zoom);
       r.container.style.left = `${part.x}px`;
       r.container.style.top = `${part.y}px`;
       this.redrawWires();
@@ -861,7 +979,7 @@ export class Editor {
         e.preventDefault();
         this.dragHandle(wire, index, handle);
       });
-      this.canvas.appendChild(handle);
+      this.world.appendChild(handle);
       this.handles.push(handle);
     });
   }
@@ -1085,6 +1203,16 @@ export class Editor {
     }
 
     this.appendDeleteButton(t('Delete the part'), () => this.removePart(partId));
+    // Zone d'aide contextuelle, sous les propriétés du composant sélectionné.
+    this.appendHelp(t('+ or − to rotate the part'));
+  }
+
+  /** Encart d'aide affiché sous l'inspecteur (raccourcis contextuels). */
+  private appendHelp(text: string): void {
+    const help = document.createElement('p');
+    help.className = 'inspector__help';
+    help.textContent = `💡 ${text}`;
+    this.inspector.appendChild(help);
   }
 
   private appendPropControl(partId: string, part: Part, prop: PropDef): void {
@@ -1128,9 +1256,13 @@ export class Editor {
   }
 
   // --- Conversion de coordonnées ---------------------------------------------
+  /** Écran → coordonnées du monde (annule la translation puis le zoom). */
   private canvasPoint(clientX: number, clientY: number): XY {
     const rect = this.canvas.getBoundingClientRect();
-    return { x: clientX - rect.left, y: clientY - rect.top };
+    return {
+      x: (clientX - rect.left - this.panX) / this.zoom,
+      y: (clientY - rect.top - this.panY) / this.zoom,
+    };
   }
 
   private hotspotCenter(e: Endpoint): XY | null {
@@ -1146,59 +1278,104 @@ export class Editor {
 
   // --- Export SVG ----------------------------------------------------------------
   /**
-   * Sérialise le schéma en SVG autonome : dessin de chaque composant (extrait
-   * de son shadow DOM), rotations appliquées, puis les fils colorés par-dessus.
+   * Sérialise le schéma en SVG autonome. Chaque composant est extrait de son
+   * shadow DOM puis forcé à sa taille d'affichage réelle (width/height +
+   * viewBox), ce qui garantit que ses broches tombent pile sous les fils ; les
+   * rotations sont appliquées autour du centre, comme à l'écran. La zone visible
+   * englobe composants, fils et coudes, avec une marge — plus rien n'est rogné.
    */
   exportSvg(): string {
     const serializer = new XMLSerializer();
     const parts: string[] = [];
-    let maxX = 400;
-    let maxY = 300;
+    const MARGIN = 30;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    const grow = (x: number, y: number): void => {
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    };
 
     for (const r of this.rendered.values()) {
       const root = r.el.shadowRoot ?? r.el;
       const svgEl = root.querySelector('svg');
-      if (!svgEl) continue;
-      const body = r.container.querySelector('.part__body') as HTMLElement | null;
       const x = r.part.x;
-      const y = r.part.y + (body?.offsetTop ?? 0);
-      const w = r.el.offsetWidth || svgEl.width.baseVal.value || 80;
-      const h = r.el.offsetHeight || svgEl.height.baseVal.value || 60;
-      maxX = Math.max(maxX, x + w + 60);
-      maxY = Math.max(maxY, y + h + 60);
-
-      const clone = svgEl.cloneNode(true) as SVGSVGElement;
-      clone.setAttribute('x', String(x));
-      clone.setAttribute('y', String(y));
-      const inner = serializer.serializeToString(clone);
+      const y = r.part.y;
+      const w = r.el.offsetWidth || svgEl?.width.baseVal.value || 80;
+      const h = r.el.offsetHeight || svgEl?.height.baseVal.value || 60;
       const deg = r.part.rotation ?? 0;
-      parts.push(
-        deg
-          ? `<g transform="rotate(${deg} ${x + w / 2} ${y + h / 2})">${inner}</g>`
-          : inner
-      );
+
+      // Boîte englobante tournée pour le cadrage (coins pivotés autour du centre).
+      const cx = x + w / 2;
+      const cy = y + h / 2;
+      const rad = (deg * Math.PI) / 180;
+      const cos = Math.cos(rad);
+      const sin = Math.sin(rad);
+      for (const [px, py] of [
+        [x, y], [x + w, y], [x + w, y + h], [x, y + h],
+      ] as Array<[number, number]>) {
+        grow(cx + (px - cx) * cos - (py - cy) * sin, cy + (px - cx) * sin + (py - cy) * cos);
+      }
+
+      let inner: string;
+      if (svgEl) {
+        const clone = svgEl.cloneNode(true) as SVGSVGElement;
+        // Sans viewBox, redimensionner déformerait le dessin : on en pose une
+        // d'après la taille intrinsèque avant de forcer la taille d'affichage.
+        if (!clone.getAttribute('viewBox')) {
+          const vbW = svgEl.viewBox?.baseVal?.width || svgEl.width.baseVal.value || w;
+          const vbH = svgEl.viewBox?.baseVal?.height || svgEl.height.baseVal.value || h;
+          clone.setAttribute('viewBox', `0 0 ${vbW} ${vbH}`);
+        }
+        clone.setAttribute('x', String(x));
+        clone.setAttribute('y', String(y));
+        clone.setAttribute('width', String(w));
+        clone.setAttribute('height', String(h));
+        inner = serializer.serializeToString(clone);
+      } else {
+        // Repli : composant sans SVG → rectangle étiqueté, pour ne rien perdre.
+        const label = t(partDef(r.part.type).label).replace(/[<&>]/g, '');
+        inner =
+          `<g><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="#888" ` +
+          `stroke="#444"/><text x="${x + w / 2}" y="${y + h / 2}" font-size="10" ` +
+          `fill="#fff" text-anchor="middle" font-family="sans-serif">${label}</text></g>`;
+      }
+      parts.push(deg ? `<g transform="rotate(${deg} ${cx} ${cy})">${inner}</g>` : inner);
     }
 
     const wires: string[] = [];
     for (const wire of this.diagram.wires) {
+      if (wire.auto) continue; // fils implicites d'enfichage : non dessinés
       const a = this.hotspotCenter(wire.a);
       const b = this.hotspotCenter(wire.b);
       if (!a || !b) continue;
-      const d = roundedWirePath([a, ...(wire.points ?? []), b]);
+      const pts = [a, ...(wire.points ?? []), b];
+      for (const p of pts) grow(p.x, p.y);
       wires.push(
-        `<path d="${d}" fill="none" stroke="${dupontHex(wire.color ?? 'green')}" ` +
+        `<path d="${roundedWirePath(pts)}" fill="none" stroke="${dupontHex(wire.color ?? 'green')}" ` +
           `stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`
       );
-      for (const p of wire.points ?? []) {
-        maxX = Math.max(maxX, p.x + 40);
-        maxY = Math.max(maxY, p.y + 40);
-      }
     }
+
+    // Atelier vide : cadre par défaut plutôt qu'un viewBox dégénéré.
+    if (!isFinite(minX)) {
+      minX = 0;
+      minY = 0;
+      maxX = 400;
+      maxY = 300;
+    }
+    const vx = Math.floor(minX - MARGIN);
+    const vy = Math.floor(minY - MARGIN);
+    const vw = Math.ceil(maxX - minX + 2 * MARGIN);
+    const vh = Math.ceil(maxY - minY + 2 * MARGIN);
 
     return [
       `<?xml version="1.0" encoding="UTF-8"?>`,
-      `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.ceil(maxX)}" height="${Math.ceil(maxY)}" ` +
-        `viewBox="0 0 ${Math.ceil(maxX)} ${Math.ceil(maxY)}">`,
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${vw}" height="${vh}" ` +
+        `viewBox="${vx} ${vy} ${vw} ${vh}">`,
       `<!-- Schéma exporté par Kablix -->`,
       ...parts,
       ...wires,

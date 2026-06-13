@@ -25,6 +25,10 @@ export class SimulatorPanel {
   private readonly context: vscode.ExtensionContext;
   private readonly disposables: vscode.Disposable[] = [];
   private currentBoard: Board = 'uno';
+  /** Fichier source actuellement chargé dans le simulateur (.py ou source C ; pas les artefacts). */
+  private currentSourceUri: vscode.Uri | undefined;
+  /** Décoration de la ligne en pause (créée à la demande, détruite avec le panneau). */
+  private debugLineDecoration: vscode.TextEditorDecorationType | undefined;
 
   public static createOrShow(context: vscode.ExtensionContext): SimulatorPanel {
     const column = vscode.window.activeTextEditor?.viewColumn;
@@ -72,6 +76,8 @@ export class SimulatorPanel {
     await editor.document.save();
     const filePath = editor.document.uri.fsPath;
     const ext = filePath.slice(filePath.lastIndexOf('.')).toLowerCase();
+    // Mémorise le source pour les points d'arrêt et le surlignage ; pas de suivi pour les artefacts.
+    this.currentSourceUri = ARTIFACT_EXTS.includes(ext) ? undefined : editor.document.uri;
 
     this.post({ type: 'status', text: l10n.t('Preparing…') });
     try {
@@ -112,6 +118,7 @@ export class SimulatorPanel {
         );
         return;
       }
+      this.currentSourceUri = undefined; // artefact : pas de correspondance source
       this.runProgram(loadArtifact(file.fsPath), file.fsPath.split(/[\\/]/).pop() ?? '');
     } catch (err) {
       this.reportError(err);
@@ -214,6 +221,7 @@ export class SimulatorPanel {
 
   private runProgram(result: CompileResult, label: string): void {
     this.post({ type: 'runProgram', ...result.payload });
+    this.sendBreakpoints(); // synchronise la gouttière avec le programme qui démarre
     vscode.window.showInformationMessage(l10n.t('Kablix: {0} loaded into the simulator.', label));
     if (result.log) {
       console.log(`[Kablix] ${result.log}`);
@@ -237,9 +245,65 @@ export class SimulatorPanel {
       null,
       this.disposables
     );
+    // Gouttière VS Code → simulateur : tout changement de point d'arrêt est relayé.
+    vscode.debug.onDidChangeBreakpoints(() => this.sendBreakpoints(), null, this.disposables);
   }
 
-  private onMessage(msg: { type?: string; board?: Board; svg?: string; parts?: unknown[]; part?: unknown; state?: unknown }): void {
+  // --- Débogage : points d'arrêt et ligne courante ------------------------------
+
+  /** Envoie à la webview les points d'arrêt actifs (1-based) du fichier source courant. */
+  private sendBreakpoints(): void {
+    try {
+      const source = this.currentSourceUri;
+      const lines = !source
+        ? []
+        : vscode.debug.breakpoints
+            .filter(
+              (bp): bp is vscode.SourceBreakpoint =>
+                bp.enabled &&
+                bp instanceof vscode.SourceBreakpoint &&
+                bp.location.uri.toString() === source.toString()
+            )
+            .map((bp) => bp.location.range.start.line + 1);
+      this.post({ type: 'breakpoints', lines });
+    } catch {
+      // panneau ou éditeur dans un état transitoire : ignoré
+    }
+  }
+
+  /** Surligne la ligne source où la simulation est en pause (sans voler le focus). */
+  private async showDebugLine(line: number): Promise<void> {
+    const source = this.currentSourceUri;
+    if (!source || !Number.isFinite(line) || line < 1) return;
+    try {
+      this.debugLineDecoration ??= vscode.window.createTextEditorDecorationType({
+        isWholeLine: true,
+        backgroundColor: new vscode.ThemeColor('editor.stackFrameHighlightBackground'),
+      });
+      const editor = await vscode.window.showTextDocument(source, {
+        preserveFocus: true,
+        preview: false,
+        viewColumn: vscode.ViewColumn.One,
+      });
+      const range = editor.document.lineAt(
+        Math.min(line - 1, editor.document.lineCount - 1)
+      ).range;
+      editor.revealRange(range, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
+      editor.setDecorations(this.debugLineDecoration, [range]);
+    } catch {
+      // fichier fermé, renommé ou supprimé : pas de surlignage
+    }
+  }
+
+  /** Efface le surlignage de pause dans tous les éditeurs visibles. */
+  private clearDebugLine(): void {
+    if (!this.debugLineDecoration) return;
+    for (const editor of vscode.window.visibleTextEditors) {
+      editor.setDecorations(this.debugLineDecoration, []);
+    }
+  }
+
+  private onMessage(msg: { type?: string; board?: Board; svg?: string; parts?: unknown[]; part?: unknown; state?: unknown; line?: number }): void {
     switch (msg?.type) {
       case 'ready':
         // Renvoie les composants personnalisés et les préférences d'interface.
@@ -274,6 +338,13 @@ export class SimulatorPanel {
         break;
       case 'exportCustomPart':
         if (msg.part) void this.saveCustomPartFile(msg.part as { label?: string });
+        break;
+      case 'debugLine':
+        // Simulation en pause sur une ligne : surligne dans l'éditeur du source.
+        if (typeof msg.line === 'number') void this.showDebugLine(msg.line);
+        break;
+      case 'debugResumed':
+        this.clearDebugLine();
         break;
     }
   }
@@ -320,6 +391,9 @@ export class SimulatorPanel {
 
   private onDispose(): void {
     SimulatorPanel.current = undefined;
+    this.clearDebugLine();
+    this.debugLineDecoration?.dispose();
+    this.debugLineDecoration = undefined;
     while (this.disposables.length) {
       this.disposables.pop()?.dispose();
     }
@@ -360,6 +434,13 @@ export class SimulatorPanel {
     </select>
     <button id="run" class="primary">▶ ${l10n.t('Start')}</button>
     <button id="stop" disabled>■ ${l10n.t('Stop')}</button>
+    <button id="pause" disabled title="${l10n.t('Pause / resume the simulation')}">⏸ ${l10n.t('Pause')}</button>
+    <button id="step" disabled title="${l10n.t('Run one source line then pause')}">⏭ ${l10n.t('Step')}</button>
+    <select id="speed" title="${l10n.t('Simulation speed')}">
+      <option value="1" selected>🐇 100 %</option>
+      <option value="0.1">🐢 10 %</option>
+      <option value="0.01">🐌 1 %</option>
+    </select>
     <button id="compile">⚙ ${l10n.t('Compile &amp; run the active file')}</button>
     <button id="load-workspace" title="${l10n.t('Loads the most recent compiled artifact of the workspace')}">↑ ${l10n.t('Load workspace')}</button>
     <button id="export-svg" title="${l10n.t('Export the diagram as SVG')}">⬇ SVG</button>
@@ -375,6 +456,14 @@ export class SimulatorPanel {
       </div>
       <aside id="inspector" class="inspector"></aside>
     </div>
+
+    <section id="debug" class="debug" hidden>
+      <div class="debug__head">
+        <span>🔍 ${l10n.t('Variables')}</span>
+        <span id="debug-line" class="debug__line"></span>
+      </div>
+      <table id="debug-vars" class="debug__vars"></table>
+    </section>
 
     <section class="serial">
       <div class="serial__head">

@@ -11,12 +11,14 @@ Simulateur **Arduino Uno** / **Raspberry Pi Pico** intégré à VS Code, 100% of
 3. [Construire un montage](#construire-un-montage)
 4. [Exécuter du code](#exécuter-du-code)
 5. [MicroPython sur le Pico](#micropython-sur-le-pico)
-6. [Moniteur série](#moniteur-série)
-7. [Exporter le schéma en SVG](#exporter-le-schéma-en-svg)
-8. [Créer ses propres composants](#créer-ses-propres-composants)
-9. [Format de fichier des composants (.kablix-part.json)](#format-de-fichier-des-composants-kablix-partjson)
-10. [Où trouver des composants existants](#où-trouver-des-composants-existants)
-11. [Raccourcis clavier](#raccourcis-clavier)
+6. [Déboguer pas à pas](#déboguer-pas-à-pas)
+7. [Moniteur série](#moniteur-série)
+8. [Exporter le schéma en SVG](#exporter-le-schéma-en-svg)
+9. [Créer ses propres composants](#créer-ses-propres-composants)
+10. [Format de fichier des composants (.kablix-part.json)](#format-de-fichier-des-composants-kablix-partjson)
+11. [Où trouver des composants existants](#où-trouver-des-composants-existants)
+12. [Mises à jour des bibliothèques](#mises-à-jour-des-bibliothèques)
+13. [Raccourcis clavier](#raccourcis-clavier)
 
 ---
 
@@ -66,14 +68,18 @@ le fichier actif** pour exécuter votre propre code.
 
 ### Poser et déplacer
 
-- **Poser** : clic sur un composant de la palette.
+- **Poser** : clic sur un composant de la palette (posé au centre), ou
+  **glisser-déposer** depuis la palette vers l'endroit voulu du canvas.
 - **Déplacer** : glisser le composant (n'importe où sur son corps), ou
   **glisser avec le clic droit** — indispensable pour les composants
   interactifs (bouton, potentiomètre, interrupteurs, joystick) dont le clic
   gauche actionne le contrôle. On peut aussi les sélectionner (clic gauche)
   puis les glisser par leur **bandeau de nom** qui apparaît au-dessus.
 - **Tourner** : sélectionner le composant puis touches **`+`** (45° horaire)
-  ou **`-`** (45° antihoraire). Les broches et les fils suivent.
+  ou **`-`** (45° antihoraire). Les broches et les fils suivent ; un rappel
+  apparaît dans la zone d'aide de l'inspecteur.
+- **Zoomer** : **molette** dans le canvas (centré sur le curseur). Le badge
+  **⟳ %** en bas à droite donne le facteur ; un clic dessus réinitialise la vue.
 - **Supprimer** : ✕ du bandeau (visible à la sélection), bouton 🗑 de
   l'inspecteur, ou touche `Suppr`.
 
@@ -166,6 +172,30 @@ Le firmware démarre dans le simulateur (bootrom + flash + USB), puis le script
 est injecté via le **raw REPL**. Les `print()` apparaissent dans le moniteur
 série ; à la fin du script, le **REPL interactif** reste disponible via le
 champ d'envoi.
+
+## Déboguer pas à pas
+
+Pensé pour observer un programme en classe, sans débogueur externe.
+
+- **⏸ Pause / ▶ Reprendre** : gèle la simulation ; l'état des broches et des
+  LED reste affiché. Le sélecteur 🐇/🐢/🐌 ralentit l'exécution (Uno).
+- **⏭ Pas** : exécute une ligne du fichier source puis se remet en pause. Le
+  panneau **Variables** (sous le canvas) montre alors la ligne courante et les
+  variables globales du programme ; la ligne est aussi surlignée dans
+  l'éditeur VS Code.
+- **Points d'arrêt** : cliquer dans la gouttière de l'éditeur (à gauche des
+  numéros de ligne) avant ou pendant l'exécution ; la simulation se met en
+  pause en atteignant la ligne.
+
+Prérequis et limites :
+
+| Langage | Comment | Limites |
+| --- | --- | --- |
+| C / Arduino (Uno) | infos DWARF extraites à la compilation (`avr-objdump`, fourni avec arduino-cli ou avr-gcc) | variables **globales** simples (int, float, bool…) ; un `delay()` long avance par tranches de 0,25 s simulée |
+| MicroPython (Pico) | le script est instrumenté automatiquement avant injection | variables **globales** uniquement ; la pause prend effet à la ligne suivante ; pas de ralenti |
+
+Les artefacts chargés directement (`.hex`, `.uf2`, `.elf`, `.bin`) s'exécutent
+sans infos de débogage : pause et ralenti restent disponibles, pas le pas à pas.
 
 ## Moniteur série
 
@@ -310,6 +340,27 @@ prompt en reprend l'essentiel pour que l'IA n'ait besoin d'aucun autre contexte.
 - **Partage** : un composant exporté (`.kablix-part.json`) s'importe sur
   n'importe quel autre poste via **⇪ Importer (.json)** — pratique pour
   distribuer une bibliothèque de classe.
+
+## Mises à jour des bibliothèques
+
+Kablix embarque trois bibliothèques de simulation (`avr8js`, `rp2040js`,
+`@wokwi/elements`). L'extension est **hors-ligne par défaut** : aucun service
+distant n'est sollicité sans votre accord.
+
+- **Vérification manuelle** : palette de commandes (`Ctrl+Shift+P`) → **« Kablix :
+  Vérifier les mises à jour des bibliothèques »**. Kablix interroge alors le
+  registre npm et vous indique si une version plus récente existe (ou que tout
+  est à jour).
+- **Vérification au démarrage** (optionnelle) : activez le réglage
+  **`kablix.checkUpdatesOnStartup`** (désactivé par défaut). Une notification
+  n'apparaît alors qu'en cas de mise à jour disponible, en silence sinon.
+
+> **Avertissement** : mettre à jour ces bibliothèques peut **casser
+> l'extension** (changements d'API). En cas de problème, ouvrez une demande sur
+> le dépôt GitHub :
+> [github.com/franksauret/kablix/issues](https://github.com/franksauret/kablix/issues).
+> Une vérification réseau absente ou échouée reste silencieuse et n'affecte pas
+> le fonctionnement hors-ligne.
 
 ## Raccourcis clavier
 

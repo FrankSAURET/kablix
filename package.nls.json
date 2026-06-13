@@ -3,7 +3,9 @@
   "kablix.cmd.openSimulator": "Kablix: Open the simulator",
   "kablix.cmd.compileAndRun": "Kablix: Compile & run the active file",
   "kablix.cmd.loadWorkspaceArtifact": "Kablix: Load the compiled artifact of the workspace",
+  "kablix.cmd.checkLibraryUpdates": "Kablix: Check for library updates",
   "kablix.view.home": "Simulator",
   "kablix.welcome": "Arduino Uno / Raspberry Pi Pico simulator, 100% offline.\n[▶ Open the simulator](command:kablix.openSimulator)\n[⚙ Compile & run the active file](command:kablix.compileAndRun)\n[↑ Load the workspace artifact](command:kablix.loadWorkspaceArtifact)\n[📖 Documentation](https://github.com/franksauret/kablix/blob/main/docs/USAGE.en.md)",
-  "kablix.config.micropythonUf2": "Path (absolute or workspace-relative) of the MicroPython .uf2 firmware used to run .py files on the simulated Pico. Leave empty to auto-detect micropython*.uf2 / RPI_PICO*.uf2 in the workspace."
+  "kablix.config.micropythonUf2": "Path (absolute or workspace-relative) of the MicroPython .uf2 firmware used to run .py files on the simulated Pico. Leave empty to auto-detect micropython*.uf2 / RPI_PICO*.uf2 in the workspace.",
+  "kablix.config.checkUpdatesOnStartup": "Check the npm registry once at startup for newer versions of the bundled simulation libraries. Off by default (Kablix is offline by default); when on, a notification only appears if an update exists. You can also run the check manually with the \"Kablix: Check for library updates\" command."
 }
