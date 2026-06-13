@@ -17,8 +17,10 @@ Simulateur **Arduino Uno** / **Raspberry Pi Pico** intégré à VS Code, 100% of
 9. [Créer ses propres composants](#créer-ses-propres-composants)
 10. [Format de fichier des composants (.kablix-part.json)](#format-de-fichier-des-composants-kablix-partjson)
 11. [Où trouver des composants existants](#où-trouver-des-composants-existants)
-12. [Mises à jour des bibliothèques](#mises-à-jour-des-bibliothèques)
-13. [Raccourcis clavier](#raccourcis-clavier)
+12. [Enregistrer / ouvrir un projet (.projix)](#enregistrer--ouvrir-un-projet-projix)
+13. [Interopérabilité Wokwi (diagram.json)](#interopérabilité-wokwi-diagramjson)
+14. [Mises à jour des bibliothèques](#mises-à-jour-des-bibliothèques)
+15. [Raccourcis clavier](#raccourcis-clavier)
 
 ---
 
@@ -39,17 +41,10 @@ le fichier actif** pour exécuter votre propre code.
 
 ## L'interface
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│ Kablix  [Carte ▾] [▶ Démarrer] [■] [⚙ Compiler…] [↑ Charger] [⬇ SVG] │
-├───────────┬────────────────────────────────────────┬─────────────┤
-│ Palette   │                Canvas                  │ Propriétés  │
-│ (compo-   │   (composants, fils, poignées…)        │ (compo/fil  │
-│  sants)   │                                        │ sélectionné)│
-├───────────┴────────────────────────────────────────┴─────────────┤
-│ Moniteur série  [sortie]                [champ d'envoi] [Envoyer] │
-└──────────────────────────────────────────────────────────────────┘
-```
+![Interface de Kablix](../images/Kablix.png)
+
+<!-- TODO: capture annotée -->
+*Interface de Kablix : la **palette** des composants à gauche, le **canvas** de montage au centre, l'**inspecteur** (Propriétés) à droite, le **moniteur série** en bas et la **barre d'outils** (carte, exécution, compilation, export) en haut.*
 
 - **Sélecteur de carte** : Arduino Uno ou Raspberry Pi Pico (le montage en
   cours est conservé, la simulation est arrêtée).
@@ -340,6 +335,54 @@ prompt en reprend l'essentiel pour que l'IA n'ait besoin d'aucun autre contexte.
 - **Partage** : un composant exporté (`.kablix-part.json`) s'importe sur
   n'importe quel autre poste via **⇪ Importer (.json)** — pratique pour
   distribuer une bibliothèque de classe.
+
+## Enregistrer / ouvrir un projet (.projix)
+
+Un **projet Kablix** réunit dans un seul fichier `.projix` (une archive ZIP)
+**le schéma** (composants, fils, composants personnalisés) **et tout le code**
+nécessaire à l'exécution — idéal pour archiver, partager ou rendre un travail.
+
+- **💾 Enregistrer le projet** (bouton de la barre d'outils ou commande
+  **« Kablix : Enregistrer le projet (.projix) »**) : choisissez l'emplacement
+  du fichier `.projix`. Kablix y place le schéma courant, les composants
+  personnalisés utilisés, puis copie **tous les fichiers du dossier de code** —
+  le **workspace** s'il y en a un, sinon le dossier du fichier actif. Les
+  dossiers générés (`node_modules`, `.git`, `build`, `dist`, `out`) et les
+  fichiers `.projix` sont exclus. Au-delà d'environ 20 Mo, une confirmation est
+  demandée.
+- **📂 Ouvrir un projet** (bouton ou commande **« Kablix : Ouvrir un projet
+  (.projix) »**) : sélectionnez un `.projix`. Le schéma et la carte sont
+  rechargés dans le simulateur. Kablix propose ensuite **où extraire le code**
+  (choisir un dossier) ou de **ne pas l'extraire** si seul le schéma vous
+  intéresse.
+
+Contenu d'une archive `.projix` :
+
+| Entrée | Rôle |
+| --- | --- |
+| `kablix.json` | Manifeste : format, version, version de l'app, carte, date |
+| `diagram.json` | Schéma (composants + fils) et composants personnalisés |
+| `code/…` | Arborescence du dossier de code (hors dossiers générés) |
+
+> Le dossier `code/` est **optionnel** : sans dossier de code (par exemple un
+> simple schéma sans workspace), le `.projix` ne contient que le dessin.
+
+## Interopérabilité Wokwi (diagram.json)
+
+Les composants intégrés de Kablix sont les éléments **@wokwi/elements** (mêmes
+types, mêmes noms de broches), ce qui permet d'échanger des schémas avec le
+format de projet **Wokwi** (`diagram.json`).
+
+- **Exporter** (palette de commandes → **« Kablix : Exporter le schéma Wokwi
+  (diagram.json) »**) : écrit le schéma courant au format Wokwi.
+- **Importer** (**« Kablix : Importer un schéma Wokwi (diagram.json) »**) :
+  charge un `diagram.json` ; les types Wokwi non pris en charge par Kablix sont
+  ignorés (leur nombre est indiqué dans la barre d'état).
+
+> Limites : le **retournement** et les **coudes des fils** n'ont pas
+> d'équivalent dans `diagram.json` (fils importés/exportés droits) ; les
+> **composants personnalisés** Kablix et les broches spécifiques de la platine
+> ne sont pas convertis.
 
 ## Mises à jour des bibliothèques
 

@@ -1,7 +1,7 @@
 {
   "name": "kablix",
   "displayName": "Kablix",
-  "version": "0.10.0",
+  "version": "2026.6.0",
   "description": "%kablix.description%",
   "publisher": "franksauret",
   "license": "MIT",
@@ -48,8 +48,33 @@
         "category": "Kablix"
       },
       {
+        "command": "kablix.saveProject",
+        "title": "%kablix.cmd.saveProject%",
+        "category": "Kablix"
+      },
+      {
+        "command": "kablix.openProject",
+        "title": "%kablix.cmd.openProject%",
+        "category": "Kablix"
+      },
+      {
+        "command": "kablix.exportWokwiDiagram",
+        "title": "%kablix.cmd.exportWokwiDiagram%",
+        "category": "Kablix"
+      },
+      {
+        "command": "kablix.importWokwiDiagram",
+        "title": "%kablix.cmd.importWokwiDiagram%",
+        "category": "Kablix"
+      },
+      {
         "command": "kablix.checkLibraryUpdates",
         "title": "%kablix.cmd.checkLibraryUpdates%",
+        "category": "Kablix"
+      },
+      {
+        "command": "kablix.openHelp",
+        "title": "%kablix.cmd.openHelp%",
         "category": "Kablix"
       }
     ],
@@ -103,12 +128,14 @@
     "verify:diagram": "node scripts/verify-diagram.mjs",
     "verify:uf2": "node scripts/verify-uf2.mjs",
     "verify:micropython": "node scripts/verify-micropython.mjs",
-    "verify:all": "npm run verify && npm run verify:compiler && npm run verify:diagram && npm run verify:uf2 && npm run verify:micropython",
+    "verify:wokwi": "node scripts/verify-wokwi.mjs",
+    "verify:all": "npm run verify && npm run verify:compiler && npm run verify:diagram && npm run verify:uf2 && npm run verify:micropython && npm run verify:wokwi",
     "package": "vsce package --no-dependencies"
   },
   "dependencies": {
     "@wokwi/elements": "1.9.2",
     "avr8js": "0.21.0",
+    "jszip": "^3.10.1",
     "rp2040js": "1.3.2"
   },
   "devDependencies": {

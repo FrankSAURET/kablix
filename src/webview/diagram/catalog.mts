@@ -20,6 +20,7 @@ export type PartKind =
   | 'digital-source'
   | 'servo'
   | 'breadboard'
+  | 'display'
   | 'passive';
 
 export type BoardId = 'uno' | 'pico';
@@ -32,6 +33,8 @@ export interface PropDef {
   kind: 'select' | 'number';
   /** Pour kind 'select' : valeurs proposées. */
   options?: readonly string[];
+  /** Libellé affiché (clé i18n) pour certaines valeurs : { valeur → libellé }. */
+  optionLabels?: Record<string, string>;
   min?: number;
   max?: number;
   step?: number;
@@ -92,13 +95,15 @@ export const CATALOG: readonly PartDef[] = [
   {
     type: 'breadboard', label: 'Breadboard', tag: 'kablix-breadboard', kind: 'breadboard',
     attrs: { size: 'half' },
-    props: [{ attr: 'size', label: 'Size', kind: 'select', options: ['mini', 'half', 'full'] }],
+    props: [{
+      attr: 'size', label: 'Size', kind: 'select', options: ['mini', 'half', 'full'],
+      optionLabels: { mini: 'Mini', half: 'Medium', full: 'Large' },
+    }],
   },
   {
     type: 'led', label: 'LED', tag: 'wokwi-led', kind: 'led', attrs: { color: 'red' },
     props: [
       { attr: 'color', label: 'Color', kind: 'select', options: ['red', 'green', 'blue', 'yellow', 'orange', 'white', 'purple'] },
-      { attr: 'flip', label: 'Flipped', kind: 'select', options: ['', '1'] },
     ],
   },
   { type: 'rgb-led', label: 'RGB LED', tag: 'wokwi-rgb-led', kind: 'rgb-led' },
@@ -159,6 +164,51 @@ export const CATALOG: readonly PartDef[] = [
     attrs: { horn: 'single' },
     props: [{ attr: 'horn', label: 'Horn', kind: 'select', options: ['single', 'double', 'cross'] }],
   },
+
+  // --- Composants @wokwi/elements supplémentaires (importés du catalogue Wokwi).
+  // Afficheurs : visuels seuls pour l'instant (posables et câblables).
+  { type: 'lcd1602', label: 'LCD 16×2', tag: 'wokwi-lcd1602', kind: 'display' },
+  { type: 'lcd2004', label: 'LCD 20×4', tag: 'wokwi-lcd2004', kind: 'display' },
+  { type: 'oled-ssd1306', label: 'OLED display (SSD1306)', tag: 'wokwi-ssd1306', kind: 'display' },
+  { type: 'neopixel', label: 'NeoPixel', tag: 'wokwi-neopixel', kind: 'display' },
+  { type: 'neopixel-matrix', label: 'NeoPixel matrix', tag: 'wokwi-neopixel-matrix', kind: 'display' },
+  { type: 'led-ring', label: 'NeoPixel ring', tag: 'wokwi-led-ring', kind: 'display' },
+
+  // Bouton poussoir 6 mm : même modèle que le bouton standard.
+  {
+    type: 'button-6mm', label: 'Pushbutton (6mm)', tag: 'wokwi-pushbutton-6mm', kind: 'pushbutton',
+    attrs: { color: 'red' }, interactive: true,
+    props: [{ attr: 'color', label: 'Color', kind: 'select', options: ['green', 'red', 'blue', 'yellow', 'black', 'white'] }],
+  },
+
+  // Capteurs analogiques : la sortie pilote l'entrée ADC reliée (valeur en %).
+  {
+    type: 'ntc-temp', label: 'NTC temperature sensor', tag: 'wokwi-ntc-temperature-sensor', kind: 'analog-source',
+    analogPin: 'OUT', attrs: { value: '50' },
+    props: [{ ...VALUE_PROP, label: 'Temperature (%)' }],
+  },
+  {
+    type: 'gas-sensor', label: 'Gas sensor (MQ)', tag: 'wokwi-gas-sensor', kind: 'analog-source',
+    analogPin: 'AOUT', attrs: { value: '20' },
+    props: [{ ...VALUE_PROP, label: 'Gas level (%)' }],
+  },
+  {
+    type: 'heartbeat', label: 'Heart-beat sensor', tag: 'wokwi-heart-beat-sensor', kind: 'analog-source',
+    analogPin: 'OUT', attrs: { value: '50' },
+    props: [{ ...VALUE_PROP, label: 'Pulse (%)' }],
+  },
+
+  // Capteurs numériques : la sortie DOUT pilote l'entrée reliée (état 0/1).
+  {
+    type: 'flame', label: 'Flame sensor', tag: 'wokwi-flame-sensor', kind: 'digital-source',
+    digitalPin: 'DOUT', attrs: { state: '0' },
+    props: [{ ...STATE_PROP, label: 'Flame detected' }],
+  },
+  {
+    type: 'sound', label: 'Sound sensor', tag: 'wokwi-small-sound-sensor', kind: 'digital-source',
+    digitalPin: 'DOUT', attrs: { state: '0' },
+    props: [{ ...STATE_PROP, label: 'Sound detected' }],
+  },
 ];
 
 // --- Catégories de la palette --------------------------------------------------
@@ -172,6 +222,7 @@ export function partCategory(def: PartDef): string {
     case 'rgb-led':
     case '7segment':
     case 'led-bar':
+    case 'display':
       return 'Displays & LEDs';
     case 'pushbutton':
     case 'potentiometer':
@@ -205,7 +256,7 @@ const customParts = new Map<string, PartDef>();
 
 /** Modèles de simulation proposés dans le créateur, avec leurs rôles de broches. */
 export const CUSTOM_KINDS: ReadonlyArray<{ kind: PartKind; label: string; roles: string[] }> = [
-  { kind: 'led', label: 'LED (lit when A=high and C=low)', roles: ['A', 'C'] },
+  { kind: 'led', label: 'LED (lit when A=high and K=low)', roles: ['A', 'C'] },
   { kind: 'pushbutton', label: 'Pushbutton (pulls the pin to GND)', roles: ['1.l', '2.l'] },
   { kind: 'resistor', label: 'Resistor (joins its two pins)', roles: ['1', '2'] },
   { kind: 'buzzer', label: 'Buzzer (active when voltage across 1 and 2)', roles: ['1', '2'] },

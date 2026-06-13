@@ -20,6 +20,7 @@ import {
   type PropDef,
 } from './catalog.mjs';
 import { breadboardPins, normalizeSize, stripOfPin } from './breadboard.mjs';
+import { internalWiringSvg, type PinPoint } from './internal-wiring.mjs';
 import type { Diagram, Endpoint, Part, Wire } from './model.mjs';
 import { DUPONT_COLORS, dupontHex, roundedWirePath, snapPoint, type XY } from './geometry.mjs';
 import { PartCreator } from './creator.mjs';
@@ -103,6 +104,8 @@ export class Editor {
   private guides: SVGLineElement[] = [];
   /** Platines dont des trous sont actuellement en surbrillance. */
   private highlightedBoards = new Set<string>();
+  /** Surimpression du câblage interne du composant sélectionné. */
+  private internalEl: HTMLElement | null = null;
 
   /** Calque transformable (zoom + translation) contenant fils et composants. */
   private readonly world: HTMLDivElement;
@@ -169,6 +172,8 @@ export class Editor {
   }
 
   private onWheel = (e: WheelEvent): void => {
+    // Zoom réservé à Ctrl + molette (le pincement trackpad émet aussi ctrlKey).
+    if (!e.ctrlKey) return;
     e.preventDefault();
     const rect = this.canvas.getBoundingClientRect();
     const cx = e.clientX - rect.left;
@@ -277,10 +282,11 @@ export class Editor {
 
   private buildPalette(): void {
     this.palette.replaceChildren();
-    const head = document.createElement('div');
-    head.className = 'palette__title';
+    // Titre « Composants » seul ; les boutons de tri viennent juste en dessous.
     const title = document.createElement('h3');
     title.textContent = t('Components');
+    this.palette.appendChild(title);
+
     const sortWrap = document.createElement('div');
     sortWrap.className = 'palette__sort';
     for (const [mode, glyph, label] of [
@@ -299,8 +305,7 @@ export class Editor {
       });
       sortWrap.appendChild(btn);
     }
-    head.append(title, sortWrap);
-    this.palette.appendChild(head);
+    this.palette.appendChild(sortWrap);
 
     const customs = listCustomParts();
     const byLabel = (a: PartDef, b: PartDef): number =>
@@ -431,6 +436,7 @@ export class Editor {
     this.diagram.parts.push(part);
     this.renderPart(part);
     this.recordRecent(type);
+    this.select({ kind: 'part', id: part.id }); // à la pose : montre le câblage interne
     this.notify();
     return part;
   }
@@ -467,6 +473,39 @@ export class Editor {
     this.diagram.parts = [];
     this.diagram.wires = [];
     this.colorIndex = 0;
+    this.notify();
+  }
+
+  /** Copie sérialisable du schéma (composants + fils) pour la sauvegarde. */
+  serialize(): { parts: Part[]; wires: Wire[] } {
+    return JSON.parse(JSON.stringify(this.diagram)) as { parts: Part[]; wires: Wire[] };
+  }
+
+  /**
+   * Recharge un schéma sauvegardé. Les identifiants sont régénérés (et les fils
+   * ré-aiguillés) pour éviter toute collision avec d'éventuels composants déjà
+   * créés pendant la session.
+   */
+  loadDiagram(data: { parts?: Part[]; wires?: Wire[] }): void {
+    this.clear();
+    const idMap = new Map<string, string>();
+    for (const p of data.parts ?? []) {
+      const np: Part = { ...p, id: uid(`${p.type}-`) };
+      idMap.set(p.id, np.id);
+      this.diagram.parts.push(np);
+      this.renderPart(np);
+    }
+    for (const w of data.wires ?? []) {
+      const nw: Wire = {
+        ...w,
+        id: uid('w-'),
+        a: { partId: idMap.get(w.a.partId) ?? w.a.partId, pin: w.a.pin },
+        b: { partId: idMap.get(w.b.partId) ?? w.b.partId, pin: w.b.pin },
+      };
+      this.diagram.wires.push(nw);
+      this.drawWire(nw);
+    }
+    this.redrawWires();
     this.notify();
   }
 
@@ -569,7 +608,7 @@ export class Editor {
       dot.className = 'pin';
       dot.style.left = `${pin.x}px`;
       dot.style.top = `${pin.y}px`;
-      dot.title = pin.name;
+      dot.title = pinDisplayName(def.kind, pin.name);
       dot.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
         this.onPinDown({ partId: part.id, pin: pin.name }, e);
@@ -595,13 +634,32 @@ export class Editor {
     this.renderPart(r.part);
   }
 
-  // --- Rotation ----------------------------------------------------------------
+  // --- Rotation / retournement -------------------------------------------------
   private applyRotation(part: Part, body: HTMLDivElement): void {
     const deg = part.rotation ?? 0;
+    const sx = part.flipH ? -1 : 1;
+    const sy = part.flipV ? -1 : 1;
     body.style.transformOrigin = 'center center';
-    body.style.transform = deg ? `rotate(${deg}deg)` : '';
+    const tf: string[] = [];
+    if (deg) tf.push(`rotate(${deg}deg)`);
+    if (sx !== 1 || sy !== 1) tf.push(`scale(${sx}, ${sy})`);
+    body.style.transform = tf.join(' ');
     const head = body.parentElement?.querySelector('.part__head') as HTMLDivElement | null;
     if (head) this.positionHead(part, head, body);
+  }
+
+  /** Retourne le composant sélectionné sur l'axe horizontal ('h') ou vertical ('v'). */
+  flipSelection(axis: 'h' | 'v'): void {
+    if (this.selection?.kind !== 'part') return;
+    const r = this.rendered.get(this.selection.id);
+    if (!r) return;
+    if (axis === 'h') r.part.flipH = !r.part.flipH;
+    else r.part.flipV = !r.part.flipV;
+    const body = r.container.querySelector('.part__body') as HTMLDivElement | null;
+    if (body) this.applyRotation(r.part, body);
+    this.redrawWires(); // le miroir déplace les broches à l'écran
+    this.renderInspector(); // met à jour l'état actif des boutons
+    this.notify();
   }
 
   /**
@@ -648,20 +706,48 @@ export class Editor {
   }
 
   // --- Déplacement -----------------------------------------------------------
+  /**
+   * Composants à déplacer en bloc avec `rootId` : lui-même plus tout ce qui est
+   * enfiché dedans (fils `auto`, côté a = enfiché, côté b = support), de façon
+   * transitive (une Pico enfichée sur un module lui-même posé sur la platine
+   * suit la platine). On ne remonte pas vers le support : déplacer un composant
+   * enfiché ne bouge pas sa platine.
+   */
+  private connectedGroup(rootId: string): Set<string> {
+    const group = new Set<string>([rootId]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const w of this.diagram.wires) {
+        if (w.auto && group.has(w.b.partId) && !group.has(w.a.partId)) {
+          group.add(w.a.partId);
+          changed = true;
+        }
+      }
+    }
+    return group;
+  }
+
   private startDrag(e: PointerEvent, part: Part): void {
     if (this.pending) return; // câblage en cours : pas de déplacement
     e.preventDefault();
     const startX = e.clientX;
     const startY = e.clientY;
-    const origX = part.x;
-    const origY = part.y;
     const r = this.rendered.get(part.id);
     if (!r) return;
     let moved = false;
-    // Trous des platines d'essai du canvas (figés au début du geste) pour la
-    // surbrillance des bandes survolées et l'enfichage au relâchement.
+
+    // Groupe à déplacer ensemble (composant + ce qui est enfiché dedans).
+    const members = [...this.connectedGroup(part.id)]
+      .map((id) => this.rendered.get(id))
+      .filter((rr): rr is Rendered => rr !== undefined)
+      .map((rr) => ({ rr, ox: rr.part.x, oy: rr.part.y }));
+    const isGroup = members.length > 1;
+
+    // Enfichage : seulement pour un composant seul (pas un support qui emmène
+    // déjà sa grappe), et hors cartes/platines.
     const kind = partDef(part.type).kind;
-    const pluggable = kind !== 'mcu' && kind !== 'breadboard';
+    const pluggable = !isGroup && kind !== 'mcu' && kind !== 'breadboard';
     const holes = pluggable ? this.collectBreadboardHoles(part.id) : [];
 
     const move = (ev: PointerEvent) => {
@@ -670,10 +756,12 @@ export class Editor {
       if (!moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
       moved = true;
       // Le déplacement écran est converti en déplacement monde (zoom courant).
-      part.x = Math.max(0, origX + dx / this.zoom);
-      part.y = Math.max(0, origY + dy / this.zoom);
-      r.container.style.left = `${part.x}px`;
-      r.container.style.top = `${part.y}px`;
+      for (const m of members) {
+        m.rr.part.x = Math.max(0, m.ox + dx / this.zoom);
+        m.rr.part.y = Math.max(0, m.oy + dy / this.zoom);
+        m.rr.container.style.left = `${m.rr.part.x}px`;
+        m.rr.container.style.top = `${m.rr.part.y}px`;
+      }
       this.redrawWires();
       if (holes.length > 0) this.previewBreadboardSnap(part, holes);
     };
@@ -1093,7 +1181,39 @@ export class Editor {
       this.wirePaths.get(sel.id)?.classList.add('wire--selected');
       this.buildHandles(sel.id);
     }
+    this.refreshInternalWiring();
     this.renderInspector();
+  }
+
+  // --- Câblage interne (surimpression à la sélection) -------------------------
+  private removeInternalWiring(): void {
+    this.internalEl?.remove();
+    this.internalEl = null;
+  }
+
+  /** Affiche le câblage interne du composant sélectionné (si un schéma existe). */
+  private refreshInternalWiring(): void {
+    this.removeInternalWiring();
+    if (this.selection?.kind !== 'part') return;
+    const r = this.rendered.get(this.selection.id);
+    if (!r) return;
+    const body = r.container.querySelector('.part__body') as HTMLElement | null;
+    if (!body) return;
+    const pins = ((r.el.pinInfo ?? []) as PinPoint[]).map((p) => ({ name: p.name, x: p.x, y: p.y }));
+    const inner = internalWiringSvg(partDef(r.part.type).kind, pins);
+    if (!inner) return;
+    const w = body.offsetWidth || 80;
+    const h = body.offsetHeight || 60;
+    // Inséré dans le corps : suit naturellement rotation et retournement.
+    const overlay = document.createElement('div');
+    overlay.className = 'part__internal';
+    overlay.innerHTML =
+      `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="${SVG_NS}">` +
+      `<rect x="0" y="0" width="${w}" height="${h}" rx="6" fill="rgba(255,255,255,0.8)"/>` +
+      `<g fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${inner}</g>` +
+      `</svg>`;
+    body.appendChild(overlay);
+    this.internalEl = overlay;
   }
 
   /** Change un attribut d'un composant (depuis l'inspecteur). */
@@ -1120,6 +1240,7 @@ export class Editor {
       this.rerenderPart(partId);
       if (this.selection?.kind === 'part' && this.selection.id === partId) {
         this.rendered.get(partId)?.container.classList.add('part--selected');
+        this.refreshInternalWiring(); // le corps a été recréé : on réaffiche l'overlay
       }
     } else if (value === '') {
       r.el.removeAttribute(attr);
@@ -1180,6 +1301,12 @@ export class Editor {
     this.inspector.appendChild(swatches);
 
     this.appendDeleteButton(t('Delete the wire'), () => this.removeWire(wireId));
+    // Aide à l'édition des fils, sous les propriétés du fil sélectionné.
+    this.appendHelp([
+      t('Cross handle: move a corner.'),
+      t('Ctrl: horizontal/vertical alignment.'),
+      t('Double-click the wire: add a corner.'),
+    ]);
   }
 
   private renderPartInspector(partId: string): void {
@@ -1202,16 +1329,46 @@ export class Editor {
       this.inspector.appendChild(hint);
     }
 
+    this.appendFlipControl(partId, r.part);
     this.appendDeleteButton(t('Delete the part'), () => this.removePart(partId));
     // Zone d'aide contextuelle, sous les propriétés du composant sélectionné.
-    this.appendHelp(t('+ or − to rotate the part'));
+    const lines = [t('+ or − to rotate the part')];
+    if (def.interactive) lines.push(t('Right-click to move it.'));
+    this.appendHelp(lines);
   }
 
-  /** Encart d'aide affiché sous l'inspecteur (raccourcis contextuels). */
-  private appendHelp(text: string): void {
+  /** Boutons « Retourner » (axes horizontal et vertical) pour tout composant. */
+  private appendFlipControl(partId: string, part: Part): void {
+    const label = document.createElement('label');
+    label.className = 'inspector__label';
+    label.textContent = t('Flip');
+    this.inspector.appendChild(label);
+
+    const row = document.createElement('div');
+    row.className = 'inspector__flip';
+    for (const [axis, glyph, title, active] of [
+      ['h', '⇆', t('Flip horizontally'), part.flipH],
+      ['v', '⇅', t('Flip vertically'), part.flipV],
+    ] as Array<['h' | 'v', string, string, boolean | undefined]>) {
+      const btn = document.createElement('button');
+      btn.className = 'inspector__flip-btn' + (active ? ' inspector__flip-btn--active' : '');
+      btn.textContent = glyph;
+      btn.title = title;
+      btn.addEventListener('click', () => this.flipSelection(axis));
+      row.appendChild(btn);
+    }
+    this.inspector.appendChild(row);
+  }
+
+  /** Encart d'aide affiché sous l'inspecteur (une ou plusieurs lignes). */
+  private appendHelp(lines: string | string[]): void {
     const help = document.createElement('p');
     help.className = 'inspector__help';
-    help.textContent = `💡 ${text}`;
+    const arr = Array.isArray(lines) ? lines : [lines];
+    help.append(`💡 ${arr[0]}`);
+    for (const line of arr.slice(1)) {
+      help.append(document.createElement('br'), line);
+    }
     this.inspector.appendChild(help);
   }
 
@@ -1228,7 +1385,8 @@ export class Editor {
       for (const opt of prop.options ?? []) {
         const o = document.createElement('option');
         o.value = opt;
-        o.textContent = opt === '' ? t('no') : opt;
+        const labelKey = prop.optionLabels?.[opt];
+        o.textContent = labelKey ? t(labelKey) : opt === '' ? t('no') : opt;
         if (opt === current) o.selected = true;
         select.appendChild(o);
       }
@@ -1382,6 +1540,16 @@ export class Editor {
       `</svg>`,
     ].join('\n');
   }
+}
+
+/**
+ * Nom de broche affiché à l'utilisateur. Pour les LED, la cathode (broche 'C'
+ * de @wokwi/elements) est montrée « K » selon l'usage électronique (Anode /
+ * Katode) ; l'identifiant interne reste 'C' pour la simulation.
+ */
+function pinDisplayName(kind: string, pinName: string): string {
+  if (kind === 'led' && pinName === 'C') return 'K';
+  return pinName;
 }
 
 /** Distance d'un point à un segment [a,b]. */

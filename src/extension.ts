@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { SimulatorPanel } from './panel';
+import { HelpPanel } from './help';
 import { promptLibraryUpdates } from './updates';
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -29,9 +30,30 @@ export function activate(context: vscode.ExtensionContext): void {
       const panel = SimulatorPanel.createOrShow(context);
       void panel.loadWorkspaceArtifact();
     }),
+    vscode.commands.registerCommand('kablix.saveProject', () => {
+      // Révèle le panneau puis demande le schéma à la webview (→ 'saveProject').
+      const panel = SimulatorPanel.createOrShow(context);
+      panel.requestSaveProject();
+    }),
+    vscode.commands.registerCommand('kablix.openProject', () => {
+      const panel = SimulatorPanel.createOrShow(context);
+      void panel.openProject();
+    }),
+    vscode.commands.registerCommand('kablix.exportWokwiDiagram', () => {
+      // Révèle le panneau puis demande le schéma converti (→ 'wokwiExport').
+      const panel = SimulatorPanel.createOrShow(context);
+      panel.requestWokwiExport();
+    }),
+    vscode.commands.registerCommand('kablix.importWokwiDiagram', () => {
+      const panel = SimulatorPanel.createOrShow(context);
+      void panel.importWokwiDiagram();
+    }),
     vscode.commands.registerCommand('kablix.checkLibraryUpdates', () => {
       // Vérification manuelle : affiche aussi la notification « à jour ».
       void promptLibraryUpdates(false);
+    }),
+    vscode.commands.registerCommand('kablix.openHelp', () => {
+      HelpPanel.createOrShow();
     })
   );
 

@@ -3,6 +3,12 @@ body {
   color: var(--vscode-foreground);
   margin: 0;
   padding: 0;
+  /* Application en pleine hauteur : la barre d'envoi série reste toujours
+     visible en bas (le canvas absorbe l'espace restant). */
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .toolbar {
@@ -59,6 +65,9 @@ body {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  flex: 1 1 auto;
+  min-height: 0; /* autorise les enfants flex à rétrécir au lieu de déborder */
+  overflow: hidden;
 }
 
 /* --- Atelier --------------------------------------------------------------- */
@@ -66,6 +75,8 @@ body {
   display: flex;
   gap: 1rem;
   align-items: stretch;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .palette {
@@ -77,10 +88,10 @@ body {
   background: var(--vscode-editorWidget-background, rgba(255, 255, 255, 0.04));
   border: 1px solid var(--vscode-panel-border, #444);
   border-radius: 8px;
-  align-self: flex-start;
+  align-self: stretch;
   /* Ascenseur : la bibliothèque ne déborde plus de la fenêtre */
-  max-height: calc(100vh - 260px);
-  min-height: 220px;
+  max-height: 100%;
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -101,7 +112,8 @@ body {
 
 .palette__sort {
   display: flex;
-  gap: 2px;
+  gap: 4px;
+  margin: 0 0 0.3rem; /* boutons de tri placés sous le titre « Composants » */
 }
 
 .palette__sort-btn {
@@ -174,8 +186,8 @@ body {
 
 .canvas {
   position: relative;
-  flex: 1;
-  min-height: 460px;
+  flex: 1 1 auto;
+  min-height: 200px;
   background: var(--vscode-editor-background, #1e1e1e);
   background-image:
     linear-gradient(rgba(127, 127, 127, 0.12) 1px, transparent 1px),
@@ -213,6 +225,57 @@ body {
 .canvas__zoom:hover {
   opacity: 1;
   border-color: var(--vscode-focusBorder, #0e639c);
+}
+
+/* Commandes de simulation en surimpression (haut-gauche du canvas). */
+.canvas-controls {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 7;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--vscode-panel-border, #444);
+}
+
+.canvas-controls__btn {
+  font: inherit;
+  font-size: 0.95rem;
+  line-height: 1;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-input-border, #555);
+  background: var(--vscode-input-background, #2a2a2a);
+  color: var(--vscode-input-foreground, #fff);
+  cursor: pointer;
+}
+
+.canvas-controls__btn.primary {
+  background: var(--vscode-button-background, #0e639c);
+  color: var(--vscode-button-foreground, #fff);
+  border-color: transparent;
+}
+
+.canvas-controls__btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.canvas-controls__speed {
+  font: inherit;
+  font-size: 0.8rem;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-dropdown-border, #555);
+  background: var(--vscode-dropdown-background, #2a2a2a);
+  color: var(--vscode-dropdown-foreground, #fff);
+  cursor: pointer;
 }
 
 .wires {
@@ -308,7 +371,9 @@ body {
   background: var(--vscode-editorWidget-background, rgba(255, 255, 255, 0.04));
   border: 1px solid var(--vscode-panel-border, #444);
   border-radius: 8px;
-  align-self: flex-start;
+  align-self: stretch;
+  max-height: 100%;
+  overflow-y: auto;
 }
 
 .inspector h3 {
@@ -336,6 +401,30 @@ body {
   font-size: 0.72rem;
   opacity: 0.8;
   margin-top: 0.3rem;
+}
+
+/* Boutons « Retourner » (axes horizontal/vertical). */
+.inspector__flip {
+  display: flex;
+  gap: 5px;
+}
+
+.inspector__flip-btn {
+  flex: 1;
+  font: inherit;
+  font-size: 0.95rem;
+  padding: 0.2rem;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-input-border, #555);
+  background: var(--vscode-input-background, #2a2a2a);
+  color: var(--vscode-input-foreground, #fff);
+  cursor: pointer;
+}
+
+.inspector__flip-btn--active {
+  border-color: var(--vscode-focusBorder, #0e639c);
+  background: var(--vscode-button-background, #0e639c);
+  color: var(--vscode-button-foreground, #fff);
 }
 
 /* Encart d'aide contextuelle, sous les propriétés du composant sélectionné. */
@@ -465,6 +554,19 @@ body {
 
 .part__body {
   position: relative;
+}
+
+/* Surimpression du câblage interne (composant sélectionné) : fond blanc
+   translucide + tracé noir, n'intercepte pas les clics (broches accessibles). */
+.part__internal {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.part__internal svg {
+  display: block;
 }
 
 .pin {

@@ -7,6 +7,13 @@ import {
   type Board,
   type CompileResult,
 } from './compiler';
+import {
+  packProject,
+  unpackProject,
+  PROJIX_FORMAT_VERSION,
+  PROJIX_SIZE_WARN,
+  type ProjixManifest,
+} from './projix';
 
 const ARTIFACT_EXTS = ['.hex', '.uf2', '.elf', '.bin'];
 const CUSTOM_PARTS_KEY = 'kablix.customParts';
@@ -303,7 +310,17 @@ export class SimulatorPanel {
     }
   }
 
-  private onMessage(msg: { type?: string; board?: Board; svg?: string; parts?: unknown[]; part?: unknown; state?: unknown; line?: number }): void {
+  private onMessage(msg: {
+    type?: string;
+    board?: Board;
+    svg?: string;
+    parts?: unknown[];
+    part?: unknown;
+    state?: unknown;
+    line?: number;
+    diagram?: unknown;
+    json?: unknown;
+  }): void {
     switch (msg?.type) {
       case 'ready':
         // Renvoie les composants personnalisés et les préférences d'interface.
@@ -346,7 +363,232 @@ export class SimulatorPanel {
       case 'debugResumed':
         this.clearDebugLine();
         break;
+      case 'saveProject':
+        // La webview fournit le schéma sérialisé : on construit le .projix.
+        void this.saveProject(msg.diagram, msg.board);
+        break;
+      case 'openProject':
+        void this.openProject();
+        break;
+      case 'wokwiExport':
+        // La webview a converti le schéma au format Wokwi : on l'enregistre.
+        void this.saveWokwiDiagram(msg.json);
+        break;
     }
+  }
+
+  // --- Interopérabilité Wokwi (diagram.json) -----------------------------------
+
+  /** Demande à la webview son schéma converti au format Wokwi, pour l'export. */
+  public requestWokwiExport(): void {
+    this.post({ type: 'requestWokwiExport' });
+  }
+
+  /** Écrit le projet Wokwi (diagram.json) renvoyé par la webview. */
+  private async saveWokwiDiagram(json: unknown): Promise<void> {
+    try {
+      const folders = vscode.workspace.workspaceFolders;
+      const defaultUri = folders?.length
+        ? vscode.Uri.joinPath(folders[0].uri, 'diagram.json')
+        : vscode.Uri.file('diagram.json');
+      const target = await vscode.window.showSaveDialog({
+        defaultUri,
+        filters: { [l10n.t('Wokwi diagram')]: ['json'] },
+        title: l10n.t('Export the Wokwi diagram (diagram.json)'),
+      });
+      if (!target) return;
+      await vscode.workspace.fs.writeFile(
+        target,
+        new TextEncoder().encode(JSON.stringify(json, null, 2))
+      );
+      vscode.window.showInformationMessage(
+        l10n.t('Kablix: Wokwi diagram exported to {0}', target.fsPath)
+      );
+    } catch (err) {
+      this.reportError(err);
+    }
+  }
+
+  /** Ouvre un diagram.json Wokwi, le lit et l'envoie à la webview pour conversion. */
+  public async importWokwiDiagram(): Promise<void> {
+    try {
+      const picked = await vscode.window.showOpenDialog({
+        canSelectMany: false,
+        filters: { [l10n.t('Wokwi diagram')]: ['json'] },
+        title: l10n.t('Open a Wokwi diagram (diagram.json)'),
+      });
+      if (!picked || picked.length === 0) return;
+      const raw = await vscode.workspace.fs.readFile(picked[0]);
+      const json = JSON.parse(Buffer.from(raw).toString('utf8'));
+      this.post({ type: 'importWokwi', json });
+    } catch (err) {
+      this.reportError(err);
+    }
+  }
+
+  // --- Format de projet .projix (schéma + code) --------------------------------
+
+  /** Demande à la webview son schéma puis enregistre un .projix (commande). */
+  public requestSaveProject(): void {
+    this.post({ type: 'requestSaveProject' });
+  }
+
+  /**
+   * Construit et écrit une archive .projix : manifeste + schéma + composants
+   * personnalisés + tous les fichiers du dossier de code (workspace ou dossier
+   * du fichier actif). Le code est optionnel s'il n'y a pas de dossier.
+   */
+  private async saveProject(diagram: unknown, board?: Board): Promise<void> {
+    try {
+      const folders = vscode.workspace.workspaceFolders;
+      const codeRoot = folders?.length
+        ? folders[0].uri
+        : this.activeFileFolder();
+
+      const defaultUri = folders?.length
+        ? vscode.Uri.joinPath(folders[0].uri, 'schema-kablix.projix')
+        : vscode.Uri.file('schema-kablix.projix');
+      const target = await vscode.window.showSaveDialog({
+        defaultUri,
+        filters: { [l10n.t('Kablix project')]: ['projix'] },
+        title: l10n.t('Save the Kablix project'),
+      });
+      if (!target) return;
+
+      // Le schéma est enrichi des composants personnalisés utilisés (stockés
+      // côté hôte) pour rester autonome à la réouverture sur un autre poste.
+      const customParts = this.context.globalState.get<unknown[]>(CUSTOM_PARTS_KEY, []);
+      const diagramPayload = { ...(diagram as object), customParts };
+
+      const manifest: ProjixManifest = {
+        format: 'projix',
+        version: PROJIX_FORMAT_VERSION,
+        app: this.appVersion(),
+        board: board ?? this.currentBoard,
+        createdAt: new Date().toISOString(),
+      };
+
+      const bytes = await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: l10n.t('Kablix: building the project…') },
+        () =>
+          packProject({
+            manifest,
+            diagramJson: JSON.stringify(diagramPayload),
+            codeRoot,
+          })
+      );
+
+      if (bytes.byteLength > PROJIX_SIZE_WARN) {
+        const mb = (bytes.byteLength / (1024 * 1024)).toFixed(1);
+        const choice = await vscode.window.showWarningMessage(
+          l10n.t('Kablix: the project is large ({0} MB). Save anyway?', mb),
+          l10n.t('Save'),
+          l10n.t('Cancel')
+        );
+        if (choice !== l10n.t('Save')) return;
+      }
+
+      await vscode.workspace.fs.writeFile(target, bytes);
+      vscode.window.showInformationMessage(
+        l10n.t('Kablix: project saved to {0}', target.fsPath)
+      );
+    } catch (err) {
+      this.reportError(err);
+    }
+  }
+
+  /**
+   * Ouvre un .projix : lit l'archive, propose où extraire le dossier code/
+   * (ou de ne pas l'extraire), écrit les fichiers puis recharge le schéma et la
+   * carte dans la webview.
+   */
+  public async openProject(): Promise<void> {
+    try {
+      const picked = await vscode.window.showOpenDialog({
+        canSelectMany: false,
+        filters: { [l10n.t('Kablix project')]: ['projix'] },
+        title: l10n.t('Open a Kablix project'),
+      });
+      if (!picked || picked.length === 0) return;
+
+      const bytes = await vscode.workspace.fs.readFile(picked[0]);
+      const project = await unpackProject(bytes);
+
+      // Extraction du code : optionnelle. On propose le workspace par défaut.
+      if (project.codeFiles.length > 0) {
+        await this.extractCode(project.codeFiles);
+      }
+
+      // Recharge le schéma et la carte dans la webview (et les composants perso).
+      const diagram = project.diagram as { customParts?: unknown[] } | undefined;
+      const customParts = Array.isArray(diagram?.customParts) ? diagram.customParts : undefined;
+      if (customParts) {
+        await this.context.globalState.update(CUSTOM_PARTS_KEY, customParts);
+      }
+      this.currentBoard = project.manifest.board ?? this.currentBoard;
+      this.post({
+        type: 'loadProject',
+        diagram: project.diagram,
+        board: project.manifest.board,
+        customParts,
+      });
+      vscode.window.showInformationMessage(
+        l10n.t('Kablix: project {0} loaded.', picked[0].fsPath.split(/[\\/]/).pop() ?? '')
+      );
+    } catch (err) {
+      this.reportError(err);
+    }
+  }
+
+  /** Propose un dossier de destination puis écrit les fichiers de code. */
+  private async extractCode(
+    codeFiles: Array<{ path: string; data: Uint8Array }>
+  ): Promise<void> {
+    const skip = l10n.t('Do not extract the code');
+    const choose = l10n.t('Choose a folder…');
+    const choice = await vscode.window.showInformationMessage(
+      l10n.t('Kablix: this project contains {0} code file(s). Where to extract them?', codeFiles.length),
+      choose,
+      skip
+    );
+    if (choice !== choose) return;
+
+    const folders = vscode.workspace.workspaceFolders;
+    const dest = await vscode.window.showOpenDialog({
+      canSelectFolders: true,
+      canSelectFiles: false,
+      canSelectMany: false,
+      defaultUri: folders?.length ? folders[0].uri : undefined,
+      openLabel: l10n.t('Extract here'),
+      title: l10n.t('Choose where to extract the code'),
+    });
+    if (!dest || dest.length === 0) return;
+
+    const root = dest[0];
+    for (const file of codeFiles) {
+      // Les chemins de l'archive utilisent '/' ; on les éclate pour joinPath.
+      const segments = file.path.split('/').filter((s) => s.length > 0);
+      if (segments.length === 0) continue;
+      const target = vscode.Uri.joinPath(root, ...segments);
+      await vscode.workspace.fs.writeFile(target, file.data);
+    }
+    vscode.window.showInformationMessage(
+      l10n.t('Kablix: code extracted to {0}', root.fsPath)
+    );
+  }
+
+  /** Dossier contenant le fichier actif (repli quand il n'y a pas de workspace). */
+  private activeFileFolder(): vscode.Uri | undefined {
+    const doc = vscode.window.activeTextEditor?.document;
+    if (!doc || doc.uri.scheme !== 'file') return undefined;
+    return vscode.Uri.joinPath(doc.uri, '..');
+  }
+
+  /** Version de l'extension (depuis package.json), « ? » si introuvable. */
+  private appVersion(): string {
+    return (
+      vscode.extensions.getExtension('franksauret.kablix')?.packageJSON?.version ?? '?'
+    );
   }
 
   /** Exporte un composant personnalisé en fichier .json (format documenté). */
@@ -432,18 +674,11 @@ export class SimulatorPanel {
       <option value="uno" selected>Arduino Uno</option>
       <option value="pico">Raspberry Pi Pico</option>
     </select>
-    <button id="run" class="primary">▶ ${l10n.t('Start')}</button>
-    <button id="stop" disabled>■ ${l10n.t('Stop')}</button>
-    <button id="pause" disabled title="${l10n.t('Pause / resume the simulation')}">⏸ ${l10n.t('Pause')}</button>
-    <button id="step" disabled title="${l10n.t('Run one source line then pause')}">⏭ ${l10n.t('Step')}</button>
-    <select id="speed" title="${l10n.t('Simulation speed')}">
-      <option value="1" selected>🐇 100 %</option>
-      <option value="0.1">🐢 10 %</option>
-      <option value="0.01">🐌 1 %</option>
-    </select>
     <button id="compile">⚙ ${l10n.t('Compile &amp; run the active file')}</button>
     <button id="load-workspace" title="${l10n.t('Loads the most recent compiled artifact of the workspace')}">↑ ${l10n.t('Load workspace')}</button>
     <button id="export-svg" title="${l10n.t('Export the diagram as SVG')}">⬇ SVG</button>
+    <button id="save-project" title="${l10n.t('Save the project')}">💾</button>
+    <button id="open-project" title="${l10n.t('Open a project')}">📂</button>
     <button id="toggle-labels" title="${l10n.t('Show/hide part names')}">🏷 ${l10n.t('Names')}</button>
     <span id="status" class="status">Prêt</span>
   </header>
@@ -452,6 +687,18 @@ export class SimulatorPanel {
     <div class="workshop">
       <aside id="palette" class="palette"></aside>
       <div id="canvas" class="canvas">
+        <!-- Commandes de simulation en surimpression du canvas (icônes + bulle). -->
+        <div class="canvas-controls" role="toolbar">
+          <button id="run" class="canvas-controls__btn primary" title="${l10n.t('Start')}">▶</button>
+          <button id="stop" class="canvas-controls__btn" disabled title="${l10n.t('Stop')}">■</button>
+          <button id="pause" class="canvas-controls__btn" disabled title="${l10n.t('Pause / resume the simulation')}">⏸</button>
+          <button id="step" class="canvas-controls__btn" disabled title="${l10n.t('Run one source line then pause')}">⏭</button>
+          <select id="speed" class="canvas-controls__speed" title="${l10n.t('Simulation speed')}">
+            <option value="1" selected>🐇 100 %</option>
+            <option value="0.1">🐢 10 %</option>
+            <option value="0.01">🐌 1 %</option>
+          </select>
+        </div>
         <svg id="wires" class="wires"></svg>
       </div>
       <aside id="inspector" class="inspector"></aside>

@@ -29,6 +29,10 @@ export interface Part {
   attrs?: Record<string, string>;
   /** Rotation en degrés (multiples de 45, sens horaire). */
   rotation?: number;
+  /** Retourné sur l'axe horizontal (miroir gauche-droite). */
+  flipH?: boolean;
+  /** Retourné sur l'axe vertical (miroir haut-bas). */
+  flipV?: boolean;
 }
 
 export interface Diagram {

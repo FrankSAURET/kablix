@@ -18,6 +18,19 @@ import '@wokwi/elements/dist/esm/photoresistor-sensor-element.js';
 import '@wokwi/elements/dist/esm/pir-motion-sensor-element.js';
 import '@wokwi/elements/dist/esm/tilt-switch-element.js';
 import '@wokwi/elements/dist/esm/servo-element.js';
+// Composants supplémentaires importés du catalogue @wokwi/elements.
+import '@wokwi/elements/dist/esm/lcd1602-element.js';
+import '@wokwi/elements/dist/esm/lcd2004-element.js';
+import '@wokwi/elements/dist/esm/ssd1306-element.js';
+import '@wokwi/elements/dist/esm/neopixel-element.js';
+import '@wokwi/elements/dist/esm/neopixel-matrix-element.js';
+import '@wokwi/elements/dist/esm/led-ring-element.js';
+import '@wokwi/elements/dist/esm/pushbutton-6mm-element.js';
+import '@wokwi/elements/dist/esm/ntc-temperature-sensor-element.js';
+import '@wokwi/elements/dist/esm/gas-sensor-element.js';
+import '@wokwi/elements/dist/esm/heart-beat-sensor-element.js';
+import '@wokwi/elements/dist/esm/flame-sensor-element.js';
+import '@wokwi/elements/dist/esm/small-sound-sensor-element.js';
 import './elements/pico-board.mjs';
 import './elements/breadboard.mjs';
 import './elements/custom-part.mjs';
@@ -25,6 +38,7 @@ import './elements/custom-part.mjs';
 import { initLocale, t } from './i18n.mjs';
 import { Editor, type PaletteState } from './diagram/editor.mjs';
 import { partDef, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
+import { toWokwiDiagram, fromWokwiDiagram } from './diagram/wokwi.mjs';
 import {
   ledOn,
   rgbLedState,
@@ -64,6 +78,8 @@ const stopBtn = document.getElementById('stop') as HTMLButtonElement;
 const compileBtn = document.getElementById('compile') as HTMLButtonElement;
 const loadBtn = document.getElementById('load-workspace') as HTMLButtonElement;
 const exportBtn = document.getElementById('export-svg') as HTMLButtonElement;
+const saveProjectBtn = document.getElementById('save-project') as HTMLButtonElement;
+const openProjectBtn = document.getElementById('open-project') as HTMLButtonElement;
 const labelsBtn = document.getElementById('toggle-labels') as HTMLButtonElement;
 const pauseBtn = document.getElementById('pause') as HTMLButtonElement;
 const stepBtn = document.getElementById('step') as HTMLButtonElement;
@@ -284,7 +300,9 @@ function renderDebugPause(state: DebugPauseState): void {
 function updateDebugButtons(): void {
   const paused = engine?.paused ?? false;
   pauseBtn.disabled = !engine;
-  pauseBtn.textContent = paused ? `▶ ${t('Resume')}` : `⏸ ${t('Pause')}`;
+  // Icône seule (bouton sur le canvas) : le libellé passe dans l'info-bulle.
+  pauseBtn.textContent = paused ? '▶' : '⏸';
+  pauseBtn.title = paused ? t('Resume') : t('Pause / resume the simulation');
   pauseBtn.classList.toggle('primary', paused);
   stepBtn.disabled = !engine || !engine.step;
   if (paused) setStatus(t('Paused'));
@@ -367,6 +385,12 @@ loadBtn.addEventListener('click', () => {
 });
 exportBtn.addEventListener('click', () => {
   vscode.postMessage({ type: 'exportSvg', svg: editor.exportSvg() });
+});
+saveProjectBtn.addEventListener('click', () => {
+  vscode.postMessage({ type: 'saveProject', diagram: editor.serialize(), board });
+});
+openProjectBtn.addEventListener('click', () => {
+  vscode.postMessage({ type: 'openProject' });
 });
 
 // --- Préférences d'interface (noms visibles, tri de palette, derniers utilisés)
@@ -456,6 +480,39 @@ window.addEventListener('message', (event: MessageEvent) => {
       break;
     case 'customParts':
       editor.loadCustomParts((msg.parts as CustomPartData[]) ?? []);
+      break;
+    case 'requestSaveProject':
+      // Demande de la commande : on renvoie le schéma pour l'enregistrement.
+      vscode.postMessage({ type: 'saveProject', diagram: editor.serialize(), board });
+      break;
+    case 'requestWokwiExport':
+      // Conversion du schéma au format projet Wokwi (diagram.json).
+      vscode.postMessage({ type: 'wokwiExport', json: toWokwiDiagram(editor.diagram) });
+      break;
+    case 'importWokwi': {
+      // Projet Wokwi reçu de l'hôte : conversion puis chargement.
+      const { parts, wires, skipped } = fromWokwiDiagram(msg.json);
+      editor.loadDiagram({ parts, wires });
+      switchBoard(parts.some((p) => p.type === 'pico') ? 'pico' : 'uno');
+      setStatus(
+        skipped.length > 0
+          ? t('Wokwi project loaded ({0} unsupported part(s) ignored)', skipped.length)
+          : t('Wokwi project loaded')
+      );
+      break;
+    }
+    case 'loadProject':
+      // Recharge un projet .projix : composants perso, schéma puis carte.
+      if (Array.isArray(msg.customParts)) {
+        editor.loadCustomParts(msg.customParts as CustomPartData[]);
+      }
+      editor.loadDiagram(msg.diagram as Parameters<typeof editor.loadDiagram>[0]);
+      if (msg.board === 'uno' || msg.board === 'pico') {
+        switchBoard(msg.board);
+        boardSelect.value = msg.board;
+      }
+      // Statut neutre après chargement (clé déjà traduite dans i18n).
+      setStatus(t('Ready'));
       break;
     case 'uiState': {
       const state = (msg.state ?? {}) as Partial<PaletteState> & { showLabels?: boolean };
