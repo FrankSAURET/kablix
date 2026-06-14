@@ -119,6 +119,11 @@ body {
 .palette__sort-btn {
   font: inherit;
   font-size: 0.65rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 22px;
   padding: 0.1rem 0.3rem;
   border-radius: 4px;
   border: 1px solid var(--vscode-input-border, #555);
@@ -126,6 +131,10 @@ body {
   color: var(--vscode-input-foreground, #fff);
   cursor: pointer;
   opacity: 0.6;
+}
+
+.palette__sort-btn svg {
+  display: block;
 }
 
 .palette__sort-btn--active {
@@ -610,21 +619,30 @@ body {
   color: #ff6b6b;
 }
 
-/* Bouton d'affichage du câblage interne, à gauche du ✕ dans le bandeau. */
+/* Bouton d'affichage du câblage interne (symbole radioactif jaune/noir sur fond
+   blanc), à gauche du ✕ dans le bandeau — bien visible sur le fond sombre. */
 .part__internal-toggle {
   cursor: pointer;
-  opacity: 0.7;
-  font-size: 0.85em;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+}
+
+.part__internal-toggle svg {
+  display: block;
 }
 
 .part__internal-toggle:hover {
-  opacity: 1;
+  box-shadow: 0 0 0 1px var(--vscode-focusBorder, #4fa3ff);
 }
 
 .part__internal-toggle--active {
-  opacity: 1;
-  filter: drop-shadow(0 0 2px var(--vscode-focusBorder, #4fa3ff));
+  box-shadow: 0 0 0 2px var(--vscode-focusBorder, #4fa3ff);
 }
 
 .part__body {

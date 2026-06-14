@@ -79,6 +79,40 @@ const ZOOM_MAX = 3;
 /** Dimensions de la vignette de composant dans la palette (px). */
 const THUMB_W = 46;
 const THUMB_H = 30;
+
+/** Symbole radioactif (trèfle noir sur disque jaune) pour le bouton de câblage interne. */
+const RADIOACTIVE_ICON = ((): string => {
+  const cx = 8;
+  const cy = 8;
+  const ri = 2.4;
+  const ro = 6.6;
+  const pt = (r: number, deg: number): string => {
+    const a = (deg * Math.PI) / 180;
+    return `${(cx + r * Math.cos(a)).toFixed(2)} ${(cy + r * Math.sin(a)).toFixed(2)}`;
+  };
+  let blades = '';
+  for (const A of [-90, 30, 150]) {
+    const a0 = A - 30;
+    const a1 = A + 30;
+    blades +=
+      `<path d="M ${pt(ri, a0)} L ${pt(ro, a0)} A ${ro} ${ro} 0 0 1 ${pt(ro, a1)} ` +
+      `L ${pt(ri, a1)} A ${ri} ${ri} 0 0 0 ${pt(ri, a0)} Z"/>`;
+  }
+  return (
+    `<svg viewBox="0 0 16 16" width="15" height="15" xmlns="${SVG_NS}">` +
+    `<circle cx="8" cy="8" r="8" fill="#f4c20d"/>` +
+    `<g fill="#000">${blades}<circle cx="8" cy="8" r="1.7"/></g></svg>`
+  );
+})();
+
+/** Icône d'arborescence/classification pour le tri par catégorie de la palette. */
+const TREE_ICON =
+  `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" ` +
+  `stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" xmlns="${SVG_NS}">` +
+  `<rect x="5.5" y="1.5" width="5" height="3" rx="0.6"/>` +
+  `<rect x="1.5" y="11" width="4" height="3" rx="0.6"/>` +
+  `<rect x="10.5" y="11" width="4" height="3" rx="0.6"/>` +
+  `<path d="M8 4.5V7M3.5 11V8.5H12.5V11"/></svg>`;
 let idSeq = 0;
 const uid = (prefix: string): string => `${prefix}${++idSeq}`;
 
@@ -341,11 +375,13 @@ export class Editor {
     sortWrap.className = 'palette__sort';
     for (const [mode, glyph, label] of [
       ['alpha', 'AZ', t('Alphabetical')],
-      ['category', '🗂', t('By category')],
+      ['category', '', t('By category')],
     ] as Array<[PaletteSort, string, string]>) {
       const btn = document.createElement('button');
       btn.className = 'palette__sort-btn' + (this.paletteSort === mode ? ' palette__sort-btn--active' : '');
-      btn.textContent = glyph;
+      // Icône d'arborescence pour la catégorie (l'ancien 🗂 était illisible).
+      if (mode === 'category') btn.innerHTML = TREE_ICON;
+      else btn.textContent = glyph;
       btn.title = label;
       btn.addEventListener('click', () => {
         if (this.paletteSort === mode) return;
@@ -371,6 +407,8 @@ export class Editor {
     }
 
     if (this.paletteSort === 'alpha') {
+      // En-tête séparant les derniers utilisés de la liste alphabétique complète.
+      this.paletteSection(t('All components'));
       // Liste plate, tous composants confondus, triée sur le libellé traduit.
       for (const def of [...CATALOG, ...customs].sort(byLabel)) {
         if (def.custom) this.appendCustomRow(def);
@@ -681,7 +719,7 @@ export class Editor {
       const toggle = document.createElement('span');
       toggle.className =
         'part__internal-toggle' + (this.internalShown.has(part.id) ? ' part__internal-toggle--active' : '');
-      toggle.textContent = '🔌';
+      toggle.innerHTML = RADIOACTIVE_ICON;
       toggle.title = t('Show/hide the internal wiring');
       toggle.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
@@ -691,8 +729,9 @@ export class Editor {
     }
 
     this.rendered.set(part.id, { part, container, el, hotspots });
-    // Restaure l'affichage du câblage interne après un re-rendu (rotation…).
-    if (this.internalShown.has(part.id)) this.renderInternalWiring(part.id);
+    // Restaure le câblage interne après un re-rendu (rotation…), s'il est activé
+    // ET que le composant est sélectionné (sinon il reste masqué).
+    if (this.internalShown.has(part.id) && this.isSelected(part.id)) this.renderInternalWiring(part.id);
     this.redrawWires();
   }
 
@@ -1272,7 +1311,11 @@ export class Editor {
   private select(sel: Selection): void {
     // Retire la mise en évidence précédente.
     if (this.selection?.kind === 'part') {
-      this.rendered.get(this.selection.id)?.container.classList.remove('part--selected');
+      const old = this.rendered.get(this.selection.id);
+      old?.container.classList.remove('part--selected');
+      // Le câblage interne n'est visible qu'à la sélection : on le masque ici
+      // (l'état d'activation du bouton est conservé pour la prochaine sélection).
+      old?.container.querySelector('.part__internal')?.remove();
     } else if (this.selection?.kind === 'wire') {
       this.wirePaths.get(this.selection.id)?.classList.remove('wire--selected');
     }
@@ -1280,6 +1323,7 @@ export class Editor {
     this.clearHandles();
     if (sel?.kind === 'part') {
       this.rendered.get(sel.id)?.container.classList.add('part--selected');
+      if (this.internalShown.has(sel.id)) this.renderInternalWiring(sel.id);
     } else if (sel?.kind === 'wire') {
       this.wirePaths.get(sel.id)?.classList.add('wire--selected');
       this.buildHandles(sel.id);
@@ -1287,8 +1331,12 @@ export class Editor {
     this.renderInspector();
   }
 
-  // --- Câblage interne (commandé par le bouton 🔌 du bandeau) ------------------
-  /** Bascule l'affichage du câblage interne d'un composant. */
+  // --- Câblage interne (commandé par le bouton ☢ du bandeau) ------------------
+  private isSelected(partId: string): boolean {
+    return this.selection?.kind === 'part' && this.selection.id === partId;
+  }
+
+  /** Bascule l'affichage du câblage interne d'un composant (visible si sélectionné). */
   private toggleInternalWiring(partId: string): void {
     const r = this.rendered.get(partId);
     if (!r) return;
@@ -1297,7 +1345,7 @@ export class Editor {
       r.container.querySelector('.part__internal')?.remove();
     } else {
       this.internalShown.add(partId);
-      this.renderInternalWiring(partId);
+      if (this.isSelected(partId)) this.renderInternalWiring(partId);
     }
     r.container
       .querySelector('.part__internal-toggle')
@@ -1579,8 +1627,21 @@ export class Editor {
       const svgEl = root.querySelector('svg');
       const x = r.part.x;
       const y = r.part.y;
-      const w = r.el.offsetWidth || svgEl?.width.baseVal.value || 80;
-      const h = r.el.offsetHeight || svgEl?.height.baseVal.value || 60;
+      // Taille d'affichage en unités monde. On lit la mise en page du corps (div
+      // bloc, fiable) ; certains éléments @wokwi ont un SVG en millimètres dont
+      // l'offsetWidth de l'hôte peut valoir 0 — d'où le repli sur la boîte écran
+      // convertie comme les broches (et plus jamais sur la valeur brute en mm,
+      // qui rendait la carte minuscule).
+      const bodyEl = (r.container.querySelector('.part__body') as HTMLElement | null) ?? r.el;
+      let w = bodyEl.offsetWidth;
+      let h = bodyEl.offsetHeight;
+      if (!w || !h) {
+        const rect = bodyEl.getBoundingClientRect();
+        const tl = this.canvasPoint(rect.left, rect.top);
+        const br = this.canvasPoint(rect.right, rect.bottom);
+        w = w || Math.abs(br.x - tl.x) || 80;
+        h = h || Math.abs(br.y - tl.y) || 60;
+      }
       const deg = r.part.rotation ?? 0;
 
       // Boîte englobante tournée pour le cadrage (coins pivotés autour du centre).

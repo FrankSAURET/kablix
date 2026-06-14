@@ -23,6 +23,7 @@ const FR: Record<string, string> = {
   // Palette
   'Components': 'Composants',
   'Recently used': 'Derniers utilisés',
+  'All components': 'Tous les composants',
   'Alphabetical': 'Ordre alphabétique',
   'By category': 'Par catégorie',
   'Boards': 'Cartes & platines',

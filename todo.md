@@ -1,3 +1,11 @@
+- [x] l'icone pour faire apparaitre le cablage interne n'est pas visible. Met la sur fond blanc et met le symbole radioactif jaune et noir → fait : pastille blanche avec le trèfle radioactif (jaune/noir) à gauche du ✕.
+- [x] si le composant est déselectionné la vue "interne" doit disparaitre → fait : le câblage interne n'est visible qu'à la sélection (l'état du bouton ☢ est mémorisé pour la prochaine sélection).
+- [x] L'icone catégorie dans la bibliothèque est illisible. Met une icone qui rappelle une arborescence ou une classification → fait : icône d'arborescence (nœud racine + 2 feuilles) à la place du 🗂.
+- [x] Quand on clic sur AZ pour le trie alphabétique il faut un séparateur entre les derniers utilisés et la liste alphabétique → fait : en-tête « Tous les composants » avant la liste alphabétique.
+- [x] l'export svg ne marche toujour pas la carte arduino est devenu minuscule maintenant → fait : taille lue sur le corps (div bloc) + repli sur la boîte écran ; plus de repli sur la valeur brute en mm (qui rendait la carte minuscule).
+- [x] laisse les traits de séparation dans le todo et si j'ai oublié rajoute en → noté : je conserve les `---` et en ajoute un après chaque lot traité.
+- [x] Il y a un problème, il ne trouves pas arduino-cli qui est pourtant installe → fait : résolution robuste (PATH + PATHEXT .exe, emplacements usuels dont l'Arduino IDE, réglages `kablix.arduinoCliPath` / `kablix.toolchainPath`). .ino → arduino-cli, .c/.cpp → avr-gcc.
+---
 - [x] Il manque un bouton pour ouvrir un projix → fait : bouton « 📂 Ouvrir un projet (.projix) » ajouté à l'écran d'accueil (barre d'activité). Le bouton 📂 de la barre d'outils du simulateur existait déjà.
 - [x] Lors du glisser poser d'un composant, afficher le composant. → fait : la miniature du composant sert d'image de glissement (setDragImage), elle suit le curseur.
 - [x] Modifier la vue bibliothèque, une simple liste d'item avec une miniature du composant → fait : chaque item de palette = vignette (élément réel mis à l'échelle) + libellé.

@@ -40,7 +40,9 @@ const check = (label, ok) => {
 const tools = detectToolchain();
 const b64ToBytes = (b64) => Uint8Array.from(Buffer.from(b64, 'base64'));
 
-if (tools.arduinoCli || tools.avrGcc) {
+// examples/blink_uno.c est du C bare-metal : seul avr-gcc le compile
+// (arduino-cli attend un sketch .ino dans un dossier de même nom).
+if (tools.avrGcc) {
   console.log('Compilation de examples/blink_uno.c (Arduino Uno) :');
   const res = compile('uno', join(root, 'examples/blink_uno.c'), root);
   const p = res.payload;
@@ -59,7 +61,7 @@ if (tools.arduinoCli || tools.avrGcc) {
   }
   check(`exécution : D13 clignote (${toggles})`, toggles >= 2);
 } else {
-  console.log('SKIP Arduino Uno : aucune toolchain AVR (arduino-cli / avr-gcc).');
+  console.log('SKIP Arduino Uno : avr-gcc absent (compilation bare-metal du .c).');
 }
 
 if (tools.armGcc) {

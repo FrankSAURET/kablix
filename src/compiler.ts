@@ -6,7 +6,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, extname, join } from 'node:path';
+import { basename, delimiter, extname, join } from 'node:path';
 import { parseUf2 } from './shared/uf2';
 import { parseElf32 } from './shared/elf';
 import { instrumentPython } from './shared/pydebug';
@@ -44,20 +44,87 @@ export interface Toolchain {
   armGcc: boolean;
 }
 
-function has(cmd: string): boolean {
-  try {
-    execFileSync(cmd, ['--version'], { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
-  }
+/** Chemins fournis par l'utilisateur (réglages) pour localiser la toolchain. */
+export interface ToolPaths {
+  /** Chemin complet de arduino-cli, ou dossier le contenant. */
+  arduinoCli?: string;
+  /** Dossier supplémentaire fouillé pour toutes les commandes (toolchain portable). */
+  searchDir?: string;
 }
 
-export function detectToolchain(): Toolchain {
+/**
+ * Localise un exécutable dans le PATH, comme `which`/`where`. Sous Windows,
+ * essaie les extensions de PATHEXT (.EXE…) — `execFileSync('arduino-cli')` sans
+ * extension échoue sinon, d'où le « arduino-cli introuvable » alors qu'il est
+ * installé. Accepte aussi un chemin déjà complet (avec séparateur).
+ */
+function whichSync(cmd: string): string | null {
+  const isWin = process.platform === 'win32';
+  const exts = isWin
+    ? ['', ...(process.env.PATHEXT ?? '.EXE;.CMD;.BAT;.COM').split(';').filter(Boolean)]
+    : [''];
+  const tryBase = (base: string): string | null => {
+    for (const ext of exts) {
+      if (existsSync(base + ext)) return base + ext;
+    }
+    return null;
+  };
+  if (cmd.includes('/') || cmd.includes('\\')) return tryBase(cmd);
+  for (const dir of (process.env.PATH ?? '').split(delimiter)) {
+    if (!dir) continue;
+    const found = tryBase(join(dir, cmd));
+    if (found) return found;
+  }
+  return null;
+}
+
+/** Emplacements d'installation usuels de arduino-cli sous Windows (hors PATH). */
+function windowsToolCandidates(cmd: string): string[] {
+  if (process.platform !== 'win32' || cmd !== 'arduino-cli') return [];
+  const env = process.env;
+  const ideRel = ['resources', 'app', 'lib', 'backend', 'resources'];
+  const bases = [
+    env.ProgramFiles && join(env.ProgramFiles, 'Arduino IDE', ...ideRel),
+    env.LOCALAPPDATA && join(env.LOCALAPPDATA, 'Programs', 'Arduino IDE', ...ideRel),
+    env.USERPROFILE && join(env.USERPROFILE, 'scoop', 'shims'),
+    'C:\\ProgramData\\chocolatey\\bin',
+    env.LOCALAPPDATA && join(env.LOCALAPPDATA, 'Microsoft', 'WinGet', 'Links'),
+    env.USERPROFILE && join(env.USERPROFILE, '.arduino-cli', 'bin'),
+  ].filter((b): b is string => !!b);
+  return bases.map((b) => join(b, 'arduino-cli.exe'));
+}
+
+/**
+ * Résout une commande en chemin exécutable : réglage explicite, puis dossier de
+ * toolchain fourni, puis PATH, puis emplacements usuels. Renvoie null si absent.
+ */
+function resolveTool(cmd: string, opts: { override?: string; searchDir?: string } = {}): string | null {
+  const { override, searchDir } = opts;
+  if (override && override.trim()) {
+    const o = override.trim();
+    if (existsSync(o)) return o; // chemin direct vers l'exécutable
+    const byName = whichSync(o); // nom de commande
+    if (byName) return byName;
+    const inDir = whichSync(join(o, cmd)); // dossier contenant l'exécutable
+    if (inDir) return inDir;
+  }
+  if (searchDir) {
+    const inSearch = whichSync(join(searchDir, cmd));
+    if (inSearch) return inSearch;
+  }
+  const onPath = whichSync(cmd);
+  if (onPath) return onPath;
+  for (const candidate of windowsToolCandidates(cmd)) {
+    if (existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+
+export function detectToolchain(paths: ToolPaths = {}): Toolchain {
   return {
-    arduinoCli: has('arduino-cli'),
-    avrGcc: has('avr-gcc'),
-    armGcc: has('arm-none-eabi-gcc'),
+    arduinoCli: resolveTool('arduino-cli', { override: paths.arduinoCli, searchDir: paths.searchDir }) !== null,
+    avrGcc: resolveTool('avr-gcc', { searchDir: paths.searchDir }) !== null,
+    armGcc: resolveTool('arm-none-eabi-gcc', { searchDir: paths.searchDir }) !== null,
   };
 }
 
@@ -223,10 +290,12 @@ const AVR_SRAM_START = 0x100; // début de la SRAM dans l'espace données
 const AVR_SRAM_END = 0x900; // fin de la SRAM ATmega328P (0x8FF inclus)
 
 /** Localise avr-objdump : PATH d'abord, sinon toolchain gérée par arduino-cli. */
-function findAvrObjdump(): string | null {
-  if (has('avr-objdump')) return 'avr-objdump';
+function findAvrObjdump(arduinoCli: string | null, searchDir?: string): string | null {
+  const direct = resolveTool('avr-objdump', { searchDir });
+  if (direct) return direct;
+  if (!arduinoCli) return null;
   try {
-    const cfg = JSON.parse(run('arduino-cli', ['config', 'dump', '--format', 'json']));
+    const cfg = JSON.parse(run(arduinoCli, ['config', 'dump', '--format', 'json']));
     const data: string | undefined = cfg?.directories?.data ?? cfg?.config?.directories?.data;
     if (!data) return null;
     const gccRoot = join(data, 'packages', 'arduino', 'tools', 'avr-gcc');
@@ -363,10 +432,16 @@ function parseDwarfGlobals(text: string, srcPath: string): AvrDebugInfo['globals
  * Extrait table des lignes et globales de l'ELF via avr-objdump. Toute
  * défaillance est non bloquante : la compilation aboutit sans infos de débogage.
  */
-function extractAvrDebug(elfPath: string, srcPath: string, log: string[]): AvrDebugInfo | undefined {
+function extractAvrDebug(
+  elfPath: string,
+  srcPath: string,
+  log: string[],
+  arduinoCli: string | null,
+  searchDir?: string
+): AvrDebugInfo | undefined {
   try {
     if (!existsSync(elfPath)) return undefined;
-    const objdump = findAvrObjdump();
+    const objdump = findAvrObjdump(arduinoCli, searchDir);
     if (!objdump) {
       log.push('avr-objdump introuvable : pas à pas et variables indisponibles.');
       return undefined;
@@ -385,71 +460,87 @@ function extractAvrDebug(elfPath: string, srcPath: string, log: string[]): AvrDe
 // --- Compilation ------------------------------------------------------------
 
 /** Compile le fichier indiqué pour la carte choisie. */
-export function compile(board: Board, filePath: string, extensionPath: string): CompileResult {
-  const tools = detectToolchain();
+export function compile(
+  board: Board,
+  filePath: string,
+  extensionPath: string,
+  toolPaths: ToolPaths = {}
+): CompileResult {
+  const searchDir = toolPaths.searchDir;
   const tmp = mkdtempSync(join(tmpdir(), 'kablix-'));
   const log: string[] = [];
 
   if (board === 'uno') {
-    if (tools.arduinoCli) {
-      // Sketch Arduino complet (API Arduino disponible).
+    const ext = extname(filePath).toLowerCase();
+    const arduinoCli = resolveTool('arduino-cli', { override: toolPaths.arduinoCli, searchDir });
+
+    // Sketch Arduino complet (API Arduino) via arduino-cli. Un .c/.cpp « nu »
+    // n'est PAS un sketch valide pour arduino-cli (il lui faut un .ino dans un
+    // dossier de même nom) : ces fichiers passent par avr-gcc en bare-metal.
+    const withArduinoCli = (cli: string): CompileResult => {
       log.push('Compilation via arduino-cli (arduino:avr:uno)…');
-      run('arduino-cli', [
-        'compile',
-        '--fqbn', 'arduino:avr:uno',
-        '--output-dir', tmp,
-        filePath,
-      ]);
-      const hexName = `${basename(filePath)}.hex`;
-      const hex = readFileSync(join(tmp, hexName), 'utf8');
+      run(cli, ['compile', '--fqbn', 'arduino:avr:uno', '--output-dir', tmp, filePath]);
+      const hex = readFileSync(join(tmp, `${basename(filePath)}.hex`), 'utf8');
       // L'ELF (compilé avec -g par la plateforme AVR) livre les infos de débogage.
-      const debug = extractAvrDebug(join(tmp, `${basename(filePath)}.elf`), filePath, log);
-      return {
-        payload: { board, format: 'avr-progmem', bytes: hexToProgmem(hex), debug },
-        log: log.join('\n'),
-      };
+      const debug = extractAvrDebug(join(tmp, `${basename(filePath)}.elf`), filePath, log, cli, searchDir);
+      return { payload: { board: 'uno', format: 'avr-progmem', bytes: hexToProgmem(hex), debug }, log: log.join('\n') };
+    };
+
+    if (ext === '.ino') {
+      if (arduinoCli) return withArduinoCli(arduinoCli);
+      throw new Error(
+        "arduino-cli est introuvable pour compiler un sketch .ino. Installez « arduino-cli » " +
+          "ou indiquez son chemin complet dans le réglage « kablix.arduinoCliPath », puis redémarrez VS Code."
+      );
     }
-    if (tools.avrGcc) {
-      // C/C++ bare-metal (avr-libc).
+
+    // .c / .cpp : bare-metal avr-libc (avr-gcc / avr-g++).
+    const isCpp = ['.cpp', '.cc', '.cxx'].includes(ext);
+    const avrCompiler = resolveTool(isCpp ? 'avr-g++' : 'avr-gcc', { searchDir });
+    if (avrCompiler) {
       log.push('Compilation via avr-gcc (ATmega328P, bare-metal avr-libc)…');
-      const isCpp = ['.cpp', '.cc', '.ino'].includes(extname(filePath).toLowerCase());
-      const compiler = isCpp ? 'avr-g++' : 'avr-gcc';
+      const objcopy = resolveTool('avr-objcopy', { searchDir }) ?? 'avr-objcopy';
       const elf = join(tmp, 'out.elf');
       const hex = join(tmp, 'out.hex');
-      run(compiler, [
-        '-mmcu=atmega328p', '-Os', '-g', '-DF_CPU=16000000UL',
-        '-o', elf, filePath,
-      ]);
-      run('avr-objcopy', ['-O', 'ihex', '-R', '.eeprom', elf, hex]);
-      const debug = extractAvrDebug(elf, filePath, log);
+      run(avrCompiler, ['-mmcu=atmega328p', '-Os', '-g', '-DF_CPU=16000000UL', '-o', elf, filePath]);
+      run(objcopy, ['-O', 'ihex', '-R', '.eeprom', elf, hex]);
+      const debug = extractAvrDebug(elf, filePath, log, arduinoCli, searchDir);
       return {
-        payload: { board, format: 'avr-progmem', bytes: hexToProgmem(readFileSync(hex, 'utf8')), debug },
+        payload: { board: 'uno', format: 'avr-progmem', bytes: hexToProgmem(readFileSync(hex, 'utf8')), debug },
         log: log.join('\n'),
       };
     }
+    // Repli : un .cpp peut être un sketch Arduino → arduino-cli s'il est présent.
+    if (isCpp && arduinoCli) return withArduinoCli(arduinoCli);
+
     throw new Error(
-      "Aucune toolchain AVR trouvée. Installez 'arduino-cli' (recommandé) ou 'avr-gcc' (paquet gcc-avr / avr-libc)."
+      "Aucune toolchain AVR trouvée pour ce fichier. Pour un sketch Arduino, ouvrez/sélectionnez un fichier .ino " +
+        "et installez « arduino-cli » (réglage « kablix.arduinoCliPath » si déjà installé mais introuvable). " +
+        "Pour du C bare-metal, installez « avr-gcc » (ou indiquez « kablix.toolchainPath »). Redémarrez VS Code après."
     );
   }
 
   // board === 'pico' : bare-metal exécuté en RAM (cohérent avec le moteur rp2040js).
-  if (!tools.armGcc) {
+  const isCpp = ['.cpp', '.cc'].includes(extname(filePath).toLowerCase());
+  const armCompiler = resolveTool(isCpp ? 'arm-none-eabi-g++' : 'arm-none-eabi-gcc', { searchDir });
+  if (!armCompiler) {
     throw new Error(
-      "Toolchain ARM introuvable. Installez 'arm-none-eabi-gcc' (paquet gcc-arm-none-eabi)."
+      "Toolchain ARM introuvable. Installez « arm-none-eabi-gcc » (paquet gcc-arm-none-eabi), " +
+        "ou indiquez le dossier de la toolchain dans le réglage « kablix.toolchainPath », " +
+        "puis redémarrez VS Code."
     );
   }
   log.push('Compilation via arm-none-eabi-gcc (RP2040, bare-metal RAM)…');
-  const isCpp = ['.cpp', '.cc'].includes(extname(filePath).toLowerCase());
-  const compiler = isCpp ? 'arm-none-eabi-g++' : 'arm-none-eabi-gcc';
+  const objcopy = resolveTool('arm-none-eabi-objcopy', { searchDir }) ?? 'arm-none-eabi-objcopy';
   const ld = join(extensionPath, 'firmware', 'pico', 'rp2040_ram.ld');
   const elf = join(tmp, 'out.elf');
   const bin = join(tmp, 'out.bin');
-  run(compiler, [
+  run(armCompiler, [
     '-mcpu=cortex-m0plus', '-mthumb', '-Os', '-ffreestanding',
     '-nostdlib', '-nostartfiles', '-Wl,--build-id=none',
     '-T', ld, '-o', elf, filePath,
   ]);
-  run('arm-none-eabi-objcopy', ['-O', 'binary', elf, bin]);
+  run(objcopy, ['-O', 'binary', elf, bin]);
   return {
     payload: { board, format: 'rp2040-ram', b64: toB64(new Uint8Array(readFileSync(bin))) },
     log: log.join('\n'),

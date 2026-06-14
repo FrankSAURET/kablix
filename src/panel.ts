@@ -6,6 +6,7 @@ import {
   loadPythonProgram,
   type Board,
   type CompileResult,
+  type ToolPaths,
 } from './compiler';
 import {
   packProject,
@@ -121,9 +122,10 @@ export class SimulatorPanel {
         result = loadArtifact(filePath);
       } else {
         const board = this.currentBoard;
+        const toolPaths = this.toolPaths();
         result = await vscode.window.withProgress(
           { location: vscode.ProgressLocation.Notification, title: l10n.t('Kablix: compiling ({0})…', board) },
-          () => Promise.resolve(compile(board, filePath, this.extensionUri.fsPath))
+          () => Promise.resolve(compile(board, filePath, this.extensionUri.fsPath, toolPaths))
         );
       }
       this.runProgram(result, filePath.split(/[\\/]/).pop() ?? filePath);
@@ -264,6 +266,15 @@ export class SimulatorPanel {
     const message = err instanceof Error ? err.message : String(err);
     this.post({ type: 'status', text: l10n.t('Load failed') });
     vscode.window.showErrorMessage(`Kablix : ${message}`);
+  }
+
+  /** Chemins de toolchain fournis par l'utilisateur (réglages Kablix). */
+  private toolPaths(): ToolPaths {
+    const cfg = vscode.workspace.getConfiguration('kablix');
+    return {
+      arduinoCli: cfg.get<string>('arduinoCliPath')?.trim() || undefined,
+      searchDir: cfg.get<string>('toolchainPath')?.trim() || undefined,
+    };
   }
 
   // --- Fichier de code à exécuter / déboguer (chip du canvas) ------------------

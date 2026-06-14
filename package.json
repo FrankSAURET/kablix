@@ -1,7 +1,7 @@
 {
   "name": "kablix",
   "displayName": "Kablix",
-  "version": "2026.6.2",
+  "version": "2026.6.3",
   "description": "%kablix.description%",
   "publisher": "franksauret",
   "license": "MIT",
@@ -113,6 +113,16 @@
           "type": "boolean",
           "default": false,
           "description": "%kablix.config.checkUpdatesOnStartup%"
+        },
+        "kablix.arduinoCliPath": {
+          "type": "string",
+          "default": "",
+          "description": "%kablix.config.arduinoCliPath%"
+        },
+        "kablix.toolchainPath": {
+          "type": "string",
+          "default": "",
+          "description": "%kablix.config.toolchainPath%"
         }
       }
     }
