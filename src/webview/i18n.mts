@@ -53,11 +53,22 @@ const FR: Record<string, string> = {
   'Right-click to move it.': 'Clic droit pour déplacer.',
   'Reset the view (zoom 100%)': 'Réinitialiser la vue (zoom 100 %)',
   'Flip': 'Retourner',
+  'Orientation': 'Orientation',
+  'Rotate left (−45°)': 'Tourner à gauche (−45°)',
+  'Rotate right (+45°)': 'Tourner à droite (+45°)',
   'Flip horizontally': "Retourner sur l'axe horizontal",
   'Flip vertically': "Retourner sur l'axe vertical",
+  'Show/hide the internal wiring': 'Afficher/masquer le câblage interne',
   'Cross handle: move a corner.': 'La croix pour déplacer un angle.',
   'Ctrl: horizontal/vertical alignment.': 'CTRL pour alignement horizontal et vertical.',
   'Double-click the wire: add a corner.': 'Double clic sur le fil pour en rajouter un.',
+  'Click a corner then Del: remove it.': 'Cliquer un coude puis Suppr pour le supprimer.',
+  'Drag to move — Ctrl: H/V alignment — Del: remove this corner':
+    'Glisser pour déplacer — Ctrl : alignement H/V — Suppr : supprimer ce coude',
+  'No file': 'Aucun fichier',
+  'Code file to run / debug — click to change':
+    'Fichier de code à exécuter / déboguer — cliquer pour changer',
+  'Code file: {0} — click to change': 'Fichier de code : {0} — cliquer pour changer',
 
   // Inspecteur
   'Properties': 'Propriétés',

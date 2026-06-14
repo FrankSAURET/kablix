@@ -87,7 +87,10 @@ function led(pins: PinPoint[]): string | null {
   ].join('');
 }
 
-/** Résistance : zigzag entre les deux pattes. */
+/**
+ * Résistance : symbole rectangulaire IEC/IEEE (boîte) entre les deux pattes,
+ * conformément à la norme employée en France (et non le zigzag ANSI).
+ */
 function resistor(pins: PinPoint[]): string | null {
   const a = find(pins, '1');
   const b = find(pins, '2');
@@ -100,23 +103,22 @@ function resistor(pins: PinPoint[]): string | null {
   const uy = dy / len;
   const px = -uy;
   const py = ux;
-  const lead = len * 0.25; // amorces droites
-  const zigStart = { x: a.x + ux * lead, y: a.y + uy * lead };
-  const zigEnd = { x: b.x - ux * lead, y: b.y - uy * lead };
-  const zigLen = len - 2 * lead;
-  const n = 6; // dents
-  const amp = 5;
+  const c = mid(a, b);
+  const half = Math.min(len * 0.3, 14); // demi-longueur du rectangle
+  const w = 6; // demi-largeur du rectangle
+  const s = { x: c.x - ux * half, y: c.y - uy * half }; // entrée de la boîte
+  const e = { x: c.x + ux * half, y: c.y + uy * half }; // sortie de la boîte
+  const corner = (pt: XY, sign: number): XY => ({ x: pt.x + px * w * sign, y: pt.y + py * w * sign });
+  const s1 = corner(s, 1);
+  const s2 = corner(s, -1);
+  const e1 = corner(e, 1);
+  const e2 = corner(e, -1);
 
-  let d = `M ${a.x} ${a.y} L ${zigStart.x} ${zigStart.y}`;
-  for (let i = 1; i < n; i++) {
-    const t = (i / n) * zigLen;
-    const side = i % 2 === 0 ? 1 : -1;
-    const x = zigStart.x + ux * t + px * amp * side;
-    const y = zigStart.y + uy * t + py * amp * side;
-    d += ` L ${x} ${y}`;
-  }
-  d += ` L ${zigEnd.x} ${zigEnd.y} L ${b.x} ${b.y}`;
-  return `<path d="${d}"/>`;
+  return [
+    line(a, s), // amorce gauche
+    line(e, b), // amorce droite
+    `<path d="M ${s1.x} ${s1.y} L ${e1.x} ${e1.y} L ${e2.x} ${e2.y} L ${s2.x} ${s2.y} Z"/>`,
+  ].join('');
 }
 
 /** Buzzer : pastille centrale (+ et ~) reliée aux deux bornes. */

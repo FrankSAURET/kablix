@@ -34,6 +34,8 @@ export class SimulatorPanel {
   private currentBoard: Board = 'uno';
   /** Fichier source actuellement chargé dans le simulateur (.py ou source C ; pas les artefacts). */
   private currentSourceUri: vscode.Uri | undefined;
+  /** Fichier de code choisi explicitement (chip du canvas) ; sinon le fichier actif sert. */
+  private codeFileUri: vscode.Uri | undefined;
   /** Décoration de la ligne en pause (créée à la demande, détruite avec le panneau). */
   private debugLineDecoration: vscode.TextEditorDecorationType | undefined;
 
@@ -75,23 +77,34 @@ export class SimulatorPanel {
    *   sinon → compilation via la toolchain locale pour la carte courante.
    */
   public async compileActiveFile(): Promise<void> {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor) {
+    // Fichier choisi explicitement (chip du canvas) en priorité, sinon l'éditeur actif.
+    let doc: vscode.TextDocument | undefined;
+    if (this.codeFileUri) {
+      try {
+        doc = await vscode.workspace.openTextDocument(this.codeFileUri);
+      } catch {
+        doc = undefined; // fichier déplacé/supprimé : repli sur l'éditeur actif
+      }
+    }
+    doc ??= vscode.window.activeTextEditor?.document;
+    if (!doc) {
       vscode.window.showWarningMessage(l10n.t('Kablix: no active file to compile.'));
       return;
     }
-    await editor.document.save();
-    const filePath = editor.document.uri.fsPath;
+    await doc.save();
+    const filePath = doc.uri.fsPath;
     const ext = filePath.slice(filePath.lastIndexOf('.')).toLowerCase();
     // Mémorise le source pour les points d'arrêt et le surlignage ; pas de suivi pour les artefacts.
-    this.currentSourceUri = ARTIFACT_EXTS.includes(ext) ? undefined : editor.document.uri;
+    this.currentSourceUri = ARTIFACT_EXTS.includes(ext) ? undefined : doc.uri;
+    // Le fichier compilé devient le fichier de code affiché (et réutilisé ensuite).
+    this.setCodeFile(doc.uri);
 
     this.post({ type: 'status', text: l10n.t('Preparing…') });
     try {
       let result: CompileResult;
       if (ext === '.py') {
         const firmware = await this.findMicropythonFirmware();
-        result = loadPythonProgram(firmware, editor.document.getText());
+        result = loadPythonProgram(firmware, doc.getText());
       } else if (ARTIFACT_EXTS.includes(ext)) {
         result = loadArtifact(filePath);
       } else {
@@ -241,6 +254,30 @@ export class SimulatorPanel {
     vscode.window.showErrorMessage(`Kablix : ${message}`);
   }
 
+  // --- Fichier de code à exécuter / déboguer (chip du canvas) ------------------
+
+  /** Mémorise le fichier de code et met à jour le chip affiché dans la webview. */
+  private setCodeFile(uri: vscode.Uri | undefined): void {
+    this.codeFileUri = uri;
+    this.post({ type: 'codeFile', name: uri ? uri.fsPath.split(/[\\/]/).pop() : null });
+  }
+
+  /** Laisse l'utilisateur choisir le fichier de code via une boîte de dialogue. */
+  public async pickCodeFile(): Promise<void> {
+    const folders = vscode.workspace.workspaceFolders;
+    const picked = await vscode.window.showOpenDialog({
+      canSelectMany: false,
+      defaultUri: this.codeFileUri ?? (folders?.length ? folders[0].uri : undefined),
+      filters: {
+        [l10n.t('Source code')]: ['ino', 'c', 'cpp', 'cc', 'cxx', 'h', 'hpp', 'py'],
+        [l10n.t('Compiled artifact')]: ['hex', 'uf2', 'elf', 'bin'],
+      },
+      title: l10n.t('Choose the code file to run / debug'),
+    });
+    if (!picked || picked.length === 0) return;
+    this.setCodeFile(picked[0]);
+  }
+
   private constructor(panel: vscode.WebviewPanel, context: vscode.ExtensionContext) {
     this.panel = panel;
     this.context = context;
@@ -332,6 +369,11 @@ export class SimulatorPanel {
           type: 'uiState',
           state: this.context.globalState.get<unknown>(UI_STATE_KEY, {}),
         });
+        // Rappelle le fichier de code courant (chip du canvas) après un rechargement.
+        this.setCodeFile(this.codeFileUri);
+        break;
+      case 'pickCodeFile':
+        void this.pickCodeFile();
         break;
       case 'saveUiState':
         void this.context.globalState.update(UI_STATE_KEY, msg.state ?? {});
@@ -698,6 +740,7 @@ export class SimulatorPanel {
             <option value="0.1">🐢 10 %</option>
             <option value="0.01">🐌 1 %</option>
           </select>
+          <button id="code-file" class="canvas-controls__file" title="${l10n.t('Code file to run / debug — click to change')}">📄 ${l10n.t('No file')}</button>
         </div>
         <svg id="wires" class="wires"></svg>
       </div>

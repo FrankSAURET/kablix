@@ -76,6 +76,9 @@ const MAX_RECENTS = 10;
 const DND_MIME = 'application/x-kablix-part';
 const ZOOM_MIN = 0.3;
 const ZOOM_MAX = 3;
+/** Dimensions de la vignette de composant dans la palette (px). */
+const THUMB_W = 46;
+const THUMB_H = 30;
 let idSeq = 0;
 const uid = (prefix: string): string => `${prefix}${++idSeq}`;
 
@@ -104,8 +107,10 @@ export class Editor {
   private guides: SVGLineElement[] = [];
   /** Platines dont des trous sont actuellement en surbrillance. */
   private highlightedBoards = new Set<string>();
-  /** Surimpression du câblage interne du composant sélectionné. */
-  private internalEl: HTMLElement | null = null;
+  /** Composants dont le câblage interne est actuellement affiché (bouton 🔌). */
+  private internalShown = new Set<string>();
+  /** Coude de fil actuellement sélectionné (supprimable avec Suppr). */
+  private activeHandle: { wireId: string; index: number } | null = null;
 
   /** Calque transformable (zoom + translation) contenant fils et composants. */
   private readonly world: HTMLDivElement;
@@ -239,18 +244,63 @@ export class Editor {
     this.palette.appendChild(head);
   }
 
-  /** Bouton simple de la palette : clic = pose au centre ; glisser = pose au lâcher. */
+  /**
+   * Bouton de la palette : miniature du composant + libellé (liste d'items).
+   * Clic = pose au centre ; glisser = pose au lâcher, avec la miniature comme
+   * image de glissement (on voit le composant suivre le curseur).
+   */
   private paletteButton(def: PartDef, custom: boolean): HTMLButtonElement {
     const btn = document.createElement('button');
     btn.className = 'palette__item';
-    btn.textContent = custom ? `★ ${def.label}` : t(def.label);
+    const label = custom ? `★ ${def.label}` : t(def.label);
+    btn.title = label;
+    const thumb = this.thumbnail(def);
+    const text = document.createElement('span');
+    text.className = 'palette__item-label';
+    text.textContent = label;
+    btn.append(thumb, text);
     btn.addEventListener('click', () => this.addPart(def.type));
     btn.draggable = true;
     btn.addEventListener('dragstart', (e) => {
       e.dataTransfer?.setData(DND_MIME, def.type);
-      if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy';
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'copy';
+        // Image de glissement = miniature du composant (centrée sous le curseur).
+        e.dataTransfer.setDragImage(thumb, thumb.offsetWidth / 2, thumb.offsetHeight / 2);
+      }
     });
     return btn;
+  }
+
+  /** Miniature live d'un composant (élément réel mis à l'échelle dans une vignette). */
+  private thumbnail(def: PartDef): HTMLDivElement {
+    const box = document.createElement('div');
+    box.className = 'palette__thumb';
+    try {
+      const el = document.createElement(def.tag) as WokwiElement;
+      if (def.custom) {
+        (el as unknown as { definition: typeof def }).definition = def;
+      }
+      for (const [k, v] of Object.entries(def.attrs ?? {})) {
+        if (v !== '') el.setAttribute(k, v);
+      }
+      el.style.transformOrigin = 'center center';
+      el.style.pointerEvents = 'none';
+      box.appendChild(el);
+      // La taille réelle n'est connue qu'après la mise en page : on ajuste alors.
+      requestAnimationFrame(() => this.fitThumbnail(el));
+    } catch {
+      box.textContent = '▢';
+    }
+    return box;
+  }
+
+  /** Met l'élément à l'échelle pour tenir dans la vignette (sans le déformer). */
+  private fitThumbnail(el: HTMLElement): void {
+    const w = el.offsetWidth || 1;
+    const h = el.offsetHeight || 1;
+    const scale = Math.min(THUMB_W / w, THUMB_H / h, 1);
+    el.style.transform = `scale(${scale})`;
   }
 
   /** Ligne d'un composant personnalisé : pose, édition, export, suppression. */
@@ -452,6 +502,7 @@ export class Editor {
     });
     this.rendered.get(id)?.container.remove();
     this.rendered.delete(id);
+    this.internalShown.delete(id);
     this.diagram.parts = this.diagram.parts.filter((p) => p.id !== id);
     if (this.selection?.kind === 'part' && this.selection.id === id) this.select(null);
     this.redrawWires();
@@ -470,6 +521,7 @@ export class Editor {
     this.wirePaths.clear();
     for (const r of this.rendered.values()) r.container.remove();
     this.rendered.clear();
+    this.internalShown.clear();
     this.diagram.parts = [];
     this.diagram.wires = [];
     this.colorIndex = 0;
@@ -621,7 +673,26 @@ export class Editor {
       hotspots.set(pin.name, dot);
     }
 
+    // Bouton de câblage interne : à gauche du ✕, seulement si un schéma existe
+    // pour ce type. Il commande l'affichage (plus de déclenchement automatique
+    // à la sélection).
+    const internalPins = pins.map((p) => ({ name: p.name, x: p.x, y: p.y }));
+    if (internalWiringSvg(def.kind, internalPins)) {
+      const toggle = document.createElement('span');
+      toggle.className =
+        'part__internal-toggle' + (this.internalShown.has(part.id) ? ' part__internal-toggle--active' : '');
+      toggle.textContent = '🔌';
+      toggle.title = t('Show/hide the internal wiring');
+      toggle.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        this.toggleInternalWiring(part.id);
+      });
+      head.insertBefore(toggle, del);
+    }
+
     this.rendered.set(part.id, { part, container, el, hotspots });
+    // Restaure l'affichage du câblage interne après un re-rendu (rotation…).
+    if (this.internalShown.has(part.id)) this.renderInternalWiring(part.id);
     this.redrawWires();
   }
 
@@ -769,8 +840,14 @@ export class Editor {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', end);
       this.clearBreadboardHighlights();
-      if (!moved) this.select({ kind: 'part', id: part.id }); // simple clic = sélection
-      else if (pluggable) this.plugIntoBreadboard(part, holes);
+      if (!moved) {
+        this.select({ kind: 'part', id: part.id }); // simple clic = sélection
+      } else if (pluggable) {
+        this.plugIntoBreadboard(part, holes); // notifie si des fils auto changent
+        this.notify(); // persiste la nouvelle position même sans enfichage
+      } else {
+        this.notify(); // déplacement (carte, platine, groupe) : à persister
+      }
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', end);
@@ -986,7 +1063,14 @@ export class Editor {
       this.select(null);
     } else if ((e.key === 'Delete' || e.key === 'Backspace') && !typing) {
       if (this.selection?.kind === 'part') this.removePart(this.selection.id);
-      else if (this.selection?.kind === 'wire') this.removeWire(this.selection.id);
+      else if (this.selection?.kind === 'wire') {
+        // Un coude sélectionné : on supprime ce coude ; sinon le fil entier.
+        if (this.activeHandle?.wireId === this.selection.id) {
+          this.removeWirePoint(this.selection.id, this.activeHandle.index);
+        } else {
+          this.removeWire(this.selection.id);
+        }
+      }
     } else if ((e.key === '+' || e.key === '=') && !typing) {
       this.rotateSelection(45);
     } else if (e.key === '-' && !typing) {
@@ -1043,7 +1127,25 @@ export class Editor {
   private clearHandles(): void {
     for (const h of this.handles) h.remove();
     this.handles = [];
+    this.activeHandle = null;
     this.clearGuides();
+  }
+
+  /** Marque un coude comme sélectionné (supprimable au clavier), met en évidence. */
+  private setActiveHandle(wireId: string, index: number): void {
+    this.activeHandle = { wireId, index };
+    this.handles.forEach((h, i) => h.classList.toggle('wire-handle--active', i === index));
+  }
+
+  /** Supprime un coude (point intermédiaire) d'un fil. */
+  private removeWirePoint(wireId: string, index: number): void {
+    const wire = this.diagram.wires.find((w) => w.id === wireId);
+    if (!wire?.points || index < 0 || index >= wire.points.length) return;
+    wire.points.splice(index, 1);
+    if (wire.points.length === 0) wire.points = undefined;
+    this.positionWire(wire);
+    this.buildHandles(wireId); // réindexe les poignées
+    this.notify();
   }
 
   private clearGuides(): void {
@@ -1061,10 +1163,11 @@ export class Editor {
       handle.className = 'wire-handle';
       handle.style.left = `${pt.x}px`;
       handle.style.top = `${pt.y}px`;
-      handle.title = t('Drag to move — Ctrl: H/V alignment');
+      handle.title = t('Drag to move — Ctrl: H/V alignment — Del: remove this corner');
       handle.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
         e.preventDefault();
+        this.setActiveHandle(wire.id, index);
         this.dragHandle(wire, index, handle);
       });
       this.world.appendChild(handle);
@@ -1181,24 +1284,33 @@ export class Editor {
       this.wirePaths.get(sel.id)?.classList.add('wire--selected');
       this.buildHandles(sel.id);
     }
-    this.refreshInternalWiring();
     this.renderInspector();
   }
 
-  // --- Câblage interne (surimpression à la sélection) -------------------------
-  private removeInternalWiring(): void {
-    this.internalEl?.remove();
-    this.internalEl = null;
+  // --- Câblage interne (commandé par le bouton 🔌 du bandeau) ------------------
+  /** Bascule l'affichage du câblage interne d'un composant. */
+  private toggleInternalWiring(partId: string): void {
+    const r = this.rendered.get(partId);
+    if (!r) return;
+    if (this.internalShown.has(partId)) {
+      this.internalShown.delete(partId);
+      r.container.querySelector('.part__internal')?.remove();
+    } else {
+      this.internalShown.add(partId);
+      this.renderInternalWiring(partId);
+    }
+    r.container
+      .querySelector('.part__internal-toggle')
+      ?.classList.toggle('part__internal-toggle--active', this.internalShown.has(partId));
   }
 
-  /** Affiche le câblage interne du composant sélectionné (si un schéma existe). */
-  private refreshInternalWiring(): void {
-    this.removeInternalWiring();
-    if (this.selection?.kind !== 'part') return;
-    const r = this.rendered.get(this.selection.id);
+  /** Dessine la surimpression du câblage interne dans le corps du composant. */
+  private renderInternalWiring(partId: string): void {
+    const r = this.rendered.get(partId);
     if (!r) return;
     const body = r.container.querySelector('.part__body') as HTMLElement | null;
     if (!body) return;
+    body.querySelector('.part__internal')?.remove();
     const pins = ((r.el.pinInfo ?? []) as PinPoint[]).map((p) => ({ name: p.name, x: p.x, y: p.y }));
     const inner = internalWiringSvg(partDef(r.part.type).kind, pins);
     if (!inner) return;
@@ -1213,7 +1325,6 @@ export class Editor {
       `<g fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${inner}</g>` +
       `</svg>`;
     body.appendChild(overlay);
-    this.internalEl = overlay;
   }
 
   /** Change un attribut d'un composant (depuis l'inspecteur). */
@@ -1237,10 +1348,9 @@ export class Editor {
     }
     // L'angle ou la taille déplacent les broches : re-rendu complet nécessaire.
     if (attr === 'angle' || attr === 'flip' || attr === 'size') {
-      this.rerenderPart(partId);
+      this.rerenderPart(partId); // renderPart restaure le câblage interne s'il était affiché
       if (this.selection?.kind === 'part' && this.selection.id === partId) {
         this.rendered.get(partId)?.container.classList.add('part--selected');
-        this.refreshInternalWiring(); // le corps a été recréé : on réaffiche l'overlay
       }
     } else if (value === '') {
       r.el.removeAttribute(attr);
@@ -1306,6 +1416,7 @@ export class Editor {
       t('Cross handle: move a corner.'),
       t('Ctrl: horizontal/vertical alignment.'),
       t('Double-click the wire: add a corner.'),
+      t('Click a corner then Del: remove it.'),
     ]);
   }
 
@@ -1329,7 +1440,7 @@ export class Editor {
       this.inspector.appendChild(hint);
     }
 
-    this.appendFlipControl(partId, r.part);
+    this.appendTransformControl(partId, r.part);
     this.appendDeleteButton(t('Delete the part'), () => this.removePart(partId));
     // Zone d'aide contextuelle, sous les propriétés du composant sélectionné.
     const lines = [t('+ or − to rotate the part')];
@@ -1337,24 +1448,30 @@ export class Editor {
     this.appendHelp(lines);
   }
 
-  /** Boutons « Retourner » (axes horizontal et vertical) pour tout composant. */
-  private appendFlipControl(partId: string, part: Part): void {
+  /**
+   * Barre d'orientation : rotation (↺ ↻, équivalent des touches − / +) et
+   * retournement (⇆ ⇅), uniquement des icônes, pour tout composant.
+   */
+  private appendTransformControl(partId: string, part: Part): void {
     const label = document.createElement('label');
     label.className = 'inspector__label';
-    label.textContent = t('Flip');
+    label.textContent = t('Orientation');
     this.inspector.appendChild(label);
 
     const row = document.createElement('div');
-    row.className = 'inspector__flip';
-    for (const [axis, glyph, title, active] of [
-      ['h', '⇆', t('Flip horizontally'), part.flipH],
-      ['v', '⇅', t('Flip vertically'), part.flipV],
-    ] as Array<['h' | 'v', string, string, boolean | undefined]>) {
+    row.className = 'inspector__transform';
+    const buttons: Array<{ glyph: string; title: string; on: () => void; active?: boolean }> = [
+      { glyph: '↺', title: t('Rotate left (−45°)'), on: () => this.rotateSelection(-45) },
+      { glyph: '↻', title: t('Rotate right (+45°)'), on: () => this.rotateSelection(45) },
+      { glyph: '⇆', title: t('Flip horizontally'), on: () => this.flipSelection('h'), active: part.flipH },
+      { glyph: '⇅', title: t('Flip vertically'), on: () => this.flipSelection('v'), active: part.flipV },
+    ];
+    for (const b of buttons) {
       const btn = document.createElement('button');
-      btn.className = 'inspector__flip-btn' + (active ? ' inspector__flip-btn--active' : '');
-      btn.textContent = glyph;
-      btn.title = title;
-      btn.addEventListener('click', () => this.flipSelection(axis));
+      btn.className = 'inspector__transform-btn' + (b.active ? ' inspector__transform-btn--active' : '');
+      btn.textContent = b.glyph;
+      btn.title = b.title;
+      btn.addEventListener('click', b.on);
       row.appendChild(btn);
     }
     this.inspector.appendChild(row);

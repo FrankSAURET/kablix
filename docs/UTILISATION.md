@@ -41,7 +41,7 @@ le fichier actif** pour exécuter votre propre code.
 
 ## L'interface
 
-![Interface de Kablix](../images/Kablix.png)
+![Interface de Kablix](../Kablix.png)
 
 <!-- TODO: capture annotée -->
 *Interface de Kablix : la **palette** des composants à gauche, le **canvas** de montage au centre, l'**inspecteur** (Propriétés) à droite, le **moniteur série** en bas et la **barre d'outils** (carte, exécution, compilation, export) en haut.*

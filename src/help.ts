@@ -182,10 +182,11 @@ function getHtml(webview: vscode.Webview): string {
     <h2 id="montage">Construire un montage</h2>
     <h3>Poser et déplacer</h3>
     <ul>
-      <li><strong>Poser</strong> : clic sur un composant de la palette (posé au centre) ou glisser-déposer vers le canvas.</li>
+      <li><strong>Poser</strong> : clic sur un composant de la palette (posé au centre) ou glisser-déposer vers le canvas — la miniature du composant suit alors le curseur.</li>
       <li><strong>Déplacer</strong> : glisser le corps du composant, ou <strong>glisser au clic droit</strong> — indispensable pour les composants interactifs (bouton, potentiomètre…) dont le clic gauche actionne le contrôle.</li>
-      <li><strong>Tourner</strong> : sélectionner puis <kbd>+</kbd> (45° horaire) ou <kbd>-</kbd> (45° antihoraire).</li>
-      <li><strong>Zoomer</strong> : <strong>molette</strong> dans le canvas (centré sur le curseur) ; le badge <code>⟳ %</code> en bas à droite réinitialise la vue d'un clic.</li>
+      <li><strong>Tourner / retourner</strong> : sélectionner puis utiliser la barre <strong>Orientation</strong> de l'inspecteur — icônes ↺ ↻ (rotation de 45°) et ⇆ ⇅ (miroir horizontal / vertical). Les touches <kbd>+</kbd> / <kbd>-</kbd> font aussi tourner le composant sélectionné.</li>
+      <li><strong>Câblage interne</strong> : pour les composants qui en ont un schéma (bouton, LED, résistance, buzzer), le bouton 🔌 du bandeau (à gauche du ✕) l'affiche ou le masque par-dessus le composant.</li>
+      <li><strong>Zoomer</strong> : <kbd>Ctrl</kbd>+<strong>molette</strong> dans le canvas (centré sur le curseur) ; le badge <code>⟳ %</code> en bas à droite réinitialise la vue d'un clic.</li>
       <li><strong>Supprimer</strong> : ✕ du bandeau, 🗑 de l'inspecteur ou <kbd>Suppr</kbd>.</li>
     </ul>
     <h3>Câbler</h3>
@@ -194,10 +195,11 @@ function getHtml(webview: vscode.Webview): string {
       <li>Chaque clic sur le fond pose un <strong>coude</strong> (segments aimantés à l'horizontale/verticale).</li>
       <li>Cliquer une autre broche termine le fil. <kbd>Échap</kbd> annule.</li>
     </ol>
-    <p>Un fil touchant une masse naît noir, une alimentation rouge, sinon il suit les couleurs Dupont. La couleur reste modifiable dans l'inspecteur. <strong>Retoucher un fil</strong> : le sélectionner fait apparaître des poignées sur chaque coude ; <kbd>Ctrl</kbd> maintenu pendant le glissement aligne le coude (réticule H/V) ; double-clic sur le fil insère un coude.</p>
+    <p>Un fil touchant une masse naît noir, une alimentation rouge, sinon il suit les couleurs Dupont. La couleur reste modifiable dans l'inspecteur. <strong>Retoucher un fil</strong> : le sélectionner fait apparaître des poignées sur chaque coude ; <kbd>Ctrl</kbd> maintenu pendant le glissement aligne le coude (réticule H/V) ; double-clic sur le fil insère un coude ; cliquer un coude puis <kbd>Suppr</kbd> le supprime (sinon <kbd>Suppr</kbd> efface tout le fil).</p>
     <p>La <strong>platine d'essai</strong> existe en trois tailles (mini / half / full). Au survol pendant un déplacement, les bandes qui recevraient les broches s'allument en jaune ; au relâchement le composant s'enfiche automatiquement, sans fil visible.</p>
 
     <h2 id="executer">Exécuter du code</h2>
+    <p>Le <strong>chip 📄</strong> dans la barre de simulation (en haut à gauche du canvas) indique le fichier de code exécuté / débogué ; un clic dessus permet d'en choisir un autre. À défaut, c'est le fichier actif de l'éditeur qui sert.</p>
     <p>Bouton <strong>⚙ Compiler &amp; exécuter le fichier actif</strong> ; le traitement dépend de l'extension du fichier :</p>
     <ul>
       <li><code>.ino</code>, <code>.c</code>, <code>.cpp</code> (Uno) : compilation locale (<code>arduino-cli</code> ou <code>avr-gcc</code>) ;</li>

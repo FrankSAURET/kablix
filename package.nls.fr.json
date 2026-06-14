@@ -10,7 +10,7 @@
   "kablix.cmd.checkLibraryUpdates": "Kablix : Vérifier les mises à jour des bibliothèques",
   "kablix.cmd.openHelp": "Kablix : Aide",
   "kablix.view.home": "Simulateur",
-  "kablix.welcome": "Simulateur Arduino Uno / Raspberry Pi Pico, 100% offline.\n[▶ Ouvrir le simulateur](command:kablix.openSimulator)\n[⚙ Compiler & exécuter le fichier actif](command:kablix.compileAndRun)\n[↑ Charger l'artefact du workspace](command:kablix.loadWorkspaceArtifact)\n[📖 Documentation](https://github.com/franksauret/kablix/blob/main/docs/UTILISATION.md)",
+  "kablix.welcome": "Simulateur Arduino Uno / Raspberry Pi Pico, 100% offline.\n[▶ Ouvrir le simulateur](command:kablix.openSimulator)\n[📂 Ouvrir un projet (.projix)](command:kablix.openProject)\n[⚙ Compiler & exécuter le fichier actif](command:kablix.compileAndRun)\n[↑ Charger l'artefact du workspace](command:kablix.loadWorkspaceArtifact)\n[📖 Documentation](https://github.com/franksauret/kablix/blob/main/docs/UTILISATION.md)",
   "kablix.config.micropythonUf2": "Chemin (absolu ou relatif au workspace) du firmware MicroPython .uf2 utilisé pour exécuter les fichiers .py sur le Pico simulé. Laisser vide pour détecter automatiquement micropython*.uf2 / RPI_PICO*.uf2 dans le workspace.",
   "kablix.config.checkUpdatesOnStartup": "Vérifier une fois au démarrage, sur le registre npm, si des versions plus récentes des bibliothèques de simulation embarquées existent. Désactivé par défaut (Kablix est hors-ligne par défaut) ; activé, une notification n'apparaît que si une mise à jour existe. La vérification peut aussi être lancée manuellement via la commande « Kablix : Vérifier les mises à jour des bibliothèques »."
 }

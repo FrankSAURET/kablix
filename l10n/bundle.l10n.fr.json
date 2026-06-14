@@ -57,5 +57,10 @@
   "Kablix: the simulation libraries are up to date.": "Kablix : les bibliothèques de simulation sont à jour.",
   "Kablix: a newer version of the simulation libraries is available ({0}). Updating may break the extension; if a problem occurs, please open an issue on GitHub ({1}).": "Kablix : une version plus récente des bibliothèques de simulation est disponible ({0}). La mise à jour peut casser l'extension ; en cas de problème, ouvrez une demande sur GitHub ({1}).",
   "See on npm": "Voir sur npm",
-  "Close": "Fermer"
+  "Close": "Fermer",
+  "Code file to run / debug — click to change": "Fichier de code à exécuter / déboguer — cliquer pour changer",
+  "No file": "Aucun fichier",
+  "Source code": "Code source",
+  "Compiled artifact": "Artefact compilé",
+  "Choose the code file to run / debug": "Choisir le fichier de code à exécuter / déboguer"
 }

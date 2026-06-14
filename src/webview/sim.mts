@@ -62,6 +62,16 @@ import { PICO_BLINK } from './programs/pico-blink.mjs';
 
 interface VsCodeApi {
   postMessage(message: unknown): void;
+  /** État persistant de la webview (survit au déplacement / rechargement de l'onglet). */
+  getState(): unknown;
+  setState(state: unknown): void;
+}
+
+/** État sauvegardé dans la webview pour survivre à un déplacement d'onglet. */
+interface PersistedState {
+  diagram?: { parts?: unknown[]; wires?: unknown[] };
+  board?: BoardId;
+  showLabels?: boolean;
 }
 declare function acquireVsCodeApi(): VsCodeApi;
 declare global {
@@ -71,6 +81,9 @@ declare global {
 }
 initLocale(window.KABLIX_LANG);
 const vscode = acquireVsCodeApi();
+// Atelier sauvegardé d'un précédent affichage (déplacement d'onglet) ; restauré
+// une fois les composants personnalisés chargés, puis oublié.
+let restoredState = vscode.getState() as PersistedState | undefined;
 
 const boardSelect = document.getElementById('board') as HTMLSelectElement;
 const runBtn = document.getElementById('run') as HTMLButtonElement;
@@ -96,6 +109,7 @@ const canvas = document.getElementById('canvas') as HTMLDivElement;
 const palette = document.getElementById('palette') as HTMLDivElement;
 const wiresSvg = document.getElementById('wires') as unknown as SVGSVGElement;
 const inspector = document.getElementById('inspector') as HTMLDivElement;
+const codeFileBtn = document.getElementById('code-file') as HTMLButtonElement;
 
 const editor = new Editor(canvas, palette, wiresSvg, inspector);
 
@@ -367,8 +381,16 @@ function stopRun(): void {
 }
 
 editor.onChange = () => {
+  persistState();
   if (engine) rebind();
 };
+
+// Persistance de l'atelier dans l'état de la webview : il survit ainsi au
+// déplacement de l'onglet (passage en plein écran, autre groupe d'éditeurs…)
+// qui recharge la webview et effaçait auparavant le schéma.
+function persistState(): void {
+  vscode.setState({ diagram: editor.serialize(), board, showLabels } satisfies PersistedState);
+}
 
 // --- Barre d'outils -----------------------------------------------------------
 runBtn.addEventListener('click', startRun);
@@ -412,6 +434,7 @@ labelsBtn.addEventListener('click', () => {
   showLabels = !showLabels;
   applyShowLabels();
   saveUiState();
+  persistState();
 });
 
 editor.onPaletteStateChange = (state) => {
@@ -430,7 +453,13 @@ boardSelect.addEventListener('change', () => {
   board = boardSelect.value === 'pico' ? 'pico' : 'uno';
   vscode.postMessage({ type: 'board', board });
   stopRun();
+  persistState();
   setStatus(t('Board: {0}', board === 'uno' ? 'Arduino Uno' : 'Raspberry Pi Pico'));
+});
+
+// --- Fichier de code à exécuter / déboguer (chip sur le canvas) ---------------
+codeFileBtn.addEventListener('click', () => {
+  vscode.postMessage({ type: 'pickCodeFile' });
 });
 
 // --- Moniteur série : envoi vers le microcontrôleur ---------------------------
@@ -480,7 +509,31 @@ window.addEventListener('message', (event: MessageEvent) => {
       break;
     case 'customParts':
       editor.loadCustomParts((msg.parts as CustomPartData[]) ?? []);
+      // Restaure l'atelier d'avant un déplacement d'onglet (une seule fois,
+      // après l'enregistrement des composants personnalisés qu'il référence).
+      if (restoredState?.diagram) {
+        editor.loadDiagram(restoredState.diagram as Parameters<typeof editor.loadDiagram>[0]);
+        if (restoredState.board === 'uno' || restoredState.board === 'pico') {
+          board = restoredState.board;
+          boardSelect.value = board;
+          vscode.postMessage({ type: 'board', board });
+        }
+        if (typeof restoredState.showLabels === 'boolean') {
+          showLabels = restoredState.showLabels;
+          applyShowLabels();
+        }
+      }
+      restoredState = undefined;
       break;
+    case 'codeFile': {
+      // Nom du fichier de code à exécuter / déboguer, envoyé par l'extension.
+      const name = typeof msg.name === 'string' ? msg.name : null;
+      codeFileBtn.textContent = name ? `📄 ${name}` : `📄 ${t('No file')}`;
+      codeFileBtn.title = name
+        ? t('Code file: {0} — click to change', name)
+        : t('Code file to run / debug — click to change');
+      break;
+    }
     case 'requestSaveProject':
       // Demande de la commande : on renvoie le schéma pour l'enregistrement.
       vscode.postMessage({ type: 'saveProject', diagram: editor.serialize(), board });

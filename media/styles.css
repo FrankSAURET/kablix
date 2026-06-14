@@ -146,7 +146,10 @@ body {
 .palette__item {
   font: inherit;
   text-align: left;
-  padding: 0.4rem 0.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.5rem;
   border-radius: 6px;
   border: 1px solid var(--vscode-input-border, #555);
   background: var(--vscode-input-background, #2a2a2a);
@@ -156,6 +159,28 @@ body {
 
 .palette__item:hover {
   border-color: var(--vscode-focusBorder, #0e639c);
+}
+
+/* Vignette du composant dans la liste de la palette (élément réel mis à l'échelle). */
+.palette__thumb {
+  flex: 0 0 46px;
+  width: 46px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.palette__item-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.78rem;
 }
 
 .palette__custom {
@@ -278,6 +303,27 @@ body {
   cursor: pointer;
 }
 
+/* Fichier de code à exécuter / déboguer (clic = changer). */
+.canvas-controls__file {
+  font: inherit;
+  font-size: 0.78rem;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 0.5rem;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-input-border, #555);
+  background: var(--vscode-input-background, #2a2a2a);
+  color: var(--vscode-input-foreground, #fff);
+  cursor: pointer;
+}
+
+.canvas-controls__file:hover {
+  border-color: var(--vscode-focusBorder, #0e639c);
+}
+
 .wires {
   position: absolute;
   inset: 0;
@@ -361,6 +407,13 @@ body {
   transform: scale(1.3);
 }
 
+/* Coude sélectionné (supprimable avec Suppr) : croix teintée d'accent. */
+.wire-handle--active::before,
+.wire-handle--active::after {
+  background: var(--vscode-focusBorder, #4fa3ff);
+  box-shadow: 0 0 3px 1px rgba(0, 0, 0, 0.9);
+}
+
 /* --- Inspecteur (éditeur de composants) ------------------------------------- */
 .inspector {
   flex: 0 0 190px;
@@ -403,17 +456,18 @@ body {
   margin-top: 0.3rem;
 }
 
-/* Boutons « Retourner » (axes horizontal/vertical). */
-.inspector__flip {
+/* Barre d'orientation : rotation (↺ ↻) et retournement (⇆ ⇅), icônes seules. */
+.inspector__transform {
   display: flex;
   gap: 5px;
 }
 
-.inspector__flip-btn {
+.inspector__transform-btn {
   flex: 1;
   font: inherit;
-  font-size: 0.95rem;
-  padding: 0.2rem;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.25rem;
   border-radius: 4px;
   border: 1px solid var(--vscode-input-border, #555);
   background: var(--vscode-input-background, #2a2a2a);
@@ -421,7 +475,11 @@ body {
   cursor: pointer;
 }
 
-.inspector__flip-btn--active {
+.inspector__transform-btn:hover {
+  border-color: var(--vscode-focusBorder, #0e639c);
+}
+
+.inspector__transform-btn--active {
   border-color: var(--vscode-focusBorder, #0e639c);
   background: var(--vscode-button-background, #0e639c);
   color: var(--vscode-button-foreground, #fff);
@@ -550,6 +608,23 @@ body {
 .part__del:hover {
   opacity: 1;
   color: #ff6b6b;
+}
+
+/* Bouton d'affichage du câblage interne, à gauche du ✕ dans le bandeau. */
+.part__internal-toggle {
+  cursor: pointer;
+  opacity: 0.7;
+  font-size: 0.85em;
+  line-height: 1;
+}
+
+.part__internal-toggle:hover {
+  opacity: 1;
+}
+
+.part__internal-toggle--active {
+  opacity: 1;
+  filter: drop-shadow(0 0 2px var(--vscode-focusBorder, #4fa3ff));
 }
 
 .part__body {
