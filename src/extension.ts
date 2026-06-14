@@ -11,10 +11,18 @@ export function activate(context: vscode.ExtensionContext): void {
       getTreeItem: (item: vscode.TreeItem) => item,
     },
   });
+  // On n'ouvre pas le simulateur au lancement (si VS Code restaure le volet
+  // Kablix au démarrage) ; seulement sur un clic ultérieur sur l'icône. Un court
+  // délai laisse passer la restauration initiale du volet.
+  let startupSettled = false;
+  const startupTimer = setTimeout(() => {
+    startupSettled = true;
+  }, 2000);
   context.subscriptions.push(
     homeView,
+    new vscode.Disposable(() => clearTimeout(startupTimer)),
     homeView.onDidChangeVisibility((e) => {
-      if (e.visible) SimulatorPanel.createOrShow(context);
+      if (e.visible && startupSettled) SimulatorPanel.createOrShow(context);
     })
   );
 

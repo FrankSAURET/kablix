@@ -39,8 +39,20 @@ export class SimulatorPanel {
   /** Décoration de la ligne en pause (créée à la demande, détruite avec le panneau). */
   private debugLineDecoration: vscode.TextEditorDecorationType | undefined;
 
+  /**
+   * Colonne d'ouverture : le groupe d'éditeurs le plus à droite s'il y en a
+   * plusieurs (Kablix à côté du code), sinon le groupe actif.
+   */
+  private static targetColumn(): vscode.ViewColumn {
+    const groups = vscode.window.tabGroups.all;
+    if (groups.length > 1) {
+      return Math.max(...groups.map((g) => g.viewColumn)) as vscode.ViewColumn;
+    }
+    return vscode.window.activeTextEditor?.viewColumn ?? vscode.ViewColumn.One;
+  }
+
   public static createOrShow(context: vscode.ExtensionContext): SimulatorPanel {
-    const column = vscode.window.activeTextEditor?.viewColumn;
+    const column = SimulatorPanel.targetColumn();
 
     if (SimulatorPanel.current) {
       SimulatorPanel.current.panel.reveal(column);
@@ -51,7 +63,7 @@ export class SimulatorPanel {
     const panel = vscode.window.createWebviewPanel(
       SimulatorPanel.viewType,
       l10n.t('Kablix — Simulator'),
-      column ?? vscode.ViewColumn.One,
+      column,
       {
         enableScripts: true,
         retainContextWhenHidden: true,
