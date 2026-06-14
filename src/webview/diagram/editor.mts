@@ -134,6 +134,8 @@ export class Editor {
   private pending: PendingWire | null = null;
   private tempPath: SVGPathElement | null = null;
   private selection: Selection = null;
+  /** Composants sélectionnés (sélection multiple : marquee, Ctrl+clic). */
+  private selectedParts = new Set<string>();
   private colorIndex = 0;
   private customData = new Map<string, CustomPartData>();
   private creator = new PartCreator((data) => this.saveCustomPart(data));
@@ -145,6 +147,15 @@ export class Editor {
   private internalShown = new Set<string>();
   /** Coude de fil actuellement sélectionné (supprimable avec Suppr). */
   private activeHandle: { wireId: string; index: number } | null = null;
+  /** Verrou pendant la simulation : pas d'édition du schéma (sélection/déplacement/câblage). */
+  private locked = false;
+  /** Pile d'annulation (états sérialisés du schéma) et position courante. */
+  private history: string[] = [];
+  private historyIndex = -1;
+  /** Vrai pendant une restauration (annuler/refaire) : ne pas réenregistrer l'historique. */
+  private restoring = false;
+  /** Presse-papier interne pour dupliquer une sélection (Ctrl+C / Ctrl+V / Ctrl+D). */
+  private clipboard: { parts: Part[]; wires: Wire[] } | null = null;
 
   /** Calque transformable (zoom + translation) contenant fils et composants. */
   private readonly world: HTMLDivElement;
@@ -176,28 +187,81 @@ export class Editor {
     // Clic sur le fond : pose un point de fil, ou désélectionne.
     this.canvas.addEventListener('pointerdown', (e) => {
       if (e.target !== this.canvas && e.target !== this.world && e.target !== this.svg) return;
+      if (this.locked) return; // simulation : pas d'édition
       if (this.pending) {
         this.addPendingPoint(this.canvasPoint(e.clientX, e.clientY));
-      } else {
-        this.select(null);
+      } else if (e.button === 0) {
+        this.startMarquee(e); // glisser = sélection multiple ; clic simple = désélection
       }
     });
     // Zoom à la molette, centré sur le curseur.
     this.canvas.addEventListener('wheel', this.onWheel, { passive: false });
     // Dépôt d'un composant glissé depuis la palette, là où on le lâche.
     this.canvas.addEventListener('dragover', (e) => {
-      if (e.dataTransfer?.types.includes(DND_MIME)) {
+      if (!this.locked && e.dataTransfer?.types.includes(DND_MIME)) {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'copy';
       }
     });
     this.canvas.addEventListener('drop', (e) => {
+      if (this.locked) return;
       const type = e.dataTransfer?.getData(DND_MIME);
       if (!type) return;
       e.preventDefault();
       const p = this.canvasPoint(e.clientX, e.clientY);
       this.addPart(type, Math.max(0, Math.round(p.x)), Math.max(0, Math.round(p.y)));
     });
+    // État initial enregistré pour l'annulation (feuille vide).
+    this.recordHistory();
+  }
+
+  // --- Verrou de simulation + annuler / refaire -------------------------------
+  /** Active/désactive le verrou d'édition (pendant la simulation). */
+  setLocked(locked: boolean): void {
+    this.locked = locked;
+    if (locked) {
+      this.cancelPending();
+      this.select(null);
+    }
+    this.canvas.classList.toggle('canvas--locked', locked);
+  }
+
+  isLocked(): boolean {
+    return this.locked;
+  }
+
+  /** Enregistre l'état courant dans la pile d'annulation (ignoré en restauration). */
+  private recordHistory(): void {
+    if (this.restoring) return;
+    const state = JSON.stringify(this.diagram);
+    if (this.historyIndex >= 0 && this.history[this.historyIndex] === state) return;
+    this.history.splice(this.historyIndex + 1); // efface le « refaire » devenu caduc
+    this.history.push(state);
+    if (this.history.length > 100) this.history.shift();
+    this.historyIndex = this.history.length - 1;
+  }
+
+  undo(): void {
+    if (this.locked || this.historyIndex <= 0) return;
+    this.historyIndex--;
+    this.restoreHistory();
+  }
+
+  redo(): void {
+    if (this.locked || this.historyIndex >= this.history.length - 1) return;
+    this.historyIndex++;
+    this.restoreHistory();
+  }
+
+  private restoreHistory(): void {
+    const state = this.history[this.historyIndex];
+    if (!state) return;
+    this.restoring = true;
+    try {
+      this.loadDiagram(JSON.parse(state) as { parts?: Part[]; wires?: Wire[] });
+    } finally {
+      this.restoring = false;
+    }
   }
 
   // --- Zoom / déplacement de la vue -------------------------------------------
@@ -293,7 +357,9 @@ export class Editor {
     text.className = 'palette__item-label';
     text.textContent = label;
     btn.append(thumb, text);
-    btn.addEventListener('click', () => this.addPart(def.type));
+    btn.addEventListener('click', () => {
+      if (!this.locked) this.addPart(def.type);
+    });
     btn.draggable = true;
     btn.addEventListener('dragstart', (e) => {
       e.dataTransfer?.setData(DND_MIME, def.type);
@@ -541,6 +607,7 @@ export class Editor {
     this.rendered.get(id)?.container.remove();
     this.rendered.delete(id);
     this.internalShown.delete(id);
+    this.selectedParts.delete(id);
     this.diagram.parts = this.diagram.parts.filter((p) => p.id !== id);
     if (this.selection?.kind === 'part' && this.selection.id === id) this.select(null);
     this.redrawWires();
@@ -549,6 +616,16 @@ export class Editor {
 
   elementOf(id: string): WokwiElement | undefined {
     return this.rendered.get(id)?.el;
+  }
+
+  /**
+   * Réinitialise l'aspect de tous les composants : chaque élément est recréé à
+   * partir de ses attributs initiaux, effaçant l'état piloté par la simulation
+   * (LED éteintes, afficheurs vides…). Le schéma (fils, positions) est conservé.
+   */
+  resetVisuals(): void {
+    for (const id of [...this.rendered.keys()]) this.rerenderPart(id);
+    this.redrawWires();
   }
 
   /** Vide entièrement l'atelier (changement de carte, nouveau schéma). */
@@ -560,6 +637,7 @@ export class Editor {
     for (const r of this.rendered.values()) r.container.remove();
     this.rendered.clear();
     this.internalShown.clear();
+    this.selectedParts.clear();
     this.diagram.parts = [];
     this.diagram.wires = [];
     this.colorIndex = 0;
@@ -593,7 +671,9 @@ export class Editor {
         b: { partId: idMap.get(w.b.partId) ?? w.b.partId, pin: w.b.pin },
       };
       this.diagram.wires.push(nw);
-      this.drawWire(nw);
+      // Les fils implicites d'enfichage (auto) ne sont jamais tracés : sinon ils
+      // apparaissaient comme des fils parasites après une sauvegarde/réouverture.
+      if (!nw.auto) this.drawWire(nw);
     }
     this.redrawWires();
     this.notify();
@@ -649,15 +729,7 @@ export class Editor {
     name.className = 'part__name';
     name.textContent = t(def.label);
     head.appendChild(name);
-    const del = document.createElement('span');
-    del.className = 'part__del';
-    del.textContent = '✕';
-    del.title = t('Delete');
-    del.addEventListener('pointerdown', (e) => {
-      e.stopPropagation();
-      this.removePart(part.id);
-    });
-    head.appendChild(del);
+    // Plus de croix d'effacement ici : suppression via l'inspecteur (🗑) ou Suppr.
     container.appendChild(head);
 
     const body = document.createElement('div');
@@ -678,9 +750,20 @@ export class Editor {
     // composants interactifs (bouton, potentiomètre) dont le clic gauche
     // actionne le contrôle : clic droit pour les déplacer, ou clic gauche pour
     // les sélectionner puis glisser leur bandeau.
-    head.addEventListener('pointerdown', (e) => this.startDrag(e, part));
+    head.addEventListener('pointerdown', (e) => {
+      if (e.ctrlKey && !this.locked) {
+        e.stopPropagation();
+        this.toggleInSelection(part.id);
+        return;
+      }
+      this.startDrag(e, part);
+    });
     body.addEventListener('pointerdown', (e) => {
-      if (e.button === 2) {
+      if (this.locked) return; // simulation : on laisse le composant réagir, pas d'édition
+      if (e.ctrlKey) {
+        e.stopPropagation();
+        this.toggleInSelection(part.id); // Ctrl+clic : sélection multiple
+      } else if (e.button === 2) {
         e.stopPropagation();
         this.startDrag(e, part);
       } else if (!def.interactive) {
@@ -725,7 +808,7 @@ export class Editor {
         e.stopPropagation();
         this.toggleInternalWiring(part.id);
       });
-      head.insertBefore(toggle, del);
+      head.appendChild(toggle);
     }
 
     this.rendered.set(part.id, { part, container, el, hotspots });
@@ -758,15 +841,24 @@ export class Editor {
     if (head) this.positionHead(part, head, body);
   }
 
-  /** Retourne le composant sélectionné sur l'axe horizontal ('h') ou vertical ('v'). */
+  /** Identifiants des composants ciblés par rotation/retournement (sélection multiple ou simple). */
+  private transformTargets(): string[] {
+    if (this.selectedParts.size > 0) return [...this.selectedParts];
+    return this.selection?.kind === 'part' ? [this.selection.id] : [];
+  }
+
+  /** Retourne le(s) composant(s) sélectionné(s) sur l'axe horizontal ('h') ou vertical ('v'). */
   flipSelection(axis: 'h' | 'v'): void {
-    if (this.selection?.kind !== 'part') return;
-    const r = this.rendered.get(this.selection.id);
-    if (!r) return;
-    if (axis === 'h') r.part.flipH = !r.part.flipH;
-    else r.part.flipV = !r.part.flipV;
-    const body = r.container.querySelector('.part__body') as HTMLDivElement | null;
-    if (body) this.applyRotation(r.part, body);
+    const ids = this.transformTargets();
+    if (ids.length === 0) return;
+    for (const id of ids) {
+      const r = this.rendered.get(id);
+      if (!r) continue;
+      if (axis === 'h') r.part.flipH = !r.part.flipH;
+      else r.part.flipV = !r.part.flipV;
+      const body = r.container.querySelector('.part__body') as HTMLDivElement | null;
+      if (body) this.applyRotation(r.part, body);
+    }
     this.redrawWires(); // le miroir déplace les broches à l'écran
     this.renderInspector(); // met à jour l'état actif des boutons
     this.notify();
@@ -802,14 +894,17 @@ export class Editor {
     head.style.transform = 'translateY(-100%)'; // hisse le bandeau au-dessus
   }
 
-  /** Tourne le composant sélectionné de ±45° (touches + / -). */
+  /** Tourne le(s) composant(s) sélectionné(s) de ±45° (touches + / -). */
   rotateSelection(deltaDeg: number): void {
-    if (this.selection?.kind !== 'part') return;
-    const r = this.rendered.get(this.selection.id);
-    if (!r) return;
-    r.part.rotation = (((r.part.rotation ?? 0) + deltaDeg) % 360 + 360) % 360;
-    const body = r.container.querySelector('.part__body') as HTMLDivElement | null;
-    if (body) this.applyRotation(r.part, body);
+    const ids = this.transformTargets();
+    if (ids.length === 0) return;
+    for (const id of ids) {
+      const r = this.rendered.get(id);
+      if (!r) continue;
+      r.part.rotation = (((r.part.rotation ?? 0) + deltaDeg) % 360 + 360) % 360;
+      const body = r.container.querySelector('.part__body') as HTMLDivElement | null;
+      if (body) this.applyRotation(r.part, body);
+    }
     // Les pastilles tournent avec le corps : leurs positions à l'écran changent.
     this.redrawWires();
     this.notify();
@@ -839,7 +934,7 @@ export class Editor {
   }
 
   private startDrag(e: PointerEvent, part: Part): void {
-    if (this.pending) return; // câblage en cours : pas de déplacement
+    if (this.pending || this.locked) return; // câblage en cours / simulation : pas de déplacement
     e.preventDefault();
     const startX = e.clientX;
     const startY = e.clientY;
@@ -847,8 +942,16 @@ export class Editor {
     if (!r) return;
     let moved = false;
 
-    // Groupe à déplacer ensemble (composant + ce qui est enfiché dedans).
-    const members = [...this.connectedGroup(part.id)]
+    // Si le composant fait partie d'une sélection multiple, tout le lot bouge ;
+    // sinon, juste lui + ce qui est enfiché dedans. Chaque racine entraîne sa
+    // grappe d'enfichage.
+    const roots =
+      this.selectedParts.has(part.id) && this.selectedParts.size > 1
+        ? [...this.selectedParts]
+        : [part.id];
+    const groupIds = new Set<string>();
+    for (const rid of roots) for (const g of this.connectedGroup(rid)) groupIds.add(g);
+    const members = [...groupIds]
       .map((id) => this.rendered.get(id))
       .filter((rr): rr is Rendered => rr !== undefined)
       .map((rr) => ({ rr, ox: rr.part.x, oy: rr.part.y }));
@@ -999,6 +1102,7 @@ export class Editor {
 
   // --- Câblage ---------------------------------------------------------------
   private onPinDown(endpoint: Endpoint, e: PointerEvent): void {
+    if (this.locked) return; // simulation : pas de câblage
     if (this.pending) {
       this.completeWire(endpoint);
       return;
@@ -1097,12 +1201,47 @@ export class Editor {
   private onKeyDown = (e: KeyboardEvent): void => {
     const target = e.target as HTMLElement | null;
     const typing = target && (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA');
+    // Raccourcis Ctrl : annuler/refaire, copier (toujours), coller/dupliquer.
+    if (e.ctrlKey && !typing) {
+      const k = e.key.toLowerCase();
+      if (k === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) this.redo();
+        else this.undo();
+        return;
+      }
+      if (k === 'y') {
+        e.preventDefault();
+        this.redo();
+        return;
+      }
+      if (k === 'c') {
+        // Copie autorisée même en simulation (lecture seule).
+        e.preventDefault();
+        this.copySelection();
+        return;
+      }
+      if (k === 'v' && !this.locked) {
+        e.preventDefault();
+        this.paste();
+        return;
+      }
+      if (k === 'd' && !this.locked) {
+        e.preventDefault();
+        this.duplicateSelection();
+        return;
+      }
+    }
+    if (this.locked) return; // simulation : pas d'édition du schéma
     if (e.key === 'Escape') {
       this.cancelPending();
       this.select(null);
     } else if ((e.key === 'Delete' || e.key === 'Backspace') && !typing) {
-      if (this.selection?.kind === 'part') this.removePart(this.selection.id);
-      else if (this.selection?.kind === 'wire') {
+      if (this.selectedParts.size > 0) {
+        const ids = [...this.selectedParts];
+        for (const id of ids) this.removePart(id);
+        this.select(null);
+      } else if (this.selection?.kind === 'wire') {
         // Un coude sélectionné : on supprime ce coude ; sinon le fil entier.
         if (this.activeHandle?.wireId === this.selection.id) {
           this.removeWirePoint(this.selection.id, this.activeHandle.index);
@@ -1309,26 +1448,187 @@ export class Editor {
 
   // --- Sélection + éditeur de composants --------------------------------------
   private select(sel: Selection): void {
-    // Retire la mise en évidence précédente.
-    if (this.selection?.kind === 'part') {
-      const old = this.rendered.get(this.selection.id);
-      old?.container.classList.remove('part--selected');
-      // Le câblage interne n'est visible qu'à la sélection : on le masque ici
-      // (l'état d'activation du bouton est conservé pour la prochaine sélection).
-      old?.container.querySelector('.part__internal')?.remove();
-    } else if (this.selection?.kind === 'wire') {
+    // Retire la mise en évidence précédente (fil + câblages internes affichés).
+    if (this.selection?.kind === 'wire') {
       this.wirePaths.get(this.selection.id)?.classList.remove('wire--selected');
     }
+    for (const id of this.selectedParts) {
+      this.rendered.get(id)?.container.querySelector('.part__internal')?.remove();
+    }
+
     this.selection = sel;
+    this.selectedParts = sel?.kind === 'part' ? new Set([sel.id]) : new Set();
     this.clearHandles();
+    this.setPartHighlight();
+
     if (sel?.kind === 'part') {
-      this.rendered.get(sel.id)?.container.classList.add('part--selected');
       if (this.internalShown.has(sel.id)) this.renderInternalWiring(sel.id);
     } else if (sel?.kind === 'wire') {
       this.wirePaths.get(sel.id)?.classList.add('wire--selected');
       this.buildHandles(sel.id);
     }
     this.renderInspector();
+  }
+
+  /** Met le contour « sélectionné » sur tous les composants de la sélection. */
+  private setPartHighlight(): void {
+    for (const [id, r] of this.rendered) {
+      r.container.classList.toggle('part--selected', this.selectedParts.has(id));
+    }
+  }
+
+  /** Ctrl+clic : ajoute/retire un composant de la sélection multiple. */
+  private toggleInSelection(id: string): void {
+    if (this.selection?.kind === 'wire') {
+      this.wirePaths.get(this.selection.id)?.classList.remove('wire--selected');
+      this.clearHandles();
+    }
+    if (this.selectedParts.has(id)) {
+      this.selectedParts.delete(id);
+      this.rendered.get(id)?.container.querySelector('.part__internal')?.remove();
+    } else {
+      this.selectedParts.add(id);
+    }
+    const members = [...this.selectedParts];
+    this.selection = members.length > 0 ? { kind: 'part', id: members[members.length - 1] } : null;
+    this.setPartHighlight();
+    this.renderInspector();
+  }
+
+  /** Démarre un rectangle de sélection (marquee) sur le fond du canvas. */
+  private startMarquee(e: PointerEvent): void {
+    const start = this.canvasPoint(e.clientX, e.clientY);
+    const baseSet = e.ctrlKey ? new Set(this.selectedParts) : new Set<string>();
+    let moved = false;
+    const rectEl = document.createElement('div');
+    rectEl.className = 'marquee';
+    this.world.appendChild(rectEl);
+
+    const move = (ev: PointerEvent): void => {
+      const cur = this.canvasPoint(ev.clientX, ev.clientY);
+      if (!moved && Math.hypot(cur.x - start.x, cur.y - start.y) < DRAG_THRESHOLD) return;
+      moved = true;
+      const x = Math.min(start.x, cur.x);
+      const y = Math.min(start.y, cur.y);
+      const w = Math.abs(cur.x - start.x);
+      const h = Math.abs(cur.y - start.y);
+      rectEl.style.left = `${x}px`;
+      rectEl.style.top = `${y}px`;
+      rectEl.style.width = `${w}px`;
+      rectEl.style.height = `${h}px`;
+      this.selectedParts = new Set([...baseSet, ...this.partsInRect(x, y, w, h)]);
+      this.setPartHighlight();
+    };
+    const up = (): void => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      rectEl.remove();
+      if (!moved) {
+        this.select(null); // simple clic sur le fond = désélection
+        return;
+      }
+      const members = [...this.selectedParts];
+      this.selection = members.length === 1 ? { kind: 'part', id: members[0] } : null;
+      this.renderInspector();
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
+  /** Composants dont la boîte englobante recoupe le rectangle (coords monde). */
+  private partsInRect(x: number, y: number, w: number, h: number): string[] {
+    const ids: string[] = [];
+    for (const [id, r] of this.rendered) {
+      const body = r.container.querySelector('.part__body') as HTMLElement | null;
+      const pw = body?.offsetWidth || 40;
+      const ph = body?.offsetHeight || 40;
+      if (r.part.x < x + w && r.part.x + pw > x && r.part.y < y + h && r.part.y + ph > y) {
+        ids.push(id);
+      }
+    }
+    return ids;
+  }
+
+  // --- Copier / coller / dupliquer --------------------------------------------
+  /**
+   * Copie la sélection : presse-papier interne (pour Coller/Dupliquer dans le
+   * schéma) + image vectorielle SVG dans le presse-papier système (pour coller
+   * dans un autre logiciel, ex. Inkscape).
+   */
+  copySelection(): void {
+    if (this.selectedParts.size === 0) return;
+    const ids = new Set(this.selectedParts);
+    const parts = this.diagram.parts.filter((p) => ids.has(p.id));
+    // Seuls les fils entièrement contenus dans la sélection sont copiés.
+    const wires = this.diagram.wires.filter(
+      (w) => !w.auto && ids.has(w.a.partId) && ids.has(w.b.partId)
+    );
+    this.clipboard = JSON.parse(JSON.stringify({ parts, wires })) as { parts: Part[]; wires: Wire[] };
+    void this.copyAsVectorImage(this.buildSvg(ids));
+  }
+
+  /** Colle le presse-papier interne (composants décalés, fils internes conservés). */
+  paste(): void {
+    if (!this.clipboard || this.clipboard.parts.length === 0) return;
+    const OFFSET = 24;
+    const idMap = new Map<string, string>();
+    const newIds = new Set<string>();
+    for (const p of this.clipboard.parts) {
+      const np: Part = { ...p, id: uid(`${p.type}-`), x: p.x + OFFSET, y: p.y + OFFSET };
+      idMap.set(p.id, np.id);
+      this.diagram.parts.push(np);
+      this.renderPart(np);
+      newIds.add(np.id);
+    }
+    for (const w of this.clipboard.wires) {
+      const a = idMap.get(w.a.partId);
+      const b = idMap.get(w.b.partId);
+      if (!a || !b) continue;
+      const nw: Wire = {
+        ...w,
+        id: uid('w-'),
+        a: { partId: a, pin: w.a.pin },
+        b: { partId: b, pin: w.b.pin },
+        points: w.points?.map((pt) => ({ x: pt.x + OFFSET, y: pt.y + OFFSET })),
+      };
+      this.diagram.wires.push(nw);
+      this.drawWire(nw);
+    }
+    this.redrawWires();
+    // Sélectionne les copies fraîchement posées.
+    this.selectedParts = newIds;
+    this.selection = newIds.size === 1 ? { kind: 'part', id: [...newIds][0] } : null;
+    this.setPartHighlight();
+    this.renderInspector();
+    this.notify();
+  }
+
+  /** Duplique la sélection sur place (copie + colle). */
+  duplicateSelection(): void {
+    this.copySelection();
+    this.paste();
+  }
+
+  /** Écrit le SVG fourni dans le presse-papier système (image vectorielle, repli texte). */
+  private async copyAsVectorImage(svg: string): Promise<void> {
+    try {
+      if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'image/svg+xml': new Blob([svg], { type: 'image/svg+xml' }),
+            'text/plain': new Blob([svg], { type: 'text/plain' }),
+          }),
+        ]);
+        return;
+      }
+    } catch {
+      // type image/svg+xml non pris en charge : repli sur le texte brut.
+    }
+    try {
+      await navigator.clipboard?.writeText(svg);
+    } catch {
+      // presse-papier indisponible (focus/permission) : on n'échoue pas.
+    }
   }
 
   // --- Câblage interne (commandé par le bouton ☢ du bandeau) ------------------
@@ -1414,6 +1714,12 @@ export class Editor {
     title.textContent = t('Properties');
     this.inspector.appendChild(title);
 
+    // Sélection multiple : résumé + actions de groupe (rotation/miroir/suppression).
+    if (this.selectedParts.size > 1) {
+      this.renderMultiInspector();
+      return;
+    }
+
     if (!this.selection) {
       const hint = document.createElement('p');
       hint.className = 'inspector__hint';
@@ -1427,6 +1733,26 @@ export class Editor {
     } else {
       this.renderPartInspector(this.selection.id);
     }
+  }
+
+  /** Inspecteur d'une sélection multiple : nombre + transformations de groupe. */
+  private renderMultiInspector(): void {
+    const subtitle = document.createElement('p');
+    subtitle.className = 'inspector__subtitle';
+    subtitle.textContent = t('{0} parts selected', this.selectedParts.size);
+    this.inspector.appendChild(subtitle);
+
+    this.appendTransformControl(null);
+    this.appendDeleteButton(t('Delete the selection'), () => {
+      const ids = [...this.selectedParts];
+      for (const id of ids) this.removePart(id);
+      this.select(null);
+    });
+    this.appendHelp([
+      t('+ or − to rotate the parts'),
+      t('Drag a part to move the whole selection.'),
+      t('Ctrl+C / Ctrl+V: copy / paste — Ctrl+D: duplicate.'),
+    ]);
   }
 
   private renderWireInspector(wireId: string): void {
@@ -1488,7 +1814,7 @@ export class Editor {
       this.inspector.appendChild(hint);
     }
 
-    this.appendTransformControl(partId, r.part);
+    this.appendTransformControl(r.part);
     this.appendDeleteButton(t('Delete the part'), () => this.removePart(partId));
     // Zone d'aide contextuelle, sous les propriétés du composant sélectionné.
     const lines = [t('+ or − to rotate the part')];
@@ -1500,7 +1826,7 @@ export class Editor {
    * Barre d'orientation : rotation (↺ ↻, équivalent des touches − / +) et
    * retournement (⇆ ⇅), uniquement des icônes, pour tout composant.
    */
-  private appendTransformControl(partId: string, part: Part): void {
+  private appendTransformControl(part: Part | null): void {
     const label = document.createElement('label');
     label.className = 'inspector__label';
     label.textContent = t('Orientation');
@@ -1511,8 +1837,8 @@ export class Editor {
     const buttons: Array<{ glyph: string; title: string; on: () => void; active?: boolean }> = [
       { glyph: '↺', title: t('Rotate left (−45°)'), on: () => this.rotateSelection(-45) },
       { glyph: '↻', title: t('Rotate right (+45°)'), on: () => this.rotateSelection(45) },
-      { glyph: '⇆', title: t('Flip horizontally'), on: () => this.flipSelection('h'), active: part.flipH },
-      { glyph: '⇅', title: t('Flip vertically'), on: () => this.flipSelection('v'), active: part.flipV },
+      { glyph: '⇆', title: t('Flip horizontally'), on: () => this.flipSelection('h'), active: part?.flipH },
+      { glyph: '⇅', title: t('Flip vertically'), on: () => this.flipSelection('v'), active: part?.flipV },
     ];
     for (const b of buttons) {
       const btn = document.createElement('button');
@@ -1557,6 +1883,23 @@ export class Editor {
       }
       select.addEventListener('change', () => this.updatePartAttr(partId, prop.attr, select.value));
       this.inspector.appendChild(select);
+    } else if (prop.suffixes) {
+      // Champ texte acceptant les suffixes SI (p n µ m k M G), ex. « 2.2k ».
+      const input = document.createElement('input');
+      input.className = 'inspector__control';
+      input.type = 'text';
+      input.value = current === '' ? '' : formatSiValue(Number(current));
+      input.title = t('Suffixes allowed: p n µ m k M G (e.g. 2.2k)');
+      input.addEventListener('change', () => {
+        const parsed = parseSiValue(input.value);
+        if (parsed === null) {
+          input.value = current === '' ? '' : formatSiValue(Number(current)); // entrée invalide : on annule
+          return;
+        }
+        this.updatePartAttr(partId, prop.attr, String(parsed));
+        input.value = formatSiValue(parsed);
+      });
+      this.inspector.appendChild(input);
     } else {
       const input = document.createElement('input');
       input.className = 'inspector__control';
@@ -1596,6 +1939,7 @@ export class Editor {
   }
 
   private notify(): void {
+    this.recordHistory();
     this.onChange?.();
   }
 
@@ -1608,6 +1952,11 @@ export class Editor {
    * englobe composants, fils et coudes, avec une marge — plus rien n'est rogné.
    */
   exportSvg(): string {
+    return this.buildSvg(null);
+  }
+
+  /** Construit le SVG du schéma entier (only = null) ou d'une sélection. */
+  private buildSvg(only: Set<string> | null): string {
     const serializer = new XMLSerializer();
     const parts: string[] = [];
     const MARGIN = 30;
@@ -1623,6 +1972,7 @@ export class Editor {
     };
 
     for (const r of this.rendered.values()) {
+      if (only && !only.has(r.part.id)) continue; // export limité à la sélection
       const root = r.el.shadowRoot ?? r.el;
       const svgEl = root.querySelector('svg');
       const x = r.part.x;
@@ -1670,6 +2020,15 @@ export class Editor {
         clone.setAttribute('y', String(y));
         clone.setAttribute('width', String(w));
         clone.setAttribute('height', String(h));
+        // Les styles (tailles de police des textes…) vivent dans le shadow DOM,
+        // hors du <svg> : sans eux, les textes prenaient une taille par défaut
+        // énorme à l'export. On les réinjecte dans le <svg> autonome.
+        const css = collectShadowCss(root);
+        if (css) {
+          const styleEl = document.createElementNS(SVG_NS, 'style');
+          styleEl.textContent = css;
+          clone.insertBefore(styleEl, clone.firstChild);
+        }
         inner = serializer.serializeToString(clone);
       } else {
         // Repli : composant sans SVG → rectangle étiqueté, pour ne rien perdre.
@@ -1685,6 +2044,8 @@ export class Editor {
     const wires: string[] = [];
     for (const wire of this.diagram.wires) {
       if (wire.auto) continue; // fils implicites d'enfichage : non dessinés
+      // Export de sélection : uniquement les fils entièrement dans la sélection.
+      if (only && !(only.has(wire.a.partId) && only.has(wire.b.partId))) continue;
       const a = this.hotspotCenter(wire.a);
       const b = this.hotspotCenter(wire.b);
       if (!a || !b) continue;
@@ -1728,6 +2089,59 @@ export class Editor {
 function pinDisplayName(kind: string, pinName: string): string {
   if (kind === 'led' && pinName === 'C') return 'K';
   return pinName;
+}
+
+/**
+ * Récupère le CSS d'un shadow root (feuilles adoptées par Lit + balises
+ * <style>) pour le réinjecter dans le SVG exporté — sinon les règles de style
+ * (tailles de police…) sont perdues et les textes deviennent géants.
+ */
+function collectShadowCss(root: ShadowRoot | HTMLElement): string {
+  let css = '';
+  const adopted = (root as ShadowRoot).adoptedStyleSheets;
+  if (adopted) {
+    for (const sheet of adopted) {
+      try {
+        for (const rule of sheet.cssRules) css += rule.cssText + '\n';
+      } catch {
+        // feuille d'une autre origine : ignorée
+      }
+    }
+  }
+  root.querySelectorAll?.('style').forEach((s) => {
+    css += (s.textContent ?? '') + '\n';
+  });
+  return css;
+}
+
+// --- Valeurs avec suffixes SI (résistances…) ----------------------------------
+const SI_MULT: Record<string, number> = {
+  p: 1e-12, n: 1e-9, u: 1e-6, µ: 1e-6, m: 1e-3, k: 1e3, K: 1e3, M: 1e6, G: 1e9,
+};
+
+/** Convertit « 2.2k », « 470 », « 1M5 »→non… une valeur SI en nombre, ou null. */
+function parseSiValue(text: string): number | null {
+  const m = /^\s*([0-9]*\.?[0-9]+)\s*([pnuµmkKMG]?)\s*$/.exec(text);
+  if (!m) return null;
+  const base = parseFloat(m[1]);
+  if (!Number.isFinite(base)) return null;
+  return base * (m[2] ? SI_MULT[m[2]] : 1);
+}
+
+/** Formate un nombre avec le suffixe SI le plus adapté (2200 → « 2.2k »). */
+function formatSiValue(n: number): string {
+  if (!Number.isFinite(n)) return '';
+  const units: Array<[number, string]> = [
+    [1e9, 'G'], [1e6, 'M'], [1e3, 'k'], [1, ''], [1e-3, 'm'], [1e-6, 'µ'], [1e-9, 'n'], [1e-12, 'p'],
+  ];
+  const abs = Math.abs(n);
+  for (const [factor, suffix] of units) {
+    if (abs >= factor) {
+      const v = n / factor;
+      return `${parseFloat(v.toFixed(3))}${suffix}`;
+    }
+  }
+  return String(n);
 }
 
 /** Distance d'un point à un segment [a,b]. */

@@ -98,6 +98,9 @@ const pauseBtn = document.getElementById('pause') as HTMLButtonElement;
 const stepBtn = document.getElementById('step') as HTMLButtonElement;
 const speedSelect = document.getElementById('speed') as HTMLSelectElement;
 const debugSection = document.getElementById('debug') as HTMLElement;
+const workshopEl = document.querySelector('.workshop') as HTMLElement;
+const stageEl = document.querySelector('.stage') as HTMLElement;
+const serialEl0 = document.querySelector('.serial') as HTMLElement;
 const debugLineEl = document.getElementById('debug-line') as HTMLSpanElement;
 const debugVarsEl = document.getElementById('debug-vars') as HTMLTableElement;
 const statusEl = document.getElementById('status') as HTMLSpanElement;
@@ -110,6 +113,8 @@ const palette = document.getElementById('palette') as HTMLDivElement;
 const wiresSvg = document.getElementById('wires') as unknown as SVGSVGElement;
 const inspector = document.getElementById('inspector') as HTMLDivElement;
 const codeFileBtn = document.getElementById('code-file') as HTMLButtonElement;
+const resetSimBtn = document.getElementById('reset-sim') as HTMLButtonElement;
+const clearCanvasBtn = document.getElementById('clear-canvas') as HTMLButtonElement;
 
 const editor = new Editor(canvas, palette, wiresSvg, inspector);
 
@@ -295,6 +300,24 @@ function rebind(): void {
   queueRefresh();
 }
 
+/**
+ * Pendant la simulation, le panneau Variables prend la place des Propriétés
+ * (inutiles puisque le schéma est figé) dans la colonne de droite.
+ */
+function useDebugAsInspector(on: boolean): void {
+  if (on) {
+    inspector.style.display = 'none';
+    debugSection.hidden = false;
+    debugSection.classList.add('debug--side');
+    workshopEl.appendChild(debugSection);
+  } else {
+    debugSection.classList.remove('debug--side');
+    debugSection.hidden = true;
+    stageEl.insertBefore(debugSection, serialEl0); // remet le panneau sous le canvas
+    inspector.style.display = '';
+  }
+}
+
 // --- Débogage : pause, pas à pas, panneau des variables -----------------------
 function renderDebugPause(state: DebugPauseState): void {
   debugSection.hidden = false;
@@ -313,6 +336,9 @@ function renderDebugPause(state: DebugPauseState): void {
 
 function updateDebugButtons(): void {
   const paused = engine?.paused ?? false;
+  // Pas à pas : on verrouille les actions sur les composants (ex. appui BP) tant
+  // que la simulation est en pause, pour ne pas perturber l'état figé.
+  canvas.classList.toggle('canvas--paused', paused);
   pauseBtn.disabled = !engine;
   // Icône seule (bouton sur le canvas) : le libellé passe dans l'info-bulle.
   pauseBtn.textContent = paused ? '▶' : '⏸';
@@ -360,6 +386,8 @@ function startRun(): void {
   engine.setBreakpoints?.(breakpointLines);
   rebind();
   engine.start();
+  editor.setLocked(true); // schéma figé pendant la simulation
+  useDebugAsInspector(true); // Variables à la place des Propriétés
   runBtn.disabled = true;
   stopBtn.disabled = false;
   updateDebugButtons();
@@ -372,9 +400,10 @@ function stopRun(): void {
   inputRemovers = [];
   engine?.dispose();
   engine = null;
+  editor.setLocked(false); // édition du schéma de nouveau possible
+  useDebugAsInspector(false); // Propriétés de nouveau dans la colonne de droite
   runBtn.disabled = false;
   stopBtn.disabled = true;
-  debugSection.hidden = true;
   vscode.postMessage({ type: 'debugResumed' });
   updateDebugButtons();
   setStatus(t('Stopped'));
@@ -395,6 +424,16 @@ function persistState(): void {
 // --- Barre d'outils -----------------------------------------------------------
 runBtn.addEventListener('click', startRun);
 stopBtn.addEventListener('click', stopRun);
+// Tout réinitialiser : arrête la simulation et remet les composants à zéro.
+resetSimBtn.addEventListener('click', () => {
+  stopRun();
+  editor.resetVisuals();
+  setStatus(t('Reset'));
+});
+// Effacer le schéma (annulable avec Ctrl+Z).
+clearCanvasBtn.addEventListener('click', () => {
+  if (!editor.isLocked()) editor.clear();
+});
 clearBtn.addEventListener('click', () => {
   serialEl.textContent = '';
 });
@@ -419,6 +458,8 @@ openProjectBtn.addEventListener('click', () => {
 // Par défaut les noms n'apparaissent qu'à la sélection ; 🏷 force l'affichage.
 let showLabels = false;
 let paletteState: PaletteState = { sort: 'category', recents: [] };
+let paletteWidth = 0; // 0 = largeur par défaut (CSS)
+let inspectorWidth = 0;
 
 function applyShowLabels(): void {
   canvas.classList.toggle('canvas--show-labels', showLabels);
@@ -426,9 +467,46 @@ function applyShowLabels(): void {
 }
 applyShowLabels();
 
-function saveUiState(): void {
-  vscode.postMessage({ type: 'saveUiState', state: { ...paletteState, showLabels } });
+function applyPanelWidths(): void {
+  if (paletteWidth) palette.style.flex = `0 0 ${paletteWidth}px`;
+  if (inspectorWidth) inspector.style.flex = `0 0 ${inspectorWidth}px`;
 }
+
+function saveUiState(): void {
+  vscode.postMessage({
+    type: 'saveUiState',
+    state: { ...paletteState, showLabels, paletteWidth, inspectorWidth },
+  });
+}
+
+// Redimensionnement des colonnes (bibliothèque / propriétés-variables) par glissement.
+function setupSplitter(id: string, which: 'palette' | 'inspector'): void {
+  const splitter = document.getElementById(id);
+  if (!splitter) return;
+  splitter.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    const startX = (e as PointerEvent).clientX;
+    // Colonne cible : l'inspecteur, ou le panneau Variables s'il l'a remplacé.
+    const col = which === 'palette' ? palette : inspector.style.display === 'none' ? debugSection : inspector;
+    const startW = col.getBoundingClientRect().width;
+    const sign = which === 'palette' ? 1 : -1;
+    const move = (ev: PointerEvent) => {
+      const w = Math.max(90, Math.min(520, startW + sign * (ev.clientX - startX)));
+      col.style.flex = `0 0 ${w}px`;
+      if (which === 'palette') paletteWidth = w;
+      else if (col === inspector) inspectorWidth = w;
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      saveUiState();
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  });
+}
+setupSplitter('splitter-palette', 'palette');
+setupSplitter('splitter-inspector', 'inspector');
 
 labelsBtn.addEventListener('click', () => {
   showLabels = !showLabels;
@@ -568,9 +646,16 @@ window.addEventListener('message', (event: MessageEvent) => {
       setStatus(t('Ready'));
       break;
     case 'uiState': {
-      const state = (msg.state ?? {}) as Partial<PaletteState> & { showLabels?: boolean };
+      const state = (msg.state ?? {}) as Partial<PaletteState> & {
+        showLabels?: boolean;
+        paletteWidth?: number;
+        inspectorWidth?: number;
+      };
       if (typeof state.showLabels === 'boolean') showLabels = state.showLabels;
       applyShowLabels();
+      if (typeof state.paletteWidth === 'number') paletteWidth = state.paletteWidth;
+      if (typeof state.inspectorWidth === 'number') inspectorWidth = state.inspectorWidth;
+      applyPanelWidths();
       paletteState = {
         sort: state.sort === 'alpha' ? 'alpha' : 'category',
         recents: Array.isArray(state.recents) ? state.recents : [],

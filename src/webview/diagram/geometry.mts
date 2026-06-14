@@ -6,13 +6,14 @@ export interface XY {
   y: number;
 }
 
-// tan(15°) : en dessous de cette pente, un segment est aimanté sur l'axe.
-const SNAP_SLOPE = 0.27;
+// tan(10°) : en dessous de cette pente, un segment est aimanté sur l'axe
+// (le câble est routé orthogonalement quand le parcours l'est presque).
+const SNAP_SLOPE = 0.176;
 const SNAP_MIN_PX = 10;
 
 /**
  * Aimante le point `to` sur l'horizontale ou la verticale passant par `from`
- * si le segment en est proche (±15° ou ±10 px). Sinon le point est inchangé.
+ * si le segment en est proche (±10° ou ±10 px). Sinon le point est inchangé.
  */
 export function snapPoint(from: XY, to: XY): XY {
   const dx = to.x - from.x;

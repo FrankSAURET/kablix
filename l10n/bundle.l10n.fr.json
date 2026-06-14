@@ -62,5 +62,9 @@
   "No file": "Aucun fichier",
   "Source code": "Code source",
   "Compiled artifact": "Artefact compilé",
-  "Choose the code file to run / debug": "Choisir le fichier de code à exécuter / déboguer"
+  "Choose the code file to run / debug": "Choisir le fichier de code à exécuter / déboguer",
+  "Compile": "Compiler",
+  "Reset all components to their initial state": "Réinitialiser les composants à leur état initial",
+  "Clear the diagram (Ctrl+Z to undo)": "Effacer le schéma (Ctrl+Z pour annuler)",
+  "Drag to resize": "Glisser pour redimensionner"
 }

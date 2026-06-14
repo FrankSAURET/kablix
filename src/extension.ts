@@ -65,6 +65,19 @@ export function activate(context: vscode.ExtensionContext): void {
     })
   );
 
+  // Empêche VS Code de rouvrir le panneau du simulateur au lancement : un
+  // panneau restauré est immédiatement fermé (l'utilisateur le rouvre via
+  // l'icône Kablix ou la commande).
+  if (vscode.window.registerWebviewPanelSerializer) {
+    context.subscriptions.push(
+      vscode.window.registerWebviewPanelSerializer(SimulatorPanel.viewType, {
+        async deserializeWebviewPanel(panel: vscode.WebviewPanel): Promise<void> {
+          panel.dispose();
+        },
+      })
+    );
+  }
+
   // Vérification au démarrage, opt-in et non bloquante (silence si à jour).
   const checkOnStartup = vscode.workspace
     .getConfiguration('kablix')

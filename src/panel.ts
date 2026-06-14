@@ -12,7 +12,6 @@ import {
   packProject,
   unpackProject,
   PROJIX_FORMAT_VERSION,
-  PROJIX_SIZE_WARN,
   type ProjixManifest,
 } from './projix';
 
@@ -41,24 +40,25 @@ export class SimulatorPanel {
   private debugLineDecoration: vscode.TextEditorDecorationType | undefined;
 
   /**
-   * Colonne d'ouverture : le groupe d'éditeurs le plus à droite s'il y en a
-   * plusieurs (Kablix à côté du code), sinon le groupe actif.
+   * Colonne d'ouverture : un nouveau groupe d'éditeurs complètement à droite
+   * (une colonne après le dernier groupe existant), pour que Kablix s'ouvre à
+   * droite du code.
    */
   private static targetColumn(): vscode.ViewColumn {
     const groups = vscode.window.tabGroups.all;
-    if (groups.length > 1) {
-      return Math.max(...groups.map((g) => g.viewColumn)) as vscode.ViewColumn;
-    }
-    return vscode.window.activeTextEditor?.viewColumn ?? vscode.ViewColumn.One;
+    if (groups.length === 0) return vscode.ViewColumn.One;
+    const rightmost = Math.max(...groups.map((g) => g.viewColumn));
+    return Math.min(rightmost + 1, 9) as vscode.ViewColumn;
   }
 
   public static createOrShow(context: vscode.ExtensionContext): SimulatorPanel {
-    const column = SimulatorPanel.targetColumn();
-
     if (SimulatorPanel.current) {
-      SimulatorPanel.current.panel.reveal(column);
+      // Déjà ouvert : on le révèle là où il est (sans le déplacer).
+      SimulatorPanel.current.panel.reveal(undefined, false);
       return SimulatorPanel.current;
     }
+
+    const column = SimulatorPanel.targetColumn();
 
     const extensionUri = context.extensionUri;
     const panel = vscode.window.createWebviewPanel(
@@ -491,7 +491,7 @@ export class SimulatorPanel {
     }
   }
 
-  // --- Format de projet .projix (schéma + code) --------------------------------
+  // --- Format de projet .projix (schéma seul, sans le code) --------------------
 
   /** Demande à la webview son schéma puis enregistre un .projix (commande). */
   public requestSaveProject(): void {
@@ -500,16 +500,12 @@ export class SimulatorPanel {
 
   /**
    * Construit et écrit une archive .projix : manifeste + schéma + composants
-   * personnalisés + tous les fichiers du dossier de code (workspace ou dossier
-   * du fichier actif). Le code est optionnel s'il n'y a pas de dossier.
+   * personnalisés. Le code n'est plus inclus (le .projix ne contient que le
+   * schéma).
    */
   private async saveProject(diagram: unknown, board?: Board): Promise<void> {
     try {
       const folders = vscode.workspace.workspaceFolders;
-      const codeRoot = folders?.length
-        ? folders[0].uri
-        : this.activeFileFolder();
-
       const defaultUri = folders?.length
         ? vscode.Uri.joinPath(folders[0].uri, 'schema-kablix.projix')
         : vscode.Uri.file('schema-kablix.projix');
@@ -533,25 +529,11 @@ export class SimulatorPanel {
         createdAt: new Date().toISOString(),
       };
 
-      const bytes = await vscode.window.withProgress(
-        { location: vscode.ProgressLocation.Notification, title: l10n.t('Kablix: building the project…') },
-        () =>
-          packProject({
-            manifest,
-            diagramJson: JSON.stringify(diagramPayload),
-            codeRoot,
-          })
-      );
-
-      if (bytes.byteLength > PROJIX_SIZE_WARN) {
-        const mb = (bytes.byteLength / (1024 * 1024)).toFixed(1);
-        const choice = await vscode.window.showWarningMessage(
-          l10n.t('Kablix: the project is large ({0} MB). Save anyway?', mb),
-          l10n.t('Save'),
-          l10n.t('Cancel')
-        );
-        if (choice !== l10n.t('Save')) return;
-      }
+      // Schéma seul : pas de codeRoot transmis.
+      const bytes = await packProject({
+        manifest,
+        diagramJson: JSON.stringify(diagramPayload),
+      });
 
       await vscode.workspace.fs.writeFile(target, bytes);
       vscode.window.showInformationMessage(
@@ -563,9 +545,8 @@ export class SimulatorPanel {
   }
 
   /**
-   * Ouvre un .projix : lit l'archive, propose où extraire le dossier code/
-   * (ou de ne pas l'extraire), écrit les fichiers puis recharge le schéma et la
-   * carte dans la webview.
+   * Ouvre un .projix : lit l'archive puis recharge le schéma et la carte dans la
+   * webview. Le code éventuel d'anciennes archives est ignoré (schéma seul).
    */
   public async openProject(): Promise<void> {
     try {
@@ -578,11 +559,6 @@ export class SimulatorPanel {
 
       const bytes = await vscode.workspace.fs.readFile(picked[0]);
       const project = await unpackProject(bytes);
-
-      // Extraction du code : optionnelle. On propose le workspace par défaut.
-      if (project.codeFiles.length > 0) {
-        await this.extractCode(project.codeFiles);
-      }
 
       // Recharge le schéma et la carte dans la webview (et les composants perso).
       const diagram = project.diagram as { customParts?: unknown[] } | undefined;
@@ -603,50 +579,6 @@ export class SimulatorPanel {
     } catch (err) {
       this.reportError(err);
     }
-  }
-
-  /** Propose un dossier de destination puis écrit les fichiers de code. */
-  private async extractCode(
-    codeFiles: Array<{ path: string; data: Uint8Array }>
-  ): Promise<void> {
-    const skip = l10n.t('Do not extract the code');
-    const choose = l10n.t('Choose a folder…');
-    const choice = await vscode.window.showInformationMessage(
-      l10n.t('Kablix: this project contains {0} code file(s). Where to extract them?', codeFiles.length),
-      choose,
-      skip
-    );
-    if (choice !== choose) return;
-
-    const folders = vscode.workspace.workspaceFolders;
-    const dest = await vscode.window.showOpenDialog({
-      canSelectFolders: true,
-      canSelectFiles: false,
-      canSelectMany: false,
-      defaultUri: folders?.length ? folders[0].uri : undefined,
-      openLabel: l10n.t('Extract here'),
-      title: l10n.t('Choose where to extract the code'),
-    });
-    if (!dest || dest.length === 0) return;
-
-    const root = dest[0];
-    for (const file of codeFiles) {
-      // Les chemins de l'archive utilisent '/' ; on les éclate pour joinPath.
-      const segments = file.path.split('/').filter((s) => s.length > 0);
-      if (segments.length === 0) continue;
-      const target = vscode.Uri.joinPath(root, ...segments);
-      await vscode.workspace.fs.writeFile(target, file.data);
-    }
-    vscode.window.showInformationMessage(
-      l10n.t('Kablix: code extracted to {0}', root.fsPath)
-    );
-  }
-
-  /** Dossier contenant le fichier actif (repli quand il n'y a pas de workspace). */
-  private activeFileFolder(): vscode.Uri | undefined {
-    const doc = vscode.window.activeTextEditor?.document;
-    if (!doc || doc.uri.scheme !== 'file') return undefined;
-    return vscode.Uri.joinPath(doc.uri, '..');
   }
 
   /** Version de l'extension (depuis package.json), « ? » si introuvable. */
@@ -739,7 +671,7 @@ export class SimulatorPanel {
       <option value="uno" selected>Arduino Uno</option>
       <option value="pico">Raspberry Pi Pico</option>
     </select>
-    <button id="compile">⚙ ${l10n.t('Compile &amp; run the active file')}</button>
+    <button id="compile" title="${l10n.t('Compile &amp; run the active file')}">⚙ ${l10n.t('Compile')}</button>
     <button id="load-workspace" title="${l10n.t('Loads the most recent compiled artifact of the workspace')}">↑ ${l10n.t('Load workspace')}</button>
     <button id="export-svg" title="${l10n.t('Export the diagram as SVG')}">⬇ SVG</button>
     <button id="save-project" title="${l10n.t('Save the project')}">💾</button>
@@ -751,6 +683,7 @@ export class SimulatorPanel {
   <main class="stage">
     <div class="workshop">
       <aside id="palette" class="palette"></aside>
+      <div class="splitter" id="splitter-palette" data-target="palette" title="${l10n.t('Drag to resize')}"></div>
       <div id="canvas" class="canvas">
         <!-- Commandes de simulation en surimpression du canvas (icônes + bulle). -->
         <div class="canvas-controls" role="toolbar">
@@ -758,6 +691,7 @@ export class SimulatorPanel {
           <button id="stop" class="canvas-controls__btn" disabled title="${l10n.t('Stop')}">■</button>
           <button id="pause" class="canvas-controls__btn" disabled title="${l10n.t('Pause / resume the simulation')}">⏸</button>
           <button id="step" class="canvas-controls__btn" disabled title="${l10n.t('Run one source line then pause')}">⏭</button>
+          <button id="reset-sim" class="canvas-controls__btn" title="${l10n.t('Reset all components to their initial state')}">⟲</button>
           <select id="speed" class="canvas-controls__speed" title="${l10n.t('Simulation speed')}">
             <option value="1" selected>🐇 100 %</option>
             <option value="0.1">🐢 10 %</option>
@@ -765,8 +699,10 @@ export class SimulatorPanel {
           </select>
           <button id="code-file" class="canvas-controls__file" title="${l10n.t('Code file to run / debug — click to change')}">📄 ${l10n.t('No file')}</button>
         </div>
+        <button id="clear-canvas" class="canvas__clear" title="${l10n.t('Clear the diagram (Ctrl+Z to undo)')}">🗑</button>
         <svg id="wires" class="wires"></svg>
       </div>
+      <div class="splitter" id="splitter-inspector" data-target="inspector" title="${l10n.t('Drag to resize')}"></div>
       <aside id="inspector" class="inspector"></aside>
     </div>
 

@@ -149,6 +149,21 @@ Dans VS Code, **F5** (« Lancer l'extension ») ouvre une fenêtre de développe
 | `firmware/` | Sources C des démos + linker RP2040 |
 | `scripts/verify-*.mjs` | Tests automatisés (moteurs, netlist, parseurs, compilation, MicroPython) |
 
+## Crédits
+
+Kablix est développé par **[electropol.fr](https://electropol.fr)** et s'appuie sur les bibliothèques open-source suivantes :
+
+| Bibliothèque | Rôle | Licence |
+| --- | --- | --- |
+| [avr8js](https://github.com/wokwi/avr8js) | Moteur de simulation ATmega328P (Arduino Uno) | MIT |
+| [rp2040js](https://github.com/wokwi/rp2040js) | Moteur de simulation RP2040 (Raspberry Pi Pico) | MIT |
+| [@wokwi/elements](https://github.com/wokwi/wokwi-elements) | Composants visuels (cartes, LED, capteurs…) | MIT |
+| [JSZip](https://stuk.github.io/jszip/) | Lecture/écriture des archives `.projix` | MIT / GPLv3 |
+| Bootrom B1 du RP2040 | Démarrage du RP2040 simulé | © Raspberry Pi (Trading) Ltd — BSD-3-Clause |
+| MicroPython | Firmware `.uf2` exécuté sur le Pico simulé (fourni par l'utilisateur) | MIT |
+
+Le format de projet et les composants importés sont compatibles avec [Wokwi](https://wokwi.com) (format ouvert `diagram.json`).
+
 ## Licence
 
 MIT — le bootrom RP2040 embarqué est © Raspberry Pi (Trading) Ltd, licence BSD-3-Clause.

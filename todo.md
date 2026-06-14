@@ -1,3 +1,28 @@
+- [x] Rends les zones de bibliotheque et de propriété/variable ajustable en largeur → fait : poignées de glissement entre la bibliothèque/inspecteur et le canvas (largeurs persistées).
+- ---
+- [x] Un ensemble sélectionné doit pouvoir etre déplacé et copié dans le presse papier pour être dupliqué sur le schéma ou collé comme image vectorielle dans un autre logiciel → fait : Ctrl+C copie (presse-papier interne + SVG vers le presse-papier système), Ctrl+V colle (décalé), Ctrl+D duplique ; le SVG de la sélection est collable comme image vectorielle dans un autre logiciel.
+- [x] prévois un mode verouillage des actions temporaire pour la simulationen pas à pas - exemple appuis sur BP → fait : en pause/pas à pas, les composants ne réagissent plus (classe canvas--paused, pointer-events coupés).
+- [x] delay plante la simulation → fait : timers 0/1/2 ajoutés au moteur AVR (millis()/micros()/delay() fonctionnent, la boucle ne gèle plus).
+- [x] En simulation, mettre la zone variable à la place de la zone propriétés qui ne sert que pour le cablage → fait : pendant la simulation, le panneau Variables occupe la colonne de droite à la place des Propriétés.
+- [x] Ajoute la possibilité de sélectionner plusieurs composant avec une zone de la souris au ctrl + clic → fait : marquee (rectangle de souris) + Ctrl+clic ; déplacement, rotation, miroir et suppression de groupe.
+- ---
+- [x] change l'auteur pour electropol.fr et rajoute les crédits de ce qu'on utilise tout en bas du readme. → fait : champ author = electropol.fr (package.json) + section « Crédits » en bas du README (avr8js, rp2040js, @wokwi/elements, JSZip, bootrom, MicroPython).
+- [x] Le volet Kablix:simulateur s'ouvre toujours au lancement et je veux qu'il soit masqué → fait : sérialiseur de webview qui ferme tout panneau restauré au lancement + garde-fou de démarrage (icône conservée, ouverture sur clic/commande).
+- [x] La fenetre principale de kablix doit s'ouvrir dans un nouvel onglet complètement à droite de la fenetre de vscode → fait : ouverture dans un nouveau groupe d'éditeurs (colonne = dernier groupe + 1).
+- [x] il y a des erreurs dans les fils lors de la sauvegarde → fait : les fils implicites d'enfichage (auto) ne sont plus tracés au rechargement (ils apparaissaient comme des fils parasites).
+- [x] Si la simulation est active, le rectangle de sélection et la barre de nom ne doivent pas apparaitre et on ne peut pas modifier le schéma. → fait : verrou de simulation (setLocked) — pas de sélection/déplacement/câblage/ajout/suppression ; les composants restent interactifs (BP).
+- [x] implémenter annulation et refaire sur ctrl z et ctrl y. → fait : pile d'historique (états sérialisés), Ctrl+Z / Ctrl+Y (+ Ctrl+Maj+Z).
+- [x] Modifier le format de fichier projix qui ne doit plus contenir que le schéma sans le code. → fait : .projix = manifeste + schéma + composants perso uniquement (plus de dossier code/).
+- [x] Le rectangle de sélection d'un composant doit tourner avec le composant → fait : contour porté par le corps (qui pivote).
+- [x] Rajouter dans la barre de simulation une icone pour tout réinitialiser. Les composants reviennent alors dans leur état initial comme s'il n'y avait pas de programme → fait : bouton ⟲ (arrête la simulation + recrée les composants à leur état initial).
+- [x] Change compiler & exécuter le fichier actif en Compiler → fait : bouton « ⚙ Compiler » + commande « Kablix : Compiler » (le détail passe en info-bulle).
+- [x] svg tjs hs. La carte arduino fait maintenant la bonne taille mais les texte dessus sont géants → fait : le CSS du shadow DOM (tailles de police) est réinjecté dans le SVG exporté.
+- [x] l'effet appuyé sur le bouton marche mais son état ne change pas → fait : les deux pastilles d'une même borne du bouton sont reliées dans la netlist (un fil sur 1.r/2.r compte comme sur 1.l/2.l).
+- [x] Supprime la crois d'effacement dans la barre de nom d'un composant → fait : ✕ retiré du bandeau (suppression via 🗑 inspecteur ou Suppr).
+- [x] Le cable doit être routé orthogonalement si le parcours l'est presque (10°) → fait : seuil d'aimantation H/V passé de 15° à 10°.
+- [x] pour les composants on doit pouvoir mettre des suffix m (milli), µ (micro) n (nano), p (pico), k (kilo), M (mega), G (Giga) dans la valeur → fait : champ valeur (résistance) accepte les suffixes SI (ex. 2.2k), affichage reformaté.
+- [x] Rajoute un bouton effacer dans le canva en haut à droite de la zone de canva visible → fait : bouton 🗑 en haut à droite du canvas (annulable avec Ctrl+Z).
+---
 - [x] l'icone pour faire apparaitre le cablage interne n'est pas visible. Met la sur fond blanc et met le symbole radioactif jaune et noir → fait : pastille blanche avec le trèfle radioactif (jaune/noir) à gauche du ✕.
 - [x] si le composant est déselectionné la vue "interne" doit disparaitre → fait : le câblage interne n'est visible qu'à la sélection (l'état du bouton ☢ est mémorisé pour la prochaine sélection).
 - [x] L'icone catégorie dans la bibliothèque est illisible. Met une icone qui rappelle une arborescence ou une classification → fait : icône d'arborescence (nœud racine + 2 feuilles) à la place du 🗂.

@@ -38,6 +38,8 @@ export interface PropDef {
   min?: number;
   max?: number;
   step?: number;
+  /** Autorise les suffixes SI (p n µ m k M G) dans la valeur (champ texte). */
+  suffixes?: boolean;
 }
 
 export interface CustomPin {
@@ -116,7 +118,7 @@ export const CATALOG: readonly PartDef[] = [
   {
     type: 'resistor', label: 'Resistor', tag: 'wokwi-resistor', kind: 'resistor', attrs: { value: '220', angle: '0' },
     props: [
-      { attr: 'value', label: 'Value (Ω)', kind: 'number', min: 1, max: 10_000_000, step: 1 },
+      { attr: 'value', label: 'Value (Ω)', kind: 'number', min: 1, max: 10_000_000, step: 1, suffixes: true },
       { attr: 'angle', label: 'Angle', kind: 'select', options: ['0', '90', '180', '270'] },
     ],
   },

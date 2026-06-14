@@ -1,9 +1,10 @@
 {
   "name": "kablix",
   "displayName": "Kablix",
-  "version": "2026.6.3",
+  "version": "2026.6.4",
   "description": "%kablix.description%",
   "publisher": "franksauret",
+  "author": "electropol.fr",
   "license": "MIT",
   "icon": "Kablix.png",
   "repository": {

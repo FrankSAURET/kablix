@@ -1,7 +1,7 @@
 {
   "kablix.description": "Une application gauloise de simulation de microcontrôleurs (Arduino Uno / Raspberry Pi Pico) directement dans VS Code, 100% offline.",
   "kablix.cmd.openSimulator": "Kablix : Ouvrir le simulateur",
-  "kablix.cmd.compileAndRun": "Kablix : Compiler & exécuter le fichier actif",
+  "kablix.cmd.compileAndRun": "Kablix : Compiler",
   "kablix.cmd.loadWorkspaceArtifact": "Kablix : Charger l'artefact compilé du workspace",
   "kablix.cmd.saveProject": "Kablix : Enregistrer le projet (.projix)",
   "kablix.cmd.openProject": "Kablix : Ouvrir un projet (.projix)",

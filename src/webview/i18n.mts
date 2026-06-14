@@ -18,6 +18,7 @@ const FR: Record<string, string> = {
   'Paused': 'En pause',
   'Pause': 'Pause',
   'Resume': 'Reprendre',
+  'Reset': 'Réinitialisé',
   'Line {0}': 'Ligne {0}',
 
   // Palette
@@ -51,6 +52,11 @@ const FR: Record<string, string> = {
   'Right-click drag to move': 'Glisser avec le clic droit pour déplacer',
   'Drag to move — Ctrl: H/V alignment': 'Glisser pour déplacer — Ctrl : alignement H/V',
   '+ or − to rotate the part': '+ ou − pour faire tourner le composant',
+  '+ or − to rotate the parts': '+ ou − pour faire tourner les composants',
+  'Drag a part to move the whole selection.': 'Glisser un composant déplace toute la sélection.',
+  'Ctrl+C / Ctrl+V: copy / paste — Ctrl+D: duplicate.': 'Ctrl+C / Ctrl+V : copier / coller — Ctrl+D : dupliquer.',
+  '{0} parts selected': '{0} composants sélectionnés',
+  'Delete the selection': 'Supprimer la sélection',
   'Right-click to move it.': 'Clic droit pour déplacer.',
   'Reset the view (zoom 100%)': 'Réinitialiser la vue (zoom 100 %)',
   'Flip': 'Retourner',
@@ -80,6 +86,7 @@ const FR: Record<string, string> = {
   'Delete the wire': 'Supprimer le fil',
   'Delete the part': 'Supprimer le composant',
   'No editable property for this part.': 'Aucune propriété modifiable pour ce composant.',
+  'Suffixes allowed: p n µ m k M G (e.g. 2.2k)': 'Suffixes autorisés : p n µ m k M G (ex. 2.2k)',
   'no': 'non',
 
   // Créateur de composants

@@ -7,11 +7,15 @@ import {
   AVRIOPort,
   AVRUSART,
   AVRADC,
+  AVRTimer,
   adcConfig,
   portBConfig,
   portCConfig,
   portDConfig,
   usart0Config,
+  timer0Config,
+  timer1Config,
+  timer2Config,
   PinState,
 } from 'avr8js';
 import type { AvrDebugInfo, DebugPauseState, DebugVariable, SimEngine } from './types.mjs';
@@ -45,6 +49,9 @@ export class AvrEngine implements SimEngine {
   private ports: Record<PortKey, AVRIOPort>;
   private usart: AVRUSART;
   private adc: AVRADC;
+  // Timers 0/1/2 : indispensables pour millis()/micros()/delay() (sans eux la
+  // boucle de delay() ne se terminait jamais et la simulation semblait planter).
+  private timers: AVRTimer[];
   private rafId: number | null = null;
   private running = false;
   private rxQueue: number[] = [];
@@ -64,6 +71,11 @@ export class AvrEngine implements SimEngine {
     };
     this.usart = new AVRUSART(this.cpu, usart0Config, CLOCK_HZ);
     this.adc = new AVRADC(this.cpu, adcConfig);
+    this.timers = [
+      new AVRTimer(this.cpu, timer0Config),
+      new AVRTimer(this.cpu, timer1Config),
+      new AVRTimer(this.cpu, timer2Config),
+    ];
 
     for (const port of Object.values(this.ports)) {
       port.addListener(() => this.onUpdate?.());

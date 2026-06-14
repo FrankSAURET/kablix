@@ -88,6 +88,10 @@ export function buildNets(diagram: Diagram): Nets {
     const kind = partDef(part.type).kind;
     if (kind === 'resistor') {
       dsu.union(`${part.id}/1`, `${part.id}/2`);
+    } else if (kind === 'pushbutton') {
+      // Les deux pastilles d'une même borne (gauche/droite) sont reliées en interne.
+      dsu.union(`${part.id}/1.l`, `${part.id}/1.r`);
+      dsu.union(`${part.id}/2.l`, `${part.id}/2.r`);
     } else if (kind === 'breadboard') {
       for (const strip of breadboardStrips(normalizeSize(part.attrs?.size))) {
         for (let i = 1; i < strip.length; i++) {
