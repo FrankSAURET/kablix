@@ -115,6 +115,7 @@ const inspector = document.getElementById('inspector') as HTMLDivElement;
 const codeFileBtn = document.getElementById('code-file') as HTMLButtonElement;
 const resetSimBtn = document.getElementById('reset-sim') as HTMLButtonElement;
 const clearCanvasBtn = document.getElementById('clear-canvas') as HTMLButtonElement;
+const fitViewBtn = document.getElementById('fit-view') as HTMLButtonElement;
 
 const editor = new Editor(canvas, palette, wiresSvg, inspector);
 
@@ -459,6 +460,8 @@ resetSimBtn.addEventListener('click', () => {
   editor.resetVisuals();
   setStatus(t('Reset'));
 });
+// Recentrer et ajuster la vue sur tout le schéma.
+fitViewBtn.addEventListener('click', () => editor.fitView());
 // Effacer le schéma (annulable avec Ctrl+Z).
 clearCanvasBtn.addEventListener('click', () => {
   if (!editor.isLocked()) editor.clear();

@@ -66,5 +66,6 @@
   "Compile": "Compiler",
   "Reset all components to their initial state": "Réinitialiser les composants à leur état initial",
   "Clear the diagram (Ctrl+Z to undo)": "Effacer le schéma (Ctrl+Z pour annuler)",
+  "Recenter and fit the view": "Recentrer et ajuster la vue",
   "Drag to resize": "Glisser pour redimensionner"
 }

@@ -478,14 +478,19 @@ export function compile(
     // n'est PAS un sketch valide pour arduino-cli (il lui faut un .ino dans un
     // dossier de même nom) : ces fichiers passent par avr-gcc en bare-metal.
     const withArduinoCli = (cli: string): CompileResult => {
-      log.push('Compilation via arduino-cli (arduino:avr:uno, -O0 pour le débogage)…');
-      // -O0 par défaut : sans optimisation, le pas à pas ne saute plus de lignes
-      // et les variables restent en mémoire (lisibles) au lieu d'être placées en
-      // registres ou éliminées comme avec -Os.
+      log.push('Compilation via arduino-cli (arduino:avr:uno, -O0 -fno-lto pour le débogage)…');
+      // Débogage fidèle par défaut : sans optimisation, le pas à pas ne saute
+      // plus de lignes et les variables restent en mémoire (lisibles). Le cœur
+      // AVR compile en -Os ET -flto (LTO ré-optimise à l'édition de liens et
+      // annulait le -O0) : on force -O0 -fno-lto via les *extra_flags*, ajoutés
+      // EN DERNIER dans chaque recette, donc prioritaires sur les flags du cœur.
       run(cli, [
         'compile',
         '--fqbn', 'arduino:avr:uno',
         '--build-property', 'compiler.optimization_flags=-O0',
+        '--build-property', 'compiler.c.extra_flags=-O0 -fno-lto',
+        '--build-property', 'compiler.cpp.extra_flags=-O0 -fno-lto',
+        '--build-property', 'compiler.c.elf.extra_flags=-O0 -fno-lto',
         '--output-dir', tmp,
         filePath,
       ]);

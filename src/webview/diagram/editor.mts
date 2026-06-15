@@ -76,8 +76,8 @@ const MAX_RECENTS = 10;
 const DND_MIME = 'application/x-kablix-part';
 const ZOOM_MIN = 0.3;
 const ZOOM_MAX = 3;
-/** Pas de la grille magnétique d'alignement (px), aligné sur la grille de fond. */
-const GRID = 20;
+/** Pas de la grille magnétique d'alignement (px) = écartement des broches. */
+const GRID = 10;
 /** Aligne une coordonnée sur la grille magnétique. */
 const snapToGrid = (v: number): number => Math.round(v / GRID) * GRID;
 /** Dimensions de la vignette de composant dans la palette (px). */
@@ -198,6 +198,19 @@ export class Editor {
         this.startMarquee(e); // glisser = sélection multiple ; clic simple = désélection
       }
     });
+    // Bouton central de la souris : déplacement de la vue (pan), partout sur le
+    // canvas (même au-dessus d'un composant, même en simulation). Capture +
+    // stopPropagation pour passer avant les gestes de déplacement/sélection.
+    this.canvas.addEventListener(
+      'pointerdown',
+      (e) => {
+        if (e.button !== 1) return;
+        e.preventDefault();
+        e.stopPropagation();
+        this.startPan(e);
+      },
+      true
+    );
     // Zoom à la molette, centré sur le curseur.
     this.canvas.addEventListener('wheel', this.onWheel, { passive: false });
     // Dépôt d'un composant glissé depuis la palette, là où on le lâche.
@@ -273,7 +286,7 @@ export class Editor {
   private applyTransform(): void {
     this.world.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.zoom})`;
     // La grille de fond suit le zoom et la translation pour rester cohérente.
-    const step = 20 * this.zoom;
+    const step = GRID * this.zoom;
     this.canvas.style.backgroundSize = `${step}px ${step}px`;
     this.canvas.style.backgroundPosition = `${this.panX}px ${this.panY}px`;
     if (this.zoomBadge) this.zoomBadge.textContent = `⟳ ${Math.round(this.zoom * 100)} %`;
@@ -301,6 +314,70 @@ export class Editor {
     this.zoom = 1;
     this.panX = 0;
     this.panY = 0;
+    this.applyTransform();
+  }
+
+  /** Déplacement de la vue à la souris (bouton central), en pixels écran. */
+  private startPan(e: PointerEvent): void {
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const ox = this.panX;
+    const oy = this.panY;
+    const move = (ev: PointerEvent): void => {
+      this.panX = ox + (ev.clientX - startX);
+      this.panY = oy + (ev.clientY - startY);
+      this.applyTransform();
+    };
+    const up = (): void => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
+  /**
+   * Recentre et ajuste le zoom pour que tout le schéma (composants, coudes de
+   * fils) tienne dans la zone visible, avec une marge. Atelier vide → vue 100%.
+   */
+  fitView(): void {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    const grow = (x: number, y: number): void => {
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    };
+    for (const r of this.rendered.values()) {
+      const body = r.container.querySelector('.part__body') as HTMLElement | null;
+      const w = body?.offsetWidth || 40;
+      const h = body?.offsetHeight || 40;
+      grow(r.part.x, r.part.y);
+      grow(r.part.x + w, r.part.y + h);
+    }
+    for (const wire of this.diagram.wires) {
+      for (const p of wire.points ?? []) grow(p.x, p.y);
+    }
+    if (!isFinite(minX)) {
+      this.resetView();
+      return;
+    }
+    const margin = 40;
+    const cw = this.canvas.clientWidth || 800;
+    const ch = this.canvas.clientHeight || 600;
+    const contentW = Math.max(1, maxX - minX);
+    const contentH = Math.max(1, maxY - minY);
+    const z = Math.max(
+      ZOOM_MIN,
+      Math.min(ZOOM_MAX, (cw - 2 * margin) / contentW, (ch - 2 * margin) / contentH)
+    );
+    this.zoom = z;
+    // Centre la boîte englobante du contenu dans la fenêtre.
+    this.panX = cw / 2 - ((minX + maxX) / 2) * z;
+    this.panY = ch / 2 - ((minY + maxY) / 2) * z;
     this.applyTransform();
   }
 
@@ -785,19 +862,7 @@ export class Editor {
     const hotspots = new Map<string, HTMLDivElement>();
     const pins = (el.pinInfo ?? []) as WokwiPin[];
     for (const pin of pins) {
-      const dot = document.createElement('div');
-      dot.className = 'pin';
-      dot.style.left = `${pin.x}px`;
-      dot.style.top = `${pin.y}px`;
-      dot.title = pinDisplayName(def.kind, pin.name);
-      dot.addEventListener('pointerdown', (e) => {
-        e.stopPropagation();
-        this.onPinDown({ partId: part.id, pin: pin.name }, e);
-      });
-      dot.addEventListener('pointerup', (e) => {
-        e.stopPropagation();
-        this.onPinUp({ partId: part.id, pin: pin.name }, e);
-      });
+      const dot = this.makeHotspot(part.id, def.kind, pin);
       body.appendChild(dot);
       hotspots.set(pin.name, dot);
     }
@@ -825,6 +890,48 @@ export class Editor {
     if (this.internalShown.has(part.id) && this.isSelected(part.id)) this.renderInternalWiring(part.id);
     this.redrawWires();
     this.scheduleSettle();
+  }
+
+  /** Crée une pastille de broche (point de connexion cliquable). */
+  private makeHotspot(partId: string, kind: string, pin: WokwiPin): HTMLDivElement {
+    const dot = document.createElement('div');
+    dot.className = 'pin';
+    dot.style.left = `${pin.x}px`;
+    dot.style.top = `${pin.y}px`;
+    dot.title = pinDisplayName(kind, pin.name);
+    dot.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      this.onPinDown({ partId, pin: pin.name }, e);
+    });
+    dot.addEventListener('pointerup', (e) => {
+      e.stopPropagation();
+      this.onPinUp({ partId, pin: pin.name }, e);
+    });
+    return dot;
+  }
+
+  /**
+   * Resynchronise les pastilles de broche d'un composant avec son `pinInfo`
+   * courant. Les éléments @wokwi (Lit) peuvent ne publier leur `pinInfo` qu'après
+   * un cycle de rendu : sans cette resynchronisation, une broche apparue ensuite
+   * n'a pas de pastille cliquable (impossible de câbler ce composant) et les fils
+   * existants ne trouvent pas leur extrémité.
+   */
+  private syncHotspots(r: Rendered): void {
+    const body = r.container.querySelector('.part__body') as HTMLElement | null;
+    if (!body) return;
+    const kind = partDef(r.part.type).kind;
+    for (const pin of (r.el.pinInfo ?? []) as WokwiPin[]) {
+      let dot = r.hotspots.get(pin.name);
+      if (!dot) {
+        dot = this.makeHotspot(r.part.id, kind, pin);
+        body.appendChild(dot);
+        r.hotspots.set(pin.name, dot);
+      } else {
+        dot.style.left = `${pin.x}px`;
+        dot.style.top = `${pin.y}px`;
+      }
+    }
   }
 
   /** Re-rend un composant après un changement d'attribut (angle, couleur…). */
@@ -1482,6 +1589,7 @@ export class Editor {
     requestAnimationFrame(() => {
       this.settleQueued = false;
       for (const r of this.rendered.values()) {
+        this.syncHotspots(r); // pastilles de broche tardives (pinInfo asynchrone)
         const body = r.container.querySelector('.part__body') as HTMLDivElement | null;
         if (body) this.applyRotation(r.part, body); // repositionne le bandeau (rotation)
       }

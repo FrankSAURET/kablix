@@ -4,19 +4,33 @@ import { HelpPanel } from './help';
 import { promptLibraryUpdates } from './updates';
 
 export function activate(context: vscode.ExtensionContext): void {
-  // Vue de la barre d'activité : un écran d'accueil (viewsWelcome) avec ses
-  // boutons. On n'ouvre JAMAIS le simulateur automatiquement — ni au lancement,
-  // ni quand le volet (re)devient visible : la visibilité change aussi lors de
-  // la restauration de session au démarrage, ce qui rouvrait le panneau. Le
-  // simulateur s'ouvre uniquement sur clic d'un bouton d'accueil ou d'une
-  // commande Kablix.
+  // Vue de la barre d'activité : cliquer l'icône Kablix ouvre DIRECTEMENT le
+  // simulateur (panneau éditeur) et rend la main au volet Explorateur, pour que
+  // le volet Kablix (quasi vide) n'occupe pas la barre latérale.
   const homeView = vscode.window.createTreeView('kablix.home', {
     treeDataProvider: {
       getChildren: () => [],
       getTreeItem: (item: vscode.TreeItem) => item,
     },
   });
-  context.subscriptions.push(homeView);
+  // Garde-fou de démarrage : on ignore les changements de visibilité des
+  // premières ~1,2 s (la restauration de session peut faire transiter le volet
+  // hidden→visible sans action de l'utilisateur, ce qui rouvrait le simulateur
+  // au lancement).
+  let startupSettled = false;
+  const startupTimer = setTimeout(() => {
+    startupSettled = true;
+  }, 1200);
+  context.subscriptions.push(
+    homeView,
+    new vscode.Disposable(() => clearTimeout(startupTimer)),
+    homeView.onDidChangeVisibility((e) => {
+      if (!e.visible || !startupSettled) return;
+      SimulatorPanel.createOrShow(context);
+      // Rebascule sur l'Explorateur : le volet Kablix ne reste pas affiché.
+      void vscode.commands.executeCommand('workbench.view.explorer');
+    })
+  );
 
   context.subscriptions.push(
     vscode.commands.registerCommand('kablix.openSimulator', () => {

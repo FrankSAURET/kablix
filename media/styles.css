@@ -241,7 +241,8 @@ body {
   background-image:
     linear-gradient(rgba(127, 127, 127, 0.12) 1px, transparent 1px),
     linear-gradient(90deg, rgba(127, 127, 127, 0.12) 1px, transparent 1px);
-  background-size: 20px 20px;
+  /* Pas = écartement des broches (10 px), comme la grille magnétique de pose. */
+  background-size: 10px 10px;
   border: 1px solid var(--vscode-panel-border, #444);
   border-radius: 8px;
   overflow: hidden;
@@ -313,42 +314,6 @@ body {
   color: #ff6b6b;
 }
 
-/* Icône « gomme » du bouton effacer (image media/Gomme.svg, lisible sur fond sombre). */
-.canvas__clear-icon {
-  width: 20px;
-  height: 20px;
-  display: block;
-  pointer-events: none;
-}
-
-/* Bouton « réinitialiser » : tout à droite de la barre du canvas, juste à
-   gauche du bouton effacer. */
-.canvas__reset {
-  position: absolute;
-  top: 8px;
-  right: 44px;
-  z-index: 7;
-  font: inherit;
-  font-size: 1.05rem;
-  line-height: 1;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  border: 1px solid var(--vscode-input-border, #555);
-  background: rgba(0, 0, 0, 0.5);
-  color: #fff;
-  cursor: pointer;
-  opacity: 0.8;
-}
-
-.canvas__reset:hover {
-  opacity: 1;
-  border-color: var(--vscode-focusBorder, #4fa3ff);
-}
-
 /* Commandes de simulation en surimpression (haut-gauche du canvas). */
 .canvas-controls {
   position: absolute;
@@ -361,6 +326,26 @@ body {
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.5);
   border: 1px solid var(--vscode-panel-border, #444);
+}
+
+/* Barre droite (recentrer/ajuster, réinitialiser, effacer) : même hauteur et
+   alignement que la barre de simulation à gauche. */
+.canvas-controls--right {
+  left: auto;
+  right: 8px;
+}
+
+/* Bouton gomme : l'image fournie occupe 100% du bouton. */
+.canvas-controls__btn--eraser {
+  padding: 2px;
+}
+
+.canvas__clear-icon {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
 }
 
 .canvas-controls__btn {
