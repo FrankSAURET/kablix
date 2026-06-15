@@ -478,22 +478,18 @@ export function compile(
     // n'est PAS un sketch valide pour arduino-cli (il lui faut un .ino dans un
     // dossier de même nom) : ces fichiers passent par avr-gcc en bare-metal.
     const withArduinoCli = (cli: string): CompileResult => {
-      log.push('Compilation via arduino-cli (arduino:avr:uno, -O0 -fno-lto pour le débogage)…');
-      // Débogage fidèle par défaut : sans optimisation, le pas à pas ne saute
-      // plus de lignes et les variables restent en mémoire (lisibles). Le cœur
-      // AVR compile en -Os ET -flto (LTO ré-optimise à l'édition de liens et
-      // annulait le -O0) : on force -O0 -fno-lto via les *extra_flags*, ajoutés
-      // EN DERNIER dans chaque recette, donc prioritaires sur les flags du cœur.
-      run(cli, [
-        'compile',
-        '--fqbn', 'arduino:avr:uno',
-        '--build-property', 'compiler.optimization_flags=-O0',
-        '--build-property', 'compiler.c.extra_flags=-O0 -fno-lto',
-        '--build-property', 'compiler.cpp.extra_flags=-O0 -fno-lto',
-        '--build-property', 'compiler.c.elf.extra_flags=-O0 -fno-lto',
-        '--output-dir', tmp,
-        filePath,
-      ]);
+      const std = ['compile', '--fqbn', 'arduino:avr:uno', '--output-dir', tmp, filePath];
+      // Mode débogage via le drapeau officiel `--optimize-for-debug` (le cœur AVR
+      // passe en -Og) : pas à pas plus fidèle et variables lisibles, sans risque
+      // de casser la compilation. Repli automatique sur la compilation standard
+      // si ce mode échoue (vieille version d'arduino-cli, cœur particulier…).
+      try {
+        run(cli, ['compile', '--fqbn', 'arduino:avr:uno', '--optimize-for-debug', '--output-dir', tmp, filePath]);
+        log.push('Compilation via arduino-cli (arduino:avr:uno, --optimize-for-debug)…');
+      } catch (err) {
+        log.push('Mode débogage indisponible, compilation standard : ' + (err as Error).message);
+        run(cli, std);
+      }
       const hex = readFileSync(join(tmp, `${basename(filePath)}.hex`), 'utf8');
       // L'ELF (compilé avec -g par la plateforme AVR) livre les infos de débogage.
       const debug = extractAvrDebug(join(tmp, `${basename(filePath)}.elf`), filePath, log, cli, searchDir);
