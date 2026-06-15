@@ -478,17 +478,41 @@ export function compile(
     // n'est PAS un sketch valide pour arduino-cli (il lui faut un .ino dans un
     // dossier de même nom) : ces fichiers passent par avr-gcc en bare-metal.
     const withArduinoCli = (cli: string): CompileResult => {
-      const std = ['compile', '--fqbn', 'arduino:avr:uno', '--output-dir', tmp, filePath];
-      // Mode débogage via le drapeau officiel `--optimize-for-debug` (le cœur AVR
-      // passe en -Og) : pas à pas plus fidèle et variables lisibles, sans risque
-      // de casser la compilation. Repli automatique sur la compilation standard
-      // si ce mode échoue (vieille version d'arduino-cli, cœur particulier…).
-      try {
-        run(cli, ['compile', '--fqbn', 'arduino:avr:uno', '--optimize-for-debug', '--output-dir', tmp, filePath]);
-        log.push('Compilation via arduino-cli (arduino:avr:uno, --optimize-for-debug)…');
-      } catch (err) {
-        log.push('Mode débogage indisponible, compilation standard : ' + (err as Error).message);
-        run(cli, std);
+      const compileWith = (extra: string[]): void => {
+        run(cli, ['compile', '--fqbn', 'arduino:avr:uno', ...extra, '--output-dir', tmp, filePath]);
+      };
+      // Stratégies de compilation, de la plus fidèle au débogage à la plus sûre.
+      // On retombe sur la suivante si une échoue → la compilation n'est JAMAIS
+      // cassée par les options de débogage.
+      //   1) -O0 -fno-lto à la COMPILATION uniquement : aucune optimisation ni
+      //      LTO sur le code de l'élève → pas à pas fidèle, variables globales
+      //      lisibles. Le lien garde -flto (il accepte les objets non-LTO).
+      //   2) --optimize-for-debug : le cœur AVR passe en -Og (bon compromis).
+      //   3) standard : -Os (peut sauter des lignes / masquer des variables).
+      const attempts: Array<{ extra: string[]; note: string }> = [
+        {
+          extra: [
+            '--build-property', 'compiler.c.extra_flags=-O0 -fno-lto -g3',
+            '--build-property', 'compiler.cpp.extra_flags=-O0 -fno-lto -g3',
+          ],
+          note: '-O0 -fno-lto (débogage fidèle)',
+        },
+        { extra: ['--optimize-for-debug'], note: '--optimize-for-debug (-Og)' },
+        { extra: [], note: 'standard (-Os)' },
+      ];
+      let compiled = false;
+      for (const a of attempts) {
+        try {
+          compileWith(a.extra);
+          log.push(`Compilation arduino-cli (arduino:avr:uno) : ${a.note}.`);
+          compiled = true;
+          break;
+        } catch (err) {
+          log.push(`Échec compilation (${a.note}) : ${(err as Error).message.split('\n')[0]}`);
+        }
+      }
+      if (!compiled) {
+        throw new Error('Échec de la compilation arduino-cli (voir le journal Kablix).');
       }
       const hex = readFileSync(join(tmp, `${basename(filePath)}.hex`), 'utf8');
       // L'ELF (compilé avec -g par la plateforme AVR) livre les infos de débogage.

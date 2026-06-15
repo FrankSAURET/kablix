@@ -256,7 +256,17 @@ export class SimulatorPanel {
   private runProgram(result: CompileResult, label: string): void {
     this.post({ type: 'runProgram', ...result.payload });
     this.sendBreakpoints(); // synchronise la gouttière avec le programme qui démarre
-    vscode.window.showInformationMessage(l10n.t('Kablix: {0} loaded into the simulator.', label));
+    // Résumé des infos de débogage (aide à diagnostiquer « aucune variable »).
+    let dbg = '';
+    if (result.payload.board === 'uno') {
+      const info = result.payload.debug;
+      dbg = info
+        ? l10n.t(' — debug: {0} lines, {1} variable(s)', info.lines.length, info.globals.length)
+        : l10n.t(' — debug info unavailable (avr-objdump not found)');
+    }
+    vscode.window.showInformationMessage(
+      l10n.t('Kablix: {0} loaded into the simulator.', label) + dbg
+    );
     if (result.log) {
       console.log(`[Kablix] ${result.log}`);
     }

@@ -1,6 +1,14 @@
 - Changer le choix des couleurs pour les composants par des boutons colorés
 - Numérotation du todo recommence à 1 à chaque version
 - Les composants doivent s'aligner (toute leurs pattes) sur la grille
+- Enregistre le nom du fichier de simulation dans le fichier .projix
+# v2026.6.8
+- [x] Débogage erratique + aucune variable + LED qui ne s'allume pas (sketch anti-rebond) → diagnostic + correctifs :
+  - **LED qui ne s'allume jamais = bug du code utilisateur** (pas le simulateur) : l'anti-rebond fusionne la lecture brute et l'état débouncé ; `lastButtonState` passe à LOW avant le test de front, donc `lastButtonState==HIGH && buttonState==LOW` n'est jamais vrai → la bascule ne se produit jamais (même sur un vrai Arduino). Correctif côté élève : séparer la lecture brute (`reading`) de l'état débouncé (`buttonState`).
+  - « remonte de la dernière ligne au début de loop » = normal (loop() se répète).
+  - Pas à pas erratique + variables manquantes : le `--optimize-for-debug` (-Og) restait trop optimisé. Nouvelle stratégie de compilation **en cascade** : 1) `-O0 -fno-lto` à la **compilation seule** (lien conservé en -flto, qui accepte les objets non-LTO) → pas à pas fidèle + globales lisibles ; 2) repli `--optimize-for-debug` ; 3) repli standard. La compilation n'est jamais cassée.
+  - Diagnostic : le message « chargé dans le simulateur » indique désormais « débogage : N lignes, M variable(s) » (ou « avr-objdump introuvable ») pour voir si les infos de débogage sont bien extraites.
+  - Rappel : les `const int` ne sont pas des variables en mémoire → elles ne s'affichent pas (normal) ; seules les globales non-const (ledState, lastButtonState…) apparaissent.
 # v2026.6.7
 - [x] « il ne trouve plus arduino-cli » (régression v2026.6.6) → fait : le `-fno-lto` forcé via *extra_flags* cassait la compilation (édition de liens). Remplacé par le drapeau **officiel** `arduino-cli --optimize-for-debug` (cœur AVR en -Og : pas à pas plus fidèle + variables lisibles) **avec repli automatique sur la compilation standard** si ce mode échoue → la compilation ne peut plus être cassée par l'option de débogage.
 # v2026.6.6
