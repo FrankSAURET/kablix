@@ -1,3 +1,10 @@
+# v2026.6.11
+1. ✅ Barre d'ajustement des zones trop large → réduite à un simple trait (1 px) ; zone de préhension élargie de façon invisible (`::before`) pour rester facile à attraper.
+2. ✅ Variable changée en rouge jusqu'au **redémarrage** (et pas seulement jusqu'au pas suivant), y compris sur points d'arrêt → une variable qui change reste en rouge jusqu'au prochain démarrage de la simulation ; l'historique des changements est conservé entre les pauses (étapes ou points d'arrêt) et le tableau affiché est seulement masqué hors pause.
+3. ✅ (partiel) La fenêtre de simulation s'ouvre à sa dernière taille → le simulateur rouvre dans **la dernière colonne d'éditeur utilisée** (mémorisée). La taille en pixels d'un éditeur webview n'est pas réglable par l'API d'extension (VS Code gère la disposition) ; rouvrir au même endroit restitue au mieux la taille.
+4. ✅ Pattes de la carte Pico alignées sur la grille de 10 px → carte redessinée au pas de 10 px (= 0,1") au lieu de 16,6 px ; toutes les broches tombent désormais sur la grille.
+5. ✅ Les fils disparaissaient à ~120 px du bord en élargissant la zone propriété → le SVG des fils passe en `overflow: visible` ; il ne rogne plus les fils dépassant sa largeur (le rognage réel reste fait par le canvas), comme pour les composants.
+6. ✅ « Charger workspace » → « Charger binaire » (bulle « Charger un .uf2 (Pico) ou .hex (Arduino) déjà compilé ») ; réglage `kablix.showLoadBinaryButton` pour l'afficher, **masqué par défaut** ; documenté dans l'aide FR.
 # v2026.6.10
 1. ✅ Choix des couleurs des composants par boutons colorés → les propriétés « couleur » (LED, bouton, résistance, 7 segments, barre de LED…) s'éditent par pastilles colorées au lieu d'une liste déroulante (« GYR » de la barre de LED = dégradé vert/jaune/rouge).
 2. ✅ Numérotation du todo qui recommence à 1 à chaque version → chaque section de version numérote ses items à partir de 1 (cette section l'applique).

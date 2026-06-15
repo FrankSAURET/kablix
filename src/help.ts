@@ -172,7 +172,7 @@ function getHtml(webview: vscode.Webview): string {
 
     <h2 id="interface">Interface</h2>
     <ul>
-      <li><strong>Barre d'outils</strong> (haut) : sélecteur de carte, ▶ Démarrer / ■ Arrêter / ⏸ Pause / ⏭ Pas, vitesse 🐇/🐢/🐌, ⚙ Compiler, ↑ Charger workspace, ⬇ SVG, 🏷 Noms.</li>
+      <li><strong>Barre d'outils</strong> (haut) : sélecteur de carte, ▶ Démarrer / ■ Arrêter / ⏸ Pause / ⏭ Pas, vitesse 🐇/🐢/🐌, ⚙ Compiler, ⬇ SVG, 🏷 Noms. (Le bouton <strong>↑ Charger binaire</strong> est masqué par défaut — cf. réglages.)</li>
       <li><strong>Palette</strong> (gauche) : les composants à poser, triés <strong>AZ</strong> ou par <strong>catégories</strong>, avec une zone « Derniers utilisés ».</li>
       <li><strong>Canvas</strong> (centre) : les composants, les fils et leurs poignées.</li>
       <li><strong>Propriétés</strong> / inspecteur (droite) : édite l'élément sélectionné (couleur, valeur, angle, suppression) ; une zone d'aide y rappelle les gestes utiles.</li>
@@ -209,7 +209,7 @@ function getHtml(webview: vscode.Webview): string {
       <li><code>.py</code> : MicroPython sur le Pico simulé (firmware <code>.uf2</code> requis) ;</li>
       <li><code>.hex</code> / <code>.uf2</code> / <code>.elf</code> / <code>.bin</code> : chargés directement.</li>
     </ul>
-    <p>Bouton <strong>↑ Charger workspace</strong> : détecte et lance le <code>.hex</code> le plus récent (sortie de <code>.vscode/arduino.json</code>, sinon scan) ou le <code>.uf2</code> du dossier <code>build/</code>.</p>
+    <p>Bouton <strong>↑ Charger binaire</strong> : détecte et lance un binaire <strong>déjà compilé</strong> (sans recompiler) — le <code>.hex</code> le plus récent (sortie de <code>.vscode/arduino.json</code>, sinon scan) pour l'Arduino, ou le <code>.uf2</code> du dossier <code>build/</code> pour le Pico. Utile pour exécuter un binaire produit par un autre outil (extension Arduino, CMake…). <strong>Ce bouton est masqué par défaut</strong> : activez le réglage <code>kablix.showLoadBinaryButton</code> pour l'afficher.</p>
 
     <h2 id="debogage">Débogage pas à pas</h2>
     <ul>
@@ -244,7 +244,7 @@ function getHtml(webview: vscode.Webview): string {
     <ol class="steps">
       <li><strong>Écrire le sketch</strong> dans « Arduino-VsCode-IDE » : ouvrez ou créez votre fichier <code>.ino</code> (ou <code>.c</code>/<code>.cpp</code>) et sélectionnez la carte <em>Arduino Uno</em>.</li>
       <li><strong>Préparer le montage dans Kablix</strong> : ouvrez le simulateur (icône Kablix), choisissez la carte <em>Arduino Uno</em>, posez les composants depuis la palette et câblez-les (par ex. une LED + résistance sur D13, un bouton sur une entrée).</li>
-      <li><strong>Compiler &amp; exécuter</strong> : le fichier <code>.ino</code> étant l'éditeur actif, cliquez <strong>⚙ Compiler</strong> (compilation locale via <code>arduino-cli</code>). Variante : si « Arduino-VsCode-IDE » a déjà produit un <code>.hex</code>, utilisez <strong>↑ Charger workspace</strong> pour récupérer l'artefact le plus récent. Si <code>arduino-cli</code> est installé mais introuvable, renseignez le réglage <code>kablix.arduinoCliPath</code>.</li>
+      <li><strong>Compiler &amp; exécuter</strong> : le fichier <code>.ino</code> étant l'éditeur actif, cliquez <strong>⚙ Compiler</strong> (compilation locale via <code>arduino-cli</code>). Variante : si « Arduino-VsCode-IDE » a déjà produit un <code>.hex</code>, activez le réglage <code>kablix.showLoadBinaryButton</code> puis utilisez <strong>↑ Charger binaire</strong> pour récupérer l'artefact le plus récent. Si <code>arduino-cli</code> est installé mais introuvable, renseignez le réglage <code>kablix.arduinoCliPath</code>.</li>
       <li><strong>Observer</strong> : la ou les LED s'allument selon le programme ; ouvrez le <strong>moniteur série</strong> (bas) pour voir les <code>Serial.print()</code>, et envoyez-y des données si besoin.</li>
       <li><strong>Déboguer pas à pas</strong> : posez un <strong>point d'arrêt</strong> dans la gouttière de l'éditeur, ou utilisez <strong>⏸ Pause</strong> puis <strong>⏭ Pas</strong> pour avancer ligne par ligne et lire les variables globales dans le panneau <em>Variables</em>.</li>
     </ol>

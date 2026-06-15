@@ -18,6 +18,8 @@ import {
 const ARTIFACT_EXTS = ['.hex', '.uf2', '.elf', '.bin'];
 const CUSTOM_PARTS_KEY = 'kablix.customParts';
 const UI_STATE_KEY = 'kablix.uiState';
+/** Dernière colonne d'éditeur du simulateur (rouvert au même endroit). */
+const LAST_COLUMN_KEY = 'kablix.lastColumn';
 
 /**
  * Gère le panneau webview du simulateur. Un seul panneau est ouvert à la fois ;
@@ -40,15 +42,19 @@ export class SimulatorPanel {
   private debugLineDecoration: vscode.TextEditorDecorationType | undefined;
 
   /**
-   * Colonne d'ouverture : un nouveau groupe d'éditeurs complètement à droite
-   * (une colonne après le dernier groupe existant), pour que Kablix s'ouvre à
-   * droite du code.
+   * Colonne d'ouverture. On rouvre dans la dernière colonne utilisée (si elle
+   * existe encore) pour retrouver l'emplacement — et donc, autant que possible,
+   * la taille — du dernier affichage ; sinon, un nouveau groupe à droite.
+   * (La taille en pixels d'un éditeur webview n'est pas réglable par l'API
+   * d'extension : VS Code gère la disposition des groupes.)
    */
-  private static targetColumn(): vscode.ViewColumn {
+  private static targetColumn(context: vscode.ExtensionContext): vscode.ViewColumn {
     const groups = vscode.window.tabGroups.all;
+    const maxCol = groups.length === 0 ? 1 : Math.max(...groups.map((g) => g.viewColumn)) + 1;
+    const saved = context.globalState.get<number>(LAST_COLUMN_KEY);
+    if (saved && saved >= 1 && saved <= maxCol) return saved as vscode.ViewColumn;
     if (groups.length === 0) return vscode.ViewColumn.One;
-    const rightmost = Math.max(...groups.map((g) => g.viewColumn));
-    return Math.min(rightmost + 1, 9) as vscode.ViewColumn;
+    return Math.min(maxCol, 9) as vscode.ViewColumn;
   }
 
   public static createOrShow(context: vscode.ExtensionContext): SimulatorPanel {
@@ -58,7 +64,7 @@ export class SimulatorPanel {
       return SimulatorPanel.current;
     }
 
-    const column = SimulatorPanel.targetColumn();
+    const column = SimulatorPanel.targetColumn(context);
 
     const extensionUri = context.extensionUri;
     const panel = vscode.window.createWebviewPanel(
@@ -351,6 +357,16 @@ export class SimulatorPanel {
     this.extensionUri = context.extensionUri;
     this.panel.webview.html = this.getHtml(this.panel.webview);
     this.panel.onDidDispose(() => this.onDispose(), null, this.disposables);
+    // Mémorise la colonne courante pour rouvrir au même endroit la prochaine fois.
+    this.panel.onDidChangeViewState(
+      () => {
+        if (this.panel.viewColumn) {
+          void this.context.globalState.update(LAST_COLUMN_KEY, this.panel.viewColumn);
+        }
+      },
+      null,
+      this.disposables
+    );
     this.panel.webview.onDidReceiveMessage(
       (msg) => this.onMessage(msg),
       null,
@@ -435,6 +451,13 @@ export class SimulatorPanel {
         this.post({
           type: 'uiState',
           state: this.context.globalState.get<unknown>(UI_STATE_KEY, {}),
+        });
+        // Réglages affectant l'interface (bouton « Charger binaire » masqué par défaut).
+        this.post({
+          type: 'config',
+          showLoadBinary: vscode.workspace
+            .getConfiguration('kablix')
+            .get<boolean>('showLoadBinaryButton', false),
         });
         // Rappelle le fichier de code courant (chip du canvas) après un rechargement.
         this.setCodeFile(this.codeFileUri);
@@ -722,7 +745,7 @@ export class SimulatorPanel {
       <option value="pico">Raspberry Pi Pico</option>
     </select>
     <button id="compile" title="${l10n.t('Compile &amp; run the active file')}">⚙ ${l10n.t('Compile')}</button>
-    <button id="load-workspace" title="${l10n.t('Loads the most recent compiled artifact of the workspace')}">↑ ${l10n.t('Load workspace')}</button>
+    <button id="load-workspace" hidden title="${l10n.t('Load a compiled .uf2 (Pico) or .hex (Arduino) from the workspace')}">↑ ${l10n.t('Load binary')}</button>
     <button id="export-svg" title="${l10n.t('Export the diagram as SVG')}">⬇ SVG</button>
     <button id="save-project" title="${l10n.t('Save the project')}">💾</button>
     <button id="open-project" title="${l10n.t('Open a project')}">📂</button>

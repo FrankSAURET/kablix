@@ -14,5 +14,6 @@
   "kablix.config.micropythonUf2": "Path (absolute or workspace-relative) of the MicroPython .uf2 firmware used to run .py files on the simulated Pico. Leave empty to auto-detect micropython*.uf2 / RPI_PICO*.uf2 in the workspace.",
   "kablix.config.checkUpdatesOnStartup": "Check the npm registry once at startup for newer versions of the bundled simulation libraries. Off by default (Kablix is offline by default); when on, a notification only appears if an update exists. You can also run the check manually with the \"Kablix: Check for library updates\" command.",
   "kablix.config.arduinoCliPath": "Full path to the arduino-cli executable (or the folder containing it). Set this if Kablix reports arduino-cli as missing even though it is installed (e.g. it is not on the PATH seen by VS Code). Leave empty to auto-detect via the PATH and common install locations.",
-  "kablix.config.toolchainPath": "Extra folder searched for the compilation tools (arduino-cli, avr-gcc, arm-none-eabi-gcc, objcopy, objdump). Useful for a portable toolchain that is not on the PATH. Leave empty to use the PATH only."
+  "kablix.config.toolchainPath": "Extra folder searched for the compilation tools (arduino-cli, avr-gcc, arm-none-eabi-gcc, objcopy, objdump). Useful for a portable toolchain that is not on the PATH. Leave empty to use the PATH only.",
+  "kablix.config.showLoadBinaryButton": "Show the \"Load binary\" button in the simulator toolbar (loads an already-compiled .hex/.uf2 from the workspace without recompiling). Hidden by default."
 }

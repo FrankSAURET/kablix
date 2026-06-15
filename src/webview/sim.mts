@@ -327,13 +327,23 @@ function useDebugAsInspector(on: boolean): void {
 }
 
 // --- Débogage : pause, pas à pas, panneau des variables -----------------------
-// Valeurs de la pause précédente, pour colorer en rouge ce qui a changé.
+// Valeurs de la dernière pause (pour repérer les changements d'un arrêt au
+// suivant) et ensemble des variables ayant changé depuis le démarrage : elles
+// restent en rouge jusqu'au prochain redémarrage de la simulation (pas à pas
+// comme points d'arrêt).
 let previousVarValues = new Map<string, string>();
+const changedVars = new Set<string>();
 
-/** Vide le tableau des variables (hors pas à pas, il n'a pas de sens). */
-function clearDebugVars(): void {
-  debugVarsEl.innerHTML = '';
+/** Réinitialise l'état des variables (au démarrage / à l'arrêt de la simulation). */
+function resetDebugVars(): void {
   previousVarValues = new Map();
+  changedVars.clear();
+  debugVarsEl.innerHTML = '';
+}
+
+/** Masque l'instantané (hors pause) sans perdre l'historique des changements. */
+function clearDebugVarsDisplay(): void {
+  debugVarsEl.innerHTML = '';
 }
 
 function renderDebugPause(state: DebugPauseState): void {
@@ -349,17 +359,18 @@ function renderDebugPause(state: DebugPauseState): void {
     cell.className = 'debug__empty';
     cell.textContent = t('No readable variable here (C: global variables only).');
   }
-  // Affichage « nom : valeur » (sans le type) ; valeur en rouge si elle a changé
-  // depuis la dernière pause.
+  // Affichage « nom : valeur » (sans le type) ; valeur en rouge dès qu'elle a
+  // changé depuis le démarrage, et le reste jusqu'au redémarrage.
   const next = new Map<string, string>();
   for (const v of state.variables) {
+    if (previousVarValues.has(v.name) && previousVarValues.get(v.name) !== v.value) {
+      changedVars.add(v.name);
+    }
     const row = debugVarsEl.insertRow();
     row.insertCell().textContent = `${v.name} :`;
     const valueCell = row.insertCell();
     valueCell.textContent = v.value;
-    if (previousVarValues.has(v.name) && previousVarValues.get(v.name) !== v.value) {
-      valueCell.classList.add('debug__changed');
-    }
+    if (changedVars.has(v.name)) valueCell.classList.add('debug__changed');
     next.set(v.name, v.value);
   }
   previousVarValues = next;
@@ -371,8 +382,9 @@ function renderDebugPause(state: DebugPauseState): void {
 function updateDebugButtons(): void {
   const paused = engine?.paused ?? false;
   // Hors pas à pas (simulation en cours ou arrêtée), le tableau de variables est
-  // un instantané périmé : on le vide. Il se remplit à chaque pause.
-  if (!paused) clearDebugVars();
+  // un instantané périmé : on le masque. L'historique des changements (rouge)
+  // est conservé jusqu'au prochain redémarrage.
+  if (!paused) clearDebugVarsDisplay();
   // Les composants restent actionnables même en pause / pas à pas (débogage) :
   // aucun verrou de pointeur n'est posé pendant la simulation.
   pauseBtn.disabled = !engine;
@@ -408,6 +420,7 @@ speedSelect.addEventListener('change', () => {
 // --- Cycle de vie de la simulation -------------------------------------------
 function startRun(): void {
   stopRun();
+  resetDebugVars(); // nouveau run : l'historique des changements (rouge) repart à zéro
   try {
     engine =
       board === 'uno' ? new AvrEngine(unoProgram, unoDebugInfo) : new PicoEngine(picoProgram);
@@ -633,6 +646,10 @@ window.addEventListener('message', (event: MessageEvent) => {
       break;
     case 'status':
       setStatus(String(msg.text));
+      break;
+    case 'config':
+      // Bouton « Charger binaire » : masqué sauf si le réglage l'active.
+      loadBtn.hidden = !msg.showLoadBinary;
       break;
     case 'breakpoints':
       // Lignes cochées dans la gouttière de l'éditeur VS Code (1-based).

@@ -66,6 +66,8 @@
   "Compile": "Compiler",
   "Reset all components to their initial state": "Réinitialiser les composants à leur état initial",
   "Clear the diagram (Ctrl+Z to undo)": "Effacer le schéma (Ctrl+Z pour annuler)",
+  "Load binary": "Charger binaire",
+  "Load a compiled .uf2 (Pico) or .hex (Arduino) from the workspace": "Charger un .uf2 (Pico) ou .hex (Arduino) déjà compilé du workspace",
   "Recenter and fit the view": "Recentrer et ajuster la vue",
   "Drag to resize": "Glisser pour redimensionner",
   " — debug: {0} lines, {1} variable(s)": " — débogage : {0} lignes, {1} variable(s)",

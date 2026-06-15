@@ -22,11 +22,13 @@ const BOTTOM_ROW = [
   'RUN', 'GP22', 'GND.7', 'GP21', 'GP20', 'GP19', 'GP18', 'GND.8', 'GP17', 'GP16',
 ];
 
-const PIN_START_X = 42;
-const PIN_STEP = 16.6;
+// Géométrie alignée sur la grille de 10 px (= pas des broches 0,1" et des trous
+// de platine) : toutes les broches tombent sur la grille.
+const PIN_START_X = 40;
+const PIN_STEP = 10;
 const TOP_Y = 10;
-const BOTTOM_Y = 130;
-const LED_PAD = { name: 'GP25', x: 96, y: 36 };
+const BOTTOM_Y = 80;
+const LED_PAD = { name: 'GP25', x: 60, y: 50 };
 
 function pinColor(name: string): string {
   if (name.startsWith('GND')) return '#5a5a5a';
@@ -71,16 +73,16 @@ export class PicoBoardElement extends HTMLElement {
     const drawRow = (row: string[], y: number, labelAbove: boolean): void => {
       row.forEach((name, i) => {
         const x = PIN_START_X + i * PIN_STEP;
-        // Pastille de la broche (trou métallisé).
+        // Pastille de la broche (trou métallisé), au pas de 10 px.
         pins.push(
-          `<circle cx="${x}" cy="${y}" r="4.4" fill="${pinColor(name)}" stroke="#222" stroke-width="0.8"/>`,
-          `<circle cx="${x}" cy="${y}" r="1.7" fill="#101010"/>`
+          `<circle cx="${x}" cy="${y}" r="3" fill="${pinColor(name)}" stroke="#222" stroke-width="0.6"/>`,
+          `<circle cx="${x}" cy="${y}" r="1.2" fill="#101010"/>`
         );
         const short = name.replace(/^GND\.\d+$/, 'GND');
-        const ly = labelAbove ? y + 12 : y - 8;
+        const ly = labelAbove ? y + 6 : y - 6;
         labels.push(
-          `<text x="${x}" y="${ly}" transform="rotate(${labelAbove ? 90 : -90} ${x} ${ly})"` +
-            ` font-size="6" fill="#dddddd" font-family="monospace"` +
+          `<text x="${x + 1.4}" y="${ly}" transform="rotate(${labelAbove ? 90 : -90} ${x} ${ly})"` +
+            ` font-size="4" fill="#dddddd" font-family="monospace"` +
             ` text-anchor="start">${short}</text>`
         );
       });
@@ -89,40 +91,31 @@ export class PicoBoardElement extends HTMLElement {
     drawRow(BOTTOM_ROW, BOTTOM_Y, false);
 
     return `
-<svg width="380" height="140" viewBox="0 0 380 140" xmlns="http://www.w3.org/2000/svg">
+<svg width="250" height="90" viewBox="0 0 250 90" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <filter id="led-glow" x="-150%" y="-150%" width="400%" height="400%">
-      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feGaussianBlur stdDeviation="2" result="b"/>
       <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>
 
   <!-- PCB -->
-  <rect x="4" y="2" width="372" height="136" rx="8" fill="#1d6334" stroke="#114223" stroke-width="2"/>
+  <rect x="18" y="2" width="224" height="86" rx="8" fill="#1d6334" stroke="#114223" stroke-width="2"/>
 
-  <!-- Connecteur USB micro-B -->
-  <rect x="0" y="50" width="34" height="40" rx="3" fill="#c9ced1" stroke="#888" stroke-width="1"/>
-  <rect x="0" y="58" width="26" height="24" rx="2" fill="#9aa2a6"/>
+  <!-- Connecteur USB micro-B (à gauche) -->
+  <rect x="0" y="34" width="24" height="22" rx="3" fill="#c9ced1" stroke="#888" stroke-width="1"/>
+  <rect x="0" y="40" width="18" height="10" rx="2" fill="#9aa2a6"/>
 
-  <!-- Bouton BOOTSEL -->
-  <rect x="120" y="56" width="26" height="28" rx="3" fill="#e8e8e8" stroke="#999"/>
-  <circle cx="133" cy="70" r="8" fill="#cfcfcf" stroke="#888"/>
-  <text x="133" y="96" font-size="6" fill="#dddddd" text-anchor="middle" font-family="monospace">BOOTSEL</text>
-
-  <!-- Chip RP2040 -->
-  <rect x="180" y="48" width="44" height="44" rx="4" fill="#1a1a1a" stroke="#000"/>
-  <text x="202" y="66" font-size="7" fill="#cccccc" text-anchor="middle" font-family="monospace">RP2040</text>
-  <text x="202" y="78" font-size="5.5" fill="#888888" text-anchor="middle" font-family="monospace">Kablix</text>
+  <!-- Chip RP2040 (centre, entre les deux rangées) -->
+  <rect x="118" y="34" width="34" height="22" rx="3" fill="#1a1a1a" stroke="#000"/>
+  <text x="135" y="47" font-size="6" fill="#cccccc" text-anchor="middle" font-family="monospace">RP2040</text>
 
   <!-- LED embarquée GP25 -->
   <rect id="led-gp25" x="${LED_PAD.x - 5}" y="${LED_PAD.y - 4}" width="10" height="8" rx="1.5"
         fill="#3a4a3a" stroke="#222" stroke-width="0.8"/>
-  <text x="${LED_PAD.x}" y="${LED_PAD.y + 14}" font-size="6" fill="#dddddd" text-anchor="middle"
-        font-family="monospace">GP25</text>
 
   <!-- Sérigraphie -->
-  <text x="248" y="74" font-size="9" fill="#e8e8e8" font-family="sans-serif">Raspberry Pi</text>
-  <text x="248" y="86" font-size="9" fill="#e8e8e8" font-weight="bold" font-family="sans-serif">Pico</text>
+  <text x="170" y="44" font-size="7" fill="#e8e8e8" font-weight="bold" font-family="sans-serif">Pi Pico</text>
 
   ${pins.join('\n  ')}
   ${labels.join('\n  ')}
