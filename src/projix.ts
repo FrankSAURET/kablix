@@ -14,6 +14,8 @@ export interface ProjixManifest {
   app: string;
   board: 'uno' | 'pico';
   createdAt: string;
+  /** Fichier de code à exécuter/déboguer (chemin relatif au workspace ou nom). */
+  codeFile?: string;
 }
 
 /** Données extraites d'une archive ouverte. */

@@ -295,6 +295,40 @@ export class SimulatorPanel {
     this.post({ type: 'codeFile', name: uri ? uri.fsPath.split(/[\\/]/).pop() : null });
   }
 
+  /** Référence du fichier de code pour le .projix : chemin relatif au workspace, sinon nom. */
+  private codeFileRef(): string | undefined {
+    if (!this.codeFileUri) return undefined;
+    const p = this.codeFileUri.fsPath;
+    for (const folder of vscode.workspace.workspaceFolders ?? []) {
+      const base = folder.uri.fsPath;
+      if (p.startsWith(base)) {
+        return p.slice(base.length).replace(/^[\\/]+/, '').replace(/\\/g, '/');
+      }
+    }
+    return p.split(/[\\/]/).pop();
+  }
+
+  /** Restaure le fichier de code d'un .projix : exécutable s'il existe, sinon nom affiché. */
+  private async restoreCodeFile(ref: string | undefined): Promise<void> {
+    if (!ref) return;
+    const folders = vscode.workspace.workspaceFolders;
+    const uri = /^([a-zA-Z]:[\\/]|\/)/.test(ref)
+      ? vscode.Uri.file(ref)
+      : folders?.length
+        ? vscode.Uri.joinPath(folders[0].uri, ref)
+        : undefined;
+    if (uri) {
+      try {
+        await vscode.workspace.fs.stat(uri);
+        this.setCodeFile(uri);
+        return;
+      } catch {
+        // fichier absent sur ce poste : on affiche seulement son nom ci-dessous
+      }
+    }
+    this.post({ type: 'codeFile', name: ref.split(/[\\/]/).pop() });
+  }
+
   /** Laisse l'utilisateur choisir le fichier de code via une boîte de dialogue. */
   public async pickCodeFile(): Promise<void> {
     const folders = vscode.workspace.workspaceFolders;
@@ -537,6 +571,7 @@ export class SimulatorPanel {
         app: this.appVersion(),
         board: board ?? this.currentBoard,
         createdAt: new Date().toISOString(),
+        codeFile: this.codeFileRef(),
       };
 
       // Schéma seul : pas de codeRoot transmis.
@@ -583,6 +618,8 @@ export class SimulatorPanel {
         board: project.manifest.board,
         customParts,
       });
+      // Restaure le fichier de code à exécuter/déboguer mémorisé dans le projet.
+      await this.restoreCodeFile(project.manifest.codeFile);
       vscode.window.showInformationMessage(
         l10n.t('Kablix: project {0} loaded.', picked[0].fsPath.split(/[\\/]/).pop() ?? '')
       );

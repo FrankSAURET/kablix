@@ -60,6 +60,10 @@ export class AvrEngine implements SimEngine {
   private debugInfo: AvrDebugInfo | null = null;
   private breakpoints = new Set<number>(); // adresses flash (octets) des points d'arrêt
   private skipBreakAddr: number | null = null; // adresse à ne pas re-déclencher après un arrêt
+  // Décodage UTF-8 incrémental de la liaison série : un caractère accentué
+  // (ex. « é » = 2 octets) est émis octet par octet par l'USART ; le décodeur
+  // en flux tampon les séquences incomplètes pour restituer le bon caractère.
+  private serialDecoder = new TextDecoder('utf-8');
 
   constructor(program: Uint16Array, debugInfo?: AvrDebugInfo | null) {
     this.debugInfo = debugInfo ?? null;
@@ -80,7 +84,10 @@ export class AvrEngine implements SimEngine {
     for (const port of Object.values(this.ports)) {
       port.addListener(() => this.onUpdate?.());
     }
-    this.usart.onByteTransmit = (b: number) => this.onSerial?.(String.fromCharCode(b));
+    this.usart.onByteTransmit = (b: number) => {
+      const text = this.serialDecoder.decode(Uint8Array.of(b), { stream: true });
+      if (text) this.onSerial?.(text);
+    };
   }
 
   readDigital(name: string): boolean {
@@ -104,7 +111,8 @@ export class AvrEngine implements SimEngine {
   }
 
   writeSerial(text: string): void {
-    for (const ch of text) this.rxQueue.push(ch.charCodeAt(0) & 0xff);
+    // Encodage UTF-8 (un caractère accentué saisi devient plusieurs octets).
+    for (const byte of new TextEncoder().encode(text)) this.rxQueue.push(byte);
     this.flushRx();
   }
 

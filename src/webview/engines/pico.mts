@@ -103,7 +103,12 @@ export class PicoEngine implements SimEngine {
       pin.addListener(() => this.onUpdate?.());
     }
     // UART0 relié au moniteur série (programmes C bare-metal / pico-sdk).
-    this.mcu.uart[0].onByte = (value) => this.onSerial?.(String.fromCharCode(value));
+    // Décodage UTF-8 incrémental (caractères accentués émis octet par octet).
+    const uartDecoder = new TextDecoder('utf-8');
+    this.mcu.uart[0].onByte = (value) => {
+      const text = uartDecoder.decode(Uint8Array.of(value), { stream: true });
+      if (text) this.onSerial?.(text);
+    };
   }
 
   readDigital(name: string): boolean {

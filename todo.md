@@ -1,8 +1,9 @@
-- Changer le choix des couleurs pour les composants par des boutons colorés
-- Numérotation du todo recommence à 1 à chaque version
-- Les composants doivent s'aligner (toute leurs pattes) sur la grille
-- Enregistre le nom du fichier de simulation dans le fichier .projix
-- Les caractères accentués ne s'affichent pas correctement dans le moniteur série
+# v2026.6.10
+1. ✅ Choix des couleurs des composants par boutons colorés → les propriétés « couleur » (LED, bouton, résistance, 7 segments, barre de LED…) s'éditent par pastilles colorées au lieu d'une liste déroulante (« GYR » de la barre de LED = dégradé vert/jaune/rouge).
+2. ✅ Numérotation du todo qui recommence à 1 à chaque version → chaque section de version numérote ses items à partir de 1 (cette section l'applique).
+3. ✅ Les composants alignent toutes leurs pattes sur la grille → au déplacement et au dépôt, on aligne la **première broche** sur la grille (10 px) ; les autres broches étant à des multiples du pas, elles tombent aussi sur la grille.
+4. ✅ Nom du fichier de simulation enregistré dans le .projix → le manifeste `kablix.json` stocke `codeFile` (chemin relatif au workspace) ; à l'ouverture, le fichier est rétabli s'il existe, sinon son nom est affiché dans la pastille 📄.
+5. ✅ Accents mal affichés dans le moniteur série → décodage UTF-8 incrémental de la liaison série (AVR + UART Pico) ; un caractère accentué émis octet par octet est restitué correctement, et la saisie vers le µC est encodée en UTF-8. (Sortie MicroPython via REPL : inchangée, protocole octet sensible.)
 # v2026.6.9
 - [x] N'afficher que « nom : valeur » (sans le type), valeur en rouge si elle a changé → fait : panneau Variables sur 2 colonnes, la valeur passe en rouge quand elle diffère de la pause précédente.
 - [x] Le tableau de variables doit s'effacer quand on n'est pas en pas à pas → fait : le tableau est vidé dès que la simulation reprend / tourne (instantané périmé) et se remplit à chaque pause.

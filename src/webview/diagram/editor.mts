@@ -226,8 +226,10 @@ export class Editor {
       if (!type) return;
       e.preventDefault();
       const p = this.canvasPoint(e.clientX, e.clientY);
-      // Dépôt aligné sur la grille magnétique.
-      this.addPart(type, Math.max(0, snapToGrid(p.x)), Math.max(0, snapToGrid(p.y)));
+      const part = this.addPart(type, Math.max(0, Math.round(p.x)), Math.max(0, Math.round(p.y)));
+      // Aligne les broches sur la grille (après rendu : les broches @wokwi
+      // peuvent n'être disponibles qu'au cycle suivant).
+      requestAnimationFrame(() => this.snapPartToGrid(part.id));
     });
     // État initial enregistré pour l'annulation (feuille vide).
     this.recordHistory();
@@ -677,6 +679,30 @@ export class Editor {
     return part;
   }
 
+  /** Décalage (monde) de la première broche par rapport à l'origine d'un composant. */
+  private gridOffset(partId: string): XY | null {
+    const r = this.rendered.get(partId);
+    if (!r) return null;
+    const first = [...r.hotspots.keys()][0];
+    if (!first) return null;
+    const c = this.hotspotCenter({ partId, pin: first });
+    if (!c) return null;
+    return { x: c.x - r.part.x, y: c.y - r.part.y };
+  }
+
+  /** Décale un composant pour que sa première broche tombe sur la grille. */
+  private snapPartToGrid(partId: string): void {
+    const off = this.gridOffset(partId);
+    const r = this.rendered.get(partId);
+    if (!off || !r) return;
+    r.part.x = Math.max(0, snapToGrid(r.part.x + off.x) - off.x);
+    r.part.y = Math.max(0, snapToGrid(r.part.y + off.y) - off.y);
+    r.container.style.left = `${r.part.x}px`;
+    r.container.style.top = `${r.part.y}px`;
+    this.redrawWires();
+    this.notify();
+  }
+
   removePart(id: string): void {
     this.diagram.wires = this.diagram.wires.filter((w) => {
       if (w.a.partId === id || w.b.partId === id) {
@@ -1083,6 +1109,10 @@ export class Editor {
     // enfichable au-dessus d'une platine (il s'aligne alors sur les trous).
     const useGrid = holes.length === 0;
     const primary = members.find((m) => m.rr.part.id === part.id) ?? members[0];
+    // Décalage de la première broche par rapport à l'origine du composant : on
+    // aligne CETTE broche sur la grille (et donc toutes les autres, espacées de
+    // multiples du pas), pas le coin du composant.
+    const pinOff = this.gridOffset(part.id) ?? { x: 0, y: 0 };
     const move = (ev: PointerEvent) => {
       const dx = ev.clientX - startX;
       const dy = ev.clientY - startY;
@@ -1092,10 +1122,10 @@ export class Editor {
       let wdx = dx / this.zoom;
       let wdy = dy / this.zoom;
       if (useGrid && primary) {
-        // Aligne le composant meneur sur la grille ; le même décalage s'applique
-        // au groupe pour préserver les positions relatives.
-        wdx = snapToGrid(primary.ox + wdx) - primary.ox;
-        wdy = snapToGrid(primary.oy + wdy) - primary.oy;
+        // Aligne la première broche du meneur sur la grille ; le même décalage
+        // s'applique au groupe pour préserver les positions relatives.
+        wdx = snapToGrid(primary.ox + wdx + pinOff.x) - pinOff.x - primary.ox;
+        wdy = snapToGrid(primary.oy + wdy + pinOff.y) - pinOff.y - primary.oy;
       }
       for (const m of members) {
         m.rr.part.x = Math.max(0, m.ox + wdx);
@@ -2022,7 +2052,23 @@ export class Editor {
     this.inspector.appendChild(label);
 
     const current = part.attrs?.[prop.attr] ?? '';
-    if (prop.kind === 'select') {
+    if (prop.attr === 'color' && prop.kind === 'select') {
+      // Choix de couleur par boutons colorés (au lieu d'une liste déroulante).
+      const swatches = document.createElement('div');
+      swatches.className = 'inspector__swatches';
+      for (const opt of prop.options ?? []) {
+        const sw = document.createElement('button');
+        sw.className = 'inspector__swatch' + (opt === current ? ' inspector__swatch--active' : '');
+        sw.style.background = colorSwatchBackground(opt);
+        sw.title = opt;
+        sw.addEventListener('click', () => {
+          this.updatePartAttr(partId, prop.attr, opt);
+          this.renderInspector();
+        });
+        swatches.appendChild(sw);
+      }
+      this.inspector.appendChild(swatches);
+    } else if (prop.kind === 'select') {
       const select = document.createElement('select');
       select.className = 'inspector__control';
       for (const opt of prop.options ?? []) {
@@ -2230,6 +2276,22 @@ export class Editor {
       ...wires,
       `</svg>`,
     ].join('\n');
+  }
+}
+
+/**
+ * Couleur de fond d'un bouton de sélection de couleur de composant. Les noms
+ * usuels sont des couleurs CSS valides ; quelques cas particuliers (ex. « GYR »
+ * de la barre de LED) sont rendus par un dégradé représentatif.
+ */
+function colorSwatchBackground(value: string): string {
+  switch (value) {
+    case 'GYR':
+      return 'linear-gradient(90deg, #3c3 0 33%, #fd3 33% 66%, #e33 66%)';
+    case 'white':
+      return '#fafafa';
+    default:
+      return value; // red, green, blue, yellow, orange, purple, black… = couleurs CSS
   }
 }
 
