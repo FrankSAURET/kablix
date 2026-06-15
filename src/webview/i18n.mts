@@ -166,9 +166,14 @@ const FR: Record<string, string> = {
   'Blue': 'Bleu',
   'Purple': 'Violet',
   'Gray': 'Gris',
-  'White': 'Blanc',
+  'Fuchsia': 'Fuchsia',
   'Black': 'Noir',
   'Brown': 'Marron',
+
+  // Aide
+  'In simulation: Ctrl+click keeps it pressed.': 'En simulation : Ctrl+clic le maintient enfoncé.',
+  'No readable variable here (C: global variables only).':
+    'Aucune variable lisible ici (en C : variables globales seulement).',
 };
 
 const DICTS: Record<string, Record<string, string>> = { fr: FR };

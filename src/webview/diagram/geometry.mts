@@ -68,11 +68,21 @@ export const DUPONT_COLORS: ReadonlyArray<{ id: string; label: string; hex: stri
   { id: 'blue', label: 'Blue', hex: '#1e88e5' },
   { id: 'purple', label: 'Purple', hex: '#8e24aa' },
   { id: 'gray', label: 'Gray', hex: '#9e9e9e' },
-  { id: 'white', label: 'White', hex: '#fafafa' },
+  { id: 'fuchsia', label: 'Fuchsia', hex: '#ff00dc' },
   { id: 'black', label: 'Black', hex: '#212121' },
   { id: 'brown', label: 'Brown', hex: '#8d6e63' },
 ];
 
+/**
+ * Couleurs proposées en rotation pour les fils « ordinaires » (ni masse ni
+ * alimentation) : on exclut le rouge (réservé à VCC) et le noir (réservé à la
+ * masse) pour ne pas suggérer une alimentation là où il n'y en a pas.
+ */
+export const DEFAULT_WIRE_COLORS: ReadonlyArray<{ id: string; label: string; hex: string }> =
+  DUPONT_COLORS.filter((c) => c.id !== 'red' && c.id !== 'black');
+
 export function dupontHex(id: string): string {
+  // Repli historique : les anciens fils « blancs » restent affichables.
+  if (id === 'white') return '#fafafa';
   return DUPONT_COLORS.find((c) => c.id === id)?.hex ?? id;
 }

@@ -22,7 +22,7 @@ import {
 import { breadboardPins, normalizeSize, stripOfPin } from './breadboard.mjs';
 import { internalWiringSvg, type PinPoint } from './internal-wiring.mjs';
 import type { Diagram, Endpoint, Part, Wire } from './model.mjs';
-import { DUPONT_COLORS, dupontHex, roundedWirePath, snapPoint, type XY } from './geometry.mjs';
+import { DEFAULT_WIRE_COLORS, DUPONT_COLORS, dupontHex, roundedWirePath, snapPoint, type XY } from './geometry.mjs';
 import { PartCreator } from './creator.mjs';
 import '../elements/custom-part.mjs';
 import { t } from '../i18n.mjs';
@@ -76,6 +76,10 @@ const MAX_RECENTS = 10;
 const DND_MIME = 'application/x-kablix-part';
 const ZOOM_MIN = 0.3;
 const ZOOM_MAX = 3;
+/** Pas de la grille magnétique d'alignement (px), aligné sur la grille de fond. */
+const GRID = 20;
+/** Aligne une coordonnée sur la grille magnétique. */
+const snapToGrid = (v: number): number => Math.round(v / GRID) * GRID;
 /** Dimensions de la vignette de composant dans la palette (px). */
 const THUMB_W = 46;
 const THUMB_H = 30;
@@ -209,7 +213,8 @@ export class Editor {
       if (!type) return;
       e.preventDefault();
       const p = this.canvasPoint(e.clientX, e.clientY);
-      this.addPart(type, Math.max(0, Math.round(p.x)), Math.max(0, Math.round(p.y)));
+      // Dépôt aligné sur la grille magnétique.
+      this.addPart(type, Math.max(0, snapToGrid(p.x)), Math.max(0, snapToGrid(p.y)));
     });
     // État initial enregistré pour l'annulation (feuille vide).
     this.recordHistory();
@@ -626,6 +631,7 @@ export class Editor {
   resetVisuals(): void {
     for (const id of [...this.rendered.keys()]) this.rerenderPart(id);
     this.redrawWires();
+    this.scheduleSettle();
   }
 
   /** Vide entièrement l'atelier (changement de carte, nouveau schéma). */
@@ -676,6 +682,7 @@ export class Editor {
       if (!nw.auto) this.drawWire(nw);
     }
     this.redrawWires();
+    this.scheduleSettle();
     this.notify();
   }
 
@@ -704,7 +711,8 @@ export class Editor {
   }
 
   private nextColor(): string {
-    const color = DUPONT_COLORS[this.colorIndex % DUPONT_COLORS.length].id;
+    // Rotation sur les couleurs « ordinaires » (sans rouge ni noir, réservés).
+    const color = DEFAULT_WIRE_COLORS[this.colorIndex % DEFAULT_WIRE_COLORS.length].id;
     this.colorIndex++;
     return color;
   }
@@ -816,6 +824,7 @@ export class Editor {
     // ET que le composant est sélectionné (sinon il reste masqué).
     if (this.internalShown.has(part.id) && this.isSelected(part.id)) this.renderInternalWiring(part.id);
     this.redrawWires();
+    this.scheduleSettle();
   }
 
   /** Re-rend un composant après un changement d'attribut (angle, couleur…). */
@@ -963,15 +972,27 @@ export class Editor {
     const pluggable = !isGroup && kind !== 'mcu' && kind !== 'breadboard';
     const holes = pluggable ? this.collectBreadboardHoles(part.id) : [];
 
+    // Grille magnétique pour faciliter l'alignement, sauf pour un composant
+    // enfichable au-dessus d'une platine (il s'aligne alors sur les trous).
+    const useGrid = holes.length === 0;
+    const primary = members.find((m) => m.rr.part.id === part.id) ?? members[0];
     const move = (ev: PointerEvent) => {
       const dx = ev.clientX - startX;
       const dy = ev.clientY - startY;
       if (!moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
       moved = true;
       // Le déplacement écran est converti en déplacement monde (zoom courant).
+      let wdx = dx / this.zoom;
+      let wdy = dy / this.zoom;
+      if (useGrid && primary) {
+        // Aligne le composant meneur sur la grille ; le même décalage s'applique
+        // au groupe pour préserver les positions relatives.
+        wdx = snapToGrid(primary.ox + wdx) - primary.ox;
+        wdy = snapToGrid(primary.oy + wdy) - primary.oy;
+      }
       for (const m of members) {
-        m.rr.part.x = Math.max(0, m.ox + dx / this.zoom);
-        m.rr.part.y = Math.max(0, m.oy + dy / this.zoom);
+        m.rr.part.x = Math.max(0, m.ox + wdx);
+        m.rr.part.y = Math.max(0, m.oy + wdy);
         m.rr.container.style.left = `${m.rr.part.x}px`;
         m.rr.container.style.top = `${m.rr.part.y}px`;
       }
@@ -1446,6 +1467,28 @@ export class Editor {
     for (const wire of this.diagram.wires) this.positionWire(wire);
   }
 
+  /**
+   * Recale les bandeaux de nom et les fils une frame plus tard. Les éléments
+   * @wokwi (Lit) terminent leur mise en page de façon asynchrone : au premier
+   * rendu, offsetWidth/positions de broches peuvent être provisoires. Sans ce
+   * second passage, le nom d'un composant tourné se plaçait mal et les fils se
+   * décalaient légèrement après un re-rendu (chargement, annuler/refaire,
+   * réinitialisation, déplacement d'onglet).
+   */
+  private settleQueued = false;
+  private scheduleSettle(): void {
+    if (this.settleQueued || typeof requestAnimationFrame !== 'function') return;
+    this.settleQueued = true;
+    requestAnimationFrame(() => {
+      this.settleQueued = false;
+      for (const r of this.rendered.values()) {
+        const body = r.container.querySelector('.part__body') as HTMLDivElement | null;
+        if (body) this.applyRotation(r.part, body); // repositionne le bandeau (rotation)
+      }
+      this.redrawWires();
+    });
+  }
+
   // --- Sélection + éditeur de composants --------------------------------------
   private select(sel: Selection): void {
     // Retire la mise en évidence précédente (fil + câblages internes affichés).
@@ -1819,6 +1862,7 @@ export class Editor {
     // Zone d'aide contextuelle, sous les propriétés du composant sélectionné.
     const lines = [t('+ or − to rotate the part')];
     if (def.interactive) lines.push(t('Right-click to move it.'));
+    if (def.kind === 'pushbutton') lines.push(t('In simulation: Ctrl+click keeps it pressed.'));
     this.appendHelp(lines);
   }
 

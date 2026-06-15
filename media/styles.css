@@ -313,6 +313,42 @@ body {
   color: #ff6b6b;
 }
 
+/* Icône « gomme » du bouton effacer (image media/Gomme.svg, lisible sur fond sombre). */
+.canvas__clear-icon {
+  width: 20px;
+  height: 20px;
+  display: block;
+  pointer-events: none;
+}
+
+/* Bouton « réinitialiser » : tout à droite de la barre du canvas, juste à
+   gauche du bouton effacer. */
+.canvas__reset {
+  position: absolute;
+  top: 8px;
+  right: 44px;
+  z-index: 7;
+  font: inherit;
+  font-size: 1.05rem;
+  line-height: 1;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-input-border, #555);
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+.canvas__reset:hover {
+  opacity: 1;
+  border-color: var(--vscode-focusBorder, #4fa3ff);
+}
+
 /* Commandes de simulation en surimpression (haut-gauche du canvas). */
 .canvas-controls {
   position: absolute;
@@ -642,10 +678,9 @@ body {
   pointer-events: none;
 }
 
-/* Simulation en pause (pas à pas) : les composants ne réagissent plus (BP figé). */
-.canvas--paused .part__body {
-  pointer-events: none;
-}
+/* En simulation (y compris en pause / pas à pas) les composants restent
+   actionnables : on peut appuyer sur un bouton et lire l'effet, même figé,
+   pour déboguer. Aucun verrou de pointeur n'est posé sur le corps. */
 
 /* Bandeau de nom : hors flux (au-dessus du corps, il n'en décale pas les
    broches) et masqué par défaut. Il apparaît à la sélection du composant ou
@@ -738,6 +773,10 @@ body {
 
 .pin {
   position: absolute;
+  /* box-sizing border-box : la pastille (bordure comprise) est exactement
+     centrée sur (pin.x, pin.y). Sans cela, la bordure d'1 px décalait le centre
+     mesuré, et le bout des fils tombait ~1 px à côté du centre de la broche. */
+  box-sizing: border-box;
   width: 9px;
   height: 9px;
   margin: -4.5px 0 0 -4.5px;
@@ -997,4 +1036,12 @@ body {
 
 .debug__vars td:nth-child(2) {
   opacity: 0.7;
+}
+
+/* Message « aucune variable » : discret, sur toute la largeur. */
+.debug__vars td.debug__empty {
+  opacity: 0.6;
+  font-style: italic;
+  text-align: center;
+  color: inherit;
 }

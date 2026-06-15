@@ -125,6 +125,9 @@ let unoDebugInfo: AvrDebugInfo | null = null;
 let picoProgram: PicoProgram = { kind: 'ram', image: PICO_BLINK };
 let inputRemovers: Array<() => void> = [];
 let breakpointLines: number[] = []; // points d'arrêt envoyés par l'extension
+// Vrai dès qu'un programme compilé/chargé a été reçu : sinon, lancer la
+// simulation déclenche d'abord une compilation automatique du fichier de code.
+let programLoaded = false;
 
 const setStatus = (text: string): void => {
   statusEl.textContent = text;
@@ -207,7 +210,11 @@ function bindInputs(): void {
   for (const binding of buttonBindings(editor.diagram)) {
     const el = editor.elementOf(binding.partId);
     if (!el) continue;
-    engine.setInput(binding.mcuPin, true); // relâché = pull-up (haut)
+    // L'entrée suit directement l'état enfoncé du bouton : appui = LOW, relâché
+    // = HIGH (pull-up). Un clic simple est transitoire ; Ctrl+clic maintient le
+    // bouton enfoncé (mode « sticky » natif de l'élément : aucun relâchement
+    // n'est émis), ce qui permet de le laisser dans cet état pour déboguer.
+    engine.setInput(binding.mcuPin, true); // au repos = pull-up (haut)
     const press = () => engine?.setInput(binding.mcuPin, false);
     const release = () => engine?.setInput(binding.mcuPin, true);
     el.addEventListener('button-press', press);
@@ -323,6 +330,15 @@ function renderDebugPause(state: DebugPauseState): void {
   debugSection.hidden = false;
   debugLineEl.textContent = state.line !== undefined ? t('Line {0}', state.line) : '';
   debugVarsEl.innerHTML = '';
+  if (state.variables.length === 0) {
+    // Pause sans variable lisible (C : seules les globales sont listées ; il faut
+    // les infos de débogage DWARF). On l'indique plutôt que de laisser vide.
+    const row = debugVarsEl.insertRow();
+    const cell = row.insertCell();
+    cell.colSpan = 3;
+    cell.className = 'debug__empty';
+    cell.textContent = t('No readable variable here (C: global variables only).');
+  }
   for (const v of state.variables) {
     const row = debugVarsEl.insertRow();
     row.insertCell().textContent = v.name;
@@ -336,9 +352,8 @@ function renderDebugPause(state: DebugPauseState): void {
 
 function updateDebugButtons(): void {
   const paused = engine?.paused ?? false;
-  // Pas à pas : on verrouille les actions sur les composants (ex. appui BP) tant
-  // que la simulation est en pause, pour ne pas perturber l'état figé.
-  canvas.classList.toggle('canvas--paused', paused);
+  // Les composants restent actionnables même en pause / pas à pas (débogage) :
+  // aucun verrou de pointeur n'est posé pendant la simulation.
   pauseBtn.disabled = !engine;
   // Icône seule (bouton sur le canvas) : le libellé passe dans l'info-bulle.
   pauseBtn.textContent = paused ? '▶' : '⏸';
@@ -421,8 +436,22 @@ function persistState(): void {
   vscode.setState({ diagram: editor.serialize(), board, showLabels } satisfies PersistedState);
 }
 
+/**
+ * Lancement de la simulation : si aucun programme n'a encore été compilé/chargé,
+ * on compile d'abord le fichier de code (la compilation enchaîne sur le run).
+ * Sinon, on démarre directement.
+ */
+function requestRun(): void {
+  if (!programLoaded) {
+    setStatus(t('Compiling…'));
+    vscode.postMessage({ type: 'compile', board });
+    return;
+  }
+  startRun();
+}
+
 // --- Barre d'outils -----------------------------------------------------------
-runBtn.addEventListener('click', startRun);
+runBtn.addEventListener('click', requestRun);
 stopBtn.addEventListener('click', stopRun);
 // Tout réinitialiser : arrête la simulation et remet les composants à zéro.
 resetSimBtn.addEventListener('click', () => {
@@ -530,6 +559,7 @@ editor.onExportCustomPart = (part: CustomPartData) => {
 boardSelect.addEventListener('change', () => {
   board = boardSelect.value === 'pico' ? 'pico' : 'uno';
   vscode.postMessage({ type: 'board', board });
+  programLoaded = false; // le programme compilé était lié à l'autre carte
   stopRun();
   persistState();
   setStatus(t('Board: {0}', board === 'uno' ? 'Arduino Uno' : 'Raspberry Pi Pico'));
@@ -556,6 +586,7 @@ window.addEventListener('message', (event: MessageEvent) => {
   const msg = event.data;
   switch (msg?.type) {
     case 'runProgram':
+      programLoaded = true; // un vrai programme est désormais disponible
       if (msg.board === 'uno') {
         unoProgram = Uint16Array.from(msg.bytes as number[]);
         unoDebugInfo = (msg.debug as AvrDebugInfo | undefined) ?? null;

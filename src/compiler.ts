@@ -478,8 +478,17 @@ export function compile(
     // n'est PAS un sketch valide pour arduino-cli (il lui faut un .ino dans un
     // dossier de même nom) : ces fichiers passent par avr-gcc en bare-metal.
     const withArduinoCli = (cli: string): CompileResult => {
-      log.push('Compilation via arduino-cli (arduino:avr:uno)…');
-      run(cli, ['compile', '--fqbn', 'arduino:avr:uno', '--output-dir', tmp, filePath]);
+      log.push('Compilation via arduino-cli (arduino:avr:uno, -O0 pour le débogage)…');
+      // -O0 par défaut : sans optimisation, le pas à pas ne saute plus de lignes
+      // et les variables restent en mémoire (lisibles) au lieu d'être placées en
+      // registres ou éliminées comme avec -Os.
+      run(cli, [
+        'compile',
+        '--fqbn', 'arduino:avr:uno',
+        '--build-property', 'compiler.optimization_flags=-O0',
+        '--output-dir', tmp,
+        filePath,
+      ]);
       const hex = readFileSync(join(tmp, `${basename(filePath)}.hex`), 'utf8');
       // L'ELF (compilé avec -g par la plateforme AVR) livre les infos de débogage.
       const debug = extractAvrDebug(join(tmp, `${basename(filePath)}.elf`), filePath, log, cli, searchDir);
@@ -498,11 +507,12 @@ export function compile(
     const isCpp = ['.cpp', '.cc', '.cxx'].includes(ext);
     const avrCompiler = resolveTool(isCpp ? 'avr-g++' : 'avr-gcc', { searchDir });
     if (avrCompiler) {
-      log.push('Compilation via avr-gcc (ATmega328P, bare-metal avr-libc)…');
+      log.push('Compilation via avr-gcc (ATmega328P, bare-metal avr-libc, -O0)…');
       const objcopy = resolveTool('avr-objcopy', { searchDir }) ?? 'avr-objcopy';
       const elf = join(tmp, 'out.elf');
       const hex = join(tmp, 'out.hex');
-      run(avrCompiler, ['-mmcu=atmega328p', '-Os', '-g', '-DF_CPU=16000000UL', '-o', elf, filePath]);
+      // -O0 -g3 : débogage fidèle (lignes + variables non optimisées).
+      run(avrCompiler, ['-mmcu=atmega328p', '-O0', '-g3', '-DF_CPU=16000000UL', '-o', elf, filePath]);
       run(objcopy, ['-O', 'ihex', '-R', '.eeprom', elf, hex]);
       const debug = extractAvrDebug(elf, filePath, log, arduinoCli, searchDir);
       return {
@@ -536,6 +546,8 @@ export function compile(
   const elf = join(tmp, 'out.elf');
   const bin = join(tmp, 'out.bin');
   run(armCompiler, [
+    // RP2040 bare-metal en RAM : on garde -Os (pas de débogage DWARF côté Pico,
+    // et -nostdlib + -O0 risquerait des appels manquants à memcpy/memset).
     '-mcpu=cortex-m0plus', '-mthumb', '-Os', '-ffreestanding',
     '-nostdlib', '-nostartfiles', '-Wl,--build-id=none',
     '-T', ld, '-o', elf, filePath,

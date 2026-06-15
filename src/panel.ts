@@ -645,6 +645,9 @@ export class SimulatorPanel {
     const styleUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this.extensionUri, 'media', 'styles.css')
     );
+    const gommeUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, 'media', 'Gomme.svg')
+    );
     const nonce = getNonce();
     const csp = [
       `default-src 'none'`,
@@ -691,7 +694,6 @@ export class SimulatorPanel {
           <button id="stop" class="canvas-controls__btn" disabled title="${l10n.t('Stop')}">■</button>
           <button id="pause" class="canvas-controls__btn" disabled title="${l10n.t('Pause / resume the simulation')}">⏸</button>
           <button id="step" class="canvas-controls__btn" disabled title="${l10n.t('Run one source line then pause')}">⏭</button>
-          <button id="reset-sim" class="canvas-controls__btn" title="${l10n.t('Reset all components to their initial state')}">⟲</button>
           <select id="speed" class="canvas-controls__speed" title="${l10n.t('Simulation speed')}">
             <option value="1" selected>🐇 100 %</option>
             <option value="0.1">🐢 10 %</option>
@@ -699,7 +701,9 @@ export class SimulatorPanel {
           </select>
           <button id="code-file" class="canvas-controls__file" title="${l10n.t('Code file to run / debug — click to change')}">📄 ${l10n.t('No file')}</button>
         </div>
-        <button id="clear-canvas" class="canvas__clear" title="${l10n.t('Clear the diagram (Ctrl+Z to undo)')}">🗑</button>
+        <!-- Réinitialiser (état initial des composants) tout à droite de la barre. -->
+        <button id="reset-sim" class="canvas__reset" title="${l10n.t('Reset all components to their initial state')}">⟲</button>
+        <button id="clear-canvas" class="canvas__clear" title="${l10n.t('Clear the diagram (Ctrl+Z to undo)')}"><img class="canvas__clear-icon" src="${gommeUri}" alt="${l10n.t('Clear')}" /></button>
         <svg id="wires" class="wires"></svg>
       </div>
       <div class="splitter" id="splitter-inspector" data-target="inspector" title="${l10n.t('Drag to resize')}"></div>
