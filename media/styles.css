@@ -1019,8 +1019,10 @@ body {
   color: var(--vscode-charts-blue, #61afef);
 }
 
-.debug__vars td:nth-child(2) {
-  opacity: 0.7;
+/* Valeur ayant changé depuis la dernière pause : en rouge. */
+.debug__vars td.debug__changed {
+  color: var(--vscode-errorForeground, #f14c4c);
+  font-weight: 600;
 }
 
 /* Message « aucune variable » : discret, sur toute la largeur. */

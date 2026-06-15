@@ -327,6 +327,15 @@ function useDebugAsInspector(on: boolean): void {
 }
 
 // --- Débogage : pause, pas à pas, panneau des variables -----------------------
+// Valeurs de la pause précédente, pour colorer en rouge ce qui a changé.
+let previousVarValues = new Map<string, string>();
+
+/** Vide le tableau des variables (hors pas à pas, il n'a pas de sens). */
+function clearDebugVars(): void {
+  debugVarsEl.innerHTML = '';
+  previousVarValues = new Map();
+}
+
 function renderDebugPause(state: DebugPauseState): void {
   debugSection.hidden = false;
   debugLineEl.textContent = state.line !== undefined ? t('Line {0}', state.line) : '';
@@ -336,16 +345,24 @@ function renderDebugPause(state: DebugPauseState): void {
     // les infos de débogage DWARF). On l'indique plutôt que de laisser vide.
     const row = debugVarsEl.insertRow();
     const cell = row.insertCell();
-    cell.colSpan = 3;
+    cell.colSpan = 2;
     cell.className = 'debug__empty';
     cell.textContent = t('No readable variable here (C: global variables only).');
   }
+  // Affichage « nom : valeur » (sans le type) ; valeur en rouge si elle a changé
+  // depuis la dernière pause.
+  const next = new Map<string, string>();
   for (const v of state.variables) {
     const row = debugVarsEl.insertRow();
-    row.insertCell().textContent = v.name;
-    row.insertCell().textContent = v.type ?? '';
-    row.insertCell().textContent = v.value;
+    row.insertCell().textContent = `${v.name} :`;
+    const valueCell = row.insertCell();
+    valueCell.textContent = v.value;
+    if (previousVarValues.has(v.name) && previousVarValues.get(v.name) !== v.value) {
+      valueCell.classList.add('debug__changed');
+    }
+    next.set(v.name, v.value);
   }
+  previousVarValues = next;
   // Signale la ligne courante à l'extension (surlignage dans l'éditeur).
   if (state.line !== undefined) vscode.postMessage({ type: 'debugLine', line: state.line });
   updateDebugButtons();
@@ -353,6 +370,9 @@ function renderDebugPause(state: DebugPauseState): void {
 
 function updateDebugButtons(): void {
   const paused = engine?.paused ?? false;
+  // Hors pas à pas (simulation en cours ou arrêtée), le tableau de variables est
+  // un instantané périmé : on le vide. Il se remplit à chaque pause.
+  if (!paused) clearDebugVars();
   // Les composants restent actionnables même en pause / pas à pas (débogage) :
   // aucun verrou de pointeur n'est posé pendant la simulation.
   pauseBtn.disabled = !engine;

@@ -2,6 +2,11 @@
 - Numérotation du todo recommence à 1 à chaque version
 - Les composants doivent s'aligner (toute leurs pattes) sur la grille
 - Enregistre le nom du fichier de simulation dans le fichier .projix
+- Les caractères accentués ne s'affichent pas correctement dans le moniteur série
+# v2026.6.9
+- [x] N'afficher que « nom : valeur » (sans le type), valeur en rouge si elle a changé → fait : panneau Variables sur 2 colonnes, la valeur passe en rouge quand elle diffère de la pause précédente.
+- [x] Le tableau de variables doit s'effacer quand on n'est pas en pas à pas → fait : le tableau est vidé dès que la simulation reprend / tourne (instantané périmé) et se remplit à chaque pause.
+- « lastDebounceTime ne s'actualise pas en pas à pas » → comportement normal, pas un bug : le code ne fait `lastDebounceTime = millis()` que sur un front du bouton (`if (reading != lastButtonState)`) ; tant qu'on ne franchit pas cette ligne en pas à pas, la valeur ne change pas. La coloration en rouge (ci-dessus) rend ça visible.
 # v2026.6.8
 - [x] Débogage erratique + aucune variable + LED qui ne s'allume pas (sketch anti-rebond) → diagnostic + correctifs :
   - **LED qui ne s'allume jamais = bug du code utilisateur** (pas le simulateur) : l'anti-rebond fusionne la lecture brute et l'état débouncé ; `lastButtonState` passe à LOW avant le test de front, donc `lastButtonState==HIGH && buttonState==LOW` n'est jamais vrai → la bascule ne se produit jamais (même sur un vrai Arduino). Correctif côté élève : séparer la lecture brute (`reading`) de l'état débouncé (`buttonState`).
