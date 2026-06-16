@@ -168,11 +168,11 @@ function getHtml(webview: vscode.Webview): string {
       <li>la palette de commandes (<kbd>Ctrl+Shift+P</kbd>) → <strong>« Kablix : Ouvrir le simulateur »</strong> ;</li>
       <li>la commande <strong>« Kablix : Compiler »</strong> (ouvre le simulateur et y charge le fichier en cours d'édition).</li>
     </ul>
-    <p>Au premier affichage, la feuille de dessin est vide : posez vos composants depuis la palette, câblez-les, puis cliquez <strong>▶ Démarrer</strong> (démo intégrée : LED&nbsp;D13/GP25 clignotante) ou <strong>⚙ Compiler</strong> pour votre propre code. Pendant la simulation le schéma est figé (pas de sélection ni de modification) ; le bouton <strong>⟲</strong> de la barre de simulation remet les composants à leur état initial.</p>
+    <p>Au premier affichage, la feuille de dessin est vide : posez vos composants depuis la palette, câblez-les, puis cliquez <strong>▶ Démarrer</strong>. <strong>▶ compile automatiquement</strong> votre fichier de code (cf. chip 📄) s'il a changé depuis la dernière exécution, sinon il relance le binaire déjà compilé — il n'y a plus de bouton « Compiler » séparé. Pendant la simulation le schéma est figé (pas de sélection ni de modification) ; le bouton <strong>⟲</strong> de la barre de simulation remet les composants à leur état initial.</p>
 
     <h2 id="interface">Interface</h2>
     <ul>
-      <li><strong>Barre d'outils</strong> (haut) : sélecteur de carte, ▶ Démarrer / ■ Arrêter / ⏸ Pause / ⏭ Pas, vitesse 🐇/🐢/🐌, ⚙ Compiler, ⬇ SVG, 🏷 Noms. (Le bouton <strong>↑ Charger binaire</strong> est masqué par défaut — cf. réglages.)</li>
+      <li><strong>Barre d'outils</strong> (haut) : sélecteur de carte, ▶ Démarrer (compile le code modifié au besoin) / ■ Arrêter / ⏸ Pause / ⏭ Pas, vitesse 🐇/🐢/🐌, ⬇ SVG, 🏷 Noms. (Le bouton <strong>↑ Charger binaire</strong> est masqué par défaut — cf. réglages.)</li>
       <li><strong>Palette</strong> (gauche) : les composants à poser, triés <strong>AZ</strong> ou par <strong>catégories</strong>, avec une zone « Derniers utilisés ».</li>
       <li><strong>Canvas</strong> (centre) : les composants, les fils et leurs poignées.</li>
       <li><strong>Propriétés</strong> / inspecteur (droite) : édite l'élément sélectionné (couleur, valeur, angle, suppression) ; une zone d'aide y rappelle les gestes utiles.</li>
@@ -202,7 +202,7 @@ function getHtml(webview: vscode.Webview): string {
 
     <h2 id="executer">Exécuter du code</h2>
     <p>Le <strong>chip 📄</strong> dans la barre de simulation (en haut à gauche du canvas) indique le fichier de code exécuté / débogué ; un clic dessus permet d'en choisir un autre. À défaut, c'est le fichier actif de l'éditeur qui sert.</p>
-    <p>Bouton <strong>⚙ Compiler</strong> (compile et exécute le fichier de code, cf. chip 📄) ; le traitement dépend de l'extension du fichier :</p>
+    <p>Le bouton <strong>▶ Démarrer</strong> compile (si le source a changé) et exécute le fichier de code (cf. chip 📄) ; le traitement dépend de l'extension du fichier :</p>
     <ul>
       <li><code>.ino</code>, <code>.c</code>, <code>.cpp</code> (Uno) : compilation locale (<code>arduino-cli</code> ou <code>avr-gcc</code>) ;</li>
       <li><code>.c</code>, <code>.cpp</code> (Pico) : compilation bare-metal (<code>arm-none-eabi-gcc</code>) ;</li>
@@ -244,7 +244,7 @@ function getHtml(webview: vscode.Webview): string {
     <ol class="steps">
       <li><strong>Écrire le sketch</strong> dans « Arduino-VsCode-IDE » : ouvrez ou créez votre fichier <code>.ino</code> (ou <code>.c</code>/<code>.cpp</code>) et sélectionnez la carte <em>Arduino Uno</em>.</li>
       <li><strong>Préparer le montage dans Kablix</strong> : ouvrez le simulateur (icône Kablix), choisissez la carte <em>Arduino Uno</em>, posez les composants depuis la palette et câblez-les (par ex. une LED + résistance sur D13, un bouton sur une entrée).</li>
-      <li><strong>Compiler &amp; exécuter</strong> : le fichier <code>.ino</code> étant l'éditeur actif, cliquez <strong>⚙ Compiler</strong> (compilation locale via <code>arduino-cli</code>). Variante : si « Arduino-VsCode-IDE » a déjà produit un <code>.hex</code>, activez le réglage <code>kablix.showLoadBinaryButton</code> puis utilisez <strong>↑ Charger binaire</strong> pour récupérer l'artefact le plus récent. Si <code>arduino-cli</code> est installé mais introuvable, renseignez le réglage <code>kablix.arduinoCliPath</code>.</li>
+      <li><strong>Compiler &amp; exécuter</strong> : le fichier <code>.ino</code> étant l'éditeur actif (cf. chip 📄), cliquez <strong>▶ Démarrer</strong> (compilation locale via <code>arduino-cli</code> si le source a changé). Variante : si « Arduino-VsCode-IDE » a déjà produit un <code>.hex</code>, activez le réglage <code>kablix.showLoadBinaryButton</code> puis utilisez <strong>↑ Charger binaire</strong> pour récupérer l'artefact le plus récent. Si <code>arduino-cli</code> est installé mais introuvable, renseignez le réglage <code>kablix.arduinoCliPath</code>.</li>
       <li><strong>Observer</strong> : la ou les LED s'allument selon le programme ; ouvrez le <strong>moniteur série</strong> (bas) pour voir les <code>Serial.print()</code>, et envoyez-y des données si besoin.</li>
       <li><strong>Déboguer pas à pas</strong> : posez un <strong>point d'arrêt</strong> dans la gouttière de l'éditeur, ou utilisez <strong>⏸ Pause</strong> puis <strong>⏭ Pas</strong> pour avancer ligne par ligne et lire les variables globales dans le panneau <em>Variables</em>.</li>
     </ol>
@@ -255,7 +255,7 @@ function getHtml(webview: vscode.Webview): string {
       <li><strong>Écrire le script</strong> <code>.py</code> dans l'extension « Raspberry Pi Pico » (édition, structure de projet MicroPython).</li>
       <li><strong>Firmware MicroPython</strong> : au premier lancement d'un <code>.py</code>, si aucun firmware n'est trouvé, Kablix propose de le <strong>télécharger automatiquement</strong> (choix Pico / Pico W) ; il est ensuite mémorisé et réutilisé dans tous vos projets. Vous pouvez aussi fournir le vôtre : placez un <code>.uf2</code> officiel (<a href="https://micropython.org/download/RPI_PICO/">micropython.org/download/RPI_PICO</a>) dans le workspace, ou renseignez son chemin dans le réglage <code>kablix.micropythonUf2</code>.</li>
       <li><strong>Préparer le montage dans Kablix</strong> : ouvrez le simulateur, choisissez la carte <em>Raspberry Pi Pico</em>, posez et câblez vos composants (par ex. une LED sur GP25/GP15).</li>
-      <li><strong>Compiler &amp; exécuter</strong> : le fichier <code>.py</code> étant actif, cliquez <strong>⚙ Compiler</strong>. Le firmware démarre puis le script est injecté via le raw REPL.</li>
+      <li><strong>Compiler &amp; exécuter</strong> : le fichier <code>.py</code> étant actif (cf. chip 📄), cliquez <strong>▶ Démarrer</strong>. Le firmware démarre puis le script est injecté via le raw REPL.</li>
       <li><strong>Observer</strong> : les <code>print()</code> apparaissent dans le <strong>moniteur série</strong> ; à la fin du script, le REPL interactif reste disponible via le champ d'envoi.</li>
       <li><strong>Déboguer pas à pas</strong> : <strong>⏸ Pause</strong> / <strong>⏭ Pas</strong> et les points d'arrêt fonctionnent sur les variables globales (script instrumenté automatiquement) ; la pause prend effet à la ligne suivante.</li>
     </ol>

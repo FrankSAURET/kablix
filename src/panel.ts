@@ -41,6 +41,11 @@ export class SimulatorPanel {
   private codeFileUri: vscode.Uri | undefined;
   /** Décoration de la ligne en pause (créée à la demande, détruite avec le panneau). */
   private debugLineDecoration: vscode.TextEditorDecorationType | undefined;
+  /**
+   * Signature de la dernière compilation réussie (chemin + date de modification
+   * + carte). Permet à ▶ de ne recompiler que si le source a changé.
+   */
+  private lastCompiled: { path: string; mtime: number; board: Board } | undefined;
 
   /**
    * Colonne d'ouverture. On rouvre dans la dernière colonne utilisée (si elle
@@ -96,7 +101,7 @@ export class SimulatorPanel {
    *   .hex/.uf2/.elf/.bin → artefact chargé directement ;
    *   sinon → compilation via la toolchain locale pour la carte courante.
    */
-  public async compileActiveFile(): Promise<void> {
+  public async compileActiveFile(onlyIfChanged = false): Promise<void> {
     // Fichier choisi explicitement (chip du canvas) en priorité, sinon l'éditeur actif.
     let doc: vscode.TextDocument | undefined;
     if (this.codeFileUri) {
@@ -114,6 +119,23 @@ export class SimulatorPanel {
     await doc.save();
     const filePath = doc.uri.fsPath;
     const ext = filePath.slice(filePath.lastIndexOf('.')).toLowerCase();
+
+    // ▶ : si le source n'a pas changé depuis la dernière compilation (même
+    // fichier, même date, même carte), inutile de recompiler — on relance le
+    // binaire déjà en cache dans la webview. Les artefacts directs (.hex/.uf2…)
+    // ne se recompilent jamais : ils sont toujours relancés tels quels.
+    if (onlyIfChanged && this.lastCompiled) {
+      const isArtifact = ARTIFACT_EXTS.includes(ext);
+      const mtime = await this.mtimeOf(doc.uri);
+      const unchanged =
+        this.lastCompiled.path === filePath &&
+        this.lastCompiled.board === this.currentBoard &&
+        (isArtifact || (mtime !== undefined && mtime === this.lastCompiled.mtime));
+      if (unchanged) {
+        this.post({ type: 'runCached' });
+        return;
+      }
+    }
     // Mémorise le source pour les points d'arrêt et le surlignage ; pas de suivi pour les artefacts.
     this.currentSourceUri = ARTIFACT_EXTS.includes(ext) ? undefined : doc.uri;
     // Le fichier compilé devient le fichier de code affiché (et réutilisé ensuite).
@@ -135,6 +157,13 @@ export class SimulatorPanel {
           () => Promise.resolve(compile(board, filePath, this.extensionUri.fsPath, toolPaths))
         );
       }
+      // Compilation/chargement réussi : mémorise la signature pour que ▶ puisse
+      // sauter une recompilation tant que le source n'a pas changé.
+      const mtime = await this.mtimeOf(doc.uri);
+      this.lastCompiled =
+        mtime !== undefined
+          ? { path: filePath, mtime, board: this.currentBoard }
+          : undefined;
       this.runProgram(result, filePath.split(/[\\/]/).pop() ?? filePath);
     } catch (err) {
       // L'utilisateur a renoncé à fournir un firmware : pas un échec, on se tait.
@@ -224,6 +253,15 @@ export class SimulatorPanel {
       }
     }
     return best;
+  }
+
+  /** Date de modification d'un fichier (ms), ou undefined s'il est inaccessible. */
+  private async mtimeOf(uri: vscode.Uri): Promise<number | undefined> {
+    try {
+      return (await vscode.workspace.fs.stat(uri)).mtime;
+    } catch {
+      return undefined;
+    }
   }
 
   // --- Communication avec la webview -------------------------------------------
@@ -409,6 +447,7 @@ export class SimulatorPanel {
     line?: number;
     diagram?: unknown;
     json?: unknown;
+    onlyIfChanged?: boolean;
   }): void {
     switch (msg?.type) {
       case 'ready':
@@ -442,7 +481,7 @@ export class SimulatorPanel {
         break;
       case 'compile':
         if (msg.board) this.currentBoard = msg.board;
-        void this.compileActiveFile();
+        void this.compileActiveFile(msg.onlyIfChanged === true);
         break;
       case 'loadWorkspace':
         if (msg.board) this.currentBoard = msg.board;
@@ -713,7 +752,6 @@ export class SimulatorPanel {
       <option value="uno" selected>Arduino Uno</option>
       <option value="pico">Raspberry Pi Pico</option>
     </select>
-    <button id="compile" title="${l10n.t('Compile &amp; run the active file')}">⚙ ${l10n.t('Compile')}</button>
     <button id="load-workspace" hidden title="${l10n.t('Load a compiled .uf2 (Pico) or .hex (Arduino) from the workspace')}">↑ ${l10n.t('Load binary')}</button>
     <button id="export-svg" title="${l10n.t('Export the diagram as SVG')}">⬇ SVG</button>
     <button id="save-project" title="${l10n.t('Save the project')}">💾</button>

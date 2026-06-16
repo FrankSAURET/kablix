@@ -78,6 +78,15 @@ const PREAMBLE: string[] = [
   '        __v = __g[__k]',
   '        if isinstance(__v, type) or isinstance(__v, type(__kx_vars)) or isinstance(__v, type(__kx_sys)):',
   '            continue',
+  // Objets type Pin (machine.Pin, Signal…) : on affiche « nom.value » = niveau
+  // logique (0/1) plutôt que le repr de l'objet (« Pin(GPIO13, mode=OUT) »).
+  '        __vm = getattr(__v, "value", None)',
+  '        if callable(__vm) and not isinstance(__v, (int, float, str, bytes, bool)):',
+  '            try:',
+  '                __o[__k + ".value"] = repr(__vm())',
+  '                continue',
+  '            except Exception:',
+  '                pass',
   '        try:',
   '            __r = repr(__v)',
   '        except Exception:',

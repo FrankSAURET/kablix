@@ -88,7 +88,6 @@ let restoredState = vscode.getState() as PersistedState | undefined;
 const boardSelect = document.getElementById('board') as HTMLSelectElement;
 const runBtn = document.getElementById('run') as HTMLButtonElement;
 const stopBtn = document.getElementById('stop') as HTMLButtonElement;
-const compileBtn = document.getElementById('compile') as HTMLButtonElement;
 const loadBtn = document.getElementById('load-workspace') as HTMLButtonElement;
 const exportBtn = document.getElementById('export-svg') as HTMLButtonElement;
 const saveProjectBtn = document.getElementById('save-project') as HTMLButtonElement;
@@ -476,12 +475,12 @@ function persistState(): void {
  * Sinon, on démarre directement.
  */
 function requestRun(): void {
-  if (!programLoaded) {
-    setStatus(t('Compiling…'));
-    vscode.postMessage({ type: 'compile', board });
-    return;
-  }
-  startRun();
+  // ▶ délègue à l'hôte : il (re)compile le fichier de code si le source a changé
+  // (ou si rien n'est encore chargé), sinon il répond 'runCached' et on relance
+  // le binaire déjà en mémoire. L'utilisateur exécute ainsi toujours sa dernière
+  // version, sans bouton « Compiler » séparé.
+  setStatus(t('Compiling…'));
+  vscode.postMessage({ type: 'compile', board, onlyIfChanged: programLoaded });
 }
 
 // --- Barre d'outils -----------------------------------------------------------
@@ -501,10 +500,6 @@ clearCanvasBtn.addEventListener('click', () => {
 });
 clearBtn.addEventListener('click', () => {
   serialEl.textContent = '';
-});
-compileBtn.addEventListener('click', () => {
-  setStatus(t('Compiling…'));
-  vscode.postMessage({ type: 'compile', board });
 });
 loadBtn.addEventListener('click', () => {
   vscode.postMessage({ type: 'loadWorkspace', board });
@@ -643,6 +638,11 @@ window.addEventListener('message', (event: MessageEvent) => {
         switchBoard('pico');
       }
       startRun();
+      break;
+    case 'runCached':
+      // Source inchangé depuis la dernière compilation : on relance le binaire
+      // déjà en mémoire sans recompiler.
+      if (programLoaded) startRun();
       break;
     case 'status':
       setStatus(String(msg.text));
