@@ -14,6 +14,7 @@ import {
   PROJIX_FORMAT_VERSION,
   type ProjixManifest,
 } from './projix';
+import { resolveMicropythonFirmware, FirmwareCancelled } from './firmware';
 
 const ARTIFACT_EXTS = ['.hex', '.uf2', '.elf', '.bin'];
 const CUSTOM_PARTS_KEY = 'kablix.customParts';
@@ -122,7 +123,7 @@ export class SimulatorPanel {
     try {
       let result: CompileResult;
       if (ext === '.py') {
-        const firmware = await this.findMicropythonFirmware();
+        const firmware = await resolveMicropythonFirmware(this.context);
         result = loadPythonProgram(firmware, doc.getText());
       } else if (ARTIFACT_EXTS.includes(ext)) {
         result = loadArtifact(filePath);
@@ -136,6 +137,11 @@ export class SimulatorPanel {
       }
       this.runProgram(result, filePath.split(/[\\/]/).pop() ?? filePath);
     } catch (err) {
+      // L'utilisateur a renoncé à fournir un firmware : pas un échec, on se tait.
+      if (err instanceof FirmwareCancelled) {
+        this.post({ type: 'status', text: l10n.t('Ready') });
+        return;
+      }
       this.reportError(err);
     }
   }
@@ -218,43 +224,6 @@ export class SimulatorPanel {
       }
     }
     return best;
-  }
-
-  /** Firmware MicroPython : réglage kablix.micropythonUf2, sinon scan du workspace. */
-  private async findMicropythonFirmware(): Promise<string> {
-    const configured = vscode.workspace
-      .getConfiguration('kablix')
-      .get<string>('micropythonUf2');
-    if (configured) {
-      const folders = vscode.workspace.workspaceFolders ?? [];
-      const uri = /^([a-zA-Z]:[\\/]|\/)/.test(configured)
-        ? vscode.Uri.file(configured)
-        : folders.length > 0
-          ? vscode.Uri.joinPath(folders[0].uri, configured)
-          : undefined;
-      if (uri) {
-        try {
-          await vscode.workspace.fs.stat(uri);
-          return uri.fsPath;
-        } catch {
-          throw new Error(l10n.t('MicroPython firmware not found: {0} (kablix.micropythonUf2 setting).', configured));
-        }
-      }
-    }
-    const found = await vscode.workspace.findFiles(
-      '**/{micropython,MICROPYTHON,RPI_PICO,rp2-pico}*.uf2',
-      '**/node_modules/**',
-      10
-    );
-    const best = await this.newest(found);
-    if (!best) {
-      throw new Error(
-        l10n.t(
-          'No MicroPython firmware (.uf2) found in the workspace. Download it from https://micropython.org/download/RPI_PICO/ then place it in the workspace or set the "kablix.micropythonUf2" setting.'
-        )
-      );
-    }
-    return best.fsPath;
   }
 
   // --- Communication avec la webview -------------------------------------------

@@ -50,9 +50,10 @@ Aucun service en ligne n'est requis.
 - ✅ **Flash RP2040 réel** : parseur **UF2** intégré, bootrom B1 embarqué,
   firmware programmé en flash et démarré comme sur la vraie carte
   (compatible pico-sdk) ; **USB-CDC et UART0** reliés au moniteur série
-- ✅ **MicroPython** : ouvrez un fichier `.py`, Kablix charge le firmware
-  `micropython*.uf2` du workspace (ou du réglage `kablix.micropythonUf2`) et
-  **exécute votre script** via le raw REPL — `print()` et le REPL interactif
+- ✅ **MicroPython** : ouvrez un fichier `.py`, Kablix **télécharge le firmware
+  au besoin** (proposition automatique Pico / Pico W, mémorisé entre projets) —
+  ou utilise celui du workspace / du réglage `kablix.micropythonUf2` — et
+  **exécute votre script** via le raw REPL : `print()` et le REPL interactif
   fonctionnent dans le moniteur série
 - ✅ **Chargement direct d'artefacts** : `.hex` (Uno), `.uf2` / `.elf` / `.bin`
   (Pico) ; bouton **↑ Charger workspace** et commande « Kablix : Charger
@@ -98,13 +99,15 @@ MicroPython de bout en bout) est couvert par des tests automatisés.
 
 ### MicroPython sur le Pico simulé
 
-1. Télécharger le firmware officiel sur
-   [micropython.org/download/RPI_PICO](https://micropython.org/download/RPI_PICO/).
-2. Le placer dans le workspace (n'importe quel dossier) **ou** renseigner son
-   chemin dans le réglage **`kablix.micropythonUf2`**.
-3. Ouvrir un fichier `.py` puis « ⚙ Compiler & exécuter le fichier actif » :
+1. Ouvrir un fichier `.py` puis « ⚙ Compiler & exécuter le fichier actif » :
    le script est injecté via le raw REPL au démarrage du firmware. Le champ du
    moniteur série permet ensuite de dialoguer avec le REPL.
+2. **Firmware** : au premier lancement, si aucun firmware n'est trouvé, Kablix
+   **propose de le télécharger automatiquement** (choix Pico / Pico W) depuis
+   [micropython.org](https://micropython.org/download/RPI_PICO/). Il est ensuite
+   mémorisé et réutilisé dans tous les projets.
+3. Pour fournir le vôtre : placez un `.uf2` officiel dans le workspace **ou**
+   renseignez son chemin dans le réglage **`kablix.micropythonUf2`** (prioritaire).
 
 ### Toolchains requises pour compiler votre code C/C++
 

@@ -158,11 +158,16 @@ the workspace”): detects and runs the **most recent `.hex`** (output folder of
 
 ## MicroPython on the Pico
 
-1. Download the official firmware:
-   [micropython.org/download/RPI_PICO](https://micropython.org/download/RPI_PICO/).
-2. Put it **in the workspace** (any folder) or set its path in the
-   **`kablix.micropythonUf2`** setting.
-3. Open a `.py` file → **⚙ Compile & run the active file**.
+1. Open a `.py` file → **⚙ Compile & run the active file**.
+2. On first run, if no firmware is found, Kablix **offers to download it
+   automatically** (choose **Pico / Pico W**) from
+   [micropython.org](https://micropython.org/download/RPI_PICO/). The firmware is
+   cached in the extension storage and **reused across all your projects** — you
+   are only asked once.
+
+To supply your own firmware (offline, a specific version…): put an official
+`.uf2` **in the workspace** (any folder) or set its path in the
+**`kablix.micropythonUf2`** setting; it then takes precedence.
 
 The firmware boots in the simulator (bootrom + flash + USB), then the script is
 injected through the **raw REPL**. `print()` output shows up in the serial
