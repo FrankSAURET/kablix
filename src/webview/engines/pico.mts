@@ -114,7 +114,15 @@ export class PicoEngine implements SimEngine {
   readDigital(name: string): boolean {
     const i = gpioIndex(name);
     if (i === null) return false;
-    return this.mcu.gpio[i].value === GPIOPinState.High;
+    const pin = this.mcu.gpio[i];
+    // En sortie : le niveau piloté par le cœur (High). En entrée : c'est le
+    // signal injecté par un composant (setInput → inputValue) qui fait foi —
+    // exactement ce que lit le firmware via le registre SIO. (rp2040js ne
+    // « remonte » pas la pull-up dans inputValue ; c'est sim.mts qui pose le
+    // niveau de repos haut pour les boutons en pull-up.)
+    if (pin.value === GPIOPinState.High) return true;
+    if (pin.value === GPIOPinState.Low) return false;
+    return pin.inputValue;
   }
 
   setInput(name: string, value: boolean): void {

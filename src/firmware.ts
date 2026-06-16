@@ -68,11 +68,9 @@ export async function resolveMicropythonFirmware(
     }
   }
 
-  // 2. Cache global de l'extension (téléchargement précédent).
-  const cached = await findCachedFirmware(context);
-  if (cached) return cached.fsPath;
-
-  // 3. Scan du workspace.
+  // 2. Firmware déposé dans le workspace : prioritaire sur le cache global, pour
+  //    qu'un projet 100% hors-ligne qui embarque son propre .uf2 l'utilise
+  //    toujours (reproductible, indépendant de la machine).
   const found = await vscode.workspace.findFiles(
     '**/{micropython,MICROPYTHON,RPI_PICO,rp2-pico}*.uf2',
     '**/node_modules/**',
@@ -80,6 +78,10 @@ export async function resolveMicropythonFirmware(
   );
   const best = await newest(found);
   if (best) return best.fsPath;
+
+  // 3. Cache global de l'extension (téléchargement précédent, partagé entre projets).
+  const cached = await findCachedFirmware(context);
+  if (cached) return cached.fsPath;
 
   // 4. Rien trouvé : proposer le téléchargement ou la sélection d'un fichier.
   return promptAndObtain(context);

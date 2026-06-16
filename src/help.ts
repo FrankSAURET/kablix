@@ -259,6 +259,7 @@ function getHtml(webview: vscode.Webview): string {
       <li><strong>Observer</strong> : les <code>print()</code> apparaissent dans le <strong>moniteur série</strong> ; à la fin du script, le REPL interactif reste disponible via le champ d'envoi.</li>
       <li><strong>Déboguer pas à pas</strong> : <strong>⏸ Pause</strong> / <strong>⏭ Pas</strong> et les points d'arrêt fonctionnent sur les variables globales (script instrumenté automatiquement) ; la pause prend effet à la ligne suivante.</li>
     </ol>
+    <p class="note">⚠ <strong>Fonctionnement entièrement hors-ligne</strong> : pour qu'un poste sans accès Internet n'ait jamais à télécharger le firmware, <strong>placez le <code>.uf2</code> MicroPython directement dans le dossier du projet</strong> (il sera versionné avec le projet et distribué aux élèves). Kablix cherche le firmware <strong>d'abord dans le workspace</strong>, puis dans le firmware téléchargé/mémorisé, et ne propose le téléchargement qu'en dernier recours. Un projet qui embarque son firmware est donc reproductible et autonome.</p>
 
     <h2 id="en-ligne">Aide en ligne</h2>
     <p>La documentation complète et à jour est en ligne :</p>

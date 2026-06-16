@@ -71,9 +71,10 @@ body {
 }
 
 /* --- Atelier --------------------------------------------------------------- */
+/* Pas de gap : la barre d'ajustement (.splitter) est directement accolée aux
+   panneaux et au canvas, sans bande vide de part et d'autre. */
 .workshop {
   display: flex;
-  gap: 1rem;
   align-items: stretch;
   flex: 1 1 auto;
   min-height: 0;

@@ -168,6 +168,13 @@ Pour fournir votre propre firmware (hors ligne, version précise…) : placez un
 `.uf2` officiel **dans le workspace** (n'importe quel dossier) ou renseignez son
 chemin dans le réglage **`kablix.micropythonUf2`** ; il est alors prioritaire.
 
+> ⚠ **Fonctionnement entièrement hors-ligne.** Pour qu'un poste sans Internet
+> n'ait jamais à télécharger le firmware, **placez le `.uf2` dans le dossier du
+> projet** : il sera versionné et distribué avec le projet. Kablix cherche le
+> firmware **d'abord dans le workspace**, puis dans le firmware téléchargé /
+> mémorisé, et ne propose le téléchargement qu'en dernier recours. Un projet qui
+> embarque son firmware est ainsi reproductible et autonome.
+
 Le firmware démarre dans le simulateur (bootrom + flash + USB), puis le script
 est injecté via le **raw REPL**. Les `print()` apparaissent dans le moniteur
 série ; à la fin du script, le **REPL interactif** reste disponible via le
