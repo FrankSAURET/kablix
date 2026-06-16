@@ -81,15 +81,14 @@ body {
 }
 
 /* Poignée de redimensionnement entre la bibliothèque/inspecteur et le canvas. */
-/* Séparateur réduit à un simple trait ; la zone de préhension est élargie de
-   façon invisible (::before) pour rester facile à attraper. */
+/* Séparateur : trait vertical en pointillés (« ⋮ ») centré haut→bas. La bande
+   est large pour rester facile à attraper ; le pointillé est tracé par
+   ::before (bordure gauche en tirets) sur toute la hauteur. */
 .splitter {
   position: relative;
-  flex: 0 0 1px;
+  flex: 0 0 8px;
   align-self: stretch;
   cursor: col-resize;
-  background: var(--vscode-panel-border, #444);
-  opacity: 0.6;
 }
 
 .splitter::before {
@@ -97,13 +96,15 @@ body {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: -4px;
-  right: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 2px dashed var(--vscode-panel-border, #888);
+  opacity: 0.7;
 }
 
-.splitter:hover {
+.splitter:hover::before {
+  border-color: var(--vscode-focusBorder, #0e639c);
   opacity: 1;
-  background: var(--vscode-focusBorder, #0e639c);
 }
 
 .palette {

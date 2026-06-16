@@ -6,7 +6,10 @@
 // Protocole sur l'USB-CDC (stdin du script) :
 //   \x05 (ENQ) : demande de pause — le mode pas à pas s'active au prochain __kx ;
 //   \x06 (ACK) : exécuter un pas (rester en mode pas à pas) ;
-//   \x07 (BEL) : reprendre l'exécution normale (désactive le mode pas à pas).
+//   \x07 (BEL) : reprendre l'exécution normale (désactive le mode pas à pas) ;
+//   \x10 (DLE) + lignes décimales séparées par ',' + '\n' : (re)définit la liste
+//        des points d'arrêt. __kx(n) se met alors en pause à la ligne n même
+//        hors mode pas à pas. Une liste vide (\x10\n) efface tous les arrêts.
 // En mode pas à pas, __kx publie l'état sur stdout sous la forme
 //   \x1bKX{"l":<ligne>,"v":{"nom":"repr tronqué", …}}\n
 // puis BLOQUE en lisant stdin jusqu'à \x06 ou \x07. Le moteur (pico.mts)
@@ -36,6 +39,36 @@ const PREAMBLE: string[] = [
   '__kx_poll = __kx_sel.poll()',
   '__kx_poll.register(__kx_sys.stdin, __kx_sel.POLLIN)',
   '__kx_step = False',
+  '__kx_bps = set()',          // lignes des points d'arrêt
+  '__kx_bpbuf = None',         // tampon de lecture d'une commande \x10…\n (None = inactif)
+  'def __kx_set_bps(__s):',
+  '    global __kx_bps',
+  '    __b = set()',
+  '    for __p in __s.split(","):',
+  '        __p = __p.strip()',
+  '        if __p:',
+  '            try:',
+  '                __b.add(int(__p))',
+  '            except Exception:',
+  '                pass',
+  '    __kx_bps = __b',
+  'def __kx_poll_in():',        // draine stdin : commandes step/resume/bps ; renvoie l'octet "step/run" éventuel
+  '    global __kx_step, __kx_bpbuf',
+  '    while __kx_poll.poll(0):',
+  '        __c = __kx_sys.stdin.read(1)',
+  '        if __kx_bpbuf is not None:',   // en cours de lecture d'une liste de breakpoints
+  "            if __c == '\\n':",
+  '                __kx_set_bps(__kx_bpbuf)',
+  '                __kx_bpbuf = None',
+  '            else:',
+  '                __kx_bpbuf += __c',
+  '            continue',
+  "        if __c == '\\x10':",
+  "            __kx_bpbuf = ''",
+  "        elif __c == '\\x05':",
+  '            __kx_step = True',
+  "        elif __c == '\\x07':",
+  '            __kx_step = False',
   'def __kx_vars():',
   '    __o = {}',
   '    __g = globals()',
@@ -54,21 +87,27 @@ const PREAMBLE: string[] = [
   '        __o[__k] = __r',
   '    return __o',
   'def __kx(__n):',
-  '    global __kx_step',
-  '    while __kx_poll.poll(0):',
-  '        __c = __kx_sys.stdin.read(1)',
-  "        if __c == '\\x05':",
-  '            __kx_step = True',
-  "        elif __c == '\\x07':",
-  '            __kx_step = False',
+  '    global __kx_step, __kx_bpbuf',
+  '    __kx_poll_in()',
+  '    if __n in __kx_bps:',          // point d'arrêt atteint : on s'arrête même hors pas à pas
+  '        __kx_step = True',
   '    if not __kx_step:',
   '        return',
   "    __kx_sys.stdout.write('\\x1bKX' + __kx_json.dumps({'l': __n, 'v': __kx_vars()}) + '\\n')",
   '    while True:',
   '        __c = __kx_sys.stdin.read(1)',
-  "        if __c == '\\x06':",
+  '        if __kx_bpbuf is not None:',  // une commande breakpoints peut arriver pendant la pause
+  "            if __c == '\\n':",
+  '                __kx_set_bps(__kx_bpbuf)',
+  '                __kx_bpbuf = None',
+  '            else:',
+  '                __kx_bpbuf += __c',
+  '            continue',
+  "        if __c == '\\x10':",
+  "            __kx_bpbuf = ''",
+  "        elif __c == '\\x06':",
   '            return',
-  "        if __c == '\\x07':",
+  "        elif __c == '\\x07':",
   '            __kx_step = False',
   '            return',
   '# --- fin du preambule Kablix ---',

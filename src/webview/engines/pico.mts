@@ -68,6 +68,8 @@ export class PicoEngine implements SimEngine {
   private pausedByStop = false;
   /** Tampon de détection des séquences de débogage « \x1bKX…\n » du préambule __kx. */
   private kxBuf = '';
+  /** Lignes des points d'arrêt, retenues pour (re)transmission au script __kx. */
+  private breakpointLines: number[] = [];
 
   constructor(program: PicoProgram) {
     this.sim = new Simulator();
@@ -215,6 +217,35 @@ export class PicoEngine implements SimEngine {
     // disponible sur le Pico (pause/reprise et pas à pas restent possibles).
   }
 
+  /**
+   * Points d'arrêt MicroPython : la liste est retenue puis transmise au script
+   * instrumenté via stdin (« \x10 lignes \n »). Le préambule __kx s'arrête à ces
+   * lignes même hors pas à pas. Si le script n'est pas encore lancé, la liste
+   * sera envoyée dès qu'il atteint sa phase d'exécution (cf. enterStdout).
+   */
+  setBreakpoints(lines: number[]): void {
+    this.breakpointLines = [...lines];
+    if (this.scriptRunning) this.sendBreakpoints();
+  }
+
+  /** Envoie la liste courante des points d'arrêt au script (stdin du REPL). */
+  private sendBreakpoints(): void {
+    if (!this.cdc) return;
+    const cmd = '\x10' + this.breakpointLines.join(',') + '\n';
+    for (const ch of cmd) this.cdc.sendSerialByte(ch.charCodeAt(0));
+  }
+
+  /**
+   * Le script instrumenté entre en exécution : on lui transmet les points
+   * d'arrêt déjà posés (ils n'ont pas pu l'être avant le démarrage) et, si une
+   * pause avait été demandée entre-temps, on la réémet (\x05).
+   */
+  private enterStdout(): void {
+    this.replPhase = 'stdout';
+    if (this.breakpointLines.length > 0) this.sendBreakpoints();
+    if (this.isPaused && !this.pausedByStop) this.cdc?.sendSerialByte(0x05);
+  }
+
   // --- USB-CDC : console MicroPython + injection raw REPL ---------------------
   private onCdcConnected(): void {
     if (!this.cdc) return;
@@ -350,18 +381,18 @@ export class PicoEngine implements SimEngine {
         } else if (byte === 0x04) {
           // Abandon côté firmware : on clôt proprement et on suit la sortie.
           this.cdc?.sendSerialByte(0x04);
-          this.replPhase = 'stdout';
+          this.enterStdout();
         }
         break;
       case 'paste-ack':
         // Accusé de fin de données : la compilation puis l'exécution démarrent.
-        if (byte === 0x04) this.replPhase = 'stdout';
+        if (byte === 0x04) this.enterStdout();
         break;
       case 'wait-ok':
         this.replBuffer += ch;
         if (this.replBuffer.endsWith('OK')) {
           this.replBuffer = '';
-          this.replPhase = 'stdout';
+          this.enterStdout();
         }
         break;
       case 'stdout':
