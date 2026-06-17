@@ -14,6 +14,18 @@ export interface DebugPauseState {
   variables: DebugVariable[];
 }
 
+/** Point d'arrêt : une ligne, éventuellement conditionnelle. */
+export interface Breakpoint {
+  /** Ligne (1-based) dans le fichier source principal. */
+  line: number;
+  /**
+   * Expression de condition dans le langage du source (Python pour MicroPython).
+   * Le point d'arrêt ne suspend l'exécution que si l'expression est vraie.
+   * Absente = point d'arrêt inconditionnel.
+   */
+  condition?: string;
+}
+
 /** Infos de débogage C/AVR extraites à la compilation (DWARF + symboles). */
 export interface AvrDebugInfo {
   /** Table adresse flash (octets) → ligne du fichier principal. */
@@ -36,8 +48,8 @@ export interface SimEngine {
   readonly paused: boolean;
   /** Avance d'une ligne source, si les infos de débogage le permettent. */
   step?(): void;
-  /** Lignes (1-based) munies d'un point d'arrêt dans le fichier principal. */
-  setBreakpoints?(lines: number[]): void;
+  /** Points d'arrêt (ligne 1-based + condition optionnelle) du fichier principal. */
+  setBreakpoints?(breakpoints: Breakpoint[]): void;
   /** Appelé à chaque pause avec la ligne courante et les variables lisibles. */
   onDebugPause: ((state: DebugPauseState) => void) | null;
   /** État logique d'une broche numérique nommée (ex. '13', 'A0', 'GP25'). */

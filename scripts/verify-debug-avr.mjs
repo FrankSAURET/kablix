@@ -139,7 +139,7 @@ let rafCb = null;
 globalThis.requestAnimationFrame = (cb) => { rafCb = cb; return 1; };
 globalThis.cancelAnimationFrame = () => {};
 
-engine.setBreakpoints([loopLine]);
+engine.setBreakpoints([{ line: loopLine }]);
 engine.resume();
 engine.start();
 for (let i = 0; i < 240 && !engine.paused; i++) rafCb?.();

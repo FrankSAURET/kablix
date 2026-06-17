@@ -1,13 +1,21 @@
 import * as vscode from 'vscode';
 
-// Liens « aide en ligne » : dépôt GitHub et documentation utilisateur.
+// Liens « aide en ligne » : dépôt GitHub et documentation utilisateur (FR/EN).
 const REPO_URL = 'https://github.com/FrankSAURET/kablix';
 const DOC_URL = 'https://github.com/FrankSAURET/kablix/blob/main/docs/UTILISATION.md';
+const DOC_URL_EN = 'https://github.com/FrankSAURET/kablix/blob/main/docs/USAGE.en.md';
+
+/** Vrai si VS Code tourne en français (sinon l'aide s'affiche en anglais). */
+function isFrench(): boolean {
+  return (vscode.env.language ?? 'en').toLowerCase().startsWith('fr');
+}
 
 /**
- * Panneau d'aide local (packagé, donc disponible hors-ligne) en français.
- * Un seul panneau à la fois : un nouvel appel révèle l'existant plutôt que
- * d'en ouvrir un second (même logique que SimulatorPanel).
+ * Panneau d'aide local (packagé, donc disponible hors-ligne). Le contenu suit
+ * la langue de VS Code : français si `vscode.env.language` commence par « fr »,
+ * anglais sinon (langue de repli). Un seul panneau à la fois : un nouvel appel
+ * révèle l'existant plutôt que d'en ouvrir un second (même logique que
+ * SimulatorPanel).
  */
 export class HelpPanel {
   public static readonly viewType = 'kablix.help';
@@ -26,7 +34,7 @@ export class HelpPanel {
 
     const panel = vscode.window.createWebviewPanel(
       HelpPanel.viewType,
-      'Kablix — Aide',
+      isFrench() ? 'Kablix — Aide' : 'Kablix — Help',
       column ?? vscode.ViewColumn.One,
       { enableScripts: false }
     );
@@ -66,13 +74,18 @@ function getHtml(webview: vscode.Webview): string {
     `img-src ${webview.cspSource} https: data:`,
   ].join('; ');
 
+  const fr = isFrench();
+  const lang = fr ? 'fr' : 'en';
+  const title = fr ? 'Kablix — Aide' : 'Kablix — Help';
+  const body = fr ? bodyFr() : bodyEn();
+
   return /* html */ `<!DOCTYPE html>
-<html lang="fr">
+<html lang="${lang}">
 <head>
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy" content="${csp}" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Kablix — Aide</title>
+  <title>${title}</title>
   <style nonce="${nonce}">
     :root { color-scheme: light dark; }
     body {
@@ -139,7 +152,14 @@ function getHtml(webview: vscode.Webview): string {
   </style>
 </head>
 <body>
-  <div class="wrap">
+${body}
+</body>
+</html>`;
+}
+
+/** Corps de l'aide en français. */
+function bodyFr(): string {
+  return /* html */ `  <div class="wrap">
     <h1>Kablix — Aide</h1>
     <p class="lead">Simulateur Arduino Uno / Raspberry Pi Pico intégré à VS Code, 100&nbsp;% hors-ligne. Cette aide est locale (disponible sans connexion) ; la version en ligne complète est liée plus bas.</p>
 
@@ -172,7 +192,7 @@ function getHtml(webview: vscode.Webview): string {
 
     <h2 id="interface">Interface</h2>
     <ul>
-      <li><strong>Barre d'outils</strong> (haut) : sélecteur de carte, ▶ Démarrer (compile le code modifié au besoin) / ■ Arrêter / ⏸ Pause / ⏭ Pas, vitesse 🐇/🐢/🐌, ⬇ SVG, 🏷 Noms. (Le bouton <strong>↑ Charger binaire</strong> est masqué par défaut — cf. réglages.)</li>
+      <li><strong>Barre d'outils</strong> (haut) : sélecteur de carte, ▶ Démarrer (compile le code modifié au besoin) / ■ Arrêter / ⏸ Pause / ⏭ Pas, vitesse 🐇/🐢/🐌, ⬇ SVG, 🏷 Noms, ❔ Aide. (Le bouton <strong>↑ Charger binaire</strong> est masqué par défaut — cf. réglages.)</li>
       <li><strong>Palette</strong> (gauche) : les composants à poser, triés <strong>AZ</strong> ou par <strong>catégories</strong>, avec une zone « Derniers utilisés ».</li>
       <li><strong>Canvas</strong> (centre) : les composants, les fils et leurs poignées.</li>
       <li><strong>Propriétés</strong> / inspecteur (droite) : édite l'élément sélectionné (couleur, valeur, angle, suppression) ; une zone d'aide y rappelle les gestes utiles.</li>
@@ -215,7 +235,8 @@ function getHtml(webview: vscode.Webview): string {
     <ul>
       <li><strong>⏸ Pause / ▶ Reprendre</strong> : gèle la simulation ; l'état des broches et des LED reste affiché. Le sélecteur 🐇/🐢/🐌 ralentit l'exécution (Uno).</li>
       <li><strong>⏭ Pas</strong> : exécute une ligne du fichier source puis se remet en pause. Le panneau <strong>Variables</strong> (sous le canvas) montre la ligne courante et les variables globales ; la ligne est aussi surlignée dans l'éditeur.</li>
-      <li><strong>Points d'arrêt</strong> : cliquer dans la gouttière de l'éditeur ; la simulation se met en pause en atteignant la ligne.</li>
+      <li><strong>Points d'arrêt</strong> : cliquer dans la gouttière de l'éditeur ; la simulation se met en pause en atteignant la ligne. Un <strong>point d'arrêt conditionnel</strong> (clic droit dans la gouttière → « Ajouter un point d'arrêt conditionnel ») ne suspend l'exécution que si sa condition est vraie — en <strong>MicroPython</strong>, la condition est une expression Python évaluée dans les variables globales du script (ex. <code>compteur &gt; 100</code>). En C/Arduino la condition n'est pas évaluée (arrêt inconditionnel).</li>
+      <li>Une variable dont la valeur <strong>change</strong> en cours de débogage passe en <strong>rouge</strong> dans le panneau Variables, jusqu'au prochain démarrage.</li>
     </ul>
     <p class="note">Le pas à pas couvre les variables <strong>globales</strong> simples (C/Arduino via infos DWARF, MicroPython instrumenté). Les artefacts chargés directement n'ont pas d'infos de débogage : pause et ralenti restent disponibles, pas le pas à pas.</p>
 
@@ -268,7 +289,140 @@ function getHtml(webview: vscode.Webview): string {
       <a href="${REPO_URL}">⭐ Dépôt GitHub Kablix</a>
     </div>
     <p class="top"><a href="#demarrage">↑ Retour au sommaire</a></p>
-  </div>
-</body>
-</html>`;
+  </div>`;
+}
+
+/** Help body in English (fallback language). */
+function bodyEn(): string {
+  return /* html */ `  <div class="wrap">
+    <h1>Kablix — Help</h1>
+    <p class="lead">Arduino Uno / Raspberry Pi Pico simulator built into VS Code, 100&nbsp;% offline. This help is local (available without a connection); the full online version is linked below.</p>
+
+    <nav class="toc" aria-label="Contents">
+      <strong>Contents</strong>
+      <ol>
+        <li><a href="#start">Getting started</a></li>
+        <li><a href="#ui">Interface</a></li>
+        <li><a href="#build">Building a circuit</a></li>
+        <li><a href="#run">Running code</a></li>
+        <li><a href="#debug">Step-by-step debugging</a></li>
+        <li><a href="#serial">Serial monitor</a></li>
+        <li><a href="#svg">SVG export</a></li>
+        <li><a href="#parts">Custom parts</a></li>
+        <li><a href="#updates">Library updates</a></li>
+        <li><a href="#walk-arduino">Walkthrough — Arduino</a></li>
+        <li><a href="#walk-pico">Walkthrough — Raspberry Pi Pico (MicroPython)</a></li>
+        <li><a href="#online">Online help</a></li>
+      </ol>
+    </nav>
+
+    <h2 id="start">Getting started</h2>
+    <p>Three ways to open the simulator:</p>
+    <ul>
+      <li>the <strong>Kablix icon</strong> in the activity bar (left);</li>
+      <li>the command palette (<kbd>Ctrl+Shift+P</kbd>) → <strong>"Kablix: Open the simulator"</strong>;</li>
+      <li>the <strong>"Kablix: Compile"</strong> command (opens the simulator and loads the file you are editing).</li>
+    </ul>
+    <p>On first display the canvas is empty: drop parts from the palette, wire them up, then click <strong>▶ Start</strong>. <strong>▶ automatically compiles</strong> your code file (see the 📄 chip) if it changed since the last run, otherwise it re-runs the already-compiled binary — there is no separate "Compile" button. During simulation the diagram is frozen (no selection or editing); the <strong>⟲</strong> button on the simulation bar resets the parts to their initial state.</p>
+
+    <h2 id="ui">Interface</h2>
+    <ul>
+      <li><strong>Toolbar</strong> (top): board selector, ▶ Start (compiles changed code if needed) / ■ Stop / ⏸ Pause / ⏭ Step, speed 🐇/🐢/🐌, ⬇ SVG, 🏷 Names, ❔ Help. (The <strong>↑ Load binary</strong> button is hidden by default — see settings.)</li>
+      <li><strong>Palette</strong> (left): the parts to drop, sorted <strong>A–Z</strong> or by <strong>category</strong>, with a "Recently used" area.</li>
+      <li><strong>Canvas</strong> (center): parts, wires and their handles.</li>
+      <li><strong>Properties</strong> / inspector (right): edits the selected item (color, value, angle, deletion); a help area there recalls the useful gestures.</li>
+      <li><strong>Serial monitor</strong> (bottom): real-time output and a send field.</li>
+    </ul>
+
+    <h2 id="build">Building a circuit</h2>
+    <h3>Place and move</h3>
+    <ul>
+      <li><strong>Place</strong>: click a part in the palette (dropped at the center) or drag-and-drop onto the canvas — the part thumbnail then follows the cursor.</li>
+      <li><strong>Move</strong>: drag the part body, or <strong>right-click drag</strong> — essential for interactive parts (button, potentiometer…) whose left click actuates the control.</li>
+      <li><strong>Rotate / flip</strong>: select then use the inspector's <strong>Orientation</strong> bar — icons ↺ ↻ (45° rotation) and ⇆ ⇅ (horizontal / vertical mirror). The <kbd>+</kbd> / <kbd>-</kbd> keys also rotate the selected part.</li>
+      <li><strong>Internal wiring</strong>: for parts that have a schematic (button, LED, resistor, buzzer), the 🔌 button in the name banner (left of the ✕) shows or hides it over the part.</li>
+      <li><strong>Zoom</strong>: <kbd>Ctrl</kbd>+<strong>wheel</strong> on the canvas (centered on the cursor); the <code>⟳ %</code> badge at the bottom right resets the view in one click.</li>
+      <li><strong>Delete</strong>: 🗑 in the inspector or <kbd>Del</kbd>.</li>
+      <li><strong>Undo / Redo</strong>: <kbd>Ctrl+Z</kbd> / <kbd>Ctrl+Y</kbd>.</li>
+      <li><strong>Clear all</strong>: the 🗑 button at the top right of the canvas (undoable with <kbd>Ctrl+Z</kbd>).</li>
+    </ul>
+    <h3>Wiring</h3>
+    <ol class="steps">
+      <li>Click a <strong>pin</strong> (golden dot): the wire starts.</li>
+      <li>Each click on the background adds a <strong>corner</strong> (segments snapped to horizontal/vertical).</li>
+      <li>Click another pin to finish the wire. <kbd>Esc</kbd> cancels.</li>
+    </ol>
+    <p>A wire touching a ground is born black, a power rail red, otherwise it follows the Dupont ribbon colors. The color stays editable in the inspector. <strong>Editing a wire</strong>: selecting it reveals handles on each corner; holding <kbd>Ctrl</kbd> while dragging aligns the corner (H/V crosshair); double-clicking the wire inserts a corner; clicking a corner then <kbd>Del</kbd> removes it (otherwise <kbd>Del</kbd> erases the whole wire).</p>
+    <p>The <strong>breadboard</strong> comes in three sizes (mini / half / full). While hovering during a move, the strips that would receive the pins light up yellow; on release the part plugs in automatically, with no visible wire.</p>
+
+    <h2 id="run">Running code</h2>
+    <p>The <strong>📄 chip</strong> on the simulation bar (top left of the canvas) shows the code file being run / debugged; clicking it lets you pick another one. Otherwise the active editor file is used.</p>
+    <p>The <strong>▶ Start</strong> button compiles (if the source changed) and runs the code file (see the 📄 chip); handling depends on the file extension:</p>
+    <ul>
+      <li><code>.ino</code>, <code>.c</code>, <code>.cpp</code> (Uno): local compilation (<code>arduino-cli</code> or <code>avr-gcc</code>);</li>
+      <li><code>.c</code>, <code>.cpp</code> (Pico): bare-metal compilation (<code>arm-none-eabi-gcc</code>);</li>
+      <li><code>.py</code>: MicroPython on the simulated Pico (a <code>.uf2</code> firmware is required);</li>
+      <li><code>.hex</code> / <code>.uf2</code> / <code>.elf</code> / <code>.bin</code>: loaded directly.</li>
+    </ul>
+    <p><strong>↑ Load binary</strong> button: detects and runs an <strong>already-compiled</strong> binary (without recompiling) — the most recent <code>.hex</code> (output of <code>.vscode/arduino.json</code>, otherwise a scan) for the Arduino, or the <code>.uf2</code> in the <code>build/</code> folder for the Pico. Useful to run a binary produced by another tool (Arduino extension, CMake…). <strong>This button is hidden by default</strong>: enable the <code>kablix.showLoadBinaryButton</code> setting to show it.</p>
+
+    <h2 id="debug">Step-by-step debugging</h2>
+    <ul>
+      <li><strong>⏸ Pause / ▶ Resume</strong>: freezes the simulation; the pin and LED states stay shown. The 🐇/🐢/🐌 selector slows execution down (Uno).</li>
+      <li><strong>⏭ Step</strong>: runs one line of the source file then pauses again. The <strong>Variables</strong> panel (under the canvas) shows the current line and the global variables; the line is also highlighted in the editor.</li>
+      <li><strong>Breakpoints</strong>: click in the editor gutter; the simulation pauses when it reaches the line. A <strong>conditional breakpoint</strong> (right-click in the gutter → "Add Conditional Breakpoint") only pauses when its condition is true — in <strong>MicroPython</strong>, the condition is a Python expression evaluated against the script's global variables (e.g. <code>counter &gt; 100</code>). In C/Arduino the condition is not evaluated (unconditional stop).</li>
+      <li>A variable whose value <strong>changes</strong> during debugging turns <strong>red</strong> in the Variables panel until the next start.</li>
+    </ul>
+    <p class="note">Step-by-step covers simple <strong>global</strong> variables (C/Arduino via DWARF info, instrumented MicroPython). Directly loaded artifacts have no debug info: pause and slow-motion remain available, but not stepping.</p>
+
+    <h2 id="serial">Serial monitor</h2>
+    <ul>
+      <li><strong>Output</strong>: USART (Uno), USB-CDC and UART0 (Pico), in real time.</li>
+      <li><strong>Input</strong>: input field + <kbd>Enter</kbd> (or the Send button). On the Pico, the input feeds the USB-CDC (MicroPython REPL) and UART0.</li>
+    </ul>
+
+    <h2 id="svg">SVG export</h2>
+    <p><strong>⬇ SVG</strong> button: the full diagram (parts with their rotations, colored wires with their rounded corners) is exported as a standalone SVG file, usable in a document, a website or a printout.</p>
+
+    <h2 id="parts">Custom parts</h2>
+    <p><strong>"+ Create a part"</strong> button at the bottom of the palette: name, simulation model (LED, button, resistor, buzzer, digital/analog source, decorative), SVG drawing with live preview, connection points clicked on the preview, then role mapping. The part (★) is persisted across sessions. From the palette: click = place, double-click = edit, ⇩ = export to <code>.json</code>, ✕ = delete, <strong>⇪ Import (.json)</strong> = load a shared part. The <code>.kablix-part.json</code> format is documented in the online help.</p>
+
+    <h2 id="updates">Library updates</h2>
+    <p>Kablix bundles <code>avr8js</code>, <code>rp2040js</code> and <code>@wokwi/elements</code>, and stays <strong>offline by default</strong>.</p>
+    <ul>
+      <li><strong>Manual check</strong>: command palette → <strong>"Kablix: Check for library updates"</strong>.</li>
+      <li><strong>At startup</strong> (optional): the <code>kablix.checkUpdatesOnStartup</code> setting; a notification only appears if an update exists.</li>
+    </ul>
+    <p class="note">Updating these libraries may break the extension (API changes). If a problem occurs, open an issue on the GitHub repository.</p>
+
+    <h2 id="walk-arduino">Walkthrough — Arduino</h2>
+    <p>Start from a sketch written and edited in the Arduino editing extension <strong>"Arduino-VsCode-IDE"</strong>, then run it in Kablix.</p>
+    <ol class="steps">
+      <li><strong>Write the sketch</strong> in "Arduino-VsCode-IDE": open or create your <code>.ino</code> (or <code>.c</code>/<code>.cpp</code>) file and select the <em>Arduino Uno</em> board.</li>
+      <li><strong>Prepare the circuit in Kablix</strong>: open the simulator (Kablix icon), choose the <em>Arduino Uno</em> board, drop parts from the palette and wire them (e.g. an LED + resistor on D13, a button on an input).</li>
+      <li><strong>Compile &amp; run</strong>: with the <code>.ino</code> file as the active editor (see the 📄 chip), click <strong>▶ Start</strong> (local compilation via <code>arduino-cli</code> if the source changed). Alternative: if "Arduino-VsCode-IDE" already produced a <code>.hex</code>, enable the <code>kablix.showLoadBinaryButton</code> setting then use <strong>↑ Load binary</strong> to pick up the latest artifact. If <code>arduino-cli</code> is installed but not found, set the <code>kablix.arduinoCliPath</code> setting.</li>
+      <li><strong>Observe</strong>: the LED(s) light up according to the program; open the <strong>serial monitor</strong> (bottom) to see the <code>Serial.print()</code> output, and send it data if needed.</li>
+      <li><strong>Debug step by step</strong>: set a <strong>breakpoint</strong> in the editor gutter, or use <strong>⏸ Pause</strong> then <strong>⏭ Step</strong> to advance line by line and read the global variables in the <em>Variables</em> panel.</li>
+    </ol>
+
+    <h2 id="walk-pico">Walkthrough — Raspberry Pi Pico (MicroPython)</h2>
+    <p>Start from a <code>.py</code> script edited with the official <strong>"Raspberry Pi Pico"</strong> extension, then run it in Kablix.</p>
+    <ol class="steps">
+      <li><strong>Write the script</strong> <code>.py</code> in the "Raspberry Pi Pico" extension (editing, MicroPython project structure).</li>
+      <li><strong>MicroPython firmware</strong>: on the first run of a <code>.py</code>, if no firmware is found, Kablix offers to <strong>download it automatically</strong> (Pico / Pico W choice); it is then remembered and reused across all your projects. You can also provide your own: place an official <code>.uf2</code> (<a href="https://micropython.org/download/RPI_PICO/">micropython.org/download/RPI_PICO</a>) in the workspace, or set its path in the <code>kablix.micropythonUf2</code> setting.</li>
+      <li><strong>Prepare the circuit in Kablix</strong>: open the simulator, choose the <em>Raspberry Pi Pico</em> board, drop and wire your parts (e.g. an LED on GP25/GP15).</li>
+      <li><strong>Compile &amp; run</strong>: with the <code>.py</code> file active (see the 📄 chip), click <strong>▶ Start</strong>. The firmware boots then the script is injected via the raw REPL.</li>
+      <li><strong>Observe</strong>: the <code>print()</code> output appears in the <strong>serial monitor</strong>; when the script ends, the interactive REPL stays available via the send field.</li>
+      <li><strong>Debug step by step</strong>: <strong>⏸ Pause</strong> / <strong>⏭ Step</strong> and breakpoints work on global variables (script instrumented automatically); the pause takes effect on the next line.</li>
+    </ol>
+    <p class="note">⚠ <strong>Fully offline operation</strong>: so that a machine without Internet access never has to download the firmware, <strong>place the MicroPython <code>.uf2</code> directly in the project folder</strong> (it will be versioned with the project and distributed to students). Kablix looks for the firmware <strong>first in the workspace</strong>, then in the downloaded/remembered firmware, and only offers the download as a last resort. A project that bundles its firmware is therefore reproducible and self-contained.</p>
+
+    <h2 id="online">Online help</h2>
+    <p>The full, up-to-date documentation is online:</p>
+    <div class="online">
+      <a href="${DOC_URL_EN}">📖 User guide (docs/USAGE.en.md)</a>
+      <a href="${REPO_URL}">⭐ Kablix GitHub repository</a>
+    </div>
+    <p class="top"><a href="#start">↑ Back to top</a></p>
+  </div>`;
 }

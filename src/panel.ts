@@ -385,11 +385,15 @@ export class SimulatorPanel {
 
   // --- Débogage : points d'arrêt et ligne courante ------------------------------
 
-  /** Envoie à la webview les points d'arrêt actifs (1-based) du fichier source courant. */
+  /**
+   * Envoie à la webview les points d'arrêt actifs du fichier source courant :
+   * pour chacun, la ligne (1-based) et son éventuelle condition (expression
+   * saisie dans la gouttière, évaluée côté moteur — Python pour MicroPython).
+   */
   private sendBreakpoints(): void {
     try {
       const source = this.currentSourceUri;
-      const lines = !source
+      const breakpoints = !source
         ? []
         : vscode.debug.breakpoints
             .filter(
@@ -398,8 +402,11 @@ export class SimulatorPanel {
                 bp instanceof vscode.SourceBreakpoint &&
                 bp.location.uri.toString() === source.toString()
             )
-            .map((bp) => bp.location.range.start.line + 1);
-      this.post({ type: 'breakpoints', lines });
+            .map((bp) => ({
+              line: bp.location.range.start.line + 1,
+              condition: bp.condition || undefined,
+            }));
+      this.post({ type: 'breakpoints', breakpoints });
     } catch {
       // panneau ou éditeur dans un état transitoire : ignoré
     }

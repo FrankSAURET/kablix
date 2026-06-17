@@ -18,7 +18,7 @@ import {
   timer2Config,
   PinState,
 } from 'avr8js';
-import type { AvrDebugInfo, DebugPauseState, DebugVariable, SimEngine } from './types.mjs';
+import type { AvrDebugInfo, Breakpoint, DebugPauseState, DebugVariable, SimEngine } from './types.mjs';
 
 const CLOCK_HZ = 16_000_000;
 const VREF = 5;
@@ -175,11 +175,16 @@ export class AvrEngine implements SimEngine {
     this.emitDebugPause();
   }
 
-  /** Convertit les lignes cochées en adresses flash (1re entrée par ligne). */
-  setBreakpoints(lines: number[]): void {
+  /**
+   * Convertit les lignes cochées en adresses flash (1re entrée par ligne). Les
+   * conditions (champ `condition`) ne sont pas évaluées côté C/AVR : il faudrait
+   * un évaluateur d'expression C sur les globales DWARF (hors périmètre). Un
+   * point d'arrêt conditionnel en C se comporte donc comme inconditionnel.
+   */
+  setBreakpoints(breakpoints: Breakpoint[]): void {
     this.breakpoints.clear();
     if (!this.debugInfo) return;
-    const wanted = new Set(lines);
+    const wanted = new Set(breakpoints.map((b) => b.line));
     for (const entry of this.debugInfo.lines) {
       // Table triée par adresse : delete() ne retient que la première entrée.
       if (wanted.delete(entry.line)) this.breakpoints.add(entry.addr);

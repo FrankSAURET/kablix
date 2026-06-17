@@ -240,6 +240,34 @@ try {
   check('reprise : la boucle repart', true);
   await new Promise((r) => setTimeout(r, 2000)); // délai de grâce
   check('reprise : plus aucun état KX', states.length === statesBefore);
+
+  // --- Point d'arrêt CONDITIONNEL ---------------------------------------------
+  // Arrêt sur la ligne 8 (print TICK, atteinte seulement quand compteur % 10 == 0)
+  // si la condition « compteur > 100 and compteur % 7 == 0 » est vraie. La boucle
+  // tourne vite : on ne peut pas prédire la valeur exacte, mais l'arrêt DOIT
+  // respecter la condition (sinon le filtrage conditionnel ne marche pas).
+  const condBefore = states.length;
+  engine.setBreakpoints([{ line: 8, condition: 'compteur > 100 and compteur % 7 == 0' }]);
+  await waitFor(() => states.length > condBefore, 120000, 'arrêt sur breakpoint conditionnel');
+  const condState = states[states.length - 1];
+  const condVars = Object.fromEntries(condState.variables.map((v) => [v.name, v.value]));
+  const condCnt = Number(condVars.compteur);
+  check('breakpoint conditionnel : arrêt sur la ligne 8', condState.line === 8, `ligne=${condState.line}`);
+  // La ligne 8 n'est atteinte que si compteur % 10 == 0 ; la condition impose en
+  // plus > 100 et % 7 == 0. Un arrêt qui ne respecte pas la condition prouverait
+  // que le filtrage est ignoré (régression de l'item « points d'arrêt conditionnels »).
+  check(
+    'breakpoint conditionnel : la condition est respectée (compteur > 100 et %7==0 et %10==0)',
+    condCnt > 100 && condCnt % 7 === 0 && condCnt % 10 === 0,
+    `compteur=${condVars.compteur}`
+  );
+  check('breakpoint conditionnel : engine.paused', engine.paused === true);
+  // Retrait du point d'arrêt : le programme doit reprendre tout seul.
+  const ticksAtBp = countTicks();
+  engine.setBreakpoints([]);
+  engine.resume();
+  await waitFor(() => countTicks() > ticksAtBp, 120000, 'reprise après retrait du breakpoint conditionnel');
+  check('breakpoint conditionnel : reprise après retrait', true);
 } catch (err) {
   // Diagnostic : phase REPL interne (champ privé TS, accessible à l'exécution).
   const phase = engine.replPhase ?? '?';

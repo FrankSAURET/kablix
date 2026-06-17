@@ -7,7 +7,7 @@
 // (Ctrl-A … Ctrl-D) dès que l'USB est énuméré.
 import { RP2040, Simulator, USBCDC, GPIOPinState, ConsoleLogger, LogLevel } from 'rp2040js';
 import { bootromB1 } from './bootrom-b1.mjs';
-import type { DebugPauseState, FlashSegment, SimEngine } from './types.mjs';
+import type { Breakpoint, DebugPauseState, FlashSegment, SimEngine } from './types.mjs';
 
 const RAM_START = 0x20000000;
 const FLASH_START = 0x10000000;
@@ -68,8 +68,8 @@ export class PicoEngine implements SimEngine {
   private pausedByStop = false;
   /** Tampon de détection des séquences de débogage « \x1bKX…\n » du préambule __kx. */
   private kxBuf = '';
-  /** Lignes des points d'arrêt, retenues pour (re)transmission au script __kx. */
-  private breakpointLines: number[] = [];
+  /** Points d'arrêt (ligne + condition), retenus pour (re)transmission au script __kx. */
+  private breakpoints: Breakpoint[] = [];
 
   constructor(program: PicoProgram) {
     this.sim = new Simulator();
@@ -219,19 +219,26 @@ export class PicoEngine implements SimEngine {
 
   /**
    * Points d'arrêt MicroPython : la liste est retenue puis transmise au script
-   * instrumenté via stdin (« \x10 lignes \n »). Le préambule __kx s'arrête à ces
-   * lignes même hors pas à pas. Si le script n'est pas encore lancé, la liste
-   * sera envoyée dès qu'il atteint sa phase d'exécution (cf. enterStdout).
+   * instrumenté via stdin (« \x10 {json} \n », ligne → condition ou null). Le
+   * préambule __kx s'arrête à ces lignes même hors pas à pas, et ne suspend sur
+   * une ligne conditionnelle que si l'expression Python est vraie. Si le script
+   * n'est pas encore lancé, la liste sera envoyée dès qu'il atteint sa phase
+   * d'exécution (cf. enterStdout).
    */
-  setBreakpoints(lines: number[]): void {
-    this.breakpointLines = [...lines];
+  setBreakpoints(breakpoints: Breakpoint[]): void {
+    this.breakpoints = breakpoints.map((b) => ({ ...b }));
     if (this.scriptRunning) this.sendBreakpoints();
   }
 
   /** Envoie la liste courante des points d'arrêt au script (stdin du REPL). */
   private sendBreakpoints(): void {
     if (!this.cdc) return;
-    const cmd = '\x10' + this.breakpointLines.join(',') + '\n';
+    // Objet JSON { "ligne": condition|null } : robuste aux conditions contenant
+    // des virgules ; l'encodage JSON échappe tout caractère de contrôle, donc le
+    // '\n' final reste un terminateur sûr.
+    const map: Record<string, string | null> = {};
+    for (const b of this.breakpoints) map[String(b.line)] = b.condition ?? null;
+    const cmd = '\x10' + JSON.stringify(map) + '\n';
     for (const ch of cmd) this.cdc.sendSerialByte(ch.charCodeAt(0));
   }
 
@@ -242,7 +249,7 @@ export class PicoEngine implements SimEngine {
    */
   private enterStdout(): void {
     this.replPhase = 'stdout';
-    if (this.breakpointLines.length > 0) this.sendBreakpoints();
+    if (this.breakpoints.length > 0) this.sendBreakpoints();
     if (this.isPaused && !this.pausedByStop) this.cdc?.sendSerialByte(0x05);
   }
 

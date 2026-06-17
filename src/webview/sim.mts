@@ -56,7 +56,7 @@ import {
 } from './diagram/model.mjs';
 import { AvrEngine } from './engines/avr.mjs';
 import { PicoEngine, type PicoProgram } from './engines/pico.mjs';
-import type { AvrDebugInfo, DebugPauseState, SimEngine } from './engines/types.mjs';
+import type { AvrDebugInfo, Breakpoint, DebugPauseState, SimEngine } from './engines/types.mjs';
 import { UNO_DEMO } from './programs/uno-demo.mjs';
 import { PICO_BLINK } from './programs/pico-blink.mjs';
 
@@ -125,7 +125,7 @@ let unoProgram: Uint16Array = UNO_DEMO;
 let unoDebugInfo: AvrDebugInfo | null = null;
 let picoProgram: PicoProgram = { kind: 'ram', image: PICO_BLINK };
 let inputRemovers: Array<() => void> = [];
-let breakpointLines: number[] = []; // points d'arrêt envoyés par l'extension
+let breakpoints: Breakpoint[] = []; // points d'arrêt envoyés par l'extension (ligne + condition)
 // Vrai dès qu'un programme compilé/chargé a été reçu : sinon, lancer la
 // simulation déclenche d'abord une compilation automatique du fichier de code.
 let programLoaded = false;
@@ -432,7 +432,7 @@ function startRun(): void {
   engine.onSerial = appendSerial;
   engine.onDebugPause = renderDebugPause;
   engine.setSpeed(Number(speedSelect.value) || 1);
-  engine.setBreakpoints?.(breakpointLines);
+  engine.setBreakpoints?.(breakpoints);
   rebind();
   engine.start();
   editor.setLocked(true); // schéma figé pendant la simulation
@@ -657,9 +657,10 @@ window.addEventListener('message', (event: MessageEvent) => {
       loadBtn.hidden = !msg.showLoadBinary;
       break;
     case 'breakpoints':
-      // Lignes cochées dans la gouttière de l'éditeur VS Code (1-based).
-      breakpointLines = Array.isArray(msg.lines) ? (msg.lines as number[]) : [];
-      engine?.setBreakpoints?.(breakpointLines);
+      // Points d'arrêt de la gouttière de l'éditeur VS Code (ligne 1-based +
+      // condition optionnelle évaluée côté moteur).
+      breakpoints = Array.isArray(msg.breakpoints) ? (msg.breakpoints as Breakpoint[]) : [];
+      engine?.setBreakpoints?.(breakpoints);
       break;
     case 'customParts':
       editor.loadCustomParts((msg.parts as CustomPartData[]) ?? []);

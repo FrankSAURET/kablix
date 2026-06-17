@@ -341,13 +341,6 @@ body {
   right: 8px;
 }
 
-/* Bouton gomme : l'image fournie occupe 100% du bouton, sur fond bleu. */
-.canvas-controls__btn--eraser {
-  padding: 2px;
-  background: rgb(150, 230, 240);
-  border-color: rgb(150, 230, 240);
-}
-
 .canvas__clear-icon {
   width: 100%;
   height: 100%;
@@ -381,6 +374,15 @@ body {
 .canvas-controls__btn:disabled {
   opacity: 0.45;
   cursor: default;
+}
+
+/* Bouton gomme : fond bleu, l'image fournie occupe 100% du bouton. Sélecteur
+   à double classe pour passer DEVANT la règle générique .canvas-controls__btn
+   (même spécificité sinon → c'est la dernière déclarée qui l'emporterait). */
+.canvas-controls__btn.canvas-controls__btn--eraser {
+  padding: 2px;
+  background: rgb(150, 230, 240);
+  border-color: rgb(150, 230, 240);
 }
 
 .canvas-controls__speed {
@@ -1032,9 +1034,9 @@ body {
   color: var(--vscode-charts-blue, #61afef);
 }
 
-/* Valeur ayant changé depuis la dernière pause : en rouge. */
+/* Valeur ayant changé depuis le démarrage : en rouge pur (255,0,0). */
 .debug__vars td.debug__changed {
-  color: var(--vscode-errorForeground, #f14c4c);
+  color: rgb(255, 0, 0);
   font-weight: 600;
 }
 

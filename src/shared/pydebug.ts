@@ -7,9 +7,11 @@
 //   \x05 (ENQ) : demande de pause — le mode pas à pas s'active au prochain __kx ;
 //   \x06 (ACK) : exécuter un pas (rester en mode pas à pas) ;
 //   \x07 (BEL) : reprendre l'exécution normale (désactive le mode pas à pas) ;
-//   \x10 (DLE) + lignes décimales séparées par ',' + '\n' : (re)définit la liste
-//        des points d'arrêt. __kx(n) se met alors en pause à la ligne n même
-//        hors mode pas à pas. Une liste vide (\x10\n) efface tous les arrêts.
+//   \x10 (DLE) + objet JSON { "ligne": condition|null } + '\n' : (re)définit les
+//        points d'arrêt. __kx(n) se met en pause à la ligne n même hors mode pas
+//        à pas ; si une condition (expression Python) est fournie, l'arrêt n'a
+//        lieu que si elle s'évalue à vrai dans les globales du script (une erreur
+//        d'évaluation = pas d'arrêt). Un objet vide (\x10{}\n) efface les arrêts.
 // En mode pas à pas, __kx publie l'état sur stdout sous la forme
 //   \x1bKX{"l":<ligne>,"v":{"nom":"repr tronqué", …}}\n
 // puis BLOQUE en lisant stdin jusqu'à \x06 ou \x07. Le moteur (pico.mts)
@@ -39,18 +41,20 @@ const PREAMBLE: string[] = [
   '__kx_poll = __kx_sel.poll()',
   '__kx_poll.register(__kx_sys.stdin, __kx_sel.POLLIN)',
   '__kx_step = False',
-  '__kx_bps = set()',          // lignes des points d'arrêt
-  '__kx_bpbuf = None',         // tampon de lecture d'une commande \x10…\n (None = inactif)
-  'def __kx_set_bps(__s):',
+  '__kx_bps = {}',             // points d'arrêt : { ligne(int) : condition(str|None) }
+  '__kx_bpbuf = None',         // tampon de lecture d'une commande \x10{json}\n (None = inactif)
+  'def __kx_set_bps(__s):',    // __s = objet JSON { "ligne": condition|null }
   '    global __kx_bps',
-  '    __b = set()',
-  '    for __p in __s.split(","):',
-  '        __p = __p.strip()',
-  '        if __p:',
+  '    __b = {}',
+  '    try:',
+  '        __m = __kx_json.loads(__s)',
+  '        for __k in __m:',
   '            try:',
-  '                __b.add(int(__p))',
+  '                __b[int(__k)] = __m[__k]',
   '            except Exception:',
   '                pass',
+  '    except Exception:',
+  '        pass',
   '    __kx_bps = __b',
   'def __kx_poll_in():',        // draine stdin : commandes step/resume/bps ; renvoie l'octet "step/run" éventuel
   '    global __kx_step, __kx_bpbuf',
@@ -111,10 +115,23 @@ const PREAMBLE: string[] = [
   '        except Exception:',
   '            continue',
   '    return __o',
+  // Décide si le point d'arrêt à la ligne __n doit suspendre : pas de condition
+  // → toujours ; condition → on évalue l'expression Python dans les globales du
+  // script (une condition qui lève une exception ne suspend pas, comme VS Code).
+  'def __kx_bp_hit(__n):',
+  '    if __n not in __kx_bps:',
+  '        return False',
+  '    __cond = __kx_bps[__n]',
+  '    if not __cond:',
+  '        return True',
+  '    try:',
+  '        return bool(eval(__cond, globals()))',
+  '    except Exception:',
+  '        return False',
   'def __kx(__n):',
   '    global __kx_step, __kx_bpbuf',
   '    __kx_poll_in()',
-  '    if __n in __kx_bps:',          // point d'arrêt atteint : on s'arrête même hors pas à pas
+  '    if __kx_bp_hit(__n):',         // point d'arrêt atteint : on s'arrête même hors pas à pas
   '        __kx_step = True',
   '    if not __kx_step:',
   '        return',
