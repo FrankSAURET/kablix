@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg
-   width="65.233337mm"
-   height="65.233337mm"
-   viewBox="0 0 65.233337 65.233337"
+   width="56.088017mm"
+   height="54.019955mm"
+   viewBox="0 0 56.088016 54.019954"
    version="1.1"
    id="svg8"
-   inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    sodipodi:docname="Gomme.svg"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
@@ -22,15 +22,15 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="1.0000001"
-     inkscape:cx="138.49999"
-     inkscape:cy="375.99997"
+     inkscape:cx="121.49999"
+     inkscape:cy="354.49996"
      inkscape:document-units="mm"
      inkscape:current-layer="layer3"
      showgrid="true"
      inkscape:window-width="1920"
-     inkscape:window-height="1057"
-     inkscape:window-x="-8"
-     inkscape:window-y="-8"
+     inkscape:window-height="1051"
+     inkscape:window-x="-9"
+     inkscape:window-y="-9"
      inkscape:window-maximized="1"
      inkscape:snap-grids="true"
      inkscape:pagecheckerboard="false"
@@ -47,8 +47,8 @@
        spacingy="0.50000001"
        empspacing="10"
        snapvisiblegridlinesonly="false"
-       originx="-217.34696"
-       originy="-82.951478" />
+       originx="-221.91962"
+       originy="-88.558166" />
   </sodipodi:namedview>
   <defs
      id="defs2">
@@ -120,26 +120,17 @@
      inkscape:groupmode="layer"
      id="layer2"
      inkscape:label="Images-Gravures"
-     transform="translate(-217.34695,-82.951477)" />
+     transform="translate(-221.91961,-88.558166)" />
   <g
      inkscape:label="Marquage"
      inkscape:groupmode="layer"
      id="layer1"
-     transform="translate(-217.34695,-82.951477)" />
+     transform="translate(-221.91961,-88.558166)" />
   <g
      inkscape:groupmode="layer"
      id="layer3"
      inkscape:label="Découpes"
-     transform="translate(-217.34695,-82.951477)">
-    <rect
-       style="fill:#99c1f1;fill-opacity:1;stroke:none;stroke-width:2.5;stroke-linecap:round;stroke-dasharray:none"
-       id="rect3"
-       width="65.233337"
-       height="65.233337"
-       x="217.34695"
-       y="82.951477"
-       rx="10"
-       ry="10" />
+     transform="translate(-221.91961,-88.558166)">
     <path
        style="fill:#e01b24;fill-opacity:1;stroke:#777777;stroke-width:2.88167;stroke-linecap:round;stroke-dasharray:none"
        d="M 297.09678,180.35346 C 314.30893,180.35346 331.52109,180.35346 348.73324,180.35346"

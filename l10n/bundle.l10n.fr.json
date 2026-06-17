@@ -59,6 +59,8 @@
   "Send": "Envoyer",
   "Show/hide part names": "Afficher/masquer les noms des composants",
   "Names": "Noms",
+  "Open help": "Ouvrir l'aide",
+  "Help": "Aide",
   "Pause / resume the simulation": "Mettre en pause / reprendre la simulation",
   "Pause": "Pause",
   "Run one source line then pause": "Exécute une ligne de code puis se met en pause",

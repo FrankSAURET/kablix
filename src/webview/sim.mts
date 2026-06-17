@@ -93,6 +93,7 @@ const exportBtn = document.getElementById('export-svg') as HTMLButtonElement;
 const saveProjectBtn = document.getElementById('save-project') as HTMLButtonElement;
 const openProjectBtn = document.getElementById('open-project') as HTMLButtonElement;
 const labelsBtn = document.getElementById('toggle-labels') as HTMLButtonElement;
+const helpBtn = document.getElementById('open-help') as HTMLButtonElement;
 const pauseBtn = document.getElementById('pause') as HTMLButtonElement;
 const stepBtn = document.getElementById('step') as HTMLButtonElement;
 const speedSelect = document.getElementById('speed') as HTMLSelectElement;
@@ -512,6 +513,10 @@ saveProjectBtn.addEventListener('click', () => {
 });
 openProjectBtn.addEventListener('click', () => {
   vscode.postMessage({ type: 'openProject' });
+});
+// Ouvre la page d'aide (commande kablix.openHelp côté hôte).
+helpBtn.addEventListener('click', () => {
+  vscode.postMessage({ type: 'help' });
 });
 
 // --- Préférences d'interface (noms visibles, tri de palette, derniers utilisés)

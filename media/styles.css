@@ -341,9 +341,11 @@ body {
   right: 8px;
 }
 
-/* Bouton gomme : l'image fournie occupe 100% du bouton. */
+/* Bouton gomme : l'image fournie occupe 100% du bouton, sur fond bleu. */
 .canvas-controls__btn--eraser {
   padding: 2px;
+  background: rgb(150, 230, 240);
+  border-color: rgb(150, 230, 240);
 }
 
 .canvas__clear-icon {

@@ -82,6 +82,7 @@ Le firmware officiel n'active **pas** `sys.settrace`
 
 > **Lot 3 réalisé (option A)** : `src/shared/pydebug.ts` injecte un préambule `__kx` (appliqué dans `loadPythonProgram`, repli sur le script original en cas d'échec). Protocole sur l'USB-CDC : `\x05` demande de pause, `\x06` un pas, `\x07` reprise (stdin du script, lu via `uselect.poll`) ; à chaque pause le script publie `\x1bKX{"l":ligne,"v":{"nom":"repr"}}\n` sur stdout, séquence filtrée par `pico.mts` (jamais affichée au moniteur) et relayée au panneau Variables.
 > Limites : variables globales uniquement (repr tronqué à 120 car.), instrumentation ligne à ligne naïve (continuations, triple-quotes, `else/elif/except/finally/case`, décorateurs exclus), numéros de ligne des tracebacks décalés par le préambule. Test : `node scripts/verify-debug-py.mjs`.
+> Filtrage du panneau : les noms injectés par le démarrage de MicroPython (`bdev`, `vfs`…) et les objets « système » (périphérique `Flash`, systèmes de fichiers `VfsFat`/`VfsLfs2`, `Partition`) sont masqués ; les clés de `globals()` sont figées (`list(...)`) avant le balayage et chaque variable est collectée dans un `try` propre, pour qu'un objet récalcitrant n'empêche jamais l'affichage des variables suivantes (ex. un `compteur` qui n'apparaissait pas).
 
 ## Interface (les 3 étapes partagent la même UI)
 

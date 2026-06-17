@@ -510,6 +510,9 @@ export class SimulatorPanel {
       case 'openProject':
         void this.openProject();
         break;
+      case 'help':
+        void vscode.commands.executeCommand('kablix.openHelp');
+        break;
       case 'wokwiExport':
         // La webview a converti le schéma au format Wokwi : on l'enregistre.
         void this.saveWokwiDiagram(msg.json);
@@ -757,6 +760,7 @@ export class SimulatorPanel {
     <button id="save-project" title="${l10n.t('Save the project')}">💾</button>
     <button id="open-project" title="${l10n.t('Open a project')}">📂</button>
     <button id="toggle-labels" title="${l10n.t('Show/hide part names')}">🏷 ${l10n.t('Names')}</button>
+    <button id="open-help" title="${l10n.t('Open help')}">❔ ${l10n.t('Help')}</button>
     <span id="status" class="status">Prêt</span>
   </header>
 
