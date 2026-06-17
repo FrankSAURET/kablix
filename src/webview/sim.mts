@@ -37,7 +37,7 @@ import './elements/custom-part.mjs';
 
 import { initLocale, t } from './i18n.mjs';
 import { Editor, type PaletteState } from './diagram/editor.mjs';
-import { partDef, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
+import { partDef, boardFamily, isBoardId, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
 import { toWokwiDiagram, fromWokwiDiagram } from './diagram/wokwi.mjs';
 import {
   ledOn,
@@ -195,8 +195,8 @@ function refreshVisuals(): void {
         break;
       }
       case 'mcu':
-        // LED embarquée GP25 du Pico.
-        if (def.board === 'pico') el.ledPower = engine.readDigital('GP25');
+        // LED embarquée GP25 du Pico / Pico W.
+        if (def.board && boardFamily(def.board) === 'rp2040') el.ledPower = engine.readDigital('GP25');
         break;
     }
   }
@@ -327,17 +327,15 @@ function useDebugAsInspector(on: boolean): void {
 }
 
 // --- Débogage : pause, pas à pas, panneau des variables -----------------------
-// Valeurs de la dernière pause (pour repérer les changements d'un arrêt au
-// suivant) et ensemble des variables ayant changé depuis le démarrage : elles
-// restent en rouge jusqu'au prochain redémarrage de la simulation (pas à pas
-// comme points d'arrêt).
+// Valeurs de la dernière pause : une variable s'affiche en rouge uniquement si
+// sa valeur a changé DEPUIS LE DERNIER ARRÊT (pas de cumul). À chaque reprise
+// (pas à pas ou ▶ Démarrer), les rouges précédents repassent donc en noir et
+// seules les variables modifiées pendant ce pas/cette reprise repassent en rouge.
 let previousVarValues = new Map<string, string>();
-const changedVars = new Set<string>();
 
 /** Réinitialise l'état des variables (au démarrage / à l'arrêt de la simulation). */
 function resetDebugVars(): void {
   previousVarValues = new Map();
-  changedVars.clear();
   debugVarsEl.innerHTML = '';
 }
 
@@ -359,18 +357,17 @@ function renderDebugPause(state: DebugPauseState): void {
     cell.className = 'debug__empty';
     cell.textContent = t('No readable variable here (C: global variables only).');
   }
-  // Affichage « nom : valeur » (sans le type) ; valeur en rouge dès qu'elle a
-  // changé depuis le démarrage, et le reste jusqu'au redémarrage.
+  // Affichage « nom : valeur » (sans le type) ; valeur en rouge uniquement si
+  // elle diffère de celle du dernier arrêt (delta d'un pas), sans cumul : au
+  // prochain arrêt, une variable inchangée depuis revient automatiquement en noir.
   const next = new Map<string, string>();
   for (const v of state.variables) {
-    if (previousVarValues.has(v.name) && previousVarValues.get(v.name) !== v.value) {
-      changedVars.add(v.name);
-    }
+    const changed = previousVarValues.has(v.name) && previousVarValues.get(v.name) !== v.value;
     const row = debugVarsEl.insertRow();
     row.insertCell().textContent = `${v.name} :`;
     const valueCell = row.insertCell();
     valueCell.textContent = v.value;
-    if (changedVars.has(v.name)) valueCell.classList.add('debug__changed');
+    if (changed) valueCell.classList.add('debug__changed');
     next.set(v.name, v.value);
   }
   previousVarValues = next;
@@ -423,7 +420,9 @@ function startRun(): void {
   resetDebugVars(); // nouveau run : l'historique des changements (rouge) repart à zéro
   try {
     engine =
-      board === 'uno' ? new AvrEngine(unoProgram, unoDebugInfo) : new PicoEngine(picoProgram);
+      boardFamily(board) === 'rp2040'
+        ? new PicoEngine(picoProgram)
+        : new AvrEngine(unoProgram, unoDebugInfo, board === 'mega' ? 'avr2560' : 'avr328');
   } catch (err) {
     setStatus(t('Error: {0}', err instanceof Error ? err.message : String(err)));
     return;
@@ -431,6 +430,11 @@ function startRun(): void {
   engine.onUpdate = queueRefresh;
   engine.onSerial = appendSerial;
   engine.onDebugPause = renderDebugPause;
+  // Pont réseau Pico W : le moteur publie les requêtes, l'hôte fait le vrai
+  // fetch et renvoie la réponse (message 'netResponse').
+  if (engine.onNetRequest !== undefined) {
+    engine.onNetRequest = (req) => vscode.postMessage({ type: 'net', request: req });
+  }
   engine.setSpeed(Number(speedSelect.value) || 1);
   engine.setBreakpoints?.(breakpoints);
   rebind();
@@ -440,7 +444,7 @@ function startRun(): void {
   runBtn.disabled = true;
   stopBtn.disabled = false;
   updateDebugButtons();
-  const isPython = board === 'pico' && picoProgram.kind === 'flash' && picoProgram.script;
+  const isPython = boardFamily(board) === 'rp2040' && picoProgram.kind === 'flash' && !!picoProgram.script;
   setStatus(isPython ? t('Starting MicroPython… (a few seconds)') : t('Running…'));
 }
 
@@ -593,13 +597,22 @@ editor.onExportCustomPart = (part: CustomPartData) => {
   vscode.postMessage({ type: 'exportCustomPart', part });
 };
 boardSelect.addEventListener('change', () => {
-  board = boardSelect.value === 'pico' ? 'pico' : 'uno';
+  board = isBoardId(boardSelect.value) ? boardSelect.value : 'uno';
   vscode.postMessage({ type: 'board', board });
   programLoaded = false; // le programme compilé était lié à l'autre carte
   stopRun();
   persistState();
-  setStatus(t('Board: {0}', board === 'uno' ? 'Arduino Uno' : 'Raspberry Pi Pico'));
+  setStatus(t('Board: {0}', boardLabel(board)));
 });
+
+/** Libellé lisible d'une carte (nom du composant MCU correspondant). */
+function boardLabel(b: BoardId): string {
+  try {
+    return partDef(b).label;
+  } catch {
+    return b;
+  }
+}
 
 // --- Fichier de code à exécuter / déboguer (chip sur le canvas) ---------------
 codeFileBtn.addEventListener('click', () => {
@@ -626,7 +639,7 @@ window.addEventListener('message', (event: MessageEvent) => {
       if (msg.board === 'uno') {
         unoProgram = Uint16Array.from(msg.bytes as number[]);
         unoDebugInfo = (msg.debug as AvrDebugInfo | undefined) ?? null;
-        switchBoard('uno');
+        ensureFamilyForPayload('uno');
       } else if (msg.board === 'pico') {
         if (msg.format === 'rp2040-ram') {
           picoProgram = { kind: 'ram', image: b64ToBytes(msg.b64 as string) };
@@ -640,7 +653,7 @@ window.addEventListener('message', (event: MessageEvent) => {
             script: msg.script as string | undefined,
           };
         }
-        switchBoard('pico');
+        ensureFamilyForPayload('pico');
       }
       startRun();
       break;
@@ -656,6 +669,10 @@ window.addEventListener('message', (event: MessageEvent) => {
       // Bouton « Charger binaire » : masqué sauf si le réglage l'active.
       loadBtn.hidden = !msg.showLoadBinary;
       break;
+    case 'netResponse':
+      // Réponse réseau de l'hôte : réinjectée dans le script (Pico W).
+      engine?.sendNetResponse?.(msg.response);
+      break;
     case 'breakpoints':
       // Points d'arrêt de la gouttière de l'éditeur VS Code (ligne 1-based +
       // condition optionnelle évaluée côté moteur).
@@ -668,7 +685,7 @@ window.addEventListener('message', (event: MessageEvent) => {
       // après l'enregistrement des composants personnalisés qu'il référence).
       if (restoredState?.diagram) {
         editor.loadDiagram(restoredState.diagram as Parameters<typeof editor.loadDiagram>[0]);
-        if (restoredState.board === 'uno' || restoredState.board === 'pico') {
+        if (isBoardId(restoredState.board)) {
           board = restoredState.board;
           boardSelect.value = board;
           vscode.postMessage({ type: 'board', board });
@@ -701,7 +718,10 @@ window.addEventListener('message', (event: MessageEvent) => {
       // Projet Wokwi reçu de l'hôte : conversion puis chargement.
       const { parts, wires, skipped } = fromWokwiDiagram(msg.json);
       editor.loadDiagram({ parts, wires });
-      switchBoard(parts.some((p) => p.type === 'pico') ? 'pico' : 'uno');
+      // Adopte la carte du premier MCU reconnu dans le schéma importé.
+      switchBoard(
+        (parts.map((p) => p.type).find((tp) => isBoardId(tp)) as BoardId | undefined) ?? 'uno'
+      );
       setStatus(
         skipped.length > 0
           ? t('Wokwi project loaded ({0} unsupported part(s) ignored)', skipped.length)
@@ -715,7 +735,7 @@ window.addEventListener('message', (event: MessageEvent) => {
         editor.loadCustomParts(msg.customParts as CustomPartData[]);
       }
       editor.loadDiagram(msg.diagram as Parameters<typeof editor.loadDiagram>[0]);
-      if (msg.board === 'uno' || msg.board === 'pico') {
+      if (isBoardId(msg.board)) {
         switchBoard(msg.board);
         boardSelect.value = msg.board;
       }
@@ -749,6 +769,18 @@ function switchBoard(target: BoardId): void {
   board = target;
   boardSelect.value = target;
   stopRun();
+}
+
+/**
+ * Le programme reçu indique seulement sa FAMILLE (payload 'uno' = AVR, 'pico' =
+ * RP2040). On ne change la carte affichée que si la famille courante ne
+ * correspond pas — ainsi un Nano ou un Pico W choisi par l'utilisateur n'est pas
+ * réécrasé par 'uno'/'pico' à chaque exécution.
+ */
+function ensureFamilyForPayload(payloadBoard: 'uno' | 'pico'): void {
+  const wantsRp2040 = payloadBoard === 'pico';
+  const isRp2040 = boardFamily(board) === 'rp2040';
+  if (wantsRp2040 !== isRp2040) switchBoard(payloadBoard);
 }
 
 // Feuille de dessin vide au démarrage : l'utilisateur compose son schéma.

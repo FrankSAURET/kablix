@@ -26,6 +26,26 @@ export interface Breakpoint {
   condition?: string;
 }
 
+/** Requête réseau émise par le script (pont Pico W) à destination de l'hôte. */
+export interface NetRequest {
+  id: number;
+  /** Méthode HTTP. */
+  m: string;
+  url: string;
+  headers?: Record<string, string>;
+  body?: string;
+}
+
+/** Réponse réseau renvoyée par l'hôte au script. */
+export interface NetResponse {
+  id: number;
+  status?: number;
+  reason?: string;
+  body?: string;
+  /** Message d'erreur (réseau coupé, hôte refusé…) ; lève une OSError côté script. */
+  error?: string;
+}
+
 /** Infos de débogage C/AVR extraites à la compilation (DWARF + symboles). */
 export interface AvrDebugInfo {
   /** Table adresse flash (octets) → ligne du fichier principal. */
@@ -64,6 +84,10 @@ export interface SimEngine {
   onUpdate: (() => void) | null;
   /** Appelé pour chaque fragment reçu sur la liaison série. */
   onSerial: ((chunk: string) => void) | null;
+  /** Pont réseau (Pico W) : appelé quand le script émet une requête HTTP. */
+  onNetRequest?: ((req: NetRequest) => void) | null;
+  /** Réinjecte dans le script la réponse réseau obtenue par l'hôte. */
+  sendNetResponse?(response: NetResponse): void;
 }
 
 export interface FlashSegment {

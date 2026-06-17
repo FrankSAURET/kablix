@@ -10,8 +10,23 @@ import { basename, delimiter, extname, join } from 'node:path';
 import { parseUf2 } from './shared/uf2';
 import { parseElf32 } from './shared/elf';
 import { instrumentPython } from './shared/pydebug';
+import { NET_PREAMBLE } from './shared/pynet';
 
-export type Board = 'uno' | 'pico';
+export type Board = 'uno' | 'nano' | 'mini' | 'mega' | 'pico' | 'picow';
+
+/** Vrai pour une carte de la famille AVR (Arduino : Uno / Nano / Pro Mini / Mega). */
+function isAvrBoard(board: Board): boolean {
+  return board === 'uno' || board === 'nano' || board === 'mini' || board === 'mega';
+}
+
+/** Cible de compilation AVR (FQBN arduino-cli + MCU avr-gcc) d'une carte. */
+function avrTarget(board: Board): { fqbn: string; mmcu: string } {
+  // Mega : ATmega2560. Toutes les autres cartes AVR sont des ATmega328P @16 MHz
+  // (Uno / Nano / Pro Mini produisent le même code machine pour le simulateur).
+  return board === 'mega'
+    ? { fqbn: 'arduino:avr:mega', mmcu: 'atmega2560' }
+    : { fqbn: 'arduino:avr:uno', mmcu: 'atmega328p' };
+}
 
 const FLASH_START = 0x10000000;
 const FLASH_END = 0x14000000;
@@ -250,7 +265,11 @@ export function loadArtifact(filePath: string): CompileResult {
  * Prépare l'exécution d'un script MicroPython : firmware UF2 + code source.
  * Le script est injecté via le raw REPL une fois le firmware démarré.
  */
-export function loadPythonProgram(firmwareUf2Path: string, scriptSource: string): CompileResult {
+export function loadPythonProgram(
+  firmwareUf2Path: string,
+  scriptSource: string,
+  enableNetwork = false
+): CompileResult {
   const segments = parseUf2(new Uint8Array(readFileSync(firmwareUf2Path)));
   // Instrumente le script pour le pas à pas (préambule __kx + un appel par
   // ligne) ; en cas d'échec, on retombe sur le script original tel quel.
@@ -260,6 +279,9 @@ export function loadPythonProgram(firmwareUf2Path: string, scriptSource: string)
   } catch {
     script = scriptSource;
   }
+  // Pico W : préambule de pont réseau (faux network/urequests tunnelés vers
+  // l'hôte) injecté AVANT tout, pour patcher sys.modules avant les import du script.
+  if (enableNetwork) script = NET_PREAMBLE + '\n' + script;
   return {
     payload: {
       board: 'pico',
@@ -470,8 +492,9 @@ export function compile(
   const tmp = mkdtempSync(join(tmpdir(), 'kablix-'));
   const log: string[] = [];
 
-  if (board === 'uno') {
+  if (isAvrBoard(board)) {
     const ext = extname(filePath).toLowerCase();
+    const { fqbn, mmcu } = avrTarget(board);
     const arduinoCli = resolveTool('arduino-cli', { override: toolPaths.arduinoCli, searchDir });
 
     // Sketch Arduino complet (API Arduino) via arduino-cli. Un .c/.cpp « nu »
@@ -479,7 +502,7 @@ export function compile(
     // dossier de même nom) : ces fichiers passent par avr-gcc en bare-metal.
     const withArduinoCli = (cli: string): CompileResult => {
       const compileWith = (extra: string[]): void => {
-        run(cli, ['compile', '--fqbn', 'arduino:avr:uno', ...extra, '--output-dir', tmp, filePath]);
+        run(cli, ['compile', '--fqbn', fqbn, ...extra, '--output-dir', tmp, filePath]);
       };
       // Stratégies de compilation, de la plus fidèle au débogage à la plus sûre.
       // On retombe sur la suivante si une échoue → la compilation n'est JAMAIS
@@ -504,7 +527,7 @@ export function compile(
       for (const a of attempts) {
         try {
           compileWith(a.extra);
-          log.push(`Compilation arduino-cli (arduino:avr:uno) : ${a.note}.`);
+          log.push(`Compilation arduino-cli (${fqbn}) : ${a.note}.`);
           compiled = true;
           break;
         } catch (err) {
@@ -532,12 +555,12 @@ export function compile(
     const isCpp = ['.cpp', '.cc', '.cxx'].includes(ext);
     const avrCompiler = resolveTool(isCpp ? 'avr-g++' : 'avr-gcc', { searchDir });
     if (avrCompiler) {
-      log.push('Compilation via avr-gcc (ATmega328P, bare-metal avr-libc, -O0)…');
+      log.push(`Compilation via avr-gcc (${mmcu}, bare-metal avr-libc, -O0)…`);
       const objcopy = resolveTool('avr-objcopy', { searchDir }) ?? 'avr-objcopy';
       const elf = join(tmp, 'out.elf');
       const hex = join(tmp, 'out.hex');
       // -O0 -g3 : débogage fidèle (lignes + variables non optimisées).
-      run(avrCompiler, ['-mmcu=atmega328p', '-O0', '-g3', '-DF_CPU=16000000UL', '-o', elf, filePath]);
+      run(avrCompiler, [`-mmcu=${mmcu}`, '-O0', '-g3', '-DF_CPU=16000000UL', '-o', elf, filePath]);
       run(objcopy, ['-O', 'ihex', '-R', '.eeprom', elf, hex]);
       const debug = extractAvrDebug(elf, filePath, log, arduinoCli, searchDir);
       return {
@@ -555,7 +578,7 @@ export function compile(
     );
   }
 
-  // board === 'pico' : bare-metal exécuté en RAM (cohérent avec le moteur rp2040js).
+  // Famille RP2040 (Pico / Pico W) : bare-metal exécuté en RAM (cohérent rp2040js).
   const isCpp = ['.cpp', '.cc'].includes(extname(filePath).toLowerCase());
   const armCompiler = resolveTool(isCpp ? 'arm-none-eabi-g++' : 'arm-none-eabi-gcc', { searchDir });
   if (!armCompiler) {
@@ -579,7 +602,9 @@ export function compile(
   ]);
   run(objcopy, ['-O', 'binary', elf, bin]);
   return {
-    payload: { board, format: 'rp2040-ram', b64: toB64(new Uint8Array(readFileSync(bin))) },
+    // Le payload ne porte que la FAMILLE ('pico' = RP2040) ; Pico et Pico W
+    // partagent le même cœur et le même binaire bare-metal.
+    payload: { board: 'pico', format: 'rp2040-ram', b64: toB64(new Uint8Array(readFileSync(bin))) },
     log: log.join('\n'),
   };
 }

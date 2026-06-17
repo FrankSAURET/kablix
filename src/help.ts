@@ -149,6 +149,17 @@ function getHtml(webview: vscode.Webview): string {
       padding: 0.35rem 0.8rem;
     }
     .top { font-size: 0.8rem; }
+    pre {
+      background: var(--vscode-textCodeBlock-background, rgba(128,128,128,.15));
+      border: 1px solid var(--vscode-panel-border, rgba(128,128,128,.3));
+      border-radius: 4px;
+      padding: 0.8rem 1rem;
+      overflow: auto;
+      white-space: pre-wrap;
+      font-family: var(--vscode-editor-font-family, monospace);
+      font-size: 0.88em;
+      line-height: 1.45;
+    }
   </style>
 </head>
 <body>
@@ -174,6 +185,7 @@ function bodyFr(): string {
         <li><a href="#serie">Moniteur série</a></li>
         <li><a href="#svg">Export SVG</a></li>
         <li><a href="#composants">Composants personnalisés</a></li>
+        <li><a href="#composants-ia">Créer un composant avec une IA</a></li>
         <li><a href="#updates">Mises à jour des bibliothèques</a></li>
         <li><a href="#pas-a-pas-arduino">Pas à pas — Arduino</a></li>
         <li><a href="#pas-a-pas-pico">Pas à pas — Raspberry Pi Pico (MicroPython)</a></li>
@@ -192,7 +204,7 @@ function bodyFr(): string {
 
     <h2 id="interface">Interface</h2>
     <ul>
-      <li><strong>Barre d'outils</strong> (haut) : sélecteur de carte, ▶ Démarrer (compile le code modifié au besoin) / ■ Arrêter / ⏸ Pause / ⏭ Pas, vitesse 🐇/🐢/🐌, ⬇ SVG, 🏷 Noms, ❔ Aide. (Le bouton <strong>↑ Charger binaire</strong> est masqué par défaut — cf. réglages.)</li>
+      <li><strong>Barre d'outils</strong> (haut) : sélecteur de carte, ▶ Démarrer (compile le code modifié au besoin) / ■ Arrêter / ⏸ Pause / ⏭ Pas, vitesse 🐇/🐢/🐌, ⬇ SVG, 🏷 Noms. (Le bouton <strong>↑ Charger binaire</strong> est masqué par défaut — cf. réglages.)</li>
       <li><strong>Palette</strong> (gauche) : les composants à poser, triés <strong>AZ</strong> ou par <strong>catégories</strong>, avec une zone « Derniers utilisés ».</li>
       <li><strong>Canvas</strong> (centre) : les composants, les fils et leurs poignées.</li>
       <li><strong>Propriétés</strong> / inspecteur (droite) : édite l'élément sélectionné (couleur, valeur, angle, suppression) ; une zone d'aide y rappelle les gestes utiles.</li>
@@ -252,6 +264,46 @@ function bodyFr(): string {
     <h2 id="composants">Composants personnalisés</h2>
     <p>Bouton <strong>« + Créer un composant »</strong> en bas de la palette : nom, modèle de simulation (LED, bouton, résistance, buzzer, source numérique/analogique, décoratif), dessin SVG avec aperçu live, points de connexion cliqués sur l'aperçu, puis correspondance des rôles. Le composant (★) est persisté entre les sessions. Depuis la palette : clic = poser, double-clic = modifier, ⇩ = exporter en <code>.json</code>, ✕ = supprimer, <strong>⇪ Importer (.json)</strong> = charger un composant partagé. Le format <code>.kablix-part.json</code> est documenté dans l'aide en ligne.</p>
 
+    <h3 id="composants-ia">Créer un composant avec une IA</h3>
+    <p>Une IA (ChatGPT, Claude, Gemini…) sait produire un composant complet — dessin SVG <em>et</em> broches — directement au format importable. Marche à suivre :</p>
+    <ol class="steps">
+      <li>Copiez le <strong>prompt</strong> ci-dessous dans l'IA et décrivez le composant voulu à la place du texte entre crochets.</li>
+      <li>Récupérez le bloc JSON renvoyé et enregistrez-le dans un fichier <code>mon-composant.kablix-part.json</code> (ou <code>.json</code>).</li>
+      <li>Dans la palette Kablix : <strong>⇪ Importer (.json)</strong>, choisissez le fichier. Le composant (★) apparaît, prêt à poser.</li>
+      <li>Au besoin, <strong>double-cliquez</strong> le composant dans la palette pour réajuster les points de connexion sur l'aperçu.</li>
+    </ol>
+    <p class="note">⚠ Espacez les broches d'un <strong>multiple de 10 px</strong> (le pas de la grille = écartement réel de 0,1″ entre pattes) : elles tombent alors pile sur la grille et sur les trous de la platine d'essai.</p>
+    <p>Champs du format : <code>label</code> (nom affiché, requis), <code>svg</code> (dessin, requis), <code>pins</code> (liste <code>{ name, x, y }</code>, requis), <code>kind</code> (modèle de simulation), <code>pinRoles</code> (rôle → broche). Modèles disponibles pour <code>kind</code> : <code>led</code> (rôles A/C), <code>pushbutton</code> (1.l/2.l), <code>resistor</code> (1/2), <code>buzzer</code> (1/2), <code>digital-source</code> (OUT), <code>analog-source</code> (AO), <code>passive</code> (décoratif).</p>
+    <p>Prompt à copier :</p>
+    <pre>Tu es un assistant qui crée un composant électronique pour le simulateur Kablix.
+Réponds UNIQUEMENT par un objet JSON valide (format .kablix-part.json), sans texte autour.
+
+Composant voulu : [DÉCRIS ICI : ex. « capteur de température TMP36, boîtier TO-92, 3 broches VCC / SORTIE / GND »].
+
+Contraintes :
+- "svg" : un dessin SVG autonome, lisible, avec un attribut viewBox et des dimensions réalistes.
+  Le repère commence en haut à gauche (0,0). Dessine les pattes/broches sur le dessin.
+- "pins" : une entrée { "name", "x", "y" } par broche, aux coordonnées EXACTES (dans le repère du SVG)
+  du point de connexion. ESPACE les broches d'un multiple de 10 (pas de la grille = 0,1").
+- "kind" : choisis le modèle de simulation le plus proche parmi
+  led | pushbutton | resistor | buzzer | digital-source | analog-source | passive.
+- "pinRoles" : associe chaque rôle du modèle à un nom de broche (ex. { "AO": "SORTIE" } pour analog-source).
+- "label" : nom court affiché dans la palette ; "type" : identifiant en minuscules sans espace.
+
+Schéma de la réponse :
+{
+  "type": "tmp36",
+  "label": "TMP36",
+  "kind": "analog-source",
+  "svg": "&lt;svg viewBox='0 0 60 80' ...&gt;...&lt;/svg&gt;",
+  "pins": [
+    { "name": "VCC", "x": 10, "y": 70 },
+    { "name": "SORTIE", "x": 30, "y": 70 },
+    { "name": "GND", "x": 50, "y": 70 }
+  ],
+  "pinRoles": { "AO": "SORTIE" }
+}</pre>
+
     <h2 id="updates">Mises à jour des bibliothèques</h2>
     <p>Kablix embarque <code>avr8js</code>, <code>rp2040js</code> et <code>@wokwi/elements</code>, et reste <strong>hors-ligne par défaut</strong>.</p>
     <ul>
@@ -281,6 +333,17 @@ function bodyFr(): string {
       <li><strong>Déboguer pas à pas</strong> : <strong>⏸ Pause</strong> / <strong>⏭ Pas</strong> et les points d'arrêt fonctionnent sur les variables globales (script instrumenté automatiquement) ; la pause prend effet à la ligne suivante.</li>
     </ol>
     <p class="note">⚠ <strong>Fonctionnement entièrement hors-ligne</strong> : pour qu'un poste sans accès Internet n'ait jamais à télécharger le firmware, <strong>placez le <code>.uf2</code> MicroPython directement dans le dossier du projet</strong> (il sera versionné avec le projet et distribué aux élèves). Kablix cherche le firmware <strong>d'abord dans le workspace</strong>, puis dans le firmware téléchargé/mémorisé, et ne propose le téléchargement qu'en dernier recours. Un projet qui embarque son firmware est donc reproductible et autonome.</p>
+    <h3>Wi-Fi du Pico W (pont réseau)</h3>
+    <p>La puce Wi-Fi du Pico W n'est pas émulée, mais Kablix fournit un <strong>pont réseau réel</strong> : quand la carte sélectionnée est <em>Raspberry Pi Pico W</em>, les modules MicroPython <code>network</code> et <code>urequests</code> (alias <code>requests</code>) sont automatiquement remplacés par des versions qui font passer les vraies requêtes HTTP par <strong>l'hôte VS Code</strong>. Concrètement : <code>network.WLAN</code> « se connecte » instantanément (IP factice <code>192.168.1.50</code>), et <code>urequests.get/post(...)</code> exécute une <strong>vraie</strong> requête depuis la machine, puis renvoie la réponse (<code>status_code</code>, <code>text</code>, <code>json()</code>) au script.</p>
+    <pre>import network, urequests
+wlan = network.WLAN(network.STA_IF)
+wlan.active(True)
+wlan.connect("mon-ssid", "mon-mdp")
+print(wlan.isconnected())          # True (connexion simulée)
+r = urequests.get("https://api.exemple.fr/data")
+print(r.status_code, r.json())     # vraie réponse via l'hôte
+r.close()</pre>
+    <p class="note">Le pont est <strong>activé par défaut</strong> et n'agit que pour la carte Pico W. Désactivez-le avec le réglage <code>kablix.picowNetworkBridge</code> pour bloquer toute requête sortante. Limites : HTTP(S) uniquement (pas de sockets bruts), corps de réponse plafonné (le tunnel série est lent), délai de 15 s par requête.</p>
 
     <h2 id="en-ligne">Aide en ligne</h2>
     <p>La documentation complète et à jour est en ligne :</p>
@@ -309,6 +372,7 @@ function bodyEn(): string {
         <li><a href="#serial">Serial monitor</a></li>
         <li><a href="#svg">SVG export</a></li>
         <li><a href="#parts">Custom parts</a></li>
+        <li><a href="#parts-ai">Creating a part with an AI</a></li>
         <li><a href="#updates">Library updates</a></li>
         <li><a href="#walk-arduino">Walkthrough — Arduino</a></li>
         <li><a href="#walk-pico">Walkthrough — Raspberry Pi Pico (MicroPython)</a></li>
@@ -387,6 +451,46 @@ function bodyEn(): string {
     <h2 id="parts">Custom parts</h2>
     <p><strong>"+ Create a part"</strong> button at the bottom of the palette: name, simulation model (LED, button, resistor, buzzer, digital/analog source, decorative), SVG drawing with live preview, connection points clicked on the preview, then role mapping. The part (★) is persisted across sessions. From the palette: click = place, double-click = edit, ⇩ = export to <code>.json</code>, ✕ = delete, <strong>⇪ Import (.json)</strong> = load a shared part. The <code>.kablix-part.json</code> format is documented in the online help.</p>
 
+    <h3 id="parts-ai">Creating a part with an AI</h3>
+    <p>An AI (ChatGPT, Claude, Gemini…) can produce a complete part — SVG drawing <em>and</em> pins — directly in the importable format. Steps:</p>
+    <ol class="steps">
+      <li>Copy the <strong>prompt</strong> below into the AI and describe the part you want in place of the bracketed text.</li>
+      <li>Take the returned JSON block and save it to a <code>my-part.kablix-part.json</code> (or <code>.json</code>) file.</li>
+      <li>In the Kablix palette: <strong>⇪ Import (.json)</strong>, pick the file. The part (★) appears, ready to place.</li>
+      <li>If needed, <strong>double-click</strong> the part in the palette to fine-tune the connection points on the preview.</li>
+    </ol>
+    <p class="note">⚠ Space the pins by a <strong>multiple of 10 px</strong> (the grid step = the real 0.1″ spacing between legs): they then land exactly on the grid and on the breadboard holes.</p>
+    <p>Format fields: <code>label</code> (displayed name, required), <code>svg</code> (drawing, required), <code>pins</code> (list of <code>{ name, x, y }</code>, required), <code>kind</code> (simulation model), <code>pinRoles</code> (role → pin). Available <code>kind</code> models: <code>led</code> (roles A/C), <code>pushbutton</code> (1.l/2.l), <code>resistor</code> (1/2), <code>buzzer</code> (1/2), <code>digital-source</code> (OUT), <code>analog-source</code> (AO), <code>passive</code> (decorative).</p>
+    <p>Prompt to copy:</p>
+    <pre>You are an assistant that creates an electronic part for the Kablix simulator.
+Reply ONLY with a valid JSON object (.kablix-part.json format), with no surrounding text.
+
+Wanted part: [DESCRIBE HERE: e.g. "TMP36 temperature sensor, TO-92 package, 3 pins VCC / OUT / GND"].
+
+Constraints:
+- "svg": a self-contained, readable SVG drawing with a viewBox attribute and realistic dimensions.
+  The origin is the top-left corner (0,0). Draw the legs/pins on the drawing.
+- "pins": one { "name", "x", "y" } entry per pin, at the EXACT coordinates (in the SVG frame)
+  of the connection point. SPACE the pins by a multiple of 10 (grid step = 0.1").
+- "kind": pick the closest simulation model among
+  led | pushbutton | resistor | buzzer | digital-source | analog-source | passive.
+- "pinRoles": map each model role to a pin name (e.g. { "AO": "OUT" } for analog-source).
+- "label": short name shown in the palette; "type": lowercase identifier without spaces.
+
+Response schema:
+{
+  "type": "tmp36",
+  "label": "TMP36",
+  "kind": "analog-source",
+  "svg": "&lt;svg viewBox='0 0 60 80' ...&gt;...&lt;/svg&gt;",
+  "pins": [
+    { "name": "VCC", "x": 10, "y": 70 },
+    { "name": "OUT", "x": 30, "y": 70 },
+    { "name": "GND", "x": 50, "y": 70 }
+  ],
+  "pinRoles": { "AO": "OUT" }
+}</pre>
+
     <h2 id="updates">Library updates</h2>
     <p>Kablix bundles <code>avr8js</code>, <code>rp2040js</code> and <code>@wokwi/elements</code>, and stays <strong>offline by default</strong>.</p>
     <ul>
@@ -416,6 +520,17 @@ function bodyEn(): string {
       <li><strong>Debug step by step</strong>: <strong>⏸ Pause</strong> / <strong>⏭ Step</strong> and breakpoints work on global variables (script instrumented automatically); the pause takes effect on the next line.</li>
     </ol>
     <p class="note">⚠ <strong>Fully offline operation</strong>: so that a machine without Internet access never has to download the firmware, <strong>place the MicroPython <code>.uf2</code> directly in the project folder</strong> (it will be versioned with the project and distributed to students). Kablix looks for the firmware <strong>first in the workspace</strong>, then in the downloaded/remembered firmware, and only offers the download as a last resort. A project that bundles its firmware is therefore reproducible and self-contained.</p>
+    <h3>Pico W Wi-Fi (network bridge)</h3>
+    <p>The Pico W Wi-Fi chip is not emulated, but Kablix provides a <strong>real network bridge</strong>: when the selected board is <em>Raspberry Pi Pico W</em>, the MicroPython <code>network</code> and <code>urequests</code> (alias <code>requests</code>) modules are automatically replaced by versions that route real HTTP requests through the <strong>VS Code host</strong>. In practice: <code>network.WLAN</code> "connects" instantly (fake IP <code>192.168.1.50</code>), and <code>urequests.get/post(...)</code> performs a <strong>real</strong> request from the machine, then returns the response (<code>status_code</code>, <code>text</code>, <code>json()</code>) to the script.</p>
+    <pre>import network, urequests
+wlan = network.WLAN(network.STA_IF)
+wlan.active(True)
+wlan.connect("my-ssid", "my-pwd")
+print(wlan.isconnected())          # True (simulated connection)
+r = urequests.get("https://api.example.com/data")
+print(r.status_code, r.json())     # real response via the host
+r.close()</pre>
+    <p class="note">The bridge is <strong>on by default</strong> and only acts for the Pico W board. Disable it with the <code>kablix.picowNetworkBridge</code> setting to block all outbound requests. Limits: HTTP(S) only (no raw sockets), response body capped (the serial tunnel is slow), 15 s timeout per request.</p>
 
     <h2 id="online">Online help</h2>
     <p>The full, up-to-date documentation is online:</p>

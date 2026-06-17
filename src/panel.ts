@@ -17,6 +17,20 @@ import {
 import { resolveMicropythonFirmware, FirmwareCancelled } from './firmware';
 
 const ARTIFACT_EXTS = ['.hex', '.uf2', '.elf', '.bin'];
+
+/** Vrai pour une carte de la famille AVR (Arduino : Uno / Nano / Pro Mini / Mega). */
+function isAvrBoard(board: Board): boolean {
+  return board === 'uno' || board === 'nano' || board === 'mini' || board === 'mega';
+}
+
+/** Requête du pont réseau Pico W (forme miroir de NetRequest côté webview). */
+interface NetBridgeRequest {
+  id: number;
+  m?: string;
+  url: string;
+  headers?: Record<string, string>;
+  body?: string;
+}
 const CUSTOM_PARTS_KEY = 'kablix.customParts';
 const UI_STATE_KEY = 'kablix.uiState';
 /** Dernière colonne d'éditeur du simulateur (rouvert au même endroit). */
@@ -145,8 +159,17 @@ export class SimulatorPanel {
     try {
       let result: CompileResult;
       if (ext === '.py') {
-        const firmware = await resolveMicropythonFirmware(this.context);
-        result = loadPythonProgram(firmware, doc.getText());
+        // Pico W → firmware Wi-Fi (RPI_PICO_W) ; sinon Pico standard.
+        const isPicoW = this.currentBoard === 'picow';
+        const firmware = await resolveMicropythonFirmware(
+          this.context,
+          isPicoW ? 'picow' : 'pico'
+        );
+        // Pont réseau réel : activé pour le Pico W si le réglage l'autorise.
+        const netBridge =
+          isPicoW &&
+          vscode.workspace.getConfiguration('kablix').get<boolean>('picowNetworkBridge', true);
+        result = loadPythonProgram(firmware, doc.getText(), netBridge);
       } else if (ARTIFACT_EXTS.includes(ext)) {
         result = loadArtifact(filePath);
       } else {
@@ -184,10 +207,10 @@ export class SimulatorPanel {
     try {
       const board = this.currentBoard;
       const file =
-        board === 'uno' ? await this.findNewestHex() : await this.findNewestUf2();
+        isAvrBoard(board) ? await this.findNewestHex() : await this.findNewestUf2();
       if (!file) {
         vscode.window.showWarningMessage(
-          board === 'uno'
+          isAvrBoard(board)
             ? l10n.t('Kablix: no .hex file found in the workspace.')
             : l10n.t('Kablix: no .uf2 file found in the workspace (build/ folder).')
         );
@@ -455,6 +478,7 @@ export class SimulatorPanel {
     diagram?: unknown;
     json?: unknown;
     onlyIfChanged?: boolean;
+    request?: unknown;
   }): void {
     switch (msg?.type) {
       case 'ready':
@@ -524,6 +548,53 @@ export class SimulatorPanel {
         // La webview a converti le schéma au format Wokwi : on l'enregistre.
         void this.saveWokwiDiagram(msg.json);
         break;
+      case 'net':
+        // Pont réseau Pico W : requête HTTP émise par le script simulé.
+        void this.handleNetRequest(msg.request as NetBridgeRequest);
+        break;
+    }
+  }
+
+  // --- Pont réseau Pico W (option « pont réseau réel via l'hôte ») ------------
+
+  /**
+   * Exécute la vraie requête HTTP demandée par le script MicroPython (le Wi-Fi
+   * n'étant pas émulé) puis renvoie la réponse à la webview, qui la réinjecte
+   * dans le script. Borné par un délai et une taille de corps (le tunnel série
+   * est lent). Désactivable via le réglage `kablix.picowNetworkBridge`.
+   */
+  private async handleNetRequest(req: NetBridgeRequest): Promise<void> {
+    const reply = (r: Record<string, unknown>): void =>
+      this.post({ type: 'netResponse', response: { id: req?.id, ...r } });
+    if (!req || typeof req.url !== 'string') {
+      reply({ error: 'invalid request' });
+      return;
+    }
+    const allowed = vscode.workspace
+      .getConfiguration('kablix')
+      .get<boolean>('picowNetworkBridge', true);
+    if (!allowed) {
+      reply({ error: 'network bridge disabled (kablix.picowNetworkBridge)' });
+      return;
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15_000);
+    try {
+      const res = await fetch(req.url, {
+        method: req.m || 'GET',
+        headers: req.headers,
+        body: req.body,
+        signal: controller.signal,
+      });
+      let body = await res.text();
+      // Le tunnel série transfère octet par octet : on plafonne le corps.
+      const MAX = 64 * 1024;
+      if (body.length > MAX) body = body.slice(0, MAX);
+      reply({ status: res.status, reason: res.statusText, body });
+    } catch (err) {
+      reply({ error: err instanceof Error ? err.message : String(err) });
+    } finally {
+      clearTimeout(timer);
     }
   }
 
@@ -759,8 +830,16 @@ export class SimulatorPanel {
   <header class="toolbar">
     <strong class="brand">Kablix</strong>
     <select id="board" title="${l10n.t('Simulated board')}">
-      <option value="uno" selected>Arduino Uno</option>
-      <option value="pico">Raspberry Pi Pico</option>
+      <optgroup label="Arduino (AVR)">
+        <option value="uno" selected>Arduino Uno</option>
+        <option value="nano">Arduino Nano</option>
+        <option value="mini">Arduino Pro Mini</option>
+        <option value="mega">Arduino Mega 2560</option>
+      </optgroup>
+      <optgroup label="Raspberry Pi (RP2040)">
+        <option value="pico">Raspberry Pi Pico</option>
+        <option value="picow">Raspberry Pi Pico W</option>
+      </optgroup>
     </select>
     <button id="load-workspace" hidden title="${l10n.t('Load a compiled .uf2 (Pico) or .hex (Arduino) from the workspace')}">↑ ${l10n.t('Load binary')}</button>
     <button id="export-svg" title="${l10n.t('Export the diagram as SVG')}">⬇ SVG</button>

@@ -1099,6 +1099,20 @@ export class Editor {
       .map((rr) => ({ rr, ox: rr.part.x, oy: rr.part.y }));
     const isGroup = members.length > 1;
 
+    // Fils entièrement internes au lot déplacé (les deux extrémités sont des
+    // composants du groupe) : leurs coudes sont en coordonnées monde absolues et
+    // ne suivraient pas le déplacement → on mémorise leurs points d'origine pour
+    // les décaler du même vecteur, sinon le tracé se déforme.
+    const internalWires = this.diagram.wires
+      .filter(
+        (w) =>
+          w.points &&
+          w.points.length > 0 &&
+          groupIds.has(w.a.partId) &&
+          groupIds.has(w.b.partId)
+      )
+      .map((w) => ({ wire: w, orig: w.points!.map((p) => ({ x: p.x, y: p.y })) }));
+
     // Enfichage : seulement pour un composant seul (pas un support qui emmène
     // déjà sa grappe), et hors cartes/platines.
     const kind = partDef(part.type).kind;
@@ -1132,6 +1146,10 @@ export class Editor {
         m.rr.part.y = Math.max(0, m.oy + wdy);
         m.rr.container.style.left = `${m.rr.part.x}px`;
         m.rr.container.style.top = `${m.rr.part.y}px`;
+      }
+      // Les coudes des fils internes suivent le même décalage que les composants.
+      for (const iw of internalWires) {
+        iw.wire.points = iw.orig.map((p) => ({ x: p.x + wdx, y: p.y + wdy }));
       }
       this.redrawWires();
       if (holes.length > 0) this.previewBreadboardSnap(part, holes);
@@ -1716,14 +1734,18 @@ export class Editor {
     window.addEventListener('pointerup', up);
   }
 
-  /** Composants dont la boîte englobante recoupe le rectangle (coords monde). */
+  /**
+   * Composants dont la boîte englobante est ENTIÈREMENT contenue dans le
+   * rectangle (coords monde). Un composant seulement effleuré par le cadre n'est
+   * pas pris : il faut l'encadrer complètement pour le sélectionner.
+   */
   private partsInRect(x: number, y: number, w: number, h: number): string[] {
     const ids: string[] = [];
     for (const [id, r] of this.rendered) {
       const body = r.container.querySelector('.part__body') as HTMLElement | null;
       const pw = body?.offsetWidth || 40;
       const ph = body?.offsetHeight || 40;
-      if (r.part.x < x + w && r.part.x + pw > x && r.part.y < y + h && r.part.y + ph > y) {
+      if (r.part.x >= x && r.part.x + pw <= x + w && r.part.y >= y && r.part.y + ph <= y + h) {
         ids.push(id);
       }
     }

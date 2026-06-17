@@ -7,7 +7,14 @@
 // (Ctrl-A … Ctrl-D) dès que l'USB est énuméré.
 import { RP2040, Simulator, USBCDC, GPIOPinState, ConsoleLogger, LogLevel } from 'rp2040js';
 import { bootromB1 } from './bootrom-b1.mjs';
-import type { Breakpoint, DebugPauseState, FlashSegment, SimEngine } from './types.mjs';
+import type {
+  Breakpoint,
+  DebugPauseState,
+  FlashSegment,
+  NetRequest,
+  NetResponse,
+  SimEngine,
+} from './types.mjs';
 
 const RAM_START = 0x20000000;
 const FLASH_START = 0x10000000;
@@ -45,6 +52,7 @@ export class PicoEngine implements SimEngine {
   onUpdate: (() => void) | null = null;
   onSerial: ((chunk: string) => void) | null = null;
   onDebugPause: ((state: DebugPauseState) => void) | null = null;
+  onNetRequest: ((req: NetRequest) => void) | null = null;
 
   /** Pas à pas : défini uniquement en mode script MicroPython (cf. constructeur). */
   step?: () => void;
@@ -66,8 +74,12 @@ export class PicoEngine implements SimEngine {
   private pasteHdr: number[] = [];
   /** Vrai si la pause courante a été obtenue par arrêt du simulateur (hors script). */
   private pausedByStop = false;
-  /** Tampon de détection des séquences de débogage « \x1bKX…\n » du préambule __kx. */
-  private kxBuf = '';
+  /**
+   * Tampon de détection des séquences « \x1b<tag><payload>\n » émises par les
+   * préambules injectés : tag « KX » = état de débogage, « NT » = requête réseau
+   * (Pico W). Reconstituées avant d'être retirées du flux du moniteur série.
+   */
+  private escBuf = '';
   /** Points d'arrêt (ligne + condition), retenus pour (re)transmission au script __kx. */
   private breakpoints: Breakpoint[] = [];
 
@@ -278,51 +290,72 @@ export class PicoEngine implements SimEngine {
     for (const ch of text) this.handleReplChar(ch);
   }
 
-  // --- Filtrage des séquences de débogage \x1bKX{json}\n ----------------------
+  // --- Filtrage des séquences « \x1b<tag>{json}\n » ---------------------------
   // Les octets arrivent par paquets arbitraires : un petit tampon reconstitue
-  // la séquence avant de décider si elle va au moniteur ou au panneau Variables.
-  private static readonly KX_PREFIX = '\x1bKX';
+  // la séquence avant de décider de sa destination (panneau Variables, hôte
+  // réseau) ; tout ce qui n'est pas une séquence connue retourne au moniteur.
+  private static readonly ESC_TAGS = ['KX', 'NT'];
 
   private emitSerial(text: string): void {
     for (const ch of text) this.emitSerialChar(ch);
   }
 
   private emitSerialChar(ch: string): void {
-    if (this.kxBuf.length === 0) {
+    if (this.escBuf.length === 0) {
       if (ch === '\x1b') {
-        this.kxBuf = ch; // début possible d'une séquence KX
+        this.escBuf = ch; // début possible d'une séquence
         return;
       }
       this.onSerial?.(ch);
       return;
     }
-    this.kxBuf += ch;
-    const prefix = PicoEngine.KX_PREFIX;
-    if (this.kxBuf.length < prefix.length) {
-      if (!prefix.startsWith(this.kxBuf)) this.flushKxBuf();
+    this.escBuf += ch;
+    const partialTag = this.escBuf.slice(1); // ce qui suit l'ESC
+    if (this.escBuf.length < 3) {
+      // Pas encore le tag complet : on poursuit tant qu'il peut amorcer un tag connu.
+      if (!PicoEngine.ESC_TAGS.some((t) => t.startsWith(partialTag))) this.flushEscBuf();
       return;
     }
-    if (!this.kxBuf.startsWith(prefix)) {
-      this.flushKxBuf();
+    const tag = this.escBuf.slice(1, 3);
+    if (!PicoEngine.ESC_TAGS.includes(tag)) {
+      this.flushEscBuf();
       return;
     }
     if (ch === '\n') {
-      // Séquence complète : jamais affichée, transformée en état de pause.
-      const payload = this.kxBuf.slice(prefix.length).replace(/\r$/, '');
-      this.kxBuf = '';
-      this.handleKxLine(payload);
+      // Séquence complète : jamais affichée, dirigée selon le tag.
+      const payload = this.escBuf.slice(3).replace(/\r$/, '');
+      this.escBuf = '';
+      if (tag === 'KX') this.handleKxLine(payload);
+      else this.handleNetLine(payload);
       return;
     }
-    if (this.kxBuf.length > 4096) this.flushKxBuf(); // garde-fou anti-débordement
+    if (this.escBuf.length > 1_048_576) this.flushEscBuf(); // garde-fou (corps réseau volumineux)
   }
 
-  /** Restitue au moniteur un tampon qui n'était finalement pas une séquence KX. */
-  private flushKxBuf(): void {
-    const buf = this.kxBuf;
-    this.kxBuf = '';
+  /** Restitue au moniteur un tampon qui n'était finalement pas une séquence connue. */
+  private flushEscBuf(): void {
+    const buf = this.escBuf;
+    this.escBuf = '';
     this.onSerial?.(buf.slice(0, -1));
     // Le dernier caractère peut redémarrer une séquence : on le retraite.
     this.emitSerialChar(buf[buf.length - 1]);
+  }
+
+  /** Décode une requête réseau émise par le script et la relaie à l'hôte. */
+  private handleNetLine(json: string): void {
+    if (!this.onNetRequest) return;
+    try {
+      this.onNetRequest(JSON.parse(json) as NetRequest);
+    } catch {
+      // Requête malformée : ignorée (le script restera bloqué jusqu'au timeout hôte).
+    }
+  }
+
+  /** Réinjecte la réponse réseau de l'hôte dans stdin du script (« \x1bNR{json}\n »). */
+  sendNetResponse(response: NetResponse): void {
+    if (!this.cdc) return;
+    const cmd = '\x1bNR' + JSON.stringify(response) + '\n';
+    for (const ch of cmd) this.cdc.sendSerialByte(ch.charCodeAt(0));
   }
 
   /** Décode un état de pause publié par __kx et le relaie au panneau Variables. */

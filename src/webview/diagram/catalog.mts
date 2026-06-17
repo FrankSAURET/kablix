@@ -23,7 +23,28 @@ export type PartKind =
   | 'display'
   | 'passive';
 
-export type BoardId = 'uno' | 'pico';
+export type BoardId = 'uno' | 'nano' | 'mini' | 'mega' | 'pico' | 'picow';
+
+/** Famille de microcontrôleur (détermine le moteur de simulation et la toolchain). */
+export type McuFamily = 'avr328' | 'avr2560' | 'rp2040';
+
+/** Toutes les cartes connues, dans l'ordre d'affichage du sélecteur. */
+export const BOARD_IDS: readonly BoardId[] = ['uno', 'nano', 'mini', 'mega', 'pico', 'picow'];
+
+export function isBoardId(value: unknown): value is BoardId {
+  return typeof value === 'string' && (BOARD_IDS as readonly string[]).includes(value);
+}
+
+/**
+ * Famille électrique d'une carte : c'est elle (et non l'identifiant exact) qui
+ * décide du moteur (AVR vs RP2040), du jeu de broches et de la toolchain. Uno /
+ * Nano / Pro Mini partagent l'ATmega328P ; Pico / Pico W partagent le RP2040.
+ */
+export function boardFamily(board: BoardId): McuFamily {
+  if (board === 'pico' || board === 'picow') return 'rp2040';
+  if (board === 'mega') return 'avr2560';
+  return 'avr328';
+}
 
 /** Propriété éditable d'un composant (affichée dans l'éditeur de composants). */
 export interface PropDef {
@@ -93,7 +114,15 @@ const VALUE_PROP: PropDef = { attr: 'value', label: 'Position (%)', kind: 'numbe
 
 export const CATALOG: readonly PartDef[] = [
   { type: 'uno', label: 'Arduino Uno', tag: 'wokwi-arduino-uno', kind: 'mcu', board: 'uno' },
+  { type: 'nano', label: 'Arduino Nano', tag: 'wokwi-arduino-nano', kind: 'mcu', board: 'nano' },
+  // Pro Mini : électriquement un ATmega328P comme le Nano (mêmes broches D0–13 /
+  // A0–A7). Faute d'élément @wokwi/elements dédié, on réutilise le visuel Nano.
+  { type: 'mini', label: 'Arduino Pro Mini', tag: 'wokwi-arduino-nano', kind: 'mcu', board: 'mini' },
+  { type: 'mega', label: 'Arduino Mega 2560', tag: 'wokwi-arduino-mega', kind: 'mcu', board: 'mega' },
   { type: 'pico', label: 'Raspberry Pi Pico', tag: 'kablix-pico-board', kind: 'mcu', board: 'pico' },
+  // Pico W : même RP2040 et même brochage que le Pico (le Wi-Fi n'est pas simulé
+  // par le cœur) → on réutilise le dessin <kablix-pico-board>.
+  { type: 'picow', label: 'Raspberry Pi Pico W', tag: 'kablix-pico-board', kind: 'mcu', board: 'picow' },
   {
     type: 'breadboard', label: 'Breadboard', tag: 'kablix-breadboard', kind: 'breadboard',
     attrs: { size: 'half' },
@@ -339,31 +368,43 @@ export interface PinRole {
 }
 
 export function mcuPinRole(board: BoardId, pin: string): PinRole {
-  if (board === 'uno') {
-    if (/^([0-9]|1[0-3])$/.test(pin)) return { role: 'digital', name: pin };
-    const a = /^A([0-5])$/.exec(pin);
-    if (a) return { role: 'digital', name: pin, adcChannel: Number(a[1]) };
+  if (boardFamily(board) === 'rp2040') {
+    // Raspberry Pi Pico / Pico W : GP26..GP28 = ADC0..ADC2.
+    const gp = /^GP(\d+)$/.exec(pin);
+    if (gp) {
+      const n = Number(gp[1]);
+      if (n > 28) return { role: 'other' };
+      const adc = n >= 26 ? n - 26 : undefined;
+      return adc === undefined ? { role: 'digital', name: pin } : { role: 'digital', name: pin, adcChannel: adc };
+    }
     if (pin.startsWith('GND')) return { role: 'gnd' };
-    if (pin === '5V' || pin === '3.3V' || pin === 'VIN' || pin === 'IOREF') return { role: 'vcc' };
+    if (pin === '3V3' || pin === 'VBUS' || pin === 'VSYS') return { role: 'vcc' };
     return { role: 'other' };
   }
-  // Raspberry Pi Pico : GP26..GP28 = ADC0..ADC2.
-  const gp = /^GP(\d+)$/.exec(pin);
-  if (gp) {
-    const n = Number(gp[1]);
-    if (n > 28) return { role: 'other' };
-    const adc = n >= 26 ? n - 26 : undefined;
-    return adc === undefined ? { role: 'digital', name: pin } : { role: 'digital', name: pin, adcChannel: adc };
-  }
+  // Familles AVR (ATmega328P : Uno / Nano / Pro Mini ; ATmega2560 : Mega). Les
+  // broches numériques sont de simples nombres (0..13 ou 0..53), les analogiques
+  // An (A0..A7 sur 328P, A0..A15 sur 2560) servent aussi d'entrées ADC.
+  if (/^\d+$/.test(pin)) return { role: 'digital', name: pin };
+  const a = /^A(\d+)$/.exec(pin);
+  if (a) return { role: 'digital', name: pin, adcChannel: Number(a[1]) };
   if (pin.startsWith('GND')) return { role: 'gnd' };
-  if (pin === '3V3' || pin === 'VBUS' || pin === 'VSYS') return { role: 'vcc' };
+  if (pin === '5V' || pin === '3.3V' || pin === 'VIN' || pin === 'IOREF') return { role: 'vcc' };
   return { role: 'other' };
 }
 
-const UNO_PINS: readonly string[] = [
+// ATmega328P (Uno / Nano / Pro Mini). A6/A7 n'existent que sur le boîtier TQFP
+// du Nano/Pro Mini (entrées ADC seules) ; inoffensifs pour l'Uno (jamais câblés).
+const AVR328_PINS: readonly string[] = [
   '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13',
-  'A0', 'A1', 'A2', 'A3', 'A4', 'A5',
+  'A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7',
   'GND.1', 'GND.2', 'GND.3', '5V', '3.3V', 'VIN',
+];
+
+// ATmega2560 (Mega) : 0..53 en numérique, A0..A15 en analogique.
+const MEGA_PINS: readonly string[] = [
+  ...Array.from({ length: 54 }, (_, i) => `${i}`), // 0..53
+  ...Array.from({ length: 16 }, (_, i) => `A${i}`), // A0..A15
+  'SDA', 'SCL', 'GND.1', 'GND.2', 'GND.3', 'GND.4', 'GND.5', '5V', '3.3V', 'VIN',
 ];
 
 const PICO_PINS: readonly string[] = [
@@ -375,5 +416,12 @@ const PICO_PINS: readonly string[] = [
 
 /** Broches câblables d'une carte (utilisé pour résoudre la netlist). */
 export function mcuPins(board: BoardId): readonly string[] {
-  return board === 'uno' ? UNO_PINS : PICO_PINS;
+  switch (boardFamily(board)) {
+    case 'rp2040':
+      return PICO_PINS;
+    case 'avr2560':
+      return MEGA_PINS;
+    default:
+      return AVR328_PINS;
+  }
 }

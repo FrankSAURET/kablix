@@ -1,7 +1,7 @@
 {
   "name": "kablix",
   "displayName": "Kablix",
-  "version": "2026.6.17",
+  "version": "2026.6.18",
   "description": "%kablix.description%",
   "publisher": "franksauret",
   "author": {
@@ -132,6 +132,11 @@
           "type": "boolean",
           "default": false,
           "description": "%kablix.config.showLoadBinaryButton%"
+        },
+        "kablix.picowNetworkBridge": {
+          "type": "boolean",
+          "default": true,
+          "description": "%kablix.config.picowNetworkBridge%"
         }
       }
     }
@@ -141,6 +146,7 @@
     "build": "node esbuild.js --production",
     "watch": "node esbuild.js --watch",
     "build:firmware": "node scripts/build-firmware.mjs",
+    "build:parts": "node scripts/build-parts.mjs",
     "typecheck": "tsc --noEmit",
     "verify": "node scripts/verify-sim.mjs",
     "verify:compiler": "node scripts/verify-compiler.mjs",
@@ -148,7 +154,8 @@
     "verify:uf2": "node scripts/verify-uf2.mjs",
     "verify:micropython": "node scripts/verify-micropython.mjs",
     "verify:wokwi": "node scripts/verify-wokwi.mjs",
-    "verify:all": "npm run verify && npm run verify:compiler && npm run verify:diagram && npm run verify:uf2 && npm run verify:micropython && npm run verify:wokwi",
+    "verify:net": "node scripts/verify-net.mjs",
+    "verify:all": "npm run verify && npm run verify:compiler && npm run verify:diagram && npm run verify:uf2 && npm run verify:micropython && npm run verify:wokwi && npm run verify:net",
     "package": "vsce package --no-dependencies"
   },
   "dependencies": {

@@ -33,8 +33,11 @@ export interface WokwiDiagram {
 }
 
 // Types Kablix dont le tag ne suffit pas (composants maison ↔ éléments Wokwi).
+// Pico / Pico W utilisent le dessin maison <kablix-pico-board> : on les mappe
+// explicitement vers leurs types Wokwi pour l'import/export du diagram.json.
 const KABLIX_TO_WOKWI: Record<string, string> = {
   pico: 'wokwi-pi-pico',
+  picow: 'wokwi-pi-pico-w',
   breadboard: 'wokwi-breadboard',
 };
 

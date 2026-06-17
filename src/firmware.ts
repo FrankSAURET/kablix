@@ -28,7 +28,7 @@ const FIRMWARES = {
   },
 } as const;
 
-type FirmwareVariant = keyof typeof FIRMWARES;
+export type FirmwareVariant = keyof typeof FIRMWARES;
 
 const DOWNLOAD_TIMEOUT_MS = 60_000;
 
@@ -52,7 +52,8 @@ export class FirmwareCancelled extends Error {
  * Lève FirmwareCancelled si l'utilisateur renonce (à traiter en silence).
  */
 export async function resolveMicropythonFirmware(
-  context: vscode.ExtensionContext
+  context: vscode.ExtensionContext,
+  preferred?: FirmwareVariant
 ): Promise<string> {
   // 1. Réglage explicite : prioritaire, erreur claire s'il pointe dans le vide.
   const configured = vscode.workspace
@@ -84,7 +85,7 @@ export async function resolveMicropythonFirmware(
   if (cached) return cached.fsPath;
 
   // 4. Rien trouvé : proposer le téléchargement ou la sélection d'un fichier.
-  return promptAndObtain(context);
+  return promptAndObtain(context, preferred);
 }
 
 /** Construit l'URI d'un chemin de réglage (absolu, ou relatif au workspace). */
@@ -119,7 +120,10 @@ async function findCachedFirmware(
  * Boîte de dialogue : aucun firmware trouvé. Propose le téléchargement
  * automatique ou la sélection d'un fichier local. Met le résultat en cache.
  */
-async function promptAndObtain(context: vscode.ExtensionContext): Promise<string> {
+async function promptAndObtain(
+  context: vscode.ExtensionContext,
+  preferred?: FirmwareVariant
+): Promise<string> {
   const download = l10n.t('Download MicroPython');
   const choose = l10n.t('Choose a file…');
   const choice = await vscode.window.showWarningMessage(
@@ -131,14 +135,21 @@ async function promptAndObtain(context: vscode.ExtensionContext): Promise<string
     choose
   );
 
-  if (choice === download) return downloadFlow(context);
+  if (choice === download) return downloadFlow(context, preferred);
   if (choice === choose) return chooseFileFlow(context);
   throw new FirmwareCancelled();
 }
 
-/** Demande Pico / Pico W, télécharge le firmware figé et le met en cache. */
-async function downloadFlow(context: vscode.ExtensionContext): Promise<string> {
-  const variant = await pickVariant();
+/**
+ * Télécharge le firmware figé et le met en cache. La variante (Pico / Pico W) est
+ * imposée par `preferred` (carte choisie dans le simulateur) si fournie, sinon
+ * demandée à l'utilisateur.
+ */
+async function downloadFlow(
+  context: vscode.ExtensionContext,
+  preferred?: FirmwareVariant
+): Promise<string> {
+  const variant = preferred ?? (await pickVariant());
   if (!variant) throw new FirmwareCancelled();
   const fw = FIRMWARES[variant];
 

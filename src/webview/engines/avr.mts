@@ -1,6 +1,11 @@
-// Moteur de simulation Arduino Uno (ATmega328P) basé sur avr8js.
-// Expose un accès générique aux broches numériques 0–13 et A0–A5, l'ADC
-// (entrées analogiques A0–A5) et la liaison série bidirectionnelle (USART0).
+// Moteur de simulation Arduino AVR basé sur avr8js.
+//   - 'avr328' : ATmega328P (Uno / Nano / Pro Mini) — broches 0–13, A0–A7 ;
+//   - 'avr2560' : ATmega2560 (Mega) — broches 0–53, A0–A15, ports A–L.
+// Expose un accès générique aux broches numériques, l'ADC et la liaison série
+// (USART0 = Serial sur les deux familles). Les registres USART0 / timers 0-2 /
+// ADC sont aux mêmes adresses sur le 328P et le 2560 : les configs avr8js
+// conviennent aux deux. Limites Mega (« partiel ») : timers 3-5, USART1-3 et
+// canaux ADC 8-15 (A8-A15) ne sont pas simulés.
 import {
   CPU,
   avrInstruction,
@@ -9,9 +14,17 @@ import {
   AVRADC,
   AVRTimer,
   adcConfig,
+  portAConfig,
   portBConfig,
   portCConfig,
   portDConfig,
+  portEConfig,
+  portFConfig,
+  portGConfig,
+  portHConfig,
+  portJConfig,
+  portKConfig,
+  portLConfig,
   usart0Config,
   timer0Config,
   timer1Config,
@@ -20,12 +33,17 @@ import {
 } from 'avr8js';
 import type { AvrDebugInfo, Breakpoint, DebugPauseState, DebugVariable, SimEngine } from './types.mjs';
 
+export type AvrFamily = 'avr328' | 'avr2560';
+
 const CLOCK_HZ = 16_000_000;
 const VREF = 5;
+// RAMEND du 2560 = 0x21FF : la pile démarre tout en haut de la SRAM, il faut donc
+// dimensionner l'espace données pour le couvrir (data = sramBytes + 0x100).
+const MEGA_SRAM_BYTES = 0x2200;
 
-type PortKey = 'B' | 'C' | 'D';
+type PortKey = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'J' | 'K' | 'L';
 
-// Broche Arduino (nom) -> port AVR + index de bit.
+// Broche Arduino (nom) -> port AVR + index de bit. ATmega328P (Uno / Nano / Pro Mini).
 const UNO_PINS: Record<string, [PortKey, number]> = {
   '0': ['D', 0], '1': ['D', 1], '2': ['D', 2], '3': ['D', 3],
   '4': ['D', 4], '5': ['D', 5], '6': ['D', 6], '7': ['D', 7],
@@ -35,10 +53,32 @@ const UNO_PINS: Record<string, [PortKey, number]> = {
   'A3': ['C', 3], 'A4': ['C', 4], 'A5': ['C', 5],
 };
 
-// Broche analogique -> canal ADC.
-const ADC_CHANNELS: Record<string, number> = {
-  A0: 0, A1: 1, A2: 2, A3: 3, A4: 4, A5: 5,
+// ATmega2560 (Mega) : correspondance broche Arduino -> port/bit (datasheet + variant Arduino).
+const MEGA_PINS: Record<string, [PortKey, number]> = {
+  '0': ['E', 0], '1': ['E', 1], '2': ['E', 4], '3': ['E', 5], '4': ['G', 5],
+  '5': ['E', 3], '6': ['H', 3], '7': ['H', 4], '8': ['H', 5], '9': ['H', 6],
+  '10': ['B', 4], '11': ['B', 5], '12': ['B', 6], '13': ['B', 7],
+  '14': ['J', 1], '15': ['J', 0], '16': ['H', 1], '17': ['H', 0],
+  '18': ['D', 3], '19': ['D', 2], '20': ['D', 1], '21': ['D', 0],
+  '22': ['A', 0], '23': ['A', 1], '24': ['A', 2], '25': ['A', 3],
+  '26': ['A', 4], '27': ['A', 5], '28': ['A', 6], '29': ['A', 7],
+  '30': ['C', 7], '31': ['C', 6], '32': ['C', 5], '33': ['C', 4],
+  '34': ['C', 3], '35': ['C', 2], '36': ['C', 1], '37': ['C', 0],
+  '38': ['D', 7], '39': ['G', 2], '40': ['G', 1], '41': ['G', 0],
+  '42': ['L', 7], '43': ['L', 6], '44': ['L', 5], '45': ['L', 4],
+  '46': ['L', 3], '47': ['L', 2], '48': ['L', 1], '49': ['L', 0],
+  '50': ['B', 3], '51': ['B', 2], '52': ['B', 1], '53': ['B', 0],
+  'A0': ['F', 0], 'A1': ['F', 1], 'A2': ['F', 2], 'A3': ['F', 3],
+  'A4': ['F', 4], 'A5': ['F', 5], 'A6': ['F', 6], 'A7': ['F', 7],
+  'A8': ['K', 0], 'A9': ['K', 1], 'A10': ['K', 2], 'A11': ['K', 3],
+  'A12': ['K', 4], 'A13': ['K', 5], 'A14': ['K', 6], 'A15': ['K', 7],
+  'SDA': ['D', 1], 'SCL': ['D', 0],
 };
+
+// Broche analogique -> canal ADC. Le 328P expose A0-A5 ; le 2560 A0-A7 (canaux
+// 0-7, port F). A8-A15 (canaux 8-15) nécessiteraient le bit MUX5 non géré.
+const UNO_ADC: Record<string, number> = { A0: 0, A1: 1, A2: 2, A3: 3, A4: 4, A5: 5 };
+const MEGA_ADC: Record<string, number> = { ...UNO_ADC, A6: 6, A7: 7 };
 
 export class AvrEngine implements SimEngine {
   onUpdate: (() => void) | null = null;
@@ -46,7 +86,9 @@ export class AvrEngine implements SimEngine {
   onDebugPause: ((state: DebugPauseState) => void) | null = null;
 
   private cpu: CPU;
-  private ports: Record<PortKey, AVRIOPort>;
+  private ports: Partial<Record<PortKey, AVRIOPort>>;
+  private pinMap: Record<string, [PortKey, number]>;
+  private adcMap: Record<string, number>;
   private usart: AVRUSART;
   private adc: AVRADC;
   // Timers 0/1/2 : indispensables pour millis()/micros()/delay() (sans eux la
@@ -65,14 +107,41 @@ export class AvrEngine implements SimEngine {
   // en flux tampon les séquences incomplètes pour restituer le bon caractère.
   private serialDecoder = new TextDecoder('utf-8');
 
-  constructor(program: Uint16Array, debugInfo?: AvrDebugInfo | null) {
+  // Famille AVR ciblée : 'avr328' (Uno / Nano / Pro Mini) ou 'avr2560' (Mega).
+  private readonly family: AvrFamily;
+
+  constructor(
+    program: Uint16Array,
+    debugInfo?: AvrDebugInfo | null,
+    family: AvrFamily = 'avr328'
+  ) {
+    this.family = family;
     this.debugInfo = debugInfo ?? null;
-    this.cpu = new CPU(program.slice());
-    this.ports = {
-      B: new AVRIOPort(this.cpu, portBConfig),
-      C: new AVRIOPort(this.cpu, portCConfig),
-      D: new AVRIOPort(this.cpu, portDConfig),
-    };
+    const isMega = family === 'avr2560';
+    // Le Mega a 8 Ko de SRAM (pile en haut, RAMEND 0x21FF) : l'espace données par
+    // défaut (328P) serait trop petit et la pile déborderait.
+    this.cpu = isMega ? new CPU(program.slice(), MEGA_SRAM_BYTES) : new CPU(program.slice());
+    this.pinMap = isMega ? MEGA_PINS : UNO_PINS;
+    this.adcMap = isMega ? MEGA_ADC : UNO_ADC;
+    this.ports = isMega
+      ? {
+          A: new AVRIOPort(this.cpu, portAConfig),
+          B: new AVRIOPort(this.cpu, portBConfig),
+          C: new AVRIOPort(this.cpu, portCConfig),
+          D: new AVRIOPort(this.cpu, portDConfig),
+          E: new AVRIOPort(this.cpu, portEConfig),
+          F: new AVRIOPort(this.cpu, portFConfig),
+          G: new AVRIOPort(this.cpu, portGConfig),
+          H: new AVRIOPort(this.cpu, portHConfig),
+          J: new AVRIOPort(this.cpu, portJConfig),
+          K: new AVRIOPort(this.cpu, portKConfig),
+          L: new AVRIOPort(this.cpu, portLConfig),
+        }
+      : {
+          B: new AVRIOPort(this.cpu, portBConfig),
+          C: new AVRIOPort(this.cpu, portCConfig),
+          D: new AVRIOPort(this.cpu, portDConfig),
+        };
     this.usart = new AVRUSART(this.cpu, usart0Config, CLOCK_HZ);
     this.adc = new AVRADC(this.cpu, adcConfig);
     this.timers = [
@@ -82,7 +151,7 @@ export class AvrEngine implements SimEngine {
     ];
 
     for (const port of Object.values(this.ports)) {
-      port.addListener(() => this.onUpdate?.());
+      port?.addListener(() => this.onUpdate?.());
     }
     this.usart.onByteTransmit = (b: number) => {
       const text = this.serialDecoder.decode(Uint8Array.of(b), { stream: true });
@@ -91,21 +160,21 @@ export class AvrEngine implements SimEngine {
   }
 
   readDigital(name: string): boolean {
-    const map = UNO_PINS[name];
+    const map = this.pinMap[name];
     if (!map) return false;
     const [port, bit] = map;
-    return this.ports[port].pinState(bit) === PinState.High;
+    return this.ports[port]?.pinState(bit) === PinState.High;
   }
 
   setInput(name: string, value: boolean): void {
-    const map = UNO_PINS[name];
+    const map = this.pinMap[name];
     if (!map) return;
     const [port, bit] = map;
-    this.ports[port].setPin(bit, value);
+    this.ports[port]?.setPin(bit, value);
   }
 
   setAnalog(name: string, fraction: number): void {
-    const ch = ADC_CHANNELS[name];
+    const ch = this.adcMap[name];
     if (ch === undefined) return;
     this.adc.channelValues[ch] = Math.max(0, Math.min(1, fraction)) * VREF;
   }
