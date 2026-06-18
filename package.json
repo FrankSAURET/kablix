@@ -147,6 +147,7 @@
     "watch": "node esbuild.js --watch",
     "build:firmware": "node scripts/build-firmware.mjs",
     "build:parts": "node scripts/build-parts.mjs",
+    "build:testplan": "node scripts/make-test-plan.mjs",
     "typecheck": "tsc --noEmit",
     "verify": "node scripts/verify-sim.mjs",
     "verify:compiler": "node scripts/verify-compiler.mjs",
