@@ -1,6 +1,6 @@
 // Modèle de schéma (pur, sans DOM) : composants, fils, calcul de la netlist et
 // résolution logique des composants. Entièrement testable hors navigateur.
-import { mcuPinRole, mcuPins, partDef, rolePin, type BoardId } from './catalog.mjs';
+import { mcuPinRole, mcuPins, partDef, rolePin, type BoardId, type PartKind } from './catalog.mjs';
 import { breadboardStrips, normalizeSize } from './breadboard.mjs';
 
 export interface Endpoint {
@@ -368,6 +368,49 @@ export function servoBindings(diagram: Diagram): SourceBinding[] {
     if (mcuPin) bindings.push({ partId: part.id, mcuPin });
   }
   return bindings;
+}
+
+export interface Pca9685Binding {
+  /** Identifiant du PCA9685. */
+  partId: string;
+  /** Canaux reliés à un composant pilotable (servo, LED, buzzer). */
+  channels: Array<{ ch: number; targetId: string; targetKind: PartKind }>;
+}
+
+/**
+ * Pour chaque PCA9685, repère les canaux PWM0..15 reliés à un composant
+ * pilotable. La cible est trouvée parmi les extrémités de fils partageant le net
+ * du canal (câblage direct ou via platine).
+ */
+export function pca9685Bindings(diagram: Diagram): Pca9685Binding[] {
+  const nets = buildNets(diagram);
+  const kindOf = (id: string): PartKind => {
+    const p = diagram.parts.find((q) => q.id === id);
+    return p ? partDef(p.type).kind : 'passive';
+  };
+  const out: Pca9685Binding[] = [];
+  for (const part of diagram.parts) {
+    if (partDef(part.type).kind !== 'i2c-pwm') continue;
+    const channels: Pca9685Binding['channels'] = [];
+    for (let ch = 0; ch < 16; ch++) {
+      const net = nets.netOf({ partId: part.id, pin: `PWM${ch}` });
+      let found: { ch: number; targetId: string; targetKind: PartKind } | null = null;
+      for (const w of diagram.wires) {
+        for (const ep of [w.a, w.b]) {
+          if (ep.partId === part.id || nets.netOf(ep) !== net) continue;
+          const k = kindOf(ep.partId);
+          if (k === 'servo' || k === 'led' || k === 'buzzer') {
+            found = { ch, targetId: ep.partId, targetKind: k };
+            break;
+          }
+        }
+        if (found) break;
+      }
+      if (found) channels.push(found);
+    }
+    if (channels.length > 0) out.push({ partId: part.id, channels });
+  }
+  return out;
 }
 
 export interface UltrasonicBinding {

@@ -30,7 +30,8 @@ const SPECS = [
     file: '16-Channel PWM Driver(PCA9685).svg',
     type: 'pca9685',
     label: 'PCA9685 (16-canaux PWM)',
-    kind: 'passive',
+    kind: 'i2c-pwm', // simulé : trames I²C → 16 rapports cycliques → pilotage des sorties
+    attrs: { address: '0x40' },
     edges: {
       left: ['GND', 'OE', 'SCL', 'SDA', 'VCC', 'V+'],
       right: Array.from({ length: 16 }, (_, i) => `PWM${i}`),
@@ -49,7 +50,10 @@ const SPECS = [
     file: 'LCD_16x2_I2C.svg',
     type: 'lcd1602-i2c',
     label: 'LCD 16×2 I2C',
-    kind: 'passive',
+    kind: 'i2c-lcd', // simulé : I²C (PCF8574 + HD44780) → texte affiché
+    attrs: { address: '0x27', cols: '16', rows: '2' },
+    // Zone écran (fraction du corps) où le texte est superposé ; ajustable ensuite.
+    screenFrac: { x: 0.16, y: 0.12, w: 0.68, h: 0.5 },
     edges: { left: ['GND', 'VCC', 'SDA', 'SCL'] },
   },
   {
@@ -176,6 +180,16 @@ for (const spec of SPECS) {
     pads +
     `</svg>`;
 
+  // Zone écran (LCD) convertie en px du repère du composant (corps décalé de MARGIN).
+  const attrs = { ...(spec.attrs ?? {}) };
+  if (spec.screenFrac) {
+    const f = spec.screenFrac;
+    attrs.sx = String(Math.round(MARGIN + bodyW * f.x));
+    attrs.sy = String(Math.round(MARGIN + bodyH * f.y));
+    attrs.sw = String(Math.round(bodyW * f.w));
+    attrs.sh = String(Math.round(bodyH * f.h));
+  }
+
   const part = {
     type: spec.type,
     label: spec.label,
@@ -183,7 +197,7 @@ for (const spec of SPECS) {
     svg,
     pins,
     ...(spec.pinRoles ? { pinRoles: spec.pinRoles } : {}),
-    ...(spec.attrs ? { attrs: spec.attrs } : {}),
+    ...(Object.keys(attrs).length ? { attrs } : {}),
   };
   const outPath = join(OUT, `${spec.type}.kablix-part.json`);
   writeFileSync(outPath, JSON.stringify(part, null, 2));

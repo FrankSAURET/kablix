@@ -273,7 +273,7 @@ function bodyFr(): string {
       <li>Au besoin, <strong>double-cliquez</strong> le composant dans la palette pour réajuster les points de connexion sur l'aperçu.</li>
     </ol>
     <p class="note">⚠ Espacez les broches d'un <strong>multiple de 10 px</strong> (le pas de la grille = écartement réel de 0,1″ entre pattes) : elles tombent alors pile sur la grille et sur les trous de la platine d'essai.</p>
-    <p>Champs du format : <code>label</code> (nom affiché, requis), <code>svg</code> (dessin, requis), <code>pins</code> (liste <code>{ name, x, y }</code>, requis), <code>kind</code> (modèle de simulation), <code>pinRoles</code> (rôle → broche). Modèles disponibles pour <code>kind</code> : <code>led</code> (rôles A/C), <code>pushbutton</code> (1.l/2.l), <code>resistor</code> (1/2), <code>buzzer</code> (1/2), <code>digital-source</code> (OUT), <code>analog-source</code> (AO), <code>passive</code> (décoratif).</p>
+    <p>Champs du format : <code>label</code> (nom affiché, requis), <code>svg</code> (dessin, requis), <code>pins</code> (liste <code>{ name, x, y }</code>, requis), <code>kind</code> (modèle de simulation), <code>pinRoles</code> (rôle → broche). Modèles disponibles pour <code>kind</code> : <code>led</code> (rôles A/C), <code>pushbutton</code> (1.l/2.l), <code>resistor</code> (1/2), <code>buzzer</code> (1/2), <code>digital-source</code> (OUT), <code>analog-source</code> (AO), <code>servo</code>, <code>ultrasonic</code> (TRIG/ECHO — HC-SR04), <code>i2c-lcd</code> (afficheur HD44780), <code>i2c-pwm</code> (PCA9685), <code>passive</code> (décoratif).</p>
     <p>Prompt à copier :</p>
     <pre>Tu es un assistant qui crée un composant électronique pour le simulateur Kablix.
 Réponds UNIQUEMENT par un objet JSON valide (format .kablix-part.json), sans texte autour.
@@ -460,7 +460,7 @@ function bodyEn(): string {
       <li>If needed, <strong>double-click</strong> the part in the palette to fine-tune the connection points on the preview.</li>
     </ol>
     <p class="note">⚠ Space the pins by a <strong>multiple of 10 px</strong> (the grid step = the real 0.1″ spacing between legs): they then land exactly on the grid and on the breadboard holes.</p>
-    <p>Format fields: <code>label</code> (displayed name, required), <code>svg</code> (drawing, required), <code>pins</code> (list of <code>{ name, x, y }</code>, required), <code>kind</code> (simulation model), <code>pinRoles</code> (role → pin). Available <code>kind</code> models: <code>led</code> (roles A/C), <code>pushbutton</code> (1.l/2.l), <code>resistor</code> (1/2), <code>buzzer</code> (1/2), <code>digital-source</code> (OUT), <code>analog-source</code> (AO), <code>passive</code> (decorative).</p>
+    <p>Format fields: <code>label</code> (displayed name, required), <code>svg</code> (drawing, required), <code>pins</code> (list of <code>{ name, x, y }</code>, required), <code>kind</code> (simulation model), <code>pinRoles</code> (role → pin). Available <code>kind</code> models: <code>led</code> (roles A/C), <code>pushbutton</code> (1.l/2.l), <code>resistor</code> (1/2), <code>buzzer</code> (1/2), <code>digital-source</code> (OUT), <code>analog-source</code> (AO), <code>servo</code>, <code>ultrasonic</code> (TRIG/ECHO — HC-SR04), <code>i2c-lcd</code> (HD44780 display), <code>i2c-pwm</code> (PCA9685), <code>passive</code> (decorative).</p>
     <p>Prompt to copy:</p>
     <pre>You are an assistant that creates an electronic part for the Kablix simulator.
 Reply ONLY with a valid JSON object (.kablix-part.json format), with no surrounding text.

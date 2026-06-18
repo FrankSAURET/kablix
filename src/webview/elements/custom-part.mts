@@ -17,14 +17,26 @@ export class CustomPartElement extends HTMLElement {
 
   private wrapper: HTMLDivElement;
   private activeValue = false;
+  /** Calque de texte superposé (afficheurs I²C : LCD). */
+  private screen: HTMLDivElement | null = null;
 
   constructor() {
     super();
     const shadow = this.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
     style.textContent = `
-      .frame { display: inline-block; line-height: 0; transition: filter 0.05s; }
+      .frame { display: inline-block; line-height: 0; transition: filter 0.05s; position: relative; }
       .frame--active { filter: drop-shadow(0 0 6px rgba(255, 230, 80, 0.95)); }
+      .lcd {
+        position: absolute;
+        font-family: 'Courier New', monospace;
+        white-space: pre;
+        line-height: 1;
+        color: #04203a;
+        background: rgba(120, 220, 170, 0.0);
+        pointer-events: none;
+        letter-spacing: 0.05em;
+      }
     `;
     this.wrapper = document.createElement('div');
     this.wrapper.className = 'frame';
@@ -44,6 +56,30 @@ export class CustomPartElement extends HTMLElement {
       this.wrapper.addEventListener('pointerup', release);
       this.wrapper.addEventListener('pointerleave', release);
     }
+  }
+
+  /**
+   * Affiche le texte d'un afficheur LCD par-dessus le dessin, dans la zone écran
+   * (x,y,w,h en px du repère du composant). La police est dimensionnée pour
+   * remplir la zone selon le nombre de lignes/colonnes.
+   */
+  setLcd(lines: string[], rect: { x: number; y: number; w: number; h: number }): void {
+    if (!this.screen) {
+      this.screen = document.createElement('div');
+      this.screen.className = 'lcd';
+      this.wrapper.appendChild(this.screen);
+    }
+    const rows = Math.max(1, lines.length);
+    const cols = Math.max(1, ...lines.map((l) => l.length));
+    const fontH = rect.h / rows;
+    this.screen.style.left = `${rect.x}px`;
+    this.screen.style.top = `${rect.y}px`;
+    this.screen.style.width = `${rect.w}px`;
+    this.screen.style.height = `${rect.h}px`;
+    this.screen.style.fontSize = `${Math.max(4, fontH * 0.85)}px`;
+    // Largeur de caractère ≈ 0,6 em en monospace : ajuste pour tenir cols colonnes.
+    this.screen.style.letterSpacing = `${Math.max(0, rect.w / cols - fontH * 0.6) * 0.5}px`;
+    this.screen.textContent = lines.join('\n');
   }
 
   /** Retour visuel (LED/buzzer actif) : halo lumineux autour du dessin. */

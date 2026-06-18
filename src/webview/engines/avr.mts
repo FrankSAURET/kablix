@@ -13,6 +13,8 @@ import {
   AVRUSART,
   AVRADC,
   AVRTimer,
+  AVRTWI,
+  twiConfig,
   adcConfig,
   portAConfig,
   portBConfig,
@@ -39,6 +41,7 @@ import type {
   SimEngine,
   UltrasonicSensor,
 } from './types.mjs';
+import type { I2cDevice } from './i2c-devices.mjs';
 
 export type AvrFamily = 'avr328' | 'avr2560';
 
@@ -98,6 +101,7 @@ export class AvrEngine implements SimEngine {
   private pinMap: Record<string, [PortKey, number]>;
   private adcMap: Record<string, number>;
   private usart: AVRUSART;
+  private twi: AVRTWI;
   private adc: AVRADC;
   // Timers 0/1/2 : indispensables pour millis()/micros()/delay() (sans eux la
   // boucle de delay() ne se terminait jamais et la simulation semblait planter).
@@ -159,6 +163,7 @@ export class AvrEngine implements SimEngine {
           D: new AVRIOPort(this.cpu, portDConfig),
         };
     this.usart = new AVRUSART(this.cpu, usart0Config, CLOCK_HZ);
+    this.twi = new AVRTWI(this.cpu, twiConfig, CLOCK_HZ); // bus I²C (Wire) — esclaves branchés via setI2cDevices
     this.adc = new AVRADC(this.cpu, adcConfig);
     this.timers = [
       new AVRTimer(this.cpu, timer0Config),
@@ -206,6 +211,33 @@ export class AvrEngine implements SimEngine {
 
   readPulseUs(name: string): number {
     return this.pulseState.get(name)?.lastUs ?? 0;
+  }
+
+  /** Relie des esclaves I²C au bus : le maître TWI route vers eux par adresse. */
+  setI2cDevices(devices: I2cDevice[]): void {
+    const twi = this.twi;
+    let current: I2cDevice | null = null;
+    twi.eventHandler = {
+      start: (repeated: boolean) => {
+        for (const d of devices) d.onStart?.(repeated);
+        twi.completeStart();
+      },
+      stop: () => {
+        current?.onStop?.();
+        current = null;
+        twi.completeStop();
+      },
+      connectToSlave: (addr: number) => {
+        current = devices.find((d) => d.address === addr) ?? null;
+        twi.completeConnect(current !== null); // ACK seulement si l'adresse existe
+      },
+      writeByte: (value: number) => {
+        twi.completeWrite(current ? current.write(value) : false);
+      },
+      readByte: () => {
+        twi.completeRead(current ? current.read() : 0xff);
+      },
+    };
   }
 
   setUltrasonic(sensors: UltrasonicSensor[]): void {

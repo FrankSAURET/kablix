@@ -20,6 +20,8 @@ export type PartKind =
   | 'digital-source'
   | 'servo'
   | 'ultrasonic'
+  | 'i2c-lcd'
+  | 'i2c-pwm'
   | 'breadboard'
   | 'display'
   | 'passive';
@@ -295,6 +297,8 @@ export const CUSTOM_KINDS: ReadonlyArray<{ kind: PartKind; label: string; roles:
   { kind: 'digital-source', label: 'Digital source (state set in Properties)', roles: ['OUT'] },
   { kind: 'analog-source', label: 'Analog source (value set in Properties)', roles: ['AO'] },
   { kind: 'ultrasonic', label: 'Ultrasonic sensor HC-SR04 (Trig/Echo)', roles: ['TRIG', 'ECHO'] },
+  { kind: 'i2c-lcd', label: 'I²C LCD display (HD44780)', roles: [] },
+  { kind: 'i2c-pwm', label: 'I²C PWM driver (PCA9685)', roles: [] },
   { kind: 'passive', label: 'Decorative (no behavior)', roles: [] },
 ];
 

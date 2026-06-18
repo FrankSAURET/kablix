@@ -14,16 +14,15 @@ sont alignées sur la grille de **10 px** (= 0,1″), donc enfichables sur plati
 
 | Fichier | Composant | Broches | Simulation |
 |---|---|---|---|
-| `pca9685.kablix-part.json` | PCA9685 — driver PWM 16 canaux | VCC/GND/SCL/SDA/OE/V+ + PWM0–15 | décoratif (câblable) |
-| `hc-sr04.kablix-part.json` | HC-SR04 — capteur ultrason | VCC/Trig/Echo/GND | décoratif |
-| `lcd1602-i2c.kablix-part.json` | LCD 16×2 I²C | GND/VCC/SDA/SCL | décoratif |
-| `grove-pico.kablix-part.json` | Grove Shield pour Pico | ports Grove (alim/I²C/UART/A0-A1) | décoratif |
+| `hc-sr04.kablix-part.json` | HC-SR04 — capteur ultrason | VCC/Trig/Echo/GND | **simulé** : TRIG → ECHO (largeur = distance × 58 µs ; distance via l'attribut `distance`) — famille AVR |
+| `lcd1602-i2c.kablix-part.json` | LCD 16×2 I²C | GND/VCC/SDA/SCL | **simulé** : I²C (PCF8574 + HD44780) → texte affiché — famille AVR |
+| `pca9685.kablix-part.json` | PCA9685 — driver PWM 16 canaux | VCC/GND/SCL/SDA/OE/V+ + PWM0–15 | **simulé** : I²C → 16 rapports cycliques pilotant les servos/LED reliés — famille AVR |
+| `grove-pico.kablix-part.json` | Grove Shield pour Pico | ports Grove (alim/I²C/UART/A0-A1) | décoratif (adaptateur) |
 | `picow-module.kablix-part.json` | Dessin Raspberry Pi Pico W | 40 broches GP/alim | décoratif (la carte simulée se choisit dans le sélecteur) |
 
-> « décoratif » = le composant se place et se câble, mais n'a pas de comportement
-> actif simulé (le modèle `kind` du format ne couvre que LED / bouton / résistance
-> / buzzer / source numérique / source analogique). Le brochage et le dessin sont
-> corrects pour construire et illustrer un montage.
+> Les composants I²C / ultrason sont simulés sur la **famille AVR** (Uno / Nano /
+> Pro Mini / Mega) ; le support RP2040 (Pico) viendra ensuite. « décoratif » = le
+> composant se place et se câble mais n'a pas de comportement actif simulé.
 
 ## Régénérer / ajouter
 

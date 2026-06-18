@@ -1,4 +1,5 @@
 // Interface commune des moteurs de simulation (AVR, RP2040).
+import type { I2cDevice } from './i2c-devices.mjs';
 
 /** Variable affichée dans le panneau de débogage. */
 export interface DebugVariable {
@@ -94,6 +95,8 @@ export interface SimEngine {
    * génère sur ECHO une impulsion de largeur = distance × 58 µs (en temps simulé).
    */
   setUltrasonic?(sensors: UltrasonicSensor[]): void;
+  /** Relie des périphériques I²C (esclaves) au bus du MCU (LCD, PCA9685…). */
+  setI2cDevices?(devices: I2cDevice[]): void;
   /** Force la valeur externe d'une broche d'entrée (bouton, capteur…). */
   setInput(name: string, value: boolean): void;
   /** Tension externe d'une broche analogique, en fraction 0..1 de VREF. */

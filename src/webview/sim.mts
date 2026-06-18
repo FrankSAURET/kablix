@@ -54,9 +54,12 @@ import {
   analogSourceBindings,
   servoBindings,
   ultrasonicBindings,
+  pca9685Bindings,
+  type Pca9685Binding,
 } from './diagram/model.mjs';
 import { AvrEngine } from './engines/avr.mjs';
 import { PicoEngine, type PicoProgram } from './engines/pico.mjs';
+import { Lcd1602Device, Pca9685Device, type I2cDevice } from './engines/i2c-devices.mjs';
 import type { AvrDebugInfo, Breakpoint, DebugPauseState, SimEngine } from './engines/types.mjs';
 import { UNO_DEMO } from './programs/uno-demo.mjs';
 import { PICO_BLINK } from './programs/pico-blink.mjs';
@@ -126,6 +129,10 @@ let unoProgram: Uint16Array = UNO_DEMO;
 let unoDebugInfo: AvrDebugInfo | null = null;
 let picoProgram: PicoProgram = { kind: 'ram', image: PICO_BLINK };
 let inputRemovers: Array<() => void> = [];
+// Périphériques I²C de la simulation en cours (partId → appareil décodeur).
+let i2cDevices = new Map<string, Lcd1602Device | Pca9685Device>();
+// Canaux PCA9685 → composants pilotés (calculé au câblage).
+let pcaBindings: Pca9685Binding[] = [];
 let breakpoints: Breakpoint[] = []; // points d'arrêt envoyés par l'extension (ligne + condition)
 // Vrai dès qu'un programme compilé/chargé a été reçu : sinon, lancer la
 // simulation déclenche d'abord une compilation automatique du fichier de code.
@@ -203,12 +210,25 @@ function refreshVisuals(): void {
         }
         break;
       }
+      case 'i2c-lcd': {
+        // Texte décodé du bus I²C, superposé sur le dessin du LCD.
+        const dev = i2cDevices.get(part.id);
+        if (dev instanceof Lcd1602Device) {
+          const setLcd = el.setLcd as
+            | ((lines: string[], rect: { x: number; y: number; w: number; h: number }) => void)
+            | undefined;
+          setLcd?.(dev.text, lcdScreenRect(part, def.custom?.svg));
+        }
+        break;
+      }
       case 'mcu':
         // LED embarquée GP25 du Pico / Pico W.
         if (def.board && boardFamily(def.board) === 'rp2040') el.ledPower = engine.readDigital('GP25');
         break;
     }
   }
+  // Seconde passe : les sorties PCA9685 priment sur l'état « hors-net » des cibles.
+  applyPca9685();
 }
 
 // --- Liaison des entrées (boutons, potentiomètres) ---------------------------
@@ -326,6 +346,72 @@ function bindInputs(): void {
 function rebind(): void {
   bindInputs();
   queueRefresh();
+}
+
+/** Crée les périphériques I²C présents dans le schéma et les relie au moteur. */
+function buildI2cDevices(): void {
+  i2cDevices = new Map();
+  for (const part of editor.diagram.parts) {
+    const kind = partDef(part.type).kind;
+    if (kind === 'i2c-lcd') {
+      const addr = Number(part.attrs?.address ?? 0x27) || 0x27;
+      const cols = Number(part.attrs?.cols ?? 16) || 16;
+      const rows = Number(part.attrs?.rows ?? 2) || 2;
+      i2cDevices.set(part.id, new Lcd1602Device(addr, cols, rows));
+    } else if (kind === 'i2c-pwm') {
+      const addr = Number(part.attrs?.address ?? 0x40) || 0x40;
+      i2cDevices.set(part.id, new Pca9685Device(addr));
+    }
+  }
+  const list: I2cDevice[] = [...i2cDevices.values()];
+  engine?.setI2cDevices?.(list);
+  pcaBindings = pca9685Bindings(editor.diagram);
+}
+
+/** Propage les rapports cycliques des PCA9685 vers les composants pilotés. */
+function applyPca9685(): void {
+  for (const b of pcaBindings) {
+    const dev = i2cDevices.get(b.partId);
+    if (!(dev instanceof Pca9685Device)) continue;
+    for (const c of b.channels) {
+      const el = editor.elementOf(c.targetId);
+      if (!el) continue;
+      const duty = dev.channelDuty(c.ch);
+      if (c.targetKind === 'servo') {
+        // 50 Hz : impulsion = duty × 20 ms ; 1–2 ms → 0–180°.
+        el.angle = Math.max(0, Math.min(180, (duty * 20000 - 1000) / 1000 * 180));
+      } else if (c.targetKind === 'led') {
+        el.brightness = duty;
+        el.value = duty > 0.04 ? 1 : 0;
+      } else {
+        el.hasSignal = duty > 0.04; // buzzer
+      }
+    }
+  }
+}
+
+/** Dimensions px intrinsèques du dessin d'un composant personnalisé (depuis son SVG). */
+function customSvgSize(svg: string | undefined): { w: number; h: number } {
+  const w = svg ? /width="([\d.]+)"/.exec(svg) : null;
+  const h = svg ? /height="([\d.]+)"/.exec(svg) : null;
+  return { w: w ? Number(w[1]) : 120, h: h ? Number(h[1]) : 60 };
+}
+
+/** Zone écran d'un LCD (px) : attributs sx/sy/sw/sh, sinon zone haute centrée. */
+function lcdScreenRect(part: { attrs?: Record<string, string> }, svg: string | undefined): {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+} {
+  const a = part.attrs ?? {};
+  const size = customSvgSize(svg);
+  return {
+    x: Number(a.sx ?? size.w * 0.12),
+    y: Number(a.sy ?? size.h * 0.18),
+    w: Number(a.sw ?? size.w * 0.76),
+    h: Number(a.sh ?? size.h * 0.4),
+  };
 }
 
 /**
@@ -457,6 +543,7 @@ function startRun(): void {
   }
   engine.setSpeed(Number(speedSelect.value) || 1);
   engine.setBreakpoints?.(breakpoints);
+  buildI2cDevices();
   rebind();
   engine.start();
   editor.setLocked(true); // schéma figé pendant la simulation
