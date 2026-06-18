@@ -89,6 +89,13 @@ console.log('SSD1306 OLED :');
   o2.write(0x40);
   o2.write(0xaa); // page 0, col 0 : pixels pairs (0,2,4,6)
   check('MicroPython : adressage multi-transaction', o2.pixelOn(0, 1) && !o2.pixelOn(0, 0));
+
+  // Mode SPI : transfer(octet, dc) — dc=0 commande, dc=1 donnée.
+  const spi = new Ssd1306Device(0x3c, 128, 64);
+  for (const c of [0x21, 0, 127, 0x22, 0, 7]) spi.transfer(c, false); // commandes
+  spi.transfer(0xff, true); // donnée col 0
+  spi.transfer(0x01, true); // donnée col 1
+  check('SPI : col 0 allumée, (1,0) seul', spi.pixelOn(0, 0) && spi.pixelOn(1, 0) && !spi.pixelOn(1, 1));
 }
 
 console.log('NeoPixel (WS2812) :');

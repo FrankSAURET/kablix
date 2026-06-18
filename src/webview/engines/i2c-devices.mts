@@ -5,6 +5,14 @@
 //
 // Module pur (sans DOM), testable hors navigateur.
 
+/** Périphérique esclave SPI (un seul appareil par bus géré pour l'instant). */
+export interface SpiDevice {
+  /** Broche MCU portant le signal D/C (commande = bas, donnée = haut), si applicable. */
+  dcPin?: string;
+  /** Transfert d'un octet : reçoit MOSI + niveau D/C, renvoie l'octet MISO. */
+  transfer(mosi: number, dc: boolean): number;
+}
+
 /** Périphérique esclave I²C adressable sur le bus. */
 export interface I2cDevice {
   /** Adresse 7 bits de l'esclave. */
@@ -164,10 +172,12 @@ export class Pca9685Device implements I2cDevice {
  * colonnes/pages et on remplit un tampon page-major (1 octet = 8 pixels verticaux,
  * bit 0 = haut). `buffer` est lu par l'UI pour produire l'image.
  */
-export class Ssd1306Device implements I2cDevice {
+export class Ssd1306Device implements I2cDevice, SpiDevice {
   readonly address: number;
   readonly width: number;
   readonly height: number;
+  /** Broche D/C (mode SPI) : renseignée par l'UI quand l'écran est câblé en SPI. */
+  dcPin?: string;
   /** Tampon GDDRAM : pages × largeur (buffer[page*width + col] = 8 px verticaux). */
   buffer: Uint8Array;
 
@@ -207,6 +217,13 @@ export class Ssd1306Device implements I2cDevice {
   }
 
   read(): number {
+    return 0;
+  }
+
+  /** Octet reçu en mode SPI 4 fils : D/C = bas → commande, haut → donnée GDDRAM. */
+  transfer(mosi: number, dc: boolean): number {
+    if (dc) this.writeData(mosi);
+    else this.command(mosi);
     return 0;
   }
 

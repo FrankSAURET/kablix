@@ -1,5 +1,5 @@
 // Interface commune des moteurs de simulation (AVR, RP2040).
-import type { I2cDevice } from './i2c-devices.mjs';
+import type { I2cDevice, SpiDevice } from './i2c-devices.mjs';
 
 /** Variable affichée dans le panneau de débogage. */
 export interface DebugVariable {
@@ -97,6 +97,8 @@ export interface SimEngine {
   setUltrasonic?(sensors: UltrasonicSensor[]): void;
   /** Relie des périphériques I²C (esclaves) au bus du MCU (LCD, PCA9685…). */
   setI2cDevices?(devices: I2cDevice[]): void;
+  /** Relie des périphériques SPI (esclaves) au bus du MCU (OLED SPI…). */
+  setSpiDevices?(devices: SpiDevice[]): void;
   /** Déclare les chaînes NeoPixel (WS2812) : broche DIN + nombre de LED. */
   setNeopixels?(strips: Array<{ pin: string; count: number }>): void;
   /** Couleurs décodées de la chaîne NeoPixel sur `pin` (composantes 0..1). */

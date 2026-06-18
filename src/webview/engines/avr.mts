@@ -15,6 +15,8 @@ import {
   AVRTimer,
   AVRTWI,
   twiConfig,
+  AVRSPI,
+  spiConfig,
   adcConfig,
   portAConfig,
   portBConfig,
@@ -41,7 +43,7 @@ import type {
   SimEngine,
   UltrasonicSensor,
 } from './types.mjs';
-import type { I2cDevice } from './i2c-devices.mjs';
+import type { I2cDevice, SpiDevice } from './i2c-devices.mjs';
 import { Ws2812Decoder } from './ws2812.mjs';
 
 export type AvrFamily = 'avr328' | 'avr2560';
@@ -103,6 +105,7 @@ export class AvrEngine implements SimEngine {
   private adcMap: Record<string, number>;
   private usart: AVRUSART;
   private twi: AVRTWI;
+  private spi: AVRSPI;
   private adc: AVRADC;
   // Timers 0/1/2 : indispensables pour millis()/micros()/delay() (sans eux la
   // boucle de delay() ne se terminait jamais et la simulation semblait planter).
@@ -168,6 +171,7 @@ export class AvrEngine implements SimEngine {
         };
     this.usart = new AVRUSART(this.cpu, usart0Config, CLOCK_HZ);
     this.twi = new AVRTWI(this.cpu, twiConfig, CLOCK_HZ); // bus I²C (Wire) — esclaves branchés via setI2cDevices
+    this.spi = new AVRSPI(this.cpu, spiConfig, CLOCK_HZ); // bus SPI — esclave branché via setSpiDevices
     this.adc = new AVRADC(this.cpu, adcConfig);
     this.timers = [
       new AVRTimer(this.cpu, timer0Config),
@@ -275,6 +279,19 @@ export class AvrEngine implements SimEngine {
         n.last = level;
       }
     }
+  }
+
+  /** Relie un esclave SPI : chaque octet transmis par le maître lui est remis. */
+  setSpiDevices(devices: SpiDevice[]): void {
+    const dev = devices[0] ?? null; // un seul périphérique SPI géré (pas de gestion CS)
+    this.spi.onByte = (mosi: number) => {
+      if (!dev) {
+        this.spi.completeTransfer(0xff);
+        return;
+      }
+      const dc = dev.dcPin ? this.readDigital(dev.dcPin) : false;
+      this.spi.completeTransfer(dev.transfer(mosi, dc));
+    };
   }
 
   setUltrasonic(sensors: UltrasonicSensor[]): void {

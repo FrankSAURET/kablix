@@ -56,6 +56,7 @@ import {
   ultrasonicBindings,
   pca9685Bindings,
   neopixelBindings,
+  spiOledBindings,
   type Pca9685Binding,
 } from './diagram/model.mjs';
 import { AvrEngine } from './engines/avr.mjs';
@@ -65,6 +66,7 @@ import {
   Pca9685Device,
   Ssd1306Device,
   type I2cDevice,
+  type SpiDevice,
 } from './engines/i2c-devices.mjs';
 import type { AvrDebugInfo, Breakpoint, DebugPauseState, SimEngine } from './engines/types.mjs';
 import { UNO_DEMO } from './programs/uno-demo.mjs';
@@ -141,6 +143,8 @@ let i2cDevices = new Map<string, Lcd1602Device | Pca9685Device | Ssd1306Device>(
 let pcaBindings: Pca9685Binding[] = [];
 // Chaînes NeoPixel : partId → broche MCU DIN (pour lire les couleurs décodées).
 let neopixelTargets = new Map<string, string>();
+// Écrans OLED SPI : partId → appareil SSD1306 (rendu de l'image).
+let spiOledDevices = new Map<string, Ssd1306Device>();
 let breakpoints: Breakpoint[] = []; // points d'arrêt envoyés par l'extension (ligne + condition)
 // Vrai dès qu'un programme compilé/chargé a été reçu : sinon, lancer la
 // simulation déclenche d'abord une compilation automatique du fichier de code.
@@ -235,6 +239,12 @@ function refreshVisuals(): void {
         if (dev instanceof Ssd1306Device) {
           renderOled(el as unknown as { imageData?: ImageData; redraw?: () => void }, dev);
         }
+        break;
+      }
+      case 'spi-oled': {
+        // Écran OLED SPI : tampon décodé du bus SPI → image.
+        const dev = spiOledDevices.get(part.id);
+        if (dev) renderOled(el as unknown as { imageData?: ImageData; redraw?: () => void }, dev);
         break;
       }
       case 'neopixel': {
@@ -397,6 +407,17 @@ function buildI2cDevices(): void {
   const list: I2cDevice[] = [...i2cDevices.values()];
   engine?.setI2cDevices?.(list);
   pcaBindings = pca9685Bindings(editor.diagram);
+
+  // Écrans OLED SPI : un appareil SSD1306 par composant, broche D/C résolue.
+  spiOledDevices = new Map();
+  const spiList: SpiDevice[] = [];
+  for (const b of spiOledBindings(editor.diagram)) {
+    const dev = new Ssd1306Device(0x3c, 128, 64);
+    if (b.dcPin) dev.dcPin = b.dcPin;
+    spiOledDevices.set(b.partId, dev);
+    spiList.push(dev);
+  }
+  engine?.setSpiDevices?.(spiList);
 }
 
 /** Recopie le tampon d'un OLED SSD1306 dans l'imageData de l'élément Wokwi. */

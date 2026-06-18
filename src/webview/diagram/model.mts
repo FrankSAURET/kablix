@@ -434,6 +434,24 @@ export function ultrasonicBindings(diagram: Diagram): UltrasonicBinding[] {
   return bindings;
 }
 
+export interface SpiOledBinding {
+  partId: string;
+  /** Broche MCU reliée à D/C (commande/donnée), si câblée. */
+  dcPin: string | null;
+}
+
+/** Écrans OLED SPI (SSD1306) : repère la broche MCU reliée à D/C. */
+export function spiOledBindings(diagram: Diagram): SpiOledBinding[] {
+  const nets = buildNets(diagram);
+  const out: SpiOledBinding[] = [];
+  for (const part of diagram.parts) {
+    if (partDef(part.type).kind !== 'spi-oled') continue;
+    const dcPin = mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin: rolePin(part.type, 'DC') }));
+    out.push({ partId: part.id, dcPin });
+  }
+  return out;
+}
+
 export interface NeopixelBinding {
   partId: string;
   /** Broche MCU pilotant l'entrée DIN de la chaîne. */

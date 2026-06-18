@@ -23,6 +23,7 @@ export type PartKind =
   | 'i2c-lcd'
   | 'i2c-pwm'
   | 'i2c-oled'
+  | 'spi-oled'
   | 'neopixel'
   | 'breadboard'
   | 'display'
@@ -205,11 +206,9 @@ export const CATALOG: readonly PartDef[] = [
   // Afficheurs : visuels seuls pour l'instant (posables et câblables).
   { type: 'lcd1602', label: 'LCD 16×2', tag: 'wokwi-lcd1602', kind: 'display' },
   { type: 'lcd2004', label: 'LCD 20×4', tag: 'wokwi-lcd2004', kind: 'display' },
-  // OLED SSD1306 en I²C : simulé (le programme y écrit via I²C, l'écran s'allume).
-  {
-    type: 'oled-ssd1306', label: 'OLED display (SSD1306)', tag: 'wokwi-ssd1306', kind: 'i2c-oled',
-    attrs: { address: '0x3C' },
-  },
+  // OLED SSD1306 : l'élément Wokwi est la variante SPI 4 fils (DATA/CLK/DC/CS) →
+  // simulé en SPI (le programme y dessine, l'écran s'allume).
+  { type: 'oled-ssd1306', label: 'OLED display (SSD1306, SPI)', tag: 'wokwi-ssd1306', kind: 'spi-oled' },
   // NeoPixel (WS2812) : simulés — la chaîne DIN est décodée et les LED s'allument.
   { type: 'neopixel', label: 'NeoPixel', tag: 'wokwi-neopixel', kind: 'neopixel' },
   { type: 'neopixel-matrix', label: 'NeoPixel matrix', tag: 'wokwi-neopixel-matrix', kind: 'neopixel', attrs: { rows: '8', cols: '8' } },
@@ -307,6 +306,7 @@ export const CUSTOM_KINDS: ReadonlyArray<{ kind: PartKind; label: string; roles:
   { kind: 'i2c-lcd', label: 'I²C LCD display (HD44780)', roles: [] },
   { kind: 'i2c-pwm', label: 'I²C PWM driver (PCA9685)', roles: [] },
   { kind: 'i2c-oled', label: 'I²C OLED display (SSD1306)', roles: [] },
+  { kind: 'spi-oled', label: 'SPI OLED display (SSD1306)', roles: ['DC'] },
   { kind: 'passive', label: 'Decorative (no behavior)', roles: [] },
 ];
 

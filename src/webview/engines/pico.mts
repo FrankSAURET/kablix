@@ -15,7 +15,7 @@ import type {
   NetResponse,
   SimEngine,
 } from './types.mjs';
-import type { I2cDevice } from './i2c-devices.mjs';
+import type { I2cDevice, SpiDevice } from './i2c-devices.mjs';
 import { Ws2812Decoder } from './ws2812.mjs';
 
 const RAM_START = 0x20000000;
@@ -192,6 +192,20 @@ export class PicoEngine implements SimEngine {
       if (i === null) continue;
       this.pulsePins.push({ name, index: i });
       if (!this.pulseState.has(name)) this.pulseState.set(name, { high: false, rise: 0, lastUs: 0 });
+    }
+  }
+
+  setSpiDevices(devices: SpiDevice[]): void {
+    const dev = devices[0] ?? null; // un seul périphérique SPI géré (pas de gestion CS)
+    for (const ctrl of this.mcu.spi) {
+      ctrl.onTransmit = (mosi: number) => {
+        if (!dev) {
+          ctrl.completeTransmit(0xff);
+          return;
+        }
+        const dc = dev.dcPin ? this.readDigital(dev.dcPin) : false;
+        ctrl.completeTransmit(dev.transfer(mosi, dc));
+      };
     }
   }
 
