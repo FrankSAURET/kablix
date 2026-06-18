@@ -156,3 +156,101 @@ export class Pca9685Device implements I2cDevice {
     return Math.max(0, Math.min(1, d));
   }
 }
+
+/**
+ * Afficheur OLED SSD1306 en I²C (adresse 0x3C / 0x3D). Décode le flux I²C : un
+ * octet de contrôle (0x00 = commandes, 0x40 = données GDDRAM) puis les octets.
+ * Adressage horizontal (mode Adafruit/MicroPython) géré : on suit les plages de
+ * colonnes/pages et on remplit un tampon page-major (1 octet = 8 pixels verticaux,
+ * bit 0 = haut). `buffer` est lu par l'UI pour produire l'image.
+ */
+export class Ssd1306Device implements I2cDevice {
+  readonly address: number;
+  readonly width: number;
+  readonly height: number;
+  /** Tampon GDDRAM : pages × largeur (buffer[page*width + col] = 8 px verticaux). */
+  buffer: Uint8Array;
+
+  private gotControl = false;
+  private dataMode = false;
+  private cmd: number[] = [];
+  private expectArgs = 0;
+  private colStart = 0;
+  private colEnd: number;
+  private col = 0;
+  private pageStart = 0;
+  private pageEnd: number;
+  private page = 0;
+
+  constructor(address = 0x3c, width = 128, height = 64) {
+    this.address = address;
+    this.width = width;
+    this.height = height;
+    this.colEnd = width - 1;
+    this.pageEnd = height / 8 - 1;
+    this.buffer = new Uint8Array(width * (height / 8));
+  }
+
+  onStart(): void {
+    this.gotControl = false; // chaque transaction commence par un octet de contrôle
+  }
+
+  write(byte: number): boolean {
+    if (!this.gotControl) {
+      this.gotControl = true;
+      this.dataMode = (byte & 0x40) !== 0; // bit D/C
+      return true;
+    }
+    if (this.dataMode) this.writeData(byte);
+    else this.command(byte);
+    return true;
+  }
+
+  read(): number {
+    return 0;
+  }
+
+  private command(b: number): void {
+    if (this.expectArgs > 0) {
+      this.cmd.push(b);
+      if (--this.expectArgs === 0) this.applyCommand();
+      return;
+    }
+    this.cmd = [b];
+    if (b === 0x21 || b === 0x22) this.expectArgs = 2; // column / page address
+    else if (b === 0x20) this.expectArgs = 1; // memory addressing mode
+    else this.applyCommand();
+  }
+
+  private applyCommand(): void {
+    const c = this.cmd[0];
+    if (c === 0x21) {
+      this.colStart = this.cmd[1] & 0x7f;
+      this.colEnd = this.cmd[2] & 0x7f;
+      this.col = this.colStart;
+    } else if (c === 0x22) {
+      this.pageStart = this.cmd[1] & 0x07;
+      this.pageEnd = this.cmd[2] & 0x07;
+      this.page = this.pageStart;
+    } else if (c >= 0xb0 && c <= 0xb7) {
+      this.page = c - 0xb0; // page start (mode page)
+    }
+    // Autres commandes (on/off, contraste, scan…) sans effet sur le tampon.
+  }
+
+  private writeData(b: number): void {
+    const idx = this.page * this.width + this.col;
+    if (idx >= 0 && idx < this.buffer.length) this.buffer[idx] = b;
+    this.col++;
+    if (this.col > this.colEnd) {
+      this.col = this.colStart;
+      this.page = this.page >= this.pageEnd ? this.pageStart : this.page + 1;
+    }
+  }
+
+  /** Vrai si le pixel (x,y) est allumé. */
+  pixelOn(x: number, y: number): boolean {
+    const page = y >> 3;
+    return ((this.buffer[page * this.width + x] >> (y & 7)) & 1) === 1;
+  }
+}

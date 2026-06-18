@@ -59,7 +59,12 @@ import {
 } from './diagram/model.mjs';
 import { AvrEngine } from './engines/avr.mjs';
 import { PicoEngine, type PicoProgram } from './engines/pico.mjs';
-import { Lcd1602Device, Pca9685Device, type I2cDevice } from './engines/i2c-devices.mjs';
+import {
+  Lcd1602Device,
+  Pca9685Device,
+  Ssd1306Device,
+  type I2cDevice,
+} from './engines/i2c-devices.mjs';
 import type { AvrDebugInfo, Breakpoint, DebugPauseState, SimEngine } from './engines/types.mjs';
 import { UNO_DEMO } from './programs/uno-demo.mjs';
 import { PICO_BLINK } from './programs/pico-blink.mjs';
@@ -130,7 +135,7 @@ let unoDebugInfo: AvrDebugInfo | null = null;
 let picoProgram: PicoProgram = { kind: 'ram', image: PICO_BLINK };
 let inputRemovers: Array<() => void> = [];
 // Périphériques I²C de la simulation en cours (partId → appareil décodeur).
-let i2cDevices = new Map<string, Lcd1602Device | Pca9685Device>();
+let i2cDevices = new Map<string, Lcd1602Device | Pca9685Device | Ssd1306Device>();
 // Canaux PCA9685 → composants pilotés (calculé au câblage).
 let pcaBindings: Pca9685Binding[] = [];
 let breakpoints: Breakpoint[] = []; // points d'arrêt envoyés par l'extension (ligne + condition)
@@ -218,6 +223,14 @@ function refreshVisuals(): void {
             | ((lines: string[], rect: { x: number; y: number; w: number; h: number }) => void)
             | undefined;
           setLcd?.(dev.text, lcdScreenRect(part, def.custom?.svg));
+        }
+        break;
+      }
+      case 'i2c-oled': {
+        // Tampon GDDRAM décodé → image de l'écran OLED (blanc sur noir).
+        const dev = i2cDevices.get(part.id);
+        if (dev instanceof Ssd1306Device) {
+          renderOled(el as unknown as { imageData?: ImageData; redraw?: () => void }, dev);
         }
         break;
       }
@@ -361,11 +374,39 @@ function buildI2cDevices(): void {
     } else if (kind === 'i2c-pwm') {
       const addr = Number(part.attrs?.address ?? 0x40) || 0x40;
       i2cDevices.set(part.id, new Pca9685Device(addr));
+    } else if (kind === 'i2c-oled') {
+      const addr = Number(part.attrs?.address ?? 0x3c) || 0x3c;
+      i2cDevices.set(part.id, new Ssd1306Device(addr, 128, 64));
     }
   }
   const list: I2cDevice[] = [...i2cDevices.values()];
   engine?.setI2cDevices?.(list);
   pcaBindings = pca9685Bindings(editor.diagram);
+}
+
+/** Recopie le tampon d'un OLED SSD1306 dans l'imageData de l'élément Wokwi. */
+function renderOled(
+  el: { imageData?: ImageData; redraw?: () => void },
+  dev: Ssd1306Device
+): void {
+  const w = dev.width;
+  const h = dev.height;
+  const img = el.imageData && el.imageData.width === w && el.imageData.height === h
+    ? el.imageData
+    : new ImageData(w, h);
+  const d = img.data;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const on = dev.pixelOn(x, y);
+      const i = (y * w + x) * 4;
+      d[i] = on ? 255 : 0;
+      d[i + 1] = on ? 255 : 0;
+      d[i + 2] = on ? 255 : 0;
+      d[i + 3] = 255;
+    }
+  }
+  el.imageData = img;
+  el.redraw?.();
 }
 
 /** Propage les rapports cycliques des PCA9685 vers les composants pilotés. */

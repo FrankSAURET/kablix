@@ -14,7 +14,7 @@ await esbuild.build({
   entryPoints: [join(root, 'src/webview/engines/i2c-devices.mts')],
   outfile: out, bundle: true, platform: 'node', format: 'esm', logLevel: 'silent',
 });
-const { Lcd1602Device, Pca9685Device } = await import(pathToFileURL(out).href);
+const { Lcd1602Device, Pca9685Device, Ssd1306Device } = await import(pathToFileURL(out).href);
 
 let failures = 0;
 const check = (label, ok, detail = '') => {
@@ -57,6 +57,32 @@ console.log('PCA9685 :');
   for (const b of [0x06 + 4 * 3, 0x00, 0x10, 0x00, 0x00]) pca.write(b);
   check('canal 3 → plein ON (1,0)', pca.channelDuty(3) === 1);
   check('canal 1 inutilisé → 0', pca.channelDuty(1) === 0);
+}
+
+console.log('SSD1306 OLED :');
+{
+  // Style Adafruit : flux de commandes (contrôle 0x00) puis flux de données (0x40).
+  const oled = new Ssd1306Device(0x3c, 128, 64);
+  oled.onStart();
+  for (const b of [0x00, 0x21, 0, 127, 0x22, 0, 7]) oled.write(b); // col 0..127, page 0..7
+  oled.onStart();
+  oled.write(0x40); // mode données
+  oled.write(0xff); // colonne 0, page 0 → 8 px verticaux allumés
+  oled.write(0x01); // colonne 1 → seul le pixel du haut
+  check('colonne 0 entièrement allumée', [0, 1, 2, 3, 4, 5, 6, 7].every((y) => oled.pixelOn(0, y)));
+  check('colonne 1 : seul (1,0) allumé', oled.pixelOn(1, 0) && !oled.pixelOn(1, 1));
+
+  // Style MicroPython : une commande par transaction (contrôle 0x80).
+  const o2 = new Ssd1306Device(0x3c, 128, 64);
+  for (const cmd of [0x21, 0, 127, 0x22, 0, 7]) {
+    o2.onStart();
+    o2.write(0x80);
+    o2.write(cmd);
+  }
+  o2.onStart();
+  o2.write(0x40);
+  o2.write(0xaa); // page 0, col 0 : pixels pairs (0,2,4,6)
+  check('MicroPython : adressage multi-transaction', o2.pixelOn(0, 1) && !o2.pixelOn(0, 0));
 }
 
 console.log(failures === 0 ? '\nRESULTAT: OK' : '\nRESULTAT: ECHEC');

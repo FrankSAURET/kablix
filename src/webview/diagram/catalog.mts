@@ -22,6 +22,7 @@ export type PartKind =
   | 'ultrasonic'
   | 'i2c-lcd'
   | 'i2c-pwm'
+  | 'i2c-oled'
   | 'breadboard'
   | 'display'
   | 'passive';
@@ -203,7 +204,11 @@ export const CATALOG: readonly PartDef[] = [
   // Afficheurs : visuels seuls pour l'instant (posables et câblables).
   { type: 'lcd1602', label: 'LCD 16×2', tag: 'wokwi-lcd1602', kind: 'display' },
   { type: 'lcd2004', label: 'LCD 20×4', tag: 'wokwi-lcd2004', kind: 'display' },
-  { type: 'oled-ssd1306', label: 'OLED display (SSD1306)', tag: 'wokwi-ssd1306', kind: 'display' },
+  // OLED SSD1306 en I²C : simulé (le programme y écrit via I²C, l'écran s'allume).
+  {
+    type: 'oled-ssd1306', label: 'OLED display (SSD1306)', tag: 'wokwi-ssd1306', kind: 'i2c-oled',
+    attrs: { address: '0x3C' },
+  },
   { type: 'neopixel', label: 'NeoPixel', tag: 'wokwi-neopixel', kind: 'display' },
   { type: 'neopixel-matrix', label: 'NeoPixel matrix', tag: 'wokwi-neopixel-matrix', kind: 'display' },
   { type: 'led-ring', label: 'NeoPixel ring', tag: 'wokwi-led-ring', kind: 'display' },
@@ -299,6 +304,7 @@ export const CUSTOM_KINDS: ReadonlyArray<{ kind: PartKind; label: string; roles:
   { kind: 'ultrasonic', label: 'Ultrasonic sensor HC-SR04 (Trig/Echo)', roles: ['TRIG', 'ECHO'] },
   { kind: 'i2c-lcd', label: 'I²C LCD display (HD44780)', roles: [] },
   { kind: 'i2c-pwm', label: 'I²C PWM driver (PCA9685)', roles: [] },
+  { kind: 'i2c-oled', label: 'I²C OLED display (SSD1306)', roles: [] },
   { kind: 'passive', label: 'Decorative (no behavior)', roles: [] },
 ];
 
