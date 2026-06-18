@@ -1,3 +1,27 @@
+- ***Note pour plus tard,Revoir svg pico pi et pico pi w***
+- ***Note pour plus tard,fournir megan nano et mini***
+- Rajouter un bouton autoroutage qui retouche le dessin  pour n'avoir que des fils horizontaux et verticaux sue la selection. Si rien de sélectionné sur tout le dessin.
+- Lors de déplacement de la sélection les coudes ne sont pas déplacés avec le reste de la sélection. Les coudes ne sont pas sélectionnable du tout.
+- Dans le svg la position des composants est vérouillé (on  peut les supprimern changer l'odre mais pas les déplacer)
+- Dans la fonction créer un composant, la fenetre apperçu doit être zoomable. Les coordonées de chaque pin editable directement
+- *** Note pour plus tard, l'import export wokwi est à revoir ***
+- Le point de connexion avec les fils doit être le centre de la broche par exemple pour une broche qui ferait 2 de large le point de connexion doit être à 1 de 3 cotés. Si c'est un cercle oi un carré le centre. (à revérifier : la pastille est déjà centrée sur pin.x/pin.y — fournir un cas concret décalé)
+- Si dans la selection on a une pico pi. Le déplacement vertical est conforme mais en horizontal elle la pico pi ne suit pas le mouvement
+- Aucune variable lisible ici ~~(en C : variables globales seulement)~~. Supprimer le texte barré pour la partie pico. Le mettre systématiquement en haut des variable (affichage permanent) pour le C. Un clic sur ce tecte ou une bulle d'aide explique comment créer des variables globales.
+- Ajouter les point d'arrêt conditionnels à la simulation arduino
+- Rajouter un onglet console de sortie la ou est le moniteur série avec un onglet pour afficher le résulats de la compilation.
+# v2026.6.26
+1. ✅ **Buzzer sonore** : un buzzer actif émet désormais réellement un son (Web Audio, oscillateur carré par buzzer). La **fréquence suit le signal** qui le pilote — `tone()`/PWM mesuré en largeur d'impulsion → f = 1e6 / (2 × largeur haute) ; à défaut d'un signal mesurable (broche maintenue haute) un bip par défaut (2 kHz) est joué. Contexte audio réveillé sur ▶ (geste utilisateur), tous les sons coupés à l'arrêt/réinitialisation. Nouveau `buzzerBindings` (borne → broche MCU). **Bug corrigé au passage** : sur AVR `readPulseUs` renvoyait toujours 0 (`lastUs` n'était jamais écrit dans `samplePulses`) → l'angle réel du servo et la fréquence du buzzer fonctionnent maintenant sur AVR comme sur RP2040.
+2. ✅ **Breadboard à la grille de 10 px** : la rigole centrale (`CHANNEL`) et l'écart rails↔bloc (`RAIL_GAP`) passent de 14 à 20 px → tous les trous (et donc les broches) tombent sur la grille de 10 px, séparateurs compris.
+3. ✅ **Export SVG : breadboard derrière les composants** : les platines d'essai sont dessinées en premier (donc en arrière-plan) ; une breadboard ajoutée après un composant ne passe plus devant lui.
+4. ✅ **Export SVG : nom par défaut = nom du projet** : le dialogue de sauvegarde propose `<nom du projix>.svg` (dernier `.projix` ouvert/enregistré), sinon le nom du dossier de travail, sinon `schema-kablix.svg`.
+5. ✅ **HC-SR04 : marquage des pattes retiré** : les noms VCC/Trig/Echo/GND sont déjà sérigraphiés sur le dessin → le générateur de composants ne superpose plus les étiquettes (option `padLabels: false`), les pastilles de connexion restent visibles. (Réimporter `parts/hc-sr04.kablix-part.json`.)
+6. ✅ **Nouveaux composants au centre de la zone visible** : un clic sur un composant de la palette le pose au centre de la fenêtre visible (tient compte du zoom et du déplacement de la vue), corps centré puis aligné sur la grille — au lieu d'un coin en haut à gauche du monde.
+7. ✅ **Recentrage hors des barres d'outils** : « recentrer & ajuster » réserve une marge supérieure (≈ 56 px) pour que le contenu ne se retrouve plus sous les barres flottantes du haut.
+8. ✅ **Bulle d'aide du bouton** : l'info-bulle d'un bouton poussoir rappelle aussi le **Ctrl+clic** qui verrouille l'état enfoncé (transitoire au clic simple) en simulation.
+9. ✅ **Avertissement de câblage verrouillé** : un bandeau persistant « ⚠ Simulation en cours : le câblage est verrouillé. » s'affiche en haut du canvas pendant toute la simulation (FR/EN).
+10. ✅ **Aide : dossier de sketch Arduino** : note ajoutée (FR + EN) rappelant que, comme pour tout projet Arduino, le `.ino` de lancement doit être dans un dossier portant exactement le même nom (sinon `arduino-cli` refuse de compiler).
+11. ✅ **Palette de commandes localisée** (vérifié) : tous les titres de commandes utilisent les clés `package.nls` présentes en EN et FR, empaquetées dans le `.vsix` → la palette (Ctrl+Maj+P) suit la langue de VS Code (= langue de Kablix). Aucun changement de code nécessaire.
 # v2026.6.25
 1. ✅ **Gestion du CS multi-SPI** : `selectSpiDevice` route chaque octet vers l'esclave dont la broche CS est active (bas) ; plusieurs périphériques SPI peuvent coexister sur le bus (sinon repli sur l'esclave sans CS). CS/D-C résolus par `spiDeviceBindings`. Validé (unitaire + bout en bout AVR : CS bas → ILI9341).
 2. ✅ **Écran TFT ILI9341 (SPI couleur, 240×320)** : `Ili9341Device` décode CASET/RASET/RAMWR + pixels RGB565 (D/C) dans une image RGBA dessinée dans le canvas de l'élément `wokwi-ili9341`. Composant `ili9341` (kind `spi-tft`). Validé bout en bout (sketch SPI matériel + D/C + CS → pixel rouge) + unitaire.

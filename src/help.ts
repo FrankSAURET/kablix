@@ -321,6 +321,7 @@ Schéma de la réponse :
       <li><strong>Observer</strong> : la ou les LED s'allument selon le programme ; ouvrez le <strong>moniteur série</strong> (bas) pour voir les <code>Serial.print()</code>, et envoyez-y des données si besoin.</li>
       <li><strong>Déboguer pas à pas</strong> : posez un <strong>point d'arrêt</strong> dans la gouttière de l'éditeur, ou utilisez <strong>⏸ Pause</strong> puis <strong>⏭ Pas</strong> pour avancer ligne par ligne et lire les variables globales dans le panneau <em>Variables</em>.</li>
     </ol>
+    <p class="note">⚠ <strong>Comme pour tout projet Arduino</strong>, le fichier de lancement <code>.ino</code> doit se trouver dans un <strong>dossier portant exactement le même nom</strong> (par ex. <code>Blink/Blink.ino</code>). Sinon <code>arduino-cli</code> refuse de compiler le sketch.</p>
 
     <h2 id="pas-a-pas-pico">Pas à pas — Raspberry Pi Pico (MicroPython)</h2>
     <p>Partez d'un script <code>.py</code> édité avec l'extension officielle <strong>« Raspberry Pi Pico »</strong>, puis exécutez-le dans Kablix.</p>
@@ -508,6 +509,7 @@ Response schema:
       <li><strong>Observe</strong>: the LED(s) light up according to the program; open the <strong>serial monitor</strong> (bottom) to see the <code>Serial.print()</code> output, and send it data if needed.</li>
       <li><strong>Debug step by step</strong>: set a <strong>breakpoint</strong> in the editor gutter, or use <strong>⏸ Pause</strong> then <strong>⏭ Step</strong> to advance line by line and read the global variables in the <em>Variables</em> panel.</li>
     </ol>
+    <p class="note">⚠ <strong>As with any Arduino project</strong>, the <code>.ino</code> launch file must live in a <strong>folder with exactly the same name</strong> (e.g. <code>Blink/Blink.ino</code>). Otherwise <code>arduino-cli</code> refuses to compile the sketch.</p>
 
     <h2 id="walk-pico">Walkthrough — Raspberry Pi Pico (MicroPython)</h2>
     <p>Start from a <code>.py</code> script edited with the official <strong>"Raspberry Pi Pico"</strong> extension, then run it in Kablix.</p>

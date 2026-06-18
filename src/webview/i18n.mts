@@ -50,6 +50,7 @@ const FR: Record<string, string> = {
   // Composants posés
   'Delete': 'Supprimer',
   'Right-click drag to move': 'Glisser avec le clic droit pour déplacer',
+  '⚠ Simulation running: wiring is locked.': '⚠ Simulation en cours : le câblage est verrouillé.',
   'Drag to move — Ctrl: H/V alignment': 'Glisser pour déplacer — Ctrl : alignement H/V',
   '+ or − to rotate the part': '+ ou − pour faire tourner le composant',
   '+ or − to rotate the parts': '+ ou − pour faire tourner les composants',

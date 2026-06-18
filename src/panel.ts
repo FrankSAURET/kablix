@@ -23,6 +23,12 @@ function isAvrBoard(board: Board): boolean {
   return board === 'uno' || board === 'nano' || board === 'mini' || board === 'mega';
 }
 
+/** Nom de fichier sans dossier ni extension (ex. « C:\…\Projet.projix » → « Projet »). */
+function baseNameNoExt(fsPath: string): string {
+  const name = fsPath.split(/[\\/]/).pop() ?? fsPath;
+  return name.replace(/\.[^.]+$/, '');
+}
+
 /** Requête du pont réseau Pico W (forme miroir de NetRequest côté webview). */
 interface NetBridgeRequest {
   id: number;
@@ -49,6 +55,8 @@ export class SimulatorPanel {
   private readonly context: vscode.ExtensionContext;
   private readonly disposables: vscode.Disposable[] = [];
   private currentBoard: Board = 'uno';
+  /** Nom de base du projet (sans extension) : dernier .projix enregistré/ouvert, pour nommer l'export SVG. */
+  private projectBaseName: string | undefined;
   /** Fichier source actuellement chargé dans le simulateur (.py ou source C ; pas les artefacts). */
   private currentSourceUri: vscode.Uri | undefined;
   /** Fichier de code choisi explicitement (chip du canvas) ; sinon le fichier actif sert. */
@@ -693,6 +701,7 @@ export class SimulatorPanel {
       });
 
       await vscode.workspace.fs.writeFile(target, bytes);
+      this.projectBaseName = baseNameNoExt(target.fsPath);
       vscode.window.showInformationMessage(
         l10n.t('Kablix: project saved to {0}', target.fsPath)
       );
@@ -716,6 +725,7 @@ export class SimulatorPanel {
 
       const bytes = await vscode.workspace.fs.readFile(picked[0]);
       const project = await unpackProject(bytes);
+      this.projectBaseName = baseNameNoExt(picked[0].fsPath);
 
       // Recharge le schéma et la carte dans la webview (et les composants perso).
       const diagram = project.diagram as { customParts?: unknown[] } | undefined;
@@ -770,9 +780,13 @@ export class SimulatorPanel {
   /** Enregistre le schéma exporté en SVG via un dialogue de sauvegarde. */
   private async saveSvg(svg: string): Promise<void> {
     const folders = vscode.workspace.workspaceFolders;
+    // Nom par défaut = nom du projet (.projix ouvert/enregistré), sinon nom du
+    // dossier de travail, sinon repli générique.
+    const base = this.projectBaseName ?? (folders?.length ? baseNameNoExt(folders[0].uri.fsPath) : null) ?? 'schema-kablix';
+    const fileName = `${base}.svg`;
     const defaultUri = folders?.length
-      ? vscode.Uri.joinPath(folders[0].uri, 'schema-kablix.svg')
-      : vscode.Uri.file('schema-kablix.svg');
+      ? vscode.Uri.joinPath(folders[0].uri, fileName)
+      : vscode.Uri.file(fileName);
     const target = await vscode.window.showSaveDialog({
       defaultUri,
       filters: { [l10n.t('SVG image')]: ['svg'] },

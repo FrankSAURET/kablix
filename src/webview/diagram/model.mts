@@ -370,6 +370,21 @@ export function servoBindings(diagram: Diagram): SourceBinding[] {
   return bindings;
 }
 
+/** Buzzers dont une borne (1 ou 2) est reliée à une broche numérique du MCU. */
+export function buzzerBindings(diagram: Diagram): SourceBinding[] {
+  const nets = buildNets(diagram);
+  const bindings: SourceBinding[] = [];
+  for (const part of diagram.parts) {
+    const type = part.type;
+    if (partDef(type).kind !== 'buzzer') continue;
+    const p1 = mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin: rolePin(type, '1') }));
+    const p2 = mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin: rolePin(type, '2') }));
+    const mcuPin = p1 ?? p2;
+    if (mcuPin) bindings.push({ partId: part.id, mcuPin });
+  }
+  return bindings;
+}
+
 export interface Pca9685Binding {
   /** Identifiant du PCA9685. */
   partId: string;

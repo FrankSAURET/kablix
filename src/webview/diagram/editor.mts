@@ -153,6 +153,8 @@ export class Editor {
   private activeHandle: { wireId: string; index: number } | null = null;
   /** Verrou pendant la simulation : pas d'édition du schéma (sélection/déplacement/câblage). */
   private locked = false;
+  /** Bandeau d'avertissement « câblage verrouillé » affiché pendant la simulation. */
+  private lockWarning: HTMLDivElement | null = null;
   /** Pile d'annulation (états sérialisés du schéma) et position courante. */
   private history: string[] = [];
   private historyIndex = -1;
@@ -244,6 +246,20 @@ export class Editor {
       this.select(null);
     }
     this.canvas.classList.toggle('canvas--locked', locked);
+    this.showLockWarning(locked);
+  }
+
+  /** Bandeau d'avertissement (persistant) signalant le câblage verrouillé en simulation. */
+  private showLockWarning(show: boolean): void {
+    if (!this.lockWarning) {
+      const w = document.createElement('div');
+      w.className = 'canvas__lock-warning';
+      w.textContent = t('⚠ Simulation running: wiring is locked.');
+      w.hidden = true;
+      this.canvas.appendChild(w);
+      this.lockWarning = w;
+    }
+    this.lockWarning.hidden = !show;
   }
 
   isLocked(): boolean {
@@ -368,18 +384,22 @@ export class Editor {
       return;
     }
     const margin = 40;
+    // Les barres d'outils flottantes (simulation à gauche, vue à droite)
+    // occupent le haut du canvas : on réserve une marge supérieure pour que le
+    // contenu recentré ne se retrouve pas dessous.
+    const topInset = 56;
     const cw = this.canvas.clientWidth || 800;
     const ch = this.canvas.clientHeight || 600;
     const contentW = Math.max(1, maxX - minX);
     const contentH = Math.max(1, maxY - minY);
     const z = Math.max(
       ZOOM_MIN,
-      Math.min(ZOOM_MAX, (cw - 2 * margin) / contentW, (ch - 2 * margin) / contentH)
+      Math.min(ZOOM_MAX, (cw - 2 * margin) / contentW, (ch - topInset - 2 * margin) / contentH)
     );
     this.zoom = z;
-    // Centre la boîte englobante du contenu dans la fenêtre.
+    // Centre la boîte englobante du contenu dans la zone utile (sous les barres).
     this.panX = cw / 2 - ((minX + maxX) / 2) * z;
-    this.panY = ch / 2 - ((minY + maxY) / 2) * z;
+    this.panY = (ch + topInset) / 2 - ((minY + maxY) / 2) * z;
     this.applyTransform();
   }
 
@@ -442,7 +462,7 @@ export class Editor {
     text.textContent = label;
     btn.append(thumb, text);
     btn.addEventListener('click', () => {
-      if (!this.locked) this.addPart(def.type);
+      if (!this.locked) this.addPartAtVisibleCenter(def.type);
     });
     btn.draggable = true;
     btn.addEventListener('dragstart', (e) => {
@@ -668,6 +688,37 @@ export class Editor {
   }
 
   // --- Ajout / suppression de composants -------------------------------------
+  /** Coordonnées monde du centre de la zone visible (sous les barres d'outils). */
+  private visibleWorldCenter(): XY {
+    const cw = this.canvas.clientWidth || 800;
+    const ch = this.canvas.clientHeight || 600;
+    const topInset = 56; // hauteur des barres flottantes en haut du canvas
+    return {
+      x: (cw / 2 - this.panX) / this.zoom,
+      y: ((ch + topInset) / 2 - this.panY) / this.zoom,
+    };
+  }
+
+  /**
+   * Pose un composant au centre de la zone visible (tient compte du zoom et du
+   * déplacement de la vue) : le corps est centré sur ce point une fois sa taille
+   * réelle connue, puis aligné sur la grille de 10 px.
+   */
+  addPartAtVisibleCenter(type: string): Part {
+    const center = this.visibleWorldCenter();
+    const part = this.addPart(type, center.x, center.y);
+    const r = this.rendered.get(part.id);
+    const body = r?.container.querySelector('.part__body') as HTMLElement | null;
+    if (r && body) {
+      r.part.x = Math.max(0, center.x - (body.offsetWidth || 40) / 2);
+      r.part.y = Math.max(0, center.y - (body.offsetHeight || 40) / 2);
+      r.container.style.left = `${r.part.x}px`;
+      r.container.style.top = `${r.part.y}px`;
+    }
+    this.snapPartToGrid(part.id);
+    return part;
+  }
+
   addPart(type: string, x = 40 + this.diagram.parts.length * 30, y = 60): Part {
     const def = partDef(type);
     const part: Part = { id: uid(type + '-'), type, x, y, attrs: { ...def.attrs } };
@@ -883,7 +934,14 @@ export class Editor {
         this.select({ kind: 'part', id: part.id });
       }
     });
-    if (def.interactive) body.title = t('Right-click drag to move');
+    if (def.interactive) {
+      // Bulle d'aide : pour un bouton, on rappelle aussi le Ctrl+clic qui
+      // verrouille l'état enfoncé (transitoire au clic simple) en simulation.
+      body.title =
+        def.kind === 'pushbutton'
+          ? t('Right-click drag to move') + ' — ' + t('In simulation: Ctrl+click keeps it pressed.')
+          : t('Right-click drag to move');
+    }
 
     const hotspots = new Map<string, HTMLDivElement>();
     const pins = (el.pinInfo ?? []) as WokwiPin[];
@@ -2191,7 +2249,14 @@ export class Editor {
       maxY = Math.max(maxY, y);
     };
 
-    for (const r of this.rendered.values()) {
+    // Les platines d'essai sont dessinées en premier (donc derrière) : sans cela
+    // une breadboard ajoutée après un composant passait devant lui dans le SVG.
+    const order = [...this.rendered.values()].sort(
+      (a, b) =>
+        (partDef(a.part.type).kind === 'breadboard' ? 0 : 1) -
+        (partDef(b.part.type).kind === 'breadboard' ? 0 : 1)
+    );
+    for (const r of order) {
       if (only && !only.has(r.part.id)) continue; // export limité à la sélection
       const root = r.el.shadowRoot ?? r.el;
       const svgEl = root.querySelector('svg');

@@ -24,11 +24,11 @@ export const BB_STEP = 10;
 const MARGIN_X = 16;
 const RAIL_TOP_P = 10; // rail + du haut
 const RAIL_TOP_N = 20; // rail − du haut
-const RAIL_GAP = 14; // espace rail → bloc principal
+const RAIL_GAP = 20; // espace rail → bloc principal (multiple de 10 px = grille)
 
 const ROWS_TOP = ['a', 'b', 'c', 'd', 'e'] as const;
 const ROWS_BOTTOM = ['f', 'g', 'h', 'i', 'j'] as const;
-const CHANNEL = 14; // rigole centrale entre e et f
+const CHANNEL = 20; // rigole centrale entre e et f (multiple de 10 px = grille)
 
 export function normalizeSize(value: string | null | undefined): BreadboardSize {
   return value === 'mini' || value === 'full' ? value : 'half';
@@ -48,7 +48,7 @@ function colX(col: number): number {
 }
 
 function gridTopY(size: BreadboardSize): number {
-  return BREADBOARD_SIZES[size].rails ? RAIL_TOP_N + RAIL_GAP : 12;
+  return BREADBOARD_SIZES[size].rails ? RAIL_TOP_N + RAIL_GAP : 10;
 }
 
 /** Trous d'un rail : groupes de 5 séparés d'un trou vide (esthétique classique). */

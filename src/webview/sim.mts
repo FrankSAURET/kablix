@@ -55,6 +55,7 @@ import {
   digitalSourceBindings,
   analogSourceBindings,
   servoBindings,
+  buzzerBindings,
   ultrasonicBindings,
   pca9685Bindings,
   neopixelBindings,
@@ -147,6 +148,8 @@ let i2cDevices = new Map<string, Lcd1602Device | Pca9685Device | Ssd1306Device>(
 let pcaBindings: Pca9685Binding[] = [];
 // Chaînes NeoPixel : partId → broche MCU DIN (pour lire les couleurs décodées).
 let neopixelTargets = new Map<string, string>();
+// Buzzers : partId → broche MCU pilotant le buzzer (pour la fréquence du son).
+let buzzerTargets = new Map<string, string>();
 // Écrans SPI : partId → appareil (rendu de l'image). OLED SSD1306 / TFT ILI9341.
 let spiOledDevices = new Map<string, Ssd1306Device>();
 let spiTftDevices = new Map<string, Ili9341Device>();
@@ -170,6 +173,69 @@ function b64ToBytes(b64: string): Uint8Array {
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
   return out;
 }
+
+// --- Son des buzzers (Web Audio) ---------------------------------------------
+// Un oscillateur par buzzer actif : la fréquence suit le signal qui le pilote
+// (tone()/PWM mesuré en largeur d'impulsion → f = 1 / période) ; à défaut d'un
+// signal mesurable (broche maintenue haute), un bip par défaut est émis.
+const buzzerAudio = (() => {
+  type Voice = { osc: OscillatorNode; gain: GainNode };
+  let ctx: AudioContext | null = null;
+  const voices = new Map<string, Voice>();
+  const DEFAULT_HZ = 2000; // bip d'un buzzer « actif » sans signal toggling
+
+  const ensureCtx = (): AudioContext | null => {
+    if (!ctx) {
+      const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!Ctor) return null;
+      ctx = new Ctor();
+    }
+    if (ctx.state === 'suspended') void ctx.resume();
+    return ctx;
+  };
+
+  return {
+    /** Réveille le contexte audio (à appeler sur un geste utilisateur : ▶). */
+    resume(): void {
+      ensureCtx();
+    },
+    /** Active/met à jour le son d'un buzzer (freqHz ≤ 0 → fréquence par défaut). */
+    set(id: string, freqHz: number): void {
+      const audio = ensureCtx();
+      if (!audio) return;
+      const hz = freqHz > 20 && freqHz < 20000 ? freqHz : DEFAULT_HZ;
+      let v = voices.get(id);
+      if (!v) {
+        const osc = audio.createOscillator();
+        const gain = audio.createGain();
+        osc.type = 'square';
+        gain.gain.value = 0.04; // volume discret
+        osc.connect(gain).connect(audio.destination);
+        osc.start();
+        v = { osc, gain };
+        voices.set(id, v);
+      }
+      v.osc.frequency.setValueAtTime(hz, audio.currentTime);
+    },
+    /** Coupe le son d'un buzzer. */
+    clear(id: string): void {
+      const v = voices.get(id);
+      if (!v) return;
+      try {
+        v.osc.stop();
+        v.osc.disconnect();
+        v.gain.disconnect();
+      } catch {
+        // déjà arrêté
+      }
+      voices.delete(id);
+    },
+    /** Coupe tous les buzzers (arrêt / réinitialisation de la simulation). */
+    stopAll(): void {
+      for (const id of [...voices.keys()]) this.clear(id);
+    },
+  };
+})();
 
 // --- Rafraîchissement visuel (limité à une fois par frame) -------------------
 let refreshQueued = false;
@@ -203,10 +269,21 @@ function refreshVisuals(): void {
         el.ledBlue = s.blue ? 1 : 0;
         break;
       }
-      case 'buzzer':
-        if (def.custom) el.active = buzzerOn(editor.diagram, part.id, read);
-        else el.hasSignal = buzzerOn(editor.diagram, part.id, read);
+      case 'buzzer': {
+        const on = buzzerOn(editor.diagram, part.id, read);
+        if (def.custom) el.active = on;
+        else el.hasSignal = on;
+        if (on) {
+          // Fréquence d'après la largeur de l'impulsion haute (signal carré de
+          // tone()/PWM : période = 2 × largeur haute → f = 1e6 / (2 × largeur)).
+          const pin = buzzerTargets.get(part.id);
+          const highUs = pin ? engine.readPulseUs?.(pin) ?? 0 : 0;
+          buzzerAudio.set(part.id, highUs > 0 ? 1e6 / (2 * highUs) : 0);
+        } else {
+          buzzerAudio.clear(part.id);
+        }
         break;
+      }
       case '7segment':
         el.values = sevenSegmentState(editor.diagram, part.id, read);
         break;
@@ -283,8 +360,14 @@ function bindInputs(): void {
   inputRemovers = [];
   if (!engine) return;
 
-  // Broches de servo à mesurer en largeur d'impulsion (angle réel).
-  engine.setPulseMonitors?.(servoBindings(editor.diagram).map((b) => b.mcuPin));
+  // Broches à mesurer en largeur d'impulsion : servo (angle réel) + buzzer
+  // (fréquence du son). Une seule liste pour le moniteur du moteur.
+  const buzzers = buzzerBindings(editor.diagram);
+  buzzerTargets = new Map(buzzers.map((b) => [b.partId, b.mcuPin]));
+  engine.setPulseMonitors?.([
+    ...servoBindings(editor.diagram).map((b) => b.mcuPin),
+    ...buzzers.map((b) => b.mcuPin),
+  ]);
 
   // Capteurs ultrason (HC-SR04) : distance lue dans l'inspecteur (défaut 20 cm).
   engine.setUltrasonic?.(
@@ -697,6 +780,7 @@ function startRun(): void {
 }
 
 function stopRun(): void {
+  buzzerAudio.stopAll(); // coupe les sons de buzzer
   for (const remove of inputRemovers) remove();
   inputRemovers = [];
   engine?.dispose();
@@ -732,6 +816,7 @@ function requestRun(): void {
   // (ou si rien n'est encore chargé), sinon il répond 'runCached' et on relance
   // le binaire déjà en mémoire. L'utilisateur exécute ainsi toujours sa dernière
   // version, sans bouton « Compiler » séparé.
+  buzzerAudio.resume(); // geste utilisateur : autorise le son du buzzer
   setStatus(t('Compiling…'));
   vscode.postMessage({ type: 'compile', board, onlyIfChanged: programLoaded });
 }

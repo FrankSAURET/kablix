@@ -270,6 +270,28 @@ body {
   background: rgba(79, 163, 255, 0.12);
 }
 
+/* Bandeau d'avertissement « câblage verrouillé » (persistant pendant la simulation). */
+.canvas__lock-warning {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 7;
+  pointer-events: none;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-inputValidation-warningBorder, #b89500);
+  background: var(--vscode-inputValidation-warningBackground, rgba(180, 130, 0, 0.92));
+  color: var(--vscode-inputValidation-warningForeground, #1e1e1e);
+  white-space: nowrap;
+}
+
+.canvas__lock-warning[hidden] {
+  display: none;
+}
+
 /* Badge de zoom flottant : affiche le facteur, clic = réinitialise la vue. */
 .canvas__zoom {
   position: absolute;

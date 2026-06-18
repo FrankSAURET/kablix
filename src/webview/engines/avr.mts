@@ -330,6 +330,7 @@ export class AvrEngine implements SimEngine {
       } else if (!high && st.high) {
         st.high = false;
         const widthUs = (now - st.rise) / CYCLES_PER_US;
+        st.lastUs = widthUs; // dernière largeur d'impulsion haute (servo, fréquence buzzer)
         this.maybeFireEcho(pp.name, widthUs); // une impulsion TRIG déclenche ECHO
       }
     }

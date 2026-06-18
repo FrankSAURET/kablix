@@ -44,6 +44,7 @@ const SPECS = [
     kind: 'ultrasonic', // simulé : impulsion TRIG → ECHO (largeur = distance × 58 µs)
     pinRoles: { TRIG: 'Trig', ECHO: 'Echo' },
     attrs: { distance: '20' }, // distance simulée en cm (modifiable dans le .json)
+    padLabels: false, // les noms VCC/Trig/Echo/GND sont déjà sérigraphiés sur le dessin
     edges: { bottom: ['VCC', 'Trig', 'Echo', 'GND'] },
   },
   {
@@ -158,7 +159,9 @@ for (const spec of SPECS) {
     p.y = Math.round(p.y / GRID) * GRID;
   }
 
-  // Pastilles + étiquettes superposées.
+  // Pastilles + étiquettes superposées. `padLabels: false` n'affiche que la
+  // pastille (sans nom) quand le dessin sérigraphie déjà les broches (HC-SR04).
+  const showLabels = spec.padLabels !== false;
   const pads = pins
     .map((p) => {
       const onLeft = p.x <= MARGIN;
@@ -166,10 +169,11 @@ for (const spec of SPECS) {
       const anchor = onLeft ? 'start' : onRight ? 'end' : 'middle';
       const tx = onLeft ? p.x + PAD_R + 2 : onRight ? p.x - PAD_R - 2 : p.x;
       const ty = onLeft || onRight ? p.y + 3 : p.y > H / 2 ? p.y - PAD_R - 3 : p.y + PAD_R + 9;
-      return (
-        `<circle cx="${p.x}" cy="${p.y}" r="${PAD_R}" fill="#d4a017" stroke="#5a4500" stroke-width="0.6"/>` +
-        `<text x="${tx}" y="${ty}" font-size="7" font-family="sans-serif" fill="#222" text-anchor="${anchor}">${p.name}</text>`
-      );
+      const pad = `<circle cx="${p.x}" cy="${p.y}" r="${PAD_R}" fill="#d4a017" stroke="#5a4500" stroke-width="0.6"/>`;
+      const label = showLabels
+        ? `<text x="${tx}" y="${ty}" font-size="7" font-family="sans-serif" fill="#222" text-anchor="${anchor}">${p.name}</text>`
+        : '';
+      return pad + label;
     })
     .join('');
 
