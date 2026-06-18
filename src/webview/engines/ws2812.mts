@@ -22,6 +22,7 @@ export class Ws2812Decoder {
   private riseCycle = 0;
   private lastFall = 0;
   private pendingHigh = -1; // durée du HAUT du bit en attente de classification
+  private maxHigh = 0; // plus long HAUT vu dans la trame (≈ T1H) pour le seuil de flush
   private bits = 0;
   private nbits = 0;
   private idx = 0;
@@ -38,24 +39,35 @@ export class Ws2812Decoder {
   /** À appeler à chaque changement de niveau de DIN (cycle = compteur du cœur). */
   edge(cycle: number, level: boolean): void {
     if (level && !this.high) {
-      // Front montant : le BAS qui vient de finir permet de classer le bit précédent.
+      const low = cycle - this.lastFall;
+      // Front montant : le BAS qui vient de finir classe le bit précédent (HAUT>BAS).
       if (this.pendingHigh >= 0) {
-        const low = cycle - this.lastFall;
-        this.classify(this.pendingHigh, low);
+        this.pushBit(this.pendingHigh > low ? 1 : 0);
         this.pendingHigh = -1;
-        if (low > this.resetCycles) this.newFrame(); // long BAS = nouvelle trame
       }
+      if (low > this.resetCycles) this.newFrame(); // long BAS = nouvelle trame
       this.riseCycle = cycle;
       this.high = true;
     } else if (!level && this.high) {
       this.pendingHigh = cycle - this.riseCycle;
+      if (this.pendingHigh > this.maxHigh) this.maxHigh = this.pendingHigh;
       this.lastFall = cycle;
       this.high = false;
     }
   }
 
-  private classify(high: number, low: number): void {
-    const bit = high > low ? 1 : 0;
+  /**
+   * Classe le dernier bit en attente (fin de trame : pas de front suivant). Comme
+   * le BAS final est absent, on compare le HAUT au seuil de la trame (≈ 0,6×T1H).
+   * À appeler avant de lire les couleurs.
+   */
+  flush(): void {
+    if (this.pendingHigh < 0) return;
+    this.pushBit(this.maxHigh > 0 && this.pendingHigh > this.maxHigh * 0.6 ? 1 : 0);
+    this.pendingHigh = -1;
+  }
+
+  private pushBit(bit: number): void {
     this.bits = ((this.bits << 1) | bit) & 0xffffff;
     if (++this.nbits === 24) {
       this.store();
@@ -77,5 +89,6 @@ export class Ws2812Decoder {
     this.idx = 0;
     this.nbits = 0;
     this.bits = 0;
+    this.maxHigh = 0;
   }
 }

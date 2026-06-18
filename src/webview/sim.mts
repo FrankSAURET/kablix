@@ -22,6 +22,8 @@ import '@wokwi/elements/dist/esm/servo-element.js';
 import '@wokwi/elements/dist/esm/lcd1602-element.js';
 import '@wokwi/elements/dist/esm/lcd2004-element.js';
 import '@wokwi/elements/dist/esm/ssd1306-element.js';
+import '@wokwi/elements/dist/esm/ili9341-element.js';
+import '@wokwi/elements/dist/esm/microsd-card-element.js';
 import '@wokwi/elements/dist/esm/neopixel-element.js';
 import '@wokwi/elements/dist/esm/neopixel-matrix-element.js';
 import '@wokwi/elements/dist/esm/led-ring-element.js';
@@ -56,7 +58,7 @@ import {
   ultrasonicBindings,
   pca9685Bindings,
   neopixelBindings,
-  spiOledBindings,
+  spiDeviceBindings,
   type Pca9685Binding,
 } from './diagram/model.mjs';
 import { AvrEngine } from './engines/avr.mjs';
@@ -65,6 +67,8 @@ import {
   Lcd1602Device,
   Pca9685Device,
   Ssd1306Device,
+  Ili9341Device,
+  SdCardSpiDevice,
   type I2cDevice,
   type SpiDevice,
 } from './engines/i2c-devices.mjs';
@@ -143,8 +147,9 @@ let i2cDevices = new Map<string, Lcd1602Device | Pca9685Device | Ssd1306Device>(
 let pcaBindings: Pca9685Binding[] = [];
 // Chaînes NeoPixel : partId → broche MCU DIN (pour lire les couleurs décodées).
 let neopixelTargets = new Map<string, string>();
-// Écrans OLED SPI : partId → appareil SSD1306 (rendu de l'image).
+// Écrans SPI : partId → appareil (rendu de l'image). OLED SSD1306 / TFT ILI9341.
 let spiOledDevices = new Map<string, Ssd1306Device>();
+let spiTftDevices = new Map<string, Ili9341Device>();
 let breakpoints: Breakpoint[] = []; // points d'arrêt envoyés par l'extension (ligne + condition)
 // Vrai dès qu'un programme compilé/chargé a été reçu : sinon, lancer la
 // simulation déclenche d'abord une compilation automatique du fichier de code.
@@ -247,6 +252,14 @@ function refreshVisuals(): void {
         if (dev) renderOled(el as unknown as { imageData?: ImageData; redraw?: () => void }, dev);
         break;
       }
+      case 'spi-tft': {
+        // Écran TFT couleur ILI9341 : image RGBA → canvas de l'élément.
+        const dev = spiTftDevices.get(part.id);
+        if (dev) renderTft(el as unknown as { canvas?: HTMLCanvasElement | null }, dev);
+        break;
+      }
+      case 'spi-sd':
+        break; // carte SD : pas de rendu (répondeur de protocole seulement)
       case 'neopixel': {
         // Couleurs décodées de la chaîne WS2812 → LED de l'élément.
         const pin = neopixelTargets.get(part.id);
@@ -408,16 +421,38 @@ function buildI2cDevices(): void {
   engine?.setI2cDevices?.(list);
   pcaBindings = pca9685Bindings(editor.diagram);
 
-  // Écrans OLED SPI : un appareil SSD1306 par composant, broche D/C résolue.
+  // Périphériques SPI : OLED (SSD1306), TFT (ILI9341), carte SD. Broches D/C et
+  // CS résolues côté MCU (le CS permet plusieurs périphériques sur le même bus).
   spiOledDevices = new Map();
+  spiTftDevices = new Map();
   const spiList: SpiDevice[] = [];
-  for (const b of spiOledBindings(editor.diagram)) {
-    const dev = new Ssd1306Device(0x3c, 128, 64);
+  for (const b of spiDeviceBindings(editor.diagram)) {
+    let dev: SpiDevice;
+    if (b.kind === 'spi-tft') {
+      const tft = new Ili9341Device();
+      spiTftDevices.set(b.partId, tft);
+      dev = tft;
+    } else if (b.kind === 'spi-sd') {
+      dev = new SdCardSpiDevice();
+    } else {
+      const oled = new Ssd1306Device(0x3c, 128, 64);
+      spiOledDevices.set(b.partId, oled);
+      dev = oled;
+    }
     if (b.dcPin) dev.dcPin = b.dcPin;
-    spiOledDevices.set(b.partId, dev);
+    if (b.csPin) dev.csPin = b.csPin;
     spiList.push(dev);
   }
   engine?.setSpiDevices?.(spiList);
+}
+
+/** Recopie l'image RGBA d'un TFT ILI9341 dans le canvas de l'élément Wokwi. */
+function renderTft(el: { canvas?: HTMLCanvasElement | null }, dev: Ili9341Device): void {
+  const ctx = el.canvas?.getContext('2d');
+  if (!ctx) return;
+  const img = ctx.createImageData(dev.width, dev.height);
+  img.data.set(dev.data);
+  ctx.putImageData(img, 0, 0);
 }
 
 /** Recopie le tampon d'un OLED SSD1306 dans l'imageData de l'élément Wokwi. */

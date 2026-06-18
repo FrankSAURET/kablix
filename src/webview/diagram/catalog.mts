@@ -24,6 +24,8 @@ export type PartKind =
   | 'i2c-pwm'
   | 'i2c-oled'
   | 'spi-oled'
+  | 'spi-tft'
+  | 'spi-sd'
   | 'neopixel'
   | 'breadboard'
   | 'display'
@@ -209,6 +211,10 @@ export const CATALOG: readonly PartDef[] = [
   // OLED SSD1306 : l'élément Wokwi est la variante SPI 4 fils (DATA/CLK/DC/CS) →
   // simulé en SPI (le programme y dessine, l'écran s'allume).
   { type: 'oled-ssd1306', label: 'OLED display (SSD1306, SPI)', tag: 'wokwi-ssd1306', kind: 'spi-oled' },
+  // Écran TFT couleur ILI9341 (SPI) : décodé et dessiné dans son canvas.
+  { type: 'ili9341', label: 'TFT display (ILI9341, SPI)', tag: 'wokwi-ili9341', kind: 'spi-tft' },
+  // Carte microSD (SPI) : répondeur de protocole (init + lecture/écriture de blocs).
+  { type: 'microsd', label: 'microSD card (SPI)', tag: 'wokwi-microsd-card', kind: 'spi-sd' },
   // NeoPixel (WS2812) : simulés — la chaîne DIN est décodée et les LED s'allument.
   { type: 'neopixel', label: 'NeoPixel', tag: 'wokwi-neopixel', kind: 'neopixel' },
   { type: 'neopixel-matrix', label: 'NeoPixel matrix', tag: 'wokwi-neopixel-matrix', kind: 'neopixel', attrs: { rows: '8', cols: '8' } },

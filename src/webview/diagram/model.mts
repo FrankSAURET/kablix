@@ -434,20 +434,36 @@ export function ultrasonicBindings(diagram: Diagram): UltrasonicBinding[] {
   return bindings;
 }
 
-export interface SpiOledBinding {
+export interface SpiDeviceBinding {
   partId: string;
-  /** Broche MCU reliée à D/C (commande/donnée), si câblée. */
+  /** Type du composant (spi-oled, spi-tft, spi-sd…). */
+  kind: PartKind;
+  /** Broche MCU reliée à D/C (commande/donnée), si applicable et câblée. */
   dcPin: string | null;
+  /** Broche MCU reliée à CS (sélection, actif bas), si câblée. */
+  csPin: string | null;
 }
 
-/** Écrans OLED SPI (SSD1306) : repère la broche MCU reliée à D/C. */
-export function spiOledBindings(diagram: Diagram): SpiOledBinding[] {
+/** Broche MCU reliée à une broche nommée d'un composant (ou null). */
+function mcuPinForPart(diagram: Diagram, nets: Nets, partId: string, pin: string): string | null {
+  return mcuDigitalOnNet(diagram, nets, nets.netOf({ partId, pin }));
+}
+
+/**
+ * Périphériques SPI du schéma (écran OLED/TFT, carte SD) avec leurs broches D/C
+ * et CS résolues côté MCU. Le nom de la broche D/C diffère selon l'élément
+ * (« DC » pour le SSD1306, « D/C » pour l'ILI9341 ; la carte SD n'en a pas).
+ */
+export function spiDeviceBindings(diagram: Diagram): SpiDeviceBinding[] {
   const nets = buildNets(diagram);
-  const out: SpiOledBinding[] = [];
+  const out: SpiDeviceBinding[] = [];
   for (const part of diagram.parts) {
-    if (partDef(part.type).kind !== 'spi-oled') continue;
-    const dcPin = mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin: rolePin(part.type, 'DC') }));
-    out.push({ partId: part.id, dcPin });
+    const kind = partDef(part.type).kind;
+    if (kind !== 'spi-oled' && kind !== 'spi-tft' && kind !== 'spi-sd') continue;
+    const dcName = part.type === 'ili9341' ? 'D/C' : 'DC';
+    const dcPin = kind === 'spi-sd' ? null : mcuPinForPart(diagram, nets, part.id, rolePin(part.type, dcName));
+    const csPin = mcuPinForPart(diagram, nets, part.id, rolePin(part.type, 'CS'));
+    out.push({ partId: part.id, kind, dcPin, csPin });
   }
   return out;
 }

@@ -43,7 +43,7 @@ import type {
   SimEngine,
   UltrasonicSensor,
 } from './types.mjs';
-import type { I2cDevice, SpiDevice } from './i2c-devices.mjs';
+import { selectSpiDevice, type I2cDevice, type SpiDevice } from './i2c-devices.mjs';
 import { Ws2812Decoder } from './ws2812.mjs';
 
 export type AvrFamily = 'avr328' | 'avr2560';
@@ -265,7 +265,10 @@ export class AvrEngine implements SimEngine {
   }
 
   readNeopixel(pin: string): Array<{ r: number; g: number; b: number }> {
-    return this.neopixels.find((n) => n.name === pin)?.dec.colors ?? [];
+    const n = this.neopixels.find((np) => np.name === pin);
+    if (!n) return [];
+    n.dec.flush(); // classe le dernier bit (la trame est terminée à la lecture)
+    return n.dec.colors;
   }
 
   /** Alimente les décodeurs WS2812 avec les fronts des broches DIN surveillées. */
@@ -281,10 +284,13 @@ export class AvrEngine implements SimEngine {
     }
   }
 
-  /** Relie un esclave SPI : chaque octet transmis par le maître lui est remis. */
+  /**
+   * Relie des esclaves SPI : à chaque octet, on route vers le périphérique dont
+   * la broche CS est active (bas), ou celui sans CS à défaut.
+   */
   setSpiDevices(devices: SpiDevice[]): void {
-    const dev = devices[0] ?? null; // un seul périphérique SPI géré (pas de gestion CS)
     this.spi.onByte = (mosi: number) => {
+      const dev = selectSpiDevice(devices, (p) => this.readDigital(p));
       if (!dev) {
         this.spi.completeTransfer(0xff);
         return;

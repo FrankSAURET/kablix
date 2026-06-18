@@ -15,7 +15,7 @@ import type {
   NetResponse,
   SimEngine,
 } from './types.mjs';
-import type { I2cDevice, SpiDevice } from './i2c-devices.mjs';
+import { selectSpiDevice, type I2cDevice, type SpiDevice } from './i2c-devices.mjs';
 import { Ws2812Decoder } from './ws2812.mjs';
 
 const RAM_START = 0x20000000;
@@ -196,9 +196,9 @@ export class PicoEngine implements SimEngine {
   }
 
   setSpiDevices(devices: SpiDevice[]): void {
-    const dev = devices[0] ?? null; // un seul périphérique SPI géré (pas de gestion CS)
     for (const ctrl of this.mcu.spi) {
       ctrl.onTransmit = (mosi: number) => {
+        const dev = selectSpiDevice(devices, (p) => this.readDigital(p));
         if (!dev) {
           ctrl.completeTransmit(0xff);
           return;
@@ -220,7 +220,10 @@ export class PicoEngine implements SimEngine {
   }
 
   readNeopixel(pin: string): Array<{ r: number; g: number; b: number }> {
-    return this.neopixels.find((n) => n.name === pin)?.dec.colors ?? [];
+    const n = this.neopixels.find((np) => np.name === pin);
+    if (!n) return [];
+    n.dec.flush(); // classe le dernier bit (la trame est terminée à la lecture)
+    return n.dec.colors;
   }
 
   private sampleNeopixels(): void {
