@@ -15,6 +15,7 @@ import type {
   NetResponse,
   SimEngine,
 } from './types.mjs';
+import type { I2cDevice } from './i2c-devices.mjs';
 
 const RAM_START = 0x20000000;
 const FLASH_START = 0x10000000;
@@ -149,6 +150,35 @@ export class PicoEngine implements SimEngine {
     const i = gpioIndex(name);
     if (i === null) return;
     this.mcu.gpio[i].setInputValue(value);
+  }
+
+  /**
+   * Relie des esclaves I²C aux deux contrôleurs matériels (i2c0/i2c1) : le maître
+   * route vers l'appareil dont l'adresse correspond (machine.I2C côté MicroPython).
+   */
+  setI2cDevices(devices: I2cDevice[]): void {
+    for (const ctrl of this.mcu.i2c) {
+      let current: I2cDevice | null = null;
+      ctrl.onStart = (repeated: boolean) => {
+        for (const d of devices) d.onStart?.(repeated);
+        ctrl.completeStart();
+      };
+      ctrl.onConnect = (address: number) => {
+        current = devices.find((d) => d.address === address) ?? null;
+        ctrl.completeConnect(current !== null); // ACK seulement si l'adresse existe
+      };
+      ctrl.onWriteByte = (value: number) => {
+        ctrl.completeWrite(current ? current.write(value) : false);
+      };
+      ctrl.onReadByte = () => {
+        ctrl.completeRead(current ? current.read() : 0xff);
+      };
+      ctrl.onStop = () => {
+        current?.onStop?.();
+        current = null;
+        ctrl.completeStop();
+      };
+    }
   }
 
   setPulseMonitors(names: string[]): void {
