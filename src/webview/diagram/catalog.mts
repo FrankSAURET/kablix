@@ -23,6 +23,7 @@ export type PartKind =
   | 'i2c-lcd'
   | 'i2c-pwm'
   | 'i2c-oled'
+  | 'neopixel'
   | 'breadboard'
   | 'display'
   | 'passive';
@@ -209,9 +210,10 @@ export const CATALOG: readonly PartDef[] = [
     type: 'oled-ssd1306', label: 'OLED display (SSD1306)', tag: 'wokwi-ssd1306', kind: 'i2c-oled',
     attrs: { address: '0x3C' },
   },
-  { type: 'neopixel', label: 'NeoPixel', tag: 'wokwi-neopixel', kind: 'display' },
-  { type: 'neopixel-matrix', label: 'NeoPixel matrix', tag: 'wokwi-neopixel-matrix', kind: 'display' },
-  { type: 'led-ring', label: 'NeoPixel ring', tag: 'wokwi-led-ring', kind: 'display' },
+  // NeoPixel (WS2812) : simulés — la chaîne DIN est décodée et les LED s'allument.
+  { type: 'neopixel', label: 'NeoPixel', tag: 'wokwi-neopixel', kind: 'neopixel' },
+  { type: 'neopixel-matrix', label: 'NeoPixel matrix', tag: 'wokwi-neopixel-matrix', kind: 'neopixel', attrs: { rows: '8', cols: '8' } },
+  { type: 'led-ring', label: 'NeoPixel ring', tag: 'wokwi-led-ring', kind: 'neopixel', attrs: { pixels: '16' } },
 
   // Bouton poussoir 6 mm : même modèle que le bouton standard.
   {

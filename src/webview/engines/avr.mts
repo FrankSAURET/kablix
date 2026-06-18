@@ -42,6 +42,7 @@ import type {
   UltrasonicSensor,
 } from './types.mjs';
 import type { I2cDevice } from './i2c-devices.mjs';
+import { Ws2812Decoder } from './ws2812.mjs';
 
 export type AvrFamily = 'avr328' | 'avr2560';
 
@@ -130,6 +131,9 @@ export class AvrEngine implements SimEngine {
   private ultrasonic: UltrasonicSensor[] = [];
   private scheduled: Array<{ cycle: number; name: string; value: boolean }> = [];
 
+  // Chaînes NeoPixel : décodeur WS2812 par broche DIN surveillée.
+  private neopixels: Array<{ name: string; port: PortKey; bit: number; dec: Ws2812Decoder; last: boolean }> = [];
+
   constructor(
     program: Uint16Array,
     debugInfo?: AvrDebugInfo | null,
@@ -176,6 +180,7 @@ export class AvrEngine implements SimEngine {
       // rafraîchit l'affichage.
       port?.addListener(() => {
         this.samplePulses();
+        this.sampleNeopixels();
         this.onUpdate?.();
       });
     }
@@ -238,6 +243,38 @@ export class AvrEngine implements SimEngine {
         twi.completeRead(current ? current.read() : 0xff);
       },
     };
+  }
+
+  setNeopixels(strips: Array<{ pin: string; count: number }>): void {
+    this.neopixels = [];
+    for (const s of strips) {
+      const m = this.pinMap[s.pin];
+      if (!m) continue;
+      this.neopixels.push({
+        name: s.pin,
+        port: m[0],
+        bit: m[1],
+        dec: new Ws2812Decoder(s.count, CYCLES_PER_US),
+        last: false,
+      });
+    }
+  }
+
+  readNeopixel(pin: string): Array<{ r: number; g: number; b: number }> {
+    return this.neopixels.find((n) => n.name === pin)?.dec.colors ?? [];
+  }
+
+  /** Alimente les décodeurs WS2812 avec les fronts des broches DIN surveillées. */
+  private sampleNeopixels(): void {
+    if (this.neopixels.length === 0) return;
+    const now = this.cpu.cycles;
+    for (const n of this.neopixels) {
+      const level = this.ports[n.port]?.pinState(n.bit) === PinState.High;
+      if (level !== n.last) {
+        n.dec.edge(now, level);
+        n.last = level;
+      }
+    }
   }
 
   setUltrasonic(sensors: UltrasonicSensor[]): void {

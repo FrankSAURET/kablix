@@ -15,6 +15,12 @@ await esbuild.build({
   outfile: out, bundle: true, platform: 'node', format: 'esm', logLevel: 'silent',
 });
 const { Lcd1602Device, Pca9685Device, Ssd1306Device } = await import(pathToFileURL(out).href);
+const wsOut = join(tmp, 'ws2812.mjs');
+await esbuild.build({
+  entryPoints: [join(root, 'src/webview/engines/ws2812.mts')],
+  outfile: wsOut, bundle: true, platform: 'node', format: 'esm', logLevel: 'silent',
+});
+const { Ws2812Decoder } = await import(pathToFileURL(wsOut).href);
 
 let failures = 0;
 const check = (label, ok, detail = '') => {
@@ -83,6 +89,27 @@ console.log('SSD1306 OLED :');
   o2.write(0x40);
   o2.write(0xaa); // page 0, col 0 : pixels pairs (0,2,4,6)
   check('MicroPython : adressage multi-transaction', o2.pixelOn(0, 1) && !o2.pixelOn(0, 0));
+}
+
+console.log('NeoPixel (WS2812) :');
+{
+  // Rejoue des fronts (cycles, niveau) : « 1 » = HAUT long+BAS court, « 0 » l'inverse.
+  const dec = new Ws2812Decoder(2, 16);
+  let cyc = 1000;
+  const sendBit = (bit) => {
+    const high = bit ? 17 : 11;
+    const low = bit ? 12 : 18;
+    dec.edge(cyc, true);
+    dec.edge(cyc + high, false);
+    cyc += high + low;
+  };
+  const sendByte = (v) => { for (let i = 7; i >= 0; i--) sendBit((v >> i) & 1); };
+  // LED0 vert (G=0xFF,R=0,B=0), LED1 rouge (G=0,R=0xFF,B=0).
+  for (const b of [0xff, 0x00, 0x00, 0x00, 0xff, 0x00]) sendByte(b);
+  dec.edge(cyc + 800, true); // long BAS (reset) → classe le dernier bit + nouvelle trame
+  const px = dec.colors.map((c) => ({ r: Math.round(c.r * 255), g: Math.round(c.g * 255), b: Math.round(c.b * 255) }));
+  check('LED0 = vert', px[0].g > 200 && px[0].r < 40, JSON.stringify(px[0]));
+  check('LED1 = rouge', px[1].r > 200 && px[1].g < 40, JSON.stringify(px[1]));
 }
 
 console.log(failures === 0 ? '\nRESULTAT: OK' : '\nRESULTAT: ECHEC');

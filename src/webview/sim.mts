@@ -55,6 +55,7 @@ import {
   servoBindings,
   ultrasonicBindings,
   pca9685Bindings,
+  neopixelBindings,
   type Pca9685Binding,
 } from './diagram/model.mjs';
 import { AvrEngine } from './engines/avr.mjs';
@@ -138,6 +139,8 @@ let inputRemovers: Array<() => void> = [];
 let i2cDevices = new Map<string, Lcd1602Device | Pca9685Device | Ssd1306Device>();
 // Canaux PCA9685 → composants pilotés (calculé au câblage).
 let pcaBindings: Pca9685Binding[] = [];
+// Chaînes NeoPixel : partId → broche MCU DIN (pour lire les couleurs décodées).
+let neopixelTargets = new Map<string, string>();
 let breakpoints: Breakpoint[] = []; // points d'arrêt envoyés par l'extension (ligne + condition)
 // Vrai dès qu'un programme compilé/chargé a été reçu : sinon, lancer la
 // simulation déclenche d'abord une compilation automatique du fichier de code.
@@ -234,6 +237,13 @@ function refreshVisuals(): void {
         }
         break;
       }
+      case 'neopixel': {
+        // Couleurs décodées de la chaîne WS2812 → LED de l'élément.
+        const pin = neopixelTargets.get(part.id);
+        const colors = pin ? engine.readNeopixel?.(pin) ?? [] : [];
+        renderNeopixel(part.type, el, colors, part.attrs);
+        break;
+      }
       case 'mcu':
         // LED embarquée GP25 du Pico / Pico W.
         if (def.board && boardFamily(def.board) === 'rp2040') el.ledPower = engine.readDigital('GP25');
@@ -260,6 +270,11 @@ function bindInputs(): void {
       return { trig: b.trig, echo: b.echo, distanceCm: Number(part?.attrs?.distance ?? 20) };
     })
   );
+
+  // Chaînes NeoPixel (WS2812) : broche DIN décodée par le moteur.
+  const nps = neopixelBindings(editor.diagram);
+  neopixelTargets = new Map(nps.map((b) => [b.partId, b.mcuPin]));
+  engine.setNeopixels?.(nps.map((b) => ({ pin: b.mcuPin, count: b.count })));
 
   for (const binding of buttonBindings(editor.diagram)) {
     const el = editor.elementOf(binding.partId);
@@ -407,6 +422,35 @@ function renderOled(
   }
   el.imageData = img;
   el.redraw?.();
+}
+
+type Rgb = { r: number; g: number; b: number };
+
+/** Affiche les couleurs WS2812 décodées sur l'élément NeoPixel (pixel / anneau / matrice). */
+function renderNeopixel(
+  type: string,
+  el: Record<string, unknown>,
+  colors: Rgb[],
+  attrs?: Record<string, string>
+): void {
+  if (type === 'neopixel') {
+    const c = colors[0] ?? { r: 0, g: 0, b: 0 };
+    el.r = c.r;
+    el.g = c.g;
+    el.b = c.b;
+    return;
+  }
+  const setPixel = el.setPixel as
+    | ((a: number, b: number | Rgb, c?: Rgb) => void)
+    | undefined;
+  if (!setPixel) return;
+  if (type === 'neopixel-matrix') {
+    const cols = Number(attrs?.cols) || 8;
+    colors.forEach((c, i) => setPixel(Math.floor(i / cols), i % cols, c));
+  } else {
+    // led-ring (et chaînes linéaires)
+    colors.forEach((c, i) => setPixel(i, c));
+  }
 }
 
 /** Propage les rapports cycliques des PCA9685 vers les composants pilotés. */

@@ -16,6 +16,7 @@ import type {
   SimEngine,
 } from './types.mjs';
 import type { I2cDevice } from './i2c-devices.mjs';
+import { Ws2812Decoder } from './ws2812.mjs';
 
 const RAM_START = 0x20000000;
 const FLASH_START = 0x10000000;
@@ -86,6 +87,8 @@ export class PicoEngine implements SimEngine {
   // Mesure de largeur d'impulsion (servo) : broches GPIO surveillées + état d'arête.
   private pulsePins: Array<{ name: string; index: number }> = [];
   private pulseState = new Map<string, { high: boolean; rise: number; lastUs: number }>();
+  // Chaînes NeoPixel : décodeur WS2812 par broche DIN.
+  private neopixels: Array<{ name: string; index: number; dec: Ws2812Decoder; last: boolean }> = [];
 
   constructor(program: PicoProgram) {
     this.sim = new Simulator();
@@ -120,6 +123,7 @@ export class PicoEngine implements SimEngine {
     for (const pin of this.mcu.gpio) {
       pin.addListener(() => {
         this.samplePulses();
+        this.sampleNeopixels();
         this.onUpdate?.();
       });
     }
@@ -188,6 +192,32 @@ export class PicoEngine implements SimEngine {
       if (i === null) continue;
       this.pulsePins.push({ name, index: i });
       if (!this.pulseState.has(name)) this.pulseState.set(name, { high: false, rise: 0, lastUs: 0 });
+    }
+  }
+
+  setNeopixels(strips: Array<{ pin: string; count: number }>): void {
+    this.neopixels = [];
+    const cyclesPerUs = (this.mcu.clkSys || 125_000_000) / 1_000_000;
+    for (const s of strips) {
+      const i = gpioIndex(s.pin);
+      if (i === null) continue;
+      this.neopixels.push({ name: s.pin, index: i, dec: new Ws2812Decoder(s.count, cyclesPerUs), last: false });
+    }
+  }
+
+  readNeopixel(pin: string): Array<{ r: number; g: number; b: number }> {
+    return this.neopixels.find((n) => n.name === pin)?.dec.colors ?? [];
+  }
+
+  private sampleNeopixels(): void {
+    if (this.neopixels.length === 0) return;
+    const now = this.mcu.core.cycles;
+    for (const n of this.neopixels) {
+      const level = this.mcu.gpio[n.index].value === GPIOPinState.High;
+      if (level !== n.last) {
+        n.dec.edge(now, level);
+        n.last = level;
+      }
     }
   }
 

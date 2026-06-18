@@ -434,6 +434,34 @@ export function ultrasonicBindings(diagram: Diagram): UltrasonicBinding[] {
   return bindings;
 }
 
+export interface NeopixelBinding {
+  partId: string;
+  /** Broche MCU pilotant l'entrée DIN de la chaîne. */
+  mcuPin: string;
+  /** Nombre de LED de la chaîne. */
+  count: number;
+}
+
+/** Nombre de LED d'un composant NeoPixel (matrice, anneau ou pixel simple). */
+function neopixelCount(part: Part): number {
+  const a = part.attrs ?? {};
+  if (part.type === 'neopixel-matrix') return (Number(a.rows) || 8) * (Number(a.cols) || 8);
+  if (part.type === 'led-ring') return Number(a.pixels) || 16;
+  return Number(a.count) || 1;
+}
+
+/** Chaînes NeoPixel (WS2812) dont l'entrée DIN est reliée à une broche MCU. */
+export function neopixelBindings(diagram: Diagram): NeopixelBinding[] {
+  const nets = buildNets(diagram);
+  const bindings: NeopixelBinding[] = [];
+  for (const part of diagram.parts) {
+    if (partDef(part.type).kind !== 'neopixel') continue;
+    const mcuPin = mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin: rolePin(part.type, 'DIN') }));
+    if (mcuPin) bindings.push({ partId: part.id, mcuPin, count: neopixelCount(part) });
+  }
+  return bindings;
+}
+
 export interface PotBinding {
   partId: string;
   /** Broche analogique du MCU reliée au curseur (SIG) du potentiomètre. */

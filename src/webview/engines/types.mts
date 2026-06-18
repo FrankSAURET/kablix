@@ -97,6 +97,10 @@ export interface SimEngine {
   setUltrasonic?(sensors: UltrasonicSensor[]): void;
   /** Relie des périphériques I²C (esclaves) au bus du MCU (LCD, PCA9685…). */
   setI2cDevices?(devices: I2cDevice[]): void;
+  /** Déclare les chaînes NeoPixel (WS2812) : broche DIN + nombre de LED. */
+  setNeopixels?(strips: Array<{ pin: string; count: number }>): void;
+  /** Couleurs décodées de la chaîne NeoPixel sur `pin` (composantes 0..1). */
+  readNeopixel?(pin: string): Array<{ r: number; g: number; b: number }>;
   /** Force la valeur externe d'une broche d'entrée (bouton, capteur…). */
   setInput(name: string, value: boolean): void;
   /** Tension externe d'une broche analogique, en fraction 0..1 de VREF. */
