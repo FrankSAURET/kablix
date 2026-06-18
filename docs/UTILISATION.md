@@ -391,10 +391,16 @@ format de projet **Wokwi** (`diagram.json`).
   charge un `diagram.json` ; les types Wokwi non pris en charge par Kablix sont
   ignorés (leur nombre est indiqué dans la barre d'état).
 
-> Limites : le **retournement** et les **coudes des fils** n'ont pas
-> d'équivalent dans `diagram.json` (fils importés/exportés droits) ; les
-> **composants personnalisés** Kablix et les broches spécifiques de la platine
-> ne sont pas convertis.
+> Le **retournement** (flipH/flipV) et les **coudes des fils** n'ont pas
+> d'équivalent standard dans `diagram.json` : Kablix les conserve dans un bloc
+> d'extension `kablix` (clé ignorée par Wokwi), si bien qu'un aller-retour
+> Kablix → diagram.json → Kablix les restitue à l'identique. Ouvert dans Wokwi,
+> le schéma reste valide (composants et liaisons standard), simplement sans le
+> retournement ni les coudes.
+>
+> Limite restante : les **composants personnalisés** Kablix (`kablix-custom-part`)
+> et les types Wokwi inconnus ne sont pas convertis (ignorés, comptés dans la
+> barre d'état).
 
 ## Mises à jour des bibliothèques
 

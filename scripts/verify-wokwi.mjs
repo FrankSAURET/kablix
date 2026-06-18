@@ -28,11 +28,17 @@ const check = (label, ok, detail = '') => {
 const diagram = {
   parts: [
     { id: 'uno', type: 'uno', x: 0, y: 0 },
-    { id: 'led1', type: 'led', x: 120, y: -40, rotation: 90, attrs: { color: 'red' } },
-    { id: 'btn1', type: 'button', x: 60, y: 120, attrs: { color: 'green' } },
+    { id: 'led1', type: 'led', x: 120, y: -40, rotation: 90, flipH: true, attrs: { color: 'red' } },
+    { id: 'btn1', type: 'button', x: 60, y: 120, flipV: true, attrs: { color: 'green' } },
   ],
   wires: [
-    { id: 'w1', a: { partId: 'led1', pin: 'A' }, b: { partId: 'uno', pin: '13' }, color: 'green' },
+    {
+      id: 'w1',
+      a: { partId: 'led1', pin: 'A' },
+      b: { partId: 'uno', pin: '13' },
+      color: 'green',
+      points: [{ x: 130, y: 10 }, { x: 80, y: 10 }],
+    },
     { id: 'w2', a: { partId: 'led1', pin: 'C' }, b: { partId: 'uno', pin: 'GND.1' }, color: 'black' },
     // Fil implicite d'enfichage : ne doit PAS être exporté.
     { id: 'wa', a: { partId: 'btn1', pin: '1.l' }, b: { partId: 'uno', pin: '2' }, auto: true },
@@ -53,6 +59,10 @@ check(
   w.connections[0][0] === 'led1:A' && w.connections[0][1] === 'uno:13' && w.connections[0][2] === 'green',
   JSON.stringify(w.connections[0])
 );
+check('chemin Wokwi standard vide (coudes hors extension)', Array.isArray(w.connections[0][3]) && w.connections[0][3].length === 0);
+check('extension kablix présente', !!w.kablix && w.kablix.version === 1);
+check('retournements exportés (flipH led, flipV bouton)', w.kablix?.parts?.led1?.flipH === true && w.kablix?.parts?.btn1?.flipV === true, JSON.stringify(w.kablix?.parts));
+check('coudes du fil w1 exportés (index 0)', w.kablix?.wires?.[0]?.i === 0 && w.kablix.wires[0].points.length === 2, JSON.stringify(w.kablix?.wires));
 
 console.log('\nRé-import Wokkwi → Kablix :');
 const back = fromWokwiDiagram(w);
@@ -60,8 +70,11 @@ check('3 composants', back.parts.length === 3, String(back.parts.length));
 const led2 = back.parts.find((p) => p.id === 'led1');
 check('LED retrouvée (type interne led)', led2?.type === 'led' && led2?.x === 120 && led2?.y === -40);
 check('rotation réimportée', led2?.rotation === 90);
+check('retournement réimporté (flipH led, flipV bouton)', led2?.flipH === true && back.parts.find((p) => p.id === 'btn1')?.flipV === true);
 check('2 fils réimportés', back.wires.length === 2, String(back.wires.length));
 check('couleur de fil conservée', back.wires.find((x) => x.a.pin === 'C')?.color === 'black');
+const w1back = back.wires.find((x) => x.a.pin === 'A');
+check('coudes réimportés (2 points conservés)', w1back?.points?.length === 2 && w1back.points[0].x === 130 && w1back.points[1].y === 10, JSON.stringify(w1back?.points));
 
 console.log('\nTolérance aux types inconnus :');
 const foreign = {
