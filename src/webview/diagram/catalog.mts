@@ -19,6 +19,7 @@ export type PartKind =
   | 'analog-source'
   | 'digital-source'
   | 'servo'
+  | 'ultrasonic'
   | 'breadboard'
   | 'display'
   | 'passive';
@@ -293,6 +294,7 @@ export const CUSTOM_KINDS: ReadonlyArray<{ kind: PartKind; label: string; roles:
   { kind: 'buzzer', label: 'Buzzer (active when voltage across 1 and 2)', roles: ['1', '2'] },
   { kind: 'digital-source', label: 'Digital source (state set in Properties)', roles: ['OUT'] },
   { kind: 'analog-source', label: 'Analog source (value set in Properties)', roles: ['AO'] },
+  { kind: 'ultrasonic', label: 'Ultrasonic sensor HC-SR04 (Trig/Echo)', roles: ['TRIG', 'ECHO'] },
   { kind: 'passive', label: 'Decorative (no behavior)', roles: [] },
 ];
 

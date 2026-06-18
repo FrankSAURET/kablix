@@ -82,6 +82,9 @@ export class PicoEngine implements SimEngine {
   private escBuf = '';
   /** Points d'arrêt (ligne + condition), retenus pour (re)transmission au script __kx. */
   private breakpoints: Breakpoint[] = [];
+  // Mesure de largeur d'impulsion (servo) : broches GPIO surveillées + état d'arête.
+  private pulsePins: Array<{ name: string; index: number }> = [];
+  private pulseState = new Map<string, { high: boolean; rise: number; lastUs: number }>();
 
   constructor(program: PicoProgram) {
     this.sim = new Simulator();
@@ -114,7 +117,10 @@ export class PicoEngine implements SimEngine {
     }
 
     for (const pin of this.mcu.gpio) {
-      pin.addListener(() => this.onUpdate?.());
+      pin.addListener(() => {
+        this.samplePulses();
+        this.onUpdate?.();
+      });
     }
     // UART0 relié au moniteur série (programmes C bare-metal / pico-sdk).
     // Décodage UTF-8 incrémental (caractères accentués émis octet par octet).
@@ -143,6 +149,39 @@ export class PicoEngine implements SimEngine {
     const i = gpioIndex(name);
     if (i === null) return;
     this.mcu.gpio[i].setInputValue(value);
+  }
+
+  setPulseMonitors(names: string[]): void {
+    this.pulsePins = [];
+    for (const name of names) {
+      const i = gpioIndex(name);
+      if (i === null) continue;
+      this.pulsePins.push({ name, index: i });
+      if (!this.pulseState.has(name)) this.pulseState.set(name, { high: false, rise: 0, lastUs: 0 });
+    }
+  }
+
+  readPulseUs(name: string): number {
+    return this.pulseState.get(name)?.lastUs ?? 0;
+  }
+
+  /** Mesure la durée de l'état haut sur les broches surveillées (servo). */
+  private samplePulses(): void {
+    if (this.pulsePins.length === 0) return;
+    const cyclesPerUs = (this.mcu.clkSys || 125_000_000) / 1_000_000;
+    const now = this.mcu.core.cycles;
+    for (const pp of this.pulsePins) {
+      const high = this.mcu.gpio[pp.index].value === GPIOPinState.High;
+      const st = this.pulseState.get(pp.name);
+      if (!st) continue;
+      if (high && !st.high) {
+        st.high = true;
+        st.rise = now;
+      } else if (!high && st.high) {
+        st.high = false;
+        st.lastUs = (now - st.rise) / cyclesPerUs;
+      }
+    }
   }
 
   setAnalog(name: string, fraction: number): void {

@@ -31,11 +31,19 @@ import {
   timer2Config,
   PinState,
 } from 'avr8js';
-import type { AvrDebugInfo, Breakpoint, DebugPauseState, DebugVariable, SimEngine } from './types.mjs';
+import type {
+  AvrDebugInfo,
+  Breakpoint,
+  DebugPauseState,
+  DebugVariable,
+  SimEngine,
+  UltrasonicSensor,
+} from './types.mjs';
 
 export type AvrFamily = 'avr328' | 'avr2560';
 
 const CLOCK_HZ = 16_000_000;
+const CYCLES_PER_US = CLOCK_HZ / 1_000_000; // 16 cycles = 1 µs
 const VREF = 5;
 // RAMEND du 2560 = 0x21FF : la pile démarre tout en haut de la SRAM, il faut donc
 // dimensionner l'espace données pour le couvrir (data = sramBytes + 0x100).
@@ -110,6 +118,14 @@ export class AvrEngine implements SimEngine {
   // Famille AVR ciblée : 'avr328' (Uno / Nano / Pro Mini) ou 'avr2560' (Mega).
   private readonly family: AvrFamily;
 
+  // Mesure de largeur d'impulsion (servo) : broches surveillées + état d'arête.
+  private pulsePins: Array<{ name: string; port: PortKey; bit: number }> = [];
+  private pulseState = new Map<string, { high: boolean; rise: number; lastUs: number }>();
+
+  // Capteurs ultrason + actions d'entrée programmées en temps simulé (génération ECHO).
+  private ultrasonic: UltrasonicSensor[] = [];
+  private scheduled: Array<{ cycle: number; name: string; value: boolean }> = [];
+
   constructor(
     program: Uint16Array,
     debugInfo?: AvrDebugInfo | null,
@@ -151,7 +167,12 @@ export class AvrEngine implements SimEngine {
     ];
 
     for (const port of Object.values(this.ports)) {
-      port?.addListener(() => this.onUpdate?.());
+      // À chaque changement de port : échantillonne les impulsions (servo) puis
+      // rafraîchit l'affichage.
+      port?.addListener(() => {
+        this.samplePulses();
+        this.onUpdate?.();
+      });
     }
     this.usart.onByteTransmit = (b: number) => {
       const text = this.serialDecoder.decode(Uint8Array.of(b), { stream: true });
@@ -171,6 +192,80 @@ export class AvrEngine implements SimEngine {
     if (!map) return;
     const [port, bit] = map;
     this.ports[port]?.setPin(bit, value);
+  }
+
+  setPulseMonitors(names: string[]): void {
+    this.pulsePins = [];
+    for (const name of names) {
+      const m = this.pinMap[name];
+      if (!m) continue;
+      this.pulsePins.push({ name, port: m[0], bit: m[1] });
+      if (!this.pulseState.has(name)) this.pulseState.set(name, { high: false, rise: 0, lastUs: 0 });
+    }
+  }
+
+  readPulseUs(name: string): number {
+    return this.pulseState.get(name)?.lastUs ?? 0;
+  }
+
+  setUltrasonic(sensors: UltrasonicSensor[]): void {
+    this.ultrasonic = sensors;
+    this.scheduled = [];
+    // Surveille les broches TRIG (en plus des broches déjà suivies, ex. servo).
+    for (const s of sensors) {
+      const m = this.pinMap[s.trig];
+      if (!m) continue;
+      if (!this.pulsePins.some((p) => p.name === s.trig)) {
+        this.pulsePins.push({ name: s.trig, port: m[0], bit: m[1] });
+      }
+      if (!this.pulseState.has(s.trig)) {
+        this.pulseState.set(s.trig, { high: false, rise: 0, lastUs: 0 });
+      }
+    }
+  }
+
+  /** Mesure la durée de l'état haut sur les broches surveillées (front montant→descendant). */
+  private samplePulses(): void {
+    if (this.pulsePins.length === 0) return;
+    const now = this.cpu.cycles;
+    for (const pp of this.pulsePins) {
+      const high = this.ports[pp.port]?.pinState(pp.bit) === PinState.High;
+      const st = this.pulseState.get(pp.name);
+      if (!st) continue;
+      if (high && !st.high) {
+        st.high = true;
+        st.rise = now;
+      } else if (!high && st.high) {
+        st.high = false;
+        const widthUs = (now - st.rise) / CYCLES_PER_US;
+        this.maybeFireEcho(pp.name, widthUs); // une impulsion TRIG déclenche ECHO
+      }
+    }
+  }
+
+  /** Sur une impulsion TRIG valide (≥ 8 µs), programme l'impulsion ECHO correspondante. */
+  private maybeFireEcho(trigName: string, widthUs: number): void {
+    if (widthUs < 8) return;
+    for (const s of this.ultrasonic) {
+      if (s.trig !== trigName) continue;
+      const cm = Math.max(2, Math.min(400, s.distanceCm || 0)); // plage HC-SR04 : 2–400 cm
+      const start = this.cpu.cycles + 200 * CYCLES_PER_US; // ~200 µs de latence capteur
+      const widthCycles = cm * 58 * CYCLES_PER_US; // 58 µs/cm (aller-retour)
+      this.scheduled.push({ cycle: start, name: s.echo, value: true });
+      this.scheduled.push({ cycle: start + widthCycles, name: s.echo, value: false });
+    }
+  }
+
+  /** Applique les actions d'entrée programmées arrivées à échéance (temps simulé). */
+  private fireScheduled(): void {
+    const now = this.cpu.cycles;
+    for (let i = this.scheduled.length - 1; i >= 0; i--) {
+      if (now >= this.scheduled[i].cycle) {
+        const a = this.scheduled[i];
+        this.setInput(a.name, a.value);
+        this.scheduled.splice(i, 1);
+      }
+    }
   }
 
   setAnalog(name: string, fraction: number): void {
@@ -331,6 +426,8 @@ export class AvrEngine implements SimEngine {
       while (this.cpu.cycles < deadline && !this.isPaused) {
         avrInstruction(this.cpu);
         this.cpu.tick();
+        // Actions d'entrée programmées (ECHO ultrason) à échéance en temps simulé.
+        if (this.scheduled.length > 0) this.fireScheduled();
         // Points d'arrêt : test du PC (en octets) après chaque instruction.
         if (this.breakpoints.size > 0) {
           const pcBytes = this.cpu.pc * 2;

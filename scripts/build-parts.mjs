@@ -40,7 +40,9 @@ const SPECS = [
     file: 'HC-SR04.svg',
     type: 'hc-sr04',
     label: 'HC-SR04 (ultrason)',
-    kind: 'passive',
+    kind: 'ultrasonic', // simulé : impulsion TRIG → ECHO (largeur = distance × 58 µs)
+    pinRoles: { TRIG: 'Trig', ECHO: 'Echo' },
+    attrs: { distance: '20' }, // distance simulée en cm (modifiable dans le .json)
     edges: { bottom: ['VCC', 'Trig', 'Echo', 'GND'] },
   },
   {
@@ -181,6 +183,7 @@ for (const spec of SPECS) {
     svg,
     pins,
     ...(spec.pinRoles ? { pinRoles: spec.pinRoles } : {}),
+    ...(spec.attrs ? { attrs: spec.attrs } : {}),
   };
   const outPath = join(OUT, `${spec.type}.kablix-part.json`);
   writeFileSync(outPath, JSON.stringify(part, null, 2));

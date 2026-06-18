@@ -46,6 +46,14 @@ export interface NetResponse {
   error?: string;
 }
 
+/** Capteur ultrason à simuler : broches TRIG/ECHO (noms MCU) + distance mesurée. */
+export interface UltrasonicSensor {
+  trig: string;
+  echo: string;
+  /** Distance simulée, en centimètres (réglée dans l'inspecteur). */
+  distanceCm: number;
+}
+
 /** Infos de débogage C/AVR extraites à la compilation (DWARF + symboles). */
 export interface AvrDebugInfo {
   /** Table adresse flash (octets) → ligne du fichier principal. */
@@ -74,6 +82,18 @@ export interface SimEngine {
   onDebugPause: ((state: DebugPauseState) => void) | null;
   /** État logique d'une broche numérique nommée (ex. '13', 'A0', 'GP25'). */
   readDigital(name: string): boolean;
+  /**
+   * Déclare les broches dont la largeur d'impulsion doit être mesurée (servo :
+   * 1000–2000 µs ↔ 0–180°). À appeler au (re)câblage avec les broches de servo.
+   */
+  setPulseMonitors?(names: string[]): void;
+  /** Largeur de la dernière impulsion haute mesurée sur une broche, en µs (0 si inconnue). */
+  readPulseUs?(name: string): number;
+  /**
+   * Déclare les capteurs ultrason : à chaque impulsion TRIG détectée, le moteur
+   * génère sur ECHO une impulsion de largeur = distance × 58 µs (en temps simulé).
+   */
+  setUltrasonic?(sensors: UltrasonicSensor[]): void;
   /** Force la valeur externe d'une broche d'entrée (bouton, capteur…). */
   setInput(name: string, value: boolean): void;
   /** Tension externe d'une broche analogique, en fraction 0..1 de VREF. */

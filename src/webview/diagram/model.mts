@@ -370,6 +370,27 @@ export function servoBindings(diagram: Diagram): SourceBinding[] {
   return bindings;
 }
 
+export interface UltrasonicBinding {
+  partId: string;
+  /** Broche MCU pilotant TRIG (sortie MCU → entrée capteur). */
+  trig: string;
+  /** Broche MCU lisant ECHO (sortie capteur → entrée MCU). */
+  echo: string;
+}
+
+/** Capteurs ultrason (HC-SR04) dont TRIG et ECHO sont reliés à des broches MCU. */
+export function ultrasonicBindings(diagram: Diagram): UltrasonicBinding[] {
+  const nets = buildNets(diagram);
+  const bindings: UltrasonicBinding[] = [];
+  for (const part of diagram.parts) {
+    if (partDef(part.type).kind !== 'ultrasonic') continue;
+    const trig = mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin: rolePin(part.type, 'TRIG') }));
+    const echo = mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin: rolePin(part.type, 'ECHO') }));
+    if (trig && echo) bindings.push({ partId: part.id, trig, echo });
+  }
+  return bindings;
+}
+
 export interface PotBinding {
   partId: string;
   /** Broche analogique du MCU reliée au curseur (SIG) du potentiomètre. */

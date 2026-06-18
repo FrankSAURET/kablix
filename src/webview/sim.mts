@@ -53,6 +53,7 @@ import {
   digitalSourceBindings,
   analogSourceBindings,
   servoBindings,
+  ultrasonicBindings,
 } from './diagram/model.mjs';
 import { AvrEngine } from './engines/avr.mjs';
 import { PicoEngine, type PicoProgram } from './engines/pico.mjs';
@@ -189,9 +190,17 @@ function refreshVisuals(): void {
         el.values = ledBarState(editor.diagram, part.id, read);
         break;
       case 'servo': {
-        // Comportement simplifié : bras à 90° quand la broche PWM est haute.
+        // Angle réel d'après la largeur d'impulsion mesurée (1000 µs → 0°,
+        // 1500 µs → 90°, 2000 µs → 180°). Repli sur 0/90° si la mesure n'est pas
+        // disponible (broche non encore pilotée, moteur sans mesure d'impulsion).
         const pin = servoTargets.get(part.id);
-        if (pin) el.angle = engine.readDigital(pin) ? 90 : 0;
+        if (!pin) break;
+        const us = engine.readPulseUs?.(pin) ?? 0;
+        if (us > 0) {
+          el.angle = Math.max(0, Math.min(180, ((us - 1000) / 1000) * 180));
+        } else {
+          el.angle = engine.readDigital(pin) ? 90 : 0;
+        }
         break;
       }
       case 'mcu':
@@ -207,6 +216,17 @@ function bindInputs(): void {
   for (const remove of inputRemovers) remove();
   inputRemovers = [];
   if (!engine) return;
+
+  // Broches de servo à mesurer en largeur d'impulsion (angle réel).
+  engine.setPulseMonitors?.(servoBindings(editor.diagram).map((b) => b.mcuPin));
+
+  // Capteurs ultrason (HC-SR04) : distance lue dans l'inspecteur (défaut 20 cm).
+  engine.setUltrasonic?.(
+    ultrasonicBindings(editor.diagram).map((b) => {
+      const part = editor.diagram.parts.find((p) => p.id === b.partId);
+      return { trig: b.trig, echo: b.echo, distanceCm: Number(part?.attrs?.distance ?? 20) };
+    })
+  );
 
   for (const binding of buttonBindings(editor.diagram)) {
     const el = editor.elementOf(binding.partId);
