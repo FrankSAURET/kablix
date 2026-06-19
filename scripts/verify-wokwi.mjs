@@ -76,6 +76,17 @@ check('couleur de fil conservée', back.wires.find((x) => x.a.pin === 'C')?.colo
 const w1back = back.wires.find((x) => x.a.pin === 'A');
 check('coudes réimportés (2 points conservés)', w1back?.points?.length === 2 && w1back.points[0].x === 130 && w1back.points[1].y === 10, JSON.stringify(w1back?.points));
 
+console.log('\nNoms de cartes Pico (Wokwi actuel + rétrocompatibilité) :');
+const wp = toWokwiDiagram({ parts: [{ id: 'p', type: 'picow', x: 0, y: 0 }], wires: [] });
+check('export Pico W → board-pi-pico-w', wp.parts[0].type === 'board-pi-pico-w', wp.parts[0].type);
+const wpico = toWokwiDiagram({ parts: [{ id: 'p', type: 'pico', x: 0, y: 0 }], wires: [] });
+check('export Pico → board-pi-pico', wpico.parts[0].type === 'board-pi-pico', wpico.parts[0].type);
+check('import nom actuel board-pi-pico-w → picow', fromWokwiDiagram(wp).parts[0]?.type === 'picow');
+const oldNames = { version: 1, parts: [{ type: 'wokwi-pi-pico-w', id: 'a', left: 0, top: 0, attrs: {} }, { type: 'wokwi-pi-pico', id: 'b', left: 0, top: 0, attrs: {} }], connections: [] };
+const oldBack = fromWokwiDiagram(oldNames);
+check('import ancien wokwi-pi-pico-w → picow', oldBack.parts.find((p) => p.id === 'a')?.type === 'picow');
+check('import ancien wokwi-pi-pico → pico', oldBack.parts.find((p) => p.id === 'b')?.type === 'pico');
+
 console.log('\nTolérance aux types inconnus :');
 const foreign = {
   version: 1,

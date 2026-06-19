@@ -1,7 +1,8 @@
 // Génère la recette de test manuelle de Kablix (tous les composants + le
-// programme, version AVR puis RP2040) au format .docx (éditable Word/LibreOffice)
-// et .csv (tableur). 4 colonnes : Élément | Action | Observable | Commentaire.
-//   node scripts/make-test-plan.mjs   →   docs/Recette-de-test.docx + .csv
+// programme, version AVR puis RP2040) au format .docx (éditable Word/LibreOffice).
+// 4 colonnes : Élément | Action | Observable | Commentaire. Le .docx est le seul
+// format produit (le .csv, redondant, n'est plus généré).
+//   node scripts/make-test-plan.mjs   →   docs/Recette-de-test.docx
 import JSZip from 'jszip';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -169,14 +170,5 @@ zip.file('word/document.xml', documentXml);
 const docxBuf = await zip.generateAsync({ type: 'nodebuffer', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
 writeFileSync(join(OUT, 'Recette-de-test.docx'), docxBuf);
 
-// --- CSV (tableur) ----------------------------------------------------------
-const csvCell = (s) => `"${String(s).replace(/"/g, '""')}"`;
-const csvLines = [['Élément en test', 'Action à mener', 'Observable pour valider', 'Commentaire'].map(csvCell).join(';')];
-for (const r of ROWS) {
-  if (Array.isArray(r)) csvLines.push(r.map(csvCell).join(';'));
-  else csvLines.push([`== ${r.s} ==`, '', '', ''].map(csvCell).join(';'));
-}
-writeFileSync(join(OUT, 'Recette-de-test.csv'), '﻿' + csvLines.join('\r\n'), 'utf8');
-
 const nRows = ROWS.filter((r) => Array.isArray(r)).length;
-console.log(`OK : docs/Recette-de-test.docx + .csv (${nRows} tests, ${ROWS.length - nRows} sections)`);
+console.log(`OK : docs/Recette-de-test.docx (${nRows} tests, ${ROWS.length - nRows} sections)`);

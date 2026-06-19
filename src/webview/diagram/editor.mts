@@ -247,16 +247,33 @@ export class Editor {
     }
     this.canvas.classList.toggle('canvas--locked', locked);
     this.showLockWarning(locked);
+    // Bulle des boutons : « Ctrl+clic… » en simulation, sinon déplacement.
+    for (const r of this.rendered.values()) {
+      if (partDef(r.part.type).kind !== 'pushbutton') continue;
+      const b = r.container.querySelector('.part__body') as HTMLElement | null;
+      if (b) b.title = this.buttonTitle();
+    }
   }
 
-  /** Bandeau d'avertissement (persistant) signalant le câblage verrouillé en simulation. */
+  /** Bulle d'aide d'un bouton selon l'état : simulation = Ctrl+clic, sinon déplacement. */
+  private buttonTitle(): string {
+    return this.locked
+      ? t('Ctrl+click to lock the unstable state')
+      : t('Right-click drag to move');
+  }
+
+  /**
+   * Bandeau d'avertissement (persistant) signalant le câblage verrouillé pendant
+   * la simulation (AVR comme RP2040). Placé en tête de la bibliothèque (zone non
+   * utilisée pendant la simulation) ; sa largeur est bornée par celle du panneau.
+   */
   private showLockWarning(show: boolean): void {
     if (!this.lockWarning) {
       const w = document.createElement('div');
-      w.className = 'canvas__lock-warning';
+      w.className = 'palette__lock-warning';
       w.textContent = t('⚠ Simulation running: wiring is locked.');
       w.hidden = true;
-      this.canvas.appendChild(w);
+      this.palette.insertBefore(w, this.palette.firstChild);
       this.lockWarning = w;
     }
     this.lockWarning.hidden = !show;
@@ -935,18 +952,16 @@ export class Editor {
       }
     });
     if (def.interactive) {
-      // Bulle d'aide : pour un bouton, on rappelle aussi le Ctrl+clic qui
-      // verrouille l'état enfoncé (transitoire au clic simple) en simulation.
-      body.title =
-        def.kind === 'pushbutton'
-          ? t('Right-click drag to move') + ' — ' + t('In simulation: Ctrl+click keeps it pressed.')
-          : t('Right-click drag to move');
+      // Bulle d'aide. Pour un bouton, le texte dépend de l'état : en simulation,
+      // on rappelle le Ctrl+clic qui verrouille l'état instable ; sinon le
+      // déplacement au clic droit. Mis à jour au verrouillage (setLocked).
+      body.title = def.kind === 'pushbutton' ? this.buttonTitle() : t('Right-click drag to move');
     }
 
     const hotspots = new Map<string, HTMLDivElement>();
     const pins = (el.pinInfo ?? []) as WokwiPin[];
     for (const pin of pins) {
-      const dot = this.makeHotspot(part.id, def.kind, pin);
+      const dot = this.makeHotspot(part.id, part.type, def.kind, pin);
       body.appendChild(dot);
       hotspots.set(pin.name, dot);
     }
@@ -977,9 +992,14 @@ export class Editor {
   }
 
   /** Crée une pastille de broche (point de connexion cliquable). */
-  private makeHotspot(partId: string, kind: string, pin: WokwiPin): HTMLDivElement {
+  private makeHotspot(partId: string, type: string, kind: string, pin: WokwiPin): HTMLDivElement {
     const dot = document.createElement('div');
     dot.className = 'pin';
+    // Pastilles d'alimentation reconnaissables : rouge (VCC) / noir (GND). Le
+    // potentiomètre est exclu : ses extrémités ne sont pas des broches power.
+    const role = kind === 'potentiometer' ? 'other' : pinElectricalRole(type, pin.name);
+    if (role === 'vcc') dot.classList.add('pin--vcc');
+    else if (role === 'gnd') dot.classList.add('pin--gnd');
     dot.style.left = `${pin.x}px`;
     dot.style.top = `${pin.y}px`;
     dot.title = pinDisplayName(kind, pin.name);
@@ -1008,7 +1028,7 @@ export class Editor {
     for (const pin of (r.el.pinInfo ?? []) as WokwiPin[]) {
       let dot = r.hotspots.get(pin.name);
       if (!dot) {
-        dot = this.makeHotspot(r.part.id, kind, pin);
+        dot = this.makeHotspot(r.part.id, r.part.type, kind, pin);
         body.appendChild(dot);
         r.hotspots.set(pin.name, dot);
       } else {
@@ -2385,10 +2405,17 @@ function colorSwatchBackground(value: string): string {
 /**
  * Nom de broche affiché à l'utilisateur. Pour les LED, la cathode (broche 'C'
  * de @wokwi/elements) est montrée « K » selon l'usage électronique (Anode /
- * Katode) ; l'identifiant interne reste 'C' pour la simulation.
+ * Katode). Pour un potentiomètre, les broches @wokwi GND/SIG/VCC ne sont pas de
+ * l'alimentation : les extrémités du rail résistif sont montrées « 1 » et « 2 »,
+ * le curseur « V » (Variable). L'identifiant interne reste inchangé (simulation).
  */
 function pinDisplayName(kind: string, pinName: string): string {
   if (kind === 'led' && pinName === 'C') return 'K';
+  if (kind === 'potentiometer') {
+    if (pinName === 'GND') return '1';
+    if (pinName === 'VCC') return '2';
+    if (pinName === 'SIG') return 'V';
+  }
   return pinName;
 }
 

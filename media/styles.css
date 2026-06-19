@@ -270,25 +270,23 @@ body {
   background: rgba(79, 163, 255, 0.12);
 }
 
-/* Bandeau d'avertissement « câblage verrouillé » (persistant pendant la simulation). */
-.canvas__lock-warning {
-  position: absolute;
-  top: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 7;
-  pointer-events: none;
+/* Bandeau d'avertissement « câblage verrouillé » (persistant pendant la
+   simulation), placé en tête de la bibliothèque : largeur bornée par le panneau. */
+.palette__lock-warning {
+  box-sizing: border-box;
+  width: 100%;
+  margin-bottom: 0.5rem;
   font-size: 0.72rem;
   font-weight: 600;
-  padding: 0.2rem 0.7rem;
+  padding: 0.3rem 0.5rem;
   border-radius: 6px;
   border: 1px solid var(--vscode-inputValidation-warningBorder, #b89500);
   background: var(--vscode-inputValidation-warningBackground, rgba(180, 130, 0, 0.92));
   color: var(--vscode-inputValidation-warningForeground, #1e1e1e);
-  white-space: nowrap;
+  text-align: center;
 }
 
-.canvas__lock-warning[hidden] {
+.palette__lock-warning[hidden] {
   display: none;
 }
 
@@ -811,6 +809,27 @@ body {
 .pin:hover {
   background: #ffd633;
   box-shadow: 0 0 6px 2px rgba(255, 214, 51, 0.7);
+}
+
+/* Pastilles d'alimentation : rouge (VCC/5V/3V3…) et noir (GND), pour les repérer. */
+.pin--vcc {
+  background: rgba(220, 50, 50, 0.75);
+  border-color: rgba(150, 20, 20, 0.95);
+}
+
+.pin--gnd {
+  background: rgba(30, 30, 30, 0.8);
+  border-color: rgba(0, 0, 0, 0.95);
+}
+
+.pin--vcc:hover {
+  background: #e63b3b;
+  box-shadow: 0 0 6px 2px rgba(230, 59, 59, 0.7);
+}
+
+.pin--gnd:hover {
+  background: #444;
+  box-shadow: 0 0 6px 2px rgba(0, 0, 0, 0.6);
 }
 
 /* Platine d'essai : trous au pas de 10 px → pastilles réduites et discrètes */

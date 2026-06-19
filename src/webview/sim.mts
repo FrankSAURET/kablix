@@ -270,14 +270,19 @@ function refreshVisuals(): void {
         break;
       }
       case 'buzzer': {
-        const on = buzzerOn(editor.diagram, part.id, read);
+        // Un buzzer piloté par tone()/PWM voit sa broche osciller vite : tester
+        // le niveau instantané (buzzerOn) couperait le son entre deux frames. On
+        // le considère donc actif si la broche BASCULE (pulseActive) — signal
+        // carré — ou, à défaut, s'il y a une tension continue (buzzer actif).
+        const pin = buzzerTargets.get(part.id);
+        const toggling = pin ? engine.pulseActive?.(pin) ?? false : false;
+        const on = toggling || buzzerOn(editor.diagram, part.id, read);
         if (def.custom) el.active = on;
         else el.hasSignal = on;
         if (on) {
           // Fréquence d'après la largeur de l'impulsion haute (signal carré de
           // tone()/PWM : période = 2 × largeur haute → f = 1e6 / (2 × largeur)).
-          const pin = buzzerTargets.get(part.id);
-          const highUs = pin ? engine.readPulseUs?.(pin) ?? 0 : 0;
+          const highUs = pin && toggling ? engine.readPulseUs?.(pin) ?? 0 : 0;
           buzzerAudio.set(part.id, highUs > 0 ? 1e6 / (2 * highUs) : 0);
         } else {
           buzzerAudio.clear(part.id);
@@ -403,10 +408,14 @@ function bindInputs(): void {
   for (const binding of potBindings(editor.diagram)) {
     const el = editor.elementOf(binding.partId);
     if (!el) continue;
+    // Seul le potentiomètre À GLISSIÈRE avait son sens inversé (curseur vers la
+    // masse → lecture forte) : on l'inverse. Le rotatif reste tel quel.
+    const isSlide = editor.diagram.parts.find((p) => p.id === binding.partId)?.type === 'slide-pot';
     const apply = () => {
       const value = Number(el.value ?? 0);
       const max = Number(el.max ?? 100) || 100;
-      engine?.setAnalog(binding.mcuPin, value / max);
+      const frac = value / max;
+      engine?.setAnalog(binding.mcuPin, isSlide ? 1 - frac : frac);
     };
     apply(); // pousse la position actuelle au démarrage
     el.addEventListener('input', apply);

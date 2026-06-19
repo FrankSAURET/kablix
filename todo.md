@@ -1,14 +1,35 @@
 - ***Note pour plus tard,Revoir svg pico pi et pico pi w***
 - ***Note pour plus tard,fournir megan nano et mini***
+- Dans toutes les diode al cathode c'est K
+- Rajout shéma interne barre de leds
+- L' afficheur 7 seg ne marche pas. Tu lui rajoute une propriété K ou A commune, et un schéma interne qui varie selon le cas
+- reduire la largeur du curseur du potentiometre à glissiere à la largeur du corp
+- Les fils doivent toujours passer par dessus les composants
+- Si on clique sur l'extrémité d'un fil on doit pouvoir le déplacer
+- Composant impossible à modifier dans svg. Par exemple, Le groupe svg136 est impossible à modifier parce qu’il contient un <svg> imbriqué au lieu d’un <g>.
+Un <svg> interne crée un sous‑document indépendant, non éditable comme un groupe.
+- l'import wokwi ne respecte pas le cablage "aucun angle" ou la rotation des boards
+- Récupere les boards qu'on utilise sur wokwi et met les à l'echelle.
+- les menu de la palette d'outils (ctrl + p) doivent apparaitre dans la langue de VScode actuellement en anglais
+- Le dépot d'une carte à microcontroleur sélectionne l'outil de simulation. le menu deroulant de la barre d'outil n'est donc plus nécessaire.
 - Rajouter un bouton autoroutage qui retouche le dessin  pour n'avoir que des fils horizontaux et verticaux sue la selection. Si rien de sélectionné sur tout le dessin.
 - Lors de déplacement de la sélection les coudes ne sont pas déplacés avec le reste de la sélection. Les coudes ne sont pas sélectionnable du tout.
-- Dans le svg la position des composants est vérouillé (on  peut les supprimern changer l'odre mais pas les déplacer)
 - Dans la fonction créer un composant, la fenetre apperçu doit être zoomable. Les coordonées de chaque pin editable directement
 - Le point de connexion avec les fils doit être le centre de la broche par exemple pour une broche qui ferait 2 de large le point de connexion doit être à 1 de 3 cotés. Si c'est un cercle oi un carré le centre. (à revérifier : la pastille est déjà centrée sur pin.x/pin.y — fournir un cas concret décalé)
 - Si dans la selection on a une pico pi. Le déplacement vertical est conforme mais en horizontal elle la pico pi ne suit pas le mouvement
 - Aucune variable lisible ici ~~(en C : variables globales seulement)~~. Supprimer le texte barré pour la partie pico. Le mettre systématiquement en haut des variable (affichage permanent) pour le C. Un clic sur ce tecte ou une bulle d'aide explique comment créer des variables globales.
 - Ajouter les point d'arrêt conditionnels à la simulation arduino
 - Rajouter un onglet console de sortie la ou est le moniteur série avec un onglet pour afficher le résulats de la compilation.
+# v2026.6.28
+1. ✅ **Buzzer : son réel (corrigé)** : le buzzer affichait la note animée mais restait muet — le son était piloté sur le **niveau instantané** de la broche, or un `tone()`/PWM oscille trop vite (l'échantillonnage par frame coupait le son en continu). Désormais le buzzer est considéré actif si la broche **bascule** (nouvelle détection `pulseActive` dans les moteurs AVR/RP2040, fenêtre 60 ms) — signal carré — ou, à défaut, s'il y a une tension continue. La fréquence reste mesurée sur la largeur d'impulsion. Son stable tant que `tone()` joue, coupé à `noTone()`.
+2. ✅ **Pastilles d'alimentation colorées** : les broches VCC/5V/3V3… s'affichent en **rouge**, GND en **noir** (classes `pin--vcc`/`pin--gnd`), sur tous les composants — repère visuel de l'alimentation.
+3. ✅ **Potentiomètre : broches 1 / 2 / V** : les extrémités du rail résistif ne sont plus étiquetées VCC/GND (trompeur) mais **1** et **2**, le curseur **V** (Variable) ; elles ne sont plus colorées comme des broches d'alimentation. Identifiants internes inchangés (simulation).
+4. ✅ **Potentiomètre à glissière : sens corrigé** : son sens était inversé (curseur vers la masse → lecture forte). Inversion appliquée **uniquement au modèle à glissière** (le rotatif est conservé tel quel).
+5. ✅ **Bulle d'aide du bouton** : pendant la simulation, l'info-bulle d'un bouton devient « **Ctrl+clic pour verrouiller l'état instable** » (hors simulation : déplacement au clic droit). Mise à jour dynamique au verrouillage.
+6. ✅ **Avertissement de verrouillage déplacé** : le bandeau « ⚠ Simulation en cours : le câblage est verrouillé » est désormais affiché **en tête de la bibliothèque** (zone inutilisée pendant la simulation), largeur bornée par le panneau, pour l'AVR comme pour le RP2040.
+7. ✅ **Export Wokwi : noms de cartes corrigés** : la carte Pico/Pico W est exportée sous le nom Wokwi **actuel** `board-pi-pico` / `board-pi-pico-w` (anciennement `wokwi-pi-pico…`) ; l'import accepte les deux (rétrocompatibilité). Tests `verify:wokwi` étendus.
+8. ✅ **Recette de test : un seul format** : le `.csv` (redondant) n'est plus généré (ni versionné) ; seule la **recette `.docx`** est maintenue. Nouveaux tests (pastilles power, potentiomètre, noms Wokwi) ajoutés en vert dans leur rubrique.
+9. ℹ️ **Palette de commandes (langue)** : la localisation manifeste est correcte (clés `package.nls` EN/FR sans BOM, empaquetées) → les commandes suivent la langue de VS Code. Si elles restent en anglais, c'est que la langue d'affichage de VS Code est l'anglais (à confirmer). Aucun changement de code.
 # v2026.6.27
 1. ✅ **Import/export Wokwi revu** : le **retournement** (flipH/flipV) et les **coudes des fils** étaient perdus à l'aller-retour `diagram.json`. Ils sont désormais conservés dans un bloc d'extension `kablix` (clé de premier niveau **ignorée par Wokwi**) : les `parts`/`connections` restent strictement au format Wokwi (donc ouvrables dans Wokwi), et un aller-retour **Kablix → diagram.json → Kablix** restitue flip et coudes à l'identique. `toWokwiDiagram`/`fromWokwiDiagram` réécrits (extension `KablixExtension`, coudes indexés sur la position de la connexion). Tests `verify:wokwi` étendus (flip + coudes aller-retour). Limite restante : composants personnalisés (`kablix-custom-part`) et types Wokwi inconnus toujours ignorés (comptés dans la barre d'état). Docs FR mises à jour.
 # v2026.6.26

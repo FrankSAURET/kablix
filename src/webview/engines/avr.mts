@@ -128,7 +128,7 @@ export class AvrEngine implements SimEngine {
 
   // Mesure de largeur d'impulsion (servo) : broches surveillées + état d'arête.
   private pulsePins: Array<{ name: string; port: PortKey; bit: number }> = [];
-  private pulseState = new Map<string, { high: boolean; rise: number; lastUs: number }>();
+  private pulseState = new Map<string, { high: boolean; rise: number; lastUs: number; lastEdge: number }>();
 
   // Capteurs ultrason + actions d'entrée programmées en temps simulé (génération ECHO).
   private ultrasonic: UltrasonicSensor[] = [];
@@ -214,12 +214,19 @@ export class AvrEngine implements SimEngine {
       const m = this.pinMap[name];
       if (!m) continue;
       this.pulsePins.push({ name, port: m[0], bit: m[1] });
-      if (!this.pulseState.has(name)) this.pulseState.set(name, { high: false, rise: 0, lastUs: 0 });
+      if (!this.pulseState.has(name)) this.pulseState.set(name, { high: false, rise: 0, lastUs: 0, lastEdge: 0 });
     }
   }
 
   readPulseUs(name: string): number {
     return this.pulseState.get(name)?.lastUs ?? 0;
+  }
+
+  /** Vrai si la broche a basculé récemment (< 60 ms simulées) = signal carré actif (tone/PWM). */
+  pulseActive(name: string): boolean {
+    const st = this.pulseState.get(name);
+    if (!st) return false;
+    return this.cpu.cycles - st.lastEdge < 60_000 * CYCLES_PER_US;
   }
 
   /** Relie des esclaves I²C au bus : le maître TWI route vers eux par adresse. */
@@ -311,7 +318,7 @@ export class AvrEngine implements SimEngine {
         this.pulsePins.push({ name: s.trig, port: m[0], bit: m[1] });
       }
       if (!this.pulseState.has(s.trig)) {
-        this.pulseState.set(s.trig, { high: false, rise: 0, lastUs: 0 });
+        this.pulseState.set(s.trig, { high: false, rise: 0, lastUs: 0, lastEdge: 0 });
       }
     }
   }
@@ -327,8 +334,10 @@ export class AvrEngine implements SimEngine {
       if (high && !st.high) {
         st.high = true;
         st.rise = now;
+        st.lastEdge = now; // front montant : la broche bascule (activité)
       } else if (!high && st.high) {
         st.high = false;
+        st.lastEdge = now; // front descendant
         const widthUs = (now - st.rise) / CYCLES_PER_US;
         st.lastUs = widthUs; // dernière largeur d'impulsion haute (servo, fréquence buzzer)
         this.maybeFireEcho(pp.name, widthUs); // une impulsion TRIG déclenche ECHO

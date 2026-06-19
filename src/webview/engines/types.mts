@@ -90,6 +90,8 @@ export interface SimEngine {
   setPulseMonitors?(names: string[]): void;
   /** Largeur de la dernière impulsion haute mesurée sur une broche, en µs (0 si inconnue). */
   readPulseUs?(name: string): number;
+  /** Vrai si la broche bascule actuellement (signal carré actif : tone()/PWM) — pour le son du buzzer. */
+  pulseActive?(name: string): boolean;
   /**
    * Déclare les capteurs ultrason : à chaque impulsion TRIG détectée, le moteur
    * génère sur ECHO une impulsion de largeur = distance × 58 µs (en temps simulé).

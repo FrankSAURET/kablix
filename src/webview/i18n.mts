@@ -173,6 +173,7 @@ const FR: Record<string, string> = {
 
   // Aide
   'In simulation: Ctrl+click keeps it pressed.': 'En simulation : Ctrl+clic le maintient enfoncé.',
+  'Ctrl+click to lock the unstable state': 'Ctrl+clic pour verrouiller l’état instable',
   'No readable variable here (C: global variables only).':
     'Aucune variable lisible ici (en C : variables globales seulement).',
 };

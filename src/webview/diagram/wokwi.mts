@@ -60,11 +60,20 @@ export interface WokwiDiagram {
 
 // Types Kablix dont le tag ne suffit pas (composants maison ↔ éléments Wokwi).
 // Pico / Pico W utilisent le dessin maison <kablix-pico-board> : on les mappe
-// explicitement vers leurs types Wokwi pour l'import/export du diagram.json.
+// explicitement vers leurs types Wokwi. Wokwi a renommé ces cartes en
+// « board-pi-pico » / « board-pi-pico-w » (anciennement « wokwi-pi-pico… ») :
+// on EXPORTE le nom actuel et on IMPORTE les deux (rétrocompatibilité).
 const KABLIX_TO_WOKWI: Record<string, string> = {
-  pico: 'wokwi-pi-pico',
-  picow: 'wokwi-pi-pico-w',
+  pico: 'board-pi-pico',
+  picow: 'board-pi-pico-w',
   breadboard: 'wokwi-breadboard',
+};
+
+/** Anciens noms Wokwi acceptés à l'import (→ type Kablix). */
+const WOKWI_ALIASES: Record<string, string> = {
+  'wokwi-pi-pico': 'pico',
+  'wokwi-pi-pico-w': 'picow',
+  'wokwi-pico': 'pico',
 };
 
 function wokwiTypeOf(def: PartDef): string {
@@ -76,6 +85,7 @@ function kablixTypeOf(wokwiType: string): string | null {
   for (const [k, w] of Object.entries(KABLIX_TO_WOKWI)) {
     if (w === wokwiType) return k;
   }
+  if (WOKWI_ALIASES[wokwiType]) return WOKWI_ALIASES[wokwiType];
   const def = CATALOG.find((d) => d.tag === wokwiType);
   return def ? def.type : null;
 }

@@ -86,7 +86,7 @@ export class PicoEngine implements SimEngine {
   private breakpoints: Breakpoint[] = [];
   // Mesure de largeur d'impulsion (servo) : broches GPIO surveillées + état d'arête.
   private pulsePins: Array<{ name: string; index: number }> = [];
-  private pulseState = new Map<string, { high: boolean; rise: number; lastUs: number }>();
+  private pulseState = new Map<string, { high: boolean; rise: number; lastUs: number; lastEdge: number }>();
   // Chaînes NeoPixel : décodeur WS2812 par broche DIN.
   private neopixels: Array<{ name: string; index: number; dec: Ws2812Decoder; last: boolean }> = [];
 
@@ -191,7 +191,7 @@ export class PicoEngine implements SimEngine {
       const i = gpioIndex(name);
       if (i === null) continue;
       this.pulsePins.push({ name, index: i });
-      if (!this.pulseState.has(name)) this.pulseState.set(name, { high: false, rise: 0, lastUs: 0 });
+      if (!this.pulseState.has(name)) this.pulseState.set(name, { high: false, rise: 0, lastUs: 0, lastEdge: 0 });
     }
   }
 
@@ -242,6 +242,14 @@ export class PicoEngine implements SimEngine {
     return this.pulseState.get(name)?.lastUs ?? 0;
   }
 
+  /** Vrai si la broche a basculé récemment (< 60 ms simulées) = signal carré actif (tone/PWM). */
+  pulseActive(name: string): boolean {
+    const st = this.pulseState.get(name);
+    if (!st) return false;
+    const cyclesPerUs = (this.mcu.clkSys || 125_000_000) / 1_000_000;
+    return this.mcu.core.cycles - st.lastEdge < 60_000 * cyclesPerUs;
+  }
+
   /** Mesure la durée de l'état haut sur les broches surveillées (servo). */
   private samplePulses(): void {
     if (this.pulsePins.length === 0) return;
@@ -254,8 +262,10 @@ export class PicoEngine implements SimEngine {
       if (high && !st.high) {
         st.high = true;
         st.rise = now;
+        st.lastEdge = now; // front montant : activité
       } else if (!high && st.high) {
         st.high = false;
+        st.lastEdge = now; // front descendant
         st.lastUs = (now - st.rise) / cyclesPerUs;
       }
     }
