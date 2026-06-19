@@ -77,6 +77,7 @@ MicroPython de bout en bout) est couvert par des tests automatisés.
 > sources de composants existants.
 >
 > 🌍 **Interface bilingue** : français si VS Code est en français, anglais sinon.
+> Le mécanisme est extensible à d'autres langues — voir [Internationalisation](#internationalisation).
 
 ## Utilisation
 
@@ -137,6 +138,8 @@ Dans VS Code, **F5** (« Lancer l'extension ») ouvre une fenêtre de développe
 | --- | --- |
 | `src/extension.ts` | Point d'entrée : commandes |
 | `src/panel.ts` | Panneau webview (HTML, CSP, messagerie, artefacts workspace) |
+| `src/help.ts` | Page d'aide locale (hors-ligne) — registre de langues (cf. *Internationalisation*) |
+| `src/webview/i18n.mts` | Traduction des chaînes de la webview (dictionnaire clé → traduction) |
 | `src/compiler.ts` | Toolchains + compilation + chargement d'artefacts (hôte) |
 | `src/shared/uf2.ts` | Parseur UF2 (blocs → segments flash) |
 | `src/shared/elf.ts` | Parseur ELF32 minimal (PT_LOAD) |
@@ -151,6 +154,36 @@ Dans VS Code, **F5** (« Lancer l'extension ») ouvre une fenêtre de développe
 | `src/webview/programs/*.mjs` | Firmwares de démo compilés (générés) |
 | `firmware/` | Sources C des démos + linker RP2040 |
 | `scripts/verify-*.mjs` | Tests automatisés (moteurs, netlist, parseurs, compilation, MicroPython) |
+
+## Internationalisation
+
+L'interface suit la langue de VS Code (`vscode.env.language`) : **français si elle
+commence par `fr`, anglais sinon** (langue de repli). La traduction repose sur deux
+registres indépendants, parce qu'ils traduisent des choses de nature différente :
+
+| Quoi | Fichier | Forme |
+| --- | --- | --- |
+| Chaînes de la webview (barre d'outils, palette, inspecteur, catalogue…) | `src/webview/i18n.mts` | dictionnaire **clé (anglais) → traduction** (`DICTS`) ; `t()` retombe sur la clé anglaise si absente |
+| Page d'aide (`kablix.openHelp`) | `src/help.ts` | registre de **documents HTML complets** par langue (`HELP_LOCALES`) ; repli sur l'anglais |
+
+Les deux utilisent la même résolution : le **code base** de la langue (`fr-FR` → `fr`)
+sélectionne l'entrée correspondante, et l'anglais sert de repli quand elle est absente.
+
+### Ajouter une langue (ex. allemand, `de`)
+
+À faire aux **deux** registres — une langue déclarée à un seul endroit ne sera traduite
+qu'à moitié :
+
+1. **Webview** — dans [`src/webview/i18n.mts`](src/webview/i18n.mts) : créer le
+   dictionnaire `const DE = { … }` (mêmes clés anglaises que `FR`) puis l'ajouter à
+   `DICTS` → `{ fr: FR, de: DE }`. Les clés non traduites retombent automatiquement
+   sur l'anglais.
+2. **Aide** — dans [`src/help.ts`](src/help.ts) : écrire `bodyDe()` (copie traduite de
+   `bodyFr`/`bodyEn`), ajouter l'URL de doc `DOC_URL_DE`, puis une entrée à
+   `HELP_LOCALES` → `de: { lang: 'de', title: 'Kablix — Hilfe', docUrl: DOC_URL_DE, body: bodyDe }`.
+
+Aucune autre modification de logique n'est nécessaire : la sélection et le repli sont
+gérés par `initLocale()` (webview) et `resolveLocale()` (aide).
 
 ## Crédits
 

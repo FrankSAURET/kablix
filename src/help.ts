@@ -5,9 +5,32 @@ const REPO_URL = 'https://github.com/FrankSAURET/kablix';
 const DOC_URL = 'https://github.com/FrankSAURET/kablix/blob/main/docs/UTILISATION.md';
 const DOC_URL_EN = 'https://github.com/FrankSAURET/kablix/blob/main/docs/USAGE.en.md';
 
-/** Vrai si VS Code tourne en français (sinon l'aide s'affiche en anglais). */
-function isFrench(): boolean {
-  return (vscode.env.language ?? 'en').toLowerCase().startsWith('fr');
+/** Document HTML complet de l'aide pour une langue donnée. */
+interface HelpLocale {
+  /** Code de langue (attribut `<html lang>`). */
+  lang: string;
+  /** Titre de l'onglet. */
+  title: string;
+  /** URL de la documentation en ligne correspondante. */
+  docUrl: string;
+  /** Corps HTML de la page (paresseux : construit à l'ouverture). */
+  body: () => string;
+}
+
+/**
+ * Registre des aides par langue, indexé sur le **code base** (« fr-FR » → « fr »).
+ * L'anglais est la langue de repli. Ajouter une langue = une entrée ici (et son
+ * `bodyXx`) — cf. README, section « Internationalisation ».
+ */
+const HELP_LOCALES: Record<string, HelpLocale> = {
+  fr: { lang: 'fr', title: 'Kablix — Aide', docUrl: DOC_URL, body: bodyFr },
+  en: { lang: 'en', title: 'Kablix — Help', docUrl: DOC_URL_EN, body: bodyEn },
+};
+
+/** Aide correspondant à la langue de VS Code (repli sur l'anglais si absente). */
+function resolveLocale(): HelpLocale {
+  const base = (vscode.env.language ?? 'en').toLowerCase().split(/[-_]/)[0];
+  return HELP_LOCALES[base] ?? HELP_LOCALES.en;
 }
 
 /**
@@ -34,7 +57,7 @@ export class HelpPanel {
 
     const panel = vscode.window.createWebviewPanel(
       HelpPanel.viewType,
-      isFrench() ? 'Kablix — Aide' : 'Kablix — Help',
+      resolveLocale().title,
       column ?? vscode.ViewColumn.One,
       { enableScripts: false }
     );
@@ -74,10 +97,9 @@ function getHtml(webview: vscode.Webview): string {
     `img-src ${webview.cspSource} https: data:`,
   ].join('; ');
 
-  const fr = isFrench();
-  const lang = fr ? 'fr' : 'en';
-  const title = fr ? 'Kablix — Aide' : 'Kablix — Help';
-  const body = fr ? bodyFr() : bodyEn();
+  const locale = resolveLocale();
+  const { lang, title } = locale;
+  const body = locale.body();
 
   return /* html */ `<!DOCTYPE html>
 <html lang="${lang}">
