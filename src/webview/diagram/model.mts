@@ -191,9 +191,12 @@ export function buzzerOn(
 }
 
 /**
- * Segments allumés d'un afficheur 7 segments (1 chiffre, cathode commune
- * DIG1) : ordre A,B,C,D,E,F,G,DP — compatible avec la propriété `values`
- * de wokwi-7segment.
+ * Segments allumés d'un afficheur 7 segments (1 chiffre) : ordre A,B,C,D,E,F,G,DP
+ * — compatible avec la propriété `values` de wokwi-7segment. Le commun est la
+ * broche COM.1/COM.2 de l'élément Wokwi (le modèle 1 chiffre n'a pas de DIG1).
+ * Selon l'attribut `common` (cathode par défaut, ou anode) la logique s'inverse :
+ *  - cathode commune : segment allumé si sa broche est HAUTE et le commun BAS ;
+ *  - anode commune   : segment allumé si sa broche est BASSE et le commun HAUT.
  */
 export function sevenSegmentState(
   diagram: Diagram,
@@ -203,10 +206,12 @@ export function sevenSegmentState(
   const nets = buildNets(diagram);
   const level = (pin: string): Level =>
     netLevel(diagram, nets, nets.netOf({ partId, pin }), readPin);
-  const common = level('DIG1');
-  return ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'DP'].map(
-    (seg) => (level(seg) === 1 && common === 0 ? 1 : 0)
-  );
+  const common = level('COM.1') ?? level('COM.2') ?? level('COM') ?? level('DIG1');
+  const commonAnode = diagram.parts.find((p) => p.id === partId)?.attrs?.common === 'anode';
+  return ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'DP'].map((seg) => {
+    const s = level(seg);
+    return commonAnode ? (s === 0 && common === 1 ? 1 : 0) : (s === 1 && common === 0 ? 1 : 0);
+  });
 }
 
 /** LED allumées d'une barre de 10 LED (anodes A1..A10, cathodes C1..C10). */
@@ -515,11 +520,19 @@ export interface PotBinding {
   partId: string;
   /** Broche analogique du MCU reliée au curseur (SIG) du potentiomètre. */
   mcuPin: string;
+  /**
+   * Câblage inversé : l'extrémité « haute » (VCC) du rail est reliée à la masse
+   * et l'extrémité « basse » (GND) à l'alimentation → la lecture varie en sens
+   * inverse de la position du curseur.
+   */
+  inverted: boolean;
 }
 
 /**
  * Repère les potentiomètres dont le curseur (SIG) est relié à une broche
- * d'entrée analogique du MCU (A0–A5 sur Uno, GP26–GP28 sur Pico).
+ * d'entrée analogique du MCU (A0–A5 sur Uno, GP26–GP28 sur Pico). Détecte aussi
+ * le câblage inversé (VCC↔GND permutés sur les extrémités du rail) pour pouvoir
+ * inverser la lecture en simulation.
  */
 export function potBindings(diagram: Diagram): PotBinding[] {
   const nets = buildNets(diagram);
@@ -528,7 +541,13 @@ export function potBindings(diagram: Diagram): PotBinding[] {
     if (partDef(part.type).kind !== 'potentiometer') continue;
     const sigNet = nets.netOf({ partId: part.id, pin: rolePin(part.type, 'SIG') });
     const mcuPin = mcuAnalogOnNet(diagram, nets, sigNet);
-    if (mcuPin) bindings.push({ partId: part.id, mcuPin });
+    if (!mcuPin) continue;
+    // Les extrémités du rail @wokwi sont nommées VCC (côté haut) et GND (côté bas).
+    const vccNet = nets.netOf({ partId: part.id, pin: rolePin(part.type, 'VCC') });
+    const gndNet = nets.netOf({ partId: part.id, pin: rolePin(part.type, 'GND') });
+    const normal = netHasVcc(diagram, nets, vccNet) && netHasGnd(diagram, nets, gndNet);
+    const inverted = netHasGnd(diagram, nets, vccNet) && netHasVcc(diagram, nets, gndNet);
+    bindings.push({ partId: part.id, mcuPin, inverted: inverted && !normal });
   }
   return bindings;
 }
@@ -561,6 +580,16 @@ function netHasGnd(diagram: Diagram, nets: Nets, netId: string): boolean {
     for (const pin of mcuPins(board)) {
       if (nets.netOf({ partId: part.id, pin }) !== netId) continue;
       if (mcuPinRole(board, pin).role === 'gnd') return true;
+    }
+  }
+  return false;
+}
+
+function netHasVcc(diagram: Diagram, nets: Nets, netId: string): boolean {
+  for (const { part, board } of mcuParts(diagram)) {
+    for (const pin of mcuPins(board)) {
+      if (nets.netOf({ partId: part.id, pin }) !== netId) continue;
+      if (mcuPinRole(board, pin).role === 'vcc') return true;
     }
   }
   return false;

@@ -172,8 +172,14 @@ export const CATALOG: readonly PartDef[] = [
   },
   {
     type: '7seg', label: '7-segment display', tag: 'wokwi-7segment', kind: '7segment',
-    attrs: { color: 'red' },
-    props: [{ attr: 'color', label: 'Color', kind: 'select', options: ['red', 'green', 'blue', 'yellow', 'white'] }],
+    attrs: { color: 'red', common: 'cathode' },
+    props: [
+      { attr: 'color', label: 'Color', kind: 'select', options: ['red', 'green', 'blue', 'yellow', 'white'] },
+      {
+        attr: 'common', label: 'Common pin', kind: 'select', options: ['cathode', 'anode'],
+        optionLabels: { cathode: 'Common cathode (K)', anode: 'Common anode (A)' },
+      },
+    ],
   },
   {
     type: 'led-bar', label: 'LED bar graph', tag: 'wokwi-led-bar-graph', kind: 'led-bar',

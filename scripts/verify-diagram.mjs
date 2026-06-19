@@ -167,6 +167,56 @@ console.log('Nouveaux composants (netlist) :');
   check('servo : PWM→D9', srv.length === 1 && srv[0].mcuPin === '9');
 }
 
+// Potentiomètre : détection du câblage inversé (VCC↔GND permutés).
+console.log('Potentiomètre (inversion) + 7 segments (cathode/anode commune) :');
+{
+  const potParts = [
+    { id: 'uno', type: 'uno', x: 0, y: 0 },
+    { id: 'pot', type: 'pot', x: 0, y: 0 },
+  ];
+  const normalPot = {
+    parts: potParts,
+    wires: [
+      { id: 'p1', a: { partId: 'pot', pin: 'SIG' }, b: { partId: 'uno', pin: 'A0' } },
+      { id: 'p2', a: { partId: 'pot', pin: 'VCC' }, b: { partId: 'uno', pin: '5V' } },
+      { id: 'p3', a: { partId: 'pot', pin: 'GND' }, b: { partId: 'uno', pin: 'GND.1' } },
+    ],
+  };
+  const swappedPot = {
+    parts: potParts,
+    wires: [
+      { id: 'p1', a: { partId: 'pot', pin: 'SIG' }, b: { partId: 'uno', pin: 'A0' } },
+      { id: 'p2', a: { partId: 'pot', pin: 'VCC' }, b: { partId: 'uno', pin: 'GND.1' } },
+      { id: 'p3', a: { partId: 'pot', pin: 'GND' }, b: { partId: 'uno', pin: '5V' } },
+    ],
+  };
+  const bn = potBindings(normalPot);
+  check('pot normal : lié à A0, non inversé', bn.length === 1 && bn[0].mcuPin === 'A0' && bn[0].inverted === false);
+  const bi = potBindings(swappedPot);
+  check('pot VCC/GND permutés : inversé', bi.length === 1 && bi[0].inverted === true);
+
+  const segCathode = {
+    parts: [{ id: 'uno', type: 'uno', x: 0, y: 0 }, { id: 'seg', type: '7seg', x: 0, y: 0, attrs: { common: 'cathode' } }],
+    wires: [
+      { id: 's1', a: { partId: 'uno', pin: '3' }, b: { partId: 'seg', pin: 'A' } },
+      { id: 's2', a: { partId: 'seg', pin: 'COM.1' }, b: { partId: 'uno', pin: 'GND.1' } },
+    ],
+  };
+  const sc = sevenSegmentState(segCathode, 'seg', (n) => n === '3');
+  check('7 seg cathode commune (COM.1) : A allumé seul', sc[0] === 1 && sc.slice(1).every((v) => v === 0));
+
+  const segAnode = {
+    parts: [{ id: 'uno', type: 'uno', x: 0, y: 0 }, { id: 'seg', type: '7seg', x: 0, y: 0, attrs: { common: 'anode' } }],
+    wires: [
+      { id: 's1', a: { partId: 'uno', pin: '3' }, b: { partId: 'seg', pin: 'A' } },
+      { id: 's2', a: { partId: 'seg', pin: 'COM.1' }, b: { partId: 'uno', pin: '5V' } },
+    ],
+  };
+  // Anode commune : COM haut + segment A bas (broche 3 LOW) → A allumé.
+  const sa = sevenSegmentState(segAnode, 'seg', () => false);
+  check('7 seg anode commune : A allumé si broche basse', sa[0] === 1);
+}
+
 // Platine d'essai : LED enfichée sur les colonnes 4 et 5 (bande a–e), pilotée
 // par D10 via la colonne 4 ; cathode vers GND via la colonne 5. Le rail − du
 // bas relie GND au bouton.

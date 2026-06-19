@@ -14,6 +14,8 @@ export class PartCreator {
   private overlay: HTMLDivElement | null = null;
   private pins: CustomPin[] = [];
   private existing: CustomPartData | null = null;
+  /** Facteur de zoom de l'aperçu (les broches restent en coordonnées réelles). */
+  private zoom = 1;
 
   constructor(private readonly onSave: (data: CustomPartData) => void) {}
 
@@ -22,6 +24,7 @@ export class PartCreator {
     this.close();
     this.existing = existing ?? null;
     this.pins = existing ? existing.pins.map((p) => ({ ...p })) : [];
+    this.zoom = 1;
 
     const overlay = document.createElement('div');
     overlay.className = 'creator__overlay';
@@ -43,7 +46,14 @@ export class PartCreator {
           <p class="inspector__hint">${t('Click the preview to add a connection point.')}</p>
         </div>
         <div class="creator__side">
-          <label class="inspector__label">${t('Preview')}</label>
+          <div class="creator__preview-head">
+            <label class="inspector__label">${t('Preview')}</label>
+            <div class="creator__zoom">
+              <button type="button" id="cr-zoom-out" title="${t('Zoom out')}">−</button>
+              <span id="cr-zoom-label">100 %</span>
+              <button type="button" id="cr-zoom-in" title="${t('Zoom in')}">+</button>
+            </div>
+          </div>
           <div id="cr-preview" class="creator__preview"></div>
           <label class="inspector__label">${t('Connection points')}</label>
           <div id="cr-pins" class="creator__pins"></div>
@@ -81,14 +91,24 @@ export class PartCreator {
     svgArea.addEventListener('input', () => this.renderPreview(preview, svgArea.value));
     kindSelect.addEventListener('change', () => this.renderRoles(modal, kindSelect.value as PartKind));
 
-    // Clic sur l'aperçu : pose un point de connexion à cet endroit.
+    // Clic sur l'aperçu : pose un point de connexion à cet endroit (coordonnées
+    // réelles = position écran ramenée par le facteur de zoom).
     preview.addEventListener('pointerdown', (e) => {
+      if ((e.target as HTMLElement).closest('.pin')) return; // clic sur une pastille existante
       const rect = preview.getBoundingClientRect();
-      const x = Math.round(e.clientX - rect.left);
-      const y = Math.round(e.clientY - rect.top);
+      const x = Math.round((e.clientX - rect.left) / this.zoom);
+      const y = Math.round((e.clientY - rect.top) / this.zoom);
       this.pins.push({ name: `pin${this.pins.length + 1}`, x, y });
       refresh();
     });
+
+    const applyZoom = (factor: number) => {
+      this.zoom = Math.min(6, Math.max(0.25, this.zoom * factor));
+      (modal.querySelector('#cr-zoom-label') as HTMLElement).textContent = `${Math.round(this.zoom * 100)} %`;
+      this.renderPreview(preview, svgArea.value);
+    };
+    (modal.querySelector('#cr-zoom-in') as HTMLButtonElement).addEventListener('click', () => applyZoom(1.25));
+    (modal.querySelector('#cr-zoom-out') as HTMLButtonElement).addEventListener('click', () => applyZoom(1 / 1.25));
 
     (modal.querySelector('#cr-cancel') as HTMLButtonElement).addEventListener('click', () => this.close());
     (modal.querySelector('#cr-save') as HTMLButtonElement).addEventListener('click', () => {
@@ -127,16 +147,22 @@ export class PartCreator {
   }
 
   private renderPreview(preview: HTMLDivElement, svg: string): void {
-    preview.innerHTML = svg;
-    // Pastilles des broches déjà posées.
+    // Conteneur interne mis à l'échelle (zoom) : le SVG et les pastilles vivent
+    // en coordonnées réelles, le zoom n'est qu'un transform d'affichage.
+    const inner = document.createElement('div');
+    inner.className = 'creator__preview-inner';
+    inner.style.transform = `scale(${this.zoom})`;
+    inner.style.transformOrigin = 'top left';
+    inner.innerHTML = svg;
     for (const pin of this.pins) {
       const dot = document.createElement('div');
       dot.className = 'pin';
       dot.style.left = `${pin.x}px`;
       dot.style.top = `${pin.y}px`;
       dot.title = pin.name;
-      preview.appendChild(dot);
+      inner.appendChild(dot);
     }
+    preview.replaceChildren(inner);
   }
 
   private renderPinsTable(modal: HTMLDivElement): void {
@@ -152,9 +178,28 @@ export class PartCreator {
         pin.name = name.value.trim() || pin.name;
         this.renderRoles(modal, (modal.querySelector('#cr-kind') as HTMLSelectElement).value as PartKind);
       });
+      // Coordonnées éditables directement (en plus du clic sur l'aperçu).
       const coords = document.createElement('span');
-      coords.className = 'inspector__hint';
-      coords.textContent = `(${pin.x}, ${pin.y})`;
+      coords.className = 'creator__pincoords';
+      const mkCoord = (axis: 'x' | 'y'): HTMLInputElement => {
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.className = 'inspector__control creator__coord';
+        input.value = String(pin[axis]);
+        input.title = axis.toUpperCase();
+        input.addEventListener('input', () => {
+          const v = Math.round(Number(input.value));
+          if (Number.isFinite(v)) {
+            pin[axis] = v;
+            this.renderPreview(
+              modal.querySelector('#cr-preview') as HTMLDivElement,
+              (modal.querySelector('#cr-svg') as HTMLTextAreaElement).value
+            );
+          }
+        });
+        return input;
+      };
+      coords.append(mkCoord('x'), mkCoord('y'));
       const del = document.createElement('button');
       del.textContent = '✕';
       del.title = t('Delete this point');

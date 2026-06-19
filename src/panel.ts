@@ -843,7 +843,10 @@ export class SimulatorPanel {
 <body>
   <header class="toolbar">
     <strong class="brand">Kablix</strong>
-    <select id="board" title="${l10n.t('Simulated board')}">
+    <!-- Sélecteur de carte masqué : la carte de simulation est désormais choisie
+         en déposant un microcontrôleur sur le canvas. Conservé (caché) pour la
+         logique interne (valeur de la carte courante). -->
+    <select id="board" hidden title="${l10n.t('Simulated board')}">
       <optgroup label="Arduino (AVR)">
         <option value="uno" selected>Arduino Uno</option>
         <option value="nano">Arduino Nano</option>
@@ -885,6 +888,7 @@ export class SimulatorPanel {
         <!-- Barre droite : recentrer/ajuster, réinitialiser, effacer (alignée et de
              même hauteur que la barre de simulation à gauche). -->
         <div class="canvas-controls canvas-controls--right" role="toolbar">
+          <button id="auto-route" class="canvas-controls__btn" title="${l10n.t('Auto-route the wires (right angles) — selection, or whole diagram')}">∟</button>
           <button id="fit-view" class="canvas-controls__btn" title="${l10n.t('Recenter and fit the view')}">⤢</button>
           <button id="reset-sim" class="canvas-controls__btn" title="${l10n.t('Reset all components to their initial state')}">⟲</button>
           <button id="clear-canvas" class="canvas-controls__btn canvas-controls__btn--eraser" title="${l10n.t('Clear the diagram (Ctrl+Z to undo)')}"><img class="canvas__clear-icon" src="${gommeUri}" alt="${l10n.t('Clear')}" /></button>

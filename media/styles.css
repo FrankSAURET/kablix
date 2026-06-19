@@ -447,8 +447,10 @@ body {
      (frères du SVG) restaient visibles. Le rognage réel reste fait par le canvas. */
   overflow: visible;
   pointer-events: none;
-  /* Les fils passent au-dessus des cartes/platines (z=1) mais sous les autres composants (z=3) */
-  z-index: 2;
+  /* Les fils passent TOUJOURS au-dessus des composants (z=3) et de leur câblage
+     interne (z=4). Le SVG reste pointer-events:none (seuls les tracés .wire
+     captent le clic) → les pastilles de broche dessous restent cliquables. */
+  z-index: 5;
 }
 
 .wire {
@@ -495,7 +497,8 @@ body {
   background: transparent;
   border: none;
   cursor: grab;
-  z-index: 5;
+  /* Au-dessus des fils (z=5) pour rester saisissable. */
+  z-index: 8;
 }
 
 .wire-handle::before,
@@ -529,6 +532,25 @@ body {
 .wire-handle--active::after {
   background: var(--vscode-focusBorder, #4fa3ff);
   box-shadow: 0 0 3px 1px rgba(0, 0, 0, 0.9);
+}
+
+/* Poignée d'extrémité d'un fil : losange blanc cerclé, glissable sur une broche. */
+.wire-endpoint {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  background: #ffffff;
+  border: 2px solid var(--vscode-focusBorder, #4fa3ff);
+  border-radius: 2px;
+  transform: rotate(45deg);
+  box-shadow: 0 0 2px 1px rgba(0, 0, 0, 0.7);
+  cursor: grab;
+  z-index: 8;
+}
+
+.wire-endpoint:hover {
+  transform: rotate(45deg) scale(1.25);
 }
 
 /* --- Inspecteur (éditeur de composants) ------------------------------------- */
@@ -900,9 +922,35 @@ body {
   padding: 0.4rem;
 }
 
+.creator__preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.creator__zoom {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+}
+
+.creator__zoom button {
+  width: 22px;
+  height: 22px;
+  font: inherit;
+  line-height: 1;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-input-border, #555);
+  background: var(--vscode-input-background, #333);
+  color: inherit;
+  cursor: pointer;
+}
+
 .creator__preview {
   position: relative;
   min-height: 120px;
+  max-height: 320px;
   background:
     linear-gradient(rgba(127, 127, 127, 0.12) 1px, transparent 1px),
     linear-gradient(90deg, rgba(127, 127, 127, 0.12) 1px, transparent 1px);
@@ -910,8 +958,25 @@ body {
   background-color: var(--vscode-editor-background, #1e1e1e);
   border: 1px solid var(--vscode-input-border, #555);
   border-radius: 6px;
-  overflow: hidden;
+  overflow: auto;
   cursor: crosshair;
+}
+
+/* Conteneur interne mis à l'échelle (zoom de l'aperçu). */
+.creator__preview-inner {
+  position: relative;
+  width: max-content;
+  height: max-content;
+}
+
+/* Coordonnées éditables d'une broche (X / Y). */
+.creator__pincoords {
+  display: flex;
+  gap: 0.2rem;
+}
+
+.creator__pinrow input.creator__coord {
+  width: 52px;
 }
 
 .creator__pins {
@@ -1087,4 +1152,17 @@ body {
   font-style: italic;
   text-align: center;
   color: inherit;
+}
+
+/* En-tête permanent (C/Arduino) : seules les globales sont lisibles. Cliquable. */
+.debug__vars td.debug__cinfo {
+  font-size: 0.78rem;
+  color: var(--vscode-descriptionForeground, #9aa);
+  cursor: help;
+  text-align: center;
+}
+
+.debug__vars td.debug__cinfo:hover {
+  color: var(--vscode-textLink-foreground, #4fa3ff);
+  text-decoration: underline;
 }

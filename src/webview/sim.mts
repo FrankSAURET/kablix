@@ -133,6 +133,7 @@ const codeFileBtn = document.getElementById('code-file') as HTMLButtonElement;
 const resetSimBtn = document.getElementById('reset-sim') as HTMLButtonElement;
 const clearCanvasBtn = document.getElementById('clear-canvas') as HTMLButtonElement;
 const fitViewBtn = document.getElementById('fit-view') as HTMLButtonElement;
+const autoRouteBtn = document.getElementById('auto-route') as HTMLButtonElement;
 
 const editor = new Editor(canvas, palette, wiresSvg, inspector);
 
@@ -415,7 +416,11 @@ function bindInputs(): void {
       const value = Number(el.value ?? 0);
       const max = Number(el.max ?? 100) || 100;
       const frac = value / max;
-      engine?.setAnalog(binding.mcuPin, isSlide ? 1 - frac : frac);
+      // Sens de base (le modèle à glissière est inversé), puis inversion
+      // supplémentaire si l'utilisateur a permuté VCC et GND sur les extrémités.
+      let level = isSlide ? 1 - frac : frac;
+      if (binding.inverted) level = 1 - level;
+      engine?.setAnalog(binding.mcuPin, level);
     };
     apply(); // pousse la position actuelle au démarrage
     el.addEventListener('input', apply);
@@ -671,6 +676,8 @@ function useDebugAsInspector(on: boolean): void {
 // (pas à pas ou ▶ Démarrer), les rouges précédents repassent donc en noir et
 // seules les variables modifiées pendant ce pas/cette reprise repassent en rouge.
 let previousVarValues = new Map<string, string>();
+/** Vrai si la simulation en cours exécute du MicroPython (sinon C/Arduino). */
+let runIsPython = false;
 
 /** Réinitialise l'état des variables (au démarrage / à l'arrêt de la simulation). */
 function resetDebugVars(): void {
@@ -687,14 +694,26 @@ function renderDebugPause(state: DebugPauseState): void {
   debugSection.hidden = false;
   debugLineEl.textContent = state.line !== undefined ? t('Line {0}', state.line) : '';
   debugVarsEl.innerHTML = '';
+  // En-tête permanent en C/Arduino : seules les variables GLOBALES sont lisibles
+  // (les locales demanderaient l'analyse CFI DWARF). Cliquable → page d'aide. En
+  // MicroPython, pas de cette restriction → en-tête omis (texte barré supprimé).
+  if (!runIsPython) {
+    const hRow = debugVarsEl.insertRow();
+    const hCell = hRow.insertCell();
+    hCell.colSpan = 2;
+    hCell.className = 'debug__cinfo';
+    hCell.textContent = t('ℹ Only global variables are shown (click for help)');
+    hCell.title = t('In C/Arduino, declare a variable outside setup() and loop() (global) to inspect it here.');
+    hCell.addEventListener('click', () => vscode.postMessage({ type: 'help' }));
+  }
   if (state.variables.length === 0) {
-    // Pause sans variable lisible (C : seules les globales sont listées ; il faut
-    // les infos de débogage DWARF). On l'indique plutôt que de laisser vide.
     const row = debugVarsEl.insertRow();
     const cell = row.insertCell();
     cell.colSpan = 2;
     cell.className = 'debug__empty';
-    cell.textContent = t('No readable variable here (C: global variables only).');
+    cell.textContent = runIsPython
+      ? t('No readable variable (define module-level variables to inspect them).')
+      : t('No readable variable here.');
   }
   // Affichage « nom : valeur » (sans le type) ; valeur en rouge uniquement si
   // elle diffère de celle du dernier arrêt (delta d'un pas), sans cumul : au
@@ -783,8 +802,9 @@ function startRun(): void {
   useDebugAsInspector(true); // Variables à la place des Propriétés
   runBtn.disabled = true;
   stopBtn.disabled = false;
-  updateDebugButtons();
   const isPython = boardFamily(board) === 'rp2040' && picoProgram.kind === 'flash' && !!picoProgram.script;
+  runIsPython = isPython;
+  updateDebugButtons();
   setStatus(isPython ? t('Starting MicroPython… (a few seconds)') : t('Running…'));
 }
 
@@ -841,6 +861,8 @@ resetSimBtn.addEventListener('click', () => {
 });
 // Recentrer et ajuster la vue sur tout le schéma.
 fitViewBtn.addEventListener('click', () => editor.fitView());
+// Autoroutage : fils en angles droits (sélection, sinon tout le schéma).
+autoRouteBtn.addEventListener('click', () => editor.autoRoute());
 // Effacer le schéma (annulable avec Ctrl+Z).
 clearCanvasBtn.addEventListener('click', () => {
   if (!editor.isLocked()) editor.clear();
@@ -937,6 +959,25 @@ editor.onCustomPartsChange = (parts: CustomPartData[]) => {
 };
 editor.onExportCustomPart = (part: CustomPartData) => {
   vscode.postMessage({ type: 'exportCustomPart', part });
+};
+// Le dépôt d'une carte à microcontrôleur choisit l'outil de simulation (carte) :
+// le menu déroulant de la barre d'outils n'est donc plus nécessaire (masqué).
+editor.onPartAdded = (part) => {
+  let target: BoardId | undefined;
+  try {
+    const def = partDef(part.type);
+    if (def.kind === 'mcu') target = def.board;
+  } catch {
+    return;
+  }
+  if (!target || board === target) return;
+  board = target;
+  boardSelect.value = board;
+  vscode.postMessage({ type: 'board', board });
+  programLoaded = false; // le programme compilé était lié à l'autre carte
+  stopRun();
+  persistState();
+  setStatus(t('Board: {0}', boardLabel(board)));
 };
 boardSelect.addEventListener('change', () => {
   board = isBoardId(boardSelect.value) ? boardSelect.value : 'uno';

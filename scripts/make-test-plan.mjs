@@ -39,12 +39,19 @@ const ROWS = [
   ['Composant perso', '« + Créer un composant » : nom, modèle, SVG, points de connexion', 'Composant ★ créé, persistant entre les sessions', ''],
   ['Import composant', 'Palette → ⇪ Importer (.json) → parts/hc-sr04.kablix-part.json', 'Le composant ★ apparaît dans la palette', 'dossier parts/'],
   ['Import / export Wokwi', 'Commandes Kablix d’import/export diagram.json', 'Schéma converti ; types inconnus ignorés', ''],
+  ['Fils par-dessus les composants', 'Câbler par-dessus une carte ou un composant', 'Le fil passe TOUJOURS au-dessus (jamais masqué) ; les broches restent cliquables', '', { new: true }],
+  ['Déplacer l’extrémité d’un fil', 'Sélectionner un fil → glisser une poignée losange d’extrémité sur une autre broche', 'Le fil se reconnecte à la nouvelle broche', '', { new: true }],
+  ['Autoroutage des fils', 'Bouton ∟ (barre droite) — sélection, ou rien = tout le schéma', 'Les fils deviennent strictement horizontaux/verticaux (angles droits)', '', { new: true }],
+  ['Export SVG éditable', 'Exporter ⬇ SVG puis ouvrir dans Inkscape', 'Chaque composant est un groupe <g> éditable (plus de <svg> imbriqué)', '', { new: true }],
+  ['Sélection auto de la carte', 'Déposer un Arduino Uno puis un Raspberry Pi Pico sur le canvas', 'La carte de simulation devient celle déposée (plus de menu déroulant dans la barre)', '', { new: true }],
+  ['Composant perso — aperçu zoomable', 'Créateur : boutons −/+ de zoom ; modifier X/Y d’une broche dans le tableau', 'L’aperçu zoome ; la pastille suit les coordonnées saisies', '', { new: true }],
 
   { s: 'Débogage (commun)' },
   ['Compiler & exécuter', 'Choisir le fichier (pastille 📄) puis ▶ Démarrer', 'Compilation puis exécution ; statut « Running… »', '▶ recompile si le source a changé'],
   ['Pause / reprise', '⏸ puis ▶', 'La simulation se fige puis reprend', ''],
   ['Pas à pas', '⏭ Pas', 'Avance d’une ligne ; ligne surlignée dans l’éditeur', ''],
   ['Panneau Variables', 'Pendant une pause, observer le panneau Variables', 'Variables globales listées (nom : valeur)', ''],
+  ['Variables — aide globales (C)', 'En C/Arduino, pendant une pause', 'En-tête permanent « variables globales uniquement » (clic = aide) ; absent en MicroPython', '', { new: true }],
   ['Variables en rouge', 'Avancer d’un pas pendant qu’une variable change', 'Valeur changée en rouge ; au pas suivant elle repasse en noir si inchangée', 'comportement corrigé'],
   ['Point d’arrêt', 'Cliquer dans la gouttière de l’éditeur', 'La simulation s’arrête à la ligne', ''],
   ['Point d’arrêt conditionnel', 'Clic droit gouttière → condition (ex. compteur > 100)', 'Arrêt seulement quand la condition est vraie (MicroPython)', 'C/AVR : arrêt inconditionnel'],
@@ -54,6 +61,7 @@ const ROWS = [
   { s: 'Partie 1 — AVR : Arduino Uno' },
   ['Carte Uno', 'Sélecteur → Arduino Uno ; ▶ avec un blink sur D13', 'La LED sur D13 clignote (~1 Hz)', ''],
   ['LED', 'A → D13 (via résistance 220 Ω), K → GND ; digitalWrite(13, HIGH/LOW)', 'La LED s’allume / s’éteint', ''],
+  ['LED / diodes — cathode K', 'Survoler les broches d’une LED puis d’une barre de LED', 'La cathode est notée « K » (et K1..K10 sur la barre)', '', { new: true }],
   ['RGB LED', 'R/V/B → 3 broches PWM ; analogWrite', 'La couleur résultante s’affiche', ''],
   ['Bouton poussoir', 'Bouton → D2 (autre patte GND) ; INPUT_PULLUP', 'digitalRead(2) = LOW à l’appui ; LED pilotée suit', 'clic = transitoire, Ctrl+clic = maintenu'],
   ['Bouton 6 mm', 'Idem bouton poussoir', 'Idem', ''],
@@ -61,8 +69,11 @@ const ROWS = [
   ['Buzzer', 'Broche → buzzer ; niveau haut / tone()', 'Halo « actif » sur le buzzer', ''],
   ['Potentiomètre', 'Curseur → A0 ; analogRead(A0)', 'Valeur 0–1023 varie avec le curseur de l’inspecteur', ''],
   ['Potentiomètre à glissière', 'Curseur → A0', 'Idem potentiomètre', ''],
-  ['Afficheur 7 segments', 'Segments → broches ; piloter les segments', 'Le chiffre / segment s’affiche', ''],
+  ['Potentiomètre — câblage inversé', 'Permuter VCC et GND sur les extrémités du rail (broches 1 et 2)', 'La lecture analogique varie en sens INVERSE du curseur', 'détection automatique', { new: true }],
+  ['Afficheur 7 segments', 'Segments → broches ; COM.1/COM.2 → GND (cathode) ou 5V (anode) ; choisir « Broche commune » dans l’inspecteur', 'Le bon segment s’allume (logique cathode OU anode commune)', 'broche commune corrigée (COM, plus DIG1)', { new: true }],
+  ['7 segments — schéma interne', 'Sélectionner l’afficheur → bouton ☢', 'Étoile de 8 diodes vers le commun (sens selon cathode/anode)', '', { new: true }],
   ['Barre de LED', 'Broches → barre ; allumer N segments', 'N segments allumés', ''],
+  ['Barre de LED — schéma interne', 'Sélectionner la barre → bouton ☢', '10 diodes A→K dessinées en surimpression', '', { new: true }],
   ['Interrupteur à glissière', 'Position → broche', 'digitalRead suit la position', ''],
   ['DIP switch ×8', 'Canaux → broches', 'Chaque canal fermé tire sa broche à LOW', ''],
   ['Joystick analogique', 'VRx → A0, VRy → A1, SW → D2', 'analogRead X/Y varient ; SW = bouton', ''],
@@ -131,7 +142,13 @@ function sectionXml(title) {
 }
 
 const header = rowXml(['Élément en test', 'Action à mener', 'Observable pour valider', 'Commentaire'], { bold: true, fill: 'BDD7EE' });
-const body = ROWS.map((r) => (Array.isArray(r) ? rowXml(r) : sectionXml(r.s))).join('');
+// Une ligne dont le 5e élément est { new: true } est surlignée en vert (test
+// ajouté/corrigé dans la version courante).
+const body = ROWS.map((r) => {
+  if (!Array.isArray(r)) return sectionXml(r.s);
+  const opts = r.length > 4 && typeof r[4] === 'object' && r[4] ? r[4] : {};
+  return rowXml(r.slice(0, 4), opts.new ? { fill: 'C6EFCE' } : {});
+}).join('');
 
 const borders = ['top', 'left', 'bottom', 'right', 'insideH', 'insideV']
   .map((b) => `<w:${b} w:val="single" w:sz="4" w:space="0" w:color="808080"/>`)

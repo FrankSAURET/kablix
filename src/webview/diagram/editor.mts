@@ -71,6 +71,8 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 const DRAG_THRESHOLD = 4;
 /** Distance max (px) entre une broche et un trou de platine pour l'enfichage. */
 const BB_SNAP = 6;
+/** Rayon d'accrochage (px) pour reconnecter l'extrémité d'un fil à une broche. */
+const PIN_SNAP = 14;
 const MAX_RECENTS = 10;
 /** Type MIME du glisser-déposer palette → canvas (pose d'un composant). */
 const DND_MIME = 'application/x-kablix-part';
@@ -130,6 +132,8 @@ export class Editor {
   onExportCustomPart: ((part: CustomPartData) => void) | null = null;
   /** Appelé quand le tri de la palette ou les derniers utilisés changent. */
   onPaletteStateChange: ((state: PaletteState) => void) | null = null;
+  /** Appelé à l'ajout d'un composant (pose ou glisser-déposer) — sélection auto de la carte. */
+  onPartAdded: ((part: Part) => void) | null = null;
 
   private paletteSort: PaletteSort = 'category';
   private recentTypes: string[] = [];
@@ -743,6 +747,7 @@ export class Editor {
     this.renderPart(part);
     this.recordRecent(type);
     this.select({ kind: 'part', id: part.id }); // à la pose : montre le câblage interne
+    this.onPartAdded?.(part); // ex. : sélection automatique de la carte de simulation
     this.notify();
     return part;
   }
@@ -893,7 +898,9 @@ export class Editor {
     const def = partDef(part.type);
     const container = document.createElement('div');
     container.className = 'part';
-    // Les cartes et platines passent sous les fils ; le reste au-dessus.
+    // Tous les composants passent désormais sous les fils (z=5). Les cartes et
+    // platines descendent encore d'un cran (z=1) pour rester sous les composants
+    // qu'on enfiche dessus.
     if (def.kind === 'mcu' || def.kind === 'breadboard') {
       container.classList.add('part--under-wires');
     }
@@ -1585,12 +1592,12 @@ export class Editor {
     this.guides = [];
   }
 
-  /** Affiche une poignée de saisie sur chaque coude du fil sélectionné. */
+  /** Affiche les poignées de saisie : un coude par point + les deux extrémités. */
   private buildHandles(wireId: string): void {
     this.clearHandles();
     const wire = this.diagram.wires.find((w) => w.id === wireId);
-    if (!wire?.points) return;
-    wire.points.forEach((pt, index) => {
+    if (!wire) return;
+    (wire.points ?? []).forEach((pt, index) => {
       const handle = document.createElement('div');
       handle.className = 'wire-handle';
       handle.style.left = `${pt.x}px`;
@@ -1605,6 +1612,110 @@ export class Editor {
       this.world.appendChild(handle);
       this.handles.push(handle);
     });
+    this.buildEndpointHandles(wire);
+  }
+
+  /** Poignées aux deux extrémités du fil : se glissent sur une autre broche. */
+  private buildEndpointHandles(wire: Wire): void {
+    for (const which of ['a', 'b'] as const) {
+      const c = this.hotspotCenter(wire[which]);
+      if (!c) continue;
+      const handle = document.createElement('div');
+      handle.className = 'wire-endpoint';
+      handle.style.left = `${c.x}px`;
+      handle.style.top = `${c.y}px`;
+      handle.title = t('Drag a pin endpoint onto another pin to reconnect it.');
+      handle.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        this.dragEndpoint(wire, which, handle);
+      });
+      this.world.appendChild(handle);
+      this.handles.push(handle);
+    }
+  }
+
+  /** Glisse l'extrémité `which` d'un fil ; au relâché, l'accroche à la broche la plus proche. */
+  private dragEndpoint(wire: Wire, which: 'a' | 'b', handle: HTMLDivElement): void {
+    const path = this.wirePaths.get(wire.id);
+    const move = (ev: PointerEvent): void => {
+      const at = this.canvasPoint(ev.clientX, ev.clientY);
+      handle.style.left = `${at.x}px`;
+      handle.style.top = `${at.y}px`;
+      if (path) {
+        const other = this.hotspotCenter(which === 'a' ? wire.b : wire.a);
+        const mids = wire.points ?? [];
+        const pts = which === 'a' ? [at, ...mids, ...(other ? [other] : [])] : [...(other ? [other] : []), ...mids, at];
+        path.setAttribute('d', roundedWirePath(pts));
+      }
+    };
+    const end = (ev: PointerEvent): void => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', end);
+      const at = this.canvasPoint(ev.clientX, ev.clientY);
+      const target = this.nearestPin(at);
+      const other = which === 'a' ? wire.b : wire.a;
+      if (target && !(target.partId === other.partId && target.pin === other.pin)) {
+        wire[which] = target;
+        this.positionWire(wire);
+        this.notify();
+      } else {
+        this.positionWire(wire); // pas de cible valide : retour à la broche d'origine
+      }
+      this.buildHandles(wire.id);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', end);
+  }
+
+  /** Broche (hotspot) la plus proche d'un point monde, dans le rayon d'accrochage. */
+  private nearestPin(at: XY): Endpoint | null {
+    let best: Endpoint | null = null;
+    let bestD = PIN_SNAP;
+    for (const [id, r] of this.rendered) {
+      for (const pin of r.hotspots.keys()) {
+        const c = this.hotspotCenter({ partId: id, pin });
+        if (!c) continue;
+        const d = Math.hypot(c.x - at.x, c.y - at.y);
+        if (d <= bestD) {
+          bestD = d;
+          best = { partId: id, pin };
+        }
+      }
+    }
+    return best;
+  }
+
+  /**
+   * Autoroutage : réécrit les fils en tracés strictement horizontaux/verticaux
+   * (un coude en L). Sur la sélection si des composants sont sélectionnés (fils
+   * touchant la sélection), sinon sur tout le dessin.
+   */
+  autoRoute(): void {
+    if (this.locked) return;
+    const sel = this.selectedParts;
+    const all = sel.size === 0;
+    let changed = false;
+    for (const wire of this.diagram.wires) {
+      if (wire.auto) continue;
+      if (!all && !(sel.has(wire.a.partId) || sel.has(wire.b.partId))) continue;
+      const a = this.hotspotCenter(wire.a);
+      const b = this.hotspotCenter(wire.b);
+      if (!a || !b) continue;
+      const TOL = 1;
+      if (Math.abs(a.x - b.x) <= TOL || Math.abs(a.y - b.y) <= TOL) {
+        if (wire.points && wire.points.length > 0) {
+          wire.points = undefined; // déjà aligné : tracé droit
+          changed = true;
+        }
+      } else {
+        wire.points = [{ x: b.x, y: a.y }]; // coude en L (horizontal puis vertical)
+        changed = true;
+      }
+      this.positionWire(wire);
+    }
+    if (this.selection?.kind === 'wire') this.buildHandles(this.selection.id);
+    if (changed) this.notify();
   }
 
   private dragHandle(wire: Wire, index: number, handle: HTMLDivElement): void {
@@ -1941,7 +2052,7 @@ export class Editor {
     if (!body) return;
     body.querySelector('.part__internal')?.remove();
     const pins = ((r.el.pinInfo ?? []) as PinPoint[]).map((p) => ({ name: p.name, x: p.x, y: p.y }));
-    const inner = internalWiringSvg(partDef(r.part.type).kind, pins);
+    const inner = internalWiringSvg(partDef(r.part.type).kind, pins, r.part.attrs);
     if (!inner) return;
     const w = body.offsetWidth || 80;
     const h = body.offsetHeight || 60;
@@ -2257,6 +2368,7 @@ export class Editor {
   private buildSvg(only: Set<string> | null): string {
     const serializer = new XMLSerializer();
     const parts: string[] = [];
+    let idSeq = 0; // identifiants uniques de groupe (scoping CSS)
     const MARGIN = 30;
     let minX = Infinity;
     let minY = Infinity;
@@ -2314,27 +2426,31 @@ export class Editor {
       let inner: string;
       if (svgEl) {
         const clone = svgEl.cloneNode(true) as SVGSVGElement;
-        // Sans viewBox, redimensionner déformerait le dessin : on en pose une
-        // d'après la taille intrinsèque avant de forcer la taille d'affichage.
-        if (!clone.getAttribute('viewBox')) {
-          const vbW = svgEl.viewBox?.baseVal?.width || svgEl.width.baseVal.value || w;
-          const vbH = svgEl.viewBox?.baseVal?.height || svgEl.height.baseVal.value || h;
-          clone.setAttribute('viewBox', `0 0 ${vbW} ${vbH}`);
-        }
-        clone.setAttribute('x', String(x));
-        clone.setAttribute('y', String(y));
-        clone.setAttribute('width', String(w));
-        clone.setAttribute('height', String(h));
-        // Les styles (tailles de police des textes…) vivent dans le shadow DOM,
-        // hors du <svg> : sans eux, les textes prenaient une taille par défaut
-        // énorme à l'export. On les réinjecte dans le <svg> autonome.
+        // Taille/origine intrinsèques (viewBox) pour calculer la mise à l'échelle
+        // vers la taille d'affichage (w×h) à la position (x, y).
+        const vb = svgEl.viewBox?.baseVal;
+        const vbW = (vb?.width || svgEl.width?.baseVal?.value || w) || w;
+        const vbH = (vb?.height || svgEl.height?.baseVal?.value || h) || h;
+        const vbX = vb?.x || 0;
+        const vbY = vb?.y || 0;
+        const sx = w / vbW;
+        const sy = h / vbH;
+        const groupId = `kpart-${idSeq++}`;
+        // Le composant est exporté comme un <g> (éditable comme un groupe dans
+        // Inkscape) et non plus un <svg> imbriqué (sous-document non éditable).
+        // Les styles du shadow DOM (tailles de police…) sont réinjectés mais
+        // SCOPÉS au groupe, sinon ils s'appliqueraient à tout le document.
         const css = collectShadowCss(root);
-        if (css) {
-          const styleEl = document.createElementNS(SVG_NS, 'style');
-          styleEl.textContent = css;
-          clone.insertBefore(styleEl, clone.firstChild);
-        }
-        inner = serializer.serializeToString(clone);
+        const styleTag = css ? `<style>${scopeSvgCss(css, '#' + groupId)}</style>` : '';
+        const body = serializer
+          .serializeToString(clone)
+          .replace(/^\s*<svg[^>]*>/i, '')
+          .replace(/<\/svg>\s*$/i, '');
+        inner =
+          `<g id="${groupId}" transform="translate(${x - vbX * sx} ${y - vbY * sy}) scale(${sx} ${sy})">` +
+          styleTag +
+          body +
+          `</g>`;
       } else {
         // Repli : composant sans SVG → rectangle étiqueté, pour ne rien perdre.
         const label = t(partDef(r.part.type).label).replace(/[<&>]/g, '');
@@ -2410,13 +2526,61 @@ function colorSwatchBackground(value: string): string {
  * le curseur « V » (Variable). L'identifiant interne reste inchangé (simulation).
  */
 function pinDisplayName(kind: string, pinName: string): string {
+  // Cathode notée « K » sur toutes les diodes : LED (C) et barre de LED (C1..C10).
   if (kind === 'led' && pinName === 'C') return 'K';
+  if (kind === 'led-bar') {
+    const m = /^C(\d+)$/.exec(pinName);
+    if (m) return `K${m[1]}`;
+  }
   if (kind === 'potentiometer') {
     if (pinName === 'GND') return '1';
     if (pinName === 'VCC') return '2';
     if (pinName === 'SIG') return 'V';
   }
   return pinName;
+}
+
+/**
+ * Restreint des règles CSS à un sélecteur racine (id du groupe). Nécessaire car,
+ * une fois sorti du shadow DOM et placé dans un `<g>`, le CSS s'appliquerait à
+ * tout le document SVG (et un composant teinterait les autres). `:host` est
+ * traduit en sélecteur du groupe lui-même. Les @keyframes/@font-face sont
+ * laissées intactes ; @media/@supports sont scopées récursivement.
+ */
+function scopeSvgCss(css: string, scope: string): string {
+  let out = '';
+  let i = 0;
+  while (i < css.length) {
+    const open = css.indexOf('{', i);
+    if (open < 0) break;
+    const prelude = css.slice(i, open).trim();
+    let depth = 1;
+    let j = open + 1;
+    while (j < css.length && depth > 0) {
+      if (css[j] === '{') depth++;
+      else if (css[j] === '}') depth--;
+      j++;
+    }
+    const body = css.slice(open + 1, j - 1);
+    if (prelude.startsWith('@')) {
+      if (/^@(media|supports)/i.test(prelude)) out += `${prelude}{${scopeSvgCss(body, scope)}}`;
+      else out += `${prelude}{${body}}`; // keyframes, font-face : inchangé
+    } else {
+      const scoped = prelude
+        .split(',')
+        .map((sel) => {
+          const s = sel.trim();
+          if (!s) return s;
+          if (s.includes(':host')) return s.replace(/:host(\([^)]*\))?/g, (_m, p) => scope + (p ? p.slice(1, -1) : ''));
+          return `${scope} ${s}`;
+        })
+        .filter(Boolean)
+        .join(', ');
+      if (scoped) out += `${scoped}{${body}}`;
+    }
+    i = j;
+  }
+  return out;
 }
 
 /**

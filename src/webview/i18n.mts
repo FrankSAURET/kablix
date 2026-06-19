@@ -150,9 +150,12 @@ const FR: Record<string, string> = {
   'Sound detected': 'Son détecté',
   'Horn': 'Bras',
   'State (0/1)': 'État (0/1)',
+  'Common pin': 'Broche commune',
+  'Common cathode (K)': 'Cathode commune (K)',
+  'Common anode (A)': 'Anode commune (A)',
 
   // Modèles du créateur
-  'LED (lit when A=high and C=low)': 'LED (allumée si A=haut et C=bas)',
+  'LED (lit when A=high and K=low)': 'LED (allumée si A=haut et K=bas)',
   'Pushbutton (pulls the pin to GND)': 'Bouton poussoir (tire la broche à GND)',
   'Resistor (joins its two pins)': 'Résistance (relie ses deux broches)',
   'Buzzer (active when voltage across 1 and 2)': 'Buzzer (actif si tension entre 1 et 2)',
@@ -176,6 +179,20 @@ const FR: Record<string, string> = {
   'Ctrl+click to lock the unstable state': 'Ctrl+clic pour verrouiller l’état instable',
   'No readable variable here (C: global variables only).':
     'Aucune variable lisible ici (en C : variables globales seulement).',
+  'ℹ Only global variables are shown (click for help)':
+    'ℹ Seules les variables globales sont affichées (cliquer pour l’aide)',
+  'In C/Arduino, declare a variable outside setup() and loop() (global) to inspect it here.':
+    'En C/Arduino, déclarez une variable hors de setup() et loop() (globale) pour la voir ici.',
+  'No readable variable (define module-level variables to inspect them).':
+    'Aucune variable lisible (définissez des variables au niveau du module pour les inspecter).',
+  'No readable variable here.': 'Aucune variable lisible ici.',
+
+  // Barre d'outils du canvas
+  'Auto-route the wires (right angles)': 'Autoroutage des fils (angles droits)',
+  'Zoom in': 'Zoom avant',
+  'Zoom out': 'Zoom arrière',
+  'Drag a pin endpoint onto another pin to reconnect it.':
+    'Glissez l’extrémité d’un fil sur une autre broche pour la reconnecter.',
 };
 
 const DICTS: Record<string, Record<string, string>> = { fr: FR };
