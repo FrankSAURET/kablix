@@ -1007,8 +1007,10 @@ export class Editor {
     const role = kind === 'potentiometer' ? 'other' : pinElectricalRole(type, pin.name);
     if (role === 'vcc') dot.classList.add('pin--vcc');
     else if (role === 'gnd') dot.classList.add('pin--gnd');
-    dot.style.left = `${pin.x}px`;
-    dot.style.top = `${pin.y}px`;
+    // Mise à l'échelle des broches (cartes @wokwi : pas 9,6 px → 10 px).
+    const k = partDef(type).pinScale ?? 1;
+    dot.style.left = `${pin.x * k}px`;
+    dot.style.top = `${pin.y * k}px`;
     dot.title = pinDisplayName(kind, pin.name);
     dot.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
@@ -1031,16 +1033,17 @@ export class Editor {
   private syncHotspots(r: Rendered): void {
     const body = r.container.querySelector('.part__body') as HTMLElement | null;
     if (!body) return;
-    const kind = partDef(r.part.type).kind;
+    const def = partDef(r.part.type);
+    const k = def.pinScale ?? 1;
     for (const pin of (r.el.pinInfo ?? []) as WokwiPin[]) {
       let dot = r.hotspots.get(pin.name);
       if (!dot) {
-        dot = this.makeHotspot(r.part.id, r.part.type, kind, pin);
+        dot = this.makeHotspot(r.part.id, r.part.type, def.kind, pin);
         body.appendChild(dot);
         r.hotspots.set(pin.name, dot);
       } else {
-        dot.style.left = `${pin.x}px`;
-        dot.style.top = `${pin.y}px`;
+        dot.style.left = `${pin.x * k}px`;
+        dot.style.top = `${pin.y * k}px`;
       }
     }
   }
@@ -1812,6 +1815,33 @@ export class Editor {
   }
 
   /**
+   * Agrandit le dessin d'un élément @wokwi (et son hôte) pour que le pas de ses
+   * broches passe de 9,6 px (0,1″) à 10 px = la grille / le pas de la platine.
+   * Le viewBox restant inchangé, le dessin se redimensionne ; comme les pastilles
+   * de broche sont elles aussi placées à `pin.x × pinScale` (cf. makeHotspot /
+   * syncHotspots), tout reste aligné — y compris à l'export SVG, qui lit la
+   * taille de mise en page agrandie. Idempotent (drapeau posé sur l'élément).
+   * Renvoie `false` si le SVG n'est pas encore rendu (à réessayer plus tard).
+   */
+  private applyPinScale(r: Rendered): boolean {
+    const k = partDef(r.part.type).pinScale ?? 1;
+    if (k === 1) return true;
+    const el = r.el as HTMLElement & { _pinScaled?: boolean };
+    if (el._pinScaled) return true;
+    const svg = (el.shadowRoot ?? el).querySelector('svg') as SVGSVGElement | null;
+    if (!svg) return false; // élément Lit pas encore rendu : réessai au prochain settle
+    const w = svg.width?.baseVal?.value || 0;
+    const h = svg.height?.baseVal?.value || 0;
+    if (!w || !h) return false;
+    svg.setAttribute('width', `${w * k}`);
+    svg.setAttribute('height', `${h * k}`);
+    el.style.width = `${w * k}px`;
+    el.style.height = `${h * k}px`;
+    el._pinScaled = true;
+    return true;
+  }
+
+  /**
    * Recale les bandeaux de nom et les fils une frame plus tard. Les éléments
    * @wokwi (Lit) terminent leur mise en page de façon asynchrone : au premier
    * rendu, offsetWidth/positions de broches peuvent être provisoires. Sans ce
@@ -1825,12 +1855,17 @@ export class Editor {
     this.settleQueued = true;
     requestAnimationFrame(() => {
       this.settleQueued = false;
+      let pending = false; // un dessin @wokwi pas encore prêt à être agrandi
       for (const r of this.rendered.values()) {
+        if (!this.applyPinScale(r)) pending = true; // dessin agrandi au pas de 10 px
         this.syncHotspots(r); // pastilles de broche tardives (pinInfo asynchrone)
         const body = r.container.querySelector('.part__body') as HTMLDivElement | null;
         if (body) this.applyRotation(r.part, body); // repositionne le bandeau (rotation)
       }
       this.redrawWires();
+      // Le SVG d'un élément Lit peut arriver après cette frame : on repasse une
+      // fois de plus tant qu'une carte attend sa mise à l'échelle.
+      if (pending) requestAnimationFrame(() => this.scheduleSettle());
     });
   }
 

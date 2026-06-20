@@ -2,6 +2,8 @@
 // simulation Arduino Uno (avr8js) / Raspberry Pi Pico (rp2040js) et
 // messagerie avec l'extension.
 import '@wokwi/elements/dist/esm/arduino-uno-element.js';
+import '@wokwi/elements/dist/esm/arduino-nano-element.js';
+import '@wokwi/elements/dist/esm/arduino-mega-element.js';
 import '@wokwi/elements/dist/esm/led-element.js';
 import '@wokwi/elements/dist/esm/pushbutton-element.js';
 import '@wokwi/elements/dist/esm/resistor-element.js';

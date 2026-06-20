@@ -104,7 +104,17 @@ export interface PartDef {
     /** Correspondance rôle du modèle → nom de broche (ex. { A: 'anode' }). */
     pinRoles?: Record<string, string>;
   };
+  /**
+   * Facteur d'agrandissement appliqué au dessin ET aux broches pour ramener le
+   * pas des broches à 10 px (= grille / platine). Les éléments @wokwi/elements
+   * sont au pas physique 0,1″ ≈ 9,6 px : on les met à l'échelle 10/9,6. Absent
+   * (ou 1) = aucune mise à l'échelle (dessins déjà au pas de 10 px).
+   */
+  pinScale?: number;
 }
+
+/** Pas Wokwi (0,1″ ≈ 9,6 px) ramené à la grille de 10 px. */
+export const WOKWI_PIN_SCALE = 10 / 9.6;
 
 /** Description sérialisable d'un composant personnalisé (persistée côté extension). */
 export interface CustomPartData {
@@ -121,12 +131,16 @@ const STATE_PROP: PropDef = { attr: 'state', label: 'State (0/1)', kind: 'select
 const VALUE_PROP: PropDef = { attr: 'value', label: 'Position (%)', kind: 'number', min: 0, max: 100, step: 1 };
 
 export const CATALOG: readonly PartDef[] = [
-  { type: 'uno', label: 'Arduino Uno', tag: 'wokwi-arduino-uno', kind: 'mcu', board: 'uno' },
-  { type: 'nano', label: 'Arduino Nano', tag: 'wokwi-arduino-nano', kind: 'mcu', board: 'nano' },
+  // Cartes AVR : éléments @wokwi/elements, mis à l'échelle 10/9,6 px pour que
+  // leurs broches tombent sur la grille de 10 px (= pas de la platine d'essai).
+  { type: 'uno', label: 'Arduino Uno', tag: 'wokwi-arduino-uno', kind: 'mcu', board: 'uno', pinScale: WOKWI_PIN_SCALE },
+  { type: 'nano', label: 'Arduino Nano', tag: 'wokwi-arduino-nano', kind: 'mcu', board: 'nano', pinScale: WOKWI_PIN_SCALE },
   // Pro Mini : électriquement un ATmega328P comme le Nano (mêmes broches D0–13 /
   // A0–A7). Faute d'élément @wokwi/elements dédié, on réutilise le visuel Nano.
-  { type: 'mini', label: 'Arduino Pro Mini', tag: 'wokwi-arduino-nano', kind: 'mcu', board: 'mini' },
-  { type: 'mega', label: 'Arduino Mega 2560', tag: 'wokwi-arduino-mega', kind: 'mcu', board: 'mega' },
+  { type: 'mini', label: 'Arduino Pro Mini', tag: 'wokwi-arduino-nano', kind: 'mcu', board: 'mini', pinScale: WOKWI_PIN_SCALE },
+  { type: 'mega', label: 'Arduino Mega 2560', tag: 'wokwi-arduino-mega', kind: 'mcu', board: 'mega', pinScale: WOKWI_PIN_SCALE },
+  // Pico / Pico W : @wokwi/elements ne fournit aucun élément Pico → dessin maison
+  // <kablix-pico-board> (basé sur parts/picow-module), déjà au pas de 10 px.
   { type: 'pico', label: 'Raspberry Pi Pico', tag: 'kablix-pico-board', kind: 'mcu', board: 'pico' },
   // Pico W : même RP2040 et même brochage que le Pico (le Wi-Fi n'est pas simulé
   // par le cœur) → on réutilise le dessin <kablix-pico-board>.

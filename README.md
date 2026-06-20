@@ -36,10 +36,13 @@ Aucun service en ligne n'est requis.
   interrupteur à glissière, DIP switch ×8, joystick analogique, potentiomètre
   à glissière, photorésistance (LDR), détecteur de mouvement PIR, capteur
   d'inclinaison, servomoteur — tous pilotés par la netlist
-- ✅ **Carte Raspberry Pi Pico** : élément SVG maison (`<kablix-pico-board>`)
-  avec les 40 broches colorées (GP = or, GND = gris, alimentation = rouge),
-  la **LED embarquée GP25** qui clignote visuellement, le connecteur USB et le
-  chip RP2040 — plus une pastille GP25 câblable
+- ✅ **Carte Raspberry Pi Pico / Pico W** : `@wokwi/elements` ne fournit aucun
+  élément Pico → dessin maison (`<kablix-pico-board>`) repris de la bibliothèque
+  `parts/picow-module`, avec les 40 broches GP/alim en deux rangées au **pas de
+  10 px** et la **LED embarquée GP25** qui clignote pendant la simulation
+- ✅ **Cartes AVR @wokwi/elements** : Arduino Uno, Nano, Pro Mini et Mega 2560,
+  mises à l'échelle 10/9,6 pour que leurs broches tombent sur la **grille de
+  10 px** (enfichables sur platine d'essai)
 - ✅ **Composants** : Arduino Uno, Raspberry Pi Pico, LED, **LED RGB**, bouton
   poussoir, résistance, **buzzer** (note animée quand actif), **potentiomètre**
   (entrée analogique interactive : A0–A5 sur Uno, GP26–GP28 sur Pico), reliés
@@ -147,7 +150,7 @@ Dans VS Code, **F5** (« Lancer l'extension ») ouvre une fenêtre de développe
 | `src/webview/diagram/catalog.mts` | Catalogue de composants + rôles des broches Uno/Pico |
 | `src/webview/diagram/model.mts` | Netlist (pure) + résolution LED/RGB/buzzer/bouton/potentiomètre |
 | `src/webview/diagram/editor.mts` | Éditeur DOM : palette, placement, câblage |
-| `src/webview/elements/pico-board.mts` | Élément SVG maison `<kablix-pico-board>` |
+| `src/webview/elements/pico-board.mts` | Élément `<kablix-pico-board>` (dessin Pico W repris de `parts/picow-module`) |
 | `src/webview/engines/avr.mts` | Moteur ATmega328P (avr8js) : GPIO, ADC, USART |
 | `src/webview/engines/pico.mts` | Moteur RP2040 (rp2040js) : RAM/flash, bootrom, USB-CDC, UART0, raw REPL |
 | `src/webview/engines/bootrom-b1.mts` | Bootrom B1 du RP2040 (binaire officiel, BSD-3-Clause) |
