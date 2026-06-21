@@ -35,6 +35,9 @@ import '@wokwi/elements/dist/esm/gas-sensor-element.js';
 import '@wokwi/elements/dist/esm/heart-beat-sensor-element.js';
 import '@wokwi/elements/dist/esm/flame-sensor-element.js';
 import '@wokwi/elements/dist/esm/small-sound-sensor-element.js';
+import '@wokwi/elements/dist/esm/hc-sr04-element.js';
+import '@wokwi/elements/dist/esm/dht22-element.js';
+import '@wokwi/elements/dist/esm/membrane-keypad-element.js';
 import './elements/pico-board.mjs';
 import './elements/breadboard.mjs';
 import './elements/custom-part.mjs';
@@ -313,13 +316,19 @@ function refreshVisuals(): void {
         break;
       }
       case 'i2c-lcd': {
-        // Texte décodé du bus I²C, superposé sur le dessin du LCD.
+        // Texte décodé du bus I²C affiché sur le LCD. Composant perso
+        // (kablix-custom-part) → setLcd superpose le texte sur le dessin ;
+        // élément Wokwi wokwi-lcd1602 → on alimente directement son écran (text).
         const dev = i2cDevices.get(part.id);
         if (dev instanceof Lcd1602Device) {
           const setLcd = el.setLcd as
             | ((lines: string[], rect: { x: number; y: number; w: number; h: number }) => void)
             | undefined;
-          setLcd?.(dev.text, lcdScreenRect(part, def.custom?.svg));
+          if (setLcd) {
+            setLcd(dev.text, lcdScreenRect(part, def.custom?.svg));
+          } else {
+            (el as unknown as { text?: string }).text = dev.text.join('\n');
+          }
         }
         break;
       }
@@ -958,6 +967,9 @@ editor.onPaletteStateChange = (state) => {
 // Persistance des composants personnalisés (stockés côté extension).
 editor.onCustomPartsChange = (parts: CustomPartData[]) => {
   vscode.postMessage({ type: 'saveCustomParts', parts });
+};
+editor.onOpenExternal = (url: string) => {
+  vscode.postMessage({ type: 'openExternal', url });
 };
 editor.onExportCustomPart = (part: CustomPartData) => {
   vscode.postMessage({ type: 'exportCustomPart', part });

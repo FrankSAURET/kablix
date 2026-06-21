@@ -1,3 +1,13 @@
+# v2026.6.32
+1. ✅ **Barre de recherche dans la palette** : champ « Rechercher un composant… » sous les boutons de tri ; filtre les items par libellé sans reconstruire la palette (le champ garde le focus) et masque les sections vides.
+2. ⏳ **Symboles IEC (tous les composants en IEC, et seulement IEC)** → différé : c'est une refonte visuelle complète (chaque composant doit être redessiné en symbole normalisé, ce qui remplace les éléments @wokwi/elements servant aussi au positionnement des broches et au rendu de simulation — LED qui s'allume, 7 segments, écrans…). Risque élevé sans vérification visuelle côté agent. À traiter dans une version dédiée, avec itérations visuelles, en commençant par LED (triangle creux + trait + barre cathode) / résistance / bouton.
+3. ✅ **Composants Wokwi ajoutés avec leurs options** : HC-SR04 (`wokwi-hc-sr04`, kind `ultrasonic`, propriété **Distance (cm)** — simulé), DHT22 (`wokwi-dht22`, visuel seul pour l'instant), clavier matriciel (`wokwi-membrane-keypad`, propriété **Colonnes** 3/4, interactif), LCD 16×2 I²C (`wokwi-lcd1602` en `pins:i2c`, kind `i2c-lcd` — texte du bus I²C affiché à l'écran). PIR existait déjà. La partie active de chaque composant (distance, colonnes…) apparaît dans la barre de propriété.
+4. ✅ **Patte commune de la LED RGB K ou A** : nouvelle propriété **Broche commune** (cathode/anode) ; `rgbLedState` inverse la logique d'allumage en anode commune (canal allumé si broche BASSE et COM HAUT).
+5. ✅ **7 segments : options ajoutées** : propriétés **Chiffres** (1/2/4) et **Deux-points (horloge)** sur l'élément `wokwi-7segment`. La simulation pilote le 1er chiffre (les chiffres supplémentaires restent éteints — multiplexage non simulé).
+6. ✅ **Bouton d'aide Wokwi dans l'inspecteur** : sous le nom d'un composant `@wokwi/elements`, bouton « ❔ Aide Wokwi » → ouvre `docs.wokwi.com/parts/<élément>` (via l'hôte) si en ligne ; hors-ligne, affiche « Fonction disponible uniquement en ligne ».
+7. ✅ **N° de version sous « Kablix »** : la marque de la barre d'outils affiche le numéro de version (lu dans `package.json`) en petit, sous le nom.
+8. ✅ **Options de servomoteur traduites** : le bras (single/double/cross) s'affiche « Bras simple / Bras double / Bras en croix ».
+# v2026.6.31
 # Backlog (reste à faire / suivi)
 - ✅ Bouton (haut-droite de la barre de composants) pour afficher/masquer les derniers utilisés → fait en v2026.6.31 : bouton 🕘 dans la barre de tri (état persisté `showRecents`).
 - ✅ Plus de cercle jaune sur chaque point connectable (souvent mal centré) ; garder GND noir / Power rouge → fait en v2026.6.31 : `.pin` rendu transparent (cliquable, révélé au survol) ; `.pin--vcc`/`.pin--gnd` gardent rouge/noir.

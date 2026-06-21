@@ -136,8 +136,11 @@ export class Editor {
   onPaletteStateChange: ((state: PaletteState) => void) | null = null;
   /** Appelé à l'ajout d'un composant (pose ou glisser-déposer) — sélection auto de la carte. */
   onPartAdded: ((part: Part) => void) | null = null;
+  /** Appelé pour ouvrir un lien externe (doc Wokwi d'un composant). */
+  onOpenExternal: ((url: string) => void) | null = null;
 
   private paletteSort: PaletteSort = 'category';
+  private paletteFilter = '';
   private recentTypes: string[] = [];
   private showRecents = true;
   private rendered = new Map<string, Rendered>();
@@ -485,6 +488,7 @@ export class Editor {
     btn.className = 'palette__item';
     const label = custom ? `★ ${def.label}` : t(def.label);
     btn.title = label;
+    btn.dataset.search = label.toLowerCase();
     const thumb = this.thumbnail(def);
     const text = document.createElement('span');
     text.className = 'palette__item-label';
@@ -541,6 +545,7 @@ export class Editor {
     const data = this.customData.get(def.type);
     const row = document.createElement('div');
     row.className = 'palette__custom';
+    row.dataset.search = `★ ${def.label}`.toLowerCase();
     const btn = this.paletteButton(def, true);
     btn.title = t('Click: place on canvas — double-click: edit the model');
     btn.addEventListener('dblclick', () => {
@@ -604,6 +609,19 @@ export class Editor {
     sortWrap.appendChild(recentsBtn);
     this.palette.appendChild(sortWrap);
 
+    // Barre de recherche : filtre les composants par libellé (sans reconstruire
+    // la palette → le champ garde le focus pendant la frappe).
+    const search = document.createElement('input');
+    search.type = 'search';
+    search.className = 'palette__search';
+    search.placeholder = t('Search a component…');
+    search.value = this.paletteFilter;
+    search.addEventListener('input', () => {
+      this.paletteFilter = search.value;
+      this.filterPalette();
+    });
+    this.palette.appendChild(search);
+
     const customs = listCustomParts();
     const byLabel = (a: PartDef, b: PartDef): number =>
       t(a.label).localeCompare(t(b.label), undefined, { sensitivity: 'base' });
@@ -666,6 +684,39 @@ export class Editor {
     });
     importBtn.addEventListener('click', () => fileInput.click());
     this.palette.append(importBtn, fileInput);
+
+    this.filterPalette();
+  }
+
+  /**
+   * Filtre les composants de la palette selon le texte de recherche. N'agit que
+   * sur l'affichage (display) des items et masque les en-têtes de section vides
+   * — sans reconstruire la palette, pour préserver le focus du champ.
+   */
+  private filterPalette(): void {
+    const q = this.paletteFilter.trim().toLowerCase();
+    let header: HTMLElement | null = null;
+    let headerHasVisible = false;
+    const flush = (): void => {
+      if (header) header.style.display = !q || headerHasVisible ? '' : 'none';
+    };
+    for (const child of Array.from(this.palette.children) as HTMLElement[]) {
+      if (child.classList.contains('palette__section')) {
+        flush();
+        header = child;
+        headerHasVisible = false;
+        continue;
+      }
+      const isItem =
+        (child.classList.contains('palette__item') && !child.classList.contains('palette__item--create')) ||
+        child.classList.contains('palette__custom');
+      if (!isItem) continue;
+      const label = child.dataset.search ?? child.textContent?.toLowerCase() ?? '';
+      const match = !q || label.includes(q);
+      child.style.display = match ? '' : 'none';
+      if (match) headerHasVisible = true;
+    }
+    flush();
   }
 
   /** Valide puis enregistre un composant importé (fichier .json). */
@@ -2250,6 +2301,24 @@ export class Editor {
     subtitle.className = 'inspector__subtitle';
     subtitle.textContent = t(def.label);
     this.inspector.appendChild(subtitle);
+
+    // Bouton d'aide vers la doc Wokwi en ligne (éléments @wokwi/elements seuls).
+    if (def.tag.startsWith('wokwi-')) {
+      const help = document.createElement('button');
+      help.className = 'inspector__doc';
+      const restore = (): void => { help.textContent = `❔ ${t('Wokwi help')}`; };
+      restore();
+      help.title = t('Open the online Wokwi documentation for this part');
+      help.addEventListener('click', () => {
+        if (navigator.onLine) {
+          this.onOpenExternal?.(`https://docs.wokwi.com/parts/${def.tag}`);
+        } else {
+          help.textContent = t('Available online only');
+          setTimeout(restore, 2500);
+        }
+      });
+      this.inspector.appendChild(help);
+    }
 
     for (const prop of def.props ?? []) {
       this.appendPropControl(partId, r.part, prop);

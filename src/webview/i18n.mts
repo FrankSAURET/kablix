@@ -23,6 +23,7 @@ const FR: Record<string, string> = {
 
   // Palette
   'Components': 'Composants',
+  'Search a component…': 'Rechercher un composant…',
   'Recently used': 'Derniers utilisés',
   'Show recently used': 'Afficher les derniers utilisés',
   'Hide recently used': 'Masquer les derniers utilisés',
@@ -91,6 +92,10 @@ const FR: Record<string, string> = {
   'No editable property for this part.': 'Aucune propriété modifiable pour ce composant.',
   'Suffixes allowed: p n µ m k M G (e.g. 2.2k)': 'Suffixes autorisés : p n µ m k M G (ex. 2.2k)',
   'no': 'non',
+  'Wokwi help': 'Aide Wokwi',
+  'Open the online Wokwi documentation for this part':
+    'Ouvrir la documentation Wokwi en ligne de ce composant',
+  'Available online only': 'Fonction disponible uniquement en ligne',
 
   // Créateur de composants
   'Create a part': 'Créer un composant',
@@ -123,6 +128,12 @@ const FR: Record<string, string> = {
   'PIR motion sensor': 'Détecteur de mouvement (PIR)',
   'Tilt sensor': "Capteur d'inclinaison",
   'Servo motor': 'Servomoteur',
+  'Ultrasonic sensor (HC-SR04)': 'Capteur ultrason (HC-SR04)',
+  'Temp/humidity sensor (DHT22)': 'Capteur temp/humidité (DHT22)',
+  'Membrane keypad': 'Clavier matriciel',
+  'LCD 16×2 (I²C)': 'LCD 16×2 (I²C)',
+  'LCD 16×2': 'LCD 16×2',
+  'LCD 20×4': 'LCD 20×4',
   'OLED display (SSD1306)': 'Écran OLED (SSD1306)',
   'NeoPixel matrix': 'Matrice NeoPixel',
   'NeoPixel ring': 'Anneau NeoPixel',
@@ -151,10 +162,23 @@ const FR: Record<string, string> = {
   'Flame detected': 'Flamme détectée',
   'Sound detected': 'Son détecté',
   'Horn': 'Bras',
+  'Single horn': 'Bras simple',
+  'Double horn': 'Bras double',
+  'Cross horn': 'Bras en croix',
   'State (0/1)': 'État (0/1)',
   'Common pin': 'Broche commune',
   'Common cathode (K)': 'Cathode commune (K)',
   'Common anode (A)': 'Anode commune (A)',
+  'Digits': 'Chiffres',
+  '1 digit': '1 chiffre',
+  '2 digits': '2 chiffres',
+  '4 digits': '4 chiffres',
+  'Colon (clock)': 'Deux-points (horloge)',
+  'Clock colon (:)': 'Deux-points horloge (:)',
+  'Distance (cm)': 'Distance (cm)',
+  'Columns': 'Colonnes',
+  '3 columns (3×4)': '3 colonnes (3×4)',
+  '4 columns (4×4)': '4 colonnes (4×4)',
 
   // Modèles du créateur
   'LED (lit when A=high and K=low)': 'LED (allumée si A=haut et K=bas)',

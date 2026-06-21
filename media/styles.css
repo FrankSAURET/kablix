@@ -22,6 +22,15 @@ body {
 
 .brand {
   letter-spacing: 0.05em;
+  display: inline-flex;
+  flex-direction: column;
+  line-height: 1.05;
+}
+
+.brand__version {
+  font-size: 0.62rem;
+  opacity: 0.6;
+  letter-spacing: 0.02em;
 }
 
 .toolbar button {
@@ -135,6 +144,20 @@ body {
   display: flex;
   gap: 4px;
   margin: 0 0 0.3rem; /* boutons de tri placés sous le titre « Composants » */
+}
+
+/* Barre de recherche de composants (sous les boutons de tri). */
+.palette__search {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.25rem 0.4rem;
+  margin: 0 0 0.4rem;
+  color: var(--vscode-input-foreground, #fff);
+  background: var(--vscode-input-background, #333);
+  border: 1px solid var(--vscode-input-border, #555);
+  border-radius: 4px;
 }
 
 .palette__sort-btn {
@@ -585,6 +608,19 @@ body {
   margin: 0;
   font-weight: bold;
   font-size: 0.85rem;
+}
+
+/* Bouton d'aide vers la doc Wokwi du composant (sous le titre de l'inspecteur). */
+.inspector__doc {
+  margin: 0.3rem 0 0.1rem;
+  font: inherit;
+  font-size: 0.72rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-input-border, #555);
+  background: var(--vscode-input-background, #333);
+  color: var(--vscode-input-foreground, #fff);
+  cursor: pointer;
 }
 
 .inspector__hint {

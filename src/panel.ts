@@ -487,6 +487,7 @@ export class SimulatorPanel {
     json?: unknown;
     onlyIfChanged?: boolean;
     request?: unknown;
+    url?: string;
   }): void {
     switch (msg?.type) {
       case 'ready':
@@ -551,6 +552,12 @@ export class SimulatorPanel {
         break;
       case 'help':
         void vscode.commands.executeCommand('kablix.openHelp');
+        break;
+      case 'openExternal':
+        // Lien vers la doc Wokwi d'un composant (bouton aide de l'inspecteur).
+        if (typeof msg.url === 'string' && /^https:\/\/docs\.wokwi\.com\//.test(msg.url)) {
+          void vscode.env.openExternal(vscode.Uri.parse(msg.url));
+        }
         break;
       case 'wokwiExport':
         // La webview a converti le schéma au format Wokwi : on l'enregistre.
@@ -822,6 +829,8 @@ export class SimulatorPanel {
       vscode.Uri.joinPath(this.extensionUri, 'media', 'Gomme.svg')
     );
     const nonce = getNonce();
+    const version =
+      vscode.extensions.getExtension('franksauret.kablix')?.packageJSON?.version ?? '';
     const csp = [
       `default-src 'none'`,
       // Les composants @wokwi/elements (Lit) injectent des styles dans leur
@@ -842,7 +851,10 @@ export class SimulatorPanel {
 </head>
 <body>
   <header class="toolbar">
-    <strong class="brand">Kablix</strong>
+    <span class="brand">
+      <strong class="brand__name">Kablix</strong>
+      <small class="brand__version">v${version}</small>
+    </span>
     <!-- Sélecteur de carte masqué : la carte de simulation est désormais choisie
          en déposant un microcontrôleur sur le canvas. Conservé (caché) pour la
          logique interne (valeur de la carte courante). -->

@@ -159,7 +159,16 @@ export const CATALOG: readonly PartDef[] = [
       { attr: 'color', label: 'Color', kind: 'select', options: ['red', 'green', 'blue', 'yellow', 'orange', 'white', 'purple'] },
     ],
   },
-  { type: 'rgb-led', label: 'RGB LED', tag: 'wokwi-rgb-led', kind: 'rgb-led', pinScale: WOKWI_PIN_SCALE },
+  {
+    type: 'rgb-led', label: 'RGB LED', tag: 'wokwi-rgb-led', kind: 'rgb-led', pinScale: WOKWI_PIN_SCALE,
+    attrs: { common: 'cathode' },
+    props: [
+      {
+        attr: 'common', label: 'Common pin', kind: 'select', options: ['cathode', 'anode'],
+        optionLabels: { cathode: 'Common cathode (K)', anode: 'Common anode (A)' },
+      },
+    ],
+  },
   {
     type: 'button', label: 'Pushbutton', tag: 'wokwi-pushbutton', kind: 'pushbutton', attrs: { color: 'green' }, interactive: true,
     props: [
@@ -186,12 +195,20 @@ export const CATALOG: readonly PartDef[] = [
   },
   {
     type: '7seg', label: '7-segment display', tag: 'wokwi-7segment', kind: '7segment',
-    attrs: { color: 'red', common: 'cathode' },
+    attrs: { color: 'red', common: 'cathode', digits: '1' },
     props: [
       { attr: 'color', label: 'Color', kind: 'select', options: ['red', 'green', 'blue', 'yellow', 'white'] },
       {
         attr: 'common', label: 'Common pin', kind: 'select', options: ['cathode', 'anode'],
         optionLabels: { cathode: 'Common cathode (K)', anode: 'Common anode (A)' },
+      },
+      {
+        attr: 'digits', label: 'Digits', kind: 'select', options: ['1', '2', '4'],
+        optionLabels: { '1': '1 digit', '2': '2 digits', '4': '4 digits' },
+      },
+      {
+        attr: 'colon', label: 'Colon (clock)', kind: 'select', options: ['', 'true'],
+        optionLabels: { '': 'no', 'true': 'Clock colon (:)' },
       },
     ],
   },
@@ -221,7 +238,10 @@ export const CATALOG: readonly PartDef[] = [
   {
     type: 'servo', label: 'Servo motor', tag: 'wokwi-servo', kind: 'servo',
     attrs: { horn: 'single' },
-    props: [{ attr: 'horn', label: 'Horn', kind: 'select', options: ['single', 'double', 'cross'] }],
+    props: [{
+      attr: 'horn', label: 'Horn', kind: 'select', options: ['single', 'double', 'cross'],
+      optionLabels: { single: 'Single horn', double: 'Double horn', cross: 'Cross horn' },
+    }],
   },
 
   // --- Composants @wokwi/elements supplémentaires (importés du catalogue Wokwi).
@@ -275,11 +295,41 @@ export const CATALOG: readonly PartDef[] = [
     digitalPin: 'DOUT', attrs: { state: '0' },
     props: [{ ...STATE_PROP, label: 'Sound detected' }],
   },
+
+  // Capteur ultrason HC-SR04 (élément Wokwi, broches VCC/TRIG/ECHO/GND) : simulé
+  // par le protocole ultrason réel (impulsion TRIG → ECHO selon la distance).
+  {
+    type: 'hcsr04', label: 'Ultrasonic sensor (HC-SR04)', tag: 'wokwi-hc-sr04', kind: 'ultrasonic',
+    attrs: { distance: '20' },
+    props: [{ attr: 'distance', label: 'Distance (cm)', kind: 'number', min: 2, max: 400, step: 1 }],
+  },
+  // Capteur de température/humidité DHT22 (1-wire sur SDA) : visuel seul pour
+  // l'instant (posable et câblable), pas encore simulé.
+  { type: 'dht22', label: 'Temp/humidity sensor (DHT22)', tag: 'wokwi-dht22', kind: 'passive' },
+  // Clavier matriciel à membrane (3 ou 4 colonnes). Interactif (appui visuel) ;
+  // la lecture matricielle côté MCU n'est pas encore simulée.
+  {
+    type: 'keypad', label: 'Membrane keypad', tag: 'wokwi-membrane-keypad', kind: 'passive', interactive: true,
+    attrs: { columns: '4' },
+    props: [{
+      attr: 'columns', label: 'Columns', kind: 'select', options: ['3', '4'],
+      optionLabels: { '3': '3 columns (3×4)', '4': '4 columns (4×4)' },
+    }],
+  },
+  // LCD 16×2 en version I²C (backpack PCF8574) : mêmes broches GND/VCC/SDA/SCL,
+  // texte décodé du bus I²C affiché à l'écran (adresse 0x27 par défaut).
+  {
+    type: 'lcd1602-i2c', label: 'LCD 16×2 (I²C)', tag: 'wokwi-lcd1602', kind: 'i2c-lcd',
+    attrs: { pins: 'i2c', address: '0x27', cols: '16', rows: '2' },
+  },
 ];
 
 // --- Catégories de la palette --------------------------------------------------
 /** Catégorie d'affichage d'un composant dans la palette (clé i18n). */
 export function partCategory(def: PartDef): string {
+  // Composants rangés par type quand le `kind` ne suffit pas à les classer.
+  if (def.type === 'dht22' || def.type === 'hcsr04') return 'Sensors';
+  if (def.type === 'keypad') return 'Controls';
   switch (def.kind) {
     case 'mcu':
     case 'breadboard':
@@ -289,6 +339,7 @@ export function partCategory(def: PartDef): string {
     case '7segment':
     case 'led-bar':
     case 'display':
+    case 'i2c-lcd':
       return 'Displays & LEDs';
     case 'pushbutton':
     case 'potentiometer':
@@ -298,6 +349,7 @@ export function partCategory(def: PartDef): string {
       return 'Controls';
     case 'analog-source':
     case 'digital-source':
+    case 'ultrasonic':
       return 'Sensors';
     case 'buzzer':
     case 'servo':

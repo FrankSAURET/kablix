@@ -158,8 +158,10 @@ export function ledOn(
 }
 
 /**
- * État des trois canaux d'une LED RGB (cathode commune) : un canal est allumé
- * si sa broche (R/G/B) est au niveau haut et la broche COM au niveau bas.
+ * État des trois canaux d'une LED RGB. Selon l'attribut `common` (cathode par
+ * défaut, ou anode) la logique s'inverse :
+ *  - cathode commune : un canal est allumé si sa broche (R/G/B) est HAUTE et COM BAS ;
+ *  - anode commune   : un canal est allumé si sa broche (R/G/B) est BASSE et COM HAUT.
  */
 export function rgbLedState(
   diagram: Diagram,
@@ -170,11 +172,10 @@ export function rgbLedState(
   const level = (pin: string): Level =>
     netLevel(diagram, nets, nets.netOf({ partId, pin }), readPin);
   const com = level('COM');
-  return {
-    red: level('R') === 1 && com === 0,
-    green: level('G') === 1 && com === 0,
-    blue: level('B') === 1 && com === 0,
-  };
+  const commonAnode = diagram.parts.find((p) => p.id === partId)?.attrs?.common === 'anode';
+  const lit = (pin: string): boolean =>
+    commonAnode ? level(pin) === 0 && com === 1 : level(pin) === 1 && com === 0;
+  return { red: lit('R'), green: lit('G'), blue: lit('B') };
 }
 
 /** Un buzzer est actif quand une tension existe entre ses deux broches. */
