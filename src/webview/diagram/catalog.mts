@@ -303,11 +303,18 @@ export const CATALOG: readonly PartDef[] = [
     attrs: { distance: '20' },
     props: [{ attr: 'distance', label: 'Distance (cm)', kind: 'number', min: 2, max: 400, step: 1 }],
   },
-  // Capteur de température/humidité DHT22 (1-wire sur SDA) : visuel seul pour
-  // l'instant (posable et câblable), pas encore simulé.
-  { type: 'dht22', label: 'Temp/humidity sensor (DHT22)', tag: 'wokwi-dht22', kind: 'passive' },
-  // Clavier matriciel à membrane (3 ou 4 colonnes). Interactif (appui visuel) ;
-  // la lecture matricielle côté MCU n'est pas encore simulée.
+  // Capteur de température/humidité DHT22 (1-wire sur SDA) : répond au protocole
+  // réel (température/humidité réglées dans l'inspecteur).
+  {
+    type: 'dht22', label: 'Temp/humidity sensor (DHT22)', tag: 'wokwi-dht22', kind: 'passive',
+    attrs: { temperature: '22', humidity: '50' },
+    props: [
+      { attr: 'temperature', label: 'Temperature (°C)', kind: 'number', min: -40, max: 80, step: 0.1 },
+      { attr: 'humidity', label: 'Humidity (%)', kind: 'number', min: 0, max: 100, step: 1 },
+    ],
+  },
+  // Clavier matriciel à membrane (3 ou 4 colonnes). Interactif : une touche
+  // enfoncée court-circuite ligne/colonne (lecture matricielle simulée).
   {
     type: 'keypad', label: 'Membrane keypad', tag: 'wokwi-membrane-keypad', kind: 'passive', interactive: true,
     attrs: { columns: '4' },

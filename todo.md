@@ -1,3 +1,9 @@
+# v2026.6.33
+1. ✅ **DHT22 simulé (protocole 1-wire réel)** : nouveau répondeur côté moteur AVR. Le firmware tire la ligne BAS ≥ ~0,5 ms (signal de départ) puis la relâche → le moteur génère l'accusé (80 µs BAS + 80 µs HAUT) puis 40 bits (HAUT court = 0, long = 1) encodant humidité×10, température×10 (bit de signe), checksum. Température/humidité réglées dans l'inspecteur. Module partagé `engines/dht22.mts` (encodage + forme d'onde). Détection + injection des transitions en temps simulé (réutilise la file `scheduled` de l'ultrason). AVR (Uno/Nano/Mega) ; RP2040 non couvert (comme l'ultrason).
+2. ✅ **Clavier matriciel simulé** : nouveau support moteur `setKeypads` (AVR **et** RP2040). Une touche enfoncée (suivie via les événements `button-press`/`button-release` de l'élément) court-circuite sa ligne et sa colonne ; à chaque balayage, la colonne est tirée à LOW **uniquement** si la ligne est **pilotée** à LOW (sortie basse) — les lignes en entrée haute impédance sont ignorées (pas de touche fantôme). Compatible avec la bibliothèque Keypad (lignes en sortie, colonnes en `INPUT_PULLUP`). `keypadBindings` résout R1..R4 / C1..C4.
+3. ✅ **7 segments multi-chiffres fonctionnel** : `sevenSegmentDigit` lit le chiffre sélectionné (broche DIGn active) ; `sim.mts` mémorise (latch) la dernière valeur de chaque chiffre → l'affichage multiplexé (2/4 chiffres, horloge) reste stable. Latch remis à zéro à chaque démarrage.
+4. ✅ **Tests** : `npm run verify:components` (nouveau) — aller-retour du protocole DHT22 (encodage → forme d'onde → décodage lecteur, checksum, température négative), 7 segments multiplexé (chiffre actif/segment), résolution des broches du clavier. Ajouté à `verify:all`. `verify:wokwi` mis à jour (le DHT22, désormais reconnu, n'est plus l'exemple de « type inconnu » → remplacé par `wokwi-stepper-motor`).
+
 # v2026.6.32
 1. ✅ **Barre de recherche dans la palette** : champ « Rechercher un composant… » sous les boutons de tri ; filtre les items par libellé sans reconstruire la palette (le champ garde le focus) et masque les sections vides.
 2. ⏳ **Symboles IEC (tous les composants en IEC, et seulement IEC)** → différé : c'est une refonte visuelle complète (chaque composant doit être redessiné en symbole normalisé, ce qui remplace les éléments @wokwi/elements servant aussi au positionnement des broches et au rendu de simulation — LED qui s'allume, 7 segments, écrans…). Risque élevé sans vérification visuelle côté agent. À traiter dans une version dédiée, avec itérations visuelles, en commençant par LED (triangle creux + trait + barre cathode) / résistance / bouton.
@@ -8,7 +14,6 @@
 7. ✅ **N° de version sous « Kablix »** : la marque de la barre d'outils affiche le numéro de version (lu dans `package.json`) en petit, sous le nom.
 8. ✅ **Options de servomoteur traduites** : le bras (single/double/cross) s'affiche « Bras simple / Bras double / Bras en croix ».
 # v2026.6.31
-# Backlog (reste à faire / suivi)
 - ✅ Bouton (haut-droite de la barre de composants) pour afficher/masquer les derniers utilisés → fait en v2026.6.31 : bouton 🕘 dans la barre de tri (état persisté `showRecents`).
 - ✅ Plus de cercle jaune sur chaque point connectable (souvent mal centré) ; garder GND noir / Power rouge → fait en v2026.6.31 : `.pin` rendu transparent (cliquable, révélé au survol) ; `.pin--vcc`/`.pin--gnd` gardent rouge/noir.
 - ✅ LED RGB au pas de 10 px → fait en v2026.6.31 : `pinScale = 10/9,6` sur la LED RGB.

@@ -215,6 +215,34 @@ export function sevenSegmentState(
   });
 }
 
+/**
+ * Un chiffre d'un afficheur 7 segments multiplexé (2/4 chiffres). Les segments
+ * A..DP sont partagés ; chaque chiffre a sa broche commune DIGn. Le chiffre est
+ * « sélectionné » quand son commun est actif (BAS en cathode commune, HAUT en
+ * anode commune). `active` indique si le chiffre est éclairé à cet instant ;
+ * `values` donne ses 8 segments (ordre A,B,C,D,E,F,G,DP). L'appelant mémorise
+ * (latch) la dernière valeur de chaque chiffre actif pour reconstituer
+ * l'affichage complet (le balayage n'éclaire qu'un chiffre à la fois).
+ */
+export function sevenSegmentDigit(
+  diagram: Diagram,
+  partId: string,
+  readPin: (name: string) => boolean,
+  digitPin: string,
+  commonAnode: boolean
+): { active: boolean; values: number[] } {
+  const nets = buildNets(diagram);
+  const level = (pin: string): Level =>
+    netLevel(diagram, nets, nets.netOf({ partId, pin }), readPin);
+  const common = level(digitPin);
+  const active = commonAnode ? common === 1 : common === 0;
+  const values = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'DP'].map((seg) => {
+    const s = level(seg);
+    return commonAnode ? (s === 0 && common === 1 ? 1 : 0) : (s === 1 && common === 0 ? 1 : 0);
+  });
+  return { active, values };
+}
+
 /** LED allumées d'une barre de 10 LED (anodes A1..A10, cathodes C1..C10). */
 export function ledBarState(
   diagram: Diagram,
@@ -453,6 +481,50 @@ export function ultrasonicBindings(diagram: Diagram): UltrasonicBinding[] {
     if (trig && echo) bindings.push({ partId: part.id, trig, echo });
   }
   return bindings;
+}
+
+export interface KeypadBinding {
+  partId: string;
+  /** Broches MCU reliées aux lignes R1..R4 (null si non câblée). */
+  rows: Array<string | null>;
+  /** Broches MCU reliées aux colonnes C1..C4 (null si non câblée / absente). */
+  cols: Array<string | null>;
+}
+
+/** Claviers matriciels du schéma : lignes/colonnes résolues côté MCU. */
+export function keypadBindings(diagram: Diagram): KeypadBinding[] {
+  const nets = buildNets(diagram);
+  const out: KeypadBinding[] = [];
+  for (const part of diagram.parts) {
+    if (part.type !== 'keypad') continue;
+    const cols = Number(part.attrs?.columns ?? 4) || 4;
+    const pin = (name: string): string | null =>
+      mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin: name }));
+    out.push({
+      partId: part.id,
+      rows: ['R1', 'R2', 'R3', 'R4'].map(pin),
+      cols: Array.from({ length: cols }, (_, i) => pin(`C${i + 1}`)),
+    });
+  }
+  return out;
+}
+
+export interface Dht22Binding {
+  partId: string;
+  /** Broche MCU reliée à la ligne de données (SDA, 1-wire). */
+  pin: string;
+}
+
+/** Capteurs DHT22 du schéma dont la ligne de données est reliée à une broche MCU. */
+export function dht22Bindings(diagram: Diagram): Dht22Binding[] {
+  const nets = buildNets(diagram);
+  const out: Dht22Binding[] = [];
+  for (const part of diagram.parts) {
+    if (part.type !== 'dht22') continue;
+    const pin = mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin: 'SDA' }));
+    if (pin) out.push({ partId: part.id, pin });
+  }
+  return out;
 }
 
 export interface SpiDeviceBinding {

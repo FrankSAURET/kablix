@@ -176,6 +176,8 @@ const FR: Record<string, string> = {
   'Colon (clock)': 'Deux-points (horloge)',
   'Clock colon (:)': 'Deux-points horloge (:)',
   'Distance (cm)': 'Distance (cm)',
+  'Temperature (°C)': 'Température (°C)',
+  'Humidity (%)': 'Humidité (%)',
   'Columns': 'Colonnes',
   '3 columns (3×4)': '3 colonnes (3×4)',
   '4 columns (4×4)': '4 colonnes (4×4)',

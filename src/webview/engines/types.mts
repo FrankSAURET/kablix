@@ -55,6 +55,29 @@ export interface UltrasonicSensor {
   distanceCm: number;
 }
 
+/**
+ * Clavier matriciel à simuler. `rows`/`cols` = broches MCU des lignes/colonnes
+ * (null si non câblée). `pressed` est partagé avec l'UI : il contient les touches
+ * enfoncées au format « ligne,colonne » (indices 0-based). Le moteur reçoit la
+ * référence et la relit à chaque balayage (le firmware met une ligne à LOW et lit
+ * les colonnes ; une touche enfoncée tire sa colonne à LOW).
+ */
+export interface KeypadConfig {
+  rows: Array<string | null>;
+  cols: Array<string | null>;
+  pressed: Set<string>;
+}
+
+/** Capteur DHT22 (température/humidité, protocole 1-wire) à simuler. */
+export interface Dht22Sensor {
+  /** Broche MCU reliée à la ligne de données. */
+  pin: string;
+  /** Température simulée, en °C (réglée dans l'inspecteur). */
+  temperatureC: number;
+  /** Humidité relative simulée, en % (réglée dans l'inspecteur). */
+  humidity: number;
+}
+
 /** Infos de débogage C/AVR extraites à la compilation (DWARF + symboles). */
 export interface AvrDebugInfo {
   /** Table adresse flash (octets) → ligne du fichier principal. */
@@ -97,6 +120,10 @@ export interface SimEngine {
    * génère sur ECHO une impulsion de largeur = distance × 58 µs (en temps simulé).
    */
   setUltrasonic?(sensors: UltrasonicSensor[]): void;
+  /** Déclare les claviers matriciels : une touche enfoncée court-circuite ligne/colonne. */
+  setKeypads?(keypads: KeypadConfig[]): void;
+  /** Déclare les capteurs DHT22 : répond au protocole 1-wire avec température/humidité. */
+  setDht22?(sensors: Dht22Sensor[]): void;
   /** Relie des périphériques I²C (esclaves) au bus du MCU (LCD, PCA9685…). */
   setI2cDevices?(devices: I2cDevice[]): void;
   /** Relie des périphériques SPI (esclaves) au bus du MCU (OLED SPI…). */

@@ -92,13 +92,13 @@ const foreign = {
   version: 1,
   parts: [
     { type: 'wokwi-led', id: 'l', left: 0, top: 0, attrs: {} },
-    { type: 'wokwi-dht22', id: 'x', left: 50, top: 50, attrs: {} },
+    { type: 'wokwi-stepper-motor', id: 'x', left: 50, top: 50, attrs: {} },
   ],
-  connections: [['x:SDA', 'l:A', 'green', []]],
+  connections: [['x:A+', 'l:A', 'green', []]],
 };
 const r = fromWokwiDiagram(foreign);
 check('composant connu importé, inconnu ignoré', r.parts.length === 1 && r.parts[0].id === 'l');
-check('type inconnu signalé', r.skipped.includes('wokwi-dht22'), JSON.stringify(r.skipped));
+check('type inconnu signalé', r.skipped.includes('wokwi-stepper-motor'), JSON.stringify(r.skipped));
 check('fil vers un composant ignoré écarté', r.wires.length === 0, String(r.wires.length));
 
 console.log(failures === 0 ? '\nRESULTAT: OK' : '\nRESULTAT: ECHEC');

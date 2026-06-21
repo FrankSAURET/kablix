@@ -11,6 +11,7 @@ import type {
   Breakpoint,
   DebugPauseState,
   FlashSegment,
+  KeypadConfig,
   NetRequest,
   NetResponse,
   SimEngine,
@@ -89,6 +90,10 @@ export class PicoEngine implements SimEngine {
   private pulseState = new Map<string, { high: boolean; rise: number; lastUs: number; lastEdge: number }>();
   // Chaînes NeoPixel : décodeur WS2812 par broche DIN.
   private neopixels: Array<{ name: string; index: number; dec: Ws2812Decoder; last: boolean }> = [];
+  // Claviers matriciels : touches enfoncées → colonnes tirées à LOW.
+  private keypads: KeypadConfig[] = [];
+  private applyingKeypads = false;
+  private keypadColLevel = new Map<string, boolean>();
 
   constructor(program: PicoProgram) {
     this.sim = new Simulator();
@@ -124,6 +129,7 @@ export class PicoEngine implements SimEngine {
       pin.addListener(() => {
         this.samplePulses();
         this.sampleNeopixels();
+        this.applyKeypads();
         this.onUpdate?.();
       });
     }
@@ -154,6 +160,56 @@ export class PicoEngine implements SimEngine {
     const i = gpioIndex(name);
     if (i === null) return;
     this.mcu.gpio[i].setInputValue(value);
+  }
+
+  setKeypads(keypads: KeypadConfig[]): void {
+    this.keypads = keypads;
+    this.keypadColLevel.clear();
+    // Colonnes au repos = HAUT (pull-up).
+    for (const kp of keypads) {
+      for (const col of kp.cols) if (col) this.setInput(col, true);
+    }
+  }
+
+  /** Vrai si la broche est PILOTÉE à LOW (sortie basse), pas seulement flottante. */
+  private pinDrivenLow(name: string): boolean {
+    const i = gpioIndex(name);
+    if (i === null) return false;
+    return this.mcu.gpio[i].value === GPIOPinState.Low;
+  }
+
+  /**
+   * Recalcule le niveau des colonnes : une colonne est tirée à LOW si une touche
+   * enfoncée la relie à une ligne actuellement pilotée à LOW (sortie basse). Les
+   * lignes en entrée haute impédance sont ignorées (pas de touche fantôme).
+   * Garde-fou de ré-entrance (setInput redéclenche l'écouteur de broche).
+   */
+  private applyKeypads(): void {
+    if (this.keypads.length === 0 || this.applyingKeypads) return;
+    this.applyingKeypads = true;
+    try {
+      for (const kp of this.keypads) {
+        for (let c = 0; c < kp.cols.length; c++) {
+          const col = kp.cols[c];
+          if (!col) continue;
+          let pulled = false;
+          for (let r = 0; r < kp.rows.length; r++) {
+            const row = kp.rows[r];
+            if (row && kp.pressed.has(`${r},${c}`) && this.pinDrivenLow(row)) {
+              pulled = true;
+              break;
+            }
+          }
+          const level = !pulled;
+          if (this.keypadColLevel.get(col) !== level) {
+            this.keypadColLevel.set(col, level);
+            this.setInput(col, level);
+          }
+        }
+      }
+    } finally {
+      this.applyingKeypads = false;
+    }
   }
 
   /**

@@ -40,9 +40,17 @@ import type {
   Breakpoint,
   DebugPauseState,
   DebugVariable,
+  Dht22Sensor,
+  KeypadConfig,
   SimEngine,
   UltrasonicSensor,
 } from './types.mjs';
+import {
+  buildDht22Schedule,
+  dht22ResponseCycles,
+  DHT22_START_LOW_US,
+  type Dht22Monitor,
+} from './dht22.mjs';
 import { selectSpiDevice, type I2cDevice, type SpiDevice } from './i2c-devices.mjs';
 import { Ws2812Decoder } from './ws2812.mjs';
 
@@ -137,6 +145,15 @@ export class AvrEngine implements SimEngine {
   // Chaînes NeoPixel : décodeur WS2812 par broche DIN surveillée.
   private neopixels: Array<{ name: string; port: PortKey; bit: number; dec: Ws2812Decoder; last: boolean }> = [];
 
+  // Claviers matriciels : touches enfoncées → colonnes tirées à LOW (re-calculé
+  // à chaque changement de port). Garde-fou de ré-entrance + dernier niveau posé.
+  private keypads: KeypadConfig[] = [];
+  private applyingKeypads = false;
+  private keypadColLevel = new Map<string, boolean>();
+
+  // Capteurs DHT22 : surveillance du signal de départ (1-wire) par broche.
+  private dht22: Dht22Monitor[] = [];
+
   constructor(
     program: Uint16Array,
     debugInfo?: AvrDebugInfo | null,
@@ -185,6 +202,8 @@ export class AvrEngine implements SimEngine {
       port?.addListener(() => {
         this.samplePulses();
         this.sampleNeopixels();
+        this.sampleDht22();
+        this.applyKeypads();
         this.onUpdate?.();
       });
     }
@@ -319,6 +338,99 @@ export class AvrEngine implements SimEngine {
       }
       if (!this.pulseState.has(s.trig)) {
         this.pulseState.set(s.trig, { high: false, rise: 0, lastUs: 0, lastEdge: 0 });
+      }
+    }
+  }
+
+  setKeypads(keypads: KeypadConfig[]): void {
+    this.keypads = keypads;
+    this.keypadColLevel.clear();
+    // Colonnes au repos = HAUT (pull-up). Le firmware lit ce niveau tant qu'aucune
+    // touche n'est enfoncée sur une ligne tirée à LOW.
+    for (const kp of keypads) {
+      for (const col of kp.cols) if (col) this.setInput(col, true);
+    }
+  }
+
+  /** Vrai si la broche est PILOTÉE à LOW (sortie basse), pas seulement flottante. */
+  private pinDrivenLow(name: string): boolean {
+    const map = this.pinMap[name];
+    if (!map) return false;
+    return this.ports[map[0]]?.pinState(map[1]) === PinState.Low;
+  }
+
+  /**
+   * Recalcule le niveau des colonnes de chaque clavier : une colonne est tirée à
+   * LOW si une touche enfoncée la relie à une ligne actuellement pilotée à LOW (le
+   * firmware balaie en mettant une ligne en sortie BASSE puis en lisant les
+   * colonnes ; les autres lignes sont en entrée haute impédance, donc ignorées
+   * pour éviter les touches fantômes). Garde-fou de ré-entrance : `setInput`
+   * redéclenche l'écouteur de port.
+   */
+  private applyKeypads(): void {
+    if (this.keypads.length === 0 || this.applyingKeypads) return;
+    this.applyingKeypads = true;
+    try {
+      for (const kp of this.keypads) {
+        for (let c = 0; c < kp.cols.length; c++) {
+          const col = kp.cols[c];
+          if (!col) continue;
+          let pulled = false;
+          for (let r = 0; r < kp.rows.length; r++) {
+            const row = kp.rows[r];
+            if (row && kp.pressed.has(`${r},${c}`) && this.pinDrivenLow(row)) {
+              pulled = true;
+              break;
+            }
+          }
+          const level = !pulled; // tiré à LOW si une touche relie à une ligne basse
+          if (this.keypadColLevel.get(col) !== level) {
+            this.keypadColLevel.set(col, level);
+            this.setInput(col, level);
+          }
+        }
+      }
+    } finally {
+      this.applyingKeypads = false;
+    }
+  }
+
+  setDht22(sensors: Dht22Sensor[]): void {
+    this.dht22 = sensors.map((s) => ({
+      pin: s.pin,
+      tempC: s.temperatureC,
+      humidity: s.humidity,
+      wasLow: false,
+      lowStart: 0,
+      busyUntil: 0,
+    }));
+    // Ligne de données au repos = HAUT (pull-up) ; le MCU la tire BAS pour démarrer.
+    for (const d of this.dht22) this.setInput(d.pin, true);
+  }
+
+  /**
+   * Détecte le signal de départ du DHT22 (ligne tenue BASSE ≥ ~0,5 ms puis
+   * relâchée) et programme la réponse (accusé + 40 bits) en temps simulé.
+   */
+  private sampleDht22(): void {
+    if (this.dht22.length === 0) return;
+    const now = this.cpu.cycles;
+    for (const d of this.dht22) {
+      const map = this.pinMap[d.pin];
+      if (!map) continue;
+      const low = this.ports[map[0]]?.pinState(map[1]) === PinState.Low;
+      if (low && !d.wasLow) {
+        d.wasLow = true;
+        d.lowStart = now;
+      } else if (!low && d.wasLow) {
+        d.wasLow = false;
+        const lowUs = (now - d.lowStart) / CYCLES_PER_US;
+        if (lowUs >= DHT22_START_LOW_US && now >= d.busyUntil) {
+          const start = now + 30 * CYCLES_PER_US; // ~30 µs après le relâchement
+          const sched = buildDht22Schedule(d.tempC, d.humidity, start, CYCLES_PER_US);
+          for (const ev of sched) this.scheduled.push({ cycle: ev.cycle, name: d.pin, value: ev.value });
+          d.busyUntil = start + dht22ResponseCycles(sched, start);
+        }
       }
     }
   }

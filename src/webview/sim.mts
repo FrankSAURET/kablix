@@ -51,6 +51,7 @@ import {
   rgbLedState,
   buzzerOn,
   sevenSegmentState,
+  sevenSegmentDigit,
   ledBarState,
   buttonBindings,
   potBindings,
@@ -62,6 +63,8 @@ import {
   servoBindings,
   buzzerBindings,
   ultrasonicBindings,
+  keypadBindings,
+  dht22Bindings,
   pca9685Bindings,
   neopixelBindings,
   spiDeviceBindings,
@@ -78,7 +81,13 @@ import {
   type I2cDevice,
   type SpiDevice,
 } from './engines/i2c-devices.mjs';
-import type { AvrDebugInfo, Breakpoint, DebugPauseState, SimEngine } from './engines/types.mjs';
+import type {
+  AvrDebugInfo,
+  Breakpoint,
+  DebugPauseState,
+  KeypadConfig,
+  SimEngine,
+} from './engines/types.mjs';
 import { UNO_DEMO } from './programs/uno-demo.mjs';
 import { PICO_BLINK } from './programs/pico-blink.mjs';
 
@@ -159,6 +168,10 @@ let buzzerTargets = new Map<string, string>();
 // Écrans SPI : partId → appareil (rendu de l'image). OLED SSD1306 / TFT ILI9341.
 let spiOledDevices = new Map<string, Ssd1306Device>();
 let spiTftDevices = new Map<string, Ili9341Device>();
+// Afficheurs 7 segments multi-chiffres : partId → segments mémorisés (latch) de
+// chaque chiffre (le balayage n'éclaire qu'un chiffre à la fois ; on conserve la
+// dernière valeur connue de chacun pour reconstituer l'affichage complet).
+let sevenSegLatch = new Map<string, number[]>();
 let breakpoints: Breakpoint[] = []; // points d'arrêt envoyés par l'extension (ligne + condition)
 // Vrai dès qu'un programme compilé/chargé a été reçu : sinon, lancer la
 // simulation déclenche d'abord une compilation automatique du fichier de code.
@@ -295,9 +308,30 @@ function refreshVisuals(): void {
         }
         break;
       }
-      case '7segment':
-        el.values = sevenSegmentState(editor.diagram, part.id, read);
+      case '7segment': {
+        const digits = Math.max(1, Number(part.attrs?.digits ?? 1) || 1);
+        if (digits <= 1) {
+          el.values = sevenSegmentState(editor.diagram, part.id, read);
+        } else {
+          // Multiplexage : on échantillonne le chiffre actuellement sélectionné
+          // (broche DIGn active) et on mémorise ses segments ; les autres gardent
+          // leur dernière valeur connue → l'affichage complet reste stable.
+          const commonAnode = part.attrs?.common === 'anode';
+          let latch = sevenSegLatch.get(part.id);
+          if (!latch || latch.length !== digits * 8) {
+            latch = new Array(digits * 8).fill(0);
+            sevenSegLatch.set(part.id, latch);
+          }
+          for (let d = 0; d < digits; d++) {
+            const { active, values } = sevenSegmentDigit(
+              editor.diagram, part.id, read, `DIG${d + 1}`, commonAnode
+            );
+            if (active) for (let s = 0; s < 8; s++) latch[d * 8 + s] = values[s];
+          }
+          el.values = latch.slice();
+        }
         break;
+      }
       case 'led-bar':
         el.values = ledBarState(editor.diagram, part.id, read);
         break;
@@ -391,6 +425,48 @@ function bindInputs(): void {
     ultrasonicBindings(editor.diagram).map((b) => {
       const part = editor.diagram.parts.find((p) => p.id === b.partId);
       return { trig: b.trig, echo: b.echo, distanceCm: Number(part?.attrs?.distance ?? 20) };
+    })
+  );
+
+  // Claviers matriciels : une touche enfoncée relie sa ligne et sa colonne. On
+  // suit les touches enfoncées via les événements de l'élément (button-press /
+  // button-release) ; le moteur tire la colonne à LOW quand la ligne l'est.
+  const keypads: KeypadConfig[] = [];
+  for (const b of keypadBindings(editor.diagram)) {
+    const el = editor.elementOf(b.partId);
+    const pressed = new Set<string>();
+    if (el) {
+      const update = (e: Event, add: boolean): void => {
+        const d = (e as CustomEvent).detail as { row?: number; column?: number };
+        if (typeof d?.row !== 'number' || typeof d?.column !== 'number') return;
+        const key = `${d.row},${d.column}`;
+        if (add) pressed.add(key);
+        else pressed.delete(key);
+        // L'ensemble `pressed` est partagé avec le moteur (par référence) : le
+        // prochain balayage du firmware (quelques µs) prendra la touche en compte.
+      };
+      const onPress = (e: Event): void => update(e, true);
+      const onRelease = (e: Event): void => update(e, false);
+      el.addEventListener('button-press', onPress);
+      el.addEventListener('button-release', onRelease);
+      inputRemovers.push(() => {
+        el.removeEventListener('button-press', onPress);
+        el.removeEventListener('button-release', onRelease);
+      });
+    }
+    keypads.push({ rows: b.rows, cols: b.cols, pressed });
+  }
+  engine.setKeypads?.(keypads);
+
+  // Capteurs DHT22 (1-wire) : température/humidité réglées dans l'inspecteur.
+  engine.setDht22?.(
+    dht22Bindings(editor.diagram).map((b) => {
+      const part = editor.diagram.parts.find((p) => p.id === b.partId);
+      return {
+        pin: b.pin,
+        temperatureC: Number(part?.attrs?.temperature ?? 22),
+        humidity: Number(part?.attrs?.humidity ?? 50),
+      };
     })
   );
 
@@ -806,6 +882,7 @@ function startRun(): void {
   }
   engine.setSpeed(Number(speedSelect.value) || 1);
   engine.setBreakpoints?.(breakpoints);
+  sevenSegLatch = new Map(); // nouveau run : les chiffres mémorisés repartent à zéro
   buildI2cDevices();
   rebind();
   engine.start();
