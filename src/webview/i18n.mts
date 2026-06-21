@@ -24,6 +24,8 @@ const FR: Record<string, string> = {
   // Palette
   'Components': 'Composants',
   'Recently used': 'Derniers utilisés',
+  'Show recently used': 'Afficher les derniers utilisés',
+  'Hide recently used': 'Masquer les derniers utilisés',
   'All components': 'Tous les composants',
   'Alphabetical': 'Ordre alphabétique',
   'By category': 'Par catégorie',

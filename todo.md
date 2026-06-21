@@ -1,4 +1,11 @@
 # Backlog (reste à faire / suivi)
+- ✅ Bouton (haut-droite de la barre de composants) pour afficher/masquer les derniers utilisés → fait en v2026.6.31 : bouton 🕘 dans la barre de tri (état persisté `showRecents`).
+- ✅ Plus de cercle jaune sur chaque point connectable (souvent mal centré) ; garder GND noir / Power rouge → fait en v2026.6.31 : `.pin` rendu transparent (cliquable, révélé au survol) ; `.pin--vcc`/`.pin--gnd` gardent rouge/noir.
+- ✅ LED RGB au pas de 10 px → fait en v2026.6.31 : `pinScale = 10/9,6` sur la LED RGB.
+- ✅ Tuto édition SVG des composants + schémas internes → fait en v2026.6.31 : [docs/Modifier svg composants.md](docs/Modifier%20svg%20composants.md).
+- ⏳ Pico → élément wokwi "wokwi-pi-pico" / Pico W → "board-pi-pico-w" → **impossible** : ces éléments n'existent pas (npm 404, absents de @wokwi/elements 1.9.2 et du dépôt GitHub ; "board-pi-pico-w" est un *type de carte diagram.json*, pas un custom element). La Pico reste le dessin maison `parts/picow-module` (cf. tâche suivante : noms de pattes ajoutés à l'extérieur).
+- ✅ Zoom 20 %–500 % → fait en v2026.6.31 : `ZOOM_MIN = 0.2`, `ZOOM_MAX = 5`.
+- ✅ Pico : noms des pattes à l'extérieur du composant → fait en v2026.6.31 : marges gauche/droite ajoutées, nom de chaque broche imprimé hors du dessin.
 1. ✅ ***Revoir svg pico pi et pico pi w*** → fait en v2026.6.30 : `<kablix-pico-board>` reprend le dessin `parts/picow-module` (Pico W, deux rangées verticales au pas de 10 px), LED GP25 conservée. Reste à peaufiner le placement de la LED (vérif visuelle).
 2. ✅ Si on inverse le cablage du + et de la masse des potentiometre leur variation doit s'inverser. il n'ont pas de power sur leurs pattes et donc ils ne changent pas la couleur des fils en rouge ou noir → fait en v2026.6.29 : `potBindings` détecte VCC↔GND permutés (champ `inverted`) → lecture inversée en simulation ; les broches du potentiomètre ne sont déjà plus colorées comme de l'alimentation (depuis v2026.6.28).
 3. ✅ fournir mega, nano et mini → fait en v2026.6.18 : Nano / Pro Mini / Mega 2560 (+ Pico W) ajoutés au sélecteur.
@@ -21,6 +28,15 @@
 20. ✅ Aucune variable lisible ici ~~(en C : variables globales seulement)~~. Supprimer le texte barré pour la partie pico. Le mettre systématiquement en haut des variable (affichage permanent) pour le C. Un clic sur ce tecte ou une bulle d'aide explique comment créer des variables globales. → fait en v2026.6.29 : en C/Arduino, un **en-tête permanent** « ℹ Seules les variables globales sont affichées (cliquer pour l'aide) » coiffe le panneau (bulle d'aide + clic → page d'aide) ; en MicroPython cet en-tête est omis et le message « aucune variable » n'évoque plus le C.
 21. ⏳ Ajouter les point d'arrêt conditionnels à la simulation arduino → hors périmètre (rappel v2026.6.17) : nécessite un évaluateur d'expressions DWARF côté AVR ; les points d'arrêt conditionnels restent disponibles en MicroPython, inconditionnels en C/AVR.
 22. ⬜ Rajouter un onglet console de sortie la ou est le moniteur série avec un onglet pour afficher le résulats de la compilation. → reste à faire (non traité dans v2026.6.29).
+23. ⏳ Uno/Mega : encoches 0,05″ hors grille 10 px. → limitation matérielle réelle : la mise à l'échelle 10/9,6 (v2026.6.30) met le pas nominal à 10 px, mais le demi-pas des encoches (≈ 4,8 → ≈ 5 px) reste « entre deux trous » → ces broches ne s'enfichent pas pile sur la platine (comme sur la vraie carte). Non corrigeable sans redessiner un brochage uniforme. Le Nano (pas uniforme) n'est pas concerné.
+# v2026.6.31
+1. ✅ **Derniers utilisés masquables** : bouton 🕘 en haut-droite de la barre de composants ; l'état (`showRecents`) est persisté avec les autres préférences de palette.
+2. ✅ **Points de connexion discrets** : la pastille jaune sur chaque broche (souvent perçue mal centrée) devient **transparente** (toujours cliquable, surlignée au survol). Les broches d'**alimentation** gardent leur couleur : **GND noir**, **Power rouge**.
+3. ✅ **LED RGB au pas de 10 px** : `pinScale = 10/9,6` ajouté (comme les cartes AVR) pour aligner ses pattes sur la grille.
+4. ✅ **Tuto** : [docs/Modifier svg composants.md](docs/Modifier%20svg%20composants.md) — éditer le SVG d'un composant (perso / intégré) et les schémas internes (`internal-wiring.mts`).
+5. ⏳ **Pico ≠ élément Wokwi** : `wokwi-pi-pico` / `board-pi-pico-w` n'existent pas (npm 404, absents de `@wokwi/elements`). Conservé : dessin maison `parts/picow-module`.
+6. ✅ **Zoom élargi 20 %–500 %** : `ZOOM_MIN = 0.2`, `ZOOM_MAX = 5`.
+7. ✅ **Noms de pattes de la Pico à l'extérieur** : `<kablix-pico-board>` ajoute des marges et imprime le nom de chaque broche hors du dessin (GND.1..8 → « GND »).
 # v2026.6.30
 1. ✅ **Nano et Mega 2560 réparés** : les éléments `@wokwi/elements` correspondants n'étaient **jamais importés** dans `sim.mts` → la carte apparaissait vide. Importés (`arduino-nano-element`, `arduino-mega-element`). Le Pro Mini réutilise le visuel Nano.
 2. ✅ **Pas des broches ramené à 10 px** : les cartes `@wokwi/elements` sont au pas physique 0,1″ ≈ 9,6 px, désaligné de la grille / platine (10 px). Nouvelle propriété `pinScale` (= 10/9,6) sur Uno/Nano/Pro Mini/Mega : le dessin **et** les pastilles sont agrandis pour tomber sur la grille de 10 px (export SVG inclus). `applyPinScale` agit une frame après le rendu Lit.

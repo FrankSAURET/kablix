@@ -163,6 +163,11 @@ body {
   border-color: var(--vscode-focusBorder, #0e639c);
 }
 
+/* Bascule « Derniers utilisés » : poussée à droite de la barre de composants. */
+.palette__recents-toggle {
+  margin-left: auto;
+}
+
 /* En-tête de section (catégorie, derniers utilisés) */
 .palette__section {
   margin: 0.45rem 0 0;
@@ -823,8 +828,11 @@ body {
   height: 9px;
   margin: -4.5px 0 0 -4.5px;
   border-radius: 50%;
-  background: rgba(255, 196, 0, 0.55);
-  border: 1px solid rgba(180, 130, 0, 0.9);
+  /* Pastilles ordinaires invisibles (l'utilisateur ne veut pas de cercle sur
+     chaque point connectable) : transparentes mais cliquables, révélées au
+     survol. Seules les broches d'alimentation gardent une couleur (cf. plus bas). */
+  background: transparent;
+  border: 1px solid transparent;
   cursor: crosshair;
 }
 

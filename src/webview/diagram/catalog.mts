@@ -159,7 +159,7 @@ export const CATALOG: readonly PartDef[] = [
       { attr: 'color', label: 'Color', kind: 'select', options: ['red', 'green', 'blue', 'yellow', 'orange', 'white', 'purple'] },
     ],
   },
-  { type: 'rgb-led', label: 'RGB LED', tag: 'wokwi-rgb-led', kind: 'rgb-led' },
+  { type: 'rgb-led', label: 'RGB LED', tag: 'wokwi-rgb-led', kind: 'rgb-led', pinScale: WOKWI_PIN_SCALE },
   {
     type: 'button', label: 'Pushbutton', tag: 'wokwi-pushbutton', kind: 'pushbutton', attrs: { color: 'green' }, interactive: true,
     props: [

@@ -57,6 +57,8 @@ export type PaletteSort = 'category' | 'alpha';
 export interface PaletteState {
   sort: PaletteSort;
   recents: string[];
+  /** Afficher (ou non) la section « Derniers utilisés » en tête de palette. */
+  showRecents: boolean;
 }
 
 /** Trou de platine d'essai, en coordonnées canvas (cache pendant un drag). */
@@ -76,8 +78,8 @@ const PIN_SNAP = 14;
 const MAX_RECENTS = 10;
 /** Type MIME du glisser-déposer palette → canvas (pose d'un composant). */
 const DND_MIME = 'application/x-kablix-part';
-const ZOOM_MIN = 0.3;
-const ZOOM_MAX = 3;
+const ZOOM_MIN = 0.2;
+const ZOOM_MAX = 5;
 /** Pas de la grille magnétique d'alignement (px) = écartement des broches. */
 const GRID = 10;
 /** Aligne une coordonnée sur la grille magnétique. */
@@ -137,6 +139,7 @@ export class Editor {
 
   private paletteSort: PaletteSort = 'category';
   private recentTypes: string[] = [];
+  private showRecents = true;
   private rendered = new Map<string, Rendered>();
   private wirePaths = new Map<string, SVGPathElement>();
   private pending: PendingWire | null = null;
@@ -444,11 +447,16 @@ export class Editor {
     if (Array.isArray(state.recents)) {
       this.recentTypes = state.recents.filter((x): x is string => typeof x === 'string').slice(0, MAX_RECENTS);
     }
+    if (typeof state.showRecents === 'boolean') this.showRecents = state.showRecents;
     this.buildPalette();
   }
 
   private notifyPaletteState(): void {
-    this.onPaletteStateChange?.({ sort: this.paletteSort, recents: [...this.recentTypes] });
+    this.onPaletteStateChange?.({
+      sort: this.paletteSort,
+      recents: [...this.recentTypes],
+      showRecents: this.showRecents,
+    });
   }
 
   /** Mémorise un type comme « dernier utilisé » (10 max, plus récent en tête). */
@@ -582,17 +590,29 @@ export class Editor {
       });
       sortWrap.appendChild(btn);
     }
+    // Bouton (haut-droite) : affiche ou masque la section « Derniers utilisés ».
+    const recentsBtn = document.createElement('button');
+    recentsBtn.className =
+      'palette__sort-btn palette__recents-toggle' + (this.showRecents ? ' palette__sort-btn--active' : '');
+    recentsBtn.textContent = '🕘';
+    recentsBtn.title = this.showRecents ? t('Hide recently used') : t('Show recently used');
+    recentsBtn.addEventListener('click', () => {
+      this.showRecents = !this.showRecents;
+      this.buildPalette();
+      this.notifyPaletteState();
+    });
+    sortWrap.appendChild(recentsBtn);
     this.palette.appendChild(sortWrap);
 
     const customs = listCustomParts();
     const byLabel = (a: PartDef, b: PartDef): number =>
       t(a.label).localeCompare(t(b.label), undefined, { sensitivity: 'base' });
 
-    // Derniers utilisés (10 max), toujours en tête.
+    // Derniers utilisés (10 max), en tête — sauf si masqués par le bouton 🕘.
     const recentDefs = this.recentTypes
       .map((type) => CATALOG.find((d) => d.type === type) ?? customs.find((d) => d.type === type))
       .filter((d): d is PartDef => d !== undefined);
-    if (recentDefs.length > 0) {
+    if (this.showRecents && recentDefs.length > 0) {
       this.paletteSection(t('Recently used'));
       for (const def of recentDefs) this.palette.appendChild(this.paletteButton(def, !!def.custom));
     }
