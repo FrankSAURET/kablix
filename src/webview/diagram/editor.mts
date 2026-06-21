@@ -21,6 +21,7 @@ import {
 } from './catalog.mjs';
 import { breadboardPins, normalizeSize, stripOfPin } from './breadboard.mjs';
 import { internalWiringSvg, type PinPoint } from './internal-wiring.mjs';
+import { pinoutSvg } from './pinout.mjs';
 import type { Diagram, Endpoint, Part, Wire } from './model.mjs';
 import { DEFAULT_WIRE_COLORS, DUPONT_COLORS, dupontHex, roundedWirePath, snapPoint, type XY } from './geometry.mjs';
 import { PartCreator } from './creator.mjs';
@@ -159,6 +160,8 @@ export class Editor {
   private highlightedBoards = new Set<string>();
   /** Composants dont le câblage interne est actuellement affiché (bouton 🔌). */
   private internalShown = new Set<string>();
+  /** Cartes dont le poster de brochage complet est affiché (bouton ☢). */
+  private pinoutShown = new Set<string>();
   /** Coude de fil actuellement sélectionné (supprimable avec Suppr). */
   private activeHandle: { wireId: string; index: number } | null = null;
   /** Verrou pendant la simulation : pas d'édition du schéma (sélection/déplacement/câblage). */
@@ -859,6 +862,7 @@ export class Editor {
     this.rendered.get(id)?.container.remove();
     this.rendered.delete(id);
     this.internalShown.delete(id);
+    this.pinoutShown.delete(id);
     this.selectedParts.delete(id);
     this.diagram.parts = this.diagram.parts.filter((p) => p.id !== id);
     if (this.selection?.kind === 'part' && this.selection.id === id) this.select(null);
@@ -890,6 +894,7 @@ export class Editor {
     for (const r of this.rendered.values()) r.container.remove();
     this.rendered.clear();
     this.internalShown.clear();
+    this.pinoutShown.clear();
     this.selectedParts.clear();
     this.diagram.parts = [];
     this.diagram.wires = [];
@@ -1044,27 +1049,31 @@ export class Editor {
       hotspots.set(pin.name, dot);
     }
 
-    // Bouton de câblage interne : à gauche du ✕, seulement si un schéma existe
-    // pour ce type. Il commande l'affichage (plus de déclenchement automatique
-    // à la sélection).
+    // Bouton ☢ : à gauche du ✕. Sur une carte Pico/Pico W il affiche le poster de
+    // brochage complet ; sinon, s'il existe un schéma pour ce type, il affiche le
+    // câblage interne. Il commande l'affichage (plus de déclenchement automatique).
     const internalPins = pins.map((p) => ({ name: p.name, x: p.x, y: p.y }));
-    if (internalWiringSvg(def.kind, internalPins)) {
+    const hasPinout = pinoutSvg(part.type) !== null;
+    const shown = hasPinout ? this.pinoutShown : this.internalShown;
+    if (hasPinout || internalWiringSvg(def.kind, internalPins)) {
       const toggle = document.createElement('span');
       toggle.className =
-        'part__internal-toggle' + (this.internalShown.has(part.id) ? ' part__internal-toggle--active' : '');
+        'part__internal-toggle' + (shown.has(part.id) ? ' part__internal-toggle--active' : '');
       toggle.innerHTML = RADIOACTIVE_ICON;
-      toggle.title = t('Show/hide the internal wiring');
+      toggle.title = hasPinout ? t('Show/hide the full pinout') : t('Show/hide the internal wiring');
       toggle.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
-        this.toggleInternalWiring(part.id);
+        if (hasPinout) this.togglePinout(part.id);
+        else this.toggleInternalWiring(part.id);
       });
       head.appendChild(toggle);
     }
 
     this.rendered.set(part.id, { part, container, el, hotspots });
-    // Restaure le câblage interne après un re-rendu (rotation…), s'il est activé
-    // ET que le composant est sélectionné (sinon il reste masqué).
+    // Restaure le câblage interne / le poster de brochage après un re-rendu
+    // (rotation…), s'il est activé ET que le composant est sélectionné.
     if (this.internalShown.has(part.id) && this.isSelected(part.id)) this.renderInternalWiring(part.id);
+    if (this.pinoutShown.has(part.id) && this.isSelected(part.id)) this.renderPinout(part.id);
     this.redrawWires();
     this.scheduleSettle();
   }
@@ -1947,7 +1956,9 @@ export class Editor {
       this.wirePaths.get(this.selection.id)?.classList.remove('wire--selected');
     }
     for (const id of this.selectedParts) {
-      this.rendered.get(id)?.container.querySelector('.part__internal')?.remove();
+      const c = this.rendered.get(id)?.container;
+      c?.querySelector('.part__internal')?.remove();
+      c?.querySelector('.part__pinout')?.remove();
     }
 
     this.selection = sel;
@@ -1957,6 +1968,7 @@ export class Editor {
 
     if (sel?.kind === 'part') {
       if (this.internalShown.has(sel.id)) this.renderInternalWiring(sel.id);
+      if (this.pinoutShown.has(sel.id)) this.renderPinout(sel.id);
     } else if (sel?.kind === 'wire') {
       this.wirePaths.get(sel.id)?.classList.add('wire--selected');
       this.buildHandles(sel.id);
@@ -1979,7 +1991,9 @@ export class Editor {
     }
     if (this.selectedParts.has(id)) {
       this.selectedParts.delete(id);
-      this.rendered.get(id)?.container.querySelector('.part__internal')?.remove();
+      const c = this.rendered.get(id)?.container;
+      c?.querySelector('.part__internal')?.remove();
+      c?.querySelector('.part__pinout')?.remove();
     } else {
       this.selectedParts.add(id);
     }
@@ -2148,6 +2162,35 @@ export class Editor {
     r.container
       .querySelector('.part__internal-toggle')
       ?.classList.toggle('part__internal-toggle--active', this.internalShown.has(partId));
+  }
+
+  /** Bascule l'affichage du poster de brochage complet (visible si sélectionné). */
+  private togglePinout(partId: string): void {
+    const r = this.rendered.get(partId);
+    if (!r) return;
+    if (this.pinoutShown.has(partId)) {
+      this.pinoutShown.delete(partId);
+      r.container.querySelector('.part__pinout')?.remove();
+    } else {
+      this.pinoutShown.add(partId);
+      if (this.isSelected(partId)) this.renderPinout(partId);
+    }
+    r.container
+      .querySelector('.part__internal-toggle')
+      ?.classList.toggle('part__internal-toggle--active', this.pinoutShown.has(partId));
+  }
+
+  /** Affiche le poster de brochage complet en calque flottant ancré à la carte. */
+  private renderPinout(partId: string): void {
+    const r = this.rendered.get(partId);
+    if (!r) return;
+    const raw = pinoutSvg(r.part.type);
+    if (!raw) return;
+    r.container.querySelector('.part__pinout')?.remove();
+    const overlay = document.createElement('div');
+    overlay.className = 'part__pinout';
+    overlay.innerHTML = raw.slice(raw.indexOf('<svg')); // retire <?xml?> / commentaires
+    r.container.appendChild(overlay);
   }
 
   /** Dessine la surimpression du câblage interne dans le corps du composant. */

@@ -6,9 +6,9 @@
 // La variante est choisie par l'attribut `variant` ("pico" par défaut, "picow").
 //
 // Les 40 broches (deux rangées horizontales au pas de 10 px) sont identiques aux
-// deux cartes (même brochage physique). Le nom de chaque broche est imprimé
-// verticalement à l'extérieur (au-dessus pour la rangée du haut, en dessous pour
-// celle du bas). La LED embarquée GP25 (propriété `ledPower`) s'allume en vert.
+// deux cartes (même brochage physique). Aucun nom n'est imprimé sur la carte :
+// le brochage complet s'affiche à la demande via le bouton ☢ de l'éditeur (poster
+// pico-pinout / picow-pinout). La LED embarquée GP25 (`ledPower`) s'allume en vert.
 
 import picoSvg from './pico.svg';
 import picowSvg from './picow.svg';
@@ -16,11 +16,11 @@ import picowSvg from './picow.svg';
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 // Boîte de dessin de la carte (px), commune aux deux SVG (rendus à cette taille).
+// L'élément fait exactement la taille de la carte : la boîte de sélection de
+// l'éditeur reste donc circonscrite au composant (plus de marges pour les noms).
 const BOARD_W = 208.663;
 const BOARD_H = 82.678;
-// Marges haut/bas pour loger les noms de broches imprimés verticalement.
-const MARGIN = 48;
-const TOTAL_H = BOARD_H + 2 * MARGIN;
+const TOTAL_H = BOARD_H;
 
 // Position des plots dans le dessin (mêmes coordonnées pour Pico et Pico W).
 const PIN_X0 = 13.26; // abscisse du 1er plot
@@ -47,13 +47,8 @@ export interface PinInfo {
   signals: unknown[];
 }
 
-/** Nom affiché : les masses GND.1, GND.2… sont toutes étiquetées « GND ». */
-function shortName(name: string): string {
-  return name.replace(/^GND\.\d+$/, 'GND');
-}
-
 /**
- * Construit la liste des broches (coordonnées en pixels, marge haute incluse).
+ * Construit la liste des broches (coordonnées en pixels dans la boîte de la carte).
  * Les masses sont numérotées GND.1, GND.2… car l'éditeur indexe les pastilles
  * par nom (la simulation ignore de toute façon le nom des masses). La pastille
  * GP25 (LED interne) est ajoutée côté USB.
@@ -64,9 +59,9 @@ function buildPins(): PinInfo[] {
   const add = (name: string, x: number, y: number): void => {
     pins.push({ name: name === 'GND' ? `GND.${++gnd}` : name, x, y, signals: [] });
   };
-  TOP_NAMES.forEach((n, i) => add(n, PIN_X0 + i * PIN_STEP, TOP_Y + MARGIN));
-  BOTTOM_NAMES.forEach((n, i) => add(n, PIN_X0 + i * PIN_STEP, BOTTOM_Y + MARGIN));
-  pins.push({ name: 'GP25', x: LED.x, y: LED.y + MARGIN, signals: [] });
+  TOP_NAMES.forEach((n, i) => add(n, PIN_X0 + i * PIN_STEP, TOP_Y));
+  BOTTOM_NAMES.forEach((n, i) => add(n, PIN_X0 + i * PIN_STEP, BOTTOM_Y));
+  pins.push({ name: 'GP25', x: LED.x, y: LED.y, signals: [] });
   return pins;
 }
 
@@ -116,11 +111,10 @@ export class PicoBoardElement extends HTMLElement {
     svg.setAttribute('viewBox', `0 0 ${BOARD_W} ${TOTAL_H}`);
 
     // Carte imbriquée : son viewBox propre est mis à l'échelle pour remplir la
-    // boîte BOARD_W×BOARD_H, décalée de MARGIN vers le bas (place pour les noms).
+    // boîte BOARD_W×BOARD_H.
     // DOMParser (image/svg+xml) → parsing SVG fidèle (viewBox, dégradés, espaces
     // de noms Inkscape/Illustrator) sans les pièges du parseur HTML d'innerHTML.
     const board = document.createElementNS(SVG_NS, 'g');
-    board.setAttribute('transform', `translate(0 ${MARGIN})`);
     const raw = this.isPicoW ? picowSvg : picoSvg;
     const text = raw.slice(raw.indexOf('<svg')); // retire <?xml?> / commentaires
     const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
@@ -135,7 +129,6 @@ export class PicoBoardElement extends HTMLElement {
     }
     svg.appendChild(board);
 
-    this.addLabels(svg);
     this.ledEl = this.addLed(svg, inner);
     // Réapplique l'état courant de la LED après reconstruction.
     const v = this.ledValue;
@@ -144,26 +137,6 @@ export class PicoBoardElement extends HTMLElement {
 
     wrap.appendChild(svg);
     shadow.appendChild(wrap);
-  }
-
-  /** Imprime les noms de broches verticalement, à l'extérieur de la carte. */
-  private addLabels(svg: SVGSVGElement): void {
-    for (const pin of this.pinInfo) {
-      if (pin.name === 'GP25') continue; // LED interne : pas de label d'en-tête
-      const top = pin.y < MARGIN + BOARD_H / 2;
-      const text = document.createElementNS(SVG_NS, 'text');
-      const anchorY = top ? MARGIN - 4 : MARGIN + BOARD_H + 4;
-      text.setAttribute('transform', `rotate(-90 ${pin.x} ${anchorY})`);
-      text.setAttribute('x', String(pin.x));
-      text.setAttribute('y', String(anchorY));
-      text.setAttribute('text-anchor', top ? 'start' : 'end');
-      text.setAttribute('dominant-baseline', 'middle');
-      text.setAttribute('font-family', 'monospace');
-      text.setAttribute('font-size', '6');
-      text.setAttribute('style', 'fill: var(--vscode-editor-foreground, #c8c8c8)');
-      text.textContent = shortName(pin.name);
-      svg.appendChild(text);
-    }
   }
 
   /**
@@ -182,7 +155,7 @@ export class PicoBoardElement extends HTMLElement {
     const c = document.createElementNS(SVG_NS, 'circle');
     c.setAttribute('id', 'led-gp25');
     c.setAttribute('cx', String(LED.x));
-    c.setAttribute('cy', String(LED.y + MARGIN));
+    c.setAttribute('cy', String(LED.y));
     c.setAttribute('r', '2.6');
     c.setAttribute('fill', '#3a4a3a');
     c.setAttribute('stroke', '#222');

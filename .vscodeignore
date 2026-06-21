@@ -1,6 +1,9 @@
 .vscode/**
 src/**
 scripts/**
+svg/**
+*.vsix
+todo*.md
 node_modules/**
 firmware/avr/**
 .gitignore

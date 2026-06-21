@@ -854,6 +854,30 @@ body {
   display: block;
 }
 
+/* Poster de brochage complet (bouton ☢ d'une carte Pico/Pico W) : calque flottant
+   ancré à droite de la carte, n'intercepte pas les clics et ne décale pas le corps
+   (la boîte de sélection reste circonscrite à la carte). */
+.part__pinout {
+  position: absolute;
+  left: calc(100% + 14px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 540px;
+  max-width: 60vw;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.97);
+  border-radius: 6px;
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  z-index: 6;
+}
+
+.part__pinout svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 .pin {
   position: absolute;
   /* box-sizing border-box : la pastille (bordure comprise) est exactement
@@ -877,7 +901,15 @@ body {
   box-shadow: 0 0 6px 2px rgba(255, 214, 51, 0.7);
 }
 
-/* Pastilles d'alimentation : rouge (VCC/5V/3V3…) et noir (GND), pour les repérer. */
+/* Pastilles d'alimentation : rouge (VCC/5V/3V3…) et noir (GND), pour les repérer.
+   Réduites à 6 px de diamètre (plus discrètes que les points de connexion). */
+.pin--vcc,
+.pin--gnd {
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+}
+
 .pin--vcc {
   background: rgba(220, 50, 50, 0.75);
   border-color: rgba(150, 20, 20, 0.95);

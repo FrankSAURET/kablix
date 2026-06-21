@@ -70,6 +70,7 @@ const FR: Record<string, string> = {
   'Flip horizontally': "Retourner sur l'axe horizontal",
   'Flip vertically': "Retourner sur l'axe vertical",
   'Show/hide the internal wiring': 'Afficher/masquer le câblage interne',
+  'Show/hide the full pinout': 'Afficher/masquer le brochage complet',
   'Cross handle: move a corner.': 'La croix pour déplacer un angle.',
   'Ctrl: horizontal/vertical alignment.': 'CTRL pour alignement horizontal et vertical.',
   'Double-click the wire: add a corner.': 'Double clic sur le fil pour en rajouter un.',
