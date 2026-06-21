@@ -29,6 +29,8 @@ const webviewConfig = {
   platform: 'browser',
   format: 'iife',
   target: 'es2020',
+  // Les dessins de cartes (Pico / Pico W) sont importés comme texte SVG.
+  loader: { '.svg': 'text' },
   sourcemap: !production,
   minify: production,
   logLevel: 'info',

@@ -1,22 +1,44 @@
-// Élément visuel maison <kablix-pico-board> : Raspberry Pi Pico W. Le dessin et
-// les 40 broches (deux rangées verticales, pas de 10 px) proviennent de la
-// bibliothèque de composants — parts/picow-module.kablix-part.json — qui est
-// elle-même générée depuis media/parts/. @wokwi/elements ne fournit AUCUN
-// élément Pico : c'est donc ce dessin qui sert pour Pico et Pico W.
+// Élément visuel maison <kablix-pico-board> : Raspberry Pi Pico / Pico W.
+// @wokwi/elements ne fournit AUCUN élément Pico → on dessine la carte à partir
+// de deux SVG (paysage, USB à gauche) importés comme texte :
+//   - pico.svg  : Pico (dessin schématique, LED verte intégrée = #circle16)
+//   - picow.svg : Pico W (rendu Fritzing ; LED ajoutée en surimpression)
+// La variante est choisie par l'attribut `variant` ("pico" par défaut, "picow").
 //
-// Le nom de chaque broche est imprimé À L'EXTÉRIEUR du composant (marges gauche
-// et droite ajoutées autour du dessin). La LED embarquée GP25 (pilotable via la
-// propriété `ledPower`) est ajoutée en surimpression. L'élément expose `pinInfo`
-// comme les éléments @wokwi/elements.
+// Les 40 broches (deux rangées horizontales au pas de 10 px) sont identiques aux
+// deux cartes (même brochage physique). Le nom de chaque broche est imprimé
+// verticalement à l'extérieur (au-dessus pour la rangée du haut, en dessous pour
+// celle du bas). La LED embarquée GP25 (propriété `ledPower`) s'allume en vert.
 
-import picowPart from '../../../parts/picow-module.kablix-part.json';
+import picoSvg from './pico.svg';
+import picowSvg from './picow.svg';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-const PICOW = picowPart as unknown as {
-  svg: string;
-  pins: Array<{ name: string; x: number; y: number }>;
-};
+// Boîte de dessin de la carte (px), commune aux deux SVG (rendus à cette taille).
+const BOARD_W = 208.663;
+const BOARD_H = 82.678;
+// Marges haut/bas pour loger les noms de broches imprimés verticalement.
+const MARGIN = 48;
+const TOTAL_H = BOARD_H + 2 * MARGIN;
+
+// Position des plots dans le dessin (mêmes coordonnées pour Pico et Pico W).
+const PIN_X0 = 13.26; // abscisse du 1er plot
+const PIN_STEP = 10; // pas de 10 px
+const TOP_Y = 6.4; // rangée du haut (broches 40→21, gauche→droite)
+const BOTTOM_Y = 76.4; // rangée du bas (broches 1→20, gauche→droite)
+// LED verte (côté USB, à gauche) — coïncide avec #circle16 du dessin Pico.
+const LED = { x: 25.9, y: 64.08 };
+
+// Noms des broches, gauche→droite (USB à gauche, GP0 en bas à gauche).
+const BOTTOM_NAMES = [
+  'GP0', 'GP1', 'GND', 'GP2', 'GP3', 'GP4', 'GP5', 'GND', 'GP6', 'GP7',
+  'GP8', 'GP9', 'GND', 'GP10', 'GP11', 'GP12', 'GP13', 'GND', 'GP14', 'GP15',
+];
+const TOP_NAMES = [
+  'VBUS', 'VSYS', 'GND', '3V3_EN', '3V3', 'ADC_VREF', 'GP28', 'GND', 'GP27', 'GP26',
+  'RUN', 'GP22', 'GND', 'GP21', 'GP20', 'GP19', 'GP18', 'GND', 'GP17', 'GP16',
+];
 
 export interface PinInfo {
   name: string;
@@ -25,105 +47,146 @@ export interface PinInfo {
   signals: unknown[];
 }
 
-// Marges ajoutées de part et d'autre du dessin pour loger les noms de broches
-// (la marge droite est plus large : noms longs type ADC_VREF / 3V3_EN).
-const MARGIN_LEFT = 26;
-const MARGIN_RIGHT = 46;
-// Abscisse séparant la rangée gauche (≤ 60) de la rangée droite dans le dessin.
-const COL_SPLIT = 60;
-// Repère de la LED GP25 (dans la marge gauche, en haut), en coordonnées dessin.
-const LED_PAD = { name: 'GP25', x: 10, y: 15 };
-
 /** Nom affiché : les masses GND.1, GND.2… sont toutes étiquetées « GND ». */
 function shortName(name: string): string {
   return name.replace(/^GND\.\d+$/, 'GND');
 }
 
 /**
- * Construit la liste des broches à partir du dessin importé : les broches GND y
- * sont toutes nommées « GND », or l'éditeur indexe les pastilles par nom → on
- * les numérote GND.1, GND.2… pour les garder distinctes (la simulation ignore
- * de toute façon le nom des masses). Les abscisses sont décalées de MARGIN_LEFT
- * (le dessin est translaté d'autant). La pastille GP25 (LED) est ajoutée.
+ * Construit la liste des broches (coordonnées en pixels, marge haute incluse).
+ * Les masses sont numérotées GND.1, GND.2… car l'éditeur indexe les pastilles
+ * par nom (la simulation ignore de toute façon le nom des masses). La pastille
+ * GP25 (LED interne) est ajoutée côté USB.
  */
 function buildPins(): PinInfo[] {
   let gnd = 0;
-  const pins = PICOW.pins.map((p) => ({
-    name: p.name === 'GND' ? `GND.${++gnd}` : p.name,
-    x: p.x + MARGIN_LEFT,
-    y: p.y,
-    signals: [] as unknown[],
-  }));
-  pins.push({ name: LED_PAD.name, x: LED_PAD.x + MARGIN_LEFT, y: LED_PAD.y, signals: [] });
+  const pins: PinInfo[] = [];
+  const add = (name: string, x: number, y: number): void => {
+    pins.push({ name: name === 'GND' ? `GND.${++gnd}` : name, x, y, signals: [] });
+  };
+  TOP_NAMES.forEach((n, i) => add(n, PIN_X0 + i * PIN_STEP, TOP_Y + MARGIN));
+  BOTTOM_NAMES.forEach((n, i) => add(n, PIN_X0 + i * PIN_STEP, BOTTOM_Y + MARGIN));
+  pins.push({ name: 'GP25', x: LED.x, y: LED.y + MARGIN, signals: [] });
   return pins;
 }
 
 export class PicoBoardElement extends HTMLElement {
   readonly pinInfo: PinInfo[] = buildPins();
 
+  static get observedAttributes(): string[] {
+    return ['variant'];
+  }
+
   private ledEl: SVGElement | null = null;
+  private ledMode: 'opacity' | 'fill' = 'opacity';
   private ledValue = false;
+  private rendered = false;
 
   constructor() {
     super();
-    const shadow = this.attachShadow({ mode: 'open' });
+    this.attachShadow({ mode: 'open' });
+  }
+
+  connectedCallback(): void {
+    if (!this.rendered) this.render();
+  }
+
+  attributeChangedCallback(name: string): void {
+    if (name === 'variant' && this.rendered) this.render();
+  }
+
+  private get isPicoW(): boolean {
+    return this.getAttribute('variant') === 'picow';
+  }
+
+  /** (Re)construit le dessin : carte imbriquée + noms de broches + LED. */
+  private render(): void {
+    const shadow = this.shadowRoot;
+    if (!shadow) return;
+    shadow.replaceChildren();
+    this.rendered = true;
+
     const wrap = document.createElement('div');
     wrap.style.lineHeight = '0';
-    wrap.innerHTML = PICOW.svg;
-    const svg = wrap.querySelector('svg');
-    if (svg) this.decorate(svg);
+
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('xmlns', SVG_NS);
+    svg.setAttribute('width', String(BOARD_W));
+    svg.setAttribute('height', String(TOTAL_H));
+    svg.setAttribute('viewBox', `0 0 ${BOARD_W} ${TOTAL_H}`);
+
+    // Carte imbriquée : son viewBox propre est mis à l'échelle pour remplir la
+    // boîte BOARD_W×BOARD_H, décalée de MARGIN vers le bas (place pour les noms).
+    // DOMParser (image/svg+xml) → parsing SVG fidèle (viewBox, dégradés, espaces
+    // de noms Inkscape/Illustrator) sans les pièges du parseur HTML d'innerHTML.
+    const board = document.createElementNS(SVG_NS, 'g');
+    board.setAttribute('transform', `translate(0 ${MARGIN})`);
+    const raw = this.isPicoW ? picowSvg : picoSvg;
+    const text = raw.slice(raw.indexOf('<svg')); // retire <?xml?> / commentaires
+    const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
+    let inner: SVGElement | null = null;
+    if (doc.documentElement && doc.documentElement.nodeName.toLowerCase() === 'svg') {
+      inner = document.importNode(doc.documentElement, true) as unknown as SVGElement;
+      inner.setAttribute('x', '0');
+      inner.setAttribute('y', '0');
+      inner.setAttribute('width', String(BOARD_W));
+      inner.setAttribute('height', String(BOARD_H));
+      board.appendChild(inner);
+    }
+    svg.appendChild(board);
+
+    this.addLabels(svg);
+    this.ledEl = this.addLed(svg, inner);
+    // Réapplique l'état courant de la LED après reconstruction.
+    const v = this.ledValue;
+    this.ledValue = !v;
+    this.ledPower = v;
+
+    wrap.appendChild(svg);
     shadow.appendChild(wrap);
   }
 
-  /**
-   * Ajoute les marges, translate le dessin, imprime les noms de broches à
-   * l'extérieur et pose la LED GP25.
-   */
-  private decorate(svg: SVGSVGElement): void {
-    const ow = parseFloat(svg.getAttribute('width') || '119') || 119;
-    const oh = parseFloat(svg.getAttribute('height') || '240') || 240;
-    const w = ow + MARGIN_LEFT + MARGIN_RIGHT;
-
-    // Décale tout le dessin existant vers la droite (place pour la marge gauche).
-    const g = document.createElementNS(SVG_NS, 'g');
-    g.setAttribute('transform', `translate(${MARGIN_LEFT} 0)`);
-    while (svg.firstChild) g.appendChild(svg.firstChild);
-    svg.appendChild(g);
-
-    svg.setAttribute('width', String(w));
-    svg.setAttribute('height', String(oh));
-    svg.setAttribute('viewBox', `0 0 ${w} ${oh}`);
-
-    // Noms de broches, à l'extérieur : rangée gauche → à gauche, rangée droite →
-    // à droite. Les coordonnées sont celles (déjà décalées) de `pinInfo`.
+  /** Imprime les noms de broches verticalement, à l'extérieur de la carte. */
+  private addLabels(svg: SVGSVGElement): void {
     for (const pin of this.pinInfo) {
-      if (pin.name === LED_PAD.name) continue;
-      const left = pin.x - MARGIN_LEFT < COL_SPLIT; // colonne d'origine
+      if (pin.name === 'GP25') continue; // LED interne : pas de label d'en-tête
+      const top = pin.y < MARGIN + BOARD_H / 2;
       const text = document.createElementNS(SVG_NS, 'text');
-      text.setAttribute('x', String(left ? pin.x - 7 : pin.x + 7));
-      text.setAttribute('y', String(pin.y));
-      text.setAttribute('text-anchor', left ? 'end' : 'start');
+      const anchorY = top ? MARGIN - 4 : MARGIN + BOARD_H + 4;
+      text.setAttribute('transform', `rotate(-90 ${pin.x} ${anchorY})`);
+      text.setAttribute('x', String(pin.x));
+      text.setAttribute('y', String(anchorY));
+      text.setAttribute('text-anchor', top ? 'start' : 'end');
       text.setAttribute('dominant-baseline', 'middle');
       text.setAttribute('font-family', 'monospace');
-      text.setAttribute('font-size', '7');
+      text.setAttribute('font-size', '6');
       text.setAttribute('style', 'fill: var(--vscode-editor-foreground, #c8c8c8)');
       text.textContent = shortName(pin.name);
       svg.appendChild(text);
     }
-
-    this.ledEl = this.addLed(svg);
   }
 
-  /** Ajoute la pastille LED GP25 en surimpression du dessin. */
-  private addLed(svg: SVGSVGElement): SVGElement {
+  /**
+   * Localise (Pico) ou crée (Pico W) la LED verte pilotable.
+   * - Pico : le dessin contient déjà #circle16 (vert, filtre de halo) → on pilote
+   *   son opacité.
+   * - Pico W : aucune LED dans le rendu → pastille ajoutée près de l'USB.
+   */
+  private addLed(svg: SVGSVGElement, inner: SVGElement | null): SVGElement | null {
+    const native = inner?.querySelector('#circle16') as SVGElement | null;
+    if (!this.isPicoW && native) {
+      this.ledMode = 'opacity';
+      return native;
+    }
+    this.ledMode = 'fill';
     const c = document.createElementNS(SVG_NS, 'circle');
     c.setAttribute('id', 'led-gp25');
-    c.setAttribute('cx', String(LED_PAD.x + MARGIN_LEFT));
-    c.setAttribute('cy', String(LED_PAD.y));
-    c.setAttribute('r', '4');
+    c.setAttribute('cx', String(LED.x));
+    c.setAttribute('cy', String(LED.y + MARGIN));
+    c.setAttribute('r', '2.6');
     c.setAttribute('fill', '#3a4a3a');
     c.setAttribute('stroke', '#222');
-    c.setAttribute('stroke-width', '0.6');
+    c.setAttribute('stroke-width', '0.5');
     const title = document.createElementNS(SVG_NS, 'title');
     title.textContent = 'GP25 (LED)';
     c.appendChild(title);
@@ -135,9 +198,14 @@ export class PicoBoardElement extends HTMLElement {
   set ledPower(value: boolean) {
     if (value === this.ledValue) return;
     this.ledValue = value;
-    if (!this.ledEl) return;
-    this.ledEl.setAttribute('fill', value ? '#8cff5a' : '#3a4a3a');
-    this.ledEl.style.filter = value ? 'drop-shadow(0 0 3px #8cff5a)' : 'none';
+    const el = this.ledEl;
+    if (!el) return;
+    if (this.ledMode === 'opacity') {
+      el.setAttribute('opacity', value ? '1' : '0');
+    } else {
+      el.setAttribute('fill', value ? '#8cff5a' : '#3a4a3a');
+    }
+    (el as SVGElement).style.filter = value ? 'drop-shadow(0 0 3px #8cff5a)' : 'none';
   }
 
   get ledPower(): boolean {

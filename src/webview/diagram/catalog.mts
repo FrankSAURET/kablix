@@ -140,11 +140,11 @@ export const CATALOG: readonly PartDef[] = [
   { type: 'mini', label: 'Arduino Pro Mini', tag: 'wokwi-arduino-nano', kind: 'mcu', board: 'mini', pinScale: WOKWI_PIN_SCALE },
   { type: 'mega', label: 'Arduino Mega 2560', tag: 'wokwi-arduino-mega', kind: 'mcu', board: 'mega', pinScale: WOKWI_PIN_SCALE },
   // Pico / Pico W : @wokwi/elements ne fournit aucun élément Pico → dessin maison
-  // <kablix-pico-board> (basé sur parts/picow-module), déjà au pas de 10 px.
-  { type: 'pico', label: 'Raspberry Pi Pico', tag: 'kablix-pico-board', kind: 'mcu', board: 'pico' },
+  // <kablix-pico-board> (SVG paysage pico.svg / picow.svg, variant), pas de 10 px.
+  { type: 'pico', label: 'Raspberry Pi Pico', tag: 'kablix-pico-board', kind: 'mcu', board: 'pico', attrs: { variant: 'pico' } },
   // Pico W : même RP2040 et même brochage que le Pico (le Wi-Fi n'est pas simulé
-  // par le cœur) → on réutilise le dessin <kablix-pico-board>.
-  { type: 'picow', label: 'Raspberry Pi Pico W', tag: 'kablix-pico-board', kind: 'mcu', board: 'picow' },
+  // par le cœur) → même élément <kablix-pico-board>, dessin Pico W (variant).
+  { type: 'picow', label: 'Raspberry Pi Pico W', tag: 'kablix-pico-board', kind: 'mcu', board: 'picow', attrs: { variant: 'picow' } },
   {
     type: 'breadboard', label: 'Breadboard', tag: 'kablix-breadboard', kind: 'breadboard',
     attrs: { size: 'half' },
