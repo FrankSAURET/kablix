@@ -22,6 +22,7 @@ import {
 import { breadboardPins, normalizeSize, stripOfPin } from './breadboard.mjs';
 import { internalWiringSvg, type PinPoint } from './internal-wiring.mjs';
 import { pinoutSvg, pinoutPoster } from './pinout.mjs';
+import { BOARD_W, BOARD_H } from '../elements/pico-board.mjs';
 import type { Diagram, Endpoint, Part, Wire } from './model.mjs';
 import { DEFAULT_WIRE_COLORS, DUPONT_COLORS, dupontHex, roundedWirePath, snapPoint, type XY } from './geometry.mjs';
 import { PartCreator } from './creator.mjs';
@@ -2255,14 +2256,38 @@ export class Editor {
     const body = r.container.querySelector('.part__body') as HTMLElement | null;
     if (!body) return;
     body.querySelector('.part__pinout')?.remove();
-    // Pose en pixels « carte » (et non en % du corps, dont la boîte peut être plus
-    // grande que la carte) : largeur = largeur de la carte, ancrée en haut-gauche
-    // de la carte, décalée pour caler la bande vide du poster sur le centre. Inséré
-    // dans le corps : suit rotation/retournement, n'agrandit pas la sélection.
+    // Boîte réelle de la carte, dans le repère local (non zoomé) du corps. On mesure
+    // le SVG de la carte plutôt que de supposer une taille fixe calée en (0,0) : la
+    // pose s'auto-aligne si la boîte du corps diffère de la carte. Pour une carte
+    // tournée/retournée le rect écran serait l'AABB pivotée → on retombe alors sur
+    // la taille nominale (le poster suit la rotation via le transform du corps).
+    let left = 0;
+    let top = 0;
+    let width = BOARD_W;
+    let height = BOARD_H;
+    const rotated = (r.part.rotation ?? 0) % 360 !== 0 || !!r.part.flipH || !!r.part.flipV;
+    const boardSvg = (r.el.shadowRoot ?? r.el).querySelector('svg');
+    if (!rotated && boardSvg) {
+      const z = this.zoom || 1;
+      const bb = body.getBoundingClientRect();
+      const sb = boardSvg.getBoundingClientRect();
+      if (sb.width > 0 && sb.height > 0) {
+        left = (sb.left - bb.left) / z;
+        top = (sb.top - bb.top) / z;
+        width = sb.width / z;
+        height = sb.height / z;
+      }
+    }
+    // Poster mis à la largeur de la carte ; sa bande centrale vide est calée sur le
+    // centre vertical de la carte. Posé dans le corps → suit rotation/retournement,
+    // n'agrandit pas la boîte de sélection.
+    const scaledH = (width * poster.h) / poster.w;
+    const offsetY = top + height / 2 - poster.gap * scaledH;
     const overlay = document.createElement('div');
     overlay.className = 'part__pinout';
-    overlay.style.width = `${poster.width}px`;
-    overlay.style.transform = `translateY(${poster.offsetY}px)`;
+    overlay.style.left = `${left}px`;
+    overlay.style.width = `${width}px`;
+    overlay.style.transform = `translateY(${offsetY}px)`;
     overlay.innerHTML = poster.svg;
     body.appendChild(overlay);
   }
