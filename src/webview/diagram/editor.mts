@@ -93,29 +93,15 @@ const THUMB_W = 46;
 const THUMB_H = 30;
 
 /** Symbole radioactif (trèfle noir sur disque jaune) pour le bouton de câblage interne. */
-const RADIOACTIVE_ICON = ((): string => {
-  const cx = 8;
-  const cy = 8;
-  const ri = 2.4;
-  const ro = 6.6;
-  const pt = (r: number, deg: number): string => {
-    const a = (deg * Math.PI) / 180;
-    return `${(cx + r * Math.cos(a)).toFixed(2)} ${(cy + r * Math.sin(a)).toFixed(2)}`;
-  };
-  let blades = '';
-  for (const A of [-90, 30, 150]) {
-    const a0 = A - 30;
-    const a1 = A + 30;
-    blades +=
-      `<path d="M ${pt(ri, a0)} L ${pt(ro, a0)} A ${ro} ${ro} 0 0 1 ${pt(ro, a1)} ` +
-      `L ${pt(ri, a1)} A ${ri} ${ri} 0 0 0 ${pt(ri, a0)} Z"/>`;
-  }
-  return (
-    `<svg viewBox="0 0 16 16" width="15" height="15" xmlns="${SVG_NS}">` +
-    `<circle cx="8" cy="8" r="8" fill="#f4c20d"/>` +
-    `<g fill="#000">${blades}<circle cx="8" cy="8" r="1.7"/></g></svg>`
-  );
-})();
+// Badge du bouton de brochage : « K » (Kablix) gras et jaune, **inversé**
+// (miroir horizontal), dans un rond noir.
+const KABLIX_BADGE =
+  `<svg viewBox="0 0 16 16" width="15" height="15" xmlns="${SVG_NS}">` +
+  `<circle cx="8" cy="8" r="8" fill="#000"/>` +
+  `<g transform="translate(16,0) scale(-1,1)">` +
+  `<text x="8" y="8.4" text-anchor="middle" dominant-baseline="central" ` +
+  `font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="13" ` +
+  `fill="#f4c20d">K</text></g></svg>`;
 
 /** Icône d'arborescence/classification pour le tri par catégorie de la palette. */
 const TREE_ICON =
@@ -1105,7 +1091,7 @@ export class Editor {
       const toggle = document.createElement('span');
       toggle.className =
         'part__internal-toggle' + (shown.has(part.id) ? ' part__internal-toggle--active' : '');
-      toggle.innerHTML = RADIOACTIVE_ICON;
+      toggle.innerHTML = KABLIX_BADGE;
       toggle.title = hasPinout ? t('Show/hide the full pinout') : t('Show/hide the internal wiring');
       toggle.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
