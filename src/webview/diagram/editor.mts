@@ -94,13 +94,14 @@ const THUMB_H = 30;
 
 /** Symbole radioactif (trèfle noir sur disque jaune) pour le bouton de câblage interne. */
 // Badge du bouton de brochage : « K » (Kablix) gras et jaune, **inversé**
-// (miroir horizontal), dans un rond noir.
+// (miroir horizontal), dans un rond noir. Le SVG remplit le bouton (width/height
+// 100 % via CSS) → le rond noir est exactement concentrique au rond blanc.
 const KABLIX_BADGE =
-  `<svg viewBox="0 0 16 16" width="15" height="15" xmlns="${SVG_NS}">` +
-  `<circle cx="8" cy="8" r="8" fill="#000"/>` +
+  `<svg viewBox="0 0 16 16" xmlns="${SVG_NS}">` +
+  `<circle cx="8" cy="8" r="7.2" fill="#000"/>` +
   `<g transform="translate(16,0) scale(-1,1)">` +
   `<text x="8" y="8.4" text-anchor="middle" dominant-baseline="central" ` +
-  `font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="13" ` +
+  `font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="12" ` +
   `fill="#f4c20d">K</text></g></svg>`;
 
 /** Icône d'arborescence/classification pour le tri par catégorie de la palette. */
@@ -1087,7 +1088,7 @@ export class Editor {
     const internalPins = pins.map((p) => ({ name: p.name, x: p.x, y: p.y }));
     const hasPinout = pinoutSvg(part.type) !== null;
     const shown = hasPinout ? this.pinoutShown : this.internalShown;
-    if (hasPinout || internalWiringSvg(def.kind, internalPins)) {
+    if (hasPinout || internalWiringSvg(def.kind, internalPins, part.attrs, part.type)) {
       const toggle = document.createElement('span');
       toggle.className =
         'part__internal-toggle' + (shown.has(part.id) ? ' part__internal-toggle--active' : '');
@@ -1098,7 +1099,9 @@ export class Editor {
         if (hasPinout) this.togglePinout(part.id);
         else this.toggleInternalWiring(part.id);
       });
-      head.appendChild(toggle);
+      // Dans le corps (et non le bandeau) : il déborde à droite de la carte et
+      // reste donc visible/cliquable quand le poster recouvre le bandeau de nom.
+      body.appendChild(toggle);
     }
 
     this.rendered.set(part.id, { part, container, el, hotspots });
@@ -1814,17 +1817,41 @@ export class Editor {
   }
 
   /**
-   * Autoroutage : réécrit les fils en tracés strictement horizontaux/verticaux
-   * (un coude en L). Sur la sélection si des composants sont sélectionnés (fils
-   * touchant la sélection), sinon sur tout le dessin. Des deux orientations du
-   * coude, on retient celle qui passe le moins par dessus les *autres* composants
-   * (le fil doit forcément longer ses propres composants pour atteindre la patte).
+   * Point de sortie **perpendiculaire au bord de carte le plus proche** d'une
+   * broche de carte (kind 'mcu') : le fil quitte la broche droit, vers l'extérieur
+   * de la carte, au lieu de la traverser. Renvoie null hors d'une carte.
+   */
+  private pinStub(end: Endpoint, center: XY, rects: Map<string, PartRect>, len: number): XY | null {
+    const r = this.rendered.get(end.partId);
+    if (!r || partDef(r.part.type).kind !== 'mcu') return null;
+    const box = rects.get(end.partId);
+    if (!box) return null;
+    const dTop = center.y - box.y;
+    const dBot = box.y + box.h - center.y;
+    const dLeft = center.x - box.x;
+    const dRight = box.x + box.w - center.x;
+    const m = Math.min(dTop, dBot, dLeft, dRight);
+    if (m === dTop) return { x: center.x, y: box.y - len };
+    if (m === dBot) return { x: center.x, y: box.y + box.h + len };
+    if (m === dLeft) return { x: box.x - len, y: center.y };
+    return { x: box.x + box.w + len, y: center.y };
+  }
+
+  /**
+   * Autoroutage : réécrit les fils en tracés horizontaux/verticaux. Chaque
+   * extrémité posée sur une carte **sort perpendiculairement au bord le plus
+   * proche** (le fil ne traverse plus la carte) ; entre les deux sorties, des deux
+   * orientations du coude en L on garde celle qui recouvre le moins les *autres*
+   * composants (pour les contourner). Sur la sélection si des composants sont
+   * sélectionnés, sinon sur tout le dessin.
    */
   autoRoute(): void {
     if (this.locked) return;
     const sel = this.selectedParts;
     const all = sel.size === 0;
     const obstacles = this.partObstacles();
+    const rectOf = new Map(obstacles.map((o) => [o.id, o]));
+    const STUB = 16; // longueur de la sortie perpendiculaire (px)
     let changed = false;
     for (const wire of this.diagram.wires) {
       if (wire.auto) continue;
@@ -1832,22 +1859,23 @@ export class Editor {
       const a = this.hotspotCenter(wire.a);
       const b = this.hotspotCenter(wire.b);
       if (!a || !b) continue;
+      const sa = this.pinStub(wire.a, a, rectOf, STUB);
+      const sb = this.pinStub(wire.b, b, rectOf, STUB);
+      const pa = sa ?? a; // point de départ du routage (après sortie perpendiculaire)
+      const pb = sb ?? b;
+      const others = obstacles.filter((o) => o.id !== wire.a.partId && o.id !== wire.b.partId);
+      const inner: XY[] = [];
       const TOL = 1;
-      if (Math.abs(a.x - b.x) <= TOL || Math.abs(a.y - b.y) <= TOL) {
-        if (wire.points && wire.points.length > 0) {
-          wire.points = undefined; // déjà aligné : tracé droit
-          changed = true;
-        }
-      } else {
-        // Composants à éviter = tous sauf ceux portant les deux extrémités du fil.
-        const others = obstacles.filter((o) => o.id !== wire.a.partId && o.id !== wire.b.partId);
-        const cH = { x: b.x, y: a.y }; // coude « horizontal puis vertical »
-        const cV = { x: a.x, y: b.y }; // coude « vertical puis horizontal »
-        const ovH = polylineRectOverlap([a, cH, b], others);
-        const ovV = polylineRectOverlap([a, cV, b], others);
-        wire.points = [ovV < ovH ? cV : cH]; // égalité → horizontal d'abord
-        changed = true;
+      if (Math.abs(pa.x - pb.x) > TOL && Math.abs(pa.y - pb.y) > TOL) {
+        const cH = { x: pb.x, y: pa.y }; // coude « horizontal puis vertical »
+        const cV = { x: pa.x, y: pb.y }; // coude « vertical puis horizontal »
+        const ovH = polylineRectOverlap([a, pa, cH, pb, b], others);
+        const ovV = polylineRectOverlap([a, pa, cV, pb, b], others);
+        inner.push(ovV < ovH ? cV : cH); // égalité → horizontal d'abord
       }
+      const pts = [...(sa ? [sa] : []), ...inner, ...(sb ? [sb] : [])];
+      wire.points = pts.length > 0 ? pts : undefined;
+      changed = true;
       this.positionWire(wire);
     }
     if (this.selection?.kind === 'wire') this.buildHandles(this.selection.id);
@@ -2012,6 +2040,7 @@ export class Editor {
       const c = this.rendered.get(id)?.container;
       c?.querySelector('.part__internal')?.remove();
       c?.querySelector('.part__pinout')?.remove();
+      c?.classList.remove('part--pinout-shown');
     }
 
     this.selection = sel;
@@ -2047,6 +2076,7 @@ export class Editor {
       const c = this.rendered.get(id)?.container;
       c?.querySelector('.part__internal')?.remove();
       c?.querySelector('.part__pinout')?.remove();
+      c?.classList.remove('part--pinout-shown');
     } else {
       this.selectedParts.add(id);
     }
@@ -2224,6 +2254,7 @@ export class Editor {
     if (this.pinoutShown.has(partId)) {
       this.pinoutShown.delete(partId);
       r.container.querySelector('.part__pinout')?.remove();
+      r.container.classList.remove('part--pinout-shown');
     } else {
       this.pinoutShown.add(partId);
       if (this.isSelected(partId)) this.renderPinout(partId);
@@ -2280,6 +2311,7 @@ export class Editor {
     overlay.style.transform = `translateY(${ty}px) scaleY(${k})`;
     overlay.innerHTML = poster.svg;
     body.appendChild(overlay);
+    r.container.classList.add('part--pinout-shown'); // efface le bandeau de nom
   }
 
   /** Dessine la surimpression du câblage interne dans le corps du composant. */
@@ -2290,10 +2322,10 @@ export class Editor {
     if (!body) return;
     body.querySelector('.part__internal')?.remove();
     const pins = ((r.el.pinInfo ?? []) as PinPoint[]).map((p) => ({ name: p.name, x: p.x, y: p.y }));
-    const inner = internalWiringSvg(partDef(r.part.type).kind, pins, r.part.attrs);
-    if (!inner) return;
     const w = body.offsetWidth || 80;
     const h = body.offsetHeight || 60;
+    const inner = internalWiringSvg(partDef(r.part.type).kind, pins, r.part.attrs, r.part.type, { w, h });
+    if (!inner) return;
     // Inséré dans le corps : suit naturellement rotation et retournement.
     const overlay = document.createElement('div');
     overlay.className = 'part__internal';
@@ -2310,6 +2342,13 @@ export class Editor {
     const r = this.rendered.get(partId);
     if (!r) return;
     r.part.attrs = { ...r.part.attrs, [attr]: value };
+    // LCD Texte : le format 16×2 / 20×4 pilote cols + rows de l'élément (et du
+    // périphérique I²C simulé). Le changement de `pins` (i2c↔parallèle) change le
+    // jeu de broches → re-rendu comme pour une taille.
+    if (attr === 'lcdSize') {
+      const [cols, rows] = value === '20x4' ? ['20', '4'] : ['16', '2'];
+      r.part.attrs = { ...r.part.attrs, cols, rows };
+    }
     // Platine rétrécie : retire les fils pointant vers des trous disparus.
     if (attr === 'size' && partDef(r.part.type).kind === 'breadboard') {
       const valid = new Set(breadboardPins(normalizeSize(value)).map((p) => p.name));
@@ -2324,8 +2363,9 @@ export class Editor {
         return true;
       });
     }
-    // L'angle ou la taille déplacent les broches : re-rendu complet nécessaire.
-    if (attr === 'angle' || attr === 'flip' || attr === 'size') {
+    // L'angle, la taille ou le jeu de broches (LCD i2c↔parallèle) déplacent les
+    // broches : re-rendu complet nécessaire.
+    if (attr === 'angle' || attr === 'flip' || attr === 'size' || attr === 'pins' || attr === 'lcdSize') {
       this.rerenderPart(partId); // renderPart restaure le câblage interne s'il était affiché
       if (this.selection?.kind === 'part' && this.selection.id === partId) {
         this.rendered.get(partId)?.container.classList.add('part--selected');

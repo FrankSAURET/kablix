@@ -820,6 +820,12 @@ body {
   display: flex;
 }
 
+/* Brochage affiché : le poster recouvre la barre de nom → on l'efface (seul le
+   bouton K, qui déborde à droite, reste pour masquer le poster). */
+.part--pinout-shown .part__head {
+  display: none;
+}
+
 .part__name {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -836,11 +842,16 @@ body {
   color: #ff6b6b;
 }
 
-/* Bouton d'affichage du câblage interne (symbole radioactif jaune/noir sur fond
-   blanc), à gauche du ✕ dans le bandeau — bien visible sur le fond sombre. */
+/* Bouton « K » d'affichage du brochage / câblage interne. Posé en haut à droite du
+   corps et **débordant à droite** : il reste visible (hors du poster, qui fait la
+   largeur de la carte) même quand le brochage est affiché. Visible à la sélection. */
 .part__internal-toggle {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 2px);
+  z-index: 7;
+  display: none;
   cursor: pointer;
-  display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 18px;
@@ -850,8 +861,15 @@ body {
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
 }
 
+.part--selected .part__internal-toggle {
+  display: inline-flex;
+}
+
+/* Le SVG remplit le bouton → rond noir concentrique au rond blanc. */
 .part__internal-toggle svg {
   display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .part__internal-toggle:hover {

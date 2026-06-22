@@ -92,7 +92,6 @@ const ROWS = [
 
   { s: 'Partie 1 — AVR : variantes' },
   ['Arduino Nano', 'Sélecteur → Arduino Nano ; ▶ blink', 'Fonctionne comme l’Uno (ATmega328P)', 'broches D0–13, A0–A7'],
-  ['Arduino Pro Mini', 'Sélecteur → Arduino Pro Mini ; ▶ blink', 'Idem ATmega328P', 'visuel = Nano'],
   ['Arduino Mega 2560', 'Sélecteur → Mega ; blink D13 + analogRead(A0)', 'LED 13 clignote ; lecture A0 OK ; broches 0–53', 'timers 3-5 / USART1-3 / ADC A8-15 non simulés'],
 
   { s: 'Partie 2 — RP2040 : Raspberry Pi Pico (MicroPython)' },

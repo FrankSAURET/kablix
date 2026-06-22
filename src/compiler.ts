@@ -12,11 +12,11 @@ import { parseElf32 } from './shared/elf';
 import { instrumentPython } from './shared/pydebug';
 import { NET_PREAMBLE } from './shared/pynet';
 
-export type Board = 'uno' | 'nano' | 'mini' | 'mega' | 'pico' | 'picow';
+export type Board = 'uno' | 'nano' | 'mega' | 'pico' | 'picow';
 
-/** Vrai pour une carte de la famille AVR (Arduino : Uno / Nano / Pro Mini / Mega). */
+/** Vrai pour une carte de la famille AVR (Arduino : Uno / Nano / Mega). */
 function isAvrBoard(board: Board): boolean {
-  return board === 'uno' || board === 'nano' || board === 'mini' || board === 'mega';
+  return board === 'uno' || board === 'nano' || board === 'mega';
 }
 
 /** Cible de compilation AVR (FQBN arduino-cli + MCU avr-gcc) d'une carte. */

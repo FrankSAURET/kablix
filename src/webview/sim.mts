@@ -588,7 +588,9 @@ function buildI2cDevices(): void {
   i2cDevices = new Map();
   for (const part of editor.diagram.parts) {
     const kind = partDef(part.type).kind;
-    if (kind === 'i2c-lcd') {
+    if (kind === 'i2c-lcd' && (part.attrs?.pins ?? 'i2c') === 'i2c') {
+      // En mode parallèle (pins=full) l'afficheur n'est pas sur le bus I²C : pas
+      // de périphérique simulé (il reste visuel).
       const addr = Number(part.attrs?.address ?? 0x27) || 0x27;
       const cols = Number(part.attrs?.cols ?? 16) || 16;
       const rows = Number(part.attrs?.rows ?? 2) || 2;

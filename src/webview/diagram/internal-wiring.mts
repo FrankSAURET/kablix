@@ -196,15 +196,58 @@ function sevenSegment(pins: PinPoint[], attrs?: Record<string, string>): string 
 }
 
 /**
+ * Clavier matriciel : la matrice rangées × colonnes. Bus horizontaux (rangées)
+ * et verticaux (colonnes) rejoignant les broches R/C du connecteur (en bas), avec
+ * un poussoir (cercle ouvert) à chaque intersection rangée × colonne.
+ */
+function keypad(pins: PinPoint[], box?: { w: number; h: number }): string | null {
+  const rows = ['R1', 'R2', 'R3', 'R4'].map((n) => find(pins, n)).filter((p): p is XY => p !== null);
+  const cols = ['C1', 'C2', 'C3', 'C4'].map((n) => find(pins, n)).filter((p): p is XY => p !== null);
+  if (rows.length < 2 || cols.length < 2) return null;
+  const pinY = rows[0].y; // strip du connecteur (toutes les broches à ce y)
+  const xs = [...rows, ...cols].map((p) => p.x);
+  // Aire des touches : sur toute la largeur/hauteur du clavier (box), au-dessus du
+  // connecteur. À défaut de box, repli sur l'empan des broches.
+  const W = box?.w ?? Math.max(...xs) + Math.min(...xs);
+  const left = box ? W * 0.1 : Math.min(...xs);
+  const right = box ? W * 0.9 : Math.max(...xs);
+  const top = box ? box.h * 0.08 : pinY - (right - left);
+  const bot = Math.min(box ? box.h * 0.8 : pinY - 28, pinY - 28);
+  const rowY = (i: number): number => top + ((bot - top) * (i + 0.5)) / rows.length;
+  const colX = (j: number): number => left + ((right - left) * (j + 0.5)) / cols.length;
+  const out: string[] = [];
+  rows.forEach((rp, i) => {
+    const y = rowY(i);
+    out.push(line({ x: colX(0), y }, { x: colX(cols.length - 1), y })); // bus de rangée
+    out.push(line({ x: colX(0), y }, rp)); // bus → broche Ri (connecteur, en bas)
+  });
+  cols.forEach((cp, j) => {
+    const x = colX(j);
+    out.push(line({ x, y: rowY(0) }, { x, y: bot })); // bus de colonne
+    out.push(line({ x, y: bot }, cp)); // bus → broche Cj (connecteur, en bas)
+  });
+  // Poussoir (cercle clair) à chaque intersection : un appui relie rangée↔colonne.
+  rows.forEach((_, i) =>
+    cols.forEach((_, j) => {
+      out.push(`<circle cx="${colX(j)}" cy="${rowY(i)}" r="5" fill="rgba(255,255,255,0.85)"/>`);
+    })
+  );
+  return out.join('');
+}
+
+/**
  * Tracé du câblage interne d'un composant (repère local), ou null si aucun
- * schéma n'est défini pour ce type. `attrs` permet de varier le schéma (ex. 7
- * segments cathode/anode commune).
+ * schéma n'est défini. `attrs` varie le schéma (ex. 7 segments cathode/anode) ;
+ * `type` distingue les composants partageant un même `kind` (ex. clavier).
  */
 export function internalWiringSvg(
   kind: string,
   pins: PinPoint[],
-  attrs?: Record<string, string>
+  attrs?: Record<string, string>,
+  type?: string,
+  box?: { w: number; h: number }
 ): string | null {
+  if (type === 'keypad') return keypad(pins, box);
   switch (kind) {
     case 'pushbutton':
       return pushbutton(pins);

@@ -31,13 +31,13 @@ export type PartKind =
   | 'display'
   | 'passive';
 
-export type BoardId = 'uno' | 'nano' | 'mini' | 'mega' | 'pico' | 'picow';
+export type BoardId = 'uno' | 'nano' | 'mega' | 'pico' | 'picow';
 
 /** Famille de microcontrôleur (détermine le moteur de simulation et la toolchain). */
 export type McuFamily = 'avr328' | 'avr2560' | 'rp2040';
 
 /** Toutes les cartes connues, dans l'ordre d'affichage du sélecteur. */
-export const BOARD_IDS: readonly BoardId[] = ['uno', 'nano', 'mini', 'mega', 'pico', 'picow'];
+export const BOARD_IDS: readonly BoardId[] = ['uno', 'nano', 'mega', 'pico', 'picow'];
 
 export function isBoardId(value: unknown): value is BoardId {
   return typeof value === 'string' && (BOARD_IDS as readonly string[]).includes(value);
@@ -46,7 +46,7 @@ export function isBoardId(value: unknown): value is BoardId {
 /**
  * Famille électrique d'une carte : c'est elle (et non l'identifiant exact) qui
  * décide du moteur (AVR vs RP2040), du jeu de broches et de la toolchain. Uno /
- * Nano / Pro Mini partagent l'ATmega328P ; Pico / Pico W partagent le RP2040.
+ * Nano partagent l'ATmega328P ; Pico / Pico W partagent le RP2040.
  */
 export function boardFamily(board: BoardId): McuFamily {
   if (board === 'pico' || board === 'picow') return 'rp2040';
@@ -135,9 +135,6 @@ export const CATALOG: readonly PartDef[] = [
   // leurs broches tombent sur la grille de 10 px (= pas de la platine d'essai).
   { type: 'uno', label: 'Arduino Uno', tag: 'wokwi-arduino-uno', kind: 'mcu', board: 'uno', pinScale: WOKWI_PIN_SCALE },
   { type: 'nano', label: 'Arduino Nano', tag: 'wokwi-arduino-nano', kind: 'mcu', board: 'nano', pinScale: WOKWI_PIN_SCALE },
-  // Pro Mini : électriquement un ATmega328P comme le Nano (mêmes broches D0–13 /
-  // A0–A7). Faute d'élément @wokwi/elements dédié, on réutilise le visuel Nano.
-  { type: 'mini', label: 'Arduino Pro Mini', tag: 'wokwi-arduino-nano', kind: 'mcu', board: 'mini', pinScale: WOKWI_PIN_SCALE },
   { type: 'mega', label: 'Arduino Mega 2560', tag: 'wokwi-arduino-mega', kind: 'mcu', board: 'mega', pinScale: WOKWI_PIN_SCALE },
   // Pico / Pico W : @wokwi/elements ne fournit aucun élément Pico → dessin maison
   // <kablix-pico-board> (SVG paysage pico.svg / picow.svg, variant), pas de 10 px.
@@ -245,9 +242,24 @@ export const CATALOG: readonly PartDef[] = [
   },
 
   // --- Composants @wokwi/elements supplémentaires (importés du catalogue Wokwi).
-  // Afficheurs : visuels seuls pour l'instant (posables et câblables).
-  { type: 'lcd1602', label: 'LCD 16×2', tag: 'wokwi-lcd1602', kind: 'display' },
-  { type: 'lcd2004', label: 'LCD 20×4', tag: 'wokwi-lcd2004', kind: 'display' },
+  // Afficheur LCD texte unifié (HD44780). Un seul élément `wokwi-lcd1602` couvre
+  // les 4 variantes : il se dimensionne sur cols/rows et change ses broches via
+  // `pins` (i2c = 4 fils GND/VCC/SDA/SCL ; full = parallèle). Le texte n'est simulé
+  // qu'en I²C (Lcd1602Device) ; en parallèle l'afficheur reste visuel.
+  {
+    type: 'lcd', label: 'LCD Texte', tag: 'wokwi-lcd1602', kind: 'i2c-lcd',
+    attrs: { pins: 'i2c', address: '0x27', cols: '16', rows: '2', lcdSize: '16x2' },
+    props: [
+      {
+        attr: 'pins', label: 'Interface', kind: 'select', options: ['i2c', 'full'],
+        optionLabels: { i2c: 'I²C (4 wires)', full: 'Parallel (HD44780)' },
+      },
+      {
+        attr: 'lcdSize', label: 'Size', kind: 'select', options: ['16x2', '20x4'],
+        optionLabels: { '16x2': '16 × 2', '20x4': '20 × 4' },
+      },
+    ],
+  },
   // OLED SSD1306 : l'élément Wokwi est la variante SPI 4 fils (DATA/CLK/DC/CS) →
   // simulé en SPI (le programme y dessine, l'écran s'allume).
   { type: 'oled-ssd1306', label: 'OLED display (SSD1306, SPI)', tag: 'wokwi-ssd1306', kind: 'spi-oled' },
@@ -317,17 +329,13 @@ export const CATALOG: readonly PartDef[] = [
   // enfoncée court-circuite ligne/colonne (lecture matricielle simulée).
   {
     type: 'keypad', label: 'Membrane keypad', tag: 'wokwi-membrane-keypad', kind: 'passive', interactive: true,
-    attrs: { columns: '4' },
+    // `connector` : affiche la nappe/connecteur sous le clavier (broches R/C
+    // visibles et câblables) — masqué par défaut dans l'élément Wokwi.
+    attrs: { columns: '4', connector: 'true' },
     props: [{
       attr: 'columns', label: 'Columns', kind: 'select', options: ['3', '4'],
       optionLabels: { '3': '3 columns (3×4)', '4': '4 columns (4×4)' },
     }],
-  },
-  // LCD 16×2 en version I²C (backpack PCF8574) : mêmes broches GND/VCC/SDA/SCL,
-  // texte décodé du bus I²C affiché à l'écran (adresse 0x27 par défaut).
-  {
-    type: 'lcd1602-i2c', label: 'LCD 16×2 (I²C)', tag: 'wokwi-lcd1602', kind: 'i2c-lcd',
-    attrs: { pins: 'i2c', address: '0x27', cols: '16', rows: '2' },
   },
 ];
 

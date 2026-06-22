@@ -18,9 +18,9 @@ import { resolveMicropythonFirmware, FirmwareCancelled } from './firmware';
 
 const ARTIFACT_EXTS = ['.hex', '.uf2', '.elf', '.bin'];
 
-/** Vrai pour une carte de la famille AVR (Arduino : Uno / Nano / Pro Mini / Mega). */
+/** Vrai pour une carte de la famille AVR (Arduino : Uno / Nano / Mega). */
 function isAvrBoard(board: Board): boolean {
-  return board === 'uno' || board === 'nano' || board === 'mini' || board === 'mega';
+  return board === 'uno' || board === 'nano' || board === 'mega';
 }
 
 /** Nom de fichier sans dossier ni extension (ex. « C:\…\Projet.projix » → « Projet »). */
@@ -862,7 +862,6 @@ export class SimulatorPanel {
       <optgroup label="Arduino (AVR)">
         <option value="uno" selected>Arduino Uno</option>
         <option value="nano">Arduino Nano</option>
-        <option value="mini">Arduino Pro Mini</option>
         <option value="mega">Arduino Mega 2560</option>
       </optgroup>
       <optgroup label="Raspberry Pi (RP2040)">
