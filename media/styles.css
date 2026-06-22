@@ -201,6 +201,31 @@ body {
   font-weight: normal;
 }
 
+/* Sections repliables : en-tête cliquable + chevron qui pivote. */
+.palette__section--collapsible {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.palette__section--collapsible:hover {
+  opacity: 0.85;
+}
+
+.palette__section-chevron {
+  display: inline-block;
+  font-size: 0.6rem;
+  line-height: 1;
+  transition: transform 0.12s ease;
+}
+
+.palette__section--collapsed .palette__section-chevron {
+  transform: rotate(-90deg);
+}
+
 .palette__item {
   font: inherit;
   text-align: left;

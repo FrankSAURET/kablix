@@ -60,6 +60,8 @@ export interface PaletteState {
   recents: string[];
   /** Afficher (ou non) la section « Derniers utilisés » en tête de palette. */
   showRecents: boolean;
+  /** Clés des sections repliées (catégories, derniers utilisés, personnalisés). */
+  collapsed: string[];
 }
 
 /** Trou de platine d'essai, en coordonnées canvas (cache pendant un drag). */
@@ -144,6 +146,8 @@ export class Editor {
   private paletteFilter = '';
   private recentTypes: string[] = [];
   private showRecents = true;
+  /** Clés des sections de palette repliées (persisté). */
+  private paletteCollapsed = new Set<string>();
   private rendered = new Map<string, Rendered>();
   private wirePaths = new Map<string, SVGPathElement>();
   private pending: PendingWire | null = null;
@@ -454,6 +458,9 @@ export class Editor {
       this.recentTypes = state.recents.filter((x): x is string => typeof x === 'string').slice(0, MAX_RECENTS);
     }
     if (typeof state.showRecents === 'boolean') this.showRecents = state.showRecents;
+    if (Array.isArray(state.collapsed)) {
+      this.paletteCollapsed = new Set(state.collapsed.filter((x): x is string => typeof x === 'string'));
+    }
     this.buildPalette();
   }
 
@@ -462,6 +469,7 @@ export class Editor {
       sort: this.paletteSort,
       recents: [...this.recentTypes],
       showRecents: this.showRecents,
+      collapsed: [...this.paletteCollapsed],
     });
   }
 
@@ -474,11 +482,44 @@ export class Editor {
     this.notifyPaletteState();
   }
 
-  private paletteSection(label: string): void {
+  /**
+   * En-tête de section de palette. Si `key` est fourni, la section est repliable :
+   * clic sur l'en-tête → bascule l'affichage de ses items (état persisté).
+   */
+  private paletteSection(label: string, key?: string): void {
     const head = document.createElement('h4');
     head.className = 'palette__section';
-    head.textContent = label;
+    if (key) {
+      head.classList.add('palette__section--collapsible');
+      head.dataset.section = key;
+      const collapsed = this.paletteCollapsed.has(key);
+      head.classList.toggle('palette__section--collapsed', collapsed);
+      const chevron = document.createElement('span');
+      chevron.className = 'palette__section-chevron';
+      chevron.textContent = '▾';
+      const text = document.createElement('span');
+      text.textContent = label;
+      head.append(chevron, text);
+      head.addEventListener('click', () => this.toggleSection(key));
+    } else {
+      head.textContent = label;
+    }
     this.palette.appendChild(head);
+  }
+
+  /** Replie/déplie une section de palette (sans reconstruire) et persiste l'état. */
+  private toggleSection(key: string): void {
+    if (this.paletteCollapsed.has(key)) this.paletteCollapsed.delete(key);
+    else this.paletteCollapsed.add(key);
+    for (const head of Array.from(
+      this.palette.querySelectorAll('.palette__section--collapsible')
+    ) as HTMLElement[]) {
+      if (head.dataset.section === key) {
+        head.classList.toggle('palette__section--collapsed', this.paletteCollapsed.has(key));
+      }
+    }
+    this.filterPalette();
+    this.notifyPaletteState();
   }
 
   /**
@@ -634,7 +675,7 @@ export class Editor {
       .map((type) => CATALOG.find((d) => d.type === type) ?? customs.find((d) => d.type === type))
       .filter((d): d is PartDef => d !== undefined);
     if (this.showRecents && recentDefs.length > 0) {
-      this.paletteSection(t('Recently used'));
+      this.paletteSection(t('Recently used'), 'recent');
       for (const def of recentDefs) this.palette.appendChild(this.paletteButton(def, !!def.custom));
     }
 
@@ -650,11 +691,11 @@ export class Editor {
       for (const category of CATEGORY_ORDER) {
         const defs = CATALOG.filter((d) => partCategory(d) === category).sort(byLabel);
         if (defs.length === 0) continue;
-        this.paletteSection(t(category));
+        this.paletteSection(t(category), category);
         for (const def of defs) this.palette.appendChild(this.paletteButton(def, false));
       }
       if (customs.length > 0) {
-        this.paletteSection(t('Custom parts'));
+        this.paletteSection(t('Custom parts'), 'custom');
         for (const def of [...customs].sort(byLabel)) this.appendCustomRow(def);
       }
     }
@@ -692,14 +733,16 @@ export class Editor {
   }
 
   /**
-   * Filtre les composants de la palette selon le texte de recherche. N'agit que
-   * sur l'affichage (display) des items et masque les en-têtes de section vides
-   * — sans reconstruire la palette, pour préserver le focus du champ.
+   * Met à jour l'affichage des items selon la recherche ET le repli des sections,
+   * et masque les en-têtes vides en recherche — sans reconstruire la palette (le
+   * champ garde le focus). Une recherche active ignore le repli (les résultats
+   * d'une section repliée restent visibles).
    */
   private filterPalette(): void {
     const q = this.paletteFilter.trim().toLowerCase();
     let header: HTMLElement | null = null;
     let headerHasVisible = false;
+    let collapsed = false;
     const flush = (): void => {
       if (header) header.style.display = !q || headerHasVisible ? '' : 'none';
     };
@@ -708,6 +751,7 @@ export class Editor {
         flush();
         header = child;
         headerHasVisible = false;
+        collapsed = !!child.dataset.section && this.paletteCollapsed.has(child.dataset.section);
         continue;
       }
       const isItem =
@@ -716,7 +760,8 @@ export class Editor {
       if (!isItem) continue;
       const label = child.dataset.search ?? child.textContent?.toLowerCase() ?? '';
       const match = !q || label.includes(q);
-      child.style.display = match ? '' : 'none';
+      // Hors recherche, une section repliée masque ses items (l'en-tête reste).
+      child.style.display = match && (q !== '' || !collapsed) ? '' : 'none';
       if (match) headerHasVisible = true;
     }
     flush();

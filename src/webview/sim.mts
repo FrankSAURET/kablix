@@ -978,7 +978,7 @@ helpBtn.addEventListener('click', () => {
 // --- Préférences d'interface (noms visibles, tri de palette, derniers utilisés)
 // Par défaut les noms n'apparaissent qu'à la sélection ; 🏷 force l'affichage.
 let showLabels = false;
-let paletteState: PaletteState = { sort: 'category', recents: [], showRecents: true };
+let paletteState: PaletteState = { sort: 'category', recents: [], showRecents: true, collapsed: [] };
 let paletteWidth = 0; // 0 = largeur par défaut (CSS)
 let inspectorWidth = 0;
 
@@ -1231,6 +1231,7 @@ window.addEventListener('message', (event: MessageEvent) => {
         sort: state.sort === 'alpha' ? 'alpha' : 'category',
         recents: Array.isArray(state.recents) ? state.recents : [],
         showRecents: state.showRecents !== false, // défaut : affiché
+        collapsed: Array.isArray(state.collapsed) ? state.collapsed : [],
       };
       editor.loadPaletteState(paletteState);
       break;
