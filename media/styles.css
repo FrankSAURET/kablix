@@ -854,20 +854,16 @@ body {
   display: block;
 }
 
-/* Poster de brochage complet (bouton ☢ d'une carte Pico/Pico W) : calque flottant
-   ancré à droite de la carte, n'intercepte pas les clics et ne décale pas le corps
-   (la boîte de sélection reste circonscrite à la carte). */
+/* Poster de brochage complet (bouton ☢ d'une carte Pico/Pico W) : surimpression
+   de la carte, à sa largeur exacte (les étiquettes débordent en haut et en bas, la
+   carte transparaît dans la bande centrale). Hors flux et sans dimension propre →
+   n'intercepte pas les clics et n'agrandit pas la boîte de sélection (qui reste
+   circonscrite au corps). Le décalage vertical (translateY) est posé par le JS. */
 .part__pinout {
   position: absolute;
-  left: calc(100% + 14px);
+  left: 0;
   top: 50%;
-  transform: translateY(-50%);
-  width: 540px;
-  max-width: 60vw;
-  padding: 6px 10px;
-  background: rgba(255, 255, 255, 0.97);
-  border-radius: 6px;
-  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.45);
+  width: 100%;
   pointer-events: none;
   z-index: 6;
 }

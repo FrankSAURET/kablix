@@ -50,7 +50,7 @@ le fichier actif** pour exécuter votre propre code.
   cours est conservé, la simulation est arrêtée).
 - **Palette** : cliquer un composant le pose sur le canvas. Deux tris au choix
   (boutons en haut) : **AZ** (alphabétique) ou **🗂** (par catégories — Cartes &
-  platines, Affichage & LED, Commandes, Capteurs, Actionneurs, Passifs). Une
+  platines, Affichage & LED, Commandes, Capteurs, Actionneurs, Divers). Une
   zone **« Derniers utilisés »** (10 max) reste en tête, et la palette défile
   (ascenseur) si elle dépasse la fenêtre. Les composants personnalisés (★)
   gardent leurs boutons ⇩ (export) et ✕ (suppression du modèle).

@@ -35,7 +35,7 @@ const FR: Record<string, string> = {
   'Controls': 'Commandes',
   'Sensors': 'Capteurs',
   'Actuators': 'Actionneurs',
-  'Passive': 'Passifs',
+  'Passive': 'Divers',
   'Custom parts': 'Composants personnalisés',
   '+ Create a part': '+ Créer un composant',
   '⇪ Import (.json)': '⇪ Importer (.json)',

@@ -21,7 +21,7 @@ import {
 } from './catalog.mjs';
 import { breadboardPins, normalizeSize, stripOfPin } from './breadboard.mjs';
 import { internalWiringSvg, type PinPoint } from './internal-wiring.mjs';
-import { pinoutSvg } from './pinout.mjs';
+import { pinoutSvg, pinoutAnchor } from './pinout.mjs';
 import type { Diagram, Endpoint, Part, Wire } from './model.mjs';
 import { DEFAULT_WIRE_COLORS, DUPONT_COLORS, dupontHex, roundedWirePath, snapPoint, type XY } from './geometry.mjs';
 import { PartCreator } from './creator.mjs';
@@ -1769,15 +1769,30 @@ export class Editor {
     return best;
   }
 
+  /** Rectangles d'encombrement de tous les composants (coordonnées monde). */
+  private partObstacles(): PartRect[] {
+    const rects: PartRect[] = [];
+    for (const r of this.rendered.values()) {
+      const body = r.container.querySelector('.part__body') as HTMLElement | null;
+      const w = body?.offsetWidth || 40;
+      const h = body?.offsetHeight || 40;
+      rects.push({ id: r.part.id, x: r.part.x, y: r.part.y, w, h });
+    }
+    return rects;
+  }
+
   /**
    * Autoroutage : réécrit les fils en tracés strictement horizontaux/verticaux
    * (un coude en L). Sur la sélection si des composants sont sélectionnés (fils
-   * touchant la sélection), sinon sur tout le dessin.
+   * touchant la sélection), sinon sur tout le dessin. Des deux orientations du
+   * coude, on retient celle qui passe le moins par dessus les *autres* composants
+   * (le fil doit forcément longer ses propres composants pour atteindre la patte).
    */
   autoRoute(): void {
     if (this.locked) return;
     const sel = this.selectedParts;
     const all = sel.size === 0;
+    const obstacles = this.partObstacles();
     let changed = false;
     for (const wire of this.diagram.wires) {
       if (wire.auto) continue;
@@ -1792,7 +1807,13 @@ export class Editor {
           changed = true;
         }
       } else {
-        wire.points = [{ x: b.x, y: a.y }]; // coude en L (horizontal puis vertical)
+        // Composants à éviter = tous sauf ceux portant les deux extrémités du fil.
+        const others = obstacles.filter((o) => o.id !== wire.a.partId && o.id !== wire.b.partId);
+        const cH = { x: b.x, y: a.y }; // coude « horizontal puis vertical »
+        const cV = { x: a.x, y: b.y }; // coude « vertical puis horizontal »
+        const ovH = polylineRectOverlap([a, cH, b], others);
+        const ovV = polylineRectOverlap([a, cV, b], others);
+        wire.points = [ovV < ovH ? cV : cH]; // égalité → horizontal d'abord
         changed = true;
       }
       this.positionWire(wire);
@@ -2180,17 +2201,23 @@ export class Editor {
       ?.classList.toggle('part__internal-toggle--active', this.pinoutShown.has(partId));
   }
 
-  /** Affiche le poster de brochage complet en calque flottant ancré à la carte. */
+  /** Affiche le poster de brochage en surimpression de la carte (comme le câblage interne). */
   private renderPinout(partId: string): void {
     const r = this.rendered.get(partId);
     if (!r) return;
     const raw = pinoutSvg(r.part.type);
     if (!raw) return;
-    r.container.querySelector('.part__pinout')?.remove();
+    const body = r.container.querySelector('.part__body') as HTMLElement | null;
+    if (!body) return;
+    body.querySelector('.part__pinout')?.remove();
+    // Le poster fait la largeur de la carte ; sa bande centrale vide (où la carte
+    // transparaît) est calée sur le centre du corps via translateY. Inséré dans le
+    // corps : suit rotation/retournement et n'agrandit pas la boîte de sélection.
     const overlay = document.createElement('div');
     overlay.className = 'part__pinout';
+    overlay.style.transform = `translateY(${-pinoutAnchor(r.part.type) * 100}%)`;
     overlay.innerHTML = raw.slice(raw.indexOf('<svg')); // retire <?xml?> / commentaires
-    r.container.appendChild(overlay);
+    body.appendChild(overlay);
   }
 
   /** Dessine la surimpression du câblage interne dans le corps du composant. */
@@ -2801,6 +2828,40 @@ function formatSiValue(n: number): string {
     }
   }
   return String(n);
+}
+
+/** Rectangle d'encombrement d'un composant (coordonnées monde). */
+interface PartRect {
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * Longueur d'un segment **aligné sur un axe** [p,q] qui se trouve à l'intérieur du
+ * rectangle r. Sert à mesurer combien un fil « passe par dessus » un composant.
+ */
+function segRectOverlap(p: XY, q: XY, r: PartRect): number {
+  const horizontal = Math.abs(p.y - q.y) <= Math.abs(p.x - q.x);
+  if (horizontal) {
+    const y = (p.y + q.y) / 2;
+    if (y < r.y || y > r.y + r.h) return 0;
+    return Math.max(0, Math.min(Math.max(p.x, q.x), r.x + r.w) - Math.max(Math.min(p.x, q.x), r.x));
+  }
+  const x = (p.x + q.x) / 2;
+  if (x < r.x || x > r.x + r.w) return 0;
+  return Math.max(0, Math.min(Math.max(p.y, q.y), r.y + r.h) - Math.max(Math.min(p.y, q.y), r.y));
+}
+
+/** Longueur totale d'une polyligne (segments H/V) recouvrant les rectangles. */
+function polylineRectOverlap(pts: XY[], rects: PartRect[]): number {
+  let total = 0;
+  for (let i = 0; i < pts.length - 1; i++) {
+    for (const r of rects) total += segRectOverlap(pts[i], pts[i + 1], r);
+  }
+  return total;
 }
 
 /** Distance d'un point à un segment [a,b]. */
