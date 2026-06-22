@@ -18,8 +18,8 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 // Boîte de dessin de la carte (px), commune aux deux SVG (rendus à cette taille).
 // L'élément fait exactement la taille de la carte : la boîte de sélection de
 // l'éditeur reste donc circonscrite au composant (plus de marges pour les noms).
-const BOARD_W = 208.663;
-const BOARD_H = 82.678;
+export const BOARD_W = 208.663;
+export const BOARD_H = 82.678;
 const TOTAL_H = BOARD_H;
 
 // Position des plots dans le dessin (mêmes coordonnées pour Pico et Pico W).

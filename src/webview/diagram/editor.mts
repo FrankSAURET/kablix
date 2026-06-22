@@ -21,7 +21,7 @@ import {
 } from './catalog.mjs';
 import { breadboardPins, normalizeSize, stripOfPin } from './breadboard.mjs';
 import { internalWiringSvg, type PinPoint } from './internal-wiring.mjs';
-import { pinoutSvg, pinoutAnchor } from './pinout.mjs';
+import { pinoutSvg, pinoutPoster } from './pinout.mjs';
 import type { Diagram, Endpoint, Part, Wire } from './model.mjs';
 import { DEFAULT_WIRE_COLORS, DUPONT_COLORS, dupontHex, roundedWirePath, snapPoint, type XY } from './geometry.mjs';
 import { PartCreator } from './creator.mjs';
@@ -2205,18 +2205,20 @@ export class Editor {
   private renderPinout(partId: string): void {
     const r = this.rendered.get(partId);
     if (!r) return;
-    const raw = pinoutSvg(r.part.type);
-    if (!raw) return;
+    const poster = pinoutPoster(r.part.type);
+    if (!poster) return;
     const body = r.container.querySelector('.part__body') as HTMLElement | null;
     if (!body) return;
     body.querySelector('.part__pinout')?.remove();
-    // Le poster fait la largeur de la carte ; sa bande centrale vide (où la carte
-    // transparaît) est calée sur le centre du corps via translateY. Inséré dans le
-    // corps : suit rotation/retournement et n'agrandit pas la boîte de sélection.
+    // Pose en pixels « carte » (et non en % du corps, dont la boîte peut être plus
+    // grande que la carte) : largeur = largeur de la carte, ancrée en haut-gauche
+    // de la carte, décalée pour caler la bande vide du poster sur le centre. Inséré
+    // dans le corps : suit rotation/retournement, n'agrandit pas la sélection.
     const overlay = document.createElement('div');
     overlay.className = 'part__pinout';
-    overlay.style.transform = `translateY(${-pinoutAnchor(r.part.type) * 100}%)`;
-    overlay.innerHTML = raw.slice(raw.indexOf('<svg')); // retire <?xml?> / commentaires
+    overlay.style.width = `${poster.width}px`;
+    overlay.style.transform = `translateY(${poster.offsetY}px)`;
+    overlay.innerHTML = poster.svg;
     body.appendChild(overlay);
   }
 

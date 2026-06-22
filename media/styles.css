@@ -862,8 +862,7 @@ body {
 .part__pinout {
   position: absolute;
   left: 0;
-  top: 50%;
-  width: 100%;
+  top: 0;
   pointer-events: none;
   z-index: 6;
 }
