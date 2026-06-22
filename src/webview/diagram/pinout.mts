@@ -22,8 +22,8 @@ export interface PinoutPoster {
 }
 
 const POSTERS: Record<string, PinoutPoster> = {
-  pico: { svg: picoPinout, w: 209.24001, h: 357.76389, gap: 0.4623 },
-  picow: { svg: picowPinout, w: 208.66299, h: 357.73111, gap: 0.4721 },
+  pico: { svg: picoPinout, w: 209.24001, h: 357.76389, gap: 0.4888 },
+  picow: { svg: picowPinout, w: 208.66299, h: 357.73111, gap: 0.4986 },
 };
 
 /** Poster de brochage complet (texte SVG brut) pour un type de carte, ou null. */

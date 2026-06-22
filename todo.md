@@ -5,6 +5,7 @@
 3. ✅ **« Passifs » renommé « Divers »** dans la palette Composants (catégorie fourre-tout par défaut).
 4. ✅ **Catégories repliables** : clic sur l'en-tête d'une section de la palette (catégories, derniers utilisés, personnalisés) la replie/déplie (chevron ▾/▸) ; état persisté. Une recherche active ignore le repli (les résultats restent visibles).
 5. ✅ **Bouton brochage** : symbole nucléaire remplacé par un « K » (Kablix) gras et jaune **inversé** (miroir) dans un rond noir.
+6. ✅ **Brochage trop bas corrigé** : le calage vertical du poster utilisait un centre de bande faussé par le trait de la LED (fraction 0.4623/0.4721). Recalé sur le vrai centre de la bande où la carte transparaît (pico 0.4888, picow 0.4986) → les numéros tombent pile sur les pastilles. Vérifié par rendu Chrome headless du bundle réel.
 # v2026.6.35
 
 1. ✅ **Noms de broches Pico/Pico W retirés de la carte** : plus d'étiquettes verticales en permanence ; l'élément `<kablix-pico-board>` fait désormais exactement la taille de la carte (suppression des marges hautes/basses).
