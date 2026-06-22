@@ -2264,16 +2264,20 @@ export class Editor {
         height = sb.height / z;
       }
     }
-    // Poster mis à la largeur de la carte ; sa bande centrale vide est calée sur le
-    // centre vertical de la carte. Posé dans le corps → suit rotation/retournement,
+    // Poster mis à la largeur de la carte (svg width:100%, hauteur au rapport
+    // d'aspect = scaledH). On l'étire verticalement (scaleY) pour que sa bande vide
+    // [rTop, rBot] couvre exactement la carte [top, top+height] : les deux rangées
+    // de broches s'alignent alors. Posé dans le corps → suit rotation/retournement,
     // n'agrandit pas la boîte de sélection.
     const scaledH = (width * poster.h) / poster.w;
-    const offsetY = top + height / 2 - poster.gap * scaledH;
+    const k = height / ((poster.rBot - poster.rTop) * scaledH); // étirement vertical
+    const ty = top - poster.rTop * scaledH * k; // place le bord haut de la bande
     const overlay = document.createElement('div');
     overlay.className = 'part__pinout';
     overlay.style.left = `${left}px`;
     overlay.style.width = `${width}px`;
-    overlay.style.transform = `translateY(${offsetY}px)`;
+    overlay.style.transformOrigin = '0 0';
+    overlay.style.transform = `translateY(${ty}px) scaleY(${k})`;
     overlay.innerHTML = poster.svg;
     body.appendChild(overlay);
   }

@@ -14,16 +14,21 @@ export interface PinoutPoster {
   /** Hauteur propre du poster (unités viewBox). */
   h: number;
   /**
-   * Fraction verticale (0–1) de la bande centrale vide du poster (là où la carte
-   * transparaît) : c'est elle qui doit coïncider avec le centre vertical de la
-   * carte. Mesurée sur les SVG (cf. composite de validation).
+   * Bord **haut** de la bande vide du poster (fraction 0–1 de la hauteur) = bord
+   * supérieur de la carte qui transparaît. Mappé sur le bord haut de la carte.
    */
-  gap: number;
+  rTop: number;
+  /** Bord **bas** de la bande vide = bord inférieur de la carte. */
+  rBot: number;
 }
 
+// La bande vide [rTop, rBot] (entre les deux blocs d'étiquettes) est calée
+// **exactement** sur la carte : un léger étirement vertical aligne donc à la fois
+// la rangée du haut et celle du bas (contrairement à un simple centrage). Bornes
+// mesurées sur les SVG (cf. rendu de validation Chrome headless).
 const POSTERS: Record<string, PinoutPoster> = {
-  pico: { svg: picoPinout, w: 209.24001, h: 357.76389, gap: 0.4888 },
-  picow: { svg: picowPinout, w: 208.66299, h: 357.73111, gap: 0.4986 },
+  pico: { svg: picoPinout, w: 209.24001, h: 357.76389, rTop: 0.3897, rBot: 0.6075 },
+  picow: { svg: picowPinout, w: 208.66299, h: 357.73111, rTop: 0.3897, rBot: 0.6075 },
 };
 
 /** Poster de brochage complet (texte SVG brut) pour un type de carte, ou null. */
