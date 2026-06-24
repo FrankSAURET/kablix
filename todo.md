@@ -6,8 +6,8 @@
 ✅ Le composant LCD 20 × 4 n'apparaît pas
 ✅ La miniature des afficheurs LCD doit être celle du 16×2 i2c
 ✅ La miniature du clavier (et d'autres) mauvaise au lancement
-⬜ Importer l'aide wokwi dans un dossier d'aide (FR, images, 1 md/composant, crédit wokwi)
-⬜ Change le bouton d'aide wokwi pour un bouton aide sur le composant
+✅ Importer l'aide wokwi dans un dossier d'aide (FR, images, 1 md/composant, crédit wokwi)
+✅ Change le bouton d'aide wokwi pour un bouton aide sur le composant
 ✅ Passe anneau neopixel, matrice neopixel, neopixel, oled, tft dans « Afficheurs »
 ✅ Passe LED et LED RGB dans « Discrets »
 ✅ Rajoute une catégorie « CI »
@@ -16,6 +16,13 @@
 ✅ Schéma interne du clavier avec interrupteurs en biais (45°), toutes versions
 ✅ Le gros losange des câbles (déconnexion/reconnexion) disparaît ; recâblage sur power/gnd → couleur change
 ✅ Message de verrouillage en simulation : rouge sur jaune
+
+# v2026.6.39
+
+1. ✅ **Aide locale des composants** : dossier [`docs/composants/`](docs/composants/) — **38 fiches** Markdown en français (une par composant), avec **broches**, **propriétés**, **utilisation** et crédit Wokwi. Faciles à retoucher.
+2. ✅ **Images des composants** : une image par fiche, **rendue à partir du vrai composant** (`@wokwi/elements` via Chrome headless, recadrée) ; cartes Uno/Nano/Mega capturées à l'échelle 2× ; Pico/Pico W depuis les SVG maison.
+3. ✅ **Bouton « Aide du composant »** : l'ancien bouton « aide Wokwi » (lien en ligne) de l'inspecteur ouvre désormais la **fiche locale** (aperçu Markdown, hors-ligne) — `markdown.showPreviewToSide` sur `docs/composants/<type>.md`.
+4. ⏳ **Alignement des pattes sur la grille** : toujours reporté (cartes à pas irrégulier ; nécessite validation visuelle).
 
 # v2026.6.38
 

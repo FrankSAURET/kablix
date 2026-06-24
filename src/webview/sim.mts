@@ -1051,6 +1051,9 @@ editor.onCustomPartsChange = (parts: CustomPartData[]) => {
 editor.onOpenExternal = (url: string) => {
   vscode.postMessage({ type: 'openExternal', url });
 };
+editor.onComponentHelp = (part: string) => {
+  vscode.postMessage({ type: 'componentHelp', part });
+};
 editor.onExportCustomPart = (part: CustomPartData) => {
   vscode.postMessage({ type: 'exportCustomPart', part });
 };

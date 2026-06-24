@@ -27,6 +27,8 @@ const FR: Record<string, string> = {
   'Recently used': 'Derniers utilisés',
   'Show recently used': 'Afficher les derniers utilisés',
   'Hide recently used': 'Masquer les derniers utilisés',
+  'Component help': 'Aide du composant',
+  'Open the help for this part': 'Ouvrir l\'aide de ce composant',
   'Expand all categories': 'Tout déplier',
   'Collapse all categories': 'Tout replier',
   'Auto (accordion)': 'Auto (accordéon)',

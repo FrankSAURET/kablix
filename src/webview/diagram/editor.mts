@@ -133,6 +133,8 @@ export class Editor {
   onPartAdded: ((part: Part) => void) | null = null;
   /** Appelé pour ouvrir un lien externe (doc Wokwi d'un composant). */
   onOpenExternal: ((url: string) => void) | null = null;
+  /** Appelé pour ouvrir l'aide locale d'un composant (fiche docs/composants/<type>.md). */
+  onComponentHelp: ((type: string) => void) | null = null;
 
   private paletteSort: PaletteSort = 'category';
   private paletteFilter = '';
@@ -2572,21 +2574,14 @@ export class Editor {
     subtitle.textContent = t(def.label);
     this.inspector.appendChild(subtitle);
 
-    // Bouton d'aide vers la doc Wokwi en ligne (éléments @wokwi/elements seuls).
-    if (def.tag.startsWith('wokwi-')) {
+    // Bouton d'aide locale sur le composant (fiche FR hors-ligne, docs/composants).
+    // Affiché pour les composants intégrés (les composants perso n'ont pas de fiche).
+    if (def.tag !== 'kablix-custom-part') {
       const help = document.createElement('button');
       help.className = 'inspector__doc';
-      const restore = (): void => { help.textContent = `❔ ${t('Wokwi help')}`; };
-      restore();
-      help.title = t('Open the online Wokwi documentation for this part');
-      help.addEventListener('click', () => {
-        if (navigator.onLine) {
-          this.onOpenExternal?.(`https://docs.wokwi.com/parts/${def.tag}`);
-        } else {
-          help.textContent = t('Available online only');
-          setTimeout(restore, 2500);
-        }
-      });
+      help.textContent = `❔ ${t('Component help')}`;
+      help.title = t('Open the help for this part');
+      help.addEventListener('click', () => this.onComponentHelp?.(def.type));
       this.inspector.appendChild(help);
     }
 

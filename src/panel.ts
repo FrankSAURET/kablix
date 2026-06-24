@@ -559,6 +559,16 @@ export class SimulatorPanel {
           void vscode.env.openExternal(vscode.Uri.parse(msg.url));
         }
         break;
+      case 'componentHelp':
+        // Aide locale (hors-ligne) d'un composant : aperçu de docs/composants/<type>.md.
+        if (typeof msg.part === 'string' && /^[a-z0-9-]+$/i.test(msg.part)) {
+          const md = vscode.Uri.joinPath(this.extensionUri, 'docs', 'composants', `${msg.part}.md`);
+          void vscode.workspace.fs.stat(md).then(
+            () => vscode.commands.executeCommand('markdown.showPreviewToSide', md),
+            () => vscode.window.showInformationMessage(vscode.l10n.t('No help available for this part yet.'))
+          );
+        }
+        break;
       case 'wokwiExport':
         // La webview a converti le schéma au format Wokwi : on l'enregistre.
         void this.saveWokwiDiagram(msg.json);
