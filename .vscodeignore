@@ -2,6 +2,8 @@
 src/**
 scripts/**
 svg/**
+svg retouche/**
+*.edit.svg
 *.vsix
 todo*.md
 node_modules/**

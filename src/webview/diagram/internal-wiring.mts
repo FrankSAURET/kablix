@@ -163,21 +163,6 @@ function resistor(pins: PinPoint[]): string | null {
   ].join('');
 }
 
-/** Buzzer : pastille centrale (+ et ~) reliée aux deux bornes. */
-function buzzer(pins: PinPoint[]): string | null {
-  const a = find(pins, '1');
-  const b = find(pins, '2');
-  if (!a || !b) return null;
-  const center = mid(a, b);
-  const r = Math.min(11, Math.hypot(b.x - a.x, b.y - a.y) / 3);
-  return [
-    line(a, center),
-    line(b, center),
-    `<circle cx="${center.x}" cy="${center.y}" r="${r}" fill="none"/>`,
-    `<text x="${center.x}" y="${center.y + 3}" font-size="${r}" fill="#111" stroke="none" text-anchor="middle" font-family="sans-serif">+</text>`,
-  ].join('');
-}
-
 /** Barre de LED : une diode (A→K) par segment, sur les 10 paires A{i}/C{i}. */
 function ledBar(pins: PinPoint[]): string | null {
   const out: string[] = [];
@@ -376,8 +361,6 @@ export function internalWiringSvg(
       return led(pins);
     case 'resistor':
       return resistor(pins);
-    case 'buzzer':
-      return buzzer(pins);
     case 'led-bar':
       return ledBar(pins);
     case '7segment':

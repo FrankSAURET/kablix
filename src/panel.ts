@@ -559,6 +559,10 @@ export class SimulatorPanel {
           void vscode.env.openExternal(vscode.Uri.parse(msg.url));
         }
         break;
+      case 'openRepo':
+        // Clic sur « Kablix vX » : ouvre le dépôt GitHub.
+        void vscode.env.openExternal(vscode.Uri.parse('https://github.com/FrankSAURET/kablix'));
+        break;
       case 'componentHelp':
         // Aide locale (hors-ligne) d'un composant : aperçu de docs/composants/<type>.md.
         if (typeof msg.part === 'string' && /^[a-z0-9-]+$/i.test(msg.part)) {
@@ -861,7 +865,7 @@ export class SimulatorPanel {
 </head>
 <body>
   <header class="toolbar">
-    <span class="brand">
+    <span class="brand" id="brand" title="${l10n.t('Open the GitHub repository')}">
       <strong class="brand__name">Kablix</strong>
       <small class="brand__version">v${version}</small>
     </span>

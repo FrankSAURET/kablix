@@ -785,16 +785,15 @@ function renderDebugPause(state: DebugPauseState): void {
   debugLineEl.textContent = state.line !== undefined ? t('Line {0}', state.line) : '';
   debugVarsEl.innerHTML = '';
   // En-tête permanent en C/Arduino : seules les variables GLOBALES sont lisibles
-  // (les locales demanderaient l'analyse CFI DWARF). Cliquable → page d'aide. En
-  // MicroPython, pas de cette restriction → en-tête omis (texte barré supprimé).
+  // (les locales demanderaient l'analyse CFI DWARF). En MicroPython, pas de cette
+  // restriction → en-tête omis.
   if (!runIsPython) {
     const hRow = debugVarsEl.insertRow();
     const hCell = hRow.insertCell();
     hCell.colSpan = 2;
     hCell.className = 'debug__cinfo';
-    hCell.textContent = t('ℹ Only global variables are shown (click for help)');
+    hCell.textContent = t('ℹ Only global variables are shown');
     hCell.title = t('In C/Arduino, declare a variable outside setup() and loop() (global) to inspect it here.');
-    hCell.addEventListener('click', () => vscode.postMessage({ type: 'help' }));
   }
   if (state.variables.length === 0) {
     const row = debugVarsEl.insertRow();
@@ -976,6 +975,10 @@ openProjectBtn.addEventListener('click', () => {
 // Ouvre la page d'aide (commande kablix.openHelp côté hôte).
 helpBtn.addEventListener('click', () => {
   vscode.postMessage({ type: 'help' });
+});
+// Clic sur « Kablix vX » → dépôt GitHub.
+document.getElementById('brand')?.addEventListener('click', () => {
+  vscode.postMessage({ type: 'openRepo' });
 });
 
 // --- Préférences d'interface (noms visibles, tri de palette, derniers utilisés)

@@ -25,6 +25,11 @@ body {
   display: inline-flex;
   flex-direction: column;
   line-height: 1.05;
+  cursor: pointer; /* clic → dépôt GitHub */
+}
+
+.brand:hover {
+  text-decoration: underline;
 }
 
 .brand__version {
@@ -589,22 +594,30 @@ body {
 }
 
 /* Poignée d'extrémité d'un fil : losange blanc cerclé, glissable sur une broche. */
-/* Poignée d'extrémité discrète (petit point) — plus le gros losange d'avant. */
+/* Poignée d'extrémité minuscule (~1 px visible) ; zone de clic élargie en ::after. */
 .wire-endpoint {
   position: absolute;
-  width: 7px;
-  height: 7px;
-  margin: -3.5px 0 0 -3.5px;
+  width: 2px;
+  height: 2px;
+  margin: -1px 0 0 -1px;
   background: var(--vscode-focusBorder, #4fa3ff);
-  border: 1px solid #ffffff;
   border-radius: 50%;
-  box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
   cursor: grab;
   z-index: 8;
 }
 
+/* Cible cliquable invisible (la pastille visible reste à ~1 px). */
+.wire-endpoint::after {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: -5px;
+  width: 12px;
+  height: 12px;
+}
+
 .wire-endpoint:hover {
-  transform: scale(1.4);
+  transform: scale(2);
 }
 
 /* --- Inspecteur (éditeur de composants) ------------------------------------- */

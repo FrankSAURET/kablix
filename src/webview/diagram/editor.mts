@@ -21,6 +21,7 @@ import {
 } from './catalog.mjs';
 import { breadboardPins, normalizeSize, stripOfPin } from './breadboard.mjs';
 import { internalWiringSvg, type PinPoint } from './internal-wiring.mjs';
+import { PIN_OVERRIDES } from './pin-overrides.mjs';
 import { pinoutSvg, pinoutPoster } from './pinout.mjs';
 import { BOARD_W, BOARD_H } from '../elements/pico-board.mjs';
 import type { Diagram, Endpoint, Part, Wire } from './model.mjs';
@@ -92,6 +93,17 @@ const ZOOM_MAX = 10; // 1000 %
 const GRID = 10;
 /** Aligne une coordonnée sur la grille magnétique. */
 const snapToGrid = (v: number): number => Math.round(v / GRID) * GRID;
+/**
+ * Cale une broche sur la grille **par rapport à la 1re broche (ancre)** : on force
+ * un pas multiple de 10 depuis l'ancre, sans bouger l'ancre. Les coordonnées Wokwi
+ * (× pinScale) dérivent légèrement du pas 10 px (pas de carte irrégulier + arrondi
+ * d'échelle) : ce calage rend toutes les broches enfichables. Le seuil (3 px) ne
+ * corrige que la dérive et laisse en place une broche volontairement hors-grille.
+ */
+const snapPinTo = (v: number, anchor: number): number => {
+  const r = anchor + Math.round((v - anchor) / GRID) * GRID;
+  return Math.abs(r - v) <= 3 ? r : v;
+};
 /** Dimensions de la vignette de composant dans la palette (px). */
 const THUMB_W = 46;
 const THUMB_H = 30;
@@ -1169,8 +1181,9 @@ export class Editor {
 
     const hotspots = new Map<string, HTMLDivElement>();
     const pins = (el.pinInfo ?? []) as WokwiPin[];
+    const anchor: XY = pins[0] ? { x: pins[0].x, y: pins[0].y } : { x: 0, y: 0 };
     for (const pin of pins) {
-      const dot = this.makeHotspot(part.id, part.type, def.kind, pin);
+      const dot = this.makeHotspot(part.id, part.type, def.kind, pin, anchor);
       body.appendChild(dot);
       hotspots.set(pin.name, dot);
     }
@@ -1206,8 +1219,9 @@ export class Editor {
     this.scheduleSettle();
   }
 
-  /** Crée une pastille de broche (point de connexion cliquable). */
-  private makeHotspot(partId: string, type: string, kind: string, pin: WokwiPin): HTMLDivElement {
+  /** Crée une pastille de broche (point de connexion cliquable). `anchor` = 1re
+   *  broche brute du composant (repère pour caler l'espacement sur la grille). */
+  private makeHotspot(partId: string, type: string, kind: string, pin: WokwiPin, anchor: XY): HTMLDivElement {
     const dot = document.createElement('div');
     dot.className = 'pin';
     // Pastilles d'alimentation reconnaissables : rouge (VCC) / noir (GND). Le
@@ -1215,11 +1229,13 @@ export class Editor {
     const role = kind === 'potentiometer' ? 'other' : pinElectricalRole(type, pin.name);
     if (role === 'vcc') dot.classList.add('pin--vcc');
     else if (role === 'gnd') dot.classList.add('pin--gnd');
-    // Mise à l'échelle des broches (cartes @wokwi : pas 9,6 px → 10 px).
+    // Mise à l'échelle (cartes @wokwi : pas 9,6 px → 10 px) + calage de l'espacement
+    // sur la grille relativement à la 1re broche.
     const k = partDef(type).pinScale ?? 1;
-    dot.style.left = `${pin.x * k}px`;
-    dot.style.top = `${pin.y * k}px`;
-    dot.title = pinDisplayName(kind, pin.name);
+    const ov = PIN_OVERRIDES[type]?.[pin.name];
+    dot.style.left = `${ov ? ov.x : snapPinTo(pin.x * k, anchor.x * k)}px`;
+    dot.style.top = `${ov ? ov.y : snapPinTo(pin.y * k, anchor.y * k)}px`;
+    dot.title = pinDisplayName(kind, pin.name, type);
     dot.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
       this.onPinDown({ partId, pin: pin.name }, e);
@@ -1243,15 +1259,18 @@ export class Editor {
     if (!body) return;
     const def = partDef(r.part.type);
     const k = def.pinScale ?? 1;
-    for (const pin of (r.el.pinInfo ?? []) as WokwiPin[]) {
+    const pins = (r.el.pinInfo ?? []) as WokwiPin[];
+    const anchor: XY = pins[0] ? { x: pins[0].x, y: pins[0].y } : { x: 0, y: 0 };
+    for (const pin of pins) {
       let dot = r.hotspots.get(pin.name);
       if (!dot) {
-        dot = this.makeHotspot(r.part.id, r.part.type, def.kind, pin);
+        dot = this.makeHotspot(r.part.id, r.part.type, def.kind, pin, anchor);
         body.appendChild(dot);
         r.hotspots.set(pin.name, dot);
       } else {
-        dot.style.left = `${pin.x * k}px`;
-        dot.style.top = `${pin.y * k}px`;
+        const ov = PIN_OVERRIDES[r.part.type]?.[pin.name];
+        dot.style.left = `${ov ? ov.x : snapPinTo(pin.x * k, anchor.x * k)}px`;
+        dot.style.top = `${ov ? ov.y : snapPinTo(pin.y * k, anchor.y * k)}px`;
       }
     }
   }
@@ -2914,7 +2933,13 @@ function colorSwatchBackground(value: string): string {
  * l'alimentation : les extrémités du rail résistif sont montrées « 1 » et « 2 »,
  * le curseur « V » (Variable). L'identifiant interne reste inchangé (simulation).
  */
-function pinDisplayName(kind: string, pinName: string): string {
+function pinDisplayName(kind: string, pinName: string, type?: string): string {
+  // Clavier matriciel : lignes R{n} → « L{n} » (Ligne), colonnes C{n} inchangées.
+  // La lettre des lignes est traduite (R en anglais, L en français).
+  if (type === 'keypad') {
+    const r = /^R(\d+)$/.exec(pinName);
+    if (r) return `${t('R')}${r[1]}`;
+  }
   // Cathode notée « K » sur toutes les diodes : LED (C) et barre de LED (C1..C10).
   if (kind === 'led' && pinName === 'C') return 'K';
   if (kind === 'led-bar') {

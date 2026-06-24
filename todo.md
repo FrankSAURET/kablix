@@ -1,21 +1,30 @@
-✅ Grossit le symbole déplier/replier des catégories (texte plus gros + gras) et bouton 3 états (tout déplier / tout replier / auto-accordéon) à côté de « derniers utilisés »
-✅ Passe les titres des catégories en « première majuscule »
-✅ Renomme « Affichage & LED » en « Afficheurs »
-✅ Renomme « Divers » en « Discrets »
-✅ Augmente zoom max jusqu'à 1000 %
-✅ Le composant LCD 20 × 4 n'apparaît pas
-✅ La miniature des afficheurs LCD doit être celle du 16×2 i2c
-✅ La miniature du clavier (et d'autres) mauvaise au lancement
-✅ Importer l'aide wokwi dans un dossier d'aide (FR, images, 1 md/composant, crédit wokwi)
-✅ Change le bouton d'aide wokwi pour un bouton aide sur le composant
-✅ Passe anneau neopixel, matrice neopixel, neopixel, oled, tft dans « Afficheurs »
-✅ Passe LED et LED RGB dans « Discrets »
-✅ Rajoute une catégorie « CI »
-✅ Remplace le symbole nucléaire par le K inversé dans les .md (docs)
-⬜ Pattes non parfaitement alignées sur la grille (conversion d'échelle approximative) — LED RGB, barreau LED, LCD, boutons, clavier, dip switch, mega, uno, joystick, potentiomètres…
-✅ Schéma interne du clavier avec interrupteurs en biais (45°), toutes versions
-✅ Le gros losange des câbles (déconnexion/reconnexion) disparaît ; recâblage sur power/gnd → couleur change
-✅ Message de verrouillage en simulation : rouge sur jaune
+# À faire
+
+1. ⬜ Bouton de pliage 3 états (tout déplier / replier / auto) peu clair → en faire un **menu** (clic → glisser jusqu'à la valeur → relâcher = mode choisi). Icône = la même flèche de repliement, la plus grosse possible.
+2. ⬜ Miniatures (palette composants) : images parfois fausses ou trop grandes ; après 1 clic dans chaque catégorie elles reviennent à la bonne taille, mais sélectionner un composant d'une autre catégorie les refait partir mal.
+3. ⬜ Miniature des afficheurs 7 seg (et composants à câblage) : afficher « 8. » dans la couleur sélectionnée.
+4. ⬜ Retoucher le schéma interne du clavier → sortir en SVG (comme les autres) ; il doit y en avoir 2 (3 ou 4 colonnes).
+5. ⬜ Message de verrouillage (simulation) rouge sur jaune : **n'apparaît plus** → le rétablir.
+6. ⬜ Zone morte en haut-gauche du canvas où l'on ne peut pas déplacer un composant → centrer la vue de démarrage sur le centre, au zoom le plus petit.
+7. ⬜ Le brochage ne tombe pas en face des broches pour le modèle clavier 3×4.
+8. ⬜ Touches du clavier verrouillables comme les BP ; la bulle doit l'indiquer en simulation.
+9. ⬜ Appuis sur les touches (et BP) prolongés pour être pris en compte.
+10. ⬜ Des fils connectés à un fil prennent la même couleur.
+11. ⬜ À l'enregistrement d'un `.projix` : nom par défaut = celui du code associé (sinon nom existant) ; nom (sans chemin) affiché à côté du bouton aide.
+12. ⬜ La simulation est très lente.
+13. ⬜ Routage auto : ne jamais traverser un composant — sortir par le bord le plus proche + 1 pas de grille perpendiculaire, puis router.
+14. ⏳ Retouche fine des pattes : en attente des SVG retouchés (`svg retouche/`).
+
+# v2026.6.40
+
+1. ✅ **Alignement des pattes (échelle correcte par composant)** : `pinScale` = 10/pas natif appliqué à chaque composant à pas régulier — 9,5 px (servo, LCD, DHT22, inter. à glissière), 9,6 px (joystick, ILI9341, microSD, NeoPixel matrice/anneau, NTC, PIR, tilt, flamme) ; pot/HC-SR04/buzzer déjà à 10 px. Snap relatif conservé. Infra d'**override de broches** ([`pin-overrides.mts`](src/webview/diagram/pin-overrides.mts)) pour les positions retouchées.
+2. ✅ **SVG de retouche de tous les composants** dans [`svg retouche/`](svg%20retouche/) (dessin réel + grille 10 px + pastilles nommées `id="pin-<nom>"`) → je relis les positions retouchées vers `pin-overrides`.
+3. ✅ **Câblage interne du buzzer supprimé** (plus de bouton K).
+4. ✅ **Catégorie « Divers »** (carte microSD dedans) ; **« Discrets » remontée** juste sous « Cartes & platines ».
+5. ✅ **Point de câble** réduit à ~1 px (zone de clic élargie invisible).
+6. ✅ **Avertissement variables** : lien et mention « cliquer pour l'aide » retirés.
+7. ✅ **Clic sur « Kablix vX »** (haut-gauche) → ouvre le dépôt GitHub.
+8. ✅ **Broches du clavier** : lignes affichées « **L** » (Ligne, traduit), colonnes « C ».
 
 # v2026.6.39
 

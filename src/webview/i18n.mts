@@ -27,6 +27,8 @@ const FR: Record<string, string> = {
   'Recently used': 'Derniers utilisés',
   'Show recently used': 'Afficher les derniers utilisés',
   'Hide recently used': 'Masquer les derniers utilisés',
+  // Clavier matriciel : lettre des lignes (Row → Ligne).
+  'R': 'L',
   'Component help': 'Aide du composant',
   'Open the help for this part': 'Ouvrir l\'aide de ce composant',
   'Expand all categories': 'Tout déplier',
@@ -40,7 +42,7 @@ const FR: Record<string, string> = {
   'Controls': 'Commandes',
   'Sensors': 'Capteurs',
   'Actuators': 'Actionneurs',
-  'CI': 'CI',
+  'Divers': 'Divers',
   'Passive': 'Discrets',
   'Custom parts': 'Composants personnalisés',
   '+ Create a part': '+ Créer un composant',
@@ -215,8 +217,7 @@ const FR: Record<string, string> = {
   'Ctrl+click to lock the unstable state': 'Ctrl+clic pour verrouiller l’état instable',
   'No readable variable here (C: global variables only).':
     'Aucune variable lisible ici (en C : variables globales seulement).',
-  'ℹ Only global variables are shown (click for help)':
-    'ℹ Seules les variables globales sont affichées (cliquer pour l’aide)',
+  'ℹ Only global variables are shown': 'ℹ Seules les variables globales sont affichées',
   'In C/Arduino, declare a variable outside setup() and loop() (global) to inspect it here.':
     'En C/Arduino, déclarez une variable hors de setup() et loop() (globale) pour la voir ici.',
   'No readable variable (define module-level variables to inspect them).':

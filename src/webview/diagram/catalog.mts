@@ -115,6 +115,8 @@ export interface PartDef {
 
 /** Pas Wokwi (0,1″ ≈ 9,6 px) ramené à la grille de 10 px. */
 export const WOKWI_PIN_SCALE = 10 / 9.6;
+/** Certains éléments Wokwi ont un pas natif de 9,5 px (servo, LCD, DHT22…). */
+export const WOKWI_PIN_SCALE_95 = 10 / 9.5;
 
 /** Description sérialisable d'un composant personnalisé (persistée côté extension). */
 export interface CustomPartData {
@@ -214,26 +216,26 @@ export const CATALOG: readonly PartDef[] = [
     attrs: { color: 'GYR' },
     props: [{ attr: 'color', label: 'Color', kind: 'select', options: ['GYR', 'red', 'green', 'blue', 'yellow'] }],
   },
-  { type: 'slide-switch', label: 'Slide switch', tag: 'wokwi-slide-switch', kind: 'slide-switch', interactive: true },
+  { type: 'slide-switch', label: 'Slide switch', tag: 'wokwi-slide-switch', kind: 'slide-switch', interactive: true, pinScale: WOKWI_PIN_SCALE_95 },
   { type: 'dip-switch', label: 'DIP switch ×8', tag: 'wokwi-dip-switch-8', kind: 'dip-switch', interactive: true },
-  { type: 'joystick', label: 'Analog joystick', tag: 'wokwi-analog-joystick', kind: 'joystick', interactive: true },
+  { type: 'joystick', label: 'Analog joystick', tag: 'wokwi-analog-joystick', kind: 'joystick', interactive: true, pinScale: WOKWI_PIN_SCALE },
   {
     type: 'photoresistor', label: 'Photoresistor (LDR)', tag: 'wokwi-photoresistor-sensor', kind: 'analog-source',
     analogPin: 'AO', attrs: { value: '50' },
     props: [{ attr: 'value', label: 'Brightness (%)', kind: 'number', min: 0, max: 100, step: 1 }],
   },
   {
-    type: 'pir', label: 'PIR motion sensor', tag: 'wokwi-pir-motion-sensor', kind: 'digital-source',
+    type: 'pir', label: 'PIR motion sensor', tag: 'wokwi-pir-motion-sensor', kind: 'digital-source', pinScale: WOKWI_PIN_SCALE,
     digitalPin: 'OUT', attrs: { state: '0' },
     props: [{ ...STATE_PROP, label: 'Motion detected' }],
   },
   {
-    type: 'tilt', label: 'Tilt sensor', tag: 'wokwi-tilt-switch', kind: 'digital-source',
+    type: 'tilt', label: 'Tilt sensor', tag: 'wokwi-tilt-switch', kind: 'digital-source', pinScale: WOKWI_PIN_SCALE,
     digitalPin: 'OUT', attrs: { state: '0' },
     props: [{ ...STATE_PROP, label: 'Tilted' }],
   },
   {
-    type: 'servo', label: 'Servo motor', tag: 'wokwi-servo', kind: 'servo',
+    type: 'servo', label: 'Servo motor', tag: 'wokwi-servo', kind: 'servo', pinScale: WOKWI_PIN_SCALE_95,
     attrs: { horn: 'single' },
     props: [{
       attr: 'horn', label: 'Horn', kind: 'select', options: ['single', 'double', 'cross'],
@@ -247,7 +249,7 @@ export const CATALOG: readonly PartDef[] = [
   // `pins` (i2c = 4 fils GND/VCC/SDA/SCL ; full = parallèle). Le texte n'est simulé
   // qu'en I²C (Lcd1602Device) ; en parallèle l'afficheur reste visuel.
   {
-    type: 'lcd', label: 'LCD Texte', tag: 'wokwi-lcd1602', kind: 'i2c-lcd',
+    type: 'lcd', label: 'LCD Texte', tag: 'wokwi-lcd1602', kind: 'i2c-lcd', pinScale: WOKWI_PIN_SCALE_95,
     attrs: { pins: 'i2c', address: '0x27', cols: '16', rows: '2', lcdSize: '16x2' },
     props: [
       {
@@ -264,13 +266,13 @@ export const CATALOG: readonly PartDef[] = [
   // simulé en SPI (le programme y dessine, l'écran s'allume).
   { type: 'oled-ssd1306', label: 'OLED display (SSD1306, SPI)', tag: 'wokwi-ssd1306', kind: 'spi-oled' },
   // Écran TFT couleur ILI9341 (SPI) : décodé et dessiné dans son canvas.
-  { type: 'ili9341', label: 'TFT display (ILI9341, SPI)', tag: 'wokwi-ili9341', kind: 'spi-tft' },
+  { type: 'ili9341', label: 'TFT display (ILI9341, SPI)', tag: 'wokwi-ili9341', kind: 'spi-tft', pinScale: WOKWI_PIN_SCALE },
   // Carte microSD (SPI) : répondeur de protocole (init + lecture/écriture de blocs).
-  { type: 'microsd', label: 'microSD card (SPI)', tag: 'wokwi-microsd-card', kind: 'spi-sd' },
+  { type: 'microsd', label: 'microSD card (SPI)', tag: 'wokwi-microsd-card', kind: 'spi-sd', pinScale: WOKWI_PIN_SCALE },
   // NeoPixel (WS2812) : simulés — la chaîne DIN est décodée et les LED s'allument.
   { type: 'neopixel', label: 'NeoPixel', tag: 'wokwi-neopixel', kind: 'neopixel' },
-  { type: 'neopixel-matrix', label: 'NeoPixel matrix', tag: 'wokwi-neopixel-matrix', kind: 'neopixel', attrs: { rows: '8', cols: '8' } },
-  { type: 'led-ring', label: 'NeoPixel ring', tag: 'wokwi-led-ring', kind: 'neopixel', attrs: { pixels: '16' } },
+  { type: 'neopixel-matrix', label: 'NeoPixel matrix', tag: 'wokwi-neopixel-matrix', kind: 'neopixel', attrs: { rows: '8', cols: '8' }, pinScale: WOKWI_PIN_SCALE },
+  { type: 'led-ring', label: 'NeoPixel ring', tag: 'wokwi-led-ring', kind: 'neopixel', attrs: { pixels: '16' }, pinScale: WOKWI_PIN_SCALE },
 
   // Bouton poussoir 6 mm : même modèle que le bouton standard.
   {
@@ -281,7 +283,7 @@ export const CATALOG: readonly PartDef[] = [
 
   // Capteurs analogiques : la sortie pilote l'entrée ADC reliée (valeur en %).
   {
-    type: 'ntc-temp', label: 'NTC temperature sensor', tag: 'wokwi-ntc-temperature-sensor', kind: 'analog-source',
+    type: 'ntc-temp', label: 'NTC temperature sensor', tag: 'wokwi-ntc-temperature-sensor', kind: 'analog-source', pinScale: WOKWI_PIN_SCALE,
     analogPin: 'OUT', attrs: { value: '50' },
     props: [{ ...VALUE_PROP, label: 'Temperature (%)' }],
   },
@@ -298,7 +300,7 @@ export const CATALOG: readonly PartDef[] = [
 
   // Capteurs numériques : la sortie DOUT pilote l'entrée reliée (état 0/1).
   {
-    type: 'flame', label: 'Flame sensor', tag: 'wokwi-flame-sensor', kind: 'digital-source',
+    type: 'flame', label: 'Flame sensor', tag: 'wokwi-flame-sensor', kind: 'digital-source', pinScale: WOKWI_PIN_SCALE,
     digitalPin: 'DOUT', attrs: { state: '0' },
     props: [{ ...STATE_PROP, label: 'Flame detected' }],
   },
@@ -318,7 +320,7 @@ export const CATALOG: readonly PartDef[] = [
   // Capteur de température/humidité DHT22 (1-wire sur SDA) : répond au protocole
   // réel (température/humidité réglées dans l'inspecteur).
   {
-    type: 'dht22', label: 'Temp/humidity sensor (DHT22)', tag: 'wokwi-dht22', kind: 'passive',
+    type: 'dht22', label: 'Temp/humidity sensor (DHT22)', tag: 'wokwi-dht22', kind: 'passive', pinScale: WOKWI_PIN_SCALE_95,
     attrs: { temperature: '22', humidity: '50' },
     props: [
       { attr: 'temperature', label: 'Temperature (°C)', kind: 'number', min: -40, max: 80, step: 0.1 },
@@ -362,7 +364,7 @@ export function partCategory(def: PartDef): string {
       return 'Passive'; // « Discrets » (composants discrets : R, LED…)
     case 'spi-sd':
     case 'i2c-pwm':
-      return 'CI'; // circuits intégrés / modules à puce
+      return 'Divers'; // modules divers (carte SD…)
     case 'pushbutton':
     case 'potentiometer':
     case 'slide-switch':
@@ -384,12 +386,12 @@ export function partCategory(def: PartDef): string {
 /** Ordre d'affichage des catégories dans la palette. */
 export const CATEGORY_ORDER: readonly string[] = [
   'Boards',
+  'Passive', // « Discrets » : juste sous Cartes & platines
   'Displays & LEDs',
   'Controls',
   'Sensors',
   'Actuators',
-  'CI',
-  'Passive',
+  'Divers',
 ];
 
 // --- Composants personnalisés (créés par l'utilisateur) -----------------------
