@@ -186,7 +186,7 @@ export const CATALOG: readonly PartDef[] = [
     props: [VALUE_PROP],
   },
   {
-    type: 'slide-pot', label: 'Slide potentiometer', tag: 'wokwi-slide-potentiometer', kind: 'potentiometer',
+    type: 'slide-pot', label: 'Slide potentiometer', tag: 'kablix-slide-potentiometer', kind: 'potentiometer',
     attrs: { min: '0', max: '100', value: '50' }, interactive: true,
     props: [VALUE_PROP],
   },
@@ -349,13 +349,20 @@ export function partCategory(def: PartDef): string {
     case 'mcu':
     case 'breadboard':
       return 'Boards';
-    case 'led':
-    case 'rgb-led':
     case '7segment':
     case 'led-bar':
     case 'display':
     case 'i2c-lcd':
+    case 'neopixel':
+    case 'spi-oled':
+    case 'spi-tft':
       return 'Displays & LEDs';
+    case 'led':
+    case 'rgb-led':
+      return 'Passive'; // « Discrets » (composants discrets : R, LED…)
+    case 'spi-sd':
+    case 'i2c-pwm':
+      return 'CI'; // circuits intégrés / modules à puce
     case 'pushbutton':
     case 'potentiometer':
     case 'slide-switch':
@@ -381,6 +388,7 @@ export const CATEGORY_ORDER: readonly string[] = [
   'Controls',
   'Sensors',
   'Actuators',
+  'CI',
   'Passive',
 ];
 

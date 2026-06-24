@@ -67,6 +67,8 @@ const KABLIX_TO_WOKWI: Record<string, string> = {
   pico: 'board-pi-pico',
   picow: 'board-pi-pico-w',
   breadboard: 'wokwi-breadboard',
+  // dessin maison <kablix-slide-potentiometer> ↔ élément Wokwi standard.
+  'slide-pot': 'wokwi-slide-potentiometer',
 };
 
 /** Anciens noms Wokwi acceptés à l'import (→ type Kablix). */

@@ -109,10 +109,10 @@ l'interface. Deux options :
 
 ---
 
-## 5. Modifier les schémas internes (vue ☢)
+## 5. Modifier les schémas internes (vue K)
 
 Le **schéma interne** est le câblage affiché en transparence (noir sur fond
-blanc) quand on sélectionne un composant et qu'on clique le bouton **☢**. Il
+blanc) quand on sélectionne un composant et qu'on clique le bouton **K**. Il
 n'est **pas** stocké dans le `.kablix-part.json` : il est **généré par le code**,
 dans [`src/webview/diagram/internal-wiring.mts`](../src/webview/diagram/internal-wiring.mts)
 (modification = recompilation de l'extension).
@@ -141,7 +141,7 @@ find(pins, 'NOM')          // position {x,y} d'une broche par son nom (ou null)
    un fragment SVG (assemblé avec `line`/`dot`/`diode`), ou `null` si les broches
    attendues manquent (`find` renvoie `null`).
 2. Ajoutez un `case '<kind>':` dans le `switch` de `internalWiringSvg`.
-3. Recompilez (`npm run build`). Le bouton ☢ apparaît automatiquement sur les
+3. Recompilez (`npm run build`). Le bouton K apparaît automatiquement sur les
    composants de ce `kind` (cf. `editor.mts`, `internalWiringSvg(...)`).
 
 > Exemple : `sevenSegment(pins, attrs)` lit `attrs.common` (`cathode`/`anode`)
@@ -157,4 +157,4 @@ find(pins, 'NOM')          // position {x,y} d'une broche par son nom (ou null)
 | Changer le **dessin** d'un composant perso | champ `svg` du `.kablix-part.json` (§3) |
 | Ajouter mes **broches** au pas de 10 px | tableau `pins` du JSON (§2) |
 | Modifier un composant **intégré** | en refaire une version perso (§4) |
-| Changer le **schéma interne** (vue ☢) | `src/webview/diagram/internal-wiring.mts` (§5) |
+| Changer le **schéma interne** (vue K) | `src/webview/diagram/internal-wiring.mts` (§5) |

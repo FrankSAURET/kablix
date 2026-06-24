@@ -23,9 +23,25 @@ const mid = (a: XY, b: XY): XY => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
 const line = (a: XY, b: XY): string => `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/>`;
 const dot = (p: XY, r = 2.4): string => `<circle cx="${p.x}" cy="${p.y}" r="${r}" fill="#111"/>`;
 
+/** Flèche : segment `from`→`to` avec une pointe (deux barbes) à `to`. */
+function arrow(from: XY, to: XY, size = 6): string {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len;
+  const uy = dy / len;
+  const px = -uy;
+  const py = ux;
+  const base = { x: to.x - ux * size, y: to.y - uy * size };
+  const b1 = { x: base.x + px * size * 0.5, y: base.y + py * size * 0.5 };
+  const b2 = { x: base.x - px * size * 0.5, y: base.y - py * size * 0.5 };
+  return line(from, to) + line(to, b1) + line(to, b2);
+}
+
 /**
- * Symbole de diode le long de [from, to] : triangle + barre de cathode.
- * `cathodeAtEnd` place la barre côté `to` (sinon côté `from`).
+ * Symbole de diode IEC 60617 le long de [from, to] : triangle blanc translucide
+ * (60 %), puis le conducteur noir patte-à-patte et la barre de cathode tracés
+ * par-dessus. `cathodeAtEnd` place la barre côté `to` (sinon côté `from`).
  */
 function diode(from: XY, to: XY, cathodeAtEnd: boolean): string {
   const dx = to.x - from.x;
@@ -44,9 +60,9 @@ function diode(from: XY, to: XY, cathodeAtEnd: boolean): string {
   const barL = { x: apex.x + px * s, y: apex.y + py * s };
   const barR = { x: apex.x - px * s, y: apex.y - py * s };
   return [
-    line(from, to),
-    `<path d="M ${baseL.x} ${baseL.y} L ${baseR.x} ${baseR.y} L ${apex.x} ${apex.y} Z" fill="#111"/>`,
-    line(barL, barR),
+    `<path d="M ${baseL.x} ${baseL.y} L ${baseR.x} ${baseR.y} L ${apex.x} ${apex.y} Z" fill="#fff" fill-opacity="0.6"/>`,
+    line(from, to), // conducteur patte-à-patte, noir, par-dessus
+    line(barL, barR), // barre de cathode
   ].join('');
 }
 
@@ -107,9 +123,8 @@ function led(pins: PinPoint[]): string | null {
   const barR = { x: apex.x - px * s, y: apex.y - py * s };
 
   return [
-    line(a, center),
-    line(c, center),
-    `<path d="M ${baseL.x} ${baseL.y} L ${baseR.x} ${baseR.y} L ${apex.x} ${apex.y} Z" fill="#111"/>`,
+    `<path d="M ${baseL.x} ${baseL.y} L ${baseR.x} ${baseR.y} L ${apex.x} ${apex.y} Z" fill="#fff" fill-opacity="0.6"/>`,
+    line(a, c), // conducteur patte-à-patte, noir, par-dessus
     line(barL, barR), // barre de cathode
   ].join('');
 }
@@ -175,12 +190,10 @@ function ledBar(pins: PinPoint[]): string | null {
 }
 
 /**
- * Afficheur 7 segments : étoile de 8 diodes (A–G, DP) reliées au point commun.
- * Le sens dépend du type : cathode commune (barres côté commun) ou anode commune
- * (barres côté segment). Le commun est la broche COM.1/COM.2 si présente, sinon
- * le barycentre des segments.
+ * Afficheur 7 segments, multi-digit (2/3/4) : étoile de 8 diodes (A–G, DP)
+ * reliées au point commun (COM/DIG si présent, sinon barycentre des segments).
  */
-function sevenSegment(pins: PinPoint[], attrs?: Record<string, string>): string | null {
+function sevenSegmentStar(pins: PinPoint[], commonAnode: boolean): string | null {
   const segNames = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'DP'];
   const segs = segNames.map((n) => find(pins, n)).filter((p): p is XY => p !== null);
   if (segs.length < 2) return null;
@@ -189,10 +202,73 @@ function sevenSegment(pins: PinPoint[], attrs?: Record<string, string>): string 
       x: segs.reduce((s, p) => s + p.x, 0) / segs.length,
       y: segs.reduce((s, p) => s + p.y, 0) / segs.length,
     };
-  const commonAnode = attrs?.common === 'anode';
   const out = segs.map((p) => diode(p, com, !commonAnode)); // cathode au commun si cathode commune
   out.push(dot(com, 2)); // nœud commun
   return out.join('');
+}
+
+// Schéma « figure-8 » du 7 segments 1 digit (modèle 5611BH) : une diode par
+// segment posée sur sa barre, leads vers les broches + réseau commun. Coordonnées
+// dans le repère de conception 47,44 × 83,16 px (= corps du composant 1 digit).
+// [P1 (côté broche), P2 (côté commun)] : le helper `diode` oriente l'apex vers P2
+// (cathode commune) ou vers P1 (anode commune) selon `cathodeAtEnd`.
+const SEG_DIODES: Array<[XY, XY]> = [
+  [{ x: 32.9, y: 12.5 }, { x: 19.8, y: 12.5 }], // A  (barre du haut)
+  [{ x: 37.9, y: 18.9 }, { x: 36.1, y: 31.8 }], // B  (haut-droite)
+  [{ x: 32.9, y: 56.7 }, { x: 34.7, y: 43.8 }], // C  (bas-droite)
+  [{ x: 14.4, y: 63.3 }, { x: 27.4, y: 63.3 }], // D  (barre du bas)
+  [{ x: 8.7, y: 56.6 }, { x: 10.6, y: 43.7 }], //  E  (bas-gauche)
+  [{ x: 14.5, y: 18.9 }, { x: 12.8, y: 31.8 }], // F  (haut-gauche)
+  [{ x: 17.0, y: 38.3 }, { x: 30.0, y: 38.3 }], // G  (barre du milieu)
+  [{ x: 45.2, y: 62.5 }, { x: 36.9, y: 62.5 }], // DP (point décimal)
+];
+// Pistes : leads broche→diode puis réseau du commun (repère de conception).
+const SEG_LEADS: string[] = [
+  'M 33.48 12.32 V 3.69', // A → broche A
+  'M 37.87 18.45 H 42.85 V 3.71', // B → broche B
+  'M 32.89 56.86 33.38 71.74', // C → broche C
+  'M 14.25 63.44 14.15 71.74', // D → broche D
+  'M 8.78 56.61 4.39 71.94', // E → broche E
+  'M 14.45 18.84 14.15 3.81', // F → broche F
+  'M 16.59 38.16 H 4.59 V 3.90', // G → broche G
+  'M 45.48 62.57 43.04 71.74', // DP → broche DP
+  'M 23.62 3.81 H 19.72 V 12.30', // réseau commun (haut)
+  'M 36.30 32.02 H 12.56',
+  'M 19.88 12.29 V 21.51 H 25.61 V 31.95',
+  'M 30.06 38.25 V 32.22',
+  'M 10.59 43.68 H 34.75',
+  'M 30.06 38.21 V 43.43',
+  'M 36.60 62.42 H 27.52 L 27.57 63.30',
+  'M 23.67 71.89 H 27.52 V 63.35', // → broche COM.1
+  'M 27.48 62.52 V 55.93 H 22.79 V 43.73',
+];
+
+function sevenSegmentFigure(commonAnode: boolean, box?: { w: number; h: number }): string {
+  const sx = (box?.w ?? 47.44) / 47.44;
+  const sy = (box?.h ?? 83.16) / 83.16;
+  const cathodeAtEnd = !commonAnode; // cathode au commun (P2) si cathode commune
+  const inner = [
+    ...SEG_DIODES.map(([p1, p2]) => diode(p1, p2, cathodeAtEnd)),
+    ...SEG_LEADS.map((d) => `<path d="${d}"/>`),
+    dot({ x: 23.72, y: 71.82 }, 2), // nœud commun bas (COM.1)
+    dot({ x: 23.72, y: 3.78 }, 2), // nœud commun haut (COM.2)
+  ].join('');
+  return `<g transform="scale(${sx.toFixed(4)} ${sy.toFixed(4)})">${inner}</g>`;
+}
+
+/**
+ * Afficheur 7 segments. 1 digit → schéma réaliste « figure-8 » (une diode par
+ * segment). 2/3/4 digits → étoile vers le commun. Le sens des diodes suit
+ * `attrs.common` (cathode/anode commune).
+ */
+function sevenSegment(
+  pins: PinPoint[],
+  attrs?: Record<string, string>,
+  box?: { w: number; h: number }
+): string | null {
+  const commonAnode = attrs?.common === 'anode';
+  if ((attrs?.digits ?? '1') === '1') return sevenSegmentFigure(commonAnode, box);
+  return sevenSegmentStar(pins, commonAnode);
 }
 
 /**
@@ -226,13 +302,58 @@ function keypad(pins: PinPoint[], box?: { w: number; h: number }): string | null
     out.push(line({ x, y: rowY(0) }, { x, y: bot })); // bus de colonne
     out.push(line({ x, y: bot }, cp)); // bus → broche Cj (connecteur, en bas)
   });
-  // Poussoir (cercle clair) à chaque intersection : un appui relie rangée↔colonne.
+  // Poussoir à chaque intersection : interrupteur dessiné EN BIAIS (45°) — deux
+  // bornes diagonales + un bras mobile ouvert (un appui relierait rangée↔colonne).
+  const s = 5; // demi-taille du contact
   rows.forEach((_, i) =>
     cols.forEach((_, j) => {
-      out.push(`<circle cx="${colX(j)}" cy="${rowY(i)}" r="5" fill="rgba(255,255,255,0.85)"/>`);
+      const x = colX(j);
+      const y = rowY(i);
+      const t1 = { x: x - s, y: y + s }; // borne bas-gauche
+      const t2 = { x: x + s, y: y - s }; // borne haut-droite
+      const arm = { x: x + s * 0.35, y: y - s * 0.35 }; // bras ouvert (n'atteint pas t2)
+      out.push(`<circle cx="${x}" cy="${y}" r="${s + 1.5}" fill="rgba(255,255,255,0.9)"/>`); // fond
+      out.push(dot(t1, 1.4));
+      out.push(dot(t2, 1.4));
+      out.push(line(t1, arm)); // bras du contact, en biais à 45°
     })
   );
   return out.join('');
+}
+
+/**
+ * Potentiomètre (symbole IEC) : boîte résistive horizontale centrée, reliée à VCC
+ * et GND, avec le curseur (SIG) qui tape le milieu via une flèche perpendiculaire.
+ * Vaut pour le modèle à glissière et le rotatif (mêmes noms de broches).
+ */
+function potentiometer(pins: PinPoint[], box?: { w: number; h: number }): string | null {
+  const vcc = find(pins, 'VCC'); // Point de connexion
+  const gnd = find(pins, 'GND'); // Point de connexion
+  const sig = find(pins, 'SIG'); // Point de connexion
+  if (!vcc || !gnd || !sig) return null;
+  const w = 80; // largeur résistance
+  const h = 30; // hauteur résistance
+  // Centre la boîte sur l'axe VCC↔GND (horizontal/vertical).
+  const cx = (vcc.x + gnd.x) / 2;
+  const cy = (vcc.y + gnd.y) / 2;
+  const half = Math.min(w * 0.32, 70); // demi-longueur de la boîte
+  const bh = Math.min(h * 0.22, 8); // demi-hauteur de la boîte
+  const left = { x: cx - half, y: cy };
+  const right = { x: cx + half, y: cy };
+  const side = sig.y >= cy ? 1 : -1; // côté d'où arrive le curseur
+  const tip = { x: cx, y: cy + side * bh }; // pointe sur le bord de la boîte
+  const tail = { x: cx, y: cy + side * (bh + 10) }; // base de la flèche
+  const inter1={x:sig.x+40,y:sig.y};
+  const inter2={x:inter1.x,y:tail.y}
+  return [
+    `<path d="M ${left.x} ${cy - bh} L ${right.x} ${cy - bh} L ${right.x} ${cy + bh} L ${left.x} ${cy + bh} Z"/>`,
+    line(vcc, left), // amorce vers VCC
+    line(gnd, right), // amorce vers GND
+    line(sig,inter1),
+    line(inter1,inter2),
+    line(inter2, tail),
+    arrow(tail, tip), // flèche du curseur sur la boîte
+  ].join('');
 }
 
 /**
@@ -260,7 +381,9 @@ export function internalWiringSvg(
     case 'led-bar':
       return ledBar(pins);
     case '7segment':
-      return sevenSegment(pins, attrs);
+      return sevenSegment(pins, attrs, box);
+    case 'potentiometer':
+      return potentiometer(pins, box);
     default:
       return null;
   }

@@ -63,7 +63,11 @@ export interface PaletteState {
   showRecents: boolean;
   /** Clés des sections repliées (catégories, derniers utilisés, personnalisés). */
   collapsed: string[];
+  /** Mode de pliage : tout déplier / tout replier / accordéon auto. */
+  fold?: PaletteFold;
 }
+
+export type PaletteFold = 'expand' | 'collapse' | 'auto';
 
 /** Trou de platine d'essai, en coordonnées canvas (cache pendant un drag). */
 interface BreadboardHole {
@@ -83,7 +87,7 @@ const MAX_RECENTS = 10;
 /** Type MIME du glisser-déposer palette → canvas (pose d'un composant). */
 const DND_MIME = 'application/x-kablix-part';
 const ZOOM_MIN = 0.2;
-const ZOOM_MAX = 5;
+const ZOOM_MAX = 10; // 1000 %
 /** Pas de la grille magnétique d'alignement (px) = écartement des broches. */
 const GRID = 10;
 /** Aligne une coordonnée sur la grille magnétique. */
@@ -136,6 +140,10 @@ export class Editor {
   private showRecents = true;
   /** Clés des sections de palette repliées (persisté). */
   private paletteCollapsed = new Set<string>();
+  /** Mode de pliage des catégories (persisté) : déplier/replier/accordéon. */
+  private paletteFold: PaletteFold = 'expand';
+  /** Clés des sections repliables présentes au dernier rendu (pour tout replier). */
+  private sectionKeys: string[] = [];
   private rendered = new Map<string, Rendered>();
   private wirePaths = new Map<string, SVGPathElement>();
   private pending: PendingWire | null = null;
@@ -449,6 +457,9 @@ export class Editor {
     if (Array.isArray(state.collapsed)) {
       this.paletteCollapsed = new Set(state.collapsed.filter((x): x is string => typeof x === 'string'));
     }
+    if (state.fold === 'expand' || state.fold === 'collapse' || state.fold === 'auto') {
+      this.paletteFold = state.fold;
+    }
     this.buildPalette();
   }
 
@@ -458,7 +469,16 @@ export class Editor {
       recents: [...this.recentTypes],
       showRecents: this.showRecents,
       collapsed: [...this.paletteCollapsed],
+      fold: this.paletteFold,
     });
+  }
+
+  /** Fait défiler le mode de pliage (déplier → replier → auto) et reconstruit. */
+  private cyclePaletteFold(): void {
+    this.paletteFold =
+      this.paletteFold === 'expand' ? 'collapse' : this.paletteFold === 'collapse' ? 'auto' : 'expand';
+    this.buildPalette();
+    this.notifyPaletteState();
   }
 
   /** Mémorise un type comme « dernier utilisé » (10 max, plus récent en tête). */
@@ -478,6 +498,7 @@ export class Editor {
     const head = document.createElement('h4');
     head.className = 'palette__section';
     if (key) {
+      this.sectionKeys.push(key);
       head.classList.add('palette__section--collapsible');
       head.dataset.section = key;
       const collapsed = this.paletteCollapsed.has(key);
@@ -497,14 +518,18 @@ export class Editor {
 
   /** Replie/déplie une section de palette (sans reconstruire) et persiste l'état. */
   private toggleSection(key: string): void {
-    if (this.paletteCollapsed.has(key)) this.paletteCollapsed.delete(key);
+    const willExpand = this.paletteCollapsed.has(key);
+    if (willExpand) this.paletteCollapsed.delete(key);
     else this.paletteCollapsed.add(key);
+    // Mode accordéon : en dépliant une section, on replie toutes les autres.
+    if (this.paletteFold === 'auto' && willExpand) {
+      for (const k of this.sectionKeys) if (k !== key) this.paletteCollapsed.add(k);
+    }
     for (const head of Array.from(
       this.palette.querySelectorAll('.palette__section--collapsible')
     ) as HTMLElement[]) {
-      if (head.dataset.section === key) {
-        head.classList.toggle('palette__section--collapsed', this.paletteCollapsed.has(key));
-      }
+      const k = head.dataset.section;
+      if (k) head.classList.toggle('palette__section--collapsed', this.paletteCollapsed.has(k));
     }
     this.filterPalette();
     this.notifyPaletteState();
@@ -541,6 +566,18 @@ export class Editor {
     return btn;
   }
 
+  /**
+   * wokwi-lcd1602 : `numCols`/`numRows` ne sont pas des attributs réactifs (champs
+   * fixes 16/2 en amont) → on les fixe directement depuis cols/rows avant le rendu
+   * pour permettre le format 20×4 (sinon l'afficheur reste bloqué en 16×2).
+   */
+  private applyLcdSize(el: WokwiElement, def: PartDef, attrs?: Record<string, string>): void {
+    if (def.kind !== 'i2c-lcd') return;
+    const lcd = el as unknown as { numCols: number; numRows: number };
+    lcd.numCols = Number(attrs?.cols ?? 16) || 16;
+    lcd.numRows = Number(attrs?.rows ?? 2) || 2;
+  }
+
   /** Miniature live d'un composant (élément réel mis à l'échelle dans une vignette). */
   private thumbnail(def: PartDef): HTMLDivElement {
     const box = document.createElement('div');
@@ -553,6 +590,7 @@ export class Editor {
       for (const [k, v] of Object.entries(def.attrs ?? {})) {
         if (v !== '') el.setAttribute(k, v);
       }
+      this.applyLcdSize(el, def, def.attrs);
       el.style.transformOrigin = 'center center';
       el.style.pointerEvents = 'none';
       box.appendChild(el);
@@ -564,11 +602,20 @@ export class Editor {
     return box;
   }
 
-  /** Met l'élément à l'échelle pour tenir dans la vignette (sans le déformer). */
-  private fitThumbnail(el: HTMLElement): void {
-    const w = el.offsetWidth || 1;
-    const h = el.offsetHeight || 1;
-    const scale = Math.min(THUMB_W / w, THUMB_H / h, 1);
+  /**
+   * Met l'élément à l'échelle pour tenir dans la vignette (sans le déformer). Les
+   * éléments Lit (wokwi) rendent leur shadow DOM de façon asynchrone : au premier
+   * rAF la taille peut être nulle (vignette fausse au lancement, corrigée après une
+   * sélection). On réessaie quelques frames tant que la taille n'est pas connue.
+   */
+  private fitThumbnail(el: HTMLElement, tries = 0): void {
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+    if ((w <= 1 || h <= 1) && tries < 12) {
+      requestAnimationFrame(() => this.fitThumbnail(el, tries + 1));
+      return;
+    }
+    const scale = Math.min(THUMB_W / (w || 1), THUMB_H / (h || 1), 1);
     el.style.transform = `scale(${scale})`;
   }
 
@@ -602,6 +649,7 @@ export class Editor {
 
   private buildPalette(): void {
     this.palette.replaceChildren();
+    this.sectionKeys = [];
     // Titre « Composants » seul ; les boutons de tri viennent juste en dessous.
     const title = document.createElement('h3');
     title.textContent = t('Components');
@@ -639,6 +687,20 @@ export class Editor {
       this.notifyPaletteState();
     });
     sortWrap.appendChild(recentsBtn);
+
+    // Bouton de pliage des catégories : 3 états (tout déplier / tout replier / auto).
+    const foldBtn = document.createElement('button');
+    foldBtn.className = 'palette__sort-btn palette__fold-toggle';
+    const foldGlyph = { expand: '⊞', collapse: '⊟', auto: '⇕' } as const;
+    const foldTitle = {
+      expand: t('Expand all categories'),
+      collapse: t('Collapse all categories'),
+      auto: t('Auto (accordion)'),
+    } as const;
+    foldBtn.textContent = foldGlyph[this.paletteFold];
+    foldBtn.title = foldTitle[this.paletteFold];
+    foldBtn.addEventListener('click', () => this.cyclePaletteFold());
+    sortWrap.appendChild(foldBtn);
     this.palette.appendChild(sortWrap);
 
     // Barre de recherche : filtre les composants par libellé (sans reconstruire
@@ -662,6 +724,18 @@ export class Editor {
     const recentDefs = this.recentTypes
       .map((type) => CATALOG.find((d) => d.type === type) ?? customs.find((d) => d.type === type))
       .filter((d): d is PartDef => d !== undefined);
+
+    // Applique le mode de pliage aux sections présentes (avant leur création).
+    if (this.paletteFold !== 'auto') {
+      const presentKeys: string[] = [];
+      if (this.showRecents && recentDefs.length > 0) presentKeys.push('recent');
+      if (this.paletteSort === 'category') {
+        for (const c of CATEGORY_ORDER) if (CATALOG.some((d) => partCategory(d) === c)) presentKeys.push(c);
+        if (customs.length > 0) presentKeys.push('custom');
+      }
+      this.paletteCollapsed = this.paletteFold === 'collapse' ? new Set(presentKeys) : new Set();
+    }
+
     if (this.showRecents && recentDefs.length > 0) {
       this.paletteSection(t('Recently used'), 'recent');
       for (const def of recentDefs) this.palette.appendChild(this.paletteButton(def, !!def.custom));
@@ -988,11 +1062,27 @@ export class Editor {
   private autoColor(a: Endpoint, b: Endpoint): string {
     const roles = [a, b].map((e) => {
       const part = this.diagram.parts.find((p) => p.id === e.partId);
-      return part ? pinElectricalRole(part.type, e.pin) : 'other';
+      if (!part) return 'other';
+      // Potentiomètre : ses extrémités ne sont pas des rails d'alimentation, on
+      // n'impose donc ni rouge ni noir (cohérent avec l'affichage des pastilles).
+      if (partDef(part.type).kind === 'potentiometer') return 'other';
+      return pinElectricalRole(part.type, e.pin);
     });
     if (roles.includes('gnd')) return 'black';
     if (roles.includes('vcc')) return 'red';
     return this.nextColor();
+  }
+
+  /** Couleur d'alimentation d'un fil ('black' si masse, 'red' si VCC), sinon null. */
+  private powerColorOf(wire: Wire): string | null {
+    for (const e of [wire.a, wire.b]) {
+      const part = this.diagram.parts.find((p) => p.id === e.partId);
+      if (!part || partDef(part.type).kind === 'potentiometer') continue;
+      const role = pinElectricalRole(part.type, e.pin);
+      if (role === 'gnd') return 'black';
+      if (role === 'vcc') return 'red';
+    }
+    return null;
   }
 
   private nextColor(): string {
@@ -1036,6 +1126,7 @@ export class Editor {
     for (const [k, v] of Object.entries(part.attrs ?? def.attrs ?? {})) {
       if (v !== '') el.setAttribute(k, v);
     }
+    this.applyLcdSize(el, def, part.attrs ?? def.attrs);
     body.appendChild(el);
     container.appendChild(body);
     this.world.appendChild(container);
@@ -1776,6 +1867,13 @@ export class Editor {
       if (target && !(target.partId === other.partId && target.pin === other.pin)) {
         wire[which] = target;
         this.positionWire(wire);
+        // Recâblage sur une alimentation/masse : la couleur passe rouge/noir.
+        const power = this.powerColorOf(wire);
+        if (power) {
+          wire.color = power;
+          const p = this.wirePaths.get(wire.id);
+          if (p) p.style.stroke = dupontHex(power);
+        }
         this.notify();
       } else {
         this.positionWire(wire); // pas de cible valide : retour à la broche d'origine

@@ -193,12 +193,12 @@ body {
 
 /* En-tête de section (catégorie, derniers utilisés) */
 .palette__section {
-  margin: 0.45rem 0 0;
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  opacity: 0.55;
-  font-weight: normal;
+  margin: 0.5rem 0 0.1rem;
+  font-size: 0.84rem;
+  text-transform: none; /* « première majuscule » : libellé tel quel */
+  letter-spacing: 0.01em;
+  opacity: 0.9;
+  font-weight: 600;
 }
 
 /* Sections repliables : en-tête cliquable + chevron qui pivote. */
@@ -217,7 +217,8 @@ body {
 
 .palette__section-chevron {
   display: inline-block;
-  font-size: 0.6rem;
+  font-size: 0.95rem;
+  font-weight: 700;
   line-height: 1;
   transition: transform 0.12s ease;
 }
@@ -333,9 +334,9 @@ body {
   font-weight: 600;
   padding: 0.3rem 0.5rem;
   border-radius: 6px;
-  border: 1px solid var(--vscode-inputValidation-warningBorder, #b89500);
-  background: var(--vscode-inputValidation-warningBackground, rgba(180, 130, 0, 0.92));
-  color: var(--vscode-inputValidation-warningForeground, #1e1e1e);
+  border: 1px solid #c00000;
+  background: #ffdd00; /* jaune */
+  color: #c00000; /* rouge */
   text-align: center;
 }
 
@@ -588,22 +589,22 @@ body {
 }
 
 /* Poignée d'extrémité d'un fil : losange blanc cerclé, glissable sur une broche. */
+/* Poignée d'extrémité discrète (petit point) — plus le gros losange d'avant. */
 .wire-endpoint {
   position: absolute;
-  width: 12px;
-  height: 12px;
-  margin: -6px 0 0 -6px;
-  background: #ffffff;
-  border: 2px solid var(--vscode-focusBorder, #4fa3ff);
-  border-radius: 2px;
-  transform: rotate(45deg);
-  box-shadow: 0 0 2px 1px rgba(0, 0, 0, 0.7);
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  background: var(--vscode-focusBorder, #4fa3ff);
+  border: 1px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
   cursor: grab;
   z-index: 8;
 }
 
 .wire-endpoint:hover {
-  transform: rotate(45deg) scale(1.25);
+  transform: scale(1.4);
 }
 
 /* --- Inspecteur (éditeur de composants) ------------------------------------- */

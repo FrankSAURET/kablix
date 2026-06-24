@@ -1,3 +1,36 @@
+✅ Grossit le symbole déplier/replier des catégories (texte plus gros + gras) et bouton 3 états (tout déplier / tout replier / auto-accordéon) à côté de « derniers utilisés »
+✅ Passe les titres des catégories en « première majuscule »
+✅ Renomme « Affichage & LED » en « Afficheurs »
+✅ Renomme « Divers » en « Discrets »
+✅ Augmente zoom max jusqu'à 1000 %
+✅ Le composant LCD 20 × 4 n'apparaît pas
+✅ La miniature des afficheurs LCD doit être celle du 16×2 i2c
+✅ La miniature du clavier (et d'autres) mauvaise au lancement
+⬜ Importer l'aide wokwi dans un dossier d'aide (FR, images, 1 md/composant, crédit wokwi)
+⬜ Change le bouton d'aide wokwi pour un bouton aide sur le composant
+✅ Passe anneau neopixel, matrice neopixel, neopixel, oled, tft dans « Afficheurs »
+✅ Passe LED et LED RGB dans « Discrets »
+✅ Rajoute une catégorie « CI »
+✅ Remplace le symbole nucléaire par le K inversé dans les .md (docs)
+⬜ Pattes non parfaitement alignées sur la grille (conversion d'échelle approximative) — LED RGB, barreau LED, LCD, boutons, clavier, dip switch, mega, uno, joystick, potentiomètres…
+✅ Schéma interne du clavier avec interrupteurs en biais (45°), toutes versions
+✅ Le gros losange des câbles (déconnexion/reconnexion) disparaît ; recâblage sur power/gnd → couleur change
+✅ Message de verrouillage en simulation : rouge sur jaune
+
+# v2026.6.38
+
+1. ✅ **Catégories** : « Affichage & LED » → **Afficheurs** (n'en contient plus les LED), « Divers » → **Discrets** (LED, LED RGB, résistance…), nouvelle catégorie **CI** (microSD, modules à puce). NeoPixel (anneau/matrice/strip), OLED et TFT déplacés dans Afficheurs.
+2. ✅ **Titres de catégories** : `text-transform` retiré (« première majuscule »), texte plus grand et **gras**, chevron de pliage agrandi.
+3. ✅ **Bouton de pliage 3 états** (à côté de 🕘) : tout déplier `⊞` / tout replier `⊟` / **auto-accordéon** `⇕` (déplier une section replie les autres). État persisté.
+4. ✅ **Zoom max 1000 %** (`ZOOM_MAX` 5 → 10).
+5. ✅ **LCD 20×4** : `numCols`/`numRows` (non réactifs en amont) fixés directement depuis cols/rows avant rendu → le format 20×4 s'affiche ; miniature forcée en 16×2 i2c.
+6. ✅ **Miniatures fausses au lancement** : `fitThumbnail` réessaie quelques frames tant que l'élément Lit n'a pas rendu son shadow DOM (taille nulle).
+7. ✅ **Câbles** : poignée d'extrémité = petit point discret (plus le gros losange) ; un recâblage sur une broche power/gnd repasse le fil en rouge/noir.
+8. ✅ **Clavier** : schéma interne (bouton K) avec interrupteurs dessinés **en biais à 45°** (bornes diagonales + bras ouvert), pour les versions 3×4 et 4×4.
+9. ✅ **Message de verrouillage** (simulation) : rouge sur fond jaune.
+10. ✅ **Symbole nucléaire → K** dans la doc (`docs/Modifier svg composants.md`).
+11. ⏳ **Alignement des pattes sur la grille** et **import de l'aide wokwi** : reportés (lots suivants).
+
 # v2026.6.37
 
 1. ✅ **Arduino Pro Mini retiré** : type `mini` supprimé du catalogue, du sélecteur de carte et des unions de types (compiler / projet / panel). Le Nano (même ATmega328P) le remplace.

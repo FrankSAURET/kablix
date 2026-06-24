@@ -41,6 +41,7 @@ import '@wokwi/elements/dist/esm/membrane-keypad-element.js';
 import './elements/pico-board.mjs';
 import './elements/breadboard.mjs';
 import './elements/custom-part.mjs';
+import './elements/slide-pot.mjs';
 
 import { initLocale, t } from './i18n.mjs';
 import { Editor, type PaletteState } from './diagram/editor.mjs';
@@ -1234,6 +1235,7 @@ window.addEventListener('message', (event: MessageEvent) => {
         recents: Array.isArray(state.recents) ? state.recents : [],
         showRecents: state.showRecents !== false, // défaut : affiché
         collapsed: Array.isArray(state.collapsed) ? state.collapsed : [],
+        fold: state.fold === 'collapse' || state.fold === 'auto' ? state.fold : 'expand',
       };
       editor.loadPaletteState(paletteState);
       break;
