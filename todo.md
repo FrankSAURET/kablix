@@ -5,6 +5,12 @@
 3. ⏳ La simulation est très lente. **Nécessite un profilage (la boucle AVR tourne déjà en temps réel `CLOCK_HZ/60`) — ne pas toucher la précision temporelle à l'aveugle.**
 4. ⏳ Retouche fine des pattes : en attente des SVG retouchés (`svg retouche/`).
 
+ℹ️ **Générateur de SVG de retouche par variante** : [`scripts/build-retouche.mjs`](scripts/build-retouche.mjs) (`node scripts/build-retouche.mjs`, `--force` pour réécrire). Rend chaque variante via Chrome headless + esbuild, pose la grille 10 px et les pastilles `id="pin-<nom>"` à la position exacte de Kablix (marge 20 + `pinInfo × pinScale`, dessin scalé `96/25,4 × pinScale`). Variantes manquantes générées (broches différentes) : **clavier 3×4** (`keypad-3col.edit.svg`, 7 broches), **LCD I²C** (`lcd-i2c.edit.svg`, 4 broches à gauche), **LCD parallèle 20×4** (`lcd-parallel-20x4.edit.svg`, 16 broches plus bas). Formule validée : régénérer le 4×4 et le LCD 16×2 redonne pile les fichiers existants.
+1. Remplace l'icone du bouton avancer d'un pas par media\step.png . Le plus grand possible dans le bouton
+1. pas de grille en dehors du monde. La grille juste sur la feuille de dessin le reste est grisé
+1. nommage : par défaut le nom du projet ouvert -  si pas de nom, le nom du fichier de code associé (sans chemin ni extension)
+1. **Routage auto** : sortie perpendiculaire au bord le plus proche **de tout composant** (et plus seulement des cartes) sur **2 px****, puis on ne recouvre aucun composants ni celui d'ou pn part ni aucun autre. Si pas possible, on laisse le fil comme à l'origine.
+
 # v2026.6.42
 
 1. ✅ **Touches du clavier verrouillables (Ctrl+clic), comme les BP** : l'élément Wokwi du clavier n'a pas de Ctrl natif → reproduit au niveau simulation ([sim.mts](src/webview/sim.mts), binding clavier). Ctrl+clic verrouille la touche (reste enfoncée + rendu « pressed » persistant), un clic normal la libère ; l'état Ctrl est capté en phase de capture (`pointerdown`) car les événements de l'élément ne le portent pas. **Bulle** « Ctrl+clic… » affichée en simulation pour les claviers comme pour les BP (`isLockable`).
