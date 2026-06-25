@@ -2,9 +2,12 @@
 
 1. ⏳ Retoucher le schéma interne du clavier → sortir en SVG (comme les autres) ; il doit y en avoir 2 (3 ou 4 colonnes). **Bloqué : SVG non fournis.**
 2. ⏳ Le brochage ne tombe pas en face des broches pour le modèle clavier 3×4. **À vérifier visuellement sur l'élément Wokwi (rendu 3 colonnes).**
-3. ⏳ Touches du clavier verrouillables comme les BP ; la bulle doit l'indiquer en simulation. **Nécessite de manipuler le shadow-DOM de l'élément Wokwi (pas de Ctrl+clic natif).**
-4. ⏳ La simulation est très lente. **Nécessite un profilage (la boucle AVR tourne déjà en temps réel `CLOCK_HZ/60`) — ne pas toucher la précision temporelle à l'aveugle.**
-5. ⏳ Retouche fine des pattes : en attente des SVG retouchés (`svg retouche/`).
+3. ⏳ La simulation est très lente. **Nécessite un profilage (la boucle AVR tourne déjà en temps réel `CLOCK_HZ/60`) — ne pas toucher la précision temporelle à l'aveugle.**
+4. ⏳ Retouche fine des pattes : en attente des SVG retouchés (`svg retouche/`).
+
+# v2026.6.42
+
+1. ✅ **Touches du clavier verrouillables (Ctrl+clic), comme les BP** : l'élément Wokwi du clavier n'a pas de Ctrl natif → reproduit au niveau simulation ([sim.mts](src/webview/sim.mts), binding clavier). Ctrl+clic verrouille la touche (reste enfoncée + rendu « pressed » persistant), un clic normal la libère ; l'état Ctrl est capté en phase de capture (`pointerdown`) car les événements de l'élément ne le portent pas. **Bulle** « Ctrl+clic… » affichée en simulation pour les claviers comme pour les BP (`isLockable`).
 
 # v2026.6.41
 

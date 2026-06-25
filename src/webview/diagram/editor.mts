@@ -280,12 +280,17 @@ export class Editor {
     }
     this.canvas.classList.toggle('canvas--locked', locked);
     this.showLockWarning(locked);
-    // Bulle des boutons : « Ctrl+clic… » en simulation, sinon déplacement.
+    // Bulle des boutons et claviers : « Ctrl+clic… » en simulation, sinon déplacement.
     for (const r of this.rendered.values()) {
-      if (partDef(r.part.type).kind !== 'pushbutton') continue;
+      if (!this.isLockable(r.part.type)) continue;
       const b = r.container.querySelector('.part__body') as HTMLElement | null;
       if (b) b.title = this.buttonTitle();
     }
+  }
+
+  /** Composant dont une touche/un bouton se verrouille au Ctrl+clic (BP, clavier). */
+  private isLockable(type: string): boolean {
+    return partDef(type).kind === 'pushbutton' || type === 'keypad';
   }
 
   /** Bulle d'aide d'un bouton selon l'état : simulation = Ctrl+clic, sinon déplacement. */
@@ -1295,7 +1300,7 @@ export class Editor {
       // Bulle d'aide. Pour un bouton, le texte dépend de l'état : en simulation,
       // on rappelle le Ctrl+clic qui verrouille l'état instable ; sinon le
       // déplacement au clic droit. Mis à jour au verrouillage (setLocked).
-      body.title = def.kind === 'pushbutton' ? this.buttonTitle() : t('Right-click drag to move');
+      body.title = this.isLockable(part.type) ? this.buttonTitle() : t('Right-click drag to move');
     }
 
     const hotspots = new Map<string, HTMLDivElement>();

@@ -487,8 +487,25 @@ function bindInputs(): void {
       // frame n'est jamais détectée).
       const downAt = new Map<string, number>();
       const releaseTimers = new Map<string, ReturnType<typeof setTimeout>>();
+      // Verrouillage Ctrl+clic (comme le bouton poussoir) : la touche reste
+      // enfoncée jusqu'au prochain clic normal. L'élément Wokwi du clavier ne gère
+      // pas le Ctrl natif, on le reproduit ici. `ctrlAtPress` retient l'état Ctrl
+      // au moment de l'appui (les événements de l'élément ne le portent pas).
+      const locked = new Set<string>();
+      const ctrlAtPress = new Map<string, boolean>();
+      let ctrlHeld = false;
+      const onPointerDown = (ev: PointerEvent): void => {
+        ctrlHeld = ev.ctrlKey || ev.metaKey;
+      };
+      el.addEventListener('pointerdown', onPointerDown, true); // capture : avant le mousedown de l'élément
+      // Affiche/retire le rendu « enfoncé » d'une touche verrouillée (par son texte).
+      const setVisual = (keyText: string | undefined, on: boolean): void => {
+        if (!keyText) return;
+        const node = el.shadowRoot?.querySelector(`[data-key-name="${keyText.toUpperCase()}"]`);
+        node?.classList.toggle('pressed', on);
+      };
       const update = (e: Event, add: boolean): void => {
-        const d = (e as CustomEvent).detail as { row?: number; column?: number };
+        const d = (e as CustomEvent).detail as { row?: number; column?: number; key?: string };
         if (typeof d?.row !== 'number' || typeof d?.column !== 'number') return;
         const key = `${d.row},${d.column}`;
         const tm = releaseTimers.get(key);
@@ -497,21 +514,44 @@ function bindInputs(): void {
           releaseTimers.delete(key);
         }
         if (add) {
+          ctrlAtPress.set(key, ctrlHeld);
           downAt.set(key, performance.now());
           pressed.add(key); // partagé par référence avec le moteur
-        } else {
-          const wait = Math.max(0, MIN_PRESS_MS - (performance.now() - (downAt.get(key) ?? 0)));
-          if (wait === 0) {
+          return;
+        }
+        // Relâchement.
+        if (ctrlAtPress.get(key)) {
+          // Cycle Ctrl+clic → bascule le verrou de la touche.
+          if (locked.has(key)) {
+            locked.delete(key);
             pressed.delete(key);
+            setVisual(d.key, false);
           } else {
-            releaseTimers.set(
-              key,
-              setTimeout(() => {
-                pressed.delete(key);
-                releaseTimers.delete(key);
-              }, wait)
-            );
+            locked.add(key);
+            pressed.add(key);
+            setVisual(d.key, true); // reste visuellement enfoncée
           }
+          return;
+        }
+        if (locked.has(key)) {
+          // Clic normal sur une touche verrouillée → la libère.
+          locked.delete(key);
+          pressed.delete(key);
+          setVisual(d.key, false);
+          return;
+        }
+        // Relâchement normal, avec maintien minimal.
+        const wait = Math.max(0, MIN_PRESS_MS - (performance.now() - (downAt.get(key) ?? 0)));
+        if (wait === 0) {
+          pressed.delete(key);
+        } else {
+          releaseTimers.set(
+            key,
+            setTimeout(() => {
+              pressed.delete(key);
+              releaseTimers.delete(key);
+            }, wait)
+          );
         }
       };
       const onPress = (e: Event): void => update(e, true);
@@ -521,6 +561,10 @@ function bindInputs(): void {
       inputRemovers.push(() => {
         for (const tm of releaseTimers.values()) clearTimeout(tm);
         releaseTimers.clear();
+        locked.clear();
+        // Retire tout rendu « enfoncé » résiduel des touches verrouillées.
+        el.shadowRoot?.querySelectorAll('.pressed').forEach((n) => n.classList.remove('pressed'));
+        el.removeEventListener('pointerdown', onPointerDown, true);
         el.removeEventListener('button-press', onPress);
         el.removeEventListener('button-release', onRelease);
       });
