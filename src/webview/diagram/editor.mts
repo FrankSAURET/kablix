@@ -21,7 +21,7 @@ import {
 } from './catalog.mjs';
 import { breadboardPins, normalizeSize, stripOfPin } from './breadboard.mjs';
 import { internalWiringSvg, type PinPoint } from './internal-wiring.mjs';
-import { PIN_OVERRIDES } from './pin-overrides.mjs';
+import { overridesFor } from './pin-overrides.mjs';
 import { pinoutSvg, pinoutPoster } from './pinout.mjs';
 import { BOARD_W, BOARD_H } from '../elements/pico-board.mjs';
 import type { Diagram, Endpoint, Part, Wire } from './model.mjs';
@@ -1306,8 +1306,9 @@ export class Editor {
     const hotspots = new Map<string, HTMLDivElement>();
     const pins = (el.pinInfo ?? []) as WokwiPin[];
     const anchor: XY = pins[0] ? { x: pins[0].x, y: pins[0].y } : { x: 0, y: 0 };
+    const ovMap = overridesFor(part.type, part.attrs);
     for (const pin of pins) {
-      const dot = this.makeHotspot(part.id, part.type, def.kind, pin, anchor);
+      const dot = this.makeHotspot(part.id, part.type, def.kind, pin, anchor, ovMap);
       body.appendChild(dot);
       hotspots.set(pin.name, dot);
     }
@@ -1345,7 +1346,14 @@ export class Editor {
 
   /** Crée une pastille de broche (point de connexion cliquable). `anchor` = 1re
    *  broche brute du composant (repère pour caler l'espacement sur la grille). */
-  private makeHotspot(partId: string, type: string, kind: string, pin: WokwiPin, anchor: XY): HTMLDivElement {
+  private makeHotspot(
+    partId: string,
+    type: string,
+    kind: string,
+    pin: WokwiPin,
+    anchor: XY,
+    ovMap?: Record<string, { x: number; y: number }>
+  ): HTMLDivElement {
     const dot = document.createElement('div');
     dot.className = 'pin';
     // Pastilles d'alimentation reconnaissables : rouge (VCC) / noir (GND). Le
@@ -1356,7 +1364,7 @@ export class Editor {
     // Mise à l'échelle (cartes @wokwi : pas 9,6 px → 10 px) + calage de l'espacement
     // sur la grille relativement à la 1re broche.
     const k = partDef(type).pinScale ?? 1;
-    const ov = PIN_OVERRIDES[type]?.[pin.name];
+    const ov = ovMap?.[pin.name];
     dot.style.left = `${ov ? ov.x : snapPinTo(pin.x * k, anchor.x * k)}px`;
     dot.style.top = `${ov ? ov.y : snapPinTo(pin.y * k, anchor.y * k)}px`;
     dot.title = pinDisplayName(kind, pin.name, type);
@@ -1385,14 +1393,15 @@ export class Editor {
     const k = def.pinScale ?? 1;
     const pins = (r.el.pinInfo ?? []) as WokwiPin[];
     const anchor: XY = pins[0] ? { x: pins[0].x, y: pins[0].y } : { x: 0, y: 0 };
+    const ovMap = overridesFor(r.part.type, r.part.attrs);
     for (const pin of pins) {
       let dot = r.hotspots.get(pin.name);
       if (!dot) {
-        dot = this.makeHotspot(r.part.id, r.part.type, def.kind, pin, anchor);
+        dot = this.makeHotspot(r.part.id, r.part.type, def.kind, pin, anchor, ovMap);
         body.appendChild(dot);
         r.hotspots.set(pin.name, dot);
       } else {
-        const ov = PIN_OVERRIDES[r.part.type]?.[pin.name];
+        const ov = ovMap?.[pin.name];
         dot.style.left = `${ov ? ov.x : snapPinTo(pin.x * k, anchor.x * k)}px`;
         dot.style.top = `${ov ? ov.y : snapPinTo(pin.y * k, anchor.y * k)}px`;
       }

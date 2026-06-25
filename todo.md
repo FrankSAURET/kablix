@@ -1,9 +1,14 @@
 # À faire
 
 1. ⏳ Retoucher le schéma interne du clavier → sortir en SVG (comme les autres) ; il doit y en avoir 2 (3 ou 4 colonnes). **Bloqué : SVG non fournis.**
-2. ⏳ Le brochage ne tombe pas en face des broches pour le modèle clavier 3×4. **À vérifier visuellement sur l'élément Wokwi (rendu 3 colonnes).**
-3. ⏳ La simulation est très lente. **Nécessite un profilage (la boucle AVR tourne déjà en temps réel `CLOCK_HZ/60`) — ne pas toucher la précision temporelle à l'aveugle.**
-4. ⏳ Retouche fine des pattes : en attente des SVG retouchés (`svg retouche/`).
+2. ⏳ La simulation est très lente. **Nécessite un profilage (la boucle AVR tourne déjà en temps réel `CLOCK_HZ/60`) — ne pas toucher la précision temporelle à l'aveugle.**
+
+# v2026.6.43
+
+1. ✅ **Brochage du clavier en face des broches (3×4 et 4×4)** : le connecteur Wokwi sort au pas irrégulier ~9,6 px → le calage automatique sur la grille 10 px décalait les pastilles du connecteur dessiné. Surcharges figées (`pin-overrides.mts`, clés `keypad-3col`/`keypad-4col`) aux positions réelles lues dans `keypad*.edit.PB.svg` (centre des pastilles − marge). Sélection par variante via `overridesFor(type, attrs)` (le type `keypad` partage 3 et 4 colonnes). `makeHotspot` reçoit la carte de surcharge déjà résolue.
+2. ℹ️ **Fichiers `svg retouche/` traités** : les `*.edit.OK.svg` (ili9341, joystick, lcd, lcd-parallel-20x4, led-ring, nano, neopixel-matrix, pot) sont validés tels quels → aucune surcharge. Les `*.edit.PB.svg` (claviers) corrigés via surcharges ci-dessus. Référence = **centre des pastilles rouges − marge du groupe `board`** (marge non supposée à 20).
+1. - Tous les composants on été traités et sont dans le dossier "svg retouche". Cas particuliers - fichiers xxx.edit.OK.svg Tout bon je n'ai rien changé tu ne retouches rien - fichiers xxx.edit.PB.svg. La il y a un PB tu me les ressort en svg à moins que le calage des pastilles te suffise
+ Attention c'est le centre de tes points rouges qui est la référence. Et je n'ai pas toujours laissé de marge.
 
 ℹ️ **Générateur de SVG de retouche par variante** : [`scripts/build-retouche.mjs`](scripts/build-retouche.mjs) (`node scripts/build-retouche.mjs`, `--force` pour réécrire). Rend chaque variante via Chrome headless + esbuild, pose la grille 10 px et les pastilles `id="pin-<nom>"` à la position exacte de Kablix (marge 20 + `pinInfo × pinScale`, dessin scalé `96/25,4 × pinScale`). Variantes manquantes générées (broches différentes) : **clavier 3×4** (`keypad-3col.edit.svg`, 7 broches), **LCD I²C** (`lcd-i2c.edit.svg`, 4 broches à gauche), **LCD parallèle 20×4** (`lcd-parallel-20x4.edit.svg`, 16 broches plus bas), **7 segments 2 et 4 chiffres** (`7seg-2dig.edit.svg` 10 broches, `7seg-4dig.edit.svg` 14 broches en DIL). Formule validée : régénérer le 4×4 et le LCD 16×2 redonne pile les fichiers existants.
 1. Remplace l'icone du bouton avancer d'un pas par media\step.png . Le plus grand possible dans le bouton
