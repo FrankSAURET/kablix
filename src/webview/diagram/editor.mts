@@ -158,6 +158,9 @@ export class Editor {
   private paletteFold: PaletteFold = 'expand';
   /** Clés des sections repliables présentes au dernier rendu (pour tout replier). */
   private sectionKeys: string[] = [];
+  /** Menu de choix du mode de pliage (ouvert à l'appui sur le bouton), et son nettoyage. */
+  private foldMenu: HTMLDivElement | null = null;
+  private foldMenuOff: (() => void) | null = null;
   private rendered = new Map<string, Rendered>();
   private wirePaths = new Map<string, SVGPathElement>();
   private pending: PendingWire | null = null;
@@ -262,6 +265,9 @@ export class Editor {
     });
     // État initial enregistré pour l'annulation (feuille vide).
     this.recordHistory();
+    // Vue de démarrage centrée (l'origine du monde au centre de la zone utile) :
+    // attend la mise en page pour connaître la taille réelle du canvas.
+    requestAnimationFrame(() => this.resetView());
   }
 
   // --- Verrou de simulation + annuler / refaire -------------------------------
@@ -295,11 +301,13 @@ export class Editor {
    * utilisée pendant la simulation) ; sa largeur est bornée par celle du panneau.
    */
   private showLockWarning(show: boolean): void {
-    if (!this.lockWarning) {
-      const w = document.createElement('div');
+    // `buildPalette()` vide la palette (replaceChildren) et détache le bandeau :
+    // on le recrée/réinsère dès qu'il n'est plus rattaché, sinon il disparaît
+    // après la moindre reconstruction de la palette pendant la simulation.
+    if (!this.lockWarning || !this.lockWarning.isConnected) {
+      const w = this.lockWarning ?? document.createElement('div');
       w.className = 'palette__lock-warning';
       w.textContent = t('⚠ Simulation running: wiring is locked.');
-      w.hidden = true;
       this.palette.insertBefore(w, this.palette.firstChild);
       this.lockWarning = w;
     }
@@ -373,9 +381,16 @@ export class Editor {
   };
 
   private resetView(): void {
+    // L'origine du monde (0,0) est posée au centre de la zone utile (sous les
+    // barres) plutôt qu'au coin haut-gauche : les composants posés près de
+    // l'origine ne se retrouvent plus coincés sous les barres (zone morte où on
+    // ne pouvait plus les attraper). Vue de démarrage centrée, zoom 100 %.
     this.zoom = 1;
-    this.panX = 0;
-    this.panY = 0;
+    const cw = this.canvas.clientWidth || 800;
+    const ch = this.canvas.clientHeight || 600;
+    const topInset = 56;
+    this.panX = cw / 2;
+    this.panY = (ch + topInset) / 2;
     this.applyTransform();
   }
 
@@ -487,12 +502,78 @@ export class Editor {
     });
   }
 
-  /** Fait défiler le mode de pliage (déplier → replier → auto) et reconstruit. */
-  private cyclePaletteFold(): void {
-    this.paletteFold =
-      this.paletteFold === 'expand' ? 'collapse' : this.paletteFold === 'collapse' ? 'auto' : 'expand';
+  /**
+   * Ouvre le menu de pliage sous le bouton. Geste presser-glisser : on surligne
+   * l'option sous le curseur et on la choisit au relâcher. Relâché sur le bouton
+   * sans glisser → le menu reste ouvert (mode clic) ; clic extérieur → ferme.
+   */
+  private openFoldMenu(anchor: HTMLElement): void {
+    this.closeFoldMenu();
+    const modes: Array<[PaletteFold, string, string]> = [
+      ['expand', '⊞', t('Expand all categories')],
+      ['collapse', '⊟', t('Collapse all categories')],
+      ['auto', '⇕', t('Auto (accordion)')],
+    ];
+    const menu = document.createElement('div');
+    menu.className = 'palette__fold-menu';
+    for (const [mode, glyph, label] of modes) {
+      const item = document.createElement('div');
+      item.className = 'palette__fold-item' + (this.paletteFold === mode ? ' palette__fold-item--current' : '');
+      item.dataset.mode = mode;
+      item.innerHTML = `<span class="palette__fold-glyph">${glyph}</span><span>${label}</span>`;
+      item.addEventListener('click', () => this.chooseFold(mode));
+      menu.appendChild(item);
+    }
+    document.body.appendChild(menu);
+    this.foldMenu = menu;
+    const r = anchor.getBoundingClientRect();
+    menu.style.left = `${Math.round(r.left)}px`;
+    menu.style.top = `${Math.round(r.bottom + 2)}px`;
+
+    const itemAt = (x: number, y: number): HTMLElement | null =>
+      ((document.elementFromPoint(x, y) as HTMLElement | null)?.closest(
+        '.palette__fold-item'
+      ) as HTMLElement | null) ?? null;
+    const move = (ev: PointerEvent): void => {
+      const hit = itemAt(ev.clientX, ev.clientY);
+      for (const it of Array.from(menu.children) as HTMLElement[]) {
+        it.classList.toggle('palette__fold-item--active', it === hit);
+      }
+    };
+    const up = (ev: PointerEvent): void => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      const hit = itemAt(ev.clientX, ev.clientY);
+      if (hit?.dataset.mode) this.chooseFold(hit.dataset.mode as PaletteFold);
+      else if (!anchor.contains(ev.target as Node)) this.closeFoldMenu();
+      // relâché sur le bouton sans glisser : le menu reste ouvert (mode clic).
+    };
+    const outside = (ev: PointerEvent): void => {
+      if (!menu.contains(ev.target as Node) && !anchor.contains(ev.target as Node)) this.closeFoldMenu();
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    setTimeout(() => window.addEventListener('pointerdown', outside, true), 0);
+    this.foldMenuOff = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointerdown', outside, true);
+    };
+  }
+
+  private chooseFold(mode: PaletteFold): void {
+    this.closeFoldMenu();
+    if (this.paletteFold === mode) return;
+    this.paletteFold = mode;
     this.buildPalette();
     this.notifyPaletteState();
+  }
+
+  private closeFoldMenu(): void {
+    this.foldMenuOff?.();
+    this.foldMenuOff = null;
+    this.foldMenu?.remove();
+    this.foldMenu = null;
   }
 
   /** Mémorise un type comme « dernier utilisé » (10 max, plus récent en tête). */
@@ -605,10 +686,16 @@ export class Editor {
         if (v !== '') el.setAttribute(k, v);
       }
       this.applyLcdSize(el, def, def.attrs);
+      this.lightThumbnail(el, def); // afficheurs allumés (7 seg « 8. », barre de LED)
       el.style.transformOrigin = 'center center';
       el.style.pointerEvents = 'none';
       box.appendChild(el);
-      // La taille réelle n'est connue qu'après la mise en page : on ajuste alors.
+      // La taille réelle n'est connue qu'après la mise en page (rendu Lit async)
+      // OU au dépliage d'une section repliée (taille nulle tant que display:none).
+      // Un ResizeObserver recale la vignette dans ces deux cas, sans boucle rAF :
+      // c'est ce qui corrige les vignettes « trop grandes » jusqu'au prochain clic.
+      const ro = new ResizeObserver(() => this.fitThumbnail(el));
+      ro.observe(el);
       requestAnimationFrame(() => this.fitThumbnail(el));
     } catch {
       box.textContent = '▢';
@@ -616,20 +703,29 @@ export class Editor {
     return box;
   }
 
+  /** Allume les afficheurs dans la vignette pour qu'ils ne soient pas vides/éteints. */
+  private lightThumbnail(el: WokwiElement, def: PartDef): void {
+    if (def.kind === '7segment') {
+      const digits = Math.max(1, Number(def.attrs?.digits ?? 1) || 1);
+      // Tous les segments + point décimal = « 8. » dans la couleur choisie.
+      (el as unknown as { values?: number[] }).values = new Array(digits * 8).fill(1);
+    } else if (def.kind === 'led-bar') {
+      (el as unknown as { values?: number[] }).values = new Array(10).fill(1);
+    }
+  }
+
   /**
-   * Met l'élément à l'échelle pour tenir dans la vignette (sans le déformer). Les
-   * éléments Lit (wokwi) rendent leur shadow DOM de façon asynchrone : au premier
-   * rAF la taille peut être nulle (vignette fausse au lancement, corrigée après une
-   * sélection). On réessaie quelques frames tant que la taille n'est pas connue.
+   * Met l'élément à l'échelle pour tenir dans la vignette (sans le déformer). Le
+   * `transform: scale` n'affecte pas `offsetWidth/Height` (taille de mise en page),
+   * donc la mesure reste la taille intrinsèque. Tant que l'élément n'est pas rendu
+   * ou qu'il est masqué (section repliée), la taille est nulle : on n'impose alors
+   * aucune échelle et on attend que le ResizeObserver rappelle avec une taille.
    */
-  private fitThumbnail(el: HTMLElement, tries = 0): void {
+  private fitThumbnail(el: HTMLElement): void {
     const w = el.offsetWidth;
     const h = el.offsetHeight;
-    if ((w <= 1 || h <= 1) && tries < 12) {
-      requestAnimationFrame(() => this.fitThumbnail(el, tries + 1));
-      return;
-    }
-    const scale = Math.min(THUMB_W / (w || 1), THUMB_H / (h || 1), 1);
+    if (w <= 1 || h <= 1) return;
+    const scale = Math.min(THUMB_W / w, THUMB_H / h, 1);
     el.style.transform = `scale(${scale})`;
   }
 
@@ -702,18 +798,22 @@ export class Editor {
     });
     sortWrap.appendChild(recentsBtn);
 
-    // Bouton de pliage des catégories : 3 états (tout déplier / tout replier / auto).
+    // Bouton de pliage des catégories : un appui ouvre un menu, on glisse jusqu'au
+    // mode voulu et on relâche (ou simple clic puis clic sur un mode). Icône = la
+    // grande flèche de repliement (même chevron que les sections).
     const foldBtn = document.createElement('button');
     foldBtn.className = 'palette__sort-btn palette__fold-toggle';
-    const foldGlyph = { expand: '⊞', collapse: '⊟', auto: '⇕' } as const;
+    foldBtn.textContent = '▾';
     const foldTitle = {
       expand: t('Expand all categories'),
       collapse: t('Collapse all categories'),
       auto: t('Auto (accordion)'),
     } as const;
-    foldBtn.textContent = foldGlyph[this.paletteFold];
-    foldBtn.title = foldTitle[this.paletteFold];
-    foldBtn.addEventListener('click', () => this.cyclePaletteFold());
+    foldBtn.title = `${t('Folding mode')} — ${foldTitle[this.paletteFold]}`;
+    foldBtn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      this.openFoldMenu(foldBtn);
+    });
     sortWrap.appendChild(foldBtn);
     this.palette.appendChild(sortWrap);
 
@@ -804,6 +904,10 @@ export class Editor {
     });
     importBtn.addEventListener('click', () => fileInput.click());
     this.palette.append(importBtn, fileInput);
+
+    // La palette vient d'être reconstruite : on réinsère le bandeau de verrou si
+    // la simulation est en cours (sinon il a été emporté par replaceChildren).
+    if (this.locked) this.showLockWarning(true);
 
     this.filterPalette();
   }
@@ -1084,7 +1188,22 @@ export class Editor {
     });
     if (roles.includes('gnd')) return 'black';
     if (roles.includes('vcc')) return 'red';
+    // Un fil branché sur le même point qu'un fil existant reprend sa couleur
+    // (même nœud électrique → même couleur de nappe, plus lisible).
+    const inherited = this.inheritedColor(a, b);
+    if (inherited) return inherited;
     return this.nextColor();
+  }
+
+  /** Couleur d'un fil déjà connecté à l'une des deux broches, ou null. */
+  private inheritedColor(a: Endpoint, b: Endpoint): string | null {
+    const same = (e1: Endpoint, e2: Endpoint): boolean =>
+      e1.partId === e2.partId && e1.pin === e2.pin;
+    for (const w of this.diagram.wires) {
+      if (w.auto || !w.color) continue;
+      if (same(w.a, a) || same(w.b, a) || same(w.a, b) || same(w.b, b)) return w.color;
+    }
+    return null;
   }
 
   /** Couleur d'alimentation d'un fil ('black' si masse, 'red' si VCC), sinon null. */
@@ -1936,19 +2055,25 @@ export class Editor {
   }
 
   /**
-   * Point de sortie **perpendiculaire au bord de carte le plus proche** d'une
-   * broche de carte (kind 'mcu') : le fil quitte la broche droit, vers l'extérieur
-   * de la carte, au lieu de la traverser. Renvoie null hors d'une carte.
+   * Point de sortie **perpendiculaire au bord le plus proche** du corps d'un
+   * composant : le fil quitte la broche tout droit, vers l'extérieur, au lieu de
+   * traverser le composant. S'applique à tout composant dont la broche est *dans*
+   * le corps (cartes, platines, gros modules). Renvoie null si la broche est déjà
+   * sur le bord ou hors du corps (pattes saillantes d'un petit composant : aucune
+   * traversée à craindre).
    */
   private pinStub(end: Endpoint, center: XY, rects: Map<string, PartRect>, len: number): XY | null {
     const r = this.rendered.get(end.partId);
-    if (!r || partDef(r.part.type).kind !== 'mcu') return null;
+    if (!r) return null;
     const box = rects.get(end.partId);
     if (!box) return null;
     const dTop = center.y - box.y;
     const dBot = box.y + box.h - center.y;
     const dLeft = center.x - box.x;
     const dRight = box.x + box.w - center.x;
+    // Broche sur le bord ou hors du corps : pas de sortie à forcer.
+    const INSET = 2;
+    if (dTop < INSET || dBot < INSET || dLeft < INSET || dRight < INSET) return null;
     const m = Math.min(dTop, dBot, dLeft, dRight);
     if (m === dTop) return { x: center.x, y: box.y - len };
     if (m === dBot) return { x: center.x, y: box.y + box.h + len };
@@ -1970,7 +2095,7 @@ export class Editor {
     const all = sel.size === 0;
     const obstacles = this.partObstacles();
     const rectOf = new Map(obstacles.map((o) => [o.id, o]));
-    const STUB = 16; // longueur de la sortie perpendiculaire (px)
+    const STUB = GRID; // sortie perpendiculaire = 1 pas de grille hors du corps
     let changed = false;
     for (const wire of this.diagram.wires) {
       if (wire.auto) continue;
@@ -1986,11 +2111,27 @@ export class Editor {
       const inner: XY[] = [];
       const TOL = 1;
       if (Math.abs(pa.x - pb.x) > TOL && Math.abs(pa.y - pb.y) > TOL) {
-        const cH = { x: pb.x, y: pa.y }; // coude « horizontal puis vertical »
-        const cV = { x: pa.x, y: pb.y }; // coude « vertical puis horizontal »
-        const ovH = polylineRectOverlap([a, pa, cH, pb, b], others);
-        const ovV = polylineRectOverlap([a, pa, cV, pb, b], others);
-        inner.push(ovV < ovH ? cV : cH); // égalité → horizontal d'abord
+        const midX = (pa.x + pb.x) / 2;
+        const midY = (pa.y + pb.y) / 2;
+        // Quatre tracés candidats : les deux coudes en L, puis deux détours en Z
+        // (par la médiane) qui contournent un composant posé pile entre les deux
+        // sorties. On retient celui qui recouvre le moins les autres composants.
+        const candidates: XY[][] = [
+          [{ x: pb.x, y: pa.y }], // L : horizontal puis vertical
+          [{ x: pa.x, y: pb.y }], // L : vertical puis horizontal
+          [{ x: midX, y: pa.y }, { x: midX, y: pb.y }], // Z par la médiane verticale
+          [{ x: pa.x, y: midY }, { x: pb.x, y: midY }], // Z par la médiane horizontale
+        ];
+        let best = candidates[0];
+        let bestOv = Infinity;
+        for (const c of candidates) {
+          const ov = polylineRectOverlap([a, pa, ...c, pb, b], others);
+          if (ov < bestOv - 0.01) {
+            bestOv = ov;
+            best = c;
+          }
+        }
+        inner.push(...best);
       }
       const pts = [...(sa ? [sa] : []), ...inner, ...(sb ? [sb] : [])];
       wire.points = pts.length > 0 ? pts : undefined;

@@ -34,6 +34,7 @@ const FR: Record<string, string> = {
   'Expand all categories': 'Tout déplier',
   'Collapse all categories': 'Tout replier',
   'Auto (accordion)': 'Auto (accordéon)',
+  'Folding mode': 'Mode de pliage',
   'All components': 'Tous les composants',
   'Alphabetical': 'Ordre alphabétique',
   'By category': 'Par catégorie',
@@ -89,6 +90,8 @@ const FR: Record<string, string> = {
   'Code file to run / debug — click to change':
     'Fichier de code à exécuter / déboguer — cliquer pour changer',
   'Code file: {0} — click to change': 'Fichier de code : {0} — cliquer pour changer',
+  'Current project': 'Projet courant',
+  'Current project: {0}': 'Projet courant : {0}',
 
   // Inspecteur
   'Properties': 'Propriétés',

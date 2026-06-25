@@ -34,6 +34,7 @@
   "Kablix: part exported to {0}": "Kablix : composant exporté vers {0}",
   "Kablix project": "Projet Kablix",
   "Save the Kablix project": "Enregistrer le projet Kablix",
+  "Current project": "Projet courant",
   "Kablix: building the project…": "Kablix : construction du projet…",
   "Kablix: the project is large ({0} MB). Save anyway?": "Kablix : le projet est volumineux ({0} Mo). Enregistrer quand même ?",
   "Save": "Enregistrer",

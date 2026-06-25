@@ -1,19 +1,22 @@
 # À faire
 
-1. ⬜ Bouton de pliage 3 états (tout déplier / replier / auto) peu clair → en faire un **menu** (clic → glisser jusqu'à la valeur → relâcher = mode choisi). Icône = la même flèche de repliement, la plus grosse possible.
-2. ⬜ Miniatures (palette composants) : images parfois fausses ou trop grandes ; après 1 clic dans chaque catégorie elles reviennent à la bonne taille, mais sélectionner un composant d'une autre catégorie les refait partir mal.
-3. ⬜ Miniature des afficheurs 7 seg (et composants à câblage) : afficher « 8. » dans la couleur sélectionnée.
-4. ⬜ Retoucher le schéma interne du clavier → sortir en SVG (comme les autres) ; il doit y en avoir 2 (3 ou 4 colonnes).
-5. ⬜ Message de verrouillage (simulation) rouge sur jaune : **n'apparaît plus** → le rétablir.
-6. ⬜ Zone morte en haut-gauche du canvas où l'on ne peut pas déplacer un composant → centrer la vue de démarrage sur le centre, au zoom le plus petit.
-7. ⬜ Le brochage ne tombe pas en face des broches pour le modèle clavier 3×4.
-8. ⬜ Touches du clavier verrouillables comme les BP ; la bulle doit l'indiquer en simulation.
-9. ⬜ Appuis sur les touches (et BP) prolongés pour être pris en compte.
-10. ⬜ Des fils connectés à un fil prennent la même couleur.
-11. ⬜ À l'enregistrement d'un `.projix` : nom par défaut = celui du code associé (sinon nom existant) ; nom (sans chemin) affiché à côté du bouton aide.
-12. ⬜ La simulation est très lente.
-13. ⬜ Routage auto : ne jamais traverser un composant — sortir par le bord le plus proche + 1 pas de grille perpendiculaire, puis router.
-14. ⏳ Retouche fine des pattes : en attente des SVG retouchés (`svg retouche/`).
+1. ⏳ Retoucher le schéma interne du clavier → sortir en SVG (comme les autres) ; il doit y en avoir 2 (3 ou 4 colonnes). **Bloqué : SVG non fournis.**
+2. ⏳ Le brochage ne tombe pas en face des broches pour le modèle clavier 3×4. **À vérifier visuellement sur l'élément Wokwi (rendu 3 colonnes).**
+3. ⏳ Touches du clavier verrouillables comme les BP ; la bulle doit l'indiquer en simulation. **Nécessite de manipuler le shadow-DOM de l'élément Wokwi (pas de Ctrl+clic natif).**
+4. ⏳ La simulation est très lente. **Nécessite un profilage (la boucle AVR tourne déjà en temps réel `CLOCK_HZ/60`) — ne pas toucher la précision temporelle à l'aveugle.**
+5. ⏳ Retouche fine des pattes : en attente des SVG retouchés (`svg retouche/`).
+
+# v2026.6.41
+
+1. ✅ **Bouton de pliage → menu** : appui sur le bouton (grande flèche de repliement `▾`) ouvre un menu ; on glisse jusqu'au mode (déplier `⊞` / replier `⊟` / auto `⇕`) et on relâche, ou simple clic puis clic sur le mode. ([editor.mts](src/webview/diagram/editor.mts) `openFoldMenu`, CSS `.palette__fold-menu`).
+2. ✅ **Miniatures fiables** : recalage par `ResizeObserver` au lieu d'une boucle rAF → corrige les vignettes « trop grandes » au lancement et au dépliage d'une section repliée (taille nulle tant que `display:none`).
+3. ✅ **Miniature 7 segments « 8. »** : tous les segments + point décimal allumés dans la couleur choisie (et barre de LED allumée), via `lightThumbnail`.
+4. ✅ **Message de verrouillage rétabli** : le bandeau rouge sur jaune est réinséré dès qu'une reconstruction de palette le détache (`isConnected`), et re-affiché en fin de `buildPalette` si la simulation tourne.
+5. ✅ **Vue de démarrage centrée** : l'origine du monde est posée au centre de la zone utile (sous les barres) — plus de zone morte en haut-gauche où un composant restait coincé. `resetView` centre l'origine, appelé au démarrage.
+6. ✅ **Fils : héritage de couleur** : un fil branché sur le même point qu'un fil existant reprend sa couleur (même nœud → même couleur), `inheritedColor`.
+7. ✅ **`.projix` : nom par défaut** = fichier de code associé (sans chemin ni extension), sinon nom du projet ouvert/enregistré, sinon `schema-kablix`. **Nom du projet affiché** à côté du bouton d'aide (message `projectName`).
+8. ✅ **Appuis prolongés (BP, touches clavier, SEL joystick)** : durée d'appui minimale (`MIN_PRESS_MS` 150 ms) — un clic bref n'est plus manqué par le balayage du firmware. Relâcher différé par touche pour le clavier.
+9. ✅ **Routage auto** : sortie perpendiculaire au bord le plus proche **de tout composant** (et plus seulement des cartes) sur **1 pas de grille**, puis 4 tracés candidats (2 coudes en L + 2 détours en Z médian) — on retient celui qui recouvre le moins les autres composants.
 
 # v2026.6.40
 

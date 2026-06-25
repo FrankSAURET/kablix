@@ -337,6 +337,17 @@ export class SimulatorPanel {
   private setCodeFile(uri: vscode.Uri | undefined): void {
     this.codeFileUri = uri;
     this.post({ type: 'codeFile', name: uri ? uri.fsPath.split(/[\\/]/).pop() : null });
+    this.postProjectName();
+  }
+
+  /** Nom du projet (sans chemin) : .projix ouvert/enregistré, sinon fichier de code. */
+  private projectDisplayName(): string | undefined {
+    return this.projectBaseName ?? (this.codeFileUri ? baseNameNoExt(this.codeFileUri.fsPath) : undefined);
+  }
+
+  /** Envoie à la webview le nom du projet affiché à côté du bouton d'aide. */
+  private postProjectName(): void {
+    this.post({ type: 'projectName', name: this.projectDisplayName() ?? null });
   }
 
   /** Référence du fichier de code pour le .projix : chemin relatif au workspace, sinon nom. */
@@ -691,9 +702,16 @@ export class SimulatorPanel {
   private async saveProject(diagram: unknown, board?: Board): Promise<void> {
     try {
       const folders = vscode.workspace.workspaceFolders;
+      // Nom par défaut = fichier de code associé (sans chemin ni extension),
+      // sinon le nom du projet déjà ouvert/enregistré, sinon repli générique.
+      const base =
+        (this.codeFileUri ? baseNameNoExt(this.codeFileUri.fsPath) : undefined) ??
+        this.projectBaseName ??
+        'schema-kablix';
+      const fileName = `${base}.projix`;
       const defaultUri = folders?.length
-        ? vscode.Uri.joinPath(folders[0].uri, 'schema-kablix.projix')
-        : vscode.Uri.file('schema-kablix.projix');
+        ? vscode.Uri.joinPath(folders[0].uri, fileName)
+        : vscode.Uri.file(fileName);
       const target = await vscode.window.showSaveDialog({
         defaultUri,
         filters: { [l10n.t('Kablix project')]: ['projix'] },
@@ -723,6 +741,7 @@ export class SimulatorPanel {
 
       await vscode.workspace.fs.writeFile(target, bytes);
       this.projectBaseName = baseNameNoExt(target.fsPath);
+      this.postProjectName();
       vscode.window.showInformationMessage(
         l10n.t('Kablix: project saved to {0}', target.fsPath)
       );
@@ -747,6 +766,7 @@ export class SimulatorPanel {
       const bytes = await vscode.workspace.fs.readFile(picked[0]);
       const project = await unpackProject(bytes);
       this.projectBaseName = baseNameNoExt(picked[0].fsPath);
+      this.postProjectName();
 
       // Recharge le schéma et la carte dans la webview (et les composants perso).
       const diagram = project.diagram as { customParts?: unknown[] } | undefined;
@@ -889,6 +909,7 @@ export class SimulatorPanel {
     <button id="open-project" title="${l10n.t('Open a project')}">📂</button>
     <button id="toggle-labels" title="${l10n.t('Show/hide part names')}">🏷 ${l10n.t('Names')}</button>
     <button id="open-help" title="${l10n.t('Open help')}">❔ ${l10n.t('Help')}</button>
+    <span id="project-name" class="project-name" title="${l10n.t('Current project')}"></span>
     <span id="status" class="status">Prêt</span>
   </header>
 

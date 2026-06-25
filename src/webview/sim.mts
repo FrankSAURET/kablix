@@ -145,6 +145,7 @@ const palette = document.getElementById('palette') as HTMLDivElement;
 const wiresSvg = document.getElementById('wires') as unknown as SVGSVGElement;
 const inspector = document.getElementById('inspector') as HTMLDivElement;
 const codeFileBtn = document.getElementById('code-file') as HTMLButtonElement;
+const projectNameEl = document.getElementById('project-name') as HTMLSpanElement;
 const resetSimBtn = document.getElementById('reset-sim') as HTMLButtonElement;
 const clearCanvasBtn = document.getElementById('clear-canvas') as HTMLButtonElement;
 const fitViewBtn = document.getElementById('fit-view') as HTMLButtonElement;
@@ -406,6 +407,50 @@ function refreshVisuals(): void {
   applyPca9685();
 }
 
+/**
+ * Durée d'appui minimale (ms). Un clic très bref émet press puis release dans la
+ * même frame : le balayage du firmware (clavier, anti-rebond d'un BP) peut le
+ * manquer. On prolonge donc tout appui à au moins cette durée.
+ */
+const MIN_PRESS_MS = 150;
+
+/**
+ * Enrobe une paire enfoncer/relâcher pour garantir `MIN_PRESS_MS` : un relâcher
+ * trop précoce est différé. Un nouvel appui annule le relâcher en attente.
+ */
+function minHoldPress(
+  onDown: () => void,
+  onUp: () => void
+): { press: () => void; release: () => void; cancel: () => void } {
+  let downAt = 0;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const clear = (): void => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+  };
+  return {
+    press: () => {
+      clear();
+      downAt = performance.now();
+      onDown();
+    },
+    release: () => {
+      const wait = Math.max(0, MIN_PRESS_MS - (performance.now() - downAt));
+      if (wait === 0) {
+        onUp();
+        return;
+      }
+      timer = setTimeout(() => {
+        timer = undefined;
+        onUp();
+      }, wait);
+    },
+    cancel: clear,
+  };
+}
+
 // --- Liaison des entrées (boutons, potentiomètres) ---------------------------
 function bindInputs(): void {
   for (const remove of inputRemovers) remove();
@@ -437,20 +482,45 @@ function bindInputs(): void {
     const el = editor.elementOf(b.partId);
     const pressed = new Set<string>();
     if (el) {
+      // Maintien minimal par touche : un appui bref est prolongé pour être vu par
+      // le balayage du firmware (sinon une touche pressée/relâchée dans la même
+      // frame n'est jamais détectée).
+      const downAt = new Map<string, number>();
+      const releaseTimers = new Map<string, ReturnType<typeof setTimeout>>();
       const update = (e: Event, add: boolean): void => {
         const d = (e as CustomEvent).detail as { row?: number; column?: number };
         if (typeof d?.row !== 'number' || typeof d?.column !== 'number') return;
         const key = `${d.row},${d.column}`;
-        if (add) pressed.add(key);
-        else pressed.delete(key);
-        // L'ensemble `pressed` est partagé avec le moteur (par référence) : le
-        // prochain balayage du firmware (quelques µs) prendra la touche en compte.
+        const tm = releaseTimers.get(key);
+        if (tm) {
+          clearTimeout(tm);
+          releaseTimers.delete(key);
+        }
+        if (add) {
+          downAt.set(key, performance.now());
+          pressed.add(key); // partagé par référence avec le moteur
+        } else {
+          const wait = Math.max(0, MIN_PRESS_MS - (performance.now() - (downAt.get(key) ?? 0)));
+          if (wait === 0) {
+            pressed.delete(key);
+          } else {
+            releaseTimers.set(
+              key,
+              setTimeout(() => {
+                pressed.delete(key);
+                releaseTimers.delete(key);
+              }, wait)
+            );
+          }
+        }
       };
       const onPress = (e: Event): void => update(e, true);
       const onRelease = (e: Event): void => update(e, false);
       el.addEventListener('button-press', onPress);
       el.addEventListener('button-release', onRelease);
       inputRemovers.push(() => {
+        for (const tm of releaseTimers.values()) clearTimeout(tm);
+        releaseTimers.clear();
         el.removeEventListener('button-press', onPress);
         el.removeEventListener('button-release', onRelease);
       });
@@ -484,11 +554,15 @@ function bindInputs(): void {
     // bouton enfoncé (mode « sticky » natif de l'élément : aucun relâchement
     // n'est émis), ce qui permet de le laisser dans cet état pour déboguer.
     engine.setInput(binding.mcuPin, true); // au repos = pull-up (haut)
-    const press = () => engine?.setInput(binding.mcuPin, false);
-    const release = () => engine?.setInput(binding.mcuPin, true);
+    // Appui prolongé d'au moins MIN_PRESS_MS : un clic bref reste vu par le firmware.
+    const { press, release, cancel } = minHoldPress(
+      () => engine?.setInput(binding.mcuPin, false),
+      () => engine?.setInput(binding.mcuPin, true)
+    );
     el.addEventListener('button-press', press);
     el.addEventListener('button-release', release);
     inputRemovers.push(() => {
+      cancel();
       el.removeEventListener('button-press', press);
       el.removeEventListener('button-release', release);
     });
@@ -556,11 +630,14 @@ function bindInputs(): void {
     if (binding.sel) {
       const selPin = binding.sel;
       engine.setInput(selPin, true);
-      const press = () => engine?.setInput(selPin, false);
-      const release = () => engine?.setInput(selPin, true);
+      const { press, release, cancel } = minHoldPress(
+        () => engine?.setInput(selPin, false),
+        () => engine?.setInput(selPin, true)
+      );
       el.addEventListener('button-press', press);
       el.addEventListener('button-release', release);
       inputRemovers.push(() => {
+        cancel();
         el.removeEventListener('button-press', press);
         el.removeEventListener('button-release', release);
       });
@@ -1187,6 +1264,13 @@ window.addEventListener('message', (event: MessageEvent) => {
       codeFileBtn.title = name
         ? t('Code file: {0} — click to change', name)
         : t('Code file to run / debug — click to change');
+      break;
+    }
+    case 'projectName': {
+      // Nom du projet courant (sans chemin), affiché à côté du bouton d'aide.
+      const name = typeof msg.name === 'string' ? msg.name : null;
+      projectNameEl.textContent = name ? `— ${name}` : '';
+      projectNameEl.title = name ? t('Current project: {0}', name) : t('Current project');
       break;
     }
     case 'requestSaveProject':

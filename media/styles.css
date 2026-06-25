@@ -74,6 +74,17 @@ body {
   opacity: 0.85;
 }
 
+/* Nom du projet courant, à côté du bouton d'aide. */
+.project-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 16rem;
+}
+
 .stage {
   padding: 1rem;
   display: flex;
@@ -194,6 +205,55 @@ body {
 /* Bascule « Derniers utilisés » : poussée à droite de la barre de composants. */
 .palette__recents-toggle {
   margin-left: auto;
+}
+
+/* Bouton de pliage : la flèche de repliement, aussi grosse que possible. */
+.palette__fold-toggle {
+  font-size: 1.15rem;
+  line-height: 1;
+  padding: 0 0.2rem;
+}
+
+/* Menu du mode de pliage (presser-glisser-relâcher), ancré sous le bouton. */
+.palette__fold-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 170px;
+  padding: 0.2rem;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-menu-border, var(--vscode-input-border, #555));
+  background: var(--vscode-menu-background, var(--vscode-input-background, #2a2a2a));
+  color: var(--vscode-menu-foreground, var(--vscode-input-foreground, #fff));
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  font-size: 0.8rem;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.palette__fold-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.palette__fold-item--current {
+  font-weight: 700;
+}
+
+.palette__fold-item--active,
+.palette__fold-item:hover {
+  background: var(--vscode-list-activeSelectionBackground, #0e639c);
+  color: var(--vscode-list-activeSelectionForeground, #fff);
+}
+
+.palette__fold-glyph {
+  display: inline-block;
+  width: 1.1em;
+  text-align: center;
+  font-size: 1rem;
 }
 
 /* En-tête de section (catégorie, derniers utilisés) */
