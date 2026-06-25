@@ -57,6 +57,22 @@ const VARIANTS = [
     props: { numCols: 20, numRows: 4 }, // propriétés (non réactives en attribut)
     pinScale: PIN_SCALE_95,
   },
+  // Afficheur 7 segments : le brochage change avec le nombre de chiffres (le
+  // 1 chiffre existe déjà sous 7seg.edit.svg). Options du catalogue : 1 / 2 / 4.
+  {
+    name: '7seg-2dig',
+    module: '7segment-element.js',
+    tag: 'wokwi-7segment',
+    props: { digits: 2 },
+    pinScale: 1,
+  },
+  {
+    name: '7seg-4dig',
+    module: '7segment-element.js',
+    tag: 'wokwi-7segment',
+    props: { digits: 4 },
+    pinScale: 1,
+  },
 ];
 
 const force = process.argv.includes('--force');
