@@ -22,6 +22,7 @@ import {
 import { breadboardPins, normalizeSize, stripOfPin } from './breadboard.mjs';
 import { internalWiringSvg, type PinPoint } from './internal-wiring.mjs';
 import { overridesFor } from './pin-overrides.mjs';
+import { boardDrawing } from './board-drawings.mjs';
 import { pinoutSvg, pinoutPoster } from './pinout.mjs';
 import { BOARD_W, BOARD_H } from '../elements/pico-board.mjs';
 import type { Diagram, Endpoint, Part, Wire } from './model.mjs';
@@ -1265,6 +1266,23 @@ export class Editor {
       if (v !== '') el.setAttribute(k, v);
     }
     this.applyLcdSize(el, def, part.attrs ?? def.attrs);
+    // Dessin retouché à la main : on l'affiche à la place du rendu @wokwi (dont
+    // les broches, étirées par pinScale, ne tombent plus sur les surcharges).
+    // L'élément @wokwi est conservé mais masqué (pinInfo + simulation).
+    const drawing = boardDrawing(part.type);
+    if (drawing) {
+      el.style.display = 'none';
+      const draw = document.createElement('div');
+      draw.className = 'part__drawing';
+      draw.innerHTML = drawing.svg;
+      const dsvg = draw.querySelector('svg');
+      if (dsvg) {
+        dsvg.setAttribute('width', String(drawing.w)); // px = unités viewBox (1:1)
+        dsvg.setAttribute('height', String(drawing.h));
+        dsvg.style.display = 'block';
+      }
+      body.appendChild(draw);
+    }
     body.appendChild(el);
     container.appendChild(body);
     this.world.appendChild(container);
@@ -1304,9 +1322,9 @@ export class Editor {
     }
 
     const hotspots = new Map<string, HTMLDivElement>();
-    const pins = (el.pinInfo ?? []) as WokwiPin[];
-    const anchor: XY = pins[0] ? { x: pins[0].x, y: pins[0].y } : { x: 0, y: 0 };
     const ovMap = overridesFor(part.type, part.attrs);
+    const pins = this.partPins(part.type, el, ovMap);
+    const anchor: XY = pins[0] ? { x: pins[0].x, y: pins[0].y } : { x: 0, y: 0 };
     for (const pin of pins) {
       const dot = this.makeHotspot(part.id, part.type, def.kind, pin, anchor, ovMap);
       body.appendChild(dot);
@@ -1345,22 +1363,37 @@ export class Editor {
   }
 
   /**
-   * Position px (repère corps) d'une broche. Les broches d'**alimentation**
-   * (rouge VCC / noir GND) restent sur la **pastille métal** du composant —
-   * position réelle `pinInfo × pinScale`, sans calage grille ni surcharge — pour
-   * que le rond coloré tombe pile sur le pad. Les autres broches suivent la
-   * surcharge retouchée (grille) ou le calage automatique relatif à l'ancre.
+   * Liste des broches d'un composant. Pour un **dessin retouché** (board-drawing),
+   * l'élément @wokwi est masqué : on prend les broches directement dans les
+   * surcharges (repère du dessin), indépendamment du `pinInfo` de l'élément.
+   * Sinon, `pinInfo` de l'élément @wokwi.
+   */
+  private partPins(
+    type: string,
+    el: WokwiElement,
+    ovMap?: Record<string, { x: number; y: number }>
+  ): WokwiPin[] {
+    if (boardDrawing(type) && ovMap) {
+      return Object.entries(ovMap).map(([name, p]) => ({ name, x: p.x, y: p.y }));
+    }
+    return (el.pinInfo ?? []) as WokwiPin[];
+  }
+
+  /**
+   * Position px (repère corps) d'une broche : la surcharge retouchée (lue depuis
+   * « svg retouche/ », repère = coin haut-gauche du dessin) prime ; sinon calage
+   * automatique sur la grille relativement à la 1re broche. S'applique à toutes
+   * les broches, y compris alimentation (rouge VCC / noir GND), dont la position
+   * est posée à la main dans le SVG retouché.
    */
   private pinPos(
     type: string,
-    kind: string,
+    _kind: string,
     pin: WokwiPin,
     anchor: XY,
     ovMap?: Record<string, { x: number; y: number }>
   ): XY {
     const k = partDef(type).pinScale ?? 1;
-    const role = kind === 'potentiometer' ? 'other' : pinElectricalRole(type, pin.name);
-    if (role === 'vcc' || role === 'gnd') return { x: pin.x * k, y: pin.y * k };
     const ov = ovMap?.[pin.name];
     return {
       x: ov ? ov.x : snapPinTo(pin.x * k, anchor.x * k),
@@ -1411,9 +1444,9 @@ export class Editor {
     const body = r.container.querySelector('.part__body') as HTMLElement | null;
     if (!body) return;
     const def = partDef(r.part.type);
-    const pins = (r.el.pinInfo ?? []) as WokwiPin[];
-    const anchor: XY = pins[0] ? { x: pins[0].x, y: pins[0].y } : { x: 0, y: 0 };
     const ovMap = overridesFor(r.part.type, r.part.attrs);
+    const pins = this.partPins(r.part.type, r.el, ovMap);
+    const anchor: XY = pins[0] ? { x: pins[0].x, y: pins[0].y } : { x: 0, y: 0 };
     for (const pin of pins) {
       let dot = r.hotspots.get(pin.name);
       if (!dot) {
@@ -2327,6 +2360,9 @@ export class Editor {
    * Renvoie `false` si le SVG n'est pas encore rendu (à réessayer plus tard).
    */
   private applyPinScale(r: Rendered): boolean {
+    // Dessin retouché : l'élément @wokwi est masqué, on ne l'agrandit pas (les
+    // broches viennent des surcharges, dans le repère du dessin).
+    if (boardDrawing(r.part.type)) return true;
     const k = partDef(r.part.type).pinScale ?? 1;
     if (k === 1) return true;
     const el = r.el as HTMLElement & { _pinScaled?: boolean };

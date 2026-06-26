@@ -2,11 +2,17 @@
 
 1. ✅ Schéma interne du clavier dessiné (3×4 et 4×4) → intégré (cf. v2026.6.45).
 2. ⏳ La simulation est très lente. **Nécessite un profilage (la boucle AVR tourne déjà en temps réel `CLOCK_HZ/60`) — ne pas toucher la précision temporelle à l'aveugle.**
-3. ✅ Reprend le svg fournis dans svg retouche pour tous les composants (sauf ceux noté OK) → v2026.6.44/6.45.
-4. ✅ sur les composants qui ont des power et gnd, recentre les ronds rouge ou noir sur la pastille → sur le pad métal (v2026.6.47).
+3. ⏳ Reprend le svg fournis dans svg retouche pour tous les composants → **changement d'approche v2026.6.48** : l'éditeur affiche le **dessin du SVG retouché** (broches = ronds, repère = coin haut-gauche feuille), élément Wokwi caché pour la simu. **Mega = test (à valider)** ; les autres à recréer pareil.
+4. ✅ sur les composants qui ont des power et gnd, recentre les ronds rouge ou noir sur la pastille → désormais via les ronds du SVG retouché (v2026.6.48 ; le « sur pad » auto de 6.47 annulé).
 5. ✅ Le clavier 4 x 3 a toujours les connexions en dehors du connecteur → v2026.6.46.
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
 7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → bases générées (v2026.6.46), à retoucher par Frank.
+
+# v2026.6.48
+
+1. ✅ **Le dessin du composant vient du SVG retouché** (test : mega). L'éditeur affiche [`src/webview/elements/boards/mega.svg`](src/webview/elements/boards/mega.svg) (dessin Wokwi repositionné sur grille par Frank, nettoyé : sans ronds/labels) au lieu du rendu @wokwi étiré par `pinScale`. Registre [`board-drawings.mts`](src/webview/diagram/board-drawings.mts) ; intégration dans `renderPart` ([editor.mts](src/webview/diagram/editor.mts)) ; corps dimensionné au viewBox du SVG ; broches prises **directement dans les surcharges** (`partPins`, indépendant du `pinInfo`). L'élément @wokwi reste **masqué** (`display:none`) pour `pinInfo`/simulation ; `applyPinScale` ignoré. Outil [`scripts/_clean-board-svg.mjs`](scripts/_clean-board-svg.mjs) (`node scripts/_clean-board-svg.mjs <type>`).
+2. ✅ **Surcharge `mega` refaite** depuis les ronds, repère = coin haut-gauche feuille (sans marge). Validé : les ronds tombent pile sur chaque header du dessin.
+3. ℹ️ **Limite** : l'élément @wokwi masqué ne montre plus son retour visuel de simulation (LED, écran…). OK pour une carte ; pour les composants **dynamiques** il faudra refléter `el.active`/`el.value`/`setLcd` sur le dessin (à faire au cas par cas).
 
 # v2026.6.47
 

@@ -990,6 +990,15 @@ body {
   height: auto;
 }
 
+/* Dessin retouché à la main affiché à la place du rendu @wokwi (cf. board-drawings).
+   line-height:0 évite l'espace sous le SVG inline ; le corps épouse le dessin. */
+.part__drawing {
+  line-height: 0;
+}
+.part__drawing svg {
+  display: block;
+}
+
 .pin {
   position: absolute;
   /* box-sizing border-box : la pastille (bordure comprise) est exactement
