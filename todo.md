@@ -2,11 +2,17 @@
 
 1. ✅ Schéma interne du clavier dessiné (3×4 et 4×4) → intégré (cf. v2026.6.45).
 2. ⏳ La simulation est très lente. **Nécessite un profilage (la boucle AVR tourne déjà en temps réel `CLOCK_HZ/60`) — ne pas toucher la précision temporelle à l'aveugle.**
-1. Reprend le svg fournis dans svg retouche pour tous les composants (sauf ceux noté OK),
-1. sur les composants qui ont des power et gnd, recentre les ronds rouge ou noir sur la pastille
-1. Le clavier 4 x 3 a toujours les connexions en dehors du connecteur
-1. Le routage automatique est mieux. Ajoute : 2 Fils peuvent se croiser mais pas se chevaucher. Ecart mini entre 2 fils parallele = 5px
-1. Afficheur LCD 16x2 et 20 x 4 à retoudher, sors les dans svg retouche
+3. ✅ Reprend le svg fournis dans svg retouche pour tous les composants (sauf ceux noté OK) → v2026.6.44/6.45.
+4. ⏳ sur les composants qui ont des power et gnd, recentre les ronds rouge ou noir sur la pastille — **en attente de précision (cf. question).**
+5. ✅ Le clavier 4 x 3 a toujours les connexions en dehors du connecteur → v2026.6.46.
+6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
+7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → bases générées (v2026.6.46), à retoucher par Frank.
+
+# v2026.6.46
+
+1. ✅ **Connecteur clavier 3 colonnes recalé** : `columns` ajouté à la liste de re-rendu de [`updatePartAttr`](src/webview/diagram/editor.mts) — en passant 4→3 colonnes l'élément Wokwi rétrécit, mais les pastilles restaient aux positions 4 col (x 100-167) → hors du connecteur 3 col (x 76-134). Le re-rendu ré-résout `overridesFor` → pastilles sur le connecteur.
+2. ✅ **Routage : pas de chevauchement, écart 5 px** ([`autoRoute`](src/webview/diagram/editor.mts)) : les fils peuvent se croiser mais plus se superposer (coût de **recouvrement colinéaire** d'autres fils) ni se serrer (**pénalité de proximité < 5 px**). Candidats enrichis : coudes en L + détours en Z par la médiane **décalée par voies** (multiples de 5 px) → chaque fil trouve une voie libre ; un tracé droit qui se superposerait reçoit un **créneau** d'évitement. Helpers `collinearOverlap`/`parallelPenalty`/`polylineWireCost`.
+3. ✅ **Bases LCD 16×2 et 20×4 (parallèle) à retoucher** : générées dans [`svg retouche/lcd.edit.svg`](svg%20retouche/lcd.edit.svg) (16×2) et [`lcd-parallel-20x4.edit.svg`](svg%20retouche/lcd-parallel-20x4.edit.svg) (20×4) — variante 16×2 ajoutée à [`scripts/build-retouche.mjs`](scripts/build-retouche.mjs). Anciens `.OK`/`.ok` retirés (à retoucher maintenant).
 
 # v2026.6.45
 

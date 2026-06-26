@@ -2110,6 +2110,21 @@ export class Editor {
     const obstacles = this.partObstacles();
     const rectOf = new Map(obstacles.map((o) => [o.id, o]));
     const STUB = GRID; // sortie perpendiculaire = 1 pas de grille hors du corps
+    const GAP = 5; // écart mini entre deux fils parallèles (px)
+    const TOL = 1;
+    // Segments de chaque fil (repère monde) — pour éviter qu'un nouveau tracé se
+    // superpose à un fil existant. Mis à jour au fil des reroutes.
+    const toSegs = (pts: XY[]): Array<[XY, XY]> => {
+      const s: Array<[XY, XY]> = [];
+      for (let i = 0; i < pts.length - 1; i++) s.push([pts[i], pts[i + 1]]);
+      return s;
+    };
+    const wireSegs = new Map<string, Array<[XY, XY]>>();
+    for (const w of this.diagram.wires) {
+      const ca = this.hotspotCenter(w.a);
+      const cb = this.hotspotCenter(w.b);
+      if (ca && cb) wireSegs.set(w.id, toSegs([ca, ...(w.points ?? []), cb]));
+    }
     let changed = false;
     for (const wire of this.diagram.wires) {
       if (wire.auto) continue;
@@ -2122,33 +2137,66 @@ export class Editor {
       const pa = sa ?? a; // point de départ du routage (après sortie perpendiculaire)
       const pb = sb ?? b;
       const others = obstacles.filter((o) => o.id !== wire.a.partId && o.id !== wire.b.partId);
-      const inner: XY[] = [];
-      const TOL = 1;
-      if (Math.abs(pa.x - pb.x) > TOL && Math.abs(pa.y - pb.y) > TOL) {
-        const midX = (pa.x + pb.x) / 2;
-        const midY = (pa.y + pb.y) / 2;
-        // Quatre tracés candidats : les deux coudes en L, puis deux détours en Z
-        // (par la médiane) qui contournent un composant posé pile entre les deux
-        // sorties. On retient celui qui recouvre le moins les autres composants.
-        const candidates: XY[][] = [
-          [{ x: pb.x, y: pa.y }], // L : horizontal puis vertical
-          [{ x: pa.x, y: pb.y }], // L : vertical puis horizontal
-          [{ x: midX, y: pa.y }, { x: midX, y: pb.y }], // Z par la médiane verticale
-          [{ x: pa.x, y: midY }, { x: pb.x, y: midY }], // Z par la médiane horizontale
-        ];
-        let best = candidates[0];
-        let bestOv = Infinity;
-        for (const c of candidates) {
-          const ov = polylineRectOverlap([a, pa, ...c, pb, b], others);
-          if (ov < bestOv - 0.01) {
-            bestOv = ov;
+      const otherSegs: Array<[XY, XY]> = [];
+      for (const [wid, segs] of wireSegs) if (wid !== wire.id) otherSegs.push(...segs);
+      // Coût d'un tracé : recouvrement de composants + recouvrement (colinéaire) ET
+      // proximité (< GAP) d'autres fils. Les fils peuvent se croiser mais pas se
+      // chevaucher ni se serrer à moins de GAP.
+      const cost = (c: XY[]): number => {
+        const poly = [a, pa, ...c, pb, b];
+        const comp = polylineRectOverlap(poly, others);
+        const { overlap, near } = polylineWireCost(poly, otherSegs, GAP);
+        return comp * 3 + overlap * 6 + near * 0.6;
+      };
+      const pick = (cands: XY[][]): XY[] => {
+        let best = cands[0];
+        let bestCost = Infinity;
+        for (const c of cands) {
+          const k = cost(c);
+          if (k < bestCost - 0.01) {
+            bestCost = k;
             best = c;
           }
         }
-        inner.push(...best);
+        return best;
+      };
+      let inner: XY[] = [];
+      if (Math.abs(pa.x - pb.x) > TOL && Math.abs(pa.y - pb.y) > TOL) {
+        const midX = (pa.x + pb.x) / 2;
+        const midY = (pa.y + pb.y) / 2;
+        // Coudes en L, puis détours en Z par la médiane décalée de plusieurs lignes
+        // (multiples de GAP) → chaque fil trouve une « voie » libre, écartée des
+        // autres, sans les chevaucher.
+        const offs = [0, GAP, -GAP, 2 * GAP, -2 * GAP, 3 * GAP, -3 * GAP];
+        const candidates: XY[][] = [[{ x: pb.x, y: pa.y }], [{ x: pa.x, y: pb.y }]];
+        for (const o of offs) {
+          candidates.push([{ x: midX + o, y: pa.y }, { x: midX + o, y: pb.y }]);
+          candidates.push([{ x: pa.x, y: midY + o }, { x: pb.x, y: midY + o }]);
+        }
+        inner = pick(candidates);
+      } else if (polylineWireCost([a, pa, pb, b], otherSegs, GAP).overlap > TOL) {
+        // Tracé droit qui se superposerait à un fil aligné : on insère un créneau
+        // (bosse perpendiculaire) pour le décaler, du côté le plus dégagé.
+        const horizontal = Math.abs(pa.y - pb.y) <= TOL;
+        const cands: XY[][] = [[]];
+        for (const o of [GAP, -GAP, 2 * GAP, -2 * GAP]) {
+          if (horizontal) {
+            const x1 = pa.x + (pb.x - pa.x) / 3;
+            const x2 = pa.x + (2 * (pb.x - pa.x)) / 3;
+            const y = pa.y + o;
+            cands.push([{ x: x1, y: pa.y }, { x: x1, y }, { x: x2, y }, { x: x2, y: pb.y }]);
+          } else {
+            const y1 = pa.y + (pb.y - pa.y) / 3;
+            const y2 = pa.y + (2 * (pb.y - pa.y)) / 3;
+            const x = pa.x + o;
+            cands.push([{ x: pa.x, y: y1 }, { x, y: y1 }, { x, y: y2 }, { x: pb.x, y: y2 }]);
+          }
+        }
+        inner = pick(cands);
       }
       const pts = [...(sa ? [sa] : []), ...inner, ...(sb ? [sb] : [])];
       wire.points = pts.length > 0 ? pts : undefined;
+      wireSegs.set(wire.id, toSegs([a, ...pts, b]));
       changed = true;
       this.positionWire(wire);
     }
@@ -2637,9 +2685,11 @@ export class Editor {
         return true;
       });
     }
-    // L'angle, la taille ou le jeu de broches (LCD i2c↔parallèle) déplacent les
-    // broches : re-rendu complet nécessaire.
-    if (attr === 'angle' || attr === 'flip' || attr === 'size' || attr === 'pins' || attr === 'lcdSize') {
+    // L'angle, la taille, le jeu de broches (LCD i2c↔parallèle) ou le nombre de
+    // colonnes du clavier déplacent les broches : re-rendu complet nécessaire
+    // (sinon les pastilles restent aux positions de l'ancienne variante → hors
+    // du connecteur pour le clavier 3 colonnes).
+    if (attr === 'angle' || attr === 'flip' || attr === 'size' || attr === 'pins' || attr === 'lcdSize' || attr === 'columns') {
       this.rerenderPart(partId); // renderPart restaure le câblage interne s'il était affiché
       if (this.selection?.kind === 'part' && this.selection.id === partId) {
         this.rendered.get(partId)?.container.classList.add('part--selected');
@@ -3228,6 +3278,59 @@ function segRectOverlap(p: XY, q: XY, r: PartRect): number {
   const x = (p.x + q.x) / 2;
   if (x < r.x || x > r.x + r.w) return 0;
   return Math.max(0, Math.min(Math.max(p.y, q.y), r.y + r.h) - Math.max(Math.min(p.y, q.y), r.y));
+}
+
+/** Axe d'un segment aligné : 'h' (horizontal), 'v' (vertical) ou null (diagonale). */
+function segAxis(a: XY, b: XY): 'h' | 'v' | null {
+  const dx = Math.abs(a.x - b.x);
+  const dy = Math.abs(a.y - b.y);
+  if (dy <= 0.5 && dx > 0.5) return 'h';
+  if (dx <= 0.5 && dy > 0.5) return 'v';
+  return null;
+}
+
+/** Longueur de recouvrement de deux segments COLINÉAIRES (même axe, même ligne),
+ *  sinon 0 — deux fils qui se chevauchent. */
+function collinearOverlap(a: XY, b: XY, c: XY, d: XY): number {
+  const ax = segAxis(a, b);
+  if (!ax || ax !== segAxis(c, d)) return 0;
+  if (ax === 'h') {
+    if (Math.abs(a.y - c.y) > 0.5) return 0;
+    return Math.max(0, Math.min(Math.max(a.x, b.x), Math.max(c.x, d.x)) - Math.max(Math.min(a.x, b.x), Math.min(c.x, d.x)));
+  }
+  if (Math.abs(a.x - c.x) > 0.5) return 0;
+  return Math.max(0, Math.min(Math.max(a.y, b.y), Math.max(c.y, d.y)) - Math.max(Math.min(a.y, b.y), Math.min(c.y, d.y)));
+}
+
+/** Pénalité de proximité de deux segments PARALLÈLES distincts plus proches que
+ *  `gap` et dont les projections se recouvrent : (gap − écart), sinon 0. */
+function parallelPenalty(a: XY, b: XY, c: XY, d: XY, gap: number): number {
+  const ax = segAxis(a, b);
+  if (!ax || ax !== segAxis(c, d)) return 0;
+  if (ax === 'h') {
+    const off = Math.abs(a.y - c.y);
+    if (off <= 0.5 || off >= gap) return 0;
+    const ov = Math.min(Math.max(a.x, b.x), Math.max(c.x, d.x)) - Math.max(Math.min(a.x, b.x), Math.min(c.x, d.x));
+    return ov > 1 ? gap - off : 0;
+  }
+  const off = Math.abs(a.x - c.x);
+  if (off <= 0.5 || off >= gap) return 0;
+  const ov = Math.min(Math.max(a.y, b.y), Math.max(c.y, d.y)) - Math.max(Math.min(a.y, b.y), Math.min(c.y, d.y));
+  return ov > 1 ? gap - off : 0;
+}
+
+/** Coût d'une polyligne vis-à-vis des segments d'autres fils : longueur totale de
+ *  chevauchement colinéaire + somme des pénalités de proximité (< gap). */
+function polylineWireCost(pts: XY[], segs: Array<[XY, XY]>, gap: number): { overlap: number; near: number } {
+  let overlap = 0;
+  let near = 0;
+  for (let i = 0; i < pts.length - 1; i++) {
+    for (const [c, d] of segs) {
+      overlap += collinearOverlap(pts[i], pts[i + 1], c, d);
+      near += parallelPenalty(pts[i], pts[i + 1], c, d, gap);
+    }
+  }
+  return { overlap, near };
 }
 
 /** Longueur totale d'une polyligne (segments H/V) recouvrant les rectangles. */
