@@ -1,0 +1,326 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="85.170006"
+   height="80.314796"
+   viewBox="0 0 85.170006 80.314796"
+   version="1.1"
+   id="svg46"
+   sodipodi:docname="microsd.edit.svg"
+   inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs46" />
+  <sodipodi:namedview
+     id="namedview46"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="true"
+     inkscape:zoom="7.0413223"
+     inkscape:cx="84.92723"
+     inkscape:cy="49.138498"
+     inkscape:window-width="1920"
+     inkscape:window-height="1057"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg46">
+    <inkscape:grid
+       id="grid46"
+       units="px"
+       originx="-20.07"
+       originy="-20.23"
+       spacingx="10"
+       spacingy="10"
+       empcolor="#3f3fff"
+       empopacity="0.25098039"
+       color="#3f3fff"
+       opacity="0.1254902"
+       empspacing="1"
+       enabled="true"
+       visible="true" />
+  </sodipodi:namedview>
+  <!-- Retouche brochage microsd : déplace chaque pastille rouge sur un CROISEMENT (lignes foncées = 50 px). Garde les id pin-<nom>. Marge 20 px. -->
+  <g
+     id="board"
+     opacity="0.85"
+     transform="scale(3.937)">
+    <!-- Board -->
+    <rect
+       width="21.6"
+       height="20.4"
+       fill="#a1111b"
+       id="rect26"
+       x="0"
+       y="0" />
+    <!-- Card and socket -->
+    <rect
+       x="1.3200001"
+       y="4.5900002"
+       width="3.1300001"
+       height="8.0600004"
+       fill="#262626"
+       stroke="#d5b7b5"
+       stroke-width="0.232"
+       id="rect27" />
+    <rect
+       x="4.0799999"
+       y="0.036699999"
+       width="10.7"
+       height="17.799999"
+       rx="0.77200001"
+       ry="0.77200001"
+       fill="#262626"
+       id="rect28" />
+    <path
+       d="M 3.79,2.49 2.17,2.5192 V 3.8992 C 2.644,3.943 2.656,3.9019 2.659,4.0962 2.6616,4.2902 2.5892,4.3332 1.459,4.3532 V 5.2922 C 1.847,5.3106 2.124,5.222 2.138,5.5032 L 2.314,9.1632 1.901,9.5972 1.9217,10.3302 2.0247,10.4442 3.1747,10.4752 3.2887,10.3612 3.2577,9.5972 2.8967,9.1942 2.938,5.5742 C 2.9483,5.3162 3.114,5.2912 3.114,5.2912 H 3.454 C 3.563,5.2912 3.651,5.3601 3.651,5.4452 V 10.7352 C 3.651,10.8208 3.563,10.8892 3.454,10.8892 H 1.464 V 17.8492 H 6.664 C 6.6238,16.4392 6.473,12.5392 6.5672,11.8492 6.5827,11.7352 6.8302,11.783 6.8392,11.8189 6.8943,12.0409 6.8608,14.3689 7.0732,17.4689 7.5042,17.7029 7.2432,16.8139 7.4962,16.8339 7.7382,16.8525 7.416,17.6439 7.8902,17.4689 8.2742,13.4689 7.9558,11.6689 8.2552,11.7589 8.5542,11.8493 8.0512,17.1189 8.299,17.8489 H 12.479 C 12.479,17.8489 12.309,13.6889 12.194,11.8889 12.1841,11.7339 12.667,11.7329 12.661,11.8889 12.5957,13.5189 12.7413,17.5589 12.7413,17.5589 13.2743,17.6246 12.9093,16.8039 13.2013,16.8139 13.4803,16.8243 13.1502,17.6679 13.5883,17.5589 13.5883,17.5589 13.8063,13.4789 13.8143,11.8689 13.815007,11.7229 14.1893,11.7299 14.1863,11.8762 14.1636,13.2962 14.0553,17.8462 14.0553,17.8462 H 15.0653 L 14.9997,3.5462 C 14.9997,3.5462 14.7597,3.5079 14.6477,3.5474 10.6877,4.9474 6.8377,4.6074 3.9477,3.517 3.7727,3.305 3.8017,2.524 3.8017,2.524 Z"
+       fill="#dbded9"
+       id="path28" />
+    <rect
+       x="5.8400002"
+       y="6.4200001"
+       width="3.97"
+       height="1.97"
+       rx="0.30000001"
+       ry="0.30000001"
+       fill="#262626"
+       stroke="#ebebeb"
+       stroke-width="0.08"
+       id="rect29" />
+    <rect
+       x="10.4"
+       y="6.4200001"
+       width="3.97"
+       height="1.97"
+       rx="0.30000001"
+       ry="0.30000001"
+       fill="#262626"
+       stroke="#ebebeb"
+       stroke-width="0.08"
+       id="rect30" />
+    <path
+       d="M 4.08,1.21 C 4.08,1.21 6.45,1.537 9.35,1.537 12.25,1.537 14.77,1.21 14.77,1.21 V 1.78 C 14.77,1.78 13.821,2.111 9.35,2.107 4.88,2.1033 4.08,1.78 4.08,1.78 Z"
+       fill="#020202"
+       stroke="#000000"
+       stroke-width="0.027"
+       id="path30" />
+    <g
+       fill="#fcfff9"
+       id="g33">
+      <rect
+         x="1.1900001"
+         y="10.9"
+         width="0.27500001"
+         height="6.9499998"
+         id="rect31" />
+      <rect
+         x="1.1900001"
+         y="4.3600001"
+         width="0.27500001"
+         height="0.94499999"
+         id="rect32" />
+      <rect
+         x="1.84"
+         y="2.52"
+         width="0.33000001"
+         height="1.38"
+         id="rect33" />
+    </g>
+    <!-- Pins & labels -->
+    <g
+       fill="#ffffff"
+       stroke="#d9cb97"
+       stroke-width="0.381"
+       id="g39">
+      <circle
+         cx="20.299999"
+         cy="2.48"
+         id="ellipse33"
+         r="0.81400001" />
+      <circle
+         cx="20.299999"
+         cy="4.9899998"
+         id="ellipse34"
+         r="0.81400001" />
+      <circle
+         cx="20.299999"
+         cy="7.5300002"
+         id="ellipse35"
+         r="0.81400001" />
+      <circle
+         cx="20.299999"
+         cy="10.1"
+         id="ellipse36"
+         r="0.81400001" />
+      <circle
+         cx="20.299999"
+         cy="12.6"
+         id="ellipse37"
+         r="0.81400001" />
+      <circle
+         cx="20.299999"
+         cy="15.2"
+         id="ellipse38"
+         r="0.81400001" />
+      <circle
+         cx="20.299999"
+         cy="17.700001"
+         id="ellipse39"
+         r="0.81400001" />
+    </g>
+  </g>
+  <g
+     id="g40"
+     transform="translate(-20,-20)">
+    <circle
+       id="pin-CD"
+       cx="99.93"
+       cy="29.77"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="99.93"
+       y="24.77"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text39">CD</text>
+  </g>
+  <g
+     id="g41"
+     transform="translate(-20,-19.880002)">
+    <circle
+       id="pin-DO"
+       cx="99.93"
+       cy="39.650002"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="99.93"
+       y="34.650002"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text40">DO</text>
+  </g>
+  <g
+     id="g42"
+     transform="translate(-20,-19.880002)">
+    <circle
+       id="pin-GND"
+       cx="99.93"
+       cy="49.650002"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="99.93"
+       y="44.650002"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text41">GND</text>
+  </g>
+  <g
+     id="g43"
+     transform="translate(-20,-20)">
+    <circle
+       id="pin-SCK"
+       cx="99.93"
+       cy="59.77"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="99.93"
+       y="54.77"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text42">SCK</text>
+  </g>
+  <g
+     id="g44"
+     transform="translate(-20,-19.840001)">
+    <circle
+       id="pin-VCC"
+       cx="99.93"
+       cy="69.610001"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="99.93"
+       y="64.610001"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text43">VCC</text>
+  </g>
+  <g
+     id="g45"
+     transform="translate(-20,-20.079998)">
+    <circle
+       id="pin-DI"
+       cx="99.93"
+       cy="79.849998"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="99.93"
+       y="74.849998"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text44">DI</text>
+  </g>
+  <g
+     id="g46"
+     transform="translate(-20,-19.920002)">
+    <circle
+       id="pin-CS"
+       cx="99.93"
+       cy="89.690002"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="99.93"
+       y="84.690002"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text45">CS</text>
+  </g>
+</svg>

@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="330"
+   height="155.54764"
+   viewBox="0 0 330 155.54764"
+   version="1.1"
+   id="svg68"
+   sodipodi:docname="lcd-i2c.edit.svg"
+   inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs68">
+    <pattern
+       inkscape:collect="always"
+       xlink:href="#characters"
+       id="pattern69"
+       patternTransform="matrix(3.9785,0,0,3.9785,5.026875,6.512325)" />
+    <pattern
+       inkscape:collect="always"
+       xlink:href="#pins"
+       id="pattern68"
+       patternTransform="matrix(3.9256485,0,0,3.9785,6.911354,-5.026875)" />
+    <defs
+       id="defs55">
+      <pattern
+         id="characters"
+         width="3.55"
+         height="5.95"
+         patternUnits="userSpaceOnUse"
+         x="12.45"
+         y="12.55">
+        <rect
+           width="2.95"
+           height="5.55"
+           fill-opacity="0.05"
+           id="rect55" />
+      </pattern>
+      <pattern
+         id="pins"
+         width="2.54"
+         height="3.255"
+         patternUnits="userSpaceOnUse"
+         y="1.1">
+        <path
+           fill="#92926d"
+           d="M0,0.55c0,0 0.21,-0.52 0.87,-0.52 0.67,0 0.81,0.51 0.81,0.51v1.81h-1.869z"
+           id="path55" />
+        <circle
+           r="0.45"
+           cx="0.827"
+           cy="0.9"
+           color="black"
+           id="circle55" />
+      </pattern>
+    </defs>
+  </defs>
+  <sodipodi:namedview
+     id="namedview68"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="true"
+     inkscape:zoom="3.2921037"
+     inkscape:cx="153.70111"
+     inkscape:cy="103.58118"
+     inkscape:window-width="1920"
+     inkscape:window-height="1057"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg68">
+    <inkscape:grid
+       id="grid68"
+       units="px"
+       originx="-10"
+       originy="-10"
+       spacingx="10"
+       spacingy="10"
+       empcolor="#3f3fff"
+       empopacity="0.25098039"
+       color="#3f3fff"
+       opacity="0.1254902"
+       empspacing="1"
+       enabled="true"
+       visible="true" />
+  </sodipodi:namedview>
+  <!-- Retouche brochage lcd-i2c : déplace chaque pastille rouge sur un CROISEMENT (lignes foncées = 50 px). Garde les id pin-<nom>. Marge 20 px. -->
+  <g
+     id="g69">
+    <rect
+       fill="#087f45"
+       width="318.28"
+       height="143.226"
+       id="rect56"
+       x="5.0268745"
+       y="6.5123253"
+       style="opacity:0.85;stroke-width:3.9785" />
+    <rect
+       x="24.720448"
+       y="29.189774"
+       width="283.2692"
+       height="100.2582"
+       id="rect57"
+       style="opacity:0.85;stroke-width:3.9785" />
+    <rect
+       x="35.064552"
+       y="47.490875"
+       rx="5.9677501"
+       ry="5.9677501"
+       width="262.58099"
+       height="63.655998"
+       fill="#6cb201"
+       id="rect58"
+       style="opacity:0.85;stroke-width:3.9785" />
+    <rect
+       x="35.064552"
+       y="47.490875"
+       rx="5.9677501"
+       ry="5.9677501"
+       width="262.58099"
+       height="63.655998"
+       opacity="0"
+       id="rect59"
+       style="stroke-width:3.9785" />
+    <rect
+       x="36.549999"
+       y="-14.973125"
+       height="9.94625"
+       width="39.884586"
+       fill="url(#pins)"
+       transform="rotate(90)"
+       id="rect60"
+       style="opacity:0.85;fill:url(#pattern68);stroke-width:3.9785" />
+    <text
+       fill="#ffffff"
+       font-size="5.96775px"
+       font-family="monospace"
+       id="text64"
+       style="opacity:0.85;stroke-width:3.9785"
+       x="5.0268745"
+       y="6.5123253"><tspan
+         y="33.566124"
+         x="7.8118248"
+         fill="#ffffff"
+         id="tspan60"
+         style="stroke-width:3.9785">1</tspan><tspan
+         y="41.920975"
+         x="14.177425"
+         fill="#ffffff"
+         id="tspan61"
+         style="stroke-width:3.9785">GND</tspan><tspan
+         y="51.867222"
+         x="14.177425"
+         fill="#ffffff"
+         id="tspan62"
+         style="stroke-width:3.9785">VCC</tspan><tspan
+         y="62.211327"
+         x="14.177425"
+         fill="#ffffff"
+         id="tspan63"
+         style="stroke-width:3.9785">SDA</tspan><tspan
+         y="72.555428"
+         x="14.177425"
+         fill="#ffffff"
+         id="tspan64"
+         style="stroke-width:3.9785">SCL</tspan></text>
+    <rect
+       fill="url(#characters)"
+       x="54.559196"
+       y="56.442497"
+       width="223.59171"
+       height="45.75275"
+       id="rect64"
+       style="opacity:0.85;fill:url(#pattern69);stroke-width:3.9785" />
+    <path
+       d=""
+       fill="#000000"
+       id="path64"
+       style="opacity:0.85;stroke-width:3.9785" />
+    <circle
+       id="pin-GND"
+       cx="10"
+       cy="40"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="10"
+       y="35"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text65">GND</text>
+    <circle
+       id="pin-VCC"
+       cx="10"
+       cy="50"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="10"
+       y="45"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text66">VCC</text>
+    <circle
+       id="pin-SDA"
+       cx="10"
+       cy="60"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="10"
+       y="55"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text67">SDA</text>
+    <circle
+       id="pin-SCL"
+       cx="10"
+       cy="70"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="10"
+       y="65"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text68">SCL</text>
+  </g>
+</svg>

@@ -70,7 +70,9 @@ const r2 = (n) => Math.round(n * 100) / 100;
 // 7 seg/lcd ont une clé dédiée (résolue par overridesFor).
 const MAP = {
   '7seg.edit.svg': '7seg-1dig',
+  '7seg-2dig.edit.svg': '7seg-2dig',
   '7seg-4dig.edit.svg': '7seg-4dig',
+  'uno.edit.svg': 'uno',
   'button.edit.svg': 'button',
   'button-6mm.edit.svg': 'button-6mm',
   'buzzer.edit.svg': 'buzzer',

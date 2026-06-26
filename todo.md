@@ -1,12 +1,17 @@
 # À faire
 
-1. ⏳ Retoucher le schéma interne du clavier → sortir en SVG (comme les autres) ; il doit y en avoir 2 (3 ou 4 colonnes). **Bases fournies** : [`svg/keypad-schema.edit.svg`](svg/keypad-schema.edit.svg) (4×4) et [`svg/keypad-3col-schema.edit.svg`](svg/keypad-3col-schema.edit.svg) (3×4) — corps + guides de touches gris + pastilles R (rouge)/C (bleu) du connecteur. Générées par [`scripts/_gen-keypad-schema.mjs`](scripts/_gen-keypad-schema.mjs). **À faire (Frank)** : dessiner la matrice dans le groupe `#schema` (1 poussoir par croisement R×C posé sur un guide + bus ligne→Ri, colonne→Cj), garder les `id`, me les rendre → je remplace le `keypad()` programmatique de [`internal-wiring.mts`](src/webview/diagram/internal-wiring.mts) par le tracé retouché (comme prévu pour le 7 seg).
+1. ✅ Schéma interne du clavier dessiné (3×4 et 4×4) → intégré (cf. v2026.6.45).
 2. ⏳ La simulation est très lente. **Nécessite un profilage (la boucle AVR tourne déjà en temps réel `CLOCK_HZ/60`) — ne pas toucher la précision temporelle à l'aveugle.**
 1. Reprend le svg fournis dans svg retouche pour tous les composants (sauf ceux noté OK),
 1. sur les composants qui ont des power et gnd, recentre les ronds rouge ou noir sur la pastille
 1. Le clavier 4 x 3 a toujours les connexions en dehors du connecteur
 1. Le routage automatique est mieux. Ajoute : 2 Fils peuvent se croiser mais pas se chevaucher. Ecart mini entre 2 fils parallele = 5px
 1. Afficheur LCD 16x2 et 20 x 4 à retoudher, sors les dans svg retouche
+
+# v2026.6.45
+
+1. ✅ **Câblage interne du clavier = schéma dessiné à la main** (3×4 et 4×4) : remplace le `keypad()` programmatique de [`internal-wiring.mts`](src/webview/diagram/internal-wiring.mts) par les tracés Inkscape nettoyés [`src/webview/elements/keypad-schema.svg`](src/webview/elements/keypad-schema.svg) / [`keypad-3col-schema.svg`](src/webview/elements/keypad-3col-schema.svg) (matrice rangées×colonnes, 1 poussoir par croisement, **bus de lignes bleus → R**, **bus de colonnes noirs → C**). Importés comme texte, mis à l'échelle du corps (`scale`). Nettoyage : [`scripts/_clean-keypad-schema.mjs`](scripts/_clean-keypad-schema.mjs) (retire corps/guides/repères/defs path-effects ; viewBox = repère interne).
+2. ✅ **uno et 7seg-2dig recalés** (exclus en 6.44) → reportés dans [`pin-overrides.mts`](src/webview/diagram/pin-overrides.mts). uno : 31 broches (avec `A4.2`/`A5.2`). 7seg-2dig résolu par la formule `7seg-${digits}dig` d'`overridesFor`.
 
 # v2026.6.44
 

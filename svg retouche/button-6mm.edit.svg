@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="50"
+   height="40"
+   viewBox="0 0 50 40"
+   version="1.1"
+   id="svg18"
+   sodipodi:docname="button-6mm.edit.svg"
+   inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs18">
+    <defs
+       id="defs8">
+      <linearGradient
+         x1="2.178"
+         x2="9.8219995"
+         y1="2.178"
+         y2="9.8219995"
+         id="grad-up-pushbutton0"
+         gradientUnits="userSpaceOnUse"
+         gradientTransform="matrix(2.0232706,0,0,1.9629167,22.932359,18.071798)">
+        <stop
+           stop-color="#ffffff"
+           offset="0"
+           id="stop1" />
+        <stop
+           offset="0.3"
+           id="stop2"
+           stop-color="red" />
+        <stop
+           offset="0.5"
+           id="stop3"
+           stop-color="red" />
+        <stop
+           offset="1"
+           id="stop4" />
+      </linearGradient>
+      <linearGradient
+         x1="9.8219995"
+         x2="2.178"
+         y1="9.8219995"
+         y2="2.178"
+         gradientUnits="userSpaceOnUse"
+         id="grad-down-pushbutton0">
+        <stop
+           stop-color="#ffffff"
+           offset="0"
+           id="stop5" />
+        <stop
+           offset="0.3"
+           id="stop6"
+           stop-color="red" />
+        <stop
+           offset="0.5"
+           id="stop7"
+           stop-color="red" />
+        <stop
+           offset="1"
+           id="stop8" />
+      </linearGradient>
+    </defs>
+  </defs>
+  <sodipodi:namedview
+     id="namedview18"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="true"
+     inkscape:zoom="8"
+     inkscape:cx="12.9375"
+     inkscape:cy="4.875"
+     inkscape:window-width="1920"
+     inkscape:window-height="1057"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg18">
+    <inkscape:grid
+       id="grid18"
+       units="px"
+       originx="0.34999999"
+       originy="0.34999999"
+       spacingx="10"
+       spacingy="10"
+       empcolor="#3f3fff"
+       empopacity="0.25098039"
+       color="#3f3fff"
+       opacity="0.1254902"
+       empspacing="1"
+       enabled="true"
+       visible="true" />
+  </sodipodi:namedview>
+  <!-- Retouche brochage button-6mm : déplace chaque pastille rouge sur un CROISEMENT (lignes foncées = 50 px). Garde les id pin-<nom>. Marge 20 px. -->
+  <g
+     id="g24"
+     transform="translate(-9.65,-9.65)">
+    <g
+       id="g23">
+      <rect
+         style="opacity:0.85;fill:#b3b3b3;stroke-width:3.26898;paint-order:stroke markers fill"
+         id="rect18"
+         width="2.9441521"
+         height="1.6769104"
+         x="20"
+         y="19.161545"
+         rx="0.028297516"
+         ry="0.028297514" />
+      <rect
+         style="opacity:0.85;fill:#b3b3b3;stroke-width:3.19817;paint-order:stroke markers fill"
+         id="rect18-5"
+         width="2.932354"
+         height="1.6769104"
+         x="20"
+         y="39.161545"
+         rx="0.027084205"
+         ry="0.027084207" />
+      <rect
+         style="opacity:0.85;fill:#b3b3b3;stroke-width:3.19817;paint-order:stroke markers fill"
+         id="rect18-0"
+         width="2.8603771"
+         height="1.6769104"
+         x="47.139622"
+         y="19.161545"
+         rx="0.027084205"
+         ry="0.027084207" />
+      <rect
+         style="opacity:0.85;fill:#b3b3b3;stroke-width:3.19817;paint-order:stroke markers fill"
+         id="rect18-0-4"
+         width="2.8603771"
+         height="1.6769104"
+         x="47.139622"
+         y="39.161545"
+         rx="0.027084205"
+         ry="0.027084207" />
+      <g
+         id="g22"
+         transform="translate(-0.07198071)">
+        <g
+           id="g21">
+          <rect
+             x="22.932358"
+             y="18.071798"
+             width="24.279245"
+             height="23.555"
+             rx="0.83148426"
+             ry="0.83148438"
+             fill="#464646"
+             id="rect8"
+             style="opacity:0.85;stroke-width:1.88973" />
+          <rect
+             x="24.449808"
+             y="19.543985"
+             width="21.244343"
+             height="20.610626"
+             rx="0.39873451"
+             ry="0.39873454"
+             fill="#eaeaea"
+             id="rect9"
+             style="opacity:0.85;stroke-width:1.88973" />
+        </g>
+        <ellipse
+           cx="35.07198"
+           cy="29.849298"
+           id="circle15"
+           fill="url(#grad-up-pushbutton0)"
+           style="opacity:0.85;fill:url(#grad-up-pushbutton0);stroke-width:1.88974"
+           rx="7.7329402"
+           ry="7.5022678" />
+      </g>
+      <ellipse
+         class="button-active-circle"
+         cx="35.071976"
+         cy="29.849298"
+         id="circle16"
+         style="opacity:0.85;fill:url(#grad-down-$%7BuniqueId%7D);stroke-width:1.88974"
+         fill="url(#grad-down-pushbutton0)"
+         rx="7.7329402"
+         ry="7.5022678" />
+      <ellipse
+         cx="35.071976"
+         cy="29.849298"
+         stroke="#2f2f2f"
+         stroke-opacity="0.47"
+         stroke-width="0.151179"
+         id="circle17"
+         fill="#ff0000"
+         style="opacity:0.85"
+         rx="5.867485"
+         ry="5.6924586" />
+    </g>
+    <ellipse
+       id="pin-1.l"
+       cx="20"
+       cy="20"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5"
+       rx="3.4033079"
+       ry="3.2786157" />
+    <text
+       x="19.630196"
+       y="15.157427"
+       font-size="5.21934px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text14"
+       style="stroke-width:1"
+       transform="scale(1.0188385,0.98150981)">1.l</text>
+    <ellipse
+       id="pin-2.l"
+       cx="20"
+       cy="40"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5"
+       rx="3.4033079"
+       ry="3.2786157" />
+    <text
+       x="19.630196"
+       y="35.534195"
+       font-size="5.21934px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text15"
+       style="stroke-width:1"
+       transform="scale(1.0188385,0.98150982)">2.l</text>
+    <ellipse
+       id="pin-1.r"
+       cx="50"
+       cy="20"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5"
+       rx="3.4033079"
+       ry="3.2786157" />
+    <text
+       x="49.075493"
+       y="15.157427"
+       font-size="5.21934px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text16"
+       style="stroke-width:1"
+       transform="scale(1.0188385,0.98150981)">1.r</text>
+    <ellipse
+       id="pin-2.r"
+       cx="50"
+       cy="40"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5"
+       rx="3.4033079"
+       ry="3.2786157" />
+    <text
+       x="49.075493"
+       y="35.534199"
+       font-size="5.21934px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text17"
+       style="stroke-width:1"
+       transform="scale(1.0188385,0.98150981)">2.r</text>
+  </g>
+</svg>

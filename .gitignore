@@ -3,6 +3,4 @@ dist/
 *.vsix
 .DS_Store
 test-assets/
-# Fichiers de travail de retouche de brochage (générés/édités localement,
-# renommés .OK/.PB par l'utilisateur) — hors suivi, comme le reste du dossier.
-svg retouche/
+

@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="116" height="116" viewBox="0 0 116 116">
+  <!-- Retouche brochage pot : déplace chaque pastille rouge sur un CROISEMENT (lignes foncées = 50 px). Garde les id pin-<nom>. Marge 20 px. -->
+  <rect width="116" height="116" fill="#fff"/>
+  <g id="grid"><line x1="0" y1="0" x2="0" y2="116" stroke="#7fb0ff" stroke-width="0.7"/><line x1="10" y1="0" x2="10" y2="116" stroke="#cfe3ff" stroke-width="0.4"/><line x1="20" y1="0" x2="20" y2="116" stroke="#cfe3ff" stroke-width="0.4"/><line x1="30" y1="0" x2="30" y2="116" stroke="#cfe3ff" stroke-width="0.4"/><line x1="40" y1="0" x2="40" y2="116" stroke="#cfe3ff" stroke-width="0.4"/><line x1="50" y1="0" x2="50" y2="116" stroke="#7fb0ff" stroke-width="0.7"/><line x1="60" y1="0" x2="60" y2="116" stroke="#cfe3ff" stroke-width="0.4"/><line x1="70" y1="0" x2="70" y2="116" stroke="#cfe3ff" stroke-width="0.4"/><line x1="80" y1="0" x2="80" y2="116" stroke="#cfe3ff" stroke-width="0.4"/><line x1="90" y1="0" x2="90" y2="116" stroke="#cfe3ff" stroke-width="0.4"/><line x1="100" y1="0" x2="100" y2="116" stroke="#7fb0ff" stroke-width="0.7"/><line x1="110" y1="0" x2="110" y2="116" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="0" x2="116" y2="0" stroke="#7fb0ff" stroke-width="0.7"/><line x1="0" y1="10" x2="116" y2="10" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="20" x2="116" y2="20" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="30" x2="116" y2="30" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="40" x2="116" y2="40" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="50" x2="116" y2="50" stroke="#7fb0ff" stroke-width="0.7"/><line x1="0" y1="60" x2="116" y2="60" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="70" x2="116" y2="70" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="80" x2="116" y2="80" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="90" x2="116" y2="90" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="100" x2="116" y2="100" stroke="#7fb0ff" stroke-width="0.7"/><line x1="0" y1="110" x2="116" y2="110" stroke="#cfe3ff" stroke-width="0.4"/></g>
+  <g id="board" opacity="0.85" transform="translate(20,20) scale(3.7795) translate(0.00,0.00)">
+      <defs>
+        <filter id="outline">
+          <feDropShadow id="glow" dx="0" dy="0" stdDeviation="0.5" flood-color="cyan"></feDropShadow>
+        </filter>
+      </defs>
+      <rect x=".15" y=".15" width="19.5" height="19.5" ry="1.23" fill="#045881" stroke="#045881" stroke-width=".30"></rect>
+      <rect x="5.4" y=".70" width="9.1" height="1.9" fill="#ccdae3" stroke-width=".15"></rect>
+      <ellipse id="knob" rx="7.27" ry="7.43" fill="#e4e8eb" stroke-width=".15" cx="9.91" cy="8.18"></ellipse>
+      <rect x="6" y="17" width="8" height="2" fill-opacity="0" stroke="#fff" stroke-width=".30"></rect>
+      <g stroke-width=".15">
+        
+        
+        
+      </g>
+      <g fill="#fff" stroke-width=".15">
+        <ellipse cx="1.68" cy="1.81" rx=".99" ry=".96"></ellipse>
+        <ellipse cx="1.48" cy="18.37" rx=".99" ry=".96"></ellipse>
+        <ellipse cx="17.97" cy="18.47" rx=".99" ry=".96"></ellipse>
+        <ellipse cx="18.07" cy="1.91" rx=".99" ry=".96"></ellipse>
+      </g>
+      <g fill="#b3b1b0" stroke-width=".15">
+        <ellipse cx="7.68" cy="18" rx=".61" ry=".63"></ellipse>
+        <ellipse cx="10.22" cy="18" rx=".61" ry=".63"></ellipse>
+        <ellipse cx="12.76" cy="18" rx=".61" ry=".63"></ellipse>
+      </g>
+      <ellipse cx="9.95" cy="8.06" rx="6.60" ry="6.58" fill="#c3c2c3" stroke-width=".15"></ellipse>
+      <rect id="rotating" x="10" y="2" width=".42" height="3.1" stroke-width=".15"></rect>
+      <rect x="0" y="9.5" width="1" height="1" fill="none" id="firefox-workaround"></rect>
+    </g>
+  <g id="pins"><g><circle id="pin-GND" cx="49.00" cy="88.50" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="49.00" y="83.50" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">GND</text></g><g><circle id="pin-SIG" cx="59.00" cy="88.50" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="59.00" y="83.50" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">SIG</text></g><g><circle id="pin-VCC" cx="69.00" cy="88.50" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="69.00" y="83.50" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">VCC</text></g></g>
+</svg>

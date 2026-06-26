@@ -1,0 +1,363 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="184.95233"
+   height="113.27751"
+   viewBox="0 0 184.95233 113.27751"
+   version="1.1"
+   id="svg59"
+   sodipodi:docname="hcsr04.edit.svg"
+   inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs59">
+    <defs
+       id="defs42">
+      <pattern
+         patternUnits="userSpaceOnUse"
+         width="2"
+         height="2"
+         id="checkerboard">
+        <path
+           d="M0 0h1v1H0zM1 1h1v1H1z"
+           id="path36" />
+      </pattern>
+      <radialGradient
+         id="grad1"
+         cx="8.96"
+         cy="10.04"
+         r="3.5799999"
+         gradientUnits="userSpaceOnUse">
+        <stop
+           stop-color="#777"
+           offset="0"
+           id="stop36" />
+        <stop
+           stop-color="#b9b9b9"
+           offset="1"
+           id="stop37" />
+      </radialGradient>
+      <g
+         id="sensor-unit">
+        <circle
+           cx="8.9799995"
+           cy="10"
+           r="8.6099997"
+           fill="#dcdcdc"
+           id="circle37" />
+        <circle
+           cx="8.9799995"
+           cy="10"
+           r="7.1700001"
+           fill="#222222"
+           id="circle38" />
+        <circle
+           cx="8.9799995"
+           cy="10"
+           r="5.5300002"
+           fill="#777777"
+           fill-opacity="0.992"
+           id="circle39" />
+        <circle
+           cx="8.9799995"
+           cy="10"
+           r="3.5899999"
+           fill="url(#grad1)"
+           id="circle40" />
+        <circle
+           cx="8.9899998"
+           cy="10"
+           r="0.27700001"
+           fill="#777777"
+           fill-opacity="0.818"
+           id="circle41" />
+        <circle
+           cx="8.9799995"
+           cy="10"
+           r="5.5300002"
+           fill="url(#checkerboard)"
+           opacity="0.397"
+           id="circle42" />
+      </g>
+    </defs>
+  </defs>
+  <sodipodi:namedview
+     id="namedview59"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="true"
+     inkscape:zoom="3.1555556"
+     inkscape:cx="24.401408"
+     inkscape:cy="88.732394"
+     inkscape:window-width="1920"
+     inkscape:window-height="1057"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg59">
+    <inkscape:grid
+       id="grid59"
+       units="px"
+       originx="-9.9999999"
+       originy="-3.1371638"
+       spacingx="10"
+       spacingy="10"
+       empcolor="#3f3fff"
+       empopacity="0.25098039"
+       color="#3f3fff"
+       opacity="0.1254902"
+       empspacing="1"
+       enabled="true"
+       visible="true" />
+  </sodipodi:namedview>
+  <!-- Retouche brochage hcsr04 : déplace chaque pastille rouge sur un CROISEMENT (lignes foncées = 50 px). Garde les id pin-<nom>. Marge 20 px. -->
+  <g
+     id="g60"
+     transform="translate(-11.362476,-3.9674283)">
+    <path
+       d="M 15.256873,7.6287019 V 90.108469 H 192.42041 V 7.6287019 Z M 20.855241,9.4556358 A 3.9369676,3.9373576 0 0 1 20.870989,9.4556358 3.9369676,3.9373576 0 0 1 24.807956,13.392993 3.9369676,3.9373576 0 0 1 20.870989,17.330351 3.9369676,3.9373576 0 0 1 16.934021,13.392993 3.9369676,3.9373576 0 0 1 20.855241,9.4556358 Z M 186.03465,9.4556358 A 3.9369676,3.9373576 0 0 1 186.0504,9.4556358 3.9369676,3.9373576 0 0 1 189.98737,13.392993 3.9369676,3.9373576 0 0 1 186.0504,17.330351 3.9369676,3.9373576 0 0 1 182.11343,13.392993 3.9369676,3.9373576 0 0 1 186.03465,9.4556358 Z M 20.855241,80.40682 A 3.9369676,3.9373576 0 0 1 20.870989,80.40682 3.9369676,3.9373576 0 0 1 24.807956,84.344178 3.9369676,3.9373576 0 0 1 20.870989,88.281535 3.9369676,3.9373576 0 0 1 16.934021,84.344178 3.9369676,3.9373576 0 0 1 20.855241,80.40682 Z M 186.03465,80.40682 A 3.9369676,3.9373576 0 0 1 186.0504,80.40682 3.9369676,3.9373576 0 0 1 189.98737,84.344178 3.9369676,3.9373576 0 0 1 186.0504,88.281535 3.9369676,3.9373576 0 0 1 182.11343,84.344178 3.9369676,3.9373576 0 0 1 186.03465,80.40682 Z"
+       fill="#456f93"
+       id="path42"
+       style="opacity:0.85;stroke-width:3.7795" />
+    <path
+       d="M 75.464918,30.811864 87.015982,19.259656 V 31.559961 L 98.606413,43.147605 V 83.084223 M 106.86618,82.584178 V 72.847093 L 103.06306,69.047543 V 19.830574 L 113.20863,25.689361 131.87379,44.356374"
+       fill="none"
+       stroke="#355a7c"
+       stroke-width="3.24281"
+       id="path43"
+       style="opacity:0.85" />
+    <use
+       xlink:href="#sensor-unit"
+       id="use43"
+       transform="matrix(3.9369676,0,0,3.9373576,15.256873,7.6287019)"
+       style="opacity:0.85;stroke-width:0.959955" />
+    <use
+       xlink:href="#sensor-unit"
+       x="27.120001"
+       id="use44"
+       transform="matrix(3.9369676,0,0,3.9373576,15.256873,7.6287019)"
+       style="opacity:0.85;stroke-width:0.959955" />
+    <g
+       fill="none"
+       stroke="#505132"
+       stroke-width="0.353264"
+       id="g47"
+       transform="matrix(3.9369676,0,0,3.9373576,15.256873,7.6287019)"
+       style="opacity:0.85">
+      <circle
+         cx="43.400002"
+         cy="1.46"
+         r="1"
+         id="circle44"
+         style="stroke-width:0.353264" />
+      <circle
+         cx="43.400002"
+         cy="19.5"
+         r="1"
+         id="circle45"
+         style="stroke-width:0.353264" />
+      <circle
+         cx="1.4299999"
+         cy="1.46"
+         r="1"
+         id="circle46"
+         style="stroke-width:0.353264" />
+      <circle
+         cx="1.4299999"
+         cy="19.5"
+         r="1"
+         id="circle47"
+         style="stroke-width:0.353264" />
+    </g>
+    <rect
+       ry="7.8235645"
+       y="10.093488"
+       x="82.622322"
+       height="16.296722"
+       width="40.440533"
+       fill="#878787"
+       stroke="#424242"
+       stroke-width="1.39086"
+       id="rect47"
+       rx="7.8235645"
+       style="opacity:0.85" />
+    <g
+       fill="#000000"
+       id="g51"
+       transform="matrix(3.9369676,0,0,3.9373576,15.256873,7.6287019)"
+       style="opacity:0.85;stroke-width:0.959955">
+      <rect
+         x="17.870001"
+         y="18"
+         ry="0.54522759"
+         width="2.25"
+         height="2.2709999"
+         id="rect48"
+         rx="0.54528165"
+         style="stroke-width:0.959955" />
+      <rect
+         x="20.41"
+         y="18"
+         ry="0.54522759"
+         width="2.25"
+         height="2.2709999"
+         id="rect49"
+         rx="0.54528165"
+         style="stroke-width:0.959955" />
+      <rect
+         x="22.950001"
+         y="18"
+         ry="0.54522759"
+         width="2.25"
+         height="2.2709999"
+         id="rect50"
+         rx="0.54528165"
+         style="stroke-width:0.959955" />
+      <rect
+         x="25.49"
+         y="18"
+         ry="0.54522759"
+         width="2.25"
+         height="2.2709999"
+         id="rect51"
+         rx="0.54528165"
+         style="stroke-width:0.959955" />
+    </g>
+    <rect
+       x="88.523842"
+       y="82.438499"
+       width="2.9527256"
+       height="27.561502"
+       rx="0.75590003"
+       id="rect52"
+       ry="0.75590003"
+       style="opacity:0.85;fill:#cccccc;stroke-width:0.793695;stroke-linecap:round" />
+    <rect
+       x="98.523743"
+       y="82.438499"
+       width="2.9527256"
+       height="27.561502"
+       rx="0.75590003"
+       id="rect53"
+       ry="0.75590003"
+       style="opacity:0.85;fill:#cccccc;stroke-width:0.793695;stroke-linecap:round" />
+    <rect
+       x="108.52364"
+       y="82.438499"
+       width="2.9527256"
+       height="27.561502"
+       rx="0.75590003"
+       id="rect54"
+       ry="0.75590003"
+       style="opacity:0.85;fill:#cccccc;stroke-width:0.793695;stroke-linecap:round" />
+    <rect
+       x="118.52354"
+       y="82.438499"
+       width="2.9527256"
+       height="27.561502"
+       rx="0.75590003"
+       id="rect55"
+       ry="0.75590003"
+       style="opacity:0.85;fill:#cccccc;stroke-width:0.793695;stroke-linecap:round" />
+    <g
+       id="g56"
+       transform="matrix(1.0416636,0,0,1.0417668,-5.1036839,-9.2822986)"
+       style="stroke-width:0.959955">
+      <circle
+         id="pin-VCC"
+         cx="91.300003"
+         cy="114.5"
+         r="3.2"
+         fill="#ee0000"
+         fill-opacity="0.85"
+         stroke="#770000"
+         stroke-width="0.479978" />
+      <text
+         x="91.300003"
+         y="109.5"
+         font-size="5px"
+         fill="#aa0000"
+         text-anchor="middle"
+         font-family="sans-serif"
+         id="text55"
+         style="stroke-width:0.959955">VCC</text>
+    </g>
+    <g
+       id="g57"
+       transform="matrix(1.0416636,0,0,1.0417668,-5.5205259,-9.2822986)"
+       style="stroke-width:0.959955">
+      <circle
+         id="pin-TRIG"
+         cx="101.3"
+         cy="114.5"
+         r="3.2"
+         fill="#ee0000"
+         fill-opacity="0.85"
+         stroke="#770000"
+         stroke-width="0.479978" />
+      <text
+         x="101.3"
+         y="109.5"
+         font-size="5px"
+         fill="#aa0000"
+         text-anchor="middle"
+         font-family="sans-serif"
+         id="text56"
+         style="stroke-width:0.959955">TRIG</text>
+    </g>
+    <g
+       id="g58"
+       transform="matrix(1.0416636,0,0,1.0417668,-5.9371619,-9.2822986)"
+       style="stroke-width:0.959955">
+      <circle
+         id="pin-ECHO"
+         cx="111.3"
+         cy="114.5"
+         r="3.2"
+         fill="#ee0000"
+         fill-opacity="0.85"
+         stroke="#770000"
+         stroke-width="0.479978" />
+      <text
+         x="111.3"
+         y="109.5"
+         font-size="5px"
+         fill="#aa0000"
+         text-anchor="middle"
+         font-family="sans-serif"
+         id="text57"
+         style="stroke-width:0.959955">ECHO</text>
+    </g>
+    <g
+       id="g59"
+       transform="matrix(1.0416636,0,0,1.0417668,-6.353897,-9.2822986)"
+       style="stroke-width:0.959955">
+      <circle
+         id="pin-GND"
+         cx="121.3"
+         cy="114.5"
+         r="3.2"
+         fill="#ee0000"
+         fill-opacity="0.85"
+         stroke="#770000"
+         stroke-width="0.479978" />
+      <text
+         x="121.3"
+         y="109.5"
+         font-size="5px"
+         fill="#aa0000"
+         text-anchor="middle"
+         font-family="sans-serif"
+         id="text58"
+         style="stroke-width:0.959955">GND</text>
+    </g>
+  </g>
+</svg>

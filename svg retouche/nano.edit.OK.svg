@@ -1,0 +1,175 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="217" height="111" viewBox="0 0 217 111">
+  <!-- Retouche brochage nano : déplace chaque pastille rouge sur un CROISEMENT (lignes foncées = 50 px). Garde les id pin-<nom>. Marge 20 px. -->
+  <rect width="217" height="111" fill="#fff"/>
+  <g id="grid"><line x1="0" y1="0" x2="0" y2="111" stroke="#7fb0ff" stroke-width="0.7"/><line x1="10" y1="0" x2="10" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="20" y1="0" x2="20" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="30" y1="0" x2="30" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="40" y1="0" x2="40" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="50" y1="0" x2="50" y2="111" stroke="#7fb0ff" stroke-width="0.7"/><line x1="60" y1="0" x2="60" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="70" y1="0" x2="70" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="80" y1="0" x2="80" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="90" y1="0" x2="90" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="100" y1="0" x2="100" y2="111" stroke="#7fb0ff" stroke-width="0.7"/><line x1="110" y1="0" x2="110" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="120" y1="0" x2="120" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="130" y1="0" x2="130" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="140" y1="0" x2="140" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="150" y1="0" x2="150" y2="111" stroke="#7fb0ff" stroke-width="0.7"/><line x1="160" y1="0" x2="160" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="170" y1="0" x2="170" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="180" y1="0" x2="180" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="190" y1="0" x2="190" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="200" y1="0" x2="200" y2="111" stroke="#7fb0ff" stroke-width="0.7"/><line x1="210" y1="0" x2="210" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="0" x2="217" y2="0" stroke="#7fb0ff" stroke-width="0.7"/><line x1="0" y1="10" x2="217" y2="10" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="20" x2="217" y2="20" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="30" x2="217" y2="30" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="40" x2="217" y2="40" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="50" x2="217" y2="50" stroke="#7fb0ff" stroke-width="0.7"/><line x1="0" y1="60" x2="217" y2="60" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="70" x2="217" y2="70" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="80" x2="217" y2="80" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="90" x2="217" y2="90" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="100" x2="217" y2="100" stroke="#7fb0ff" stroke-width="0.7"/><line x1="0" y1="110" x2="217" y2="110" stroke="#cfe3ff" stroke-width="0.4"/></g>
+  <g id="board" opacity="0.85" transform="translate(20,20) scale(3.9370) translate(1.40,0.00)">
+        <defs>
+          <filter id="solderPlate" style="color-interpolation-filters:sRGB;">
+            <feTurbulence result="r0" type="fractalNoise" baseFrequency="1" numOctaves="1"></feTurbulence>
+            <feComposite result="r1" in="r0" in2="SourceGraphic" operator="arithmetic" k1=".6" k2=".6" k3="1.2" k4=".25"></feComposite>
+            <feBlend result="r2" in="r1" in2="SourceGraphic" mode="luminosity"></feBlend>
+            <feComposite result="r3" in="r2" in2="SourceGraphic" operator="in"></feComposite>
+          </filter>
+          <pattern id="pins-tqfp-0.5mm" width="1" height=".5" patternUnits="userSpaceOnUse">
+            <rect fill="#333" width="1" height=".2" y=".17"></rect>
+          </pattern>
+          <pattern id="pins-pth-0.75" width="2.54" height="2.54" patternUnits="userSpaceOnUse">
+            <circle r=".75" cx="1.27" cy="1.27" fill="#333" filter="url(#solderPlate)"></circle>
+            <g stroke="#333" stroke-width=".05" paint-order="stroke fill">
+              <circle r=".375" cx="1.27" cy="1.27" fill="#eee"></circle>
+            </g>
+          </pattern>
+          <pattern id="pins-pth-1.00" width="2.54" height="2.54" patternUnits="userSpaceOnUse">
+            <circle r=".75" cx="1.27" cy="1.27" fill="#333" filter="url(#solderPlate)"></circle>
+            <g stroke="#333" stroke-width=".05" paint-order="stroke fill">
+              <circle r=".5" cx="1.27" cy="1.27" fill="#eee"></circle>
+            </g>
+          </pattern>
+          <g id="led-body" fill="#eee">
+            <rect x="0" y="0" height="1.2" width="2.6" fill="#333" filter="url(#solderPlate)"></rect>
+            <rect x=".6" y="-0.1" width="1.35" height="1.4" stroke="#aaa" stroke-width=".05"></rect>
+          </g>
+          <filter id="ledFilter" x="-0.8" y="-0.8" height="2.2" width="2.8">
+            <feGaussianBlur stdDeviation=".5"></feGaussianBlur>
+          </filter>
+        </defs>
+
+        <!-- PCB -->
+        <g id="pcb" fill="#fff">
+          <rect width="43.5" height="17.8" x="0" y="0" fill="#1b7e84"></rect>
+          <circle cx="1" cy="1" r=".889"></circle>
+          <circle cx="42.42" cy="1" r=".889"></circle>
+          <circle cx="42.42" cy="16.6" r=".889"></circle>
+          <circle cx="1" cy="16.6" r=".889"></circle>
+        </g>
+
+        <!-- silkscreen -->
+        <g id="silkscreen" fill="#eee" text-anchor="middle">
+          <rect x="30.48" y="0" width="2.54" height="3.2"></rect>
+          <rect x="35.56" y="14.6" width="2.54" height="3.2"></rect>
+          <g fill="#1b7e84" transform="translate(1.27 1.27)">
+            <circle r=".85" cx="30.48"></circle>
+            <circle r=".85" cx="35.56" cy="15.24"></circle>
+          </g>
+          <g transform="translate(1.27 3)">
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+          </g>
+          <g transform="translate(1.27 15.5)">
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+          </g>
+          <g transform="rotate(90)">
+            
+            
+            
+            
+            
+            
+            
+          </g>
+        </g>
+
+        <!-- MCU -->
+        <g id="mcu" transform="rotate(45 -2.978 23.39)">
+          <g fill="url(#pins-tqfp-0.5mm)" filter="url(#solderPlate)">
+            <rect x="-2.65" y="-1.975" width="5.3" height="3.95"></rect>
+            <rect x="-2.65" y="-1.975" width="5.3" height="3.95" transform="rotate(90)"></rect>
+          </g>
+          <rect x="-2.275" y="-2.275" width="4.55" height="4.55" fill="#444"></rect>
+          <circle transform="rotate(45)" cx=".012" cy="-2.5" r=".35" fill="#222"></circle>
+        </g>
+
+        <!-- pins -->
+        <g id="pins" fill="url(#pins-pth-0.75)">
+          <g id="pins-pin1" fill="#333" filter="url(#solderPlate)">
+            <rect width="1.75" height="1.75" x="38.495" y="0.395"></rect>
+            <rect width="1.75" height="1.75" x="38.495" y="15.635000000000002"></rect>
+          </g>
+          <rect x="2.54" height="2.54" width="38.1"></rect>
+          <rect x="2.54" height="2.54" y="15.24" width="38.1"></rect>
+        </g>
+
+        <!-- programming header -->
+        <g id="pgm-header" fill="url(#pins-pth-1.00)" stroke="#eee" stroke-width=".1">
+          <g id="pgm-pin1" stroke="none" fill="#333" filter="url(#solderPlate)">
+            <rect width="1.75" height="1.75" x="41.035000000000004" y="10.555"></rect>
+          </g>
+          <rect x="38.1" y="5.08" width="5.08" height="7.62"></rect>
+        </g>
+
+        <!-- USB mini type B -->
+        <g id="usb-mini-b" stroke-width=".1" paint-order="stroke fill">
+          <g fill="#333" filter="url(#solderPlate)">
+            <rect x=".3" y="3.8" width="1.6" height="9.8"></rect>
+            <rect x="5.5" y="3.8" width="1.6" height="9.8"></rect>
+            <rect x="7.3" y="7.07" width="1.1" height=".48"></rect>
+            <rect x="7.3" y="7.82" width="1.1" height=".48"></rect>
+            <rect x="7.3" y="8.58" width="1.1" height=".48"></rect>
+            <rect x="7.3" y="9.36" width="1.1" height=".48"></rect>
+            <rect x="7.3" y="10.16" width="1.1" height=".48"></rect>
+          </g>
+          <rect x="-1.4" y="4.8" width="8.9" height="7.8" fill="#999" stroke-width=".26"></rect>
+          <rect x="-1.25" y="5" width="8.6" height="7.4" fill="#ccc" stroke="#bbb"></rect>
+          <g fill="none" stroke="#333" stroke-width=".26" stroke-linecap="round">
+            <path d="m2.6 5.9h-3.3v0.9h3.3m0 3.7h-3.3v0.9h3.3M-0.6 7.6l4.3 0.3v1.5l-4.3 0.3"></path>
+            <path d="m3.3 7.9v1.5" stroke-width="1" stroke-linecap="butt"></path>
+            <path d="m6 6.4v4.5" stroke-width=".35"></path>
+          </g>
+        </g>
+
+        <!-- LEDs -->
+        <g transform="translate(27.7 5)">
+          <use xlink:href="#led-body"></use>
+          <!--?lit$396794365$-->false
+        </g>
+        <g transform="translate(27.7 7)">
+          <use xlink:href="#led-body"></use>
+          <!--?lit$396794365$-->false
+        </g>
+        <g transform="translate(27.7 9)">
+          <use xlink:href="#led-body"></use>
+          <!--?lit$396794365$-->false
+        </g>
+        <g transform="translate(27.7 11)">
+          <use xlink:href="#led-body"></use>
+          <!--?lit$396794365$-->false
+        </g>
+
+        <!-- reset button -->
+        <g stroke-width=".1" paint-order="fill stroke">
+          <rect x="24.3" y="6.3" width="1" height="4.8" filter="url(#solderPlate)" fill="#333"></rect>
+          <rect x="23.54" y="6.8" width="2.54" height="3.8" fill="#ccc" stroke="#888"></rect>
+          <circle id="reset-button" cx="24.8" cy="8.7" r="1" fill="#eeb" stroke="#777" tabindex="0"></circle>
+        </g>
+      </g>
+  <g id="pins"><g><circle id="pin-12" cx="40.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="40.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">12</text></g><g><circle id="pin-11" cx="50.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="50.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">11</text></g><g><circle id="pin-10" cx="60.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="60.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">10</text></g><g><circle id="pin-9" cx="70.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="70.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">9</text></g><g><circle id="pin-8" cx="80.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="80.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">8</text></g><g><circle id="pin-7" cx="90.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="90.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">7</text></g><g><circle id="pin-6" cx="100.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="100.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">6</text></g><g><circle id="pin-5" cx="110.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="110.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">5</text></g><g><circle id="pin-4" cx="120.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="120.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">4</text></g><g><circle id="pin-3" cx="130.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="130.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">3</text></g><g><circle id="pin-2" cx="140.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="140.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">2</text></g><g><circle id="pin-GND.2" cx="150.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="150.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">GND.2</text></g><g><circle id="pin-RESET.2" cx="160.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="160.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">RESET.2</text></g><g><circle id="pin-0" cx="170.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="170.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">0</text></g><g><circle id="pin-1" cx="180.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="180.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">1</text></g><g><circle id="pin-13" cx="40.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="40.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">13</text></g><g><circle id="pin-3.3V" cx="50.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="50.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">3.3V</text></g><g><circle id="pin-AREF" cx="60.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="60.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">AREF</text></g><g><circle id="pin-A0" cx="70.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="70.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">A0</text></g><g><circle id="pin-A1" cx="80.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="80.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">A1</text></g><g><circle id="pin-A2" cx="90.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="90.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">A2</text></g><g><circle id="pin-A3" cx="100.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="100.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">A3</text></g><g><circle id="pin-A4" cx="110.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="110.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">A4</text></g><g><circle id="pin-A5" cx="120.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="120.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">A5</text></g><g><circle id="pin-A6" cx="130.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="130.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">A6</text></g><g><circle id="pin-A7" cx="140.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="140.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">A7</text></g><g><circle id="pin-5V" cx="150.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="150.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">5V</text></g><g><circle id="pin-RESET" cx="160.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="160.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">RESET</text></g><g><circle id="pin-GND.1" cx="170.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="170.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">GND.1</text></g><g><circle id="pin-VIN" cx="180.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="180.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">VIN</text></g><g><circle id="pin-12.2" cx="190.52" cy="65.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="190.52" y="60.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">12.2</text></g><g><circle id="pin-5V.2" cx="180.52" cy="65.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="180.52" y="60.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">5V.2</text></g><g><circle id="pin-13.2" cx="190.52" cy="55.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="190.52" y="50.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">13.2</text></g><g><circle id="pin-11.2" cx="180.52" cy="55.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="180.52" y="50.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">11.2</text></g><g><circle id="pin-RESET.3" cx="190.52" cy="45.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="190.52" y="40.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">RESET.3</text></g><g><circle id="pin-GND.3" cx="180.52" cy="45.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="180.52" y="40.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">GND.3</text></g></g>
+</svg>
