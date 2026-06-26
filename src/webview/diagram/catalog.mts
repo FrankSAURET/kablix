@@ -505,7 +505,8 @@ export function mcuPinRole(board: BoardId, pin: string): PinRole {
   const a = /^A(\d+)$/.exec(pin);
   if (a) return { role: 'digital', name: pin, adcChannel: Number(a[1]) };
   if (pin.startsWith('GND')) return { role: 'gnd' };
-  if (pin === '5V' || pin === '3.3V' || pin === 'VIN' || pin === 'IOREF') return { role: 'vcc' };
+  // `5V`, `5V.1`, `5V.2`… (le Mega expose plusieurs broches 5 V).
+  if (pin.startsWith('5V') || pin === '3.3V' || pin === 'VIN' || pin === 'IOREF') return { role: 'vcc' };
   return { role: 'other' };
 }
 
@@ -522,6 +523,9 @@ const MEGA_PINS: readonly string[] = [
   ...Array.from({ length: 54 }, (_, i) => `${i}`), // 0..53
   ...Array.from({ length: 16 }, (_, i) => `A${i}`), // A0..A15
   'SDA', 'SCL', 'GND.1', 'GND.2', 'GND.3', 'GND.4', 'GND.5', '5V', '3.3V', 'VIN',
+  // Broches supplémentaires du dessin Wokwi (sinon non câblables en simu) :
+  // 2e 5 V, AREF, IOREF, RESET et le 2e jeu SDA/SCL (A4.2/A5.2).
+  '5V.1', '5V.2', 'IOREF', 'AREF', 'RESET', 'A4.2', 'A5.2',
 ];
 
 const PICO_PINS: readonly string[] = [

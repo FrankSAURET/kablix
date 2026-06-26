@@ -1271,7 +1271,10 @@ export class Editor {
     // L'élément @wokwi est conservé mais masqué (pinInfo + simulation).
     const drawing = boardDrawing(part.type);
     if (drawing) {
-      el.style.display = 'none';
+      // Élément @wokwi conservé pour pinInfo + simulation, mais rendu invisible
+      // et HORS FLUX (pas `display:none`, qui empêche le rendu du shadow DOM dont
+      // dépendent clavier/canvas/init). Le corps se dimensionne alors sur le SVG.
+      el.classList.add('part__src-el');
       const draw = document.createElement('div');
       draw.className = 'part__drawing';
       draw.innerHTML = drawing.svg;

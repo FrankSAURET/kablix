@@ -8,6 +8,12 @@
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
 7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → bases générées (v2026.6.46), à retoucher par Frank.
 
+# v2026.6.49
+
+1. ✅ **Masquage élément @wokwi** : `visibility:hidden` hors flux (classe `.part__src-el`) au lieu de `display:none`, qui empêchait le rendu du shadow DOM (clavier/canvas). Le composant à dessin retouché garde sa simulation.
+2. ✅ **Broches mega câblables complétées** : `MEGA_PINS` + `mcuPinRole` reconnaissent `5V.1`/`5V.2` (2e 5 V), `AREF`, `IOREF`, `RESET`, `A4.2`/`A5.2` (sinon non câblables en simu → une LED sur ces broches restait éteinte).
+3. ⏳ **Simulation mega (atmega2560) : le programme ne s'exécute pas** (PC bloqué, composants câblés inertes ; l'Uno marche). Chemin **jamais testé** (verify-sim ne couvre que l'Uno) et **indépendant** du dessin/des surcharges (fichiers `compiler.ts`/`sim.mts`/`avr.mts` non modifiés). À traiter en tâche dédiée (besoin du log de compilation d'un vrai run).
+
 # v2026.6.48
 
 1. ✅ **Le dessin du composant vient du SVG retouché** (test : mega). L'éditeur affiche [`src/webview/elements/boards/mega.svg`](src/webview/elements/boards/mega.svg) (dessin Wokwi repositionné sur grille par Frank, nettoyé : sans ronds/labels) au lieu du rendu @wokwi étiré par `pinScale`. Registre [`board-drawings.mts`](src/webview/diagram/board-drawings.mts) ; intégration dans `renderPart` ([editor.mts](src/webview/diagram/editor.mts)) ; corps dimensionné au viewBox du SVG ; broches prises **directement dans les surcharges** (`partPins`, indépendant du `pinInfo`). L'élément @wokwi reste **masqué** (`display:none`) pour `pinInfo`/simulation ; `applyPinScale` ignoré. Outil [`scripts/_clean-board-svg.mjs`](scripts/_clean-board-svg.mjs) (`node scripts/_clean-board-svg.mjs <type>`).
