@@ -1,18 +1,18 @@
 // Surcharges de positions de broches (coordonnées px **finales** dans le repère
 // local du composant), issues de la retouche manuelle des SVG de brochage.
-// Permet de caler sur la grille de 10 px les cartes au pas irrégulier (Uno/Mega),
-// dont les rangées ne partagent pas la même phase de grille.
+// Permet de caler sur la grille de 10 px les composants au pas irrégulier, dont
+// les rangées ne partagent pas la même phase de grille.
 //
 // Format : clé Kablix → { nom de broche → { x, y } }. Quand une surcharge existe,
 // l'éditeur place la pastille à ces coordonnées telles quelles (pas de pinScale ni
 // de calage automatique). Rempli depuis « svg retouche/<nom>.edit.svg » retouché :
-// x/y = centre de la pastille rouge − marge du dessin (translate du groupe board).
+// x/y = centre de la pastille rouge − marge (translate du board), recalé grille 10.
+// Régénération : `node scripts/_extract-overrides.mjs` (lit chaque SVG via getCTM).
 //
 // Variantes : certains composants ont plusieurs brochages selon un attribut
-// (clavier 3 vs 4 colonnes…). On les distingue par une clé suffixée (cf.
-// `overridesFor`). Le clavier matriciel sort en pas ~9,6 px irrégulier : sans
-// surcharge, le calage sur grille décale les pastilles du connecteur dessiné (le
-// brochage ne tombe plus en face des broches). On fige donc les positions réelles.
+// (clavier 3 vs 4 colonnes, 7 seg 1/2/4 chiffres, LCD I²C/parallèle). On les
+// distingue par une clé suffixée (cf. `overridesFor`). Le clavier matriciel sort
+// au pas ~9,6 px irrégulier : positions réelles du connecteur figées (non grille).
 export const PIN_OVERRIDES: Record<string, Record<string, { x: number; y: number }>> = {
   // Clavier 4 colonnes (4×4) — positions du connecteur (= pinInfo Wokwi).
   'keypad-4col': {
@@ -35,11 +35,290 @@ export const PIN_OVERRIDES: Record<string, Record<string, { x: number; y: number
     C2: { x: 124.5, y: 338 },
     C3: { x: 134, y: 338 },
   },
+
+  // --- Composants recalés sur grille depuis « svg retouche/ » (générés) ----------
+  '7seg-1dig': {
+    'COM.2': { x: 20, y: 0 },
+    'A': { x: 30, y: 0 },
+    'B': { x: 40, y: 0 },
+    'F': { x: 10, y: 0 },
+    'G': { x: 0, y: 0 },
+    'COM.1': { x: 20, y: 70 },
+    'C': { x: 30, y: 70 },
+    'D': { x: 10, y: 70 },
+    'E': { x: 0, y: 70 },
+    'DP': { x: 40, y: 70 },
+  },
+  '7seg-4dig': {
+    'A': { x: 80, y: 0 },
+    'B': { x: 120, y: 0 },
+    'F': { x: 90, y: 0 },
+    'DIG1': { x: 70, y: 0 },
+    'DIG2': { x: 100, y: 0 },
+    'DIG3': { x: 110, y: 0 },
+    'CLN': { x: 130, y: 0 },
+    'C': { x: 100, y: 70 },
+    'D': { x: 80, y: 70 },
+    'E': { x: 70, y: 70 },
+    'G': { x: 110, y: 70 },
+    'DP': { x: 90, y: 70 },
+    'DIG4': { x: 120, y: 70 },
+    'COM': { x: 130, y: 70 },
+  },
+  'button-6mm': {
+    '1.l': { x: -10, y: -10 },
+    '2.l': { x: -10, y: 10 },
+    '1.r': { x: 20, y: -10 },
+    '2.r': { x: 20, y: 10 },
+  },
+  'button': {
+    '1.l': { x: -10, y: 0 },
+    '2.l': { x: -10, y: 20 },
+    '1.r': { x: 60, y: 0 },
+    '2.r': { x: 60, y: 20 },
+  },
+  'buzzer': {
+    '1': { x: 30, y: 80 },
+    '2': { x: 40, y: 80 },
+  },
+  'dht22': {
+    'VCC': { x: 10, y: 120 },
+    'SDA': { x: 20, y: 120 },
+    'NC': { x: 30, y: 120 },
+    'GND': { x: 40, y: 120 },
+  },
+  'dip-switch': {
+    '1a': { x: 10, y: 50 },
+    '2a': { x: 20, y: 50 },
+    '3a': { x: 30, y: 50 },
+    '4a': { x: 40, y: 50 },
+    '5a': { x: 50, y: 50 },
+    '6a': { x: 60, y: 50 },
+    '7a': { x: 70, y: 50 },
+    '8a': { x: 80, y: 50 },
+    '8b': { x: 80, y: 0 },
+    '7b': { x: 70, y: 0 },
+    '6b': { x: 60, y: 0 },
+    '5b': { x: 50, y: 0 },
+    '4b': { x: 40, y: 0 },
+    '3b': { x: 30, y: 0 },
+    '2b': { x: 20, y: 0 },
+    '1b': { x: 10, y: 0 },
+  },
+  'gas-sensor': {
+    'AOUT': { x: 130, y: 10 },
+    'DOUT': { x: 130, y: 20 },
+    'GND': { x: 130, y: 30 },
+    'VCC': { x: 130, y: 40 },
+  },
+  'hcsr04': {
+    'VCC': { x: 70, y: 90 },
+    'TRIG': { x: 80, y: 90 },
+    'ECHO': { x: 90, y: 90 },
+    'GND': { x: 100, y: 90 },
+  },
+  'heartbeat': {
+    'GND': { x: 80, y: 0 },
+    'VCC': { x: 80, y: 10 },
+    'OUT': { x: 80, y: 20 },
+  },
+  'lcd-i2c': {
+    'GND': { x: 0, y: 30 },
+    'VCC': { x: 0, y: 40 },
+    'SDA': { x: 0, y: 50 },
+    'SCL': { x: 0, y: 60 },
+  },
+  'led-bar': {
+    'A1': { x: 10, y: 0 },
+    'A2': { x: 10, y: 10 },
+    'A3': { x: 10, y: 20 },
+    'A4': { x: 10, y: 30 },
+    'A5': { x: 10, y: 40 },
+    'A6': { x: 10, y: 50 },
+    'A7': { x: 10, y: 60 },
+    'A8': { x: 10, y: 70 },
+    'A9': { x: 10, y: 80 },
+    'A10': { x: 10, y: 90 },
+    'C1': { x: 40, y: 0 },
+    'C2': { x: 40, y: 10 },
+    'C3': { x: 40, y: 20 },
+    'C4': { x: 40, y: 30 },
+    'C5': { x: 40, y: 40 },
+    'C6': { x: 40, y: 50 },
+    'C7': { x: 40, y: 60 },
+    'C8': { x: 40, y: 70 },
+    'C9': { x: 40, y: 80 },
+    'C10': { x: 40, y: 90 },
+  },
+  'led': {
+    'A': { x: 20, y: 40 },
+    'C': { x: 10, y: 40 },
+  },
+  'mega': {
+    'SCL': { x: 90, y: -10 },
+    'SDA': { x: 100, y: -10 },
+    'AREF': { x: 110, y: -10 },
+    'GND.1': { x: 120, y: -10 },
+    '13': { x: 130, y: -10 },
+    '12': { x: 140, y: -10 },
+    '11': { x: 150, y: -10 },
+    '10': { x: 160, y: -10 },
+    '9': { x: 170, y: -10 },
+    '8': { x: 180, y: -10 },
+    '7': { x: 200, y: -10 },
+    '6': { x: 210, y: -10 },
+    '5': { x: 220, y: -10 },
+    '4': { x: 230, y: -10 },
+    '3': { x: 240, y: -10 },
+    '2': { x: 250, y: -10 },
+    '1': { x: 260, y: -10 },
+    '0': { x: 270, y: -10 },
+    '14': { x: 290, y: -10 },
+    '15': { x: 300, y: -10 },
+    '16': { x: 310, y: -10 },
+    '17': { x: 320, y: -10 },
+    '18': { x: 330, y: -10 },
+    '19': { x: 340, y: -10 },
+    '20': { x: 350, y: -10 },
+    '21': { x: 360, y: -10 },
+    '5V.1': { x: 390, y: -10 },
+    '5V.2': { x: 400, y: -10 },
+    '22': { x: 390, y: 0 },
+    '23': { x: 400, y: 0 },
+    '24': { x: 390, y: 10 },
+    '25': { x: 400, y: 10 },
+    '26': { x: 390, y: 20 },
+    '27': { x: 400, y: 20 },
+    '28': { x: 390, y: 30 },
+    '29': { x: 400, y: 30 },
+    '30': { x: 390, y: 40 },
+    '31': { x: 400, y: 40 },
+    '32': { x: 390, y: 50 },
+    '33': { x: 400, y: 50 },
+    '34': { x: 390, y: 60 },
+    '35': { x: 400, y: 60 },
+    '36': { x: 390, y: 70 },
+    '37': { x: 400, y: 70 },
+    '38': { x: 390, y: 80 },
+    '39': { x: 400, y: 80 },
+    '40': { x: 390, y: 90 },
+    '41': { x: 400, y: 90 },
+    '42': { x: 390, y: 100 },
+    '43': { x: 400, y: 100 },
+    '44': { x: 390, y: 110 },
+    '45': { x: 400, y: 110 },
+    '46': { x: 390, y: 120 },
+    '47': { x: 400, y: 120 },
+    '48': { x: 390, y: 130 },
+    '49': { x: 400, y: 130 },
+    '50': { x: 390, y: 140 },
+    '51': { x: 400, y: 140 },
+    '52': { x: 390, y: 150 },
+    '53': { x: 400, y: 150 },
+    'GND.4': { x: 390, y: 160 },
+    'GND.5': { x: 400, y: 160 },
+    'IOREF': { x: 120, y: 180 },
+    'RESET': { x: 130, y: 180 },
+    '3.3V': { x: 140, y: 180 },
+    '5V': { x: 150, y: 180 },
+    'GND.2': { x: 160, y: 180 },
+    'GND.3': { x: 170, y: 180 },
+    'VIN': { x: 180, y: 180 },
+    'A0': { x: 200, y: 180 },
+    'A1': { x: 210, y: 180 },
+    'A2': { x: 220, y: 180 },
+    'A3': { x: 230, y: 180 },
+    'A4': { x: 240, y: 180 },
+    'A5': { x: 250, y: 180 },
+    'A6': { x: 260, y: 180 },
+    'A7': { x: 270, y: 180 },
+    'A8': { x: 290, y: 180 },
+    'A9': { x: 300, y: 180 },
+    'A10': { x: 310, y: 180 },
+    'A11': { x: 320, y: 180 },
+    'A12': { x: 330, y: 180 },
+    'A13': { x: 340, y: 180 },
+    'A14': { x: 350, y: 180 },
+    'A15': { x: 360, y: 180 },
+  },
+  'microsd': {
+    'CD': { x: 80, y: 10 },
+    'DO': { x: 80, y: 20 },
+    'GND': { x: 80, y: 30 },
+    'SCK': { x: 80, y: 40 },
+    'VCC': { x: 80, y: 50 },
+    'DI': { x: 80, y: 60 },
+    'CS': { x: 80, y: 70 },
+  },
+  'neopixel': {
+    'VDD': { x: 0, y: 0 },
+    'DOUT': { x: 0, y: 10 },
+    'VSS': { x: 20, y: 10 },
+    'DIN': { x: 20, y: 0 },
+  },
+  'ntc-temp': {
+    'GND': { x: 140, y: 20 },
+    'VCC': { x: 140, y: 30 },
+    'OUT': { x: 140, y: 40 },
+  },
+  'oled-ssd1306': {
+    'DATA': { x: 40, y: 0 },
+    'CLK': { x: 50, y: 0 },
+    'DC': { x: 60, y: 0 },
+    'RST': { x: 70, y: 0 },
+    'CS': { x: 80, y: 0 },
+    '3V3': { x: 90, y: 0 },
+    'VIN': { x: 100, y: 0 },
+    'GND': { x: 110, y: 0 },
+  },
+  'photoresistor': {
+    'VCC': { x: 150, y: 10 },
+    'GND': { x: 150, y: 20 },
+    'DO': { x: 150, y: 30 },
+    'AO': { x: 150, y: 40 },
+  },
+  'pir': {
+    'VCC': { x: 40, y: 100 },
+    'OUT': { x: 50, y: 100 },
+    'GND': { x: 60, y: 100 },
+  },
+  'resistor': {
+    '1': { x: 0, y: 0 },
+    '2': { x: 60, y: 0 },
+  },
+  'rgb-led': {
+    'R': { x: 10, y: 50 },
+    'COM': { x: 20, y: 60 },
+    'G': { x: 30, y: 50 },
+    'B': { x: 40, y: 50 },
+  },
+  'servo': {
+    'GND': { x: 20, y: 50 },
+    'V+': { x: 20, y: 60 },
+    'PWM': { x: 20, y: 70 },
+  },
+  'slide-switch': {
+    '1': { x: 0, y: 40 },
+    '2': { x: 10, y: 40 },
+    '3': { x: 20, y: 40 },
+  },
+  'sound': {
+    'AOUT': { x: 0, y: 10 },
+    'GND': { x: 0, y: 20 },
+    'VCC': { x: 0, y: 30 },
+    'DOUT': { x: 0, y: 40 },
+  },
+  'tilt': {
+    'GND': { x: 90, y: 20 },
+    'VCC': { x: 90, y: 30 },
+    'OUT': { x: 90, y: 40 },
+  },
 };
 
 /**
  * Surcharges applicables à un composant, en tenant compte de ses variantes par
- * attribut (clavier : 3 ou 4 colonnes). Renvoie undefined si aucune surcharge.
+ * attribut (clavier 3/4 colonnes, 7 seg 1/2/4 chiffres, LCD I²C/parallèle).
+ * Renvoie undefined si aucune surcharge (calage automatique).
  */
 export function overridesFor(
   type: string,
@@ -49,5 +328,11 @@ export function overridesFor(
     const cols = attrs?.columns === '3' ? '3' : '4';
     return PIN_OVERRIDES[`keypad-${cols}col`];
   }
+  // Afficheur 7 segments : brochage selon le nombre de chiffres. Le 2 chiffres
+  // n'a pas été recalé → pas d'entrée (calage auto).
+  if (type === '7seg') return PIN_OVERRIDES[`7seg-${attrs?.digits ?? '1'}dig`];
+  // LCD texte : seule la variante I²C (4 fils) est surchargée ; en parallèle
+  // (HD44780) le brochage auto convient.
+  if (type === 'lcd') return (attrs?.pins ?? 'i2c') === 'i2c' ? PIN_OVERRIDES['lcd-i2c'] : undefined;
   return PIN_OVERRIDES[type];
 }

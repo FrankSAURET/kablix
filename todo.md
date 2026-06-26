@@ -1,7 +1,18 @@
 # À faire
 
-1. ⏳ Retoucher le schéma interne du clavier → sortir en SVG (comme les autres) ; il doit y en avoir 2 (3 ou 4 colonnes). **Bloqué : SVG non fournis.**
+1. ⏳ Retoucher le schéma interne du clavier → sortir en SVG (comme les autres) ; il doit y en avoir 2 (3 ou 4 colonnes). **Bases fournies** : [`svg/keypad-schema.edit.svg`](svg/keypad-schema.edit.svg) (4×4) et [`svg/keypad-3col-schema.edit.svg`](svg/keypad-3col-schema.edit.svg) (3×4) — corps + guides de touches gris + pastilles R (rouge)/C (bleu) du connecteur. Générées par [`scripts/_gen-keypad-schema.mjs`](scripts/_gen-keypad-schema.mjs). **À faire (Frank)** : dessiner la matrice dans le groupe `#schema` (1 poussoir par croisement R×C posé sur un guide + bus ligne→Ri, colonne→Cj), garder les `id`, me les rendre → je remplace le `keypad()` programmatique de [`internal-wiring.mts`](src/webview/diagram/internal-wiring.mts) par le tracé retouché (comme prévu pour le 7 seg).
 2. ⏳ La simulation est très lente. **Nécessite un profilage (la boucle AVR tourne déjà en temps réel `CLOCK_HZ/60`) — ne pas toucher la précision temporelle à l'aveugle.**
+1. Reprend le svg fournis dans svg retouche pour tous les composants (sauf ceux noté OK),
+1. sur les composants qui ont des power et gnd, recentre les ronds rouge ou noir sur la pastille
+1. Le clavier 4 x 3 a toujours les connexions en dehors du connecteur
+1. Le routage automatique est mieux. Ajoute : 2 Fils peuvent se croiser mais pas se chevaucher. Ecart mini entre 2 fils parallele = 5px
+1. Afficheur LCD 16x2 et 20 x 4 à retoudher, sors les dans svg retouche
+
+# v2026.6.44
+
+1. ✅ **Brochages recalés sur grille depuis « svg retouche/ » (25 composants)** : report automatique des pastilles retouchées vers [`pin-overrides.mts`](src/webview/diagram/pin-overrides.mts). Extracteur [`scripts/_extract-overrides.mjs`](scripts/_extract-overrides.mjs) — résout les transforms Inkscape imbriqués via `getCTM` (Chrome headless), calcule `surcharge = centre pastille − origine grille inkscape − marge 20`, arrondit à la grille 10. **Formule validée** : reproduit à l'identique les surcharges connues du clavier. Composants surchargés : 7seg (1 et 4 chiffres), button, button-6mm, buzzer, dht22, dip-switch, gas-sensor, hcsr04, heartbeat, lcd-i2c, led, led-bar, mega, microsd, neopixel, ntc-temp, oled-ssd1306, photoresistor, pir, resistor, rgb-led, servo, slide-switch, sound, tilt.
+2. ✅ **Variantes résolues par `overridesFor`** : 7 seg par `digits` (`7seg-1dig`/`7seg-4dig`), LCD par `pins` (`lcd-i2c` ; parallèle = auto).
+3. ℹ️ **Exclus** : `*.OK`/`*.ok` (rien à changer, calage auto), `keypad*.PB` (déjà figé en 6.43), **uno** (non recalé : pastilles encore au pas brut, pas d'origine grille) et **7seg-2dig** (non calé sur grille) → laissés en calage automatique. Bases du schéma interne du clavier prêtes (cf. « À faire » nº 1).
 
 # v2026.6.43
 

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="265.84" height="343.94" viewBox="0 0 265.84 343.94" version="1.1">
+  <!-- ====================================================================
+       BASE DE RETOUCHE — schéma interne du clavier 4 colonnes (4×4)
+       Repère interne (px) = mm de l'élément × 96/25,4. Broches = pinInfo Wokwi.
+       À DESSINER : matrice 4 lignes (R) × 4 colonnes (C).
+         - 1 poussoir (interrupteur) par croisement, posé sur un guide de touche.
+         - bus de ligne horizontal -> pastille Ri ; bus de colonne vertical -> Cj.
+       Le corps (#body) et les guides (#key-guides) et les repères (#pins-reference)
+       NE SONT PAS exportés : ils servent juste au calage. Garder un groupe #schema
+       (trait noir) qui sera repris dans internal-wiring.mts (keypad).
+       ==================================================================== -->
+  <rect id="body" x="0" y="0" width="265.84" height="343.94" rx="6" ry="6" fill="rgba(255,255,255,0.8)" stroke="#bbb" stroke-width="0.5"/>
+  <g id="key-guides" fill="none" stroke="#ccc" stroke-width="0.6">
+    <rect x="26.46" y="40.44" width="42.33" height="41.57" rx="3" ry="3"/>
+    <rect x="83.15" y="40.44" width="42.33" height="41.57" rx="3" ry="3"/>
+    <rect x="139.84" y="40.44" width="42.33" height="41.57" rx="3" ry="3"/>
+    <rect x="196.54" y="40.44" width="42.33" height="41.57" rx="3" ry="3"/>
+    <rect x="26.46" y="94.49" width="42.33" height="41.57" rx="3" ry="3"/>
+    <rect x="83.15" y="94.49" width="42.33" height="41.57" rx="3" ry="3"/>
+    <rect x="139.84" y="94.49" width="42.33" height="41.57" rx="3" ry="3"/>
+    <rect x="196.54" y="94.49" width="42.33" height="41.57" rx="3" ry="3"/>
+    <rect x="26.46" y="148.54" width="42.33" height="41.57" rx="3" ry="3"/>
+    <rect x="83.15" y="148.54" width="42.33" height="41.57" rx="3" ry="3"/>
+    <rect x="139.84" y="148.54" width="42.33" height="41.57" rx="3" ry="3"/>
+    <rect x="196.54" y="148.54" width="42.33" height="41.57" rx="3" ry="3"/>
+    <rect x="26.46" y="202.58" width="42.33" height="41.57" rx="3" ry="3"/>
+    <rect x="83.15" y="202.58" width="42.33" height="41.57" rx="3" ry="3"/>
+    <rect x="139.84" y="202.58" width="42.33" height="41.57" rx="3" ry="3"/>
+    <rect x="196.54" y="202.58" width="42.33" height="41.57" rx="3" ry="3"/>
+  </g>
+  <!-- ===== À ÉDITER : tracés noirs (matrice + bus) ===== -->
+  <g id="schema" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- dessiner ici -->
+  </g>
+  <!-- ===== Repères de broches (R rouge, C bleu) : NE PAS exporter ===== -->
+  <g id="pins-reference">
+    <g>
+      <circle cx="100" cy="338" r="2.5" fill="#c00" stroke="none"/>
+      <text x="100" y="333" font-size="6" fill="#c00" text-anchor="middle" font-family="sans-serif">R1</text>
+    </g>
+    <g>
+      <circle cx="110" cy="338" r="2.5" fill="#c00" stroke="none"/>
+      <text x="110" y="326" font-size="6" fill="#c00" text-anchor="middle" font-family="sans-serif">R2</text>
+    </g>
+    <g>
+      <circle cx="119.5" cy="338" r="2.5" fill="#c00" stroke="none"/>
+      <text x="119.5" y="333" font-size="6" fill="#c00" text-anchor="middle" font-family="sans-serif">R3</text>
+    </g>
+    <g>
+      <circle cx="129" cy="338" r="2.5" fill="#c00" stroke="none"/>
+      <text x="129" y="326" font-size="6" fill="#c00" text-anchor="middle" font-family="sans-serif">R4</text>
+    </g>
+    <g>
+      <circle cx="138.5" cy="338" r="2.5" fill="#06c" stroke="none"/>
+      <text x="138.5" y="333" font-size="6" fill="#06c" text-anchor="middle" font-family="sans-serif">C1</text>
+    </g>
+    <g>
+      <circle cx="148" cy="338" r="2.5" fill="#06c" stroke="none"/>
+      <text x="148" y="326" font-size="6" fill="#06c" text-anchor="middle" font-family="sans-serif">C2</text>
+    </g>
+    <g>
+      <circle cx="157.75" cy="338" r="2.5" fill="#06c" stroke="none"/>
+      <text x="157.75" y="333" font-size="6" fill="#06c" text-anchor="middle" font-family="sans-serif">C3</text>
+    </g>
+    <g>
+      <circle cx="167.5" cy="338" r="2.5" fill="#06c" stroke="none"/>
+      <text x="167.5" y="326" font-size="6" fill="#06c" text-anchor="middle" font-family="sans-serif">C4</text>
+    </g>
+  </g>
+</svg>
