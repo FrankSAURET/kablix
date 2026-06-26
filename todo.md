@@ -3,10 +3,14 @@
 1. ✅ Schéma interne du clavier dessiné (3×4 et 4×4) → intégré (cf. v2026.6.45).
 2. ⏳ La simulation est très lente. **Nécessite un profilage (la boucle AVR tourne déjà en temps réel `CLOCK_HZ/60`) — ne pas toucher la précision temporelle à l'aveugle.**
 3. ✅ Reprend le svg fournis dans svg retouche pour tous les composants (sauf ceux noté OK) → v2026.6.44/6.45.
-4. ⏳ sur les composants qui ont des power et gnd, recentre les ronds rouge ou noir sur la pastille — **en attente de précision (cf. question).**
+4. ✅ sur les composants qui ont des power et gnd, recentre les ronds rouge ou noir sur la pastille → sur le pad métal (v2026.6.47).
 5. ✅ Le clavier 4 x 3 a toujours les connexions en dehors du connecteur → v2026.6.46.
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
 7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → bases générées (v2026.6.46), à retoucher par Frank.
+
+# v2026.6.47
+
+1. ✅ **Ronds power/gnd sur la pastille métal** : les broches d'alimentation (rouge VCC / noir GND) sont placées à leur position réelle `pinInfo × pinScale` (sans calage grille **ni** surcharge), donc le rond coloré tombe pile sur le pad dessiné par le composant. Les autres broches gardent la grille/surcharge. Helper [`pinPos`](src/webview/diagram/editor.mts) partagé par `makeHotspot` et `syncHotspots`.
 
 # v2026.6.46
 

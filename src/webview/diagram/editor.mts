@@ -1344,6 +1344,30 @@ export class Editor {
     this.scheduleSettle();
   }
 
+  /**
+   * Position px (repère corps) d'une broche. Les broches d'**alimentation**
+   * (rouge VCC / noir GND) restent sur la **pastille métal** du composant —
+   * position réelle `pinInfo × pinScale`, sans calage grille ni surcharge — pour
+   * que le rond coloré tombe pile sur le pad. Les autres broches suivent la
+   * surcharge retouchée (grille) ou le calage automatique relatif à l'ancre.
+   */
+  private pinPos(
+    type: string,
+    kind: string,
+    pin: WokwiPin,
+    anchor: XY,
+    ovMap?: Record<string, { x: number; y: number }>
+  ): XY {
+    const k = partDef(type).pinScale ?? 1;
+    const role = kind === 'potentiometer' ? 'other' : pinElectricalRole(type, pin.name);
+    if (role === 'vcc' || role === 'gnd') return { x: pin.x * k, y: pin.y * k };
+    const ov = ovMap?.[pin.name];
+    return {
+      x: ov ? ov.x : snapPinTo(pin.x * k, anchor.x * k),
+      y: ov ? ov.y : snapPinTo(pin.y * k, anchor.y * k),
+    };
+  }
+
   /** Crée une pastille de broche (point de connexion cliquable). `anchor` = 1re
    *  broche brute du composant (repère pour caler l'espacement sur la grille). */
   private makeHotspot(
@@ -1361,12 +1385,9 @@ export class Editor {
     const role = kind === 'potentiometer' ? 'other' : pinElectricalRole(type, pin.name);
     if (role === 'vcc') dot.classList.add('pin--vcc');
     else if (role === 'gnd') dot.classList.add('pin--gnd');
-    // Mise à l'échelle (cartes @wokwi : pas 9,6 px → 10 px) + calage de l'espacement
-    // sur la grille relativement à la 1re broche.
-    const k = partDef(type).pinScale ?? 1;
-    const ov = ovMap?.[pin.name];
-    dot.style.left = `${ov ? ov.x : snapPinTo(pin.x * k, anchor.x * k)}px`;
-    dot.style.top = `${ov ? ov.y : snapPinTo(pin.y * k, anchor.y * k)}px`;
+    const pos = this.pinPos(type, kind, pin, anchor, ovMap);
+    dot.style.left = `${pos.x}px`;
+    dot.style.top = `${pos.y}px`;
     dot.title = pinDisplayName(kind, pin.name, type);
     dot.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
@@ -1390,7 +1411,6 @@ export class Editor {
     const body = r.container.querySelector('.part__body') as HTMLElement | null;
     if (!body) return;
     const def = partDef(r.part.type);
-    const k = def.pinScale ?? 1;
     const pins = (r.el.pinInfo ?? []) as WokwiPin[];
     const anchor: XY = pins[0] ? { x: pins[0].x, y: pins[0].y } : { x: 0, y: 0 };
     const ovMap = overridesFor(r.part.type, r.part.attrs);
@@ -1401,9 +1421,9 @@ export class Editor {
         body.appendChild(dot);
         r.hotspots.set(pin.name, dot);
       } else {
-        const ov = ovMap?.[pin.name];
-        dot.style.left = `${ov ? ov.x : snapPinTo(pin.x * k, anchor.x * k)}px`;
-        dot.style.top = `${ov ? ov.y : snapPinTo(pin.y * k, anchor.y * k)}px`;
+        const pos = this.pinPos(r.part.type, def.kind, pin, anchor, ovMap);
+        dot.style.left = `${pos.x}px`;
+        dot.style.top = `${pos.y}px`;
       }
     }
   }
