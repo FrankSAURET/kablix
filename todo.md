@@ -1,12 +1,16 @@
 # À faire
-
+- Refaire cablage interne pot. Donne moi le fichier à retoucher
 1. ✅ Schéma interne du clavier dessiné (3×4 et 4×4) → intégré (cf. v2026.6.45).
 2. ⏳ La simulation est très lente. **Nécessite un profilage (la boucle AVR tourne déjà en temps réel `CLOCK_HZ/60`) — ne pas toucher la précision temporelle à l'aveugle.**
-3. ⏳ Reprend le svg fournis dans svg retouche pour tous les composants → **changement d'approche v2026.6.48** : l'éditeur affiche le **dessin du SVG retouché** (broches = ronds, repère = coin haut-gauche feuille), élément Wokwi caché pour la simu. **Mega = test (à valider)** ; les autres à recréer pareil.
+3. ⏳ Reprend le svg fournis dans svg retouche pour tous les composants → **changement d'approche v2026.6.48** : l'éditeur affiche le **dessin du SVG retouché** (broches = ronds, repère = coin haut-gauche feuille), élément Wokwi caché pour la simu. **Mega = test (dessin OK + simu corrigée v2026.6.50)** ; les autres à recréer pareil.
 4. ✅ sur les composants qui ont des power et gnd, recentre les ronds rouge ou noir sur la pastille → désormais via les ronds du SVG retouché (v2026.6.48 ; le « sur pad » auto de 6.47 annulé).
 5. ✅ Le clavier 4 x 3 a toujours les connexions en dehors du connecteur → v2026.6.46.
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
 7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → bases générées (v2026.6.46), à retoucher par Frank.
+
+# v2026.6.50
+
+1. ✅ **Simulation Mega réparée** (`avr.mts`). Diagnostic (traces temporaires) : le CPU atmega2560 **tournait** (cycles 0→15,7 M/s, PC mobile) mais restait **bloqué dans `delay()`** car `millis()` ne s'incrémentait jamais. Cause : les configs avr8js (timers 0-2, USART0, SPI, TWI, ADC) sont celles du **328P** ; or sur le 2560 la **table de vecteurs d'interruption est plus grande** → l'ISR Timer0 overflow sautait à l'adresse du 328 (`0x20`) au lieu de celle du Mega (`0x2E`). Correctif : configs `MEGA_TIMER0/1/2`, `MEGA_USART0`, `MEGA_SPI`, `MEGA_TWI`, `MEGA_ADC_CONFIG` = copies des configs 328 avec **vecteurs corrigés** (datasheet ATmega2560, table 14-1, adresses en mots), branchées si `isMega`. Désormais `millis()`/`delay()`/`Serial`/interruptions fonctionnent sur le Mega. ℹ️ Restent non simulés : timers 3-5, USART1-3, ADC A8-A15, **PWM** (broches OC différentes du 328).
 
 # v2026.6.49
 

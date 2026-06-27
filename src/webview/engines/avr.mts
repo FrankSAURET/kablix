@@ -2,10 +2,12 @@
 //   - 'avr328' : ATmega328P (Uno / Nano / Pro Mini) — broches 0–13, A0–A7 ;
 //   - 'avr2560' : ATmega2560 (Mega) — broches 0–53, A0–A15, ports A–L.
 // Expose un accès générique aux broches numériques, l'ADC et la liaison série
-// (USART0 = Serial sur les deux familles). Les registres USART0 / timers 0-2 /
-// ADC sont aux mêmes adresses sur le 328P et le 2560 : les configs avr8js
-// conviennent aux deux. Limites Mega (« partiel ») : timers 3-5, USART1-3 et
-// canaux ADC 8-15 (A8-A15) ne sont pas simulés.
+// (USART0 = Serial sur les deux familles). Les *registres* USART0 / timers 0-2 /
+// ADC sont aux mêmes adresses sur le 328P et le 2560, MAIS la table de vecteurs
+// d'interruption diffère → configs Mega dédiées avec vecteurs corrigés (cf.
+// MEGA_TIMER*…), sinon millis()/delay()/Serial gèlent sur le Mega. Limites Mega
+// (« partiel ») : timers 3-5, USART1-3, canaux ADC 8-15 (A8-A15) et sorties PWM
+// (broches OC différentes) ne sont pas simulés.
 import {
   CPU,
   avrInstruction,
@@ -102,6 +104,22 @@ const MEGA_PINS: Record<string, [PortKey, number]> = {
 const UNO_ADC: Record<string, number> = { A0: 0, A1: 1, A2: 2, A3: 3, A4: 4, A5: 5 };
 const MEGA_ADC: Record<string, number> = { ...UNO_ADC, A6: 6, A7: 7 };
 
+// ATmega2560 : les registres des périphériques (timers 0-2, USART0, SPI, TWI, ADC)
+// sont aux mêmes adresses que le 328P, MAIS la table de vecteurs d'interruption
+// est plus grande → les adresses de vecteur diffèrent. On recopie les configs
+// avr8js (328P) en corrigeant uniquement les vecteurs (datasheet ATmega2560,
+// table 14-1, adresses en mots). Sans ça, les ISR (Timer0 pour millis/delay,
+// USART pour Serial…) sautent au mauvais endroit → millis() gèle, delay() boucle
+// à l'infini et la broche ne bascule jamais (programme « bloqué », CPU pourtant
+// en marche). NB : les sorties PWM (compPin) du Mega diffèrent — non corrigées ici.
+const MEGA_TIMER0 = { ...timer0Config, compAInterrupt: 0x2a, compBInterrupt: 0x2c, ovfInterrupt: 0x2e };
+const MEGA_TIMER1 = { ...timer1Config, captureInterrupt: 0x20, compAInterrupt: 0x22, compBInterrupt: 0x24, compCInterrupt: 0x26, ovfInterrupt: 0x28 };
+const MEGA_TIMER2 = { ...timer2Config, compAInterrupt: 0x1a, compBInterrupt: 0x1c, ovfInterrupt: 0x1e };
+const MEGA_USART0 = { ...usart0Config, rxCompleteInterrupt: 0x32, dataRegisterEmptyInterrupt: 0x34, txCompleteInterrupt: 0x36 };
+const MEGA_SPI = { ...spiConfig, spiInterrupt: 0x30 };
+const MEGA_TWI = { ...twiConfig, twiInterrupt: 0x4e };
+const MEGA_ADC_CONFIG = { ...adcConfig, adcInterrupt: 0x3a };
+
 export class AvrEngine implements SimEngine {
   onUpdate: (() => void) | null = null;
   onSerial: ((chunk: string) => void) | null = null;
@@ -186,15 +204,22 @@ export class AvrEngine implements SimEngine {
           C: new AVRIOPort(this.cpu, portCConfig),
           D: new AVRIOPort(this.cpu, portDConfig),
         };
-    this.usart = new AVRUSART(this.cpu, usart0Config, CLOCK_HZ);
-    this.twi = new AVRTWI(this.cpu, twiConfig, CLOCK_HZ); // bus I²C (Wire) — esclaves branchés via setI2cDevices
-    this.spi = new AVRSPI(this.cpu, spiConfig, CLOCK_HZ); // bus SPI — esclave branché via setSpiDevices
-    this.adc = new AVRADC(this.cpu, adcConfig);
-    this.timers = [
-      new AVRTimer(this.cpu, timer0Config),
-      new AVRTimer(this.cpu, timer1Config),
-      new AVRTimer(this.cpu, timer2Config),
-    ];
+    // Configs avec vecteurs d'interruption corrigés pour le Mega (cf. MEGA_TIMER*…).
+    this.usart = new AVRUSART(this.cpu, isMega ? MEGA_USART0 : usart0Config, CLOCK_HZ);
+    this.twi = new AVRTWI(this.cpu, isMega ? MEGA_TWI : twiConfig, CLOCK_HZ); // bus I²C (Wire) — esclaves branchés via setI2cDevices
+    this.spi = new AVRSPI(this.cpu, isMega ? MEGA_SPI : spiConfig, CLOCK_HZ); // bus SPI — esclave branché via setSpiDevices
+    this.adc = new AVRADC(this.cpu, isMega ? MEGA_ADC_CONFIG : adcConfig);
+    this.timers = isMega
+      ? [
+          new AVRTimer(this.cpu, MEGA_TIMER0),
+          new AVRTimer(this.cpu, MEGA_TIMER1),
+          new AVRTimer(this.cpu, MEGA_TIMER2),
+        ]
+      : [
+          new AVRTimer(this.cpu, timer0Config),
+          new AVRTimer(this.cpu, timer1Config),
+          new AVRTimer(this.cpu, timer2Config),
+        ];
 
     for (const port of Object.values(this.ports)) {
       // À chaque changement de port : échantillonne les impulsions (servo) puis
