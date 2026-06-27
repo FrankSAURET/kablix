@@ -1,5 +1,5 @@
 # À faire
-- Refaire cablage interne pot. Donne moi le fichier à retoucher
+- ⏳ Refaire câblage interne pot → **base fournie** : [`svg/pot-schema.edit.svg`](svg/pot-schema.edit.svg) (corps + ronds VCC/SIG/GND, repère = coin haut-gauche). Dessiner le symbole IEC dans `#schema`, me le rendre → je remplace `potentiometer()` de [`internal-wiring.mts`](src/webview/diagram/internal-wiring.mts) (comme le clavier). Générateur : [`scripts/_gen-pot-schema.mjs`](scripts/_gen-pot-schema.mjs).
 1. ✅ Schéma interne du clavier dessiné (3×4 et 4×4) → intégré (cf. v2026.6.45).
 2. ⏳ La simulation est très lente. **Nécessite un profilage (la boucle AVR tourne déjà en temps réel `CLOCK_HZ/60`) — ne pas toucher la précision temporelle à l'aveugle.**
 3. ⏳ Reprend le svg fournis dans svg retouche pour tous les composants → **changement d'approche v2026.6.48** : l'éditeur affiche le **dessin du SVG retouché** (broches = ronds, repère = coin haut-gauche feuille), élément Wokwi caché pour la simu. **Mega = test (dessin OK + simu corrigée v2026.6.50)** ; les autres à recréer pareil.
