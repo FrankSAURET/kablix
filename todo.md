@@ -1,3 +1,4 @@
+- Message d'avertissement si on lance la simulation sans fichier
 # À faire
 - ⏳ Refaire câblage interne pot → **base fournie** : [`svg/pot-schema.edit.svg`](svg/pot-schema.edit.svg) (corps + ronds VCC/SIG/GND, repère = coin haut-gauche). Dessiner le symbole IEC dans `#schema`, me le rendre → je remplace `potentiometer()` de [`internal-wiring.mts`](src/webview/diagram/internal-wiring.mts) (comme le clavier). Générateur : [`scripts/_gen-pot-schema.mjs`](scripts/_gen-pot-schema.mjs).
 1. ✅ Schéma interne du clavier dessiné (3×4 et 4×4) → intégré (cf. v2026.6.45).
@@ -7,6 +8,12 @@
 5. ✅ Le clavier 4 x 3 a toujours les connexions en dehors du connecteur → v2026.6.46.
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
 7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → bases générées (v2026.6.46), à retoucher par Frank.
+
+# v2026.6.51
+
+1. ✅ **Blink Mega : la LED s'allumait sans jamais s'éteindre — corrigé** (`avr.mts`). Le blink *simple* marchait déjà (LED 13 = PB7 bascule), mais dès qu'on touchait à `Serial`/objets C++ la simu se figeait dans `delay()`. Diagnostic (firmwares réels compilés avec le core Arduino atmega2560 + sondes node) : avr8js **déduit la taille du PC de la taille du firmware** (`pc22Bits = progMem > 128 Ko`) → `false` pour un petit blink. Or l'**ATmega2560 a toujours un PC 22 bits** : avr-gcc émet des **`EICALL`** qui empilent une adresse de retour sur **3 octets**, alors que `CALL`/`RET`/`RCALL`/saut d'IRQ n'en (dé)pilent que **2** quand `pc22Bits` est faux. Désaccord push 3 / pop 2 → la **pile dérive dans la `.bss`**, les `push` écrasent `timer0_overflow_count` → `micros()` part à ~38 M → `delay()` boucle à l'infini (LED figée). Correctif : **`this.cpu.pc22Bits = true` si `isMega`**. ℹ️ Un blink sans EICALL passait (d'où le faux « presque bon » de 6.50).
+2. ✅ **Test Mega ajouté à `verify-sim.mjs`** (point 3 du reste-à-faire 6.50). Firmware de démo précompilé [`src/webview/programs/mega-demo.mjs`](src/webview/programs/mega-demo.mjs) = **blink LED 13 + `Serial.println`** (core Arduino atmega2560, exerce les `EICALL`). Le test vérifie les bascules D13 **et** que la série contient « blink » — il échouerait sans le fix `pc22Bits` (la sortie resterait « b »). `npm run verify` : Uno + **Mega** + Pico ✅.
+3. ⏳ **PWM Mega** (point 2 du reste-à-faire 6.50) : non traité. Les broches OC des `MEGA_TIMER*` sont encore celles du 328 (`compPortA/compPinA`…) → `analogWrite` sort sur les mauvaises broches. À corriger pour le 2560 (OC0A=PB7/pin13, OC0B=PG5/pin4, OC1A=PB5, OC1B=PB6, OC1C=PB7, OC2A=PB4, OC2B=PH6…).
 
 # v2026.6.50
 

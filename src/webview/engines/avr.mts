@@ -183,6 +183,17 @@ export class AvrEngine implements SimEngine {
     // Le Mega a 8 Ko de SRAM (pile en haut, RAMEND 0x21FF) : l'espace données par
     // défaut (328P) serait trop petit et la pile déborderait.
     this.cpu = isMega ? new CPU(program.slice(), MEGA_SRAM_BYTES) : new CPU(program.slice());
+    // avr8js déduit la taille du PC (16 vs 22 bits) de la TAILLE du programme
+    // (> 128 Ko ⇒ 22 bits). Or l'ATmega2560 a TOUJOURS un PC 22 bits : son
+    // avr-gcc émet des EICALL qui empilent une adresse de retour sur 3 octets,
+    // tandis que CALL/RET/RCALL et le saut d'interruption ne suivent pc22Bits
+    // que pour 2 octets quand le firmware est petit. Le désaccord (push 3 / pop 2)
+    // désaligne la pile : SP dérive dans la .bss, écrase timer0_overflow_count
+    // (micros() délire → delay() boucle) et finit par planter (un blink simple
+    // sans EICALL passe, mais dès qu'on touche à Serial/objets C++ ça casse).
+    // On force donc le mode 22 bits pour le Mega quelle que soit la taille.
+    // (pc22Bits est typé `readonly` par avr8js mais reste mutable au runtime.)
+    if (isMega) (this.cpu as { pc22Bits: boolean }).pc22Bits = true;
     this.pinMap = isMega ? MEGA_PINS : UNO_PINS;
     this.adcMap = isMega ? MEGA_ADC : UNO_ADC;
     this.ports = isMega
