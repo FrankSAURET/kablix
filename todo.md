@@ -9,6 +9,13 @@
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
 7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → bases générées (v2026.6.46), à retoucher par Frank.
 
+# v2026.6.60
+
+1. ✅ **Pattes de la LED RGB en RVB traduisible** : `pinDisplayName` affiche R/G/B avec l'initiale de la couleur traduite (`Red`/`Green`/`Blue` → Rouge/Vert/Bleu) → **R/V/B** en français, **R/G/B** en anglais. L'identifiant interne (R/G/B, simulation) reste inchangé. (`t('R')` était déjà pris par le clavier = Ligne.)
+2. ℹ️ **Dossier `elements/` non renommé** : il ne contient pas que des composants (code `.mts` : custom-part, pico-board, breadboard, slide-pot ; + `svg.d.ts`). Condition fausse → laissé tel quel (choix confirmé).
+3. ✅ **pir, gas-sensor, photoresistor régénérés** depuis les `svg retouche/*.edit.svg` re-retouchés par Frank (corps mis à jour). Surcharges inchangées (broches déjà bonnes), déjà enregistrés.
+4. ✅ **Capteur de flammes prêt à retoucher** : variante `flame` ajoutée à [`build-retouche.mjs`](scripts/build-retouche.mjs) (pas natif 9,6 px) → [`svg retouche/flame.edit.svg`](svg%20retouche/flame.edit.svg) (corps + grille + 4 pastilles `pin-<nom>` à déplacer). À retoucher puis `node scripts/_clean-board-svg.mjs flame` + `_probe-overrides.mjs flame`.
+
 # v2026.6.59
 
 1. ✅ **Servo animé sur le dessin** : `reflectServo` oriente le palonnier selon `el.angle` (0–180°). Palonnier = seul `<path>` couleur `#ccc` (hornColor) hors defs ; axe = centre des cercles concentriques de l'arbre ; on applique la `rotate` du rendu Wokwi (dessin capté à 0°). Vérifié 0/45/90/135/180°.

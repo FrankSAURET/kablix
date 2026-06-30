@@ -3216,6 +3216,13 @@ function pinDisplayName(kind: string, pinName: string, type?: string): string {
     const r = /^R(\d+)$/.exec(pinName);
     if (r) return `${t('R')}${r[1]}`;
   }
+  // LED RGB : broches R/G/B affichées avec l'initiale de la couleur traduite
+  // (RGB en anglais → RVB en français : Red/Green/Blue → Rouge/Vert/Bleu).
+  if (kind === 'rgb-led') {
+    if (pinName === 'R') return t('Red').charAt(0);
+    if (pinName === 'G') return t('Green').charAt(0);
+    if (pinName === 'B') return t('Blue').charAt(0);
+  }
   // Cathode notée « K » sur toutes les diodes : LED (C) et barre de LED (C1..C10).
   if (kind === 'led' && pinName === 'C') return 'K';
   if (kind === 'led-bar') {

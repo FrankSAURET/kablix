@@ -22,6 +22,7 @@ mkdirSync(OUT, { recursive: true });
 
 const S = 96 / 25.4; // px par mm (96 dpi) — facteur de rendu des éléments Wokwi
 const PIN_SCALE_95 = 10 / 9.5; // même facteur d'échelle des broches que catalog.mts
+const PIN_SCALE_96 = 10 / 9.6; // WOKWI_PIN_SCALE (catalog.mts) — pas natif 9,6 px
 const MARGIN = 20;
 const PAD_R = 3.2;
 
@@ -79,6 +80,13 @@ const VARIANTS = [
     tag: 'wokwi-7segment',
     props: { digits: 4 },
     pinScale: 1,
+  },
+  // Capteur de flammes (pas natif 9,6 px) — pour retoucher les pattes à la main.
+  {
+    name: 'flame',
+    module: 'flame-sensor-element.js',
+    tag: 'wokwi-flame-sensor',
+    pinScale: PIN_SCALE_96,
   },
 ];
 

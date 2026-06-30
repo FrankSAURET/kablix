@@ -6,7 +6,7 @@
    version="1.1"
    id="svg41"
    sodipodi:docname="gas-sensor.edit.svg"
-   inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
+   inkscape:version="1.4.4 (dcaf3e7, 2026-05-05)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:xlink="http://www.w3.org/1999/xlink"
@@ -45,6 +45,7 @@
   </g>
 </defs>
 
+
 false
         
 false
@@ -60,9 +61,9 @@ false
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      showgrid="true"
-     inkscape:zoom="68.16"
-     inkscape:cx="7.5557512"
-     inkscape:cy="4.4747652"
+     inkscape:zoom="8"
+     inkscape:cx="83"
+     inkscape:cy="23.5"
      inkscape:window-width="1920"
      inkscape:window-height="1057"
      inkscape:window-x="-8"
@@ -86,40 +87,12 @@ false
   </sodipodi:namedview>
   <!-- Retouche brochage gas-sensor : déplace chaque pastille rouge sur un CROISEMENT (lignes foncées = 50 px). Garde les id pin-<nom>. Marge 20 px. -->
   <g
-     id="g1">
+     id="g3">
     <path
        d="M 114.8818,4.7202 H 1.7433322 V 65.87023 H 114.8818 Z M 113.27984,59.395521 C 113.27984,62.088178 111.15724,64.266969 108.53402,64.266969 105.91082,64.266969 103.78822,62.088178 103.78822,59.395521 103.78822,56.702864 105.91082,54.524073 108.53402,54.524073 111.15724,54.524073 113.27984,56.702864 113.27984,59.395521 Z M 3.1450476,59.395521 C 3.1450476,62.088178 5.2676453,64.266969 7.8908556,64.266969 10.514066,64.266969 12.636664,62.088178 12.636664,59.395521 12.636664,56.702864 10.514066,54.524073 7.8908556,54.524073 5.2676453,54.524073 3.1450476,56.702864 3.1450476,59.395521 Z M 108.27371,6.3645706 C 110.89692,6.3645706 113.01952,8.5433616 113.01952,11.236018 113.01952,13.928675 110.89692,16.107466 108.27371,16.107466 105.6505,16.107466 103.52791,13.928675 103.52791,11.236018 103.52791,8.5433616 105.6505,6.3645706 108.27371,6.3645706 Z M 7.1499489,6.3645706 C 4.5267386,6.3645706 2.4041409,8.5433616 2.4041409,11.236018 2.4041409,13.928675 4.5267386,16.107466 7.1499489,16.107466 9.7731591,16.107466 11.895757,13.928675 11.895757,11.236018 11.895757,8.5433616 9.7731591,6.3645706 7.1499489,6.3645706 Z"
        fill="#0664af"
        id="path31"
        style="opacity:0.85;stroke-width:0.999597" />
-    <use
-       xlink:href="#pin"
-       x="107"
-       y="12"
-       id="use31"
-       style="opacity:0.85;stroke-width:0.972658"
-       transform="matrix(1.0276658,0,0,1.0277316,-1.2444429,4.7202)" />
-    <use
-       xlink:href="#pin"
-       x="107"
-       y="21.299999"
-       id="use32"
-       style="opacity:0.85;stroke-width:0.972658"
-       transform="matrix(1.0276658,0,0,1.0277316,-1.2444429,4.7202)" />
-    <use
-       xlink:href="#pin"
-       x="107"
-       y="31.1"
-       id="use33"
-       style="opacity:0.85;stroke-width:0.972658"
-       transform="matrix(1.0276658,0,0,1.0277316,-1.2444429,4.7202)" />
-    <use
-       xlink:href="#pin"
-       x="107"
-       y="40.900002"
-       id="use34"
-       style="opacity:0.85;stroke-width:0.972658"
-       transform="matrix(1.0276658,0,0,1.0277316,-1.2444429,4.7202)" />
     <ellipse
        cx="47.775219"
        cy="35.3466"
@@ -190,6 +163,86 @@ false
        height="3.9342718"
        x="83.906845"
        y="54.770924" />
+    <g
+       id="g2"
+       transform="translate(-0.01263203)">
+      <rect
+         style="fill:#c5c095;fill-opacity:1;stroke:none;stroke-width:0.566929;stroke-linecap:round"
+         id="rect2"
+         width="27.17136"
+         height="3"
+         x="114.23122"
+         y="18.5"
+         rx="1.5"
+         ry="1.5" />
+      <rect
+         style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.566929;stroke-linecap:round"
+         id="rect1"
+         width="7.0908942"
+         height="7.0913482"
+         x="108.7158"
+         y="16.454327" />
+    </g>
+    <g
+       id="g2-9"
+       transform="translate(-0.01263203,10)">
+      <rect
+         style="fill:#c5c095;fill-opacity:1;stroke:none;stroke-width:0.566929;stroke-linecap:round"
+         id="rect2-4"
+         width="27.17136"
+         height="3"
+         x="114.23122"
+         y="18.5"
+         rx="1.5"
+         ry="1.5" />
+      <rect
+         style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.566929;stroke-linecap:round"
+         id="rect1-8"
+         width="7.0908942"
+         height="7.0913482"
+         x="108.7158"
+         y="16.454327" />
+    </g>
+    <g
+       id="g2-9-2"
+       transform="translate(-0.01263203,20)">
+      <rect
+         style="fill:#c5c095;fill-opacity:1;stroke:none;stroke-width:0.566929;stroke-linecap:round"
+         id="rect2-4-4"
+         width="27.17136"
+         height="3"
+         x="114.23122"
+         y="18.5"
+         rx="1.5"
+         ry="1.5" />
+      <rect
+         style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.566929;stroke-linecap:round"
+         id="rect1-8-5"
+         width="7.0908942"
+         height="7.0913482"
+         x="108.7158"
+         y="16.454327" />
+    </g>
+    <g
+       id="g2-9-1"
+       transform="translate(-0.01263203,30)">
+      <rect
+         style="fill:#c5c095;fill-opacity:1;stroke:none;stroke-width:0.566929;stroke-linecap:round"
+         id="rect2-4-7"
+         width="27.17136"
+         height="3"
+         x="114.23122"
+         y="18.5"
+         rx="1.5"
+         ry="1.5" />
+      <rect
+         style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.566929;stroke-linecap:round"
+         id="rect1-8-1"
+         width="7.0908942"
+         height="7.0913482"
+         x="108.7158"
+         y="16.454327" />
+    </g>
     <ellipse
        id="pin-AOUT"
        cx="140"
@@ -209,7 +262,7 @@ false
        font-family="sans-serif"
        id="text38"
        style="stroke-width:1"
-       transform="scale(0.99996799,1.000032)">AOUT</text>
+       transform="scale(0.999968,1.000032)">AOUT</text>
     <ellipse
        id="pin-DOUT"
        cx="140"
@@ -229,7 +282,7 @@ false
        font-family="sans-serif"
        id="text39"
        style="stroke-width:1"
-       transform="scale(0.99996799,1.000032)">DOUT</text>
+       transform="scale(0.999968,1.000032)">DOUT</text>
     <ellipse
        id="pin-GND"
        cx="140"
@@ -249,7 +302,7 @@ false
        font-family="sans-serif"
        id="text40"
        style="stroke-width:1"
-       transform="scale(0.99996799,1.000032)">GND</text>
+       transform="scale(0.999968,1.000032)">GND</text>
     <ellipse
        id="pin-VCC"
        cx="140"
@@ -269,6 +322,6 @@ false
        font-family="sans-serif"
        id="text41"
        style="stroke-width:1"
-       transform="scale(0.99996799,1.000032)">VCC</text>
+       transform="scale(0.999968,1.000032)">VCC</text>
   </g>
 </svg>
