@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80.164619 20">
+  <defs id="defs22">
+    <defs id="defs18">
+      <linearGradient id="a" x2="0" y1="22.332001" y2="38.348" gradientTransform="matrix(0.14479,0,0,0.14479,-23.155,-4.0573)" gradientUnits="userSpaceOnUse" spreadMethod="reflect">
+        <stop stop-color="#323232" offset="0" id="stop17"></stop>
+        <stop stop-color="#fff" stop-opacity=".42268" offset="1" id="stop18"></stop>
+      </linearGradient>
+    </defs>
+  </defs>
+  
+  <!-- Retouche brochage resistor : déplace chaque pastille rouge sur un CROISEMENT (lignes foncées = 50 px). Garde les id pin-<nom>. Marge 20 px. -->
+  <rect y="8.7750645" width="60" height="2.4123037" fill="#aaaaaa" id="rect18" x="9.999999" style="opacity:0.85;stroke-width:3.7795"></rect>
+  <g stroke-width="0.14479" fill="#d5b597" id="g20" transform="matrix(3.7795,0,0,3.7795,10.245129,4.3307499)" style="opacity:1">
+    <path id="body" d="M 4.6918,0 C 3.6332,0 2.7733,0.67468 2.7733,1.5022 2.7733,2.32976 3.63325,3 4.6918,3 5.1159,3 5.50536,2.88833 5.823,2.70589 H 9.9179 C 10.23592,2.88902 10.62865,3 11.0536,3 12.1122,3 12.9721,2.32985 12.9721,1.5022 12.9721,0.6746 12.11215,0 11.0536,0 10.62861,0 10.23587,0.11098 9.9179,0.29411 H 5.823 C 5.50535,0.11167 5.1159,0 4.6918,0 Z"></path>
+    <use xlink:href="#body" fill="url(#a)" opacity="0.44886" id="use18" style="fill:url(#a)"></use>
+    <rect x="4" y="0" width="1" height="3" clip-path="url(#g)" fill="#fb0000" id="rect19"></rect>
+    <path d="M 6,0.29411 V 2.70581 H 6.96 V 0.29411 Z" fill="#fb0000" id="path19"></path>
+    <path d="M 7.8,0.29411 V 2.70581 H 8.76 V 0.29411 Z" fill="#8f4814" id="path20"></path>
+    <rect x="10.69" y="0" width="1" height="3" fill="#f1d863" clip-path="url(#g)" id="rect20"></rect>
+    <clipPath id="g">
+      <use xlink:href="#body" id="use20"></use>
+    </clipPath>
+  </g>
+  <g id="g21" transform="translate(-10.000001,-15.65)">
+    
+    
+  </g>
+  <g id="g22" transform="translate(-8.8014598,-15.66925)">
+    
+    
+  </g>
+</svg>

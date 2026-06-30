@@ -369,8 +369,8 @@ export const PIN_OVERRIDES: Record<string, Record<string, { x: number; y: number
     'GND': { x: 60, y: 100 },
   },
   'resistor': {
-    '1': { x: 0, y: 0 },
-    '2': { x: 60, y: 0 },
+    '1': { x: 10, y: 10 },
+    '2': { x: 70, y: 10 },
   },
   'rgb-led': {
     'R': { x: 10, y: 50 },

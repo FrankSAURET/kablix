@@ -9,6 +9,13 @@
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
 7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → bases générées (v2026.6.46), à retoucher par Frank.
 
+# v2026.6.62
+
+1. ✅ **Résistance sur dessin retouché** : `resistor.edit.svg` → `node scripts/_clean-board-svg.mjs resistor` → [`composants/externe/resistor.svg`](src/webview/composants/externe/resistor.svg) (viewBox `0 0 80.16 20`). Importé + mappé dans [`board-drawings.mts`](src/webview/diagram/board-drawings.mts). L'élément `wokwi-resistor` reste caché pour la simu.
+2. ✅ **Surcharge `resistor` recalée** (nouvelle convention = position absolue viewBox) : broches `1`→`{10,10}`, `2`→`{70,10}` (était `{0,0}`/`{60,0}`, ancienne convention). Vérifié : les 2 pastilles tombent pile au bout des pattes grises.
+3. ✅ **Prop `angle` retirée** du catalogue résistance : redondante avec la rotation standard Kablix (le `angle` Wokwi ne pilotait que l'élément caché). `value` conservé.
+4. ⏳ **Reste** : lcd, neopixel(-matrix), led-ring, ili9341, oled, 7seg 2/4 chiffres.
+
 # v2026.6.61
 
 1. ✅ **Réorganisation du dossier `elements/` → `composants/`** (`src/webview/`). Sous-dossiers : **`externe/`** (ex-`boards/`) = vue des composants sur le canvas (19 dessins + `pico.svg`/`picow.svg`/`slide-pot.svg`) ; **`interne/`** (nouveau) = vue interne + pinouts du bouton **K** (`keypad-schema`, `keypad-3col-schema`, `pico-pinout`, `picow-pinout`). Les `.mts` (`breadboard`, `custom-part`, `pico-board`, `slide-pot`) + `svg.d.ts` restent à la racine de `composants/`.

@@ -175,10 +175,9 @@ export const CATALOG: readonly PartDef[] = [
     ],
   },
   {
-    type: 'resistor', label: 'Resistor', tag: 'wokwi-resistor', kind: 'resistor', attrs: { value: '220', angle: '0' },
+    type: 'resistor', label: 'Resistor', tag: 'wokwi-resistor', kind: 'resistor', attrs: { value: '220' },
     props: [
       { attr: 'value', label: 'Value (Ω)', kind: 'number', min: 1, max: 10_000_000, step: 1, suffixes: true },
-      { attr: 'angle', label: 'Angle', kind: 'select', options: ['0', '90', '180', '270'] },
     ],
   },
   { type: 'buzzer', label: 'Buzzer', tag: 'wokwi-buzzer', kind: 'buzzer' },

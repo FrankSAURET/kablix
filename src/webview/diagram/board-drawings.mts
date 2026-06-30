@@ -23,6 +23,7 @@ import sevenSegSvg from '../composants/externe/7seg.svg';
 import rgbLedSvg from '../composants/externe/rgb-led.svg';
 import ledBarSvg from '../composants/externe/led-bar.svg';
 import servoSvg from '../composants/externe/servo.svg';
+import resistorSvg from '../composants/externe/resistor.svg';
 
 const DRAWINGS: Record<string, string> = {
   mega: megaSvg,
@@ -44,6 +45,7 @@ const DRAWINGS: Record<string, string> = {
   'rgb-led': rgbLedSvg,
   'led-bar': ledBarSvg,
   servo: servoSvg,
+  resistor: resistorSvg,
 };
 
 /**
