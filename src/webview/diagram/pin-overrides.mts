@@ -164,8 +164,8 @@ export const PIN_OVERRIDES: Record<string, Record<string, { x: number; y: number
     '2.r': { x: 60, y: 20 },
   },
   'buzzer': {
-    '1': { x: 30, y: 80 },
-    '2': { x: 40, y: 80 },
+    '1': { x: 20, y: 50 },
+    '2': { x: 30, y: 50 },
   },
   'dht22': {
     'VCC': { x: 20, y: 120 },

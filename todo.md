@@ -9,6 +9,15 @@
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
 7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → bases générées (v2026.6.46), à retoucher par Frank.
 
+# v2026.6.56
+
+1. ✅ **Retour visuel de simulation sur les dessins retouchés** (sorties dynamiques, début). Nouveau module [`drawing-feedback.mts`](src/webview/diagram/drawing-feedback.mts) : comme l'élément @wokwi est masqué, on reflète l'état sur le **dessin** en agissant sur les sous-éléments Wokwi conservés. `Editor.drawingOf(id)` expose le SVG du dessin.
+2. ✅ **LED** : `reflectLed` affiche le groupe `<g class="light">` (présent mais `display:none` dans le SVG capté) et teinte le halo selon la couleur (`part.attrs.color` → pastel Wokwi). Allumé/éteint suit `ledOn`. Dessin + surcharge enregistrés (`led` déjà calé).
+3. ✅ **Buzzer** : `reflectGlow` pose un halo `drop-shadow` jaune quand actif. Dessin + surcharge `buzzer` recalée (repère feuille).
+4. ✅ **Reset** : `resetVisuals` recrée chaque part → dessin neuf (light masquée) à l'arrêt. Vérifié visuellement (LED rouge/vert/bleu, buzzer on/off). `verify` + `verify:diagram` OK.
+5. ℹ️ **Limite** : le **corps** du LED reste de la couleur captée (rouge) même pour un LED vert/bleu — seul le halo change de couleur (le dessin est figé). Suffisant comme indicateur on/off.
+6. ⏳ **Reste** : 7seg, rgb-led, lcd, led-bar, neopixel(-matrix), servo, ili9341, oled — au cas par cas (segments, écran, framebuffer…).
+
 # v2026.6.55
 
 1. ✅ **Dessins retouchés de 10 capteurs/modules** (suite mega/uno/nano) : `hcsr04`, `dht22`, `ntc-temp`, `gas-sensor`, `photoresistor`, `pir`, `sound`, `tilt`, `heartbeat`, `microsd`. Dessins extraits dans [`src/webview/elements/boards/`](src/webview/elements/boards/) et enregistrés dans [`board-drawings.mts`](src/webview/diagram/board-drawings.mts).

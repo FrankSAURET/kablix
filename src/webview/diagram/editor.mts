@@ -43,6 +43,9 @@ interface Rendered {
   container: HTMLDivElement;
   el: WokwiElement;
   hotspots: Map<string, HTMLDivElement>;
+  /** SVG du dessin retouché (board-drawing), s'il y en a un — pour le retour
+   * visuel de simulation (l'élément @wokwi étant masqué). */
+  drawing?: SVGElement;
 }
 
 interface PendingWire {
@@ -1105,6 +1108,11 @@ export class Editor {
     return this.rendered.get(id)?.el;
   }
 
+  /** SVG du dessin retouché d'un composant (board-drawing), ou undefined. */
+  drawingOf(id: string): SVGElement | undefined {
+    return this.rendered.get(id)?.drawing;
+  }
+
   /**
    * Réinitialise l'aspect de tous les composants : chaque élément est recréé à
    * partir de ses attributs initiaux, effaçant l'état piloté par la simulation
@@ -1356,7 +1364,10 @@ export class Editor {
       body.appendChild(toggle);
     }
 
-    this.rendered.set(part.id, { part, container, el, hotspots });
+    this.rendered.set(part.id, {
+      part, container, el, hotspots,
+      drawing: (container.querySelector('.part__drawing svg') as SVGElement) ?? undefined,
+    });
     // Restaure le câblage interne / le poster de brochage après un re-rendu
     // (rotation…), s'il est activé ET que le composant est sélectionné.
     if (this.internalShown.has(part.id) && this.isSelected(part.id)) this.renderInternalWiring(part.id);

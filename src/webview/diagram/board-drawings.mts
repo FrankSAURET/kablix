@@ -17,6 +17,8 @@ import soundSvg from '../elements/boards/sound.svg';
 import tiltSvg from '../elements/boards/tilt.svg';
 import heartbeatSvg from '../elements/boards/heartbeat.svg';
 import microsdSvg from '../elements/boards/microsd.svg';
+import ledSvg from '../elements/boards/led.svg';
+import buzzerSvg from '../elements/boards/buzzer.svg';
 
 const DRAWINGS: Record<string, string> = {
   mega: megaSvg,
@@ -32,6 +34,8 @@ const DRAWINGS: Record<string, string> = {
   tilt: tiltSvg,
   heartbeat: heartbeatSvg,
   microsd: microsdSvg,
+  led: ledSvg,
+  buzzer: buzzerSvg,
 };
 
 export interface BoardDrawing {

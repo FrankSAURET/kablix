@@ -45,6 +45,7 @@ import './elements/slide-pot.mjs';
 
 import { initLocale, t } from './i18n.mjs';
 import { Editor, type PaletteState } from './diagram/editor.mjs';
+import { reflectLed, reflectGlow } from './diagram/drawing-feedback.mjs';
 import { partDef, boardFamily, isBoardId, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
 import { toWokwiDiagram, fromWokwiDiagram } from './diagram/wokwi.mjs';
 import {
@@ -279,10 +280,15 @@ function refreshVisuals(): void {
     const el = editor.elementOf(part.id);
     if (!el) continue;
     switch (def.kind) {
-      case 'led':
-        if (def.custom) el.active = ledOn(editor.diagram, part.id, read);
-        else el.value = ledOn(editor.diagram, part.id, read);
+      case 'led': {
+        const on = ledOn(editor.diagram, part.id, read);
+        if (def.custom) el.active = on;
+        else el.value = on;
+        // Dessin retouché (élément @wokwi masqué) : on allume le groupe .light.
+        const draw = editor.drawingOf(part.id);
+        if (draw) reflectLed(draw, on, part.attrs?.color);
         break;
+      }
       case 'rgb-led': {
         const s = rgbLedState(editor.diagram, part.id, read);
         el.ledRed = s.red ? 1 : 0;
@@ -300,6 +306,9 @@ function refreshVisuals(): void {
         const on = toggling || buzzerOn(editor.diagram, part.id, read);
         if (def.custom) el.active = on;
         else el.hasSignal = on;
+        // Dessin retouché (élément @wokwi masqué) : halo lumineux si actif.
+        const draw = editor.drawingOf(part.id);
+        if (draw) reflectGlow(draw, on);
         if (on) {
           // Fréquence d'après la largeur de l'impulsion haute (signal carré de
           // tone()/PWM : période = 2 × largeur haute → f = 1e6 / (2 × largeur)).
