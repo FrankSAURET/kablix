@@ -215,6 +215,12 @@ export class Editor {
     this.world = document.createElement('div');
     this.world.className = 'canvas__world';
     this.canvas.appendChild(this.world);
+    // Feuille de dessin quadrillée (ancrée à l'origine du monde) : posée AVANT
+    // le SVG et les composants pour rester en arrière-plan. La grille vit dans le
+    // monde transformé → elle suit le zoom/translation sans calcul manuel.
+    const sheet = document.createElement('div');
+    sheet.className = 'canvas__sheet';
+    this.world.appendChild(sheet);
     this.world.appendChild(this.svg); // reparent le SVG des fils dans le monde
 
     this.buildPalette();
@@ -269,9 +275,29 @@ export class Editor {
     });
     // État initial enregistré pour l'annulation (feuille vide).
     this.recordHistory();
-    // Vue de démarrage centrée (l'origine du monde au centre de la zone utile) :
-    // attend la mise en page pour connaître la taille réelle du canvas.
-    requestAnimationFrame(() => this.resetView());
+    // Vue de démarrage centrée (l'origine du monde au centre de la zone utile).
+    this.centerOnFirstLayout();
+  }
+
+  /**
+   * Centre la vue dès que le canvas a une taille réelle. Au montage, la mise en
+   * page flex n'est pas encore résolue (`clientWidth/Height` = 0) : un simple
+   * `requestAnimationFrame` centrait alors sur les dimensions de repli (800×600),
+   * laissant l'origine en haut-gauche au lieu du centre. On attend donc la
+   * première taille non nulle (ResizeObserver), puis on se débranche.
+   */
+  private centerOnFirstLayout(): void {
+    if (this.canvas.clientWidth > 0 && this.canvas.clientHeight > 0) {
+      this.resetView();
+      return;
+    }
+    const ro = new ResizeObserver(() => {
+      if (this.canvas.clientWidth > 0 && this.canvas.clientHeight > 0) {
+        ro.disconnect();
+        this.resetView();
+      }
+    });
+    ro.observe(this.canvas);
   }
 
   // --- Verrou de simulation + annuler / refaire -------------------------------
@@ -364,10 +390,8 @@ export class Editor {
   // --- Zoom / déplacement de la vue -------------------------------------------
   private applyTransform(): void {
     this.world.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.zoom})`;
-    // La grille de fond suit le zoom et la translation pour rester cohérente.
-    const step = GRID * this.zoom;
-    this.canvas.style.backgroundSize = `${step}px ${step}px`;
-    this.canvas.style.backgroundPosition = `${this.panX}px ${this.panY}px`;
+    // La grille vit dans la feuille (.canvas__sheet), enfant du monde : elle suit
+    // donc la transform ci-dessus automatiquement — aucun calage manuel ici.
     if (this.zoomBadge) this.zoomBadge.textContent = `⟳ ${Math.round(this.zoom * 100)} %`;
   }
 

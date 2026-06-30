@@ -9,6 +9,13 @@
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
 7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → bases générées (v2026.6.46), à retoucher par Frank.
 
+# v2026.6.64
+
+1. ✅ **Icône du bouton « pas à pas » = [`media/step.png`](media/step.png)** : `<img class="canvas-controls__icon">` à la place du glyphe `⏭`, padding nul (`.canvas-controls__btn--step`) → image la plus grande possible dans le bouton (`object-fit: contain`, ratio conservé). `stepUri` ajouté dans [`panel.ts`](src/panel.ts).
+2. ✅ **Grille seulement sur la feuille de dessin** : nouvelle `.canvas__sheet` (enfant du monde, ancrée à l'origine, s'étend en +x/+y) porte la grille 10 px ; elle suit zoom/translation automatiquement (la grille n'est plus calée à la main dans `applyTransform`). Hors feuille (coords négatives, coin haut-gauche) = **jaune `rgb(254,252,238)`** sur `.canvas`. Feuille blanche.
+3. ✅ **Nommage par défaut = nom du projet ouvert**, sinon fichier de code associé (sans chemin ni extension), sinon repli. `saveProject`/`saveSvg` utilisent désormais `projectDisplayName()` (ordre projet → code), comme le nom affiché.
+4. ✅ **Vue de démarrage réellement centrée** (le `resetView` de v2026.6.41 #5 centrait sur les dimensions de repli 800×600 car la mise en page flex n'était pas résolue au montage → origine en haut-gauche). `centerOnFirstLayout` attend la 1re taille non nulle du canvas (`ResizeObserver`) avant de centrer, puis se débranche.
+
 # v2026.6.63
 
 1. ✅ **7 segments 2/4 chiffres animés sur le dessin retouché**. Dessins nettoyés → [`composants/externe/7seg-2dig.svg`](src/webview/composants/externe/7seg-2dig.svg) (14 polygones = 2×7) / [`7seg-4dig.svg`](src/webview/composants/externe/7seg-4dig.svg) (28 = 4×7), enregistrés (`board-drawings.mts`). `reflectSevenSeg(svg, values, color, digits)` généralisé : 7 `<polygon>` par chiffre (ordre DOM A→G) + point décimal (`<circle>`/`<ellipse>`, 1 par chiffre, gauche→droite). Multiplexage : `el.values` (latch `digits*8`) reflété. Surcharges 2dig/4dig recalées (nouvelle convention, probe).
@@ -142,9 +149,9 @@
  Attention c'est le centre de tes points rouges qui est la référence. Et je n'ai pas toujours laissé de marge.
 
 ℹ️ **Générateur de SVG de retouche par variante** : [`scripts/build-retouche.mjs`](scripts/build-retouche.mjs) (`node scripts/build-retouche.mjs`, `--force` pour réécrire). Rend chaque variante via Chrome headless + esbuild, pose la grille 10 px et les pastilles `id="pin-<nom>"` à la position exacte de Kablix (marge 20 + `pinInfo × pinScale`, dessin scalé `96/25,4 × pinScale`). Variantes manquantes générées (broches différentes) : **clavier 3×4** (`keypad-3col.edit.svg`, 7 broches), **LCD I²C** (`lcd-i2c.edit.svg`, 4 broches à gauche), **LCD parallèle 20×4** (`lcd-parallel-20x4.edit.svg`, 16 broches plus bas), **7 segments 2 et 4 chiffres** (`7seg-2dig.edit.svg` 10 broches, `7seg-4dig.edit.svg` 14 broches en DIL). Formule validée : régénérer le 4×4 et le LCD 16×2 redonne pile les fichiers existants.
-1. Remplace l'icone du bouton avancer d'un pas par media\step.png . Le plus grand possible dans le bouton
-1. pas de grille en dehors du monde. La grille juste sur la feuille de dessin le reste est grisé
-1. nommage : par défaut le nom du projet ouvert -  si pas de nom, le nom du fichier de code associé (sans chemin ni extension)
+1. ✅ Remplace l'icone du bouton avancer d'un pas par media\step.png . Le plus grand possible dans le bouton → v2026.6.64.
+1. ✅ pas de grille en dehors du monde. La grille juste sur la feuille de dessin le reste est jaune (254,252,238) → v2026.6.64.
+1. ✅ nommage : par défaut le nom du projet ouvert -  si pas de nom, le nom du fichier de code associé (sans chemin ni extension) → v2026.6.64.
 1. **Routage auto** : sortie perpendiculaire au bord le plus proche **de tout composant** (et plus seulement des cartes) sur **2 px****, puis on ne recouvre aucun composants ni celui d'ou pn part ni aucun autre. Si pas possible, on laisse le fil comme à l'origine.
 
 # v2026.6.42
@@ -157,7 +164,7 @@
 2. ✅ **Miniatures fiables** : recalage par `ResizeObserver` au lieu d'une boucle rAF → corrige les vignettes « trop grandes » au lancement et au dépliage d'une section repliée (taille nulle tant que `display:none`).
 3. ✅ **Miniature 7 segments « 8. »** : tous les segments + point décimal allumés dans la couleur choisie (et barre de LED allumée), via `lightThumbnail`.
 4. ✅ **Message de verrouillage rétabli** : le bandeau rouge sur jaune est réinséré dès qu'une reconstruction de palette le détache (`isConnected`), et re-affiché en fin de `buildPalette` si la simulation tourne.
-5. ✅ **Vue de démarrage centrée** : l'origine du monde est posée au centre de la zone utile (sous les barres) — plus de zone morte en haut-gauche où un composant restait coincé. `resetView` centre l'origine, appelé au démarrage.
+5. ⚠️ **Vue de démarrage centrée** : l'origine du monde est posée au centre de la zone utile (sous les barres) — plus de zone morte en haut-gauche où un composant restait coincé. `resetView` centre l'origine, appelé au démarrage. **(En fait inopérant : centrage sur dimensions de repli au montage → vrai correctif en v2026.6.64 #4.)**
 6. ✅ **Fils : héritage de couleur** : un fil branché sur le même point qu'un fil existant reprend sa couleur (même nœud → même couleur), `inheritedColor`.
 7. ✅ **`.projix` : nom par défaut** = fichier de code associé (sans chemin ni extension), sinon nom du projet ouvert/enregistré, sinon `schema-kablix`. **Nom du projet affiché** à côté du bouton d'aide (message `projectName`).
 8. ✅ **Appuis prolongés (BP, touches clavier, SEL joystick)** : durée d'appui minimale (`MIN_PRESS_MS` 150 ms) — un clic bref n'est plus manqué par le balayage du firmware. Relâcher différé par touche pour le clavier.

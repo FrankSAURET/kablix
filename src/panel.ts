@@ -702,12 +702,9 @@ export class SimulatorPanel {
   private async saveProject(diagram: unknown, board?: Board): Promise<void> {
     try {
       const folders = vscode.workspace.workspaceFolders;
-      // Nom par défaut = fichier de code associé (sans chemin ni extension),
-      // sinon le nom du projet déjà ouvert/enregistré, sinon repli générique.
-      const base =
-        (this.codeFileUri ? baseNameNoExt(this.codeFileUri.fsPath) : undefined) ??
-        this.projectBaseName ??
-        'schema-kablix';
+      // Nom par défaut = nom du projet ouvert/enregistré, sinon le fichier de
+      // code associé (sans chemin ni extension), sinon repli générique.
+      const base = this.projectDisplayName() ?? 'schema-kablix';
       const fileName = `${base}.projix`;
       const defaultUri = folders?.length
         ? vscode.Uri.joinPath(folders[0].uri, fileName)
@@ -821,9 +818,12 @@ export class SimulatorPanel {
   /** Enregistre le schéma exporté en SVG via un dialogue de sauvegarde. */
   private async saveSvg(svg: string): Promise<void> {
     const folders = vscode.workspace.workspaceFolders;
-    // Nom par défaut = nom du projet (.projix ouvert/enregistré), sinon nom du
-    // dossier de travail, sinon repli générique.
-    const base = this.projectBaseName ?? (folders?.length ? baseNameNoExt(folders[0].uri.fsPath) : null) ?? 'schema-kablix';
+    // Nom par défaut = nom du projet ouvert/enregistré, sinon fichier de code
+    // associé, sinon nom du dossier de travail, sinon repli générique.
+    const base =
+      this.projectDisplayName() ??
+      (folders?.length ? baseNameNoExt(folders[0].uri.fsPath) : null) ??
+      'schema-kablix';
     const fileName = `${base}.svg`;
     const defaultUri = folders?.length
       ? vscode.Uri.joinPath(folders[0].uri, fileName)
@@ -861,6 +861,9 @@ export class SimulatorPanel {
     );
     const gommeUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this.extensionUri, 'media', 'Gomme.svg')
+    );
+    const stepUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, 'media', 'step.png')
     );
     const nonce = getNonce();
     const version =
@@ -923,7 +926,7 @@ export class SimulatorPanel {
           <button id="run" class="canvas-controls__btn primary" title="${l10n.t('Start')}">▶</button>
           <button id="stop" class="canvas-controls__btn" disabled title="${l10n.t('Stop')}">■</button>
           <button id="pause" class="canvas-controls__btn" disabled title="${l10n.t('Pause / resume the simulation')}">⏸</button>
-          <button id="step" class="canvas-controls__btn" disabled title="${l10n.t('Run one source line then pause')}">⏭</button>
+          <button id="step" class="canvas-controls__btn canvas-controls__btn--step" disabled title="${l10n.t('Run one source line then pause')}"><img class="canvas-controls__icon" src="${stepUri}" alt="${l10n.t('Run one source line then pause')}" /></button>
           <select id="speed" class="canvas-controls__speed" title="${l10n.t('Simulation speed')}">
             <option value="1" selected>🐇 100 %</option>
             <option value="0.1">🐢 10 %</option>
