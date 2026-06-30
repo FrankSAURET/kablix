@@ -13,7 +13,8 @@
 
 1. ✅ **Servo animé sur le dessin** : `reflectServo` oriente le palonnier selon `el.angle` (0–180°). Palonnier = seul `<path>` couleur `#ccc` (hornColor) hors defs ; axe = centre des cercles concentriques de l'arbre ; on applique la `rotate` du rendu Wokwi (dessin capté à 0°). Vérifié 0/45/90/135/180°.
 2. ✅ Dessin `servo` enregistré + surcharge recalée.
-3. ⏳ **Reste** : lcd, neopixel(-matrix), led-ring, ili9341, oled, 7seg 2/4 chiffres.
+3. ✅ **vsix nettoyé** : `.vscodeignore` exclut désormais `*.rar`, `preview-*.png`, `.tmp-*`, `Todo*.txt` (le .rar de sauvegarde de 152 Ko et `preview-7seg.png` n'étaient plus embarqués). `kablix-2026.6.59.vsix` = 114 fichiers, 3,53 Mo.
+4. ⏳ **Reste** : lcd, neopixel(-matrix), led-ring, ili9341, oled, 7seg 2/4 chiffres.
 
 # v2026.6.58
 

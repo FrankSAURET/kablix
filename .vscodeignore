@@ -5,6 +5,10 @@ svg/**
 svg retouche/**
 *.edit.svg
 *.vsix
+*.rar
+preview-*.png
+.tmp-*
+Todo*.txt
 todo*.md
 node_modules/**
 firmware/avr/**
