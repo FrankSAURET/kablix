@@ -2253,12 +2253,15 @@ export class Editor {
         return best;
       };
       let inner: XY[] = [];
-      if (Math.abs(pa.x - pb.x) > TOL && Math.abs(pa.y - pb.y) > TOL) {
+      // Routeur A* (contourne les obstacles et les fils). Le chemin va de pa à
+      // pb inclus ; on retire ces deux bornes (réinjectées via sa/sb ou a/b).
+      const path = astarRoute(pa, pb, others, otherSegs, { clr: GRID / 2, bend: 2 * GRID, gap: GAP });
+      if (path && path.length >= 2) {
+        inner = path.slice(1, -1);
+      } else if (Math.abs(pa.x - pb.x) > TOL && Math.abs(pa.y - pb.y) > TOL) {
+        // Repli (A* sans solution) : coude en L / détour en Z de moindre coût.
         const midX = (pa.x + pb.x) / 2;
         const midY = (pa.y + pb.y) / 2;
-        // Coudes en L, puis détours en Z par la médiane décalée de plusieurs lignes
-        // (multiples de GAP) → chaque fil trouve une « voie » libre, écartée des
-        // autres, sans les chevaucher.
         const offs = [0, GAP, -GAP, 2 * GAP, -2 * GAP, 3 * GAP, -3 * GAP];
         const candidates: XY[][] = [[{ x: pb.x, y: pa.y }], [{ x: pa.x, y: pb.y }]];
         for (const o of offs) {
@@ -3442,6 +3445,172 @@ function polylineRectOverlap(pts: XY[], rects: PartRect[]): number {
     for (const r of rects) total += segRectOverlap(pts[i], pts[i + 1], r);
   }
   return total;
+}
+
+/** Retire les points colinéaires/doublons consécutifs d'une polyligne H/V. */
+function collapseColinear(pts: XY[]): XY[] {
+  const out: XY[] = [];
+  for (const p of pts) {
+    const n = out.length;
+    if (n >= 1 && Math.abs(out[n - 1].x - p.x) < 0.5 && Math.abs(out[n - 1].y - p.y) < 0.5) continue;
+    if (n >= 2) {
+      const a = out[n - 2];
+      const b = out[n - 1];
+      const colX = Math.abs(a.x - b.x) < 0.5 && Math.abs(b.x - p.x) < 0.5;
+      const colY = Math.abs(a.y - b.y) < 0.5 && Math.abs(b.y - p.y) < 0.5;
+      if (colX || colY) {
+        out[n - 1] = p;
+        continue;
+      }
+    }
+    out.push(p);
+  }
+  return out;
+}
+
+/**
+ * Routeur orthogonal **A\*** sur un graphe de Hanan. Les lignes de coordonnées
+ * candidates viennent des deux extrémités, des bords des obstacles (gonflés de la
+ * clearance) et de voies décalées (multiples de `gap` autour de la médiane) pour
+ * contourner les fils existants. Le coût d'un tracé = longueur + pénalité de
+ * chevauchement/proximité d'autres fils + pénalité par changement de direction
+ * (`bend`). Renvoie la liste des coudes de `pa` à `pb` (inclus), ou `null` si
+ * aucun chemin n'existe (l'appelant retombe alors sur un coude en L).
+ */
+function astarRoute(
+  pa: XY,
+  pb: XY,
+  obstacles: PartRect[],
+  otherSegs: Array<[XY, XY]>,
+  o: { clr: number; bend: number; gap: number },
+): XY[] | null {
+  const { clr, bend, gap } = o;
+  // Rectangles gonflés de la clearance : zones interdites de passage.
+  const blocks = obstacles.map((r) => ({ x: r.x - clr, y: r.y - clr, w: r.w + 2 * clr, h: r.h + 2 * clr }));
+  // Lignes de coordonnées (Hanan) : extrémités + bords des obstacles + voies
+  // décalées autour de la médiane (pour s'écarter d'un fil aligné).
+  const midX = (pa.x + pb.x) / 2;
+  const midY = (pa.y + pb.y) / 2;
+  const xsSet = new Set<number>([pa.x, pb.x]);
+  const ysSet = new Set<number>([pa.y, pb.y]);
+  for (const b of blocks) {
+    xsSet.add(b.x);
+    xsSet.add(b.x + b.w);
+    ysSet.add(b.y);
+    ysSet.add(b.y + b.h);
+  }
+  for (let k = -3; k <= 3; k++) {
+    xsSet.add(midX + k * gap);
+    ysSet.add(midY + k * gap);
+  }
+  const xs = [...xsSet].sort((m, n) => m - n);
+  const ys = [...ysSet].sort((m, n) => m - n);
+  const ny = ys.length;
+  const ai = xs.indexOf(pa.x);
+  const aj = ys.indexOf(pa.y);
+  const bi = xs.indexOf(pb.x);
+  const bj = ys.indexOf(pb.y);
+  if (ai < 0 || aj < 0 || bi < 0 || bj < 0) return null;
+
+  // Un segment [p,q] aligné traverse-t-il l'intérieur d'un bloc ? (test au milieu :
+  // valide car aucun bord d'obstacle ne tombe entre deux lignes consécutives.)
+  const blocked = (p: XY, q: XY): boolean => {
+    const mx = (p.x + q.x) / 2;
+    const my = (p.y + q.y) / 2;
+    for (const b of blocks) {
+      if (mx > b.x + 0.5 && mx < b.x + b.w - 0.5 && my > b.y + 0.5 && my < b.y + b.h - 0.5) return true;
+    }
+    return false;
+  };
+  // Pénalité « fils » d'un segment (chevauchement colinéaire + proximité parallèle).
+  const wireCost = (p: XY, q: XY): number => {
+    let c = 0;
+    for (const [s, t] of otherSegs) {
+      c += collinearOverlap(p, q, s, t) * 6;
+      c += parallelPenalty(p, q, s, t, gap) * 0.6;
+    }
+    return c;
+  };
+  const heur = (i: number, j: number): number => Math.abs(xs[i] - pb.x) + Math.abs(ys[j] - pb.y);
+
+  // A* : état = nœud × direction (0 = horizontal, 1 = vertical, 2 = départ).
+  interface St {
+    i: number;
+    j: number;
+    dir: number;
+    g: number;
+    f: number;
+    prev: St | null;
+  }
+  const keyOf = (i: number, j: number, dir: number): number => (i * ny + j) * 3 + dir;
+  const bestG = new Map<number, number>();
+  // Tas binaire min sur f.
+  const heap: St[] = [];
+  const push = (s: St): void => {
+    heap.push(s);
+    let c = heap.length - 1;
+    while (c > 0) {
+      const p = (c - 1) >> 1;
+      if (heap[p].f <= heap[c].f) break;
+      [heap[p], heap[c]] = [heap[c], heap[p]];
+      c = p;
+    }
+  };
+  const pop = (): St => {
+    const top = heap[0];
+    const last = heap.pop()!;
+    if (heap.length > 0) {
+      heap[0] = last;
+      let c = 0;
+      for (;;) {
+        const l = 2 * c + 1;
+        const r = l + 1;
+        let m = c;
+        if (l < heap.length && heap[l].f < heap[m].f) m = l;
+        if (r < heap.length && heap[r].f < heap[m].f) m = r;
+        if (m === c) break;
+        [heap[m], heap[c]] = [heap[c], heap[m]];
+        c = m;
+      }
+    }
+    return top;
+  };
+
+  push({ i: ai, j: aj, dir: 2, g: 0, f: heur(ai, aj), prev: null });
+  const steps: Array<[number, number]> = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ];
+  while (heap.length > 0) {
+    const cur = pop();
+    if (cur.i === bi && cur.j === bj) {
+      const pts: XY[] = [];
+      for (let s: St | null = cur; s; s = s.prev) pts.push({ x: xs[s.i], y: ys[s.j] });
+      pts.reverse();
+      return collapseColinear(pts);
+    }
+    const ck = keyOf(cur.i, cur.j, cur.dir);
+    if (bestG.has(ck) && (bestG.get(ck) as number) < cur.g - 0.01) continue;
+    for (const [di, dj] of steps) {
+      const ni = cur.i + di;
+      const nj = cur.j + dj;
+      if (ni < 0 || ni >= xs.length || nj < 0 || nj >= ny) continue;
+      const p = { x: xs[cur.i], y: ys[cur.j] };
+      const q = { x: xs[ni], y: ys[nj] };
+      if (blocked(p, q)) continue;
+      const dir = di !== 0 ? 0 : 1;
+      const len = Math.abs(q.x - p.x) + Math.abs(q.y - p.y);
+      const g = cur.g + len + wireCost(p, q) + (cur.dir !== 2 && cur.dir !== dir ? bend : 0);
+      const nk = keyOf(ni, nj, dir);
+      const prev = bestG.get(nk);
+      if (prev !== undefined && prev <= g + 0.01) continue;
+      bestG.set(nk, g);
+      push({ i: ni, j: nj, dir, g, f: g + heur(ni, nj), prev: cur });
+    }
+  }
+  return null;
 }
 
 /** Distance d'un point à un segment [a,b]. */

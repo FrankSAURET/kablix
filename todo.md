@@ -9,6 +9,10 @@
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
 7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → bases générées (v2026.6.46), à retoucher par Frank.
 
+# v2026.6.65
+
+1. ✅ **Autoroutage par A\*** : `autoRoute()` route désormais chaque fil par un vrai pathfinding orthogonal (`astarRoute`, [`editor.mts`](src/webview/diagram/editor.mts)) au lieu d'un jeu figé de coudes en L/Z. **Graphe de Hanan** : lignes de coordonnées = extrémités + bords des obstacles (gonflés de `clr = GRID/2`) + voies décalées (multiples de `GAP` autour de la médiane). Coût d'arête = longueur + chevauchement/proximité d'autres fils (×6 / ×0.6) + pénalité de coude (`bend = 2·GRID`) ; obstacles = passage interdit (clearance). Tas binaire min, état = nœud × direction. Le coude en L de moindre coût reste en **repli** si A\* ne trouve aucun chemin. Conserve la sortie perpendiculaire (`pinStub`) et le routage séquentiel (chaque fil évite les précédents). Résultat : contourne réellement les grosses cartes, ligne droite quand c'est direct, voie parallèle quand un fil gêne. Testé en isolé (droit / L / contournement sans traverser / évitement de fil / 12 obstacles en 2 ms).
+
 # v2026.6.64
 
 1. ✅ **Icône du bouton « pas à pas » = [`media/step.png`](media/step.png)** : `<img class="canvas-controls__icon">` à la place du glyphe `⏭`, padding nul (`.canvas-controls__btn--step`) → image la plus grande possible dans le bouton (`object-fit: contain`, ratio conservé). `stepUri` ajouté dans [`panel.ts`](src/panel.ts).
