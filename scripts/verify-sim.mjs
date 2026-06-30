@@ -7,10 +7,17 @@ import {
   AVRIOPort,
   AVRUSART,
   AVRTimer,
+  AVRADC,
+  adcConfig,
+  ADCMuxInputType,
   portBConfig,
   portDConfig,
+  portEConfig,
+  portFConfig,
   portGConfig,
   portHConfig,
+  portKConfig,
+  portLConfig,
   timer0Config,
   timer1Config,
   timer2Config,
@@ -21,6 +28,7 @@ import { RP2040, GPIOPinState } from 'rp2040js';
 import { UNO_DEMO } from '../src/webview/programs/uno-demo.mjs';
 import { MEGA_DEMO } from '../src/webview/programs/mega-demo.mjs';
 import { MEGA_PWM } from '../src/webview/programs/mega-pwm.mjs';
+import { MEGA_PWM345 } from '../src/webview/programs/mega-pwm345.mjs';
 import { PICO_BLINK } from '../src/webview/programs/pico-blink.mjs';
 
 let failures = 0;
@@ -182,6 +190,88 @@ console.log('Arduino Mega — PWM (analogWrite) :');
   check(`D11 OC1A=PB5 ≈ 25 % (${pct(pb5)})`, near(pb5, 25));
   check(`D9 OC2B=PH6 ≈ 75 % (${pct(ph6)})`, near(ph6, 75));
   check(`D13 OC0A=PB7 ≈ 50 % (${pct(pb7)})`, near(pb7, 50));
+}
+
+// --- Arduino Mega : timers 3-5, ADC A8-A15, Serial1 -------------------------
+// Périphériques propres au 2560 (absents du 328P → reconstruits à la main dans
+// avr.mts). On vérifie : PWM sur OC3A=PE3 (25 %), OC4A=PH3 (75 %), OC5A=PL3
+// (50 %) ; analogRead(A8) (canal 8 sélectionné par le bit MUX5) ; émission
+// Serial1 (USART1).
+console.log('Arduino Mega — timers 3-5 / ADC A8 / Serial1 :');
+{
+  const base16 = (regs, vects, pins) => ({
+    ...timer1Config,
+    ...regs,
+    OCFC: 0x08, OCIEC: 0x08,
+    ...vects,
+    ...pins,
+  });
+  const MEGA_TIMER3 = base16(
+    { TCCRA: 0x90, TCCRB: 0x91, TCCRC: 0x92, TCNT: 0x94, ICR: 0x96, OCRA: 0x98, OCRB: 0x9a, OCRC: 0x9c, TIMSK: 0x71, TIFR: 0x38 },
+    { captureInterrupt: 0x3e, compAInterrupt: 0x40, compBInterrupt: 0x42, compCInterrupt: 0x44, ovfInterrupt: 0x46 },
+    { externalClockPort: portEConfig.PORT, externalClockPin: 6,
+      compPortA: portEConfig.PORT, compPinA: 3, compPortB: portEConfig.PORT, compPinB: 4, compPortC: portEConfig.PORT, compPinC: 5 }
+  );
+  const MEGA_TIMER4 = base16(
+    { TCCRA: 0xa0, TCCRB: 0xa1, TCCRC: 0xa2, TCNT: 0xa4, ICR: 0xa6, OCRA: 0xa8, OCRB: 0xaa, OCRC: 0xac, TIMSK: 0x72, TIFR: 0x39 },
+    { captureInterrupt: 0x52, compAInterrupt: 0x54, compBInterrupt: 0x56, compCInterrupt: 0x58, ovfInterrupt: 0x5a },
+    { externalClockPort: portHConfig.PORT, externalClockPin: 7,
+      compPortA: portHConfig.PORT, compPinA: 3, compPortB: portHConfig.PORT, compPinB: 4, compPortC: portHConfig.PORT, compPinC: 5 }
+  );
+  const MEGA_TIMER5 = base16(
+    { TCCRA: 0x120, TCCRB: 0x121, TCCRC: 0x122, TCNT: 0x124, ICR: 0x126, OCRA: 0x128, OCRB: 0x12a, OCRC: 0x12c, TIMSK: 0x73, TIFR: 0x3a },
+    { captureInterrupt: 0x5c, compAInterrupt: 0x5e, compBInterrupt: 0x60, compCInterrupt: 0x62, ovfInterrupt: 0x64 },
+    { externalClockPort: portLConfig.PORT, externalClockPin: 2,
+      compPortA: portLConfig.PORT, compPinA: 3, compPortB: portLConfig.PORT, compPinB: 4, compPortC: portLConfig.PORT, compPinC: 5 }
+  );
+  const MEGA_USART1 = { ...usart0Config,
+    rxCompleteInterrupt: 0x48, dataRegisterEmptyInterrupt: 0x4a, txCompleteInterrupt: 0x4c,
+    UCSRA: 0xc8, UCSRB: 0xc9, UCSRC: 0xca, UBRRL: 0xcc, UBRRH: 0xcd, UDR: 0xce };
+  const MEGA_ADC_CHANNELS = { 30: { type: ADCMuxInputType.Constant, voltage: 1.1 }, 31: { type: ADCMuxInputType.Constant, voltage: 0 } };
+  for (let i = 0; i < 8; i++) {
+    MEGA_ADC_CHANNELS[i] = { type: ADCMuxInputType.SingleEnded, channel: i };
+    MEGA_ADC_CHANNELS[0x20 + i] = { type: ADCMuxInputType.SingleEnded, channel: 8 + i };
+  }
+  const MEGA_ADC_CONFIG = { ...adcConfig, adcInterrupt: 0x3a, numChannels: 16, muxInputMask: 0x3f, muxChannels: MEGA_ADC_CHANNELS };
+
+  const cpu = new CPU(MEGA_PWM345.slice(), 0x2200);
+  cpu.pc22Bits = true;
+  new AVRIOPort(cpu, portFConfig); // A0-A7
+  new AVRIOPort(cpu, portKConfig); // A8-A15
+  const portE = new AVRIOPort(cpu, portEConfig);
+  const portH = new AVRIOPort(cpu, portHConfig);
+  const portL = new AVRIOPort(cpu, portLConfig);
+  new AVRTimer(cpu, MEGA_TIMER3);
+  new AVRTimer(cpu, MEGA_TIMER4);
+  new AVRTimer(cpu, MEGA_TIMER5);
+  const usart1 = new AVRUSART(cpu, MEGA_USART1, 16_000_000);
+  const adc = new AVRADC(cpu, MEGA_ADC_CONFIG);
+  adc.channelValues[8] = 2.5; // A8 -> ~512 sur 1023
+
+  let serial1 = '';
+  usart1.onByteTransmit = (b) => { serial1 += String.fromCharCode(b); };
+
+  // Warmup : setup() configure les 3 PWM, la loop lance analogRead + Serial1.
+  for (let i = 0; i < 4_000_000; i++) { avrInstruction(cpu); cpu.tick(); }
+  // Mesure du rapport cyclique sur les sorties OCnA des timers 3/4/5.
+  let n = 0, pe3 = 0, ph3 = 0, pl3 = 0;
+  const c0 = cpu.cycles;
+  while (cpu.cycles - c0 < 2_000_000) {
+    avrInstruction(cpu); cpu.tick(); n++;
+    if (portE.pinState(3) === PinState.High) pe3++;
+    if (portH.pinState(3) === PinState.High) ph3++;
+    if (portL.pinState(3) === PinState.High) pl3++;
+  }
+  const near = (got, want) => Math.abs((100 * got) / n - want) <= 8;
+  const pct = (x) => `${Math.round((100 * x) / n)}%`;
+  // analogRead(A8) attendu ~512 : on accepte 470-540.
+  const m = serial1.match(/a8=(\d+)/);
+  const a8 = m ? Number(m[1]) : -1;
+  check(`D5 OC3A=PE3 ≈ 25 % (${pct(pe3)})`, near(pe3, 25));
+  check(`D6 OC4A=PH3 ≈ 75 % (${pct(ph3)})`, near(ph3, 75));
+  check(`D46 OC5A=PL3 ≈ 50 % (${pct(pl3)})`, near(pl3, 50));
+  check(`Serial1 émet (${JSON.stringify(serial1.slice(0, 12))})`, serial1.includes('a8='));
+  check(`analogRead(A8) ≈ 512 (${a8})`, a8 >= 470 && a8 <= 540);
 }
 
 // --- Raspberry Pi Pico (rp2040js) -------------------------------------------

@@ -5,9 +5,11 @@
 // (USART0 = Serial sur les deux familles). Les *registres* USART0 / timers 0-2 /
 // ADC sont aux mêmes adresses sur le 328P et le 2560, MAIS la table de vecteurs
 // d'interruption diffère → configs Mega dédiées avec vecteurs corrigés (cf.
-// MEGA_TIMER*…), sinon millis()/delay()/Serial gèlent sur le Mega. Limites Mega
-// (« partiel ») : timers 3-5, USART1-3, canaux ADC 8-15 (A8-A15) et sorties PWM
-// (broches OC différentes) ne sont pas simulés.
+// MEGA_TIMER*…), sinon millis()/delay()/Serial gèlent sur le Mega. Les timers
+// 3-5, USART1-3 (Serial1/2/3) et les canaux ADC 8-15 (A8-A15) — absents du 328P
+// donc sans config avr8js — sont reconstruits à la main (adresses de registres,
+// vecteurs et broches OC du 2560) : tout le PWM (D2-D13, 44-46) et toutes les
+// entrées analogiques (A0-A15) sont donc simulés.
 import {
   CPU,
   avrInstruction,
@@ -20,6 +22,7 @@ import {
   AVRSPI,
   spiConfig,
   adcConfig,
+  ADCMuxInputType,
   portAConfig,
   portBConfig,
   portCConfig,
@@ -37,6 +40,7 @@ import {
   timer2Config,
   PinState,
 } from 'avr8js';
+import type { ADCMuxConfiguration } from 'avr8js';
 import type {
   AvrDebugInfo,
   Breakpoint,
@@ -99,10 +103,15 @@ const MEGA_PINS: Record<string, [PortKey, number]> = {
   'SDA': ['D', 1], 'SCL': ['D', 0],
 };
 
-// Broche analogique -> canal ADC. Le 328P expose A0-A5 ; le 2560 A0-A7 (canaux
-// 0-7, port F). A8-A15 (canaux 8-15) nécessiteraient le bit MUX5 non géré.
+// Broche analogique -> canal ADC. Le 328P expose A0-A5 (canaux 0-5, port C) ; le
+// 2560 A0-A15 (canaux 0-7 sur port F, 8-15 sur port K). Les canaux 8-15 passent
+// par le bit MUX5 (ADCSRB) — géré par avr8js dès que MEGA_ADC_CONFIG élargit le
+// masque et déclare les entrées 0x20-0x27.
 const UNO_ADC: Record<string, number> = { A0: 0, A1: 1, A2: 2, A3: 3, A4: 4, A5: 5 };
-const MEGA_ADC: Record<string, number> = { ...UNO_ADC, A6: 6, A7: 7 };
+const MEGA_ADC: Record<string, number> = {
+  ...UNO_ADC, A6: 6, A7: 7,
+  A8: 8, A9: 9, A10: 10, A11: 11, A12: 12, A13: 13, A14: 14, A15: 15,
+};
 
 // ATmega2560 : les registres des périphériques (timers 0-2, USART0, SPI, TWI, ADC)
 // sont aux mêmes adresses que le 328P, MAIS la table de vecteurs d'interruption
@@ -116,9 +125,9 @@ const MEGA_ADC: Record<string, number> = { ...UNO_ADC, A6: 6, A7: 7 };
 // On corrige AUSSI les sorties PWM (compPort/compPin = broche OCnx pilotée par
 // analogWrite) : sur le 2560 les OCnx ne sont pas sur les mêmes broches que le
 // 328P. Sans ça, analogWrite() agissait sur la broche du Uno → la vraie broche
-// du Mega restait inerte. Broches gérées (timers 0-2 simulés) : D13/OC0A=PB7,
-// D4/OC0B=PG5, D11/OC1A=PB5, D12/OC1B=PB6, D10/OC2A=PB4, D9/OC2B=PH6. Les autres
-// broches PWM (D2/3/5/6/7/8, 44-46) dépendent des timers 3-5 non simulés.
+// du Mega restait inerte. Broches gérées (timers 0-2) : D13/OC0A=PB7, D4/OC0B=PG5,
+// D11/OC1A=PB5, D12/OC1B=PB6, D10/OC2A=PB4, D9/OC2B=PH6. Les timers 3-5 (ci-dessous)
+// couvrent les broches PWM restantes : D5/D2/D3, D6/D7/D8, D46/D45/D44.
 const MEGA_TIMER0 = {
   ...timer0Config,
   compAInterrupt: 0x2a, compBInterrupt: 0x2c, ovfInterrupt: 0x2e,
@@ -137,10 +146,68 @@ const MEGA_TIMER2 = {
   compPortA: portBConfig.PORT, compPinA: 4, // OC2A = PB4 (D10)
   compPortB: portHConfig.PORT, compPinB: 6, // OC2B = PH6 (D9)
 };
+// Timers 16 bits 3/4/5 : propres au 2560 (absents du 328P → aucune config avr8js).
+// Ce sont des clones du timer1 (même structure 16 bits A/B/C) ; on repart donc de
+// timer1Config en remplaçant les adresses de registres (datasheet 2560), les
+// vecteurs (table 14-1, en mots) et les broches OCnx. OCFC/OCIEC = bit 3 (TIFR/
+// TIMSK) activent le canal C, présent sur ces timers. Broches PWM ainsi gérées :
+// T3 → D5/D2/D3, T4 → D6/D7/D8, T5 → D46/D45/D44.
+const MEGA_TIMER3 = {
+  ...timer1Config,
+  TCCRA: 0x90, TCCRB: 0x91, TCCRC: 0x92, TCNT: 0x94, ICR: 0x96,
+  OCRA: 0x98, OCRB: 0x9a, OCRC: 0x9c, TIMSK: 0x71, TIFR: 0x38, OCFC: 0x08, OCIEC: 0x08,
+  captureInterrupt: 0x3e, compAInterrupt: 0x40, compBInterrupt: 0x42, compCInterrupt: 0x44, ovfInterrupt: 0x46,
+  externalClockPort: portEConfig.PORT, externalClockPin: 6, // T3 = PE6
+  compPortA: portEConfig.PORT, compPinA: 3, // OC3A = PE3 (D5)
+  compPortB: portEConfig.PORT, compPinB: 4, // OC3B = PE4 (D2)
+  compPortC: portEConfig.PORT, compPinC: 5, // OC3C = PE5 (D3)
+};
+const MEGA_TIMER4 = {
+  ...timer1Config,
+  TCCRA: 0xa0, TCCRB: 0xa1, TCCRC: 0xa2, TCNT: 0xa4, ICR: 0xa6,
+  OCRA: 0xa8, OCRB: 0xaa, OCRC: 0xac, TIMSK: 0x72, TIFR: 0x39, OCFC: 0x08, OCIEC: 0x08,
+  captureInterrupt: 0x52, compAInterrupt: 0x54, compBInterrupt: 0x56, compCInterrupt: 0x58, ovfInterrupt: 0x5a,
+  externalClockPort: portHConfig.PORT, externalClockPin: 7, // T4 = PH7
+  compPortA: portHConfig.PORT, compPinA: 3, // OC4A = PH3 (D6)
+  compPortB: portHConfig.PORT, compPinB: 4, // OC4B = PH4 (D7)
+  compPortC: portHConfig.PORT, compPinC: 5, // OC4C = PH5 (D8)
+};
+const MEGA_TIMER5 = {
+  ...timer1Config,
+  TCCRA: 0x120, TCCRB: 0x121, TCCRC: 0x122, TCNT: 0x124, ICR: 0x126,
+  OCRA: 0x128, OCRB: 0x12a, OCRC: 0x12c, TIMSK: 0x73, TIFR: 0x3a, OCFC: 0x08, OCIEC: 0x08,
+  captureInterrupt: 0x5c, compAInterrupt: 0x5e, compBInterrupt: 0x60, compCInterrupt: 0x62, ovfInterrupt: 0x64,
+  externalClockPort: portLConfig.PORT, externalClockPin: 2, // T5 = PL2 (D47)
+  compPortA: portLConfig.PORT, compPinA: 3, // OC5A = PL3 (D46)
+  compPortB: portLConfig.PORT, compPinB: 4, // OC5B = PL4 (D45)
+  compPortC: portLConfig.PORT, compPinC: 5, // OC5C = PL5 (D44)
+};
 const MEGA_USART0 = { ...usart0Config, rxCompleteInterrupt: 0x32, dataRegisterEmptyInterrupt: 0x34, txCompleteInterrupt: 0x36 };
+// USART1-3 (Serial1/2/3) : génériques aussi, copie de usart0Config avec les
+// adresses UCSR/UBRR/UDR et les vecteurs du 2560.
+const MEGA_USART1 = { ...usart0Config,
+  rxCompleteInterrupt: 0x48, dataRegisterEmptyInterrupt: 0x4a, txCompleteInterrupt: 0x4c,
+  UCSRA: 0xc8, UCSRB: 0xc9, UCSRC: 0xca, UBRRL: 0xcc, UBRRH: 0xcd, UDR: 0xce };
+const MEGA_USART2 = { ...usart0Config,
+  rxCompleteInterrupt: 0x66, dataRegisterEmptyInterrupt: 0x68, txCompleteInterrupt: 0x6a,
+  UCSRA: 0xd0, UCSRB: 0xd1, UCSRC: 0xd2, UBRRL: 0xd4, UBRRH: 0xd5, UDR: 0xd6 };
+const MEGA_USART3 = { ...usart0Config,
+  rxCompleteInterrupt: 0x6c, dataRegisterEmptyInterrupt: 0x6e, txCompleteInterrupt: 0x70,
+  UCSRA: 0x130, UCSRB: 0x131, UCSRC: 0x132, UBRRL: 0x134, UBRRH: 0x135, UDR: 0x136 };
 const MEGA_SPI = { ...spiConfig, spiInterrupt: 0x30 };
 const MEGA_TWI = { ...twiConfig, twiInterrupt: 0x4e };
-const MEGA_ADC_CONFIG = { ...adcConfig, adcInterrupt: 0x3a };
+// ADC du 2560 : 16 canaux. Les canaux 8-15 (A8-A15) sont sélectionnés via le bit
+// MUX5 (ADCSRB) → index 0x20-0x27 dans avr8js. On élargit donc le masque à 0x3f
+// et on déclare A0-A7 (0-7), A8-A15 (0x20-0x27) et les références VBG/GND.
+const MEGA_ADC_CHANNELS: ADCMuxConfiguration = {
+  30: { type: ADCMuxInputType.Constant, voltage: 1.1 }, // référence interne 1,1 V
+  31: { type: ADCMuxInputType.Constant, voltage: 0 }, // GND
+};
+for (let i = 0; i < 8; i++) {
+  MEGA_ADC_CHANNELS[i] = { type: ADCMuxInputType.SingleEnded, channel: i }; // A0-A7
+  MEGA_ADC_CHANNELS[0x20 + i] = { type: ADCMuxInputType.SingleEnded, channel: 8 + i }; // A8-A15
+}
+const MEGA_ADC_CONFIG = { ...adcConfig, adcInterrupt: 0x3a, numChannels: 16, muxInputMask: 0x3f, muxChannels: MEGA_ADC_CHANNELS };
 
 export class AvrEngine implements SimEngine {
   onUpdate: (() => void) | null = null;
@@ -152,6 +219,9 @@ export class AvrEngine implements SimEngine {
   private pinMap: Record<string, [PortKey, number]>;
   private adcMap: Record<string, number>;
   private usart: AVRUSART;
+  // USART1-3 (Serial1/2/3 du Mega) : leur émission est routée vers le moniteur
+  // série (onSerial), comme Serial. Vide sur le 328P (un seul USART).
+  private usarts: AVRUSART[] = [];
   private twi: AVRTWI;
   private spi: AVRSPI;
   private adc: AVRADC;
@@ -253,6 +323,9 @@ export class AvrEngine implements SimEngine {
           new AVRTimer(this.cpu, MEGA_TIMER0),
           new AVRTimer(this.cpu, MEGA_TIMER1),
           new AVRTimer(this.cpu, MEGA_TIMER2),
+          new AVRTimer(this.cpu, MEGA_TIMER3),
+          new AVRTimer(this.cpu, MEGA_TIMER4),
+          new AVRTimer(this.cpu, MEGA_TIMER5),
         ]
       : [
           new AVRTimer(this.cpu, timer0Config),
@@ -275,6 +348,20 @@ export class AvrEngine implements SimEngine {
       const text = this.serialDecoder.decode(Uint8Array.of(b), { stream: true });
       if (text) this.onSerial?.(text);
     };
+    // Serial1/2/3 (Mega) : chaque USART a son propre décodeur UTF-8 et émet vers
+    // le même moniteur série. Sans instanciation, un sketch qui utilise Serial1
+    // resterait bloqué (registres absents, ISR au mauvais vecteur).
+    if (isMega) {
+      for (const cfg of [MEGA_USART1, MEGA_USART2, MEGA_USART3]) {
+        const u = new AVRUSART(this.cpu, cfg, CLOCK_HZ);
+        const decoder = new TextDecoder('utf-8');
+        u.onByteTransmit = (b: number) => {
+          const text = decoder.decode(Uint8Array.of(b), { stream: true });
+          if (text) this.onSerial?.(text);
+        };
+        this.usarts.push(u);
+      }
+    }
   }
 
   readDigital(name: string): boolean {
