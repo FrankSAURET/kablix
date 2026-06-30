@@ -9,6 +9,13 @@
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
 7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → bases générées (v2026.6.46), à retoucher par Frank.
 
+# v2026.6.55
+
+1. ✅ **Dessins retouchés de 10 capteurs/modules** (suite mega/uno/nano) : `hcsr04`, `dht22`, `ntc-temp`, `gas-sensor`, `photoresistor`, `pir`, `sound`, `tilt`, `heartbeat`, `microsd`. Dessins extraits dans [`src/webview/elements/boards/`](src/webview/elements/boards/) et enregistrés dans [`board-drawings.mts`](src/webview/diagram/board-drawings.mts).
+2. ✅ **Surcharges recalées** (repère coin haut-gauche feuille, tel quel) dans [`pin-overrides.mts`](src/webview/diagram/pin-overrides.mts) — 8 blocs remplacés (ancienne convention v6.44 → nouvelle) ; `microsd` et `pir` déjà bons (inchangés). Vérifié visuellement : tous les ronds tombent pile sur leurs headers/pattes.
+3. ℹ️ **Sûr car pilotés par l'inspecteur** : ces capteurs prennent leur valeur dans `part.attrs` (distance/state/value), pas dans l'élément @wokwi (leur slider n'est pas câblé à la simu) → masquer l'élément ne casse ni la simu ni l'interaction. `npm run verify:all` : 9 suites ✅.
+4. ⏳ **Restent à traiter** (élément @wokwi masqué = perte d'interaction OU de retour visuel, à résoudre au cas par cas) : **interactifs** (button, button-6mm, pot, slide-switch, dip-switch, joystick, keypad) et **sorties dynamiques** (led, rgb-led, 7seg, lcd, led-bar, neopixel, neopixel-matrix, servo, buzzer, ili9341, oled-ssd1306).
+
 # v2026.6.54
 
 1. ✅ **Dessins retouchés des cartes `uno` et `nano`** (suite de mega, v6.48). [`_clean-board-svg.mjs`](scripts/_clean-board-svg.mjs) extrait le dessin Wokwi recalé par Frank → [`src/webview/elements/boards/uno.svg`](src/webview/elements/boards/uno.svg) (viewBox 300×220) et [`nano.svg`](src/webview/elements/boards/nano.svg) (190×80) ; enregistrés dans [`board-drawings.mts`](src/webview/diagram/board-drawings.mts). L'éditeur affiche ce dessin à la place du rendu @wokwi (étiré par pinScale), élément @wokwi masqué pour pinInfo + simu.

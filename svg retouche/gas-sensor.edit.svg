@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg
-   width="151.24445"
+   width="150"
    height="70"
-   viewBox="0 0 151.24445 70"
+   viewBox="0 0 150 70"
    version="1.1"
    id="svg41"
    sodipodi:docname="gas-sensor.edit.svg"
@@ -13,50 +13,12 @@
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
   <defs
-     id="defs41" />
-  <sodipodi:namedview
-     id="namedview41"
-     pagecolor="#ffffff"
-     bordercolor="#666666"
-     borderopacity="1.0"
-     inkscape:showpageshadow="2"
-     inkscape:pageopacity="0.0"
-     inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1"
-     showgrid="true"
-     inkscape:zoom="6.0245498"
-     inkscape:cx="99.094542"
-     inkscape:cy="58.095628"
-     inkscape:window-width="1920"
-     inkscape:window-height="1057"
-     inkscape:window-x="-8"
-     inkscape:window-y="-8"
-     inkscape:window-maximized="1"
-     inkscape:current-layer="svg41">
-    <inkscape:grid
-       id="grid41"
-       units="px"
-       originx="-8.7555573"
-       originy="-10"
-       spacingx="10"
-       spacingy="10"
-       empcolor="#3f3fff"
-       empopacity="0.25098039"
-       color="#3f3fff"
-       opacity="0.1254902"
-       empspacing="1"
-       enabled="true"
-       visible="true" />
-  </sodipodi:namedview>
-  <!-- Retouche brochage gas-sensor : déplace chaque pastille rouge sur un CROISEMENT (lignes foncées = 50 px). Garde les id pin-<nom>. Marge 20 px. -->
-  <g
-     id="g42"
-     transform="translate(-8.7555571,-10)">
-    <g
-       id="board"
-       opacity="0.85"
-       transform="matrix(1.0276658,0,0,1.0277316,8.7555571,14.7202)"
-       style="stroke-width:0.972658"><defs
+     id="defs41"><pattern
+   inkscape:collect="always"
+   xlink:href="#a"
+   id="pattern1"
+   patternTransform="matrix(1.0276658,0,0,1.0277316,-1.2444429,4.7202)" />
+<defs
    id="defs30">
   <pattern
      id="a"
@@ -82,200 +44,231 @@
        id="rect30" />
   </g>
 </defs>
-<!-- Board -->
-<path
-   d="M 113,0 H 0 V 59.5 H 113 Z M 111.4,53.2 C 111.4,55.82 109.28,57.94 106.66,57.94 104.04,57.94 101.92,55.82 101.92,53.2 101.92,50.58 104.04,48.46 106.66,48.46 109.28,48.46 111.4,50.58 111.4,53.2 Z M 1.4,53.2 C 1.4,55.82 3.52,57.94 6.14,57.94 8.76,57.94 10.88,55.82 10.88,53.2 10.88,50.58 8.76,48.46 6.14,48.46 3.52,48.46 1.4,50.58 1.4,53.2 Z M 106.4,1.6 C 109.02,1.6 111.14,3.72 111.14,6.34 111.14,8.96 109.02,11.08 106.4,11.08 103.78,11.08 101.66,8.96 101.66,6.34 101.66,3.72 103.78,1.6 106.4,1.6 Z M 5.4,1.6 C 2.78,1.6 0.66,3.72 0.66,6.34 0.66,8.96 2.78,11.08 5.4,11.08 8.02,11.08 10.14,8.96 10.14,6.34 10.14,3.72 8.02,1.6 5.4,1.6 Z"
-   fill="#0664af"
-   id="path31"
-   style="stroke-width:0.972658" />
-<!-- Pins -->
-<use
-   xlink:href="#pin"
-   x="107"
-   y="12"
-   id="use31"
-   style="stroke-width:0.972658" />
-<use
-   xlink:href="#pin"
-   x="107"
-   y="21.299999"
-   id="use32"
-   style="stroke-width:0.972658" />
-<use
-   xlink:href="#pin"
-   x="107"
-   y="31.1"
-   id="use33"
-   style="stroke-width:0.972658" />
-<use
-   xlink:href="#pin"
-   x="107"
-   y="40.900002"
-   id="use34"
-   style="stroke-width:0.972658" />
-<!-- Sensor -->
-<circle
-   cx="47.700001"
-   cy="29.799999"
-   r="31.200001"
-   fill="none"
-   stroke="#ffffff"
-   stroke-width="0.389063px"
-   id="circle34" />
-<circle
-   cx="47.700001"
-   cy="29.799999"
-   r="28.799999"
-   fill="#dedede"
-   id="circle35"
-   style="stroke-width:0.972658" />
-<circle
-   cx="47.700001"
-   cy="29.799999"
-   r="25.799999"
-   fill="#d0ccc4"
-   id="circle36"
-   style="stroke-width:0.972658" />
-<circle
-   cx="47.700001"
-   cy="29.799999"
-   r="21.4"
-   fill="#bab3ad"
-   id="circle37"
-   style="stroke-width:0.972658" />
-<circle
-   cx="47.700001"
-   cy="29.799999"
-   r="21.4"
-   fill="url(#a)"
-   id="circle38"
-   style="stroke-width:0.972658" />
-<!-- LEDs -->
-<rect
-   style="opacity:1;fill:#999999;stroke-width:1.53164;paint-order:stroke markers fill"
-   id="rect17"
-   width="8.5262499"
-   height="3.8281121"
-   x="81.321793"
-   y="5.8179226" />
-<rect
-   style="opacity:1;fill:#e6e6e6;stroke-width:1.99968;paint-order:stroke markers fill"
-   id="rect18"
-   width="4.8444595"
-   height="3.8281121"
-   x="83.162689"
-   y="5.8179226" />
-<!--?lit$095661215$-->
-false
-        <rect
-   style="fill:#999999;stroke-width:1.53164;paint-order:stroke markers fill"
-   id="rect17-9"
-   width="8.5262499"
-   height="3.8281121"
-   x="81.018036"
-   y="48.700188" />
-<rect
-   style="fill:#e6e6e6;stroke-width:1.99968;paint-order:stroke markers fill"
-   id="rect18-0"
-   width="4.8444595"
-   height="3.8281121"
-   x="82.858932"
-   y="48.700188" />
-<!--?lit$095661215$-->
+
 false
         
-      </g>
-    <g
-       id="g38"
-       style="stroke-width:0.989968"
-       transform="matrix(1.010101,0,0,1.0101657,-8.585857,-6.871048)">
-      <circle
-         id="pin-AOUT"
-         cx="157"
-         cy="36.5"
-         r="3.2"
-         fill="#ee0000"
-         fill-opacity="0.85"
-         stroke="#770000"
-         stroke-width="0.494984" />
-      <text
-         x="157"
-         y="31.5"
-         font-size="5px"
-         fill="#aa0000"
-         text-anchor="middle"
-         font-family="sans-serif"
-         id="text38"
-         style="stroke-width:0.989968">AOUT</text>
-    </g>
-    <g
-       id="g39"
-       style="stroke-width:0.989968"
-       transform="matrix(1.010101,0,0,1.0101657,-8.585857,-6.871048)">
-      <circle
-         id="pin-DOUT"
-         cx="157"
-         cy="46.400002"
-         r="3.2"
-         fill="#ee0000"
-         fill-opacity="0.85"
-         stroke="#770000"
-         stroke-width="0.494984" />
-      <text
-         x="157"
-         y="41.400002"
-         font-size="5px"
-         fill="#aa0000"
-         text-anchor="middle"
-         font-family="sans-serif"
-         id="text39"
-         style="stroke-width:0.989968">DOUT</text>
-    </g>
-    <g
-       id="g40"
-       style="stroke-width:0.989968"
-       transform="matrix(1.010101,0,0,1.0101657,-8.585857,-6.871048)">
-      <circle
-         id="pin-GND"
-         cx="157"
-         cy="56.5"
-         r="3.2"
-         fill="#ee0000"
-         fill-opacity="0.85"
-         stroke="#770000"
-         stroke-width="0.494984" />
-      <text
-         x="157"
-         y="51.5"
-         font-size="5px"
-         fill="#aa0000"
-         text-anchor="middle"
-         font-family="sans-serif"
-         id="text40"
-         style="stroke-width:0.989968">GND</text>
-    </g>
-    <g
-       id="g41"
-       style="stroke-width:0.989968"
-       transform="matrix(1.010101,0,0,1.0101657,-8.585857,-6.871048)">
-      <circle
-         id="pin-VCC"
-         cx="157"
-         cy="66.199997"
-         r="3.2"
-         fill="#ee0000"
-         fill-opacity="0.85"
-         stroke="#770000"
-         stroke-width="0.494984" />
-      <text
-         x="157"
-         y="61.200001"
-         font-size="5px"
-         fill="#aa0000"
-         text-anchor="middle"
-         font-family="sans-serif"
-         id="text41"
-         style="stroke-width:0.989968">VCC</text>
-    </g>
+false
+        
+      </defs>
+  <sodipodi:namedview
+     id="namedview41"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="true"
+     inkscape:zoom="68.16"
+     inkscape:cx="7.5557512"
+     inkscape:cy="4.4747652"
+     inkscape:window-width="1920"
+     inkscape:window-height="1057"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg41">
+    <inkscape:grid
+       id="grid41"
+       units="px"
+       originx="-10"
+       originy="-10"
+       spacingx="10"
+       spacingy="10"
+       empcolor="#3f3fff"
+       empopacity="0.25098039"
+       color="#3f3fff"
+       opacity="0.1254902"
+       empspacing="1"
+       enabled="true"
+       visible="true" />
+  </sodipodi:namedview>
+  <!-- Retouche brochage gas-sensor : déplace chaque pastille rouge sur un CROISEMENT (lignes foncées = 50 px). Garde les id pin-<nom>. Marge 20 px. -->
+  <g
+     id="g1">
+    <path
+       d="M 114.8818,4.7202 H 1.7433322 V 65.87023 H 114.8818 Z M 113.27984,59.395521 C 113.27984,62.088178 111.15724,64.266969 108.53402,64.266969 105.91082,64.266969 103.78822,62.088178 103.78822,59.395521 103.78822,56.702864 105.91082,54.524073 108.53402,54.524073 111.15724,54.524073 113.27984,56.702864 113.27984,59.395521 Z M 3.1450476,59.395521 C 3.1450476,62.088178 5.2676453,64.266969 7.8908556,64.266969 10.514066,64.266969 12.636664,62.088178 12.636664,59.395521 12.636664,56.702864 10.514066,54.524073 7.8908556,54.524073 5.2676453,54.524073 3.1450476,56.702864 3.1450476,59.395521 Z M 108.27371,6.3645706 C 110.89692,6.3645706 113.01952,8.5433616 113.01952,11.236018 113.01952,13.928675 110.89692,16.107466 108.27371,16.107466 105.6505,16.107466 103.52791,13.928675 103.52791,11.236018 103.52791,8.5433616 105.6505,6.3645706 108.27371,6.3645706 Z M 7.1499489,6.3645706 C 4.5267386,6.3645706 2.4041409,8.5433616 2.4041409,11.236018 2.4041409,13.928675 4.5267386,16.107466 7.1499489,16.107466 9.7731591,16.107466 11.895757,13.928675 11.895757,11.236018 11.895757,8.5433616 9.7731591,6.3645706 7.1499489,6.3645706 Z"
+       fill="#0664af"
+       id="path31"
+       style="opacity:0.85;stroke-width:0.999597" />
+    <use
+       xlink:href="#pin"
+       x="107"
+       y="12"
+       id="use31"
+       style="opacity:0.85;stroke-width:0.972658"
+       transform="matrix(1.0276658,0,0,1.0277316,-1.2444429,4.7202)" />
+    <use
+       xlink:href="#pin"
+       x="107"
+       y="21.299999"
+       id="use32"
+       style="opacity:0.85;stroke-width:0.972658"
+       transform="matrix(1.0276658,0,0,1.0277316,-1.2444429,4.7202)" />
+    <use
+       xlink:href="#pin"
+       x="107"
+       y="31.1"
+       id="use33"
+       style="opacity:0.85;stroke-width:0.972658"
+       transform="matrix(1.0276658,0,0,1.0277316,-1.2444429,4.7202)" />
+    <use
+       xlink:href="#pin"
+       x="107"
+       y="40.900002"
+       id="use34"
+       style="opacity:0.85;stroke-width:0.972658"
+       transform="matrix(1.0276658,0,0,1.0277316,-1.2444429,4.7202)" />
+    <ellipse
+       cx="47.775219"
+       cy="35.3466"
+       fill="none"
+       stroke="#ffffff"
+       stroke-width="0.39984px"
+       id="circle34"
+       style="opacity:0.85"
+       rx="32.063175"
+       ry="32.065228" />
+    <ellipse
+       cx="47.775219"
+       cy="35.3466"
+       fill="#dedede"
+       id="circle35"
+       style="opacity:0.85;stroke-width:0.999599"
+       rx="29.596775"
+       ry="29.598669" />
+    <ellipse
+       cx="47.775219"
+       cy="35.3466"
+       fill="#d0ccc4"
+       id="circle36"
+       style="opacity:0.85;stroke-width:0.999599"
+       rx="26.513777"
+       ry="26.515474" />
+    <ellipse
+       cx="47.775219"
+       cy="35.3466"
+       fill="#bab3ad"
+       id="circle37"
+       style="opacity:0.85;stroke-width:0.999599"
+       rx="21.992048"
+       ry="21.993456" />
+    <ellipse
+       cx="47.775219"
+       cy="35.3466"
+       fill="url(#a)"
+       id="circle38"
+       style="opacity:0.85;fill:url(#pattern1);stroke-width:0.999599"
+       rx="21.992048"
+       ry="21.993456" />
+    <rect
+       style="opacity:0.85;fill:#999999;stroke-width:1.57406;paint-order:stroke markers fill"
+       id="rect17"
+       width="8.7621355"
+       height="3.9342718"
+       x="82.327179"
+       y="10.699463" />
+    <rect
+       style="opacity:0.85;fill:#e6e6e6;stroke-width:2.05507;paint-order:stroke markers fill"
+       id="rect18"
+       width="4.9784856"
+       height="3.9342718"
+       x="84.219009"
+       y="10.699463" />
+    <rect
+       style="opacity:0.85;fill:#999999;stroke-width:1.57406;paint-order:stroke markers fill"
+       id="rect17-9"
+       width="8.7621355"
+       height="3.9342718"
+       x="82.015022"
+       y="54.770924" />
+    <rect
+       style="opacity:0.85;fill:#e6e6e6;stroke-width:2.05507;paint-order:stroke markers fill"
+       id="rect18-0"
+       width="4.9784856"
+       height="3.9342718"
+       x="83.906845"
+       y="54.770924" />
+    <ellipse
+       id="pin-AOUT"
+       cx="140"
+       cy="20"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5"
+       rx="3.2323232"
+       ry="3.2325304" />
+    <text
+       x="140.00447"
+       y="14.948693"
+       font-size="5.05067px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text38"
+       style="stroke-width:1"
+       transform="scale(0.99996799,1.000032)">AOUT</text>
+    <ellipse
+       id="pin-DOUT"
+       cx="140"
+       cy="30.000643"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5"
+       rx="3.2323232"
+       ry="3.2325304" />
+    <text
+       x="140.00447"
+       y="24.949015"
+       font-size="5.05067px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text39"
+       style="stroke-width:1"
+       transform="scale(0.99996799,1.000032)">DOUT</text>
+    <ellipse
+       id="pin-GND"
+       cx="140"
+       cy="40.203316"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5"
+       rx="3.2323232"
+       ry="3.2325304" />
+    <text
+       x="140.00447"
+       y="35.15136"
+       font-size="5.05067px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text40"
+       style="stroke-width:1"
+       transform="scale(0.99996799,1.000032)">GND</text>
+    <ellipse
+       id="pin-VCC"
+       cx="140"
+       cy="50.001919"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5"
+       rx="3.2323232"
+       ry="3.2325304" />
+    <text
+       x="140.00447"
+       y="44.949654"
+       font-size="5.05067px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text41"
+       style="stroke-width:1"
+       transform="scale(0.99996799,1.000032)">VCC</text>
   </g>
 </svg>

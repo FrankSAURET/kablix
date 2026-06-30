@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 70">
+  <defs id="defs41"><pattern xlink:href="#a" id="pattern1" patternTransform="matrix(1.0276658,0,0,1.0277316,-1.2444429,4.7202)"></pattern>
+<defs id="defs30">
+  <pattern id="a" width="4.1" height="4.1" patternUnits="userSpaceOnUse">
+    <path d="m0 0v4.09h0.4v-0.85l0.42 0.381v0.469h0.4v-0.0996l0.109 0.0996h0.711v-0.799l0.42 0.379v0.42h0.398v-0.0488l0.0547 0.0488h0.766v-0.75l0.42 0.381v0.369h0.4v-4.09h-0.4v0.311l-0.334-0.311h-0.598l0.111 0.0996v0.9l-0.42-0.379v-0.621h-0.398v0.25l-0.277-0.25h-0.6l0.0566 0.0508v0.9l-0.42-0.381v-0.57h-0.4v0.201l-0.223-0.201zm0.4 0.359 0.42 0.381v0.9l-0.42-0.381zm1.64 0.0508 0.42 0.391v0.889l-0.42-0.379zm1.64 0.0605 0.42 0.379v0.891l-0.42-0.381zm-2.46 0.639 0.42 0.381v0.9l-0.42-0.381zm1.64 0.0508 0.42 0.381v0.898l-0.42-0.379zm-2.46 0.641 0.42 0.379v0.9l-0.42-0.379zm1.64 0.0488 0.42 0.381v0.9l-0.42-0.381zm1.64 0.0508 0.42 0.379v0.9l-0.42-0.379zm-2.46 0.65 0.42 0.379v0.9l-0.42-0.379zm1.64 0.0488 0.42 0.381v0.9l-0.42-0.381z" fill="#949392" id="path29"></path>
+  </pattern>
+  <g id="pin">
+    <path fill="#c6bf95" d="M 29,4.6 C 29.382,4.6 29.748,4.448 30.02,4.178 30.292,3.908 30.442,3.542 30.442,3.158 V 3.157 C 30.442,2.775 30.29,2.409 30.02,2.137 29.75,1.865 29.384,1.715 29,1.715 H 2.9 C 2.666,1.715 2.477,1.904 2.477,2.138 V 4.178 C 2.477,4.412 2.666,4.601 2.9,4.601 H 29 Z" id="path30"></path>
+    <rect x="0" y="0" width="6.9000001" height="6.9000001" id="rect30"></rect>
+  </g>
+</defs>
+
+false
+        
+false
+        
+      </defs>
+  
+  <!-- Retouche brochage gas-sensor : déplace chaque pastille rouge sur un CROISEMENT (lignes foncées = 50 px). Garde les id pin-<nom>. Marge 20 px. -->
+  <g id="g1">
+    <path d="M 114.8818,4.7202 H 1.7433322 V 65.87023 H 114.8818 Z M 113.27984,59.395521 C 113.27984,62.088178 111.15724,64.266969 108.53402,64.266969 105.91082,64.266969 103.78822,62.088178 103.78822,59.395521 103.78822,56.702864 105.91082,54.524073 108.53402,54.524073 111.15724,54.524073 113.27984,56.702864 113.27984,59.395521 Z M 3.1450476,59.395521 C 3.1450476,62.088178 5.2676453,64.266969 7.8908556,64.266969 10.514066,64.266969 12.636664,62.088178 12.636664,59.395521 12.636664,56.702864 10.514066,54.524073 7.8908556,54.524073 5.2676453,54.524073 3.1450476,56.702864 3.1450476,59.395521 Z M 108.27371,6.3645706 C 110.89692,6.3645706 113.01952,8.5433616 113.01952,11.236018 113.01952,13.928675 110.89692,16.107466 108.27371,16.107466 105.6505,16.107466 103.52791,13.928675 103.52791,11.236018 103.52791,8.5433616 105.6505,6.3645706 108.27371,6.3645706 Z M 7.1499489,6.3645706 C 4.5267386,6.3645706 2.4041409,8.5433616 2.4041409,11.236018 2.4041409,13.928675 4.5267386,16.107466 7.1499489,16.107466 9.7731591,16.107466 11.895757,13.928675 11.895757,11.236018 11.895757,8.5433616 9.7731591,6.3645706 7.1499489,6.3645706 Z" fill="#0664af" id="path31" style="opacity:0.85;stroke-width:0.999597"></path>
+    <use xlink:href="#pin" x="107" y="12" id="use31" style="opacity:0.85;stroke-width:0.972658" transform="matrix(1.0276658,0,0,1.0277316,-1.2444429,4.7202)"></use>
+    <use xlink:href="#pin" x="107" y="21.299999" id="use32" style="opacity:0.85;stroke-width:0.972658" transform="matrix(1.0276658,0,0,1.0277316,-1.2444429,4.7202)"></use>
+    <use xlink:href="#pin" x="107" y="31.1" id="use33" style="opacity:0.85;stroke-width:0.972658" transform="matrix(1.0276658,0,0,1.0277316,-1.2444429,4.7202)"></use>
+    <use xlink:href="#pin" x="107" y="40.900002" id="use34" style="opacity:0.85;stroke-width:0.972658" transform="matrix(1.0276658,0,0,1.0277316,-1.2444429,4.7202)"></use>
+    <ellipse cx="47.775219" cy="35.3466" fill="none" stroke="#ffffff" stroke-width="0.39984px" id="circle34" style="opacity:0.85" rx="32.063175" ry="32.065228"></ellipse>
+    <ellipse cx="47.775219" cy="35.3466" fill="#dedede" id="circle35" style="opacity:0.85;stroke-width:0.999599" rx="29.596775" ry="29.598669"></ellipse>
+    <ellipse cx="47.775219" cy="35.3466" fill="#d0ccc4" id="circle36" style="opacity:0.85;stroke-width:0.999599" rx="26.513777" ry="26.515474"></ellipse>
+    <ellipse cx="47.775219" cy="35.3466" fill="#bab3ad" id="circle37" style="opacity:0.85;stroke-width:0.999599" rx="21.992048" ry="21.993456"></ellipse>
+    <ellipse cx="47.775219" cy="35.3466" fill="url(#a)" id="circle38" style="opacity:0.85;fill:url(#pattern1);stroke-width:0.999599" rx="21.992048" ry="21.993456"></ellipse>
+    <rect style="opacity:0.85;fill:#999999;stroke-width:1.57406;paint-order:stroke markers fill" id="rect17" width="8.7621355" height="3.9342718" x="82.327179" y="10.699463"></rect>
+    <rect style="opacity:0.85;fill:#e6e6e6;stroke-width:2.05507;paint-order:stroke markers fill" id="rect18" width="4.9784856" height="3.9342718" x="84.219009" y="10.699463"></rect>
+    <rect style="opacity:0.85;fill:#999999;stroke-width:1.57406;paint-order:stroke markers fill" id="rect17-9" width="8.7621355" height="3.9342718" x="82.015022" y="54.770924"></rect>
+    <rect style="opacity:0.85;fill:#e6e6e6;stroke-width:2.05507;paint-order:stroke markers fill" id="rect18-0" width="4.9784856" height="3.9342718" x="83.906845" y="54.770924"></rect>
+    
+    
+    
+    
+    
+    
+    
+    
+  </g>
+</svg>

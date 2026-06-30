@@ -168,10 +168,10 @@ export const PIN_OVERRIDES: Record<string, Record<string, { x: number; y: number
     '2': { x: 40, y: 80 },
   },
   'dht22': {
-    'VCC': { x: 10, y: 120 },
-    'SDA': { x: 20, y: 120 },
-    'NC': { x: 30, y: 120 },
-    'GND': { x: 40, y: 120 },
+    'VCC': { x: 20, y: 120 },
+    'SDA': { x: 30, y: 120 },
+    'NC': { x: 40, y: 120 },
+    'GND': { x: 50, y: 120 },
   },
   'dip-switch': {
     '1a': { x: 10, y: 50 },
@@ -192,21 +192,21 @@ export const PIN_OVERRIDES: Record<string, Record<string, { x: number; y: number
     '1b': { x: 10, y: 0 },
   },
   'gas-sensor': {
-    'AOUT': { x: 130, y: 10 },
-    'DOUT': { x: 130, y: 20 },
-    'GND': { x: 130, y: 30 },
-    'VCC': { x: 130, y: 40 },
+    'AOUT': { x: 140, y: 20 },
+    'DOUT': { x: 140, y: 30 },
+    'GND': { x: 140, y: 40 },
+    'VCC': { x: 140, y: 50 },
   },
   'hcsr04': {
-    'VCC': { x: 70, y: 90 },
-    'TRIG': { x: 80, y: 90 },
-    'ECHO': { x: 90, y: 90 },
-    'GND': { x: 100, y: 90 },
+    'VCC': { x: 80, y: 110 },
+    'TRIG': { x: 90, y: 110 },
+    'ECHO': { x: 100, y: 110 },
+    'GND': { x: 110, y: 110 },
   },
   'heartbeat': {
-    'GND': { x: 80, y: 0 },
-    'VCC': { x: 80, y: 10 },
-    'OUT': { x: 80, y: 20 },
+    'GND': { x: 100, y: 20 },
+    'VCC': { x: 100, y: 30 },
+    'OUT': { x: 100, y: 40 },
   },
   'lcd-i2c': {
     'GND': { x: 0, y: 30 },
@@ -343,9 +343,9 @@ export const PIN_OVERRIDES: Record<string, Record<string, { x: number; y: number
     'DIN': { x: 20, y: 0 },
   },
   'ntc-temp': {
-    'GND': { x: 140, y: 20 },
-    'VCC': { x: 140, y: 30 },
-    'OUT': { x: 140, y: 40 },
+    'GND': { x: 140, y: 30 },
+    'VCC': { x: 140, y: 40 },
+    'OUT': { x: 140, y: 50 },
   },
   'oled-ssd1306': {
     'DATA': { x: 40, y: 0 },
@@ -358,10 +358,10 @@ export const PIN_OVERRIDES: Record<string, Record<string, { x: number; y: number
     'GND': { x: 110, y: 0 },
   },
   'photoresistor': {
-    'VCC': { x: 150, y: 10 },
-    'GND': { x: 150, y: 20 },
-    'DO': { x: 150, y: 30 },
-    'AO': { x: 150, y: 40 },
+    'VCC': { x: 180, y: 20 },
+    'GND': { x: 180, y: 30 },
+    'DO': { x: 180, y: 40 },
+    'AO': { x: 180, y: 50 },
   },
   'pir': {
     'VCC': { x: 40, y: 100 },
@@ -389,15 +389,15 @@ export const PIN_OVERRIDES: Record<string, Record<string, { x: number; y: number
     '3': { x: 20, y: 40 },
   },
   'sound': {
-    'AOUT': { x: 0, y: 10 },
-    'GND': { x: 0, y: 20 },
-    'VCC': { x: 0, y: 30 },
-    'DOUT': { x: 0, y: 40 },
+    'AOUT': { x: 10, y: 20 },
+    'GND': { x: 10, y: 30 },
+    'VCC': { x: 10, y: 40 },
+    'DOUT': { x: 10, y: 50 },
   },
   'tilt': {
-    'GND': { x: 90, y: 20 },
-    'VCC': { x: 90, y: 30 },
-    'OUT': { x: 90, y: 40 },
+    'GND': { x: 110, y: 40 },
+    'VCC': { x: 110, y: 50 },
+    'OUT': { x: 110, y: 60 },
   },
 };
 

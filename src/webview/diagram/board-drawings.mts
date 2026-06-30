@@ -7,11 +7,31 @@
 import megaSvg from '../elements/boards/mega.svg';
 import unoSvg from '../elements/boards/uno.svg';
 import nanoSvg from '../elements/boards/nano.svg';
+import hcsr04Svg from '../elements/boards/hcsr04.svg';
+import dht22Svg from '../elements/boards/dht22.svg';
+import ntcTempSvg from '../elements/boards/ntc-temp.svg';
+import gasSensorSvg from '../elements/boards/gas-sensor.svg';
+import photoresistorSvg from '../elements/boards/photoresistor.svg';
+import pirSvg from '../elements/boards/pir.svg';
+import soundSvg from '../elements/boards/sound.svg';
+import tiltSvg from '../elements/boards/tilt.svg';
+import heartbeatSvg from '../elements/boards/heartbeat.svg';
+import microsdSvg from '../elements/boards/microsd.svg';
 
 const DRAWINGS: Record<string, string> = {
   mega: megaSvg,
   uno: unoSvg,
   nano: nanoSvg,
+  hcsr04: hcsr04Svg,
+  dht22: dht22Svg,
+  'ntc-temp': ntcTempSvg,
+  'gas-sensor': gasSensorSvg,
+  photoresistor: photoresistorSvg,
+  pir: pirSvg,
+  sound: soundSvg,
+  tilt: tiltSvg,
+  heartbeat: heartbeatSvg,
+  microsd: microsdSvg,
 };
 
 export interface BoardDrawing {

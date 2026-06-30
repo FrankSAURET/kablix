@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg
-   width="181.998"
-   height="63.031693"
-   viewBox="0 0 181.998 63.031693"
+   width="185.38074"
+   height="66.60199"
+   viewBox="0 0 185.38074 66.60199"
    version="1.1"
    id="svg77"
    sodipodi:docname="photoresistor.edit.svg"
@@ -28,6 +28,7 @@
      stdDeviation="2"
      id="feGaussianBlur52" />
 </filter>
+
 false
 
         false
@@ -43,9 +44,9 @@ false
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      showgrid="true"
-     inkscape:zoom="4.1121495"
-     inkscape:cx="72.954545"
-     inkscape:cy="25.777273"
+     inkscape:zoom="5.8154576"
+     inkscape:cx="93.715755"
+     inkscape:cy="29.748304"
      inkscape:window-width="1920"
      inkscape:window-height="1057"
      inkscape:window-x="-8"
@@ -55,8 +56,8 @@ false
     <inkscape:grid
        id="grid77"
        units="px"
-       originx="6.6172658"
-       originy="-13.570298"
+       originx="10"
+       originy="-10"
        spacingx="10"
        spacingy="10"
        empcolor="#3f3fff"
@@ -70,7 +71,7 @@ false
   <!-- Retouche brochage photoresistor : déplace chaque pastille rouge sur un CROISEMENT (lignes foncées = 50 px). Garde les id pin-<nom>. Marge 20 px. -->
   <g
      id="g82"
-     transform="translate(6.6172658,-13.570298)">
+     transform="translate(10,-9.9999998)">
     <path
        d="M 150.19124,13.570298 H 10.80408 V 76.601992 H 150.19124 Z M 17.978419,66.865389 C 19.925739,66.865389 21.504094,68.402748 21.504094,70.288574 21.504094,72.1744 19.925739,73.711759 17.978419,73.711759 16.031098,73.711759 14.452744,72.1744 14.452744,70.288574 14.452744,68.402748 16.031098,66.865389 17.978419,66.865389 Z M 118.72664,36.323202 C 123.0005,36.323202 126.46468,39.787383 126.46468,44.06124 126.46468,48.335096 123.0005,51.799277 118.72664,51.799277 114.45278,51.799277 110.9886,48.335096 110.9886,44.06124 110.9886,39.787383 114.45278,36.323202 118.72664,36.323202 Z M 17.978419,16.440034 C 19.925739,16.440034 21.504094,17.977392 21.504094,19.863218 21.504094,21.749045 19.925739,23.286403 17.978419,23.286403 16.031098,23.286403 14.452744,21.749045 14.452744,19.863218 14.452744,17.977392 16.031098,16.440034 17.978419,16.440034 Z"
        fill="#1c2546"

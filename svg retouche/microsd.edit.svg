@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg
-   width="85.170006"
-   height="80.314796"
-   viewBox="0 0 85.170006 80.314796"
+   width="87.062523"
+   height="80.5448"
+   viewBox="0 0 87.062523 80.5448"
    version="1.1"
    id="svg46"
    sodipodi:docname="microsd.edit.svg"
@@ -23,9 +23,9 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      showgrid="true"
-     inkscape:zoom="7.0413223"
-     inkscape:cx="84.92723"
-     inkscape:cy="49.138498"
+     inkscape:zoom="5.6568543"
+     inkscape:cx="16.617009"
+     inkscape:cy="57.982756"
      inkscape:window-width="1920"
      inkscape:window-height="1057"
      inkscape:window-x="-8"
@@ -35,8 +35,8 @@
     <inkscape:grid
        id="grid46"
        units="px"
-       originx="-20.07"
-       originy="-20.23"
+       originx="-20"
+       originy="-20"
        spacingx="10"
        spacingy="10"
        empcolor="#3f3fff"
@@ -51,15 +51,15 @@
   <g
      id="board"
      opacity="0.85"
-     transform="scale(3.937)">
+     transform="matrix(3.937,0,0,3.937,0.06999969,0.22999954)">
     <!-- Board -->
     <rect
-       width="21.6"
-       height="20.4"
+       width="21.597746"
+       height="20.413527"
        fill="#a1111b"
        id="rect26"
-       x="0"
-       y="0" />
+       x="0.0022545527"
+       y="-0.013527316" />
     <!-- Card and socket -->
     <rect
        x="1.3200001"
@@ -178,7 +178,7 @@
   </g>
   <g
      id="g40"
-     transform="translate(-20,-20)">
+     transform="translate(-19.93,-19.77)">
     <circle
        id="pin-CD"
        cx="99.93"
@@ -199,7 +199,7 @@
   </g>
   <g
      id="g41"
-     transform="translate(-20,-19.880002)">
+     transform="translate(-19.93,-19.650002)">
     <circle
        id="pin-DO"
        cx="99.93"
@@ -220,7 +220,7 @@
   </g>
   <g
      id="g42"
-     transform="translate(-20,-19.880002)">
+     transform="translate(-19.93,-19.650002)">
     <circle
        id="pin-GND"
        cx="99.93"
@@ -241,7 +241,7 @@
   </g>
   <g
      id="g43"
-     transform="translate(-20,-20)">
+     transform="translate(-19.93,-19.77)">
     <circle
        id="pin-SCK"
        cx="99.93"
@@ -262,7 +262,7 @@
   </g>
   <g
      id="g44"
-     transform="translate(-20,-19.840001)">
+     transform="translate(-19.93,-19.610001)">
     <circle
        id="pin-VCC"
        cx="99.93"
@@ -283,7 +283,7 @@
   </g>
   <g
      id="g45"
-     transform="translate(-20,-20.079998)">
+     transform="translate(-19.93,-19.849998)">
     <circle
        id="pin-DI"
        cx="99.93"
@@ -304,7 +304,7 @@
   </g>
   <g
      id="g46"
-     transform="translate(-20,-19.920002)">
+     transform="translate(-19.93,-19.690002)">
     <circle
        id="pin-CS"
        cx="99.93"
