@@ -9,6 +9,12 @@
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
 7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → bases générées (v2026.6.46), à retoucher par Frank.
 
+# v2026.6.54
+
+1. ✅ **Dessins retouchés des cartes `uno` et `nano`** (suite de mega, v6.48). [`_clean-board-svg.mjs`](scripts/_clean-board-svg.mjs) extrait le dessin Wokwi recalé par Frank → [`src/webview/elements/boards/uno.svg`](src/webview/elements/boards/uno.svg) (viewBox 300×220) et [`nano.svg`](src/webview/elements/boards/nano.svg) (190×80) ; enregistrés dans [`board-drawings.mts`](src/webview/diagram/board-drawings.mts). L'éditeur affiche ce dessin à la place du rendu @wokwi (étiré par pinScale), élément @wokwi masqué pour pinInfo + simu.
+2. ✅ **Surcharges de broches uno (31) + nano (36)** extraites des ronds rouges, **repère = coin haut-gauche feuille, tel quel** (convention v6.48), dans [`pin-overrides.mts`](src/webview/diagram/pin-overrides.mts). Noms = `pinInfo` Wokwi (5V.1, GND.1-3, A4.2/A5.2, ICSP 11.2/12.2/13.2…) → mapping simu intact. Vérifié visuellement (ronds pile sur chaque header, ICSP nano inclus).
+3. ℹ️ **Outil généralisé** [`scripts/_probe-overrides.mjs`](scripts/_probe-overrides.mjs) (remplace `_probe-mega.mjs`) : extrait les surcharges de n'importe quel `<type>` via getCTM (Chrome headless), gère les suffixes `.OK`/`.ok`/`.PB`. `_clean-board-svg.mjs` gère aussi ces suffixes désormais.
+
 # v2026.6.53
 
 1. ✅ **Timers 3-5 du Mega simulés → PWM complet** (`avr.mts`). Ces timers 16 bits sont propres au 2560 (le 328P n'en a que 3) → avr8js ne fournit **aucune config**. Reconstruits à la main en clonant `timer1Config` (même structure 16 bits A/B/C) avec les adresses de registres du 2560 (`TCCR/TCNT/ICR/OCR/TIMSK/TIFR3-5`), les vecteurs (table 14-1, en mots) et les broches `OCnx` ; `OCFC/OCIEC` = bit 3 activent le canal C. `analogWrite` marche désormais sur **toutes** les broches PWM : ➕ **D5/OC3A=PE3, D2/OC3B=PE4, D3/OC3C=PE5** (timer3), **D6/OC4A=PH3, D7/OC4B=PH4, D8/OC4C=PH5** (timer4), **D44/OC5C=PL5, D45/OC5B=PL4, D46/OC5A=PL3** (timer5) — en plus de D13/D4/D11/D12/D10/D9 (timers 0-2).

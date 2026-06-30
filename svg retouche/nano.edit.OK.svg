@@ -1,175 +1,1124 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="217" height="111" viewBox="0 0 217 111">
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="190"
+   height="80"
+   viewBox="0 0 190 80"
+   version="1.1"
+   id="svg109"
+   sodipodi:docname="nano.edit.OK.svg"
+   inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs109" />
+  <sodipodi:namedview
+     id="namedview109"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="true"
+     inkscape:zoom="5.4275223"
+     inkscape:cx="126.94559"
+     inkscape:cy="36.66498"
+     inkscape:window-width="1920"
+     inkscape:window-height="1057"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg109">
+    <inkscape:grid
+       id="grid109"
+       units="px"
+       originx="-10.317783"
+       originy="-9.9492912"
+       spacingx="10"
+       spacingy="10"
+       empcolor="#3f3fff"
+       empopacity="0.25098039"
+       color="#3f3fff"
+       opacity="0.1254902"
+       empspacing="1"
+       enabled="true"
+       visible="true" />
+  </sodipodi:namedview>
   <!-- Retouche brochage nano : déplace chaque pastille rouge sur un CROISEMENT (lignes foncées = 50 px). Garde les id pin-<nom>. Marge 20 px. -->
-  <rect width="217" height="111" fill="#fff"/>
-  <g id="grid"><line x1="0" y1="0" x2="0" y2="111" stroke="#7fb0ff" stroke-width="0.7"/><line x1="10" y1="0" x2="10" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="20" y1="0" x2="20" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="30" y1="0" x2="30" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="40" y1="0" x2="40" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="50" y1="0" x2="50" y2="111" stroke="#7fb0ff" stroke-width="0.7"/><line x1="60" y1="0" x2="60" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="70" y1="0" x2="70" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="80" y1="0" x2="80" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="90" y1="0" x2="90" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="100" y1="0" x2="100" y2="111" stroke="#7fb0ff" stroke-width="0.7"/><line x1="110" y1="0" x2="110" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="120" y1="0" x2="120" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="130" y1="0" x2="130" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="140" y1="0" x2="140" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="150" y1="0" x2="150" y2="111" stroke="#7fb0ff" stroke-width="0.7"/><line x1="160" y1="0" x2="160" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="170" y1="0" x2="170" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="180" y1="0" x2="180" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="190" y1="0" x2="190" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="200" y1="0" x2="200" y2="111" stroke="#7fb0ff" stroke-width="0.7"/><line x1="210" y1="0" x2="210" y2="111" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="0" x2="217" y2="0" stroke="#7fb0ff" stroke-width="0.7"/><line x1="0" y1="10" x2="217" y2="10" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="20" x2="217" y2="20" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="30" x2="217" y2="30" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="40" x2="217" y2="40" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="50" x2="217" y2="50" stroke="#7fb0ff" stroke-width="0.7"/><line x1="0" y1="60" x2="217" y2="60" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="70" x2="217" y2="70" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="80" x2="217" y2="80" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="90" x2="217" y2="90" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="100" x2="217" y2="100" stroke="#7fb0ff" stroke-width="0.7"/><line x1="0" y1="110" x2="217" y2="110" stroke="#cfe3ff" stroke-width="0.4"/></g>
-  <g id="board" opacity="0.85" transform="translate(20,20) scale(3.9370) translate(1.40,0.00)">
-        <defs>
-          <filter id="solderPlate" style="color-interpolation-filters:sRGB;">
-            <feTurbulence result="r0" type="fractalNoise" baseFrequency="1" numOctaves="1"></feTurbulence>
-            <feComposite result="r1" in="r0" in2="SourceGraphic" operator="arithmetic" k1=".6" k2=".6" k3="1.2" k4=".25"></feComposite>
-            <feBlend result="r2" in="r1" in2="SourceGraphic" mode="luminosity"></feBlend>
-            <feComposite result="r3" in="r2" in2="SourceGraphic" operator="in"></feComposite>
-          </filter>
-          <pattern id="pins-tqfp-0.5mm" width="1" height=".5" patternUnits="userSpaceOnUse">
-            <rect fill="#333" width="1" height=".2" y=".17"></rect>
-          </pattern>
-          <pattern id="pins-pth-0.75" width="2.54" height="2.54" patternUnits="userSpaceOnUse">
-            <circle r=".75" cx="1.27" cy="1.27" fill="#333" filter="url(#solderPlate)"></circle>
-            <g stroke="#333" stroke-width=".05" paint-order="stroke fill">
-              <circle r=".375" cx="1.27" cy="1.27" fill="#eee"></circle>
-            </g>
-          </pattern>
-          <pattern id="pins-pth-1.00" width="2.54" height="2.54" patternUnits="userSpaceOnUse">
-            <circle r=".75" cx="1.27" cy="1.27" fill="#333" filter="url(#solderPlate)"></circle>
-            <g stroke="#333" stroke-width=".05" paint-order="stroke fill">
-              <circle r=".5" cx="1.27" cy="1.27" fill="#eee"></circle>
-            </g>
-          </pattern>
-          <g id="led-body" fill="#eee">
-            <rect x="0" y="0" height="1.2" width="2.6" fill="#333" filter="url(#solderPlate)"></rect>
-            <rect x=".6" y="-0.1" width="1.35" height="1.4" stroke="#aaa" stroke-width=".05"></rect>
+  <g
+     id="g109">
+    <g
+       id="board"
+       opacity="0.85"
+       transform="matrix(3.937,0,0,3.937,14.674017,5.0507088)">
+      <defs
+         id="defs39">
+        <filter
+           id="solderPlate"
+           style="color-interpolation-filters:sRGB"
+           x="0"
+           y="0"
+           width="1"
+           height="1">
+          <feTurbulence
+             result="r0"
+             type="fractalNoise"
+             baseFrequency="1"
+             numOctaves="1"
+             id="feTurbulence34" />
+          <feComposite
+             result="r1"
+             in="r0"
+             in2="SourceGraphic"
+             operator="arithmetic"
+             k1="0.6"
+             k2="0.6"
+             k3="1.2"
+             k4="0.25"
+             id="feComposite34" />
+          <feBlend
+             result="r2"
+             in="r1"
+             in2="SourceGraphic"
+             mode="luminosity"
+             id="feBlend34" />
+          <feComposite
+             result="r3"
+             in="r2"
+             in2="SourceGraphic"
+             operator="in"
+             id="feComposite35" />
+        </filter>
+        <pattern
+           id="pins-tqfp-0.5mm"
+           width="1"
+           height=".5"
+           patternUnits="userSpaceOnUse">
+          <rect
+             fill="#333"
+             width="1"
+             height=".2"
+             y=".17"
+             id="rect35" />
+        </pattern>
+        <pattern
+           id="pins-pth-0.75"
+           width="2.54"
+           height="2.54"
+           patternUnits="userSpaceOnUse">
+          <circle
+             r=".75"
+             cx="1.27"
+             cy="1.27"
+             fill="#333"
+             filter="url(#solderPlate)"
+             id="circle35" />
+          <g
+             stroke="#333"
+             stroke-width=".05"
+             paint-order="stroke fill"
+             id="g36">
+            <circle
+               r=".375"
+               cx="1.27"
+               cy="1.27"
+               fill="#eee"
+               id="circle36" />
           </g>
-          <filter id="ledFilter" x="-0.8" y="-0.8" height="2.2" width="2.8">
-            <feGaussianBlur stdDeviation=".5"></feGaussianBlur>
-          </filter>
-        </defs>
-
-        <!-- PCB -->
-        <g id="pcb" fill="#fff">
-          <rect width="43.5" height="17.8" x="0" y="0" fill="#1b7e84"></rect>
-          <circle cx="1" cy="1" r=".889"></circle>
-          <circle cx="42.42" cy="1" r=".889"></circle>
-          <circle cx="42.42" cy="16.6" r=".889"></circle>
-          <circle cx="1" cy="16.6" r=".889"></circle>
-        </g>
-
-        <!-- silkscreen -->
-        <g id="silkscreen" fill="#eee" text-anchor="middle">
-          <rect x="30.48" y="0" width="2.54" height="3.2"></rect>
-          <rect x="35.56" y="14.6" width="2.54" height="3.2"></rect>
-          <g fill="#1b7e84" transform="translate(1.27 1.27)">
-            <circle r=".85" cx="30.48"></circle>
-            <circle r=".85" cx="35.56" cy="15.24"></circle>
+        </pattern>
+        <pattern
+           id="pins-pth-1.00"
+           width="2.54"
+           height="2.54"
+           patternUnits="userSpaceOnUse">
+          <circle
+             r=".75"
+             cx="1.27"
+             cy="1.27"
+             fill="#333"
+             filter="url(#solderPlate)"
+             id="circle37" />
+          <g
+             stroke="#333"
+             stroke-width=".05"
+             paint-order="stroke fill"
+             id="g38">
+            <circle
+               r=".5"
+               cx="1.27"
+               cy="1.27"
+               fill="#eee"
+               id="circle38" />
           </g>
-          <g transform="translate(1.27 3)">
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-          </g>
-          <g transform="translate(1.27 15.5)">
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-          </g>
-          <g transform="rotate(90)">
-            
-            
-            
-            
-            
-            
-            
-          </g>
+        </pattern>
+        <g
+           id="led-body"
+           fill="#eeeeee">
+          <rect
+             x="0"
+             y="0"
+             height="1.2"
+             width="2.5999999"
+             fill="#333333"
+             filter="url(#solderPlate)"
+             id="rect38" />
+          <rect
+             x="0.60000002"
+             y="-0.1"
+             width="1.35"
+             height="1.4"
+             stroke="#aaaaaa"
+             stroke-width="0.05"
+             id="rect39" />
         </g>
-
-        <!-- MCU -->
-        <g id="mcu" transform="rotate(45 -2.978 23.39)">
-          <g fill="url(#pins-tqfp-0.5mm)" filter="url(#solderPlate)">
-            <rect x="-2.65" y="-1.975" width="5.3" height="3.95"></rect>
-            <rect x="-2.65" y="-1.975" width="5.3" height="3.95" transform="rotate(90)"></rect>
-          </g>
-          <rect x="-2.275" y="-2.275" width="4.55" height="4.55" fill="#444"></rect>
-          <circle transform="rotate(45)" cx=".012" cy="-2.5" r=".35" fill="#222"></circle>
+        <filter
+           id="ledFilter"
+           x="-0.80000001"
+           y="-0.80000001"
+           height="2.2"
+           width="2.8">
+          <feGaussianBlur
+             stdDeviation=".5"
+             id="feGaussianBlur39" />
+        </filter>
+      </defs>
+      <!-- PCB -->
+      <g
+         id="pcb"
+         fill="#ffffff">
+        <rect
+           width="43.5"
+           height="17.799999"
+           x="0"
+           y="0"
+           fill="#1b7e84"
+           id="rect40" />
+        <circle
+           cx="1"
+           cy="1"
+           r="0.889"
+           id="circle40" />
+        <circle
+           cx="42.419998"
+           cy="1"
+           r="0.889"
+           id="circle41" />
+        <circle
+           cx="42.419998"
+           cy="16.6"
+           r="0.889"
+           id="circle42" />
+        <circle
+           cx="1"
+           cy="16.6"
+           r="0.889"
+           id="circle43" />
+      </g>
+      <!-- silkscreen -->
+      <g
+         id="silkscreen"
+         fill="#eeeeee"
+         text-anchor="middle">
+        <rect
+           x="30.48"
+           y="0"
+           width="2.54"
+           height="3.2"
+           id="rect43" />
+        <rect
+           x="35.560001"
+           y="14.6"
+           width="2.54"
+           height="3.2"
+           id="rect44" />
+        <g
+           fill="#1b7e84"
+           transform="translate(1.27,1.27)"
+           id="g45">
+          <circle
+             r="0.85000002"
+             cx="30.48"
+             id="circle44"
+             cy="0" />
+          <circle
+             r="0.85000002"
+             cx="35.560001"
+             cy="15.24"
+             id="circle45" />
         </g>
-
-        <!-- pins -->
-        <g id="pins" fill="url(#pins-pth-0.75)">
-          <g id="pins-pin1" fill="#333" filter="url(#solderPlate)">
-            <rect width="1.75" height="1.75" x="38.495" y="0.395"></rect>
-            <rect width="1.75" height="1.75" x="38.495" y="15.635000000000002"></rect>
-          </g>
-          <rect x="2.54" height="2.54" width="38.1"></rect>
-          <rect x="2.54" height="2.54" y="15.24" width="38.1"></rect>
+        <g
+           transform="translate(1.27,3)"
+           id="g46" />
+        <g
+           transform="translate(1.27,15.5)"
+           id="g47" />
+        <g
+           transform="rotate(90)"
+           id="g48" />
+      </g>
+      <!-- MCU -->
+      <g
+         id="mcu"
+         transform="rotate(45,-2.978,23.39)">
+        <g
+           fill="url(#pins-tqfp-0.5mm)"
+           filter="url(#solderPlate)"
+           id="g49">
+          <rect
+             x="-2.6500001"
+             y="-1.975"
+             width="5.3000002"
+             height="3.95"
+             id="rect48" />
+          <rect
+             x="-2.6500001"
+             y="-1.975"
+             width="5.3000002"
+             height="3.95"
+             transform="rotate(90)"
+             id="rect49" />
         </g>
-
-        <!-- programming header -->
-        <g id="pgm-header" fill="url(#pins-pth-1.00)" stroke="#eee" stroke-width=".1">
-          <g id="pgm-pin1" stroke="none" fill="#333" filter="url(#solderPlate)">
-            <rect width="1.75" height="1.75" x="41.035000000000004" y="10.555"></rect>
-          </g>
-          <rect x="38.1" y="5.08" width="5.08" height="7.62"></rect>
+        <rect
+           x="-2.2750001"
+           y="-2.2750001"
+           width="4.5500002"
+           height="4.5500002"
+           fill="#444444"
+           id="rect50" />
+        <circle
+           transform="rotate(45)"
+           cx="0.012"
+           cy="-2.5"
+           r="0.34999999"
+           fill="#222222"
+           id="circle50" />
+      </g>
+      <!-- pins -->
+      <g
+         id="pins"
+         fill="url(#pins-pth-0.75)">
+        <g
+           id="pins-pin1"
+           fill="#333333"
+           filter="url(#solderPlate)">
+          <rect
+             width="1.75"
+             height="1.75"
+             x="38.494999"
+             y="0.39500001"
+             id="rect51" />
+          <rect
+             width="1.75"
+             height="1.75"
+             x="38.494999"
+             y="15.635"
+             id="rect52" />
         </g>
-
-        <!-- USB mini type B -->
-        <g id="usb-mini-b" stroke-width=".1" paint-order="stroke fill">
-          <g fill="#333" filter="url(#solderPlate)">
-            <rect x=".3" y="3.8" width="1.6" height="9.8"></rect>
-            <rect x="5.5" y="3.8" width="1.6" height="9.8"></rect>
-            <rect x="7.3" y="7.07" width="1.1" height=".48"></rect>
-            <rect x="7.3" y="7.82" width="1.1" height=".48"></rect>
-            <rect x="7.3" y="8.58" width="1.1" height=".48"></rect>
-            <rect x="7.3" y="9.36" width="1.1" height=".48"></rect>
-            <rect x="7.3" y="10.16" width="1.1" height=".48"></rect>
-          </g>
-          <rect x="-1.4" y="4.8" width="8.9" height="7.8" fill="#999" stroke-width=".26"></rect>
-          <rect x="-1.25" y="5" width="8.6" height="7.4" fill="#ccc" stroke="#bbb"></rect>
-          <g fill="none" stroke="#333" stroke-width=".26" stroke-linecap="round">
-            <path d="m2.6 5.9h-3.3v0.9h3.3m0 3.7h-3.3v0.9h3.3M-0.6 7.6l4.3 0.3v1.5l-4.3 0.3"></path>
-            <path d="m3.3 7.9v1.5" stroke-width="1" stroke-linecap="butt"></path>
-            <path d="m6 6.4v4.5" stroke-width=".35"></path>
-          </g>
+        <rect
+           x="2.54"
+           height="2.54"
+           width="38.099998"
+           id="rect53"
+           y="0" />
+        <rect
+           x="2.54"
+           height="2.54"
+           y="15.24"
+           width="38.099998"
+           id="rect54" />
+      </g>
+      <!-- programming header -->
+      <g
+         id="pgm-header"
+         fill="url(#pins-pth-1.00)"
+         stroke="#eeeeee"
+         stroke-width="0.1">
+        <g
+           id="pgm-pin1"
+           stroke="none"
+           fill="#333333"
+           filter="url(#solderPlate)">
+          <rect
+             width="1.75"
+             height="1.75"
+             x="41.035"
+             y="10.555"
+             id="rect55" />
         </g>
-
-        <!-- LEDs -->
-        <g transform="translate(27.7 5)">
-          <use xlink:href="#led-body"></use>
-          <!--?lit$396794365$-->false
+        <rect
+           x="38.099998"
+           y="5.0799999"
+           width="5.0799999"
+           height="7.6199999"
+           id="rect56" />
+      </g>
+      <!-- USB mini type B -->
+      <g
+         id="usb-mini-b"
+         stroke-width="0.1"
+         paint-order="stroke fill">
+        <g
+           fill="#333333"
+           filter="url(#solderPlate)"
+           id="g63">
+          <rect
+             x="0.30000001"
+             y="3.8"
+             width="1.6"
+             height="9.8000002"
+             id="rect57" />
+          <rect
+             x="5.5"
+             y="3.8"
+             width="1.6"
+             height="9.8000002"
+             id="rect58" />
+          <rect
+             x="7.3000002"
+             y="7.0700002"
+             width="1.1"
+             height="0.47999999"
+             id="rect59" />
+          <rect
+             x="7.3000002"
+             y="7.8200002"
+             width="1.1"
+             height="0.47999999"
+             id="rect60" />
+          <rect
+             x="7.3000002"
+             y="8.5799999"
+             width="1.1"
+             height="0.47999999"
+             id="rect61" />
+          <rect
+             x="7.3000002"
+             y="9.3599997"
+             width="1.1"
+             height="0.47999999"
+             id="rect62" />
+          <rect
+             x="7.3000002"
+             y="10.16"
+             width="1.1"
+             height="0.47999999"
+             id="rect63" />
         </g>
-        <g transform="translate(27.7 7)">
-          <use xlink:href="#led-body"></use>
-          <!--?lit$396794365$-->false
-        </g>
-        <g transform="translate(27.7 9)">
-          <use xlink:href="#led-body"></use>
-          <!--?lit$396794365$-->false
-        </g>
-        <g transform="translate(27.7 11)">
-          <use xlink:href="#led-body"></use>
-          <!--?lit$396794365$-->false
-        </g>
-
-        <!-- reset button -->
-        <g stroke-width=".1" paint-order="fill stroke">
-          <rect x="24.3" y="6.3" width="1" height="4.8" filter="url(#solderPlate)" fill="#333"></rect>
-          <rect x="23.54" y="6.8" width="2.54" height="3.8" fill="#ccc" stroke="#888"></rect>
-          <circle id="reset-button" cx="24.8" cy="8.7" r="1" fill="#eeb" stroke="#777" tabindex="0"></circle>
+        <rect
+           x="-1.4"
+           y="4.8000002"
+           width="8.8999996"
+           height="7.8000002"
+           fill="#999999"
+           stroke-width="0.26"
+           id="rect64" />
+        <rect
+           x="-1.25"
+           y="5"
+           width="8.6000004"
+           height="7.4000001"
+           fill="#cccccc"
+           stroke="#bbbbbb"
+           id="rect65" />
+        <g
+           fill="none"
+           stroke="#333333"
+           stroke-width="0.26"
+           stroke-linecap="round"
+           id="g67">
+          <path
+             d="M 2.6,5.9 H -0.7 V 6.8 H 2.6 M 2.6,10.5 H -0.7 V 11.4 H 2.6 M -0.6,7.6 3.7,7.9 V 9.4 L -0.6,9.7"
+             id="path65" />
+          <path
+             d="M 3.3,7.9 V 9.4"
+             stroke-width="1"
+             stroke-linecap="butt"
+             id="path66" />
+          <path
+             d="M 6,6.4 V 10.9"
+             stroke-width="0.35"
+             id="path67" />
         </g>
       </g>
-  <g id="pins"><g><circle id="pin-12" cx="40.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="40.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">12</text></g><g><circle id="pin-11" cx="50.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="50.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">11</text></g><g><circle id="pin-10" cx="60.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="60.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">10</text></g><g><circle id="pin-9" cx="70.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="70.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">9</text></g><g><circle id="pin-8" cx="80.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="80.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">8</text></g><g><circle id="pin-7" cx="90.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="90.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">7</text></g><g><circle id="pin-6" cx="100.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="100.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">6</text></g><g><circle id="pin-5" cx="110.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="110.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">5</text></g><g><circle id="pin-4" cx="120.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="120.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">4</text></g><g><circle id="pin-3" cx="130.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="130.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">3</text></g><g><circle id="pin-2" cx="140.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="140.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">2</text></g><g><circle id="pin-GND.2" cx="150.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="150.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">GND.2</text></g><g><circle id="pin-RESET.2" cx="160.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="160.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">RESET.2</text></g><g><circle id="pin-0" cx="170.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="170.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">0</text></g><g><circle id="pin-1" cx="180.52" cy="25.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="180.52" y="20.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">1</text></g><g><circle id="pin-13" cx="40.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="40.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">13</text></g><g><circle id="pin-3.3V" cx="50.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="50.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">3.3V</text></g><g><circle id="pin-AREF" cx="60.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="60.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">AREF</text></g><g><circle id="pin-A0" cx="70.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="70.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">A0</text></g><g><circle id="pin-A1" cx="80.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="80.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">A1</text></g><g><circle id="pin-A2" cx="90.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="90.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">A2</text></g><g><circle id="pin-A3" cx="100.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="100.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">A3</text></g><g><circle id="pin-A4" cx="110.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="110.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">A4</text></g><g><circle id="pin-A5" cx="120.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="120.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">A5</text></g><g><circle id="pin-A6" cx="130.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="130.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">A6</text></g><g><circle id="pin-A7" cx="140.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="140.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">A7</text></g><g><circle id="pin-5V" cx="150.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="150.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">5V</text></g><g><circle id="pin-RESET" cx="160.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="160.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">RESET</text></g><g><circle id="pin-GND.1" cx="170.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="170.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">GND.1</text></g><g><circle id="pin-VIN" cx="180.52" cy="85.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="180.52" y="80.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">VIN</text></g><g><circle id="pin-12.2" cx="190.52" cy="65.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="190.52" y="60.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">12.2</text></g><g><circle id="pin-5V.2" cx="180.52" cy="65.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="180.52" y="60.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">5V.2</text></g><g><circle id="pin-13.2" cx="190.52" cy="55.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="190.52" y="50.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">13.2</text></g><g><circle id="pin-11.2" cx="180.52" cy="55.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="180.52" y="50.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">11.2</text></g><g><circle id="pin-RESET.3" cx="190.52" cy="45.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="190.52" y="40.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">RESET.3</text></g><g><circle id="pin-GND.3" cx="180.52" cy="45.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="180.52" y="40.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">GND.3</text></g></g>
+      <!-- LEDs -->
+      <g
+         transform="translate(27.7,5)"
+         id="g68"><use
+   xlink:href="#led-body"
+   id="use67" />
+<!--?lit$396794365$-->
+false
+        </g>
+      <g
+         transform="translate(27.7,7)"
+         id="g69"><use
+   xlink:href="#led-body"
+   id="use68" />
+<!--?lit$396794365$-->
+false
+        </g>
+      <g
+         transform="translate(27.7,9)"
+         id="g70"><use
+   xlink:href="#led-body"
+   id="use69" />
+<!--?lit$396794365$-->
+false
+        </g>
+      <g
+         transform="translate(27.7,11)"
+         id="g71"><use
+   xlink:href="#led-body"
+   id="use70" />
+<!--?lit$396794365$-->
+false
+        </g>
+      <!-- reset button -->
+      <g
+         stroke-width="0.1"
+         paint-order="fill stroke"
+         id="g72">
+        <rect
+           x="24.299999"
+           y="6.3000002"
+           width="1"
+           height="4.8000002"
+           filter="url(#solderPlate)"
+           fill="#333333"
+           id="rect71" />
+        <rect
+           x="23.540001"
+           y="6.8000002"
+           width="2.54"
+           height="3.8"
+           fill="#cccccc"
+           stroke="#888888"
+           id="rect72" />
+        <circle
+           id="reset-button"
+           cx="24.799999"
+           cy="8.6999998"
+           r="1"
+           fill="#eeeebb"
+           stroke="#777777"
+           tabindex="0" />
+      </g>
+    </g>
+    <circle
+       id="pin-12"
+       cx="29.682217"
+       cy="10.050709"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="29.682217"
+       y="5.0507088"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text72">12</text>
+    <circle
+       id="pin-11"
+       cx="39.682217"
+       cy="10.050709"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="39.682217"
+       y="5.0507088"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text73">11</text>
+    <circle
+       id="pin-10"
+       cx="49.682217"
+       cy="10.050709"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="49.682217"
+       y="5.0507088"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text74">10</text>
+    <circle
+       id="pin-9"
+       cx="59.682217"
+       cy="10.050709"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="59.682217"
+       y="5.0507088"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text75">9</text>
+    <circle
+       id="pin-8"
+       cx="69.68222"
+       cy="10.050709"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="69.68222"
+       y="5.0507088"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text76">8</text>
+    <circle
+       id="pin-7"
+       cx="79.68222"
+       cy="10.050709"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="79.68222"
+       y="5.0507088"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text77">7</text>
+    <circle
+       id="pin-6"
+       cx="89.68222"
+       cy="10.050709"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="89.68222"
+       y="5.0507088"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text78">6</text>
+    <circle
+       id="pin-5"
+       cx="99.68222"
+       cy="10.050709"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="99.68222"
+       y="5.0507088"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text79">5</text>
+    <circle
+       id="pin-4"
+       cx="109.68222"
+       cy="10.050709"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="109.68222"
+       y="5.0507088"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text80">4</text>
+    <circle
+       id="pin-3"
+       cx="119.68222"
+       cy="10.050709"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="119.68222"
+       y="5.0507088"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text81">3</text>
+    <circle
+       id="pin-2"
+       cx="129.68222"
+       cy="10.050709"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="129.68222"
+       y="5.0507088"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text82">2</text>
+    <circle
+       id="pin-GND.2"
+       cx="139.68222"
+       cy="10.050709"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="139.68222"
+       y="5.0507088"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text83">GND.2</text>
+    <circle
+       id="pin-RESET.2"
+       cx="149.68222"
+       cy="10.050709"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="149.68222"
+       y="5.0507088"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text84">RESET.2</text>
+    <circle
+       id="pin-0"
+       cx="159.68222"
+       cy="10.050709"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="159.68222"
+       y="5.0507088"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text85">0</text>
+    <circle
+       id="pin-1"
+       cx="169.68222"
+       cy="10.050709"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="169.68222"
+       y="5.0507088"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text86">1</text>
+    <circle
+       id="pin-13"
+       cx="29.682217"
+       cy="70.050705"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="29.682217"
+       y="65.050705"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text87">13</text>
+    <circle
+       id="pin-3.3V"
+       cx="39.682217"
+       cy="70.050705"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="39.682217"
+       y="65.050705"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text88">3.3V</text>
+    <circle
+       id="pin-AREF"
+       cx="49.682217"
+       cy="70.050705"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="49.682217"
+       y="65.050705"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text89">AREF</text>
+    <circle
+       id="pin-A0"
+       cx="59.682217"
+       cy="70.050705"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="59.682217"
+       y="65.050705"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text90">A0</text>
+    <circle
+       id="pin-A1"
+       cx="69.68222"
+       cy="70.050705"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="69.68222"
+       y="65.050705"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text91">A1</text>
+    <circle
+       id="pin-A2"
+       cx="79.68222"
+       cy="70.050705"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="79.68222"
+       y="65.050705"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text92">A2</text>
+    <circle
+       id="pin-A3"
+       cx="89.68222"
+       cy="70.050705"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="89.68222"
+       y="65.050705"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text93">A3</text>
+    <circle
+       id="pin-A4"
+       cx="99.68222"
+       cy="70.050705"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="99.68222"
+       y="65.050705"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text94">A4</text>
+    <circle
+       id="pin-A5"
+       cx="109.68222"
+       cy="70.050705"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="109.68222"
+       y="65.050705"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text95">A5</text>
+    <circle
+       id="pin-A6"
+       cx="119.68222"
+       cy="70.050705"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="119.68222"
+       y="65.050705"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text96">A6</text>
+    <circle
+       id="pin-A7"
+       cx="129.68222"
+       cy="70.050705"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="129.68222"
+       y="65.050705"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text97">A7</text>
+    <circle
+       id="pin-5V"
+       cx="139.68222"
+       cy="70.050705"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="139.68222"
+       y="65.050705"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text98">5V</text>
+    <circle
+       id="pin-RESET"
+       cx="149.68222"
+       cy="70.050705"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="149.68222"
+       y="65.050705"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text99">RESET</text>
+    <circle
+       id="pin-GND.1"
+       cx="159.68222"
+       cy="70.050705"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="159.68222"
+       y="65.050705"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text100">GND.1</text>
+    <circle
+       id="pin-VIN"
+       cx="169.68222"
+       cy="70.050705"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="169.68222"
+       y="65.050705"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text101">VIN</text>
+    <circle
+       id="pin-12.2"
+       cx="179.68222"
+       cy="50.050709"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="179.68222"
+       y="45.050709"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text102">12.2</text>
+    <circle
+       id="pin-5V.2"
+       cx="169.68222"
+       cy="50.050709"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="169.68222"
+       y="45.050709"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text103">5V.2</text>
+    <circle
+       id="pin-13.2"
+       cx="179.68222"
+       cy="40.050709"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="179.68222"
+       y="35.050709"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text104">13.2</text>
+    <circle
+       id="pin-11.2"
+       cx="169.68222"
+       cy="40.050709"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="169.68222"
+       y="35.050709"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text105">11.2</text>
+    <circle
+       id="pin-RESET.3"
+       cx="179.68222"
+       cy="30.050709"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="179.68222"
+       y="25.050709"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text106">RESET.3</text>
+    <circle
+       id="pin-GND.3"
+       cx="169.68222"
+       cy="30.050709"
+       r="3.2"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="169.68222"
+       y="25.050709"
+       font-size="5px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text107">GND.3</text>
+  </g>
 </svg>

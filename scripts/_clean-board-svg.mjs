@@ -4,7 +4,7 @@
 // broches (circle/ellipse id="pin-*"), leurs libellés rouges, la grille, le
 // namedview ; garde le dessin + ses defs. viewBox conservé (= repère des broches).
 // Usage : node scripts/_clean-board-svg.mjs mega [uno ...]
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,13 +14,25 @@ const SCRATCH = join(ROOT, 'node_modules', '.cache-retouche');
 mkdirSync(SCRATCH, { recursive: true });
 const OUTDIR = join(ROOT, 'src/webview/elements/boards');
 mkdirSync(OUTDIR, { recursive: true });
+const RETOUCHE = join(ROOT, 'svg retouche');
 
 const types = process.argv.slice(2);
 if (types.length === 0) { console.error('Usage: node scripts/_clean-board-svg.mjs <type> [...]'); process.exit(1); }
 
+// Retrouve le fichier réel pour un type (avec/sans suffixe d'état OK/ok/PB).
+function findSvg(t) {
+  const files = readdirSync(RETOUCHE);
+  const exact = `${t}.edit.svg`;
+  if (files.includes(exact)) return exact;
+  const re = new RegExp(`^${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.edit\\.(OK|ok|PB)\\.svg$`);
+  const m = files.find((f) => re.test(f));
+  if (!m) throw new Error(`Aucun SVG pour « ${t} » dans svg retouche/`);
+  return m;
+}
+
 let bodies = '';
 for (const t of types) {
-  const svg = readFileSync(join(ROOT, `svg retouche/${t}.edit.svg`), 'utf8').replace(/<\?xml[^>]*\?>/, '');
+  const svg = readFileSync(join(RETOUCHE, findSvg(t)), 'utf8').replace(/<\?xml[^>]*\?>/, '');
   bodies += `<div class="wrap" data-type="${t}">${svg}</div>`;
 }
 const script = `

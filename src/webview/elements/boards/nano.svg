@@ -1,0 +1,191 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 190 80">
+  <defs id="defs109"></defs>
+  
+  <!-- Retouche brochage nano : déplace chaque pastille rouge sur un CROISEMENT (lignes foncées = 50 px). Garde les id pin-<nom>. Marge 20 px. -->
+  <g id="g109">
+    <g id="board" opacity="0.85" transform="matrix(3.937,0,0,3.937,14.674017,5.0507088)">
+      <defs id="defs39">
+        <filter id="solderPlate" style="color-interpolation-filters:sRGB" x="0" y="0" width="1" height="1">
+          <feTurbulence result="r0" type="fractalNoise" baseFrequency="1" numOctaves="1" id="feTurbulence34"></feTurbulence>
+          <feComposite result="r1" in="r0" in2="SourceGraphic" operator="arithmetic" k1="0.6" k2="0.6" k3="1.2" k4="0.25" id="feComposite34"></feComposite>
+          <feBlend result="r2" in="r1" in2="SourceGraphic" mode="luminosity" id="feBlend34"></feBlend>
+          <feComposite result="r3" in="r2" in2="SourceGraphic" operator="in" id="feComposite35"></feComposite>
+        </filter>
+        <pattern id="pins-tqfp-0.5mm" width="1" height=".5" patternUnits="userSpaceOnUse">
+          <rect fill="#333" width="1" height=".2" y=".17" id="rect35"></rect>
+        </pattern>
+        <pattern id="pins-pth-0.75" width="2.54" height="2.54" patternUnits="userSpaceOnUse">
+          <circle r=".75" cx="1.27" cy="1.27" fill="#333" filter="url(#solderPlate)" id="circle35"></circle>
+          <g stroke="#333" stroke-width=".05" paint-order="stroke fill" id="g36">
+            <circle r=".375" cx="1.27" cy="1.27" fill="#eee" id="circle36"></circle>
+          </g>
+        </pattern>
+        <pattern id="pins-pth-1.00" width="2.54" height="2.54" patternUnits="userSpaceOnUse">
+          <circle r=".75" cx="1.27" cy="1.27" fill="#333" filter="url(#solderPlate)" id="circle37"></circle>
+          <g stroke="#333" stroke-width=".05" paint-order="stroke fill" id="g38">
+            <circle r=".5" cx="1.27" cy="1.27" fill="#eee" id="circle38"></circle>
+          </g>
+        </pattern>
+        <g id="led-body" fill="#eeeeee">
+          <rect x="0" y="0" height="1.2" width="2.5999999" fill="#333333" filter="url(#solderPlate)" id="rect38"></rect>
+          <rect x="0.60000002" y="-0.1" width="1.35" height="1.4" stroke="#aaaaaa" stroke-width="0.05" id="rect39"></rect>
+        </g>
+        <filter id="ledFilter" x="-0.80000001" y="-0.80000001" height="2.2" width="2.8">
+          <feGaussianBlur stdDeviation=".5" id="feGaussianBlur39"></feGaussianBlur>
+        </filter>
+      </defs>
+      <!-- PCB -->
+      <g id="pcb" fill="#ffffff">
+        <rect width="43.5" height="17.799999" x="0" y="0" fill="#1b7e84" id="rect40"></rect>
+        <circle cx="1" cy="1" r="0.889" id="circle40"></circle>
+        <circle cx="42.419998" cy="1" r="0.889" id="circle41"></circle>
+        <circle cx="42.419998" cy="16.6" r="0.889" id="circle42"></circle>
+        <circle cx="1" cy="16.6" r="0.889" id="circle43"></circle>
+      </g>
+      <!-- silkscreen -->
+      <g id="silkscreen" fill="#eeeeee" text-anchor="middle">
+        <rect x="30.48" y="0" width="2.54" height="3.2" id="rect43"></rect>
+        <rect x="35.560001" y="14.6" width="2.54" height="3.2" id="rect44"></rect>
+        <g fill="#1b7e84" transform="translate(1.27,1.27)" id="g45">
+          <circle r="0.85000002" cx="30.48" id="circle44" cy="0"></circle>
+          <circle r="0.85000002" cx="35.560001" cy="15.24" id="circle45"></circle>
+        </g>
+        <g transform="translate(1.27,3)" id="g46"></g>
+        <g transform="translate(1.27,15.5)" id="g47"></g>
+        <g transform="rotate(90)" id="g48"></g>
+      </g>
+      <!-- MCU -->
+      <g id="mcu" transform="rotate(45,-2.978,23.39)">
+        <g fill="url(#pins-tqfp-0.5mm)" filter="url(#solderPlate)" id="g49">
+          <rect x="-2.6500001" y="-1.975" width="5.3000002" height="3.95" id="rect48"></rect>
+          <rect x="-2.6500001" y="-1.975" width="5.3000002" height="3.95" transform="rotate(90)" id="rect49"></rect>
+        </g>
+        <rect x="-2.2750001" y="-2.2750001" width="4.5500002" height="4.5500002" fill="#444444" id="rect50"></rect>
+        <circle transform="rotate(45)" cx="0.012" cy="-2.5" r="0.34999999" fill="#222222" id="circle50"></circle>
+      </g>
+      <!-- pins -->
+      
+      <!-- programming header -->
+      <g id="pgm-header" fill="url(#pins-pth-1.00)" stroke="#eeeeee" stroke-width="0.1">
+        <g id="pgm-pin1" stroke="none" fill="#333333" filter="url(#solderPlate)">
+          <rect width="1.75" height="1.75" x="41.035" y="10.555" id="rect55"></rect>
+        </g>
+        <rect x="38.099998" y="5.0799999" width="5.0799999" height="7.6199999" id="rect56"></rect>
+      </g>
+      <!-- USB mini type B -->
+      <g id="usb-mini-b" stroke-width="0.1" paint-order="stroke fill">
+        <g fill="#333333" filter="url(#solderPlate)" id="g63">
+          <rect x="0.30000001" y="3.8" width="1.6" height="9.8000002" id="rect57"></rect>
+          <rect x="5.5" y="3.8" width="1.6" height="9.8000002" id="rect58"></rect>
+          <rect x="7.3000002" y="7.0700002" width="1.1" height="0.47999999" id="rect59"></rect>
+          <rect x="7.3000002" y="7.8200002" width="1.1" height="0.47999999" id="rect60"></rect>
+          <rect x="7.3000002" y="8.5799999" width="1.1" height="0.47999999" id="rect61"></rect>
+          <rect x="7.3000002" y="9.3599997" width="1.1" height="0.47999999" id="rect62"></rect>
+          <rect x="7.3000002" y="10.16" width="1.1" height="0.47999999" id="rect63"></rect>
+        </g>
+        <rect x="-1.4" y="4.8000002" width="8.8999996" height="7.8000002" fill="#999999" stroke-width="0.26" id="rect64"></rect>
+        <rect x="-1.25" y="5" width="8.6000004" height="7.4000001" fill="#cccccc" stroke="#bbbbbb" id="rect65"></rect>
+        <g fill="none" stroke="#333333" stroke-width="0.26" stroke-linecap="round" id="g67">
+          <path d="M 2.6,5.9 H -0.7 V 6.8 H 2.6 M 2.6,10.5 H -0.7 V 11.4 H 2.6 M -0.6,7.6 3.7,7.9 V 9.4 L -0.6,9.7" id="path65"></path>
+          <path d="M 3.3,7.9 V 9.4" stroke-width="1" stroke-linecap="butt" id="path66"></path>
+          <path d="M 6,6.4 V 10.9" stroke-width="0.35" id="path67"></path>
+        </g>
+      </g>
+      <!-- LEDs -->
+      <g transform="translate(27.7,5)" id="g68"><use xlink:href="#led-body" id="use67"></use>
+<!--?lit$396794365$-->
+false
+        </g>
+      <g transform="translate(27.7,7)" id="g69"><use xlink:href="#led-body" id="use68"></use>
+<!--?lit$396794365$-->
+false
+        </g>
+      <g transform="translate(27.7,9)" id="g70"><use xlink:href="#led-body" id="use69"></use>
+<!--?lit$396794365$-->
+false
+        </g>
+      <g transform="translate(27.7,11)" id="g71"><use xlink:href="#led-body" id="use70"></use>
+<!--?lit$396794365$-->
+false
+        </g>
+      <!-- reset button -->
+      <g stroke-width="0.1" paint-order="fill stroke" id="g72">
+        <rect x="24.299999" y="6.3000002" width="1" height="4.8000002" filter="url(#solderPlate)" fill="#333333" id="rect71"></rect>
+        <rect x="23.540001" y="6.8000002" width="2.54" height="3.8" fill="#cccccc" stroke="#888888" id="rect72"></rect>
+        <circle id="reset-button" cx="24.799999" cy="8.6999998" r="1" fill="#eeeebb" stroke="#777777" tabindex="0"></circle>
+      </g>
+    </g>
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+  </g>
+</svg>

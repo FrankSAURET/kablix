@@ -5,9 +5,13 @@
 // donc les pastilles tombent pile sur le dessin. L'élément @wokwi reste présent
 // (caché) pour `pinInfo` et la simulation.
 import megaSvg from '../elements/boards/mega.svg';
+import unoSvg from '../elements/boards/uno.svg';
+import nanoSvg from '../elements/boards/nano.svg';
 
 const DRAWINGS: Record<string, string> = {
   mega: megaSvg,
+  uno: unoSvg,
+  nano: nanoSvg,
 };
 
 export interface BoardDrawing {
