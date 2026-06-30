@@ -45,7 +45,7 @@ import './elements/slide-pot.mjs';
 
 import { initLocale, t } from './i18n.mjs';
 import { Editor, type PaletteState } from './diagram/editor.mjs';
-import { reflectLed, reflectGlow, reflectSevenSeg, reflectRgbLed, reflectLedBar } from './diagram/drawing-feedback.mjs';
+import { reflectLed, reflectGlow, reflectSevenSeg, reflectRgbLed, reflectLedBar, reflectServo } from './diagram/drawing-feedback.mjs';
 import { partDef, boardFamily, isBoardId, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
 import { toWokwiDiagram, fromWokwiDiagram } from './diagram/wokwi.mjs';
 import {
@@ -366,6 +366,8 @@ function refreshVisuals(): void {
         } else {
           el.angle = engine.readDigital(pin) ? 90 : 0;
         }
+        const draw = editor.drawingOf(part.id);
+        if (draw) reflectServo(draw, el.angle as number);
         break;
       }
       case 'i2c-lcd': {

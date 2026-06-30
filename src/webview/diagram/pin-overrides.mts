@@ -379,9 +379,9 @@ export const PIN_OVERRIDES: Record<string, Record<string, { x: number; y: number
     'B': { x: 40, y: 50 },
   },
   'servo': {
-    'GND': { x: 20, y: 50 },
-    'V+': { x: 20, y: 60 },
-    'PWM': { x: 20, y: 70 },
+    'GND': { x: 10, y: 60 },
+    'V+': { x: 10, y: 70 },
+    'PWM': { x: 10, y: 80 },
   },
   'slide-switch': {
     '1': { x: 0, y: 40 },

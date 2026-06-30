@@ -22,6 +22,7 @@ import buzzerSvg from '../elements/boards/buzzer.svg';
 import sevenSegSvg from '../elements/boards/7seg.svg';
 import rgbLedSvg from '../elements/boards/rgb-led.svg';
 import ledBarSvg from '../elements/boards/led-bar.svg';
+import servoSvg from '../elements/boards/servo.svg';
 
 const DRAWINGS: Record<string, string> = {
   mega: megaSvg,
@@ -42,6 +43,7 @@ const DRAWINGS: Record<string, string> = {
   '7seg': sevenSegSvg, // 1 chiffre uniquement (cf. drawingKey)
   'rgb-led': rgbLedSvg,
   'led-bar': ledBarSvg,
+  servo: servoSvg,
 };
 
 /**

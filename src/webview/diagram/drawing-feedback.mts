@@ -110,3 +110,34 @@ export function reflectRgbLed(svg: SVGElement, r: number, g: number, b: number):
   set('circle38', { fill: `rgb(${r * 255}, ${g * 255 + b * 90}, ${b * 255})`, opacity: op });
   set('circle39', { opacity: op });
 }
+
+/**
+ * Servo : oriente le palonnier (horn) selon `angle` (0–180°). Le palonnier est
+ * le seul `<path>` couleur `#ccc` (hornColor Wokwi) hors `<defs>` ; l'axe de
+ * rotation est le centre des cercles concentriques de l'arbre. On reproduit la
+ * transformation `rotate` du rendu Wokwi (le dessin est capté à 0°).
+ */
+export function reflectServo(svg: SVGElement, angle: number): void {
+  const horn = [...svg.querySelectorAll('path')].find(
+    (p) => !p.closest('defs') && /^#(ccc|cccccc)$/i.test((p.getAttribute('fill') || p.style.fill || '').trim())
+  ) as SVGElement | undefined;
+  if (!horn) return;
+  // Axe = cercles partageant le même centre (l'arbre = 3 cercles concentriques).
+  const circles = [...svg.querySelectorAll('circle')].filter((c) => !c.closest('defs'));
+  const groups = new Map<string, { cx: number; cy: number; n: number }>();
+  for (const c of circles) {
+    const cx = Number(c.getAttribute('cx') ?? 0);
+    const cy = Number(c.getAttribute('cy') ?? 0);
+    const k = `${Math.round(cx * 10)},${Math.round(cy * 10)}`;
+    const e = groups.get(k) ?? { cx, cy, n: 0 };
+    e.n++;
+    groups.set(k, e);
+  }
+  let hub: { cx: number; cy: number; n: number } | undefined;
+  for (const e of groups.values()) if (!hub || e.n > hub.n) hub = e;
+  if (!hub || hub.n < 2) return;
+  horn.setAttribute(
+    'transform',
+    `translate(${hub.cx} ${hub.cy}) rotate(${angle}) translate(${-hub.cx} ${-hub.cy})`
+  );
+}

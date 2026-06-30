@@ -9,6 +9,12 @@
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
 7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → bases générées (v2026.6.46), à retoucher par Frank.
 
+# v2026.6.59
+
+1. ✅ **Servo animé sur le dessin** : `reflectServo` oriente le palonnier selon `el.angle` (0–180°). Palonnier = seul `<path>` couleur `#ccc` (hornColor) hors defs ; axe = centre des cercles concentriques de l'arbre ; on applique la `rotate` du rendu Wokwi (dessin capté à 0°). Vérifié 0/45/90/135/180°.
+2. ✅ Dessin `servo` enregistré + surcharge recalée.
+3. ⏳ **Reste** : lcd, neopixel(-matrix), led-ring, ili9341, oled, 7seg 2/4 chiffres.
+
 # v2026.6.58
 
 1. ✅ **Barregraphe à LED animé sur le dessin** : `reflectLedBar` allume les 10 `<rect>` (index 0 = haut) selon `el.values`, couleur = palette **GYR**/**BCYR** (cf. wokwi) ou couleur unique, éteinte = couleur d'origine du dessin. Vérifié (7/10 et plein en GYR vert/jaune/rouge, 5 en rouge).
