@@ -5,8 +5,8 @@
 
 // Schémas du clavier dessinés à la main (Inkscape) puis nettoyés
 // (scripts/_clean-keypad-schema.mjs) — viewBox = repère interne (mm × 96/25,4).
-import keypadSchema4 from '../elements/keypad-schema.svg';
-import keypadSchema3 from '../elements/keypad-3col-schema.svg';
+import keypadSchema4 from '../composants/interne/keypad-schema.svg';
+import keypadSchema3 from '../composants/interne/keypad-3col-schema.svg';
 
 export interface PinPoint {
   name: string;

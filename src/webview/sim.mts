@@ -38,10 +38,10 @@ import '@wokwi/elements/dist/esm/small-sound-sensor-element.js';
 import '@wokwi/elements/dist/esm/hc-sr04-element.js';
 import '@wokwi/elements/dist/esm/dht22-element.js';
 import '@wokwi/elements/dist/esm/membrane-keypad-element.js';
-import './elements/pico-board.mjs';
-import './elements/breadboard.mjs';
-import './elements/custom-part.mjs';
-import './elements/slide-pot.mjs';
+import './composants/pico-board.mjs';
+import './composants/breadboard.mjs';
+import './composants/custom-part.mjs';
+import './composants/slide-pot.mjs';
 
 import { initLocale, t } from './i18n.mjs';
 import { Editor, type PaletteState } from './diagram/editor.mjs';

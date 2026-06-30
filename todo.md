@@ -9,6 +9,12 @@
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
 7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → bases générées (v2026.6.46), à retoucher par Frank.
 
+# v2026.6.61
+
+1. ✅ **Réorganisation du dossier `elements/` → `composants/`** (`src/webview/`). Sous-dossiers : **`externe/`** (ex-`boards/`) = vue des composants sur le canvas (19 dessins + `pico.svg`/`picow.svg`/`slide-pot.svg`) ; **`interne/`** (nouveau) = vue interne + pinouts du bouton **K** (`keypad-schema`, `keypad-3col-schema`, `pico-pinout`, `picow-pinout`). Les `.mts` (`breadboard`, `custom-part`, `pico-board`, `slide-pot`) + `svg.d.ts` restent à la racine de `composants/`.
+2. ✅ **Imports mis à jour** : `sim.mts`, `editor.mts`, `board-drawings.mts` (19), `pinout.mts`, `internal-wiring.mts`, `pico-board.mts`, `slide-pot.mts`. Scripts : `_clean-board-svg.mjs` (→ `externe/`), `_clean-keypad-schema.mjs` (→ `interne/`). Docs : README + « Modifier svg composants ».
+3. ✅ **Rien ne casse** : `typecheck` + `build` + `verify:all` (9 suites) OK. Déplacements via `git mv` (historique conservé). (Le rename de dossier global échouait — verrou Windows OneDrive/IDE — fait fichier par fichier.)
+
 # v2026.6.60
 
 1. ✅ **Pattes de la LED RGB en RVB traduisible** : `pinDisplayName` affiche R/G/B avec l'initiale de la couleur traduite (`Red`/`Green`/`Blue` → Rouge/Vert/Bleu) → **R/V/B** en français, **R/G/B** en anglais. L'identifiant interne (R/G/B, simulation) reste inchangé. (`t('R')` était déjà pris par le clavier = Ligne.)

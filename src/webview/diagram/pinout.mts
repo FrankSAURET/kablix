@@ -2,8 +2,8 @@
 // par le bouton ☢ de l'éditeur. Importés comme texte (loader esbuild .svg).
 // Les SVG ne contiennent plus que les étiquettes (fonctions + noms + numéros) :
 // la carte réelle (<kablix-pico-board>) transparaît dans la bande centrale vide.
-import picoPinout from '../elements/pico-pinout.svg';
-import picowPinout from '../elements/picow-pinout.svg';
+import picoPinout from '../composants/interne/pico-pinout.svg';
+import picowPinout from '../composants/interne/picow-pinout.svg';
 
 /** Poster prêt à poser en surimpression de la carte. */
 export interface PinoutPoster {

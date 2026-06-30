@@ -24,11 +24,11 @@ import { internalWiringSvg, type PinPoint } from './internal-wiring.mjs';
 import { overridesFor } from './pin-overrides.mjs';
 import { boardDrawing } from './board-drawings.mjs';
 import { pinoutSvg, pinoutPoster } from './pinout.mjs';
-import { BOARD_W, BOARD_H } from '../elements/pico-board.mjs';
+import { BOARD_W, BOARD_H } from '../composants/pico-board.mjs';
 import type { Diagram, Endpoint, Part, Wire } from './model.mjs';
 import { DEFAULT_WIRE_COLORS, DUPONT_COLORS, dupontHex, roundedWirePath, snapPoint, type XY } from './geometry.mjs';
 import { PartCreator } from './creator.mjs';
-import '../elements/custom-part.mjs';
+import '../composants/custom-part.mjs';
 import { t } from '../i18n.mjs';
 
 interface WokwiPin {

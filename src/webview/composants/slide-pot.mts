@@ -12,7 +12,7 @@ import type { PropertyValues } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { SlidePotentiometerElement } from '@wokwi/elements/dist/esm/slide-potentiometer-element.js';
 import { analog, GND, VCC, type ElementPin } from '@wokwi/elements/dist/esm/pin.js';
-import drawing from './slide-pot.svg';
+import drawing from './externe/slide-pot.svg';
 
 // Translation de base du groupe #tip dans le dessin (position de repos).
 const TIP_BASE = 'translate(0.26640716 -10.449811)';

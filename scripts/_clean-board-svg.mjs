@@ -1,6 +1,6 @@
 // TEMP/outil — extrait le DESSIN d'un « svg retouche/<type>.edit.svg » (retouché à
 // la main : dessin Wokwi repositionné sur grille + ronds de broches) vers un SVG
-// minimal embarqué : src/webview/elements/boards/<type>.svg. Retire les ronds de
+// minimal embarqué : src/webview/composants/externe/<type>.svg. Retire les ronds de
 // broches (circle/ellipse id="pin-*"), leurs libellés rouges, la grille, le
 // namedview ; garde le dessin + ses defs. viewBox conservé (= repère des broches).
 // Usage : node scripts/_clean-board-svg.mjs mega [uno ...]
@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SCRATCH = join(ROOT, 'node_modules', '.cache-retouche');
 mkdirSync(SCRATCH, { recursive: true });
-const OUTDIR = join(ROOT, 'src/webview/elements/boards');
+const OUTDIR = join(ROOT, 'src/webview/composants/externe');
 mkdirSync(OUTDIR, { recursive: true });
 const RETOUCHE = join(ROOT, 'svg retouche');
 
@@ -72,5 +72,5 @@ if (raw.startsWith('ERR')) { console.error(raw.slice(0,1500)); process.exit(1); 
 for (const r of JSON.parse(raw)) {
   const file = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${r.vb}">${r.inner}</svg>\n`;
   writeFileSync(join(OUTDIR, `${r.type}.svg`), file);
-  console.log(`  ✓ src/webview/elements/boards/${r.type}.svg  (viewBox ${r.vb}, ${(file.length/1024).toFixed(0)} Ko)`);
+  console.log(`  ✓ src/webview/composants/externe/${r.type}.svg  (viewBox ${r.vb}, ${(file.length/1024).toFixed(0)} Ko)`);
 }

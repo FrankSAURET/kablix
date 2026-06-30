@@ -150,7 +150,7 @@ Dans VS Code, **F5** (« Lancer l'extension ») ouvre une fenêtre de développe
 | `src/webview/diagram/catalog.mts` | Catalogue de composants + rôles des broches Uno/Pico |
 | `src/webview/diagram/model.mts` | Netlist (pure) + résolution LED/RGB/buzzer/bouton/potentiomètre |
 | `src/webview/diagram/editor.mts` | Éditeur DOM : palette, placement, câblage |
-| `src/webview/elements/pico-board.mts` | Élément `<kablix-pico-board>` (dessin Pico W repris de `parts/picow-module`) |
+| `src/webview/composants/pico-board.mts` | Élément `<kablix-pico-board>` (dessin Pico W repris de `parts/picow-module`) |
 | `src/webview/engines/avr.mts` | Moteur ATmega328P (avr8js) : GPIO, ADC, USART |
 | `src/webview/engines/pico.mts` | Moteur RP2040 (rp2040js) : RAM/flash, bootrom, USB-CDC, UART0, raw REPL |
 | `src/webview/engines/bootrom-b1.mts` | Bootrom B1 du RP2040 (binaire officiel, BSD-3-Clause) |

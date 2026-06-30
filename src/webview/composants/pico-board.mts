@@ -10,8 +10,8 @@
 // le brochage complet s'affiche à la demande via le bouton ☢ de l'éditeur (poster
 // pico-pinout / picow-pinout). La LED embarquée GP25 (`ledPower`) s'allume en vert.
 
-import picoSvg from './pico.svg';
-import picowSvg from './picow.svg';
+import picoSvg from './externe/pico.svg';
+import picowSvg from './externe/picow.svg';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 

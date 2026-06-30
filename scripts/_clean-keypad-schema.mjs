@@ -1,5 +1,5 @@
 // TEMP — nettoie « svg/keypad*-schema.edit.svg » (dessin du câblage interne fait
-// dans Inkscape) → SVG minimal embarqué dans src/webview/elements/ :
+// dans Inkscape) → SVG minimal embarqué dans src/webview/composants/interne/ :
 // retire corps, guides de touches (rects), repères de broches, namedview, defs
 // (path-effects inkscape : inutiles au rendu, le `d` est déjà résolu) et commentaires.
 // Garde le viewBox (= repère interne) + les tracés (interrupteurs + bus). À supprimer.
@@ -13,8 +13,8 @@ const SCRATCH = join(ROOT, 'node_modules', '.cache-retouche');
 mkdirSync(SCRATCH, { recursive: true });
 
 const JOBS = [
-  { src: 'svg/keypad-schema.edit.svg', out: 'src/webview/elements/keypad-schema.svg' },
-  { src: 'svg/keypad-3col-schema.edit.svg', out: 'src/webview/elements/keypad-3col-schema.svg' },
+  { src: 'svg/keypad-schema.edit.svg', out: 'src/webview/composants/interne/keypad-schema.svg' },
+  { src: 'svg/keypad-3col-schema.edit.svg', out: 'src/webview/composants/interne/keypad-3col-schema.svg' },
 ];
 
 let bodies = '';

@@ -103,7 +103,7 @@ l'interface. Deux options :
 - **Recommandé** : recréez une variante en **composant personnalisé** (§3) et
   utilisez-la à la place.
 - **Avancé** (recompilation) : la carte Pico est le seul élément « maison »
-  ([`src/webview/elements/pico-board.mts`](../src/webview/elements/pico-board.mts)),
+  ([`src/webview/composants/pico-board.mts`](../src/webview/composants/pico-board.mts)),
   qui reprend le dessin de `parts/picow-module` et ajoute marges + noms de
   broches. C'est le modèle à suivre pour fabriquer un élément intégré sur mesure.
 

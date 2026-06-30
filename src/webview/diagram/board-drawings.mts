@@ -1,28 +1,28 @@
 // Dessins de composants retouchés à la main (« svg retouche/<type>.edit.svg »,
-// nettoyés par scripts/_clean-board-svg.mjs → src/webview/elements/boards/<type>.svg).
+// nettoyés par scripts/_clean-board-svg.mjs → src/webview/composants/externe/<type>.svg).
 // Quand un type a un dessin ici, l'éditeur l'affiche À LA PLACE du rendu @wokwi :
 // le repère du dessin (viewBox) = celui des surcharges de broches (pin-overrides),
 // donc les pastilles tombent pile sur le dessin. L'élément @wokwi reste présent
 // (caché) pour `pinInfo` et la simulation.
-import megaSvg from '../elements/boards/mega.svg';
-import unoSvg from '../elements/boards/uno.svg';
-import nanoSvg from '../elements/boards/nano.svg';
-import hcsr04Svg from '../elements/boards/hcsr04.svg';
-import dht22Svg from '../elements/boards/dht22.svg';
-import ntcTempSvg from '../elements/boards/ntc-temp.svg';
-import gasSensorSvg from '../elements/boards/gas-sensor.svg';
-import photoresistorSvg from '../elements/boards/photoresistor.svg';
-import pirSvg from '../elements/boards/pir.svg';
-import soundSvg from '../elements/boards/sound.svg';
-import tiltSvg from '../elements/boards/tilt.svg';
-import heartbeatSvg from '../elements/boards/heartbeat.svg';
-import microsdSvg from '../elements/boards/microsd.svg';
-import ledSvg from '../elements/boards/led.svg';
-import buzzerSvg from '../elements/boards/buzzer.svg';
-import sevenSegSvg from '../elements/boards/7seg.svg';
-import rgbLedSvg from '../elements/boards/rgb-led.svg';
-import ledBarSvg from '../elements/boards/led-bar.svg';
-import servoSvg from '../elements/boards/servo.svg';
+import megaSvg from '../composants/externe/mega.svg';
+import unoSvg from '../composants/externe/uno.svg';
+import nanoSvg from '../composants/externe/nano.svg';
+import hcsr04Svg from '../composants/externe/hcsr04.svg';
+import dht22Svg from '../composants/externe/dht22.svg';
+import ntcTempSvg from '../composants/externe/ntc-temp.svg';
+import gasSensorSvg from '../composants/externe/gas-sensor.svg';
+import photoresistorSvg from '../composants/externe/photoresistor.svg';
+import pirSvg from '../composants/externe/pir.svg';
+import soundSvg from '../composants/externe/sound.svg';
+import tiltSvg from '../composants/externe/tilt.svg';
+import heartbeatSvg from '../composants/externe/heartbeat.svg';
+import microsdSvg from '../composants/externe/microsd.svg';
+import ledSvg from '../composants/externe/led.svg';
+import buzzerSvg from '../composants/externe/buzzer.svg';
+import sevenSegSvg from '../composants/externe/7seg.svg';
+import rgbLedSvg from '../composants/externe/rgb-led.svg';
+import ledBarSvg from '../composants/externe/led-bar.svg';
+import servoSvg from '../composants/externe/servo.svg';
 
 const DRAWINGS: Record<string, string> = {
   mega: megaSvg,
