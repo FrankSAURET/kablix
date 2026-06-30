@@ -9,13 +9,18 @@ import {
   AVRTimer,
   portBConfig,
   portDConfig,
+  portGConfig,
+  portHConfig,
   timer0Config,
+  timer1Config,
+  timer2Config,
   usart0Config,
   PinState,
 } from 'avr8js';
 import { RP2040, GPIOPinState } from 'rp2040js';
 import { UNO_DEMO } from '../src/webview/programs/uno-demo.mjs';
 import { MEGA_DEMO } from '../src/webview/programs/mega-demo.mjs';
+import { MEGA_PWM } from '../src/webview/programs/mega-pwm.mjs';
 import { PICO_BLINK } from '../src/webview/programs/pico-blink.mjs';
 
 let failures = 0;
@@ -118,6 +123,65 @@ console.log('Arduino Mega (ATmega2560) :');
 
   check(`LED D13 clignote (${d13Toggles} bascules)`, d13Toggles >= 2);
   check(`sortie série contient "blink" (${JSON.stringify(serial.slice(0, 16))})`, serial.includes('blink'));
+}
+
+// --- Arduino Mega : PWM (analogWrite) ----------------------------------------
+// Sur le 2560 les sorties OCnx ne sont pas sur les mêmes broches que le 328P.
+// On vérifie que analogWrite() pilote la BONNE broche Mega (rapport cyclique) :
+// D11=OC1A=PB5 (25 %), D9=OC2B=PH6 (75 %, timer2 → autre port), D13=OC0A=PB7 (50 %).
+console.log('Arduino Mega — PWM (analogWrite) :');
+{
+  const MEGA_TIMER0 = {
+    ...timer0Config,
+    compAInterrupt: 0x2a, compBInterrupt: 0x2c, ovfInterrupt: 0x2e,
+    compPortA: portBConfig.PORT, compPinA: 7, // OC0A=PB7 (D13)
+    compPortB: portGConfig.PORT, compPinB: 5, // OC0B=PG5 (D4)
+  };
+  const MEGA_TIMER1 = {
+    ...timer1Config,
+    captureInterrupt: 0x20, compAInterrupt: 0x22, compBInterrupt: 0x24, compCInterrupt: 0x26, ovfInterrupt: 0x28,
+    compPortA: portBConfig.PORT, compPinA: 5, // OC1A=PB5 (D11)
+    compPortB: portBConfig.PORT, compPinB: 6, // OC1B=PB6 (D12)
+  };
+  const MEGA_TIMER2 = {
+    ...timer2Config,
+    compAInterrupt: 0x1a, compBInterrupt: 0x1c, ovfInterrupt: 0x1e,
+    compPortA: portBConfig.PORT, compPinA: 4, // OC2A=PB4 (D10)
+    compPortB: portHConfig.PORT, compPinB: 6, // OC2B=PH6 (D9)
+  };
+
+  const cpu = new CPU(MEGA_PWM.slice(), 0x2200);
+  cpu.pc22Bits = true;
+  const portB = new AVRIOPort(cpu, portBConfig);
+  const portH = new AVRIOPort(cpu, portHConfig);
+  new AVRIOPort(cpu, portGConfig);
+  new AVRTimer(cpu, MEGA_TIMER0);
+  new AVRTimer(cpu, MEGA_TIMER1);
+  new AVRTimer(cpu, MEGA_TIMER2);
+
+  // setup() configure les 3 PWM, puis on mesure le rapport cyclique.
+  for (let i = 0; i < 2_000_000; i++) {
+    avrInstruction(cpu);
+    cpu.tick();
+  }
+  let n = 0;
+  let pb5 = 0;
+  let ph6 = 0;
+  let pb7 = 0;
+  const c0 = cpu.cycles;
+  while (cpu.cycles - c0 < 2_000_000) {
+    avrInstruction(cpu);
+    cpu.tick();
+    n++;
+    if (portB.pinState(5) === PinState.High) pb5++;
+    if (portH.pinState(6) === PinState.High) ph6++;
+    if (portB.pinState(7) === PinState.High) pb7++;
+  }
+  const near = (got, want) => Math.abs((100 * got) / n - want) <= 8;
+  const pct = (x) => `${Math.round((100 * x) / n)}%`;
+  check(`D11 OC1A=PB5 ≈ 25 % (${pct(pb5)})`, near(pb5, 25));
+  check(`D9 OC2B=PH6 ≈ 75 % (${pct(ph6)})`, near(ph6, 75));
+  check(`D13 OC0A=PB7 ≈ 50 % (${pct(pb7)})`, near(pb7, 50));
 }
 
 // --- Raspberry Pi Pico (rp2040js) -------------------------------------------

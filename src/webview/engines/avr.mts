@@ -111,10 +111,32 @@ const MEGA_ADC: Record<string, number> = { ...UNO_ADC, A6: 6, A7: 7 };
 // table 14-1, adresses en mots). Sans ça, les ISR (Timer0 pour millis/delay,
 // USART pour Serial…) sautent au mauvais endroit → millis() gèle, delay() boucle
 // à l'infini et la broche ne bascule jamais (programme « bloqué », CPU pourtant
-// en marche). NB : les sorties PWM (compPin) du Mega diffèrent — non corrigées ici.
-const MEGA_TIMER0 = { ...timer0Config, compAInterrupt: 0x2a, compBInterrupt: 0x2c, ovfInterrupt: 0x2e };
-const MEGA_TIMER1 = { ...timer1Config, captureInterrupt: 0x20, compAInterrupt: 0x22, compBInterrupt: 0x24, compCInterrupt: 0x26, ovfInterrupt: 0x28 };
-const MEGA_TIMER2 = { ...timer2Config, compAInterrupt: 0x1a, compBInterrupt: 0x1c, ovfInterrupt: 0x1e };
+// en marche).
+//
+// On corrige AUSSI les sorties PWM (compPort/compPin = broche OCnx pilotée par
+// analogWrite) : sur le 2560 les OCnx ne sont pas sur les mêmes broches que le
+// 328P. Sans ça, analogWrite() agissait sur la broche du Uno → la vraie broche
+// du Mega restait inerte. Broches gérées (timers 0-2 simulés) : D13/OC0A=PB7,
+// D4/OC0B=PG5, D11/OC1A=PB5, D12/OC1B=PB6, D10/OC2A=PB4, D9/OC2B=PH6. Les autres
+// broches PWM (D2/3/5/6/7/8, 44-46) dépendent des timers 3-5 non simulés.
+const MEGA_TIMER0 = {
+  ...timer0Config,
+  compAInterrupt: 0x2a, compBInterrupt: 0x2c, ovfInterrupt: 0x2e,
+  compPortA: portBConfig.PORT, compPinA: 7, // OC0A = PB7 (D13)
+  compPortB: portGConfig.PORT, compPinB: 5, // OC0B = PG5 (D4)
+};
+const MEGA_TIMER1 = {
+  ...timer1Config,
+  captureInterrupt: 0x20, compAInterrupt: 0x22, compBInterrupt: 0x24, compCInterrupt: 0x26, ovfInterrupt: 0x28,
+  compPortA: portBConfig.PORT, compPinA: 5, // OC1A = PB5 (D11)
+  compPortB: portBConfig.PORT, compPinB: 6, // OC1B = PB6 (D12)
+};
+const MEGA_TIMER2 = {
+  ...timer2Config,
+  compAInterrupt: 0x1a, compBInterrupt: 0x1c, ovfInterrupt: 0x1e,
+  compPortA: portBConfig.PORT, compPinA: 4, // OC2A = PB4 (D10)
+  compPortB: portHConfig.PORT, compPinB: 6, // OC2B = PH6 (D9)
+};
 const MEGA_USART0 = { ...usart0Config, rxCompleteInterrupt: 0x32, dataRegisterEmptyInterrupt: 0x34, txCompleteInterrupt: 0x36 };
 const MEGA_SPI = { ...spiConfig, spiInterrupt: 0x30 };
 const MEGA_TWI = { ...twiConfig, twiInterrupt: 0x4e };
@@ -144,6 +166,12 @@ export class AvrEngine implements SimEngine {
   private debugInfo: AvrDebugInfo | null = null;
   private breakpoints = new Set<number>(); // adresses flash (octets) des points d'arrêt
   private skipBreakAddr: number | null = null; // adresse à ne pas re-déclencher après un arrêt
+  // Pas à pas « par-dessus » exécuté en arrière-plan par la boucle RAF (cf. step()
+  // et loop()) : on avance jusqu'à une autre ligne du sketch revenue au niveau de
+  // pile de départ, sans figer l'UI même sur un delay() long.
+  private stepping = false;
+  private stepStartLine: number | undefined = undefined;
+  private stepStartSp = 0;
   // Décodage UTF-8 incrémental de la liaison série : un caractère accentué
   // (ex. « é » = 2 octets) est émis octet par octet par l'USART ; le décodeur
   // en flux tampon les séquences incomplètes pour restituer le bon caractère.
@@ -538,6 +566,7 @@ export class AvrEngine implements SimEngine {
 
   stop(): void {
     this.running = false;
+    this.stepping = false;
     if (this.rafId !== null) {
       cancelAnimationFrame(this.rafId);
       this.rafId = null;
@@ -549,7 +578,9 @@ export class AvrEngine implements SimEngine {
   }
 
   get paused(): boolean {
-    return this.isPaused;
+    // Pendant un pas en arrière-plan, isPaused est faux (la boucle tourne) mais
+    // l'UI doit rester en état « pause » → on inclut stepping.
+    return this.isPaused || this.stepping;
   }
 
   pause(): void {
@@ -559,6 +590,7 @@ export class AvrEngine implements SimEngine {
   }
 
   resume(): void {
+    this.stepping = false;
     this.isPaused = false;
   }
 
@@ -566,27 +598,28 @@ export class AvrEngine implements SimEngine {
     this.speed = Math.max(0.001, Math.min(1, fraction));
   }
 
-  /** Avance jusqu'à la prochaine ligne source (ou un point d'arrêt). */
+  /**
+   * Avance jusqu'à la prochaine ligne source du sketch (ou un point d'arrêt).
+   * Pas « par-dessus » (step over) : on ne s'arrête qu'une fois revenu au niveau
+   * de pile de départ, donc un appel (delay(), Serial.print(), une fonction de
+   * l'élève…) est exécuté d'un bloc au lieu d'être parcouru instruction par
+   * instruction. La table DWARF ne contient que les lignes du sketch : pendant
+   * un appel au cœur Arduino, lineForPc renvoie une ligne périmée — la garde sur
+   * SP évite de s'arrêter dessus.
+   *
+   * Exécution déléguée à la boucle RAF (cf. loop()) au lieu d'une boucle
+   * synchrone : un delay() de plusieurs secondes se franchit en UN clic sans
+   * figer l'interface (le pas s'écoule au rythme de la simulation). isPaused
+   * passe à faux pour laisser tourner la boucle, mais `paused` reste vrai (via
+   * `stepping`) afin que l'UI conserve l'état « pause ».
+   */
   step(): void {
     if (!this.debugInfo || this.debugInfo.lines.length === 0) return;
-    this.isPaused = true; // le pas à pas s'exécute toujours en pause (émission en fin de pas)
-    const startLine = this.currentLine();
-    // Plafond ≈ 0,25 s simulée : un delay() long ne gèle pas l'interface ;
-    // si le plafond est atteint, on reste en pause là où on est.
-    for (let i = 0; i < 4_000_000; i++) {
-      avrInstruction(this.cpu);
-      this.cpu.tick();
-      const pcBytes = this.cpu.pc * 2;
-      if (pcBytes !== this.skipBreakAddr) this.skipBreakAddr = null;
-      if (this.skipBreakAddr === null && this.breakpoints.has(pcBytes)) {
-        this.skipBreakAddr = pcBytes; // ne pas re-déclencher au prochain départ
-        break;
-      }
-      const line = this.lineForPc(pcBytes);
-      if (line !== undefined && line !== startLine) break;
-    }
-    this.flushRx();
-    this.emitDebugPause();
+    if (this.stepping) return; // un pas déjà en cours
+    this.stepStartLine = this.currentLine();
+    this.stepStartSp = this.cpu.SP;
+    this.stepping = true;
+    this.isPaused = false;
   }
 
   /**
@@ -672,19 +705,33 @@ export class AvrEngine implements SimEngine {
     if (!this.running) return;
     if (!this.isPaused) {
       // Ralenti : on n'exécute qu'une fraction du budget de cycles par frame.
-      const deadline = this.cpu.cycles + (CLOCK_HZ / 60) * this.speed;
+      // Pendant un pas (stepping) on ignore le ralenti pour le franchir au plus vite.
+      const factor = this.stepping ? 1 : this.speed;
+      const deadline = this.cpu.cycles + (CLOCK_HZ / 60) * factor;
       while (this.cpu.cycles < deadline && !this.isPaused) {
         avrInstruction(this.cpu);
         this.cpu.tick();
         // Actions d'entrée programmées (ECHO ultrason) à échéance en temps simulé.
         if (this.scheduled.length > 0) this.fireScheduled();
+        const pcBytes = this.cpu.pc * 2;
         // Points d'arrêt : test du PC (en octets) après chaque instruction.
         if (this.breakpoints.size > 0) {
-          const pcBytes = this.cpu.pc * 2;
           if (pcBytes !== this.skipBreakAddr) this.skipBreakAddr = null;
           if (this.skipBreakAddr === null && this.breakpoints.has(pcBytes)) {
             this.skipBreakAddr = pcBytes; // resume() repartira sans re-déclencher ici
+            this.stepping = false;
             this.pause(); // émet l'état et interrompt la boucle (isPaused)
+            break;
+          }
+        }
+        // Pas à pas « par-dessus » : arrêt sur une autre ligne du sketch, une fois
+        // la pile revenue au niveau de départ (les appels sont franchis d'un bloc).
+        if (this.stepping) {
+          const line = this.lineForPc(pcBytes);
+          if (line !== undefined && line !== this.stepStartLine && this.cpu.SP >= this.stepStartSp) {
+            this.stepping = false;
+            this.pause(); // émet l'état (isPaused devient vrai)
+            break;
           }
         }
       }
