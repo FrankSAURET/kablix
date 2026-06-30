@@ -63,6 +63,31 @@ export function reflectSevenSeg(svg: SVGElement, values: number[], color = 'red'
   if (dp) setSeg(dp as SVGElement, !!values[7]);
 }
 
+// Palettes de couleurs des barres LED (cf. wokwi led-bar-graph).
+const BAR_PALETTES: Record<string, string[]> = {
+  GYR: ['#9eff3c', '#9eff3c', '#9eff3c', '#9eff3c', '#9eff3c', '#f1d73c', '#f1d73c', '#f1d73c', '#dc012d', '#dc012d'],
+  BCYR: ['#2c95fa', '#6cf9dc', '#6cf9dc', '#6cf9dc', '#6cf9dc', '#f1d73c', '#f1d73c', '#f1d73c', '#dc012d', '#dc012d'],
+};
+
+/**
+ * Barregraphe à LED : allume chaque barre selon `values` (index 0 = barre du
+ * haut). Les 10 barres sont les `<rect>` du dessin dont le remplissage n'est pas
+ * un motif (`url(...)` = le fond). Couleur allumée = palette GYR/BCYR ou couleur
+ * unique ; éteinte = couleur d'origine du dessin (mémorisée au 1er passage).
+ */
+export function reflectLedBar(svg: SVGElement, values: number[], color = 'GYR'): void {
+  const palette = BAR_PALETTES[color];
+  const bars = [...svg.querySelectorAll('rect')].filter(
+    (r) => !/url/.test((r as SVGElement).style.fill || r.getAttribute('fill') || '')
+  );
+  if (bars.length < 10) return;
+  for (let i = 0; i < 10; i++) {
+    const el = bars[i] as SVGElement & { dataset: DOMStringMap };
+    if (el.dataset.off === undefined) el.dataset.off = el.style.fill || el.getAttribute('fill') || '#444';
+    el.style.fill = values[i] ? palette?.[i] ?? color : el.dataset.off;
+  }
+}
+
 /**
  * LED RGB : reproduit le rendu Wokwi sur le dessin (canaux 0..1). Les sous-
  * éléments conservés du SVG capté : `circle35/36/37` (halos R/G/B + filtres de

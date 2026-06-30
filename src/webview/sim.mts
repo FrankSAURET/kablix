@@ -45,7 +45,7 @@ import './elements/slide-pot.mjs';
 
 import { initLocale, t } from './i18n.mjs';
 import { Editor, type PaletteState } from './diagram/editor.mjs';
-import { reflectLed, reflectGlow, reflectSevenSeg, reflectRgbLed } from './diagram/drawing-feedback.mjs';
+import { reflectLed, reflectGlow, reflectSevenSeg, reflectRgbLed, reflectLedBar } from './diagram/drawing-feedback.mjs';
 import { partDef, boardFamily, isBoardId, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
 import { toWokwiDiagram, fromWokwiDiagram } from './diagram/wokwi.mjs';
 import {
@@ -348,9 +348,12 @@ function refreshVisuals(): void {
         }
         break;
       }
-      case 'led-bar':
+      case 'led-bar': {
         el.values = ledBarState(editor.diagram, part.id, read);
+        const draw = editor.drawingOf(part.id);
+        if (draw) reflectLedBar(draw, el.values as number[], part.attrs?.color ?? 'GYR');
         break;
+      }
       case 'servo': {
         // Angle réel d'après la largeur d'impulsion mesurée (1000 µs → 0°,
         // 1500 µs → 90°, 2000 µs → 180°). Repli sur 0/90° si la mesure n'est pas

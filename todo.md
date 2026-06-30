@@ -9,6 +9,12 @@
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
 7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → bases générées (v2026.6.46), à retoucher par Frank.
 
+# v2026.6.58
+
+1. ✅ **Barregraphe à LED animé sur le dessin** : `reflectLedBar` allume les 10 `<rect>` (index 0 = haut) selon `el.values`, couleur = palette **GYR**/**BCYR** (cf. wokwi) ou couleur unique, éteinte = couleur d'origine du dessin. Vérifié (7/10 et plein en GYR vert/jaune/rouge, 5 en rouge).
+2. ✅ Dessin `led-bar` enregistré + surcharge recalée (nouvelle convention, +10 px y).
+3. ⏳ **Reste** : lcd, servo, neopixel(-matrix), led-ring, ili9341, oled, 7seg 2/4 chiffres.
+
 # v2026.6.57
 
 1. ✅ **7 segments (1 chiffre) + LED RGB animés sur le dessin retouché**. `reflectSevenSeg` allume les 7 `<polygon>` (ordre DOM A→G validé vs Wokwi) + le point décimal selon `el.values` (couleur = `attrs.color`). `reflectRgbLed` reproduit le rendu Wokwi (halos `circle35/36/37` + flou, diffuseur central `circle38` couleur mêlée, anneau `circle39`). Vérifié : « 5 », « 8. », RGB rouge/vert/bleu/blanc.

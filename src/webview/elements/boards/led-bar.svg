@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 110">
+  <defs id="defs52">
+    <pattern xlink:href="#pin-pattern" id="pattern52" patternTransform="matrix(3.7795,0,0,3.7795,20,20)"></pattern>
+    <pattern id="pin-pattern" height="2.54" width="10.1" patternUnits="userSpaceOnUse">
+      <circle cx="1.27" cy="1.27" r="0.5" fill="#aaa" id="circle22"></circle>
+      <circle cx="8.83" cy="1.27" r="0.5" fill="#aaa" id="circle23"></circle>
+    </pattern>
+  </defs>
+  
+  <!-- Retouche brochage led-bar : déplace chaque pastille rouge sur un CROISEMENT (lignes foncées = 50 px). Garde les id pin-<nom>. Marge 20 px. -->
+  <g id="g55">
+    <g id="g54" transform="matrix(1.0416578,0,0,1.0416578,-15.603695,-15.842936)" style="stroke-width:0.960008">
+      <path d="M 25.2913,20 H 58.361925 V 116.37725 H 20.188975 V 24.91335 Z" id="path23" style="opacity:0.85;stroke-width:3.62835"></path>
+      <rect width="38.172951" height="95.999298" fill="url(#pin-pattern)" id="rect23" x="20" y="20" style="opacity:0.85;fill:url(#pattern52);stroke-width:3.62835"></rect>
+      <g id="g53" style="fill:#c0c0c0;stroke-width:0.960008">
+        <rect x="29.44875" width="18.897499" height="6.5763302" y="21.511801" fill="#444444" id="rect24" style="opacity:0.85;fill:#c0c0c0;stroke-width:3.62835"></rect>
+        <rect x="29.44875" width="18.897499" height="6.5763302" y="31.111731" fill="#444444" id="rect25" style="opacity:0.85;fill:#c0c0c0;stroke-width:3.62835"></rect>
+        <rect x="29.44875" width="18.897499" height="6.5763302" y="40.711658" fill="#444444" id="rect26" style="opacity:0.85;fill:#c0c0c0;stroke-width:3.62835"></rect>
+        <rect x="29.44875" width="18.897499" height="6.5763302" y="50.311592" fill="#444444" id="rect27" style="opacity:0.85;fill:#c0c0c0;stroke-width:3.62835"></rect>
+        <rect x="29.44875" width="18.897499" height="6.5763302" y="59.911522" fill="#444444" id="rect28" style="opacity:0.85;fill:#c0c0c0;stroke-width:3.62835"></rect>
+        <rect x="29.44875" width="18.897499" height="6.5763302" y="69.511452" fill="#444444" id="rect29" style="opacity:0.85;fill:#c0c0c0;stroke-width:3.62835"></rect>
+        <rect x="29.44875" width="18.897499" height="6.5763302" y="79.111382" fill="#444444" id="rect30" style="opacity:0.85;fill:#c0c0c0;stroke-width:3.62835"></rect>
+        <rect x="29.44875" width="18.897499" height="6.5763302" y="88.711311" fill="#444444" id="rect31" style="opacity:0.85;fill:#c0c0c0;stroke-width:3.62835"></rect>
+        <rect x="29.44875" width="18.897499" height="6.5763302" y="98.311241" fill="#444444" id="rect32" style="opacity:0.85;fill:#c0c0c0;stroke-width:3.62835"></rect>
+        <rect x="29.44875" width="18.897499" height="6.5763302" y="107.91117" fill="#444444" id="rect33" style="opacity:0.85;fill:#c0c0c0;stroke-width:3.62835"></rect>
+      </g>
+      <g id="g33" style="stroke-width:0.960008">
+        
+        
+      </g>
+      <g id="g34" style="stroke-width:0.960008">
+        
+        
+      </g>
+      <g id="g35" style="stroke-width:0.960008">
+        
+        
+      </g>
+      <g id="g36" style="stroke-width:0.960008">
+        
+        
+      </g>
+      <g id="g37" style="stroke-width:0.960008">
+        
+        
+      </g>
+      <g id="g38" style="stroke-width:0.960008">
+        
+        
+      </g>
+      <g id="g39" style="stroke-width:0.960008">
+        
+        
+      </g>
+      <g id="g40" style="stroke-width:0.960008">
+        
+        
+      </g>
+      <g id="g41" style="stroke-width:0.960008">
+        
+        
+      </g>
+      <g id="g42" style="stroke-width:0.960008">
+        
+        
+      </g>
+      
+      
+      
+      
+      <g id="g45" style="stroke-width:0.960008">
+        
+        
+      </g>
+      <g id="g46" style="stroke-width:0.960008">
+        
+        
+      </g>
+      <g id="g47" style="stroke-width:0.960008">
+        
+        
+      </g>
+      <g id="g48" style="stroke-width:0.960008">
+        
+        
+      </g>
+      <g id="g49" style="stroke-width:0.960008">
+        
+        
+      </g>
+      <g id="g50" style="stroke-width:0.960008">
+        
+        
+      </g>
+      <g id="g51" style="stroke-width:0.960008">
+        
+        
+      </g>
+      <g id="g52" style="stroke-width:0.960008">
+        
+        
+      </g>
+    </g>
+  </g>
+</svg>
