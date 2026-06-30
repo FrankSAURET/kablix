@@ -9,6 +9,14 @@
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
 7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → bases générées (v2026.6.46), à retoucher par Frank.
 
+# v2026.6.63
+
+1. ✅ **7 segments 2/4 chiffres animés sur le dessin retouché**. Dessins nettoyés → [`composants/externe/7seg-2dig.svg`](src/webview/composants/externe/7seg-2dig.svg) (14 polygones = 2×7) / [`7seg-4dig.svg`](src/webview/composants/externe/7seg-4dig.svg) (28 = 4×7), enregistrés (`board-drawings.mts`). `reflectSevenSeg(svg, values, color, digits)` généralisé : 7 `<polygon>` par chiffre (ordre DOM A→G) + point décimal (`<circle>`/`<ellipse>`, 1 par chiffre, gauche→droite). Multiplexage : `el.values` (latch `digits*8`) reflété. Surcharges 2dig/4dig recalées (nouvelle convention, probe).
+2. ✅ **NeoPixel / matrice / anneau colorés depuis le décodage WS2812**. Dessins `neopixel.svg`, `neopixel-matrix.svg` (64 `.pixel`), `led-ring.svg` (16 `.pixel`) enregistrés. `reflectNeopixel(svg, colors)` : matrice/anneau-matrice = groupe `.pixel` → teinte le diffuseur (plus grand cercle, opacité) ; anneau à `<rect>` = colore le rectangle ; NeoPixel simple = diffuseur du dessin. Couleurs 0..255 du décodeur (`engine.readNeopixel`). Surcharges recalées (probe).
+3. ✅ **Écrans framebuffer superposés (OLED SSD1306 + TFT ILI9341)**. Dessins `oled-ssd1306.svg`, `ili9341.svg` enregistrés. `reflectOled`/`reflectTft` posent un `<canvas>` (résolution native) dans un `<foreignObject>` calé sur la **zone écran** (plus grand `<rect>` non-motif du dessin), étiré par CSS ; `putImageData` du tampon décodé (`Ssd1306Device`/`Ili9341Device`). Surcharges oled/ili9341 recalées (probe).
+4. ⏳ **LCD (les 4 variantes décodées : i²c/parallèle × 16×2/20×4)** : bases i²c manquantes **générées** ([`svg retouche/lcd-i2c.edit.svg`](svg%20retouche/lcd-i2c.edit.svg), `lcd-i2c-20x4.edit.svg` — variante ajoutée à [`build-retouche.mjs`](scripts/build-retouche.mjs)) → **Frank retouche les pads**. Reste : décodage **HD44780 parallèle** (RS/E/D4-D7) sur les 2 moteurs (avr + pico), overlay texte sur le dessin, enregistrement des 4 dessins.
+5. ℹ️ **À vérifier visuellement par Frank** : alignement des pastilles (surcharges probe) et rendu des écrans/segments/pixels sur chaque dessin.
+
 # v2026.6.62
 
 1. ✅ **Résistance sur dessin retouché** : `resistor.edit.svg` → `node scripts/_clean-board-svg.mjs resistor` → [`composants/externe/resistor.svg`](src/webview/composants/externe/resistor.svg) (viewBox `0 0 80.16 20`). Importé + mappé dans [`board-drawings.mts`](src/webview/diagram/board-drawings.mts). L'élément `wokwi-resistor` reste caché pour la simu.

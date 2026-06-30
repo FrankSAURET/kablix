@@ -51,6 +51,14 @@ const VARIANTS = [
     pinScale: PIN_SCALE_95,
   },
   {
+    name: 'lcd-i2c-20x4',
+    module: 'lcd1602-element.js',
+    tag: 'wokwi-lcd1602',
+    attrs: { pins: 'i2c' },
+    props: { numCols: 20, numRows: 4 }, // propriétés (non réactives en attribut)
+    pinScale: PIN_SCALE_95,
+  },
+  {
     name: 'lcd', // LCD parallèle 16×2 (HD44780, 16 broches)
     module: 'lcd1602-element.js',
     tag: 'wokwi-lcd1602',

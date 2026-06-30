@@ -24,6 +24,13 @@ import rgbLedSvg from '../composants/externe/rgb-led.svg';
 import ledBarSvg from '../composants/externe/led-bar.svg';
 import servoSvg from '../composants/externe/servo.svg';
 import resistorSvg from '../composants/externe/resistor.svg';
+import sevenSeg2Svg from '../composants/externe/7seg-2dig.svg';
+import sevenSeg4Svg from '../composants/externe/7seg-4dig.svg';
+import neopixelSvg from '../composants/externe/neopixel.svg';
+import neopixelMatrixSvg from '../composants/externe/neopixel-matrix.svg';
+import ledRingSvg from '../composants/externe/led-ring.svg';
+import oledSvg from '../composants/externe/oled-ssd1306.svg';
+import ili9341Svg from '../composants/externe/ili9341.svg';
 
 const DRAWINGS: Record<string, string> = {
   mega: megaSvg,
@@ -41,17 +48,24 @@ const DRAWINGS: Record<string, string> = {
   microsd: microsdSvg,
   led: ledSvg,
   buzzer: buzzerSvg,
-  '7seg': sevenSegSvg, // 1 chiffre uniquement (cf. drawingKey)
+  '7seg': sevenSegSvg, // 1 chiffre (cf. drawingKey ; 2/4 chiffres ci-dessous)
+  '7seg-2dig': sevenSeg2Svg,
+  '7seg-4dig': sevenSeg4Svg,
   'rgb-led': rgbLedSvg,
   'led-bar': ledBarSvg,
   servo: servoSvg,
   resistor: resistorSvg,
+  neopixel: neopixelSvg,
+  'neopixel-matrix': neopixelMatrixSvg,
+  'led-ring': ledRingSvg,
+  'oled-ssd1306': oledSvg,
+  ili9341: ili9341Svg,
 };
 
 /**
  * Clé de dessin pour un type + ses attributs (variantes). Le 7 segments a un
- * dessin propre par nombre de chiffres ; seul le 1 chiffre est fourni → les
- * variantes 2/4 chiffres retombent sur le rendu @wokwi (clé absente de DRAWINGS).
+ * dessin propre par nombre de chiffres (1/2/4) ; clé `7seg`, `7seg-2dig`,
+ * `7seg-4dig`.
  */
 function drawingKey(type: string, attrs?: Record<string, string>): string {
   if (type === '7seg') {

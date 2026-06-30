@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 39.999996 30">
+  <defs id="defs29"></defs>
+  
+  <!-- Retouche brochage neopixel : déplace chaque pastille rouge sur un CROISEMENT (lignes foncées = 50 px). Garde les id pin-<nom>. Marge 20 px. -->
+  <g id="g30" transform="translate(-10,-10)">
+    <g id="board" opacity="0.85" transform="matrix(3.7795,0,0,3.7795,19.338588,16.409475)">
+      <filter id="light1" x="-0.39999999" y="-0.39999999" height="1.8" width="1.8">
+        <feGaussianBlur stdDeviation="0.1" id="feGaussianBlur13"></feGaussianBlur>
+      </filter>
+      <filter id="light2" x="-0.27272727" y="-0.27272727" height="1.5454545" width="1.5454545">
+        <feGaussianBlur stdDeviation="0.5" id="feGaussianBlur14"></feGaussianBlur>
+      </filter>
+      <rect x="0.33307999" y="0" width="5" height="5" fill="#f2f2f2" id="rect14"></rect>
+      <rect x="0" y="0.5" width="0.34999999" height="0.89999998" fill="#c3c2c3" id="rect15"></rect>
+      <rect x="0" y="3.0999999" width="0.34999999" height="0.89999998" fill="#c3c2c3" id="rect16"></rect>
+      <rect x="5.3000002" y="3.0999999" width="0.34999999" height="0.89999998" fill="#c3c2c3" id="rect17"></rect>
+      <rect x="5.3000002" y="0.5" width="0.34999999" height="0.89999998" fill="#c3c2c3" id="rect18"></rect>
+      <circle cx="2.8331001" cy="2.5" r="2.0999999" fill="#dddddd" id="circle18"></circle>
+      <circle cx="2.8331001" cy="2.5" r="1.7325" fill="#e6e6e6" id="circle19"></circle>
+      <g fill="#bfbfbf" id="g22">
+        <path d="M 4.3488,3.3308 C 4.3488,3.3308 4.2599,3.2438 4.2599,3.1967 4.2599,3.1497 4.2539,2.0434 4.2539,2.0434 4.2539,2.0434 4.1948,1.8662 4.0531,1.8662 3.91136,1.8662 3.23809,1.8782 3.23809,1.8782 3.23809,1.8782 2.99004,1.9022 3.00185,2.1853 3.01365,2.4688 3.03385,4.2198 3.03385,4.2198 3.58092,4.1738 4.08255,3.8704 4.34845,3.331 Z" id="path19"></path>
+        <path d="M 4.34,1.6405 H 3.2595 C 3.2595,1.6405 3.01625,1.6595 2.99746,1.3982 L 3.00346,0.7741 C 3.58128,0.8491 4.03666,1.1437 4.34006,1.6447 Z" id="path20"></path>
+        <path d="M 2.7778,2.6103 2.60653,2.7343 1.79743,2.7223 C 1.62621,2.7033 1.62681,2.5145 1.62681,2.5145 1.62581,2.1399 1.62781,2.2314 1.61781,1.7023 L 1.30533,1.6843 C 1.30533,1.6843 1.73986,0.7627 2.78393,0.7669 2.78382,1.3813 2.77993,1.9958 2.77793,2.6103 Z" id="path21"></path>
+        <path d="M 2.7808,3.0828 2.6893,2.9878 H 1.72073 L 1.62923,3.1325 1.62623,3.2452 C 1.62623,3.3102 1.50515,3.3252 1.50515,3.3252 H 1.29606 C 1.85512,4.2628 2.78276,4.2407 2.78276,4.2407 2.78376,3.8562 2.78076,3.4715 2.78076,3.087 Z" id="path22"></path>
+      </g>
+      <path d="M 4.053,1.8619 C 3.91126,1.8619 3.23806,1.8749 3.23806,1.8749 3.23806,1.8749 2.99009,1.8989 3.0019,2.1833 3.0049,2.2603 3.0069,2.5068 3.0109,2.7347 H 4.2579 C 4.2559,2.4047 4.2539,2.0405 4.2539,2.0405 4.2539,2.0405 4.1946,1.8624 4.05288,1.8624 Z" fill="#666666" id="path23"></path>
+      <circle cx="2.5" cy="2.3" fill="#ff0000" filter="url(#light1)" opacity="0" id="ellipse23" r="0.30000001"></circle>
+      <circle cx="3.5" cy="3.2" fill="#008000" filter="url(#light1)" opacity="0" id="ellipse24" r="0.30000001"></circle>
+      <circle cx="3.3" cy="1.45" fill="#0000ff" filter="url(#light1)" opacity="0" id="ellipse25" r="0.30000001"></circle>
+      <circle cx="3" cy="2.5" filter="url(#light2)" opacity="0" fill="#ffffff" id="ellipse26" r="2.2"></circle>
+    </g>
+    <g id="g26" transform="translate(-1,-3.5)">
+      
+      
+    </g>
+    <g id="g27" transform="translate(-1,-4)">
+      
+      
+    </g>
+    <g id="g28" transform="translate(-1,-4)">
+      
+      
+    </g>
+    <g id="g29" transform="translate(-1,-3.5)">
+      
+      
+    </g>
+  </g>
+</svg>

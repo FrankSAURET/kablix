@@ -1,0 +1,2428 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="205.82635"
+   height="193.45"
+   viewBox="0 0 205.82635 193.45"
+   version="1.1"
+   id="svg317"
+   sodipodi:docname="neopixel-matrix.edit.OK.svg"
+   inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs317" />
+  <sodipodi:namedview
+     id="namedview317"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="true"
+     inkscape:zoom="21.046462"
+     inkscape:cx="102.29748"
+     inkscape:cy="191.00597"
+     inkscape:window-width="1920"
+     inkscape:window-height="1057"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg317">
+    <inkscape:grid
+       id="grid317"
+       units="px"
+       originx="-20"
+       originy="-20"
+       spacingx="10"
+       spacingy="10"
+       empcolor="#3f3fff"
+       empopacity="0.25098039"
+       color="#3f3fff"
+       opacity="0.1254902"
+       empspacing="1"
+       enabled="true"
+       visible="true" />
+  </sodipodi:namedview>
+  <!-- Retouche brochage neopixel-matrix : déplace chaque pastille rouge sur un CROISEMENT (lignes foncées = 50 px). Garde les id pin-<nom>. Marge 20 px. -->
+  <g
+     id="g318">
+    <path
+       id="path317"
+       style="fill:#b19c22;fill-opacity:1;stroke-width:2.1;stroke-linecap:round"
+       d="M 89.999026,186.7998 A 3.2,3.2 0 0 0 86.799807,190.00097 3.2,3.2 0 0 0 89.999026,193.20019 3.2,3.2 0 0 0 93.200198,190.00097 3.2,3.2 0 0 0 89.999026,186.7998 Z M 89.999026,187.95605 A 2.0430987,2.0430987 0 0 1 92.043948,190.00097 2.0430987,2.0430987 0 0 1 89.999026,192.04394 2.0430987,2.0430987 0 0 1 87.956057,190.00097 2.0430987,2.0430987 0 0 1 89.999026,187.95605 Z" />
+    <path
+       id="path317-9"
+       style="fill:#b19c22;fill-opacity:1;stroke-width:2.1;stroke-linecap:round"
+       d="M 99.999026,186.7998 A 3.2,3.2 0 0 0 96.799807,190.00097 3.2,3.2 0 0 0 99.999026,193.20019 3.2,3.2 0 0 0 103.2002,190.00097 3.2,3.2 0 0 0 99.999026,186.7998 Z M 99.999026,187.95605 A 2.0430987,2.0430987 0 0 1 102.04395,190.00097 2.0430987,2.0430987 0 0 1 99.999026,192.04394 2.0430987,2.0430987 0 0 1 97.956057,190.00097 2.0430987,2.0430987 0 0 1 99.999026,187.95605 Z" />
+    <path
+       id="path317-8"
+       style="fill:#b19c22;fill-opacity:1;stroke-width:2.1;stroke-linecap:round"
+       d="M 109.99903,186.7998 A 3.2,3.2 0 0 0 106.79981,190.00097 3.2,3.2 0 0 0 109.99903,193.20019 3.2,3.2 0 0 0 113.2002,190.00097 3.2,3.2 0 0 0 109.99903,186.7998 Z M 109.99903,187.95605 A 2.0430987,2.0430987 0 0 1 112.04395,190.00097 2.0430987,2.0430987 0 0 1 109.99903,192.04394 2.0430987,2.0430987 0 0 1 107.95606,190.00097 2.0430987,2.0430987 0 0 1 109.99903,187.95605 Z" />
+    <path
+       id="path317-2"
+       style="fill:#b19c22;fill-opacity:1;stroke-width:2.1;stroke-linecap:round"
+       d="M 120.00902,186.79981 A 3.2,3.2 0 0 0 116.8098,190.00098 3.2,3.2 0 0 0 120.00902,193.2002 3.2,3.2 0 0 0 123.21019,190.00098 3.2,3.2 0 0 0 120.00902,186.79981 Z M 120.00902,187.95606 A 2.0430987,2.0430987 0 0 1 122.05394,190.00098 2.0430987,2.0430987 0 0 1 120.00902,192.04395 2.0430987,2.0430987 0 0 1 117.96605,190.00098 2.0430987,2.0430987 0 0 1 120.00902,187.95606 Z" />
+    <g
+       id="board"
+       opacity="0.85"
+       transform="scale(3.937)">
+      <filter
+         id="blurLight"
+         x="-0.80000001"
+         y="-0.80000001"
+         height="2.8"
+         width="2.8">
+        <feGaussianBlur
+           stdDeviation="0.3"
+           id="feGaussianBlur48" />
+      </filter>
+      <pattern
+         id="pixel"
+         patternUnits="userSpaceOnUse"
+         width="6.66"
+         height="6">
+        <rect
+           x=".33308"
+           y="0"
+           width="5"
+           height="5"
+           fill="#fff"
+           id="rect48" />
+        <rect
+           x=".016709"
+           y=".4279"
+           width=".35114"
+           height=".9"
+           fill="#eaeaea"
+           id="rect49" />
+        <rect
+           x="0"
+           y="3.6518"
+           width=".35114"
+           height=".9"
+           fill="#eaeaea"
+           id="rect50" />
+        <rect
+           x="5.312"
+           y="3.6351"
+           width=".35114"
+           height=".9"
+           fill="#eaeaea"
+           id="rect51" />
+        <rect
+           x="5.312"
+           y=".3945"
+           width=".35114"
+           height=".9"
+           fill="#eaeaea"
+           id="rect52" />
+        <circle
+           cx="2.8331"
+           cy="2.5"
+           r="2.1"
+           fill="#ddd"
+           id="circle52" />
+        <circle
+           cx="2.8331"
+           cy="2.5"
+           r="1.7325"
+           fill="#e6e6e6"
+           id="circle53" />
+        <g
+           fill="#bfbfbf"
+           id="g56">
+          <path
+             d="m4.3488 3.3308s-0.0889-0.087-0.0889-0.1341c0-0.047-6e-3 -1.1533-6e-3 -1.1533s-0.0591-0.1772-0.2008-0.1772c-0.14174 0-0.81501 0.012-0.81501 0.012s-0.24805 0.024-0.23624 0.3071c0.0118 0.2835 0.032 2.0345 0.032 2.0345 0.54707-0.046 1.0487-0.3494 1.3146-0.8888z"
+             id="path53" />
+          <path
+             d="m4.34 1.6405h-1.0805s-0.24325 0.019-0.26204-0.2423l6e-3 -0.6241c0.57782 0.075 1.0332 0.3696 1.3366 0.8706z"
+             id="path54" />
+          <path
+             d="m2.7778 2.6103-0.17127 0.124-0.8091-0.012c-0.17122-0.019-0.17062-0.2078-0.17062-0.2078-1e-3 -0.3746 1e-3 -0.2831-9e-3 -0.8122l-0.31248-0.018s0.43453-0.9216 1.4786-0.9174c-1.1e-4 0.6144-4e-3 1.2289-6e-3 1.8434z"
+             id="path55" />
+          <path
+             d="m2.7808 3.0828-0.0915-0.095h-0.96857l-0.0915 0.1447-3e-3 0.1127c0 0.065-0.12108 0.08-0.12108 0.08h-0.20909c0.55906 0.9376 1.4867 0.9155 1.4867 0.9155 1e-3 -0.3845-2e-3 -0.7692-2e-3 -1.1537z"
+             id="path56" />
+        </g>
+        <path
+           d="m4.053 1.8619c-0.14174 0-0.81494 0.013-0.81494 0.013s-0.24797 0.024-0.23616 0.3084c3e-3 0.077 5e-3 0.3235 9e-3 0.5514h1.247c-2e-3 -0.33-4e-3 -0.6942-4e-3 -0.6942s-0.0593-0.1781-0.20102-0.1781z"
+           fill="#666"
+           id="path57" />
+      </pattern>
+      <rect
+         fill="url(#pixel)"
+         width="52.279999"
+         height="47"
+         id="rect57"
+         x="0"
+         y="0" />
+      <g
+         id="g313">
+        <!--?lit$830839110$-->
+        <!---->
+        <g
+           class="pixel"
+           id="g60">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse57"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse58"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse59"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse60"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(6.66)"
+           id="g64">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse61"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse62"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse63"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse64"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(13.32)"
+           id="g68">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse65"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse66"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse67"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse68"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(19.98)"
+           id="g72">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse69"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse70"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse71"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse72"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(26.64)"
+           id="g76">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse73"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse74"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse75"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse76"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(33.3)"
+           id="g80">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse77"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse78"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse79"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse80"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(39.96)"
+           id="g84">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse81"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse82"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse83"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse84"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(46.62)"
+           id="g88">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse85"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse86"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse87"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse88"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(0,6)"
+           id="g92">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse89"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse90"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse91"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse92"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(6.66,6)"
+           id="g96">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse93"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse94"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse95"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse96"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(13.32,6)"
+           id="g100">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse97"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse98"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse99"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse100"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(19.98,6)"
+           id="g104">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse101"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse102"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse103"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse104"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(26.64,6)"
+           id="g108">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse105"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse106"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse107"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse108"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(33.3,6)"
+           id="g112">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse109"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse110"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse111"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse112"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(39.96,6)"
+           id="g116">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse113"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse114"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse115"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse116"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(46.62,6)"
+           id="g120">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse117"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse118"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse119"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse120"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(0,12)"
+           id="g124">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse121"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse122"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse123"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse124"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(6.66,12)"
+           id="g128">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse125"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse126"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse127"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse128"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(13.32,12)"
+           id="g132">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse129"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse130"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse131"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse132"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(19.98,12)"
+           id="g136">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse133"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse134"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse135"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse136"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(26.64,12)"
+           id="g140">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse137"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse138"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse139"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse140"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(33.3,12)"
+           id="g144">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse141"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse142"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse143"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse144"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(39.96,12)"
+           id="g148">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse145"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse146"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse147"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse148"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(46.62,12)"
+           id="g152">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse149"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse150"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse151"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse152"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(0,18)"
+           id="g156">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse153"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse154"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse155"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse156"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(6.66,18)"
+           id="g160">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse157"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse158"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse159"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse160"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(13.32,18)"
+           id="g164">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse161"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse162"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse163"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse164"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(19.98,18)"
+           id="g168">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse165"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse166"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse167"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse168"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(26.64,18)"
+           id="g172">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse169"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse170"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse171"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse172"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(33.3,18)"
+           id="g176">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse173"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse174"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse175"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse176"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(39.96,18)"
+           id="g180">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse177"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse178"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse179"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse180"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(46.62,18)"
+           id="g184">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse181"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse182"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse183"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse184"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(0,24)"
+           id="g188">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse185"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse186"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse187"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse188"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(6.66,24)"
+           id="g192">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse189"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse190"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse191"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse192"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(13.32,24)"
+           id="g196">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse193"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse194"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse195"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse196"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(19.98,24)"
+           id="g200">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse197"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse198"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse199"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse200"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(26.64,24)"
+           id="g204">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse201"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse202"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse203"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse204"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(33.3,24)"
+           id="g208">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse205"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse206"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse207"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse208"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(39.96,24)"
+           id="g212">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse209"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse210"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse211"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse212"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(46.62,24)"
+           id="g216">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse213"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse214"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse215"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse216"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(0,30)"
+           id="g220">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse217"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse218"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse219"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse220"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(6.66,30)"
+           id="g224">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse221"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse222"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse223"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse224"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(13.32,30)"
+           id="g228">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse225"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse226"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse227"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse228"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(19.98,30)"
+           id="g232">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse229"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse230"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse231"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse232"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(26.64,30)"
+           id="g236">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse233"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse234"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse235"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse236"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(33.3,30)"
+           id="g240">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse237"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse238"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse239"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse240"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(39.96,30)"
+           id="g244">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse241"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse242"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse243"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse244"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(46.62,30)"
+           id="g248">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse245"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse246"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse247"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse248"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(0,36)"
+           id="g252">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse249"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse250"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse251"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse252"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(6.66,36)"
+           id="g256">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse253"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse254"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse255"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse256"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(13.32,36)"
+           id="g260">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse257"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse258"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse259"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse260"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(19.98,36)"
+           id="g264">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse261"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse262"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse263"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse264"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(26.64,36)"
+           id="g268">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse265"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse266"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse267"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse268"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(33.3,36)"
+           id="g272">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse269"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse270"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse271"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse272"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(39.96,36)"
+           id="g276">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse273"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse274"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse275"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse276"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(46.62,36)"
+           id="g280">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse277"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse278"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse279"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse280"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(0,42)"
+           id="g284">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse281"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse282"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse283"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse284"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(6.66,42)"
+           id="g288">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse285"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse286"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse287"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse288"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(13.32,42)"
+           id="g292">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse289"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse290"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse291"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse292"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(19.98,42)"
+           id="g296">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse293"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse294"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse295"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse296"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(26.64,42)"
+           id="g300">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse297"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse298"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse299"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse300"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(33.3,42)"
+           id="g304">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse301"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse302"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse303"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse304"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(39.96,42)"
+           id="g308">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse305"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse306"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse307"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse308"
+             r="2.2" />
+        </g>
+        <!---->
+        <!---->
+        <g
+           class="pixel"
+           transform="translate(46.62,42)"
+           id="g312">
+          <circle
+             cx="2.5"
+             cy="2.3"
+             fill="#ff0000"
+             opacity="0"
+             id="ellipse309"
+             r="0.30000001" />
+          <circle
+             cx="3.5"
+             cy="3.2"
+             fill="#008000"
+             opacity="0"
+             id="ellipse310"
+             r="0.30000001" />
+          <circle
+             cx="3.3"
+             cy="1.45"
+             fill="#0000ff"
+             opacity="0"
+             id="ellipse311"
+             r="0.30000001" />
+          <circle
+             cx="3"
+             cy="2.5"
+             opacity="0"
+             id="ellipse312"
+             r="2.2" />
+        </g>
+        <!---->
+      </g>
+    </g>
+    <g
+       id="pins"
+       transform="translate(-19.889999,-19)">
+      <g
+         id="g314">
+        <circle
+           id="pin-GND"
+           cx="109.89"
+           cy="209"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <text
+           x="109.89"
+           y="204"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text313">GND</text>
+      </g>
+      <g
+         id="g315">
+        <circle
+           id="pin-VCC"
+           cx="119.89"
+           cy="209"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <text
+           x="119.89"
+           y="204"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text314">VCC</text>
+      </g>
+      <g
+         id="g316">
+        <circle
+           id="pin-DIN"
+           cx="129.89999"
+           cy="209"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <text
+           x="129.89999"
+           y="204"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text315">DIN</text>
+      </g>
+      <g
+         id="g317">
+        <circle
+           id="pin-DOUT"
+           cx="139.89999"
+           cy="209"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <text
+           x="139.89999"
+           y="204"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text316">DOUT</text>
+      </g>
+    </g>
+  </g>
+</svg>

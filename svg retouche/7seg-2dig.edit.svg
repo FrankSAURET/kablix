@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg
-   width="99.787628"
-   height="84.785263"
-   viewBox="0 0 99.787627 84.785263"
+   width="100.37129"
+   height="85.806129"
+   viewBox="0 0 100.37129 85.806129"
    version="1.1"
    id="svg50"
    sodipodi:docname="7seg-2dig.edit.svg"
@@ -51,9 +51,9 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      showgrid="true"
-     inkscape:zoom="5.6568543"
-     inkscape:cx="25.279067"
-     inkscape:cy="54.093668"
+     inkscape:zoom="8"
+     inkscape:cx="36"
+     inkscape:cy="37.375"
      inkscape:window-width="1920"
      inkscape:window-height="1057"
      inkscape:window-x="-8"
@@ -63,8 +63,8 @@
     <inkscape:grid
        id="grid50"
        units="px"
-       originx="-10.583665"
-       originy="-1.0208694"
+       originx="-10"
+       originy="0"
        spacingx="10"
        spacingy="10"
        empcolor="#3f3fff"
@@ -77,7 +77,8 @@
   </sodipodi:namedview>
   <!-- Retouche brochage 7seg-2dig : déplace chaque pastille rouge sur un CROISEMENT (lignes foncées = 50 px). Garde les id pin-<nom>. Marge 20 px. -->
   <g
-     id="g1">
+     id="g1"
+     transform="translate(0.58366489,1.0208694)">
     <rect
        x="0"
        height="79.743614"
@@ -90,37 +91,37 @@
        id="g33"
        style="opacity:0.85;fill:#c0c0c0;stroke-width:0.961085">
       <polygon
-         points="2,0 8,0 9,1 8,2 2,2 1,1 "
+         points="2,2 1,1 2,0 8,0 9,1 8,2 "
          fill="#444444"
          id="polygon27"
          style="fill:#c0c0c0;stroke-width:0.961085" />
       <polygon
-         points="10,2 10,8 9,9 8,8 8,2 9,1 "
+         points="8,2 9,1 10,2 10,8 9,9 8,8 "
          fill="#444444"
          id="polygon28"
          style="fill:#c0c0c0;stroke-width:0.961085" />
       <polygon
-         points="10,10 10,16 9,17 8,16 8,10 9,9 "
+         points="8,10 9,9 10,10 10,16 9,17 8,16 "
          fill="#444444"
          id="polygon29"
          style="fill:#c0c0c0;stroke-width:0.961085" />
       <polygon
-         points="8,18 2,18 1,17 2,16 8,16 9,17 "
+         points="8,16 9,17 8,18 2,18 1,17 2,16 "
          fill="#444444"
          id="polygon30"
          style="fill:#c0c0c0;stroke-width:0.961085" />
       <polygon
-         points="0,16 0,10 1,9 2,10 2,16 1,17 "
+         points="2,16 1,17 0,16 0,10 1,9 2,10 "
          fill="#444444"
          id="polygon31"
          style="fill:#c0c0c0;stroke-width:0.961085" />
       <polygon
-         points="0,8 0,2 1,1 2,2 2,8 1,9 "
+         points="2,8 1,9 0,8 0,2 1,1 2,2 "
          fill="#444444"
          id="polygon32"
          style="fill:#c0c0c0;stroke-width:0.961085" />
       <polygon
-         points="2,8 8,8 9,9 8,10 2,10 1,9 "
+         points="2,10 1,9 2,8 8,8 9,9 8,10 "
          fill="#444444"
          id="polygon33"
          style="fill:#c0c0c0;stroke-width:0.961085" />
@@ -138,37 +139,37 @@
        id="g40"
        style="opacity:0.85;fill:#c0c0c0;stroke-width:0.961085">
       <polygon
-         points="2,0 8,0 9,1 8,2 2,2 1,1 "
+         points="2,2 1,1 2,0 8,0 9,1 8,2 "
          fill="#444444"
          id="polygon34"
          style="fill:#c0c0c0;stroke-width:0.961085" />
       <polygon
-         points="10,2 10,8 9,9 8,8 8,2 9,1 "
+         points="8,2 9,1 10,2 10,8 9,9 8,8 "
          fill="#444444"
          id="polygon35"
          style="fill:#c0c0c0;stroke-width:0.961085" />
       <polygon
-         points="10,10 10,16 9,17 8,16 8,10 9,9 "
+         points="8,10 9,9 10,10 10,16 9,17 8,16 "
          fill="#444444"
          id="polygon36"
          style="fill:#c0c0c0;stroke-width:0.961085" />
       <polygon
-         points="8,18 2,18 1,17 2,16 8,16 9,17 "
+         points="8,16 9,17 8,18 2,18 1,17 2,16 "
          fill="#444444"
          id="polygon37"
          style="fill:#c0c0c0;stroke-width:0.961085" />
       <polygon
-         points="0,16 0,10 1,9 2,10 2,16 1,17 "
+         points="2,16 1,17 0,16 0,10 1,9 2,10 "
          fill="#444444"
          id="polygon38"
          style="fill:#c0c0c0;stroke-width:0.961085" />
       <polygon
-         points="0,8 0,2 1,1 2,2 2,8 1,9 "
+         points="2,8 1,9 0,8 0,2 1,1 2,2 "
          fill="#444444"
          id="polygon39"
          style="fill:#c0c0c0;stroke-width:0.961085" />
       <polygon
-         points="2,8 8,8 9,9 8,10 2,10 1,9 "
+         points="2,10 1,9 2,8 8,8 9,9 8,10 "
          fill="#444444"
          id="polygon40"
          style="fill:#c0c0c0;stroke-width:0.961085" />

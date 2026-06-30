@@ -45,7 +45,7 @@ import './composants/slide-pot.mjs';
 
 import { initLocale, t } from './i18n.mjs';
 import { Editor, type PaletteState } from './diagram/editor.mjs';
-import { reflectLed, reflectGlow, reflectSevenSeg, reflectRgbLed, reflectLedBar, reflectServo } from './diagram/drawing-feedback.mjs';
+import { reflectLed, reflectGlow, reflectSevenSeg, reflectRgbLed, reflectLedBar, reflectServo, reflectNeopixel, reflectOled, reflectTft } from './diagram/drawing-feedback.mjs';
 import { partDef, boardFamily, isBoardId, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
 import { toWokwiDiagram, fromWokwiDiagram } from './diagram/wokwi.mjs';
 import {
@@ -345,6 +345,9 @@ function refreshVisuals(): void {
             if (active) for (let s = 0; s < 8; s++) latch[d * 8 + s] = values[s];
           }
           el.values = latch.slice();
+          // Dessin retouché (2/4 chiffres) : allume les segments de chaque chiffre.
+          const draw = editor.drawingOf(part.id);
+          if (draw) reflectSevenSeg(draw, latch, part.attrs?.color ?? 'red', digits);
         }
         break;
       }
@@ -392,19 +395,29 @@ function refreshVisuals(): void {
         const dev = i2cDevices.get(part.id);
         if (dev instanceof Ssd1306Device) {
           renderOled(el as unknown as { imageData?: ImageData; redraw?: () => void }, dev);
+          const draw = editor.drawingOf(part.id);
+          if (draw) reflectOled(draw, dev);
         }
         break;
       }
       case 'spi-oled': {
         // Écran OLED SPI : tampon décodé du bus SPI → image.
         const dev = spiOledDevices.get(part.id);
-        if (dev) renderOled(el as unknown as { imageData?: ImageData; redraw?: () => void }, dev);
+        if (dev) {
+          renderOled(el as unknown as { imageData?: ImageData; redraw?: () => void }, dev);
+          const draw = editor.drawingOf(part.id);
+          if (draw) reflectOled(draw, dev);
+        }
         break;
       }
       case 'spi-tft': {
         // Écran TFT couleur ILI9341 : image RGBA → canvas de l'élément.
         const dev = spiTftDevices.get(part.id);
-        if (dev) renderTft(el as unknown as { canvas?: HTMLCanvasElement | null }, dev);
+        if (dev) {
+          renderTft(el as unknown as { canvas?: HTMLCanvasElement | null }, dev);
+          const draw = editor.drawingOf(part.id);
+          if (draw) reflectTft(draw, dev);
+        }
         break;
       }
       case 'spi-sd':
@@ -414,6 +427,8 @@ function refreshVisuals(): void {
         const pin = neopixelTargets.get(part.id);
         const colors = pin ? engine.readNeopixel?.(pin) ?? [] : [];
         renderNeopixel(part.type, el, colors, part.attrs);
+        const draw = editor.drawingOf(part.id);
+        if (draw) reflectNeopixel(draw, colors);
         break;
       }
       case 'mcu':

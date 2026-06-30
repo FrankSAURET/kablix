@@ -44,23 +44,153 @@ export function reflectGlow(svg: SVGElement, on: boolean, color = 'rgba(255,230,
 }
 
 /**
- * Afficheur 7 segments (1 chiffre) : allume chaque segment selon `values`
- * (ordre Wokwi A,B,C,D,E,F,G,DP). Les 7 segments sont les 7 `<polygon>` du
- * dessin (ordre DOM = A→G, validé vs le rendu Wokwi), le point décimal le
- * `<circle>` hors `<defs>`. Couleur allumée = `color` (attribut du composant) ;
- * éteinte = la couleur d'origine du dessin, mémorisée au premier passage.
+ * Afficheur 7 segments (1, 2 ou 4 chiffres) : allume chaque segment selon
+ * `values` (8 valeurs par chiffre, ordre Wokwi A,B,C,D,E,F,G,DP). Les segments
+ * sont les `<polygon>` du dessin, groupés par chiffre dans l'ordre DOM (7 par
+ * chiffre, A→G validé vs Wokwi) ; les points décimaux sont les `<circle>` /
+ * `<ellipse>` hors `<defs>`, un par chiffre dans l'ordre DOM (gauche→droite).
+ * Couleur allumée = `color` (attribut du composant) ; éteinte = la couleur
+ * d'origine du dessin, mémorisée au premier passage.
  */
-export function reflectSevenSeg(svg: SVGElement, values: number[], color = 'red'): void {
+export function reflectSevenSeg(
+  svg: SVGElement,
+  values: number[],
+  color = 'red',
+  digits = 1
+): void {
   const polys = svg.querySelectorAll('polygon');
-  if (polys.length < 7) return;
+  if (polys.length < digits * 7) return;
+  const dps = [...svg.querySelectorAll('circle, ellipse')].filter((c) => !c.closest('defs'));
   const setSeg = (el: SVGElement, lit: boolean) => {
     const e = el as SVGElement & { dataset: DOMStringMap };
     if (e.dataset.off === undefined) e.dataset.off = el.style.fill || el.getAttribute('fill') || '#444';
     el.style.fill = lit ? color : e.dataset.off;
   };
-  for (let i = 0; i < 7; i++) setSeg(polys[i] as SVGElement, !!values[i]);
-  const dp = [...svg.querySelectorAll('circle')].find((c) => !c.closest('defs'));
-  if (dp) setSeg(dp as SVGElement, !!values[7]);
+  for (let d = 0; d < digits; d++) {
+    for (let s = 0; s < 7; s++) setSeg(polys[d * 7 + s] as SVGElement, !!values[d * 8 + s]);
+    if (dps[d]) setSeg(dps[d] as SVGElement, !!values[d * 8 + 7]);
+  }
+}
+
+type Rgb = { r: number; g: number; b: number };
+
+/**
+ * Colore un pixel WS2812 d'après `c` (composantes 0..255). Deux structures de
+ * dessin : groupe Wokwi (matrice/anneau matrice : `<circle>` R/G/B + diffuseur,
+ * tous à opacité 0) → on teinte le diffuseur (plus grand rayon) ; pixel feuille
+ * (anneau à `<rect>`) → on colore le rectangle (éteint = gris sombre).
+ */
+function colorPixel(host: SVGElement, c: Rgb): void {
+  const on = c.r || c.g || c.b;
+  const circles = [...host.querySelectorAll('circle, ellipse')].filter((e) => !e.closest('defs'));
+  if (circles.length > 0) {
+    const diff = circles.sort(
+      (a, b) => Number(b.getAttribute('r') ?? 0) - Number(a.getAttribute('r') ?? 0)
+    )[0] as SVGElement;
+    diff.setAttribute('fill', `rgb(${c.r},${c.g},${c.b})`);
+    diff.setAttribute('opacity', on ? '0.9' : '0');
+    return;
+  }
+  host.setAttribute('fill', on ? `rgb(${c.r},${c.g},${c.b})` : '#141414');
+}
+
+/**
+ * Chaîne NeoPixel (WS2812) sur le dessin. Matrice / anneau : chaque pixel est un
+ * élément `class="pixel"` (ordre DOM = ordre de la chaîne) coloré par `colors`
+ * (composantes 0..255). NeoPixel simple (1 LED, pas de `.pixel`) : on teinte le
+ * diffuseur central de tout le dessin.
+ */
+export function reflectNeopixel(svg: SVGElement, colors: Rgb[]): void {
+  const pixels = svg.querySelectorAll('.pixel');
+  if (pixels.length > 0) {
+    for (let i = 0; i < pixels.length; i++) colorPixel(pixels[i] as SVGElement, colors[i] ?? { r: 0, g: 0, b: 0 });
+    return;
+  }
+  colorPixel(svg, colors[0] ?? { r: 0, g: 0, b: 0 });
+}
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const XHTML_NS = 'http://www.w3.org/1999/xhtml';
+
+/**
+ * Zone d'écran d'un dessin = le plus grand `<rect>` non rempli d'un motif
+ * (`url(...)`). Sert d'ancrage au canvas superposé (OLED, TFT).
+ */
+function screenRectOf(svg: SVGElement): { x: number; y: number; w: number; h: number } | null {
+  let best: { x: number; y: number; w: number; h: number } | null = null;
+  for (const r of svg.querySelectorAll('rect')) {
+    const fill = (r.getAttribute('fill') || (r as SVGElement).style.fill || '').toLowerCase();
+    if (fill.includes('url')) continue;
+    const w = Number(r.getAttribute('width') ?? 0);
+    const h = Number(r.getAttribute('height') ?? 0);
+    if (!best || w * h > best.w * best.h) {
+      best = { x: Number(r.getAttribute('x') ?? 0), y: Number(r.getAttribute('y') ?? 0), w, h };
+    }
+  }
+  return best;
+}
+
+/**
+ * Canvas superposé à la zone écran du dessin (créé/redimensionné au besoin). Le
+ * canvas garde la résolution native du composant (`nw`×`nh`) et est étiré à la
+ * zone écran par CSS, via un `<foreignObject>` posé aux coordonnées du viewBox.
+ */
+function screenCtx(svg: SVGElement, nw: number, nh: number): CanvasRenderingContext2D | null {
+  const rect = screenRectOf(svg);
+  if (!rect) return null;
+  let fo = svg.querySelector('foreignObject.screen-overlay') as SVGForeignObjectElement | null;
+  let canvas: HTMLCanvasElement;
+  if (!fo) {
+    fo = document.createElementNS(SVG_NS, 'foreignObject') as SVGForeignObjectElement;
+    fo.setAttribute('class', 'screen-overlay');
+    canvas = document.createElementNS(XHTML_NS, 'canvas') as HTMLCanvasElement;
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    canvas.style.display = 'block';
+    fo.appendChild(canvas);
+    svg.appendChild(fo);
+  } else {
+    canvas = fo.firstChild as HTMLCanvasElement;
+  }
+  fo.setAttribute('x', String(rect.x));
+  fo.setAttribute('y', String(rect.y));
+  fo.setAttribute('width', String(rect.w));
+  fo.setAttribute('height', String(rect.h));
+  if (canvas.width !== nw) canvas.width = nw;
+  if (canvas.height !== nh) canvas.height = nh;
+  return canvas.getContext('2d');
+}
+
+/** Écran OLED monochrome (SSD1306) : tampon décodé → canvas superposé (blanc sur noir). */
+export function reflectOled(
+  svg: SVGElement,
+  dev: { width: number; height: number; pixelOn(x: number, y: number): boolean }
+): void {
+  const ctx = screenCtx(svg, dev.width, dev.height);
+  if (!ctx) return;
+  const img = ctx.createImageData(dev.width, dev.height);
+  const d = img.data;
+  for (let y = 0; y < dev.height; y++) {
+    for (let x = 0; x < dev.width; x++) {
+      const on = dev.pixelOn(x, y) ? 255 : 0;
+      const i = (y * dev.width + x) * 4;
+      d[i] = d[i + 1] = d[i + 2] = on;
+      d[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+/** Écran TFT couleur (ILI9341) : image RGBA décodée → canvas superposé. */
+export function reflectTft(
+  svg: SVGElement,
+  dev: { width: number; height: number; data: Uint8ClampedArray | Uint8Array }
+): void {
+  const ctx = screenCtx(svg, dev.width, dev.height);
+  if (!ctx) return;
+  const img = ctx.createImageData(dev.width, dev.height);
+  img.data.set(dev.data);
+  ctx.putImageData(img, 0, 0);
 }
 
 // Palettes de couleurs des barres LED (cf. wokwi led-bar-graph).
