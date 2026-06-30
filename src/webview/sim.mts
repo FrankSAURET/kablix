@@ -45,7 +45,7 @@ import './elements/slide-pot.mjs';
 
 import { initLocale, t } from './i18n.mjs';
 import { Editor, type PaletteState } from './diagram/editor.mjs';
-import { reflectLed, reflectGlow } from './diagram/drawing-feedback.mjs';
+import { reflectLed, reflectGlow, reflectSevenSeg, reflectRgbLed } from './diagram/drawing-feedback.mjs';
 import { partDef, boardFamily, isBoardId, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
 import { toWokwiDiagram, fromWokwiDiagram } from './diagram/wokwi.mjs';
 import {
@@ -294,6 +294,8 @@ function refreshVisuals(): void {
         el.ledRed = s.red ? 1 : 0;
         el.ledGreen = s.green ? 1 : 0;
         el.ledBlue = s.blue ? 1 : 0;
+        const draw = editor.drawingOf(part.id);
+        if (draw) reflectRgbLed(draw, s.red ? 1 : 0, s.green ? 1 : 0, s.blue ? 1 : 0);
         break;
       }
       case 'buzzer': {
@@ -323,6 +325,9 @@ function refreshVisuals(): void {
         const digits = Math.max(1, Number(part.attrs?.digits ?? 1) || 1);
         if (digits <= 1) {
           el.values = sevenSegmentState(editor.diagram, part.id, read);
+          // Dessin retouché (1 chiffre) : allume les segments correspondants.
+          const draw = editor.drawingOf(part.id);
+          if (draw) reflectSevenSeg(draw, el.values as number[], part.attrs?.color ?? 'red');
         } else {
           // Multiplexage : on échantillonne le chiffre actuellement sélectionné
           // (broche DIGn active) et on mémorise ses segments ; les autres gardent

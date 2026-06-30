@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 59.994762 90">
+  <defs id="defs39">
+    <pattern xlink:href="#pin-pattern" id="pattern40" patternTransform="matrix(3.937008,0,0,3.937008,14.996356,86.928614)"></pattern>
+    <pattern xlink:href="#pin-pattern" id="pattern39" patternTransform="matrix(3.937008,0,0,3.937008,5.346356,6.41247)"></pattern>
+    <defs id="defs22">
+      <pattern id="pin-pattern" height="2" width="2.54" patternUnits="userSpaceOnUse">
+        <!--?lit$640294753$-->
+        <circle cx="1.27" cy="1" r="0.5" fill="#aaa" id="circle22"></circle>
+      </pattern>
+    </defs>
+  </defs>
+  
+  <!-- Retouche brochage 7seg : déplace chaque pastille rouge sur un CROISEMENT (lignes foncées = 50 px). Garde les id pin-<nom>. Marge 20 px. -->
+  <g id="g1" transform="translate(-0.35000071,-0.35000041)">
+    <rect x="5.6416316" height="78.065002" y="6.4124694" width="49.409451" id="rect22" style="opacity:0.85;stroke-width:3.77951"></rect>
+    <g transform="matrix(3.1889765,0,-0.44818143,3.1889765,18.093215,15.861289)" id="g28" style="opacity:0.85;fill:#c0c0c0;stroke-width:0.959993">
+      <polygon points="1,1 2,0 8,0 9,1 8,2 2,2 " fill="#444444" id="polygon22" style="fill:#c0c0c0;stroke-width:0.959993"></polygon>
+      <polygon points="9,1 10,2 10,8 9,9 8,8 8,2 " fill="#444444" id="polygon23" style="fill:#c0c0c0;stroke-width:0.959993"></polygon>
+      <polygon points="9,9 10,10 10,16 9,17 8,16 8,10 " fill="#444444" id="polygon24" style="fill:#c0c0c0;stroke-width:0.959993"></polygon>
+      <polygon points="9,17 8,18 2,18 1,17 2,16 8,16 " fill="#444444" id="polygon25" style="fill:#c0c0c0;stroke-width:0.959993"></polygon>
+      <polygon points="1,17 0,16 0,10 1,9 2,10 2,16 " fill="#444444" id="polygon26" style="fill:#c0c0c0;stroke-width:0.959993"></polygon>
+      <polygon points="1,9 0,8 0,2 1,1 2,2 2,8 " fill="#444444" id="polygon27" style="fill:#c0c0c0;stroke-width:0.959993"></polygon>
+      <polygon points="1,9 2,8 8,8 9,9 8,10 2,10 " fill="#444444" id="polygon28" style="fill:#c0c0c0;stroke-width:0.959993"></polygon>
+    </g>
+    <circle r="3.503937" cx="48.555016" cy="69.404594" fill="#444444" id="circle28" style="opacity:0.85;fill:#c0c0c0;stroke-width:3.7795"></circle>
+    <rect height="7.8740158" width="50" id="rect28" x="5.3463559" y="6.4124694" style="opacity:0.85;fill:url(#pattern39);stroke-width:3.7795"></rect>
+    <g id="g40" transform="translate(-9.65,-10.525519)">
+      <rect height="7.8740158" width="50" id="rect29" x="14.996356" y="86.928612" style="opacity:0.85;fill:url(#pattern40);stroke-width:3.7795"></rect>
+    </g>
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    <g id="g39" transform="translate(-9.65,-10.525519)">
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+    </g>
+  </g>
+</svg>

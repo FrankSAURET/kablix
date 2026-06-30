@@ -19,6 +19,8 @@ import heartbeatSvg from '../elements/boards/heartbeat.svg';
 import microsdSvg from '../elements/boards/microsd.svg';
 import ledSvg from '../elements/boards/led.svg';
 import buzzerSvg from '../elements/boards/buzzer.svg';
+import sevenSegSvg from '../elements/boards/7seg.svg';
+import rgbLedSvg from '../elements/boards/rgb-led.svg';
 
 const DRAWINGS: Record<string, string> = {
   mega: megaSvg,
@@ -36,7 +38,22 @@ const DRAWINGS: Record<string, string> = {
   microsd: microsdSvg,
   led: ledSvg,
   buzzer: buzzerSvg,
+  '7seg': sevenSegSvg, // 1 chiffre uniquement (cf. drawingKey)
+  'rgb-led': rgbLedSvg,
 };
+
+/**
+ * Clé de dessin pour un type + ses attributs (variantes). Le 7 segments a un
+ * dessin propre par nombre de chiffres ; seul le 1 chiffre est fourni → les
+ * variantes 2/4 chiffres retombent sur le rendu @wokwi (clé absente de DRAWINGS).
+ */
+function drawingKey(type: string, attrs?: Record<string, string>): string {
+  if (type === '7seg') {
+    const d = attrs?.digits ?? '1';
+    return d === '1' ? '7seg' : `7seg-${d}dig`;
+  }
+  return type;
+}
 
 export interface BoardDrawing {
   svg: string;
@@ -44,9 +61,10 @@ export interface BoardDrawing {
   h: number;
 }
 
-/** Dessin retouché d'un type, ou null. `w`/`h` = dimensions du viewBox (= repère px). */
-export function boardDrawing(type: string): BoardDrawing | null {
-  const svg = DRAWINGS[type];
+/** Dessin retouché d'un type (+ variantes par attribut), ou null. `w`/`h` =
+ * dimensions du viewBox (= repère px des surcharges). */
+export function boardDrawing(type: string, attrs?: Record<string, string>): BoardDrawing | null {
+  const svg = DRAWINGS[drawingKey(type, attrs)];
   if (!svg) return null;
   const m = /viewBox="\s*[\d.-]+\s+[\d.-]+\s+([\d.]+)\s+([\d.]+)"/.exec(svg);
   return { svg, w: m ? Number(m[1]) : 0, h: m ? Number(m[2]) : 0 };

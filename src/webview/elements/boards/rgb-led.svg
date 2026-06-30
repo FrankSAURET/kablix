@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 49.873417 69.999999">
+  <defs id="defs42">
+    <filter id="ledFilter" x="-0.48" y="-0.48" height="1.96" width="1.96">
+      <feGaussianBlur stdDeviation="4" id="feGaussianBlur32"></feGaussianBlur>
+    </filter>
+    <filter id="ledFilterRed" x="0" y="0" height="1" width="1">
+      <feGaussianBlur stdDeviation="0" id="feGaussianBlur33"></feGaussianBlur>
+    </filter>
+    <filter id="ledFilterGreen" x="0" y="0" height="1" width="1">
+      <feGaussianBlur stdDeviation="0" id="feGaussianBlur34"></feGaussianBlur>
+    </filter>
+    <filter id="ledFilterBlue" x="0" y="0" height="1" width="1">
+      <feGaussianBlur stdDeviation="0" id="feGaussianBlur35"></feGaussianBlur>
+    </filter>
+  </defs>
+  
+  <g id="g46" transform="translate(-20.000001,-19.999999)">
+    <path style="fill:none;stroke:#a3a3a3;stroke-width:1.2;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1" d="M 30,70 V 56.8723 L 35.703604,52.282962" id="path42"></path>
+    <path style="fill:none;stroke:#a3a3a3;stroke-width:1.2;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1" d="M 40,80 V 60 L 40.409414,53.761143" id="path44"></path>
+    <path style="fill:none;stroke:#a3a3a3;stroke-width:1.2;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1" d="M 50,70 V 57.858265 L 47.075878,53.282632" id="path45"></path>
+    <path style="fill:none;stroke:#a3a3a3;stroke-width:1.2;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1" d="M 60,70 V 60 L 49.97054,51.703032" id="path46"></path>
+  </g>
+  <g id="g39" transform="translate(-18.850001,-15.830001)">
+    
+    
+  </g>
+  <g id="g40" transform="translate(-18.750001,-16.249999)">
+    
+    
+  </g>
+  <g id="g41" transform="translate(-17.500001,-15.830001)">
+    
+    
+  </g>
+  <g id="g42" transform="translate(-17.19,-15.830001)">
+    
+    
+  </g>
+  <!-- Retouche brochage rgb-led : déplace chaque pastille rouge sur un CROISEMENT (lignes foncées = 50 px). Garde les id pin-<nom>. Marge 20 px. -->
+  <path d="M 30.93368,22.561879 V 15.613391 C 30.93368,11.014599 27.210647,7.2831039 22.606801,7.2831039 18.008831,7.2831039 14.277336,11.007783 14.277336,15.613391 V 31.653696 C 16.009345,33.593951 19.091895,34.888552 22.606801,34.888552 28.035637,34.888552 32.441579,31.811996 32.441579,28.002585 V 26.212168 C 32.44071,24.869384 31.884017,23.622144 30.933798,22.561879 Z" opacity="0.255" id="path24" style="stroke-width:1.1752"></path>
+  <path d="M 30.93368,22.561879 V 15.613391 C 30.93368,11.014599 27.210647,7.2831039 22.606801,7.2831039 18.008831,7.2831039 14.277336,11.007783 14.277336,15.613391 V 31.653696 C 16.009345,33.593951 19.091895,34.888552 22.606801,34.888552 28.035637,34.888552 32.441579,31.811996 32.441579,28.002585 V 26.212168 C 32.44071,24.869384 31.884017,23.622144 30.933798,22.561879 Z" fill="#e6e6e6" opacity="0.425" id="path25" style="stroke-width:1.1752"></path>
+  <path d="M 30.93368,22.561879 V 26.211345 C 30.93368,29.4301 27.213232,32.046331 22.606801,32.046331 18.008831,32.046354 14.277336,29.438562 14.277336,26.211345 V 31.652051 C 16.009345,33.593129 19.091895,34.886907 22.606801,34.886907 28.035637,34.886907 32.441579,31.81035 32.441579,28.00188 L 32.441532,26.211463 C 32.44071,24.869502 31.884017,23.622262 30.933751,22.561997 Z" fill="#d1d1d1" opacity="0.765" id="path26" style="stroke-width:1.1752"></path>
+  <g transform="matrix(1.1752,0,0,1.1752,14.277571,7.2831039)" id="g28" style="opacity:0.85">
+    <path d="M 14.173,13.001 V 16.1064 C 14.173,18.8453 11.0072,21.0715 7.0875,21.0715 3.175,21.07152 -2e-4,18.8525 -2e-4,16.1064 V 20.736 C 1.4736,22.3877 4.0966,23.4886 7.0875,23.4886 11.707,23.4886 15.4561,20.8707 15.4561,17.63 L 15.45606,16.1065 C 15.45536,14.9646 14.98166,13.9033 14.17306,13.0011 Z" opacity="0.7" id="path27"></path>
+    <path d="M 14.173,13.001 V 16.1064 C 14.173,18.8453 11.0072,21.0715 7.0875,21.0715 3.175,21.07152 -2e-4,18.8525 -2e-4,16.1064 V 19.2118 C 1.4736,20.862 4.0966,21.9644 7.0875,21.9644 11.707,21.9644 15.4561,19.3465 15.4561,16.1058 15.45536,14.9646 14.98166,13.9033 14.1731,13.0011 Z" opacity="0.25" id="path28"></path>
+    <ellipse cx="7.0876999" cy="16.106001" rx="7.0869999" ry="4.9608002" opacity="0.25" id="ellipse28"></ellipse>
+  </g>
+  <polygon transform="matrix(1.1752,0,0,1.1752,14.277571,7.2831039)" points="10.012,8.8049 3.407,8.8049 2.2032,9.648 2.2032,16.107 3.1961,16.107 3.1961,13.095 6.0156,13.095 " fill="#666666" id="polygon28" style="opacity:0.85"></polygon>
+  <polygon transform="matrix(1.1752,0,0,1.1752,14.277571,7.2831039)" points="11.974,16.107 11.974,8.5241 10.778,8.5241 11.215,9.0338 7.4117,13.095 11.06,13.095 11.06,16.107 " fill="#666666" id="polygon29" style="opacity:0.85"></polygon>
+  <path d="M 30.93368,22.561879 V 15.613391 C 30.93368,11.014599 27.210647,7.2831039 22.606801,7.2831039 18.008831,7.2831039 14.277336,11.007783 14.277336,15.613391 V 31.653696 C 16.009345,33.593951 19.091895,34.888552 22.606801,34.888552 28.035637,34.888552 32.441579,31.811996 32.441579,28.002585 V 26.212168 C 32.44071,24.869384 31.884017,23.622144 30.933798,22.561879 Z" fill="#ffffff" opacity="0.5525" id="path29" style="stroke-width:1.1752"></path>
+  <g transform="matrix(1.1752,0,0,1.1752,14.277571,7.2831039)" fill="#ffffff" id="g32" style="opacity:0.85">
+    <path d="M 10.388,3.7541 11.8244,3.4805 C 10.98272,2.3487 9.7422,1.5228 8.2827,1.242 L 8.53686,2.3227 C 9.30074,2.59342 9.94366,3.10318 10.38796,3.7541 Z" opacity="0.5" id="path30"></path>
+    <path d="M 0.76824,19.926 V 21.4459 C 1.41696,21.9751 2.20174,22.42222 3.07584,22.7628 V 21.2378 C 2.19744,20.90156 1.41914,20.45586 0.76824,19.926 Z" opacity="0.5" id="path31"></path>
+    <path d="M 11.073,20.21 C 10.8174,20.3324 10.54308,20.43968 10.26732,20.53976 10.209,20.5592 10.14996,20.58008 10.08948,20.59808 9.52572,20.77736 8.92808,20.91704 8.29448,20.99264 8.2196,21.00204 8.14328,21.01136 8.06984,21.01208 7.74944,21.04232 7.42616,21.0704 7.09928,21.0704 6.95096,21.0704 6.79184,21.05528 6.62768,21.04664 5.42748,20.98976 4.29708,20.732 3.33008,20.3072 L 3.33006,11.9177 V 7.0923 C 3.33006,5.6213 4.17822,4.3628 5.40366,3.7429 L 5.38134,3.68962 4.13354,2.17762 C 2.46384,3.18062 1.34354,5.00002 1.34354,7.08942 V 18.99442 C 1.29386,18.94474 1.03538,18.68554 0.8633,18.4645 L 0.55586,19.1521 C 1.95696,20.6339 4.36466,21.6138 7.09846,21.6138 8.77826,21.6138 10.33556,21.24012 11.60996,20.6116 L 11.08292,20.20264 11.07286,20.20984 Z" opacity="0.5" id="path32"></path>
+  </g>
+  <circle cx="1.7" cy="3" fill="#ff0000" filter="url(#ledFilterRed)" r="2" opacity="0" id="circle35" transform="matrix(1.1752,0,0,1.1752,21.128399,15.921999)"></circle>
+  <circle cx="2.7" cy="5" fill="#00ff00" filter="url(#ledFilterGreen)" r="2" opacity="0" id="circle36" transform="matrix(1.1752,0,0,1.1752,21.128399,15.921999)"></circle>
+  <circle cx="0.69999999" cy="5" fill="#0155fd" filter="url(#ledFilterBlue)" r="2" opacity="0" id="circle37" transform="matrix(1.1752,0,0,1.1752,21.128399,15.921999)"></circle>
+  <circle cx="1.7" cy="4" r="10" filter="url(#ledFilter)" fill="#000000" opacity="0" id="circle38" transform="matrix(1.1752,0,0,1.1752,21.128399,15.921999)"></circle>
+  <circle cx="1.7" cy="4" r="13" stroke="#666666" stroke-width="1" fill="none" filter="url(#ledFilter)" opacity="0" id="circle39" transform="matrix(1.1752,0,0,1.1752,21.128399,15.921999)"></circle>
+</svg>

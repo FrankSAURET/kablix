@@ -42,3 +42,46 @@ export function reflectLed(svg: SVGElement, on: boolean, color?: string): void {
 export function reflectGlow(svg: SVGElement, on: boolean, color = 'rgba(255,230,80,0.95)'): void {
   svg.style.filter = on ? `drop-shadow(0 0 6px ${color})` : '';
 }
+
+/**
+ * Afficheur 7 segments (1 chiffre) : allume chaque segment selon `values`
+ * (ordre Wokwi A,B,C,D,E,F,G,DP). Les 7 segments sont les 7 `<polygon>` du
+ * dessin (ordre DOM = A→G, validé vs le rendu Wokwi), le point décimal le
+ * `<circle>` hors `<defs>`. Couleur allumée = `color` (attribut du composant) ;
+ * éteinte = la couleur d'origine du dessin, mémorisée au premier passage.
+ */
+export function reflectSevenSeg(svg: SVGElement, values: number[], color = 'red'): void {
+  const polys = svg.querySelectorAll('polygon');
+  if (polys.length < 7) return;
+  const setSeg = (el: SVGElement, lit: boolean) => {
+    const e = el as SVGElement & { dataset: DOMStringMap };
+    if (e.dataset.off === undefined) e.dataset.off = el.style.fill || el.getAttribute('fill') || '#444';
+    el.style.fill = lit ? color : e.dataset.off;
+  };
+  for (let i = 0; i < 7; i++) setSeg(polys[i] as SVGElement, !!values[i]);
+  const dp = [...svg.querySelectorAll('circle')].find((c) => !c.closest('defs'));
+  if (dp) setSeg(dp as SVGElement, !!values[7]);
+}
+
+/**
+ * LED RGB : reproduit le rendu Wokwi sur le dessin (canaux 0..1). Les sous-
+ * éléments conservés du SVG capté : `circle35/36/37` (halos R/G/B + filtres de
+ * flou `feGaussianBlur33/34/35`), `circle38` (diffuseur central, couleur mêlée)
+ * et `circle39` (anneau). Tous à `opacity:0` au repos.
+ */
+export function reflectRgbLed(svg: SVGElement, r: number, g: number, b: number): void {
+  const brightness = Math.max(r, g, b);
+  const op = brightness ? 0.2 + brightness * 0.6 : 0;
+  const set = (id: string, attrs: Record<string, string | number>) => {
+    const el = svg.querySelector('#' + id) as SVGElement | null;
+    if (el) for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
+  };
+  set('feGaussianBlur33', { stdDeviation: r * 3 });
+  set('feGaussianBlur34', { stdDeviation: g * 3 });
+  set('feGaussianBlur35', { stdDeviation: b * 3 });
+  set('circle35', { r: r * 5 + 2, opacity: Math.min(r * 20, 0.3) });
+  set('circle36', { r: g * 5 + 2, opacity: Math.min(g * 20, 0.3) });
+  set('circle37', { r: b * 5 + 2, opacity: Math.min(b * 20, 0.3) });
+  set('circle38', { fill: `rgb(${r * 255}, ${g * 255 + b * 90}, ${b * 255})`, opacity: op });
+  set('circle39', { opacity: op });
+}

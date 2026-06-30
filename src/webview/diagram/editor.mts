@@ -1277,7 +1277,7 @@ export class Editor {
     // Dessin retouché à la main : on l'affiche à la place du rendu @wokwi (dont
     // les broches, étirées par pinScale, ne tombent plus sur les surcharges).
     // L'élément @wokwi est conservé mais masqué (pinInfo + simulation).
-    const drawing = boardDrawing(part.type);
+    const drawing = boardDrawing(part.type, part.attrs);
     if (drawing) {
       // Élément @wokwi conservé pour pinInfo + simulation, mais rendu invisible
       // et HORS FLUX (pas `display:none`, qui empêche le rendu du shadow DOM dont
@@ -1334,7 +1334,7 @@ export class Editor {
 
     const hotspots = new Map<string, HTMLDivElement>();
     const ovMap = overridesFor(part.type, part.attrs);
-    const pins = this.partPins(part.type, el, ovMap);
+    const pins = this.partPins(part.type, el, ovMap, part.attrs);
     const anchor: XY = pins[0] ? { x: pins[0].x, y: pins[0].y } : { x: 0, y: 0 };
     for (const pin of pins) {
       const dot = this.makeHotspot(part.id, part.type, def.kind, pin, anchor, ovMap);
@@ -1385,9 +1385,10 @@ export class Editor {
   private partPins(
     type: string,
     el: WokwiElement,
-    ovMap?: Record<string, { x: number; y: number }>
+    ovMap?: Record<string, { x: number; y: number }>,
+    attrs?: Record<string, string>
   ): WokwiPin[] {
-    if (boardDrawing(type) && ovMap) {
+    if (boardDrawing(type, attrs) && ovMap) {
       return Object.entries(ovMap).map(([name, p]) => ({ name, x: p.x, y: p.y }));
     }
     return (el.pinInfo ?? []) as WokwiPin[];
@@ -1459,7 +1460,7 @@ export class Editor {
     if (!body) return;
     const def = partDef(r.part.type);
     const ovMap = overridesFor(r.part.type, r.part.attrs);
-    const pins = this.partPins(r.part.type, r.el, ovMap);
+    const pins = this.partPins(r.part.type, r.el, ovMap, r.part.attrs);
     const anchor: XY = pins[0] ? { x: pins[0].x, y: pins[0].y } : { x: 0, y: 0 };
     for (const pin of pins) {
       let dot = r.hotspots.get(pin.name);
@@ -2376,7 +2377,7 @@ export class Editor {
   private applyPinScale(r: Rendered): boolean {
     // Dessin retouché : l'élément @wokwi est masqué, on ne l'agrandit pas (les
     // broches viennent des surcharges, dans le repère du dessin).
-    if (boardDrawing(r.part.type)) return true;
+    if (boardDrawing(r.part.type, r.part.attrs)) return true;
     const k = partDef(r.part.type).pinScale ?? 1;
     if (k === 1) return true;
     const el = r.el as HTMLElement & { _pinScaled?: boolean };

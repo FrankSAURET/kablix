@@ -112,16 +112,16 @@ export const PIN_OVERRIDES: Record<string, Record<string, { x: number; y: number
 
   // --- Composants recalés sur grille depuis « svg retouche/ » (générés) ----------
   '7seg-1dig': {
-    'COM.2': { x: 20, y: 0 },
-    'A': { x: 30, y: 0 },
-    'B': { x: 40, y: 0 },
-    'F': { x: 10, y: 0 },
-    'G': { x: 0, y: 0 },
-    'COM.1': { x: 20, y: 70 },
-    'C': { x: 30, y: 70 },
-    'D': { x: 10, y: 70 },
-    'E': { x: 0, y: 70 },
-    'DP': { x: 40, y: 70 },
+    'COM.2': { x: 30, y: 10 },
+    'A': { x: 40, y: 10 },
+    'B': { x: 50, y: 10 },
+    'F': { x: 20, y: 10 },
+    'G': { x: 10, y: 10 },
+    'COM.1': { x: 30, y: 80 },
+    'C': { x: 40, y: 80 },
+    'D': { x: 20, y: 80 },
+    'E': { x: 10, y: 80 },
+    'DP': { x: 50, y: 80 },
   },
   '7seg-4dig': {
     'A': { x: 80, y: 0 },

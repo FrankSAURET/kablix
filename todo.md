@@ -9,6 +9,13 @@
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
 7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → bases générées (v2026.6.46), à retoucher par Frank.
 
+# v2026.6.57
+
+1. ✅ **7 segments (1 chiffre) + LED RGB animés sur le dessin retouché**. `reflectSevenSeg` allume les 7 `<polygon>` (ordre DOM A→G validé vs Wokwi) + le point décimal selon `el.values` (couleur = `attrs.color`). `reflectRgbLed` reproduit le rendu Wokwi (halos `circle35/36/37` + flou, diffuseur central `circle38` couleur mêlée, anneau `circle39`). Vérifié : « 5 », « 8. », RGB rouge/vert/bleu/blanc.
+2. ✅ **`boardDrawing(type, attrs)` conscient des variantes** : `drawingKey` ne donne le dessin 1 chiffre qu'au 7seg `digits=1` ; 2/4 chiffres retombent sur le rendu @wokwi (pas encore de dessin). Sites d'appel (`renderPart`, `partPins`, `applyPinScale`) passent `attrs`.
+3. ✅ **Surcharge `7seg-1dig` recalée** (nouvelle convention) ; `rgb-led` déjà bon.
+4. ⏳ **Reste sorties dynamiques** : lcd, led-bar, servo, neopixel(-matrix), led-ring, ili9341, oled, + 7seg 2/4 chiffres.
+
 # v2026.6.56
 
 1. ✅ **Retour visuel de simulation sur les dessins retouchés** (sorties dynamiques, début). Nouveau module [`drawing-feedback.mts`](src/webview/diagram/drawing-feedback.mts) : comme l'élément @wokwi est masqué, on reflète l'état sur le **dessin** en agissant sur les sous-éléments Wokwi conservés. `Editor.drawingOf(id)` expose le SVG du dessin.
