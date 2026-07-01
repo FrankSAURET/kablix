@@ -229,6 +229,14 @@ export class PicoEngine implements SimEngine {
    * route vers l'appareil dont l'adresse correspond (machine.I2C côté MicroPython).
    */
   setI2cDevices(devices: I2cDevice[]): void {
+    // Renseigne la rustine de scan (cf. compiler.ts I2C_SCAN_SHIM) avec les
+    // adresses réelles : `bus.scan()` les renvoie sans sonder le matériel (le
+    // sondage d'adresses absentes fige l'émulation I²C de rp2040js). Injecté dans
+    // le script AVANT sa transmission au REPL (paste). Sans esclave → liste vide.
+    if (this.script && this.script.includes('_KX_I2C_ADDRS = None')) {
+      const addrs = devices.map((d) => '0x' + d.address.toString(16));
+      this.script = this.script.replace('_KX_I2C_ADDRS = None', `_KX_I2C_ADDRS = [${addrs.join(', ')}]`);
+    }
     for (const ctrl of this.mcu.i2c) {
       let current: I2cDevice | null = null;
       ctrl.onStart = (repeated: boolean) => {

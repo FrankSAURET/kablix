@@ -283,31 +283,36 @@ function moduleNameOf(rel: string): string {
 }
 
 /**
- * Rustine I²C pour le Pico SIMULÉ : `I2C.scan()` de MicroPython sonde chaque
- * adresse par une écriture de LONGUEUR NULLE, cas que l'émulation I²C de rp2040js
- * ne mène pas à terme → `scan()` se fige. On remplace `scan` (sur `machine.I2C`
- * et `machine.SoftI2C`) par un sondage en LECTURE d'un octet, qui déclenche une
- * vraie transaction (ACK → présent, NAK → OSError ignorée). Sans effet sur une
- * vraie carte : le préambule n'est injecté que pour la simulation Kablix.
- * Défensif : si le sous-classement d'un type natif échoue, on n'altère rien.
+ * Rustine I²C pour le Pico SIMULÉ. Deux problèmes de l'émulation I²C de rp2040js :
+ *   1. `I2C.scan()` de MicroPython sonde chaque adresse par une écriture de
+ *      longueur nulle → non menée à terme → figement ;
+ *   2. toute transaction vers une adresse ABSENTE (NAK) se fige aussi.
+ * On enveloppe `machine.I2C`/`SoftI2C` (par COMPOSITION, pas de sous-classement —
+ * MicroPython refuse de sous-classer un type natif) : `scan()` ne sonde PAS le
+ * matériel mais renvoie les adresses connues de Kablix (injectées à la place de
+ * `_KX_I2C_ADDRS = None` par le moteur, cf. pico.mts), et tout le reste
+ * (`writeto`, `readfrom`…) est délégué au vrai objet I²C (adresses présentes =
+ * OK). Sans effet hors simulation. Défensif : en cas d'échec, rien n'est altéré.
  */
-const I2C_SCAN_SHIM = `try:
+const I2C_SCAN_SHIM = `_KX_I2C_ADDRS = None
+try:
     import machine as _kx_mac
-    def _kx_scan(self):
-        _f = []
-        for _a in range(0x08, 0x78):
-            try:
-                self.readfrom(_a, 1)
-                _f.append(_a)
-            except OSError:
-                pass
-        return _f
-    for _kx_cn in ("I2C", "SoftI2C"):
-        _kx_b = getattr(_kx_mac, _kx_cn, None)
-        if _kx_b is not None:
-            class _KxI2C(_kx_b):
-                scan = _kx_scan
-            setattr(_kx_mac, _kx_cn, _KxI2C)
+    def _kx_wrap(_cn):
+        _Base = getattr(_kx_mac, _cn, None)
+        if _Base is None:
+            return
+        class _KxI2C:
+            def __init__(self, *a, **k):
+                self._kx = _Base(*a, **k)
+            def scan(self):
+                return list(_KX_I2C_ADDRS) if _KX_I2C_ADDRS is not None else []
+            def __getattr__(self, _n):
+                if _n == "_kx":
+                    raise AttributeError(_n)
+                return getattr(self._kx, _n)
+        setattr(_kx_mac, _cn, _KxI2C)
+    _kx_wrap("I2C")
+    _kx_wrap("SoftI2C")
 except Exception:
     pass
 `;
