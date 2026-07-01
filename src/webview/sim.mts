@@ -272,6 +272,30 @@ function queueRefresh(): void {
   });
 }
 
+// Boucle de rendu continue (découplée du moteur) pendant toute la simulation.
+// Nécessaire car une mise à jour PONCTUELLE du calque transformé du canvas (LCD
+// écrit une fois puis inactif) n'est pas toujours repeinte par le navigateur : la
+// repeinture ne « prend » que sous flux d'invalidations continu. Un composant qui
+// bouge sans cesse (7 segments multiplexé) suffisait à faire réapparaître le LCD ;
+// on garantit ce flux nous-mêmes en redessinant à chaque frame tant que le moteur
+// tourne. Léger (refreshVisuals ~1 ms) et le moteur cède la main (setTimeout).
+let renderRaf = 0;
+function renderTick(): void {
+  if (!engine) {
+    renderRaf = 0;
+    return;
+  }
+  refreshVisuals();
+  renderRaf = requestAnimationFrame(renderTick);
+}
+function startRenderLoop(): void {
+  if (!renderRaf) renderRaf = requestAnimationFrame(renderTick);
+}
+function stopRenderLoop(): void {
+  if (renderRaf) cancelAnimationFrame(renderRaf);
+  renderRaf = 0;
+}
+
 // Précharge la police LED des écrans LCD dès l'ouverture de la webview (thread
 // libre). Un `<text>` SVG dont la police n'est pas encore décodée peut rester
 // invisible ; en cours de simulation le décodage est repoussé (thread saturé),
@@ -1086,6 +1110,7 @@ function startRun(): void {
   buildI2cDevices();
   rebind();
   engine.start();
+  startRenderLoop(); // rendu continu tant que le moteur tourne
   editor.setLocked(true); // schéma figé pendant la simulation
   useDebugAsInspector(true); // Variables à la place des Propriétés
   runBtn.disabled = true;
@@ -1102,6 +1127,7 @@ function stopRun(): void {
   inputRemovers = [];
   engine?.dispose();
   engine = null;
+  stopRenderLoop(); // fin du rendu continu
   editor.setLocked(false); // édition du schéma de nouveau possible
   useDebugAsInspector(false); // Propriétés de nouveau dans la colonne de droite
   runBtn.disabled = false;

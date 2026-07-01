@@ -9,6 +9,10 @@
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
 7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → **4 variantes simulables (i2c/parallèle × 16×2/20×4) v2026.6.69**.
 
+# v2026.6.73
+
+1. ✅ **Boucle de rendu continue (correctif LCD seul)**. Indice de Frank : *LCD seul = pas d'affichage ; +7 segments = le LCD marche*. Le 7 segments multiplexé fournissait un flux d'invalidations continu qui forçait la repeinture du calque transformé du canvas ; une mise à jour **ponctuelle** (LCD écrit puis inactif) ne « prenait » pas. On garantit ce flux nous-mêmes : boucle `requestAnimationFrame` (`renderTick`) qui redessine à chaque frame tant que le moteur tourne ([`sim.mts`](src/webview/sim.mts)), démarrée dans `startRun`, arrêtée dans `stopRun` — découplée du moteur (qui cède la main via `setTimeout`, cf. v72). Léger (`refreshVisuals` ~1 ms).
+
 # v2026.6.72
 
 1. ✅ **Affichage en direct AVR (vraie cause)** : la boucle moteur ([`avr.mts`](src/webview/engines/avr.mts)) se replanifiait en `requestAnimationFrame` → une boucle rAF qui se relance en continu **monopolise le cycle de rendu** et le navigateur ne repeint le calque transformé du canvas (`.canvas__world`) **qu'à l'arrêt**. Passage à **`setTimeout`** (rend la main → repeinture entre les tranches) + **cadencement au temps réel** (budget de cycles = `dt · CLOCK_HZ/1000 · speed`, borné `MAX_FRAME_MS`) au lieu d'un budget fixe `CLOCK_HZ/60`. Les correctifs v70/v71 (police, plafond) ne suffisaient pas : la cause était l'ordonnancement rAF. `stop()` : `clearTimeout`.
