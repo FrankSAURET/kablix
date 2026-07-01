@@ -14,7 +14,7 @@ await esbuild.build({
   entryPoints: [join(root, 'src/webview/engines/i2c-devices.mts')],
   outfile: out, bundle: true, platform: 'node', format: 'esm', logLevel: 'silent',
 });
-const { Lcd1602Device, Pca9685Device, Ssd1306Device, Ili9341Device, SdCardSpiDevice, selectSpiDevice } =
+const { Hd44780, Lcd1602Device, Pca9685Device, Ssd1306Device, Ili9341Device, SdCardSpiDevice, selectSpiDevice } =
   await import(pathToFileURL(out).href);
 const wsOut = join(tmp, 'ws2812.mjs');
 await esbuild.build({
@@ -50,6 +50,35 @@ console.log('LCD HD44780 (PCF8574) :');
   check('ligne 1 = "KABLIX"', lcd.text[1].startsWith('KABLIX'), JSON.stringify(lcd.text[1]));
   lcdSendByte(lcd, 0x01, 0); // clear
   check('clear vide l\'écran', lcd.text[0].trim() === '' && lcd.text[1].trim() === '');
+}
+
+// --- HD44780 parallèle : le moteur fige un octet (8 bits) ou un quartet (4 bits)
+// sur chaque front descendant de E, exactement comme sampleLcdParallel. ---
+console.log('HD44780 parallèle (cœur) :');
+{
+  // 4 bits : deux quartets par octet, poids fort d'abord (comme LiquidCrystal 4b).
+  const core = new Hd44780(16, 2);
+  const send4 = (v, rs) => {
+    core.writeNibble((v >> 4) & 0x0f, rs);
+    core.writeNibble(v & 0x0f, rs);
+  };
+  send4(0x01, false); // clear
+  for (const c of 'HELLO') send4(c.charCodeAt(0), true);
+  send4(0xc0, false); // DDRAM 0x40 → ligne 1
+  for (const c of 'WORLD') send4(c.charCodeAt(0), true);
+  check('4 bits ligne 0 = "HELLO"', core.text[0].startsWith('HELLO'), JSON.stringify(core.text[0]));
+  check('4 bits ligne 1 = "WORLD"', core.text[1].startsWith('WORLD'), JSON.stringify(core.text[1]));
+}
+{
+  // 8 bits : un octet complet par front de E (comme LiquidCrystal 8 fils).
+  const core = new Hd44780(20, 4);
+  core.writeByte(0x01, false); // clear
+  for (const c of 'KABLIX') core.writeByte(c.charCodeAt(0), true);
+  core.writeByte(0x94, false); // DDRAM 0x14 → ligne 2 (20×4)
+  for (const c of 'L2') core.writeByte(c.charCodeAt(0), true);
+  check('8 bits ligne 0 = "KABLIX"', core.text[0].startsWith('KABLIX'), JSON.stringify(core.text[0]));
+  check('8 bits ligne 2 (0x14) = "L2"', core.text[2].startsWith('L2'), JSON.stringify(core.text[2]));
+  check('8 bits 20 colonnes', core.text[0].length === 20 && core.text.length === 4);
 }
 
 console.log('PCA9685 :');

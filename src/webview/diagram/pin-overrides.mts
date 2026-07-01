@@ -209,10 +209,54 @@ export const PIN_OVERRIDES: Record<string, Record<string, { x: number; y: number
     'OUT': { x: 100, y: 40 },
   },
   'lcd-i2c': {
-    'GND': { x: 0, y: 30 },
-    'VCC': { x: 0, y: 40 },
-    'SDA': { x: 0, y: 50 },
-    'SCL': { x: 0, y: 60 },
+    'GND': { x: 20, y: 50 },
+    'VCC': { x: 20, y: 60 },
+    'SDA': { x: 20, y: 70 },
+    'SCL': { x: 20, y: 80 },
+  },
+  'lcd-i2c-20x4': {
+    'GND': { x: 20, y: 50 },
+    'VCC': { x: 20, y: 60 },
+    'SDA': { x: 20, y: 70 },
+    'SCL': { x: 20, y: 80 },
+  },
+  // LCD parallèle 16×2 (broches VSS…K le long du bord bas, y=140).
+  'lcd': {
+    'VSS': { x: 40, y: 140 },
+    'VDD': { x: 50, y: 140 },
+    'V0': { x: 60, y: 140 },
+    'RS': { x: 70, y: 140 },
+    'RW': { x: 80, y: 140 },
+    'E': { x: 90, y: 140 },
+    'D0': { x: 100, y: 140 },
+    'D1': { x: 110, y: 140 },
+    'D2': { x: 120, y: 140 },
+    'D3': { x: 130, y: 140 },
+    'D4': { x: 140, y: 140 },
+    'D5': { x: 150, y: 140 },
+    'D6': { x: 160, y: 140 },
+    'D7': { x: 170, y: 140 },
+    'A': { x: 180, y: 140 },
+    'K': { x: 190, y: 140 },
+  },
+  // LCD parallèle 20×4 (même ordre de broches, y=190).
+  'lcd-parallel-20x4': {
+    'VSS': { x: 40, y: 190 },
+    'VDD': { x: 50, y: 190 },
+    'V0': { x: 60, y: 190 },
+    'RS': { x: 70, y: 190 },
+    'RW': { x: 80, y: 190 },
+    'E': { x: 90, y: 190 },
+    'D0': { x: 100, y: 190 },
+    'D1': { x: 110, y: 190 },
+    'D2': { x: 120, y: 190 },
+    'D3': { x: 130, y: 190 },
+    'D4': { x: 140, y: 190 },
+    'D5': { x: 150, y: 190 },
+    'D6': { x: 160, y: 190 },
+    'D7': { x: 170, y: 190 },
+    'A': { x: 180, y: 190 },
+    'K': { x: 190, y: 190 },
   },
   'led-bar': {
     'A1': { x: 10, y: 10 },
@@ -440,8 +484,12 @@ export function overridesFor(
   // Afficheur 7 segments : brochage selon le nombre de chiffres. Le 2 chiffres
   // n'a pas été recalé → pas d'entrée (calage auto).
   if (type === '7seg') return PIN_OVERRIDES[`7seg-${attrs?.digits ?? '1'}dig`];
-  // LCD texte : seule la variante I²C (4 fils) est surchargée ; en parallèle
-  // (HD44780) le brochage auto convient.
-  if (type === 'lcd') return (attrs?.pins ?? 'i2c') === 'i2c' ? PIN_OVERRIDES['lcd-i2c'] : undefined;
+  // LCD texte : 4 variantes selon interface (i2c/parallèle) et taille (16×2/20×4).
+  if (type === 'lcd') {
+    const parallel = (attrs?.pins ?? 'i2c') === 'full';
+    const big = (attrs?.lcdSize ?? '16x2') === '20x4';
+    if (parallel) return PIN_OVERRIDES[big ? 'lcd-parallel-20x4' : 'lcd'];
+    return PIN_OVERRIDES[big ? 'lcd-i2c-20x4' : 'lcd-i2c'];
+  }
   return PIN_OVERRIDES[type];
 }

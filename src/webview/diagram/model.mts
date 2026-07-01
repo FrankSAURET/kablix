@@ -561,6 +561,52 @@ export function spiDeviceBindings(diagram: Diagram): SpiDeviceBinding[] {
   return out;
 }
 
+export interface LcdParallelBinding {
+  partId: string;
+  /** Broche MCU reliée à RS (sélection registre/donnée). */
+  rs: string;
+  /** Broche MCU reliée à E (activation). */
+  e: string;
+  /** Broches MCU des lignes de données, ordre LSB→MSB (D4-D7 ou D0-D7). */
+  data: string[];
+  cols: number;
+  rows: number;
+}
+
+/**
+ * Afficheurs LCD HD44780 câblés en parallèle (attribut `pins=full`) dont RS, E et
+ * les lignes de données sont reliés au MCU. Mode 8 bits si D0-D3 sont câblés
+ * (data = D0..D7), sinon 4 bits (data = D4..D7). Renvoie seulement les afficheurs
+ * dont RS, E et toutes les données utiles sont résolues.
+ */
+export function lcdParallelBindings(diagram: Diagram): LcdParallelBinding[] {
+  const nets = buildNets(diagram);
+  const out: LcdParallelBinding[] = [];
+  for (const part of diagram.parts) {
+    if (partDef(part.type).kind !== 'i2c-lcd') continue;
+    if ((part.attrs?.pins ?? 'i2c') !== 'full') continue;
+    const rs = mcuPinForPart(diagram, nets, part.id, 'RS');
+    const e = mcuPinForPart(diagram, nets, part.id, 'E');
+    if (!rs || !e) continue;
+    const d = (n: number): string | null => mcuPinForPart(diagram, nets, part.id, `D${n}`);
+    const high = [4, 5, 6, 7].map(d); // D4..D7 (toujours requis)
+    const low = [0, 1, 2, 3].map(d); // D0..D3 (présents seulement en 8 bits)
+    let data: Array<string | null>;
+    if (low.every((p) => p)) data = [...low, ...high]; // 8 bits : D0..D7
+    else data = high; // 4 bits : D4..D7
+    if (data.some((p) => !p)) continue; // câblage incomplet
+    out.push({
+      partId: part.id,
+      rs,
+      e,
+      data: data as string[],
+      cols: Number(part.attrs?.cols ?? 16) || 16,
+      rows: Number(part.attrs?.rows ?? 2) || 2,
+    });
+  }
+  return out;
+}
+
 export interface NeopixelBinding {
   partId: string;
   /** Broche MCU pilotant l'entrée DIN de la chaîne. */

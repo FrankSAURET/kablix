@@ -48,6 +48,7 @@ import type {
   DebugVariable,
   Dht22Sensor,
   KeypadConfig,
+  LcdParallelConfig,
   SimEngine,
   UltrasonicSensor,
 } from './types.mjs';
@@ -57,7 +58,7 @@ import {
   DHT22_START_LOW_US,
   type Dht22Monitor,
 } from './dht22.mjs';
-import { selectSpiDevice, type I2cDevice, type SpiDevice } from './i2c-devices.mjs';
+import { selectSpiDevice, Hd44780, type I2cDevice, type SpiDevice } from './i2c-devices.mjs';
 import { Ws2812Decoder } from './ws2812.mjs';
 
 export type AvrFamily = 'avr328' | 'avr2560';
@@ -261,6 +262,18 @@ export class AvrEngine implements SimEngine {
   // Chaînes NeoPixel : décodeur WS2812 par broche DIN surveillée.
   private neopixels: Array<{ name: string; port: PortKey; bit: number; dec: Ws2812Decoder; last: boolean }> = [];
 
+  // Afficheurs LCD parallèles : décodeur HD44780 par composant. `data` = broches
+  // (port,bit) LSB→MSB ; `fourBit` déduit à la déclaration ; `lastE` = état de E.
+  private lcdParallel: Array<{
+    id: string;
+    core: Hd44780;
+    rs: [PortKey, number];
+    e: [PortKey, number];
+    data: Array<[PortKey, number]>;
+    fourBit: boolean;
+    lastE: boolean;
+  }> = [];
+
   // Claviers matriciels : touches enfoncées → colonnes tirées à LOW (re-calculé
   // à chaque changement de port). Garde-fou de ré-entrance + dernier niveau posé.
   private keypads: KeypadConfig[] = [];
@@ -339,6 +352,7 @@ export class AvrEngine implements SimEngine {
       port?.addListener(() => {
         this.samplePulses();
         this.sampleNeopixels();
+        this.sampleLcdParallel();
         this.sampleDht22();
         this.applyKeypads();
         this.onUpdate?.();
@@ -458,6 +472,51 @@ export class AvrEngine implements SimEngine {
         n.dec.edge(now, level);
         n.last = level;
       }
+    }
+  }
+
+  setLcdParallel(displays: LcdParallelConfig[]): void {
+    this.lcdParallel = [];
+    for (const d of displays) {
+      const rs = this.pinMap[d.rs];
+      const e = this.pinMap[d.e];
+      const data = d.data.map((p) => this.pinMap[p]);
+      if (!rs || !e || data.some((m) => !m)) continue; // câblage incomplet
+      this.lcdParallel.push({
+        id: d.id,
+        core: new Hd44780(d.cols, d.rows),
+        rs,
+        e,
+        data: data as Array<[PortKey, number]>,
+        fourBit: data.length === 4,
+        lastE: false,
+      });
+    }
+  }
+
+  readLcdParallel(id: string): string[] {
+    return this.lcdParallel.find((l) => l.id === id)?.core.text ?? [];
+  }
+
+  /**
+   * Décode les afficheurs HD44780 parallèles : sur chaque front descendant de E,
+   * lit RS + lignes de données (octet en 8 bits, quartet en 4 bits) et alimente
+   * le cœur d'affichage.
+   */
+  private sampleLcdParallel(): void {
+    if (this.lcdParallel.length === 0) return;
+    for (const l of this.lcdParallel) {
+      const e = this.ports[l.e[0]]?.pinState(l.e[1]) === PinState.High;
+      if (l.lastE && !e) {
+        const rs = this.ports[l.rs[0]]?.pinState(l.rs[1]) === PinState.High;
+        let bits = 0;
+        for (let i = 0; i < l.data.length; i++) {
+          if (this.ports[l.data[i][0]]?.pinState(l.data[i][1]) === PinState.High) bits |= 1 << i;
+        }
+        if (l.fourBit) l.core.writeNibble(bits, rs);
+        else l.core.writeByte(bits, rs);
+      }
+      l.lastE = e;
     }
   }
 

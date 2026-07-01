@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 405 220">
+  <defs id="defs78">
+    <pattern xlink:href="#characters" id="pattern79" patternTransform="matrix(3.9785,0,0,3.9785,14.95,16.464466)"></pattern>
+    <defs id="defs65">
+      <pattern id="characters" width="3.55" height="5.95" patternUnits="userSpaceOnUse" x="12.45" y="12.55">
+        <rect width="2.95" height="5.55" fill-opacity="0.05" id="rect65"></rect>
+      </pattern>
+      
+    </defs>
+  </defs>
+  
+  <!-- Retouche brochage lcd-i2c-20x4 : déplace chaque pastille rouge sur un CROISEMENT (lignes foncées = 50 px). Garde les id pin-<nom>. Marge 20 px. -->
+  <g id="g84">
+    <rect fill="#087f45" width="374.17795" height="188.97874" id="rect66" x="14.95" y="16.464466" style="opacity:0.85;stroke-width:3.9785"></rect>
+    <text fill="#ffffff" font-size="5.96775px" font-family="monospace" id="text74" style="opacity:0.85;stroke-width:3.9785" x="14.95" y="16.464466"><tspan y="43.518269" x="17.734951" fill="#ffffff" id="tspan70" style="stroke-width:3.9785">1</tspan><tspan y="51.873116" x="24.10055" fill="#ffffff" id="tspan71" style="stroke-width:3.9785">GND</tspan><tspan y="61.819363" x="24.10055" fill="#ffffff" id="tspan72" style="stroke-width:3.9785">VCC</tspan><tspan y="72.163467" x="24.10055" fill="#ffffff" id="tspan73" style="stroke-width:3.9785">SDA</tspan><tspan y="82.507568" x="24.10055" fill="#ffffff" id="tspan74" style="stroke-width:3.9785">SCL</tspan></text>
+    <g id="g83" transform="translate(2.6004262)">
+      <rect x="34.643574" y="39.141914" width="339.16711" height="146.01096" id="rect67" style="opacity:0.85;stroke-width:3.9785"></rect>
+      <rect x="44.987675" y="57.443016" rx="5.9677501" ry="5.9677501" width="318.47894" height="109.40875" fill="#6cb201" id="rect68" style="opacity:0.85;stroke-width:3.9785"></rect>
+      <rect x="44.987675" y="57.443016" rx="5.9677501" ry="5.9677501" width="318.47894" height="109.40875" opacity="0" id="rect69" style="stroke-width:3.9785"></rect>
+      <rect fill="url(#characters)" x="64.482323" y="66.394646" width="279.48962" height="91.505501" id="rect74" style="opacity:0.85;fill:url(#pattern79);stroke-width:3.9785"></rect>
+    </g>
+    <path d="" fill="#000000" id="path74" style="opacity:0.85;stroke-width:3.9785"></path>
+    <g id="g82">
+      <g id="g81" transform="translate(10)">
+        <path id="path79" style="fill:#a2a283;fill-opacity:1;stroke:none;stroke-width:6.61417;stroke-linecap:round" d="M 4.9623929,46.65625 V 53.341797 H 11.321768 V 53.345703 C 12.605712,52.726883 13.421842,51.426391 13.421378,50 13.421092,48.574314 12.605077,47.274764 11.321768,46.65625 Z"></path>
+        <circle style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:6.61417;stroke-linecap:round" id="path80" cx="10" cy="50" r="1.8020821"></circle>
+      </g>
+      <g id="g81-9" transform="translate(10,10)">
+        <path id="path79-4" style="fill:#a2a283;fill-opacity:1;stroke:none;stroke-width:6.61417;stroke-linecap:round" d="M 4.9623929,46.65625 V 53.341797 H 11.321768 V 53.345703 C 12.605712,52.726883 13.421842,51.426391 13.421378,50 13.421092,48.574314 12.605077,47.274764 11.321768,46.65625 Z"></path>
+        <circle style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:6.61417;stroke-linecap:round" id="path80-8" cx="10" cy="50" r="1.8020821"></circle>
+      </g>
+      <g id="g81-2" transform="translate(10,20)">
+        <path id="path79-45" style="fill:#a2a283;fill-opacity:1;stroke:none;stroke-width:6.61417;stroke-linecap:round" d="M 4.9623929,46.65625 V 53.341797 H 11.321768 V 53.345703 C 12.605712,52.726883 13.421842,51.426391 13.421378,50 13.421092,48.574314 12.605077,47.274764 11.321768,46.65625 Z"></path>
+        <circle style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:6.61417;stroke-linecap:round" id="path80-5" cx="10" cy="50" r="1.8020821"></circle>
+      </g>
+      <g id="g81-7" transform="translate(10,30)">
+        <path id="path79-1" style="fill:#a2a283;fill-opacity:1;stroke:none;stroke-width:6.61417;stroke-linecap:round" d="M 4.9623929,46.65625 V 53.341797 H 11.321768 V 53.345703 C 12.605712,52.726883 13.421842,51.426391 13.421378,50 13.421092,48.574314 12.605077,47.274764 11.321768,46.65625 Z"></path>
+        <circle style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:6.61417;stroke-linecap:round" id="path80-1" cx="10" cy="50" r="1.8020821"></circle>
+      </g>
+      <g id="g78" transform="translate(-4.2099991,-3.6800003)">
+        
+        
+        
+        
+        
+        
+        
+        
+      </g>
+    </g>
+  </g>
+</svg>

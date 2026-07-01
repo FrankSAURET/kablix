@@ -78,6 +78,22 @@ export interface Dht22Sensor {
   humidity: number;
 }
 
+/** Afficheur LCD HD44780 en bus parallèle (broches côté MCU). */
+export interface LcdParallelConfig {
+  /** Identifiant du composant (clé de lecture via `readLcdParallel`). */
+  id: string;
+  /** Broche MCU de sélection registre/donnée (RS). */
+  rs: string;
+  /** Broche MCU d'activation (E) : l'octet est figé sur son front descendant. */
+  e: string;
+  /** Broches de données MCU, ordre LSB→MSB (D4-D7 en 4 bits, D0-D7 en 8 bits). */
+  data: string[];
+  /** Colonnes de l'afficheur. */
+  cols: number;
+  /** Lignes de l'afficheur. */
+  rows: number;
+}
+
 /** Infos de débogage C/AVR extraites à la compilation (DWARF + symboles). */
 export interface AvrDebugInfo {
   /** Table adresse flash (octets) → ligne du fichier principal. */
@@ -132,6 +148,15 @@ export interface SimEngine {
   setNeopixels?(strips: Array<{ pin: string; count: number }>): void;
   /** Couleurs décodées de la chaîne NeoPixel sur `pin` (composantes 0..1). */
   readNeopixel?(pin: string): Array<{ r: number; g: number; b: number }>;
+  /**
+   * Déclare les afficheurs LCD HD44780 en bus parallèle : broches RS/E et lignes
+   * de données `data` (ordre LSB→MSB : D4-D7 en 4 bits, D0-D7 en 8 bits ; le mode
+   * est déduit de la longueur). Le moteur décode l'octet sur chaque front
+   * descendant de E et met à jour le texte, lisible par `readLcdParallel`.
+   */
+  setLcdParallel?(displays: Array<LcdParallelConfig>): void;
+  /** Texte décodé de l'afficheur parallèle `id` (une chaîne par ligne). */
+  readLcdParallel?(id: string): string[];
   /** Force la valeur externe d'une broche d'entrée (bouton, capteur…). */
   setInput(name: string, value: boolean): void;
   /** Tension externe d'une broche analogique, en fraction 0..1 de VREF. */

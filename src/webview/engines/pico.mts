@@ -12,11 +12,12 @@ import type {
   DebugPauseState,
   FlashSegment,
   KeypadConfig,
+  LcdParallelConfig,
   NetRequest,
   NetResponse,
   SimEngine,
 } from './types.mjs';
-import { selectSpiDevice, type I2cDevice, type SpiDevice } from './i2c-devices.mjs';
+import { selectSpiDevice, Hd44780, type I2cDevice, type SpiDevice } from './i2c-devices.mjs';
 import { Ws2812Decoder } from './ws2812.mjs';
 
 const RAM_START = 0x20000000;
@@ -90,6 +91,16 @@ export class PicoEngine implements SimEngine {
   private pulseState = new Map<string, { high: boolean; rise: number; lastUs: number; lastEdge: number }>();
   // Chaînes NeoPixel : décodeur WS2812 par broche DIN.
   private neopixels: Array<{ name: string; index: number; dec: Ws2812Decoder; last: boolean }> = [];
+  // Afficheurs LCD parallèles : décodeur HD44780 par composant (index GPIO).
+  private lcdParallel: Array<{
+    id: string;
+    core: Hd44780;
+    rs: number;
+    e: number;
+    data: number[];
+    fourBit: boolean;
+    lastE: boolean;
+  }> = [];
   // Claviers matriciels : touches enfoncées → colonnes tirées à LOW.
   private keypads: KeypadConfig[] = [];
   private applyingKeypads = false;
@@ -129,6 +140,7 @@ export class PicoEngine implements SimEngine {
       pin.addListener(() => {
         this.samplePulses();
         this.sampleNeopixels();
+        this.sampleLcdParallel();
         this.applyKeypads();
         this.onUpdate?.();
       });
@@ -291,6 +303,47 @@ export class PicoEngine implements SimEngine {
         n.dec.edge(now, level);
         n.last = level;
       }
+    }
+  }
+
+  setLcdParallel(displays: LcdParallelConfig[]): void {
+    this.lcdParallel = [];
+    for (const d of displays) {
+      const rs = gpioIndex(d.rs);
+      const e = gpioIndex(d.e);
+      const data = d.data.map((p) => gpioIndex(p));
+      if (rs === null || e === null || data.some((i) => i === null)) continue;
+      this.lcdParallel.push({
+        id: d.id,
+        core: new Hd44780(d.cols, d.rows),
+        rs,
+        e,
+        data: data as number[],
+        fourBit: data.length === 4,
+        lastE: false,
+      });
+    }
+  }
+
+  readLcdParallel(id: string): string[] {
+    return this.lcdParallel.find((l) => l.id === id)?.core.text ?? [];
+  }
+
+  /** Décode les HD44780 parallèles sur le front descendant de E (RS + données). */
+  private sampleLcdParallel(): void {
+    if (this.lcdParallel.length === 0) return;
+    for (const l of this.lcdParallel) {
+      const e = this.mcu.gpio[l.e].value === GPIOPinState.High;
+      if (l.lastE && !e) {
+        const rs = this.mcu.gpio[l.rs].value === GPIOPinState.High;
+        let bits = 0;
+        for (let i = 0; i < l.data.length; i++) {
+          if (this.mcu.gpio[l.data[i]].value === GPIOPinState.High) bits |= 1 << i;
+        }
+        if (l.fourBit) l.core.writeNibble(bits, rs);
+        else l.core.writeByte(bits, rs);
+      }
+      l.lastE = e;
     }
   }
 

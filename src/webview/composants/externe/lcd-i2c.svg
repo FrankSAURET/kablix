@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 350 175">
+  <defs id="defs68">
+    <pattern xlink:href="#characters" id="pattern69" patternTransform="matrix(3.9785,0,0,3.9785,14.936,16.283467)"></pattern>
+    <defs id="defs55">
+      <pattern id="characters" width="3.55" height="5.95" patternUnits="userSpaceOnUse" x="12.45" y="12.55">
+        <rect width="2.95" height="5.55" fill-opacity="0.05" id="rect55"></rect>
+      </pattern>
+      
+    </defs>
+  </defs>
+  
+  <!-- Retouche brochage lcd-i2c : déplace chaque pastille rouge sur un CROISEMENT (lignes foncées = 50 px). Garde les id pin-<nom>. Marge 20 px. -->
+  <path d="" fill="#000000" id="path64" style="opacity:0.85;stroke-width:3.9785"></path>
+  <g id="g74">
+    <g id="g73">
+      <rect fill="#087f45" width="318.28" height="143.226" id="rect56" x="14.936" y="16.283466" style="opacity:0.85;stroke-width:3.9785"></rect>
+      <text fill="#ffffff" font-size="5.96775px" font-family="monospace" id="text64" style="opacity:0.85;stroke-width:3.9785" x="14.936" y="16.283466"><tspan y="43.337269" x="17.720951" fill="#ffffff" id="tspan60" style="stroke-width:3.9785">1</tspan><tspan y="51.692116" x="24.08655" fill="#ffffff" id="tspan61" style="stroke-width:3.9785">GND</tspan><tspan y="61.638363" x="24.08655" fill="#ffffff" id="tspan62" style="stroke-width:3.9785">VCC</tspan><tspan y="71.982468" x="24.08655" fill="#ffffff" id="tspan63" style="stroke-width:3.9785">SDA</tspan><tspan y="82.326569" x="24.08655" fill="#ffffff" id="tspan64" style="stroke-width:3.9785">SCL</tspan></text>
+      <g id="g72" transform="translate(2.7054265,0.74297432)">
+        <rect x="34.629574" y="38.960915" width="283.2692" height="100.2582" id="rect57" style="opacity:0.85;stroke-width:3.9785"></rect>
+        <rect x="44.973675" y="57.262016" rx="5.9677501" ry="5.9677501" width="262.58099" height="63.655998" fill="#6cb201" id="rect58" style="opacity:0.85;stroke-width:3.9785"></rect>
+        <rect x="44.973675" y="57.262016" rx="5.9677501" ry="5.9677501" width="262.58099" height="63.655998" opacity="0" id="rect59" style="stroke-width:3.9785"></rect>
+        <rect fill="url(#characters)" x="64.468323" y="66.213646" width="223.59171" height="45.75275" id="rect64" style="opacity:0.85;fill:url(#pattern69);stroke-width:3.9785"></rect>
+      </g>
+      <g id="g70">
+        <g id="g69">
+          <path id="path79" style="fill:#a2a283;fill-opacity:1;stroke:none;stroke-width:6.61417;stroke-linecap:round" d="M 14.962392,46.656249 V 53.341796 H 21.321767 V 53.345702 C 22.605711,52.726882 23.421841,51.42639 23.421377,49.999999 23.421091,48.574313 22.605076,47.274763 21.321767,46.656249 Z"></path>
+          <circle style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:6.61417;stroke-linecap:round" id="path80" cx="20" cy="50" r="1.8020821"></circle>
+          <path id="path79-4" style="fill:#a2a283;fill-opacity:1;stroke:none;stroke-width:6.61417;stroke-linecap:round" d="M 14.962392,56.656249 V 63.341796 H 21.321767 V 63.345702 C 22.605711,62.726882 23.421841,61.42639 23.421377,59.999999 23.421091,58.574313 22.605076,57.274763 21.321767,56.656249 Z"></path>
+          <circle style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:6.61417;stroke-linecap:round" id="path80-8" cx="20" cy="60" r="1.8020821"></circle>
+          <path id="path79-45" style="fill:#a2a283;fill-opacity:1;stroke:none;stroke-width:6.61417;stroke-linecap:round" d="M 14.962392,66.656249 V 73.341796 H 21.321767 V 73.345702 C 22.605711,72.726882 23.421841,71.42639 23.421377,69.999999 23.421091,68.574313 22.605076,67.274763 21.321767,66.656249 Z"></path>
+          <circle style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:6.61417;stroke-linecap:round" id="path80-5" cx="20" cy="70.000008" r="1.8020821"></circle>
+          <path id="path79-1" style="fill:#a2a283;fill-opacity:1;stroke:none;stroke-width:6.61417;stroke-linecap:round" d="M 14.962392,76.656249 V 83.341796 H 21.321767 V 83.345702 C 22.605711,82.726882 23.421841,81.42639 23.421377,79.999999 23.421091,78.574313 22.605076,77.274763 21.321767,76.656249 Z"></path>
+          <circle style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:6.61417;stroke-linecap:round" id="path80-1" cx="20" cy="80.000008" r="1.8020821"></circle>
+        </g>
+        <g id="g68" transform="translate(-4.2099991,-3.6800003)">
+          
+          
+          
+          
+          
+          
+          
+          
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

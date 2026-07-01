@@ -7,7 +7,11 @@
 4. ✅ sur les composants qui ont des power et gnd, recentre les ronds rouge ou noir sur la pastille → désormais via les ronds du SVG retouché (v2026.6.48 ; le « sur pad » auto de 6.47 annulé).
 5. ✅ Le clavier 4 x 3 a toujours les connexions en dehors du connecteur → v2026.6.46.
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
-7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → bases générées (v2026.6.46), à retoucher par Frank.
+7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → **4 variantes simulables (i2c/parallèle × 16×2/20×4) v2026.6.69**.
+
+# v2026.6.69
+
+1. ✅ **LCD texte HD44780 : 4 variantes simulables + texte superposé sur le dessin**. Cœur d'affichage partagé `Hd44780` ([`i2c-devices.mts`](src/webview/engines/i2c-devices.mts)) extrait de `Lcd1602Device` (buffer texte + commandes clear/home/DDRAM + `writeByte`/`writeNibble`). **Décodage parallèle** (`pins=full`) : le moteur ([`avr.mts`](src/webview/engines/avr.mts) + [`pico.mts`](src/webview/engines/pico.mts)) fige RS + lignes de données sur chaque **front descendant de E** (`sampleLcdParallel`, écouteur de port, niveau instruction) — 4 bits (D4-D7) ou 8 bits (D0-D7 câblés). Interface : `setLcdParallel`/`readLcdParallel` ([`types.mts`](src/webview/engines/types.mts)). `lcdParallelBindings` ([`model.mts`](src/webview/diagram/model.mts)) résout RS/E/D0-D7 côté MCU + déduit le mode. **Overlay texte** : `reflectLcd` ([`drawing-feedback.mts`](src/webview/diagram/drawing-feedback.mts)) superpose le texte décodé (chasse fixe, grille cols×rows) sur la **zone des caractères** du dessin (`<rect fill="url(#characters)">`), motif factice masqué — appliqué aussi bien en I²C qu'en parallèle. **4 dessins** nettoyés + enregistrés (`board-drawings.mts`, `drawingKey`) : [`lcd.svg`](src/webview/composants/externe/lcd.svg) (parallèle 16×2), [`lcd-parallel-20x4.svg`](src/webview/composants/externe/lcd-parallel-20x4.svg), [`lcd-i2c.svg`](src/webview/composants/externe/lcd-i2c.svg), [`lcd-i2c-20x4.svg`](src/webview/composants/externe/lcd-i2c-20x4.svg) ; surcharges de broches des 4 (probe, nouvelle convention). Test `verify:i2c` : cœur 4 bits + 8 bits (DDRAM ligne 2, 20 colonnes).
 
 # v2026.6.68
 

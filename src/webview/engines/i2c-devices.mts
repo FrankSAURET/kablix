@@ -51,57 +51,44 @@ export interface I2cDevice {
 }
 
 /**
- * Afficheur LCD HD44780 piloté par un backpack PCF8574 en mode 4 bits (montages
- * « LCD I²C » classiques, adresse 0x27 ou 0x3F). Bits du PCF8574 :
- *   P0=RS, P1=RW, P2=E, P3=rétroéclairage, P4..P7 = D4..D7 (quartet de données).
- * Chaque quartet est verrouillé sur le front descendant de E ; deux quartets
- * forment un octet (commande si RS=0, caractère si RS=1).
+ * Cœur d'affichage HD44780 : mémorise le contenu texte et interprète les octets
+ * de commande/donnée, indépendamment du transport (backpack PCF8574 en I²C ou
+ * bus parallèle RS/E/D0-D7). Reçoit soit des octets complets (`writeByte`, mode
+ * 8 bits), soit des quartets (`writeNibble`, mode 4 bits — deux quartets, poids
+ * fort d'abord, forment un octet). RS choisit commande (0) ou caractère (1).
  */
-export class Lcd1602Device implements I2cDevice {
-  readonly address: number;
+export class Hd44780 {
   readonly cols: number;
   readonly rows: number;
   /** Contenu affiché, une chaîne par ligne (longueur = cols). */
   text: string[];
 
-  private lastByte = 0;
   private highNibble = -1; // quartet de poids fort en attente (-1 = aucun)
   private addr = 0; // adresse DDRAM courante
-  private static readonly E = 0x04;
   // Bases DDRAM des lignes (HD44780) : L0=0x00, L1=0x40, L2=0x14, L3=0x54.
   private static readonly ROW_BASE = [0x00, 0x40, 0x14, 0x54];
 
-  constructor(address = 0x27, cols = 16, rows = 2) {
-    this.address = address;
+  constructor(cols = 16, rows = 2) {
     this.cols = cols;
     this.rows = rows;
     this.text = Array.from({ length: rows }, () => ' '.repeat(cols));
   }
 
-  write(byte: number): boolean {
-    const prevE = this.lastByte & Lcd1602Device.E;
-    const curE = byte & Lcd1602Device.E;
-    // Front descendant de E : le quartet présent (dans l'octet E-haut) est figé.
-    if (prevE && !curE) this.latch(this.lastByte);
-    this.lastByte = byte;
-    return true;
-  }
-
-  read(): number {
-    return 0xff;
-  }
-
-  private latch(b: number): void {
-    const rs = b & 0x01;
-    const nib = (b >> 4) & 0x0f;
-    if (this.highNibble < 0) {
-      this.highNibble = nib;
-      return;
-    }
-    const value = (this.highNibble << 4) | nib;
-    this.highNibble = -1;
+  /** Reçoit un octet complet (mode 8 bits). */
+  writeByte(value: number, rs: boolean): void {
     if (rs) this.putChar(value);
     else this.command(value);
+  }
+
+  /** Reçoit un quartet (mode 4 bits) : appaire deux quartets en un octet. */
+  writeNibble(nib: number, rs: boolean): void {
+    if (this.highNibble < 0) {
+      this.highNibble = nib & 0x0f;
+      return;
+    }
+    const value = (this.highNibble << 4) | (nib & 0x0f);
+    this.highNibble = -1;
+    this.writeByte(value, rs);
   }
 
   private command(v: number): void {
@@ -130,10 +117,59 @@ export class Lcd1602Device implements I2cDevice {
 
   private rowCol(addr: number): [number, number] | null {
     for (let r = 0; r < this.rows; r++) {
-      const base = Lcd1602Device.ROW_BASE[r];
+      const base = Hd44780.ROW_BASE[r];
       if (addr >= base && addr < base + this.cols) return [r, addr - base];
     }
     return null;
+  }
+}
+
+/**
+ * Afficheur LCD HD44780 piloté par un backpack PCF8574 en mode 4 bits (montages
+ * « LCD I²C » classiques, adresse 0x27 ou 0x3F). Bits du PCF8574 :
+ *   P0=RS, P1=RW, P2=E, P3=rétroéclairage, P4..P7 = D4..D7 (quartet de données).
+ * Chaque quartet est verrouillé sur le front descendant de E ; deux quartets
+ * forment un octet (commande si RS=0, caractère si RS=1).
+ */
+export class Lcd1602Device implements I2cDevice {
+  readonly address: number;
+  private readonly core: Hd44780;
+
+  private lastByte = 0;
+  private static readonly E = 0x04;
+
+  constructor(address = 0x27, cols = 16, rows = 2) {
+    this.address = address;
+    this.core = new Hd44780(cols, rows);
+  }
+
+  get cols(): number {
+    return this.core.cols;
+  }
+
+  get rows(): number {
+    return this.core.rows;
+  }
+
+  /** Contenu affiché, une chaîne par ligne. */
+  get text(): string[] {
+    return this.core.text;
+  }
+
+  write(byte: number): boolean {
+    const prevE = this.lastByte & Lcd1602Device.E;
+    const curE = byte & Lcd1602Device.E;
+    // Front descendant de E : le quartet présent (dans l'octet E-haut) est figé.
+    if (prevE && !curE) {
+      const b = this.lastByte;
+      this.core.writeNibble((b >> 4) & 0x0f, (b & 0x01) !== 0);
+    }
+    this.lastByte = byte;
+    return true;
+  }
+
+  read(): number {
+    return 0xff;
   }
 }
 

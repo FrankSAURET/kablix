@@ -45,7 +45,7 @@ import './composants/slide-pot.mjs';
 
 import { initLocale, t } from './i18n.mjs';
 import { Editor, type PaletteState } from './diagram/editor.mjs';
-import { reflectLed, reflectGlow, reflectSevenSeg, reflectRgbLed, reflectLedBar, reflectServo, reflectNeopixel, reflectOled, reflectTft } from './diagram/drawing-feedback.mjs';
+import { reflectLed, reflectGlow, reflectSevenSeg, reflectRgbLed, reflectLedBar, reflectServo, reflectNeopixel, reflectOled, reflectTft, reflectLcd } from './diagram/drawing-feedback.mjs';
 import { partDef, boardFamily, isBoardId, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
 import { toWokwiDiagram, fromWokwiDiagram } from './diagram/wokwi.mjs';
 import {
@@ -69,6 +69,7 @@ import {
   dht22Bindings,
   pca9685Bindings,
   neopixelBindings,
+  lcdParallelBindings,
   spiDeviceBindings,
   type Pca9685Binding,
 } from './diagram/model.mjs';
@@ -374,19 +375,31 @@ function refreshVisuals(): void {
         break;
       }
       case 'i2c-lcd': {
-        // Texte décodé du bus I²C affiché sur le LCD. Composant perso
-        // (kablix-custom-part) → setLcd superpose le texte sur le dessin ;
-        // élément Wokwi wokwi-lcd1602 → on alimente directement son écran (text).
+        // Texte décodé affiché sur le LCD. En I²C : Lcd1602Device (bus décodé) ;
+        // en parallèle (pins=full) : readLcdParallel (RS/E/données décodés par le
+        // moteur). Composant perso (kablix-custom-part) → setLcd superpose le texte
+        // sur le dessin. Élément Wokwi wokwi-lcd1602 → on alimente son écran (text)
+        // ET, si un dessin retouché le remplace, on superpose le texte dessus.
+        const parallel = (part.attrs?.pins ?? 'i2c') === 'full';
         const dev = i2cDevices.get(part.id);
-        if (dev instanceof Lcd1602Device) {
+        const lines = parallel
+          ? engine.readLcdParallel?.(part.id) ?? null
+          : dev instanceof Lcd1602Device
+            ? dev.text
+            : null;
+        if (lines) {
+          const cols = Number(part.attrs?.cols ?? 16) || 16;
+          const rows = Number(part.attrs?.rows ?? 2) || 2;
           const setLcd = el.setLcd as
             | ((lines: string[], rect: { x: number; y: number; w: number; h: number }) => void)
             | undefined;
           if (setLcd) {
-            setLcd(dev.text, lcdScreenRect(part, def.custom?.svg));
+            setLcd(lines, lcdScreenRect(part, def.custom?.svg));
           } else {
-            (el as unknown as { text?: string }).text = dev.text.join('\n');
+            (el as unknown as { text?: string }).text = lines.join('\n');
           }
+          const draw = editor.drawingOf(part.id);
+          if (draw) reflectLcd(draw, lines, cols, rows);
         }
         break;
       }
@@ -623,6 +636,18 @@ function bindInputs(): void {
   const nps = neopixelBindings(editor.diagram);
   neopixelTargets = new Map(nps.map((b) => [b.partId, b.mcuPin]));
   engine.setNeopixels?.(nps.map((b) => ({ pin: b.mcuPin, count: b.count })));
+
+  // Afficheurs LCD HD44780 en bus parallèle : RS/E/données décodés par le moteur.
+  engine.setLcdParallel?.(
+    lcdParallelBindings(editor.diagram).map((b) => ({
+      id: b.partId,
+      rs: b.rs,
+      e: b.e,
+      data: b.data,
+      cols: b.cols,
+      rows: b.rows,
+    }))
+  );
 
   for (const binding of buttonBindings(editor.diagram)) {
     const el = editor.elementOf(binding.partId);

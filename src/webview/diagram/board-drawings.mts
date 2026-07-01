@@ -31,6 +31,10 @@ import neopixelMatrixSvg from '../composants/externe/neopixel-matrix.svg';
 import ledRingSvg from '../composants/externe/led-ring.svg';
 import oledSvg from '../composants/externe/oled-ssd1306.svg';
 import ili9341Svg from '../composants/externe/ili9341.svg';
+import lcdSvg from '../composants/externe/lcd.svg';
+import lcdParallel20x4Svg from '../composants/externe/lcd-parallel-20x4.svg';
+import lcdI2cSvg from '../composants/externe/lcd-i2c.svg';
+import lcdI2c20x4Svg from '../composants/externe/lcd-i2c-20x4.svg';
 
 const DRAWINGS: Record<string, string> = {
   mega: megaSvg,
@@ -60,17 +64,28 @@ const DRAWINGS: Record<string, string> = {
   'led-ring': ledRingSvg,
   'oled-ssd1306': oledSvg,
   ili9341: ili9341Svg,
+  lcd: lcdSvg, // parallèle 16×2 (cf. drawingKey ; variantes ci-dessous)
+  'lcd-parallel-20x4': lcdParallel20x4Svg,
+  'lcd-i2c': lcdI2cSvg,
+  'lcd-i2c-20x4': lcdI2c20x4Svg,
 };
 
 /**
  * Clé de dessin pour un type + ses attributs (variantes). Le 7 segments a un
  * dessin propre par nombre de chiffres (1/2/4) ; clé `7seg`, `7seg-2dig`,
- * `7seg-4dig`.
+ * `7seg-4dig`. Le LCD texte a 4 variantes selon interface (i2c/parallèle) et
+ * taille (16×2 / 20×4) : `lcd`, `lcd-parallel-20x4`, `lcd-i2c`, `lcd-i2c-20x4`.
  */
 function drawingKey(type: string, attrs?: Record<string, string>): string {
   if (type === '7seg') {
     const d = attrs?.digits ?? '1';
     return d === '1' ? '7seg' : `7seg-${d}dig`;
+  }
+  if (type === 'lcd') {
+    const parallel = (attrs?.pins ?? 'i2c') === 'full';
+    const big = (attrs?.lcdSize ?? '16x2') === '20x4';
+    if (parallel) return big ? 'lcd-parallel-20x4' : 'lcd';
+    return big ? 'lcd-i2c-20x4' : 'lcd-i2c';
   }
   return type;
 }
