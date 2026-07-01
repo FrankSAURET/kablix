@@ -9,6 +9,11 @@
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
 7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → **4 variantes simulables (i2c/parallèle × 16×2/20×4) v2026.6.69**.
 
+# v2026.6.72
+
+1. ✅ **Affichage en direct AVR (vraie cause)** : la boucle moteur ([`avr.mts`](src/webview/engines/avr.mts)) se replanifiait en `requestAnimationFrame` → une boucle rAF qui se relance en continu **monopolise le cycle de rendu** et le navigateur ne repeint le calque transformé du canvas (`.canvas__world`) **qu'à l'arrêt**. Passage à **`setTimeout`** (rend la main → repeinture entre les tranches) + **cadencement au temps réel** (budget de cycles = `dt · CLOCK_HZ/1000 · speed`, borné `MAX_FRAME_MS`) au lieu d'un budget fixe `CLOCK_HZ/60`. Les correctifs v70/v71 (police, plafond) ne suffisaient pas : la cause était l'ordonnancement rAF. `stop()` : `clearTimeout`.
+2. ✅ **Librairies MicroPython sur le Pico**. Les modules `.py` **voisins du script** et le contenu d'un sous-dossier **`lib/`** sont copiés sur le VFS du Pico simulé avant l'exécution (préambule base64 → `ubinascii` + `os.mkdir`), donc `import ma_lib` fonctionne comme sur une vraie carte. `loadPythonProgram` reçoit le chemin du script ([`compiler.ts`](src/compiler.ts), [`panel.ts`](src/panel.ts)) ; garde-fou 512 Ko ; aide mise à jour ([`help.ts`](src/help.ts)).
+
 # v2026.6.71
 
 1. ✅ **Affichage en direct pendant la simulation continue (correctif)**. Deux causes traitées : (a) **tranche moteur AVR** ([`avr.mts`](src/webview/engines/avr.mts)) exprimée en cycles (`CLOCK_HZ/60`) sans plafond temps réel → quand exécuter le budget dépassait une frame, le thread restait saturé et le navigateur ne repeignait **qu'à la pause** ; ajout d'un plafond `MAX_FRAME_MS = 12` (vérif espacée via `performance.now()`) qui rend la main pour laisser peindre. (b) **police LED non décodée** : un `<text>` SVG dont la police n'est pas prête peut rester **invisible** ; le décodage de `led_board-7.ttf` était repoussé pendant la simu (thread chargé), d'où un texte n'apparaissant qu'à l'arrêt. Préchargement `document.fonts.load("20px 'LED Board-7'")` dès l'ouverture ([`sim.mts`](src/webview/sim.mts)) + redraw à la fin du chargement.

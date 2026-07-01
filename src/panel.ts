@@ -177,7 +177,7 @@ export class SimulatorPanel {
         const netBridge =
           isPicoW &&
           vscode.workspace.getConfiguration('kablix').get<boolean>('picowNetworkBridge', true);
-        result = loadPythonProgram(firmware, doc.getText(), netBridge);
+        result = loadPythonProgram(firmware, doc.getText(), netBridge, filePath);
       } else if (ARTIFACT_EXTS.includes(ext)) {
         result = loadArtifact(filePath);
       } else {

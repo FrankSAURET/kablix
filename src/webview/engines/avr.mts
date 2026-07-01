@@ -232,7 +232,8 @@ export class AvrEngine implements SimEngine {
   // Timers 0/1/2 : indispensables pour millis()/micros()/delay() (sans eux la
   // boucle de delay() ne se terminait jamais et la simulation semblait planter).
   private timers: AVRTimer[];
-  private rafId: number | null = null;
+  private rafId: number | null = null; // handle du timer de boucle (setTimeout)
+  private lastTickMs = 0; // horodatage de la dernière tranche (cadencement temps réel)
   private running = false;
   private rxQueue: number[] = [];
   private isPaused = false;
@@ -716,8 +717,9 @@ export class AvrEngine implements SimEngine {
   stop(): void {
     this.running = false;
     this.stepping = false;
+    this.lastTickMs = 0;
     if (this.rafId !== null) {
-      cancelAnimationFrame(this.rafId);
+      clearTimeout(this.rafId);
       this.rafId = null;
     }
   }
@@ -853,15 +855,17 @@ export class AvrEngine implements SimEngine {
   private loop = (): void => {
     if (!this.running) return;
     if (!this.isPaused) {
-      // Ralenti : on n'exécute qu'une fraction du budget de cycles par frame.
-      // Pendant un pas (stepping) on ignore le ralenti pour le franchir au plus vite.
-      const factor = this.stepping ? 1 : this.speed;
-      const deadline = this.cpu.cycles + (CLOCK_HZ / 60) * factor;
-      // Plafond temps réel : si exécuter le budget de cycles prend plus qu'une
-      // frame, on rend la main au navigateur pour qu'il REPEIGNE (sinon, quand la
-      // tranche déborde, l'affichage ne se met à jour qu'à l'arrêt / la pause —
-      // le thread reste saturé). La vérif est espacée (performance.now() coûte).
+      // Cadencement au TEMPS RÉEL écoulé depuis la dernière tranche (borné pour
+      // éviter un rattrapage massif après une inactivité). `speed` ralentit ;
+      // pendant un pas on ignore le ralenti pour franchir au plus vite.
       const started = performance.now();
+      const dt = this.lastTickMs ? Math.min(started - this.lastTickMs, 40) : 1000 / 60;
+      this.lastTickMs = started;
+      const factor = this.stepping ? 1 : this.speed;
+      const deadline = this.cpu.cycles + dt * (CLOCK_HZ / 1000) * factor;
+      // Plafond temps réel : ne jamais bloquer le thread plus qu'une frame, sinon
+      // le compositeur ne rafraîchit pas le calque transformé du canvas et
+      // l'affichage ne bouge qu'à l'arrêt/la pause. Vérif espacée (coût de now()).
       let guard = 0;
       while (this.cpu.cycles < deadline && !this.isPaused) {
         avrInstruction(this.cpu);
@@ -892,7 +896,13 @@ export class AvrEngine implements SimEngine {
         }
       }
       this.flushRx();
+    } else {
+      this.lastTickMs = 0; // en pause : repart proprement à la reprise
     }
-    this.rafId = requestAnimationFrame(this.loop);
+    // setTimeout (et NON requestAnimationFrame) : une boucle rAF qui se replanifie
+    // en continu monopolise le cycle de rendu et le navigateur ne repeint le
+    // calque transformé du canvas qu'une fois la boucle arrêtée (d'où « l'affichage
+    // n'arrive qu'au stop »). Un timer rend la main → repeinture entre les tranches.
+    this.rafId = setTimeout(this.loop, 0) as unknown as number;
   };
 }

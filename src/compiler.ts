@@ -4,9 +4,9 @@
 // déjà compilé (.hex, .uf2, .elf, .bin). Fonctionne hors-ligne : aucun service
 // distant n'est sollicité.
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, delimiter, extname, join } from 'node:path';
+import { basename, delimiter, dirname, extname, join } from 'node:path';
 import { parseUf2 } from './shared/uf2';
 import { parseElf32 } from './shared/elf';
 import { instrumentPython } from './shared/pydebug';
@@ -261,14 +261,97 @@ export function loadArtifact(filePath: string): CompileResult {
   throw new Error(`Extension non reconnue : ${ext} (.hex, .uf2, .elf ou .bin attendus).`);
 }
 
+/** Un fichier à déposer sur le système de fichiers du Pico simulé. */
+interface PyLibFile {
+  /** Nom sur le Pico (ex. « mylib.py », « lib/foo/bar.py »). */
+  vfsName: string;
+  data: Uint8Array;
+}
+
+// Taille totale max des librairies injectées (garde-fou : l'injection passe par
+// le raw REPL, octet par octet — inutile d'y déverser des Mo).
+const MAX_LIB_BYTES = 512 * 1024;
+
+/**
+ * Rassemble les modules utilisateur à copier sur le Pico : les fichiers `.py`
+ * voisins du script (même dossier, hors script principal) et tout le contenu
+ * d'un sous-dossier `lib/` (récursif, convention MicroPython — `/lib` est dans
+ * `sys.path`). Ainsi `import ma_lib` fonctionne comme sur une vraie carte.
+ */
+function collectPythonLibs(scriptPath: string): PyLibFile[] {
+  const dir = dirname(scriptPath);
+  const main = basename(scriptPath);
+  const out: PyLibFile[] = [];
+  let total = 0;
+  const add = (full: string, vfsName: string): void => {
+    const data = new Uint8Array(readFileSync(full));
+    total += data.length;
+    if (total > MAX_LIB_BYTES) throw new Error('Librairies trop volumineuses (> 512 Ko).');
+    out.push({ vfsName, data });
+  };
+  const walk = (abs: string, rel: string): void => {
+    for (const name of readdirSync(abs)) {
+      const full = join(abs, name);
+      const st = statSync(full);
+      if (st.isDirectory()) walk(full, `${rel}${name}/`);
+      else add(full, `${rel}${name}`);
+    }
+  };
+  try {
+    // Fichiers .py voisins (hors script principal).
+    for (const name of readdirSync(dir)) {
+      if (name === main || extname(name).toLowerCase() !== '.py') continue;
+      const full = join(dir, name);
+      if (statSync(full).isFile()) add(full, name);
+    }
+    // Sous-dossier lib/ complet.
+    const libDir = join(dir, 'lib');
+    if (existsSync(libDir) && statSync(libDir).isDirectory()) walk(libDir, 'lib/');
+  } catch {
+    return []; // dossier illisible / trop volumineux : on n'injecte rien
+  }
+  return out;
+}
+
+/**
+ * Préambule Python qui recrée les modules utilisateur sur le VFS du Pico avant
+ * l'exécution du script. Contenu encodé en base64 (robuste : gère tout octet,
+ * quotes, accents) puis décodé via `ubinascii`. Chaîne vide si aucune librairie.
+ */
+function pythonLibPreamble(libs: PyLibFile[]): string {
+  if (libs.length === 0) return '';
+  const lines = ['import os,ubinascii'];
+  lines.push('def _kx_md(p):\n try:\n  os.mkdir(p)\n except OSError:\n  pass');
+  lines.push('def _kx_w(n,b):\n f=open(n,"wb");f.write(ubinascii.a2b_base64(b));f.close()');
+  const madeDirs = new Set<string>();
+  for (const f of libs) {
+    // Crée les dossiers parents (lib, lib/sous-dossier…) dans l'ordre.
+    const parts = f.vfsName.split('/').slice(0, -1);
+    let prefix = '';
+    for (const p of parts) {
+      prefix += (prefix ? '/' : '') + p;
+      if (!madeDirs.has(prefix)) {
+        madeDirs.add(prefix);
+        lines.push(`_kx_md(${JSON.stringify(prefix)})`);
+      }
+    }
+    const b64 = Buffer.from(f.data).toString('base64');
+    lines.push(`_kx_w(${JSON.stringify(f.vfsName)},${JSON.stringify(b64)})`);
+  }
+  return lines.join('\n') + '\n';
+}
+
 /**
  * Prépare l'exécution d'un script MicroPython : firmware UF2 + code source.
- * Le script est injecté via le raw REPL une fois le firmware démarré.
+ * Le script est injecté via le raw REPL une fois le firmware démarré. Si
+ * `scriptPath` est fourni, les modules `.py` voisins et le dossier `lib/` sont
+ * déposés sur le VFS du Pico (préambule) pour que les `import` fonctionnent.
  */
 export function loadPythonProgram(
   firmwareUf2Path: string,
   scriptSource: string,
-  enableNetwork = false
+  enableNetwork = false,
+  scriptPath?: string
 ): CompileResult {
   const segments = parseUf2(new Uint8Array(readFileSync(firmwareUf2Path)));
   // Instrumente le script pour le pas à pas (préambule __kx + un appel par
@@ -282,6 +365,11 @@ export function loadPythonProgram(
   // Pico W : préambule de pont réseau (faux network/urequests tunnelés vers
   // l'hôte) injecté AVANT tout, pour patcher sys.modules avant les import du script.
   if (enableNetwork) script = NET_PREAMBLE + '\n' + script;
+  // Modules utilisateur écrits sur le VFS AVANT tout le reste (le script les
+  // importe ensuite comme sur une vraie carte).
+  const libs = scriptPath ? collectPythonLibs(scriptPath) : [];
+  const preamble = pythonLibPreamble(libs);
+  if (preamble) script = preamble + script;
   return {
     payload: {
       board: 'pico',
@@ -289,7 +377,9 @@ export function loadPythonProgram(
       segments: segments.map((s) => ({ addr: s.addr, b64: toB64(s.data) })),
       script,
     },
-    log: `Firmware MicroPython : ${basename(firmwareUf2Path)}`,
+    log:
+      `Firmware MicroPython : ${basename(firmwareUf2Path)}` +
+      (libs.length ? ` (+ ${libs.length} module(s) : ${libs.map((l) => l.vfsName).join(', ')})` : ''),
   };
 }
 
