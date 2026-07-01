@@ -1,3 +1,13 @@
+/* Police matricielle façon afficheur LED, pour le texte des écrans LCD simulés.
+   « LED Board-7 » © Sizenko Alexander / Style-7 (http://www.styleseven.com) —
+   freeware, crédit requis (cf. media/font/led_board-7-readme.txt). URL relative
+   à cette feuille de style → media/font/… (URI de webview ; CSP font-src). */
+@font-face {
+  font-family: 'LED Board-7';
+  src: url('font/led_board-7.ttf') format('truetype');
+  font-display: swap;
+}
+
 body {
   font-family: var(--vscode-font-family, sans-serif);
   color: var(--vscode-foreground);

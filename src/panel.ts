@@ -881,6 +881,8 @@ export class SimulatorPanel {
       `style-src ${webview.cspSource} 'unsafe-inline'`,
       `script-src 'nonce-${nonce}'`,
       `img-src ${webview.cspSource} data:`,
+      // Police LED des écrans LCD (media/font/led_board-7.ttf, @font-face).
+      `font-src ${webview.cspSource}`,
     ].join('; ');
 
     return /* html */ `<!DOCTYPE html>

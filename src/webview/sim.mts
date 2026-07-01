@@ -280,6 +280,9 @@ function refreshVisuals(): void {
     const def = partDef(part.type);
     const el = editor.elementOf(part.id);
     if (!el) continue;
+    // Un composant qui échoue au rendu ne doit jamais figer toute la simulation
+    // (le reste des composants continue de se rafraîchir).
+    try {
     switch (def.kind) {
       case 'led': {
         const on = ledOn(editor.diagram, part.id, read);
@@ -448,6 +451,9 @@ function refreshVisuals(): void {
         // LED embarquée GP25 du Pico / Pico W.
         if (def.board && boardFamily(def.board) === 'rp2040') el.ledPower = engine.readDigital('GP25');
         break;
+    }
+    } catch (err) {
+      console.error('refreshVisuals', part.type, err);
     }
   }
   // Seconde passe : les sorties PCA9685 priment sur l'état « hors-net » des cibles.

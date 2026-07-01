@@ -218,51 +218,45 @@ function lcdCharRectOf(
 
 /**
  * Afficheur LCD texte (HD44780) : superpose le texte décodé (`lines`, une chaîne
- * par ligne) sur la zone des caractères du dessin. Le texte est rendu dans un
- * `<foreignObject>` en police à chasse fixe, aligné en grille (cols×rows), taille
- * ajustée à la zone. Le motif de caractères factices d'origine est masqué.
+ * par ligne) sur la zone des caractères du dessin. Rendu en `<text>` SVG natif
+ * (un par ligne, police LED « LED Board-7 ») plutôt qu'en `<foreignObject>` :
+ * le SVG se repeint de façon fiable à chaque changement (un `<foreignObject>`
+ * HTML n'était rafraîchi qu'à l'arrêt de la simulation). Chaque ligne est étirée
+ * sur toute la largeur (`textLength`) → grille régulière de `cols` cases. Le
+ * motif de caractères factices d'origine est masqué.
  */
-export function reflectLcd(svg: SVGElement, lines: string[], cols: number, rows: number): void {
+export function reflectLcd(svg: SVGElement, lines: string[], _cols: number, rows: number): void {
   const zone = lcdCharRectOf(svg);
   if (!zone || zone.w <= 0 || zone.h <= 0) return;
   zone.el.style.opacity = '0'; // masque les caractères factices Wokwi
 
-  let fo = svg.querySelector('foreignObject.lcd-overlay') as SVGForeignObjectElement | null;
-  let grid: HTMLElement;
-  if (!fo) {
-    fo = document.createElementNS(SVG_NS, 'foreignObject') as SVGForeignObjectElement;
-    fo.setAttribute('class', 'lcd-overlay');
-    grid = document.createElementNS(XHTML_NS, 'div') as HTMLElement;
-    grid.style.width = '100%';
-    grid.style.height = '100%';
-    grid.style.display = 'flex';
-    grid.style.flexDirection = 'column';
-    grid.style.justifyContent = 'center';
-    grid.style.alignItems = 'center';
-    grid.style.fontFamily = 'monospace';
-    grid.style.fontWeight = 'bold';
-    grid.style.lineHeight = '1';
-    grid.style.whiteSpace = 'pre';
-    grid.style.color = '#0b1405'; // caractères sombres sur rétroéclairage
-    grid.style.overflow = 'hidden';
-    fo.appendChild(grid);
-    svg.appendChild(fo);
-  } else {
-    grid = fo.firstChild as HTMLElement;
+  let group = svg.querySelector('g.lcd-overlay') as SVGGElement | null;
+  if (!group) {
+    group = document.createElementNS(SVG_NS, 'g') as SVGGElement;
+    group.setAttribute('class', 'lcd-overlay');
+    svg.appendChild(group);
   }
-  fo.setAttribute('x', String(zone.x));
-  fo.setAttribute('y', String(zone.y));
-  fo.setAttribute('width', String(zone.w));
-  fo.setAttribute('height', String(zone.h));
-  // Taille de police : borne par la hauteur (rows lignes) et la largeur (cols
-  // caractères, avance ≈ 0,6 em en chasse fixe), avec une petite marge.
-  const fs = Math.min(zone.h / rows, zone.w / (cols * 0.62)) * 0.88;
-  grid.style.fontSize = `${fs}px`;
-  // Réutilise les lignes existantes, en crée/supprime au besoin.
-  while (grid.childElementCount > lines.length) grid.lastElementChild?.remove();
-  while (grid.childElementCount < lines.length) grid.appendChild(document.createElementNS(XHTML_NS, 'div'));
+  const rowH = zone.h / rows;
+  const fs = rowH * 0.82; // hauteur d'un caractère LED (marge verticale)
+  // Réutilise les <text> existants, en crée/supprime au besoin.
+  while (group.childElementCount > lines.length) group.lastElementChild?.remove();
+  while (group.childElementCount < lines.length) {
+    const t = document.createElementNS(SVG_NS, 'text');
+    t.setAttribute('text-anchor', 'start');
+    t.setAttribute('dominant-baseline', 'central');
+    t.setAttribute('lengthAdjust', 'spacingAndGlyphs');
+    t.setAttribute('fill', '#0b1405'); // caractères sombres sur rétroéclairage
+    t.style.fontFamily = "'LED Board-7', monospace";
+    t.style.whiteSpace = 'pre';
+    group.appendChild(t);
+  }
   for (let i = 0; i < lines.length; i++) {
-    (grid.children[i] as HTMLElement).textContent = lines[i];
+    const t = group.children[i] as SVGTextElement;
+    t.setAttribute('x', String(zone.x));
+    t.setAttribute('y', String(zone.y + (i + 0.5) * rowH));
+    t.setAttribute('textLength', String(zone.w));
+    t.setAttribute('font-size', String(fs));
+    t.textContent = lines[i];
   }
 }
 

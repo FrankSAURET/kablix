@@ -200,6 +200,7 @@ Kablix est développé par **[electropol.fr](https://electropol.fr)** et s'appui
 | [JSZip](https://stuk.github.io/jszip/) | Lecture/écriture des archives `.projix` | MIT / GPLv3 |
 | Bootrom B1 du RP2040 | Démarrage du RP2040 simulé | © Raspberry Pi (Trading) Ltd — BSD-3-Clause |
 | MicroPython | Firmware `.uf2` exécuté sur le Pico simulé (fourni par l'utilisateur) | MIT |
+| Police [LED Board-7](http://www.styleseven.com) © Sizenko Alexander (Style-7) | Texte façon afficheur LED des écrans LCD simulés | Freeware (usage libre, crédit requis) |
 
 Le format de projet et les composants importés sont compatibles avec [Wokwi](https://wokwi.com) (format ouvert `diagram.json`).
 
