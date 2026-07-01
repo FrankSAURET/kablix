@@ -9,6 +9,10 @@
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
 7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → **4 variantes simulables (i2c/parallèle × 16×2/20×4) v2026.6.69**.
 
+# v2026.6.79
+
+1. ✅ **Texte LCD parallèle recalé (décalage vertical)**. Les dessins parallèles imbriquent la zone des caractères dans des `<g transform="translate(...)">` ; `reflectLcd` lisait les coordonnées d'attribut sans tenir compte des transforms → texte trop bas (~1 ligne). Correctif ([`drawing-feedback.mts`](src/webview/diagram/drawing-feedback.mts)) : l'overlay `<g class="lcd-overlay">` est placé dans le **même parent** que la zone (hérite des mêmes transforms). Réglages exposés : `LCD_TEXT_VSHIFT` (décalage vertical, fraction de ligne, 0 = centré) et `LCD_TEXT_HEIGHT` (hauteur du caractère). I²C inchangé (déjà correct).
+
 # v2026.6.78
 
 1. ✅ **`bus.scan()` I²C : remplacement du module `machine` via `sys.modules` (v77 corrigée)**. La v77 réassignait `machine.I2C`, refusé aussi par MicroPython (module natif en lecture seule) → scan bloquait toujours. Comme le pont réseau (`network`/`urequests`), on REMPLACE le module entier dans `sys.modules` ([`compiler.ts`](src/compiler.ts) `I2C_SCAN_SHIM`) : un module de substitution délègue tout au vrai `machine` (`__getattr__`) sauf `I2C`/`SoftI2C` enveloppés ; `scan()` renvoie les adresses injectées par le moteur ([`pico.mts`](src/webview/engines/pico.mts)), `writeto`/`readfrom` délégués au vrai I²C. Testé en Python : `Pin` délégué, `scan()`→adresse connue, `writeto` délégué.

@@ -225,6 +225,14 @@ function lcdCharRectOf(
  * sur toute la largeur (`textLength`) → grille régulière de `cols` cases. Le
  * motif de caractères factices d'origine est masqué.
  */
+// --- Réglages du texte LCD (ajustables) -------------------------------------
+// Décalage vertical du texte, en fraction de la hauteur d'une ligne (0 = centré).
+// Positif = descend, négatif = monte. Normalement 0 : le texte est centré sur la
+// zone des caractères du dessin (transforms des groupes pris en compte).
+const LCD_TEXT_VSHIFT = 0;
+// Hauteur d'un caractère, en fraction de la hauteur d'une ligne (marge verticale).
+const LCD_TEXT_HEIGHT = 0.82;
+
 export function reflectLcd(svg: SVGElement, lines: string[], _cols: number, rows: number): void {
   const zone = lcdCharRectOf(svg);
   if (!zone || zone.w <= 0 || zone.h <= 0) return;
@@ -234,10 +242,13 @@ export function reflectLcd(svg: SVGElement, lines: string[], _cols: number, rows
   if (!group) {
     group = document.createElementNS(SVG_NS, 'g') as SVGGElement;
     group.setAttribute('class', 'lcd-overlay');
-    svg.appendChild(group);
+    // Placé dans le MÊME parent que la zone des caractères : il hérite ainsi des
+    // mêmes `transform` de groupe (les dessins parallèles imbriquent la zone dans
+    // des `<g transform="translate(...)">` — sans ça le texte tombait trop bas).
+    (zone.el.parentNode ?? svg).appendChild(group);
   }
   const rowH = zone.h / rows;
-  const fs = rowH * 0.82; // hauteur d'un caractère LED (marge verticale)
+  const fs = rowH * LCD_TEXT_HEIGHT; // hauteur d'un caractère LED
   // Réutilise les <text> existants, en crée/supprime au besoin.
   while (group.childElementCount > lines.length) group.lastElementChild?.remove();
   while (group.childElementCount < lines.length) {
@@ -253,7 +264,7 @@ export function reflectLcd(svg: SVGElement, lines: string[], _cols: number, rows
   for (let i = 0; i < lines.length; i++) {
     const t = group.children[i] as SVGTextElement;
     t.setAttribute('x', String(zone.x));
-    t.setAttribute('y', String(zone.y + (i + 0.5) * rowH));
+    t.setAttribute('y', String(zone.y + (i + 0.5 + LCD_TEXT_VSHIFT) * rowH));
     t.setAttribute('textLength', String(zone.w));
     t.setAttribute('font-size', String(fs));
     t.textContent = lines[i];
