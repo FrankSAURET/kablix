@@ -1056,7 +1056,7 @@ function updateDebugButtons(): void {
   pauseBtn.disabled = !engine;
   // Icône seule (bouton sur le canvas) : le libellé passe dans l'info-bulle.
   pauseBtn.textContent = paused ? '▶' : '⏸';
-  pauseBtn.title = paused ? t('Resume') : t('Pause / resume the simulation');
+  pauseBtn.title = paused ? t('Resume') : t('Pause - resume the simulation');
   pauseBtn.classList.toggle('primary', paused);
   stepBtn.disabled = !engine || !engine.step;
   if (paused) setStatus(t('Paused'));

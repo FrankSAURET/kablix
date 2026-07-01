@@ -933,8 +933,8 @@ export class SimulatorPanel {
         <div class="canvas-controls" role="toolbar">
           <button id="run" class="canvas-controls__btn primary" title="${l10n.t('Start')}">▶</button>
           <button id="stop" class="canvas-controls__btn" disabled title="${l10n.t('Stop')}">■</button>
-          <button id="pause" class="canvas-controls__btn" disabled title="${l10n.t('Pause / resume the simulation')}">⏸</button>
-          <button id="step" class="canvas-controls__btn canvas-controls__btn--step" disabled title="${l10n.t('Run one source line then pause')}"><img class="canvas-controls__icon" src="${stepUri}" alt="${l10n.t('Run one source line then pause')}" /></button>
+          <button id="pause" class="canvas-controls__btn" disabled title="${l10n.t('Pause - resume the simulation')}">⏸</button>
+          <button id="step" class="canvas-controls__btn canvas-controls__btn--step" disabled title="${l10n.t('Run next source line')}"><img class="canvas-controls__icon" src="${stepUri}" alt="${l10n.t('Run next source line')}" /></button>
           <select id="speed" class="canvas-controls__speed" title="${l10n.t('Simulation speed')}">
             <option value="1" selected>🐇 100 %</option>
             <option value="0.1">🐢 10 %</option>
@@ -947,7 +947,7 @@ export class SimulatorPanel {
         <div class="canvas-controls canvas-controls--right" role="toolbar">
           <button id="auto-route" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Auto-route the wires (right angles) — selection, or whole diagram')}"><img class="canvas-controls__icon" src="${autoRouteUri}" alt="${l10n.t('Auto-route the wires (right angles) — selection, or whole diagram')}" /></button>
           <button id="fit-view" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Recenter and fit the view')}"><img class="canvas-controls__icon" src="${fitViewUri}" alt="${l10n.t('Recenter and fit the view')}" /></button>
-          <button id="reset-sim" class="canvas-controls__btn canvas-controls__btn--reset" title="${l10n.t('Reset all components to their initial state')}">⟲</button>
+          <button id="reset-sim" class="canvas-controls__btn canvas-controls__btn--reset" title="${l10n.t('Reset all components')}">⟲</button>
           <button id="clear-canvas" class="canvas-controls__btn canvas-controls__btn--eraser" title="${l10n.t('Clear the diagram (Ctrl+Z to undo)')}"><img class="canvas__clear-icon" src="${gommeUri}" alt="${l10n.t('Clear')}" /></button>
         </div>
         <svg id="wires" class="wires"></svg>

@@ -6,7 +6,7 @@
    version="1.1"
    id="svg64"
    sodipodi:docname="heartbeat.edit.svg"
-   inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
+   inkscape:version="1.4.4 (dcaf3e7, 2026-05-05)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -36,9 +36,9 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      showgrid="true"
-     inkscape:zoom="5.0204581"
-     inkscape:cx="46.808477"
-     inkscape:cy="13.146211"
+     inkscape:zoom="20.081832"
+     inkscape:cx="95.160639"
+     inkscape:cy="21.511981"
      inkscape:window-width="1920"
      inkscape:window-height="1057"
      inkscape:window-x="-8"
@@ -460,11 +460,4 @@
        x="28.654593"
        y="68.376495" />
   </g>
-  <rect
-     style="fill:#f8e45c;fill-opacity:0.618911;stroke-width:2.1;stroke-linecap:round"
-     id="rect1"
-     width="110"
-     height="85"
-     x="0"
-     y="0" />
 </svg>
