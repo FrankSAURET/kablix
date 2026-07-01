@@ -865,6 +865,12 @@ export class SimulatorPanel {
     const stepUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this.extensionUri, 'media', 'step.png')
     );
+    const autoRouteUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, 'media', 'autoroutage.png')
+    );
+    const fitViewUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, 'media', 'recentrer.svg')
+    );
     const nonce = getNonce();
     const version =
       vscode.extensions.getExtension('franksauret.kablix')?.packageJSON?.version ?? '';
@@ -937,9 +943,9 @@ export class SimulatorPanel {
         <!-- Barre droite : recentrer/ajuster, réinitialiser, effacer (alignée et de
              même hauteur que la barre de simulation à gauche). -->
         <div class="canvas-controls canvas-controls--right" role="toolbar">
-          <button id="auto-route" class="canvas-controls__btn" title="${l10n.t('Auto-route the wires (right angles) — selection, or whole diagram')}">∟</button>
-          <button id="fit-view" class="canvas-controls__btn" title="${l10n.t('Recenter and fit the view')}">⤢</button>
-          <button id="reset-sim" class="canvas-controls__btn" title="${l10n.t('Reset all components to their initial state')}">⟲</button>
+          <button id="auto-route" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Auto-route the wires (right angles) — selection, or whole diagram')}"><img class="canvas-controls__icon" src="${autoRouteUri}" alt="${l10n.t('Auto-route the wires (right angles) — selection, or whole diagram')}" /></button>
+          <button id="fit-view" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Recenter and fit the view')}"><img class="canvas-controls__icon" src="${fitViewUri}" alt="${l10n.t('Recenter and fit the view')}" /></button>
+          <button id="reset-sim" class="canvas-controls__btn canvas-controls__btn--reset" title="${l10n.t('Reset all components to their initial state')}">⟲</button>
           <button id="clear-canvas" class="canvas-controls__btn canvas-controls__btn--eraser" title="${l10n.t('Clear the diagram (Ctrl+Z to undo)')}"><img class="canvas__clear-icon" src="${gommeUri}" alt="${l10n.t('Clear')}" /></button>
         </div>
         <svg id="wires" class="wires"></svg>

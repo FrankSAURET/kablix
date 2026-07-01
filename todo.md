@@ -9,6 +9,11 @@
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
 7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → bases générées (v2026.6.46), à retoucher par Frank.
 
+# v2026.6.66
+
+1. ✅ **Icônes des boutons de la barre droite** : `autoroutage` (glyphe `∟`) → [`media/autoroutage.png`](media/autoroutage.png) et `recentrer` (glyphe `⤢`) → [`media/recentrer.svg`](media/recentrer.svg), en `<img class="canvas-controls__icon">` + `.canvas-controls__btn--icon` (padding nul) → image la plus grande possible dans le bouton (`object-fit: contain`). URIs `autoRouteUri`/`fitViewUri` ajoutés dans [`panel.ts`](src/panel.ts).
+2. ✅ **Bouton « réinitialiser »** (glyphe `⟲`) agrandi et en gras (`.canvas-controls__btn--reset` : `font-size: 1.5rem; font-weight: 900`).
+
 # v2026.6.65
 
 1. ✅ **Autoroutage par A\*** : `autoRoute()` route désormais chaque fil par un vrai pathfinding orthogonal (`astarRoute`, [`editor.mts`](src/webview/diagram/editor.mts)) au lieu d'un jeu figé de coudes en L/Z. **Graphe de Hanan** : lignes de coordonnées = extrémités + bords des obstacles (gonflés de `clr = GRID/2`) + voies décalées (multiples de `GAP` autour de la médiane). Coût d'arête = longueur + chevauchement/proximité d'autres fils (×6 / ×0.6) + pénalité de coude (`bend = 2·GRID`) ; obstacles = passage interdit (clearance). Tas binaire min, état = nœud × direction. Le coude en L de moindre coût reste en **repli** si A\* ne trouve aucun chemin. Conserve la sortie perpendiculaire (`pinStub`) et le routage séquentiel (chaque fil évite les précédents). Résultat : contourne réellement les grosses cartes, ligne droite quand c'est direct, voie parallèle quand un fil gêne. Testé en isolé (droit / L / contournement sans traverser / évitement de fil / 12 obstacles en 2 ms).
