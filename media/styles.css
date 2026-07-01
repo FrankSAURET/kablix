@@ -513,11 +513,14 @@ body {
   pointer-events: none;
 }
 
-/* Boutons dont l'icône image remplit tout le bouton (padding nul) :
-   pas à pas, autoroutage, recentrer. */
-.canvas-controls__btn.canvas-controls__btn--step,
-.canvas-controls__btn.canvas-controls__btn--icon {
+/* Bouton « pas à pas » : l'image remplit tout le bouton (padding nul). */
+.canvas-controls__btn.canvas-controls__btn--step {
   padding: 0;
+}
+
+/* Boutons autoroutage / recentrer : icône réduite avec une marge tout autour. */
+.canvas-controls__btn.canvas-controls__btn--icon {
+  padding: 5px;
 }
 
 /* Bouton « réinitialiser » : glyphe ⟲ agrandi et en gras. */

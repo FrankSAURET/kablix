@@ -9,6 +9,10 @@
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
 7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → bases générées (v2026.6.46), à retoucher par Frank.
 
+# v2026.6.67
+
+1. ✅ **Icônes autoroutage / recentrer réduites** : `.canvas-controls__btn--icon` passe de `padding: 0` à `padding: 5px` → marge tout autour de l'image dans le bouton.
+
 # v2026.6.66
 
 1. ✅ **Icônes des boutons de la barre droite** : `autoroutage` (glyphe `∟`) → [`media/autoroutage.png`](media/autoroutage.png) et `recentrer` (glyphe `⤢`) → [`media/recentrer.svg`](media/recentrer.svg), en `<img class="canvas-controls__icon">` + `.canvas-controls__btn--icon` (padding nul) → image la plus grande possible dans le bouton (`object-fit: contain`). URIs `autoRouteUri`/`fitViewUri` ajoutés dans [`panel.ts`](src/panel.ts).
