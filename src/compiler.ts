@@ -287,32 +287,38 @@ function moduleNameOf(rel: string): string {
  *   1. `I2C.scan()` de MicroPython sonde chaque adresse par une écriture de
  *      longueur nulle → non menée à terme → figement ;
  *   2. toute transaction vers une adresse ABSENTE (NAK) se fige aussi.
- * On enveloppe `machine.I2C`/`SoftI2C` (par COMPOSITION, pas de sous-classement —
- * MicroPython refuse de sous-classer un type natif) : `scan()` ne sonde PAS le
- * matériel mais renvoie les adresses connues de Kablix (injectées à la place de
- * `_KX_I2C_ADDRS = None` par le moteur, cf. pico.mts), et tout le reste
- * (`writeto`, `readfrom`…) est délégué au vrai objet I²C (adresses présentes =
- * OK). Sans effet hors simulation. Défensif : en cas d'échec, rien n'est altéré.
+ * On ne peut ni sous-classer `machine.I2C` ni réassigner un attribut du module
+ * natif `machine` (lecture seule). On REMPLACE donc le module entier dans
+ * `sys.modules` (comme le pont réseau pour `network`/`urequests`) : un module de
+ * substitution délègue tout au vrai `machine` via `__getattr__`, sauf `I2C`/
+ * `SoftI2C` qu'il enveloppe. Le wrapper délègue `writeto`/`readfrom`… au vrai
+ * objet I²C (adresses présentes = OK) mais `scan()` NE SONDE PAS : il renvoie les
+ * adresses connues de Kablix (injectées à la place de `_KX_I2C_ADDRS = None` par
+ * le moteur, cf. pico.mts). Sans effet hors simulation ; défensif (si ça échoue,
+ * rien n'est altéré et on retombe sur le `machine` d'origine).
  */
 const I2C_SCAN_SHIM = `_KX_I2C_ADDRS = None
 try:
-    import machine as _kx_mac
-    def _kx_wrap(_cn):
-        _Base = getattr(_kx_mac, _cn, None)
-        if _Base is None:
-            return
+    import sys as _kx_sys, machine as _kx_rm
+    def _kx_mk(_base):
         class _KxI2C:
             def __init__(self, *a, **k):
-                self._kx = _Base(*a, **k)
+                self._kx = _base(*a, **k)
             def scan(self):
                 return list(_KX_I2C_ADDRS) if _KX_I2C_ADDRS is not None else []
             def __getattr__(self, _n):
                 if _n == "_kx":
                     raise AttributeError(_n)
                 return getattr(self._kx, _n)
-        setattr(_kx_mac, _cn, _KxI2C)
-    _kx_wrap("I2C")
-    _kx_wrap("SoftI2C")
+        return _KxI2C
+    class _KxMachineMod:
+        def __getattr__(self, _n):
+            return getattr(_kx_rm, _n)
+    _kx_mod = _KxMachineMod()
+    _kx_mod.I2C = _kx_mk(_kx_rm.I2C)
+    if hasattr(_kx_rm, "SoftI2C"):
+        _kx_mod.SoftI2C = _kx_mk(_kx_rm.SoftI2C)
+    _kx_sys.modules["machine"] = _kx_mod
 except Exception:
     pass
 `;

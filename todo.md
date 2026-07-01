@@ -9,9 +9,13 @@
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
 7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → **4 variantes simulables (i2c/parallèle × 16×2/20×4) v2026.6.69**.
 
+# v2026.6.78
+
+1. ✅ **`bus.scan()` I²C : remplacement du module `machine` via `sys.modules` (v77 corrigée)**. La v77 réassignait `machine.I2C`, refusé aussi par MicroPython (module natif en lecture seule) → scan bloquait toujours. Comme le pont réseau (`network`/`urequests`), on REMPLACE le module entier dans `sys.modules` ([`compiler.ts`](src/compiler.ts) `I2C_SCAN_SHIM`) : un module de substitution délègue tout au vrai `machine` (`__getattr__`) sauf `I2C`/`SoftI2C` enveloppés ; `scan()` renvoie les adresses injectées par le moteur ([`pico.mts`](src/webview/engines/pico.mts)), `writeto`/`readfrom` délégués au vrai I²C. Testé en Python : `Pin` délégué, `scan()`→adresse connue, `writeto` délégué.
+
 # v2026.6.77
 
-1. ✅ **`bus.scan()` I²C : rustine par composition + adresses connues (v76 corrigée)**. La v76 (sous-classement de `machine.I2C` + sondage lecture) ne marchait pas : MicroPython **refuse de sous-classer un type natif**, et **toute transaction vers une adresse absente fige** aussi (pas seulement l'écriture longueur nulle) — confirmé : l'adresse en dur marche, le scan bloque. Nouvelle rustine ([`compiler.ts`](src/compiler.ts)) : enveloppe `machine.I2C`/`SoftI2C` par **composition** (`__getattr__` délègue `writeto`/`readfrom`… au vrai objet) ; `scan()` **ne sonde plus** mais renvoie les adresses **injectées par le moteur** ([`pico.mts`](src/webview/engines/pico.mts) `setI2cDevices` remplace `_KX_I2C_ADDRS = None` par les adresses réelles des esclaves). Aucun sondage → aucun figement. Testé (logique) : scan renvoie l'adresse connue, `writeto` délégué.
+1. ✅ **`bus.scan()` I²C : composition + adresses connues (réassignation `machine.I2C` — refusée, cf. v78)**. La v76 (sous-classement de `machine.I2C` + sondage lecture) ne marchait pas : MicroPython **refuse de sous-classer un type natif**, et **toute transaction vers une adresse absente fige** aussi (pas seulement l'écriture longueur nulle) — confirmé : l'adresse en dur marche, le scan bloque. Nouvelle rustine ([`compiler.ts`](src/compiler.ts)) : enveloppe `machine.I2C`/`SoftI2C` par **composition** (`__getattr__` délègue `writeto`/`readfrom`… au vrai objet) ; `scan()` **ne sonde plus** mais renvoie les adresses **injectées par le moteur** ([`pico.mts`](src/webview/engines/pico.mts) `setI2cDevices` remplace `_KX_I2C_ADDRS = None` par les adresses réelles des esclaves). Aucun sondage → aucun figement. Testé (logique) : scan renvoie l'adresse connue, `writeto` délégué.
 
 # v2026.6.76
 
