@@ -9,6 +9,10 @@
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
 7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → **4 variantes simulables (i2c/parallèle × 16×2/20×4) v2026.6.69**.
 
+# v2026.6.71
+
+1. ✅ **Affichage en direct pendant la simulation continue (correctif)**. Deux causes traitées : (a) **tranche moteur AVR** ([`avr.mts`](src/webview/engines/avr.mts)) exprimée en cycles (`CLOCK_HZ/60`) sans plafond temps réel → quand exécuter le budget dépassait une frame, le thread restait saturé et le navigateur ne repeignait **qu'à la pause** ; ajout d'un plafond `MAX_FRAME_MS = 12` (vérif espacée via `performance.now()`) qui rend la main pour laisser peindre. (b) **police LED non décodée** : un `<text>` SVG dont la police n'est pas prête peut rester **invisible** ; le décodage de `led_board-7.ttf` était repoussé pendant la simu (thread chargé), d'où un texte n'apparaissant qu'à l'arrêt. Préchargement `document.fonts.load("20px 'LED Board-7'")` dès l'ouverture ([`sim.mts`](src/webview/sim.mts)) + redraw à la fin du chargement.
+
 # v2026.6.70
 
 1. ✅ **Texte LCD affiché en direct (correctif) + police LED**. Le `<foreignObject>` HTML de `reflectLcd` n'était **repeint qu'à l'arrêt** de la simulation (bug d'invalidation Chromium sur le HTML dans un SVG muté en boucle) → texte remplacé par des `<text>` **SVG natifs** (un par ligne, `textLength` = grille régulière) qui se repeignent à chaque frame comme le 7 segments. Police **« LED Board-7 »** (media/font, `@font-face` dans [`styles.css`](media/styles.css), `font-src` ajouté au CSP de [`panel.ts`](src/panel.ts)) distribuée avec l'extension ; crédits dans [`README.md`](README.md) (Sizenko Alexander / Style-7, freeware, crédit requis). `refreshVisuals` ([`sim.mts`](src/webview/sim.mts)) : chaque composant est désormais rendu dans un `try/catch` → un composant en échec ne fige plus toute la simulation.

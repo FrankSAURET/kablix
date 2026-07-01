@@ -65,6 +65,9 @@ export type AvrFamily = 'avr328' | 'avr2560';
 
 const CLOCK_HZ = 16_000_000;
 const CYCLES_PER_US = CLOCK_HZ / 1_000_000; // 16 cycles = 1 µs
+// Budget temps réel d'une tranche de simulation par frame (ms). Sous cette limite
+// le navigateur garde le temps de repeindre l'affichage ; au-delà on cède la main.
+const MAX_FRAME_MS = 12;
 const VREF = 5;
 // RAMEND du 2560 = 0x21FF : la pile démarre tout en haut de la SRAM, il faut donc
 // dimensionner l'espace données pour le couvrir (data = sramBytes + 0x100).
@@ -854,11 +857,18 @@ export class AvrEngine implements SimEngine {
       // Pendant un pas (stepping) on ignore le ralenti pour le franchir au plus vite.
       const factor = this.stepping ? 1 : this.speed;
       const deadline = this.cpu.cycles + (CLOCK_HZ / 60) * factor;
+      // Plafond temps réel : si exécuter le budget de cycles prend plus qu'une
+      // frame, on rend la main au navigateur pour qu'il REPEIGNE (sinon, quand la
+      // tranche déborde, l'affichage ne se met à jour qu'à l'arrêt / la pause —
+      // le thread reste saturé). La vérif est espacée (performance.now() coûte).
+      const started = performance.now();
+      let guard = 0;
       while (this.cpu.cycles < deadline && !this.isPaused) {
         avrInstruction(this.cpu);
         this.cpu.tick();
         // Actions d'entrée programmées (ECHO ultrason) à échéance en temps simulé.
         if (this.scheduled.length > 0) this.fireScheduled();
+        if ((++guard & 0x1fff) === 0 && performance.now() - started > MAX_FRAME_MS) break;
         const pcBytes = this.cpu.pc * 2;
         // Points d'arrêt : test du PC (en octets) après chaque instruction.
         if (this.breakpoints.size > 0) {

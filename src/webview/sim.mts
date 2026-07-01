@@ -272,6 +272,18 @@ function queueRefresh(): void {
   });
 }
 
+// Précharge la police LED des écrans LCD dès l'ouverture de la webview (thread
+// libre). Un `<text>` SVG dont la police n'est pas encore décodée peut rester
+// invisible ; en cours de simulation le décodage est repoussé (thread saturé),
+// d'où un texte qui n'apparaît qu'à la pause. On force le chargement tôt et on
+// redessine une fois la police prête.
+try {
+  const fonts = (document as unknown as { fonts?: { load(f: string): Promise<unknown> } }).fonts;
+  fonts?.load("20px 'LED Board-7'").then(() => queueRefresh()).catch(() => {});
+} catch {
+  /* API Font Loading absente : repli sur la police à chasse fixe */
+}
+
 function refreshVisuals(): void {
   if (!engine) return;
   const read = (name: string): boolean => engine!.readDigital(name);
