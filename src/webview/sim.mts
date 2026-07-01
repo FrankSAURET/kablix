@@ -142,6 +142,9 @@ const serialEl = document.getElementById('serial') as HTMLPreElement;
 const serialInput = document.getElementById('serial-input') as HTMLInputElement;
 const serialSend = document.getElementById('serial-send') as HTMLButtonElement;
 const clearBtn = document.getElementById('clear-serial') as HTMLButtonElement;
+const serialTitleEl = document.getElementById('serial-title') as HTMLSpanElement;
+const closeSerialBtn = document.getElementById('close-serial') as HTMLButtonElement;
+const toggleSerialBtn = document.getElementById('toggle-serial') as HTMLButtonElement;
 const canvas = document.getElementById('canvas') as HTMLDivElement;
 const palette = document.getElementById('palette') as HTMLDivElement;
 const wiresSvg = document.getElementById('wires') as unknown as SVGSVGElement;
@@ -189,6 +192,43 @@ const appendSerial = (chunk: string): void => {
   serialEl.textContent += chunk;
   serialEl.scrollTop = serialEl.scrollHeight;
 };
+
+/** Vide la console/moniteur série. */
+const clearSerial = (): void => {
+  serialEl.textContent = '';
+};
+
+// --- Fichier de code : état « aucun fichier choisi » --------------------------
+// Vrai dès qu'un fichier de code est associé (chip du canvas). Sinon le bouton
+// s'affiche en jaune sur rouge (avertissement) et clignote au lancement.
+let hasCodeFile = false;
+
+/** Fait clignoter 3 fois le bouton du fichier de code (avertissement : aucun choisi). */
+function blinkCodeFileBtn(): void {
+  codeFileBtn.classList.remove('canvas-controls__file--blink');
+  void codeFileBtn.offsetWidth; // reflow : relance l'animation à chaque appel
+  codeFileBtn.classList.add('canvas-controls__file--blink');
+}
+codeFileBtn.addEventListener('animationend', () => {
+  codeFileBtn.classList.remove('canvas-controls__file--blink');
+});
+
+// --- Visibilité du moniteur série / console -----------------------------------
+let serialVisible = true;
+
+/** Affiche ou masque la section du moniteur série et mémorise le choix. */
+function setSerialVisible(visible: boolean, persist = true): void {
+  serialVisible = visible;
+  serialEl0.hidden = !visible;
+  toggleSerialBtn.classList.toggle('primary', visible);
+  if (persist) saveUiState();
+}
+
+/** Titre du panneau série : « Console » pour un Pico, « Moniteur série » sinon. */
+function updateSerialTitle(): void {
+  serialTitleEl.textContent =
+    boardFamily(board) === 'rp2040' ? t('Console') : t('Serial monitor');
+}
 
 function b64ToBytes(b64: string): Uint8Array {
   const bin = atob(b64);
@@ -1129,6 +1169,11 @@ function stopRun(): void {
   engine = null;
   stopRenderLoop(); // fin du rendu continu
   editor.setLocked(false); // édition du schéma de nouveau possible
+  // Arrêt (ou nouveau lancement, qui commence par un stopRun) : on repart d'un
+  // état propre — console vidée et composants réinitialisés (LED éteintes,
+  // afficheurs vides…). Idem au (re)chargement d'un programme Python.
+  clearSerial();
+  editor.resetVisuals();
   useDebugAsInspector(false); // Propriétés de nouveau dans la colonne de droite
   runBtn.disabled = false;
   stopBtn.disabled = true;
@@ -1160,6 +1205,7 @@ function requestRun(): void {
   // le binaire déjà en mémoire. L'utilisateur exécute ainsi toujours sa dernière
   // version, sans bouton « Compiler » séparé.
   buzzerAudio.resume(); // geste utilisateur : autorise le son du buzzer
+  if (!hasCodeFile) blinkCodeFileBtn(); // aucun fichier choisi : avertissement clignotant
   setStatus(t('Compiling…'));
   vscode.postMessage({ type: 'compile', board, onlyIfChanged: programLoaded });
 }
@@ -1169,8 +1215,7 @@ runBtn.addEventListener('click', requestRun);
 stopBtn.addEventListener('click', stopRun);
 // Tout réinitialiser : arrête la simulation et remet les composants à zéro.
 resetSimBtn.addEventListener('click', () => {
-  stopRun();
-  editor.resetVisuals();
+  stopRun(); // vide déjà la console et réinitialise les composants
   setStatus(t('Reset'));
 });
 // Recentrer et ajuster la vue sur tout le schéma.
@@ -1181,9 +1226,10 @@ autoRouteBtn.addEventListener('click', () => editor.autoRoute());
 clearCanvasBtn.addEventListener('click', () => {
   if (!editor.isLocked()) editor.clear();
 });
-clearBtn.addEventListener('click', () => {
-  serialEl.textContent = '';
-});
+clearBtn.addEventListener('click', clearSerial);
+// Fermer le moniteur série (croix) / le rouvrir (icône écran de la barre).
+closeSerialBtn.addEventListener('click', () => setSerialVisible(false));
+toggleSerialBtn.addEventListener('click', () => setSerialVisible(!serialVisible));
 loadBtn.addEventListener('click', () => {
   vscode.postMessage({ type: 'loadWorkspace', board });
 });
@@ -1226,7 +1272,7 @@ function applyPanelWidths(): void {
 function saveUiState(): void {
   vscode.postMessage({
     type: 'saveUiState',
-    state: { ...paletteState, showLabels, paletteWidth, inspectorWidth },
+    state: { ...paletteState, showLabels, paletteWidth, inspectorWidth, serialVisible },
   });
 }
 
@@ -1297,6 +1343,7 @@ editor.onPartAdded = (part) => {
   if (!target || board === target) return;
   board = target;
   boardSelect.value = board;
+  updateSerialTitle();
   vscode.postMessage({ type: 'board', board });
   programLoaded = false; // le programme compilé était lié à l'autre carte
   stopRun();
@@ -1305,6 +1352,7 @@ editor.onPartAdded = (part) => {
 };
 boardSelect.addEventListener('change', () => {
   board = isBoardId(boardSelect.value) ? boardSelect.value : 'uno';
+  updateSerialTitle();
   vscode.postMessage({ type: 'board', board });
   programLoaded = false; // le programme compilé était lié à l'autre carte
   stopRun();
@@ -1395,6 +1443,7 @@ window.addEventListener('message', (event: MessageEvent) => {
         if (isBoardId(restoredState.board)) {
           board = restoredState.board;
           boardSelect.value = board;
+          updateSerialTitle();
           vscode.postMessage({ type: 'board', board });
         }
         if (typeof restoredState.showLabels === 'boolean') {
@@ -1407,7 +1456,10 @@ window.addEventListener('message', (event: MessageEvent) => {
     case 'codeFile': {
       // Nom du fichier de code à exécuter / déboguer, envoyé par l'extension.
       const name = typeof msg.name === 'string' ? msg.name : null;
+      hasCodeFile = name !== null;
       codeFileBtn.textContent = name ? `📄 ${name}` : `📄 ${t('No file')}`;
+      // Aucun fichier choisi : bouton en jaune sur rouge (avertissement).
+      codeFileBtn.classList.toggle('canvas-controls__file--nofile', !hasCodeFile);
       codeFileBtn.title = name
         ? t('Code file: {0} — click to change', name)
         : t('Code file to run / debug — click to change');
@@ -1453,6 +1505,10 @@ window.addEventListener('message', (event: MessageEvent) => {
         switchBoard(msg.board);
         boardSelect.value = msg.board;
       }
+      // Ouverture d'un projet : recentre et ajuste la vue sur tout le schéma
+      // (comme le bouton « recentrer »). Différé d'une frame : les corps des
+      // composants n'ont leur taille réelle qu'après le rendu.
+      requestAnimationFrame(() => editor.fitView());
       // Statut neutre après chargement (clé déjà traduite dans i18n).
       setStatus(t('Ready'));
       break;
@@ -1467,6 +1523,10 @@ window.addEventListener('message', (event: MessageEvent) => {
       if (typeof state.paletteWidth === 'number') paletteWidth = state.paletteWidth;
       if (typeof state.inspectorWidth === 'number') inspectorWidth = state.inspectorWidth;
       applyPanelWidths();
+      // Visibilité du moniteur série (défaut : affiché) restaurée sans re-persister.
+      if (typeof (state as { serialVisible?: boolean }).serialVisible === 'boolean') {
+        setSerialVisible((state as { serialVisible?: boolean }).serialVisible!, false);
+      }
       paletteState = {
         sort: state.sort === 'alpha' ? 'alpha' : 'category',
         recents: Array.isArray(state.recents) ? state.recents : [],
@@ -1485,6 +1545,7 @@ function switchBoard(target: BoardId): void {
   if (board === target) return;
   board = target;
   boardSelect.value = target;
+  updateSerialTitle();
   stopRun();
 }
 
@@ -1501,5 +1562,6 @@ function ensureFamilyForPayload(payloadBoard: 'uno' | 'pico'): void {
 }
 
 // Feuille de dessin vide au démarrage : l'utilisateur compose son schéma.
+updateSerialTitle(); // titre initial (Moniteur série / Console selon la carte)
 setStatus(t('Ready'));
 vscode.postMessage({ type: 'ready' });

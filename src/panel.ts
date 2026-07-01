@@ -941,6 +941,7 @@ export class SimulatorPanel {
             <option value="0.01">🐌 1 %</option>
           </select>
           <button id="code-file" class="canvas-controls__file" title="${l10n.t('Code file to run / debug — click to change')}">📄 ${l10n.t('No file')}</button>
+          <button id="toggle-serial" class="canvas-controls__btn" title="${l10n.t('Show/hide the serial monitor')}">🖥</button>
         </div>
         <!-- Barre droite : recentrer/ajuster, réinitialiser, effacer (alignée et de
              même hauteur que la barre de simulation à gauche). -->
@@ -964,10 +965,13 @@ export class SimulatorPanel {
       <table id="debug-vars" class="debug__vars"></table>
     </section>
 
-    <section class="serial">
+    <section class="serial" id="serial-section">
       <div class="serial__head">
-        <span>${l10n.t('Serial monitor')}</span>
-        <button id="clear-serial">${l10n.t('Clear')}</button>
+        <span id="serial-title">${l10n.t('Serial monitor')}</span>
+        <span class="serial__head-actions">
+          <button id="clear-serial">${l10n.t('Clear')}</button>
+          <button id="close-serial" title="${l10n.t('Close the serial monitor')}">✕</button>
+        </span>
       </div>
       <pre id="serial" class="serial__out" aria-live="polite"></pre>
       <div class="serial__input">

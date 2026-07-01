@@ -606,6 +606,26 @@ body {
   border-color: var(--vscode-focusBorder, #0e639c);
 }
 
+/* Aucun fichier de code choisi : bouton en jaune sur rouge (avertissement).
+   Double classe pour l'emporter sur .canvas-controls__file. */
+.canvas-controls__file.canvas-controls__file--nofile {
+  color: #ffe14d;
+  background: #b30000;
+  border-color: #ff5b5b;
+  font-weight: 700;
+}
+
+/* Lancement de la simulation sans fichier : clignote 3 fois. */
+.canvas-controls__file.canvas-controls__file--blink {
+  animation: kablix-nofile-blink 0.3s steps(1, end) 3;
+}
+
+@keyframes kablix-nofile-blink {
+  0% { background: #b30000; color: #ffe14d; }
+  50% { background: #ffd500; color: #7a0000; }
+  100% { background: #b30000; color: #ffe14d; }
+}
+
 .wires {
   position: absolute;
   inset: 0;
@@ -1297,6 +1317,12 @@ body {
   margin-bottom: 0.3rem;
 }
 
+.serial__head-actions {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
 .serial__head button {
   font: inherit;
   font-size: 0.75rem;
@@ -1306,6 +1332,13 @@ body {
   background: var(--vscode-input-background, #333);
   color: var(--vscode-input-foreground, #fff);
   cursor: pointer;
+}
+
+/* Croix de fermeture du moniteur série (l'icône écran de la barre le rouvre). */
+#close-serial {
+  padding: 0.15rem 0.45rem;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .serial__out {

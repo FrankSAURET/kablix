@@ -227,6 +227,10 @@ const FR: Record<string, string> = {
     'Aucune variable lisible (définissez des variables au niveau du module pour les inspecter).',
   'No readable variable here.': 'Aucune variable lisible ici.',
 
+  // Moniteur série / console
+  'Serial monitor': 'Moniteur série',
+  'Console': 'Console',
+
   // Barre d'outils du canvas
   'Auto-route the wires (right angles)': 'Autoroutage des fils (angles droits)',
   'Zoom in': 'Zoom avant',
