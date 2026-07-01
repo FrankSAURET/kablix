@@ -283,42 +283,89 @@ function moduleNameOf(rel: string): string {
 }
 
 /**
- * Rassemble les modules utilisateur à rendre importables : fichiers `.py`
- * voisins du script (même dossier, hors script principal) et ceux d'un
- * sous-dossier `lib/` (récursif, convention MicroPython). Ils seront injectés
+ * Extrait les noms de modules importés d'une source Python : `import a, b.c` et
+ * `from x.y import z` → `a`, `b.c`, `x.y`. Heuristique par ligne (ignore les
+ * `import` en commentaire/chaîne dans la plupart des cas ; un faux positif est
+ * sans effet s'il ne correspond à aucun module local). Les imports relatifs
+ * (`from . import ...`) sont ignorés (dépouillés de leurs points de tête).
+ */
+function parsePyImports(source: string): string[] {
+  const names = new Set<string>();
+  const re = /^[ \t]*(?:import[ \t]+(.+)|from[ \t]+(\.*[\w.]+)[ \t]+import\b)/gm;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(source)) !== null) {
+    if (m[2]) {
+      const mod = m[2].replace(/^\.+/, ''); // ignore le préfixe relatif
+      if (mod) names.add(mod);
+    } else if (m[1]) {
+      for (const part of m[1].split(',')) {
+        const name = part.trim().split(/[ \t]+as[ \t]+/)[0].trim();
+        if (name && /^[\w.]+$/.test(name)) names.add(name);
+      }
+    }
+  }
+  return [...names];
+}
+
+/**
+ * Rassemble les modules utilisateur à rendre importables : UNIQUEMENT ceux que
+ * le script principal importe (transitivement), résolus parmi les `.py` voisins
+ * et ceux d'un sous-dossier `lib/`. On n'exécute JAMAIS les autres programmes du
+ * dossier (ils seraient lancés à tort). Les modules retenus sont ensuite injectés
  * dans `sys.modules` (le Pico simulé n'a pas de système de fichiers accessible).
  */
-function collectPythonLibs(scriptPath: string): PyLibModule[] {
+function collectPythonLibs(scriptPath: string, mainSource: string): PyLibModule[] {
   const dir = dirname(scriptPath);
   const main = basename(scriptPath);
-  const out: PyLibModule[] = [];
-  let total = 0;
-  const add = (full: string, rel: string): void => {
-    const data = new Uint8Array(readFileSync(full));
-    total += data.length;
-    if (total > MAX_LIB_BYTES) throw new Error('Librairies trop volumineuses (> 512 Ko).');
-    out.push({ name: moduleNameOf(rel), data });
+  // 1) Indexe les modules locaux candidats (nom d'import → fichier), sans les lire.
+  const index = new Map<string, string>(); // nom de module → chemin absolu
+  const indexFile = (full: string, rel: string): void => {
+    const name = moduleNameOf(rel);
+    if (!index.has(name)) index.set(name, full);
   };
   const walk = (abs: string, rel: string): void => {
     for (const name of readdirSync(abs)) {
       const full = join(abs, name);
       const st = statSync(full);
       if (st.isDirectory()) walk(full, `${rel}${name}/`);
-      else if (extname(name).toLowerCase() === '.py') add(full, `${rel}${name}`);
+      else if (extname(name).toLowerCase() === '.py') indexFile(full, `${rel}${name}`);
     }
   };
   try {
-    // Fichiers .py voisins (hors script principal).
     for (const name of readdirSync(dir)) {
       if (name === main || extname(name).toLowerCase() !== '.py') continue;
       const full = join(dir, name);
-      if (statSync(full).isFile()) add(full, name);
+      if (statSync(full).isFile()) indexFile(full, name);
     }
-    // Sous-dossier lib/ (récursif) — seulement les .py (pas de VFS pour les données).
     const libDir = join(dir, 'lib');
     if (existsSync(libDir) && statSync(libDir).isDirectory()) walk(libDir, 'lib/');
   } catch {
-    return []; // dossier illisible / trop volumineux : on n'injecte rien
+    return []; // dossier illisible : on n'injecte rien
+  }
+  // 2) Parcours en largeur depuis les imports du script : ne retient que les
+  //    modules locaux réellement importés (+ dépendances + paquets parents).
+  const needed = new Set<string>();
+  const out: PyLibModule[] = [];
+  const queue = parsePyImports(mainSource);
+  let total = 0;
+  while (queue.length > 0) {
+    const name = queue.shift()!;
+    if (needed.has(name)) continue;
+    const full = index.get(name);
+    if (!full) continue; // module standard / externe / inexistant : ignoré
+    needed.add(name);
+    let data: Uint8Array;
+    try {
+      data = new Uint8Array(readFileSync(full));
+    } catch {
+      continue;
+    }
+    total += data.length;
+    if (total > MAX_LIB_BYTES) break;
+    out.push({ name, data });
+    for (const dep of parsePyImports(new TextDecoder().decode(data))) queue.push(dep);
+    const dot = name.lastIndexOf('.');
+    if (dot > 0) queue.push(name.slice(0, dot)); // paquet parent (a.b → a)
   }
   return out;
 }
@@ -402,7 +449,8 @@ export function loadPythonProgram(
   if (enableNetwork) script = NET_PREAMBLE + '\n' + script;
   // Modules utilisateur injectés dans sys.modules AVANT tout le reste (le script
   // les importe ensuite comme sur une vraie carte, sans système de fichiers).
-  const libs = scriptPath ? collectPythonLibs(scriptPath) : [];
+  // Seuls les modules RÉELLEMENT importés sont retenus (pas les autres .py du dossier).
+  const libs = scriptPath ? collectPythonLibs(scriptPath, scriptSource) : [];
   const preamble = pythonLibPreamble(libs);
   if (preamble) script = preamble + script;
   return {

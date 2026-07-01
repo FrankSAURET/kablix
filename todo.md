@@ -9,6 +9,10 @@
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
 7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → **4 variantes simulables (i2c/parallèle × 16×2/20×4) v2026.6.69**.
 
+# v2026.6.75
+
+1. ✅ **Libs Pico : n'injecter QUE les modules importés (correctif majeur)**. Bug : `collectPythonLibs` ramassait **tous** les `.py` du dossier et les **exécutait** comme modules → les autres programmes (`blink.py`…) tournaient à tort (boucle infinie → « rien ne marche », pas de banner, `blink` s'exécute à la place du script). Correctif ([`compiler.ts`](src/compiler.ts)) : `parsePyImports` extrait les imports du script, puis **BFS** ne retient que les modules **locaux réellement importés** (+ dépendances transitives + paquets parents) parmi les voisins et `lib/`. Les autres `.py` ne sont jamais touchés. Testé : `hi.py` (sans import) → aucune lib ; script LCD → `lcd_api` + `pico_i2c_lcd` uniquement (pas `blink.py`).
+
 # v2026.6.74
 
 1. ✅ **Librairies Pico via `sys.modules` (correctif ENODEV)**. Le Pico simulé n'a **pas de système de fichiers monté** (`OSError 19 ENODEV` à l'écriture) : l'approche « copier les fichiers sur le VFS » (v72) échouait. Nouvelle méthode ([`compiler.ts`](src/compiler.ts)) : chaque module `.py` (voisin du script ou dans `lib/`) est **exécuté dans son propre espace de noms puis déposé dans `sys.modules`** — aucun accès disque. L'ordre des dépendances est résolu par **réessais** (un module qui en importe un autre pas encore prêt est reporté). Repli si `type(sys)(name)` indisponible (objet-instance). Testé en Python réel : `lcd_api` ← `pico_i2c_lcd` ← script (héritage inter-modules OK), y compris la branche de repli. Aide mise à jour ([`help.ts`](src/help.ts)).
