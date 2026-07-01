@@ -95,6 +95,11 @@ const ZOOM_MIN = 0.2;
 const ZOOM_MAX = 10; // 1000 %
 /** Pas de la grille magnétique d'alignement (px) = écartement des broches. */
 const GRID = 10;
+/** Dimensions de la feuille de dessin (px monde) : origine (0,0) = coin
+ * haut-gauche, centre = (SHEET_W/2, SHEET_H/2). Finie pour que « centrer la
+ * feuille » ait un sens (bords jaunes visibles en vue ajustée). */
+const SHEET_W = 4000;
+const SHEET_H = 3000;
 /** Aligne une coordonnée sur la grille magnétique. */
 const snapToGrid = (v: number): number => Math.round(v / GRID) * GRID;
 /**
@@ -220,6 +225,8 @@ export class Editor {
     // monde transformé → elle suit le zoom/translation sans calcul manuel.
     const sheet = document.createElement('div');
     sheet.className = 'canvas__sheet';
+    sheet.style.width = `${SHEET_W}px`;
+    sheet.style.height = `${SHEET_H}px`;
     this.world.appendChild(sheet);
     this.world.appendChild(this.svg); // reparent le SVG des fils dans le monde
 
@@ -413,18 +420,53 @@ export class Editor {
     this.applyTransform();
   };
 
-  private resetView(): void {
-    // L'origine du monde (0,0) est posée au centre de la zone utile (sous les
-    // barres) plutôt qu'au coin haut-gauche : les composants posés près de
-    // l'origine ne se retrouvent plus coincés sous les barres (zone morte où on
-    // ne pouvait plus les attraper). Vue de démarrage centrée, zoom 100 %.
-    this.zoom = 1;
+  /**
+   * Boîte englobante du contenu (composants + coudes de fils) en coordonnées
+   * monde, ou `null` si l'atelier est vide. Sert au recentrage (resetView/fitView).
+   */
+  private contentBounds(): { minX: number; minY: number; maxX: number; maxY: number } | null {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    const grow = (x: number, y: number): void => {
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    };
+    for (const r of this.rendered.values()) {
+      const body = r.container.querySelector('.part__body') as HTMLElement | null;
+      const w = body?.offsetWidth || 40;
+      const h = body?.offsetHeight || 40;
+      grow(r.part.x, r.part.y);
+      grow(r.part.x + w, r.part.y + h);
+    }
+    for (const wire of this.diagram.wires) {
+      for (const p of wire.points ?? []) grow(p.x, p.y);
+    }
+    return isFinite(minX) ? { minX, minY, maxX, maxY } : null;
+  }
+
+  /** Centre `(wx, wy)` (monde) dans la zone utile (sous les barres) au zoom courant. */
+  private centerOn(wx: number, wy: number): void {
+    const topInset = 56;
     const cw = this.canvas.clientWidth || 800;
     const ch = this.canvas.clientHeight || 600;
-    const topInset = 56;
-    this.panX = cw / 2;
-    this.panY = (ch + topInset) / 2;
+    this.panX = cw / 2 - wx * this.zoom;
+    this.panY = (ch + topInset) / 2 - wy * this.zoom;
     this.applyTransform();
+  }
+
+  /**
+   * Retour à 100 %, centré sur le dessin (comme « recentrer » mais sans ajuster
+   * le zoom). Atelier vide → centre la feuille de dessin dans la zone utile.
+   */
+  private resetView(): void {
+    this.zoom = 1;
+    const b = this.contentBounds();
+    if (b) this.centerOn((b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2);
+    else this.centerOn(SHEET_W / 2, SHEET_H / 2);
   }
 
   /** Déplacement de la vue à la souris (bouton central), en pixels écran. */
@@ -451,30 +493,12 @@ export class Editor {
    * fils) tienne dans la zone visible, avec une marge. Atelier vide → vue 100%.
    */
   fitView(): void {
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    const grow = (x: number, y: number): void => {
-      minX = Math.min(minX, x);
-      minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x);
-      maxY = Math.max(maxY, y);
-    };
-    for (const r of this.rendered.values()) {
-      const body = r.container.querySelector('.part__body') as HTMLElement | null;
-      const w = body?.offsetWidth || 40;
-      const h = body?.offsetHeight || 40;
-      grow(r.part.x, r.part.y);
-      grow(r.part.x + w, r.part.y + h);
-    }
-    for (const wire of this.diagram.wires) {
-      for (const p of wire.points ?? []) grow(p.x, p.y);
-    }
-    if (!isFinite(minX)) {
+    const b = this.contentBounds();
+    if (!b) {
       this.resetView();
       return;
     }
+    const { minX, minY, maxX, maxY } = b;
     const margin = 40;
     // Les barres d'outils flottantes (simulation à gauche, vue à droite)
     // occupent le haut du canvas : on réserve une marge supérieure pour que le
@@ -2238,7 +2262,8 @@ export class Editor {
         const poly = [a, pa, ...c, pb, b];
         const comp = polylineRectOverlap(poly, others);
         const { overlap, near } = polylineWireCost(poly, otherSegs, GAP);
-        return comp * 3 + overlap * 6 + near * 0.6;
+        // Traverser un composant ou suivre un fil est proscrit : poids massifs.
+        return comp * 100 + overlap * 100 + near * 0.6;
       };
       const pick = (cands: XY[][]): XY[] => {
         let best = cands[0];
@@ -3512,23 +3537,32 @@ function astarRoute(
   const bj = ys.indexOf(pb.y);
   if (ai < 0 || aj < 0 || bi < 0 || bj < 0) return null;
 
-  // Un segment [p,q] aligné traverse-t-il l'intérieur d'un bloc ? (test au milieu :
-  // valide car aucun bord d'obstacle ne tombe entre deux lignes consécutives.)
+  // Un pin peut tomber dans la clearance d'un AUTRE composant (composants
+  // jointifs) : on n'interdit pas de traverser un bloc contenant une borne,
+  // sinon le fil ne pourrait jamais sortir de sa broche.
+  const inRect = (b: { x: number; y: number; w: number; h: number }, p: XY): boolean =>
+    p.x > b.x - 0.5 && p.x < b.x + b.w + 0.5 && p.y > b.y - 0.5 && p.y < b.y + b.h + 0.5;
+  const solid = blocks.filter((b) => !inRect(b, pa) && !inRect(b, pb));
+  // Un segment [p,q] aligné traverse-t-il l'intérieur d'un composant ? (test au
+  // milieu : valide car aucun bord n'est entre deux lignes de Hanan voisines.)
   const blocked = (p: XY, q: XY): boolean => {
     const mx = (p.x + q.x) / 2;
     const my = (p.y + q.y) / 2;
-    for (const b of blocks) {
+    for (const b of solid) {
       if (mx > b.x + 0.5 && mx < b.x + b.w - 0.5 && my > b.y + 0.5 && my < b.y + b.h - 0.5) return true;
     }
     return false;
   };
-  // Pénalité « fils » d'un segment (chevauchement colinéaire + proximité parallèle).
+  // Interdit : un segment qui se superpose (colinéaire) à un fil existant — un
+  // fil ne « suit » jamais un autre. En revanche les fils peuvent se croiser.
+  const wireBlocked = (p: XY, q: XY): boolean => {
+    for (const [s, t] of otherSegs) if (collinearOverlap(p, q, s, t) > 2) return true;
+    return false;
+  };
+  // Pénalité douce : proximité parallèle d'un autre fil (écarte les fils voisins).
   const wireCost = (p: XY, q: XY): number => {
     let c = 0;
-    for (const [s, t] of otherSegs) {
-      c += collinearOverlap(p, q, s, t) * 6;
-      c += parallelPenalty(p, q, s, t, gap) * 0.6;
-    }
+    for (const [s, t] of otherSegs) c += parallelPenalty(p, q, s, t, gap) * 0.6;
     return c;
   };
   const heur = (i: number, j: number): number => Math.abs(xs[i] - pb.x) + Math.abs(ys[j] - pb.y);
@@ -3600,6 +3634,12 @@ function astarRoute(
       const p = { x: xs[cur.i], y: ys[cur.j] };
       const q = { x: xs[ni], y: ys[nj] };
       if (blocked(p, q)) continue;
+      // Chevauchement de fil interdit — sauf sur une arête touchant une borne
+      // (plusieurs fils partagent parfois la même broche : la sortie est tolérée).
+      const endEdge =
+        (cur.i === ai && cur.j === aj) || (cur.i === bi && cur.j === bj) ||
+        (ni === ai && nj === aj) || (ni === bi && nj === bj);
+      if (!endEdge && wireBlocked(p, q)) continue;
       const dir = di !== 0 ? 0 : 1;
       const len = Math.abs(q.x - p.x) + Math.abs(q.y - p.y);
       const g = cur.g + len + wireCost(p, q) + (cur.dir !== 2 && cur.dir !== dir ? bend : 0);

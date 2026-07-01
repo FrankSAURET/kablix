@@ -9,6 +9,10 @@
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
 7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → bases générées (v2026.6.46), à retoucher par Frank.
 
+# v2026.6.68
+
+1. ✅ **Autoroutage : composants et fils devenus infranchissables** (`astarRoute`, [`editor.mts`](src/webview/diagram/editor.mts)). Le chevauchement colinéaire d'un fil existant passe de **pénalité douce (×6)** à **interdiction dure** (`wireBlocked`) — un fil ne « suit » plus jamais un autre ; les **croisements perpendiculaires restent autorisés**. Une borne coincée dans la clearance d'un **autre** composant (composants jointifs) n'interdit plus la sortie (`solid` = blocs excluant ceux qui contiennent `pa`/`pb`) → A\* ne renvoie plus `null` près des broches. Tolérance de chevauchement sur les arêtes touchant une borne (fils partageant une même broche). Repli L/Z durci : traverser un composant ou suivre un fil = poids ×100 (au lieu de ×3 / ×6). Testé en isolé : croisement ⟂ OK, fil couvrant → voie parallèle sans chevauchement, obstacle contourné.
+
 # v2026.6.67
 
 1. ✅ **Icônes autoroutage / recentrer réduites** : `.canvas-controls__btn--icon` passe de `padding: 0` à `padding: 5px` → marge tout autour de l'image dans le bouton.
