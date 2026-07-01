@@ -8,6 +8,10 @@
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
 7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → **4 variantes simulables (i2c/parallèle × 16×2/20×4) v2026.6.69**.
 
+# v2026.6.81
+
+1. ✅ **Autoroutage : les fils ne traversent plus le corps des composants** (repro Frank : Pico→LCD). Deux causes ([`editor.mts`](src/webview/diagram/editor.mts)) : (a) l'A\* excluait des obstacles **les deux composants d'extrémité** du fil (`others`) → un fil pouvait traverser librement le Pico **et** le LCD ; désormais on lui passe **tous** les composants (`obstacles`), le filtre `solid` interne laissant seulement la broche s'échapper. (b) `pinStub` renvoyait `null` pour une broche **sur le bord** du corps (dX < 2) → pas de sortie forcée, l'A\* abordait la broche en traversant le corps ; il produit maintenant un **stub sortant** (prolongé à l'extérieur) pour toute broche sur le bord ou à l'intérieur, et ne renvoie `null` que pour une broche franchement **hors** du corps (patte saillante, seuil `-OUT`). Vérifié en isolé : scénario Pico→LCD, survol total **175 px → 5 px** (les 5 px = la patte de la broche, inévitable). `verify:all` (9 suites) OK.
+src/webview/diagram/editor.mts
 # v2026.6.80
 
 1. ✅ **Moniteur série renommé « Console » pour les Pico**. Titre du panneau série dynamique ([`sim.mts`](src/webview/sim.mts) `updateSerialTitle`) : « Console » si carte RP2040 (pico/picow), « Moniteur série » sinon ; recalculé à chaque changement de carte + au démarrage. Span `#serial-title` ([`panel.ts`](src/panel.ts)), clés i18n `Console`/`Serial monitor` (webview + bundle FR).

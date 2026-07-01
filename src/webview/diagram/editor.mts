@@ -2188,8 +2188,11 @@ export class Editor {
    * Point de sortie **perpendiculaire au bord le plus proche** du corps d'un
    * composant : le fil quitte la broche tout droit, vers l'extérieur, au lieu de
    * traverser le composant. S'applique à tout composant dont la broche est *dans*
-   * le corps (cartes, platines, gros modules). Renvoie null si la broche est déjà
-   * sur le bord ou hors du corps (pattes saillantes d'un petit composant : aucune
+   * le corps **ou sur son bord** (cartes, platines, gros modules, broches d'un LCD
+   * alignées sur le bord) : la sortie est prolongée de `len` **à l'extérieur** du
+   * corps, si bien que l'A\* aborde ensuite la broche depuis l'extérieur au lieu de
+   * traverser le corps pour l'atteindre. Renvoie null seulement pour une broche
+   * franchement **hors du corps** (patte saillante d'un petit composant : aucune
    * traversée à craindre).
    */
   private pinStub(end: Endpoint, center: XY, rects: Map<string, PartRect>, len: number): XY | null {
@@ -2201,9 +2204,11 @@ export class Editor {
     const dBot = box.y + box.h - center.y;
     const dLeft = center.x - box.x;
     const dRight = box.x + box.w - center.x;
-    // Broche sur le bord ou hors du corps : pas de sortie à forcer.
-    const INSET = 2;
-    if (dTop < INSET || dBot < INSET || dLeft < INSET || dRight < INSET) return null;
+    // Broche franchement en dehors du corps (patte saillante) : aucune sortie à
+    // forcer. En revanche, une broche SUR le bord (dX ≈ 0) reçoit bien un stub
+    // sortant (le fil ne doit pas repasser par le corps pour l'atteindre).
+    const OUT = 2;
+    if (dTop < -OUT || dBot < -OUT || dLeft < -OUT || dRight < -OUT) return null;
     const m = Math.min(dTop, dBot, dLeft, dRight);
     if (m === dTop) return { x: center.x, y: box.y - len };
     if (m === dBot) return { x: center.x, y: box.y + box.h + len };
@@ -2278,9 +2283,14 @@ export class Editor {
         return best;
       };
       let inner: XY[] = [];
-      // Routeur A* (contourne les obstacles et les fils). Le chemin va de pa à
+      // Routeur A* (contourne les obstacles et les fils). On lui passe **tous** les
+      // composants, y compris les deux d'extrémité : la broche est déjà sortie du
+      // corps par `pinStub`, donc l'A\* ne doit plus jamais retraverser un corps —
+      // ni celui d'où part le fil, ni celui d'arrivée. (Le filtre `solid` interne à
+      // `astarRoute` exclut malgré tout le bloc qui contient encore le point de
+      // départ/arrivée, pour laisser la broche s'échapper.) Le chemin va de pa à
       // pb inclus ; on retire ces deux bornes (réinjectées via sa/sb ou a/b).
-      const path = astarRoute(pa, pb, others, otherSegs, { clr: GRID / 2, bend: 2 * GRID, gap: GAP });
+      const path = astarRoute(pa, pb, obstacles, otherSegs, { clr: GRID / 2, bend: 2 * GRID, gap: GAP });
       if (path && path.length >= 2) {
         inner = path.slice(1, -1);
       } else if (Math.abs(pa.x - pb.x) > TOL && Math.abs(pa.y - pb.y) > TOL) {
