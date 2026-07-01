@@ -9,6 +9,10 @@
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
 7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → **4 variantes simulables (i2c/parallèle × 16×2/20×4) v2026.6.69**.
 
+# v2026.6.74
+
+1. ✅ **Librairies Pico via `sys.modules` (correctif ENODEV)**. Le Pico simulé n'a **pas de système de fichiers monté** (`OSError 19 ENODEV` à l'écriture) : l'approche « copier les fichiers sur le VFS » (v72) échouait. Nouvelle méthode ([`compiler.ts`](src/compiler.ts)) : chaque module `.py` (voisin du script ou dans `lib/`) est **exécuté dans son propre espace de noms puis déposé dans `sys.modules`** — aucun accès disque. L'ordre des dépendances est résolu par **réessais** (un module qui en importe un autre pas encore prêt est reporté). Repli si `type(sys)(name)` indisponible (objet-instance). Testé en Python réel : `lcd_api` ← `pico_i2c_lcd` ← script (héritage inter-modules OK), y compris la branche de repli. Aide mise à jour ([`help.ts`](src/help.ts)).
+
 # v2026.6.73
 
 1. ✅ **Boucle de rendu continue (correctif LCD seul)**. Indice de Frank : *LCD seul = pas d'affichage ; +7 segments = le LCD marche*. Le 7 segments multiplexé fournissait un flux d'invalidations continu qui forçait la repeinture du calque transformé du canvas ; une mise à jour **ponctuelle** (LCD écrit puis inactif) ne « prenait » pas. On garantit ce flux nous-mêmes : boucle `requestAnimationFrame` (`renderTick`) qui redessine à chaque frame tant que le moteur tourne ([`sim.mts`](src/webview/sim.mts)), démarrée dans `startRun`, arrêtée dans `stopRun` — découplée du moteur (qui cède la main via `setTimeout`, cf. v72). Léger (`refreshVisuals` ~1 ms).
