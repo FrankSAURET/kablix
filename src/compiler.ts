@@ -283,6 +283,36 @@ function moduleNameOf(rel: string): string {
 }
 
 /**
+ * Rustine I²C pour le Pico SIMULÉ : `I2C.scan()` de MicroPython sonde chaque
+ * adresse par une écriture de LONGUEUR NULLE, cas que l'émulation I²C de rp2040js
+ * ne mène pas à terme → `scan()` se fige. On remplace `scan` (sur `machine.I2C`
+ * et `machine.SoftI2C`) par un sondage en LECTURE d'un octet, qui déclenche une
+ * vraie transaction (ACK → présent, NAK → OSError ignorée). Sans effet sur une
+ * vraie carte : le préambule n'est injecté que pour la simulation Kablix.
+ * Défensif : si le sous-classement d'un type natif échoue, on n'altère rien.
+ */
+const I2C_SCAN_SHIM = `try:
+    import machine as _kx_mac
+    def _kx_scan(self):
+        _f = []
+        for _a in range(0x08, 0x78):
+            try:
+                self.readfrom(_a, 1)
+                _f.append(_a)
+            except OSError:
+                pass
+        return _f
+    for _kx_cn in ("I2C", "SoftI2C"):
+        _kx_b = getattr(_kx_mac, _kx_cn, None)
+        if _kx_b is not None:
+            class _KxI2C(_kx_b):
+                scan = _kx_scan
+            setattr(_kx_mac, _kx_cn, _KxI2C)
+except Exception:
+    pass
+`;
+
+/**
  * Extrait les noms de modules importés d'une source Python : `import a, b.c` et
  * `from x.y import z` → `a`, `b.c`, `x.y`. Heuristique par ligne (ignore les
  * `import` en commentaire/chaîne dans la plupart des cas ; un faux positif est
@@ -453,6 +483,9 @@ export function loadPythonProgram(
   const libs = scriptPath ? collectPythonLibs(scriptPath, scriptSource) : [];
   const preamble = pythonLibPreamble(libs);
   if (preamble) script = preamble + script;
+  // Rustine du scan I²C (évite le figement sur `bus.scan()` en simulation) — en
+  // tout premier, avant l'import de `machine` par le script/les modules.
+  script = I2C_SCAN_SHIM + script;
   return {
     payload: {
       board: 'pico',

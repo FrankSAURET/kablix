@@ -9,6 +9,10 @@
 6. ✅ Le routage automatique est mieux : 2 fils peuvent se croiser mais pas se chevaucher, écart mini 5 px → v2026.6.46.
 7. ✅ Afficheur LCD 16x2 et 20x4 à retoucher, sortis dans svg retouche → **4 variantes simulables (i2c/parallèle × 16×2/20×4) v2026.6.69**.
 
+# v2026.6.76
+
+1. ✅ **`bus.scan()` I²C ne fige plus le Pico simulé**. `I2C.scan()` de MicroPython sonde chaque adresse par une écriture de **longueur nulle** — cas non mené à terme par l'émulation I²C de rp2040js → figement. Rustine ([`compiler.ts`](src/compiler.ts), `I2C_SCAN_SHIM`) injectée en tête de tout script Pico : remplace `scan` sur `machine.I2C`/`SoftI2C` par un sondage en **lecture 1 octet** (vraie transaction : ACK = présent, NAK = OSError ignorée). Sous-classement défensif (si un type natif refuse, rien n'est altéré). Testé (logique) : scan renvoie la seule adresse présente. Le décodage LCD (Lcd1602Device) et l'overlay texte suivent le chemin I²C normal.
+
 # v2026.6.75
 
 1. ✅ **Libs Pico : n'injecter QUE les modules importés (correctif majeur)**. Bug : `collectPythonLibs` ramassait **tous** les `.py` du dossier et les **exécutait** comme modules → les autres programmes (`blink.py`…) tournaient à tort (boucle infinie → « rien ne marche », pas de banner, `blink` s'exécute à la place du script). Correctif ([`compiler.ts`](src/compiler.ts)) : `parsePyImports` extrait les imports du script, puis **BFS** ne retient que les modules **locaux réellement importés** (+ dépendances transitives + paquets parents) parmi les voisins et `lib/`. Les autres `.py` ne sont jamais touchés. Testé : `hi.py` (sans import) → aucune lib ; script LCD → `lcd_api` + `pico_i2c_lcd` uniquement (pas `blink.py`).
