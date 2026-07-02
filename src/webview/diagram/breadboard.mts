@@ -19,7 +19,7 @@ export const BREADBOARD_SIZES: Record<BreadboardSize, BreadboardSpec> = {
   full: { cols: 63, rails: true },
 };
 
-/** Pas entre deux trous (aligné sur l'écartement des broches @wokwi/elements). */
+/** Pas entre deux trous (aligné sur l'écartement des broches des composants forkés). */
 export const BB_STEP = 10;
 const MARGIN_X = 16;
 const RAIL_TOP_P = 10; // rail + du haut

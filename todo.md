@@ -11,6 +11,15 @@
 8. ✅ À chaque **chargement d'un fichier Python** : effacer la console, éteindre la simulation, réinitialiser les composants. À l'**arrêt de la simulation** : effacer la console, réinitialiser les composants. → v2026.6.80
 9. ⬜ Mettre à jour le **câblage interne du potentiomètre** → [`svg/pot-schema.edit.svg`](svg/pot-schema.edit.svg).
 
+# v2026.6.87
+
+1. ✅ **Fork complet de `@wokwi/elements` 1.9.2** : les 36 éléments utilisés + 9 fichiers support (`pin`, `utils/*`, `types/rgb`, `patterns/pins-female`, police LCD) sont copiés dans [`src/webview/composants/`](src/webview/composants/) au format maison (.mts, **sans décorateurs** : `static properties` + `declare` + constructeur, imports `.mjs`, en-tête d'attribution). Licence MIT conservée : [`LICENSE-wokwi.md`](src/webview/composants/LICENSE-wokwi.md). Les retouches se feront désormais **directement dans ces fichiers**.
+2. ✅ **Balises renommées `wokwi-*` → `kablix-*`** (36 tags, catalogue mis à jour). Compat totale : les fichiers `.kablix` stockent des types courts (inchangés) ; l'import/export Wokwi (`wokwi.mts`) convertit par échange de préfixe 1:1.
+3. ✅ **Dépendance `@wokwi/elements` supprimée** de `package.json` ; `lit` 3.3.3 passe en dépendance directe (surveillée par `updates.ts` à la place de `@wokwi/elements` ; aide mise à jour). Plus aucune référence directe à wokwi dans le code (seules restent l'attribution MIT et l'interop diagram.json).
+4. ✅ **slide-pot.mts fusionné** dans le fork [`slide-potentiometer-element.mts`](src/webview/composants/slide-potentiometer-element.mts) (dessin retouché + broches sur grille + glisse réimplémentée) ; l'ancienne machinerie de drag d'origine (CTM workaround, zoom storybook) retirée avec son dessin.
+5. ✅ Scripts de retouche/probe ([`build-retouche.mjs`](scripts/build-retouche.mjs), `_gen-pot-schema`, `_probe-mega`) rebranchés sur les forks locaux.
+6. ✅ **Validation** : typecheck OK ; build OK ; `verify:all` 9 suites OK ; **comparaison headless fork ↔ amont** (Chrome, mêmes attributs) : 35/35 éléments **identiques** (viewBox, taille, `pinInfo`, SVG interne), slide-potentiometer retouché fonctionnel ; LCD `text` validé par propriété **et** par attribut.
+
 # v2026.6.86
 
 1. ✅ **Bug** : le bouton 6 mm affichait un cercle noir (repos) / blanc (appuyé) au lieu du dégradé teinté attendu. Cause : la retouche Inkscape avait figé les dégradés `grad-up/down-pushbutton0` en coordonnées absolues (`gradientUnits="userSpaceOnUse"`, vecteur minuscule) alors que le cercle avait été mis à l'échelle/déplacé — le dernier point du dégradé (sans couleur = noir) débordait sur tout le disque. Remis en `objectBoundingBox` (0→1, comme le composant Wokwi d'origine) dans [`button-6mm.svg`](src/webview/composants/externe/button-6mm.svg) : le bombé blanc→couleur→ombre s'affiche correctement, quelle que soit la couleur choisie. Bouton 12 mm non touché (déjà correct, coordonnées locales préservées).

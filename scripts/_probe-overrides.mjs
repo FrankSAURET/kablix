@@ -2,7 +2,7 @@
 // retouché : centre de chaque rond rouge (id="pin-<nom>") résolu via getCTM dans
 // le repère = COIN HAUT-GAUCHE DE LA FEUILLE (viewBox 0,0), SANS marge, position
 // telle quelle. C'est la convention v2026.6.48 (mega), à employer pour TOUS les
-// dessins retouchés affichés à la place du rendu @wokwi.
+// dessins retouchés affichés à la place du rendu Lit.
 //
 // Usage : node scripts/_probe-overrides.mjs <type> [<type> ...]
 //   <type> = nom de fichier sans « .edit.svg » NI suffixe d'état. On accepte les

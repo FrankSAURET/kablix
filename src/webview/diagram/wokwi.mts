@@ -1,7 +1,8 @@
 // Interopérabilité avec le format de projet Wokwi (« diagram.json »).
-// Les composants intégrés de Kablix utilisent déjà les éléments @wokwi/elements
-// (mêmes tags, mêmes noms de broches), la conversion est donc directe :
-//   - type      : tag @wokwi/elements (cas particuliers : carte Pico et platine) ;
+// Les composants intégrés de Kablix sont des forks 1:1 des éléments Wokwi
+// (balises kablix-* ↔ wokwi-*, mêmes noms de broches), la conversion est donc un
+// simple échange de préfixe :
+//   - type      : balise kablix-* → wokwi-* (cas particuliers : carte Pico et platine) ;
 //   - position  : left = x, top = y (pixels) ; rotate = rotation ;
 //   - liaisons  : [ "idA:broche", "idB:broche", couleur, chemin ].
 //
@@ -79,7 +80,8 @@ const WOKWI_ALIASES: Record<string, string> = {
 };
 
 function wokwiTypeOf(def: PartDef): string {
-  return KABLIX_TO_WOKWI[def.type] ?? def.tag; // les autres tags sont déjà « wokwi-… »
+  // Forks 1:1 : la balise kablix-* correspond au type Wokwi wokwi-* du même nom.
+  return KABLIX_TO_WOKWI[def.type] ?? def.tag.replace(/^kablix-/, 'wokwi-');
 }
 
 /** Type interne Kablix correspondant à un type Wokwi, ou null si inconnu. */
@@ -88,7 +90,8 @@ function kablixTypeOf(wokwiType: string): string | null {
     if (w === wokwiType) return k;
   }
   if (WOKWI_ALIASES[wokwiType]) return WOKWI_ALIASES[wokwiType];
-  const def = CATALOG.find((d) => d.tag === wokwiType);
+  const tag = wokwiType.replace(/^wokwi-/, 'kablix-');
+  const def = CATALOG.find((d) => d.tag === tag);
   return def ? def.type : null;
 }
 

@@ -1,5 +1,5 @@
 // Génère des SVG de retouche de brochage (« svg retouche/<nom>.edit.svg ») pour
-// les composants @wokwi/elements — y compris leurs SOUS-VARIANTES dont la position
+// les composants forkés (src/webview/composants) — y compris leurs SOUS-VARIANTES dont la position
 // des broches change (clavier 3×4 vs 4×4, LCD I²C / parallèle / 20×4…).
 //
 // Chaque fichier contient : le dessin RÉEL du composant (rendu via Chrome headless
@@ -39,21 +39,21 @@ const VARIANTS = [
   {
     name: 'keypad-3col',
     module: 'membrane-keypad-element.js',
-    tag: 'wokwi-membrane-keypad',
+    tag: 'kablix-membrane-keypad',
     attrs: { columns: '3', connector: 'true' },
     pinScale: 1,
   },
   {
     name: 'lcd-i2c',
     module: 'lcd1602-element.js',
-    tag: 'wokwi-lcd1602',
+    tag: 'kablix-lcd1602',
     attrs: { pins: 'i2c' },
     pinScale: PIN_SCALE_95,
   },
   {
     name: 'lcd-i2c-20x4',
     module: 'lcd1602-element.js',
-    tag: 'wokwi-lcd1602',
+    tag: 'kablix-lcd1602',
     attrs: { pins: 'i2c' },
     props: { numCols: 20, numRows: 4 }, // propriétés (non réactives en attribut)
     pinScale: PIN_SCALE_95,
@@ -61,14 +61,14 @@ const VARIANTS = [
   {
     name: 'lcd', // LCD parallèle 16×2 (HD44780, 16 broches)
     module: 'lcd1602-element.js',
-    tag: 'wokwi-lcd1602',
+    tag: 'kablix-lcd1602',
     attrs: { pins: 'full' },
     pinScale: PIN_SCALE_95,
   },
   {
     name: 'lcd-parallel-20x4',
     module: 'lcd1602-element.js',
-    tag: 'wokwi-lcd1602',
+    tag: 'kablix-lcd1602',
     attrs: { pins: 'full' },
     props: { numCols: 20, numRows: 4 }, // propriétés (non réactives en attribut)
     pinScale: PIN_SCALE_95,
@@ -78,14 +78,14 @@ const VARIANTS = [
   {
     name: '7seg-2dig',
     module: '7segment-element.js',
-    tag: 'wokwi-7segment',
+    tag: 'kablix-7segment',
     props: { digits: 2 },
     pinScale: 1,
   },
   {
     name: '7seg-4dig',
     module: '7segment-element.js',
-    tag: 'wokwi-7segment',
+    tag: 'kablix-7segment',
     props: { digits: 4 },
     pinScale: 1,
   },
@@ -93,7 +93,7 @@ const VARIANTS = [
   {
     name: 'flame',
     module: 'flame-sensor-element.js',
-    tag: 'wokwi-flame-sensor',
+    tag: 'kablix-flame-sensor',
     pinScale: PIN_SCALE_96,
   },
 ];
@@ -109,7 +109,7 @@ if (todo.length === 0) {
 //    et publie {viewBox, inner, pinInfo} dans #result.
 const modules = [...new Set(todo.map((v) => v.module))];
 const entry = `
-${modules.map((m) => `import '@wokwi/elements/dist/esm/${m}';`).join('\n')}
+${modules.map((m) => `import '../../src/webview/composants/${m.replace(/\.js$/, '.mjs')}';`).join('\n')}
 const SPECS = ${JSON.stringify(todo.map((v) => ({ name: v.name, tag: v.tag, attrs: v.attrs, props: v.props })))};
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 async function run() {

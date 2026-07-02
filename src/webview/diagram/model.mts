@@ -193,7 +193,7 @@ export function buzzerOn(
 
 /**
  * Segments allumés d'un afficheur 7 segments (1 chiffre) : ordre A,B,C,D,E,F,G,DP
- * — compatible avec la propriété `values` de wokwi-7segment. Le commun est la
+ * — compatible avec la propriété `values` de kablix-7segment. Le commun est la
  * broche COM.1/COM.2 de l'élément Wokwi (le modèle 1 chiffre n'a pas de DIG1).
  * Selon l'attribut `common` (cathode par défaut, ou anode) la logique s'inverse :
  *  - cathode commune : segment allumé si sa broche est HAUTE et le commun BAS ;
@@ -661,7 +661,7 @@ export function potBindings(diagram: Diagram): PotBinding[] {
     const sigNet = nets.netOf({ partId: part.id, pin: rolePin(part.type, 'SIG') });
     const mcuPin = mcuAnalogOnNet(diagram, nets, sigNet);
     if (!mcuPin) continue;
-    // Les extrémités du rail @wokwi sont nommées VCC (côté haut) et GND (côté bas).
+    // Les extrémités du rail sont nommées VCC (côté haut) et GND (côté bas).
     const vccNet = nets.netOf({ partId: part.id, pin: rolePin(part.type, 'VCC') });
     const gndNet = nets.netOf({ partId: part.id, pin: rolePin(part.type, 'GND') });
     const normal = netHasVcc(diagram, nets, vccNet) && netHasGnd(diagram, nets, gndNet);

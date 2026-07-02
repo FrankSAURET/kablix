@@ -45,7 +45,7 @@ interface Rendered {
   el: WokwiElement;
   hotspots: Map<string, HTMLDivElement>;
   /** SVG du dessin retouché (board-drawing), s'il y en a un — pour le retour
-   * visuel de simulation (l'élément @wokwi étant masqué). */
+   * visuel de simulation (l'élément Lit étant masqué). */
   drawing?: SVGElement;
 }
 
@@ -277,7 +277,7 @@ export class Editor {
       e.preventDefault();
       const p = this.canvasPoint(e.clientX, e.clientY);
       const part = this.addPart(type, Math.max(0, Math.round(p.x)), Math.max(0, Math.round(p.y)));
-      // Aligne les broches sur la grille (après rendu : les broches @wokwi
+      // Aligne les broches sur la grille (après rendu : les broches Lit
       // peuvent n'être disponibles qu'au cycle suivant).
       requestAnimationFrame(() => this.snapPartToGrid(part.id));
     });
@@ -720,7 +720,7 @@ export class Editor {
   }
 
   /**
-   * wokwi-lcd1602 : `numCols`/`numRows` ne sont pas des attributs réactifs (champs
+   * kablix-lcd1602 : `numCols`/`numRows` ne sont pas des attributs réactifs (champs
    * fixes 16/2 en amont) → on les fixe directement depuis cols/rows avant le rendu
    * pour permettre le format 20×4 (sinon l'afficheur reste bloqué en 16×2).
    */
@@ -1323,12 +1323,12 @@ export class Editor {
       if (v !== '') el.setAttribute(k, v);
     }
     this.applyLcdSize(el, def, part.attrs ?? def.attrs);
-    // Dessin retouché à la main : on l'affiche à la place du rendu @wokwi (dont
+    // Dessin retouché à la main : on l'affiche à la place du rendu Lit (dont
     // les broches, étirées par pinScale, ne tombent plus sur les surcharges).
-    // L'élément @wokwi est conservé mais masqué (pinInfo + simulation).
+    // L'élément Lit est conservé mais masqué (pinInfo + simulation).
     const drawing = boardDrawing(part.type, part.attrs);
     if (drawing) {
-      // Élément @wokwi conservé pour pinInfo + simulation, mais rendu invisible
+      // Élément Lit conservé pour pinInfo + simulation, mais rendu invisible
       // et HORS FLUX (pas `display:none`, qui empêche le rendu du shadow DOM dont
       // dépendent clavier/canvas/init). Le corps se dimensionne alors sur le SVG.
       // Composant interactif : l'élément reste CLIQUABLE (transparent), calé sur
@@ -1432,9 +1432,9 @@ export class Editor {
 
   /**
    * Liste des broches d'un composant. Pour un **dessin retouché** (board-drawing),
-   * l'élément @wokwi est masqué : on prend les broches directement dans les
+   * l'élément Lit est masqué : on prend les broches directement dans les
    * surcharges (repère du dessin), indépendamment du `pinInfo` de l'élément.
-   * Sinon, `pinInfo` de l'élément @wokwi.
+   * Sinon, `pinInfo` de l'élément Lit.
    */
   private partPins(
     type: string,
@@ -1504,7 +1504,7 @@ export class Editor {
 
   /**
    * Resynchronise les pastilles de broche d'un composant avec son `pinInfo`
-   * courant. Les éléments @wokwi (Lit) peuvent ne publier leur `pinInfo` qu'après
+   * courant. Les éléments Lit peuvent ne publier leur `pinInfo` qu'après
    * un cycle de rendu : sans cette resynchronisation, une broche apparue ensuite
    * n'a pas de pastille cliquable (impossible de câbler ce composant) et les fils
    * existants ne trouvent pas leur extrémité.
@@ -2440,7 +2440,7 @@ export class Editor {
   }
 
   /**
-   * Agrandit le dessin d'un élément @wokwi (et son hôte) pour que le pas de ses
+   * Agrandit le dessin d'un élément Lit (et son hôte) pour que le pas de ses
    * broches passe de 9,6 px (0,1″) à 10 px = la grille / le pas de la platine.
    * Le viewBox restant inchangé, le dessin se redimensionne ; comme les pastilles
    * de broche sont elles aussi placées à `pin.x × pinScale` (cf. makeHotspot /
@@ -2449,7 +2449,7 @@ export class Editor {
    * Renvoie `false` si le SVG n'est pas encore rendu (à réessayer plus tard).
    */
   private applyPinScale(r: Rendered): boolean {
-    // Dessin retouché : l'élément @wokwi est masqué, on ne l'agrandit pas (les
+    // Dessin retouché : l'élément Lit est masqué, on ne l'agrandit pas (les
     // broches viennent des surcharges, dans le repère du dessin).
     if (boardDrawing(r.part.type, r.part.attrs)) return true;
     const k = partDef(r.part.type).pinScale ?? 1;
@@ -2470,7 +2470,7 @@ export class Editor {
   }
 
   /**
-   * Cale l'élément @wokwi VIVANT d'un composant interactif à dessin retouché sur
+   * Cale l'élément Lit VIVANT d'un composant interactif à dessin retouché sur
    * les broches du dessin : ajustement affine (échelle x/y + translation) qui
    * envoie chaque broche `pinInfo` sur sa surcharge retouchée. L'élément, rendu
    * transparent (part__src-el--live), recouvre ainsi le dessin avec ses zones
@@ -2514,7 +2514,7 @@ export class Editor {
 
   /**
    * Recale les bandeaux de nom et les fils une frame plus tard. Les éléments
-   * @wokwi (Lit) terminent leur mise en page de façon asynchrone : au premier
+   * Lit terminent leur mise en page de façon asynchrone : au premier
    * rendu, offsetWidth/positions de broches peuvent être provisoires. Sans ce
    * second passage, le nom d'un composant tourné se plaçait mal et les fils se
    * décalaient légèrement après un re-rendu (chargement, annuler/refaire,
@@ -2526,7 +2526,7 @@ export class Editor {
     this.settleQueued = true;
     requestAnimationFrame(() => {
       this.settleQueued = false;
-      let pending = false; // un dessin @wokwi pas encore prêt à être agrandi
+      let pending = false; // un dessin Lit pas encore prêt à être agrandi
       for (const r of this.rendered.values()) {
         if (!this.applyPinScale(r)) pending = true; // dessin agrandi au pas de 10 px
         if (!this.alignLiveElement(r)) pending = true; // interactif calé sur son dessin
@@ -3203,7 +3203,7 @@ export class Editor {
       const x = r.part.x;
       const y = r.part.y;
       // Taille d'affichage en unités monde. On lit la mise en page du corps (div
-      // bloc, fiable) ; certains éléments @wokwi ont un SVG en millimètres dont
+      // bloc, fiable) ; certains éléments Lit ont un SVG en millimètres dont
       // l'offsetWidth de l'hôte peut valoir 0 — d'où le repli sur la boîte écran
       // convertie comme les broches (et plus jamais sur la valeur brute en mm,
       // qui rendait la carte minuscule).
@@ -3328,8 +3328,8 @@ function colorSwatchBackground(value: string): string {
 
 /**
  * Nom de broche affiché à l'utilisateur. Pour les LED, la cathode (broche 'C'
- * de @wokwi/elements) est montrée « K » selon l'usage électronique (Anode /
- * Katode). Pour un potentiomètre, les broches @wokwi GND/SIG/VCC ne sont pas de
+ * des composants forkés) est montrée « K » selon l'usage électronique (Anode /
+ * Katode). Pour un potentiomètre, les broches GND/SIG/VCC ne sont pas de
  * l'alimentation : les extrémités du rail résistif sont montrées « 1 » et « 2 »,
  * le curseur « V » (Variable). L'identifiant interne reste inchangé (simulation).
  */

@@ -15,10 +15,10 @@ const PIN_SCALE = 10 / 9.6; // WOKWI_PIN_SCALE (mega)
 const megaSvg = readFileSync(join(ROOT, 'svg retouche/mega.edit.svg'), 'utf8').replace(/<\?xml[^>]*\?>/, '');
 
 const entry = `
-import '@wokwi/elements/dist/esm/arduino-mega-element.js';
+import '../../src/webview/composants/arduino-mega-element.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 async function run() {
-  const el = document.createElement('wokwi-arduino-mega');
+  const el = document.createElement('kablix-arduino-mega');
   document.body.appendChild(el);
   try { if (el.updateComplete) await el.updateComplete; } catch(e){}
   await wait(80);

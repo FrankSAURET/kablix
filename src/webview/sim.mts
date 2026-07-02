@@ -1,47 +1,47 @@
 // Contrôleur de la webview Kablix : atelier visuel (placement + câblage),
 // simulation Arduino Uno (avr8js) / Raspberry Pi Pico (rp2040js) et
 // messagerie avec l'extension.
-import '@wokwi/elements/dist/esm/arduino-uno-element.js';
-import '@wokwi/elements/dist/esm/arduino-nano-element.js';
-import '@wokwi/elements/dist/esm/arduino-mega-element.js';
-import '@wokwi/elements/dist/esm/led-element.js';
-import '@wokwi/elements/dist/esm/pushbutton-element.js';
-import '@wokwi/elements/dist/esm/resistor-element.js';
-import '@wokwi/elements/dist/esm/rgb-led-element.js';
-import '@wokwi/elements/dist/esm/buzzer-element.js';
-import '@wokwi/elements/dist/esm/potentiometer-element.js';
-import '@wokwi/elements/dist/esm/slide-potentiometer-element.js';
-import '@wokwi/elements/dist/esm/7segment-element.js';
-import '@wokwi/elements/dist/esm/led-bar-graph-element.js';
-import '@wokwi/elements/dist/esm/slide-switch-element.js';
-import '@wokwi/elements/dist/esm/dip-switch-8-element.js';
-import '@wokwi/elements/dist/esm/analog-joystick-element.js';
-import '@wokwi/elements/dist/esm/photoresistor-sensor-element.js';
-import '@wokwi/elements/dist/esm/pir-motion-sensor-element.js';
-import '@wokwi/elements/dist/esm/tilt-switch-element.js';
-import '@wokwi/elements/dist/esm/servo-element.js';
-// Composants supplémentaires importés du catalogue @wokwi/elements.
-import '@wokwi/elements/dist/esm/lcd1602-element.js';
-import '@wokwi/elements/dist/esm/lcd2004-element.js';
-import '@wokwi/elements/dist/esm/ssd1306-element.js';
-import '@wokwi/elements/dist/esm/ili9341-element.js';
-import '@wokwi/elements/dist/esm/microsd-card-element.js';
-import '@wokwi/elements/dist/esm/neopixel-element.js';
-import '@wokwi/elements/dist/esm/neopixel-matrix-element.js';
-import '@wokwi/elements/dist/esm/led-ring-element.js';
-import '@wokwi/elements/dist/esm/pushbutton-6mm-element.js';
-import '@wokwi/elements/dist/esm/ntc-temperature-sensor-element.js';
-import '@wokwi/elements/dist/esm/gas-sensor-element.js';
-import '@wokwi/elements/dist/esm/heart-beat-sensor-element.js';
-import '@wokwi/elements/dist/esm/flame-sensor-element.js';
-import '@wokwi/elements/dist/esm/small-sound-sensor-element.js';
-import '@wokwi/elements/dist/esm/hc-sr04-element.js';
-import '@wokwi/elements/dist/esm/dht22-element.js';
-import '@wokwi/elements/dist/esm/membrane-keypad-element.js';
+// Composants forkés de @wokwi/elements v1.9.2 (MIT) — voir composants/LICENSE-wokwi.md.
+import './composants/arduino-uno-element.mjs';
+import './composants/arduino-nano-element.mjs';
+import './composants/arduino-mega-element.mjs';
+import './composants/led-element.mjs';
+import './composants/pushbutton-element.mjs';
+import './composants/resistor-element.mjs';
+import './composants/rgb-led-element.mjs';
+import './composants/buzzer-element.mjs';
+import './composants/potentiometer-element.mjs';
+import './composants/slide-potentiometer-element.mjs';
+import './composants/7segment-element.mjs';
+import './composants/led-bar-graph-element.mjs';
+import './composants/slide-switch-element.mjs';
+import './composants/dip-switch-8-element.mjs';
+import './composants/analog-joystick-element.mjs';
+import './composants/photoresistor-sensor-element.mjs';
+import './composants/pir-motion-sensor-element.mjs';
+import './composants/tilt-switch-element.mjs';
+import './composants/servo-element.mjs';
+import './composants/lcd1602-element.mjs';
+import './composants/lcd2004-element.mjs';
+import './composants/ssd1306-element.mjs';
+import './composants/ili9341-element.mjs';
+import './composants/microsd-card-element.mjs';
+import './composants/neopixel-element.mjs';
+import './composants/neopixel-matrix-element.mjs';
+import './composants/led-ring-element.mjs';
+import './composants/pushbutton-6mm-element.mjs';
+import './composants/ntc-temperature-sensor-element.mjs';
+import './composants/gas-sensor-element.mjs';
+import './composants/heart-beat-sensor-element.mjs';
+import './composants/flame-sensor-element.mjs';
+import './composants/small-sound-sensor-element.mjs';
+import './composants/hc-sr04-element.mjs';
+import './composants/dht22-element.mjs';
+import './composants/membrane-keypad-element.mjs';
+// Composants entièrement maison.
 import './composants/pico-board.mjs';
 import './composants/breadboard.mjs';
 import './composants/custom-part.mjs';
-import './composants/slide-pot.mjs';
 
 import { initLocale, t } from './i18n.mjs';
 import { Editor, type PaletteState } from './diagram/editor.mjs';
@@ -364,7 +364,7 @@ function refreshVisuals(): void {
         const on = ledOn(editor.diagram, part.id, read);
         if (def.custom) el.active = on;
         else el.value = on;
-        // Dessin retouché (élément @wokwi masqué) : on allume le groupe .light.
+        // Dessin retouché (élément Lit masqué) : on allume le groupe .light.
         const draw = editor.drawingOf(part.id);
         if (draw) reflectLed(draw, on, part.attrs?.color);
         break;
@@ -388,7 +388,7 @@ function refreshVisuals(): void {
         const on = toggling || buzzerOn(editor.diagram, part.id, read);
         if (def.custom) el.active = on;
         else el.hasSignal = on;
-        // Dessin retouché (élément @wokwi masqué) : halo lumineux si actif.
+        // Dessin retouché (élément Lit masqué) : halo lumineux si actif.
         const draw = editor.drawingOf(part.id);
         if (draw) reflectGlow(draw, on);
         if (on) {
@@ -457,7 +457,7 @@ function refreshVisuals(): void {
         // Texte décodé affiché sur le LCD. En I²C : Lcd1602Device (bus décodé) ;
         // en parallèle (pins=full) : readLcdParallel (RS/E/données décodés par le
         // moteur). Composant perso (kablix-custom-part) → setLcd superpose le texte
-        // sur le dessin. Élément Wokwi wokwi-lcd1602 → on alimente son écran (text)
+        // sur le dessin. Élément kablix-lcd1602 → on alimente son écran (text)
         // ET, si un dessin retouché le remplace, on superpose le texte dessus.
         const parallel = (part.attrs?.pins ?? 'i2c') === 'full';
         const dev = i2cDevices.get(part.id);

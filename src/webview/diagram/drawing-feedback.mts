@@ -1,10 +1,10 @@
 // Retour visuel de simulation sur le DESSIN retouché (board-drawing) d'un
-// composant dynamique. Comme l'élément @wokwi est masqué (visibility:hidden), son
+// composant dynamique. Comme l'élément Lit est masqué (visibility:hidden), son
 // rendu animé (LED allumée, buzzer actif…) n'est plus visible : on reproduit ce
 // retour en agissant sur les sous-éléments CONSERVÉS dans le dessin (le SVG
 // retouché garde la structure Wokwi : groupe `.light` du LED, etc.).
 
-// Couleur pastel du halo selon la couleur du LED (cf. wokwi led-element).
+// Couleur pastel du halo selon la couleur du LED (cf. led-element forké).
 const LIGHT_COLORS: Record<string, string> = {
   red: '#ff8080',
   green: '#80ff80',
@@ -271,7 +271,7 @@ export function reflectLcd(svg: SVGElement, lines: string[], _cols: number, rows
   }
 }
 
-// Palettes de couleurs des barres LED (cf. wokwi led-bar-graph).
+// Palettes de couleurs des barres LED (cf. led-bar-graph forké).
 const BAR_PALETTES: Record<string, string[]> = {
   GYR: ['#9eff3c', '#9eff3c', '#9eff3c', '#9eff3c', '#9eff3c', '#f1d73c', '#f1d73c', '#f1d73c', '#dc012d', '#dc012d'],
   BCYR: ['#2c95fa', '#6cf9dc', '#6cf9dc', '#6cf9dc', '#6cf9dc', '#f1d73c', '#f1d73c', '#f1d73c', '#dc012d', '#dc012d'],
@@ -321,7 +321,7 @@ export function reflectRgbLed(svg: SVGElement, r: number, g: number, b: number):
 
 /**
  * Couleur du capuchon d'un bouton (`color`, propriété statique choisie dans
- * l'inspecteur, ex. wokwi-pushbutton). Le dessin capté fige la couleur du
+ * l'inspecteur, ex. kablix-pushbutton). Le dessin capté fige la couleur du
  * moment de la retouche (dégradés `grad-up/down-pushbutton0` + le cercle/
  * ellipse plein hors dégradé) : on la retouche comme le fait le composant
  * Wokwi d'origine (`stop-color`, `fill`) à chaque changement.
@@ -345,7 +345,7 @@ export function reflectButtonColor(svg: SVGElement, color: string): void {
 
 /**
  * Retour visuel des composants INTERACTIFS à dessin retouché (bouton, DIP
- * switch, joystick). L'élément @wokwi reste actif par-dessus le dessin
+ * switch, joystick). L'élément Lit reste actif par-dessus le dessin
  * (transparent, calé sur les broches) : il capte les clics et émet ses
  * événements ; on répercute ici son état sur le dessin, qui garde la structure
  * du rendu Wokwi (`.button-active-circle`, `use #switch`, `#knob`).

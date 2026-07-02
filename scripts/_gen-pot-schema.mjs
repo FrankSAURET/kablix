@@ -17,10 +17,10 @@ const S = 96 / 25.4; // px/mm ; pinScale = 1 pour le pot
 const r2 = (n) => Math.round(n * 100) / 100;
 
 const entry = `
-import '@wokwi/elements/dist/esm/potentiometer-element.js';
+import '../../src/webview/composants/potentiometer-element.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 async function run() {
-  const el = document.createElement('wokwi-potentiometer');
+  const el = document.createElement('kablix-potentiometer');
   document.body.appendChild(el);
   try { if (el.updateComplete) await el.updateComplete; } catch(e){}
   await wait(80);

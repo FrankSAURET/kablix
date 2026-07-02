@@ -10,7 +10,7 @@ import * as vscode from 'vscode';
 const pkg = require('../package.json') as { dependencies?: Record<string, string> };
 
 // Bibliothèques de simulation surveillées.
-const WATCHED_PACKAGES = ['avr8js', 'rp2040js', '@wokwi/elements'] as const;
+const WATCHED_PACKAGES = ['avr8js', 'rp2040js', 'lit'] as const;
 
 const REGISTRY = 'https://registry.npmjs.org';
 const GITHUB_ISSUES = 'https://github.com/franksauret/kablix/issues';

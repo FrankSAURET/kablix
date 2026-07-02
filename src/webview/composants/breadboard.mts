@@ -1,5 +1,5 @@
 // Élément visuel maison <kablix-breadboard> : platine d'essai multi-tailles
-// (mini / half / full). Expose `pinInfo` comme les éléments @wokwi/elements et
+// (mini / half / full). Expose `pinInfo` comme les composants forkés et
 // une méthode `setHighlight()` pour mettre en surbrillance des trous pendant
 // la pose d'un composant.
 

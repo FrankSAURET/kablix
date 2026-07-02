@@ -327,7 +327,7 @@ Schéma de la réponse :
 }</pre>
 
     <h2 id="updates">Mises à jour des bibliothèques</h2>
-    <p>Kablix embarque <code>avr8js</code>, <code>rp2040js</code> et <code>@wokwi/elements</code>, et reste <strong>hors-ligne par défaut</strong>.</p>
+    <p>Kablix embarque <code>avr8js</code>, <code>rp2040js</code> et <code>lit</code> (composants visuels forkés de @wokwi/elements, MIT), et reste <strong>hors-ligne par défaut</strong>.</p>
     <ul>
       <li><strong>Vérification manuelle</strong> : palette de commandes → <strong>« Kablix : Vérifier les mises à jour des bibliothèques »</strong>.</li>
       <li><strong>Au démarrage</strong> (optionnel) : réglage <code>kablix.checkUpdatesOnStartup</code> ; une notification n'apparaît qu'en cas de mise à jour.</li>
@@ -516,7 +516,7 @@ Response schema:
 }</pre>
 
     <h2 id="updates">Library updates</h2>
-    <p>Kablix bundles <code>avr8js</code>, <code>rp2040js</code> and <code>@wokwi/elements</code>, and stays <strong>offline by default</strong>.</p>
+    <p>Kablix bundles <code>avr8js</code>, <code>rp2040js</code> and <code>lit</code> (visual components forked from @wokwi/elements, MIT), and stays <strong>offline by default</strong>.</p>
     <ul>
       <li><strong>Manual check</strong>: command palette → <strong>"Kablix: Check for library updates"</strong>.</li>
       <li><strong>At startup</strong> (optional): the <code>kablix.checkUpdatesOnStartup</code> setting; a notification only appears if an update exists.</li>

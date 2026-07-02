@@ -1,8 +1,8 @@
 // Dessins de composants retouchés à la main (« svg retouche/<type>.edit.svg »,
 // nettoyés par scripts/_clean-board-svg.mjs → src/webview/composants/externe/<type>.svg).
-// Quand un type a un dessin ici, l'éditeur l'affiche À LA PLACE du rendu @wokwi :
+// Quand un type a un dessin ici, l'éditeur l'affiche À LA PLACE du rendu Lit :
 // le repère du dessin (viewBox) = celui des surcharges de broches (pin-overrides),
-// donc les pastilles tombent pile sur le dessin. L'élément @wokwi reste présent
+// donc les pastilles tombent pile sur le dessin. L'élément Lit reste présent
 // (caché) pour `pinInfo` et la simulation.
 import megaSvg from '../composants/externe/mega.svg';
 import unoSvg from '../composants/externe/uno.svg';
@@ -72,7 +72,7 @@ const DRAWINGS: Record<string, string> = {
   'lcd-parallel-20x4': lcdParallel20x4Svg,
   'lcd-i2c': lcdI2cSvg,
   'lcd-i2c-20x4': lcdI2c20x4Svg,
-  // Composants INTERACTIFS : le dessin est affiché, l'élément @wokwi reste
+  // Composants INTERACTIFS : le dessin est affiché, l'élément Lit reste
   // par-dessus (transparent, calé sur les broches) pour capter les clics.
   button: buttonSvg,
   'button-6mm': button6mmSvg,

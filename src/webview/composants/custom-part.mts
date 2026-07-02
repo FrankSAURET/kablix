@@ -1,5 +1,5 @@
 // Élément <kablix-custom-part> : héberge le dessin SVG d'un composant créé par
-// l'utilisateur, expose `pinInfo` comme les éléments @wokwi/elements, et un
+// l'utilisateur, expose `pinInfo` comme les composants forkés, et un
 // retour visuel minimal (halo lumineux quand `active` est vrai — LED, buzzer…).
 // Pour le modèle « bouton », il émet button-press / button-release au clic.
 

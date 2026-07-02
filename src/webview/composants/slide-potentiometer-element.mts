@@ -1,17 +1,18 @@
-// Élément maison <kablix-slide-potentiometer> : potentiomètre à glissière.
-// Sous-classe l'élément @wokwi/elements (MIT) pour conserver la propriété `value`
-// et l'événement `input` lus par la simulation, mais :
-//   - remplace le DESSIN par une version retravaillée (./slide-pot.svg) ;
-//   - recale VCC/SIG/GND sur la grille de 10 px (espacement multiple de 10, le
+// Fork local de @wokwi/elements v1.9.2 (MIT © Wokwi) — slide-potentiometer-element.ts.
+// Balise <kablix-slide-potentiometer> (ex <wokwi-slide-potentiometer>). Licence : LICENSE-wokwi.md (même dossier).
+// Adaptations Kablix (fusion de l'ancien slide-pot.mts) :
+//   - sans décorateurs (static properties + declare + constructeur), imports relatifs .mjs ;
+//   - DESSIN remplacé par la version retouchée (./externe/slide-pot.svg) ;
+//   - VCC/SIG/GND recalés sur la grille de 10 px (espacement multiple de 10, le
 //     centre de chaque patte tombe sur un croisement après accrochage) ;
-//   - réimplémente la glisse du curseur (le calcul hérité, calibré sur le dessin
-//     d'origine, faisait sauter le curseur loin de la souris).
-
-import { html } from 'lit';
+//   - glisse du curseur réimplémentée (le calcul d'origine, calibré sur l'ancien
+//     dessin, faisait sauter le curseur loin de la souris) ; l'ancienne machinerie
+//     de drag (CTM workaround, zoom storybook) a été retirée avec son dessin.
+import { css, html, LitElement } from 'lit';
 import type { PropertyValues } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
-import { SlidePotentiometerElement } from '@wokwi/elements/dist/esm/slide-potentiometer-element.js';
-import { analog, GND, VCC, type ElementPin } from '@wokwi/elements/dist/esm/pin.js';
+import { analog, GND, VCC, type ElementPin } from './pin.mjs';
+import { clamp } from './utils/clamp.mjs';
 import drawing from './externe/slide-pot.svg';
 
 // Translation de base du groupe #tip dans le dessin (position de repos).
@@ -21,7 +22,31 @@ const TIP_CENTER0 = 27.78;
 // Demi-course horizontale du curseur (unités SVG) = travelLength / 2.
 const TIP_RANGE = 15;
 
-class KablixSlidePotentiometer extends SlidePotentiometerElement {
+export class SlidePotentiometerElement extends LitElement {
+  declare travelLength: number;
+  declare value: number;
+  declare min: number;
+  declare max: number;
+  declare step: number;
+
+  /** Propriétés réactives lit (remplace les décorateurs @property du code d'origine). */
+  static properties = {
+    travelLength: { type: Number },
+    value: { type: Number },
+    min: { type: Number },
+    max: { type: Number },
+    step: { type: Number },
+  };
+
+  constructor() {
+    super();
+    this.travelLength = 30;
+    this.value = 0;
+    this.min = 0;
+    this.max = 100;
+    this.step = 2;
+  }
+
   private dragging = false;
   private grabDelta = 0;
 
@@ -35,6 +60,29 @@ class KablixSlidePotentiometer extends SlidePotentiometerElement {
     ];
   }
 
+  static get styles() {
+    return css`
+      .hide-input {
+        position: absolute;
+        clip: rect(0 0 0 0);
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+      }
+      input:focus + svg #tip {
+        /* some style to add when the element has focus */
+        filter: url(#outline);
+      }
+    `;
+  }
+
+  update(changedProperties: Map<string, unknown>) {
+    if (changedProperties.has('travelLength')) {
+      this.dispatchEvent(new CustomEvent('pininfo-change'));
+    }
+    super.update(changedProperties);
+  }
+
   renderSVG() {
     return html`<svg
       width="209.9903"
@@ -42,6 +90,25 @@ class KablixSlidePotentiometer extends SlidePotentiometerElement {
       viewBox="0 0 55.559932 7.2858823"
       xmlns="http://www.w3.org/2000/svg"
     >${unsafeSVG(drawing)}</svg>`;
+  }
+
+  render() {
+    return html`
+      <input
+        tabindex="0"
+        type="range"
+        min="${this.min}"
+        max="${this.max}"
+        value="${this.value}"
+        step="${this.step}"
+        aria-valuemin="${this.min}"
+        aria-valuenow="${this.value}"
+        aria-valuemax="${this.max}"
+        @input="${this.onInputValueChange}"
+        class="hide-input"
+      />
+      ${this.renderSVG()}
+    `;
   }
 
   firstUpdated(changed: PropertyValues): void {
@@ -105,8 +172,16 @@ class KablixSlidePotentiometer extends SlidePotentiometerElement {
     window.removeEventListener('pointermove', this.onPointerMove);
     window.removeEventListener('pointerup', this.onPointerUp);
   };
+
+  private onInputValueChange(event: KeyboardEvent): void {
+    const target = event.target as HTMLInputElement;
+    if (target.value) {
+      this.value = clamp(this.min, this.max, Number(target.value));
+      this.dispatchEvent(new InputEvent('input', { detail: this.value }));
+    }
+  }
 }
 
 if (!customElements.get('kablix-slide-potentiometer')) {
-  customElements.define('kablix-slide-potentiometer', KablixSlidePotentiometer);
+  customElements.define('kablix-slide-potentiometer', SlidePotentiometerElement);
 }

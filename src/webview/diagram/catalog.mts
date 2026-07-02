@@ -1,5 +1,6 @@
 // Catalogue des composants disponibles dans l'atelier.
-// Les composants visuels viennent de @wokwi/elements (licence MIT) sauf la
+// Les composants visuels sont des forks locaux de @wokwi/elements v1.9.2 (MIT,
+// voir ../composants/LICENSE-wokwi.md) sauf la
 // carte Pico (<kablix-pico-board>) et les composants créés par l'utilisateur
 // (<kablix-custom-part>, enregistrés à l'exécution).
 
@@ -106,7 +107,7 @@ export interface PartDef {
   };
   /**
    * Facteur d'agrandissement appliqué au dessin ET aux broches pour ramener le
-   * pas des broches à 10 px (= grille / platine). Les éléments @wokwi/elements
+   * pas des broches à 10 px (= grille / platine). Les éléments forkés
    * sont au pas physique 0,1″ ≈ 9,6 px : on les met à l'échelle 10/9,6. Absent
    * (ou 1) = aucune mise à l'échelle (dessins déjà au pas de 10 px).
    */
@@ -133,12 +134,12 @@ const STATE_PROP: PropDef = { attr: 'state', label: 'State (0/1)', kind: 'select
 const VALUE_PROP: PropDef = { attr: 'value', label: 'Position (%)', kind: 'number', min: 0, max: 100, step: 1 };
 
 export const CATALOG: readonly PartDef[] = [
-  // Cartes AVR : éléments @wokwi/elements, mis à l'échelle 10/9,6 px pour que
+  // Cartes AVR : éléments forkés, mis à l'échelle 10/9,6 px pour que
   // leurs broches tombent sur la grille de 10 px (= pas de la platine d'essai).
-  { type: 'uno', label: 'Arduino Uno', tag: 'wokwi-arduino-uno', kind: 'mcu', board: 'uno', pinScale: WOKWI_PIN_SCALE },
-  { type: 'nano', label: 'Arduino Nano', tag: 'wokwi-arduino-nano', kind: 'mcu', board: 'nano', pinScale: WOKWI_PIN_SCALE },
-  { type: 'mega', label: 'Arduino Mega 2560', tag: 'wokwi-arduino-mega', kind: 'mcu', board: 'mega', pinScale: WOKWI_PIN_SCALE },
-  // Pico / Pico W : @wokwi/elements ne fournit aucun élément Pico → dessin maison
+  { type: 'uno', label: 'Arduino Uno', tag: 'kablix-arduino-uno', kind: 'mcu', board: 'uno', pinScale: WOKWI_PIN_SCALE },
+  { type: 'nano', label: 'Arduino Nano', tag: 'kablix-arduino-nano', kind: 'mcu', board: 'nano', pinScale: WOKWI_PIN_SCALE },
+  { type: 'mega', label: 'Arduino Mega 2560', tag: 'kablix-arduino-mega', kind: 'mcu', board: 'mega', pinScale: WOKWI_PIN_SCALE },
+  // Pico / Pico W : le catalogue Wokwi ne fournit aucun élément Pico → dessin maison
   // <kablix-pico-board> (SVG paysage pico.svg / picow.svg, variant), pas de 10 px.
   { type: 'pico', label: 'Raspberry Pi Pico', tag: 'kablix-pico-board', kind: 'mcu', board: 'pico', attrs: { variant: 'pico' } },
   // Pico W : même RP2040 et même brochage que le Pico (le Wi-Fi n'est pas simulé
@@ -153,13 +154,13 @@ export const CATALOG: readonly PartDef[] = [
     }],
   },
   {
-    type: 'led', label: 'LED', tag: 'wokwi-led', kind: 'led', attrs: { color: 'red' },
+    type: 'led', label: 'LED', tag: 'kablix-led', kind: 'led', attrs: { color: 'red' },
     props: [
       { attr: 'color', label: 'Color', kind: 'select', options: ['red', 'green', 'blue', 'yellow', 'orange', 'white', 'purple'] },
     ],
   },
   {
-    type: 'rgb-led', label: 'RGB LED', tag: 'wokwi-rgb-led', kind: 'rgb-led', pinScale: WOKWI_PIN_SCALE,
+    type: 'rgb-led', label: 'RGB LED', tag: 'kablix-rgb-led', kind: 'rgb-led', pinScale: WOKWI_PIN_SCALE,
     attrs: { common: 'cathode' },
     props: [
       {
@@ -169,20 +170,20 @@ export const CATALOG: readonly PartDef[] = [
     ],
   },
   {
-    type: 'button', label: 'Pushbutton', tag: 'wokwi-pushbutton', kind: 'pushbutton', attrs: { color: 'green' }, interactive: true,
+    type: 'button', label: 'Pushbutton', tag: 'kablix-pushbutton', kind: 'pushbutton', attrs: { color: 'green' }, interactive: true,
     props: [
       { attr: 'color', label: 'Color', kind: 'select', options: ['green', 'red', 'blue', 'yellow', 'black', 'white'] },
     ],
   },
   {
-    type: 'resistor', label: 'Resistor', tag: 'wokwi-resistor', kind: 'resistor', attrs: { value: '220' },
+    type: 'resistor', label: 'Resistor', tag: 'kablix-resistor', kind: 'resistor', attrs: { value: '220' },
     props: [
       { attr: 'value', label: 'Value (Ω)', kind: 'number', min: 1, max: 10_000_000, step: 1, suffixes: true },
     ],
   },
-  { type: 'buzzer', label: 'Buzzer', tag: 'wokwi-buzzer', kind: 'buzzer' },
+  { type: 'buzzer', label: 'Buzzer', tag: 'kablix-buzzer', kind: 'buzzer' },
   {
-    type: 'pot', label: 'Potentiometer', tag: 'wokwi-potentiometer', kind: 'potentiometer',
+    type: 'pot', label: 'Potentiometer', tag: 'kablix-potentiometer', kind: 'potentiometer',
     attrs: { min: '0', max: '100', value: '50' }, interactive: true,
     props: [VALUE_PROP],
   },
@@ -192,7 +193,7 @@ export const CATALOG: readonly PartDef[] = [
     props: [VALUE_PROP],
   },
   {
-    type: '7seg', label: '7-segment display', tag: 'wokwi-7segment', kind: '7segment',
+    type: '7seg', label: '7-segment display', tag: 'kablix-7segment', kind: '7segment',
     attrs: { color: 'red', common: 'cathode', digits: '1' },
     props: [
       { attr: 'color', label: 'Color', kind: 'select', options: ['red', 'green', 'blue', 'yellow', 'white'] },
@@ -211,30 +212,30 @@ export const CATALOG: readonly PartDef[] = [
     ],
   },
   {
-    type: 'led-bar', label: 'LED bar graph', tag: 'wokwi-led-bar-graph', kind: 'led-bar',
+    type: 'led-bar', label: 'LED bar graph', tag: 'kablix-led-bar-graph', kind: 'led-bar',
     attrs: { color: 'GYR' },
     props: [{ attr: 'color', label: 'Color', kind: 'select', options: ['GYR', 'red', 'green', 'blue', 'yellow'] }],
   },
-  { type: 'slide-switch', label: 'Slide switch', tag: 'wokwi-slide-switch', kind: 'slide-switch', interactive: true, pinScale: WOKWI_PIN_SCALE_95 },
-  { type: 'dip-switch', label: 'DIP switch ×8', tag: 'wokwi-dip-switch-8', kind: 'dip-switch', interactive: true },
-  { type: 'joystick', label: 'Analog joystick', tag: 'wokwi-analog-joystick', kind: 'joystick', interactive: true, pinScale: WOKWI_PIN_SCALE },
+  { type: 'slide-switch', label: 'Slide switch', tag: 'kablix-slide-switch', kind: 'slide-switch', interactive: true, pinScale: WOKWI_PIN_SCALE_95 },
+  { type: 'dip-switch', label: 'DIP switch ×8', tag: 'kablix-dip-switch-8', kind: 'dip-switch', interactive: true },
+  { type: 'joystick', label: 'Analog joystick', tag: 'kablix-analog-joystick', kind: 'joystick', interactive: true, pinScale: WOKWI_PIN_SCALE },
   {
-    type: 'photoresistor', label: 'Photoresistor (LDR)', tag: 'wokwi-photoresistor-sensor', kind: 'analog-source',
+    type: 'photoresistor', label: 'Photoresistor (LDR)', tag: 'kablix-photoresistor-sensor', kind: 'analog-source',
     analogPin: 'AO', attrs: { value: '50' },
     props: [{ attr: 'value', label: 'Brightness (%)', kind: 'number', min: 0, max: 100, step: 1 }],
   },
   {
-    type: 'pir', label: 'PIR motion sensor', tag: 'wokwi-pir-motion-sensor', kind: 'digital-source', pinScale: WOKWI_PIN_SCALE,
+    type: 'pir', label: 'PIR motion sensor', tag: 'kablix-pir-motion-sensor', kind: 'digital-source', pinScale: WOKWI_PIN_SCALE,
     digitalPin: 'OUT', attrs: { state: '0' },
     props: [{ ...STATE_PROP, label: 'Motion detected' }],
   },
   {
-    type: 'tilt', label: 'Tilt sensor', tag: 'wokwi-tilt-switch', kind: 'digital-source', pinScale: WOKWI_PIN_SCALE,
+    type: 'tilt', label: 'Tilt sensor', tag: 'kablix-tilt-switch', kind: 'digital-source', pinScale: WOKWI_PIN_SCALE,
     digitalPin: 'OUT', attrs: { state: '0' },
     props: [{ ...STATE_PROP, label: 'Tilted' }],
   },
   {
-    type: 'servo', label: 'Servo motor', tag: 'wokwi-servo', kind: 'servo', pinScale: WOKWI_PIN_SCALE_95,
+    type: 'servo', label: 'Servo motor', tag: 'kablix-servo', kind: 'servo', pinScale: WOKWI_PIN_SCALE_95,
     attrs: { horn: 'single' },
     props: [{
       attr: 'horn', label: 'Horn', kind: 'select', options: ['single', 'double', 'cross'],
@@ -242,13 +243,13 @@ export const CATALOG: readonly PartDef[] = [
     }],
   },
 
-  // --- Composants @wokwi/elements supplémentaires (importés du catalogue Wokwi).
-  // Afficheur LCD texte unifié (HD44780). Un seul élément `wokwi-lcd1602` couvre
+  // --- Composants supplémentaires (forkés du catalogue Wokwi).
+  // Afficheur LCD texte unifié (HD44780). Un seul élément `kablix-lcd1602` couvre
   // les 4 variantes : il se dimensionne sur cols/rows et change ses broches via
   // `pins` (i2c = 4 fils GND/VCC/SDA/SCL ; full = parallèle). Le texte n'est simulé
   // qu'en I²C (Lcd1602Device) ; en parallèle l'afficheur reste visuel.
   {
-    type: 'lcd', label: 'LCD Texte', tag: 'wokwi-lcd1602', kind: 'i2c-lcd', pinScale: WOKWI_PIN_SCALE_95,
+    type: 'lcd', label: 'LCD Texte', tag: 'kablix-lcd1602', kind: 'i2c-lcd', pinScale: WOKWI_PIN_SCALE_95,
     attrs: { pins: 'i2c', address: '0x27', cols: '16', rows: '2', lcdSize: '16x2' },
     props: [
       {
@@ -263,48 +264,48 @@ export const CATALOG: readonly PartDef[] = [
   },
   // OLED SSD1306 : l'élément Wokwi est la variante SPI 4 fils (DATA/CLK/DC/CS) →
   // simulé en SPI (le programme y dessine, l'écran s'allume).
-  { type: 'oled-ssd1306', label: 'OLED display (SSD1306, SPI)', tag: 'wokwi-ssd1306', kind: 'spi-oled' },
+  { type: 'oled-ssd1306', label: 'OLED display (SSD1306, SPI)', tag: 'kablix-ssd1306', kind: 'spi-oled' },
   // Écran TFT couleur ILI9341 (SPI) : décodé et dessiné dans son canvas.
-  { type: 'ili9341', label: 'TFT display (ILI9341, SPI)', tag: 'wokwi-ili9341', kind: 'spi-tft', pinScale: WOKWI_PIN_SCALE },
+  { type: 'ili9341', label: 'TFT display (ILI9341, SPI)', tag: 'kablix-ili9341', kind: 'spi-tft', pinScale: WOKWI_PIN_SCALE },
   // Carte microSD (SPI) : répondeur de protocole (init + lecture/écriture de blocs).
-  { type: 'microsd', label: 'microSD card (SPI)', tag: 'wokwi-microsd-card', kind: 'spi-sd', pinScale: WOKWI_PIN_SCALE },
+  { type: 'microsd', label: 'microSD card (SPI)', tag: 'kablix-microsd-card', kind: 'spi-sd', pinScale: WOKWI_PIN_SCALE },
   // NeoPixel (WS2812) : simulés — la chaîne DIN est décodée et les LED s'allument.
-  { type: 'neopixel', label: 'NeoPixel', tag: 'wokwi-neopixel', kind: 'neopixel' },
-  { type: 'neopixel-matrix', label: 'NeoPixel matrix', tag: 'wokwi-neopixel-matrix', kind: 'neopixel', attrs: { rows: '8', cols: '8' }, pinScale: WOKWI_PIN_SCALE },
-  { type: 'led-ring', label: 'NeoPixel ring', tag: 'wokwi-led-ring', kind: 'neopixel', attrs: { pixels: '16' }, pinScale: WOKWI_PIN_SCALE },
+  { type: 'neopixel', label: 'NeoPixel', tag: 'kablix-neopixel', kind: 'neopixel' },
+  { type: 'neopixel-matrix', label: 'NeoPixel matrix', tag: 'kablix-neopixel-matrix', kind: 'neopixel', attrs: { rows: '8', cols: '8' }, pinScale: WOKWI_PIN_SCALE },
+  { type: 'led-ring', label: 'NeoPixel ring', tag: 'kablix-led-ring', kind: 'neopixel', attrs: { pixels: '16' }, pinScale: WOKWI_PIN_SCALE },
 
   // Bouton poussoir 6 mm : même modèle que le bouton standard.
   {
-    type: 'button-6mm', label: 'Pushbutton (6mm)', tag: 'wokwi-pushbutton-6mm', kind: 'pushbutton',
+    type: 'button-6mm', label: 'Pushbutton (6mm)', tag: 'kablix-pushbutton-6mm', kind: 'pushbutton',
     attrs: { color: 'red' }, interactive: true,
     props: [{ attr: 'color', label: 'Color', kind: 'select', options: ['green', 'red', 'blue', 'yellow', 'black', 'white'] }],
   },
 
   // Capteurs analogiques : la sortie pilote l'entrée ADC reliée (valeur en %).
   {
-    type: 'ntc-temp', label: 'NTC temperature sensor', tag: 'wokwi-ntc-temperature-sensor', kind: 'analog-source', pinScale: WOKWI_PIN_SCALE,
+    type: 'ntc-temp', label: 'NTC temperature sensor', tag: 'kablix-ntc-temperature-sensor', kind: 'analog-source', pinScale: WOKWI_PIN_SCALE,
     analogPin: 'OUT', attrs: { value: '50' },
     props: [{ ...VALUE_PROP, label: 'Temperature (%)' }],
   },
   {
-    type: 'gas-sensor', label: 'Gas sensor (MQ)', tag: 'wokwi-gas-sensor', kind: 'analog-source',
+    type: 'gas-sensor', label: 'Gas sensor (MQ)', tag: 'kablix-gas-sensor', kind: 'analog-source',
     analogPin: 'AOUT', attrs: { value: '20' },
     props: [{ ...VALUE_PROP, label: 'Gas level (%)' }],
   },
   {
-    type: 'heartbeat', label: 'Heart-beat sensor', tag: 'wokwi-heart-beat-sensor', kind: 'analog-source',
+    type: 'heartbeat', label: 'Heart-beat sensor', tag: 'kablix-heart-beat-sensor', kind: 'analog-source',
     analogPin: 'OUT', attrs: { value: '50' },
     props: [{ ...VALUE_PROP, label: 'Pulse (%)' }],
   },
 
   // Capteurs numériques : la sortie DOUT pilote l'entrée reliée (état 0/1).
   {
-    type: 'flame', label: 'Flame sensor', tag: 'wokwi-flame-sensor', kind: 'digital-source', pinScale: WOKWI_PIN_SCALE,
+    type: 'flame', label: 'Flame sensor', tag: 'kablix-flame-sensor', kind: 'digital-source', pinScale: WOKWI_PIN_SCALE,
     digitalPin: 'DOUT', attrs: { state: '0' },
     props: [{ ...STATE_PROP, label: 'Flame detected' }],
   },
   {
-    type: 'sound', label: 'Sound sensor', tag: 'wokwi-small-sound-sensor', kind: 'digital-source',
+    type: 'sound', label: 'Sound sensor', tag: 'kablix-small-sound-sensor', kind: 'digital-source',
     digitalPin: 'DOUT', attrs: { state: '0' },
     props: [{ ...STATE_PROP, label: 'Sound detected' }],
   },
@@ -312,14 +313,14 @@ export const CATALOG: readonly PartDef[] = [
   // Capteur ultrason HC-SR04 (élément Wokwi, broches VCC/TRIG/ECHO/GND) : simulé
   // par le protocole ultrason réel (impulsion TRIG → ECHO selon la distance).
   {
-    type: 'hcsr04', label: 'Ultrasonic sensor (HC-SR04)', tag: 'wokwi-hc-sr04', kind: 'ultrasonic',
+    type: 'hcsr04', label: 'Ultrasonic sensor (HC-SR04)', tag: 'kablix-hc-sr04', kind: 'ultrasonic',
     attrs: { distance: '20' },
     props: [{ attr: 'distance', label: 'Distance (cm)', kind: 'number', min: 2, max: 400, step: 1 }],
   },
   // Capteur de température/humidité DHT22 (1-wire sur SDA) : répond au protocole
   // réel (température/humidité réglées dans l'inspecteur).
   {
-    type: 'dht22', label: 'Temp/humidity sensor (DHT22)', tag: 'wokwi-dht22', kind: 'passive', pinScale: WOKWI_PIN_SCALE_95,
+    type: 'dht22', label: 'Temp/humidity sensor (DHT22)', tag: 'kablix-dht22', kind: 'passive', pinScale: WOKWI_PIN_SCALE_95,
     attrs: { temperature: '22', humidity: '50' },
     props: [
       { attr: 'temperature', label: 'Temperature (°C)', kind: 'number', min: -40, max: 80, step: 0.1 },
@@ -329,7 +330,7 @@ export const CATALOG: readonly PartDef[] = [
   // Clavier matriciel à membrane (3 ou 4 colonnes). Interactif : une touche
   // enfoncée court-circuite ligne/colonne (lecture matricielle simulée).
   {
-    type: 'keypad', label: 'Membrane keypad', tag: 'wokwi-membrane-keypad', kind: 'passive', interactive: true,
+    type: 'keypad', label: 'Membrane keypad', tag: 'kablix-membrane-keypad', kind: 'passive', interactive: true,
     // `connector` : affiche la nappe/connecteur sous le clavier (broches R/C
     // visibles et câblables) — masqué par défaut dans l'élément Wokwi.
     attrs: { columns: '4', connector: 'true' },

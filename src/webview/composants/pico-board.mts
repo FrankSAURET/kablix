@@ -1,5 +1,5 @@
 // Élément visuel maison <kablix-pico-board> : Raspberry Pi Pico / Pico W.
-// @wokwi/elements ne fournit AUCUN élément Pico → on dessine la carte à partir
+// le catalogue Wokwi ne fournit AUCUN élément Pico → on dessine la carte à partir
 // de deux SVG (paysage, USB à gauche) importés comme texte :
 //   - pico.svg  : Pico (dessin schématique, LED verte intégrée = #circle16)
 //   - picow.svg : Pico W (rendu Fritzing ; LED ajoutée en surimpression)

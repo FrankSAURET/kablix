@@ -876,7 +876,7 @@ export class SimulatorPanel {
       vscode.extensions.getExtension('franksauret.kablix')?.packageJSON?.version ?? '';
     const csp = [
       `default-src 'none'`,
-      // Les composants @wokwi/elements (Lit) injectent des styles dans leur
+      // Les composants Lit injectent des styles dans leur
       // shadow DOM ; on autorise les styles inline pour la webview locale.
       `style-src ${webview.cspSource} 'unsafe-inline'`,
       `script-src 'nonce-${nonce}'`,
