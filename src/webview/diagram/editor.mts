@@ -2219,9 +2219,10 @@ export class Editor {
   /**
    * Autoroutage : réécrit les fils en tracés horizontaux/verticaux. Chaque
    * extrémité posée sur une carte **sort perpendiculairement au bord le plus
-   * proche** (le fil ne traverse plus la carte) ; entre les deux sorties, des deux
-   * orientations du coude en L on garde celle qui recouvre le moins les *autres*
-   * composants (pour les contourner). Sur la sélection si des composants sont
+   * proche** (le fil ne traverse plus la carte) ; entre les deux sorties, l'A\*
+   * contourne composants et fils existants. En repli (A\* sans solution), coude
+   * en L / détour en Z de moindre coût — traverser un composant y coûte bien
+   * plus cher que longer un fil. Sur la sélection si des composants sont
    * sélectionnés, sinon sur tout le dessin.
    */
   autoRoute(): void {
@@ -2257,18 +2258,23 @@ export class Editor {
       const sb = this.pinStub(wire.b, b, rectOf, STUB);
       const pa = sa ?? a; // point de départ du routage (après sortie perpendiculaire)
       const pb = sb ?? b;
-      const others = obstacles.filter((o) => o.id !== wire.a.partId && o.id !== wire.b.partId);
       const otherSegs: Array<[XY, XY]> = [];
       for (const [wid, segs] of wireSegs) if (wid !== wire.id) otherSegs.push(...segs);
       // Coût d'un tracé : recouvrement de composants + recouvrement (colinéaire) ET
       // proximité (< GAP) d'autres fils. Les fils peuvent se croiser mais pas se
-      // chevaucher ni se serrer à moins de GAP.
+      // chevaucher ni se serrer à moins de GAP. Le recouvrement de composant est
+      // mesuré sur le tracé INTERNE [pa..pb] contre TOUS les composants (y compris
+      // les deux d'extrémité : seules les pattes a→pa / pb→b ont le droit de
+      // traverser un corps — repro Frank : le Z de repli coupait le LCD en plein
+      // milieu car `others` excluait les composants d'extrémité).
       const cost = (c: XY[]): number => {
         const poly = [a, pa, ...c, pb, b];
-        const comp = polylineRectOverlap(poly, others);
+        const comp = polylineRectOverlap([pa, ...c, pb], obstacles);
         const { overlap, near } = polylineWireCost(poly, otherSegs, GAP);
-        // Traverser un composant ou suivre un fil est proscrit : poids massifs.
-        return comp * 100 + overlap * 100 + near * 0.6;
+        // Poids massifs, hiérarchisés : traverser un composant (×1000) est bien
+        // pire que suivre un fil (×100) — en dernier recours un fil qui en longe
+        // un autre sous la carte vaut mieux qu'un fil qui coupe la carte.
+        return comp * 1000 + overlap * 100 + near * 0.6;
       };
       const pick = (cands: XY[][]): XY[] => {
         let best = cands[0];
@@ -3537,6 +3543,21 @@ function astarRoute(
   for (let k = -3; k <= 3; k++) {
     xsSet.add(midX + k * gap);
     ysSet.add(midY + k * gap);
+  }
+  // Voies parallèles autour des deux bornes (± k·gap) : le chevauchement
+  // colinéaire d'un autre fil étant interdit, la ligne d'une borne (celle des
+  // sorties de broches, partagée par tous les fils d'un même bord) sature dès
+  // le 2e fil ; sans ces voies décalées l'A\* n'a plus AUCUN chemin et
+  // l'appelant retombe sur un coude en L qui traverse les composants.
+  for (let k = 1; k <= 8; k++) {
+    for (const v of [pa.x, pb.x]) {
+      xsSet.add(v + k * gap);
+      xsSet.add(v - k * gap);
+    }
+    for (const v of [pa.y, pb.y]) {
+      ysSet.add(v + k * gap);
+      ysSet.add(v - k * gap);
+    }
   }
   const xs = [...xsSet].sort((m, n) => m - n);
   const ys = [...ysSet].sort((m, n) => m - n);
