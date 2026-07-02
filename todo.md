@@ -11,6 +11,11 @@
 8. ✅ À chaque **chargement d'un fichier Python** : effacer la console, éteindre la simulation, réinitialiser les composants. À l'**arrêt de la simulation** : effacer la console, réinitialiser les composants. → v2026.6.80
 9. ⬜ Mettre à jour le **câblage interne du potentiomètre** → [`svg/pot-schema.edit.svg`](svg/pot-schema.edit.svg).
 
+# v2026.6.85
+
+1. ✅ **Bug** : sur le bouton 12 mm (`button`), le capuchon changeait de couleur seulement sur le dégradé (anneau) — le disque plein restait vert (`reflectButtonColor` accrochait à tort un point de fixation de coin, dont le `fill` hérité ne contient pas `url()`). Corrigé : le disque plein est repéré comme le frère suivant de `.button-active-circle` (ordre Wokwi), pas par recherche globale. Bouton 6 mm déjà correct.
+2. ✅ `verify:all` : 9 suites OK ; typecheck OK ; build OK.
+
 # v2026.6.84
 
 1. ✅ **Bug** : la couleur du bouton (attribut `color`, inspecteur) restait figée sur le dessin retouché (`button`, `button-6mm`) — le SVG capté fige les dégradés/le capuchon à la couleur du moment de la retouche. Ajout de `reflectButtonColor` ([`drawing-feedback.mts`](src/webview/diagram/drawing-feedback.mts)), appliquée à la création et à chaque changement via l'inspecteur ([`updatePartAttr`](src/webview/diagram/editor.mts)). Le composant reste interactif (élément @wokwi transparent inchangé).

@@ -332,13 +332,15 @@ export function reflectButtonColor(svg: SVGElement, color: string): void {
     stops[1]?.setAttribute('stop-color', color);
     stops[2]?.setAttribute('stop-color', color);
   }
-  const cap = [...svg.querySelectorAll('circle, ellipse')].find(
-    (c) =>
-      !c.closest('defs') &&
-      !c.classList.contains('button-active-circle') &&
-      !/url\(/.test(c.getAttribute('fill') ?? '')
-  ) as SVGElement | undefined;
-  cap?.setAttribute('fill', color);
+  // Le cercle/ellipse plein (couleur du capuchon) suit toujours immédiatement
+  // `.button-active-circle` dans le même groupe (ordre Wokwi : dégradé haut,
+  // dégradé bas, plein). Chercher par « pas d'url » dans tout le SVG accroche à
+  // tort les points de fixation des coins (fill hérité, pas d'attribut propre).
+  const active = svg.querySelector('.button-active-circle');
+  const cap = active?.nextElementSibling;
+  if (cap && (cap.tagName === 'circle' || cap.tagName === 'ellipse')) {
+    cap.setAttribute('fill', color);
+  }
 }
 
 /**
