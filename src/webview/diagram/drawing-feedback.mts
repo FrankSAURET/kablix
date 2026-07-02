@@ -320,6 +320,28 @@ export function reflectRgbLed(svg: SVGElement, r: number, g: number, b: number):
 }
 
 /**
+ * Couleur du capuchon d'un bouton (`color`, propriété statique choisie dans
+ * l'inspecteur, ex. wokwi-pushbutton). Le dessin capté fige la couleur du
+ * moment de la retouche (dégradés `grad-up/down-pushbutton0` + le cercle/
+ * ellipse plein hors dégradé) : on la retouche comme le fait le composant
+ * Wokwi d'origine (`stop-color`, `fill`) à chaque changement.
+ */
+export function reflectButtonColor(svg: SVGElement, color: string): void {
+  for (const g of svg.querySelectorAll('linearGradient')) {
+    const stops = g.querySelectorAll('stop');
+    stops[1]?.setAttribute('stop-color', color);
+    stops[2]?.setAttribute('stop-color', color);
+  }
+  const cap = [...svg.querySelectorAll('circle, ellipse')].find(
+    (c) =>
+      !c.closest('defs') &&
+      !c.classList.contains('button-active-circle') &&
+      !/url\(/.test(c.getAttribute('fill') ?? '')
+  ) as SVGElement | undefined;
+  cap?.setAttribute('fill', color);
+}
+
+/**
  * Retour visuel des composants INTERACTIFS à dessin retouché (bouton, DIP
  * switch, joystick). L'élément @wokwi reste actif par-dessus le dessin
  * (transparent, calé sur les broches) : il capte les clics et émet ses
@@ -332,6 +354,9 @@ export function attachInteractiveFeedback(
   svg: SVGElement
 ): void {
   if (type === 'button' || type === 'button-6mm') {
+    // Couleur du capuchon (attribut statique, cf. reflectButtonColor) : appliquée
+    // une première fois ici (création), puis rafraîchie par updatePartAttr.
+    reflectButtonColor(svg, el.getAttribute('color') || 'red');
     // Capuchon enfoncé : le dessin capté montre l'état « down » (le style Wokwi
     // qui le masquait vit dans le shadow DOM, pas dans le SVG) → on le masque au
     // repos et on le révèle pendant l'appui (Ctrl+clic : pas de relâchement).

@@ -23,7 +23,7 @@ import { breadboardPins, normalizeSize, stripOfPin } from './breadboard.mjs';
 import { internalWiringSvg, type PinPoint } from './internal-wiring.mjs';
 import { overridesFor } from './pin-overrides.mjs';
 import { boardDrawing } from './board-drawings.mjs';
-import { attachInteractiveFeedback } from './drawing-feedback.mjs';
+import { attachInteractiveFeedback, reflectButtonColor } from './drawing-feedback.mjs';
 import { pinoutSvg, pinoutPoster } from './pinout.mjs';
 import { BOARD_W, BOARD_H } from '../composants/pico-board.mjs';
 import type { Diagram, Endpoint, Part, Wire } from './model.mjs';
@@ -2887,6 +2887,12 @@ export class Editor {
       r.el.removeAttribute(attr);
     } else {
       r.el.setAttribute(attr, value);
+    }
+    // Bouton à dessin retouché : la couleur du capuchon est figée dans le SVG
+    // capté (cf. reflectButtonColor) → la retoucher aussi à chaque changement.
+    if (attr === 'color' && (r.part.type === 'button' || r.part.type === 'button-6mm')) {
+      const dsvg = r.container.querySelector('.part__drawing svg') as SVGElement | null;
+      if (dsvg) reflectButtonColor(dsvg, value || 'red');
     }
     this.notify();
   }
