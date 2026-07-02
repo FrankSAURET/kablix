@@ -1,13 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 40">
   <defs id="defs18">
     <defs id="defs8">
-      <linearGradient x1="2.178" x2="9.8219995" y1="2.178" y2="9.8219995" id="grad-up-pushbutton0" gradientUnits="userSpaceOnUse" gradientTransform="matrix(2.0232706,0,0,1.9629167,22.932359,18.071798)">
+      <linearGradient id="grad-up-pushbutton0" x1="0" y1="0" x2="1" y2="1">
         <stop stop-color="#ffffff" offset="0" id="stop1"></stop>
         <stop offset="0.3" id="stop2" stop-color="red"></stop>
         <stop offset="0.5" id="stop3" stop-color="red"></stop>
         <stop offset="1" id="stop4"></stop>
       </linearGradient>
-      <linearGradient x1="9.8219995" x2="2.178" y1="9.8219995" y2="2.178" gradientUnits="userSpaceOnUse" id="grad-down-pushbutton0">
+      <linearGradient id="grad-down-pushbutton0" x1="1" y1="1" x2="0" y2="0">
         <stop stop-color="#ffffff" offset="0" id="stop5"></stop>
         <stop offset="0.3" id="stop6" stop-color="red"></stop>
         <stop offset="0.5" id="stop7" stop-color="red"></stop>

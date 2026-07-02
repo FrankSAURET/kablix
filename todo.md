@@ -11,6 +11,11 @@
 8. ✅ À chaque **chargement d'un fichier Python** : effacer la console, éteindre la simulation, réinitialiser les composants. À l'**arrêt de la simulation** : effacer la console, réinitialiser les composants. → v2026.6.80
 9. ⬜ Mettre à jour le **câblage interne du potentiomètre** → [`svg/pot-schema.edit.svg`](svg/pot-schema.edit.svg).
 
+# v2026.6.86
+
+1. ✅ **Bug** : le bouton 6 mm affichait un cercle noir (repos) / blanc (appuyé) au lieu du dégradé teinté attendu. Cause : la retouche Inkscape avait figé les dégradés `grad-up/down-pushbutton0` en coordonnées absolues (`gradientUnits="userSpaceOnUse"`, vecteur minuscule) alors que le cercle avait été mis à l'échelle/déplacé — le dernier point du dégradé (sans couleur = noir) débordait sur tout le disque. Remis en `objectBoundingBox` (0→1, comme le composant Wokwi d'origine) dans [`button-6mm.svg`](src/webview/composants/externe/button-6mm.svg) : le bombé blanc→couleur→ombre s'affiche correctement, quelle que soit la couleur choisie. Bouton 12 mm non touché (déjà correct, coordonnées locales préservées).
+2. ✅ `verify:all` : 9 suites OK ; build OK.
+
 # v2026.6.85
 
 1. ✅ **Bug** : sur le bouton 12 mm (`button`), le capuchon changeait de couleur seulement sur le dégradé (anneau) — le disque plein restait vert (`reflectButtonColor` accrochait à tort un point de fixation de coin, dont le `fill` hérité ne contient pas `url()`). Corrigé : le disque plein est repéré comme le frère suivant de `.button-active-circle` (ordre Wokwi), pas par recherche globale. Bouton 6 mm déjà correct.
