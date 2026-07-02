@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 60">
+  <defs id="defs40"></defs>
+  
+  <!-- Retouche brochage button : déplace chaque pastille rouge sur un CROISEMENT (lignes foncées = 50 px). Garde les id pin-<nom>. Marge 20 px. -->
+  <g id="g41" transform="translate(-10)">
+    <g id="board" opacity="0.85" transform="matrix(3.9322639,0,0,3.9383333,31.378595,6.6903825)" style="stroke-width:0.949838">
+      <defs id="defs27">
+        <linearGradient x1="2.178" x2="9.8219995" y1="2.178" y2="9.8219995" id="grad-up-pushbutton0" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#ffffff" offset="0" id="stop20"></stop>
+          <stop offset="0.3" stop-color="green" id="stop21"></stop>
+          <stop offset="0.5" stop-color="green" id="stop22"></stop>
+          <stop offset="1" id="stop23"></stop>
+        </linearGradient>
+        <linearGradient x1="9.8219995" x2="2.178" y1="9.8219995" y2="2.178" id="grad-down-pushbutton0" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#ffffff" offset="0" id="stop24"></stop>
+          <stop offset="0.3" stop-color="green" id="stop25"></stop>
+          <stop offset="0.5" stop-color="green" id="stop26"></stop>
+          <stop offset="1" id="stop27"></stop>
+        </linearGradient>
+      </defs>
+      <rect x="0" y="0" width="12" height="12" rx="0.41825166" ry="0.41760707" fill="#464646" id="rect27" style="stroke-width:0.949838"></rect>
+      <rect x="0.75" y="0.75" width="10.5" height="10.5" rx="0.20057069" ry="0.20026159" fill="#eaeaea" id="rect28" style="stroke-width:0.949838"></rect>
+      <!--?lit$752062298$-->
+      <g fill="#1b1b1" id="g31" style="stroke-width:0.949838">
+        <circle cx="1.767" cy="1.7916" r="0.37" id="circle28" style="stroke-width:0.949838"></circle>
+        <circle cx="10.161" cy="1.7916" r="0.37" id="circle29" style="stroke-width:0.949838"></circle>
+        <circle cx="10.161" cy="10.197" r="0.37" id="circle30" style="stroke-width:0.949838"></circle>
+        <circle cx="1.767" cy="10.197" r="0.37" id="circle31" style="stroke-width:0.949838"></circle>
+      </g>
+      <g fill="#999999" stroke-width="0.964467" id="g34">
+        <path d="M 12.365,2.426 C 12.42512,2.426 12.47349,2.4729 12.4735,2.53122 V 2.9182 H 14.6908 C 14.81103,2.9182 14.9078,3.012 14.9078,3.12865 V 3.63586 C 14.9078,3.75246 14.81103,3.84631 14.6908,3.84631 H 12.4735 V 4.24732 C 12.4735,4.30562 12.4251,4.3526 12.365,4.3526 H 11.99665 V 2.426 Z" id="path31" style="stroke-width:0.964467"></path>
+        <path d="M 12.365,7.5 C 12.42512,7.5 12.47349,7.5469 12.4735,7.60522 V 7.9922 H 14.6908 C 14.81103,7.9922 14.9078,8.086 14.9078,8.20265 V 8.70986 C 14.9078,8.82646 14.81103,8.92031 14.6908,8.92031 H 12.4735 V 9.32132 C 12.4735,9.37962 12.4251,9.4266 12.365,9.4266 H 11.99665 V 7.5 Z" id="path32" style="stroke-width:0.964467"></path>
+        <path d="M -0.35085,4.3526 C -0.41097,4.3526 -0.45934,4.3057 -0.45935,4.24738 V 3.8604 H -2.67665 C -2.79688,3.8604 -2.89365,3.7666 -2.89365,3.64995 V 3.14274 C -2.89365,3.02614 -2.79688,2.93229 -2.67665,2.93229 H -0.45935 V 2.53128 C -0.45935,2.47298 -0.41095,2.426 -0.35085,2.426 H 0.0175 V 4.3526 Z" id="path33" style="stroke-width:0.964467"></path>
+        <path d="M -0.35085,9.4266 C -0.41097,9.4266 -0.45934,9.3797 -0.45935,9.32138 V 8.9344 H -2.67665 C -2.79688,8.9344 -2.89365,8.8406 -2.89365,8.72395 V 8.21674 C -2.89365,8.10014 -2.79688,8.00629 -2.67665,8.00629 H -0.45935 V 7.60528 C -0.45935,7.54698 -0.41095,7.5 -0.35085,7.5 H 0.0175 V 9.4266 Z" id="path34" style="stroke-width:0.964467"></path>
+      </g>
+      <g class="clickable-element" id="g36" style="stroke-width:0.949838">
+        <circle cx="6" cy="6" r="3.822" fill="url(#grad-up-pushbutton0)" id="circle34" style="fill:url(#grad-up-pushbutton0);stroke-width:0.949838"></circle>
+        <circle class="button-active-circle" cx="6" cy="6" r="3.822" fill="url(#grad-down-pushbutton0)" id="circle35" style="fill:url(#grad-down-pushbutton0);stroke-width:0.949838"></circle>
+        <circle cx="6" cy="6" r="2.9000001" stroke="#2f2f2f" stroke-opacity="0.47" stroke-width="0.075987" fill="#008000" id="circle36"></circle>
+      </g>
+    </g>
+    <g id="g37" transform="matrix(1.0483978,0,0,1.0483978,-0.967956,-14.597127)" style="stroke-width:0.953836">
+      
+      
+    </g>
+    <g id="g38" transform="matrix(1.0483978,0,0,1.0483978,-0.967956,-14.516686)" style="stroke-width:0.953836">
+      
+      
+    </g>
+    <g id="g39" transform="matrix(1.0483978,0,0,1.0483978,-1.2106098,-14.586297)" style="stroke-width:0.953836">
+      
+      
+    </g>
+    <g id="g40" transform="matrix(1.0483978,0,0,1.0483978,-1.2106098,-14.522752)" style="stroke-width:0.953836">
+      
+      
+    </g>
+  </g>
+</svg>

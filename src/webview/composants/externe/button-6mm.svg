@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 40">
+  <defs id="defs18">
+    <defs id="defs8">
+      <linearGradient x1="2.178" x2="9.8219995" y1="2.178" y2="9.8219995" id="grad-up-pushbutton0" gradientUnits="userSpaceOnUse" gradientTransform="matrix(2.0232706,0,0,1.9629167,22.932359,18.071798)">
+        <stop stop-color="#ffffff" offset="0" id="stop1"></stop>
+        <stop offset="0.3" id="stop2" stop-color="red"></stop>
+        <stop offset="0.5" id="stop3" stop-color="red"></stop>
+        <stop offset="1" id="stop4"></stop>
+      </linearGradient>
+      <linearGradient x1="9.8219995" x2="2.178" y1="9.8219995" y2="2.178" gradientUnits="userSpaceOnUse" id="grad-down-pushbutton0">
+        <stop stop-color="#ffffff" offset="0" id="stop5"></stop>
+        <stop offset="0.3" id="stop6" stop-color="red"></stop>
+        <stop offset="0.5" id="stop7" stop-color="red"></stop>
+        <stop offset="1" id="stop8"></stop>
+      </linearGradient>
+    </defs>
+  </defs>
+  
+  <!-- Retouche brochage button-6mm : déplace chaque pastille rouge sur un CROISEMENT (lignes foncées = 50 px). Garde les id pin-<nom>. Marge 20 px. -->
+  <g id="g24" transform="translate(-10,-10)">
+    <g id="g23">
+      <rect style="opacity:0.85;fill:#b3b3b3;stroke-width:3.26898;paint-order:stroke markers fill" id="rect18" width="2.9441521" height="1.6769104" x="20" y="19.161545" rx="0.028297516" ry="0.028297514"></rect>
+      <rect style="opacity:0.85;fill:#b3b3b3;stroke-width:3.19817;paint-order:stroke markers fill" id="rect18-5" width="2.932354" height="1.6769104" x="20" y="39.161545" rx="0.027084205" ry="0.027084207"></rect>
+      <rect style="opacity:0.85;fill:#b3b3b3;stroke-width:3.19817;paint-order:stroke markers fill" id="rect18-0" width="2.8603771" height="1.6769104" x="47.139622" y="19.161545" rx="0.027084205" ry="0.027084207"></rect>
+      <rect style="opacity:0.85;fill:#b3b3b3;stroke-width:3.19817;paint-order:stroke markers fill" id="rect18-0-4" width="2.8603771" height="1.6769104" x="47.139622" y="39.161545" rx="0.027084205" ry="0.027084207"></rect>
+      <g id="g22" transform="translate(-0.07198071)">
+        <g id="g21">
+          <rect x="22.932358" y="18.071798" width="24.279245" height="23.555" rx="0.83148426" ry="0.83148438" fill="#464646" id="rect8" style="opacity:0.85;stroke-width:1.88973"></rect>
+          <rect x="24.449808" y="19.543985" width="21.244343" height="20.610626" rx="0.39873451" ry="0.39873454" fill="#eaeaea" id="rect9" style="opacity:0.85;stroke-width:1.88973"></rect>
+        </g>
+        <ellipse cx="35.07198" cy="29.849298" id="circle15" fill="url(#grad-up-pushbutton0)" style="opacity:0.85;fill:url(#grad-up-pushbutton0);stroke-width:1.88974" rx="7.7329402" ry="7.5022678"></ellipse>
+      </g>
+      <ellipse class="button-active-circle" cx="35.071976" cy="29.849298" id="circle16" style="opacity:0.85;fill:url(#grad-down-$%7BuniqueId%7D);stroke-width:1.88974" fill="url(#grad-down-pushbutton0)" rx="7.7329402" ry="7.5022678"></ellipse>
+      <ellipse cx="35.071976" cy="29.849298" stroke="#2f2f2f" stroke-opacity="0.47" stroke-width="0.151179" id="circle17" fill="#ff0000" style="opacity:0.85" rx="5.867485" ry="5.6924586"></ellipse>
+    </g>
+    
+    
+    
+    
+    
+    
+    
+    
+  </g>
+</svg>

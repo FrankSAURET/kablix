@@ -23,6 +23,7 @@ import { breadboardPins, normalizeSize, stripOfPin } from './breadboard.mjs';
 import { internalWiringSvg, type PinPoint } from './internal-wiring.mjs';
 import { overridesFor } from './pin-overrides.mjs';
 import { boardDrawing } from './board-drawings.mjs';
+import { attachInteractiveFeedback } from './drawing-feedback.mjs';
 import { pinoutSvg, pinoutPoster } from './pinout.mjs';
 import { BOARD_W, BOARD_H } from '../composants/pico-board.mjs';
 import type { Diagram, Endpoint, Part, Wire } from './model.mjs';
@@ -1330,7 +1331,9 @@ export class Editor {
       // Élément @wokwi conservé pour pinInfo + simulation, mais rendu invisible
       // et HORS FLUX (pas `display:none`, qui empêche le rendu du shadow DOM dont
       // dépendent clavier/canvas/init). Le corps se dimensionne alors sur le SVG.
-      el.classList.add('part__src-el');
+      // Composant interactif : l'élément reste CLIQUABLE (transparent), calé sur
+      // les broches du dessin (cf. alignLiveElement) pour capter clics et glissers.
+      el.classList.add(def.interactive ? 'part__src-el--live' : 'part__src-el');
       const draw = document.createElement('div');
       draw.className = 'part__drawing';
       draw.innerHTML = drawing.svg;
@@ -1339,6 +1342,9 @@ export class Editor {
         dsvg.setAttribute('width', String(drawing.w)); // px = unités viewBox (1:1)
         dsvg.setAttribute('height', String(drawing.h));
         dsvg.style.display = 'block';
+        // L'état de l'élément (bouton enfoncé, levier DIP, manche du joystick)
+        // est répercuté sur le dessin, sinon rien ne bouge à l'écran.
+        if (def.interactive) attachInteractiveFeedback(part.type, el, dsvg);
       }
       body.appendChild(draw);
     }
@@ -2464,6 +2470,49 @@ export class Editor {
   }
 
   /**
+   * Cale l'élément @wokwi VIVANT d'un composant interactif à dessin retouché sur
+   * les broches du dessin : ajustement affine (échelle x/y + translation) qui
+   * envoie chaque broche `pinInfo` sur sa surcharge retouchée. L'élément, rendu
+   * transparent (part__src-el--live), recouvre ainsi le dessin avec ses zones
+   * cliquables (capuchon, leviers, manche) au bon endroit. Broches alignées sur
+   * une seule ligne (joystick…) : échelle uniforme (l'axe indéterminé suit
+   * l'autre). Renvoie `false` tant que `pinInfo` n'est pas disponible.
+   */
+  private alignLiveElement(r: Rendered): boolean {
+    if (!partDef(r.part.type).interactive) return true;
+    if (!boardDrawing(r.part.type, r.part.attrs)) return true;
+    const el = r.el as WokwiElement & { _liveFit?: boolean };
+    if (el._liveFit) return true;
+    const ovMap = overridesFor(r.part.type, r.part.attrs);
+    if (!ovMap) return true; // pas de surcharges : rien à caler
+    const pins = ((el.pinInfo ?? []) as WokwiPin[]).filter((p) => ovMap[p.name]);
+    if (pins.length < 2) return pins.length > 0; // élément Lit pas encore prêt
+    let minPX = Infinity, maxPX = -Infinity, minPY = Infinity, maxPY = -Infinity;
+    let minOX = Infinity, maxOX = -Infinity, minOY = Infinity, maxOY = -Infinity;
+    let sumPX = 0, sumPY = 0, sumOX = 0, sumOY = 0;
+    for (const p of pins) {
+      const o = ovMap[p.name];
+      minPX = Math.min(minPX, p.x); maxPX = Math.max(maxPX, p.x);
+      minPY = Math.min(minPY, p.y); maxPY = Math.max(maxPY, p.y);
+      minOX = Math.min(minOX, o.x); maxOX = Math.max(maxOX, o.x);
+      minOY = Math.min(minOY, o.y); maxOY = Math.max(maxOY, o.y);
+      sumPX += p.x; sumPY += p.y; sumOX += o.x; sumOY += o.y;
+    }
+    let sx = maxPX - minPX > 0.5 ? (maxOX - minOX) / (maxPX - minPX) : NaN;
+    let sy = maxPY - minPY > 0.5 ? (maxOY - minOY) / (maxPY - minPY) : NaN;
+    if (Number.isNaN(sx) && Number.isNaN(sy)) sx = sy = 1;
+    else if (Number.isNaN(sx)) sx = sy;
+    else if (Number.isNaN(sy)) sy = sx;
+    const n = pins.length;
+    const tx = sumOX / n - (sx as number) * (sumPX / n);
+    const ty = sumOY / n - (sy as number) * (sumPY / n);
+    el.style.transformOrigin = '0 0';
+    el.style.transform = `matrix(${sx}, 0, 0, ${sy}, ${tx}, ${ty})`;
+    el._liveFit = true;
+    return true;
+  }
+
+  /**
    * Recale les bandeaux de nom et les fils une frame plus tard. Les éléments
    * @wokwi (Lit) terminent leur mise en page de façon asynchrone : au premier
    * rendu, offsetWidth/positions de broches peuvent être provisoires. Sans ce
@@ -2480,6 +2529,7 @@ export class Editor {
       let pending = false; // un dessin @wokwi pas encore prêt à être agrandi
       for (const r of this.rendered.values()) {
         if (!this.applyPinScale(r)) pending = true; // dessin agrandi au pas de 10 px
+        if (!this.alignLiveElement(r)) pending = true; // interactif calé sur son dessin
         this.syncHotspots(r); // pastilles de broche tardives (pinInfo asynchrone)
         const body = r.container.querySelector('.part__body') as HTMLDivElement | null;
         if (body) this.applyRotation(r.part, body); // repositionne le bandeau (rotation)

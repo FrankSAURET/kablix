@@ -1080,6 +1080,17 @@ body {
   visibility: hidden;
   pointer-events: none;
 }
+/* Variante INTERACTIVE (bouton, DIP switch, joystick) : l'élément @wokwi reste
+   cliquable par-dessus le dessin retouché, mais invisible (opacity, pas
+   visibility : les événements pointeur doivent passer). Il est calé sur les
+   broches du dessin par un transform calculé (cf. alignLiveElement). */
+.part__src-el--live {
+  position: absolute;
+  top: 0;
+  left: 0;
+  opacity: 0;
+  transform-origin: 0 0;
+}
 
 .pin {
   position: absolute;

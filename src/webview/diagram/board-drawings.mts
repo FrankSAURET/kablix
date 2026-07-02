@@ -35,6 +35,10 @@ import lcdSvg from '../composants/externe/lcd.svg';
 import lcdParallel20x4Svg from '../composants/externe/lcd-parallel-20x4.svg';
 import lcdI2cSvg from '../composants/externe/lcd-i2c.svg';
 import lcdI2c20x4Svg from '../composants/externe/lcd-i2c-20x4.svg';
+import buttonSvg from '../composants/externe/button.svg';
+import button6mmSvg from '../composants/externe/button-6mm.svg';
+import dipSwitchSvg from '../composants/externe/dip-switch.svg';
+import joystickSvg from '../composants/externe/joystick.svg';
 
 const DRAWINGS: Record<string, string> = {
   mega: megaSvg,
@@ -68,6 +72,12 @@ const DRAWINGS: Record<string, string> = {
   'lcd-parallel-20x4': lcdParallel20x4Svg,
   'lcd-i2c': lcdI2cSvg,
   'lcd-i2c-20x4': lcdI2c20x4Svg,
+  // Composants INTERACTIFS : le dessin est affiché, l'élément @wokwi reste
+  // par-dessus (transparent, calé sur les broches) pour capter les clics.
+  button: buttonSvg,
+  'button-6mm': button6mmSvg,
+  'dip-switch': dipSwitchSvg,
+  joystick: joystickSvg,
 };
 
 /**

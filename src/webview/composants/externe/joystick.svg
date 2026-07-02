@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 134.5677">
+  <defs id="defs54">
+    <pattern xlink:href="#packed-circles" preserveAspectRatio="xMidYMid" id="pattern64" patternTransform="scale(0.51)" x="0" y="0"></pattern>
+    <pattern patternUnits="userSpaceOnUse" width="1" height="1.73205080756" patternTransform="translate(0,0) scale(10,10)" preserveAspectRatio="xMidYMid" style="fill:#000000" id="packed-circles">
+      <circle style="stroke:none" cx="0" cy="0.5" r="0.5" id="circle219"></circle>
+      <circle style="stroke:none" cx="1" cy="0.5" r="0.5" id="circle221"></circle>
+      <circle style="stroke:none" cx="0.5" cy="1.36602540378" r="0.5" id="circle223"></circle>
+      <circle style="stroke:none" cx="0.5" cy="-0.366025403784" r="0.5" id="circle225"></circle>
+    </pattern>
+    <defs id="defs39">
+      <filter id="noise" primitiveUnits="objectBoundingBox" x="0" y="0" width="1" height="1">
+        <feTurbulence baseFrequency="2 2" type="fractalNoise" id="feTurbulence32"></feTurbulence>
+        <feColorMatrix values=".1 0 0 0 .1                       .1 0 0 0 .1                       .1 0 0 0 .1                       0 0 0 0 1" id="feColorMatrix32"></feColorMatrix>
+        <feComposite in2="SourceGraphic" operator="lighter" id="feComposite32"></feComposite>
+        <feComposite result="body" in2="SourceAlpha" operator="in" id="feComposite33"></feComposite>
+      </filter>
+      <radialGradient id="g-knob" cx="13.6" cy="13.6" r="10.6" gradientUnits="userSpaceOnUse">
+        <stop offset="0" id="stop33"></stop>
+        <stop offset="0.9" id="stop34"></stop>
+        <stop stop-color="#777" offset="1" id="stop35"></stop>
+      </radialGradient>
+      <radialGradient id="g-knob-base" cx="13.6" cy="13.6" r="13.6" gradientUnits="userSpaceOnUse" gradientTransform="matrix(3.937,0,0,3.937,20,20)">
+        <stop offset="0" id="stop36"></stop>
+        <stop stop-color="#444" offset=".8" id="stop37"></stop>
+        <stop stop-color="#555" offset="0.89752471" id="stop38"></stop>
+        <stop offset="1" id="stop39"></stop>
+      </radialGradient>
+      <path id="pin" fill="#c0c0c0" stroke="#a2a2a2" stroke-width="0.024" d="M 8.726,29.801 A 0.828,0.828 0 0 0 7.898,30.63 0.828,0.828 0 0 0 8.726,31.458 0.828,0.828 0 0 0 9.555,30.63 0.828,0.828 0 0 0 8.726,29.801 Z M 8.722,30.141 A 0.49,0.49 0 0 1 8.726,30.141 0.49,0.49 0 0 1 9.216,30.63 0.49,0.49 0 0 1 8.726,31.12 0.49,0.49 0 0 1 8.237,30.63 0.49,0.49 0 0 1 8.722,30.14 Z"></path>
+    </defs>
+  </defs>
+  
+  <!-- Retouche brochage joystick : déplace chaque pastille rouge sur un CROISEMENT (lignes foncées = 50 px). Garde les id pin-<nom>. Marge 20 px. -->
+  <g id="g65" transform="translate(-10,-10)">
+    <path d="M 20.738099,19.369995 V 144.1729 H 121.1316 V 19.369995 Z M 29.911309,22.058966 A 7.36219,7.36219 0 0 1 29.946742,22.058966 7.36219,7.36219 0 0 1 37.308932,29.421156 7.36219,7.36219 0 0 1 29.946742,36.783346 7.36219,7.36219 0 0 1 22.584552,29.421156 7.36219,7.36219 0 0 1 29.946742,22.058966 Z M 110.61981,22.058966 A 7.36219,7.36219 0 0 1 110.65524,22.058966 7.36219,7.36219 0 0 1 118.01743,29.421156 7.36219,7.36219 0 0 1 110.65524,36.783346 7.36219,7.36219 0 0 1 103.29305,29.421156 7.36219,7.36219 0 0 1 110.65524,22.058966 Z M 29.911309,127.57057 A 7.36219,7.36219 0 0 1 29.946742,127.57057 7.36219,7.36219 0 0 1 37.308932,134.93276 7.36219,7.36219 0 0 1 29.946742,142.29495 7.36219,7.36219 0 0 1 22.584552,134.93276 7.36219,7.36219 0 0 1 29.946742,127.57057 Z M 110.22611,127.57057 A 7.36219,7.36219 0 0 1 110.26154,127.57057 7.36219,7.36219 0 0 1 117.62373,134.93276 7.36219,7.36219 0 0 1 110.26154,142.29495 7.36219,7.36219 0 0 1 102.89935,134.93276 7.36219,7.36219 0 0 1 110.26154,127.57057 Z M 60.226209,138.04299 A 1.925193,1.925193 0 0 1 60.241957,138.04299 1.925193,1.925193 0 0 1 62.16715,139.96818 1.925193,1.925193 0 0 1 60.241957,141.89338 1.925193,1.925193 0 0 1 58.316764,139.96818 1.925193,1.925193 0 0 1 60.226209,138.04299 Z M 70.344299,138.04299 A 1.925193,1.925193 0 0 1 70.360047,138.04299 1.925193,1.925193 0 0 1 72.28524,139.96818 1.925193,1.925193 0 0 1 70.360047,141.89338 1.925193,1.925193 0 0 1 68.434854,139.96818 1.925193,1.925193 0 0 1 70.344299,138.04299 Z M 80.147429,138.09417 A 1.925193,1.925193 0 0 1 80.163177,138.09417 1.925193,1.925193 0 0 1 82.08837,140.01936 1.925193,1.925193 0 0 1 80.163177,141.94456 1.925193,1.925193 0 0 1 78.237984,140.01936 1.925193,1.925193 0 0 1 80.147429,138.09417 Z M 50.147489,138.12173 A 1.925193,1.925193 0 0 1 50.163237,138.12173 1.925193,1.925193 0 0 1 52.08843,140.04692 1.925193,1.925193 0 0 1 50.163237,141.97212 1.925193,1.925193 0 0 1 48.238044,140.04299 1.925193,1.925193 0 0 1 50.147489,138.12173 Z M 90.304889,138.17291 A 1.925193,1.925193 0 0 1 90.320637,138.17291 1.925193,1.925193 0 0 1 92.24583,140.0981 1.925193,1.925193 0 0 1 90.320637,142.0233 1.925193,1.925193 0 0 1 88.395444,140.09417 1.925193,1.925193 0 0 1 90.304889,138.17291 Z" fill="#bd1e34" id="path39" style="opacity:1;stroke-width:3.937"></path>
+    <path d="M 46.328599,144.1729 44.820728,142.79101 V 137.63354 L 47.249857,135.05087 H 51.934887 L 54.773464,137.63354 57.430939,135.05087 H 62.076599 L 64.863995,137.63354 67.470289,135.05087 H 72.391539 L 74.92303,137.63354 77.40334,135.05087 H 82.16711 L 84.903325,137.63354 87.407257,135.05087 H 92.013547 L 94.978108,137.63354 V 142.75164 L 93.340316,144.28707" id="path41" style="opacity:1;fill:none;stroke:#ffffff;stroke-width:0.559054"></path>
+    <path d="M 53.021499,144.1729 54.521496,142.81857 56.021493,144.12172 M 63.257699,144.1729 64.757696,142.81857 66.257693,144.12172 M 73.493899,144.1729 74.993896,142.81857 76.493893,144.12172 M 83.336399,144.1729 84.836396,142.81857 86.336393,144.12172" stroke-linecap="square" stroke-linejoin="bevel" id="path42" style="opacity:1;fill:none;stroke:#ffffff;stroke-width:0.559054"></path>
+    <g id="g64" transform="translate(-4.3800011,-0.63000488)">
+      <ellipse cx="73.543205" cy="73.936897" rx="53.543201" ry="53.936901" fill="url(#g-knob-base)" id="ellipse39" style="opacity:1;fill:url(#g-knob-base);stroke-width:3.937"></ellipse>
+      <circle id="knob" cx="13.6" cy="13.6" r="10.6" fill="url(#g-knob)" filter="url(#noise)" tabindex="0" transform="matrix(3.937,0,0,3.937,20,20)" style="opacity:1;fill:url(#pattern64)"></circle>
+      <path d="M 47.645614,65.114083 35.03934,74.944772 47.645614,84.775461" id="path43" style="opacity:1;fill:#aaaaaa;stroke-width:2.3622;stroke-linejoin:bevel"></path>
+      <path d="M 85.413255,47.933015 75.582566,35.326741 65.751877,47.933015" id="path44" style="opacity:1;fill:#aaaaaa;stroke-width:2.3622;stroke-linejoin:bevel"></path>
+      <path d="M 98.66126,83.389637 111.26753,73.558948 98.66126,63.728259" id="path45" style="opacity:1;fill:#aaaaaa;stroke-width:2.3622;stroke-linejoin:bevel"></path>
+      <path d="M 65.74794,99.180944 75.578629,111.78722 85.409318,99.180944" id="path46" style="opacity:1;fill:#aaaaaa;stroke-width:2.3622;stroke-linejoin:bevel"></path>
+      <circle cx="73.543205" cy="73.543205" r="11.811" stroke="#aaaaaa" class="" id="circle46" style="opacity:1;fill:#aaaaaa;stroke-width:2.3622;stroke-linejoin:bevel"></circle>
+    </g>
+    <use xlink:href="#pin" x="0" id="use46" transform="matrix(3.937,0,0,3.937,15.619999,19.369995)" style="opacity:1"></use>
+    <use xlink:href="#pin" x="2.54" id="use47" transform="matrix(3.937,0,0,3.937,15.619999,19.369995)" style="opacity:1"></use>
+    <use xlink:href="#pin" x="5.0799999" id="use48" transform="matrix(3.937,0,0,3.937,15.619999,19.369995)" style="opacity:1"></use>
+    <use xlink:href="#pin" x="7.6199999" id="use49" transform="matrix(3.937,0,0,3.937,15.619999,19.369995)" style="opacity:1"></use>
+    <use xlink:href="#pin" x="10.16" id="use50" transform="matrix(3.937,0,0,3.937,15.619999,19.369995)" style="opacity:1"></use>
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+  </g>
+</svg>

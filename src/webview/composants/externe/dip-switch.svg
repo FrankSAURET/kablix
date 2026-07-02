@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 70">
+  <defs id="defs63">
+    <defs id="defs23">
+      <path id="switch" transform="translate(-66.856,-41.367)" fill="#fffef4" stroke-linecap="round" stroke-linejoin="round" stroke-width="0.77094" d="M 72.096,69.764 C 72.096,69.764 73.4336,70.14647 74.2026,70.15596 74.97153,70.16546 76.6426,69.764 76.6426,69.764 77.03856,69.70039 77.36649,70.08686 77.36649,70.48789 V 74.85569 C 77.36649,75.25673 76.84312,75.57958 76.6426,75.57958 76.44208,75.57958 74.9834,75.16733 74.2138,75.17642 73.44422,75.18552 72.0961,75.57958 72.0961,75.57958 71.70214,75.65458 71.37221,75.25672 71.37221,74.85569 V 70.48789 C 71.37221,70.08685 71.69507,69.764 72.0961,69.764 Z"></path>
+    </defs>
+  </defs>
+  
+  <!-- Retouche brochage dip-switch : déplace chaque pastille rouge sur un CROISEMENT (lignes foncées = 50 px). Garde les id pin-<nom>. Marge 20 px. -->
+  <g id="g67" transform="translate(-20,-10)">
+    <g transform="matrix(1.0416667,0,0,1.01833,-47.083336,-25.213852)" fill="#454837" fill-opacity="0.49194" stroke-linecap="round" stroke-linejoin="round" stroke-width="0.745136" id="g38" style="opacity:0.85;fill:#8e9672;fill-opacity:1">
+      <rect x="73" y="87" width="2" height="6.5" rx="0.67199999" ry="0.68739998" id="rect23" style="fill:#8e9672;fill-opacity:1;stroke-width:0.745136"></rect>
+      <rect x="82.599998" y="87" width="2" height="6.5" rx="0.67199999" ry="0.68739998" id="rect24" style="fill:#8e9672;fill-opacity:1;stroke-width:0.745136"></rect>
+      <rect x="92.199997" y="87" width="2" height="6.5" rx="0.67199999" ry="0.68739998" id="rect25" style="fill:#8e9672;fill-opacity:1;stroke-width:0.745136"></rect>
+      <rect x="101.8" y="87" width="2" height="6.5" rx="0.67199999" ry="0.68739998" id="rect26" style="fill:#8e9672;fill-opacity:1;stroke-width:0.745136"></rect>
+      <rect x="111.4" y="87" width="2" height="6.5" rx="0.67199999" ry="0.68739998" id="rect27" style="fill:#8e9672;fill-opacity:1;stroke-width:0.745136"></rect>
+      <rect x="121" y="87" width="2" height="6.5" rx="0.67199999" ry="0.68739998" id="rect28" style="fill:#8e9672;fill-opacity:1;stroke-width:0.745136"></rect>
+      <rect x="130.60001" y="87" width="2" height="6.5" rx="0.67199999" ry="0.68739998" id="rect29" style="fill:#8e9672;fill-opacity:1;stroke-width:0.745136"></rect>
+      <rect x="140.2" y="87" width="2" height="6.5" rx="0.67199999" ry="0.68739998" id="rect30" style="fill:#8e9672;fill-opacity:1;stroke-width:0.745136"></rect>
+      <rect x="73" y="44.400002" width="2" height="6.5" rx="0.67199999" ry="0.68739998" id="rect31" style="fill:#8e9672;fill-opacity:1;stroke-width:0.745136"></rect>
+      <rect x="82.599998" y="44.400002" width="2" height="6.5" rx="0.67199999" ry="0.68739998" id="rect32" style="fill:#8e9672;fill-opacity:1;stroke-width:0.745136"></rect>
+      <rect x="92.199997" y="44.400002" width="2" height="6.5" rx="0.67199999" ry="0.68739998" id="rect33" style="fill:#8e9672;fill-opacity:1;stroke-width:0.745136"></rect>
+      <rect x="101.8" y="44.400002" width="2" height="6.5" rx="0.67199999" ry="0.68739998" id="rect34" style="fill:#8e9672;fill-opacity:1;stroke-width:0.745136"></rect>
+      <rect x="111.4" y="44.400002" width="2" height="6.5" rx="0.67199999" ry="0.68739998" id="rect35" style="fill:#8e9672;fill-opacity:1;stroke-width:0.745136"></rect>
+      <rect x="121" y="44.400002" width="2" height="6.5" rx="0.67199999" ry="0.68739998" id="rect36" style="fill:#8e9672;fill-opacity:1;stroke-width:0.745136"></rect>
+      <rect x="130.60001" y="44.400002" width="2" height="6.5" rx="0.67199999" ry="0.68739998" id="rect37" style="fill:#8e9672;fill-opacity:1;stroke-width:0.745136"></rect>
+      <rect x="140.2" y="44.400002" width="2" height="6.5" rx="0.67199999" ry="0.68739998" id="rect38" style="fill:#8e9672;fill-opacity:1;stroke-width:0.745136"></rect>
+    </g>
+    <rect style="fill:#e91a1a;fill-opacity:1;stroke-width:0.7;stroke-linecap:round" id="rect67" width="85.999992" height="40" x="22.000004" y="25.000002"></rect>
+    <g id="g65" transform="translate(2.1215062,-4.1813968)">
+      <g fill="#917c6f" stroke-width="0.740041" id="g47" transform="matrix(1.0416667,0,0,1.0418394,20.000001,20.242668)" style="opacity:0.85">
+        <!--?lit$583708605$-->
+        <rect y="21.200001" width="5.8168001" height="13" x="4.6929998" id="rect40" style="stroke-width:0.740041"></rect>
+        <use xlink:href="#switch" x="0" y="0" id="use40" style="stroke-width:0.740041"></use>
+        <!-- -->
+        <!--?lit$583708605$-->
+        <rect y="21.200001" width="5.8168001" height="13" x="14.293" id="rect41" style="stroke-width:0.740041"></rect>
+        <use xlink:href="#switch" x="9.6000004" y="0" id="use41" style="stroke-width:0.740041"></use>
+        <!-- -->
+        <!--?lit$583708605$-->
+        <rect y="21.200001" width="5.8168001" height="13" x="24.093" id="rect42" style="stroke-width:0.740041"></rect>
+        <use xlink:href="#switch" x="19.4" y="0" id="use42" style="stroke-width:0.740041"></use>
+        <!-- -->
+        <!--?lit$583708605$-->
+        <rect y="21.200001" width="5.8168001" height="13" x="33.792999" id="rect43" style="stroke-width:0.740041"></rect>
+        <use xlink:href="#switch" x="29.1" y="0" id="use43" style="stroke-width:0.740041"></use>
+        <!-- -->
+        <!--?lit$583708605$-->
+        <rect y="21.200001" width="5.8168001" height="13" x="43.193001" id="rect44" style="stroke-width:0.740041"></rect>
+        <use xlink:href="#switch" x="38.5" y="0" id="use44" style="stroke-width:0.740041"></use>
+        <!-- -->
+        <!--?lit$583708605$-->
+        <rect y="21.200001" width="5.8168001" height="13" x="52.792999" id="rect45" style="stroke-width:0.740041"></rect>
+        <use xlink:href="#switch" x="48.099998" y="0" id="use45" style="stroke-width:0.740041"></use>
+        <!-- -->
+        <!--?lit$583708605$-->
+        <rect y="21.200001" width="5.8168001" height="13" x="62.393002" id="rect46" style="stroke-width:0.740041"></rect>
+        <use xlink:href="#switch" x="57.700001" y="0" id="use46" style="stroke-width:0.740041"></use>
+        <!-- -->
+        <!--?lit$583708605$-->
+        <rect y="21.200001" width="5.8168001" height="13" x="71.992996" id="rect47" style="stroke-width:0.740041"></rect>
+        <use xlink:href="#switch" x="67.300003" y="0" id="use47" style="stroke-width:0.740041"></use>
+        <!-- -->
+      </g>
+      <text xml:space="preserve" style="font-size:11.185px;line-height:1;font-family:Arial;-inkscape-font-specification:Arial;writing-mode:lr-tb;direction:ltr;fill:#ebebeb;stroke-width:0.7;stroke-linecap:round" x="22.868755" y="71.297668" id="text64" transform="scale(1.076134,0.9292523)"><tspan id="tspan64" x="22.868755" y="71.297668" style="font-size:11.185px;stroke-width:0.7">1 2 3 4 5 6 7 8</tspan></text>
+      <text xml:space="preserve" style="font-size:10.3937px;line-height:1;font-family:Arial;-inkscape-font-specification:Arial;writing-mode:lr-tb;direction:ltr;fill:#ebebeb;stroke-width:0.7;stroke-linecap:round" x="24.338028" y="39.549297" id="text65"><tspan id="tspan65" x="24.338028" y="39.549297">ON</tspan></text>
+    </g>
+  </g>
+  <g id="g66" transform="translate(-18.437502,-13.368187)">
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+  </g>
+</svg>
