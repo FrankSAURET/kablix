@@ -11,6 +11,14 @@
 8. ✅ À chaque **chargement d'un fichier Python** : effacer la console, éteindre la simulation, réinitialiser les composants. À l'**arrêt de la simulation** : effacer la console, réinitialiser les composants. → v2026.6.80
 9. ⬜ Mettre à jour le **câblage interne du potentiomètre** → [`svg/pot-schema.edit.svg`](svg/pot-schema.edit.svg).
 
+# v2026.7.2
+
+1. ✅ **Migration dessin retouché → fork direct** pour `nano` : le fork [`arduino-nano-element.mts`](src/webview/composants/arduino-nano-element.mts) importe désormais son SVG retouché (`./externe/nano.svg`) et le rend lui-même via `unsafeSVG`, `pinInfo` codé en dur (36 broches, repère grille 10 px), broches POWER/GND (5V/3.3V/VIN/GND×3) vérifiées alignées. Retrait de l'entrée `nano` dans `DRAWINGS`/`PIN_OVERRIDES`/`pinScale` (catalog.mts) devenue inutile.
+2. ✅ Halos LED **TX/RX/Power/13** portés en cercles frères du dessin importé (coordonnées calculées depuis les transforms `matrix(3.937,…)` des groupes LED du dessin retouché), réutilisant le filtre `#ledFilter` du SVG.
+3. ✅ **Bouton reset** : le cercle `#reset-button` du dessin importé sert de cible d'interaction, câblage évènementiel en `firstUpdated` (la liaison déclarative `@event=` de Lit ne peut pas cibler l'intérieur d'un `unsafeSVG`), même convention que `slide-potentiometer-element.mts`.
+4. ✅ Fichier `nano.edit.svg` (sans silkscreen, caractéristique du dessin depuis v2026.6.54 — vérifié par archéologie git, aucune régression) déplacé vers `svg retouche/Validé/`.
+5. ✅ Validation : `typecheck` OK ; `verify-diagram`/`verify-sim`/`verify-components` OK ; contrôle visuel headless (Chrome) — 4 halos LED aux bonnes couleurs, bouton reset présent, toutes les broches POWER/GND tombent sur la grille de 10 px.
+
 # v2026.7.1
 
 1. ✅ **Migration dessin retouché → fork direct** (fin de l'overlay `board-drawings.mts`/`pin-overrides.mts`) pour `resistor`, `hcsr04`, `dht22`, `ntc-temp`, `heartbeat`, `sound`, `tilt`, `microsd`, `slide-switch` : chaque fork importe désormais son SVG retouché (`./externe/<type>.svg`) et le rend lui-même via `unsafeSVG`, `pinInfo` codé en dur (repère grille 10 px), broches POWER/GND vérifiées alignées. Retrait des entrées `DRAWINGS`/`PIN_OVERRIDES`/`pinScale` devenues inutiles pour ces 9 types.

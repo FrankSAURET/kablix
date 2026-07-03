@@ -137,7 +137,7 @@ export const CATALOG: readonly PartDef[] = [
   // Cartes AVR : éléments forkés, mis à l'échelle 10/9,6 px pour que
   // leurs broches tombent sur la grille de 10 px (= pas de la platine d'essai).
   { type: 'uno', label: 'Arduino Uno', tag: 'kablix-arduino-uno', kind: 'mcu', board: 'uno', pinScale: WOKWI_PIN_SCALE },
-  { type: 'nano', label: 'Arduino Nano', tag: 'kablix-arduino-nano', kind: 'mcu', board: 'nano', pinScale: WOKWI_PIN_SCALE },
+  { type: 'nano', label: 'Arduino Nano', tag: 'kablix-arduino-nano', kind: 'mcu', board: 'nano' },
   { type: 'mega', label: 'Arduino Mega 2560', tag: 'kablix-arduino-mega', kind: 'mcu', board: 'mega', pinScale: WOKWI_PIN_SCALE },
   // Pico / Pico W : le catalogue Wokwi ne fournit aucun élément Pico → dessin maison
   // <kablix-pico-board> (SVG paysage pico.svg / picow.svg, variant), pas de 10 px.

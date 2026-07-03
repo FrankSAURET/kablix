@@ -6,7 +6,6 @@
 // (caché) pour `pinInfo` et la simulation.
 import megaSvg from '../composants/externe/mega.svg';
 import unoSvg from '../composants/externe/uno.svg';
-import nanoSvg from '../composants/externe/nano.svg';
 import gasSensorSvg from '../composants/externe/gas-sensor.svg';
 import photoresistorSvg from '../composants/externe/photoresistor.svg';
 import pirSvg from '../composants/externe/pir.svg';
@@ -35,7 +34,6 @@ import joystickSvg from '../composants/externe/joystick.svg';
 const DRAWINGS: Record<string, string> = {
   mega: megaSvg,
   uno: unoSvg,
-  nano: nanoSvg,
   'gas-sensor': gasSensorSvg,
   photoresistor: photoresistorSvg,
   pir: pirSvg,
