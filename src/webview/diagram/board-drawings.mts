@@ -4,8 +4,6 @@
 // le repère du dessin (viewBox) = celui des surcharges de broches (pin-overrides),
 // donc les pastilles tombent pile sur le dessin. L'élément Lit reste présent
 // (caché) pour `pinInfo` et la simulation.
-import megaSvg from '../composants/externe/mega.svg';
-import unoSvg from '../composants/externe/uno.svg';
 import sevenSegSvg from '../composants/externe/7seg.svg';
 import sevenSeg2Svg from '../composants/externe/7seg-2dig.svg';
 import sevenSeg4Svg from '../composants/externe/7seg-4dig.svg';
@@ -23,8 +21,6 @@ import dipSwitchSvg from '../composants/externe/dip-switch.svg';
 import joystickSvg from '../composants/externe/joystick.svg';
 
 const DRAWINGS: Record<string, string> = {
-  mega: megaSvg,
-  uno: unoSvg,
   '7seg': sevenSegSvg, // 1 chiffre (cf. drawingKey ; 2/4 chiffres ci-dessous)
   '7seg-2dig': sevenSeg2Svg,
   '7seg-4dig': sevenSeg4Svg,

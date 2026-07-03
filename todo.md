@@ -11,6 +11,13 @@
 8. ✅ À chaque **chargement d'un fichier Python** : effacer la console, éteindre la simulation, réinitialiser les composants. À l'**arrêt de la simulation** : effacer la console, réinitialiser les composants. → v2026.6.80
 9. ⬜ Mettre à jour le **câblage interne du potentiomètre** → [`svg/pot-schema.edit.svg`](svg/pot-schema.edit.svg).
 
+# v2026.7.6
+
+1. ✅ **Migration dessin retouché → fork direct** pour `uno` et `mega` : chaque fork importe désormais son SVG retouché (`./externe/uno.svg`, `./externe/mega.svg` — exports réalistes type Eagle/KiCad, pas les dessins procéduraux d'origine) et le rend lui-même via `unsafeSVG`, `pinInfo` codé en dur (grille 10 px, 6/10 broches POWER/GND vérifiées alignées pour uno/mega respectivement).
+2. ✅ **Retour visuel réimplémenté nativement** : positions des 4 halos LED (L/TX/RX/ON) mesurées empiriquement sur le dessin retouché (Chrome headless, `getBoundingClientRect`) faute d'id exploitables dans cet export réaliste ; filtre `#ledFilter` déjà présent dans le dessin, réutilisé tel quel. Bouton reset : aucun élément cliquable dédié dans le dessin retouché (uno : juste le texte silkscreen ; mega : un capuchon visible mais sans id) → cercle transparent `#reset-button` calé à la position mesurée du bouton physique (même convention que les autres interactifs).
+3. ✅ **Nettoyage** des 2 points de l'ancien mécanisme concernés par `uno`/`mega` : `board-drawings.mts` (imports + entrées `DRAWINGS` retirées), `pin-overrides.mts` (entrées `uno`/`mega` retirées, copiées dans les forks). `sim.mts`/`drawing-feedback.mts` : rien à retirer (LEDs déjà pilotées par affectation directe `el.led13=`/etc., pas de `reflect*` dédié à ces types).
+4. ✅ Validation : `typecheck` OK ; `verify` (avr8js Uno/Mega, PWM, timers 3-5, Serial1) / `verify:diagram` / `verify:components` OK ; contrôle visuel headless (bundle esbuild réel) — 2 composants instanciés, broches (16 power/gnd au total) toutes sur la grille 10 px, halos LED aux bonnes couleurs/positions, bouton reset émettant `button-press`/`button-release`.
+
 # v2026.7.5
 
 1. ✅ **Migration dessin retouché → fork direct** pour `gas-sensor`, `photoresistor`, `pir`, `led`, `buzzer`, `rgb-led`, `led-bar`, `servo` : chaque fork importe désormais son SVG retouché (`./externe/<type>.svg`) et le rend lui-même via `unsafeSVG`, `pinInfo` codé en dur (grille 10 px, broches POWER/GND vérifiées alignées).
