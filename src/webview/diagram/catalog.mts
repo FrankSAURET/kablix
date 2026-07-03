@@ -216,7 +216,7 @@ export const CATALOG: readonly PartDef[] = [
     attrs: { color: 'GYR' },
     props: [{ attr: 'color', label: 'Color', kind: 'select', options: ['GYR', 'red', 'green', 'blue', 'yellow'] }],
   },
-  { type: 'slide-switch', label: 'Slide switch', tag: 'kablix-slide-switch', kind: 'slide-switch', interactive: true, pinScale: WOKWI_PIN_SCALE_95 },
+  { type: 'slide-switch', label: 'Slide switch', tag: 'kablix-slide-switch', kind: 'slide-switch', interactive: true },
   { type: 'dip-switch', label: 'DIP switch ×8', tag: 'kablix-dip-switch-8', kind: 'dip-switch', interactive: true },
   { type: 'joystick', label: 'Analog joystick', tag: 'kablix-analog-joystick', kind: 'joystick', interactive: true, pinScale: WOKWI_PIN_SCALE },
   {
@@ -230,7 +230,7 @@ export const CATALOG: readonly PartDef[] = [
     props: [{ ...STATE_PROP, label: 'Motion detected' }],
   },
   {
-    type: 'tilt', label: 'Tilt sensor', tag: 'kablix-tilt-switch', kind: 'digital-source', pinScale: WOKWI_PIN_SCALE,
+    type: 'tilt', label: 'Tilt sensor', tag: 'kablix-tilt-switch', kind: 'digital-source',
     digitalPin: 'OUT', attrs: { state: '0' },
     props: [{ ...STATE_PROP, label: 'Tilted' }],
   },
@@ -268,7 +268,7 @@ export const CATALOG: readonly PartDef[] = [
   // Écran TFT couleur ILI9341 (SPI) : décodé et dessiné dans son canvas.
   { type: 'ili9341', label: 'TFT display (ILI9341, SPI)', tag: 'kablix-ili9341', kind: 'spi-tft', pinScale: WOKWI_PIN_SCALE },
   // Carte microSD (SPI) : répondeur de protocole (init + lecture/écriture de blocs).
-  { type: 'microsd', label: 'microSD card (SPI)', tag: 'kablix-microsd-card', kind: 'spi-sd', pinScale: WOKWI_PIN_SCALE },
+  { type: 'microsd', label: 'microSD card (SPI)', tag: 'kablix-microsd-card', kind: 'spi-sd' },
   // NeoPixel (WS2812) : simulés — la chaîne DIN est décodée et les LED s'allument.
   { type: 'neopixel', label: 'NeoPixel', tag: 'kablix-neopixel', kind: 'neopixel' },
   { type: 'neopixel-matrix', label: 'NeoPixel matrix', tag: 'kablix-neopixel-matrix', kind: 'neopixel', attrs: { rows: '8', cols: '8' }, pinScale: WOKWI_PIN_SCALE },
@@ -283,7 +283,7 @@ export const CATALOG: readonly PartDef[] = [
 
   // Capteurs analogiques : la sortie pilote l'entrée ADC reliée (valeur en %).
   {
-    type: 'ntc-temp', label: 'NTC temperature sensor', tag: 'kablix-ntc-temperature-sensor', kind: 'analog-source', pinScale: WOKWI_PIN_SCALE,
+    type: 'ntc-temp', label: 'NTC temperature sensor', tag: 'kablix-ntc-temperature-sensor', kind: 'analog-source',
     analogPin: 'OUT', attrs: { value: '50' },
     props: [{ ...VALUE_PROP, label: 'Temperature (%)' }],
   },
@@ -320,7 +320,7 @@ export const CATALOG: readonly PartDef[] = [
   // Capteur de température/humidité DHT22 (1-wire sur SDA) : répond au protocole
   // réel (température/humidité réglées dans l'inspecteur).
   {
-    type: 'dht22', label: 'Temp/humidity sensor (DHT22)', tag: 'kablix-dht22', kind: 'passive', pinScale: WOKWI_PIN_SCALE_95,
+    type: 'dht22', label: 'Temp/humidity sensor (DHT22)', tag: 'kablix-dht22', kind: 'passive',
     attrs: { temperature: '22', humidity: '50' },
     props: [
       { attr: 'temperature', label: 'Temperature (°C)', kind: 'number', min: -40, max: 80, step: 0.1 },

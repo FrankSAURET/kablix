@@ -11,6 +11,14 @@
 8. ✅ À chaque **chargement d'un fichier Python** : effacer la console, éteindre la simulation, réinitialiser les composants. À l'**arrêt de la simulation** : effacer la console, réinitialiser les composants. → v2026.6.80
 9. ⬜ Mettre à jour le **câblage interne du potentiomètre** → [`svg/pot-schema.edit.svg`](svg/pot-schema.edit.svg).
 
+# v2026.7.1
+
+1. ✅ **Migration dessin retouché → fork direct** (fin de l'overlay `board-drawings.mts`/`pin-overrides.mts`) pour `resistor`, `hcsr04`, `dht22`, `ntc-temp`, `heartbeat`, `sound`, `tilt`, `microsd`, `slide-switch` : chaque fork importe désormais son SVG retouché (`./externe/<type>.svg`) et le rend lui-même via `unsafeSVG`, `pinInfo` codé en dur (repère grille 10 px), broches POWER/GND vérifiées alignées. Retrait des entrées `DRAWINGS`/`PIN_OVERRIDES`/`pinScale` devenues inutiles pour ces 9 types.
+2. ✅ `small-sound-sensor` : halos LED PWR/DO (`ledPower`/`ledSignal`) reportés en cercles frères du dessin importé, réutilisant le filtre `#ledFilter` du SVG retouché.
+3. ✅ `slide-switch` : animation du curseur 100 % CSS conservée (id `handle` du dessin retouché).
+4. ✅ Fichiers `.edit.svg` migrés déplacés vers `svg retouche/Validé/`.
+5. ✅ Validation : `typecheck` OK ; `verify-diagram`/`verify-sim`/`verify-components` OK.
+
 # v2026.7.0
 
 1. ✅ **Bug grille magnétique** : un composant posé (glisser-déposer ou clic palette) se calait **1 px monde hors grille** — flagrant en zoomant fort ensuite, alors qu'un déplacement à fort zoom collait « presque parfaitement ». Cause : [`canvasPoint`](src/webview/diagram/editor.mts) soustrayait `rect.left/top` (bord **extérieur** de la bordure 1 px du canvas) alors que l'origine du monde — et de la grille peinte — est au bord **intérieur** : toute conversion écran→monde était décalée de 1/zoom px monde (1 px à 100 %, 0,11 px à 876 %, d'où l'asymétrie pose/déplacement). Corrigé en soustrayant `clientLeft/clientTop` (épaisseur de bordure) dans `canvasPoint` et dans l'ancrage du zoom molette (`onWheel`).

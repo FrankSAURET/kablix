@@ -7,23 +7,15 @@
 import megaSvg from '../composants/externe/mega.svg';
 import unoSvg from '../composants/externe/uno.svg';
 import nanoSvg from '../composants/externe/nano.svg';
-import hcsr04Svg from '../composants/externe/hcsr04.svg';
-import dht22Svg from '../composants/externe/dht22.svg';
-import ntcTempSvg from '../composants/externe/ntc-temp.svg';
 import gasSensorSvg from '../composants/externe/gas-sensor.svg';
 import photoresistorSvg from '../composants/externe/photoresistor.svg';
 import pirSvg from '../composants/externe/pir.svg';
-import soundSvg from '../composants/externe/sound.svg';
-import tiltSvg from '../composants/externe/tilt.svg';
-import heartbeatSvg from '../composants/externe/heartbeat.svg';
-import microsdSvg from '../composants/externe/microsd.svg';
 import ledSvg from '../composants/externe/led.svg';
 import buzzerSvg from '../composants/externe/buzzer.svg';
 import sevenSegSvg from '../composants/externe/7seg.svg';
 import rgbLedSvg from '../composants/externe/rgb-led.svg';
 import ledBarSvg from '../composants/externe/led-bar.svg';
 import servoSvg from '../composants/externe/servo.svg';
-import resistorSvg from '../composants/externe/resistor.svg';
 import sevenSeg2Svg from '../composants/externe/7seg-2dig.svg';
 import sevenSeg4Svg from '../composants/externe/7seg-4dig.svg';
 import neopixelSvg from '../composants/externe/neopixel.svg';
@@ -44,16 +36,9 @@ const DRAWINGS: Record<string, string> = {
   mega: megaSvg,
   uno: unoSvg,
   nano: nanoSvg,
-  hcsr04: hcsr04Svg,
-  dht22: dht22Svg,
-  'ntc-temp': ntcTempSvg,
   'gas-sensor': gasSensorSvg,
   photoresistor: photoresistorSvg,
   pir: pirSvg,
-  sound: soundSvg,
-  tilt: tiltSvg,
-  heartbeat: heartbeatSvg,
-  microsd: microsdSvg,
   led: ledSvg,
   buzzer: buzzerSvg,
   '7seg': sevenSegSvg, // 1 chiffre (cf. drawingKey ; 2/4 chiffres ci-dessous)
@@ -62,7 +47,6 @@ const DRAWINGS: Record<string, string> = {
   'rgb-led': rgbLedSvg,
   'led-bar': ledBarSvg,
   servo: servoSvg,
-  resistor: resistorSvg,
   neopixel: neopixelSvg,
   'neopixel-matrix': neopixelMatrixSvg,
   'led-ring': ledRingSvg,

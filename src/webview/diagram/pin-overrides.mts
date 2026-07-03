@@ -168,12 +168,6 @@ export const PIN_OVERRIDES: Record<string, Record<string, { x: number; y: number
     '1': { x: 20, y: 50 },
     '2': { x: 30, y: 50 },
   },
-  'dht22': {
-    'VCC': { x: 20, y: 120 },
-    'SDA': { x: 30, y: 120 },
-    'NC': { x: 40, y: 120 },
-    'GND': { x: 50, y: 120 },
-  },
   // DIP switch : dessin retouché (repère = coin haut-gauche du dessin, tel quel).
   'dip-switch': {
     '1a': { x: 10, y: 60 },
@@ -206,17 +200,6 @@ export const PIN_OVERRIDES: Record<string, Record<string, { x: number; y: number
     'DOUT': { x: 140, y: 30 },
     'GND': { x: 140, y: 40 },
     'VCC': { x: 140, y: 50 },
-  },
-  'hcsr04': {
-    'VCC': { x: 80, y: 110 },
-    'TRIG': { x: 90, y: 110 },
-    'ECHO': { x: 100, y: 110 },
-    'GND': { x: 110, y: 110 },
-  },
-  'heartbeat': {
-    'GND': { x: 100, y: 20 },
-    'VCC': { x: 100, y: 30 },
-    'OUT': { x: 100, y: 40 },
   },
   'lcd-i2c': {
     'GND': { x: 20, y: 50 },
@@ -381,15 +364,6 @@ export const PIN_OVERRIDES: Record<string, Record<string, { x: number; y: number
     'A14': { x: 360, y: 200 },
     'A15': { x: 370, y: 200 },
   },
-  'microsd': {
-    'CD': { x: 80, y: 10 },
-    'DO': { x: 80, y: 20 },
-    'GND': { x: 80, y: 30 },
-    'SCK': { x: 80, y: 40 },
-    'VCC': { x: 80, y: 50 },
-    'DI': { x: 80, y: 60 },
-    'CS': { x: 80, y: 70 },
-  },
   'neopixel': {
     'VDD': { x: 10, y: 10 },
     'DOUT': { x: 10, y: 20 },
@@ -419,11 +393,6 @@ export const PIN_OVERRIDES: Record<string, Record<string, { x: number; y: number
     'LED': { x: 130, y: 300 },
     'MISO': { x: 140, y: 300 },
   },
-  'ntc-temp': {
-    'GND': { x: 140, y: 30 },
-    'VCC': { x: 140, y: 40 },
-    'OUT': { x: 140, y: 50 },
-  },
   'oled-ssd1306': {
     'DATA': { x: 59, y: 20 },
     'CLK': { x: 69, y: 20 },
@@ -445,10 +414,6 @@ export const PIN_OVERRIDES: Record<string, Record<string, { x: number; y: number
     'OUT': { x: 50, y: 100 },
     'GND': { x: 60, y: 100 },
   },
-  'resistor': {
-    '1': { x: 10, y: 10 },
-    '2': { x: 70, y: 10 },
-  },
   'rgb-led': {
     'R': { x: 10, y: 50 },
     'COM': { x: 20, y: 60 },
@@ -459,22 +424,6 @@ export const PIN_OVERRIDES: Record<string, Record<string, { x: number; y: number
     'GND': { x: 10, y: 60 },
     'V+': { x: 10, y: 70 },
     'PWM': { x: 10, y: 80 },
-  },
-  'slide-switch': {
-    '1': { x: 0, y: 40 },
-    '2': { x: 10, y: 40 },
-    '3': { x: 20, y: 40 },
-  },
-  'sound': {
-    'AOUT': { x: 10, y: 20 },
-    'GND': { x: 10, y: 30 },
-    'VCC': { x: 10, y: 40 },
-    'DOUT': { x: 10, y: 50 },
-  },
-  'tilt': {
-    'GND': { x: 110, y: 40 },
-    'VCC': { x: 110, y: 50 },
-    'OUT': { x: 110, y: 60 },
   },
 };
 

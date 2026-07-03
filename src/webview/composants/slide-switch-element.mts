@@ -1,9 +1,13 @@
 // Fork local de @wokwi/elements v1.9.2 (MIT © Wokwi) — slide-switch-element.ts.
 // Balise <kablix-slide-switch> (ex <wokwi-slide-switch>). Licence d'origine : LICENSE-wokwi.md (même dossier).
 // Adaptations Kablix : sans décorateurs (static properties + declare + constructeur),
-// imports relatifs .mjs. Le dessin/les comportements restent ceux d'origine.
+// imports relatifs .mjs ; DESSIN remplacé par la version retouchée (./externe/slide-switch.svg,
+// broches recalées sur la grille de 10 px ; plus de pinScale, cf. catalog.mts). L'animation du
+// curseur reste 100 % CSS (id="handle" préservé dans le dessin retouché).
 import { css, html, LitElement } from 'lit';
+import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
+import drawing from './externe/slide-switch.svg';
 
 export class SlideSwitchElement extends LitElement {
   declare value: number;
@@ -19,9 +23,9 @@ export class SlideSwitchElement extends LitElement {
   }
 
   readonly pinInfo: ElementPin[] = [
-    { name: '1', number: 1, y: 34, x: 6.5, signals: [] },
-    { name: '2', number: 2, y: 34, x: 16, signals: [] },
-    { name: '3', number: 3, y: 34, x: 25.5, signals: [] },
+    { name: '1', number: 1, x: 10, y: 40, signals: [] },
+    { name: '2', number: 2, x: 20, y: 40, signals: [] },
+    { name: '3', number: 3, x: 30, y: 40, signals: [] },
   ];
 
   static get styles() {
@@ -62,41 +66,13 @@ export class SlideSwitchElement extends LitElement {
 
   renderSVG() {
     return html`<svg
-      width="8.5mm"
-      height="9.23mm"
-      version="1.1"
-      viewBox="0 0 8.5 9.23"
+      width="40"
+      height="45"
+      viewBox="0 0 40 45"
       xmlns="http://www.w3.org/2000/svg"
-      xmlns:xlink="http://www.w3.org/1999/xlink"
       @click="${this.onClick}"
     >
-      <defs>
-        <radialGradient
-          id="a"
-          cx="9.33"
-          cy="122"
-          r="4.25"
-          gradientTransform="matrix(1.75 -.511 .28 .959 -41.2 8.15)"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop stop-color="#808080" offset="0" />
-          <stop stop-color="#b5b5b5" offset="1" />
-        </radialGradient>
-      </defs>
-      <g fill="#aaa" stroke-width=".0673">
-        <rect x="4" y="5" width=".5" height="4.2" rx=".25" ry=".25" />
-        <rect x="1.54" y="5" width=".5" height="4.2" rx=".25" ry=".25" />
-        <rect x="6.5" y="5" width=".5" height="4.2" rx=".25" ry=".25" />
-      </g>
-      <path
-        id="handle"
-        d="m2.74 0.128 0.145-0.128 0.177 0.0725 0.174-0.0725 0.151 0.0725 0.154-0.0725 0.151 0.0725 0.128-0.0725 0.134 0.0725 0.123-0.0725 0.145 0.128 2e-5 2h-1.48z"
-        stroke-width=".0623"
-      />
-      <rect x="0" y="2.06" width="8.5" height="3.48" fill="url(#a)" stroke-width=".0548" />
-      <rect x=".0322" y="4.74" width="1.55" height=".805" stroke-width=".0637" />
-      <rect x="6.95" y="4.74" width="1.55" height=".805" stroke-width=".0637" />
-      <rect x="2.55" y="4.74" width="3.47" height=".805" stroke-width=".0955" />
+      ${unsafeSVG(drawing)}
     </svg>`;
   }
 

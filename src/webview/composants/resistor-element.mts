@@ -1,9 +1,14 @@
 // Fork local de @wokwi/elements v1.9.2 (MIT © Wokwi) — resistor-element.ts.
 // Balise <kablix-resistor> (ex <wokwi-resistor>). Licence d'origine : LICENSE-wokwi.md (même dossier).
 // Adaptations Kablix : sans décorateurs (static properties + declare + constructeur),
-// imports relatifs .mjs. Le dessin/les comportements restent ceux d'origine.
+// imports relatifs .mjs ; DESSIN remplacé par la version retouchée (./externe/resistor.svg,
+// broches recalées sur la grille de 10 px) ; anneaux de couleur mis à jour par updated()
+// (le dessin importé est statique, l'ancien template liait ${bandColor} directement).
 import { css, html, LitElement } from 'lit';
+import type { PropertyValues } from 'lit';
+import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
+import drawing from './externe/resistor.svg';
 
 const bandColors: { [key: number]: string } = {
   [-2]: '#C3C7C0', // Silver
@@ -33,9 +38,11 @@ export class ResistorElement extends LitElement {
     this.value = '1000';
   }
 
+  // Broches : centre de chaque patte, recalé sur la grille de 10 px (repère du
+  // dessin retouché, tel quel — pas de pinScale, cf. catalog.mts).
   readonly pinInfo: ElementPin[] = [
-    { name: '1', x: 0, y: 5.65, signals: [] },
-    { name: '2', x: 58.8, y: 5.65, signals: [] },
+    { name: '1', x: 10, y: 10, signals: [] },
+    { name: '2', x: 70, y: 10, signals: [] },
   ];
 
   static get styles() {
@@ -78,53 +85,27 @@ export class ResistorElement extends LitElement {
     return [Math.round(base % 100), exponent];
   }
 
-  render() {
-    const { value } = this;
+  /** Couleurs des 3 anneaux d'après `value` (mêmes règles que le rendu d'origine). */
+  private bandColorsFor(value: string): [string, string, string] {
     const numValue = parseFloat(value);
     const [base, exponent] = this.breakValue(numValue);
-    const band1Color = bandColors[Math.floor(base / 10)];
-    const band2Color = bandColors[base % 10];
-    const band3Color = bandColors[exponent];
+    return [bandColors[Math.floor(base / 10)], bandColors[base % 10], bandColors[exponent]];
+  }
+
+  updated(changed: PropertyValues): void {
+    super.updated(changed);
+    const [c1, c2, c3] = this.bandColorsFor(this.value);
+    // id du dessin nettoyé (externe/resistor.svg) : rect19 = anneau 1, path19 =
+    // anneau 2, path20 = anneau 3 (le 4e, doré, est fixe = tolérance).
+    this.renderRoot.querySelector('#rect19')?.setAttribute('fill', c1);
+    this.renderRoot.querySelector('#path19')?.setAttribute('fill', c2);
+    this.renderRoot.querySelector('#path20')?.setAttribute('fill', c3);
+  }
+
+  render() {
     return html`
-      <svg
-        width="15.645mm"
-        height="3mm"
-        version="1.1"
-        viewBox="0 0 15.645 3"
-        xmlns="http://www.w3.org/2000/svg"
-        xmlns:xlink="http://www.w3.org/1999/xlink"
-      >
-        <defs>
-          <linearGradient
-            id="a"
-            x2="0"
-            y1="22.332"
-            y2="38.348"
-            gradientTransform="matrix(.14479 0 0 .14479 -23.155 -4.0573)"
-            gradientUnits="userSpaceOnUse"
-            spreadMethod="reflect"
-          >
-            <stop stop-color="#323232" offset="0" />
-            <stop stop-color="#fff" stop-opacity=".42268" offset="1" />
-          </linearGradient>
-        </defs>
-        <rect y="1.1759" width="15.558" height=".63826" fill="#aaa" />
-        <g stroke-width=".14479" fill="#d5b597">
-          <path
-            id="body"
-            d="m4.6918 0c-1.0586 0-1.9185 0.67468-1.9185 1.5022 0 0.82756 0.85995 1.4978 1.9185 1.4978 0.4241 0 0.81356-0.11167 1.1312-0.29411h4.0949c0.31802 0.18313 0.71075 0.29411 1.1357 0.29411 1.0586 0 1.9185-0.67015 1.9185-1.4978 0-0.8276-0.85995-1.5022-1.9185-1.5022-0.42499 0-0.81773 0.11098-1.1357 0.29411h-4.0949c-0.31765-0.18244-0.7071-0.29411-1.1312-0.29411z"
-          />
-          <use xlink:href="#body" fill="url(#a)" opacity=".44886" />
-          <rect x="4" y="0" width="1" height="3" fill="${band1Color}" clip-path="url(#g)" />
-
-          <path d="m6 0.29411v2.4117h0.96v-2.4117z" fill="${band2Color}" />
-          <path d="m7.8 0.29411v2.4117h0.96v-2.4117z" fill="${band3Color}" />
-
-          <rect x="10.69" y="0" width="1" height="3" fill="#F1D863" clip-path="url(#g)" />
-          <clippath id="g">
-            <use xlink:href="#body" />
-          </clippath>
-        </g>
+      <svg width="80.164619" height="20" viewBox="0 0 80.164619 20" xmlns="http://www.w3.org/2000/svg">
+        ${unsafeSVG(drawing)}
       </svg>
     `;
   }
