@@ -720,18 +720,6 @@ export class Editor {
     return btn;
   }
 
-  /**
-   * kablix-lcd1602 : `numCols`/`numRows` ne sont pas des attributs réactifs (champs
-   * fixes 16/2 en amont) → on les fixe directement depuis cols/rows avant le rendu
-   * pour permettre le format 20×4 (sinon l'afficheur reste bloqué en 16×2).
-   */
-  private applyLcdSize(el: WokwiElement, def: PartDef, attrs?: Record<string, string>): void {
-    if (def.kind !== 'i2c-lcd') return;
-    const lcd = el as unknown as { numCols: number; numRows: number };
-    lcd.numCols = Number(attrs?.cols ?? 16) || 16;
-    lcd.numRows = Number(attrs?.rows ?? 2) || 2;
-  }
-
   /** Miniature live d'un composant (élément réel mis à l'échelle dans une vignette). */
   private thumbnail(def: PartDef): HTMLDivElement {
     const box = document.createElement('div');
@@ -744,7 +732,6 @@ export class Editor {
       for (const [k, v] of Object.entries(def.attrs ?? {})) {
         if (v !== '') el.setAttribute(k, v);
       }
-      this.applyLcdSize(el, def, def.attrs);
       this.lightThumbnail(el, def); // afficheurs allumés (7 seg « 8. », barre de LED)
       el.style.transformOrigin = 'center center';
       el.style.pointerEvents = 'none';
@@ -1323,11 +1310,10 @@ export class Editor {
     for (const [k, v] of Object.entries(part.attrs ?? def.attrs ?? {})) {
       if (v !== '') el.setAttribute(k, v);
     }
-    this.applyLcdSize(el, def, part.attrs ?? def.attrs);
     // Dessin retouché à la main : on l'affiche à la place du rendu Lit (dont
     // les broches, étirées par pinScale, ne tombent plus sur les surcharges).
     // L'élément Lit est conservé mais masqué (pinInfo + simulation).
-    const drawing = boardDrawing(part.type, part.attrs);
+    const drawing = boardDrawing(part.type);
     if (drawing) {
       // Élément Lit conservé pour pinInfo + simulation, mais rendu invisible
       // et HORS FLUX (pas `display:none`, qui empêche le rendu du shadow DOM dont
@@ -1389,7 +1375,7 @@ export class Editor {
 
     const hotspots = new Map<string, HTMLDivElement>();
     const ovMap = overridesFor(part.type, part.attrs);
-    const pins = this.partPins(part.type, el, ovMap, part.attrs);
+    const pins = this.partPins(part.type, el, ovMap);
     const anchor: XY = pins[0] ? { x: pins[0].x, y: pins[0].y } : { x: 0, y: 0 };
     for (const pin of pins) {
       const dot = this.makeHotspot(part.id, part.type, def.kind, pin, anchor, ovMap);
@@ -1440,10 +1426,9 @@ export class Editor {
   private partPins(
     type: string,
     el: WokwiElement,
-    ovMap?: Record<string, { x: number; y: number }>,
-    attrs?: Record<string, string>
+    ovMap?: Record<string, { x: number; y: number }>
   ): WokwiPin[] {
-    if (boardDrawing(type, attrs) && ovMap) {
+    if (boardDrawing(type) && ovMap) {
       return Object.entries(ovMap).map(([name, p]) => ({ name, x: p.x, y: p.y }));
     }
     return (el.pinInfo ?? []) as WokwiPin[];
@@ -1515,7 +1500,7 @@ export class Editor {
     if (!body) return;
     const def = partDef(r.part.type);
     const ovMap = overridesFor(r.part.type, r.part.attrs);
-    const pins = this.partPins(r.part.type, r.el, ovMap, r.part.attrs);
+    const pins = this.partPins(r.part.type, r.el, ovMap);
     const anchor: XY = pins[0] ? { x: pins[0].x, y: pins[0].y } : { x: 0, y: 0 };
     for (const pin of pins) {
       let dot = r.hotspots.get(pin.name);
@@ -2452,7 +2437,7 @@ export class Editor {
   private applyPinScale(r: Rendered): boolean {
     // Dessin retouché : l'élément Lit est masqué, on ne l'agrandit pas (les
     // broches viennent des surcharges, dans le repère du dessin).
-    if (boardDrawing(r.part.type, r.part.attrs)) return true;
+    if (boardDrawing(r.part.type)) return true;
     const k = partDef(r.part.type).pinScale ?? 1;
     if (k === 1) return true;
     const el = r.el as HTMLElement & { _pinScaled?: boolean };
@@ -2481,7 +2466,7 @@ export class Editor {
    */
   private alignLiveElement(r: Rendered): boolean {
     if (!partDef(r.part.type).interactive) return true;
-    if (!boardDrawing(r.part.type, r.part.attrs)) return true;
+    if (!boardDrawing(r.part.type)) return true;
     const el = r.el as WokwiElement & { _liveFit?: boolean };
     if (el._liveFit) return true;
     const ovMap = overridesFor(r.part.type, r.part.attrs);

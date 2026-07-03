@@ -22,7 +22,6 @@ import './composants/pir-motion-sensor-element.mjs';
 import './composants/tilt-switch-element.mjs';
 import './composants/servo-element.mjs';
 import './composants/lcd1602-element.mjs';
-import './composants/lcd2004-element.mjs';
 import './composants/ssd1306-element.mjs';
 import './composants/ili9341-element.mjs';
 import './composants/microsd-card-element.mjs';
@@ -45,7 +44,6 @@ import './composants/custom-part.mjs';
 
 import { initLocale, t } from './i18n.mjs';
 import { Editor, type PaletteState } from './diagram/editor.mjs';
-import { reflectOled, reflectLcd } from './diagram/drawing-feedback.mjs';
 import { partDef, boardFamily, isBoardId, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
 import { toWokwiDiagram, fromWokwiDiagram } from './diagram/wokwi.mjs';
 import {
@@ -439,8 +437,8 @@ function refreshVisuals(): void {
         // Texte décodé affiché sur le LCD. En I²C : Lcd1602Device (bus décodé) ;
         // en parallèle (pins=full) : readLcdParallel (RS/E/données décodés par le
         // moteur). Composant perso (kablix-custom-part) → setLcd superpose le texte
-        // sur le dessin. Élément kablix-lcd1602 → on alimente son écran (text)
-        // ET, si un dessin retouché le remplace, on superpose le texte dessus.
+        // sur le dessin. Élément kablix-lcd1602 → on alimente directement son
+        // écran natif (text).
         const parallel = (part.attrs?.pins ?? 'i2c') === 'full';
         const dev = i2cDevices.get(part.id);
         const lines = parallel
@@ -449,8 +447,6 @@ function refreshVisuals(): void {
             ? dev.text
             : null;
         if (lines) {
-          const cols = Number(part.attrs?.cols ?? 16) || 16;
-          const rows = Number(part.attrs?.rows ?? 2) || 2;
           const setLcd = el.setLcd as
             | ((lines: string[], rect: { x: number; y: number; w: number; h: number }) => void)
             | undefined;
@@ -459,8 +455,6 @@ function refreshVisuals(): void {
           } else {
             (el as unknown as { text?: string }).text = lines.join('\n');
           }
-          const draw = editor.drawingOf(part.id);
-          if (draw) reflectLcd(draw, lines, cols, rows);
         }
         break;
       }
@@ -469,8 +463,6 @@ function refreshVisuals(): void {
         const dev = i2cDevices.get(part.id);
         if (dev instanceof Ssd1306Device) {
           renderOled(el as unknown as { imageData?: ImageData; redraw?: () => void }, dev);
-          const draw = editor.drawingOf(part.id);
-          if (draw) reflectOled(draw, dev);
         }
         break;
       }
@@ -479,8 +471,6 @@ function refreshVisuals(): void {
         const dev = spiOledDevices.get(part.id);
         if (dev) {
           renderOled(el as unknown as { imageData?: ImageData; redraw?: () => void }, dev);
-          const draw = editor.drawingOf(part.id);
-          if (draw) reflectOled(draw, dev);
         }
         break;
       }

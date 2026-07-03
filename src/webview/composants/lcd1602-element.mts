@@ -1,336 +1,201 @@
 // Fork local de @wokwi/elements v1.9.2 (MIT © Wokwi) — lcd1602-element.ts.
 // Balise <kablix-lcd1602> (ex <wokwi-lcd1602>). Licence d'origine : LICENSE-wokwi.md (même dossier).
 // Adaptations Kablix : sans décorateurs (static properties + declare + constructeur),
-// imports relatifs .mjs. Le dessin/les comportements restent ceux d'origine.
-import { css, html, LitElement, svg } from 'lit';
-import { fontA00 } from './lcd1602-font-a00.mjs';
+// imports relatifs .mjs ; DESSIN remplacé par la version retouchée (4 variantes selon
+// interface `pins` (i2c/full) × taille `lcdSize` (16x2/20x4) — seuls attrs exposés dans
+// l'inspecteur, cf. catalog.mts). `pinInfo` codé en dur par variante (grille 10 px, positions
+// reprises telles quelles de l'ancien pin-overrides.mts). Texte affiché nativement en
+// `<text>` SVG (une ligne par rangée, police LED) superposé à la zone de caractères du
+// dessin importé (repérée par son remplissage `url(#characters)`, conservé dans le dessin
+// retouché) — même logique que l'ancien `reflectLcd`/`lcdCharRectOf` de drawing-feedback.mts,
+// portée ici. Le rendu bitmap point-par-point d'origine (`path()`/police A00) n'était de
+// toute façon jamais visible : l'ancien overlay masquait déjà l'élément Lit et affichait ce
+// même texte simplifié.
+import { html, LitElement } from 'lit';
+import type { PropertyValues } from 'lit';
+import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin, i2c } from './pin.mjs';
-import { mmToPix } from './utils/units.mjs';
+import drawingLcdI2c from './externe/lcd-i2c.svg';
+import drawingLcdI2c20x4 from './externe/lcd-i2c-20x4.svg';
+import drawingLcdParallel from './externe/lcd.svg';
+import drawingLcdParallel20x4 from './externe/lcd-parallel-20x4.svg';
 
-const charXSpacing = 3.55;
-const charYSpacing = 5.95;
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const LCD_TEXT_HEIGHT = 0.82;
 
-const backgroundColors: { [key: string]: string } = {
-  green: '#6cb201',
-  blue: '#000eff',
+interface Variant {
+  drawing: string;
+  w: number;
+  h: number;
+  rows: number;
+  pins: Record<string, { x: number; y: number }>;
+}
+
+const PARALLEL_PINS = (y: number): Record<string, { x: number; y: number }> => ({
+  VSS: { x: 40, y }, VDD: { x: 50, y }, V0: { x: 60, y }, RS: { x: 70, y }, RW: { x: 80, y },
+  E: { x: 90, y }, D0: { x: 100, y }, D1: { x: 110, y }, D2: { x: 120, y }, D3: { x: 130, y },
+  D4: { x: 140, y }, D5: { x: 150, y }, D6: { x: 160, y }, D7: { x: 170, y }, A: { x: 180, y }, K: { x: 190, y },
+});
+const I2C_PINS: Record<string, { x: number; y: number }> = {
+  GND: { x: 20, y: 50 }, VCC: { x: 20, y: 60 }, SDA: { x: 20, y: 70 }, SCL: { x: 20, y: 80 },
 };
 
-export class LCD1602Element extends LitElement {
-  declare color: string;
-  declare background: string;
-  declare characters: number[] | Uint8Array;
-  declare font: Uint8Array;
-  declare cursor: boolean;
-  declare blink: boolean;
-  declare cursorX: number;
-  declare cursorY: number;
-  declare backlight: boolean;
-  declare pins: 'full' | 'i2c' | 'none';
-  declare screenOnly: boolean;
+const VARIANTS: Record<string, Variant> = {
+  'lcd-i2c': { drawing: drawingLcdI2c, w: 350, h: 175, rows: 2, pins: I2C_PINS },
+  'lcd-i2c-20x4': { drawing: drawingLcdI2c20x4, w: 405, h: 220, rows: 4, pins: I2C_PINS },
+  lcd: { drawing: drawingLcdParallel, w: 330, h: 150, rows: 2, pins: PARALLEL_PINS(140) },
+  'lcd-parallel-20x4': { drawing: drawingLcdParallel20x4, w: 390, h: 200, rows: 4, pins: PARALLEL_PINS(190) },
+};
 
-  /** Propriétés réactives lit (remplace les décorateurs @property du code d'origine). */
+function lcdCharRectOf(
+  svg: SVGElement
+): { x: number; y: number; w: number; h: number; el: SVGElement } | null {
+  for (const r of svg.querySelectorAll('rect')) {
+    const fill = `${r.getAttribute('fill') || ''} ${(r as SVGElement).style.fill || ''}`;
+    if (!/url\(#characters|url\(#pattern/.test(fill)) continue;
+    return {
+      x: Number(r.getAttribute('x') ?? 0),
+      y: Number(r.getAttribute('y') ?? 0),
+      w: Number(r.getAttribute('width') ?? 0),
+      h: Number(r.getAttribute('height') ?? 0),
+      el: r as SVGElement,
+    };
+  }
+  return null;
+}
+
+export class LCD1602Element extends LitElement {
+  declare pins: 'full' | 'i2c';
+  declare lcdSize: '16x2' | '20x4';
+
   static properties = {
-    color: {},
-    background: {},
-    characters: { type: Array },
-    font: {},
-    cursor: {},
-    blink: {},
-    cursorX: {},
-    cursorY: {},
-    backlight: {},
     pins: {},
-    screenOnly: {},
-    // `text` : accesseur défini plus bas (lit garde l'accesseur existant et ne
-    // fait que synchroniser l'attribut → setter), comme @property() d'origine.
-    text: {},
+    lcdSize: {},
   };
 
   constructor() {
     super();
-    this.color = 'black';
-    this.background = 'green';
-    this.characters = new Uint8Array(32);
-    this.font = fontA00;
-    this.cursor = false;
-    this.blink = false;
-    this.cursorX = 0;
-    this.cursorY = 0;
-    this.backlight = true;
     this.pins = 'full';
-    this.screenOnly = false;
+    this.lcdSize = '16x2';
   }
 
-  protected numCols = 16;
-  protected numRows = 2;
-
-  get text() {
-    return Array.from(this.characters)
-      .map((c) => String.fromCharCode(c))
-      .join('');
+  private get variantKey(): string {
+    const parallel = this.pins === 'full';
+    const big = this.lcdSize === '20x4';
+    if (parallel) return big ? 'lcd-parallel-20x4' : 'lcd';
+    return big ? 'lcd-i2c-20x4' : 'lcd-i2c';
   }
 
-  set text(value: string) {
-    this.characters = new Uint8Array(value.split('').map((char) => char.charCodeAt(0)));
-  }
-
-  static get styles() {
-    return css`
-      .cursor-blink {
-        animation: cursor-blink;
-      }
-
-      @keyframes cursor-blink {
-        from {
-          opacity: 0;
-        }
-        25% {
-          opacity: 1;
-        }
-        75% {
-          opacity: 1;
-        }
-        to {
-          opacity: 0;
-        }
-      }
-    `;
-  }
-
-  protected get panelHeight() {
-    return this.rows * 5.75;
+  private get variant(): Variant {
+    return VARIANTS[this.variantKey];
   }
 
   get pinInfo(): ElementPin[] {
-    const { panelHeight } = this;
-    const y = 87.5 + panelHeight * mmToPix;
-    switch (this.pins) {
-      case 'i2c':
-        return [
-          { name: 'GND', x: 4, y: 32, number: 1, signals: [{ type: 'power', signal: 'GND' }] },
-          { name: 'VCC', x: 4, y: 41.5, number: 2, signals: [{ type: 'power', signal: 'VCC' }] },
-          { name: 'SDA', x: 4, y: 51, number: 3, signals: [i2c('SDA')] },
-          { name: 'SCL', x: 4, y: 60.5, number: 4, signals: [i2c('SCL')] },
-        ];
-
-      case 'full':
-      default:
-        return [
-          { name: 'VSS', x: 32, y, number: 1, signals: [{ type: 'power', signal: 'GND' }] },
-          { name: 'VDD', x: 41.5, y, number: 2, signals: [{ type: 'power', signal: 'VCC' }] },
-          { name: 'V0', x: 51.5, y, number: 3, signals: [] },
-          { name: 'RS', x: 60.5, y, number: 4, signals: [] },
-          { name: 'RW', x: 70.5, y, number: 5, signals: [] },
-          { name: 'E', x: 80, y, number: 6, signals: [] },
-          { name: 'D0', x: 89.5, y, number: 7, signals: [] },
-          { name: 'D1', x: 99.5, y, number: 8, signals: [] },
-          { name: 'D2', x: 109, y, number: 9, signals: [] },
-          { name: 'D3', x: 118.5, y, number: 10, signals: [] },
-          { name: 'D4', x: 128, y, number: 11, signals: [] },
-          { name: 'D5', x: 137.5, y, number: 12, signals: [] },
-          { name: 'D6', x: 147, y, number: 13, signals: [] },
-          { name: 'D7', x: 156.5, y, number: 14, signals: [] },
-          { name: 'A', x: 166.5, y, number: 15, signals: [] },
-          { name: 'K', x: 176, y, number: 16, signals: [] },
-        ];
+    if (this.pins === 'i2c') {
+      return [
+        { name: 'GND', ...this.variant.pins.GND, number: 1, signals: [{ type: 'power', signal: 'GND' }] },
+        { name: 'VCC', ...this.variant.pins.VCC, number: 2, signals: [{ type: 'power', signal: 'VCC' }] },
+        { name: 'SDA', ...this.variant.pins.SDA, number: 3, signals: [i2c('SDA')] },
+        { name: 'SCL', ...this.variant.pins.SCL, number: 4, signals: [i2c('SCL')] },
+      ];
     }
+    const v = this.variant.pins;
+    const empty: ElementPin[] = [
+      { name: 'VSS', ...v.VSS, number: 1, signals: [{ type: 'power', signal: 'GND' }] },
+      { name: 'VDD', ...v.VDD, number: 2, signals: [{ type: 'power', signal: 'VCC' }] },
+      { name: 'V0', ...v.V0, number: 3, signals: [] },
+      { name: 'RS', ...v.RS, number: 4, signals: [] },
+      { name: 'RW', ...v.RW, number: 5, signals: [] },
+      { name: 'E', ...v.E, number: 6, signals: [] },
+      { name: 'D0', ...v.D0, number: 7, signals: [] },
+      { name: 'D1', ...v.D1, number: 8, signals: [] },
+      { name: 'D2', ...v.D2, number: 9, signals: [] },
+      { name: 'D3', ...v.D3, number: 10, signals: [] },
+      { name: 'D4', ...v.D4, number: 11, signals: [] },
+      { name: 'D5', ...v.D5, number: 12, signals: [] },
+      { name: 'D6', ...v.D6, number: 13, signals: [] },
+      { name: 'D7', ...v.D7, number: 14, signals: [] },
+      { name: 'A', ...v.A, number: 15, signals: [] },
+      { name: 'K', ...v.K, number: 16, signals: [] },
+    ];
+    return empty;
   }
 
-  get cols() {
-    return this.numCols;
+  private lines: string[] = [];
+
+  get text(): string {
+    return this.lines.join('\n');
   }
 
-  get rows() {
-    return this.numRows;
+  set text(value: string) {
+    this.lines = value.split('\n');
+    this.renderText();
   }
 
-  update(changedProperties: Map<string, unknown>) {
-    if (changedProperties.has('pins')) {
+  update(changed: PropertyValues): void {
+    if (changed.has('pins') || changed.has('lcdSize')) {
       this.dispatchEvent(new CustomEvent('pininfo-change'));
     }
-    super.update(changedProperties);
+    super.update(changed);
   }
 
-  path(characters: Uint8Array | number[]) {
-    const xSpacing = 0.6;
-    const ySpacing = 0.7;
-    const result = [];
-    const { cols } = this;
-    for (let i = 0; i < characters.length; i++) {
-      const charX = (i % cols) * charXSpacing;
-      const charY = Math.floor(i / cols) * charYSpacing;
+  private zone: { x: number; y: number; w: number; h: number; el: SVGElement } | null = null;
+  private overlay: SVGGElement | null = null;
 
-      for (let py = 0; py < 8; py++) {
-        const row = this.font[characters[i] * 8 + py];
-        for (let px = 0; px < 5; px++) {
-          if (row & (1 << px)) {
-            const x = (charX + px * xSpacing).toFixed(2);
-            const y = (charY + py * ySpacing).toFixed(2);
-            result.push(`M ${x} ${y}h0.55v0.65h-0.55Z`);
-          }
-        }
-      }
+  updated(changed: PropertyValues): void {
+    super.updated(changed);
+    if (changed.has('pins') || changed.has('lcdSize')) {
+      this.zone = null;
+      this.overlay = null;
     }
-    return result.join(' ');
+    this.renderText();
   }
 
-  renderCursor() {
-    const { cols, rows, cursor, cursorX, cursorY, blink, color } = this;
-    const xOffset = 12.45 + cursorX * charXSpacing;
-    const yOffset = 12.55 + cursorY * charYSpacing;
-    if (cursorX < 0 || cursorX >= cols || cursorY < 0 || cursorY >= rows) {
-      return null;
+  private renderText(): void {
+    if (!this.zone) {
+      const svg = this.renderRoot.querySelector('svg');
+      if (!svg) return;
+      this.zone = lcdCharRectOf(svg);
+      if (this.zone) this.zone.el.style.opacity = '0';
     }
-
-    const result = [];
-
-    if (blink) {
-      result.push(svg`
-        <rect x="${xOffset}" y="${yOffset}" width="2.95" height="5.55" fill="${color}">
-          <animate
-            attributeName="opacity"
-            values="0;0;0;0;1;1;0;0;0;0"
-            dur="1s"
-            fill="freeze"
-            repeatCount="indefinite"
-          />
-        </rect>
-      `);
+    const zone = this.zone;
+    if (!zone || zone.w <= 0 || zone.h <= 0) return;
+    if (!this.overlay) {
+      const group = document.createElementNS(SVG_NS, 'g') as SVGGElement;
+      group.setAttribute('class', 'lcd-overlay');
+      (zone.el.parentNode ?? zone.el).appendChild(group);
+      this.overlay = group;
     }
-
-    if (cursor) {
-      const y = yOffset + 0.7 * 7;
-      result.push(svg`<rect x="${xOffset}" y="${y}" width="2.95" height="0.65" fill="${color}" />`);
+    const group = this.overlay;
+    const rows = this.variant.rows;
+    const rowH = zone.h / rows;
+    const fs = rowH * LCD_TEXT_HEIGHT;
+    const lines = this.lines;
+    while (group.childElementCount > lines.length) group.lastElementChild?.remove();
+    while (group.childElementCount < lines.length) {
+      const t = document.createElementNS(SVG_NS, 'text');
+      t.setAttribute('text-anchor', 'start');
+      t.setAttribute('dominant-baseline', 'central');
+      t.setAttribute('lengthAdjust', 'spacingAndGlyphs');
+      t.setAttribute('fill', '#0b1405');
+      t.style.fontFamily = "'LED Board-7', monospace";
+      t.style.whiteSpace = 'pre';
+      group.appendChild(t);
     }
-
-    return result;
-  }
-
-  renderI2CPins() {
-    return svg`
-      <rect x="7.55" y="-2.5" height="2.5" width="10.16" fill="url(#pins)" transform="rotate(90)" />
-      <text fill="white" font-size="1.5px" font-family= "monospace">
-      <tspan y="6.8" x="0.7" fill="white">1</tspan>
-      <tspan y="8.9" x="2.3" fill="white">GND</tspan>
-      <tspan y="11.4" x="2.3" fill="white">VCC</tspan>
-      <tspan y="14" x="2.3" fill="white">SDA</tspan>
-      <tspan y="16.6" x="2.3" fill="white">SCL</tspan>
-      </text>
-    `;
-  }
-
-  renderPins(panelHeight: number) {
-    const y = panelHeight + 21.1;
-    return svg`
-      <g transform="translate(0, ${y})">
-        <rect x="7.55" y="1" height="2.5" width="40.64" fill="url(#pins)" />
-        <text fill="white" font-size="1.5px" font-family= "monospace">
-          <tspan x="6" y="2.7">1</tspan>
-          <tspan x="7.2" y="0.7">VSS</tspan>
-          <tspan x="9.9" y="0.7">VDD</tspan>
-          <tspan x="12.7" y="0.7">V0</tspan>
-          <tspan x="15.2" y="0.7">RS</tspan>
-          <tspan x="17.8" y="0.7">RW</tspan>
-          <tspan x="20.8" y="0.7">E</tspan>
-          <tspan x="22.7" y="0.7">D0</tspan>
-          <tspan x="25.3" y="0.7">D1</tspan>
-          <tspan x="27.9" y="0.7">D2</tspan>
-          <tspan x="30.4" y="0.7">D3</tspan>
-          <tspan x="33" y="0.7">D4</tspan>
-          <tspan x="35.6" y="0.7">D5</tspan>
-          <tspan x="38.2" y="0.7">D6</tspan>
-          <tspan x="40.8" y="0.7">D7</tspan>
-          <tspan x="43.6" y="0.7">A</tspan>
-          <tspan x="46.2" y="0.7">K</tspan>
-          <tspan x="48" y="2.7">16</tspan>
-        </text>
-      </g>
-    `;
+    for (let i = 0; i < lines.length; i++) {
+      const t = group.children[i] as SVGTextElement;
+      t.setAttribute('x', String(zone.x));
+      t.setAttribute('y', String(zone.y + (i + 0.5) * rowH));
+      t.setAttribute('textLength', String(zone.w));
+      t.setAttribute('font-size', String(fs));
+      t.textContent = lines[i];
+    }
   }
 
   render() {
-    const { color, characters, background, pins, panelHeight, cols } = this;
-
-    const darken = this.backlight ? 0 : 0.5;
-    const actualBgColor =
-      background in backgroundColors ? backgroundColors[background] : backgroundColors;
-
-    const panelWidth = cols * 3.5125;
-    const width = this.screenOnly ? panelWidth : panelWidth + 23.8;
-    const height = this.screenOnly ? panelHeight : panelHeight + 24.5;
-
-    const panelX = 12.45;
-    const panelY = 12.55;
-    const viewBox = this.screenOnly
-      ? `${panelX} ${panelY} ${panelWidth} ${panelHeight}`
-      : `0 0 ${width} ${height}`;
-
-    // Dimensions according to:
-    // https://www.winstar.com.tw/products/character-lcd-display-module/16x2-lcd.html
+    const { drawing, w, h } = this.variant;
     return html`
-      <svg
-        width="${width}mm"
-        height="${height}mm"
-        version="1.1"
-        viewBox="${viewBox}"
-        style="font-size: 1.5px; font-family: monospace"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <defs>
-          <pattern
-            id="characters"
-            width="3.55"
-            height="5.95"
-            patternUnits="userSpaceOnUse"
-            x="12.45"
-            y="12.55"
-          >
-            <rect width="2.95" height="5.55" fill-opacity="0.05" />
-          </pattern>
-          <pattern id="pins" width="2.54" height="3.255" patternUnits="userSpaceOnUse" y="1.1">
-            <path
-              fill="#92926d"
-              d="M0,0.55c0,0 0.21,-0.52 0.87,-0.52 0.67,0 0.81,0.51 0.81,0.51v1.81h-1.869z"
-            />
-            <circle r="0.45" cx="0.827" cy="0.9" color="black" />
-          </pattern>
-        </defs>
-        <rect width="${width}" height="${height}" fill="#087f45" />
-        <rect x="4.95" y="5.7" width="${panelWidth + 15}" height="${panelHeight + 13.7}" />
-        <rect
-          x="7.55"
-          y="10.3"
-          width="${panelWidth + 9.8}"
-          height="${panelHeight + 4.5}"
-          rx="1.5"
-          ry="1.5"
-          fill="${actualBgColor}"
-        />
-        <rect
-          x="7.55"
-          y="10.3"
-          width="${panelWidth + 9.8}"
-          height="${panelHeight + 4.5}"
-          rx="1.5"
-          ry="1.5"
-          opacity="${darken}"
-        />
-        ${pins === 'i2c' ? this.renderI2CPins() : null}
-        ${pins === 'full' ? this.renderPins(panelHeight) : null}
-        <rect
-          x="${panelX}"
-          y="${panelY}"
-          width="${panelWidth}"
-          height="${panelHeight}"
-          fill="url(#characters)"
-        />
-        <path
-          d="${this.path(characters)}"
-          transform="translate(${panelX}, ${panelY})"
-          fill="${color}"
-        />
-        ${this.renderCursor()}
-      </svg>
+      <svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="${SVG_NS}">${unsafeSVG(drawing)}</svg>
     `;
   }
 }

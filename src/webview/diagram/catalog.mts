@@ -136,9 +136,9 @@ const VALUE_PROP: PropDef = { attr: 'value', label: 'Position (%)', kind: 'numbe
 export const CATALOG: readonly PartDef[] = [
   // Cartes AVR : éléments forkés, mis à l'échelle 10/9,6 px pour que
   // leurs broches tombent sur la grille de 10 px (= pas de la platine d'essai).
-  { type: 'uno', label: 'Arduino Uno', tag: 'kablix-arduino-uno', kind: 'mcu', board: 'uno', pinScale: WOKWI_PIN_SCALE },
+  { type: 'uno', label: 'Arduino Uno', tag: 'kablix-arduino-uno', kind: 'mcu', board: 'uno' },
   { type: 'nano', label: 'Arduino Nano', tag: 'kablix-arduino-nano', kind: 'mcu', board: 'nano' },
-  { type: 'mega', label: 'Arduino Mega 2560', tag: 'kablix-arduino-mega', kind: 'mcu', board: 'mega', pinScale: WOKWI_PIN_SCALE },
+  { type: 'mega', label: 'Arduino Mega 2560', tag: 'kablix-arduino-mega', kind: 'mcu', board: 'mega' },
   // Pico / Pico W : le catalogue Wokwi ne fournit aucun élément Pico → dessin maison
   // <kablix-pico-board> (SVG paysage pico.svg / picow.svg, variant), pas de 10 px.
   { type: 'pico', label: 'Raspberry Pi Pico', tag: 'kablix-pico-board', kind: 'mcu', board: 'pico', attrs: { variant: 'pico' } },
@@ -249,7 +249,7 @@ export const CATALOG: readonly PartDef[] = [
   // `pins` (i2c = 4 fils GND/VCC/SDA/SCL ; full = parallèle). Le texte n'est simulé
   // qu'en I²C (Lcd1602Device) ; en parallèle l'afficheur reste visuel.
   {
-    type: 'lcd', label: 'LCD Texte', tag: 'kablix-lcd1602', kind: 'i2c-lcd', pinScale: WOKWI_PIN_SCALE_95,
+    type: 'lcd', label: 'LCD Texte', tag: 'kablix-lcd1602', kind: 'i2c-lcd',
     attrs: { pins: 'i2c', address: '0x27', cols: '16', rows: '2', lcdSize: '16x2' },
     props: [
       {
