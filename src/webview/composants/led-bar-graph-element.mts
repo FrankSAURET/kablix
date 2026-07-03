@@ -1,15 +1,16 @@
 // Fork local de @wokwi/elements v1.9.2 (MIT © Wokwi) — led-bar-graph-element.ts.
 // Balise <kablix-led-bar-graph> (ex <wokwi-led-bar-graph>). Licence d'origine : LICENSE-wokwi.md (même dossier).
-// Adaptations Kablix : sans décorateurs (static properties + declare + constructeur),
-// imports relatifs .mjs. Le dessin/les comportements restent ceux d'origine.
-import { html, LitElement, svg } from 'lit';
+// Adaptations Kablix :
+//   - sans décorateurs (static properties + declare + constructeur), imports relatifs .mjs ;
+//   - DESSIN remplacé par la version retouchée (./externe/led-bar.svg) ;
+//   - A1-A10/C1-C10 recalées sur la grille de 10 px (repère du dessin retouché,
+//     numéro de broche physique du boîtier inchangé) ;
+//   - les 10 barres (`#g53 rect`) sont déjà dans l'ordre haut→bas du dessin
+//     retouché, pilotées nativement via `updated()`.
+import { html, LitElement, PropertyValues } from 'lit';
+import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
-import { mmToPix } from './utils/units.mjs';
-
-const segments = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-const mm = mmToPix;
-const anodeX = 1.27 * mm;
-const cathodeX = 8.83 * mm;
+import drawing from './externe/led-bar.svg';
 
 const green = '#9eff3c';
 const blue = '#2c95fa';
@@ -25,30 +26,31 @@ const colorPalettes: Record<string, string[]> = {
 export class LedBarGraphElement extends LitElement {
   declare color: string;
   declare offColor: string;
-
-  readonly pinInfo: ElementPin[] = [
-    { name: 'A1', x: anodeX, y: 1.27 * mm, number: 1, description: 'Anode 1', signals: [] },
-    { name: 'A2', x: anodeX, y: 3.81 * mm, number: 2, description: 'Anode 2', signals: [] },
-    { name: 'A3', x: anodeX, y: 6.35 * mm, number: 3, description: 'Anode 3', signals: [] },
-    { name: 'A4', x: anodeX, y: 8.89 * mm, number: 4, description: 'Anode 4', signals: [] },
-    { name: 'A5', x: anodeX, y: 11.43 * mm, number: 5, description: 'Anode 5', signals: [] },
-    { name: 'A6', x: anodeX, y: 13.97 * mm, number: 6, description: 'Anode 6', signals: [] },
-    { name: 'A7', x: anodeX, y: 16.51 * mm, number: 7, description: 'Anode 7', signals: [] },
-    { name: 'A8', x: anodeX, y: 19.05 * mm, number: 8, description: 'Anode 8', signals: [] },
-    { name: 'A9', x: anodeX, y: 21.59 * mm, number: 9, description: 'Anode 9', signals: [] },
-    { name: 'A10', x: anodeX, y: 24.13 * mm, number: 10, description: 'Anode 10', signals: [] },
-    { name: 'C1', x: cathodeX, y: 1.27 * mm, number: 20, description: 'Cathode 1', signals: [] },
-    { name: 'C2', x: cathodeX, y: 3.81 * mm, number: 19, description: 'Cathode 2', signals: [] },
-    { name: 'C3', x: cathodeX, y: 6.35 * mm, number: 18, description: 'Cathode 3', signals: [] },
-    { name: 'C4', x: cathodeX, y: 8.89 * mm, number: 17, description: 'Cathode 4', signals: [] },
-    { name: 'C5', x: cathodeX, y: 11.43 * mm, number: 16, description: 'Cathode 5', signals: [] },
-    { name: 'C6', x: cathodeX, y: 13.97 * mm, number: 15, description: 'Cathode 6', signals: [] },
-    { name: 'C7', x: cathodeX, y: 16.51 * mm, number: 14, description: 'Cathode 7', signals: [] },
-    { name: 'C8', x: cathodeX, y: 19.05 * mm, number: 13, description: 'Cathode 8', signals: [] },
-    { name: 'C9', x: cathodeX, y: 21.59 * mm, number: 12, description: 'Cathode 9', signals: [] },
-    { name: 'C10', x: cathodeX, y: 24.13 * mm, number: 11, description: 'Cathode 10', signals: [] },
-  ];
   declare values: number[];
+
+  // Broches : centre de chaque pastille (repère du dessin retouché, grille de 10 px).
+  readonly pinInfo: ElementPin[] = [
+    { name: 'A1', x: 10, y: 10, number: 1, description: 'Anode 1', signals: [] },
+    { name: 'A2', x: 10, y: 20, number: 2, description: 'Anode 2', signals: [] },
+    { name: 'A3', x: 10, y: 30, number: 3, description: 'Anode 3', signals: [] },
+    { name: 'A4', x: 10, y: 40, number: 4, description: 'Anode 4', signals: [] },
+    { name: 'A5', x: 10, y: 50, number: 5, description: 'Anode 5', signals: [] },
+    { name: 'A6', x: 10, y: 60, number: 6, description: 'Anode 6', signals: [] },
+    { name: 'A7', x: 10, y: 70, number: 7, description: 'Anode 7', signals: [] },
+    { name: 'A8', x: 10, y: 80, number: 8, description: 'Anode 8', signals: [] },
+    { name: 'A9', x: 10, y: 90, number: 9, description: 'Anode 9', signals: [] },
+    { name: 'A10', x: 10, y: 100, number: 10, description: 'Anode 10', signals: [] },
+    { name: 'C1', x: 40, y: 10, number: 20, description: 'Cathode 1', signals: [] },
+    { name: 'C2', x: 40, y: 20, number: 19, description: 'Cathode 2', signals: [] },
+    { name: 'C3', x: 40, y: 30, number: 18, description: 'Cathode 3', signals: [] },
+    { name: 'C4', x: 40, y: 40, number: 17, description: 'Cathode 4', signals: [] },
+    { name: 'C5', x: 40, y: 50, number: 16, description: 'Cathode 5', signals: [] },
+    { name: 'C6', x: 40, y: 60, number: 15, description: 'Cathode 6', signals: [] },
+    { name: 'C7', x: 40, y: 70, number: 14, description: 'Cathode 7', signals: [] },
+    { name: 'C8', x: 40, y: 80, number: 13, description: 'Cathode 8', signals: [] },
+    { name: 'C9', x: 40, y: 90, number: 12, description: 'Cathode 9', signals: [] },
+    { name: 'C10', x: 40, y: 100, number: 11, description: 'Cathode 10', signals: [] },
+  ];
 
   /** Propriétés réactives lit (remplace les décorateurs @property du code d'origine). */
   static properties = {
@@ -64,29 +66,20 @@ export class LedBarGraphElement extends LitElement {
     this.values = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   }
 
-  render() {
+  updated(changed: PropertyValues) {
+    super.updated(changed);
+    const bars = this.renderRoot.querySelectorAll('#g53 rect');
     const { values, color, offColor } = this;
     const palette = colorPalettes[color];
+    bars.forEach((el, i) => {
+      el.setAttribute('fill', values[i] ? (palette?.[i] ?? color) : offColor);
+    });
+  }
+
+  render() {
     return html`
-      <svg
-        width="10.1mm"
-        height="25.5mm"
-        version="1.1"
-        viewBox="0 0 10.1 25.5"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <pattern id="pin-pattern" height="2.54" width="10.1" patternUnits="userSpaceOnUse">
-          <circle cx="1.27" cy="1.27" r="0.5" fill="#aaa" />
-          <circle cx="8.83" cy="1.27" r="0.5" fill="#aaa" />
-        </pattern>
-        <path d="m1.4 0h8.75v25.5h-10.1v-24.2z" />
-        <rect width="10.1" height="25.4" fill="url(#pin-pattern)" />
-        ${segments.map(
-          (index) =>
-            svg`<rect x="2.5" y="${0.4 + index * 2.54}" width="5" height="1.74" fill="${
-              values[index] ? (palette?.[index] ?? color) : offColor
-            }"/>`,
-        )}
+      <svg width="50" height="110" viewBox="0 0 50 110" xmlns="http://www.w3.org/2000/svg">
+        ${unsafeSVG(drawing)}
       </svg>
     `;
   }

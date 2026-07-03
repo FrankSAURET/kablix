@@ -125,10 +125,6 @@ export const PIN_OVERRIDES: Record<string, Record<string, { x: number; y: number
     '1.r': { x: 80, y: 20 },
     '2.r': { x: 80, y: 40 },
   },
-  'buzzer': {
-    '1': { x: 20, y: 50 },
-    '2': { x: 30, y: 50 },
-  },
   // DIP switch : dessin retouché (repère = coin haut-gauche du dessin, tel quel).
   'dip-switch': {
     '1a': { x: 10, y: 60 },
@@ -155,12 +151,6 @@ export const PIN_OVERRIDES: Record<string, Record<string, { x: number; y: number
     'HORZ': { x: 60, y: 130 },
     'SEL': { x: 70, y: 130 },
     'GND': { x: 80, y: 130 },
-  },
-  'gas-sensor': {
-    'AOUT': { x: 140, y: 20 },
-    'DOUT': { x: 140, y: 30 },
-    'GND': { x: 140, y: 40 },
-    'VCC': { x: 140, y: 50 },
   },
   'lcd-i2c': {
     'GND': { x: 20, y: 50 },
@@ -211,32 +201,6 @@ export const PIN_OVERRIDES: Record<string, Record<string, { x: number; y: number
     'D7': { x: 170, y: 190 },
     'A': { x: 180, y: 190 },
     'K': { x: 190, y: 190 },
-  },
-  'led-bar': {
-    'A1': { x: 10, y: 10 },
-    'A2': { x: 10, y: 20 },
-    'A3': { x: 10, y: 30 },
-    'A4': { x: 10, y: 40 },
-    'A5': { x: 10, y: 50 },
-    'A6': { x: 10, y: 60 },
-    'A7': { x: 10, y: 70 },
-    'A8': { x: 10, y: 80 },
-    'A9': { x: 10, y: 90 },
-    'A10': { x: 10, y: 100 },
-    'C1': { x: 40, y: 10 },
-    'C2': { x: 40, y: 20 },
-    'C3': { x: 40, y: 30 },
-    'C4': { x: 40, y: 40 },
-    'C5': { x: 40, y: 50 },
-    'C6': { x: 40, y: 60 },
-    'C7': { x: 40, y: 70 },
-    'C8': { x: 40, y: 80 },
-    'C9': { x: 40, y: 90 },
-    'C10': { x: 40, y: 100 },
-  },
-  'led': {
-    'A': { x: 20, y: 40 },
-    'C': { x: 10, y: 40 },
   },
   'mega': {
     'SCL': { x: 100, y: 10 },
@@ -352,28 +316,6 @@ export const PIN_OVERRIDES: Record<string, Record<string, { x: number; y: number
     '3V3': { x: 109, y: 20 },
     'VIN': { x: 119, y: 20 },
     'GND': { x: 129, y: 20 },
-  },
-  'photoresistor': {
-    'VCC': { x: 180, y: 20 },
-    'GND': { x: 180, y: 30 },
-    'DO': { x: 180, y: 40 },
-    'AO': { x: 180, y: 50 },
-  },
-  'pir': {
-    'VCC': { x: 40, y: 100 },
-    'OUT': { x: 50, y: 100 },
-    'GND': { x: 60, y: 100 },
-  },
-  'rgb-led': {
-    'R': { x: 10, y: 50 },
-    'COM': { x: 20, y: 60 },
-    'G': { x: 30, y: 50 },
-    'B': { x: 40, y: 50 },
-  },
-  'servo': {
-    'GND': { x: 10, y: 60 },
-    'V+': { x: 10, y: 70 },
-    'PWM': { x: 10, y: 80 },
   },
 };
 

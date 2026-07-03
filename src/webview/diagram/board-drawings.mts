@@ -6,15 +6,7 @@
 // (caché) pour `pinInfo` et la simulation.
 import megaSvg from '../composants/externe/mega.svg';
 import unoSvg from '../composants/externe/uno.svg';
-import gasSensorSvg from '../composants/externe/gas-sensor.svg';
-import photoresistorSvg from '../composants/externe/photoresistor.svg';
-import pirSvg from '../composants/externe/pir.svg';
-import ledSvg from '../composants/externe/led.svg';
-import buzzerSvg from '../composants/externe/buzzer.svg';
 import sevenSegSvg from '../composants/externe/7seg.svg';
-import rgbLedSvg from '../composants/externe/rgb-led.svg';
-import ledBarSvg from '../composants/externe/led-bar.svg';
-import servoSvg from '../composants/externe/servo.svg';
 import sevenSeg2Svg from '../composants/externe/7seg-2dig.svg';
 import sevenSeg4Svg from '../composants/externe/7seg-4dig.svg';
 import neopixelSvg from '../composants/externe/neopixel.svg';
@@ -33,17 +25,9 @@ import joystickSvg from '../composants/externe/joystick.svg';
 const DRAWINGS: Record<string, string> = {
   mega: megaSvg,
   uno: unoSvg,
-  'gas-sensor': gasSensorSvg,
-  photoresistor: photoresistorSvg,
-  pir: pirSvg,
-  led: ledSvg,
-  buzzer: buzzerSvg,
   '7seg': sevenSegSvg, // 1 chiffre (cf. drawingKey ; 2/4 chiffres ci-dessous)
   '7seg-2dig': sevenSeg2Svg,
   '7seg-4dig': sevenSeg4Svg,
-  'rgb-led': rgbLedSvg,
-  'led-bar': ledBarSvg,
-  servo: servoSvg,
   neopixel: neopixelSvg,
   'neopixel-matrix': neopixelMatrixSvg,
   'led-ring': ledRingSvg,

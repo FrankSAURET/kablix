@@ -11,6 +11,14 @@
 8. ✅ À chaque **chargement d'un fichier Python** : effacer la console, éteindre la simulation, réinitialiser les composants. À l'**arrêt de la simulation** : effacer la console, réinitialiser les composants. → v2026.6.80
 9. ⬜ Mettre à jour le **câblage interne du potentiomètre** → [`svg/pot-schema.edit.svg`](svg/pot-schema.edit.svg).
 
+# v2026.7.5
+
+1. ✅ **Migration dessin retouché → fork direct** pour `gas-sensor`, `photoresistor`, `pir`, `led`, `buzzer`, `rgb-led`, `led-bar`, `servo` : chaque fork importe désormais son SVG retouché (`./externe/<type>.svg`) et le rend lui-même via `unsafeSVG`, `pinInfo` codé en dur (grille 10 px, broches POWER/GND vérifiées alignées).
+2. ✅ **Retour visuel réimplémenté nativement** dans chaque fork via `updated()` interrogeant les ids/classes déjà présents dans le dessin retouché (capté depuis le rendu Lit d'origine) : halo LED (`#g30`/`#ellipse28`/`#ellipse30`), halos RGB LED (`#circleNN`/`feGaussianBlurNN`, mêmes formules `r*5+2`/`r*3`/`min(r*20,0.3)`), barres `#g53 rect`, palonnier servo (rotation autour du hub `114.85249,80.182098` + couleur). `led` : bonus, le pin-swap `flip` (cassé sous l'ancien overlay) est de nouveau fonctionnel.
+3. ✅ **Nettoyage** des 4 points de l'ancien mécanisme pour ces 8 types : `board-drawings.mts` (import + entrée `DRAWINGS`), `pin-overrides.mts` (entrée `PIN_OVERRIDES`), `sim.mts` (appel `reflect*`, les assignations `el.value=`/`el.values=`/`el.angle=`… restées en place pilotent maintenant le dessin visible), `drawing-feedback.mts` (`reflectLed`/`reflectGlow`/`reflectLedBar`/`reflectRgbLed`/`reflectServo` supprimées).
+4. ✅ Fichiers `gas-sensor.edit.svg`, `photoresistor.edit.svg`, `pir.edit.svg`, `led.edit.svg`, `buzzer.edit.svg`, `rgb-led.edit.svg`, `led-bar.edit.svg`, `servo.edit.svg` déplacés vers `svg retouche/Validé/`.
+5. ✅ Validation : `typecheck` OK ; `verify-diagram`/`verify-sim`/`verify-components` OK ; contrôle visuel headless (Chrome, bundle esbuild réel) — 8 composants instanciés, broches toutes sur la grille 10 px, retours dynamiques vérifiés (LED verte allumée opacity=1, RGB mix rgb(255,127.5,0) formules cohérentes, 10 barres led-bar rouge/éteint conformes au motif testé, palonnier servo tourné à 90° avec la bonne couleur).
+
 # v2026.7.4
 
 1. ✅ **Migration dessin retouché → fork direct** pour `pot` (potentiomètre) : le fork [`potentiometer-element.mts`](src/webview/composants/potentiometer-element.mts) importe désormais son SVG retouché (`./externe/pot.svg`) et le rend via `unsafeSVG`, `pinInfo` codé en dur GND/SIG/VCC (40/50/60, y=80 — grille 10 px). Corrige un défaut d'alignement historique : l'ancien `pinInfo` (29/39/49) n'était espacé de 10 que par rapport à sa propre 1ʳᵉ broche, jamais sur la grille absolue du canevas.

@@ -45,7 +45,7 @@ import './composants/custom-part.mjs';
 
 import { initLocale, t } from './i18n.mjs';
 import { Editor, type PaletteState } from './diagram/editor.mjs';
-import { reflectLed, reflectGlow, reflectSevenSeg, reflectRgbLed, reflectLedBar, reflectServo, reflectNeopixel, reflectOled, reflectLcd } from './diagram/drawing-feedback.mjs';
+import { reflectSevenSeg, reflectNeopixel, reflectOled, reflectLcd } from './diagram/drawing-feedback.mjs';
 import { partDef, boardFamily, isBoardId, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
 import { toWokwiDiagram, fromWokwiDiagram } from './diagram/wokwi.mjs';
 import {
@@ -364,9 +364,6 @@ function refreshVisuals(): void {
         const on = ledOn(editor.diagram, part.id, read);
         if (def.custom) el.active = on;
         else el.value = on;
-        // Dessin retouché (élément Lit masqué) : on allume le groupe .light.
-        const draw = editor.drawingOf(part.id);
-        if (draw) reflectLed(draw, on, part.attrs?.color);
         break;
       }
       case 'rgb-led': {
@@ -374,8 +371,6 @@ function refreshVisuals(): void {
         el.ledRed = s.red ? 1 : 0;
         el.ledGreen = s.green ? 1 : 0;
         el.ledBlue = s.blue ? 1 : 0;
-        const draw = editor.drawingOf(part.id);
-        if (draw) reflectRgbLed(draw, s.red ? 1 : 0, s.green ? 1 : 0, s.blue ? 1 : 0);
         break;
       }
       case 'buzzer': {
@@ -388,9 +383,6 @@ function refreshVisuals(): void {
         const on = toggling || buzzerOn(editor.diagram, part.id, read);
         if (def.custom) el.active = on;
         else el.hasSignal = on;
-        // Dessin retouché (élément Lit masqué) : halo lumineux si actif.
-        const draw = editor.drawingOf(part.id);
-        if (draw) reflectGlow(draw, on);
         if (on) {
           // Fréquence d'après la largeur de l'impulsion haute (signal carré de
           // tone()/PWM : période = 2 × largeur haute → f = 1e6 / (2 × largeur)).
@@ -433,8 +425,6 @@ function refreshVisuals(): void {
       }
       case 'led-bar': {
         el.values = ledBarState(editor.diagram, part.id, read);
-        const draw = editor.drawingOf(part.id);
-        if (draw) reflectLedBar(draw, el.values as number[], part.attrs?.color ?? 'GYR');
         break;
       }
       case 'servo': {
@@ -449,8 +439,6 @@ function refreshVisuals(): void {
         } else {
           el.angle = engine.readDigital(pin) ? 90 : 0;
         }
-        const draw = editor.drawingOf(part.id);
-        if (draw) reflectServo(draw, el.angle as number);
         break;
       }
       case 'i2c-lcd': {

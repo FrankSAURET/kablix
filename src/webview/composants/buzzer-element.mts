@@ -1,9 +1,16 @@
 // Fork local de @wokwi/elements v1.9.2 (MIT © Wokwi) — buzzer-element.ts.
 // Balise <kablix-buzzer> (ex <wokwi-buzzer>). Licence d'origine : LICENSE-wokwi.md (même dossier).
-// Adaptations Kablix : sans décorateurs (static properties + declare + constructeur),
-// imports relatifs .mjs. Le dessin/les comportements restent ceux d'origine.
+// Adaptations Kablix :
+//   - sans décorateurs (static properties + declare + constructeur), imports relatifs .mjs ;
+//   - DESSIN remplacé par la version retouchée (./externe/buzzer.svg) ;
+//   - 1/2 recalées sur la grille de 10 px (repère du dessin retouché) ;
+//   - taille d'affichage (64x75) conservée à l'identique de l'ancien rendu
+//     (17mm x 20mm ≈ 64.25x75.59px) pour que la note de musique flottante
+//     (.music-note, animation CSS indépendante du corps du buzzer) reste calée.
 import { css, html, LitElement } from 'lit';
+import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
+import drawing from './externe/buzzer.svg';
 
 export class BuzzerElement extends LitElement {
   declare hasSignal: boolean;
@@ -18,9 +25,10 @@ export class BuzzerElement extends LitElement {
     this.hasSignal = false;
   }
 
+  // Broches : centre de chaque pastille (repère du dessin retouché, grille de 10 px).
   readonly pinInfo: ElementPin[] = [
-    { name: '1', x: 27, y: 84, signals: [] },
-    { name: '2', x: 37, y: 84, signals: [] },
+    { name: '1', x: 20, y: 50, signals: [] },
+    { name: '2', x: 30, y: 50, signals: [] },
   ];
 
   static get styles() {
@@ -72,38 +80,11 @@ export class BuzzerElement extends LitElement {
   }
 
   renderSVG() {
-    return html`<svg
-      width="17mm"
-      height="20mm"
-      version="1.1"
-      viewBox="0 0 17 20"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path d="m7.23 16.5v3.5" fill="none" stroke="#000" stroke-width=".5" />
-      <path d="m9.77 16.5v3.5" fill="#f00" stroke="#f00" stroke-width=".5" />
-      <g stroke="#000">
-        <g>
-          <ellipse cx="8.5" cy="8.5" rx="8.15" ry="8.15" fill="#1a1a1a" stroke-width=".7" />
-          <circle
-            cx="8.5"
-            cy="8.5"
-            r="6.3472"
-            fill="none"
-            stroke-width=".3"
-            style="paint-order:normal"
-          />
-          <circle
-            cx="8.5"
-            cy="8.5"
-            r="4.3488"
-            fill="none"
-            stroke-width=".3"
-            style="paint-order:normal"
-          />
-        </g>
-        <circle cx="8.5" cy="8.5" r="1.3744" fill="#ccc" stroke-width=".25" />
-      </g>
-    </svg>`;
+    return html`
+      <svg width="64" height="75" viewBox="0 0 50 60" xmlns="http://www.w3.org/2000/svg">
+        ${unsafeSVG(drawing)}
+      </svg>
+    `;
   }
 
   render() {
