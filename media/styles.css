@@ -1061,37 +1061,6 @@ body {
   height: auto;
 }
 
-/* Dessin retouché à la main affiché à la place du rendu @wokwi (cf. board-drawings).
-   line-height:0 évite l'espace sous le SVG inline ; le corps épouse le dessin. */
-.part__drawing {
-  line-height: 0;
-}
-.part__drawing svg {
-  display: block;
-}
-/* Élément @wokwi source d'un composant à dessin retouché : rendu (pour pinInfo et
-   la simulation) mais invisible et hors flux → ne dimensionne pas le corps et
-   laisse les pastilles cliquables. visibility (et non display:none) garde le
-   shadow DOM rendu. */
-.part__src-el {
-  position: absolute;
-  top: 0;
-  left: 0;
-  visibility: hidden;
-  pointer-events: none;
-}
-/* Variante INTERACTIVE (bouton, DIP switch, joystick) : l'élément @wokwi reste
-   cliquable par-dessus le dessin retouché, mais invisible (opacity, pas
-   visibility : les événements pointeur doivent passer). Il est calé sur les
-   broches du dessin par un transform calculé (cf. alignLiveElement). */
-.part__src-el--live {
-  position: absolute;
-  top: 0;
-  left: 0;
-  opacity: 0;
-  transform-origin: 0 0;
-}
-
 .pin {
   position: absolute;
   /* box-sizing border-box : la pastille (bordure comprise) est exactement

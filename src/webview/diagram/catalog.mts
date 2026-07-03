@@ -116,8 +116,6 @@ export interface PartDef {
 
 /** Pas Wokwi (0,1″ ≈ 9,6 px) ramené à la grille de 10 px. */
 export const WOKWI_PIN_SCALE = 10 / 9.6;
-/** Certains éléments Wokwi ont un pas natif de 9,5 px (servo, LCD, DHT22…). */
-export const WOKWI_PIN_SCALE_95 = 10 / 9.5;
 
 /** Description sérialisable d'un composant personnalisé (persistée côté extension). */
 export interface CustomPartData {
@@ -160,7 +158,7 @@ export const CATALOG: readonly PartDef[] = [
     ],
   },
   {
-    type: 'rgb-led', label: 'RGB LED', tag: 'kablix-rgb-led', kind: 'rgb-led', pinScale: WOKWI_PIN_SCALE,
+    type: 'rgb-led', label: 'RGB LED', tag: 'kablix-rgb-led', kind: 'rgb-led',
     attrs: { common: 'cathode' },
     props: [
       {
@@ -218,14 +216,14 @@ export const CATALOG: readonly PartDef[] = [
   },
   { type: 'slide-switch', label: 'Slide switch', tag: 'kablix-slide-switch', kind: 'slide-switch', interactive: true },
   { type: 'dip-switch', label: 'DIP switch ×8', tag: 'kablix-dip-switch-8', kind: 'dip-switch', interactive: true },
-  { type: 'joystick', label: 'Analog joystick', tag: 'kablix-analog-joystick', kind: 'joystick', interactive: true, pinScale: WOKWI_PIN_SCALE },
+  { type: 'joystick', label: 'Analog joystick', tag: 'kablix-analog-joystick', kind: 'joystick', interactive: true },
   {
     type: 'photoresistor', label: 'Photoresistor (LDR)', tag: 'kablix-photoresistor-sensor', kind: 'analog-source',
     analogPin: 'AO', attrs: { value: '50' },
     props: [{ attr: 'value', label: 'Brightness (%)', kind: 'number', min: 0, max: 100, step: 1 }],
   },
   {
-    type: 'pir', label: 'PIR motion sensor', tag: 'kablix-pir-motion-sensor', kind: 'digital-source', pinScale: WOKWI_PIN_SCALE,
+    type: 'pir', label: 'PIR motion sensor', tag: 'kablix-pir-motion-sensor', kind: 'digital-source',
     digitalPin: 'OUT', attrs: { state: '0' },
     props: [{ ...STATE_PROP, label: 'Motion detected' }],
   },
@@ -235,7 +233,7 @@ export const CATALOG: readonly PartDef[] = [
     props: [{ ...STATE_PROP, label: 'Tilted' }],
   },
   {
-    type: 'servo', label: 'Servo motor', tag: 'kablix-servo', kind: 'servo', pinScale: WOKWI_PIN_SCALE_95,
+    type: 'servo', label: 'Servo motor', tag: 'kablix-servo', kind: 'servo',
     attrs: { horn: 'single' },
     props: [{
       attr: 'horn', label: 'Horn', kind: 'select', options: ['single', 'double', 'cross'],
@@ -271,8 +269,8 @@ export const CATALOG: readonly PartDef[] = [
   { type: 'microsd', label: 'microSD card (SPI)', tag: 'kablix-microsd-card', kind: 'spi-sd' },
   // NeoPixel (WS2812) : simulés — la chaîne DIN est décodée et les LED s'allument.
   { type: 'neopixel', label: 'NeoPixel', tag: 'kablix-neopixel', kind: 'neopixel' },
-  { type: 'neopixel-matrix', label: 'NeoPixel matrix', tag: 'kablix-neopixel-matrix', kind: 'neopixel', attrs: { rows: '8', cols: '8' }, pinScale: WOKWI_PIN_SCALE },
-  { type: 'led-ring', label: 'NeoPixel ring', tag: 'kablix-led-ring', kind: 'neopixel', attrs: { pixels: '16' }, pinScale: WOKWI_PIN_SCALE },
+  { type: 'neopixel-matrix', label: 'NeoPixel matrix', tag: 'kablix-neopixel-matrix', kind: 'neopixel', attrs: { rows: '8', cols: '8' } },
+  { type: 'led-ring', label: 'NeoPixel ring', tag: 'kablix-led-ring', kind: 'neopixel', attrs: { pixels: '16' } },
 
   // Bouton poussoir 6 mm : même modèle que le bouton standard.
   {

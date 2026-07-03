@@ -1,32 +1,39 @@
 // Fork local de @wokwi/elements v1.9.2 (MIT © Wokwi) — pushbutton-6mm-element.ts.
 // Balise <kablix-pushbutton-6mm> (ex <wokwi-pushbutton-6mm>). Licence d'origine : LICENSE-wokwi.md (même dossier).
-// Adaptations Kablix : sans décorateurs (static properties + declare + constructeur),
-// imports relatifs .mjs. Le dessin/les comportements restent ceux d'origine.
-import { css, html, LitElement, svg } from 'lit';
+// Adaptations Kablix :
+//   - sans décorateurs (static properties + declare + constructeur), imports relatifs .mjs ;
+//   - DESSIN remplacé par la version retouchée (./externe/button-6mm.svg) ;
+//   - broches recalées sur la grille de 10 px (repère du dessin retouché) ;
+//   - couleur/capuchon enfoncé pilotés nativement via `updated()` (même logique
+//     que l'ancien `reflectButtonColor`/`attachInteractiveFeedback` de
+//     drawing-feedback.mts, portée ici) ; propriété `xray` (jamais utilisée) supprimée.
+import { css, html, LitElement } from 'lit';
+import type { PropertyValues } from 'lit';
+import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
 import { ctrlCmdPressed, SPACE_KEYS } from './utils/keys.mjs';
+import drawing from './externe/button-6mm.svg';
+
+const W = 50;
+const H = 40;
 
 export class Pushbutton6mmElement extends LitElement {
   declare color: string;
   declare pressed: boolean;
   declare label: string;
-  declare xray: boolean;
 
   /** Propriétés réactives lit (remplace les décorateurs @property du code d'origine). */
   static properties = {
     color: {},
     pressed: {},
     label: {},
-    xray: { type: Boolean, attribute: 'xray' },
   };
-  private static pushbuttonCounter = 0;
-  private uniqueId;
 
   readonly pinInfo: ElementPin[] = [
-    { name: '1.l', x: 0, y: 2.2, signals: [] },
-    { name: '2.l', x: 0, y: 21, signals: [] },
-    { name: '1.r', x: 28, y: 2.2, signals: [] },
-    { name: '2.r', x: 28, y: 21, signals: [] },
+    { name: '1.l', x: 10, y: 10, signals: [] },
+    { name: '2.l', x: 10, y: 30, signals: [] },
+    { name: '1.r', x: 40, y: 10, signals: [] },
+    { name: '2.r', x: 40, y: 30, signals: [] },
   ];
 
   constructor() {
@@ -34,8 +41,6 @@ export class Pushbutton6mmElement extends LitElement {
     this.color = 'red';
     this.pressed = false;
     this.label = '';
-    this.xray = false;
-    this.uniqueId = 'pushbutton' + Pushbutton6mmElement.pushbuttonCounter++;
   }
 
   static get styles() {
@@ -50,20 +55,6 @@ export class Pushbutton6mmElement extends LitElement {
         background: none;
         padding: 0;
         margin: 0;
-        text-decoration: none;
-        -webkit-appearance: none;
-        -moz-appearance: none;
-      }
-
-      .button-active-circle {
-        opacity: 0;
-      }
-
-      button:active .button-active-circle {
-        opacity: 1;
-      }
-
-      .clickable-element {
         cursor: pointer;
       }
 
@@ -80,146 +71,36 @@ export class Pushbutton6mmElement extends LitElement {
     `;
   }
 
-  renderSVG() {
-    const { color, uniqueId, xray } = this;
-    const buttonFill = this.pressed ? `url(#grad-down-${uniqueId})` : `url(#grad-up-${uniqueId})`;
+  private active: SVGElement | null = null;
 
-    return html`<svg
-      width="7.4129977mm"
-      height="6mm"
-      version="1.1"
-      viewBox="-3 0 7.4954476 6"
-      id="svg17"
-      xmlns="http://www.w3.org/2000/svg"
-      xmlns:svg="http://www.w3.org/2000/svg"
-    >
-      <defs id="defs8">
-        <linearGradient id="grad-up-${uniqueId}" x1="0" x2="1" y1="0" y2="1">
-          <stop stop-color="#ffffff" offset="0" id="stop1" />
-          <stop stop-color="${color}" offset="0.3" id="stop2" />
-          <stop stop-color="${color}" offset="0.5" id="stop3" />
-          <stop offset="1" id="stop4" />
-        </linearGradient>
-        <linearGradient
-          id="grad-down-${uniqueId}"
-          x1="9.8219995"
-          x2="2.178"
-          y1="9.8219995"
-          y2="2.178"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop stop-color="#ffffff" offset="0" id="stop5" />
-          <stop stop-color="${color}" offset="0.3" id="stop6" />
-          <stop stop-color="${color}" offset="0.5" id="stop7" />
-          <stop offset="1" id="stop8" />
-        </linearGradient>
-      </defs>
-      <rect
-        x="-2.2698734"
-        y="-0.033367086"
-        width="6.0667338"
-        height="6.0667338"
-        rx="0.22244692"
-        ry="0.22244692"
-        fill="#464646"
-        id="rect8"
-        style="stroke-width:0.505561"
-      />
-      <rect
-        x="-1.8907025"
-        y="0.3458038"
-        width="5.3083925"
-        height="5.3083925"
-        rx="0.1066734"
-        ry="0.1066734"
-        fill="#eaeaea"
-        id="rect9"
-        style="stroke-width:0.505561"
-      />
-      <g
-        class="clickable-element"
-        id="g17"
-        transform="matrix(0.50556117,0,0,0.50556117,-2.2698734,-0.03336708)"
-      >
-        <circle cx="6" cy="6" r="3.822" fill="${buttonFill}" id="circle15" />
-        <circle
-          class="button-active-circle"
-          cx="6"
-          cy="6"
-          r="3.822"
-          fill="url(#grad-down-${uniqueId})"
-          id="circle16"
-          style="fill:url(#grad-down-$%7BuniqueId%7D)"
-        />
-        <circle
-          cx="6"
-          cy="6"
-          r="2.9000001"
-          fill="${color}"
-          stroke="#2f2f2f"
-          stroke-opacity="0.47"
-          stroke-width="0.08"
-          id="circle17"
-        />
-        <rect
-          style="fill:#b3b3b3;stroke-width:1.72987;paint-order:stroke markers fill"
-          id="rect18"
-          width="1.455145"
-          height="0.85429525"
-          x="-1.4441905"
-          y="0.59993488"
-          rx="0.014974313"
-        />
-        ${xray
-          ? svg`
-             <rect
-       style="opacity:0.3;fill:#b3b3b3;stroke-width:3.86235;paint-order:stroke markers fill"
-       id="rect18-7"
-       width="12.124171"
-       height="0.51113945"
-       x="-0.047361366"
-       y="0.90351838"
-       rx="0.12476496" />
-    <rect
-       style="opacity:0.3;fill:#b3b3b3;stroke-width:3.86235;paint-order:stroke markers fill"
-       id="rect18-7-4"
-                width="12.124171"
-                height="0.51113945"
-                x="-0.098103404"
-                y="10.614529"
-                rx="0.12476496"
-              />
-            `
-          : ''}
-        <rect
-          style="fill:#b3b3b3;stroke-width:1.69238;paint-order:stroke markers fill"
-          id="rect18-5"
-          width="1.3927531"
-          height="0.85429525"
-          x="-1.3971666"
-          y="10.694777"
-          rx="0.014332262"
-        />
-        <rect
-          style="fill:#b3b3b3;stroke-width:1.69238;paint-order:stroke markers fill"
-          id="rect18-0"
-          width="1.3927531"
-          height="0.85429525"
-          x="11.989052"
-          y="0.59516686"
-          rx="0.014332262"
-        />
-        <rect
-          style="fill:#b3b3b3;stroke-width:1.69238;paint-order:stroke markers fill"
-          id="rect18-0-4"
-          width="1.3927531"
-          height="0.85429525"
-          x="11.985411"
-          y="10.744086"
-          rx="0.014332262"
-        />
-      </g>
-    </svg>`;
+  updated(changed: PropertyValues): void {
+    super.updated(changed);
+    if (!this.active) {
+      this.active = (this.renderRoot.querySelector('svg') as SVGElement | null)?.querySelector(
+        '.button-active-circle'
+      ) ?? null;
+      if (this.active) this.active.style.display = 'none';
+    }
+    if (changed.has('color')) this.applyColor();
+    if (changed.has('pressed') && this.active) {
+      this.active.style.display = this.pressed ? '' : 'none';
+    }
+  }
+
+  /** Retouche la couleur du capuchon (dégradés + cercle plein), comme le fait le
+   * composant Wokwi d'origine à chaque changement de l'attribut `color`. */
+  private applyColor(): void {
+    const svgEl = this.renderRoot.querySelector('svg');
+    if (!svgEl) return;
+    for (const g of svgEl.querySelectorAll('linearGradient')) {
+      const stops = g.querySelectorAll('stop');
+      stops[1]?.setAttribute('stop-color', this.color);
+      stops[2]?.setAttribute('stop-color', this.color);
+    }
+    const cap = this.active?.nextElementSibling;
+    if (cap && (cap.tagName === 'circle' || cap.tagName === 'ellipse')) {
+      cap.setAttribute('fill', this.color);
+    }
   }
 
   render() {
@@ -236,7 +117,9 @@ export class Pushbutton6mmElement extends LitElement {
         @keydown=${(e: KeyboardEvent) => SPACE_KEYS.includes(e.key) && this.down()}
         @keyup=${(e: KeyboardEvent) => SPACE_KEYS.includes(e.key) && this.up(e)}
       >
-        ${this.renderSVG()}
+        <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${unsafeSVG(
+          drawing
+        )}</svg>
       </button>
       <span class="label">${this.label}</span>
     `;

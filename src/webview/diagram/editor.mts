@@ -22,8 +22,6 @@ import {
 import { breadboardPins, normalizeSize, stripOfPin } from './breadboard.mjs';
 import { internalWiringSvg, type PinPoint } from './internal-wiring.mjs';
 import { overridesFor } from './pin-overrides.mjs';
-import { boardDrawing } from './board-drawings.mjs';
-import { attachInteractiveFeedback, reflectButtonColor } from './drawing-feedback.mjs';
 import { pinoutSvg, pinoutPoster } from './pinout.mjs';
 import { BOARD_W, BOARD_H } from '../composants/pico-board.mjs';
 import type { Diagram, Endpoint, Part, Wire } from './model.mjs';
@@ -44,9 +42,6 @@ interface Rendered {
   container: HTMLDivElement;
   el: WokwiElement;
   hotspots: Map<string, HTMLDivElement>;
-  /** SVG du dessin retouché (board-drawing), s'il y en a un — pour le retour
-   * visuel de simulation (l'élément Lit étant masqué). */
-  drawing?: SVGElement;
 }
 
 interface PendingWire {
@@ -1145,11 +1140,6 @@ export class Editor {
     return this.rendered.get(id)?.el;
   }
 
-  /** SVG du dessin retouché d'un composant (board-drawing), ou undefined. */
-  drawingOf(id: string): SVGElement | undefined {
-    return this.rendered.get(id)?.drawing;
-  }
-
   /**
    * Réinitialise l'aspect de tous les composants : chaque élément est recréé à
    * partir de ses attributs initiaux, effaçant l'état piloté par la simulation
@@ -1310,31 +1300,6 @@ export class Editor {
     for (const [k, v] of Object.entries(part.attrs ?? def.attrs ?? {})) {
       if (v !== '') el.setAttribute(k, v);
     }
-    // Dessin retouché à la main : on l'affiche à la place du rendu Lit (dont
-    // les broches, étirées par pinScale, ne tombent plus sur les surcharges).
-    // L'élément Lit est conservé mais masqué (pinInfo + simulation).
-    const drawing = boardDrawing(part.type);
-    if (drawing) {
-      // Élément Lit conservé pour pinInfo + simulation, mais rendu invisible
-      // et HORS FLUX (pas `display:none`, qui empêche le rendu du shadow DOM dont
-      // dépendent clavier/canvas/init). Le corps se dimensionne alors sur le SVG.
-      // Composant interactif : l'élément reste CLIQUABLE (transparent), calé sur
-      // les broches du dessin (cf. alignLiveElement) pour capter clics et glissers.
-      el.classList.add(def.interactive ? 'part__src-el--live' : 'part__src-el');
-      const draw = document.createElement('div');
-      draw.className = 'part__drawing';
-      draw.innerHTML = drawing.svg;
-      const dsvg = draw.querySelector('svg');
-      if (dsvg) {
-        dsvg.setAttribute('width', String(drawing.w)); // px = unités viewBox (1:1)
-        dsvg.setAttribute('height', String(drawing.h));
-        dsvg.style.display = 'block';
-        // L'état de l'élément (bouton enfoncé, levier DIP, manche du joystick)
-        // est répercuté sur le dessin, sinon rien ne bouge à l'écran.
-        if (def.interactive) attachInteractiveFeedback(part.type, el, dsvg);
-      }
-      body.appendChild(draw);
-    }
     body.appendChild(el);
     container.appendChild(body);
     this.world.appendChild(container);
@@ -1375,7 +1340,7 @@ export class Editor {
 
     const hotspots = new Map<string, HTMLDivElement>();
     const ovMap = overridesFor(part.type, part.attrs);
-    const pins = this.partPins(part.type, el, ovMap);
+    const pins = this.partPins(el);
     const anchor: XY = pins[0] ? { x: pins[0].x, y: pins[0].y } : { x: 0, y: 0 };
     for (const pin of pins) {
       const dot = this.makeHotspot(part.id, part.type, def.kind, pin, anchor, ovMap);
@@ -1405,10 +1370,7 @@ export class Editor {
       body.appendChild(toggle);
     }
 
-    this.rendered.set(part.id, {
-      part, container, el, hotspots,
-      drawing: (container.querySelector('.part__drawing svg') as SVGElement) ?? undefined,
-    });
+    this.rendered.set(part.id, { part, container, el, hotspots });
     // Restaure le câblage interne / le poster de brochage après un re-rendu
     // (rotation…), s'il est activé ET que le composant est sélectionné.
     if (this.internalShown.has(part.id) && this.isSelected(part.id)) this.renderInternalWiring(part.id);
@@ -1417,20 +1379,8 @@ export class Editor {
     this.scheduleSettle();
   }
 
-  /**
-   * Liste des broches d'un composant. Pour un **dessin retouché** (board-drawing),
-   * l'élément Lit est masqué : on prend les broches directement dans les
-   * surcharges (repère du dessin), indépendamment du `pinInfo` de l'élément.
-   * Sinon, `pinInfo` de l'élément Lit.
-   */
-  private partPins(
-    type: string,
-    el: WokwiElement,
-    ovMap?: Record<string, { x: number; y: number }>
-  ): WokwiPin[] {
-    if (boardDrawing(type) && ovMap) {
-      return Object.entries(ovMap).map(([name, p]) => ({ name, x: p.x, y: p.y }));
-    }
+  /** Liste des broches d'un composant, telles que publiées par son `pinInfo`. */
+  private partPins(el: WokwiElement): WokwiPin[] {
     return (el.pinInfo ?? []) as WokwiPin[];
   }
 
@@ -1500,7 +1450,7 @@ export class Editor {
     if (!body) return;
     const def = partDef(r.part.type);
     const ovMap = overridesFor(r.part.type, r.part.attrs);
-    const pins = this.partPins(r.part.type, r.el, ovMap);
+    const pins = this.partPins(r.el);
     const anchor: XY = pins[0] ? { x: pins[0].x, y: pins[0].y } : { x: 0, y: 0 };
     for (const pin of pins) {
       let dot = r.hotspots.get(pin.name);
@@ -2435,9 +2385,6 @@ export class Editor {
    * Renvoie `false` si le SVG n'est pas encore rendu (à réessayer plus tard).
    */
   private applyPinScale(r: Rendered): boolean {
-    // Dessin retouché : l'élément Lit est masqué, on ne l'agrandit pas (les
-    // broches viennent des surcharges, dans le repère du dessin).
-    if (boardDrawing(r.part.type)) return true;
     const k = partDef(r.part.type).pinScale ?? 1;
     if (k === 1) return true;
     const el = r.el as HTMLElement & { _pinScaled?: boolean };
@@ -2452,49 +2399,6 @@ export class Editor {
     el.style.width = `${w * k}px`;
     el.style.height = `${h * k}px`;
     el._pinScaled = true;
-    return true;
-  }
-
-  /**
-   * Cale l'élément Lit VIVANT d'un composant interactif à dessin retouché sur
-   * les broches du dessin : ajustement affine (échelle x/y + translation) qui
-   * envoie chaque broche `pinInfo` sur sa surcharge retouchée. L'élément, rendu
-   * transparent (part__src-el--live), recouvre ainsi le dessin avec ses zones
-   * cliquables (capuchon, leviers, manche) au bon endroit. Broches alignées sur
-   * une seule ligne (joystick…) : échelle uniforme (l'axe indéterminé suit
-   * l'autre). Renvoie `false` tant que `pinInfo` n'est pas disponible.
-   */
-  private alignLiveElement(r: Rendered): boolean {
-    if (!partDef(r.part.type).interactive) return true;
-    if (!boardDrawing(r.part.type)) return true;
-    const el = r.el as WokwiElement & { _liveFit?: boolean };
-    if (el._liveFit) return true;
-    const ovMap = overridesFor(r.part.type, r.part.attrs);
-    if (!ovMap) return true; // pas de surcharges : rien à caler
-    const pins = ((el.pinInfo ?? []) as WokwiPin[]).filter((p) => ovMap[p.name]);
-    if (pins.length < 2) return pins.length > 0; // élément Lit pas encore prêt
-    let minPX = Infinity, maxPX = -Infinity, minPY = Infinity, maxPY = -Infinity;
-    let minOX = Infinity, maxOX = -Infinity, minOY = Infinity, maxOY = -Infinity;
-    let sumPX = 0, sumPY = 0, sumOX = 0, sumOY = 0;
-    for (const p of pins) {
-      const o = ovMap[p.name];
-      minPX = Math.min(minPX, p.x); maxPX = Math.max(maxPX, p.x);
-      minPY = Math.min(minPY, p.y); maxPY = Math.max(maxPY, p.y);
-      minOX = Math.min(minOX, o.x); maxOX = Math.max(maxOX, o.x);
-      minOY = Math.min(minOY, o.y); maxOY = Math.max(maxOY, o.y);
-      sumPX += p.x; sumPY += p.y; sumOX += o.x; sumOY += o.y;
-    }
-    let sx = maxPX - minPX > 0.5 ? (maxOX - minOX) / (maxPX - minPX) : NaN;
-    let sy = maxPY - minPY > 0.5 ? (maxOY - minOY) / (maxPY - minPY) : NaN;
-    if (Number.isNaN(sx) && Number.isNaN(sy)) sx = sy = 1;
-    else if (Number.isNaN(sx)) sx = sy;
-    else if (Number.isNaN(sy)) sy = sx;
-    const n = pins.length;
-    const tx = sumOX / n - (sx as number) * (sumPX / n);
-    const ty = sumOY / n - (sy as number) * (sumPY / n);
-    el.style.transformOrigin = '0 0';
-    el.style.transform = `matrix(${sx}, 0, 0, ${sy}, ${tx}, ${ty})`;
-    el._liveFit = true;
     return true;
   }
 
@@ -2515,7 +2419,6 @@ export class Editor {
       let pending = false; // un dessin Lit pas encore prêt à être agrandi
       for (const r of this.rendered.values()) {
         if (!this.applyPinScale(r)) pending = true; // dessin agrandi au pas de 10 px
-        if (!this.alignLiveElement(r)) pending = true; // interactif calé sur son dessin
         this.syncHotspots(r); // pastilles de broche tardives (pinInfo asynchrone)
         const body = r.container.querySelector('.part__body') as HTMLDivElement | null;
         if (body) this.applyRotation(r.part, body); // repositionne le bandeau (rotation)
@@ -2873,12 +2776,6 @@ export class Editor {
       r.el.removeAttribute(attr);
     } else {
       r.el.setAttribute(attr, value);
-    }
-    // Bouton à dessin retouché : la couleur du capuchon est figée dans le SVG
-    // capté (cf. reflectButtonColor) → la retoucher aussi à chaque changement.
-    if (attr === 'color' && (r.part.type === 'button' || r.part.type === 'button-6mm')) {
-      const dsvg = r.container.querySelector('.part__drawing svg') as SVGElement | null;
-      if (dsvg) reflectButtonColor(dsvg, value || 'red');
     }
     this.notify();
   }

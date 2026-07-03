@@ -35,48 +35,6 @@ export const PIN_OVERRIDES: Record<string, Record<string, { x: number; y: number
     C2: { x: 124.5, y: 338 },
     C3: { x: 134, y: 338 },
   },
-
-  // --- Composants recalés sur grille depuis « svg retouche/ » (générés) ----------
-  // Boutons : dessin retouché (repère = coin haut-gauche du dessin, tel quel).
-  'button-6mm': {
-    '1.l': { x: 10, y: 10 },
-    '2.l': { x: 10, y: 30 },
-    '1.r': { x: 40, y: 10 },
-    '2.r': { x: 40, y: 30 },
-  },
-  'button': {
-    '1.l': { x: 10, y: 20 },
-    '2.l': { x: 10, y: 40 },
-    '1.r': { x: 80, y: 20 },
-    '2.r': { x: 80, y: 40 },
-  },
-  // DIP switch : dessin retouché (repère = coin haut-gauche du dessin, tel quel).
-  'dip-switch': {
-    '1a': { x: 10, y: 60 },
-    '2a': { x: 20, y: 60 },
-    '3a': { x: 30, y: 60 },
-    '4a': { x: 40, y: 60 },
-    '5a': { x: 50, y: 60 },
-    '6a': { x: 60, y: 60 },
-    '7a': { x: 70, y: 60 },
-    '8a': { x: 80, y: 60 },
-    '8b': { x: 80, y: 10 },
-    '7b': { x: 70, y: 10 },
-    '6b': { x: 60, y: 10 },
-    '5b': { x: 50, y: 10 },
-    '4b': { x: 40, y: 10 },
-    '3b': { x: 30, y: 10 },
-    '2b': { x: 20, y: 10 },
-    '1b': { x: 10, y: 10 },
-  },
-  // Joystick analogique : dessin retouché (5 broches en bas, pas de 10 px).
-  'joystick': {
-    'VCC': { x: 40, y: 130 },
-    'VERT': { x: 50, y: 130 },
-    'HORZ': { x: 60, y: 130 },
-    'SEL': { x: 70, y: 130 },
-    'GND': { x: 80, y: 130 },
-  },
 };
 
 /**

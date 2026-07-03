@@ -1,18 +1,37 @@
 // Fork local de @wokwi/elements v1.9.2 (MIT © Wokwi) — analog-joystick-element.ts.
 // Balise <kablix-analog-joystick> (ex <wokwi-analog-joystick>). Licence d'origine : LICENSE-wokwi.md (même dossier).
-// Adaptations Kablix : sans décorateurs (static properties + declare + constructeur),
-// imports relatifs .mjs. Le dessin/les comportements restent ceux d'origine.
-import { css, html, LitElement } from 'lit';
+// Adaptations Kablix :
+//   - sans décorateurs (static properties + declare + constructeur), imports relatifs .mjs ;
+//   - DESSIN remplacé par la version retouchée (./externe/joystick.svg), où les 4
+//     flèches sont désormais toujours visibles (simplification du dessin retouché,
+//     plus de survol requis) ;
+//   - `#knob` (bouton central) est injecté via `unsafeSVG` donc hors du template
+//     Lit : son déplacement (`moveKnob`) et la mise en surbrillance de l'indicateur
+//     SEL (`#circle46`) sont appliqués nativement dans `updated()`, même logique
+//     que l'ancien `attachInteractiveFeedback` de drawing-feedback.mts (déplacement
+//     du knob validé en production sur ce même dessin retouché depuis v2026.6.83) ;
+//   - zones de clic (haut/bas/gauche/droite/SEL) : un groupe `<g>` invisible,
+//     rendu directement par Lit (donc éligible aux bindings `@mousedown`), calé sur
+//     le dessin retouché via le transform composé `translate(g65) translate(g64)
+//     matrix(knob)` — reproduit exactement la position/taille des zones de clic
+//     d'origine (repère local de l'ancien dessin 27.2×31.8, non retouché) sans
+//     recalcul de géométrie au runtime.
+import { html, LitElement } from 'lit';
+import type { PropertyValues } from 'lit';
+import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { analog, ElementPin, GND, VCC } from './pin.mjs';
 import { SPACE_KEYS } from './utils/keys.mjs';
+import drawing from './externe/joystick.svg';
+
+const W = 120;
+const H = 134.5677;
+const OVERLAY_TRANSFORM =
+  'translate(-10,-10) translate(-4.3800011,-0.63000488) matrix(3.937,0,0,3.937,20,20)';
 
 export class AnalogJoystickElement extends LitElement {
   declare xValue: number;
   declare yValue: number;
   declare pressed: boolean;
-  get knob(): SVGCircleElement {
-    return this.renderRoot.querySelector('#knob')!;
-  }
 
   /** Propriétés réactives lit (remplace les décorateurs @property du code d'origine). */
   static properties = {
@@ -29,161 +48,56 @@ export class AnalogJoystickElement extends LitElement {
   }
 
   readonly pinInfo: ElementPin[] = [
-    { name: 'VCC', x: 33, y: 115.8, signals: [VCC()] },
-    { name: 'VERT', x: 42.6012, y: 115.8, signals: [analog(0)] },
-    { name: 'HORZ', x: 52.2024, y: 115.8, signals: [analog(1)] },
-    { name: 'SEL', x: 61.8036, y: 115.8, signals: [] },
-    { name: 'GND', x: 71.4048, y: 115.8, signals: [GND()] },
+    { name: 'VCC', x: 40, y: 130, signals: [VCC()] },
+    { name: 'VERT', x: 50, y: 130, signals: [analog(0)] },
+    { name: 'HORZ', x: 60, y: 130, signals: [analog(1)] },
+    { name: 'SEL', x: 70, y: 130, signals: [] },
+    { name: 'GND', x: 80, y: 130, signals: [GND()] },
   ];
 
-  static get styles() {
-    return css`
-      #knob {
-        transition: transform 0.3s;
-      }
+  private knobEl: SVGElement | null = null;
+  private knobBase = '';
+  private selEl: SVGElement | null = null;
+  private selOff = '#aaa';
 
-      #knob:hover {
-        fill: #222;
-      }
+  /** Repère `#knob`/`#circle46` du dessin retouché et branche le clavier (une fois). */
+  private setup(): void {
+    if (this.knobEl) return;
+    const svgEl = this.renderRoot.querySelector('svg');
+    if (!svgEl) return;
+    this.knobEl = svgEl.querySelector('#knob');
+    if (this.knobEl) {
+      this.knobBase = this.knobEl.getAttribute('transform') ?? '';
+      this.knobEl.addEventListener('keydown', (e) => this.keydown(e as KeyboardEvent));
+      this.knobEl.addEventListener('keyup', (e) => this.keyup(e as KeyboardEvent));
+    }
+    this.selEl = svgEl.querySelector('#circle46');
+    if (this.selEl) {
+      this.selOff = this.selEl.style.fill || this.selEl.getAttribute('fill') || '#aaa';
+    }
+  }
 
-      #knob:focus {
-        outline: none;
-        stroke: #4d90fe;
-        stroke-width: 0.5;
-      }
+  private moveKnob(): void {
+    if (!this.knobEl) return;
+    const s = Number(/matrix\(\s*([-\d.]+)/.exec(this.knobBase)?.[1] ?? 96 / 25.4);
+    const dx = -2.5 * this.xValue * s;
+    const dy = -2.5 * this.yValue * s;
+    this.knobEl.setAttribute('transform', `translate(${dx} ${dy}) ${this.knobBase}`);
+  }
 
-      .controls {
-        opacity: 0;
-        transition: opacity 0.3s;
-        cursor: pointer;
-      }
-
-      #knob:focus ~ .controls,
-      #knob:hover ~ .controls {
-        opacity: 1;
-      }
-
-      .controls:hover {
-        opacity: 1;
-      }
-
-      .controls path {
-        pointer-events: none;
-      }
-
-      .controls .region {
-        pointer-events: fill;
-        fill: none;
-      }
-
-      .controls .region:hover + path {
-        fill: #fff;
-      }
-
-      .controls circle:hover {
-        stroke: #fff;
-      }
-
-      .controls circle.pressed {
-        fill: #fff;
-      }
-    `;
+  updated(changed: PropertyValues): void {
+    super.updated(changed);
+    this.setup();
+    this.moveKnob();
+    if (this.selEl) this.selEl.style.fill = this.pressed ? '#fff' : this.selOff;
   }
 
   render() {
-    const { xValue, yValue } = this;
     return html`
-      <svg
-        width="27.2mm"
-        height="31.8mm"
-        viewBox="0 0 27.2 31.8"
-        xmlns="http://www.w3.org/2000/svg"
-        xmlns:xlink="http://www.w3.org/1999/xlink"
-      >
-        <defs>
-          <filter id="noise" primitiveUnits="objectBoundingBox">
-            <feTurbulence baseFrequency="2 2" type="fractalNoise" />
-            <feColorMatrix
-              values=".1 0 0 0 .1
-                      .1 0 0 0 .1
-                      .1 0 0 0 .1
-                      0 0 0 0 1"
-            />
-            <feComposite in2="SourceGraphic" operator="lighter" />
-            <feComposite result="body" in2="SourceAlpha" operator="in" />
-          </filter>
-          <radialGradient id="g-knob" cx="13.6" cy="13.6" r="10.6" gradientUnits="userSpaceOnUse">
-            <stop offset="0" />
-            <stop offset="0.9" />
-            <stop stop-color="#777" offset="1" />
-          </radialGradient>
-          <radialGradient
-            id="g-knob-base"
-            cx="13.6"
-            cy="13.6"
-            r="13.6"
-            gradientUnits="userSpaceOnUse"
-          >
-            <stop offset="0" />
-            <stop stop-color="#444" offset=".8" />
-            <stop stop-color="#555" offset=".9" />
-            <stop offset="1" />
-          </radialGradient>
-          <path
-            id="pin"
-            fill="silver"
-            stroke="#a2a2a2"
-            stroke-width=".024"
-            d="M8.726 29.801a.828.828 0 00-.828.829.828.828 0 00.828.828.828.828 0 00.829-.828.828.828 0 00-.829-.829zm-.004.34a.49.49 0 01.004 0 .49.49 0 01.49.489.49.49 0 01-.49.49.49.49 0 01-.489-.49.49.49 0 01.485-.49z"
-          />
-        </defs>
-        <path
-          d="M1.3 0v31.7h25.5V0zm2.33.683a1.87 1.87 0 01.009 0 1.87 1.87 0 011.87 1.87 1.87 1.87 0 01-1.87 1.87 1.87 1.87 0 01-1.87-1.87 1.87 1.87 0 011.87-1.87zm20.5 0a1.87 1.87 0 01.009 0 1.87 1.87 0 011.87 1.87 1.87 1.87 0 01-1.87 1.87 1.87 1.87 0 01-1.87-1.87 1.87 1.87 0 011.87-1.87zm-20.5 26.8a1.87 1.87 0 01.009 0 1.87 1.87 0 011.87 1.87 1.87 1.87 0 01-1.87 1.87 1.87 1.87 0 01-1.87-1.87 1.87 1.87 0 011.87-1.87zm20.4 0a1.87 1.87 0 01.009 0 1.87 1.87 0 011.87 1.87 1.87 1.87 0 01-1.87 1.87 1.87 1.87 0 01-1.87-1.87 1.87 1.87 0 011.87-1.87zm-12.7 2.66a.489.489 0 01.004 0 .489.489 0 01.489.489.489.489 0 01-.489.489.489.489 0 01-.489-.489.489.489 0 01.485-.489zm2.57 0a.489.489 0 01.004 0 .489.489 0 01.489.489.489.489 0 01-.489.489.489.489 0 01-.489-.489.489.489 0 01.485-.489zm2.49.013a.489.489 0 01.004 0 .489.489 0 01.489.489.489.489 0 01-.489.489.489.489 0 01-.489-.489.489.489 0 01.485-.489zm-7.62.007a.489.489 0 01.004 0 .489.489 0 01.489.489.489.489 0 01-.489.489.489.489 0 01-.489-.49.489.489 0 01.485-.488zm10.2.013a.489.489 0 01.004 0 .489.489 0 01.489.489.489.489 0 01-.489.489.489.489 0 01-.489-.49.489.489 0 01.485-.488z"
-          fill="#bd1e34"
-        />
-        <g fill="#fff" font-family="sans-serif" stroke-width=".03">
-          <text text-anchor="middle" font-size="1.2" letter-spacing=".053">
-            <tspan x="4.034" y="25.643">Analog</tspan>
-            <tspan x="4.061" y="27.159">Joystick</tspan>
-          </text>
-          <text transform="rotate(-90)" text-anchor="start" font-size="1.2">
-            <tspan x="-29.2" y="9.2">VCC</tspan>
-            <tspan x="-29.2" y="11.74">VERT</tspan>
-            <tspan x="-29.2" y="14.28">HORZ</tspan>
-            <tspan x="-29.2" y="16.82">SEL</tspan>
-            <tspan x="-29.2" y="19.36">GND</tspan>
-          </text>
-        </g>
-        <ellipse cx="13.6" cy="13.7" rx="13.6" ry="13.7" fill="url(#g-knob-base)" />
-        <path
-          d="M48.2 65.5s.042.179-.093.204c-.094.017-.246-.077-.322-.17-.094-.115-.082-.205-.009-.285.11-.122.299-.075.299-.075s-.345-.303-.705-.054c-.32.22-.228.52.06.783.262.237.053.497-.21.463-.18-.023-.252-.167-.21-.256.038-.076.167-.122.167-.122s-.149-.06-.324.005c-.157.06-.286.19-.276.513v1.51s.162-.2.352-.403c.214-.229.311-.384.53-.366.415.026.714-.159.918-.454.391-.569.085-1.2-.178-1.29"
-          fill="#fff"
-        />
-        <circle
-          id="knob"
-          cx="13.6"
-          cy="13.6"
-          transform="translate(${2.5 * -xValue}, ${2.5 * -yValue})"
-          r="10.6"
-          fill="url(#g-knob)"
-          filter="url(#noise)"
-          tabindex="0"
-          @keyup=${(e: KeyboardEvent) => this.keyup(e)}
-          @keydown=${(e: KeyboardEvent) => this.keydown(e)}
-        />
-        <g fill="none" stroke="#fff" stroke-width=".142">
-          <path
-            d="M7.8 31.7l-.383-.351v-1.31l.617-.656h1.19l.721.656.675-.656h1.18l.708.656.662-.656h1.25l.643.656.63-.656h1.21l.695.656.636-.656h1.17l.753.656v1.3l-.416.39"
-          />
-          <path
-            d="M9.5 31.7l.381-.344.381.331M12.1 31.7l.381-.344.381.331M14.7 31.7l.381-.344.381.331M17.2 31.7l.381-.344.381.331"
-            stroke-linecap="square"
-            stroke-linejoin="bevel"
-          />
-        </g>
-        <g class="controls" stroke-width="0.6" stroke-linejoin="bevel" fill="#aaa">
+      <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+        ${unsafeSVG(drawing)}
+        <g transform="${OVERLAY_TRANSFORM}" fill="none" style="pointer-events:fill;cursor:pointer">
           <rect
-            class="region"
             y="8.5"
             x="1"
             height="10"
@@ -191,10 +105,7 @@ export class AnalogJoystickElement extends LitElement {
             @mousedown=${(e: MouseEvent) => this.mousedown(e, 1, 0)}
             @mouseup=${() => this.mouseup(true, false)}
           />
-          <path d="m 7.022,11.459 -3.202,2.497 3.202,2.497" />
-
           <rect
-            class="region"
             y="1.38"
             x="7.9"
             height="7"
@@ -202,10 +113,7 @@ export class AnalogJoystickElement extends LitElement {
             @mousedown=${(e: MouseEvent) => this.mousedown(e, 0, 1)}
             @mouseup=${() => this.mouseup(false, true)}
           />
-          <path d="m 16.615,7.095 -2.497,-3.202 -2.497,3.202" />
-
           <rect
-            class="region"
             y="8.5"
             x="18"
             height="10"
@@ -213,10 +121,7 @@ export class AnalogJoystickElement extends LitElement {
             @mousedown=${(e: MouseEvent) => this.mousedown(e, -1, 0)}
             @mouseup=${() => this.mouseup(true, false)}
           />
-          <path d="m 19.980,16.101 3.202,-2.497 -3.202,-2.497" />
-
           <rect
-            class="region"
             y="17"
             x="7.9"
             height="7"
@@ -224,23 +129,14 @@ export class AnalogJoystickElement extends LitElement {
             @mousedown=${(e: MouseEvent) => this.mousedown(e, 0, -1)}
             @mouseup=${() => this.mouseup(false, true)}
           />
-          <path d="m 11.620,20.112 2.497,3.202 2.497,-3.202" />
-
           <circle
             cx="13.6"
             cy="13.6"
             r="3"
-            stroke="#aaa"
-            class=${this.pressed ? 'pressed' : ''}
             @mousedown=${(e: MouseEvent) => this.press(e)}
             @mouseup=${() => this.release()}
           />
         </g>
-        <use xlink:href="#pin" x="0" />
-        <use xlink:href="#pin" x="2.54" />
-        <use xlink:href="#pin" x="5.08" />
-        <use xlink:href="#pin" x="7.62" />
-        <use xlink:href="#pin" x="10.16" />
       </svg>
     `;
   }
@@ -295,7 +191,7 @@ export class AnalogJoystickElement extends LitElement {
       this.yValue = dy;
     }
     this.valueChanged();
-    this.knob?.focus();
+    this.knobEl?.focus();
     e.preventDefault(); // Prevents stealing focus
   }
 
@@ -307,20 +203,20 @@ export class AnalogJoystickElement extends LitElement {
       this.yValue = 0;
     }
     this.valueChanged();
-    this.knob?.focus();
+    this.knobEl?.focus();
   }
 
   private press(e?: MouseEvent) {
     this.pressed = true;
     this.dispatchEvent(new InputEvent('button-press'));
-    this.knob?.focus();
+    this.knobEl?.focus();
     e?.preventDefault(); // Prevents stealing focus
   }
 
   private release() {
     this.pressed = false;
     this.dispatchEvent(new InputEvent('button-release'));
-    this.knob?.focus();
+    this.knobEl?.focus();
   }
 
   private valueChanged() {
