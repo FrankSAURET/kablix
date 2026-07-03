@@ -45,7 +45,7 @@ import './composants/custom-part.mjs';
 
 import { initLocale, t } from './i18n.mjs';
 import { Editor, type PaletteState } from './diagram/editor.mjs';
-import { reflectSevenSeg, reflectOled, reflectLcd } from './diagram/drawing-feedback.mjs';
+import { reflectOled, reflectLcd } from './diagram/drawing-feedback.mjs';
 import { partDef, boardFamily, isBoardId, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
 import { toWokwiDiagram, fromWokwiDiagram } from './diagram/wokwi.mjs';
 import {
@@ -397,9 +397,6 @@ function refreshVisuals(): void {
         const digits = Math.max(1, Number(part.attrs?.digits ?? 1) || 1);
         if (digits <= 1) {
           el.values = sevenSegmentState(editor.diagram, part.id, read);
-          // Dessin retouché (1 chiffre) : allume les segments correspondants.
-          const draw = editor.drawingOf(part.id);
-          if (draw) reflectSevenSeg(draw, el.values as number[], part.attrs?.color ?? 'red');
         } else {
           // Multiplexage : on échantillonne le chiffre actuellement sélectionné
           // (broche DIGn active) et on mémorise ses segments ; les autres gardent
@@ -417,9 +414,6 @@ function refreshVisuals(): void {
             if (active) for (let s = 0; s < 8; s++) latch[d * 8 + s] = values[s];
           }
           el.values = latch.slice();
-          // Dessin retouché (2/4 chiffres) : allume les segments de chaque chiffre.
-          const draw = editor.drawingOf(part.id);
-          if (draw) reflectSevenSeg(draw, latch, part.attrs?.color ?? 'red', digits);
         }
         break;
       }

@@ -10,8 +10,8 @@
 // Régénération : `node scripts/_extract-overrides.mjs` (lit chaque SVG via getCTM).
 //
 // Variantes : certains composants ont plusieurs brochages selon un attribut
-// (clavier 3 vs 4 colonnes, 7 seg 1/2/4 chiffres, LCD I²C/parallèle). On les
-// distingue par une clé suffixée (cf. `overridesFor`). Le clavier matriciel sort
+// (clavier 3 vs 4 colonnes, LCD I²C/parallèle). On les distingue par une clé
+// suffixée (cf. `overridesFor`). Le clavier matriciel sort
 // au pas ~9,6 px irrégulier : positions réelles du connecteur figées (non grille).
 export const PIN_OVERRIDES: Record<string, Record<string, { x: number; y: number }>> = {
   // Clavier 4 colonnes (4×4) — positions du connecteur (= pinInfo Wokwi).
@@ -37,46 +37,6 @@ export const PIN_OVERRIDES: Record<string, Record<string, { x: number; y: number
   },
 
   // --- Composants recalés sur grille depuis « svg retouche/ » (générés) ----------
-  '7seg-1dig': {
-    'COM.2': { x: 30, y: 10 },
-    'A': { x: 40, y: 10 },
-    'B': { x: 50, y: 10 },
-    'F': { x: 20, y: 10 },
-    'G': { x: 10, y: 10 },
-    'COM.1': { x: 30, y: 80 },
-    'C': { x: 40, y: 80 },
-    'D': { x: 20, y: 80 },
-    'E': { x: 10, y: 80 },
-    'DP': { x: 50, y: 80 },
-  },
-  '7seg-4dig': {
-    'A': { x: 80, y: 10 },
-    'B': { x: 120, y: 10 },
-    'F': { x: 90, y: 10 },
-    'DIG1': { x: 70, y: 10 },
-    'DIG2': { x: 100, y: 10 },
-    'DIG3': { x: 110, y: 10 },
-    'CLN': { x: 130, y: 10 },
-    'C': { x: 100, y: 80 },
-    'D': { x: 80, y: 80 },
-    'E': { x: 70, y: 80 },
-    'G': { x: 110, y: 80 },
-    'DP': { x: 90, y: 80 },
-    'DIG4': { x: 120, y: 80 },
-    'COM': { x: 130, y: 80 },
-  },
-  '7seg-2dig': {
-    'DIG1': { x: 50, y: 10 },
-    'DIG2': { x: 60, y: 10 },
-    'A': { x: 30, y: 10 },
-    'B': { x: 40, y: 10 },
-    'F': { x: 70, y: 10 },
-    'C': { x: 30, y: 80 },
-    'D': { x: 60, y: 80 },
-    'E': { x: 50, y: 80 },
-    'G': { x: 70, y: 80 },
-    'DP': { x: 40, y: 80 },
-  },
   // Boutons : dessin retouché (repère = coin haut-gauche du dessin, tel quel).
   'button-6mm': {
     '1.l': { x: 10, y: 10 },
@@ -192,9 +152,6 @@ export function overridesFor(
     const cols = attrs?.columns === '3' ? '3' : '4';
     return PIN_OVERRIDES[`keypad-${cols}col`];
   }
-  // Afficheur 7 segments : brochage selon le nombre de chiffres. Le 2 chiffres
-  // n'a pas été recalé → pas d'entrée (calage auto).
-  if (type === '7seg') return PIN_OVERRIDES[`7seg-${attrs?.digits ?? '1'}dig`];
   // LCD texte : 4 variantes selon interface (i2c/parallèle) et taille (16×2/20×4).
   if (type === 'lcd') {
     const parallel = (attrs?.pins ?? 'i2c') === 'full';

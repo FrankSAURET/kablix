@@ -4,35 +4,6 @@
 // retour en agissant sur les sous-éléments CONSERVÉS dans le dessin (le SVG
 // retouché garde la structure Wokwi : groupe `.light` du LED, etc.).
 
-/**
- * Afficheur 7 segments (1, 2 ou 4 chiffres) : allume chaque segment selon
- * `values` (8 valeurs par chiffre, ordre Wokwi A,B,C,D,E,F,G,DP). Les segments
- * sont les `<polygon>` du dessin, groupés par chiffre dans l'ordre DOM (7 par
- * chiffre, A→G validé vs Wokwi) ; les points décimaux sont les `<circle>` /
- * `<ellipse>` hors `<defs>`, un par chiffre dans l'ordre DOM (gauche→droite).
- * Couleur allumée = `color` (attribut du composant) ; éteinte = la couleur
- * d'origine du dessin, mémorisée au premier passage.
- */
-export function reflectSevenSeg(
-  svg: SVGElement,
-  values: number[],
-  color = 'red',
-  digits = 1
-): void {
-  const polys = svg.querySelectorAll('polygon');
-  if (polys.length < digits * 7) return;
-  const dps = [...svg.querySelectorAll('circle, ellipse')].filter((c) => !c.closest('defs'));
-  const setSeg = (el: SVGElement, lit: boolean) => {
-    const e = el as SVGElement & { dataset: DOMStringMap };
-    if (e.dataset.off === undefined) e.dataset.off = el.style.fill || el.getAttribute('fill') || '#444';
-    el.style.fill = lit ? color : e.dataset.off;
-  };
-  for (let d = 0; d < digits; d++) {
-    for (let s = 0; s < 7; s++) setSeg(polys[d * 7 + s] as SVGElement, !!values[d * 8 + s]);
-    if (dps[d]) setSeg(dps[d] as SVGElement, !!values[d * 8 + 7]);
-  }
-}
-
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const XHTML_NS = 'http://www.w3.org/1999/xhtml';
 

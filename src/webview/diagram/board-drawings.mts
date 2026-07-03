@@ -4,9 +4,6 @@
 // le repère du dessin (viewBox) = celui des surcharges de broches (pin-overrides),
 // donc les pastilles tombent pile sur le dessin. L'élément Lit reste présent
 // (caché) pour `pinInfo` et la simulation.
-import sevenSegSvg from '../composants/externe/7seg.svg';
-import sevenSeg2Svg from '../composants/externe/7seg-2dig.svg';
-import sevenSeg4Svg from '../composants/externe/7seg-4dig.svg';
 import oledSvg from '../composants/externe/oled-ssd1306.svg';
 import lcdSvg from '../composants/externe/lcd.svg';
 import lcdParallel20x4Svg from '../composants/externe/lcd-parallel-20x4.svg';
@@ -18,9 +15,6 @@ import dipSwitchSvg from '../composants/externe/dip-switch.svg';
 import joystickSvg from '../composants/externe/joystick.svg';
 
 const DRAWINGS: Record<string, string> = {
-  '7seg': sevenSegSvg, // 1 chiffre (cf. drawingKey ; 2/4 chiffres ci-dessous)
-  '7seg-2dig': sevenSeg2Svg,
-  '7seg-4dig': sevenSeg4Svg,
   'oled-ssd1306': oledSvg,
   lcd: lcdSvg, // parallèle 16×2 (cf. drawingKey ; variantes ci-dessous)
   'lcd-parallel-20x4': lcdParallel20x4Svg,
@@ -35,16 +29,11 @@ const DRAWINGS: Record<string, string> = {
 };
 
 /**
- * Clé de dessin pour un type + ses attributs (variantes). Le 7 segments a un
- * dessin propre par nombre de chiffres (1/2/4) ; clé `7seg`, `7seg-2dig`,
- * `7seg-4dig`. Le LCD texte a 4 variantes selon interface (i2c/parallèle) et
- * taille (16×2 / 20×4) : `lcd`, `lcd-parallel-20x4`, `lcd-i2c`, `lcd-i2c-20x4`.
+ * Clé de dessin pour un type + ses attributs (variantes). Le LCD texte a 4
+ * variantes selon interface (i2c/parallèle) et taille (16×2 / 20×4) : `lcd`,
+ * `lcd-parallel-20x4`, `lcd-i2c`, `lcd-i2c-20x4`.
  */
 function drawingKey(type: string, attrs?: Record<string, string>): string {
-  if (type === '7seg') {
-    const d = attrs?.digits ?? '1';
-    return d === '1' ? '7seg' : `7seg-${d}dig`;
-  }
   if (type === 'lcd') {
     const parallel = (attrs?.pins ?? 'i2c') === 'full';
     const big = (attrs?.lcdSize ?? '16x2') === '20x4';
