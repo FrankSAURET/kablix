@@ -114,7 +114,7 @@ const XHTML_NS = 'http://www.w3.org/1999/xhtml';
 
 /**
  * Zone d'écran d'un dessin = le plus grand `<rect>` non rempli d'un motif
- * (`url(...)`). Sert d'ancrage au canvas superposé (OLED, TFT).
+ * (`url(...)`). Sert d'ancrage au canvas superposé (OLED).
  */
 function screenRectOf(svg: SVGElement): { x: number; y: number; w: number; h: number } | null {
   let best: { x: number; y: number; w: number; h: number } | null = null;
@@ -178,18 +178,6 @@ export function reflectOled(
       d[i + 3] = 255;
     }
   }
-  ctx.putImageData(img, 0, 0);
-}
-
-/** Écran TFT couleur (ILI9341) : image RGBA décodée → canvas superposé. */
-export function reflectTft(
-  svg: SVGElement,
-  dev: { width: number; height: number; data: Uint8ClampedArray | Uint8Array }
-): void {
-  const ctx = screenCtx(svg, dev.width, dev.height);
-  if (!ctx) return;
-  const img = ctx.createImageData(dev.width, dev.height);
-  img.data.set(dev.data);
   ctx.putImageData(img, 0, 0);
 }
 

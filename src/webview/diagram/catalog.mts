@@ -266,7 +266,7 @@ export const CATALOG: readonly PartDef[] = [
   // simulé en SPI (le programme y dessine, l'écran s'allume).
   { type: 'oled-ssd1306', label: 'OLED display (SSD1306, SPI)', tag: 'kablix-ssd1306', kind: 'spi-oled' },
   // Écran TFT couleur ILI9341 (SPI) : décodé et dessiné dans son canvas.
-  { type: 'ili9341', label: 'TFT display (ILI9341, SPI)', tag: 'kablix-ili9341', kind: 'spi-tft', pinScale: WOKWI_PIN_SCALE },
+  { type: 'ili9341', label: 'TFT display (ILI9341, SPI)', tag: 'kablix-ili9341', kind: 'spi-tft' },
   // Carte microSD (SPI) : répondeur de protocole (init + lecture/écriture de blocs).
   { type: 'microsd', label: 'microSD card (SPI)', tag: 'kablix-microsd-card', kind: 'spi-sd' },
   // NeoPixel (WS2812) : simulés — la chaîne DIN est décodée et les LED s'allument.

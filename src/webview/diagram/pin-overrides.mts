@@ -343,17 +343,6 @@ export const PIN_OVERRIDES: Record<string, Record<string, { x: number; y: number
     'DIN': { x: 80, y: 160 },
     'DOUT': { x: 90, y: 160 },
   },
-  'ili9341': {
-    'VCC': { x: 60, y: 300 },
-    'GND': { x: 70, y: 300 },
-    'CS': { x: 80, y: 300 },
-    'RST': { x: 90, y: 300 },
-    'D/C': { x: 100, y: 300 },
-    'MOSI': { x: 110, y: 300 },
-    'SCK': { x: 120, y: 300 },
-    'LED': { x: 130, y: 300 },
-    'MISO': { x: 140, y: 300 },
-  },
   'oled-ssd1306': {
     'DATA': { x: 59, y: 20 },
     'CLK': { x: 69, y: 20 },

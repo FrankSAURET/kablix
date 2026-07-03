@@ -21,7 +21,6 @@ import neopixelSvg from '../composants/externe/neopixel.svg';
 import neopixelMatrixSvg from '../composants/externe/neopixel-matrix.svg';
 import ledRingSvg from '../composants/externe/led-ring.svg';
 import oledSvg from '../composants/externe/oled-ssd1306.svg';
-import ili9341Svg from '../composants/externe/ili9341.svg';
 import lcdSvg from '../composants/externe/lcd.svg';
 import lcdParallel20x4Svg from '../composants/externe/lcd-parallel-20x4.svg';
 import lcdI2cSvg from '../composants/externe/lcd-i2c.svg';
@@ -49,7 +48,6 @@ const DRAWINGS: Record<string, string> = {
   'neopixel-matrix': neopixelMatrixSvg,
   'led-ring': ledRingSvg,
   'oled-ssd1306': oledSvg,
-  ili9341: ili9341Svg,
   lcd: lcdSvg, // parallèle 16×2 (cf. drawingKey ; variantes ci-dessous)
   'lcd-parallel-20x4': lcdParallel20x4Svg,
   'lcd-i2c': lcdI2cSvg,

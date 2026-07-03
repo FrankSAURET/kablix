@@ -45,7 +45,7 @@ import './composants/custom-part.mjs';
 
 import { initLocale, t } from './i18n.mjs';
 import { Editor, type PaletteState } from './diagram/editor.mjs';
-import { reflectLed, reflectGlow, reflectSevenSeg, reflectRgbLed, reflectLedBar, reflectServo, reflectNeopixel, reflectOled, reflectTft, reflectLcd } from './diagram/drawing-feedback.mjs';
+import { reflectLed, reflectGlow, reflectSevenSeg, reflectRgbLed, reflectLedBar, reflectServo, reflectNeopixel, reflectOled, reflectLcd } from './diagram/drawing-feedback.mjs';
 import { partDef, boardFamily, isBoardId, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
 import { toWokwiDiagram, fromWokwiDiagram } from './diagram/wokwi.mjs';
 import {
@@ -503,12 +503,10 @@ function refreshVisuals(): void {
         break;
       }
       case 'spi-tft': {
-        // Écran TFT couleur ILI9341 : image RGBA → canvas de l'élément.
+        // Écran TFT couleur ILI9341 : image RGBA → canvas de l'élément (dessin natif).
         const dev = spiTftDevices.get(part.id);
         if (dev) {
           renderTft(el as unknown as { canvas?: HTMLCanvasElement | null }, dev);
-          const draw = editor.drawingOf(part.id);
-          if (draw) reflectTft(draw, dev);
         }
         break;
       }

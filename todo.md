@@ -11,6 +11,14 @@
 8. ✅ À chaque **chargement d'un fichier Python** : effacer la console, éteindre la simulation, réinitialiser les composants. À l'**arrêt de la simulation** : effacer la console, réinitialiser les composants. → v2026.6.80
 9. ⬜ Mettre à jour le **câblage interne du potentiomètre** → [`svg/pot-schema.edit.svg`](svg/pot-schema.edit.svg).
 
+# v2026.7.3
+
+1. ✅ **Migration dessin retouché → fork direct** pour `ili9341` (écran TFT SPI) : le fork [`ili9341-element.mts`](src/webview/composants/ili9341-element.mts) importe désormais son SVG retouché (`./externe/ili9341.svg`) et le rend lui-même via `unsafeSVG`, `pinInfo` codé en dur (9 broches, repère grille 10 px sur `y=300`). Retrait de l'entrée `ili9341` dans `DRAWINGS`/`PIN_OVERRIDES`/`pinScale` (catalog.mts).
+2. ✅ **Canvas écran** repositionné en pixels CSS **exacts** (calculés depuis le `rect` « écran » du dessin retouché, repère 1:1 avec le viewBox 200×310) au lieu des décalages approximatifs d'origine — vérifié headless : le canvas colle pile sur la zone écran du dessin.
+3. ✅ `sim.mts`/`drawing-feedback.mts` : retrait de l'appel `reflectTft(draw, …)` et de la fonction devenue inutile (le canvas natif de l'élément, déjà piloté par `renderTft`, est maintenant visible directement — plus de dessin caché à synchroniser).
+4. ✅ Fichier `ili9341.edit.svg` déplacé vers `svg retouche/Validé/`.
+5. ✅ Validation : `typecheck` OK ; `verify-diagram`/`verify-sim`/`verify-components` OK ; contrôle visuel headless (Chrome) — viewBox/canvas/pins alignés au pixel près.
+
 # v2026.7.2
 
 1. ✅ **Migration dessin retouché → fork direct** pour `nano` : le fork [`arduino-nano-element.mts`](src/webview/composants/arduino-nano-element.mts) importe désormais son SVG retouché (`./externe/nano.svg`) et le rend lui-même via `unsafeSVG`, `pinInfo` codé en dur (36 broches, repère grille 10 px), broches POWER/GND (5V/3.3V/VIN/GND×3) vérifiées alignées. Retrait de l'entrée `nano` dans `DRAWINGS`/`PIN_OVERRIDES`/`pinScale` (catalog.mts) devenue inutile.
