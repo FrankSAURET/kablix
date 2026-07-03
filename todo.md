@@ -1,7 +1,7 @@
 # À faire
 - Utilise l'icone media\serialMonitor.svg pour l'icone qui ouvre et ferme le moniteur/console
 
-1. ✅ Retoucher **NeoPixel**, les **4 LCD**, **matrice NeoPixel**, **OLED display**, **Bouton**, **bouton poussoir**, **DIP switch**, **joystick**, **potentiomètre** à partir des fichiers [`svg retouche/nnn.edit.svg`](svg%20retouche/). → v2026.6.83 (⏳ potentiomètre : pas de fichier retouché — `Validé/pot.edit.OK.svg` est le généré validé tel quel, rien à intégrer)
+1. ✅ Retoucher **NeoPixel**, les **4 LCD**, **matrice NeoPixel**, **OLED display**, **Bouton**, **bouton poussoir**, **DIP switch**, **joystick**, **potentiomètre** à partir des fichiers [`svg retouche/nnn.edit.svg`](svg%20retouche/). → v2026.6.83 (potentiomètre finalement retouché et intégré → v2026.7.4)
 2. ✅ Pouvoir **fermer l'afficheur série**. Ajouter une icône (écran) dans la barre de simulation, tout à droite, pour l'ouvrir/fermer. → v2026.6.80
 3. ✅ Renommer le **moniteur série en « Console »** pour les Pico. → v2026.6.80
 4. ✅ Barre de simulation : mettre en **jaune sur rouge** le bouton qui affiche le nom du fichier de simulation si **aucun fichier n'est choisi**. Le faire **clignoter 3 fois** si on lance la simulation alors qu'il est jaune. Le repasser dans sa couleur actuelle quand un fichier est choisi. → v2026.6.80
@@ -10,6 +10,14 @@
 7. ✅ À l'**ouverture d'un projet**, centrer/ajuster la vue automatiquement (comme le bouton « recentrer et ajuster »). → v2026.6.80
 8. ✅ À chaque **chargement d'un fichier Python** : effacer la console, éteindre la simulation, réinitialiser les composants. À l'**arrêt de la simulation** : effacer la console, réinitialiser les composants. → v2026.6.80
 9. ⬜ Mettre à jour le **câblage interne du potentiomètre** → [`svg/pot-schema.edit.svg`](svg/pot-schema.edit.svg).
+
+# v2026.7.4
+
+1. ✅ **Migration dessin retouché → fork direct** pour `pot` (potentiomètre) : le fork [`potentiometer-element.mts`](src/webview/composants/potentiometer-element.mts) importe désormais son SVG retouché (`./externe/pot.svg`) et le rend via `unsafeSVG`, `pinInfo` codé en dur GND/SIG/VCC (40/50/60, y=80 — grille 10 px). Corrige un défaut d'alignement historique : l'ancien `pinInfo` (29/39/49) n'était espacé de 10 que par rapport à sa propre 1ʳᵉ broche, jamais sur la grille absolue du canevas.
+2. ✅ **Rotation du curseur réimplémentée nativement** (`getScreenCTM()` natif sur le `<svg>`, `pointerdown`/`pointermove`/`pointerup` globaux) — l'ancienne machinerie CTM workaround (`ctm-workaround.mjs`) retirée du composant, même principe que `slide-potentiometer-element.mts`. Calcul d'angle/min/max/step inchangé.
+3. ✅ Fichier `pot.edit.OK.svg` déplacé/finalisé dans `svg retouche/Validé/`.
+4. ✅ Validation : `typecheck` OK ; `verify-diagram`/`verify-sim`/`verify-components` OK ; contrôle visuel headless (Chrome) — broches sur la grille, indicateur de rotation réactif après un drag simulé (587/1023 pour un clic à 20°, cohérent avec le calcul d'angle).
+5. ℹ️ **Lot A terminé** : `resistor`, `microsd`, `hcsr04`, `dht22`, `ntc-temp`, `heartbeat`, `sound`, `tilt`, `nano`, `slide-switch`, `dip-switch` (broches), `ili9341`, `pot` — tous migrés vers le modèle fork direct.
 
 # v2026.7.3
 

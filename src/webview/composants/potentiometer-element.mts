@@ -1,16 +1,22 @@
 // Fork local de @wokwi/elements v1.9.2 (MIT © Wokwi) — potentiometer-element.ts.
 // Balise <kablix-potentiometer> (ex <wokwi-potentiometer>). Licence d'origine : LICENSE-wokwi.md (même dossier).
-// Adaptations Kablix : sans décorateurs (static properties + declare + constructeur),
-// imports relatifs .mjs. Le dessin/les comportements restent ceux d'origine.
+// Adaptations Kablix :
+//   - sans décorateurs (static properties + declare + constructeur), imports relatifs .mjs ;
+//   - DESSIN remplacé par la version retouchée (./externe/pot.svg) ;
+//   - GND/SIG/VCC recalés sur la grille de 10 px (40/50/60, y=80, repère du dessin) ;
+//   - rotation du curseur réimplémentée via getScreenCTM natif (l'ancienne machinerie
+//     de drag d'origine — CTM workaround — retirée, même principe que slide-pot).
 import { css, html, LitElement } from 'lit';
-import { styleMap } from 'lit/directives/style-map.js';
-import { analog, ElementPin } from './pin.mjs';
+import type { PropertyValues } from 'lit';
+import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
+import { analog, GND, VCC, type ElementPin } from './pin.mjs';
 import { clamp } from './utils/clamp.mjs';
-import { getScreenCTM } from './utils/ctm-workaround.mjs';
+import drawing from './externe/pot.svg';
 
+// Centre de rotation du curseur (unités du dessin = ellipse #knob du SVG retouché).
 const knobCenter = {
-  x: 9.91,
-  y: 8.18,
+  x: 48.787586,
+  y: 41.290924,
 };
 
 export class PotentiometerElement extends LitElement {
@@ -42,28 +48,22 @@ export class PotentiometerElement extends LitElement {
   }
 
   private pressed = false;
-  private pageToKnobMatrix: SVGMatrix | null = null;
 
+  // Broches : centre de chaque pastille (repère du dessin retouché). Espacement
+  // multiple de 10 → toutes tombent sur un croisement de la grille.
   readonly pinInfo: ElementPin[] = [
-    { name: 'GND', x: 29, y: 68.5, number: 1, signals: [{ type: 'power', signal: 'GND' }] },
-    { name: 'SIG', x: 39, y: 68.5, number: 2, signals: [analog(0)] },
-    { name: 'VCC', x: 49, y: 68.5, number: 3, signals: [{ type: 'power', signal: 'VCC' }] },
+    { name: 'GND', x: 40, y: 80, number: 1, signals: [GND()] },
+    { name: 'SIG', x: 50, y: 80, number: 2, signals: [analog(0)] },
+    { name: 'VCC', x: 60, y: 80, number: 3, signals: [VCC()] },
   ];
 
   static get styles() {
     return css`
       #rotating {
-        transform-origin: 10px 8px;
+        transform-origin: ${knobCenter.x}px ${knobCenter.y}px;
         transform: rotate(var(--knob-angle, 0deg));
       }
 
-      svg text {
-        font-size: 1px;
-        line-height: 1.25;
-        letter-spacing: 0px;
-        word-spacing: 0px;
-        fill: #ffffff;
-      }
       .hide-input {
         position: absolute;
         clip: rect(0 0 0 0);
@@ -92,68 +92,12 @@ export class PotentiometerElement extends LitElement {
 
     return html`<svg
       role="slider"
-      width="20mm"
-      height="20mm"
-      version="1.1"
-      viewBox="0 0 20 20"
+      width="94.25"
+      height="90"
+      viewBox="0 0 94.25 90"
       xmlns="http://www.w3.org/2000/svg"
-      @click="${this.focusInput}"
-      @mousedown=${this.down}
-      @mousemove=${this.move}
-      @mouseup=${this.up}
-      @touchstart=${this.down}
-      @touchmove=${this.move}
-      @touchend=${this.up}
-      style=${styleMap({
-        '--knob-angle': knobDeg + 'deg',
-      })}
-    >
-      <defs>
-        <filter id="outline">
-          <feDropShadow id="glow" dx="0" dy="0" stdDeviation="0.5" flood-color="cyan" />
-        </filter>
-      </defs>
-      <rect
-        x=".15"
-        y=".15"
-        width="19.5"
-        height="19.5"
-        ry="1.23"
-        fill="#045881"
-        stroke="#045881"
-        stroke-width=".30"
-      />
-      <rect x="5.4" y=".70" width="9.1" height="1.9" fill="#ccdae3" stroke-width=".15" />
-      <ellipse
-        id="knob"
-        cx=${knobCenter.x}
-        cy=${knobCenter.y}
-        rx="7.27"
-        ry="7.43"
-        fill="#e4e8eb"
-        stroke-width=".15"
-      />
-      <rect x="6" y="17" width="8" height="2" fill-opacity="0" stroke="#fff" stroke-width=".30" />
-      <g stroke-width=".15">
-        <text x="6.21" y="16.6">GND</text>
-        <text x="9.2" y="16.63">SIG</text>
-        <text x="11.5" y="16.59">VCC</text>
-      </g>
-      <g fill="#fff" stroke-width=".15">
-        <ellipse cx="1.68" cy="1.81" rx=".99" ry=".96" />
-        <ellipse cx="1.48" cy="18.37" rx=".99" ry=".96" />
-        <ellipse cx="17.97" cy="18.47" rx=".99" ry=".96" />
-        <ellipse cx="18.07" cy="1.91" rx=".99" ry=".96" />
-      </g>
-      <g fill="#b3b1b0" stroke-width=".15">
-        <ellipse cx="7.68" cy="18" rx=".61" ry=".63" />
-        <ellipse cx="10.22" cy="18" rx=".61" ry=".63" />
-        <ellipse cx="12.76" cy="18" rx=".61" ry=".63" />
-      </g>
-      <ellipse cx="9.95" cy="8.06" rx="6.60" ry="6.58" fill="#c3c2c3" stroke-width=".15" />
-      <rect id="rotating" x="10" y="2" width=".42" height="3.1" stroke-width=".15" />
-      <rect x="0" y="9.5" width="1" height="1" fill="none" id="firefox-workaround" />
-    </svg>`;
+      style="--knob-angle: ${knobDeg}deg"
+    >${unsafeSVG(drawing)}</svg>`;
   }
 
   render() {
@@ -174,10 +118,9 @@ export class PotentiometerElement extends LitElement {
     `;
   }
 
-  private focusInput() {
-    const inputEl: HTMLInputElement | null | undefined =
-      this.shadowRoot?.querySelector('.hide-input');
-    inputEl?.focus();
+  firstUpdated(changed: PropertyValues): void {
+    super.firstUpdated(changed);
+    this.renderRoot.querySelector('svg')?.addEventListener('pointerdown', this.onPointerDown as EventListener);
   }
 
   private onValueChange(event: KeyboardEvent) {
@@ -185,51 +128,40 @@ export class PotentiometerElement extends LitElement {
     this.updateValue(parseFloat(target.value));
   }
 
-  private down(event: MouseEvent) {
-    if (event.button === 0 || window.navigator.maxTouchPoints) {
-      this.pressed = true;
-
-      event.stopPropagation();
-      event.preventDefault();
-
-      this.updateKnobMatrix();
-    }
-  }
-
-  private move(event: MouseEvent) {
-    const { pressed } = this;
-    if (pressed) {
-      this.rotateHandler(event);
-    }
-  }
-
-  private up() {
-    this.pressed = false;
-  }
-
-  private updateKnobMatrix() {
-    const knob = this.shadowRoot?.querySelector<SVGRectElement>('#knob');
-    const workaroundElement = this.shadowRoot?.querySelector<SVGRectElement>('#firefox-workaround');
-    this.pageToKnobMatrix =
-      knob && workaroundElement
-        ? getScreenCTM(knob, workaroundElement, new DOMRect(0, 9.5, 1, 1))
-        : null;
-  }
-
-  private rotateHandler(event: MouseEvent | TouchEvent) {
+  private onPointerDown = (event: PointerEvent): void => {
+    this.pressed = true;
     event.stopPropagation();
     event.preventDefault();
+    (this.renderRoot.querySelector('.hide-input') as HTMLElement | null)?.focus();
+    this.rotateFromEvent(event);
+    window.addEventListener('pointermove', this.onPointerMove);
+    window.addEventListener('pointerup', this.onPointerUp);
+  };
 
-    if (!this.pageToKnobMatrix) {
-      return;
-    }
+  private onPointerMove = (event: PointerEvent): void => {
+    if (this.pressed) this.rotateFromEvent(event);
+  };
 
-    const isTouch = event.type === 'touchmove';
-    const pageX = isTouch ? (event as TouchEvent).touches[0].pageX : (event as MouseEvent).pageX;
-    const pageY = isTouch ? (event as TouchEvent).touches[0].pageY : (event as MouseEvent).pageY;
-    const localPosition = new DOMPointReadOnly(pageX, pageY).matrixTransform(this.pageToKnobMatrix);
-    const x = knobCenter.x - localPosition.x;
-    const y = knobCenter.y - localPosition.y;
+  private onPointerUp = (): void => {
+    this.pressed = false;
+    window.removeEventListener('pointermove', this.onPointerMove);
+    window.removeEventListener('pointerup', this.onPointerUp);
+  };
+
+  /** Point (unités du dessin) sous le curseur, via la CTM du <svg>. */
+  private toSvgPoint(clientX: number, clientY: number): DOMPointReadOnly | null {
+    const svg = this.renderRoot.querySelector('svg') as SVGSVGElement | null;
+    const m = svg?.getScreenCTM();
+    if (!m) return null;
+    return new DOMPointReadOnly(clientX, clientY).matrixTransform(m.inverse());
+  }
+
+  private rotateFromEvent(event: PointerEvent): void {
+    const p = this.toSvgPoint(event.clientX, event.clientY);
+    if (!p) return;
+
+    const x = knobCenter.x - p.x;
+    const y = knobCenter.y - p.y;
     let deg = Math.round((Math.atan2(y, x) * 180) / Math.PI);
     if (deg < 0) {
       deg += 360;
