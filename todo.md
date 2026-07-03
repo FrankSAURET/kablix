@@ -11,6 +11,13 @@
 8. ✅ À chaque **chargement d'un fichier Python** : effacer la console, éteindre la simulation, réinitialiser les composants. À l'**arrêt de la simulation** : effacer la console, réinitialiser les composants. → v2026.6.80
 9. ⬜ Mettre à jour le **câblage interne du potentiomètre** → [`svg/pot-schema.edit.svg`](svg/pot-schema.edit.svg).
 
+# v2026.7.7
+
+1. ✅ **Migration dessin retouché → fork direct** pour `neopixel`, `neopixel-matrix`, `led-ring` : chaque fork importe désormais son SVG retouché (`./externe/<type>.svg`) et le rend lui-même via `unsafeSVG`, `pinInfo` codé en dur (grille 10 px, broches POWER/GND vérifiées alignées : neopixel VDD 10,10/VSS 30,20 ; matrice GND 90,190/VCC 100,190 ; anneau GND 60,160/VCC 70,160). `neopixel-matrix` et `led-ring` : dessin capté à la taille par défaut (8×8 / 16 pixels) — `rows`/`cols`/`pixels`/`pixelSpacing` ne sont pas exposés dans l'inspecteur (`catalog.mts`), donc aucune perte de fonctionnalité.
+2. ✅ **Retour visuel réimplémenté nativement** : neopixel simple, glow/spots RVB pilotés dans `updated()` (mêmes formules que l'ancien `reflectNeopixel`) sur les ids déjà présents dans le dessin retouché (`feGaussianBlur13`, `rect14`, `ellipse23..26`). Matrice et anneau : `setPixel()`/`reset()` interrogent nativement les groupes `g.pixel` (64, tag `circle` — le dessin retouché sérialise les anciens `<ellipse>` en `<circle>`) et les `rect.pixel` (16) déjà présents dans le dessin importé, au lieu de reconstruire les éléments.
+3. ✅ **Nettoyage** des 4 points de l'ancien mécanisme pour ces 3 types : `board-drawings.mts` (imports + entrées `DRAWINGS` retirées), `pin-overrides.mts` (entrées retirées), `sim.mts` (appel `reflectNeopixel` retiré, `renderNeopixel` continue de piloter `el.r/g/b`/`el.setPixel()` inchangé), `drawing-feedback.mts` (`reflectNeopixel`/`colorPixel` supprimées).
+4. ✅ Validation : `typecheck`/`build`/`verify`/`verify:diagram`/`verify:components` OK ; contrôle visuel/comportemental headless (bundle esbuild réel) — broches des 3 composants sur la grille, coloration ciblée d'un pixel sans affecter les autres (matrice et anneau), `reset()` fonctionnel.
+
 # v2026.7.6
 
 1. ✅ **Migration dessin retouché → fork direct** pour `uno` et `mega` : chaque fork importe désormais son SVG retouché (`./externe/uno.svg`, `./externe/mega.svg` — exports réalistes type Eagle/KiCad, pas les dessins procéduraux d'origine) et le rend lui-même via `unsafeSVG`, `pinInfo` codé en dur (grille 10 px, 6/10 broches POWER/GND vérifiées alignées pour uno/mega respectivement).

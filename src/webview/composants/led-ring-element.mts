@@ -1,81 +1,55 @@
 // Fork local de @wokwi/elements v1.9.2 (MIT © Wokwi) — led-ring-element.ts.
 // Balise <kablix-led-ring> (ex <wokwi-led-ring>). Licence d'origine : LICENSE-wokwi.md (même dossier).
 // Adaptations Kablix : sans décorateurs (static properties + declare + constructeur),
-// imports relatifs .mjs. Le dessin/les comportements restent ceux d'origine.
-import { html, LitElement, svg } from 'lit';
+// imports relatifs .mjs ; DESSIN remplacé par la version retouchée (./externe/led-ring.svg,
+// capturée à la taille par défaut 16 pixels — pixels/pixelSpacing/background ne sont pas
+// exposés dans l'inspecteur, cf. catalog.mts, donc pas de perte de fonctionnalité). Broches
+// recalées sur la grille de 10 px. Pixels pilotés nativement via les 16 `rect.pixel` déjà
+// présents dans le dessin importé (même ordre DOM que l'ancien rendu procédural).
+import { html, LitElement } from 'lit';
+import type { PropertyValues } from 'lit';
+import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
 import { RGB } from './types/rgb.mjs';
-import { mmToPix } from './utils/units.mjs';
-
-const pinHeight = 3;
-const pcbWidth = 6;
+import drawing from './externe/led-ring.svg';
 
 export class LEDRingElement extends LitElement {
   declare pixels: number;
-  declare pixelSpacing: number;
-  declare background: string;
   declare animation: boolean;
 
   /** Propriétés réactives lit (remplace les décorateurs @property du code d'origine). */
   static properties = {
     pixels: {},
-    pixelSpacing: { type: Number },
-    background: {},
     animation: {},
   };
 
   constructor() {
     super();
     this.pixels = 16;
-    this.pixelSpacing = 0;
-    this.background = '#363';
     this.animation = false;
   }
 
-  private pixelElements: SVGCircleElement[] | null = null;
+  private pixelElements: SVGRectElement[] | null = null;
 
   private animationFrame: number | null = null;
 
-  get radius() {
-    return ((this.pixelSpacing + 5) * this.pixels) / 2 / Math.PI + pcbWidth;
-  }
-
-  get pinInfo(): ElementPin[] {
-    const { radius } = this;
-    const pinSpacing = 2.54;
-    const y = (radius * 2 + pinHeight) * mmToPix;
-    const cx = radius * mmToPix;
-    const p = pinSpacing * mmToPix;
-
-    return [
-      {
-        name: 'GND',
-        x: cx - 1.5 * p,
-        y,
-        signals: [{ type: 'power', signal: 'GND' }],
-      },
-      { name: 'VCC', x: cx - 0.5 * p, y, signals: [{ type: 'power', signal: 'VCC' }] },
-      { name: 'DIN', x: cx + 0.5 * p, y, signals: [] },
-      { name: 'DOUT', x: cx + 1.5 * p, y, signals: [] },
-    ];
-  }
+  // Broches recalées sur grille 10 px (surcharges pin-overrides.mts « led-ring »).
+  readonly pinInfo: ElementPin[] = [
+    { name: 'GND', x: 60, y: 160, signals: [{ type: 'power', signal: 'GND' }] },
+    { name: 'VCC', x: 70, y: 160, signals: [{ type: 'power', signal: 'VCC' }] },
+    { name: 'DIN', x: 80, y: 160, signals: [] },
+    { name: 'DOUT', x: 90, y: 160, signals: [] },
+  ];
 
   private getPixelElements() {
-    if (!this.shadowRoot) {
-      return null;
-    }
     if (!this.pixelElements) {
-      this.pixelElements = Array.from(this.shadowRoot.querySelectorAll('rect.pixel'));
+      this.pixelElements = Array.from(this.renderRoot.querySelectorAll('rect.pixel'));
     }
     return this.pixelElements;
   }
 
   setPixel(pixel: number, { r, g, b }: RGB) {
     const pixelElements = this.getPixelElements();
-    if (!pixelElements) {
-      return;
-    }
-
     if (pixel < 0 || pixel >= pixelElements.length) {
       return;
     }
@@ -86,8 +60,7 @@ export class LEDRingElement extends LitElement {
    * Resets all the pixels to off state (r=0, g=0, b=0).
    */
   reset() {
-    const pixelElements = this.getPixelElements();
-    for (const element of pixelElements ?? []) {
+    for (const element of this.getPixelElements()) {
       element.style.fill = '';
     }
   }
@@ -106,14 +79,8 @@ export class LEDRingElement extends LitElement {
     this.animationFrame = requestAnimationFrame(this.animateStep);
   };
 
-  update(changedProperties: Map<string, unknown>) {
-    if (changedProperties.has('pixels') || changedProperties.has('pixelSpacing')) {
-      this.dispatchEvent(new CustomEvent('pininfo-change'));
-    }
-    super.update(changedProperties);
-  }
-
-  updated() {
+  updated(changed: PropertyValues) {
+    super.updated(changed);
     if (this.animation && !this.animationFrame) {
       this.animationFrame = requestAnimationFrame(this.animateStep);
     } else if (!this.animation && this.animationFrame) {
@@ -123,55 +90,9 @@ export class LEDRingElement extends LitElement {
   }
 
   render() {
-    const { pixels, radius, background } = this;
-    const pixelElements = [];
-    const width = radius * 2;
-    const height = radius * 2 + pinHeight;
-    for (let i = 0; i < pixels; i++) {
-      const angle = (i / pixels) * 360;
-      pixelElements.push(
-        svg`<rect
-          class="pixel"
-          x="${radius - 2.5}"
-          y="${pcbWidth / 2 - 2.5}"
-          width="5"
-          height="5"
-          fill="white"
-          stroke="black"
-          stroke-width="0.25"
-          transform="rotate(${angle} ${radius} ${radius})"/>`,
-      );
-    }
-    this.pixelElements = null; // Invalidate element cache
-
     return html`
-      <svg
-        width="${width}mm"
-        height="${height}mm"
-        version="1.1"
-        viewBox="0 0 ${width} ${height}"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <defs>
-          <pattern id="pin-pattern" height="2" width="2.54" patternUnits="userSpaceOnUse">
-            <rect x="1.02" y="0" height="2" width="0.5" fill="#aaa" />
-          </pattern>
-        </defs>
-        <rect
-          fill="url(#pin-pattern)"
-          height="${pinHeight + 1}"
-          width=${4 * 2.54}
-          transform="translate(${radius - (4 * 2.54) / 2}, ${radius * 2 - 1})"
-        />
-        <circle
-          cx="${radius}"
-          cy="${radius}"
-          r="${radius - pcbWidth / 2}"
-          fill="transparent"
-          stroke-width="${pcbWidth}"
-          stroke="${background}"
-        />
-        ${pixelElements}
+      <svg width="150" height="165" viewBox="0 0 150 165" xmlns="http://www.w3.org/2000/svg">
+        ${unsafeSVG(drawing)}
       </svg>
     `;
   }

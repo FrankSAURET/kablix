@@ -45,7 +45,7 @@ import './composants/custom-part.mjs';
 
 import { initLocale, t } from './i18n.mjs';
 import { Editor, type PaletteState } from './diagram/editor.mjs';
-import { reflectSevenSeg, reflectNeopixel, reflectOled, reflectLcd } from './diagram/drawing-feedback.mjs';
+import { reflectSevenSeg, reflectOled, reflectLcd } from './diagram/drawing-feedback.mjs';
 import { partDef, boardFamily, isBoardId, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
 import { toWokwiDiagram, fromWokwiDiagram } from './diagram/wokwi.mjs';
 import {
@@ -505,8 +505,6 @@ function refreshVisuals(): void {
         const pin = neopixelTargets.get(part.id);
         const colors = pin ? engine.readNeopixel?.(pin) ?? [] : [];
         renderNeopixel(part.type, el, colors, part.attrs);
-        const draw = editor.drawingOf(part.id);
-        if (draw) reflectNeopixel(draw, colors);
         break;
       }
       case 'mcu':

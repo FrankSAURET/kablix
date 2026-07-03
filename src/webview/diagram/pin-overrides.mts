@@ -167,24 +167,6 @@ export const PIN_OVERRIDES: Record<string, Record<string, { x: number; y: number
     'A': { x: 180, y: 190 },
     'K': { x: 190, y: 190 },
   },
-  'neopixel': {
-    'VDD': { x: 10, y: 10 },
-    'DOUT': { x: 10, y: 20 },
-    'VSS': { x: 30, y: 20 },
-    'DIN': { x: 30, y: 10 },
-  },
-  'neopixel-matrix': {
-    'GND': { x: 90, y: 190 },
-    'VCC': { x: 100, y: 190 },
-    'DIN': { x: 110, y: 190 },
-    'DOUT': { x: 120, y: 190 },
-  },
-  'led-ring': {
-    'GND': { x: 60, y: 160 },
-    'VCC': { x: 70, y: 160 },
-    'DIN': { x: 80, y: 160 },
-    'DOUT': { x: 90, y: 160 },
-  },
   'oled-ssd1306': {
     'DATA': { x: 59, y: 20 },
     'CLK': { x: 69, y: 20 },

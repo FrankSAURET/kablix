@@ -7,9 +7,6 @@
 import sevenSegSvg from '../composants/externe/7seg.svg';
 import sevenSeg2Svg from '../composants/externe/7seg-2dig.svg';
 import sevenSeg4Svg from '../composants/externe/7seg-4dig.svg';
-import neopixelSvg from '../composants/externe/neopixel.svg';
-import neopixelMatrixSvg from '../composants/externe/neopixel-matrix.svg';
-import ledRingSvg from '../composants/externe/led-ring.svg';
 import oledSvg from '../composants/externe/oled-ssd1306.svg';
 import lcdSvg from '../composants/externe/lcd.svg';
 import lcdParallel20x4Svg from '../composants/externe/lcd-parallel-20x4.svg';
@@ -24,9 +21,6 @@ const DRAWINGS: Record<string, string> = {
   '7seg': sevenSegSvg, // 1 chiffre (cf. drawingKey ; 2/4 chiffres ci-dessous)
   '7seg-2dig': sevenSeg2Svg,
   '7seg-4dig': sevenSeg4Svg,
-  neopixel: neopixelSvg,
-  'neopixel-matrix': neopixelMatrixSvg,
-  'led-ring': ledRingSvg,
   'oled-ssd1306': oledSvg,
   lcd: lcdSvg, // parallèle 16×2 (cf. drawingKey ; variantes ci-dessous)
   'lcd-parallel-20x4': lcdParallel20x4Svg,

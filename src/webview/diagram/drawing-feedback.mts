@@ -33,43 +33,6 @@ export function reflectSevenSeg(
   }
 }
 
-type Rgb = { r: number; g: number; b: number };
-
-/**
- * Colore un pixel WS2812 d'après `c` (composantes 0..255). Deux structures de
- * dessin : groupe Wokwi (matrice/anneau matrice : `<circle>` R/G/B + diffuseur,
- * tous à opacité 0) → on teinte le diffuseur (plus grand rayon) ; pixel feuille
- * (anneau à `<rect>`) → on colore le rectangle (éteint = gris sombre).
- */
-function colorPixel(host: SVGElement, c: Rgb): void {
-  const on = c.r || c.g || c.b;
-  const circles = [...host.querySelectorAll('circle, ellipse')].filter((e) => !e.closest('defs'));
-  if (circles.length > 0) {
-    const diff = circles.sort(
-      (a, b) => Number(b.getAttribute('r') ?? 0) - Number(a.getAttribute('r') ?? 0)
-    )[0] as SVGElement;
-    diff.setAttribute('fill', `rgb(${c.r},${c.g},${c.b})`);
-    diff.setAttribute('opacity', on ? '0.9' : '0');
-    return;
-  }
-  host.setAttribute('fill', on ? `rgb(${c.r},${c.g},${c.b})` : '#141414');
-}
-
-/**
- * Chaîne NeoPixel (WS2812) sur le dessin. Matrice / anneau : chaque pixel est un
- * élément `class="pixel"` (ordre DOM = ordre de la chaîne) coloré par `colors`
- * (composantes 0..255). NeoPixel simple (1 LED, pas de `.pixel`) : on teinte le
- * diffuseur central de tout le dessin.
- */
-export function reflectNeopixel(svg: SVGElement, colors: Rgb[]): void {
-  const pixels = svg.querySelectorAll('.pixel');
-  if (pixels.length > 0) {
-    for (let i = 0; i < pixels.length; i++) colorPixel(pixels[i] as SVGElement, colors[i] ?? { r: 0, g: 0, b: 0 });
-    return;
-  }
-  colorPixel(svg, colors[0] ?? { r: 0, g: 0, b: 0 });
-}
-
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const XHTML_NS = 'http://www.w3.org/1999/xhtml';
 
