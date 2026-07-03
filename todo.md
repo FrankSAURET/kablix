@@ -5,11 +5,16 @@
 2. ✅ Pouvoir **fermer l'afficheur série**. Ajouter une icône (écran) dans la barre de simulation, tout à droite, pour l'ouvrir/fermer. → v2026.6.80
 3. ✅ Renommer le **moniteur série en « Console »** pour les Pico. → v2026.6.80
 4. ✅ Barre de simulation : mettre en **jaune sur rouge** le bouton qui affiche le nom du fichier de simulation si **aucun fichier n'est choisi**. Le faire **clignoter 3 fois** si on lance la simulation alors qu'il est jaune. Le repasser dans sa couleur actuelle quand un fichier est choisi. → v2026.6.80
-5. ⬜ **Bug** : les composants ne se positionnent pas sur la grille en fort zoom.
+5. ✅ **Bug** : les composants ne se positionnent pas sur la grille en fort zoom. → v2026.7.0
 6. ✅ **Bug** : le routage passe toujours par-dessus les composants. → v2026.6.82 (récidive : l'A\* saturait dès le 3ᵉ fil et le repli en Z traversait les composants d'extrémité)
 7. ✅ À l'**ouverture d'un projet**, centrer/ajuster la vue automatiquement (comme le bouton « recentrer et ajuster »). → v2026.6.80
 8. ✅ À chaque **chargement d'un fichier Python** : effacer la console, éteindre la simulation, réinitialiser les composants. À l'**arrêt de la simulation** : effacer la console, réinitialiser les composants. → v2026.6.80
 9. ⬜ Mettre à jour le **câblage interne du potentiomètre** → [`svg/pot-schema.edit.svg`](svg/pot-schema.edit.svg).
+
+# v2026.7.0
+
+1. ✅ **Bug grille magnétique** : un composant posé (glisser-déposer ou clic palette) se calait **1 px monde hors grille** — flagrant en zoomant fort ensuite, alors qu'un déplacement à fort zoom collait « presque parfaitement ». Cause : [`canvasPoint`](src/webview/diagram/editor.mts) soustrayait `rect.left/top` (bord **extérieur** de la bordure 1 px du canvas) alors que l'origine du monde — et de la grille peinte — est au bord **intérieur** : toute conversion écran→monde était décalée de 1/zoom px monde (1 px à 100 %, 0,11 px à 876 %, d'où l'asymétrie pose/déplacement). Corrigé en soustrayant `clientLeft/clientTop` (épaisseur de bordure) dans `canvasPoint` et dans l'ancrage du zoom molette (`onWheel`).
+2. ✅ **Validation** : repro headless (Chrome, vrai éditeur + vrai CSS) — pose drag-drop à 100 %, pose à 876 %, pose au centre visible : broche 1 **exactement** sur la grille (mod 10 = 0,000) dans tous les cas, contre 1 px d'écart avant correction ; maths du déplacement inchangées. `typecheck` OK ; `verify:diagram` OK ; build OK.
 
 # v2026.6.87
 

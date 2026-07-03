@@ -408,8 +408,9 @@ export class Editor {
     if (!e.ctrlKey) return;
     e.preventDefault();
     const rect = this.canvas.getBoundingClientRect();
-    const cx = e.clientX - rect.left;
-    const cy = e.clientY - rect.top;
+    // clientLeft/Top : bordure du canvas, même repère que canvasPoint.
+    const cx = e.clientX - rect.left - this.canvas.clientLeft;
+    const cy = e.clientY - rect.top - this.canvas.clientTop;
     // Point du monde sous le curseur (conservé fixe pendant le zoom).
     const wx = (cx - this.panX) / this.zoom;
     const wy = (cy - this.panY) / this.zoom;
@@ -3139,12 +3140,17 @@ export class Editor {
   }
 
   // --- Conversion de coordonnées ---------------------------------------------
-  /** Écran → coordonnées du monde (annule la translation puis le zoom). */
+  /** Écran → coordonnées du monde (annule la translation puis le zoom).
+   *  `rect` est la boîte de BORDURE du canvas, mais l'origine du monde (et de la
+   *  grille) est posée au bord INTÉRIEUR : sans soustraire `clientLeft/Top`
+   *  (épaisseur de bordure, 1 px), chaque conversion écran→monde était décalée
+   *  de 1/zoom px monde — les composants se calaient 1 px hors grille à la pose
+   *  (bien visible en zoomant ensuite). */
   private canvasPoint(clientX: number, clientY: number): XY {
     const rect = this.canvas.getBoundingClientRect();
     return {
-      x: (clientX - rect.left - this.panX) / this.zoom,
-      y: (clientY - rect.top - this.panY) / this.zoom,
+      x: (clientX - rect.left - this.canvas.clientLeft - this.panX) / this.zoom,
+      y: (clientY - rect.top - this.canvas.clientTop - this.panY) / this.zoom,
     };
   }
 
