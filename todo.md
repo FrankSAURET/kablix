@@ -1,14 +1,32 @@
 # À faire
 
-1. ✅ Retoucher **NeoPixel**, les **4 LCD**, **matrice NeoPixel**, **OLED display**, **Bouton**, **bouton poussoir**, **DIP switch**, **joystick**, **potentiomètre** à partir des fichiers [`svg retouche/nnn.edit.svg`](svg%20retouche/). → v2026.6.83 (potentiomètre finalement retouché et intégré → v2026.7.4)
-2. ✅ Pouvoir **fermer l'afficheur série**. Ajouter une icône (écran) dans la barre de simulation, tout à droite, pour l'ouvrir/fermer. → v2026.6.80
-3. ✅ Renommer le **moniteur série en « Console »** pour les Pico. → v2026.6.80
-4. ✅ Barre de simulation : mettre en **jaune sur rouge** le bouton qui affiche le nom du fichier de simulation si **aucun fichier n'est choisi**. Le faire **clignoter 3 fois** si on lance la simulation alors qu'il est jaune. Le repasser dans sa couleur actuelle quand un fichier est choisi. → v2026.6.80
-5. ✅ **Bug** : les composants ne se positionnent pas sur la grille en fort zoom. → v2026.7.0
-6. ✅ **Bug** : le routage passe toujours par-dessus les composants. → v2026.6.82 (récidive : l'A\* saturait dès le 3ᵉ fil et le repli en Z traversait les composants d'extrémité)
-7. ✅ À l'**ouverture d'un projet**, centrer/ajuster la vue automatiquement (comme le bouton « recentrer et ajuster »). → v2026.6.80
-8. ✅ À chaque **chargement d'un fichier Python** : effacer la console, éteindre la simulation, réinitialiser les composants. À l'**arrêt de la simulation** : effacer la console, réinitialiser les composants. → v2026.6.80
-9. ⬜ Mettre à jour le **câblage interne du potentiomètre** → [`svg/pot-schema.edit.svg`](svg/pot-schema.edit.svg).
+1. ⬜ **LED RGB** : la patte commune affiche **K** (cathode commune) ou **A** (anode commune) au lieu de COM — étendre à tous les composants dans ce cas.
+2. ⬜ **Simulation Pico extrêmement lente**.
+3. ⬜ **Afficheurs 7 segments 2 et 4 chiffres** : pattes mal placées voire absentes (elles reproduisent le câblage de l'afficheur simple). Piste relevée en sonde (v2026.7.14) : `ssd1306` a un hôte `inline` sans `:host{display:inline-block}` → dessin décalé de 126 px au-dessus du corps ; vérifier les autres forks (même défaut corrigé sur le clavier).
+4. ⬜ Mettre à jour le **câblage interne du potentiomètre** → [`svg/pot-schema.edit.svg`](svg/pot-schema.edit.svg).
+5. ⬜ **Bug** : impossible de saisir le potentiomètre pour le déplacer.
+6. ⬜ **Barre d'outils** : icônes de [`media/icones.svg`](media/icones.svg) (groupes Nouveau, Ouvrir, Enregistrer, SVG) → remplacer Ouvrir/Enregistrer/SVG, ajouter **Nouveau** (icône + fonctionnalité). Ordre : nouveau, ouvrir, enregistrer, svg. Image la plus grande possible dans le bouton, 1 px de padding.
+7. ⬜ **Joystick** : supprimer le gros carré orange/blanc en mode actif.
+8. ⬜ **Joystick** : ne semble pas analogique.
+9. ⬜ **Joystick** : déplacement dans toutes les directions au clic maintenu.
+10. ⬜ **Joystick** : afficher « Ctrl + clic pour verrouiller la position » en mode simulation.
+11. ⬜ **Anneau NeoPixel** non simulable.
+12. ⬜ **Bug** : clic central pour déplacer le canevas — parfois impossible de le lâcher.
+13. ⬜ **Routage** : il reste des chevauchements de fils.
+14. ⬜ **Routage** : éviter les croisements si possible.
+15. ⬜ **Routage** : ne s'écarter que d'un pas des composants pour les départs de fil.
+16. ⬜ **Sélection multiple** : déplacer plusieurs points d'un câble (souris ou Ctrl+clic) ; sélectionner plusieurs câbles pour les supprimer.
+17. ⬜ **Ctrl + A** sur le canevas : tout sélectionner (composants + câbles).
+18. ⬜ **Routage** : le pointillé vert doit aller du premier point cliqué au curseur de la souris.
+
+# v2026.7.14
+
+1. ✅ **Intégration des 2 claviers retouchés en fork direct** : [`membrane-keypad-element.mts`](src/webview/composants/membrane-keypad-element.mts) importe les dessins nettoyés [`externe/keypad-3col.svg`](src/webview/composants/externe/keypad-3col.svg) / [`externe/keypad-4col.svg`](src/webview/composants/externe/keypad-4col.svg) (sélection par `columns`) et les rend via `unsafeSVG` ; `pinInfo` codé en dur sur la grille 10 px (3×4 : R1..C3 x=80→140 ; 4×4 : R1..C4 x=110→180 ; y=320). `connector` supprimé (la nappe 7/8 fils fait partie du dessin, toujours visible).
+2. ✅ **Touches recâblées nativement** (`wireKeys()`) : capuchons retrouvés par géométrie (rects 42,33 px triés ligne/colonne), interactivité souris + clavier (tabindex, SPACE) réattachée. Contrat sim.mts intact : `button-press`/`button-release` `{key,row,column}`, `data-key-name`, classe `pressed` (verrou Ctrl+clic) pilotée par CSS (`!important` par-dessus le fill inline).
+3. ✅ **Bug corrigé — hôte inline** : sans `:host{display:inline-block}`, la boîte de l'élément ne faisait qu'une ligne de texte (220×17) et le dessin débordait de 316 px au-dessus du corps (dessin décalé des pastilles). Constaté et validé en sonde headless.
+4. ✅ **Fin de `pin-overrides.mts`** (dernières entrées migrées) : fichier supprimé, `overridesFor`/`ovMap` retirés d'[`editor.mts`](src/webview/diagram/editor.mts) (`pinPos`/`makeHotspot`/`syncHotspots`).
+5. ✅ Validation : `typecheck`/`build`/`verify:all` OK ; sonde headless (vrai éditeur + vraie CSS dans Chrome) — **dérive 0 px sur les 15 pastilles** des 2 variantes, 12/16 touches câblées, press/release `{key,row,column}` corrects (5 et #), `pressed` seul change le rendu (contrat verrou), bascule dynamique 4→3 colonnes (pinInfo 8→7, re-câblage sans double écouteur), capture visuelle conforme.
+6. ℹ️ Piste relevée pour les afficheurs : `ssd1306` (et possiblement d'autres forks) a le même défaut d'hôte inline (dessin 126 px au-dessus du corps en sonde) — à traiter avec l'item 3 « à faire ».
 
 # v2026.7.13
 

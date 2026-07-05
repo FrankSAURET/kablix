@@ -1,14 +1,23 @@
 // Fork local de @wokwi/elements v1.9.2 (MIT © Wokwi) — membrane-keypad-element.ts.
 // Balise <kablix-membrane-keypad> (ex <wokwi-membrane-keypad>). Licence d'origine : LICENSE-wokwi.md (même dossier).
-// Adaptations Kablix : sans décorateurs (static properties + declare + constructeur),
-// imports relatifs .mjs. Le dessin/les comportements restent ceux d'origine.
-import { css, html, LitElement, svg } from 'lit';
-import { pinsFemalePattern } from './patterns/pins-female.mjs';
+// Adaptations Kablix :
+//   - sans décorateurs (static properties + declare + constructeur), imports relatifs .mjs ;
+//   - DESSINS remplacés par les versions retouchées (./externe/keypad-3col.svg /
+//     keypad-4col.svg), sélectionnées selon `columns` ; broches codées en dur sur
+//     la grille de 10 px (repère du dessin retouché, y=320) ;
+//   - touches recâblées nativement dans `wireKeys()` : les capuchons du dessin
+//     retouché (rects de 42,33 px) sont retrouvés par géométrie (tri ligne/colonne)
+//     puis reçoivent tabindex/data-key-name/écouteurs. Contrat conservé pour
+//     sim.mts : événements button-press/button-release {key, row, column} et
+//     classe `pressed` sur l'élément [data-key-name] (verrouillage Ctrl+clic) ;
+//   - `connector` supprimé : la nappe 7/8 fils fait partie du dessin retouché.
+import { css, html, LitElement } from 'lit';
+import type { PropertyValues } from 'lit';
+import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
 import { SPACE_KEYS } from './utils/keys.mjs';
-
-const rowPositions = [10.7, 25, 39.3, 53.6];
-const columnPositions = [7, 22, 37, 52];
+import drawing3col from './externe/keypad-3col.svg';
+import drawing4col from './externe/keypad-4col.svg';
 
 function isNumeric(text: string) {
   return !isNaN(parseFloat(text));
@@ -16,20 +25,17 @@ function isNumeric(text: string) {
 
 export class MembraneKeypadElement extends LitElement {
   declare columns: '3' | '4';
-  declare connector: boolean;
   declare keys: string[];
 
   /** Propriétés réactives lit (remplace les décorateurs @property du code d'origine). */
   static properties = {
     columns: {},
-    connector: {},
     keys: { type: Array },
   };
 
   constructor() {
     super();
     this.columns = '4';
-    this.connector = false;
     this.keys = [
     '1',  '2',  '3',  'A',
     '4',  '5',  '6',  'B',
@@ -38,74 +44,54 @@ export class MembraneKeypadElement extends LitElement {
   ];
   }
 
+  // Broches : centre des pastilles du dessin retouché (extrémité de la nappe),
+  // toutes sur la grille de 10 px (y=320, pas de 10 en x).
   get pinInfo(): ElementPin[] {
-    switch (this.columns) {
-      case '3':
-        return [
-          { name: 'R1', x: 76.5, y: 338, signals: [] },
-          { name: 'R2', x: 86, y: 338, signals: [] },
-          { name: 'R3', x: 95.75, y: 338, signals: [] },
-          { name: 'R4', x: 105.25, y: 338, signals: [] },
-          { name: 'C1', x: 115, y: 338, signals: [] },
-          { name: 'C2', x: 124.5, y: 338, signals: [] },
-          { name: 'C3', x: 134, y: 338, signals: [] },
-        ];
-
-      default:
-        return [
-          { name: 'R1', x: 100, y: 338, signals: [] },
-          { name: 'R2', x: 110, y: 338, signals: [] },
-          { name: 'R3', x: 119.5, y: 338, signals: [] },
-          { name: 'R4', x: 129, y: 338, signals: [] },
-          { name: 'C1', x: 138.5, y: 338, signals: [] },
-          { name: 'C2', x: 148, y: 338, signals: [] },
-          { name: 'C3', x: 157.75, y: 338, signals: [] },
-          { name: 'C4', x: 167.5, y: 338, signals: [] },
-        ];
-    }
+    const names =
+      this.columns === '3'
+        ? ['R1', 'R2', 'R3', 'R4', 'C1', 'C2', 'C3']
+        : ['R1', 'R2', 'R3', 'R4', 'C1', 'C2', 'C3', 'C4'];
+    const x0 = this.columns === '3' ? 80 : 110;
+    return names.map((name, i) => ({ name, x: x0 + i * 10, y: 320, signals: [] }));
   }
 
   static get styles() {
     return css`
-      text {
-        fill: #dfe2e5;
-        user-select: none;
+      /* L'hôte doit épouser le dessin : en inline (défaut), la boîte de l'hôte
+         ne fait qu'une ligne de texte et le svg déborde 316 px au-dessus du
+         corps du composant (constaté en sonde headless). */
+      :host {
+        display: inline-block;
       }
 
-      g[tabindex] {
+      svg {
+        display: block;
+      }
+
+      text {
+        user-select: none;
+        pointer-events: none;
+      }
+
+      rect.key {
         cursor: pointer;
       }
 
-      g[tabindex]:focus,
-      g[tabindex]:active {
+      rect.key:focus,
+      rect.key:active {
         stroke: white;
         outline: none;
-      }
-
-      .blue-key:focus,
-      .red-key:focus {
         filter: url(#shadow);
       }
 
-      .blue-key:active,
-      .blue-key.pressed {
-        fill: #4e50d7;
+      rect.key--blue.pressed,
+      rect.key--blue:active {
+        fill: #4e50d7 !important;
       }
 
-      .red-key:active,
-      .red-key.pressed {
-        fill: #ab040b;
-      }
-
-      g[tabindex]:focus text {
-        stroke: none;
-      }
-
-      g[tabindex]:active text,
-      .blue-key.pressed text,
-      .red-key.pressed text {
-        fill: white;
-        stroke: none;
+      rect.key--red.pressed,
+      rect.key--red:active {
+        fill: #ab040b !important;
       }
     `;
   }
@@ -119,126 +105,65 @@ export class MembraneKeypadElement extends LitElement {
 
   private pressedKeys = new Set<string>();
 
-  renderKey(row: number, column: number) {
-    const text = this.keys[row * 4 + column] ?? '';
-    const keyClass = isNumeric(text) ? 'blue-key' : 'red-key';
-    const keyName = text.toUpperCase();
-
-    return svg`<g
-      transform="translate(${columnPositions[column]} ${rowPositions[row]})"
-      tabindex="0"
-      class=${keyClass}
-      data-key-name=${keyName}
-      @blur=${(e: FocusEvent) => {
-        this.up(text, e.currentTarget as SVGElement);
-      }}
-      @mousedown=${() => this.down(text)}
-      @mouseup=${() => this.up(text)}
-      @touchstart=${() => this.down(text)}
-      @touchend=${() => this.up(text)}
-      @keydown=${(e: KeyboardEvent) =>
-        SPACE_KEYS.includes(e.key) && this.down(text, e.currentTarget as SVGElement)}
-      @keyup=${(e: KeyboardEvent) =>
-        SPACE_KEYS.includes(e.key) && this.up(text, e.currentTarget as SVGElement)}
-    >
-      <rect width="11.2" height="11" rx="1.4" ry="1.4" stroke="#b1b5b9" stroke-width=".75" />
-      <text x="5.6" y="8.1">${text}</text>
-    </g>`;
-  }
-
   render() {
-    const { connector } = this;
-    const fourColumns = this.columns === '4';
-    const columnWidth = 15;
-    const pinWidth = 2.54;
-    const width = fourColumns ? 70.336 : 70.336 - columnWidth;
-    const connectorWidth = fourColumns ? pinWidth * 8 : pinWidth * 7;
-    const height = 76 + (connector ? 15 : 0);
-
+    const three = this.columns === '3';
+    const width = three ? 220 : 285;
     return html`
       <svg
-        width="${width}mm"
-        height="${height}mm"
-        version="1.1"
-        viewBox="0 0 ${width} ${height}"
+        width="${width}"
+        height="330"
+        viewBox="0 0 ${width} 330"
         font-family="sans-serif"
-        font-size="8.2px"
-        text-anchor="middle"
         xmlns="http://www.w3.org/2000/svg"
-        xmlns:xlink="http://www.w3.org/1999/xlink"
         @keydown=${(e: KeyboardEvent) => this.keyStrokeDown(e.key)}
         @keyup=${(e: KeyboardEvent) => this.keyStrokeUp(e.key)}
-      >
-        <defs>
-          <pattern id="wires" width="2.54" height="8" patternUnits="userSpaceOnUse">
-            <rect width="2.54" height="8" fill="#eee" />
-            <rect x="0.77" width="1" height="6" fill="#d9d5bc" />
-            <circle cx="1.27" cy="6" r="0.75" fill="#d9d5bc" />
-            <rect x="0.52" y="6" width="1.5" height="2" fill="#d9d5bc" />
-          </pattern>
-          <pattern id="wires-marks" width="2.54" height="8" patternUnits="userSpaceOnUse">
-            <rect x="0.52" y="6" width="1.5" height="2" fill="#746d41" />
-          </pattern>
-          ${pinsFemalePattern}
-          <filter id="shadow">
-            <feDropShadow dx="0" dy="0" stdDeviation="0.5" flood-color="#ffff99" />
-          </filter>
-        </defs>
-
-        <!-- Keypad outline -->
-        <rect x="0" y="0" width="${width}" height="76" rx="5" ry="5" fill="#454449" />
-        <rect
-          x="2.78"
-          y="3.25"
-          width="${fourColumns ? 65 : 65 - columnWidth}"
-          height="68.6"
-          rx="3.5"
-          ry="3.5"
-          fill="none"
-          stroke="#b1b5b9"
-          stroke-width="1"
-        />
-
-        <!-- Connector -->
-        ${connector
-          ? svg`
-            <g transform="translate(${(width - connectorWidth) / 2}, 76)">
-              <rect width="${connectorWidth}" height="8" fill="url(#wires)" />
-              <rect width="10.16" height="8" fill="url(#wires-marks)" />
-              <rect y="8" width="${connectorWidth}" height="7" fill="#333" />
-              <rect transform="translate(0, 12)" width="${connectorWidth}" height="2.54" fill="url(#pins-female)" />
-            </g>
-          `
-          : null}
-
-        <!-- Blue keys -->
-        <g fill="#4e90d7">
-          <g>${this.renderKey(0, 0)}</g>
-          <g>${this.renderKey(0, 1)}</g>
-          <g>${this.renderKey(0, 2)}</g>
-          <g>${this.renderKey(1, 0)}</g>
-          <g>${this.renderKey(1, 1)}</g>
-          <g>${this.renderKey(1, 2)}</g>
-          <g>${this.renderKey(2, 0)}</g>
-          <g>${this.renderKey(2, 1)}</g>
-          <g>${this.renderKey(2, 2)}</g>
-          <g>${this.renderKey(3, 1)}</g>
-        </g>
-
-        <!-- Red keys -->
-        <g fill="#e94541">
-          <g>${this.renderKey(3, 0)}</g>
-          <g>${this.renderKey(3, 2)}</g>
-          ${fourColumns &&
-          svg`
-              <g>${this.renderKey(0, 3)}</g>
-              <g>${this.renderKey(1, 3)}</g>
-              <g>${this.renderKey(2, 3)}</g>
-              <g>${this.renderKey(3, 3)}</g>
-          `}
-        </g>
-      </svg>
+      >${unsafeSVG(three ? drawing3col : drawing4col)}</svg>
     `;
+  }
+
+  updated(changed: PropertyValues): void {
+    super.updated(changed);
+    // (Re)branche les touches au premier rendu et à chaque changement de dessin
+    // (`columns` figure dans `changed` au premier update ; un changement ultérieur
+    // recrée les rects via unsafeSVG, donc pas de double écouteur).
+    if (changed.has('columns')) this.wireKeys();
+  }
+
+  /**
+   * Retrouve les capuchons de touche du dessin retouché (rects de 42,33 px de
+   * côté), les trie en lecture ligne/colonne et leur attache l'interactivité :
+   * data-key-name, tabindex, classes de couleur et écouteurs souris/clavier.
+   */
+  private wireKeys(): void {
+    const svgEl = this.renderRoot.querySelector('svg');
+    if (!svgEl) return;
+    const caps = [...svgEl.querySelectorAll('rect')].filter(
+      (r) => Math.round(Number(r.getAttribute('width'))) === 42
+    );
+    caps.sort((a, b) => {
+      const dy = Number(a.getAttribute('y')) - Number(b.getAttribute('y'));
+      return dy !== 0 ? dy : Number(a.getAttribute('x')) - Number(b.getAttribute('x'));
+    });
+    const cols = this.columns === '3' ? 3 : 4;
+    caps.forEach((cap, i) => {
+      const row = Math.floor(i / cols);
+      const column = i % cols;
+      const text = this.keys[row * 4 + column] ?? '';
+      cap.classList.add('key', isNumeric(text) ? 'key--blue' : 'key--red');
+      cap.dataset.keyName = text.toUpperCase();
+      cap.setAttribute('tabindex', '0');
+      cap.addEventListener('blur', (e) => this.up(text, e.currentTarget as SVGElement));
+      cap.addEventListener('mousedown', () => this.down(text));
+      cap.addEventListener('mouseup', () => this.up(text));
+      cap.addEventListener('touchstart', () => this.down(text));
+      cap.addEventListener('touchend', () => this.up(text));
+      cap.addEventListener('keydown', (e) => {
+        if (SPACE_KEYS.includes(e.key)) this.down(text, e.currentTarget as SVGElement);
+      });
+      cap.addEventListener('keyup', (e) => {
+        if (SPACE_KEYS.includes(e.key)) this.up(text, e.currentTarget as SVGElement);
+      });
+    });
   }
 
   private keyIndex(key: string) {

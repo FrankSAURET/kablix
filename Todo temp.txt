@@ -1,11 +1,34 @@
 
-- Ajouter la possibilité de sélectionner et déplacer plusieurs points d'un cable. sélection avec la souris ou CTRL + clic
-- Modifier la Led RGB pour que par défaut, la borne R ait un fil rouge, la V un vert et la B un bleu.
+
 - Modifier la LED RGB pour que la patte commune affiche K si cathode commune et A si annode commune à la place de com.
-- La simulation de la LED RGB est extremement lente
-- Les pattes des afficheurs 7 segments 2 et 4 chiffres ne sont pas au non endroit voire pas existantes. En fait elle sreproduisent le cablage de l'afficheur unique.
+
+- La simulation (du moins celle pico) est extremement lente
+
+- Les pattes des afficheurs 7 segments 2 et 4 chiffres ne sont pas aux bons endroits voire pas existantes. En fait elles reproduisent le cablage de l'afficheur unique.
+- Les 2 claviers on  été retouchés. Les intégrer.
+
+- Mettre à jour le câblage interne du potentiomètre avec svg/pot-schema.edit.svg
+- impossible de saisir le potentiomètre pour le déplacer
+
+- Tu trouvera dans ce fichier "media\icones.svg" des icones avec pour nom de groupes : Nouveau, Ouvrir, Enregistrer et SVG. Tu t'en sert pour remplacer dans la barre d'outil, les icones Svg, Enregistrer et ouvrir. Tu rajoutera une icone (et la fonctionnalité) Nouveau. Les icones seront dans cet ordre, nouveau, ouvrir, enregistrer et svg. image la plus grande possible dans le bouton mais 1 px de padding.
+
+- Il y a un gros carré orange et blanc sur le joystick en mode actif, le supprimer.
+- Le joystick ne semble pas analogique
+- Il faudrait pouvoir déplacer le joystick dans toutes les directions avec un clic maintenu
+- sur le joystick  faire apparaitre en mode simulation  "Ctrl + clic pour vérouiller la position"
+
+- Anneau NeoPixel n'est pas simulable.
+
+- Si je fait un clic central pour déplacer la canva, dés fois je ne peut plus le lacher
+
+- Il reste des chevauchements de fils
+- Eviter les croisement si possible
+- Ne sécarter que d'un pas des composants pour les départ de fil.
+- Ajouter la possibilité de sélectionner et déplacer plusieurs points d'un cable. sélection avec la souris ou CTRL + clic. De même pouvoir sélectionner plusieurs cables pour les supprimer
+- CTRL + A sur le canva sélectionne tout le schéma composant et cables.
+- Quand on route un fil, le pointillé vert doit aller du premier point cliqué, au curseur de la souris.
 ---------------------------------------------------------------------------------------
-- Tous le composants du dossier "sg retouche\" sont à reprendre. Il faut changer dans le fichier de base et pas faire une surécriture. Pour chacun s'assurer que les pastilles power et gnd sont bien alignées sur la grille.
+- Tous les composants du dossier "sg retouche\" sont à reprendre. Il faut changer dans le fichier de base et pas faire une surécriture. Pour chacun s'assurer que les pastilles power et gnd sont bien alignées sur la grille.
 - Réexporter les 2 claviers (3x4 et 4x4) pour que je les retouche.
 
 ---------------------------------------------------------------------------------------

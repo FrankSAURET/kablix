@@ -21,7 +21,6 @@ import {
 } from './catalog.mjs';
 import { breadboardPins, normalizeSize, stripOfPin } from './breadboard.mjs';
 import { internalWiringSvg, type PinPoint } from './internal-wiring.mjs';
-import { overridesFor } from './pin-overrides.mjs';
 import { pinoutSvg, pinoutPoster } from './pinout.mjs';
 import { BOARD_W, BOARD_H } from '../composants/pico-board.mjs';
 import type { Diagram, Endpoint, Part, Wire } from './model.mjs';
@@ -1353,11 +1352,10 @@ export class Editor {
     }
 
     const hotspots = new Map<string, HTMLDivElement>();
-    const ovMap = overridesFor(part.type, part.attrs);
     const pins = this.partPins(el);
     const anchor: XY = pins[0] ? { x: pins[0].x, y: pins[0].y } : { x: 0, y: 0 };
     for (const pin of pins) {
-      const dot = this.makeHotspot(part.id, part.type, def.kind, pin, anchor, ovMap);
+      const dot = this.makeHotspot(part.id, part.type, def.kind, pin, anchor);
       body.appendChild(dot);
       hotspots.set(pin.name, dot);
     }
@@ -1399,24 +1397,15 @@ export class Editor {
   }
 
   /**
-   * Position px (repère corps) d'une broche : la surcharge retouchée (lue depuis
-   * « svg retouche/ », repère = coin haut-gauche du dessin) prime ; sinon calage
-   * automatique sur la grille relativement à la 1re broche. S'applique à toutes
-   * les broches, y compris alimentation (rouge VCC / noir GND), dont la position
-   * est posée à la main dans le SVG retouché.
+   * Position px (repère corps) d'une broche : calage automatique sur la grille
+   * relativement à la 1re broche. Les forks retouchés publient des `pinInfo`
+   * déjà en px finaux sur la grille (le calage relatif les laisse inchangés).
    */
-  private pinPos(
-    type: string,
-    _kind: string,
-    pin: WokwiPin,
-    anchor: XY,
-    ovMap?: Record<string, { x: number; y: number }>
-  ): XY {
+  private pinPos(type: string, _kind: string, pin: WokwiPin, anchor: XY): XY {
     const k = partDef(type).pinScale ?? 1;
-    const ov = ovMap?.[pin.name];
     return {
-      x: ov ? ov.x : snapPinTo(pin.x * k, anchor.x * k),
-      y: ov ? ov.y : snapPinTo(pin.y * k, anchor.y * k),
+      x: snapPinTo(pin.x * k, anchor.x * k),
+      y: snapPinTo(pin.y * k, anchor.y * k),
     };
   }
 
@@ -1427,8 +1416,7 @@ export class Editor {
     type: string,
     kind: string,
     pin: WokwiPin,
-    anchor: XY,
-    ovMap?: Record<string, { x: number; y: number }>
+    anchor: XY
   ): HTMLDivElement {
     const dot = document.createElement('div');
     dot.className = 'pin';
@@ -1437,7 +1425,7 @@ export class Editor {
     const role = kind === 'potentiometer' ? 'other' : pinElectricalRole(type, pin.name);
     if (role === 'vcc') dot.classList.add('pin--vcc');
     else if (role === 'gnd') dot.classList.add('pin--gnd');
-    const pos = this.pinPos(type, kind, pin, anchor, ovMap);
+    const pos = this.pinPos(type, kind, pin, anchor);
     dot.style.left = `${pos.x}px`;
     dot.style.top = `${pos.y}px`;
     dot.title = pinDisplayName(kind, pin.name, type);
@@ -1463,17 +1451,16 @@ export class Editor {
     const body = r.container.querySelector('.part__body') as HTMLElement | null;
     if (!body) return;
     const def = partDef(r.part.type);
-    const ovMap = overridesFor(r.part.type, r.part.attrs);
     const pins = this.partPins(r.el);
     const anchor: XY = pins[0] ? { x: pins[0].x, y: pins[0].y } : { x: 0, y: 0 };
     for (const pin of pins) {
       let dot = r.hotspots.get(pin.name);
       if (!dot) {
-        dot = this.makeHotspot(r.part.id, r.part.type, def.kind, pin, anchor, ovMap);
+        dot = this.makeHotspot(r.part.id, r.part.type, def.kind, pin, anchor);
         body.appendChild(dot);
         r.hotspots.set(pin.name, dot);
       } else {
-        const pos = this.pinPos(r.part.type, def.kind, pin, anchor, ovMap);
+        const pos = this.pinPos(r.part.type, def.kind, pin, anchor);
         dot.style.left = `${pos.x}px`;
         dot.style.top = `${pos.y}px`;
       }

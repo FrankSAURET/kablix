@@ -329,9 +329,8 @@ export const CATALOG: readonly PartDef[] = [
   // enfoncée court-circuite ligne/colonne (lecture matricielle simulée).
   {
     type: 'keypad', label: 'Membrane keypad', tag: 'kablix-membrane-keypad', kind: 'passive', interactive: true,
-    // `connector` : affiche la nappe/connecteur sous le clavier (broches R/C
-    // visibles et câblables) — masqué par défaut dans l'élément Wokwi.
-    attrs: { columns: '4', connector: 'true' },
+    // La nappe (broches R/C) fait partie du dessin retouché, toujours visible.
+    attrs: { columns: '4' },
     props: [{
       attr: 'columns', label: 'Columns', kind: 'select', options: ['3', '4'],
       optionLabels: { '3': '3 columns (3×4)', '4': '4 columns (4×4)' },
