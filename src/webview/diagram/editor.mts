@@ -2823,11 +2823,12 @@ export class Editor {
         return true;
       });
     }
-    // L'angle, la taille, le jeu de broches (LCD i2c↔parallèle) ou le nombre de
-    // colonnes du clavier déplacent les broches : re-rendu complet nécessaire
-    // (sinon les pastilles restent aux positions de l'ancienne variante → hors
-    // du connecteur pour le clavier 3 colonnes).
-    if (attr === 'angle' || attr === 'flip' || attr === 'size' || attr === 'pins' || attr === 'lcdSize' || attr === 'columns') {
+    // L'angle, la taille, le jeu de broches (LCD i2c↔parallèle), le nombre de
+    // colonnes du clavier ou de chiffres du 7 segments déplacent les broches :
+    // re-rendu complet nécessaire (sinon les pastilles restent aux positions de
+    // l'ancienne variante — ex. le 7 segments 2/4 chiffres gardait le brochage
+    // du 1 chiffre, DIG1..DIG4 absentes).
+    if (attr === 'angle' || attr === 'flip' || attr === 'size' || attr === 'pins' || attr === 'lcdSize' || attr === 'columns' || attr === 'digits') {
       this.rerenderPart(partId); // renderPart restaure le câblage interne s'il était affiché
       if (this.selection?.kind === 'part' && this.selection.id === partId) {
         this.rendered.get(partId)?.container.classList.add('part--selected');

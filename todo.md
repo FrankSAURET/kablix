@@ -1,22 +1,27 @@
 # À faire
 
 1. ⬜ **Simulation Pico extrêmement lente**.
-2. ⬜ **Afficheurs 7 segments 2 et 4 chiffres** : pattes mal placées voire absentes (elles reproduisent le câblage de l'afficheur simple). Piste relevée en sonde (v2026.7.14) : `ssd1306` a un hôte `inline` sans `:host{display:inline-block}` → dessin décalé de 126 px au-dessus du corps ; vérifier les autres forks (même défaut corrigé sur le clavier).
-3. ⬜ Mettre à jour le **câblage interne du potentiomètre** → [`svg/pot-schema.edit.svg`](svg/pot-schema.edit.svg).
-4. ⬜ **Bug** : impossible de saisir le potentiomètre pour le déplacer.
-5. ⬜ **Barre d'outils** : icônes de [`media/icones.svg`](media/icones.svg) (groupes Nouveau, Ouvrir, Enregistrer, SVG) → remplacer Ouvrir/Enregistrer/SVG, ajouter **Nouveau** (icône + fonctionnalité). Ordre : nouveau, ouvrir, enregistrer, svg. Image la plus grande possible dans le bouton, 1 px de padding.
-6. ⬜ **Joystick** : supprimer le gros carré orange/blanc en mode actif.
-7. ⬜ **Joystick** : ne semble pas analogique.
-8. ⬜ **Joystick** : déplacement dans toutes les directions au clic maintenu.
-9. ⬜ **Joystick** : afficher « Ctrl + clic pour verrouiller la position » en mode simulation.
-10. ⬜ **Anneau NeoPixel** non simulable.
-11. ⬜ **Bug** : clic central pour déplacer le canevas — parfois impossible de le lâcher.
-12. ⬜ **Routage** : il reste des chevauchements de fils.
-13. ⬜ **Routage** : éviter les croisements si possible.
-14. ⬜ **Routage** : ne s'écarter que d'un pas des composants pour les départs de fil.
-15. ⬜ **Sélection multiple** : déplacer plusieurs points d'un câble (souris ou Ctrl+clic) ; sélectionner plusieurs câbles pour les supprimer.
-16. ⬜ **Ctrl + A** sur le canevas : tout sélectionner (composants + câbles).
-17. ⬜ **Routage** : le pointillé vert doit aller du premier point cliqué au curseur de la souris.
+2. ⬜ Mettre à jour le **câblage interne du potentiomètre** → [`svg/pot-schema.edit.svg`](svg/pot-schema.edit.svg).
+3. ⬜ **Bug** : impossible de saisir le potentiomètre pour le déplacer.
+4. ⬜ **Barre d'outils** : icônes de [`media/icones.svg`](media/icones.svg) (groupes Nouveau, Ouvrir, Enregistrer, SVG) → remplacer Ouvrir/Enregistrer/SVG, ajouter **Nouveau** (icône + fonctionnalité). Ordre : nouveau, ouvrir, enregistrer, svg. Image la plus grande possible dans le bouton, 1 px de padding.
+5. ⬜ **Joystick** : supprimer le gros carré orange/blanc en mode actif.
+6. ⬜ **Joystick** : ne semble pas analogique.
+7. ⬜ **Joystick** : déplacement dans toutes les directions au clic maintenu.
+8. ⬜ **Joystick** : afficher « Ctrl + clic pour verrouiller la position » en mode simulation.
+9. ⬜ **Anneau NeoPixel** non simulable.
+10. ⬜ **Bug** : clic central pour déplacer le canevas — parfois impossible de le lâcher.
+11. ⬜ **Routage** : il reste des chevauchements de fils.
+12. ⬜ **Routage** : éviter les croisements si possible.
+13. ⬜ **Routage** : ne s'écarter que d'un pas des composants pour les départs de fil.
+14. ⬜ **Sélection multiple** : déplacer plusieurs points d'un câble (souris ou Ctrl+clic) ; sélectionner plusieurs câbles pour les supprimer.
+15. ⬜ **Ctrl + A** sur le canevas : tout sélectionner (composants + câbles).
+16. ⬜ **Routage** : le pointillé vert doit aller du premier point cliqué au curseur de la souris.
+
+# v2026.7.16
+
+1. ✅ **Bug corrigé — brochage des 7 segments 2 et 4 chiffres** : changer « Digits » dans l'inspecteur ne re-rendait pas le composant (`digits` absent de la liste de re-rendu d'`updatePartAttr`, [`editor.mts`](src/webview/diagram/editor.mts)) → les pastilles restaient celles du 1 chiffre (DIG1..DIG4/CLN/COM jamais créées, A..G aux mauvaises positions). `digits` ajouté à la condition (comme `columns`/`lcdSize`).
+2. ✅ Validation : `typecheck`/`verify:all` OK ; sonde headless (vrai éditeur, chemin inspecteur `updatePartAttr`) — 1→4→2 chiffres : 10/14/10 pastilles aux positions de chaque variante (DIG1..DIG4, CLN, commun K), toutes sur la grille 10 px.
+3. ℹ️ Fausse piste écartée : l'hôte `inline` des forks (ssd1306…) ne décale PAS le dessin (la line-box du `.part__body` contient le svg → dessin aligné sur le haut du corps ; seule la boîte gBCR de l'hôte est mince). Constaté en sonde — aucun correctif de masse nécessaire ; `:host{display:inline-block}` du clavier conservé (aligné sur led/pushbutton/resistor).
 
 # v2026.7.15
 
