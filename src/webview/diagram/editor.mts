@@ -1355,7 +1355,7 @@ export class Editor {
     const pins = this.partPins(el);
     const anchor: XY = pins[0] ? { x: pins[0].x, y: pins[0].y } : { x: 0, y: 0 };
     for (const pin of pins) {
-      const dot = this.makeHotspot(part.id, part.type, def.kind, pin, anchor);
+      const dot = this.makeHotspot(part.id, part.type, def.kind, pin, anchor, part.attrs);
       body.appendChild(dot);
       hotspots.set(pin.name, dot);
     }
@@ -1416,7 +1416,8 @@ export class Editor {
     type: string,
     kind: string,
     pin: WokwiPin,
-    anchor: XY
+    anchor: XY,
+    attrs?: Record<string, string>
   ): HTMLDivElement {
     const dot = document.createElement('div');
     dot.className = 'pin';
@@ -1428,7 +1429,7 @@ export class Editor {
     const pos = this.pinPos(type, kind, pin, anchor);
     dot.style.left = `${pos.x}px`;
     dot.style.top = `${pos.y}px`;
-    dot.title = pinDisplayName(kind, pin.name, type);
+    dot.title = pinDisplayName(kind, pin.name, type, attrs);
     dot.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
       this.onPinDown({ partId, pin: pin.name }, e);
@@ -1456,7 +1457,7 @@ export class Editor {
     for (const pin of pins) {
       let dot = r.hotspots.get(pin.name);
       if (!dot) {
-        dot = this.makeHotspot(r.part.id, r.part.type, def.kind, pin, anchor);
+        dot = this.makeHotspot(r.part.id, r.part.type, def.kind, pin, anchor, r.part.attrs);
         body.appendChild(dot);
         r.hotspots.set(pin.name, dot);
       } else {
@@ -2836,6 +2837,14 @@ export class Editor {
     } else {
       r.el.setAttribute(attr, value);
     }
+    // La polarité du commun (cathode/anode) change le nom affiché de la broche
+    // COM (« K »/« A ») : on rafraîchit les bulles d'aide des pastilles.
+    if (attr === 'common') {
+      const kind = partDef(r.part.type).kind;
+      for (const [name, dot] of r.hotspots) {
+        dot.title = pinDisplayName(kind, name, r.part.type, r.part.attrs);
+      }
+    }
     this.notify();
   }
 
@@ -3280,12 +3289,23 @@ function colorSwatchBackground(value: string): string {
  * l'alimentation : les extrémités du rail résistif sont montrées « 1 » et « 2 »,
  * le curseur « V » (Variable). L'identifiant interne reste inchangé (simulation).
  */
-function pinDisplayName(kind: string, pinName: string, type?: string): string {
+function pinDisplayName(
+  kind: string,
+  pinName: string,
+  type?: string,
+  attrs?: Record<string, string>
+): string {
   // Clavier matriciel : lignes R{n} → « L{n} » (Ligne), colonnes C{n} inchangées.
   // La lettre des lignes est traduite (R en anglais, L en français).
   if (type === 'keypad') {
     const r = /^R(\d+)$/.exec(pinName);
     if (r) return `${t('R')}${r[1]}`;
+  }
+  // Broche commune (LED RGB, 7 segments…) : « K » (cathode commune) ou « A »
+  // (anode commune) selon l'attribut `common`, au lieu de COM.
+  if (/^COM(\.\d+)?$/.test(pinName)) {
+    const suffix = pinName.includes('.') ? pinName.slice(pinName.indexOf('.')) : '';
+    return (attrs?.common === 'anode' ? 'A' : 'K') + suffix;
   }
   // LED RGB : broches R/G/B affichées avec l'initiale de la couleur traduite
   // (RGB en anglais → RVB en français : Red/Green/Blue → Rouge/Vert/Bleu).

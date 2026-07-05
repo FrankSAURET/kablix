@@ -1,23 +1,28 @@
 # À faire
 
-1. ⬜ **LED RGB** : la patte commune affiche **K** (cathode commune) ou **A** (anode commune) au lieu de COM — étendre à tous les composants dans ce cas.
-2. ⬜ **Simulation Pico extrêmement lente**.
-3. ⬜ **Afficheurs 7 segments 2 et 4 chiffres** : pattes mal placées voire absentes (elles reproduisent le câblage de l'afficheur simple). Piste relevée en sonde (v2026.7.14) : `ssd1306` a un hôte `inline` sans `:host{display:inline-block}` → dessin décalé de 126 px au-dessus du corps ; vérifier les autres forks (même défaut corrigé sur le clavier).
-4. ⬜ Mettre à jour le **câblage interne du potentiomètre** → [`svg/pot-schema.edit.svg`](svg/pot-schema.edit.svg).
-5. ⬜ **Bug** : impossible de saisir le potentiomètre pour le déplacer.
-6. ⬜ **Barre d'outils** : icônes de [`media/icones.svg`](media/icones.svg) (groupes Nouveau, Ouvrir, Enregistrer, SVG) → remplacer Ouvrir/Enregistrer/SVG, ajouter **Nouveau** (icône + fonctionnalité). Ordre : nouveau, ouvrir, enregistrer, svg. Image la plus grande possible dans le bouton, 1 px de padding.
-7. ⬜ **Joystick** : supprimer le gros carré orange/blanc en mode actif.
-8. ⬜ **Joystick** : ne semble pas analogique.
-9. ⬜ **Joystick** : déplacement dans toutes les directions au clic maintenu.
-10. ⬜ **Joystick** : afficher « Ctrl + clic pour verrouiller la position » en mode simulation.
-11. ⬜ **Anneau NeoPixel** non simulable.
-12. ⬜ **Bug** : clic central pour déplacer le canevas — parfois impossible de le lâcher.
-13. ⬜ **Routage** : il reste des chevauchements de fils.
-14. ⬜ **Routage** : éviter les croisements si possible.
-15. ⬜ **Routage** : ne s'écarter que d'un pas des composants pour les départs de fil.
-16. ⬜ **Sélection multiple** : déplacer plusieurs points d'un câble (souris ou Ctrl+clic) ; sélectionner plusieurs câbles pour les supprimer.
-17. ⬜ **Ctrl + A** sur le canevas : tout sélectionner (composants + câbles).
-18. ⬜ **Routage** : le pointillé vert doit aller du premier point cliqué au curseur de la souris.
+1. ⬜ **Simulation Pico extrêmement lente**.
+2. ⬜ **Afficheurs 7 segments 2 et 4 chiffres** : pattes mal placées voire absentes (elles reproduisent le câblage de l'afficheur simple). Piste relevée en sonde (v2026.7.14) : `ssd1306` a un hôte `inline` sans `:host{display:inline-block}` → dessin décalé de 126 px au-dessus du corps ; vérifier les autres forks (même défaut corrigé sur le clavier).
+3. ⬜ Mettre à jour le **câblage interne du potentiomètre** → [`svg/pot-schema.edit.svg`](svg/pot-schema.edit.svg).
+4. ⬜ **Bug** : impossible de saisir le potentiomètre pour le déplacer.
+5. ⬜ **Barre d'outils** : icônes de [`media/icones.svg`](media/icones.svg) (groupes Nouveau, Ouvrir, Enregistrer, SVG) → remplacer Ouvrir/Enregistrer/SVG, ajouter **Nouveau** (icône + fonctionnalité). Ordre : nouveau, ouvrir, enregistrer, svg. Image la plus grande possible dans le bouton, 1 px de padding.
+6. ⬜ **Joystick** : supprimer le gros carré orange/blanc en mode actif.
+7. ⬜ **Joystick** : ne semble pas analogique.
+8. ⬜ **Joystick** : déplacement dans toutes les directions au clic maintenu.
+9. ⬜ **Joystick** : afficher « Ctrl + clic pour verrouiller la position » en mode simulation.
+10. ⬜ **Anneau NeoPixel** non simulable.
+11. ⬜ **Bug** : clic central pour déplacer le canevas — parfois impossible de le lâcher.
+12. ⬜ **Routage** : il reste des chevauchements de fils.
+13. ⬜ **Routage** : éviter les croisements si possible.
+14. ⬜ **Routage** : ne s'écarter que d'un pas des composants pour les départs de fil.
+15. ⬜ **Sélection multiple** : déplacer plusieurs points d'un câble (souris ou Ctrl+clic) ; sélectionner plusieurs câbles pour les supprimer.
+16. ⬜ **Ctrl + A** sur le canevas : tout sélectionner (composants + câbles).
+17. ⬜ **Routage** : le pointillé vert doit aller du premier point cliqué au curseur de la souris.
+
+# v2026.7.15
+
+1. ✅ **Broche commune affichée K/A** : la bulle d'aide de la broche COM suit l'attribut `common` — « K » en cathode commune, « A » en anode commune — pour la **LED RGB** (COM) et les **7 segments** (COM, COM.1/COM.2 → K.1/A.1…), seuls composants du catalogue à polarité configurable. `pinDisplayName()` ([`editor.mts`](src/webview/diagram/editor.mts)) reçoit désormais les `attrs` du composant (transmis par `makeHotspot`/`syncHotspots`).
+2. ✅ **Rafraîchissement immédiat** : changer « Common pin » dans l'inspecteur ne re-rend pas le composant (simple `setAttribute`) → `updatePartAttr()` met à jour les bulles des pastilles quand `attr === 'common'`.
+3. ✅ Validation : `typecheck`/`verify:all` OK ; sonde headless (vrai éditeur) — rgb-led cathode → `R K G B` puis anode → `R A G B` ; 7seg anode → `A.1/A.2` puis cathode → `K.1/K.2`, bascule via `updatePartAttr` (chemin de l'inspecteur).
 
 # v2026.7.14
 
