@@ -1,21 +1,25 @@
 # À faire
 
 1. ⬜ **Simulation Pico extrêmement lente**.
-2. ⬜ Mettre à jour le **câblage interne du potentiomètre** → [`svg/pot-schema.edit.svg`](svg/pot-schema.edit.svg).
-3. ⬜ **Bug** : impossible de saisir le potentiomètre pour le déplacer.
-4. ⬜ **Barre d'outils** : icônes de [`media/icones.svg`](media/icones.svg) (groupes Nouveau, Ouvrir, Enregistrer, SVG) → remplacer Ouvrir/Enregistrer/SVG, ajouter **Nouveau** (icône + fonctionnalité). Ordre : nouveau, ouvrir, enregistrer, svg. Image la plus grande possible dans le bouton, 1 px de padding.
-5. ⬜ **Joystick** : supprimer le gros carré orange/blanc en mode actif.
-6. ⬜ **Joystick** : ne semble pas analogique.
-7. ⬜ **Joystick** : déplacement dans toutes les directions au clic maintenu.
-8. ⬜ **Joystick** : afficher « Ctrl + clic pour verrouiller la position » en mode simulation.
-9. ⬜ **Anneau NeoPixel** non simulable.
-10. ⬜ **Bug** : clic central pour déplacer le canevas — parfois impossible de le lâcher.
-11. ⬜ **Routage** : il reste des chevauchements de fils.
-12. ⬜ **Routage** : éviter les croisements si possible.
-13. ⬜ **Routage** : ne s'écarter que d'un pas des composants pour les départs de fil.
-14. ⬜ **Sélection multiple** : déplacer plusieurs points d'un câble (souris ou Ctrl+clic) ; sélectionner plusieurs câbles pour les supprimer.
-15. ⬜ **Ctrl + A** sur le canevas : tout sélectionner (composants + câbles).
-16. ⬜ **Routage** : le pointillé vert doit aller du premier point cliqué au curseur de la souris.
+2. ⬜ **Barre d'outils** : icônes de [`media/icones.svg`](media/icones.svg) (groupes Nouveau, Ouvrir, Enregistrer, SVG) → remplacer Ouvrir/Enregistrer/SVG, ajouter **Nouveau** (icône + fonctionnalité). Ordre : nouveau, ouvrir, enregistrer, svg. Image la plus grande possible dans le bouton, 1 px de padding.
+3. ⬜ **Joystick** : supprimer le gros carré orange/blanc en mode actif.
+4. ⬜ **Joystick** : ne semble pas analogique.
+5. ⬜ **Joystick** : déplacement dans toutes les directions au clic maintenu.
+6. ⬜ **Joystick** : afficher « Ctrl + clic pour verrouiller la position » en mode simulation.
+7. ⬜ **Anneau NeoPixel** non simulable.
+8. ⬜ **Bug** : clic central pour déplacer le canevas — parfois impossible de le lâcher.
+9. ⬜ **Routage** : il reste des chevauchements de fils.
+10. ⬜ **Routage** : éviter les croisements si possible.
+11. ⬜ **Routage** : ne s'écarter que d'un pas des composants pour les départs de fil.
+12. ⬜ **Sélection multiple** : déplacer plusieurs points d'un câble (souris ou Ctrl+clic) ; sélectionner plusieurs câbles pour les supprimer.
+13. ⬜ **Ctrl + A** sur le canevas : tout sélectionner (composants + câbles).
+14. ⬜ **Routage** : le pointillé vert doit aller du premier point cliqué au curseur de la souris.
+
+# v2026.7.17
+
+1. ✅ **Bug corrigé — impossible de saisir le potentiomètre** : `onPointerDown` du fork ([`potentiometer-element.mts`](src/webview/composants/potentiometer-element.mts)) avalait tous les clics (`stopPropagation` sans filtre) → le clic droit (déplacement) et le Ctrl+clic (sélection multiple) n'atteignaient jamais le `.part__body`. Seul le clic gauche « nu » tourne désormais le bouton. Même filtre défensif posé sur la glissière ([`slide-potentiometer-element.mts`](src/webview/composants/slide-potentiometer-element.mts), le clic droit y déplaçait aussi le curseur pendant le drag).
+2. ✅ **Câblage interne du potentiomètre rotatif** : le schéma dessiné à la main ([`svg/pot-schema.edit.svg`](svg/pot-schema.edit.svg)) remplace le symbole procédural — nettoyé dans [`interne/pot-schema.svg`](src/webview/composants/interne/pot-schema.svg), aligné sur les broches réelles par translation depuis la pastille de référence GND (29,68.5 → 40,80, même pas de 10 px). La glissière garde le symbole procédural ([`internal-wiring.mts`](src/webview/diagram/internal-wiring.mts)).
+3. ✅ Validation : `typecheck`/`verify:all` OK ; sonde headless (vrai éditeur) — clic droit maintenu = déplacement exact (+50,+30), clic gauche = rotation (50→33) sans déplacement, badge ☢ → schéma superposé `translate(11 11.5)` calé au px sur le corps (capture visuelle conforme).
 
 # v2026.7.16
 

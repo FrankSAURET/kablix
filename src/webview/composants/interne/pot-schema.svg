@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 75.59 75.59">
+  <!-- Schéma interne du potentiomètre rotatif, dessiné à la main (Inkscape,
+       svg/pot-schema.edit.svg) puis nettoyé. Repère : pastilles de référence
+       GND (29,68.5) / SIG (39,68.5) / VCC (49,68.5) — internal-wiring.mts
+       translate le groupe pour les poser sur les broches réelles. -->
+  <g id="schema">
+    <rect style="fill:none;stroke:#000000;stroke-width:0.7;stroke-linecap:round;stroke-dasharray:none" width="8.7999992" height="29.299997" x="44.536324" y="19.942223" />
+    <path style="fill:none;stroke:#000000;stroke-width:0.713521;stroke-linecap:round;stroke-dasharray:none" d="M 50.038448,49.594845 C 50.038448,55.982732 50.038448,62.370619 50.038448,68.758506" transform="matrix(0.98105033,0,0,0.98105033,-0.11546304,0.90180616)" />
+    <path style="fill:none;stroke:#000000;stroke-width:0.7;stroke-linecap:round;stroke-dasharray:none" d="M 49.197827,19.742868 V 13.888228 H 29.036324 V 68.362709" />
+    <path style="fill:none;stroke:#000000;stroke-width:0.7;stroke-linecap:round;stroke-dasharray:none" d="M 40.6865,32.941049 43.680822,34.937264 40.6865,36.933479" />
+    <path style="fill:none;stroke:#000000;stroke-width:0.7;stroke-linecap:round;stroke-dasharray:none" d="M 43.412577,34.943381 38.965056,35.006116 39.083657,68.443858" />
+  </g>
+</svg>

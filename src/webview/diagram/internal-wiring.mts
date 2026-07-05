@@ -7,6 +7,7 @@
 // (scripts/_clean-keypad-schema.mjs) — viewBox = repère interne (mm × 96/25,4).
 import keypadSchema4 from '../composants/interne/keypad-schema.svg';
 import keypadSchema3 from '../composants/interne/keypad-3col-schema.svg';
+import potSchema from '../composants/interne/pot-schema.svg';
 
 export interface PinPoint {
   name: string;
@@ -272,6 +273,23 @@ const KEYPAD_SCHEMA: Record<'3' | '4', { inner: string; w: number; h: number }> 
   '4': parseSchema(keypadSchema4),
   '3': parseSchema(keypadSchema3),
 };
+const POT_SCHEMA = parseSchema(potSchema);
+// Pastille de référence GND du dessin (repère du .edit.svg) : le schéma est
+// posé sur les broches réelles par translation (même pas de 10 px, GND/SIG/VCC).
+const POT_REF_GND = { x: 29, y: 68.5 };
+
+/**
+ * Potentiomètre rotatif : schéma interne dessiné à la main (boîte résistive
+ * entre GND et VCC, flèche du curseur depuis SIG), aligné sur les broches
+ * réelles par translation depuis la pastille de référence GND.
+ */
+function rotaryPot(pins: PinPoint[]): string | null {
+  const gnd = find(pins, 'GND');
+  if (!gnd) return null;
+  const dx = (gnd.x - POT_REF_GND.x).toFixed(2);
+  const dy = (gnd.y - POT_REF_GND.y).toFixed(2);
+  return `<g transform="translate(${dx} ${dy})">${POT_SCHEMA.inner}</g>`;
+}
 
 /**
  * Clavier matriciel : schéma interne dessiné à la main (matrice rangées × colonnes,
@@ -289,7 +307,7 @@ function keypad(attrs?: Record<string, string>, box?: { w: number; h: number }):
 /**
  * Potentiomètre (symbole IEC) : boîte résistive horizontale centrée, reliée à VCC
  * et GND, avec le curseur (SIG) qui tape le milieu via une flèche perpendiculaire.
- * Vaut pour le modèle à glissière et le rotatif (mêmes noms de broches).
+ * Ne sert plus qu'au modèle à glissière (le rotatif a son schéma dessiné à la main).
  */
 function potentiometer(pins: PinPoint[], box?: { w: number; h: number }): string | null {
   const vcc = find(pins, 'VCC'); // Point de connexion
@@ -334,6 +352,8 @@ export function internalWiringSvg(
   box?: { w: number; h: number }
 ): string | null {
   if (type === 'keypad') return keypad(attrs, box);
+  // Rotatif : schéma dessiné à la main ; la glissière garde le symbole procédural.
+  if (type === 'pot') return rotaryPot(pins);
   switch (kind) {
     case 'pushbutton':
       return pushbutton(pins);

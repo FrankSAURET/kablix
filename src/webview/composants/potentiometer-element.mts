@@ -129,6 +129,10 @@ export class PotentiometerElement extends LitElement {
   }
 
   private onPointerDown = (event: PointerEvent): void => {
+    // Seul le clic gauche « nu » tourne le bouton : le clic droit (déplacement
+    // du composant dans l'éditeur) et le Ctrl+clic (sélection multiple) doivent
+    // remonter au .part__body — sinon impossible de saisir le potentiomètre.
+    if (event.button !== 0 || event.ctrlKey || event.metaKey) return;
     this.pressed = true;
     event.stopPropagation();
     event.preventDefault();

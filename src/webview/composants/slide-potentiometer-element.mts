@@ -143,6 +143,9 @@ export class SlidePotentiometerElement extends LitElement {
   }
 
   private onPointerDown = (e: PointerEvent): void => {
+    // Clic droit (déplacement du composant) et Ctrl+clic (sélection multiple) :
+    // ne pas saisir le curseur, laisser l'éditeur gérer.
+    if (e.button !== 0 || e.ctrlKey || e.metaKey) return;
     const x = this.toSvgX(e.clientX, e.clientY);
     if (x === null) return;
     e.preventDefault();
