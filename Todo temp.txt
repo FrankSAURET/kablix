@@ -1,3 +1,10 @@
+
+- Revoir encore le routage des fils voir photos "Routage désiré vs produit.png". 
+---------------------------------------------------------------------------------------
+- Tous le composants du dossier "sg retouche\" sont à reprendre. Il faut changer dans le fichier de base et pas faire une surécriture. Pour chacun s'assurer que les pastilles power et gnd sont bien alignées sur la grille.
+- Réexporter les 2 claviers (3x4 et 4x4) pour que je les retouche.
+
+---------------------------------------------------------------------------------------
 - Renommer les pattes de la LED RGB en RVB traductible
 - Si le dossier elements ne contient que des composants le renommer composants 
 - retoucher le pir, le capteur de gaz et la photorésistance à partir du fichier \svg retouche\nnn.edit.svg
@@ -6,11 +13,14 @@
 
 - Faire le dessin de surrimpression  des uno, nano et mega
 
+Todo.md archivé nouveau vide à utiliser
 
 - retoucher NeoPixel, les 4 LCD, matrice NeoPixel, oled display, Bouton, bouton poussoir, dip switch, joystick, potentiomètre   à partir du fichier \svg retouche\nnn.edit.svg
 - Pouvoir fermer l'afficheur série. Rajouter en plus une icone (écran) dans la barre de simulation tout à droite pour l'ouvrir/fermer
+- Renommer le moniteur série en Console pour les pico
 - dans la barre de simulation mettre en jaune sur rouge le bouton qui affiche le nom du fichier de simulation si aucun fichier n'a été choisis. Faire clignoter 3 fois si on lance la simulation et qu'il  est jaune. Le repasser dans sa couleur actuelle quand un fichier est choisi.
-- bug composant ne se positionnent pas sur la grille si fort zoom 
-- bug le routage passe toujours par dessus les composants
+- bug : composant ne se positionnent pas sur la grille si fort zoom 
+- bug : le routage passe toujours par dessus les composants
 - à l'ouverture d'un projet il dois ce centrer comme si on avait appuyé sur le bouton recentrer et ajuster la vue
 - à chaque chargement d'un fichier python, effacer la console, éteindre la simulation, réinitialiser les composants. Si on éteint la simulation effacer la console, réinitialiser les composants.
+- mettre à jour câblage interne pot → svg/pot-schema.edit.svg

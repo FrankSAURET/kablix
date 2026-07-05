@@ -1,548 +1,66 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<svg
-   width="200"
-   height="90"
-   viewBox="0 0 200 90"
-   version="1.1"
-   id="svg78"
-   sodipodi:docname="7seg-4dig.edit.svg"
-   inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
-   xmlns:xlink="http://www.w3.org/1999/xlink"
-   xmlns="http://www.w3.org/2000/svg"
-   xmlns:svg="http://www.w3.org/2000/svg">
-  <defs
-     id="defs78">
-    <pattern
-       inkscape:collect="always"
-       xlink:href="#pin-pattern"
-       id="pattern79"
-       patternTransform="matrix(3.9369812,0,0,3.9369812,65.345512,76.403113)" />
-    <pattern
-       inkscape:collect="always"
-       xlink:href="#pin-pattern"
-       id="pattern78"
-       patternTransform="matrix(3.9369812,0,0,3.9369812,65.345512,6.412497)" />
-    <defs
-       id="defs37">
-      <pattern
-         id="pin-pattern"
-         height="2"
-         width="2.54"
-         patternUnits="userSpaceOnUse">
-        <!--?lit$222531578$-->
-        <circle
-           cx="1.27"
-           cy="1"
-           r="0.5"
-           fill="#aaa"
-           id="circle37" />
-      </pattern>
-    </defs>
-  </defs>
-  <sodipodi:namedview
-     id="namedview78"
-     pagecolor="#ffffff"
-     bordercolor="#666666"
-     borderopacity="1.0"
-     inkscape:showpageshadow="2"
-     inkscape:pageopacity="0.0"
-     inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1"
-     showgrid="true"
-     inkscape:zoom="6.9268292"
-     inkscape:cx="105.09859"
-     inkscape:cy="55.869719"
-     inkscape:window-width="1920"
-     inkscape:window-height="1057"
-     inkscape:window-x="-8"
-     inkscape:window-y="-8"
-     inkscape:window-maximized="1"
-     inkscape:current-layer="svg78">
-    <inkscape:grid
-       id="grid78"
-       units="px"
-       originx="-20"
-       originy="-10"
-       spacingx="10"
-       spacingy="10"
-       empcolor="#3f3fff"
-       empopacity="0.25098039"
-       color="#3f3fff"
-       opacity="0.1254902"
-       empspacing="1"
-       enabled="true"
-       visible="true" />
-  </sodipodi:namedview>
+<svg xmlns="http://www.w3.org/2000/svg" width="230" height="123" viewBox="0 0 230 123">
   <!-- Retouche brochage 7seg-4dig : déplace chaque pastille rouge sur un CROISEMENT (lignes foncées = 50 px). Garde les id pin-<nom>. Marge 20 px. -->
-  <g
-     id="g79"
-     transform="translate(-0.35000038,-0.35000038)">
-    <rect
-       x="1.5270478"
-       height="77.864586"
-       y="6.4124961"
-       width="197.63646"
-       id="rect37"
-       style="opacity:0.85;stroke-width:3.7795" />
-    <g
-       transform="matrix(3.1889548,0,-0.44817838,3.1889548,13.978545,15.861252)"
-       id="g43"
-       style="opacity:0.85;fill:#c0c0c0;stroke-width:0.96">
-      <polygon
-         points="2,0 8,0 9,1 8,2 2,2 1,1 "
-         fill="#444444"
-         id="polygon37"
-         style="fill:#c0c0c0;stroke-width:0.96" />
-      <polygon
-         points="10,2 10,8 9,9 8,8 8,2 9,1 "
-         fill="#444444"
-         id="polygon38"
-         style="fill:#c0c0c0;stroke-width:0.96" />
-      <polygon
-         points="10,10 10,16 9,17 8,16 8,10 9,9 "
-         fill="#444444"
-         id="polygon39"
-         style="fill:#c0c0c0;stroke-width:0.96" />
-      <polygon
-         points="8,18 2,18 1,17 2,16 8,16 9,17 "
-         fill="#444444"
-         id="polygon40"
-         style="fill:#c0c0c0;stroke-width:0.96" />
-      <polygon
-         points="0,16 0,10 1,9 2,10 2,16 1,17 "
-         fill="#444444"
-         id="polygon41"
-         style="fill:#c0c0c0;stroke-width:0.96" />
-      <polygon
-         points="0,8 0,2 1,1 2,2 2,8 1,9 "
-         fill="#444444"
-         id="polygon42"
-         style="fill:#c0c0c0;stroke-width:0.96" />
-      <polygon
-         points="2,8 8,8 9,9 8,10 2,10 1,9 "
-         fill="#444444"
-         id="polygon43"
-         style="fill:#c0c0c0;stroke-width:0.96" />
-    </g>
-    <circle
-       r="3.5039132"
-       cx="44.44014"
-       cy="69.404198"
-       fill="#444444"
-       id="circle43"
-       style="opacity:0.85;fill:#c0c0c0;stroke-width:3.7795" />
-    <g
-       transform="matrix(3.1889548,0,-0.44817838,3.1889548,63.978207,15.861252)"
-       id="g50"
-       style="opacity:0.85;fill:#c0c0c0;stroke-width:0.96">
-      <polygon
-         points="2,0 8,0 9,1 8,2 2,2 1,1 "
-         fill="#444444"
-         id="polygon44"
-         style="fill:#c0c0c0;stroke-width:0.96" />
-      <polygon
-         points="10,2 10,8 9,9 8,8 8,2 9,1 "
-         fill="#444444"
-         id="polygon45"
-         style="fill:#c0c0c0;stroke-width:0.96" />
-      <polygon
-         points="10,10 10,16 9,17 8,16 8,10 9,9 "
-         fill="#444444"
-         id="polygon46"
-         style="fill:#c0c0c0;stroke-width:0.96" />
-      <polygon
-         points="8,18 2,18 1,17 2,16 8,16 9,17 "
-         fill="#444444"
-         id="polygon47"
-         style="fill:#c0c0c0;stroke-width:0.96" />
-      <polygon
-         points="0,16 0,10 1,9 2,10 2,16 1,17 "
-         fill="#444444"
-         id="polygon48"
-         style="fill:#c0c0c0;stroke-width:0.96" />
-      <polygon
-         points="0,8 0,2 1,1 2,2 2,8 1,9 "
-         fill="#444444"
-         id="polygon49"
-         style="fill:#c0c0c0;stroke-width:0.96" />
-      <polygon
-         points="2,8 8,8 9,9 8,10 2,10 1,9 "
-         fill="#444444"
-         id="polygon50"
-         style="fill:#c0c0c0;stroke-width:0.96" />
-    </g>
-    <circle
-       r="3.5039132"
-       cx="94.439812"
-       cy="69.404198"
-       fill="#444444"
-       id="circle50"
-       style="opacity:0.85;fill:#c0c0c0;stroke-width:3.7795" />
-    <g
-       transform="matrix(3.1889548,0,-0.44817838,3.1889548,113.97787,15.861252)"
-       id="g57"
-       style="opacity:0.85;fill:#c0c0c0;stroke-width:0.96">
-      <polygon
-         points="2,0 8,0 9,1 8,2 2,2 1,1 "
-         fill="#444444"
-         id="polygon51"
-         style="fill:#c0c0c0;stroke-width:0.96" />
-      <polygon
-         points="10,2 10,8 9,9 8,8 8,2 9,1 "
-         fill="#444444"
-         id="polygon52"
-         style="fill:#c0c0c0;stroke-width:0.96" />
-      <polygon
-         points="10,10 10,16 9,17 8,16 8,10 9,9 "
-         fill="#444444"
-         id="polygon53"
-         style="fill:#c0c0c0;stroke-width:0.96" />
-      <polygon
-         points="8,18 2,18 1,17 2,16 8,16 9,17 "
-         fill="#444444"
-         id="polygon54"
-         style="fill:#c0c0c0;stroke-width:0.96" />
-      <polygon
-         points="0,16 0,10 1,9 2,10 2,16 1,17 "
-         fill="#444444"
-         id="polygon55"
-         style="fill:#c0c0c0;stroke-width:0.96" />
-      <polygon
-         points="0,8 0,2 1,1 2,2 2,8 1,9 "
-         fill="#444444"
-         id="polygon56"
-         style="fill:#c0c0c0;stroke-width:0.96" />
-      <polygon
-         points="2,8 8,8 9,9 8,10 2,10 1,9 "
-         fill="#444444"
-         id="polygon57"
-         style="fill:#c0c0c0;stroke-width:0.96" />
-    </g>
-    <circle
-       r="3.5039132"
-       cx="144.43947"
-       cy="69.404198"
-       fill="#444444"
-       id="circle57"
-       style="opacity:0.85;fill:#c0c0c0;stroke-width:3.7795" />
-    <g
-       transform="matrix(3.1889548,0,-0.44817838,3.1889548,163.97753,15.861252)"
-       id="g64"
-       style="opacity:0.85;fill:#c0c0c0;stroke-width:0.96">
-      <polygon
-         points="2,0 8,0 9,1 8,2 2,2 1,1 "
-         fill="#444444"
-         id="polygon58"
-         style="fill:#c0c0c0;stroke-width:0.96" />
-      <polygon
-         points="10,2 10,8 9,9 8,8 8,2 9,1 "
-         fill="#444444"
-         id="polygon59"
-         style="fill:#c0c0c0;stroke-width:0.96" />
-      <polygon
-         points="10,10 10,16 9,17 8,16 8,10 9,9 "
-         fill="#444444"
-         id="polygon60"
-         style="fill:#c0c0c0;stroke-width:0.96" />
-      <polygon
-         points="8,18 2,18 1,17 2,16 8,16 9,17 "
-         fill="#444444"
-         id="polygon61"
-         style="fill:#c0c0c0;stroke-width:0.96" />
-      <polygon
-         points="0,16 0,10 1,9 2,10 2,16 1,17 "
-         fill="#444444"
-         id="polygon62"
-         style="fill:#c0c0c0;stroke-width:0.96" />
-      <polygon
-         points="0,8 0,2 1,1 2,2 2,8 1,9 "
-         fill="#444444"
-         id="polygon63"
-         style="fill:#c0c0c0;stroke-width:0.96" />
-      <polygon
-         points="2,8 8,8 9,9 8,10 2,10 1,9 "
-         fill="#444444"
-         id="polygon64"
-         style="fill:#c0c0c0;stroke-width:0.96" />
-    </g>
-    <circle
-       r="3.5039132"
-       cx="194.43913"
-       cy="69.404198"
-       fill="#444444"
-       id="circle64"
-       style="opacity:0.85;fill:#c0c0c0;stroke-width:3.7795" />
-    <rect
-       height="7.8739624"
-       width="69.999527"
-       id="rect64"
-       x="65.345512"
-       y="6.4124961"
-       style="opacity:0.85;fill:url(#pattern78);stroke-width:3.7795" />
-    <rect
-       height="7.8739624"
-       width="69.999527"
-       id="rect65"
-       x="65.345512"
-       y="76.403114"
-       style="opacity:0.85;fill:url(#pattern79);stroke-width:3.7795" />
-    <circle
-       id="pin-A"
-       cx="80.36042"
-       cy="10.35"
-       r="3.3333352"
-       fill="#ee0000"
-       fill-opacity="0.85"
-       stroke="#770000"
-       stroke-width="0.5" />
-    <text
-       x="80.36042"
-       y="5.1416621"
-       font-size="5.20834px"
-       fill="#aa0000"
-       text-anchor="middle"
-       font-family="sans-serif"
-       id="text65"
-       style="stroke-width:1">A</text>
-    <circle
-       id="pin-B"
-       cx="120.36044"
-       cy="10.35"
-       r="3.3333352"
-       fill="#ee0000"
-       fill-opacity="0.85"
-       stroke="#770000"
-       stroke-width="0.5" />
-    <text
-       x="120.36044"
-       y="5.1416621"
-       font-size="5.20834px"
-       fill="#aa0000"
-       text-anchor="middle"
-       font-family="sans-serif"
-       id="text66"
-       style="stroke-width:1">B</text>
-    <circle
-       id="pin-F"
-       cx="90.36042"
-       cy="10.35"
-       r="3.3333352"
-       fill="#ee0000"
-       fill-opacity="0.85"
-       stroke="#770000"
-       stroke-width="0.5" />
-    <text
-       x="90.36042"
-       y="5.1416621"
-       font-size="5.20834px"
-       fill="#aa0000"
-       text-anchor="middle"
-       font-family="sans-serif"
-       id="text70"
-       style="stroke-width:1">F</text>
-    <circle
-       id="pin-DIG1"
-       cx="70.349998"
-       cy="10.35"
-       r="3.3333352"
-       fill="#ee0000"
-       fill-opacity="0.85"
-       stroke="#770000"
-       stroke-width="0.5" />
-    <text
-       x="70.349998"
-       y="5.1416621"
-       font-size="5.20834px"
-       fill="#aa0000"
-       text-anchor="middle"
-       font-family="sans-serif"
-       id="text73"
-       style="stroke-width:1">DIG1</text>
-    <circle
-       id="pin-DIG2"
-       cx="100.36044"
-       cy="10.35"
-       r="3.3333352"
-       fill="#ee0000"
-       fill-opacity="0.85"
-       stroke="#770000"
-       stroke-width="0.5" />
-    <text
-       x="100.36044"
-       y="5.1416621"
-       font-size="5.20834px"
-       fill="#aa0000"
-       text-anchor="middle"
-       font-family="sans-serif"
-       id="text74"
-       style="stroke-width:1">DIG2</text>
-    <circle
-       id="pin-DIG3"
-       cx="110.36044"
-       cy="10.35"
-       r="3.3333352"
-       fill="#ee0000"
-       fill-opacity="0.85"
-       stroke="#770000"
-       stroke-width="0.5" />
-    <text
-       x="110.36044"
-       y="5.1416621"
-       font-size="5.20834px"
-       fill="#aa0000"
-       text-anchor="middle"
-       font-family="sans-serif"
-       id="text75"
-       style="stroke-width:1">DIG3</text>
-    <circle
-       id="pin-CLN"
-       cx="130.36044"
-       cy="10.35"
-       r="3.3333352"
-       fill="#ee0000"
-       fill-opacity="0.85"
-       stroke="#770000"
-       stroke-width="0.5" />
-    <text
-       x="130.36044"
-       y="5.1416621"
-       font-size="5.20834px"
-       fill="#aa0000"
-       text-anchor="middle"
-       font-family="sans-serif"
-       id="text78"
-       style="stroke-width:1">CLN</text>
-    <g
-       id="g78"
-       transform="translate(-19.65,-10.525046)">
-      <circle
-         id="pin-C"
-         cx="120.01044"
-         cy="90.875046"
-         r="3.3333352"
-         fill="#ee0000"
-         fill-opacity="0.85"
-         stroke="#770000"
-         stroke-width="0.5" />
-      <text
-         x="120.01044"
-         y="85.666702"
-         font-size="5.20834px"
-         fill="#aa0000"
-         text-anchor="middle"
-         font-family="sans-serif"
-         id="text67"
-         style="stroke-width:1">C</text>
-      <circle
-         id="pin-D"
-         cx="100.01042"
-         cy="90.875046"
-         r="3.3333352"
-         fill="#ee0000"
-         fill-opacity="0.85"
-         stroke="#770000"
-         stroke-width="0.5" />
-      <text
-         x="100.01042"
-         y="85.666702"
-         font-size="5.20834px"
-         fill="#aa0000"
-         text-anchor="middle"
-         font-family="sans-serif"
-         id="text68"
-         style="stroke-width:1">D</text>
-      <circle
-         id="pin-E"
-         cx="90"
-         cy="90.875046"
-         r="3.3333352"
-         fill="#ee0000"
-         fill-opacity="0.85"
-         stroke="#770000"
-         stroke-width="0.5" />
-      <text
-         x="90"
-         y="85.666702"
-         font-size="5.20834px"
-         fill="#aa0000"
-         text-anchor="middle"
-         font-family="sans-serif"
-         id="text69"
-         style="stroke-width:1">E</text>
-      <circle
-         id="pin-G"
-         cx="130.01044"
-         cy="90.875046"
-         r="3.3333352"
-         fill="#ee0000"
-         fill-opacity="0.85"
-         stroke="#770000"
-         stroke-width="0.5" />
-      <text
-         x="130.01044"
-         y="85.666702"
-         font-size="5.20834px"
-         fill="#aa0000"
-         text-anchor="middle"
-         font-family="sans-serif"
-         id="text71"
-         style="stroke-width:1">G</text>
-      <circle
-         id="pin-DP"
-         cx="110.01042"
-         cy="90.875046"
-         r="3.3333352"
-         fill="#ee0000"
-         fill-opacity="0.85"
-         stroke="#770000"
-         stroke-width="0.5" />
-      <text
-         x="110.01042"
-         y="85.666702"
-         font-size="5.20834px"
-         fill="#aa0000"
-         text-anchor="middle"
-         font-family="sans-serif"
-         id="text72"
-         style="stroke-width:1">DP</text>
-      <circle
-         id="pin-DIG4"
-         cx="140.01044"
-         cy="90.875046"
-         r="3.3333352"
-         fill="#ee0000"
-         fill-opacity="0.85"
-         stroke="#770000"
-         stroke-width="0.5" />
-      <text
-         x="140.01044"
-         y="85.666702"
-         font-size="5.20834px"
-         fill="#aa0000"
-         text-anchor="middle"
-         font-family="sans-serif"
-         id="text76"
-         style="stroke-width:1">DIG4</text>
-      <circle
-         id="pin-COM"
-         cx="150.01044"
-         cy="90.875046"
-         r="3.3333352"
-         fill="#ee0000"
-         fill-opacity="0.85"
-         stroke="#770000"
-         stroke-width="0.5" />
-      <text
-         x="150.01044"
-         y="85.666702"
-         font-size="5.20834px"
-         fill="#aa0000"
-         text-anchor="middle"
-         font-family="sans-serif"
-         id="text77"
-         style="stroke-width:1">COM</text>
-    </g>
-  </g>
+  <rect width="230" height="123" fill="#fff"/>
+  <g id="grid"><line x1="0" y1="0" x2="0" y2="123" stroke="#7fb0ff" stroke-width="0.7"/><line x1="10" y1="0" x2="10" y2="123" stroke="#cfe3ff" stroke-width="0.4"/><line x1="20" y1="0" x2="20" y2="123" stroke="#cfe3ff" stroke-width="0.4"/><line x1="30" y1="0" x2="30" y2="123" stroke="#cfe3ff" stroke-width="0.4"/><line x1="40" y1="0" x2="40" y2="123" stroke="#cfe3ff" stroke-width="0.4"/><line x1="50" y1="0" x2="50" y2="123" stroke="#7fb0ff" stroke-width="0.7"/><line x1="60" y1="0" x2="60" y2="123" stroke="#cfe3ff" stroke-width="0.4"/><line x1="70" y1="0" x2="70" y2="123" stroke="#cfe3ff" stroke-width="0.4"/><line x1="80" y1="0" x2="80" y2="123" stroke="#cfe3ff" stroke-width="0.4"/><line x1="90" y1="0" x2="90" y2="123" stroke="#cfe3ff" stroke-width="0.4"/><line x1="100" y1="0" x2="100" y2="123" stroke="#7fb0ff" stroke-width="0.7"/><line x1="110" y1="0" x2="110" y2="123" stroke="#cfe3ff" stroke-width="0.4"/><line x1="120" y1="0" x2="120" y2="123" stroke="#cfe3ff" stroke-width="0.4"/><line x1="130" y1="0" x2="130" y2="123" stroke="#cfe3ff" stroke-width="0.4"/><line x1="140" y1="0" x2="140" y2="123" stroke="#cfe3ff" stroke-width="0.4"/><line x1="150" y1="0" x2="150" y2="123" stroke="#7fb0ff" stroke-width="0.7"/><line x1="160" y1="0" x2="160" y2="123" stroke="#cfe3ff" stroke-width="0.4"/><line x1="170" y1="0" x2="170" y2="123" stroke="#cfe3ff" stroke-width="0.4"/><line x1="180" y1="0" x2="180" y2="123" stroke="#cfe3ff" stroke-width="0.4"/><line x1="190" y1="0" x2="190" y2="123" stroke="#cfe3ff" stroke-width="0.4"/><line x1="200" y1="0" x2="200" y2="123" stroke="#7fb0ff" stroke-width="0.7"/><line x1="210" y1="0" x2="210" y2="123" stroke="#cfe3ff" stroke-width="0.4"/><line x1="220" y1="0" x2="220" y2="123" stroke="#cfe3ff" stroke-width="0.4"/><line x1="230" y1="0" x2="230" y2="123" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="0" x2="230" y2="0" stroke="#7fb0ff" stroke-width="0.7"/><line x1="0" y1="10" x2="230" y2="10" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="20" x2="230" y2="20" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="30" x2="230" y2="30" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="40" x2="230" y2="40" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="50" x2="230" y2="50" stroke="#7fb0ff" stroke-width="0.7"/><line x1="0" y1="60" x2="230" y2="60" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="70" x2="230" y2="70" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="80" x2="230" y2="80" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="90" x2="230" y2="90" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="100" x2="230" y2="100" stroke="#7fb0ff" stroke-width="0.7"/><line x1="0" y1="110" x2="230" y2="110" stroke="#cfe3ff" stroke-width="0.4"/><line x1="0" y1="120" x2="230" y2="120" stroke="#cfe3ff" stroke-width="0.4"/></g>
+  <g id="board" opacity="0.85" transform="translate(20,20) scale(3.7795) translate(0 0)">
+        <defs>
+          <pattern id="pin-pattern" height="2" width="2.54" patternUnits="userSpaceOnUse">
+            <!--?lit$450055887$--><circle cx="1.27" cy="1" r="0.5" fill="#aaa"></circle>
+          </pattern>
+        </defs>
+        <rect x="0" height="20.5" y="0" width="50.2"></rect>
+        <!--?lit$450055887$--><!---->
+      <g transform="skewX(-8) translate(3.5, 2.4) scale(0.81)">
+        <polygon points="2 0 8 0 9 1 8 2 2 2 1 1" fill="#444"></polygon>
+        <polygon points="10 2 10 8 9 9 8 8 8 2 9 1" fill="#444"></polygon>
+        <polygon points="10 10 10 16 9 17 8 16 8 10 9 9" fill="#444"></polygon>
+        <polygon points="8 18 2 18 1 17 2 16 8 16 9 17" fill="#444"></polygon>
+        <polygon points="0 16 0 10 1 9 2 10 2 16 1 17" fill="#444"></polygon>
+        <polygon points="0 8 0 2 1 1 2 2 2 8 1 9" fill="#444"></polygon>
+        <polygon points="2 8 8 8 9 9 8 10 2 10 1 9" fill="#444"></polygon>
+      </g>
+      <circle r="0.89" cx="10.9" cy="16" fill="#444"></circle>
+    <!----><!---->
+      <g transform="skewX(-8) translate(16.2, 2.4) scale(0.81)">
+        <polygon points="2 0 8 0 9 1 8 2 2 2 1 1" fill="#444"></polygon>
+        <polygon points="10 2 10 8 9 9 8 8 8 2 9 1" fill="#444"></polygon>
+        <polygon points="10 10 10 16 9 17 8 16 8 10 9 9" fill="#444"></polygon>
+        <polygon points="8 18 2 18 1 17 2 16 8 16 9 17" fill="#444"></polygon>
+        <polygon points="0 16 0 10 1 9 2 10 2 16 1 17" fill="#444"></polygon>
+        <polygon points="0 8 0 2 1 1 2 2 2 8 1 9" fill="#444"></polygon>
+        <polygon points="2 8 8 8 9 9 8 10 2 10 1 9" fill="#444"></polygon>
+      </g>
+      <circle r="0.89" cx="23.6" cy="16" fill="#444"></circle>
+    <!----><!---->
+      <g transform="skewX(-8) translate(28.9, 2.4) scale(0.81)">
+        <polygon points="2 0 8 0 9 1 8 2 2 2 1 1" fill="#444"></polygon>
+        <polygon points="10 2 10 8 9 9 8 8 8 2 9 1" fill="#444"></polygon>
+        <polygon points="10 10 10 16 9 17 8 16 8 10 9 9" fill="#444"></polygon>
+        <polygon points="8 18 2 18 1 17 2 16 8 16 9 17" fill="#444"></polygon>
+        <polygon points="0 16 0 10 1 9 2 10 2 16 1 17" fill="#444"></polygon>
+        <polygon points="0 8 0 2 1 1 2 2 2 8 1 9" fill="#444"></polygon>
+        <polygon points="2 8 8 8 9 9 8 10 2 10 1 9" fill="#444"></polygon>
+      </g>
+      <circle r="0.89" cx="36.3" cy="16" fill="#444"></circle>
+    <!----><!---->
+      <g transform="skewX(-8) translate(41.599999999999994, 2.4) scale(0.81)">
+        <polygon points="2 0 8 0 9 1 8 2 2 2 1 1" fill="#444"></polygon>
+        <polygon points="10 2 10 8 9 9 8 8 8 2 9 1" fill="#444"></polygon>
+        <polygon points="10 10 10 16 9 17 8 16 8 10 9 9" fill="#444"></polygon>
+        <polygon points="8 18 2 18 1 17 2 16 8 16 9 17" fill="#444"></polygon>
+        <polygon points="0 16 0 10 1 9 2 10 2 16 1 17" fill="#444"></polygon>
+        <polygon points="0 8 0 2 1 1 2 2 2 8 1 9" fill="#444"></polygon>
+        <polygon points="2 8 8 8 9 9 8 10 2 10 1 9" fill="#444"></polygon>
+      </g>
+      <circle r="0.89" cx="48.99999999999999" cy="16" fill="#444"></circle>
+    <!----><!-- -->
+        <!--?lit$450055887$--><!-- -->
+        <!--?lit$450055887$-->
+      <g fill="url(#pin-pattern)" transform="translate(16.21, 0)">
+        <rect height="2" width="17.78"></rect>
+        <rect height="2" width="17.78" transform="translate(0, 18)"></rect>
+      </g>
+    
+      </g>
+  <g id="pins"><circle id="pin-A" cx="95.68" cy="23.78" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="95.68" y="18.78" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">A</text><circle id="pin-B" cx="134.08" cy="23.78" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="134.08" y="18.78" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">B</text><circle id="pin-C" cx="114.88" cy="91.82" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="114.88" y="86.82" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">C</text><circle id="pin-D" cx="95.68" cy="91.82" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="95.68" y="86.82" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">D</text><circle id="pin-E" cx="86.07" cy="91.82" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="86.07" y="86.82" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">E</text><circle id="pin-F" cx="105.28" cy="23.78" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="105.28" y="18.78" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">F</text><circle id="pin-G" cx="124.48" cy="91.82" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="124.48" y="86.82" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">G</text><circle id="pin-DP" cx="105.28" cy="91.82" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="105.28" y="86.82" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">DP</text><circle id="pin-DIG1" cx="86.07" cy="23.78" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="86.07" y="18.78" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">DIG1</text><circle id="pin-DIG2" cx="114.88" cy="23.78" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="114.88" y="18.78" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">DIG2</text><circle id="pin-DIG3" cx="124.48" cy="23.78" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="124.48" y="18.78" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">DIG3</text><circle id="pin-DIG4" cx="134.08" cy="91.82" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="134.08" y="86.82" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">DIG4</text><circle id="pin-COM" cx="143.68" cy="91.82" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="143.68" y="86.82" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">COM</text><circle id="pin-CLN" cx="143.68" cy="23.78" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="143.68" y="18.78" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">CLN</text></g>
 </svg>

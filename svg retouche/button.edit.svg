@@ -6,13 +6,63 @@
    version="1.1"
    id="svg40"
    sodipodi:docname="button.edit.svg"
-   inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
+   inkscape:version="1.4.4 (dcaf3e7, 2026-05-05)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
   <defs
-     id="defs40" />
+     id="defs40">
+    <defs
+       id="defs27">
+      <linearGradient
+         x1="2.178"
+         x2="9.8219995"
+         y1="2.178"
+         y2="9.8219995"
+         id="grad-up-pushbutton0"
+         gradientUnits="userSpaceOnUse">
+        <stop
+           stop-color="#ffffff"
+           offset="0"
+           id="stop20" />
+        <stop
+           offset="0.3"
+           stop-color="green"
+           id="stop21" />
+        <stop
+           offset="0.5"
+           stop-color="green"
+           id="stop22" />
+        <stop
+           offset="1"
+           id="stop23" />
+      </linearGradient>
+      <linearGradient
+         x1="9.8219995"
+         x2="2.178"
+         y1="9.8219995"
+         y2="2.178"
+         id="grad-down-pushbutton0"
+         gradientUnits="userSpaceOnUse">
+        <stop
+           stop-color="#ffffff"
+           offset="0"
+           id="stop24" />
+        <stop
+           offset="0.3"
+           stop-color="green"
+           id="stop25" />
+        <stop
+           offset="0.5"
+           stop-color="green"
+           id="stop26" />
+        <stop
+           offset="1"
+           id="stop27" />
+      </linearGradient>
+    </defs>
+  </defs>
   <sodipodi:namedview
      id="namedview40"
      pagecolor="#ffffff"
@@ -23,9 +73,9 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      showgrid="true"
-     inkscape:zoom="5.0117647"
-     inkscape:cx="27.634977"
-     inkscape:cy="34.518779"
+     inkscape:zoom="7.0877056"
+     inkscape:cx="30.757485"
+     inkscape:cy="60.950613"
      inkscape:window-width="1920"
      inkscape:window-height="1057"
      inkscape:window-x="-8"
@@ -49,254 +99,181 @@
   </sodipodi:namedview>
   <!-- Retouche brochage button : déplace chaque pastille rouge sur un CROISEMENT (lignes foncées = 50 px). Garde les id pin-<nom>. Marge 20 px. -->
   <g
-     id="g41"
-     transform="translate(-10)">
+     id="g1">
+    <rect
+       x="21.378595"
+       y="6.6903825"
+       width="47.187168"
+       height="47.259998"
+       rx="1.644676"
+       ry="1.6446759"
+       fill="#464646"
+       id="rect27"
+       style="opacity:1;stroke-width:3.7379" />
+    <rect
+       x="24.327793"
+       y="9.6441326"
+       width="41.288773"
+       height="41.352501"
+       rx="0.78869689"
+       ry="0.78869689"
+       fill="#eaeaea"
+       id="rect28"
+       style="opacity:1;stroke-width:3.7379" />
     <g
-       id="board"
-       opacity="0.85"
-       transform="matrix(3.9322639,0,0,3.9383333,31.378595,6.6903825)"
-       style="stroke-width:0.949838">
-      <defs
-         id="defs27">
-        <linearGradient
-           x1="2.178"
-           x2="9.8219995"
-           y1="2.178"
-           y2="9.8219995"
-           id="grad-up-pushbutton0"
-           gradientUnits="userSpaceOnUse">
-          <stop
-             stop-color="#ffffff"
-             offset="0"
-             id="stop20" />
-          <stop
-             offset="0.3"
-             stop-color="green"
-             id="stop21" />
-          <stop
-             offset="0.5"
-             stop-color="green"
-             id="stop22" />
-          <stop
-             offset="1"
-             id="stop23" />
-        </linearGradient>
-        <linearGradient
-           x1="9.8219995"
-           x2="2.178"
-           y1="9.8219995"
-           y2="2.178"
-           id="grad-down-pushbutton0"
-           gradientUnits="userSpaceOnUse">
-          <stop
-             stop-color="#ffffff"
-             offset="0"
-             id="stop24" />
-          <stop
-             offset="0.3"
-             stop-color="green"
-             id="stop25" />
-          <stop
-             offset="0.5"
-             stop-color="green"
-             id="stop26" />
-          <stop
-             offset="1"
-             id="stop27" />
-        </linearGradient>
-      </defs>
-      <rect
-         x="0"
-         y="0"
-         width="12"
-         height="12"
-         rx="0.41825166"
-         ry="0.41760707"
-         fill="#464646"
-         id="rect27"
+       fill="#1b1b1"
+       id="g31"
+       style="opacity:1;stroke-width:0.949838"
+       transform="matrix(3.9322639,0,0,3.9383333,21.378595,6.6903825)">
+      <circle
+         cx="1.767"
+         cy="1.7916"
+         r="0.37"
+         id="circle28"
          style="stroke-width:0.949838" />
-      <rect
-         x="0.75"
-         y="0.75"
-         width="10.5"
-         height="10.5"
-         rx="0.20057069"
-         ry="0.20026159"
-         fill="#eaeaea"
-         id="rect28"
+      <circle
+         cx="10.161"
+         cy="1.7916"
+         r="0.37"
+         id="circle29"
          style="stroke-width:0.949838" />
-      <!--?lit$752062298$-->
-      <g
-         fill="#1b1b1"
-         id="g31"
-         style="stroke-width:0.949838">
-        <circle
-           cx="1.767"
-           cy="1.7916"
-           r="0.37"
-           id="circle28"
-           style="stroke-width:0.949838" />
-        <circle
-           cx="10.161"
-           cy="1.7916"
-           r="0.37"
-           id="circle29"
-           style="stroke-width:0.949838" />
-        <circle
-           cx="10.161"
-           cy="10.197"
-           r="0.37"
-           id="circle30"
-           style="stroke-width:0.949838" />
-        <circle
-           cx="1.767"
-           cy="10.197"
-           r="0.37"
-           id="circle31"
-           style="stroke-width:0.949838" />
-      </g>
-      <g
-         fill="#999999"
-         stroke-width="0.964467"
-         id="g34">
-        <path
-           d="M 12.365,2.426 C 12.42512,2.426 12.47349,2.4729 12.4735,2.53122 V 2.9182 H 14.6908 C 14.81103,2.9182 14.9078,3.012 14.9078,3.12865 V 3.63586 C 14.9078,3.75246 14.81103,3.84631 14.6908,3.84631 H 12.4735 V 4.24732 C 12.4735,4.30562 12.4251,4.3526 12.365,4.3526 H 11.99665 V 2.426 Z"
-           id="path31"
-           style="stroke-width:0.964467" />
-        <path
-           d="M 12.365,7.5 C 12.42512,7.5 12.47349,7.5469 12.4735,7.60522 V 7.9922 H 14.6908 C 14.81103,7.9922 14.9078,8.086 14.9078,8.20265 V 8.70986 C 14.9078,8.82646 14.81103,8.92031 14.6908,8.92031 H 12.4735 V 9.32132 C 12.4735,9.37962 12.4251,9.4266 12.365,9.4266 H 11.99665 V 7.5 Z"
-           id="path32"
-           style="stroke-width:0.964467" />
-        <path
-           d="M -0.35085,4.3526 C -0.41097,4.3526 -0.45934,4.3057 -0.45935,4.24738 V 3.8604 H -2.67665 C -2.79688,3.8604 -2.89365,3.7666 -2.89365,3.64995 V 3.14274 C -2.89365,3.02614 -2.79688,2.93229 -2.67665,2.93229 H -0.45935 V 2.53128 C -0.45935,2.47298 -0.41095,2.426 -0.35085,2.426 H 0.0175 V 4.3526 Z"
-           id="path33"
-           style="stroke-width:0.964467" />
-        <path
-           d="M -0.35085,9.4266 C -0.41097,9.4266 -0.45934,9.3797 -0.45935,9.32138 V 8.9344 H -2.67665 C -2.79688,8.9344 -2.89365,8.8406 -2.89365,8.72395 V 8.21674 C -2.89365,8.10014 -2.79688,8.00629 -2.67665,8.00629 H -0.45935 V 7.60528 C -0.45935,7.54698 -0.41095,7.5 -0.35085,7.5 H 0.0175 V 9.4266 Z"
-           id="path34"
-           style="stroke-width:0.964467" />
-      </g>
-      <g
-         class="clickable-element"
-         id="g36"
-         style="stroke-width:0.949838">
-        <circle
-           cx="6"
-           cy="6"
-           r="3.822"
-           fill="url(#grad-up-pushbutton0)"
-           id="circle34"
-           style="fill:url(#grad-up-pushbutton0);stroke-width:0.949838" />
-        <circle
-           class="button-active-circle"
-           cx="6"
-           cy="6"
-           r="3.822"
-           fill="url(#grad-down-pushbutton0)"
-           id="circle35"
-           style="fill:url(#grad-down-pushbutton0);stroke-width:0.949838" />
-        <circle
-           cx="6"
-           cy="6"
-           r="2.9000001"
-           stroke="#2f2f2f"
-           stroke-opacity="0.47"
-           stroke-width="0.075987"
-           fill="#008000"
-           id="circle36" />
-      </g>
+      <circle
+         cx="10.161"
+         cy="10.197"
+         r="0.37"
+         id="circle30"
+         style="stroke-width:0.949838" />
+      <circle
+         cx="1.767"
+         cy="10.197"
+         r="0.37"
+         id="circle31"
+         style="stroke-width:0.949838" />
     </g>
     <g
-       id="g37"
-       transform="matrix(1.0483978,0,0,1.0483978,-0.967956,-14.597127)"
-       style="stroke-width:0.953836">
-      <circle
-         id="pin-1.l"
-         cx="20"
-         cy="33"
-         r="3.2"
-         fill="#ee0000"
-         fill-opacity="0.85"
-         stroke="#770000"
-         stroke-width="0.476918" />
-      <text
-         x="20"
-         y="28"
-         font-size="5px"
-         fill="#aa0000"
-         text-anchor="middle"
-         font-family="sans-serif"
-         id="text36"
-         style="stroke-width:0.953836">1.l</text>
+       fill="#999999"
+       stroke-width="0.964467"
+       id="g34"
+       transform="matrix(3.9322639,0,0,3.9383333,21.378595,6.6903825)"
+       style="opacity:1">
+      <path
+         d="M 12.365,2.426 C 12.42512,2.426 12.47349,2.4729 12.4735,2.53122 V 2.9182 H 14.6908 C 14.81103,2.9182 14.9078,3.012 14.9078,3.12865 V 3.63586 C 14.9078,3.75246 14.81103,3.84631 14.6908,3.84631 H 12.4735 V 4.24732 C 12.4735,4.30562 12.4251,4.3526 12.365,4.3526 H 11.99665 V 2.426 Z"
+         id="path31"
+         style="stroke-width:0.964467" />
+      <path
+         d="M 12.365,7.5 C 12.42512,7.5 12.47349,7.5469 12.4735,7.60522 V 7.9922 H 14.6908 C 14.81103,7.9922 14.9078,8.086 14.9078,8.20265 V 8.70986 C 14.9078,8.82646 14.81103,8.92031 14.6908,8.92031 H 12.4735 V 9.32132 C 12.4735,9.37962 12.4251,9.4266 12.365,9.4266 H 11.99665 V 7.5 Z"
+         id="path32"
+         style="stroke-width:0.964467" />
+      <path
+         d="M -0.35085,4.3526 C -0.41097,4.3526 -0.45934,4.3057 -0.45935,4.24738 V 3.8604 H -2.67665 C -2.79688,3.8604 -2.89365,3.7666 -2.89365,3.64995 V 3.14274 C -2.89365,3.02614 -2.79688,2.93229 -2.67665,2.93229 H -0.45935 V 2.53128 C -0.45935,2.47298 -0.41095,2.426 -0.35085,2.426 H 0.0175 V 4.3526 Z"
+         id="path33"
+         style="stroke-width:0.964467" />
+      <path
+         d="M -0.35085,9.4266 C -0.41097,9.4266 -0.45934,9.3797 -0.45935,9.32138 V 8.9344 H -2.67665 C -2.79688,8.9344 -2.89365,8.8406 -2.89365,8.72395 V 8.21674 C -2.89365,8.10014 -2.79688,8.00629 -2.67665,8.00629 H -0.45935 V 7.60528 C -0.45935,7.54698 -0.41095,7.5 -0.35085,7.5 H 0.0175 V 9.4266 Z"
+         id="path34"
+         style="stroke-width:0.964467" />
     </g>
     <g
-       id="g38"
-       transform="matrix(1.0483978,0,0,1.0483978,-0.967956,-14.516686)"
-       style="stroke-width:0.953836">
+       class="clickable-element"
+       id="g36"
+       style="opacity:1;stroke-width:0.949838"
+       transform="matrix(3.9322639,0,0,3.9383333,21.378595,6.6903825)">
       <circle
-         id="pin-2.l"
-         cx="20"
-         cy="52"
-         r="3.2"
-         fill="#ee0000"
-         fill-opacity="0.85"
-         stroke="#770000"
-         stroke-width="0.476918" />
-      <text
-         x="20"
-         y="47"
-         font-size="5px"
-         fill="#aa0000"
-         text-anchor="middle"
-         font-family="sans-serif"
-         id="text37"
-         style="stroke-width:0.953836">2.l</text>
-    </g>
-    <g
-       id="g39"
-       transform="matrix(1.0483978,0,0,1.0483978,-1.2106098,-14.586297)"
-       style="stroke-width:0.953836">
+         cx="6"
+         cy="6"
+         r="3.822"
+         fill="url(#grad-up-pushbutton0)"
+         id="circle34"
+         style="fill:url(#grad-up-pushbutton0);stroke-width:0.949838" />
       <circle
-         id="pin-1.r"
-         cx="87"
-         cy="33"
-         r="3.2"
-         fill="#ee0000"
-         fill-opacity="0.85"
-         stroke="#770000"
-         stroke-width="0.476918" />
-      <text
-         x="87"
-         y="28"
-         font-size="5px"
-         fill="#aa0000"
-         text-anchor="middle"
-         font-family="sans-serif"
-         id="text38"
-         style="stroke-width:0.953836">1.r</text>
-    </g>
-    <g
-       id="g40"
-       transform="matrix(1.0483978,0,0,1.0483978,-1.2106098,-14.522752)"
-       style="stroke-width:0.953836">
+         class="button-active-circle"
+         cx="6"
+         cy="6"
+         r="3.822"
+         fill="url(#grad-down-pushbutton0)"
+         id="circle35"
+         style="fill:url(#grad-down-pushbutton0);stroke-width:0.949838" />
       <circle
-         id="pin-2.r"
-         cx="87"
-         cy="52"
-         r="3.2"
-         fill="#ee0000"
-         fill-opacity="0.85"
-         stroke="#770000"
-         stroke-width="0.476918" />
-      <text
-         x="87"
-         y="47"
-         font-size="5px"
-         fill="#aa0000"
-         text-anchor="middle"
-         font-family="sans-serif"
-         id="text39"
-         style="stroke-width:0.953836">2.r</text>
+         cx="6"
+         cy="6"
+         r="2.9000001"
+         stroke="#2f2f2f"
+         stroke-opacity="0.47"
+         stroke-width="0.075987"
+         fill="#008000"
+         id="circle36" />
     </g>
+    <circle
+       id="pin-1.l"
+       cx="10"
+       cy="20"
+       r="3.3548729"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="10"
+       y="14.758012"
+       font-size="5.24199px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text36"
+       style="stroke-width:1">1.l</text>
+    <circle
+       id="pin-2.l"
+       cx="10"
+       cy="40"
+       r="3.3548729"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="10"
+       y="34.758011"
+       font-size="5.24199px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text37"
+       style="stroke-width:1">2.l</text>
+    <circle
+       id="pin-1.r"
+       cx="80"
+       cy="20.01083"
+       r="3.3548729"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="80"
+       y="14.768842"
+       font-size="5.24199px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text38"
+       style="stroke-width:1">1.r</text>
+    <circle
+       id="pin-2.r"
+       cx="80"
+       cy="39.993935"
+       r="3.3548729"
+       fill="#ee0000"
+       fill-opacity="0.85"
+       stroke="#770000"
+       stroke-width="0.5" />
+    <text
+       x="80"
+       y="34.751945"
+       font-size="5.24199px"
+       fill="#aa0000"
+       text-anchor="middle"
+       font-family="sans-serif"
+       id="text39"
+       style="stroke-width:1">2.r</text>
   </g>
 </svg>

@@ -97,10 +97,12 @@ export class LEDElement extends LitElement {
   updated(changed: PropertyValues) {
     super.updated(changed);
     const root = this.renderRoot;
+    const { color, lightColor } = this;
+    // Corps de la LED (plastique teinté, #path25 du dessin retouché) : suit la
+    // couleur choisie — le dessin est figé sur #ff0000 sinon.
+    root.querySelector('#path25')?.setAttribute('fill', color);
     const light = root.querySelector('#g30') as SVGGElement | null;
     if (!light) return;
-
-    const { color, lightColor } = this;
     const lightColorActual = lightColor || lightColors[color?.toLowerCase()] || color;
     const opacity = this.brightness ? 0.3 + this.brightness * 0.7 : 0;
     const lightOn = this.value && this.brightness > Number.EPSILON;

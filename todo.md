@@ -1,5 +1,4 @@
 # À faire
-- Utilise l'icone media\serialMonitor.svg pour l'icone qui ouvre et ferme le moniteur/console
 
 1. ✅ Retoucher **NeoPixel**, les **4 LCD**, **matrice NeoPixel**, **OLED display**, **Bouton**, **bouton poussoir**, **DIP switch**, **joystick**, **potentiomètre** à partir des fichiers [`svg retouche/nnn.edit.svg`](svg%20retouche/). → v2026.6.83 (potentiomètre finalement retouché et intégré → v2026.7.4)
 2. ✅ Pouvoir **fermer l'afficheur série**. Ajouter une icône (écran) dans la barre de simulation, tout à droite, pour l'ouvrir/fermer. → v2026.6.80
@@ -10,6 +9,12 @@
 7. ✅ À l'**ouverture d'un projet**, centrer/ajuster la vue automatiquement (comme le bouton « recentrer et ajuster »). → v2026.6.80
 8. ✅ À chaque **chargement d'un fichier Python** : effacer la console, éteindre la simulation, réinitialiser les composants. À l'**arrêt de la simulation** : effacer la console, réinitialiser les composants. → v2026.6.80
 9. ⬜ Mettre à jour le **câblage interne du potentiomètre** → [`svg/pot-schema.edit.svg`](svg/pot-schema.edit.svg).
+
+# v2026.7.11
+
+1. ✅ **Icône du moniteur/console** : le bouton ouvrir/fermer de la barre de simulation (`toggle-serial`, [`panel.ts`](src/panel.ts)) utilise désormais [`media/serialMonitor.svg`](media/serialMonitor.svg) (img + classes `canvas-controls__btn--icon`/`canvas-controls__icon`, même modèle que recentrer/autoroutage) au lieu de l'emoji 🖥.
+2. ✅ **Bug corrigé — couleur de la LED** : le corps de la LED restait rouge quand on changeait `color` (seul le halo suivait). Le dessin retouché fige le plastique teinté sur `fill="#ff0000"` (`#path25`) ; [`led-element.mts`](src/webview/composants/led-element.mts) le recolore maintenant dans `updated()` avec la couleur choisie, `lightColor` ne touche toujours que le halo.
+3. ✅ Validation : `typecheck`/`build`/`verify:components`/`verify:diagram` OK ; sonde headless (Chrome, bundle esbuild réel) — corps et halo suivent `color` (red/green/blue/yellow), `lightColor` ne recolore que le halo, LED éteinte conserve la couleur du corps.
 
 # v2026.7.10
 

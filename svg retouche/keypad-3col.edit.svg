@@ -13,7 +13,7 @@
           <pattern id="wires-marks" width="2.54" height="8" patternUnits="userSpaceOnUse">
             <rect x="0.52" y="6" width="1.5" height="2" fill="#746d41"></rect>
           </pattern>
-          <!--?lit$420027815$-->
+          <!--?lit$450055887$-->
   <pattern id="pins-female" width="2.54" height="2.54" patternUnits="userSpaceOnUse">
     <rect x="0" y="0" width="2.54" height="2.54" fill="#333"></rect>
     <rect x="1.079" y="0.896" width="0.762" height="0.762" style="fill: #191919"></rect>
@@ -33,7 +33,7 @@
         <rect x="2.78" y="3.25" height="68.6" rx="3.5" ry="3.5" fill="none" stroke="#b1b5b9" stroke-width="1" width="50"></rect>
 
         <!-- Connector -->
-        <!--?lit$420027815$-->
+        <!--?lit$450055887$-->
             <g transform="translate(18.778, 76)">
               <rect height="8" fill="url(#wires)" width="17.78"></rect>
               <rect width="10.16" height="8" fill="url(#wires-marks)"></rect>
@@ -44,59 +44,59 @@
 
         <!-- Blue keys -->
         <g fill="#4e90d7">
-          <g><!--?lit$420027815$--><g tabindex="0" transform="translate(7 10.7)" class="blue-key" data-key-name="1">
+          <g><!--?lit$450055887$--><g tabindex="0" transform="translate(7 10.7)" class="blue-key" data-key-name="1">
       <rect width="11.2" height="11" rx="1.4" ry="1.4" stroke="#b1b5b9" stroke-width=".75"></rect>
-      <text x="5.6" y="8.1"><!--?lit$420027815$-->1</text>
+      <text x="5.6" y="8.1"><!--?lit$450055887$-->1</text>
     </g></g>
-          <g><!--?lit$420027815$--><g tabindex="0" transform="translate(22 10.7)" class="blue-key" data-key-name="2">
+          <g><!--?lit$450055887$--><g tabindex="0" transform="translate(22 10.7)" class="blue-key" data-key-name="2">
       <rect width="11.2" height="11" rx="1.4" ry="1.4" stroke="#b1b5b9" stroke-width=".75"></rect>
-      <text x="5.6" y="8.1"><!--?lit$420027815$-->2</text>
+      <text x="5.6" y="8.1"><!--?lit$450055887$-->2</text>
     </g></g>
-          <g><!--?lit$420027815$--><g tabindex="0" transform="translate(37 10.7)" class="blue-key" data-key-name="3">
+          <g><!--?lit$450055887$--><g tabindex="0" transform="translate(37 10.7)" class="blue-key" data-key-name="3">
       <rect width="11.2" height="11" rx="1.4" ry="1.4" stroke="#b1b5b9" stroke-width=".75"></rect>
-      <text x="5.6" y="8.1"><!--?lit$420027815$-->3</text>
+      <text x="5.6" y="8.1"><!--?lit$450055887$-->3</text>
     </g></g>
-          <g><!--?lit$420027815$--><g tabindex="0" transform="translate(7 25)" class="blue-key" data-key-name="4">
+          <g><!--?lit$450055887$--><g tabindex="0" transform="translate(7 25)" class="blue-key" data-key-name="4">
       <rect width="11.2" height="11" rx="1.4" ry="1.4" stroke="#b1b5b9" stroke-width=".75"></rect>
-      <text x="5.6" y="8.1"><!--?lit$420027815$-->4</text>
+      <text x="5.6" y="8.1"><!--?lit$450055887$-->4</text>
     </g></g>
-          <g><!--?lit$420027815$--><g tabindex="0" transform="translate(22 25)" class="blue-key" data-key-name="5">
+          <g><!--?lit$450055887$--><g tabindex="0" transform="translate(22 25)" class="blue-key" data-key-name="5">
       <rect width="11.2" height="11" rx="1.4" ry="1.4" stroke="#b1b5b9" stroke-width=".75"></rect>
-      <text x="5.6" y="8.1"><!--?lit$420027815$-->5</text>
+      <text x="5.6" y="8.1"><!--?lit$450055887$-->5</text>
     </g></g>
-          <g><!--?lit$420027815$--><g tabindex="0" transform="translate(37 25)" class="blue-key" data-key-name="6">
+          <g><!--?lit$450055887$--><g tabindex="0" transform="translate(37 25)" class="blue-key" data-key-name="6">
       <rect width="11.2" height="11" rx="1.4" ry="1.4" stroke="#b1b5b9" stroke-width=".75"></rect>
-      <text x="5.6" y="8.1"><!--?lit$420027815$-->6</text>
+      <text x="5.6" y="8.1"><!--?lit$450055887$-->6</text>
     </g></g>
-          <g><!--?lit$420027815$--><g tabindex="0" transform="translate(7 39.3)" class="blue-key" data-key-name="7">
+          <g><!--?lit$450055887$--><g tabindex="0" transform="translate(7 39.3)" class="blue-key" data-key-name="7">
       <rect width="11.2" height="11" rx="1.4" ry="1.4" stroke="#b1b5b9" stroke-width=".75"></rect>
-      <text x="5.6" y="8.1"><!--?lit$420027815$-->7</text>
+      <text x="5.6" y="8.1"><!--?lit$450055887$-->7</text>
     </g></g>
-          <g><!--?lit$420027815$--><g tabindex="0" transform="translate(22 39.3)" class="blue-key" data-key-name="8">
+          <g><!--?lit$450055887$--><g tabindex="0" transform="translate(22 39.3)" class="blue-key" data-key-name="8">
       <rect width="11.2" height="11" rx="1.4" ry="1.4" stroke="#b1b5b9" stroke-width=".75"></rect>
-      <text x="5.6" y="8.1"><!--?lit$420027815$-->8</text>
+      <text x="5.6" y="8.1"><!--?lit$450055887$-->8</text>
     </g></g>
-          <g><!--?lit$420027815$--><g tabindex="0" transform="translate(37 39.3)" class="blue-key" data-key-name="9">
+          <g><!--?lit$450055887$--><g tabindex="0" transform="translate(37 39.3)" class="blue-key" data-key-name="9">
       <rect width="11.2" height="11" rx="1.4" ry="1.4" stroke="#b1b5b9" stroke-width=".75"></rect>
-      <text x="5.6" y="8.1"><!--?lit$420027815$-->9</text>
+      <text x="5.6" y="8.1"><!--?lit$450055887$-->9</text>
     </g></g>
-          <g><!--?lit$420027815$--><g tabindex="0" transform="translate(22 53.6)" class="blue-key" data-key-name="0">
+          <g><!--?lit$450055887$--><g tabindex="0" transform="translate(22 53.6)" class="blue-key" data-key-name="0">
       <rect width="11.2" height="11" rx="1.4" ry="1.4" stroke="#b1b5b9" stroke-width=".75"></rect>
-      <text x="5.6" y="8.1"><!--?lit$420027815$-->0</text>
+      <text x="5.6" y="8.1"><!--?lit$450055887$-->0</text>
     </g></g>
         </g>
 
         <!-- Red keys -->
         <g fill="#e94541">
-          <g><!--?lit$420027815$--><g tabindex="0" transform="translate(7 53.6)" class="red-key" data-key-name="*">
+          <g><!--?lit$450055887$--><g tabindex="0" transform="translate(7 53.6)" class="red-key" data-key-name="*">
       <rect width="11.2" height="11" rx="1.4" ry="1.4" stroke="#b1b5b9" stroke-width=".75"></rect>
-      <text x="5.6" y="8.1"><!--?lit$420027815$-->*</text>
+      <text x="5.6" y="8.1"><!--?lit$450055887$-->*</text>
     </g></g>
-          <g><!--?lit$420027815$--><g tabindex="0" transform="translate(37 53.6)" class="red-key" data-key-name="#">
+          <g><!--?lit$450055887$--><g tabindex="0" transform="translate(37 53.6)" class="red-key" data-key-name="#">
       <rect width="11.2" height="11" rx="1.4" ry="1.4" stroke="#b1b5b9" stroke-width=".75"></rect>
-      <text x="5.6" y="8.1"><!--?lit$420027815$-->#</text>
+      <text x="5.6" y="8.1"><!--?lit$450055887$-->#</text>
     </g></g>
-          <!--?lit$420027815$-->false
+          <!--?lit$450055887$-->false
         </g>
       </g>
   <g id="pins"><circle id="pin-R1" cx="96.50" cy="358.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="96.50" y="353.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">R1</text><circle id="pin-R2" cx="106.00" cy="358.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="106.00" y="353.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">R2</text><circle id="pin-R3" cx="115.75" cy="358.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="115.75" y="353.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">R3</text><circle id="pin-R4" cx="125.25" cy="358.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="125.25" y="353.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">R4</text><circle id="pin-C1" cx="135.00" cy="358.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="135.00" y="353.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">C1</text><circle id="pin-C2" cx="144.50" cy="358.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="144.50" y="353.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">C2</text><circle id="pin-C3" cx="154.00" cy="358.00" r="3.2" fill="#e00" fill-opacity="0.85" stroke="#700" stroke-width="0.5"/><text x="154.00" y="353.00" font-size="5" fill="#a00" text-anchor="middle" font-family="sans-serif">C3</text></g>

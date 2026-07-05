@@ -44,6 +44,13 @@ const VARIANTS = [
     pinScale: 1,
   },
   {
+    name: 'keypad-4col',
+    module: 'membrane-keypad-element.js',
+    tag: 'kablix-membrane-keypad',
+    attrs: { columns: '4', connector: 'true' },
+    pinScale: 1,
+  },
+  {
     name: 'lcd-i2c',
     module: 'lcd1602-element.js',
     tag: 'kablix-lcd1602',

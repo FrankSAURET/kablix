@@ -871,6 +871,9 @@ export class SimulatorPanel {
     const fitViewUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this.extensionUri, 'media', 'recentrer.svg')
     );
+    const serialMonitorUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, 'media', 'serialMonitor.svg')
+    );
     const nonce = getNonce();
     const version =
       vscode.extensions.getExtension('franksauret.kablix')?.packageJSON?.version ?? '';
@@ -941,7 +944,7 @@ export class SimulatorPanel {
             <option value="0.01">🐌 1 %</option>
           </select>
           <button id="code-file" class="canvas-controls__file" title="${l10n.t('Code file to run / debug — click to change')}">📄 ${l10n.t('No file')}</button>
-          <button id="toggle-serial" class="canvas-controls__btn" title="${l10n.t('Show/hide the serial monitor')}">🖥</button>
+          <button id="toggle-serial" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Show/hide the serial monitor')}"><img class="canvas-controls__icon" src="${serialMonitorUri}" alt="${l10n.t('Show/hide the serial monitor')}" /></button>
         </div>
         <!-- Barre droite : recentrer/ajuster, réinitialiser, effacer (alignée et de
              même hauteur que la barre de simulation à gauche). -->
