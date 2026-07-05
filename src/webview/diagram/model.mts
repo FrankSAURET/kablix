@@ -167,15 +167,19 @@ export function rgbLedState(
   diagram: Diagram,
   partId: string,
   readPin: (name: string) => boolean
-): { red: boolean; green: boolean; blue: boolean } {
+): { red: boolean; green: boolean; blue: boolean; comOk: boolean; commonAnode: boolean } {
   const nets = buildNets(diagram);
   const level = (pin: string): Level =>
     netLevel(diagram, nets, nets.netOf({ partId, pin }), readPin);
   const com = level('COM');
   const commonAnode = diagram.parts.find((p) => p.id === partId)?.attrs?.common === 'anode';
+  // comOk : le commun est bien câblé au bon rail — condition nécessaire pour
+  // qu'un canal puisse s'allumer (y compris en PWM, où le niveau instantané
+  // des canaux n'est pas fiable).
+  const comOk = commonAnode ? com === 1 : com === 0;
   const lit = (pin: string): boolean =>
-    commonAnode ? level(pin) === 0 && com === 1 : level(pin) === 1 && com === 0;
-  return { red: lit('R'), green: lit('G'), blue: lit('B') };
+    comOk && (commonAnode ? level(pin) === 0 : level(pin) === 1);
+  return { red: lit('R'), green: lit('G'), blue: lit('B'), comOk, commonAnode };
 }
 
 /** Un buzzer est actif quand une tension existe entre ses deux broches. */
@@ -415,6 +419,27 @@ export function buzzerBindings(diagram: Diagram): SourceBinding[] {
     const p2 = mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin: rolePin(type, '2') }));
     const mcuPin = p1 ?? p2;
     if (mcuPin) bindings.push({ partId: part.id, mcuPin });
+  }
+  return bindings;
+}
+
+export interface RgbLedBinding {
+  partId: string;
+  /** Broche MCU pilotant chaque canal (null si non câblé au MCU). */
+  r: string | null;
+  g: string | null;
+  b: string | null;
+}
+
+/** LED RGB : broche MCU de chaque canal — pour mesurer le rapport cyclique PWM. */
+export function rgbLedBindings(diagram: Diagram): RgbLedBinding[] {
+  const nets = buildNets(diagram);
+  const bindings: RgbLedBinding[] = [];
+  for (const part of diagram.parts) {
+    if (partDef(part.type).kind !== 'rgb-led') continue;
+    const pinOf = (pin: string): string | null =>
+      mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin }));
+    bindings.push({ partId: part.id, r: pinOf('R'), g: pinOf('G'), b: pinOf('B') });
   }
   return bindings;
 }

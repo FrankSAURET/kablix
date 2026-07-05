@@ -1229,11 +1229,25 @@ export class Editor {
     });
     if (roles.includes('gnd')) return 'black';
     if (roles.includes('vcc')) return 'red';
+    // LED RGB : chaque canal prend d'office la couleur qu'il pilote
+    // (R → rouge, G → vert, B → bleu), plus lisible pour les élèves.
+    const rgb = this.rgbLedChannelColor(a) ?? this.rgbLedChannelColor(b);
+    if (rgb) return rgb;
     // Un fil branché sur le même point qu'un fil existant reprend sa couleur
     // (même nœud électrique → même couleur de nappe, plus lisible).
     const inherited = this.inheritedColor(a, b);
     if (inherited) return inherited;
     return this.nextColor();
+  }
+
+  /** Couleur du canal d'une LED RGB ('red'/'green'/'blue') si la broche en est un, sinon null. */
+  private rgbLedChannelColor(e: Endpoint): string | null {
+    const part = this.diagram.parts.find((p) => p.id === e.partId);
+    if (!part || partDef(part.type).kind !== 'rgb-led') return null;
+    if (e.pin === 'R') return 'red';
+    if (e.pin === 'G') return 'green';
+    if (e.pin === 'B') return 'blue';
+    return null;
   }
 
   /** Couleur d'un fil déjà connecté à l'une des deux broches, ou null. */

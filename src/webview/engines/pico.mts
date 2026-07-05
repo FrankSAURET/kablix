@@ -88,7 +88,16 @@ export class PicoEngine implements SimEngine {
   private breakpoints: Breakpoint[] = [];
   // Mesure de largeur d'impulsion (servo) : broches GPIO surveillées + état d'arête.
   private pulsePins: Array<{ name: string; index: number }> = [];
-  private pulseState = new Map<string, { high: boolean; rise: number; lastUs: number; lastEdge: number }>();
+  // winStart/winHigh/winEdges : fenêtre d'intégration du rapport cyclique
+  // (readPwmDuty) ; lastDuty = dernière mesure, conservée tant que la fenêtre
+  // ne couvre pas une période PWM complète.
+  private pulseState = new Map<
+    string,
+    {
+      high: boolean; rise: number; lastUs: number; lastEdge: number;
+      winStart: number; winHigh: number; winEdges: number; lastDuty: number;
+    }
+  >();
   // Chaînes NeoPixel : décodeur WS2812 par broche DIN.
   private neopixels: Array<{ name: string; index: number; dec: Ws2812Decoder; last: boolean }> = [];
   // Afficheurs LCD parallèles : décodeur HD44780 par composant (index GPIO).
@@ -267,7 +276,12 @@ export class PicoEngine implements SimEngine {
       const i = gpioIndex(name);
       if (i === null) continue;
       this.pulsePins.push({ name, index: i });
-      if (!this.pulseState.has(name)) this.pulseState.set(name, { high: false, rise: 0, lastUs: 0, lastEdge: 0 });
+      if (!this.pulseState.has(name)) {
+        this.pulseState.set(name, {
+          high: false, rise: 0, lastUs: 0, lastEdge: 0,
+          winStart: this.mcu.core.cycles, winHigh: 0, winEdges: 0, lastDuty: 0,
+        });
+      }
     }
   }
 
@@ -367,6 +381,26 @@ export class PicoEngine implements SimEngine {
     return this.mcu.core.cycles - st.lastEdge < 60_000 * cyclesPerUs;
   }
 
+  /** Rapport cyclique (0..1) mesuré sur la fenêtre écoulée depuis la dernière mesure. */
+  readPwmDuty(name: string): number {
+    const st = this.pulseState.get(name);
+    if (!st) return this.readDigital(name) ? 1 : 0;
+    const cyclesPerUs = (this.mcu.clkSys || 125_000_000) / 1_000_000;
+    const now = this.mcu.core.cycles;
+    const total = now - st.winStart;
+    // Fenêtre trop courte (pas une période PWM complète) : mesurer donnerait 0
+    // ou 1 selon la phase → on garde la dernière valeur et on laisse la fenêtre
+    // s'allonger (plafond 100 ms simulées pour ne pas rester figé).
+    if (st.winEdges < 2 && total < 100_000 * cyclesPerUs) return st.lastDuty;
+    let high = st.winHigh;
+    if (st.high) high += now - Math.max(st.rise, st.winStart);
+    st.winStart = now;
+    st.winHigh = 0;
+    st.winEdges = 0;
+    st.lastDuty = total > 0 ? Math.max(0, Math.min(1, high / total)) : (st.high ? 1 : 0);
+    return st.lastDuty;
+  }
+
   /** Mesure la durée de l'état haut sur les broches surveillées (servo). */
   private samplePulses(): void {
     if (this.pulsePins.length === 0) return;
@@ -380,10 +414,13 @@ export class PicoEngine implements SimEngine {
         st.high = true;
         st.rise = now;
         st.lastEdge = now; // front montant : activité
+        st.winEdges++; // fronts montants de la fenêtre (readPwmDuty)
       } else if (!high && st.high) {
         st.high = false;
         st.lastEdge = now; // front descendant
         st.lastUs = (now - st.rise) / cyclesPerUs;
+        // Cumul du temps haut dans la fenêtre courante (rapport cyclique PWM).
+        st.winHigh += now - Math.max(st.rise, st.winStart);
       }
     }
   }

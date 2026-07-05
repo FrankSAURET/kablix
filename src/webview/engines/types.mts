@@ -132,6 +132,12 @@ export interface SimEngine {
   /** Vrai si la broche bascule actuellement (signal carré actif : tone()/PWM) — pour le son du buzzer. */
   pulseActive?(name: string): boolean;
   /**
+   * Rapport cyclique (0..1) mesuré sur une broche surveillée depuis la dernière
+   * lecture — luminosité réelle d'une LED pilotée en PWM (sinon elle clignoterait
+   * au rythme de l'échantillonnage du niveau instantané).
+   */
+  readPwmDuty?(name: string): number;
+  /**
    * Déclare les capteurs ultrason : à chaque impulsion TRIG détectée, le moteur
    * génère sur ECHO une impulsion de largeur = distance × 58 µs (en temps simulé).
    */

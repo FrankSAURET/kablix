@@ -10,6 +10,12 @@
 8. ✅ À chaque **chargement d'un fichier Python** : effacer la console, éteindre la simulation, réinitialiser les composants. À l'**arrêt de la simulation** : effacer la console, réinitialiser les composants. → v2026.6.80
 9. ⬜ Mettre à jour le **câblage interne du potentiomètre** → [`svg/pot-schema.edit.svg`](svg/pot-schema.edit.svg).
 
+# v2026.7.12
+
+1. ✅ **LED RGB — fils colorés par défaut** : un fil tiré depuis la borne R/G/B d'une LED RGB prend d'office la couleur de son canal (R → rouge, V → vert, B → bleu) — règle ajoutée dans `autoColor()` ([`editor.mts`](src/webview/diagram/editor.mts)), prioritaire sur l'héritage de couleur du nœud, après les règles GND/VCC. La couleur reste modifiable dans l'inspecteur.
+2. ✅ **Bug corrigé — LED RGB clignotante en PWM** : la LED était rafraîchie sur le niveau **instantané** de la broche, qui bascule à la fréquence PWM (ex. `duty_u16` MicroPython à 10 kHz) → clignotement au rythme de l'échantillonnage. Les canaux R/G/B sont maintenant surveillés (`setPulseMonitors`) et affichés selon le **rapport cyclique mesuré** (`readPwmDuty`, nouvelle API des 2 moteurs [`pico.mts`](src/webview/engines/pico.mts)/[`avr.mts`](src/webview/engines/avr.mts)) = luminosité réelle, inversée pour une anode commune. Fenêtre d'intégration exigeant ≥ 1 période PWM complète (2 fronts montants, plafond 100 ms simulées) pour rester stable même si la sim tourne lentement. `rgbLedState()` expose désormais `comOk`/`commonAnode` ; nouveau `rgbLedBindings()` ([`model.mts`](src/webview/diagram/model.mts)).
+3. ✅ Validation : `typecheck`/`verify:all` OK ; test de bout en bout dans le vrai moteur Pico (firmware MicroPython réel, PWM 10 kHz `duty_u16(128*257)` sur GP16) — rapport cyclique mesuré 0,502 **stable sur 41 échantillons** (attendu 128×257/65536 = 0,502), plus aucun clignotement.
+
 # v2026.7.11
 
 1. ✅ **Icône du moniteur/console** : le bouton ouvrir/fermer de la barre de simulation (`toggle-serial`, [`panel.ts`](src/panel.ts)) utilise désormais [`media/serialMonitor.svg`](media/serialMonitor.svg) (img + classes `canvas-controls__btn--icon`/`canvas-controls__icon`, même modèle que recentrer/autoroutage) au lieu de l'emoji 🖥.

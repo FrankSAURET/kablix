@@ -66,6 +66,7 @@ import {
   keypadBindings,
   dht22Bindings,
   pca9685Bindings,
+  rgbLedBindings,
   neopixelBindings,
   lcdParallelBindings,
   spiDeviceBindings,
@@ -170,6 +171,8 @@ let pcaBindings: Pca9685Binding[] = [];
 let neopixelTargets = new Map<string, string>();
 // Buzzers : partId → broche MCU pilotant le buzzer (pour la fréquence du son).
 let buzzerTargets = new Map<string, string>();
+// LED RGB : partId → broches MCU des canaux R/G/B (rapport cyclique PWM).
+let rgbLedTargets = new Map<string, { r: string | null; g: string | null; b: string | null }>();
 // Écrans SPI : partId → appareil (rendu de l'image). OLED SSD1306 / TFT ILI9341.
 let spiOledDevices = new Map<string, Ssd1306Device>();
 let spiTftDevices = new Map<string, Ili9341Device>();
@@ -366,9 +369,19 @@ function refreshVisuals(): void {
       }
       case 'rgb-led': {
         const s = rgbLedState(editor.diagram, part.id, read);
-        el.ledRed = s.red ? 1 : 0;
-        el.ledGreen = s.green ? 1 : 0;
-        el.ledBlue = s.blue ? 1 : 0;
+        // Canal piloté en PWM : le niveau instantané fait clignoter la LED au
+        // rythme du rafraîchissement. On affiche alors le rapport cyclique
+        // mesuré (= luminosité réelle), inversé pour une anode commune.
+        const bind = rgbLedTargets.get(part.id);
+        const chan = (lit: boolean, pin: string | null | undefined): number => {
+          if (!s.comOk || !pin || !engine!.pulseActive?.(pin)) return lit ? 1 : 0;
+          const duty = engine!.readPwmDuty?.(pin);
+          if (duty === undefined) return lit ? 1 : 0;
+          return s.commonAnode ? 1 - duty : duty;
+        };
+        el.ledRed = chan(s.red, bind?.r);
+        el.ledGreen = chan(s.green, bind?.g);
+        el.ledBlue = chan(s.blue, bind?.b);
         break;
       }
       case 'buzzer': {
@@ -558,9 +571,14 @@ function bindInputs(): void {
   // (fréquence du son). Une seule liste pour le moniteur du moteur.
   const buzzers = buzzerBindings(editor.diagram);
   buzzerTargets = new Map(buzzers.map((b) => [b.partId, b.mcuPin]));
+  // LED RGB : les canaux sont aussi surveillés pour mesurer le rapport cyclique
+  // (PWM) — sinon la LED clignoterait au rythme de l'échantillonnage.
+  const rgbLeds = rgbLedBindings(editor.diagram);
+  rgbLedTargets = new Map(rgbLeds.map((b) => [b.partId, { r: b.r, g: b.g, b: b.b }]));
   engine.setPulseMonitors?.([
     ...servoBindings(editor.diagram).map((b) => b.mcuPin),
     ...buzzers.map((b) => b.mcuPin),
+    ...rgbLeds.flatMap((b) => [b.r, b.g, b.b].filter((p): p is string => p !== null)),
   ]);
 
   // Capteurs ultrason (HC-SR04) : distance lue dans l'inspecteur (défaut 20 cm).

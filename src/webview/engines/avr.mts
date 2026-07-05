@@ -257,7 +257,16 @@ export class AvrEngine implements SimEngine {
 
   // Mesure de largeur d'impulsion (servo) : broches surveillées + état d'arête.
   private pulsePins: Array<{ name: string; port: PortKey; bit: number }> = [];
-  private pulseState = new Map<string, { high: boolean; rise: number; lastUs: number; lastEdge: number }>();
+  // winStart/winHigh/winEdges : fenêtre d'intégration du rapport cyclique
+  // (readPwmDuty) ; lastDuty = dernière mesure, conservée tant que la fenêtre
+  // ne couvre pas une période PWM complète.
+  private pulseState = new Map<
+    string,
+    {
+      high: boolean; rise: number; lastUs: number; lastEdge: number;
+      winStart: number; winHigh: number; winEdges: number; lastDuty: number;
+    }
+  >();
 
   // Capteurs ultrason + actions d'entrée programmées en temps simulé (génération ECHO).
   private ultrasonic: UltrasonicSensor[] = [];
@@ -402,7 +411,12 @@ export class AvrEngine implements SimEngine {
       const m = this.pinMap[name];
       if (!m) continue;
       this.pulsePins.push({ name, port: m[0], bit: m[1] });
-      if (!this.pulseState.has(name)) this.pulseState.set(name, { high: false, rise: 0, lastUs: 0, lastEdge: 0 });
+      if (!this.pulseState.has(name)) {
+        this.pulseState.set(name, {
+          high: false, rise: 0, lastUs: 0, lastEdge: 0,
+          winStart: this.cpu.cycles, winHigh: 0, winEdges: 0, lastDuty: 0,
+        });
+      }
     }
   }
 
@@ -415,6 +429,25 @@ export class AvrEngine implements SimEngine {
     const st = this.pulseState.get(name);
     if (!st) return false;
     return this.cpu.cycles - st.lastEdge < 60_000 * CYCLES_PER_US;
+  }
+
+  /** Rapport cyclique (0..1) mesuré sur la fenêtre écoulée depuis la dernière mesure. */
+  readPwmDuty(name: string): number {
+    const st = this.pulseState.get(name);
+    if (!st) return this.readDigital(name) ? 1 : 0;
+    const now = this.cpu.cycles;
+    const total = now - st.winStart;
+    // Fenêtre trop courte (pas une période PWM complète) : mesurer donnerait 0
+    // ou 1 selon la phase → on garde la dernière valeur et on laisse la fenêtre
+    // s'allonger (plafond 100 ms simulées pour ne pas rester figé).
+    if (st.winEdges < 2 && total < 100_000 * CYCLES_PER_US) return st.lastDuty;
+    let high = st.winHigh;
+    if (st.high) high += now - Math.max(st.rise, st.winStart);
+    st.winStart = now;
+    st.winHigh = 0;
+    st.winEdges = 0;
+    st.lastDuty = total > 0 ? Math.max(0, Math.min(1, high / total)) : (st.high ? 1 : 0);
+    return st.lastDuty;
   }
 
   /** Relie des esclaves I²C au bus : le maître TWI route vers eux par adresse. */
@@ -551,7 +584,10 @@ export class AvrEngine implements SimEngine {
         this.pulsePins.push({ name: s.trig, port: m[0], bit: m[1] });
       }
       if (!this.pulseState.has(s.trig)) {
-        this.pulseState.set(s.trig, { high: false, rise: 0, lastUs: 0, lastEdge: 0 });
+        this.pulseState.set(s.trig, {
+          high: false, rise: 0, lastUs: 0, lastEdge: 0,
+          winStart: this.cpu.cycles, winHigh: 0, winEdges: 0, lastDuty: 0,
+        });
       }
     }
   }
@@ -661,11 +697,14 @@ export class AvrEngine implements SimEngine {
         st.high = true;
         st.rise = now;
         st.lastEdge = now; // front montant : la broche bascule (activité)
+        st.winEdges++; // fronts montants de la fenêtre (readPwmDuty)
       } else if (!high && st.high) {
         st.high = false;
         st.lastEdge = now; // front descendant
         const widthUs = (now - st.rise) / CYCLES_PER_US;
         st.lastUs = widthUs; // dernière largeur d'impulsion haute (servo, fréquence buzzer)
+        // Cumul du temps haut dans la fenêtre courante (rapport cyclique PWM).
+        st.winHigh += now - Math.max(st.rise, st.winStart);
         this.maybeFireEcho(pp.name, widthUs); // une impulsion TRIG déclenche ECHO
       }
     }
