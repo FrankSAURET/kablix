@@ -1,14 +1,19 @@
 # À faire
 
 1. ⬜ **Simulation Pico extrêmement lente**.
-2. ⬜ **Anneau NeoPixel** non simulable.
-3. ⬜ **Bug** : clic central pour déplacer le canevas — parfois impossible de le lâcher.
-4. ⬜ **Routage** : il reste des chevauchements de fils.
-5. ⬜ **Routage** : éviter les croisements si possible.
-6. ⬜ **Routage** : ne s'écarter que d'un pas des composants pour les départs de fil.
-7. ⬜ **Sélection multiple** : déplacer plusieurs points d'un câble (souris ou Ctrl+clic) ; sélectionner plusieurs câbles pour les supprimer.
-8. ⬜ **Ctrl + A** sur le canevas : tout sélectionner (composants + câbles).
-9. ⬜ **Routage** : le pointillé vert doit aller du premier point cliqué au curseur de la souris.
+2. ⬜ **Bug** : clic central pour déplacer le canevas — parfois impossible de le lâcher.
+3. ⬜ **Routage** : il reste des chevauchements de fils.
+4. ⬜ **Routage** : éviter les croisements si possible.
+5. ⬜ **Routage** : ne s'écarter que d'un pas des composants pour les départs de fil.
+6. ⬜ **Sélection multiple** : déplacer plusieurs points d'un câble (souris ou Ctrl+clic) ; sélectionner plusieurs câbles pour les supprimer.
+7. ⬜ **Ctrl + A** sur le canevas : tout sélectionner (composants + câbles).
+8. ⬜ **Routage** : le pointillé vert doit aller du premier point cliqué au curseur de la souris.
+
+# v2026.7.20
+
+1. ✅ **Bug corrigé — anneau NeoPixel (et matrice) non simulables** : `renderNeopixel()` ([`sim.mts`](src/webview/sim.mts)) extrayait la méthode `el.setPixel` **sans `bind`** → `this` perdu à l'appel → `TypeError` avalé par le try/catch de `refreshVisuals` → pixels jamais rafraîchis. `.bind(el)` ajouté ; même correctif préventif sur `setLcd` (écrans des composants personnalisés, même piège).
+2. ✅ Diagnostic par maillons, chacun validé isolément avant de trouver l'intégration fautive : moteur Pico réel (MicroPython v1.20, `neopixel` 16 px sur GP16 → 16 couleurs décodées exactes), modèle (`neopixelBindings` → `{GP16, count:16}`), visuel (`setPixel` colore le bon `rect.pixel`).
+3. ✅ Validation : `typecheck`/`verify:all` OK ; preuve de la cause racine en sonde Chrome — appel **non lié** = `TypeError` (comportement d'avant), appel **lié** = pixel coloré (comportement corrigé).
 
 # v2026.7.19
 

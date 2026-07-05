@@ -461,9 +461,12 @@ function refreshVisuals(): void {
             ? dev.text
             : null;
         if (lines) {
-          const setLcd = el.setLcd as
-            | ((lines: string[], rect: { x: number; y: number; w: number; h: number }) => void)
-            | undefined;
+          // `bind(el)` : méthode extraite sans son `this` (même piège que setPixel).
+          const setLcd = (
+            el.setLcd as
+              | ((lines: string[], rect: { x: number; y: number; w: number; h: number }) => void)
+              | undefined
+          )?.bind(el);
           if (setLcd) {
             setLcd(lines, lcdScreenRect(part, def.custom?.svg));
           } else {
@@ -932,9 +935,11 @@ function renderNeopixel(
     el.b = c.b;
     return;
   }
-  const setPixel = el.setPixel as
-    | ((a: number, b: number | Rgb, c?: Rgb) => void)
-    | undefined;
+  // `bind(el)` indispensable : la méthode extraite perdait son `this` → TypeError
+  // silencieux (try/catch de refreshVisuals) → anneau/matrice jamais rafraîchis.
+  const setPixel = (
+    el.setPixel as ((a: number, b: number | Rgb, c?: Rgb) => void) | undefined
+  )?.bind(el);
   if (!setPixel) return;
   if (type === 'neopixel-matrix') {
     const cols = Number(attrs?.cols) || 8;
