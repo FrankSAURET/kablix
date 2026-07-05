@@ -561,6 +561,12 @@ export class SimulatorPanel {
       case 'openProject':
         void this.openProject();
         break;
+      case 'newProject':
+        // Nouveau projet : la webview a déjà vidé le schéma ; on oublie le nom
+        // du .projix courant pour que le prochain enregistrement reparte à neuf.
+        this.projectBaseName = undefined;
+        this.postProjectName();
+        break;
       case 'help':
         void vscode.commands.executeCommand('kablix.openHelp');
         break;
@@ -874,6 +880,19 @@ export class SimulatorPanel {
     const serialMonitorUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this.extensionUri, 'media', 'serialMonitor.svg')
     );
+    // Icônes de la barre d'outils (extraites de media/icones.svg).
+    const newIconUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, 'media', 'nouveau.svg')
+    );
+    const openIconUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, 'media', 'ouvrir.svg')
+    );
+    const saveIconUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, 'media', 'enregistrer.svg')
+    );
+    const svgIconUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, 'media', 'exportSvg.svg')
+    );
     const nonce = getNonce();
     const version =
       vscode.extensions.getExtension('franksauret.kablix')?.packageJSON?.version ?? '';
@@ -918,9 +937,10 @@ export class SimulatorPanel {
       </optgroup>
     </select>
     <button id="load-workspace" hidden title="${l10n.t('Load a compiled .uf2 (Pico) or .hex (Arduino) from the workspace')}">↑ ${l10n.t('Load binary')}</button>
-    <button id="export-svg" title="${l10n.t('Export the diagram as SVG')}">⬇ SVG</button>
-    <button id="save-project" title="${l10n.t('Save the project')}">💾</button>
-    <button id="open-project" title="${l10n.t('Open a project')}">📂</button>
+    <button id="new-project" class="toolbar__icon-btn" title="${l10n.t('New project (clear the diagram)')}"><img src="${newIconUri}" alt="${l10n.t('New project (clear the diagram)')}" /></button>
+    <button id="open-project" class="toolbar__icon-btn" title="${l10n.t('Open a project')}"><img src="${openIconUri}" alt="${l10n.t('Open a project')}" /></button>
+    <button id="save-project" class="toolbar__icon-btn" title="${l10n.t('Save the project')}"><img src="${saveIconUri}" alt="${l10n.t('Save the project')}" /></button>
+    <button id="export-svg" class="toolbar__icon-btn" title="${l10n.t('Export the diagram as SVG')}"><img src="${svgIconUri}" alt="${l10n.t('Export the diagram as SVG')}" /></button>
     <button id="toggle-labels" title="${l10n.t('Show/hide part names')}">🏷 ${l10n.t('Names')}</button>
     <button id="open-help" title="${l10n.t('Open help')}">❔ ${l10n.t('Help')}</button>
     <span id="project-name" class="project-name" title="${l10n.t('Current project')}"></span>

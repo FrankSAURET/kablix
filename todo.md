@@ -1,19 +1,24 @@
 # À faire
 
 1. ⬜ **Simulation Pico extrêmement lente**.
-2. ⬜ **Barre d'outils** : icônes de [`media/icones.svg`](media/icones.svg) (groupes Nouveau, Ouvrir, Enregistrer, SVG) → remplacer Ouvrir/Enregistrer/SVG, ajouter **Nouveau** (icône + fonctionnalité). Ordre : nouveau, ouvrir, enregistrer, svg. Image la plus grande possible dans le bouton, 1 px de padding.
-3. ⬜ **Joystick** : supprimer le gros carré orange/blanc en mode actif.
-4. ⬜ **Joystick** : ne semble pas analogique.
-5. ⬜ **Joystick** : déplacement dans toutes les directions au clic maintenu.
-6. ⬜ **Joystick** : afficher « Ctrl + clic pour verrouiller la position » en mode simulation.
-7. ⬜ **Anneau NeoPixel** non simulable.
-8. ⬜ **Bug** : clic central pour déplacer le canevas — parfois impossible de le lâcher.
-9. ⬜ **Routage** : il reste des chevauchements de fils.
-10. ⬜ **Routage** : éviter les croisements si possible.
-11. ⬜ **Routage** : ne s'écarter que d'un pas des composants pour les départs de fil.
-12. ⬜ **Sélection multiple** : déplacer plusieurs points d'un câble (souris ou Ctrl+clic) ; sélectionner plusieurs câbles pour les supprimer.
-13. ⬜ **Ctrl + A** sur le canevas : tout sélectionner (composants + câbles).
-14. ⬜ **Routage** : le pointillé vert doit aller du premier point cliqué au curseur de la souris.
+2. ⬜ **Joystick** : supprimer le gros carré orange/blanc en mode actif.
+3. ⬜ **Joystick** : ne semble pas analogique.
+4. ⬜ **Joystick** : déplacement dans toutes les directions au clic maintenu.
+5. ⬜ **Joystick** : afficher « Ctrl + clic pour verrouiller la position » en mode simulation.
+6. ⬜ **Anneau NeoPixel** non simulable.
+7. ⬜ **Bug** : clic central pour déplacer le canevas — parfois impossible de le lâcher.
+8. ⬜ **Routage** : il reste des chevauchements de fils.
+9. ⬜ **Routage** : éviter les croisements si possible.
+10. ⬜ **Routage** : ne s'écarter que d'un pas des composants pour les départs de fil.
+11. ⬜ **Sélection multiple** : déplacer plusieurs points d'un câble (souris ou Ctrl+clic) ; sélectionner plusieurs câbles pour les supprimer.
+12. ⬜ **Ctrl + A** sur le canevas : tout sélectionner (composants + câbles).
+13. ⬜ **Routage** : le pointillé vert doit aller du premier point cliqué au curseur de la souris.
+
+# v2026.7.18
+
+1. ✅ **Barre d'outils — nouvelles icônes** : les 4 groupes de [`media/icones.svg`](media/icones.svg) extraits en fichiers individuels ([`nouveau.svg`](media/nouveau.svg), [`ouvrir.svg`](media/ouvrir.svg), [`enregistrer.svg`](media/enregistrer.svg), [`exportSvg.svg`](media/exportSvg.svg)) — viewBox serré mesuré en headless (strokes inclus, marge 0,5 px), dégradés conservés, attributs Inkscape retirés. Boutons dans l'ordre demandé **nouveau, ouvrir, enregistrer, svg** ([`panel.ts`](src/panel.ts)), image 26 px (même hauteur totale que les boutons texte) avec **1 px de padding** (`.toolbar__icon-btn`, [`styles.css`](media/styles.css)).
+2. ✅ **Fonctionnalité « Nouveau »** : vide le schéma (annulable Ctrl+Z, inactif pendant la simulation) et oublie le nom du `.projix` courant côté hôte (le prochain Enregistrer repart à neuf) — message `newProject` ([`sim.mts`](src/webview/sim.mts) → [`panel.ts`](src/panel.ts)). Traductions ajoutées (i18n webview + `bundle.l10n.fr.json`).
+3. ✅ Validation : `typecheck`/`verify:all` OK ; rendu headless du bandeau avec la vraie CSS — 4 icônes nettes dans l'ordre, hauteur alignée sur les boutons texte (piège corrigé au passage : `<g/>` auto-fermé qui tronquait l'icône « ouvrir », et `height:100%` circulaire en flex remplacé par une hauteur fixe).
 
 # v2026.7.17
 

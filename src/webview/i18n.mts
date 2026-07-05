@@ -180,6 +180,7 @@ const FR: Record<string, string> = {
   'Cross horn': 'Bras en croix',
   'State (0/1)': 'État (0/1)',
   'Common pin': 'Broche commune',
+  'New project': 'Nouveau projet',
   'Common cathode (K)': 'Cathode commune (K)',
   'Common anode (A)': 'Anode commune (A)',
   'Digits': 'Chiffres',

@@ -58,6 +58,22 @@ body {
   cursor: pointer;
 }
 
+/* Boutons à icône de la barre d'outils (nouveau/ouvrir/enregistrer/svg) :
+   image la plus grande possible dans le bouton (même hauteur totale que les
+   boutons texte voisins), 1 px de padding. */
+.toolbar button.toolbar__icon-btn {
+  padding: 1px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toolbar__icon-btn img {
+  height: 26px;
+  width: auto;
+  display: block;
+}
+
 .toolbar select {
   font: inherit;
   color: var(--vscode-dropdown-foreground, #fff);

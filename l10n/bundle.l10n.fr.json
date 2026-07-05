@@ -23,6 +23,7 @@
   "Export the diagram as SVG": "Exporter le schéma en SVG",
   "Save the project": "Enregistrer le projet",
   "Open a project": "Ouvrir un projet",
+  "New project (clear the diagram)": "Nouveau projet (vide le schéma)",
   "Wokwi diagram": "Schéma Wokwi",
   "Export the Wokwi diagram (diagram.json)": "Exporter le schéma Wokwi (diagram.json)",
   "Kablix: Wokwi diagram exported to {0}": "Kablix : schéma Wokwi exporté vers {0}",

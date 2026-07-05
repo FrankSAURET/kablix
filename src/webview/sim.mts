@@ -123,6 +123,7 @@ const runBtn = document.getElementById('run') as HTMLButtonElement;
 const stopBtn = document.getElementById('stop') as HTMLButtonElement;
 const loadBtn = document.getElementById('load-workspace') as HTMLButtonElement;
 const exportBtn = document.getElementById('export-svg') as HTMLButtonElement;
+const newProjectBtn = document.getElementById('new-project') as HTMLButtonElement;
 const saveProjectBtn = document.getElementById('save-project') as HTMLButtonElement;
 const openProjectBtn = document.getElementById('open-project') as HTMLButtonElement;
 const labelsBtn = document.getElementById('toggle-labels') as HTMLButtonElement;
@@ -1224,6 +1225,14 @@ exportBtn.addEventListener('click', () => {
 });
 saveProjectBtn.addEventListener('click', () => {
   vscode.postMessage({ type: 'saveProject', diagram: editor.serialize(), board });
+});
+// Nouveau projet : vide le schéma (annulable Ctrl+Z) et oublie le .projix
+// courant côté hôte (le prochain enregistrement demandera un nouveau nom).
+newProjectBtn.addEventListener('click', () => {
+  if (editor.isLocked()) return; // simulation en cours : pas d'édition
+  editor.clear();
+  vscode.postMessage({ type: 'newProject' });
+  setStatus(t('New project'));
 });
 openProjectBtn.addEventListener('click', () => {
   vscode.postMessage({ type: 'openProject' });
