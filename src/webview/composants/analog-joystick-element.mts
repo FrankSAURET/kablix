@@ -15,8 +15,13 @@
 //     le dessin retouché via le transform composé `translate(g65) translate(g64)
 //     matrix(knob)` — reproduit exactement la position/taille des zones de clic
 //     d'origine (repère local de l'ancien dessin 27.2×31.8, non retouché) sans
-//     recalcul de géométrie au runtime.
-import { html, LitElement } from 'lit';
+//     recalcul de géométrie au runtime ;
+//   - manche ANALOGIQUE : glisser le knob au clic maintenu donne des valeurs
+//     continues −1..1 sur les deux axes (course = pleine déflexion du dessin,
+//     bornée au cercle unité) ; au relâchement le manche revient au centre,
+//     sauf Ctrl/Cmd tenu = position verrouillée. Les flèches (clic ou clavier)
+//     gardent la déflexion tout-ou-rien d'origine.
+import { css, html, LitElement } from 'lit';
 import type { PropertyValues } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { analog, ElementPin, GND, VCC } from './pin.mjs';
@@ -59,8 +64,23 @@ export class AnalogJoystickElement extends LitElement {
   private knobBase = '';
   private selEl: SVGElement | null = null;
   private selOff = '#aaa';
+  private dragCenter: { x: number; y: number } | null = null;
 
-  /** Repère `#knob`/`#circle46` du dessin retouché et branche le clavier (une fois). */
+  static get styles() {
+    return css`
+      /* Pas d'anneau de focus du navigateur : le knob reçoit le focus pour le
+         clavier et l'anneau dessinait un gros carré sur le composant actif. */
+      *:focus {
+        outline: none;
+      }
+
+      #knob {
+        cursor: grab;
+      }
+    `;
+  }
+
+  /** Repère `#knob`/`#circle46` du dessin retouché et branche clavier + glisse (une fois). */
   private setup(): void {
     if (this.knobEl) return;
     const svgEl = this.renderRoot.querySelector('svg');
@@ -70,6 +90,8 @@ export class AnalogJoystickElement extends LitElement {
       this.knobBase = this.knobEl.getAttribute('transform') ?? '';
       this.knobEl.addEventListener('keydown', (e) => this.keydown(e as KeyboardEvent));
       this.knobEl.addEventListener('keyup', (e) => this.keyup(e as KeyboardEvent));
+      this.knobEl.setAttribute('tabindex', '0');
+      this.knobEl.addEventListener('pointerdown', this.onKnobDown as EventListener);
     }
     this.selEl = svgEl.querySelector('#circle46');
     if (this.selEl) {
@@ -77,13 +99,72 @@ export class AnalogJoystickElement extends LitElement {
     }
   }
 
+  /** Facteur d'échelle du knob (matrice du dessin retouché). */
+  private knobScale(): number {
+    return Number(/matrix\(\s*([-\d.]+)/.exec(this.knobBase)?.[1] ?? 96 / 25.4);
+  }
+
   private moveKnob(): void {
     if (!this.knobEl) return;
-    const s = Number(/matrix\(\s*([-\d.]+)/.exec(this.knobBase)?.[1] ?? 96 / 25.4);
+    const s = this.knobScale();
     const dx = -2.5 * this.xValue * s;
     const dy = -2.5 * this.yValue * s;
     this.knobEl.setAttribute('transform', `translate(${dx} ${dy}) ${this.knobBase}`);
   }
+
+  /** Point (unités du viewBox racine) sous le curseur, via la CTM du <svg>. */
+  private toSvgPoint(clientX: number, clientY: number): DOMPointReadOnly | null {
+    const svg = this.renderRoot.querySelector('svg') as SVGSVGElement | null;
+    const m = svg?.getScreenCTM();
+    if (!m) return null;
+    return new DOMPointReadOnly(clientX, clientY).matrixTransform(m.inverse());
+  }
+
+  // --- Glisse analogique du manche ------------------------------------------
+  private onKnobDown = (e: PointerEvent): void => {
+    if (e.button !== 0) return; // clic droit = déplacement du composant (éditeur)
+    const p = this.toSvgPoint(e.clientX, e.clientY);
+    if (!p) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const r = 2.5 * this.knobScale(); // pleine déflexion (px du viewBox racine)
+    // Centre de repos déduit du point saisi et de la déflexion courante
+    // (glisse relative : pas de saut du manche sous le curseur).
+    this.dragCenter = { x: p.x + this.xValue * r, y: p.y + this.yValue * r };
+    this.knobEl?.focus();
+    window.addEventListener('pointermove', this.onKnobMove);
+    window.addEventListener('pointerup', this.onKnobUp);
+  };
+
+  private onKnobMove = (e: PointerEvent): void => {
+    if (!this.dragCenter) return;
+    const p = this.toSvgPoint(e.clientX, e.clientY);
+    if (!p) return;
+    const r = 2.5 * this.knobScale();
+    let x = -(p.x - this.dragCenter.x) / r;
+    let y = -(p.y - this.dragCenter.y) / r;
+    const n = Math.hypot(x, y);
+    if (n > 1) {
+      x /= n;
+      y /= n;
+    }
+    this.xValue = Math.round(x * 100) / 100;
+    this.yValue = Math.round(y * 100) / 100;
+    this.valueChanged();
+  };
+
+  private onKnobUp = (e: PointerEvent): void => {
+    this.dragCenter = null;
+    window.removeEventListener('pointermove', this.onKnobMove);
+    window.removeEventListener('pointerup', this.onKnobUp);
+    // Ctrl/Cmd tenu au relâchement : la position reste verrouillée ;
+    // sinon le manche revient au centre (ressort du vrai joystick).
+    if (!e.ctrlKey && !e.metaKey) {
+      this.xValue = 0;
+      this.yValue = 0;
+      this.valueChanged();
+    }
+  };
 
   updated(changed: PropertyValues): void {
     super.updated(changed);

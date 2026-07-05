@@ -1,18 +1,22 @@
 # À faire
 
 1. ⬜ **Simulation Pico extrêmement lente**.
-2. ⬜ **Joystick** : supprimer le gros carré orange/blanc en mode actif.
-3. ⬜ **Joystick** : ne semble pas analogique.
-4. ⬜ **Joystick** : déplacement dans toutes les directions au clic maintenu.
-5. ⬜ **Joystick** : afficher « Ctrl + clic pour verrouiller la position » en mode simulation.
-6. ⬜ **Anneau NeoPixel** non simulable.
-7. ⬜ **Bug** : clic central pour déplacer le canevas — parfois impossible de le lâcher.
-8. ⬜ **Routage** : il reste des chevauchements de fils.
-9. ⬜ **Routage** : éviter les croisements si possible.
-10. ⬜ **Routage** : ne s'écarter que d'un pas des composants pour les départs de fil.
-11. ⬜ **Sélection multiple** : déplacer plusieurs points d'un câble (souris ou Ctrl+clic) ; sélectionner plusieurs câbles pour les supprimer.
-12. ⬜ **Ctrl + A** sur le canevas : tout sélectionner (composants + câbles).
-13. ⬜ **Routage** : le pointillé vert doit aller du premier point cliqué au curseur de la souris.
+2. ⬜ **Anneau NeoPixel** non simulable.
+3. ⬜ **Bug** : clic central pour déplacer le canevas — parfois impossible de le lâcher.
+4. ⬜ **Routage** : il reste des chevauchements de fils.
+5. ⬜ **Routage** : éviter les croisements si possible.
+6. ⬜ **Routage** : ne s'écarter que d'un pas des composants pour les départs de fil.
+7. ⬜ **Sélection multiple** : déplacer plusieurs points d'un câble (souris ou Ctrl+clic) ; sélectionner plusieurs câbles pour les supprimer.
+8. ⬜ **Ctrl + A** sur le canevas : tout sélectionner (composants + câbles).
+9. ⬜ **Routage** : le pointillé vert doit aller du premier point cliqué au curseur de la souris.
+
+# v2026.7.19
+
+1. ✅ **Joystick analogique au clic maintenu** : glisser le knob donne des valeurs **continues** −1..1 sur les deux axes (course = pleine déflexion du dessin, bornée au cercle unité, glisse relative sans saut) — [`analog-joystick-element.mts`](src/webview/composants/analog-joystick-element.mts), `getScreenCTM` natif comme le potentiomètre. Les moteurs recevaient déjà l'analogique (`setAnalog` 0..1 dans sim.mts) : seule la source était tout-ou-rien. Les flèches (clic/clavier) gardent la déflexion ±1 d'origine.
+2. ✅ **Verrouillage de position** : Ctrl/Cmd tenu au **relâchement** = le manche reste en place ; sinon retour au centre (ressort). Clic droit ignoré (le déplacement du composant dans l'éditeur remonte au corps).
+3. ✅ **Gros carré orange/blanc supprimé** : c'était l'anneau de focus du navigateur autour du bbox du knob (focalisé pour le clavier) — `*:focus{outline:none}` dans les styles du fork (+ `tabindex` posé explicitement, curseur `grab`).
+4. ✅ **Bulle d'aide en simulation** : le joystick est désormais « lockable » ([`editor.mts`](src/webview/diagram/editor.mts)) avec un texte dédié « Ctrl + clic pour verrouiller la position » (i18n fr ajouté) ; en édition, bulle « clic droit pour déplacer » inchangée.
+5. ✅ Validation : `typecheck`/`verify:all` OK ; sonde headless (vrai éditeur) — glisse +5/+2 px → (−0,51, −0,2) puis relâchement → (0,0) ; Ctrl au relâchement → (0,71, 0) conservé, clic simple suivant → (0,0) ; flèche gauche ±1/0 intacte ; `outlineStyle=none` sur le knob focalisé ; bulles simulation/édition correctes.
 
 # v2026.7.18
 

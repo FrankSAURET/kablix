@@ -316,20 +316,21 @@ export class Editor {
     for (const r of this.rendered.values()) {
       if (!this.isLockable(r.part.type)) continue;
       const b = r.container.querySelector('.part__body') as HTMLElement | null;
-      if (b) b.title = this.buttonTitle();
+      if (b) b.title = this.buttonTitle(r.part.type);
     }
   }
 
-  /** Composant dont une touche/un bouton se verrouille au Ctrl+clic (BP, clavier). */
+  /** Composant dont une touche/un bouton se verrouille au Ctrl+clic (BP, clavier, joystick). */
   private isLockable(type: string): boolean {
-    return partDef(type).kind === 'pushbutton' || type === 'keypad';
+    return partDef(type).kind === 'pushbutton' || type === 'keypad' || type === 'joystick';
   }
 
   /** Bulle d'aide d'un bouton selon l'état : simulation = Ctrl+clic, sinon déplacement. */
-  private buttonTitle(): string {
-    return this.locked
-      ? t('Ctrl+click to lock the unstable state')
-      : t('Right-click drag to move');
+  private buttonTitle(type?: string): string {
+    if (!this.locked) return t('Right-click drag to move');
+    return type === 'joystick'
+      ? t('Ctrl+click to lock the position')
+      : t('Ctrl+click to lock the unstable state');
   }
 
   /**
@@ -1348,7 +1349,7 @@ export class Editor {
       // Bulle d'aide. Pour un bouton, le texte dépend de l'état : en simulation,
       // on rappelle le Ctrl+clic qui verrouille l'état instable ; sinon le
       // déplacement au clic droit. Mis à jour au verrouillage (setLocked).
-      body.title = this.isLockable(part.type) ? this.buttonTitle() : t('Right-click drag to move');
+      body.title = this.isLockable(part.type) ? this.buttonTitle(part.type) : t('Right-click drag to move');
     }
 
     const hotspots = new Map<string, HTMLDivElement>();
