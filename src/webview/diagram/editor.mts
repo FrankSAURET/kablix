@@ -2128,34 +2128,52 @@ export class Editor {
     return best;
   }
 
-  /** Rectangles d'encombrement de tous les composants (coordonnées monde). */
+  /**
+   * Rectangles d'encombrement de tous les composants (coordonnées monde). La boîte
+   * retenue est celle du DESSIN (svg de l'élément, déjà mis à l'échelle par
+   * `applyPinScale`) : la boîte DOM `.part__body` peut être plus haute de
+   * quelques px (interligne du span d'étiquette sous le dessin), ce qui faussait
+   * la sortie perpendiculaire des broches du bas — le fil « sortait » de côté au
+   * lieu de descendre, d'où des boucles autour des LED.
+   */
   private partObstacles(): PartRect[] {
     const rects: PartRect[] = [];
     for (const r of this.rendered.values()) {
       const body = r.container.querySelector('.part__body') as HTMLElement | null;
-      const w = body?.offsetWidth || 40;
-      const h = body?.offsetHeight || 40;
-      rects.push({ id: r.part.id, x: r.part.x, y: r.part.y, w, h });
+      let w = 0;
+      let h = 0;
+      try {
+        const svg = (r.el.shadowRoot ?? r.el).querySelector('svg');
+        w = svg?.width?.baseVal?.value || 0;
+        h = svg?.height?.baseVal?.value || 0;
+      } catch {
+        // Largeur svg en % sans viewport résolu : repli sur la boîte DOM.
+      }
+      rects.push({ id: r.part.id, x: r.part.x, y: r.part.y, w: w || body?.offsetWidth || 40, h: h || body?.offsetHeight || 40 });
     }
     return rects;
   }
 
   /**
-   * Point de sortie **perpendiculaire au bord le plus proche** du corps d'un
+   * Points de sortie **perpendiculaires aux bords les plus proches** du corps d'un
    * composant : le fil quitte la broche tout droit, vers l'extérieur, au lieu de
    * traverser le composant. S'applique à tout composant dont la broche est *dans*
    * le corps **ou sur son bord** (cartes, platines, gros modules, broches d'un LCD
    * alignées sur le bord) : la sortie est prolongée de `len` **à l'extérieur** du
    * corps, si bien que l'A\* aborde ensuite la broche depuis l'extérieur au lieu de
-   * traverser le corps pour l'atteindre. Renvoie null seulement pour une broche
+   * traverser le corps pour l'atteindre. Renvoie jusqu'à DEUX candidats (bords
+   * quasi équidistants, ±5 px) : pour une broche d'angle — dernier plot d'une
+   * rangée de carte, coins d'un bouton — le bord strictement le plus proche n'est
+   * pas toujours la bonne sortie ; l'autoroutage essaie chaque combinaison et
+   * garde le tracé le moins coûteux. Renvoie [] seulement pour une broche
    * franchement **hors du corps** (patte saillante d'un petit composant : aucune
    * traversée à craindre).
    */
-  private pinStub(end: Endpoint, center: XY, rects: Map<string, PartRect>, len: number): XY | null {
+  private pinStubs(end: Endpoint, center: XY, rects: Map<string, PartRect>, len: number): XY[] {
     const r = this.rendered.get(end.partId);
-    if (!r) return null;
+    if (!r) return [];
     const box = rects.get(end.partId);
-    if (!box) return null;
+    if (!box) return [];
     const dTop = center.y - box.y;
     const dBot = box.y + box.h - center.y;
     const dLeft = center.x - box.x;
@@ -2164,12 +2182,16 @@ export class Editor {
     // forcer. En revanche, une broche SUR le bord (dX ≈ 0) reçoit bien un stub
     // sortant (le fil ne doit pas repasser par le corps pour l'atteindre).
     const OUT = 2;
-    if (dTop < -OUT || dBot < -OUT || dLeft < -OUT || dRight < -OUT) return null;
+    if (dTop < -OUT || dBot < -OUT || dLeft < -OUT || dRight < -OUT) return [];
     const m = Math.min(dTop, dBot, dLeft, dRight);
-    if (m === dTop) return { x: center.x, y: box.y - len };
-    if (m === dBot) return { x: center.x, y: box.y + box.h + len };
-    if (m === dLeft) return { x: box.x - len, y: center.y };
-    return { x: box.x + box.w + len, y: center.y };
+    const TIE = GRID / 2; // bords considérés équivalents à ±5 px près
+    const cands: Array<{ d: number; p: XY }> = [];
+    if (dTop <= m + TIE) cands.push({ d: dTop, p: { x: center.x, y: box.y - len } });
+    if (dBot <= m + TIE) cands.push({ d: dBot, p: { x: center.x, y: box.y + box.h + len } });
+    if (dLeft <= m + TIE) cands.push({ d: dLeft, p: { x: box.x - len, y: center.y } });
+    if (dRight <= m + TIE) cands.push({ d: dRight, p: { x: box.x + box.w + len, y: center.y } });
+    cands.sort((u, v) => u.d - v.d); // tri stable : à égalité, ordre haut/bas/gauche/droite
+    return cands.slice(0, 2).map((c) => c.p);
   }
 
   /**
@@ -2189,6 +2211,7 @@ export class Editor {
     const rectOf = new Map(obstacles.map((o) => [o.id, o]));
     const STUB = GRID; // sortie perpendiculaire = 1 pas de grille hors du corps
     const GAP = 5; // écart mini entre deux fils parallèles (px)
+    const BEND = 2 * GRID; // pénalité par coude (A* et départage des tracés)
     const TOL = 1;
     // Segments de chaque fil (repère monde) — pour éviter qu'un nouveau tracé se
     // superpose à un fil existant. Mis à jour au fil des reroutes.
@@ -2210,51 +2233,86 @@ export class Editor {
       const a = this.hotspotCenter(wire.a);
       const b = this.hotspotCenter(wire.b);
       if (!a || !b) continue;
-      const sa = this.pinStub(wire.a, a, rectOf, STUB);
-      const sb = this.pinStub(wire.b, b, rectOf, STUB);
-      const pa = sa ?? a; // point de départ du routage (après sortie perpendiculaire)
-      const pb = sb ?? b;
+      const saList = this.pinStubs(wire.a, a, rectOf, STUB);
+      const sbList = this.pinStubs(wire.b, b, rectOf, STUB);
+      const saCands: Array<XY | null> = saList.length > 0 ? saList : [null];
+      const sbCands: Array<XY | null> = sbList.length > 0 ? sbList : [null];
       const otherSegs: Array<[XY, XY]> = [];
       for (const [wid, segs] of wireSegs) if (wid !== wire.id) otherSegs.push(...segs);
       // Coût d'un tracé : recouvrement de composants + recouvrement (colinéaire) ET
-      // proximité (< GAP) d'autres fils. Les fils peuvent se croiser mais pas se
+      // proximité (< GAP) d'autres fils, PLUS longueur et coudes (départage les
+      // combinaisons de sorties de broche). Les fils peuvent se croiser mais pas se
       // chevaucher ni se serrer à moins de GAP. Le recouvrement de composant est
       // mesuré sur le tracé INTERNE [pa..pb] contre TOUS les composants (y compris
       // les deux d'extrémité : seules les pattes a→pa / pb→b ont le droit de
       // traverser un corps — repro Frank : le Z de repli coupait le LCD en plein
       // milieu car `others` excluait les composants d'extrémité).
-      const cost = (c: XY[]): number => {
+      const cost = (sa: XY | null, sb: XY | null, c: XY[]): number => {
+        const pa = sa ?? a;
+        const pb = sb ?? b;
         const poly = [a, pa, ...c, pb, b];
         const comp = polylineRectOverlap([pa, ...c, pb], obstacles);
         const { overlap, near } = polylineWireCost(poly, otherSegs, GAP);
+        const { len, bends } = polyLenBends(poly);
+        // Aller-retour sur soi-même (la patte d'arrivée qui rebrousse chemin le
+        // long du tracé) : aussi laid qu'un chevauchement d'un autre fil.
+        let selfOv = 0;
+        for (let i = 0; i < poly.length - 1; i++) {
+          for (let j = i + 1; j < poly.length - 1; j++) {
+            selfOv += collinearOverlap(poly[i], poly[i + 1], poly[j], poly[j + 1]);
+          }
+        }
         // Poids massifs, hiérarchisés : traverser un composant (×1000) est bien
         // pire que suivre un fil (×100) — en dernier recours un fil qui en longe
-        // un autre sous la carte vaut mieux qu'un fil qui coupe la carte.
-        return comp * 1000 + overlap * 100 + near * 0.6;
+        // un autre sous la carte vaut mieux qu'un fil qui coupe la carte. À coût
+        // « dur » égal, le tracé le plus court et le moins coudé gagne.
+        return comp * 1000 + (overlap + selfOv) * 100 + near * 0.6 + len + bends * BEND;
       };
-      const pick = (cands: XY[][]): XY[] => {
-        let best = cands[0];
-        let bestCost = Infinity;
-        for (const c of cands) {
-          const k = cost(c);
+      // Routeur A* (contourne les obstacles et les fils), essayé pour CHAQUE
+      // combinaison de sorties candidates (≤ 2 par extrémité) : pour une broche
+      // d'angle, le bord le plus proche n'est pas forcément la bonne sortie — on
+      // garde le tracé complet le moins coûteux. On passe à l'A\* **tous** les
+      // composants, y compris les deux d'extrémité : la broche est déjà sortie du
+      // corps par `pinStubs`, donc l'A\* ne doit plus jamais retraverser un corps —
+      // ni celui d'où part le fil, ni celui d'arrivée. (Le filtre `solid` interne à
+      // `astarRoute` exclut malgré tout le bloc qui contient encore le point de
+      // départ/arrivée, pour laisser la broche s'échapper.) Le chemin va de pa à
+      // pb inclus ; on retire ces deux bornes (réinjectées via sa/sb ou a/b).
+      let sa: XY | null = saCands[0];
+      let sb: XY | null = sbCands[0];
+      let routed: XY[] | null = null;
+      let bestCost = Infinity;
+      for (const ca of saCands) {
+        for (const cb of sbCands) {
+          const path = astarRoute(ca ?? a, cb ?? b, obstacles, otherSegs, { clr: GRID / 2, bend: BEND, gap: GAP });
+          if (!path || path.length < 2) continue;
+          const c = path.slice(1, -1);
+          const k = cost(ca, cb, c);
           if (k < bestCost - 0.01) {
             bestCost = k;
+            sa = ca;
+            sb = cb;
+            routed = c;
+          }
+        }
+      }
+      const pa = sa ?? a; // point de départ du routage (après sortie perpendiculaire)
+      const pb = sb ?? b;
+      const pick = (cands: XY[][]): XY[] => {
+        let best = cands[0];
+        let bestK = Infinity;
+        for (const c of cands) {
+          const k = cost(sa, sb, c);
+          if (k < bestK - 0.01) {
+            bestK = k;
             best = c;
           }
         }
         return best;
       };
       let inner: XY[] = [];
-      // Routeur A* (contourne les obstacles et les fils). On lui passe **tous** les
-      // composants, y compris les deux d'extrémité : la broche est déjà sortie du
-      // corps par `pinStub`, donc l'A\* ne doit plus jamais retraverser un corps —
-      // ni celui d'où part le fil, ni celui d'arrivée. (Le filtre `solid` interne à
-      // `astarRoute` exclut malgré tout le bloc qui contient encore le point de
-      // départ/arrivée, pour laisser la broche s'échapper.) Le chemin va de pa à
-      // pb inclus ; on retire ces deux bornes (réinjectées via sa/sb ou a/b).
-      const path = astarRoute(pa, pb, obstacles, otherSegs, { clr: GRID / 2, bend: 2 * GRID, gap: GAP });
-      if (path && path.length >= 2) {
-        inner = path.slice(1, -1);
+      if (routed) {
+        inner = routed;
       } else if (Math.abs(pa.x - pb.x) > TOL && Math.abs(pa.y - pb.y) > TOL) {
         // Repli (A* sans solution) : coude en L / détour en Z de moindre coût.
         const midX = (pa.x + pb.x) / 2;
@@ -3444,6 +3502,23 @@ function polylineRectOverlap(pts: XY[], rects: PartRect[]): number {
     for (const r of rects) total += segRectOverlap(pts[i], pts[i + 1], r);
   }
   return total;
+}
+
+/** Longueur totale et nombre de coudes d'une polyligne H/V (doublons ignorés). */
+function polyLenBends(pts: XY[]): { len: number; bends: number } {
+  let len = 0;
+  let bends = 0;
+  let prev: 'h' | 'v' | null = null;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const dx = Math.abs(pts[i + 1].x - pts[i].x);
+    const dy = Math.abs(pts[i + 1].y - pts[i].y);
+    if (dx < 0.5 && dy < 0.5) continue;
+    len += dx + dy;
+    const ax = dx >= dy ? 'h' : 'v';
+    if (prev && ax !== prev) bends++;
+    prev = ax;
+  }
+  return { len, bends };
 }
 
 /** Retire les points colinéaires/doublons consécutifs d'une polyligne H/V. */

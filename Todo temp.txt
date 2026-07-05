@@ -1,7 +1,8 @@
 
-- Revoir encore le routage des fils voir photos "Routage désiré vs produit.png". Ne pas changer la couleur des fils existant.
+- Ajouter la possibilité de sélectionner et déplacer plusieurs points d'un cable. sélection avec la souris ou CTRL + clic
 - Modifier la Led RGB pour que par défaut, la borne R ait un fil rouge, la V un vert et la B un bleu.
 - Modifier la LED RGB pour que la patte commune affiche K si cathode commune et A si annode commune à la place de com.
+- La simulation de la LED RGB est extremement lente
 - Les pattes des afficheurs 7 segments 2 et 4 chiffres ne sont pas au non endroit voire pas existantes. En fait elle sreproduisent le cablage de l'afficheur unique.
 ---------------------------------------------------------------------------------------
 - Tous le composants du dossier "sg retouche\" sont à reprendre. Il faut changer dans le fichier de base et pas faire une surécriture. Pour chacun s'assurer que les pastilles power et gnd sont bien alignées sur la grille.

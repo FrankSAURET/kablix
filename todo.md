@@ -10,6 +10,14 @@
 8. ✅ À chaque **chargement d'un fichier Python** : effacer la console, éteindre la simulation, réinitialiser les composants. À l'**arrêt de la simulation** : effacer la console, réinitialiser les composants. → v2026.6.80
 9. ⬜ Mettre à jour le **câblage interne du potentiomètre** → [`svg/pot-schema.edit.svg`](svg/pot-schema.edit.svg).
 
+# v2026.7.13
+
+1. ✅ **Routage revu** (« Routage désiré vs produit.png ») : plus de boucle en C autour de la LED ni de ballons le long du bord de carte — les fils collent au tracé désiré. Couleurs des fils inchangées (seuls les `points` sont réécrits).
+2. ✅ **Cause 1 — boîte d'obstacle trop haute** : `partObstacles()` ([`editor.mts`](src/webview/diagram/editor.mts)) mesurait `.part__body` (dessin + interligne du span d'étiquette : LED = 30×54 au lieu de 30×50) → les broches du bas n'étaient plus « au plus près du bord bas » et sortaient de côté. La boîte de routage est maintenant celle du **dessin** (svg de l'élément, déjà à l'échelle `applyPinScale`), repli sur la boîte DOM.
+3. ✅ **Cause 2 — sortie de broche unique** : le dernier plot d'une rangée du Pico (GP15/GP16) est plus proche du bord **droit** (5,4 px) que du bord haut/bas (6,4 px) → le stub sortait latéralement à travers la zone des pastilles (ballons orange/jaune). `pinStub()` devient `pinStubs()` : jusqu'à **2 sorties candidates** (bords quasi équidistants, ±5 px) ; `autoRoute()` essaie chaque combinaison (≤ 4 A\* par fil) et garde le tracé complet le moins coûteux (nouveau score = composants ×1000 + chevauchements ×100 + proximité + longueur + coudes, helper `polyLenBends`).
+4. ✅ **Anti aller-retour** : le score pénalise aussi le chevauchement colinéaire du fil **avec lui-même** (la patte d'arrivée qui rebroussait chemin le long du tracé, ex. jaune du bouton 6 mm).
+5. ✅ Validation : repro headless du schéma de la capture (vrai éditeur + vraie CSS dans Chrome, positions mesurées au px sur l'image) — les 6 fils reproduisaient exactement les défauts, puis collent au « désiré » après correctif, stable avec l'ordre des fils inversé ; `typecheck`/`verify:all` OK.
+
 # v2026.7.12
 
 1. ✅ **LED RGB — fils colorés par défaut** : un fil tiré depuis la borne R/G/B d'une LED RGB prend d'office la couleur de son canal (R → rouge, V → vert, B → bleu) — règle ajoutée dans `autoColor()` ([`editor.mts`](src/webview/diagram/editor.mts)), prioritaire sur l'héritage de couleur du nœud, après les règles GND/VCC. La couleur reste modifiable dans l'inspecteur.
