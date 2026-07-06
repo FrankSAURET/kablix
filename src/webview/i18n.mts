@@ -182,6 +182,8 @@ const FR: Record<string, string> = {
   'Common pin': 'Broche commune',
   'New project': 'Nouveau projet',
   'Ctrl+click to lock the position': 'Ctrl + clic pour verrouiller la position',
+  '{0} wire(s) selected': '{0} câble(s) sélectionné(s)',
+  'Delete these wires': 'Supprimer ces câbles',
   'Common cathode (K)': 'Cathode commune (K)',
   'Common anode (A)': 'Anode commune (A)',
   'Digits': 'Chiffres',

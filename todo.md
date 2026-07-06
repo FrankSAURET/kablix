@@ -1,6 +1,12 @@
 # À faire
 
-1. ⬜ **Sélection multiple** : déplacer plusieurs points d'un câble (souris ou Ctrl+clic) ; sélectionner plusieurs câbles pour les supprimer.
+(vide — tous les items du lot de juillet sont traités)
+
+# v2026.7.25
+
+1. ✅ **Sélection multiple de coudes** ([`editor.mts`](src/webview/diagram/editor.mts)) : **Ctrl+clic** sur les poignées d'un fil sélectionné les ajoute/retire du lot ; **marquee** (rectangle sur le fond, fil sélectionné, aucun composant attrapé) sélectionne les coudes contenus. Saisir un coude du lot **déplace tout le lot** du même vecteur ; **Suppr** retire tous les coudes du lot (indices décroissants). Alignement Ctrl (réticule H/V) conservé pour un coude seul.
+2. ✅ **Sélection multiple de câbles** : **Ctrl+clic** sur les fils construit le lot (`.wire--selected`, la sélection simple courante le rejoint) ; **Suppr** ou le bouton « Supprimer ces câbles » de l'inspecteur (« n câble(s) sélectionné(s) ») supprime le lot. Toute sélection simple dissout le lot. i18n fr ajouté.
+3. ✅ Validation : `typecheck`/`verify:all` OK ; sonde headless (vrai éditeur) — Ctrl+clic 2 poignées actives, drag groupé (+27,+17 appliqué aux 2 coudes, 3ᵉ intact), Suppr du lot (reste le coude non sélectionné), marquee → 1 poignée attrapée avec fil toujours sélectionné, Ctrl+clic 2 fils (2 `.wire--selected`, compte dans l'inspecteur) puis Suppr → 0 fil restant.
 
 # v2026.7.24
 

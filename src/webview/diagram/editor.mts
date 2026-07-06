@@ -172,6 +172,10 @@ export class Editor {
   private selection: Selection = null;
   /** Composants sélectionnés (sélection multiple : marquee, Ctrl+clic). */
   private selectedParts = new Set<string>();
+  /** Câbles sélectionnés (Ctrl+clic sur les fils) — suppression groupée. */
+  private selectedWires = new Set<string>();
+  /** Coudes sélectionnés du fil courant (Ctrl+clic / marquee) — déplacement groupé. */
+  private selectedHandles = new Set<number>();
   private colorIndex = 0;
   private customData = new Map<string, CustomPartData>();
   private creator = new PartCreator((data) => this.saveCustomPart(data));
@@ -1956,10 +1960,15 @@ export class Editor {
         const ids = [...this.selectedParts];
         for (const id of ids) this.removePart(id);
         this.select(null);
+      } else if (this.selectedWires.size > 0) {
+        // Lot de câbles (Ctrl+clic) : suppression groupée.
+        for (const id of [...this.selectedWires]) this.removeWire(id);
+        this.selectedWires.clear();
+        this.renderInspector();
       } else if (this.selection?.kind === 'wire') {
-        // Un coude sélectionné : on supprime ce coude ; sinon le fil entier.
-        if (this.activeHandle?.wireId === this.selection.id) {
-          this.removeWirePoint(this.selection.id, this.activeHandle.index);
+        // Coude(s) sélectionné(s) : on supprime le lot ; sinon le fil entier.
+        if (this.selectedHandles.size > 0 && this.activeHandle?.wireId === this.selection.id) {
+          this.removeWirePoints(this.selection.id, [...this.selectedHandles]);
         } else {
           this.removeWire(this.selection.id);
         }
@@ -1979,6 +1988,10 @@ export class Editor {
     path.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
       if (this.pending) return;
+      if ((e.ctrlKey || e.metaKey) && !this.locked) {
+        this.toggleWireInSelection(wire.id); // Ctrl+clic : lot de câbles
+        return;
+      }
       this.select({ kind: 'wire', id: wire.id });
     });
     // Double-clic : insère un coude à cet endroit (retouche du tracé).
@@ -2021,20 +2034,47 @@ export class Editor {
     for (const h of this.handles) h.remove();
     this.handles = [];
     this.activeHandle = null;
+    this.selectedHandles.clear();
     this.clearGuides();
   }
 
   /** Marque un coude comme sélectionné (supprimable au clavier), met en évidence. */
   private setActiveHandle(wireId: string, index: number): void {
     this.activeHandle = { wireId, index };
-    this.handles.forEach((h, i) => h.classList.toggle('wire-handle--active', i === index));
+    this.selectedHandles = new Set([index]);
+    this.refreshHandleClasses();
+  }
+
+  /** Ctrl+clic sur un coude : l'ajoute/retire du lot (déplacement/suppression groupés). */
+  private toggleHandleInSelection(wireId: string, index: number): void {
+    this.activeHandle = { wireId, index };
+    if (this.selectedHandles.has(index)) this.selectedHandles.delete(index);
+    else this.selectedHandles.add(index);
+    this.refreshHandleClasses();
+  }
+
+  /** Met la classe « active » sur toutes les poignées de coude du lot. */
+  private refreshHandleClasses(): void {
+    this.handles.forEach((h, i) =>
+      h.classList.toggle(
+        'wire-handle--active',
+        h.classList.contains('wire-handle') && this.selectedHandles.has(i)
+      )
+    );
   }
 
   /** Supprime un coude (point intermédiaire) d'un fil. */
   private removeWirePoint(wireId: string, index: number): void {
+    this.removeWirePoints(wireId, [index]);
+  }
+
+  /** Supprime un lot de coudes (indices décroissants pour préserver les index). */
+  private removeWirePoints(wireId: string, indices: number[]): void {
     const wire = this.diagram.wires.find((w) => w.id === wireId);
-    if (!wire?.points || index < 0 || index >= wire.points.length) return;
-    wire.points.splice(index, 1);
+    if (!wire?.points) return;
+    for (const i of [...indices].sort((u, v) => v - u)) {
+      if (i >= 0 && i < wire.points.length) wire.points.splice(i, 1);
+    }
     if (wire.points.length === 0) wire.points = undefined;
     this.positionWire(wire);
     this.buildHandles(wireId); // réindexe les poignées
@@ -2060,7 +2100,15 @@ export class Editor {
       handle.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
         e.preventDefault();
-        this.setActiveHandle(wire.id, index);
+        if (e.ctrlKey || e.metaKey) {
+          // Ctrl+clic : constitution du lot de coudes, pas de glisse.
+          this.toggleHandleInSelection(wire.id, index);
+          return;
+        }
+        // Saisir un coude déjà dans le lot déplace tout le lot ; sinon la
+        // sélection retombe sur ce seul coude.
+        if (this.selectedHandles.has(index)) this.activeHandle = { wireId: wire.id, index };
+        else this.setActiveHandle(wire.id, index);
         this.dragHandle(wire, index, handle);
       });
       this.world.appendChild(handle);
@@ -2386,20 +2434,37 @@ export class Editor {
     if (changed) this.notify();
   }
 
-  private dragHandle(wire: Wire, index: number, handle: HTMLDivElement): void {
+  private dragHandle(wire: Wire, index: number, _handle: HTMLDivElement): void {
+    // Lot de coudes à déplacer ensemble : la sélection multiple si le coude
+    // saisi en fait partie, sinon le coude seul. Positions d'origine mémorisées
+    // pour appliquer le même vecteur à tout le lot.
+    const group =
+      this.selectedHandles.has(index) && this.selectedHandles.size > 1
+        ? [...this.selectedHandles].filter((i) => wire.points && i >= 0 && i < wire.points.length)
+        : [index];
+    const orig = new Map(group.map((i) => [i, { x: wire.points![i].x, y: wire.points![i].y }]));
     const move = (ev: PointerEvent) => {
       if (!wire.points) return;
       let pos = this.canvasPoint(ev.clientX, ev.clientY);
-      if (ev.ctrlKey) {
+      if (ev.ctrlKey && group.length === 1) {
         // Réticule + forçage : aligne le coude sur ses voisins (segments H/V).
         pos = this.alignToNeighbours(wire, index, pos);
         this.showGuides(pos);
       } else {
         this.clearGuides();
       }
-      wire.points[index] = pos;
-      handle.style.left = `${pos.x}px`;
-      handle.style.top = `${pos.y}px`;
+      const o0 = orig.get(index)!;
+      const dx = pos.x - o0.x;
+      const dy = pos.y - o0.y;
+      for (const i of group) {
+        const o = orig.get(i)!;
+        wire.points[i] = { x: o.x + dx, y: o.y + dy };
+        const h = this.handles[i];
+        if (h) {
+          h.style.left = `${o.x + dx}px`;
+          h.style.top = `${o.y + dy}px`;
+        }
+      }
       this.positionWire(wire);
     };
     const end = () => {
@@ -2540,6 +2605,11 @@ export class Editor {
     if (this.selection?.kind === 'wire') {
       this.wirePaths.get(this.selection.id)?.classList.remove('wire--selected');
     }
+    // Lot de câbles (Ctrl+clic) : dissous par toute nouvelle sélection.
+    if (this.selectedWires.size > 0) {
+      for (const wid of this.selectedWires) this.wirePaths.get(wid)?.classList.remove('wire--selected');
+      this.selectedWires.clear();
+    }
     for (const id of this.selectedParts) {
       const c = this.rendered.get(id)?.container;
       c?.querySelector('.part__internal')?.remove();
@@ -2587,6 +2657,22 @@ export class Editor {
     this.renderInspector();
   }
 
+  /** Ctrl+clic sur un fil : ajoute/retire le câble du lot (suppression groupée). */
+  private toggleWireInSelection(id: string): void {
+    // Une sélection simple de fil rejoint le lot (Ctrl+clic construit dessus).
+    if (this.selection?.kind === 'wire') {
+      this.selectedWires.add(this.selection.id);
+      this.selection = null;
+      this.clearHandles();
+    }
+    if (this.selectedWires.has(id)) this.selectedWires.delete(id);
+    else this.selectedWires.add(id);
+    for (const [wid, p] of this.wirePaths) {
+      p.classList.toggle('wire--selected', this.selectedWires.has(wid));
+    }
+    this.renderInspector();
+  }
+
   /** Ctrl+clic : ajoute/retire un composant de la sélection multiple. */
   private toggleInSelection(id: string): void {
     if (this.selection?.kind === 'wire') {
@@ -2612,7 +2698,11 @@ export class Editor {
   private startMarquee(e: PointerEvent): void {
     const start = this.canvasPoint(e.clientX, e.clientY);
     const baseSet = e.ctrlKey ? new Set(this.selectedParts) : new Set<string>();
+    // Un fil est sélectionné : le rectangle sert d'abord à attraper SES COUDES
+    // (déplacement groupé) — on mémorise le fil car la sélection peut bouger.
+    const wireId = this.selection?.kind === 'wire' ? this.selection.id : null;
     let moved = false;
+    let last = { x: 0, y: 0, w: 0, h: 0 };
     const rectEl = document.createElement('div');
     rectEl.className = 'marquee';
     this.world.appendChild(rectEl);
@@ -2625,6 +2715,7 @@ export class Editor {
       const y = Math.min(start.y, cur.y);
       const w = Math.abs(cur.x - start.x);
       const h = Math.abs(cur.y - start.y);
+      last = { x, y, w, h };
       rectEl.style.left = `${x}px`;
       rectEl.style.top = `${y}px`;
       rectEl.style.width = `${w}px`;
@@ -2639,6 +2730,23 @@ export class Editor {
       if (!moved) {
         this.select(null); // simple clic sur le fond = désélection
         return;
+      }
+      // Fil sélectionné et aucun composant attrapé : le rectangle sélectionne
+      // les coudes du fil qu'il contient (déplacement/suppression groupés).
+      if (wireId && this.selectedParts.size === 0) {
+        const wire = this.diagram.wires.find((w) => w.id === wireId);
+        const caught = new Set<number>();
+        (wire?.points ?? []).forEach((pt, i) => {
+          if (pt.x >= last.x && pt.x <= last.x + last.w && pt.y >= last.y && pt.y <= last.y + last.h) {
+            caught.add(i);
+          }
+        });
+        if (caught.size > 0) {
+          this.selectedHandles = caught;
+          this.activeHandle = { wireId, index: [...caught][0] };
+          this.refreshHandleClasses();
+          return;
+        }
       }
       const members = [...this.selectedParts];
       this.selection = members.length === 1 ? { kind: 'part', id: members[0] } : null;
@@ -2920,6 +3028,20 @@ export class Editor {
     // Sélection multiple : résumé + actions de groupe (rotation/miroir/suppression).
     if (this.selectedParts.size > 1) {
       this.renderMultiInspector();
+      return;
+    }
+
+    // Lot de câbles (Ctrl+clic sur les fils) : résumé + suppression groupée.
+    if (this.selectedWires.size > 0) {
+      const sub = document.createElement('p');
+      sub.className = 'inspector__hint';
+      sub.textContent = t('{0} wire(s) selected', this.selectedWires.size);
+      this.inspector.appendChild(sub);
+      this.appendDeleteButton(t('Delete these wires'), () => {
+        for (const id of [...this.selectedWires]) this.removeWire(id);
+        this.selectedWires.clear();
+        this.renderInspector();
+      });
       return;
     }
 
