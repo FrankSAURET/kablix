@@ -1,5 +1,28 @@
+Pour moi :
+- Faire schéma interne pour afficheur 2 et 4
+
+------------------------------------------------------------------------------------------------------
+- La pastille jaune qui apparait pour connecter un point doit apparaitre dés qu'on est dans so périmetre actuellement elle disparait si on est en son centre.
+- Quand on sélectionne un fil, un point de 2 px de diametre doit apparaitre à ses 2 extrémitées afin de signaler qu'on peut débrancher
+- Une sélection qui n'englobe que des cables doit faire apparaitre les propriétés des cables et donc permettre de les changer de couleur ou de les supprimer globalement
+- 
+
+----------------------------------------------------------------------------------------------------
+-Retoucher cablage interne des clavier
+- Affiner les traits de l'afficheur 7 segments
+- Pas de bordure de bouton pour  les boutons nouveau, ouvrir, sauvegarder, export svg
+- Le joystick marche parfaitement mais seul le cercle centrale bouge il faudrait que ce soit tout le joystick et donc aussi le cercle dégradé de gris extérieur
+- Quand je lance un prg sur pico pi il n'affiche plus la version de python  dans la console et donc est-ce toujours une REPL ? Je crois que je n'ai plus non plus d'erreur qui s'affiche.
+- Le CTRL + A sélectionne tout mais aussi tout les éléments de la wabview. Il faudrait ne sélectionner que les éléments du canva
+- Lors d'une sélectionde plusieurs coudes d'un cable il faut que le déplacement soit identique à un seul coude (horizontale ou vertical) si CTRL est maintenu 
+- Pas d'icone pour le bouton  Noms de la barre d'outil juste Nom traduisible.
+- Pas de textre ni de bordure pour le bouton aide. Juste l'icone Aide qui se trouve dans media\icones.svg
+- Le nom du fichier de la barre d'outil doit s'afficher avec l'extension .Projix
+- Quand on clic sur nouveau ça doit aussi effacer le nom du projet et le nom du programme et les déréferencer
+- La barre de led ne fonctionne pas. Pense à autoriser le changement de couleur.
 
 
+----------------------------------------------------------------------------------------------
 - Modifier la LED RGB pour que la patte commune affiche K si cathode commune et A si annode commune à la place de com.
 
 - La simulation (du moins celle pico) est extremement lente

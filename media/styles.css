@@ -19,6 +19,19 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /* Ctrl+A du schéma (selectAllParts) ne doit sélectionner QUE les composants
+     du canvas : sans ceci, le navigateur sélectionnait aussi tout le texte de
+     la webview (toolbar, inspecteur, aide…) en plus. Réactivé pour la console
+     série (.serial__out) et les champs de saisie (copie de texte utile là). */
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.serial__out,
+input,
+textarea {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .toolbar {
@@ -58,14 +71,16 @@ body {
   cursor: pointer;
 }
 
-/* Boutons à icône de la barre d'outils (nouveau/ouvrir/enregistrer/svg) :
+/* Boutons à icône de la barre d'outils (nouveau/ouvrir/enregistrer/svg/aide) :
    image la plus grande possible dans le bouton (même hauteur totale que les
-   boutons texte voisins), 1 px de padding. */
+   boutons texte voisins), 1 px de padding, pas de bordure ni de fond. */
 .toolbar button.toolbar__icon-btn {
   padding: 1px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  background: transparent;
+  border: none;
 }
 
 .toolbar__icon-btn img {
@@ -873,6 +888,36 @@ body {
   padding: 0.25rem 0.4rem;
 }
 
+/* Valeur numérique + boutons +/− (- [__] +) : édition rapide en simulation
+   (composants dynamiques : sources analogiques/digitales, potentiomètres…). */
+.inspector__stepper {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.inspector__stepper-input {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
+.inspector__stepper-btn {
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1;
+  width: 1.8rem;
+  color: var(--vscode-input-foreground, #fff);
+  background: var(--vscode-input-background, #333);
+  border: 1px solid var(--vscode-input-border, #555);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.inspector__stepper-btn:hover {
+  background: var(--vscode-list-hoverBackground, #444);
+}
+
 .inspector__swatches {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -1093,6 +1138,16 @@ body {
   background: transparent;
   border: 1px solid transparent;
   cursor: crosshair;
+}
+
+/* Un fil câblé part exactement du centre de sa pastille (cf. hotspotCenter) ;
+   .wires (z=5) passe toujours au-dessus des composants (z=3, cf. plus haut) et
+   son tracé (pointer-events: stroke) volait donc le survol pile au centre de
+   la broche. Le temps du survol d'une pastille, faire passer tout le composant
+   au-dessus des fils pour que le halo jaune reste actif partout dans son rayon,
+   centre compris. */
+.part:has(.pin:hover) {
+  z-index: 9;
 }
 
 .pin:hover {

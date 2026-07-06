@@ -345,9 +345,14 @@ export class SimulatorPanel {
     return this.projectBaseName ?? (this.codeFileUri ? baseNameNoExt(this.codeFileUri.fsPath) : undefined);
   }
 
-  /** Envoie à la webview le nom du projet affiché à côté du bouton d'aide. */
+  /** Envoie à la webview le nom du projet affiché à côté du bouton d'aide.
+   *  Extension affichée avec un P majuscule (« .Projix ») — le fichier sur
+   *  disque reste en minuscule (`.projix`), seul l'affichage change. */
   private postProjectName(): void {
-    this.post({ type: 'projectName', name: this.projectDisplayName() ?? null });
+    const name = this.projectBaseName
+      ? `${this.projectBaseName}.Projix`
+      : this.projectDisplayName();
+    this.post({ type: 'projectName', name: name ?? null });
   }
 
   /** Référence du fichier de code pour le .projix : chemin relatif au workspace, sinon nom. */
@@ -563,9 +568,11 @@ export class SimulatorPanel {
         break;
       case 'newProject':
         // Nouveau projet : la webview a déjà vidé le schéma ; on oublie le nom
-        // du .projix courant pour que le prochain enregistrement reparte à neuf.
+        // du .projix courant ainsi que le fichier de code associé (chip du
+        // canvas) pour que le prochain enregistrement/lancement reparte à neuf.
         this.projectBaseName = undefined;
-        this.postProjectName();
+        this.currentSourceUri = undefined;
+        this.setCodeFile(undefined);
         break;
       case 'help':
         void vscode.commands.executeCommand('kablix.openHelp');
@@ -893,6 +900,9 @@ export class SimulatorPanel {
     const svgIconUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this.extensionUri, 'media', 'exportSvg.svg')
     );
+    const aideIconUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, 'media', 'aide.svg')
+    );
     const nonce = getNonce();
     const version =
       vscode.extensions.getExtension('franksauret.kablix')?.packageJSON?.version ?? '';
@@ -941,8 +951,8 @@ export class SimulatorPanel {
     <button id="open-project" class="toolbar__icon-btn" title="${l10n.t('Open a project')}"><img src="${openIconUri}" alt="${l10n.t('Open a project')}" /></button>
     <button id="save-project" class="toolbar__icon-btn" title="${l10n.t('Save the project')}"><img src="${saveIconUri}" alt="${l10n.t('Save the project')}" /></button>
     <button id="export-svg" class="toolbar__icon-btn" title="${l10n.t('Export the diagram as SVG')}"><img src="${svgIconUri}" alt="${l10n.t('Export the diagram as SVG')}" /></button>
-    <button id="toggle-labels" title="${l10n.t('Show/hide part names')}">🏷 ${l10n.t('Names')}</button>
-    <button id="open-help" title="${l10n.t('Open help')}">❔ ${l10n.t('Help')}</button>
+    <button id="toggle-labels" title="${l10n.t('Show/hide part names')}">${l10n.t('Names')}</button>
+    <button id="open-help" class="toolbar__icon-btn" title="${l10n.t('Open help')}"><img src="${aideIconUri}" alt="${l10n.t('Open help')}" /></button>
     <span id="project-name" class="project-name" title="${l10n.t('Current project')}"></span>
     <span id="status" class="status">Prêt</span>
   </header>

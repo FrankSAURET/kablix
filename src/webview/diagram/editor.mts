@@ -3091,7 +3091,7 @@ export class Editor {
 
     const label = document.createElement('label');
     label.className = 'inspector__label';
-    label.textContent = t('Color (Dupont ribbon)');
+    label.textContent = t('Color (Dupont cables)');
     this.inspector.appendChild(label);
 
     const swatches = document.createElement('div');
@@ -3254,15 +3254,41 @@ export class Editor {
       });
       this.inspector.appendChild(input);
     } else {
+      const step = prop.step ?? 1;
+      const clamp = (v: number): number => {
+        let r = v;
+        if (prop.min !== undefined) r = Math.max(prop.min, r);
+        if (prop.max !== undefined) r = Math.min(prop.max, r);
+        return r;
+      };
       const input = document.createElement('input');
-      input.className = 'inspector__control';
+      input.className = 'inspector__control inspector__stepper-input';
       input.type = 'number';
       if (prop.min !== undefined) input.min = String(prop.min);
       if (prop.max !== undefined) input.max = String(prop.max);
-      if (prop.step !== undefined) input.step = String(prop.step);
+      input.step = String(step);
       input.value = current;
-      input.addEventListener('change', () => this.updatePartAttr(partId, prop.attr, input.value));
-      this.inspector.appendChild(input);
+      const commit = (v: number): void => {
+        const value = String(clamp(v));
+        input.value = value;
+        this.updatePartAttr(partId, prop.attr, value);
+      };
+      input.addEventListener('change', () => commit(Number(input.value)));
+
+      const row = document.createElement('div');
+      row.className = 'inspector__stepper';
+      const dec = document.createElement('button');
+      dec.className = 'inspector__stepper-btn';
+      dec.type = 'button';
+      dec.textContent = '−';
+      dec.addEventListener('click', () => commit(Number(input.value) - step));
+      const inc = document.createElement('button');
+      inc.className = 'inspector__stepper-btn';
+      inc.type = 'button';
+      inc.textContent = '+';
+      inc.addEventListener('click', () => commit(Number(input.value) + step));
+      row.append(dec, input, inc);
+      this.inspector.appendChild(row);
     }
   }
 

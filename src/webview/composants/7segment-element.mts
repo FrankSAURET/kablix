@@ -134,7 +134,11 @@ export class SevenSegmentElement extends LitElement {
     const setSeg = (el: SVGElement, lit: boolean) => {
       const e = el as SVGElement & { dataset: DOMStringMap };
       if (e.dataset.off === undefined) e.dataset.off = el.style.fill || el.getAttribute('fill') || '#444';
-      el.style.fill = lit ? color : e.dataset.off;
+      const fill = lit ? color : e.dataset.off;
+      el.style.fill = fill;
+      // Un stroke de même couleur comble le filet noir d'anti-aliasing
+      // visible à la jointure entre deux polygones de segments adjacents.
+      el.style.stroke = fill;
     };
     for (let d = 0; d < digits; d++) {
       for (let s = 0; s < 7; s++) {

@@ -1,6 +1,20 @@
 # À faire
+1. ⏳ La barre de LED ne fonctionne pas (autoriser aussi le changement de couleur) — logique netlist, rendu Lit et intégration avec les 2 moteurs (AVR + Pico) vérifiés à 100 % correct par tests bout-en-bout ; câblage confirmé identique au test qui passe. Aucune piste de bug de code restante. À retester en conditions réelles par Frank.
 
-(vide — tous les items du lot de juillet sont traités)
+
+# v2026.7.26
+
+1. ✅ **Pastille jaune de connexion** : apparaissait puis disparaissait pile au centre d'une broche câblée — le tracé du fil (`hotspotCenter`) volait le survol exactement là où `.wires` (z=5) passe au-dessus des composants (z=3). `.part:has(.pin:hover) { z-index: 9 }` ([`styles.css`](media/styles.css)) hisse tout le composant au-dessus des fils le temps du survol.
+2. ✅ **Traductions manquantes** : 3 clés ajoutées — webview [`i18n.mts`](src/webview/i18n.mts) (« Pause - resume the simulation ») ; extension host [`bundle.l10n.fr.json`](l10n/bundle.l10n.fr.json) (« No help available for this part yet. », « New project (clear the diagram) »).
+3. ✅ **Édition des propriétés en simulation** : zone de saisie + boutons +/− (`.inspector__stepper`, [`styles.css`](media/styles.css)/[`editor.mts`](src/webview/diagram/editor.mts)) de part et d'autre du champ numérique (potentiomètres, LED brightness, ultrasonic, DHT22…), clampés min/max — l'inspecteur n'était déjà pas verrouillé en simulation, l'édition passe directement au composant qui tourne.
+4. ✅ **Nappe du clavier 3 colonnes invisible** : les 7 `path` de la nappe étaient dessinés **avant** le boîtier dans [`keypad-3col.svg`](src/webview/composants/externe/keypad-3col.svg) → totalement recouverts. Déplacés après le groupe du boîtier (même ordre que `keypad-4col.svg`, où la nappe était déjà correcte) ; rendu headless confirmé (7/8 fils visibles sous les 2 claviers).
+5. ✅ **Filets noirs aux jonctions de segments (afficheur 7 segments)** : `setSeg()` ([`7segment-element.mts`](src/webview/composants/7segment-element.mts)) ne pilotait que `fill` — l'anti-aliasing laissait un liseré fin entre deux polygones adjacents (ex. segments A/B/F du dessin retouché, en biseau à 45°). `stroke` synchronisé sur la même couleur (le `stroke-width` du dessin existait déjà, juste sans couleur) : jonctions nettes confirmées en rendu headless (segments fusionnés, plus de filet).
+6. ✅ **Extension affichée `.Projix`** : `postProjectName()` ([`panel.ts`](src/panel.ts)) affiche désormais `${projectBaseName}.Projix` (P majuscule) dans la barre d'outils — cosmétique uniquement, l'extension réelle de fichier sur disque (sauvegarde/ouverture/filtres) reste `.projix` partout ailleurs.
+7. ✅ **Clic « nouveau » déréférence projet/programme** — déjà en place (`case 'newProject'`, [`panel.ts`](src/panel.ts)) : vide `projectBaseName`/`currentSourceUri` et `setCodeFile(undefined)`, qui repousse aussitôt les noms vidés à la webview.
+8. ℹ️ Items déjà résolus dans des lots antérieurs, confirmés par relecture du code : point de débranchement aux extrémités d'un fil sélectionné (v2026.6.29), propriétés de câbles sur sélection multiple et déplacement Ctrl de plusieurs coudes (v2026.7.25), boutons toolbar sans bordure et bouton aide sans texte/bordure (v2026.7.18), bouton « Noms » texte seul.
+9. ℹ️ Pico : absence du banner MicroPython/erreurs pendant l'exécution d'un script — comportement normal du protocole raw REPL (banner et erreurs émis après la fin d'exécution, au retour en REPL interactif). Pas un bug.
+10. ✅ **Ctrl+A** ne sélectionne plus le texte de la webview hors canvas — `user-select: none` sur `body` ([`styles.css`](media/styles.css)), réactivé pour `.serial__out`/`input`/`textarea` (console série, champs de saisie).
+11. ✅ Validation : `typecheck`/`verify:all` OK.
 
 # v2026.7.25
 

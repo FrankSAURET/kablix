@@ -62,6 +62,8 @@ export class AnalogJoystickElement extends LitElement {
 
   private knobEl: SVGElement | null = null;
   private knobBase = '';
+  private baseEl: SVGElement | null = null;
+  private baseBase = '';
   private selEl: SVGElement | null = null;
   private selOff = '#aaa';
   private dragCenter: { x: number; y: number } | null = null;
@@ -93,6 +95,10 @@ export class AnalogJoystickElement extends LitElement {
       this.knobEl.setAttribute('tabindex', '0');
       this.knobEl.addEventListener('pointerdown', this.onKnobDown as EventListener);
     }
+    // Cercle dégradé gris extérieur (base du manche) : suit le knob en accompagnement
+    // léger (effet de profondeur, amplitude réduite par rapport au knob).
+    this.baseEl = svgEl.querySelector('#ellipse39');
+    this.baseBase = this.baseEl?.getAttribute('transform') ?? '';
     this.selEl = svgEl.querySelector('#circle46');
     if (this.selEl) {
       this.selOff = this.selEl.style.fill || this.selEl.getAttribute('fill') || '#aaa';
@@ -110,6 +116,13 @@ export class AnalogJoystickElement extends LitElement {
     const dx = -2.5 * this.xValue * s;
     const dy = -2.5 * this.yValue * s;
     this.knobEl.setAttribute('transform', `translate(${dx} ${dy}) ${this.knobBase}`);
+    if (this.baseEl) {
+      // Amplitude réduite (1/4 du débattement du knob) : la base suit sans
+      // masquer le déplacement du knob par-dessus elle.
+      const bx = dx / 4;
+      const by = dy / 4;
+      this.baseEl.setAttribute('transform', `translate(${bx} ${by}) ${this.baseBase}`);
+    }
   }
 
   /** Point (unités du viewBox racine) sous le curseur, via la CTM du <svg>. */

@@ -17,6 +17,7 @@ const FR: Record<string, string> = {
     'Projet Wokwi chargé ({0} composant(s) non pris en charge ignoré(s))',
   'Paused': 'En pause',
   'Pause': 'Pause',
+  'Pause - resume the simulation': 'Mettre en pause / reprendre la simulation',
   'Resume': 'Reprendre',
   'Reset': 'Réinitialisé',
   'Line {0}': 'Ligne {0}',
@@ -98,7 +99,7 @@ const FR: Record<string, string> = {
   'Click a part or a wire to edit it. Wiring: click a pin, add corners by clicking the background, finish on a pin (Esc: cancel).':
     'Cliquez un composant ou un fil pour le modifier. Câblage : cliquez une broche, posez des coudes en cliquant le fond, terminez sur une broche (Échap : annuler).',
   'Wire {0} → {1}': 'Fil {0} → {1}',
-  'Color (Dupont ribbon)': 'Couleur (nappe Dupont)',
+  'Color (Dupont cables)': 'Couleur (câbles Dupont)',
   'Delete the wire': 'Supprimer le fil',
   'Delete the part': 'Supprimer le composant',
   'No editable property for this part.': 'Aucune propriété modifiable pour ce composant.',
