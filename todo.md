@@ -5,8 +5,12 @@
 3. ⬜ **Routage** : éviter les croisements si possible.
 4. ⬜ **Routage** : ne s'écarter que d'un pas des composants pour les départs de fil.
 5. ⬜ **Sélection multiple** : déplacer plusieurs points d'un câble (souris ou Ctrl+clic) ; sélectionner plusieurs câbles pour les supprimer.
-6. ⬜ **Ctrl + A** sur le canevas : tout sélectionner (composants + câbles).
-7. ⬜ **Routage** : le pointillé vert doit aller du premier point cliqué au curseur de la souris.
+
+# v2026.7.22
+
+1. ✅ **Ctrl + A** : sélectionne tout le schéma (`selectAllParts()`, [`editor.mts`](src/webview/diagram/editor.mts)) — tous les composants passent en sélection multiple ; les câbles suivent (le déplacement de groupe décale leurs coudes, la suppression de groupe retire leurs fils). Inactif pendant la simulation, ignoré dans un champ de saisie.
+2. ✅ **Pointillé vert de routage** : l'aperçu rejoint désormais le **curseur réel** — l'aimantation H/V (`snapPoint`, ±10° soit des dizaines de px sur un long segment presque axial) collait le bout du tracé sur l'axe, loin de la souris. Elle ne s'applique plus qu'à la **pose** du coude (`addPendingPoint`), le fil final reste orthogonal.
+3. ✅ Validation : `typecheck`/`verify:all` OK ; sonde headless (vrai éditeur) — curseur à (+90, +3) presque horizontal : le pointillé finit pile au curseur (`L 210 143`, avant : collé à l'axe `140`), trajet pin→coude→curseur intact après pose d'un coude ; Ctrl+A → 2/2 composants surlignés.
 
 # v2026.7.21
 

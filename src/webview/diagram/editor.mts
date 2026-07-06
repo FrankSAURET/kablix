@@ -1894,9 +1894,11 @@ export class Editor {
 
   private onPointerMove = (e: PointerEvent): void => {
     if (!this.pending || !this.tempPath) return;
-    const prev = this.lastPendingPoint();
-    if (!prev) return;
-    this.updateTempPath(snapPoint(prev, this.canvasPoint(e.clientX, e.clientY)));
+    // Aperçu fidèle : le pointillé rejoint le curseur RÉEL. L'aimantation H/V
+    // (snapPoint) ne s'applique qu'à la pose du point (addPendingPoint) —
+    // appliquée ici, elle écartait le bout du tracé de la souris (jusqu'à
+    // ±10° soit des dizaines de px sur un long segment presque axial).
+    this.updateTempPath(this.canvasPoint(e.clientX, e.clientY));
   };
 
   private updateTempPath(cursor: XY): void {
@@ -1937,6 +1939,11 @@ export class Editor {
       if (k === 'd' && !this.locked) {
         e.preventDefault();
         this.duplicateSelection();
+        return;
+      }
+      if (k === 'a' && !this.locked) {
+        e.preventDefault();
+        this.selectAllParts();
         return;
       }
     }
@@ -2547,6 +2554,24 @@ export class Editor {
     for (const [id, r] of this.rendered) {
       r.container.classList.toggle('part--selected', this.selectedParts.has(id));
     }
+  }
+
+  /**
+   * Ctrl+A : sélectionne tout le schéma — tous les composants passent en
+   * sélection multiple ; les fils suivent (déplacement de groupe décale leurs
+   * coudes, suppression de groupe retire leurs fils).
+   */
+  private selectAllParts(): void {
+    this.cancelPending();
+    if (this.selection?.kind === 'wire') {
+      this.wirePaths.get(this.selection.id)?.classList.remove('wire--selected');
+      this.clearHandles();
+    }
+    this.selectedParts = new Set(this.diagram.parts.map((p) => p.id));
+    const members = [...this.selectedParts];
+    this.selection = members.length === 1 ? { kind: 'part', id: members[0] } : null;
+    this.setPartHighlight();
+    this.renderInspector();
   }
 
   /** Ctrl+clic : ajoute/retire un composant de la sélection multiple. */
