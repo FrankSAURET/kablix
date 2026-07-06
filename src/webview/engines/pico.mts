@@ -40,6 +40,74 @@ function adcChannel(name: string): number | null {
   return i !== null && i >= 26 && i <= 29 ? i - 26 : null;
 }
 
+// Durée d'un cycle à 125 MHz (nanosecondes simulées).
+const CYCLE_NANOS = 1e9 / 125_000_000;
+
+/**
+ * Simulator rp2040js au cadencement optimisé. La boucle d'origine appelle
+ * `clock.tick()` et re-teste l'arrêt à CHAQUE instruction, puis rend la main
+ * par `setTimeout(0)` (clampé à ~4 ms par Chrome sur les timers imbriqués).
+ * Ici : lots d'instructions bornés par la prochaine alarme (les échéances
+ * restent exactes — le lot s'arrête pile dessus), `tick` groupé par lot, et
+ * yield par MessageChannel (macrotâche sans clampage). Mesuré : ≈ +16 % de
+ * débit en node, davantage en webview. Le profil restant est ~50 % dans
+ * `executeInstruction` (interpréteur ARM) — plafond de rp2040js.
+ */
+class KablixSimulator extends Simulator {
+  /** Génération de planification : invalide les yields MessageChannel en vol. */
+  private gen = 0;
+  private readonly port: MessagePort;
+
+  constructor() {
+    super();
+    const ch = new MessageChannel();
+    this.port = ch.port1;
+    ch.port2.onmessage = (e: MessageEvent) => {
+      if (e.data === this.gen && !this.stopped) this.execute();
+    };
+  }
+
+  override stop(): void {
+    super.stop();
+    this.gen++; // un yield déjà posté ne relancera pas la boucle
+  }
+
+  override execute(): void {
+    const { rp2040, clock } = this;
+    this.executeTimer = null;
+    this.stopped = false;
+    const deadline = Date.now() + 16; // budget réel par tranche (fluidité UI)
+    let idle = false;
+    while (!this.stopped && Date.now() < deadline) {
+      if (rp2040.core.waiting) {
+        const n = clock.nanosToNextAlarm;
+        if (n <= 0) {
+          // WFE sans alarme : seul un événement externe (USB, setInput…)
+          // peut réveiller le cœur — on repasse en sondage doux.
+          idle = true;
+          break;
+        }
+        clock.tick(n);
+      } else {
+        // Lot d'instructions jusqu'à la prochaine alarme (≤ 1 ms simulée).
+        const toAlarm = clock.nanosToNextAlarm;
+        const budget = toAlarm > 0 ? Math.min(toAlarm, 1e6) : 1e6;
+        let nanos = 0;
+        while (nanos < budget && !rp2040.core.waiting && !this.stopped) {
+          nanos += rp2040.core.executeInstruction() * CYCLE_NANOS;
+        }
+        clock.tick(nanos);
+      }
+    }
+    if (this.stopped) return;
+    if (idle) {
+      this.executeTimer = setTimeout(() => this.execute(), 1);
+    } else {
+      this.port.postMessage(++this.gen);
+    }
+  }
+}
+
 /** États successifs de l'injection d'un script via le raw REPL MicroPython. */
 type ReplPhase =
   | 'idle'         // pas de script à injecter
@@ -116,7 +184,7 @@ export class PicoEngine implements SimEngine {
   private keypadColLevel = new Map<string, boolean>();
 
   constructor(program: PicoProgram) {
-    this.sim = new Simulator();
+    this.sim = new KablixSimulator();
     this.mcu = this.sim.rp2040;
     this.mcu.logger = new ConsoleLogger(LogLevel.Error);
 

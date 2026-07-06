@@ -1,10 +1,15 @@
 # À faire
 
-1. ⬜ **Simulation Pico extrêmement lente**.
-2. ⬜ **Routage** : il reste des chevauchements de fils.
-3. ⬜ **Routage** : éviter les croisements si possible.
-4. ⬜ **Routage** : ne s'écarter que d'un pas des composants pour les départs de fil.
-5. ⬜ **Sélection multiple** : déplacer plusieurs points d'un câble (souris ou Ctrl+clic) ; sélectionner plusieurs câbles pour les supprimer.
+1. ⬜ **Routage** : il reste des chevauchements de fils.
+2. ⬜ **Routage** : éviter les croisements si possible.
+3. ⬜ **Routage** : ne s'écarter que d'un pas des composants pour les départs de fil.
+4. ⬜ **Sélection multiple** : déplacer plusieurs points d'un câble (souris ou Ctrl+clic) ; sélectionner plusieurs câbles pour les supprimer.
+
+# v2026.7.23
+
+1. ✅ **Simulation Pico accélérée (~+20 %)** : nouveau `KablixSimulator` ([`pico.mts`](src/webview/engines/pico.mts)) remplaçant la boucle rp2040js — lots d'instructions bornés par la **prochaine alarme** (échéances des timers exactes, le lot s'arrête pile dessus) au lieu d'un `clock.tick()` + test d'arrêt à chaque instruction, et yield par **MessageChannel** au lieu de `setTimeout(0)` (clampé à ~4 ms par Chrome sur les timers imbriqués). Garde anti-reprise (génération) : un yield en vol ne relance pas une boucle arrêtée (pause/stop). Mesure node : 21-24 → **26,6 MHz** stables sur firmware MicroPython réel ; en webview s'ajoute l'économie du clampage.
+2. ℹ️ **Plafond identifié au profil CPU** (node `--cpu-prof`, firmware réel) : ~48 % du temps dans `executeInstruction` (interpréteur ARM de rp2040js) + ~13 % dispatch mémoire (`findPeripheral`/`readUint32`…) — incompressible sans changer d'émulateur. La simulation Pico restera ~20-25 % du temps réel sur cette machine (rien d'anormal côté Kablix : écouteurs GPIO et rafraîchissement déjà coalescés par rAF).
+3. ✅ Validation : `typecheck` OK ; `verify:all` OK (dont **verify:micropython** — boot UF2 réel + raw REPL à travers le nouveau cadenceur) ; `verify-debug-py` OK (pause/reprise/pas-à-pas/breakpoints conditionnels = cycles stop/execute intensifs du nouveau scheduler).
 
 # v2026.7.22
 
