@@ -1,9 +1,14 @@
 # À faire
 
-1. ⬜ **Routage** : il reste des chevauchements de fils.
-2. ⬜ **Routage** : éviter les croisements si possible.
-3. ⬜ **Routage** : ne s'écarter que d'un pas des composants pour les départs de fil.
-4. ⬜ **Sélection multiple** : déplacer plusieurs points d'un câble (souris ou Ctrl+clic) ; sélectionner plusieurs câbles pour les supprimer.
+1. ⬜ **Sélection multiple** : déplacer plusieurs points d'un câble (souris ou Ctrl+clic) ; sélectionner plusieurs câbles pour les supprimer.
+
+# v2026.7.24
+
+1. ✅ **Routage — croisements pénalisés** : nouveau coût de croisement transversal (`segsCross`, 1,5 coude) dans l'A\* **et** dans le score final des combinaisons de sorties ([`editor.mts`](src/webview/diagram/editor.mts)) — un petit détour qui évite de couper un fil est préféré, un grand contournement non. Repro : 10 → **7 croisements** sur la scène de test (pico + 4 LED + 2 résistances + bouton, 10 fils).
+2. ✅ **Routage — fin des allers-retours aux broches** : directions **signées** dans l'A\* (0..3 + départ) avec **demi-tour interdit**, et directions de patte transmises (`startDir`/`endDir`) — le tracé ne rebrousse plus le stub de sortie ni n'arrive à contresens de la patte d'arrivée (avant : segments de 5 px en aller-retour aux sorties du Pico).
+3. ✅ **Routage — écart d'un pas** : les couloirs d'évitement (voies parallèles autour des bornes, médianes, replis en Z et créneaux) passent du demi-pas (`gap` 5 px, hors grille) au **pas de grille entier** (10 px) : chaque fil supplémentaire s'écarte d'un pas de plus du composant, aligné sur la grille. `gap` reste l'écart minimal entre fils.
+4. ✅ **Chevauchements** : 0 px de chevauchement entre fils sur la repro (l'interdiction colinéaire de l'A\* + créneaux de décalage font le travail ; le score ×100 reste en garde-fou).
+5. ✅ Validation : `typecheck`/`verify:all` OK ; repro headless (vrai éditeur, 8 composants / 10 fils, métriques au px) — 0 px de chevauchement, 7 croisements (−3), plus aucun aller-retour, couloirs au pas de la grille, capture visuelle propre (départs perpendiculaires, faisceaux parallèles).
 
 # v2026.7.23
 

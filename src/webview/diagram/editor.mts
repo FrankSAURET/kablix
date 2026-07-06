@@ -2281,11 +2281,15 @@ export class Editor {
             selfOv += collinearOverlap(poly[i], poly[i + 1], poly[j], poly[j + 1]);
           }
         }
+        // Croisements transversaux : à éviter quand un petit détour suffit.
+        let cross = 0;
+        for (let i = 0; i < poly.length - 1; i++) {
+          for (const [s, t] of otherSegs) if (segsCross(poly[i], poly[i + 1], s, t)) cross++;
+        }
         // Poids massifs, hiérarchisés : traverser un composant (×1000) est bien
-        // pire que suivre un fil (×100) — en dernier recours un fil qui en longe
-        // un autre sous la carte vaut mieux qu'un fil qui coupe la carte. À coût
-        // « dur » égal, le tracé le plus court et le moins coudé gagne.
-        return comp * 1000 + (overlap + selfOv) * 100 + near * 0.6 + len + bends * BEND;
+        // pire que suivre un fil (×100), lui-même pire qu'un croisement (1,5
+        // coude). À coût « dur » égal, le plus court et le moins coudé gagne.
+        return comp * 1000 + (overlap + selfOv) * 100 + cross * BEND * 1.5 + near * 0.6 + len + bends * BEND;
       };
       // Routeur A* (contourne les obstacles et les fils), essayé pour CHAQUE
       // combinaison de sorties candidates (≤ 2 par extrémité) : pour une broche
@@ -2301,9 +2305,18 @@ export class Editor {
       let sb: XY | null = sbCands[0];
       let routed: XY[] | null = null;
       let bestCost = Infinity;
+      // Direction dominante d'un déplacement (encodage de l'A* : 0..3).
+      const dirOf = (from: XY, to: XY): number =>
+        Math.abs(to.x - from.x) > Math.abs(to.y - from.y) ? (to.x > from.x ? 0 : 1) : to.y > from.y ? 2 : 3;
       for (const ca of saCands) {
         for (const cb of sbCands) {
-          const path = astarRoute(ca ?? a, cb ?? b, obstacles, otherSegs, { clr: GRID / 2, bend: BEND, gap: GAP });
+          const path = astarRoute(ca ?? a, cb ?? b, obstacles, otherSegs, {
+            clr: GRID / 2,
+            bend: BEND,
+            gap: GAP,
+            startDir: ca ? dirOf(a, ca) : undefined,
+            endDir: cb ? dirOf(cb, b) : undefined,
+          });
           if (!path || path.length < 2) continue;
           const c = path.slice(1, -1);
           const k = cost(ca, cb, c);
@@ -2336,7 +2349,7 @@ export class Editor {
         // Repli (A* sans solution) : coude en L / détour en Z de moindre coût.
         const midX = (pa.x + pb.x) / 2;
         const midY = (pa.y + pb.y) / 2;
-        const offs = [0, GAP, -GAP, 2 * GAP, -2 * GAP, 3 * GAP, -3 * GAP];
+        const offs = [0, GRID, -GRID, 2 * GRID, -2 * GRID, 3 * GRID, -3 * GRID];
         const candidates: XY[][] = [[{ x: pb.x, y: pa.y }], [{ x: pa.x, y: pb.y }]];
         for (const o of offs) {
           candidates.push([{ x: midX + o, y: pa.y }, { x: midX + o, y: pb.y }]);
@@ -2348,7 +2361,7 @@ export class Editor {
         // (bosse perpendiculaire) pour le décaler, du côté le plus dégagé.
         const horizontal = Math.abs(pa.y - pb.y) <= TOL;
         const cands: XY[][] = [[]];
-        for (const o of [GAP, -GAP, 2 * GAP, -2 * GAP]) {
+        for (const o of [GRID, -GRID, 2 * GRID, -2 * GRID]) {
           if (horizontal) {
             const x1 = pa.x + (pb.x - pa.x) / 3;
             const x2 = pa.x + (2 * (pb.x - pa.x)) / 3;
@@ -3613,9 +3626,14 @@ function astarRoute(
   pb: XY,
   obstacles: PartRect[],
   otherSegs: Array<[XY, XY]>,
-  o: { clr: number; bend: number; gap: number },
+  // startDir/endDir : direction (0=+x,1=−x,2=+y,3=−y, 4 = libre) de la patte
+  // d'entrée (a→pa) et de sortie (pb→b) — interdit au tracé de rebrousser le
+  // stub (aller-retour de quelques px le long de sa propre patte).
+  o: { clr: number; bend: number; gap: number; startDir?: number; endDir?: number },
 ): XY[] | null {
   const { clr, bend, gap } = o;
+  const startDir = o.startDir ?? 4;
+  const endDir = o.endDir ?? 4;
   // Rectangles gonflés de la clearance : zones interdites de passage.
   const blocks = obstacles.map((r) => ({ x: r.x - clr, y: r.y - clr, w: r.w + 2 * clr, h: r.h + 2 * clr }));
   // Lignes de coordonnées (Hanan) : extrémités + bords des obstacles + voies
@@ -3630,9 +3648,12 @@ function astarRoute(
     ysSet.add(b.y);
     ysSet.add(b.y + b.h);
   }
+  // Pas des voies d'évitement = 1 pas de GRILLE (et non `gap`) : chaque fil
+  // supplémentaire s'écarte d'un pas entier, au lieu d'empiler des couloirs au
+  // demi-pas hors grille (allers-retours de 5 px aux sorties de broches).
   for (let k = -3; k <= 3; k++) {
-    xsSet.add(midX + k * gap);
-    ysSet.add(midY + k * gap);
+    xsSet.add(midX + k * GRID);
+    ysSet.add(midY + k * GRID);
   }
   // Voies parallèles autour des deux bornes (± k·gap) : le chevauchement
   // colinéaire d'un autre fil étant interdit, la ligne d'une borne (celle des
@@ -3641,12 +3662,12 @@ function astarRoute(
   // l'appelant retombe sur un coude en L qui traverse les composants.
   for (let k = 1; k <= 8; k++) {
     for (const v of [pa.x, pb.x]) {
-      xsSet.add(v + k * gap);
-      xsSet.add(v - k * gap);
+      xsSet.add(v + k * GRID);
+      xsSet.add(v - k * GRID);
     }
     for (const v of [pa.y, pb.y]) {
-      ysSet.add(v + k * gap);
-      ysSet.add(v - k * gap);
+      ysSet.add(v + k * GRID);
+      ysSet.add(v - k * GRID);
     }
   }
   const xs = [...xsSet].sort((m, n) => m - n);
@@ -3686,9 +3707,18 @@ function astarRoute(
     for (const [s, t] of otherSegs) c += parallelPenalty(p, q, s, t, gap) * 0.6;
     return c;
   };
+  // Pénalité de croisement : couper un fil existant coûte 1,5 coude — un petit
+  // détour qui l'évite est préféré, un grand contournement non.
+  const crossCost = (p: XY, q: XY): number => {
+    let c = 0;
+    for (const [s, t] of otherSegs) if (segsCross(p, q, s, t)) c += bend * 1.5;
+    return c;
+  };
   const heur = (i: number, j: number): number => Math.abs(xs[i] - pb.x) + Math.abs(ys[j] - pb.y);
 
-  // A* : état = nœud × direction (0 = horizontal, 1 = vertical, 2 = départ).
+  // A* : état = nœud × direction SIGNÉE (0=+x, 1=−x, 2=+y, 3=−y, 4 = départ).
+  // Le signe permet d'interdire les demi-tours (aller-retour de quelques px sur
+  // sa propre ligne, jamais utile sur des voies de Hanan).
   interface St {
     i: number;
     j: number;
@@ -3697,7 +3727,7 @@ function astarRoute(
     f: number;
     prev: St | null;
   }
-  const keyOf = (i: number, j: number, dir: number): number => (i * ny + j) * 3 + dir;
+  const keyOf = (i: number, j: number, dir: number): number => (i * ny + j) * 5 + dir;
   const bestG = new Map<number, number>();
   // Tas binaire min sur f.
   const heap: St[] = [];
@@ -3731,7 +3761,7 @@ function astarRoute(
     return top;
   };
 
-  push({ i: ai, j: aj, dir: 2, g: 0, f: heur(ai, aj), prev: null });
+  push({ i: ai, j: aj, dir: startDir, g: 0, f: heur(ai, aj), prev: null });
   const steps: Array<[number, number]> = [
     [1, 0],
     [-1, 0],
@@ -3741,6 +3771,9 @@ function astarRoute(
   while (heap.length > 0) {
     const cur = pop();
     if (cur.i === bi && cur.j === bj) {
+      // Arrivée à contresens de la patte de sortie (pb→b) : le fil repasserait
+      // sur sa propre patte — on cherche une autre approche.
+      if (endDir !== 4 && cur.dir !== 4 && (cur.dir ^ 1) === endDir) continue;
       const pts: XY[] = [];
       for (let s: St | null = cur; s; s = s.prev) pts.push({ x: xs[s.i], y: ys[s.j] });
       pts.reverse();
@@ -3761,9 +3794,12 @@ function astarRoute(
         (cur.i === ai && cur.j === aj) || (cur.i === bi && cur.j === bj) ||
         (ni === ai && nj === aj) || (ni === bi && nj === bj);
       if (!endEdge && wireBlocked(p, q)) continue;
-      const dir = di !== 0 ? 0 : 1;
+      const dir = di !== 0 ? (di > 0 ? 0 : 1) : dj > 0 ? 2 : 3;
+      // Demi-tour (même axe, sens opposé) : interdit.
+      if (cur.dir !== 4 && (cur.dir ^ 1) === dir) continue;
+      const turn = cur.dir !== 4 && (cur.dir >> 1) !== (dir >> 1) ? bend : 0;
       const len = Math.abs(q.x - p.x) + Math.abs(q.y - p.y);
-      const g = cur.g + len + wireCost(p, q) + (cur.dir !== 2 && cur.dir !== dir ? bend : 0);
+      const g = cur.g + len + wireCost(p, q) + crossCost(p, q) + turn;
       const nk = keyOf(ni, nj, dir);
       const prev = bestG.get(nk);
       if (prev !== undefined && prev <= g + 0.01) continue;
@@ -3772,6 +3808,24 @@ function astarRoute(
     }
   }
   return null;
+}
+
+/** Croisement transversal STRICT de deux segments H/V (l'un coupe l'autre en
+ *  son intérieur — un simple contact d'extrémité n'est pas un croisement). */
+function segsCross(p: XY, q: XY, s: XY, t: XY): boolean {
+  const pH = Math.abs(p.y - q.y) < 0.5;
+  const sH = Math.abs(s.y - t.y) < 0.5;
+  if (pH === sH) return false;
+  const h1 = pH ? p : s;
+  const h2 = pH ? q : t;
+  const v1 = pH ? s : p;
+  const v2 = pH ? t : q;
+  return (
+    v1.x > Math.min(h1.x, h2.x) + 0.5 &&
+    v1.x < Math.max(h1.x, h2.x) - 0.5 &&
+    h1.y > Math.min(v1.y, v2.y) + 0.5 &&
+    h1.y < Math.max(v1.y, v2.y) - 0.5
+  );
 }
 
 /** Distance d'un point à un segment [a,b]. */
