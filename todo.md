@@ -1,13 +1,17 @@
 # À faire
 
 1. ⬜ **Simulation Pico extrêmement lente**.
-2. ⬜ **Bug** : clic central pour déplacer le canevas — parfois impossible de le lâcher.
-3. ⬜ **Routage** : il reste des chevauchements de fils.
-4. ⬜ **Routage** : éviter les croisements si possible.
-5. ⬜ **Routage** : ne s'écarter que d'un pas des composants pour les départs de fil.
-6. ⬜ **Sélection multiple** : déplacer plusieurs points d'un câble (souris ou Ctrl+clic) ; sélectionner plusieurs câbles pour les supprimer.
-7. ⬜ **Ctrl + A** sur le canevas : tout sélectionner (composants + câbles).
-8. ⬜ **Routage** : le pointillé vert doit aller du premier point cliqué au curseur de la souris.
+2. ⬜ **Routage** : il reste des chevauchements de fils.
+3. ⬜ **Routage** : éviter les croisements si possible.
+4. ⬜ **Routage** : ne s'écarter que d'un pas des composants pour les départs de fil.
+5. ⬜ **Sélection multiple** : déplacer plusieurs points d'un câble (souris ou Ctrl+clic) ; sélectionner plusieurs câbles pour les supprimer.
+6. ⬜ **Ctrl + A** sur le canevas : tout sélectionner (composants + câbles).
+7. ⬜ **Routage** : le pointillé vert doit aller du premier point cliqué au curseur de la souris.
+
+# v2026.7.21
+
+1. ✅ **Bug corrigé — pan au clic central « collé »** : `startPan()` ([`editor.mts`](src/webview/diagram/editor.mts)) ne se terminait que sur `pointerup` — raté si le bouton était relâché hors de la fenêtre ou pendant une perte de focus → le canevas suivait la souris indéfiniment. Correctifs cumulés : `setPointerCapture` (le pointerup arrive même hors fenêtre), fin sur `pointercancel`/`blur`, et **filet de sécurité** dans `pointermove` (`buttons & 4` retombé = bouton central plus tenu → fin du pan).
+2. ✅ Validation : `typecheck`/`verify:all` OK ; sonde headless (vrai éditeur) — pan normal : translation appliquée puis stoppée net au relâchement ; pointerup raté simulé : le premier `pointermove` sans bouton tenu termine le pan, les suivants ne bougent plus la vue.
 
 # v2026.7.20
 

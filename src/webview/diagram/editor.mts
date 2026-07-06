@@ -472,17 +472,40 @@ export class Editor {
     const startY = e.clientY;
     const ox = this.panX;
     const oy = this.panY;
+    // Capture du pointeur : le pointerup est délivré même relâché hors de la
+    // fenêtre (sinon le pan restait « collé » au curseur, impossible à lâcher).
+    try {
+      this.canvas.setPointerCapture(e.pointerId);
+    } catch {
+      /* pointeur déjà disparu : le filet `buttons` ci-dessous suffit */
+    }
+    const end = (): void => {
+      if (this.canvas.hasPointerCapture?.(e.pointerId)) {
+        this.canvas.releasePointerCapture(e.pointerId);
+      }
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', end);
+      window.removeEventListener('blur', end);
+    };
     const move = (ev: PointerEvent): void => {
+      // Filet de sécurité : bouton central plus tenu (pointerup raté — sortie
+      // de fenêtre, perte de focus, menu…) → on termine le pan ici.
+      if ((ev.buttons & 4) === 0) {
+        end();
+        return;
+      }
       this.panX = ox + (ev.clientX - startX);
       this.panY = oy + (ev.clientY - startY);
       this.applyTransform();
     };
-    const up = (): void => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
+    const up = (ev: PointerEvent): void => {
+      if (ev.button === 1) end();
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', end);
+    window.addEventListener('blur', end);
   }
 
   /**
