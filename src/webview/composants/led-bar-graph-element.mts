@@ -68,11 +68,15 @@ export class LedBarGraphElement extends LitElement {
 
   updated(changed: PropertyValues) {
     super.updated(changed);
-    const bars = this.renderRoot.querySelectorAll('#g53 rect');
+    // Le dessin retouché fixe `fill` dans l'attribut `style` de chaque rect (export
+    // Inkscape) : en SVG, ce style inline l'emporte toujours sur l'attribut de
+    // présentation `fill`. `setAttribute('fill', …)` serait donc sans effet visuel
+    // (barres figées dans leur couleur d'origine) — on doit passer par `style.fill`.
+    const bars = this.renderRoot.querySelectorAll('#g53 rect') as NodeListOf<SVGElement>;
     const { values, color, offColor } = this;
     const palette = colorPalettes[color];
     bars.forEach((el, i) => {
-      el.setAttribute('fill', values[i] ? (palette?.[i] ?? color) : offColor);
+      el.style.fill = values[i] ? (palette?.[i] ?? color) : offColor;
     });
   }
 
