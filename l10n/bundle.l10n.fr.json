@@ -85,7 +85,6 @@
   "Compile": "Compiler",
   "Reset all components": "Réinitialiser les composants",
   "No help available for this part yet.": "Aucune aide disponible pour ce composant pour le moment.",
-  "New project (clear the diagram)": "Nouveau projet (efface le schéma)",
   "Clear the diagram (Ctrl+Z to undo)": "Effacer le schéma (Ctrl+Z pour annuler)",
   "Load binary": "Charger binaire",
   "Load a compiled .uf2 (Pico) or .hex (Arduino) from the workspace": "Charger un .uf2 (Pico) ou .hex (Arduino) déjà compilé du workspace",
