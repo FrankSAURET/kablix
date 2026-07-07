@@ -302,12 +302,18 @@ serialEl.addEventListener('beforeinput', (e) => {
 
 // Collage (Ctrl+V ou menu contextuel) : le texte du presse-papiers part
 // octet par octet, comme une frappe rapide — MicroPython l'interprète ligne
-// par ligne (utile pour coller plusieurs commandes d'un coup).
+// par ligne (utile pour coller plusieurs commandes d'un coup). Un texte copié
+// depuis un éditeur (VS Code…) sous Windows contient des fins de ligne CRLF
+// (`\r\n`) : les traiter indépendamment (`\r` tel quel + `\n` → `\r`) envoyait
+// DEUX Entrée par ligne, chacune affichant sa propre invite `>>> ` — d'où des
+// lignes vides après chaque commande collée. `\r\n`/`\r`/`\n` sont donc
+// d'abord normalisés en un seul `\r` par fin de ligne avant l'envoi.
 serialEl.addEventListener('paste', (e) => {
   if (!replMode || !engine) return;
   e.preventDefault();
   const text = e.clipboardData?.getData('text/plain') ?? '';
-  for (const ch of text) engine.writeSerial(ch === '\n' ? '\r' : ch);
+  const normalized = text.replace(/\r\n|\r|\n/g, '\r');
+  for (const ch of normalized) engine.writeSerial(ch);
 });
 
 // --- Fichier de code : état « aucun fichier choisi » --------------------------

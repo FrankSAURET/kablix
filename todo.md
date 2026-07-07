@@ -2,6 +2,11 @@
 1. ⏳ La barre de LED ne fonctionne pas (autoriser aussi le changement de couleur) — logique netlist, rendu Lit et intégration avec les 2 moteurs (AVR + Pico) vérifiés à 100 % correct par tests bout-en-bout ; câblage confirmé identique au test qui passe. Aucune piste de bug de code restante. À retester en conditions réelles par Frank.
 
 
+# v2026.7.32
+
+1. ✅ **Console REPL — collage encore 4 lignes vides (CRLF)** : le fix précédent (`beforeinput` bloqué en entier) empêchait bien la double insertion native, mais le handler `paste` ([`sim.mts`](src/webview/sim.mts)) traitait `\r` et `\n` indépendamment (`ch === '\n' ? '\r' : ch`) — un texte copié depuis un éditeur (VS Code…) sous Windows utilise des fins de ligne CRLF (`\r\n`), donc chaque ligne collée envoyait **deux** Entrée au firmware, chacune affichant sa propre invite `>>> `. Texte désormais normalisé (`text.replace(/\r\n|\r|\n/g, '\r')`) avant l'envoi octet par octet. Vérifié par test A/B isolé avec le vrai firmware : avant → `print(1)\r\n1\r\n>>> \r\n>>> ` (4 lignes, invite dupliquée) ; après → `print(1)\r\n1\r\n>>> ` (3 lignes, propre).
+2. ✅ Validation : `typecheck`/`build`/`verify:all` (9/9) OK.
+
 # v2026.7.31
 
 1. ✅ **Audit complet du projet** (extension + webview + moteurs + modèle + shared) : lecture intégrale de `src/*.ts`, `sim.mts`, `editor.mts`, `model.mts`, `avr.mts`, `pico.mts`, `i2c-devices.mts`, `ws2812.mts`, `dht22.mts`, `wokwi.mts`, `catalog.mts`, `geometry.mts`, `breadboard.mts`, `creator.mts`, `pinout.mts`, `pydebug.ts`, `pynet.ts`, `uf2.ts`, `elf.ts`. Baseline `typecheck` + `verify:all` (9 suites) verte avant et après corrections.
