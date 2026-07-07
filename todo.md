@@ -2,6 +2,11 @@
 1. ⏳ La barre de LED ne fonctionne pas (autoriser aussi le changement de couleur) — logique netlist, rendu Lit et intégration avec les 2 moteurs (AVR + Pico) vérifiés à 100 % correct par tests bout-en-bout ; câblage confirmé identique au test qui passe. Aucune piste de bug de code restante. À retester en conditions réelles par Frank.
 
 
+# v2026.7.33
+
+1. ✅ **Détection d'upgrade firmware en ligne (au lieu d'une version figée)** : `checkFirmwareUpdate()`/`upgradeFirmware()` ([`firmware.ts`](src/firmware.ts)) comparaient le cache à la constante `FIRMWARES` figée dans le code (mise à jour manuelle à chaque nouvelle release MicroPython) — une vraie nouvelle version publiée sur micropython.org n'était jamais détectée tant que l'extension elle-même n'était pas mise à jour. Nouvelle `fetchLatestFirmwareName()` interroge directement `micropython.org/download/RPI_PICO(_W)/` et extrait le nom du .uf2 stable le plus récent (regex sur le HTML, échec silencieux si page injoignable/format changé). `outdatedVariants()` compare désormais le cache à cette valeur en ligne (Pico **et** Pico W) ; `upgradeFirmware()` télécharge ce fichier détecté (URL reconstruite), et ne retombe sur la constante figée que si aucun cache n'existe encore (premier choix de carte). Vérifié : la page renvoie déjà `v1.28.0` (identique à la constante figée) — donc aucune régression visible sans une vraie nouvelle release amont.
+2. ✅ Validation : `typecheck`/`build` OK.
+
 # v2026.7.32
 
 1. ✅ **Console REPL — collage encore 4 lignes vides (CRLF)** : le fix précédent (`beforeinput` bloqué en entier) empêchait bien la double insertion native, mais le handler `paste` ([`sim.mts`](src/webview/sim.mts)) traitait `\r` et `\n` indépendamment (`ch === '\n' ? '\r' : ch`) — un texte copié depuis un éditeur (VS Code…) sous Windows utilise des fins de ligne CRLF (`\r\n`), donc chaque ligne collée envoyait **deux** Entrée au firmware, chacune affichant sa propre invite `>>> `. Texte désormais normalisé (`text.replace(/\r\n|\r|\n/g, '\r')`) avant l'envoi octet par octet. Vérifié par test A/B isolé avec le vrai firmware : avant → `print(1)\r\n1\r\n>>> \r\n>>> ` (4 lignes, invite dupliquée) ; après → `print(1)\r\n1\r\n>>> ` (3 lignes, propre).

@@ -31,6 +31,46 @@ const FIRMWARES = {
 export type FirmwareVariant = keyof typeof FIRMWARES;
 
 const DOWNLOAD_TIMEOUT_MS = 60_000;
+const PAGE_FETCH_TIMEOUT_MS = 15_000;
+
+/** Page de téléchargement micropython.org listant les releases (plus récente en tête). */
+const DOWNLOAD_PAGES: Record<FirmwareVariant, string> = {
+  pico: 'https://micropython.org/download/RPI_PICO/',
+  picow: 'https://micropython.org/download/RPI_PICO_W/',
+};
+
+/** Préfixe du nom de fichier .uf2 propre à chaque variante (RPI_PICO_W a priorité sur RPI_PICO). */
+function fileNamePattern(variant: FirmwareVariant): RegExp {
+  const prefix = variant === 'picow' ? 'RPI_PICO_W' : 'RPI_PICO';
+  return new RegExp(`resources/firmware/${prefix}-\\d{8}-v[\\d.]+\\.uf2`, 'g');
+}
+
+/**
+ * Interroge la page de téléchargement officielle et renvoie le nom du firmware
+ * stable le plus récent (premier de la liste = plus récent, ordre du site).
+ * `undefined` si la page est injoignable ou le format a changé (échec silencieux :
+ * cette détection est un confort, jamais bloquante).
+ */
+async function fetchLatestFirmwareName(variant: FirmwareVariant): Promise<string | undefined> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PAGE_FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(DOWNLOAD_PAGES[variant], { signal: controller.signal });
+    if (!res.ok) return undefined;
+    const html = await res.text();
+    const matches = html.match(fileNamePattern(variant));
+    if (!matches || matches.length === 0) return undefined;
+    // Pico W : exclut les faux positifs "RPI_PICO-" captés par le pattern Pico non-W.
+    const filtered =
+      variant === 'pico' ? matches.filter((m) => !m.includes('RPI_PICO_W')) : matches;
+    if (filtered.length === 0) return undefined;
+    return filtered[0].split('/').pop();
+  } catch {
+    return undefined;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 /** Erreur « pas de firmware » silencieuse : l'utilisateur a annulé, pas un échec. */
 export class FirmwareCancelled extends Error {
@@ -205,37 +245,51 @@ async function pickVariant(): Promise<FirmwareVariant | undefined> {
   return picked?.variant;
 }
 
-/** Variantes dont le cache contient un fichier différent du nom figé courant. */
-async function outdatedVariants(
-  context: vscode.ExtensionContext
-): Promise<FirmwareVariant[]> {
+/** Nom du fichier en cache pour une variante donnée (le plus récent si plusieurs). */
+async function cachedFileName(
+  context: vscode.ExtensionContext,
+  variant: FirmwareVariant
+): Promise<string | undefined> {
   const dir = cacheDir(context);
   let entries: [string, vscode.FileType][];
   try {
     entries = await vscode.workspace.fs.readDirectory(dir);
   } catch {
-    return []; // pas de cache : rien à comparer, on ne force pas de téléchargement
+    return undefined; // pas de cache
   }
-  const cachedNames = new Set(
-    entries
-      .filter(([, type]) => type === vscode.FileType.File)
-      .map(([name]) => name)
-  );
-  return (Object.keys(FIRMWARES) as FirmwareVariant[]).filter((variant) => {
-    const fw = FIRMWARES[variant];
-    // Une variante jamais téléchargée n'est pas "obsolète" : rien à proposer,
-    // le flux normal (resolveMicropythonFirmware) la téléchargera à l'usage.
-    const hasAnyCachedFile = [...cachedNames].some((name) =>
-      name.startsWith(variant === 'picow' ? 'RPI_PICO_W' : 'RPI_PICO-')
-    );
-    return hasAnyCachedFile && !cachedNames.has(fw.file);
-  });
+  const prefix = variant === 'picow' ? 'RPI_PICO_W' : 'RPI_PICO-';
+  const names = entries
+    .filter(([, type]) => type === vscode.FileType.File)
+    .map(([name]) => name)
+    .filter((name) => name.startsWith(prefix))
+    // RPI_PICO- ne doit pas capter les fichiers RPI_PICO_W- (préfixe partagé).
+    .filter((name) => variant === 'pico' ? !name.startsWith('RPI_PICO_W') : true);
+  return names.sort().pop(); // nom horodaté (AAAAMMJJ) : tri lexical = tri chronologique
 }
 
 /**
- * Vérifie si le firmware en cache correspond à la version figée dans ce
- * module et propose le téléchargement sinon. Échec réseau/silence total :
- * cette vérification est un confort, jamais bloquante.
+ * Variantes déjà en cache dont le firmware disponible sur micropython.org est
+ * plus récent que celui en cache. Interroge le site à chaque appel (pas de
+ * constante figée) ; une variante jamais téléchargée n'est pas "obsolète" —
+ * le flux normal (resolveMicropythonFirmware) la téléchargera à l'usage.
+ */
+async function outdatedVariants(
+  context: vscode.ExtensionContext
+): Promise<Array<{ variant: FirmwareVariant; latest: string }>> {
+  const results: Array<{ variant: FirmwareVariant; latest: string }> = [];
+  for (const variant of Object.keys(FIRMWARES) as FirmwareVariant[]) {
+    const cached = await cachedFileName(context, variant);
+    if (!cached) continue; // jamais téléchargée : rien à proposer
+    const latest = await fetchLatestFirmwareName(variant);
+    if (latest && latest !== cached) results.push({ variant, latest });
+  }
+  return results;
+}
+
+/**
+ * Vérifie si le firmware en cache est le plus récent disponible sur
+ * micropython.org et propose le téléchargement sinon. Échec réseau/silence
+ * total : cette vérification est un confort, jamais bloquante.
  */
 export async function checkFirmwareUpdate(
   context: vscode.ExtensionContext,
@@ -251,7 +305,7 @@ export async function checkFirmwareUpdate(
     return;
   }
 
-  const names = outdated.map((v) => FIRMWARES[v].label).join(', ');
+  const names = outdated.map((o) => FIRMWARES[o.variant].label).join(', ');
   const upgrade = l10n.t('Upgrade');
   const choice = await vscode.window.showInformationMessage(
     l10n.t('Kablix: a newer MicroPython firmware is available for {0}.', names),
@@ -261,36 +315,47 @@ export async function checkFirmwareUpdate(
 }
 
 /**
- * Commande « Upgrade Pico firmware » : télécharge la version figée courante
- * pour la ou les variantes déjà en cache (remplace l'ancien fichier), ou
- * demande la carte si rien n'est encore en cache.
+ * Commande « Upgrade Pico firmware » : télécharge la dernière version stable
+ * disponible sur micropython.org pour la ou les variantes déjà en cache
+ * (remplace l'ancien fichier), ou demande la carte si rien n'est encore en
+ * cache (dans ce cas, télécharge la version figée connue de l'extension).
  */
 export async function upgradeFirmware(context: vscode.ExtensionContext): Promise<void> {
   const outdated = await outdatedVariants(context);
-  const variants = outdated.length > 0 ? outdated : [await pickVariant()].filter(
-    (v): v is FirmwareVariant => v !== undefined
-  );
-  if (variants.length === 0) return; // annulé, ou rien à mettre à jour
+  const targets: Array<{ variant: FirmwareVariant; file: string; url: string }> =
+    outdated.length > 0
+      ? outdated.map((o) => ({
+          variant: o.variant,
+          file: o.latest,
+          url: `https://micropython.org/resources/firmware/${o.latest}`,
+        }))
+      : await (async () => {
+          const variant = await pickVariant();
+          if (!variant) return [];
+          const fw = FIRMWARES[variant];
+          return [{ variant, file: fw.file, url: fw.url }];
+        })();
+  if (targets.length === 0) return; // annulé, ou rien à mettre à jour
 
-  for (const variant of variants) {
-    const fw = FIRMWARES[variant];
+  for (const { variant, file, url } of targets) {
+    const label = FIRMWARES[variant].label;
     const dir = cacheDir(context);
     await vscode.workspace.fs.createDirectory(dir);
-    const target = vscode.Uri.joinPath(dir, fw.file);
+    const target = vscode.Uri.joinPath(dir, file);
 
     try {
       const bytes = await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: l10n.t('Kablix: downloading {0}…', fw.label),
+          title: l10n.t('Kablix: downloading {0}…', label),
           cancellable: true,
         },
-        (_progress, token) => downloadBytes(fw.url, token)
+        (_progress, token) => downloadBytes(url, token)
       );
       await vscode.workspace.fs.writeFile(target, bytes);
-      await removeOtherCachedFiles(context, variant, fw.file);
+      await removeOtherCachedFiles(context, variant, file);
       void vscode.window.showInformationMessage(
-        l10n.t('Kablix: MicroPython firmware installed ({0}).', fw.label)
+        l10n.t('Kablix: MicroPython firmware installed ({0}).', label)
       );
     } catch (err) {
       if (err instanceof FirmwareCancelled) return;
