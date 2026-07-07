@@ -1423,6 +1423,20 @@ textarea {
   outline-offset: -1px;
 }
 
+/* Curseur clignotant : placé juste après le dernier texte reçu (le `<pre>`
+   est en white-space: pre-wrap, un ::after inline suit donc le flux). Visible
+   seulement au focus (sinon le curseur d'un terminal série non actif serait
+   trompeur). */
+.serial__out--repl:focus::after {
+  content: '▋';
+  animation: kablix-repl-blink 1s step-end infinite;
+}
+@keyframes kablix-repl-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
 .serial__input {
   display: flex;
   gap: 0.4rem;

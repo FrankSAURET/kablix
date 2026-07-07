@@ -192,14 +192,45 @@ const setStatus = (text: string): void => {
   statusEl.textContent = text;
 };
 
+/**
+ * Micro-émulation terminal : le REPL MicroPython édite sa ligne avec
+ * Backspace (0x08) + « effacer jusqu'à fin de ligne » (`\x1b[K`) plutôt que
+ * de renvoyer tout le texte — sans ce traitement, `textContent += chunk`
+ * afficherait le code de contrôle brut (ex. littéralement « [K » à l'écran).
+ * Les séquences ANSI non gérées (couleurs, curseur…) sont juste avalées.
+ */
+let ansiEscape = ''; // séquence "\x1b[...": accumulée jusqu'à sa lettre finale
+function processAnsi(chunk: string): string {
+  let text = serialEl.textContent ?? '';
+  for (const ch of chunk) {
+    if (ansiEscape) {
+      ansiEscape += ch;
+      // Terminée par une lettre (ex. « K » = efface jusqu'à fin de ligne) : le
+      // Backspace qui précède toujours cette séquence a déjà reculé le curseur
+      // d'un cran, donc rien de plus à effacer dans ce buffer texte simplifié.
+      if (/[A-Za-z]/.test(ch)) ansiEscape = '';
+      continue;
+    }
+    if (ch === '\x1b') {
+      ansiEscape = ch;
+    } else if (ch === '\b' || ch === '\x7f') {
+      text = text.slice(0, -1);
+    } else {
+      text += ch;
+    }
+  }
+  return text;
+}
+
 const appendSerial = (chunk: string): void => {
-  serialEl.textContent += chunk;
+  serialEl.textContent = processAnsi(chunk);
   serialEl.scrollTop = serialEl.scrollHeight;
 };
 
 /** Vide la console/moniteur série. */
 const clearSerial = (): void => {
   serialEl.textContent = '';
+  ansiEscape = '';
 };
 
 /**
@@ -215,6 +246,10 @@ function setReplMode(active: boolean): void {
   replMode = active;
   serialInputRow.hidden = active;
   serialEl.classList.toggle('serial__out--repl', active);
+  // contenteditable (plutôt que juste tabindex) : c'est ce qui fait émettre au
+  // navigateur un vrai événement `paste` avec clipboardData rempli — sans ça,
+  // Ctrl+V ne déclenche rien sur un <pre> simplement focusable.
+  serialEl.contentEditable = active ? 'true' : 'false';
   if (active) serialEl.focus();
 }
 
@@ -224,6 +259,13 @@ function replKeyToBytes(e: KeyboardEvent): string | null {
   if (e.key === 'Backspace') return '\x7f';
   if (e.key === 'Tab') return '\t';
   if (e.ctrlKey && e.key.length === 1) {
+    // Ctrl+V : toujours le collage natif (jamais un code de contrôle).
+    // Ctrl+C avec une sélection active : copie native, pas une interruption —
+    // sans texte sélectionné, on retombe sur le code de contrôle (0x03).
+    if (e.key.toUpperCase() === 'V') return null;
+    if (e.key.toUpperCase() === 'C' && (window.getSelection()?.toString().length ?? 0) > 0) {
+      return null;
+    }
     // Ctrl+lettre -> code de contrôle (Ctrl-C = 0x03, Ctrl-D = 0x04…), utile
     // pour interrompre un script ou forcer un soft-reboot depuis le REPL.
     const code = e.key.toUpperCase().charCodeAt(0) - 64;
@@ -239,6 +281,16 @@ serialEl.addEventListener('keydown', (e) => {
   if (bytes === null) return;
   e.preventDefault();
   engine.writeSerial(bytes);
+});
+
+// Collage (Ctrl+V ou menu contextuel) : le texte du presse-papiers part
+// octet par octet, comme une frappe rapide — MicroPython l'interprète ligne
+// par ligne (utile pour coller plusieurs commandes d'un coup).
+serialEl.addEventListener('paste', (e) => {
+  if (!replMode || !engine) return;
+  e.preventDefault();
+  const text = e.clipboardData?.getData('text/plain') ?? '';
+  for (const ch of text) engine.writeSerial(ch === '\n' ? '\r' : ch);
 });
 
 // --- Fichier de code : état « aucun fichier choisi » --------------------------

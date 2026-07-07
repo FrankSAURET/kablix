@@ -2,6 +2,13 @@
 1. ⏳ La barre de LED ne fonctionne pas (autoriser aussi le changement de couleur) — logique netlist, rendu Lit et intégration avec les 2 moteurs (AVR + Pico) vérifiés à 100 % correct par tests bout-en-bout ; câblage confirmé identique au test qui passe. Aucune piste de bug de code restante. À retester en conditions réelles par Frank.
 
 
+# v2026.7.29
+
+1. ✅ **Console REPL — collage impossible** : `replKeyToBytes()` ([`sim.mts`](src/webview/sim.mts)) traitait tout Ctrl+lettre comme un code de contrôle série, y compris Ctrl+V et Ctrl+C — aucun raccourci navigateur ne passait. Ctrl+V désormais laissé filer (déclenche l'event `paste` natif) ; Ctrl+C aussi quand une sélection de texte est active (`window.getSelection()`), sinon transmis comme interruption REPL (0x03) comme avant. La console est passée en `contentEditable` (nécessaire pour recevoir l'event `paste` avec `clipboardData`) ; un listener dédié lit `clipboardData.getData('text/plain')` et envoie le texte collé octet par octet (`\n` → `\r`).
+2. ✅ **Console REPL — retour arrière affichait `[K`** : MicroPython édite sa ligne avec la séquence ANSI `\b\x1b[K` (recule puis efface jusqu'à fin de ligne) ; le buffer texte simplifié de la console ajoutait cette séquence littéralement au lieu de l'interpréter. `processAnsi()` ([`sim.mts`](src/webview/sim.mts)) accumule désormais une séquence `\x1b[...` jusqu'à sa lettre finale et l'avale sans l'afficher (le `\b` qui précède a déjà reculé le curseur, donc rien à effacer en plus dans ce buffer). Vérifié bout-en-bout (firmware réel) : `abc` + retour arrière → buffer `ab`, plus de `[K` visible.
+3. ✅ **Console REPL — curseur non visible** : `::after` clignotant (`▋`, `@keyframes`) ajouté sur `.serial__out--repl:focus` ([`styles.css`](media/styles.css)) — visible seulement quand la console a le focus (sinon trompeur sur un REPL inactif).
+4. ✅ Validation : `typecheck`/`build`/`verify:all` OK ; backspace revalidé bout-en-bout avec le vrai firmware MicroPython (script headless temporaire, supprimé après usage).
+
 # v2026.7.28
 
 1. ✅ **Bouton REPL (Pico)** : bouton dédié dans la barre de simulation (`panel.ts`, visible seulement pour Pico/Pico W) démarre le firmware MicroPython **sans script** — `loadMicropythonRepl()` ([`compiler.ts`](src/compiler.ts)) charge juste les segments UF2, `startReplMode()` ([`panel.ts`](src/panel.ts)) les envoie à la webview. Sans script, `PicoEngine.onCdcConnected` ([`pico.mts`](src/webview/engines/pico.mts)) n'engage jamais le raw REPL (Ctrl-A) : le banner MicroPython s'affiche. Bouton élargi/gras (`.canvas-controls__btn--repl`, [`styles.css`](media/styles.css)).
