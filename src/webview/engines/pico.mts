@@ -501,9 +501,16 @@ export class PicoEngine implements SimEngine {
   }
 
   writeSerial(text: string): void {
+    // MicroPython duplique son REPL sur UART0 (GP0/GP1) par défaut, en plus du
+    // CDC USB : feeder aussi l'UART0 y déclenche un second REPL qui répond à
+    // chaque frappe, doublant l'écho reçu par `onSerial` (deux origines pour
+    // le même texte). Quand le CDC existe (firmware flash : MicroPython), il
+    // est le seul canal du REPL interactif — l'UART0 ne reçoit que la sortie
+    // des programmes qui l'utilisent, jamais nos frappes en entrée. Sans CDC
+    // (programme C bare-metal en RAM), l'UART0 reste le seul canal série.
     for (const byte of new TextEncoder().encode(text)) {
-      this.cdc?.sendSerialByte(byte);
-      this.mcu.uart[0].feedByte(byte);
+      if (this.cdc) this.cdc.sendSerialByte(byte);
+      else this.mcu.uart[0].feedByte(byte);
     }
   }
 

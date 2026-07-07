@@ -288,6 +288,18 @@ serialEl.addEventListener('keydown', (e) => {
   engine.writeSerial(bytes);
 });
 
+// Verrou d'insertion : sur un contentEditable, bloquer `keydown` ne suffit pas
+// à empêcher Chrome/Electron d'insérer aussi le texte nativement (l'édition
+// passe par `beforeinput`, pas `keydown`) — c'est le firmware qui fait l'écho
+// via `appendSerial`, donc toute insertion native produirait un texte en
+// double (symptôme : lignes dupliquées après chaque commande). `insertFromPaste`
+// est laissé passer, géré par le handler `paste` ci-dessous.
+serialEl.addEventListener('beforeinput', (e) => {
+  if (!replMode) return;
+  if (e.inputType === 'insertFromPaste') return;
+  e.preventDefault();
+});
+
 // Collage (Ctrl+V ou menu contextuel) : le texte du presse-papiers part
 // octet par octet, comme une frappe rapide — MicroPython l'interprète ligne
 // par ligne (utile pour coller plusieurs commandes d'un coup).
