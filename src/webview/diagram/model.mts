@@ -444,6 +444,29 @@ export function rgbLedBindings(diagram: Diagram): RgbLedBinding[] {
   return bindings;
 }
 
+export interface SevenSegmentBinding {
+  partId: string;
+  /** Broche MCU de chaque segment A..DP (null si non câblé au MCU). */
+  segments: Record<string, string | null>;
+}
+
+/** Afficheur 7 segments à 1 chiffre : broche MCU de chaque segment — pour mesurer
+ * le rapport cyclique PWM (variateur de luminosité) plutôt que le niveau instantané. */
+export function sevenSegmentBindings(diagram: Diagram): SevenSegmentBinding[] {
+  const nets = buildNets(diagram);
+  const bindings: SevenSegmentBinding[] = [];
+  for (const part of diagram.parts) {
+    if (partDef(part.type).kind !== '7segment') continue;
+    if (Math.max(1, Number(part.attrs?.digits ?? 1) || 1) > 1) continue; // multiplexé : latché ailleurs
+    const pinOf = (pin: string): string | null =>
+      mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin }));
+    const segments: Record<string, string | null> = {};
+    for (const seg of ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'DP']) segments[seg] = pinOf(seg);
+    bindings.push({ partId: part.id, segments });
+  }
+  return bindings;
+}
+
 export interface Pca9685Binding {
   /** Identifiant du PCA9685. */
   partId: string;

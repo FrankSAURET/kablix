@@ -67,6 +67,7 @@ import {
   dht22Bindings,
   pca9685Bindings,
   rgbLedBindings,
+  sevenSegmentBindings,
   neopixelBindings,
   lcdParallelBindings,
   spiDeviceBindings,
@@ -176,6 +177,10 @@ let neopixelTargets = new Map<string, string>();
 let buzzerTargets = new Map<string, string>();
 // LED RGB : partId → broches MCU des canaux R/G/B (rapport cyclique PWM).
 let rgbLedTargets = new Map<string, { r: string | null; g: string | null; b: string | null }>();
+// Afficheur 7 segments 1 chiffre : partId → broche MCU de chaque segment
+// (rapport cyclique PWM, un segment piloté en PWM pour varier sa luminosité
+// clignoterait sinon au rythme de l'échantillonnage).
+let sevenSegTargets = new Map<string, Record<string, string | null>>();
 // Écrans SPI : partId → appareil (rendu de l'image). OLED SSD1306 / TFT ILI9341.
 let spiOledDevices = new Map<string, Ssd1306Device>();
 let spiTftDevices = new Map<string, Ili9341Device>();
@@ -185,10 +190,12 @@ let spiTftDevices = new Map<string, Ili9341Device>();
 let sevenSegLatch = new Map<string, number[]>();
 // Afficheur 7 segments à 1 chiffre : anti-scintillement. Un script MicroPython
 // (interprété, donc lent face à l'AVR compilé) écrit ses broches de segment une
-// par une ; le rendu (~60 Hz) peut tomber entre deux écritures et surprendre un
-// état transitoire (segments à moitié à jour) → clignotement visible. On ne
-// republie le nouvel état que s'il est resté identique d'une frame à l'autre.
-let sevenSegStable = new Map<string, { shown: number[]; pending: number[] }>();
+// par une ; l'écart réel entre deux écritures peut dépasser plusieurs frames de
+// rendu (~16 ms), donc un simple « stable sur 2 frames » ne suffit pas. On
+// republie le nouvel état seulement s'il n'a plus changé depuis un court délai
+// réel (attend la fin de la rafale d'écritures avant d'afficher).
+const SEVEN_SEG_SETTLE_MS = 40;
+let sevenSegStable = new Map<string, { shown: number[]; pending: number[]; pendingSince: number }>();
 let breakpoints: Breakpoint[] = []; // points d'arrêt envoyés par l'extension (ligne + condition)
 // Vrai dès qu'un programme compilé/chargé a été reçu : sinon, lancer la
 // simulation déclenche d'abord une compilation automatique du fichier de code.
@@ -531,15 +538,37 @@ function refreshVisuals(): void {
       case '7segment': {
         const digits = Math.max(1, Number(part.attrs?.digits ?? 1) || 1);
         if (digits <= 1) {
-          const next = sevenSegmentState(editor.diagram, part.id, read);
+          // Un segment piloté en PWM (variateur de luminosité, bit-banging
+          // MicroPython inclus) bascule trop vite/irrégulièrement pour que le
+          // niveau instantané soit fiable : on se base sur le rapport cyclique
+          // mesuré (moyenne stable) dès qu'une broche de segment pulse.
+          const segPins = sevenSegTargets.get(part.id);
+          const commonAnode = part.attrs?.common === 'anode';
+          const readSeg = (seg: string, instant: number): number => {
+            const pin = segPins?.[seg];
+            if (!pin || !engine!.pulseActive?.(pin)) return instant;
+            const duty = engine!.readPwmDuty?.(pin);
+            if (duty === undefined) return instant;
+            const lit = commonAnode ? 1 - duty : duty;
+            return lit >= 0.5 ? 1 : 0;
+          };
+          const instant = sevenSegmentState(editor.diagram, part.id, read);
+          const next = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'DP'].map((seg, i) => readSeg(seg, instant[i]));
+          const now = performance.now();
           let stable = sevenSegStable.get(part.id);
           if (!stable) {
-            stable = { shown: next, pending: next };
+            stable = { shown: next, pending: next, pendingSince: now };
             sevenSegStable.set(part.id, stable);
-          } else if (next.some((v, i) => v !== stable!.pending[i])) {
-            stable.pending = next; // nouvel état candidat : on attend confirmation
-          } else if (next.some((v, i) => v !== stable!.shown[i])) {
-            stable.shown = next; // confirmé sur 2 frames : publié
+          } else {
+            if (next.some((v, i) => v !== stable!.pending[i])) {
+              stable.pending = next; // nouvel état candidat : le chrono repart
+              stable.pendingSince = now;
+            } else if (
+              now - stable.pendingSince >= SEVEN_SEG_SETTLE_MS &&
+              next.some((v, i) => v !== stable!.shown[i])
+            ) {
+              stable.shown = next; // resté identique assez longtemps : publié
+            }
           }
           el.values = stable.shown;
         } else {
@@ -712,10 +741,13 @@ function bindInputs(): void {
   // (PWM) — sinon la LED clignoterait au rythme de l'échantillonnage.
   const rgbLeds = rgbLedBindings(editor.diagram);
   rgbLedTargets = new Map(rgbLeds.map((b) => [b.partId, { r: b.r, g: b.g, b: b.b }]));
+  const sevenSegs = sevenSegmentBindings(editor.diagram);
+  sevenSegTargets = new Map(sevenSegs.map((b) => [b.partId, b.segments]));
   engine.setPulseMonitors?.([
     ...servoBindings(editor.diagram).map((b) => b.mcuPin),
     ...buzzers.map((b) => b.mcuPin),
     ...rgbLeds.flatMap((b) => [b.r, b.g, b.b].filter((p): p is string => p !== null)),
+    ...sevenSegs.flatMap((b) => Object.values(b.segments).filter((p): p is string => p !== null)),
   ]);
 
   // Capteurs ultrason (HC-SR04) : distance lue dans l'inspecteur (défaut 20 cm).

@@ -6,8 +6,12 @@
 1. Les schéma interne des afficheurs doivent avoir les diodes qui se retournent selon cathode ou anode commune
 1. Les schémas interne des afficheurs et des claviers sont dans src\webview\composants\interne
 
+# v2026.7.37
+1. ✅ Corrige le scintillement de l'afficheur 7 segments multiplexé (2/4 digits) en simulation Pico : le rendu ~60 Hz échantillonne le balayage MicroPython à un instant quasi aléatoire par rapport au cycle de scan simulé, révélant parfois un digit fraîchement éteint avant que le suivant ne soit rallumé. Anti-scintillement temporel dans sim.mts (`SEVEN_SEG_SETTLE_MS`) : un nouvel état de segment n'est publié que s'il est resté identique un court délai réel (40 ms), absorbant ce battement.
+2. ✅ Support PWM des segments (1 chiffre) : un segment piloté en rapport cyclique (variateur de luminosité) utilise la mesure de duty cycle (`readPwmDuty`, comme la LED RGB) plutôt que le niveau instantané.
+
 # v2026.7.36
-1. ✅ Corrige le scintillement de l'afficheur 7 segments 1 chiffre en simulation Pico : MicroPython (interprété, donc lent face à l'AVR compilé) écrit ses broches de segment une par une ; le rendu ~60 Hz pouvait surprendre un état transitoire (segments à moitié à jour). Anti-scintillement dans sim.mts (`sevenSegStable`) : le nouvel état n'est publié que s'il est resté identique deux frames de suite. Sans effet sur l'Uno (jamais surpris en état intermédiaire) ni sur le 4 digits multiplexé (déjà latché par ailleurs).
+1. ✅ Corrige le scintillement de l'afficheur 7 segments 1 chiffre en simulation Pico (tentative initiale, insuffisante — cf. v2026.7.37) : anti-scintillement `sevenSegStable` basé sur la stabilité de l'état lu sur 2 frames.
 
 # v2026.7.35
 1. ✅ Retour arrière complet de la console xterm.js (v2026.7.34) : console maison restaurée (sim.mts, panel.ts, styles.css), dépendances @xterm retirées — le terminal ne fonctionnait pas en réel, et le bug de collage venait du presse-papier (résolu côté système, pas côté code).
