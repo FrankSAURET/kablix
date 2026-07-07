@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { SimulatorPanel } from './panel';
 import { HelpPanel } from './help';
 import { promptLibraryUpdates } from './updates';
+import { upgradeFirmware, checkFirmwareUpdate } from './firmware';
 
 export function activate(context: vscode.ExtensionContext): void {
   // Vue de la barre d'activité : cliquer l'icône Kablix ouvre DIRECTEMENT le
@@ -66,6 +67,9 @@ export function activate(context: vscode.ExtensionContext): void {
       // Vérification manuelle : affiche aussi la notification « à jour ».
       void promptLibraryUpdates(false);
     }),
+    vscode.commands.registerCommand('kablix.upgradePicoFirmware', () => {
+      void upgradeFirmware(context);
+    }),
     vscode.commands.registerCommand('kablix.openHelp', () => {
       HelpPanel.createOrShow();
     })
@@ -90,6 +94,13 @@ export function activate(context: vscode.ExtensionContext): void {
     .get<boolean>('checkUpdatesOnStartup', false);
   if (checkOnStartup) {
     void promptLibraryUpdates(true);
+  }
+
+  const checkFirmwareOnStartup = vscode.workspace
+    .getConfiguration('kablix')
+    .get<boolean>('checkFirmwareUpdatesOnStartup', false);
+  if (checkFirmwareOnStartup) {
+    void checkFirmwareUpdate(context, true);
   }
 }
 

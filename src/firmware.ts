@@ -205,6 +205,127 @@ async function pickVariant(): Promise<FirmwareVariant | undefined> {
   return picked?.variant;
 }
 
+/** Variantes dont le cache contient un fichier différent du nom figé courant. */
+async function outdatedVariants(
+  context: vscode.ExtensionContext
+): Promise<FirmwareVariant[]> {
+  const dir = cacheDir(context);
+  let entries: [string, vscode.FileType][];
+  try {
+    entries = await vscode.workspace.fs.readDirectory(dir);
+  } catch {
+    return []; // pas de cache : rien à comparer, on ne force pas de téléchargement
+  }
+  const cachedNames = new Set(
+    entries
+      .filter(([, type]) => type === vscode.FileType.File)
+      .map(([name]) => name)
+  );
+  return (Object.keys(FIRMWARES) as FirmwareVariant[]).filter((variant) => {
+    const fw = FIRMWARES[variant];
+    // Une variante jamais téléchargée n'est pas "obsolète" : rien à proposer,
+    // le flux normal (resolveMicropythonFirmware) la téléchargera à l'usage.
+    const hasAnyCachedFile = [...cachedNames].some((name) =>
+      name.startsWith(variant === 'picow' ? 'RPI_PICO_W' : 'RPI_PICO-')
+    );
+    return hasAnyCachedFile && !cachedNames.has(fw.file);
+  });
+}
+
+/**
+ * Vérifie si le firmware en cache correspond à la version figée dans ce
+ * module et propose le téléchargement sinon. Échec réseau/silence total :
+ * cette vérification est un confort, jamais bloquante.
+ */
+export async function checkFirmwareUpdate(
+  context: vscode.ExtensionContext,
+  silent: boolean
+): Promise<void> {
+  const outdated = await outdatedVariants(context);
+  if (outdated.length === 0) {
+    if (!silent) {
+      void vscode.window.showInformationMessage(
+        l10n.t('Kablix: the MicroPython firmware is up to date.')
+      );
+    }
+    return;
+  }
+
+  const names = outdated.map((v) => FIRMWARES[v].label).join(', ');
+  const upgrade = l10n.t('Upgrade');
+  const choice = await vscode.window.showInformationMessage(
+    l10n.t('Kablix: a newer MicroPython firmware is available for {0}.', names),
+    upgrade
+  );
+  if (choice === upgrade) await upgradeFirmware(context);
+}
+
+/**
+ * Commande « Upgrade Pico firmware » : télécharge la version figée courante
+ * pour la ou les variantes déjà en cache (remplace l'ancien fichier), ou
+ * demande la carte si rien n'est encore en cache.
+ */
+export async function upgradeFirmware(context: vscode.ExtensionContext): Promise<void> {
+  const outdated = await outdatedVariants(context);
+  const variants = outdated.length > 0 ? outdated : [await pickVariant()].filter(
+    (v): v is FirmwareVariant => v !== undefined
+  );
+  if (variants.length === 0) return; // annulé, ou rien à mettre à jour
+
+  for (const variant of variants) {
+    const fw = FIRMWARES[variant];
+    const dir = cacheDir(context);
+    await vscode.workspace.fs.createDirectory(dir);
+    const target = vscode.Uri.joinPath(dir, fw.file);
+
+    try {
+      const bytes = await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: l10n.t('Kablix: downloading {0}…', fw.label),
+          cancellable: true,
+        },
+        (_progress, token) => downloadBytes(fw.url, token)
+      );
+      await vscode.workspace.fs.writeFile(target, bytes);
+      await removeOtherCachedFiles(context, variant, fw.file);
+      void vscode.window.showInformationMessage(
+        l10n.t('Kablix: MicroPython firmware installed ({0}).', fw.label)
+      );
+    } catch (err) {
+      if (err instanceof FirmwareCancelled) return;
+      const message = err instanceof Error ? err.message : String(err);
+      void vscode.window.showErrorMessage(
+        l10n.t('Kablix: firmware download failed ({0}).', message)
+      );
+    }
+  }
+}
+
+/** Retire du cache les anciens fichiers de la même variante (évite l'accumulation). */
+async function removeOtherCachedFiles(
+  context: vscode.ExtensionContext,
+  variant: FirmwareVariant,
+  keepFile: string
+): Promise<void> {
+  const dir = cacheDir(context);
+  const prefix = variant === 'picow' ? 'RPI_PICO_W' : 'RPI_PICO-';
+  try {
+    const entries = await vscode.workspace.fs.readDirectory(dir);
+    for (const [name, type] of entries) {
+      if (type !== vscode.FileType.File) continue;
+      if (name === keepFile) continue;
+      if (!name.startsWith(prefix)) continue;
+      // RPI_PICO- ne doit pas capter les fichiers RPI_PICO_W- (préfixe partagé) :
+      // le Pico W a son propre préfixe testé en premier ci-dessus.
+      if (variant === 'pico' && name.startsWith('RPI_PICO_W')) continue;
+      await vscode.workspace.fs.delete(vscode.Uri.joinPath(dir, name));
+    }
+  } catch {
+    // best effort : un fichier résiduel n'est pas grave
+  }
+}
+
 /** Sélection d'un .uf2 local ; copié dans le cache pour réutilisation. */
 async function chooseFileFlow(context: vscode.ExtensionContext): Promise<string> {
   const picked = await vscode.window.showOpenDialog({
