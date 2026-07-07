@@ -1001,7 +1001,7 @@ export class SimulatorPanel {
             <option value="0.01">🐌 1 %</option>
           </select>
           <button id="code-file" class="canvas-controls__file" title="${l10n.t('Code file to run / debug — click to change')}">📄 ${l10n.t('No file')}</button>
-          <button id="repl" class="canvas-controls__btn" hidden title="${l10n.t('Start an interactive MicroPython REPL (no script)')}">REPL</button>
+          <button id="repl" class="canvas-controls__btn canvas-controls__btn--repl" hidden title="${l10n.t('Start an interactive MicroPython REPL (no script)')}">REPL</button>
           <button id="toggle-serial" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Show/hide the serial monitor')}"><img class="canvas-controls__icon" src="${serialMonitorUri}" alt="${l10n.t('Show/hide the serial monitor')}" /></button>
         </div>
         <!-- Barre droite : recentrer/ajuster, réinitialiser, effacer (alignée et de
@@ -1034,8 +1034,8 @@ export class SimulatorPanel {
           <button id="close-serial" title="${l10n.t('Close the serial monitor')}">✕</button>
         </span>
       </div>
-      <pre id="serial" class="serial__out" aria-live="polite"></pre>
-      <div class="serial__input">
+      <pre id="serial" class="serial__out" tabindex="0" aria-live="polite"></pre>
+      <div class="serial__input" id="serial-input-row">
         <input id="serial-input" type="text" placeholder="${l10n.t('Send to the microcontroller (Enter)…')}" />
         <button id="serial-send">${l10n.t('Send')}</button>
       </div>

@@ -570,6 +570,14 @@ textarea {
   font-weight: 900;
 }
 
+/* Bouton REPL : texte plus large que la largeur fixe des boutons icône. */
+.canvas-controls__btn.canvas-controls__btn--repl {
+  width: auto;
+  padding: 0 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
 .canvas-controls__btn {
   font: inherit;
   font-size: 0.95rem;
@@ -1402,6 +1410,17 @@ textarea {
   background: var(--vscode-textCodeBlock-background, rgba(0, 0, 0, 0.3));
   border-radius: 6px;
   white-space: pre-wrap;
+}
+
+/* Mode REPL : la console elle-même reçoit le clavier (pas de ligne d'envoi
+   séparée) — bordure visible façon terminal actif, surtout au focus. */
+.serial__out--repl {
+  cursor: text;
+  border: 1px solid var(--vscode-focusBorder, #007acc);
+}
+.serial__out--repl:focus {
+  outline: 2px solid var(--vscode-focusBorder, #007acc);
+  outline-offset: -1px;
 }
 
 .serial__input {

@@ -141,6 +141,7 @@ const statusEl = document.getElementById('status') as HTMLSpanElement;
 const serialEl = document.getElementById('serial') as HTMLPreElement;
 const serialInput = document.getElementById('serial-input') as HTMLInputElement;
 const serialSend = document.getElementById('serial-send') as HTMLButtonElement;
+const serialInputRow = document.getElementById('serial-input-row') as HTMLDivElement;
 const clearBtn = document.getElementById('clear-serial') as HTMLButtonElement;
 const serialTitleEl = document.getElementById('serial-title') as HTMLSpanElement;
 const closeSerialBtn = document.getElementById('close-serial') as HTMLButtonElement;
@@ -200,6 +201,45 @@ const appendSerial = (chunk: string): void => {
 const clearSerial = (): void => {
   serialEl.textContent = '';
 };
+
+/**
+ * Mode REPL interactif (Pico, firmware MicroPython sans script) : la console
+ * elle-même capture le clavier et transmet chaque touche au microcontrôleur
+ * octet par octet — comme un vrai terminal série, c'est le firmware qui fait
+ * l'écho (aucun texte inséré localement). La ligne d'envoi séparée n'a plus
+ * lieu d'être dans ce mode.
+ */
+let replMode = false;
+
+function setReplMode(active: boolean): void {
+  replMode = active;
+  serialInputRow.hidden = active;
+  serialEl.classList.toggle('serial__out--repl', active);
+  if (active) serialEl.focus();
+}
+
+/** Traduit une touche du clavier en octet(s) série (Entrée → CR, Retour → DEL, flèches ignorées). */
+function replKeyToBytes(e: KeyboardEvent): string | null {
+  if (e.key === 'Enter') return '\r';
+  if (e.key === 'Backspace') return '\x7f';
+  if (e.key === 'Tab') return '\t';
+  if (e.ctrlKey && e.key.length === 1) {
+    // Ctrl+lettre -> code de contrôle (Ctrl-C = 0x03, Ctrl-D = 0x04…), utile
+    // pour interrompre un script ou forcer un soft-reboot depuis le REPL.
+    const code = e.key.toUpperCase().charCodeAt(0) - 64;
+    return code >= 0 && code < 32 ? String.fromCharCode(code) : null;
+  }
+  if (e.key.length === 1 && !e.altKey && !e.metaKey) return e.key;
+  return null;
+}
+
+serialEl.addEventListener('keydown', (e) => {
+  if (!replMode || !engine) return;
+  const bytes = replKeyToBytes(e);
+  if (bytes === null) return;
+  e.preventDefault();
+  engine.writeSerial(bytes);
+});
 
 // --- Fichier de code : état « aucun fichier choisi » --------------------------
 // Vrai dès qu'un fichier de code est associé (chip du canvas). Sinon le bouton
@@ -1152,6 +1192,7 @@ function startRun(): void {
   const isPython = boardFamily(board) === 'rp2040' && picoProgram.kind === 'flash' && !!picoProgram.script;
   const isRepl = boardFamily(board) === 'rp2040' && picoProgram.kind === 'flash' && !picoProgram.script;
   runIsPython = isPython;
+  setReplMode(isRepl);
   updateDebugButtons();
   setStatus(
     isPython
@@ -1168,6 +1209,7 @@ function stopRun(): void {
   inputRemovers = [];
   engine?.dispose();
   engine = null;
+  setReplMode(false);
   stopRenderLoop(); // fin du rendu continu
   editor.setLocked(false); // édition du schéma de nouveau possible
   // Arrêt (ou nouveau lancement, qui commence par un stopRun) : on repart d'un

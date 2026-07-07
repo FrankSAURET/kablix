@@ -2,10 +2,11 @@
 1. ⏳ La barre de LED ne fonctionne pas (autoriser aussi le changement de couleur) — logique netlist, rendu Lit et intégration avec les 2 moteurs (AVR + Pico) vérifiés à 100 % correct par tests bout-en-bout ; câblage confirmé identique au test qui passe. Aucune piste de bug de code restante. À retester en conditions réelles par Frank.
 
 
-# v2026.7.27
+# v2026.7.28
 
-1. ✅ **Bouton REPL (Pico)** : bouton dédié dans la barre de simulation (`panel.ts`, visible seulement pour Pico/Pico W) démarre le firmware MicroPython **sans script** — `loadMicropythonRepl()` ([`compiler.ts`](src/compiler.ts)) charge juste les segments UF2, `startReplMode()` ([`panel.ts`](src/panel.ts)) les envoie à la webview. Sans script, `PicoEngine.onCdcConnected` ([`pico.mts`](src/webview/engines/pico.mts)) n'engage jamais le raw REPL (Ctrl-A) : le banner MicroPython s'affiche et le champ « Envoyer » du moniteur série devient un vrai REPL interactif (écho MicroPython natif, `>>>`). Vérifié bout-en-bout (firmware réel, script Node temporaire) : banner reçu, `led = Pin(16, Pin.OUT)` puis `led.value(1)` tapés au clavier → GP16 passe HIGH.
-2. ✅ Validation : `typecheck`/`build`/`verify:all` OK.
+1. ✅ **Bouton REPL (Pico)** : bouton dédié dans la barre de simulation (`panel.ts`, visible seulement pour Pico/Pico W) démarre le firmware MicroPython **sans script** — `loadMicropythonRepl()` ([`compiler.ts`](src/compiler.ts)) charge juste les segments UF2, `startReplMode()` ([`panel.ts`](src/panel.ts)) les envoie à la webview. Sans script, `PicoEngine.onCdcConnected` ([`pico.mts`](src/webview/engines/pico.mts)) n'engage jamais le raw REPL (Ctrl-A) : le banner MicroPython s'affiche. Bouton élargi/gras (`.canvas-controls__btn--repl`, [`styles.css`](media/styles.css)).
+2. ✅ **Vraie console REPL** : la ligne « Envoyer » séparée (input + bouton) ne convenait pas à un dialogue REPL — remplacée en mode REPL par la console elle-même rendue focusable (`tabindex`), qui capture chaque touche et l'envoie **octet par octet** au microcontrôleur (`replKeyToBytes`/`writeSerial`, [`sim.mts`](src/webview/sim.mts)) ; c'est MicroPython qui fait l'écho, comme un vrai terminal série (Ctrl+C/Ctrl+D transmis, Entrée → CR, Retour → DEL). Bordure `--repl` ([`styles.css`](media/styles.css)) signale la console active. Vérifié bout-en-bout (firmware réel) : frappe caractère par caractère `1+1` + Entrée → écho + résultat `2` reçus, REPL réactif pour une 2ᵉ commande.
+3. ✅ Validation : `typecheck`/`build`/`verify:all` OK.
 
 # v2026.7.26
 
