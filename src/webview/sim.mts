@@ -215,6 +215,11 @@ function processAnsi(chunk: string): string {
       ansiEscape = ch;
     } else if (ch === '\b' || ch === '\x7f') {
       text = text.slice(0, -1);
+    } else if (ch === '\r') {
+      // MicroPython envoie \r\n en fin de ligne ; en white-space: pre-wrap,
+      // le navigateur rend déjà un CR comme un saut de ligne à lui seul — le
+      // \n qui suit en ajouterait un second. On avale le CR, le \n fait le travail.
+      continue;
     } else {
       text += ch;
     }
