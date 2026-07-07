@@ -6,6 +6,9 @@
 1. Les schéma interne des afficheurs doivent avoir les diodes qui se retournent selon cathode ou anode commune
 1. Les schémas interne des afficheurs et des claviers sont dans src\webview\composants\interne
 
+# v2026.7.36
+1. ✅ Corrige le scintillement de l'afficheur 7 segments 1 chiffre en simulation Pico : MicroPython (interprété, donc lent face à l'AVR compilé) écrit ses broches de segment une par une ; le rendu ~60 Hz pouvait surprendre un état transitoire (segments à moitié à jour). Anti-scintillement dans sim.mts (`sevenSegStable`) : le nouvel état n'est publié que s'il est resté identique deux frames de suite. Sans effet sur l'Uno (jamais surpris en état intermédiaire) ni sur le 4 digits multiplexé (déjà latché par ailleurs).
+
 # v2026.7.35
 1. ✅ Retour arrière complet de la console xterm.js (v2026.7.34) : console maison restaurée (sim.mts, panel.ts, styles.css), dépendances @xterm retirées — le terminal ne fonctionnait pas en réel, et le bug de collage venait du presse-papier (résolu côté système, pas côté code).
 2. ℹ️ Conservés : import keypad-4col.schema.svg réparé et travaux SVG en cours.

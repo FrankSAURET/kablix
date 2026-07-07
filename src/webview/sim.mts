@@ -183,6 +183,12 @@ let spiTftDevices = new Map<string, Ili9341Device>();
 // chaque chiffre (le balayage n'éclaire qu'un chiffre à la fois ; on conserve la
 // dernière valeur connue de chacun pour reconstituer l'affichage complet).
 let sevenSegLatch = new Map<string, number[]>();
+// Afficheur 7 segments à 1 chiffre : anti-scintillement. Un script MicroPython
+// (interprété, donc lent face à l'AVR compilé) écrit ses broches de segment une
+// par une ; le rendu (~60 Hz) peut tomber entre deux écritures et surprendre un
+// état transitoire (segments à moitié à jour) → clignotement visible. On ne
+// republie le nouvel état que s'il est resté identique d'une frame à l'autre.
+let sevenSegStable = new Map<string, { shown: number[]; pending: number[] }>();
 let breakpoints: Breakpoint[] = []; // points d'arrêt envoyés par l'extension (ligne + condition)
 // Vrai dès qu'un programme compilé/chargé a été reçu : sinon, lancer la
 // simulation déclenche d'abord une compilation automatique du fichier de code.
@@ -525,7 +531,17 @@ function refreshVisuals(): void {
       case '7segment': {
         const digits = Math.max(1, Number(part.attrs?.digits ?? 1) || 1);
         if (digits <= 1) {
-          el.values = sevenSegmentState(editor.diagram, part.id, read);
+          const next = sevenSegmentState(editor.diagram, part.id, read);
+          let stable = sevenSegStable.get(part.id);
+          if (!stable) {
+            stable = { shown: next, pending: next };
+            sevenSegStable.set(part.id, stable);
+          } else if (next.some((v, i) => v !== stable!.pending[i])) {
+            stable.pending = next; // nouvel état candidat : on attend confirmation
+          } else if (next.some((v, i) => v !== stable!.shown[i])) {
+            stable.shown = next; // confirmé sur 2 frames : publié
+          }
+          el.values = stable.shown;
         } else {
           // Multiplexage : on échantillonne le chiffre actuellement sélectionné
           // (broche DIGn active) et on mémorise ses segments ; les autres gardent
@@ -1256,6 +1272,7 @@ function startRun(): void {
   engine.setSpeed(Number(speedSelect.value) || 1);
   engine.setBreakpoints?.(breakpoints);
   sevenSegLatch = new Map(); // nouveau run : les chiffres mémorisés repartent à zéro
+  sevenSegStable = new Map();
   buildI2cDevices();
   rebind();
   engine.start();
