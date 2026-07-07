@@ -858,7 +858,8 @@ export class AvrEngine implements SimEngine {
       const type = (g.type ?? '').toLowerCase();
       const unsigned = type.includes('unsigned') || type.startsWith('uint') || type === 'bool';
       let value: string;
-      if (g.size === 4 && type.includes('float')) {
+      // Sur AVR, `double` = flottant 32 bits (identique à float) : même décodage.
+      if (g.size === 4 && (type.includes('float') || type.includes('double'))) {
         // Float IEEE 754 ; arrondi pour masquer le bruit binaire (3.1400001…).
         value = String(Math.round(view.getFloat32(g.addr, true) * 1e6) / 1e6);
       } else if (g.size === 1) {

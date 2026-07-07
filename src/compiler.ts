@@ -67,6 +67,15 @@ export interface ToolPaths {
   searchDir?: string;
 }
 
+/** Vrai si le chemin existe ET désigne un fichier (jamais un dossier). */
+function isFileSync(path: string): boolean {
+  try {
+    return statSync(path).isFile();
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Localise un exécutable dans le PATH, comme `which`/`where`. Sous Windows,
  * essaie les extensions de PATHEXT (.EXE…) — `execFileSync('arduino-cli')` sans
@@ -80,7 +89,9 @@ function whichSync(cmd: string): string | null {
     : [''];
   const tryBase = (base: string): string | null => {
     for (const ext of exts) {
-      if (existsSync(base + ext)) return base + ext;
+      // isFileSync : un DOSSIER homonyme (ex. un répertoire « arduino-cli »
+      // dans le PATH) ne doit jamais être pris pour l'exécutable.
+      if (isFileSync(base + ext)) return base + ext;
     }
     return null;
   };
@@ -117,7 +128,10 @@ function resolveTool(cmd: string, opts: { override?: string; searchDir?: string 
   const { override, searchDir } = opts;
   if (override && override.trim()) {
     const o = override.trim();
-    if (existsSync(o)) return o; // chemin direct vers l'exécutable
+    // isFileSync (et non existsSync) : si le réglage pointe un DOSSIER, on ne le
+    // renvoie pas comme exécutable — on cherche l'exécutable À L'INTÉRIEUR
+    // (cas « kablix.arduinoCliPath = C:\outils\arduino-cli\ »).
+    if (isFileSync(o)) return o; // chemin direct vers l'exécutable
     const byName = whichSync(o); // nom de commande
     if (byName) return byName;
     const inDir = whichSync(join(o, cmd)); // dossier contenant l'exécutable

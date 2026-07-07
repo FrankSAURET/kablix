@@ -1,26 +1,57 @@
+# --- Sources et outillage (jamais dans le paquet) ---
 .vscode/**
+.claude/**
 src/**
 scripts/**
+node_modules/**
+esbuild.js
+tsconfig.json
+.gitignore
+.vscodeignore
+CLAUDE.md
+**/*.map
+**/.git/**
+
+# --- dist : seuls les deux bundles produits par esbuild ---
+dist/**
+!dist/extension.js
+!dist/webview.js
+
+# --- Fichiers de travail / captures / archives ---
 svg/**
 svg retouche/**
 *.edit.svg
 *.vsix
 *.rar
+*.mjs
 preview-*.png
+Routage*.png
 .tmp-*
 Todo*.txt
 todo*.md
 Composants.md
-node_modules/**
-firmware/avr/**
-.gitignore
-.vscodeignore
-esbuild.js
-tsconfig.json
-**/*.map
-**/.git/**
 test-assets/**
+
+# --- Images sources (l'icône du paquet est media/icon.png) ---
 images/**
+Kablix.png
 K.png
 KN&B.png
 KablixMini.png
+
+# --- Ressources non utilisées à l'exécution ---
+# parts/ : composants d'exemple importables — distribués via GitHub, pas dans le vsix.
+parts/**
+# media/parts + media/icones.svg + media/Gomme.png : sources SVG/PNG non chargées par le code.
+media/parts/**
+media/icones.svg
+media/Gomme.png
+# examples/ : non référencés par l'extension (disponibles sur GitHub).
+examples/**
+# firmware : seul rp2040_ram.ld sert (script de lien de la compilation Pico).
+firmware/avr/**
+firmware/**/*.c
+# docs de développement (les fiches docs/composants/*.md restent : aide locale).
+docs/DEBOGAGE.md
+docs/Modifier svg composants.md
+docs/Recette-de-test.docx

@@ -43,8 +43,8 @@ export class FirmwareCancelled extends Error {
 /**
  * Résout le chemin d'un firmware MicroPython utilisable, dans l'ordre :
  *   1. réglage kablix.micropythonUf2 (chemin explicite de l'utilisateur) ;
- *   2. firmware déjà mis en cache dans le globalStorage ;
- *   3. scan du workspace (firmware déposé par l'utilisateur) ;
+ *   2. scan du workspace (firmware embarqué dans le projet : reproductible) ;
+ *   3. firmware déjà mis en cache dans le globalStorage ;
  *   4. proposition interactive : télécharger depuis micropython.org, ou
  *      choisir un .uf2 local. Le résultat est mis en cache pour les fois
  *      suivantes (plus jamais redemandé).

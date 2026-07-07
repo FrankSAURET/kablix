@@ -1678,7 +1678,14 @@ function switchBoard(target: BoardId): void {
   board = target;
   boardSelect.value = target;
   updateSerialTitle();
+  // L'hôte doit connaître la carte courante, et l'état persisté de la webview
+  // aussi (sinon un déplacement d'onglet restaurait l'ancienne carte). Pas de
+  // remise à zéro de programLoaded ici : ce chemin est aussi celui d'un
+  // programme fraîchement reçu (ensureFamilyForPayload), et l'hôte recompile de
+  // toute façon quand la carte de la dernière compilation diffère.
+  vscode.postMessage({ type: 'board', board });
   stopRun();
+  persistState();
 }
 
 /**
