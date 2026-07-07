@@ -1400,41 +1400,27 @@ textarea {
   line-height: 1;
 }
 
+/* Conteneur du terminal xterm.js : le fond vient d'ici (le thème xterm est
+   transparent), xterm gère lui-même texte, curseur, sélection et défilement. */
 .serial__out {
   height: 130px;
-  overflow: auto;
   margin: 0;
-  padding: 0.6rem 0.8rem;
-  font-family: var(--vscode-editor-font-family, monospace);
-  font-size: 0.8rem;
+  padding: 0.4rem 0.6rem;
   background: var(--vscode-textCodeBlock-background, rgba(0, 0, 0, 0.3));
   border-radius: 6px;
-  white-space: pre-wrap;
+  overflow: hidden;
 }
 
 /* Mode REPL : la console elle-même reçoit le clavier (pas de ligne d'envoi
-   séparée) — bordure visible façon terminal actif, surtout au focus. */
+   séparée) — bordure visible façon terminal actif, surtout au focus (le focus
+   réel est sur le textarea interne de xterm, d'où :focus-within). */
 .serial__out--repl {
   cursor: text;
   border: 1px solid var(--vscode-focusBorder, #007acc);
 }
-.serial__out--repl:focus {
+.serial__out--repl:focus-within {
   outline: 2px solid var(--vscode-focusBorder, #007acc);
   outline-offset: -1px;
-}
-
-/* Curseur clignotant : placé juste après le dernier texte reçu (le `<pre>`
-   est en white-space: pre-wrap, un ::after inline suit donc le flux). Visible
-   seulement au focus (sinon le curseur d'un terminal série non actif serait
-   trompeur). */
-.serial__out--repl:focus::after {
-  content: '▋';
-  animation: kablix-repl-blink 1s step-end infinite;
-}
-@keyframes kablix-repl-blink {
-  50% {
-    opacity: 0;
-  }
 }
 
 .serial__input {

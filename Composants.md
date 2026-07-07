@@ -76,16 +76,16 @@ Cases à cocher standard (cliquables dans VSCode).
   - [ ] Mega
   - [ ] Nano
   - [ ] Pico
-- [ ] led-bar-graph-element (`kablix-led-bar-graph`)
-  - [ ] Uno
+- [x] led-bar-graph-element (`kablix-led-bar-graph`)
+  - [x] Uno
+  - [x] Mega
+  - [x] Nano
+  - [x] Pico
+- [ ] led-element (`kablix-led`)
+  - [x] Uno
   - [ ] Mega
   - [ ] Nano
   - [x] Pico
-- [ ] led-element (`kablix-led`)
-  - [ ] Uno
-  - [ ] Mega
-  - [ ] Nano
-  - [ ] Pico
 - [ ] led-ring-element (`kablix-led-ring`)
   - [ ] Uno
   - [ ] Mega

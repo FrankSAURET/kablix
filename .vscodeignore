@@ -12,10 +12,11 @@ CLAUDE.md
 **/*.map
 **/.git/**
 
-# --- dist : seuls les deux bundles produits par esbuild ---
+# --- dist : seuls les bundles produits par esbuild ---
 dist/**
 !dist/extension.js
 !dist/webview.js
+!dist/webview.css
 
 # --- Fichiers de travail / captures / archives ---
 svg/**
