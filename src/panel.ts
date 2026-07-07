@@ -899,10 +899,6 @@ export class SimulatorPanel {
     const styleUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this.extensionUri, 'media', 'styles.css')
     );
-    // CSS extrait du bundle webview par esbuild (xterm.css importé par sim.mts).
-    const webviewCssUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, 'dist', 'webview.css')
-    );
     const gommeUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this.extensionUri, 'media', 'Gomme.svg')
     );
@@ -954,7 +950,6 @@ export class SimulatorPanel {
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy" content="${csp}" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link href="${webviewCssUri}" rel="stylesheet" />
   <link href="${styleUri}" rel="stylesheet" />
   <title>Kablix</title>
 </head>
@@ -1039,8 +1034,7 @@ export class SimulatorPanel {
           <button id="close-serial" title="${l10n.t('Close the serial monitor')}">✕</button>
         </span>
       </div>
-      <!-- Terminal xterm.js (console série / REPL), monté par sim.mts. -->
-      <div id="serial" class="serial__out"></div>
+      <pre id="serial" class="serial__out" tabindex="0" aria-live="polite"></pre>
       <div class="serial__input" id="serial-input-row">
         <input id="serial-input" type="text" placeholder="${l10n.t('Send to the microcontroller (Enter)…')}" />
         <button id="serial-send">${l10n.t('Send')}</button>

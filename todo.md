@@ -1,7 +1,14 @@
 # À faire
 1. rendre les LED allumées plus brillante mettre le halo par dessus la LED
-2. Ajoute les schéma interne des uno, mega et nano (svg\Arduino-uno-pinout.svg, svg\mega pinout.svg et svg\nano pinout.svg)
+2. Ajoute les schéma pinout des uno, mega et nano (Les schémas pinout sont dans src\webview\composants\interne )
 3. Aff 7 seg, sur les dessins des composants comme sur son schéma interne les lignes semblent avoir grossis et les couleurs disparus
+1. Suprime les broches CLN et COM de l'afficheur 4 digit
+1. Les schéma interne des afficheurs doivent avoir les diodes qui se retournent selon cathode ou anode commune
+1. Les schémas interne des afficheurs et des claviers sont dans src\webview\composants\interne
+
+# v2026.7.35
+1. ✅ Retour arrière complet de la console xterm.js (v2026.7.34) : console maison restaurée (sim.mts, panel.ts, styles.css), dépendances @xterm retirées — le terminal ne fonctionnait pas en réel, et le bug de collage venait du presse-papier (résolu côté système, pas côté code).
+2. ℹ️ Conservés : import keypad-4col.schema.svg réparé et travaux SVG en cours.
 
 # v2026.7.34
 1. ✅ Console série / REPL remplacée par un vrai émulateur de terminal xterm.js (le même que le terminal VS Code) embarqué dans la webview : séquences ANSI, \r\n, effacement de ligne, collage multi-lignes et flèches (historique MicroPython) gérés nativement — corrige définitivement les sauts de ligne parasites au collage.

@@ -92,11 +92,6 @@ import type {
 } from './engines/types.mjs';
 import { UNO_DEMO } from './programs/uno-demo.mjs';
 import { PICO_BLINK } from './programs/pico-blink.mjs';
-// Console série / REPL : vrai émulateur de terminal (le CSS part dans
-// dist/webview.css, chargé par la page à côté de dist/webview.js).
-import { Terminal } from '@xterm/xterm';
-import { FitAddon } from '@xterm/addon-fit';
-import '@xterm/xterm/css/xterm.css';
 
 interface VsCodeApi {
   postMessage(message: unknown): void;
@@ -143,7 +138,7 @@ const serialEl0 = document.querySelector('.serial') as HTMLElement;
 const debugLineEl = document.getElementById('debug-line') as HTMLSpanElement;
 const debugVarsEl = document.getElementById('debug-vars') as HTMLTableElement;
 const statusEl = document.getElementById('status') as HTMLSpanElement;
-const serialEl = document.getElementById('serial') as HTMLDivElement;
+const serialEl = document.getElementById('serial') as HTMLPreElement;
 const serialInput = document.getElementById('serial-input') as HTMLInputElement;
 const serialSend = document.getElementById('serial-send') as HTMLButtonElement;
 const serialInputRow = document.getElementById('serial-input-row') as HTMLDivElement;
@@ -198,80 +193,57 @@ const setStatus = (text: string): void => {
 };
 
 /**
- * Console série / REPL : émulateur de terminal xterm.js (le même que celui de
- * VS Code) monté dans #serial. Il interprète nativement tout ce que la
- * micro-émulation maison gérait mal : séquences ANSI, \r\n, effacement de
- * ligne, collage multi-lignes, flèches (historique MicroPython)…
+ * Micro-émulation terminal : le REPL MicroPython édite sa ligne avec
+ * Backspace (0x08) + « effacer jusqu'à fin de ligne » (`\x1b[K`) plutôt que
+ * de renvoyer tout le texte — sans ce traitement, `textContent += chunk`
+ * afficherait le code de contrôle brut (ex. littéralement « [K » à l'écran).
+ * Les séquences ANSI non gérées (couleurs, curseur…) sont juste avalées.
  */
-function cssColor(name: string, fallback: string): string {
-  const raw = getComputedStyle(document.body).getPropertyValue(name).trim() || fallback;
-  // xterm ne parse que #hex / rgb() / rgba() : le canvas normalise n'importe
-  // quelle couleur CSS (mots-clés, hsl…) vers l'un de ces deux formats.
-  const ctx = document.createElement('canvas').getContext('2d');
-  if (!ctx) return fallback;
-  ctx.fillStyle = raw;
-  return ctx.fillStyle;
+let ansiEscape = ''; // séquence "\x1b[...": accumulée jusqu'à sa lettre finale
+function processAnsi(chunk: string): string {
+  let text = serialEl.textContent ?? '';
+  for (const ch of chunk) {
+    if (ansiEscape) {
+      ansiEscape += ch;
+      // Terminée par une lettre (ex. « K » = efface jusqu'à fin de ligne) : le
+      // Backspace qui précède toujours cette séquence a déjà reculé le curseur
+      // d'un cran, donc rien de plus à effacer dans ce buffer texte simplifié.
+      if (/[A-Za-z]/.test(ch)) ansiEscape = '';
+      continue;
+    }
+    if (ch === '\x1b') {
+      ansiEscape = ch;
+    } else if (ch === '\b' || ch === '\x7f') {
+      text = text.slice(0, -1);
+    } else if (ch === '\r') {
+      // MicroPython envoie \r\n en fin de ligne ; en white-space: pre-wrap,
+      // le navigateur rend déjà un CR comme un saut de ligne à lui seul — le
+      // \n qui suit en ajouterait un second. On avale le CR, le \n fait le travail.
+      continue;
+    } else {
+      text += ch;
+    }
+  }
+  return text;
 }
 
-const term = new Terminal({
-  fontFamily: getComputedStyle(document.body).getPropertyValue('--vscode-editor-font-family').trim() || 'monospace',
-  fontSize: 13,
-  cursorBlink: true,
-  scrollback: 5000,
-  // Fond transparent : c'est .serial__out (thème VS Code) qui peint le fond,
-  // le terminal ne dessine que le texte.
-  allowTransparency: true,
-  // Un sketch Arduino peut émettre des \n seuls (Serial.print("a\n")) : sans
-  // conversion, xterm descendrait d'une ligne sans revenir au bord (escalier).
-  // Sans effet sur le REPL MicroPython, qui termine déjà ses lignes en \r\n.
-  convertEol: true,
-  theme: {
-    background: 'rgba(0, 0, 0, 0)',
-    foreground: cssColor('--vscode-editor-foreground', '#cccccc'),
-    cursor: cssColor('--vscode-editorCursor-foreground', '#aeafad'),
-    selectionBackground: cssColor('--vscode-editor-selectionBackground', '#264f78'),
-  },
-});
-const fitAddon = new FitAddon();
-term.loadAddon(fitAddon);
-term.open(serialEl);
-term.write('\x1b[?25l'); // curseur caché hors REPL (console = simple moniteur)
-fitAddon.fit();
-// Recalcule colonnes/lignes quand la console change de taille (fenêtre,
-// splitters…) — jamais quand elle est cachée (mesures nulles).
-new ResizeObserver(() => {
-  if (serialVisible) fitAddon.fit();
-}).observe(serialEl);
-// Ctrl+C avec sélection : copie (comme le terminal VS Code) au lieu d'envoyer
-// l'interruption 0x03 — sans sélection, le code de contrôle part normalement.
-term.attachCustomKeyEventHandler((e) => {
-  if (e.type === 'keydown' && e.ctrlKey && e.key.toUpperCase() === 'C' && term.hasSelection()) {
-    void navigator.clipboard.writeText(term.getSelection());
-    return false;
-  }
-  return true;
-});
-
 const appendSerial = (chunk: string): void => {
-  term.write(chunk);
+  serialEl.textContent = processAnsi(chunk);
+  serialEl.scrollTop = serialEl.scrollHeight;
 };
 
-/** Vide la console/moniteur série (en REPL, la ligne d'invite courante reste). */
+/** Vide la console/moniteur série. */
 const clearSerial = (): void => {
-  if (replMode) {
-    term.clear();
-  } else {
-    term.reset();
-    term.write('\x1b[?25l'); // reset() a remontré le curseur
-  }
+  serialEl.textContent = '';
+  ansiEscape = '';
 };
 
 /**
- * Mode REPL interactif (Pico, firmware MicroPython sans script) : le terminal
- * transmet chaque frappe au microcontrôleur octet par octet — c'est le
- * firmware qui fait l'écho. La ligne d'envoi séparée n'a plus lieu d'être
- * dans ce mode. Hors REPL, le clavier est désactivé (moniteur en lecture
- * seule, la ligne d'envoi fait l'entrée).
+ * Mode REPL interactif (Pico, firmware MicroPython sans script) : la console
+ * elle-même capture le clavier et transmet chaque touche au microcontrôleur
+ * octet par octet — comme un vrai terminal série, c'est le firmware qui fait
+ * l'écho (aucun texte inséré localement). La ligne d'envoi séparée n'a plus
+ * lieu d'être dans ce mode.
  */
 let replMode = false;
 
@@ -279,17 +251,69 @@ function setReplMode(active: boolean): void {
   replMode = active;
   serialInputRow.hidden = active;
   serialEl.classList.toggle('serial__out--repl', active);
-  term.options.disableStdin = !active;
-  term.write(active ? '\x1b[?25h' : '\x1b[?25l');
-  if (active) term.focus();
+  // contenteditable (plutôt que juste tabindex) : c'est ce qui fait émettre au
+  // navigateur un vrai événement `paste` avec clipboardData rempli — sans ça,
+  // Ctrl+V ne déclenche rien sur un <pre> simplement focusable.
+  serialEl.contentEditable = active ? 'true' : 'false';
+  if (active) serialEl.focus();
 }
 
-// Frappe et collage : xterm émet les octets prêts pour un REPL (Entrée → \r,
-// Backspace → DEL, Ctrl+C → 0x03, flèches → séquences ANSI que MicroPython
-// comprend — historique, édition de ligne). Le texte collé est normalisé par
-// xterm en un seul \r par fin de ligne (fini les invites vides en double).
-term.onData((data) => {
-  if (replMode && engine) engine.writeSerial(data);
+/** Traduit une touche du clavier en octet(s) série (Entrée → CR, Retour → DEL, flèches ignorées). */
+function replKeyToBytes(e: KeyboardEvent): string | null {
+  if (e.key === 'Enter') return '\r';
+  if (e.key === 'Backspace') return '\x7f';
+  if (e.key === 'Tab') return '\t';
+  if (e.ctrlKey && e.key.length === 1) {
+    // Ctrl+V : toujours le collage natif (jamais un code de contrôle).
+    // Ctrl+C avec une sélection active : copie native, pas une interruption —
+    // sans texte sélectionné, on retombe sur le code de contrôle (0x03).
+    if (e.key.toUpperCase() === 'V') return null;
+    if (e.key.toUpperCase() === 'C' && (window.getSelection()?.toString().length ?? 0) > 0) {
+      return null;
+    }
+    // Ctrl+lettre -> code de contrôle (Ctrl-C = 0x03, Ctrl-D = 0x04…), utile
+    // pour interrompre un script ou forcer un soft-reboot depuis le REPL.
+    const code = e.key.toUpperCase().charCodeAt(0) - 64;
+    return code >= 0 && code < 32 ? String.fromCharCode(code) : null;
+  }
+  if (e.key.length === 1 && !e.altKey && !e.metaKey) return e.key;
+  return null;
+}
+
+serialEl.addEventListener('keydown', (e) => {
+  if (!replMode || !engine) return;
+  const bytes = replKeyToBytes(e);
+  if (bytes === null) return;
+  e.preventDefault();
+  engine.writeSerial(bytes);
+});
+
+// Verrou d'insertion : sur un contentEditable, bloquer `keydown` ne suffit pas
+// à empêcher Chrome/Electron d'insérer aussi le texte nativement (l'édition
+// passe par `beforeinput`, pas `keydown`) — c'est le firmware qui fait l'écho
+// via `appendSerial`, donc toute insertion native produirait un texte en
+// double. Le collage (`insertFromPaste`) est bloqué ici aussi : le handler
+// `paste` ci-dessous gère lui-même l'envoi au firmware, `beforeinput` arrive
+// avant et insérerait sinon le texte collé une seconde fois nativement.
+serialEl.addEventListener('beforeinput', (e) => {
+  if (!replMode) return;
+  e.preventDefault();
+});
+
+// Collage (Ctrl+V ou menu contextuel) : le texte du presse-papiers part
+// octet par octet, comme une frappe rapide — MicroPython l'interprète ligne
+// par ligne (utile pour coller plusieurs commandes d'un coup). Un texte copié
+// depuis un éditeur (VS Code…) sous Windows contient des fins de ligne CRLF
+// (`\r\n`) : les traiter indépendamment (`\r` tel quel + `\n` → `\r`) envoyait
+// DEUX Entrée par ligne, chacune affichant sa propre invite `>>> ` — d'où des
+// lignes vides après chaque commande collée. `\r\n`/`\r`/`\n` sont donc
+// d'abord normalisés en un seul `\r` par fin de ligne avant l'envoi.
+serialEl.addEventListener('paste', (e) => {
+  if (!replMode || !engine) return;
+  e.preventDefault();
+  const text = e.clipboardData?.getData('text/plain') ?? '';
+  const normalized = text.replace(/\r\n|\r|\n/g, '\r');
+  for (const ch of normalized) engine.writeSerial(ch);
 });
 
 // --- Fichier de code : état « aucun fichier choisi » --------------------------
@@ -315,8 +339,6 @@ function setSerialVisible(visible: boolean, persist = true): void {
   serialVisible = visible;
   serialEl0.hidden = !visible;
   toggleSerialBtn.classList.toggle('primary', visible);
-  // Réaffichage : le terminal était en taille nulle, recalcul après layout.
-  if (visible) requestAnimationFrame(() => fitAddon.fit());
   if (persist) saveUiState();
 }
 
