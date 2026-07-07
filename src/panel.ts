@@ -4,6 +4,7 @@ import {
   compile,
   loadArtifact,
   loadPythonProgram,
+  loadMicropythonRepl,
   type Board,
   type CompileResult,
   type ToolPaths,
@@ -198,6 +199,28 @@ export class SimulatorPanel {
       this.runProgram(result, filePath.split(/[\\/]/).pop() ?? filePath);
     } catch (err) {
       // L'utilisateur a renoncé à fournir un firmware : pas un échec, on se tait.
+      if (err instanceof FirmwareCancelled) {
+        this.post({ type: 'status', text: l10n.t('Ready') });
+        return;
+      }
+      this.reportError(err);
+    }
+  }
+
+  /**
+   * Démarre le firmware MicroPython seul (sans script) : le raw REPL n'est
+   * jamais engagé côté moteur, le moniteur série devient un vrai REPL
+   * interactif (bouton « REPL » de la barre de simulation).
+   */
+  public async startReplMode(): Promise<void> {
+    try {
+      const isPicoW = this.currentBoard === 'picow';
+      const firmware = await resolveMicropythonFirmware(this.context, isPicoW ? 'picow' : 'pico');
+      const result = loadMicropythonRepl(firmware);
+      this.lastCompiled = undefined; // repli sûr : ▶ recompilera au lieu de relancer ce firmware nu
+      this.post({ type: 'runProgram', ...result.payload });
+      if (result.log) console.log(`[Kablix] ${result.log}`);
+    } catch (err) {
       if (err instanceof FirmwareCancelled) {
         this.post({ type: 'status', text: l10n.t('Ready') });
         return;
@@ -538,6 +561,10 @@ export class SimulatorPanel {
       case 'compile':
         if (msg.board) this.currentBoard = msg.board;
         void this.compileActiveFile(msg.onlyIfChanged === true);
+        break;
+      case 'startRepl':
+        if (msg.board) this.currentBoard = msg.board;
+        void this.startReplMode();
         break;
       case 'loadWorkspace':
         if (msg.board) this.currentBoard = msg.board;
@@ -974,6 +1001,7 @@ export class SimulatorPanel {
             <option value="0.01">🐌 1 %</option>
           </select>
           <button id="code-file" class="canvas-controls__file" title="${l10n.t('Code file to run / debug — click to change')}">📄 ${l10n.t('No file')}</button>
+          <button id="repl" class="canvas-controls__btn" hidden title="${l10n.t('Start an interactive MicroPython REPL (no script)')}">REPL</button>
           <button id="toggle-serial" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Show/hide the serial monitor')}"><img class="canvas-controls__icon" src="${serialMonitorUri}" alt="${l10n.t('Show/hide the serial monitor')}" /></button>
         </div>
         <!-- Barre droite : recentrer/ajuster, réinitialiser, effacer (alignée et de

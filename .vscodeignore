@@ -10,6 +10,7 @@ preview-*.png
 .tmp-*
 Todo*.txt
 todo*.md
+Composants.md
 node_modules/**
 firmware/avr/**
 .gitignore

@@ -2,6 +2,11 @@
 1. ⏳ La barre de LED ne fonctionne pas (autoriser aussi le changement de couleur) — logique netlist, rendu Lit et intégration avec les 2 moteurs (AVR + Pico) vérifiés à 100 % correct par tests bout-en-bout ; câblage confirmé identique au test qui passe. Aucune piste de bug de code restante. À retester en conditions réelles par Frank.
 
 
+# v2026.7.27
+
+1. ✅ **Bouton REPL (Pico)** : bouton dédié dans la barre de simulation (`panel.ts`, visible seulement pour Pico/Pico W) démarre le firmware MicroPython **sans script** — `loadMicropythonRepl()` ([`compiler.ts`](src/compiler.ts)) charge juste les segments UF2, `startReplMode()` ([`panel.ts`](src/panel.ts)) les envoie à la webview. Sans script, `PicoEngine.onCdcConnected` ([`pico.mts`](src/webview/engines/pico.mts)) n'engage jamais le raw REPL (Ctrl-A) : le banner MicroPython s'affiche et le champ « Envoyer » du moniteur série devient un vrai REPL interactif (écho MicroPython natif, `>>>`). Vérifié bout-en-bout (firmware réel, script Node temporaire) : banner reçu, `led = Pin(16, Pin.OUT)` puis `led.value(1)` tapés au clavier → GP16 passe HIGH.
+2. ✅ Validation : `typecheck`/`build`/`verify:all` OK.
+
 # v2026.7.26
 
 1. ✅ **Pastille jaune de connexion** : apparaissait puis disparaissait pile au centre d'une broche câblée — le tracé du fil (`hotspotCenter`) volait le survol exactement là où `.wires` (z=5) passe au-dessus des composants (z=3). `.part:has(.pin:hover) { z-index: 9 }` ([`styles.css`](media/styles.css)) hisse tout le composant au-dessus des fils le temps du survol.
@@ -12,7 +17,7 @@
 6. ✅ **Extension affichée `.Projix`** : `postProjectName()` ([`panel.ts`](src/panel.ts)) affiche désormais `${projectBaseName}.Projix` (P majuscule) dans la barre d'outils — cosmétique uniquement, l'extension réelle de fichier sur disque (sauvegarde/ouverture/filtres) reste `.projix` partout ailleurs.
 7. ✅ **Clic « nouveau » déréférence projet/programme** — déjà en place (`case 'newProject'`, [`panel.ts`](src/panel.ts)) : vide `projectBaseName`/`currentSourceUri` et `setCodeFile(undefined)`, qui repousse aussitôt les noms vidés à la webview.
 8. ℹ️ Items déjà résolus dans des lots antérieurs, confirmés par relecture du code : point de débranchement aux extrémités d'un fil sélectionné (v2026.6.29), propriétés de câbles sur sélection multiple et déplacement Ctrl de plusieurs coudes (v2026.7.25), boutons toolbar sans bordure et bouton aide sans texte/bordure (v2026.7.18), bouton « Noms » texte seul.
-9. ℹ️ Pico : absence du banner MicroPython/erreurs pendant l'exécution d'un script — comportement normal du protocole raw REPL (banner et erreurs émis après la fin d'exécution, au retour en REPL interactif). Pas un bug.
+9. ℹ️ Pico : absence du banner MicroPython au démarrage — comportement normal du raw REPL (`pico.mts`) : Ctrl-A supprime le banner (affiché seulement au soft-reboot Ctrl-D / mise sous tension) ; en revanche `print()` et erreurs du script **sont** relayés en direct caractère par caractère (phases `stdout`/`stderr`, `emitSerial`), pas différés. Pas un bug.
 10. ✅ **Ctrl+A** ne sélectionne plus le texte de la webview hors canvas — `user-select: none` sur `body` ([`styles.css`](media/styles.css)), réactivé pour `.serial__out`/`input`/`textarea` (console série, champs de saisie).
 11. ✅ Validation : `typecheck`/`verify:all` OK.
 

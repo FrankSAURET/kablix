@@ -150,6 +150,7 @@ const palette = document.getElementById('palette') as HTMLDivElement;
 const wiresSvg = document.getElementById('wires') as unknown as SVGSVGElement;
 const inspector = document.getElementById('inspector') as HTMLDivElement;
 const codeFileBtn = document.getElementById('code-file') as HTMLButtonElement;
+const replBtn = document.getElementById('repl') as HTMLButtonElement;
 const projectNameEl = document.getElementById('project-name') as HTMLSpanElement;
 const resetSimBtn = document.getElementById('reset-sim') as HTMLButtonElement;
 const clearCanvasBtn = document.getElementById('clear-canvas') as HTMLButtonElement;
@@ -230,6 +231,7 @@ function setSerialVisible(visible: boolean, persist = true): void {
 function updateSerialTitle(): void {
   serialTitleEl.textContent =
     boardFamily(board) === 'rp2040' ? t('Console') : t('Serial monitor');
+  replBtn.hidden = boardFamily(board) !== 'rp2040';
 }
 
 function b64ToBytes(b64: string): Uint8Array {
@@ -1148,9 +1150,16 @@ function startRun(): void {
   runBtn.disabled = true;
   stopBtn.disabled = false;
   const isPython = boardFamily(board) === 'rp2040' && picoProgram.kind === 'flash' && !!picoProgram.script;
+  const isRepl = boardFamily(board) === 'rp2040' && picoProgram.kind === 'flash' && !picoProgram.script;
   runIsPython = isPython;
   updateDebugButtons();
-  setStatus(isPython ? t('Starting MicroPython… (a few seconds)') : t('Running…'));
+  setStatus(
+    isPython
+      ? t('Starting MicroPython… (a few seconds)')
+      : isRepl
+        ? t('REPL ready — type your commands in the console')
+        : t('Running…')
+  );
 }
 
 function stopRun(): void {
@@ -1202,9 +1211,21 @@ function requestRun(): void {
   vscode.postMessage({ type: 'compile', board, onlyIfChanged: programLoaded });
 }
 
+/**
+ * Bouton REPL : démarre le firmware MicroPython seul (aucun script à
+ * injecter) — le raw REPL n'est jamais engagé côté moteur, le moniteur série
+ * devient un vrai REPL interactif où l'on tape directement des commandes.
+ */
+function requestRepl(): void {
+  buzzerAudio.resume();
+  setStatus(t('Starting REPL…'));
+  vscode.postMessage({ type: 'startRepl', board });
+}
+
 // --- Barre d'outils -----------------------------------------------------------
 runBtn.addEventListener('click', requestRun);
 stopBtn.addEventListener('click', stopRun);
+replBtn.addEventListener('click', requestRepl);
 // Tout réinitialiser : arrête la simulation et remet les composants à zéro.
 resetSimBtn.addEventListener('click', () => {
   stopRun(); // vide déjà la console et réinitialise les composants

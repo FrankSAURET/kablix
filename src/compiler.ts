@@ -510,6 +510,25 @@ export function loadPythonProgram(
   };
 }
 
+/**
+ * Prépare le firmware MicroPython seul, sans script à injecter : une fois
+ * démarré, `PicoEngine` laisse le raw REPL de côté (`onCdcConnected` sans
+ * script n'envoie que CR/LF) et le moniteur série devient un vrai REPL
+ * interactif MicroPython.
+ */
+export function loadMicropythonRepl(firmwareUf2Path: string): CompileResult {
+  const segments = parseUf2(new Uint8Array(readFileSync(firmwareUf2Path)));
+  return {
+    payload: {
+      board: 'pico',
+      format: 'rp2040-flash',
+      segments: segments.map((s) => ({ addr: s.addr, b64: toB64(s.data) })),
+      script: undefined,
+    },
+    log: `Firmware MicroPython : ${basename(firmwareUf2Path)} (REPL interactif)`,
+  };
+}
+
 // --- Infos de débogage AVR (DWARF via avr-objdump) ---------------------------
 
 /**
