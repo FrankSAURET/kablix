@@ -12,6 +12,11 @@
 1. DHT22 : 2 curseur Humidité 0  à 100 % et température -40 à + 80°C. La pin SDA doit s'appeler DATA. 
 1. Pour le capteur à ultrason rajoute dans les propriétés distance min et distance max (par defaut 2cm à 4m) et en simulation met lui un curseur de min à max ajoint à une zone de saisie. Enlève de son nom (HC-SR04).
 1. Pour le PIR détecte les mouvements de la souris au dessu de lui. CTRL + clic = mouvement prrmanent indiqué dans la bulle lors de la siumulation.
+1. Les bras du servomoteur ne changent plus (simple, double, croix). 
+1. Mon programme de test du servomoteur s'exécute trés lentement. Il coupe le bras en bas on dirait qu'il sort de la zone d'affichage du composant.
+
+# v2026.7.47
+1. ✅ Buzzer : dessin repris du schéma validé de Frank (`svg retouche/Validé/buzzer.edit.svg`) — disque noir, dôme central en dégradé radial, 2 pattes (noire = broche 1, rouge = broche 2). Pastilles de positionnement retirées ; broches calées à x=20/30, y=50 (grille 10 px), conformes au pinInfo du fork. Rendu Chrome headless validé (note de musique flottante conservée).
 
 # v2026.7.46
 1. ✅ Câblage interne 7 segments : retour au SCALE SIMPLE (comme v41) — le calage 2D (v44/45) écrasait le schéma quand pinInfo est resserré. Le schéma de Frank est juste mis à l'échelle de la boîte (box/viewBox), ses broches sont déjà bien posées dans son repère. 2/4 chiffres à nouveau étalés sous les chiffres.
