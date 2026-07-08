@@ -7,6 +7,10 @@
 6. Pareil pour le capteur de gaz
 7. Le bouton ☢ (K) apparaîtra en haut à gauche de la barre d'outils de dessin (celle de droite). Uniquement pour les composants en disposant.
 
+# v2026.7.43
+1. ✅ Câblage interne 7 segments : calage vertical sur les broches réelles (les fils du haut n'atteignaient pas les pattes, diodes décalées vers le bas). La rangée de broches du schéma [SCHEMA_PIN_TOP=9.55, SCHEMA_PIN_BOT=79.95] est étirée sur les broches du composant [min,max Y de pinInfo] — comme le poster de brochage. Remplace la compression fixe de 2 px (v42) qui décalait.
+2. ✅ 4 chiffres : gros trait noir parasite supprimé (path1 stroke-width 11.3 sans couleur = doublon Inkscape d'un fil fin). Filtre « stroke-width > 5 » ajouté à _clean-7seg-schema.mjs ; clean + anode régénérés.
+
 # v2026.7.42
 1. ✅ Dessin 7 segments : contour des segments retiré (setSeg strokeWidth 0.05 au lieu de 0.96 — segments pleins, sans liseré épais, comme le modèle fourni par Frank).
 2. ✅ Afficheur 4 chiffres : points gris parasites (ex-pattes CLN/COM) retirés — bandes de pastilles haut/bas réduites (width 70→60, 6 pastilles au lieu de 7).

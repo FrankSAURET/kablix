@@ -196,10 +196,13 @@ function ledBar(pins: PinPoint[]): string | null {
  * schéma est dans le repère du corps (viewBox = w×h de la variante) : on le met à
  * l'échelle de la boîte du composant. `attrs.common` choisit la variante.
  */
-// Le schéma dessiné est ~2 unités trop haut par rapport au corps (marge en haut et
-// en bas). On le compresse verticalement de SEVEN_SEG_SHRINK unités, centré, avant
-// la mise à l'échelle du corps (léger écrasement accepté par Frank).
-const SEVEN_SEG_SHRINK = 2;
+// Calage vertical du schéma sur les broches réelles. Le schéma dessiné a ses
+// broches (haut/bas) à SCHEMA_PIN_TOP / SCHEMA_PIN_BOT dans son repère ; on étire
+// verticalement le schéma pour que ces deux rangées tombent EXACTEMENT sur les
+// broches du composant (mêmes que le rendu du dessin externe), comme le poster de
+// brochage. Bornes mesurées sur les fils de broche des SVG de Frank.
+const SCHEMA_PIN_TOP = 9.55; // Y de la rangée haute des fils (repère du schéma)
+const SCHEMA_PIN_BOT = 79.95; // Y de la rangée basse
 
 function sevenSegment(
   pins: PinPoint[],
@@ -210,10 +213,16 @@ function sevenSegment(
   const digits = (attrs?.digits ?? '1') as '1' | '2' | '4';
   const schema = SEVEN_SEG_SCHEMA[commonAnode ? 'anode' : 'cathode'][digits] ?? SEVEN_SEG_SCHEMA.cathode['1'];
   if (!box) return schema.inner;
+  // Rangées de broches réelles (min/max Y des pins), dans le repère du schéma (=
+  // repère du composant : box.h correspond à schema.h).
+  const ys = pins.map((p) => p.y);
+  const pinTop = Math.min(...ys);
+  const pinBot = Math.max(...ys);
+  // Étire le schéma en Y : sa rangée [SCHEMA_PIN_TOP, SCHEMA_PIN_BOT] → [pinTop, pinBot].
+  const ky = (pinBot - pinTop) / (SCHEMA_PIN_BOT - SCHEMA_PIN_TOP);
+  const ty = pinTop - SCHEMA_PIN_TOP * ky;
   const sx = box.w / schema.w;
   const sy = box.h / schema.h;
-  const ky = (schema.h - SEVEN_SEG_SHRINK) / schema.h; // compression verticale
-  const ty = (schema.h / 2) * (1 - ky); // recentre la compression
   return (
     `<g transform="scale(${sx.toFixed(4)} ${sy.toFixed(4)})">` +
     `<g transform="translate(0 ${ty.toFixed(3)}) scale(1 ${ky.toFixed(4)})">${schema.inner}</g>` +

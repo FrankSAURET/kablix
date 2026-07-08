@@ -34,6 +34,12 @@ for (const wrap of document.querySelectorAll('.wrap')) {
   svg.querySelectorAll('text').forEach((e) => e.remove());                  // labels de broche
   svg.querySelectorAll('rect').forEach((e) => e.remove());                  // repères / fonds pattern
   svg.querySelectorAll('defs').forEach((e) => e.remove());                  // path-effects inkscape + patterns
+  // Traits anormalement épais (artefacts Inkscape : doublon d'un fil fin sans
+  // couleur de stroke → rendu en gros trait noir). On les supprime.
+  svg.querySelectorAll('path, line').forEach((e) => {
+    const sw = parseFloat((e.getAttribute('style') || '').match(/stroke-width:\\s*([\\d.]+)/)?.[1] || e.getAttribute('stroke-width') || '0');
+    if (sw > 5) e.remove();
+  });
   svg.querySelectorAll('sodipodi\\\\:namedview, namedview').forEach((e) => e.remove());
   // Retire les groupes désormais vides (anciens conteneurs de broches).
   let removed = true;
