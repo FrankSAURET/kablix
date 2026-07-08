@@ -1,8 +1,10 @@
 # À faire
 1. Nano : retoucher nano-pinout.svg (module central redimensionné) puis réactiver le poster dans pinout.mts
 2. En pwm la LED clignote. Demande moi mon programme.
-3. Le message "Simulation en cours : ..." doit toujours rester visible (flottant) et clignoter 3 fois si on essaye de faire qqc d'interdit
-4. Servo : test qui s'exécute très lentement (perf de simulation — nécessite ton programme de test pour diagnostiquer la cause : delay/refresh/avr8js).
+3. Servo : test qui s'exécute très lentement (perf de simulation — nécessite ton programme de test pour diagnostiquer la cause : delay/refresh/avr8js).
+
+# v2026.7.57
+1. ✅ Message flottant « ⚠ Simulation en cours » : affiché près du curseur pendant toute la simulation (position fixe, suit la souris) et clignote 3× en rouge quand une action d'édition INTERDITE est tentée (clic gauche pour déplacer un composant passif, ou Suppr/Backspace sur une sélection — pendant le verrouillage). L'éditeur expose `onBlockedEdit` (appelé aux points de blocage : body pointerdown non-interactif, touche Suppr verrouillée) ; sim.mts gère le toast (`.sim-toast` / animation `.sim-toast--blink`). Ancrage « près souris » = choix de Frank. Déclenchement validé headless.
 
 # v2026.7.56
 1. ✅ Bouton ☢ (K) déplacé du composant vers la BARRE D'OUTILS droite (en haut à gauche, avant l'autoroutage). Il n'apparaît que lorsque le composant SÉLECTIONNÉ dispose d'un câblage interne ou d'un poster de brochage (`onSelectionChange` → `hidden`), et agit sur ce composant (`toggleSelectedSchema`) ; liseré bleu quand le schéma est affiché. Le badge par-composant (`.part__internal-toggle` dans le corps) est supprimé du rendu. Validé headless (uno → bouton visible, toggle actif).

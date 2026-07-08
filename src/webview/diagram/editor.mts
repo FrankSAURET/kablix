@@ -157,6 +157,8 @@ export class Editor {
    * activer le bouton ☢ de la barre d'outils), et `shown` s'il est affiché.
    */
   onSelectionChange: ((info: { partId: string | null; schema: boolean; shown: boolean }) => void) | null = null;
+  /** Appelé quand une action d'ÉDITION est tentée pendant la simulation (verrouillé). */
+  onBlockedEdit: (() => void) | null = null;
 
   private paletteSort: PaletteSort = 'category';
   private paletteFilter = '';
@@ -1371,7 +1373,13 @@ export class Editor {
       this.startDrag(e, part);
     });
     body.addEventListener('pointerdown', (e) => {
-      if (this.locked) return; // simulation : on laisse le composant réagir, pas d'édition
+      if (this.locked) {
+        // Simulation : on laisse réagir les composants interactifs / à contrôle de
+        // simulation ; un clic gauche « d'édition » sur un composant passif est
+        // interdit → clignotement du message de simulation près du curseur.
+        if (e.button === 0 && !def.interactive && !def.simControl) this.onBlockedEdit?.();
+        return;
+      }
       if (e.ctrlKey) {
         e.stopPropagation();
         this.toggleInSelection(part.id); // Ctrl+clic : sélection multiple
@@ -1945,7 +1953,15 @@ export class Editor {
         return;
       }
     }
-    if (this.locked) return; // simulation : pas d'édition du schéma
+    if (this.locked) {
+      // Simulation : une touche d'édition (Suppr/Backspace sur une sélection) est
+      // interdite → clignotement du message de simulation.
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !typing &&
+          (this.selectedParts.size > 0 || this.selectedWires.size > 0 || this.selection)) {
+        this.onBlockedEdit?.();
+      }
+      return; // pas d'édition du schéma
+    }
     if (e.key === 'Escape') {
       this.cancelPending();
       this.select(null);

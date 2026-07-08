@@ -172,6 +172,40 @@ editor.onSelectionChange = ({ schema, shown }) => {
 };
 internalToggleBtn.addEventListener('click', () => editor.toggleSelectedSchema());
 
+// Message flottant « Simulation en cours » : suit le curseur pendant la
+// simulation ; clignote 3× (rouge) quand une action d'édition interdite est tentée.
+const simToast = document.createElement('div');
+simToast.className = 'sim-toast';
+simToast.textContent = t('⚠ Simulation running');
+simToast.hidden = true;
+document.body.appendChild(simToast);
+let simToastPos = { x: 0, y: 0 };
+document.addEventListener('pointermove', (e) => {
+  simToastPos = { x: e.clientX, y: e.clientY };
+  if (!simToast.hidden) placeSimToast();
+});
+function placeSimToast(): void {
+  // Décalé en haut-droite du curseur, borné à la fenêtre.
+  const x = Math.min(simToastPos.x + 14, window.innerWidth - simToast.offsetWidth - 8);
+  const y = Math.max(simToastPos.y - simToast.offsetHeight - 10, 4);
+  simToast.style.left = `${x}px`;
+  simToast.style.top = `${y}px`;
+}
+function showSimToast(show: boolean): void {
+  simToast.hidden = !show;
+  if (show) placeSimToast();
+  else simToast.classList.remove('sim-toast--blink');
+}
+editor.onBlockedEdit = () => {
+  showSimToast(true);
+  placeSimToast();
+  // Relance l'animation de clignotement (3 flashs) à chaque tentative.
+  simToast.classList.remove('sim-toast--blink');
+  void simToast.offsetWidth; // reflow
+  simToast.classList.add('sim-toast--blink');
+};
+simToast.addEventListener('animationend', () => simToast.classList.remove('sim-toast--blink'));
+
 let board: BoardId = 'uno';
 let engine: SimEngine | null = null;
 let unoProgram: Uint16Array = UNO_DEMO;
@@ -1469,6 +1503,7 @@ function startRun(): void {
   engine.start();
   startRenderLoop(); // rendu continu tant que le moteur tourne
   editor.setLocked(true); // schéma figé pendant la simulation
+  showSimToast(true); // message flottant « Simulation en cours »
   useDebugAsInspector(true); // Variables à la place des Propriétés
   runBtn.disabled = true;
   stopBtn.disabled = false;
@@ -1495,6 +1530,7 @@ function stopRun(): void {
   setReplMode(false);
   stopRenderLoop(); // fin du rendu continu
   editor.setLocked(false); // édition du schéma de nouveau possible
+  showSimToast(false); // masque le message flottant de simulation
   // Arrêt (ou nouveau lancement, qui commence par un stopRun) : on repart d'un
   // état propre — console vidée et composants réinitialisés (LED éteintes,
   // afficheurs vides…). Idem au (re)chargement d'un programme Python.
