@@ -9,7 +9,12 @@
 8. 7 seg 2/4 chiffres : pinInfo est CENTRÉ (broches x resserrées au milieu, ex 4dig 70-120 sur 200) → le câblage interne calé dessus se resserre au centre au lieu de s'étaler sous les chiffres. À décider : étaler pinInfo (casse les schémas déjà câblés) ou garder ainsi.
 9. Le capteur de pouls doit reproduire une courbe de pulsation cardiaque sur la sortie analogique OUT. Un curseur permettra de régler le pouls de 0 à 200 Hz
 1. Le capteur de température doit avoir un curseur -55°C à +125°C et une sortie analogique. La variation est celle d'une CBT normale (exponentielle inverse) si la T° augmente la tension diminue.
-1. DHT22 : 2 curseur Humidité 0  à 100 % et température -40 à + 80°C
+1. DHT22 : 2 curseur Humidité 0  à 100 % et température -40 à + 80°C. La pin SDA doit s'appeler DATA. 
+1. Pour le capteur à ultrason rajoute dans les propriétés distance min et distance max (par defaut 2cm à 4m) et en simulation met lui un curseur de min à max ajoint à une zone de saisie. Enlève de son nom (HC-SR04).
+1. Pour le PIR
+
+# v2026.7.45
+1. ✅ Schémas internes 7 segments repartis des fichiers d'origine `.edit.svg` de Frank (ronds de positionnement + trait couleur corrigé sur le 2 chiffres). Pipeline pointé sur *.edit.svg → clean → flip anode ; bbox du tracé inchangées (calage 2D conservé). Les *.edit.svg sont désormais LA source à retoucher.
 
 # v2026.7.44
 1. ✅ Câblage interne 7 segments : calage 2D (X + Y) sur les broches réelles. La boîte des broches du tracé dessiné (SCHEMA_PIN_BBOX, mesurée par variante) est envoyée sur la boîte des pinInfo — les fils tombent EXACTEMENT sur les pastilles (1 chiffre : parfait). Corrige v43 (calage Y seul + bornes fausses → décalage). NB : sur 2/4 chiffres, pinInfo étant centré, le câblage se resserre au centre (cf. « à faire » n°8).

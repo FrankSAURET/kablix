@@ -15,9 +15,9 @@ mkdirSync(SCRATCH, { recursive: true });
 const INT = 'src/webview/composants/interne';
 
 const JOBS = [
-  { src: `${INT}/7seg-schema.svg`, out: `${INT}/7seg-schema.clean.svg` },
-  { src: `${INT}/7seg-2dig.schema.svg`, out: `${INT}/7seg-2dig.schema.clean.svg` },
-  { src: `${INT}/7seg-4dig-schema.svg`, out: `${INT}/7seg-4dig-schema.clean.svg` },
+  { src: `${INT}/7seg-schema.edit.svg`, out: `${INT}/7seg-schema.clean.svg` },
+  { src: `${INT}/7seg-2dig.schema.edit.svg`, out: `${INT}/7seg-2dig.schema.clean.svg` },
+  { src: `${INT}/7seg-4dig-schema.edit.svg`, out: `${INT}/7seg-4dig-schema.clean.svg` },
 ];
 
 let bodies = '';
