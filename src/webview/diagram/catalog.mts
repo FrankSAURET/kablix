@@ -292,8 +292,8 @@ export const CATALOG: readonly PartDef[] = [
   // Capteurs analogiques : la sortie pilote l'entrée ADC reliée (valeur en %).
   {
     type: 'ntc-temp', label: 'NTC temperature sensor', tag: 'kablix-ntc-temperature-sensor', kind: 'analog-source',
-    analogPin: 'OUT', attrs: { value: '50' },
-    props: [{ ...VALUE_PROP, label: 'Temperature (%)' }],
+    analogPin: 'OUT', simControl: true, attrs: { temperature: '25' },
+    props: [],
   },
   {
     type: 'gas-sensor', label: 'Gas sensor (MQ)', tag: 'kablix-gas-sensor', kind: 'ao-do-sensor',

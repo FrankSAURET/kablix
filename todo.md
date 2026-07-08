@@ -4,11 +4,13 @@
 3. Le message "Simulation en cours : ..." doit toujours rester visible (flottant) et clignoter 3 fois si on essaye de faire qqc d'interdit
 4. Le bouton ☢ (K) apparaîtra en haut à gauche de la barre d'outils de dessin (celle de droite). Uniquement pour les composants en disposant.
 5. 7 seg 2/4 chiffres : pinInfo est CENTRÉ (broches x resserrées au milieu, ex 4dig 70-120 sur 200) → le câblage interne calé dessus se resserre au centre au lieu de s'étaler sous les chiffres. À décider : étaler pinInfo (casse les schémas déjà câblés) ou garder ainsi.
-6. Le capteur de pouls doit reproduire une courbe de pulsation cardiaque sur la sortie analogique OUT. Un curseur permettra de régler le pouls de 0 à 200 Hz
-7. Le capteur de température doit avoir un curseur -55°C à +125°C et une sortie analogique. La variation est celle d'une CBT normale (exponentielle inverse) si la T° augmente la tension diminue.
-8. DHT22 : 2 curseur Humidité 0  à 100 % et température -40 à + 80°C. La pin SDA doit s'appeler DATA. 
-9. Pour le PIR détecte les mouvements de la souris au dessu de lui. CTRL + clic = mouvement prrmanent indiqué dans la bulle lors de la siumulation.
-10. Servo : test qui s'exécute très lentement (perf de simulation — nécessite ton programme de test pour diagnostiquer la cause : delay/refresh/avr8js).
+6. DHT22 : 2 curseur Humidité 0  à 100 % et température -40 à + 80°C. La pin SDA doit s'appeler DATA. 
+7. Pour le PIR détecte les mouvements de la souris au dessu de lui. CTRL + clic = mouvement prrmanent indiqué dans la bulle lors de la siumulation.
+8. Servo : test qui s'exécute très lentement (perf de simulation — nécessite ton programme de test pour diagnostiquer la cause : delay/refresh/avr8js).
+
+# v2026.7.53
+1. ✅ Capteur de pouls actif : EN SIMULATION, un curseur règle le pouls (0-200 bpm). La sortie analogique OUT reproduit une courbe de pulsation cardiaque (forme PPG : pic systolique + onde dicrotique, deux gaussiennes), régénérée à chaque frame selon le BPM (sim.mts `updatePulses`/`pulseWaveform`, appelé dans `renderTick`). BPM=0 → ligne de base.
+2. ✅ Capteur de température NTC actif : curseur -55 → +125 °C en simulation. Sortie analogique de type thermistance NTC (R0=10 k, B=3950, série 10 k) : la tension DIMINUE quand la température monte (diviseur Rntc/(Rntc+Rsérie), monotone décroissant vérifié : -55→0.99, 25→0.50, 125→0.035). Plus de propriété d'inspecteur (choix Frank). Pilotée en direct via l'événement `input`.
 
 # v2026.7.52
 1. ✅ Capteurs flamme / gaz / son / lumière ACTIFS en simulation (items « capteur de flamme… » + « pareil pour gaz/son/lumière ») : nouvelle base commune `AnalogDigitalSensorElement` (utils/) — double sortie AOUT (analogique) + DOUT (tout ou rien). EN SIMULATION, un curseur d'intensité (0-100 %, libellé Flamme/Gaz/Son/Lumière) ; propriété `sensitivity` (0-100 %) dans l'inspecteur = seuil DOUT. Convention (choix Frank) : AOUT baisse quand l'intensité monte ; DOUT actif-BAS (LOW) quand intensité > sensibilité. LED de détection allumée quand détecté.

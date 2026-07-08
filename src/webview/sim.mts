@@ -176,6 +176,10 @@ let pcaBindings: Pca9685Binding[] = [];
 let neopixelTargets = new Map<string, string>();
 // Buzzers : partId → broche MCU pilotant le buzzer (pour la fréquence du son).
 let buzzerTargets = new Map<string, string>();
+// Capteurs de pouls : broche analogique MCU + élément (BPM réglé par le curseur).
+// La sortie OUT est régénérée à chaque frame en forme d'onde cardiaque (PPG).
+type SimElement = NonNullable<ReturnType<Editor['elementOf']>>;
+let pulseTargets: Array<{ pin: string; el: SimElement }> = [];
 // LED RGB : partId → broches MCU des canaux R/G/B (rapport cyclique PWM).
 let rgbLedTargets = new Map<string, { r: string | null; g: string | null; b: string | null }>();
 // Afficheur 7 segments 1 chiffre : partId → broche MCU de chaque segment
@@ -458,8 +462,37 @@ function renderTick(): void {
     renderRaf = 0;
     return;
   }
+  updatePulses();
   refreshVisuals();
   renderRaf = requestAnimationFrame(renderTick);
+}
+
+/**
+ * Forme d'onde de pouls (PPG) normalisée 0..1 sur une phase t∈[0,1) : montée
+ * systolique rapide (pic vers t≈0.16), redescente, petite onde dicrotique
+ * (t≈0.42), puis ligne de base. Approximation par deux gaussiennes.
+ */
+function pulseWaveform(t: number): number {
+  const g = (c: number, w: number) => Math.exp(-((t - c) * (t - c)) / (2 * w * w));
+  const systolic = g(0.16, 0.05);
+  const dicrotic = 0.35 * g(0.42, 0.06);
+  return Math.max(0, Math.min(1, 0.08 + 0.92 * Math.max(systolic, dicrotic)));
+}
+
+/** Met à jour la sortie analogique de chaque capteur de pouls selon son BPM. */
+function updatePulses(): void {
+  if (!engine || pulseTargets.length === 0) return;
+  const now = performance.now();
+  for (const { pin, el } of pulseTargets) {
+    const bpm = Math.max(0, Math.min(200, Number(el.bpm ?? 72)));
+    if (bpm <= 0) {
+      engine.setAnalog(pin, 0.08); // pas de pouls : ligne de base
+      continue;
+    }
+    const periodMs = 60000 / bpm;
+    const t = (now % periodMs) / periodMs; // phase 0..1 du battement courant
+    engine.setAnalog(pin, pulseWaveform(t));
+  }
 }
 function startRenderLoop(): void {
   if (!renderRaf) renderRaf = requestAnimationFrame(renderTick);
@@ -1020,8 +1053,31 @@ function bindInputs(): void {
       engine.setInput(binding.mcuPin, part?.attrs?.state === '1');
     }
   }
+  pulseTargets = [];
   for (const binding of analogSourceBindings(editor.diagram)) {
     const part = editor.diagram.parts.find((p) => p.id === binding.partId);
+    if (part?.type === 'heartbeat') {
+      // Pouls : sortie dynamique (courbe cardiaque) générée dans la boucle de rendu.
+      const el = editor.elementOf(binding.partId);
+      if (el) {
+        el.bpm = Number(part.attrs?.bpm ?? 72);
+        pulseTargets.push({ pin: binding.mcuPin, el });
+      }
+      continue;
+    }
+    if (part?.type === 'ntc-temp') {
+      // Température : tension NTC (analogLevel), pilotée par le curseur en direct.
+      const el = editor.elementOf(binding.partId);
+      const pin = binding.mcuPin;
+      if (el) {
+        el.temperature = Number(part.attrs?.temperature ?? 25);
+        const apply = () => engine?.setAnalog(pin, Number(el.analogLevel ?? 0.5));
+        apply();
+        el.addEventListener('input', apply);
+        inputRemovers.push(() => el.removeEventListener('input', apply));
+      }
+      continue;
+    }
     engine.setAnalog(binding.mcuPin, Number(part?.attrs?.value ?? 50) / 100);
   }
 
