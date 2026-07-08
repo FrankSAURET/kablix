@@ -1,11 +1,16 @@
 # À faire
-1. 7 seg : vérifier le dessin EXTERNE (composant) 2dig/4dig — Frank le dit « pas bon ». Préciser quoi.
-2. Nano : retoucher nano-pinout.svg (module central redimensionné) puis réactiver le poster dans pinout.mts
-3. En pwm la LED clignote. Demande moi mon programme.
-4. Le message "Simulation en cours : ..." doit toujours rester visible (flottant) et clignoter 3 fois si on essaye de faire qqc d'interdit
-5. Le capteur d'inclinaison doit être actif. pas de propriété dans le composant mais un bouton pour l'incliner directement à coté du composant (ou dessus le composant) dans la simulation. Tout ou rien.
-6. Le capteur de flamme doit être actif. pas de propriété Flamme dans le composant mais un curseur pour augmenter l'intensité de la flamme directement à coté du composant dans la simulation. 2 sorties tout ou rien sur DOUT si le curseur dépasse sensibilité et une sortie AOUT avec la valeur analogique. Une propriété sensibilité de 0 à 100 % doit être ajoutée.
-7. Pareil pour le capteur de gaz
+1. Nano : retoucher nano-pinout.svg (module central redimensionné) puis réactiver le poster dans pinout.mts
+2. En pwm la LED clignote. Demande moi mon programme.
+3. Le message "Simulation en cours : ..." doit toujours rester visible (flottant) et clignoter 3 fois si on essaye de faire qqc d'interdit
+4. Le capteur d'inclinaison doit être actif. pas de propriété dans le composant mais un bouton pour l'incliner directement à coté du composant (ou dessus le composant) dans la simulation. Tout ou rien.
+5. Le capteur de flamme doit être actif. pas de propriété Flamme dans le composant mais un curseur pour augmenter l'intensité de la flamme directement à coté du composant dans la simulation. 2 sorties tout ou rien sur DOUT si le curseur dépasse sensibilité et une sortie AOUT avec la valeur analogique. Une propriété sensibilité de 0 à 100 % doit être ajoutée.
+6. Pareil pour le capteur de gaz
+7. Le bouton ☢ (K) apparaîtra en haut à gauche de la barre d'outils de dessin (celle de droite). Uniquement pour les composants en disposant.
+
+# v2026.7.42
+1. ✅ Dessin 7 segments : contour des segments retiré (setSeg strokeWidth 0.05 au lieu de 0.96 — segments pleins, sans liseré épais, comme le modèle fourni par Frank).
+2. ✅ Afficheur 4 chiffres : points gris parasites (ex-pattes CLN/COM) retirés — bandes de pastilles haut/bas réduites (width 70→60, 6 pastilles au lieu de 7).
+3. ✅ Schéma interne 7 segments compressé de 2 px en hauteur (centré), il était trop haut de 2 px vs le corps (SEVEN_SEG_SHRINK dans internal-wiring.mts).
 
 # v2026.7.41
 1. ✅ Câblage interne 7 segments : abandon du générateur procédural, on branche désormais les VRAIS schémas dessinés à la main par Frank (interne/7seg-*.schema.svg) — nettoyés en *.clean.svg (scripts/_clean-7seg-schema.mjs) puis posés à l'échelle du corps (repère = viewBox). Épaisseurs et couleurs d'origine (traits fins), échelle correcte (les broches tombent sur les pastilles). Corrige v40 (échelle et traits gros du 1dig, 2/4dig faux).

@@ -134,9 +134,11 @@ export class SevenSegmentElement extends LitElement {
       if (e.dataset.off === undefined) e.dataset.off = el.style.fill || el.getAttribute('fill') || '#444';
       const fill = lit ? color : e.dataset.off;
       el.style.fill = fill;
-      // Un stroke de même couleur comble le filet noir d'anti-aliasing
-      // visible à la jointure entre deux polygones de segments adjacents.
+      // Contour de segment retiré (Frank) : les segments sont pleins, sans liseré.
+      // Un très fin stroke de la même couleur comble seulement le filet
+      // d'anti-aliasing entre segments adjacents, sans épaissir le tracé.
       el.style.stroke = fill;
+      el.style.strokeWidth = '0.05';
     };
     for (let d = 0; d < digits; d++) {
       for (let s = 0; s < 7; s++) {

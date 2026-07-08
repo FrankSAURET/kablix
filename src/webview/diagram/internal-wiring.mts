@@ -196,6 +196,11 @@ function ledBar(pins: PinPoint[]): string | null {
  * schéma est dans le repère du corps (viewBox = w×h de la variante) : on le met à
  * l'échelle de la boîte du composant. `attrs.common` choisit la variante.
  */
+// Le schéma dessiné est ~2 unités trop haut par rapport au corps (marge en haut et
+// en bas). On le compresse verticalement de SEVEN_SEG_SHRINK unités, centré, avant
+// la mise à l'échelle du corps (léger écrasement accepté par Frank).
+const SEVEN_SEG_SHRINK = 2;
+
 function sevenSegment(
   pins: PinPoint[],
   attrs?: Record<string, string>,
@@ -205,9 +210,15 @@ function sevenSegment(
   const digits = (attrs?.digits ?? '1') as '1' | '2' | '4';
   const schema = SEVEN_SEG_SCHEMA[commonAnode ? 'anode' : 'cathode'][digits] ?? SEVEN_SEG_SCHEMA.cathode['1'];
   if (!box) return schema.inner;
-  const sx = (box.w / schema.w).toFixed(4);
-  const sy = (box.h / schema.h).toFixed(4);
-  return `<g transform="scale(${sx} ${sy})">${schema.inner}</g>`;
+  const sx = box.w / schema.w;
+  const sy = box.h / schema.h;
+  const ky = (schema.h - SEVEN_SEG_SHRINK) / schema.h; // compression verticale
+  const ty = (schema.h / 2) * (1 - ky); // recentre la compression
+  return (
+    `<g transform="scale(${sx.toFixed(4)} ${sy.toFixed(4)})">` +
+    `<g transform="translate(0 ${ty.toFixed(3)}) scale(1 ${ky.toFixed(4)})">${schema.inner}</g>` +
+    `</g>`
+  );
 }
 
 /** Schéma interne dessiné à la main, par variante de colonnes. Le viewBox du SVG
