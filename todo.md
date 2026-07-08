@@ -1,10 +1,12 @@
 # À faire
-1. rendre les LED allumées plus brillante mettre le halo par dessus la LED
-2. Ajoute les schéma pinout des uno, mega et nano (Les schémas pinout sont dans src\webview\composants\interne )
-3. Aff 7 seg, sur les dessins des composants comme sur son schéma interne les lignes semblent avoir grossis et les couleurs disparus
-1. Suprime les broches CLN et COM de l'afficheur 4 digit
-1. Les schéma interne des afficheurs doivent avoir les diodes qui se retournent selon cathode ou anode commune
-1. Les schémas interne des afficheurs et des claviers sont dans src\webview\composants\interne
+1. Ajoute les schéma pinout des uno, mega et nano (Les schémas pinout sont dans src\webview\composants\interne )
+2. Aff 7 seg, sur les dessins des composants comme sur son schéma interne les lignes semblent avoir grossis et les couleurs disparus
+3. Suprime les broches CLN et COM de l'afficheur 4 digit
+4. Les schéma interne des afficheurs doivent avoir les diodes qui se retournent selon cathode ou anode commune
+5. Les schémas interne des afficheurs et des claviers sont dans src\webview\composants\interne
+
+# v2026.7.38
+1. ✅ LED allumée plus lumineuse : halo passé PAR-DESSUS le corps (z-order — `#g30` déplacé après `#g33` dans led.svg) et agrandi/intensifié (rayons 13/3/4.5 au lieu de 10/2/3, opacité du groupe 1 au lieu de 0.85). La LED rayonne au lieu d'un simple point lumineux masqué derrière le plastique.
 
 # v2026.7.37
 1. ✅ Corrige le scintillement de l'afficheur 7 segments multiplexé (2/4 digits) en simulation Pico : le rendu ~60 Hz échantillonne le balayage MicroPython à un instant quasi aléatoire par rapport au cycle de scan simulé, révélant parfois un digit fraîchement éteint avant que le suivant ne soit rallumé. Anti-scintillement temporel dans sim.mts (`SEVEN_SEG_SETTLE_MS`) : un nouvel état de segment n'est publié que s'il est resté identique un court délai réel (40 ms), absorbant ce battement.
