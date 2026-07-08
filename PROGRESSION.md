@@ -23,8 +23,28 @@ Pipeline : _clean-7seg-schema.mjs (retire broches repère) → *.clean.svg ;
 _flip-7seg-diodes.mjs (rotation 180° triangle+barre) → *.anode.svg.
 Import + registre SEVEN_SEG_SCHEMA dans internal-wiring.mts, scale box/viewBox.
 
-## RESTE (à préciser avec Frank)
-- Dessin EXTERNE 2dig/4dig « pas bon » — pas compris quoi exactement. Demander.
+## BUG EN COURS (v43 « pire ») — calage câblage interne 7seg
+Reproduit via scripts/view-7seg-editor.mjs (reproduit fidèlement le rendu éditeur :
+hotspots via pinPos snap, câblage via internalWiringSvg box=offsetW/H).
+CONSTAT 4dig : le câblage (viewBox 0-200) s'étale sur tout le body, MAIS les
+hotspots pinInfo sont à x=70-120 (CENTRÉS). → câblage et broches en repères X
+différents = gros décalage horizontal. Idem en Y possible.
+
+Bornes Y mesurées du tracé (bbox.mjs) : 1dig 9.43-80.11, 2dig 9.93-73.61 (h viewBox
+85.8 !), 4dig 9.88-79.91. Le SCHEMA_PIN_TOP/BOT fixe (9.55/79.95) de v43 est faux
+pour le 2dig.
+
+DEUX causes possibles / corrections :
+A) VARIANTS[4].pins ont des X trop resserrés (70-120) vs dessin 200 large → corriger
+   pinInfo pour étaler les broches (CASSE les schémas déjà câblés par Frank).
+B) Le câblage doit être CALÉ sur pinInfo en X ET Y (comme un poster) : mapper
+   [schema xmin/xmax, ymin/ymax des broches du tracé] → [pinInfo xmin/xmax, ymin/ymax].
+   Ne touche pas pinInfo. PRÉFÉRÉ.
+
+→ Implémenter B : dans sevenSegment, caler X et Y du schéma sur les broches réelles
+   (pas juste scale box). Mesurer les bornes du tracé par variante (ou détecter).
+   À VALIDER : les broches du SCHÉMA de Frank correspondent-elles aux mêmes X que
+   pinInfo une fois calées ? (le schéma étale sur 4 chiffres, pinInfo centré...).
 
 ## Fait (v2026.7.40)
 1. ✅ 1dig : traits fins 0.6, réseau commun bleu (SEG_STROKE / COM_STROKE dans

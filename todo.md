@@ -4,8 +4,15 @@
 3. Le message "Simulation en cours : ..." doit toujours rester visible (flottant) et clignoter 3 fois si on essaye de faire qqc d'interdit
 4. Le capteur d'inclinaison doit être actif. pas de propriété dans le composant mais un bouton pour l'incliner directement à coté du composant (ou dessus le composant) dans la simulation. Tout ou rien.
 5. Le capteur de flamme doit être actif. pas de propriété Flamme dans le composant mais un curseur pour augmenter l'intensité de la flamme directement à coté du composant dans la simulation. 2 sorties tout ou rien sur DOUT si le curseur dépasse sensibilité et une sortie AOUT avec la valeur analogique. Une propriété sensibilité de 0 à 100 % doit être ajoutée.
-6. Pareil pour le capteur de gaz
+6. Pareil pour le capteur de gaz et le capteur de son
 7. Le bouton ☢ (K) apparaîtra en haut à gauche de la barre d'outils de dessin (celle de droite). Uniquement pour les composants en disposant.
+8. 7 seg 2/4 chiffres : pinInfo est CENTRÉ (broches x resserrées au milieu, ex 4dig 70-120 sur 200) → le câblage interne calé dessus se resserre au centre au lieu de s'étaler sous les chiffres. À décider : étaler pinInfo (casse les schémas déjà câblés) ou garder ainsi.
+9. Le capteur de pouls doit reproduire une courbe de pulsation cardiaque sur la sortie analogique OUT. Un curseur permettra de régler le pouls de 0 à 200 Hz
+1. Le capteur de température doit avoir un curseur -55°C à +125°C et une sortie analogique. La variation est celle d'une CBT normale (exponentielle inverse) si la T° augmente la tension diminue.
+1. DHT22 : 2 curseur Humidité 0  à 100 % et température -40 à + 80°C
+
+# v2026.7.44
+1. ✅ Câblage interne 7 segments : calage 2D (X + Y) sur les broches réelles. La boîte des broches du tracé dessiné (SCHEMA_PIN_BBOX, mesurée par variante) est envoyée sur la boîte des pinInfo — les fils tombent EXACTEMENT sur les pastilles (1 chiffre : parfait). Corrige v43 (calage Y seul + bornes fausses → décalage). NB : sur 2/4 chiffres, pinInfo étant centré, le câblage se resserre au centre (cf. « à faire » n°8).
 
 # v2026.7.43
 1. ✅ Câblage interne 7 segments : calage vertical sur les broches réelles (les fils du haut n'atteignaient pas les pattes, diodes décalées vers le bas). La rangée de broches du schéma [SCHEMA_PIN_TOP=9.55, SCHEMA_PIN_BOT=79.95] est étirée sur les broches du composant [min,max Y de pinInfo] — comme le poster de brochage. Remplace la compression fixe de 2 px (v42) qui décalait.

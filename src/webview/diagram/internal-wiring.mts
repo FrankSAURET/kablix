@@ -196,13 +196,16 @@ function ledBar(pins: PinPoint[]): string | null {
  * schéma est dans le repère du corps (viewBox = w×h de la variante) : on le met à
  * l'échelle de la boîte du composant. `attrs.common` choisit la variante.
  */
-// Calage vertical du schéma sur les broches réelles. Le schéma dessiné a ses
-// broches (haut/bas) à SCHEMA_PIN_TOP / SCHEMA_PIN_BOT dans son repère ; on étire
-// verticalement le schéma pour que ces deux rangées tombent EXACTEMENT sur les
-// broches du composant (mêmes que le rendu du dessin externe), comme le poster de
-// brochage. Bornes mesurées sur les fils de broche des SVG de Frank.
-const SCHEMA_PIN_TOP = 9.55; // Y de la rangée haute des fils (repère du schéma)
-const SCHEMA_PIN_BOT = 79.95; // Y de la rangée basse
+// Boîte des broches du tracé dessiné (Inkscape), par nombre de chiffres : bornes
+// X/Y des extrémités de fils, mesurées via scripts/_probe-7seg-pins.mjs + bbox du
+// tracé (getBBox headless). On CALE cette boîte sur la boîte des broches réelles
+// du composant (min/max des pinInfo) — un mapping 2D « comme un poster » : les fils
+// tombent alors exactement sur les pastilles, quel que soit l'espacement réel.
+const SCHEMA_PIN_BBOX: Record<'1' | '2' | '4', { x0: number; x1: number; y0: number; y1: number }> = {
+  '1': { x0: 9.9, x1: 52.4, y0: 9.4, y1: 80.1 },
+  '2': { x0: 6.3, x1: 98.0, y0: 9.9, y1: 73.6 },
+  '4': { x0: 6.0, x1: 198.2, y0: 9.9, y1: 79.9 },
+};
 
 function sevenSegment(
   pins: PinPoint[],
@@ -213,19 +216,23 @@ function sevenSegment(
   const digits = (attrs?.digits ?? '1') as '1' | '2' | '4';
   const schema = SEVEN_SEG_SCHEMA[commonAnode ? 'anode' : 'cathode'][digits] ?? SEVEN_SEG_SCHEMA.cathode['1'];
   if (!box) return schema.inner;
-  // Rangées de broches réelles (min/max Y des pins), dans le repère du schéma (=
-  // repère du composant : box.h correspond à schema.h).
+  // Boîte des broches réelles (min/max des pinInfo) dans le repère du composant.
+  const xs = pins.map((p) => p.x);
   const ys = pins.map((p) => p.y);
-  const pinTop = Math.min(...ys);
-  const pinBot = Math.max(...ys);
-  // Étire le schéma en Y : sa rangée [SCHEMA_PIN_TOP, SCHEMA_PIN_BOT] → [pinTop, pinBot].
-  const ky = (pinBot - pinTop) / (SCHEMA_PIN_BOT - SCHEMA_PIN_TOP);
-  const ty = pinTop - SCHEMA_PIN_TOP * ky;
-  const sx = box.w / schema.w;
-  const sy = box.h / schema.h;
+  const px0 = Math.min(...xs), px1 = Math.max(...xs);
+  const py0 = Math.min(...ys), py1 = Math.max(...ys);
+  const s = SCHEMA_PIN_BBOX[digits];
+  // Étirement + translation qui envoient [s.x0,s.x1]→[px0,px1] et [s.y0,s.y1]→[py0,py1].
+  const kx = (px1 - px0) / (s.x1 - s.x0);
+  const ky = (py1 - py0) / (s.y1 - s.y0);
+  const tx = px0 - s.x0 * kx;
+  const ty = py0 - s.y0 * ky;
+  // Puis mise à l'échelle du corps (repère composant → pixels de la boîte).
+  const sbx = box.w / schema.w;
+  const sby = box.h / schema.h;
   return (
-    `<g transform="scale(${sx.toFixed(4)} ${sy.toFixed(4)})">` +
-    `<g transform="translate(0 ${ty.toFixed(3)}) scale(1 ${ky.toFixed(4)})">${schema.inner}</g>` +
+    `<g transform="scale(${sbx.toFixed(4)} ${sby.toFixed(4)})">` +
+    `<g transform="translate(${tx.toFixed(3)} ${ty.toFixed(3)}) scale(${kx.toFixed(4)} ${ky.toFixed(4)})">${schema.inner}</g>` +
     `</g>`
   );
 }
