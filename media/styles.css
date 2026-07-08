@@ -1040,6 +1040,13 @@ textarea {
   display: none;
 }
 
+/* Poster de brochage affiché : la carte (normalement sous les fils, z-index 1)
+   passe au-dessus de tout (fils, autres composants) pour que le poster reste
+   entièrement lisible — au-dessus même de .part--under-wires. */
+.part--pinout-shown {
+  z-index: 50 !important;
+}
+
 .part__name {
   overflow: hidden;
   text-overflow: ellipsis;
