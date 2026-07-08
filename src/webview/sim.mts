@@ -180,6 +180,9 @@ let buzzerTargets = new Map<string, string>();
 // La sortie OUT est régénérée à chaque frame en forme d'onde cardiaque (PPG).
 type SimElement = NonNullable<ReturnType<Editor['elementOf']>>;
 let pulseTargets: Array<{ pin: string; el: SimElement }> = [];
+// Capteurs PIR : broche MCU + élément. La sortie suit `el.motion` (survol souris
+// / Ctrl+clic), relue à chaque frame car le survol n'émet pas d'événement.
+let motionTargets: Array<{ pin: string; el: SimElement; last: boolean }> = [];
 // LED RGB : partId → broches MCU des canaux R/G/B (rapport cyclique PWM).
 let rgbLedTargets = new Map<string, { r: string | null; g: string | null; b: string | null }>();
 // Afficheur 7 segments 1 chiffre : partId → broche MCU de chaque segment
@@ -463,8 +466,21 @@ function renderTick(): void {
     return;
   }
   updatePulses();
+  updateMotion();
   refreshVisuals();
   renderRaf = requestAnimationFrame(renderTick);
+}
+
+/** Met à jour la sortie des capteurs PIR selon le survol souris (au changement). */
+function updateMotion(): void {
+  if (!engine || motionTargets.length === 0) return;
+  for (const target of motionTargets) {
+    const now = Boolean(target.el.motion);
+    if (now !== target.last) {
+      engine.setInput(target.pin, now);
+      target.last = now;
+    }
+  }
 }
 
 /**
@@ -1054,9 +1070,11 @@ function bindInputs(): void {
   }
 
   // Sources numériques :
-  //   - inclinaison (tilt) : état piloté par le bouton de simulation du composant
-  //     (el.tilted), relu en direct sur l'événement `input` ;
-  //   - autres (PIR, photorésistance en tout-ou-rien…) : état depuis l'attribut.
+  //   - inclinaison (tilt) : état piloté par le bouton de simulation (el.tilted),
+  //     relu sur l'événement `input` ;
+  //   - PIR : état = survol souris / Ctrl+clic (el.motion), relu à chaque frame ;
+  //   - autres : état depuis l'attribut.
+  motionTargets = [];
   for (const binding of digitalSourceBindings(editor.diagram)) {
     const part = editor.diagram.parts.find((p) => p.id === binding.partId);
     if (part?.type === 'tilt') {
@@ -1067,6 +1085,12 @@ function bindInputs(): void {
       if (el) {
         el.addEventListener('input', apply);
         inputRemovers.push(() => el.removeEventListener('input', apply));
+      }
+    } else if (part?.type === 'pir') {
+      const el = editor.elementOf(binding.partId);
+      if (el) {
+        engine.setInput(binding.mcuPin, Boolean(el.motion));
+        motionTargets.push({ pin: binding.mcuPin, el, last: Boolean(el.motion) });
       }
     } else {
       engine.setInput(binding.mcuPin, part?.attrs?.state === '1');

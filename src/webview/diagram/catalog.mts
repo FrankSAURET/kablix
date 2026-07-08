@@ -232,9 +232,10 @@ export const CATALOG: readonly PartDef[] = [
     props: [SENSITIVITY_PROP],
   },
   {
+    // Détection au survol de la souris EN SIMULATION (simControl) ; plus de
+    // propriété d'état. Le moteur lit `el.motion` en direct (survol + Ctrl+clic).
     type: 'pir', label: 'PIR motion sensor', tag: 'kablix-pir-motion-sensor', kind: 'digital-source',
-    digitalPin: 'OUT', attrs: { state: '0' },
-    props: [{ ...STATE_PROP, label: 'Motion detected' }],
+    digitalPin: 'OUT', simControl: true,
   },
   {
     // Inclinaison : plus de propriété d'état ; l'état vient d'un bouton affiché
