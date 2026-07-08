@@ -1,8 +1,15 @@
 # À faire
-1. Nano : retoucher nano-pinout.svg (module central redimensionné) puis réactiver le poster dans pinout.mts
-2. En pwm la LED clignote. Demande moi mon programme.
-3. Le message "Simulation en cours : ..." doit toujours rester visible (flottant) et clignoter 3 fois si on essaye de faire qqc d'interdit
-4. Le capteur d'inclinaison doit être actif. pas de propriété dans le composant mais un bouton pour l'incliner directement à coté du composant (ou dessus le composant) dans la simulation. Tout ou rien.
+1. 7 seg : vérifier le dessin EXTERNE (composant) 2dig/4dig — Frank le dit « pas bon ». Préciser quoi.
+2. Nano : retoucher nano-pinout.svg (module central redimensionné) puis réactiver le poster dans pinout.mts
+3. En pwm la LED clignote. Demande moi mon programme.
+4. Le message "Simulation en cours : ..." doit toujours rester visible (flottant) et clignoter 3 fois si on essaye de faire qqc d'interdit
+5. Le capteur d'inclinaison doit être actif. pas de propriété dans le composant mais un bouton pour l'incliner directement à coté du composant (ou dessus le composant) dans la simulation. Tout ou rien.
+6. Le capteur de flamme doit être actif. pas de propriété Flamme dans le composant mais un curseur pour augmenter l'intensité de la flamme directement à coté du composant dans la simulation. 2 sorties tout ou rien sur DOUT si le curseur dépasse sensibilité et une sortie AOUT avec la valeur analogique. Une propriété sensibilité de 0 à 100 % doit être ajoutée.
+7. Pareil pour le capteur de gaz
+
+# v2026.7.41
+1. ✅ Câblage interne 7 segments : abandon du générateur procédural, on branche désormais les VRAIS schémas dessinés à la main par Frank (interne/7seg-*.schema.svg) — nettoyés en *.clean.svg (scripts/_clean-7seg-schema.mjs) puis posés à l'échelle du corps (repère = viewBox). Épaisseurs et couleurs d'origine (traits fins), échelle correcte (les broches tombent sur les pastilles). Corrige v40 (échelle et traits gros du 1dig, 2/4dig faux).
+2. ✅ Diodes retournables cathode↔anode pour les 3 (1/2/4 chiffres) : variante anode générée par retournement de chaque diode (triangle + barre, rotation 180°) via scripts/_flip-7seg-diodes.mjs → *.anode.svg. `attrs.common` choisit clean (cathode) ou anode. 8/16/32 diodes retournées.
 
 # v2026.7.40
 1. ✅ Câblage interne 7 segments restylé (bouton ☢) : traits fins (0.6) au lieu du gros trait noir 2px, réseau du commun en bleu (comme les SVG dessinés à la main). Diodes retournées selon cathode/anode commune (attrs.common) — déjà géré par le helper `diode`.

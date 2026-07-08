@@ -8,6 +8,15 @@
 import keypadSchema4 from '../composants/interne/keypad-4col.schema.svg';
 import keypadSchema3 from '../composants/interne/keypad-3col-schema.svg';
 import potSchema from '../composants/interne/pot-schema.svg';
+// Schémas 7 segments dessinés à la main (Inkscape), nettoyés
+// (scripts/_clean-7seg-schema.mjs) → variante cathode commune ; la variante anode
+// est générée par retournement des diodes (scripts/_flip-7seg-diodes.mjs).
+import sevenSegK1 from '../composants/interne/7seg-schema.clean.svg';
+import sevenSegK2 from '../composants/interne/7seg-2dig.schema.clean.svg';
+import sevenSegK4 from '../composants/interne/7seg-4dig-schema.clean.svg';
+import sevenSegA1 from '../composants/interne/7seg-schema.anode.svg';
+import sevenSegA2 from '../composants/interne/7seg-2dig.schema.anode.svg';
+import sevenSegA4 from '../composants/interne/7seg-4dig-schema.anode.svg';
 
 export interface PinPoint {
   name: string;
@@ -181,112 +190,11 @@ function ledBar(pins: PinPoint[]): string | null {
 }
 
 /**
- * Afficheur 7 segments, multi-digit (2/3/4) : schéma allégé. Une diode par
- * segment (A–G, DP) POSÉE près de sa broche (orientée selon cathode/anode
- * commune) mais SANS lead vers le segment — le câblage segment n'est pas dessiné
- * pour rester lisible. Seules les broches communes (DIG1…DIGn) sont reliées entre
- * elles par un bus coloré. `commonAnode` retourne le sens des diodes.
- */
-function sevenSegmentStar(pins: PinPoint[], commonAnode: boolean): string | null {
-  const segNames = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'DP'];
-  const segs = segNames.map((n) => find(pins, n)).filter((p): p is XY => p !== null);
-  if (segs.length < 2) return null;
-  const cathodeAtEnd = !commonAnode; // cathode vers l'intérieur si cathode commune
-  const LEN = 14; // longueur de la diode posée (repère de conception)
-  // Diode verticale « en place » : de la broche vers l'intérieur du corps (les
-  // broches du haut descendent, celles du bas montent) mais décalée pour ne pas
-  // toucher la pastille — non reliée au segment.
-  const midY = segs.reduce((s, p) => s + p.y, 0) / segs.length;
-  const diodes = segs
-    .map((p) => {
-      const dir = p.y < midY ? 1 : -1; // sens vers le centre
-      const a = { x: p.x, y: p.y + dir * 6 };
-      const b = { x: p.x, y: p.y + dir * (6 + LEN) };
-      return diode(a, b, cathodeAtEnd);
-    })
-    .join('');
-  // Bus des broches communes (DIG1..DIGn / COM) relié en couleur.
-  const digNames = pins.map((p) => p.name).filter((n) => /^DIG\d+$/.test(n) || n === 'COM' || n.startsWith('COM.'));
-  const digs = digNames.map((n) => find(pins, n)).filter((p): p is XY => p !== null);
-  let bus = '';
-  if (digs.length >= 2) {
-    const sorted = [...digs].sort((a, b) => a.x - b.x);
-    const busPath = 'M ' + sorted.map((p) => `${p.x} ${p.y}`).join(' L ');
-    bus = `<g ${COM_STROKE}><path d="${busPath}"/>${digs.map((p) => dot(p, 1.4)).join('')}</g>`;
-  }
-  return `<g ${SEG_STROKE}>${diodes}</g>${bus}`;
-}
-
-// Schéma « figure-8 » du 7 segments 1 digit (modèle 5611BH) : une diode par
-// segment posée sur sa barre, leads vers les broches + réseau commun. Coordonnées
-// dans le repère de conception 47,44 × 83,16 px (= corps du composant 1 digit).
-// [P1 (côté broche), P2 (côté commun)] : le helper `diode` oriente l'apex vers P2
-// (cathode commune) ou vers P1 (anode commune) selon `cathodeAtEnd`.
-const SEG_DIODES: Array<[XY, XY]> = [
-  [{ x: 32.9, y: 12.5 }, { x: 19.8, y: 12.5 }], // A  (barre du haut)
-  [{ x: 37.9, y: 18.9 }, { x: 36.1, y: 31.8 }], // B  (haut-droite)
-  [{ x: 32.9, y: 56.7 }, { x: 34.7, y: 43.8 }], // C  (bas-droite)
-  [{ x: 14.4, y: 63.3 }, { x: 27.4, y: 63.3 }], // D  (barre du bas)
-  [{ x: 8.7, y: 56.6 }, { x: 10.6, y: 43.7 }], //  E  (bas-gauche)
-  [{ x: 14.5, y: 18.9 }, { x: 12.8, y: 31.8 }], // F  (haut-gauche)
-  [{ x: 17.0, y: 38.3 }, { x: 30.0, y: 38.3 }], // G  (barre du milieu)
-  [{ x: 45.2, y: 62.5 }, { x: 36.9, y: 62.5 }], // DP (point décimal)
-];
-// Leads segment → broche du segment (tracés en noir).
-const SEG_LEADS: string[] = [
-  'M 33.48 12.32 V 3.69', // A → broche A
-  'M 37.87 18.45 H 42.85 V 3.71', // B → broche B
-  'M 32.89 56.86 33.38 71.74', // C → broche C
-  'M 14.25 63.44 14.15 71.74', // D → broche D
-  'M 8.78 56.61 4.39 71.94', // E → broche E
-  'M 14.45 18.84 14.15 3.81', // F → broche F
-  'M 16.59 38.16 H 4.59 V 3.90', // G → broche G
-  'M 45.48 62.57 43.04 71.74', // DP → broche DP
-];
-// Réseau du commun (bus reliant toutes les cathodes/anodes aux broches COM) —
-// tracé en bleu pour le distinguer des leads de segment (repère de conception).
-const COM_LEADS: string[] = [
-  'M 23.62 3.81 H 19.72 V 12.30', // vers COM.2 (haut)
-  'M 36.30 32.02 H 12.56',
-  'M 19.88 12.29 V 21.51 H 25.61 V 31.95',
-  'M 30.06 38.25 V 32.22',
-  'M 10.59 43.68 H 34.75',
-  'M 30.06 38.21 V 43.43',
-  'M 36.60 62.42 H 27.52 L 27.57 63.30',
-  'M 23.67 71.89 H 27.52 V 63.35', // vers COM.1 (bas)
-  'M 27.48 62.52 V 55.93 H 22.79 V 43.73',
-];
-
-// Styles du schéma 7 segments (traits fins, comme le SVG dessiné à la main) :
-// diodes + leads de segment en noir, réseau du commun en bleu.
-const SEG_STROKE = 'stroke="#111" stroke-width="0.6"';
-const COM_STROKE = 'stroke="#0000ff" stroke-width="0.6"';
-
-function sevenSegmentFigure(commonAnode: boolean, box?: { w: number; h: number }): string {
-  const sx = (box?.w ?? 47.44) / 47.44;
-  const sy = (box?.h ?? 83.16) / 83.16;
-  const cathodeAtEnd = !commonAnode; // cathode au commun (P2) si cathode commune
-  const segPart = [
-    ...SEG_DIODES.map(([p1, p2]) => diode(p1, p2, cathodeAtEnd)),
-    ...SEG_LEADS.map((d) => `<path d="${d}"/>`),
-  ].join('');
-  const comPart = [
-    ...COM_LEADS.map((d) => `<path d="${d}"/>`),
-    dot({ x: 23.72, y: 71.82 }, 1.4), // nœud commun bas (COM.1)
-    dot({ x: 23.72, y: 3.78 }, 1.4), // nœud commun haut (COM.2)
-  ].join('');
-  return (
-    `<g transform="scale(${sx.toFixed(4)} ${sy.toFixed(4)})">` +
-    `<g ${SEG_STROKE}>${segPart}</g>` +
-    `<g ${COM_STROKE}>${comPart}</g>` +
-    `</g>`
-  );
-}
-
-/**
- * Afficheur 7 segments. 1 digit → schéma réaliste « figure-8 » (une diode par
- * segment). 2/3/4 digits → étoile vers le commun. Le sens des diodes suit
- * `attrs.common` (cathode/anode commune).
+ * Afficheur 7 segments : schéma interne dessiné à la main par Frank (Inkscape),
+ * nettoyé puis embarqué. Deux variantes par nombre de chiffres — cathode commune
+ * (fichiers `.clean.svg`) et anode commune (`.anode.svg`, diodes retournées). Le
+ * schéma est dans le repère du corps (viewBox = w×h de la variante) : on le met à
+ * l'échelle de la boîte du composant. `attrs.common` choisit la variante.
  */
 function sevenSegment(
   pins: PinPoint[],
@@ -294,8 +202,12 @@ function sevenSegment(
   box?: { w: number; h: number }
 ): string | null {
   const commonAnode = attrs?.common === 'anode';
-  if ((attrs?.digits ?? '1') === '1') return sevenSegmentFigure(commonAnode, box);
-  return sevenSegmentStar(pins, commonAnode);
+  const digits = (attrs?.digits ?? '1') as '1' | '2' | '4';
+  const schema = SEVEN_SEG_SCHEMA[commonAnode ? 'anode' : 'cathode'][digits] ?? SEVEN_SEG_SCHEMA.cathode['1'];
+  if (!box) return schema.inner;
+  const sx = (box.w / schema.w).toFixed(4);
+  const sy = (box.h / schema.h).toFixed(4);
+  return `<g transform="scale(${sx} ${sy})">${schema.inner}</g>`;
 }
 
 /** Schéma interne dessiné à la main, par variante de colonnes. Le viewBox du SVG
@@ -308,6 +220,12 @@ function parseSchema(svg: string): { inner: string; w: number; h: number } {
 const KEYPAD_SCHEMA: Record<'3' | '4', { inner: string; w: number; h: number }> = {
   '4': parseSchema(keypadSchema4),
   '3': parseSchema(keypadSchema3),
+};
+// Schémas 7 segments par (type de commun × nombre de chiffres).
+type Schema = { inner: string; w: number; h: number };
+const SEVEN_SEG_SCHEMA: Record<'cathode' | 'anode', Record<'1' | '2' | '4', Schema>> = {
+  cathode: { '1': parseSchema(sevenSegK1), '2': parseSchema(sevenSegK2), '4': parseSchema(sevenSegK4) },
+  anode: { '1': parseSchema(sevenSegA1), '2': parseSchema(sevenSegA2), '4': parseSchema(sevenSegA4) },
 };
 const POT_SCHEMA = parseSchema(potSchema);
 // Pastille de référence GND du dessin (repère du .edit.svg) : le schéma est

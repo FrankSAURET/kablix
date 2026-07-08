@@ -15,9 +15,16 @@ cathode/anode commune (`attrs.common`).
   déjà le sens. renderInternalWiring (editor.mts ~2965) force stroke #111 width 2.
 - Pattern de branchement SVG existant : `parseSchema(svg)` + `scale(sx sy)` (clavier/pot).
 
-## Décision finale (Frank) : STYLER LE GÉNÉRATEUR (pas de branchement des SVG bruts)
-Le générateur `sevenSegmentFigure` EST déjà le schéma de Frank (positions extraites).
-On l'a stylé + allégé le 2/4dig. Livré v2026.7.40.
+## Décision RÉVISÉE (Frank, après v40) : BRANCHER SES SVG (générateur abandonné)
+v40 (générateur stylé) était mauvais : échelle 1dig fausse, 2/4dig faux. Frank veut
+SES fichiers interne/7seg-*.schema.svg tels quels. → v41 : clean + branchement +
+flip anode. Générateur procédural supprimé de internal-wiring.mts.
+Pipeline : _clean-7seg-schema.mjs (retire broches repère) → *.clean.svg ;
+_flip-7seg-diodes.mjs (rotation 180° triangle+barre) → *.anode.svg.
+Import + registre SEVEN_SEG_SCHEMA dans internal-wiring.mts, scale box/viewBox.
+
+## RESTE (à préciser avec Frank)
+- Dessin EXTERNE 2dig/4dig « pas bon » — pas compris quoi exactement. Demander.
 
 ## Fait (v2026.7.40)
 1. ✅ 1dig : traits fins 0.6, réseau commun bleu (SEG_STROKE / COM_STROKE dans
