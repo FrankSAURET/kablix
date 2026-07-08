@@ -94,6 +94,12 @@ export interface PartDef {
   props?: readonly PropDef[];
   /** Composant interactif (bouton, potentiomètre…) : déplacé par son bandeau uniquement. */
   interactive?: boolean;
+  /**
+   * Le composant affiche des contrôles de simulation (curseur/bouton) DANS son
+   * rendu, visibles seulement pendant la simulation. L'éditeur pose alors
+   * l'attribut `simulating` sur l'élément (posé/retiré par setLocked).
+   */
+  simControl?: boolean;
   /** Pour kind 'analog-source' : broche de sortie analogique. */
   analogPin?: string;
   /** Pour kind 'digital-source' : broche de sortie numérique. */
@@ -308,12 +314,18 @@ export const CATALOG: readonly PartDef[] = [
     props: [{ ...STATE_PROP, label: 'Sound detected' }],
   },
 
-  // Capteur ultrason HC-SR04 (élément Wokwi, broches VCC/TRIG/ECHO/GND) : simulé
-  // par le protocole ultrason réel (impulsion TRIG → ECHO selon la distance).
+  // Capteur ultrason (élément Wokwi, broches VCC/TRIG/ECHO/GND) : simulé par le
+  // protocole ultrason réel (impulsion TRIG → ECHO selon la distance). Distance
+  // min/max réglées dans l'inspecteur ; distance mesurée choisie EN SIMULATION
+  // par un curseur + zone de saisie (simControl).
   {
-    type: 'hcsr04', label: 'Ultrasonic sensor (HC-SR04)', tag: 'kablix-hc-sr04', kind: 'ultrasonic',
-    attrs: { distance: '20' },
-    props: [{ attr: 'distance', label: 'Distance (cm)', kind: 'number', min: 2, max: 400, step: 1 }],
+    type: 'hcsr04', label: 'Ultrasonic sensor', tag: 'kablix-hc-sr04', kind: 'ultrasonic',
+    attrs: { distancemin: '2', distancemax: '400' },
+    simControl: true,
+    props: [
+      { attr: 'distancemin', label: 'Min distance (cm)', kind: 'number', min: 0, max: 400, step: 1 },
+      { attr: 'distancemax', label: 'Max distance (cm)', kind: 'number', min: 1, max: 400, step: 1 },
+    ],
   },
   // Capteur de température/humidité DHT22 (1-wire sur SDA) : répond au protocole
   // réel (température/humidité réglées dans l'inspecteur).

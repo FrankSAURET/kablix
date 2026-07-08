@@ -318,9 +318,15 @@ export class Editor {
     this.showLockWarning(locked);
     // Bulle des boutons et claviers : « Ctrl+clic… » en simulation, sinon déplacement.
     for (const r of this.rendered.values()) {
-      if (!this.isLockable(r.part.type)) continue;
-      const b = r.container.querySelector('.part__body') as HTMLElement | null;
-      if (b) b.title = this.buttonTitle(r.part.type);
+      if (this.isLockable(r.part.type)) {
+        const b = r.container.querySelector('.part__body') as HTMLElement | null;
+        if (b) b.title = this.buttonTitle(r.part.type);
+      }
+      // Contrôles de simulation (curseur/bouton dans le composant) : visibles
+      // seulement pendant la simulation via l'attribut `simulating`.
+      if (partDef(r.part.type).simControl) {
+        (r.el as unknown as HTMLElement).toggleAttribute('simulating', locked);
+      }
     }
   }
 

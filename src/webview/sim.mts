@@ -750,13 +750,29 @@ function bindInputs(): void {
     ...sevenSegs.flatMap((b) => Object.values(b.segments).filter((p): p is string => p !== null)),
   ]);
 
-  // Capteurs ultrason (HC-SR04) : distance lue dans l'inspecteur (défaut 20 cm).
-  engine.setUltrasonic?.(
-    ultrasonicBindings(editor.diagram).map((b) => {
-      const part = editor.diagram.parts.find((p) => p.id === b.partId);
-      return { trig: b.trig, echo: b.echo, distanceCm: Number(part?.attrs?.distance ?? 20) };
-    })
-  );
+  // Capteurs ultrason : distance choisie EN SIMULATION par le curseur du
+  // composant (borné par distancemin/distancemax de l'inspecteur). Chaque objet
+  // sensor est muté en direct sur l'événement `input` du curseur — le moteur
+  // relit `distanceCm` à chaque impulsion TRIG (même référence de tableau).
+  const ultraSensors = ultrasonicBindings(editor.diagram).map((b) => {
+    const part = editor.diagram.parts.find((p) => p.id === b.partId);
+    const min = Number(part?.attrs?.distancemin ?? 2);
+    const max = Number(part?.attrs?.distancemax ?? 400);
+    const el = editor.elementOf(b.partId);
+    // Distance de départ : valeur courante du composant, sinon milieu de la plage.
+    const cur = el && Number.isFinite(Number(el.distance)) ? Number(el.distance) : (min + max) / 2;
+    const sensor = { trig: b.trig, echo: b.echo, distanceCm: cur };
+    if (el) {
+      el.distance = cur; // synchronise le curseur avec la distance de départ
+      const apply = () => {
+        sensor.distanceCm = Number(el.distance ?? cur);
+      };
+      el.addEventListener('input', apply);
+      inputRemovers.push(() => el.removeEventListener('input', apply));
+    }
+    return sensor;
+  });
+  engine.setUltrasonic?.(ultraSensors);
 
   // Claviers matriciels : une touche enfoncée relie sa ligne et sa colonne. On
   // suit les touches enfoncées via les événements de l'élément (button-press /

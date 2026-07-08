@@ -10,9 +10,14 @@
 9. Le capteur de pouls doit reproduire une courbe de pulsation cardiaque sur la sortie analogique OUT. Un curseur permettra de régler le pouls de 0 à 200 Hz
 1. Le capteur de température doit avoir un curseur -55°C à +125°C et une sortie analogique. La variation est celle d'une CBT normale (exponentielle inverse) si la T° augmente la tension diminue.
 1. DHT22 : 2 curseur Humidité 0  à 100 % et température -40 à + 80°C. La pin SDA doit s'appeler DATA. 
-1. Pour le capteur à ultrason rajoute dans les propriétés distance min et distance max (par defaut 2cm à 4m) et en simulation met lui un curseur de min à max ajoint à une zone de saisie. Enlève de son nom (HC-SR04).
 1. Pour le PIR détecte les mouvements de la souris au dessu de lui. CTRL + clic = mouvement prrmanent indiqué dans la bulle lors de la siumulation.
 1. Servo : test qui s'exécute très lentement (perf de simulation — nécessite ton programme de test pour diagnostiquer la cause : delay/refresh/avr8js).
+
+# v2026.7.50
+1. ✅ Capteur à ultrason : « HC-SR04 » retiré du nom (« Ultrasonic sensor » / « Capteur à ultrason »). Propriétés `distancemin`/`distancemax` dans l'inspecteur (défaut 2 cm → 400 cm) à la place de `distance`.
+2. ✅ Curseur de simulation ajouté (infra `simControl` + attribut `simulating` posé par l'éditeur en mode verrouillé) : en simulation, un curseur `range` borné min→max + une zone de saisie `number` (+ « cm ») choisissent la distance mesurée. Hors simulation, aucun contrôle visible. Clamp min/max validé (999→50 sur plage 10-50).
+3. ✅ Distance mise à jour EN DIRECT pendant la simulation : chaque objet sensor est muté sur l'événement `input` du curseur (même référence de tableau relue par le moteur à chaque impulsion TRIG). Distance de départ = milieu de la plage.
+4. ℹ️ Infra `simControl`/`simulating` réutilisable pour les prochains items (tilt, flamme, gaz, son, lumière, pouls, température) qui demandent aussi un contrôle en simulation.
 
 # v2026.7.49
 1. ✅ Servo — bras single/double/cross rétablis (item « les bras ne changent plus ») : l'ancien palonnier figé unique (path49, un seul galet très long) est RETIRÉ du dessin retouché au montage et remplacé par des palonniers dessinés en procédural (renderHorn), pilotés par la propriété `horn` (déjà exposée par le catalog). single = 1 bras, double = 2 opposés, cross = croix 4 branches.
