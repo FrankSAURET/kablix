@@ -4,9 +4,11 @@
 3. Le message "Simulation en cours : ..." doit toujours rester visible (flottant) et clignoter 3 fois si on essaye de faire qqc d'interdit
 4. Le bouton ☢ (K) apparaîtra en haut à gauche de la barre d'outils de dessin (celle de droite). Uniquement pour les composants en disposant.
 5. 7 seg 2/4 chiffres : pinInfo est CENTRÉ (broches x resserrées au milieu, ex 4dig 70-120 sur 200) → le câblage interne calé dessus se resserre au centre au lieu de s'étaler sous les chiffres. À décider : étaler pinInfo (casse les schémas déjà câblés) ou garder ainsi.
-6. DHT22 : 2 curseur Humidité 0  à 100 % et température -40 à + 80°C. La pin SDA doit s'appeler DATA. 
-7. Pour le PIR détecte les mouvements de la souris au dessu de lui. CTRL + clic = mouvement prrmanent indiqué dans la bulle lors de la siumulation.
-8. Servo : test qui s'exécute très lentement (perf de simulation — nécessite ton programme de test pour diagnostiquer la cause : delay/refresh/avr8js).
+6. Pour le PIR détecte les mouvements de la souris au dessu de lui. CTRL + clic = mouvement prrmanent indiqué dans la bulle lors de la siumulation.
+7. Servo : test qui s'exécute très lentement (perf de simulation — nécessite ton programme de test pour diagnostiquer la cause : delay/refresh/avr8js).
+
+# v2026.7.54
+1. ✅ DHT22 : broche de données renommée SDA → DATA (composant + `dht22Bindings` qui la résout). Deux curseurs EN SIMULATION (💧 humidité 0-100 %, 🌡 température -40 → +80 °C) à la place des propriétés d'inspecteur ; le moteur relit `el.humidity`/`el.temperature` en direct (liste DHT22 re-poussée au moteur à chaque `input`). Binding DATA→D7 et curseurs validés headless.
 
 # v2026.7.53
 1. ✅ Capteur de pouls actif : EN SIMULATION, un curseur règle le pouls (0-200 bpm). La sortie analogique OUT reproduit une courbe de pulsation cardiaque (forme PPG : pic systolique + onde dicrotique, deux gaussiennes), régénérée à chaque frame selon le BPM (sim.mts `updatePulses`/`pulseWaveform`, appelé dans `renderTick`). BPM=0 → ligne de base.

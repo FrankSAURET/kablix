@@ -907,17 +907,36 @@ function bindInputs(): void {
   }
   engine.setKeypads?.(keypads);
 
-  // Capteurs DHT22 (1-wire) : température/humidité réglées dans l'inspecteur.
-  engine.setDht22?.(
-    dht22Bindings(editor.diagram).map((b) => {
+  // Capteurs DHT22 (1-wire) : température/humidité réglées EN SIMULATION par les
+  // deux curseurs du composant. On (re)pousse la liste au moteur à chaque
+  // changement (`input`) pour un pilotage en direct.
+  {
+    const dhtBindings = dht22Bindings(editor.diagram);
+    const dhtEls = dhtBindings.map((b) => {
+      const el = editor.elementOf(b.partId);
       const part = editor.diagram.parts.find((p) => p.id === b.partId);
-      return {
-        pin: b.pin,
-        temperatureC: Number(part?.attrs?.temperature ?? 22),
-        humidity: Number(part?.attrs?.humidity ?? 50),
-      };
-    })
-  );
+      if (el) {
+        // Init depuis les attributs éventuels, sinon valeurs par défaut du composant.
+        if (part?.attrs?.temperature) el.temperature = Number(part.attrs.temperature);
+        if (part?.attrs?.humidity) el.humidity = Number(part.attrs.humidity);
+      }
+      return { pin: b.pin, el };
+    });
+    const pushDht = () =>
+      engine?.setDht22?.(
+        dhtEls.map(({ pin, el }) => ({
+          pin,
+          temperatureC: Number(el?.temperature ?? 22),
+          humidity: Number(el?.humidity ?? 50),
+        }))
+      );
+    pushDht();
+    for (const { el } of dhtEls) {
+      if (!el) continue;
+      el.addEventListener('input', pushDht);
+      inputRemovers.push(() => el.removeEventListener('input', pushDht));
+    }
+  }
 
   // Chaînes NeoPixel (WS2812) : broche DIN décodée par le moteur.
   const nps = neopixelBindings(editor.diagram);

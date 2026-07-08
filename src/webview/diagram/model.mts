@@ -588,7 +588,7 @@ export function keypadBindings(diagram: Diagram): KeypadBinding[] {
 
 export interface Dht22Binding {
   partId: string;
-  /** Broche MCU reliée à la ligne de données (SDA, 1-wire). */
+  /** Broche MCU reliée à la ligne de données (DATA, 1-wire). */
   pin: string;
 }
 
@@ -598,7 +598,7 @@ export function dht22Bindings(diagram: Diagram): Dht22Binding[] {
   const out: Dht22Binding[] = [];
   for (const part of diagram.parts) {
     if (part.type !== 'dht22') continue;
-    const pin = mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin: 'SDA' }));
+    const pin = mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin: 'DATA' }));
     if (pin) out.push({ partId: part.id, pin });
   }
   return out;

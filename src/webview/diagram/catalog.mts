@@ -332,15 +332,12 @@ export const CATALOG: readonly PartDef[] = [
       { attr: 'distancemax', label: 'Max distance (cm)', kind: 'number', min: 1, max: 400, step: 1 },
     ],
   },
-  // Capteur de température/humidité DHT22 (1-wire sur SDA) : répond au protocole
-  // réel (température/humidité réglées dans l'inspecteur).
+  // Capteur de température/humidité DHT22 (1-wire sur DATA) : répond au protocole
+  // réel. Température/humidité réglées EN SIMULATION par deux curseurs (simControl).
   {
     type: 'dht22', label: 'Temp/humidity sensor (DHT22)', tag: 'kablix-dht22', kind: 'passive',
-    attrs: { temperature: '22', humidity: '50' },
-    props: [
-      { attr: 'temperature', label: 'Temperature (°C)', kind: 'number', min: -40, max: 80, step: 0.1 },
-      { attr: 'humidity', label: 'Humidity (%)', kind: 'number', min: 0, max: 100, step: 1 },
-    ],
+    simControl: true, attrs: { temperature: '22', humidity: '50' },
+    props: [],
   },
   // Clavier matriciel à membrane (3 ou 4 colonnes). Interactif : une touche
   // enfoncée court-circuite ligne/colonne (lecture matricielle simulée).
