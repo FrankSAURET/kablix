@@ -2952,13 +2952,40 @@ export class Editor {
     if (!body) return;
     body.querySelector('.part__internal')?.remove();
     const pins = ((r.el.pinInfo ?? []) as PinPoint[]).map((p) => ({ name: p.name, x: p.x, y: p.y }));
-    const w = body.offsetWidth || 80;
-    const h = body.offsetHeight || 60;
+    // Taille = celle du DESSIN externe (svg de l'élément), PAS du corps DOM :
+    // `.part__body` peut être plus haut (span d'étiquette sous le dessin), et le
+    // dessin externe garde son ratio (letterbox) alors que l'overlay est étiré sur
+    // toute la boîte → l'interne rendait trop grand en hauteur. On calque l'overlay
+    // sur le SVG externe (mêmes w/h, mêmes marges de centrage) pour qu'ils coïncident.
+    let w = 0;
+    let h = 0;
+    let offX = 0;
+    let offY = 0;
+    try {
+      const svg = (r.el.shadowRoot ?? r.el).querySelector('svg');
+      w = svg?.width?.baseVal?.value || 0;
+      h = svg?.height?.baseVal?.value || 0;
+      if (svg && w && h) {
+        // Marge de centrage du dessin dans le corps (letterbox), pour caler l'overlay.
+        const br = svg.getBoundingClientRect();
+        const bb = body.getBoundingClientRect();
+        offX = br.left - bb.left;
+        offY = br.top - bb.top;
+      }
+    } catch {
+      // Repli sur la boîte DOM si le SVG externe n'est pas mesurable.
+    }
+    w = w || body.offsetWidth || 80;
+    h = h || body.offsetHeight || 60;
     const inner = internalWiringSvg(partDef(r.part.type).kind, pins, r.part.attrs, r.part.type, { w, h });
     if (!inner) return;
     // Inséré dans le corps : suit naturellement rotation et retournement.
     const overlay = document.createElement('div');
     overlay.className = 'part__internal';
+    overlay.style.left = `${offX}px`;
+    overlay.style.top = `${offY}px`;
+    overlay.style.width = `${w}px`;
+    overlay.style.height = `${h}px`;
     overlay.innerHTML =
       `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="${SVG_NS}">` +
       `<rect x="0" y="0" width="${w}" height="${h}" rx="6" fill="rgba(255,255,255,0.8)"/>` +

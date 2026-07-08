@@ -15,6 +15,9 @@
 1. Les bras du servomoteur ne changent plus (simple, double, croix). 
 1. Mon programme de test du servomoteur s'exécute trés lentement. Il coupe le bras en bas on dirait qu'il sort de la zone d'affichage du composant.
 
+# v2026.7.48
+1. ✅ Câblage interne 7 segments trop grand en hauteur à l'affichage (alors que les SVG externe/interne se superposaient parfaitement dans Inkscape) : la surimpression `.part__internal` était étirée sur `.part__body` (offsetWidth/offsetHeight), or ce corps DOM est plus HAUT que le dessin (span d'étiquette sous le SVG) et le dessin externe garde son ratio (letterbox). Correction (editor.mts `renderInternalWiring`) : on mesure le SVG externe réel (`svg.width/height.baseVal`) + sa marge de centrage (getBoundingClientRect) et on cale l'overlay dessus (left/top/width/height posés en JS ; `.part__internal` passe de `inset:0` à `top/left:0`). L'interne coïncide maintenant au pixel avec l'externe.
+
 # v2026.7.47
 1. ✅ Buzzer : dessin repris du schéma validé de Frank (`svg retouche/Validé/buzzer.edit.svg`) — disque noir, dôme central en dégradé radial, 2 pattes (noire = broche 1, rouge = broche 2). Pastilles de positionnement retirées ; broches calées à x=20/30, y=50 (grille 10 px), conformes au pinInfo du fork. Rendu Chrome headless validé (note de musique flottante conservée).
 

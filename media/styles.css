@@ -1106,10 +1106,14 @@ textarea {
 }
 
 /* Surimpression du câblage interne (composant sélectionné) : fond blanc
-   translucide + tracé noir, n'intercepte pas les clics (broches accessibles). */
+   translucide + tracé noir, n'intercepte pas les clics (broches accessibles).
+   La position et la taille sont posées en JS (left/top/width/height) pour caler
+   l'overlay sur le DESSIN externe, pas sur tout le corps DOM (qui inclut l'étiquette
+   et peut être letterboxé). Repli : inset 0 si le JS ne pose pas de dimension. */
 .part__internal {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
   pointer-events: none;
   z-index: 4;
 }
