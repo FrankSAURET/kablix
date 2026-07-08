@@ -60,6 +60,7 @@ import {
   joystickBindings,
   digitalSourceBindings,
   analogSourceBindings,
+  aoDoSensorBindings,
   servoBindings,
   buzzerBindings,
   ultrasonicBindings,
@@ -1022,6 +1023,26 @@ function bindInputs(): void {
   for (const binding of analogSourceBindings(editor.diagram)) {
     const part = editor.diagram.parts.find((p) => p.id === binding.partId);
     engine.setAnalog(binding.mcuPin, Number(part?.attrs?.value ?? 50) / 100);
+  }
+
+  // Capteurs à double sortie (flamme, gaz, son, lumière) : le curseur d'intensité
+  // du composant pilote EN DIRECT AOUT (analogique, tension qui baisse quand
+  // l'intensité monte) et DOUT (tout ou rien, actif quand intensité > sensibilité).
+  for (const binding of aoDoSensorBindings(editor.diagram)) {
+    const part = editor.diagram.parts.find((p) => p.id === binding.partId);
+    const el = editor.elementOf(binding.partId);
+    if (!el) continue;
+    // Sensibilité (seuil) depuis l'inspecteur → propriété du composant.
+    el.sensitivity = Number(part?.attrs?.sensitivity ?? 50);
+    const { analogPin, digitalPin } = binding;
+    const apply = () => {
+      if (analogPin) engine?.setAnalog(analogPin, Number(el.analogLevel ?? 1));
+      // DOUT actif-bas (modules KY) : détection → LOW.
+      if (digitalPin) engine?.setInput(digitalPin, !el.detected);
+    };
+    apply();
+    el.addEventListener('input', apply);
+    inputRemovers.push(() => el.removeEventListener('input', apply));
   }
 }
 

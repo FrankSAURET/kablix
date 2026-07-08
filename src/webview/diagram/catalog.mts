@@ -19,6 +19,7 @@ export type PartKind =
   | 'joystick'
   | 'analog-source'
   | 'digital-source'
+  | 'ao-do-sensor'
   | 'servo'
   | 'ultrasonic'
   | 'i2c-lcd'
@@ -136,6 +137,8 @@ export interface CustomPartData {
 
 const STATE_PROP: PropDef = { attr: 'state', label: 'State (0/1)', kind: 'select', options: ['0', '1'] };
 const VALUE_PROP: PropDef = { attr: 'value', label: 'Position (%)', kind: 'number', min: 0, max: 100, step: 1 };
+// Seuil de bascule DOUT des capteurs à double sortie (flamme, gaz, son, lumière).
+const SENSITIVITY_PROP: PropDef = { attr: 'sensitivity', label: 'Sensitivity (%)', kind: 'number', min: 0, max: 100, step: 1 };
 
 export const CATALOG: readonly PartDef[] = [
   // Cartes AVR : éléments forkés, mis à l'échelle 10/9,6 px pour que
@@ -224,9 +227,9 @@ export const CATALOG: readonly PartDef[] = [
   { type: 'dip-switch', label: 'DIP switch ×8', tag: 'kablix-dip-switch-8', kind: 'dip-switch', interactive: true },
   { type: 'joystick', label: 'Analog joystick', tag: 'kablix-analog-joystick', kind: 'joystick', interactive: true },
   {
-    type: 'photoresistor', label: 'Photoresistor (LDR)', tag: 'kablix-photoresistor-sensor', kind: 'analog-source',
-    analogPin: 'AO', attrs: { value: '50' },
-    props: [{ attr: 'value', label: 'Brightness (%)', kind: 'number', min: 0, max: 100, step: 1 }],
+    type: 'photoresistor', label: 'Light sensor', tag: 'kablix-photoresistor-sensor', kind: 'ao-do-sensor',
+    analogPin: 'AO', digitalPin: 'DO', simControl: true, attrs: { sensitivity: '50' },
+    props: [SENSITIVITY_PROP],
   },
   {
     type: 'pir', label: 'PIR motion sensor', tag: 'kablix-pir-motion-sensor', kind: 'digital-source',
@@ -293,26 +296,27 @@ export const CATALOG: readonly PartDef[] = [
     props: [{ ...VALUE_PROP, label: 'Temperature (%)' }],
   },
   {
-    type: 'gas-sensor', label: 'Gas sensor (MQ)', tag: 'kablix-gas-sensor', kind: 'analog-source',
-    analogPin: 'AOUT', attrs: { value: '20' },
-    props: [{ ...VALUE_PROP, label: 'Gas level (%)' }],
+    type: 'gas-sensor', label: 'Gas sensor (MQ)', tag: 'kablix-gas-sensor', kind: 'ao-do-sensor',
+    analogPin: 'AOUT', digitalPin: 'DOUT', simControl: true, attrs: { sensitivity: '50' },
+    props: [SENSITIVITY_PROP],
   },
   {
     type: 'heartbeat', label: 'Heart-beat sensor', tag: 'kablix-heart-beat-sensor', kind: 'analog-source',
-    analogPin: 'OUT', attrs: { value: '50' },
-    props: [{ ...VALUE_PROP, label: 'Pulse (%)' }],
+    analogPin: 'OUT', simControl: true, attrs: { bpm: '72' },
+    props: [],
   },
 
-  // Capteurs numériques : la sortie DOUT pilote l'entrée reliée (état 0/1).
+  // Capteurs à double sortie (analogique AOUT + numérique DOUT) : curseur
+  // d'intensité en simulation, seuil = propriété sensibilité (simControl).
   {
-    type: 'flame', label: 'Flame sensor', tag: 'kablix-flame-sensor', kind: 'digital-source', pinScale: WOKWI_PIN_SCALE,
-    digitalPin: 'DOUT', attrs: { state: '0' },
-    props: [{ ...STATE_PROP, label: 'Flame detected' }],
+    type: 'flame', label: 'Flame sensor', tag: 'kablix-flame-sensor', kind: 'ao-do-sensor', pinScale: WOKWI_PIN_SCALE,
+    analogPin: 'AOUT', digitalPin: 'DOUT', simControl: true, attrs: { sensitivity: '50' },
+    props: [SENSITIVITY_PROP],
   },
   {
-    type: 'sound', label: 'Sound sensor', tag: 'kablix-small-sound-sensor', kind: 'digital-source',
-    digitalPin: 'DOUT', attrs: { state: '0' },
-    props: [{ ...STATE_PROP, label: 'Sound detected' }],
+    type: 'sound', label: 'Sound sensor', tag: 'kablix-small-sound-sensor', kind: 'ao-do-sensor',
+    analogPin: 'AOUT', digitalPin: 'DOUT', simControl: true, attrs: { sensitivity: '50' },
+    props: [SENSITIVITY_PROP],
   },
 
   // Capteur ultrason (élément Wokwi, broches VCC/TRIG/ECHO/GND) : simulé par le
@@ -383,6 +387,7 @@ export function partCategory(def: PartDef): string {
       return 'Controls';
     case 'analog-source':
     case 'digital-source':
+    case 'ao-do-sensor':
     case 'ultrasonic':
       return 'Sensors';
     case 'buzzer':

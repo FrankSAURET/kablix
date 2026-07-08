@@ -6,25 +6,15 @@
 //   - AOUT/DOUT/GND/VCC recalés sur la grille de 10 px (repère du dessin retouché) ;
 //   - LED PWR/D0 réimplémentées par-dessus le dessin (absentes du SVG retouché,
 //     positions recalculées sur les rectangles de boîtier LED du dessin).
-import { html, LitElement, svg } from 'lit';
+import { html, svg, TemplateResult } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin, GND, VCC } from './pin.mjs';
+import { AnalogDigitalSensorElement } from './utils/analog-digital-sensor.mjs';
 import drawing from './externe/gas-sensor.svg';
 
-export class GasSensorElement extends LitElement {
-  declare ledPower: boolean;
-  declare ledD0: boolean;
-
-  /** Propriétés réactives lit (remplace les décorateurs @property du code d'origine). */
-  static properties = {
-    ledPower: {},
-    ledD0: {},
-  };
-
-  constructor() {
-    super();
-    this.ledPower = false;
-    this.ledD0 = false;
+export class GasSensorElement extends AnalogDigitalSensorElement {
+  protected intensityLabel(): string {
+    return 'Gaz';
   }
 
   // Broches : centre de chaque pastille (repère du dessin retouché, grille de 10 px).
@@ -35,8 +25,9 @@ export class GasSensorElement extends LitElement {
     { name: 'VCC', x: 140, y: 50, number: 4, signals: [VCC()] },
   ];
 
-  render() {
-    const { ledPower, ledD0 } = this;
+  protected renderBody(): TemplateResult {
+    const ledPower = this.simulating;
+    const ledD0 = this.detected;
     return html`
       <svg width="150" height="70" viewBox="0 0 150 70" xmlns="http://www.w3.org/2000/svg">
         ${unsafeSVG(drawing)}

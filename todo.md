@@ -2,15 +2,18 @@
 1. Nano : retoucher nano-pinout.svg (module central redimensionné) puis réactiver le poster dans pinout.mts
 2. En pwm la LED clignote. Demande moi mon programme.
 3. Le message "Simulation en cours : ..." doit toujours rester visible (flottant) et clignoter 3 fois si on essaye de faire qqc d'interdit
-4. Le capteur de flamme doit être actif. pas de propriété Flamme dans le composant mais un curseur pour augmenter l'intensité de la flamme directement à coté du composant dans la simulation. 2 sorties tout ou rien sur DOUT si le curseur dépasse sensibilité et une sortie AOUT avec la valeur analogique. Une propriété sensibilité de 0 à 100 % doit être ajoutée.
-5. Pareil pour le capteur de gaz, le capteur de son et la photorésistance que tu va rebaptiser "Capteur de lumière"
-6. Le bouton ☢ (K) apparaîtra en haut à gauche de la barre d'outils de dessin (celle de droite). Uniquement pour les composants en disposant.
-7. 7 seg 2/4 chiffres : pinInfo est CENTRÉ (broches x resserrées au milieu, ex 4dig 70-120 sur 200) → le câblage interne calé dessus se resserre au centre au lieu de s'étaler sous les chiffres. À décider : étaler pinInfo (casse les schémas déjà câblés) ou garder ainsi.
-8. Le capteur de pouls doit reproduire une courbe de pulsation cardiaque sur la sortie analogique OUT. Un curseur permettra de régler le pouls de 0 à 200 Hz
-9. Le capteur de température doit avoir un curseur -55°C à +125°C et une sortie analogique. La variation est celle d'une CBT normale (exponentielle inverse) si la T° augmente la tension diminue.
-10. DHT22 : 2 curseur Humidité 0  à 100 % et température -40 à + 80°C. La pin SDA doit s'appeler DATA. 
-11. Pour le PIR détecte les mouvements de la souris au dessu de lui. CTRL + clic = mouvement prrmanent indiqué dans la bulle lors de la siumulation.
-12. Servo : test qui s'exécute très lentement (perf de simulation — nécessite ton programme de test pour diagnostiquer la cause : delay/refresh/avr8js).
+4. Le bouton ☢ (K) apparaîtra en haut à gauche de la barre d'outils de dessin (celle de droite). Uniquement pour les composants en disposant.
+5. 7 seg 2/4 chiffres : pinInfo est CENTRÉ (broches x resserrées au milieu, ex 4dig 70-120 sur 200) → le câblage interne calé dessus se resserre au centre au lieu de s'étaler sous les chiffres. À décider : étaler pinInfo (casse les schémas déjà câblés) ou garder ainsi.
+6. Le capteur de pouls doit reproduire une courbe de pulsation cardiaque sur la sortie analogique OUT. Un curseur permettra de régler le pouls de 0 à 200 Hz
+7. Le capteur de température doit avoir un curseur -55°C à +125°C et une sortie analogique. La variation est celle d'une CBT normale (exponentielle inverse) si la T° augmente la tension diminue.
+8. DHT22 : 2 curseur Humidité 0  à 100 % et température -40 à + 80°C. La pin SDA doit s'appeler DATA. 
+9. Pour le PIR détecte les mouvements de la souris au dessu de lui. CTRL + clic = mouvement prrmanent indiqué dans la bulle lors de la siumulation.
+10. Servo : test qui s'exécute très lentement (perf de simulation — nécessite ton programme de test pour diagnostiquer la cause : delay/refresh/avr8js).
+
+# v2026.7.52
+1. ✅ Capteurs flamme / gaz / son / lumière ACTIFS en simulation (items « capteur de flamme… » + « pareil pour gaz/son/lumière ») : nouvelle base commune `AnalogDigitalSensorElement` (utils/) — double sortie AOUT (analogique) + DOUT (tout ou rien). EN SIMULATION, un curseur d'intensité (0-100 %, libellé Flamme/Gaz/Son/Lumière) ; propriété `sensitivity` (0-100 %) dans l'inspecteur = seuil DOUT. Convention (choix Frank) : AOUT baisse quand l'intensité monte ; DOUT actif-BAS (LOW) quand intensité > sensibilité. LED de détection allumée quand détecté.
+2. ✅ Nouveau kind catalog `ao-do-sensor` + `aoDoSensorBindings(diagram)` (résout séparément AOUT et DOUT câblés) ; binding live dans sim.mts (curseur → setAnalog/setInput à chaque `input`). Réutilise l'infra simControl/simulating.
+3. ✅ Photorésistance rebaptisée « Capteur de lumière » (label i18n « Light sensor » → « Capteur de lumière »). Test verify-diagram mis à jour (photorésistance testée en double sortie AO→A2, DO non câblé).
 
 # v2026.7.51
 1. ✅ Capteur d'inclinaison : propriété d'état retirée de l'inspecteur. EN SIMULATION (attribut `simulating`), un bouton « Incliner »/« Incliné » bascule l'état (tout ou rien) directement sur le composant ; le capteur s'incline visuellement (rotation -22°). Le moteur lit `el.tilted` en direct via l'événement `input` (binding dédié dans sim.mts, séparé des autres digital-source qui restent sur `attrs.state`). Réutilise l'infra simControl/simulating (v50). Validé Chrome headless.

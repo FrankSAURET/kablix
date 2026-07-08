@@ -1,25 +1,16 @@
 // Fork local de @wokwi/elements v1.9.2 (MIT © Wokwi) — flame-sensor-element.ts.
 // Balise <kablix-flame-sensor> (ex <wokwi-flame-sensor>). Licence d'origine : LICENSE-wokwi.md (même dossier).
-// Adaptations Kablix : sans décorateurs (static properties + declare + constructeur),
-// imports relatifs .mjs. Le dessin/les comportements restent ceux d'origine.
-import { html, LitElement, svg } from 'lit';
+// Adaptations Kablix : sans décorateurs ; DOUBLE sortie active (DOUT+AOUT) via la
+// base AnalogDigitalSensorElement — curseur d'intensité de flamme en simulation,
+// propriété sensibilité, LED signal = détection. Voir utils/analog-digital-sensor.mts.
+import { html, svg, TemplateResult } from 'lit';
 import { ElementPin } from './pin.mjs';
 import { GND, VCC } from './pin.mjs';
+import { AnalogDigitalSensorElement } from './utils/analog-digital-sensor.mjs';
 
-export class FlameSensorElement extends LitElement {
-  declare ledPower: boolean;
-  declare ledSignal: boolean;
-
-  /** Propriétés réactives lit (remplace les décorateurs @property du code d'origine). */
-  static properties = {
-    ledPower: {},
-    ledSignal: {},
-  };
-
-  constructor() {
-    super();
-    this.ledPower = false;
-    this.ledSignal = false;
+export class FlameSensorElement extends AnalogDigitalSensorElement {
+  protected intensityLabel(): string {
+    return 'Flamme';
   }
 
   readonly pinInfo: ElementPin[] = [
@@ -29,8 +20,9 @@ export class FlameSensorElement extends LitElement {
     { name: 'AOUT', y: 43.7, x: 199, number: 4, signals: [] },
   ];
 
-  render() {
-    const { ledPower, ledSignal } = this;
+  protected renderBody(): TemplateResult {
+    const ledPower = this.simulating; // alimenté en simulation
+    const ledSignal = this.detected;
     return html`
       <svg
         width="52.904mm"

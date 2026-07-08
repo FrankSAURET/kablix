@@ -21,7 +21,7 @@ await esbuild.build({
 const {
   ledOn, rgbLedState, buzzerOn, buttonBindings, potBindings,
   sevenSegmentState, ledBarState, slideSwitchBindings, dipSwitchBindings,
-  joystickBindings, digitalSourceBindings, analogSourceBindings, servoBindings,
+  joystickBindings, digitalSourceBindings, analogSourceBindings, aoDoSensorBindings, servoBindings,
 } = await import(pathToFileURL(out).href);
 
 const outCat = join(mkdtempSync(join(tmpdir(), 'kablix-cat-')), 'catalog.mjs');
@@ -126,7 +126,7 @@ const extDiagram = {
     { id: 'sw', type: 'slide-switch', x: 0, y: 0 },
     { id: 'dip', type: 'dip-switch', x: 0, y: 0 },
     { id: 'joy', type: 'joystick', x: 0, y: 0 },
-    { id: 'ldr', type: 'photoresistor', x: 0, y: 0, attrs: { value: '75' } },
+    { id: 'ldr', type: 'photoresistor', x: 0, y: 0, attrs: { sensitivity: '50' } },
     { id: 'pir', type: 'pir', x: 0, y: 0, attrs: { state: '1' } },
     { id: 'srv', type: 'servo', x: 0, y: 0 },
   ],
@@ -159,8 +159,8 @@ console.log('Nouveaux composants (netlist) :');
   check('DIP : canal 3 lié à D6', dip.length === 1 && dip[0].mcuPin === '6' && dip[0].channel === 3);
   const joy = joystickBindings(extDiagram);
   check('joystick : VERT→A1, SEL→D7', joy.length === 1 && joy[0].vert === 'A1' && joy[0].sel === '7');
-  const ldr = analogSourceBindings(extDiagram);
-  check('photorésistance : AO→A2', ldr.length === 1 && ldr[0].mcuPin === 'A2');
+  const ldr = aoDoSensorBindings(extDiagram);
+  check('capteur de lumière : AO→A2 (double sortie)', ldr.length === 1 && ldr[0].analogPin === 'A2' && ldr[0].digitalPin === null);
   const pir = digitalSourceBindings(extDiagram);
   check('PIR : OUT→D8', pir.length === 1 && pir[0].mcuPin === '8');
   const srv = servoBindings(extDiagram);

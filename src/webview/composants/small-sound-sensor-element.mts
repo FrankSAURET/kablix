@@ -7,25 +7,15 @@
 // (repère « tel quel » : rect de la lentille PWR à x=64.33,y=11.62, DO à x=64.33,y=54.63,
 // dans le groupe translate(-10,-10) de externe/sound.svg) ; filtre #ledFilter défini dans
 // le dessin importé, réutilisable ici via url(#ledFilter).
-import { html, LitElement, svg } from 'lit';
+import { html, svg, TemplateResult } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin, GND, VCC } from './pin.mjs';
+import { AnalogDigitalSensorElement } from './utils/analog-digital-sensor.mjs';
 import drawing from './externe/sound.svg';
 
-export class SmallSoundSensorElement extends LitElement {
-  declare ledPower: boolean;
-  declare ledSignal: boolean;
-
-  /** Propriétés réactives lit (remplace les décorateurs @property du code d'origine). */
-  static properties = {
-    ledPower: {},
-    ledSignal: {},
-  };
-
-  constructor() {
-    super();
-    this.ledPower = false;
-    this.ledSignal = false;
+export class SmallSoundSensorElement extends AnalogDigitalSensorElement {
+  protected intensityLabel(): string {
+    return 'Son';
   }
 
   readonly pinInfo: ElementPin[] = [
@@ -35,8 +25,9 @@ export class SmallSoundSensorElement extends LitElement {
     { name: 'DOUT', x: 10, y: 50, number: 4, signals: [] },
   ];
 
-  render() {
-    const { ledPower, ledSignal } = this;
+  protected renderBody(): TemplateResult {
+    const ledPower = this.simulating;
+    const ledSignal = this.detected;
     return html`
       <svg width="150" height="70" viewBox="0 0 150 70" xmlns="http://www.w3.org/2000/svg">
         ${unsafeSVG(drawing)}

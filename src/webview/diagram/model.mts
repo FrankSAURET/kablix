@@ -396,6 +396,35 @@ export function analogSourceBindings(diagram: Diagram): SourceBinding[] {
   return bindings;
 }
 
+export interface AoDoSensorBinding {
+  partId: string;
+  /** Entrée analogique MCU reliée à AOUT (si câblée). */
+  analogPin: string | null;
+  /** Entrée numérique MCU reliée à DOUT (si câblée). */
+  digitalPin: string | null;
+}
+
+/**
+ * Capteurs à double sortie (flamme, gaz, son, lumière) : résout séparément la
+ * broche analogique (AOUT/AO) et la broche numérique (DOUT/DO) câblées.
+ */
+export function aoDoSensorBindings(diagram: Diagram): AoDoSensorBinding[] {
+  const nets = buildNets(diagram);
+  const bindings: AoDoSensorBinding[] = [];
+  for (const part of diagram.parts) {
+    const def = partDef(part.type);
+    if (def.kind !== 'ao-do-sensor') continue;
+    const analogPin = def.analogPin
+      ? mcuAnalogOnNet(diagram, nets, nets.netOf({ partId: part.id, pin: def.analogPin })) ?? null
+      : null;
+    const digitalPin = def.digitalPin
+      ? mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin: def.digitalPin })) ?? null
+      : null;
+    if (analogPin || digitalPin) bindings.push({ partId: part.id, analogPin, digitalPin });
+  }
+  return bindings;
+}
+
 /** Servomoteurs dont l'entrée PWM est reliée à une broche MCU. */
 export function servoBindings(diagram: Diagram): SourceBinding[] {
   const nets = buildNets(diagram);
