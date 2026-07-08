@@ -116,7 +116,7 @@ const THUMB_H = 30;
 // Badge du bouton de brochage : « K » (Kablix) gras et jaune, **inversé**
 // (miroir horizontal), dans un rond noir. Le SVG remplit le bouton (width/height
 // 100 % via CSS) → le rond noir est exactement concentrique au rond blanc.
-const KABLIX_BADGE =
+export const KABLIX_BADGE =
   `<svg viewBox="0 0 16 16" xmlns="${SVG_NS}">` +
   `<circle cx="8" cy="8" r="7.2" fill="#000"/>` +
   `<g transform="translate(16,0) scale(-1,1)">` +
@@ -151,6 +151,12 @@ export class Editor {
   onOpenExternal: ((url: string) => void) | null = null;
   /** Appelé pour ouvrir l'aide locale d'un composant (fiche docs/composants/<type>.md). */
   onComponentHelp: ((type: string) => void) | null = null;
+  /**
+   * Appelé quand la sélection change : `schema` indique si le composant
+   * sélectionné dispose d'un câblage interne ou d'un poster de brochage (pour
+   * activer le bouton ☢ de la barre d'outils), et `shown` s'il est affiché.
+   */
+  onSelectionChange: ((info: { partId: string | null; schema: boolean; shown: boolean }) => void) | null = null;
 
   private paletteSort: PaletteSort = 'category';
   private paletteFilter = '';
@@ -1394,27 +1400,9 @@ export class Editor {
       hotspots.set(pin.name, dot);
     }
 
-    // Bouton ☢ : à gauche du ✕. Sur une carte Pico/Pico W il affiche le poster de
-    // brochage complet ; sinon, s'il existe un schéma pour ce type, il affiche le
-    // câblage interne. Il commande l'affichage (plus de déclenchement automatique).
-    const internalPins = pins.map((p) => ({ name: p.name, x: p.x, y: p.y }));
-    const hasPinout = pinoutSvg(part.type) !== null;
-    const shown = hasPinout ? this.pinoutShown : this.internalShown;
-    if (hasPinout || internalWiringSvg(def.kind, internalPins, part.attrs, part.type)) {
-      const toggle = document.createElement('span');
-      toggle.className =
-        'part__internal-toggle' + (shown.has(part.id) ? ' part__internal-toggle--active' : '');
-      toggle.innerHTML = KABLIX_BADGE;
-      toggle.title = hasPinout ? t('Show/hide the full pinout') : t('Show/hide the internal wiring');
-      toggle.addEventListener('pointerdown', (e) => {
-        e.stopPropagation();
-        if (hasPinout) this.togglePinout(part.id);
-        else this.toggleInternalWiring(part.id);
-      });
-      // Dans le corps (et non le bandeau) : il déborde à droite de la carte et
-      // reste donc visible/cliquable quand le poster recouvre le bandeau de nom.
-      body.appendChild(toggle);
-    }
+    // Le bouton ☢ (afficher le câblage interne / poster de brochage) n'est plus
+    // par-composant : il est désormais dans la barre d'outils droite et agit sur
+    // le composant SÉLECTIONNÉ qui en dispose (cf. toggleSelectedSchema + panel.ts).
 
     this.rendered.set(part.id, { part, container, el, hotspots });
     // Restaure le câblage interne / le poster de brochage après un re-rendu
@@ -2636,9 +2624,42 @@ export class Editor {
       this.buildHandles(sel.id);
     }
     this.renderInspector();
+    this.notifySelection();
   }
 
-  /** Met le contour « sélectionné » sur tous les composants de la sélection. */
+  /** Le composant a-t-il un câblage interne ou un poster de brochage (bouton ☢) ? */
+  private partHasSchema(partId: string): boolean {
+    const r = this.rendered.get(partId);
+    if (!r) return false;
+    if (pinoutSvg(r.part.type) !== null) return true;
+    const pins = this.partPins(r.el).map((p) => ({ name: p.name, x: p.x, y: p.y }));
+    return internalWiringSvg(partDef(r.part.type).kind, pins, r.part.attrs, r.part.type) !== null;
+  }
+
+  /** Composant sélectionné (sélection simple) ou null. */
+  private singleSelectedPart(): string | null {
+    return this.selection?.kind === 'part' ? this.selection.id : null;
+  }
+
+  /** Notifie le panneau de l'état du bouton ☢ selon la sélection courante. */
+  private notifySelection(): void {
+    const partId = this.singleSelectedPart();
+    const schema = partId ? this.partHasSchema(partId) : false;
+    const shown = partId ? this.internalShown.has(partId) || this.pinoutShown.has(partId) : false;
+    this.onSelectionChange?.({ partId, schema, shown });
+  }
+
+  /**
+   * Bascule le câblage interne / poster du composant sélectionné (bouton ☢ de la
+   * barre d'outils). Sans effet si rien de sélectionné ou pas de schéma.
+   */
+  toggleSelectedSchema(): void {
+    const partId = this.singleSelectedPart();
+    if (!partId || !this.partHasSchema(partId)) return;
+    if (pinoutSvg(this.rendered.get(partId)!.part.type) !== null) this.togglePinout(partId);
+    else this.toggleInternalWiring(partId);
+    this.notifySelection();
+  }
   private setPartHighlight(): void {
     for (const [id, r] of this.rendered) {
       r.container.classList.toggle('part--selected', this.selectedParts.has(id));

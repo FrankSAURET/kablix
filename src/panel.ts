@@ -1007,6 +1007,7 @@ export class SimulatorPanel {
         <!-- Barre droite : recentrer/ajuster, réinitialiser, effacer (alignée et de
              même hauteur que la barre de simulation à gauche). -->
         <div class="canvas-controls canvas-controls--right" role="toolbar">
+          <button id="internal-toggle" class="canvas-controls__btn canvas-controls__btn--internal" hidden title="${l10n.t('Show/hide the internal wiring')}"></button>
           <button id="auto-route" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Auto-route the wires (right angles) — selection, or whole diagram')}"><img class="canvas-controls__icon" src="${autoRouteUri}" alt="${l10n.t('Auto-route the wires (right angles) — selection, or whole diagram')}" /></button>
           <button id="fit-view" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Recenter and fit the view')}"><img class="canvas-controls__icon" src="${fitViewUri}" alt="${l10n.t('Recenter and fit the view')}" /></button>
           <button id="reset-sim" class="canvas-controls__btn canvas-controls__btn--reset" title="${l10n.t('Reset all components')}">⟲</button>

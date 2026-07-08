@@ -43,7 +43,7 @@ import './composants/breadboard.mjs';
 import './composants/custom-part.mjs';
 
 import { initLocale, t } from './i18n.mjs';
-import { Editor, type PaletteState } from './diagram/editor.mjs';
+import { Editor, KABLIX_BADGE, type PaletteState } from './diagram/editor.mjs';
 import { partDef, boardFamily, isBoardId, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
 import { toWokwiDiagram, fromWokwiDiagram } from './diagram/wokwi.mjs';
 import {
@@ -159,8 +159,18 @@ const resetSimBtn = document.getElementById('reset-sim') as HTMLButtonElement;
 const clearCanvasBtn = document.getElementById('clear-canvas') as HTMLButtonElement;
 const fitViewBtn = document.getElementById('fit-view') as HTMLButtonElement;
 const autoRouteBtn = document.getElementById('auto-route') as HTMLButtonElement;
+const internalToggleBtn = document.getElementById('internal-toggle') as HTMLButtonElement;
+internalToggleBtn.innerHTML = KABLIX_BADGE;
 
 const editor = new Editor(canvas, palette, wiresSvg, inspector);
+
+// Bouton ☢ de la barre d'outils : affiché seulement quand le composant sélectionné
+// dispose d'un câblage interne / poster de brochage ; agit sur ce composant.
+editor.onSelectionChange = ({ schema, shown }) => {
+  internalToggleBtn.hidden = !schema;
+  internalToggleBtn.classList.toggle('canvas-controls__btn--active', shown);
+};
+internalToggleBtn.addEventListener('click', () => editor.toggleSelectedSchema());
 
 let board: BoardId = 'uno';
 let engine: SimEngine | null = null;

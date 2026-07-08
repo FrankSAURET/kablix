@@ -2,9 +2,11 @@
 1. Nano : retoucher nano-pinout.svg (module central redimensionné) puis réactiver le poster dans pinout.mts
 2. En pwm la LED clignote. Demande moi mon programme.
 3. Le message "Simulation en cours : ..." doit toujours rester visible (flottant) et clignoter 3 fois si on essaye de faire qqc d'interdit
-4. Le bouton ☢ (K) apparaîtra en haut à gauche de la barre d'outils de dessin (celle de droite). Uniquement pour les composants en disposant.
-5. 7 seg 2/4 chiffres : pinInfo est CENTRÉ (broches x resserrées au milieu, ex 4dig 70-120 sur 200) → le câblage interne calé dessus se resserre au centre au lieu de s'étaler sous les chiffres. À décider : étaler pinInfo (casse les schémas déjà câblés) ou garder ainsi.
-6. Servo : test qui s'exécute très lentement (perf de simulation — nécessite ton programme de test pour diagnostiquer la cause : delay/refresh/avr8js).
+4. Servo : test qui s'exécute très lentement (perf de simulation — nécessite ton programme de test pour diagnostiquer la cause : delay/refresh/avr8js).
+
+# v2026.7.56
+1. ✅ Bouton ☢ (K) déplacé du composant vers la BARRE D'OUTILS droite (en haut à gauche, avant l'autoroutage). Il n'apparaît que lorsque le composant SÉLECTIONNÉ dispose d'un câblage interne ou d'un poster de brochage (`onSelectionChange` → `hidden`), et agit sur ce composant (`toggleSelectedSchema`) ; liseré bleu quand le schéma est affiché. Le badge par-composant (`.part__internal-toggle` dans le corps) est supprimé du rendu. Validé headless (uno → bouton visible, toggle actif).
+2. ℹ️ 7 segments 2/4 chiffres (pinInfo centré) : décision de GARDER tel quel (ne pas étaler pinInfo). Étaler casserait les schémas déjà câblés par les utilisateurs pour un gain purement cosmétique (câblage interne resserré au centre au lieu d'étalé sous les chiffres). Point clos.
 
 # v2026.7.55
 1. ✅ PIR : détection au SURVOL de la souris sur le composant EN SIMULATION (OUT=1 tant que la souris est au-dessus). Ctrl+clic = mouvement PERMANENT (bulle « Mouvement permanent (Ctrl+clic pour arrêter) »), Ctrl+clic à nouveau pour arrêter. Point rouge de détection affiché. Plus de propriété d'état. Handlers dans le shadowRoot du composant (survol + Ctrl+clic avec stopPropagation, actifs même en mode verrouillé) ; le moteur lit `el.motion` (relu à chaque frame via `updateMotion`, setInput au changement). Validé headless.
