@@ -1,7 +1,9 @@
 # À faire
 1. Nano : retoucher nano-pinout.svg (module central redimensionné) puis réactiver le poster dans pinout.mts
-2. En pwm la LED clignote. Demande moi mon programme.
-3. Servo : test qui s'exécute très lentement (perf de simulation — nécessite ton programme de test pour diagnostiquer la cause : delay/refresh/avr8js).
+2. Servo : test qui s'exécute très lentement — SI le problème persiste, m'envoyer ton programme de test (delay/refresh/avr8js à diagnostiquer). Le débordement du bras est déjà corrigé (v49).
+
+# v2026.7.58
+1. ✅ LED en PWM : ne clignote plus, elle VARIE en luminosité (item « en pwm la LED clignote »). Cause trouvée sans le programme : le rendu de la LED simple (case 'led') lisait le niveau INSTANTANÉ (`ledOn`, digital) — en PWM il alterne 0/1 à haute fréquence → clignotement au rythme du rafraîchissement. Correctif : si l'anode est pilotée par une broche MCU en PWM (`ledMcuPin` + `pulseActive`), on lit le rapport cyclique (`readPwmDuty`) et on le mappe sur `brightness` (halo plus ou moins opaque), comme la LED RGB et le 7 segments. Sinon, comportement digital inchangé.
 
 # v2026.7.57
 1. ✅ Message flottant « ⚠ Simulation en cours » : affiché près du curseur pendant toute la simulation (position fixe, suit la souris) et clignote 3× en rouge quand une action d'édition INTERDITE est tentée (clic gauche pour déplacer un composant passif, ou Suppr/Backspace sur une sélection — pendant le verrouillage). L'éditeur expose `onBlockedEdit` (appelé aux points de blocage : body pointerdown non-interactif, touche Suppr verrouillée) ; sim.mts gère le toast (`.sim-toast` / animation `.sim-toast--blink`). Ancrage « près souris » = choix de Frank. Déclenchement validé headless.

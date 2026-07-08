@@ -48,6 +48,7 @@ import { partDef, boardFamily, isBoardId, type BoardId, type CustomPartData } fr
 import { toWokwiDiagram, fromWokwiDiagram } from './diagram/wokwi.mjs';
 import {
   ledOn,
+  ledMcuPin,
   rgbLedState,
   buzzerOn,
   sevenSegmentState,
@@ -588,8 +589,21 @@ function refreshVisuals(): void {
     switch (def.kind) {
       case 'led': {
         const on = ledOn(editor.diagram, part.id, read);
-        if (def.custom) el.active = on;
-        else el.value = on;
+        // LED pilotée en PWM (variateur de luminosité) : le niveau instantané
+        // alterne 0/1 à haute fréquence → la LED « clignote » au rythme du
+        // rafraîchissement. On affiche alors le rapport cyclique comme luminosité
+        // (comme la LED RGB et le 7 segments).
+        const pwmPin = ledMcuPin(editor.diagram, part.id);
+        const duty = pwmPin && engine!.pulseActive?.(pwmPin) ? engine!.readPwmDuty?.(pwmPin) : undefined;
+        if (def.custom) {
+          el.active = on;
+        } else if (duty !== undefined) {
+          el.value = duty > 0.001;
+          el.brightness = duty;
+        } else {
+          el.value = on;
+          el.brightness = 1;
+        }
         break;
       }
       case 'rgb-led': {

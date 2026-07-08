@@ -158,6 +158,17 @@ export function ledOn(
 }
 
 /**
+ * Broche MCU (numérique) pilotant l'anode d'une LED, si la cathode est bien à la
+ * masse (montage classique). Sert à lire le rapport cyclique PWM (luminosité)
+ * plutôt que le niveau instantané, qui ferait « clignoter » la LED en PWM.
+ */
+export function ledMcuPin(diagram: Diagram, ledId: string): string | null {
+  const type = partType(diagram, ledId);
+  const nets = buildNets(diagram);
+  return mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: ledId, pin: rolePin(type, 'A') }));
+}
+
+/**
  * État des trois canaux d'une LED RGB. Selon l'attribut `common` (cathode par
  * défaut, ou anode) la logique s'inverse :
  *  - cathode commune : un canal est allumé si sa broche (R/G/B) est HAUTE et COM BAS ;
