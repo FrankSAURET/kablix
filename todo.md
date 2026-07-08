@@ -12,8 +12,11 @@
 1. DHT22 : 2 curseur Humidité 0  à 100 % et température -40 à + 80°C. La pin SDA doit s'appeler DATA. 
 1. Pour le capteur à ultrason rajoute dans les propriétés distance min et distance max (par defaut 2cm à 4m) et en simulation met lui un curseur de min à max ajoint à une zone de saisie. Enlève de son nom (HC-SR04).
 1. Pour le PIR détecte les mouvements de la souris au dessu de lui. CTRL + clic = mouvement prrmanent indiqué dans la bulle lors de la siumulation.
-1. Les bras du servomoteur ne changent plus (simple, double, croix). 
-1. Mon programme de test du servomoteur s'exécute trés lentement. Il coupe le bras en bas on dirait qu'il sort de la zone d'affichage du composant.
+1. Servo : test qui s'exécute très lentement (perf de simulation — nécessite ton programme de test pour diagnostiquer la cause : delay/refresh/avr8js).
+
+# v2026.7.49
+1. ✅ Servo — bras single/double/cross rétablis (item « les bras ne changent plus ») : l'ancien palonnier figé unique (path49, un seul galet très long) est RETIRÉ du dessin retouché au montage et remplacé par des palonniers dessinés en procédural (renderHorn), pilotés par la propriété `horn` (déjà exposée par le catalog). single = 1 bras, double = 2 opposés, cross = croix 4 branches.
+2. ✅ Servo — bras qui « sortait de la zone d'affichage en bas » corrigé : boîte agrandie en hauteur (viewBox 0 0 170 125, étendu vers le BAS seulement → broches y=60/70/80 inchangées) + bras raccourci (rayon 34 px). Plus aucun débordement à 0° ni 180°. Validé Chrome headless (3 formes × 5 angles). NB : le volet « très lent » de l'item reste à faire (besoin du programme de test).
 
 # v2026.7.48
 1. ✅ Câblage interne 7 segments trop grand en hauteur à l'affichage (alors que les SVG externe/interne se superposaient parfaitement dans Inkscape) : la surimpression `.part__internal` était étirée sur `.part__body` (offsetWidth/offsetHeight), or ce corps DOM est plus HAUT que le dessin (span d'étiquette sous le SVG) et le dessin externe garde son ratio (letterbox). Correction (editor.mts `renderInternalWiring`) : on mesure le SVG externe réel (`svg.width/height.baseVal`) + sa marge de centrage (getBoundingClientRect) et on cale l'overlay dessus (left/top/width/height posés en JS ; `.part__internal` passe de `inset:0` à `top/left:0`). L'interne coïncide maintenant au pixel avec l'externe.
