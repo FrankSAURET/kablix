@@ -1,11 +1,13 @@
 # À faire
-1. Quand on affiche un pinout il doit être par dessus tout (z-order)
-2. Aff 7 seg, sur les dessins des composants comme sur son schéma interne les lignes semblent avoir grossis et les couleurs disparus
-3. Suprime les broches CLN et COM de l'afficheur 4 digit
-4. Les schéma interne des afficheurs doivent avoir les diodes qui se retournent selon cathode ou anode commune
-5. Les schémas interne des afficheurs et des claviers sont dans src\webview\composants\interne
-6. Nano : retoucher nano-pinout.svg (module central redimensionné) puis réactiver le poster dans pinout.mts
-7. En pwm la LED clignote. Demande moi mon programme.
+1. Nano : retoucher nano-pinout.svg (module central redimensionné) puis réactiver le poster dans pinout.mts
+2. En pwm la LED clignote. Demande moi mon programme.
+3. Le message "Simulation en cours : ..." doit toujours rester visible (flottant) et clignoter 3 fois si on essaye de faire qqc d'interdit
+4. Le capteur d'inclinaison doit être actif. pas de propriété dans le composant mais un bouton pour l'incliner directement à coté du composant (ou dessus le composant) dans la simulation. Tout ou rien.
+
+# v2026.7.40
+1. ✅ Câblage interne 7 segments restylé (bouton ☢) : traits fins (0.6) au lieu du gros trait noir 2px, réseau du commun en bleu (comme les SVG dessinés à la main). Diodes retournées selon cathode/anode commune (attrs.common) — déjà géré par le helper `diode`.
+2. ✅ 2/4 chiffres allégés : une diode par segment posée près de sa broche (orientée selon common) mais NON reliée au segment (câblage segment non dessiné = lisible) ; seules les broches communes DIG1…DIGn reliées par un bus bleu.
+3. ✅ Broches CLN et COM retirées de l'afficheur 4 chiffres (VARIANTS[4].pins dans 7segment-element.mts).
 
 # v2026.7.39
 1. ✅ Posters de brochage (bouton ☢) pour Arduino Uno et Mega 2560 : les SVG pinout (rangées haut/bas + pastilles power/gnd) sont posés en surimpression, calés au pixel sur la carte comme le Pico (bornes rTop/rBot mesurées sur les pastilles, validation Chrome headless). Uno pile aligné ; mega calé haut/bas (bloc de ports latéraux affiché sous la carte).
