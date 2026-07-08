@@ -1000,11 +1000,24 @@ function bindInputs(): void {
     }
   }
 
-  // Sources pilotées par l'inspecteur (PIR, inclinaison, photorésistance…) :
-  // l'état vient des attributs du composant, relu à chaque changement.
+  // Sources numériques :
+  //   - inclinaison (tilt) : état piloté par le bouton de simulation du composant
+  //     (el.tilted), relu en direct sur l'événement `input` ;
+  //   - autres (PIR, photorésistance en tout-ou-rien…) : état depuis l'attribut.
   for (const binding of digitalSourceBindings(editor.diagram)) {
     const part = editor.diagram.parts.find((p) => p.id === binding.partId);
-    engine.setInput(binding.mcuPin, part?.attrs?.state === '1');
+    if (part?.type === 'tilt') {
+      const el = editor.elementOf(binding.partId);
+      const pin = binding.mcuPin;
+      const apply = () => engine?.setInput(pin, Boolean(el?.tilted));
+      apply();
+      if (el) {
+        el.addEventListener('input', apply);
+        inputRemovers.push(() => el.removeEventListener('input', apply));
+      }
+    } else {
+      engine.setInput(binding.mcuPin, part?.attrs?.state === '1');
+    }
   }
   for (const binding of analogSourceBindings(editor.diagram)) {
     const part = editor.diagram.parts.find((p) => p.id === binding.partId);

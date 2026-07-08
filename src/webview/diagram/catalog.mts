@@ -234,9 +234,10 @@ export const CATALOG: readonly PartDef[] = [
     props: [{ ...STATE_PROP, label: 'Motion detected' }],
   },
   {
+    // Inclinaison : plus de propriété d'état ; l'état vient d'un bouton affiché
+    // EN SIMULATION (simControl). Le moteur lit `el.tilted` en direct (cf. sim.mts).
     type: 'tilt', label: 'Tilt sensor', tag: 'kablix-tilt-switch', kind: 'digital-source',
-    digitalPin: 'OUT', attrs: { state: '0' },
-    props: [{ ...STATE_PROP, label: 'Tilted' }],
+    digitalPin: 'OUT', simControl: true,
   },
   {
     type: 'servo', label: 'Servo motor', tag: 'kablix-servo', kind: 'servo',
