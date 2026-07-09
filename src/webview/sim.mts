@@ -1894,7 +1894,10 @@ window.addEventListener('message', (event: MessageEvent) => {
       break;
     }
     case 'loadProject':
-      // Recharge un projet .projix : composants perso, schéma puis carte.
+      // Recharge un projet .projix : coupe d'abord une simulation en cours (sinon
+      // le nouveau schéma se recâble sur un moteur qui tourne encore pour l'ancien).
+      if (engine) stopRun();
+      // Composants perso, schéma puis carte.
       if (Array.isArray(msg.customParts)) {
         editor.loadCustomParts(msg.customParts as CustomPartData[]);
       }

@@ -1,15 +1,17 @@
 # À faire
 1. (noté pour plus tard je dois préciser) Faire un visualisateur virtuel ou utiliser teleplot
 2. (noté pour plus tard je dois préciser) ajouter une LDR, une CTN, une CTP avec paramètres + simulation qui prends en compte les résistances
-3. Le chargement d'un projix doit couper la simulation en cours
-4. Le dht22 ne marche pas la commande capteur = dht.DHT22(Pin(13)) génère une erreur.
-5. Anneau neopixel ne marche toujours pas. De plus les variables r,g,b ne sont jamais affichés en mode pas à pas. Demande moi mon programme de test.
-6. vss de neopixel est une patte gnd qui doit passer le fil en noir
-7. neopixel ne marche pas non plus (la led unique)
-8. Matrice neopixel ne marche pas non plus.
-9. oled display(ssd1306)  ne marche pas non plus. Rien d'affiché. je peux te passer le prg de test et la librairie. Testé en i2c.
-10. TFT display ne marche pas non plus.
+3. Le dht22 ne marche pas la commande capteur = dht.DHT22(Pin(13)) génère une erreur.
+4. Anneau neopixel ne marche toujours pas. De plus les variables r,g,b ne sont jamais affichés en mode pas à pas. Demande moi mon programme de test.
+5. vss de neopixel est une patte gnd qui doit passer le fil en noir
+6. neopixel ne marche pas non plus (la led unique)
+7. Matrice neopixel ne marche pas non plus.
+8. oled display(ssd1306)  ne marche pas non plus. Rien d'affiché. je peux te passer le prg de test et la librairie. Testé en i2c.
+9. TFT display ne marche pas non plus.
 
+
+# v2026.7.79
+1. ✅ Chargement d'un projet .projix pendant une simulation en cours : le moteur continuait de tourner sur l'ancien schéma pendant que l'éditeur affichait déjà le nouveau. `loadProject` (sim.mts) appelle désormais `stopRun()` avant de charger le nouveau schéma/carte — même fonction que le bouton ■ (coupe le moteur, réinitialise les visuels, déverrouille l'édition, masque le bandeau simulation). typecheck + build OK.
 
 # v2026.7.78
 1. ✅ Double-clic sur le nom du fichier de simulation (chip 📄 de la barre d'outils) : ouvre désormais ce fichier dans l'éditeur (volet de gauche, `ViewColumn.One`), au lieu de rouvrir la boîte de dialogue « choisir un fichier » (réservée au clic simple). Nouveau message webview→extension `openCodeFile` (sim.mts → panel.ts `openCodeFile()`, réutilise le pattern déjà en place pour `showDebugLine`). Bulle d'aide mise à jour (« cliquer pour changer, double-cliquer pour ouvrir ») + traduction FR. verify:all + typecheck OK.
