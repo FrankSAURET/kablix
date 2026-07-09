@@ -1019,6 +1019,13 @@ textarea {
   z-index: 1;
 }
 
+/* Composant EN SIMULATION avec un contrôle actif (curseur/bouton) : passe
+   par-dessus tout (voisins et fils, normalement au-dessus des composants en
+   édition à z=5) pour que son curseur reste toujours accessible. */
+.part--sim-active {
+  z-index: 60 !important;
+}
+
 /* Le rectangle de sélection est porté par le corps (qui tourne) : il pivote
    donc avec le composant. */
 .part--selected .part__body {

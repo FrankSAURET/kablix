@@ -1,20 +1,22 @@
 # À faire
-1. Les éléments de simulation doivent apparaitre par dessus tout
-2. (noté pour plus tard je dois préciser) Faire un visualisateur virtuel ou utiliser teleplot
-3. (noté pour plus tard je dois préciser) ajouter une LDR, une CTN, une CTP avec paramètres + simulation qui prends en compte les résistances
-4. La mention "⚠ Simulation en cours : édition désactivée" doit apparaitre en dessous de la barre de simulation
-5. Quand on sélectionne un fil, un point de 2 px de diametre doit apparaitre à ses 2 extrémitées afin de signaler qu'on peut débrancher (il a encore disparu)
-6. la bulle du bouton REPL doit être traduite
-7. un double clic sur le nom du fichier de simulation l'ouvre dans le volet de gauche (à gauche de kablix)
-8. Le chargement d'un projix doit couper la simulation en cours
-9. Le dht22 ne marche pas la commande capteur = dht.DHT22(Pin(13)) génère une erreur.
-10. Anneau neopixel ne marche toujours pas. De plus les variables r,g,b ne sont jamais affichés en mode pas à pas. Demande moi mon programme de test.
-11. vss de neopixel est une patte gnd qui doit passer le fil en noir
-12. neopixel ne marche pas non plus (la led unique)
-13. Matrice neopixel ne marche pas non plus.
-14. oled display(ssd1306)  ne marche pas non plus. Rien d'affiché. je peux te passer le prg de test et la librairie. Testé en i2c.
-15. TFT display ne marche pas non plus.
+1. (noté pour plus tard je dois préciser) Faire un visualisateur virtuel ou utiliser teleplot
+2. (noté pour plus tard je dois préciser) ajouter une LDR, une CTN, une CTP avec paramètres + simulation qui prends en compte les résistances
+3. La mention "⚠ Simulation en cours : édition désactivée" doit apparaitre en dessous de la barre de simulation
+4. Quand on sélectionne un fil, un point de 2 px de diametre doit apparaitre à ses 2 extrémitées afin de signaler qu'on peut débrancher (il a encore disparu)
+5. la bulle du bouton REPL doit être traduite
+6. un double clic sur le nom du fichier de simulation l'ouvre dans le volet de gauche (à gauche de kablix)
+7. Le chargement d'un projix doit couper la simulation en cours
+8. Le dht22 ne marche pas la commande capteur = dht.DHT22(Pin(13)) génère une erreur.
+9. Anneau neopixel ne marche toujours pas. De plus les variables r,g,b ne sont jamais affichés en mode pas à pas. Demande moi mon programme de test.
+10. vss de neopixel est une patte gnd qui doit passer le fil en noir
+11. neopixel ne marche pas non plus (la led unique)
+12. Matrice neopixel ne marche pas non plus.
+13. oled display(ssd1306)  ne marche pas non plus. Rien d'affiché. je peux te passer le prg de test et la librairie. Testé en i2c.
+14. TFT display ne marche pas non plus.
 
+
+# v2026.7.74
+1. ✅ Les éléments de simulation (curseur/bouton d'un capteur) doivent apparaitre par-dessus tout : en édition, les fils passent volontairement au-dessus des composants (z-index 5 vs 3, pour rester lisibles) — en simulation, cela pouvait cacher le curseur d'un capteur traversé par un fil, ou un composant voisin posé après lui dans le schéma pouvait le recouvrir. `setLocked()` (editor.mts) ajoute désormais la classe `part--sim-active` (z-index 60) sur tout composant à contrôle de simulation (`simControl`) pendant que la simulation tourne. Vérifié en rendu Chrome headless (capteur de pouls chevauché par un fil + un HC-SR04 voisin) : le curseur reste au premier plan.
 
 # v2026.7.73
 1. ✅ Capteur de pouls (heart-beat) : signal simulé irréaliste — ligne de base quasi nulle (0,08) avec un pic très étroit atteignant presque le plein échelle. Un vrai capteur KY-039 varie peu en valeur absolue (bruit + faible modulation autour d'une ligne de base élevée) ; avec une ligne de base proche de zéro, l'algorithme de détection par seuil relatif classique (`max_value -= 1000 // delay_msec`, tuto KY-039 fourni par Frank) perd le pic en 1-2 échantillons à 60 ms d'échantillonnage et redéclenche sur la même descente → BPM mesuré ~2× trop élevé (ex. 72 BPM réglé → ~140-166 BPM mesurés). Vérifié bout-en-bout avec le vrai script Python de Frank (`heartbeat_detected`) rejoué sur PicoEngine : ligne de base relevée à 0,6 + amplitude 0,15 + pic élargi (0,05→0,10) → BPM mesuré correct sur la plage 45-100 BPM (majorité des mesures exactes ±1), dégradation progressive au-delà de 110 BPM par nature de l'algo (pas d'échantillonnage fixe 60 ms trop grossier à haute fréquence — limite de l'algo, pas de la simulation). verify:all OK.

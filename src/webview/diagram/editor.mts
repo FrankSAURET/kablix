@@ -330,9 +330,13 @@ export class Editor {
         if (b) b.title = this.buttonTitle(r.part.type);
       }
       // Contrôles de simulation (curseur/bouton dans le composant) : visibles
-      // seulement pendant la simulation via l'attribut `simulating`.
+      // seulement pendant la simulation via l'attribut `simulating`. Le composant
+      // passe aussi par-dessus voisins et fils (z-index), sinon son curseur peut
+      // se retrouver caché par un composant posé après lui ou par un fil qui le
+      // traverse (les fils sont normalement au-dessus des composants en édition).
       if (partDef(r.part.type).simControl) {
         (r.el as unknown as HTMLElement).toggleAttribute('simulating', locked);
+        r.container.classList.toggle('part--sim-active', locked);
       }
     }
   }
