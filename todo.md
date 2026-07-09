@@ -1,19 +1,21 @@
 # À faire
-1. d'une façon générale les curseurs de simulation sont trop gros et trop long. Les textes (valeur ou grandeur) doivent être plus pret des curseurs.
-2. capteur de pouls ne fonctionne pas à retester. Le curseur doit faire la largeur du composant, pas plus.
-3. Les éléments de simulation doivent apparaitre par dessus tout
-4. (noté pour plus tard je dois préciser) Faire un visualisateur virtuel ou utiliser teleplot
-5. (noté pour plus tard je dois préciser) ajouter une LDR, une CTN, une CTP avec paramètres + simulation qui prends en compte les résistances
-6. La mention "⚠ Simulation en cours : édition désactivée" doit apparaitre en dessous de la barre de simulation
-7. Quand on sélectionne un fil, un point de 2 px de diametre doit apparaitre à ses 2 extrémitées afin de signaler qu'on peut débrancher (il a encore disparu)
-8. la bulle du bouton REPL doit être traduite
-9. un double clic sur le nom du fichier de simulation l'ouvre dans le volet de gauche (à gauche de kablix)
-10. Le chargement d'un projix doit couper la simulation en cours
-11. Le dht22 ne marche pas la commande capteur = dht.DHT22(Pin(13)) génère une erreur.
-12. Anneau neopixel ne marche toujours pas. De plus les variables r,g,b ne sont jamais affichés en mode pas à pas. Demande moi mon programme de test.
-13. vss de neopixel est une patte gnd qui doit passer le fil en noir
-14. neopixel ne marche pas non plus (la led unique)
+1. capteur de pouls ne fonctionne pas à retester. Le curseur doit faire la largeur du composant, pas plus.
+2. Les éléments de simulation doivent apparaitre par dessus tout
+3. (noté pour plus tard je dois préciser) Faire un visualisateur virtuel ou utiliser teleplot
+4. (noté pour plus tard je dois préciser) ajouter une LDR, une CTN, une CTP avec paramètres + simulation qui prends en compte les résistances
+5. La mention "⚠ Simulation en cours : édition désactivée" doit apparaitre en dessous de la barre de simulation
+6. Quand on sélectionne un fil, un point de 2 px de diametre doit apparaitre à ses 2 extrémitées afin de signaler qu'on peut débrancher (il a encore disparu)
+7. la bulle du bouton REPL doit être traduite
+8. un double clic sur le nom du fichier de simulation l'ouvre dans le volet de gauche (à gauche de kablix)
+9. Le chargement d'un projix doit couper la simulation en cours
+10. Le dht22 ne marche pas la commande capteur = dht.DHT22(Pin(13)) génère une erreur.
+11. Anneau neopixel ne marche toujours pas. De plus les variables r,g,b ne sont jamais affichés en mode pas à pas. Demande moi mon programme de test.
+12. vss de neopixel est une patte gnd qui doit passer le fil en noir
+13. neopixel ne marche pas non plus (la led unique)
 
+
+# v2026.7.72
+1. ✅ Curseurs de simulation trop gros/longs, texte trop loin : style partagé `utils/sim-control-styles.mts` (min-width du curseur 90→44px, gap texte↔curseur 4→2px, police 11→10px) appliqué à hc-sr04, dht22, capteur de pouls, NTC température et à la base commune flamme/gaz/son/lumière (`analog-digital-sensor.mts`) — un seul point de vérité au lieu de 5 copiés-collés divergents. Modificateur `.val--wide` (46px) gardé pour les valeurs longues (bpm, °C négatifs) afin de ne rien tronquer. Vérifié en rendu Chrome headless (hc-sr04 3 chiffres, bpm 180, dht22 humidité/température négative) : rien de coupé ni chevauché.
 
 # v2026.7.71
 1. ✅ Capteur à ultrason (HC-SR04) ne marchait pas sur Pico/MicroPython : `PicoEngine` n'implémentait pas du tout `setUltrasonic` (méthode optionnelle du moteur, ignorée en silence par `sim.mts`) — TRIG/ECHO n'était câblé que côté AVR (Uno/Mega). Ajout de l'implémentation Pico : ECHO programmé en TEMPS SIMULÉ (nanosecondes horloge RP2040) et non via `setTimeout` réel (un timer JS de 0,2 ms peut se déclencher après des dizaines de ms simulées vu le cadencement temps réel du simulateur — l'écho arrivait hors fenêtre d'attente du firmware). Bug additionnel corrigé au passage dans `KablixSimulator.execute()` : le budget d'un lot d'instructions était figé en début de lot et pouvait sauter par-dessus une échéance programmée en cours de lot (front TRIG survenant à mi-lot) — recalculé à chaque instruction désormais. Vérifié bout-en-bout (vrai firmware MicroPython, TRIG/ECHO réel) : largeur ECHO mesurée = 1160 µs pour 20 cm (exact, 58 µs/cm). verify:all OK.

@@ -8,6 +8,7 @@
 import { css, html, LitElement } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { analog, ElementPin, GND, VCC } from './pin.mjs';
+import { simControlStyles } from './utils/sim-control-styles.mjs';
 import drawing from './externe/ntc-temp.svg';
 
 const T_MIN = -55;
@@ -48,15 +49,7 @@ export class NTCTemperatureSensorElement extends LitElement {
   }
 
   static get styles() {
-    return css`
-      :host { display: inline-block; }
-      .sim-control {
-        display: flex; align-items: center; gap: 4px; margin-top: 2px;
-        font: 11px sans-serif; color: #333;
-      }
-      .sim-control input[type='range'] { flex: 1; min-width: 90px; }
-      .sim-control .val { width: 48px; text-align: right; color: #666; }
-    `;
+    return [simControlStyles, css`:host { display: inline-block; }`];
   }
 
   private onRange = (e: Event) => {
@@ -78,7 +71,7 @@ export class NTCTemperatureSensorElement extends LitElement {
         ? html`
             <div class="sim-control">
               <input type="range" min=${T_MIN} max=${T_MAX} step="1" .value=${String(this.temperature)} @input=${this.onRange} />
-              <span class="val">${Math.round(this.temperature)} °C</span>
+              <span class="val val--wide">${Math.round(this.temperature)} °C</span>
             </div>
           `
         : null}

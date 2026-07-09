@@ -10,6 +10,7 @@
 import { css, html, LitElement } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
+import { simControlStyles } from './utils/sim-control-styles.mjs';
 import drawing from './externe/hcsr04.svg';
 
 export class HCSR04Element extends LitElement {
@@ -41,29 +42,20 @@ export class HCSR04Element extends LitElement {
   ];
 
   static get styles() {
-    return css`
-      :host {
-        display: inline-block;
-      }
-      .sim-control {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        margin-top: 2px;
-        font: 11px sans-serif;
-        color: #333;
-      }
-      .sim-control input[type='range'] {
-        flex: 1;
-        min-width: 90px;
-      }
-      .sim-control input[type='number'] {
-        width: 52px;
-      }
-      .sim-control .unit {
-        color: #666;
-      }
-    `;
+    return [
+      simControlStyles,
+      css`
+        :host {
+          display: inline-block;
+        }
+        .sim-control input[type='number'] {
+          width: 40px;
+        }
+        .sim-control .unit {
+          color: #666;
+        }
+      `,
+    ];
   }
 
   /** Recale `distance` dans [min,max] et notifie (event `input`). */

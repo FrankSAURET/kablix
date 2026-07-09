@@ -8,6 +8,7 @@
 //     l'intensité monte (repos = haut, détection = bas — modules KY).
 // Voir mémoire kablix-siminfra-simcontrol / kablix-capteurs-sim-decisions.
 import { css, CSSResult, html, LitElement, TemplateResult } from 'lit';
+import { simControlStyles } from './sim-control-styles.mjs';
 
 export abstract class AnalogDigitalSensorElement extends LitElement {
   declare intensity: number;
@@ -46,31 +47,14 @@ export abstract class AnalogDigitalSensorElement extends LitElement {
   };
 
   static get styles(): CSSResult | CSSResult[] {
-    return css`
-      :host {
-        display: inline-block;
-      }
-      .sim-control {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        margin-top: 2px;
-        font: 11px sans-serif;
-        color: #333;
-      }
-      .sim-control label {
-        white-space: nowrap;
-      }
-      .sim-control input[type='range'] {
-        flex: 1;
-        min-width: 80px;
-      }
-      .sim-control .val {
-        width: 30px;
-        text-align: right;
-        color: #666;
-      }
-    `;
+    return [
+      simControlStyles,
+      css`
+        :host {
+          display: inline-block;
+        }
+      `,
+    ];
   }
 
   /** Rangée de contrôle affichée seulement en simulation. */

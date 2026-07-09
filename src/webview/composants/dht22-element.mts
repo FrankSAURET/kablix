@@ -38,13 +38,13 @@ export class DHT22Element extends LitElement {
     return css`
       :host { display: inline-block; }
       .sim-control {
-        display: flex; flex-direction: column; gap: 2px; margin-top: 2px;
-        font: 11px sans-serif; color: #333;
+        display: flex; flex-direction: column; gap: 1px; margin-top: 2px;
+        font: 10px sans-serif; color: #333;
       }
-      .sim-control .row { display: flex; align-items: center; gap: 4px; }
-      .sim-control label { width: 16px; }
-      .sim-control input[type='range'] { flex: 1; min-width: 70px; }
-      .sim-control .val { width: 44px; text-align: right; color: #666; }
+      .sim-control .row { display: flex; align-items: center; gap: 2px; }
+      .sim-control label { width: 14px; }
+      .sim-control input[type='range'] { flex: 1; min-width: 44px; }
+      .sim-control .val { width: 34px; text-align: right; color: #666; }
     `;
   }
 

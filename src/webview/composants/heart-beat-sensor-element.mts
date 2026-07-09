@@ -7,6 +7,7 @@
 import { css, html, LitElement } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin, GND, VCC } from './pin.mjs';
+import { simControlStyles } from './utils/sim-control-styles.mjs';
 import drawing from './externe/heartbeat.svg';
 
 export class HeartBeatSensorElement extends LitElement {
@@ -31,28 +32,7 @@ export class HeartBeatSensorElement extends LitElement {
   ];
 
   static get styles() {
-    return css`
-      :host {
-        display: inline-block;
-      }
-      .sim-control {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        margin-top: 2px;
-        font: 11px sans-serif;
-        color: #333;
-      }
-      .sim-control input[type='range'] {
-        flex: 1;
-        min-width: 80px;
-      }
-      .sim-control .val {
-        width: 46px;
-        text-align: right;
-        color: #666;
-      }
-    `;
+    return [simControlStyles, css`:host { display: inline-block; }`];
   }
 
   private onRange = (e: Event) => {
@@ -69,7 +49,7 @@ export class HeartBeatSensorElement extends LitElement {
         ? html`
             <div class="sim-control">
               <input type="range" min="0" max="200" step="1" .value=${String(this.bpm)} @input=${this.onRange} />
-              <span class="val">${Math.round(this.bpm)} bpm</span>
+              <span class="val val--wide">${Math.round(this.bpm)} bpm</span>
             </div>
           `
         : null}
