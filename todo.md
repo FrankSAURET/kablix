@@ -1,7 +1,9 @@
 # À faire
 1. Nano : retoucher nano-pinout.svg (module central redimensionné) puis réactiver le poster dans pinout.mts
 2. Servo : test qui s'exécute très lentement — SI le problème persiste, m'envoyer ton programme de test (delay/refresh/avr8js à diagnostiquer). Le débordement du bras est déjà corrigé (v49).
-3. Servo : dessiner les palonniers `horn-double` (2 branches) et `horn-cross` (4 branches) dans servo.edit.svg (chacun au repos). `horn-single` déjà fait. Ajuster aussi la taille de feuille si besoin.
+# v2026.7.64
+1. ✅ Servo : les 3 palonniers dessinés par Frank (horn-single = 1 branche, horn-double = 2, horn-cross = 4) sont intégrés ; feuille figée à 160×140 (lue dans le SVG). Chaque forme tourne autour de l'axe (calé sur le rond central via le translate Inkscape). Rendu headless validé (3 formes × 0/90/180°).
+2. ✅ Broches recalées : Frank a déplacé le groupe `pins` (translate −9,5 ; −20,25) → pinInfo passé à GND(10,60) / V+(10,70) / PWM(10,80), arrondi sur la grille 10 px.
 
 # v2026.7.63
 1. ✅ Servo : passage à TROIS palonniers dessinés à la main (`horn-single/double/cross`) au lieu de la duplication par le code. Les 3 groupes sont pré-remplis avec une copie du bras actuel de Frank (à compléter pour double/cross, cf. à faire n°3). Le composant affiche le groupe choisi et le tourne autour de l'axe selon l'angle simulé ; la taille de feuille (viewBox) reste lue dans le fichier (ajustable). Rendu headless validé (3 formes × angles).

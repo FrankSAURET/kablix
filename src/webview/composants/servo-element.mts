@@ -94,11 +94,12 @@ export class ServoElement extends LitElement {
   }
 
   // Broches : centre de chaque pastille (repère du dessin retouché, grille de 10 px).
-  // À recaler sur les pastilles pin-* de servo.edit.svg après retouche.
+  // Recalé sur les pastilles pin-* de servo.edit.svg (groupe pins translaté par
+  // Frank : cx=20 − 9,5 ; cy=80/90/100 − 20,25 ≈ 10,5 ; 60/70/80 → arrondi grille).
   readonly pinInfo: ElementPin[] = [
-    { name: 'GND', x: 20, y: 80, signals: [{ type: 'power', signal: 'GND' }] },
-    { name: 'V+', x: 20, y: 90, signals: [{ type: 'power', signal: 'VCC' }] },
-    { name: 'PWM', x: 20, y: 100, signals: [{ type: 'pwm' }] },
+    { name: 'GND', x: 10, y: 60, signals: [{ type: 'power', signal: 'GND' }] },
+    { name: 'V+', x: 10, y: 70, signals: [{ type: 'power', signal: 'VCC' }] },
+    { name: 'PWM', x: 10, y: 80, signals: [{ type: 'pwm' }] },
   ];
 
   render() {
