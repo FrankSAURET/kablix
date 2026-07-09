@@ -7846,37 +7846,316 @@
        id="g5">
       <g
          id="g2">
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
+        <ellipse
+           id="pin-A5.2"
+           cx="94.025322"
+           cy="159"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-A4.2"
+           cx="104.02532"
+           cy="159"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-AREF"
+           cx="114.02515"
+           cy="159"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-GND.1"
+           cx="124.02532"
+           cy="159"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-13"
+           cx="134.02533"
+           cy="159"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-12"
+           cx="144.02533"
+           cy="159"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-11"
+           cx="154.02522"
+           cy="159"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-10"
+           cx="164.02533"
+           cy="159"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-9"
+           cx="174.02533"
+           cy="159"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-8"
+           cx="184.02533"
+           cy="159"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-7"
+           cx="204.02533"
+           cy="159"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-6"
+           cx="214.02533"
+           cy="159"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-5"
+           cx="224.02533"
+           cy="159"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-4"
+           cx="234.02533"
+           cy="159"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-3"
+           cx="244.02533"
+           cy="159"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-2"
+           cx="254.02533"
+           cy="159"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-1"
+           cx="264.02533"
+           cy="159"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-0"
+           cx="274.0253"
+           cy="159"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-IOREF"
+           cx="134.02533"
+           cy="339"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-RESET"
+           cx="144.02533"
+           cy="339"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-3.3V"
+           cx="154.02533"
+           cy="339"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-5V"
+           cx="164.02533"
+           cy="339"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-GND.2"
+           cx="174.02533"
+           cy="339"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-GND.3"
+           cx="184.02533"
+           cy="339"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-VIN"
+           cx="194.02533"
+           cy="339"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-A0"
+           cx="214.02533"
+           cy="339"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-A1"
+           cx="224.02533"
+           cy="339"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-A2"
+           cx="234.02533"
+           cy="339"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-A3"
+           cx="244.02533"
+           cy="339"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-A4"
+           cx="254.02533"
+           cy="339"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
+        <ellipse
+           id="pin-A5"
+           cx="264.02533"
+           cy="339"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5"
+           rx="3.0739551"
+           ry="3.0739639" />
       </g>
       <g
          id="g4">
@@ -7905,41 +8184,289 @@
             </g>
           </g>
         </g>
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
+        <text
+           x="134.02551"
+           y="334.19647"
+           font-size="4.80306px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text119"
+           style="stroke-width:0.999997">IOREF</text>
+        <text
+           x="144.02553"
+           y="334.19647"
+           font-size="4.80306px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text120"
+           style="stroke-width:0.999997">RESET</text>
+        <text
+           x="154.02554"
+           y="334.19647"
+           font-size="4.80306px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text121"
+           style="stroke-width:0.999997">3.3V</text>
+        <text
+           x="164.02556"
+           y="334.19647"
+           font-size="4.80306px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text122"
+           style="stroke-width:0.999997">5V</text>
+        <text
+           x="174.02557"
+           y="334.19647"
+           font-size="4.80306px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text123"
+           style="stroke-width:0.999997">GND.2</text>
+        <text
+           x="184.02559"
+           y="334.19647"
+           font-size="4.80306px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text124"
+           style="stroke-width:0.999997">GND.3</text>
+        <text
+           x="194.0256"
+           y="334.19647"
+           font-size="4.80306px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text125"
+           style="stroke-width:0.999997">VIN</text>
+        <text
+           x="214.02562"
+           y="334.19647"
+           font-size="4.80306px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text126"
+           style="stroke-width:0.999997">A0</text>
+        <text
+           x="224.02563"
+           y="334.19647"
+           font-size="4.80306px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text127"
+           style="stroke-width:0.999997">A1</text>
+        <text
+           x="234.02565"
+           y="334.19647"
+           font-size="4.80306px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text128"
+           style="stroke-width:0.999997">A2</text>
+        <text
+           x="244.02567"
+           y="334.19647"
+           font-size="4.80306px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text129"
+           style="stroke-width:0.999997">A3</text>
+        <text
+           x="254.02568"
+           y="334.19647"
+           font-size="4.80306px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text130"
+           style="stroke-width:0.999997">A4</text>
+        <text
+           x="264.0257"
+           y="334.19647"
+           font-size="4.80306px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text131"
+           style="stroke-width:0.999997">A5</text>
       </g>
     </g>
     <g
        id="g3">
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
+      <text
+         x="94.025505"
+         y="154.1969"
+         font-size="4.80306px"
+         fill="#aa0000"
+         text-anchor="middle"
+         font-family="sans-serif"
+         id="text101"
+         style="stroke-width:0.999997">A5.2</text>
+      <text
+         x="104.02548"
+         y="154.1969"
+         font-size="4.80306px"
+         fill="#aa0000"
+         text-anchor="middle"
+         font-family="sans-serif"
+         id="text102"
+         style="stroke-width:0.999997">A4.2</text>
+      <text
+         x="114.02531"
+         y="154.19672"
+         font-size="4.80306px"
+         fill="#aa0000"
+         text-anchor="middle"
+         font-family="sans-serif"
+         id="text103"
+         style="stroke-width:0.999997">AREF</text>
+      <text
+         x="124.0255"
+         y="154.19672"
+         font-size="4.80306px"
+         fill="#aa0000"
+         text-anchor="middle"
+         font-family="sans-serif"
+         id="text104"
+         style="stroke-width:0.999997">GND.1</text>
+      <text
+         x="134.02551"
+         y="154.19672"
+         font-size="4.80306px"
+         fill="#aa0000"
+         text-anchor="middle"
+         font-family="sans-serif"
+         id="text105"
+         style="stroke-width:0.999997">13</text>
+      <text
+         x="144.02553"
+         y="154.19672"
+         font-size="4.80306px"
+         fill="#aa0000"
+         text-anchor="middle"
+         font-family="sans-serif"
+         id="text106"
+         style="stroke-width:0.999997">12</text>
+      <text
+         x="154.02544"
+         y="154.19672"
+         font-size="4.80306px"
+         fill="#aa0000"
+         text-anchor="middle"
+         font-family="sans-serif"
+         id="text107"
+         style="stroke-width:0.999997">11</text>
+      <text
+         x="164.02556"
+         y="154.19672"
+         font-size="4.80306px"
+         fill="#aa0000"
+         text-anchor="middle"
+         font-family="sans-serif"
+         id="text108"
+         style="stroke-width:0.999997">10</text>
+      <text
+         x="174.02557"
+         y="154.19672"
+         font-size="4.80306px"
+         fill="#aa0000"
+         text-anchor="middle"
+         font-family="sans-serif"
+         id="text109"
+         style="stroke-width:0.999997">9</text>
+      <text
+         x="184.02559"
+         y="154.19672"
+         font-size="4.80306px"
+         fill="#aa0000"
+         text-anchor="middle"
+         font-family="sans-serif"
+         id="text110"
+         style="stroke-width:0.999997">8</text>
+      <text
+         x="204.02562"
+         y="154.19672"
+         font-size="4.80306px"
+         fill="#aa0000"
+         text-anchor="middle"
+         font-family="sans-serif"
+         id="text111"
+         style="stroke-width:0.999997">7</text>
+      <text
+         x="214.02562"
+         y="154.19672"
+         font-size="4.80306px"
+         fill="#aa0000"
+         text-anchor="middle"
+         font-family="sans-serif"
+         id="text112"
+         style="stroke-width:0.999997">6</text>
+      <text
+         x="224.02563"
+         y="154.19672"
+         font-size="4.80306px"
+         fill="#aa0000"
+         text-anchor="middle"
+         font-family="sans-serif"
+         id="text113"
+         style="stroke-width:0.999997">5</text>
+      <text
+         x="234.02565"
+         y="154.19672"
+         font-size="4.80306px"
+         fill="#aa0000"
+         text-anchor="middle"
+         font-family="sans-serif"
+         id="text114"
+         style="stroke-width:0.999997">4</text>
+      <text
+         x="244.02567"
+         y="154.19672"
+         font-size="4.80306px"
+         fill="#aa0000"
+         text-anchor="middle"
+         font-family="sans-serif"
+         id="text115"
+         style="stroke-width:0.999997">3</text>
+      <text
+         x="254.02568"
+         y="154.19672"
+         font-size="4.80306px"
+         fill="#aa0000"
+         text-anchor="middle"
+         font-family="sans-serif"
+         id="text116"
+         style="stroke-width:0.999997">2</text>
+      <text
+         x="264.0257"
+         y="154.19672"
+         font-size="4.80306px"
+         fill="#aa0000"
+         text-anchor="middle"
+         font-family="sans-serif"
+         id="text117"
+         style="stroke-width:0.999997">1</text>
+      <text
+         x="274.02573"
+         y="154.1969"
+         font-size="4.80306px"
+         fill="#aa0000"
+         text-anchor="middle"
+         font-family="sans-serif"
+         id="text118"
+         style="stroke-width:0.999997">0</text>
     </g>
   </g>
 </svg>

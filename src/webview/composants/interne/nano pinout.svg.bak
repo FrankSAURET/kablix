@@ -4704,81 +4704,621 @@
        transform="translate(2287.7178,239.94929)">
       <g
          id="g1-3">
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
+        <circle
+           id="pin-12"
+           cx="29.682217"
+           cy="10.050709"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-11"
+           cx="39.682217"
+           cy="10.050709"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-10"
+           cx="49.682217"
+           cy="10.050709"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-9"
+           cx="59.682217"
+           cy="10.050709"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-8"
+           cx="69.68222"
+           cy="10.050709"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-7"
+           cx="79.68222"
+           cy="10.050709"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-6"
+           cx="89.68222"
+           cy="10.050709"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-5"
+           cx="99.68222"
+           cy="10.050709"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-4"
+           cx="109.68222"
+           cy="10.050709"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-3"
+           cx="119.68222"
+           cy="10.050709"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-2"
+           cx="129.68222"
+           cy="10.050709"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-GND.2"
+           cx="139.68222"
+           cy="10.050709"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-RESET.2"
+           cx="149.68222"
+           cy="10.050709"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-0"
+           cx="159.68222"
+           cy="10.050709"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-1"
+           cx="169.68222"
+           cy="10.050709"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-13"
+           cx="29.682217"
+           cy="70.050705"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-3.3V"
+           cx="39.682217"
+           cy="70.050705"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-AREF"
+           cx="49.682217"
+           cy="70.050705"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-A0"
+           cx="59.682217"
+           cy="70.050705"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-A1"
+           cx="69.68222"
+           cy="70.050705"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-A2"
+           cx="79.68222"
+           cy="70.050705"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-A3"
+           cx="89.68222"
+           cy="70.050705"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-A4"
+           cx="99.68222"
+           cy="70.050705"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-A5"
+           cx="109.68222"
+           cy="70.050705"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-A6"
+           cx="119.68222"
+           cy="70.050705"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-A7"
+           cx="129.68222"
+           cy="70.050705"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-5V"
+           cx="139.68222"
+           cy="70.050705"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-RESET"
+           cx="149.68222"
+           cy="70.050705"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-GND.1"
+           cx="159.68222"
+           cy="70.050705"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-VIN"
+           cx="169.68222"
+           cy="70.050705"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-12.2"
+           cx="179.68222"
+           cy="50.050709"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-5V.2"
+           cx="169.68222"
+           cy="50.050709"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-13.2"
+           cx="179.68222"
+           cy="40.050709"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-11.2"
+           cx="169.68222"
+           cy="40.050709"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-RESET.3"
+           cx="179.68222"
+           cy="30.050709"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
+        <circle
+           id="pin-GND.3"
+           cx="169.68222"
+           cy="30.050709"
+           r="3.2"
+           fill="#ee0000"
+           fill-opacity="0.85"
+           stroke="#770000"
+           stroke-width="0.5" />
       </g>
       <g
          id="g2">
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
+        <text
+           x="29.682217"
+           y="5.0507088"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text72">12</text>
+        <text
+           x="39.682217"
+           y="5.0507088"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text73">11</text>
+        <text
+           x="49.682217"
+           y="5.0507088"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text74">10</text>
+        <text
+           x="59.682217"
+           y="5.0507088"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text75">9</text>
+        <text
+           x="69.68222"
+           y="5.0507088"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text76">8</text>
+        <text
+           x="79.68222"
+           y="5.0507088"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text77">7</text>
+        <text
+           x="89.68222"
+           y="5.0507088"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text78">6</text>
+        <text
+           x="99.68222"
+           y="5.0507088"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text79">5</text>
+        <text
+           x="109.68222"
+           y="5.0507088"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text80">4</text>
+        <text
+           x="119.68222"
+           y="5.0507088"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text81">3</text>
+        <text
+           x="129.68222"
+           y="5.0507088"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text82">2</text>
+        <text
+           x="139.68222"
+           y="5.0507088"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text83">GND.2</text>
+        <text
+           x="149.68222"
+           y="5.0507088"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text84">RESET.2</text>
+        <text
+           x="159.68222"
+           y="5.0507088"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text85">0</text>
+        <text
+           x="169.68222"
+           y="5.0507088"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text86">1</text>
+        <text
+           x="29.682217"
+           y="65.050705"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text87">13</text>
+        <text
+           x="39.682217"
+           y="65.050705"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text88">3.3V</text>
+        <text
+           x="49.682217"
+           y="65.050705"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text89">AREF</text>
+        <text
+           x="59.682217"
+           y="65.050705"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text90">A0</text>
+        <text
+           x="69.68222"
+           y="65.050705"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text91">A1</text>
+        <text
+           x="79.68222"
+           y="65.050705"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text92">A2</text>
+        <text
+           x="89.68222"
+           y="65.050705"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text93">A3</text>
+        <text
+           x="99.68222"
+           y="65.050705"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text94">A4</text>
+        <text
+           x="109.68222"
+           y="65.050705"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text95">A5</text>
+        <text
+           x="119.68222"
+           y="65.050705"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text96">A6</text>
+        <text
+           x="129.68222"
+           y="65.050705"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text97">A7</text>
+        <text
+           x="139.68222"
+           y="65.050705"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text98">5V</text>
+        <text
+           x="149.68222"
+           y="65.050705"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text99">RESET</text>
+        <text
+           x="159.68222"
+           y="65.050705"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text100">GND.1</text>
+        <text
+           x="169.68222"
+           y="65.050705"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text101">VIN</text>
+        <text
+           x="179.68222"
+           y="45.050709"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text102">12.2</text>
+        <text
+           x="169.68222"
+           y="45.050709"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text103">5V.2</text>
+        <text
+           x="179.68222"
+           y="35.050709"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text104">13.2</text>
+        <text
+           x="169.68222"
+           y="35.050709"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text105">11.2</text>
+        <text
+           x="179.68222"
+           y="25.050709"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text106">RESET.3</text>
+        <text
+           x="169.68222"
+           y="25.050709"
+           font-size="5px"
+           fill="#aa0000"
+           text-anchor="middle"
+           font-family="sans-serif"
+           id="text107">GND.3</text>
       </g>
     </g>
     <path

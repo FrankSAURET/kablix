@@ -688,14 +688,19 @@ function refreshVisuals(): void {
         break;
       }
       case 'servo': {
-        // Angle réel d'après la largeur d'impulsion mesurée (1000 µs → 0°,
-        // 1500 µs → 90°, 2000 µs → 180°). Repli sur 0/90° si la mesure n'est pas
-        // disponible (broche non encore pilotée, moteur sans mesure d'impulsion).
+        // Angle réel d'après la largeur d'impulsion mesurée, interpolée entre
+        // les impulsions 0°/180° du composant (défaut 500-2500 µs, datasheet
+        // SG90 ; réglables dans l'inspecteur — lib Servo Arduino : 544-2400).
+        // Repli sur 0/90° si la mesure n'est pas disponible (broche non encore
+        // pilotée, moteur sans mesure d'impulsion).
         const pin = servoTargets.get(part.id);
         if (!pin) break;
         const us = engine.readPulseUs?.(pin) ?? 0;
         if (us > 0) {
-          el.angle = Math.max(0, Math.min(180, ((us - 1000) / 1000) * 180));
+          const pmin = Number(part.attrs?.pulsemin) || 500;
+          const pmax = Number(part.attrs?.pulsemax) || 2500;
+          const span = pmax > pmin ? pmax - pmin : 2000;
+          el.angle = Math.max(0, Math.min(180, ((us - pmin) / span) * 180));
         } else {
           el.angle = engine.readDigital(pin) ? 90 : 0;
         }

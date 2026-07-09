@@ -5,7 +5,13 @@
 4. Quand un composant change de cablage avec les propriété (K ou A commune par exemple) le changement doit être dynamique si le cablage est affiché.
 5. Si on change la taille de l'afficheur (2 -> 4 digit par exemple). Si le cablage interne est affiché il n'a pas la bonne taille il faut le masquer puis le réafficher. Pareil pour le clavier.
 6. Le texte des broches sur les clavier est trés épais. Il faut je pense réduire l'épaisseur du contour voire la supprimer
-7. Le pir  détecte la souris au dessus de lui pas ses mouvements. Ajoute une tolérance à la détectiondu mouvement de la souris
+7. Le pir  détecte la souris au dessus de lui pas ses mouvements. Ajoute une tolérance à la détectiondu mouvement de la souris. "Ctrl+clic pour un mouvement permanent" apparait dans la bulle de la souris en simulation si on passe sur le PIR. En  simulation un texte "Détecte les mouvements de la souris" doit apparaitre à la place du message "Mouvement permanent (Ctrl+clic pour arrêter)". Ce dernier message remplacera "Détecte les mouvements de la souris" mors d'un appuis sur ctrl+clic et on reviendra à "Détecte les mouvements de la souris" lors du ctrl+clic suivant.
+
+
+
+# v2026.7.66
+1. ✅ Servo au degré près (item « aucune rotation pour 10-40°, 60→45°, 140→180° ») : le mapping impulsion→angle était figé sur 1000-2000 µs — tout programme SG90 en 500-2500 µs (dont celui de Frank) voyait ses angles écrasés/clampés. Nouvelles propriétés d'inspecteur « Impulsion à 0° (µs) » / « Impulsion à 180° (µs) », défaut 500/2500 (datasheet SG90) ; régler 544/2400 pour la lib Servo Arduino. Interpolation linéaire entre les deux.
+2. ✅ Précision vérifiée moteur réel (UF2 v1.28, PWM 50 Hz) : angles 0/1/10/33/45/90/135/170/179/180° → écart max +0,05°. verify:all OK.
 
 # v2026.7.65
 1. ✅ Simulation Pico 4× trop lente (programme servo de Frank : sleep(0.5) durait ~2 s) — cause racine : quand MicroPython arme le endpoint USB OUT du CDC sans données côté hôte, rp2040js répondait « transfert vide » en 10 µs et TinyUSB réarmait aussitôt → une IRQ toutes les ~25 µs simulées qui avortait chaque WFE. time.sleep() était une boucle chaude (20 000 réveils par 0,5 s). Correctif : réponse à la cadence d'un vrai hôte USB full-speed (1 ms) → 500 réveils, le firmware dort vraiment.

@@ -143,6 +143,8 @@ const FR: Record<string, string> = {
   'PIR motion sensor': 'Détecteur de mouvement (PIR)',
   'Tilt sensor': "Capteur d'inclinaison",
   'Servo motor': 'Servomoteur',
+  'Pulse at 0° (µs)': 'Impulsion à 0° (µs)',
+  'Pulse at 180° (µs)': 'Impulsion à 180° (µs)',
   'Ultrasonic sensor': 'Capteur à ultrason',
   'Min distance (cm)': 'Distance min (cm)',
   'Max distance (cm)': 'Distance max (cm)',

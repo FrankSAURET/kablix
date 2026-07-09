@@ -2944,20 +2944,30 @@ export class Editor {
         height = sb.height / z;
       }
     }
-    // Poster mis à la largeur de la carte (svg width:100%, hauteur au rapport
-    // d'aspect = scaledH). On l'étire verticalement (scaleY) pour que sa bande vide
-    // [rTop, rBot] couvre exactement la carte [top, top+height] : les deux rangées
-    // de broches s'alignent alors. Posé dans le corps → suit rotation/retournement,
-    // n'agrandit pas la boîte de sélection.
-    const scaledH = (width * poster.h) / poster.w;
-    const k = height / ((poster.rBot - poster.rTop) * scaledH); // étirement vertical
-    const ty = top - poster.rTop * scaledH * k; // place le bord haut de la bande
     const overlay = document.createElement('div');
     overlay.className = 'part__pinout';
-    overlay.style.left = `${left}px`;
-    overlay.style.width = `${width}px`;
     overlay.style.transformOrigin = '0 0';
-    overlay.style.transform = `translateY(${ty}px) scaleY(${k})`;
+    if (poster.mode === 'align') {
+      // Pose 1:1 : le poster est dessiné dans le repère des pins de la carte
+      // (échelle poster↔pins = 1). Facteur d'affichage = px de la carte / unité de
+      // carte. On pose le poster à ce facteur (svg width = poster.w * f), sans
+      // étirement, puis on translate pour que le point (ox, oy) du poster tombe sur
+      // l'origine (0,0) de la carte affichée. Étiquettes hors carte débordent.
+      const f = width / (poster.cardW as number);
+      overlay.style.left = `${left - (poster.ox as number) * f}px`;
+      overlay.style.top = `${top - (poster.oy as number) * f}px`;
+      overlay.style.width = `${poster.w * f}px`;
+    } else {
+      // Mode 'stretch' (pico/picow) : poster à la largeur de la carte, étiré
+      // verticalement (scaleY) pour que sa bande vide [rTop, rBot] couvre exactement
+      // la carte [top, top+height]. Les deux rangées de broches s'alignent alors.
+      const scaledH = (width * poster.h) / poster.w;
+      const k = height / (((poster.rBot as number) - (poster.rTop as number)) * scaledH);
+      const ty = top - (poster.rTop as number) * scaledH * k;
+      overlay.style.left = `${left}px`;
+      overlay.style.width = `${width}px`;
+      overlay.style.transform = `translateY(${ty}px) scaleY(${k})`;
+    }
     overlay.innerHTML = poster.svg;
     body.appendChild(overlay);
     r.container.classList.add('part--pinout-shown'); // efface le bandeau de nom

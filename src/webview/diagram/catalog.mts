@@ -245,11 +245,18 @@ export const CATALOG: readonly PartDef[] = [
   },
   {
     type: 'servo', label: 'Servo motor', tag: 'kablix-servo', kind: 'servo',
-    attrs: { horn: 'single' },
-    props: [{
-      attr: 'horn', label: 'Horn', kind: 'select', options: ['single', 'double', 'cross'],
-      optionLabels: { single: 'Single horn', double: 'Double horn', cross: 'Cross horn' },
-    }],
+    // Impulsions 0°/180° réglables : SG90 (datasheet) = 500-2500 µs ; lib
+    // Servo Arduino par défaut = 544-2400 µs. L'angle affiché est interpolé
+    // linéairement entre les deux (cf. sim.mts).
+    attrs: { horn: 'single', pulsemin: '500', pulsemax: '2500' },
+    props: [
+      {
+        attr: 'horn', label: 'Horn', kind: 'select', options: ['single', 'double', 'cross'],
+        optionLabels: { single: 'Single horn', double: 'Double horn', cross: 'Cross horn' },
+      },
+      { attr: 'pulsemin', label: 'Pulse at 0° (µs)', kind: 'number', min: 100, max: 3000, step: 1 },
+      { attr: 'pulsemax', label: 'Pulse at 180° (µs)', kind: 'number', min: 100, max: 3000, step: 1 },
+    ],
   },
 
   // --- Composants supplémentaires (forkés du catalogue Wokwi).
