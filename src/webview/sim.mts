@@ -516,12 +516,19 @@ function updateMotion(): void {
  * Forme d'onde de pouls (PPG) normalisée 0..1 sur une phase t∈[0,1) : montée
  * systolique rapide (pic vers t≈0.16), redescente, petite onde dicrotique
  * (t≈0.42), puis ligne de base. Approximation par deux gaussiennes.
+ *
+ * Ligne de base haute (0.6) + amplitude modérée (0.15) : un vrai capteur KY-039
+ * varie peu en valeur absolue (bruit + faible modulation), il ne bascule pas
+ * entre presque 0 et presque plein échelle à chaque battement. Avec une ligne de
+ * base quasi nulle, les algos de détection par seuil relatif (ex. tuto KY-039
+ * classique : max_value -= 1000 // delay_msec) perdent le pic en 1-2 échantillons
+ * à 60 ms et redéclenchent sur la même descente → BPM mesuré ~2× trop élevé.
  */
 function pulseWaveform(t: number): number {
   const g = (c: number, w: number) => Math.exp(-((t - c) * (t - c)) / (2 * w * w));
-  const systolic = g(0.16, 0.05);
-  const dicrotic = 0.35 * g(0.42, 0.06);
-  return Math.max(0, Math.min(1, 0.08 + 0.92 * Math.max(systolic, dicrotic)));
+  const systolic = g(0.16, 0.1);
+  const dicrotic = 0.35 * g(0.42, 0.1);
+  return Math.max(0, Math.min(1, 0.6 + 0.15 * Math.max(systolic, dicrotic)));
 }
 
 /** Met à jour la sortie analogique de chaque capteur de pouls selon son BPM. */
