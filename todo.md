@@ -1,6 +1,12 @@
 # À faire
 1. Nano : retoucher nano-pinout.svg (module central redimensionné) puis réactiver le poster dans pinout.mts
 2. Servo : test qui s'exécute très lentement — SI le problème persiste, m'envoyer ton programme de test (delay/refresh/avr8js à diagnostiquer). Le débordement du bras est déjà corrigé (v49).
+3. Retoucher externe/servo.edit.svg (Inkscape) : recaler pastilles pin-* face aux fils, corps sous l'axe, palonniers. Puis me le dire pour recaler pinInfo.
+4. Le "simulation en cours" sur la souris ne va pas : je préfère un message ROUGE sur JAUNE PERMANENT, entre les 2 barres d'outils, avec la même mention que celui de la barre de composants — qu'on supprimerait.
+
+# v2026.7.59
+1. ✅ Servo : dessin sorti dans `externe/servo.edit.svg` (RETOUCHABLE par Frank), un seul fichier « tout compris » — groupes `body` + `horn-single/double/cross` + repères `grid`/`pins` (pastilles pin-GND/V+/PWM). Boîte agrandie 170×125 conservée. AXE (moyeu) RECENTRÉ au centre de la boîte (85 ; 62.5) : corps + palonniers décalés en conséquence. Généré par `scripts/make-servo-edit.mjs`.
+2. ✅ Le composant lit désormais servo.edit.svg (fin du bras procédural) : extraction des groupes (comptage de profondeur `<g>`, `<g/>` auto-fermants et commentaires gérés), affiche body + le bon horn-* et le fait tourner autour de l'axe. Rendu Chrome headless validé (3 formes × 5 angles : corps visible, axe centré, rotation OK). NB : broches à recaler dans le .edit.svg (cf. à faire n°3).
 
 # v2026.7.58
 1. ✅ LED en PWM : ne clignote plus, elle VARIE en luminosité (item « en pwm la LED clignote »). Cause trouvée sans le programme : le rendu de la LED simple (case 'led') lisait le niveau INSTANTANÉ (`ledOn`, digital) — en PWM il alterne 0/1 à haute fréquence → clignotement au rythme du rafraîchissement. Correctif : si l'anode est pilotée par une broche MCU en PWM (`ledMcuPin` + `pulseActive`), on lit le rapport cyclique (`readPwmDuty`) et on le mappe sur `brightness` (halo plus ou moins opaque), comme la LED RGB et le 7 segments. Sinon, comportement digital inchangé.

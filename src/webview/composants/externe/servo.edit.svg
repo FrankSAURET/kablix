@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Servo Kablix, retouchable (Frank). Boite 170x125.
+     Groupes : body (corps du servo, sans l'ancien palonnier) ; horn-single /
+     horn-double / horn-cross (palonniers, centres sur le moyeu 85 ; 62.5) ;
+     grid et pins (REPERES retires par le composant).
+     Le code affiche body + le bon horn-* et le fait tourner autour du moyeu.
+     Pastilles rouges pin-GND / pin-V+ / pin-PWM : a recaler sur les croisements,
+     EN FACE des fils, puis reporter x/y dans servo-element.mts (pinInfo). -->
+<svg width="170" height="125" viewBox="0 0 170 125" version="1.1"
+   xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <g id="grid"><line x1="0" y1="0" x2="0" y2="125" stroke="#7fb0ff" stroke-width="0.6"/><line x1="10" y1="0" x2="10" y2="125" stroke="#dceaff" stroke-width="0.35"/><line x1="20" y1="0" x2="20" y2="125" stroke="#dceaff" stroke-width="0.35"/><line x1="30" y1="0" x2="30" y2="125" stroke="#dceaff" stroke-width="0.35"/><line x1="40" y1="0" x2="40" y2="125" stroke="#dceaff" stroke-width="0.35"/><line x1="50" y1="0" x2="50" y2="125" stroke="#7fb0ff" stroke-width="0.6"/><line x1="60" y1="0" x2="60" y2="125" stroke="#dceaff" stroke-width="0.35"/><line x1="70" y1="0" x2="70" y2="125" stroke="#dceaff" stroke-width="0.35"/><line x1="80" y1="0" x2="80" y2="125" stroke="#dceaff" stroke-width="0.35"/><line x1="90" y1="0" x2="90" y2="125" stroke="#dceaff" stroke-width="0.35"/><line x1="100" y1="0" x2="100" y2="125" stroke="#7fb0ff" stroke-width="0.6"/><line x1="110" y1="0" x2="110" y2="125" stroke="#dceaff" stroke-width="0.35"/><line x1="120" y1="0" x2="120" y2="125" stroke="#dceaff" stroke-width="0.35"/><line x1="130" y1="0" x2="130" y2="125" stroke="#dceaff" stroke-width="0.35"/><line x1="140" y1="0" x2="140" y2="125" stroke="#dceaff" stroke-width="0.35"/><line x1="150" y1="0" x2="150" y2="125" stroke="#7fb0ff" stroke-width="0.6"/><line x1="160" y1="0" x2="160" y2="125" stroke="#dceaff" stroke-width="0.35"/><line x1="170" y1="0" x2="170" y2="125" stroke="#dceaff" stroke-width="0.35"/><line x1="0" y1="0" x2="170" y2="0" stroke="#7fb0ff" stroke-width="0.6"/><line x1="0" y1="10" x2="170" y2="10" stroke="#dceaff" stroke-width="0.35"/><line x1="0" y1="20" x2="170" y2="20" stroke="#dceaff" stroke-width="0.35"/><line x1="0" y1="30" x2="170" y2="30" stroke="#dceaff" stroke-width="0.35"/><line x1="0" y1="40" x2="170" y2="40" stroke="#dceaff" stroke-width="0.35"/><line x1="0" y1="50" x2="170" y2="50" stroke="#7fb0ff" stroke-width="0.6"/><line x1="0" y1="60" x2="170" y2="60" stroke="#dceaff" stroke-width="0.35"/><line x1="0" y1="70" x2="170" y2="70" stroke="#dceaff" stroke-width="0.35"/><line x1="0" y1="80" x2="170" y2="80" stroke="#dceaff" stroke-width="0.35"/><line x1="0" y1="90" x2="170" y2="90" stroke="#dceaff" stroke-width="0.35"/><line x1="0" y1="100" x2="170" y2="100" stroke="#7fb0ff" stroke-width="0.6"/><line x1="0" y1="110" x2="170" y2="110" stroke="#dceaff" stroke-width="0.35"/><line x1="0" y1="120" x2="170" y2="120" stroke="#dceaff" stroke-width="0.35"/></g>
+  <g id="body" transform="translate(-29.852,-17.682)">
+  <defs id="defs52">
+    <defs id="defs41">
+      <g id="pin">
+        <rect x="0" y="-1.91" width="3.72" height="3.71" id="rect40"></rect>
+        <path d="M 2.026,-1.91 H 15.558 L 2.133,-1.39135 Z" id="path40"></path>
+        <path d="M 2.026,1.8 H 15.558 L 2.133,1.29298 Z" id="path41"></path>
+        <rect fill="#cccccc" x="0.33000001" y="-1.23" width="3.04" height="2.46" rx="0.15000001" id="rect41"></rect>
+      </g>
+    </defs>
+  </defs>
+  
+  <!-- Retouche brochage servo : déplace chaque pastille rouge sur un CROISEMENT (lignes foncées = 50 px). Garde les id pin-<nom>. Marge 20 px. -->
+  <g id="g53" transform="translate(-29.999997,-9.9999998)">
+    <path stroke="#b44200" d="M 106.27696,76.8422 C 106.27696,76.8422 71.551685,77.852696 60.678327,76.8422 54.152207,76.231692 44.494602,70.115786 40,70" id="path42" style="opacity:0.85;fill:none;stroke-width:2.84202"></path>
+    <path stroke="#ff2300" d="M 106.28328,80 H 40" id="path43" style="opacity:0.85;fill:none;stroke-width:2.84202"></path>
+    <path stroke="#f47b00" d="M 106.27696,83.1578 C 106.27696,83.1578 71.962199,82.515714 60.667801,82.99991 53.436439,83.305164 42.905176,90.094734 40,90" id="path44" style="opacity:0.85;fill:none;stroke-width:2.84202"></path>
+    <path fill="#4d4d4d" d="M 191.11652,87.649244 C 185.50771,87.655333 181.89709,81.703976 184.49304,76.732191 187.08898,71.760405 194.03611,71.321621 197.23686,75.927491 197.34145,76.085255 197.58725,76.009029 197.58422,75.819768 V 60.719168 H 178.9911 V 99.64432 H 197.59685 V 84.543716 C 197.6111,84.345776 197.35006,84.261898 197.24634,84.431088 195.85482,86.448451 193.56041,87.652725 191.10968,87.652044 Z" id="path46" style="opacity:0.85;stroke-width:1.0526"></path>
+    <path fill="#4d4d4d" d="M 76.538904,87.52609 C 82.145038,87.523003 85.746118,81.570905 83.147349,76.603621 80.548579,71.636337 73.605565,71.200666 70.406351,75.804336 70.301758,75.962095 70.055969,75.88587 70.058993,75.696613 V 60.596014 H 88.664751 V 99.52116 H 70.058993 V 84.420562 C 70.044732,84.22261 70.305794,84.138726 70.409509,84.307934 71.801024,86.325297 74.095439,87.52957 76.546167,87.52889 Z" id="path47" style="opacity:0.85;stroke-width:1.0526"></path>
+    <rect fill="#666666" x="86.209137" y="57.170158" width="94.987671" height="46.024933" rx="5.6136208" id="rect47" style="opacity:0.85;stroke-width:1.0526" ry="5.6136208"></rect>
+    <path fill="#808080" d="M 134.43401,69.900303 H 119.25552 V 90.464949 H 134.43401 C 140.11278,90.464949 144.71633,85.861396 144.71633,80.182626 144.71633,74.503856 140.11278,69.900303 134.43401,69.900303 Z" id="path48" style="opacity:0.85;stroke-width:1.0526"></path>
+    <circle fill="#999999" cx="114.85249" cy="80.182098" r="19.584677" id="circle48" style="opacity:0.85;stroke-width:1.0526"></circle>
+    <!-- ancien palonnier path49 retiré -->
+    <circle fill="#808080" cx="114.85249" cy="80.182098" r="8.8133144" id="circle49" style="opacity:0.85;stroke-width:1.0526"></circle>
+    <circle fill="#cccccc" cx="114.85249" cy="80.182098" r="6.5781188" id="circle50" style="opacity:0.85;stroke-width:1.0526"></circle>
+    <path fill="#666666" d="M 118.47765,83.097802 115.96836,80.554194 C 115.79143,80.378905 115.79143,80.092965 115.96836,79.917676 L 118.52417,77.405857 C 118.77755,77.164956 118.80718,76.771262 118.59272,76.495147 118.34662,76.190821 117.89145,76.165786 117.61346,76.441286 L 115.05028,78.972683 C 114.87304,79.147197 114.58856,79.147197 114.41132,78.972683 L 111.8995,76.429076 C 111.65808,76.176798 111.26525,76.147231 110.98879,76.36053 110.68755,76.608201 110.66267,77.060571 110.93493,77.339785 L 113.46633,79.90055 C 113.64352,80.076682 113.64352,80.363378 113.46633,80.53951 L 110.92514,83.05133 C 110.67318,83.292607 110.64262,83.684629 110.85414,83.962039 111.10103,84.264818 111.55479,84.289776 111.8334,84.015901 L 114.39658,81.484503 C 114.57187,81.307575 114.85781,81.307575 115.0331,81.484503 L 117.54492,84.052636 C 117.82135,84.327314 118.27353,84.306968 118.52417,84.008574 118.7444,83.73796 118.72431,83.344635 118.47766,83.097865 Z" id="path50" style="opacity:0.85;stroke-width:1.0526"></path>
+    <g id="g50" transform="translate(20,-2.6299973)">
+      
+      
+    </g>
+    <g id="g51" transform="translate(20,-2.6299973)">
+      
+      
+    </g>
+    <g id="g52" transform="translate(20,-2.6299973)">
+      
+      
+    </g>
+  </g>
+</g>
+  <g id="horn-single">
+    <line x1="85" y1="62.5" x2="85.00" y2="28.50" stroke="#cccccc" stroke-width="12" stroke-linecap="round"/><circle cx="85.00" cy="28.50" r="5" fill="#888888"/>
+    <circle cx="85" cy="62.5" r="9" fill="#cccccc" stroke="#999999" stroke-width="0.8"/>
+    <circle cx="85" cy="62.5" r="2" fill="#666666"/>
+  </g>
+  <g id="horn-double">
+    <line x1="85" y1="62.5" x2="85.00" y2="28.50" stroke="#cccccc" stroke-width="12" stroke-linecap="round"/><circle cx="85.00" cy="28.50" r="5" fill="#888888"/>
+    <line x1="85" y1="62.5" x2="85.00" y2="96.50" stroke="#cccccc" stroke-width="12" stroke-linecap="round"/><circle cx="85.00" cy="96.50" r="5" fill="#888888"/>
+    <circle cx="85" cy="62.5" r="9" fill="#cccccc" stroke="#999999" stroke-width="0.8"/>
+    <circle cx="85" cy="62.5" r="2" fill="#666666"/>
+  </g>
+  <g id="horn-cross">
+    <line x1="85" y1="62.5" x2="85.00" y2="28.50" stroke="#cccccc" stroke-width="12" stroke-linecap="round"/><circle cx="85.00" cy="28.50" r="5" fill="#888888"/>
+    <line x1="85" y1="62.5" x2="119.00" y2="62.50" stroke="#cccccc" stroke-width="12" stroke-linecap="round"/><circle cx="119.00" cy="62.50" r="5" fill="#888888"/>
+    <line x1="85" y1="62.5" x2="85.00" y2="96.50" stroke="#cccccc" stroke-width="12" stroke-linecap="round"/><circle cx="85.00" cy="96.50" r="5" fill="#888888"/>
+    <line x1="85" y1="62.5" x2="51.00" y2="62.50" stroke="#cccccc" stroke-width="12" stroke-linecap="round"/><circle cx="51.00" cy="62.50" r="5" fill="#888888"/>
+    <circle cx="85" cy="62.5" r="9" fill="#cccccc" stroke="#999999" stroke-width="0.8"/>
+    <circle cx="85" cy="62.5" r="2" fill="#666666"/>
+  </g>
+  <g id="pins"><circle id="pin-GND" cx="10" cy="60" r="3.2" fill="#ee0000" fill-opacity="0.85" stroke="#770000" stroke-width="0.5"/><text x="10" y="55.0" font-size="5" fill="#aa0000" text-anchor="middle" font-family="sans-serif">GND</text><circle id="pin-V+" cx="10" cy="70" r="3.2" fill="#ee0000" fill-opacity="0.85" stroke="#770000" stroke-width="0.5"/><text x="10" y="65.0" font-size="5" fill="#aa0000" text-anchor="middle" font-family="sans-serif">V+</text><circle id="pin-PWM" cx="10" cy="80" r="3.2" fill="#ee0000" fill-opacity="0.85" stroke="#770000" stroke-width="0.5"/><text x="10" y="75.0" font-size="5" fill="#aa0000" text-anchor="middle" font-family="sans-serif">PWM</text></g>
+</svg>
