@@ -629,11 +629,11 @@ textarea {
 }
 
 /* Bandeau permanent « Simulation en cours » : rouge sur jaune, centré en haut du
-   canvas (entre les deux barres d'outils, même hauteur top:8px). Visible pendant
-   toute la simulation ; clignote 3× sur tentative d'édition interdite. */
+   canvas, sous la barre de simulation (gauche, top:8px + hauteur ~38px). Visible
+   pendant toute la simulation ; clignote 3× sur tentative d'édition interdite. */
 .sim-banner {
   position: absolute;
-  top: 8px;
+  top: 46px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 8;

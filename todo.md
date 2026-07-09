@@ -1,19 +1,21 @@
 # À faire
 1. (noté pour plus tard je dois préciser) Faire un visualisateur virtuel ou utiliser teleplot
 2. (noté pour plus tard je dois préciser) ajouter une LDR, une CTN, une CTP avec paramètres + simulation qui prends en compte les résistances
-3. La mention "⚠ Simulation en cours : édition désactivée" doit apparaitre en dessous de la barre de simulation
-4. Quand on sélectionne un fil, un point de 2 px de diametre doit apparaitre à ses 2 extrémitées afin de signaler qu'on peut débrancher (il a encore disparu)
-5. la bulle du bouton REPL doit être traduite
-6. un double clic sur le nom du fichier de simulation l'ouvre dans le volet de gauche (à gauche de kablix)
-7. Le chargement d'un projix doit couper la simulation en cours
-8. Le dht22 ne marche pas la commande capteur = dht.DHT22(Pin(13)) génère une erreur.
-9. Anneau neopixel ne marche toujours pas. De plus les variables r,g,b ne sont jamais affichés en mode pas à pas. Demande moi mon programme de test.
-10. vss de neopixel est une patte gnd qui doit passer le fil en noir
-11. neopixel ne marche pas non plus (la led unique)
-12. Matrice neopixel ne marche pas non plus.
-13. oled display(ssd1306)  ne marche pas non plus. Rien d'affiché. je peux te passer le prg de test et la librairie. Testé en i2c.
-14. TFT display ne marche pas non plus.
+3. Quand on sélectionne un fil, un point de 2 px de diametre doit apparaitre à ses 2 extrémitées afin de signaler qu'on peut débrancher (il a encore disparu)
+4. la bulle du bouton REPL doit être traduite
+5. un double clic sur le nom du fichier de simulation l'ouvre dans le volet de gauche (à gauche de kablix)
+6. Le chargement d'un projix doit couper la simulation en cours
+7. Le dht22 ne marche pas la commande capteur = dht.DHT22(Pin(13)) génère une erreur.
+8. Anneau neopixel ne marche toujours pas. De plus les variables r,g,b ne sont jamais affichés en mode pas à pas. Demande moi mon programme de test.
+9. vss de neopixel est une patte gnd qui doit passer le fil en noir
+10. neopixel ne marche pas non plus (la led unique)
+11. Matrice neopixel ne marche pas non plus.
+12. oled display(ssd1306)  ne marche pas non plus. Rien d'affiché. je peux te passer le prg de test et la librairie. Testé en i2c.
+13. TFT display ne marche pas non plus.
 
+
+# v2026.7.75
+1. ✅ Bandeau « ⚠ Simulation en cours : édition désactivée » : était centré à la même hauteur (top:8px) que les 2 barres d'outils du canvas (« entre » elles), ce qui le faisait apparaitre à côté plutôt que rattaché à la barre de simulation. Repositionné en dessous de la barre de simulation (gauche) : `top: 46px` au lieu de `8px` (media/styles.css, `.sim-banner`). Vérifié en rendu Chrome headless : aucun chevauchement avec les boutons.
 
 # v2026.7.74
 1. ✅ Les éléments de simulation (curseur/bouton d'un capteur) doivent apparaitre par-dessus tout : en édition, les fils passent volontairement au-dessus des composants (z-index 5 vs 3, pour rester lisibles) — en simulation, cela pouvait cacher le curseur d'un capteur traversé par un fil, ou un composant voisin posé après lui dans le schéma pouvait le recouvrir. `setLocked()` (editor.mts) ajoute désormais la classe `part--sim-active` (z-index 60) sur tout composant à contrôle de simulation (`simControl`) pendant que la simulation tourne. Vérifié en rendu Chrome headless (capteur de pouls chevauché par un fil + un HC-SR04 voisin) : le curseur reste au premier plan.
