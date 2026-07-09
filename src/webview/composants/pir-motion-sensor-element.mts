@@ -85,6 +85,18 @@ export class PIRMotionSensorElement extends LitElement {
         border: 4px solid transparent;
         border-top-color: #222;
       }
+      /* Bulle jaune façon tooltip natif du navigateur (title), pour la mention
+         « Détecte les mouvements de la souris » seulement (choix Frank). */
+      .bubble.native {
+        background: #ffffcc;
+        color: #000;
+        border: 1px solid #888;
+        border-radius: 2px;
+        font: 11px sans-serif;
+      }
+      .bubble.native::after {
+        border-top-color: #888;
+      }
     `;
   }
 
@@ -125,10 +137,12 @@ export class PIRMotionSensorElement extends LitElement {
   render() {
     const active = this.motion;
     let bubble: string | null = null;
+    let native = false;
     if (this.sticky) {
       bubble = 'Mouvement permanent (Ctrl+clic pour arrêter)';
     } else if (this.hovering) {
       bubble = 'Détecte les mouvements de la souris';
+      native = true;
     } else if (this.simulating) {
       bubble = 'Ctrl+clic pour un mouvement permanent';
     }
@@ -146,7 +160,7 @@ export class PIRMotionSensorElement extends LitElement {
             ? html`<circle cx="50" cy="50" r="8" fill="#ff5252" opacity="0.8" />`
             : null}
         </svg>
-        ${bubble ? html`<div class="bubble">${bubble}</div>` : null}
+        ${bubble ? html`<div class="bubble ${native ? 'native' : ''}">${bubble}</div>` : null}
       </div>
     `;
   }

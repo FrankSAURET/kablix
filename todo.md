@@ -9,8 +9,12 @@
 8. la bulle du bouton REPL doit être traduite
 9. un double clic sur le nom du fichier de simulation l'ouvre dans le volet de gauche (à gauche de kablix)
 10. Le capteur à US ne marche pas.
-11. PIR le texte « Détecte les mouvements de la souris » doit apparaitre sur une bulle jaune de souris (celle par défaut) Les autres mentions sont bien.
-12. Le chargement d'un projix doit couper la simulation en cours
+11. Le chargement d'un projix doit couper la simulation en cours
+12. Le dht22 ne marche pas la commande capteur = dht.DHT22(Pin(13)) génère une erreur.
+
+
+# v2026.7.70
+1. ✅ PIR : la bulle « Détecte les mouvements de la souris » prend l'apparence d'une bulle native du navigateur (jaune pâle, bordure grise, coins carrés) — distincte des 2 autres bulles (fond sombre, inchangées).
 
 # v2026.7.69
 1. ✅ Capteur d'inclinaison — refonte complète (item « ne provoque une inclinaison que quand incliné puis revient... »). Bouton « Incliner »/« Incliné » SUPPRIMÉ : un simple CLIC sur le composant EN SIMULATION bascule l'état immédiatement (tout ou rien). Ctrl+clic = maintien permanent (`sticky`, même pattern que le PIR) ; recliquer normalement annule le maintien. Bulle contextuelle au survol : « Cliquer pour incliner / Ctrl + clic pour maintenir incliné » (→ « ...pour arrêter le maintien » si déjà maintenu).
