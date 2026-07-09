@@ -97,5 +97,6 @@
   "Auto-route the wires (right angles) — selection, or whole diagram": "Autoroutage des fils (angles droits) — sélection, ou tout le schéma",
   "Drag to resize": "Glisser pour redimensionner",
   " — debug: {0} lines, {1} variable(s)": " — débogage : {0} lignes, {1} variable(s)",
-  " — debug info unavailable (avr-objdump not found)": " — infos de débogage indisponibles (avr-objdump introuvable)"
+  " — debug info unavailable (avr-objdump not found)": " — infos de débogage indisponibles (avr-objdump introuvable)",
+  "Start an interactive MicroPython REPL (no script)": "Démarrer un REPL MicroPython interactif (sans script)"
 }
