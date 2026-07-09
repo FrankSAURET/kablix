@@ -10,6 +10,7 @@ import { bootromB1 } from './bootrom-b1.mjs';
 import type {
   Breakpoint,
   DebugPauseState,
+  Dht22Sensor,
   FlashSegment,
   KeypadConfig,
   LcdParallelConfig,
@@ -20,6 +21,7 @@ import type {
 } from './types.mjs';
 import { selectSpiDevice, Hd44780, type I2cDevice, type SpiDevice } from './i2c-devices.mjs';
 import { Ws2812Decoder } from './ws2812.mjs';
+import { buildDht22Schedule, DHT22_START_LOW_US, type DhtTransition } from './dht22.mjs';
 
 const RAM_START = 0x20000000;
 const FLASH_START = 0x10000000;
@@ -241,6 +243,13 @@ export class PicoEngine implements SimEngine {
   // d'attente du firmware (pulseIn/boucle bornée).
   private ultrasonic: UltrasonicSensor[] = [];
   private scheduled: Array<{ nanos: number; name: string; value: boolean }> = [];
+  // Capteurs DHT22 : même principe que l'ECHO ultrason (signal de départ détecté
+  // en broche, réponse programmée en temps simulé). La broche est au repos HAUT
+  // (pull-up) ; le MCU la tire BAS ≥ 500 µs pour démarrer une mesure.
+  private dht22: Array<{
+    pin: string; index: number; tempC: number; humidity: number;
+    wasLow: boolean; lowStartNanos: number; busyUntilNanos: number;
+  }> = [];
 
   constructor(program: PicoProgram) {
     this.sim = new KablixSimulator();
@@ -296,6 +305,7 @@ export class PicoEngine implements SimEngine {
         this.samplePulses();
         this.sampleNeopixels();
         this.sampleLcdParallel();
+        this.sampleDht22();
         this.applyKeypads();
         this.onUpdate?.();
       });
@@ -429,6 +439,53 @@ export class PicoEngine implements SimEngine {
         });
       }
     }
+  }
+
+  setDht22(sensors: Dht22Sensor[]): void {
+    this.dht22 = [];
+    for (const s of sensors) {
+      const i = gpioIndex(s.pin);
+      if (i === null) continue;
+      this.dht22.push({
+        pin: s.pin, index: i, tempC: s.temperatureC, humidity: s.humidity,
+        wasLow: false, lowStartNanos: 0, busyUntilNanos: 0,
+      });
+      // Ligne de données au repos = HAUT (pull-up) ; le MCU la tire BAS pour démarrer.
+      this.setInput(s.pin, true);
+    }
+  }
+
+  /**
+   * Détecte le signal de départ du DHT22 (ligne tenue BASSE ≥ ~500 µs puis
+   * relâchée) et programme la réponse (accusé + 40 bits) en temps simulé —
+   * même principe que `maybeFireEcho` pour l'ultrason.
+   */
+  private sampleDht22(): void {
+    if (this.dht22.length === 0) return;
+    const cyclesPerUs = (this.mcu.clkSys || 125_000_000) / 1_000_000;
+    const nanosPerCycle = 1e9 / (this.mcu.clkSys || 125_000_000);
+    const nowNanos = this.sim.clock.nanos;
+    for (const d of this.dht22) {
+      const low = this.mcu.gpio[d.index].value === GPIOPinState.Low;
+      if (low && !d.wasLow) {
+        d.wasLow = true;
+        d.lowStartNanos = nowNanos;
+      } else if (!low && d.wasLow) {
+        d.wasLow = false;
+        const lowUs = (nowNanos - d.lowStartNanos) / 1000;
+        if (lowUs >= DHT22_START_LOW_US && nowNanos >= d.busyUntilNanos) {
+          const startNanos = nowNanos + 30_000; // ~30 µs après le relâchement
+          const startCycles = Math.round(startNanos / nanosPerCycle);
+          const sched: DhtTransition[] = buildDht22Schedule(d.tempC, d.humidity, startCycles, cyclesPerUs);
+          for (const ev of sched) {
+            this.scheduled.push({ nanos: ev.cycle * nanosPerCycle, name: d.pin, value: ev.value });
+          }
+          const last = sched[sched.length - 1];
+          d.busyUntilNanos = last ? last.cycle * nanosPerCycle : nowNanos;
+        }
+      }
+    }
+    this.updateNextScheduled();
   }
 
   setUltrasonic(sensors: UltrasonicSensor[]): void {

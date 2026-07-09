@@ -1,14 +1,16 @@
 # À faire
 1. (noté pour plus tard je dois préciser) Faire un visualisateur virtuel ou utiliser teleplot
 2. (noté pour plus tard je dois préciser) ajouter une LDR, une CTN, une CTP avec paramètres + simulation qui prends en compte les résistances
-3. Le dht22 ne marche pas la commande capteur = dht.DHT22(Pin(13)) génère une erreur.
-4. Anneau neopixel ne marche toujours pas. De plus les variables r,g,b ne sont jamais affichés en mode pas à pas. Demande moi mon programme de test.
-5. vss de neopixel est une patte gnd qui doit passer le fil en noir
-6. neopixel ne marche pas non plus (la led unique)
-7. Matrice neopixel ne marche pas non plus.
-8. oled display(ssd1306)  ne marche pas non plus. Rien d'affiché. je peux te passer le prg de test et la librairie. Testé en i2c.
-9. TFT display ne marche pas non plus.
+3. Anneau neopixel ne marche toujours pas. De plus les variables r,g,b ne sont jamais affichés en mode pas à pas. Demande moi mon programme de test.
+4. vss de neopixel est une patte gnd qui doit passer le fil en noir
+5. neopixel ne marche pas non plus (la led unique)
+6. Matrice neopixel ne marche pas non plus.
+7. oled display(ssd1306)  ne marche pas non plus. Rien d'affiché. je peux te passer le prg de test et la librairie. Testé en i2c.
+8. TFT display ne marche pas non plus.
 
+
+# v2026.7.80
+1. ✅ DHT22 en MicroPython/Pico : `dht.DHT22(Pin(13)).measure()` levait une exception (timeout/checksum). Cause : `setDht22` — qui simule les réponses du capteur sur la broche de données (protocole 1-wire : signal de départ détecté puis accusé + 40 bits programmés en temps simulé) — n'existait QUE côté moteur AVR (`avr.mts`) ; `PicoEngine` n'implémentait pas du tout cette méthode optionnelle, donc `sim.mts` l'ignorait en silence et la broche GPIO ne bougeait jamais — le vrai module Python `dht` (natif au firmware) attendait indéfiniment une réponse d'un capteur absent. Portée l'implémentation dans `pico.mts`, même principe que le HC-SR04 (v2026.7.71) : détection du front sur la broche + réponse programmée en nanosecondes horloge RP2040 via `sim.onTick`/`scheduled` (réutilise `dht22.mts`, déjà agnostique du moteur). Vérifié bout-en-bout (vrai firmware MicroPython, `import dht` réel) : `d.measure()` puis `d.temperature()`/`d.humidity()` renvoient exactement les valeurs simulées (23.5 °C / 55.2 %). typecheck + build + verify:micropython OK.
 
 # v2026.7.79
 1. ✅ Chargement d'un projet .projix pendant une simulation en cours : le moteur continuait de tourner sur l'ancien schéma pendant que l'éditeur affichait déjà le nouveau. `loadProject` (sim.mts) appelle désormais `stopRun()` avant de charger le nouveau schéma/carte — même fonction que le bouton ■ (coupe le moteur, réinitialise les visuels, déverrouille l'édition, masque le bandeau simulation). typecheck + build OK.
