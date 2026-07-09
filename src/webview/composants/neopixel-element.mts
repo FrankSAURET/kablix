@@ -9,7 +9,7 @@
 import { html, LitElement } from 'lit';
 import type { PropertyValues } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
-import { ElementPin, GND, VCC } from './pin.mjs';
+import { ElementPin, VCC } from './pin.mjs';
 import drawing from './externe/neopixel.svg';
 
 export class NeoPixelElement extends LitElement {
@@ -36,7 +36,7 @@ export class NeoPixelElement extends LitElement {
     { name: 'VDD', x: 10, y: 10, number: 1, signals: [VCC()] },
     { name: 'DOUT', x: 10, y: 20, number: 2, signals: [] },
     { name: 'VSS', x: 30, y: 20, number: 3, signals: [{ type: 'power', signal: 'GND' }] },
-    { name: 'DIN', x: 30, y: 10, number: 4, signals: [GND()] },
+    { name: 'DIN', x: 30, y: 10, number: 4, signals: [] },
   ];
 
   updated(changed: PropertyValues) {

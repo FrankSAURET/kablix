@@ -742,8 +742,10 @@ function refreshVisuals(): void {
         break;
       }
       case 'i2c-oled': {
-        // Tampon GDDRAM décodé → image de l'écran OLED (blanc sur noir).
-        const dev = i2cDevices.get(part.id);
+        // Tampon GDDRAM décodé → image de l'écran OLED (blanc sur noir). Composant
+        // unique I²C/SPI (attrs.pins, cf. catalog.mts) : en mode spi le périphérique
+        // simulé est dans spiOledDevices, pas i2cDevices.
+        const dev = part.attrs?.pins === 'spi' ? spiOledDevices.get(part.id) : i2cDevices.get(part.id);
         if (dev instanceof Ssd1306Device) {
           renderOled(el as unknown as { imageData?: ImageData; redraw?: () => void }, dev);
         }
@@ -1219,7 +1221,8 @@ function buildI2cDevices(): void {
     } else if (kind === 'i2c-pwm') {
       const addr = Number(part.attrs?.address ?? 0x40) || 0x40;
       i2cDevices.set(part.id, new Pca9685Device(addr));
-    } else if (kind === 'i2c-oled') {
+    } else if (kind === 'i2c-oled' && (part.attrs?.pins ?? 'i2c') === 'i2c') {
+      // pins=spi : câblé en SPI 4 fils, pas sur le bus I²C (traité plus bas, spiDeviceBindings).
       const addr = Number(part.attrs?.address ?? 0x3c) || 0x3c;
       i2cDevices.set(part.id, new Ssd1306Device(addr, 128, 64));
     }

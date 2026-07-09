@@ -2,11 +2,13 @@
 1. (noté pour plus tard je dois préciser) Faire un visualisateur virtuel ou utiliser teleplot
 2. (noté pour plus tard je dois préciser) ajouter une LDR, une CTN, une CTP avec paramètres + simulation qui prends en compte les résistances
 3. ⏳ Anneau neopixel ne marche toujours pas — investigué en profondeur (v2026.7.82), cause racine identifiée mais PAS corrigée : voir note technique ci-dessous. Variables locales (r,g,b) jamais affichées en pas-à-pas : bug distinct, pas encore traité (`__kx_vars()` dans `pydebug.ts` ne lit que `globals()`, jamais les frames de fonction/méthode).
-4. vss de neopixel est une patte gnd qui doit passer le fil en noir
-5. neopixel ne marche pas non plus (la led unique)
-6. Matrice neopixel ne marche pas non plus.
-7. oled display(ssd1306)  ne marche pas non plus. Rien d'affiché. je peux te passer le prg de test et la librairie. Testé en i2c.
-8. TFT display ne marche pas non plus.
+4. ⏳ neopixel ne marche pas non plus (la led unique) — même cause racine que l'item 3 (bit-bang SIO), pas encore testé sur Arduino/AVR (moteur différent, potentiellement fonctionnel).
+5. ⏳ Matrice neopixel ne marche pas non plus — idem item 3.
+6. TFT display ne marche pas non plus.
+
+# v2026.7.83
+1. ✅ VSS de NeoPixel/LCD1602 = GND : le fil restait d'une couleur ordinaire au lieu de noir. Cause : `pinElectricalRole` (catalog.mts) ne reconnaissait GND que via le préfixe `GND`, jamais `VSS` (alias standard, utilisé par ces 2 composants). Regex étendue à `^(GND|VSS)`. Broche `DIN` du NeoPixel corrigée au passage (déclarait par erreur `signals: [GND()]`, copié-collé sur VSS — sans impact fonctionnel, `signals` n'est lu nulle part dans Kablix, mais trompeur).
+2. ✅ OLED SSD1306 « ne marche pas en I²C » : le composant Kablix n'existait qu'en variante SPI (broches DATA/CLK/DC/CS), alors que le SVG dessine le vrai module combo 8 broches (SDA/SCL/SA0/RST/CS/VDD/VIN/GND) et que le moteur avait déjà tout le code I²C prêt (`kind: 'i2c-oled'`, `Ssd1306Device`) mais **orphelin** — aucune entrée de catalogue ne l'utilisait. Câbler SDA/SCL sur un bus I²C ne produisait donc jamais de trafic reconnu (le moteur attendait du SPI sur ces broches) : écran vide. Ajout d'un attribut `pins` (i2c/spi, pattern déjà utilisé par LCD1602) sur `kablix-ssd1306` : bascule les noms/rôles de `pinInfo` (mêmes positions, même dessin) sans dupliquer le composant ; `i2c-oled` par défaut. `spiDeviceBindings`/`buildI2cDevices`/rendu (`sim.mts`) adaptés pour router selon `attrs.pins`. Vérifié bout-en-bout avec le vrai driver MicroPython officiel `ssd1306.py` (adressage horizontal 0x21/0x22, style Adafruit) rejoué sur `PicoEngine` : `fill_rect`/`pixel`/`show()` remplissent bien le tampon GDDRAM attendu. typecheck + build + verify:all OK.
 
 # v2026.7.82
 1. ℹ️ NeoPixel (`machine.bitstream`) — investigation approfondie, bug non résolu, limitation de rp2040js identifiée : `machine.bitstream()` de MicroPython pilote la broche en **SIO** (bit-bang logiciel cycle-compté), jamais en PIO. L'interpréteur ARM Thumb de rp2040js ne compte pas les cycles par instruction de façon fidèle au silicium pour cette routine précise : toutes les durées HAUT mesurées sont identiques au lieu de varier bit 0/bit 1 (confirmé sur firmware v1.20.0 et v1.28.0). Corriger ça = audit cycle-exact de l'émulateur ARM — chantier profond et risqué (impact potentiel sur tout le timing CPU). Reporté.

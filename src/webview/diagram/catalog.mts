@@ -278,9 +278,19 @@ export const CATALOG: readonly PartDef[] = [
       },
     ],
   },
-  // OLED SSD1306 : l'élément Wokwi est la variante SPI 4 fils (DATA/CLK/DC/CS) →
-  // simulé en SPI (le programme y dessine, l'écran s'allume).
-  { type: 'oled-ssd1306', label: 'OLED display (SSD1306, SPI)', tag: 'kablix-ssd1306', kind: 'spi-oled' },
+  // OLED SSD1306 : module combo réel 8 broches (SDA/SCL/SA0/RST/CS/VDD/VIN/GND).
+  // `pins` bascule les noms/rôles exposés par pinInfo (i2c = SDA/SCL, câblage le
+  // plus courant ; spi = DATA/CLK/DC/CS, 4 fils) — même dessin, mêmes positions.
+  {
+    type: 'oled-ssd1306', label: 'OLED display (SSD1306)', tag: 'kablix-ssd1306', kind: 'i2c-oled',
+    attrs: { pins: 'i2c' },
+    props: [
+      {
+        attr: 'pins', label: 'Interface', kind: 'select', options: ['i2c', 'spi'],
+        optionLabels: { i2c: 'I²C (SDA/SCL)', spi: 'SPI (4 wires)' },
+      },
+    ],
+  },
   // Écran TFT couleur ILI9341 (SPI) : décodé et dessiné dans son canvas.
   { type: 'ili9341', label: 'TFT display (ILI9341, SPI)', tag: 'kablix-ili9341', kind: 'spi-tft' },
   // Carte microSD (SPI) : répondeur de protocole (init + lecture/écriture de blocs).
@@ -375,6 +385,7 @@ export function partCategory(def: PartDef): string {
     case 'display':
     case 'i2c-lcd':
     case 'neopixel':
+    case 'i2c-oled':
     case 'spi-oled':
     case 'spi-tft':
       return 'Displays & LEDs';
@@ -488,8 +499,8 @@ export function pinElectricalRole(type: string, pin: string): 'gnd' | 'vcc' | 'o
     const role = mcuPinRole(def.board, pin).role;
     return role === 'gnd' || role === 'vcc' ? role : 'other';
   }
-  if (/^GND/i.test(pin)) return 'gnd';
-  if (/^(VCC|V\+|5V|3V3|3\.3V|VBUS|VSYS|VIN)$/i.test(pin)) return 'vcc';
+  if (/^(GND|VSS)/i.test(pin)) return 'gnd';
+  if (/^(VCC|VDD|V\+|5V|3V3|3\.3V|VBUS|VSYS|VIN)$/i.test(pin)) return 'vcc';
   return 'other';
 }
 

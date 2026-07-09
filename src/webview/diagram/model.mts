@@ -639,7 +639,10 @@ export function spiDeviceBindings(diagram: Diagram): SpiDeviceBinding[] {
   const nets = buildNets(diagram);
   const out: SpiDeviceBinding[] = [];
   for (const part of diagram.parts) {
-    const kind = partDef(part.type).kind;
+    let kind = partDef(part.type).kind;
+    // OLED SSD1306 : composant unique I²C/SPI (attrs.pins), cf. catalog.mts —
+    // en mode spi il se comporte comme un spi-oled bien que son kind soit i2c-oled.
+    if (kind === 'i2c-oled' && part.attrs?.pins === 'spi') kind = 'spi-oled';
     if (kind !== 'spi-oled' && kind !== 'spi-tft' && kind !== 'spi-sd') continue;
     const dcName = part.type === 'ili9341' ? 'D/C' : 'DC';
     const dcPin = kind === 'spi-sd' ? null : mcuPinForPart(diagram, nets, part.id, rolePin(part.type, dcName));
