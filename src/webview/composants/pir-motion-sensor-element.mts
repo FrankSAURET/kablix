@@ -2,18 +2,24 @@
 // Balise <kablix-pir-motion-sensor> (ex <wokwi-pir-motion-sensor>). Licence d'origine : LICENSE-wokwi.md (même dossier).
 // Adaptations Kablix :
 //   - sans décorateurs ; DESSIN retouché (./externe/pir.svg) ;
-//   - EN SIMULATION (attribut `simulating`) : détection de MOUVEMENT au survol de
-//     la souris sur le composant (OUT=1 tant que la souris est au-dessus).
-//     Ctrl+clic = mouvement PERMANENT (indiqué par une bulle), Ctrl+clic à nouveau
-//     pour l'annuler. Le moteur lit `el.motion` en direct (cf. sim.mts).
+//   - EN SIMULATION (attribut `simulating`) : détection du MOUVEMENT de la souris
+//     au-dessus du composant (pas juste sa présence statique) — OUT=1 tant que la
+//     souris a bougé récemment (tolérance MOTION_GRACE_MS avant coupure, pour ne
+//     pas couper au moindre arrêt bref). Ctrl+clic = mouvement PERMANENT (indiqué
+//     par une bulle), Ctrl+clic à nouveau pour l'annuler. Le moteur lit `el.motion`
+//     en direct (cf. sim.mts).
 import { css, html, LitElement } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin, GND, VCC } from './pin.mjs';
 import drawing from './externe/pir.svg';
 
+/** Délai de grâce (ms) après le dernier mouvement avant de couper OUT (tolérance
+ *  aux arrêts brefs de la souris pendant qu'elle survole le capteur). */
+const MOTION_GRACE_MS = 400;
+
 export class PIRMotionSensorElement extends LitElement {
   declare simulating: boolean;
-  /** Souris actuellement au-dessus du capteur. */
+  /** Souris actuellement au-dessus du capteur ET en mouvement (avec tolérance). */
   declare hovering: boolean;
   /** Mouvement verrouillé (Ctrl+clic) : reste actif même sans survol. */
   declare sticky: boolean;
@@ -29,6 +35,16 @@ export class PIRMotionSensorElement extends LitElement {
     this.simulating = false;
     this.hovering = false;
     this.sticky = false;
+  }
+
+  private lastPos: { x: number; y: number } | null = null;
+  private graceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  private clearGraceTimer(): void {
+    if (this.graceTimer !== null) {
+      clearTimeout(this.graceTimer);
+      this.graceTimer = null;
+    }
   }
 
   // Broches : centre de chaque pastille (repère du dessin retouché, grille de 10 px).
@@ -73,10 +89,26 @@ export class PIRMotionSensorElement extends LitElement {
   }
 
   private onEnter = () => {
-    if (this.simulating) this.hovering = true;
+    this.lastPos = null;
   };
   private onLeave = () => {
     this.hovering = false;
+    this.lastPos = null;
+    this.clearGraceTimer();
+  };
+  private onMove = (e: PointerEvent) => {
+    if (!this.simulating) return;
+    const prev = this.lastPos;
+    this.lastPos = { x: e.clientX, y: e.clientY };
+    // Pas un vrai mouvement (arrivée sur l'élément, ou position identique) : ne
+    // pas (re)armer le délai de grâce sur du bruit.
+    if (prev && prev.x === e.clientX && prev.y === e.clientY) return;
+    this.hovering = true;
+    this.clearGraceTimer();
+    this.graceTimer = setTimeout(() => {
+      this.graceTimer = null;
+      this.hovering = false;
+    }, MOTION_GRACE_MS);
   };
   private onDown = (e: PointerEvent) => {
     if (this.simulating && e.ctrlKey) {
@@ -85,13 +117,27 @@ export class PIRMotionSensorElement extends LitElement {
     }
   };
 
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this.clearGraceTimer();
+  }
+
   render() {
     const active = this.motion;
+    let bubble: string | null = null;
+    if (this.sticky) {
+      bubble = 'Mouvement permanent (Ctrl+clic pour arrêter)';
+    } else if (this.hovering) {
+      bubble = 'Détecte les mouvements de la souris';
+    } else if (this.simulating) {
+      bubble = 'Ctrl+clic pour un mouvement permanent';
+    }
     return html`
       <div
         class="wrap"
         @pointerenter=${this.onEnter}
         @pointerleave=${this.onLeave}
+        @pointermove=${this.onMove}
         @pointerdown=${this.onDown}
       >
         <svg width="100" height="103.45" viewBox="0 0 100 103.45" xmlns="http://www.w3.org/2000/svg">
@@ -100,9 +146,7 @@ export class PIRMotionSensorElement extends LitElement {
             ? html`<circle cx="50" cy="50" r="8" fill="#ff5252" opacity="0.8" />`
             : null}
         </svg>
-        ${this.sticky
-          ? html`<div class="bubble">Mouvement permanent (Ctrl+clic pour arrêter)</div>`
-          : null}
+        ${bubble ? html`<div class="bubble">${bubble}</div>` : null}
       </div>
     `;
   }

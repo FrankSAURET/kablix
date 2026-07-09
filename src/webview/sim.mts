@@ -177,7 +177,7 @@ internalToggleBtn.addEventListener('click', () => editor.toggleSelectedSchema())
 // les deux barres d'outils (au-dessus du canvas), visible pendant toute la
 // simulation. Clignote 3× quand une action d'édition interdite est tentée.
 const simBanner = document.getElementById('sim-banner') as HTMLDivElement;
-simBanner.textContent = t('⚠ Simulation running');
+simBanner.textContent = t('⚠ Simulation running: editing is disabled.');
 simBanner.hidden = true;
 function showSimBanner(show: boolean): void {
   simBanner.hidden = !show;

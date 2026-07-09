@@ -20,18 +20,18 @@
     <rect width="42.330399" height="41.574501" rx="5.2912998" ry="5.2912998" stroke="#b1b5b9" stroke-width="2.83463" id="rect95" x="98.577797" y="222.58121" style="opacity:1;fill:#4e90d7" />
     <rect width="42.330399" height="41.574501" rx="5.2912998" ry="5.2912998" stroke="#b1b5b9" stroke-width="2.83463" id="rect98" x="41.885296" y="222.58121" style="opacity:1;fill:#e94541" />
     <rect width="42.330399" height="41.574501" rx="5.2912998" ry="5.2912998" stroke="#b1b5b9" stroke-width="2.83463" id="rect100" x="155.27031" y="222.58121" style="opacity:1;fill:#e94541" />
-    <text x="54.850609" y="94.414207" id="text78" style="font-size:36.9364px;opacity:1;fill:#f1f1f1;fill-opacity:1;stroke-width:3.7795">1</text>
-    <text x="109.25304" y="94.598892" id="text79" style="font-size:36.9364px;opacity:1;fill:#f1f1f1;fill-opacity:1;stroke-width:3.7795">2</text>
-    <text x="166.09332" y="94.414207" id="text81" style="font-size:36.9364px;opacity:1;fill:#f1f1f1;fill-opacity:1;stroke-width:3.7795">3</text>
-    <text x="52.468216" y="148.53493" id="text83" style="font-size:36.9364px;opacity:1;fill:#f1f1f1;fill-opacity:1;stroke-width:3.7795">4</text>
-    <text x="109.0684" y="148.27638" id="text85" style="font-size:36.9364px;opacity:1;fill:#f1f1f1;fill-opacity:1;stroke-width:3.7795">5</text>
-    <text x="165.72395" y="148.46106" id="text87" style="font-size:36.9364px;opacity:1;fill:#f1f1f1;fill-opacity:1;stroke-width:3.7795">6</text>
-    <text x="52.579002" y="202.5079" id="text89" style="font-size:36.9364px;opacity:1;fill:#f1f1f1;fill-opacity:1;stroke-width:3.7795">7</text>
-    <text x="109.19768" y="202.5079" id="text91" style="font-size:36.9364px;opacity:1;fill:#f1f1f1;fill-opacity:1;stroke-width:3.7795">8</text>
-    <text x="165.90865" y="202.5079" id="text93" style="font-size:36.9364px;opacity:1;fill:#f1f1f1;fill-opacity:1;stroke-width:3.7795">9</text>
-    <text x="109.17918" y="256.57321" id="text95" style="font-size:36.9364px;opacity:1;fill:#f1f1f1;fill-opacity:1;stroke-width:3.7795">0</text>
-    <text x="52.911457" y="263.12943" id="text98" style="font-size:36.9364px;opacity:1;fill:#f1f1f1;fill-opacity:1;stroke-width:3.7795">*</text>
-    <text x="164.52351" y="256.55478" id="text100" style="font-size:36.9364px;opacity:1;fill:#f1f1f1;fill-opacity:1;stroke-width:3.7795">#</text>
+    <text x="54.850609" y="94.414207" id="text78" style="font-size:36.9364px;opacity:1;fill:#f1f1f1;fill-opacity:1;stroke:none;stroke-width:3.7795">1</text>
+    <text x="109.25304" y="94.598892" id="text79" style="font-size:36.9364px;opacity:1;fill:#f1f1f1;fill-opacity:1;stroke:none;stroke-width:3.7795">2</text>
+    <text x="166.09332" y="94.414207" id="text81" style="font-size:36.9364px;opacity:1;fill:#f1f1f1;fill-opacity:1;stroke:none;stroke-width:3.7795">3</text>
+    <text x="52.468216" y="148.53493" id="text83" style="font-size:36.9364px;opacity:1;fill:#f1f1f1;fill-opacity:1;stroke:none;stroke-width:3.7795">4</text>
+    <text x="109.0684" y="148.27638" id="text85" style="font-size:36.9364px;opacity:1;fill:#f1f1f1;fill-opacity:1;stroke:none;stroke-width:3.7795">5</text>
+    <text x="165.72395" y="148.46106" id="text87" style="font-size:36.9364px;opacity:1;fill:#f1f1f1;fill-opacity:1;stroke:none;stroke-width:3.7795">6</text>
+    <text x="52.579002" y="202.5079" id="text89" style="font-size:36.9364px;opacity:1;fill:#f1f1f1;fill-opacity:1;stroke:none;stroke-width:3.7795">7</text>
+    <text x="109.19768" y="202.5079" id="text91" style="font-size:36.9364px;opacity:1;fill:#f1f1f1;fill-opacity:1;stroke:none;stroke-width:3.7795">8</text>
+    <text x="165.90865" y="202.5079" id="text93" style="font-size:36.9364px;opacity:1;fill:#f1f1f1;fill-opacity:1;stroke:none;stroke-width:3.7795">9</text>
+    <text x="109.17918" y="256.57321" id="text95" style="font-size:36.9364px;opacity:1;fill:#f1f1f1;fill-opacity:1;stroke:none;stroke-width:3.7795">0</text>
+    <text x="52.911457" y="263.12943" id="text98" style="font-size:36.9364px;opacity:1;fill:#f1f1f1;fill-opacity:1;stroke:none;stroke-width:3.7795">*</text>
+    <text x="164.52351" y="256.55478" id="text100" style="font-size:36.9364px;opacity:1;fill:#f1f1f1;fill-opacity:1;stroke:none;stroke-width:3.7795">#</text>
   </g>
   <path style="fill:#f1f1f1;fill-opacity:1;stroke:#c8c8c8;stroke-width:2.1;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1" d="M 89.90389,329.90389 C 89.90389,321.08009 89.90389,312.25629 89.90389,303.43249" id="path111" transform="translate(-10,-10)" />
   <path style="fill:#f1f1f1;fill-opacity:1;stroke:#c8c8c8;stroke-width:2.1;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1" d="M 89.90389,329.90389 C 89.90389,321.08009 89.90389,312.25629 89.90389,303.43249" id="path111-4" transform="translate(0.09611,-10)" />

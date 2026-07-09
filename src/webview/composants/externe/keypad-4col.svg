@@ -27,18 +27,18 @@
       <rect width="42.330399" height="41.574501" rx="5.2912998" ry="5.2912998" stroke="#b1b5b9" stroke-width="2.83463" id="rect110" x="216.534" y="114.4875" style="opacity:1;fill:#e94541" />
       <rect width="42.330399" height="41.574501" rx="5.2912998" ry="5.2912998" stroke="#b1b5b9" stroke-width="2.83463" id="rect112" x="216.534" y="168.53435" style="opacity:1;fill:#e94541" />
       <rect width="42.330399" height="41.574501" rx="5.2912998" ry="5.2912998" stroke="#b1b5b9" stroke-width="2.83463" id="rect114" x="216.534" y="222.58121" style="opacity:1;fill:#e94541" />
-      <text x="58.830822" y="94.404976" id="text78-4" style="font-size:36.9364px;opacity:0.947;fill:#f1f1f1;fill-opacity:1;stroke-width:3.7795">1</text>
-      <text x="113.23325" y="94.589661" id="text79-8" style="font-size:36.9364px;opacity:0.947;fill:#f1f1f1;fill-opacity:1;stroke-width:3.7795">2</text>
-      <text x="170.07353" y="94.404976" id="text81-8" style="font-size:36.9364px;opacity:0.947;fill:#f1f1f1;fill-opacity:1;stroke-width:3.7795">3</text>
-      <text x="56.448421" y="148.5257" id="text83-2" style="font-size:36.9364px;opacity:0.947;fill:#f1f1f1;fill-opacity:1;stroke-width:3.7795">4</text>
-      <text x="113.04861" y="148.26715" id="text85-1-4" style="font-size:36.9364px;opacity:0.947;fill:#f1f1f1;fill-opacity:1;stroke-width:3.7795">5</text>
-      <text x="169.70416" y="148.45183" id="text87-3-5" style="font-size:36.9364px;opacity:0.947;fill:#f1f1f1;fill-opacity:1;stroke-width:3.7795">6</text>
-      <text x="56.559216" y="202.49867" id="text89-8-5" style="font-size:36.9364px;opacity:0.947;fill:#f1f1f1;fill-opacity:1;stroke-width:3.7795">7</text>
-      <text x="113.17789" y="202.49867" id="text91-7-1" style="font-size:36.9364px;opacity:0.947;fill:#f1f1f1;fill-opacity:1;stroke-width:3.7795">8</text>
-      <text x="169.88885" y="202.49867" id="text93-4-7" style="font-size:36.9364px;opacity:0.947;fill:#f1f1f1;fill-opacity:1;stroke-width:3.7795">9</text>
-      <text x="113.15939" y="256.564" id="text95-2-1" style="font-size:36.9364px;opacity:0.947;fill:#f1f1f1;fill-opacity:1;stroke-width:3.7795">0</text>
-      <text x="56.891674" y="263.12021" id="text98-1" style="font-size:36.9364px;opacity:0.947;fill:#f1f1f1;fill-opacity:1;stroke-width:3.7795">*</text>
-      <text x="168.50372" y="256.54556" id="text100-5" style="font-size:36.9364px;opacity:0.947;fill:#f1f1f1;fill-opacity:1;stroke-width:3.7795">#</text>
+      <text x="58.830822" y="94.404976" id="text78-4" style="font-size:36.9364px;opacity:0.947;fill:#f1f1f1;fill-opacity:1;stroke:none;stroke-width:3.7795">1</text>
+      <text x="113.23325" y="94.589661" id="text79-8" style="font-size:36.9364px;opacity:0.947;fill:#f1f1f1;fill-opacity:1;stroke:none;stroke-width:3.7795">2</text>
+      <text x="170.07353" y="94.404976" id="text81-8" style="font-size:36.9364px;opacity:0.947;fill:#f1f1f1;fill-opacity:1;stroke:none;stroke-width:3.7795">3</text>
+      <text x="56.448421" y="148.5257" id="text83-2" style="font-size:36.9364px;opacity:0.947;fill:#f1f1f1;fill-opacity:1;stroke:none;stroke-width:3.7795">4</text>
+      <text x="113.04861" y="148.26715" id="text85-1-4" style="font-size:36.9364px;opacity:0.947;fill:#f1f1f1;fill-opacity:1;stroke:none;stroke-width:3.7795">5</text>
+      <text x="169.70416" y="148.45183" id="text87-3-5" style="font-size:36.9364px;opacity:0.947;fill:#f1f1f1;fill-opacity:1;stroke:none;stroke-width:3.7795">6</text>
+      <text x="56.559216" y="202.49867" id="text89-8-5" style="font-size:36.9364px;opacity:0.947;fill:#f1f1f1;fill-opacity:1;stroke:none;stroke-width:3.7795">7</text>
+      <text x="113.17789" y="202.49867" id="text91-7-1" style="font-size:36.9364px;opacity:0.947;fill:#f1f1f1;fill-opacity:1;stroke:none;stroke-width:3.7795">8</text>
+      <text x="169.88885" y="202.49867" id="text93-4-7" style="font-size:36.9364px;opacity:0.947;fill:#f1f1f1;fill-opacity:1;stroke:none;stroke-width:3.7795">9</text>
+      <text x="113.15939" y="256.564" id="text95-2-1" style="font-size:36.9364px;opacity:0.947;fill:#f1f1f1;fill-opacity:1;stroke:none;stroke-width:3.7795">0</text>
+      <text x="56.891674" y="263.12021" id="text98-1" style="font-size:36.9364px;opacity:0.947;fill:#f1f1f1;fill-opacity:1;stroke:none;stroke-width:3.7795">*</text>
+      <text x="168.50372" y="256.54556" id="text100-5" style="font-size:36.9364px;opacity:0.947;fill:#f1f1f1;fill-opacity:1;stroke:none;stroke-width:3.7795">#</text>
       <text x="225.63725" y="94.783417" id="text108" style="font-size:37.8117px;fill:#e9ecf0;fill-opacity:1;stroke:none;stroke-width:3.7795;stroke-opacity:1">A</text>
       <text x="224.54237" y="148.83028" id="text110" style="font-size:37.9706px;fill:#e9ecf0;fill-opacity:1;stroke:none;stroke-width:3.7795;stroke-opacity:1">B</text>
       <text x="225.4734" y="202.50772" id="text112" style="font-size:36.9359px;fill:#e9ecf0;fill-opacity:1;stroke:none;stroke-width:3.7795;stroke-opacity:1">C</text>

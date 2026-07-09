@@ -66,6 +66,8 @@
   "Send to the microcontroller (Enter)…": "Envoyer au microcontrôleur (Entrée)…",
   "Send": "Envoyer",
   "Show/hide part names": "Afficher/masquer les noms des composants",
+  "Show/hide the internal wiring": "Afficher/masquer le câblage interne",
+  "Show/hide the full pinout": "Afficher/masquer le brochage complet",
   "Names": "Noms",
   "Open help": "Ouvrir l'aide",
   "Open the GitHub repository": "Ouvrir le dépôt GitHub",

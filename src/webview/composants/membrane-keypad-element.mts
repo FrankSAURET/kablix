@@ -71,6 +71,7 @@ export class MembraneKeypadElement extends LitElement {
       text {
         user-select: none;
         pointer-events: none;
+        font-weight: 300;
       }
 
       rect.key {

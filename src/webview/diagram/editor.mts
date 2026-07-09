@@ -2573,10 +2573,19 @@ export class Editor {
       this.settleQueued = false;
       let pending = false; // un dessin Lit pas encore prêt à être agrandi
       for (const r of this.rendered.values()) {
-        if (!this.applyPinScale(r)) pending = true; // dessin agrandi au pas de 10 px
+        const wasPending = !this.applyPinScale(r); // dessin agrandi au pas de 10 px
+        if (wasPending) pending = true;
         this.syncHotspots(r); // pastilles de broche tardives (pinInfo asynchrone)
         const body = r.container.querySelector('.part__body') as HTMLDivElement | null;
         if (body) this.applyRotation(r.part, body); // repositionne le bandeau (rotation)
+        // Le câblage interne / poster affiché a pu être dessiné à la mauvaise
+        // taille juste après un re-rendu (changement de taille d'afficheur,
+        // nb de colonnes du clavier…) car le SVG externe n'était pas encore
+        // mesurable : on le redessine une fois le dessin externe stabilisé.
+        if (!wasPending) {
+          if (this.internalShown.has(r.part.id) && this.isSelected(r.part.id)) this.renderInternalWiring(r.part.id);
+          if (this.pinoutShown.has(r.part.id) && this.isSelected(r.part.id)) this.renderPinout(r.part.id);
+        }
       }
       this.redrawWires();
       // Le SVG d'un élément Lit peut arriver après cette frame : on repasse une
@@ -3066,12 +3075,16 @@ export class Editor {
       r.el.setAttribute(attr, value);
     }
     // La polarité du commun (cathode/anode) change le nom affiché de la broche
-    // COM (« K »/« A ») : on rafraîchit les bulles d'aide des pastilles.
+    // COM (« K »/« A ») : on rafraîchit les bulles d'aide des pastilles, et le
+    // câblage interne s'il est affiché (les diodes cathode/anode sont dessinées
+    // à l'envers selon `common` — sinon le schéma affiché reste sur l'ancienne
+    // polarité tant qu'on ne masque/réaffiche pas à la main).
     if (attr === 'common') {
       const kind = partDef(r.part.type).kind;
       for (const [name, dot] of r.hotspots) {
         dot.title = pinDisplayName(kind, name, r.part.type, r.part.attrs);
       }
+      if (this.internalShown.has(partId)) this.renderInternalWiring(partId);
     }
     this.notify();
   }

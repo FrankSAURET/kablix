@@ -1,12 +1,15 @@
 # À faire
-1. Le message "simulation en cours" dois changer pour "simulation en cours : édition désactivée"
-2. le texte bulle du bouton k doit être traduit
-3. Quand un composant change de cablage avec les propriété (K ou A commune par exemple) le changement doit être dynamique si le cablage est affiché.
-4. Si on change la taille de l'afficheur (2 -> 4 digit par exemple). Si le cablage interne est affiché il n'a pas la bonne taille il faut le masquer puis le réafficher. Pareil pour le clavier.
-5. Le texte des broches sur les clavier est trés épais. Il faut je pense réduire l'épaisseur du contour voire la supprimer
-6. Le pir  détecte la souris au dessus de lui pas ses mouvements. Ajoute une tolérance à la détectiondu mouvement de la souris. "Ctrl+clic pour un mouvement permanent" apparait dans la bulle de la souris en simulation si on passe sur le PIR. En  simulation un texte "Détecte les mouvements de la souris" doit apparaitre à la place du message "Mouvement permanent (Ctrl+clic pour arrêter)". Ce dernier message remplacera "Détecte les mouvements de la souris" mors d'un appuis sur ctrl+clic et on reviendra à "Détecte les mouvements de la souris" lors du ctrl+clic suivant.
 
 
+
+# v2026.7.68
+1. ✅ Bandeau simulation : « ⚠ Simulation en cours » → « ⚠ Simulation en cours : édition désactivée » (fr + clé i18n renommée dans `i18n.mts`).
+2. ✅ Bulle du bouton ☢ (K, bascule câblage interne/brochage) traduite en français : ajout des 2 clés manquantes dans `l10n/bundle.l10n.fr.json` (bundle VS Code natif, distinct du dict webview) — restaient affichées en anglais faute d'entrée.
+3. ✅ Changement de propriété d'attribut (ex. K/A commune) dynamique si le câblage interne est affiché : `editor.mts` régénère les bulles de pastille et redessine le câblage interne (`renderInternalWiring`) immédiatement sur `attr === 'common'`, au lieu de rester figé sur l'ancienne polarité.
+4. ✅ Changement de taille (afficheur 2↔4 digits, colonnes clavier) alors que le câblage interne / brochage est affiché : `scheduleSettle()` redessine `renderInternalWiring`/`renderPinout` une fois le dessin externe stabilisé (au lieu de rester à l'ancienne taille).
+5. ✅ Texte des broches du clavier trop épais : `stroke:none` ajouté aux 12 `<text>` chiffres/symboles (1-9,*,0,#) des SVG `keypad-3col`/`keypad-4col` (n'avaient que `stroke-width` sans `stroke:none`, contrairement aux lettres A-D) + `font-weight: 300` en CSS shadow DOM.
+6. ✅ PIR : détection de mouvement réel (pas juste présence) avec tolérance 400 ms — `hovering` s'arme sur un déplacement de souris effectif et retombe après un délai de grâce (`MOTION_GRACE_MS`) sans mouvement, au lieu de suivre l'entrée/sortie du survol. Bulle contextuelle à 3 états : « Ctrl+clic pour un mouvement permanent » (simulation, hors survol actif) → « Détecte les mouvements de la souris » (mouvement en cours) → « Mouvement permanent (Ctrl+clic pour arrêter) » (sticky, toggle Ctrl+clic).
+7. ✅ Pinout mega : retouche z-order de Frank réimportée (SVG déjà remplacé, importé tel quel par `pinout.mts` — aucun pipeline de génération à relancer).
 
 # v2026.7.67
 1. ✅ Posters de brochage nano/uno/mega : les 3 sont posés en surimpression **sans déformation** (fini l'étirement vertical `k` qui décalait uno et mega). Chaque poster porte des pastilles de calage aux positions exactes des pins ; pose via la transform mesurée `coord_carte = s·coord_poster + t` (échelle uniforme : nano/uno s=1, mega s≈3.78). Transforms mesurées au navigateur (Chrome headless, `getBoundingClientRect` des pastilles vs `pinInfo` du composant, régression, erreur max 0,15 u sous-pixel).
