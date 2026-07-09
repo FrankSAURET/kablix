@@ -1,0 +1,97 @@
+diff --git a/node_modules/rp2040js/dist/esm/peripherals/pio.d.ts b/node_modules/rp2040js/dist/esm/peripherals/pio.d.ts
+index 2aea8c1..ecd36dc 100644
+--- a/node_modules/rp2040js/dist/esm/peripherals/pio.d.ts
++++ b/node_modules/rp2040js/dist/esm/peripherals/pio.d.ts
+@@ -71,6 +71,8 @@ export declare class StateMachine {
+     wait(type: WaitType, polarity: boolean, index: number): void;
+     nextPC(): void;
+     step(): void;
++    clkDivAccum: number;
++    advance(sysCycles: number): void;
+     setSetPinDirs(value: number): void;
+     setSetPins(value: number): void;
+     setSideset(value: number, count: number): void;
+@@ -117,6 +119,7 @@ export declare class RPPIO extends BasePeripheral implements Peripheral {
+     irqUpdated(): void;
+     checkChangedPins(): void;
+     step(): void;
++    advance(sysCycles: number): void;
+     run(): void;
+     stop(): void;
+ }
+diff --git a/node_modules/rp2040js/dist/esm/peripherals/pio.js b/node_modules/rp2040js/dist/esm/peripherals/pio.js
+index f87e56c..2646906 100644
+--- a/node_modules/rp2040js/dist/esm/peripherals/pio.js
++++ b/node_modules/rp2040js/dist/esm/peripherals/pio.js
+@@ -127,6 +127,10 @@ export class StateMachine {
+         this.updatePC = true;
+         this.clockDivInt = 1;
+         this.clockDivFrac = 0;
++        // KABLIX PATCH: fractional clock-divider accumulator (256ths of a
++        // system-clock cycle), driven by advance(sysCycles) instead of the
++        // unimplemented clkDivRestart() + free-running setTimeout loop.
++        this.clkDivAccum = 0;
+         this.execCtrl = 0x1f << 12;
+         this.shiftCtrl = 0b11 << 18;
+         this.pinCtrl = 0x5 << 26;
+@@ -629,6 +633,21 @@ export class StateMachine {
+             this.nextPC();
+         }
+     }
++    // KABLIX PATCH: honor CLKDIV (SMx_CLKDIV, unused upstream — clkDivRestart()
++    // was a no-op stub) by only running an SM cycle once the fractional
++    // system-clock accumulator crosses the configured divisor. divisor 0 means
++    // 65536 per the RP2040 datasheet.
++    advance(sysCycles) {
++        if (!this.enabled) return;
++        const divisor = this.clockDivInt === 0 && this.clockDivFrac === 0
++            ? 65536
++            : this.clockDivInt + this.clockDivFrac / 256;
++        this.clkDivAccum += sysCycles;
++        while (this.clkDivAccum >= divisor) {
++            this.clkDivAccum -= divisor;
++            this.step();
++        }
++    }
+     setSetPinDirs(value) {
+         this.pio.pinDirectionsChanged(value, this.setBase, this.setCount);
+     }
+@@ -757,7 +776,7 @@ export class StateMachine {
+         // TODO any pin write left asserted due to OUT_STICKY.
+     }
+     clkDivRestart() {
+-        this.pio.warn('clkDivRestart not implemented');
++        this.clkDivAccum = 0;
+     }
+     checkWait() {
+         if (!this.waiting) {
+@@ -972,7 +991,8 @@ export class RPPIO extends BasePeripheral {
+                 const shouldRun = value & 0xf;
+                 if (this.stopped && shouldRun) {
+                     this.stopped = false;
+-                    this.run();
++                    // KABLIX PATCH: no self-scheduling run() — advance() is
++                    // driven by the host (pico.mts) in step with CPU cycles.
+                 }
+                 if (!shouldRun) {
+                     this.stopped = true;
+@@ -1069,6 +1089,19 @@ export class RPPIO extends BasePeripheral {
+         }
+         this.checkChangedPins();
+     }
++    // KABLIX PATCH: system-clock-driven replacement for the free-running
++    // setTimeout(0) loop in run() below, which executes PIO instructions at
++    // browser wall-clock speed instead of the emulated CPU's simulated time
++    // (drifts arbitrarily from the CPU in step/fast-forward mode, and ignores
++    // CLKDIV entirely). Call once per CPU instruction with the cycle count it
++    // consumed; each SM advances at its own configured clock divisor.
++    advance(sysCycles) {
++        if (this.stopped) return;
++        for (const machine of this.machines) {
++            machine.advance(sysCycles);
++        }
++        this.checkChangedPins();
++    }
+     run() {
+         for (let i = 0; i < 1000 && !this.stopped; i++) {
+             this.step();

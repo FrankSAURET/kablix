@@ -1,12 +1,16 @@
 # À faire
 1. (noté pour plus tard je dois préciser) Faire un visualisateur virtuel ou utiliser teleplot
 2. (noté pour plus tard je dois préciser) ajouter une LDR, une CTN, une CTP avec paramètres + simulation qui prends en compte les résistances
-3. Anneau neopixel ne marche toujours pas. De plus les variables r,g,b ne sont jamais affichés en mode pas à pas. Demande moi mon programme de test.
+3. ⏳ Anneau neopixel ne marche toujours pas — investigué en profondeur (v2026.7.82), cause racine identifiée mais PAS corrigée : voir note technique ci-dessous. Variables locales (r,g,b) jamais affichées en pas-à-pas : bug distinct, pas encore traité (`__kx_vars()` dans `pydebug.ts` ne lit que `globals()`, jamais les frames de fonction/méthode).
 4. vss de neopixel est une patte gnd qui doit passer le fil en noir
 5. neopixel ne marche pas non plus (la led unique)
 6. Matrice neopixel ne marche pas non plus.
 7. oled display(ssd1306)  ne marche pas non plus. Rien d'affiché. je peux te passer le prg de test et la librairie. Testé en i2c.
 8. TFT display ne marche pas non plus.
+
+# v2026.7.82
+1. ℹ️ NeoPixel (`machine.bitstream`) — investigation approfondie, bug non résolu, limitation de rp2040js identifiée : `machine.bitstream()` de MicroPython pilote la broche en **SIO** (bit-bang logiciel cycle-compté), jamais en PIO. L'interpréteur ARM Thumb de rp2040js ne compte pas les cycles par instruction de façon fidèle au silicium pour cette routine précise : toutes les durées HAUT mesurées sont identiques au lieu de varier bit 0/bit 1 (confirmé sur firmware v1.20.0 et v1.28.0). Corriger ça = audit cycle-exact de l'émulateur ARM — chantier profond et risqué (impact potentiel sur tout le timing CPU). Reporté.
+2. ✅ Bug réel trouvé et corrigé au passage (rp2040js, `node_modules`, patché via patch-package — `patches/rp2040js+1.3.2.patch`) : le diviseur d'horloge PIO (`SMx_CLKDIV`) n'était jamais appliqué (`clkDivRestart()` stub non implémenté), et le PIO tournait en boucle `setTimeout(0)` autonome déconnectée du temps simulé (même famille de bug que l'USB-CDC v2026.7.65). Corrigé : accumulateur fractionnaire honorant CLKDIV + `advance(sysCycles)` piloté par l'hôte (`pico.mts`, en phase avec `core.executeInstruction()` et les sauts WFE). Ne corrige pas le bug NeoPixel (item 1, cause différente) mais bénéficiera à tout futur usage du PIO. typecheck + build + verify:all OK, aucune régression (dont verify:micropython, sensible au cadencement temps réel).
 
 # v2026.7.81
 1. ✅ Chip fichier de code (v2026.7.78, retour Frank « Hallucination ? ») : DEUX bugs distincts trouvés (le code existait bien). (a) `sim.mts` réécrivait dynamiquement `codeFileBtn.title` avec d'anciennes clés anglaises différentes de celles traduites dans `panel.ts` → bulle toujours en anglais. Clé unifiée + ajoutée au bundle FR. (b) Séquence DOM `click`→`click`→`dblclick` : le simple clic (ouvre le sélecteur de fichier) s'exécutait systématiquement avant que le double-clic ne soit détecté, empêchant `openCodeFile` de jamais s'exécuter en pratique. `pickCodeFile` différé de 250 ms (fenêtre standard de double-clic), annulé si un `dblclick` survient entre-temps.

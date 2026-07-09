@@ -125,7 +125,14 @@ class KablixSimulator extends Simulator {
         }
         // Le compteur de cycles suit le saut (AVANT le tick : les fronts GPIO
         // déclenchés par les alarmes — PWM servo… — sont horodatés en cycles).
-        rp2040.core.cycles += n / CYCLE_NANOS;
+        const jumpCycles = n / CYCLE_NANOS;
+        rp2040.core.cycles += jumpCycles;
+        // PIO patché (KABLIX) : plus de setTimeout auto-cadencé, avancer
+        // manuellement pendant les sauts WFE sinon un state machine actif
+        // (ex. machine.bitstream d'un NeoPixel) se figerait pendant tout
+        // time.sleep() — le firmware attend justement la fin du bitstream.
+        rp2040.pio[0].advance(jumpCycles);
+        rp2040.pio[1].advance(jumpCycles);
         clock.tick(n);
         this.onTick?.();
       } else {
@@ -145,7 +152,10 @@ class KablixSimulator extends Simulator {
             budget = Math.min(budget, Math.max(0, this.nextScheduledNanos - (clock.nanos + nanos)));
           }
           if (nanos >= budget) break;
-          nanos += rp2040.core.executeInstruction() * CYCLE_NANOS;
+          const instrCycles = rp2040.core.executeInstruction();
+          rp2040.pio[0].advance(instrCycles);
+          rp2040.pio[1].advance(instrCycles);
+          nanos += instrCycles * CYCLE_NANOS;
         }
         clock.tick(nanos);
         this.onTick?.();

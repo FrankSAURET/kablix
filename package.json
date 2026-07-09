@@ -1,7 +1,7 @@
 {
   "name": "kablix",
   "displayName": "Kablix",
-  "version": "2026.7.81",
+  "version": "2026.7.82",
   "description": "%kablix.description%",
   "publisher": "franksauret",
   "author": {
@@ -153,6 +153,7 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run build",
+    "postinstall": "patch-package",
     "build": "node esbuild.js --production",
     "watch": "node esbuild.js --watch",
     "build:firmware": "node scripts/build-firmware.mjs",
@@ -182,6 +183,7 @@
     "@types/vscode": "1.85.0",
     "@vscode/vsce": "3.9.2",
     "esbuild": "0.28.0",
+    "patch-package": "^8.0.1",
     "typescript": "6.0.3"
   },
   "l10n": "./l10n"
