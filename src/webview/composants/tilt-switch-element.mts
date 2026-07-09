@@ -2,17 +2,26 @@
 // Balise <kablix-tilt-switch> (ex <wokwi-tilt-switch>). Licence d'origine : LICENSE-wokwi.md (même dossier).
 // Adaptations Kablix : sans décorateurs (static properties + declare + constructeur),
 // imports relatifs .mjs ; DESSIN retouché (./externe/tilt.svg, broches recalées sur la
-// grille de 10 px ; plus de pinScale, cf. catalog.mts). Le corps est isolé dans un
-// groupe `.tilt-shape` (voir tilt.svg) pour pouvoir le déformer sans bouger les broches.
+// grille de 10 px ; plus de pinScale, cf. catalog.mts).
 //   - PLUS de propriété d'état dans l'inspecteur : EN SIMULATION (attribut
-//     `simulating`), un CLIC sur le composant bascule l'inclinaison (tout ou rien,
-//     immédiat). Ctrl+clic = maintien permanent (comme le PIR) : bascule un état
-//     `sticky` qui garde `tilted` actif tant qu'on ne reclique pas Ctrl+clic.
-//     L'état `tilted` est relu par le moteur (event `input` à chaque changement).
-//     Déformation visuelle = bascule TRAPÉZOÏDALE (cf. tilt-incline.svg de Frank :
-//     le côté gauche du corps se resserre en haut/bas, le côté droit — proche des
-//     broches — reste fixe) via `transform: matrix()` sur `.tilt-shape`, PAS une
-//     rotation : les pattes et les fils ne bougent jamais.
+//     `simulating`) : MAINTENIR le clic incline (comme si on faisait vraiment
+//     basculer le composant du doigt) ; RELÂCHER annule la déformation et repasse
+//     `tilted` à false — sauf si Ctrl+clic a verrouillé l'inclinaison (`sticky`),
+//     auquel cas elle reste active jusqu'à un nouveau Ctrl+clic. L'état `tilted`
+//     est relu par le moteur (event `input` à chaque changement).
+//     Déformation visuelle = bascule TRAPÉZOÏDALE mesurée sur tilt-incline.svg de
+//     Frank (contour du boîtier : bord droit — proche des broches — quasi fixe,
+//     bord gauche resserré symétriquement d'environ 5 px en haut ET en bas). Un
+//     `matrix()` 2D affine unique ne peut pas produire ce resserrement symétrique
+//     (un skew ne penche que d'un côté) ; `perspective`+`rotateY` CSS a été
+//     essayé mais Chrome ne rend PAS les `<g>` SVG en 3D (transform reste
+//     l'identité, vérifié en headless — SVG n'établit pas de contexte de rendu
+//     3D hérité comme le HTML). Solution retenue : le SVG entier est dupliqué en
+//     deux copies superposées (`.tilt-stack`, voir render()), chacune rognée à
+//     une moitié (clip-path inset 50%) avec son propre skewY ancré sur le bord
+//     droit fixe — la copie du haut penche vers le bas, celle du bas vers le
+//     haut, recréant le trapèze symétrique mesuré. Les pattes/fils (broches
+//     `pinInfo`, fixes hors SVG) ne bougent jamais.
 import { css, html, LitElement } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin, GND, VCC } from './pin.mjs';
@@ -52,22 +61,41 @@ export class TiltSwitchElement extends LitElement {
       }
       .wrap {
         position: relative;
-      }
-      .tilt-svg {
         cursor: default;
       }
-      .wrap.simulating .tilt-svg {
+      .wrap.simulating {
         cursor: pointer;
       }
-      .tilt-shape {
-        transition: transform 0.15s ease;
+      /* Trapèze symétrique = deux copies superposées du même SVG (voir render()) :
+         .half-top montre seulement la moitié haute (clip-path), skewY ancré à
+         droite pour faire DESCENDRE le bord gauche haut ; .half-bottom montre la
+         moitié basse, skewY inverse pour faire REMONTER le bord gauche bas. Non
+         tiltées, les deux moitiés se recollent exactement (mêmes coordonnées),
+         visuellement identique à un SVG plat unique. */
+      .tilt-stack {
+        position: relative;
+        width: 105.82864px;
+        height: 60px;
+      }
+      .tilt-svg.half {
+        position: absolute;
+        top: 0;
+        left: 0;
+        transition: clip-path 0.15s ease, transform 0.15s ease;
+      }
+      .tilt-svg.half-top {
+        clip-path: inset(0 0 50% 0);
         transform-origin: 82.221863px 30px;
       }
-      .tilt-svg.tilted .tilt-shape {
-        /* Bascule trapézoïdale mesurée sur tilt-incline.svg (Frank) : bord droit
-           (x=82.22, côté broches) fixe, bord gauche (x=8.73) resserré d'environ
-           5 px en haut et en bas — approché par un skewY ancré à droite. */
-        transform: matrix(1, -0.068, 0, 0.83, 0, 5.1);
+      .tilt-svg.half-bottom {
+        clip-path: inset(50% 0 0 0);
+        transform-origin: 82.221863px 30px;
+      }
+      .tilt-svg.half-top.tilted {
+        transform: skewY(-6deg);
+      }
+      .tilt-svg.half-bottom.tilted {
+        transform: skewY(6deg);
       }
       .bubble {
         position: absolute;
@@ -107,42 +135,66 @@ export class TiltSwitchElement extends LitElement {
   private onLeave = () => {
     this.hovering = false;
   };
-  private onClick = (e: MouseEvent) => {
+  private onWindowPointerUp = () => {
+    window.removeEventListener('pointerup', this.onWindowPointerUp);
+    if (this.sticky) return;
+    this.setTilted(false);
+  };
+  private onPointerDown = (e: PointerEvent) => {
     if (!this.simulating) return;
     if (e.ctrlKey) {
+      // Ctrl+clic : verrouille/déverrouille l'inclinaison en permanence.
       this.sticky = !this.sticky;
       this.setTilted(this.sticky);
       return;
     }
-    if (this.sticky) {
-      this.sticky = false;
-    }
-    this.setTilted(!this.tilted);
+    if (this.sticky) return;
+    // Maintien du clic = incliné, comme si on faisait basculer le composant.
+    // Écoute sur window (pas juste l'élément) pour capter le relâchement même
+    // si le pointeur a quitté le composant entre-temps.
+    this.setTilted(true);
+    window.addEventListener('pointerup', this.onWindowPointerUp);
   };
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    window.removeEventListener('pointerup', this.onWindowPointerUp);
+  }
 
   render() {
     let bubble: string | null = null;
     if (this.simulating && this.hovering) {
       bubble = this.sticky
-        ? 'Cliquer pour incliner / Ctrl + clic pour arrêter le maintien'
-        : 'Cliquer pour incliner / Ctrl + clic pour maintenir incliné';
+        ? 'Maintenir le clic pour incliner / Ctrl + clic pour arrêter le maintien'
+        : 'Maintenir le clic pour incliner / Ctrl + clic pour verrouiller incliné';
     }
     return html`
       <div
         class="wrap ${this.simulating ? 'simulating' : ''}"
         @pointerenter=${this.onEnter}
         @pointerleave=${this.onLeave}
-        @click=${this.onClick}
+        @pointerdown=${this.onPointerDown}
       >
-        <svg
-          class="tilt-svg ${this.tilted ? 'tilted' : ''}"
-          width="105.82864"
-          height="60"
-          viewBox="0 0 105.82864 60"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          ${unsafeSVG(drawing)}
-        </svg>
+        <div class="tilt-stack">
+          <svg
+            class="tilt-svg half half-top ${this.tilted ? 'tilted' : ''}"
+            width="105.82864"
+            height="60"
+            viewBox="0 0 105.82864 60"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            ${unsafeSVG(drawing)}
+          </svg>
+          <svg
+            class="tilt-svg half half-bottom ${this.tilted ? 'tilted' : ''}"
+            width="105.82864"
+            height="60"
+            viewBox="0 0 105.82864 60"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            ${unsafeSVG(drawing)}
+          </svg>
+        </div>
         ${bubble ? html`<div class="bubble">${bubble}</div>` : null}
       </div>
     `;

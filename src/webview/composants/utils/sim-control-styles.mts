@@ -13,6 +13,16 @@ export const simControlStyles = css`
     font: 10px sans-serif;
     color: #333;
   }
+  /* Zone blanche semi-transparente sous le texte (label + valeur) : en
+     simulation le composant passe au-dessus de tout (fils, voisins — cf.
+     part--sim-active), le texte sombre devenait illisible sur un fond
+     similaire sans ce contraste. */
+  .sim-control label,
+  .sim-control .val {
+    background: rgba(255, 255, 255, 0.75);
+    border-radius: 2px;
+    padding: 0 2px;
+  }
   .sim-control label {
     white-space: nowrap;
   }

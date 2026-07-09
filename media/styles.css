@@ -809,12 +809,16 @@ textarea {
    clic élargie en ::after. Bordure blanche + ombre portée (comme .wire-handle)
    pour rester visible même sur un fil de couleur proche (bleu/vert dupont) —
    sans ce contraste le point de 2 px se fondait dans le tracé et semblait
-   « disparu ». */
+   « disparu ». border-box : la bordure ne s'ajoute pas à width/height, donc
+   le margin négatif (moitié de la boîte totale) recentre bien sur le point
+   de connexion — sans ça la bordure de 1px décalait la pastille visible en
+   bas à droite du point réel. */
 .wire-endpoint {
   position: absolute;
-  width: 2px;
-  height: 2px;
-  margin: -1px 0 0 -1px;
+  box-sizing: border-box;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
   background: var(--vscode-focusBorder, #4fa3ff);
   border: 1px solid #ffffff;
   border-radius: 50%;

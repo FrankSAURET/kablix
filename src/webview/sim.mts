@@ -1762,13 +1762,27 @@ function boardLabel(b: BoardId): string {
 }
 
 // --- Fichier de code à exécuter / déboguer (chip sur le canvas) ---------------
+// Un double-clic déclenche d'abord 2 événements « click » avant le « dblclick » :
+// sans délai, le 1er click ouvrirait déjà la boîte de dialogue « choisir un
+// fichier » avant que le double-clic ait pu être détecté. On retarde donc
+// pickCodeFile le temps de la fenêtre de détection du double-clic (délai
+// standard navigateur) et on l'annule si un dblclick survient entre-temps.
+let codeFileClickTimer: ReturnType<typeof setTimeout> | null = null;
 codeFileBtn.addEventListener('click', () => {
-  vscode.postMessage({ type: 'pickCodeFile' });
+  if (codeFileClickTimer !== null) clearTimeout(codeFileClickTimer);
+  codeFileClickTimer = setTimeout(() => {
+    codeFileClickTimer = null;
+    vscode.postMessage({ type: 'pickCodeFile' });
+  }, 250);
 });
 // Double-clic : ouvre le fichier dans l'éditeur (volet de gauche) au lieu d'en
 // choisir un autre.
 codeFileBtn.addEventListener('dblclick', (e) => {
   e.preventDefault();
+  if (codeFileClickTimer !== null) {
+    clearTimeout(codeFileClickTimer);
+    codeFileClickTimer = null;
+  }
   vscode.postMessage({ type: 'openCodeFile' });
 });
 
@@ -1859,8 +1873,8 @@ window.addEventListener('message', (event: MessageEvent) => {
       // Aucun fichier choisi : bouton en jaune sur rouge (avertissement).
       codeFileBtn.classList.toggle('canvas-controls__file--nofile', !hasCodeFile);
       codeFileBtn.title = name
-        ? t('Code file: {0} — click to change', name)
-        : t('Code file to run / debug — click to change');
+        ? t('Code file: {0} — click to change, double-click to open', name)
+        : t('Code file to run / debug — click to change, double-click to open');
       break;
     }
     case 'projectName': {

@@ -28,6 +28,7 @@ export class PIRMotionSensorElement extends LitElement {
     simulating: { type: Boolean },
     hovering: { state: true },
     sticky: { state: true },
+    bubblePos: { state: true },
   };
 
   constructor() {
@@ -35,9 +36,12 @@ export class PIRMotionSensorElement extends LitElement {
     this.simulating = false;
     this.hovering = false;
     this.sticky = false;
+    this.bubblePos = null;
   }
 
   private lastPos: { x: number; y: number } | null = null;
+  /** Position souris relative au composant (pour la bulle qui la suit), ou null hors survol. */
+  declare bubblePos: { x: number; y: number } | null;
   private graceTimer: ReturnType<typeof setTimeout> | null = null;
 
   private clearGraceTimer(): void {
@@ -63,11 +67,11 @@ export class PIRMotionSensorElement extends LitElement {
     return css`
       :host { display: inline-block; }
       .wrap { position: relative; }
+      /* Bulle façon tooltip qui suit le curseur (left/top posés dynamiquement
+         par le composant, décalée au-dessus-à-droite du pointeur). */
       .bubble {
         position: absolute;
-        top: -6px;
-        left: 50%;
-        transform: translate(-50%, -100%);
+        transform: translate(8px, -100%);
         background: #222;
         color: #fff;
         font: 10px sans-serif;
@@ -75,15 +79,7 @@ export class PIRMotionSensorElement extends LitElement {
         border-radius: 4px;
         white-space: nowrap;
         pointer-events: none;
-      }
-      .bubble::after {
-        content: '';
-        position: absolute;
-        top: 100%;
-        left: 50%;
-        transform: translateX(-50%);
-        border: 4px solid transparent;
-        border-top-color: #222;
+        z-index: 10;
       }
       /* Bulle jaune façon tooltip natif du navigateur (title), pour la mention
          « Détecte les mouvements de la souris » seulement (choix Frank). */
@@ -94,9 +90,6 @@ export class PIRMotionSensorElement extends LitElement {
         border-radius: 2px;
         font: 11px sans-serif;
       }
-      .bubble.native::after {
-        border-top-color: #888;
-      }
     `;
   }
 
@@ -106,10 +99,15 @@ export class PIRMotionSensorElement extends LitElement {
   private onLeave = () => {
     this.hovering = false;
     this.lastPos = null;
+    this.bubblePos = null;
     this.clearGraceTimer();
   };
   private onMove = (e: PointerEvent) => {
     if (!this.simulating) return;
+    // Position relative au composant (coin haut-gauche de son rectangle) :
+    // la bulle suit le curseur au lieu de rester plaquée en haut du dessin.
+    const rect = this.getBoundingClientRect();
+    this.bubblePos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
     const prev = this.lastPos;
     this.lastPos = { x: e.clientX, y: e.clientY };
     // Pas un vrai mouvement (arrivée sur l'élément, ou position identique) : ne
@@ -136,16 +134,18 @@ export class PIRMotionSensorElement extends LitElement {
 
   render() {
     const active = this.motion;
+    // La bulle n'apparaît qu'au survol effectif (ou en sticky, état permanent
+    // qu'il reste utile de rappeler même souris partie) — plus d'affichage
+    // fixe hors survol.
     let bubble: string | null = null;
     let native = false;
     if (this.sticky) {
       bubble = 'Mouvement permanent (Ctrl+clic pour arrêter)';
     } else if (this.hovering) {
-      bubble = 'Détecte les mouvements de la souris';
+      bubble = 'Détecte les mouvements de la souris — Ctrl+clic pour un mouvement permanent';
       native = true;
-    } else if (this.simulating) {
-      bubble = 'Ctrl+clic pour un mouvement permanent';
     }
+    const showAtCursor = bubble !== null && this.bubblePos !== null;
     return html`
       <div
         class="wrap"
@@ -160,7 +160,16 @@ export class PIRMotionSensorElement extends LitElement {
             ? html`<circle cx="50" cy="50" r="8" fill="#ff5252" opacity="0.8" />`
             : null}
         </svg>
-        ${bubble ? html`<div class="bubble ${native ? 'native' : ''}">${bubble}</div>` : null}
+        ${bubble
+          ? html`<div
+              class="bubble ${native ? 'native' : ''}"
+              style=${showAtCursor
+                ? `left:${this.bubblePos!.x}px;top:${this.bubblePos!.y}px`
+                : 'left:50%;top:0;transform:translate(-50%,-100%)'}
+            >
+              ${bubble}
+            </div>`
+          : null}
       </div>
     `;
   }
