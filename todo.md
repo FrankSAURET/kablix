@@ -1,18 +1,20 @@
 # À faire
 1. (noté pour plus tard je dois préciser) Faire un visualisateur virtuel ou utiliser teleplot
 2. (noté pour plus tard je dois préciser) ajouter une LDR, une CTN, une CTP avec paramètres + simulation qui prends en compte les résistances
-3. Quand on sélectionne un fil, un point de 2 px de diametre doit apparaitre à ses 2 extrémitées afin de signaler qu'on peut débrancher (il a encore disparu)
-4. la bulle du bouton REPL doit être traduite
-5. un double clic sur le nom du fichier de simulation l'ouvre dans le volet de gauche (à gauche de kablix)
-6. Le chargement d'un projix doit couper la simulation en cours
-7. Le dht22 ne marche pas la commande capteur = dht.DHT22(Pin(13)) génère une erreur.
-8. Anneau neopixel ne marche toujours pas. De plus les variables r,g,b ne sont jamais affichés en mode pas à pas. Demande moi mon programme de test.
-9. vss de neopixel est une patte gnd qui doit passer le fil en noir
-10. neopixel ne marche pas non plus (la led unique)
-11. Matrice neopixel ne marche pas non plus.
-12. oled display(ssd1306)  ne marche pas non plus. Rien d'affiché. je peux te passer le prg de test et la librairie. Testé en i2c.
-13. TFT display ne marche pas non plus.
+3. la bulle du bouton REPL doit être traduite
+4. un double clic sur le nom du fichier de simulation l'ouvre dans le volet de gauche (à gauche de kablix)
+5. Le chargement d'un projix doit couper la simulation en cours
+6. Le dht22 ne marche pas la commande capteur = dht.DHT22(Pin(13)) génère une erreur.
+7. Anneau neopixel ne marche toujours pas. De plus les variables r,g,b ne sont jamais affichés en mode pas à pas. Demande moi mon programme de test.
+8. vss de neopixel est une patte gnd qui doit passer le fil en noir
+9. neopixel ne marche pas non plus (la led unique)
+10. Matrice neopixel ne marche pas non plus.
+11. oled display(ssd1306)  ne marche pas non plus. Rien d'affiché. je peux te passer le prg de test et la librairie. Testé en i2c.
+12. TFT display ne marche pas non plus.
 
+
+# v2026.7.76
+1. ✅ Point de 2 px aux extrémités d'un fil sélectionné (signale qu'on peut débrancher) : le point existait bien dans le DOM (`.wire-endpoint`, `buildEndpointHandles`, editor.mts — code jamais cassé depuis son introduction v2026.6.29) mais avait perdu toute bordure/ombre en v2026.6.40 (réduit de 12px à 2px « discret »), le laissant visuellement invisible sur un fil de couleur proche (bleu/vert dupont) — d'où l'impression de disparition totale. Ajout d'une bordure blanche 1px + ombre portée (media/styles.css, `.wire-endpoint`), même traitement que `.wire-handle` (poignées de coude, déjà contrastées « sur n'importe quel fond »). Taille du point inchangée (2px), zone de clic élargie (`::after`) inchangée. Vérifié : `buildHandles`/`buildEndpointHandles` créent bien les 2 poignées en rendu réel (composants + editor bundlés ensemble) avec le nouveau style calculé (bordure blanche, box-shadow noire, 2px, z-index 8) — la capture visuelle headless synthétique n'a pas pu confirmer le rendu final des web components (Lit ne s'affiche pas dans cet environnement de test), à confirmer en usage réel.
 
 # v2026.7.75
 1. ✅ Bandeau « ⚠ Simulation en cours : édition désactivée » : était centré à la même hauteur (top:8px) que les 2 barres d'outils du canvas (« entre » elles), ce qui le faisait apparaitre à côté plutôt que rattaché à la barre de simulation. Repositionné en dessous de la barre de simulation (gauche) : `top: 46px` au lieu de `8px` (media/styles.css, `.sim-banner`). Vérifié en rendu Chrome headless : aucun chevauchement avec les boutons.

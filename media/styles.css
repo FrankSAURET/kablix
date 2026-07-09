@@ -805,15 +805,20 @@ textarea {
   box-shadow: 0 0 3px 1px rgba(0, 0, 0, 0.9);
 }
 
-/* Poignée d'extrémité d'un fil : losange blanc cerclé, glissable sur une broche. */
-/* Poignée d'extrémité minuscule (~1 px visible) ; zone de clic élargie en ::after. */
+/* Poignée d'extrémité d'un fil : petit point, glissable sur une broche. Zone de
+   clic élargie en ::after. Bordure blanche + ombre portée (comme .wire-handle)
+   pour rester visible même sur un fil de couleur proche (bleu/vert dupont) —
+   sans ce contraste le point de 2 px se fondait dans le tracé et semblait
+   « disparu ». */
 .wire-endpoint {
   position: absolute;
   width: 2px;
   height: 2px;
   margin: -1px 0 0 -1px;
   background: var(--vscode-focusBorder, #4fa3ff);
+  border: 1px solid #ffffff;
   border-radius: 50%;
+  box-shadow: 0 0 2px 1px rgba(0, 0, 0, 0.85);
   cursor: grab;
   z-index: 8;
 }
