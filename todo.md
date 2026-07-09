@@ -1,9 +1,20 @@
 # À faire
 1. Nano : retoucher nano-pinout.svg (module central redimensionné) puis réactiver le poster dans pinout.mts
-2. Servo : test qui s'exécute très lentement — SI le problème persiste, m'envoyer ton programme de test (delay/refresh/avr8js à diagnostiquer). Le débordement du bras est déjà corrigé (v49).
+2. Le message "simulation en cours" dois changer pour "simulation en cours : édition désactivée"
+3. le texte bulle du bouton k doit être traduit
+4. Quand un composant change de cablage avec les propriété (K ou A commune par exemple) le changement doit être dynamique si le cablage est affiché.
+5. Si on change la taille de l'afficheur (2 -> 4 digit par exemple). Si le cablage interne est affiché il n'a pas la bonne taille il faut le masquer puis le réafficher. Pareil pour le clavier.
+6. Le texte des broches sur les clavier est trés épais. Il faut je pense réduire l'épaisseur du contour voire la supprimer
+7. Le pir  détecte la souris au dessus de lui pas ses mouvements. Ajoute une tolérance à la détectiondu mouvement de la souris
+
+# v2026.7.65
+1. ✅ Simulation Pico 4× trop lente (programme servo de Frank : sleep(0.5) durait ~2 s) — cause racine : quand MicroPython arme le endpoint USB OUT du CDC sans données côté hôte, rp2040js répondait « transfert vide » en 10 µs et TinyUSB réarmait aussitôt → une IRQ toutes les ~25 µs simulées qui avortait chaque WFE. time.sleep() était une boucle chaude (20 000 réveils par 0,5 s). Correctif : réponse à la cadence d'un vrai hôte USB full-speed (1 ms) → 500 réveils, le firmware dort vraiment.
+2. ✅ Cadencement TEMPS RÉEL du simulateur Pico (KablixSimulator) : ancre temps réel ↔ temps simulé. Sans elle, les sleep (désormais de vrais sauts d'horloge) s'écouleraient quasi instantanément ; avec elle, sleep(0.5) dure ~0,5 s réelle (mesuré 0,47-0,51 s par pas sur le balayage servo). Le code calculatoire reste sous le temps réel (plafond interpréteur rp2040js) : retard > 50 ms → ré-ancrage sans dette (pas de rattrapage qui escamoterait les sleep suivants).
+3. ✅ `core.cycles` avance maintenant pendant les sauts WFE (bump AVANT le tick d'horloge) : la mesure d'impulsions servo/PWM/WS2812 (horodatée en cycles) reste juste PENDANT les sleep — vérifié : impulsions 500→2500 µs mesurées pendant le balayage 0→180°. Bonus : verify:micropython passe à 0,6 s ; le REPL inactif ne brûle plus 100 % CPU. verify:all OK.
+
 # v2026.7.64
 1. ✅ Servo : les 3 palonniers dessinés par Frank (horn-single = 1 branche, horn-double = 2, horn-cross = 4) sont intégrés ; feuille figée à 160×140 (lue dans le SVG). Chaque forme tourne autour de l'axe (calé sur le rond central via le translate Inkscape). Rendu headless validé (3 formes × 0/90/180°).
-2. ✅ Broches recalées : Frank a déplacé le groupe `pins` (translate −9,5 ; −20,25) → pinInfo passé à GND(10,60) / V+(10,70) / PWM(10,80), arrondi sur la grille 10 px.
+1. ✅ Broches recalées : Frank a déplacé le groupe `pins` (translate −9,5 ; −20,25) → pinInfo passé à GND(10,60) / V+(10,70) / PWM(10,80), arrondi sur la grille 10 px.
 
 # v2026.7.63
 1. ✅ Servo : passage à TROIS palonniers dessinés à la main (`horn-single/double/cross`) au lieu de la duplication par le code. Les 3 groupes sont pré-remplis avec une copie du bras actuel de Frank (à compléter pour double/cross, cf. à faire n°3). Le composant affiche le groupe choisi et le tourne autour de l'axe selon l'angle simulé ; la taille de feuille (viewBox) reste lue dans le fichier (ajustable). Rendu headless validé (3 formes × angles).

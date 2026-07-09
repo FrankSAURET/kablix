@@ -1,6 +1,5 @@
 Pour moi :
-- Faire schéma interne pour afficheur 2 et 4
-- Retoucher schéma interne claviers
+- 
 
 ------------------------------------------------------------------------------------------------------
 - La pastille jaune qui apparait pour connecter un point doit apparaitre dés qu'on est dans so périmetre actuellement elle disparait si on est en son centre.

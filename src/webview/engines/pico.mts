@@ -57,6 +57,14 @@ class KablixSimulator extends Simulator {
   /** Génération de planification : invalide les yields MessageChannel en vol. */
   private gen = 0;
   private readonly port: MessagePort;
+  // Cadencement temps réel : ancre temps réel ↔ temps simulé. Sans elle, les
+  // périodes où le cœur dort (WFE + saut d'alarme) s'écouleraient quasi
+  // instantanément — un time.sleep(0.5) semblerait durer 0 s. Inversement le
+  // code calculatoire reste sous le temps réel (plafond de l'interpréteur) :
+  // un retard irrattrapable ré-ancre sans dette, sinon les sleep suivants
+  // seraient escamotés pour « rattraper » le retard accumulé.
+  private paceWall = 0;
+  private paceSim = 0;
 
   constructor() {
     super();
@@ -78,7 +86,19 @@ class KablixSimulator extends Simulator {
     this.stopped = false;
     const deadline = Date.now() + 16; // budget réel par tranche (fluidité UI)
     let idle = false;
-    while (!this.stopped && Date.now() < deadline) {
+    let napMs = 0; // simulation en avance sur le réel : durée à laisser passer
+    while (!this.stopped) {
+      const now = Date.now();
+      if (now >= deadline) break;
+      const aheadMs = (clock.nanos - this.paceSim) / 1e6 - (now - this.paceWall);
+      if (aheadMs > 8) {
+        napMs = Math.min(aheadMs - 4, 40);
+        break;
+      }
+      if (aheadMs < -50) {
+        this.paceWall = now;
+        this.paceSim = clock.nanos;
+      }
       if (rp2040.core.waiting) {
         const n = clock.nanosToNextAlarm;
         if (n <= 0) {
@@ -87,6 +107,9 @@ class KablixSimulator extends Simulator {
           idle = true;
           break;
         }
+        // Le compteur de cycles suit le saut (AVANT le tick : les fronts GPIO
+        // déclenchés par les alarmes — PWM servo… — sont horodatés en cycles).
+        rp2040.core.cycles += n / CYCLE_NANOS;
         clock.tick(n);
       } else {
         // Lot d'instructions jusqu'à la prochaine alarme (≤ 1 ms simulée).
@@ -100,8 +123,8 @@ class KablixSimulator extends Simulator {
       }
     }
     if (this.stopped) return;
-    if (idle) {
-      this.executeTimer = setTimeout(() => this.execute(), 1);
+    if (idle || napMs > 0) {
+      this.executeTimer = setTimeout(() => this.execute(), idle ? 1 : napMs);
     } else {
       this.port.postMessage(++this.gen);
     }
@@ -208,6 +231,24 @@ export class PicoEngine implements SimEngine {
       this.cdc = new USBCDC(this.mcu.usbCtrl);
       this.cdc.onSerialData = (buffer) => this.onCdcData(buffer);
       this.cdc.onDeviceConnected = () => this.onCdcConnected();
+
+      // Anti-tempête USB : quand le firmware arme le endpoint OUT du CDC sans
+      // qu'aucun octet n'attende côté hôte, rp2040js répond « transfert vide »
+      // au bout de 10 µs et TinyUSB réarme aussitôt — une IRQ toutes les
+      // ~25 µs simulées qui avorte chaque WFE. time.sleep() devenait une
+      // boucle chaude (~4× le temps réel). On répond à la cadence d'un vrai
+      // hôte full-speed (trame de 1 ms) : le firmware dort vraiment entre deux.
+      const usb = this.mcu.usbCtrl;
+      const cdcEndpointRead = usb.onEndpointRead;
+      const cdcInternals = this.cdc as unknown as { outEndpoint: number };
+      const emptyOut = new Uint8Array(0);
+      usb.onEndpointRead = (endpoint, byteCount) => {
+        if (endpoint === cdcInternals.outEndpoint && this.cdc!.txFIFO.itemCount === 0) {
+          usb.endpointReadDone(endpoint, emptyOut, 1000);
+        } else {
+          cdcEndpointRead?.(endpoint, byteCount);
+        }
+      };
 
       // Démarrage identique au bootrom réel : exécution de boot2 en début de flash.
       this.mcu.core.PC = FLASH_START;
