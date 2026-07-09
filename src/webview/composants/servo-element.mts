@@ -2,13 +2,14 @@
 // Balise <kablix-servo> (ex <wokwi-servo>). Licence d'origine : LICENSE-wokwi.md (même dossier).
 // Adaptations Kablix : le DESSIN vient du fichier RETOUCHABLE ./externe/servo.edit.svg.
 //   - <g id="body">    : corps du servo.
-//   - <g id="horn-arm"> : UN SEUL bras (vers le haut). Le composant le DUPLIQUE en
-//                         1 / 2 / 4 branches selon `horn` (single/double/cross).
+//   - <g id="horn-single|double|cross"> : les TROIS palonniers, chacun DESSINÉ à
+//     la main par Frank (au repos). Le composant affiche celui choisi (`horn`) et
+//     le tourne autour de l'axe selon l'angle simulé.
 //   - <g id="axis">    : marqueur (croix magenta) = centre de rotation, lu ici.
 //   - <g id="grid"> / <g id="pins"> : repères, ignorés au rendu.
 //   Le viewBox (taille de feuille) est repris tel quel du fichier : Frank peut
-//   l'ajuster pour laisser juste la place à la rotation complète du bras.
-import { html, LitElement, svg } from 'lit';
+//   l'ajuster librement.
+import { html, LitElement } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
 import editDrawing from './externe/servo.edit.svg';
@@ -65,15 +66,14 @@ function readAxis(svgText: string, fallback: { x: number; y: number }): { x: num
 
 const VB = readViewBox(cleanDrawing);
 const BODY = extractGroup(cleanDrawing, 'body');
-const ARM = extractGroup(cleanDrawing, 'horn-arm');
-const AXIS = readAxis(cleanDrawing, { x: VB.x + VB.w / 2, y: VB.y + VB.h / 2 });
-
-/** Nombre de branches par forme de palonnier. */
-const HORN_ANGLES: Record<string, number[]> = {
-  single: [0],
-  double: [0, 180],
-  cross: [0, 90, 180, 270],
+// Trois palonniers DESSINÉS à la main par Frank dans le .edit.svg (chacun au
+// repos). Le code affiche celui choisi et le tourne autour de l'axe.
+const HORNS: Record<string, string> = {
+  single: extractGroup(cleanDrawing, 'horn-single'),
+  double: extractGroup(cleanDrawing, 'horn-double'),
+  cross: extractGroup(cleanDrawing, 'horn-cross'),
 };
+const AXIS = readAxis(cleanDrawing, { x: VB.x + VB.w / 2, y: VB.y + VB.h / 2 });
 
 export class ServoElement extends LitElement {
   declare angle: number;
@@ -102,12 +102,7 @@ export class ServoElement extends LitElement {
   ];
 
   render() {
-    const branches = HORN_ANGLES[this.horn] ?? HORN_ANGLES.single;
-    // Bras dupliqué à chaque angle de branche, l'ensemble tourné de `angle`, tout
-    // autour de l'axe (le bras source pointe vers le haut = branche à 0°).
-    const arms = branches.map(
-      (b) => svg`<g transform=${`rotate(${b} ${AXIS.x} ${AXIS.y})`}>${unsafeSVG(ARM)}</g>`,
-    );
+    const horn = HORNS[this.horn] ?? HORNS.single;
     return html`
       <svg
         width=${VB.w}
@@ -116,7 +111,7 @@ export class ServoElement extends LitElement {
         xmlns="http://www.w3.org/2000/svg"
       >
         ${unsafeSVG(BODY)}
-        <g transform=${`rotate(${this.angle ?? 0} ${AXIS.x} ${AXIS.y})`}>${arms}</g>
+        <g transform=${`rotate(${this.angle ?? 0} ${AXIS.x} ${AXIS.y})`}>${unsafeSVG(horn)}</g>
       </svg>
     `;
   }

@@ -1,20 +1,19 @@
-// Génère externe/servo.edit.svg (retouchable par Frank).
-// Structure « un seul bras » : le composant duplique/pivote ce bras pour faire
-// 1 / 2 / 4 branches (single / double / cross) et tourne l'ensemble autour de l'axe.
-// Groupes du fichier :
-//   - body    : corps du servo (dessin d'origine, sans l'ancien long palonnier).
-//   - horn-arm: UN SEUL bras, pointant vers le HAUT depuis l'axe. Frank le retouche ;
-//               le code le duplique à 0/90/180/270°.
-//   - axis    : marqueur (croix rouge) = centre de rotation. Frank le pose sur le
-//               vrai axe du servo ; le code lit sa position.
-//   - grid / pins : repères (grille + pastilles pin-*), retirés par le composant.
-// Feuille agrandie (assez pour une rotation complète du bras autour de l'axe).
-import { readFileSync, writeFileSync } from 'node:fs';
+// OBSOLÈTE — NE PAS RELANCER tel quel : ce générateur produit l'ANCIENNE structure
+// (un seul bras horn-arm) et ÉCRASERAIT le servo.edit.svg dessiné à la main par Frank
+// (corps + 3 palonniers horn-single/double/cross + axe). Conservé pour référence /
+// pour repartir de zéro. Il refuse d'écraser un fichier existant (garde ci-dessous ;
+// forcer avec --force en toute connaissance de cause).
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const EXT = join(ROOT, 'src/webview/composants/externe');
+
+if (existsSync(join(EXT, 'servo.edit.svg')) && !process.argv.includes('--force')) {
+  console.error('REFUS : externe/servo.edit.svg existe (dessin de Frank). Générateur OBSOLÈTE — --force pour écraser.');
+  process.exit(1);
+}
 
 const src = readFileSync(join(EXT, 'servo.svg'), 'utf8');
 
