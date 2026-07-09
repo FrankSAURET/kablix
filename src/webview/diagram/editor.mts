@@ -199,8 +199,6 @@ export class Editor {
   private activeHandle: { wireId: string; index: number } | null = null;
   /** Verrou pendant la simulation : pas d'édition du schéma (sélection/déplacement/câblage). */
   private locked = false;
-  /** Bandeau d'avertissement « câblage verrouillé » affiché pendant la simulation. */
-  private lockWarning: HTMLDivElement | null = null;
   /** Pile d'annulation (états sérialisés du schéma) et position courante. */
   private history: string[] = [];
   private historyIndex = -1;
@@ -323,7 +321,8 @@ export class Editor {
       this.select(null);
     }
     this.canvas.classList.toggle('canvas--locked', locked);
-    this.showLockWarning(locked);
+    // Le bandeau d'avertissement de la palette a été remplacé par un bandeau
+    // permanent entre les barres d'outils (géré par sim.mts).
     // Bulle des boutons et claviers : « Ctrl+clic… » en simulation, sinon déplacement.
     for (const r of this.rendered.values()) {
       if (this.isLockable(r.part.type)) {
@@ -349,25 +348,6 @@ export class Editor {
     return type === 'joystick'
       ? t('Ctrl+click to lock the position')
       : t('Ctrl+click to lock the unstable state');
-  }
-
-  /**
-   * Bandeau d'avertissement (persistant) signalant le câblage verrouillé pendant
-   * la simulation (AVR comme RP2040). Placé en tête de la bibliothèque (zone non
-   * utilisée pendant la simulation) ; sa largeur est bornée par celle du panneau.
-   */
-  private showLockWarning(show: boolean): void {
-    // `buildPalette()` vide la palette (replaceChildren) et détache le bandeau :
-    // on le recrée/réinsère dès qu'il n'est plus rattaché, sinon il disparaît
-    // après la moindre reconstruction de la palette pendant la simulation.
-    if (!this.lockWarning || !this.lockWarning.isConnected) {
-      const w = this.lockWarning ?? document.createElement('div');
-      w.className = 'palette__lock-warning';
-      w.textContent = t('⚠ Simulation running: wiring is locked.');
-      this.palette.insertBefore(w, this.palette.firstChild);
-      this.lockWarning = w;
-    }
-    this.lockWarning.hidden = !show;
   }
 
   isLocked(): boolean {
@@ -986,10 +966,6 @@ export class Editor {
     });
     importBtn.addEventListener('click', () => fileInput.click());
     this.palette.append(importBtn, fileInput);
-
-    // La palette vient d'être reconstruite : on réinsère le bandeau de verrou si
-    // la simulation est en cours (sinon il a été emporté par replaceChildren).
-    if (this.locked) this.showLockWarning(true);
 
     this.filterPalette();
   }

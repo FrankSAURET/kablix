@@ -2,7 +2,10 @@
 1. Nano : retoucher nano-pinout.svg (module central redimensionné) puis réactiver le poster dans pinout.mts
 2. Servo : test qui s'exécute très lentement — SI le problème persiste, m'envoyer ton programme de test (delay/refresh/avr8js à diagnostiquer). Le débordement du bras est déjà corrigé (v49).
 3. Retoucher externe/servo.edit.svg (Inkscape) : recaler pastilles pin-* face aux fils, corps sous l'axe, palonniers. Puis me le dire pour recaler pinInfo.
-4. Le "simulation en cours" sur la souris ne va pas : je préfère un message ROUGE sur JAUNE PERMANENT, entre les 2 barres d'outils, avec la même mention que celui de la barre de composants — qu'on supprimerait.
+
+# v2026.7.60
+1. ✅ Message « Simulation en cours » revu (item « le message sur la souris ne va pas ») : bandeau PERMANENT rouge sur jaune, centré en haut du canvas ENTRE les deux barres d'outils (`#sim-banner`, même hauteur top:8px), visible pendant toute la simulation. Clignote 3× (inversion rouge↔jaune) sur tentative d'édition interdite (`onBlockedEdit`).
+2. ✅ Supprimés : l'ancien message flottant qui suivait le curseur (v57) ET le bandeau d'avertissement de la palette (`showLockWarning` + propriété `lockWarning` retirés d'editor.mts, plus réinséré au rebuild de la palette).
 
 # v2026.7.59
 1. ✅ Servo : dessin sorti dans `externe/servo.edit.svg` (RETOUCHABLE par Frank), un seul fichier « tout compris » — groupes `body` + `horn-single/double/cross` + repères `grid`/`pins` (pastilles pin-GND/V+/PWM). Boîte agrandie 170×125 conservée. AXE (moyeu) RECENTRÉ au centre de la boîte (85 ; 62.5) : corps + palonniers décalés en conséquence. Généré par `scripts/make-servo-edit.mjs`.

@@ -1013,6 +1013,10 @@ export class SimulatorPanel {
           <button id="reset-sim" class="canvas-controls__btn canvas-controls__btn--reset" title="${l10n.t('Reset all components')}">⟲</button>
           <button id="clear-canvas" class="canvas-controls__btn canvas-controls__btn--eraser" title="${l10n.t('Clear the diagram (Ctrl+Z to undo)')}"><img class="canvas__clear-icon" src="${gommeUri}" alt="${l10n.t('Clear')}" /></button>
         </div>
+        <!-- Bandeau permanent « Simulation en cours » (rouge sur jaune), entre les
+             deux barres d'outils. Visible pendant la simulation ; clignote sur
+             tentative d'édition interdite. -->
+        <div id="sim-banner" class="sim-banner" hidden></div>
         <svg id="wires" class="wires"></svg>
       </div>
       <div class="splitter" id="splitter-inspector" data-target="inspector" title="${l10n.t('Drag to resize')}"></div>

@@ -628,28 +628,32 @@ textarea {
   box-shadow: 0 0 0 2px var(--vscode-focusBorder, #4fa3ff);
 }
 
-/* Message flottant « Simulation en cours » : suit le curseur pendant la
-   simulation, clignote 3× (rouge) si une action d'édition interdite est tentée. */
-.sim-toast {
-  position: fixed;
-  z-index: 9999;
+/* Bandeau permanent « Simulation en cours » : rouge sur jaune, centré en haut du
+   canvas (entre les deux barres d'outils, même hauteur top:8px). Visible pendant
+   toute la simulation ; clignote 3× sur tentative d'édition interdite. */
+.sim-banner {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 8;
   pointer-events: none;
-  padding: 3px 8px;
-  border-radius: 5px;
-  font: 600 12px/1.2 sans-serif;
-  color: #fff;
-  background: rgba(40, 40, 40, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 5px 12px;
+  border-radius: 8px;
+  font: 700 12px/1.2 sans-serif;
+  color: #c00000;
+  background: #ffe000;
+  border: 1px solid #c00000;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
   white-space: nowrap;
 }
-.sim-toast--blink {
-  animation: sim-toast-blink 0.9s steps(1, end) 1;
+.sim-banner--blink {
+  animation: sim-banner-blink 0.9s steps(1, end) 1;
 }
-@keyframes sim-toast-blink {
-  0%, 100% { background: rgba(40, 40, 40, 0.9); }
-  15%, 48%, 81% { background: #d33; border-color: #ff8a8a; }
-  32%, 65%, 98% { background: rgba(40, 40, 40, 0.9); }
+@keyframes sim-banner-blink {
+  0%, 100% { color: #c00000; background: #ffe000; }
+  15%, 48%, 81% { color: #ffe000; background: #c00000; }
+  32%, 65%, 98% { color: #c00000; background: #ffe000; }
 }
 
 .canvas-controls__speed {
