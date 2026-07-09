@@ -1,13 +1,18 @@
 # À faire
-1. Nano : retoucher nano-pinout.svg (module central redimensionné) puis réactiver le poster dans pinout.mts
-2. Le message "simulation en cours" dois changer pour "simulation en cours : édition désactivée"
-3. le texte bulle du bouton k doit être traduit
-4. Quand un composant change de cablage avec les propriété (K ou A commune par exemple) le changement doit être dynamique si le cablage est affiché.
-5. Si on change la taille de l'afficheur (2 -> 4 digit par exemple). Si le cablage interne est affiché il n'a pas la bonne taille il faut le masquer puis le réafficher. Pareil pour le clavier.
-6. Le texte des broches sur les clavier est trés épais. Il faut je pense réduire l'épaisseur du contour voire la supprimer
-7. Le pir  détecte la souris au dessus de lui pas ses mouvements. Ajoute une tolérance à la détectiondu mouvement de la souris. "Ctrl+clic pour un mouvement permanent" apparait dans la bulle de la souris en simulation si on passe sur le PIR. En  simulation un texte "Détecte les mouvements de la souris" doit apparaitre à la place du message "Mouvement permanent (Ctrl+clic pour arrêter)". Ce dernier message remplacera "Détecte les mouvements de la souris" mors d'un appuis sur ctrl+clic et on reviendra à "Détecte les mouvements de la souris" lors du ctrl+clic suivant.
+1. Le message "simulation en cours" dois changer pour "simulation en cours : édition désactivée"
+2. le texte bulle du bouton k doit être traduit
+3. Quand un composant change de cablage avec les propriété (K ou A commune par exemple) le changement doit être dynamique si le cablage est affiché.
+4. Si on change la taille de l'afficheur (2 -> 4 digit par exemple). Si le cablage interne est affiché il n'a pas la bonne taille il faut le masquer puis le réafficher. Pareil pour le clavier.
+5. Le texte des broches sur les clavier est trés épais. Il faut je pense réduire l'épaisseur du contour voire la supprimer
+6. Le pir  détecte la souris au dessus de lui pas ses mouvements. Ajoute une tolérance à la détectiondu mouvement de la souris. "Ctrl+clic pour un mouvement permanent" apparait dans la bulle de la souris en simulation si on passe sur le PIR. En  simulation un texte "Détecte les mouvements de la souris" doit apparaitre à la place du message "Mouvement permanent (Ctrl+clic pour arrêter)". Ce dernier message remplacera "Détecte les mouvements de la souris" mors d'un appuis sur ctrl+clic et on reviendra à "Détecte les mouvements de la souris" lors du ctrl+clic suivant.
 
 
+
+# v2026.7.67
+1. ✅ Posters de brochage nano/uno/mega : les 3 sont posés en surimpression **sans déformation** (fini l'étirement vertical `k` qui décalait uno et mega). Chaque poster porte des pastilles de calage aux positions exactes des pins ; pose via la transform mesurée `coord_carte = s·coord_poster + t` (échelle uniforme : nano/uno s=1, mega s≈3.78). Transforms mesurées au navigateur (Chrome headless, `getBoundingClientRect` des pastilles vs `pinInfo` du composant, régression, erreur max 0,15 u sous-pixel).
+2. ✅ Nano réactivé (était désactivé). Alignement des 3 vérifié visuellement (rendu headless carte externe + poster superposés) : rangées haute/basse + blocs ICSP/digital pile sur les pins.
+3. ✅ Pastilles rouges (`#ee0000`/`#aa0000`) + numéros de pin rouges (`#aa0000`) — repères de calage de Frank — retirés des 3 SVG posters (36 nano, 31 uno, 85 mega). Zéro rouge restant.
+4. ✅ `pinout.mts` : deux modes de pose explicites — `stretch` (pico/picow, inchangé) et `align` (nano/uno/mega). `renderPinout` gère les deux. typecheck + build OK.
 
 # v2026.7.66
 1. ✅ Servo au degré près (item « aucune rotation pour 10-40°, 60→45°, 140→180° ») : le mapping impulsion→angle était figé sur 1000-2000 µs — tout programme SG90 en 500-2500 µs (dont celui de Frank) voyait ses angles écrasés/clampés. Nouvelles propriétés d'inspecteur « Impulsion à 0° (µs) » / « Impulsion à 180° (µs) », défaut 500/2500 (datasheet SG90) ; régler 544/2400 pour la lib Servo Arduino. Interpolation linéaire entre les deux.

@@ -25,38 +25,35 @@ export interface PinoutPoster {
   /** Bord bas de la bande vide (fraction 0–1 de h). */
   rBot?: number;
 
-  // --- mode 'align' (nano/uno/mega) : pose 1:1 alignée sur les pins de la carte ---
-  /**
-   * Largeur/hauteur de la viewBox de la CARTE externe = échelle de rendu du poster
-   * (1 unité carte = 1 unité poster, mesuré : échelle poster↔pins = 1.0).
-   */
+  // --- mode 'align' (nano/uno/mega) : pose alignée sur les pins de la carte ---
+  /** Largeur de la viewBox de la CARTE externe (px carte = width_px / cardW). */
   cardW?: number;
-  cardH?: number;
   /**
-   * Coordonnées, DANS le repère du poster, du point qui doit coïncider avec
-   * l'origine (0,0) de la carte. = position mesurée d'une pastille de calage moins
-   * la position du pin correspondant sur la carte (getCTM, Chrome headless). Le
-   * poster est plus grand que la carte (étiquettes autour) : ces étiquettes
-   * débordent librement en haut/bas, la carte transparaît au milieu.
+   * Transform mesurée poster→carte : coord_carte = s·coord_poster + t (échelle
+   * uniforme sx=sy=s, pas de rotation). Mesurée au navigateur (getBoundingClientRect
+   * des pastilles de calage vs pins du composant, régression). Le poster déborde de
+   * la carte (étiquettes autour) : elles restent visibles, la carte transparaît.
    */
-  ox?: number;
-  oy?: number;
+  s?: number;
+  tx?: number;
+  ty?: number;
 }
 
 // Deux modes de pose selon le type de poster :
 //  • 'stretch' (pico/picow) : poster plein cadre, la carte occupe une bande vide
 //    [rTop, rBot] recalée par un étirement vertical.
-//  • 'align' (nano/uno/mega) : poster dessiné dans le repère des pins, posé 1:1
-//    (échelle uniforme = largeur_carte_px / cardW, aucune déformation). L'offset
-//    (ox, oy) aligne les pastilles de calage de Frank sur les pins de la carte.
-//    Offsets mesurés au navigateur (getCTM des pastilles rouges vs pins composant).
-//    Les pastilles et numéros rouges (repères de calage) ont été retirés des SVG.
+//  • 'align' (nano/uno/mega) : poster dessiné avec des pastilles de calage aux
+//    positions des pins ; posé sans déformation via la transform mesurée
+//    coord_carte = s·coord_poster + t (échelle uniforme). nano/uno sont à s=1,
+//    mega à s≈3.78 (sa viewBox est plus petite). Transforms mesurées au navigateur
+//    (getBoundingClientRect des pastilles vs pins composant, régression, erreur
+//    sous-pixel). Les pastilles et numéros rouges de calage ont été retirés des SVG.
 const POSTERS: Record<string, PinoutPoster> = {
   pico: { svg: picoPinout, mode: 'stretch', w: 209.24001, h: 357.76389, rTop: 0.3897, rBot: 0.6075 },
   picow: { svg: picowPinout, mode: 'stretch', w: 208.66299, h: 357.73111, rTop: 0.3897, rBot: 0.6075 },
-  nano: { svg: nanoPinout, mode: 'align', w: 225.8154, h: 384.31277, cardW: 190, cardH: 80, ox: -9.48, oy: 177.82 },
-  uno: { svg: unoPinout, mode: 'align', w: 293.05396, h: 479.98375, cardW: 300, cardH: 220, ox: -5.98, oy: 139 },
-  mega: { svg: megaPinout, mode: 'align', w: 142.70264, h: 130.34598, cardW: 430, cardH: 210, ox: -4.32, oy: 140.34 },
+  nano: { svg: nanoPinout, mode: 'align', w: 225.8154, h: 384.31277, cardW: 190, s: 1, tx: 9.48, ty: -177.82 },
+  uno: { svg: unoPinout, mode: 'align', w: 293.05396, h: 479.98375, cardW: 300, s: 1, tx: 5.97, ty: -139 },
+  mega: { svg: megaPinout, mode: 'align', w: 142.70264, h: 130.34598, cardW: 430, s: 3.7795, tx: 4.32, ty: -140.34 },
 };
 
 /** Poster de brochage complet (texte SVG brut) pour un type de carte, ou null. */

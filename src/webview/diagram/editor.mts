@@ -2948,15 +2948,16 @@ export class Editor {
     overlay.className = 'part__pinout';
     overlay.style.transformOrigin = '0 0';
     if (poster.mode === 'align') {
-      // Pose 1:1 : le poster est dessiné dans le repère des pins de la carte
-      // (échelle poster↔pins = 1). Facteur d'affichage = px de la carte / unité de
-      // carte. On pose le poster à ce facteur (svg width = poster.w * f), sans
-      // étirement, puis on translate pour que le point (ox, oy) du poster tombe sur
-      // l'origine (0,0) de la carte affichée. Étiquettes hors carte débordent.
+      // Pose alignée : transform mesurée coord_carte = s·coord_poster + t. Une unité
+      // carte s'affiche à f = width_px / cardW ; une unité poster à f·s. Le SVG est
+      // donc posé à width = poster.w·f·s, décalé de (tx·f, ty·f) : un point poster
+      // (px,py) tombe alors sur le pin carte (s·px+tx, s·py+ty). Sans déformation
+      // (échelle uniforme). Étiquettes hors carte débordent librement.
       const f = width / (poster.cardW as number);
-      overlay.style.left = `${left - (poster.ox as number) * f}px`;
-      overlay.style.top = `${top - (poster.oy as number) * f}px`;
-      overlay.style.width = `${poster.w * f}px`;
+      const s = poster.s as number;
+      overlay.style.left = `${left + (poster.tx as number) * f}px`;
+      overlay.style.top = `${top + (poster.ty as number) * f}px`;
+      overlay.style.width = `${poster.w * f * s}px`;
     } else {
       // Mode 'stretch' (pico/picow) : poster à la largeur de la carte, étiré
       // verticalement (scaleY) pour que sa bande vide [rTop, rBot] couvre exactement
