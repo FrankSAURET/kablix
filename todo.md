@@ -1,16 +1,18 @@
 # À faire
 1. (noté pour plus tard je dois préciser) Faire un visualisateur virtuel ou utiliser teleplot
 2. (noté pour plus tard je dois préciser) ajouter une LDR, une CTN, une CTP avec paramètres + simulation qui prends en compte les résistances
-3. un double clic sur le nom du fichier de simulation l'ouvre dans le volet de gauche (à gauche de kablix)
-4. Le chargement d'un projix doit couper la simulation en cours
-5. Le dht22 ne marche pas la commande capteur = dht.DHT22(Pin(13)) génère une erreur.
-6. Anneau neopixel ne marche toujours pas. De plus les variables r,g,b ne sont jamais affichés en mode pas à pas. Demande moi mon programme de test.
-7. vss de neopixel est une patte gnd qui doit passer le fil en noir
-8. neopixel ne marche pas non plus (la led unique)
-9. Matrice neopixel ne marche pas non plus.
-10. oled display(ssd1306)  ne marche pas non plus. Rien d'affiché. je peux te passer le prg de test et la librairie. Testé en i2c.
-11. TFT display ne marche pas non plus.
+3. Le chargement d'un projix doit couper la simulation en cours
+4. Le dht22 ne marche pas la commande capteur = dht.DHT22(Pin(13)) génère une erreur.
+5. Anneau neopixel ne marche toujours pas. De plus les variables r,g,b ne sont jamais affichés en mode pas à pas. Demande moi mon programme de test.
+6. vss de neopixel est une patte gnd qui doit passer le fil en noir
+7. neopixel ne marche pas non plus (la led unique)
+8. Matrice neopixel ne marche pas non plus.
+9. oled display(ssd1306)  ne marche pas non plus. Rien d'affiché. je peux te passer le prg de test et la librairie. Testé en i2c.
+10. TFT display ne marche pas non plus.
 
+
+# v2026.7.78
+1. ✅ Double-clic sur le nom du fichier de simulation (chip 📄 de la barre d'outils) : ouvre désormais ce fichier dans l'éditeur (volet de gauche, `ViewColumn.One`), au lieu de rouvrir la boîte de dialogue « choisir un fichier » (réservée au clic simple). Nouveau message webview→extension `openCodeFile` (sim.mts → panel.ts `openCodeFile()`, réutilise le pattern déjà en place pour `showDebugLine`). Bulle d'aide mise à jour (« cliquer pour changer, double-cliquer pour ouvrir ») + traduction FR. verify:all + typecheck OK.
 
 # v2026.7.77
 1. ✅ Bulle du bouton REPL non traduite : `l10n.t('Start an interactive MicroPython REPL (no script)')` était déjà en place côté code (panel.ts:1004) mais la clé était absente de `l10n/bundle.l10n.fr.json` → retombait sur le texte anglais brut. Ajoutée (« Démarrer un REPL MicroPython interactif (sans script) »). Vérifié : c'était la seule clé `l10n.t(...)` de panel.ts manquante au bundle FR (62 clés utilisées, 1 manquante).

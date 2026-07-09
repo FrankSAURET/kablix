@@ -1765,6 +1765,12 @@ function boardLabel(b: BoardId): string {
 codeFileBtn.addEventListener('click', () => {
   vscode.postMessage({ type: 'pickCodeFile' });
 });
+// Double-clic : ouvre le fichier dans l'éditeur (volet de gauche) au lieu d'en
+// choisir un autre.
+codeFileBtn.addEventListener('dblclick', (e) => {
+  e.preventDefault();
+  vscode.postMessage({ type: 'openCodeFile' });
+});
 
 // --- Moniteur série : envoi vers le microcontrôleur ---------------------------
 function sendSerial(): void {

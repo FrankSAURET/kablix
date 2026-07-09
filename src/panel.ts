@@ -412,6 +412,16 @@ export class SimulatorPanel {
     this.post({ type: 'codeFile', name: ref.split(/[\\/]/).pop() });
   }
 
+  /** Ouvre le fichier de code courant dans le volet d'édition (à gauche de Kablix). */
+  public async openCodeFile(): Promise<void> {
+    if (!this.codeFileUri) return;
+    try {
+      await vscode.window.showTextDocument(this.codeFileUri, { viewColumn: vscode.ViewColumn.One });
+    } catch {
+      // fichier renommé/supprimé depuis : rien à ouvrir
+    }
+  }
+
   /** Laisse l'utilisateur choisir le fichier de code via une boîte de dialogue. */
   public async pickCodeFile(): Promise<void> {
     const folders = vscode.workspace.workspaceFolders;
@@ -551,6 +561,9 @@ export class SimulatorPanel {
         break;
       case 'pickCodeFile':
         void this.pickCodeFile();
+        break;
+      case 'openCodeFile':
+        void this.openCodeFile();
         break;
       case 'saveUiState':
         void this.context.globalState.update(UI_STATE_KEY, msg.state ?? {});
@@ -1000,7 +1013,7 @@ export class SimulatorPanel {
             <option value="0.1">🐢 10 %</option>
             <option value="0.01">🐌 1 %</option>
           </select>
-          <button id="code-file" class="canvas-controls__file" title="${l10n.t('Code file to run / debug — click to change')}">📄 ${l10n.t('No file')}</button>
+          <button id="code-file" class="canvas-controls__file" title="${l10n.t('Code file to run / debug — click to change, double-click to open')}">📄 ${l10n.t('No file')}</button>
           <button id="repl" class="canvas-controls__btn canvas-controls__btn--repl" hidden title="${l10n.t('Start an interactive MicroPython REPL (no script)')}">REPL</button>
           <button id="toggle-serial" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Show/hide the serial monitor')}"><img class="canvas-controls__icon" src="${serialMonitorUri}" alt="${l10n.t('Show/hide the serial monitor')}" /></button>
         </div>
