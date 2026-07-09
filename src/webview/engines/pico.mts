@@ -16,6 +16,7 @@ import type {
   NetRequest,
   NetResponse,
   SimEngine,
+  UltrasonicSensor,
 } from './types.mjs';
 import { selectSpiDevice, Hd44780, type I2cDevice, type SpiDevice } from './i2c-devices.mjs';
 import { Ws2812Decoder } from './ws2812.mjs';
@@ -65,6 +66,10 @@ class KablixSimulator extends Simulator {
   // seraient escamotés pour « rattraper » le retard accumulé.
   private paceWall = 0;
   private paceSim = 0;
+  /** Actions à échéance en cycles CPU simulés (ex. ECHO ultrason) — cf. PicoEngine. */
+  onTick: (() => void) | null = null;
+  /** Échéance (temps simulé, ns) de la plus proche action programmée par `onTick`, ou null. */
+  nextScheduledNanos: number | null = null;
 
   constructor() {
     super();
@@ -100,8 +105,17 @@ class KablixSimulator extends Simulator {
         this.paceSim = clock.nanos;
       }
       if (rp2040.core.waiting) {
-        const n = clock.nanosToNextAlarm;
+        let n = clock.nanosToNextAlarm;
+        if (this.nextScheduledNanos !== null) {
+          const toScheduled = Math.max(0, this.nextScheduledNanos - clock.nanos);
+          n = n > 0 ? Math.min(n, toScheduled) : toScheduled;
+        }
         if (n <= 0) {
+          if (this.nextScheduledNanos !== null) {
+            // Échéance programmée déjà atteinte : la traiter avant de ré-attendre.
+            this.onTick?.();
+            continue;
+          }
           // WFE sans alarme : seul un événement externe (USB, setInput…)
           // peut réveiller le cœur — on repasse en sondage doux.
           idle = true;
@@ -111,15 +125,28 @@ class KablixSimulator extends Simulator {
         // déclenchés par les alarmes — PWM servo… — sont horodatés en cycles).
         rp2040.core.cycles += n / CYCLE_NANOS;
         clock.tick(n);
+        this.onTick?.();
       } else {
-        // Lot d'instructions jusqu'à la prochaine alarme (≤ 1 ms simulée).
+        // Lot d'instructions jusqu'à la prochaine alarme (≤ 1 ms simulée), borné
+        // aussi par la prochaine échéance programmée (ECHO ultrason) pour ne
+        // jamais sauter par-dessus une fenêtre de quelques µs. Une instruction
+        // en cours de lot (ex. front descendant TRIG) peut programmer une
+        // nouvelle échéance PLUS PROCHE que le budget figé au départ : on
+        // recalcule donc le budget restant à chaque instruction plutôt que de
+        // le figer une fois pour toutes.
         const toAlarm = clock.nanosToNextAlarm;
-        const budget = toAlarm > 0 ? Math.min(toAlarm, 1e6) : 1e6;
+        const baseBudget = toAlarm > 0 ? Math.min(toAlarm, 1e6) : 1e6;
         let nanos = 0;
-        while (nanos < budget && !rp2040.core.waiting && !this.stopped) {
+        while (!rp2040.core.waiting && !this.stopped) {
+          let budget = baseBudget;
+          if (this.nextScheduledNanos !== null) {
+            budget = Math.min(budget, Math.max(0, this.nextScheduledNanos - (clock.nanos + nanos)));
+          }
+          if (nanos >= budget) break;
           nanos += rp2040.core.executeInstruction() * CYCLE_NANOS;
         }
         clock.tick(nanos);
+        this.onTick?.();
       }
     }
     if (this.stopped) return;
@@ -154,7 +181,7 @@ export class PicoEngine implements SimEngine {
 
   private isPaused = false;
   private disposed = false;
-  private sim: Simulator;
+  private sim: KablixSimulator;
   private mcu: RP2040;
   private cdc: USBCDC | null = null;
   private script: string | null = null;
@@ -205,9 +232,19 @@ export class PicoEngine implements SimEngine {
   private keypads: KeypadConfig[] = [];
   private applyingKeypads = false;
   private keypadColLevel = new Map<string, boolean>();
+  // Capteurs ultrason (HC-SR04) : impulsion TRIG (mesurée comme un pulseMonitor)
+  // -> ECHO programmé en TEMPS SIMULÉ (nanosecondes horloge RP2040), vérifié à
+  // chaque avance de `KablixSimulator.execute()` via `sim.onTick`. Un setTimeout
+  // réel serait faux : le simulateur peut avancer de dizaines de ms simulées
+  // pendant qu'un timer JS de 0,2 ms met plusieurs ms réelles à se déclencher
+  // (résolution des timers Node/navigateur) — l'ECHO arrivait après la fenêtre
+  // d'attente du firmware (pulseIn/boucle bornée).
+  private ultrasonic: UltrasonicSensor[] = [];
+  private scheduled: Array<{ nanos: number; name: string; value: boolean }> = [];
 
   constructor(program: PicoProgram) {
     this.sim = new KablixSimulator();
+    this.sim.onTick = () => this.fireScheduled();
     this.mcu = this.sim.rp2040;
     this.mcu.logger = new ConsoleLogger(LogLevel.Error);
 
@@ -394,6 +431,62 @@ export class PicoEngine implements SimEngine {
     }
   }
 
+  setUltrasonic(sensors: UltrasonicSensor[]): void {
+    this.scheduled = [];
+    this.ultrasonic = sensors;
+    // Surveille les broches TRIG (comme un pulseMonitor de plus).
+    for (const s of sensors) {
+      const i = gpioIndex(s.trig);
+      if (i === null) continue;
+      if (!this.pulsePins.some((p) => p.name === s.trig)) {
+        this.pulsePins.push({ name: s.trig, index: i });
+      }
+      if (!this.pulseState.has(s.trig)) {
+        this.pulseState.set(s.trig, {
+          high: false, rise: 0, lastUs: 0, lastEdge: 0,
+          winStart: this.mcu.core.cycles, winHigh: 0, winEdges: 0, lastDuty: 0,
+        });
+      }
+    }
+  }
+
+  /** Sur une impulsion TRIG valide (≥ 8 µs), programme l'impulsion ECHO correspondante. */
+  private maybeFireEcho(trigName: string, widthUs: number): void {
+    if (widthUs < 8) return;
+    const cyclesPerUs = (this.mcu.clkSys || 125_000_000) / 1_000_000;
+    const nanosPerCycle = 1e9 / (this.mcu.clkSys || 125_000_000);
+    const nowNanos = this.sim.clock.nanos;
+    for (const s of this.ultrasonic) {
+      if (s.trig !== trigName) continue;
+      const cm = Math.max(2, Math.min(400, s.distanceCm || 0)); // plage HC-SR04 : 2–400 cm
+      const startNanos = nowNanos + 200 * cyclesPerUs * nanosPerCycle; // ~200 µs de latence capteur
+      const widthNanos = cm * 58 * cyclesPerUs * nanosPerCycle; // 58 µs/cm (aller-retour)
+      this.scheduled.push({ nanos: startNanos, name: s.echo, value: true });
+      this.scheduled.push({ nanos: startNanos + widthNanos, name: s.echo, value: false });
+    }
+    this.updateNextScheduled();
+  }
+
+  /** Applique les actions d'entrée programmées arrivées à échéance (temps simulé). */
+  private fireScheduled(): void {
+    if (this.scheduled.length === 0) return;
+    const now = this.sim.clock.nanos;
+    for (let i = this.scheduled.length - 1; i >= 0; i--) {
+      if (now >= this.scheduled[i].nanos) {
+        const a = this.scheduled[i];
+        this.setInput(a.name, a.value);
+        this.scheduled.splice(i, 1);
+      }
+    }
+    this.updateNextScheduled();
+  }
+
+  /** Tient `sim.nextScheduledNanos` à jour (borne le lot d'instructions suivant). */
+  private updateNextScheduled(): void {
+    this.sim.nextScheduledNanos =
+      this.scheduled.length === 0 ? null : Math.min(...this.scheduled.map((a) => a.nanos));
+  }
+
   setSpiDevices(devices: SpiDevice[]): void {
     for (const ctrl of this.mcu.spi) {
       ctrl.onTransmit = (mosi: number) => {
@@ -530,6 +623,7 @@ export class PicoEngine implements SimEngine {
         st.lastUs = (now - st.rise) / cyclesPerUs;
         // Cumul du temps haut dans la fenêtre courante (rapport cyclique PWM).
         st.winHigh += now - Math.max(st.rise, st.winStart);
+        if (this.ultrasonic.length > 0) this.maybeFireEcho(pp.name, st.lastUs); // impulsion TRIG -> ECHO
       }
     }
   }
@@ -566,6 +660,7 @@ export class PicoEngine implements SimEngine {
   dispose(): void {
     this.disposed = true;
     this.stop();
+    this.scheduled = [];
   }
 
   get paused(): boolean {

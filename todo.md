@@ -8,10 +8,15 @@
 7. Quand on sélectionne un fil, un point de 2 px de diametre doit apparaitre à ses 2 extrémitées afin de signaler qu'on peut débrancher (il a encore disparu)
 8. la bulle du bouton REPL doit être traduite
 9. un double clic sur le nom du fichier de simulation l'ouvre dans le volet de gauche (à gauche de kablix)
-10. Le capteur à US ne marche pas.
-11. Le chargement d'un projix doit couper la simulation en cours
-12. Le dht22 ne marche pas la commande capteur = dht.DHT22(Pin(13)) génère une erreur.
+10. Le chargement d'un projix doit couper la simulation en cours
+11. Le dht22 ne marche pas la commande capteur = dht.DHT22(Pin(13)) génère une erreur.
+12. Anneau neopixel ne marche toujours pas. De plus les variables r,g,b ne sont jamais affichés en mode pas à pas. Demande moi mon programme de test.
+13. vss de neopixel est une patte gnd qui doit passer le fil en noir
+14. neopixel ne marche pas non plus (la led unique)
 
+
+# v2026.7.71
+1. ✅ Capteur à ultrason (HC-SR04) ne marchait pas sur Pico/MicroPython : `PicoEngine` n'implémentait pas du tout `setUltrasonic` (méthode optionnelle du moteur, ignorée en silence par `sim.mts`) — TRIG/ECHO n'était câblé que côté AVR (Uno/Mega). Ajout de l'implémentation Pico : ECHO programmé en TEMPS SIMULÉ (nanosecondes horloge RP2040) et non via `setTimeout` réel (un timer JS de 0,2 ms peut se déclencher après des dizaines de ms simulées vu le cadencement temps réel du simulateur — l'écho arrivait hors fenêtre d'attente du firmware). Bug additionnel corrigé au passage dans `KablixSimulator.execute()` : le budget d'un lot d'instructions était figé en début de lot et pouvait sauter par-dessus une échéance programmée en cours de lot (front TRIG survenant à mi-lot) — recalculé à chaque instruction désormais. Vérifié bout-en-bout (vrai firmware MicroPython, TRIG/ECHO réel) : largeur ECHO mesurée = 1160 µs pour 20 cm (exact, 58 µs/cm). verify:all OK.
 
 # v2026.7.70
 1. ✅ PIR : la bulle « Détecte les mouvements de la souris » prend l'apparence d'une bulle native du navigateur (jaune pâle, bordure grise, coins carrés) — distincte des 2 autres bulles (fond sombre, inchangées).
