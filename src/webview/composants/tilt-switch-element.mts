@@ -1,12 +1,18 @@
 // Fork local de @wokwi/elements v1.9.2 (MIT © Wokwi) — tilt-switch-element.ts.
 // Balise <kablix-tilt-switch> (ex <wokwi-tilt-switch>). Licence d'origine : LICENSE-wokwi.md (même dossier).
 // Adaptations Kablix : sans décorateurs (static properties + declare + constructeur),
-// imports relatifs .mjs ; DESSIN remplacé par la version retouchée (./externe/tilt.svg,
-// broches recalées sur la grille de 10 px ; plus de pinScale, cf. catalog.mts).
+// imports relatifs .mjs ; DESSIN retouché (./externe/tilt.svg, broches recalées sur la
+// grille de 10 px ; plus de pinScale, cf. catalog.mts). Le corps est isolé dans un
+// groupe `.tilt-shape` (voir tilt.svg) pour pouvoir le déformer sans bouger les broches.
 //   - PLUS de propriété d'état dans l'inspecteur : EN SIMULATION (attribut
-//     `simulating`), un bouton bascule l'inclinaison (tout ou rien). L'état
-//     `tilted` est lu par le moteur ; le composant s'incline visuellement et
-//     émet un event `input` à chaque bascule.
+//     `simulating`), un CLIC sur le composant bascule l'inclinaison (tout ou rien,
+//     immédiat). Ctrl+clic = maintien permanent (comme le PIR) : bascule un état
+//     `sticky` qui garde `tilted` actif tant qu'on ne reclique pas Ctrl+clic.
+//     L'état `tilted` est relu par le moteur (event `input` à chaque changement).
+//     Déformation visuelle = bascule TRAPÉZOÏDALE (cf. tilt-incline.svg de Frank :
+//     le côté gauche du corps se resserre en haut/bas, le côté droit — proche des
+//     broches — reste fixe) via `transform: matrix()` sur `.tilt-shape`, PAS une
+//     rotation : les pattes et les fils ne bougent jamais.
 import { css, html, LitElement } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin, GND, VCC } from './pin.mjs';
@@ -15,16 +21,22 @@ import drawing from './externe/tilt.svg';
 export class TiltSwitchElement extends LitElement {
   declare tilted: boolean;
   declare simulating: boolean;
+  declare sticky: boolean;
+  declare hovering: boolean;
 
   static properties = {
     tilted: { type: Boolean },
     simulating: { type: Boolean },
+    sticky: { state: true },
+    hovering: { state: true },
   };
 
   constructor() {
     super();
     this.tilted = false;
     this.simulating = false;
+    this.sticky = false;
+    this.hovering = false;
   }
 
   readonly pinInfo: ElementPin[] = [
@@ -38,62 +50,101 @@ export class TiltSwitchElement extends LitElement {
       :host {
         display: inline-block;
       }
-      .tilt-body {
-        transition: transform 0.15s ease;
-        transform-origin: 50% 60%;
+      .wrap {
+        position: relative;
       }
-      .tilt-body.tilted {
-        transform: rotate(-22deg);
+      .tilt-svg {
+        cursor: default;
       }
-      .sim-control {
-        display: flex;
-        justify-content: center;
-        margin-top: 2px;
-      }
-      .sim-control button {
-        font: 11px sans-serif;
-        padding: 1px 8px;
-        border: 1px solid #888;
-        border-radius: 3px;
-        background: #f4f4f4;
+      .wrap.simulating .tilt-svg {
         cursor: pointer;
       }
-      .sim-control button.on {
-        background: #ffd24d;
-        border-color: #c99a00;
+      .tilt-shape {
+        transition: transform 0.15s ease;
+        transform-origin: 82.221863px 30px;
+      }
+      .tilt-svg.tilted .tilt-shape {
+        /* Bascule trapézoïdale mesurée sur tilt-incline.svg (Frank) : bord droit
+           (x=82.22, côté broches) fixe, bord gauche (x=8.73) resserré d'environ
+           5 px en haut et en bas — approché par un skewY ancré à droite. */
+        transform: matrix(1, -0.068, 0, 0.83, 0, 5.1);
+      }
+      .bubble {
+        position: absolute;
+        top: -6px;
+        left: 50%;
+        transform: translate(-50%, -100%);
+        background: #222;
+        color: #fff;
+        font: 10px sans-serif;
+        padding: 2px 6px;
+        border-radius: 4px;
+        white-space: nowrap;
+        pointer-events: none;
+        z-index: 1;
+      }
+      .bubble::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border: 4px solid transparent;
+        border-top-color: #222;
       }
     `;
   }
 
-  private toggle = () => {
-    this.tilted = !this.tilted;
+  private setTilted(value: boolean): void {
+    if (this.tilted === value) return;
+    this.tilted = value;
     this.dispatchEvent(new Event('input'));
+  }
+
+  private onEnter = () => {
+    this.hovering = true;
+  };
+  private onLeave = () => {
+    this.hovering = false;
+  };
+  private onClick = (e: MouseEvent) => {
+    if (!this.simulating) return;
+    if (e.ctrlKey) {
+      this.sticky = !this.sticky;
+      this.setTilted(this.sticky);
+      return;
+    }
+    if (this.sticky) {
+      this.sticky = false;
+    }
+    this.setTilted(!this.tilted);
   };
 
   render() {
+    let bubble: string | null = null;
+    if (this.simulating && this.hovering) {
+      bubble = this.sticky
+        ? 'Cliquer pour incliner / Ctrl + clic pour arrêter le maintien'
+        : 'Cliquer pour incliner / Ctrl + clic pour maintenir incliné';
+    }
     return html`
-      <svg
-        class="tilt-body ${this.tilted ? 'tilted' : ''}"
-        width="105.82864"
-        height="60"
-        viewBox="0 0 105.82864 60"
-        xmlns="http://www.w3.org/2000/svg"
+      <div
+        class="wrap ${this.simulating ? 'simulating' : ''}"
+        @pointerenter=${this.onEnter}
+        @pointerleave=${this.onLeave}
+        @click=${this.onClick}
       >
-        ${unsafeSVG(drawing)}
-      </svg>
-      ${this.simulating
-        ? html`
-            <div class="sim-control">
-              <button
-                class=${this.tilted ? 'on' : ''}
-                @click=${this.toggle}
-                title="Incliner le capteur (tout ou rien)"
-              >
-                ${this.tilted ? 'Incliné' : 'Incliner'}
-              </button>
-            </div>
-          `
-        : null}
+        <svg
+          class="tilt-svg ${this.tilted ? 'tilted' : ''}"
+          width="105.82864"
+          height="60"
+          viewBox="0 0 105.82864 60"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          ${unsafeSVG(drawing)}
+        </svg>
+        ${bubble ? html`<div class="bubble">${bubble}</div>` : null}
+      </div>
     `;
   }
 }

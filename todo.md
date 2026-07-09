@@ -1,6 +1,20 @@
 # À faire
+1. d'une façon générale les curseurs de simulation sont trop gros et trop long. Les textes (valeur ou grandeur) doivent être plus pret des curseurs.
+2. capteur de pouls ne fonctionne pas à retester. Le curseur doit faire la largeur du composant, pas plus.
+3. Les éléments de simulation doivent apparaitre par dessus tout
+4. (noté pour plus tard je dois préciser) Faire un visualisateur virtuel ou utiliser teleplot
+5. (noté pour plus tard je dois préciser) ajouter une LDR, une CTN, une CTP avec paramètres + simulation qui prends en compte les résistances
+6. La mention "⚠ Simulation en cours : édition désactivée" doit apparaitre en dessous de la barre de simulation
+7. Quand on sélectionne un fil, un point de 2 px de diametre doit apparaitre à ses 2 extrémitées afin de signaler qu'on peut débrancher (il a encore disparu)
+8. la bulle du bouton REPL doit être traduite
+9. un double clic sur le nom du fichier de simulation l'ouvre dans le volet de gauche (à gauche de kablix)
+10. Le capteur à US ne marche pas.
+11. PIR le texte « Détecte les mouvements de la souris » doit apparaitre sur une bulle jaune de souris (celle par défaut) Les autres mentions sont bien.
+12. Le chargement d'un projix doit couper la simulation en cours
 
-
+# v2026.7.69
+1. ✅ Capteur d'inclinaison — refonte complète (item « ne provoque une inclinaison que quand incliné puis revient... »). Bouton « Incliner »/« Incliné » SUPPRIMÉ : un simple CLIC sur le composant EN SIMULATION bascule l'état immédiatement (tout ou rien). Ctrl+clic = maintien permanent (`sticky`, même pattern que le PIR) ; recliquer normalement annule le maintien. Bulle contextuelle au survol : « Cliquer pour incliner / Ctrl + clic pour maintenir incliné » (→ « ...pour arrêter le maintien » si déjà maintenu).
+2. ✅ Déformation visuelle : ROTATION CSS remplacée par une bascule TRAPÉZOÏDALE (`transform: matrix()` approchant le lattice2 de `tilt-incline.svg` fourni par Frank — bord droit fixe, bord gauche resserré ~5px haut/bas). `tilt.svg` restructuré : le corps est isolé dans deux groupes `.tilt-shape` (déformables), les 3 groupes de broches (g71/g70/g69) restent HORS de ces groupes → jamais déformés. Vérifié en Chrome headless : delta broches avant/après bascule = (0.000,0.000) px exact sur les 3 pattes ; capture visuelle confirmant le trapèze.
 
 # v2026.7.68
 1. ✅ Bandeau simulation : « ⚠ Simulation en cours » → « ⚠ Simulation en cours : édition désactivée » (fr + clé i18n renommée dans `i18n.mts`).
