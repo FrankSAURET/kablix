@@ -45,13 +45,22 @@ function readViewBox(svgText: string): { x: number; y: number; w: number; h: num
   return { x, y, w, h };
 }
 
-/** Centre de l'axe : centre géométrique du marqueur `axis` (moyenne des cx). */
+/** Centre de l'axe : cercle du marqueur `axis`, en appliquant le `translate` que
+ *  Inkscape pose sur le groupe quand Frank le déplace. */
 function readAxis(svgText: string, fallback: { x: number; y: number }): { x: number; y: number } {
   const g = extractGroup(svgText, 'axis');
-  const cxs = [...g.matchAll(/cx="([\d.\-]+)"/g)].map((m) => Number(m[1]));
-  const cys = [...g.matchAll(/cy="([\d.\-]+)"/g)].map((m) => Number(m[1]));
-  if (!cxs.length || !cys.length) return fallback;
-  return { x: cxs[0], y: cys[0] };
+  const cxm = /cx="([\d.\-]+)"/.exec(g);
+  const cym = /cy="([\d.\-]+)"/.exec(g);
+  if (!cxm || !cym) return fallback;
+  let x = Number(cxm[1]);
+  let y = Number(cym[1]);
+  // translate(tx[,ty]) éventuel sur <g id="axis" transform="…">.
+  const tr = /<g\s+id="axis"[^>]*\btransform="translate\(\s*([\d.\-]+)[ ,]+([\d.\-]+)?\s*\)"/.exec(svgText);
+  if (tr) {
+    x += Number(tr[1]);
+    y += Number(tr[2] ?? 0);
+  }
+  return { x, y };
 }
 
 const VB = readViewBox(cleanDrawing);

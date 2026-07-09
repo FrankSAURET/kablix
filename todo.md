@@ -1,7 +1,8 @@
 # À faire
 1. Nano : retoucher nano-pinout.svg (module central redimensionné) puis réactiver le poster dans pinout.mts
 2. Servo : test qui s'exécute très lentement — SI le problème persiste, m'envoyer ton programme de test (delay/refresh/avr8js à diagnostiquer). Le débordement du bras est déjà corrigé (v49).
-3. Retoucher externe/servo.edit.svg (Inkscape) : marqueur `axis` (croix magenta) sur le vrai axe ; `horn-arm` (un seul bras) rendu beau ; corps recalé ; pastilles pin-* face aux fils ; réduire viewBox/width/height à la place de la rotation. Puis me le dire → je reporte axis + pin-* dans pinInfo.
+# v2026.7.62
+1. ✅ Servo : dessin de Frank intégré (servo.edit.svg retouché — corps bleu, palonnier réaliste dans `horn-arm`, axe `axis` posé sur le rond central). Le composant lit l'axe EN TENANT COMPTE du `translate` qu'Inkscape ajoute quand on déplace le groupe (readAxis corrigé). single/double/cross dupliquent le bras de Frank autour de l'axe ; rotation validée headless. Broches pinInfo inchangées (x=20, y=80/90/100 — non déplacées par Frank).
 
 # v2026.7.61
 1. ✅ Servo — structure « UN SEUL bras » : le .edit.svg ne contient plus qu'un bras (`horn-arm`, vers le haut) + un marqueur d'axe (`axis`, croix magenta). Le composant DUPLIQUE ce bras en 1/2/4 branches (single/double/cross) et tourne l'ensemble autour de l'axe LU dans le fichier. Frank ne retouche donc qu'un bras + l'axe. Feuille agrandie 180×180 (marge pour rotation complète, réduisible par Frank).
