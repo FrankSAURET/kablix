@@ -1,8 +1,14 @@
-// Génère externe/servo.edit.svg (retouchable par Frank) : corps du servo (sans
-// l'ancien long palonnier path49) + 3 palonniers dessinés (groupes horn-single/
-// double/cross, centrés sur le moyeu) + grille 10 px + pastilles de positionnement
-// des broches (ronds rouges pin-GND/pin-V+/pin-PWM, à recaler sur les croisements).
-// Boîte agrandie 170×125 (comme le composant actuel).
+// Génère externe/servo.edit.svg (retouchable par Frank).
+// Structure « un seul bras » : le composant duplique/pivote ce bras pour faire
+// 1 / 2 / 4 branches (single / double / cross) et tourne l'ensemble autour de l'axe.
+// Groupes du fichier :
+//   - body    : corps du servo (dessin d'origine, sans l'ancien long palonnier).
+//   - horn-arm: UN SEUL bras, pointant vers le HAUT depuis l'axe. Frank le retouche ;
+//               le code le duplique à 0/90/180/270°.
+//   - axis    : marqueur (croix rouge) = centre de rotation. Frank le pose sur le
+//               vrai axe du servo ; le code lit sa position.
+//   - grid / pins : repères (grille + pastilles pin-*), retirés par le composant.
+// Feuille agrandie (assez pour une rotation complète du bras autour de l'axe).
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,44 +18,38 @@ const EXT = join(ROOT, 'src/webview/composants/externe');
 
 const src = readFileSync(join(EXT, 'servo.svg'), 'utf8');
 
-// Extrait le contenu interne du <svg> d'origine, retire l'ancien palonnier path49.
+// Contenu interne du <svg> d'origine, sans l'ancien palonnier path49.
 const inner = src
   .replace(/^[\s\S]*?<svg[^>]*>/, '')
   .replace(/<\/svg>\s*$/, '')
-  .replace(/<path[^>]*\bid="path49"[^>]*><\/path>/, '<!-- ancien palonnier path49 retiré -->');
+  .replace(/<path[^>]*\bid="path49"[^>]*><\/path>/, '<!-- ancien palonnier path49 retire -->');
 
-// Moyeu d'origine dans le dessin.
-const HUB_SRC = { x: 114.85249, y: 80.182098 };
-// Boîte 170×125 : on RECENTRE le servo (corps + palonniers) pour que l'axe (moyeu)
-// tombe au centre de la boîte. Décalage appliqué à tout le dessin.
-const W = 170, H = 125;
-const HUB = { x: W / 2, y: H / 2 }; // axe recentré (85 ; 62.5)
-const SHIFT = { x: HUB.x - HUB_SRC.x, y: HUB.y - HUB_SRC.y };
-const L = 34; // longueur de bras (rayon)
-const W2 = 6; // demi-largeur
-const REND = 5; // embout
+const HUB_SRC = { x: 114.85249, y: 80.182098 }; // moyeu dans le dessin d'origine
+const L = 34; // longueur d'un bras (rayon)
 
-// Un bras (capsule + embout), angle a en degrés (0 = vers le haut).
-function arm(a) {
-  const rad = ((a - 90) * Math.PI) / 180;
-  const ex = (HUB.x + L * Math.cos(rad)).toFixed(2);
-  const ey = (HUB.y + L * Math.sin(rad)).toFixed(2);
-  return (
-    `<line x1="${HUB.x}" y1="${HUB.y}" x2="${ex}" y2="${ey}" stroke="#cccccc" stroke-width="${W2 * 2}" stroke-linecap="round"/>` +
-    `<circle cx="${ex}" cy="${ey}" r="${REND}" fill="#888888"/>`
-  );
-}
-function hornGroup(id, angles) {
-  return (
-    `  <g id="${id}">\n` +
-    `    ${angles.map(arm).join('\n    ')}\n` +
-    `    <circle cx="${HUB.x}" cy="${HUB.y}" r="9" fill="#cccccc" stroke="#999999" stroke-width="0.8"/>\n` +
-    `    <circle cx="${HUB.x}" cy="${HUB.y}" r="2" fill="#666666"/>\n` +
-    `  </g>`
-  );
-}
+// Feuille : carrée autour de l'axe, avec marge > L pour la rotation complète.
+const AXIS = { x: 90, y: 90 };
+const W = 180, H = 180;
+const SHIFT = { x: AXIS.x - HUB_SRC.x, y: AXIS.y - HUB_SRC.y }; // recentre le corps sur l'axe
 
-// Grille 10 px (croisements foncés tous les 50 px), boîte 170×125.
+// Un seul bras, vers le HAUT depuis l'axe (capsule + embout).
+const armEndY = (AXIS.y - L).toFixed(2);
+const hornArm =
+  `  <g id="horn-arm">\n` +
+  `    <line x1="${AXIS.x}" y1="${AXIS.y}" x2="${AXIS.x}" y2="${armEndY}" stroke="#cccccc" stroke-width="12" stroke-linecap="round"/>\n` +
+  `    <circle cx="${AXIS.x}" cy="${armEndY}" r="5" fill="#888888"/>\n` +
+  `    <circle cx="${AXIS.x}" cy="${AXIS.y}" r="9" fill="#cccccc" stroke="#999999" stroke-width="0.8"/>\n` +
+  `    <circle cx="${AXIS.x}" cy="${AXIS.y}" r="2" fill="#666666"/>\n` +
+  `  </g>`;
+
+// Marqueur d'axe (croix rouge) — Frank le pose sur le vrai axe du servo.
+const axisMark =
+  `  <g id="axis">\n` +
+  `    <circle cx="${AXIS.x}" cy="${AXIS.y}" r="2.2" fill="none" stroke="#ff00ff" stroke-width="0.6"/>\n` +
+  `    <line x1="${AXIS.x - 4}" y1="${AXIS.y}" x2="${AXIS.x + 4}" y2="${AXIS.y}" stroke="#ff00ff" stroke-width="0.6"/>\n` +
+  `    <line x1="${AXIS.x}" y1="${AXIS.y - 4}" x2="${AXIS.x}" y2="${AXIS.y + 4}" stroke="#ff00ff" stroke-width="0.6"/>\n` +
+  `  </g>`;
+
 function grid() {
   const lines = [];
   for (let x = 0; x <= W; x += 10) {
@@ -65,9 +65,9 @@ function grid() {
 
 // Pastilles de positionnement des broches (repère du composant, grille 10 px).
 const PINS = [
-  { name: 'GND', x: 10, y: 60 },
-  { name: 'V+', x: 10, y: 70 },
-  { name: 'PWM', x: 10, y: 80 },
+  { name: 'GND', x: 20, y: 80 },
+  { name: 'V+', x: 20, y: 90 },
+  { name: 'PWM', x: 20, y: 100 },
 ];
 function pins() {
   return PINS.map((p) =>
@@ -77,23 +77,22 @@ function pins() {
 }
 
 const out = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- Servo Kablix, retouchable (Frank). Boite 170x125.
-     Groupes : body (corps du servo, sans l'ancien palonnier) ; horn-single /
-     horn-double / horn-cross (palonniers, centres sur le moyeu ${HUB.x} ; ${HUB.y}) ;
-     grid et pins (REPERES retires par le composant).
-     Le code affiche body + le bon horn-* et le fait tourner autour du moyeu.
-     Pastilles rouges pin-GND / pin-V+ / pin-PWM : a recaler sur les croisements,
-     EN FACE des fils, puis reporter x/y dans servo-element.mts (pinInfo). -->
+<!-- Servo Kablix, retouchable (Frank). Feuille ${W}x${H} (marge pour rotation complete).
+     Groupes : body (corps) ; horn-arm (UN SEUL bras vers le haut, duplique par le
+     code en 1/2/4 branches) ; axis (croix magenta = centre de rotation, a poser sur
+     le vrai axe) ; grid et pins (reperes retires par le composant).
+     Ajuster la feuille (width/height/viewBox) pour permettre juste la rotation.
+     Pastilles rouges pin-* : a recaler EN FACE des fils, puis reporter dans
+     servo-element.mts (pinInfo). -->
 <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" version="1.1"
    xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
   <g id="grid">${grid()}</g>
   <g id="body" transform="translate(${SHIFT.x.toFixed(3)},${SHIFT.y.toFixed(3)})">${inner}</g>
-${hornGroup('horn-single', [0])}
-${hornGroup('horn-double', [0, 180])}
-${hornGroup('horn-cross', [0, 90, 180, 270])}
+${hornArm}
+${axisMark}
   <g id="pins">${pins()}</g>
 </svg>
 `;
 
 writeFileSync(join(EXT, 'servo.edit.svg'), out);
-console.log('écrit : externe/servo.edit.svg (boîte', W + '×' + H + ', moyeu', HUB.x, HUB.y + ')');
+console.log('ecrit : externe/servo.edit.svg (feuille', W + 'x' + H + ', axe', AXIS.x, AXIS.y + ')');

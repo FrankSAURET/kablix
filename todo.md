@@ -1,7 +1,11 @@
 # À faire
 1. Nano : retoucher nano-pinout.svg (module central redimensionné) puis réactiver le poster dans pinout.mts
 2. Servo : test qui s'exécute très lentement — SI le problème persiste, m'envoyer ton programme de test (delay/refresh/avr8js à diagnostiquer). Le débordement du bras est déjà corrigé (v49).
-3. Retoucher externe/servo.edit.svg (Inkscape) : recaler pastilles pin-* face aux fils, corps sous l'axe, palonniers. Puis me le dire pour recaler pinInfo.
+3. Retoucher externe/servo.edit.svg (Inkscape) : marqueur `axis` (croix magenta) sur le vrai axe ; `horn-arm` (un seul bras) rendu beau ; corps recalé ; pastilles pin-* face aux fils ; réduire viewBox/width/height à la place de la rotation. Puis me le dire → je reporte axis + pin-* dans pinInfo.
+
+# v2026.7.61
+1. ✅ Servo — structure « UN SEUL bras » : le .edit.svg ne contient plus qu'un bras (`horn-arm`, vers le haut) + un marqueur d'axe (`axis`, croix magenta). Le composant DUPLIQUE ce bras en 1/2/4 branches (single/double/cross) et tourne l'ensemble autour de l'axe LU dans le fichier. Frank ne retouche donc qu'un bras + l'axe. Feuille agrandie 180×180 (marge pour rotation complète, réduisible par Frank).
+2. ✅ Le composant lit la TAILLE DE FEUILLE (viewBox/width/height) et l'AXE directement dans servo.edit.svg → Frank peut ajuster la feuille et déplacer l'axe sans toucher au code. Rendu headless validé (single 1 bras, double 2, cross 4 ; rotation 0/45/90/180/270° autour de l'axe).
 
 # v2026.7.60
 1. ✅ Message « Simulation en cours » revu (item « le message sur la souris ne va pas ») : bandeau PERMANENT rouge sur jaune, centré en haut du canvas ENTRE les deux barres d'outils (`#sim-banner`, même hauteur top:8px), visible pendant toute la simulation. Clignote 3× (inversion rouge↔jaune) sur tentative d'édition interdite (`onBlockedEdit`).
