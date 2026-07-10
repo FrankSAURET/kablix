@@ -1,7 +1,7 @@
 {
   "name": "kablix",
   "displayName": "Kablix",
-  "version": "2026.7.85",
+  "version": "2026.7.86",
   "description": "%kablix.description%",
   "publisher": "franksauret",
   "author": {
@@ -169,7 +169,9 @@
     "verify:net": "node scripts/verify-net.mjs",
     "verify:i2c": "node scripts/verify-i2c.mjs",
     "verify:components": "node scripts/verify-components.mjs",
-    "verify:all": "npm run verify && npm run verify:compiler && npm run verify:diagram && npm run verify:uf2 && npm run verify:micropython && npm run verify:wokwi && npm run verify:net && npm run verify:i2c && npm run verify:components",
+    "verify:spi": "node scripts/verify-spi-dma-unit.mjs && node scripts/verify-spi.mjs",
+    "verify:neopixel": "node scripts/verify-neopixel.mjs",
+    "verify:all": "npm run verify && npm run verify:compiler && npm run verify:diagram && npm run verify:uf2 && npm run verify:micropython && npm run verify:wokwi && npm run verify:net && npm run verify:i2c && npm run verify:components && npm run verify:spi && npm run verify:neopixel",
     "package": "vsce package --no-dependencies"
   },
   "dependencies": {

@@ -136,28 +136,24 @@ class KablixSimulator extends Simulator {
         clock.tick(n);
         this.onTick?.();
       } else {
-        // Lot d'instructions jusqu'à la prochaine alarme (≤ 1 ms simulée), borné
-        // aussi par la prochaine échéance programmée (ECHO ultrason) pour ne
-        // jamais sauter par-dessus une fenêtre de quelques µs. Une instruction
-        // en cours de lot (ex. front descendant TRIG) peut programmer une
-        // nouvelle échéance PLUS PROCHE que le budget figé au départ : on
-        // recalcule donc le budget restant à chaque instruction plutôt que de
-        // le figer une fois pour toutes.
-        const toAlarm = clock.nanosToNextAlarm;
-        const baseBudget = toAlarm > 0 ? Math.min(toAlarm, 1e6) : 1e6;
-        let nanos = 0;
+        // Lot d'instructions ≤ 1 ms simulée, borné par la prochaine échéance
+        // programmée (ECHO ultrason…). L'horloge avance À CHAQUE instruction
+        // (clock.tick) et non plus une fois par lot : SYST_CVR (SysTick, dérivé
+        // de clock.nanos) restait sinon GELÉ pendant tout le lot, et toute
+        // routine firmware busy-waitant dessus à quelques centaines de ns près
+        // — machine.bitstream d'un NeoPixel : 0,4-0,9 µs par phase — voyait
+        // ses durées quantifiées à la taille du lot (~1 ms), toutes identiques.
+        // Les alarmes dues en cours de lot (DMA, USB…) tombent aussi pile au
+        // lieu d'attendre la fin du lot.
+        const batchStart = clock.nanos;
         while (!rp2040.core.waiting && !this.stopped) {
-          let budget = baseBudget;
-          if (this.nextScheduledNanos !== null) {
-            budget = Math.min(budget, Math.max(0, this.nextScheduledNanos - (clock.nanos + nanos)));
-          }
-          if (nanos >= budget) break;
+          if (clock.nanos - batchStart >= 1e6) break;
+          if (this.nextScheduledNanos !== null && clock.nanos >= this.nextScheduledNanos) break;
           const instrCycles = rp2040.core.executeInstruction();
           rp2040.pio[0].advance(instrCycles);
           rp2040.pio[1].advance(instrCycles);
-          nanos += instrCycles * CYCLE_NANOS;
+          clock.tick(instrCycles * CYCLE_NANOS);
         }
-        clock.tick(nanos);
         this.onTick?.();
       }
     }

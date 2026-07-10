@@ -1,3 +1,23 @@
+diff --git a/node_modules/rp2040js/dist/esm/clock/simulation-clock.js b/node_modules/rp2040js/dist/esm/clock/simulation-clock.js
+index 3b9a7ac..6219177 100644
+--- a/node_modules/rp2040js/dist/esm/clock/simulation-clock.js
++++ b/node_modules/rp2040js/dist/esm/clock/simulation-clock.js
+@@ -36,7 +36,14 @@ export class SimulationClock {
+         alarm.nanos = this.nanos + nanos;
+         let alarmListItem = this.nextAlarm;
+         let lastItem = null;
+-        while (alarmListItem && alarmListItem.nanos < alarm.nanos) {
++        // KABLIX PATCH: insert same-deadline alarms in FIFO order (<=) instead
++        // of LIFO (<). With LIFO, a DMA TX channel rescheduling itself at the
++        // current instant kept cutting in front of the pending RX channel alarm,
++        // starving it until the SPI RX FIFO overflowed — the RX channel then
++        // never reached transCount 0 and the firmware hung on
++        // dma_channel_is_busy() (MicroPython machine.SPI writes >= 32 bytes).
++        // FIFO also matches the RP2040's round-robin DMA arbitration.
++        while (alarmListItem && alarmListItem.nanos <= alarm.nanos) {
+             lastItem = alarmListItem;
+             alarmListItem = alarmListItem.next;
+         }
 diff --git a/node_modules/rp2040js/dist/esm/peripherals/pio.d.ts b/node_modules/rp2040js/dist/esm/peripherals/pio.d.ts
 index 2aea8c1..ecd36dc 100644
 --- a/node_modules/rp2040js/dist/esm/peripherals/pio.d.ts
@@ -20,7 +40,7 @@ index 2aea8c1..ecd36dc 100644
      stop(): void;
  }
 diff --git a/node_modules/rp2040js/dist/esm/peripherals/pio.js b/node_modules/rp2040js/dist/esm/peripherals/pio.js
-index f87e56c..2646906 100644
+index f87e56c..85a7f48 100644
 --- a/node_modules/rp2040js/dist/esm/peripherals/pio.js
 +++ b/node_modules/rp2040js/dist/esm/peripherals/pio.js
 @@ -127,6 +127,10 @@ export class StateMachine {
@@ -34,14 +54,17 @@ index f87e56c..2646906 100644
          this.execCtrl = 0x1f << 12;
          this.shiftCtrl = 0b11 << 18;
          this.pinCtrl = 0x5 << 26;
-@@ -629,6 +633,21 @@ export class StateMachine {
+@@ -629,6 +633,25 @@ export class StateMachine {
              this.nextPC();
          }
      }
 +    // KABLIX PATCH: honor CLKDIV (SMx_CLKDIV, unused upstream — clkDivRestart()
 +    // was a no-op stub) by only running an SM cycle once the fractional
 +    // system-clock accumulator crosses the configured divisor. divisor 0 means
-+    // 65536 per the RP2040 datasheet.
++    // 65536 per the RP2040 datasheet. Pins are checked after EACH individual
++    // step (not just once at the end of the batch) — a single advance() call
++    // can cross several SM cycles, and a fast toggle (WS2812 bit ≈ a handful
++    // of SM cycles) must not be collapsed to its final state only.
 +    advance(sysCycles) {
 +        if (!this.enabled) return;
 +        const divisor = this.clockDivInt === 0 && this.clockDivFrac === 0
@@ -51,12 +74,13 @@ index f87e56c..2646906 100644
 +        while (this.clkDivAccum >= divisor) {
 +            this.clkDivAccum -= divisor;
 +            this.step();
++            this.pio.checkChangedPins();
 +        }
 +    }
      setSetPinDirs(value) {
          this.pio.pinDirectionsChanged(value, this.setBase, this.setCount);
      }
-@@ -757,7 +776,7 @@ export class StateMachine {
+@@ -757,7 +780,7 @@ export class StateMachine {
          // TODO any pin write left asserted due to OUT_STICKY.
      }
      clkDivRestart() {
@@ -65,7 +89,7 @@ index f87e56c..2646906 100644
      }
      checkWait() {
          if (!this.waiting) {
-@@ -972,7 +991,8 @@ export class RPPIO extends BasePeripheral {
+@@ -972,7 +995,8 @@ export class RPPIO extends BasePeripheral {
                  const shouldRun = value & 0xf;
                  if (this.stopped && shouldRun) {
                      this.stopped = false;
@@ -75,7 +99,7 @@ index f87e56c..2646906 100644
                  }
                  if (!shouldRun) {
                      this.stopped = true;
-@@ -1069,6 +1089,19 @@ export class RPPIO extends BasePeripheral {
+@@ -1069,6 +1093,19 @@ export class RPPIO extends BasePeripheral {
          }
          this.checkChangedPins();
      }

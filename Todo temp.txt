@@ -1,5 +1,8 @@
 Pour moi :
-- 
+- revoir # v2026.7.72 - 1. Curseurs de simulation trop gros/longs, texte trop loin : style partagé `utils/sim-control-styles.mts` (min-width du curseur 90→44px, gap texte↔curseur 4→2px, police 11→10px) appliqué à hc-sr04, dht22, capteur de pouls, NTC température et à la base commune flamme/gaz/son/lumière (`analog-digital-sensor.mts`) — un seul point de vérité au lieu de 5 copiés-collés divergents. Modificateur `.val--wide` (46px) gardé pour les valeurs longues (bpm, °C négatifs) afin de ne rien tronquer. Vérifié en rendu Chrome headless (hc-sr04 3 chiffres, bpm 180, dht22 humidité/température négative) : rien de coupé ni chevauché.
+
+---------------------------------------------------------------------------------------------------
+
 
 ------------------------------------------------------------------------------------------------------
 - La pastille jaune qui apparait pour connecter un point doit apparaitre dés qu'on est dans so périmetre actuellement elle disparait si on est en son centre.
