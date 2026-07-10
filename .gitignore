@@ -4,3 +4,4 @@ dist/
 .DS_Store
 test-assets/
 
+__pycache__/

@@ -240,7 +240,9 @@ if (!tools.arduinoCli) {
 }
 
 // --- 3. Vérification syntaxique des .py ----------------------------------------
-console.log('\n--- Vérification syntaxique des .py (python -m py_compile) ---');
+// ast.parse (et non py_compile) : aucun bytecode écrit, pas de __pycache__.
+console.log('\n--- Vérification syntaxique des .py (python ast.parse) ---');
+const PY_CHECK = 'import ast, sys; ast.parse(open(sys.argv[1], encoding="utf-8").read())';
 let pythonOk = true;
 try {
   execFileSync('python', ['--version'], { stdio: 'ignore' });
@@ -252,7 +254,7 @@ if (pythonOk) {
   for (const t of TESTS.filter((x) => x.ext === 'py')) {
     const file = join(HERE, `${t.name}.py`);
     try {
-      execFileSync('python', ['-m', 'py_compile', file], { stdio: ['ignore', 'pipe', 'pipe'] });
+      execFileSync('python', ['-c', PY_CHECK, file], { stdio: ['ignore', 'pipe', 'pipe'] });
       console.log(`  ✓ ${t.name}.py`);
       checks++;
     } catch (err) {
