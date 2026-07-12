@@ -73,7 +73,6 @@ export class PicoBoardElement extends HTMLElement {
   }
 
   private ledEl: SVGElement | null = null;
-  private ledMode: 'opacity' | 'fill' = 'opacity';
   private ledValue = false;
   private rendered = false;
 
@@ -125,6 +124,11 @@ export class PicoBoardElement extends HTMLElement {
       inner.setAttribute('y', '0');
       inner.setAttribute('width', String(BOARD_W));
       inner.setAttribute('height', String(BOARD_H));
+      // Pico W : le rendu Fritzing dessine un point vert foncé en dur au centre
+      // de la LED (#circle178) — il paraît noir à taille réelle et reste visible
+      // LED éteinte. On le retire pour un rendu identique à la Pico (pastille
+      // claire éteinte, vert + halo allumée via la LED en surimpression).
+      if (this.isPicoW) inner.querySelector('#circle178')?.remove();
       board.appendChild(inner);
     }
     svg.appendChild(board);
@@ -140,26 +144,21 @@ export class PicoBoardElement extends HTMLElement {
   }
 
   /**
-   * Localise (Pico) ou crée (Pico W) la LED verte pilotable.
-   * - Pico : le dessin contient déjà #circle16 (vert, filtre de halo) → on pilote
-   *   son opacité.
-   * - Pico W : aucune LED dans le rendu → pastille ajoutée près de l'USB.
+   * Localise (Pico) ou crée (Pico W) la LED verte pilotable — même comportement
+   * sur les deux cartes : invisible éteinte, verte avec halo allumée.
+   * - Pico : le dessin contient déjà #circle16 (vert, filtre de halo).
+   * - Pico W : aucune LED dans le rendu Fritzing → même pastille verte ajoutée,
+   *   pilotée en opacité (pas de cercle sombre visible à l'arrêt).
    */
   private addLed(svg: SVGSVGElement, inner: SVGElement | null): SVGElement | null {
     const native = inner?.querySelector('#circle16') as SVGElement | null;
-    if (!this.isPicoW && native) {
-      this.ledMode = 'opacity';
-      return native;
-    }
-    this.ledMode = 'fill';
+    if (!this.isPicoW && native) return native;
     const c = document.createElementNS(SVG_NS, 'circle');
     c.setAttribute('id', 'led-gp25');
     c.setAttribute('cx', String(LED.x));
     c.setAttribute('cy', String(LED.y));
     c.setAttribute('r', '2.6');
-    c.setAttribute('fill', '#3a4a3a');
-    c.setAttribute('stroke', '#222');
-    c.setAttribute('stroke-width', '0.5');
+    c.setAttribute('fill', '#8cff5a');
     const title = document.createElementNS(SVG_NS, 'title');
     title.textContent = 'GP25 (LED)';
     c.appendChild(title);
@@ -173,11 +172,7 @@ export class PicoBoardElement extends HTMLElement {
     this.ledValue = value;
     const el = this.ledEl;
     if (!el) return;
-    if (this.ledMode === 'opacity') {
-      el.setAttribute('opacity', value ? '1' : '0');
-    } else {
-      el.setAttribute('fill', value ? '#8cff5a' : '#3a4a3a');
-    }
+    el.setAttribute('opacity', value ? '1' : '0');
     (el as SVGElement).style.filter = value ? 'drop-shadow(0 0 3px #8cff5a)' : 'none';
   }
 
