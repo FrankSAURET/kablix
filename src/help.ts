@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { randomBytes } from 'node:crypto';
 
 // Liens « aide en ligne » : dépôt GitHub et documentation utilisateur (FR/EN).
 const REPO_URL = 'https://github.com/FrankSAURET/kablix';
@@ -80,12 +81,8 @@ export class HelpPanel {
 }
 
 function getNonce(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let text = '';
-  for (let i = 0; i < 32; i++) {
-    text += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return text;
+  // Nonce CSP : aléa cryptographique (Math.random serait prédictible).
+  return randomBytes(24).toString('base64');
 }
 
 function getHtml(webview: vscode.Webview): string {

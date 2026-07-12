@@ -130,8 +130,9 @@ export function compileExpr(source: string, varNames: string[]): Node {
     pos += name.length;
     skipWs();
     if (peek() === '(') {
+      // Object.hasOwn : refuse les propriétés héritées (constructor, toString…).
+      if (!Object.hasOwn(FUNCTIONS, name)) fail(`unknown function "${name}"`);
       const fn = FUNCTIONS[name];
-      if (!fn) fail(`unknown function "${name}"`);
       pos++;
       const args: Node[] = [];
       skipWs();
@@ -150,7 +151,7 @@ export function compileExpr(source: string, varNames: string[]): Node {
       pos++;
       return (v) => fn(...args.map((a) => a(v)));
     }
-    if (name in CONSTANTS) {
+    if (Object.hasOwn(CONSTANTS, name)) {
       const value = CONSTANTS[name];
       return () => value;
     }

@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { randomBytes } from 'node:crypto';
 const l10n = vscode.l10n;
 import {
   compile,
@@ -696,6 +697,18 @@ export class SimulatorPanel {
       reply({ error: 'network bridge disabled (kablix.picowNetworkBridge)' });
       return;
     }
+    // Seuls http/https sont relayés (jamais file:, data:, ni autre schéma local).
+    let protocol: string;
+    try {
+      protocol = new URL(req.url).protocol;
+    } catch {
+      reply({ error: 'invalid url' });
+      return;
+    }
+    if (protocol !== 'http:' && protocol !== 'https:') {
+      reply({ error: `unsupported protocol: ${protocol}` });
+      return;
+    }
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 15_000);
     try {
@@ -1095,10 +1108,6 @@ export class SimulatorPanel {
 }
 
 function getNonce(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let text = '';
-  for (let i = 0; i < 32; i++) {
-    text += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return text;
+  // Nonce CSP : aléa cryptographique (Math.random serait prédictible).
+  return randomBytes(24).toString('base64');
 }
