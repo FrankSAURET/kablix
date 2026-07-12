@@ -39,6 +39,8 @@ interface NetBridgeRequest {
   body?: string;
 }
 const CUSTOM_PARTS_KEY = 'kablix.customParts';
+/** Préréglages de modèles de simulation importés dans le créateur (.json). */
+const SIM_MODELS_KEY = 'kablix.simModels';
 const UI_STATE_KEY = 'kablix.uiState';
 /** Dernière colonne d'éditeur du simulateur (rouvert au même endroit). */
 const LAST_COLUMN_KEY = 'kablix.lastColumn';
@@ -529,6 +531,7 @@ export class SimulatorPanel {
     board?: Board;
     svg?: string;
     parts?: unknown[];
+    models?: unknown[];
     part?: unknown;
     state?: unknown;
     line?: number;
@@ -541,6 +544,10 @@ export class SimulatorPanel {
     switch (msg?.type) {
       case 'ready':
         // Renvoie les composants personnalisés et les préférences d'interface.
+        this.post({
+          type: 'simModels',
+          models: this.context.globalState.get<unknown[]>(SIM_MODELS_KEY, []),
+        });
         this.post({
           type: 'customParts',
           parts: this.context.globalState.get<unknown[]>(CUSTOM_PARTS_KEY, []),
@@ -588,6 +595,9 @@ export class SimulatorPanel {
         break;
       case 'saveCustomParts':
         void this.context.globalState.update(CUSTOM_PARTS_KEY, msg.parts ?? []);
+        break;
+      case 'saveSimModels':
+        void this.context.globalState.update(SIM_MODELS_KEY, msg.models ?? []);
         break;
       case 'exportCustomPart':
         if (msg.part) void this.saveCustomPartFile(msg.part as { label?: string });

@@ -111,6 +111,10 @@ export interface PartDef {
     pins: CustomPin[];
     /** Correspondance rôle du modèle → nom de broche (ex. { A: 'anode' }). */
     pinRoles?: Record<string, string>;
+    /** Vue interne (schéma) affichée par le bouton K, déjà nettoyée. */
+    innerSvg?: string;
+    /** Coin haut-gauche de la vue interne dans le repère du dessin externe. */
+    innerOffset?: { x: number; y: number };
   };
   /**
    * Facteur d'agrandissement appliqué au dessin ET aux broches pour ramener le
@@ -133,6 +137,13 @@ export interface CustomPartData {
   pins: CustomPin[];
   pinRoles?: Record<string, string>;
   attrs?: Record<string, string>;
+  /** Vue interne (schéma) et son calage dans le repère du dessin externe. */
+  innerSvg?: string;
+  innerOffset?: { x: number; y: number };
+  /** Ancres vertes mesurées à l'import (externe/interne) : permettent de
+   *  recalculer le calage quand un seul des deux SVG est réimporté. */
+  extAnchor?: { x: number; y: number };
+  intAnchor?: { x: number; y: number };
 }
 
 const STATE_PROP: PropDef = { attr: 'state', label: 'State (0/1)', kind: 'select', options: ['0', '1'] };
@@ -444,6 +455,45 @@ export const CUSTOM_KINDS: ReadonlyArray<{ kind: PartKind; label: string; roles:
   { kind: 'passive', label: 'Decorative (no behavior)', roles: [] },
 ];
 
+/**
+ * Préréglage de modèle de simulation importé d'un fichier .json : un modèle de
+ * base (kind de CUSTOM_KINDS) + rôles pré-affectés et attributs par défaut.
+ * Format du fichier (objet seul ou tableau d'objets) :
+ * { "format": "kablix-model", "label": "…", "kind": "led",
+ *   "pinRoles": { "A": "anode", "C": "cathode" }, "attrs": { } }
+ */
+export interface SimModelPreset {
+  label: string;
+  kind: PartKind;
+  pinRoles?: Record<string, string>;
+  attrs?: Record<string, string>;
+}
+
+let simModelPresets: SimModelPreset[] = [];
+
+export function setSimModelPresets(presets: SimModelPreset[]): void {
+  simModelPresets = presets;
+}
+
+export function getSimModelPresets(): SimModelPreset[] {
+  return simModelPresets;
+}
+
+/** Valide et ajoute des préréglages (remplace ceux de même libellé) ; retourne la liste complète. */
+export function addSimModelPresets(raw: unknown): SimModelPreset[] {
+  const items = Array.isArray(raw) ? raw : [raw];
+  for (const item of items) {
+    const p = item as Partial<SimModelPreset>;
+    if (typeof p?.label !== 'string' || !p.label) throw new Error('missing "label" field.');
+    if (!CUSTOM_KINDS.some((k) => k.kind === p.kind)) throw new Error(`unknown "kind": ${String(p.kind)}`);
+    const preset: SimModelPreset = { label: p.label, kind: p.kind as PartKind, pinRoles: p.pinRoles, attrs: p.attrs };
+    const i = simModelPresets.findIndex((m) => m.label === preset.label);
+    if (i >= 0) simModelPresets[i] = preset;
+    else simModelPresets.push(preset);
+  }
+  return simModelPresets;
+}
+
 export function registerCustomPart(data: CustomPartData): PartDef {
   const def: PartDef = {
     type: data.type,
@@ -451,7 +501,13 @@ export function registerCustomPart(data: CustomPartData): PartDef {
     tag: 'kablix-custom-part',
     kind: data.kind,
     attrs: data.attrs,
-    custom: { svg: data.svg, pins: data.pins, pinRoles: data.pinRoles },
+    custom: {
+      svg: data.svg,
+      pins: data.pins,
+      pinRoles: data.pinRoles,
+      innerSvg: data.innerSvg,
+      innerOffset: data.innerOffset,
+    },
     analogPin: data.kind === 'analog-source' ? data.pinRoles?.['AO'] ?? 'AO' : undefined,
     digitalPin: data.kind === 'digital-source' ? data.pinRoles?.['OUT'] ?? 'OUT' : undefined,
     interactive: data.kind === 'pushbutton',

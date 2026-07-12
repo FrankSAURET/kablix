@@ -120,6 +120,28 @@ const FR: Record<string, string> = {
   'SVG drawing': 'Dessin SVG',
   'Click the preview to add a connection point.': "Cliquez l'aperçu pour poser un point de connexion.",
   'Preview': 'Aperçu',
+  'External view': 'Vue externe',
+  'Internal view': 'Vue interne',
+  'Load an SVG…': 'Charger un SVG…',
+  'Overlay': 'Superposer',
+  'Remove the internal view': 'Retirer la vue interne',
+  'Same scale as the external drawing; the green anchor aligns both views.':
+    "Même échelle que le dessin externe ; l'ancre verte cale les deux vues.",
+  'Fit the drawing in the view': 'Ajuster le dessin à la zone',
+  'Import simulation models (.json)': 'Importer des modèles de simulation (.json)',
+  'Imported models': 'Modèles importés',
+  '{0} model(s) available.': '{0} modèle(s) disponible(s).',
+  'Markers: red circle (opacity 0.8) = pin, green circle (0.5) = alignment anchor, red text = pin name. They are removed from the final part.':
+    'Marqueurs : cercle rouge (opacité 0,8) = broche, cercle vert (0,5) = ancre de calage, texte rouge = nom de la broche. Ils sont retirés du composant final.',
+  'invalid SVG file.': 'fichier SVG invalide.',
+  '{0} pin(s) detected.': '{0} broche(s) détectée(s).',
+  'No red circle found — click the preview to place the pins.':
+    "Aucun cercle rouge trouvé — cliquez l'aperçu pour poser les broches.",
+  'Green anchor missing in one of the two views — top-left corners aligned.':
+    "Ancre verte absente dans l'une des deux vues — coins haut-gauche alignés.",
+  'Internal view aligned on the green anchor.': "Vue interne calée sur l'ancre verte.",
+  'Alignment anchor': 'Ancre de calage',
+  'No internal view — load an SVG (optional).': 'Aucune vue interne — chargez un SVG (facultatif).',
   'Connection points': 'Points de connexion',
   'No point — click the preview.': "Aucun point — cliquez l'aperçu.",
   'Delete this point': 'Supprimer ce point',

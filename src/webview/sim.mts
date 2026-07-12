@@ -1716,6 +1716,10 @@ editor.onPaletteStateChange = (state) => {
 editor.onCustomPartsChange = (parts: CustomPartData[]) => {
   vscode.postMessage({ type: 'saveCustomParts', parts });
 };
+// Persistance des préréglages de modèles de simulation importés (.json).
+editor.onSimModelsChange = (models) => {
+  vscode.postMessage({ type: 'saveSimModels', models });
+};
 editor.onOpenExternal = (url: string) => {
   vscode.postMessage({ type: 'openExternal', url });
 };
@@ -1867,6 +1871,10 @@ window.addEventListener('message', (event: MessageEvent) => {
         }
       }
       restoredState = undefined;
+      break;
+    case 'simModels':
+      // Préréglages de modèles de simulation importés (créateur de composants).
+      editor.loadSimModels((msg.models as Parameters<typeof editor.loadSimModels>[0]) ?? []);
       break;
     case 'codeFile': {
       // Nom du fichier de code à exécuter / déboguer, envoyé par l'extension.

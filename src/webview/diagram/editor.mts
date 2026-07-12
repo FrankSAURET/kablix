@@ -14,10 +14,12 @@ import {
   partDef,
   pinElectricalRole,
   registerCustomPart,
+  setSimModelPresets,
   unregisterCustomPart,
   type CustomPartData,
   type PartDef,
   type PropDef,
+  type SimModelPreset,
 } from './catalog.mjs';
 import { breadboardPins, normalizeSize, stripOfPin } from './breadboard.mjs';
 import { internalWiringSvg, type PinPoint } from './internal-wiring.mjs';
@@ -143,6 +145,8 @@ export class Editor {
   onCustomPartsChange: ((parts: CustomPartData[]) => void) | null = null;
   /** Appelé pour exporter un composant personnalisé en fichier .json. */
   onExportCustomPart: ((part: CustomPartData) => void) | null = null;
+  /** Appelé quand les préréglages de modèles de simulation changent (persistance). */
+  onSimModelsChange: ((models: SimModelPreset[]) => void) | null = null;
   /** Appelé quand le tri de la palette ou les derniers utilisés changent. */
   onPaletteStateChange: ((state: PaletteState) => void) | null = null;
   /** Appelé à l'ajout d'un composant (pose ou glisser-déposer) — sélection auto de la carte. */
@@ -186,7 +190,11 @@ export class Editor {
   private selectedHandles = new Set<number>();
   private colorIndex = 0;
   private customData = new Map<string, CustomPartData>();
-  private creator = new PartCreator((data) => this.saveCustomPart(data));
+  private creator = ((): PartCreator => {
+    const c = new PartCreator((data) => this.saveCustomPart(data));
+    c.onModelsChange = (models) => this.onSimModelsChange?.(models);
+    return c;
+  })();
   private handles: HTMLDivElement[] = [];
   private guides: SVGLineElement[] = [];
   /** Platines dont des trous sont actuellement en surbrillance. */
@@ -1029,6 +1037,14 @@ export class Editor {
       pins: data.pins,
       pinRoles: data.pinRoles,
       attrs: data.attrs,
+      // Vue interne optionnelle (schéma) et son calage sur le dessin externe.
+      innerSvg: typeof data.innerSvg === 'string' && data.innerSvg.includes('<svg') ? data.innerSvg : undefined,
+      innerOffset:
+        typeof data.innerOffset?.x === 'number' && typeof data.innerOffset?.y === 'number'
+          ? data.innerOffset
+          : undefined,
+      extAnchor: data.extAnchor,
+      intAnchor: data.intAnchor,
     });
   }
 
@@ -1049,6 +1065,11 @@ export class Editor {
       registerCustomPart(data);
     }
     this.buildPalette();
+  }
+
+  /** Recharge les préréglages de modèles de simulation persistés. */
+  loadSimModels(models: SimModelPreset[]): void {
+    setSimModelPresets(Array.isArray(models) ? models : []);
   }
 
   private saveCustomPart(data: CustomPartData): void {
@@ -2637,6 +2658,7 @@ export class Editor {
     const r = this.rendered.get(partId);
     if (!r) return false;
     if (pinoutSvg(r.part.type) !== null) return true;
+    if (partDef(r.part.type).custom?.innerSvg) return true;
     const pins = this.partPins(r.el).map((p) => ({ name: p.name, x: p.x, y: p.y }));
     return internalWiringSvg(partDef(r.part.type).kind, pins, r.part.attrs, r.part.type) !== null;
   }
@@ -3020,6 +3042,24 @@ export class Editor {
     }
     w = w || body.offsetWidth || 80;
     h = h || body.offsetHeight || 60;
+    // Composant personnalisé avec vue interne fournie (SVG importé dans le
+    // créateur) : on l'affiche telle quelle sur fond blanc translucide, calée
+    // par le décalage mesuré sur l'ancre verte à l'import.
+    const custom = partDef(r.part.type).custom;
+    if (custom?.innerSvg) {
+      const off = custom.innerOffset ?? { x: 0, y: 0 };
+      const overlay = document.createElement('div');
+      overlay.className = 'part__internal';
+      overlay.style.left = `${offX}px`;
+      overlay.style.top = `${offY}px`;
+      overlay.style.width = `${w}px`;
+      overlay.style.height = `${h}px`;
+      overlay.innerHTML =
+        `<div style="position:absolute;inset:0;background:rgba(255,255,255,0.8);border-radius:6px"></div>` +
+        `<div style="position:absolute;left:${off.x}px;top:${off.y}px">${custom.innerSvg}</div>`;
+      body.appendChild(overlay);
+      return;
+    }
     const inner = internalWiringSvg(partDef(r.part.type).kind, pins, r.part.attrs, r.part.type, { w, h });
     if (!inner) return;
     // Inséré dans le corps : suit naturellement rotation et retournement.
