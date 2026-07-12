@@ -1,7 +1,11 @@
 # À faire
 1. (noté pour plus tard je dois préciser) Faire un visualisateur virtuel ou utiliser teleplot
 2. (noté pour plus tard je dois préciser) ajouter une LDR, une CTN, une CTP avec paramètres + simulation qui prends en compte les résistances
-3. ⬜ Variables locales (r,g,b) jamais affichées en pas-à-pas : `__kx_vars()` dans `pydebug.ts` ne lit que `globals()`, jamais les frames de fonction/méthode.
+3. ⬜ Supprimer le cercle noir sur la led builtin de la pico pi w. La rendre identique à celle de la pico pi.
+4. ⬜ Si on ouvre 2 fichiers projix à suivre, il garde en mémoire le dernier fichier python choisi au lieu de prendre celui du projet.
+
+# v2026.7.89
+1. ✅ Variables locales (r, g, b…) enfin affichées en pas-à-pas MicroPython (ex-item « __kx_vars() ne lit que globals() ») : MicroPython n'offre AUCUNE introspection des frames à l'exécution (pas de `sys._getframe` ni `settrace` dans le firmware standard ; `locals()` y renvoie les globales — les locales sont compilées en slots anonymes). Solution : détection STATIQUE des locales de chaque `def` par l'instrumentation (`pydebug.ts` — paramètres, affectations simples/multiples/augmentées/annotées, cibles de `for`, `with/except/import … as`, `nonlocal` ; `global` exclu, `self`/`cls` masqués, corps de classe ignorés car invisibles depuis une lambda) ; chaque ligne instrumentée d'une fonction devient `__kx(N, lambda: [('r', lambda: r), …])` — la lambda n'est évaluée QU'EN PAUSE, un thunk qui lève NameError (variable pas encore affectée à cette ligne) est simplement ignoré, une locale écrase la globale de même nom dans le panneau (sémantique de la ligne courante). Préambule factorisé (`__kx_put` partagé globales/locales). Vérifié bout-en-bout sur firmware réel : arrêt dans une fonction → paramètres visibles, `b` absente AVANT son affectation puis `b = r + g` au pas suivant, globales toujours visibles. `verify-debug-py.mjs` étendu (7 nouveaux contrôles unitaires + 7 bout-en-bout) et enfin câblé dans la suite : `verify:debug`, inclus dans verify:all.
 
 # v2026.7.88
 1. ✅ Éditeur de composants refondu en plein écran (96 vw × 94 vh) : colonne formulaire (nom, modèle de simulation, rôles, liste des broches) + deux grandes zones maximisées côte à côte — vue externe et vue interne — avec zoom partagé (−/+/⛶ ajuster) ; l'ancienne textarea de code SVG est remplacée par un chargement de fichier.

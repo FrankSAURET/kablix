@@ -102,12 +102,54 @@ check(
   bodyOk ? '' : `\n--- obtenu ---\n${body.join('\n')}\n--- attendu ---\n${expectedBody.join('\n')}`
 );
 
+// --- Variables locales (détection statique par def) ---------------------------
+const sampleLoc = [
+  'def melange(r, g=2, *args, **kw):', // 1 : params (self/cls exclus ailleurs)
+  '    b = r + g', //                     2 : affectation simple
+  '    for k in range(3):', //            3 : cible de for
+  '        b += k', //                    4 : affectation augmentée
+  '    with open("f") as fh:', //         5 : with … as
+  '        pass', //                      6
+  '    global seuil', //                  7 : global → jamais remonté en locale
+  '    seuil = b', //                     8 : seuil exclu (global)
+  '    return b', //                      9
+  'class Truc:', //                      10
+  '    attr = 1', //                     11 : corps de classe → pas de lambda
+  '    def methode(self, n):', //        12 : self exclu
+  '        total = n * 2', //            13
+  '        return total', //             14
+  'x = 1', //                            15 : module → pas de lambda
+].join('\n');
+const instLoc = instrumentPython(sampleLoc).split('\n');
+const lineFor = (n) => instLoc.find((l) => l.trim().startsWith(`__kx(${n}`)) ?? '';
+check(
+  'locales : params + affectations + for + as capturés (ligne 2)',
+  lineFor(2).includes("('r',lambda:r)") &&
+    lineFor(2).includes("('g',lambda:g)") &&
+    lineFor(2).includes("('b',lambda:b)") &&
+    lineFor(2).includes("('k',lambda:k)") &&
+    lineFor(2).includes("('fh',lambda:fh)") &&
+    lineFor(2).includes("('args',lambda:args)") &&
+    lineFor(2).includes("('kw',lambda:kw)"),
+  lineFor(2)
+);
+check('locales : nom global exclu (seuil)', !lineFor(2).includes("'seuil'"), lineFor(2));
+check('locales : corps de classe sans lambda', lineFor(11) === '    __kx(11)', lineFor(11));
+check(
+  'locales : méthode = n/total, sans self',
+  lineFor(13).includes("('n',lambda:n)") &&
+    lineFor(13).includes("('total',lambda:total)") &&
+    !lineFor(13).includes("'self'"),
+  lineFor(13)
+);
+check('locales : niveau module sans lambda', lineFor(15) === '__kx(15)', lineFor(15));
+
 // Si un Python local est disponible, vérifie que le résultat compile (syntaxe).
 let pyChecked = false;
 for (const py of ['python', 'python3', 'py']) {
   try {
     execFileSync(py, ['-c', 'import sys; compile(sys.stdin.read(), "<kx>", "exec")'], {
-      input: instrumented,
+      input: instrumented + '\n' + instrumentPython(sampleLoc),
       stdio: ['pipe', 'ignore', 'pipe'],
     });
     check(`syntaxe Python valide (${py})`, true);
@@ -139,16 +181,21 @@ const segments = parseUf2(new Uint8Array(readFileSync(fw))).map((s) => ({
   data: s.data,
 }));
 
-// 3 globales + boucle : TICK régulier pour synchroniser le test.
+// 3 globales + une fonction (locales r/g/b) + boucle : TICK régulier pour
+// synchroniser le test.
 const script = [
   "print('START')", //   ligne 1
   'compteur = 0', //     ligne 2
   'seuil = 3', //        ligne 3
   "nom = 'kx'", //       ligne 4
-  'while True:', //      ligne 5
-  '    compteur = compteur + 1', //      ligne 6
-  '    if compteur % 10 == 0:', //       ligne 7
-  "        print('TICK', compteur)", //  ligne 8
+  'def melange(r, g):', //               ligne 5
+  '    b = r + g', //                    ligne 6
+  '    return b * 2', //                 ligne 7
+  'while True:', //      ligne 8
+  '    compteur = compteur + 1', //      ligne 9
+  '    total = melange(compteur, seuil)', // ligne 10
+  '    if compteur % 10 == 0:', //       ligne 11
+  "        print('TICK', compteur)", //  ligne 12
   '',
 ].join('\n');
 
@@ -201,11 +248,11 @@ try {
   await waitFor(() => states.length >= 3, 60000, 'état après le 2e pas');
   check('pas à pas : 3 états reçus', states.length >= 3);
 
-  // Lignes : numéros du source ORIGINAL, dans la boucle, et qui évoluent.
+  // Lignes : numéros du source ORIGINAL, dans la boucle ou la fonction, et qui évoluent.
   const lines = states.slice(0, 3).map((s) => s.line);
   check(
-    'lignes dans la boucle (5..8)',
-    lines.every((l) => typeof l === 'number' && l >= 5 && l <= 8),
+    'lignes dans la boucle ou la fonction (6..12)',
+    lines.every((l) => typeof l === 'number' && l >= 6 && l <= 12),
     `lignes reçues : ${JSON.stringify(lines)}`
   );
   check(
@@ -241,19 +288,53 @@ try {
   await new Promise((r) => setTimeout(r, 2000)); // délai de grâce
   check('reprise : plus aucun état KX', states.length === statesBefore);
 
+  // --- Variables locales (arrêt DANS la fonction) -------------------------------
+  // Arrêt ligne 6 (avant `b = r + g`) : r et g (paramètres) sont visibles, b pas
+  // encore affectée doit être ABSENTE (thunk NameError ignoré). Un pas → ligne 7 :
+  // b apparaît et vaut r + g.
+  const locBefore = states.length;
+  engine.setBreakpoints([{ line: 6 }]);
+  await waitFor(() => states.length > locBefore, 120000, 'arrêt dans la fonction (ligne 6)');
+  engine.setBreakpoints([]); // retiré tout de suite : ne pas re-déclencher au tour suivant
+  const locState6 = states[states.length - 1];
+  const locVars6 = Object.fromEntries(locState6.variables.map((v) => [v.name, v.value]));
+  check('locales : arrêt sur la ligne 6 (corps de fonction)', locState6.line === 6, `ligne=${locState6.line}`);
+  check(
+    'locales : paramètres r et g remontés (g = seuil = 3)',
+    'r' in locVars6 && locVars6.g === '3',
+    JSON.stringify(locVars6)
+  );
+  check('locales : b absente avant son affectation', !('b' in locVars6), JSON.stringify(locVars6));
+  check('locales : les globales restent visibles (compteur, nom)', 'compteur' in locVars6 && locVars6.nom === "'kx'");
+  const stepBefore = states.length;
+  engine.step();
+  await waitFor(() => states.length > stepBefore, 60000, 'pas vers la ligne 7');
+  const locState7 = states[states.length - 1];
+  const locVars7 = Object.fromEntries(locState7.variables.map((v) => [v.name, v.value]));
+  check('locales : le pas mène à la ligne 7', locState7.line === 7, `ligne=${locState7.line}`);
+  check(
+    'locales : b = r + g après affectation',
+    Number(locVars7.b) === Number(locVars7.r) + Number(locVars7.g),
+    JSON.stringify(locVars7)
+  );
+  const ticksAtLoc = countTicks();
+  engine.resume();
+  await waitFor(() => countTicks() > ticksAtLoc, 120000, 'reprise après le test des locales');
+  check('locales : reprise après le test', true);
+
   // --- Point d'arrêt CONDITIONNEL ---------------------------------------------
-  // Arrêt sur la ligne 8 (print TICK, atteinte seulement quand compteur % 10 == 0)
+  // Arrêt sur la ligne 12 (print TICK, atteinte seulement quand compteur % 10 == 0)
   // si la condition « compteur > 100 and compteur % 7 == 0 » est vraie. La boucle
   // tourne vite : on ne peut pas prédire la valeur exacte, mais l'arrêt DOIT
   // respecter la condition (sinon le filtrage conditionnel ne marche pas).
   const condBefore = states.length;
-  engine.setBreakpoints([{ line: 8, condition: 'compteur > 100 and compteur % 7 == 0' }]);
+  engine.setBreakpoints([{ line: 12, condition: 'compteur > 100 and compteur % 7 == 0' }]);
   await waitFor(() => states.length > condBefore, 120000, 'arrêt sur breakpoint conditionnel');
   const condState = states[states.length - 1];
   const condVars = Object.fromEntries(condState.variables.map((v) => [v.name, v.value]));
   const condCnt = Number(condVars.compteur);
-  check('breakpoint conditionnel : arrêt sur la ligne 8', condState.line === 8, `ligne=${condState.line}`);
-  // La ligne 8 n'est atteinte que si compteur % 10 == 0 ; la condition impose en
+  check('breakpoint conditionnel : arrêt sur la ligne 12', condState.line === 12, `ligne=${condState.line}`);
+  // La ligne 12 n'est atteinte que si compteur % 10 == 0 ; la condition impose en
   // plus > 100 et % 7 == 0. Un arrêt qui ne respecte pas la condition prouverait
   // que le filtrage est ignoré (régression de l'item « points d'arrêt conditionnels »).
   check(

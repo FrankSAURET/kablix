@@ -31,6 +31,8 @@ Todo*.txt
 todo*.md
 Composants.md
 test-assets/**
+# testkablix/ : recette de test par composant — distribuée via GitHub, pas dans le vsix.
+testkablix/**
 
 # --- Images sources (l'icône du paquet est media/icon.png) ---
 images/**
