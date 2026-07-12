@@ -79,6 +79,45 @@ export interface CustomPin {
   y: number;
 }
 
+/**
+ * Paramètre de définition d'un composant personnalisé (valeur nominale,
+ * résistance à 1 Lx…) : champ numérique de l'inspecteur (stocké dans les attrs
+ * sous « prm_<name> ») ET constante accessible par son nom dans l'expression de
+ * la caractéristique du contrôle de simulation.
+ */
+export interface CustomParam {
+  /** Identifiant utilisable dans les expressions (lettres/chiffres/_). */
+  name: string;
+  /** Libellé affiché dans l'inspecteur (ex. « Résistance à 1 Lx (Ω) »). */
+  label: string;
+  /** Valeur par défaut. */
+  value: number;
+}
+
+/**
+ * Contrôle de simulation d'un composant personnalisé, affiché SUR le composant
+ * pendant la simulation (comme les capteurs intégrés) :
+ * - slider (source analogique) : x ∈ [min,max] ; la sortie AO vaut `expr` en
+ *   VOLTS (variables : x + paramètres), ou à défaut la rampe linéaire
+ *   min→max → 0→Vref de la carte ;
+ * - switch (source numérique) : interrupteur 0/1 sur la sortie OUT.
+ */
+export interface CustomControl {
+  type: 'slider' | 'switch';
+  /** Libellé affiché à côté du contrôle (ex. « Éclairement »). */
+  label?: string;
+  /** Unité affichée après la valeur (ex. « Lx »). */
+  unit?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  /** Caractéristique : tension de sortie en volts, f(x, paramètres). */
+  expr?: string;
+}
+
+/** Préfixe des attrs stockant la valeur courante d'un paramètre de composant. */
+export const PARAM_ATTR_PREFIX = 'prm_';
+
 export interface PartDef {
   /** Identifiant interne du type de composant. */
   type: string;
@@ -115,6 +154,10 @@ export interface PartDef {
     innerSvg?: string;
     /** Coin haut-gauche de la vue interne dans le repère du dessin externe. */
     innerOffset?: { x: number; y: number };
+    /** Paramètres de définition (inspecteur + constantes des expressions). */
+    params?: CustomParam[];
+    /** Contrôle de simulation (curseur/interrupteur sur le composant). */
+    control?: CustomControl;
   };
   /**
    * Facteur d'agrandissement appliqué au dessin ET aux broches pour ramener le
@@ -144,6 +187,9 @@ export interface CustomPartData {
    *  recalculer le calage quand un seul des deux SVG est réimporté. */
   extAnchor?: { x: number; y: number };
   intAnchor?: { x: number; y: number };
+  /** Paramètres de définition et contrôle de simulation (voir types dédiés). */
+  params?: CustomParam[];
+  control?: CustomControl;
 }
 
 const STATE_PROP: PropDef = { attr: 'state', label: 'State (0/1)', kind: 'select', options: ['0', '1'] };
@@ -495,26 +541,43 @@ export function addSimModelPresets(raw: unknown): SimModelPreset[] {
 }
 
 export function registerCustomPart(data: CustomPartData): PartDef {
+  // Paramètres de définition → champs numériques de l'inspecteur (attr
+  // « prm_<name> », valeur par défaut incluse dans def.attrs pour les
+  // nouvelles instances) ; le contrôle de simulation remplace le champ
+  // statique « Position (%) » / « State » quand il pilote la même sortie.
+  const params = data.params ?? [];
+  const paramProps: PropDef[] = params.map((p) => ({
+    attr: `${PARAM_ATTR_PREFIX}${p.name}`,
+    label: p.label || p.name,
+    kind: 'number',
+  }));
+  const paramAttrs = Object.fromEntries(params.map((p) => [`${PARAM_ATTR_PREFIX}${p.name}`, String(p.value)]));
+  const controlled = data.control?.type;
+  const baseProps: PropDef[] =
+    data.kind === 'digital-source' && controlled !== 'switch' ? [STATE_PROP]
+    : data.kind === 'analog-source' && controlled !== 'slider' ? [VALUE_PROP]
+    : [];
+  const props = [...baseProps, ...paramProps];
   const def: PartDef = {
     type: data.type,
     label: data.label,
     tag: 'kablix-custom-part',
     kind: data.kind,
-    attrs: data.attrs,
+    attrs: Object.keys(paramAttrs).length > 0 ? { ...data.attrs, ...paramAttrs } : data.attrs,
     custom: {
       svg: data.svg,
       pins: data.pins,
       pinRoles: data.pinRoles,
       innerSvg: data.innerSvg,
       innerOffset: data.innerOffset,
+      params: data.params,
+      control: data.control,
     },
     analogPin: data.kind === 'analog-source' ? data.pinRoles?.['AO'] ?? 'AO' : undefined,
     digitalPin: data.kind === 'digital-source' ? data.pinRoles?.['OUT'] ?? 'OUT' : undefined,
     interactive: data.kind === 'pushbutton',
-    props:
-      data.kind === 'digital-source' ? [STATE_PROP]
-      : data.kind === 'analog-source' ? [VALUE_PROP]
-      : undefined,
+    simControl: !!data.control,
+    props: props.length > 0 ? props : undefined,
   };
   customParts.set(def.type, def);
   return def;

@@ -132,5 +132,45 @@ const plain = res.plain;
 check('sans marqueur : 0 broche, pas d’ancre', plain.pins.length === 0 && plain.anchor === null, JSON.stringify(plain.pins));
 check('sans marqueur : rouge opaque conservé', plain.svg.includes('#ff0000') || plain.svg.includes('ff0000'), plain.svg.slice(0, 300));
 
+// --- Évaluateur d'expressions (caractéristique des contrôles de simulation) ----
+// Module pur (pas de DOM) : bundlé et exécuté directement dans ce process node.
+const exprBundle = buildSync({
+  entryPoints: [join(ROOT, 'src', 'webview', 'diagram', 'expr.mts')],
+  bundle: true,
+  write: false,
+  format: 'cjs',
+}).outputFiles[0].text;
+const exprModule = { exports: {} };
+new Function('module', 'exports', exprBundle)(exprModule, exprModule.exports);
+const { compileExpr } = exprModule.exports;
+
+const evalOk = (src, vars, expected, tol = 1e-9) => {
+  try {
+    const got = compileExpr(src, Object.keys(vars))(vars);
+    return Math.abs(got - expected) <= tol ? true : `= ${got}, attendu ${expected}`;
+  } catch (e) {
+    return `throw: ${e.message}`;
+  }
+};
+const evalThrows = (src, varNames) => {
+  try {
+    compileExpr(src, varNames);
+    return 'aucune erreur levée';
+  } catch {
+    return true;
+  }
+};
+const exprCheck = (label, r) => check(label, r === true, typeof r === 'string' ? r : '');
+exprCheck('expr : priorités 1+2*3^2', evalOk('1+2*3^2', {}, 19));
+exprCheck('expr : puissance associative à droite 2^3^2', evalOk('2^3^2', {}, 512));
+exprCheck('expr : moins unaire et parenthèses', evalOk('-(2+3)*-2', {}, 10));
+exprCheck('expr : caractéristique LDR 3.3*x/(x+R1lx)', evalOk('3.3*x/(x+R1lx)', { x: 500, R1lx: 1000 }, 1.1));
+exprCheck('expr : fonctions clamp/log10/sqrt', evalOk('clamp(log10(x)*sqrt(4), 0, 10)', { x: 1000 }, 6));
+exprCheck('expr : constante pi', evalOk('2*pi', {}, 2 * Math.PI));
+exprCheck('expr : notation 1e-3 et %', evalOk('1e3 % 7 + .5', {}, 6.5));
+exprCheck('expr : variable inconnue refusée à la compilation', evalThrows('x + y', ['x']));
+exprCheck('expr : fonction inconnue refusée', evalThrows('foo(x)', ['x']));
+exprCheck('expr : syntaxe invalide refusée', evalThrows('2 *', ['x']));
+
 console.log(failures === 0 ? '\nverify-creator : tous les contrôles sont verts.' : `\nverify-creator : ${failures} échec(s).`);
 process.exit(failures === 0 ? 0 : 1);

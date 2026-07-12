@@ -2,8 +2,13 @@
 // l'utilisateur, expose `pinInfo` comme les composants forkés, et un
 // retour visuel minimal (halo lumineux quand `active` est vrai — LED, buzzer…).
 // Pour le modèle « bouton », il émet button-press / button-release au clic.
+// Si un contrôle de simulation est défini (curseur/interrupteur), il apparaît
+// sous le dessin pendant la simulation (attribut `simulating`, posé par
+// setLocked comme pour les capteurs intégrés) ; le moteur relit `controlValue`
+// / `switchOn` sur l'événement `input` (cf. sim.mts).
 
-import type { PartDef } from '../diagram/catalog.mjs';
+import type { CustomControl, PartDef } from '../diagram/catalog.mjs';
+import { simControlStyles } from './utils/sim-control-styles.mjs';
 
 export interface PinInfo {
   name: string;
@@ -15,10 +20,22 @@ export interface PinInfo {
 export class CustomPartElement extends HTMLElement {
   pinInfo: PinInfo[] = [];
 
+  /** Valeur courante du curseur de simulation (unités du contrôle, ex. Lx). */
+  controlValue = 0;
+  /** État courant de l'interrupteur de simulation. */
+  switchOn = false;
+
   private wrapper: HTMLDivElement;
   private activeValue = false;
   /** Calque de texte superposé (afficheurs I²C : LCD). */
   private screen: HTMLDivElement | null = null;
+  /** Contrôle de simulation défini dans le créateur (curseur/interrupteur). */
+  private control: CustomControl | null = null;
+  private controlBox: HTMLDivElement | null = null;
+
+  static get observedAttributes(): string[] {
+    return ['simulating'];
+  }
 
   constructor() {
     super();
@@ -37,6 +54,7 @@ export class CustomPartElement extends HTMLElement {
         pointer-events: none;
         letter-spacing: 0.05em;
       }
+      ${simControlStyles.cssText}
     `;
     this.wrapper = document.createElement('div');
     this.wrapper.className = 'frame';
@@ -48,6 +66,12 @@ export class CustomPartElement extends HTMLElement {
     if (!def.custom) return;
     this.wrapper.innerHTML = def.custom.svg;
     this.pinInfo = def.custom.pins.map((p) => ({ name: p.name, x: p.x, y: p.y, signals: [] }));
+    this.control = def.custom.control ?? null;
+    if (this.control?.type === 'slider') {
+      const min = this.control.min ?? 0;
+      const max = this.control.max ?? 100;
+      this.controlValue = (min + max) / 2;
+    }
     if (def.kind === 'pushbutton') {
       this.wrapper.addEventListener('pointerdown', () => {
         this.dispatchEvent(new Event('button-press'));
@@ -56,6 +80,58 @@ export class CustomPartElement extends HTMLElement {
       this.wrapper.addEventListener('pointerup', release);
       this.wrapper.addEventListener('pointerleave', release);
     }
+  }
+
+  /** Attribut `simulating` (setLocked) : montre/cache le contrôle de simulation. */
+  attributeChangedCallback(name: string): void {
+    if (name === 'simulating') this.renderControl();
+  }
+
+  private renderControl(): void {
+    this.controlBox?.remove();
+    this.controlBox = null;
+    if (!this.control || !this.hasAttribute('simulating')) return;
+    const box = document.createElement('div');
+    box.className = 'sim-control';
+    if (this.control.label) {
+      const label = document.createElement('label');
+      label.textContent = this.control.label;
+      box.appendChild(label);
+    }
+    const val = document.createElement('span');
+    val.className = 'val val--wide';
+    const unit = this.control.unit ? ` ${this.control.unit}` : '';
+    if (this.control.type === 'slider') {
+      const input = document.createElement('input');
+      input.type = 'range';
+      input.min = String(this.control.min ?? 0);
+      input.max = String(this.control.max ?? 100);
+      input.step = String(this.control.step ?? 1);
+      input.value = String(this.controlValue);
+      val.textContent = `${this.controlValue}${unit}`;
+      input.addEventListener('input', (e) => {
+        e.stopPropagation();
+        this.controlValue = Number(input.value);
+        val.textContent = `${this.controlValue}${unit}`;
+        this.dispatchEvent(new Event('input'));
+      });
+      box.append(input, val);
+    } else {
+      // Interrupteur : case à cocher native (lisible à petite taille).
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = this.switchOn;
+      val.textContent = this.switchOn ? 'ON' : 'OFF';
+      input.addEventListener('input', (e) => {
+        e.stopPropagation();
+        this.switchOn = input.checked;
+        val.textContent = this.switchOn ? 'ON' : 'OFF';
+        this.dispatchEvent(new Event('input'));
+      });
+      box.append(input, val);
+    }
+    this.shadowRoot?.appendChild(box);
+    this.controlBox = box;
   }
 
   /**

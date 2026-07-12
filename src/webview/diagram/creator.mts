@@ -14,12 +14,15 @@ import {
   addSimModelPresets,
   CUSTOM_KINDS,
   getSimModelPresets,
+  type CustomControl,
+  type CustomParam,
   type CustomPartData,
   type CustomPin,
   type PartKind,
   type SimModelPreset,
 } from './catalog.mjs';
 import { analyzeMarkedSvg } from './svg-markers.mjs';
+import { compileExpr } from './expr.mjs';
 import { t } from '../i18n.mjs';
 
 const DEFAULT_SVG = `<svg width="80" height="60" xmlns="http://www.w3.org/2000/svg">
@@ -44,6 +47,10 @@ export class PartCreator {
   private intAnchor: XY | null = null;
   /** Superpose la vue interne sur l'aperçu externe (contrôle du calage). */
   private overlayInternal = false;
+  /** Paramètres de définition (valeur nominale…) : inspecteur + constantes. */
+  private params: CustomParam[] = [];
+  /** Contrôle de simulation (curseur/interrupteur), ou null. */
+  private control: CustomControl | null = null;
 
   /** La liste des modèles importés a changé (à persister côté extension). */
   onModelsChange?: (models: SimModelPreset[]) => void;
@@ -61,6 +68,8 @@ export class PartCreator {
     this.extAnchor = existing?.extAnchor ?? null;
     this.intAnchor = existing?.intAnchor ?? null;
     this.overlayInternal = !!this.innerSvg;
+    this.params = existing?.params ? existing.params.map((p) => ({ ...p })) : [];
+    this.control = existing?.control ? { ...existing.control } : null;
 
     const overlay = document.createElement('div');
     overlay.className = 'creator__overlay';
@@ -88,6 +97,18 @@ export class PartCreator {
             <button type="button" id="cr-model-import" title="${t('Import simulation models (.json)')}">⇪</button>
           </div>
           <div id="cr-roles"></div>
+          <div class="creator__section-head">
+            <label class="inspector__label">${t('Part parameters')}</label>
+            <button type="button" id="cr-param-add" title="${t('Add a parameter (usable in the characteristic)')}">＋</button>
+          </div>
+          <div id="cr-params" class="creator__params"></div>
+          <label class="inspector__label">${t('Simulation control')}</label>
+          <select id="cr-ctrl-type" class="inspector__control">
+            <option value="">${t('None')}</option>
+            <option value="slider">${t('Slider (analog output)')}</option>
+            <option value="switch">${t('Switch (digital output)')}</option>
+          </select>
+          <div id="cr-ctrl"></div>
           <label class="inspector__label">${t('Connection points')}</label>
           <div id="cr-pins" class="creator__pins"></div>
           <p id="cr-note" class="inspector__hint"></p>
@@ -135,6 +156,34 @@ export class PartCreator {
       this.renderRoles(modal);
     };
     kindSelect.addEventListener('change', () => this.renderRoles(modal));
+
+    // --- Paramètres de définition + contrôle de simulation --------------------
+    (modal.querySelector('#cr-param-add') as HTMLButtonElement).addEventListener('click', () => {
+      this.params.push({ name: `P${this.params.length + 1}`, label: '', value: 0 });
+      this.renderParams(modal);
+      this.renderControlForm(modal);
+    });
+    const ctrlType = modal.querySelector('#cr-ctrl-type') as HTMLSelectElement;
+    ctrlType.value = this.control?.type ?? '';
+    ctrlType.addEventListener('change', () => {
+      const v = ctrlType.value as '' | 'slider' | 'switch';
+      const prev = this.control;
+      if (v === '') this.control = null;
+      else if (v === 'slider') {
+        this.control = {
+          type: 'slider',
+          label: prev?.label,
+          unit: prev?.unit,
+          min: prev?.min ?? 0,
+          max: prev?.max ?? 100,
+          step: prev?.step ?? 1,
+          expr: prev?.expr,
+        };
+      } else this.control = { type: 'switch', label: prev?.label };
+      this.renderControlForm(modal);
+    });
+    this.renderParams(modal);
+    this.renderControlForm(modal);
 
     // Clic sur l'aperçu externe : pose un point de connexion à cet endroit
     // (complément manuel de la détection ; coordonnées réelles = position écran
@@ -271,6 +320,14 @@ export class PartCreator {
         : kind === 'analog-source' ? { value: '50' }
         : undefined;
       const attrs = baseAttrs || preset?.attrs ? { ...baseAttrs, ...preset?.attrs } : undefined;
+      // Paramètres : nom identifiant valide + uniques (sinon inutilisables en
+      // expression), les lignes vides sont ignorées silencieusement.
+      const seen = new Set<string>();
+      const params = this.params.filter((p) => {
+        const ok = /^[A-Za-z_]\w*$/.test(p.name) && !seen.has(p.name) && Number.isFinite(p.value);
+        seen.add(p.name);
+        return ok;
+      });
       const data: CustomPartData = {
         type: this.existing?.type ?? `custom-${Date.now().toString(36)}`,
         label,
@@ -283,6 +340,8 @@ export class PartCreator {
         innerOffset: this.innerSvg ? this.innerOffset() : undefined,
         extAnchor: this.extAnchor ?? undefined,
         intAnchor: this.intAnchor ?? undefined,
+        params: params.length > 0 ? params : undefined,
+        control: this.control ?? undefined,
       };
       this.close();
       this.onSave(data);
@@ -405,6 +464,125 @@ export class PartCreator {
       hint.textContent = t('No internal view — load an SVG (optional).');
       int.replaceChildren(hint);
     }
+  }
+
+  /** Table des paramètres de définition : nom (identifiant), libellé, valeur. */
+  private renderParams(modal: HTMLElement): void {
+    const container = modal.querySelector('#cr-params') as HTMLDivElement;
+    container.replaceChildren();
+    this.params.forEach((param, i) => {
+      const row = document.createElement('div');
+      row.className = 'creator__pinrow';
+      const mk = (
+        key: 'name' | 'label' | 'value',
+        placeholder: string,
+        cls = ''
+      ): HTMLInputElement => {
+        const input = document.createElement('input');
+        input.className = `inspector__control ${cls}`.trim();
+        input.placeholder = placeholder;
+        input.title = placeholder;
+        if (key === 'value') input.type = 'number';
+        input.value = String(param[key]);
+        input.addEventListener('change', () => {
+          if (key === 'value') param.value = Number(input.value) || 0;
+          else param[key] = input.value.trim();
+          // Le nom sert de variable : signale tout de suite s'il est invalide.
+          if (key === 'name') {
+            input.style.borderColor = /^[A-Za-z_]\w*$/.test(param.name) ? '' : '#ff8a8a';
+            this.renderControlForm(modal);
+          }
+        });
+        return input;
+      };
+      const del = document.createElement('button');
+      del.textContent = '✕';
+      del.title = t('Delete this parameter');
+      del.addEventListener('click', () => {
+        this.params.splice(i, 1);
+        this.renderParams(modal);
+        this.renderControlForm(modal);
+      });
+      row.append(mk('name', t('name'), 'creator__coord'), mk('label', t('label')), mk('value', t('value'), 'creator__coord'), del);
+      container.appendChild(row);
+    });
+  }
+
+  /** Formulaire du contrôle de simulation selon son type (curseur/interrupteur). */
+  private renderControlForm(modal: HTMLElement): void {
+    const container = modal.querySelector('#cr-ctrl') as HTMLDivElement;
+    container.replaceChildren();
+    const ctrl = this.control;
+    if (!ctrl) return;
+    const row = (label: string, input: HTMLElement): void => {
+      const wrap = document.createElement('div');
+      wrap.className = 'creator__ctrlrow';
+      const lab = document.createElement('label');
+      lab.className = 'inspector__label';
+      lab.textContent = label;
+      wrap.append(lab, input);
+      container.appendChild(wrap);
+    };
+    const text = (value: string, onChange: (v: string) => void): HTMLInputElement => {
+      const input = document.createElement('input');
+      input.className = 'inspector__control';
+      input.value = value;
+      input.addEventListener('change', () => onChange(input.value.trim()));
+      return input;
+    };
+    const num = (value: number | undefined, onChange: (v: number) => void): HTMLInputElement => {
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.className = 'inspector__control';
+      input.value = value === undefined ? '' : String(value);
+      input.addEventListener('change', () => {
+        const v = Number(input.value);
+        if (Number.isFinite(v)) onChange(v);
+      });
+      return input;
+    };
+    row(t('Control label'), text(ctrl.label ?? '', (v) => (ctrl.label = v || undefined)));
+    if (ctrl.type === 'slider') {
+      row(t('Unit'), text(ctrl.unit ?? '', (v) => (ctrl.unit = v || undefined)));
+      row(t('Min'), num(ctrl.min, (v) => (ctrl.min = v)));
+      row(t('Max'), num(ctrl.max, (v) => (ctrl.max = v)));
+      row(t('Step'), num(ctrl.step, (v) => (ctrl.step = v)));
+      // Caractéristique : tension de sortie en volts, f(x, paramètres). Validée
+      // en direct — vide = rampe linéaire min→max → 0→Vref.
+      const exprInput = document.createElement('input');
+      exprInput.className = 'inspector__control';
+      exprInput.value = ctrl.expr ?? '';
+      exprInput.placeholder = t('linear (min→max)');
+      const note = document.createElement('p');
+      note.className = 'inspector__hint';
+      const validate = (): void => {
+        const src = exprInput.value.trim();
+        ctrl.expr = src || undefined;
+        if (!src) {
+          note.textContent = t('Output voltage in volts — empty = linear ramp. Variables: x{0}.', this.exprVarsHint());
+          note.style.color = '';
+          return;
+        }
+        try {
+          compileExpr(src, ['x', ...this.params.map((p) => p.name)]);
+          note.textContent = t('Valid expression. Variables: x{0}.', this.exprVarsHint());
+          note.style.color = '';
+        } catch (err) {
+          note.textContent = t('Invalid expression: {0}', err instanceof Error ? err.message : String(err));
+          note.style.color = '#ff8a8a';
+        }
+      };
+      exprInput.addEventListener('input', validate);
+      validate();
+      row(t('Characteristic (V)'), exprInput);
+      container.appendChild(note);
+    }
+  }
+
+  /** Liste des variables disponibles dans une expression (pour les messages). */
+  private exprVarsHint(): string {
+    const names = this.params.map((p) => p.name).filter((n) => /^[A-Za-z_]\w*$/.test(n));
+    return names.length > 0 ? `, ${names.join(', ')}` : '';
   }
 
   private renderPinsTable(modal: HTMLElement): void {

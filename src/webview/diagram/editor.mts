@@ -1045,6 +1045,14 @@ export class Editor {
           : undefined,
       extAnchor: data.extAnchor,
       intAnchor: data.intAnchor,
+      // Paramètres de définition et contrôle de simulation (validation légère).
+      params: Array.isArray(data.params)
+        ? data.params.filter(
+            (p) => typeof p?.name === 'string' && /^[A-Za-z_]\w*$/.test(p.name) && typeof p?.value === 'number'
+          )
+        : undefined,
+      control:
+        data.control?.type === 'slider' || data.control?.type === 'switch' ? data.control : undefined,
     });
   }
 

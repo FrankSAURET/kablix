@@ -1437,6 +1437,39 @@ textarea {
   padding: 1rem;
 }
 
+/* En-tête de section du formulaire (libellé + bouton ＋). */
+.creator__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.creator__section-head button {
+  width: 22px;
+  height: 22px;
+  font: inherit;
+  line-height: 1;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-input-border, #555);
+  background: var(--vscode-input-background, #333);
+  color: inherit;
+  cursor: pointer;
+}
+
+.creator__params {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+/* Ligne du formulaire du contrôle de simulation : libellé à gauche, champ à droite. */
+.creator__ctrlrow {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 0.4rem;
+  align-items: center;
+}
+
 /* Conteneur interne mis à l'échelle (zoom de l'aperçu). */
 .creator__preview-inner {
   position: relative;

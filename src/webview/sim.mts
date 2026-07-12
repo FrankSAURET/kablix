@@ -44,7 +44,8 @@ import './composants/custom-part.mjs';
 
 import { initLocale, t } from './i18n.mjs';
 import { Editor, KABLIX_BADGE, type PaletteState } from './diagram/editor.mjs';
-import { partDef, boardFamily, isBoardId, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
+import { partDef, boardFamily, isBoardId, PARAM_ATTR_PREFIX, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
+import { compileExpr } from './diagram/expr.mjs';
 import { toWokwiDiagram, fromWokwiDiagram } from './diagram/wokwi.mjs';
 import {
   ledOn,
@@ -1148,6 +1149,18 @@ function bindInputs(): void {
         engine.setInput(binding.mcuPin, Boolean(el.motion));
         motionTargets.push({ pin: binding.mcuPin, el, last: Boolean(el.motion) });
       }
+    } else if (part && partDef(part.type).custom?.control?.type === 'switch') {
+      // Composant personnalisé à interrupteur de simulation : état initial depuis
+      // l'inspecteur, puis piloté en direct par l'interrupteur du composant.
+      const el = editor.elementOf(binding.partId);
+      const pin = binding.mcuPin;
+      if (el) {
+        el.switchOn = part.attrs?.state === '1';
+        const apply = () => engine?.setInput(pin, Boolean(el.switchOn));
+        apply();
+        el.addEventListener('input', apply);
+        inputRemovers.push(() => el.removeEventListener('input', apply));
+      }
     } else {
       engine.setInput(binding.mcuPin, part?.attrs?.state === '1');
     }
@@ -1171,6 +1184,48 @@ function bindInputs(): void {
       if (el) {
         el.temperature = Number(part.attrs?.temperature ?? 25);
         const apply = () => engine?.setAnalog(pin, Number(el.analogLevel ?? 0.5));
+        apply();
+        el.addEventListener('input', apply);
+        inputRemovers.push(() => el.removeEventListener('input', apply));
+      }
+      continue;
+    }
+    const ctrl = part ? partDef(part.type).custom?.control : undefined;
+    if (part && ctrl?.type === 'slider') {
+      // Composant personnalisé à curseur de simulation : la caractéristique
+      // (expression compilée une fois, variables = x + paramètres relus en
+      // direct dans les attrs de l'inspecteur) donne la tension de sortie en
+      // volts, normalisée par la tension de référence de la carte ; à défaut
+      // d'expression, rampe linéaire min→max → 0→Vref.
+      const el = editor.elementOf(binding.partId);
+      const pin = binding.mcuPin;
+      if (el) {
+        const params = partDef(part.type).custom?.params ?? [];
+        let fn: ReturnType<typeof compileExpr> | null = null;
+        if (ctrl.expr) {
+          try {
+            fn = compileExpr(ctrl.expr, ['x', ...params.map((p) => p.name)]);
+          } catch {
+            fn = null; // expression invalide (ancien import) : repli linéaire
+          }
+        }
+        const vref = boardFamily(board) === 'rp2040' ? 3.3 : 5;
+        const apply = () => {
+          const x = Number(el.controlValue ?? 0);
+          let level: number;
+          if (fn) {
+            const vars: Record<string, number> = { x };
+            for (const p of params) {
+              vars[p.name] = Number(part.attrs?.[`${PARAM_ATTR_PREFIX}${p.name}`] ?? p.value);
+            }
+            level = Math.min(1, Math.max(0, fn(vars) / vref));
+          } else {
+            const min = ctrl.min ?? 0;
+            const max = ctrl.max ?? 100;
+            level = max > min ? Math.min(1, Math.max(0, (x - min) / (max - min))) : 0;
+          }
+          engine?.setAnalog(pin, level);
+        };
         apply();
         el.addEventListener('input', apply);
         inputRemovers.push(() => el.removeEventListener('input', apply));
