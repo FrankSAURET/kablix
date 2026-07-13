@@ -99,5 +99,6 @@
   " — debug: {0} lines, {1} variable(s)": " — débogage : {0} lignes, {1} variable(s)",
   " — debug info unavailable (avr-objdump not found)": " — infos de débogage indisponibles (avr-objdump introuvable)",
   "Start an interactive MicroPython REPL (no script)": "Démarrer un REPL MicroPython interactif (sans script)",
-  "Code file: {0} — click to change, double-click to open": "Fichier de code : {0} — cliquer pour changer, double-cliquer pour ouvrir"
+  "Code file: {0} — click to change, double-click to open": "Fichier de code : {0} — cliquer pour changer, double-cliquer pour ouvrir",
+  "Kablix: the project code file \"{0}\" was not found on this computer. Click the 📄 chip to choose the file to run.": "Kablix : le fichier de code du projet « {0} » est introuvable sur ce poste. Cliquez la puce 📄 pour choisir le fichier à exécuter."
 }

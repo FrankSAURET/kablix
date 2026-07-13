@@ -89,9 +89,12 @@ const FR: Record<string, string> = {
   'Drag to move — Ctrl: H/V alignment — Del: remove this corner':
     'Glisser pour déplacer — Ctrl : alignement H/V — Suppr : supprimer ce coude',
   'No file': 'Aucun fichier',
-  'Code file to run / debug — click to change':
-    'Fichier de code à exécuter / déboguer — cliquer pour changer',
-  'Code file: {0} — click to change': 'Fichier de code : {0} — cliquer pour changer',
+  'Code file to run / debug — click to change, double-click to open':
+    'Fichier de code à exécuter / déboguer — cliquer pour changer, double-cliquer pour ouvrir',
+  'Code file: {0} — click to change, double-click to open':
+    'Fichier de code : {0} — cliquer pour changer, double-cliquer pour ouvrir',
+  'Code file {0} not found on this computer — click to choose the file to run':
+    'Fichier de code {0} introuvable sur ce poste — cliquer pour choisir le fichier à exécuter',
   'Current project': 'Projet courant',
   'Current project: {0}': 'Projet courant : {0}',
 

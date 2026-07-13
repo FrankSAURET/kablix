@@ -4,9 +4,11 @@
 //   - sans décorateurs (static properties + declare + constructeur), imports relatifs .mjs ;
 //   - DESSIN remplacé par la version retouchée (./externe/buzzer.svg) ;
 //   - 1/2 recalées sur la grille de 10 px (repère du dessin retouché) ;
-//   - taille d'affichage (64x75) conservée à l'identique de l'ancien rendu
-//     (17mm x 20mm ≈ 64.25x75.59px) pour que la note de musique flottante
-//     (.music-note, animation CSS indépendante du corps du buzzer) reste calée.
+//   - rendu 1:1 (50x60 px = viewBox) : les bouts de pattes coïncident avec les
+//     pastilles pinInfo — l'ancien rendu 64x75 les étirait hors des pastilles ;
+//   - note de musique (.music-note) sortie du flux (position absolue) : elle
+//     n'occupe plus 8 px au-dessus du dessin, le repère des broches reste le
+//     coin haut-gauche du viewBox.
 import { css, html, LitElement } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
@@ -38,14 +40,14 @@ export class BuzzerElement extends LitElement {
       }
 
       .buzzer-container {
-        display: flex;
-        flex-direction: column;
-        width: 75px;
+        position: relative;
+        width: 50px;
       }
 
       .music-note {
-        position: relative;
-        left: 40px;
+        position: absolute;
+        left: 28px;
+        top: -6px;
         animation-duration: 1.5s;
         animation-name: animate-note;
         animation-iteration-count: infinite;
@@ -81,7 +83,7 @@ export class BuzzerElement extends LitElement {
 
   renderSVG() {
     return html`
-      <svg width="64" height="75" viewBox="0 0 50 60" xmlns="http://www.w3.org/2000/svg">
+      <svg width="50" height="60" viewBox="0 0 50 60" xmlns="http://www.w3.org/2000/svg">
         ${unsafeSVG(drawing)}
       </svg>
     `;

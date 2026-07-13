@@ -30,7 +30,7 @@
         </g>
         <ellipse cx="35.07198" cy="29.849298" id="circle15" fill="url(#grad-up-pushbutton0)" style="opacity:0.85;fill:url(#grad-up-pushbutton0);stroke-width:1.88974" rx="7.7329402" ry="7.5022678"></ellipse>
       </g>
-      <ellipse class="button-active-circle" cx="35.071976" cy="29.849298" id="circle16" style="opacity:0.85;fill:url(#grad-down-$%7BuniqueId%7D);stroke-width:1.88974" fill="url(#grad-down-pushbutton0)" rx="7.7329402" ry="7.5022678"></ellipse>
+      <ellipse class="button-active-circle" cx="35.071976" cy="29.849298" id="circle16" style="opacity:0.85;stroke-width:1.88974" fill="url(#grad-down-pushbutton0)" rx="7.7329402" ry="7.5022678"></ellipse>
       <ellipse cx="35.071976" cy="29.849298" stroke="#2f2f2f" stroke-opacity="0.47" stroke-width="0.151179" id="circle17" fill="#ff0000" style="opacity:0.85" rx="5.867485" ry="5.6924586"></ellipse>
     </g>
     

@@ -65,6 +65,10 @@ export class SimulatorPanel {
   private currentSourceUri: vscode.Uri | undefined;
   /** Fichier de code choisi explicitement (chip du canvas) ; sinon le fichier actif sert. */
   private codeFileUri: vscode.Uri | undefined;
+  /** Référence de fichier de code d'un .projix ouvert mais INTROUVABLE sur ce
+   *  poste : ▶ refuse alors de compiler l'éditeur actif à la place (on
+   *  compilerait le fichier d'un AUTRE projet sans que l'utilisateur le voie). */
+  private missingCodeFileRef: string | undefined;
   /** Décoration de la ligne en pause (créée à la demande, détruite avec le panneau). */
   private debugLineDecoration: vscode.TextEditorDecorationType | undefined;
   /**
@@ -136,6 +140,18 @@ export class SimulatorPanel {
       } catch {
         doc = undefined; // fichier déplacé/supprimé : repli sur l'éditeur actif
       }
+    }
+    // Projet ouvert dont le fichier de code est introuvable : PAS de repli sur
+    // l'éditeur actif (on lancerait le fichier d'un autre projet en silence).
+    if (!doc && this.missingCodeFileRef) {
+      this.post({ type: 'status', text: l10n.t('Ready') });
+      vscode.window.showErrorMessage(
+        l10n.t(
+          'Kablix: the project code file "{0}" was not found on this computer. Click the 📄 chip to choose the file to run.',
+          this.missingCodeFileRef
+        )
+      );
+      return;
     }
     doc ??= vscode.window.activeTextEditor?.document;
     if (!doc) {
@@ -362,6 +378,7 @@ export class SimulatorPanel {
   /** Mémorise le fichier de code et met à jour le chip affiché dans la webview. */
   private setCodeFile(uri: vscode.Uri | undefined): void {
     this.codeFileUri = uri;
+    this.missingCodeFileRef = undefined; // fichier (re)choisi ou oublié : plus de référence en échec
     this.post({ type: 'codeFile', name: uri ? uri.fsPath.split(/[\\/]/).pop() : null });
     this.postProjectName();
   }
@@ -396,28 +413,37 @@ export class SimulatorPanel {
 
   /**
    * Restaure le fichier de code d'un .projix : exécutable s'il existe, sinon nom
-   * affiché. Le fichier du PROJET PRÉCÉDENT est toujours oublié d'abord : mieux
-   * vaut aucun fichier que l'ancien .py compilé à la place de celui du projet.
-   * Résolution d'une référence relative : dossier du .projix (le code vit
-   * généralement à côté du projet), puis chaque dossier du workspace, puis le
-   * nom seul dans le dossier du .projix.
+   * affiché EN ALERTE. Le fichier du PROJET PRÉCÉDENT est toujours oublié
+   * d'abord : mieux vaut aucun fichier que l'ancien .py compilé à la place de
+   * celui du projet. Résolution d'une référence relative : dossier du .projix
+   * (le code vit généralement à côté du projet), puis chaque dossier du
+   * workspace, puis le nom seul dans le dossier du .projix, puis le chemin
+   * ABSOLU mémorisé à l'enregistrement (même poste, workspace différent).
    */
-  private async restoreCodeFile(ref: string | undefined, projectDir?: vscode.Uri): Promise<void> {
+  private async restoreCodeFile(
+    ref: string | undefined,
+    projectDir?: vscode.Uri,
+    abs?: string
+  ): Promise<void> {
     this.setCodeFile(undefined);
-    if (!ref) return;
+    if (!ref && !abs) return;
     const candidates: vscode.Uri[] = [];
-    if (/^([a-zA-Z]:[\\/]|\/)/.test(ref)) {
-      candidates.push(vscode.Uri.file(ref));
-    } else {
-      if (projectDir) candidates.push(vscode.Uri.joinPath(projectDir, ref));
-      for (const folder of vscode.workspace.workspaceFolders ?? []) {
-        candidates.push(vscode.Uri.joinPath(folder.uri, ref));
+    if (ref) {
+      if (/^([a-zA-Z]:[\\/]|\/)/.test(ref)) {
+        candidates.push(vscode.Uri.file(ref));
+      } else {
+        if (projectDir) candidates.push(vscode.Uri.joinPath(projectDir, ref));
+        for (const folder of vscode.workspace.workspaceFolders ?? []) {
+          candidates.push(vscode.Uri.joinPath(folder.uri, ref));
+        }
       }
     }
-    const base = ref.split(/[\\/]/).pop();
+    const base = (ref ?? abs)?.split(/[\\/]/).pop();
     if (projectDir && base && base !== ref) {
       candidates.push(vscode.Uri.joinPath(projectDir, base));
     }
+    // Dernier recours : là où était le fichier quand le .projix a été enregistré.
+    if (abs) candidates.push(vscode.Uri.file(abs));
     for (const uri of candidates) {
       try {
         await vscode.workspace.fs.stat(uri);
@@ -427,8 +453,17 @@ export class SimulatorPanel {
         // candidat absent : on essaie le suivant
       }
     }
-    // Fichier absent sur ce poste : on n'affiche que son nom (aucun fichier actif).
-    this.post({ type: 'codeFile', name: base });
+    // Fichier absent sur ce poste : chip en ALERTE (nom affiché, aucun fichier
+    // actif) et ▶ bloqué tant qu'un fichier n'est pas choisi — sans ça, on
+    // compilerait l'éditeur actif (souvent le fichier du PROJET PRÉCÉDENT).
+    this.missingCodeFileRef = ref ?? abs;
+    this.post({ type: 'codeFile', name: base, missing: true });
+    vscode.window.showWarningMessage(
+      l10n.t(
+        'Kablix: the project code file "{0}" was not found on this computer. Click the 📄 chip to choose the file to run.',
+        this.missingCodeFileRef ?? ''
+      )
+    );
   }
 
   /** Ouvre le fichier de code courant dans le volet d'édition (à gauche de Kablix). */
@@ -580,8 +615,17 @@ export class SimulatorPanel {
             .getConfiguration('kablix')
             .get<boolean>('showLoadBinaryButton', false),
         });
-        // Rappelle le fichier de code courant (chip du canvas) après un rechargement.
-        this.setCodeFile(this.codeFileUri);
+        // Rappelle le fichier de code courant (chip du canvas) après un
+        // rechargement — y compris l'état « introuvable » d'un .projix ouvert.
+        if (this.missingCodeFileRef) {
+          this.post({
+            type: 'codeFile',
+            name: this.missingCodeFileRef.split(/[\\/]/).pop(),
+            missing: true,
+          });
+        } else {
+          this.setCodeFile(this.codeFileUri);
+        }
         break;
       case 'pickCodeFile':
         void this.pickCodeFile();
@@ -820,6 +864,7 @@ export class SimulatorPanel {
         board: board ?? this.currentBoard,
         createdAt: new Date().toISOString(),
         codeFile: this.codeFileRef(),
+        codeFileAbs: this.codeFileUri?.fsPath,
       };
 
       // Schéma seul : pas de codeRoot transmis.
@@ -872,7 +917,11 @@ export class SimulatorPanel {
       });
       // Restaure le fichier de code à exécuter/déboguer mémorisé dans le projet
       // (résolu en priorité à côté du .projix ; l'ancien fichier est oublié).
-      await this.restoreCodeFile(project.manifest.codeFile, vscode.Uri.joinPath(picked[0], '..'));
+      await this.restoreCodeFile(
+        project.manifest.codeFile,
+        vscode.Uri.joinPath(picked[0], '..'),
+        project.manifest.codeFileAbs
+      );
       vscode.window.showInformationMessage(
         l10n.t('Kablix: project {0} loaded.', picked[0].fsPath.split(/[\\/]/).pop() ?? '')
       );

@@ -1933,14 +1933,19 @@ window.addEventListener('message', (event: MessageEvent) => {
       break;
     case 'codeFile': {
       // Nom du fichier de code à exécuter / déboguer, envoyé par l'extension.
+      // `missing` : le fichier référencé par le .projix est introuvable sur ce
+      // poste — nom affiché mais chip en avertissement, aucun fichier actif.
       const name = typeof msg.name === 'string' ? msg.name : null;
-      hasCodeFile = name !== null;
+      const missing = msg.missing === true;
+      hasCodeFile = name !== null && !missing;
       codeFileBtn.textContent = name ? `📄 ${name}` : `📄 ${t('No file')}`;
-      // Aucun fichier choisi : bouton en jaune sur rouge (avertissement).
+      // Aucun fichier choisi (ou introuvable) : bouton en jaune sur rouge.
       codeFileBtn.classList.toggle('canvas-controls__file--nofile', !hasCodeFile);
-      codeFileBtn.title = name
-        ? t('Code file: {0} — click to change, double-click to open', name)
-        : t('Code file to run / debug — click to change, double-click to open');
+      codeFileBtn.title = missing
+        ? t('Code file {0} not found on this computer — click to choose the file to run', name ?? '')
+        : name
+          ? t('Code file: {0} — click to change, double-click to open', name)
+          : t('Code file to run / debug — click to change, double-click to open');
       break;
     }
     case 'projectName': {

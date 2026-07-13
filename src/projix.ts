@@ -16,6 +16,10 @@ export interface ProjixManifest {
   createdAt: string;
   /** Fichier de code à exécuter/déboguer (chemin relatif au workspace ou nom). */
   codeFile?: string;
+  /** Chemin absolu du fichier de code sur le poste d'enregistrement : repli de
+   *  résolution quand la référence relative ne se retrouve pas (autre workspace
+   *  ouvert, .projix enregistré loin du code…). Ignoré sur un autre poste. */
+  codeFileAbs?: string;
 }
 
 /** Données extraites d'une archive ouverte. */
