@@ -5,7 +5,19 @@
 import { css } from 'lit';
 
 export const simControlStyles = css`
+  /* Le contrôle est SORTI DU FLUX (posé sous le dessin en absolu) : s'il
+     participait à la hauteur de l'élément, son apparition au lancement de la
+     simulation déplaçait le centre de rotation (transform-origin: center de
+     .part__body, cf. applyRotation d'editor.mts) et tout composant tourné ou
+     retourné se décalait à l'écran (constaté sur le capteur de son pivoté). */
+  :host {
+    position: relative;
+  }
   .sim-control {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
     display: flex;
     align-items: center;
     gap: 2px;
