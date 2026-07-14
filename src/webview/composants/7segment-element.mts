@@ -9,7 +9,7 @@
 // les 7 `polygon` (+ 1 `circle`/`ellipse` DP) par chiffre, dans l'ordre A,B,C,D,E,F,G,DP,
 // déjà présents dans le dessin importé (même ordre DOM que l'ancien rendu procédural) —
 // couleur éteinte mémorisée au premier passage (comme l'ancien `reflectSevenSeg`).
-import { html, LitElement } from 'lit';
+import { css, html, LitElement, svg } from 'lit';
 import type { PropertyValues } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
@@ -85,12 +85,14 @@ export class SevenSegmentElement extends LitElement {
   declare digits: number;
   declare values: number[];
   declare simulating: boolean;
+  declare burned: boolean;
 
   static properties = {
     color: {},
     digits: { type: Number },
     values: { type: Array },
     simulating: { type: Boolean },
+    burned: { type: Boolean },
   };
 
   constructor() {
@@ -99,6 +101,30 @@ export class SevenSegmentElement extends LitElement {
     this.digits = 1;
     this.values = [0, 0, 0, 0, 0, 0, 0, 0];
     this.simulating = false;
+    this.burned = false;
+  }
+
+  static get styles() {
+    return css`
+      /* Flamme d'afficheur grillé (sur-courant sur un segment) : même dessin
+         et vacillement que le fork led-element. */
+      .led-flame {
+        transform-box: fill-box;
+        transform-origin: 50% 100%;
+        animation: led-flicker 0.35s ease-in-out infinite alternate;
+      }
+
+      @keyframes led-flicker {
+        from {
+          transform: scale(1);
+          opacity: 1;
+        }
+        to {
+          transform: scale(1.12, 0.9);
+          opacity: 0.85;
+        }
+      }
+    `;
   }
 
   private get variant(): Variant {
@@ -132,7 +158,7 @@ export class SevenSegmentElement extends LitElement {
     const { digits, color, values, simulating } = this;
     const polys = this.polys;
     const dps = this.dps!;
-    const setSeg = (el: SVGElement, lit: boolean) => {
+    const setSeg = (el: SVGElement, level: number) => {
       const e = el as SVGElement & { dataset: DOMStringMap };
       // Deux couleurs « éteint » mémorisées au premier passage : le gris clair
       // d'ÉDITION (style inline du dessin) et le gris sombre réaliste porté par
@@ -141,7 +167,15 @@ export class SevenSegmentElement extends LitElement {
       // visible, comme sur un vrai afficheur.
       if (e.dataset.off === undefined) e.dataset.off = el.style.fill || el.getAttribute('fill') || '#444';
       if (e.dataset.offSim === undefined) e.dataset.offSim = el.getAttribute('fill') || '#444';
-      const fill = lit ? color : simulating ? e.dataset.offSim : e.dataset.off;
+      const off = simulating ? e.dataset.offSim : e.dataset.off;
+      // Niveau fractionnaire (résistance série trop forte) : couleur allumée
+      // atténuée vers la couleur éteinte (color-mix), plein à partir de 1.
+      const fill =
+        level >= 0.999
+          ? color
+          : level <= 0.001
+            ? off
+            : `color-mix(in srgb, ${color} ${Math.round(level * 100)}%, ${off})`;
       el.style.fill = fill;
       // Contour de segment retiré (Frank) : les segments sont pleins, sans liseré.
       // Un très fin stroke de la même couleur comble seulement le filet
@@ -152,9 +186,9 @@ export class SevenSegmentElement extends LitElement {
     for (let d = 0; d < digits; d++) {
       for (let s = 0; s < 7; s++) {
         const poly = polys[d * 7 + s];
-        if (poly) setSeg(poly, !!values[d * 8 + s]);
+        if (poly) setSeg(poly, Number(values[d * 8 + s]) || 0);
       }
-      if (dps[d]) setSeg(dps[d], !!values[d * 8 + 7]);
+      if (dps[d]) setSeg(dps[d], Number(values[d * 8 + 7]) || 0);
     }
   }
 
@@ -163,6 +197,15 @@ export class SevenSegmentElement extends LitElement {
     return html`
       <svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
         ${unsafeSVG(drawing)}
+        ${this.burned
+          ? svg`
+            <g transform="translate(${w / 2} ${h / 2 + 8})">
+              <g class="led-flame">
+                <path d="M 0,-15.4 C 5.6,-8.4 8.4,-4.2 8.4,0 A 8.4,9.1 0 1 1 -8.4,0 C -8.4,-4.2 -5.6,-8.4 0,-15.4 Z" fill="#ff7a1a" />
+                <path d="M 0,-7.7 C 2.8,-4.2 4.2,-2.1 4.2,0.84 A 4.2,4.76 0 1 1 -4.2,0.84 C -4.2,-2.1 -2.8,-4.2 0,-7.7 Z" fill="#ffd23e" />
+              </g>
+            </g>`
+          : null}
       </svg>
     `;
   }

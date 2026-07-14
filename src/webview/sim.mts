@@ -54,6 +54,8 @@ import {
   ledSeriesOhms,
   ledElectrical,
   rgbSeriesOhms,
+  sevenSegSeriesOhms,
+  ledBarSeriesOhms,
   rgbLedState,
   buzzerOn,
   sevenSegmentState,
@@ -721,13 +723,14 @@ function refreshVisuals(): void {
       }
       case '7segment': {
         const digits = Math.max(1, Number(part.attrs?.digits ?? 1) || 1);
+        const commonAnode = part.attrs?.common === 'anode';
+        let vals: number[];
         if (digits <= 1) {
           // Un segment piloté en PWM (variateur de luminosité, bit-banging
           // MicroPython inclus) bascule trop vite/irrégulièrement pour que le
           // niveau instantané soit fiable : on se base sur le rapport cyclique
           // mesuré (moyenne stable) dès qu'une broche de segment pulse.
           const segPins = sevenSegTargets.get(part.id);
-          const commonAnode = part.attrs?.common === 'anode';
           const readSeg = (seg: string, instant: number): number => {
             const pin = segPins?.[seg];
             if (!pin || !engine!.pulseActive?.(pin)) return instant;
@@ -754,12 +757,11 @@ function refreshVisuals(): void {
               stable.shown = next; // resté identique assez longtemps : publié
             }
           }
-          el.values = stable.shown;
+          vals = stable.shown.slice();
         } else {
           // Multiplexage : on échantillonne le chiffre actuellement sélectionné
           // (broche DIGn active) et on mémorise ses segments ; les autres gardent
           // leur dernière valeur connue → l'affichage complet reste stable.
-          const commonAnode = part.attrs?.common === 'anode';
           let latch = sevenSegLatch.get(part.id);
           if (!latch || latch.length !== digits * 8) {
             latch = new Array(digits * 8).fill(0);
@@ -771,12 +773,59 @@ function refreshVisuals(): void {
             );
             if (active) for (let s = 0; s < 8; s++) latch[d * 8 + s] = values[s];
           }
-          el.values = latch.slice();
+          vals = latch.slice();
         }
+        // Résistance série par broche de segment (même physique que la LED) :
+        // un segment allumé en sur-courant grille tout l'afficheur (flamme) ;
+        // résistance trop forte → segment assombri (valeur fractionnaire,
+        // rendue par color-mix dans le fork) voire éteint.
+        if (!burnedLeds.has(part.id)) {
+          const vs = boardFamily(board) === 'rp2040' ? 3.3 : 5;
+          const lumBySeg = new Map<string, number>();
+          for (let i = 0; i < vals.length; i++) {
+            if (!vals[i]) continue;
+            const segPin = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'DP'][i % 8];
+            let lum = lumBySeg.get(segPin);
+            if (lum === undefined) {
+              const elec = ledElectrical(
+                sevenSegSeriesOhms(editor.diagram, part.id, segPin, commonAnode), vs, 'red'
+              );
+              if (elec.overCurrent) {
+                burnedLeds.add(part.id);
+                break;
+              }
+              lum = elec.lum;
+              lumBySeg.set(segPin, lum);
+            }
+            vals[i] = vals[i] * lum;
+          }
+        }
+        const seg7Burned = burnedLeds.has(part.id);
+        el.burned = seg7Burned;
+        el.values = seg7Burned ? vals.map(() => 0) : vals;
         break;
       }
       case 'led-bar': {
-        el.values = ledBarState(editor.diagram, part.id, read);
+        const vals = ledBarState(editor.diagram, part.id, read);
+        // Même physique que la LED simple, LED par LED de la barre : une seule
+        // en sur-courant grille toute la barre.
+        if (!burnedLeds.has(part.id)) {
+          const vs = boardFamily(board) === 'rp2040' ? 3.3 : 5;
+          for (let i = 0; i < vals.length; i++) {
+            if (!vals[i]) continue;
+            const elec = ledElectrical(
+              ledBarSeriesOhms(editor.diagram, part.id, i), vs, part.attrs?.color ?? 'red'
+            );
+            if (elec.overCurrent) {
+              burnedLeds.add(part.id);
+              break;
+            }
+            vals[i] = vals[i] * elec.lum;
+          }
+        }
+        const barBurned = burnedLeds.has(part.id);
+        el.burned = barBurned;
+        el.values = barBurned ? vals.map(() => 0) : vals;
         break;
       }
       case 'servo': {

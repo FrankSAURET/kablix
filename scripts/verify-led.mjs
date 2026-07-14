@@ -21,7 +21,8 @@ await esbuild.build({
   format: 'esm',
   logLevel: 'silent',
 });
-const { ledSeriesOhms, ledElectrical, rgbSeriesOhms } = await import(pathToFileURL(out).href);
+const { ledSeriesOhms, ledElectrical, rgbSeriesOhms, sevenSegSeriesOhms, ledBarSeriesOhms } =
+  await import(pathToFileURL(out).href);
 
 let failures = 0;
 const check = (label, ok) => {
@@ -147,12 +148,42 @@ const rgbCA = {
 };
 check('RGB anode commune : canal R → 330 Ω', near(rgbSeriesOhms(rgbCA, 'rgb', 'R'), 330));
 
+// --- 7 segments : résistance par segment ---------------------------------------
+const seg7 = {
+  parts: [uno, { id: 'seg', type: '7seg', x: 0, y: 0 }, R('r1', 220)],
+  wires: [
+    W('w1', { partId: 'uno', pin: '3' }, { partId: 'r1', pin: '1' }),
+    W('w2', { partId: 'r1', pin: '2' }, { partId: 'seg', pin: 'A' }),
+    W('w3', { partId: 'uno', pin: '4' }, { partId: 'seg', pin: 'B' }),
+    W('w4', { partId: 'seg', pin: 'COM.1' }, { partId: 'uno', pin: 'GND.1' }),
+  ],
+};
+check('7 segments : segment A avec R 220 → 220 Ω', near(sevenSegSeriesOhms(seg7, 'seg', 'A', false), 220));
+check('7 segments : segment B en direct → 0 Ω', near(sevenSegSeriesOhms(seg7, 'seg', 'B', false), 0));
+check('7 segments : segment C non câblé → null', sevenSegSeriesOhms(seg7, 'seg', 'C', false) === null);
+
+// --- Barre de LED : résistance par LED ------------------------------------------
+const bar = {
+  parts: [uno, { id: 'bar', type: 'led-bar', x: 0, y: 0 }, R('r1', 330)],
+  wires: [
+    W('w1', { partId: 'uno', pin: '5' }, { partId: 'r1', pin: '1' }),
+    W('w2', { partId: 'r1', pin: '2' }, { partId: 'bar', pin: 'A3' }),
+    W('w3', { partId: 'bar', pin: 'C3' }, { partId: 'uno', pin: 'GND.1' }),
+    W('w4', { partId: 'uno', pin: '6' }, { partId: 'bar', pin: 'A4' }),
+    W('w5', { partId: 'bar', pin: 'C4' }, { partId: 'uno', pin: 'GND.1' }),
+  ],
+};
+check('barre : LED 3 avec R 330 → 330 Ω', near(ledBarSeriesOhms(bar, 'bar', 2), 330));
+check('barre : LED 4 en direct → 0 Ω', near(ledBarSeriesOhms(bar, 'bar', 3), 0));
+
 // --- Rendu : flamme sur LED grillée (Chrome headless) -------------------------
 const CACHE = join(root, 'node_modules', '.cache-led');
 mkdirSync(CACHE, { recursive: true });
 const entry = `
 import '../../src/webview/composants/led-element.mjs';
 import '../../src/webview/composants/rgb-led-element.mjs';
+import '../../src/webview/composants/7segment-element.mjs';
+import '../../src/webview/composants/led-bar-graph-element.mjs';
 async function run() {
 	const mk = (burned) => {
 		const el = document.createElement('kablix-led');
@@ -166,8 +197,32 @@ async function run() {
 	rgb.ledRed = 1;
 	rgb.burned = true;
 	document.body.appendChild(rgb);
+	const seg = document.createElement('kablix-7segment');
+	seg.setAttribute('simulating', '');
+	seg.values = [1, 0.4, 0, 0, 0, 0, 0, 0];
+	document.body.appendChild(seg);
+	const segBurned = document.createElement('kablix-7segment');
+	segBurned.burned = true;
+	document.body.appendChild(segBurned);
+	const bar = document.createElement('kablix-led-bar-graph');
+	bar.values = [1, 0.4, 0, 0, 0, 0, 0, 0, 0, 0];
+	document.body.appendChild(bar);
+	const barBurned = document.createElement('kablix-led-bar-graph');
+	barBurned.burned = true;
+	document.body.appendChild(barBurned);
 	await ok.updateComplete; await burned.updateComplete; await rgb.updateComplete;
+	await seg.updateComplete; await segBurned.updateComplete;
+	await bar.updateComplete; await barBurned.updateComplete;
+	const segPolys = seg.renderRoot.querySelectorAll('polygon');
+	const barRects = bar.renderRoot.querySelectorAll('#g53 rect');
 	const res = {
+		segFull: segPolys[0]?.style.fill,
+		segDim: segPolys[1]?.style.fill,
+		segOff: segPolys[2]?.style.fill,
+		segFlame: !!segBurned.renderRoot.querySelector('.led-flame'),
+		barFull: barRects[0]?.style.fill,
+		barDim: barRects[1]?.style.fill,
+		barFlame: !!barBurned.renderRoot.querySelector('.led-flame'),
 		okFlame: !!ok.renderRoot.querySelector('.led-flame'),
 		okBody: ok.renderRoot.querySelector('#path25')?.getAttribute('fill'),
 		okLight: (ok.renderRoot.querySelector('#g30') || {}).style?.display ?? 'absent',
@@ -199,6 +254,12 @@ if (chrome) {
     r && r.burnedFlame && r.burnedBody === '#3a3a3a' && r.burnedLight === 'none');
   check('rendu : RGB grillée — flamme + corps carbonisé + halo à zéro',
     r && r.rgbFlame && r.rgbDark && r.rgbHalo === '0');
+  check('rendu : 7 segments — plein rouge, 40 % en color-mix, éteint sombre',
+    r && r.segFull === 'red' && String(r.segDim).includes('color-mix') &&
+    String(r.segDim).includes('40%') && r.segOff === 'rgb(68, 68, 68)');
+  check('rendu : 7 segments grillé — flamme affichée', r && r.segFlame);
+  check('rendu : barre — plein, 40 % en color-mix, flamme si grillée',
+    r && r.barFull !== '' && String(r.barDim).includes('color-mix') && r.barFlame);
 } else {
   console.log('(Chrome introuvable : volet rendu sauté)');
 }

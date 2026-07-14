@@ -285,6 +285,47 @@ export function rgbSeriesOhms(
 }
 
 /**
+ * Résistance série (Ω) du circuit d'UN segment d'afficheur 7 segments :
+ * broche du segment vers sa source (ou son puits en anode commune), plus le
+ * MEILLEUR chemin d'un commun (COM.1/COM.2/COM ou DIGn multiplexé) vers la
+ * masse (cathode commune) ou VCC (anode commune). Approximation multiplexée :
+ * le commun le plus favorable est retenu.
+ */
+export function sevenSegSeriesOhms(
+  diagram: Diagram,
+  partId: string,
+  segPin: string,
+  commonAnode: boolean
+): number | null {
+  const { nets, adj, digitalNets, vccNets, gndNets } = resistiveGraph(diagram);
+  const segNet = nets.netOf({ partId, pin: segPin });
+  const segEnd = commonAnode
+    ? minOhmsPath(segNet, new Set([...digitalNets, ...gndNets]), adj)
+    : minOhmsPath(segNet, new Set([...digitalNets, ...vccNets]), adj);
+  let comEnd: number | null = null;
+  for (const c of ['COM.1', 'COM.2', 'COM', 'DIG1', 'DIG2', 'DIG3', 'DIG4']) {
+    const n = nets.netOf({ partId, pin: c });
+    const d = commonAnode
+      ? minOhmsPath(n, vccNets, adj)
+      : minOhmsPath(n, new Set([...digitalNets, ...gndNets]), adj);
+    if (d !== null && (comEnd === null || d < comEnd)) comEnd = d;
+  }
+  return segEnd === null || comEnd === null ? null : segEnd + comEnd;
+}
+
+/** Résistance série (Ω) du circuit d'une LED d'une barre (anode An, cathode Cn). */
+export function ledBarSeriesOhms(diagram: Diagram, partId: string, index: number): number | null {
+  const { nets, adj, digitalNets, vccNets, gndNets } = resistiveGraph(diagram);
+  const up = minOhmsPath(
+    nets.netOf({ partId, pin: `A${index + 1}` }),
+    new Set([...digitalNets, ...vccNets]),
+    adj
+  );
+  const down = minOhmsPath(nets.netOf({ partId, pin: `C${index + 1}` }), gndNets, adj);
+  return up === null || down === null ? null : up + down;
+}
+
+/**
  * État électrique d'une LED alimentée sous `vsupply` volts à travers `ohms` :
  *  - `amps` : courant direct (I = (Vs − Vf) / R ; Infinity si R = 0) ;
  *  - `overCurrent` : courant de crête destructeur (> 35 mA) — LED grillée ;
