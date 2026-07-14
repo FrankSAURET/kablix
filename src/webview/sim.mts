@@ -53,6 +53,7 @@ import {
   ledMcuPin,
   ledSeriesOhms,
   ledElectrical,
+  rgbSeriesOhms,
   rgbLedState,
   buzzerOn,
   sevenSegmentState,
@@ -675,9 +676,27 @@ function refreshVisuals(): void {
           if (duty === undefined) return lit ? 1 : 0;
           return s.commonAnode ? 1 - duty : duty;
         };
-        el.ledRed = chan(s.red, bind?.r);
-        el.ledGreen = chan(s.green, bind?.g);
-        el.ledBlue = chan(s.blue, bind?.b);
+        // Résistance série PAR CANAL (même physique que la LED simple) : un
+        // canal qui conduit en sur-courant grille toute la LED (flamme) ;
+        // résistance trop forte → canal assombri voire éteint.
+        const vs = boardFamily(board) === 'rp2040' ? 3.3 : 5;
+        const level = (chanPin: 'R' | 'G' | 'B', color: string, raw: number): number => {
+          if (raw <= 0 || burnedLeds.has(part.id)) return raw;
+          const elec = ledElectrical(rgbSeriesOhms(editor.diagram, part.id, chanPin), vs, color);
+          if (elec.overCurrent) {
+            burnedLeds.add(part.id);
+            return 0;
+          }
+          return raw * elec.lum;
+        };
+        const red = level('R', 'red', chan(s.red, bind?.r));
+        const green = level('G', 'green', chan(s.green, bind?.g));
+        const blue = level('B', 'blue', chan(s.blue, bind?.b));
+        const burned = burnedLeds.has(part.id);
+        el.burned = burned;
+        el.ledRed = burned ? 0 : red;
+        el.ledGreen = burned ? 0 : green;
+        el.ledBlue = burned ? 0 : blue;
         break;
       }
       case 'buzzer': {

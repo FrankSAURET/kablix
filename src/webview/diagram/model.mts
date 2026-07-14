@@ -209,13 +209,11 @@ function minOhmsPath(
 }
 
 /**
- * Résistance série totale (Ω) du circuit d'une LED : plus court chemin (en ohms)
- * entre une broche source (MCU numérique ou VCC) et l'anode, plus celui entre la
- * cathode et une masse. Fils et platines d'essai sont des courts-circuits, chaque
- * résistance est une arête pondérée par son attribut `value`.
- * Retourne 0 si la LED est branchée en direct, null si le circuit est ouvert.
+ * Graphe résistif du schéma : netlist SANS fusion des résistances, chaque
+ * résistance devient une arête pondérée par son attribut `value`, et les nets
+ * des broches MCU sont classés par rôle (sources numériques/VCC, masses).
  */
-export function ledSeriesOhms(diagram: Diagram, ledId: string): number | null {
+function resistiveGraph(diagram: Diagram) {
   const nets = buildNets(diagram, false);
   const adj = new Map<string, Array<{ to: string; ohms: number }>>();
   const link = (a: string, b: string, ohms: number) => {
@@ -230,20 +228,60 @@ export function ledSeriesOhms(diagram: Diagram, ledId: string): number | null {
     link(a, b, ohms);
     link(b, a, ohms);
   }
-  const srcNets = new Set<string>();
+  const digitalNets = new Set<string>();
+  const vccNets = new Set<string>();
   const gndNets = new Set<string>();
   for (const { part, board } of mcuParts(diagram)) {
     for (const pin of mcuPins(board)) {
       const role = mcuPinRole(board, pin);
       if (role.role !== 'gnd' && role.role !== 'vcc' && role.role !== 'digital') continue;
       const net = nets.netOf({ partId: part.id, pin });
-      (role.role === 'gnd' ? gndNets : srcNets).add(net);
+      if (role.role === 'gnd') gndNets.add(net);
+      else if (role.role === 'vcc') vccNets.add(net);
+      else digitalNets.add(net);
     }
   }
+  return { nets, adj, digitalNets, vccNets, gndNets };
+}
+
+/**
+ * Résistance série totale (Ω) du circuit d'une LED : plus court chemin (en ohms)
+ * entre une broche source (MCU numérique ou VCC) et l'anode, plus celui entre la
+ * cathode et une masse. Fils et platines d'essai sont des courts-circuits, chaque
+ * résistance est une arête pondérée par son attribut `value`.
+ * Retourne 0 si la LED est branchée en direct, null si le circuit est ouvert.
+ */
+export function ledSeriesOhms(diagram: Diagram, ledId: string): number | null {
+  const { nets, adj, digitalNets, vccNets, gndNets } = resistiveGraph(diagram);
   const type = partType(diagram, ledId);
-  const up = minOhmsPath(nets.netOf({ partId: ledId, pin: rolePin(type, 'A') }), srcNets, adj);
+  const src = new Set([...digitalNets, ...vccNets]);
+  const up = minOhmsPath(nets.netOf({ partId: ledId, pin: rolePin(type, 'A') }), src, adj);
   const down = minOhmsPath(nets.netOf({ partId: ledId, pin: rolePin(type, 'C') }), gndNets, adj);
   return up === null || down === null ? null : up + down;
+}
+
+/**
+ * Résistance série (Ω) du circuit d'UN canal d'une LED RGB :
+ *  - cathode commune : broche canal ← source (MCU/VCC), COM → masse ;
+ *  - anode commune   : COM ← VCC, broche canal → puits (broche MCU tirée basse,
+ *    ou masse). Retourne 0 en direct, null si le circuit du canal est ouvert.
+ */
+export function rgbSeriesOhms(
+  diagram: Diagram,
+  partId: string,
+  chan: 'R' | 'G' | 'B'
+): number | null {
+  const { nets, adj, digitalNets, vccNets, gndNets } = resistiveGraph(diagram);
+  const commonAnode = diagram.parts.find((p) => p.id === partId)?.attrs?.common === 'anode';
+  const chanNet = nets.netOf({ partId, pin: chan });
+  const comNet = nets.netOf({ partId, pin: 'COM' });
+  const chanEnd = commonAnode
+    ? minOhmsPath(chanNet, new Set([...digitalNets, ...gndNets]), adj)
+    : minOhmsPath(chanNet, new Set([...digitalNets, ...vccNets]), adj);
+  const comEnd = commonAnode
+    ? minOhmsPath(comNet, vccNets, adj)
+    : minOhmsPath(comNet, gndNets, adj);
+  return chanEnd === null || comEnd === null ? null : chanEnd + comEnd;
 }
 
 /**

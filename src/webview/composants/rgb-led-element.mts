@@ -8,7 +8,7 @@
 //     déjà les filtres `feGaussianBlur33/34/35` et les cercles `circle35..39`
 //     capturés depuis ce même rendu, il suffit de les remuter au lieu de les
 //     reconstruire.
-import { html, LitElement, PropertyValues } from 'lit';
+import { css, html, LitElement, PropertyValues, svg } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
 import drawing from './externe/rgb-led.svg';
@@ -17,12 +17,14 @@ export class RGBLedElement extends LitElement {
   declare ledRed: number;
   declare ledGreen: number;
   declare ledBlue: number;
+  declare burned: boolean;
 
   /** Propriétés réactives lit (remplace les décorateurs @property du code d'origine). */
   static properties = {
     ledRed: {},
     ledGreen: {},
     ledBlue: {},
+    burned: { type: Boolean },
   };
 
   constructor() {
@@ -30,6 +32,36 @@ export class RGBLedElement extends LitElement {
     this.ledRed = 0;
     this.ledGreen = 0;
     this.ledBlue = 0;
+    this.burned = false;
+  }
+
+  static get styles() {
+    return css`
+      /* Flamme de LED grillée : léger vacillement autour de sa base (même
+         dessin que le fork led-element). */
+      .led-flame {
+        transform-box: fill-box;
+        transform-origin: 50% 100%;
+        animation: led-flicker 0.35s ease-in-out infinite alternate;
+      }
+
+      @keyframes led-flicker {
+        from {
+          transform: scale(1);
+          opacity: 1;
+        }
+        to {
+          transform: scale(1.12, 0.9);
+          opacity: 0.85;
+        }
+      }
+
+      /* Corps carbonisé d'une LED grillée (la flamme, hors de ce groupe,
+         garde ses couleurs vives). */
+      .rgb-burned {
+        filter: grayscale(1) brightness(0.55);
+      }
+    `;
   }
 
   // Broches : centre de chaque pastille (repère du dessin retouché, grille de 10 px).
@@ -49,7 +81,12 @@ export class RGBLedElement extends LitElement {
       for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
     };
 
-    const { ledRed: r, ledGreen: g, ledBlue: b } = this;
+    // Grillée (sur-courant sur un canal) : tous les halos éteints — le corps
+    // est noirci par le filtre CSS .rgb-burned (voir render/styles).
+    const burned = this.burned;
+    const r = burned ? 0 : this.ledRed;
+    const g = burned ? 0 : this.ledGreen;
+    const b = burned ? 0 : this.ledBlue;
     const brightness = Math.max(r, g, b);
     const opacity = brightness ? 0.2 + brightness * 0.6 : 0;
 
@@ -71,7 +108,16 @@ export class RGBLedElement extends LitElement {
         viewBox="0 0 49.873417 70"
         xmlns="http://www.w3.org/2000/svg"
       >
-        ${unsafeSVG(drawing)}
+        <g class="${this.burned ? 'rgb-burned' : ''}">${unsafeSVG(drawing)}</g>
+        ${this.burned
+          ? svg`
+            <g transform="translate(23 24)">
+              <g class="led-flame">
+                <path d="M 0,-11 C 4,-6 6,-3 6,0 A 6,6.5 0 1 1 -6,0 C -6,-3 -4,-6 0,-11 Z" fill="#ff7a1a" />
+                <path d="M 0,-5.5 C 2,-3 3,-1.5 3,0.6 A 3,3.4 0 1 1 -3,0.6 C -3,-1.5 -2,-3 0,-5.5 Z" fill="#ffd23e" />
+              </g>
+            </g>`
+          : null}
       </svg>
     `;
   }

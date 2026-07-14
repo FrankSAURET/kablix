@@ -21,7 +21,7 @@ await esbuild.build({
   format: 'esm',
   logLevel: 'silent',
 });
-const { ledSeriesOhms, ledElectrical } = await import(pathToFileURL(out).href);
+const { ledSeriesOhms, ledElectrical, rgbSeriesOhms } = await import(pathToFileURL(out).href);
 
 let failures = 0;
 const check = (label, ok) => {
@@ -121,11 +121,38 @@ const e7 = ledElectrical(220, 3.3, 'blue'); // 0,3 V / 220 = 1,4 mA sur Pico
 check('220 Ω / 3,3 V bleue : conduit faiblement (Vf 3 V)',
   near(e7.amps, 0.3 / 220) && e7.lum > 0.1 && e7.lum < 0.2);
 
+// --- LED RGB : résistance série par canal --------------------------------------
+// Cathode commune : R par canal (220 sur R, rien sur G), COM → GND.
+const rgbCC = {
+  parts: [uno, { id: 'rgb', type: 'rgb-led', x: 0, y: 0 }, R('r1', 220)],
+  wires: [
+    W('w1', { partId: 'uno', pin: '9' }, { partId: 'r1', pin: '1' }),
+    W('w2', { partId: 'r1', pin: '2' }, { partId: 'rgb', pin: 'R' }),
+    W('w3', { partId: 'uno', pin: '10' }, { partId: 'rgb', pin: 'G' }),
+    W('w4', { partId: 'rgb', pin: 'COM' }, { partId: 'uno', pin: 'GND.1' }),
+  ],
+};
+check('RGB cathode commune : canal R → 220 Ω', near(rgbSeriesOhms(rgbCC, 'rgb', 'R'), 220));
+check('RGB cathode commune : canal G en direct → 0 Ω', near(rgbSeriesOhms(rgbCC, 'rgb', 'G'), 0));
+check('RGB cathode commune : canal B non câblé → null', rgbSeriesOhms(rgbCC, 'rgb', 'B') === null);
+
+// Anode commune : COM → 5V, canal R → R330 → broche MCU (tirée basse).
+const rgbCA = {
+  parts: [uno, { id: 'rgb', type: 'rgb-led', x: 0, y: 0, attrs: { common: 'anode' } }, R('r1', 330)],
+  wires: [
+    W('w1', { partId: 'rgb', pin: 'COM' }, { partId: 'uno', pin: '5V' }),
+    W('w2', { partId: 'rgb', pin: 'R' }, { partId: 'r1', pin: '1' }),
+    W('w3', { partId: 'r1', pin: '2' }, { partId: 'uno', pin: '9' }),
+  ],
+};
+check('RGB anode commune : canal R → 330 Ω', near(rgbSeriesOhms(rgbCA, 'rgb', 'R'), 330));
+
 // --- Rendu : flamme sur LED grillée (Chrome headless) -------------------------
 const CACHE = join(root, 'node_modules', '.cache-led');
 mkdirSync(CACHE, { recursive: true });
 const entry = `
 import '../../src/webview/composants/led-element.mjs';
+import '../../src/webview/composants/rgb-led-element.mjs';
 async function run() {
 	const mk = (burned) => {
 		const el = document.createElement('kablix-led');
@@ -135,7 +162,11 @@ async function run() {
 		return el;
 	};
 	const ok = mk(false), burned = mk(true);
-	await ok.updateComplete; await burned.updateComplete;
+	const rgb = document.createElement('kablix-rgb-led');
+	rgb.ledRed = 1;
+	rgb.burned = true;
+	document.body.appendChild(rgb);
+	await ok.updateComplete; await burned.updateComplete; await rgb.updateComplete;
 	const res = {
 		okFlame: !!ok.renderRoot.querySelector('.led-flame'),
 		okBody: ok.renderRoot.querySelector('#path25')?.getAttribute('fill'),
@@ -143,6 +174,9 @@ async function run() {
 		burnedFlame: !!burned.renderRoot.querySelector('.led-flame'),
 		burnedBody: burned.renderRoot.querySelector('#path25')?.getAttribute('fill'),
 		burnedLight: (burned.renderRoot.querySelector('#g30') || {}).style?.display ?? 'absent',
+		rgbFlame: !!rgb.renderRoot.querySelector('.led-flame'),
+		rgbDark: !!rgb.renderRoot.querySelector('.rgb-burned'),
+		rgbHalo: rgb.renderRoot.querySelector('#circle35')?.getAttribute('opacity'),
 	};
 	const out = document.createElement('pre');
 	out.id = 'measures';
@@ -163,6 +197,8 @@ if (chrome) {
     r && !r.okFlame && r.okBody === 'red' && r.okLight === '');
   check('rendu : LED grillée avec flamme, verre noirci, halo éteint',
     r && r.burnedFlame && r.burnedBody === '#3a3a3a' && r.burnedLight === 'none');
+  check('rendu : RGB grillée — flamme + corps carbonisé + halo à zéro',
+    r && r.rgbFlame && r.rgbDark && r.rgbHalo === '0');
 } else {
   console.log('(Chrome introuvable : volet rendu sauté)');
 }
