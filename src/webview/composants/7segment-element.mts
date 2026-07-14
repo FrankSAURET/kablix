@@ -84,11 +84,13 @@ export class SevenSegmentElement extends LitElement {
   declare color: string;
   declare digits: number;
   declare values: number[];
+  declare simulating: boolean;
 
   static properties = {
     color: {},
     digits: { type: Number },
     values: { type: Array },
+    simulating: { type: Boolean },
   };
 
   constructor() {
@@ -96,6 +98,7 @@ export class SevenSegmentElement extends LitElement {
     this.color = 'red';
     this.digits = 1;
     this.values = [0, 0, 0, 0, 0, 0, 0, 0];
+    this.simulating = false;
   }
 
   private get variant(): Variant {
@@ -126,13 +129,19 @@ export class SevenSegmentElement extends LitElement {
         (e) => !e.closest('defs'),
       );
     }
-    const { digits, color, values } = this;
+    const { digits, color, values, simulating } = this;
     const polys = this.polys;
     const dps = this.dps!;
     const setSeg = (el: SVGElement, lit: boolean) => {
       const e = el as SVGElement & { dataset: DOMStringMap };
+      // Deux couleurs « éteint » mémorisées au premier passage : le gris clair
+      // d'ÉDITION (style inline du dessin) et le gris sombre réaliste porté par
+      // l'attribut fill (#444444) — utilisé pendant la simulation (attribut
+      // `simulating` posé par l'éditeur) : un segment éteint y est à peine
+      // visible, comme sur un vrai afficheur.
       if (e.dataset.off === undefined) e.dataset.off = el.style.fill || el.getAttribute('fill') || '#444';
-      const fill = lit ? color : e.dataset.off;
+      if (e.dataset.offSim === undefined) e.dataset.offSim = el.getAttribute('fill') || '#444';
+      const fill = lit ? color : simulating ? e.dataset.offSim : e.dataset.off;
       el.style.fill = fill;
       // Contour de segment retiré (Frank) : les segments sont pleins, sans liseré.
       // Un très fin stroke de la même couleur comble seulement le filet
