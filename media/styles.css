@@ -1564,7 +1564,8 @@ textarea {
 }
 
 /* Croix de fermeture du moniteur série (l'icône écran de la barre le rouvre). */
-#close-serial {
+#close-serial,
+#close-plotter {
   padding: 0.15rem 0.45rem;
   font-weight: 700;
   line-height: 1;
@@ -1633,6 +1634,121 @@ textarea {
   background: var(--vscode-input-background, #333);
   color: var(--vscode-input-foreground, #fff);
   cursor: pointer;
+}
+
+/* --- Traceur de courbes ------------------------------------------------------ */
+.plotter {
+  margin-top: 0.4rem;
+}
+
+.plotter__window {
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 0.1rem 0.25rem;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-input-border, #555);
+  background: var(--vscode-input-background, #333);
+  color: var(--vscode-input-foreground, #fff);
+}
+
+/* Légende : une puce cliquable par série (pastille colorée + nom + valeur). */
+.plotter__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.3rem;
+}
+
+.plotter__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--vscode-input-border, #555);
+  background: var(--vscode-input-background, #333);
+  color: var(--vscode-input-foreground, #fff);
+  cursor: pointer;
+}
+
+/* Série masquée : puce estompée (la teinte reste attachée à la série). */
+.plotter__chip--off {
+  opacity: 0.4;
+}
+
+.plotter__chip-value {
+  font-family: var(--vscode-editor-font-family, monospace);
+  opacity: 0.75;
+  min-width: 4.5ch;
+  text-align: right;
+}
+
+.plotter__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+  display: inline-block;
+}
+
+.plotter__wrap {
+  position: relative;
+  height: 190px;
+  background: var(--vscode-textCodeBlock-background, rgba(0, 0, 0, 0.3));
+  border-radius: 6px;
+}
+
+.plotter__canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Message d'attente (aucune série encore reçue), centré sur la zone de tracé.
+   Le display:flex écraserait le display:none de l'attribut hidden : on le rétablit. */
+.plotter__empty[hidden],
+.plotter__legend[hidden] {
+  display: none;
+}
+
+.plotter__empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 2rem;
+  font-size: 0.8rem;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Info-bulle du réticule : valeurs de chaque série à l'instant survolé. */
+.plotter__tooltip {
+  position: absolute;
+  pointer-events: none;
+  font-size: 0.75rem;
+  font-family: var(--vscode-editor-font-family, monospace);
+  background: var(--vscode-editorWidget-background, #252526);
+  color: var(--vscode-editorWidget-foreground, #ccc);
+  border: 1px solid var(--vscode-editorWidget-border, #454545);
+  border-radius: 4px;
+  padding: 0.3rem 0.5rem;
+  z-index: 5;
+}
+
+.plotter__tooltip .plotter__dot {
+  width: 8px;
+  height: 8px;
+  margin-right: 0.3rem;
+}
+
+.plotter__tooltip-time {
+  opacity: 0.7;
+  margin-bottom: 0.15rem;
 }
 
 /* --- Panneau de débogage (variables, ligne courante) ------------------------ */

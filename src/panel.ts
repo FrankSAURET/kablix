@@ -582,6 +582,7 @@ export class SimulatorPanel {
     type?: string;
     board?: Board;
     svg?: string;
+    csv?: string;
     parts?: unknown[];
     models?: unknown[];
     part?: unknown;
@@ -653,6 +654,9 @@ export class SimulatorPanel {
         break;
       case 'exportSvg':
         if (msg.svg) void this.saveSvg(msg.svg);
+        break;
+      case 'exportCsv':
+        if (typeof msg.csv === 'string') void this.saveCsv(msg.csv);
         break;
       case 'saveCustomParts':
         void this.context.globalState.update(CUSTOM_PARTS_KEY, msg.parts ?? []);
@@ -980,6 +984,24 @@ export class SimulatorPanel {
     vscode.window.showInformationMessage(l10n.t('Kablix: diagram exported to {0}', target.fsPath));
   }
 
+  /** Enregistre les mesures du traceur de courbes (format CSV long). */
+  private async saveCsv(csv: string): Promise<void> {
+    const folders = vscode.workspace.workspaceFolders;
+    const base = this.projectDisplayName() ?? 'mesures-kablix';
+    const fileName = `${base}.csv`;
+    const defaultUri = folders?.length
+      ? vscode.Uri.joinPath(folders[0].uri, fileName)
+      : vscode.Uri.file(fileName);
+    const target = await vscode.window.showSaveDialog({
+      defaultUri,
+      filters: { [l10n.t('CSV measurements')]: ['csv'] },
+      title: l10n.t('Export the plotter data (CSV)'),
+    });
+    if (!target) return;
+    await vscode.workspace.fs.writeFile(target, new TextEncoder().encode(csv));
+    vscode.window.showInformationMessage(l10n.t('Kablix: measurements exported to {0}', target.fsPath));
+  }
+
   private post(message: unknown): void {
     void this.panel.webview.postMessage(message);
   }
@@ -1105,6 +1127,7 @@ export class SimulatorPanel {
           <button id="code-file" class="canvas-controls__file" title="${l10n.t('Code file to run / debug — click to change, double-click to open')}">📄 ${l10n.t('No file')}</button>
           <button id="repl" class="canvas-controls__btn canvas-controls__btn--repl" hidden title="${l10n.t('Start an interactive MicroPython REPL (no script)')}">REPL</button>
           <button id="toggle-serial" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Show/hide the serial monitor')}"><img class="canvas-controls__icon" src="${serialMonitorUri}" alt="${l10n.t('Show/hide the serial monitor')}" /></button>
+          <button id="toggle-plotter" class="canvas-controls__btn" title="${l10n.t('Show/hide the plotter (curves)')}">📈</button>
         </div>
         <!-- Barre droite : recentrer/ajuster, réinitialiser, effacer (alignée et de
              même hauteur que la barre de simulation à gauche). -->
@@ -1145,6 +1168,27 @@ export class SimulatorPanel {
       <div class="serial__input" id="serial-input-row">
         <input id="serial-input" type="text" placeholder="${l10n.t('Send to the microcontroller (Enter)…')}" />
         <button id="serial-send">${l10n.t('Send')}</button>
+      </div>
+    </section>
+
+    <!-- Traceur de courbes : télémétrie série « >nom:valeur » (format Teleplot)
+         et sondes internes (tension des broches analogiques). -->
+    <section class="plotter" id="plotter-section" hidden>
+      <div class="serial__head">
+        <span>📈 ${l10n.t('Plotter')}</span>
+        <span class="serial__head-actions">
+          <select id="plotter-window" class="plotter__window" title="${l10n.t('Time window')}"></select>
+          <button id="plotter-pause"></button>
+          <button id="plotter-csv" title="${l10n.t('Export the measurements (CSV)')}">CSV</button>
+          <button id="clear-plotter">${l10n.t('Clear')}</button>
+          <button id="close-plotter" title="${l10n.t('Close the plotter')}">✕</button>
+        </span>
+      </div>
+      <div id="plotter-legend" class="plotter__legend" hidden></div>
+      <div class="plotter__wrap">
+        <canvas id="plotter-canvas" class="plotter__canvas"></canvas>
+        <div id="plotter-tooltip" class="plotter__tooltip" hidden></div>
+        <div id="plotter-empty" class="plotter__empty">${l10n.t('Waiting for data — print ">name:value" on the serial port, or wire an analog sensor (its pin is plotted automatically).')}</div>
       </div>
     </section>
   </main>

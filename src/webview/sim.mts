@@ -43,6 +43,7 @@ import './composants/breadboard.mjs';
 import './composants/custom-part.mjs';
 
 import { initLocale, t } from './i18n.mjs';
+import { Plotter } from './plotter.mjs';
 import { Editor, KABLIX_BADGE, type PaletteState } from './diagram/editor.mjs';
 import { partDef, boardFamily, isBoardId, PARAM_ATTR_PREFIX, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
 import { compileExpr } from './diagram/expr.mjs';
@@ -150,6 +151,9 @@ const clearBtn = document.getElementById('clear-serial') as HTMLButtonElement;
 const serialTitleEl = document.getElementById('serial-title') as HTMLSpanElement;
 const closeSerialBtn = document.getElementById('close-serial') as HTMLButtonElement;
 const toggleSerialBtn = document.getElementById('toggle-serial') as HTMLButtonElement;
+const plotterSection = document.getElementById('plotter-section') as HTMLElement;
+const togglePlotterBtn = document.getElementById('toggle-plotter') as HTMLButtonElement;
+const closePlotterBtn = document.getElementById('close-plotter') as HTMLButtonElement;
 const canvas = document.getElementById('canvas') as HTMLDivElement;
 const palette = document.getElementById('palette') as HTMLDivElement;
 const wiresSvg = document.getElementById('wires') as unknown as SVGSVGElement;
@@ -392,6 +396,38 @@ function setSerialVisible(visible: boolean, persist = true): void {
   toggleSerialBtn.classList.toggle('primary', visible);
   if (persist) saveUiState();
 }
+
+// --- Traceur de courbes (télémétrie `>nom:valeur` + sondes analogiques) -------
+const plotter = new Plotter();
+// Préférence utilisateur persistée : undefined = jamais touché → le panneau
+// s'ouvre tout seul à la première donnée reçue ; false = fermé explicitement.
+let plotterUserPref: boolean | undefined;
+let plotterVisible = false;
+
+/** Affiche ou masque le traceur (persist = choix explicite de l'utilisateur). */
+function setPlotterVisible(visible: boolean, persist = true): void {
+  plotterVisible = visible;
+  plotterSection.hidden = !visible;
+  togglePlotterBtn.classList.toggle('primary', visible);
+  if (visible) plotter.refresh(); // le canvas était en taille nulle : redessin
+  if (persist) {
+    plotterUserPref = visible;
+    saveUiState();
+  }
+}
+
+plotter.onFirstData = () => {
+  // Auto-ouverture à la première télémétrie, sauf refus explicite mémorisé.
+  if (!plotterVisible && plotterUserPref !== false) setPlotterVisible(true, false);
+};
+plotter.onExportCsv = (csv) => {
+  vscode.postMessage({ type: 'exportCsv', csv });
+};
+// Ligne retenue par le filtre télémétrie finalement non conforme : rendue à la
+// console (ex. « > » isolé tapé au REPL).
+plotter.onHoldFlush = (text) => appendSerial(text);
+togglePlotterBtn.addEventListener('click', () => setPlotterVisible(!plotterVisible));
+closePlotterBtn.addEventListener('click', () => setPlotterVisible(false));
 
 /** Titre du panneau série : « Console » pour un Pico, « Moniteur série » sinon. */
 function updateSerialTitle(): void {
@@ -1555,8 +1591,24 @@ function startRun(): void {
     return;
   }
   engine.onUpdate = queueRefresh;
-  engine.onSerial = appendSerial;
+  // Le flux série passe par le traceur : les lignes de télémétrie Teleplot
+  // (`>nom:valeur`) sont absorbées et tracées, le reste va à la console.
+  engine.onSerial = (chunk) => {
+    const rest = plotter.filterSerial(chunk);
+    if (rest) appendSerial(rest);
+  };
   engine.onDebugPause = renderDebugPause;
+  // Sondes internes : toute tension posée sur une broche analogique (capteurs,
+  // potentiomètres…) est tracée en volts — la Vref dépend de la famille de carte.
+  {
+    const vref = boardFamily(board) === 'rp2040' ? 3.3 : 5;
+    const engineSetAnalog = engine.setAnalog.bind(engine);
+    engine.setAnalog = (pin, fraction) => {
+      engineSetAnalog(pin, fraction);
+      plotter.probe(pin, Math.round(fraction * vref * 1000) / 1000);
+    };
+  }
+  plotter.start(); // nouvelles courbes à chaque run (comme la console)
   // Pont réseau Pico W : le moteur publie les requêtes, l'hôte fait le vrai
   // fetch et renvoie la réponse (message 'netResponse').
   if (engine.onNetRequest !== undefined) {
@@ -1596,6 +1648,7 @@ function stopRun(): void {
   engine?.dispose();
   engine = null;
   setReplMode(false);
+  plotter.stop(); // courbes figées mais conservées pour analyse
   stopRenderLoop(); // fin du rendu continu
   editor.setLocked(false); // édition du schéma de nouveau possible
   showSimBanner(false); // masque le bandeau de simulation
@@ -1722,7 +1775,7 @@ function applyPanelWidths(): void {
 function saveUiState(): void {
   vscode.postMessage({
     type: 'saveUiState',
-    state: { ...paletteState, showLabels, paletteWidth, inspectorWidth, serialVisible },
+    state: { ...paletteState, showLabels, paletteWidth, inspectorWidth, serialVisible, plotterVisible: plotterUserPref },
   });
 }
 
@@ -2012,6 +2065,11 @@ window.addEventListener('message', (event: MessageEvent) => {
       // Visibilité du moniteur série (défaut : affiché) restaurée sans re-persister.
       if (typeof (state as { serialVisible?: boolean }).serialVisible === 'boolean') {
         setSerialVisible((state as { serialVisible?: boolean }).serialVisible!, false);
+      }
+      // Traceur : seule la PRÉFÉRENCE est restaurée — le panneau reste fermé au
+      // chargement et s'ouvrira à la première donnée (sauf refus mémorisé).
+      if (typeof (state as { plotterVisible?: boolean }).plotterVisible === 'boolean') {
+        plotterUserPref = (state as { plotterVisible?: boolean }).plotterVisible;
       }
       paletteState = {
         sort: state.sort === 'alpha' ? 'alpha' : 'category',

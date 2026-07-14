@@ -1,7 +1,7 @@
 {
   "name": "kablix",
   "displayName": "Kablix",
-  "version": "2026.7.93",
+  "version": "2026.7.94",
   "description": "%kablix.description%",
   "publisher": "franksauret",
   "author": {
@@ -173,8 +173,9 @@
     "verify:neopixel": "node scripts/verify-neopixel.mjs",
     "verify:creator": "node scripts/verify-creator.mjs",
     "verify:debug": "node scripts/verify-debug-py.mjs",
-    "verify:all": "npm run verify && npm run verify:compiler && npm run verify:diagram && npm run verify:uf2 && npm run verify:micropython && npm run verify:wokwi && npm run verify:net && npm run verify:i2c && npm run verify:components && npm run verify:spi && npm run verify:neopixel && npm run verify:creator && npm run verify:debug",
-    "package": "vsce package --no-dependencies"
+    "verify:all": "npm run verify && npm run verify:compiler && npm run verify:diagram && npm run verify:uf2 && npm run verify:micropython && npm run verify:wokwi && npm run verify:net && npm run verify:i2c && npm run verify:components && npm run verify:spi && npm run verify:neopixel && npm run verify:creator && npm run verify:debug && npm run verify:plotter",
+    "package": "vsce package --no-dependencies",
+    "verify:plotter": "node scripts/verify-plotter.mjs"
   },
   "dependencies": {
     "avr8js": "0.21.0",

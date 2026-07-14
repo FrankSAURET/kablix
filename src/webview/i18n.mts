@@ -288,6 +288,13 @@ const FR: Record<string, string> = {
   'Serial monitor': 'Moniteur série',
   'Console': 'Console',
 
+  // Traceur de courbes
+  'Click to hide/show this curve': 'Cliquer pour masquer/afficher cette courbe',
+  'Freeze the display (data keeps being collected)':
+    "Figer l'affichage (les mesures continuent d'être collectées)",
+  'Resume the display (data keeps being collected)':
+    "Reprendre l'affichage (les mesures continuent d'être collectées)",
+
   // Barre d'outils du canvas
   'Auto-route the wires (right angles)': 'Autoroutage des fils (angles droits)',
   'Zoom in': 'Zoom avant',
