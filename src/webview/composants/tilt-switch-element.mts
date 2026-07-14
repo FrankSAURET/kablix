@@ -9,19 +9,23 @@
 //     `tilted` à false — sauf si Ctrl+clic a verrouillé l'inclinaison (`sticky`),
 //     auquel cas elle reste active jusqu'à un nouveau Ctrl+clic. L'état `tilted`
 //     est relu par le moteur (event `input` à chaque changement).
-//     Déformation visuelle = bascule TRAPÉZOÏDALE mesurée sur tilt-incline.svg de
-//     Frank (contour du boîtier : bord droit — proche des broches — quasi fixe,
-//     bord gauche resserré symétriquement d'environ 5 px en haut ET en bas). Un
-//     `matrix()` 2D affine unique ne peut pas produire ce resserrement symétrique
-//     (un skew ne penche que d'un côté) ; `perspective`+`rotateY` CSS a été
-//     essayé mais Chrome ne rend PAS les `<g>` SVG en 3D (transform reste
-//     l'identité, vérifié en headless — SVG n'établit pas de contexte de rendu
-//     3D hérité comme le HTML). Solution retenue : le SVG entier est dupliqué en
-//     deux copies superposées (`.tilt-stack`, voir render()), chacune rognée à
-//     une moitié (clip-path inset 50%) avec son propre skewY ancré sur le bord
-//     droit fixe — la copie du haut penche vers le bas, celle du bas vers le
-//     haut, recréant le trapèze symétrique mesuré. Les pattes/fils (broches
-//     `pinInfo`, fixes hors SVG) ne bougent jamais.
+//     Déformation visuelle = bascule TRAPÉZOÏDALE mesurée sur la grille lattice2
+//     de tilt-incline.svg de Frank : seuls les 2 coins GAUCHES du boîtier rentrent
+//     de 5,0 px chacun (haut ET bas, symétrique autour de y≈30), la colonne x=100
+//     — la ligne des EXTRÉMITÉS de pattes — est fixe. Un `matrix()` 2D affine ne
+//     sait pas resserrer des deux côtés (un skew ne penche que d'un côté), et
+//     l'ancienne solution « deux moitiés clipées skewY » (v2026.7.69) déplaçait
+//     les bouts de pattes (l'origine du skew était le bord du boîtier x=82.2, pas
+//     x=100) et faisait se chevaucher les moitiés à la couture. Solution : UNE
+//     homographie CSS `matrix3d` (trapèze keystone) appliquée à l'élément <svg>
+//     racine — c'est un élément HTML, les transforms 3D s'y appliquent (l'échec
+//     v2026.7.69 de perspective/rotateY concernait les <g> INTERNES du SVG).
+//     y' = cy + (y−cy)/w(x) avec w(x) = A + B·x et w(100) = 1 : tout point de la
+//     verticale x=100 est exactement fixe (les extrémités des pattes ne bougent
+//     pas), le côté gauche se resserre symétriquement, le corps entier se déforme
+//     globalement (la légère compression horizontale de la perspective fait
+//     visuellement basculer le boîtier). Constantes calées sur la référence :
+//     resserrement 5,0 px en x=8.727 → A = 1.23125, B = −0.0023125, cy = 30.0725.
 import { css, html, LitElement } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin, GND, VCC } from './pin.mjs';
@@ -66,36 +70,24 @@ export class TiltSwitchElement extends LitElement {
       .wrap.simulating {
         cursor: pointer;
       }
-      /* Trapèze symétrique = deux copies superposées du même SVG (voir render()) :
-         .half-top montre seulement la moitié haute (clip-path), skewY ancré à
-         droite pour faire DESCENDRE le bord gauche haut ; .half-bottom montre la
-         moitié basse, skewY inverse pour faire REMONTER le bord gauche bas. Non
-         tiltées, les deux moitiés se recollent exactement (mêmes coordonnées),
-         visuellement identique à un SVG plat unique. */
-      .tilt-stack {
-        position: relative;
-        width: 105.82864px;
-        height: 60px;
+      /* Trapèze keystone (voir commentaire d'en-tête) : homographie matrix3d,
+         origine (0,0) pour que les formules soient en coordonnées du viewBox
+         (rendu 1:1 px). Colonnes de la matrice (ordre CSS column-major) :
+         x' = x ; y' = m12·x + y + m42 ; w = m14·x + m44, puis division par w.
+         m12 = cy·B, m42 = cy·(A−1), m14 = B, m44 = A — la verticale x=100
+         (extrémités des pattes) vérifie w=1 et reste exactement en place. */
+      .tilt-svg {
+        display: block;
+        transform-origin: 0 0;
+        transition: transform 0.15s ease;
       }
-      .tilt-svg.half {
-        position: absolute;
-        top: 0;
-        left: 0;
-        transition: clip-path 0.15s ease, transform 0.15s ease;
-      }
-      .tilt-svg.half-top {
-        clip-path: inset(0 0 50% 0);
-        transform-origin: 82.221863px 30px;
-      }
-      .tilt-svg.half-bottom {
-        clip-path: inset(50% 0 0 0);
-        transform-origin: 82.221863px 30px;
-      }
-      .tilt-svg.half-top.tilted {
-        transform: skewY(-6deg);
-      }
-      .tilt-svg.half-bottom.tilted {
-        transform: skewY(6deg);
+      .tilt-svg.tilted {
+        transform: matrix3d(
+          1, -0.069543, 0, -0.0023125,
+          0, 1, 0, 0,
+          0, 0, 1, 0,
+          0, 6.95427, 0, 1.23125
+        );
       }
       .bubble {
         position: absolute;
@@ -175,26 +167,15 @@ export class TiltSwitchElement extends LitElement {
         @pointerleave=${this.onLeave}
         @pointerdown=${this.onPointerDown}
       >
-        <div class="tilt-stack">
-          <svg
-            class="tilt-svg half half-top ${this.tilted ? 'tilted' : ''}"
-            width="105.82864"
-            height="60"
-            viewBox="0 0 105.82864 60"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            ${unsafeSVG(drawing)}
-          </svg>
-          <svg
-            class="tilt-svg half half-bottom ${this.tilted ? 'tilted' : ''}"
-            width="105.82864"
-            height="60"
-            viewBox="0 0 105.82864 60"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            ${unsafeSVG(drawing)}
-          </svg>
-        </div>
+        <svg
+          class="tilt-svg ${this.tilted ? 'tilted' : ''}"
+          width="105.82864"
+          height="60"
+          viewBox="0 0 105.82864 60"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          ${unsafeSVG(drawing)}
+        </svg>
         ${bubble ? html`<div class="bubble">${bubble}</div>` : null}
       </div>
     `;
