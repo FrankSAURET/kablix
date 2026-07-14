@@ -78,8 +78,10 @@ export interface Nets {
  * Construit la netlist. Les fils relient les broches ; une résistance se
  * comporte comme un fil entre ses deux pattes (1 ↔ 2) ; une platine d'essai
  * relie les trous de chaque bande (colonnes a–e / f–j et rails).
+ * `joinResistors: false` laisse les deux pattes de chaque résistance dans des
+ * nets séparés — utilisé par ledSeriesOhms pour mesurer la résistance série.
  */
-export function buildNets(diagram: Diagram): Nets {
+export function buildNets(diagram: Diagram, joinResistors = true): Nets {
   const dsu = new DSU();
   for (const wire of diagram.wires) {
     dsu.union(key(wire.a), key(wire.b));
@@ -87,7 +89,7 @@ export function buildNets(diagram: Diagram): Nets {
   for (const part of diagram.parts) {
     const kind = partDef(part.type).kind;
     if (kind === 'resistor') {
-      dsu.union(`${part.id}/1`, `${part.id}/2`);
+      if (joinResistors) dsu.union(`${part.id}/1`, `${part.id}/2`);
     } else if (kind === 'pushbutton') {
       // Les deux pastilles d'une même borne (gauche/droite) sont reliées en interne.
       dsu.union(`${part.id}/1.l`, `${part.id}/1.r`);
@@ -166,6 +168,103 @@ export function ledMcuPin(diagram: Diagram, ledId: string): string | null {
   const type = partType(diagram, ledId);
   const nets = buildNets(diagram);
   return mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: ledId, pin: rolePin(type, 'A') }));
+}
+
+/** Tension directe (V) d'une LED selon sa couleur — valeurs datasheet typiques. */
+export const LED_FORWARD_V: Record<string, number> = {
+  red: 1.8,
+  orange: 2.0,
+  yellow: 2.0,
+  green: 2.1,
+  blue: 3.0,
+  white: 3.2,
+  purple: 3.0,
+};
+
+/** Plus court chemin (somme des résistances) d'un net vers l'un des nets cibles. */
+function minOhmsPath(
+  from: string,
+  targets: Set<string>,
+  adj: Map<string, Array<{ to: string; ohms: number }>>
+): number | null {
+  const dist = new Map<string, number>([[from, 0]]);
+  const done = new Set<string>();
+  for (;;) {
+    let cur: string | null = null;
+    let best = Infinity;
+    for (const [net, d] of dist) {
+      if (!done.has(net) && d < best) {
+        best = d;
+        cur = net;
+      }
+    }
+    if (cur === null) return null;
+    if (targets.has(cur)) return best;
+    done.add(cur);
+    for (const e of adj.get(cur) ?? []) {
+      const d = best + e.ohms;
+      if (d < (dist.get(e.to) ?? Infinity)) dist.set(e.to, d);
+    }
+  }
+}
+
+/**
+ * Résistance série totale (Ω) du circuit d'une LED : plus court chemin (en ohms)
+ * entre une broche source (MCU numérique ou VCC) et l'anode, plus celui entre la
+ * cathode et une masse. Fils et platines d'essai sont des courts-circuits, chaque
+ * résistance est une arête pondérée par son attribut `value`.
+ * Retourne 0 si la LED est branchée en direct, null si le circuit est ouvert.
+ */
+export function ledSeriesOhms(diagram: Diagram, ledId: string): number | null {
+  const nets = buildNets(diagram, false);
+  const adj = new Map<string, Array<{ to: string; ohms: number }>>();
+  const link = (a: string, b: string, ohms: number) => {
+    if (!adj.has(a)) adj.set(a, []);
+    adj.get(a)!.push({ to: b, ohms });
+  };
+  for (const part of diagram.parts) {
+    if (partDef(part.type).kind !== 'resistor') continue;
+    const a = nets.netOf({ partId: part.id, pin: '1' });
+    const b = nets.netOf({ partId: part.id, pin: '2' });
+    const ohms = Math.max(0, Number(part.attrs?.value ?? 220) || 0);
+    link(a, b, ohms);
+    link(b, a, ohms);
+  }
+  const srcNets = new Set<string>();
+  const gndNets = new Set<string>();
+  for (const { part, board } of mcuParts(diagram)) {
+    for (const pin of mcuPins(board)) {
+      const role = mcuPinRole(board, pin);
+      if (role.role !== 'gnd' && role.role !== 'vcc' && role.role !== 'digital') continue;
+      const net = nets.netOf({ partId: part.id, pin });
+      (role.role === 'gnd' ? gndNets : srcNets).add(net);
+    }
+  }
+  const type = partType(diagram, ledId);
+  const up = minOhmsPath(nets.netOf({ partId: ledId, pin: rolePin(type, 'A') }), srcNets, adj);
+  const down = minOhmsPath(nets.netOf({ partId: ledId, pin: rolePin(type, 'C') }), gndNets, adj);
+  return up === null || down === null ? null : up + down;
+}
+
+/**
+ * État électrique d'une LED alimentée sous `vsupply` volts à travers `ohms` :
+ *  - `amps` : courant direct (I = (Vs − Vf) / R ; Infinity si R = 0) ;
+ *  - `overCurrent` : courant de crête destructeur (> 35 mA) — LED grillée ;
+ *  - `lum` : facteur de luminosité 0..1 (pleine luminosité à partir de 10 mA,
+ *    proportionnel en dessous, éteinte sous 0,2 mA — résistance trop forte).
+ */
+export function ledElectrical(
+  ohms: number | null,
+  vsupply: number,
+  color: string | undefined
+): { amps: number; overCurrent: boolean; lum: number } {
+  const vf = LED_FORWARD_V[(color ?? 'red').toLowerCase()] ?? 2.0;
+  const drop = vsupply - vf;
+  if (ohms === null || drop <= 0) return { amps: 0, overCurrent: false, lum: 0 };
+  const amps = ohms === 0 ? Infinity : drop / ohms;
+  const overCurrent = amps > 0.035;
+  const lum = amps < 0.0002 ? 0 : Math.min(1, amps / 0.01);
+  return { amps, overCurrent, lum };
 }
 
 /**

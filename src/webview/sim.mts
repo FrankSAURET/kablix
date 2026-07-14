@@ -51,6 +51,8 @@ import { toWokwiDiagram, fromWokwiDiagram } from './diagram/wokwi.mjs';
 import {
   ledOn,
   ledMcuPin,
+  ledSeriesOhms,
+  ledElectrical,
   rgbLedState,
   buzzerOn,
   sevenSegmentState,
@@ -238,6 +240,12 @@ let sevenSegLatch = new Map<string, number[]>();
 // réel (attend la fin de la rafale d'écritures avant d'afficher).
 const SEVEN_SEG_SETTLE_MS = 40;
 let sevenSegStable = new Map<string, { shown: number[]; pending: number[]; pendingSince: number }>();
+// LED grillées pendant ce run (résistance série trop faible → sur-courant) :
+// l'état est définitif jusqu'au prochain lancement (la LED est « remplacée »).
+const burnedLeds = new Set<string>();
+// Facteur de luminosité par LED (résistance trop forte → LED sombre), mémorisé
+// à la dernière frame où la LED conduisait.
+const ledLumFactor = new Map<string, number>();
 let breakpoints: Breakpoint[] = []; // points d'arrêt envoyés par l'extension (ligne + condition)
 // Vrai dès qu'un programme compilé/chargé a été reçu : sinon, lancer la
 // simulation déclenche d'abord une compilation automatique du fichier de code.
@@ -625,12 +633,33 @@ function refreshVisuals(): void {
         const duty = pwmPin && engine!.pulseActive?.(pwmPin) ? engine!.readPwmDuty?.(pwmPin) : undefined;
         if (def.custom) {
           el.active = on;
-        } else if (duty !== undefined) {
-          el.value = duty > 0.001;
-          el.brightness = duty;
+          break;
+        }
+        // Résistance série : trop faible (ou absente) → courant de crête
+        // destructeur dès que la LED conduit, elle grille (flamme, définitif
+        // jusqu'au prochain lancement) ; trop forte → luminosité réduite,
+        // voire nulle. Le duty PWM ne protège pas du courant de crête.
+        const conducts = on || (duty !== undefined && duty > 0.001);
+        if (conducts && !burnedLeds.has(part.id)) {
+          const vs = boardFamily(board) === 'rp2040' ? 3.3 : 5;
+          const elec = ledElectrical(ledSeriesOhms(editor.diagram, part.id), vs, part.attrs?.color);
+          if (elec.overCurrent) burnedLeds.add(part.id);
+          else ledLumFactor.set(part.id, elec.lum);
+        }
+        if (burnedLeds.has(part.id)) {
+          el.burned = true;
+          el.value = false;
+          el.brightness = 0;
+          break;
+        }
+        el.burned = false;
+        const lum = ledLumFactor.get(part.id) ?? 1;
+        if (duty !== undefined) {
+          el.value = duty > 0.001 && lum > 0;
+          el.brightness = duty * lum;
         } else {
-          el.value = on;
-          el.brightness = 1;
+          el.value = on && lum > 0;
+          el.brightness = lum;
         }
         break;
       }
@@ -1618,6 +1647,8 @@ function startRun(): void {
   engine.setBreakpoints?.(breakpoints);
   sevenSegLatch = new Map(); // nouveau run : les chiffres mémorisés repartent à zéro
   sevenSegStable = new Map();
+  burnedLeds.clear(); // LED grillées « remplacées » à chaque nouveau lancement
+  ledLumFactor.clear();
   buildI2cDevices();
   rebind();
   engine.start();
