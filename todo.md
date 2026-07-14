@@ -1,8 +1,12 @@
 # À faire
-1. (noté pour plus tard je dois préciser) ajouter une LDR, une CTN, une CTP avec paramètres + simulation qui prends en compte les résistances
-2. les segments éteints des afficheur doivent être plus foncé au lancement de la simulation
-3. (noté pour plus tard je dois préciser) si la résistance de la led est trop faible, une flamme sera superposé pour montrer sa destruction, si trop forte, la led brillera moins fort voire pas du tout. 
+1.  ajouter une LDR (parametres : résistance à 1 lx et coefficient de sensibilité), une CTN, une CTP avec paramètres + simulation qui prends en compte les résistances adjointes pour la mesure
+2. les segments éteints des afficheurs doivent être plus foncé au lancement de la simulation
+3. si la résistance de la led est trop faible, une flamme sera superposé pour montrer sa destruction, si trop forte, la led brillera moins fort voire pas du tout. Ceci doit être valable pour tous les composants pour lesquels une résistance est indispensable
 1. au lancement de la simulation le capteur de son se décale. Vérifie pour tous les composants
+1. Revoir la déformation du capteur de tilt. Ce doit être juste une diminuation symétrique (en haut et en bas) du coté gauche entrainant une déformation globale. Les extrémités des pattes ne devant pas bouger.
+
+# v2026.7.95
+1. ✅ Icône du traceur : `media/serialTracer.svg` (dessin de Frank) remplace l'emoji 📈 — bouton de la barre de simulation (`<img>` comme le moniteur série, classe `canvas-controls__btn--icon`) + en-tête du panneau traceur (nouvelle classe `.plotter__head-icon`, 14 px). Vérifié en capture Chrome headless : courbe orange + point terminal (marker `context-stroke`) rendus, lisible à 20 px sur fonds sombre et clair. typecheck + build + verify:plotter OK.
 
 # v2026.7.94
 1. ✅ Traceur de courbes intégré (item « visualisateur virtuel ou teleplot » — les 2 pistes explorées, outil maison retenu AVEC le protocole Teleplot comme format, zéro dépendance/hors-ligne ; un relais UDP opt-in vers l'extension Teleplot reste possible plus tard) : nouveau panneau 📈 sous le moniteur série (`plotter.mts`, canvas 2D maison). DEUX sources tracées ensemble : (a) télémétrie série au format Teleplot `>nom:valeur` (variantes `>nom:ts:valeur`, unité `§u`, drapeaux `|g` acceptées ; mêmes sketchs réutilisables tels quels avec le vrai Teleplot sur du vrai matériel) — ces lignes sont absorbées du moniteur série (retenue prudente : une ligne candidate non conforme ou jamais terminée est rendue à la console après 500 ms, l'invite REPL `>>>` passe intacte) ; (b) sondes internes : toute tension posée sur une broche analogique par un capteur (`setAnalog` : potentiomètre, LDR, gaz, pouls…) est tracée EN VOLTS (Vref 5 V AVR / 3,3 V RP2040) sans une ligne de code dans le sketch, en escalier (valeur tenue, points dédupliqués).

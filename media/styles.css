@@ -1641,6 +1641,14 @@ textarea {
   margin-top: 0.4rem;
 }
 
+/* Icône du traceur (media/serialTracer.svg) dans l'en-tête du panneau. */
+.plotter__head-icon {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  vertical-align: -2px;
+}
+
 .plotter__window {
   font: inherit;
   font-size: 0.75rem;

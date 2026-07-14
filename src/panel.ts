@@ -1038,6 +1038,9 @@ export class SimulatorPanel {
     const serialMonitorUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this.extensionUri, 'media', 'serialMonitor.svg')
     );
+    const plotterIconUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, 'media', 'serialTracer.svg')
+    );
     // Icônes de la barre d'outils (extraites de media/icones.svg).
     const newIconUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this.extensionUri, 'media', 'nouveau.svg')
@@ -1127,7 +1130,7 @@ export class SimulatorPanel {
           <button id="code-file" class="canvas-controls__file" title="${l10n.t('Code file to run / debug — click to change, double-click to open')}">📄 ${l10n.t('No file')}</button>
           <button id="repl" class="canvas-controls__btn canvas-controls__btn--repl" hidden title="${l10n.t('Start an interactive MicroPython REPL (no script)')}">REPL</button>
           <button id="toggle-serial" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Show/hide the serial monitor')}"><img class="canvas-controls__icon" src="${serialMonitorUri}" alt="${l10n.t('Show/hide the serial monitor')}" /></button>
-          <button id="toggle-plotter" class="canvas-controls__btn" title="${l10n.t('Show/hide the plotter (curves)')}">📈</button>
+          <button id="toggle-plotter" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Show/hide the plotter (curves)')}"><img class="canvas-controls__icon" src="${plotterIconUri}" alt="${l10n.t('Show/hide the plotter (curves)')}" /></button>
         </div>
         <!-- Barre droite : recentrer/ajuster, réinitialiser, effacer (alignée et de
              même hauteur que la barre de simulation à gauche). -->
@@ -1175,7 +1178,7 @@ export class SimulatorPanel {
          et sondes internes (tension des broches analogiques). -->
     <section class="plotter" id="plotter-section" hidden>
       <div class="serial__head">
-        <span>📈 ${l10n.t('Plotter')}</span>
+        <span><img class="plotter__head-icon" src="${plotterIconUri}" alt="" /> ${l10n.t('Plotter')}</span>
         <span class="serial__head-actions">
           <select id="plotter-window" class="plotter__window" title="${l10n.t('Time window')}"></select>
           <button id="plotter-pause"></button>
