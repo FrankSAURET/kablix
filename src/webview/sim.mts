@@ -271,6 +271,18 @@ const setStatus = (text: string): void => {
   statusEl.textContent = text;
 };
 
+/** Message de statut TEMPORAIRE (ex. « Projet sauvegardé ») : affiché 3 s puis
+ *  retour au statut précédent — sauf s'il a changé entre-temps (simulation…). */
+let flashTimer: ReturnType<typeof setTimeout> | undefined;
+const flashStatus = (text: string): void => {
+  clearTimeout(flashTimer);
+  const previous = statusEl.textContent ?? '';
+  statusEl.textContent = text;
+  flashTimer = setTimeout(() => {
+    if (statusEl.textContent === text) statusEl.textContent = previous;
+  }, 3000);
+};
+
 /**
  * Micro-émulation terminal : le REPL MicroPython édite sa ligne avec
  * Backspace (0x08) + « effacer jusqu'à fin de ligne » (`\x1b[K`) plutôt que
@@ -1881,6 +1893,15 @@ saveProjectBtn.addEventListener('click', () => {
 saveProjectAsBtn.addEventListener('click', () => {
   vscode.postMessage({ type: 'saveProjectAs', diagram: editor.serialize(), board });
 });
+// Ctrl+S / Cmd+S dans l'atelier : Enregistrer (même chemin que le bouton —
+// écriture directe si un .projix est connu, boîte sinon). preventDefault pour
+// que VS Code ne déclenche pas sa propre commande de sauvegarde d'éditeur.
+window.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 's') {
+    e.preventDefault();
+    vscode.postMessage({ type: 'saveProject', diagram: editor.serialize(), board });
+  }
+});
 // Nouveau projet : vide le schéma (annulable Ctrl+Z) et oublie le .projix
 // courant côté hôte (le prochain enregistrement demandera un nouveau nom).
 newProjectBtn.addEventListener('click', () => {
@@ -2219,6 +2240,10 @@ window.addEventListener('message', (event: MessageEvent) => {
     case 'requestSaveProject':
       // Demande de la commande : on renvoie le schéma pour l'enregistrement.
       vscode.postMessage({ type: 'saveProject', diagram: editor.serialize(), board });
+      break;
+    case 'projectSaved':
+      // Confirmation d'enregistrement du .projix : message temporaire visible.
+      flashStatus(t('Project saved'));
       break;
     case 'requestWokwiExport':
       // Conversion du schéma au format projet Wokwi (diagram.json).

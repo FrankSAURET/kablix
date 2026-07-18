@@ -244,6 +244,7 @@ const FR: Record<string, string> = {
   'State (0/1)': 'État (0/1)',
   'Common pin': 'Broche commune',
   'New project': 'Nouveau projet',
+  'Project saved': 'Projet sauvegardé',
   'Hard keys (instead of membrane)': 'Touches dures (au lieu de membrane)',
   'All names': 'Tous les noms',
   'Selected parts only': 'Uniquement les composants sélectionnés',

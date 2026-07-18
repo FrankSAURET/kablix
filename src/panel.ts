@@ -897,6 +897,8 @@ export class SimulatorPanel {
       this.projectUri = target;
       this.projectBaseName = baseNameNoExt(target.fsPath);
       this.postProjectName();
+      // Confirmation visible DANS l'atelier (statut « Projet sauvegardé »).
+      this.post({ type: 'projectSaved' });
       if (silent) {
         // Enregistrement direct : simple message TEMPORAIRE dans la barre d'état.
         vscode.window.setStatusBarMessage(
