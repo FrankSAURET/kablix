@@ -17,6 +17,11 @@ import sevenSegK4 from '../composants/interne/7seg-4dig-schema.clean.svg';
 import sevenSegA1 from '../composants/interne/7seg-schema.anode.svg';
 import sevenSegA2 from '../composants/interne/7seg-2dig.schema.anode.svg';
 import sevenSegA4 from '../composants/interne/7seg-4dig-schema.anode.svg';
+// Symboles des résistances variables nues, dessinés à la main (Inkscape) —
+// même viewBox que le dessin externe, superposés tels quels.
+import ldrSchema from '../composants/interne/ldr-schema.svg';
+import ntcSchema from '../composants/interne/ntc-schema.svg';
+import ptcSchema from '../composants/interne/ptc-schema.svg';
 
 export interface PinPoint {
   name: string;
@@ -231,6 +236,22 @@ const SEVEN_SEG_SCHEMA: Record<'cathode' | 'anode', Record<'1' | '2' | '4', Sche
   cathode: { '1': parseSchema(sevenSegK1), '2': parseSchema(sevenSegK2), '4': parseSchema(sevenSegK4) },
   anode: { '1': parseSchema(sevenSegA1), '2': parseSchema(sevenSegA2), '4': parseSchema(sevenSegA4) },
 };
+// Symboles LDR / CTN / CTP : le SVG de Frank partage le viewBox du dessin
+// externe → simple mise à l'échelle de la boîte du composant (comme le clavier).
+const VARISTOR_SCHEMA: Record<'ldr' | 'ntc' | 'ptc', Schema> = {
+  ldr: parseSchema(ldrSchema),
+  ntc: parseSchema(ntcSchema),
+  ptc: parseSchema(ptcSchema),
+};
+
+function varistorSchema(type: 'ldr' | 'ntc' | 'ptc', box?: { w: number; h: number }): string {
+  const s = VARISTOR_SCHEMA[type];
+  if (!box) return s.inner;
+  const sx = (box.w / s.w).toFixed(4);
+  const sy = (box.h / s.h).toFixed(4);
+  return `<g transform="scale(${sx} ${sy})">${s.inner}</g>`;
+}
+
 const POT_SCHEMA = parseSchema(potSchema);
 // Pastille de référence GND du dessin (repère du .edit.svg) : le schéma est
 // posé sur les broches réelles par translation (même pas de 10 px, GND/SIG/VCC).
@@ -312,6 +333,9 @@ export function internalWiringSvg(
   if (type === 'keypad') return keypad(attrs, box);
   // Rotatif : schéma dessiné à la main ; la glissière garde le symbole procédural.
   if (type === 'pot') return rotaryPot(pins);
+  // Résistances variables nues : symbole dessiné à la main (avant le cas
+  // générique `resistor`, qui ne tracerait qu'une boîte).
+  if (type === 'ldr' || type === 'ntc' || type === 'ptc') return varistorSchema(type, box);
   switch (kind) {
     case 'pushbutton':
       return pushbutton(pins);

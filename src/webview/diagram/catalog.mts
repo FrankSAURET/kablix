@@ -245,6 +245,34 @@ export const CATALOG: readonly PartDef[] = [
       { attr: 'value', label: 'Value (Ω)', kind: 'number', min: 1, max: 10_000_000, step: 1, suffixes: true },
     ],
   },
+  // Résistances variables nues (2 pattes, sans polarité) : traitées comme des
+  // résistances dans la netlist, leur valeur suit le curseur de simulation
+  // (variableResistorOhms de model.mts) et toute entrée ADC reliée au réseau
+  // résistif suit le pont diviseur réel (adcDividerLevels).
+  {
+    type: 'ldr', label: 'LDR (photoresistor)', tag: 'kablix-ldr', kind: 'resistor',
+    simControl: true, attrs: { lux: '500', r1lx: '50000', gamma: '0.7' },
+    props: [
+      { attr: 'r1lx', label: 'Resistance at 1 lx (Ω)', kind: 'number', min: 1, max: 10_000_000, step: 1, suffixes: true },
+      { attr: 'gamma', label: 'Sensitivity coefficient (γ)', kind: 'number', min: 0.1, max: 2, step: 0.01 },
+    ],
+  },
+  {
+    type: 'ntc', label: 'NTC thermistor', tag: 'kablix-ntc', kind: 'resistor',
+    simControl: true, attrs: { temperature: '25', r25: '10000', beta: '3950' },
+    props: [
+      { attr: 'r25', label: 'Resistance at 25 °C (Ω)', kind: 'number', min: 1, max: 10_000_000, step: 1, suffixes: true },
+      { attr: 'beta', label: 'Beta coefficient (K)', kind: 'number', min: 100, max: 10_000, step: 1 },
+    ],
+  },
+  {
+    type: 'ptc', label: 'PTC thermistor', tag: 'kablix-ptc', kind: 'resistor',
+    simControl: true, attrs: { temperature: '25', r25: '2000', tc: '0.79' },
+    props: [
+      { attr: 'r25', label: 'Resistance at 25 °C (Ω)', kind: 'number', min: 1, max: 10_000_000, step: 1, suffixes: true },
+      { attr: 'tc', label: 'Temp. coefficient (%/°C)', kind: 'number', min: 0.01, max: 10, step: 0.01 },
+    ],
+  },
   { type: 'buzzer', label: 'Buzzer', tag: 'kablix-buzzer', kind: 'buzzer' },
   {
     type: 'pot', label: 'Potentiometer', tag: 'kablix-potentiometer', kind: 'potentiometer',

@@ -181,11 +181,14 @@ export const LED_FORWARD_V: Record<string, number> = {
   purple: 3.0,
 };
 
-/** Plus court chemin (somme des résistances) d'un net vers l'un des nets cibles. */
+/** Plus court chemin (somme des résistances) d'un net vers l'un des nets cibles.
+ *  `avoid` : nets qui ne peuvent pas être traversés (rail opposé du diviseur —
+ *  un rail est une source équipotentielle, pas un conducteur de passage). */
 function minOhmsPath(
   from: string,
   targets: Set<string>,
-  adj: Map<string, Array<{ to: string; ohms: number }>>
+  adj: Map<string, Array<{ to: string; ohms: number }>>,
+  avoid?: Set<string>
 ): number | null {
   const dist = new Map<string, number>([[from, 0]]);
   const done = new Set<string>();
@@ -201,6 +204,7 @@ function minOhmsPath(
     if (cur === null) return null;
     if (targets.has(cur)) return best;
     done.add(cur);
+    if (avoid?.has(cur)) continue;
     for (const e of adj.get(cur) ?? []) {
       const d = best + e.ohms;
       if (d < (dist.get(e.to) ?? Infinity)) dist.set(e.to, d);
@@ -208,25 +212,74 @@ function minOhmsPath(
   }
 }
 
+/** Types de résistances variables nues (2 pattes) pilotées par un curseur de
+ *  simulation : photorésistance et thermistances CTN/CTP. */
+export const VARIABLE_RESISTOR_TYPES: ReadonlySet<string> = new Set(['ldr', 'ntc', 'ptc']);
+
+/**
+ * Caractéristique R(x) d'une résistance variable nue (paramètres de
+ * l'inspecteur dans `attrs`) :
+ *  - ldr : x = éclairement (lx), R = R1lx · x^(−γ) — obscurité totale ≈ 10 MΩ ;
+ *  - ntc : x = température (°C), R = R25 · e^(B·(1/T − 1/T25)) (T en kelvins) ;
+ *  - ptc : x = température (°C), R = R25 · (1 + tc/100 · (T − 25)) (type KTY).
+ */
+export function variableResistorOhms(
+  type: string,
+  x: number,
+  attrs?: Record<string, string>
+): number {
+  const num = (key: string, dflt: number): number => {
+    const v = Number(attrs?.[key]);
+    return Number.isFinite(v) && v > 0 ? v : dflt;
+  };
+  if (type === 'ldr') {
+    if (!(x > 0)) return 1e7;
+    const r = num('r1lx', 50_000) * Math.pow(x, -num('gamma', 0.7));
+    return Math.min(1e7, Math.max(1, r));
+  }
+  const t = Number.isFinite(x) ? x : 25;
+  if (type === 'ntc') {
+    const r25 = num('r25', 10_000);
+    const beta = num('beta', 3950);
+    return Math.max(1, r25 * Math.exp(beta * (1 / (t + 273.15) - 1 / 298.15)));
+  }
+  const r25 = num('r25', 2000);
+  const tc = num('tc', 0.79);
+  return Math.max(1, r25 * (1 + (tc / 100) * (t - 25)));
+}
+
+/** Résistance de repos d'un composant `kind: resistor` : attribut `value` pour
+ *  une résistance fixe, caractéristique au point des attrs (lux/température de
+ *  l'inspecteur) pour une résistance variable. */
+function nominalOhms(part: Part): number {
+  if (VARIABLE_RESISTOR_TYPES.has(part.type)) {
+    const x = Number(part.attrs?.[part.type === 'ldr' ? 'lux' : 'temperature']);
+    return variableResistorOhms(part.type, Number.isFinite(x) ? x : part.type === 'ldr' ? 500 : 25, part.attrs);
+  }
+  return Math.max(0, Number(part.attrs?.value ?? 220) || 0);
+}
+
 /**
  * Graphe résistif du schéma : netlist SANS fusion des résistances, chaque
- * résistance devient une arête pondérée par son attribut `value`, et les nets
- * des broches MCU sont classés par rôle (sources numériques/VCC, masses).
+ * résistance devient une arête pondérée par son attribut `value` (ou sa
+ * caractéristique pour une résistance variable — `liveOhms` donne la valeur
+ * courante du curseur en simulation, à défaut le point de repos des attrs), et
+ * les nets des broches MCU sont classés par rôle (sources numériques/VCC, masses).
  */
-function resistiveGraph(diagram: Diagram) {
+function resistiveGraph(diagram: Diagram, liveOhms?: (part: Part) => number | null) {
   const nets = buildNets(diagram, false);
-  const adj = new Map<string, Array<{ to: string; ohms: number }>>();
-  const link = (a: string, b: string, ohms: number) => {
+  const adj = new Map<string, Array<{ to: string; ohms: number; partId: string }>>();
+  const link = (a: string, b: string, ohms: number, partId: string) => {
     if (!adj.has(a)) adj.set(a, []);
-    adj.get(a)!.push({ to: b, ohms });
+    adj.get(a)!.push({ to: b, ohms, partId });
   };
   for (const part of diagram.parts) {
     if (partDef(part.type).kind !== 'resistor') continue;
     const a = nets.netOf({ partId: part.id, pin: '1' });
     const b = nets.netOf({ partId: part.id, pin: '2' });
-    const ohms = Math.max(0, Number(part.attrs?.value ?? 220) || 0);
-    link(a, b, ohms);
-    link(b, a, ohms);
+    const ohms = Math.max(0, liveOhms?.(part) ?? nominalOhms(part));
+    link(a, b, ohms, part.id);
+    link(b, a, ohms, part.id);
   }
   const digitalNets = new Set<string>();
   const vccNets = new Set<string>();
@@ -323,6 +376,74 @@ export function ledBarSeriesOhms(diagram: Diagram, partId: string, index: number
   );
   const down = minOhmsPath(nets.netOf({ partId, pin: `C${index + 1}` }), gndNets, adj);
   return up === null || down === null ? null : up + down;
+}
+
+export interface AdcDividerLevel {
+  /** Broche analogique du MCU (nom logique : A0…, GP26…). */
+  mcuPin: string;
+  /** Tension du nœud de mesure, en fraction 0..1 de VCC. */
+  level: number;
+}
+
+/**
+ * Tension de chaque entrée ADC reliée à un réseau résistif contenant au moins
+ * une résistance variable nue (LDR/CTN/CTP) : pont diviseur réel. Rh = plus
+ * court chemin résistif du nœud vers VCC, Rb = vers la masse (sans traverser le
+ * rail opposé : un rail est une source, pas un conducteur), level = Rb/(Rh+Rb).
+ * Un seul rail atteint : nœud tiré à ce rail (VCC seul → 1, masse seule → 0) ;
+ * aucun → pas de mesure (nœud flottant, l'entrée n'est pas pilotée).
+ * Les entrées ADC sans résistance variable dans leur réseau sont ignorées
+ * (elles restent pilotées par leurs sources habituelles : potentiomètre…).
+ */
+export function adcDividerLevels(
+  diagram: Diagram,
+  liveOhms?: (part: Part) => number | null
+): AdcDividerLevel[] {
+  const { nets, adj, vccNets, gndNets } = resistiveGraph(diagram, liveOhms);
+  const out: AdcDividerLevel[] = [];
+  // Le réseau « local » d'un nœud (BFS sans traverser les rails) contient-il
+  // une résistance variable ?
+  const cache = new Map<string, boolean>();
+  const hasVariable = (start: string): boolean => {
+    const cached = cache.get(start);
+    if (cached !== undefined) return cached;
+    const seen = new Set([start]);
+    const queue = [start];
+    let found = false;
+    while (queue.length > 0 && !found) {
+      const cur = queue.pop()!;
+      for (const e of adj.get(cur) ?? []) {
+        if (VARIABLE_RESISTOR_TYPES.has(partType(diagram, e.partId))) {
+          found = true;
+          break;
+        }
+        if (!seen.has(e.to) && !vccNets.has(e.to) && !gndNets.has(e.to)) {
+          seen.add(e.to);
+          queue.push(e.to);
+        }
+      }
+    }
+    cache.set(start, found);
+    return found;
+  };
+  for (const { part, board } of mcuParts(diagram)) {
+    for (const pin of mcuPins(board)) {
+      const role = mcuPinRole(board, pin);
+      if (role.role !== 'digital' || role.adcChannel === undefined || !role.name) continue;
+      const net = nets.netOf({ partId: part.id, pin });
+      if (vccNets.has(net) || gndNets.has(net)) continue; // collée à un rail : pas un pont
+      if (!hasVariable(net)) continue;
+      const up = minOhmsPath(net, vccNets, adj, gndNets);
+      const down = minOhmsPath(net, gndNets, adj, vccNets);
+      if (up === null && down === null) continue;
+      let level: number;
+      if (up === null) level = 0;
+      else if (down === null) level = 1;
+      else level = up + down > 0 ? down / (up + down) : 0;
+      out.push({ mcuPin: role.name, level });
+    }
+  }
+  return out;
 }
 
 /**

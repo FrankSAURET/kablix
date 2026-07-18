@@ -1,7 +1,7 @@
 {
   "name": "kablix",
   "displayName": "Kablix",
-  "version": "2026.7.101",
+  "version": "2026.7.102",
   "description": "%kablix.description%",
   "publisher": "franksauret",
   "author": {
@@ -173,11 +173,12 @@
     "verify:neopixel": "node scripts/verify-neopixel.mjs",
     "verify:creator": "node scripts/verify-creator.mjs",
     "verify:debug": "node scripts/verify-debug-py.mjs",
-    "verify:all": "npm run verify && npm run verify:compiler && npm run verify:diagram && npm run verify:uf2 && npm run verify:micropython && npm run verify:wokwi && npm run verify:net && npm run verify:i2c && npm run verify:components && npm run verify:spi && npm run verify:neopixel && npm run verify:creator && npm run verify:debug && npm run verify:plotter && npm run verify:simshift && npm run verify:led",
+    "verify:all": "npm run verify && npm run verify:compiler && npm run verify:diagram && npm run verify:uf2 && npm run verify:micropython && npm run verify:wokwi && npm run verify:net && npm run verify:i2c && npm run verify:components && npm run verify:spi && npm run verify:neopixel && npm run verify:creator && npm run verify:debug && npm run verify:plotter && npm run verify:simshift && npm run verify:led && npm run verify:divider",
     "package": "vsce package --no-dependencies",
     "verify:plotter": "node scripts/verify-plotter.mjs",
     "verify:simshift": "node scripts/verify-simshift.mjs",
-    "verify:led": "node scripts/verify-led.mjs"
+    "verify:led": "node scripts/verify-led.mjs",
+    "verify:divider": "node scripts/verify-divider.mjs"
   },
   "dependencies": {
     "avr8js": "0.21.0",

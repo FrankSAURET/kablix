@@ -8,6 +8,9 @@ import './composants/arduino-mega-element.mjs';
 import './composants/led-element.mjs';
 import './composants/pushbutton-element.mjs';
 import './composants/resistor-element.mjs';
+import './composants/ldr-element.mjs';
+import './composants/ntc-element.mjs';
+import './composants/ptc-element.mjs';
 import './composants/rgb-led-element.mjs';
 import './composants/buzzer-element.mjs';
 import './composants/potentiometer-element.mjs';
@@ -80,6 +83,10 @@ import {
   neopixelBindings,
   lcdParallelBindings,
   spiDeviceBindings,
+  adcDividerLevels,
+  variableResistorOhms,
+  VARIABLE_RESISTOR_TYPES,
+  type Part,
   type Pca9685Binding,
 } from './diagram/model.mjs';
 import { AvrEngine } from './engines/avr.mjs';
@@ -1386,6 +1393,37 @@ function bindInputs(): void {
     apply();
     el.addEventListener('input', apply);
     inputRemovers.push(() => el.removeEventListener('input', apply));
+  }
+
+  // Résistances variables nues (LDR/CTN/CTP) : chaque entrée ADC reliée à leur
+  // réseau résistif suit le pont diviseur réel, résistances adjointes comprises
+  // (adcDividerLevels). La valeur courante vient du curseur du composant
+  // (éclairement/température), relue à chaque mouvement ; les paramètres
+  // (R1lx, γ, R25, B, tc…) viennent de l'inspecteur.
+  const varResistors = editor.diagram.parts.filter((p) => VARIABLE_RESISTOR_TYPES.has(p.type));
+  if (varResistors.length > 0) {
+    const liveOhms = (part: Part): number | null => {
+      if (!VARIABLE_RESISTOR_TYPES.has(part.type)) return null;
+      const el = editor.elementOf(part.id);
+      const x = Number((part.type === 'ldr' ? el?.lux : el?.temperature) ?? NaN);
+      if (!Number.isFinite(x)) return null; // élément absent : point de repos des attrs
+      return variableResistorOhms(part.type, x, part.attrs);
+    };
+    const apply = () => {
+      for (const b of adcDividerLevels(editor.diagram, liveOhms)) {
+        engine?.setAnalog(b.mcuPin, b.level);
+      }
+    };
+    for (const part of varResistors) {
+      const el = editor.elementOf(part.id);
+      if (!el) continue;
+      // Position de repos du curseur depuis l'inspecteur (comme la CTN capteur).
+      if (part.type === 'ldr') el.lux = Number(part.attrs?.lux ?? 500);
+      else el.temperature = Number(part.attrs?.temperature ?? 25);
+      el.addEventListener('input', apply);
+      inputRemovers.push(() => el.removeEventListener('input', apply));
+    }
+    apply();
   }
 }
 
