@@ -117,11 +117,16 @@ interface VsCodeApi {
   setState(state: unknown): void;
 }
 
+/** Mode d'affichage des noms de composants (bouton « Noms » de la barre). */
+type LabelsMode = 'all' | 'selected' | 'none';
+
 /** État sauvegardé dans la webview pour survivre à un déplacement d'onglet. */
 interface PersistedState {
   diagram?: { parts?: unknown[]; wires?: unknown[] };
   board?: BoardId;
+  /** Héritage (≤ v2026.7.107) : true = tous les noms, false = sélection seule. */
   showLabels?: boolean;
+  labelsMode?: LabelsMode;
 }
 declare function acquireVsCodeApi(): VsCodeApi;
 declare global {
@@ -1812,7 +1817,7 @@ editor.onChange = () => {
 // déplacement de l'onglet (passage en plein écran, autre groupe d'éditeurs…)
 // qui recharge la webview et effaçait auparavant le schéma.
 function persistState(): void {
-  vscode.setState({ diagram: editor.serialize(), board, showLabels } satisfies PersistedState);
+  vscode.setState({ diagram: editor.serialize(), board, labelsMode } satisfies PersistedState);
 }
 
 /**
@@ -1897,17 +1902,25 @@ document.getElementById('brand')?.addEventListener('click', () => {
 });
 
 // --- Préférences d'interface (noms visibles, tri de palette, derniers utilisés)
-// Par défaut les noms n'apparaissent qu'à la sélection ; 🏷 force l'affichage.
-let showLabels = false;
+// Bouton « Noms » : menu à deux cases exclusives — « Tous les noms » /
+// « Uniquement les composants sélectionnés » ; aucune cochée = aucun nom.
+// Défaut : sélection seule (comportement historique).
+let labelsMode: LabelsMode = 'selected';
 let paletteState: PaletteState = { sort: 'category', recents: [], showRecents: true, collapsed: [] };
 let paletteWidth = 0; // 0 = largeur par défaut (CSS)
 let inspectorWidth = 0;
 
 function applyShowLabels(): void {
-  canvas.classList.toggle('canvas--show-labels', showLabels);
-  labelsBtn.classList.toggle('primary', showLabels);
+  canvas.classList.toggle('canvas--show-labels', labelsMode === 'all');
+  canvas.classList.toggle('canvas--labels-sel', labelsMode === 'selected');
+  labelsBtn.classList.toggle('primary', labelsMode !== 'none');
 }
 applyShowLabels();
+
+/** Héritage : l'ancien booléen showLabels devient un mode. */
+function legacyLabelsMode(showLabels: boolean): LabelsMode {
+  return showLabels ? 'all' : 'selected';
+}
 
 function applyPanelWidths(): void {
   if (paletteWidth) palette.style.flex = `0 0 ${paletteWidth}px`;
@@ -1917,7 +1930,7 @@ function applyPanelWidths(): void {
 function saveUiState(): void {
   vscode.postMessage({
     type: 'saveUiState',
-    state: { ...paletteState, showLabels, paletteWidth, inspectorWidth, serialVisible, plotterVisible: plotterUserPref },
+    state: { ...paletteState, labelsMode, paletteWidth, inspectorWidth, serialVisible, plotterVisible: plotterUserPref },
   });
 }
 
@@ -1950,11 +1963,61 @@ function setupSplitter(id: string, which: 'palette' | 'inspector'): void {
 setupSplitter('splitter-palette', 'palette');
 setupSplitter('splitter-inspector', 'inspector');
 
+// Menu du bouton « Noms » : deux cases EXCLUSIVES mais toutes deux décochables
+// (aucune cochée = aucun nom affiché). Fermé par un clic ailleurs ou re-clic.
+let labelsMenu: HTMLDivElement | null = null;
+let labelsMenuOff: (() => void) | null = null;
+
+function closeLabelsMenu(): void {
+  labelsMenu?.remove();
+  labelsMenu = null;
+  labelsMenuOff?.();
+  labelsMenuOff = null;
+}
+
+function openLabelsMenu(): void {
+  const menu = document.createElement('div');
+  menu.className = 'labels-menu';
+  const mkRow = (label: string, mode: Exclude<LabelsMode, 'none'>): HTMLLabelElement => {
+    const row = document.createElement('label');
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.checked = labelsMode === mode;
+    box.addEventListener('change', () => {
+      // Cocher l'une décoche l'autre ; décocher la case active → aucun nom.
+      labelsMode = box.checked ? mode : 'none';
+      for (const other of menu.querySelectorAll('input')) {
+        (other as HTMLInputElement).checked = false;
+      }
+      box.checked = labelsMode === mode;
+      applyShowLabels();
+      saveUiState();
+      persistState();
+    });
+    row.appendChild(box);
+    row.appendChild(document.createTextNode(label));
+    return row;
+  };
+  menu.appendChild(mkRow(t('All names'), 'all'));
+  menu.appendChild(mkRow(t('Selected parts only'), 'selected'));
+  document.body.appendChild(menu);
+  // Sous le bouton, aligné à gauche (position fixe : la barre ne défile pas).
+  const r = labelsBtn.getBoundingClientRect();
+  menu.style.left = `${Math.round(r.left)}px`;
+  menu.style.top = `${Math.round(r.bottom + 4)}px`;
+  labelsMenu = menu;
+  // Clic hors du menu : fermeture (posé après le clic courant).
+  const onDown = (e: PointerEvent): void => {
+    if (e.target instanceof Node && (menu.contains(e.target) || labelsBtn.contains(e.target))) return;
+    closeLabelsMenu();
+  };
+  window.addEventListener('pointerdown', onDown);
+  labelsMenuOff = () => window.removeEventListener('pointerdown', onDown);
+}
+
 labelsBtn.addEventListener('click', () => {
-  showLabels = !showLabels;
-  applyShowLabels();
-  saveUiState();
-  persistState();
+  if (labelsMenu) closeLabelsMenu();
+  else openLabelsMenu();
 });
 
 editor.onPaletteStateChange = (state) => {
@@ -2115,8 +2178,11 @@ window.addEventListener('message', (event: MessageEvent) => {
           updateSerialTitle();
           vscode.postMessage({ type: 'board', board });
         }
-        if (typeof restoredState.showLabels === 'boolean') {
-          showLabels = restoredState.showLabels;
+        if (restoredState.labelsMode === 'all' || restoredState.labelsMode === 'selected' || restoredState.labelsMode === 'none') {
+          labelsMode = restoredState.labelsMode;
+          applyShowLabels();
+        } else if (typeof restoredState.showLabels === 'boolean') {
+          labelsMode = legacyLabelsMode(restoredState.showLabels);
           applyShowLabels();
         }
       }
@@ -2196,10 +2262,15 @@ window.addEventListener('message', (event: MessageEvent) => {
     case 'uiState': {
       const state = (msg.state ?? {}) as Partial<PaletteState> & {
         showLabels?: boolean;
+        labelsMode?: LabelsMode;
         paletteWidth?: number;
         inspectorWidth?: number;
       };
-      if (typeof state.showLabels === 'boolean') showLabels = state.showLabels;
+      if (state.labelsMode === 'all' || state.labelsMode === 'selected' || state.labelsMode === 'none') {
+        labelsMode = state.labelsMode;
+      } else if (typeof state.showLabels === 'boolean') {
+        labelsMode = legacyLabelsMode(state.showLabels); // préférence d'avant v2026.7.108
+      }
       applyShowLabels();
       if (typeof state.paletteWidth === 'number') paletteWidth = state.paletteWidth;
       if (typeof state.inspectorWidth === 'number') inspectorWidth = state.inspectorWidth;

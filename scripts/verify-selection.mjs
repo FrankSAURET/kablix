@@ -128,6 +128,27 @@ async function run() {
 	ok('Suppr : fil et fourmis retirés du DOM',
 		!svg.querySelector('path.wire') && !svg.querySelector('g.wire-ants'));
 
+	// --- 8. Modes d'affichage des noms (bouton « Noms », v2026.7.108) ----------
+	// canvas--show-labels = tous ; canvas--labels-sel = sélection seule ;
+	// aucune classe = aucun nom, même sélectionné ; pinout-shown gagne toujours.
+	const bodyA = editor.elementOf(led1.id).parentElement;
+	clickSelect(bodyA); // led1 sélectionnée, led2 non
+	const headOf = (id) => editor.elementOf(id).closest('.part').querySelector('.part__head');
+	const shown = (id) => getComputedStyle(headOf(id)).display !== 'none';
+	canvas.classList.remove('canvas--show-labels', 'canvas--labels-sel');
+	ok('noms : aucune case cochée → aucun nom, même sélectionné',
+		!shown(led1.id) && !shown(led2.id));
+	canvas.classList.add('canvas--labels-sel');
+	ok('noms : « sélection seule » → nom du sélectionné uniquement',
+		shown(led1.id) && !shown(led2.id));
+	canvas.classList.remove('canvas--labels-sel');
+	canvas.classList.add('canvas--show-labels');
+	ok('noms : « tous les noms » → tous affichés', shown(led1.id) && shown(led2.id));
+	headOf(led2.id).closest('.part').classList.add('part--pinout-shown');
+	ok('noms : poster de brochage affiché → bandeau masqué malgré tout',
+		shown(led1.id) && !shown(led2.id));
+	canvas.classList.remove('canvas--show-labels');
+
 	const out = document.createElement('pre');
 	out.id = 'measures';
 	out.textContent = JSON.stringify(checks);

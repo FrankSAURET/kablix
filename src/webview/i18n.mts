@@ -244,6 +244,8 @@ const FR: Record<string, string> = {
   'State (0/1)': 'État (0/1)',
   'Common pin': 'Broche commune',
   'New project': 'Nouveau projet',
+  'All names': 'Tous les noms',
+  'Selected parts only': 'Uniquement les composants sélectionnés',
   'Ctrl+click to lock the position': 'Ctrl + clic pour verrouiller la position',
   '{0} wire(s) selected': '{0} câble(s) sélectionné(s)',
   'Delete these wires': 'Supprimer ces câbles',
