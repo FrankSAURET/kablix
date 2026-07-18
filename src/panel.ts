@@ -61,6 +61,9 @@ export class SimulatorPanel {
   private currentBoard: Board = 'uno';
   /** Nom de base du projet (sans extension) : dernier .projix enregistré/ouvert, pour nommer l'export SVG. */
   private projectBaseName: string | undefined;
+  /** Chemin complet du .projix courant (ouvert ou enregistré) : cible du bouton
+   *  Enregistrer, qui écrit directement sans boîte de dialogue. */
+  private projectUri: vscode.Uri | undefined;
   /** Fichier source actuellement chargé dans le simulateur (.py ou source C ; pas les artefacts). */
   private currentSourceUri: vscode.Uri | undefined;
   /** Fichier de code choisi explicitement (chip du canvas) ; sinon le fichier actif sert. */
@@ -676,7 +679,12 @@ export class SimulatorPanel {
         break;
       case 'saveProject':
         // La webview fournit le schéma sérialisé : on construit le .projix.
+        // Écriture directe si un .projix est déjà connu, boîte de dialogue sinon.
         void this.saveProject(msg.diagram, msg.board);
+        break;
+      case 'saveProjectAs':
+        // « Enregistrer sous » : boîte de dialogue systématique.
+        void this.saveProject(msg.diagram, msg.board, true);
         break;
       case 'openProject':
         void this.openProject();
@@ -686,6 +694,7 @@ export class SimulatorPanel {
         // du .projix courant ainsi que le fichier de code associé (chip du
         // canvas) pour que le prochain enregistrement/lancement reparte à neuf.
         this.projectBaseName = undefined;
+        this.projectUri = undefined;
         this.currentSourceUri = undefined;
         this.setCodeFile(undefined);
         break;
@@ -839,22 +848,29 @@ export class SimulatorPanel {
    * personnalisés. Le code n'est plus inclus (le .projix ne contient que le
    * schéma).
    */
-  private async saveProject(diagram: unknown, board?: Board): Promise<void> {
+  private async saveProject(diagram: unknown, board?: Board, saveAs = false): Promise<void> {
     try {
-      const folders = vscode.workspace.workspaceFolders;
-      // Nom par défaut = nom du projet ouvert/enregistré, sinon le fichier de
-      // code associé (sans chemin ni extension), sinon repli générique.
-      const base = this.projectDisplayName() ?? 'schema-kablix';
-      const fileName = `${base}.projix`;
-      const defaultUri = folders?.length
-        ? vscode.Uri.joinPath(folders[0].uri, fileName)
-        : vscode.Uri.file(fileName);
-      const target = await vscode.window.showSaveDialog({
-        defaultUri,
-        filters: { [l10n.t('Kablix project')]: ['projix'] },
-        title: l10n.t('Save the Kablix project'),
-      });
-      if (!target) return;
+      // Enregistrer (pas « sous ») avec un .projix déjà connu : écriture
+      // directe au même endroit, sans boîte de dialogue.
+      let target = saveAs ? undefined : this.projectUri;
+      const silent = target !== undefined;
+      if (!target) {
+        const folders = vscode.workspace.workspaceFolders;
+        // Nom par défaut = nom du projet ouvert/enregistré, sinon le fichier de
+        // code associé (sans chemin ni extension), sinon repli générique.
+        const base = this.projectDisplayName() ?? 'schema-kablix';
+        const fileName = `${base}.projix`;
+        const defaultUri = this.projectUri ??
+          (folders?.length
+            ? vscode.Uri.joinPath(folders[0].uri, fileName)
+            : vscode.Uri.file(fileName));
+        target = await vscode.window.showSaveDialog({
+          defaultUri,
+          filters: { [l10n.t('Kablix project')]: ['projix'] },
+          title: l10n.t('Save the Kablix project'),
+        });
+        if (!target) return;
+      }
 
       // Le schéma est enrichi des composants personnalisés utilisés (stockés
       // côté hôte) pour rester autonome à la réouverture sur un autre poste.
@@ -878,11 +894,20 @@ export class SimulatorPanel {
       });
 
       await vscode.workspace.fs.writeFile(target, bytes);
+      this.projectUri = target;
       this.projectBaseName = baseNameNoExt(target.fsPath);
       this.postProjectName();
-      vscode.window.showInformationMessage(
-        l10n.t('Kablix: project saved to {0}', target.fsPath)
-      );
+      if (silent) {
+        // Enregistrement direct : simple message TEMPORAIRE dans la barre d'état.
+        vscode.window.setStatusBarMessage(
+          l10n.t('Kablix: project saved to {0}', target.fsPath),
+          4000
+        );
+      } else {
+        vscode.window.showInformationMessage(
+          l10n.t('Kablix: project saved to {0}', target.fsPath)
+        );
+      }
     } catch (err) {
       this.reportError(err);
     }
@@ -903,6 +928,7 @@ export class SimulatorPanel {
 
       const bytes = await vscode.workspace.fs.readFile(picked[0]);
       const project = await unpackProject(bytes);
+      this.projectUri = picked[0]; // cible du bouton Enregistrer (sans dialogue)
       this.projectBaseName = baseNameNoExt(picked[0].fsPath);
       this.postProjectName();
 
@@ -1051,6 +1077,9 @@ export class SimulatorPanel {
     const saveIconUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this.extensionUri, 'media', 'enregistrer.svg')
     );
+    const saveAsIconUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, 'media', 'enregistrerSous.svg')
+    );
     const svgIconUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this.extensionUri, 'media', 'exportSvg.svg')
     );
@@ -1104,6 +1133,7 @@ export class SimulatorPanel {
     <button id="new-project" class="toolbar__icon-btn" title="${l10n.t('New project')}"><img src="${newIconUri}" alt="${l10n.t('New project')}" /></button>
     <button id="open-project" class="toolbar__icon-btn" title="${l10n.t('Open a project')}"><img src="${openIconUri}" alt="${l10n.t('Open a project')}" /></button>
     <button id="save-project" class="toolbar__icon-btn" title="${l10n.t('Save the project')}"><img src="${saveIconUri}" alt="${l10n.t('Save the project')}" /></button>
+    <button id="save-project-as" class="toolbar__icon-btn" title="${l10n.t('Save the project as…')}"><img src="${saveAsIconUri}" alt="${l10n.t('Save the project as…')}" /></button>
     <button id="export-svg" class="toolbar__icon-btn" title="${l10n.t('Export the diagram as SVG')}"><img src="${svgIconUri}" alt="${l10n.t('Export the diagram as SVG')}" /></button>
     <button id="toggle-labels" title="${l10n.t('Show/hide part names')}">${l10n.t('Names')}</button>
     <button id="open-help" class="toolbar__icon-btn" title="${l10n.t('Open help')}"><img src="${aideIconUri}" alt="${l10n.t('Open help')}" /></button>
