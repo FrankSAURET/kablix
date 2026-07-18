@@ -179,6 +179,8 @@ export class Editor {
   private foldMenuOff: (() => void) | null = null;
   private rendered = new Map<string, Rendered>();
   private wirePaths = new Map<string, SVGPathElement>();
+  /** Surbrillance « fourmis » des fils sélectionnés (groupe de 2 tracés pointillés). */
+  private wireAnts = new Map<string, SVGGElement>();
   private pending: PendingWire | null = null;
   private tempPath: SVGPathElement | null = null;
   private selection: Selection = null;
@@ -1172,8 +1174,7 @@ export class Editor {
   removePart(id: string): void {
     this.diagram.wires = this.diagram.wires.filter((w) => {
       if (w.a.partId === id || w.b.partId === id) {
-        this.wirePaths.get(w.id)?.remove();
-        this.wirePaths.delete(w.id);
+        this.dropWirePath(w.id);
         return false;
       }
       return true;
@@ -1210,6 +1211,8 @@ export class Editor {
     this.select(null);
     for (const path of this.wirePaths.values()) path.remove();
     this.wirePaths.clear();
+    for (const g of this.wireAnts.values()) g.remove();
+    this.wireAnts.clear();
     for (const r of this.rendered.values()) r.container.remove();
     this.rendered.clear();
     this.internalShown.clear();
@@ -2539,10 +2542,45 @@ export class Editor {
 
   removeWire(id: string): void {
     this.diagram.wires = this.diagram.wires.filter((w) => w.id !== id);
-    this.wirePaths.get(id)?.remove();
-    this.wirePaths.delete(id);
+    this.dropWirePath(id);
     if (this.selection?.kind === 'wire' && this.selection.id === id) this.select(null);
     this.notify();
+  }
+
+  /** Retire le tracé d'un fil ET sa surbrillance de sélection (fourmis). */
+  private dropWirePath(id: string): void {
+    this.wirePaths.get(id)?.remove();
+    this.wirePaths.delete(id);
+    this.wireAnts.get(id)?.remove();
+    this.wireAnts.delete(id);
+  }
+
+  /**
+   * Met en évidence un fil sélectionné : classe `wire--selected` (fil épaissi,
+   * halo d'accent) + « fourmis en marche » — deux tracés pointillés superposés
+   * (sombre + clair en alternance), visibles sur toute couleur de fil et de
+   * fond. Le `d` des fourmis est resynchronisé par positionWire.
+   */
+  private setWireHighlight(id: string, on: boolean): void {
+    const path = this.wirePaths.get(id);
+    path?.classList.toggle('wire--selected', on);
+    const ants = this.wireAnts.get(id);
+    if (!on) {
+      ants?.remove();
+      this.wireAnts.delete(id);
+      return;
+    }
+    if (!path || ants) return;
+    const g = document.createElementNS(SVG_NS, 'g');
+    g.setAttribute('class', 'wire-ants');
+    for (const cls of ['wire-ants__dark', 'wire-ants__light']) {
+      const p = document.createElementNS(SVG_NS, 'path');
+      p.setAttribute('class', cls);
+      p.setAttribute('d', path.getAttribute('d') ?? '');
+      g.appendChild(p);
+    }
+    this.svg.appendChild(g); // en fin de SVG : au-dessus de tous les fils
+    this.wireAnts.set(id, g);
   }
 
   setWireColor(id: string, color: string): void {
@@ -2559,7 +2597,11 @@ export class Editor {
     const a = this.hotspotCenter(wire.a);
     const b = this.hotspotCenter(wire.b);
     if (!a || !b) return;
-    path.setAttribute('d', roundedWirePath([a, ...(wire.points ?? []), b]));
+    const d = roundedWirePath([a, ...(wire.points ?? []), b]);
+    path.setAttribute('d', d);
+    // La surbrillance de sélection (fourmis) suit le même tracé.
+    const ants = this.wireAnts.get(wire.id);
+    if (ants) for (const p of ants.children) p.setAttribute('d', d);
   }
 
   redrawWires(): void {
@@ -2634,11 +2676,11 @@ export class Editor {
   private select(sel: Selection): void {
     // Retire la mise en évidence précédente (fil + câblages internes affichés).
     if (this.selection?.kind === 'wire') {
-      this.wirePaths.get(this.selection.id)?.classList.remove('wire--selected');
+      this.setWireHighlight(this.selection.id, false);
     }
     // Lot de câbles (Ctrl+clic) : dissous par toute nouvelle sélection.
     if (this.selectedWires.size > 0) {
-      for (const wid of this.selectedWires) this.wirePaths.get(wid)?.classList.remove('wire--selected');
+      for (const wid of this.selectedWires) this.setWireHighlight(wid, false);
       this.selectedWires.clear();
     }
     for (const id of this.selectedParts) {
@@ -2657,7 +2699,7 @@ export class Editor {
       if (this.internalShown.has(sel.id)) this.renderInternalWiring(sel.id);
       if (this.pinoutShown.has(sel.id)) this.renderPinout(sel.id);
     } else if (sel?.kind === 'wire') {
-      this.wirePaths.get(sel.id)?.classList.add('wire--selected');
+      this.setWireHighlight(sel.id, true);
       this.buildHandles(sel.id);
     }
     this.renderInspector();
@@ -2712,7 +2754,7 @@ export class Editor {
   private selectAllParts(): void {
     this.cancelPending();
     if (this.selection?.kind === 'wire') {
-      this.wirePaths.get(this.selection.id)?.classList.remove('wire--selected');
+      this.setWireHighlight(this.selection.id, false);
       this.clearHandles();
     }
     this.selectedParts = new Set(this.diagram.parts.map((p) => p.id));
@@ -2732,8 +2774,8 @@ export class Editor {
     }
     if (this.selectedWires.has(id)) this.selectedWires.delete(id);
     else this.selectedWires.add(id);
-    for (const [wid, p] of this.wirePaths) {
-      p.classList.toggle('wire--selected', this.selectedWires.has(wid));
+    for (const wid of this.wirePaths.keys()) {
+      this.setWireHighlight(wid, this.selectedWires.has(wid));
     }
     this.renderInspector();
   }
@@ -2741,7 +2783,7 @@ export class Editor {
   /** Ctrl+clic : ajoute/retire un composant de la sélection multiple. */
   private toggleInSelection(id: string): void {
     if (this.selection?.kind === 'wire') {
-      this.wirePaths.get(this.selection.id)?.classList.remove('wire--selected');
+      this.setWireHighlight(this.selection.id, false);
       this.clearHandles();
     }
     if (this.selectedParts.has(id)) {
@@ -3106,8 +3148,7 @@ export class Editor {
       this.diagram.wires = this.diagram.wires.filter((w) => {
         for (const end of [w.a, w.b]) {
           if (end.partId === partId && !valid.has(end.pin)) {
-            this.wirePaths.get(w.id)?.remove();
-            this.wirePaths.delete(w.id);
+            this.dropWirePath(w.id);
             return false;
           }
         }
