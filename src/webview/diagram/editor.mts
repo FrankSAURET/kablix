@@ -1158,8 +1158,9 @@ export class Editor {
     return { x: c.x - r.part.x, y: c.y - r.part.y };
   }
 
-  /** Décale un composant pour que sa première broche tombe sur la grille. */
-  private snapPartToGrid(partId: string): void {
+  /** Décale un composant pour que sa première broche tombe sur la grille.
+   *  `silent` : pas d'entrée d'historique (recollages internes en lot). */
+  private snapPartToGrid(partId: string, silent = false): void {
     const off = this.gridOffset(partId);
     const r = this.rendered.get(partId);
     if (!off || !r) return;
@@ -1168,7 +1169,7 @@ export class Editor {
     r.container.style.left = `${r.part.x}px`;
     r.container.style.top = `${r.part.y}px`;
     this.redrawWires();
-    this.notify();
+    if (!silent) this.notify();
   }
 
   removePart(id: string): void {
@@ -1236,6 +1237,21 @@ export class Editor {
    */
   loadDiagram(data: { parts?: Part[]; wires?: Wire[] }): void {
     this.clear();
+    // Réalignement doux après rendu : les schémas enregistrés AVANT le re-snap
+    // de rotation (v2026.7.105) peuvent porter des composants tournés dont les
+    // broches sont à quelques px de la grille — on les recolle au chargement
+    // (déplacement ≤ 5 px par définition du snap, les coudes ne bougent pas).
+    // Passes au settle (rAF, recollage immédiat sans à-coup visible) PLUS
+    // balayages différés par minuterie : la taille d'un dessin Lit peut encore
+    // bouger après les frames du settle (police chargée tard → le gap sous le
+    // dessin change, le centre de rotation avec), les rAF seuls rataient le
+    // recollage d'un composant tourné à 0,5 px près.
+    this.snapSettleLeft = 8;
+    for (const ms of [120, 350, 800]) {
+      setTimeout(() => {
+        for (const id of [...this.rendered.keys()]) this.snapPartToGrid(id, true);
+      }, ms);
+    }
     const idMap = new Map<string, string>();
     for (const p of data.parts ?? []) {
       const np: Part = { ...p, id: uid(`${p.type}-`) };
@@ -1554,6 +1570,9 @@ export class Editor {
       const body = r.container.querySelector('.part__body') as HTMLDivElement | null;
       if (body) this.applyRotation(r.part, body);
     }
+    // Le miroir peut sortir les broches de la grille (boîte mesurée ≠ dessin) :
+    // recolle le premier pin de chaque composant retourné sur la grille.
+    for (const id of ids) this.snapPartToGrid(id, true);
     this.redrawWires(); // le miroir déplace les broches à l'écran
     this.renderInspector(); // met à jour l'état actif des boutons
     this.notify();
@@ -1600,6 +1619,11 @@ export class Editor {
       const body = r.container.querySelector('.part__body') as HTMLDivElement | null;
       if (body) this.applyRotation(r.part, body);
     }
+    // La rotation tourne autour du centre de la BOÎTE MESURÉE (gap de mise en
+    // page, dimensions impaires) : les broches peuvent quitter la grille de
+    // quelques px (constaté : 2 px sur LDR/CTN/CTP/LED à 90°). On recolle donc
+    // le premier pin de chaque composant tourné sur la grille.
+    for (const id of ids) this.snapPartToGrid(id, true);
     // Les pastilles tournent avec le corps : leurs positions à l'écran changent.
     this.redrawWires();
     this.notify();
@@ -2644,6 +2668,9 @@ export class Editor {
    * réinitialisation, déplacement d'onglet).
    */
   private settleQueued = false;
+  /** Posé par loadDiagram : nombre de passes de recollage sur grille restantes
+   *  après le settle (les tailles Lit se stabilisent sur quelques frames). */
+  private snapSettleLeft = 0;
   private scheduleSettle(): void {
     if (this.settleQueued || typeof requestAnimationFrame !== 'function') return;
     this.settleQueued = true;
@@ -2668,7 +2695,18 @@ export class Editor {
       this.redrawWires();
       // Le SVG d'un élément Lit peut arriver après cette frame : on repasse une
       // fois de plus tant qu'une carte attend sa mise à l'échelle.
-      if (pending) requestAnimationFrame(() => this.scheduleSettle());
+      if (pending) {
+        requestAnimationFrame(() => this.scheduleSettle());
+      } else if (this.snapSettleLeft > 0) {
+        // Chargement d'un schéma : recolle les broches sur la grille (composants
+        // tournés d'anciens fichiers aux positions fractionnaires). Un dessin
+        // Lit peut encore changer de taille une frame ou deux après le settle
+        // (le centre de rotation bouge → mesure périmée) : on repasse plusieurs
+        // frames, le recollage est idempotent une fois les tailles stables.
+        this.snapSettleLeft--;
+        for (const id of [...this.rendered.keys()]) this.snapPartToGrid(id, true);
+        if (this.snapSettleLeft > 0) requestAnimationFrame(() => this.scheduleSettle());
+      }
     });
   }
 
