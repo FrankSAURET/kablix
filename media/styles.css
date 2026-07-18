@@ -1623,6 +1623,26 @@ textarea {
   border-color: transparent;
 }
 
+/* Bouton « Soumettre à Kablix » : poussé à gauche des actions Annuler/Enregistrer. */
+.creator__actions .creator__submit {
+  margin-right: auto;
+}
+
+/* Petite fenêtre d'explication de la soumission (par-dessus le créateur). */
+.creator--submit {
+  max-width: 34rem;
+  padding: 1rem 1.2rem;
+}
+
+.creator--submit ul {
+  margin: 0.4rem 0 0.8rem 1.2rem;
+  padding: 0;
+}
+
+.creator--submit li {
+  margin-bottom: 0.3rem;
+}
+
 /* --- Moniteur série -------------------------------------------------------- */
 .serial__head {
   display: flex;

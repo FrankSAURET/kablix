@@ -195,6 +195,7 @@ export class Editor {
   private creator = ((): PartCreator => {
     const c = new PartCreator((data) => this.saveCustomPart(data));
     c.onModelsChange = (models) => this.onSimModelsChange?.(models);
+    c.onOpenExternal = (url) => this.onOpenExternal?.(url);
     return c;
   })();
   private handles: HTMLDivElement[] = [];
@@ -923,8 +924,12 @@ export class Editor {
       const presentKeys: string[] = [];
       if (this.showRecents && recentDefs.length > 0) presentKeys.push('recent');
       if (this.paletteSort === 'category') {
-        for (const c of CATEGORY_ORDER) if (CATALOG.some((d) => partCategory(d) === c)) presentKeys.push(c);
-        if (customs.length > 0) presentKeys.push('custom');
+        for (const c of CATEGORY_ORDER) {
+          if (CATALOG.some((d) => partCategory(d) === c) || customs.some((d) => d.custom?.category === c)) {
+            presentKeys.push(c);
+          }
+        }
+        if (customs.some((d) => !CATEGORY_ORDER.includes(d.custom?.category ?? ''))) presentKeys.push('custom');
       }
       this.paletteCollapsed = this.paletteFold === 'collapse' ? new Set(presentKeys) : new Set();
     }
@@ -945,13 +950,19 @@ export class Editor {
     } else {
       for (const category of CATEGORY_ORDER) {
         const defs = CATALOG.filter((d) => partCategory(d) === category).sort(byLabel);
-        if (defs.length === 0) continue;
+        // Composants personnalisés ASSIGNÉS à cette catégorie (liste du créateur) :
+        // rangés avec les intégrés, en gardant leur ligne à boutons (✎/⇩/✕).
+        const cust = customs.filter((d) => d.custom?.category === category).sort(byLabel);
+        if (defs.length + cust.length === 0) continue;
         this.paletteSection(t(category), category);
         for (const def of defs) this.palette.appendChild(this.paletteButton(def, false));
+        for (const def of cust) this.appendCustomRow(def);
       }
-      if (customs.length > 0) {
+      // Sans catégorie assignée : section « Composants personnalisés » comme avant.
+      const uncat = customs.filter((d) => !CATEGORY_ORDER.includes(d.custom?.category ?? ''));
+      if (uncat.length > 0) {
         this.paletteSection(t('Custom parts'), 'custom');
-        for (const def of [...customs].sort(byLabel)) this.appendCustomRow(def);
+        for (const def of [...uncat].sort(byLabel)) this.appendCustomRow(def);
       }
     }
 
@@ -1058,6 +1069,11 @@ export class Editor {
         : undefined,
       control:
         data.control?.type === 'slider' || data.control?.type === 'switch' ? data.control : undefined,
+      // Catégorie : seulement une clé connue de la palette (sinon ignorée).
+      category:
+        typeof data.category === 'string' && CATEGORY_ORDER.includes(data.category)
+          ? data.category
+          : undefined,
     });
   }
 

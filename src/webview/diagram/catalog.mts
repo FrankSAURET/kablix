@@ -158,6 +158,8 @@ export interface PartDef {
     params?: CustomParam[];
     /** Contrôle de simulation (curseur/interrupteur sur le composant). */
     control?: CustomControl;
+    /** Catégorie de palette assignée (clé de CATEGORY_ORDER). */
+    category?: string;
   };
   /**
    * Facteur d'agrandissement appliqué au dessin ET aux broches pour ramener le
@@ -190,6 +192,9 @@ export interface CustomPartData {
   /** Paramètres de définition et contrôle de simulation (voir types dédiés). */
   params?: CustomParam[];
   control?: CustomControl;
+  /** Catégorie de palette assignée (clé de CATEGORY_ORDER) ; absente = section
+   *  « Composants personnalisés ». */
+  category?: string;
 }
 
 const STATE_PROP: PropDef = { attr: 'state', label: 'State (0/1)', kind: 'select', options: ['0', '1'] };
@@ -607,6 +612,7 @@ export function registerCustomPart(data: CustomPartData): PartDef {
       innerOffset: data.innerOffset,
       params: data.params,
       control: data.control,
+      category: data.category,
     },
     analogPin: data.kind === 'analog-source' ? data.pinRoles?.['AO'] ?? 'AO' : undefined,
     digitalPin: data.kind === 'digital-source' ? data.pinRoles?.['OUT'] ?? 'OUT' : undefined,

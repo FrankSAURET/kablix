@@ -12,6 +12,7 @@
 // tous ces marqueurs sont retirés du composant final.
 import {
   addSimModelPresets,
+  CATEGORY_ORDER,
   CUSTOM_KINDS,
   getSimModelPresets,
   type CustomControl,
@@ -54,6 +55,8 @@ export class PartCreator {
 
   /** La liste des modèles importés a changé (à persister côté extension). */
   onModelsChange?: (models: SimModelPreset[]) => void;
+  /** Ouverture d'un lien externe (formulaire GitHub de soumission). */
+  onOpenExternal?: (url: string) => void;
 
   constructor(private readonly onSave: (data: CustomPartData) => void) {}
 
@@ -91,6 +94,11 @@ export class PartCreator {
         <div class="creator__form">
           <label class="inspector__label">${t('Name')}</label>
           <input id="cr-name" class="inspector__control" type="text" placeholder="${t('My sensor')}" />
+          <label class="inspector__label">${t('Category')}</label>
+          <select id="cr-category" class="inspector__control">
+            <option value="">${t('Custom parts')}</option>
+            ${CATEGORY_ORDER.map((c) => `<option value="${c}">${t(c)}</option>`).join('')}
+          </select>
           <label class="inspector__label">${t('Simulation model')}</label>
           <div class="creator__modelrow">
             <select id="cr-kind" class="inspector__control"></select>
@@ -136,6 +144,7 @@ export class PartCreator {
         </section>
       </div>
       <div class="creator__actions">
+        <button id="cr-submit" class="creator__submit">${t('Submit to Kablix…')}</button>
         <button id="cr-cancel">${t('Cancel')}</button>
         <button id="cr-save" class="primary">${t('Save')}</button>
       </div>
@@ -146,9 +155,11 @@ export class PartCreator {
 
     const nameInput = modal.querySelector('#cr-name') as HTMLInputElement;
     const kindSelect = modal.querySelector('#cr-kind') as HTMLSelectElement;
+    const categorySelect = modal.querySelector('#cr-category') as HTMLSelectElement;
 
     this.fillKindSelect(kindSelect, existing?.kind);
     nameInput.value = existing?.label ?? '';
+    categorySelect.value = existing?.category ?? '';
 
     const refresh = () => {
       this.renderPreviews(modal);
@@ -342,9 +353,36 @@ export class PartCreator {
         intAnchor: this.intAnchor ?? undefined,
         params: params.length > 0 ? params : undefined,
         control: this.control ?? undefined,
+        category: categorySelect.value || undefined,
       };
       this.close();
       this.onSave(data);
+    });
+
+    // « Soumettre à Kablix » : petite fenêtre expliquant comment envoyer le
+    // composant à Frank — export .json puis issue GitHub (modèle « Submit new
+    // component », lien direct) ou pull request.
+    (modal.querySelector('#cr-submit') as HTMLButtonElement).addEventListener('click', () => {
+      const box = document.createElement('div');
+      box.className = 'creator__overlay';
+      box.innerHTML = `
+        <div class="creator creator--submit">
+          <h3>${t('Share your component')}</h3>
+          <p>${t('Export the component as .json (⇩ button next to it in the palette), then send it:')}</p>
+          <ul>
+            <li>${t('open a GitHub issue with the “Submit new component” template and attach the .json;')}</li>
+            <li>${t('or propose a pull request on the Kablix repository.')}</li>
+          </ul>
+          <div class="creator__actions">
+            <button id="cr-submit-close">${t('Close')}</button>
+            <button id="cr-submit-open" class="primary">${t('Open the GitHub form')}</button>
+          </div>
+        </div>`;
+      overlay.appendChild(box);
+      (box.querySelector('#cr-submit-close') as HTMLButtonElement).addEventListener('click', () => box.remove());
+      (box.querySelector('#cr-submit-open') as HTMLButtonElement).addEventListener('click', () => {
+        this.onOpenExternal?.('https://github.com/FrankSAURET/kablix/issues/new?template=submit-new-component.md');
+      });
     });
 
     refresh();

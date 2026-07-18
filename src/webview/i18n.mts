@@ -245,6 +245,17 @@ const FR: Record<string, string> = {
   'Common pin': 'Broche commune',
   'New project': 'Nouveau projet',
   'Project saved': 'Projet sauvegardé',
+  'Category': 'Catégorie',
+  'Submit to Kablix…': 'Soumettre à Kablix…',
+  'Share your component': 'Partagez votre composant',
+  'Export the component as .json (⇩ button next to it in the palette), then send it:':
+    'Exportez le composant en .json (bouton ⇩ à côté de lui dans la bibliothèque), puis envoyez-le :',
+  'open a GitHub issue with the “Submit new component” template and attach the .json;':
+    'ouvrez une issue GitHub avec le modèle « Submit new component » et joignez le .json ;',
+  'or propose a pull request on the Kablix repository.':
+    'ou proposez une pull request sur le dépôt Kablix.',
+  'Open the GitHub form': 'Ouvrir le formulaire GitHub',
+  'Close': 'Fermer',
   'Hard keys (instead of membrane)': 'Touches dures (au lieu de membrane)',
   'All names': 'Tous les noms',
   'Selected parts only': 'Uniquement les composants sélectionnés',

@@ -702,8 +702,12 @@ export class SimulatorPanel {
         void vscode.commands.executeCommand('kablix.openHelp');
         break;
       case 'openExternal':
-        // Lien vers la doc Wokwi d'un composant (bouton aide de l'inspecteur).
-        if (typeof msg.url === 'string' && /^https:\/\/docs\.wokwi\.com\//.test(msg.url)) {
+        // Liste blanche stricte : doc Wokwi d'un composant (bouton aide de
+        // l'inspecteur) + dépôt Kablix (formulaire de soumission de composant).
+        if (
+          typeof msg.url === 'string' &&
+          /^https:\/\/(docs\.wokwi\.com|github\.com\/FrankSAURET\/kablix)\//.test(msg.url)
+        ) {
           void vscode.env.openExternal(vscode.Uri.parse(msg.url));
         }
         break;

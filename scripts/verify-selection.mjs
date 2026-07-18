@@ -149,6 +149,31 @@ async function run() {
 		shown(led1.id) && !shown(led2.id));
 	canvas.classList.remove('canvas--show-labels');
 
+	// --- 9. Catégorie des composants personnalisés (créateur, v2026.7.112) -----
+	// category assignée → rangé dans la section standard ; sans → « Custom parts ».
+	editor.loadCustomParts([
+		{ type: 'custom-cat', label: 'Capteur Zz', kind: 'passive',
+			svg: '<svg viewBox="0 0 20 20"><rect width="20" height="20"/></svg>', pins: [], category: 'Sensors' },
+		{ type: 'custom-nocat', label: 'Truc Yy', kind: 'passive',
+			svg: '<svg viewBox="0 0 20 20"><rect width="20" height="20"/></svg>', pins: [] },
+	]);
+	await wait(30);
+	const sectionOf = (label) => {
+		let current = '';
+		for (const child of palette.children) {
+			if (child.classList.contains('palette__section')) current = child.textContent.trim();
+			else if (child.textContent.includes(label)) return current;
+		}
+		return null;
+	};
+	const sensorsLabel = sectionOf('Capteur Zz');
+	const customLabel = sectionOf('Truc Yy');
+	ok('créateur : composant catégorisé rangé dans sa catégorie (Sensors)',
+		sensorsLabel !== null && sensorsLabel !== customLabel && /Capteurs|Sensors/.test(sensorsLabel ?? ''),
+		sensorsLabel);
+	ok('créateur : composant sans catégorie dans « Composants personnalisés »',
+		/personnalisés|Custom/.test(customLabel ?? ''), customLabel);
+
 	const out = document.createElement('pre');
 	out.id = 'measures';
 	out.textContent = JSON.stringify(checks);
