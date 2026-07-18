@@ -58,18 +58,18 @@
   <!-- Stand -->
   <g
      id="g3"
-     transform="matrix(0.95249625,0,0,0.94563657,1.52012,5.8716251)"
-     style="stroke-width:1.05367">
+     transform="matrix(0.93613673,0,0,0.92478758,2.0436251,2.4067976)"
+     style="stroke-width:1.07476">
     <g
        id="g1"
-       transform="translate(-85.474146,7.5456822)"
-       style="stroke:#d3d3e3;stroke-width:13.6978;stroke-dasharray:none;stroke-opacity:1">
+       transform="matrix(0.95249625,0,0,0.94563657,-79.893684,13.007098)"
+       style="stroke:#d3d3e3;stroke-width:18.2323;stroke-dasharray:none;stroke-opacity:1">
       <path
-         style="fill:none;stroke:#d3d3e3;stroke-width:13.6978;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+         style="fill:none;stroke:#d3d3e3;stroke-width:18.2323;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
          d="M 90.702387,4.6912787 115.11553,19.113814 90.702387,33.536349"
          id="path5-4" />
       <path
-         style="fill:none;stroke:#d3d3e3;stroke-width:13.6978;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+         style="fill:none;stroke:#d3d3e3;stroke-width:18.2323;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
          d="M 60.552243,42.38657 C 52.584843,42.38657 44.617442,42.38657 36.650042,42.38657"
          id="path6-8"
          inkscape:path-effect="#path-effect6-0"
@@ -78,13 +78,14 @@
     </g>
     <g
        id="g2"
-       style="stroke-width:1.05367">
+       style="stroke-width:1.13244"
+       transform="matrix(0.95249625,0,0,0.94563657,1.52012,5.8716251)">
       <path
-         style="fill:none;stroke:#1c71d8;stroke-width:10.5367;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none"
+         style="fill:none;stroke:#1c71d8;stroke-width:11.3244;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none"
          d="M 5.228241,12.236961 29.641385,26.659496 5.228241,41.082031"
          id="path5" />
       <path
-         style="fill:none;stroke:#1c71d8;stroke-width:10.5367;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none"
+         style="fill:none;stroke:#1c71d8;stroke-width:11.3244;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none"
          d="M 60.552243,42.38657 C 52.584843,42.38657 44.617442,42.38657 36.650042,42.38657"
          id="path6"
          inkscape:path-effect="#path-effect6"

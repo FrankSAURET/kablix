@@ -18,6 +18,11 @@ import { ElementPin } from './pin.mjs';
 import { SPACE_KEYS } from './utils/keys.mjs';
 import drawing3col from './externe/keypad-3col.svg';
 import drawing4col from './externe/keypad-4col.svg';
+// Variante « touches dures » (dessins de Frank, nettoyés + ids préfixés kpt3-/kpt4-) :
+// mêmes viewBox et mêmes pastilles de broches (80..140@320 / 110..180@320) que la
+// membrane — seule l'apparence et la détection des touches changent.
+import drawing3touche from './externe/keypad-3col-touche.svg';
+import drawing4touche from './externe/keypad-4col-touche.svg';
 
 function isNumeric(text: string) {
   return !isNaN(parseFloat(text));
@@ -25,17 +30,21 @@ function isNumeric(text: string) {
 
 export class MembraneKeypadElement extends LitElement {
   declare columns: '3' | '4';
+  declare hardkeys: boolean;
   declare keys: string[];
 
   /** Propriétés réactives lit (remplace les décorateurs @property du code d'origine). */
   static properties = {
     columns: {},
+    // Variante « touches dures » (case membrane/touche de l'inspecteur).
+    hardkeys: { type: Boolean },
     keys: { type: Array },
   };
 
   constructor() {
     super();
     this.columns = '4';
+    this.hardkeys = false;
     this.keys = [
     '1',  '2',  '3',  'A',
     '4',  '5',  '6',  'B',
@@ -94,6 +103,22 @@ export class MembraneKeypadElement extends LitElement {
       rect.key--red:active {
         fill: #ab040b !important;
       }
+
+      /* Touche dure : le filtre url(#shadow) de la règle générique ne se
+         résout pas dans le dessin préfixé (kpt3-/kpt4-) → neutralisé au focus,
+         puis capuchon assombri + légèrement enfoncé à l'appui (le dégradé du
+         dessin de Frank reste visible, juste plus sombre). */
+      rect.key--hard:focus {
+        stroke: white;
+        outline: none;
+        filter: none;
+      }
+
+      rect.key--hard.pressed,
+      rect.key--hard:active {
+        filter: brightness(0.72);
+        transform: translateY(1px);
+      }
     `;
   }
 
@@ -109,6 +134,9 @@ export class MembraneKeypadElement extends LitElement {
   render() {
     const three = this.columns === '3';
     const width = three ? 220 : 285;
+    const drawing = three
+      ? (this.hardkeys ? drawing3touche : drawing3col)
+      : (this.hardkeys ? drawing4touche : drawing4col);
     return html`
       <svg
         width="${width}"
@@ -118,39 +146,66 @@ export class MembraneKeypadElement extends LitElement {
         xmlns="http://www.w3.org/2000/svg"
         @keydown=${(e: KeyboardEvent) => this.keyStrokeDown(e.key)}
         @keyup=${(e: KeyboardEvent) => this.keyStrokeUp(e.key)}
-      >${unsafeSVG(three ? drawing3col : drawing4col)}</svg>
+      >${unsafeSVG(drawing)}</svg>
     `;
   }
 
   updated(changed: PropertyValues): void {
     super.updated(changed);
     // (Re)branche les touches au premier rendu et à chaque changement de dessin
-    // (`columns` figure dans `changed` au premier update ; un changement ultérieur
-    // recrée les rects via unsafeSVG, donc pas de double écouteur).
-    if (changed.has('columns')) this.wireKeys();
+    // (`columns`/`hardkeys` figurent dans `changed` au premier update ; un
+    // changement ultérieur recrée les rects via unsafeSVG → pas de double écouteur).
+    if (changed.has('columns') || changed.has('hardkeys')) this.wireKeys();
   }
 
   /**
-   * Retrouve les capuchons de touche du dessin retouché (rects de 42,33 px de
-   * côté), les trie en lecture ligne/colonne et leur attache l'interactivité :
-   * data-key-name, tabindex, classes de couleur et écouteurs souris/clavier.
+   * Retrouve les capuchons de touche du dessin et leur attache l'interactivité
+   * (data-key-name, tabindex, classes et écouteurs souris/clavier), en lecture
+   * ligne/colonne. Membrane : rects de 42,33 px repérés par leurs attributs x/y.
+   * Touches dures : chaque touche = 2 rects superposés de 32,87 px (socle +
+   * capuchon, transforms Inkscape imbriqués — dont 4 touches hors groupe en
+   * 4 colonnes) → repérage par la BOÎTE RENDUE, dédoublonné par centre, en
+   * gardant le rect dessiné au-dessus (le dernier dans l'ordre du document).
    */
   private wireKeys(): void {
     const svgEl = this.renderRoot.querySelector('svg');
     if (!svgEl) return;
-    const caps = [...svgEl.querySelectorAll('rect')].filter(
-      (r) => Math.round(Number(r.getAttribute('width'))) === 42
-    );
-    caps.sort((a, b) => {
-      const dy = Number(a.getAttribute('y')) - Number(b.getAttribute('y'));
-      return dy !== 0 ? dy : Number(a.getAttribute('x')) - Number(b.getAttribute('x'));
-    });
+    let caps: SVGRectElement[];
+    if (this.hardkeys) {
+      const all = [...svgEl.querySelectorAll('rect')].filter(
+        (r) => Math.abs(Number(r.getAttribute('width')) - 32.865) < 0.1 && !r.closest('defs')
+      ) as SVGRectElement[];
+      // Centre rendu de chaque rect ; 2 rects par touche → garde le dernier.
+      const byCell = new Map<string, SVGRectElement>();
+      const centers = new Map<SVGRectElement, { x: number; y: number }>();
+      for (const r of all) {
+        const b = r.getBoundingClientRect();
+        const c = { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+        centers.set(r, c);
+        byCell.set(`${Math.round(c.x / 8)}:${Math.round(c.y / 8)}`, r);
+      }
+      caps = [...byCell.values()];
+      caps.sort((a, b) => {
+        const ca = centers.get(a)!;
+        const cb = centers.get(b)!;
+        return Math.abs(ca.y - cb.y) > 4 ? ca.y - cb.y : ca.x - cb.x;
+      });
+    } else {
+      caps = [...svgEl.querySelectorAll('rect')].filter(
+        (r) => Math.round(Number(r.getAttribute('width'))) === 42
+      ) as SVGRectElement[];
+      caps.sort((a, b) => {
+        const dy = Number(a.getAttribute('y')) - Number(b.getAttribute('y'));
+        return dy !== 0 ? dy : Number(a.getAttribute('x')) - Number(b.getAttribute('x'));
+      });
+    }
     const cols = this.columns === '3' ? 3 : 4;
+    const hard = this.hardkeys;
     caps.forEach((cap, i) => {
       const row = Math.floor(i / cols);
       const column = i % cols;
       const text = this.keys[row * 4 + column] ?? '';
-      cap.classList.add('key', isNumeric(text) ? 'key--blue' : 'key--red');
+      cap.classList.add('key', hard ? 'key--hard' : isNumeric(text) ? 'key--blue' : 'key--red');
       cap.dataset.keyName = text.toUpperCase();
       cap.setAttribute('tabindex', '0');
       cap.addEventListener('blur', (e) => this.up(text, e.currentTarget as SVGElement));

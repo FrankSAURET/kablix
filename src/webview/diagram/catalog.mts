@@ -61,7 +61,7 @@ export interface PropDef {
   /** Attribut HTML correspondant sur l'élément. */
   attr: string;
   label: string;
-  kind: 'select' | 'number';
+  kind: 'select' | 'number' | 'checkbox';
   /** Pour kind 'select' : valeurs proposées. */
   options?: readonly string[];
   /** Libellé affiché (clé i18n) pour certaines valeurs : { valeur → libellé }. */
@@ -451,8 +451,11 @@ export const CATALOG: readonly PartDef[] = [
   {
     type: 'keypad', label: 'Membrane keypad', tag: 'kablix-membrane-keypad', kind: 'passive', interactive: true,
     // La nappe (broches R/C) fait partie du dessin retouché, toujours visible.
-    attrs: { columns: '4' },
+    // `hardkeys` : variante « touches dures » (dessins de Frank), mêmes broches.
+    attrs: { columns: '4', hardkeys: '' },
     props: [{
+      attr: 'hardkeys', label: 'Hard keys (instead of membrane)', kind: 'checkbox',
+    }, {
       attr: 'columns', label: 'Columns', kind: 'select', options: ['3', '4'],
       optionLabels: { '3': '3 columns (3×4)', '4': '4 columns (4×4)' },
     }],

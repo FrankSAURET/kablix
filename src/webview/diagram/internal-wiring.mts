@@ -7,6 +7,9 @@
 // (scripts/_clean-keypad-schema.mjs) — viewBox = repère interne (mm × 96/25,4).
 import keypadSchema4 from '../composants/interne/keypad-4col.schema.svg';
 import keypadSchema3 from '../composants/interne/keypad-3col-schema.svg';
+// Variante « touches dures » (dessins de Frank, même viewBox que l'externe).
+import keypadSchema3T from '../composants/interne/keypad-3col-touche.schema.svg';
+import keypadSchema4T from '../composants/interne/keypad-4col-touche.schema.svg';
 import potSchema from '../composants/interne/pot-schema.svg';
 // Schémas 7 segments dessinés à la main (Inkscape), nettoyés
 // (scripts/_clean-7seg-schema.mjs) → variante cathode commune ; la variante anode
@@ -226,9 +229,11 @@ function parseSchema(svg: string): { inner: string; w: number; h: number } {
   const inner = svg.replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
   return { inner, w: vb ? Number(vb[1]) : 1, h: vb ? Number(vb[2]) : 1 };
 }
-const KEYPAD_SCHEMA: Record<'3' | '4', { inner: string; w: number; h: number }> = {
+const KEYPAD_SCHEMA: Record<'3' | '4' | '3t' | '4t', { inner: string; w: number; h: number }> = {
   '4': parseSchema(keypadSchema4),
   '3': parseSchema(keypadSchema3),
+  '3t': parseSchema(keypadSchema3T),
+  '4t': parseSchema(keypadSchema4T),
 };
 // Schémas 7 segments par (type de commun × nombre de chiffres).
 type Schema = { inner: string; w: number; h: number };
@@ -276,7 +281,9 @@ function rotaryPot(pins: PinPoint[]): string | null {
  * Le dessin est dans le repère interne ; on le met à l'échelle du corps `box`.
  */
 function keypad(attrs?: Record<string, string>, box?: { w: number; h: number }): string {
-  const s = KEYPAD_SCHEMA[attrs?.columns === '3' ? '3' : '4'];
+  // Variante « touches dures » (case membrane/touche) : schémas dédiés.
+  const cols = attrs?.columns === '3' ? '3' : '4';
+  const s = KEYPAD_SCHEMA[attrs?.hardkeys ? (`${cols}t` as '3t' | '4t') : cols];
   if (!box) return s.inner;
   const sx = (box.w / s.w).toFixed(4);
   const sy = (box.h / s.h).toFixed(4);

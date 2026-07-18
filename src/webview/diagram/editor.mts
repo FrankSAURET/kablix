@@ -3439,6 +3439,20 @@ export class Editor {
     this.inspector.appendChild(label);
 
     const current = part.attrs?.[prop.attr] ?? '';
+    if (prop.kind === 'checkbox') {
+      // Case à cocher : attr '1' quand cochée, vidé sinon (removeAttribute côté
+      // élément — un attribut booléen Lit absent = false). Insérée DANS le
+      // libellé pour que le clic sur le texte coche aussi.
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.className = 'inspector__checkbox';
+      box.checked = current !== '';
+      box.addEventListener('change', () => {
+        this.updatePartAttr(partId, prop.attr, box.checked ? '1' : '');
+      });
+      label.prepend(box);
+      return;
+    }
     if (prop.attr === 'color' && prop.kind === 'select') {
       // Choix de couleur par boutons colorés (au lieu d'une liste déroulante).
       const swatches = document.createElement('div');

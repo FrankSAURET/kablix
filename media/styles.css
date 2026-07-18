@@ -886,6 +886,12 @@ textarea {
   transform: scale(2);
 }
 
+/* Case à cocher d'une propriété (ex. clavier membrane/touche) : dans le libellé. */
+.inspector__label .inspector__checkbox {
+  margin-right: 0.4rem;
+  vertical-align: middle;
+}
+
 /* --- Inspecteur (éditeur de composants) ------------------------------------- */
 .inspector {
   flex: 0 0 190px;
