@@ -16,16 +16,23 @@ const T_MAX = 125;
 
 export class NtcElement extends LitElement {
   declare temperature: number;
+  declare tmin: number;
+  declare tmax: number;
   declare simulating: boolean;
 
   static properties = {
     temperature: { type: Number },
+    // Bornes du curseur de température (inspecteur : Tmin / Tmax).
+    tmin: { type: Number },
+    tmax: { type: Number },
     simulating: { type: Boolean },
   };
 
   constructor() {
     super();
     this.temperature = 25;
+    this.tmin = T_MIN;
+    this.tmax = T_MAX;
     this.simulating = false;
   }
 
@@ -44,6 +51,18 @@ export class NtcElement extends LitElement {
     this.dispatchEvent(new Event('input'));
   };
 
+  /** Bornes du curseur, assainies (attribut vide/invalide → défaut ; min < max). */
+  private rangeMin(): number {
+    const v = Number.isFinite(this.tmin) ? this.tmin : T_MIN;
+    return Math.min(v, this.rangeMaxRaw() - 1);
+  }
+  private rangeMax(): number {
+    return this.rangeMaxRaw();
+  }
+  private rangeMaxRaw(): number {
+    return Number.isFinite(this.tmax) ? this.tmax : T_MAX;
+  }
+
   render() {
     return html`
       <svg width="40" height="80" viewBox="0 0 40 80" xmlns="http://www.w3.org/2000/svg">
@@ -52,7 +71,7 @@ export class NtcElement extends LitElement {
       ${this.simulating
         ? html`
             <div class="sim-control">
-              <input type="range" min=${T_MIN} max=${T_MAX} step="1" .value=${String(this.temperature)} @input=${this.onRange} />
+              <input type="range" min=${this.rangeMin()} max=${this.rangeMax()} step="1" .value=${String(this.temperature)} @input=${this.onRange} />
               <span class="val val--wide">${Math.round(this.temperature)} °C</span>
             </div>
           `

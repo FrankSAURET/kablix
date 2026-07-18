@@ -212,6 +212,8 @@ const FR: Record<string, string> = {
   'Sensitivity coefficient (γ)': 'Coefficient de sensibilité (γ)',
   'Resistance at 25 °C (Ω)': 'Résistance à 25 °C (Ω)',
   'Beta coefficient (K)': 'Coefficient B (K)',
+  'Slider Tmin (°C)': 'Tmin du curseur (°C)',
+  'Slider Tmax (°C)': 'Tmax du curseur (°C)',
   'Temp. coefficient (%/°C)': 'Coefficient de température (%/°C)',
   'Gas sensor (MQ)': 'Capteur de gaz (MQ)',
   'Heart-beat sensor': 'Capteur de pouls',

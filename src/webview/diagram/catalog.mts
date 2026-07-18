@@ -259,18 +259,22 @@ export const CATALOG: readonly PartDef[] = [
   },
   {
     type: 'ntc', label: 'NTC thermistor', tag: 'kablix-ntc', kind: 'resistor',
-    simControl: true, attrs: { temperature: '25', r25: '10000', beta: '3950' },
+    simControl: true, attrs: { temperature: '25', r25: '10000', beta: '3950', tmin: '-55', tmax: '125' },
     props: [
       { attr: 'r25', label: 'Resistance at 25 °C (Ω)', kind: 'number', min: 1, max: 10_000_000, step: 1, suffixes: true },
       { attr: 'beta', label: 'Beta coefficient (K)', kind: 'number', min: 100, max: 10_000, step: 1 },
+      { attr: 'tmin', label: 'Slider Tmin (°C)', kind: 'number', min: -273, max: 999, step: 1 },
+      { attr: 'tmax', label: 'Slider Tmax (°C)', kind: 'number', min: -272, max: 1000, step: 1 },
     ],
   },
   {
     type: 'ptc', label: 'PTC thermistor', tag: 'kablix-ptc', kind: 'resistor',
-    simControl: true, attrs: { temperature: '25', r25: '2000', tc: '0.79' },
+    simControl: true, attrs: { temperature: '25', r25: '2000', tc: '0.79', tmin: '-55', tmax: '125' },
     props: [
       { attr: 'r25', label: 'Resistance at 25 °C (Ω)', kind: 'number', min: 1, max: 10_000_000, step: 1, suffixes: true },
       { attr: 'tc', label: 'Temp. coefficient (%/°C)', kind: 'number', min: 0.01, max: 10, step: 0.01 },
+      { attr: 'tmin', label: 'Slider Tmin (°C)', kind: 'number', min: -273, max: 999, step: 1 },
+      { attr: 'tmax', label: 'Slider Tmax (°C)', kind: 'number', min: -272, max: 1000, step: 1 },
     ],
   },
   { type: 'buzzer', label: 'Buzzer', tag: 'kablix-buzzer', kind: 'buzzer' },

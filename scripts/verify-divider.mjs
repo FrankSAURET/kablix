@@ -207,6 +207,21 @@ async function run() {
 		ldrPins: ldr.pinInfo.map((p) => p.name + '@' + p.x + ',' + p.y).join(' '),
 		ntcPins: ntcSim.pinInfo.map((p) => p.name + '@' + p.x + ',' + p.y).join(' '),
 	};
+	// Tmin/Tmax d'instance (inspecteur) : la plage du curseur suit les attributs.
+	ntcSim.setAttribute('tmin', '0');
+	ntcSim.setAttribute('tmax', '50');
+	ptcSim.setAttribute('tmin', '-10');
+	ptcSim.setAttribute('tmax', '90');
+	await ntcSim.updateComplete; await ptcSim.updateComplete;
+	res.ntcRange2 = [ntcSim.renderRoot.querySelector('.sim-control input').min, ntcSim.renderRoot.querySelector('.sim-control input').max];
+	res.ptcRange2 = [ptcSim.renderRoot.querySelector('.sim-control input').min, ptcSim.renderRoot.querySelector('.sim-control input').max];
+	// Bornes farfelues (min ≥ max) : assainies pour garder un curseur utilisable.
+	ntcSim.setAttribute('tmin', '80');
+	ntcSim.setAttribute('tmax', '50');
+	await ntcSim.updateComplete;
+	const saneMin = Number(ntcSim.renderRoot.querySelector('.sim-control input').min);
+	const saneMax = Number(ntcSim.renderRoot.querySelector('.sim-control input').max);
+	res.saneRange = saneMin < saneMax;
 	const out = document.createElement('pre');
 	out.id = 'measures';
 	out.textContent = JSON.stringify(res);
@@ -232,6 +247,9 @@ if (chrome) {
     check('rendu : curseur LDR déplacé → 100 lx + événement input', r.ldrLux === 100 && r.ldrVal === '100 lx' && r.inputSeen === true);
     check('rendu : dessins CTN et CTP présents', r.ntcDrawn === true && r.ptcDrawn === true);
     check('rendu : CTN 25 °C, plage -55..125', r.ntcVal === '25 °C' && r.ntcRange[0] === '-55' && r.ntcRange[1] === '125');
+    check("rendu : Tmin/Tmax d'instance suivis (CTN 0..50, CTP -10..90)",
+      r.ntcRange2[0] === '0' && r.ntcRange2[1] === '50' && r.ptcRange2[0] === '-10' && r.ptcRange2[1] === '90');
+    check('rendu : bornes incohérentes (min ≥ max) assainies', r.saneRange === true);
     check('rendu : broches LDR 1@10,30 2@90,30', r.ldrPins === '1@10,30 2@90,30');
     check('rendu : broches CTN 1@10,70 2@30,70', r.ntcPins === '1@10,70 2@30,70');
   }
