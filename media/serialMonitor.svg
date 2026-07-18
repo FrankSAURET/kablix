@@ -22,6 +22,17 @@
        helper_size="0"
        simplify_individual_paths="false"
        simplify_just_coalesce="false" />
+    <inkscape:path-effect
+       effect="simplify"
+       id="path-effect6-0"
+       is_visible="true"
+       lpeversion="1.3"
+       threshold="8"
+       steps="1"
+       smooth_angles="360"
+       helper_size="0"
+       simplify_individual_paths="false"
+       simplify_just_coalesce="false" />
   </defs>
   <sodipodi:namedview
      id="namedview5"
@@ -32,9 +43,9 @@
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
-     inkscape:zoom="4.7066795"
-     inkscape:cx="36.968738"
-     inkscape:cy="32.506994"
+     inkscape:zoom="6.65625"
+     inkscape:cx="21.333333"
+     inkscape:cy="15.173709"
      inkscape:window-width="1920"
      inkscape:window-height="1057"
      inkscape:window-x="-8"
@@ -45,15 +56,40 @@
   <!-- Serial data lines -->
   <!-- Cursor -->
   <!-- Stand -->
-  <path
-     style="fill:none;stroke:#1c71d8;stroke-width:10;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none"
-     d="M 5.228241,12.236961 29.641385,26.659496 5.228241,41.082031"
-     id="path5" />
-  <path
-     style="fill:none;stroke:#1c71d8;stroke-width:10;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none"
-     d="M 60.552243,42.38657 C 52.584843,42.38657 44.617442,42.38657 36.650042,42.38657"
-     id="path6"
-     inkscape:path-effect="#path-effect6"
-     inkscape:original-d="M 60.552243,42.38657 H 36.650042"
-     transform="translate(-1.780484,0.63739203)" />
+  <g
+     id="g3"
+     transform="matrix(0.95249625,0,0,0.94563657,1.52012,5.8716251)"
+     style="stroke-width:1.05367">
+    <g
+       id="g1"
+       transform="translate(-85.474146,7.5456822)"
+       style="stroke:#d3d3e3;stroke-width:13.6978;stroke-dasharray:none;stroke-opacity:1">
+      <path
+         style="fill:none;stroke:#d3d3e3;stroke-width:13.6978;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+         d="M 90.702387,4.6912787 115.11553,19.113814 90.702387,33.536349"
+         id="path5-4" />
+      <path
+         style="fill:none;stroke:#d3d3e3;stroke-width:13.6978;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+         d="M 60.552243,42.38657 C 52.584843,42.38657 44.617442,42.38657 36.650042,42.38657"
+         id="path6-8"
+         inkscape:path-effect="#path-effect6-0"
+         inkscape:original-d="M 60.552243,42.38657 H 36.650042"
+         transform="translate(83.693662,-6.90829)" />
+    </g>
+    <g
+       id="g2"
+       style="stroke-width:1.05367">
+      <path
+         style="fill:none;stroke:#1c71d8;stroke-width:10.5367;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none"
+         d="M 5.228241,12.236961 29.641385,26.659496 5.228241,41.082031"
+         id="path5" />
+      <path
+         style="fill:none;stroke:#1c71d8;stroke-width:10.5367;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none"
+         d="M 60.552243,42.38657 C 52.584843,42.38657 44.617442,42.38657 36.650042,42.38657"
+         id="path6"
+         inkscape:path-effect="#path-effect6"
+         inkscape:original-d="M 60.552243,42.38657 H 36.650042"
+         transform="translate(-1.780484,0.63739203)" />
+    </g>
+  </g>
 </svg>

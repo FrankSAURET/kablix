@@ -2349,6 +2349,34 @@ export class Editor {
       const a = this.hotspotCenter(wire.a);
       const b = this.hotspotCenter(wire.b);
       if (!a || !b) continue;
+      // Ligne droite prioritaire : broches alignées H/V et segment direct
+      // dégagé → AUCUN coude, même au ras des composants. Les corps des DEUX
+      // extrémités tolèrent chacun ~1 pas de grille de chevauchement (la broche
+      // vit au bord de son corps) ; un fil droit qui TRANCHERAIT un corps de
+      // part en part (broches sous le corps, ex. deux LED superposées) dépasse
+      // ce plafond et repasse par le routeur ; idem pour un fil déjà couché sur
+      // la ligne (le créneau anti-superposition du routeur reprend la main).
+      if (Math.abs(a.x - b.x) <= TOL || Math.abs(a.y - b.y) <= TOL) {
+        const ENDCAP = 1.5 * GRID; // chevauchement toléré dans un corps d'extrémité
+        let blocked = false;
+        for (const o of obstacles) {
+          const ov = segRectOverlap(a, b, o);
+          const isEnd = o.id === wire.a.partId || o.id === wire.b.partId;
+          if (ov > (isEnd ? ENDCAP : TOL)) {
+            blocked = true;
+            break;
+          }
+        }
+        const others: Array<[XY, XY]> = [];
+        for (const [wid, s] of wireSegs) if (wid !== wire.id) others.push(...s);
+        if (!blocked && polylineWireCost([a, b], others, GAP).overlap <= TOL) {
+          if ((wire.points?.length ?? 0) > 0) changed = true;
+          wire.points = undefined;
+          wireSegs.set(wire.id, toSegs([a, b]));
+          this.positionWire(wire);
+          continue;
+        }
+      }
       const saList = this.pinStubs(wire.a, a, rectOf, STUB);
       const sbList = this.pinStubs(wire.b, b, rectOf, STUB);
       const saCands: Array<XY | null> = saList.length > 0 ? saList : [null];

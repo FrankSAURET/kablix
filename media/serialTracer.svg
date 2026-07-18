@@ -31,6 +31,26 @@
          sodipodi:nodetypes="sssss"
          id="path17" />
     </marker>
+    <marker
+       style="overflow:visible"
+       id="Dot-0"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Dot"
+       markerWidth="0.30000001"
+       markerHeight="0.30000001"
+       viewBox="0 0 1 1"
+       inkscape:isstock="true"
+       inkscape:collect="always"
+       preserveAspectRatio="xMidYMid">
+      <path
+         transform="scale(0.5)"
+         style="fill:context-stroke;fill-rule:evenodd;stroke:none"
+         d="M 5,0 C 5,2.76 2.76,5 0,5 -2.76,5 -5,2.76 -5,0 -5,-2.76 -2.7,-5 0,-5 2.76,-5 5,-2.76 5,0 Z"
+         sodipodi:nodetypes="sssss"
+         id="path17-9" />
+    </marker>
   </defs>
   <sodipodi:namedview
      id="namedview15"
@@ -42,7 +62,7 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:zoom="6.65625"
-     inkscape:cx="12.694836"
+     inkscape:cx="12.769953"
      inkscape:cy="20.732394"
      inkscape:window-width="1920"
      inkscape:window-height="1057"
@@ -50,6 +70,21 @@
      inkscape:window-y="-8"
      inkscape:window-maximized="1"
      inkscape:current-layer="svg15" />
+  <g
+     id="g1"
+     transform="matrix(0.96074162,0,0,0.97005805,0.21828909,1.1266881)"
+     style="stroke-width:1.03585">
+    <path
+       style="fill:#f8e45c;stroke:#f8e45c;stroke-width:12.4303;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Dot-0)"
+       d="M -0.15617378,35.302062 4.8532152,35.273483 8.4559392,24.781051 14.509577,40.005638 27.055815,5.0516062 32.095849,58.600862 43.556748,27.217112 46.717157,35.094409 H 57.065404"
+       id="path1-8"
+       sodipodi:nodetypes="ccccccccc" />
+    <path
+       style="fill:none;stroke:#ff6600;stroke-width:8.18323;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Dot)"
+       d="M -0.2039994,35.151834 4.8053904,35.123255 8.4081139,24.630823 14.461752,39.85541 27.00799,4.9013787 32.048024,58.450634 43.508923,27.066884 46.669332,34.944181 H 57.017579"
+       id="path1"
+       sodipodi:nodetypes="ccccccccc" />
+  </g>
   <!-- Fond -->
   <!-- Carte électronique -->
   <!-- Pastilles avec trous -->
@@ -78,9 +113,4 @@
        id="tspan6-4"
        x="194.85023"
        y="29.265369" /></text>
-  <path
-     style="fill:none;stroke:#ff6600;stroke-width:7.9;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Dot)"
-     d="M 0.24670483,35.151834 5.2560946,35.123255 8.8588181,24.630823 14.912456,39.85541 27.458694,4.9013787 32.498728,58.450634 43.959627,27.066884 47.120036,34.944181 H 57.468283"
-     id="path1"
-     sodipodi:nodetypes="ccccccccc" />
 </svg>
