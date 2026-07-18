@@ -5,11 +5,14 @@
 import { css } from 'lit';
 
 export const simControlStyles = css`
-  /* Le contrôle est SORTI DU FLUX (posé sous le dessin en absolu) : s'il
-     participait à la hauteur de l'élément, son apparition au lancement de la
-     simulation déplaçait le centre de rotation (transform-origin: center de
-     .part__body, cf. applyRotation d'editor.mts) et tout composant tourné ou
-     retourné se décalait à l'écran (constaté sur le capteur de son pivoté). */
+  /* Le contrôle est SORTI DU FLUX : s'il participait à la hauteur de
+     l'élément, son apparition au lancement de la simulation déplaçait le
+     centre de rotation (transform-origin: center de .part__body, cf.
+     applyRotation d'editor.mts) et tout composant tourné ou retourné se
+     décalait à l'écran (constaté sur le capteur de son pivoté).
+     Il est posé PAR-DESSUS le dessin, centré verticalement (demande Frank :
+     « les curseurs doivent plutôt s'afficher sur les composants ») — fond
+     translucide pour rester lisible sur n'importe quel dessin. */
   :host {
     position: relative;
   }
@@ -17,13 +20,16 @@ export const simControlStyles = css`
     position: absolute;
     left: 0;
     right: 0;
-    top: 100%;
+    top: 50%;
+    transform: translateY(-50%);
     display: flex;
     align-items: center;
     gap: 2px;
-    margin-top: 2px;
     font: 10px sans-serif;
     color: #333;
+    background: rgba(255, 255, 255, 0.65);
+    border-radius: 3px;
+    padding: 1px 2px;
   }
   /* Zone blanche semi-transparente sous le texte (label + valeur) : en
      simulation le composant passe au-dessus de tout (fils, voisins — cf.

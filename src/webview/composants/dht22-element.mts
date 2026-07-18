@@ -37,13 +37,15 @@ export class DHT22Element extends LitElement {
   static get styles() {
     return css`
       :host { display: inline-block; position: relative; }
-      /* Hors flux (absolu sous le dessin) : sinon son apparition au lancement
-         de la simulation déplace le centre de rotation du composant (même
-         correctif que sim-control-styles.mts). */
+      /* Hors flux et PAR-DESSUS le dessin, centré (mêmes raisons que
+         sim-control-styles.mts : pas de décalage du centre de rotation,
+         curseurs affichés sur le composant). */
       .sim-control {
-        position: absolute; left: 0; right: 0; top: 100%;
-        display: flex; flex-direction: column; gap: 1px; margin-top: 2px;
+        position: absolute; left: 0; right: 0; top: 50%;
+        transform: translateY(-50%);
+        display: flex; flex-direction: column; gap: 1px;
         font: 10px sans-serif; color: #333;
+        background: rgba(255, 255, 255, 0.65); border-radius: 3px; padding: 1px 2px;
       }
       .sim-control .row { display: flex; align-items: center; gap: 2px; }
       .sim-control label { width: 14px; }

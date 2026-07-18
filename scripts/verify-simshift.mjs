@@ -50,8 +50,14 @@ async function run() {
 		try { if (el.updateComplete) await el.updateComplete; } catch (e) {}
 		await wait(30);
 		const r2 = svgOf().getBoundingClientRect();
+		// v2026.7.109 : le contrôle doit être PAR-DESSUS le dessin (chevauchement
+		// vertical), plus en dessous.
+		const ctl = el.shadowRoot.querySelector('.sim-control');
+		const cr = ctl ? ctl.getBoundingClientRect() : null;
+		const overlaps = !!cr && cr.top < r2.bottom && cr.bottom > r2.top &&
+			cr.left < r2.right && cr.right > r2.left;
 		results.push({ tag, deg, dx: +(r2.left - r1.left).toFixed(3), dy: +(r2.top - r1.top).toFixed(3),
-			hasControl: !!el.shadowRoot.querySelector('.sim-control') });
+			hasControl: !!ctl, overlaps });
 		part.remove();
 	}
 	const out = document.createElement('pre');
@@ -73,9 +79,9 @@ if (!m) { console.log('MESURES INTROUVABLES'); process.exit(1); }
 const rows = JSON.parse(m[1]);
 let fail = 0;
 for (const r of rows) {
-	const ok = Math.abs(r.dx) < 0.01 && Math.abs(r.dy) < 0.01 && r.hasControl;
+	const ok = Math.abs(r.dx) < 0.01 && Math.abs(r.dy) < 0.01 && r.hasControl && r.overlaps;
 	if (!ok) fail++;
-	console.log(`${ok ? '✅' : '❌'} ${r.tag} rot ${r.deg}° : delta (${r.dx}, ${r.dy}) px, contrôle ${r.hasControl ? 'affiché' : 'ABSENT'}`);
+	console.log(`${ok ? '✅' : '❌'} ${r.tag} rot ${r.deg}° : delta (${r.dx}, ${r.dy}) px, contrôle ${r.hasControl ? 'affiché' : 'ABSENT'}${r.overlaps ? ' sur le dessin' : ' PAS SUR LE DESSIN'}`);
 }
 console.log(fail ? `simshift : ${fail} échec(s).` : 'simshift : le dessin ne bouge pas au lancement de la simulation.');
 process.exit(fail ? 1 : 0);
