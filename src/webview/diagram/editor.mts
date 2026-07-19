@@ -25,7 +25,7 @@ import { breadboardPins, normalizeSize, stripOfPin } from './breadboard.mjs';
 import { internalWiringSvg, type PinPoint } from './internal-wiring.mjs';
 import { pinoutSvg, pinoutPoster } from './pinout.mjs';
 import { BOARD_W, BOARD_H } from '../composants/pico-board.mjs';
-import type { Diagram, Endpoint, Part, Wire } from './model.mjs';
+import { buildNets, type Diagram, type Endpoint, type Part, type Wire } from './model.mjs';
 import { DEFAULT_WIRE_COLORS, DUPONT_COLORS, dupontHex, roundedWirePath, snapPoint, type XY } from './geometry.mjs';
 import { PartCreator } from './creator.mjs';
 import '../composants/custom-part.mjs';
@@ -92,6 +92,10 @@ const ZOOM_MIN = 0.2;
 const ZOOM_MAX = 10; // 1000 %
 /** Pas de la grille magnétique d'alignement (px) = écartement des broches. */
 const GRID = 10;
+/** Remise par px de tracé couché sur un fil de la MÊME équipotentielle (autoroutage) :
+ *  suivre la dorsale coûte (1 − RIDE) = 25 % de la longueur — le recouvrement
+ *  même-net est PRÉFÉRÉ, l'embranchement se fait au plus près de la broche. */
+const RIDE = 0.75;
 /** Dimensions de la feuille de dessin (px monde) : origine (0,0) = coin
  * haut-gauche, centre = (SHEET_W/2, SHEET_H/2). Finie pour que « centrer la
  * feuille » ait un sens (bords jaunes visibles en vue ajustée). */
@@ -181,6 +185,9 @@ export class Editor {
   private wirePaths = new Map<string, SVGPathElement>();
   /** Surbrillance « fourmis » des fils sélectionnés (groupe de 2 tracés pointillés). */
   private wireAnts = new Map<string, SVGGElement>();
+  /** Points d'embranchement (jonctions en T des fils d'une même équipotentielle). */
+  private junctionsG: SVGGElement | null = null;
+  private junctionsQueued = false;
   private pending: PendingWire | null = null;
   private tempPath: SVGPathElement | null = null;
   private selection: Selection = null;
@@ -2358,6 +2365,17 @@ export class Editor {
       const cb = this.hotspotCenter(w.b);
       if (ca && cb) wireSegs.set(w.id, toSegs([ca, ...(w.points ?? []), cb]));
     }
+    // Équipotentielle de chaque fil : deux fils du MÊME net ont le droit (et
+    // intérêt) de se recouvrir — le tracé « monte » sur la dorsale existante et
+    // s'en détache au plus près de sa broche (embranchement), ce qui limite les
+    // coudes. Les fils `auto` (invisibles) ne servent jamais de dorsale.
+    const nets = buildNets(this.diagram);
+    const netOfWire = new Map<string, string>();
+    const autoWires = new Set<string>();
+    for (const w of this.diagram.wires) {
+      netOfWire.set(w.id, nets.netOf(w.a));
+      if (w.auto) autoWires.add(w.id);
+    }
     let changed = false;
     for (const wire of this.diagram.wires) {
       if (wire.auto) continue;
@@ -2383,8 +2401,12 @@ export class Editor {
             break;
           }
         }
+        // Seuls les fils d'un AUTRE net interdisent la ligne droite : un fil de
+        // la même équipotentielle couché sur la ligne est un recouvrement voulu.
         const others: Array<[XY, XY]> = [];
-        for (const [wid, s] of wireSegs) if (wid !== wire.id) others.push(...s);
+        for (const [wid, s] of wireSegs) {
+          if (wid !== wire.id && netOfWire.get(wid) !== netOfWire.get(wire.id)) others.push(...s);
+        }
         if (!blocked && polylineWireCost([a, b], others, GAP).overlap <= TOL) {
           if ((wire.points?.length ?? 0) > 0) changed = true;
           wire.points = undefined;
@@ -2397,8 +2419,16 @@ export class Editor {
       const sbList = this.pinStubs(wire.b, b, rectOf, STUB);
       const saCands: Array<XY | null> = saList.length > 0 ? saList : [null];
       const sbCands: Array<XY | null> = sbList.length > 0 ? sbList : [null];
+      // Ségrégation par équipotentielle : `otherSegs` (autres nets) restent des
+      // obstacles ; `sameSegs` (même net, fils visibles) deviennent des dorsales
+      // que le tracé est encouragé à suivre (bonus de recouvrement).
       const otherSegs: Array<[XY, XY]> = [];
-      for (const [wid, segs] of wireSegs) if (wid !== wire.id) otherSegs.push(...segs);
+      const sameSegs: Array<[XY, XY]> = [];
+      for (const [wid, segs] of wireSegs) {
+        if (wid === wire.id) continue;
+        if (!autoWires.has(wid) && netOfWire.get(wid) === netOfWire.get(wire.id)) sameSegs.push(...segs);
+        else otherSegs.push(...segs);
+      }
       // Coût d'un tracé : recouvrement de composants + recouvrement (colinéaire) ET
       // proximité (< GAP) d'autres fils, PLUS longueur et coudes (départage les
       // combinaisons de sorties de broche). Les fils peuvent se croiser mais pas se
@@ -2427,10 +2457,14 @@ export class Editor {
         for (let i = 0; i < poly.length - 1; i++) {
           for (const [s, t] of otherSegs) if (segsCross(poly[i], poly[i + 1], s, t)) cross++;
         }
+        // Recouvrement d'un fil de la MÊME équipotentielle : un BONUS (le fil
+        // « monte » sur la dorsale, chaque px suivi ne coûte plus que 25 % de sa
+        // longueur) — borné par la longueur pour ne jamais rendre le coût négatif.
+        const sameOv = sameSegs.length > 0 ? Math.min(len, polylineWireCost(poly, sameSegs, GAP).overlap) : 0;
         // Poids massifs, hiérarchisés : traverser un composant (×1000) est bien
         // pire que suivre un fil (×100), lui-même pire qu'un croisement (1,5
         // coude). À coût « dur » égal, le plus court et le moins coudé gagne.
-        return comp * 1000 + (overlap + selfOv) * 100 + cross * BEND * 1.5 + near * 0.6 + len + bends * BEND;
+        return comp * 1000 + (overlap + selfOv) * 100 + cross * BEND * 1.5 + near * 0.6 + len + bends * BEND - sameOv * RIDE;
       };
       // Routeur A* (contourne les obstacles et les fils), essayé pour CHAQUE
       // combinaison de sorties candidates (≤ 2 par extrémité) : pour une broche
@@ -2457,6 +2491,7 @@ export class Editor {
             gap: GAP,
             startDir: ca ? dirOf(a, ca) : undefined,
             endDir: cb ? dirOf(cb, b) : undefined,
+            same: sameSegs,
           });
           if (!path || path.length < 2) continue;
           const c = path.slice(1, -1);
@@ -2621,6 +2656,7 @@ export class Editor {
     this.wirePaths.delete(id);
     this.wireAnts.get(id)?.remove();
     this.wireAnts.delete(id);
+    this.scheduleJunctions();
   }
 
   /**
@@ -2657,6 +2693,7 @@ export class Editor {
     wire.color = color;
     const path = this.wirePaths.get(id);
     if (path) path.style.stroke = dupontHex(color);
+    this.scheduleJunctions(); // les points d'embranchement suivent la couleur
   }
 
   private positionWire(wire: Wire): void {
@@ -2670,10 +2707,83 @@ export class Editor {
     // La surbrillance de sélection (fourmis) suit le même tracé.
     const ants = this.wireAnts.get(wire.id);
     if (ants) for (const p of ants.children) p.setAttribute('d', d);
+    this.scheduleJunctions();
   }
 
   redrawWires(): void {
     for (const wire of this.diagram.wires) this.positionWire(wire);
+  }
+
+  /** Recalcule les points d'embranchement en microtâche (dédoublonne les rafales
+   *  de positionWire — drag, redraw, autoroutage). */
+  private scheduleJunctions(): void {
+    if (this.junctionsQueued) return;
+    this.junctionsQueued = true;
+    queueMicrotask(() => {
+      this.junctionsQueued = false;
+      this.updateJunctions();
+    });
+  }
+
+  /**
+   * Points d'embranchement : lorsque deux fils d'une même équipotentielle se
+   * recouvrent (autoroutage « dorsale » ou câblage manuel), l'endroit où l'un
+   * quitte l'autre est marqué d'un point de la couleur du fil (comme sur un
+   * schéma électronique : le point signale la connexion). Détection : chaque
+   * coude d'un fil d'où partent AU MOINS TROIS directions distinctes — en
+   * comptant tous les fils du net qui passent par ce point — est une jonction.
+   * Deux fils qui tournent ensemble (2 directions) ou une broche partagée (la
+   * pastille marque déjà la connexion) ne reçoivent pas de point.
+   */
+  private updateJunctions(): void {
+    this.junctionsG?.remove();
+    this.junctionsG = null;
+    const nets = buildNets(this.diagram);
+    const byNet = new Map<string, Array<{ pts: XY[]; color: string }>>();
+    for (const w of this.diagram.wires) {
+      if (w.auto) continue; // fils implicites : invisibles, jamais de point dessus
+      const a = this.hotspotCenter(w.a);
+      const b = this.hotspotCenter(w.b);
+      if (!a || !b) continue;
+      const id = nets.netOf(w.a);
+      let arr = byNet.get(id);
+      if (!arr) byNet.set(id, (arr = []));
+      arr.push({ pts: [a, ...(w.points ?? []), b], color: dupontHex(w.color ?? 'green') });
+    }
+    const dots: Array<{ x: number; y: number; color: string }> = [];
+    const seen = new Set<string>();
+    for (const wires of byNet.values()) {
+      if (wires.length < 2) continue;
+      const segs: Array<[XY, XY]> = [];
+      for (const w of wires) for (let i = 0; i < w.pts.length - 1; i++) segs.push([w.pts[i], w.pts[i + 1]]);
+      for (const w of wires) {
+        // Coudes seulement : les extrémités sont des broches (pastille déjà là).
+        for (let i = 1; i < w.pts.length - 1; i++) {
+          const v = w.pts[i];
+          const k = `${Math.round(v.x)},${Math.round(v.y)}`;
+          if (seen.has(k)) continue;
+          const dirs = new Set<string>();
+          for (const [s, t] of segs) junctionDirs(dirs, v, s, t);
+          if (dirs.size >= 3) {
+            seen.add(k);
+            dots.push({ x: v.x, y: v.y, color: w.color });
+          }
+        }
+      }
+    }
+    if (dots.length === 0) return;
+    const g = document.createElementNS(SVG_NS, 'g');
+    g.setAttribute('class', 'wire-junctions');
+    for (const d of dots) {
+      const c = document.createElementNS(SVG_NS, 'circle');
+      c.setAttribute('cx', String(d.x));
+      c.setAttribute('cy', String(d.y));
+      c.setAttribute('r', '3.4');
+      c.setAttribute('fill', d.color);
+      g.appendChild(c);
+    }
+    this.svg.appendChild(g); // en fin de SVG : au-dessus des fils
+    this.junctionsG = g;
   }
 
   /**
@@ -3910,7 +4020,7 @@ interface PartRect {
  * Longueur d'un segment **aligné sur un axe** [p,q] qui se trouve à l'intérieur du
  * rectangle r. Sert à mesurer combien un fil « passe par dessus » un composant.
  */
-function segRectOverlap(p: XY, q: XY, r: PartRect): number {
+function segRectOverlap(p: XY, q: XY, r: { x: number; y: number; w: number; h: number }): number {
   const horizontal = Math.abs(p.y - q.y) <= Math.abs(p.x - q.x);
   if (horizontal) {
     const y = (p.y + q.y) / 2;
@@ -4039,9 +4149,12 @@ function astarRoute(
   // startDir/endDir : direction (0=+x,1=−x,2=+y,3=−y, 4 = libre) de la patte
   // d'entrée (a→pa) et de sortie (pb→b) — interdit au tracé de rebrousser le
   // stub (aller-retour de quelques px le long de sa propre patte).
-  o: { clr: number; bend: number; gap: number; startDir?: number; endDir?: number },
+  // `same` : segments des fils de la MÊME équipotentielle — les suivre est
+  // ENCOURAGÉ (remise RIDE par px couché dessus) au lieu d'être interdit.
+  o: { clr: number; bend: number; gap: number; startDir?: number; endDir?: number; same?: Array<[XY, XY]> },
 ): XY[] | null {
   const { clr, bend, gap } = o;
+  const same = o.same ?? [];
   const startDir = o.startDir ?? 4;
   const endDir = o.endDir ?? 4;
   // Rectangles gonflés de la clearance : zones interdites de passage.
@@ -4080,6 +4193,14 @@ function astarRoute(
       ysSet.add(v - k * GRID);
     }
   }
+  // Voies des dorsales même-net : sans leurs lignes exactes, le tracé ne peut
+  // pas se poser PILE sur le fil à suivre (le recouvrement resterait approximatif).
+  for (const [s, t] of same) {
+    xsSet.add(s.x);
+    xsSet.add(t.x);
+    ysSet.add(s.y);
+    ysSet.add(t.y);
+  }
   const xs = [...xsSet].sort((m, n) => m - n);
   const ys = [...ysSet].sort((m, n) => m - n);
   const ny = ys.length;
@@ -4095,6 +4216,21 @@ function astarRoute(
   const inRect = (b: { x: number; y: number; w: number; h: number }, p: XY): boolean =>
     p.x > b.x - 0.5 && p.x < b.x + b.w + 0.5 && p.y > b.y - 0.5 && p.y < b.y + b.h + 0.5;
   const solid = blocks.filter((b) => !inRect(b, pa) && !inRect(b, pb));
+  // Corps « tolérés » (leur bloc gonflé contient une borne : exclus de `solid`
+  // pour laisser la broche s'échapper) : leur traversée reste TAXÉE (×20 par px
+  // dans le corps nu) — sortir de sa broche coûte pareil pour tous les chemins,
+  // mais une vraie traversée de part en part devient dissuasive. Sans cela, un
+  // fil libéré du créneau anti-superposition (dorsale même net) filait tout
+  // droit À TRAVERS un composant posé sur la ligne.
+  const soft: Array<{ x: number; y: number; w: number; h: number }> = [];
+  blocks.forEach((b, i) => {
+    if (inRect(b, pa) || inRect(b, pb)) soft.push(obstacles[i]);
+  });
+  const softCost = (p: XY, q: XY): number => {
+    let c = 0;
+    for (const r of soft) c += segRectOverlap(p, q, r) * 20;
+    return c;
+  };
   // Un segment [p,q] aligné traverse-t-il l'intérieur d'un composant ? (test au
   // milieu : valide car aucun bord n'est entre deux lignes de Hanan voisines.)
   const blocked = (p: XY, q: XY): boolean => {
@@ -4124,7 +4260,10 @@ function astarRoute(
     for (const [s, t] of otherSegs) if (segsCross(p, q, s, t)) c += bend * 1.5;
     return c;
   };
-  const heur = (i: number, j: number): number => Math.abs(xs[i] - pb.x) + Math.abs(ys[j] - pb.y);
+  // Heuristique admissible : avec des dorsales même-net, un px peut ne coûter
+  // que (1 − RIDE) — l'estimation est réduite d'autant pour ne jamais surestimer.
+  const hK = same.length > 0 ? 1 - RIDE : 1;
+  const heur = (i: number, j: number): number => hK * (Math.abs(xs[i] - pb.x) + Math.abs(ys[j] - pb.y));
 
   // A* : état = nœud × direction SIGNÉE (0=+x, 1=−x, 2=+y, 3=−y, 4 = départ).
   // Le signe permet d'interdire les demi-tours (aller-retour de quelques px sur
@@ -4209,7 +4348,14 @@ function astarRoute(
       if (cur.dir !== 4 && (cur.dir ^ 1) === dir) continue;
       const turn = cur.dir !== 4 && (cur.dir >> 1) !== (dir >> 1) ? bend : 0;
       const len = Math.abs(q.x - p.x) + Math.abs(q.y - p.y);
-      const g = cur.g + len + wireCost(p, q) + crossCost(p, q) + turn;
+      // Remise « dorsale » : chaque px couché sur un fil de la même équipotentielle
+      // ne coûte que (1 − RIDE) — bornée par `len` (coût d'arête jamais négatif).
+      let ride = 0;
+      if (same.length > 0) {
+        for (const [s, t] of same) ride += collinearOverlap(p, q, s, t);
+        if (ride > len) ride = len;
+      }
+      const g = cur.g + len - ride * RIDE + wireCost(p, q) + crossCost(p, q) + softCost(p, q) + turn;
       const nk = keyOf(ni, nj, dir);
       const prev = bestG.get(nk);
       if (prev !== undefined && prev <= g + 0.01) continue;
@@ -4218,6 +4364,32 @@ function astarRoute(
     }
   }
   return null;
+}
+
+/**
+ * Directions (l/r/u/d) offertes par le segment H/V [s,t] au point v : les deux
+ * si v est à l'intérieur du segment, une seule depuis une extrémité, aucune si
+ * v n'est pas dessus. Alimente la détection des points d'embranchement
+ * (≥ 3 directions distinctes en un coude = jonction en T).
+ */
+function junctionDirs(dirs: Set<string>, v: XY, s: XY, t: XY): void {
+  const TOL = 1;
+  const ax = segAxis(s, t);
+  if (ax === 'h') {
+    if (Math.abs(v.y - s.y) > TOL) return;
+    const lo = Math.min(s.x, t.x);
+    const hi = Math.max(s.x, t.x);
+    if (v.x < lo - TOL || v.x > hi + TOL) return;
+    if (v.x > lo + TOL) dirs.add('l');
+    if (v.x < hi - TOL) dirs.add('r');
+  } else if (ax === 'v') {
+    if (Math.abs(v.x - s.x) > TOL) return;
+    const lo = Math.min(s.y, t.y);
+    const hi = Math.max(s.y, t.y);
+    if (v.y < lo - TOL || v.y > hi + TOL) return;
+    if (v.y > lo + TOL) dirs.add('u');
+    if (v.y < hi - TOL) dirs.add('d');
+  }
 }
 
 /** Croisement transversal STRICT de deux segments H/V (l'un coupe l'autre en
