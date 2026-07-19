@@ -922,14 +922,18 @@ export class SimulatorPanel {
   /**
    * Ouvre un .projix : lit l'archive puis recharge le schéma et la carte dans la
    * webview. Le code éventuel d'anciennes archives est ignoré (schéma seul).
+   * `uri` fourni (double-clic sur un .projix dans l'explorateur) : pas de
+   * boîte de dialogue.
    */
-  public async openProject(): Promise<void> {
+  public async openProject(uri?: vscode.Uri): Promise<void> {
     try {
-      const picked = await vscode.window.showOpenDialog({
-        canSelectMany: false,
-        filters: { [l10n.t('Kablix project')]: ['projix'] },
-        title: l10n.t('Open a Kablix project'),
-      });
+      const picked = uri
+        ? [uri]
+        : await vscode.window.showOpenDialog({
+            canSelectMany: false,
+            filters: { [l10n.t('Kablix project')]: ['projix'] },
+            title: l10n.t('Open a Kablix project'),
+          });
       if (!picked || picked.length === 0) return;
 
       const bytes = await vscode.workspace.fs.readFile(picked[0]);

@@ -174,6 +174,26 @@ async function run() {
 	ok('créateur : composant sans catégorie dans « Composants personnalisés »',
 		/personnalisés|Custom/.test(customLabel ?? ''), customLabel);
 
+	// --- 10. Bulle de nom de broche pendant le câblage (v2026.7.117) ------------
+	const hotspotOf = (id, pin) => editor.rendered.get(id).hotspots.get(pin);
+	const enter = (dot) => dot.dispatchEvent(new PointerEvent('pointerenter'));
+	// Hors câblage : pas de bulle (le title natif suffit).
+	enter(hotspotOf(led2.id, 'A'));
+	ok('bulle : absente hors câblage', !document.querySelector('.pin-bubble'));
+	// Câblage entamé depuis led1.A → survol de led2.A : bulle instantanée.
+	hotspotOf(led1.id, 'A').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+	window.dispatchEvent(new PointerEvent('pointerup'));
+	enter(hotspotOf(led2.id, 'A'));
+	const bubble = document.querySelector('.pin-bubble');
+	ok('bulle : affichée sur la broche visée pendant le câblage', !!bubble, bubble?.textContent);
+	ok('bulle : porte le nom de la broche (anode)', /A|anode/i.test(bubble?.textContent ?? ''));
+	ok('bulle : halo jaune préservé (pastilles .pin toujours survolables)',
+		getComputedStyle(hotspotOf(led2.id, 'A')).pointerEvents !== 'none');
+	// Fil terminé : la bulle disparaît et le title natif est restauré.
+	hotspotOf(led2.id, 'A').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+	ok('bulle : retirée à la fin du câblage', !document.querySelector('.pin-bubble'));
+	ok('bulle : title natif restauré', hotspotOf(led2.id, 'A').title.length > 0);
+
 	const out = document.createElement('pre');
 	out.id = 'measures';
 	out.textContent = JSON.stringify(checks);

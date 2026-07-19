@@ -1318,16 +1318,38 @@ textarea {
 /* Un fil câblé part exactement du centre de sa pastille (cf. hotspotCenter) ;
    .wires (z=5) passe toujours au-dessus des composants (z=3, cf. plus haut) et
    son tracé (pointer-events: stroke) volait donc le survol pile au centre de
-   la broche. Le temps du survol d'une pastille, faire passer tout le composant
-   au-dessus des fils pour que le halo jaune reste actif partout dans son rayon,
-   centre compris. */
-.part:has(.pin:hover) {
-  z-index: 9;
+   la broche. Le temps du survol d'une pastille, les fils et leurs poignées
+   deviennent transparents aux événements : la pastille garde le survol et le
+   clic partout dans son rayon, centre compris. Le composant ne passe PLUS
+   au premier plan (l'ancien z-index 9 faisait « disparaître » la Pico sous le
+   shield dès qu'on touchait une broche du shield — l'empilement des composants
+   ne doit jamais changer au survol d'une broche). */
+.canvas:has(.pin:hover) .wire,
+.canvas:has(.pin:hover) .wire-handle,
+.canvas:has(.pin:hover) .wire-endpoint {
+  pointer-events: none;
 }
 
 .pin:hover {
   background: #ffd633;
   box-shadow: 0 0 6px 2px rgba(255, 214, 51, 0.7);
+}
+
+/* Bulle de nom de broche pendant le câblage (tooltip natif muet en plein drag) :
+   posée dans le monde juste au-dessus de la pastille visée. */
+.pin-bubble {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  padding: 2px 7px;
+  background: rgba(30, 30, 30, 0.92);
+  color: #ffd633;
+  font-size: 11px;
+  line-height: 1.3;
+  white-space: nowrap;
+  border: 1px solid rgba(255, 214, 51, 0.6);
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 200;
 }
 
 /* Pastilles d'alimentation : rouge (VCC/5V/3V3…) et noir (GND), pour les repérer.

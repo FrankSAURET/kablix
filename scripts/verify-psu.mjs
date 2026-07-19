@@ -122,6 +122,8 @@ const CACHE = join(root, 'node_modules', '.cache-psu');
 mkdirSync(CACHE, { recursive: true });
 const entry = `
 import '../../src/webview/composants/alim-element.mjs';
+import '../../src/webview/composants/servo-element.mjs';
+import { Editor } from '../../src/webview/diagram/editor.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 async function run() {
 	const el = document.createElement('kablix-alim');
@@ -131,6 +133,20 @@ async function run() {
 	const sh = el.shadowRoot;
 	const svg = sh.querySelector('svg');
 	const res = {};
+	// Écran aligné à DROITE : bord droit du texte stable quel que soit le nombre
+	// de chiffres (« 12,50 » puis « 5,00 »), calé sur la marge du dessin (~201 px).
+	const dispEl = sh.querySelector('#alim-Text-Affichage');
+	const rightOf = () => {
+		const m = dispEl.getCTM(); const b = dispEl.getBBox();
+		return m.a * (b.x + b.width) + m.c * b.y + m.e;
+	};
+	const right1 = rightOf();
+	el.setAttribute('voltage', '5');
+	await wait(10);
+	const right2 = rightOf();
+	res.rightAligned = Math.abs(right1 - 201.4) < 3 && Math.abs(right2 - right1) < 0.8;
+	el.setAttribute('voltage', '12.5');
+	await wait(10);
 	res.drawn = sh.querySelectorAll('[id^="alim-"]').length > 10;
 	const box = svg.getBoundingClientRect();
 	res.size = [Math.round(box.width), Math.round(box.height)];
@@ -144,7 +160,7 @@ async function run() {
 	const ctm = svg.getScreenCTM();
 	const at = (deg) => {
 		const rad = (deg * Math.PI) / 180;
-		return new DOMPoint(240.91 + 30 * Math.cos(rad), 62.79 + 30 * Math.sin(rad)).matrixTransform(ctm);
+		return new DOMPoint(240.91 + 30 * Math.cos(rad), 68.9 + 30 * Math.sin(rad)).matrixTransform(ctm);
 	};
 	const zone = svg.querySelector(':scope > circle');
 	const drag = (deg) => {
@@ -174,6 +190,31 @@ async function run() {
 	el.removeAttribute('simulating');
 	await wait(20);
 	res.voltsReset = el.volts;
+
+	// --- Éditeur réel : pastilles des bornes + arrondi du stepper ----------------
+	const editor = new Editor(
+		document.getElementById('canvas'), document.getElementById('palette'),
+		document.getElementById('wires'), document.getElementById('inspector'));
+	const alim = editor.addPart('alim', 40, 40);
+	const servo = editor.addPart('servo', 400, 40);
+	await wait(120);
+	const pads = (id, cls) => editor.rendered.get(id).container.querySelectorAll(cls).length;
+	// L'alim n'a PLUS de pastille rouge/noire (prises banane déjà dessinées) ;
+	// contre-épreuve : le servo garde les siennes.
+	res.alimPads = [pads(alim.id, '.pin'), pads(alim.id, '.pin--vcc'), pads(alim.id, '.pin--gnd')];
+	res.servoPads = [pads(servo.id, '.pin--vcc'), pads(servo.id, '.pin--gnd')];
+	// Stepper de l'inspecteur (alim resélectionnée) : 5,1 + 0,1 = 5,2 pile.
+	editor.select({ kind: 'part', id: alim.id });
+	await wait(30);
+	const inspector = document.getElementById('inspector');
+	const stepInput = inspector.querySelector('.inspector__stepper-input');
+	const plus = stepInput.closest('.inspector__stepper').querySelectorAll('.inspector__stepper-btn')[1];
+	stepInput.value = '5.1';
+	stepInput.dispatchEvent(new Event('change'));
+	plus.click();
+	const part = editor.diagram.parts.find((p) => p.id === alim.id);
+	res.stepRounded = part.attrs.voltage;
+
 	const out = document.createElement('pre');
 	out.id = 'measures';
 	out.textContent = JSON.stringify(res);
@@ -183,7 +224,14 @@ run();
 `;
 writeFileSync(join(CACHE, 'e.mjs'), entry);
 const b = await esbuild.build({ entryPoints: [join(CACHE, 'e.mjs')], bundle: true, format: 'iife', write: false, loader: { '.svg': 'text' }, absWorkingDir: root, logLevel: 'silent' });
-writeFileSync(join(CACHE, 'p.html'), `<!doctype html><meta charset=utf8><body><script>${b.outputFiles[0].text}</script></body>`);
+writeFileSync(
+  join(CACHE, 'p.html'),
+  `<!doctype html><meta charset=utf8><body>` +
+  `<div class="workshop"><aside id="palette" class="palette"></aside>` +
+  `<div id="canvas" class="canvas" style="width:800px;height:400px"><svg id="wires" class="wires"></svg></div>` +
+  `<aside id="inspector" class="inspector"></aside></div>` +
+  `<script>${b.outputFiles[0].text}</script></body>`
+);
 const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
 if (chrome) {
   const dom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--no-sandbox', '--virtual-time-budget=15000', '--dump-dom', `file:///${join(CACHE, 'p.html').replace(/\\/g, '/')}`], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
@@ -207,6 +255,12 @@ if (chrome) {
     check('rendu : LED courant limite rouge vif + halo', r.ledOver === true);
     check('rendu : LED restaurée (fin de surcourant)', r.ledOff === true);
     check('rendu : sortie de simulation → tension de démarrage', near(r.voltsReset, 12.5));
+    check('rendu : écran aligné à DROITE (bord droit stable 12,50 → 5,00)', r.rightAligned === true);
+    check('éditeur : bornes de l\'alim SANS pastille rouge/noire (2 .pin nus)',
+      r.alimPads[0] === 2 && r.alimPads[1] === 0 && r.alimPads[2] === 0);
+    check('éditeur : le servo garde ses pastilles V+/GND (contre-épreuve)',
+      r.servoPads[0] === 1 && r.servoPads[1] === 1);
+    check('éditeur : stepper 5,1 + 0,1 → 5,2 pile (2 décimales max)', r.stepRounded === '5.2');
   }
 } else {
   console.log('⚠️ Chrome introuvable : rendu headless sauté');

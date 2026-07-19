@@ -1,7 +1,7 @@
 {
   "name": "kablix",
   "displayName": "Kablix",
-  "version": "2026.7.116",
+  "version": "2026.7.117",
   "description": "%kablix.description%",
   "publisher": "franksauret",
   "author": {
@@ -108,6 +108,18 @@
       {
         "view": "kablix.home",
         "contents": "%kablix.welcome%"
+      }
+    ],
+    "customEditors": [
+      {
+        "viewType": "kablix.projix",
+        "displayName": "%kablix.editor.projix%",
+        "selector": [
+          {
+            "filenamePattern": "*.projix"
+          }
+        ],
+        "priority": "default"
       }
     ],
     "configuration": {

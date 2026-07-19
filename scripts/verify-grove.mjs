@@ -167,6 +167,18 @@ async function run() {
 	ok('setHighlight([]) : surbrillance retirée',
 		el.shadowRoot.querySelectorAll('circle[fill="#ffd633"]').length === 0, '');
 
+	// --- 8. Z-order : toucher une broche ne remonte PLUS le composant --------------
+	// (v2026.7.117 : l'ancien .part:has(.pin:hover){z-index:9} faisait passer le
+	// shield AU-DESSUS de la Pico enfichée — vérifié sur la vraie feuille CSS.)
+	const cssRules = [...document.styleSheets].flatMap((s) => { try { return [...s.cssRules]; } catch { return []; } });
+	const hoverRaise = cssRules.find((r) => r.selectorText?.includes(':has(.pin:hover)') && /z-index/.test(r.cssText));
+	ok('plus AUCUNE règle z-index au survol d\\'une broche', !hoverRaise, hoverRaise?.cssText ?? '');
+	const hoverGhost = cssRules.find((r) => r.selectorText?.includes(':has(.pin:hover)') && /pointer-events:\\s*none/.test(r.cssText) && r.selectorText.includes('.wire'));
+	ok('fils transparents aux événements pendant le survol d\\'une pastille', !!hoverGhost, '');
+	const zOf = (id) => getComputedStyle(editor.rendered.get(id).container).zIndex;
+	ok('empilement conservé : shield (z=0) sous la Pico (z=1)',
+		zOf(shield.id) === '0' && zOf(pico.id) === '1', zOf(shield.id) + '/' + zOf(pico.id));
+
 	const out = document.createElement('pre');
 	out.id = 'measures';
 	out.textContent = JSON.stringify(checks);

@@ -18,9 +18,9 @@ export const ALIM_W = 280;
 export const ALIM_H = 110;
 /** Centre du bouton (px du dessin) — mesuré sur le dessin de Frank. */
 const KNOB_CX = 240.91;
-const KNOB_CY = 62.79;
+const KNOB_CY = 68.9;
 /** Même centre en unités locales du viewBox (mm) pour l'origine de rotation CSS. */
-const KNOB_LOCAL = '63.742px 16.613px';
+const KNOB_LOCAL = '63.742px 18.230px';
 /** Cadran : 0 V pointé vers 120° (bas-gauche), 300° de course horaire → 30 V. */
 const DIAL_ZERO_DEG = 120;
 const DIAL_SPAN_DEG = 300;
@@ -132,6 +132,20 @@ export class AlimElement extends HTMLElement {
     if (limite.length >= 2) {
       limite[0].textContent = words[0] ?? '';
       limite[1].textContent = words.slice(1).join(' ');
+    }
+
+    // Écran : tension alignée à DROITE (item de Frank) — ancre de fin posée au
+    // bord droit de l'écran (53,74 unités locales ≈ 201 px, même marge que le
+    // « 30,00 » du dessin d'origine). Le tspan porte son propre x : réécrit aussi.
+    const disp = this.root.querySelector('#alim-Text-Affichage');
+    if (disp) {
+      disp.setAttribute('text-anchor', 'end');
+      disp.setAttribute('x', '53.74');
+      const tsp = disp.querySelector('tspan');
+      if (tsp) {
+        tsp.setAttribute('text-anchor', 'end');
+        tsp.setAttribute('x', '53.74');
+      }
     }
 
     const led = this.root.querySelector('#alim-LED-courant-limite');

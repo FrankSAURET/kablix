@@ -191,6 +191,8 @@ export class Editor {
   private junctionsQueued = false;
   private pending: PendingWire | null = null;
   private tempPath: SVGPathElement | null = null;
+  /** Bulle de nom de broche affichée pendant le câblage (showPinBubble). */
+  private pinBubble: HTMLDivElement | null = null;
   private selection: Selection = null;
   /** Composants sélectionnés (sélection multiple : marquee, Ctrl+clic). */
   private selectedParts = new Set<string>();
@@ -1523,9 +1525,13 @@ export class Editor {
     dot.className = 'pin';
     // Pastilles d'alimentation reconnaissables : rouge (VCC) / noir (GND). Le
     // potentiomètre est exclu : ses extrémités ne sont pas des broches power.
+    // L'alim de laboratoire aussi : ses prises banane sont DÉJÀ dessinées
+    // rouge/noire (les rôles restent actifs pour la couleur auto des fils).
     const role = kind === 'potentiometer' ? 'other' : pinElectricalRole(type, pin.name);
-    if (role === 'vcc') dot.classList.add('pin--vcc');
-    else if (role === 'gnd') dot.classList.add('pin--gnd');
+    if (type !== 'alim') {
+      if (role === 'vcc') dot.classList.add('pin--vcc');
+      else if (role === 'gnd') dot.classList.add('pin--gnd');
+    }
     const pos = this.pinPos(type, kind, pin, anchor);
     dot.style.left = `${pos.x}px`;
     dot.style.top = `${pos.y}px`;
@@ -1538,7 +1544,43 @@ export class Editor {
       e.stopPropagation();
       this.onPinUp({ partId, pin: pin.name }, e);
     });
+    // Pendant un câblage en cours, le tooltip natif (title) ne s'affiche pas
+    // (bouton enfoncé) ou trop tard : bulle maison instantanée sur la broche
+    // visée, en plus du halo jaune du survol.
+    dot.addEventListener('pointerenter', () => this.showPinBubble(dot, { partId, pin: pin.name }));
+    dot.addEventListener('pointerleave', () => this.hidePinBubble());
     return dot;
+  }
+
+  /** Bulle de nom instantanée sur la broche visée pendant le câblage. */
+  private showPinBubble(dot: HTMLDivElement, endpoint: Endpoint): void {
+    if (!this.pending || this.locked) return;
+    this.hidePinBubble();
+    const p = this.hotspotCenter(endpoint);
+    if (!p) return;
+    const part = this.diagram.parts.find((q) => q.id === endpoint.partId);
+    if (!part) return;
+    const bubble = document.createElement('div');
+    bubble.className = 'pin-bubble';
+    bubble.textContent = pinDisplayName(partDef(part.type).kind, endpoint.pin, part.type, part.attrs);
+    bubble.style.left = `${p.x}px`;
+    bubble.style.top = `${p.y - 9}px`;
+    this.world.appendChild(bubble);
+    this.pinBubble = bubble;
+    // Le title natif se tait le temps de la bulle (sinon doublon en mode clic-à-clic).
+    if (dot.title) {
+      dot.dataset.savedTitle = dot.title;
+      dot.title = '';
+    }
+  }
+
+  private hidePinBubble(): void {
+    this.pinBubble?.remove();
+    this.pinBubble = null;
+    for (const d of this.world.querySelectorAll<HTMLElement>('[data-saved-title]')) {
+      d.title = d.dataset.savedTitle ?? '';
+      delete d.dataset.savedTitle;
+    }
   }
 
   /**
@@ -1994,6 +2036,7 @@ export class Editor {
     this.pending = null;
     this.tempPath?.remove();
     this.tempPath = null;
+    this.hidePinBubble();
   }
 
   private onPointerMove = (e: PointerEvent): void => {
@@ -3677,7 +3720,10 @@ export class Editor {
       input.step = String(step);
       input.value = current;
       const commit = (v: number): void => {
-        const value = String(clamp(v));
+        // Pas fractionnaire : valeur arrondie à 2 décimales (5,1 + 0,1 → 5,2,
+        // jamais 5.199999999999999 — demandé pour l'alim, vaut partout).
+        const c = clamp(v);
+        const value = String(step < 1 ? Math.round(c * 100) / 100 : c);
         input.value = value;
         this.updatePartAttr(partId, prop.attr, value);
       };

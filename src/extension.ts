@@ -75,6 +75,29 @@ export function activate(context: vscode.ExtensionContext): void {
     })
   );
 
+  // Double-clic sur un .projix dans l'explorateur : éditeur personnalisé
+  // « relais » — l'onglet ouvre le projet dans le simulateur Kablix puis se
+  // referme aussitôt (le .projix est une archive ZIP, illisible en texte).
+  context.subscriptions.push(
+    vscode.window.registerCustomEditorProvider(
+      'kablix.projix',
+      {
+        openCustomDocument: (uri: vscode.Uri) => ({ uri, dispose: () => undefined }),
+        resolveCustomEditor: (
+          document: vscode.CustomDocument,
+          webviewPanel: vscode.WebviewPanel
+        ) => {
+          webviewPanel.webview.html = '<!doctype html><html><body></body></html>';
+          const panel = SimulatorPanel.createOrShow(context);
+          void panel.openProject(document.uri);
+          // Fermeture différée : l'onglet relais doit être résolu avant d'être fermé.
+          setTimeout(() => webviewPanel.dispose(), 0);
+        },
+      },
+      { supportsMultipleEditorsPerDocument: false }
+    )
+  );
+
   // Empêche VS Code de rouvrir le panneau du simulateur au lancement : un
   // panneau restauré est immédiatement fermé (l'utilisateur le rouvre via
   // l'icône Kablix ou la commande).

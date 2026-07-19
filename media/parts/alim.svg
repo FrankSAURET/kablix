@@ -22,9 +22,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="2.8284273"
-     inkscape:cx="173.24115"
-     inkscape:cy="42.426404"
+     inkscape:zoom="4.0000002"
+     inkscape:cx="184.99999"
+     inkscape:cy="56.749996"
      inkscape:document-units="px"
      inkscape:current-layer="svg8"
      showgrid="true"
@@ -119,7 +119,7 @@
        fy="66.460022"
        r="1.9182305"
        gradientUnits="userSpaceOnUse"
-       gradientTransform="matrix(0.89660226,0,0,0.91168216,-175.42251,-55.130045)" />
+       gradientTransform="matrix(0.89660226,0,0,0.91168216,-175.42251,-54.786046)" />
     <linearGradient
        id="linearGradient114"
        inkscape:collect="always">
@@ -142,7 +142,7 @@
        fy="60.332512"
        r="1.9182305"
        gradientUnits="userSpaceOnUse"
-       gradientTransform="matrix(1.0000571,0,0,1.016877,-184.99896,-55.513471)" />
+       gradientTransform="matrix(1.0000571,0,0,1.016877,-184.99896,-55.169472)" />
     <linearGradient
        id="linearGradient115"
        inkscape:collect="always">
@@ -559,7 +559,7 @@
   </g>
   <g
      id="bouton-tension"
-     transform="translate(-179.91666,-58.208332)">
+     transform="translate(-179.91666,-56.589523)">
     <ellipse
        style="fill:url(#radialGradient2);stroke:#1860b8;stroke-width:0.200011;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1"
        id="path1"
@@ -577,7 +577,8 @@
        inkscape:path-effect="#path-effect2-0" />
   </g>
   <g
-     id="cadran-tension">
+     id="cadran-tension"
+     transform="translate(0,1.618805)">
     <path
        style="fill:none;stroke:#000000;stroke-width:0.2"
        sodipodi:cx="63.743343"
@@ -674,50 +675,50 @@
      xml:space="preserve"
      style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.13038px;line-height:1;font-family:Arial;-inkscape-font-specification:Arial;writing-mode:lr-tb;direction:ltr;fill:#1a5fb4;fill-opacity:1;stroke:none;stroke-width:0.499999;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1"
      x="60.816818"
-     y="24.066803"
+     y="25.672157"
      id="text-tension"
      transform="scale(0.99169514,1.0083744)"><tspan
        sodipodi:role="line"
        id="tspan112"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Arial;-inkscape-font-specification:Arial;fill:#1a5fb4;fill-opacity:1;stroke:none;stroke-width:0.500001"
        x="60.816818"
-       y="24.066803">Tension</tspan></text>
+       y="25.672157">Tension</tspan></text>
   <text
      xml:space="preserve"
      style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.13038px;line-height:1;font-family:Arial;-inkscape-font-specification:Arial;writing-mode:lr-tb;direction:ltr;fill:#a51d2d;fill-opacity:1;stroke:none;stroke-width:0.499999;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1"
      x="63.090538"
-     y="5.4918261"
+     y="5.8329701"
      id="text-courant-limite"
      transform="scale(0.99169514,1.0083744)"><tspan
        sodipodi:role="line"
        id="tspan112-4"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Arial;-inkscape-font-specification:Arial;fill:#a51d2d;fill-opacity:1;stroke:none;stroke-width:0.500001"
        x="63.090538"
-       y="5.4918261">Courant</tspan><tspan
+       y="5.8329701">Courant</tspan><tspan
        sodipodi:role="line"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Arial;-inkscape-font-specification:Arial;fill:#a51d2d;fill-opacity:1;stroke:none;stroke-width:0.500001"
        x="63.090538"
-       y="7.6222057"
+       y="7.9633503"
        id="tspan113">limite</tspan></text>
   <ellipse
      style="fill:url(#radialGradient117);stroke:none;stroke-width:0.5;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1"
      id="path113"
      cx="58.778881"
-     cy="5.8372912"
+     cy="6.1812921"
      rx="1.9183401"
      ry="1.9506046" />
   <ellipse
      style="fill:url(#radialGradient115);stroke:none;stroke-width:0.5;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1"
      id="LED-courant-limite"
      cx="58.778881"
-     cy="5.8372912"
+     cy="6.1812921"
      rx="1.7198899"
      ry="1.7488166" />
   <rect
      style="display:inline;fill:none;fill-opacity:1;stroke:#1a5fb4;stroke-width:0.264583;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1"
      id="rect144-3"
      width="16.990543"
-     height="23.938969"
+     height="25.172022"
      x="55.471386"
      y="2.0905032"
      rx="1.3229166"
