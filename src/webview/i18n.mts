@@ -222,6 +222,12 @@ const FR: Record<string, string> = {
   'Heart-beat sensor': 'Capteur de pouls',
   'Flame sensor': 'Capteur de flamme',
   'Sound sensor': 'Capteur de son',
+  // Alimentation de laboratoire (les deux derniers sont dessinés SUR le composant)
+  'Bench power supply': 'Alimentation de laboratoire',
+  'Voltage (V)': 'Tension (V)',
+  'Max current supplied (A)': 'Courant max fourni (A)',
+  'Voltage': 'Tension',
+  'Current limit': 'Courant limite',
 
   // Propriétés du catalogue
   'Color': 'Couleur',

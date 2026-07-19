@@ -116,6 +116,11 @@ export function buildNets(diagram: Diagram, joinResistors = true): Nets {
 /** Niveau logique d'un net : 1 (haut/VCC), 0 (bas/GND) ou undefined (flottant). */
 export type Level = 0 | 1 | undefined;
 
+/** Alimentations de laboratoire du schéma (kind 'psu' — broches V+ / GND). */
+function psuParts(diagram: Diagram): Part[] {
+  return diagram.parts.filter((p) => partDef(p.type).kind === 'psu');
+}
+
 /** Microcontrôleurs présents dans le schéma, avec leur carte. */
 function mcuParts(diagram: Diagram): Array<{ part: Part; board: BoardId }> {
   const out: Array<{ part: Part; board: BoardId }> = [];
@@ -146,6 +151,13 @@ function netLevel(
       if (role.role === 'vcc') return 1;
       if (role.role === 'digital' && role.name) mcuLevel = readPin(role.name) ? 1 : 0;
     }
+  }
+  // Alimentation de laboratoire : V+ = rail haut, GND = masse. Le niveau est
+  // logique (binaire) — la TENSION réelle de l'alim est prise en compte par les
+  // calculs de courant (ledElectrical via ledPowerCircuit, psuLoadAmps).
+  for (const part of psuParts(diagram)) {
+    if (nets.netOf({ partId: part.id, pin: 'GND' }) === netId) return 0;
+    if (nets.netOf({ partId: part.id, pin: 'V+' }) === netId) return 1;
   }
   return mcuLevel;
 }
@@ -196,7 +208,8 @@ function minOhmsPath(
   from: string,
   targets: Set<string>,
   adj: Map<string, Array<{ to: string; ohms: number }>>,
-  avoid?: Set<string>
+  avoid?: Set<string>,
+  reached?: { net?: string }
 ): number | null {
   const dist = new Map<string, number>([[from, 0]]);
   const done = new Set<string>();
@@ -210,7 +223,10 @@ function minOhmsPath(
       }
     }
     if (cur === null) return null;
-    if (targets.has(cur)) return best;
+    if (targets.has(cur)) {
+      if (reached) reached.net = cur;
+      return best;
+    }
     done.add(cur);
     if (avoid?.has(cur)) continue;
     for (const e of adj.get(cur) ?? []) {
@@ -302,6 +318,12 @@ function resistiveGraph(diagram: Diagram, liveOhms?: (part: Part) => number | nu
       else digitalNets.add(net);
     }
   }
+  // Alimentations de laboratoire : V+ = rail haut, GND = masse (mêmes rôles que
+  // les broches d'alimentation des cartes dans tous les calculs résistifs).
+  for (const part of psuParts(diagram)) {
+    vccNets.add(nets.netOf({ partId: part.id, pin: 'V+' }));
+    gndNets.add(nets.netOf({ partId: part.id, pin: 'GND' }));
+  }
   return { nets, adj, digitalNets, vccNets, gndNets };
 }
 
@@ -313,12 +335,89 @@ function resistiveGraph(diagram: Diagram, liveOhms?: (part: Part) => number | nu
  * Retourne 0 si la LED est branchée en direct, null si le circuit est ouvert.
  */
 export function ledSeriesOhms(diagram: Diagram, ledId: string): number | null {
+  return ledPowerCircuit(diagram, ledId).ohms;
+}
+
+/**
+ * Circuit résistif d'une LED avec identification de la SOURCE atteinte :
+ * `ohms` comme ledSeriesOhms, plus `supplyVolts` = tension de l'alim de
+ * laboratoire si le chemin de l'anode aboutit au V+ d'une alim (tension live
+ * via `psuVolts(partId)`, à défaut l'attribut `voltage`) — null si la source
+ * est une broche de carte (tension = VCC de la carte, choisie par l'appelant).
+ */
+export function ledPowerCircuit(
+  diagram: Diagram,
+  ledId: string,
+  psuVolts?: (partId: string) => number | null
+): { ohms: number | null; supplyVolts: number | null } {
   const { nets, adj, digitalNets, vccNets, gndNets } = resistiveGraph(diagram);
   const type = partType(diagram, ledId);
   const src = new Set([...digitalNets, ...vccNets]);
-  const up = minOhmsPath(nets.netOf({ partId: ledId, pin: rolePin(type, 'A') }), src, adj);
+  const reached: { net?: string } = {};
+  const up = minOhmsPath(nets.netOf({ partId: ledId, pin: rolePin(type, 'A') }), src, adj, undefined, reached);
   const down = minOhmsPath(nets.netOf({ partId: ledId, pin: rolePin(type, 'C') }), gndNets, adj);
-  return up === null || down === null ? null : up + down;
+  if (up === null || down === null) return { ohms: null, supplyVolts: null };
+  let supplyVolts: number | null = null;
+  if (reached.net !== undefined) {
+    for (const psu of psuParts(diagram)) {
+      if (nets.netOf({ partId: psu.id, pin: 'V+' }) !== reached.net) continue;
+      const live = psuVolts?.(psu.id);
+      const v = live ?? Number(psu.attrs?.voltage ?? 0);
+      supplyVolts = Number.isFinite(v) ? v : 0;
+      break;
+    }
+  }
+  return { ohms: up + down, supplyVolts };
+}
+
+/** Courant considéré comme un court-circuit franc sur une alim (A). */
+const PSU_SHORT_AMPS = 99;
+/** Consommation forfaitaire d'un servomoteur alimenté par l'alim (A). */
+const PSU_SERVO_AMPS = 0.2;
+
+/**
+ * Courant total (A) débité par l'alim de laboratoire `psuId` réglée sur `volts`
+ * — approximation pédagogique, les consommateurs comptés sont :
+ *  - le pont résistif le plus direct V+ → masse (I = V/R ; fil direct = 99 A) ;
+ *  - chaque LED dont l'anode remonte au V+ de CETTE alim (I = (V − Vf)/R,
+ *    99 A si branchée en direct) ;
+ *  - chaque servomoteur dont la broche V+ est sur le rail de l'alim (0,2 A) ;
+ *  - `extraAmps` : consommateurs calculés par l'appelant (PCA9685…).
+ * `liveOhms` : valeur courante des résistances variables (curseurs de simulation).
+ */
+export function psuLoadAmps(
+  diagram: Diagram,
+  psuId: string,
+  volts: number,
+  liveOhms?: (part: Part) => number | null,
+  extraAmps = 0
+): number {
+  const { nets, adj, gndNets } = resistiveGraph(diagram, liveOhms);
+  const vplus = nets.netOf({ partId: psuId, pin: 'V+' });
+  let amps = extraAmps;
+  // Pont résistif direct V+ → masse (un fil V+↔GND fusionne les nets → 0 Ω).
+  const bridge = gndNets.has(vplus) ? 0 : minOhmsPath(vplus, gndNets, adj);
+  if (bridge !== null) amps += bridge <= 0.5 ? PSU_SHORT_AMPS : volts / bridge;
+  for (const part of diagram.parts) {
+    const kind = partDef(part.type).kind;
+    if (kind === 'led') {
+      const up = minOhmsPath(
+        nets.netOf({ partId: part.id, pin: rolePin(part.type, 'A') }),
+        new Set([vplus]),
+        adj
+      );
+      const down = minOhmsPath(nets.netOf({ partId: part.id, pin: rolePin(part.type, 'C') }), gndNets, adj);
+      if (up === null || down === null) continue;
+      const vf = LED_FORWARD_V[(part.attrs?.color ?? 'red').toLowerCase()] ?? 2.0;
+      const drop = volts - vf;
+      if (drop <= 0) continue;
+      const ohms = up + down;
+      amps += ohms <= 0 ? PSU_SHORT_AMPS : Math.min(PSU_SHORT_AMPS, drop / ohms);
+    } else if (kind === 'servo') {
+      if (nets.netOf({ partId: part.id, pin: 'V+' }) === vplus) amps += PSU_SERVO_AMPS;
+    }
+  }
+  return amps;
 }
 
 /**
@@ -1099,6 +1198,9 @@ function netHasGnd(diagram: Diagram, nets: Nets, netId: string): boolean {
       if (mcuPinRole(board, pin).role === 'gnd') return true;
     }
   }
+  for (const part of psuParts(diagram)) {
+    if (nets.netOf({ partId: part.id, pin: 'GND' }) === netId) return true;
+  }
   return false;
 }
 
@@ -1108,6 +1210,9 @@ function netHasVcc(diagram: Diagram, nets: Nets, netId: string): boolean {
       if (nets.netOf({ partId: part.id, pin }) !== netId) continue;
       if (mcuPinRole(board, pin).role === 'vcc') return true;
     }
+  }
+  for (const part of psuParts(diagram)) {
+    if (nets.netOf({ partId: part.id, pin: 'V+' }) === netId) return true;
   }
   return false;
 }

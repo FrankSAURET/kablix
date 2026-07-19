@@ -1,0 +1,216 @@
+// Vérifie l'alimentation de laboratoire (kablix-alim, kind 'psu') :
+//  - netlist : V+ = rail VCC / GND = masse (une LED s'allume sans carte),
+//    ledPowerCircuit remonte la TENSION de l'alim (attr puis live) ;
+//  - psuLoadAmps : courant débité (LED, pont résistif, court-circuit, servo) ;
+//  - catalogue : rangée dans Divers, propriétés tension / courant max ;
+//  - rendu réel en Chrome headless : dessin, affichage LED Board-7, rotation du
+//    bouton (0-30 V sur 300°), drag rotatif en simulation, LED courant limite,
+//    libellés traduisibles, broches sur pastilles.
+import esbuild from 'esbuild';
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+const root = fileURLToPath(new URL('..', import.meta.url));
+const tmp = mkdtempSync(join(tmpdir(), 'kablix-psu-'));
+const buildTo = async (entry, outfile) => {
+  await esbuild.build({
+    entryPoints: [join(root, entry)],
+    outfile: join(tmp, outfile),
+    bundle: true,
+    platform: 'node',
+    format: 'esm',
+    loader: { '.svg': 'text' },
+    logLevel: 'silent',
+  });
+  return import(pathToFileURL(join(tmp, outfile)).href);
+};
+const { ledOn, ledPowerCircuit, psuLoadAmps } = await buildTo('src/webview/diagram/model.mts', 'model.mjs');
+const { partDef, partCategory } = await buildTo('src/webview/diagram/catalog.mts', 'catalog.mjs');
+
+let failures = 0;
+const check = (label, ok) => {
+  console.log(`${ok ? '✅' : '❌'} ${label}`);
+  if (!ok) failures++;
+};
+const near = (a, b, eps = 1e-6) => a !== null && a !== undefined && Math.abs(a - b) < eps * Math.max(1, Math.abs(b));
+
+// --- Catalogue -----------------------------------------------------------------
+const def = partDef('alim');
+check('catalogue : alim = kablix-alim, kind psu, catégorie Divers',
+  def.tag === 'kablix-alim' && def.kind === 'psu' && partCategory(def) === 'Divers');
+check('catalogue : propriétés voltage (0-30) et maxcurrent',
+  def.props?.some((p) => p.attr === 'voltage' && p.max === 30) &&
+  def.props?.some((p) => p.attr === 'maxcurrent'));
+
+// --- Netlist : l'alim est une source -------------------------------------------
+const ALIM = (v = '5', i = '1') => ({ id: 'psu1', type: 'alim', x: 0, y: 0, attrs: { voltage: v, maxcurrent: i } });
+const R = (id, value) => ({ id, type: 'resistor', x: 0, y: 0, attrs: { value: String(value) } });
+const LED = (id, color = 'red') => ({ id, type: 'led', x: 0, y: 0, attrs: { color } });
+const W = (id, a, b) => ({ id, a, b });
+
+// LED + résistance sur l'alim SEULE (aucune carte dans le schéma).
+const ledDiag = {
+  parts: [ALIM(), R('r1', 220), LED('led1')],
+  wires: [
+    W('w1', { partId: 'psu1', pin: 'V+' }, { partId: 'r1', pin: '1' }),
+    W('w2', { partId: 'r1', pin: '2' }, { partId: 'led1', pin: 'A' }),
+    W('w3', { partId: 'led1', pin: 'C' }, { partId: 'psu1', pin: 'GND' }),
+  ],
+};
+check('LED sur alim seule : allumée (V+ = rail haut, GND = masse)',
+  ledOn(ledDiag, 'led1', () => false) === true);
+const circ = ledPowerCircuit(ledDiag, 'led1');
+check('ledPowerCircuit : 220 Ω en série, tension = attr voltage (5 V)',
+  near(circ.ohms, 220) && near(circ.supplyVolts, 5));
+const circLive = ledPowerCircuit(ledDiag, 'led1', (id) => (id === 'psu1' ? 12 : null));
+check('ledPowerCircuit : tension LIVE du bouton (12 V) prioritaire', near(circLive.supplyVolts, 12));
+
+// LED alimentée par la carte : supplyVolts null (l'appelant prend le VCC carte).
+const unoDiag = {
+  parts: [{ id: 'uno', type: 'uno', x: 0, y: 0 }, R('r1', 220), LED('led1')],
+  wires: [
+    W('w1', { partId: 'uno', pin: '5V' }, { partId: 'r1', pin: '1' }),
+    W('w2', { partId: 'r1', pin: '2' }, { partId: 'led1', pin: 'A' }),
+    W('w3', { partId: 'led1', pin: 'C' }, { partId: 'uno', pin: 'GND.1' }),
+  ],
+};
+const circUno = ledPowerCircuit(unoDiag, 'led1');
+check('ledPowerCircuit : source = carte → supplyVolts null', near(circUno.ohms, 220) && circUno.supplyVolts === null);
+
+// --- Courant débité (psuLoadAmps) ----------------------------------------------
+check('charge : LED rouge + 220 Ω sous 5 V → ≈ 14,5 mA',
+  near(psuLoadAmps(ledDiag, 'psu1', 5), (5 - 1.8) / 220, 1e-3));
+check('charge : LED bleue (Vf 3 V) sous 2,5 V → 0 A (ne conduit pas)',
+  psuLoadAmps({ ...ledDiag, parts: [ALIM(), R('r1', 220), LED('led1', 'blue')] }, 'psu1', 2.5) === 0);
+const bridgeDiag = {
+  parts: [ALIM(), R('r1', 1000)],
+  wires: [
+    W('w1', { partId: 'psu1', pin: 'V+' }, { partId: 'r1', pin: '1' }),
+    W('w2', { partId: 'r1', pin: '2' }, { partId: 'psu1', pin: 'GND' }),
+  ],
+};
+check('charge : pont 1 kΩ V+→GND sous 10 V → 10 mA', near(psuLoadAmps(bridgeDiag, 'psu1', 10), 0.01));
+const shortDiag = {
+  parts: [ALIM()],
+  wires: [W('w1', { partId: 'psu1', pin: 'V+' }, { partId: 'psu1', pin: 'GND' })],
+};
+check('charge : fil direct V+→GND = court-circuit (99 A)', psuLoadAmps(shortDiag, 'psu1', 5) >= 99);
+const directLed = {
+  parts: [ALIM(), LED('led1')],
+  wires: [
+    W('w1', { partId: 'psu1', pin: 'V+' }, { partId: 'led1', pin: 'A' }),
+    W('w2', { partId: 'led1', pin: 'C' }, { partId: 'psu1', pin: 'GND' }),
+  ],
+};
+check('charge : LED branchée en direct → 99 A (grillera)', psuLoadAmps(directLed, 'psu1', 5) >= 99);
+const servoDiag = {
+  parts: [ALIM(), { id: 'sv1', type: 'servo', x: 0, y: 0 }, { id: 'sv2', type: 'servo', x: 0, y: 0 }],
+  wires: [
+    W('w1', { partId: 'psu1', pin: 'V+' }, { partId: 'sv1', pin: 'V+' }),
+    W('w2', { partId: 'sv1', pin: 'V+' }, { partId: 'sv2', pin: 'V+' }),
+    W('w3', { partId: 'psu1', pin: 'GND' }, { partId: 'sv1', pin: 'GND' }),
+  ],
+};
+check('charge : 2 servos sur le rail V+ → 0,4 A', near(psuLoadAmps(servoDiag, 'psu1', 5), 0.4));
+check('charge : extraAmps ajouté tel quel', near(psuLoadAmps(servoDiag, 'psu1', 5, undefined, 0.25), 0.65));
+
+// --- Rendu réel (Chrome headless) ----------------------------------------------
+const CACHE = join(root, 'node_modules', '.cache-psu');
+mkdirSync(CACHE, { recursive: true });
+const entry = `
+import '../../src/webview/composants/alim-element.mjs';
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+async function run() {
+	const el = document.createElement('kablix-alim');
+	el.setAttribute('voltage', '12.5');
+	document.body.appendChild(el);
+	await wait(80);
+	const sh = el.shadowRoot;
+	const svg = sh.querySelector('svg');
+	const res = {};
+	res.drawn = sh.querySelectorAll('[id^="alim-"]').length > 10;
+	const box = svg.getBoundingClientRect();
+	res.size = [Math.round(box.width), Math.round(box.height)];
+	res.pins = el.pinInfo.map((p) => p.name + '@' + p.x + ',' + p.y).join(' ');
+	res.display = (sh.querySelector('#alim-Text-Affichage tspan') || sh.querySelector('#alim-Text-Affichage')).textContent;
+	res.rot125 = sh.querySelector('#alim-bouton-rot').style.transform;
+	// Libellés traduisibles (défaut anglais dans ce banc).
+	res.labelTension = sh.querySelector('#alim-text-tension tspan').textContent;
+	res.labelLimite = [...sh.querySelectorAll('#alim-text-courant-limite tspan')].map((n) => n.textContent).join('/');
+	// Bouton inerte HORS simulation.
+	const ctm = svg.getScreenCTM();
+	const at = (deg) => {
+		const rad = (deg * Math.PI) / 180;
+		return new DOMPoint(240.91 + 30 * Math.cos(rad), 62.79 + 30 * Math.sin(rad)).matrixTransform(ctm);
+	};
+	const zone = svg.querySelector(':scope > circle');
+	const drag = (deg) => {
+		const p = at(deg);
+		zone.dispatchEvent(new PointerEvent('pointerdown', { clientX: p.x, clientY: p.y, bubbles: true }));
+		window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+	};
+	drag(320); // 20 V… mais hors simulation : ne doit rien faire
+	res.voltsEdit = el.volts;
+	// EN SIMULATION : la tension repart de l'attribut puis suit le drag.
+	el.setAttribute('simulating', '');
+	await wait(20);
+	res.voltsStart = el.volts;
+	let inputSeen = false;
+	el.addEventListener('input', () => { inputSeen = true; });
+	drag(320); // 120° (zéro du cadran) + 200° → 20 V
+	res.voltsDragged = el.volts;
+	res.inputSeen = inputSeen;
+	res.displayDragged = (sh.querySelector('#alim-Text-Affichage tspan') || sh.querySelector('#alim-Text-Affichage')).textContent;
+	// LED courant limite (le navigateur normalise #ff2020 en rgb(255, 32, 32)).
+	el.overAmps = true;
+	const led = sh.querySelector('#alim-LED-courant-limite');
+	res.ledOver = led.style.fill === 'rgb(255, 32, 32)' && led.style.filter.includes('drop-shadow');
+	el.overAmps = false;
+	res.ledOff = led.style.fill !== 'rgb(255, 32, 32)';
+	// Sortie de simulation : retour à la tension de démarrage.
+	el.removeAttribute('simulating');
+	await wait(20);
+	res.voltsReset = el.volts;
+	const out = document.createElement('pre');
+	out.id = 'measures';
+	out.textContent = JSON.stringify(res);
+	document.body.appendChild(out);
+}
+run();
+`;
+writeFileSync(join(CACHE, 'e.mjs'), entry);
+const b = await esbuild.build({ entryPoints: [join(CACHE, 'e.mjs')], bundle: true, format: 'iife', write: false, loader: { '.svg': 'text' }, absWorkingDir: root, logLevel: 'silent' });
+writeFileSync(join(CACHE, 'p.html'), `<!doctype html><meta charset=utf8><body><script>${b.outputFiles[0].text}</script></body>`);
+const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
+if (chrome) {
+  const dom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--no-sandbox', '--virtual-time-budget=15000', '--dump-dom', `file:///${join(CACHE, 'p.html').replace(/\\/g, '/')}`], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  const m = dom.match(/<pre id="measures"[^>]*>([^<]+)<\/pre>/);
+  if (!m) {
+    check('rendu headless : mesures produites', false);
+  } else {
+    const r = JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&'));
+    check('rendu : dessin de Frank présent (ids alim-)', r.drawn === true);
+    check('rendu : 280×110 px (1:1 viewBox)', r.size[0] === 280 && r.size[1] === 110);
+    check('rendu : broches V+@95.65,92.87 GND@115.65,92.87', r.pins === 'V+@95.65,92.87 GND@115.65,92.87');
+    check('rendu : écran suit l’attribut voltage (12,50)', r.display === '12,50');
+    check('rendu : bouton tourné de 125° à 12,5 V (10°/V)', r.rot125 === 'rotate(125deg)');
+    check('rendu : libellés traduisibles (Voltage / Current limit)',
+      r.labelTension === 'Voltage' && r.labelLimite === 'Current/limit');
+    check('rendu : bouton INERTE hors simulation', near(r.voltsEdit, 12.5));
+    check('rendu : entrée en simulation → tension de démarrage', near(r.voltsStart, 12.5));
+    check('rendu : drag à 320° du cadran → 20 V + événement input',
+      near(r.voltsDragged, 20, 0.02) && r.inputSeen === true);
+    check('rendu : écran suit le drag (20,00)', r.displayDragged === '20,00');
+    check('rendu : LED courant limite rouge vif + halo', r.ledOver === true);
+    check('rendu : LED restaurée (fin de surcourant)', r.ledOff === true);
+    check('rendu : sortie de simulation → tension de démarrage', near(r.voltsReset, 12.5));
+  }
+} else {
+  console.log('⚠️ Chrome introuvable : rendu headless sauté');
+}
+
+console.log(failures === 0 ? '\nverify:psu OK' : `\n${failures} échec(s)`);
+process.exit(failures === 0 ? 0 : 1);

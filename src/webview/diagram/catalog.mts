@@ -31,6 +31,7 @@ export type PartKind =
   | 'neopixel'
   | 'breadboard'
   | 'grove-shield'
+  | 'psu'
   | 'display'
   | 'passive';
 
@@ -465,6 +466,18 @@ export const CATALOG: readonly PartDef[] = [
     simControl: true, attrs: { temperature: '22', humidity: '50' },
     props: [],
   },
+  // Alimentation de laboratoire (dessin de Frank) : source V+/GND réglable.
+  // `voltage` = tension de DÉMARRAGE ; en simulation le bouton du dessin la fait
+  // varier de 0 à 30 V (300° de rotation) et la LED « Courant limite » s'allume
+  // si le courant débité (psuLoadAmps, model.mts) dépasse `maxcurrent`.
+  {
+    type: 'alim', label: 'Bench power supply', tag: 'kablix-alim', kind: 'psu',
+    simControl: true, attrs: { voltage: '5', maxcurrent: '1' },
+    props: [
+      { attr: 'voltage', label: 'Voltage (V)', kind: 'number', min: 0, max: 30, step: 0.1 },
+      { attr: 'maxcurrent', label: 'Max current supplied (A)', kind: 'number', min: 0.1, max: 10, step: 0.1 },
+    ],
+  },
   // Clavier matriciel à membrane (3 ou 4 colonnes). Interactif : une touche
   // enfoncée court-circuite ligne/colonne (lecture matricielle simulée).
   {
@@ -506,7 +519,8 @@ export function partCategory(def: PartDef): string {
       return 'Passive'; // « Discrets » (composants discrets : R, LED…)
     case 'spi-sd':
     case 'i2c-pwm':
-      return 'Divers'; // modules divers (carte SD…)
+    case 'psu':
+      return 'Divers'; // modules divers (carte SD, alim de laboratoire…)
     case 'pushbutton':
     case 'potentiometer':
     case 'slide-switch':

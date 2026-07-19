@@ -44,6 +44,7 @@ import './composants/membrane-keypad-element.mjs';
 import './composants/pico-board.mjs';
 import './composants/breadboard.mjs';
 import './composants/grove-shield-element.mjs';
+import './composants/alim-element.mjs';
 import './composants/custom-part.mjs';
 
 import { initLocale, t } from './i18n.mjs';
@@ -55,8 +56,9 @@ import { toWokwiDiagram, fromWokwiDiagram } from './diagram/wokwi.mjs';
 import {
   ledOn,
   ledMcuPin,
-  ledSeriesOhms,
+  ledPowerCircuit,
   ledElectrical,
+  psuLoadAmps,
   rgbSeriesOhms,
   sevenSegSeriesOhms,
   ledBarSeriesOhms,
@@ -640,6 +642,22 @@ try {
   /* API Font Loading absente : repli sur la police à chasse fixe */
 }
 
+/** Valeur courante (Ω) d'une résistance variable nue — curseur du composant en
+ *  simulation ; null si l'élément est absent (repli : point de repos des attrs). */
+function liveVariableOhms(part: Part): number | null {
+  if (!VARIABLE_RESISTOR_TYPES.has(part.type)) return null;
+  const el = editor.elementOf(part.id);
+  const x = Number((part.type === 'ldr' ? el?.lux : el?.temperature) ?? NaN);
+  if (!Number.isFinite(x)) return null;
+  return variableResistorOhms(part.type, x, part.attrs);
+}
+
+/** Tension courante (V) d'une alim de laboratoire (bouton du dessin en direct). */
+function psuLiveVolts(psuId: string): number | null {
+  const v = Number(editor.elementOf(psuId)?.volts);
+  return Number.isFinite(v) ? v : null;
+}
+
 function refreshVisuals(): void {
   if (!engine) return;
   const read = (name: string): boolean => engine!.readDigital(name);
@@ -670,8 +688,11 @@ function refreshVisuals(): void {
         // voire nulle. Le duty PWM ne protège pas du courant de crête.
         const conducts = on || (duty !== undefined && duty > 0.001);
         if (conducts && !burnedLeds.has(part.id)) {
-          const vs = boardFamily(board) === 'rp2040' ? 3.3 : 5;
-          const elec = ledElectrical(ledSeriesOhms(editor.diagram, part.id), vs, part.attrs?.color);
+          // Tension de la source : celle de l'alim de laboratoire si le chemin
+          // de l'anode y aboutit (bouton relu en direct), sinon VCC de la carte.
+          const circ = ledPowerCircuit(editor.diagram, part.id, psuLiveVolts);
+          const vs = circ.supplyVolts ?? (boardFamily(board) === 'rp2040' ? 3.3 : 5);
+          const elec = ledElectrical(circ.ohms, vs, part.attrs?.color);
           if (elec.overCurrent) burnedLeds.add(part.id);
           else ledLumFactor.set(part.id, elec.lum);
         }
@@ -745,6 +766,16 @@ function refreshVisuals(): void {
         } else {
           buzzerAudio.clear(part.id);
         }
+        break;
+      }
+      case 'psu': {
+        // Alim de laboratoire : LED « Courant limite » (rouge vif + halo) quand
+        // le courant débité — approximation psuLoadAmps, résistances variables
+        // au curseur — dépasse le courant max de l'inspecteur. Tension relue en
+        // direct sur le bouton du dessin (el.volts).
+        const volts = Number(el.volts ?? part.attrs?.voltage ?? 0) || 0;
+        const maxAmps = Math.max(0.05, Number(part.attrs?.maxcurrent ?? 1) || 1);
+        el.overAmps = psuLoadAmps(editor.diagram, part.id, volts, liveVariableOhms) > maxAmps;
         break;
       }
       case '7segment': {
@@ -1421,15 +1452,8 @@ function bindInputs(): void {
   // (R1lx, γ, R25, B, tc…) viennent de l'inspecteur.
   const varResistors = editor.diagram.parts.filter((p) => VARIABLE_RESISTOR_TYPES.has(p.type));
   if (varResistors.length > 0) {
-    const liveOhms = (part: Part): number | null => {
-      if (!VARIABLE_RESISTOR_TYPES.has(part.type)) return null;
-      const el = editor.elementOf(part.id);
-      const x = Number((part.type === 'ldr' ? el?.lux : el?.temperature) ?? NaN);
-      if (!Number.isFinite(x)) return null; // élément absent : point de repos des attrs
-      return variableResistorOhms(part.type, x, part.attrs);
-    };
     const apply = () => {
-      for (const b of adcDividerLevels(editor.diagram, liveOhms)) {
+      for (const b of adcDividerLevels(editor.diagram, liveVariableOhms)) {
         engine?.setAnalog(b.mcuPin, b.level);
       }
     };

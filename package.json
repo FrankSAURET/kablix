@@ -1,7 +1,7 @@
 {
   "name": "kablix",
   "displayName": "Kablix",
-  "version": "2026.7.114",
+  "version": "2026.7.115",
   "description": "%kablix.description%",
   "publisher": "franksauret",
   "author": {
@@ -173,7 +173,7 @@
     "verify:neopixel": "node scripts/verify-neopixel.mjs",
     "verify:creator": "node scripts/verify-creator.mjs",
     "verify:debug": "node scripts/verify-debug-py.mjs",
-    "verify:all": "npm run verify && npm run verify:compiler && npm run verify:diagram && npm run verify:uf2 && npm run verify:micropython && npm run verify:wokwi && npm run verify:net && npm run verify:i2c && npm run verify:components && npm run verify:spi && npm run verify:neopixel && npm run verify:creator && npm run verify:debug && npm run verify:plotter && npm run verify:simshift && npm run verify:led && npm run verify:divider && npm run verify:selection && npm run verify:align && npm run verify:route && npm run verify:keypad && npm run verify:grove",
+    "verify:all": "npm run verify && npm run verify:compiler && npm run verify:diagram && npm run verify:uf2 && npm run verify:micropython && npm run verify:wokwi && npm run verify:net && npm run verify:i2c && npm run verify:components && npm run verify:spi && npm run verify:neopixel && npm run verify:creator && npm run verify:debug && npm run verify:plotter && npm run verify:simshift && npm run verify:led && npm run verify:divider && npm run verify:selection && npm run verify:align && npm run verify:route && npm run verify:keypad && npm run verify:grove && npm run verify:psu",
     "package": "vsce package --no-dependencies",
     "verify:plotter": "node scripts/verify-plotter.mjs",
     "verify:simshift": "node scripts/verify-simshift.mjs",
@@ -183,7 +183,8 @@
     "verify:align": "node scripts/verify-align.mjs",
     "verify:route": "node scripts/verify-route.mjs",
     "verify:keypad": "node scripts/verify-keypad.mjs",
-    "verify:grove": "node scripts/verify-grove.mjs"
+    "verify:grove": "node scripts/verify-grove.mjs",
+    "verify:psu": "node scripts/verify-psu.mjs"
   },
   "dependencies": {
     "@xmldom/xmldom": "^0.9.10",
