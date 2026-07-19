@@ -3100,6 +3100,18 @@ export class Editor {
       rectEl.style.height = `${h}px`;
       this.selectedParts = new Set([...baseSet, ...this.partsInRect(x, y, w, h)]);
       this.setPartHighlight();
+      // Câbles pris dans la boîte : marqués sélectionnés (item de Frank — un
+      // marquee ne marquait que les composants). Un fil ne sert de rectangle
+      // à coudes que s'il était DÉJÀ le seul sélectionné (wireId) : dans ce
+      // mode-là on ne rafle pas de fils.
+      if (!wireId) {
+        const next = this.wiresInRect(x, y, w, h);
+        for (const id of this.selectedWires) {
+          if (!next.has(id)) this.setWireHighlight(id, false);
+        }
+        for (const id of next) this.setWireHighlight(id, true);
+        this.selectedWires = next;
+      }
     };
     const up = (): void => {
       window.removeEventListener('pointermove', move);
@@ -3127,7 +3139,18 @@ export class Editor {
         }
       }
       const members = [...this.selectedParts];
-      this.selection = members.length === 1 ? { kind: 'part', id: members[0] } : null;
+      // Un seul composant et aucun câble : sélection simple (inspecteur du
+      // composant). Sinon (plusieurs composants, ou des câbles) : pas de
+      // sélection unique — l'inspecteur montre le lot (composants ou câbles).
+      const soleWireSelection = members.length === 0 && this.selectedWires.size > 0;
+      this.selection = members.length === 1 && this.selectedWires.size === 0
+        ? { kind: 'part', id: members[0] }
+        : null;
+      // Ré-affirme le surlignage des câbles pris (idempotent) : robuste à tout
+      // repositionnement de fil survenu pendant le glissé de la boîte.
+      if (soleWireSelection || this.selectedWires.size > 0) {
+        for (const id of this.selectedWires) this.setWireHighlight(id, true);
+      }
       this.renderInspector();
     };
     window.addEventListener('pointermove', move);
@@ -3147,6 +3170,24 @@ export class Editor {
       const ph = body?.offsetHeight || 40;
       if (r.part.x >= x && r.part.x + pw <= x + w && r.part.y >= y && r.part.y + ph <= y + h) {
         ids.push(id);
+      }
+    }
+    return ids;
+  }
+
+  /**
+   * Fils VISIBLES dont les DEUX extrémités tombent dans le rectangle (coords
+   * monde) : le câble entier est alors dans la boîte. Fils `auto` (invisibles)
+   * exclus.
+   */
+  private wiresInRect(x: number, y: number, w: number, h: number): Set<string> {
+    const ids = new Set<string>();
+    const inside = (p: XY | null): boolean =>
+      p !== null && p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h;
+    for (const wire of this.diagram.wires) {
+      if (wire.auto) continue;
+      if (inside(this.hotspotCenter(wire.a)) && inside(this.hotspotCenter(wire.b))) {
+        ids.add(wire.id);
       }
     }
     return ids;

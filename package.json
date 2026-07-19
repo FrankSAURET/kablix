@@ -1,7 +1,7 @@
 {
   "name": "kablix",
   "displayName": "Kablix",
-  "version": "2026.7.118",
+  "version": "2026.7.119",
   "description": "%kablix.description%",
   "publisher": "franksauret",
   "author": {
@@ -159,6 +159,12 @@
           "type": "boolean",
           "default": true,
           "description": "%kablix.config.picowNetworkBridge%"
+        },
+        "kablix.selectionColor": {
+          "type": "string",
+          "default": "#e973e9",
+          "pattern": "^#[0-9a-fA-F]{6}$",
+          "description": "%kablix.config.selectionColor%"
         }
       }
     }

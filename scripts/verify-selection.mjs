@@ -194,6 +194,73 @@ async function run() {
 	ok('bulle : retirée à la fin du câblage', !document.querySelector('.pin-bubble'));
 	ok('bulle : title natif restauré', hotspotOf(led2.id, 'A').title.length > 0);
 
+	// --- 11. Couleur de sélection --kx-select (v2026.7.119) ---------------------
+	// On repart d'un schéma propre : le fil de la section 8 a été supprimé et la
+	// section 10 (bulle) a pu créer un fil parasite → on efface tout et on en
+	// recrée UN seul.
+	editor.select(null);
+	for (const w of [...editor.diagram.wires]) editor.removeWire(w.id);
+	await wait(10);
+	editor.addWire({ partId: led1.id, pin: 'A' }, { partId: led2.id, pin: 'C' },
+		{ points: [{ x: 200, y: 60 }], color: 'green' });
+	editor.redrawWires();
+	await wait(20);
+	const wpath = svg.querySelector('path.wire');
+	// Défaut vif #e973e9 = rgb(233,115,233) : le fil sélectionné en porte le halo.
+	clickSelect(wpath);
+	await wait(20);
+	const rose = 'rgb(233, 115, 233)';
+	const wFilter = getComputedStyle(wpath).filter;
+	ok('couleur : halo du fil = --kx-select rose par défaut (#e973e9)',
+		wFilter.includes(rose) || wFilter.includes('#e973e9') || wFilter.toLowerCase().includes('e973e9'), 'filter=' + wFilter);
+	// Variable surchargée sur :root → le halo suit la nouvelle couleur.
+	document.documentElement.style.setProperty('--kx-select', '#00ff00');
+	await wait(10);
+	ok('couleur : réglable (--kx-select #00ff00 → halo vert)',
+		getComputedStyle(wpath).filter.includes("rgb(0, 255, 0)"));
+	document.documentElement.style.removeProperty('--kx-select');
+	editor.select(null);
+	await wait(10);
+
+	// --- 12. Boîte de sélection (marquee) : les CÂBLES sont marqués (v2026.7.119) -
+	// On travaille en coords CLIENT (écran) : positions réelles des pastilles des
+	// extrémités du fil, pour que le marquee (qui reconvertit via canvasPoint,
+	// pan/zoom compris) englobe bien le câble.
+	const dotOf = (ep) => editor.rendered.get(ep.partId).hotspots.get(ep.pin).getBoundingClientRect();
+	const dA = dotOf(editor.diagram.wires[0].a), dB = dotOf(editor.diagram.wires[0].b);
+	const aX = dA.left + dA.width / 2, aY = dA.top + dA.height / 2;
+	const bX = dB.left + dB.width / 2, bY = dB.top + dB.height / 2;
+	const cMin = { x: Math.min(aX, bX) - 40, y: Math.min(aY, bY) - 60 };
+	const cMax = { x: Math.max(aX, bX) + 40, y: Math.max(aY, bY) + 60 };
+	// Coords monde pour le contrôle direct de wiresInRect (via canvasPoint).
+	const aC = editor.hotspotCenter(editor.diagram.wires[0].a);
+	const bC = editor.hotspotCenter(editor.diagram.wires[0].b);
+	const boxMinX = Math.min(aC.x, bC.x) - 40, boxMaxX = Math.max(aC.x, bC.x) + 40;
+	const boxMinY = Math.min(aC.y, bC.y) - 60, boxMaxY = Math.max(aC.y, bC.y) + 60;
+	// Marquee englobant les 2 extrémités → le câble est pris.
+	pdown(canvas, { clientX: cMin.x, clientY: cMin.y });
+	window.dispatchEvent(new PointerEvent('pointermove', { clientX: cMin.x + 10, clientY: cMin.y + 10, bubbles: true }));
+	window.dispatchEvent(new PointerEvent('pointermove', { clientX: (cMin.x + cMax.x) / 2, clientY: (cMin.y + cMax.y) / 2, bubbles: true }));
+	window.dispatchEvent(new PointerEvent('pointermove', { clientX: cMax.x, clientY: cMax.y, bubbles: true }));
+	await wait(10);
+	const wSelDuringMarquee = !!svg.querySelector('path.wire.wire--selected');
+	pup();
+	await wait(20);
+	ok('marquee : le câble entièrement encadré est marqué wire--selected',
+		wSelDuringMarquee || !!svg.querySelector('path.wire.wire--selected'));
+	// Contre-épreuve : boîte qui ne couvre qu'UNE extrémité → fil non pris.
+	editor.select(null);
+	await wait(10);
+	const midCX = (aX + bX) / 2;
+	pdown(canvas, { clientX: Math.min(aX, bX) - 40, clientY: cMin.y });
+	window.dispatchEvent(new PointerEvent('pointermove', { clientX: Math.min(aX, bX) - 30, clientY: cMin.y + 10, bubbles: true }));
+	window.dispatchEvent(new PointerEvent('pointermove', { clientX: midCX, clientY: cMax.y, bubbles: true }));
+	await wait(10);
+	const partialSel = svg.querySelector('path.wire')?.classList.contains('wire--selected');
+	pup();
+	await wait(10);
+	ok('marquee : fil à cheval sur le bord NON pris (extrémité hors boîte)', !partialSel);
+
 	const out = document.createElement('pre');
 	out.id = 'measures';
 	out.textContent = JSON.stringify(checks);

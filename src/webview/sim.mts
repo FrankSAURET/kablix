@@ -272,8 +272,19 @@ let breakpoints: Breakpoint[] = []; // points d'arrêt envoyés par l'extension 
 // simulation déclenche d'abord une compilation automatique du fichier de code.
 let programLoaded = false;
 
+/** Fait clignoter 3 fois la zone de statut à l'apparition d'un message (la zone
+ *  est déjà mise en valeur — badge d'accent ; l'animation attire l'œil). */
+const blinkStatus = (): void => {
+  statusEl.classList.remove('status--flash');
+  void statusEl.offsetWidth; // reflow : relance l'animation même si le texte est identique
+  statusEl.classList.add('status--flash');
+};
+statusEl.addEventListener('animationend', () => statusEl.classList.remove('status--flash'));
+
 const setStatus = (text: string): void => {
+  const changed = statusEl.textContent !== text;
   statusEl.textContent = text;
+  if (changed) blinkStatus();
 };
 
 /** Message de statut TEMPORAIRE (ex. « Projet sauvegardé ») : affiché 3 s puis
@@ -283,6 +294,7 @@ const flashStatus = (text: string): void => {
   clearTimeout(flashTimer);
   const previous = statusEl.textContent ?? '';
   statusEl.textContent = text;
+  blinkStatus();
   flashTimer = setTimeout(() => {
     if (statusEl.textContent === text) statusEl.textContent = previous;
   }, 3000);

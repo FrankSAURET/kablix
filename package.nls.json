@@ -19,5 +19,6 @@
   "kablix.config.toolchainPath": "Extra folder searched for the compilation tools (arduino-cli, avr-gcc, arm-none-eabi-gcc, objcopy, objdump). Useful for a portable toolchain that is not on the PATH. Leave empty to use the PATH only.",
   "kablix.config.showLoadBinaryButton": "Show the \"Load binary\" button in the simulator toolbar (loads an already-compiled .hex/.uf2 from the workspace without recompiling). Hidden by default.",
   "kablix.config.picowNetworkBridge": "Pico W: let MicroPython scripts make REAL HTTP requests (network/urequests) tunneled through the host (the Wi-Fi chip is not emulated). The host performs the actual fetch and returns the response to the script. On by default; turn off to block all outbound requests from simulated scripts.",
-  "kablix.editor.projix": "Kablix simulator"
+  "kablix.editor.projix": "Kablix simulator",
+  "kablix.config.selectionColor": "Selection color (parts, wires, bends). Any #rrggbb hex color. Kept vivid by default so it stays visible on all themes."
 }

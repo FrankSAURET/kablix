@@ -1099,6 +1099,12 @@ export class SimulatorPanel {
     const nonce = getNonce();
     const version =
       vscode.extensions.getExtension('franksauret.kablix')?.packageJSON?.version ?? '';
+    // Couleur de sélection réglable (composants/fils/coudes) : posée en variable
+    // CSS --kx-select. Défaut vif (#e973e9) pour rester visible sur tout thème.
+    const rawSelColor = vscode.workspace
+      .getConfiguration('kablix')
+      .get<string>('selectionColor', '#e973e9');
+    const selColor = /^#[0-9a-fA-F]{6}$/.test(rawSelColor ?? '') ? rawSelColor : '#e973e9';
     const csp = [
       `default-src 'none'`,
       // Les composants Lit injectent des styles dans leur
@@ -1117,6 +1123,7 @@ export class SimulatorPanel {
   <meta http-equiv="Content-Security-Policy" content="${csp}" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link href="${styleUri}" rel="stylesheet" />
+  <style>:root { --kx-select: ${selColor}; }</style>
   <title>Kablix</title>
 </head>
 <body>
