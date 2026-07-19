@@ -465,7 +465,15 @@ export class AvrEngine implements SimEngine {
         twi.completeStop();
       },
       connectToSlave: (addr: number) => {
-        current = devices.find((d) => d.address === addr) ?? null;
+        // General Call (0x00) : dirigé vers le 1er device qui l'accepte (SWRST
+        // du PCA9685), sinon NAK. Symétrique du routage Pico.
+        if (addr === 0) {
+          current = devices.find((d) => d.generalCall) ?? null;
+          current?.setGeneralCall?.(true);
+        } else {
+          current = devices.find((d) => d.address === addr) ?? null;
+          current?.setGeneralCall?.(false);
+        }
         twi.completeConnect(current !== null); // ACK seulement si l'adresse existe
       },
       writeByte: (value: number) => {

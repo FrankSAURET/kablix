@@ -471,8 +471,18 @@ export const CATALOG: readonly PartDef[] = [
   // gauche (connecteur Grove), bornier V+/GND à droite — SANS alim de
   // laboratoire 5 V au courant suffisant sur ce bornier, les sorties ne bougent
   // pas (pca9685PowerState, model.mts). Simulé par Pca9685Device (trames I²C
-  // réelles → 16 rapports cycliques).
-  { type: 'pca9685', label: '16-channel PWM driver (PCA9685)', tag: 'kablix-pca9685', kind: 'i2c-pwm', attrs: { address: '0x40' } },
+  // réelles → 16 rapports cycliques). Adresse par défaut 0x7F : la carte Grove
+  // 108020102 sort d'usine avec tous ses pads d'adresse HAUTS (contrairement au
+  // PCA9685 nu Adafruit à 0x40). Réglable dans l'inspecteur (0x40..0x7F).
+  {
+    type: 'pca9685', label: '16-channel PWM driver (PCA9685)', tag: 'kablix-pca9685', kind: 'i2c-pwm',
+    attrs: { address: '0x7F' },
+    props: [{
+      attr: 'address', label: 'I²C address', kind: 'select',
+      options: ['0x7F', '0x40'],
+      optionLabels: { '0x7F': '0x7F (Grove default)', '0x40': '0x40 (bare PCA9685)' },
+    }],
+  },
   // Alimentation de laboratoire (dessin de Frank) : source V+/GND réglable.
   // `voltage` = tension de DÉMARRAGE ; en simulation le bouton du dessin la fait
   // varier de 0 à 30 V (300° de rotation) et la LED « Courant limite » s'allume

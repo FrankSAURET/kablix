@@ -415,7 +415,16 @@ export class PicoEngine implements SimEngine {
         ctrl.completeStart();
       };
       ctrl.onConnect = (address: number) => {
-        current = devices.find((d) => d.address === address) ?? null;
+        // General Call (0x00) : dirigé vers le 1er device qui l'accepte (SWRST
+        // du PCA9685). Un NAK sur 0x00 perturberait le bus rp2040js simulé (EIO
+        // sur la transaction suivante), même quand le pilote encadre le reset.
+        if (address === 0) {
+          current = devices.find((d) => d.generalCall) ?? null;
+          current?.setGeneralCall?.(true);
+        } else {
+          current = devices.find((d) => d.address === address) ?? null;
+          current?.setGeneralCall?.(false);
+        }
         ctrl.completeConnect(current !== null); // ACK seulement si l'adresse existe
       };
       ctrl.onWriteByte = (value: number) => {

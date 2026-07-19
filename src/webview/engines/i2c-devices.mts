@@ -40,6 +40,14 @@ export function selectSpiDevice(
 export interface I2cDevice {
   /** Adresse 7 bits de l'esclave. */
   readonly address: number;
+  /** L'esclave répond aussi au General Call (adresse 0x00) — ex. le PCA9685
+   *  y reçoit son software reset (SWRST). Sans cela, l'écriture du maître à
+   *  0x00 est NAKée par le bus rp2040js SIMULÉ, ce qui perturbe la transaction
+   *  suivante (EIO), même quand le pilote encadre le reset d'un try/except. */
+  readonly generalCall?: boolean;
+  /** Le routage signale si la transaction courante vise le General Call (0x00,
+   *  true) ou l'adresse propre du device (false). Appelé après onConnect. */
+  setGeneralCall?(on: boolean): void;
   /** Début de transaction (START / repeated START). */
   onStart?(repeated: boolean): void;
   /** Fin de transaction (STOP). */
@@ -181,9 +189,13 @@ export class Lcd1602Device implements I2cDevice {
  */
 export class Pca9685Device implements I2cDevice {
   readonly address: number;
+  // Le PCA9685 répond au General Call (0x00) — il y reçoit son software reset.
+  readonly generalCall = true;
   private regs = new Uint8Array(256);
   private ptr = 0;
   private first = true;
+  /** Transaction en cours adressée au General Call (0x00) et non au device. */
+  private inGeneralCall = false;
 
   constructor(address = 0x40) {
     this.address = address;
@@ -193,7 +205,19 @@ export class Pca9685Device implements I2cDevice {
     this.first = true;
   }
 
+  /** Le routage I²C signale si la transaction vise l'adresse propre (false) ou
+   *  le General Call 0x00 (true) — appelé juste après onStart. */
+  setGeneralCall(on: boolean): void {
+    this.inGeneralCall = on;
+  }
+
   write(byte: number): boolean {
+    // General Call : 0x06 = software reset (SWRST) — remet les registres à 0
+    // (toutes les sorties full-OFF). On ACK simplement les autres octets.
+    if (this.inGeneralCall) {
+      if (byte === 0x06) this.regs.fill(0);
+      return true;
+    }
     if (this.first) {
       this.ptr = byte; // 1er octet = pointeur de registre
       this.first = false;

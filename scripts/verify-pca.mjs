@@ -32,6 +32,7 @@ const buildTo = async (entry, outfile) => {
 };
 const { buildNets, pca9685Bindings, pca9685PowerState, psuLoadAmps } = await buildTo('src/webview/diagram/model.mts', 'model.mjs');
 const { partDef, partCategory, pinElectricalRole } = await buildTo('src/webview/diagram/catalog.mts', 'catalog.mjs');
+const { Pca9685Device } = await buildTo('src/webview/engines/i2c-devices.mts', 'devices.mjs');
 
 let failures = 0;
 const check = (label, ok) => {
@@ -44,7 +45,27 @@ const near = (a, b, eps = 1e-6) => a !== null && a !== undefined && Math.abs(a -
 const def = partDef('pca9685');
 check('catalogue : pca9685 = kablix-pca9685, kind i2c-pwm, catégorie Divers',
   def.tag === 'kablix-pca9685' && def.kind === 'i2c-pwm' && partCategory(def) === 'Divers');
-check('catalogue : adresse I²C 0x40 par défaut', def.attrs?.address === '0x40');
+check('catalogue : adresse I²C 0x7F par défaut (carte Grove) + choix inspecteur',
+  def.attrs?.address === '0x7F' && def.props?.some((p) => p.attr === 'address' && p.options?.includes('0x40')));
+
+// --- Device I²C : General Call (SWRST) + registres canaux -----------------------
+// La carte Grove est à 0x7F et déclare accepter le General Call (0x00) : sans
+// cela, le reset logiciel du pilote NAK le bus rp2040js simulé (EIO). Régression
+// du bug de Frank (« PCA9685 non trouvé à 0x7F »).
+{
+  const dev = new Pca9685Device(0x7f);
+  check('device : adresse 0x7F + accepte le General Call (SWRST)',
+    dev.address === 0x7f && dev.generalCall === true && typeof dev.setGeneralCall === 'function');
+  // Écrit un canal (LED0 ON=0, OFF=2048 → duty 0,5) puis SWRST via General Call.
+  dev.onStart();
+  dev.setGeneralCall(false);
+  for (const b of [0x06, 0x00, 0x00, 0x00, 0x08]) dev.write(b);
+  check('device : canal 0 → duty 0,5 après écriture directe', near(dev.channelDuty(0), 0.5, 1e-2));
+  dev.onStart();
+  dev.setGeneralCall(true);
+  dev.write(0x06); // SWRST : remet tous les registres à 0
+  check('device : General Call 0x06 (SWRST) remet le canal 0 à 0', dev.channelDuty(0) === 0);
+}
 
 // --- Rôles électriques (pastilles rouges/noires des connecteurs servo) ----------
 check('rôles : P1.5V/P16.5V/V+/VCC = vcc (rouge)',
