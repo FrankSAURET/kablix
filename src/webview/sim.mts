@@ -45,6 +45,7 @@ import './composants/pico-board.mjs';
 import './composants/breadboard.mjs';
 import './composants/grove-shield-element.mjs';
 import './composants/alim-element.mjs';
+import './composants/pca9685-element.mjs';
 import './composants/custom-part.mjs';
 
 import { initLocale, t } from './i18n.mjs';
@@ -59,6 +60,7 @@ import {
   ledPowerCircuit,
   ledElectrical,
   psuLoadAmps,
+  pca9685PowerState,
   rgbSeriesOhms,
   sevenSegSeriesOhms,
   ledBarSeriesOhms,
@@ -1592,16 +1594,26 @@ function renderNeopixel(
 
 /** Propage les rapports cycliques des PCA9685 vers les composants pilotés. */
 function applyPca9685(): void {
+  if (pcaBindings.length === 0) return;
+  // PCA9685 natif : sans alim de laboratoire ~5 V au courant suffisant sur le
+  // bornier V+/GND.2, les SORTIES ne bougent pas (la puce répond toujours sur
+  // I²C — VCC logique séparé, comme la vraie carte). Les anciens PCA importés
+  // (composants personnalisés, sans bornier) restent toujours alimentés.
+  const power = new Map(
+    pca9685PowerState(editor.diagram, psuLiveVolts, liveVariableOhms).map((p) => [p.partId, p.ok])
+  );
   for (const b of pcaBindings) {
     const dev = i2cDevices.get(b.partId);
     if (!(dev instanceof Pca9685Device)) continue;
+    const powered = power.get(b.partId) ?? true;
     for (const c of b.channels) {
       const el = editor.elementOf(c.targetId);
       if (!el) continue;
-      const duty = dev.channelDuty(c.ch);
+      const duty = powered ? dev.channelDuty(c.ch) : 0;
       if (c.targetKind === 'servo') {
         // 50 Hz : impulsion = duty × 20 ms ; 1–2 ms → 0–180°.
-        el.angle = Math.max(0, Math.min(180, (duty * 20000 - 1000) / 1000 * 180));
+        // Sans alimentation servo : pas d'impulsion → le bras ne bouge pas.
+        if (powered) el.angle = Math.max(0, Math.min(180, (duty * 20000 - 1000) / 1000 * 180));
       } else if (c.targetKind === 'led') {
         el.brightness = duty;
         el.value = duty > 0.04 ? 1 : 0;

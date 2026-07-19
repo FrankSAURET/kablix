@@ -222,6 +222,7 @@ const FR: Record<string, string> = {
   'Heart-beat sensor': 'Capteur de pouls',
   'Flame sensor': 'Capteur de flamme',
   'Sound sensor': 'Capteur de son',
+  '16-channel PWM driver (PCA9685)': 'Pilote PWM 16 canaux (PCA9685)',
   // Alimentation de laboratoire (les deux derniers sont dessinés SUR le composant)
   'Bench power supply': 'Alimentation de laboratoire',
   'Voltage (V)': 'Tension (V)',

@@ -43,6 +43,14 @@ export const PART_PINS = {
   hcsr04: ['VCC', 'TRIG', 'ECHO', 'GND'],
   dht22: ['VCC', 'DATA', 'NC', 'GND'],
   keypad: ['R1', 'R2', 'R3', 'R4', 'C1', 'C2', 'C3', 'C4'],
+  // Module Grove PCA9685 : bus Grove + bornier alim servo + 16 colonnes servo.
+  pca9685: [
+    'GND', 'VCC', 'SDA', 'SCL', 'GND.2', 'V+',
+    ...Array.from({ length: 16 }, (_, i) => `PWM${i}`),
+    ...Array.from({ length: 16 }, (_, i) => `P${i + 1}.5V`),
+    ...Array.from({ length: 16 }, (_, i) => `P${i + 1}.GND`),
+  ],
+  alim: ['V+', 'GND'],
 };
 
 // --- Helpers -------------------------------------------------------------------
@@ -508,6 +516,66 @@ void loop() {
   servo.write(180);
   Serial.println("180 degres");
   delay(1000);
+}
+`,
+  }),
+
+  test({
+    name: 'pca9685-uno', board: 'uno', ext: 'ino',
+    parts: [
+      MCU('uno'),
+      { id: 'pca1', type: 'pca9685', x: 560, y: 40, attrs: { address: '0x40' } },
+      { id: 'srv1', type: 'servo', x: 940, y: 40, attrs: { horn: 'single', pulsemin: '500', pulsemax: '2500' } },
+      { id: 'alim1', type: 'alim', x: 940, y: 260, attrs: { voltage: '5', maxcurrent: '1' } },
+    ],
+    wires: () => [
+      w('pca1', 'GND', 'mcu1', 'GND.1', 'black'),
+      w('pca1', 'VCC', 'mcu1', '5V', 'red'),
+      w('pca1', 'SDA', 'mcu1', 'A4', 'blue'),
+      w('pca1', 'SCL', 'mcu1', 'A5', 'yellow'),
+      w('srv1', 'PWM', 'pca1', 'PWM0', 'orange'),
+      w('srv1', 'V+', 'pca1', 'P1.5V', 'red'),
+      w('srv1', 'GND', 'pca1', 'P1.GND', 'black'),
+      w('alim1', 'V+', 'pca1', 'V+', 'red'),
+      w('alim1', 'GND', 'pca1', 'GND.2', 'black'),
+    ],
+    expect: { kind: 'pca9685', partId: 'pca1', channel: 0, targetId: 'srv1', powered: true },
+    code: `// Test PCA9685 : le servo branché sur P1 (canal 0) balaie 0°, 90° puis 180°.
+// SANS l'alimentation de laboratoire réglée sur 5 V (courant suffisant) sur le
+// bornier V+/GND du module, les sorties ne bougent pas.
+#include <Wire.h>
+
+const uint8_t PCA = 0x40;
+
+void pcaEcrit(uint8_t reg, uint8_t val) {
+  Wire.beginTransmission(PCA);
+  Wire.write(reg);
+  Wire.write(val);
+  Wire.endTransmission();
+}
+
+// Impulsion du canal : créneau démarré à 0, coupé à durée/20 ms × 4096 pas.
+void pcaImpulsion(uint8_t canal, uint16_t microsecondes) {
+  uint16_t off = (uint32_t)microsecondes * 4096UL / 20000UL;
+  Wire.beginTransmission(PCA);
+  Wire.write(0x06 + 4 * canal); // LED0_ON_L (auto-incrément)
+  Wire.write(0x00); Wire.write(0x00);
+  Wire.write(off & 0xFF); Wire.write(off >> 8);
+  Wire.endTransmission();
+}
+
+void setup() {
+  Serial.begin(115200);
+  Wire.begin();
+  pcaEcrit(0x00, 0x10);  // MODE1 : sleep pour régler le prescaler
+  pcaEcrit(0xFE, 121);   // prescale 50 Hz (25 MHz / (4096 x 50) - 1)
+  pcaEcrit(0x00, 0x20);  // MODE1 : réveil + auto-incrément
+}
+
+void loop() {
+  pcaImpulsion(0, 500);  Serial.println("0 degres");   delay(1000);
+  pcaImpulsion(0, 1500); Serial.println("90 degres");  delay(1000);
+  pcaImpulsion(0, 2500); Serial.println("180 degres"); delay(1000);
 }
 `,
   }),
@@ -1488,6 +1556,55 @@ while True:
     angle(2500)
     print("180 degres")
     time.sleep(1)
+`,
+  }),
+
+  test({
+    name: 'pca9685-pico', board: 'pico', ext: 'py',
+    parts: [
+      MCU('pico'),
+      { id: 'pca1', type: 'pca9685', x: 620, y: 40, attrs: { address: '0x40' } },
+      { id: 'srv1', type: 'servo', x: 1000, y: 40, attrs: { horn: 'single', pulsemin: '500', pulsemax: '2500' } },
+      { id: 'alim1', type: 'alim', x: 1000, y: 260, attrs: { voltage: '5', maxcurrent: '1' } },
+    ],
+    wires: () => [
+      w('pca1', 'GND', 'mcu1', 'GND.1', 'black'),
+      w('pca1', 'VCC', 'mcu1', '3V3', 'red'),
+      w('pca1', 'SDA', 'mcu1', 'GP0', 'blue'),
+      w('pca1', 'SCL', 'mcu1', 'GP1', 'yellow'),
+      w('srv1', 'PWM', 'pca1', 'PWM0', 'orange'),
+      w('srv1', 'V+', 'pca1', 'P1.5V', 'red'),
+      w('srv1', 'GND', 'pca1', 'P1.GND', 'black'),
+      w('alim1', 'V+', 'pca1', 'V+', 'red'),
+      w('alim1', 'GND', 'pca1', 'GND.2', 'black'),
+    ],
+    expect: { kind: 'pca9685', partId: 'pca1', channel: 0, targetId: 'srv1', powered: true },
+    code: `# Test PCA9685 : le servo branché sur P1 (canal 0) balaie 0°, 90° puis 180°.
+# SANS l'alimentation de laboratoire réglée sur 5 V (courant suffisant) sur le
+# bornier V+/GND du module, les sorties ne bougent pas.
+from machine import Pin, I2C
+import time
+
+i2c = I2C(0, sda=Pin(0), scl=Pin(1), freq=100000)
+PCA = 0x40
+
+def pca_ecrit(reg, val):
+    i2c.writeto(PCA, bytes([reg, val]))
+
+# Impulsion du canal : créneau démarré à 0, coupé à durée/20 ms x 4096 pas.
+def pca_impulsion(canal, microsecondes):
+    off = microsecondes * 4096 // 20000
+    i2c.writeto(PCA, bytes([0x06 + 4 * canal, 0x00, 0x00, off & 0xFF, off >> 8]))
+
+pca_ecrit(0x00, 0x10)  # MODE1 : sleep pour régler le prescaler
+pca_ecrit(0xFE, 121)   # prescale 50 Hz (25 MHz / (4096 x 50) - 1)
+pca_ecrit(0x00, 0x20)  # MODE1 : réveil + auto-incrément
+
+while True:
+    for us, angle in ((500, 0), (1500, 90), (2500, 180)):
+        pca_impulsion(0, us)
+        print(angle, "degres")
+        time.sleep(1)
 `,
   }),
 

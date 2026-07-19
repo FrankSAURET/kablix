@@ -466,6 +466,13 @@ export const CATALOG: readonly PartDef[] = [
     simControl: true, attrs: { temperature: '22', humidity: '50' },
     props: [],
   },
+  // Module Grove « 16-Channel PWM Driver (PCA9685) » de Seeed (dessin Fritzing
+  // retouché par Frank) : 16 sorties servo P1..P16 (= canaux 0..15), bus I²C à
+  // gauche (connecteur Grove), bornier V+/GND à droite — SANS alim de
+  // laboratoire 5 V au courant suffisant sur ce bornier, les sorties ne bougent
+  // pas (pca9685PowerState, model.mts). Simulé par Pca9685Device (trames I²C
+  // réelles → 16 rapports cycliques).
+  { type: 'pca9685', label: '16-channel PWM driver (PCA9685)', tag: 'kablix-pca9685', kind: 'i2c-pwm', attrs: { address: '0x40' } },
   // Alimentation de laboratoire (dessin de Frank) : source V+/GND réglable.
   // `voltage` = tension de DÉMARRAGE ; en simulation le bouton du dessin la fait
   // varier de 0 à 30 V (300° de rotation) et la LED « Courant limite » s'allume

@@ -205,6 +205,16 @@ for (const t of TESTS) {
       check(`${t.name} : composant I²C présent`, !!part && (part.attrs?.pins ?? 'i2c') === 'i2c');
       break;
     }
+    case 'pca9685': {
+      const b = model.pca9685Bindings(diagram).find((x) => x.partId === e.partId);
+      const ch = b?.channels.find((c) => c.ch === e.channel);
+      check(`${t.name} : canal ${e.channel} → ${e.targetId}`,
+        ch?.targetId === e.targetId, JSON.stringify(b?.channels));
+      const p = model.pca9685PowerState(diagram).find((x) => x.partId === e.partId);
+      check(`${t.name} : alim servo ${e.powered ? 'OK' : 'absente'} (bornier V+/GND.2)`,
+        p?.ok === e.powered, JSON.stringify(p));
+      break;
+    }
     default:
       check(`${t.name} : attente inconnue`, false, e.kind);
   }

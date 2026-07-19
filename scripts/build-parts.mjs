@@ -26,17 +26,10 @@ const PAD_R = 3; // rayon visuel d'une pastille de broche
 // Brochages issus des fiches techniques (PCA9685, HC-SR04, LCD I2C PCF8574,
 // Grove Shield for Pi Pico, Raspberry Pi Pico W).
 const SPECS = [
-  {
-    file: '16-Channel PWM Driver(PCA9685).svg',
-    type: 'pca9685',
-    label: 'PCA9685 (16-canaux PWM)',
-    kind: 'i2c-pwm', // simulé : trames I²C → 16 rapports cycliques → pilotage des sorties
-    attrs: { address: '0x40' },
-    edges: {
-      left: ['GND', 'OE', 'SCL', 'SDA', 'VCC', 'V+'],
-      right: Array.from({ length: 16 }, (_, i) => `PWM${i}`),
-    },
-  },
+  // NOTE : le « 16-Channel PWM Driver(PCA9685).svg » n'est PLUS généré ici —
+  // c'est un composant NATIF depuis v2026.7.116 (<kablix-pca9685>, catégorie
+  // Divers : src/webview/composants/pca9685-element.mts, pastilles
+  // connectorNNterminal de Frank).
   {
     file: 'HC-SR04.svg',
     type: 'hc-sr04',

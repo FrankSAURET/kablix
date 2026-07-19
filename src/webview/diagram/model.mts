@@ -108,10 +108,25 @@ export function buildNets(diagram: Diagram, joinResistors = true): Nets {
           dsu.union(`${part.id}/${strip[0]}`, `${part.id}/${strip[i]}`);
         }
       }
+    } else if (part.type === 'pca9685') {
+      // PCA9685 natif : rails internes de la carte Grove — masse commune
+      // (Grove + bornier + colonnes servo) et rail V+ (bornier → colonnes 5V).
+      // VCC (alimentation logique du connecteur Grove) reste isolé.
+      for (const strip of PCA9685_STRIPS) {
+        for (let i = 1; i < strip.length; i++) {
+          dsu.union(`${part.id}/${strip[0]}`, `${part.id}/${strip[i]}`);
+        }
+      }
     }
   }
   return { netOf: (e) => dsu.find(key(e)) };
 }
+
+// Rails internes du module PCA9685 (voir composants/pca9685-element.mts).
+const PCA9685_STRIPS: readonly string[][] = [
+  ['GND', 'GND.2', ...Array.from({ length: 16 }, (_, i) => `P${i + 1}.GND`)],
+  ['V+', ...Array.from({ length: 16 }, (_, i) => `P${i + 1}.5V`)],
+];
 
 /** Niveau logique d'un net : 1 (haut/VCC), 0 (bas/GND) ou undefined (flottant). */
 export type Level = 0 | 1 | undefined;
@@ -418,6 +433,57 @@ export function psuLoadAmps(
     }
   }
   return amps;
+}
+
+export interface Pca9685Power {
+  partId: string;
+  /** Alimentation servo présente et suffisante : les sorties peuvent bouger. */
+  ok: boolean;
+  /** Alim de laboratoire reliée au bornier V+/GND.2 (null si aucune). */
+  psuId: string | null;
+}
+
+/** Fenêtre de tension acceptée sur le bornier V+ du PCA9685 (« 5 V »). */
+const PCA_VOLTS_MIN = 4.5;
+const PCA_VOLTS_MAX = 5.5;
+
+/**
+ * État d'alimentation servo de chaque PCA9685 NATIF : le bornier de droite
+ * (V+ ET GND.2) doit être relié à une alim de laboratoire réglée autour de
+ * 5 V (4,5–5,5 V, tension live du bouton via `psuVolts`) dont le courant max
+ * couvre la charge totale (psuLoadAmps — les servos enfichés sur les colonnes
+ * comptent 0,2 A chacun via le rail V+ interne). Sinon les sorties ne bougent
+ * pas : la puce répond toujours sur I²C (VCC logique du connecteur Grove),
+ * comme sur la vraie carte sans alimentation servo.
+ */
+export function pca9685PowerState(
+  diagram: Diagram,
+  psuVolts?: (partId: string) => number | null,
+  liveOhms?: (part: Part) => number | null
+): Pca9685Power[] {
+  const nets = buildNets(diagram);
+  const out: Pca9685Power[] = [];
+  for (const part of diagram.parts) {
+    if (part.type !== 'pca9685') continue;
+    const vNet = nets.netOf({ partId: part.id, pin: 'V+' });
+    const gNet = nets.netOf({ partId: part.id, pin: 'GND.2' });
+    let ok = false;
+    let psuId: string | null = null;
+    for (const psu of psuParts(diagram)) {
+      if (nets.netOf({ partId: psu.id, pin: 'V+' }) !== vNet) continue;
+      if (nets.netOf({ partId: psu.id, pin: 'GND' }) !== gNet) continue;
+      psuId = psu.id;
+      const live = psuVolts?.(psu.id);
+      const v = live ?? (Number(psu.attrs?.voltage ?? 0) || 0);
+      if (v < PCA_VOLTS_MIN || v > PCA_VOLTS_MAX) break;
+      const maxAmps = Math.max(0.05, Number(psu.attrs?.maxcurrent ?? 1) || 1);
+      if (psuLoadAmps(diagram, psu.id, v, liveOhms) > maxAmps) break;
+      ok = true;
+      break;
+    }
+    out.push({ partId: part.id, ok, psuId });
+  }
+  return out;
 }
 
 /**
