@@ -43,6 +43,7 @@ import './composants/membrane-keypad-element.mjs';
 // Composants entièrement maison.
 import './composants/pico-board.mjs';
 import './composants/breadboard.mjs';
+import './composants/grove-shield-element.mjs';
 import './composants/custom-part.mjs';
 
 import { initLocale, t } from './i18n.mjs';

@@ -57,16 +57,9 @@ const SPECS = [
     screenFrac: { x: 0.16, y: 0.12, w: 0.68, h: 0.5 },
     edges: { left: ['GND', 'VCC', 'SDA', 'SCL'] },
   },
-  {
-    file: 'Grove pour Pico Pi.svg',
-    type: 'grove-pico',
-    label: 'Grove Shield (Pico)',
-    kind: 'passive',
-    // Ports Grove typiques du shield (GND/VCC + 2 signaux par port).
-    edges: {
-      bottom: ['GND', 'VCC', 'A0', 'A1', 'I2C-SDA', 'I2C-SCL', 'UART-TX', 'UART-RX'],
-    },
-  },
+  // NOTE : le « Grove pour Pico Pi.svg » n'est PLUS généré ici — c'est un
+  // composant NATIF depuis v2026.7.114 (<kablix-grove-pico>, enfichage de la
+  // Pico + switch 3V3/5V : src/webview/composants/grove-shield-element.mts).
   {
     file: 'Raspberry Pi Pico W h.svg',
     type: 'picow-module',

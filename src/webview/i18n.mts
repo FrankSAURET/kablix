@@ -175,6 +175,9 @@ const FR: Record<string, string> = {
 
   // Libellés du catalogue
   'Breadboard': "Platine d'essai",
+  'Grove Shield (Pico)': 'Grove Shield (Pico)',
+  'Grove VCC rail': 'Alimentation des ports Grove (VCC)',
+  '5 V (VBUS)': '5 V (VBUS)',
   'RGB LED': 'LED RGB',
   'Pushbutton': 'Bouton',
   'Resistor': 'Résistance',

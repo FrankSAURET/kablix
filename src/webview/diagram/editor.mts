@@ -22,6 +22,7 @@ import {
   type SimModelPreset,
 } from './catalog.mjs';
 import { breadboardPins, normalizeSize, stripOfPin } from './breadboard.mjs';
+import { groveSocketPins } from './grove-shield.mjs';
 import { internalWiringSvg, type PinPoint } from './internal-wiring.mjs';
 import { pinoutSvg, pinoutPoster } from './pinout.mjs';
 import { BOARD_W, BOARD_H } from '../composants/pico-board.mjs';
@@ -1383,11 +1384,14 @@ export class Editor {
     // Tous les composants passent désormais sous les fils (z=5). Les cartes et
     // platines descendent encore d'un cran (z=1) pour rester sous les composants
     // qu'on enfiche dessus.
-    if (def.kind === 'mcu' || def.kind === 'breadboard') {
+    if (def.kind === 'mcu' || def.kind === 'breadboard' || def.kind === 'grove-shield') {
       container.classList.add('part--under-wires');
     }
+    // Le Grove Shield descend d'un cran de plus (z=0) : la Pico (mcu, z=1)
+    // enfichée dessus doit rester visible par-dessus le shield.
+    if (def.kind === 'grove-shield') container.classList.add('part--shield');
     // Trous serrés (pas de 10 px) : pastilles réduites pour rester cliquables.
-    if (def.kind === 'breadboard') container.classList.add('part--dense');
+    if (def.kind === 'breadboard' || def.kind === 'grove-shield') container.classList.add('part--dense');
     container.style.left = `${part.x}px`;
     container.style.top = `${part.y}px`;
 
@@ -1451,6 +1455,18 @@ export class Editor {
       // on rappelle le Ctrl+clic qui verrouille l'état instable ; sinon le
       // déplacement au clic droit. Mis à jour au verrouillage (setLocked).
       body.title = this.isLockable(part.type) ? this.buttonTitle(part.type) : t('Right-click drag to move');
+    }
+    // Grove Shield : le clic sur l'interrupteur 3V3/5V du dessin change l'attr
+    // `pwr` de l'élément et émet `pwr-change` → on persiste dans le schéma (la
+    // netlist suit le rail VCC) et on resynchronise l'inspecteur s'il est ouvert.
+    if (def.kind === 'grove-shield') {
+      el.addEventListener('pwr-change', () => {
+        part.attrs = { ...part.attrs, pwr: el.getAttribute('pwr') ?? '3v3' };
+        if (this.selection?.kind === 'part' && this.selection.id === part.id) {
+          this.renderPartInspector(part.id);
+        }
+        this.notify();
+      });
     }
 
     const hotspots = new Map<string, HTMLDivElement>();
@@ -1714,10 +1730,14 @@ export class Editor {
       .map((w) => ({ wire: w, orig: w.points!.map((p) => ({ x: p.x, y: p.y })) }));
 
     // Enfichage : seulement pour un composant seul (pas un support qui emmène
-    // déjà sa grappe), et hors cartes/platines.
-    const kind = partDef(part.type).kind;
-    const pluggable = !isGroup && kind !== 'mcu' && kind !== 'breadboard';
-    const holes = pluggable ? this.collectBreadboardHoles(part.id) : [];
+    // déjà sa grappe), et hors cartes/platines — SAUF la Pico / Pico W, qui
+    // s'enfiche sur le socle du Grove Shield (et uniquement là).
+    const def2 = partDef(part.type);
+    const kind = def2.kind;
+    const picoLike = kind === 'mcu' && (def2.board === 'pico' || def2.board === 'picow');
+    const pluggable =
+      !isGroup && kind !== 'breadboard' && kind !== 'grove-shield' && (kind !== 'mcu' || picoLike);
+    const holes = pluggable ? this.collectBreadboardHoles(part.id, picoLike) : [];
 
     // Grille magnétique pour faciliter l'alignement, sauf pour un composant
     // enfichable au-dessus d'une platine (il s'aligne alors sur les trous).
@@ -1772,12 +1792,21 @@ export class Editor {
   }
 
   // --- Platine d'essai : surbrillance et enfichage -----------------------------
-  /** Trous de toutes les platines posées, en coordonnées canvas. */
-  private collectBreadboardHoles(excludeId: string): BreadboardHole[] {
+  /**
+   * Trous des supports d'enfichage posés, en coordonnées canvas. Un composant
+   * ordinaire s'enfiche sur les platines d'essai ; une Pico / Pico W
+   * (`picoSocket`) s'enfiche uniquement sur le SOCLE du Grove Shield (les ports
+   * Grove et le connecteur SPI sont des prises femelles : pas d'enfichage).
+   */
+  private collectBreadboardHoles(excludeId: string, picoSocket = false): BreadboardHole[] {
     const holes: BreadboardHole[] = [];
+    const socket = picoSocket ? groveSocketPins() : null;
     for (const r of this.rendered.values()) {
-      if (r.part.id === excludeId || partDef(r.part.type).kind !== 'breadboard') continue;
+      const kind = partDef(r.part.type).kind;
+      if (r.part.id === excludeId) continue;
+      if (picoSocket ? kind !== 'grove-shield' : kind !== 'breadboard') continue;
       for (const pin of r.hotspots.keys()) {
+        if (socket && !socket.has(pin)) continue;
         const c = this.hotspotCenter({ partId: r.part.id, pin });
         if (c) holes.push({ partId: r.part.id, pin, x: c.x, y: c.y });
       }
@@ -1821,9 +1850,16 @@ export class Editor {
   private previewBreadboardSnap(part: Part, holes: BreadboardHole[]): void {
     const byBoard = new Map<string, Set<string>>();
     for (const m of this.breadboardMatches(part, holes)) {
-      const size = normalizeSize(this.rendered.get(m.hole.partId)?.part.attrs?.size);
+      const support = this.rendered.get(m.hole.partId);
       const set = byBoard.get(m.hole.partId) ?? new Set<string>();
-      for (const p of stripOfPin(size, m.hole.pin)) set.add(p);
+      if (support && partDef(support.part.type).kind === 'grove-shield') {
+        // Grove Shield : seul le trou visé s'allume (les bandes internes
+        // couvrent toute la carte — rails GND/3V3 —, tout illuminer est illisible).
+        set.add(m.hole.pin);
+      } else {
+        const size = normalizeSize(support?.part.attrs?.size);
+        for (const p of stripOfPin(size, m.hole.pin)) set.add(p);
+      }
       byBoard.set(m.hole.partId, set);
     }
     for (const id of new Set([...this.highlightedBoards, ...byBoard.keys()])) {
@@ -3728,12 +3764,12 @@ export class Editor {
       maxY = Math.max(maxY, y);
     };
 
-    // Les platines d'essai sont dessinées en premier (donc derrière) : sans cela
-    // une breadboard ajoutée après un composant passait devant lui dans le SVG.
+    // Les platines d'essai et le Grove Shield sont dessinés en premier (donc
+    // derrière) : sans cela un support ajouté après un composant passait devant
+    // lui dans le SVG (la Pico enfichée doit rester visible sur son shield).
+    const behind = (k: string): number => (k === 'breadboard' || k === 'grove-shield' ? 0 : 1);
     const order = [...this.rendered.values()].sort(
-      (a, b) =>
-        (partDef(a.part.type).kind === 'breadboard' ? 0 : 1) -
-        (partDef(b.part.type).kind === 'breadboard' ? 0 : 1)
+      (a, b) => behind(partDef(a.part.type).kind) - behind(partDef(b.part.type).kind)
     );
     for (const r of order) {
       if (only && !only.has(r.part.id)) continue; // export limité à la sélection

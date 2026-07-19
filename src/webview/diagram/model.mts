@@ -2,6 +2,7 @@
 // résolution logique des composants. Entièrement testable hors navigateur.
 import { mcuPinRole, mcuPins, partDef, rolePin, type BoardId, type PartKind } from './catalog.mjs';
 import { breadboardStrips, normalizeSize } from './breadboard.mjs';
+import { groveShieldStrips, normalizePower } from './grove-shield.mjs';
 
 export interface Endpoint {
   partId: string;
@@ -96,6 +97,13 @@ export function buildNets(diagram: Diagram, joinResistors = true): Nets {
       dsu.union(`${part.id}/2.l`, `${part.id}/2.r`);
     } else if (kind === 'breadboard') {
       for (const strip of breadboardStrips(normalizeSize(part.attrs?.size))) {
+        for (let i = 1; i < strip.length; i++) {
+          dsu.union(`${part.id}/${strip[0]}`, `${part.id}/${strip[i]}`);
+        }
+      }
+    } else if (kind === 'grove-shield') {
+      // Grove Shield Pico : socle ↔ ports Grove ↔ rails (VCC selon l'interrupteur).
+      for (const strip of groveShieldStrips(normalizePower(part.attrs?.pwr))) {
         for (let i = 1; i < strip.length; i++) {
           dsu.union(`${part.id}/${strip[0]}`, `${part.id}/${strip[i]}`);
         }

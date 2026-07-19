@@ -1085,6 +1085,12 @@ textarea {
   z-index: 1;
 }
 
+/* Grove Shield : encore un cran plus bas, pour que la Pico (z=1) enfichée
+   dessus reste visible par-dessus le dessin du shield. */
+.part--shield {
+  z-index: 0;
+}
+
 /* Composant EN SIMULATION avec un contrôle actif (curseur/bouton) : passe
    par-dessus tout (voisins et fils, normalement au-dessus des composants en
    édition à z=5) pour que son curseur reste toujours accessible. */

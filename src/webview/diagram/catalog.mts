@@ -30,6 +30,7 @@ export type PartKind =
   | 'spi-sd'
   | 'neopixel'
   | 'breadboard'
+  | 'grove-shield'
   | 'display'
   | 'passive';
 
@@ -214,6 +215,19 @@ export const CATALOG: readonly PartDef[] = [
   // Pico W : même RP2040 et même brochage que le Pico (le Wi-Fi n'est pas simulé
   // par le cœur) → même élément <kablix-pico-board>, dessin Pico W (variant).
   { type: 'picow', label: 'Raspberry Pi Pico W', tag: 'kablix-pico-board', kind: 'mcu', board: 'picow', attrs: { variant: 'picow' } },
+  // Grove Shield for Pi Pico (Seeed v1.0) : la Pico / Pico W s'enfiche sur les
+  // deux rangées centrales (fils auto) et ses E/S sont redirigées vers les ports
+  // Grove (connexions internes : diagram/grove-shield.mts). L'interrupteur du
+  // dessin choisit le rail VCC des ports numériques (attr `pwr`), aussi réglable
+  // dans l'inspecteur.
+  {
+    type: 'grove-pico', label: 'Grove Shield (Pico)', tag: 'kablix-grove-pico', kind: 'grove-shield',
+    attrs: { pwr: '3v3' },
+    props: [{
+      attr: 'pwr', label: 'Grove VCC rail', kind: 'select', options: ['3v3', '5v'],
+      optionLabels: { '3v3': '3.3 V', '5v': '5 V (VBUS)' },
+    }],
+  },
   {
     type: 'breadboard', label: 'Breadboard', tag: 'kablix-breadboard', kind: 'breadboard',
     attrs: { size: 'half' },
@@ -476,6 +490,7 @@ export function partCategory(def: PartDef): string {
   switch (def.kind) {
     case 'mcu':
     case 'breadboard':
+    case 'grove-shield':
       return 'Boards';
     case '7segment':
     case 'led-bar':
@@ -659,8 +674,12 @@ export function pinElectricalRole(type: string, pin: string): 'gnd' | 'vcc' | 'o
     const role = mcuPinRole(def.board, pin).role;
     return role === 'gnd' || role === 'vcc' ? role : 'other';
   }
-  if (/^(GND|VSS)/i.test(pin)) return 'gnd';
-  if (/^(VCC|VDD|V\+|5V|3V3|3\.3V|VBUS|VSYS|VIN)$/i.test(pin)) return 'vcc';
+  // Le nom peut être préfixé par un port (« I2C0.GND », « A0.3V3 » sur le Grove
+  // Shield) : le rôle se lit sur le dernier segment. `.b` = trou de dégagement
+  // du shield (même signal que le trou de socle qu'il double).
+  const leaf = pin.replace(/\.b$/, '').split('.').pop() ?? pin;
+  if (/^(GND|VSS)/i.test(pin) || /^(GND|VSS)/i.test(leaf)) return 'gnd';
+  if (/^(VCC|VDD|V\+|5V|3V3|3\.3V|VBUS|VSYS|VIN)$/i.test(pin) || /^(VCC|VDD|V\+|5V|3V3|3\.3V|VBUS|VSYS|VIN)$/i.test(leaf)) return 'vcc';
   return 'other';
 }
 
