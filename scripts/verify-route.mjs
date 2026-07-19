@@ -4,8 +4,10 @@
 // test d'obstacle : le segment part de leurs broches). Un composant tiers sur
 // la ligne → le routeur normal reprend la main.
 // v2026.7.113 : les fils d'une MÊME équipotentielle se recouvrent volontiers
-// (dorsale suivie avec remise RIDE), l'embranchement est marqué d'un point de
-// la couleur du fil (jonction en T = coude d'où partent ≥ 3 directions).
+// (dorsale suivie avec remise RIDE).
+// v2026.7.120 : équipotentielles NOMMÉES (eqp-x / eqp-x-y) ; plus AUCUN point
+// d'embranchement ; un fil ne passe jamais sur une broche étrangère ; les fils
+// d'eqp différentes peuvent se serrer jusqu'à 2 px (parallèles).
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
@@ -17,7 +19,7 @@ const CACHE = join(ROOT, 'node_modules', '.cache-route');
 
 const entry = `
 import { Editor } from '../../src/webview/diagram/editor.mjs';
-import { dupontHex } from '../../src/webview/diagram/geometry.mjs';
+import { nameEquipotentials } from '../../src/webview/diagram/model.mjs';
 import '../../src/webview/composants/ntc-element.mjs';
 import '../../src/webview/composants/ptc-element.mjs';
 import '../../src/webview/composants/ldr-element.mjs';
@@ -144,12 +146,10 @@ async function run() {
 	}
 	ok('branche même net : recouvre la dorsale (tronçon commun ≥ 50 px)',
 		ride >= 50, 'ride=' + ride + ' points=' + JSON.stringify(wBr.points ?? []));
-	await wait(30); // microtâche des jonctions
-	const dots7 = [...document.querySelectorAll('.wire-junctions circle')];
-	ok('embranchement marqué d un point sur la dorsale (y=370)',
-		dots7.some((c) => Math.abs(+c.getAttribute('cy') - 370) <= 1 &&
-			+c.getAttribute('cx') > 130 && +c.getAttribute('cx') < 410),
-		dots7.map((c) => c.getAttribute('cx') + ',' + c.getAttribute('cy')).join(' '));
+	await wait(30); // microtâche des (ex-)jonctions
+	// v2026.7.120 : PLUS AUCUN point d'embranchement dessiné (demande de Frank).
+	ok('aucun point d embranchement dessiné sur la dorsale',
+		document.querySelectorAll('.wire-junctions circle').length === 0);
 	// Doublon de dorsale (mêmes broches, ligne dégagée) : superposition acceptée,
 	// le fil reste DROIT — l'ancien créneau anti-superposition ne joue plus entre
 	// fils d'une même équipotentielle.
@@ -169,14 +169,68 @@ async function run() {
 	editor.addWire({ partId: mA.id, pin: '2' }, { partId: mC.id, pin: '1' },
 		{ points: [{ x: 660, y: 470 }] }); // coude posé PILE sur le fil précédent
 	await wait(30);
-	const dots8 = [...document.querySelectorAll('.wire-junctions circle')];
-	const wJ = editor.diagram.wires[editor.diagram.wires.length - 1];
-	const dot = dots8.find((c) => Math.abs(+c.getAttribute('cx') - 660) <= 1 && Math.abs(+c.getAttribute('cy') - 470) <= 1);
-	ok('T manuel : un point d embranchement à (660,470)', !!dot,
-		dots8.map((c) => c.getAttribute('cx') + ',' + c.getAttribute('cy')).join(' '));
-	ok('le point prend la couleur du fil branché',
-		!!dot && dot.getAttribute('fill') === dupontHex(wJ.color ?? 'green'),
-		(dot ? dot.getAttribute('fill') : 'aucun point') + ' vs ' + dupontHex(wJ.color ?? 'green'));
+	// v2026.7.120 : même un T posé PILE à la main ne reçoit plus de point.
+	ok('T manuel : aucun point d embranchement dessiné',
+		document.querySelectorAll('.wire-junctions circle').length === 0);
+
+	// --- 9. Nommage des équipotentielles (eqp-x / eqp-x-y) ----------------------
+	// mA-mB et mA-mC sont sur le MÊME net (partagent mA/2) → même eqp ; le fil
+	// mB-? d'un autre net aurait une eqp différente. Ici on vérifie le schéma
+	// courant : les 2 fils du T (net de mA/2) ont la même eqp et des noms uniques.
+	const eqp = nameEquipotentials(editor.diagram);
+	const wAB = editor.diagram.wires.find((w) => w.a.partId === mA.id && w.b.partId === mB.id);
+	const wAC = editor.diagram.wires.find((w) => w.a.partId === mA.id && w.b.partId === mC.id);
+	ok('eqp : deux fils du même net → même eqp-x',
+		!!wAB && !!wAC && eqp.sameEqp(wAB.id, wAC.id) &&
+		/^eqp-\\d+$/.test(eqp.eqpOfWire(wAB.id) ?? ''),
+		eqp.eqpOfWire(wAB?.id) + ' / ' + eqp.eqpOfWire(wAC?.id));
+	ok('eqp : chaque fil a un nom unique eqp-x-y',
+		!!wAB && !!wAC && eqp.nameOfWire(wAB.id) !== eqp.nameOfWire(wAC.id) &&
+		/^eqp-\\d+-\\d+$/.test(eqp.nameOfWire(wAB.id) ?? ''),
+		eqp.nameOfWire(wAB?.id) + ' / ' + eqp.nameOfWire(wAC?.id));
+	// Un fil d'un AUTRE net : deux LED indépendantes reliées entre elles (net
+	// distinct de celui de mA) → eqp différente → sameEqp faux.
+	const gA = editor.addPart('led', 900, 400);
+	const gB = editor.addPart('led', 1000, 400);
+	await wait(60);
+	editor.addWire({ partId: gA.id, pin: 'A' }, { partId: gB.id, pin: 'A' });
+	await wait(20);
+	const eqp2 = nameEquipotentials(editor.diagram);
+	const wGid = editor.diagram.wires[editor.diagram.wires.length - 1].id;
+	ok('eqp : fils de nets différents → eqp différentes (pas de recouvrement autorisé)',
+		wAB && !eqp2.sameEqp(wAB.id, wGid) &&
+		eqp2.eqpOfWire(wAB.id) !== eqp2.eqpOfWire(wGid),
+		eqp2.eqpOfWire(wAB.id) + ' vs ' + eqp2.eqpOfWire(wGid));
+
+	// --- 10. Un fil ne passe JAMAIS sur une broche étrangère --------------------
+	// Trois composants en ligne : X (gauche) — Z (milieu) — Y (droite). On câble
+	// X→Y : le tracé direct passerait sur une broche de Z (milieu). L'autoroutage
+	// doit contourner (coudes) plutôt que traverser la broche de Z.
+	const fX = editor.addPart('ntc', 200, 700); // pattes vers le bas
+	const fZ = editor.addPart('ntc', 300, 700);
+	const fY = editor.addPart('ntc', 400, 700);
+	await wait(80);
+	// Broche de Z sur la trajectoire directe X.1 → Y.1 (même y).
+	const zPin = editor.hotspotCenter({ partId: fZ.id, pin: '1' });
+	const wXY = editor.addWire({ partId: fX.id, pin: '1' }, { partId: fY.id, pin: '1' });
+	editor.select(null); editor.autoRoute();
+	await wait(30);
+	const wXYr = editor.diagram.wires.find((w) => w.a.partId === fX.id && w.b.partId === fY.id);
+	const xy = editor.hotspotCenter(wXYr.a), yy = editor.hotspotCenter(wXYr.b);
+	const polyXY = [xy, ...(wXYr.points ?? []), yy];
+	// Aucun segment du tracé ne passe sur la broche de Z (à 2 px près).
+	let onZ = false;
+	for (let i = 0; i < polyXY.length - 1; i++) {
+		const p = polyXY[i], q = polyXY[i + 1];
+		const minx = Math.min(p.x, q.x) - 2, maxx = Math.max(p.x, q.x) + 2;
+		const miny = Math.min(p.y, q.y) - 2, maxy = Math.max(p.y, q.y) + 2;
+		if (zPin.x >= minx && zPin.x <= maxx && zPin.y >= miny && zPin.y <= maxy) {
+			const horiz = Math.abs(p.y - q.y) < 1, vert = Math.abs(p.x - q.x) < 1;
+			if ((horiz && Math.abs(zPin.y - p.y) <= 2) || (vert && Math.abs(zPin.x - p.x) <= 2)) onZ = true;
+		}
+	}
+	ok('fil X→Y ne passe pas sur la broche étrangère de Z (contourne)', !onZ,
+		'points=' + JSON.stringify(wXYr.points ?? []) + ' zPin=' + Math.round(zPin.x) + ',' + Math.round(zPin.y));
 
 	const out = document.createElement('pre');
 	out.id = 'measures';

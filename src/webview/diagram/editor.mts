@@ -26,7 +26,7 @@ import { groveSocketPins } from './grove-shield.mjs';
 import { internalWiringSvg, type PinPoint } from './internal-wiring.mjs';
 import { pinoutSvg, pinoutPoster } from './pinout.mjs';
 import { BOARD_W, BOARD_H } from '../composants/pico-board.mjs';
-import { buildNets, type Diagram, type Endpoint, type Part, type Wire } from './model.mjs';
+import { nameEquipotentials, type Diagram, type Endpoint, type Part, type Wire } from './model.mjs';
 import { DEFAULT_WIRE_COLORS, DUPONT_COLORS, dupontHex, roundedWirePath, snapPoint, type XY } from './geometry.mjs';
 import { PartCreator } from './creator.mjs';
 import '../composants/custom-part.mjs';
@@ -2428,7 +2428,10 @@ export class Editor {
     const obstacles = this.partObstacles();
     const rectOf = new Map(obstacles.map((o) => [o.id, o]));
     const STUB = GRID; // sortie perpendiculaire = 1 pas de grille hors du corps
-    const GAP = 5; // écart mini entre deux fils parallèles (px)
+    // Écart mini entre deux fils parallèles d'équipotentielles DIFFÉRENTES : 2 px
+    // (demande de Frank — des fils parallèles peuvent se serrer jusqu'à 2 px, ils
+    // ne se touchent pas). Deux fils de MÊME `eqp` peuvent, eux, se superposer.
+    const GAP = 2;
     const BEND = 2 * GRID; // pénalité par coude (A* et départage des tracés)
     const TOL = 1;
     // Segments de chaque fil (repère monde) — pour éviter qu'un nouveau tracé se
@@ -2444,16 +2447,32 @@ export class Editor {
       const cb = this.hotspotCenter(w.b);
       if (ca && cb) wireSegs.set(w.id, toSegs([ca, ...(w.points ?? []), cb]));
     }
-    // Équipotentielle de chaque fil : deux fils du MÊME net ont le droit (et
-    // intérêt) de se recouvrir — le tracé « monte » sur la dorsale existante et
-    // s'en détache au plus près de sa broche (embranchement), ce qui limite les
-    // coudes. Les fils `auto` (invisibles) ne servent jamais de dorsale.
-    const nets = buildNets(this.diagram);
-    const netOfWire = new Map<string, string>();
+    // Équipotentielle NOMMÉE de chaque fil (`eqp-x`, cf. nameEquipotentials) :
+    // deux fils de MÊME `eqp` ont le droit (et intérêt) de se recouvrir et de
+    // s'embrancher — le tracé « monte » sur la dorsale existante et s'en détache
+    // au plus près de sa broche, ce qui limite les coudes. Deux fils d'`eqp`
+    // différentes ne peuvent NI se chevaucher NI s'embrancher. Les fils `auto`
+    // (invisibles) ne portent pas d'`eqp` et ne servent jamais de dorsale.
+    const eqp = nameEquipotentials(this.diagram);
+    const eqpOfWire = new Map<string, string | undefined>();
     const autoWires = new Set<string>();
     for (const w of this.diagram.wires) {
-      netOfWire.set(w.id, nets.netOf(w.a));
+      eqpOfWire.set(w.id, eqp.eqpOfWire(w.id));
       if (w.auto) autoWires.add(w.id);
+    }
+    const sameEqpWire = (idA: string, idB: string): boolean => {
+      const ea = eqpOfWire.get(idA);
+      return ea !== undefined && ea === eqpOfWire.get(idB);
+    };
+    // Centres des pastilles de broche (repère monde) : un fil ne doit JAMAIS
+    // passer sur une broche à laquelle il n'est pas connecté (demande de Frank).
+    // On exclut, pour chaque fil routé, ses deux propres broches.
+    const pinCenters: Array<{ partId: string; pin: string; c: XY }> = [];
+    for (const [id, r] of this.rendered) {
+      for (const pin of r.hotspots.keys()) {
+        const c = this.hotspotCenter({ partId: id, pin });
+        if (c) pinCenters.push({ partId: id, pin, c });
+      }
     }
     let changed = false;
     for (const wire of this.diagram.wires) {
@@ -2480,13 +2499,22 @@ export class Editor {
             break;
           }
         }
-        // Seuls les fils d'un AUTRE net interdisent la ligne droite : un fil de
-        // la même équipotentielle couché sur la ligne est un recouvrement voulu.
+        // Seuls les fils d'une AUTRE équipotentielle interdisent la ligne
+        // droite : un fil de la même `eqp` couché sur la ligne est un
+        // recouvrement voulu.
         const others: Array<[XY, XY]> = [];
         for (const [wid, s] of wireSegs) {
-          if (wid !== wire.id && netOfWire.get(wid) !== netOfWire.get(wire.id)) others.push(...s);
+          if (wid !== wire.id && !sameEqpWire(wid, wire.id)) others.push(...s);
         }
-        if (!blocked && polylineWireCost([a, b], others, GAP).overlap <= TOL) {
+        // La ligne droite ne doit pas non plus PASSER SUR une broche à laquelle
+        // le fil n'est pas connecté (les broches propres du fil sont exclues).
+        const crossesForeignPin = pinCenters.some(
+          (p) =>
+            !(p.partId === wire.a.partId && p.pin === wire.a.pin) &&
+            !(p.partId === wire.b.partId && p.pin === wire.b.pin) &&
+            pointOnSegment(p.c, a, b, 2)
+        );
+        if (!blocked && !crossesForeignPin && polylineWireCost([a, b], others, GAP).overlap <= TOL) {
           if ((wire.points?.length ?? 0) > 0) changed = true;
           wire.points = undefined;
           wireSegs.set(wire.id, toSegs([a, b]));
@@ -2505,9 +2533,16 @@ export class Editor {
       const sameSegs: Array<[XY, XY]> = [];
       for (const [wid, segs] of wireSegs) {
         if (wid === wire.id) continue;
-        if (!autoWires.has(wid) && netOfWire.get(wid) === netOfWire.get(wire.id)) sameSegs.push(...segs);
+        if (!autoWires.has(wid) && sameEqpWire(wid, wire.id)) sameSegs.push(...segs);
         else otherSegs.push(...segs);
       }
+      // Broches étrangères (ni a ni b du fil) : le tracé ne doit jamais passer
+      // dessus — fournies à l'A* et au coût comme points interdits.
+      const foreignPins = pinCenters.filter(
+        (p) =>
+          !(p.partId === wire.a.partId && p.pin === wire.a.pin) &&
+          !(p.partId === wire.b.partId && p.pin === wire.b.pin)
+      );
       // Coût d'un tracé : recouvrement de composants + recouvrement (colinéaire) ET
       // proximité (< GAP) d'autres fils, PLUS longueur et coudes (départage les
       // combinaisons de sorties de broche). Les fils peuvent se croiser mais pas se
@@ -2540,10 +2575,23 @@ export class Editor {
         // « monte » sur la dorsale, chaque px suivi ne coûte plus que 25 % de sa
         // longueur) — borné par la longueur pour ne jamais rendre le coût négatif.
         const sameOv = sameSegs.length > 0 ? Math.min(len, polylineWireCost(poly, sameSegs, GAP).overlap) : 0;
-        // Poids massifs, hiérarchisés : traverser un composant (×1000) est bien
-        // pire que suivre un fil (×100), lui-même pire qu'un croisement (1,5
-        // coude). À coût « dur » égal, le plus court et le moins coudé gagne.
-        return comp * 1000 + (overlap + selfOv) * 100 + cross * BEND * 1.5 + near * 0.6 + len + bends * BEND - sameOv * RIDE;
+        // Broche étrangère TRAVERSÉE par le tracé : interdit (poids ×2000, pire
+        // que traverser un composant) — un fil ne doit jamais recouvrir une
+        // broche à laquelle il n'est pas connecté.
+        let onPin = 0;
+        for (const fp of foreignPins) {
+          for (let i = 0; i < poly.length - 1; i++) {
+            if (pointOnSegment(fp.c, poly[i], poly[i + 1], 2)) {
+              onPin++;
+              break;
+            }
+          }
+        }
+        // Poids massifs, hiérarchisés : passer sur une broche étrangère (×2000)
+        // est le pire, puis traverser un composant (×1000), suivre un autre fil
+        // (×100), un croisement (1,5 coude). À coût « dur » égal, le plus court
+        // et le moins coudé gagne.
+        return onPin * 2000 + comp * 1000 + (overlap + selfOv) * 100 + cross * BEND * 1.5 + near * 0.6 + len + bends * BEND - sameOv * RIDE;
       };
       // Routeur A* (contourne les obstacles et les fils), essayé pour CHAQUE
       // combinaison de sorties candidates (≤ 2 par extrémité) : pour une broche
@@ -2815,54 +2863,11 @@ export class Editor {
    * pastille marque déjà la connexion) ne reçoivent pas de point.
    */
   private updateJunctions(): void {
+    // Plus AUCUN point d'embranchement (demande de Frank v2026.7.120) : les
+    // jonctions en T ne sont plus marquées d'un point. On se contente de retirer
+    // un éventuel groupe résiduel (schéma chargé d'une version antérieure).
     this.junctionsG?.remove();
     this.junctionsG = null;
-    const nets = buildNets(this.diagram);
-    const byNet = new Map<string, Array<{ pts: XY[]; color: string }>>();
-    for (const w of this.diagram.wires) {
-      if (w.auto) continue; // fils implicites : invisibles, jamais de point dessus
-      const a = this.hotspotCenter(w.a);
-      const b = this.hotspotCenter(w.b);
-      if (!a || !b) continue;
-      const id = nets.netOf(w.a);
-      let arr = byNet.get(id);
-      if (!arr) byNet.set(id, (arr = []));
-      arr.push({ pts: [a, ...(w.points ?? []), b], color: dupontHex(w.color ?? 'green') });
-    }
-    const dots: Array<{ x: number; y: number; color: string }> = [];
-    const seen = new Set<string>();
-    for (const wires of byNet.values()) {
-      if (wires.length < 2) continue;
-      const segs: Array<[XY, XY]> = [];
-      for (const w of wires) for (let i = 0; i < w.pts.length - 1; i++) segs.push([w.pts[i], w.pts[i + 1]]);
-      for (const w of wires) {
-        // Coudes seulement : les extrémités sont des broches (pastille déjà là).
-        for (let i = 1; i < w.pts.length - 1; i++) {
-          const v = w.pts[i];
-          const k = `${Math.round(v.x)},${Math.round(v.y)}`;
-          if (seen.has(k)) continue;
-          const dirs = new Set<string>();
-          for (const [s, t] of segs) junctionDirs(dirs, v, s, t);
-          if (dirs.size >= 3) {
-            seen.add(k);
-            dots.push({ x: v.x, y: v.y, color: w.color });
-          }
-        }
-      }
-    }
-    if (dots.length === 0) return;
-    const g = document.createElementNS(SVG_NS, 'g');
-    g.setAttribute('class', 'wire-junctions');
-    for (const d of dots) {
-      const c = document.createElementNS(SVG_NS, 'circle');
-      c.setAttribute('cx', String(d.x));
-      c.setAttribute('cy', String(d.y));
-      c.setAttribute('r', '3.4');
-      c.setAttribute('fill', d.color);
-      g.appendChild(c);
-    }
-    this.svg.appendChild(g); // en fin de SVG : au-dessus des fils
-    this.junctionsG = g;
   }
 
   /**
@@ -3932,6 +3937,9 @@ export class Editor {
       parts.push(deg ? `<g transform="rotate(${deg} ${cx} ${cy})">${inner}</g>` : inner);
     }
 
+    // Nommage des équipotentielles : chaque fil exporté porte son nom unique
+    // `eqp-x-y` en id (x = équipotentielle, y = fil), matérialisé dans le SVG.
+    const eqp = nameEquipotentials(this.diagram);
     const wires: string[] = [];
     for (const wire of this.diagram.wires) {
       if (wire.auto) continue; // fils implicites d'enfichage : non dessinés
@@ -3942,8 +3950,10 @@ export class Editor {
       if (!a || !b) continue;
       const pts = [a, ...(wire.points ?? []), b];
       for (const p of pts) grow(p.x, p.y);
+      const name = eqp.nameOfWire(wire.id);
       wires.push(
-        `<path d="${roundedWirePath(pts)}" fill="none" stroke="${dupontHex(wire.color ?? 'green')}" ` +
+        `<path${name ? ` id="${name}"` : ''} d="${roundedWirePath(pts)}" fill="none" ` +
+          `stroke="${dupontHex(wire.color ?? 'green')}" ` +
           `stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`
       );
     }
@@ -4489,30 +4499,20 @@ function astarRoute(
   return null;
 }
 
-/**
- * Directions (l/r/u/d) offertes par le segment H/V [s,t] au point v : les deux
- * si v est à l'intérieur du segment, une seule depuis une extrémité, aucune si
- * v n'est pas dessus. Alimente la détection des points d'embranchement
- * (≥ 3 directions distinctes en un coude = jonction en T).
- */
-function junctionDirs(dirs: Set<string>, v: XY, s: XY, t: XY): void {
-  const TOL = 1;
-  const ax = segAxis(s, t);
-  if (ax === 'h') {
-    if (Math.abs(v.y - s.y) > TOL) return;
-    const lo = Math.min(s.x, t.x);
-    const hi = Math.max(s.x, t.x);
-    if (v.x < lo - TOL || v.x > hi + TOL) return;
-    if (v.x > lo + TOL) dirs.add('l');
-    if (v.x < hi - TOL) dirs.add('r');
-  } else if (ax === 'v') {
-    if (Math.abs(v.x - s.x) > TOL) return;
-    const lo = Math.min(s.y, t.y);
-    const hi = Math.max(s.y, t.y);
-    if (v.y < lo - TOL || v.y > hi + TOL) return;
-    if (v.y > lo + TOL) dirs.add('u');
-    if (v.y < hi - TOL) dirs.add('d');
-  }
+/** Le point `p` est-il sur le segment H/V [a,b] (à `tol` px près) ? Sert à
+ *  interdire qu'un fil passe sur une broche à laquelle il n'est pas connecté. */
+function pointOnSegment(p: XY, a: XY, b: XY, tol = 1): boolean {
+  const minX = Math.min(a.x, b.x) - tol;
+  const maxX = Math.max(a.x, b.x) + tol;
+  const minY = Math.min(a.y, b.y) - tol;
+  const maxY = Math.max(a.y, b.y) + tol;
+  if (p.x < minX || p.x > maxX || p.y < minY || p.y > maxY) return false;
+  // Distance point→droite du segment (H ou V) : |écart| sur l'axe transverse.
+  const ax = segAxis(a, b);
+  if (ax === 'h') return Math.abs(p.y - a.y) <= tol;
+  if (ax === 'v') return Math.abs(p.x - a.x) <= tol;
+  // Segment dégénéré (point) : distance euclidienne.
+  return Math.hypot(p.x - a.x, p.y - a.y) <= tol;
 }
 
 /** Croisement transversal STRICT de deux segments H/V (l'un coupe l'autre en

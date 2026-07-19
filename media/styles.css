@@ -810,12 +810,6 @@ textarea {
   }
 }
 
-/* Points d'embranchement : jonction en T de fils d'une même équipotentielle
-   (le point, à la couleur du fil, signale la connexion — comme sur un schéma). */
-.wire-junctions {
-  pointer-events: none;
-}
-
 .wire--temp {
   stroke: #8fd6b4 !important;
   stroke-dasharray: 5 4;

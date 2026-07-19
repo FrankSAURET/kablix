@@ -75,6 +75,53 @@ export interface Nets {
   netOf(e: Endpoint): string;
 }
 
+/** Nommage des équipotentielles d'un schéma : chaque net portant au moins un
+ *  fil visible reçoit un nom stable `eqp-<n>` (n = 1, 2, 3… dans l'ordre
+ *  d'apparition des fils), et chaque fil de ce net un nom unique `eqp-<n>-<k>`.
+ *  Deux fils de MÊME `eqp` ont le droit de se chevaucher et de s'embrancher ;
+ *  deux fils d'`eqp` différentes ne le peuvent pas (règle d'autoroutage). */
+export interface Equipotentials {
+  /** `eqp-<n>` de l'équipotentielle d'un fil (via son id). */
+  eqpOfWire(wireId: string): string | undefined;
+  /** `eqp-<n>-<k>` unique d'un fil (via son id). */
+  nameOfWire(wireId: string): string | undefined;
+  /** Deux fils appartiennent-ils à la même équipotentielle ? */
+  sameEqp(wireIdA: string, wireIdB: string): boolean;
+}
+
+export function nameEquipotentials(diagram: Diagram): Equipotentials {
+  const nets = buildNets(diagram);
+  const eqpOf = new Map<string, string>(); // wireId → eqp-N
+  const nameOf = new Map<string, string>(); // wireId → eqp-N-K
+  const eqpByNet = new Map<string, string>(); // netId → eqp-N
+  const kByEqp = new Map<string, number>(); // eqp-N → dernier K attribué
+  let n = 0;
+  // Ordre stable = ordre des fils dans le diagramme (les fils `auto` invisibles
+  // ne comptent pas comme équipotentielle nommée).
+  for (const w of diagram.wires) {
+    if (w.auto) continue;
+    const net = nets.netOf(w.a);
+    let eqp = eqpByNet.get(net);
+    if (eqp === undefined) {
+      eqp = `eqp-${++n}`;
+      eqpByNet.set(net, eqp);
+      kByEqp.set(eqp, 0);
+    }
+    const k = (kByEqp.get(eqp) ?? 0) + 1;
+    kByEqp.set(eqp, k);
+    eqpOf.set(w.id, eqp);
+    nameOf.set(w.id, `${eqp}-${k}`);
+  }
+  return {
+    eqpOfWire: (id) => eqpOf.get(id),
+    nameOfWire: (id) => nameOf.get(id),
+    sameEqp: (a, b) => {
+      const ea = eqpOf.get(a);
+      return ea !== undefined && ea === eqpOf.get(b);
+    },
+  };
+}
+
 /**
  * Construit la netlist. Les fils relient les broches ; une résistance se
  * comporte comme un fil entre ses deux pattes (1 ↔ 2) ; une platine d'essai
