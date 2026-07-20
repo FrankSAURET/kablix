@@ -1305,11 +1305,17 @@ export class Editor {
   }
 
   /** Décale un composant pour que sa première broche tombe sur la grille.
-   *  `silent` : pas d'entrée d'historique (recollages internes en lot). */
-  private snapPartToGrid(partId: string, silent = false): void {
+   *  `silent` : pas d'entrée d'historique (recollages internes en lot).
+   *  `onlyRotated` : ne recolle QUE les composants tournés (chargement d'un
+   *  schéma) — un composant droit posé volontairement hors grille garde sa
+   *  position, alors que le balayage inconditionnel le déplaçait jusqu'à 5 px
+   *  par axe à chaque ouverture (visible surtout sur les composants non câblés,
+   *  aucun fil ne venant masquer le glissement). */
+  private snapPartToGrid(partId: string, silent = false, onlyRotated = false): void {
     const off = this.gridOffset(partId);
     const r = this.rendered.get(partId);
     if (!off || !r) return;
+    if (onlyRotated && !(r.part.rotation ?? 0)) return;
     r.part.x = Math.max(0, snapToGrid(r.part.x + off.x) - off.x);
     r.part.y = Math.max(0, snapToGrid(r.part.y + off.y) - off.y);
     r.container.style.left = `${r.part.x}px`;
@@ -1395,7 +1401,7 @@ export class Editor {
     this.snapSettleLeft = 8;
     for (const ms of [120, 350, 800]) {
       setTimeout(() => {
-        for (const id of [...this.rendered.keys()]) this.snapPartToGrid(id, true);
+        for (const id of [...this.rendered.keys()]) this.snapPartToGrid(id, true, true);
       }, ms);
     }
     const idMap = new Map<string, string>();
@@ -3080,7 +3086,7 @@ export class Editor {
         // (le centre de rotation bouge → mesure périmée) : on repasse plusieurs
         // frames, le recollage est idempotent une fois les tailles stables.
         this.snapSettleLeft--;
-        for (const id of [...this.rendered.keys()]) this.snapPartToGrid(id, true);
+        for (const id of [...this.rendered.keys()]) this.snapPartToGrid(id, true, true);
         if (this.snapSettleLeft > 0) requestAnimationFrame(() => this.scheduleSettle());
       }
     });

@@ -1,7 +1,7 @@
 {
   "name": "kablix",
   "displayName": "Kablix",
-  "version": "2026.7.130",
+  "version": "2026.7.131",
   "description": "%kablix.description%",
   "publisher": "franksauret",
   "author": {
@@ -191,7 +191,7 @@
     "verify:neopixel": "node scripts/verify-neopixel.mjs",
     "verify:creator": "node scripts/verify-creator.mjs",
     "verify:debug": "node scripts/verify-debug-py.mjs",
-    "verify:all": "npm run verify && npm run verify:compiler && npm run verify:diagram && npm run verify:uf2 && npm run verify:micropython && npm run verify:wokwi && npm run verify:net && npm run verify:i2c && npm run verify:components && npm run verify:spi && npm run verify:neopixel && npm run verify:creator && npm run verify:debug && npm run verify:plotter && npm run verify:simshift && npm run verify:led && npm run verify:divider && npm run verify:selection && npm run verify:align && npm run verify:route && npm run verify:keypad && npm run verify:grove && npm run verify:psu && npm run verify:pca && npm run verify:pca-e2e && npm run verify:servo && npm run verify:pinout",
+    "verify:all": "npm run verify && npm run verify:compiler && npm run verify:diagram && npm run verify:uf2 && npm run verify:micropython && npm run verify:wokwi && npm run verify:net && npm run verify:i2c && npm run verify:components && npm run verify:spi && npm run verify:neopixel && npm run verify:creator && npm run verify:debug && npm run verify:plotter && npm run verify:simshift && npm run verify:led && npm run verify:divider && npm run verify:selection && npm run verify:align && npm run verify:route && npm run verify:keypad && npm run verify:grove && npm run verify:psu && npm run verify:pca && npm run verify:pca-e2e && npm run verify:servo && npm run verify:pinout && npm run verify:export",
     "package": "vsce package --no-dependencies",
     "verify:plotter": "node scripts/verify-plotter.mjs",
     "verify:simshift": "node scripts/verify-simshift.mjs",
@@ -206,7 +206,8 @@
     "verify:pca": "node scripts/verify-pca.mjs",
     "verify:pca-e2e": "node scripts/verify-pca-e2e.mjs",
     "verify:servo": "node scripts/verify-servo.mjs",
-    "verify:pinout": "node scripts/verify-pinout.mjs"
+    "verify:pinout": "node scripts/verify-pinout.mjs",
+    "verify:export": "node scripts/verify-export.mjs"
   },
   "dependencies": {
     "@xmldom/xmldom": "^0.9.10",
