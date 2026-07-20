@@ -3598,7 +3598,12 @@ export class Editor {
 
     const subtitle = document.createElement('p');
     subtitle.className = 'inspector__subtitle';
-    subtitle.textContent = t('Wire {0} → {1}', wire.a.pin, wire.b.pin);
+    // Nom de l'équipotentielle du fil accolé au titre — « Fil A → B (Eqp3) » :
+    // deux fils au même potentiel portent le même (Eqp<n>). Un fil `auto`
+    // (invisible, enfichage) n'est pas nommé : titre inchangé dans ce cas.
+    const eqp = nameEquipotentials(this.diagram).eqpOfWire(wireId);
+    const eqpLabel = eqp ? ` (Eqp${eqp.replace(/^eqp-/, '')})` : '';
+    subtitle.textContent = t('Wire {0} → {1}', wire.a.pin, wire.b.pin) + eqpLabel;
     this.inspector.appendChild(subtitle);
 
     const label = document.createElement('label');

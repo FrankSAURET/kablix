@@ -69,6 +69,15 @@ async function run() {
 	ok('fil : halo accent (filter drop-shadow)',
 		getComputedStyle(path).filter.includes('drop-shadow'));
 
+	// --- 1 bis. Titre de l'inspecteur : équipotentielle accolée ----------------
+	// « Fil A → C (Eqp1) » : le nom de l'équipotentielle n'existait que dans le
+	// DOM des fils / l'export SVG, il devient LISIBLE dans l'inspecteur.
+	const wireTitle = inspector.querySelector('.inspector__subtitle')?.textContent || '';
+	ok('inspecteur : titre du fil suffixé de son équipotentielle (Eqp<n>)',
+		/\\(Eqp\\d+\\)\\s*$/.test(wireTitle), JSON.stringify(wireTitle));
+	ok('inspecteur : titre du fil = broches puis équipotentielle',
+		/A.+C.*\\(Eqp1\\)/.test(wireTitle), JSON.stringify(wireTitle));
+
 	// --- 2. Coude inséré au double-clic : fourmis resynchronisées --------------
 	const box = path.getBoundingClientRect();
 	path.dispatchEvent(new MouseEvent('dblclick', {

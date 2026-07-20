@@ -3,7 +3,9 @@
 1. l'ouverture des fichiers est devenue lente
 1. Les 2 claviers à touches dur ont gardés les pastilles rouge de positionnent ainsi que le nom de chaque pastille
 1. Il y a des problèmes  à l'export svg. Les composants non cablés ne gardent pas leur position et la feuille n'est pas ajustée
-1. indique moi ou apparait le nom des equipotentielle
+# v2026.7.127
+1. ✅ Nom de l'équipotentielle AFFICHÉ dans l'inspecteur du fil (item « indique moi où apparaît le nom des équipotentielles ») : il n'existait jusqu'ici que dans le DOM (`data-eqp`) et l'export SVG, donc invisible à l'usage. Le titre de l'inspecteur d'un câble devient **« Fil GP9 → GP9.b (Eqp3) »** — les broches de départ/arrivée suivies de l'équipotentielle, sous la forme courte `Eqp<n>` (le nom interne reste `eqp-<n>`). Deux fils au même potentiel portent le même `(Eqp<n>)`. Un fil `auto` (invisible, enfichage) n'est pas nommé : titre inchangé dans ce cas.
+1. ✅ `verify:selection` : 2 contrôles sur le titre réel de l'inspecteur (suffixe `(Eqp<n>)` présent, broches puis équipotentielle) — 42 contrôles. typecheck + build + verify:all OK.
 # v2026.7.126
 1. ✅ Aide de l'alimentation de laboratoire (item « Fais une aide pour l'alim ») : nouvelle fiche `docs/composants/alim.md` — ouverte hors-ligne par le bouton « Aide composant » de l'inspecteur, qui existait déjà mais ne trouvait AUCUNE fiche pour le type `alim` (message « Aucune aide disponible »). Contenu : bornes V+ (rouge) / GND (noire) et couleur AUTO des fils, propriétés `voltage` (tension de DÉMARRAGE, 0-30 V) et `maxcurrent`, réglage du bouton à la souris en simulation (300° horaires = 0→30 V, 10°/V, zone morte de 60° collée à l'extrémité la plus proche, inerte en édition), estimation du courant débité (pont résistif V+→masse, LED `(V−Vf)/R`, 0,2 A par servo, charge déclarée des modules) et LED « Courant limite », conseils de câblage. Image `img/alim.png` rendue depuis le dessin de Frank (Chrome headless, ×2).
 1. ✅ Fiche du PCA9685 recalée : l'alimentation de laboratoire y était annoncée en catégorie « Divers » (déplacée en « Appareils de mesure » en v2026.7.125) — corrigé, et le renvoi devient un LIEN vers `alim.md`.
