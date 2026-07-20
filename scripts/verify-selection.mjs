@@ -301,6 +301,77 @@ async function run() {
 	ok('inspecteur PCA : tous les pads bas → 0x40', pca.attrs?.address === '0x40' && addrText().includes('0x40'),
 		\`\${pca.attrs?.address} / \${addrText()}\`);
 
+	// --- 13. Glisser-déposer palette → canvas (v2026.7.128) --------------------
+	// Le composant doit se poser À L'ÉCHELLE 1 (taille du canvas, pas celle de la
+	// vignette) et CENTRÉ sur le point de lâcher.
+	editor.select(null);
+	await wait(10);
+	const dt = {
+		types: ['application/x-kablix-part'],
+		data: {},
+		effectAllowed: '', dropEffect: '',
+		setData(k, v) { this.data[k] = v; this.types.includes(k) || this.types.push(k); },
+		getData(k) { return this.data[k] ?? ''; },
+		dragImage: null,
+		setDragImage(el, x, y) { this.dragImage = { el, x, y }; },
+	};
+	// Bouton de palette d'une LED : dragstart → image de glissement.
+	const ledBtn = [...palette.querySelectorAll('.palette__item')]
+		.find((b) => (b.dataset.search || '').includes('led') || /LED/i.test(b.textContent));
+	ok('palette : bouton de composant trouvé pour le glisser', !!ledBtn, ledBtn?.textContent);
+	if (ledBtn) {
+		// Comme un vrai utilisateur : la souris passe sur le bouton avant de glisser
+		// (c'est ce survol qui prépare le fantôme, le rendu Lit n'étant pas synchrone).
+		ledBtn.dispatchEvent(new PointerEvent('pointerenter', { bubbles: true }));
+		await wait(60);
+		const ev = new Event('dragstart', { bubbles: true });
+		Object.defineProperty(ev, 'dataTransfer', { value: dt });
+		ledBtn.dispatchEvent(ev);
+		// Taille RÉELLE d'une LED posée sur la feuille (référence d'échelle).
+		const ref = editor.addPart('led', 20, 500);
+		await wait(40);
+		const refEl = editor.elementOf(ref.id);
+		const rw = refEl.offsetWidth, rh = refEl.offsetHeight;
+		const img = dt.dragImage;
+		ok('glisser : image de glissement posée', !!img && !!img.el);
+		// Échelle 1 (zoom = 1 par défaut) : l'image fait la taille du composant réel,
+		// pas 46×30 (la vignette réduite de la palette).
+		const iw = img ? parseFloat(img.el.style.width) : 0;
+		const ih = img ? parseFloat(img.el.style.height) : 0;
+		ok("glisser : image à l'échelle du canvas (taille du composant réel, pas la vignette)",
+			Math.abs(iw - rw * editor.zoom) <= 2 && Math.abs(ih - rh * editor.zoom) <= 2,
+			'image ' + iw + 'x' + ih + ' vs composant ' + rw + 'x' + rh + ' (zoom ' + editor.zoom + ')');
+		ok('glisser : image de glissement ancrée en son centre',
+			img && Math.abs(img.x - iw / 2) <= 1 && Math.abs(img.y - ih / 2) <= 1,
+			img ? img.x + ',' + img.y : 'absente');
+		editor.removePart(ref.id);
+		// Lâcher au milieu du canvas : le composant se pose CENTRÉ sur ce point.
+		const before = editor.diagram.parts.length;
+		const cbox = canvas.getBoundingClientRect();
+		const dropX = cbox.left + 400, dropY = cbox.top + 300;
+		const drop = new Event('drop', { bubbles: true, cancelable: true });
+		Object.defineProperty(drop, 'dataTransfer', { value: dt });
+		Object.defineProperty(drop, 'clientX', { value: dropX });
+		Object.defineProperty(drop, 'clientY', { value: dropY });
+		canvas.dispatchEvent(drop);
+		await wait(900); // le recentrage attend que le rendu Lit se stabilise
+		ok('lâcher : un composant a été posé', editor.diagram.parts.length === before + 1);
+		const dropped = editor.diagram.parts[editor.diagram.parts.length - 1];
+		const dEl = editor.elementOf(dropped.id);
+		const dBody = dEl.closest('.part__body') ?? dEl.parentElement;
+		const dr = dBody.getBoundingClientRect();
+		const cxx = dr.left + dr.width / 2, cyy = dr.top + dr.height / 2;
+		// Tolérance = l'accrochage grille de 10 px (snapPartToGrid) + demi-pastille.
+		ok('lâcher : composant posé CENTRÉ sur le point de lâcher (±12 px)',
+			Math.abs(cxx - dropX) <= 12 && Math.abs(cyy - dropY) <= 12,
+			'centre ' + Math.round(cxx) + ',' + Math.round(cyy) +
+			' vs lâcher ' + Math.round(dropX) + ',' + Math.round(dropY));
+		// Échelle 1 : le composant posé fait la même taille que la référence.
+		ok("lâcher : composant à l'échelle 1 (même taille que le même composant déjà posé)",
+			Math.abs(dEl.offsetWidth - rw) <= 1 && Math.abs(dEl.offsetHeight - rh) <= 1,
+			dEl.offsetWidth + 'x' + dEl.offsetHeight + ' vs ' + rw + 'x' + rh);
+	}
+
 	const out = document.createElement('pre');
 	out.id = 'measures';
 	out.textContent = JSON.stringify(checks);

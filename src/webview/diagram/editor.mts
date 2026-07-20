@@ -185,6 +185,12 @@ export class Editor {
   private foldMenu: HTMLDivElement | null = null;
   private foldMenuOff: (() => void) | null = null;
   private rendered = new Map<string, Rendered>();
+  /**
+   * Fantômes de glisser-déposer (un par type de composant) : rendus hors écran
+   * et conservés, car un élément Lit créé à l'instant du `dragstart` n'a pas
+   * encore de taille et ne peut donc pas servir d'image de glissement.
+   */
+  private dragGhosts = new Map<string, { host: HTMLElement; el: HTMLElement }>();
   private wirePaths = new Map<string, SVGPathElement>();
   /** Surbrillance « fourmis » des fils sélectionnés (groupe de 2 tracés pointillés). */
   private wireAnts = new Map<string, SVGGElement>();
@@ -303,10 +309,55 @@ export class Editor {
       if (!type) return;
       e.preventDefault();
       const p = this.canvasPoint(e.clientX, e.clientY);
+      // Le composant se pose CENTRÉ sous le curseur, comme le fantôme de
+      // glissement : `addPart` place le coin haut-gauche, on le recale une fois
+      // la taille réelle connue.
       const part = this.addPart(type, Math.max(0, Math.round(p.x)), Math.max(0, Math.round(p.y)));
-      // Aligne les broches sur la grille (après rendu : les broches Lit
-      // peuvent n'être disponibles qu'au cycle suivant).
-      requestAnimationFrame(() => this.snapPartToGrid(part.id));
+      this.centerPartOn(part.id, p);
+      // Le rendu Lit n'est pas synchrone : la taille du corps (et les broches)
+      // n'arrivent qu'après un ou plusieurs cycles. On recentre à chaque cycle
+      // tant que la taille change, PUIS on aligne les broches sur la grille —
+      // sans quoi le composant se centre sur une taille périmée et se pose à
+      // côté du point de lâcher.
+      // `scheduleSettle` peut encore AGRANDIR le dessin (applyPinScale, pas de
+      // 10 px) plusieurs frames après la pose : on recentre à chaque frame et on
+      // n'aligne sur la grille qu'une fois la taille stable sur plusieurs frames
+      // d'affilée, sinon le centrage porte sur une taille périmée et le composant
+      // se retrouve à une dizaine de pixels du point de lâcher.
+      let lastW = -1;
+      let lastH = -1;
+      let stable = 0;
+      let frames = 0;
+      const settle = (): void => {
+        const r = this.rendered.get(part.id);
+        const body = r?.container.querySelector('.part__body') as HTMLElement | null;
+        if (!r || !body) return;
+        const w = body.offsetWidth;
+        const h = body.offsetHeight;
+        this.centerPartOn(part.id, p);
+        stable = w > 1 && h > 1 && w === lastW && h === lastH ? stable + 1 : 0;
+        lastW = w;
+        lastH = h;
+        if (stable < 3 && ++frames < 30) {
+          next();
+          return;
+        }
+        this.snapPartToGrid(part.id);
+      };
+      // rAF avec repli par minuterie : dans un rendu hors écran (onglet en
+      // arrière-plan, capture headless) le rAF peut ne jamais être appelé — le
+      // composant resterait alors centré sur une taille provisoire.
+      const next = (): void => {
+        let done = false;
+        const once = (): void => {
+          if (done) return;
+          done = true;
+          settle();
+        };
+        if (typeof requestAnimationFrame === 'function') requestAnimationFrame(once);
+        setTimeout(once, 32);
+      };
+      next();
     });
     // État initial enregistré pour l'annulation (feuille vide).
     this.recordHistory();
@@ -755,15 +806,73 @@ export class Editor {
       if (!this.locked) this.addPartAtVisibleCenter(def.type);
     });
     btn.draggable = true;
+    // Le fantôme doit exister ET être rendu AVANT le `dragstart` : un élément Lit
+    // créé dans le gestionnaire n'a pas encore de taille (offsetWidth = 0) et le
+    // navigateur capture l'instantané de façon synchrone. On le prépare donc dès
+    // que le bouton est approché (survol ou appui), bien avant le glisser.
+    const prime = (): void => void this.dragGhost(def);
+    btn.addEventListener('pointerenter', prime);
+    btn.addEventListener('pointerdown', prime);
     btn.addEventListener('dragstart', (e) => {
       e.dataTransfer?.setData(DND_MIME, def.type);
       if (e.dataTransfer) {
         e.dataTransfer.effectAllowed = 'copy';
-        // Image de glissement = miniature du composant (centrée sous le curseur).
-        e.dataTransfer.setDragImage(thumb, thumb.offsetWidth / 2, thumb.offsetHeight / 2);
+        // Image de glissement = le composant à la TAILLE QU'IL AURA sur la
+        // feuille (zoom courant), pas la vignette réduite de la palette : sinon
+        // il grossit d'un coup au lâcher et paraît sauter ailleurs.
+        const ghost = this.dragGhost(def);
+        if (ghost) {
+          e.dataTransfer.setDragImage(ghost.el, ghost.w / 2, ghost.h / 2);
+        } else {
+          e.dataTransfer.setDragImage(thumb, thumb.offsetWidth / 2, thumb.offsetHeight / 2);
+        }
       }
     });
     return btn;
+  }
+
+  /**
+   * Fantôme de glissement : le composant réel, rendu hors écran et mis à
+   * l'échelle du zoom du canvas — ce que l'utilisateur verra une fois posé.
+   * L'hôte est CONSERVÉ par type (le rendu Lit n'est pas synchrone : un fantôme
+   * créé à l'instant n'a pas de taille), simplement remis à l'échelle courante à
+   * chaque appel. Renvoie `null` tant que la taille est nulle : l'appelant
+   * retombe alors sur la vignette de la palette.
+   */
+  private dragGhost(def: PartDef): { el: HTMLElement; w: number; h: number } | null {
+    let entry = this.dragGhosts.get(def.type);
+    if (!entry) {
+      const host = document.createElement('div');
+      // Hors écran mais RENDU (display:none ne serait pas capturé) et sans
+      // influence sur la mise en page ni sur les barres de défilement.
+      host.style.cssText =
+        'position:fixed;left:-10000px;top:0;margin:0;padding:0;pointer-events:none;z-index:-1;';
+      try {
+        const el = document.createElement(def.tag) as WokwiElement;
+        if (def.custom) {
+          (el as unknown as { definition: typeof def }).definition = def;
+        }
+        for (const [k, v] of Object.entries(def.attrs ?? {})) {
+          if (v !== '') el.setAttribute(k, v);
+        }
+        el.style.transformOrigin = 'top left';
+        host.appendChild(el);
+        document.body.appendChild(host);
+      } catch {
+        host.remove();
+        return null;
+      }
+      entry = { host, el: host.firstElementChild as HTMLElement };
+      this.dragGhosts.set(def.type, entry);
+    }
+    const w = entry.el.offsetWidth;
+    const h = entry.el.offsetHeight;
+    if (w <= 1 || h <= 1) return null; // pas encore rendu : on réessaiera
+    const z = this.zoom;
+    entry.el.style.transform = `scale(${z})`;
+    entry.host.style.width = `${w * z}px`;
+    entry.host.style.height = `${h * z}px`;
+    return { el: entry.host, w: w * z, h: h * z };
   }
 
   /** Miniature live d'un composant (élément réel mis à l'échelle dans une vignette). */
@@ -1151,16 +1260,25 @@ export class Editor {
   addPartAtVisibleCenter(type: string): Part {
     const center = this.visibleWorldCenter();
     const part = this.addPart(type, center.x, center.y);
-    const r = this.rendered.get(part.id);
-    const body = r?.container.querySelector('.part__body') as HTMLElement | null;
-    if (r && body) {
-      r.part.x = Math.max(0, center.x - (body.offsetWidth || 40) / 2);
-      r.part.y = Math.max(0, center.y - (body.offsetHeight || 40) / 2);
-      r.container.style.left = `${r.part.x}px`;
-      r.container.style.top = `${r.part.y}px`;
-    }
+    this.centerPartOn(part.id, center);
     this.snapPartToGrid(part.id);
     return part;
+  }
+
+  /**
+   * Recale un composant pour que son CORPS soit centré sur un point du monde.
+   * `addPart` positionne le coin haut-gauche ; la taille réelle n'est connue
+   * qu'après le rendu Lit, d'où l'appel possible en deux temps (tout de suite,
+   * puis au cycle suivant quand la taille est enfin non nulle).
+   */
+  private centerPartOn(partId: string, center: XY): void {
+    const r = this.rendered.get(partId);
+    const body = r?.container.querySelector('.part__body') as HTMLElement | null;
+    if (!r || !body) return;
+    r.part.x = Math.max(0, center.x - (body.offsetWidth || 40) / 2);
+    r.part.y = Math.max(0, center.y - (body.offsetHeight || 40) / 2);
+    r.container.style.left = `${r.part.x}px`;
+    r.container.style.top = `${r.part.y}px`;
   }
 
   addPart(type: string, x = 40 + this.diagram.parts.length * 30, y = 60): Part {
