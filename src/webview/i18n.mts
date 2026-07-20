@@ -106,6 +106,8 @@ const FR: Record<string, string> = {
   'Click a part or a wire to edit it. Wiring: click a pin, add corners by clicking the background, finish on a pin (Esc: cancel).':
     'Cliquez un composant ou un fil pour le modifier. Câblage : cliquez une broche, posez des coudes en cliquant le fond, terminez sur une broche (Échap : annuler).',
   'Wire {0} → {1}': 'Fil {0} → {1}',
+  'Node {0}': 'Nœud {0}',
+  'Select every wire of this node': 'Sélectionner tous les fils de ce nœud',
   'Color (Dupont cables)': 'Couleur (câbles Dupont)',
   'Delete the wire': 'Supprimer le fil',
   'Delete the part': 'Supprimer le composant',

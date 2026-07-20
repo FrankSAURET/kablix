@@ -74,13 +74,26 @@ async function run() {
 		getComputedStyle(path).filter.includes('drop-shadow'));
 
 	// --- 1 bis. Titre de l'inspecteur : équipotentielle accolée ----------------
-	// « Fil A → C (Eqp1) » : le nom de l'équipotentielle n'existait que dans le
-	// DOM des fils / l'export SVG, il devient LISIBLE dans l'inspecteur.
+	// « Fil A → C (Nœud 1) » : le nom de l'équipotentielle n'existait que dans le
+	// DOM des fils / l'export SVG, il devient LISIBLE dans l'inspecteur. Le
+	// libellé technique « Eqp<n> » a laissé place au terme métier TRADUISIBLE
+	// « Nœud <n> », et il est CLIQUABLE (sélectionne toute l'équipotentielle).
+	// Le banc tourne en anglais (pas de KABLIX_LANG) : on contrôle donc la chaîne
+	// SOURCE « Node <n> », dont « Nœud <n> » est la traduction FR (i18n.mts).
 	const wireTitle = inspector.querySelector('.inspector__subtitle')?.textContent || '';
-	ok('inspecteur : titre du fil suffixé de son équipotentielle (Eqp<n>)',
-		/\\(Eqp\\d+\\)\\s*$/.test(wireTitle), JSON.stringify(wireTitle));
-	ok('inspecteur : titre du fil = broches puis équipotentielle',
-		/A.+C.*\\(Eqp1\\)/.test(wireTitle), JSON.stringify(wireTitle));
+	ok('inspecteur : titre du fil suffixé de son nœud (Node/Nœud <n>)',
+		/\\((?:Node|N\\u0153ud) \\d+\\)\\s*$/.test(wireTitle), JSON.stringify(wireTitle));
+	ok('inspecteur : titre du fil = broches puis nœud',
+		/A.+C.*\\((?:Node|N\\u0153ud) 1\\)/.test(wireTitle), JSON.stringify(wireTitle));
+	ok('inspecteur : plus aucun libellé technique « Eqp<n> » affiché',
+		!/Eqp\\d/.test(wireTitle), JSON.stringify(wireTitle));
+	const eqpLink = inspector.querySelector('.inspector__eqp');
+	ok('inspecteur : le nom du nœud est un bouton cliquable',
+		!!eqpLink && eqpLink.tagName === 'BUTTON' &&
+		/(?:Node|N\\u0153ud) 1/.test(eqpLink.textContent || ''),
+		eqpLink ? eqpLink.outerHTML.slice(0, 80) : 'absent');
+	ok('inspecteur : le nom du nœud est présenté comme un lien (souligné)',
+		!!eqpLink && getComputedStyle(eqpLink).textDecorationLine.includes('underline'));
 
 	// --- 2. Coude inséré au double-clic : fourmis resynchronisées --------------
 	const box = path.getBoundingClientRect();
@@ -139,8 +152,44 @@ async function run() {
 	ok('re-Ctrl+clic fil : lot vidé → fourmis retirées',
 		!svg.querySelector('g.wire-ants') && !path.classList.contains('wire--selected'));
 
+	// --- 6 bis. Clic sur « Nœud n » : toute l'équipotentielle sélectionnée -----
+	// Trois fils, DEUX potentiels : led1.A—led2.C et led2.C—led3.A partagent la
+	// borne led2.C (donc le même nœud), led3.C—led4.A est un nœud à part. Un clic
+	// sur le nom du nœud doit prendre les DEUX premiers et EXCLURE le troisième.
+	const led3 = editor.addPart('led', 500, 100);
+	const led4 = editor.addPart('led', 700, 100);
+	await wait(60);
+	editor.addWire({ partId: led2.id, pin: 'C' }, { partId: led3.id, pin: 'A' }, { points: [] });
+	editor.addWire({ partId: led3.id, pin: 'C' }, { partId: led4.id, pin: 'A' }, { points: [] });
+	editor.redrawWires();
+	await wait(30);
+	editor.select(null);
+	clickSelect(svg.querySelector('path.wire'));
+	const link6 = inspector.querySelector('.inspector__eqp');
+	ok('nœud : bouton présent sur le fil sélectionné', !!link6);
+	link6?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+	const selWires = [...svg.querySelectorAll('path.wire.wire--selected')];
+	ok('clic sur le nœud : les 2 fils du MÊME potentiel sont sélectionnés',
+		selWires.length === 2, 'sélectionnés=' + selWires.length);
+	ok('clic sur le nœud : le fil de l\\'autre potentiel reste NON sélectionné',
+		svg.querySelectorAll('path.wire').length === 3 && selWires.length === 2);
+	ok('clic sur le nœud : aucun composant embarqué dans la sélection',
+		document.querySelectorAll('.part--selected').length === 0);
+	// Le lot ainsi constitué est un lot de câbles ordinaire : l'inspecteur
+	// affiche son décompte et la suppression groupée s'applique.
+	ok('clic sur le nœud : l\\'inspecteur montre le lot de câbles',
+		/2/.test(inspector.textContent || '') &&
+		!!inspector.querySelector('.inspector__hint'));
+	// Remise en état pour la suite : on repart du seul premier fil.
+	editor.select(null);
+	for (const w of [...editor.diagram.wires].slice(1)) editor.removeWire(w.id);
+	editor.removePart(led3.id);
+	editor.removePart(led4.id);
+	editor.redrawWires();
+	await wait(30);
+
 	// --- 7. Suppression du fil sélectionné : fil ET fourmis hors du DOM ---------
-	clickSelect(path);
+	clickSelect(svg.querySelector('path.wire'));
 	window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }));
 	ok('Suppr : fil et fourmis retirés du DOM',
 		!svg.querySelector('path.wire') && !svg.querySelector('g.wire-ants'));
@@ -608,6 +657,19 @@ const dom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--no-sandb
 const m = dom.match(/<pre id="measures"[^>]*>([\s\S]*?)<\/pre>/);
 if (!m) { console.log('MESURES INTROUVABLES'); process.exit(1); }
 const rows = JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>'));
+// Contrôle i18n côté Node (le banc Chrome tourne en anglais) : le libellé du
+// nœud doit être une chaîne TRADUISIBLE, présente dans le catalogue FR.
+const i18n = readFileSync(join(ROOT, 'src', 'webview', 'i18n.mts'), 'utf8');
+rows.push({
+	name: 'i18n : « Node {0} » traduit en « Nœud {0} »',
+	ok: /'Node \{0\}':\s*'Nœud \{0\}'/.test(i18n),
+	detail: 'clé absente du catalogue FR',
+});
+rows.push({
+	name: 'i18n : infobulle du nœud traduite',
+	ok: /'Select every wire of this node':\s*'[^']+'/.test(i18n),
+	detail: 'clé absente du catalogue FR',
+});
 let fail = 0;
 for (const r of rows) {
 	if (!r.ok) fail++;

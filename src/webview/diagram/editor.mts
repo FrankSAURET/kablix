@@ -3277,6 +3277,29 @@ export class Editor {
     this.renderInspector();
   }
 
+  /**
+   * Sélectionne TOUS les fils d'une équipotentielle (clic sur « Nœud n » dans
+   * l'inspecteur du fil). Les fils `auto` (invisibles, enfichage) n'ont pas
+   * d'eqp et ne sont donc jamais pris.
+   */
+  private selectEquipotential(eqp: string): void {
+    const eqps = nameEquipotentials(this.diagram);
+    const ids = this.diagram.wires
+      .filter((w) => eqps.eqpOfWire(w.id) === eqp)
+      .map((w) => w.id);
+    if (ids.length === 0) return;
+    // On repart d'une sélection vierge : le lot, c'est l'équipotentielle.
+    this.selectedParts.clear();
+    this.setPartHighlight();
+    this.clearHandles();
+    this.selection = null;
+    this.selectedWires = new Set(ids);
+    for (const wid of this.wirePaths.keys()) {
+      this.setWireHighlight(wid, this.selectedWires.has(wid));
+    }
+    this.renderInspector();
+  }
+
   /** Ctrl+clic sur un fil : ajoute/retire le câble du lot (suppression groupée). */
   private toggleWireInSelection(id: string): void {
     // Une sélection simple de fil rejoint le lot (Ctrl+clic construit dessus).
@@ -3853,12 +3876,24 @@ export class Editor {
 
     const subtitle = document.createElement('p');
     subtitle.className = 'inspector__subtitle';
-    // Nom de l'équipotentielle du fil accolé au titre — « Fil A → B (Eqp3) » :
-    // deux fils au même potentiel portent le même (Eqp<n>). Un fil `auto`
+    // Nom de l'équipotentielle du fil accolé au titre — « Fil A → B (Nœud 3) » :
+    // deux fils au même potentiel portent le même (Nœud <n>). Un fil `auto`
     // (invisible, enfichage) n'est pas nommé : titre inchangé dans ce cas.
     const eqp = nameEquipotentials(this.diagram).eqpOfWire(wireId);
-    const eqpLabel = eqp ? ` (Eqp${eqp.replace(/^eqp-/, '')})` : '';
-    subtitle.textContent = t('Wire {0} → {1}', wire.a.pin, wire.b.pin) + eqpLabel;
+    subtitle.textContent = t('Wire {0} → {1}', wire.a.pin, wire.b.pin);
+    if (eqp) {
+      // Le nom du nœud est CLIQUABLE : il sélectionne d'un coup tous les fils
+      // au même potentiel (repérage visuel, suppression ou recoloriage en lot).
+      subtitle.append(' (');
+      const link = document.createElement('button');
+      link.type = 'button';
+      link.className = 'inspector__eqp';
+      link.textContent = t('Node {0}', eqp.replace(/^eqp-/, ''));
+      link.title = t('Select every wire of this node');
+      link.addEventListener('click', () => this.selectEquipotential(eqp));
+      subtitle.appendChild(link);
+      subtitle.append(')');
+    }
     this.inspector.appendChild(subtitle);
 
     const label = document.createElement('label');

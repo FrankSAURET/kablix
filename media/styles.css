@@ -971,6 +971,22 @@ textarea {
   font-size: 0.85rem;
 }
 
+/* Nom du nœud dans le titre du fil : cliquable (sélectionne l'équipotentielle
+   entière), donc présenté comme un lien et non comme un bouton. */
+.inspector__eqp {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--vscode-textLink-foreground);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.inspector__eqp:hover {
+  color: var(--vscode-textLink-activeForeground);
+}
+
 /* Bouton d'aide vers la doc Wokwi du composant (sous le titre de l'inspecteur). */
 /* Bouton « Aide composant » : icône media/aide.svg (bien plus lisible que le
    glyphe ❔ d'avant), posée en fond à gauche du libellé via --kx-help-icon. */
