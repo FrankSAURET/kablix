@@ -19,6 +19,10 @@ const entry = `
 import { Editor } from '../../src/webview/diagram/editor.mjs';
 import '../../src/webview/composants/led-element.mjs';
 import '../../src/webview/composants/pca9685-element.mjs';
+import '../../src/webview/composants/resistor-element.mjs';
+import '../../src/webview/composants/servo-element.mjs';
+import '../../src/webview/composants/buzzer-element.mjs';
+import '../../src/webview/composants/membrane-keypad-element.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const checks = [];
 const ok = (name, cond, detail = '') => checks.push({ name, ok: !!cond, detail: String(detail) });
@@ -107,7 +111,10 @@ async function run() {
 	clickSelect(body1);
 	const cont1 = body1.closest('.part') ?? body1.parentElement;
 	ok('composant : classe part--selected posée', cont1.classList.contains('part--selected'));
-	const csBody = getComputedStyle(body1);
+	// Le cadre est porté par .part__selbox (calée sur le dessin), le corps ne
+	// sert que de repli quand la boîte n'a pas pu être mesurée.
+	const frame1 = body1.querySelector('.part__selbox') ?? body1;
+	const csBody = getComputedStyle(frame1);
 	ok('composant : pointillé + halo (outline dashed, box-shadow)',
 		csBody.outlineStyle === 'dashed' && csBody.boxShadow !== 'none',
 		csBody.outlineStyle + ' / ' + csBody.boxShadow.slice(0, 40));
@@ -371,6 +378,121 @@ async function run() {
 			Math.abs(dEl.offsetWidth - rw) <= 1 && Math.abs(dEl.offsetHeight - rh) <= 1,
 			dEl.offsetWidth + 'x' + dEl.offsetHeight + ' vs ' + rw + 'x' + rh);
 	}
+
+	// --- 12. Rectangle de sélection CALÉ SUR LE DESSIN -------------------------
+	// Le cadre était porté par .part__body, c'est-à-dire par le viewBox du SVG,
+	// que le dessin ne remplit presque jamais : 51 px de vide sous le servo,
+	// 14 px sous la LED, 10 px de chaque côté d'une résistance. Il est désormais
+	// posé sur la boîte réellement dessinée (getBBox), sans toucher ni la
+	// position, ni la taille, ni les broches du composant.
+	const rdd = (v) => Math.round(v * 10) / 10;
+	const tightBox = (el) => {
+		// Boîte du contenu dessiné, en pixels écran (mesure indépendante du code testé).
+		const svgs = [...(el.shadowRoot ?? el).querySelectorAll('svg')].filter((s) => !s.parentElement?.closest('svg'));
+		const svg = svgs.sort((a, b) => (b.width.baseVal.value * b.height.baseVal.value) - (a.width.baseVal.value * a.height.baseVal.value))[0];
+		const g = svg.getBBox();
+		const m = svg.getScreenCTM();
+		const pt = (px, py) => ({ x: m.a * px + m.c * py + m.e, y: m.b * px + m.d * py + m.f });
+		const p1 = pt(g.x, g.y), p2 = pt(g.x + g.width, g.y + g.height);
+		return { left: Math.min(p1.x, p2.x), top: Math.min(p1.y, p2.y), right: Math.max(p1.x, p2.x), bottom: Math.max(p1.y, p2.y) };
+	};
+	const fitRows = [];
+	let fx = 100;
+	for (const type of ['led', 'resistor', 'servo', 'keypad', 'buzzer']) {
+		const p = editor.addPart(type, fx, 1400);
+		fx += 340;
+		await wait(120);
+		editor.select({ kind: 'part', id: p.id });
+		await wait(80);
+		const r = editor.rendered.get(p.id);
+		const bodyEl = r.container.querySelector('.part__body');
+		const sel = bodyEl.querySelector('.part__selbox');
+		const sb = sel ? sel.getBoundingClientRect() : null;
+		const bb = bodyEl.getBoundingClientRect();
+		const tb = tightBox(r.el);
+		fitRows.push({ type, sel: !!sel,
+			gainW: sb ? rdd(bb.width - sb.width) : 0, gainH: sb ? rdd(bb.height - sb.height) : 0,
+			dl: sb ? rdd(tb.left - sb.left) : 0, dt: sb ? rdd(tb.top - sb.top) : 0,
+			dr: sb ? rdd(sb.right - tb.right) : 0, db: sb ? rdd(sb.bottom - tb.bottom) : 0,
+			id: p.id, x: r.part.x, y: r.part.y });
+	}
+	ok('sélection : boîte mesurée posée sur chaque composant',
+		fitRows.every((f) => f.sel), fitRows.map((f) => f.type + ':' + f.sel).join(' '));
+	ok('sélection : cadre COLLÉ au dessin (±1 px sur les 4 côtés)',
+		fitRows.every((f) => Math.abs(f.dl) <= 1 && Math.abs(f.dt) <= 1 && Math.abs(f.dr) <= 1 && Math.abs(f.db) <= 1),
+		fitRows.map((f) => f.type + ' ' + [f.dl, f.dt, f.dr, f.db].join('/')).join(' | '));
+	ok('sélection : cadre PLUS SERRÉ que le corps (viewBox)',
+		fitRows.every((f) => f.gainW > 0 || f.gainH > 0),
+		fitRows.map((f) => f.type + ' -' + f.gainW + 'x-' + f.gainH).join(' '));
+	// Le buzzer place une note de musique de 8x8 AVANT son dessin : le cadre ne
+	// doit pas se caler dessus (contre-epreuve du choix du plus grand svg).
+	const buz = fitRows.find((f) => f.type === 'buzzer');
+	ok('sélection : buzzer encadré sur son DESSIN, pas sur sa note de musique (8 px)',
+		buz && buz.gainW >= 0 && buz.gainH >= 0 && buz.dl <= 1, JSON.stringify(buz));
+	// La geometrie du composant ne bouge pas : c'est le cadre qui change, pas lui.
+	const geomOk = fitRows.every((f) => {
+		const r = editor.rendered.get(f.id);
+		return r.part.x === f.x && r.part.y === f.y;
+	});
+	ok('sélection : le composant n a PAS bougé (pattes toujours sur la grille)', geomOk);
+	// Rotation : le cadre tourne avec le corps et reste colle au dessin.
+	const rotId = fitRows.find((f) => f.type === 'servo').id;
+	const rr = editor.rendered.get(rotId);
+	const rotBody = rr.container.querySelector('.part__body');
+	// Re-sélectionner : les composants mesurés ensuite dans la boucle ont pris la
+	// sélection, la boîte du servo n'est donc plus affichée (donc mesurée à 0).
+	editor.select({ kind: 'part', id: rotId });
+	await wait(60);
+	const b0el = rotBody.querySelector('.part__selbox');
+	const b0 = b0el ? b0el.getBoundingClientRect() : { width: 0, height: 0 };
+	rr.part.rotation = 90;
+	editor.applyRotation(rr.part, rotBody);
+	editor.select(null);
+	editor.select({ kind: 'part', id: rotId });
+	await wait(80);
+	const b90el = rotBody.querySelector('.part__selbox');
+	const b90 = b90el ? b90el.getBoundingClientRect() : null;
+	ok('sélection : cadre tourné à 90° (dimensions échangées, toujours collé)',
+		b90 && Math.abs(b90.width - b0.height) < 1.5 && Math.abs(b90.height - b0.width) < 1.5,
+		b90 ? rdd(b0.width) + 'x' + rdd(b0.height) + ' -> ' + rdd(b90.width) + 'x' + rdd(b90.height) : 'aucune boîte');
+	editor.select(null);
+
+	// --- 13. Quadrillage masquable (bouton ▦ de la barre de dessin) ------------
+	// Bascule d'AFFICHAGE seulement : la feuille garde son fond (la zone de
+	// travail reste delimitee) et la grille MAGNETIQUE de pose n'est pas touchee.
+	const sheet = canvas.querySelector('.canvas__sheet');
+	const gridOf = () => getComputedStyle(sheet).backgroundImage;
+	const gridOn0 = gridOf();
+	ok('grille : quadrillee par defaut', gridOn0.includes('gradient'), gridOn0.slice(0, 40));
+	const off = editor.toggleGrid();
+	await wait(30);
+	ok('grille : bouton ▦ masque le quadrillage',
+		off === false && !gridOf().includes('gradient') && editor.isGridShown() === false, gridOf().slice(0, 40));
+	ok('grille masquee : la feuille garde son fond (zone de travail delimitee)',
+		getComputedStyle(sheet).backgroundColor !== 'rgba(0, 0, 0, 0)', getComputedStyle(sheet).backgroundColor);
+	// La pose reste magnetique : un composant pose hors grille est recale au pas de 10.
+	// La bascule ne touche QUE l'affichage : un meme composant pose grille masquee
+	// puis grille visible atterrit exactement au meme endroit, avec les memes broches.
+	const posOf = (p) => {
+		const pins = editor.rendered.get(p.id).el.pinInfo;
+		return p.x + '/' + p.y + '/' + pins.map((pn) => pn.x + ',' + pn.y).join(' ');
+	};
+	const snapOff = editor.addPart('led', 137, 143);
+	await wait(160);
+	const geomOff = posOf(snapOff);
+	editor.toggleGrid(true);
+	await wait(30);
+	const snapOn = editor.addPart('led', 137, 343);
+	await wait(160);
+	const geomOn = posOf(snapOn).replace('/343/', '/143/');
+	editor.toggleGrid(false);
+	await wait(30);
+	ok('grille masquee : pose et broches INCHANGEES (affichage seulement)',
+		geomOff === geomOn, geomOff + '  vs  ' + geomOn);
+	const on = editor.toggleGrid();
+	await wait(30);
+	ok('grille : second clic la ramene',
+		on === true && gridOf().includes('gradient') && editor.isGridShown() === true, gridOf().slice(0, 40));
 
 	const out = document.createElement('pre');
 	out.id = 'measures';

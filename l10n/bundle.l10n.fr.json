@@ -104,6 +104,7 @@
   "Load binary": "Charger binaire",
   "Load a compiled .uf2 (Pico) or .hex (Arduino) from the workspace": "Charger un .uf2 (Pico) ou .hex (Arduino) déjà compilé du workspace",
   "Recenter and fit the view": "Recentrer et ajuster la vue",
+  "Show/hide the grid": "Afficher / masquer la grille",
   "Auto-route the wires (right angles) — selection, or whole diagram": "Autoroutage des fils (angles droits) — sélection, ou tout le schéma",
   "Drag to resize": "Glisser pour redimensionner",
   " — debug: {0} lines, {1} variable(s)": " — débogage : {0} lignes, {1} variable(s)",

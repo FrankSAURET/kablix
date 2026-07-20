@@ -188,6 +188,7 @@ const resetSimBtn = document.getElementById('reset-sim') as HTMLButtonElement;
 const clearCanvasBtn = document.getElementById('clear-canvas') as HTMLButtonElement;
 const fitViewBtn = document.getElementById('fit-view') as HTMLButtonElement;
 const autoRouteBtn = document.getElementById('auto-route') as HTMLButtonElement;
+const toggleGridBtn = document.getElementById('toggle-grid') as HTMLButtonElement;
 const internalToggleBtn = document.getElementById('internal-toggle') as HTMLButtonElement;
 internalToggleBtn.innerHTML = KABLIX_BADGE;
 
@@ -455,6 +456,8 @@ const plotter = new Plotter();
 // Préférence utilisateur persistée : undefined = jamais touché → le panneau
 // s'ouvre tout seul à la première donnée reçue ; false = fermé explicitement.
 let plotterUserPref: boolean | undefined;
+/** Quadrillage de la feuille affiché (bouton ▦, préférence persistée). */
+let gridShown = true;
 let plotterVisible = false;
 
 /** Affiche ou masque le traceur (persist = choix explicite de l'utilisateur). */
@@ -1919,6 +1922,13 @@ resetSimBtn.addEventListener('click', () => {
 });
 // Recentrer et ajuster la vue sur tout le schéma.
 fitViewBtn.addEventListener('click', () => editor.fitView());
+// Quadrillage de la feuille : bascule d'affichage (la grille magnétique de pose
+// n'est pas concernée). La préférence suit l'utilisateur d'une session à l'autre.
+toggleGridBtn.addEventListener('click', () => {
+  gridShown = editor.toggleGrid();
+  toggleGridBtn.classList.toggle('is-on', gridShown);
+  saveUiState();
+});
 // Autoroutage : fils en angles droits (sélection, sinon tout le schéma).
 autoRouteBtn.addEventListener('click', () => editor.autoRoute());
 // Effacer le schéma (annulable avec Ctrl+Z).
@@ -2000,7 +2010,7 @@ function applyPanelWidths(): void {
 function saveUiState(): void {
   vscode.postMessage({
     type: 'saveUiState',
-    state: { ...paletteState, labelsMode, paletteWidth, inspectorWidth, serialVisible, plotterVisible: plotterUserPref },
+    state: { ...paletteState, labelsMode, paletteWidth, inspectorWidth, serialVisible, plotterVisible: plotterUserPref, gridShown },
   });
 }
 
@@ -2357,6 +2367,12 @@ window.addEventListener('message', (event: MessageEvent) => {
       // chargement et s'ouvrira à la première donnée (sauf refus mémorisé).
       if (typeof (state as { plotterVisible?: boolean }).plotterVisible === 'boolean') {
         plotterUserPref = (state as { plotterVisible?: boolean }).plotterVisible;
+      }
+      // Quadrillage (défaut : affiché) — réglage d'affichage seulement.
+      if (typeof (state as { gridShown?: boolean }).gridShown === 'boolean') {
+        gridShown = (state as { gridShown?: boolean }).gridShown!;
+        editor.toggleGrid(gridShown);
+        toggleGridBtn.classList.toggle('is-on', gridShown);
       }
       paletteState = {
         sort: state.sort === 'alpha' ? 'alpha' : 'category',

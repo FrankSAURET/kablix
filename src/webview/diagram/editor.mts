@@ -235,6 +235,8 @@ export class Editor {
   private restoring = false;
   /** Presse-papier interne pour dupliquer une sélection (Ctrl+C / Ctrl+V / Ctrl+D). */
   private clipboard: { parts: Part[]; wires: Wire[] } | null = null;
+  /** Quadrillage de la feuille affiché (bouton ▦ de la barre de dessin). */
+  private gridShown = true;
 
   /** Calque transformable (zoom + translation) contenant fils et composants. */
   private readonly world: HTMLDivElement;
@@ -585,6 +587,25 @@ export class Editor {
     window.addEventListener('pointerup', up);
     window.addEventListener('pointercancel', end);
     window.addEventListener('blur', end);
+  }
+
+  /**
+   * Affiche ou masque le quadrillage de la feuille (bouton ▦ de la barre de
+   * dessin). Le fond blanc de la feuille est conservé : seul le quadrillage
+   * disparaît, la zone de travail reste donc délimitée comme avant. La grille
+   * MAGNÉTIQUE (pose des composants au pas de 10 px) n'est pas touchée — c'est
+   * un réglage d'affichage, pas de comportement.
+   */
+  toggleGrid(on?: boolean): boolean {
+    const next = on ?? !this.gridShown;
+    this.gridShown = next;
+    this.canvas.classList.toggle('canvas--no-grid', !next);
+    return next;
+  }
+
+  /** Le quadrillage est-il affiché ? */
+  isGridShown(): boolean {
+    return this.gridShown;
   }
 
   /**
@@ -3163,8 +3184,79 @@ export class Editor {
   }
   private setPartHighlight(): void {
     for (const [id, r] of this.rendered) {
-      r.container.classList.toggle('part--selected', this.selectedParts.has(id));
+      const on = this.selectedParts.has(id);
+      r.container.classList.toggle('part--selected', on);
+      if (on) this.fitSelectionBox(id);
     }
+  }
+
+  /**
+   * Cale le rectangle de sélection AU PLUS PRÈS du dessin.
+   *
+   * Le pointillé était porté par `.part__body`, c'est-à-dire par le viewBox du
+   * SVG : or le dessin ne le remplit presque jamais (mesuré — 51 px de vide sous
+   * le servomoteur, 14 px sous la LED, 10 px de chaque côté d'une résistance),
+   * d'où un cadre visiblement trop large. Il est désormais posé sur la boîte
+   * RÉELLEMENT dessinée (`getBBox` du SVG), calculée en pixels du corps.
+   *
+   * La géométrie du composant n'est pas touchée : ni sa position, ni sa taille,
+   * ni ses broches — donc les pattes restent sur la grille. Seul le cadre change.
+   * Repli sur le corps entier si la mesure est absente ou aberrante (dessin qui
+   * déborde de son viewBox, ou SVG imbriqué dont la bbox dépasse le corps).
+   */
+  private fitSelectionBox(partId: string): void {
+    const r = this.rendered.get(partId);
+    const body = r?.container.querySelector('.part__body') as HTMLElement | null;
+    if (!r || !body) return;
+    let box: { l: number; t: number; w: number; h: number } | null = null;
+    try {
+      // Le PLUS GRAND svg de premier niveau, pas le premier venu : le buzzer place
+      // une note de musique de 8×8 px AVANT son dessin (visible en simulation),
+      // et se serait donc vu encadrer sur 8 px de côté.
+      const svgs = [...(r.el.shadowRoot ?? r.el).querySelectorAll('svg')].filter(
+        (s) => !s.parentElement?.closest('svg')
+      );
+      const svg = svgs.reduce<SVGSVGElement | null>((best, s) => {
+        const area = (s.width?.baseVal?.value || 0) * (s.height?.baseVal?.value || 0);
+        const bestArea = best ? (best.width?.baseVal?.value || 0) * (best.height?.baseVal?.value || 0) : -1;
+        return area > bestArea ? s : best;
+      }, null);
+      const bb = svg?.getBBox();
+      const vw = svg?.width?.baseVal?.value || 0;
+      const vh = svg?.height?.baseVal?.value || 0;
+      const vb = svg?.viewBox?.baseVal;
+      if (bb && vw && vh && bb.width > 0 && bb.height > 0) {
+        // Du repère du viewBox vers les pixels du corps.
+        const sx = vb && vb.width ? vw / vb.width : 1;
+        const sy = vb && vb.height ? vh / vb.height : 1;
+        const ox = vb ? vb.x : 0;
+        const oy = vb ? vb.y : 0;
+        const l = (bb.x - ox) * sx;
+        const t = (bb.y - oy) * sy;
+        const w = bb.width * sx;
+        const h = bb.height * sy;
+        // Aberrante = déborde le dessin : on ne resserre alors sur rien.
+        if (l >= -0.5 && t >= -0.5 && l + w <= vw + 0.5 && t + h <= vh + 0.5 && w > 4 && h > 4) {
+          box = { l, t, w, h };
+        }
+      }
+    } catch {
+      // SVG non mesurable (largeur en %, viewport non résolu) : repli.
+    }
+    let sel = body.querySelector('.part__selbox') as HTMLElement | null;
+    if (!box) {
+      sel?.remove();
+      return;
+    }
+    if (!sel) {
+      sel = document.createElement('div');
+      sel.className = 'part__selbox';
+      body.appendChild(sel);
+    }
+    sel.style.left = `${box.l}px`;
+    sel.style.top = `${box.t}px`;
+    sel.style.width = `${box.w}px`;
+    sel.style.height = `${box.h}px`;
   }
 
   /**

@@ -465,6 +465,13 @@ textarea {
   pointer-events: none;
 }
 
+/* Quadrillage masqué (bouton ▦) : la feuille garde son fond blanc, donc la zone
+   de travail reste délimitée ; seul le trait de grille disparaît. La grille
+   MAGNÉTIQUE de pose n'est pas concernée — c'est un réglage d'affichage. */
+.canvas--no-grid .canvas__sheet {
+  background-image: none;
+}
+
 /* Rectangle de sélection multiple (marquee). */
 .marquee {
   position: absolute;
@@ -597,6 +604,18 @@ textarea {
 .canvas-controls__btn.canvas-controls__btn--reset {
   font-size: 1.5rem;
   font-weight: 900;
+}
+
+/* Bouton grille (▦) : bascule d'affichage du quadrillage. Le glyphe est grisé
+   quand la grille est masquée, pour lire l'état sans ouvrir de menu. */
+.canvas-controls__btn.canvas-controls__btn--grid {
+  font-size: 1.15rem;
+  opacity: 0.45;
+}
+
+.canvas-controls__btn.canvas-controls__btn--grid.is-on {
+  opacity: 1;
+  border-color: var(--vscode-focusBorder, #0e639c);
 }
 
 /* Bouton REPL : texte plus large que la largeur fixe des boutons icône. */
@@ -1127,7 +1146,10 @@ textarea {
 }
 
 /* Le rectangle de sélection est porté par le corps (qui tourne) : il pivote
-   donc avec le composant. */
+   donc avec le composant. Il est CALÉ SUR LE DESSIN par `fitSelectionBox`
+   (.part__selbox posée sur la bbox réelle du SVG) — le corps, lui, a la taille
+   du viewBox, que le dessin ne remplit presque jamais, d'où un cadre trop large.
+   Le corps ne sert de repli que si la boîte n'a pas pu être mesurée. */
 .part--selected .part__body {
   outline: 2px dashed var(--kx-select, #e973e9);
   outline-offset: 3px;
@@ -1137,6 +1159,33 @@ textarea {
   box-shadow:
     0 0 0 3px color-mix(in srgb, var(--kx-select, #e973e9) 25%, transparent),
     0 0 12px 2px color-mix(in srgb, var(--kx-select, #e973e9) 50%, transparent);
+}
+
+/* Boîte mesurée présente : c'est ELLE qui porte le cadre, le corps n'affiche
+   plus rien (sinon les deux rectangles se superposeraient). */
+.part--selected .part__body:has(.part__selbox) {
+  outline: none;
+  box-shadow: none;
+}
+
+.part__selbox {
+  position: absolute;
+  pointer-events: none;
+  display: none;
+  border-radius: 4px;
+}
+
+.part--selected .part__selbox {
+  display: block;
+  outline: 2px dashed var(--kx-select, #e973e9);
+  outline-offset: 3px;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--kx-select, #e973e9) 25%, transparent),
+    0 0 12px 2px color-mix(in srgb, var(--kx-select, #e973e9) 50%, transparent);
+}
+
+.canvas--locked .part--selected .part__selbox {
+  display: none;
 }
 
 /* Simulation en cours : pas de sélection ni bandeau de nom, schéma figé
