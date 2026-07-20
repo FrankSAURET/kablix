@@ -134,9 +134,14 @@ textarea {
     background: color-mix(in srgb, var(--vscode-badge-background, #4d4d4d) 70%, transparent);
     color: var(--vscode-badge-foreground, #fff);
   }
+  /* Fond du flash = --vscode-focusBorder ; le TEXTE du flash était #ffffff en
+     DUR (question de Frank : « la couleur du texte pdt le clignotement c'est
+     quelle propriété ? »). Du blanc en dur devient illisible sur un thème clair
+     où focusBorder est pâle — il suit maintenant le thème, comme le reste du
+     badge, avec repli blanc. */
   15%, 48%, 81% {
     background: var(--vscode-focusBorder, #4fa3ff);
-    color: #ffffff;
+    color: var(--vscode-button-foreground, #ffffff);
   }
   32%, 65%, 98% {
     background: color-mix(in srgb, var(--vscode-badge-background, #4d4d4d) 70%, transparent);
@@ -606,10 +611,10 @@ textarea {
   font-weight: 900;
 }
 
-/* Bouton grille (▦) : bascule d'affichage du quadrillage. Le glyphe est grisé
-   quand la grille est masquée, pour lire l'état sans ouvrir de menu. */
+/* Bouton grille : bascule d'affichage du quadrillage. L'icône (media/grille.svg,
+   dessin de Frank, v2026.7.136 — auparavant le glyphe ▦) est grisée quand la
+   grille est masquée, pour lire l'état sans ouvrir de menu. */
 .canvas-controls__btn.canvas-controls__btn--grid {
-  font-size: 1.15rem;
   opacity: 0.45;
 }
 

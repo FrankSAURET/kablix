@@ -357,73 +357,89 @@ async function run() {
 	ok('inspecteur PCA : tous les pads bas → 0x40', pca.attrs?.address === '0x40' && addrText().includes('0x40'),
 		\`\${pca.attrs?.address} / \${addrText()}\`);
 
-	// --- 13. Glisser-déposer palette → canvas (v2026.7.128) --------------------
-	// Le composant doit se poser À L'ÉCHELLE 1 (taille du canvas, pas celle de la
-	// vignette) et CENTRÉ sur le point de lâcher.
+	// --- 13. Pose depuis la palette par DÉPLACEMENT (v2026.7.136) --------------
+	// Le glisser-déposer HTML5 est remplacé par un vrai déplacement : au clic
+	// maintenu sur un bouton de palette, le composant est créé sous le curseur et
+	// suit la souris jusqu'au relâché. Ce qu'on déplace EST le composant, donc il
+	// se pose exactement là où on le lâche — c'est le point que l'ancienne
+	// mécanique (image de glissement posée par le navigateur) ratait.
 	editor.select(null);
 	await wait(10);
-	const dt = {
-		types: ['application/x-kablix-part'],
-		data: {},
-		effectAllowed: '', dropEffect: '',
-		setData(k, v) { this.data[k] = v; this.types.includes(k) || this.types.push(k); },
-		getData(k) { return this.data[k] ?? ''; },
-		dragImage: null,
-		setDragImage(el, x, y) { this.dragImage = { el, x, y }; },
-	};
-	// Bouton de palette d'une LED : dragstart → image de glissement.
 	const ledBtn = [...palette.querySelectorAll('.palette__item')]
 		.find((b) => (b.dataset.search || '').includes('led') || /LED/i.test(b.textContent));
-	ok('palette : bouton de composant trouvé pour le glisser', !!ledBtn, ledBtn?.textContent);
+	ok('palette : bouton de composant trouvé pour la pose', !!ledBtn, ledBtn?.textContent);
 	if (ledBtn) {
-		// Comme un vrai utilisateur : la souris passe sur le bouton avant de glisser
-		// (c'est ce survol qui prépare le fantôme, le rendu Lit n'étant pas synchrone).
-		ledBtn.dispatchEvent(new PointerEvent('pointerenter', { bubbles: true }));
-		await wait(60);
-		const ev = new Event('dragstart', { bubbles: true });
-		Object.defineProperty(ev, 'dataTransfer', { value: dt });
-		ledBtn.dispatchEvent(ev);
 		// Taille RÉELLE d'une LED posée sur la feuille (référence d'échelle).
 		const ref = editor.addPart('led', 20, 500);
-		await wait(40);
+		await wait(60);
 		const refEl = editor.elementOf(ref.id);
 		const rw = refEl.offsetWidth, rh = refEl.offsetHeight;
-		const img = dt.dragImage;
-		ok('glisser : image de glissement posée', !!img && !!img.el);
-		// Échelle 1 (zoom = 1 par défaut) : l'image fait la taille du composant réel,
-		// pas 46×30 (la vignette réduite de la palette).
-		const iw = img ? parseFloat(img.el.style.width) : 0;
-		const ih = img ? parseFloat(img.el.style.height) : 0;
-		ok("glisser : image à l'échelle du canvas (taille du composant réel, pas la vignette)",
-			Math.abs(iw - rw * editor.zoom) <= 2 && Math.abs(ih - rh * editor.zoom) <= 2,
-			'image ' + iw + 'x' + ih + ' vs composant ' + rw + 'x' + rh + ' (zoom ' + editor.zoom + ')');
-		ok('glisser : image de glissement ancrée en son centre',
-			img && Math.abs(img.x - iw / 2) <= 1 && Math.abs(img.y - ih / 2) <= 1,
-			img ? img.x + ',' + img.y : 'absente');
 		editor.removePart(ref.id);
-		// Lâcher au milieu du canvas : le composant se pose CENTRÉ sur ce point.
+		editor.select(null);
+		await wait(20);
+
 		const before = editor.diagram.parts.length;
 		const cbox = canvas.getBoundingClientRect();
+		const bbox = ledBtn.getBoundingClientRect();
+		const downX = bbox.left + bbox.width / 2, downY = bbox.top + bbox.height / 2;
+		// Appui SUR LE BOUTON : le composant doit apparaître immédiatement.
+		ledBtn.dispatchEvent(new PointerEvent('pointerdown', {
+			bubbles: true, button: 0, clientX: downX, clientY: downY }));
+		await wait(60);
+		ok('appui sur la palette : le composant est créé TOUT DE SUITE',
+			editor.diagram.parts.length === before + 1,
+			editor.diagram.parts.length + ' / attendu ' + (before + 1));
+
+		// Déplacement en DEUX temps : un point intermédiaire (dont on vérifie que le
+		// composant l'a réellement suivi, AVANT tout recentrage de fin de geste),
+		// puis le point de lâcher. Sans ce contrôle intermédiaire, le recentrage du
+		// relâché suffirait à faire passer le test même si rien ne suivait la souris.
+		const midX = cbox.left + 250, midY = cbox.top + 180;
+		window.dispatchEvent(new PointerEvent('pointermove', {
+			bubbles: true, clientX: midX, clientY: midY }));
+		await wait(60);
+		const stepEl = editor.elementOf(editor.diagram.parts[editor.diagram.parts.length - 1].id);
+		const stepBody = stepEl.closest('.part__body') ?? stepEl.parentElement;
+		const sr = stepBody.getBoundingClientRect();
+		ok('en cours de geste : le composant est DÉJÀ au point intermédiaire (±14 px)',
+			Math.abs(sr.left + sr.width / 2 - midX) <= 14 &&
+			Math.abs(sr.top + sr.height / 2 - midY) <= 14,
+			'centre ' + Math.round(sr.left + sr.width / 2) + ',' + Math.round(sr.top + sr.height / 2) +
+			' vs souris ' + Math.round(midX) + ',' + Math.round(midY));
+
 		const dropX = cbox.left + 400, dropY = cbox.top + 300;
-		const drop = new Event('drop', { bubbles: true, cancelable: true });
-		Object.defineProperty(drop, 'dataTransfer', { value: dt });
-		Object.defineProperty(drop, 'clientX', { value: dropX });
-		Object.defineProperty(drop, 'clientY', { value: dropY });
-		canvas.dispatchEvent(drop);
-		await wait(900); // le recentrage attend que le rendu Lit se stabilise
-		ok('lâcher : un composant a été posé', editor.diagram.parts.length === before + 1);
+		window.dispatchEvent(new PointerEvent('pointermove', {
+			bubbles: true, clientX: dropX, clientY: dropY }));
+		await wait(60);
+		const posed = editor.diagram.parts[editor.diagram.parts.length - 1];
+		const midEl = editor.elementOf(posed.id);
+		const midBody = midEl.closest('.part__body') ?? midEl.parentElement;
+		const mr = midBody.getBoundingClientRect();
+		// PENDANT le geste, le composant suit déjà la souris (c'est tout l'intérêt :
+		// ce qu'on voit bouger est le composant lui-même, pas une image).
+		ok('pendant le geste : le composant SUIT la souris (±14 px)',
+			Math.abs(mr.left + mr.width / 2 - dropX) <= 14 &&
+			Math.abs(mr.top + mr.height / 2 - dropY) <= 14,
+			'centre ' + Math.round(mr.left + mr.width / 2) + ',' + Math.round(mr.top + mr.height / 2) +
+			' vs souris ' + Math.round(dropX) + ',' + Math.round(dropY));
+
+		window.dispatchEvent(new PointerEvent('pointerup', {
+			bubbles: true, clientX: dropX, clientY: dropY }));
+		await wait(300);
+		ok('relâché : un seul composant posé', editor.diagram.parts.length === before + 1,
+			editor.diagram.parts.length + ' / attendu ' + (before + 1));
 		const dropped = editor.diagram.parts[editor.diagram.parts.length - 1];
 		const dEl = editor.elementOf(dropped.id);
 		const dBody = dEl.closest('.part__body') ?? dEl.parentElement;
 		const dr = dBody.getBoundingClientRect();
 		const cxx = dr.left + dr.width / 2, cyy = dr.top + dr.height / 2;
-		// Tolérance = l'accrochage grille de 10 px (snapPartToGrid) + demi-pastille.
-		ok('lâcher : composant posé CENTRÉ sur le point de lâcher (±12 px)',
+		// Tolérance = accrochage grille de 10 px (snapPartToGrid) + demi-pastille.
+		ok('relâché : composant posé LÀ OÙ ON LE LÂCHE (±12 px)',
 			Math.abs(cxx - dropX) <= 12 && Math.abs(cyy - dropY) <= 12,
 			'centre ' + Math.round(cxx) + ',' + Math.round(cyy) +
 			' vs lâcher ' + Math.round(dropX) + ',' + Math.round(dropY));
-		// Échelle 1 : le composant posé fait la même taille que la référence.
-		ok("lâcher : composant à l'échelle 1 (même taille que le même composant déjà posé)",
+		// Échelle 1 : le composant posé fait la même taille qu'un composant déjà posé.
+		ok("relâché : composant à l'échelle 1 (même taille que le même composant déjà posé)",
 			Math.abs(dEl.offsetWidth - rw) <= 1 && Math.abs(dEl.offsetHeight - rh) <= 1,
 			dEl.offsetWidth + 'x' + dEl.offsetHeight + ' vs ' + rw + 'x' + rh);
 	}

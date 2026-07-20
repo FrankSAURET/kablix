@@ -90,7 +90,6 @@ const BB_SNAP = 6;
 const PIN_SNAP = 14;
 const MAX_RECENTS = 10;
 /** Type MIME du glisser-déposer palette → canvas (pose d'un composant). */
-const DND_MIME = 'application/x-kablix-part';
 const ZOOM_MIN = 0.2;
 const ZOOM_MAX = 10; // 1000 %
 /** Pas de la grille magnétique d'alignement (px) = écartement des broches. */
@@ -186,11 +185,13 @@ export class Editor {
   private foldMenuOff: (() => void) | null = null;
   private rendered = new Map<string, Rendered>();
   /**
-   * Fantômes de glisser-déposer (un par type de composant) : rendus hors écran
-   * et conservés, car un élément Lit créé à l'instant du `dragstart` n'a pas
-   * encore de taille et ne peut donc pas servir d'image de glissement.
+   * Composant en cours de POSE depuis la bibliothèque (clic maintenu sur un
+   * bouton de palette). Sert à ne recentrer sur le curseur que tant que
+   * l'utilisateur n'a pas commencé à le déplacer : la taille réelle du dessin
+   * peut n'arriver qu'après plusieurs frames, et un recentrage tardif ferait
+   * sauter un composant déjà positionné à la main.
    */
-  private dragGhosts = new Map<string, { host: HTMLElement; el: HTMLElement }>();
+  private placingFromPalette: string | null = null;
   private wirePaths = new Map<string, SVGPathElement>();
   /** Surbrillance « fourmis » des fils sélectionnés (groupe de 2 tracés pointillés). */
   private wireAnts = new Map<string, SVGGElement>();
@@ -298,69 +299,8 @@ export class Editor {
     );
     // Zoom à la molette, centré sur le curseur.
     this.canvas.addEventListener('wheel', this.onWheel, { passive: false });
-    // Dépôt d'un composant glissé depuis la palette, là où on le lâche.
-    this.canvas.addEventListener('dragover', (e) => {
-      if (!this.locked && e.dataTransfer?.types.includes(DND_MIME)) {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'copy';
-      }
-    });
-    this.canvas.addEventListener('drop', (e) => {
-      if (this.locked) return;
-      const type = e.dataTransfer?.getData(DND_MIME);
-      if (!type) return;
-      e.preventDefault();
-      const p = this.canvasPoint(e.clientX, e.clientY);
-      // Le composant se pose CENTRÉ sous le curseur, comme le fantôme de
-      // glissement : `addPart` place le coin haut-gauche, on le recale une fois
-      // la taille réelle connue.
-      const part = this.addPart(type, Math.max(0, Math.round(p.x)), Math.max(0, Math.round(p.y)));
-      this.centerPartOn(part.id, p);
-      // Le rendu Lit n'est pas synchrone : la taille du corps (et les broches)
-      // n'arrivent qu'après un ou plusieurs cycles. On recentre à chaque cycle
-      // tant que la taille change, PUIS on aligne les broches sur la grille —
-      // sans quoi le composant se centre sur une taille périmée et se pose à
-      // côté du point de lâcher.
-      // `scheduleSettle` peut encore AGRANDIR le dessin (applyPinScale, pas de
-      // 10 px) plusieurs frames après la pose : on recentre à chaque frame et on
-      // n'aligne sur la grille qu'une fois la taille stable sur plusieurs frames
-      // d'affilée, sinon le centrage porte sur une taille périmée et le composant
-      // se retrouve à une dizaine de pixels du point de lâcher.
-      let lastW = -1;
-      let lastH = -1;
-      let stable = 0;
-      let frames = 0;
-      const settle = (): void => {
-        const r = this.rendered.get(part.id);
-        const body = r?.container.querySelector('.part__body') as HTMLElement | null;
-        if (!r || !body) return;
-        const w = body.offsetWidth;
-        const h = body.offsetHeight;
-        this.centerPartOn(part.id, p);
-        stable = w > 1 && h > 1 && w === lastW && h === lastH ? stable + 1 : 0;
-        lastW = w;
-        lastH = h;
-        if (stable < 3 && ++frames < 30) {
-          next();
-          return;
-        }
-        this.snapPartToGrid(part.id);
-      };
-      // rAF avec repli par minuterie : dans un rendu hors écran (onglet en
-      // arrière-plan, capture headless) le rAF peut ne jamais être appelé — le
-      // composant resterait alors centré sur une taille provisoire.
-      const next = (): void => {
-        let done = false;
-        const once = (): void => {
-          if (done) return;
-          done = true;
-          settle();
-        };
-        if (typeof requestAnimationFrame === 'function') requestAnimationFrame(once);
-        setTimeout(once, 32);
-      };
-      next();
-    });
+    // (Le glisser-déposer HTML5 depuis la palette a été retiré en v2026.7.136 :
+    // la pose se fait désormais par DÉPLACEMENT — cf. startPlaceFromPalette.)
     // État initial enregistré pour l'annulation (feuille vide).
     this.recordHistory();
     // Vue de démarrage centrée (l'origine du monde au centre de la zone utile).
@@ -823,77 +763,24 @@ export class Editor {
     text.className = 'palette__item-label';
     text.textContent = label;
     btn.append(thumb, text);
-    btn.addEventListener('click', () => {
+    // Pose par DÉPLACEMENT (v2026.7.136, remplace le glisser-déposer HTML5 dont
+    // l'image de glissement ne correspondait pas à ce qui se posait) : le
+    // composant est créé sous le curseur dès l'appui et suit la souris jusqu'au
+    // relâché. Un clic SANS déplacement pose simplement le composant là, sous le
+    // curseur, et le sélectionne (`startDrag` s'en charge) — le clavier reste
+    // servi par l'activation `keydown` ci-dessous.
+    btn.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0 || this.locked || this.pending) return;
+      this.startPlaceFromPalette(e, def.type);
+    });
+    // Accessibilité : le bouton reste activable au clavier (Entrée / Espace),
+    // qui n'a pas de position de curseur — pose au centre de la zone visible.
+    btn.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
       if (!this.locked) this.addPartAtVisibleCenter(def.type);
     });
-    btn.draggable = true;
-    // Le fantôme doit exister ET être rendu AVANT le `dragstart` : un élément Lit
-    // créé dans le gestionnaire n'a pas encore de taille (offsetWidth = 0) et le
-    // navigateur capture l'instantané de façon synchrone. On le prépare donc dès
-    // que le bouton est approché (survol ou appui), bien avant le glisser.
-    const prime = (): void => void this.dragGhost(def);
-    btn.addEventListener('pointerenter', prime);
-    btn.addEventListener('pointerdown', prime);
-    btn.addEventListener('dragstart', (e) => {
-      e.dataTransfer?.setData(DND_MIME, def.type);
-      if (e.dataTransfer) {
-        e.dataTransfer.effectAllowed = 'copy';
-        // Image de glissement = le composant à la TAILLE QU'IL AURA sur la
-        // feuille (zoom courant), pas la vignette réduite de la palette : sinon
-        // il grossit d'un coup au lâcher et paraît sauter ailleurs.
-        const ghost = this.dragGhost(def);
-        if (ghost) {
-          e.dataTransfer.setDragImage(ghost.el, ghost.w / 2, ghost.h / 2);
-        } else {
-          e.dataTransfer.setDragImage(thumb, thumb.offsetWidth / 2, thumb.offsetHeight / 2);
-        }
-      }
-    });
     return btn;
-  }
-
-  /**
-   * Fantôme de glissement : le composant réel, rendu hors écran et mis à
-   * l'échelle du zoom du canvas — ce que l'utilisateur verra une fois posé.
-   * L'hôte est CONSERVÉ par type (le rendu Lit n'est pas synchrone : un fantôme
-   * créé à l'instant n'a pas de taille), simplement remis à l'échelle courante à
-   * chaque appel. Renvoie `null` tant que la taille est nulle : l'appelant
-   * retombe alors sur la vignette de la palette.
-   */
-  private dragGhost(def: PartDef): { el: HTMLElement; w: number; h: number } | null {
-    let entry = this.dragGhosts.get(def.type);
-    if (!entry) {
-      const host = document.createElement('div');
-      // Hors écran mais RENDU (display:none ne serait pas capturé) et sans
-      // influence sur la mise en page ni sur les barres de défilement.
-      host.style.cssText =
-        'position:fixed;left:-10000px;top:0;margin:0;padding:0;pointer-events:none;z-index:-1;';
-      try {
-        const el = document.createElement(def.tag) as WokwiElement;
-        if (def.custom) {
-          (el as unknown as { definition: typeof def }).definition = def;
-        }
-        for (const [k, v] of Object.entries(def.attrs ?? {})) {
-          if (v !== '') el.setAttribute(k, v);
-        }
-        el.style.transformOrigin = 'top left';
-        host.appendChild(el);
-        document.body.appendChild(host);
-      } catch {
-        host.remove();
-        return null;
-      }
-      entry = { host, el: host.firstElementChild as HTMLElement };
-      this.dragGhosts.set(def.type, entry);
-    }
-    const w = entry.el.offsetWidth;
-    const h = entry.el.offsetHeight;
-    if (w <= 1 || h <= 1) return null; // pas encore rendu : on réessaiera
-    const z = this.zoom;
-    entry.el.style.transform = `scale(${z})`;
-    entry.host.style.width = `${w * z}px`;
-    entry.host.style.height = `${h * z}px`;
-    return { el: entry.host, w: w * z, h: h * z };
   }
 
   /** Miniature live d'un composant (élément réel mis à l'échelle dans une vignette). */
@@ -1284,6 +1171,80 @@ export class Editor {
     this.centerPartOn(part.id, center);
     this.snapPartToGrid(part.id);
     return part;
+  }
+
+  /**
+   * Pose depuis la BIBLIOTHÈQUE en un seul geste (v2026.7.136, item « il serait
+   * plus simple que cette fonction corresponde à un déplacement ») : au clic
+   * maintenu sur un bouton de palette, le composant est créé tout de suite,
+   * centré sur le curseur, puis confié à `startDrag` — la même mécanique que le
+   * déplacement d'un composant déjà posé. Il hérite donc SANS code neuf de la
+   * grille magnétique, de l'enfichage sur platine (aperçu compris), du
+   * déplacement de groupe et de la persistance au relâché.
+   *
+   * Le glisser-déposer HTML5 n'y arrivait pas : le navigateur pose une IMAGE de
+   * glissement dont il fixe lui-même l'ancrage à l'écran, et le composant réel
+   * n'était créé qu'au lâcher — d'où un décalage entre ce qu'on voit et ce qui
+   * se pose, que le recentrage après coup ne rattrapait qu'imparfaitement.
+   * Ici, ce qu'on déplace EST le composant : il n'y a plus d'écart possible.
+   */
+  private startPlaceFromPalette(e: PointerEvent, type: string): void {
+    if (this.locked || this.pending) return;
+    e.preventDefault();
+    const part = this.addPart(type, 0, 0);
+    this.placingFromPalette = part.id;
+    // Suivi ABSOLU du curseur (et non par delta comme `startDrag`) : la taille
+    // réelle du dessin n'arrive qu'après le rendu Lit, et peut encore grandir
+    // plusieurs frames plus tard (`scheduleSettle` / `applyPinScale`). En
+    // recentrant à CHAQUE mouvement sur la position courante, le composant reste
+    // collé au curseur quelle que soit la taille connue à l'instant t — un
+    // ancrage figé à l'appui laissait, lui, un écart permanent (mesuré : 16 px).
+    let at = this.canvasPoint(e.clientX, e.clientY);
+    this.centerPartOn(part.id, at);
+    const follow = (): void => {
+      if (this.placingFromPalette !== part.id) return;
+      this.centerPartOn(part.id, at);
+    };
+    // Le dessin peut grossir après coup : on recentre sur quelques frames, avec
+    // repli par minuterie (hors écran, rAF n'est jamais appelé).
+    for (const d of [0, 16, 32, 64, 120]) setTimeout(follow, d);
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(follow);
+
+    const move = (ev: PointerEvent): void => {
+      at = this.canvasPoint(ev.clientX, ev.clientY);
+      this.centerPartOn(part.id, at);
+      this.redrawWires();
+    };
+    const end = (ev: PointerEvent): void => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', end);
+      at = this.canvasPoint(ev.clientX, ev.clientY);
+      this.centerPartOn(part.id, at);
+      this.placingFromPalette = null;
+      // Alignement final sur la grille (comme toute pose) puis enfichage
+      // éventuel sur une platine posée dessous, via le chemin ordinaire.
+      this.snapPartToGrid(part.id);
+      this.plugPlacedPart(part);
+      this.redrawWires();
+      this.select({ kind: 'part', id: part.id });
+      this.notify();
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', end);
+  }
+
+  /**
+   * Enfiche un composant fraîchement posé dans la platine (ou le socle Grove)
+   * situé sous lui, s'il y a lieu — même règle que le déplacement ordinaire :
+   * ni les platines ni les cartes ne s'enfichent, sauf la Pico sur son socle.
+   */
+  private plugPlacedPart(part: Part): void {
+    const def = partDef(part.type);
+    const kind = def.kind;
+    const picoLike = kind === 'mcu' && (def.board === 'pico' || def.board === 'picow');
+    if (kind === 'breadboard' || kind === 'grove-shield' || (kind === 'mcu' && !picoLike)) return;
+    const holes = this.collectBreadboardHoles(part.id, picoLike);
+    if (holes.length > 0) this.plugIntoBreadboard(part, holes);
   }
 
   /**
@@ -4252,6 +4213,13 @@ export class Editor {
         const sx = w / vbW;
         const sy = h / vbH;
         const groupId = `kpart-${idSeq++}`;
+        // Le dessin sort du shadow DOM : purge des résidus Inkscape (sans quoi
+        // l'export n'est pas du XML bien formé), taille explicite des <svg>
+        // imbriqués, puis unicité des ids (deux composants du même type
+        // partagent leurs défs).
+        stripEditorMarkup(clone);
+        sizeNestedSvgs(clone);
+        uniquifyIds(clone, groupId);
         // Le composant est exporté comme un <g> (éditable comme un groupe dans
         // Inkscape) et non plus un <svg> imbriqué (sous-document non éditable).
         // Les styles du shadow DOM (tailles de police…) sont réinjectés mais
@@ -4383,6 +4351,89 @@ function pinDisplayName(
     if (pinName === 'SIG') return 'V';
   }
   return pinName;
+}
+
+/**
+ * Retire d'un dessin cloné tout ce qui vient de l'éditeur Inkscape et n'a aucun
+ * effet de rendu : attributs `sodipodi:*` / `inkscape:*` et nœuds de service
+ * (`sodipodi:namedview`…). Sans cette purge l'export n'est pas du XML bien
+ * formé — le `<svg>` racine ne déclare pas ces préfixes, et un seul
+ * `sodipodi:type` (le servo en porte un) suffit à faire refuser le fichier par
+ * Firefox, Chrome et VS Code, et à faire planter Inkscape au dégroupage.
+ * Mesuré : sans la purge, l'export échoue en « Namespace prefix sodipodi for
+ * type on path is not defined ».
+ */
+function stripEditorMarkup(root: SVGElement): void {
+  for (const el of Array.from(root.querySelectorAll('*'))) {
+    const tag = el.tagName.toLowerCase();
+    if (tag.startsWith('sodipodi:') || tag.startsWith('inkscape:')) el.remove();
+  }
+  const scrub = (el: Element): void => {
+    for (const attr of Array.from(el.attributes)) {
+      const n = attr.name.toLowerCase();
+      if (n.startsWith('sodipodi:') || n.startsWith('inkscape:')) el.removeAttribute(attr.name);
+    }
+    for (const child of Array.from(el.children)) scrub(child);
+  };
+  scrub(root);
+}
+
+/**
+ * Donne une taille EXPLICITE aux `<svg>` imbriqués d'un dessin cloné. Beaucoup
+ * de dessins retouchés n'ont qu'un `viewBox` : dans la webview leur taille est
+ * contrainte par le parent, mais dans le fichier exporté un `<svg>` sans
+ * width/height vaut 100 % × 100 % du viewport — soit le viewBox de l'export
+ * ENTIER. Le composant sortait alors géant (claviers de la capture de Frank)
+ * alors que sa boîte de sélection, calculée à part, restait juste.
+ */
+function sizeNestedSvgs(root: SVGElement): void {
+  for (const el of Array.from(root.querySelectorAll('svg'))) {
+    if (el.getAttribute('width') && el.getAttribute('height')) continue;
+    const vb = el.getAttribute('viewBox');
+    if (!vb) continue;
+    const n = vb.trim().split(/[\s,]+/).map(Number);
+    if (n.length !== 4 || n.some((v) => !Number.isFinite(v)) || !n[2] || !n[3]) continue;
+    if (!el.getAttribute('width')) el.setAttribute('width', String(n[2]));
+    if (!el.getAttribute('height')) el.setAttribute('height', String(n[3]));
+  }
+}
+
+/**
+ * Rend uniques, dans le document exporté, les identifiants d'un dessin cloné.
+ * Deux composants du même type portent les mêmes ids (dégradés, filtres,
+ * masques — `alim-radialGradient115`…) : sans préfixe par composant, le
+ * `url(#…)` de la seconde alim pointe sur les défs de la première. C'est ce qui
+ * rendait le bouton de l'alimentation NOIR à l'export et le faisait disparaître
+ * au dégroupage.
+ */
+function uniquifyIds(root: SVGElement, prefix: string): void {
+  const map = new Map<string, string>();
+  for (const el of [root, ...Array.from(root.querySelectorAll('*'))]) {
+    const id = el.getAttribute('id');
+    if (id) {
+      const next = `${prefix}-${id}`;
+      map.set(id, next);
+      el.setAttribute('id', next);
+    }
+  }
+  if (!map.size) return;
+  const remap = (v: string): string =>
+    v.replace(/url\(\s*#([^)\s]+)\s*\)/g, (m, id) => (map.has(id) ? `url(#${map.get(id)})` : m));
+  for (const el of [root, ...Array.from(root.querySelectorAll('*'))]) {
+    for (const attr of Array.from(el.attributes)) {
+      const n = attr.name.toLowerCase();
+      if (n === 'id') continue;
+      if (attr.value.includes('url(')) {
+        const next = remap(attr.value);
+        if (next !== attr.value) el.setAttribute(attr.name, next);
+        continue;
+      }
+      if ((n === 'href' || n.endsWith(':href')) && attr.value.startsWith('#')) {
+        const id = attr.value.slice(1);
+        if (map.has(id)) el.setAttribute(attr.name, `#${map.get(id)}`);
+      }
+    }
+  }
 }
 
 /**

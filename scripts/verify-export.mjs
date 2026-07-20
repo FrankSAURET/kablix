@@ -28,6 +28,11 @@ import { Editor } from '../../src/webview/diagram/editor.mjs';
 import '../../src/webview/composants/led-element.mjs';
 import '../../src/webview/composants/resistor-element.mjs';
 import '../../src/webview/composants/pico-board.mjs';
+import '../../src/webview/composants/membrane-keypad-element.mjs';
+import '../../src/webview/composants/alim-element.mjs';
+// Le servo porte un sodipodi:type="star" (servo.edit.svg) : c'est LUI qui
+// rendait l'export illisible chez Frank (8 servos dans son montage).
+import '../../src/webview/composants/servo-element.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const checks = [];
 const ok = (name, cond, detail = '') => checks.push({ name, ok: !!cond, detail: String(detail) });
@@ -48,6 +53,12 @@ async function run() {
 	// Volontairement HORS grille de 10 px : c'est ce que le balayage déplaçait.
 	const ledIsolee = editor.addPart('led', 703, 503);
 	const resIsole = editor.addPart('resistor', 63, 63);
+	// Deux composants riches en résidus Inkscape, et DEUX FOIS le même type :
+	// c'est le partage d'ids (dégradés de l'alim) qui vidait le bouton à l'export.
+	editor.addPart('keypad', 500, 450);
+	editor.addPart('alim', 60, 450);
+	editor.addPart('alim', 300, 450);
+	editor.addPart('servo', 700, 60);
 	await wait(300);
 	editor.addWire({ partId: pico.id, pin: 'GP0' }, { partId: ledCablee.id, pin: 'A' }, { color: 'green' });
 	editor.redrawWires();
@@ -90,6 +101,73 @@ async function run() {
 		groups.some((g) => Math.abs(g.tx - p.x) <= 0.5 && Math.abs(g.ty - p.y) <= 0.5));
 	ok('export : chaque composant exporté à SA position (câblé ou non)', posOk,
 		JSON.stringify(groups.map((g) => [Math.round(g.tx), Math.round(g.ty)])));
+
+	// --- 1 bis. VALIDITÉ XML du fichier exporté ---------------------------------
+	// Cœur de l'item : le dessin sortait du shadow DOM avec ses attributs
+	// Inkscape, dont les préfixes ne sont PAS déclarés par le <svg> racine. Un
+	// seul sodipodi:type suffisait à rendre le fichier illisible (Firefox et
+	// Chrome le refusent, VS Code affiche « une erreur s'est produite »,
+	// Inkscape plante au dégroupage). DOMParser en application/xml est le même
+	// analyseur strict que celui des navigateurs.
+	const doc = new DOMParser().parseFromString(svgAvant, 'application/xml');
+	const perr = doc.querySelector('parsererror');
+	ok('export : XML BIEN FORMÉ (analysé sans erreur)', !perr,
+		perr ? perr.textContent.replace(/\s+/g, ' ').slice(0, 200) : '');
+	ok('export : plus AUCUN attribut sodipodi:/inkscape: (préfixes non déclarés)',
+		!/\s(sodipodi|inkscape):/.test(svgAvant),
+		(svgAvant.match(/\s(?:sodipodi|inkscape):[a-zA-Z-]+/g) || []).slice(0, 6).join(' '));
+	// (motif bâti par RegExp : un slash littéral fermerait le littéral de gabarit)
+	ok('export : plus AUCUN noeud <sodipodi:namedview> / <inkscape:*>',
+		!new RegExp('<[' + String.fromCharCode(47) + ']?(sodipodi|inkscape):').test(svgAvant), '');
+	// sodipodi:type="star" faisait reconstruire une étoile PARAMÉTRIQUE au
+	// dégroupage, au lieu du chemin dessiné : forme changée ou disparue.
+	ok('export : aucune forme paramétrique Inkscape (sodipodi:type)',
+		!/sodipodi:type/.test(svgAvant), '');
+
+	// --- 1 ter. Ids UNIQUES et références qui résolvent -------------------------
+	// Deux alim partagent les ids de leurs dégradés : sans préfixe par composant,
+	// le url(#…) de la seconde pointait sur les défs de la première -> bouton noir.
+	const ids = [...svgAvant.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);
+	const dup = ids.filter((v, i) => ids.indexOf(v) !== i);
+	ok('export : aucun id DUPLIQUÉ (deux composants du même type)',
+		dup.length === 0, [...new Set(dup)].slice(0, 8).join(' '));
+	// Toute référence url(#id) doit désigner un id RÉELLEMENT présent.
+	const refs = [...svgAvant.matchAll(/url\(#([^)"'\s]+)\)/g)].map((m) => m[1]);
+	const orphelines = [...new Set(refs)].filter((r) => !ids.includes(r));
+	ok('export : toutes les références url(#id) résolvent (dégradés, filtres)',
+		orphelines.length === 0, orphelines.slice(0, 8).join(' '));
+
+	// --- 1 quater. Taille des composants ----------------------------------------
+	// Un <svg> imbriqué sans width/height vaut 100 % du viewport dans le fichier
+	// exporté (= le viewBox de l'export entier) : le clavier sortait géant alors
+	// que sa boîte de sélection restait juste.
+	if (!perr) {
+		const nested = [...doc.documentElement.querySelectorAll('svg')];
+		const sansTaille = nested.filter(
+			(s) => s.getAttribute('viewBox') && (!s.getAttribute('width') || !s.getAttribute('height')));
+		ok('export : tout <svg> imbriqué a une taille EXPLICITE (pas de composant géant)',
+			sansTaille.length === 0, sansTaille.length + ' sans width/height / ' + nested.length);
+	}
+	// Chaque composant tient dans la feuille : un composant géant déborderait.
+	if (vbAvant && !perr) {
+		const [, , vw0, vh0] = vbAvant;
+		const trop = [...doc.documentElement.querySelectorAll('g[id^="kpart-"] > svg')]
+			.filter((s) => +s.getAttribute('width') > vw0 || +s.getAttribute('height') > vh0);
+		ok('export : aucun composant plus grand que la feuille entière',
+			trop.length === 0, trop.length + ' débordant(s)');
+	}
+	// Contrôle de fond : le nombre de groupes de composants est bien celui du
+	// schéma — un fichier tronqué par une erreur XML n'en livrerait qu'une partie
+	// (symptôme « CTRL+A ne sélectionne que le pico »).
+	// (les ids INTERNES sont eux aussi préfixés kpart-N : on ne compte que les
+	// groupes de PREMIER NIVEAU, ceux que Ctrl+A sélectionne dans Inkscape)
+	// (motif bâti par RegExp : dans ce littéral de gabarit, \\d serait consommé)
+	const reKpart = new RegExp('^kpart-[0-9]+$');
+	const racines = perr ? [] : [...doc.documentElement.children].filter(
+		(el) => el.localName === 'g' && reKpart.test(el.getAttribute('id') || ''));
+	ok('export : TOUS les composants présents (Ctrl+A les prend tous)',
+		!perr && racines.length === editor.diagram.parts.length,
+		(perr ? 'XML invalide' : racines.length + ' / ' + editor.diagram.parts.length));
 
 	// --- 2. Aller-retour save -> loadDiagram : positions INCHANGÉES -------------
 	const sauve = JSON.parse(JSON.stringify({ parts: editor.diagram.parts, wires: editor.diagram.wires }));
