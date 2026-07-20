@@ -1,10 +1,13 @@
 # À faire
-1. La led courant limite doit avoir un dégradé (le même que l'original seul la couleur rouge change et devient rouge vif ff0000FF). Il faut aussi un halo comme pour la led basic
-2. Pour l'autoroutage,
+1. Pour l'autoroutage,
     - la contrainte forte de ne pas passer un fil sur des bornes de connexion ne marche pas.
     - Passe le gap de 2 à 3 px entre 2 fils parallèle.
     - j'ai encore des fils qui se chevauchent et le nommage d'équipotentielle ne marche pas (ou n'apparait pas)
-3. Quand on fait glisser un composant de la bibliothèque vers le canva, il doit être à l'échelle 1 et se poser sur le canva là ou on le lache.
+2. Quand on fait glisser un composant de la bibliothèque vers le canva, il doit être à l'échelle 1 et se poser sur le canva là ou on le lache.
+# v2026.7.123
+1. ✅ LED « Courant limite » de l'alim : DÉGRADÉ conservé, rouge vif à l'allumage (item « le même dégradé que l'original, seule la couleur rouge devient ff0000 ») : l'ancien correctif remplaçait le dégradé par un aplat `#ff2020` (la bille perdait son modelé). Le composant clone maintenant le dégradé radial du dessin (`alim-radialGradient115`) sous l'id `alim-led-on` en gardant EXACTEMENT centre, rayon, `gradientUnits` et `gradientTransform` — seules les couleurs changent, le rouge sombre `#970202` devenant le **rouge vif `#ff0000`** (reflet clair conservé). Hors surcourant, le style d'origine du dessin est restauré tel quel.
+1. ✅ Halo autour de la LED allumée (item « il faut aussi un halo comme pour la led basic ») : nouveau groupe `alim-led-glow` inséré SOUS la LED — deux ellipses rouges concentriques floutées (`blur`, opacités 0,35 / 0,55, rayons ×2,4 et ×4,2), sur le modèle du groupe lumineux de la LED simple ; affiché au surcourant seulement, masqué sinon (plus le `drop-shadow` rapproché de la LED elle-même).
+1. ✅ `verify:psu` étendu (7 contrôles sur la LED au lieu de 2, rendu réel Chrome headless) : dégradé allumé identique en géométrie au dégradé du dessin, stop rouge vif `#ff0000`, LED basculée sur ce dégradé + drop-shadow, halo affiché (2 ellipses rouges floutées) et centré sur la LED en étant plus large qu'elle, retour au dégradé d'origine et halo masqué en fin de surcourant. Capture visuelle validée (alim éteinte vs surcourant). typecheck + build + verify:all OK.
 # v2026.7.122
 1. ✅ Adresse du PCA9685 réglée COMME SUR LA CARTE (item « modifie la propriété de changement d'adresse avec AD0 à AD5 ») : la liste déroulante 0x7F/0x40 est remplacée par **six cases à cocher AD0..AD5** (un pad soudable de la carte chacune, cochée = pad haut). L'adresse 7 bits en découle — `1 A5 A4 A3 A2 A1 A0`, le bit 6 étant câblé haut et le bit 7 inexistant — soit **0x40** (tous bas, PCA9685 nu) à **0x7F** (tous hauts, réglage d'usine Grove, défaut inchangé). Nouvelles fonctions `pca9685Address` / `pca9685AddressText` (catalog.mts) ; `updatePartAttr` recalcule l'attr `address` — celui que lit la simulation — à chaque pad (dé)coché et redessine l'inspecteur.
 1. ✅ Adresse résultante AFFICHÉE sous les cases (item « le résultat écris sous la forme 0x40 à 0x7F ») : ligne « Adresse I²C : 0x7E » (`.inspector__address`, 2 chiffres majuscules) qui suit chaque clic. i18n FR (libellés des 6 pads + « Adresse I²C »).

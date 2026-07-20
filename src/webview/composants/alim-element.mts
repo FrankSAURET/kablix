@@ -150,7 +150,60 @@ export class AlimElement extends HTMLElement {
 
     const led = this.root.querySelector('#alim-LED-courant-limite');
     this.ledOriginalFill = led?.getAttribute('style') ?? null;
+    this.prepareLed();
     this.updateVisuals();
+  }
+
+  /**
+   * Prépare la LED « Courant limite » allumée : on garde EXACTEMENT le dégradé
+   * radial du dessin (mêmes centre, rayon et gradientTransform, donc le même
+   * modelé de bille) — seule la couleur change, le rouge sombre `#970202`
+   * devenant le rouge vif `#ff0000`. Un halo est ajouté derrière la LED, sur le
+   * modèle de la LED simple : deux ellipses concentriques floutées, masquées
+   * tant que la LED est éteinte.
+   */
+  private prepareLed(): void {
+    const svg = this.root.querySelector('svg');
+    const led = this.root.querySelector('#alim-LED-courant-limite') as SVGElement | null;
+    const src = this.root.querySelector('#alim-radialGradient115') as SVGElement | null;
+    if (!svg || !led || !src) return;
+
+    // Dégradé jumeau, rouge vif : le clair du reflet est conservé, la butée
+    // sombre passe à #ff0000 (les stops sont copiés depuis le linearGradient
+    // référencé par le dégradé radial d'origine).
+    const defs = src.parentElement;
+    const on = src.cloneNode(false) as SVGElement;
+    on.id = 'alim-led-on';
+    on.removeAttribute('xlink:href');
+    on.removeAttribute('href');
+    for (const [offset, color] of [['0', '#ffdcdc'], ['1', '#ff0000']]) {
+      const stop = document.createElementNS(SVG_NS, 'stop');
+      stop.setAttribute('offset', offset);
+      stop.setAttribute('style', `stop-color:${color};stop-opacity:1`);
+      on.appendChild(stop);
+    }
+    defs?.appendChild(on);
+
+    // Halo : deux ellipses centrées sur la LED (comme le groupe lumineux de la
+    // LED simple), insérées AVANT la LED pour rester dessous.
+    const cx = Number(led.getAttribute('cx') ?? 0);
+    const cy = Number(led.getAttribute('cy') ?? 0);
+    const rx = Number(led.getAttribute('rx') ?? 2);
+    const glow = document.createElementNS(SVG_NS, 'g');
+    glow.id = 'alim-led-glow';
+    glow.style.display = 'none';
+    for (const [scale, opacity] of [[4.2, 0.35], [2.4, 0.55]]) {
+      const e = document.createElementNS(SVG_NS, 'ellipse');
+      e.setAttribute('cx', String(cx));
+      e.setAttribute('cy', String(cy));
+      e.setAttribute('rx', String(rx * scale));
+      e.setAttribute('ry', String(rx * scale));
+      e.setAttribute('fill', '#ff0000');
+      e.setAttribute('opacity', String(opacity));
+      e.style.filter = 'blur(1.4px)'; // filtre CSS (l'attribut SVG attend un url(#…))
+      glow.appendChild(e);
+    }
+    led.parentElement?.insertBefore(glow, led);
   }
 
   // --- Bouton de tension (drag rotatif, simulation seulement) ------------------
@@ -207,12 +260,19 @@ export class AlimElement extends HTMLElement {
   private updateLed(): void {
     const led = this.root.querySelector('#alim-LED-courant-limite') as SVGElement | null;
     if (!led) return;
+    const glow = this.root.querySelector('#alim-led-glow') as SVGElement | null;
     if (this._overAmps) {
-      led.setAttribute('style', 'fill:#ff2020');
-      led.style.filter = 'drop-shadow(0 0 5px rgba(255, 40, 40, 0.95))';
+      // Même dégradé (même modelé de bille), rouge vif — plus le halo.
+      led.setAttribute('style', (this.ledOriginalFill ?? '').replace(
+        /fill:url\(#alim-radialGradient115\)/,
+        'fill:url(#alim-led-on)',
+      ) || 'fill:url(#alim-led-on)');
+      led.style.filter = 'drop-shadow(0 0 3px rgba(255, 0, 0, 0.95))';
+      if (glow) glow.style.display = '';
     } else {
       if (this.ledOriginalFill !== null) led.setAttribute('style', this.ledOriginalFill);
       led.style.filter = '';
+      if (glow) glow.style.display = 'none';
     }
   }
 }

@@ -180,12 +180,29 @@ async function run() {
 	res.voltsDragged = el.volts;
 	res.inputSeen = inputSeen;
 	res.displayDragged = (sh.querySelector('#alim-Text-Affichage tspan') || sh.querySelector('#alim-Text-Affichage')).textContent;
-	// LED courant limite (le navigateur normalise #ff2020 en rgb(255, 32, 32)).
-	el.overAmps = true;
+	// LED courant limite : DÉGRADÉ conservé (même géométrie que le dessin, seule
+	// la couleur passe au rouge vif #ff0000) + halo derrière la LED.
 	const led = sh.querySelector('#alim-LED-courant-limite');
-	res.ledOver = led.style.fill === 'rgb(255, 32, 32)' && led.style.filter.includes('drop-shadow');
+	const gradOff = led.style.fill;
+	const on = sh.querySelector('#alim-led-on');
+	const src = sh.querySelector('#alim-radialGradient115');
+	res.gradSame = !!on && !!src &&
+		['cx', 'cy', 'r', 'gradientTransform', 'gradientUnits'].every((a) => on.getAttribute(a) === src.getAttribute(a));
+	res.gradVivid = !!on && [...on.querySelectorAll('stop')].some((s) => /#ff0000/i.test(s.getAttribute('style') || ''));
+	el.overAmps = true;
+	const glow = sh.querySelector('#alim-led-glow');
+	res.ledOver = led.style.fill.includes('alim-led-on') && led.style.filter.includes('drop-shadow');
+	res.ledOverRaw = led.style.fill;
+	res.glowOn = !!glow && glow.style.display !== 'none' && glow.children.length === 2 &&
+		[...glow.children].every((e) => e.style.filter.includes('blur') && e.getAttribute('fill') === '#ff0000');
+	// Halo centré sur la LED et plus large qu'elle (comme la LED simple).
+	const halo = glow?.children[0];
+	res.glowCentered = !!halo &&
+		halo.getAttribute('cx') === led.getAttribute('cx') && halo.getAttribute('cy') === led.getAttribute('cy') &&
+		Number(halo.getAttribute('rx')) > Number(led.getAttribute('rx')) * 2;
 	el.overAmps = false;
-	res.ledOff = led.style.fill !== 'rgb(255, 32, 32)';
+	res.ledOff = led.style.fill === gradOff && led.style.fill.includes('radialGradient115');
+	res.glowOff = !!glow && glow.style.display === 'none';
 	// Sortie de simulation : retour à la tension de démarrage.
 	el.removeAttribute('simulating');
 	await wait(20);
@@ -252,8 +269,13 @@ if (chrome) {
     check('rendu : drag à 320° du cadran → 20 V + événement input',
       near(r.voltsDragged, 20, 0.02) && r.inputSeen === true);
     check('rendu : écran suit le drag (20,00)', r.displayDragged === '20,00');
-    check('rendu : LED courant limite rouge vif + halo', r.ledOver === true);
-    check('rendu : LED restaurée (fin de surcourant)', r.ledOff === true);
+    check('rendu : LED allumée = MÊME dégradé radial que le dessin (centre, rayon, transform)', r.gradSame === true);
+    check('rendu : dégradé allumé en rouge VIF #ff0000', r.gradVivid === true);
+    check(`rendu : LED courant limite passe sur le dégradé vif (+ drop-shadow) — ${r.ledOverRaw}`, r.ledOver === true);
+    check('rendu : halo affiché (2 ellipses rouges floutées, comme la LED simple)', r.glowOn === true);
+    check('rendu : halo centré sur la LED et plus large qu\'elle', r.glowCentered === true);
+    check('rendu : LED restaurée au dégradé d\'origine (fin de surcourant)', r.ledOff === true);
+    check('rendu : halo masqué hors surcourant', r.glowOff === true);
     check('rendu : sortie de simulation → tension de démarrage', near(r.voltsReset, 12.5));
     check('rendu : écran aligné à DROITE (bord droit stable 12,50 → 5,00)', r.rightAligned === true);
     check('éditeur : bornes de l\'alim SANS pastille rouge/noire (2 .pin nus)',
