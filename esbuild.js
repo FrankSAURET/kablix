@@ -3,9 +3,32 @@
 //   - dist/extension.js : code de l'extension (hôte Node, externe : vscode)
 //   - dist/webview.js   : code du simulateur exécuté dans la webview (navigateur)
 const esbuild = require('esbuild');
+const fs = require('fs');
+const path = require('path');
 
 const production = process.argv.includes('--production');
 const watch = process.argv.includes('--watch');
+
+// Posters de brochage (bouton ☢) : ~3,7 Mo de SVG à eux cinq. Ils ne sont PAS
+// inlinés dans webview.js — la webview les chargerait à chaque ouverture de
+// projet alors qu'ils ne servent qu'à la demande. Copiés tels quels dans
+// dist/pinout/ (déjà une racine de ressources autorisée) et récupérés par fetch.
+const PINOUTS = {
+  'pico.svg': 'src/webview/composants/interne/pico-pinout.svg',
+  'picow.svg': 'src/webview/composants/interne/picow-pinout.svg',
+  'uno.svg': 'src/webview/composants/interne/uno-pinout.svg',
+  'mega.svg': 'src/webview/composants/interne/mega pinout.svg',
+  'nano.svg': 'src/webview/composants/interne/nano pinout.svg',
+};
+
+function copyPinouts() {
+  const dir = path.join(__dirname, 'dist', 'pinout');
+  fs.mkdirSync(dir, { recursive: true });
+  for (const [out, src] of Object.entries(PINOUTS)) {
+    fs.copyFileSync(path.join(__dirname, src), path.join(dir, out));
+  }
+  console.log(`[pinout] ${Object.keys(PINOUTS).length} posters copiés dans dist/pinout/`);
+}
 
 /** @type {import('esbuild').BuildOptions} */
 const extensionConfig = {
@@ -37,6 +60,7 @@ const webviewConfig = {
 };
 
 async function main() {
+  copyPinouts();
   if (watch) {
     const ctxExt = await esbuild.context(extensionConfig);
     const ctxWeb = await esbuild.context(webviewConfig);

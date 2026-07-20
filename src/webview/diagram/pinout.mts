@@ -1,17 +1,16 @@
-// Posters de brochage complet (Raspberry Pi Pico / Pico W), affichés à la demande
-// par le bouton ☢ de l'éditeur. Importés comme texte (loader esbuild .svg).
+// Posters de brochage complet (Raspberry Pi Pico / Pico W…), affichés à la demande
+// par le bouton ☢ de l'éditeur.
 // Les SVG ne contiennent plus que les étiquettes (fonctions + noms + numéros) :
 // la carte réelle (<kablix-pico-board>) transparaît dans la bande centrale vide.
-import picoPinout from '../composants/interne/pico-pinout.svg';
-import picowPinout from '../composants/interne/picow-pinout.svg';
-import unoPinout from '../composants/interne/uno-pinout.svg';
-import megaPinout from '../composants/interne/mega pinout.svg';
-import nanoPinout from '../composants/interne/nano pinout.svg';
+//
+// Ils ne sont PLUS inlinés dans le bundle : à eux cinq ils pesaient ~3,7 Mo des
+// 7,9 Mo de webview.js, chargés et évalués à CHAQUE ouverture de projet alors
+// qu'ils ne servent qu'au clic sur ☢. Ils sont désormais copiés tels quels dans
+// dist/pinout/ (esbuild.js) et récupérés par fetch au premier affichage, puis
+// gardés en cache pour la durée de la session.
 
 /** Poster prêt à poser en surimpression de la carte. */
 export interface PinoutPoster {
-  /** Markup SVG du poster (sans l'en-tête <?xml?>). */
-  svg: string;
   /** Mode de pose. */
   mode: 'stretch' | 'align';
   /** Largeur propre du poster (unités viewBox) — dimension CSS de rendu. */
@@ -49,21 +48,45 @@ export interface PinoutPoster {
 //    (getBoundingClientRect des pastilles vs pins composant, régression, erreur
 //    sous-pixel). Les pastilles et numéros rouges de calage ont été retirés des SVG.
 const POSTERS: Record<string, PinoutPoster> = {
-  pico: { svg: picoPinout, mode: 'stretch', w: 209.24001, h: 357.76389, rTop: 0.3897, rBot: 0.6075 },
-  picow: { svg: picowPinout, mode: 'stretch', w: 208.66299, h: 357.73111, rTop: 0.3897, rBot: 0.6075 },
-  nano: { svg: nanoPinout, mode: 'align', w: 225.8154, h: 384.31277, cardW: 190, s: 1, tx: 9.48, ty: -177.82 },
-  uno: { svg: unoPinout, mode: 'align', w: 293.05396, h: 479.98375, cardW: 300, s: 1, tx: 5.97, ty: -139 },
-  mega: { svg: megaPinout, mode: 'align', w: 142.70264, h: 130.34598, cardW: 430, s: 3.7795, tx: 4.32, ty: -140.34 },
+  pico: { mode: 'stretch', w: 209.24001, h: 357.76389, rTop: 0.3897, rBot: 0.6075 },
+  picow: { mode: 'stretch', w: 208.66299, h: 357.73111, rTop: 0.3897, rBot: 0.6075 },
+  nano: { mode: 'align', w: 225.8154, h: 384.31277, cardW: 190, s: 1, tx: 9.48, ty: -177.82 },
+  uno: { mode: 'align', w: 293.05396, h: 479.98375, cardW: 300, s: 1, tx: 5.97, ty: -139 },
+  mega: { mode: 'align', w: 142.70264, h: 130.34598, cardW: 430, s: 3.7795, tx: 4.32, ty: -140.34 },
 };
 
-/** Poster de brochage complet (texte SVG brut) pour un type de carte, ou null. */
-export function pinoutSvg(type: string): string | null {
-  return POSTERS[type]?.svg ?? null;
+/** La carte a-t-elle un poster de brochage ? (test synchrone : bouton ☢) */
+export function hasPinout(type: string): boolean {
+  return POSTERS[type] !== undefined;
 }
 
-/** Poster prêt à poser (markup nettoyé + géométrie), ou null si la carte n'en a pas. */
+/** Géométrie de pose du poster (sans le markup), ou null si la carte n'en a pas. */
 export function pinoutPoster(type: string): PinoutPoster | null {
-  const p = POSTERS[type];
-  if (!p) return null;
-  return { ...p, svg: p.svg.slice(p.svg.indexOf('<svg')) }; // retire <?xml?> / commentaires
+  return POSTERS[type] ?? null;
+}
+
+/** Markup déjà chargé, par type de carte (une seule requête par session). */
+const svgCache = new Map<string, string>();
+
+/**
+ * Markup SVG du poster, chargé depuis dist/pinout/ au premier appel.
+ * Renvoie null si la carte n'a pas de poster ou si le fichier est introuvable
+ * (le bouton ☢ reste alors sans effet plutôt que de casser l'éditeur).
+ */
+export async function loadPinoutSvg(type: string): Promise<string | null> {
+  if (!hasPinout(type)) return null;
+  const cached = svgCache.get(type);
+  if (cached !== undefined) return cached;
+  const base = (globalThis as { KABLIX_PINOUT_BASE?: string }).KABLIX_PINOUT_BASE;
+  if (!base) return null;
+  try {
+    const res = await fetch(`${base}/${type}.svg`);
+    if (!res.ok) return null;
+    const text = await res.text();
+    const svg = text.slice(text.indexOf('<svg')); // retire <?xml?> / commentaires
+    svgCache.set(type, svg);
+    return svg;
+  } catch {
+    return null;
+  }
 }

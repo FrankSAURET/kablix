@@ -26,7 +26,7 @@ import {
 import { breadboardPins, normalizeSize, stripOfPin } from './breadboard.mjs';
 import { groveSocketPins } from './grove-shield.mjs';
 import { internalWiringSvg, type PinPoint } from './internal-wiring.mjs';
-import { pinoutSvg, pinoutPoster } from './pinout.mjs';
+import { hasPinout, pinoutPoster, loadPinoutSvg } from './pinout.mjs';
 import { BOARD_W, BOARD_H } from '../composants/pico-board.mjs';
 import { nameEquipotentials, type Diagram, type Endpoint, type Part, type Wire } from './model.mjs';
 import { DEFAULT_WIRE_COLORS, DUPONT_COLORS, dupontHex, roundedWirePath, snapPoint, type XY } from './geometry.mjs';
@@ -3124,7 +3124,7 @@ export class Editor {
   private partHasSchema(partId: string): boolean {
     const r = this.rendered.get(partId);
     if (!r) return false;
-    if (pinoutSvg(r.part.type) !== null) return true;
+    if (hasPinout(r.part.type)) return true;
     if (partDef(r.part.type).custom?.innerSvg) return true;
     const pins = this.partPins(r.el).map((p) => ({ name: p.name, x: p.x, y: p.y }));
     return internalWiringSvg(partDef(r.part.type).kind, pins, r.part.attrs, r.part.type) !== null;
@@ -3150,7 +3150,7 @@ export class Editor {
   toggleSelectedSchema(): void {
     const partId = this.singleSelectedPart();
     if (!partId || !this.partHasSchema(partId)) return;
-    if (pinoutSvg(this.rendered.get(partId)!.part.type) !== null) this.togglePinout(partId);
+    if (hasPinout(this.rendered.get(partId)!.part.type)) this.togglePinout(partId);
     else this.toggleInternalWiring(partId);
     this.notifySelection();
   }
@@ -3456,12 +3456,23 @@ export class Editor {
       ?.classList.toggle('part__internal-toggle--active', this.pinoutShown.has(partId));
   }
 
-  /** Affiche le poster de brochage en surimpression de la carte (comme le câblage interne). */
-  private renderPinout(partId: string): void {
-    const r = this.rendered.get(partId);
-    if (!r) return;
-    const poster = pinoutPoster(r.part.type);
+  /**
+   * Affiche le poster de brochage en surimpression de la carte (comme le câblage
+   * interne). Asynchrone : le markup est chargé depuis dist/pinout/ au premier
+   * affichage (il n'est plus inliné dans le bundle), puis gardé en cache. Le
+   * chargement passe AVANT la mesure — celle-ci lit des rects qui peuvent avoir
+   * changé pendant l'attente — et l'on revérifie que le poster est toujours
+   * demandé (l'utilisateur a pu re-cliquer sur ☢ ou désélectionner entre-temps).
+   */
+  private async renderPinout(partId: string): Promise<void> {
+    const r0 = this.rendered.get(partId);
+    if (!r0) return;
+    const poster = pinoutPoster(r0.part.type);
     if (!poster) return;
+    const svg = await loadPinoutSvg(r0.part.type);
+    if (svg === null) return;
+    const r = this.rendered.get(partId);
+    if (!r || !this.pinoutShown.has(partId) || !this.isSelected(partId)) return;
     const body = r.container.querySelector('.part__body') as HTMLElement | null;
     if (!body) return;
     body.querySelector('.part__pinout')?.remove();
@@ -3512,7 +3523,7 @@ export class Editor {
       overlay.style.width = `${width}px`;
       overlay.style.transform = `translateY(${ty}px) scaleY(${k})`;
     }
-    overlay.innerHTML = poster.svg;
+    overlay.innerHTML = svg;
     body.appendChild(overlay);
     r.container.classList.add('part--pinout-shown'); // efface le bandeau de nom
   }

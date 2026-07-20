@@ -1096,6 +1096,11 @@ export class SimulatorPanel {
     const aideIconUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this.extensionUri, 'media', 'aide.svg')
     );
+    // Base des posters de brochage (dist/pinout/<carte>.svg) : ils ne sont plus
+    // inlinés dans webview.js et sont récupérés par fetch au clic sur ☢.
+    const pinoutBase = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, 'dist', 'pinout')
+    );
     const nonce = getNonce();
     const version =
       vscode.extensions.getExtension('franksauret.kablix')?.packageJSON?.version ?? '';
@@ -1112,6 +1117,8 @@ export class SimulatorPanel {
       `style-src ${webview.cspSource} 'unsafe-inline'`,
       `script-src 'nonce-${nonce}'`,
       `img-src ${webview.cspSource} data:`,
+      // fetch des posters de brochage (dist/pinout/*.svg), chargés à la demande.
+      `connect-src ${webview.cspSource}`,
       // Police LED des écrans LCD (media/font/led_board-7.ttf, @font-face).
       `font-src ${webview.cspSource}`,
     ].join('; ');
@@ -1243,7 +1250,8 @@ export class SimulatorPanel {
     </section>
   </main>
 
-  <script nonce="${nonce}">window.KABLIX_LANG = ${JSON.stringify(vscode.env.language)};</script>
+  <script nonce="${nonce}">window.KABLIX_LANG = ${JSON.stringify(vscode.env.language)};
+window.KABLIX_PINOUT_BASE = ${JSON.stringify(pinoutBase.toString())};</script>
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;

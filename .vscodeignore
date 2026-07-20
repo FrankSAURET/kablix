@@ -12,10 +12,14 @@ CLAUDE.md
 **/*.map
 **/.git/**
 
-# --- dist : seuls les deux bundles produits par esbuild ---
+# --- dist : les deux bundles esbuild + les posters de brochage ---
+# dist/pinout/*.svg : posters du bouton ☢, volontairement HORS du bundle
+# (3,7 Mo chargés à chaque ouverture sinon) et récupérés par fetch à la demande.
+# Sans cette exception le vsix les perdrait et le bouton ☢ resterait sans effet.
 dist/**
 !dist/extension.js
 !dist/webview.js
+!dist/pinout/**
 
 # --- Fichiers de travail / captures / archives ---
 svg/**
