@@ -7,7 +7,7 @@
 //    bouton (0-30 V sur 300°), drag rotatif en simulation, LED courant limite,
 //    libellés traduisibles, broches sur pastilles.
 import esbuild from 'esbuild';
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -47,6 +47,25 @@ check('catalogue : Instruments présent dans CATEGORY_ORDER',
 check('catalogue : propriétés voltage (0-30) et maxcurrent',
   def.props?.some((p) => p.attr === 'voltage' && p.max === 30) &&
   def.props?.some((p) => p.attr === 'maxcurrent'));
+
+// --- Aide locale (bouton d'aide de l'inspecteur → docs/composants/<type>.md) ----
+// Le bouton est affiché pour TOUT composant intégré : sans la fiche, il n'ouvre
+// rien et affiche « Aucune aide disponible ».
+const helpMd = join(root, 'docs', 'composants', `${def.type}.md`);
+check('aide : fiche docs/composants/alim.md présente', existsSync(helpMd));
+if (existsSync(helpMd)) {
+  const md = readFileSync(helpMd, 'utf8');
+  // Chaque image et chaque lien relatif de la fiche doit exister (l'aperçu
+  // Markdown de VS Code affiche sinon une image cassée / un lien mort).
+  const refs = [...md.matchAll(/\]\((?!https?:)([^)#]+)\)/g)].map((m) => decodeURIComponent(m[1]));
+  const missing = refs.filter((r) => !existsSync(join(root, 'docs', 'composants', r)));
+  check(`aide : images et liens relatifs valides (${refs.length} réf.)${missing.length ? ` — manquant : ${missing.join(', ')}` : ''}`,
+    refs.length > 0 && missing.length === 0);
+  // Points que la fiche doit couvrir : bornes, plage du bouton, limitation.
+  check('aide : bornes V+/GND, plage 0-30 V et limitation de courant documentées',
+    /\*\*V\+\*\*/.test(md) && /\*\*GND\*\*/.test(md) && /30\s*V/.test(md) &&
+    /300°/.test(md) && /Courant limite/.test(md) && /maxcurrent/.test(md));
+}
 
 // --- Netlist : l'alim est une source -------------------------------------------
 const ALIM = (v = '5', i = '1') => ({ id: 'psu1', type: 'alim', x: 0, y: 0, attrs: { voltage: v, maxcurrent: i } });
