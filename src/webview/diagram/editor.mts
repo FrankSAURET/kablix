@@ -3800,12 +3800,37 @@ export class Editor {
     }
   }
 
-  /** Inspecteur d'une sélection multiple : nombre + transformations de groupe. */
+  /** Inspecteur d'une sélection multiple : nombre + transformations de groupe.
+   *  Si TOUS les composants sélectionnés sont du même type, ses propriétés sont
+   *  éditables ici et chaque changement s'applique à TOUTE la sélection. */
   private renderMultiInspector(): void {
+    const ids = [...this.selectedParts];
+    const parts = ids.map((id) => this.rendered.get(id)?.part).filter((p): p is Part => !!p);
+    const types = new Set(parts.map((p) => p.type));
+    const homogeneous = types.size === 1 && parts.length > 1;
+
     const subtitle = document.createElement('p');
     subtitle.className = 'inspector__subtitle';
-    subtitle.textContent = t('{0} parts selected', this.selectedParts.size);
+    subtitle.textContent =
+      homogeneous
+        ? t('{0} × {1} — shared properties', String(parts.length), t(partDef(parts[0].type).label))
+        : t('{0} parts selected', this.selectedParts.size);
     this.inspector.appendChild(subtitle);
+
+    // Propriétés partagées : même type pour tous → on édite le groupe d'un coup.
+    if (homogeneous) {
+      const def = partDef(parts[0].type);
+      const memberIds = parts.map((p) => p.id);
+      for (const prop of def.props ?? []) {
+        this.appendPropControl(memberIds, parts, prop);
+      }
+      if ((def.props ?? []).length === 0) {
+        const hint = document.createElement('p');
+        hint.className = 'inspector__hint';
+        hint.textContent = t('No editable property for this part.');
+        this.inspector.appendChild(hint);
+      }
+    }
 
     this.appendTransformControl(null);
     this.appendDeleteButton(t('Delete the selection'), () => {
@@ -3813,11 +3838,13 @@ export class Editor {
       for (const id of ids) this.removePart(id);
       this.select(null);
     });
-    this.appendHelp([
+    const help = [
       t('+ or − to rotate the parts'),
       t('Drag a part to move the whole selection.'),
       t('Ctrl+C / Ctrl+V: copy / paste — Ctrl+D: duplicate.'),
-    ]);
+    ];
+    if (homogeneous) help.unshift(t('Changing a property applies to the whole selection.'));
+    this.appendHelp(help);
   }
 
   private renderWireInspector(wireId: string): void {
@@ -3953,13 +3980,22 @@ export class Editor {
     this.inspector.appendChild(help);
   }
 
-  private appendPropControl(partId: string, part: Part, prop: PropDef): void {
+  /** Contrôle de propriété. `partId`/`part` acceptent une LISTE : en sélection
+   *  multiple homogène, chaque changement est appliqué à tous les composants.
+   *  La valeur affichée est celle du premier ; si les composants divergent, le
+   *  contrôle reste utilisable et le premier réglage les aligne tous. */
+  private appendPropControl(partId: string | string[], part: Part | Part[], prop: PropDef): void {
+    const ids = Array.isArray(partId) ? partId : [partId];
+    const first = Array.isArray(part) ? part[0] : part;
+    const setAttr = (attr: string, value: string): void => {
+      for (const id of ids) this.updatePartAttr(id, attr, value);
+    };
     const label = document.createElement('label');
     label.className = 'inspector__label';
     label.textContent = t(prop.label);
     this.inspector.appendChild(label);
 
-    const current = part.attrs?.[prop.attr] ?? '';
+    const current = first.attrs?.[prop.attr] ?? '';
     if (prop.kind === 'checkbox') {
       // Case à cocher : attr '1' quand cochée, vidé sinon (removeAttribute côté
       // élément — un attribut booléen Lit absent = false). Insérée DANS le
@@ -3969,7 +4005,7 @@ export class Editor {
       box.className = 'inspector__checkbox';
       box.checked = current !== '';
       box.addEventListener('change', () => {
-        this.updatePartAttr(partId, prop.attr, box.checked ? '1' : '');
+        setAttr(prop.attr, box.checked ? '1' : '');
       });
       label.prepend(box);
       return;
@@ -3984,7 +4020,7 @@ export class Editor {
         sw.style.background = colorSwatchBackground(opt);
         sw.title = opt;
         sw.addEventListener('click', () => {
-          this.updatePartAttr(partId, prop.attr, opt);
+          setAttr(prop.attr, opt);
           this.renderInspector();
         });
         swatches.appendChild(sw);
@@ -4001,7 +4037,7 @@ export class Editor {
         if (opt === current) o.selected = true;
         select.appendChild(o);
       }
-      select.addEventListener('change', () => this.updatePartAttr(partId, prop.attr, select.value));
+      select.addEventListener('change', () => setAttr(prop.attr, select.value));
       this.inspector.appendChild(select);
     } else if (prop.suffixes) {
       // Champ texte acceptant les suffixes SI (p n µ m k M G), ex. « 2.2k ».
@@ -4016,7 +4052,7 @@ export class Editor {
           input.value = current === '' ? '' : formatSiValue(Number(current)); // entrée invalide : on annule
           return;
         }
-        this.updatePartAttr(partId, prop.attr, String(parsed));
+        setAttr(prop.attr, String(parsed));
         input.value = formatSiValue(parsed);
       });
       this.inspector.appendChild(input);
@@ -4041,7 +4077,7 @@ export class Editor {
         const c = clamp(v);
         const value = String(step < 1 ? Math.round(c * 100) / 100 : c);
         input.value = value;
-        this.updatePartAttr(partId, prop.attr, value);
+        setAttr(prop.attr, value);
       };
       input.addEventListener('change', () => commit(Number(input.value)));
 

@@ -494,6 +494,90 @@ async function run() {
 	ok('grille : second clic la ramene',
 		on === true && gridOf().includes('gradient') && editor.isGridShown() === true, gridOf().slice(0, 40));
 
+	// --- 14. Propriétés PARTAGÉES d'une sélection multiple homogène ------------
+	// Plusieurs composants du MÊME type sélectionnés : leurs propriétés sont
+	// éditables dans l'inspecteur et chaque changement s'applique à TOUS. Types
+	// mêlés : ancien comportement (résumé + transformations seulement).
+	const ml = [editor.addPart('led', 100, 1900), editor.addPart('led', 240, 1900), editor.addPart('led', 380, 1900)];
+	await wait(160);
+	editor.select(null); // addPart sélectionne le dernier posé : on repart de zéro
+	await wait(30);
+	// Ctrl+clic réel sur les 3 corps (le vrai chemin utilisateur).
+	for (const p of ml) {
+		clickSelect(editor.rendered.get(p.id).container.querySelector('.part__body'), { ctrlKey: true });
+		await wait(30);
+	}
+	ok('multi : 3 LED sélectionnées', editor.selectedParts.size === 3, 'n=' + editor.selectedParts.size);
+	const insText = () => inspector.textContent || '';
+	// Le banc tourne en anglais (i18n de la webview non chargé) : « 3 × LED — shared properties ».
+	ok('multi homogène : titre « 3 × LED — propriétés communes »',
+		// Le signe multiplie est bati par son code point : un « × » ecrit dans
+		// une chaine serait consomme par le litteral, et le caractere brut ne
+		// survit pas au bundle esbuild. Banc en anglais : « shared properties ».
+		insText().includes('3 ' + String.fromCharCode(0xd7) + ' LED')
+			&& /shared properties|propriétés communes/i.test(insText()),
+		JSON.stringify(insText().slice(10, 24)));
+	// Ligne PROPRE à la sélection homogène : « Drag a part to move the whole
+	// selection. » existait déjà, on exige donc le texte « Changing a property ».
+	ok('multi homogène : aide « modifier une propriété l applique à toute la sélection »',
+		/Changing a property|Modifier une propriété/i.test(inspector.querySelector('.inspector__help')?.textContent || ''),
+		(inspector.querySelector('.inspector__help')?.textContent || 'absente').slice(0, 70));
+	// La propriété color de la LED s'affiche en pastilles : elles doivent être là.
+	const sw = [...inspector.querySelectorAll('.inspector__swatch')];
+	ok('multi homogène : contrôle de propriété affiché (7 pastilles de couleur)',
+		sw.length === 7, 'n=' + sw.length);
+	// Clic sur « blue » (4e couleur du catalogue : red green blue …) → les 3 LED.
+	const before = ml.map((p) => editor.rendered.get(p.id).part.attrs.color).join(',');
+	if (sw[2]) sw[2].click(); // absent = fonctionnalite neutralisee : echec propre plus bas
+	await wait(80);
+	const after = ml.map((p) => editor.rendered.get(p.id).part.attrs.color);
+	ok('multi homogène : un clic change la propriété des TROIS composants',
+		after.every((c) => c === 'blue'), before + ' -> ' + after.join(','));
+	// L'élément rendu suit aussi (attribut DOM), pas seulement le modèle.
+	const attrs = ml.map((p) => editor.rendered.get(p.id).el.getAttribute('color'));
+	ok('multi homogène : attribut posé sur les 3 éléments rendus (dessin à jour)',
+		attrs.every((c) => c === 'blue'), attrs.join(','));
+	// Champ à suffixes SI (résistance) : même chose sur une valeur numérique.
+	const mr = [editor.addPart('resistor', 100, 2100), editor.addPart('resistor', 240, 2100)];
+	await wait(160);
+	editor.select(null);
+	await wait(30);
+	for (const p of mr) {
+		clickSelect(editor.rendered.get(p.id).container.querySelector('.part__body'), { ctrlKey: true });
+		await wait(30);
+	}
+	const rin = inspector.querySelector('.inspector__control');
+	if (rin) {
+		rin.value = '2.2k';
+		rin.dispatchEvent(new Event('change', { bubbles: true }));
+	}
+	await wait(80);
+	const rvals = mr.map((p) => editor.rendered.get(p.id).part.attrs.value);
+	ok('multi homogène : champ SI (2.2k) appliqué aux DEUX résistances',
+		!!rin && rvals.every((v) => Number(v) === 2200), rvals.join(','));
+	// Contre-épreuve : types MÊLÉS → pas de propriété partagée, résumé d'origine.
+	const mixA = editor.addPart('led', 100, 2300);
+	const mixB = editor.addPart('resistor', 240, 2300);
+	await wait(160);
+	editor.select(null);
+	await wait(30);
+	for (const p of [mixA, mixB]) {
+		clickSelect(editor.rendered.get(p.id).container.querySelector('.part__body'), { ctrlKey: true });
+		await wait(30);
+	}
+	const mixText = insText();
+	ok('multi MÊLÉ : résumé d origine, aucune propriété partagée',
+		/2/.test(mixText) && !/×/.test(mixText) && inspector.querySelectorAll('.inspector__swatch').length === 0,
+		mixText.slice(0, 80));
+	// Un seul composant sélectionné : inspecteur individuel inchangé.
+	editor.select(null);
+	editor.select({ kind: 'part', id: ml[0].id });
+	await wait(60);
+	ok('sélection simple : inspecteur individuel INCHANGÉ (titre LED, pas de « × »)',
+		/LED/.test(insText()) && !/×/.test(insText()) && inspector.querySelectorAll('.inspector__swatch').length === 7,
+		insText().slice(0, 60));
+	editor.select(null);
+
 	const out = document.createElement('pre');
 	out.id = 'measures';
 	out.textContent = JSON.stringify(checks);
