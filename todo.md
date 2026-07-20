@@ -1,9 +1,17 @@
 # À faire
-1. Pour l'autoroutage,
-    - la contrainte forte de ne pas passer un fil sur des bornes de connexion ne marche pas.
-    - Passe le gap de 2 à 3 px entre 2 fils parallèle.
-    - j'ai encore des fils qui se chevauchent et le nommage d'équipotentielle ne marche pas (ou n'apparait pas)
-2. Quand on fait glisser un composant de la bibliothèque vers le canva, il doit être à l'échelle 1 et se poser sur le canva là ou on le lache.
+1. Quand on fait glisser un composant de la bibliothèque vers le canva, il doit être à l'échelle 1 et se poser sur le canva là ou on le lache.
+1. l'ouverture des fichiers est devenue lente
+1. Rajoute une catégorie dans composant "Appareils de mesure" et déplace-y l'alim
+1. Rajoute l'image "docs\composants\img\pca9685 - dessous.png" dans le paragraphe Adresse I²C de la doc du pca9685. J'ai changé les noms en supprimant le mot "Pad". Ca reste comme ça.
+1. Le point d'interoggation de "Aide du composant" est peu visible. Met celui que je t'ai fournis pour l'aide. Change le texte en "Aide composant"
+1. Les 2 claviers à touches dur ont gardés les pastilles rouge de positionnent ainsi que le nom de chaque pastille
+1. Il y a des problèmes  à l'export svg. Les composants non cablés ne gardent pas leur position et la feuille n'est pas ajustée
+# v2026.7.124
+1. ✅ Contrainte « un fil ne passe jamais sur une borne » rendue DURE (item « la contrainte forte ne marche pas ») : la règle n'existait qu'en poids `onPin * 2000` dans `cost()`, qui ne fait que DÉPARTAGER des tracés déjà produits — `astarRoute` ne recevait jamais les broches, donc si toutes ses sorties candidates passaient sur une borne il en posait une quand même. Le routeur reçoit désormais les centres des broches étrangères (`pins`) et REFUSE l'arête qui passe dessus (`pinBlocked`, tolérance 2 px), les bornes du fil routé étant exclues en amont (aucune sortie de broche bloquée). Ajout des voies de contournement (± un demi-pas de grille autour de chaque broche) dans le graphe de Hanan : sans elles l'A\* n'aurait plus de chemin et l'appelant retomberait sur le coude en L de repli, qui ne respecte rien.
+1. ✅ Écart mini entre fils parallèles d'équipotentielles différentes : 2 → **3 px** (item « passe le gap de 2 à 3 px »), constante `GAP` de `autoRoute` (propagée à l'A\*, au coût et au créneau anti-superposition). Les fils de MÊME `eqp` continuent de se superposer.
+1. ✅ Chevauchements résiduels — cause trouvée (item « j'ai encore des fils qui se chevauchent ») : `nameEquipotentials` appelait `buildNets` avec la fusion des résistances par DÉFAUT (1↔2 unis, une résistance conduit). Les fils des DEUX côtés d'une résistance héritaient donc de la MÊME `eqp` alors qu'ils ne sont pas au même potentiel — et gagnaient à ce titre le droit de se chevaucher. Corrigé par `buildNets(diagram, false)` : pour le routage, une résistance n'est pas un fil.
+1. ✅ Nommage d'équipotentielle rendu VISIBLE (item « le nommage n'apparaît pas ») : il n'était posé QUE dans l'export SVG, donc invisible à l'inspection du canvas. `redrawWires` pose maintenant `data-eqp` (eqp-x) et `data-eqp-wire` (eqp-x-y) sur chaque fil DESSINÉ, attributs retirés des fils `auto` (sans eqp).
+1. ✅ `verify:route` étendu de 15 à 19 contrôles : eqp différentes des deux côtés d'une résistance + `sameEqp` faux entre elles, nommage présent sur le fil dessiné (formats `eqp-x` / `eqp-x-y`), écart mini ≥ 3 px mesuré entre deux fils parallèles d'eqp différentes. typecheck + build + verify:all OK.
 # v2026.7.123
 1. ✅ LED « Courant limite » de l'alim : DÉGRADÉ conservé, rouge vif à l'allumage (item « le même dégradé que l'original, seule la couleur rouge devient ff0000 ») : l'ancien correctif remplaçait le dégradé par un aplat `#ff2020` (la bille perdait son modelé). Le composant clone maintenant le dégradé radial du dessin (`alim-radialGradient115`) sous l'id `alim-led-on` en gardant EXACTEMENT centre, rayon, `gradientUnits` et `gradientTransform` — seules les couleurs changent, le rouge sombre `#970202` devenant le **rouge vif `#ff0000`** (reflet clair conservé). Hors surcourant, le style d'origine du dessin est restauré tel quel.
 1. ✅ Halo autour de la LED allumée (item « il faut aussi un halo comme pour la led basic ») : nouveau groupe `alim-led-glow` inséré SOUS la LED — deux ellipses rouges concentriques floutées (`blur`, opacités 0,35 / 0,55, rayons ×2,4 et ×4,2), sur le modèle du groupe lumineux de la LED simple ; affiché au surcourant seulement, masqué sinon (plus le `drop-shadow` rapproché de la LED elle-même).

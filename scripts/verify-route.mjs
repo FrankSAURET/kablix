@@ -24,6 +24,7 @@ import '../../src/webview/composants/ntc-element.mjs';
 import '../../src/webview/composants/ptc-element.mjs';
 import '../../src/webview/composants/ldr-element.mjs';
 import '../../src/webview/composants/led-element.mjs';
+import '../../src/webview/composants/resistor-element.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const checks = [];
 const ok = (name, cond, detail = '') => checks.push({ name, ok: !!cond, detail: String(detail) });
@@ -190,10 +191,10 @@ async function run() {
 		eqp.nameOfWire(wAB?.id) + ' / ' + eqp.nameOfWire(wAC?.id));
 	// Un fil d'un AUTRE net : deux LED indépendantes reliées entre elles (net
 	// distinct de celui de mA) → eqp différente → sameEqp faux.
-	const gA = editor.addPart('led', 900, 400);
-	const gB = editor.addPart('led', 1000, 400);
+	const pgA = editor.addPart('led', 900, 400);
+	const pgB = editor.addPart('led', 1000, 400);
 	await wait(60);
-	editor.addWire({ partId: gA.id, pin: 'A' }, { partId: gB.id, pin: 'A' });
+	editor.addWire({ partId: pgA.id, pin: 'A' }, { partId: pgB.id, pin: 'A' });
 	await wait(20);
 	const eqp2 = nameEquipotentials(editor.diagram);
 	const wGid = editor.diagram.wires[editor.diagram.wires.length - 1].id;
@@ -231,6 +232,76 @@ async function run() {
 	}
 	ok('fil X→Y ne passe pas sur la broche étrangère de Z (contourne)', !onZ,
 		'points=' + JSON.stringify(wXYr.points ?? []) + ' zPin=' + Math.round(zPin.x) + ',' + Math.round(zPin.y));
+
+	// --- 11. Résistance : ses deux pattes ne sont PAS la même équipotentielle ---
+	// buildNets fusionne 1↔2 d'une résistance (elle conduit) ; pour le ROUTAGE
+	// c'est faux — les deux côtés sont à des potentiels différents. Sans
+	// joinResistors:false, les fils des deux côtés héritaient de la même eqp et
+	// gagnaient le droit de se chevaucher.
+	const rA = editor.addPart('ntc', 200, 900);
+	const rR = editor.addPart('resistor', 320, 900);
+	const rB = editor.addPart('ntc', 460, 900);
+	await wait(80);
+	// addWire ne renvoie rien : on relit les deux derniers fils du diagramme.
+	editor.addWire({ partId: rA.id, pin: '1' }, { partId: rR.id, pin: '1' });
+	editor.addWire({ partId: rR.id, pin: '2' }, { partId: rB.id, pin: '1' });
+	await wait(30);
+	const wIn = editor.diagram.wires[editor.diagram.wires.length - 2];
+	const wOut = editor.diagram.wires[editor.diagram.wires.length - 1];
+	const eqp3 = nameEquipotentials(editor.diagram);
+	ok('résistance : les fils de ses 2 pattes ont des eqp DIFFÉRENTES',
+		eqp3.eqpOfWire(wIn.id) !== undefined &&
+		eqp3.eqpOfWire(wIn.id) !== eqp3.eqpOfWire(wOut.id),
+		'patte1=' + eqp3.eqpOfWire(wIn.id) + ' patte2=' + eqp3.eqpOfWire(wOut.id));
+	ok('résistance : sameEqp faux entre les deux côtés (pas de chevauchement permis)',
+		!eqp3.sameEqp(wIn.id, wOut.id), 'sameEqp=' + eqp3.sameEqp(wIn.id, wOut.id));
+
+	// --- 12. Nommage eqp posé sur le fil DESSINÉ (canvas, pas que l'export) ----
+	editor.redrawWires();
+	await wait(30);
+	const drawn = document.querySelector('path[data-eqp-wire]');
+	ok('nommage eqp visible sur le fil dessiné (data-eqp / data-eqp-wire)',
+		!!drawn && /^eqp-\\d+$/.test(drawn.getAttribute('data-eqp') || '') &&
+		/^eqp-\\d+-\\d+$/.test(drawn.getAttribute('data-eqp-wire') || ''),
+		drawn ? drawn.getAttribute('data-eqp') + ' / ' + drawn.getAttribute('data-eqp-wire') : 'aucun path nommé');
+
+	// --- 13. Écart mini entre fils parallèles d'eqp différentes = 3 px ---------
+	// Deux fils d'eqp différentes routés en parallèle ne se serrent pas à moins
+	// de 3 px (GAP remonté de 2 à 3 px).
+	const qgA = editor.addPart('ntc', 200, 1100);
+	const qgB = editor.addPart('ntc', 500, 1100);
+	const qgC = editor.addPart('ntc', 200, 1160);
+	const qgD = editor.addPart('ntc', 500, 1160);
+	await wait(80);
+	editor.addWire({ partId: qgA.id, pin: '1' }, { partId: qgB.id, pin: '1' });
+	editor.addWire({ partId: qgC.id, pin: '1' }, { partId: qgD.id, pin: '1' });
+	const wP1 = editor.diagram.wires[editor.diagram.wires.length - 2];
+	const wP2 = editor.diagram.wires[editor.diagram.wires.length - 1];
+	editor.select(null); editor.autoRoute();
+	await wait(30);
+	const polyOf = (w) => {
+		const r = editor.diagram.wires.find((x) => x.id === w.id);
+		return [editor.hotspotCenter(r.a), ...(r.points ?? []), editor.hotspotCenter(r.b)];
+	};
+	const p1 = polyOf(wP1), p2 = polyOf(wP2);
+	// Plus petit écart entre deux segments PARALLÈLES qui se recouvrent.
+	let minGap = Infinity;
+	for (let i = 0; i < p1.length - 1; i++) {
+		for (let j = 0; j < p2.length - 1; j++) {
+			const a1 = p1[i], b1 = p1[i + 1], a2 = p2[j], b2 = p2[j + 1];
+			const h1 = Math.abs(a1.y - b1.y) < 1, h2 = Math.abs(a2.y - b2.y) < 1;
+			const v1 = Math.abs(a1.x - b1.x) < 1, v2 = Math.abs(a2.x - b2.x) < 1;
+			if (h1 && h2) {
+				const ovl = Math.min(Math.max(a1.x, b1.x), Math.max(a2.x, b2.x)) - Math.max(Math.min(a1.x, b1.x), Math.min(a2.x, b2.x));
+				if (ovl > 1) minGap = Math.min(minGap, Math.abs(a1.y - a2.y));
+			} else if (v1 && v2) {
+				const ovl = Math.min(Math.max(a1.y, b1.y), Math.max(a2.y, b2.y)) - Math.max(Math.min(a1.y, b1.y), Math.min(a2.y, b2.y));
+				if (ovl > 1) minGap = Math.min(minGap, Math.abs(a1.x - a2.x));
+			}
+		}
+	}
+	ok('fils parallèles d eqp différentes : écart ≥ 3 px (GAP)',
+		minGap === Infinity || minGap >= 3, 'écart mini=' + (minGap === Infinity ? 'aucun parallèle' : minGap.toFixed(1)));
 
 	const out = document.createElement('pre');
 	out.id = 'measures';

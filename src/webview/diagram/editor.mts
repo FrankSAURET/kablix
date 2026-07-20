@@ -2430,10 +2430,10 @@ export class Editor {
     const obstacles = this.partObstacles();
     const rectOf = new Map(obstacles.map((o) => [o.id, o]));
     const STUB = GRID; // sortie perpendiculaire = 1 pas de grille hors du corps
-    // Écart mini entre deux fils parallèles d'équipotentielles DIFFÉRENTES : 2 px
-    // (demande de Frank — des fils parallèles peuvent se serrer jusqu'à 2 px, ils
-    // ne se touchent pas). Deux fils de MÊME `eqp` peuvent, eux, se superposer.
-    const GAP = 2;
+    // Écart mini entre deux fils parallèles d'équipotentielles DIFFÉRENTES : 3 px
+    // (v2026.7.124, remonté de 2 px — à 2 px les fils se lisaient comme collés).
+    // Deux fils de MÊME `eqp` peuvent, eux, se superposer.
+    const GAP = 3;
     const BEND = 2 * GRID; // pénalité par coude (A* et départage des tracés)
     const TOL = 1;
     // Segments de chaque fil (repère monde) — pour éviter qu'un nouveau tracé se
@@ -2621,6 +2621,7 @@ export class Editor {
             startDir: ca ? dirOf(a, ca) : undefined,
             endDir: cb ? dirOf(cb, b) : undefined,
             same: sameSegs,
+            pins: foreignPins.map((p) => p.c),
           });
           if (!path || path.length < 2) continue;
           const c = path.slice(1, -1);
@@ -2840,7 +2841,24 @@ export class Editor {
   }
 
   redrawWires(): void {
-    for (const wire of this.diagram.wires) this.positionWire(wire);
+    // Nom d'équipotentielle posé sur le fil DESSINÉ (`data-eqp` = eqp-x,
+    // `data-eqp-wire` = eqp-x-y) : jusqu'ici le nommage n'existait que dans
+    // l'export SVG, donc « n'apparaissait pas » à l'inspection du canvas.
+    const eqp = nameEquipotentials(this.diagram);
+    for (const wire of this.diagram.wires) {
+      this.positionWire(wire);
+      const path = this.wirePaths.get(wire.id);
+      if (!path) continue;
+      const name = eqp.nameOfWire(wire.id);
+      const group = eqp.eqpOfWire(wire.id);
+      if (name && group) {
+        path.setAttribute('data-eqp', group);
+        path.setAttribute('data-eqp-wire', name);
+      } else {
+        path.removeAttribute('data-eqp');
+        path.removeAttribute('data-eqp-wire');
+      }
+    }
   }
 
   /** Recalcule les points d'embranchement en microtâche (dédoublonne les rafales
@@ -4303,10 +4321,24 @@ function astarRoute(
   // stub (aller-retour de quelques px le long de sa propre patte).
   // `same` : segments des fils de la MÊME équipotentielle — les suivre est
   // ENCOURAGÉ (remise RIDE par px couché dessus) au lieu d'être interdit.
-  o: { clr: number; bend: number; gap: number; startDir?: number; endDir?: number; same?: Array<[XY, XY]> },
+  // `pins` : centres des broches ÉTRANGÈRES au fil routé — un tracé ne doit
+  // JAMAIS passer dessus. Contrainte DURE ici (arête refusée), là où le poids
+  // ×2000 du coût d'appel ne faisait que départager des tracés déjà produits :
+  // si toutes les sorties candidates passaient sur une borne, l'A\* en posait
+  // une quand même.
+  o: {
+    clr: number;
+    bend: number;
+    gap: number;
+    startDir?: number;
+    endDir?: number;
+    same?: Array<[XY, XY]>;
+    pins?: XY[];
+  },
 ): XY[] | null {
   const { clr, bend, gap } = o;
   const same = o.same ?? [];
+  const pins = o.pins ?? [];
   const startDir = o.startDir ?? 4;
   const endDir = o.endDir ?? 4;
   // Rectangles gonflés de la clearance : zones interdites de passage.
@@ -4353,6 +4385,16 @@ function astarRoute(
     ysSet.add(s.y);
     ysSet.add(t.y);
   }
+  // Voies de CONTOURNEMENT des broches étrangères : passer dessus étant
+  // désormais interdit (arête refusée), il faut que le graphe contienne des
+  // lignes à côté — sinon l'A\* n'a plus de chemin et l'appelant retombe sur un
+  // coude en L qui, lui, ne respecte rien.
+  for (const c of o.pins ?? []) {
+    xsSet.add(c.x + GRID / 2);
+    xsSet.add(c.x - GRID / 2);
+    ysSet.add(c.y + GRID / 2);
+    ysSet.add(c.y - GRID / 2);
+  }
   const xs = [...xsSet].sort((m, n) => m - n);
   const ys = [...ysSet].sort((m, n) => m - n);
   const ny = ys.length;
@@ -4397,6 +4439,13 @@ function astarRoute(
   // fil ne « suit » jamais un autre. En revanche les fils peuvent se croiser.
   const wireBlocked = (p: XY, q: XY): boolean => {
     for (const [s, t] of otherSegs) if (collinearOverlap(p, q, s, t) > 2) return true;
+    return false;
+  };
+  // Interdit DUR : une arête qui passe sur une broche étrangère. Les bornes du
+  // fil (pa/pb) sont exclues en amont par l'appelant, donc aucune sortie de
+  // broche n'est bloquée ici.
+  const pinBlocked = (p: XY, q: XY): boolean => {
+    for (const c of pins) if (pointOnSegment(c, p, q, 2)) return true;
     return false;
   };
   // Pénalité douce : proximité parallèle d'un autre fil (écarte les fils voisins).
@@ -4495,6 +4544,7 @@ function astarRoute(
         (cur.i === ai && cur.j === aj) || (cur.i === bi && cur.j === bj) ||
         (ni === ai && nj === aj) || (ni === bi && nj === bj);
       if (!endEdge && wireBlocked(p, q)) continue;
+      if (pinBlocked(p, q)) continue;
       const dir = di !== 0 ? (di > 0 ? 0 : 1) : dj > 0 ? 2 : 3;
       // Demi-tour (même axe, sens opposé) : interdit.
       if (cur.dir !== 4 && (cur.dir ^ 1) === dir) continue;

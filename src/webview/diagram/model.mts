@@ -90,7 +90,11 @@ export interface Equipotentials {
 }
 
 export function nameEquipotentials(diagram: Diagram): Equipotentials {
-  const nets = buildNets(diagram);
+  // `joinResistors: false` — une résistance n'est PAS un fil ici : ses deux
+  // pattes sont à des potentiels différents. Avec la fusion par défaut, les
+  // fils des deux côtés d'une résistance héritaient de la MÊME `eqp` et
+  // gagnaient donc le droit de se chevaucher (chevauchements résiduels).
+  const nets = buildNets(diagram, false);
   const eqpOf = new Map<string, string>(); // wireId → eqp-N
   const nameOf = new Map<string, string>(); // wireId → eqp-N-K
   const eqpByNet = new Map<string, string>(); // netId → eqp-N
