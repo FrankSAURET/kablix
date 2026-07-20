@@ -76,6 +76,74 @@ async function run() {
 		pD.got && pD.got.key === 'D' && pD.got.row === 3 && pD.got.column === 3,
 		JSON.stringify(pD.got));
 
+	// --- 3 bis. Touche dure : capuchon ET légende dans la MÊME touche -----------
+	// Le dessin de Frank tient le chiffre à part du carré, et la 4e colonne hors
+	// des groupes de touche : sans regroupement, le chiffre reste immobile quand
+	// le carré s'enfonce, un clic pile dessus n'actionne rien, et la colonne D
+	// n'a pas le même aspect à l'appui que les autres.
+	const bx = (el) => el.getBoundingClientRect();
+	const labelOf = (k) => [...k.children].find((c) => c !== k.querySelector('rect'));
+	for (const [name, cols] of [['3col', '3'], ['4col', '4']]) {
+		const n = cols === '3' ? 12 : 16;
+		// Clavier SEUL dans la page : elementFromPoint interroge le document
+		// entier, les autres claviers du banc (empilés à la même place) voleraient
+		// le point et le contrôle mesurerait le mauvais élément.
+		document.body.querySelectorAll('kablix-membrane-keypad').forEach((k) => { k.style.display = 'none'; });
+		const el = await mk(cols, true);
+		const ks = keysOf(el);
+		ok('touche ' + (name) + ' : chaque touche est un groupe capuchon + légende',
+			ks.length === n && ks.every((k) => k.tagName === 'g' && k.querySelector('rect') && labelOf(k)),
+			ks.map((k) => k.tagName + ':' + k.children.length).join(' '));
+		// Légende posée DANS le capuchon : le déplacement dans le groupe change le
+		// contexte de transformation, une compensation manquante l'enverrait à des
+		// centaines de pixels de là (mesuré : x ≈ −300 avant correctif).
+		ok('touche ' + (name) + ' : légende à sa place, dans le carré',
+			ks.every((k) => {
+				const c = bx(k.querySelector('rect'));
+				const l = bx(labelOf(k));
+				return l.width > 0 && l.left >= c.left - 1 && l.right <= c.right + 1 &&
+					l.top >= c.top - 1 && l.bottom <= c.bottom + 1;
+			}),
+			ks.map((k) => k.dataset.keyName + '@' + Math.round(bx(labelOf(k)).left)).join(' '));
+		// Clic PILE sur le chiffre → la touche est actionnée.
+		const hits = ks.map((k) => {
+			const l = bx(labelOf(k));
+			const hit = el.shadowRoot.elementFromPoint(l.left + l.width / 2, l.top + l.height / 2);
+			const owner = hit && hit.closest ? hit.closest('[data-key-name]') : null;
+			let got = null;
+			el.addEventListener('button-press', (e) => { got = e.detail; }, { once: true });
+			if (hit) hit.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+			el.shadowRoot.querySelectorAll('.pressed').forEach((p) => p.classList.remove('pressed'));
+			return { key: k.dataset.keyName, owner: owner && owner.dataset.keyName, got: got && got.key };
+		});
+		ok('touche ' + (name) + ' : clic sur le chiffre → touche actionnée (les ' + (n) + ')',
+			hits.every((h) => h.owner === h.key && h.got === h.key),
+			hits.filter((h) => h.owner !== h.key || h.got !== h.key).map((h) => JSON.stringify(h)).join(' '));
+		// Aspect appuyé IDENTIQUE partout, 4e colonne comprise (item de Frank).
+		const styles = new Set(ks.map((k) => {
+			k.classList.add('pressed');
+			const cs = getComputedStyle(k);
+			const s = cs.filter + '|' + cs.transform;
+			k.classList.remove('pressed');
+			return s;
+		}));
+		ok('touche ' + (name) + ' : même aspect appuyé sur TOUTES les colonnes',
+			styles.size === 1 && [...styles][0] !== 'none|none', [...styles].join(' ≠ '));
+		// Le chiffre s'enfonce AVEC le carré (même déplacement).
+		const k0 = ks[ks.length - 1];
+		const c0 = bx(k0.querySelector('rect')).top;
+		const l0 = bx(labelOf(k0)).top;
+		k0.classList.add('pressed');
+		await wait(20);
+		const dC = bx(k0.querySelector('rect')).top - c0;
+		const dL = bx(labelOf(k0)).top - l0;
+		k0.classList.remove('pressed');
+		ok('touche ' + (name) + ' : le chiffre s\\'enfonce AVEC le carré',
+			dC > 0.5 && Math.abs(dC - dL) < 0.1, 'carré ' + (dC) + ' / chiffre ' + (dL));
+		el.remove();
+	}
+	document.body.querySelectorAll('kablix-membrane-keypad').forEach((k) => { k.style.display = ''; });
+
 	// --- 4. Broches identiques membrane/touche + sur la grille de 10 px ---------
 	const pinsEq = (a, b) => JSON.stringify(a.pinInfo) === JSON.stringify(b.pinInfo);
 	const m3 = await mk('3', false);
@@ -110,6 +178,21 @@ async function run() {
 	ok('schéma interne touche : présent et distinct du schéma membrane',
 		!!touSchema && !!memSchema && touSchema !== memSchema && touSchema.length > 1000,
 		(touSchema ?? '').length);
+	// Les 4 schémas internes sont livrés SANS le calque de repérage d'Inkscape
+	// (pastilles rouges #ee0000 par broche + étiquettes #aa0000), qui piquait
+	// 7 ou 8 points rouges sur le schéma superposé au composant sélectionné.
+	const pins4 = (await mk('4', false)).pinInfo.map((p) => ({ name: p.name, x: p.x, y: p.y }));
+	const schemas = [
+		['3col membrane', memSchema],
+		['3col touche', touSchema],
+		['4col membrane', internalWiringSvg('passive', pins4, { columns: '4' }, 'keypad')],
+		['4col touche', internalWiringSvg('passive', pins4, { columns: '4', hardkeys: '1' }, 'keypad')],
+	];
+	for (const [label, svg] of schemas) {
+		ok('schéma interne ' + (label) + ' : aucun repère de retouche',
+			!!svg && !/#ee0000|#aa0000|id="pin-[RC]\\d/.test(svg),
+			(svg || '').slice(0, 0) + ((svg || '').match(/#ee0000|#aa0000/g) || []).length);
+	}
 
 	const out = document.createElement('pre');
 	out.id = 'measures';

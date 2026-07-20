@@ -2554,10 +2554,11 @@ export class Editor {
     const obstacles = this.partObstacles();
     const rectOf = new Map(obstacles.map((o) => [o.id, o]));
     const STUB = GRID; // sortie perpendiculaire = 1 pas de grille hors du corps
-    // Écart mini entre deux fils parallèles d'équipotentielles DIFFÉRENTES : 3 px
-    // (v2026.7.124, remonté de 2 px — à 2 px les fils se lisaient comme collés).
+    // Écart mini entre deux fils parallèles d'équipotentielles DIFFÉRENTES : 5 px
+    // (2 px en v2026.7.120, 3 px en v2026.7.124 — toujours trop serré à l'œil,
+    // un demi-pas de grille sépare enfin nettement deux fils qui longent).
     // Deux fils de MÊME `eqp` peuvent, eux, se superposer.
-    const GAP = 3;
+    const GAP = 5;
     const BEND = 2 * GRID; // pénalité par coude (A* et départage des tracés)
     const TOL = 1;
     // Segments de chaque fil (repère monde) — pour éviter qu'un nouveau tracé se

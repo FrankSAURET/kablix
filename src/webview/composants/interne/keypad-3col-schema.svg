@@ -119,6 +119,7 @@
   </filter>
 </defs>
 
+
 false
         <inkscape:path-effect
    effect="simplify"
@@ -197,9 +198,9 @@ false
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      showgrid="true"
-     inkscape:zoom="2.8284271"
-     inkscape:cx="39.421203"
-     inkscape:cy="239.35564"
+     inkscape:zoom="2"
+     inkscape:cx="81.500001"
+     inkscape:cy="137"
      inkscape:window-width="1920"
      inkscape:window-height="1057"
      inkscape:window-x="-8"
@@ -227,129 +228,7 @@ false
      id="layer2"
      inkscape:label="interne"
      style="display:inline">
-    <g
-       id="g113"
-       transform="translate(-10,-10)">
-      <circle
-         id="pin-R1"
-         cx="90"
-         cy="330"
-         r="3.2"
-         fill="#ee0000"
-         fill-opacity="0.85"
-         stroke="#770000"
-         stroke-width="0.5" />
-      <text
-         x="90"
-         y="325"
-         font-size="5px"
-         fill="#aa0000"
-         text-anchor="middle"
-         font-family="sans-serif"
-         id="text103">R1</text>
-      <circle
-         id="pin-R2"
-         cx="100"
-         cy="330"
-         r="3.2"
-         fill="#ee0000"
-         fill-opacity="0.85"
-         stroke="#770000"
-         stroke-width="0.5" />
-      <text
-         x="100"
-         y="325"
-         font-size="5px"
-         fill="#aa0000"
-         text-anchor="middle"
-         font-family="sans-serif"
-         id="text104">R2</text>
-      <circle
-         id="pin-R3"
-         cx="110"
-         cy="330"
-         r="3.2"
-         fill="#ee0000"
-         fill-opacity="0.85"
-         stroke="#770000"
-         stroke-width="0.5" />
-      <text
-         x="110"
-         y="325"
-         font-size="5px"
-         fill="#aa0000"
-         text-anchor="middle"
-         font-family="sans-serif"
-         id="text105">R3</text>
-      <circle
-         id="pin-R4"
-         cx="120"
-         cy="330"
-         r="3.2"
-         fill="#ee0000"
-         fill-opacity="0.85"
-         stroke="#770000"
-         stroke-width="0.5" />
-      <text
-         x="120"
-         y="325"
-         font-size="5px"
-         fill="#aa0000"
-         text-anchor="middle"
-         font-family="sans-serif"
-         id="text106">R4</text>
-      <circle
-         id="pin-C1"
-         cx="130"
-         cy="330"
-         r="3.2"
-         fill="#ee0000"
-         fill-opacity="0.85"
-         stroke="#770000"
-         stroke-width="0.5" />
-      <text
-         x="130"
-         y="325"
-         font-size="5px"
-         fill="#aa0000"
-         text-anchor="middle"
-         font-family="sans-serif"
-         id="text107">C1</text>
-      <circle
-         id="pin-C2"
-         cx="140"
-         cy="330"
-         r="3.2"
-         fill="#ee0000"
-         fill-opacity="0.85"
-         stroke="#770000"
-         stroke-width="0.5" />
-      <text
-         x="140"
-         y="325"
-         font-size="5px"
-         fill="#aa0000"
-         text-anchor="middle"
-         font-family="sans-serif"
-         id="text108">C2</text>
-      <circle
-         id="pin-C3"
-         cx="150"
-         cy="330"
-         r="3.2"
-         fill="#ee0000"
-         fill-opacity="0.85"
-         stroke="#770000"
-         stroke-width="0.5" />
-      <text
-         x="150"
-         y="325"
-         font-size="5px"
-         fill="#aa0000"
-         text-anchor="middle"
-         font-family="sans-serif"
-         id="text109">C3</text>
-    </g>
+    
     <g
        id="g25"
        style="stroke-width:1.05595;stroke-dasharray:none"
@@ -1044,37 +923,37 @@ false
     </g>
     <path
        style="fill:none;stroke:#000000;stroke-width:1.1;stroke-linecap:round;stroke-dasharray:none"
-       d="M 39.825413,41.576215 V 265.24257 H 120.0862 V 319.45"
+       d="M 39.825413,61.198428 39.825413,265.24257 H 120.0862 V 319.45"
        id="path32"
        sodipodi:nodetypes="cccc" />
     <path
        style="fill:none;stroke:#000000;stroke-width:1.1;stroke-linecap:round;stroke-dasharray:none"
-       d="M 98.965772,41.576215 V 259.23195 H 129.90842 V 319.45 319.45"
+       d="M 98.965772,61.198428 98.965772,259.23195 H 129.90842 V 319.45 319.45"
        id="path33"
        sodipodi:nodetypes="ccccc" />
     <path
        style="fill:none;stroke:#000000;stroke-width:1.1;stroke-linecap:round;stroke-dasharray:none"
-       d="M 158.10611,41.576215 158.10611,265.3943 139.99584,265.37986 139.99584,317.02459 V 319.45"
+       d="M 158.10611,61.198428 158.10611,265.3943 139.99584,265.37986 V 317.02459 319.45"
        id="path34"
        sodipodi:nodetypes="ccccc" />
     <path
        style="fill:none;stroke:#1a5fb4;stroke-width:1.1;stroke-linecap:round;stroke-dasharray:none"
-       d="M 157.87154,41.576215 6.4277974,41.71137 6.1644701,286.98383 80.093246,287.07124 80.093246,316.94562 V 319.61146"
+       d="M 178.24784,81.262 H 6.4277974 L 6.1644701,286.98383 80.093246,287.07124 V 316.94562 319.61146"
        id="path35"
        sodipodi:nodetypes="cccccc" />
     <path
        style="fill:none;stroke:#1a5fb4;stroke-width:1.1;stroke-linecap:round;stroke-dasharray:none"
-       d="M 157.87154,97.80008 H 10.106964 L 10.106964,282.04376 89.967114,282.04376 89.967114,316.84965 V 316.84965 319.64661"
+       d="M 178.24505,135.321 H 9.9743815 V 282.08842 H 89.834531 V 316.89431 316.89431 319.69127"
        id="path36"
        sodipodi:nodetypes="ccccccc" />
     <path
        style="fill:none;stroke:#1a5fb4;stroke-width:1.1;stroke-linecap:round;stroke-dasharray:none"
-       d="M 158.10609,154.02393 H 13.738469 L 13.738469,276.13246 99.935184,276.13246 99.935184,319.56246"
+       d="M 178.50966,189.37081 H 13.738469 L 13.738469,276.13246 H 99.935184 V 319.56246"
        id="path37"
        sodipodi:nodetypes="ccccc" />
     <path
        style="fill:none;stroke:#1a5fb4;stroke-width:1.1;stroke-linecap:round;stroke-dasharray:none"
-       d="M 157.87154,210.2374 H 17.293608 L 17.293608,271.06299 109.98317,271.06299 109.98317,319.69008"
+       d="M 178.25435,243.4874 17.293608,243.4874 17.293608,271.06299 H 109.98317 V 319.69008"
        id="path38"
        sodipodi:nodetypes="ccccc" />
   </g>

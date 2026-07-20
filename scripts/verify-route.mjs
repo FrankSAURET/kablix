@@ -265,9 +265,9 @@ async function run() {
 		/^eqp-\\d+-\\d+$/.test(drawn.getAttribute('data-eqp-wire') || ''),
 		drawn ? drawn.getAttribute('data-eqp') + ' / ' + drawn.getAttribute('data-eqp-wire') : 'aucun path nommé');
 
-	// --- 13. Écart mini entre fils parallèles d'eqp différentes = 3 px ---------
+	// --- 13. Écart mini entre fils parallèles d'eqp différentes = 5 px ---------
 	// Deux fils d'eqp différentes routés en parallèle ne se serrent pas à moins
-	// de 3 px (GAP remonté de 2 à 3 px).
+	// de 5 px (GAP : 2 px en v120, 3 px en v124, 5 px depuis — un demi-pas de grille).
 	const qgA = editor.addPart('ntc', 200, 1100);
 	const qgB = editor.addPart('ntc', 500, 1100);
 	const qgC = editor.addPart('ntc', 200, 1160);
@@ -300,8 +300,8 @@ async function run() {
 			}
 		}
 	}
-	ok('fils parallèles d eqp différentes : écart ≥ 3 px (GAP)',
-		minGap === Infinity || minGap >= 3, 'écart mini=' + (minGap === Infinity ? 'aucun parallèle' : minGap.toFixed(1)));
+	ok('fils parallèles d eqp différentes : écart ≥ 5 px (GAP)',
+		minGap === Infinity || minGap >= 5, 'écart mini=' + (minGap === Infinity ? 'aucun parallèle' : minGap.toFixed(1)));
 
 	const out = document.createElement('pre');
 	out.id = 'measures';

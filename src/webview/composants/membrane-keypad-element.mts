@@ -104,20 +104,34 @@ export class MembraneKeypadElement extends LitElement {
         fill: #ab040b !important;
       }
 
-      /* Touche dure : le filtre url(#shadow) de la règle générique ne se
-         résout pas dans le dessin préfixé (kpt3-/kpt4-) → neutralisé au focus,
-         puis capuchon assombri + légèrement enfoncé à l'appui (le dégradé du
-         dessin de Frank reste visible, juste plus sombre). */
-      rect.key--hard:focus {
-        stroke: white;
+      /* Touche dure : la touche cliquable est un GROUPE construit par wireKeys()
+         (capuchon + sa légende), pas le seul capuchon — sans quoi le chiffre
+         resterait immobile pendant que le carré s'enfonce, et un clic PILE sur
+         le chiffre ne déclencherait rien. Le filtre url(#shadow) de la règle
+         générique ne se résout pas dans le dessin préfixé (kpt3-/kpt4-) →
+         neutralisé au focus, puis capuchon assombri + légèrement enfoncé à
+         l'appui (le dégradé du dessin de Frank reste visible, juste plus sombre). */
+      g.key--hard {
+        cursor: pointer;
+      }
+
+      g.key--hard:focus {
         outline: none;
         filter: none;
       }
 
-      rect.key--hard.pressed,
-      rect.key--hard:active {
+      g.key--hard.pressed,
+      g.key--hard:active {
         filter: brightness(0.72);
         transform: translateY(1px);
+      }
+
+      /* La légende (chiffre/lettre) fait partie de la touche : elle doit
+         RECEVOIR le clic, à l'inverse de la règle générique sur text. */
+      g.key--hard text,
+      g.key--hard tspan,
+      g.key--hard path {
+        pointer-events: auto;
       }
     `;
   }
@@ -170,7 +184,7 @@ export class MembraneKeypadElement extends LitElement {
   private wireKeys(): void {
     const svgEl = this.renderRoot.querySelector('svg');
     if (!svgEl) return;
-    let caps: SVGRectElement[];
+    let caps: SVGElement[];
     if (this.hardkeys) {
       const all = [...svgEl.querySelectorAll('rect')].filter(
         (r) => Math.abs(Number(r.getAttribute('width')) - 32.865) < 0.1 && !r.closest('defs')
@@ -184,12 +198,13 @@ export class MembraneKeypadElement extends LitElement {
         centers.set(r, c);
         byCell.set(`${Math.round(c.x / 8)}:${Math.round(c.y / 8)}`, r);
       }
-      caps = [...byCell.values()];
-      caps.sort((a, b) => {
+      const rects = [...byCell.values()];
+      rects.sort((a, b) => {
         const ca = centers.get(a)!;
         const cb = centers.get(b)!;
         return Math.abs(ca.y - cb.y) > 4 ? ca.y - cb.y : ca.x - cb.x;
       });
+      caps = rects.map((r) => this.groupHardKey(svgEl, r));
     } else {
       caps = [...svgEl.querySelectorAll('rect')].filter(
         (r) => Math.round(Number(r.getAttribute('width'))) === 42
@@ -220,6 +235,64 @@ export class MembraneKeypadElement extends LitElement {
         if (SPACE_KEYS.includes(e.key)) this.up(text, e.currentTarget as SVGElement);
       });
     });
+  }
+
+  /**
+   * Touche dure : réunit le CAPUCHON et sa LÉGENDE (chiffre ou lettre) dans un
+   * même groupe, qui devient la touche cliquable.
+   *
+   * Le dessin de Frank les tient séparés — les capuchons sont dans des `<g>`
+   * de touche (sauf la 4e colonne, posée en vrac à la racine du svg imbriqué),
+   * les légendes ailleurs dans le document, converties en `<g>` de texte ou en
+   * `<path>`. Sans ce regroupement : le chiffre reste immobile quand le carré
+   * s'enfonce, un clic pile sur le chiffre n'actionne pas la touche, et la 4e
+   * colonne ne se comporte pas comme les autres (son capuchon n'a pas le même
+   * parent, donc pas le même contexte de transformation).
+   *
+   * Le SOCLE n'est pas déplacé : seul le capuchon s'enfonce, la touche reste
+   * posée sur son embase. La légende est reconnue par sa boîte rendue, contenue
+   * dans celle du capuchon (les `<g>` de texte l'emportent sur leurs `<path>`
+   * pour ne pas éclater un glyphe en morceaux).
+   */
+  private groupHardKey(svgEl: SVGSVGElement, cap: SVGRectElement): SVGElement {
+    const box = cap.getBoundingClientRect();
+    const inside = (el: Element) => {
+      const b = el.getBoundingClientRect();
+      return (
+        b.width > 0 &&
+        b.height > 0 &&
+        b.left >= box.left - 1 &&
+        b.right <= box.right + 1 &&
+        b.top >= box.top - 1 &&
+        b.bottom <= box.bottom + 1
+      );
+    };
+    const labels = [...svgEl.querySelectorAll('text, g[id*="text"], path')].filter(
+      (el) => el !== cap && !el.closest('defs') && inside(el)
+    );
+    // Un `<g>` de texte retenu rend inutiles ses descendants (déjà emportés).
+    const kept = labels.filter((el) => !labels.some((o) => o !== el && o.contains(el)));
+
+    const g = svgEl.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'g');
+    cap.parentNode?.insertBefore(g, cap);
+    g.appendChild(cap);
+    // Le groupe est créé DANS le parent du capuchon : celui-ci ne change donc
+    // pas de contexte de transformation. La légende, elle, vient d'ailleurs dans
+    // le document (les `g` de touche du dessin ne contiennent que socle et
+    // capuchon) — sans compensation elle atterrirait à des centaines de pixels
+    // de là, les parents d'origine portant des translate/matrix Inkscape.
+    // On lui pose donc (CTM du nouveau parent)⁻¹ × (CTM d'origine), soit
+    // exactement la transformation qu'elle perd en changeant de place.
+    const target = (g as SVGGraphicsElement).getScreenCTM();
+    for (const el of kept) {
+      const from = (el as SVGGraphicsElement).getScreenCTM?.();
+      g.appendChild(el);
+      if (!from || !target) continue;
+      const m = target.inverse().multiply(from);
+      if (m.a === 1 && m.b === 0 && m.c === 0 && m.d === 1 && m.e === 0 && m.f === 0) continue;
+      el.setAttribute('transform', `matrix(${m.a},${m.b},${m.c},${m.d},${m.e},${m.f})`);
+    }
+    return g;
   }
 
   private keyIndex(key: string) {

@@ -11,13 +11,14 @@ char touches[LIGNES][COLONNES] = {
 byte brochesLignes[LIGNES] = {2, 3, 4, 5};
 byte brochesColonnes[COLONNES] = {6, 7, 8, 9};
 Keypad clavier(makeKeymap(touches), brochesLignes, brochesColonnes, LIGNES, COLONNES);
+char touche='x';
 
 void setup() {
   Serial.begin(115200);
 }
 
 void loop() {
-  char touche = clavier.getKey();
+  touche = clavier.getKey();
   if (touche) {
     Serial.print("Touche : ");
     Serial.println(touche);
