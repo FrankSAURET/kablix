@@ -85,20 +85,16 @@ async function run() {
 		pinsEq(m4, t4) && t4.pinInfo.length === 8);
 	ok('broches touche : toutes sur la grille de 10 px',
 		[...t3.pinInfo, ...t4.pinInfo].every((p) => p.x % 10 === 0 && p.y % 10 === 0));
-	// Pastilles dessinées (kpt3-pin-*) au même endroit que pinInfo.
-	const svg3 = t3.shadowRoot.querySelector('svg');
-	const toVB = (svg, x, y) => {
-		const q = new DOMPoint(x, y).matrixTransform(svg.getScreenCTM().inverse());
-		return { x: q.x, y: q.y };
-	};
-	const drawn = t3.pinInfo.every((p) => {
-		const c = svg3.querySelector('#kpt3-pin-' + p.name);
-		if (!c) return false;
-		const b = c.getBoundingClientRect();
-		const v = toVB(svg3, b.left + b.width / 2, b.top + b.height / 2);
-		return Math.abs(v.x - p.x) < 0.6 && Math.abs(v.y - p.y) < 0.6;
-	});
-	ok('pastilles kpt3-pin-* dessinées PILE sous les broches', drawn);
+	// Aucun repère de retouche visible : les pastilles rouges (#ee0000) qui servaient
+	// à caler la géométrie dans Inkscape, et les étiquettes de nom (#aa0000) qui les
+	// accompagnaient, ne doivent PAS être livrées avec le dessin.
+	const markup = (el) => el.shadowRoot.querySelector('svg').outerHTML;
+	const clean = (s) => !/#ee0000|#aa0000|id="kpt[34]-pin-/.test(s);
+	ok('touche 3col : aucun repère de retouche dans le dessin', clean(markup(t3)));
+	ok('touche 4col : aucun repère de retouche dans le dessin', clean(markup(t4)));
+	// Contre-épreuve : les noms de broche restent portés par pinInfo, pas par le dessin.
+	ok('touche : noms de broche portés par pinInfo (R1..C4)',
+		['R1', 'C1'].every((n) => t4.pinInfo.some((p) => p.name === n)));
 
 	// --- 5. Bascule dynamique membrane → touche ----------------------------------
 	m3.setAttribute('hardkeys', '1');
