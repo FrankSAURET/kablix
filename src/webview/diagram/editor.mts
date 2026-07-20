@@ -10,8 +10,10 @@ import {
   CATALOG,
   CATEGORY_ORDER,
   listCustomParts,
+  migratePartAttrs,
   partCategory,
   partDef,
+  pca9685AddressText,
   pinElectricalRole,
   registerCustomPart,
   setSimModelPresets,
@@ -1280,7 +1282,7 @@ export class Editor {
     }
     const idMap = new Map<string, string>();
     for (const p of data.parts ?? []) {
-      const np: Part = { ...p, id: uid(`${p.type}-`) };
+      const np: Part = { ...p, id: uid(`${p.type}-`), attrs: migratePartAttrs(p) };
       idMap.set(p.id, np.id);
       this.diagram.parts.push(np);
       this.renderPart(np);
@@ -3459,6 +3461,15 @@ export class Editor {
       const [cols, rows] = value === '20x4' ? ['20', '4'] : ['16', '2'];
       r.part.attrs = { ...r.part.attrs, cols, rows };
     }
+    // PCA9685 : l'adresse ne se choisit pas dans une liste, elle DÉCOULE des six
+    // pads AD0..AD5 de la carte (cases à cocher). On la recalcule ici — c'est
+    // `address` que lit la simulation — puis on redessine l'inspecteur pour que
+    // l'adresse affichée suive le pad qu'on vient de (dé)cocher.
+    if (/^ad[0-5]$/.test(attr) && partDef(r.part.type).kind === 'i2c-pwm') {
+      r.part.attrs = { ...r.part.attrs, address: pca9685AddressText(r.part.attrs) };
+      r.el.setAttribute('address', r.part.attrs.address);
+      queueMicrotask(() => this.renderInspector());
+    }
     // Platine rétrécie : retire les fils pointant vers des trous disparus.
     if (attr === 'size' && partDef(r.part.type).kind === 'breadboard') {
       const valid = new Set(breadboardPins(normalizeSize(value)).map((p) => p.name));
@@ -3625,6 +3636,14 @@ export class Editor {
 
     for (const prop of def.props ?? []) {
       this.appendPropControl(partId, r.part, prop);
+    }
+    // PCA9685 : l'adresse résultant des six pads AD0..AD5, écrite comme sur la
+    // fiche du module (0x40..0x7F) — c'est elle qu'attend le programme.
+    if (def.kind === 'i2c-pwm') {
+      const addr = document.createElement('p');
+      addr.className = 'inspector__hint inspector__address';
+      addr.textContent = `${t('I²C address')} : ${pca9685AddressText(r.part.attrs)}`;
+      this.inspector.appendChild(addr);
     }
     if ((def.props ?? []).length === 0) {
       const hint = document.createElement('p');

@@ -31,7 +31,8 @@ const buildTo = async (entry, outfile) => {
   return import(pathToFileURL(join(tmp, outfile)).href);
 };
 const { buildNets, pca9685Bindings, pca9685PowerState, psuLoadAmps } = await buildTo('src/webview/diagram/model.mts', 'model.mjs');
-const { partDef, partCategory, pinElectricalRole } = await buildTo('src/webview/diagram/catalog.mts', 'catalog.mjs');
+const { partDef, partCategory, pinElectricalRole, pca9685Address, pca9685AddressText, migratePartAttrs } =
+  await buildTo('src/webview/diagram/catalog.mts', 'catalog.mjs');
 const { Pca9685Device } = await buildTo('src/webview/engines/i2c-devices.mts', 'devices.mjs');
 
 let failures = 0;
@@ -45,8 +46,47 @@ const near = (a, b, eps = 1e-6) => a !== null && a !== undefined && Math.abs(a -
 const def = partDef('pca9685');
 check('catalogue : pca9685 = kablix-pca9685, kind i2c-pwm, catégorie Divers',
   def.tag === 'kablix-pca9685' && def.kind === 'i2c-pwm' && partCategory(def) === 'Divers');
-check('catalogue : adresse I²C 0x7F par défaut (carte Grove) + choix inspecteur',
-  def.attrs?.address === '0x7F' && def.props?.some((p) => p.attr === 'address' && p.options?.includes('0x40')));
+check('catalogue : adresse I²C 0x7F par défaut (carte Grove), pads AD0..AD5 tous hauts',
+  def.attrs?.address === '0x7F' &&
+  [0, 1, 2, 3, 4, 5].every((b) => def.attrs?.[`ad${b}`] === '1'));
+check('catalogue : 6 cases à cocher AD0..AD5 dans l\'inspecteur (plus de liste d\'adresses)',
+  [0, 1, 2, 3, 4, 5].every((b) => def.props?.some((p) => p.attr === `ad${b}` && p.kind === 'checkbox')) &&
+  !def.props?.some((p) => p.attr === 'address'));
+
+// --- Adresse calculée depuis les pads AD0..AD5 ---------------------------------
+// Adresse 7 bits = 1 A5 A4 A3 A2 A1 A0 (bit 6 câblé haut, bit 7 inexistant) :
+// 0x40 tous bas … 0x7F tous hauts.
+{
+  const pads = (...bits) => Object.fromEntries(bits.map((v, i) => [`ad${i}`, v ? '1' : '']));
+  check('adresse : aucun pad → 0x40 (PCA9685 nu)',
+    pca9685Address(pads(0, 0, 0, 0, 0, 0)) === 0x40 && pca9685AddressText(pads(0, 0, 0, 0, 0, 0)) === '0x40');
+  check('adresse : tous les pads → 0x7F (carte Grove d\'usine)',
+    pca9685Address(pads(1, 1, 1, 1, 1, 1)) === 0x7f && pca9685AddressText(pads(1, 1, 1, 1, 1, 1)) === '0x7F');
+  check('adresse : AD0 seul → 0x41, AD5 seul → 0x60',
+    pca9685Address(pads(1, 0, 0, 0, 0, 0)) === 0x41 && pca9685Address(pads(0, 0, 0, 0, 0, 1)) === 0x60);
+  check('adresse : AD0+AD1+AD2 → 0x47 (texte 2 chiffres majuscules)',
+    pca9685AddressText(pads(1, 1, 1, 0, 0, 0)) === '0x47');
+  check('adresse : chaque pad pèse son bit (64 combinaisons couvrent 0x40..0x7F)',
+    new Set(Array.from({ length: 64 }, (_, n) =>
+      pca9685Address(Object.fromEntries([0, 1, 2, 3, 4, 5].map((b) => [`ad${b}`, n & (1 << b) ? '1' : '']))))).size === 64);
+  check('adresse : attrs absents → 0x40 (jamais NaN)', pca9685Address(undefined) === 0x40);
+}
+
+// --- Migration des schémas enregistrés AVANT les pads --------------------------
+// Un .projix d'avant ne porte que `address` : les pads en sont déduits pour que
+// le montage garde EXACTEMENT la même adresse sur le bus.
+{
+  const mig7f = migratePartAttrs({ type: 'pca9685', attrs: { address: '0x7F' } });
+  check('migration : ancien 0x7F → 6 pads cochés, adresse inchangée',
+    [0, 1, 2, 3, 4, 5].every((b) => mig7f[`ad${b}`] === '1') && pca9685AddressText(mig7f) === '0x7F');
+  const mig40 = migratePartAttrs({ type: 'pca9685', attrs: { address: '0x40' } });
+  check('migration : ancien 0x40 → aucun pad coché, adresse inchangée',
+    [0, 1, 2, 3, 4, 5].every((b) => mig40[`ad${b}`] === '') && pca9685AddressText(mig40) === '0x40');
+  const kept = migratePartAttrs({ type: 'pca9685', attrs: { address: '0x40', ad0: '1', ad1: '', ad2: '', ad3: '', ad4: '', ad5: '' } });
+  check('migration : schéma DÉJÀ au format pads laissé tel quel', kept.ad0 === '1' && pca9685AddressText(kept) === '0x41');
+  const other = migratePartAttrs({ type: 'servo', attrs: { horn: 'double' } });
+  check('migration : les autres composants ne sont pas touchés', other.horn === 'double' && !('ad0' in other));
+}
 
 // --- Device I²C : General Call (SWRST) + registres canaux -----------------------
 // La carte Grove est à 0x7F et déclare accepter le General Call (0x00) : sans

@@ -18,6 +18,7 @@ const CACHE = join(ROOT, 'node_modules', '.cache-selection');
 const entry = `
 import { Editor } from '../../src/webview/diagram/editor.mjs';
 import '../../src/webview/composants/led-element.mjs';
+import '../../src/webview/composants/pca9685-element.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const checks = [];
 const ok = (name, cond, detail = '') => checks.push({ name, ok: !!cond, detail: String(detail) });
@@ -260,6 +261,36 @@ async function run() {
 	pup();
 	await wait(10);
 	ok('marquee : fil à cheval sur le bord NON pris (extrémité hors boîte)', !partialSel);
+
+	// --- Inspecteur du PCA9685 : adresse réglée par les pads AD0..AD5 ----------
+	// L'adresse n'est plus une liste : six cases (pad haut = 1) et l'adresse
+	// 0x40..0x7F calculée s'affiche sous elles ET part dans l'attr address
+	// (c'est lui que lit la simulation).
+	const pca = editor.addPart('pca9685', 600, 400);
+	await wait(60);
+	editor.select({ kind: 'part', id: pca.id });
+	await wait(30);
+	const boxes = [...inspector.querySelectorAll('input.inspector__checkbox')];
+	ok('inspecteur PCA : 6 cases à cocher AD0..AD5', boxes.length === 6, boxes.length);
+	ok("inspecteur PCA : plus de liste déroulante d'adresse",
+		!inspector.querySelector('select'));
+	const addrText = () => inspector.querySelector('.inspector__address')?.textContent ?? '';
+	ok("inspecteur PCA : adresse 0x7F affichée (pads d'usine tous hauts)",
+		addrText().includes('0x7F'), addrText());
+	ok('inspecteur PCA : les 6 cases sont cochées au départ', boxes.every((b) => b.checked));
+	// Décoche AD0 → 0x7E, et l'attr suit.
+	boxes[0].checked = false;
+	boxes[0].dispatchEvent(new Event('change', { bubbles: true }));
+	await wait(40);
+	ok('inspecteur PCA : AD0 décoché → adresse 0x7E affichée', addrText().includes('0x7E'), addrText());
+	ok('inspecteur PCA : attr address = 0x7E (lu par la simulation)',
+		pca.attrs?.address === '0x7E', pca.attrs?.address);
+	// Décoche tout → 0x40 (PCA9685 nu).
+	for (const b of [...inspector.querySelectorAll('input.inspector__checkbox')]) {
+		if (b.checked) { b.checked = false; b.dispatchEvent(new Event('change', { bubbles: true })); await wait(30); }
+	}
+	ok('inspecteur PCA : tous les pads bas → 0x40', pca.attrs?.address === '0x40' && addrText().includes('0x40'),
+		\`\${pca.attrs?.address} / \${addrText()}\`);
 
 	const out = document.createElement('pre');
 	out.id = 'measures';

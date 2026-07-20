@@ -476,15 +476,24 @@ export const CATALOG: readonly PartDef[] = [
   // pas (pca9685PowerState, model.mts). Simulé par Pca9685Device (trames I²C
   // réelles → 16 rapports cycliques). Adresse par défaut 0x7F : la carte Grove
   // 108020102 sort d'usine avec tous ses pads d'adresse HAUTS (contrairement au
-  // PCA9685 nu Adafruit à 0x40). Réglable dans l'inspecteur (0x40..0x7F).
+  // PCA9685 nu Adafruit à 0x40).
+  // ADRESSE RÉGLÉE COMME SUR LA CARTE : six pads soudables AD0..AD5 (cases à
+  // cocher de l'inspecteur, cochée = pad HAUT = 1). L'adresse 7 bits vaut
+  // 1 A5 A4 A3 A2 A1 A0 (le bit 6 est câblé HAUT et le bit 7 n'existe pas),
+  // soit 0x40 (tous bas) à 0x7F (tous hauts) — `address` est recalculée à
+  // chaque changement de pad (updatePartAttr) et reste l'attribut lu par la
+  // simulation.
   {
     type: 'pca9685', label: '16-channel PWM driver (PCA9685)', tag: 'kablix-pca9685', kind: 'i2c-pwm',
-    attrs: { address: '0x7F' },
-    props: [{
-      attr: 'address', label: 'I²C address', kind: 'select',
-      options: ['0x7F', '0x40'],
-      optionLabels: { '0x7F': '0x7F (Grove default)', '0x40': '0x40 (bare PCA9685)' },
-    }],
+    attrs: { address: '0x7F', ad0: '1', ad1: '1', ad2: '1', ad3: '1', ad4: '1', ad5: '1' },
+    props: [
+      { attr: 'ad0', label: 'Pad AD0 (bit 0)', kind: 'checkbox' },
+      { attr: 'ad1', label: 'Pad AD1 (bit 1)', kind: 'checkbox' },
+      { attr: 'ad2', label: 'Pad AD2 (bit 2)', kind: 'checkbox' },
+      { attr: 'ad3', label: 'Pad AD3 (bit 3)', kind: 'checkbox' },
+      { attr: 'ad4', label: 'Pad AD4 (bit 4)', kind: 'checkbox' },
+      { attr: 'ad5', label: 'Pad AD5 (bit 5)', kind: 'checkbox' },
+    ],
   },
   // Alimentation de laboratoire (dessin de Frank) : source V+/GND réglable.
   // `voltage` = tension de DÉMARRAGE ; en simulation le bouton du dessin la fait
@@ -685,6 +694,49 @@ export function partDef(type: string): PartDef {
   const def = CATALOG.find((p) => p.type === type) ?? customParts.get(type);
   if (!def) throw new Error(`Type de composant inconnu : ${type}`);
   return def;
+}
+
+/**
+ * Adresse I²C d'un PCA9685 d'après l'état de ses six pads AD0..AD5 (attrs
+ * `ad0`..`ad5`, non vide = pad HAUT). Adresse 7 bits = 1 A5 A4 A3 A2 A1 A0 :
+ * le bit 6 est câblé HAUT sur la carte et le bit 7 n'existe pas — la valeur va
+ * donc de 0x40 (tous les pads bas) à 0x7F (tous hauts, réglage d'usine Grove).
+ */
+export function pca9685Address(attrs: Record<string, string> | undefined): number {
+  let addr = 0x40;
+  for (let bit = 0; bit < 6; bit++) {
+    if ((attrs?.[`ad${bit}`] ?? '') !== '') addr |= 1 << bit;
+  }
+  return addr;
+}
+
+/** Même adresse, écrite comme sur la fiche du module : « 0x40 » … « 0x7F ». */
+export function pca9685AddressText(attrs: Record<string, string> | undefined): string {
+  return `0x${pca9685Address(attrs).toString(16).toUpperCase().padStart(2, '0')}`;
+}
+
+/**
+ * Attributs d'un composant chargé depuis un schéma, remis à jour quand le
+ * réglage a changé de forme. Aujourd'hui : le PCA9685, dont l'adresse était
+ * choisie dans une liste (`address`) et se règle maintenant par ses six pads
+ * AD0..AD5 — les schémas d'avant n'ont pas les `ad*`, on les DÉDUIT de
+ * l'adresse enregistrée (0x7F → tous cochés) pour que le montage garde
+ * exactement la même adresse sur le bus.
+ */
+export function migratePartAttrs(part: { type: string; attrs?: Record<string, string> }): Record<string, string> | undefined {
+  const attrs = part.attrs;
+  let def: PartDef;
+  try {
+    def = partDef(part.type);
+  } catch {
+    return attrs; // type inconnu (composant perso non encore enregistré)
+  }
+  if (def.kind !== 'i2c-pwm') return attrs;
+  if (attrs && [0, 1, 2, 3, 4, 5].some((b) => `ad${b}` in attrs)) return attrs; // déjà au nouveau format
+  const addr = Number(attrs?.address ?? 0x40) || 0x40;
+  const pads: Record<string, string> = {};
+  for (let bit = 0; bit < 6; bit++) pads[`ad${bit}`] = addr & (1 << bit) ? '1' : '';
+  return { ...attrs, ...pads };
 }
 
 /**
