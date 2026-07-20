@@ -1,11 +1,15 @@
 # À faire
 1. Quand on fait glisser un composant de la bibliothèque vers le canva, il doit être à l'échelle 1 et se poser sur le canva là ou on le lache.
 1. l'ouverture des fichiers est devenue lente
-1. Rajoute une catégorie dans composant "Appareils de mesure" et déplace-y l'alim
-1. Rajoute l'image "docs\composants\img\pca9685 - dessous.png" dans le paragraphe Adresse I²C de la doc du pca9685. J'ai changé les noms en supprimant le mot "Pad". Ca reste comme ça.
-1. Le point d'interoggation de "Aide du composant" est peu visible. Met celui que je t'ai fournis pour l'aide. Change le texte en "Aide composant"
 1. Les 2 claviers à touches dur ont gardés les pastilles rouge de positionnent ainsi que le nom de chaque pastille
 1. Il y a des problèmes  à l'export svg. Les composants non cablés ne gardent pas leur position et la feuille n'est pas ajustée
+1. indique moi ou apparait le nom des equipotentielle
+# v2026.7.125
+1. ✅ Nouvelle catégorie de palette « Appareils de mesure » (item « Rajoute une catégorie ») : clé `Instruments` — l'alimentation de laboratoire (`kind: 'psu'`) y est déplacée depuis « Divers », qui ne garde que les modules divers (carte SD, pilote PWM PCA9685). Ajoutée à `CATEGORY_ORDER` entre « Actionneurs » et « Divers » — sans cette entrée la section ne s'afficherait JAMAIS dans la palette, qui itère sur cet ordre. i18n FR.
+1. ✅ Image du dos de la carte ajoutée à la doc du PCA9685 (item « Rajoute l'image pca9685 - dessous.png ») : posée en tête de la section « Adresse I²C », là où se règlent les pads, avec renvoi dans le texte (« visibles au dos du module, ci-dessus »). Les libellés sans le mot « Pad » (AD0..AD5) livrés par Frank dans catalog.mts / i18n.mts sont conservés tels quels.
+1. ✅ Bouton d'aide de l'inspecteur lisible (item « le point d'interrogation est peu visible ») : le glyphe `❔` (contour pâle, illisible sur fond sombre) est remplacé par l'icône fournie `media/aide.svg` — déjà utilisée par la barre d'outils — posée en fond du bouton via une nouvelle variable CSS `--kx-help-icon` injectée par l'hôte à côté de `--kx-select` (la webview n'a pas accès aux URI d'extension ; `img-src` de la CSP couvre déjà cette origine). Libellé « Aide du composant » → **« Aide composant »**.
+1. ✅ `verify:psu` : les 2 contrôles de catalogue suivent le déplacement (catégorie `Instruments`) + nouveau contrôle « `Instruments` présent dans `CATEGORY_ORDER` » (garde-fou contre une section invisible). typecheck + build + verify:all OK.
+
 # v2026.7.124
 1. ✅ Contrainte « un fil ne passe jamais sur une borne » rendue DURE (item « la contrainte forte ne marche pas ») : la règle n'existait qu'en poids `onPin * 2000` dans `cost()`, qui ne fait que DÉPARTAGER des tracés déjà produits — `astarRoute` ne recevait jamais les broches, donc si toutes ses sorties candidates passaient sur une borne il en posait une quand même. Le routeur reçoit désormais les centres des broches étrangères (`pins`) et REFUSE l'arête qui passe dessus (`pinBlocked`, tolérance 2 px), les bornes du fil routé étant exclues en amont (aucune sortie de broche bloquée). Ajout des voies de contournement (± un demi-pas de grille autour de chaque broche) dans le graphe de Hanan : sans elles l'A\* n'aurait plus de chemin et l'appelant retomberait sur le coude en L de repli, qui ne respecte rien.
 1. ✅ Écart mini entre fils parallèles d'équipotentielles différentes : 2 → **3 px** (item « passe le gap de 2 à 3 px »), constante `GAP` de `autoRoute` (propagée à l'A\*, au coût et au créneau anti-superposition). Les fils de MÊME `eqp` continuent de se superposer.

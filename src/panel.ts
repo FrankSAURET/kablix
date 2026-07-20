@@ -1123,7 +1123,7 @@ export class SimulatorPanel {
   <meta http-equiv="Content-Security-Policy" content="${csp}" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link href="${styleUri}" rel="stylesheet" />
-  <style>:root { --kx-select: ${selColor}; }</style>
+  <style>:root { --kx-select: ${selColor}; --kx-help-icon: url("${aideIconUri}"); }</style>
   <title>Kablix</title>
 </head>
 <body>

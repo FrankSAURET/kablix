@@ -953,14 +953,17 @@ textarea {
 }
 
 /* Bouton d'aide vers la doc Wokwi du composant (sous le titre de l'inspecteur). */
+/* Bouton « Aide composant » : icône media/aide.svg (bien plus lisible que le
+   glyphe ❔ d'avant), posée en fond à gauche du libellé via --kx-help-icon. */
 .inspector__doc {
   margin: 0.3rem 0 0.1rem;
   font: inherit;
   font-size: 0.72rem;
-  padding: 0.2rem 0.45rem;
+  padding: 0.2rem 0.45rem 0.2rem 1.5rem;
   border-radius: 4px;
   border: 1px solid var(--vscode-input-border, #555);
-  background: var(--vscode-input-background, #333);
+  background: var(--vscode-input-background, #333) var(--kx-help-icon) no-repeat 0.35rem center;
+  background-size: 0.95rem 0.95rem;
   color: var(--vscode-input-foreground, #fff);
   cursor: pointer;
 }

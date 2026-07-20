@@ -3646,7 +3646,7 @@ export class Editor {
     if (def.tag !== 'kablix-custom-part') {
       const help = document.createElement('button');
       help.className = 'inspector__doc';
-      help.textContent = `❔ ${t('Component help')}`;
+      help.textContent = t('Component help'); // l'icône vient du CSS (--kx-help-icon)
       help.title = t('Open the help for this part');
       help.addEventListener('click', () => this.onComponentHelp?.(def.type));
       this.inspector.appendChild(help);

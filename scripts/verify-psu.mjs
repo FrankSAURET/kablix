@@ -2,7 +2,7 @@
 //  - netlist : V+ = rail VCC / GND = masse (une LED s'allume sans carte),
 //    ledPowerCircuit remonte la TENSION de l'alim (attr puis live) ;
 //  - psuLoadAmps : courant débité (LED, pont résistif, court-circuit, servo) ;
-//  - catalogue : rangée dans Divers, propriétés tension / courant max ;
+//  - catalogue : rangée dans Appareils de mesure, propriétés tension / courant max ;
 //  - rendu réel en Chrome headless : dessin, affichage LED Board-7, rotation du
 //    bouton (0-30 V sur 300°), drag rotatif en simulation, LED courant limite,
 //    libellés traduisibles, broches sur pastilles.
@@ -28,7 +28,7 @@ const buildTo = async (entry, outfile) => {
   return import(pathToFileURL(join(tmp, outfile)).href);
 };
 const { ledOn, ledPowerCircuit, psuLoadAmps } = await buildTo('src/webview/diagram/model.mts', 'model.mjs');
-const { partDef, partCategory } = await buildTo('src/webview/diagram/catalog.mts', 'catalog.mjs');
+const { partDef, partCategory, CATEGORY_ORDER } = await buildTo('src/webview/diagram/catalog.mts', 'catalog.mjs');
 
 let failures = 0;
 const check = (label, ok) => {
@@ -39,8 +39,11 @@ const near = (a, b, eps = 1e-6) => a !== null && a !== undefined && Math.abs(a -
 
 // --- Catalogue -----------------------------------------------------------------
 const def = partDef('alim');
-check('catalogue : alim = kablix-alim, kind psu, catégorie Divers',
-  def.tag === 'kablix-alim' && def.kind === 'psu' && partCategory(def) === 'Divers');
+check('catalogue : alim = kablix-alim, kind psu, catégorie Instruments',
+  def.tag === 'kablix-alim' && def.kind === 'psu' && partCategory(def) === 'Instruments');
+// Sans entrée dans CATEGORY_ORDER la section ne s'afficherait jamais dans la palette.
+check('catalogue : Instruments présent dans CATEGORY_ORDER',
+  CATEGORY_ORDER.includes('Instruments'));
 check('catalogue : propriétés voltage (0-30) et maxcurrent',
   def.props?.some((p) => p.attr === 'voltage' && p.max === 30) &&
   def.props?.some((p) => p.attr === 'maxcurrent'));

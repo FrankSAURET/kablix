@@ -487,12 +487,12 @@ export const CATALOG: readonly PartDef[] = [
     type: 'pca9685', label: '16-channel PWM driver (PCA9685)', tag: 'kablix-pca9685', kind: 'i2c-pwm',
     attrs: { address: '0x7F', ad0: '1', ad1: '1', ad2: '1', ad3: '1', ad4: '1', ad5: '1' },
     props: [
-      { attr: 'ad0', label: 'Pad AD0 (bit 0)', kind: 'checkbox' },
-      { attr: 'ad1', label: 'Pad AD1 (bit 1)', kind: 'checkbox' },
-      { attr: 'ad2', label: 'Pad AD2 (bit 2)', kind: 'checkbox' },
-      { attr: 'ad3', label: 'Pad AD3 (bit 3)', kind: 'checkbox' },
-      { attr: 'ad4', label: 'Pad AD4 (bit 4)', kind: 'checkbox' },
-      { attr: 'ad5', label: 'Pad AD5 (bit 5)', kind: 'checkbox' },
+      { attr: 'ad0', label: 'AD0 (bit 0)', kind: 'checkbox' },
+      { attr: 'ad1', label: 'AD1 (bit 1)', kind: 'checkbox' },
+      { attr: 'ad2', label: 'AD2 (bit 2)', kind: 'checkbox' },
+      { attr: 'ad3', label: 'AD3 (bit 3)', kind: 'checkbox' },
+      { attr: 'ad4', label: 'AD4 (bit 4)', kind: 'checkbox' },
+      { attr: 'ad5', label: 'AD5 (bit 5)', kind: 'checkbox' },
     ],
   },
   // Alimentation de laboratoire (dessin de Frank) : source V+/GND réglable.
@@ -546,10 +546,11 @@ export function partCategory(def: PartDef): string {
     case 'led':
     case 'rgb-led':
       return 'Passive'; // « Discrets » (composants discrets : R, LED…)
+    case 'psu':
+      return 'Instruments'; // « Appareils de mesure » : alim de laboratoire…
     case 'spi-sd':
     case 'i2c-pwm':
-    case 'psu':
-      return 'Divers'; // modules divers (carte SD, alim de laboratoire…)
+      return 'Divers'; // modules divers (carte SD, pilote PWM…)
     case 'pushbutton':
     case 'potentiometer':
     case 'slide-switch':
@@ -577,6 +578,7 @@ export const CATEGORY_ORDER: readonly string[] = [
   'Controls',
   'Sensors',
   'Actuators',
+  'Instruments',
   'Divers',
 ];
 
