@@ -357,7 +357,7 @@ export const CATALOG: readonly PartDef[] = [
     // Impulsions 0°/180° réglables : SG90 (datasheet) = 500-2500 µs ; lib
     // Servo Arduino par défaut = 544-2400 µs. L'angle affiché est interpolé
     // linéairement entre les deux (cf. sim.mts).
-    attrs: { horn: 'single', pulsemin: '500', pulsemax: '2500' },
+    attrs: { horn: 'single', pulsemin: '500', pulsemax: '2500', speed: '2' },
     props: [
       {
         attr: 'horn', label: 'Horn', kind: 'select', options: ['single', 'double', 'cross'],
@@ -365,6 +365,9 @@ export const CATALOG: readonly PartDef[] = [
       },
       { attr: 'pulsemin', label: 'Pulse at 0° (µs)', kind: 'number', min: 100, max: 3000, step: 1 },
       { attr: 'pulsemax', label: 'Pulse at 180° (µs)', kind: 'number', min: 100, max: 3000, step: 1 },
+      // Rotation VISIBLE : temps d'un tour complet (360°) à pleine vitesse.
+      // 0 = mouvement instantané (ancien comportement).
+      { attr: 'speed', label: 'Rotation time (s/turn)', kind: 'number', min: 0, max: 30, step: 0.1 },
     ],
   },
 

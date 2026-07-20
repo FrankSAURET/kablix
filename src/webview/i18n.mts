@@ -194,6 +194,7 @@ const FR: Record<string, string> = {
   'Servo motor': 'Servomoteur',
   'Pulse at 0° (µs)': 'Impulsion à 0° (µs)',
   'Pulse at 180° (µs)': 'Impulsion à 180° (µs)',
+  'Rotation time (s/turn)': 'Temps de rotation (s/tour)',
   'Ultrasonic sensor': 'Capteur à ultrason',
   'Min distance (cm)': 'Distance min (cm)',
   'Max distance (cm)': 'Distance max (cm)',

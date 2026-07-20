@@ -79,19 +79,99 @@ export class ServoElement extends LitElement {
   declare angle: number;
   declare horn: 'single' | 'double' | 'cross';
   declare hornColor: string;
+  /** Temps d'un TOUR complet (360°) à pleine vitesse, en secondes. 0 = instantané. */
+  declare speed: number;
 
   static properties = {
     angle: {},
     horn: {},
     hornColor: {},
+    speed: { type: Number },
+    // Angle RÉELLEMENT dessiné (poursuit `angle` à vitesse limitée).
+    shown: { state: true },
   };
+
+  /** Angle affiché, qui rattrape la consigne `angle` à la vitesse `speed`. */
+  declare shown: number;
+  private raf = 0;
+  private timer = 0;
+  private last = 0;
 
   constructor() {
     super();
     this.angle = 0;
     this.horn = 'single';
     this.hornColor = '#ccc';
+    this.speed = 2;
+    this.shown = 0;
   }
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this.stopMotion();
+  }
+
+  private stopMotion(): void {
+    if (this.raf) cancelAnimationFrame(this.raf);
+    if (this.timer) clearTimeout(this.timer);
+    this.raf = 0;
+    this.timer = 0;
+  }
+
+  /** Programme l'image suivante. rAF quand la page est visible, minuterie de
+   *  secours sinon (onglet en arrière-plan, rendu hors écran) : le bras finit
+   *  toujours sa course au lieu de rester figé à mi-chemin. */
+  private schedule(): void {
+    this.raf = requestAnimationFrame(this.frame);
+    this.timer = window.setTimeout(this.frame, 32);
+  }
+
+  // `willUpdate` (et non `updated`) : quand la vitesse est nulle, l'angle affiché
+  // est corrigé AVANT le rendu — pas de frame intermédiaire au mauvais angle.
+  willUpdate(changed: Map<string, unknown>): void {
+    if (!changed.has('angle')) return;
+    const target = this.clampAngle(this.angle);
+    if (this.degPerSec() <= 0) {
+      this.stopMotion();
+      this.shown = target;
+      return;
+    }
+    if (Math.abs(target - this.shown) < 0.01 || this.raf || this.timer) return;
+    this.last = performance.now();
+    this.schedule();
+  }
+
+  private clampAngle(v: unknown): number {
+    const n = Number(v);
+    return Number.isFinite(n) ? Math.max(0, Math.min(180, n)) : 0;
+  }
+
+  /** Vitesse angulaire en °/s (un tour = 360° en `speed` secondes). */
+  private degPerSec(): number {
+    const s = Number(this.speed);
+    if (!Number.isFinite(s) || s <= 0) return 0; // 0 ou invalide → instantané
+    return 360 / s;
+  }
+
+  // Poursuite de la consigne image par image : le bras tourne de manière VISIBLE
+  // au lieu de sauter d'un coup à l'angle demandé. L'horloge vient de
+  // performance.now() (et non de l'argument de rAF) car la même fonction sert de
+  // repli par minuterie.
+  private frame = (): void => {
+    this.stopMotion();
+    const now = performance.now();
+    const dt = Math.max(0, (now - this.last) / 1000);
+    this.last = now;
+    const target = this.clampAngle(this.angle);
+    const delta = target - this.shown;
+    const maxStep = this.degPerSec() * dt;
+    if (Math.abs(delta) <= maxStep) {
+      this.shown = target;
+      return;
+    }
+    this.shown = this.shown + Math.sign(delta) * maxStep;
+    this.schedule();
+  };
 
   // Broches : centre de chaque pastille (repère du dessin retouché, grille de 10 px).
   // Recalé sur les pastilles pin-* de servo.edit.svg (groupe pins translaté par
@@ -112,7 +192,7 @@ export class ServoElement extends LitElement {
         xmlns="http://www.w3.org/2000/svg"
       >
         ${unsafeSVG(BODY)}
-        <g transform=${`rotate(${this.angle ?? 0} ${AXIS.x} ${AXIS.y})`}>${unsafeSVG(horn)}</g>
+        <g id="horn-rot" transform=${`rotate(${this.shown ?? 0} ${AXIS.x} ${AXIS.y})`}>${unsafeSVG(horn)}</g>
       </svg>
     `;
   }
