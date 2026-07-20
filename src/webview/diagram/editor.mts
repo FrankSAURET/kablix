@@ -4210,8 +4210,36 @@ export class Editor {
         const vbH = (vb?.height || svgEl.height?.baseVal?.value || h) || h;
         const vbX = vb?.x || 0;
         const vbY = vb?.y || 0;
-        const sx = w / vbW;
-        const sy = h / vbH;
+        // Échelle prise sur la boîte RÉELLEMENT RENDUE du dessin, pas sur celle
+        // du corps. `.part__body` englobe aussi l'étiquette sous le composant :
+        // le dessin du servo est rendu 160×140 dans un corps de 160×144, et
+        // `h / vbH` donnait donc sy = 1,0286 pour sx = 1 — un étirement
+        // vertical de 2,8 % que le dessin ne subit PAS à l'écran (mesuré :
+        // facteur réel 1 et 1). Les fils, eux, sont en coordonnées monde et ne
+        // sont pas étirés : une broche dessinée à y=100 partait à y=102,9
+        // pendant que son fil restait à 100. Le décalage croissant avec y, des
+        // fils partant de broches voisines divergeaient — le biais visible dans
+        // Inkscape (led : +7,4 %, servo : +2,8 %).
+        // Troisième fois que `.part__body` ment sur la géométrie du dessin
+        // (cf. v2026.7.48 overlay interne, v2026.7.133 cadre de sélection).
+        const svgRect = svgEl.getBoundingClientRect();
+        const bodyRect = bodyEl.getBoundingClientRect();
+        // Boîte rendue ramenée en unités monde (le canvas peut être zoomé).
+        const rw = svgRect.width / this.zoom;
+        const rh = svgRect.height / this.zoom;
+        // Letterbox : décalage du dessin DANS le corps (centrage vertical de
+        // l'élément au-dessus de son étiquette), à reporter sur le groupe.
+        const offX = (svgRect.left - bodyRect.left) / this.zoom;
+        const offY = (svgRect.top - bodyRect.top) / this.zoom;
+        // Repli sur le corps si la boîte rendue est inexploitable (élément pas
+        // encore mis en page, hors écran) : l'ancien comportement.
+        const useRect = rw > 0.5 && rh > 0.5;
+        const dw = useRect ? rw : w;
+        const dh = useRect ? rh : h;
+        const dx = useRect ? offX : 0;
+        const dy = useRect ? offY : 0;
+        const sx = dw / vbW;
+        const sy = dh / vbH;
         const groupId = `kpart-${idSeq++}`;
         // Le dessin sort du shadow DOM : purge des résidus Inkscape (sans quoi
         // l'export n'est pas du XML bien formé), taille explicite des <svg>
@@ -4231,7 +4259,7 @@ export class Editor {
           .replace(/^\s*<svg[^>]*>/i, '')
           .replace(/<\/svg>\s*$/i, '');
         inner =
-          `<g id="${groupId}" transform="translate(${x - vbX * sx} ${y - vbY * sy}) scale(${sx} ${sy})">` +
+          `<g id="${groupId}" transform="translate(${x + dx - vbX * sx} ${y + dy - vbY * sy}) scale(${sx} ${sy})">` +
           styleTag +
           body +
           `</g>`;

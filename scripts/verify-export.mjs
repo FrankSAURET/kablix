@@ -169,6 +169,58 @@ async function run() {
 		!perr && racines.length === editor.diagram.parts.length,
 		(perr ? 'XML invalide' : racines.length + ' / ' + editor.diagram.parts.length));
 
+	// --- 1 quinquies. Broches DESSINÉES sous les bouts de fil (v2026.7.137) -----
+	// Item « les fils parfaitement alignés sur kablix ne le sont pas sur inkscape
+	// (fils des servo) ». L'échelle du groupe composant était calculée sur
+	// .part__body, qui englobe AUSSI l'étiquette sous le composant : le servo
+	// est dessiné 160×140 dans un corps de 160×144, d'où sy = 1,0286 pour sx = 1
+	// — un étirement VERTICAL de 2,8 % que le dessin ne subit pas à l'écran. Les
+	// fils, en coordonnées monde, ne sont pas étirés : la broche dessinée
+	// s'éloignait de son fil d'autant plus qu'elle était basse dans le viewBox.
+	// Mesuré sans le correctif : servo PWM 2,29 px, LED anode 3,20 px, en dy PUR
+	// (signature de l'étirement anisotrope).
+	//
+	// Contrôle : on lit le transform de chaque groupe DANS le fichier exporté,
+	// on l'applique à la position de la broche exprimée en unités viewBox, et on
+	// compare au point où le fil l'attend. Pas de getBBox (boîte d'encre) : de
+	// l'arithmétique sur les valeurs du fichier, comme fait Inkscape.
+	const tf = [...svgAvant.matchAll(new RegExp(
+		'<g id="(kpart-[0-9]+)" transform="translate\\\\(([-0-9.]+) ([-0-9.]+)\\\\) scale\\\\(([-0-9.]+) ([-0-9.]+)\\\\)"', 'g'
+	))].map((m) => ({ tx: +m[2], ty: +m[3], sx: +m[4], sy: +m[5] }));
+	// Même ordre que buildSvg : supports d'abord, puis le reste.
+	const derriere = (p) => (p.type === 'breadboard' || p.type === 'grove-shield' ? 0 : 1);
+	const ordre = [...editor.rendered.values()].sort(
+		(a, b) => derriere(a.part) - derriere(b.part));
+	let ecartMax = 0;
+	let pire = '';
+	ordre.forEach((r, i) => {
+		const t = tf[i];
+		const svgEl = (r.el.shadowRoot ?? r.el).querySelector('svg');
+		if (!t || !svgEl) return;
+		const vb = svgEl.viewBox?.baseVal;
+		if (!vb || !vb.width || !vb.height) return;
+		const srect = svgEl.getBoundingClientRect();
+		if (!srect.width || !srect.height) return;
+		for (const [nom, dot] of r.hotspots) {
+			const dr = dot.getBoundingClientRect();
+			const mx = dr.left + dr.width / 2;
+			const my = dr.top + dr.height / 2;
+			// Position de la broche en unités viewBox du dessin.
+			const ux = ((mx - srect.left) / srect.width) * vb.width + vb.x;
+			const uy = ((my - srect.top) / srect.height) * vb.height + vb.y;
+			// Où l'export la pose, vs où le fil l'attend.
+			const c = editor.canvasPoint(mx, my);
+			const d = Math.hypot(t.tx + ux * t.sx - c.x, t.ty + uy * t.sy - c.y);
+			if (d > ecartMax) {
+				ecartMax = d;
+				pire = r.part.type + '.' + nom + ' ' + d.toFixed(2) + ' px';
+			}
+		}
+	});
+	// Seuil serré : le correctif donne 0 px sur les 46 broches du montage.
+	ok("export : chaque broche DESSINÉE tombe sous le bout de son fil (pas d'étirement)",
+		ecartMax < 0.3, 'écart max ' + ecartMax.toFixed(3) + ' px' + (pire ? ' (' + pire + ')' : ''));
+
 	// --- 2. Aller-retour save -> loadDiagram : positions INCHANGÉES -------------
 	const sauve = JSON.parse(JSON.stringify({ parts: editor.diagram.parts, wires: editor.diagram.wires }));
 	// Contre-épreuve : un composant TOURNÉ aux broches hors grille (vieux fichier).
