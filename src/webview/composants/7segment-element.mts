@@ -3,7 +3,9 @@
 // Adaptations Kablix : sans décorateurs (static properties + declare + constructeur),
 // imports relatifs .mjs ; DESSIN remplacé par la version retouchée (./externe/7seg*.svg,
 // une par nombre de chiffres — seuls 1/2/4 exposés dans l'inspecteur, cf. catalog.mts ;
-// `pins`/`colon`/`background`/`offColor` ne sont pas exposés non plus, dessin figé).
+// `pins`/`background`/`offColor` ne sont pas exposés, dessin figé). `colon` (mode
+// horloge 88:88) n'est proposé QUE pour le 4 chiffres : masque les DP au profit de
+// 2 points centraux qui s'allument avec n'importe quel dp.
 // Broches recalées sur la grille de 10 px (pas de broche POWER/GND dédiée : les pins
 // communs COM/DIGn font office de retour). Segments pilotés nativement via `updated()` :
 // les 7 `polygon` (+ 1 `circle`/`ellipse` DP) par chiffre, dans l'ordre A,B,C,D,E,F,G,DP,
@@ -86,6 +88,10 @@ export class SevenSegmentElement extends LitElement {
   declare values: number[];
   declare simulating: boolean;
   declare burned: boolean;
+  // Mode « horloge » : n'a de sens que sur l'afficheur 4 chiffres (cf. catalog.mts).
+  // Actif → les 4 DP disparaissent, remplacés par 2 points centraux (88:88) qui
+  // s'allument dès qu'UN dp est piloté (peu importe lequel : cathode ou anode commune).
+  declare colon: string;
 
   static properties = {
     color: {},
@@ -93,6 +99,7 @@ export class SevenSegmentElement extends LitElement {
     values: { type: Array },
     simulating: { type: Boolean },
     burned: { type: Boolean },
+    colon: {},
   };
 
   constructor() {
@@ -102,6 +109,7 @@ export class SevenSegmentElement extends LitElement {
     this.values = [0, 0, 0, 0, 0, 0, 0, 0];
     this.simulating = false;
     this.burned = false;
+    this.colon = '';
   }
 
   static get styles() {
@@ -137,6 +145,8 @@ export class SevenSegmentElement extends LitElement {
 
   private polys: SVGElement[] | null = null;
   private dps: SVGElement[] | null = null;
+  private colonGroup: SVGElement | null = null;
+  private colonDots: SVGElement[] | null = null;
 
   update(changed: PropertyValues) {
     if (changed.has('digits')) this.dispatchEvent(new CustomEvent('pininfo-change'));
@@ -148,12 +158,19 @@ export class SevenSegmentElement extends LitElement {
     if (changed.has('digits')) {
       this.polys = null;
       this.dps = null;
+      this.colonGroup = null;
+      this.colonDots = null;
     }
     if (!this.polys) {
       this.polys = Array.from(this.renderRoot.querySelectorAll('polygon'));
       this.dps = (Array.from(this.renderRoot.querySelectorAll('circle, ellipse')) as SVGElement[]).filter(
-        (e) => !e.closest('defs'),
+        (e) => !e.closest('defs') && !e.closest('#colon-4dig'),
       );
+      // Groupe des 2 points d'horloge (présent seulement dans le dessin 4 chiffres).
+      this.colonGroup = this.renderRoot.querySelector('#colon-4dig');
+      this.colonDots = this.colonGroup
+        ? (Array.from(this.colonGroup.querySelectorAll('circle')) as SVGElement[])
+        : [];
     }
     const { digits, color, values, simulating } = this;
     const polys = this.polys;
@@ -183,12 +200,29 @@ export class SevenSegmentElement extends LitElement {
       el.style.stroke = fill;
       el.style.strokeWidth = '0.05';
     };
+    // Horloge : uniquement sur le 4 chiffres. Les DP laissent la place à 2 points
+    // centraux qui s'allument dès qu'un dp (n'importe lequel) est piloté.
+    const clockMode = digits === 4 && this.colon === 'true';
     for (let d = 0; d < digits; d++) {
       for (let s = 0; s < 7; s++) {
         const poly = polys[d * 7 + s];
         if (poly) setSeg(poly, Number(values[d * 8 + s]) || 0);
       }
-      if (dps[d]) setSeg(dps[d], Number(values[d * 8 + 7]) || 0);
+      const dpLevel = Number(values[d * 8 + 7]) || 0;
+      if (dps[d]) {
+        // En mode horloge les DP sont masqués (remplacés par le colon central).
+        dps[d].style.display = clockMode ? 'none' : '';
+        if (!clockMode) setSeg(dps[d], dpLevel);
+      }
+    }
+    if (this.colonGroup) {
+      this.colonGroup.style.display = clockMode ? '' : 'none';
+      if (clockMode && this.colonDots) {
+        // Les 2 points suivent le dp le plus fort de tout l'afficheur.
+        let level = 0;
+        for (let d = 0; d < digits; d++) level = Math.max(level, Number(values[d * 8 + 7]) || 0);
+        for (const dot of this.colonDots) setSeg(dot, level);
+      }
     }
   }
 

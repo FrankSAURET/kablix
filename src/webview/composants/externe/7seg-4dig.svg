@@ -53,6 +53,11 @@
       <polygon points="2,8 8,8 9,9 8,10 2,10 1,9 " fill="#444444" id="polygon64" style="fill:#c0c0c0;stroke-width:0.96"></polygon>
     </g>
     <circle r="3.5039132" cx="194.43913" cy="69.404198" fill="#444444" id="circle64" style="opacity:0.85;fill:#c0c0c0;stroke-width:3.7795"></circle>
+    <!-- 2 points d'horloge (mode colon) : entre les chiffres 2 et 3, masqué par défaut. -->
+    <g id="colon-4dig" style="display:none">
+      <circle r="3.5039132" cx="119.4396" cy="35" fill="#444444" id="colon-top" style="opacity:0.85;fill:#c0c0c0;stroke-width:3.7795"></circle>
+      <circle r="3.5039132" cx="119.4396" cy="54" fill="#444444" id="colon-bot" style="opacity:0.85;fill:#c0c0c0;stroke-width:3.7795"></circle>
+    </g>
     <rect height="7.8739624" width="59.999527" id="rect64" x="65.345512" y="6.4124961" style="opacity:0.85;fill:url(#pattern78);stroke-width:3.7795"></rect>
     <rect height="7.8739624" width="59.999527" id="rect65" x="65.345512" y="76.403114" style="opacity:0.85;fill:url(#pattern79);stroke-width:3.7795"></rect>
     

@@ -100,6 +100,7 @@ const FR: Record<string, string> = {
     'Fichier de code {0} introuvable sur ce poste — cliquer pour choisir le fichier à exécuter',
   'Current project': 'Projet courant',
   'Current project: {0}': 'Projet courant : {0}',
+  'Unsaved changes': 'Modifications non enregistrées',
 
   // Inspecteur
   'Properties': 'Propriétés',

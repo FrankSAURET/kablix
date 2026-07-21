@@ -1886,11 +1886,18 @@ function setDirty(dirty: boolean): void {
   vscode.postMessage({ type: 'projectDirty', dirty });
 }
 
-// Nom du projet dans la barre, précédé d'un gros point noir « ● » quand des
+// Nom du projet dans la barre, SUIVI d'un gros point noir « ⬤ » quand des
 // modifications ne sont pas enregistrées (même signal que dans l'onglet).
 function renderProjectName(): void {
-  const dot = projectDirty ? '● ' : '';
-  projectNameEl.textContent = currentProjectName ? `— ${dot}${currentProjectName}` : dot.trim();
+  projectNameEl.replaceChildren();
+  if (currentProjectName) projectNameEl.append(`— ${currentProjectName}`);
+  if (projectDirty) {
+    const dot = document.createElement('span');
+    dot.className = 'dirty-dot';
+    dot.textContent = ' ⬤';
+    dot.setAttribute('aria-label', t('Unsaved changes'));
+    projectNameEl.append(dot);
+  }
   projectNameEl.title = currentProjectName
     ? t('Current project: {0}', currentProjectName)
     : t('Current project');

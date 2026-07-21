@@ -73,6 +73,8 @@ export interface PropDef {
   step?: number;
   /** Autorise les suffixes SI (p n µ m k M G) dans la valeur (champ texte). */
   suffixes?: boolean;
+  /** N'affiche cette propriété que si un autre attribut vaut l'une des valeurs données. */
+  showIf?: { attr: string; equals: readonly string[] };
 }
 
 export interface CustomPin {
@@ -324,6 +326,7 @@ export const CATALOG: readonly PartDef[] = [
       {
         attr: 'colon', label: 'Colon (clock)', kind: 'select', options: ['', 'true'],
         optionLabels: { '': 'no', 'true': 'Clock colon (:)' },
+        showIf: { attr: 'digits', equals: ['4'] },
       },
     ],
   },

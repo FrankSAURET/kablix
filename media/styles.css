@@ -160,6 +160,13 @@ textarea {
   max-width: 16rem;
 }
 
+/* Point « non enregistré », après le nom du projet, volontairement plus gros. */
+.project-name .dirty-dot {
+  font-size: 1.15em;
+  line-height: 0;
+  vertical-align: -0.05em;
+}
+
 .stage {
   padding: 1rem;
   display: flex;
@@ -1167,11 +1174,35 @@ textarea {
 }
 
 /* Le curseur approche une broche de CE composant : on le hisse au-dessus des
-   corps voisins (qui, avec un gros viewBox / un fond plein, recouvraient la broche
-   et volaient son clic — broche inconnectable). Posé/retiré au pointermove par
-   l'éditeur. Sous les fils (z=5) et le composant en simulation (z=60). */
+   corps VOISINS (qui, avec un gros viewBox / un fond plein, recouvraient la broche
+   et volaient son clic — broche inconnectable), mais TOUJOURS SOUS LES FILS (z=5) :
+   le dessin ne doit jamais masquer les autres fils (demande de Frank). Seuls le
+   rond de sélection de la broche et sa bulle passent au premier plan, via la
+   couche .pin-hoist-layer ci-dessous. Posé/retiré au pointermove par l'éditeur. */
 .part--pin-reachable {
-  z-index: 40;
+  z-index: 4;
+}
+
+/* Couche du rond de sélection + bulle de la broche survolée, AU-DESSUS des fils.
+   Ne contient qu'un halo décoratif (pointer-events:none) : le clic va toujours à
+   la vraie pastille, dont le container est juste hissé au-dessus des corps voisins. */
+.pin-hoist-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 46;
+}
+
+/* Rond de sélection de la broche atteignable (jaune, comme le halo de survol). */
+.pin-hoist-dot {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  background: #ffd633;
+  box-shadow: 0 0 6px 2px rgba(255, 214, 51, 0.7);
+  pointer-events: none;
 }
 
 /* Le rectangle de sélection est porté par le corps (qui tourne) : il pivote

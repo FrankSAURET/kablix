@@ -202,6 +202,10 @@ export class Editor {
   private tempPath: SVGPathElement | null = null;
   /** Bulle de nom de broche affichée pendant le câblage (showPinBubble). */
   private pinBubble: HTMLDivElement | null = null;
+  /** Couche (au-dessus des fils) où l'on dessine le rond de sélection de la broche
+   *  atteignable au survol, sans hisser le corps du composant. */
+  private pinHoistLayer!: HTMLDivElement;
+  private pinHoistDot: HTMLDivElement | null = null;
   private selection: Selection = null;
   /** Composants sélectionnés (sélection multiple : marquee, Ctrl+clic). */
   private selectedParts = new Set<string>();
@@ -266,6 +270,10 @@ export class Editor {
     sheet.style.height = `${SHEET_H}px`;
     this.world.appendChild(sheet);
     this.world.appendChild(this.svg); // reparent le SVG des fils dans le monde
+    // Couche du rond de sélection de broche (au-dessus des fils) : cf. onPointerHover.
+    this.pinHoistLayer = document.createElement('div');
+    this.pinHoistLayer.className = 'pin-hoist-layer';
+    this.world.appendChild(this.pinHoistLayer);
 
     this.buildPalette();
     this.renderInspector();
@@ -446,23 +454,30 @@ export class Editor {
    * Broche recouverte par un composant voisin : le corps d'un composant (surtout
    * ceux à gros viewBox ou à fond plein) capte le clic sur tout son rectangle et
    * masque les broches d'un autre placé dessous — impossible de les câbler. Au
-   * survol, on repère la broche la plus proche du curseur et on hisse SON
-   * composant (`.part--pin-reachable`, z=40) au-dessus des corps qui la masquent :
-   * la broche redevient survolable et cliquable. Le hissage suit le curseur et
-   * disparaît dès qu'on s'en éloigne. Sans effet pendant un drag/pan ou en
-   * simulation (broches inertes).
+   * survol, on repère la broche la plus proche du curseur et on hisse SON composant
+   * (`.part--pin-reachable`, z=4) au-dessus des corps VOISINS pour que la vraie
+   * pastille reçoive le clic — mais TOUJOURS SOUS LES FILS (z=5) : le dessin ne
+   * masque jamais les autres fils (demande de Frank). Seuls le rond de sélection
+   * de la broche (dessiné dans `pinHoistLayer`, z=46) et sa bulle passent au premier
+   * plan. Le hissage suit le curseur et disparaît dès qu'on s'en éloigne. Sans effet
+   * pendant un drag/pan ou en simulation (broches inertes).
    */
   private pinReachablePart: string | null = null;
+  private pinReachablePin: string | null = null;
   private onPointerHover = (e: PointerEvent): void => {
     // Inerte en simulation, pendant un câblage, ou quand un bouton est enfoncé
     // (déplacement/pan/marquee en cours) : le hissage ne doit pas perturber un geste.
-    if (this.locked || this.pending || e.buttons !== 0) return;
+    if (this.locked || this.pending || e.buttons !== 0) {
+      this.clearPinReachable();
+      return;
+    }
     // Broche la plus proche du curseur, dans un petit rayon (en pixels écran).
     const R = 9; // ~ rayon d'une pastille, généreux pour la viser
     let bestPart: string | null = null;
+    let bestPin: string | null = null;
     let bestD = R * R;
     for (const [id, r] of this.rendered) {
-      for (const dot of r.hotspots.values()) {
+      for (const [name, dot] of r.hotspots) {
         const b = dot.getBoundingClientRect();
         const dx = e.clientX - (b.left + b.width / 2);
         const dy = e.clientY - (b.top + b.height / 2);
@@ -470,18 +485,55 @@ export class Editor {
         if (d < bestD) {
           bestD = d;
           bestPart = id;
+          bestPin = name;
         }
       }
     }
-    if (bestPart === this.pinReachablePart) return;
+    if (bestPart === this.pinReachablePart && bestPin === this.pinReachablePin) return;
     if (this.pinReachablePart) {
       this.rendered.get(this.pinReachablePart)?.container.classList.remove('part--pin-reachable');
     }
     this.pinReachablePart = bestPart;
+    this.pinReachablePin = bestPin;
     if (bestPart) {
+      // Le container est hissé au-dessus des corps voisins (mais SOUS les fils),
+      // pour que la vraie pastille reçoive le clic.
       this.rendered.get(bestPart)?.container.classList.add('part--pin-reachable');
     }
+    this.updatePinHoistDot();
   };
+
+  /** Retire le hissage et le rond de sélection de broche (fin de survol, geste,
+   *  câblage, simulation). */
+  private clearPinReachable(): void {
+    if (this.pinReachablePart) {
+      this.rendered.get(this.pinReachablePart)?.container.classList.remove('part--pin-reachable');
+    }
+    this.pinReachablePart = null;
+    this.pinReachablePin = null;
+    this.pinHoistDot?.remove();
+    this.pinHoistDot = null;
+  }
+
+  /** Dessine (ou retire) le rond de sélection de la broche atteignable dans la
+   *  couche au-dessus des fils, à son centre en coordonnées monde. */
+  private updatePinHoistDot(): void {
+    const part = this.pinReachablePart;
+    const pin = this.pinReachablePin;
+    const center = part && pin ? this.hotspotCenter({ partId: part, pin }) : null;
+    if (!center) {
+      this.pinHoistDot?.remove();
+      this.pinHoistDot = null;
+      return;
+    }
+    if (!this.pinHoistDot) {
+      this.pinHoistDot = document.createElement('div');
+      this.pinHoistDot.className = 'pin-hoist-dot';
+      this.pinHoistLayer.appendChild(this.pinHoistDot);
+    }
+    this.pinHoistDot.style.left = `${center.x}px`;
+    this.pinHoistDot.style.top = `${center.y}px`;
+  }
 
   /**
    * Boîte englobante du contenu (composants + coudes de fils) en coordonnées
@@ -3813,6 +3865,14 @@ export class Editor {
       }
       if (this.internalShown.has(partId)) this.renderInternalWiring(partId);
     }
+    // Attribut dont dépend la VISIBILITÉ d'une autre propriété (showIf) : l'inspecteur
+    // est reconstruit pour faire apparaître/disparaître la propriété conditionnelle
+    // (ex. « Colon » n'existe que pour l'afficheur 4 chiffres).
+    const def = partDef(r.part.type);
+    const gatesAProp = (def.props ?? []).some((p) => p.showIf?.attr === attr);
+    if (gatesAProp && this.selection?.kind === 'part' && this.selection.id === partId) {
+      this.renderInspector();
+    }
     this.notify();
   }
 
@@ -3910,6 +3970,7 @@ export class Editor {
       const def = partDef(parts[0].type);
       const memberIds = parts.map((p) => p.id);
       for (const prop of def.props ?? []) {
+        if (!this.propVisible(def, parts[0], prop)) continue;
         this.appendPropControl(memberIds, parts, prop);
       }
       if ((def.props ?? []).length === 0) {
@@ -4014,6 +4075,7 @@ export class Editor {
     }
 
     for (const prop of def.props ?? []) {
+      if (!this.propVisible(def, r.part, prop)) continue;
       this.appendPropControl(partId, r.part, prop);
     }
     // PCA9685 : l'adresse résultant des six pads AD0..AD5, écrite comme sur la
@@ -4085,6 +4147,17 @@ export class Editor {
    *  multiple homogène, chaque changement est appliqué à tous les composants.
    *  La valeur affichée est celle du premier ; si les composants divergent, le
    *  contrôle reste utilisable et le premier réglage les aligne tous. */
+  /** Valeur effective d'un attribut : celle de la part, sinon le défaut du catalogue. */
+  private effectiveAttr(def: PartDef, part: Part, attr: string): string {
+    return part.attrs?.[attr] ?? def.attrs?.[attr] ?? '';
+  }
+
+  /** Une propriété conditionnelle (showIf) n'est affichée que si sa condition est remplie. */
+  private propVisible(def: PartDef, part: Part, prop: PropDef): boolean {
+    if (!prop.showIf) return true;
+    return prop.showIf.equals.includes(this.effectiveAttr(def, part, prop.showIf.attr));
+  }
+
   private appendPropControl(partId: string | string[], part: Part | Part[], prop: PropDef): void {
     const ids = Array.isArray(partId) ? partId : [partId];
     const first = Array.isArray(part) ? part[0] : part;

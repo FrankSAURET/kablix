@@ -23,6 +23,7 @@ import '../../src/webview/composants/resistor-element.mjs';
 import '../../src/webview/composants/servo-element.mjs';
 import '../../src/webview/composants/buzzer-element.mjs';
 import '../../src/webview/composants/membrane-keypad-element.mjs';
+import '../../src/webview/composants/7segment-element.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const checks = [];
 const ok = (name, cond, detail = '') => checks.push({ name, ok: !!cond, detail: String(detail) });
@@ -720,10 +721,71 @@ async function run() {
 	ok('broche recouverte : redevient CLIQUABLE au survol (elementFromPoint = .pin)',
 		hitAfter && hitAfter.classList && hitAfter.classList.contains('pin'),
 		hitAfter ? (hitAfter.className || hitAfter.tagName) : 'null');
+	// Re-survol pour les contrôles « corps sous les fils » + rond de sélection.
+	covCanvas.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: ccx, clientY: ccy, buttons: 0 }));
+	await wait(30);
+	// Item v2026.7.145 : le corps hissé ne doit JAMAIS masquer les fils. Son z-index
+	// effectif reste SOUS celui de la couche des fils (.wires, z=5).
+	const zHoisted = Number(getComputedStyle(covLedCont).zIndex) || 0;
+	const zWires = Number(getComputedStyle(document.getElementById('wires')).zIndex) || 0;
+	ok('broche recouverte : corps hissé SOUS les fils (ne les masque plus)',
+		zHoisted < zWires, 'corps=' + zHoisted + ' fils=' + zWires);
+	// Le rond de sélection de la broche est dessiné dans la couche AU-DESSUS des fils.
+	const hoistLayer = editor.world?.querySelector?.('.pin-hoist-layer') || document.querySelector('.pin-hoist-layer');
+	const hoistDot = hoistLayer?.querySelector('.pin-hoist-dot');
+	const zLayer = hoistLayer ? Number(getComputedStyle(hoistLayer).zIndex) || 0 : 0;
+	ok('broche recouverte : rond de sélection dessiné au-dessus des fils',
+		!!hoistDot && zLayer > zWires, 'dot=' + !!hoistDot + ' zLayer=' + zLayer);
 	covCanvas.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: ccx + 250, clientY: ccy + 250, buttons: 0 }));
 	await wait(30);
 	ok('broche recouverte : hissage RETIRÉ quand on s’éloigne',
 		!covLedCont.classList.contains('part--pin-reachable'), covLedCont.className);
+	ok('broche recouverte : rond de sélection retiré quand on s’éloigne',
+		!(hoistLayer?.querySelector('.pin-hoist-dot')), 'reste=' + !!(hoistLayer?.querySelector('.pin-hoist-dot')));
+
+	// --- Afficheur 7 seg : 2-points d'horloge (colon) sur le 4 chiffres --------
+	// (item v2026.7.145) : la propriété n'existe QUE pour le 4 chiffres ; active,
+	// elle masque les 4 DP et affiche 2 points centraux qui s'allument avec un dp.
+	for (const p of [...editor.diagram.parts]) editor.removePart?.(p.id);
+	await wait(30);
+	const seg = editor.addPart('7seg', 200, 200);
+	editor.select({ kind: 'part', id: seg.id });
+	editor.updatePartAttr(seg.id, 'digits', '4');
+	await wait(160);
+	editor.renderInspector();
+	await wait(30);
+	const segLabels = () => [...inspector.querySelectorAll('.inspector__label')].map((l) => l.textContent).join('|');
+	ok('7seg 4 chiffres : propriété « Colon » proposée dans l inspecteur',
+		/Colon|Deux[- ]?points|horloge/i.test(segLabels()), segLabels());
+	// Repasse à 1 chiffre : la propriété colon DISPARAÎT (showIf digits=4).
+	editor.updatePartAttr(seg.id, 'digits', '1');
+	await wait(160);
+	ok('7seg 1 chiffre : propriété « Colon » MASQUÉE (showIf digits=4)',
+		!/Colon|Deux[- ]?points|horloge/i.test(segLabels()), segLabels());
+	editor.updatePartAttr(seg.id, 'digits', '4');
+	await wait(160);
+	// Active le mode horloge + allume un dp (values[7] = dp du 1er chiffre).
+	editor.updatePartAttr(seg.id, 'colon', 'true');
+	const segEl = editor.rendered.get(seg.id).el;
+	segEl.values = [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+	await wait(120);
+	const root = segEl.renderRoot || segEl.shadowRoot;
+	const colonGroup = root.querySelector('#colon-4dig');
+	ok('7seg horloge : groupe des 2 points AFFICHÉ', colonGroup && getComputedStyle(colonGroup).display !== 'none',
+		colonGroup ? getComputedStyle(colonGroup).display : 'absent');
+	const dp1 = root.querySelector('#circle43'); // 1er DP
+	ok('7seg horloge : les DP sont MASQUÉS', dp1 && getComputedStyle(dp1).display === 'none',
+		dp1 ? getComputedStyle(dp1).display : 'absent');
+	const colonTop = root.querySelector('#colon-top');
+	const litColor = colonTop ? (colonTop.style.fill || '').toLowerCase() : '';
+	ok('7seg horloge : les 2 points ALLUMÉS quand un dp est piloté',
+		/red|#f|rgb/.test(litColor) && litColor !== '#444', 'fill=' + litColor);
+	// colon OFF → DP de nouveau visibles, colon caché.
+	editor.updatePartAttr(seg.id, 'colon', '');
+	await wait(120);
+	ok('7seg colon OFF : DP de nouveau visibles',
+		dp1 && getComputedStyle(dp1).display !== 'none', dp1 ? getComputedStyle(dp1).display : 'absent');
 
 	const out = document.createElement('pre');
 	out.id = 'measures';
