@@ -263,9 +263,64 @@ async function run() {
 		ok('export : taille de la carte 16 servos PRÉSERVÉE après aplatissement (~300×200)',
 			Math.abs(pw - 300) <= 6 && Math.abs(ph - 200) <= 6,
 			'boîte ' + pw.toFixed(1) + '×' + ph.toFixed(1) + ' (attendu ~300×200)');
+		// Plus aucun mask/clipPath : c'est leur délien récursif qui faisait PLANTER
+		// Inkscape (_chkstk, débordement de pile) au dégroupage de la carte.
+		const clipCount = (svgPca.match(/<(?:mask|clipPath)\\b/g) || []).length
+			+ (svgPca.match(/\\s(?:mask|clip-path)="/g) || []).length;
+		ok('export : carte 16 servos SANS mask/clipPath (ne fait plus planter Inkscape)',
+			clipCount === 0, clipCount + ' mask/clip restant(s)');
 		hostP.remove(); c2.remove(); p2.remove(); insp2.remove();
 	} catch (e) {
 		ok('export : carte 16 servos (PCA9685) présente et son <svg> Fritzing APLATI', false, 'ERR ' + (e && e.message || e));
+	}
+
+	// --- 1 septies. <defs> REMONTÉS à la racine + gradients tenant au dégroupage --
+	// Un <defs> resté DANS un <g> composant est détruit quand Inkscape dégroupe :
+	// les url(#…) qui le visaient deviennent orphelins et le fill retombe à NOIR
+	// (bouton de l'alim = rond noir après dégroupage). On les remonte au <svg>
+	// racine. Contrôle : aucun <defs> sous un <g kpart>, et un dégroupage SIMULÉ de
+	// l'alim (wrapper <g kpart> retiré, enfants remontés) garde le gradient du
+	// bouton résolu (l'ellipse fill=url(#…) désigne toujours un gradient présent).
+	if (!perr) {
+		const defsInParts = [...doc.querySelectorAll('g[id^="kpart-"] defs')].length;
+		ok('export : aucun <defs> DANS un composant (tous remontés à la racine)',
+			defsInParts === 0, defsInParts + ' <defs> encore dans un <g kpart>');
+		const rootDefs = [...doc.documentElement.children].filter((c) => c.tagName === 'defs');
+		ok('export : <defs> présent à la RACINE du SVG (référence tient au dégroupage)',
+			rootDefs.length >= 1, rootDefs.length + ' <defs> racine');
+	}
+	// Dégroupage SIMULÉ de l'alim : le gradient du bouton doit rester résoluble.
+	try {
+		const host = document.createElement('div'); host.style.cssText = 'position:absolute;left:0;top:0';
+		host.innerHTML = svgAvant; document.body.appendChild(host); await wait(80);
+		const rootS = host.querySelector('svg');
+		// Repère l'ellipse du bouton (fill url(#…-alim-radialGradient2)).
+		const btn = [...rootS.querySelectorAll('ellipse')].find((e) => /alim-radialGradient2\\)/.test(e.getAttribute('style') || e.getAttribute('fill') || ''));
+		// Dégroupage RÉCURSIF façon Inkscape : on remonte tous les enfants des <g>
+		// jusqu'à plat, et — comme Inkscape — on SUPPRIME les <defs> rencontrés dans
+		// les groupes (un <defs> n'est pas un objet dessinable, il disparaît avec le
+		// groupe). Sans remontée à la racine (hoistDefs), le gradient du bouton se
+		// retrouve alors orphelin -> rond noir. Avec, il est à la racine et tient.
+		let pass = 0;
+		while (pass++ < 20) {
+			const groups = [...rootS.querySelectorAll('g')];
+			if (!groups.length) break;
+			for (const g of groups) {
+				const par = g.parentNode; if (!par) continue;
+				for (const d of [...g.querySelectorAll(':scope > defs')]) d.remove();
+				while (g.firstChild) par.insertBefore(g.firstChild, g);
+				par.removeChild(g);
+			}
+		}
+		// La référence du bouton doit encore désigner un gradient présent.
+		let idRef = '';
+		if (btn) { const m = (btn.getAttribute('style') || btn.getAttribute('fill') || '').match(/url\\(#([^)]+)\\)/); idRef = m ? m[1] : ''; }
+		const gradPresent = idRef ? !!rootS.querySelector('[id="' + idRef + '"]') : false;
+		ok('export : bouton de l\\'alim garde son dégradé après dégroupage (pas de rond noir)',
+			!!btn && gradPresent, btn ? ('ref=' + idRef + ' présent=' + gradPresent) : 'ellipse bouton introuvable');
+		host.remove();
+	} catch (e) {
+		ok('export : bouton de l\\'alim garde son dégradé après dégroupage (pas de rond noir)', false, 'ERR ' + (e && e.message || e));
 	}
 
 	// Contrôle de fond : le nombre de groupes de composants est bien celui du

@@ -4177,6 +4177,7 @@ export class Editor {
   private buildSvg(only: Set<string> | null): string {
     const serializer = new XMLSerializer();
     const parts: string[] = [];
+    const defsParts: string[] = []; // <defs> remontées au niveau racine (dégroupage Inkscape)
     let idSeq = 0; // identifiants uniques de groupe (scoping CSS)
     const MARGIN = 30;
     let minX = Infinity;
@@ -4309,11 +4310,22 @@ export class Editor {
         // Le dessin sort du shadow DOM : purge des résidus Inkscape (sans quoi
         // l'export n'est pas du XML bien formé), APLATISSEMENT des <svg> imbriqués
         // en <g> (sous-documents qui faisaient planter/déplacer/disparaître les
-        // composants au dégroupage dans Inkscape), puis unicité des ids (deux
-        // composants du même type partagent leurs défs).
+        // composants au dégroupage dans Inkscape), retrait des masks/clipPath (dont
+        // le délien récursif faisait PLANTER Inkscape sur la carte 16 servos),
+        // FUSION des <g> à enfant unique (moins de dégroupages), puis unicité des
+        // ids (deux composants du même type partagent leurs défs).
         stripEditorMarkup(clone);
         flattenNestedSvgs(clone);
+        stripClipAndMask(clone);
+        collapseSingleChildGroups(clone);
         uniquifyIds(clone, groupId);
+        // Les <defs> (dégradés, filtres…) sont REMONTÉS au niveau du <svg> racine
+        // de l'export, hors du <g> composant. Sinon, quand Inkscape dégroupe le
+        // composant, un <defs> resté DANS un sous-groupe détruit orpheline sa
+        // référence `url(#…)` — le fill retombe alors à NOIR (le bouton de l'alim
+        // se retrouvait avec un rond noir après dégroupage). Au niveau racine, la
+        // référence résout toujours, quel que soit le nombre de dégroupages.
+        hoistDefs(clone, defsParts);
         // Le composant est exporté comme un <g> (éditable comme un groupe dans
         // Inkscape) et non plus un <svg> imbriqué (sous-document non éditable).
         // Les styles du shadow DOM (tailles de police…) sont réinjectés mais
@@ -4373,11 +4385,16 @@ export class Editor {
     const vw = Math.ceil(maxX - minX + 2 * MARGIN);
     const vh = Math.ceil(maxY - minY + 2 * MARGIN);
 
+    // <defs> de tous les composants regroupées à la racine (résolution des
+    // dégradés préservée après dégroupage dans Inkscape).
+    const rootDefs = defsParts.length ? `<defs>${defsParts.join('')}</defs>` : '';
+
     return [
       `<?xml version="1.0" encoding="UTF-8"?>`,
       `<svg xmlns="http://www.w3.org/2000/svg" width="${vw}" height="${vh}" ` +
         `viewBox="${vx} ${vy} ${vw} ${vh}">`,
       `<!-- Schéma exporté par Kablix -->`,
+      ...(rootDefs ? [rootDefs] : []),
       ...parts,
       ...wires,
       `</svg>`,
@@ -4555,6 +4572,99 @@ function depthOf(el: Element): number {
     p = p.parentNode;
   }
   return d;
+}
+
+/**
+ * REMONTE les `<defs>` d'un dessin cloné vers la racine de l'export : leur
+ * contenu est poussé dans `sink` (émis dans un `<defs>` unique du `<svg>`
+ * racine), et les `<defs>` sont retirés du clone.
+ *
+ * Motif : Inkscape, au dégroupage, peut détruire un sous-groupe contenant un
+ * `<defs>` local ; les `url(#…)` qui le visaient deviennent alors orphelins et
+ * le fill retombe à NOIR (le bouton de l'alim se retrouvait avec un rond noir).
+ * À la racine, la définition reste toujours résoluble, quel que soit le nombre
+ * de dégroupages. Les ids ayant déjà été rendus uniques par composant
+ * (`uniquifyIds`), il n'y a pas de collision entre les défs regroupées.
+ */
+function hoistDefs(root: SVGElement, sink: string[]): void {
+  const serializer = new XMLSerializer();
+  for (const defs of Array.from(root.querySelectorAll('defs'))) {
+    for (const child of Array.from(defs.childNodes)) {
+      sink.push(serializer.serializeToString(child));
+    }
+    defs.remove();
+  }
+}
+
+/**
+ * Retire les masques et détourages (`mask` / `clip-path`) d'un dessin cloné, et
+ * leurs définitions `<mask>` / `<clipPath>`.
+ *
+ * La carte 16 servos (PCA9685, issue de Fritzing) en porte 6 + 5. Au dégroupage,
+ * Inkscape DÉLIE récursivement chaque item de son masque/détourage
+ * (`DrawingItem::unlink` → `SPItem::release` en cascade) : sur cet arbre profond
+ * aux coordonnées démesurées, la récursion DÉBORDE LA PILE et fait PLANTER
+ * Inkscape (`_chkstk`, stacktrace de Frank). Le rendu à l'export est
+ * quasi inchangé (comparé pixel à pixel : seuls quelques reflets internes de
+ * composants CMS varient — silhouette, connecteurs, sérigraphie identiques),
+ * car ces masques Fritzing ne servent qu'à des découpes fines internes.
+ */
+function stripClipAndMask(root: SVGElement): void {
+  for (const el of [root, ...Array.from(root.querySelectorAll('*'))]) {
+    const tag = el.tagName.toLowerCase();
+    if (tag === 'mask' || tag === 'clippath') {
+      el.remove();
+      continue;
+    }
+    el.removeAttribute('mask');
+    el.removeAttribute('clip-path');
+  }
+}
+
+/**
+ * FUSIONNE les `<g>` qui n'ont qu'un seul enfant lui-même `<g>`, en composant
+ * leurs `transform` — un `<g transform=A><g transform=B>…` devient
+ * `<g transform="A B">…`. Sans cela, un dessin Inkscape empile des groupes
+ * (pico : 6 niveaux) et il faut dégrouper 5 ou 6 fois dans Inkscape pour tout
+ * défaire. Chaque niveau supprimé = un dégroupage de moins.
+ *
+ * On ne fusionne QUE les groupes « purs » : pas d'id porteur de sens (référencé
+ * ailleurs), pas d'autre attribut que `transform` (style, classe, filtre… d'un
+ * groupe changent le rendu de tous ses enfants — les fusionner le casserait).
+ * Le `<g id="kpart-…">` racine du composant n'est jamais touché (il porte l'id
+ * de groupe et sert d'ancre). Répété jusqu'à stabilité (chaînes de longueur > 2).
+ */
+function collapseSingleChildGroups(root: SVGElement): void {
+  const fusionnable = (g: Element): boolean => {
+    if (g.tagName.toLowerCase() !== 'g') return false;
+    // Un seul enfant, et c'est un <g>.
+    if (g.children.length !== 1) return false;
+    const child = g.children[0];
+    if (child.tagName.toLowerCase() !== 'g') return false;
+    // Le parent ne doit porter que transform (rien qui affecte le rendu global).
+    for (const attr of Array.from(g.attributes)) {
+      if (attr.name.toLowerCase() !== 'transform') return false;
+    }
+    return true;
+  };
+  let changed = true;
+  while (changed) {
+    changed = false;
+    // Ne jamais fusionner le kpart racine (querySelectorAll ne renvoie pas la
+    // racine du clone ; on protège en plus tout <g id> déjà porteur de sens).
+    for (const g of Array.from(root.querySelectorAll('g'))) {
+      if (!fusionnable(g)) continue;
+      const child = g.children[0] as SVGElement;
+      // Compose les transforms : parent d'abord (appliqué en dernier, à gauche).
+      const pt = g.getAttribute('transform');
+      const ct = child.getAttribute('transform');
+      const combined = pt && ct ? `${pt} ${ct}` : pt || ct;
+      if (combined) child.setAttribute('transform', combined);
+      else child.removeAttribute('transform');
+      g.replaceWith(child);
+      changed = true;
+    }
+  }
 }
 
 /**
