@@ -4319,6 +4319,12 @@ export class Editor {
         stripClipAndMask(clone);
         collapseSingleChildGroups(clone);
         uniquifyIds(clone, groupId);
+        // Chaînes de dégradés RÉSOLUES : un <radialGradient xlink:href="#…linear…">
+        // hérite ses stops d'un autre gradient (pattern Inkscape/Fritzing). Au
+        // dégroupage, Inkscape CASSE souvent ces liens `href` → gradient sans stops
+        // → rendu NOIR (le rond noir du bouton de l'alim). On copie les stops
+        // hérités DANS chaque gradient : chacun devient autonome, plus de chaîne.
+        inlineGradientHrefs(clone);
         // Les <defs> (dégradés, filtres…) sont REMONTÉS au niveau du <svg> racine
         // de l'export, hors du <g> composant. Sinon, quand Inkscape dégroupe le
         // composant, un <defs> resté DANS un sous-groupe détruit orpheline sa
@@ -4586,6 +4592,54 @@ function depthOf(el: Element): number {
  * de dégroupages. Les ids ayant déjà été rendus uniques par composant
  * (`uniquifyIds`), il n'y a pas de collision entre les défs regroupées.
  */
+/**
+ * RÉSOUT les chaînes de dégradés (`xlink:href` / `href` entre gradients) en
+ * copiant les `<stop>` hérités dans chaque gradient qui n'en a pas.
+ *
+ * Motif Inkscape/Fritzing : un `<radialGradient>` porte la géométrie (cx/cy/r,
+ * gradientTransform) et hérite ses couleurs d'un `<linearGradient>` via
+ * `xlink:href`, sans `<stop>` propre. Au dégroupage, Inkscape CASSE souvent ces
+ * liens — le gradient se retrouve sans stops et son rendu tombe à NOIR (le rond
+ * noir sur le bouton de l'alim, `circle3` selon Inkscape). En inlinant les
+ * stops, chaque gradient devient autonome : plus de lien fragile à casser. La
+ * référence `href` est ensuite retirée (les stops sont désormais locaux).
+ * Résolution récursive (une chaîne peut avoir plusieurs maillons).
+ */
+function inlineGradientHrefs(root: SVGElement): void {
+  const byId = new Map<string, Element>();
+  for (const g of Array.from(root.querySelectorAll('linearGradient, radialGradient'))) {
+    const id = g.getAttribute('id');
+    if (id) byId.set(id, g);
+  }
+  const hrefOf = (el: Element): string | null => {
+    const h = el.getAttribute('href') || el.getAttribute('xlink:href');
+    return h && h.startsWith('#') ? h.slice(1) : null;
+  };
+  // Stops effectifs d'un gradient : les siens, sinon ceux de son parent href
+  // (récursif). `seen` coupe un éventuel cycle.
+  const stopsOf = (el: Element, seen: Set<Element>): Element[] => {
+    const own = Array.from(el.children).filter((c) => c.tagName.toLowerCase() === 'stop');
+    if (own.length) return own;
+    const pid = hrefOf(el);
+    const parent = pid ? byId.get(pid) : null;
+    if (!parent || seen.has(parent)) return [];
+    seen.add(parent);
+    return stopsOf(parent, seen);
+  };
+  for (const g of byId.values()) {
+    const own = Array.from(g.children).filter((c) => c.tagName.toLowerCase() === 'stop');
+    if (own.length) continue; // a déjà ses stops
+    const stops = stopsOf(g, new Set([g]));
+    for (const s of stops) g.appendChild(s.cloneNode(true));
+    // Le lien n'est plus nécessaire : on le retire pour qu'aucun dégroupage ne
+    // puisse le rompre (les stops sont maintenant locaux).
+    if (stops.length) {
+      g.removeAttribute('href');
+      g.removeAttribute('xlink:href');
+    }
+  }
+}
+
 function hoistDefs(root: SVGElement, sink: string[]): void {
   const serializer = new XMLSerializer();
   for (const defs of Array.from(root.querySelectorAll('defs'))) {

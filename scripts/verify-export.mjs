@@ -241,6 +241,11 @@ async function run() {
 		ok('export : carte 16 servos (PCA9685) présente et son <svg> Fritzing APLATI',
 			!perr2 && /<g id="kpart-0"/.test(svgPca) && nestedPca === 0,
 			'XML ' + (perr2 ? 'INVALIDE' : 'ok') + ', imbriqués=' + nestedPca + ', rendu large=' + pcaW.toFixed(0) + 'px');
+		// Couche cuivre parasite retirée à la SOURCE : le <use ...top_copper> était
+		// masqué par mask1094 ; masks retirés à l'export (anti-crash), il réapparaissait
+		// (Frank : « un texte de licence apparait sur use850 »). Retiré du .svg source.
+		ok('export : carte 16 servos SANS couche cuivre parasite (top_copper/use850 retirés de la source)',
+			!/top_copper|use850/.test(svgPca), 'ref cuivre restante');
 		// Taille d'affichage préservée : le <g> aplati doit rendre le dessin à ~300×200
 		// monde, pas à son viewBox Fritzing (79375×52916) ni effondré.
 		const hostP = document.createElement('div'); hostP.style.cssText = 'position:absolute;left:0;top:0';
@@ -312,12 +317,19 @@ async function run() {
 				par.removeChild(g);
 			}
 		}
-		// La référence du bouton doit encore désigner un gradient présent.
+		// La référence du bouton doit encore désigner un gradient présent ET qui a
+		// ses STOPS. Le vrai bug du rond noir : le radialGradient hérite ses stops
+		// d'un autre via xlink:href, Inkscape casse le lien au dégroupage → gradient
+		// sans stops → NOIR. inlineGradientHrefs copie les stops dans le gradient
+		// (autonome). On vérifie donc les stops, pas juste la présence.
 		let idRef = '';
 		if (btn) { const m = (btn.getAttribute('style') || btn.getAttribute('fill') || '').match(/url\\(#([^)]+)\\)/); idRef = m ? m[1] : ''; }
-		const gradPresent = idRef ? !!rootS.querySelector('[id="' + idRef + '"]') : false;
-		ok('export : bouton de l\\'alim garde son dégradé après dégroupage (pas de rond noir)',
-			!!btn && gradPresent, btn ? ('ref=' + idRef + ' présent=' + gradPresent) : 'ellipse bouton introuvable');
+		const grad = idRef ? rootS.querySelector('[id="' + idRef + '"]') : null;
+		const stopCount = grad ? grad.querySelectorAll('stop').length : 0;
+		const hasHref = grad ? (grad.hasAttribute('href') || grad.hasAttribute('xlink:href')) : true;
+		ok('export : bouton de l\\'alim garde son dégradé (STOPS inlinés) après dégroupage — pas de rond noir',
+			!!btn && stopCount > 0 && !hasHref,
+			btn ? ('ref=' + idRef + ' stops=' + stopCount + ' href=' + hasHref) : 'ellipse bouton introuvable');
 		host.remove();
 	} catch (e) {
 		ok('export : bouton de l\\'alim garde son dégradé après dégroupage (pas de rond noir)', false, 'ERR ' + (e && e.message || e));
