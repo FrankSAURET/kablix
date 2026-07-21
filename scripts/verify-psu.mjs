@@ -174,10 +174,9 @@ async function run() {
 	res.size = [Math.round(box.width), Math.round(box.height)];
 	res.pins = el.pinInfo.map((p) => p.name + '@' + p.x + ',' + p.y).join(' ');
 	res.display = (sh.querySelector('#alim-Text-Affichage tspan') || sh.querySelector('#alim-Text-Affichage')).textContent;
-	// La rotation est portée par le groupe alim-bouton-rot RECRÉÉ au render
-	// (enveloppe bouton + curseur ; le dessin de Frank n'a plus ce groupe, il est
-	// reconstruit pour ne pas écraser le matrix de placement de l'ellipse).
-	res.rot125 = (sh.querySelector('#alim-bouton-rot') || sh.querySelector('#alim-bouton'))?.style.transform;
+	// Le dessin retouché de Frank n'a plus de groupe alim-bouton-rot : le bouton
+	// (alim-bouton) porte lui-même la rotation. Repli sur l'ancien id par sécurité.
+	res.rot125 = (sh.querySelector('#alim-bouton') || sh.querySelector('#alim-bouton-rot'))?.style.transform;
 	// Libellés traduisibles (défaut anglais dans ce banc).
 	res.labelTension = sh.querySelector('#alim-text-tension tspan').textContent;
 	res.labelLimite = [...sh.querySelectorAll('#alim-text-courant-limite tspan')].map((n) => n.textContent).join('/');

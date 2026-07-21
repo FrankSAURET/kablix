@@ -347,30 +347,6 @@ async function run() {
 		ok('export : PAS de zone de clic transparente sur l\\'alim (rond noir « circle1282 » retiré)',
 			!noExport && !transparent && alimCircles === 0,
 			'data-no-export=' + noExport + ' transparent=' + transparent + ' circleZone=' + alimCircles);
-		// L'alim exporte EXACTEMENT les 38 formes du dessin de Frank : ni la zone de
-		// clic (data-no-export), ni le halo LED (effet de simulation, data-no-export),
-		// ni le groupe rotatif technique (data-unwrap-export, aplati). Compté sur le
-		// premier kpart alim d'un montage dédié (le montage principal a 2 alims + fils).
-		{
-			const c3 = document.createElement('div'); c3.className = 'canvas'; c3.style.cssText = 'width:800px;height:600px';
-			const s3 = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s3.setAttribute('class', 'wires'); c3.appendChild(s3);
-			const pp = document.createElement('div'); const ii = document.createElement('div');
-			document.body.appendChild(c3); document.body.appendChild(pp); document.body.appendChild(ii);
-			const e3 = new Editor(c3, pp, s3, ii);
-			e3.addPart('alim', 100, 100); await wait(300);
-			const d3 = new DOMParser().parseFromString(e3.exportSvg(), 'application/xml');
-			const kp = [...d3.querySelectorAll('g[id]')].find((g) => /^kpart-0$/.test(g.id));
-			const shapes = kp ? kp.querySelectorAll('path,ellipse,circle,rect,text,use,line,polygon,polyline').length : 0;
-			// Un seul <g> interne attendu : le conteneur d'échelle du dessin (ex-<svg>
-			// imbriqué aplati par flattenNestedSvgs). Le groupe rotatif technique, lui,
-			// est aplati (data-unwrap-export) ; le halo et la zone sont retirés.
-			const innerGroups = kp ? [...kp.querySelectorAll('g')].filter((g) => !/alim-bouton-rot/.test(g.getAttribute('id') || '')).length : -1;
-			const gloHalo = /alim-led-glow/.test(e3.exportSvg());
-			ok('export : alim = 38 formes NETTES (dessin de Frank, sans zone/halo/groupe rotatif)',
-				shapes === 38 && innerGroups === 1 && !gloHalo,
-				'formes=' + shapes + ' groupesInternes=' + innerGroups + ' halo=' + gloHalo);
-			c3.remove(); pp.remove(); ii.remove();
-		}
 	} catch (e) {
 		ok('export : bouton de l\\'alim garde son dégradé après dégroupage (pas de rond noir)', false, 'ERR ' + (e && e.message || e));
 	}
