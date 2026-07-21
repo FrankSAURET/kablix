@@ -153,6 +153,29 @@ export class AlimElement extends HTMLElement {
       }
     }
 
+    // Groupe rotatif du bouton, RECRÉÉ à l'affichage. Le dessin retouché de Frank
+    // n'a plus le groupe `alim-bouton-rot` : le bouton (`alim-bouton`) et son
+    // curseur (`alim-curseur-bouton`) sont deux éléments FRÈRES, chacun avec son
+    // propre `transform="matrix(…)"`. On ne peut pas les tourner en posant un
+    // `style.transform` directement dessus : le transform CSS ÉCRASE l'attribut
+    // `transform` de l'ellipse (son matrix de placement) — le bouton partait hors
+    // vue et disparaissait. On les enveloppe donc dans un `<g>` qui, LUI, porte la
+    // rotation (leurs matrix restent intacts). Le groupe n'est pas une forme du
+    // dessin (les 38 objets de Frank sont préservés).
+    const btn = this.root.querySelector('#alim-bouton');
+    const cur = this.root.querySelector('#alim-curseur-bouton');
+    if (btn && btn.parentNode) {
+      const g = document.createElementNS(SVG_NS, 'g');
+      g.id = 'alim-bouton-rot';
+      // `data-unwrap-export` : ce groupe n'existe que pour porter la rotation en
+      // simulation ; à l'export il est APLATI (ses enfants remontent), pour ne
+      // pas ajouter d'objet-groupe au dessin (Frank compte 38 objets nets).
+      g.setAttribute('data-unwrap-export', '');
+      btn.parentNode.insertBefore(g, btn);
+      g.appendChild(btn);
+      if (cur) g.appendChild(cur);
+    }
+
     const led = this.root.querySelector('#alim-LED-courant-limite');
     this.ledOriginalFill = led?.getAttribute('style') ?? null;
     this.prepareLed();
@@ -197,6 +220,9 @@ export class AlimElement extends HTMLElement {
     const glow = document.createElementNS(SVG_NS, 'g');
     glow.id = 'alim-led-glow';
     glow.style.display = 'none';
+    // Halo = effet de simulation (LED en surcourant), pas une forme du dessin :
+    // exclu de l'export (Frank veut ses 38 objets, sans les 2 ellipses du halo).
+    glow.setAttribute('data-no-export', '');
     for (const [scale, opacity] of [[4.2, 0.35], [2.4, 0.55]]) {
       const e = document.createElementNS(SVG_NS, 'ellipse');
       e.setAttribute('cx', String(cx));
@@ -251,17 +277,12 @@ export class AlimElement extends HTMLElement {
   // --- Rendus dérivés de la tension courante -----------------------------------
   private updateVisuals(): void {
     // Rotation du bouton : dessin à 0 V, +10°/V en horaire autour de son centre.
-    // Le dessin retouché de Frank n'a plus de groupe `alim-bouton-rot` : le
-    // bouton (`alim-bouton`) et son curseur (`alim-curseur-bouton`) sont deux
-    // éléments frères. On tourne les DEUX autour du même centre, sans recréer de
-    // groupe (le dessin reste tel que Frank l'a nommé, aucun objet ajouté).
-    const deg = (this.volts / VOLTS_MAX) * DIAL_SPAN_DEG;
-    for (const sel of ['#alim-bouton', '#alim-curseur-bouton', '#alim-bouton-rot']) {
-      const rot = this.root.querySelector(sel) as SVGElement | null;
-      if (rot) {
-        rot.style.transformOrigin = KNOB_LOCAL;
-        rot.style.transform = `rotate(${deg}deg)`;
-      }
+    // Le groupe `alim-bouton-rot` (recréé au render) enveloppe bouton + curseur ;
+    // la rotation CSS s'y applique sans toucher aux matrix de placement des deux.
+    const rot = this.root.querySelector('#alim-bouton-rot') as SVGElement | null;
+    if (rot) {
+      rot.style.transformOrigin = KNOB_LOCAL;
+      rot.style.transform = `rotate(${(this.volts / VOLTS_MAX) * DIAL_SPAN_DEG}deg)`;
     }
     // Écran : tension courante, virgule décimale (police LED Board-7 du dessin).
     const text = this.root.querySelector('#alim-Text-Affichage tspan') ?? this.root.querySelector('#alim-Text-Affichage');

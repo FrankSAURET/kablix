@@ -4487,6 +4487,29 @@ function stripEditorMarkup(root: SVGElement): void {
   // bouton de l'alim (`fill="transparent"`, rendue NOIRE par Inkscape) donnait
   // un rond noir sur le bouton (« circle1282 »).
   for (const el of Array.from(root.querySelectorAll('[data-no-export]'))) el.remove();
+  // Groupes d'interaction (rotation du bouton de l'alim en simulation) : APLATIS.
+  // Leur rotation CSS (`style.transform: rotate(deg)` autour de `transform-origin`)
+  // est bakée en attribut `transform` SVG sur chaque enfant, puis les enfants
+  // remontent et le `<g>` disparaît — le dessin garde ses objets nets, sans
+  // groupe technique surnuméraire.
+  for (const g of Array.from(root.querySelectorAll('[data-unwrap-export]'))) {
+    const parent = g.parentNode;
+    if (!parent) continue;
+    const st = (g as SVGElement).style;
+    const rotM = /rotate\(\s*(-?[\d.]+)deg\s*\)/.exec(st.transform || '');
+    const deg = rotM ? parseFloat(rotM[1]) : 0;
+    const origin = (st.transformOrigin || '').trim().split(/\s+/).map((v) => parseFloat(v));
+    const [ox, oy] = origin.length >= 2 ? origin : [0, 0];
+    const rot = deg ? `rotate(${deg} ${ox || 0} ${oy || 0})` : '';
+    for (const child of Array.from(g.children)) {
+      if (rot) {
+        const prev = child.getAttribute('transform');
+        child.setAttribute('transform', prev ? `${rot} ${prev}` : rot);
+      }
+      parent.insertBefore(child, g);
+    }
+    g.remove();
+  }
   for (const el of Array.from(root.querySelectorAll('*'))) {
     const tag = el.tagName.toLowerCase();
     if (tag.startsWith('sodipodi:') || tag.startsWith('inkscape:')) el.remove();
