@@ -299,8 +299,9 @@ async function run() {
 		const host = document.createElement('div'); host.style.cssText = 'position:absolute;left:0;top:0';
 		host.innerHTML = svgAvant; document.body.appendChild(host); await wait(80);
 		const rootS = host.querySelector('svg');
-		// Repère l'ellipse du bouton (fill url(#…-alim-radialGradient2)).
-		const btn = [...rootS.querySelectorAll('ellipse')].find((e) => /alim-radialGradient2\\)/.test(e.getAttribute('style') || e.getAttribute('fill') || ''));
+		// Repère l'ellipse du bouton par son id (…-alim-bouton, dessin retouché par
+		// Frank ; anciennement alim-path1). Son fill référence radialGradient2.
+		const btn = [...rootS.querySelectorAll('ellipse')].find((e) => /alim-bouton$/.test(e.getAttribute('id') || ''));
 		// Dégroupage RÉCURSIF façon Inkscape : on remonte tous les enfants des <g>
 		// jusqu'à plat, et — comme Inkscape — on SUPPRIME les <defs> rencontrés dans
 		// les groupes (un <defs> n'est pas un objet dessinable, il disparaît avec le
@@ -322,15 +323,30 @@ async function run() {
 		// d'un autre via xlink:href, Inkscape casse le lien au dégroupage → gradient
 		// sans stops → NOIR. inlineGradientHrefs copie les stops dans le gradient
 		// (autonome). On vérifie donc les stops, pas juste la présence.
+		// Le navigateur normalise url(#x) en url("#x") : le regex tolère les
+		// guillemets, sinon idRef inclut le " et la recherche par id échoue.
 		let idRef = '';
-		if (btn) { const m = (btn.getAttribute('style') || btn.getAttribute('fill') || '').match(/url\\(#([^)]+)\\)/); idRef = m ? m[1] : ''; }
+		if (btn) { const m = (btn.getAttribute('style') || btn.getAttribute('fill') || '').match(new RegExp('url\\\\([\\'"]?#([^)\\'"]+)[\\'"]?\\\\)')); idRef = m ? m[1] : ''; }
 		const grad = idRef ? rootS.querySelector('[id="' + idRef + '"]') : null;
 		const stopCount = grad ? grad.querySelectorAll('stop').length : 0;
 		const hasHref = grad ? (grad.hasAttribute('href') || grad.hasAttribute('xlink:href')) : true;
+		const ellDiag = [...rootS.querySelectorAll('ellipse')].map((e) => (e.getAttribute('id') || '?')).slice(0, 12).join(',');
 		ok('export : bouton de l\\'alim garde son dégradé (STOPS inlinés) après dégroupage — pas de rond noir',
 			!!btn && stopCount > 0 && !hasHref,
-			btn ? ('ref=' + idRef + ' stops=' + stopCount + ' href=' + hasHref) : 'ellipse bouton introuvable');
+			btn ? ('ref=' + idRef + ' stops=' + stopCount + ' href=' + hasHref) : ('ellipse bouton introuvable ; ellipses=[' + ellDiag + ']'));
 		host.remove();
+		// La ZONE DE CLIC transparente (r=26, fill=transparent) ajoutée par le
+		// composant pour tourner le bouton ne doit PAS sortir : Inkscape rend un
+		// fill transparent en NOIR, d'où un rond noir plein (le circle1282 de
+		// Frank). Marquée data-no-export, retirée à l'export : ni cercle, ni fill
+		// transparent, ni attribut data-no-export résiduel.
+		const noExport = /data-no-export/.test(svgAvant);
+		const transparent = /fill="transparent"|fill:\\s*transparent/.test(svgAvant);
+		const alimCircles = [...doc.querySelectorAll('g[id^="kpart-"] circle')]
+			.filter((c) => /alim/.test(c.getAttribute('id') || '') || (c.getAttribute('r') === '26')).length;
+		ok('export : PAS de zone de clic transparente sur l\\'alim (rond noir « circle1282 » retiré)',
+			!noExport && !transparent && alimCircles === 0,
+			'data-no-export=' + noExport + ' transparent=' + transparent + ' circleZone=' + alimCircles);
 	} catch (e) {
 		ok('export : bouton de l\\'alim garde son dégradé après dégroupage (pas de rond noir)', false, 'ERR ' + (e && e.message || e));
 	}

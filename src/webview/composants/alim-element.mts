@@ -112,11 +112,16 @@ export class AlimElement extends HTMLElement {
     }
 
     // Zone circulaire du bouton de tension (active en simulation seulement).
+    // `data-no-export` : ce cercle ne sert qu'au clic en simulation, il ne fait
+    // PAS partie du dessin. Sans ce marqueur il sortait dans le SVG exporté et,
+    // son `fill="transparent"` étant rendu NOIR par Inkscape, apparaissait comme
+    // un rond noir sur le bouton (le « circle1282 » signalé par Frank).
     const zone = document.createElementNS(SVG_NS, 'circle');
     zone.setAttribute('cx', String(KNOB_CX));
     zone.setAttribute('cy', String(KNOB_CY));
     zone.setAttribute('r', '26');
     zone.setAttribute('fill', 'transparent');
+    zone.setAttribute('data-no-export', '');
     zone.style.cursor = 'grab';
     zone.addEventListener('pointerdown', this.onPointerDown);
     svg.appendChild(zone);
@@ -246,10 +251,17 @@ export class AlimElement extends HTMLElement {
   // --- Rendus dérivés de la tension courante -----------------------------------
   private updateVisuals(): void {
     // Rotation du bouton : dessin à 0 V, +10°/V en horaire autour de son centre.
-    const rot = this.root.querySelector('#alim-bouton-rot') as SVGElement | null;
-    if (rot) {
-      rot.style.transformOrigin = KNOB_LOCAL;
-      rot.style.transform = `rotate(${(this.volts / VOLTS_MAX) * DIAL_SPAN_DEG}deg)`;
+    // Le dessin retouché de Frank n'a plus de groupe `alim-bouton-rot` : le
+    // bouton (`alim-bouton`) et son curseur (`alim-curseur-bouton`) sont deux
+    // éléments frères. On tourne les DEUX autour du même centre, sans recréer de
+    // groupe (le dessin reste tel que Frank l'a nommé, aucun objet ajouté).
+    const deg = (this.volts / VOLTS_MAX) * DIAL_SPAN_DEG;
+    for (const sel of ['#alim-bouton', '#alim-curseur-bouton', '#alim-bouton-rot']) {
+      const rot = this.root.querySelector(sel) as SVGElement | null;
+      if (rot) {
+        rot.style.transformOrigin = KNOB_LOCAL;
+        rot.style.transform = `rotate(${deg}deg)`;
+      }
     }
     // Écran : tension courante, virgule décimale (police LED Board-7 du dessin).
     const text = this.root.querySelector('#alim-Text-Affichage tspan') ?? this.root.querySelector('#alim-Text-Affichage');

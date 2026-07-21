@@ -4481,6 +4481,12 @@ function pinDisplayName(
  * type on path is not defined ».
  */
 function stripEditorMarkup(root: SVGElement): void {
+  // Éléments d'INTERACTION seulement (zones de clic transparentes ajoutées par
+  // les composants pour la simulation) : marqués `data-no-export`, ils ne font
+  // pas partie du dessin et sortiraient sinon dans le SVG — la zone de clic du
+  // bouton de l'alim (`fill="transparent"`, rendue NOIRE par Inkscape) donnait
+  // un rond noir sur le bouton (« circle1282 »).
+  for (const el of Array.from(root.querySelectorAll('[data-no-export]'))) el.remove();
   for (const el of Array.from(root.querySelectorAll('*'))) {
     const tag = el.tagName.toLowerCase();
     if (tag.startsWith('sodipodi:') || tag.startsWith('inkscape:')) el.remove();
@@ -4740,8 +4746,12 @@ function uniquifyIds(root: SVGElement, prefix: string): void {
     }
   }
   if (!map.size) return;
+  // Les guillemets sont tolérés : quand un composant a touché `element.style`
+  // (rotation du bouton de l'alim en simulation), le navigateur re-sérialise les
+  // références en `url("#id")`. Sans les accepter, la référence n'était PAS
+  // préfixée et pointait vers un id inexistant après export → dégradé perdu.
   const remap = (v: string): string =>
-    v.replace(/url\(\s*#([^)\s]+)\s*\)/g, (m, id) => (map.has(id) ? `url(#${map.get(id)})` : m));
+    v.replace(/url\(\s*['"]?#([^)'"\s]+)['"]?\s*\)/g, (m, id) => (map.has(id) ? `url(#${map.get(id)})` : m));
   for (const el of [root, ...Array.from(root.querySelectorAll('*'))]) {
     for (const attr of Array.from(el.attributes)) {
       const n = attr.name.toLowerCase();
