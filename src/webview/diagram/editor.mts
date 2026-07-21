@@ -297,6 +297,10 @@ export class Editor {
       },
       true
     );
+    // Broche recouverte par un voisin : quand le curseur en approche une, on
+    // hisse SON composant au-dessus des corps qui la masquent (cf. onPointerHover),
+    // pour qu'elle reste survolable et cliquable.
+    this.canvas.addEventListener('pointermove', this.onPointerHover);
     // Zoom à la molette, centré sur le curseur.
     this.canvas.addEventListener('wheel', this.onWheel, { passive: false });
     // (Le glisser-déposer HTML5 depuis la palette a été retiré en v2026.7.136 :
@@ -436,6 +440,47 @@ export class Editor {
     this.panY = cy - wy * z;
     this.zoom = z;
     this.applyTransform();
+  };
+
+  /**
+   * Broche recouverte par un composant voisin : le corps d'un composant (surtout
+   * ceux à gros viewBox ou à fond plein) capte le clic sur tout son rectangle et
+   * masque les broches d'un autre placé dessous — impossible de les câbler. Au
+   * survol, on repère la broche la plus proche du curseur et on hisse SON
+   * composant (`.part--pin-reachable`, z=40) au-dessus des corps qui la masquent :
+   * la broche redevient survolable et cliquable. Le hissage suit le curseur et
+   * disparaît dès qu'on s'en éloigne. Sans effet pendant un drag/pan ou en
+   * simulation (broches inertes).
+   */
+  private pinReachablePart: string | null = null;
+  private onPointerHover = (e: PointerEvent): void => {
+    // Inerte en simulation, pendant un câblage, ou quand un bouton est enfoncé
+    // (déplacement/pan/marquee en cours) : le hissage ne doit pas perturber un geste.
+    if (this.locked || this.pending || e.buttons !== 0) return;
+    // Broche la plus proche du curseur, dans un petit rayon (en pixels écran).
+    const R = 9; // ~ rayon d'une pastille, généreux pour la viser
+    let bestPart: string | null = null;
+    let bestD = R * R;
+    for (const [id, r] of this.rendered) {
+      for (const dot of r.hotspots.values()) {
+        const b = dot.getBoundingClientRect();
+        const dx = e.clientX - (b.left + b.width / 2);
+        const dy = e.clientY - (b.top + b.height / 2);
+        const d = dx * dx + dy * dy;
+        if (d < bestD) {
+          bestD = d;
+          bestPart = id;
+        }
+      }
+    }
+    if (bestPart === this.pinReachablePart) return;
+    if (this.pinReachablePart) {
+      this.rendered.get(this.pinReachablePart)?.container.classList.remove('part--pin-reachable');
+    }
+    this.pinReachablePart = bestPart;
+    if (bestPart) {
+      this.rendered.get(bestPart)?.container.classList.add('part--pin-reachable');
+    }
   };
 
   /**
@@ -1527,6 +1572,7 @@ export class Editor {
     container.appendChild(body);
     this.world.appendChild(container);
     this.applyRotation(part, body);
+    this.makeDrawingHitPainted(el);
 
     // Déplacement : par tout le corps (clic gauche ou droit), sauf pour les
     // composants interactifs (bouton, potentiomètre) dont le clic gauche
@@ -1621,6 +1667,33 @@ export class Editor {
 
   /** Crée une pastille de broche (point de connexion cliquable). `anchor` = 1re
    *  broche brute du composant (repère pour caler l'espacement sur la grille). */
+  /**
+   * Le corps (`.part__body`) est `pointer-events: none` (cf. styles.css) : sa
+   * zone rectangulaire vide — le letterbox du viewBox — ne doit pas recouvrir les
+   * broches d'un composant voisin. Le DESSIN reste néanmoins déplaçable là où il
+   * est peint : on remet son `<svg>` (dans le shadow DOM du fork Lit, hors de
+   * portée du CSS global) en `visiblePainted`, qui laisse passer les clics sur le
+   * vide interne mais capte les traits. Le clic sur un trait remonte au listener de
+   * glissement posé sur le corps. Appelé après le rendu Lit (updateComplete).
+   */
+  private makeDrawingHitPainted(el: WokwiElement): void {
+    // Le HOST (élément HTML kablix-*) capterait tout son rectangle, letterbox
+    // compris : on le neutralise et on rend son <svg> interne captant sur ses
+    // seuls traits peints.
+    (el as unknown as HTMLElement).style.pointerEvents = 'none';
+    const apply = () => {
+      const root = (el as unknown as { shadowRoot?: ShadowRoot }).shadowRoot ?? el;
+      for (const svg of root.querySelectorAll('svg')) {
+        (svg as SVGSVGElement).style.pointerEvents = 'visiblePainted';
+      }
+    };
+    const uc = (el as unknown as { updateComplete?: Promise<unknown> }).updateComplete;
+    if (uc && typeof uc.then === 'function') void uc.then(apply);
+    else apply();
+    // Filet de sécurité : certains forks publient leur SVG un cycle plus tard.
+    requestAnimationFrame(apply);
+  }
+
   private makeHotspot(
     partId: string,
     type: string,

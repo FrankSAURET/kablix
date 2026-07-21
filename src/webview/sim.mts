@@ -1872,8 +1872,33 @@ function stopRun(): void {
   setStatus(t('Stopped'));
 }
 
+// Modifications non enregistrées : vrai dès la première édition utilisateur,
+// remis à faux après un enregistrement réussi ou le chargement d'un projet.
+// Un chargement programmatique (loadProject/importWokwi) déclenche aussi
+// onChange : `loadingProject` le neutralise le temps du chargement.
+let projectDirty = false;
+let loadingProject = false;
+let currentProjectName: string | null = null;
+function setDirty(dirty: boolean): void {
+  if (dirty === projectDirty) return;
+  projectDirty = dirty;
+  renderProjectName();
+  vscode.postMessage({ type: 'projectDirty', dirty });
+}
+
+// Nom du projet dans la barre, précédé d'un gros point noir « ● » quand des
+// modifications ne sont pas enregistrées (même signal que dans l'onglet).
+function renderProjectName(): void {
+  const dot = projectDirty ? '● ' : '';
+  projectNameEl.textContent = currentProjectName ? `— ${dot}${currentProjectName}` : dot.trim();
+  projectNameEl.title = currentProjectName
+    ? t('Current project: {0}', currentProjectName)
+    : t('Current project');
+}
+
 editor.onChange = () => {
   persistState();
+  if (!loadingProject) setDirty(true);
   if (engine) rebind();
 };
 
@@ -2291,9 +2316,8 @@ window.addEventListener('message', (event: MessageEvent) => {
     }
     case 'projectName': {
       // Nom du projet courant (sans chemin), affiché à côté du bouton d'aide.
-      const name = typeof msg.name === 'string' ? msg.name : null;
-      projectNameEl.textContent = name ? `— ${name}` : '';
-      projectNameEl.title = name ? t('Current project: {0}', name) : t('Current project');
+      currentProjectName = typeof msg.name === 'string' ? msg.name : null;
+      renderProjectName();
       break;
     }
     case 'requestSaveProject':
@@ -2303,6 +2327,7 @@ window.addEventListener('message', (event: MessageEvent) => {
     case 'projectSaved':
       // Confirmation d'enregistrement du .projix : message temporaire visible.
       flashStatus(t('Project saved'));
+      setDirty(false); // schéma désormais aligné sur le disque
       break;
     case 'requestWokwiExport':
       // Conversion du schéma au format projet Wokwi (diagram.json).
@@ -2311,7 +2336,10 @@ window.addEventListener('message', (event: MessageEvent) => {
     case 'importWokwi': {
       // Projet Wokwi reçu de l'hôte : conversion puis chargement.
       const { parts, wires, skipped } = fromWokwiDiagram(msg.json);
+      loadingProject = true;
       editor.loadDiagram({ parts, wires });
+      loadingProject = false;
+      setDirty(true); // un import Wokwi n'est pas encore un .projix enregistré
       // Adopte la carte du premier MCU reconnu dans le schéma importé.
       switchBoard(
         (parts.map((p) => p.type).find((tp) => isBoardId(tp)) as BoardId | undefined) ?? 'uno'
@@ -2328,10 +2356,13 @@ window.addEventListener('message', (event: MessageEvent) => {
       // le nouveau schéma se recâble sur un moteur qui tourne encore pour l'ancien).
       if (engine) stopRun();
       // Composants perso, schéma puis carte.
+      loadingProject = true;
       if (Array.isArray(msg.customParts)) {
         editor.loadCustomParts(msg.customParts as CustomPartData[]);
       }
       editor.loadDiagram(msg.diagram as Parameters<typeof editor.loadDiagram>[0]);
+      loadingProject = false;
+      setDirty(false); // projet fraîchement chargé = aligné sur le disque
       if (isBoardId(msg.board)) {
         switchBoard(msg.board);
         boardSelect.value = msg.board;

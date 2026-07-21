@@ -1166,6 +1166,14 @@ textarea {
   z-index: 60 !important;
 }
 
+/* Le curseur approche une broche de CE composant : on le hisse au-dessus des
+   corps voisins (qui, avec un gros viewBox / un fond plein, recouvraient la broche
+   et volaient son clic — broche inconnectable). Posé/retiré au pointermove par
+   l'éditeur. Sous les fils (z=5) et le composant en simulation (z=60). */
+.part--pin-reachable {
+  z-index: 40;
+}
+
 /* Le rectangle de sélection est porté par le corps (qui tourne) : il pivote
    donc avec le composant. Il est CALÉ SUR LE DESSIN par `fitSelectionBox`
    (.part__selbox posée sur la bbox réelle du SVG) — le corps, lui, a la taille
@@ -1357,6 +1365,24 @@ textarea {
 
 .part__body {
   position: relative;
+  /* Broches recouvertes par un voisin (item « cadre qui recouvre les broches ») :
+     le corps a la taille du VIEWBOX, souvent bien plus grand que le dessin
+     (letterbox). DEUX défenses complémentaires :
+     1) le corps ET le host kablix-* sont transparents aux pointeurs, et le <svg>
+        interne est réglé en `visiblePainted` par le JS (makeDrawingHitPainted) :
+        le VIDE d'un dessin creux laisse alors passer le clic vers le composant
+        dessous ;
+     2) pour les dessins à FOND PLEIN (le svg capte partout), le survol hisse le
+        composant de la broche visée au-dessus des corps voisins
+        (`.part--pin-reachable`, cf. onPointerHover).
+     Le glisser du composant marche toujours : le clic sur un trait peint remonte
+     (bouillonne) jusqu'au listener posé sur le corps. */
+  pointer-events: none;
+}
+
+/* Les pastilles restent toujours cliquables, même sur un corps transparent. */
+.part__body > .pin {
+  pointer-events: auto;
 }
 
 /* Surimpression du câblage interne (composant sélectionné) : fond blanc

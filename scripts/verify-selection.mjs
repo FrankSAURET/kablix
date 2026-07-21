@@ -671,6 +671,60 @@ async function run() {
 		insText().slice(0, 60));
 	editor.select(null);
 
+	// --- Broche recouverte par le corps d'un voisin (item v2026.7.144) ---------
+	// Le corps d'un composant (surtout à gros viewBox / fond plein) capte le clic
+	// sur tout son rectangle et masque les broches d'un autre placé dessous. Au
+	// SURVOL, le composant de la broche visée est hissé (.part--pin-reachable) et
+	// la broche redevient cliquable. On reproduit le défaut avec un servo (fond
+	// plein) posé au-dessus d'une broche de LED, puis on vérifie le survol.
+	for (const p of [...editor.diagram.parts]) editor.removePart?.(p.id);
+	await wait(30);
+	const covLed = editor.addPart('led', 400, 400);
+	await wait(120);
+	editor.select(null);
+	const covPin = [...editor.rendered.get(covLed.id).hotspots.values()][0];
+	const covServo = editor.addPart('servo', 250, 250);
+	await wait(150);
+	editor.select(null);
+	// Recale le servo pour que son corps (fond plein) recouvre la broche de la LED.
+	{
+		const sPart = editor.diagram.parts.find((p) => p.id === covServo.id);
+		const sb0 = editor.rendered.get(covServo.id).container.querySelector('.part__body').getBoundingClientRect();
+		let pr = covPin.getBoundingClientRect();
+		const pc = { x: pr.left + pr.width / 2, y: pr.top + pr.height / 2 };
+		sPart.x += pc.x - (sb0.left + sb0.width / 2);
+		sPart.y += pc.y - (sb0.bottom - 10);
+		const c = editor.rendered.get(covServo.id).container;
+		c.style.left = sPart.x + 'px';
+		c.style.top = sPart.y + 'px';
+	}
+	await wait(120);
+	if (editor.fitView) editor.fitView();
+	await wait(150);
+	const covCanvas = document.getElementById('canvas');
+	const cpr = covPin.getBoundingClientRect();
+	const ccx = cpr.left + cpr.width / 2, ccy = cpr.top + cpr.height / 2;
+	const cservoBody = editor.rendered.get(covServo.id).container.querySelector('.part__body').getBoundingClientRect();
+	const covers = ccx >= cservoBody.left && ccx <= cservoBody.right && ccy >= cservoBody.top && ccy <= cservoBody.bottom;
+	ok('broche recouverte : le corps du servo recouvre bien la broche (repro)', covers,
+		'pin=' + Math.round(ccx) + ',' + Math.round(ccy));
+	const hitBefore = document.elementFromPoint(ccx, ccy);
+	ok('broche recouverte : DÉFAUT reproduit (sans survol, le servo vole le clic)',
+		hitBefore && hitBefore.tagName === 'KABLIX-SERVO', hitBefore ? (hitBefore.className || hitBefore.tagName) : 'null');
+	covCanvas.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: ccx, clientY: ccy, buttons: 0 }));
+	await wait(30);
+	const covLedCont = editor.rendered.get(covLed.id).container;
+	ok('broche recouverte : au survol, son composant est hissé (.part--pin-reachable)',
+		covLedCont.classList.contains('part--pin-reachable'), covLedCont.className);
+	const hitAfter = document.elementFromPoint(ccx, ccy);
+	ok('broche recouverte : redevient CLIQUABLE au survol (elementFromPoint = .pin)',
+		hitAfter && hitAfter.classList && hitAfter.classList.contains('pin'),
+		hitAfter ? (hitAfter.className || hitAfter.tagName) : 'null');
+	covCanvas.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: ccx + 250, clientY: ccy + 250, buttons: 0 }));
+	await wait(30);
+	ok('broche recouverte : hissage RETIRÉ quand on s’éloigne',
+		!covLedCont.classList.contains('part--pin-reachable'), covLedCont.className);
+
 	const out = document.createElement('pre');
 	out.id = 'measures';
 	out.textContent = JSON.stringify(checks);
@@ -697,7 +751,7 @@ writeFileSync(
 );
 const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
 if (!chrome) { console.log('Chrome introuvable — test sauté'); process.exit(0); }
-const dom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--no-sandbox', '--virtual-time-budget=15000', '--dump-dom', `file:///${join(CACHE, 'p.html').replace(/\\/g, '/')}`], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+const dom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--no-sandbox', '--window-size=1400,1000', '--virtual-time-budget=15000', '--dump-dom', `file:///${join(CACHE, 'p.html').replace(/\\/g, '/')}`], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
 const m = dom.match(/<pre id="measures"[^>]*>([\s\S]*?)<\/pre>/);
 if (!m) { console.log('MESURES INTROUVABLES'); process.exit(1); }
 const rows = JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>'));

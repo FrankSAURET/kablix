@@ -64,6 +64,10 @@ export class SimulatorPanel {
   /** Chemin complet du .projix courant (ouvert ou enregistré) : cible du bouton
    *  Enregistrer, qui écrit directement sans boîte de dialogue. */
   private projectUri: vscode.Uri | undefined;
+  /** Modifications du schéma non encore enregistrées (signalées par la webview) :
+   *  ● dans le titre de l'onglet tant que c'est vrai, garde-fou avant d'ouvrir un
+   *  autre projet. */
+  private projectDirty = false;
   /** Fichier source actuellement chargé dans le simulateur (.py ou source C ; pas les artefacts). */
   private currentSourceUri: vscode.Uri | undefined;
   /** Fichier de code choisi explicitement (chip du canvas) ; sinon le fichier actif sert. */
@@ -401,6 +405,14 @@ export class SimulatorPanel {
     this.post({ type: 'projectName', name: name ?? null });
   }
 
+  /** Titre de l'onglet du simulateur : « Kablix », suivi d'un gros point noir
+   *  « ● » tant que des modifications ne sont pas enregistrées. */
+  private updateTitle(): void {
+    this.panel.title = this.projectDirty
+      ? `${l10n.t('Kablix — Simulator')} ●`
+      : l10n.t('Kablix — Simulator');
+  }
+
   /** Référence du fichier de code pour le .projix : chemin relatif au workspace, sinon nom. */
   private codeFileRef(): string | undefined {
     if (!this.codeFileUri) return undefined;
@@ -596,6 +608,7 @@ export class SimulatorPanel {
     onlyIfChanged?: boolean;
     request?: unknown;
     url?: string;
+    dirty?: boolean;
   }): void {
     switch (msg?.type) {
       case 'ready':
@@ -685,6 +698,12 @@ export class SimulatorPanel {
       case 'saveProjectAs':
         // « Enregistrer sous » : boîte de dialogue systématique.
         void this.saveProject(msg.diagram, msg.board, true);
+        break;
+      case 'projectDirty':
+        // La webview signale l'état « modifications non enregistrées » : ● dans
+        // l'onglet (le nom dans la barre est géré côté webview).
+        this.projectDirty = msg.dirty === true;
+        this.updateTitle();
         break;
       case 'openProject':
         void this.openProject();
@@ -927,6 +946,17 @@ export class SimulatorPanel {
    */
   public async openProject(uri?: vscode.Uri): Promise<void> {
     try {
+      // Modifications non enregistrées : mise en garde bloquante avant d'écraser
+      // le schéma courant par le projet ouvert (OK = continuer, Annuler = renoncer).
+      if (this.projectDirty) {
+        const ok = l10n.t('Open anyway');
+        const choice = await vscode.window.showWarningMessage(
+          l10n.t('The current project has unsaved changes. Opening another project will discard them.'),
+          { modal: true },
+          ok
+        );
+        if (choice !== ok) return;
+      }
       const picked = uri
         ? [uri]
         : await vscode.window.showOpenDialog({

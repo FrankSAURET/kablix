@@ -46,6 +46,8 @@
   "Cancel": "Annuler",
   "Kablix: project saved to {0}": "Kablix : projet enregistré vers {0}",
   "Open a Kablix project": "Ouvrir un projet Kablix",
+  "Open anyway": "Ouvrir quand même",
+  "The current project has unsaved changes. Opening another project will discard them.": "Le projet en cours a des modifications non enregistrées. Ouvrir un autre projet les abandonnera.",
   "Do not extract the code": "Ne pas extraire le code",
   "Choose a folder…": "Choisir un dossier…",
   "Kablix: this project contains {0} code file(s). Where to extract them?": "Kablix : ce projet contient {0} fichier(s) de code. Où les extraire ?",
