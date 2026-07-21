@@ -3755,12 +3755,43 @@ export class Editor {
       return;
     }
 
-    // Lot de câbles (Ctrl+clic sur les fils) : résumé + suppression groupée.
+    // Lot de câbles (Ctrl+clic sur les fils) : résumé + recoloriage + suppression
+    // groupée. Le sélecteur de couleur applique la teinte à TOUT le lot d'un coup
+    // (même widget que l'inspecteur d'un fil unique).
     if (this.selectedWires.size > 0) {
       const sub = document.createElement('p');
       sub.className = 'inspector__hint';
       sub.textContent = t('{0} wire(s) selected', this.selectedWires.size);
       this.inspector.appendChild(sub);
+
+      const label = document.createElement('label');
+      label.className = 'inspector__label';
+      label.textContent = t('Color (Dupont cables)');
+      this.inspector.appendChild(label);
+
+      // Pastille active = couleur commune au lot, s'ils la partagent tous.
+      const ids = [...this.selectedWires];
+      const colors = new Set(
+        ids.map((id) => this.diagram.wires.find((w) => w.id === id)?.color ?? 'green')
+      );
+      const common = colors.size === 1 ? [...colors][0] : null;
+
+      const swatches = document.createElement('div');
+      swatches.className = 'inspector__swatches';
+      for (const color of DUPONT_COLORS) {
+        const sw = document.createElement('button');
+        sw.className = 'inspector__swatch' + (common === color.id ? ' inspector__swatch--active' : '');
+        sw.style.background = color.hex;
+        sw.title = t(color.label);
+        sw.addEventListener('click', () => {
+          for (const id of this.selectedWires) this.setWireColor(id, color.id);
+          this.notify();
+          this.renderInspector();
+        });
+        swatches.appendChild(sw);
+      }
+      this.inspector.appendChild(swatches);
+
       this.appendDeleteButton(t('Delete these wires'), () => {
         for (const id of [...this.selectedWires]) this.removeWire(id);
         this.selectedWires.clear();
@@ -3871,6 +3902,7 @@ export class Editor {
       sw.title = t(color.label);
       sw.addEventListener('click', () => {
         this.setWireColor(wireId, color.id);
+        this.notify(); // couleur sauvegardée et annulable
         this.renderInspector();
       });
       swatches.appendChild(sw);
@@ -4188,14 +4220,25 @@ export class Editor {
       }
       const deg = r.part.rotation ?? 0;
 
-      // Boîte englobante tournée pour le cadrage (coins pivotés autour du centre).
-      const cx = x + w / 2;
-      const cy = y + h / 2;
+      // CENTRE de rotation = centre RÉEL du corps en unités monde. `.part__body`
+      // n'est PAS à (part.x, part.y) : le conteneur porte d'abord le bandeau de
+      // nom (`.part__head`), le corps est donc décalé plus bas. La rotation CSS à
+      // l'écran tourne le corps autour de SON centre — pas autour de x+w/2,y+h/2.
+      // Prendre ce dernier faisait tourner l'export autour du mauvais point : les
+      // servos à 270° sortaient décalés de ~96 px (offset PUR, échelle déjà à 1).
+      // Mesuré depuis la boîte du corps, ramené en monde par le zoom.
+      const bodyRectC = bodyEl.getBoundingClientRect();
+      const cCenter = this.canvasPoint(bodyRectC.left + bodyRectC.width / 2, bodyRectC.top + bodyRectC.height / 2);
+      const cx = cCenter.x;
+      const cy = cCenter.y;
       const rad = (deg * Math.PI) / 180;
       const cos = Math.cos(rad);
       const sin = Math.sin(rad);
+      // Cadrage : les 4 coins du corps (boîte w×h centrée sur C, non tournée)
+      // pivotés autour de C.
       for (const [px, py] of [
-        [x, y], [x + w, y], [x + w, y + h], [x, y + h],
+        [cx - w / 2, cy - h / 2], [cx + w / 2, cy - h / 2],
+        [cx + w / 2, cy + h / 2], [cx - w / 2, cy + h / 2],
       ] as Array<[number, number]>) {
         grow(cx + (px - cx) * cos - (py - cy) * sin, cy + (px - cx) * sin + (py - cy) * cos);
       }
@@ -4223,23 +4266,45 @@ export class Editor {
         // Troisième fois que `.part__body` ment sur la géométrie du dessin
         // (cf. v2026.7.48 overlay interne, v2026.7.133 cadre de sélection).
         const svgRect = svgEl.getBoundingClientRect();
-        const bodyRect = bodyEl.getBoundingClientRect();
-        // Boîte rendue ramenée en unités monde (le canvas peut être zoomé).
-        const rw = svgRect.width / this.zoom;
-        const rh = svgRect.height / this.zoom;
-        // Letterbox : décalage du dessin DANS le corps (centrage vertical de
-        // l'élément au-dessus de son étiquette), à reporter sur le groupe.
-        const offX = (svgRect.left - bodyRect.left) / this.zoom;
-        const offY = (svgRect.top - bodyRect.top) / this.zoom;
+        // Boîte rendue ramenée en unités monde (le canvas peut être zoomé). ATTENTION
+        // la ROTATION est appliquée en CSS sur `.part__body` : `getBoundingClientRect`
+        // renvoie donc la boîte DÉJÀ TOURNÉE. Pour un servo à 90°/270°, largeur et
+        // hauteur écran sont ÉCHANGÉES par rapport au viewBox (non tourné), alors que
+        // l'échelle et l'offset doivent s'exprimer dans le repère LOCAL non tourné du
+        // composant — le `<g rotate>` externe (plus bas) refait la rotation. Sans
+        // cela le servo tourné sortait avec sx=0,875 sy=1,143 (grossi + étiré) et ses
+        // broches à ~103 px de leurs fils.
+        // On dé-tourne : dimensions de la boîte et vecteur d'offset ramenés de −deg
+        // autour du centre du corps (centre = point fixe de la rotation).
+        const rd = (-deg * Math.PI) / 180;
+        const rc = Math.cos(rd);
+        const rs = Math.sin(rd);
+        // Boîte rendue (locale) : la rotation autour d'un axe échange largeur/hauteur
+        // pour ±90° ; formule générale via |cos|/|sin| pour rester robuste.
+        const rw = (Math.abs(rc) * svgRect.width + Math.abs(rs) * svgRect.height) / this.zoom;
+        const rh = (Math.abs(rs) * svgRect.width + Math.abs(rc) * svgRect.height) / this.zoom;
+        // Letterbox : décalage du dessin DANS le corps, mesuré depuis le CENTRE du
+        // corps (invariant par rotation) puis dé-tourné, sinon l'offset d'un
+        // composant tourné pointe dans la mauvaise direction. La DIFFÉRENCE de deux
+        // positions écran annule le pan : /zoom suffit ici (pas besoin de canvasPoint).
+        const vx = (svgRect.left + svgRect.width / 2 - (bodyRectC.left + bodyRectC.width / 2)) / this.zoom;
+        const vy = (svgRect.top + svgRect.height / 2 - (bodyRectC.top + bodyRectC.height / 2)) / this.zoom;
+        // Dé-tournage vers le repère local du composant.
+        const lvx = vx * rc - vy * rs;
+        const lvy = vx * rs + vy * rc;
         // Repli sur le corps si la boîte rendue est inexploitable (élément pas
         // encore mis en page, hors écran) : l'ancien comportement.
         const useRect = rw > 0.5 && rh > 0.5;
         const dw = useRect ? rw : w;
         const dh = useRect ? rh : h;
-        const dx = useRect ? offX : 0;
-        const dy = useRect ? offY : 0;
         const sx = dw / vbW;
         const sy = dh / vbH;
+        // Coin haut-gauche du dessin NON TOURNÉ, en unités monde : centre du corps
+        // (C = cx,cy) + décalage local vers le centre du dessin − demi-boîte. Le
+        // wrapper `<g rotate(deg cx cy)>` (plus bas) refait la rotation autour de C,
+        // exactement comme la rotation CSS à l'écran.
+        const drawX = useRect ? cx + lvx - dw / 2 : x;
+        const drawY = useRect ? cy + lvy - dh / 2 : y;
         const groupId = `kpart-${idSeq++}`;
         // Le dessin sort du shadow DOM : purge des résidus Inkscape (sans quoi
         // l'export n'est pas du XML bien formé), taille explicite des <svg>
@@ -4259,7 +4324,7 @@ export class Editor {
           .replace(/^\s*<svg[^>]*>/i, '')
           .replace(/<\/svg>\s*$/i, '');
         inner =
-          `<g id="${groupId}" transform="translate(${x + dx - vbX * sx} ${y + dy - vbY * sy}) scale(${sx} ${sy})">` +
+          `<g id="${groupId}" transform="translate(${drawX - vbX * sx} ${drawY - vbY * sy}) scale(${sx} ${sy})">` +
           styleTag +
           body +
           `</g>`;

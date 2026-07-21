@@ -180,6 +180,34 @@ async function run() {
 	ok('clic sur le nœud : l\\'inspecteur montre le lot de câbles',
 		/2/.test(inspector.textContent || '') &&
 		!!inspector.querySelector('.inspector__hint'));
+
+		// --- 6 ter. RECOLORIAGE D'UN LOT de fils (v2026.7.138) ---------------------
+		// Item « la sélection d'une équipotentielle ne permet pas de recolorier tous
+		// les items, juste de les supprimer » : l'inspecteur d'un lot de câbles
+		// n'offrait qu'un décompte + suppression. Il porte maintenant le MÊME
+		// sélecteur de couleur que l'inspecteur d'un fil unique, appliqué à TOUT le
+		// lot d'un coup. Les 2 fils du nœud sont ici sélectionnés.
+		const lotIds = editor.diagram.wires.slice(0, 2).map((w) => w.id);
+		const lotSwatches = [...inspector.querySelectorAll('.inspector__swatch')];
+		ok('lot : sélecteur de couleur présent dans l inspecteur du lot',
+			lotSwatches.length > 1, lotSwatches.length + ' pastilles');
+		const avantCol = lotIds.map((id) => editor.diagram.wires.find((w) => w.id === id).color);
+		// La DERNIÈRE pastille (couleur bien distincte de la 1re) sert de cible.
+		const cible = lotSwatches[lotSwatches.length - 1];
+		cible?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		const apresCol = lotIds.map((id) => editor.diagram.wires.find((w) => w.id === id).color);
+		ok('lot : le clic recolorie les DEUX fils du lot (même couleur)',
+			apresCol[0] === apresCol[1] && apresCol[0] !== undefined,
+			'avant=' + avantCol.join(',') + ' après=' + apresCol.join(','));
+		ok('lot : la nouvelle couleur est APPLIQUÉE (différente de l ancienne)',
+			apresCol[0] !== avantCol[0] || apresCol[1] !== avantCol[1],
+			'avant=' + avantCol.join(',') + ' après=' + apresCol.join(','));
+		// Le tracé suit : le stroke du path du 1er fil est bien renseigné.
+		const path0 = svg.querySelector('path.wire');
+		ok('lot : le tracé du fil reflète la couleur (stroke posé)',
+			!!path0 && getComputedStyle(path0).stroke !== '',
+			path0 ? getComputedStyle(path0).stroke : 'pas de path');
+
 	// Remise en état pour la suite : on repart du seul premier fil.
 	editor.select(null);
 	for (const w of [...editor.diagram.wires].slice(1)) editor.removeWire(w.id);

@@ -59,8 +59,17 @@ async function run() {
 	editor.addPart('alim', 60, 450);
 	editor.addPart('alim', 300, 450);
 	editor.addPart('servo', 700, 60);
+	// Servo TOURNÉ à 270° et CÂBLÉ : c'est le montage de Frank (16 servos à 270°).
+	// L'échelle était prise sur la boîte ÉCRAN — déjà tournée — d'où sx≠sy (servo
+	// grossi + étiré) ; et le centre de rotation ignorait le bandeau de nom, d'où
+	// ~96 px de décalage. Contrôle par CTM plus bas.
+	const servoT = editor.addPart('servo', 700, 300);
+	editor.select({ kind: 'part', id: servoT.id });
+	editor.rotateSelection(270);
+	editor.select(null);
 	await wait(300);
 	editor.addWire({ partId: pico.id, pin: 'GP0' }, { partId: ledCablee.id, pin: 'A' }, { color: 'green' });
+	editor.addWire({ partId: pico.id, pin: 'GP1' }, { partId: servoT.id, pin: 'PWM' }, { color: 'yellow' });
 	editor.redrawWires();
 	await wait(400);
 
@@ -163,8 +172,17 @@ async function run() {
 	// groupes de PREMIER NIVEAU, ceux que Ctrl+A sélectionne dans Inkscape)
 	// (motif bâti par RegExp : dans ce littéral de gabarit, \\d serait consommé)
 	const reKpart = new RegExp('^kpart-[0-9]+$');
-	const racines = perr ? [] : [...doc.documentElement.children].filter(
-		(el) => el.localName === 'g' && reKpart.test(el.getAttribute('id') || ''));
+	// Un composant TOURNÉ est enveloppé dans <g transform="rotate(...)"> (sans id) :
+	// son <g id=kpart> n'est donc PAS enfant direct du root. On compte tout groupe
+	// kpart de PREMIER NIVEAU logique — aucun ancêtre n'étant lui-même un kpart —,
+	// ce que Ctrl+A sélectionne dans Inkscape (le wrapper rotate n'a pas d'id).
+	const racines = perr ? [] : [...doc.documentElement.querySelectorAll('g[id]')].filter((el) => {
+		if (!reKpart.test(el.getAttribute('id') || '')) return false;
+		for (let a = el.parentElement; a && a !== doc.documentElement; a = a.parentElement) {
+			if (reKpart.test(a.getAttribute('id') || '')) return false; // imbriqué (id interne)
+		}
+		return true;
+	});
 	ok('export : TOUS les composants présents (Ctrl+A les prend tous)',
 		!perr && racines.length === editor.diagram.parts.length,
 		(perr ? 'XML invalide' : racines.length + ' / ' + editor.diagram.parts.length));
@@ -195,6 +213,11 @@ async function run() {
 	let pire = '';
 	ordre.forEach((r, i) => {
 		const t = tf[i];
+		// Ce contrôle mesure la broche sur la boîte ÉCRAN (getBoundingClientRect),
+		// elle-même TOURNÉE pour un composant pivoté : il est valable uniquement
+		// pour les composants DROITS. Les tournés sont couverts par le contrôle CTM
+		// « composants TOURNÉS sous le fil » (vérité terrain, insensible à l'angle).
+		if ((r.part.rotation ?? 0) % 360 !== 0) return;
 		const svgEl = (r.el.shadowRoot ?? r.el).querySelector('svg');
 		if (!t || !svgEl) return;
 		const vb = svgEl.viewBox?.baseVal;
@@ -221,6 +244,54 @@ async function run() {
 	ok("export : chaque broche DESSINÉE tombe sous le bout de son fil (pas d'étirement)",
 		ecartMax < 0.3, 'écart max ' + ecartMax.toFixed(3) + ' px' + (pire ? ' (' + pire + ')' : ''));
 
+	// --- 1 sexies. Composants TOURNÉS : broche dessinée SOUS le fil (v2026.7.138) --
+	// Le contrôle ci-dessus mesure sur la boîte ÉCRAN, elle-même tournée : il ne
+	// voit PAS le défaut des composants pivotés. VÉRITÉ TERRAIN robuste : on
+	// re-rend le SVG EXPORTÉ dans le DOM, on place un point aux coords viewBox de
+	// chaque broche DANS son groupe kpart (donc soumis à translate+scale + rotate
+	// englobant, exactement comme le dessin) et on lit sa position en coords SVG
+	// via getScreenCTM — pas de boîte écran tournée. On compare au bout de fil que
+	// l'éditeur vise (hotspotCenter, coords monde). Sans le correctif : servo à
+	// 270° grossi + étiré (sx≠sy) et broches à ~96 px de leurs fils.
+	const attendu = new Map();
+	for (const wire of editor.diagram.wires) {
+		if (wire.auto) continue;
+		for (const end of [wire.a, wire.b]) {
+			const c = editor.hotspotCenter(end);
+			if (c) attendu.set(end.partId + '|' + end.pin, c);
+		}
+	}
+	const host = document.createElement('div');
+	host.style.cssText = 'position:absolute;left:0;top:0';
+	host.innerHTML = svgAvant;
+	document.body.appendChild(host);
+	const rootSvg = host.querySelector('svg');
+	await wait(150);
+	let ecartRot = 0, pireRot = '', mesuresRot = 0;
+	if (rootSvg && rootSvg.getScreenCTM) {
+		const inv = rootSvg.getScreenCTM().inverse();
+		const kparts = [...rootSvg.querySelectorAll('g[id^="kpart-"]')].filter((g) => /^kpart-[0-9]+$/.test(g.id));
+		ordre.forEach((r, i) => {
+			const g = kparts[i];
+			const pins = (r.el.pinInfo || []);
+			if (!g) return;
+			for (const p of pins) {
+				const exp = attendu.get(r.part.id + '|' + p.name);
+				if (!exp) continue;
+				const pt = rootSvg.createSVGPoint(); pt.x = p.x; pt.y = p.y;
+				const screen = pt.matrixTransform(g.getScreenCTM());
+				const wp = rootSvg.createSVGPoint(); wp.x = screen.x; wp.y = screen.y;
+				const world = wp.matrixTransform(inv);
+				const d = Math.hypot(world.x - exp.x, world.y - exp.y);
+				mesuresRot++;
+				if (d > ecartRot) { ecartRot = d; pireRot = r.part.type + '(rot ' + (r.part.rotation||0) + ').' + p.name + ' ' + d.toFixed(2) + 'px'; }
+			}
+		});
+	}
+	ok('export : broche des composants TOURNÉS sous le fil (CTM du SVG exporté)',
+		mesuresRot > 0 && ecartRot < 0.3,
+		mesuresRot + ' broches câblées, écart max ' + ecartRot.toFixed(3) + ' px' + (pireRot ? ' (' + pireRot + ')' : ''));
+
 	// --- 2. Aller-retour save -> loadDiagram : positions INCHANGÉES -------------
 	const sauve = JSON.parse(JSON.stringify({ parts: editor.diagram.parts, wires: editor.diagram.wires }));
 	// Contre-épreuve : un composant TOURNÉ aux broches hors grille (vieux fichier).
@@ -231,10 +302,15 @@ async function run() {
 
 	const apres = editor.diagram.parts.map((p) => ({ type: p.type, x: p.x, y: p.y }));
 	const deltas = avant.map((a, i) => ({
-		type: a.type, dx: apres[i].x - a.x, dy: apres[i].y - a.y,
+		type: a.type, rot: editor.diagram.parts[i].rotation || 0,
+		dx: apres[i].x - a.x, dy: apres[i].y - a.y,
 	}));
-	const bouge = deltas.filter((d) => d.dx || d.dy);
-	ok('rechargement : AUCUN composant ne bouge (hors grille compris)',
+	// Le recollage grille de l'ouverture ne touche QUE les composants tournés
+	// (broches hors grille, cf. v2026.7.105) : on ne contrôle donc l'immobilité
+	// que sur les composants DROITS. Les tournés sont couverts par le contrôle
+	// « composant TOURNÉ hors grille TOUJOURS recollé » plus bas.
+	const bouge = deltas.filter((d) => (d.dx || d.dy) && d.rot % 360 === 0);
+	ok('rechargement : AUCUN composant DROIT ne bouge (hors grille compris)',
 		bouge.length === 0,
 		bouge.map((d) => d.type + ' ' + d.dx.toFixed(2) + ',' + d.dy.toFixed(2)).join(' | '));
 	// Ciblé : le composant isolé hors grille, cœur de l'item.
