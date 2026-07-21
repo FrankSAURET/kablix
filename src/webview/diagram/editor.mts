@@ -2715,6 +2715,57 @@ export class Editor {
       const a = this.hotspotCenter(wire.a);
       const b = this.hotspotCenter(wire.b);
       if (!a || !b) continue;
+      // Fil DÉJÀ bien tracé (demande de Frank : ne pas rajouter de coude à un fil
+      // propre). Un fil est préservé TEL QUEL si sa polyligne complète (broches
+      // comprises) est faite de segments H/V, compte 4 coudes ou moins, ne survole
+      // aucun composant (hors le ras du corps de ses deux extrémités), ne se
+      // superpose à aucun autre fil et ne passe sur aucune broche étrangère.
+      {
+        const full = [a, ...(wire.points ?? []), b];
+        const { bends } = polyLenBends(full);
+        let hv = true;
+        for (let i = 0; i < full.length - 1; i++) {
+          const dx = Math.abs(full[i].x - full[i + 1].x);
+          const dy = Math.abs(full[i].y - full[i + 1].y);
+          if (dx > TOL && dy > TOL) { hv = false; break; }
+        }
+        if (hv && bends <= 4) {
+          // Survol de composant : le tracé INTERNE (sans les pattes broche→coude)
+          // ne doit couvrir aucun corps ; les deux corps d'extrémité tolèrent le
+          // ras (la broche vit au bord du corps).
+          const ENDCAP = 1.5 * GRID;
+          let overComp = false;
+          for (const o of obstacles) {
+            const isEnd = o.id === wire.a.partId || o.id === wire.b.partId;
+            let ov = 0;
+            for (let i = 0; i < full.length - 1; i++) ov += segRectOverlap(full[i], full[i + 1], o);
+            if (ov > (isEnd ? ENDCAP : TOL)) { overComp = true; break; }
+          }
+          // Superposition avec un AUTRE fil (équipotentielle différente).
+          const others: Array<[XY, XY]> = [];
+          for (const [wid, s] of wireSegs) {
+            if (wid !== wire.id && !sameEqpWire(wid, wire.id)) others.push(...s);
+          }
+          const overWire = polylineWireCost(full, others, GAP).overlap > TOL;
+          // Broche étrangère survolée (les 2 broches propres du fil exclues).
+          const onForeignPin = pinCenters.some(
+            (p) =>
+              !(p.partId === wire.a.partId && p.pin === wire.a.pin) &&
+              !(p.partId === wire.b.partId && p.pin === wire.b.pin) &&
+              full.some((_, i) => i < full.length - 1 && pointOnSegment(p.c, full[i], full[i + 1], 2))
+          );
+          if (!overComp && !overWire && !onForeignPin) {
+            // Fil propre : on le garde intact (seule l'optimisation colinéaire
+            // s'applique, elle ne déplace rien).
+            const kept = collapseColinear(full, 1).slice(1, -1);
+            if ((kept.length) !== (wire.points?.length ?? 0)) changed = true;
+            wire.points = kept.length > 0 ? kept : undefined;
+            wireSegs.set(wire.id, toSegs([a, ...kept, b]));
+            this.positionWire(wire);
+            continue;
+          }
+        }
+      }
       // Ligne droite prioritaire : broches alignées H/V et segment direct
       // dégagé → AUCUN coude, même au ras des composants. Les corps des DEUX
       // extrémités tolèrent chacun ~1 pas de grille de chevauchement (la broche
@@ -2914,7 +2965,12 @@ export class Editor {
         }
         inner = pick(cands);
       }
-      const pts = [...(sa ? [sa] : []), ...inner, ...(sb ? [sb] : [])];
+      let pts = [...(sa ? [sa] : []), ...inner, ...(sb ? [sb] : [])];
+      // Passe d'optimisation : supprime les coudes intermédiaires quand 3 points
+      // consécutifs sont alignés (points de connexion a/b compris) — ne laisse que
+      // 2. Purement géométrique (le tracé ne bouge pas), donc toujours sûr : pas
+      // de nouveau survol de broche ni de composant.
+      pts = collapseColinear([a, ...pts, b], 1).slice(1, -1);
       wire.points = pts.length > 0 ? pts : undefined;
       wireSegs.set(wire.id, toSegs([a, ...pts, b]));
       changed = true;
@@ -5138,17 +5194,26 @@ function polyLenBends(pts: XY[]): { len: number; bends: number } {
   return { len, bends };
 }
 
-/** Retire les points colinéaires/doublons consécutifs d'une polyligne H/V. */
-function collapseColinear(pts: XY[]): XY[] {
+/**
+ * Retire les points colinéaires/doublons consécutifs d'une polyligne H/V : si
+ * trois points d'affilée sont alignés (à `tol` près), le point du milieu — un
+ * coude inutile — disparaît. Passer `[a, ...points, b]` inclut les points de
+ * connexion, donc un coude collé à une broche s'efface aussi. La construction en
+ * un seul passage est déjà récursive de fait (chaque point ajouté est retesté
+ * contre les deux précédents déjà simplifiés). `tol` par défaut 0.5 px (usages
+ * historiques) ; l'autoroutage passe 1 px pour absorber les coords fractionnaires
+ * des composants tournés (servos à 270°).
+ */
+function collapseColinear(pts: XY[], tol = 0.5): XY[] {
   const out: XY[] = [];
   for (const p of pts) {
     const n = out.length;
-    if (n >= 1 && Math.abs(out[n - 1].x - p.x) < 0.5 && Math.abs(out[n - 1].y - p.y) < 0.5) continue;
+    if (n >= 1 && Math.abs(out[n - 1].x - p.x) <= tol && Math.abs(out[n - 1].y - p.y) <= tol) continue;
     if (n >= 2) {
       const a = out[n - 2];
       const b = out[n - 1];
-      const colX = Math.abs(a.x - b.x) < 0.5 && Math.abs(b.x - p.x) < 0.5;
-      const colY = Math.abs(a.y - b.y) < 0.5 && Math.abs(b.y - p.y) < 0.5;
+      const colX = Math.abs(a.x - b.x) <= tol && Math.abs(b.x - p.x) <= tol;
+      const colY = Math.abs(a.y - b.y) <= tol && Math.abs(b.y - p.y) <= tol;
       if (colX || colY) {
         out[n - 1] = p;
         continue;

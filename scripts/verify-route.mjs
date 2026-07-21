@@ -303,6 +303,55 @@ async function run() {
 	ok('fils parallèles d eqp différentes : écart ≥ 5 px (GAP)',
 		minGap === Infinity || minGap >= 5, 'écart mini=' + (minGap === Infinity ? 'aucun parallèle' : minGap.toFixed(1)));
 
+	// --- Passe d'optimisation : 3 points colinéaires → coude supprimé (item v2026.7.146) -
+	for (const p of [...editor.diagram.parts]) editor.removePart?.(p.id);
+	await wait(30);
+	const oa = editor.addPart('ntc', 100, 400); // patte (110,470)
+	const ob = editor.addPart('ntc', 400, 400); // patte (410,470) — même y
+	await wait(30);
+	editor.select(null);
+	// Fil H aligné avec des coudes COLINÉAIRES superflus insérés à la main.
+	editor.addWire({ partId: oa.id, pin: '2' }, { partId: ob.id, pin: '1' },
+		{ points: [{ x: 200, y: 470 }, { x: 300, y: 470 }] }); // 2 coudes sur la même horizontale
+	const wOpt = editor.diagram.wires[editor.diagram.wires.length - 1];
+	const bendsBefore = (wOpt.points ?? []).length;
+	editor.select(null); editor.autoRoute();
+	await wait(30);
+	const wOptR = editor.diagram.wires.find((x) => x.id === wOpt.id);
+	ok('optimisation : coudes colinéaires supprimés (3 points alignés → 2)',
+		(wOptR.points?.length ?? 0) === 0, 'coudes ' + bendsBefore + ' → ' + (wOptR.points?.length ?? 0));
+
+	// --- Préservation d'un fil DÉJÀ bien tracé (≤4 coudes, rien survolé) --------
+	for (const p of [...editor.diagram.parts]) editor.removePart?.(p.id);
+	await wait(30);
+	const pa2 = editor.addPart('ntc', 100, 100);
+	const pb2 = editor.addPart('ntc', 400, 350);
+	await wait(30);
+	editor.select(null);
+	// Fil propre en L (2 coudes) construit à partir des VRAIES positions de broche :
+	// il descend depuis la patte de pa2 (segment vertical hors des deux corps), puis
+	// rejoint horizontalement la patte de pb2. Ne traverse aucun corps sur sa partie
+	// interne, ne longe aucun autre fil, ne passe sur aucune broche étrangère.
+	const ca = editor.hotspotCenter({ partId: pa2.id, pin: '2' });
+	const cb = editor.hotspotCenter({ partId: pb2.id, pin: '1' });
+	editor.addWire({ partId: pa2.id, pin: '2' }, { partId: pb2.id, pin: '1' },
+		{ points: [{ x: ca.x, y: cb.y }] });
+	const wKeep = editor.diagram.wires[editor.diagram.wires.length - 1];
+	const keepBefore = JSON.stringify((wKeep.points ?? []).map((p) => [Math.round(p.x), Math.round(p.y)]));
+	editor.select(null); editor.autoRoute();
+	await wait(30);
+	const wKeepR = editor.diagram.wires.find((x) => x.id === wKeep.id);
+	const keepAfter = JSON.stringify((wKeepR.points ?? []).map((p) => [Math.round(p.x), Math.round(p.y)]));
+	ok('préservation : fil propre (≤4 coudes, rien survolé) laissé INTACT',
+		keepBefore === keepAfter, 'avant=' + keepBefore + ' après=' + keepAfter);
+
+	// Idempotence : un 2e autoRoute ne change plus rien.
+	editor.select(null); editor.autoRoute();
+	await wait(30);
+	const wKeepR2 = editor.diagram.wires.find((x) => x.id === wKeep.id);
+	const keepAfter2 = JSON.stringify((wKeepR2.points ?? []).map((p) => [Math.round(p.x), Math.round(p.y)]));
+	ok('préservation : idempotent (2e autoRoute inchangé)', keepAfter === keepAfter2, keepAfter2);
+
 	const out = document.createElement('pre');
 	out.id = 'measures';
 	out.textContent = JSON.stringify(checks);

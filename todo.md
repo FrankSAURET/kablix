@@ -1,17 +1,13 @@
 Nouveau todo.md, j'ai archivé le précédant (todo - v2026.7.144.md).
 # À faire
-1. **Autoroutage (fichier de test "testkablix\16 servo + alim.svg")**
-    1. Prends aussi en compte le point 3 de autoroutage qui décrit un bon tracé.
-    1. les 3 flèches de `svg\voeux routage.png`** (gauche = voulu, droite = obtenu) :
-        1. Flèche rouge : les fils d'une même équipotentielle alignés au maximum
-        2. Flèche bleue : départ à 90° pour éviter de passer sur des broches
-        3. Flèche et ellipse vertes : fils espacés de 5 px par défaut, avec un minimum de coudes
-        - ⚠️ Le VRAI montage de Frank est maintenant fourni (`testkablix/16 servo + alim.projix`) : mesurer sur lui, plus sur un cas inventé.
-    1. Lorsqu'on lance un autoroutage on ne rajoute pas de coude à un fil bien tracé c'est à dire : 
-        - Il est droit, horizontal ou vertical et ne survole aucun composant. Il ne survole pas non plus un autre fil.
-        - Il a 4 coudes ou moins est composé de segments  horizontaux ou verticaux et ne survole aucun composant. Aucun segment ne survole pas un autre segment.
-        - Il ne masque ni ses broches ni celles des autres composants
-    1. Aprés routage tu fais une passe d'optimisation et tu supprimes les coudes intermédiaires si 3 points sont alignés (points de connexions du cable compris) tu n'en laisse que 2. éventuellement récursif. et bien sûr sur un même cable.
+1. Flèche ROUGE de l'autoroutage (alignement maximal des équipotentielles) : à re-tenter si un montage la met en défaut — voir note v146 (mesurée neutre sur le montage 16 servos, tracé déjà propre).
+
+# v2026.7.146
+1. ✅ **Autoroutage — passe d'optimisation (item : « supprime les coudes intermédiaires si 3 points sont alignés »)**. Après routage, chaque fil passe par `collapseColinear([a, ...points, b], 1)` : si 3 points consécutifs sont alignés H ou V (points de connexion a/b COMPRIS), le coude du milieu — inutile — disparaît, récursivement. Purement géométrique (le tracé ne bouge pas d'un pixel), donc toujours sûr : aucun nouveau survol de broche ou de composant. Tolérance portée à 1 px (au lieu de 0,5) pour absorber les coords fractionnaires des composants tournés (servos à 270°). **MESURÉ sur le VRAI montage de Frank** (`testkablix/16 servo + alim.projix`, chargé dans un vrai Editor en Chrome headless) : coudes **119 → 78**, coudes superflus (3 pts colinéaires) **42 → 0**, 0 segment en biais.
+1. ✅ **Autoroutage — préservation d'un fil DÉJÀ bien tracé (item : « on ne rajoute pas de coude à un fil bien tracé »)**. Avant de re-router, un fil est GARDÉ INTACT si sa polyligne complète (broches comprises) est faite de segments H/V, compte ≤ 4 coudes, ne survole aucun composant (hors le ras du corps de ses deux extrémités, tolérance 1,5 pas de grille), ne se superpose à aucun autre fil d'une autre équipotentielle et ne passe sur aucune broche étrangère. Seule l'optimisation colinéaire s'y applique (elle ne déplace rien). MESURÉ : 7/30 fils propres préservés au 1er passage ; le montage retombe de **112 → 78 coudes** au lieu d'être re-tracé de zéro.
+1. ✅ **Flèche BLEUE (départ à 90°) et flèche VERTE (gap 5 px + minimum de coudes)** : DÉJÀ satisfaites, confirmé par la mesure/capture sur le vrai montage. `pinStubs` fait sortir chaque broche perpendiculairement au bord le plus proche (départ orthogonal, pas de passage sur une broche voisine) ; `GAP = 5` sépare les fils d'équipotentielles différentes ; l'optimisation colinéaire minimise les coudes. Rendu Chrome headless : fils orthogonaux, départs verticaux nets des 8 servos et du pico, aucun biais.
+1. ⏳ **Flèche ROUGE (alignement maximal des équipotentielles)** : NON livrée, comme en v136 mais cette fois mesurée sur le VRAI montage. Le tracé obtenu est déjà propre (0 biais, coudes minimisés, dorsales de même `eqp` suivies via `sameSegs`/RIDE). Forcer un alignement supplémentaire des axes V+/GND risquerait de dégrader d'autres cas pour un gain nul sur ce montage. À reprendre si un montage réel montre un défaut d'alignement franc.
+1. ✅ `verify:route` : 19 → **22 contrôles** (+ optimisation colinéaire : 3 pts alignés → coude supprimé ; + préservation : fil propre en L laissé intact ; + idempotence : 2e autoRoute inchangé). Nouveau banc de mesure `scripts/_mesure-autoroute.mjs` (+ `_montage-16servo.json`) : charge le vrai montage, route, compte coudes/biais/colinéarités et vérifie l'idempotence. typecheck + build + verify:all OK.
 
 # v2026.7.145
 1. ✅ Afficheur : 2-points d'horloge (`colon`) rendus FONCTIONNELS et réservés au 4 chiffres. La propriété n'apparaît dans l'inspecteur QUE pour l'afficheur 4 chiffres (nouveau `PropDef.showIf` + `propVisible` ; l'inspecteur se reconstruit dès qu'un attribut déclencheur change). Active, elle MASQUE les 4 DP et affiche 2 points centraux (`#colon-4dig` ajouté au dessin `7seg-4dig.svg`, entre chiffres 2 et 3, x≈119) qui s'allument dès qu'UN dp est piloté (peu importe lequel : cathode ou anode commune) — format 88:88. Preview Chrome headless validée (12:34, 2 points rouges centrés, DP éteints).
