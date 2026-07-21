@@ -4307,11 +4307,12 @@ export class Editor {
         const drawY = useRect ? cy + lvy - dh / 2 : y;
         const groupId = `kpart-${idSeq++}`;
         // Le dessin sort du shadow DOM : purge des résidus Inkscape (sans quoi
-        // l'export n'est pas du XML bien formé), taille explicite des <svg>
-        // imbriqués, puis unicité des ids (deux composants du même type
-        // partagent leurs défs).
+        // l'export n'est pas du XML bien formé), APLATISSEMENT des <svg> imbriqués
+        // en <g> (sous-documents qui faisaient planter/déplacer/disparaître les
+        // composants au dégroupage dans Inkscape), puis unicité des ids (deux
+        // composants du même type partagent leurs défs).
         stripEditorMarkup(clone);
-        sizeNestedSvgs(clone);
+        flattenNestedSvgs(clone);
         uniquifyIds(clone, groupId);
         // Le composant est exporté comme un <g> (éditable comme un groupe dans
         // Inkscape) et non plus un <svg> imbriqué (sous-document non éditable).
@@ -4472,23 +4473,88 @@ function stripEditorMarkup(root: SVGElement): void {
 }
 
 /**
- * Donne une taille EXPLICITE aux `<svg>` imbriqués d'un dessin cloné. Beaucoup
- * de dessins retouchés n'ont qu'un `viewBox` : dans la webview leur taille est
- * contrainte par le parent, mais dans le fichier exporté un `<svg>` sans
- * width/height vaut 100 % × 100 % du viewport — soit le viewBox de l'export
- * ENTIER. Le composant sortait alors géant (claviers de la capture de Frank)
- * alors que sa boîte de sélection, calculée à part, restait juste.
+ * APLATIT les `<svg>` imbriqués d'un dessin cloné en `<g transform>` équivalents.
+ *
+ * Un `<svg>` imbriqué (celui du dessin source de Frank, ré-injecté par le
+ * composant : alim 74×29 affiché 280×110, carte PCA9685 issue de Fritzing…) est
+ * un SOUS-DOCUMENT : Inkscape le gère mal au dégroupage — l'alim DISPARAÎT, le
+ * clavier et le pico se DÉPLACENT (il faut dégrouper plusieurs fois), et la
+ * carte 16 servos FAIT PLANTER Inkscape (son viewBox Fritzing est démesuré :
+ * -33528 -43298 79375 52916, soit un scale interne de ~264×). Le cadre de
+ * sélection d'Inkscape sortait aussi décalé du dessin (cf. alim.png).
+ *
+ * On remplace donc chaque `<svg x y w h viewBox="minx miny vbw vbh">` par un
+ * `<g transform="translate(x - minx·sx, y - miny·sy) scale(sx, sy)">` avec
+ * sx = w/vbw, sy = h/vbh — la transformation EXACTE qu'applique un viewBox. Un
+ * `<g>` se dégroupe proprement, sans sous-document ni clip. Les attributs de
+ * présentation portés par le `<svg>` (fill-rule, stroke-*…) migrent sur le
+ * `<g>` ; les attributs de service (xmlns, version, x/y/width/height/viewBox)
+ * sont retirés. Le clip implicite du viewBox est perdu, sans effet : les
+ * dessins remplissent leur viewBox (mesuré), et Inkscape ne clippe pas non plus
+ * un `<svg>` imbriqué au dégroupage.
+ *
+ * Repli : sans width/height explicites, un `<svg>` imbriqué vaudrait 100 % du
+ * viewport (le viewBox de l'export ENTIER) et sortirait géant — on lui donne
+ * alors la taille de son viewBox avant d'aplatir.
  */
-function sizeNestedSvgs(root: SVGElement): void {
-  for (const el of Array.from(root.querySelectorAll('svg'))) {
-    if (el.getAttribute('width') && el.getAttribute('height')) continue;
-    const vb = el.getAttribute('viewBox');
-    if (!vb) continue;
-    const n = vb.trim().split(/[\s,]+/).map(Number);
-    if (n.length !== 4 || n.some((v) => !Number.isFinite(v)) || !n[2] || !n[3]) continue;
-    if (!el.getAttribute('width')) el.setAttribute('width', String(n[2]));
-    if (!el.getAttribute('height')) el.setAttribute('height', String(n[3]));
+function flattenNestedSvgs(root: SVGElement): void {
+  // De l'intérieur vers l'extérieur : aplatir un parent d'abord invaliderait les
+  // références aux enfants encore imbriqués. On collecte puis on traite en
+  // profondeur décroissante.
+  const nested = Array.from(root.querySelectorAll('svg'));
+  nested.sort((a, b) => depthOf(b) - depthOf(a));
+  for (const el of nested) {
+    const parent = el.parentNode;
+    if (!parent) continue; // pas la racine du clone (jamais un enfant querySelectorAll)
+    const vbAttr = el.getAttribute('viewBox');
+    const vb = vbAttr ? vbAttr.trim().split(/[\s,]+/).map(Number) : null;
+    const valid = vb && vb.length === 4 && vb.every((v) => Number.isFinite(v)) && vb[2] && vb[3];
+    // Taille d'affichage : width/height explicites, sinon celle du viewBox (repli
+    // anti-géant). Sans viewBox exploitable, on ne peut pas calculer d'échelle
+    // fiable — on garde alors le comportement d'origine (taille explicite posée).
+    const wAttr = parseFloat(el.getAttribute('width') || '');
+    const hAttr = parseFloat(el.getAttribute('height') || '');
+    if (!valid) {
+      if (Number.isFinite(vb?.[2] as number) && !Number.isFinite(wAttr)) {
+        el.setAttribute('width', String(vb?.[2] ?? 0));
+      }
+      continue;
+    }
+    const [minx, miny, vbw, vbh] = vb as number[];
+    const w = Number.isFinite(wAttr) ? wAttr : vbw;
+    const h = Number.isFinite(hAttr) ? hAttr : vbh;
+    const x = parseFloat(el.getAttribute('x') || '0') || 0;
+    const y = parseFloat(el.getAttribute('y') || '0') || 0;
+    const sx = w / vbw;
+    const sy = h / vbh;
+    const g = root.ownerDocument!.createElementNS('http://www.w3.org/2000/svg', 'g');
+    // Attributs de présentation conservés (le reste = service du <svg>).
+    const drop = new Set(['x', 'y', 'width', 'height', 'viewBox', 'version', 'xmlns', 'xml:space', 'preserveaspectratio']);
+    for (const attr of Array.from(el.attributes)) {
+      const n = attr.name.toLowerCase();
+      if (drop.has(n) || n.startsWith('xmlns')) continue;
+      g.setAttribute(attr.name, attr.value);
+    }
+    // translate(x - minx·sx, y - miny·sy) scale(sx, sy) = transformation du viewBox.
+    const tx = x - minx * sx;
+    const ty = y - miny * sy;
+    const existing = el.getAttribute('transform');
+    const vbXform = `translate(${tx} ${ty}) scale(${sx} ${sy})`;
+    g.setAttribute('transform', existing ? `${existing} ${vbXform}` : vbXform);
+    while (el.firstChild) g.appendChild(el.firstChild);
+    parent.replaceChild(g, el);
   }
+}
+
+/** Profondeur d'un nœud dans son arbre (nb d'ancêtres). */
+function depthOf(el: Element): number {
+  let d = 0;
+  let p: Node | null = el.parentNode;
+  while (p) {
+    d++;
+    p = p.parentNode;
+  }
+  return d;
 }
 
 /**

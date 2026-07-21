@@ -33,6 +33,8 @@ import '../../src/webview/composants/alim-element.mjs';
 // Le servo porte un sodipodi:type="star" (servo.edit.svg) : c'est LUI qui
 // rendait l'export illisible chez Frank (8 servos dans son montage).
 import '../../src/webview/composants/servo-element.mjs';
+// Carte 16 servos : son <svg> Fritzing démesuré faisait planter Inkscape.
+import '../../src/webview/composants/pca9685-element.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const checks = [];
 const ok = (name, cond, detail = '') => checks.push({ name, ok: !!cond, detail: String(detail) });
@@ -146,25 +148,126 @@ async function run() {
 	ok('export : toutes les références url(#id) résolvent (dégradés, filtres)',
 		orphelines.length === 0, orphelines.slice(0, 8).join(' '));
 
-	// --- 1 quater. Taille des composants ----------------------------------------
-	// Un <svg> imbriqué sans width/height vaut 100 % du viewport dans le fichier
-	// exporté (= le viewBox de l'export entier) : le clavier sortait géant alors
-	// que sa boîte de sélection restait juste.
+	// --- 1 quater. AUCUN <svg> imbriqué : tous APLATIS en <g> (v2026.7.139) ------
+	// Un <svg> imbriqué (dessin source de Frank ré-injecté par le composant) est
+	// un SOUS-DOCUMENT : Inkscape le gère mal au dégroupage — l'alim DISPARAÎT, le
+	// clavier et le pico se DÉPLACENT (dégroupages multiples), et la carte 16
+	// servos (PCA9685, viewBox Fritzing démesuré -33528..79375) FAIT PLANTER
+	// Inkscape. flattenNestedSvgs remplace chaque <svg> imbriqué par un
+	// <g transform="translate(...) scale(...)"> équivalent : un vrai groupe, qui
+	// se dégroupe proprement. Après correctif, le SEUL <svg> du fichier est la
+	// racine ; plus aucun imbriqué.
 	if (!perr) {
-		const nested = [...doc.documentElement.querySelectorAll('svg')];
-		const sansTaille = nested.filter(
-			(s) => s.getAttribute('viewBox') && (!s.getAttribute('width') || !s.getAttribute('height')));
-		ok('export : tout <svg> imbriqué a une taille EXPLICITE (pas de composant géant)',
-			sansTaille.length === 0, sansTaille.length + ' sans width/height / ' + nested.length);
+		const svgs = [...doc.getElementsByTagName('svg')];
+		const nested = svgs.filter((s) => s !== doc.documentElement);
+		ok('export : plus AUCUN <svg> imbriqué (tous aplatis en <g>, dégroupage Inkscape OK)',
+			nested.length === 0,
+			nested.length + ' imbriqué(s) : ' + nested.map((s) => s.getAttribute('id')).slice(0, 6).join(' '));
 	}
-	// Chaque composant tient dans la feuille : un composant géant déborderait.
-	if (vbAvant && !perr) {
-		const [, , vw0, vh0] = vbAvant;
-		const trop = [...doc.documentElement.querySelectorAll('g[id^="kpart-"] > svg')]
-			.filter((s) => +s.getAttribute('width') > vw0 || +s.getAttribute('height') > vh0);
-		ok('export : aucun composant plus grand que la feuille entière',
-			trop.length === 0, trop.length + ' débordant(s)');
+	// Contre-partie de l'aplatissement : la GÉOMÉTRIE du dessin doit être
+	// préservée. On re-rend le SVG exporté et on transforme les coins du viewBox
+	// SOURCE de l'alim (0,0)→(74.08,29.10) par le CTM de son <g> aplati : leur
+	// écart en coords SVG doit valoir la taille MONDE de l'alim (~280×110), pas la
+	// taille du viewBox source (74×29, si le scale avait été oublié) ni davantage.
+	// Un scale mal calculé lors de l'aplatissement se verrait ici. (Les broches,
+	// mesurées plus bas à <0,3 px, couvrent le positionnement ; ceci couvre
+	// l'ÉCHELLE globale du dessin aplati.)
+	try {
+		const alimPart = editor.diagram.parts.find((p) => p.type === 'alim');
+		const alimRoot = editor.rendered.get(alimPart.id).el.shadowRoot ?? editor.rendered.get(alimPart.id).el;
+		// SVG SOURCE = le <svg> imbriqué (viewBox 74×29) ; repli sur le svg racine.
+		const srcSvg = alimRoot.querySelector('svg svg') || alimRoot.querySelector('svg');
+		const svb = srcSvg && srcSvg.viewBox && srcSvg.viewBox.baseVal;
+		const hostG = document.createElement('div');
+		hostG.style.cssText = 'position:absolute;left:0;top:0';
+		hostG.innerHTML = svgAvant;
+		document.body.appendChild(hostG);
+		await wait(120);
+		const rootG = hostG.querySelector('svg');
+		const kpartsG = [...rootG.querySelectorAll('g[id]')].filter((g) => /^kpart-[0-9]+$/.test(g.id));
+		// Le <g kpart> de l'alim = celui dont le translate = sa position monde.
+		let alimG = null;
+		for (const g of kpartsG) {
+			const m = (g.getAttribute('transform') || '').match(new RegExp('translate\\\\(([-0-9.]+) ([-0-9.]+)\\\\)'));
+			if (m && Math.abs(+m[1] - alimPart.x) <= 0.5 && Math.abs(+m[2] - alimPart.y) <= 0.5) { alimG = g; break; }
+		}
+		// <g> aplati (ex-<svg> source) = premier <g> enfant portant un scale.
+		const flat = alimG && [...alimG.querySelectorAll('g')]
+			.find((g) => new RegExp('scale\\\\(').test(g.getAttribute('transform') || ''));
+		let bw = 0, bh = 0;
+		if (flat && flat.getScreenCTM && svb && rootG.getScreenCTM) {
+			// Écran -> coords SVG monde via l'inverse du CTM racine (le SVG est rendu
+			// à une taille CSS arbitraire dans le div).
+			const inv = rootG.getScreenCTM().inverse();
+			const ctm = flat.getScreenCTM();
+			const toWorld = (ux, uy) => {
+				const p = rootG.createSVGPoint(); p.x = ux; p.y = uy;
+				const s = p.matrixTransform(ctm);
+				const w = rootG.createSVGPoint(); w.x = s.x; w.y = s.y;
+				return w.matrixTransform(inv);
+			};
+			const a = toWorld(svb.x, svb.y), b = toWorld(svb.x + svb.width, svb.y + svb.height);
+			bw = Math.abs(b.x - a.x); bh = Math.abs(b.y - a.y);
+		}
+		ok('export : géométrie de l\\'alim PRÉSERVÉE après aplatissement (~280×110)',
+			Math.abs(bw - 280) <= 4 && Math.abs(bh - 110) <= 4,
+			'boîte ' + bw.toFixed(1) + '×' + bh.toFixed(1) + ' (attendu ~280×110)');
+		hostG.remove();
+	} catch (e) {
+		ok('export : géométrie de l\\'alim PRÉSERVÉE après aplatissement (~280×110)', false, 'ERR ' + (e && e.message || e));
 	}
+
+	// --- 1 sexies. Carte 16 servos PCA9685 : <svg> Fritzing DÉMESURÉ aplati ------
+	// C'est la carte qui faisait PLANTER Inkscape au dégroupage : son <svg> source
+	// (Fritzing) a un viewBox énorme (-33528 -43298 79375 52916, scale interne
+	// ~264×) affiché dans une boîte de 300×200. Un tel sous-document est le pire
+	// cas pour Inkscape. Montage DÉDIÉ (le PCA, très large, fausserait les mesures
+	// de broches du montage principal) : on vérifie que son <svg> est aplati en
+	// <g> et que sa taille d'affichage (~300×200) est préservée.
+	try {
+		const c2 = document.createElement('div'); c2.className = 'canvas'; c2.style.cssText = 'width:1000px;height:800px';
+		const s2 = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s2.setAttribute('class', 'wires'); c2.appendChild(s2);
+		const p2 = document.createElement('div'); const insp2 = document.createElement('div');
+		document.body.appendChild(c2); document.body.appendChild(p2); document.body.appendChild(insp2);
+		const ed2 = new Editor(c2, p2, s2, insp2);
+		const pca = ed2.addPart('pca9685', 300, 300);
+		await wait(500);
+		const pcaSvg = (ed2.rendered.get(pca.id).el.shadowRoot ?? ed2.rendered.get(pca.id).el).querySelector('svg');
+		const pcaW = pcaSvg ? pcaSvg.getBoundingClientRect().width : 0;
+		const svgPca = ed2.exportSvg();
+		const docPca = new DOMParser().parseFromString(svgPca, 'application/xml');
+		const perr2 = docPca.querySelector('parsererror');
+		const nestedPca = perr2 ? -1 : [...docPca.getElementsByTagName('svg')].filter((s) => s !== docPca.documentElement).length;
+		ok('export : carte 16 servos (PCA9685) présente et son <svg> Fritzing APLATI',
+			!perr2 && /<g id="kpart-0"/.test(svgPca) && nestedPca === 0,
+			'XML ' + (perr2 ? 'INVALIDE' : 'ok') + ', imbriqués=' + nestedPca + ', rendu large=' + pcaW.toFixed(0) + 'px');
+		// Taille d'affichage préservée : le <g> aplati doit rendre le dessin à ~300×200
+		// monde, pas à son viewBox Fritzing (79375×52916) ni effondré.
+		const hostP = document.createElement('div'); hostP.style.cssText = 'position:absolute;left:0;top:0';
+		hostP.innerHTML = svgPca; document.body.appendChild(hostP); await wait(120);
+		const rootP = hostP.querySelector('svg');
+		const kp = rootP && rootP.querySelector('g[id="kpart-0"]');
+		const flat = kp && [...kp.querySelectorAll('g')].find((g) => new RegExp('scale\\\\(').test(g.getAttribute('transform') || ''));
+		let pw = 0, ph = 0;
+		if (flat && rootP.getScreenCTM) {
+			const src = (ed2.rendered.get(pca.id).el.shadowRoot ?? ed2.rendered.get(pca.id).el).querySelector('svg svg')
+				|| (ed2.rendered.get(pca.id).el.shadowRoot ?? ed2.rendered.get(pca.id).el).querySelector('svg');
+			const vb = src && src.viewBox && src.viewBox.baseVal;
+			if (vb) {
+				const inv = rootP.getScreenCTM().inverse(); const ctm = flat.getScreenCTM();
+				const tw = (ux, uy) => { const p = rootP.createSVGPoint(); p.x = ux; p.y = uy; const s = p.matrixTransform(ctm); const w = rootP.createSVGPoint(); w.x = s.x; w.y = s.y; return w.matrixTransform(inv); };
+				const a = tw(vb.x, vb.y), b = tw(vb.x + vb.width, vb.y + vb.height);
+				pw = Math.abs(b.x - a.x); ph = Math.abs(b.y - a.y);
+			}
+		}
+		ok('export : taille de la carte 16 servos PRÉSERVÉE après aplatissement (~300×200)',
+			Math.abs(pw - 300) <= 6 && Math.abs(ph - 200) <= 6,
+			'boîte ' + pw.toFixed(1) + '×' + ph.toFixed(1) + ' (attendu ~300×200)');
+		hostP.remove(); c2.remove(); p2.remove(); insp2.remove();
+	} catch (e) {
+		ok('export : carte 16 servos (PCA9685) présente et son <svg> Fritzing APLATI', false, 'ERR ' + (e && e.message || e));
+	}
+
 	// Contrôle de fond : le nombre de groupes de composants est bien celui du
 	// schéma — un fichier tronqué par une erreur XML n'en livrerait qu'une partie
 	// (symptôme « CTRL+A ne sélectionne que le pico »).
