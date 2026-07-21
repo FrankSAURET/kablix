@@ -25,6 +25,8 @@ import '../../src/webview/composants/ptc-element.mjs';
 import '../../src/webview/composants/ldr-element.mjs';
 import '../../src/webview/composants/led-element.mjs';
 import '../../src/webview/composants/resistor-element.mjs';
+import '../../src/webview/composants/pca9685-element.mjs';
+import '../../src/webview/composants/servo-element.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const checks = [];
 const ok = (name, cond, detail = '') => checks.push({ name, ok: !!cond, detail: String(detail) });
@@ -351,6 +353,37 @@ async function run() {
 	const wKeepR2 = editor.diagram.wires.find((x) => x.id === wKeep.id);
 	const keepAfter2 = JSON.stringify((wKeepR2.points ?? []).map((p) => [Math.round(p.x), Math.round(p.y)]));
 	ok('préservation : idempotent (2e autoRoute inchangé)', keepAfter === keepAfter2, keepAfter2);
+
+	// --- Fil ne passant PAS sur une broche voisine en COLONNE (item v2026.7.147) --
+	// Sur le PCA, PWM7 / P8.5V / P8.GND sont sur la même verticale (10 px). Un fil
+	// partant de P8.5V vers le HAUT écraserait PWM7 : la sortie doit être latérale.
+	for (const p of [...editor.diagram.parts]) editor.removePart?.(p.id);
+	await wait(30);
+	const pca = editor.addPart('pca9685', 300, 300);
+	const srv = editor.addPart('servo', 300, 100); // au-dessus du pca
+	await wait(200);
+	editor.select(null);
+	// Broches PWM7 / P8.5V du pca (existence selon le dessin) : on route V+/GND.
+	const hasPin = (id, pin) => !!editor.hotspotCenter({ partId: id, pin });
+	if (hasPin(pca.id, 'PWM7') && hasPin(pca.id, 'P8.5V') && hasPin(srv.id, 'V+')) {
+		editor.addWire({ partId: srv.id, pin: 'V+' }, { partId: pca.id, pin: 'P8.5V' });
+		editor.select(null); editor.autoRoute();
+		await wait(50);
+		const cPWM7 = editor.hotspotCenter({ partId: pca.id, pin: 'PWM7' });
+		const wV = editor.diagram.wires[editor.diagram.wires.length - 1];
+		const pv = [editor.hotspotCenter(wV.a), ...(wV.points ?? []), editor.hotspotCenter(wV.b)];
+		const dseg = (p, a, b) => {
+			const vx = b.x - a.x, vy = b.y - a.y, L2 = vx*vx+vy*vy;
+			let t = L2 ? ((p.x-a.x)*vx+(p.y-a.y)*vy)/L2 : 0; t = Math.max(0, Math.min(1, t));
+			return Math.hypot(p.x-(a.x+t*vx), p.y-(a.y+t*vy));
+		};
+		let near = Infinity;
+		for (let i = 0; i < pv.length - 1; i++) near = Math.min(near, dseg(cPWM7, pv[i], pv[i + 1]));
+		ok('colonne PCA : le fil V+ (P8.5V) N’ÉCRASE PAS la broche voisine PWM7',
+			near > 4, 'dist au centre de PWM7 = ' + near.toFixed(1) + ' px');
+	} else {
+		ok('colonne PCA : broches PWM7/P8.5V présentes', false, 'broches introuvables sur le dessin PCA');
+	}
 
 	const out = document.createElement('pre');
 	out.id = 'measures';

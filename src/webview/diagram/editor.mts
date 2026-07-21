@@ -2620,7 +2620,13 @@ export class Editor {
    * franchement **hors du corps** (patte saillante d'un petit composant : aucune
    * traversée à craindre).
    */
-  private pinStubs(end: Endpoint, center: XY, rects: Map<string, PartRect>, len: number): XY[] {
+  private pinStubs(
+    end: Endpoint,
+    center: XY,
+    rects: Map<string, PartRect>,
+    len: number,
+    foreignPins?: XY[]
+  ): XY[] {
     const r = this.rendered.get(end.partId);
     if (!r) return [];
     const box = rects.get(end.partId);
@@ -2636,13 +2642,35 @@ export class Editor {
     if (dTop < -OUT || dBot < -OUT || dLeft < -OUT || dRight < -OUT) return [];
     const m = Math.min(dTop, dBot, dLeft, dRight);
     const TIE = GRID / 2; // bords considérés équivalents à ±5 px près
+    const top: XY = { x: center.x, y: box.y - len };
+    const bot: XY = { x: center.x, y: box.y + box.h + len };
+    const left: XY = { x: box.x - len, y: center.y };
+    const right: XY = { x: box.x + box.w + len, y: center.y };
     const cands: Array<{ d: number; p: XY }> = [];
-    if (dTop <= m + TIE) cands.push({ d: dTop, p: { x: center.x, y: box.y - len } });
-    if (dBot <= m + TIE) cands.push({ d: dBot, p: { x: center.x, y: box.y + box.h + len } });
-    if (dLeft <= m + TIE) cands.push({ d: dLeft, p: { x: box.x - len, y: center.y } });
-    if (dRight <= m + TIE) cands.push({ d: dRight, p: { x: box.x + box.w + len, y: center.y } });
+    if (dTop <= m + TIE) cands.push({ d: dTop, p: top });
+    if (dBot <= m + TIE) cands.push({ d: dBot, p: bot });
+    if (dLeft <= m + TIE) cands.push({ d: dLeft, p: left });
+    if (dRight <= m + TIE) cands.push({ d: dRight, p: right });
     cands.sort((u, v) => u.d - v.d); // tri stable : à égalité, ordre haut/bas/gauche/droite
-    return cands.slice(0, 2).map((c) => c.p);
+    const picked = cands.slice(0, 2).map((c) => c.p);
+    // Broches ALIGNÉES en colonne/rangée (cas du PCA : PWM7 / P8.5V / P8.GND à
+    // x=1720, espacées de 10 px) : la sortie perpendiculaire par le bord le plus
+    // proche PASSE SUR les broches voisines. On ajoute alors les sorties LATÉRALES
+    // (perpendiculaires à la file de broches) comme candidats — le coût (onPin)
+    // choisira celle qui n'écrase aucune broche, comme le ferait la main.
+    if (foreignPins && foreignPins.length) {
+      const hitsPin = (p: XY): boolean =>
+        foreignPins.some((c) => pointOnSegment(c, center, p, 4));
+      const extra: XY[] = [];
+      for (const cand of picked) {
+        if (!hitsPin(cand)) continue;
+        // Le stub visé écrase une broche : proposer les deux sorties latérales.
+        const lateral = Math.abs(cand.x - center.x) < 0.5 ? [left, right] : [top, bot];
+        for (const lat of lateral) if (!hitsPin(lat) && !extra.includes(lat)) extra.push(lat);
+      }
+      return [...picked, ...extra];
+    }
+    return picked;
   }
 
   /**
@@ -2752,7 +2780,7 @@ export class Editor {
             (p) =>
               !(p.partId === wire.a.partId && p.pin === wire.a.pin) &&
               !(p.partId === wire.b.partId && p.pin === wire.b.pin) &&
-              full.some((_, i) => i < full.length - 1 && pointOnSegment(p.c, full[i], full[i + 1], 2))
+              full.some((_, i) => i < full.length - 1 && pointOnSegment(p.c, full[i], full[i + 1], 4))
           );
           if (!overComp && !overWire && !onForeignPin) {
             // Fil propre : on le garde intact (seule l'optimisation colinéaire
@@ -2797,7 +2825,7 @@ export class Editor {
           (p) =>
             !(p.partId === wire.a.partId && p.pin === wire.a.pin) &&
             !(p.partId === wire.b.partId && p.pin === wire.b.pin) &&
-            pointOnSegment(p.c, a, b, 2)
+            pointOnSegment(p.c, a, b, 4)
         );
         if (!blocked && !crossesForeignPin && polylineWireCost([a, b], others, GAP).overlap <= TOL) {
           if ((wire.points?.length ?? 0) > 0) changed = true;
@@ -2807,8 +2835,17 @@ export class Editor {
           continue;
         }
       }
-      const saList = this.pinStubs(wire.a, a, rectOf, STUB);
-      const sbList = this.pinStubs(wire.b, b, rectOf, STUB);
+      // Broches étrangères au fil (ni a ni b) : sert à écarter une sortie de
+      // broche qui écraserait une broche voisine (colonne dense du PCA).
+      const foreignPinC = pinCenters
+        .filter(
+          (p) =>
+            !(p.partId === wire.a.partId && p.pin === wire.a.pin) &&
+            !(p.partId === wire.b.partId && p.pin === wire.b.pin)
+        )
+        .map((p) => p.c);
+      const saList = this.pinStubs(wire.a, a, rectOf, STUB, foreignPinC);
+      const sbList = this.pinStubs(wire.b, b, rectOf, STUB, foreignPinC);
       const saCands: Array<XY | null> = saList.length > 0 ? saList : [null];
       const sbCands: Array<XY | null> = sbList.length > 0 ? sbList : [null];
       // Ségrégation par équipotentielle : `otherSegs` (autres nets) restent des
@@ -2863,10 +2900,13 @@ export class Editor {
         // Broche étrangère TRAVERSÉE par le tracé : interdit (poids ×2000, pire
         // que traverser un composant) — un fil ne doit jamais recouvrir une
         // broche à laquelle il n'est pas connecté.
+        // Seuil 4 px = rayon de pastille (cf. PIN_CLR dans astarRoute) : un fil qui
+        // RECOUVRE une broche voisine est pénalisé, un fil qui passe à mi-chemin
+        // entre deux broches (5 px) ne l'est pas.
         let onPin = 0;
         for (const fp of foreignPins) {
           for (let i = 0; i < poly.length - 1; i++) {
-            if (pointOnSegment(fp.c, poly[i], poly[i + 1], 2)) {
+            if (pointOnSegment(fp.c, poly[i], poly[i + 1], 4)) {
               onPin++;
               break;
             }
@@ -5366,8 +5406,13 @@ function astarRoute(
   // Interdit DUR : une arête qui passe sur une broche étrangère. Les bornes du
   // fil (pa/pb) sont exclues en amont par l'appelant, donc aucune sortie de
   // broche n'est bloquée ici.
+  // Une pastille fait 9 px (rayon 4,5) : un tracé qui la RECOUVRE (centre à moins
+  // de ~4 px du fil) est interdit. Seuil 4 (et non 2) pour que le fil ne se pose
+  // plus SUR une broche voisine, tout en laissant le passage à mi-chemin entre
+  // deux broches distantes de 10 px (à 5 px de chacune, > 4, donc autorisé).
+  const PIN_CLR = 4;
   const pinBlocked = (p: XY, q: XY): boolean => {
-    for (const c of pins) if (pointOnSegment(c, p, q, 2)) return true;
+    for (const c of pins) if (pointOnSegment(c, p, q, PIN_CLR)) return true;
     return false;
   };
   // Pénalité douce : proximité parallèle d'un autre fil (écarte les fils voisins).

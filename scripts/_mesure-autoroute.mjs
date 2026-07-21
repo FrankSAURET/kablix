@@ -79,7 +79,42 @@ async function run() {
     return m;
   };
 
+  // Toutes les broches (centre monde).
+  const allPins = [];
+  for (const [id, r] of editor.rendered) {
+    for (const pin of r.hotspots.keys()) {
+      const c = pinC(id, pin);
+      if (c) allPins.push({ id, pin, c });
+    }
+  }
+  // Distance d'un point à un segment.
+  const distToSeg = (p, a, b) => {
+    const vx = b.x - a.x, vy = b.y - a.y;
+    const L2 = vx*vx + vy*vy;
+    let t = L2 ? ((p.x-a.x)*vx + (p.y-a.y)*vy)/L2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    const dx = p.x - (a.x + t*vx), dy = p.y - (a.y + t*vy);
+    return Math.hypot(dx, dy);
+  };
+  // Compte les fils qui passent SUR une broche étrangère (< seuil px), après routage.
+  const onForeignPins = (seuil) => {
+    let count = 0; const hits = [];
+    for (const w of editor.diagram.wires) {
+      if (w.auto) continue;
+      const r = wireSegs(w); if (!r) continue;
+      for (const pin of allPins) {
+        const own = (pin.id === w.a.partId && pin.pin === w.a.pin) || (pin.id === w.b.partId && pin.pin === w.b.pin);
+        if (own) continue;
+        let near = false;
+        for (const [s, t] of r.segs) if (distToSeg(pin.c, s, t) <= seuil) { near = true; break; }
+        if (near) { count++; hits.push(w.id + ' [' + w.a.partId + '.' + w.a.pin + '->' + w.b.partId + '.' + w.b.pin + '] sur ' + pin.id + '.' + pin.pin); break; }
+      }
+    }
+    return { count, hits: hits.slice(0, 12) };
+  };
+
   const before = measure('avant autoRoute');
+  const pinBefore = onForeignPins(3);
   const fp0 = fingerprint();
   editor.autoRoute();
   await wait(400);
@@ -99,7 +134,9 @@ async function run() {
 
   const out = { before, after, after2,
     fils_modifies_1er_passage: changed1 + '/' + Object.keys(fp1).length,
-    fils_modifies_2e_passage: changed2 + '/' + Object.keys(fp2).length };
+    fils_modifies_2e_passage: changed2 + '/' + Object.keys(fp2).length,
+    sur_broche_AVANT_3px: pinBefore,
+    sur_broche_etrangere_3px: onForeignPins(3) };
   document.getElementById('measures').textContent = JSON.stringify(out, null, 2);
   // Recentre pour la capture d'écran.
   if (editor.fitView) editor.fitView();
