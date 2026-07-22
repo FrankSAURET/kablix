@@ -71,6 +71,25 @@ export class SimulatorPanel {
    *  ● dans le titre de l'onglet tant que c'est vrai, garde-fou avant d'ouvrir un
    *  autre projet. */
   private projectDirty = false;
+  /** Dernier schéma reçu de la webview tant que le projet est « sale » : sert à
+   *  proposer un enregistrement si l'onglet est fermé sans avoir enregistré. */
+  private pendingDiagram: unknown;
+  private pendingBoard: Board | undefined;
+  /** L'utilisateur a choisi « Continuer sans enregistrer » : la prochaine
+   *  fermeture ne rouvre plus (évite une boucle de réouverture). Remis à false
+   *  dès qu'une nouvelle modification survient (le projet redevient à protéger). */
+  private discardAccepted = false;
+  /** État transféré à un panneau rouvert après une fermeture « modifications non
+   *  enregistrées » : le nouveau panneau recharge ce schéma et propose de l'enregistrer. */
+  private static pendingReopen:
+    | {
+        diagram: unknown;
+        board: Board | undefined;
+        projectUri: vscode.Uri | undefined;
+        projectBaseName: string | undefined;
+        codeFileUri: vscode.Uri | undefined;
+      }
+    | undefined;
   /** Fichier source actuellement chargé dans le simulateur (.py ou source C ; pas les artefacts). */
   private currentSourceUri: vscode.Uri | undefined;
   /** Fichier de code choisi explicitement (chip du canvas) ; sinon le fichier actif sert. */
@@ -430,7 +449,7 @@ export class SimulatorPanel {
   private updateTitle(): void {
     const project = this.projectBaseName ? `${this.projectBaseName}.Projix` : this.projectDisplayName();
     const base = project ? `${l10n.t('Kablix — Simulator')} — ${project}` : l10n.t('Kablix — Simulator');
-    this.panel.title = this.projectDirty ? `${base} ●` : base;
+    this.panel.title = this.projectDirty ? `${base} ⬤` : base;
   }
 
   /** Référence du fichier de code pour le .projix : chemin relatif au workspace, sinon nom. */
@@ -671,6 +690,12 @@ export class SimulatorPanel {
         } else {
           this.setCodeFile(this.codeFileUri);
         }
+        // Réouverture après fermeture avec modifications non enregistrées :
+        // recharge le schéma récupéré et propose de l'enregistrer.
+        if (SimulatorPanel.pendingReopen) {
+          void this.resumeAfterUnsavedClose(SimulatorPanel.pendingReopen);
+          SimulatorPanel.pendingReopen = undefined;
+        }
         break;
       case 'pickCodeFile':
         void this.pickCodeFile();
@@ -731,7 +756,20 @@ export class SimulatorPanel {
         // La webview signale l'état « modifications non enregistrées » : ● dans
         // l'onglet (le nom dans la barre est géré côté webview).
         this.projectDirty = msg.dirty === true;
+        if (this.projectDirty) {
+          this.pendingDiagram = msg.diagram;
+          if (msg.board) this.pendingBoard = msg.board;
+          this.discardAccepted = false; // nouvelle modif : garde-fou réactivé
+        } else {
+          this.pendingDiagram = undefined; // enregistré : plus rien à proposer
+        }
         this.updateTitle();
+        break;
+      case 'syncDiagram':
+        // Schéma tenu à jour tant que le projet est « sale » (fermeture éventuelle).
+        this.pendingDiagram = msg.diagram;
+        if (msg.board) this.pendingBoard = msg.board;
+        this.discardAccepted = false; // une modification est survenue
         break;
       case 'openProject':
         void this.openProject();
@@ -1118,13 +1156,79 @@ export class SimulatorPanel {
     void this.panel.webview.postMessage(message);
   }
 
+  /** Panneau rouvert après une fermeture avec modifications non enregistrées :
+   *  recharge le schéma récupéré, restaure le contexte du projet, puis propose
+   *  une fenêtre modale Enregistrer / Continuer sans enregistrer. */
+  private async resumeAfterUnsavedClose(state: {
+    diagram: unknown;
+    board: Board | undefined;
+    projectUri: vscode.Uri | undefined;
+    projectBaseName: string | undefined;
+    codeFileUri: vscode.Uri | undefined;
+  }): Promise<void> {
+    this.projectUri = state.projectUri;
+    this.projectBaseName = state.projectBaseName;
+    if (state.board) this.currentBoard = state.board;
+    this.pendingDiagram = state.diagram;
+    this.pendingBoard = state.board;
+    this.projectDirty = true;
+    this.updateTitle();
+    this.postProjectName();
+    if (state.codeFileUri) this.setCodeFile(state.codeFileUri); // restaure le chip de code
+    // Recharge le schéma tel qu'il était à la fermeture (markDirty : il reste
+    // « non enregistré » tant qu'aucun enregistrement réel n'a eu lieu).
+    this.post({ type: 'loadProject', diagram: state.diagram, board: state.board, markDirty: true });
+
+    const save = l10n.t('Save');
+    const discard = l10n.t('Continue without saving');
+    const choice = await vscode.window.showWarningMessage(
+      l10n.t('The project has unsaved changes that were about to be lost when the tab was closed.'),
+      { modal: true },
+      save,
+      discard
+    );
+    if (choice === save) {
+      await this.saveProject(state.diagram, state.board);
+    } else {
+      // « Continuer sans enregistrer » / fermeture de la modale : le panneau
+      // reste ouvert avec le schéma restauré (toujours « non enregistré »), mais
+      // la perte est acceptée — la PROCHAINE fermeture ne rouvre plus (sauf
+      // nouvelle modification, qui remet le garde-fou).
+      this.discardAccepted = true;
+    }
+  }
+
   private onDispose(): void {
+    // Onglet fermé avec des modifications non enregistrées : l'API webview ne
+    // permet PAS d'annuler la fermeture, mais le schéma reçu de la webview est
+    // encore en mémoire. On rouvre le panneau avec ce schéma et on propose de
+    // l'enregistrer (fenêtre modale Enregistrer / Continuer sans enregistrer).
+    const reopen =
+      this.projectDirty &&
+      !this.discardAccepted && // l'utilisateur a déjà accepté la perte
+      this.pendingDiagram !== undefined &&
+      !SimulatorPanel.pendingReopen; // pas déjà en cours de réouverture
+    if (reopen) {
+      SimulatorPanel.pendingReopen = {
+        diagram: this.pendingDiagram,
+        board: this.pendingBoard ?? this.currentBoard,
+        projectUri: this.projectUri,
+        projectBaseName: this.projectBaseName,
+        codeFileUri: this.codeFileUri,
+      };
+    }
+
     SimulatorPanel.current = undefined;
     this.clearDebugLine();
     this.debugLineDecoration?.dispose();
     this.debugLineDecoration = undefined;
     while (this.disposables.length) {
       this.disposables.pop()?.dispose();
+    }
+
+    if (reopen) {
+      // Rouvre au prochain tick (le dispose courant doit s'achever d'abord).
+      setTimeout(() => SimulatorPanel.createOrShow(this.context), 0);
     }
   }
 

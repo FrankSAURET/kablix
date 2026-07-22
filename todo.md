@@ -2,6 +2,12 @@ Nouveau todo.md, j'ai archivé le précédant (todo - v2026.7.144.md).
 # À faire
 1. Flèche ROUGE de l'autoroutage (alignement maximal des équipotentielles) : à re-tenter si un montage la met en défaut — voir note v146 (mesurée neutre sur le montage 16 servos, tracé déjà propre).
 
+# v2026.7.152
+1. ✅ **Fermeture de l'onglet avec modifications non enregistrées → mise en garde** (retour Frank). L'API webview de VS Code ne permet PAS d'annuler la fermeture (`onDidDispose` est déjà tardif). Solution : à la fermeture d'un projet « non enregistré », le panneau se ferme puis se **rouvre** automatiquement avec le schéma récupéré, et une **fenêtre modale** propose « Enregistrer » / « Continuer sans enregistrer ». Aucune perte de schéma (bref clignotement assumé, pas un vrai « Annuler » bloquant).
+2. ℹ️ **Schéma tenu à jour côté hôte** : la webview envoie `syncDiagram` à chaque `onChange` (et joint le schéma au message `projectDirty`), pour que l'hôte dispose du dernier schéma au moment du dispose (la webview étant alors détruite).
+3. ℹ️ **Réouverture** (`resumeAfterUnsavedClose`) : recharge le schéma (`loadProject` avec `markDirty:true` → reste « non enregistré »), restaure nom/carte/chip de code, puis modale. « Enregistrer » → `saveProject` réel (point disparaît). « Continuer sans enregistrer » → panneau conservé + `discardAccepted` : la PROCHAINE fermeture ne rouvre plus (sauf nouvelle modification, qui réarme le garde-fou) — pas de boucle de réouverture.
+4. ✅ Chaînes l10n (bundle FR). typecheck + build OK.
+
 # v2026.7.151
 1. ✅ **Flamme de destruction → explosion « Boum »** (retour Frank). Les 4 composants qui grillent (led, rgb-led, 7segment, led-bar-graph) affichaient une flamme SVG vectorielle vacillante. Remplacée par le dessin d'explosion `svg/Boum.svg` (vectoriel + raster, sans filigrane). Nouveau module partagé `src/webview/composants/utils/boum.mts` : `boumSVG(cx, cy, taille)` = une seule copie du dessin dans le bundle, imbriqué dans un `<g>` centré/scalé.
 2. ℹ️ **Ids scopés par instance** : le dessin porte 262 ids référencés par 264 `url(#…)` (gradients/masks). Deux composants grillés dans le même document dupliqueraient ces ids et mélangeraient les rendus → `scopeIds` suffixe ids ET références (`__bN`) à chaque appel. MESURÉ en Chrome headless : 2 explosions côte à côte, tailles distinctes, aucune collision de gradient.

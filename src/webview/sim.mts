@@ -1883,7 +1883,9 @@ function setDirty(dirty: boolean): void {
   if (dirty === projectDirty) return;
   projectDirty = dirty;
   renderProjectName();
-  vscode.postMessage({ type: 'projectDirty', dirty });
+  // Joint le schéma courant : l'hôte le garde pour proposer un enregistrement
+  // si l'onglet est fermé alors que des modifications ne sont pas enregistrées.
+  vscode.postMessage({ type: 'projectDirty', dirty, diagram: dirty ? editor.serialize() : undefined, board });
 }
 
 // Nom du projet dans la barre, SUIVI d'un gros point noir « ⬤ » quand des
@@ -1905,7 +1907,12 @@ function renderProjectName(): void {
 
 editor.onChange = () => {
   persistState();
-  if (!loadingProject) setDirty(true);
+  if (!loadingProject) {
+    setDirty(true);
+    // Tient à jour côté hôte le schéma « à enregistrer » (setDirty ne renotifie
+    // pas quand l'état dirty ne change pas) — utile si l'onglet est fermé.
+    vscode.postMessage({ type: 'syncDiagram', diagram: editor.serialize(), board });
+  }
   if (engine) rebind();
 };
 
@@ -2393,7 +2400,10 @@ window.addEventListener('message', (event: MessageEvent) => {
       }
       editor.loadDiagram(msg.diagram as Parameters<typeof editor.loadDiagram>[0]);
       loadingProject = false;
-      setDirty(false); // projet fraîchement chargé = aligné sur le disque
+      // Projet fraîchement chargé = aligné sur le disque, SAUF réouverture après
+      // une fermeture avec modifications non enregistrées (markDirty) : le schéma
+      // restauré n'est pas encore enregistré, on garde le point « non enregistré ».
+      setDirty(msg.markDirty === true);
       if (isBoardId(msg.board)) {
         switchBoard(msg.board);
         boardSelect.value = msg.board;

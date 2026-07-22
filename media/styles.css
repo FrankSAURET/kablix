@@ -234,6 +234,7 @@ textarea {
 .project-name .dirty-dot {
   line-height: 0;
   vertical-align: -0.05em;
+  font-size: 1.4em;
 }
 
 .stage {
