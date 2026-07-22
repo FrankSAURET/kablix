@@ -3,6 +3,7 @@ import { SimulatorPanel } from './panel';
 import { HelpPanel } from './help';
 import { promptLibraryUpdates } from './updates';
 import { upgradeFirmware, checkFirmwareUpdate } from './firmware';
+import { saveDefaultLayout } from './layout';
 
 export function activate(context: vscode.ExtensionContext): void {
   // Vue de la barre d'activité : cliquer l'icône Kablix ouvre DIRECTEMENT le
@@ -72,6 +73,9 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.commands.registerCommand('kablix.openHelp', () => {
       HelpPanel.createOrShow();
+    }),
+    vscode.commands.registerCommand('kablix.saveDefaultLayout', () => {
+      void saveDefaultLayout(context);
     })
   );
 
@@ -124,6 +128,26 @@ export function activate(context: vscode.ExtensionContext): void {
     .get<boolean>('checkFirmwareUpdatesOnStartup', false);
   if (checkFirmwareOnStartup) {
     void checkFirmwareUpdate(context, true);
+  }
+
+  // Restauration au démarrage : rouvre le dernier projet (.projix) ouvert à la
+  // fermeture, dans le simulateur — comme un onglet VS Code classique. Les
+  // autres onglets texte (le fichier de code inclus) sont restaurés nativement
+  // par VS Code. Opt-out via le réglage `kablix.restoreLastProjectOnStartup`.
+  const restoreProject = vscode.workspace
+    .getConfiguration('kablix')
+    .get<boolean>('restoreLastProjectOnStartup', true);
+  if (restoreProject) {
+    const last = SimulatorPanel.lastProjectUri(context);
+    if (last) {
+      void vscode.workspace.fs.stat(last).then(
+        () => {
+          const panel = SimulatorPanel.createOrShow(context);
+          void panel.openProject(last);
+        },
+        () => undefined // dernier projet déplacé/supprimé : rien à rouvrir
+      );
+    }
   }
 }
 

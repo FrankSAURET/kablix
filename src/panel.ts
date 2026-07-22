@@ -17,6 +17,7 @@ import {
   type ProjixManifest,
 } from './projix';
 import { resolveMicropythonFirmware, FirmwareCancelled } from './firmware';
+import { applyDefaultLayout } from './layout';
 
 const ARTIFACT_EXTS = ['.hex', '.uf2', '.elf', '.bin'];
 
@@ -45,6 +46,8 @@ const SIM_MODELS_KEY = 'kablix.simModels';
 const UI_STATE_KEY = 'kablix.uiState';
 /** Dernière colonne d'éditeur du simulateur (rouvert au même endroit). */
 const LAST_COLUMN_KEY = 'kablix.lastColumn';
+/** Chemin du dernier .projix ouvert/enregistré (rouvert au démarrage). */
+const LAST_PROJECT_KEY = 'kablix.lastProject';
 
 /**
  * Gère le panneau webview du simulateur. Un seul panneau est ouvert à la fois ;
@@ -130,6 +133,21 @@ export class SimulatorPanel {
 
   public static dispose(): void {
     SimulatorPanel.current?.panel.dispose();
+  }
+
+  /**
+   * Chemin du dernier .projix ouvert/enregistré (pour le rouvrir au démarrage),
+   * ou undefined si aucun projet n'a encore été enregistré/ouvert. Le fichier
+   * peut avoir été déplacé/supprimé depuis : l'appelant vérifie son existence.
+   */
+  public static lastProjectUri(context: vscode.ExtensionContext): vscode.Uri | undefined {
+    const p = context.globalState.get<string>(LAST_PROJECT_KEY);
+    return p ? vscode.Uri.file(p) : undefined;
+  }
+
+  /** Mémorise le .projix courant comme « dernier projet » (rouvert au démarrage). */
+  private rememberLastProject(uri: vscode.Uri): void {
+    void this.context.globalState.update(LAST_PROJECT_KEY, uri.fsPath);
   }
 
   /**
@@ -533,6 +551,10 @@ export class SimulatorPanel {
     );
     // Gouttière VS Code → simulateur : tout changement de point d'arrêt est relayé.
     vscode.debug.onDidChangeBreakpoints(() => this.sendBreakpoints(), null, this.disposables);
+    // Première ouverture de la session : pose la disposition par défaut
+    // (explorateur fermé, code 1/3 à gauche · simulateur 2/3 à droite). Après un
+    // ajustement manuel, on ne la réimpose pas (voir applyDefaultLayout).
+    void applyDefaultLayout(context);
   }
 
   // --- Débogage : points d'arrêt et ligne courante ------------------------------
@@ -612,6 +634,7 @@ export class SimulatorPanel {
     request?: unknown;
     url?: string;
     dirty?: boolean;
+    command?: string;
   }): void {
     switch (msg?.type) {
       case 'ready':
@@ -722,6 +745,22 @@ export class SimulatorPanel {
         break;
       case 'help':
         void vscode.commands.executeCommand('kablix.openHelp');
+        break;
+      case 'menuCommand':
+        // Menu « Autres fonctions » : relaie la commande VS Code demandée
+        // (liste blanche stricte — jamais une commande arbitraire de la webview).
+        if (typeof msg.command === 'string') {
+          const allowed = new Set([
+            'kablix.importWokwiDiagram',
+            'kablix.exportWokwiDiagram',
+            'kablix.upgradePicoFirmware',
+            'kablix.checkLibraryUpdates',
+            'kablix.saveDefaultLayout',
+          ]);
+          if (allowed.has(msg.command)) {
+            void vscode.commands.executeCommand(msg.command);
+          }
+        }
         break;
       case 'openExternal':
         // Liste blanche stricte : doc Wokwi d'un composant (bouton aide de
@@ -922,6 +961,7 @@ export class SimulatorPanel {
       await vscode.workspace.fs.writeFile(target, bytes);
       this.projectUri = target;
       this.projectBaseName = baseNameNoExt(target.fsPath);
+      this.rememberLastProject(target);
       this.postProjectName();
       // Confirmation visible DANS l'atelier (statut « Projet sauvegardé »).
       this.post({ type: 'projectSaved' });
@@ -973,6 +1013,7 @@ export class SimulatorPanel {
       const project = await unpackProject(bytes);
       this.projectUri = picked[0]; // cible du bouton Enregistrer (sans dialogue)
       this.projectBaseName = baseNameNoExt(picked[0].fsPath);
+      this.rememberLastProject(picked[0]);
       this.postProjectName();
 
       // Recharge le schéma et la carte dans la webview (et les composants perso).
@@ -1198,6 +1239,17 @@ export class SimulatorPanel {
     <button id="toggle-labels" title="${l10n.t('Show/hide part names')}">${l10n.t('Names')}</button>
     <button id="open-help" class="toolbar__icon-btn" title="${l10n.t('Open help')}"><img src="${aideIconUri}" alt="${l10n.t('Open help')}" /></button>
     <span id="project-name" class="project-name" title="${l10n.t('Current project')}"></span>
+    <div class="more-menu" id="more-menu">
+      <button id="more-btn" class="toolbar__icon-btn more-menu__btn" title="${l10n.t('Other functions')}" aria-haspopup="true" aria-expanded="false">⋯</button>
+      <ul id="more-list" class="more-menu__list" role="menu" hidden>
+        <li role="menuitem" data-cmd="kablix.importWokwiDiagram">${l10n.t('Import a Wokwi diagram')}</li>
+        <li role="menuitem" data-cmd="kablix.exportWokwiDiagram">${l10n.t('Export a Wokwi diagram')}</li>
+        <li role="menuitem" data-cmd="kablix.upgradePicoFirmware">${l10n.t('Update the Pico firmware')}</li>
+        <li role="menuitem" data-cmd="kablix.checkLibraryUpdates">${l10n.t('Check for library updates')}</li>
+        <li class="more-menu__sep" role="separator"></li>
+        <li role="menuitem" data-cmd="kablix.saveDefaultLayout">${l10n.t('Save the default layout')}</li>
+      </ul>
+    </div>
     <span id="status" class="status">Prêt</span>
   </header>
 

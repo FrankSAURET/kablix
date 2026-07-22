@@ -109,6 +109,48 @@ textarea {
   cursor: default;
 }
 
+/* Menu « Autres fonctions » (⋯), à droite du nom du projet : commandes Kablix
+   secondaires (Wokwi, firmware, bibliothèques, organisation par défaut). */
+.more-menu {
+  position: relative;
+  display: inline-flex;
+}
+.more-menu__btn {
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 2px 6px;
+}
+.more-menu__list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 30;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  min-width: 220px;
+  background: var(--vscode-menu-background, var(--vscode-dropdown-background, #2c2c2c));
+  color: var(--vscode-menu-foreground, var(--vscode-dropdown-foreground, #fff));
+  border: 1px solid var(--vscode-menu-border, var(--vscode-dropdown-border, #555));
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+.more-menu__list li[role='menuitem'] {
+  padding: 5px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: 0.9rem;
+}
+.more-menu__list li[role='menuitem']:hover {
+  background: var(--vscode-menu-selectionBackground, var(--vscode-list-activeSelectionBackground, #094771));
+  color: var(--vscode-menu-selectionForeground, var(--vscode-list-activeSelectionForeground, #fff));
+}
+.more-menu__sep {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--vscode-menu-separatorBackground, var(--vscode-dropdown-border, #555));
+}
+
 /* Zone de statut (haut à droite) : mise en valeur — badge à fond/bordure
    d'accent, pour repérer d'un coup d'œil les messages (Prêt, Erreur, Projet
    sauvegardé…). Ils clignotent 3 fois à leur apparition (.status--flash). */

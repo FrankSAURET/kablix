@@ -1,2 +1,3 @@
 - Voir pour retoucher la flamme de destruction de composant
 - Le point indiquant la sauvegarde est trop gros 
+- Comme les autres onglets vscode, à l'ouverture il doit ouvrir le fichier qui étati ouvert à la fermeture et le fichier de code correspondant

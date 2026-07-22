@@ -1,7 +1,7 @@
 {
   "name": "kablix",
   "displayName": "Kablix",
-  "version": "2026.7.147",
+  "version": "2026.7.148",
   "description": "%kablix.description%",
   "publisher": "franksauret",
   "author": {
@@ -85,6 +85,11 @@
         "command": "kablix.openHelp",
         "title": "%kablix.cmd.openHelp%",
         "category": "Kablix"
+      },
+      {
+        "command": "kablix.saveDefaultLayout",
+        "title": "%kablix.cmd.saveDefaultLayout%",
+        "category": "Kablix"
       }
     ],
     "viewsContainers": {
@@ -139,6 +144,11 @@
           "type": "boolean",
           "default": false,
           "description": "%kablix.config.checkFirmwareUpdatesOnStartup%"
+        },
+        "kablix.restoreLastProjectOnStartup": {
+          "type": "boolean",
+          "default": true,
+          "description": "%kablix.config.restoreLastProjectOnStartup%"
         },
         "kablix.arduinoCliPath": {
           "type": "string",

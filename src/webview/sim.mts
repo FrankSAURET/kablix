@@ -2013,6 +2013,30 @@ document.getElementById('brand')?.addEventListener('click', () => {
   vscode.postMessage({ type: 'openRepo' });
 });
 
+// Menu « Autres fonctions » (⋯) : commandes Kablix relayées à l'hôte. Ouvre au
+// clic, se ferme au clic ailleurs, sur Échap, ou après un choix.
+const moreBtn = document.getElementById('more-btn') as HTMLButtonElement;
+const moreList = document.getElementById('more-list') as HTMLUListElement;
+function setMoreOpen(open: boolean): void {
+  moreList.hidden = !open;
+  moreBtn.setAttribute('aria-expanded', String(open));
+}
+moreBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  setMoreOpen(moreList.hidden === true);
+});
+moreList.addEventListener('click', (e) => {
+  const item = (e.target as HTMLElement).closest('li[data-cmd]') as HTMLElement | null;
+  if (!item) return;
+  const command = item.dataset.cmd;
+  if (command) vscode.postMessage({ type: 'menuCommand', command });
+  setMoreOpen(false);
+});
+document.addEventListener('click', () => setMoreOpen(false));
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') setMoreOpen(false);
+});
+
 // --- Préférences d'interface (noms visibles, tri de palette, derniers utilisés)
 // Bouton « Noms » : menu à deux cases exclusives — « Tous les noms » /
 // « Uniquement les composants sélectionnés » ; aucune cochée = aucun nom.

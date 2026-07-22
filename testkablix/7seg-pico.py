@@ -18,4 +18,3 @@ while True:
         SEGS[7].value((nombre % 2) == COMMUNE)  # Point décimal sur les impairs.
         print(nombre)
         time.sleep(0.5)
-dd
