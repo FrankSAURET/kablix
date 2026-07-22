@@ -2,6 +2,10 @@ Nouveau todo.md, j'ai archivé le précédant (todo - v2026.7.144.md).
 # À faire
 1. Flèche ROUGE de l'autoroutage (alignement maximal des équipotentielles) : à re-tenter si un montage la met en défaut — voir note v146 (mesurée neutre sur le montage 16 servos, tracé déjà propre).
 
+# v2026.7.153
+1. ✅ **Clic simple (sans glisser) sur un composant de la bibliothèque → pose au CENTRE de la vue** (retour Frank). La pose par déplacement (`startPlaceFromPalette`, v136) ancrait le composant sous le curseur d'appui, qui est SUR la palette (à gauche) : un clic sec le posait donc à gauche, pas au centre. Ajout d'un seuil de déplacement (4 px) : sous le seuil = clic → pose sur `visibleWorldCenter()` ; au-delà = glisser → suit le curseur comme avant. Ancrage initial mis au centre de la vue (plus sous la palette) → pas de flash à gauche pour un clic sec.
+2. ✅ typecheck OK.
+
 # v2026.7.152
 1. ✅ **Fermeture de l'onglet avec modifications non enregistrées → mise en garde** (retour Frank). L'API webview de VS Code ne permet PAS d'annuler la fermeture (`onDidDispose` est déjà tardif). Solution : à la fermeture d'un projet « non enregistré », le panneau se ferme puis se **rouvre** automatiquement avec le schéma récupéré, et une **fenêtre modale** propose « Enregistrer » / « Continuer sans enregistrer ». Aucune perte de schéma (bref clignotement assumé, pas un vrai « Annuler » bloquant).
 2. ℹ️ **Schéma tenu à jour côté hôte** : la webview envoie `syncDiagram` à chaque `onChange` (et joint le schéma au message `projectDirty`), pour que l'hôte dispose du dernier schéma au moment du dispose (la webview étant alors détruite).

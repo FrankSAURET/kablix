@@ -1290,13 +1290,21 @@ export class Editor {
     e.preventDefault();
     const part = this.addPart(type, 0, 0);
     this.placingFromPalette = part.id;
+    // Distingue un simple clic (pas de déplacement) d'un glisser : le curseur
+    // d'appui est sur la palette (à gauche) ; un clic sec doit poser le composant
+    // au CENTRE de la vue, pas sous la palette. Passé ce seuil, on suit le curseur.
+    const startX = e.clientX;
+    const startY = e.clientY;
+    let dragged = false;
     // Suivi ABSOLU du curseur (et non par delta comme `startDrag`) : la taille
     // réelle du dessin n'arrive qu'après le rendu Lit, et peut encore grandir
     // plusieurs frames plus tard (`scheduleSettle` / `applyPinScale`). En
     // recentrant à CHAQUE mouvement sur la position courante, le composant reste
     // collé au curseur quelle que soit la taille connue à l'instant t — un
     // ancrage figé à l'appui laissait, lui, un écart permanent (mesuré : 16 px).
-    let at = this.canvasPoint(e.clientX, e.clientY);
+    // Ancrage initial au centre de la vue (le curseur d'appui est sur la palette) :
+    // un clic sec y reste ; le premier déplacement réel bascule le suivi au curseur.
+    let at = this.visibleWorldCenter();
     this.centerPartOn(part.id, at);
     const follow = (): void => {
       if (this.placingFromPalette !== part.id) return;
@@ -1308,6 +1316,7 @@ export class Editor {
     if (typeof requestAnimationFrame === 'function') requestAnimationFrame(follow);
 
     const move = (ev: PointerEvent): void => {
+      if (!dragged && Math.hypot(ev.clientX - startX, ev.clientY - startY) > 4) dragged = true;
       at = this.canvasPoint(ev.clientX, ev.clientY);
       this.centerPartOn(part.id, at);
       this.redrawWires();
@@ -1315,7 +1324,8 @@ export class Editor {
     const end = (ev: PointerEvent): void => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', end);
-      at = this.canvasPoint(ev.clientX, ev.clientY);
+      // Clic sec (jamais déplacé) : pose au centre de la vue. Sinon : sous le curseur.
+      at = dragged ? this.canvasPoint(ev.clientX, ev.clientY) : this.visibleWorldCenter();
       this.centerPartOn(part.id, at);
       this.placingFromPalette = null;
       // Alignement final sur la grille (comme toute pose) puis enfichage
