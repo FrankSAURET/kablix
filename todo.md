@@ -2,6 +2,12 @@ Nouveau todo.md, j'ai archivé le précédant (todo - v2026.7.144.md).
 # À faire
 1. Flèche ROUGE de l'autoroutage (alignement maximal des équipotentielles) : à re-tenter si un montage la met en défaut — voir note v146 (mesurée neutre sur le montage 16 servos, tracé déjà propre).
 
+# v2026.7.154
+1. ✅ **Explosion « Boum » invisible en simulation (afficheur, LED…) → corrigée** (retour Frank). Le `<g>` animé de `boum.mts` démarrait à `transform: scale(0); opacity: 0` avec `animation … both` : si l'animation ne tourne PAS (webview sans compositing d'animations SVG, `prefers-reduced-motion`, ou simple rendu non animé), l'explosion restait **coincée à scale(0)** — donc présente dans le DOM (335 paths mesurés) mais invisible. Reproduit en Chrome headless (screenshot + sonde : `computed transform matrix(0,0,0,0,0,0)`, `opacity 0`).
+2. ✅ **Fix** : état de REPOS rendu visible (`transform: scale(1); opacity: 1` sur `.anim-`), les keyframes `pop` ne partent plus de scale(0)/opacity(0) mais de scale(0.2)/opacity(0.3), et `@media (prefers-reduced-motion: reduce)` force l'affichage plein sans animation. L'animation ne fait plus que « jaillir » ; elle n'est JAMAIS la condition de visibilité.
+3. ✅ **Test de non-régression** : `verify:led` — les 5 détections `.led-flame` (sélecteur MORT depuis v151) remplacées par `g[class^="anim-"]` ; nouveau contrôle « explosion boum VISIBLE au repos (scale 1, opaque) sans animation ». 20 → **21 contrôles**, tous verts.
+4. ✅ typecheck OK.
+
 # v2026.7.153
 1. ✅ **Clic simple (sans glisser) sur un composant de la bibliothèque → pose au CENTRE de la vue** (retour Frank). La pose par déplacement (`startPlaceFromPalette`, v136) ancrait le composant sous le curseur d'appui, qui est SUR la palette (à gauche) : un clic sec le posait donc à gauche, pas au centre. Ajout d'un seuil de déplacement (4 px) : sous le seuil = clic → pose sur `visibleWorldCenter()` ; au-delà = glisser → suit le curseur comme avant. Ancrage initial mis au centre de la vue (plus sous la palette) → pas de flash à gauche pour un clic sec.
 2. ✅ typecheck OK.

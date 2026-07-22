@@ -34,20 +34,30 @@ export function boumSVG(cx: number, cy: number, size: number) {
   return svg`
     <g transform="translate(${cx} ${cy}) scale(${k}) translate(${-BOUM_VB / 2} ${-BOUM_VB / 2})">
       <style>
+        /* État de REPOS visible (scale 1, opaque) : si les animations ne
+           tournent pas (webview sans compositing SVG, prefers-reduced-motion,
+           rendu headless…), l'explosion reste affichée pleine taille au lieu
+           de rester coincée à scale(0). L'animation ne fait que « jaillir » ;
+           elle n'est jamais la condition de visibilité. */
         .anim-${suffix} {
           transform-box: fill-box;
           transform-origin: 50% 50%;
-          animation: pop-${suffix} 0.32s cubic-bezier(0.2, 1.4, 0.4, 1) both,
+          transform: scale(1);
+          opacity: 1;
+          animation: pop-${suffix} 0.32s cubic-bezier(0.2, 1.4, 0.4, 1) 1,
                      pulse-${suffix} 0.5s ease-in-out 0.32s infinite alternate;
         }
         @keyframes pop-${suffix} {
-          from { transform: scale(0); opacity: 0; }
+          0%   { transform: scale(0.2); opacity: 0.3; }
           60%  { transform: scale(1.15); opacity: 1; }
-          to   { transform: scale(1); opacity: 1; }
+          100% { transform: scale(1); opacity: 1; }
         }
         @keyframes pulse-${suffix} {
           from { transform: scale(1); }
           to   { transform: scale(1.06); opacity: 0.9; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .anim-${suffix} { animation: none; transform: scale(1); opacity: 1; }
         }
       </style>
       <g class="anim-${suffix}">${unsafeSVG(drawing)}</g>

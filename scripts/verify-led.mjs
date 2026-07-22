@@ -213,25 +213,35 @@ async function run() {
 	await ok.updateComplete; await burned.updateComplete; await rgb.updateComplete;
 	await seg.updateComplete; await segBurned.updateComplete;
 	await bar.updateComplete; await barBurned.updateComplete;
+	// Régression v153+ : l'explosion « boum » doit rester VISIBLE au repos même si
+	// les animations ne tournent pas (webview sans compositing SVG / reduced-motion).
+	// On coupe l'animation et on vérifie que le groupe reste à scale(1)/opacity(1)
+	// au lieu de rester coincé à scale(0) (bug de la flamme→boum non visible).
+	const boumG = burned.renderRoot.querySelector('g[class^="anim-"]');
+	if (boumG) boumG.style.animation = 'none';
+	await new Promise((r) => setTimeout(r, 30));
+	const boumCS = boumG ? getComputedStyle(boumG) : null;
 	const segPolys = seg.renderRoot.querySelectorAll('polygon');
 	const barRects = bar.renderRoot.querySelectorAll('#g53 rect');
 	const res = {
 		segFull: segPolys[0]?.style.fill,
 		segDim: segPolys[1]?.style.fill,
 		segOff: segPolys[2]?.style.fill,
-		segFlame: !!segBurned.renderRoot.querySelector('.led-flame'),
+		segFlame: !!segBurned.renderRoot.querySelector('g[class^="anim-"]'),
 		barFull: barRects[0]?.style.fill,
 		barDim: barRects[1]?.style.fill,
-		barFlame: !!barBurned.renderRoot.querySelector('.led-flame'),
-		okFlame: !!ok.renderRoot.querySelector('.led-flame'),
+		barFlame: !!barBurned.renderRoot.querySelector('g[class^="anim-"]'),
+		okFlame: !!ok.renderRoot.querySelector('g[class^="anim-"]'),
 		okBody: ok.renderRoot.querySelector('#path25')?.getAttribute('fill'),
 		okLight: (ok.renderRoot.querySelector('#g30') || {}).style?.display ?? 'absent',
-		burnedFlame: !!burned.renderRoot.querySelector('.led-flame'),
+		burnedFlame: !!burned.renderRoot.querySelector('g[class^="anim-"]'),
 		burnedBody: burned.renderRoot.querySelector('#path25')?.getAttribute('fill'),
 		burnedLight: (burned.renderRoot.querySelector('#g30') || {}).style?.display ?? 'absent',
-		rgbFlame: !!rgb.renderRoot.querySelector('.led-flame'),
+		rgbFlame: !!rgb.renderRoot.querySelector('g[class^="anim-"]'),
 		rgbDark: !!rgb.renderRoot.querySelector('.rgb-burned'),
 		rgbHalo: rgb.renderRoot.querySelector('#circle35')?.getAttribute('opacity'),
+		boumRestTransform: boumCS?.transform ?? 'absent',
+		boumRestOpacity: boumCS?.opacity ?? 'absent',
 	};
 	const out = document.createElement('pre');
 	out.id = 'measures';
@@ -260,6 +270,8 @@ if (chrome) {
   check('rendu : 7 segments grillé — flamme affichée', r && r.segFlame);
   check('rendu : barre — plein, 40 % en color-mix, flamme si grillée',
     r && r.barFull !== '' && String(r.barDim).includes('color-mix') && r.barFlame);
+  check('rendu : explosion « boum » VISIBLE au repos (scale 1, opaque) sans animation',
+    r && r.boumRestTransform === 'matrix(1, 0, 0, 1, 0, 0)' && r.boumRestOpacity === '1');
 } else {
   console.log('(Chrome introuvable : volet rendu sauté)');
 }
