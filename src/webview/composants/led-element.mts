@@ -14,7 +14,7 @@ import { css, html, LitElement, PropertyValues } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
 import drawing from './externe/led.svg';
-import { boumSVG } from './utils/boum.mjs';
+import { boumOverlay } from './utils/boum.mjs';
 
 const lightColors: { [key: string]: string } = {
   red: '#ff8080',
@@ -78,6 +78,7 @@ export class LEDElement extends LitElement {
         display: flex;
         flex-direction: column;
         width: 30px;
+        position: relative;
       }
 
       .led-label {
@@ -137,7 +138,6 @@ export class LEDElement extends LitElement {
         xmlns="http://www.w3.org/2000/svg"
       >
         ${unsafeSVG(drawing)}
-        ${this.burned ? boumSVG(15, 12, 34) : null}
       </svg>
     `;
   }
@@ -147,6 +147,7 @@ export class LEDElement extends LitElement {
       <div class="led-container">
         ${this.renderSVG()}
         <span class="led-label">${this.label}</span>
+        ${this.burned ? boumOverlay() : null}
       </div>
     `;
   }

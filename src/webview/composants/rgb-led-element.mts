@@ -12,7 +12,7 @@ import { css, html, LitElement, PropertyValues } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
 import drawing from './externe/rgb-led.svg';
-import { boumSVG } from './utils/boum.mjs';
+import { boumOverlay } from './utils/boum.mjs';
 
 export class RGBLedElement extends LitElement {
   declare ledRed: number;
@@ -38,6 +38,14 @@ export class RGBLedElement extends LitElement {
 
   static get styles() {
     return css`
+      :host {
+        display: inline-block;
+      }
+      .rgb-wrap {
+        position: relative;
+        display: inline-block;
+        line-height: 0;
+      }
       /* Corps carbonisé d'une LED grillée (l'explosion, hors de ce groupe,
          garde ses couleurs vives). */
       .rgb-burned {
@@ -84,15 +92,17 @@ export class RGBLedElement extends LitElement {
 
   render() {
     return html`
-      <svg
-        width="49.873417"
-        height="70"
-        viewBox="0 0 49.873417 70"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <g class="${this.burned ? 'rgb-burned' : ''}">${unsafeSVG(drawing)}</g>
-        ${this.burned ? boumSVG(23, 22, 52) : null}
-      </svg>
+      <span class="rgb-wrap">
+        <svg
+          width="49.873417"
+          height="70"
+          viewBox="0 0 49.873417 70"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <g class="${this.burned ? 'rgb-burned' : ''}">${unsafeSVG(drawing)}</g>
+        </svg>
+        ${this.burned ? boumOverlay() : null}
+      </span>
     `;
   }
 }

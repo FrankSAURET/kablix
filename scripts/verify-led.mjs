@@ -217,39 +217,38 @@ async function run() {
 	// les animations ne tournent pas (webview sans compositing SVG / reduced-motion).
 	// On coupe l'animation et on vérifie que le groupe reste à scale(1)/opacity(1)
 	// au lieu de rester coincé à scale(0) (bug de la flamme→boum non visible).
-	const boumG = burned.renderRoot.querySelector('g[class^="anim-"]');
+	// v156 : l'explosion est un OVERLAY HTML (span.boum-*) posé sur le composant,
+	// taille écran fixe (~50 px), plus un <g> dans le <svg> du composant.
+	const boumG = burned.renderRoot.querySelector('[class^="boum-"]');
 	if (boumG) boumG.style.animation = 'none';
 	await new Promise((r) => setTimeout(r, 30));
 	const boumCS = boumG ? getComputedStyle(boumG) : null;
-	// Régression v155 : le dessin injecté par unsafeSVG est un <svg> imbriqué.
-	// SANS width/height explicites il rendait à un viewport ~0 (bbox écrasé
-	// ~30×30 au lieu du viewBox 402×403) → explosion invisible bien que le <g>
-	// soit à scale(1). On vérifie que le bbox du contenu = le viewBox plein.
-	const boumChild = boumG ? boumG.firstElementChild : null;
-	let boumChildW = 0;
-	try { const bb = boumChild && boumChild.getBBox(); if (bb) boumChildW = Math.round(bb.width); } catch (e) {}
+	// L'overlay doit être peint à sa taille écran voulue (≈50 px), pas clippé
+	// à ~13 px par le viewport du composant comme avant (cause du « minuscule »).
+	const boumRect = boumG ? boumG.getBoundingClientRect() : null;
+	const boumScreenW = boumRect ? Math.round(boumRect.width) : 0;
 	const segPolys = seg.renderRoot.querySelectorAll('polygon');
 	const barRects = bar.renderRoot.querySelectorAll('#g53 rect');
 	const res = {
 		segFull: segPolys[0]?.style.fill,
 		segDim: segPolys[1]?.style.fill,
 		segOff: segPolys[2]?.style.fill,
-		segFlame: !!segBurned.renderRoot.querySelector('g[class^="anim-"]'),
+		segFlame: !!segBurned.renderRoot.querySelector('[class^="boum-"]'),
 		barFull: barRects[0]?.style.fill,
 		barDim: barRects[1]?.style.fill,
-		barFlame: !!barBurned.renderRoot.querySelector('g[class^="anim-"]'),
-		okFlame: !!ok.renderRoot.querySelector('g[class^="anim-"]'),
+		barFlame: !!barBurned.renderRoot.querySelector('[class^="boum-"]'),
+		okFlame: !!ok.renderRoot.querySelector('[class^="boum-"]'),
 		okBody: ok.renderRoot.querySelector('#path25')?.getAttribute('fill'),
 		okLight: (ok.renderRoot.querySelector('#g30') || {}).style?.display ?? 'absent',
-		burnedFlame: !!burned.renderRoot.querySelector('g[class^="anim-"]'),
+		burnedFlame: !!burned.renderRoot.querySelector('[class^="boum-"]'),
 		burnedBody: burned.renderRoot.querySelector('#path25')?.getAttribute('fill'),
 		burnedLight: (burned.renderRoot.querySelector('#g30') || {}).style?.display ?? 'absent',
-		rgbFlame: !!rgb.renderRoot.querySelector('g[class^="anim-"]'),
+		rgbFlame: !!rgb.renderRoot.querySelector('[class^="boum-"]'),
 		rgbDark: !!rgb.renderRoot.querySelector('.rgb-burned'),
 		rgbHalo: rgb.renderRoot.querySelector('#circle35')?.getAttribute('opacity'),
 		boumRestTransform: boumCS?.transform ?? 'absent',
 		boumRestOpacity: boumCS?.opacity ?? 'absent',
-		boumChildW,
+		boumScreenW,
 	};
 	const out = document.createElement('pre');
 	out.id = 'measures';
@@ -280,8 +279,8 @@ if (chrome) {
     r && r.barFull !== '' && String(r.barDim).includes('color-mix') && r.barFlame);
   check('rendu : explosion « boum » VISIBLE au repos (scale 1, opaque) sans animation',
     r && r.boumRestTransform === 'matrix(1, 0, 0, 1, 0, 0)' && r.boumRestOpacity === '1');
-  check('rendu : explosion « boum » PEINTE à sa vraie taille (viewBox plein, pas viewport ~0)',
-    r && r.boumChildW > 300);
+  check('rendu : explosion « boum » à taille écran voulue (~50 px, pas clippée à ~13 px)',
+    r && r.boumScreenW >= 40 && r.boumScreenW <= 60);
 } else {
   console.log('(Chrome introuvable : volet rendu sauté)');
 }

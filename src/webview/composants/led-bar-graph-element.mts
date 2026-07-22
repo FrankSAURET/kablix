@@ -11,7 +11,7 @@ import { html, LitElement, PropertyValues } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
 import drawing from './externe/led-bar.svg';
-import { boumSVG } from './utils/boum.mjs';
+import { boumOverlay } from './utils/boum.mjs';
 
 const green = '#9eff3c';
 const blue = '#2c95fa';
@@ -96,10 +96,12 @@ export class LedBarGraphElement extends LitElement {
 
   render() {
     return html`
-      <svg width="50" height="110" viewBox="0 0 50 110" xmlns="http://www.w3.org/2000/svg">
-        ${unsafeSVG(drawing)}
-        ${this.burned ? boumSVG(25, 55, 70) : null}
-      </svg>
+      <span style="position:relative;display:inline-block;line-height:0">
+        <svg width="50" height="110" viewBox="0 0 50 110" xmlns="http://www.w3.org/2000/svg">
+          ${unsafeSVG(drawing)}
+        </svg>
+        ${this.burned ? boumOverlay() : null}
+      </span>
     `;
   }
 }

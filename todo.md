@@ -1,5 +1,13 @@
 # À faire
 1. un simple clic (pas drag and drop) sur un composant de la bibliothèque le fait apparaitre **au centre** de la vue canva
+# v2026.7.156
+1. ✅ **Explosion « Boum » minuscule, quasi transparente, sans animation → refonte en OVERLAY** (retour Frank). Le fix v155 dé-clippait le bbox mais l'explosion restait dans le `<svg>` du composant : sa taille dépendait du viewBox de chacun ET était CLIPPÉE par le viewport du composant (mesuré ~7–14 px écran). L'animation était aussi trop courte/légère pour se voir.
+2. ✅ **Refonte** (`utils/boum.mts`) : `boumSVG` (dans le `<svg>`) → `boumOverlay(sizePx=50)` = un `<span>` HTML positionné en ABSOLU, centré sur le composant, avec son PROPRE `<svg>` dimensionné en PIXELS. Taille écran FIXE ~50×50 px, identique pour les 4 composants quel que soit leur viewBox, jamais clippée. MESURÉ en Chrome headless : led/rgb/barre/7seg = **50×50 px** au repos.
+3. ✅ **Animation refaite** : jaillissement LENT (grossissement 0.05→1.18→1, 0.9 s, léger dépassement) PUIS vibration PERMANENTE jamais fixe (translation + micro-scale + micro-rotation, cycle 0.2 s infini). Repos plein visible si animations coupées (`prefers-reduced-motion`).
+4. ✅ **Intégration des 4 composants grillés** : led (`.led-container` en `position:relative` + overlay après le label), rgb (nouveau `.rgb-wrap` relatif), barre & 7seg (span relatif inline). L'overlay vit dans le shadow DOM de chacun, `pointer-events:none`, `z-index:3`.
+5. ✅ **Test** : `verify:led` — contrôle « taille écran voulue (~50 px, pas clippée à ~13 px) » via `getBoundingClientRect` de l'overlay (remplace le contrôle bbox v155) ; sélecteur `[class^="boum-"]` au lieu de `g[class^="anim-"]`. 22 contrôles, tous verts.
+6. ✅ typecheck + build OK.
+
 # v2026.7.155
 1. ✅ **Explosion « Boum » TOUJOURS invisible malgré v154 → corrigée** (retour Frank). Le fix v154 rendait le `<g>` animé visible (scale 1, opaque), mais le VRAI symptôme était ailleurs : `boumSVG` injecte le dessin via `unsafeSVG`, or le dessin est un `<svg>` COMPLET (avec prolog `<?xml?>`) imbriqué dans le `<svg>` hôte. Ce `<svg>` imbriqué n'avait NI `width` NI `height` → viewport ~0. MESURÉ en Chrome headless : bbox du contenu écrasé à **30×30 au lieu du viewBox 402×403**, groupe peint à ~3 px : présent dans le DOM mais quasi invisible.
 2. ✅ **Fix** (`utils/boum.mts`, fonction `prepare`) : retrait du prolog `<?xml…?>` (nœud invalide en SVG inline) + AJOUT de `width="402.5" height="403.98"` sur le `<svg>` imbriqué = son viewBox. Le `scale(k)` du `<g>` parent le ramène alors à la taille voulue. Centrage vertical corrigé (`BOUM_VH` = vraie hauteur). MESURÉ après fix : bbox du contenu = **402×403** (plein).

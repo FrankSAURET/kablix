@@ -18,7 +18,7 @@ import { ElementPin } from './pin.mjs';
 import drawing1 from './externe/7seg.svg';
 import drawing2 from './externe/7seg-2dig.svg';
 import drawing4 from './externe/7seg-4dig.svg';
-import { boumSVG } from './utils/boum.mjs';
+import { boumOverlay } from './utils/boum.mjs';
 
 interface Variant {
   drawing: string;
@@ -207,10 +207,12 @@ export class SevenSegmentElement extends LitElement {
   render() {
     const { drawing, w, h } = this.variant;
     return html`
-      <svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
-        ${unsafeSVG(drawing)}
-        ${this.burned ? boumSVG(w / 2, h / 2 + 4, 56) : null}
-      </svg>
+      <span style="position:relative;display:inline-block;line-height:0">
+        <svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
+          ${unsafeSVG(drawing)}
+        </svg>
+        ${this.burned ? boumOverlay() : null}
+      </span>
     `;
   }
 }

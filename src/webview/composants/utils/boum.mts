@@ -1,22 +1,26 @@
 // Explosion « Boum » (svg/Boum.svg, dessin vectoriel de Frank) : remplace la
 // flamme SVG des composants grillés. Un seul module partagé = une seule copie
-// du dessin dans le bundle. SVG carré ~402.5 x 403.98.
+// du dessin dans le bundle. viewBox source ~402.5 x 403.98.
 //
-// Animation « au moment où ça grille » : jaillissement (scale 0 → dépassement →
-// 1) puis pulsation/vacillement infini léger. Tout est en <style> inline dans le
-// fragment pour vivre dans le shadow DOM de chaque composant, sans dépendre de
-// leurs styles. `unsafeSVG` injecte le <svg> source complet ; imbriqué dans un
-// <g> scalé il garde son propre viewBox et se dimensionne au facteur du <g>.
+// RENDU EN OVERLAY HTML (pas dans le <svg> du composant) : l'explosion est un
+// <span> positionné en absolu, centré sur le composant, contenant SON PROPRE
+// <svg> dimensionné en PIXELS. Ainsi sa taille écran est FIXE (~50 px) et
+// identique pour tous les composants, quel que soit le viewBox/échelle de
+// chacun ; et elle n'est jamais clippée par le viewport du composant (un
+// <svg> hôte à `width="30"` coupait l'explosion à ~13 px — cause du « minuscule
+// et à peine visible »). Le composant doit juste être `position: relative`.
+//
+// Animation : jaillissement LENT (grossissement + léger dépassement, ~0.9 s)
+// puis vibration PERMANENTE jamais fixe (translation + micro-scale + micro-
+// rotation, cycle court infini). Tout est en <style> inline pour vivre dans le
+// shadow DOM de chaque composant. `unsafeSVG` injecte le <svg> source.
 //
 // Le dessin porte 262 ids référencés par 264 url(#…) (gradients/masks) : deux
 // composants grillés dans le même document dupliqueraient ces ids et
 // mélangeraient les rendus. On préfixe donc ids ET références par instance.
-import { svg } from 'lit';
+import { html } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import boumDrawing from '../../../../svg/Boum.svg';
-
-const BOUM_VB = 402.5; // largeur du viewBox source
-const BOUM_VH = 403.98; // hauteur du viewBox source
 
 let seq = 0; // suffixe d'instance unique (ids + animation)
 
@@ -27,56 +31,64 @@ function scopeIds(src: string, suffix: string): string {
     .replace(/url\(#([^)]+)\)/g, (_m, id) => `url(#${id}__${suffix})`);
 }
 
-// Prépare le dessin source pour l'injection dans un <svg> hôte :
-//   - retire le prolog <?xml …?> (nœud invalide en SVG inline) ;
-//   - AJOUTE width/height = côté du viewBox sur le <svg> imbriqué. Sans taille
-//     explicite, un <svg> imbriqué sans width/height se dimensionne à un viewport
-//     ~0 (mesuré : 3×3 px en Chrome headless) et le scale(k) du <g> parent
-//     n'agrandit rien → explosion invisible. Avec width/height = viewBox, le
-//     viewport imbriqué fait BOUM_VB px et le scale(k) le ramène à `size`.
-function prepare(src: string): string {
-  return src
-    .replace(/<\?xml[^>]*\?>\s*/g, '')
-    .replace(
-      /<svg\b/,
-      `<svg width="${BOUM_VB}" height="${BOUM_VH}"`,
-    );
+/** Retire le prolog <?xml …?> (nœud invalide en SVG inline). */
+function stripProlog(src: string): string {
+  return src.replace(/<\?xml[^>]*\?>\s*/g, '');
 }
 
-/** Rend l'explosion centrée en (cx, cy), taille = `size` px (côté). Animée. */
-export function boumSVG(cx: number, cy: number, size: number) {
-  const k = size / BOUM_VB;
+/**
+ * Overlay d'explosion, centré sur le composant grillé, taille écran fixe.
+ * À placer dans un conteneur `position: relative` (le composant lui-même).
+ * @param sizePx côté de l'explosion en pixels écran (défaut 50).
+ */
+export function boumOverlay(sizePx = 50) {
   const suffix = `b${seq++}`;
-  const drawing = prepare(scopeIds(boumDrawing, suffix));
-  return svg`
-    <g transform="translate(${cx} ${cy}) scale(${k}) translate(${-BOUM_VB / 2} ${-BOUM_VH / 2})">
+  const drawing = stripProlog(scopeIds(boumDrawing, suffix));
+  return html`
+    <span class="boum-${suffix}">
       <style>
-        /* État de REPOS visible (scale 1, opaque) : si les animations ne
-           tournent pas (webview sans compositing SVG, prefers-reduced-motion,
-           rendu headless…), l'explosion reste affichée pleine taille au lieu
-           de rester coincée à scale(0). L'animation ne fait que « jaillir » ;
-           elle n'est jamais la condition de visibilité. */
-        .anim-${suffix} {
-          transform-box: fill-box;
+        .boum-${suffix} {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          width: ${sizePx}px;
+          height: ${sizePx}px;
+          margin-left: ${-sizePx / 2}px;
+          margin-top: ${-sizePx / 2}px;
+          pointer-events: none;
+          z-index: 3;
           transform-origin: 50% 50%;
+          /* Repos visible plein (au cas où les animations ne tournent pas). */
           transform: scale(1);
           opacity: 1;
-          animation: pop-${suffix} 0.32s cubic-bezier(0.2, 1.4, 0.4, 1) 1,
-                     pulse-${suffix} 0.5s ease-in-out 0.32s infinite alternate;
+          animation: boum-pop-${suffix} 0.9s cubic-bezier(0.18, 1.3, 0.35, 1) 1,
+                     boum-shake-${suffix} 0.2s linear 0.9s infinite;
         }
-        @keyframes pop-${suffix} {
-          0%   { transform: scale(0.2); opacity: 0.3; }
-          60%  { transform: scale(1.15); opacity: 1; }
+        .boum-${suffix} svg {
+          display: block;
+          width: 100%;
+          height: 100%;
+          overflow: visible;
+        }
+        /* Jaillissement lent : petit → dépassement → tassement → 1. */
+        @keyframes boum-pop-${suffix} {
+          0%   { transform: scale(0.05); opacity: 0.4; }
+          55%  { transform: scale(1.18); opacity: 1; }
+          75%  { transform: scale(0.94); }
           100% { transform: scale(1); opacity: 1; }
         }
-        @keyframes pulse-${suffix} {
-          from { transform: scale(1); }
-          to   { transform: scale(1.06); opacity: 0.9; }
+        /* Vibration : jamais deux images identiques, jamais au repos. */
+        @keyframes boum-shake-${suffix} {
+          0%   { transform: translate(-1.2px, 0.8px) scale(1.02) rotate(-1.2deg); }
+          25%  { transform: translate(1px, -1px)    scale(0.99) rotate(1deg); }
+          50%  { transform: translate(-0.8px, -1px) scale(1.03) rotate(0.6deg); }
+          75%  { transform: translate(1.2px, 0.9px) scale(0.98) rotate(-0.8deg); }
+          100% { transform: translate(-1.2px, 0.8px) scale(1.02) rotate(-1.2deg); }
         }
         @media (prefers-reduced-motion: reduce) {
-          .anim-${suffix} { animation: none; transform: scale(1); opacity: 1; }
+          .boum-${suffix} { animation: none; transform: scale(1); opacity: 1; }
         }
       </style>
-      <g class="anim-${suffix}">${unsafeSVG(drawing)}</g>
-    </g>`;
+      ${unsafeSVG(drawing)}
+    </span>`;
 }
