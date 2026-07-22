@@ -2,6 +2,13 @@ Nouveau todo.md, j'ai archivé le précédant (todo - v2026.7.144.md).
 # À faire
 1. Flèche ROUGE de l'autoroutage (alignement maximal des équipotentielles) : à re-tenter si un montage la met en défaut — voir note v146 (mesurée neutre sur le montage 16 servos, tracé déjà propre).
 
+# v2026.7.151
+1. ✅ **Flamme de destruction → explosion « Boum »** (retour Frank). Les 4 composants qui grillent (led, rgb-led, 7segment, led-bar-graph) affichaient une flamme SVG vectorielle vacillante. Remplacée par le dessin d'explosion `svg/Boum.svg` (vectoriel + raster, sans filigrane). Nouveau module partagé `src/webview/composants/utils/boum.mts` : `boumSVG(cx, cy, taille)` = une seule copie du dessin dans le bundle, imbriqué dans un `<g>` centré/scalé.
+2. ℹ️ **Ids scopés par instance** : le dessin porte 262 ids référencés par 264 `url(#…)` (gradients/masks). Deux composants grillés dans le même document dupliqueraient ces ids et mélangeraient les rendus → `scopeIds` suffixe ids ET références (`__bN`) à chaque appel. MESURÉ en Chrome headless : 2 explosions côte à côte, tailles distinctes, aucune collision de gradient.
+3. ℹ️ **Animation** : jaillissement (scale 0 → 1.15 → 1, 0.32 s) puis pulsation infinie légère, en `<style>` inline dans le fragment (vit dans le shadow DOM sans dépendre du CSS du composant).
+4. ℹ️ Retiré des 4 forks le CSS `.led-flame`/`@keyframes led-flicker` et les imports `svg`/`css` devenus inutiles. Le gif `media/Boum.gif` (filigrane PICMIX) est abandonné.
+5. ✅ typecheck + build OK.
+
 # v2026.7.150
 1. ✅ **Point « non enregistré » trop gros** (retour Frank, `svg/Point de sauvegarde.png`). Glyphe ⬤ (U+2B24) → **● (U+25CF, taille normale)** aux deux endroits : barre Kablix (`renderProjectName`, `sim.mts`) et onglet du simulateur (`updateTitle`, `panel.ts`). CSS `.dirty-dot` : `font-size: 1.15em` retiré (le grossissement volontaire n'a plus lieu d'être).
 2. ✅ typecheck + build OK.

@@ -52,6 +52,7 @@ parts/**
 media/parts/**
 media/icones.svg
 media/Gomme.png
+media/Boum.gif
 # examples/ : non référencés par l'extension (disponibles sur GitHub).
 examples/**
 # firmware : seul rp2040_ram.ld sert (script de lien de la compilation Pico).

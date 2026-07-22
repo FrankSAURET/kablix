@@ -10,10 +10,11 @@
 //     retouché contient déjà le groupe `#g30` (ellipses `#ellipse28/29/30`)
 //     capturé depuis ce même rendu, il suffit de le montrer/masquer et de
 //     recolorer/opaciser au lieu de le reconstruire.
-import { css, html, LitElement, PropertyValues, svg } from 'lit';
+import { css, html, LitElement, PropertyValues } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
 import drawing from './externe/led.svg';
+import { boumSVG } from './utils/boum.mjs';
 
 const lightColors: { [key: string]: string } = {
   red: '#ff8080',
@@ -87,24 +88,6 @@ export class LEDElement extends LitElement {
         line-height: 1;
         top: -8px;
       }
-
-      /* Flamme de LED grillée : léger vacillement autour de sa base. */
-      .led-flame {
-        transform-box: fill-box;
-        transform-origin: 50% 100%;
-        animation: led-flicker 0.35s ease-in-out infinite alternate;
-      }
-
-      @keyframes led-flicker {
-        from {
-          transform: scale(1);
-          opacity: 1;
-        }
-        to {
-          transform: scale(1.12, 0.9);
-          opacity: 0.85;
-        }
-      }
     `;
   }
 
@@ -154,15 +137,7 @@ export class LEDElement extends LitElement {
         xmlns="http://www.w3.org/2000/svg"
       >
         ${unsafeSVG(drawing)}
-        ${this.burned
-          ? svg`
-            <g transform="translate(15 14)">
-              <g class="led-flame">
-                <path d="M 0,-11 C 4,-6 6,-3 6,0 A 6,6.5 0 1 1 -6,0 C -6,-3 -4,-6 0,-11 Z" fill="#ff7a1a" />
-                <path d="M 0,-5.5 C 2,-3 3,-1.5 3,0.6 A 3,3.4 0 1 1 -3,0.6 C -3,-1.5 -2,-3 0,-5.5 Z" fill="#ffd23e" />
-              </g>
-            </g>`
-          : null}
+        ${this.burned ? boumSVG(15, 12, 34) : null}
       </svg>
     `;
   }

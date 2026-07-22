@@ -7,10 +7,11 @@
 //     numéro de broche physique du boîtier inchangé) ;
 //   - les 10 barres (`#g53 rect`) sont déjà dans l'ordre haut→bas du dessin
 //     retouché, pilotées nativement via `updated()`.
-import { css, html, LitElement, PropertyValues, svg } from 'lit';
+import { html, LitElement, PropertyValues } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
 import drawing from './externe/led-bar.svg';
+import { boumSVG } from './utils/boum.mjs';
 
 const green = '#9eff3c';
 const blue = '#2c95fa';
@@ -70,29 +71,6 @@ export class LedBarGraphElement extends LitElement {
     this.burned = false;
   }
 
-  static get styles() {
-    return css`
-      /* Flamme de barre grillée (sur-courant sur une LED) : même dessin et
-         vacillement que le fork led-element. */
-      .led-flame {
-        transform-box: fill-box;
-        transform-origin: 50% 100%;
-        animation: led-flicker 0.35s ease-in-out infinite alternate;
-      }
-
-      @keyframes led-flicker {
-        from {
-          transform: scale(1);
-          opacity: 1;
-        }
-        to {
-          transform: scale(1.12, 0.9);
-          opacity: 0.85;
-        }
-      }
-    `;
-  }
-
   updated(changed: PropertyValues) {
     super.updated(changed);
     // Le dessin retouché fixe `fill` dans l'attribut `style` de chaque rect (export
@@ -120,15 +98,7 @@ export class LedBarGraphElement extends LitElement {
     return html`
       <svg width="50" height="110" viewBox="0 0 50 110" xmlns="http://www.w3.org/2000/svg">
         ${unsafeSVG(drawing)}
-        ${this.burned
-          ? svg`
-            <g transform="translate(25 60)">
-              <g class="led-flame">
-                <path d="M 0,-15.4 C 5.6,-8.4 8.4,-4.2 8.4,0 A 8.4,9.1 0 1 1 -8.4,0 C -8.4,-4.2 -5.6,-8.4 0,-15.4 Z" fill="#ff7a1a" />
-                <path d="M 0,-7.7 C 2.8,-4.2 4.2,-2.1 4.2,0.84 A 4.2,4.76 0 1 1 -4.2,0.84 C -4.2,-2.1 -2.8,-4.2 0,-7.7 Z" fill="#ffd23e" />
-              </g>
-            </g>`
-          : null}
+        ${this.burned ? boumSVG(25, 55, 70) : null}
       </svg>
     `;
   }
