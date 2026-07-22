@@ -4298,7 +4298,7 @@ export class Editor {
         const sw = document.createElement('button');
         sw.className = 'inspector__swatch' + (opt === current ? ' inspector__swatch--active' : '');
         sw.style.background = colorSwatchBackground(opt);
-        sw.title = opt;
+        sw.title = colorDisplayName(opt);
         sw.addEventListener('click', () => {
           setAttr(prop.attr, opt);
           this.renderInspector();
@@ -4674,6 +4674,27 @@ function colorSwatchBackground(value: string): string {
     default:
       return value; // red, green, blue, yellow, orange, purple, black… = couleurs CSS
   }
+}
+
+/**
+ * Nom de couleur traduit pour l'infobulle des pastilles de choix. Les valeurs
+ * techniques restent inchangées (envoyées au composant) ; seul l'affichage est
+ * traduit. « GYR » (green/yellow/red de la barre) → « VJR ».
+ */
+function colorDisplayName(value: string): string {
+  const KEYS: Record<string, string> = {
+    red: 'Red',
+    green: 'Green',
+    blue: 'Blue',
+    yellow: 'Yellow',
+    orange: 'Orange',
+    white: 'White',
+    purple: 'Purple',
+    black: 'Black',
+    GYR: 'GYR',
+  };
+  const key = KEYS[value];
+  return key ? t(key) : value;
 }
 
 /**

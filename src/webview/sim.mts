@@ -819,8 +819,24 @@ function refreshVisuals(): void {
             return lit >= 0.5 ? 1 : 0;
           };
           const instant = sevenSegmentState(editor.diagram, part.id, read);
-          const next = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'DP'].map((seg, i) => readSeg(seg, instant[i]));
-          conducting = next; // état conducteur instantané (avant anti-scintillement)
+          const SEGS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'DP'];
+          const next = SEGS.map((seg, i) => readSeg(seg, instant[i]));
+          // CONDUCTION électrique (pour le grillage) : un segment grille dès qu'il
+          // CONDUIT, même à faible rapport cyclique — comme la LED simple
+          // (`duty > 0.001`). Le seuil d'affichage 0.5 de `readSeg` est fait pour
+          // le RENDU (allumé/éteint) : l'utiliser pour le grillage retardait
+          // l'explosion jusqu'à ce que le duty franchisse 50 % (retour Frank).
+          conducting = SEGS.map((seg, i) => {
+            const pin = segPins?.[seg];
+            if (pin && engine!.pulseActive?.(pin)) {
+              const duty = engine!.readPwmDuty?.(pin);
+              if (duty !== undefined) {
+                const on = commonAnode ? 1 - duty : duty;
+                return on > 0.001 ? 1 : 0;
+              }
+            }
+            return instant[i]; // pas de PWM : niveau logique instantané
+          });
           const now = performance.now();
           let stable = sevenSegStable.get(part.id);
           if (!stable) {

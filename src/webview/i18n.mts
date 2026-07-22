@@ -321,6 +321,9 @@ const FR: Record<string, string> = {
   'Fuchsia': 'Fuchsia',
   'Black': 'Noir',
   'Brown': 'Marron',
+  'Orange': 'Orange',
+  'White': 'Blanc',
+  'GYR': 'VJR',
 
   // Aide
   'In simulation: Ctrl+click keeps it pressed.': 'En simulation : Ctrl+clic le maintient enfoncé.',
