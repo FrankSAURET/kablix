@@ -101,7 +101,7 @@ export class RGBLedElement extends LitElement {
         >
           <g class="${this.burned ? 'rgb-burned' : ''}">${unsafeSVG(drawing)}</g>
         </svg>
-        ${this.burned ? boumOverlay() : null}
+        ${this.burned ? boumOverlay(70) : null}
       </span>
     `;
   }

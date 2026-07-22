@@ -1,5 +1,8 @@
 # À faire
 1. un simple clic (pas drag and drop) sur un composant de la bibliothèque le fait apparaitre **au centre** de la vue canva
+# v2026.7.157
+1. ✅ **Explosion « Boum » minuscule sur afficheur ET barre → taille = hauteur du corps** (retour Frank). L'overlay 50 px fixe (v156) recouvrait bien la LED (corps 30×50) mais restait petit sur l'afficheur 7 seg (60–200 large × 90 haut) et la barre (50×110). `boumOverlay(sizePx)` reçoit désormais la HAUTEUR du composant : 7 seg → `h` (≈90), barre → 110, rgb → 70 ; LED garde 50 (défaut). MESURÉ en Chrome headless : boum 90×90 sur les afficheurs (centré, ~1,5× le corps comme la LED), 110 sur la barre.
+
 # v2026.7.156
 1. ✅ **Explosion « Boum » minuscule, quasi transparente, sans animation → refonte en OVERLAY** (retour Frank). Le fix v155 dé-clippait le bbox mais l'explosion restait dans le `<svg>` du composant : sa taille dépendait du viewBox de chacun ET était CLIPPÉE par le viewport du composant (mesuré ~7–14 px écran). L'animation était aussi trop courte/légère pour se voir.
 2. ✅ **Refonte** (`utils/boum.mts`) : `boumSVG` (dans le `<svg>`) → `boumOverlay(sizePx=50)` = un `<span>` HTML positionné en ABSOLU, centré sur le composant, avec son PROPRE `<svg>` dimensionné en PIXELS. Taille écran FIXE ~50×50 px, identique pour les 4 composants quel que soit leur viewBox, jamais clippée. MESURÉ en Chrome headless : led/rgb/barre/7seg = **50×50 px** au repos.

@@ -100,7 +100,7 @@ export class LedBarGraphElement extends LitElement {
         <svg width="50" height="110" viewBox="0 0 50 110" xmlns="http://www.w3.org/2000/svg">
           ${unsafeSVG(drawing)}
         </svg>
-        ${this.burned ? boumOverlay() : null}
+        ${this.burned ? boumOverlay(110) : null}
       </span>
     `;
   }

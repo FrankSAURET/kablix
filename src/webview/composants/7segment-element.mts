@@ -211,7 +211,7 @@ export class SevenSegmentElement extends LitElement {
         <svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
           ${unsafeSVG(drawing)}
         </svg>
-        ${this.burned ? boumOverlay() : null}
+        ${this.burned ? boumOverlay(h) : null}
       </span>
     `;
   }
