@@ -876,7 +876,17 @@ function refreshVisuals(): void {
         }
         const seg7Burned = burnedLeds.has(part.id);
         el.burned = seg7Burned;
-        el.values = seg7Burned ? vals.map(() => 0) : vals;
+        // Grillé : NE PLUS réassigner `values` (une array neuve à chaque tick
+        // re-rendrait le composant en boucle et RELANCERAIT l'animation de
+        // l'explosion depuis son 1er keyframe → figée minuscule). On l'éteint
+        // une seule fois, puis on laisse le composant stable (comme la LED).
+        if (seg7Burned) {
+          if ((el.values as number[] | undefined)?.some((v) => v)) {
+            el.values = vals.map(() => 0);
+          }
+        } else {
+          el.values = vals;
+        }
         break;
       }
       case 'led-bar': {
@@ -899,7 +909,15 @@ function refreshVisuals(): void {
         }
         const barBurned = burnedLeds.has(part.id);
         el.burned = barBurned;
-        el.values = barBurned ? vals.map(() => 0) : vals;
+        // Grillé : idem 7 seg — on éteint une seule fois puis on laisse stable,
+        // sinon une array neuve à chaque tick relance l'animation d'explosion.
+        if (barBurned) {
+          if ((el.values as number[] | undefined)?.some((v) => v)) {
+            el.values = vals.map(() => 0);
+          }
+        } else {
+          el.values = vals;
+        }
         break;
       }
       case 'servo': {

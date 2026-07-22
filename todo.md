@@ -1,5 +1,12 @@
 # À faire
 1. un simple clic (pas drag and drop) sur un composant de la bibliothèque le fait apparaitre **au centre** de la vue canva
+# v2026.7.158
+1. ✅ **Explosion « Boum » figée MINUSCULE sur afficheur/barre en SIMULATION → cause racine trouvée** (retour Frank, capture zoomée). Les tailles v157 étaient bonnes hors animation, mais en simulation l'explosion restait coincée à son 1er keyframe (scale minuscule). **Cause** : `sim.mts` réassignait `el.values` avec une array NEUVE à CHAQUE tick sur le 7 seg / la barre grillés → Lit re-render → `boumOverlay()` ré-exécuté → nouvel overlay (nouveau suffixe) → animation RELANCÉE depuis le début, en boucle → jamais au-delà de l'état initial. La LED, elle, posait des valeurs STABLES une fois grillée (pas de re-render) → marchait. MESURÉ en Chrome headless (vrai Editor) : ancien comportement recrée l'overlay `boum-b1`→`boum-b6` en 5 ticks.
+2. ✅ **Fix** (`sim.mts`, cas `7seg` et `led-bar`) : une fois grillé, on N'éteint `values` qu'UNE fois (si encore allumé), puis on ne le réassigne plus → composant stable, animation jouée une seule fois puis vibration permanente. Calqué sur le comportement déjà correct de la LED.
+3. ✅ **Robustesse** (`utils/boum.mts`) : le keyframe `pop` démarre à `scale(0.6)` (au lieu de 0.05) → même si un re-render résiduel relançait l'animation, l'explosion ne descend jamais sous 60 % de sa taille.
+4. ✅ **Banc permanent** `verify:boum` (vrai Editor headless) : tailles LED 50 / 7 seg 90 / barre 110, overlay STABLE au re-render à valeurs inchangées, + contre-épreuve que l'ancien comportement recréait l'overlay. Ajouté à `verify:all`. 5 contrôles verts.
+5. ✅ typecheck + build OK.
+
 # v2026.7.157
 1. ✅ **Explosion « Boum » minuscule sur afficheur ET barre → taille = hauteur du corps** (retour Frank). L'overlay 50 px fixe (v156) recouvrait bien la LED (corps 30×50) mais restait petit sur l'afficheur 7 seg (60–200 large × 90 haut) et la barre (50×110). `boumOverlay(sizePx)` reçoit désormais la HAUTEUR du composant : 7 seg → `h` (≈90), barre → 110, rgb → 70 ; LED garde 50 (défaut). MESURÉ en Chrome headless : boum 90×90 sur les afficheurs (centré, ~1,5× le corps comme la LED), 110 sur la barre.
 

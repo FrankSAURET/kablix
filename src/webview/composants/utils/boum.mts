@@ -70,9 +70,11 @@ export function boumOverlay(sizePx = 50) {
           height: 100%;
           overflow: visible;
         }
-        /* Jaillissement lent : petit → dépassement → tassement → 1. */
+        /* Jaillissement : dépassement → tassement → 1. Démarre à 0.6 (pas 0) pour
+           qu'un re-render qui relancerait l'animation ne rende JAMAIS l'explosion
+           minuscule — elle reste toujours ≥ 60 % de sa taille. */
         @keyframes boum-pop-${suffix} {
-          0%   { transform: scale(0.05); opacity: 0.4; }
+          0%   { transform: scale(0.6); opacity: 0.6; }
           55%  { transform: scale(1.18); opacity: 1; }
           75%  { transform: scale(0.94); }
           100% { transform: scale(1); opacity: 1; }
