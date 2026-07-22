@@ -230,9 +230,8 @@ textarea {
   max-width: 16rem;
 }
 
-/* Point « non enregistré », après le nom du projet, volontairement plus gros. */
+/* Point « non enregistré », après le nom du projet (petit point, taille normale). */
 .project-name .dirty-dot {
-  font-size: 1.15em;
   line-height: 0;
   vertical-align: -0.05em;
 }

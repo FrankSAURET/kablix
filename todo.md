@@ -2,6 +2,10 @@ Nouveau todo.md, j'ai archivé le précédant (todo - v2026.7.144.md).
 # À faire
 1. Flèche ROUGE de l'autoroutage (alignement maximal des équipotentielles) : à re-tenter si un montage la met en défaut — voir note v146 (mesurée neutre sur le montage 16 servos, tracé déjà propre).
 
+# v2026.7.150
+1. ✅ **Point « non enregistré » trop gros** (retour Frank, `svg/Point de sauvegarde.png`). Glyphe ⬤ (U+2B24) → **● (U+25CF, taille normale)** aux deux endroits : barre Kablix (`renderProjectName`, `sim.mts`) et onglet du simulateur (`updateTitle`, `panel.ts`). CSS `.dirty-dot` : `font-size: 1.15em` retiré (le grossissement volontaire n'a plus lieu d'être).
+2. ✅ typecheck + build OK.
+
 # v2026.7.149
 1. ✅ **Code TOUJOURS dans la colonne de gauche** (retour Frank). Le groupe d'éditeurs du simulateur est VERROUILLÉ (`workbench.action.lockEditorGroup`) à chaque création du panneau : un groupe verrouillé refuse tout nouvel éditeur, donc les fichiers de code ouverts ensuite (explorateur, double-clic, onglet du `.projix`) vont dans l'AUTRE groupe (colonne de gauche), jamais par-dessus Kablix. `lockSimulatorGroup` appelé après `applyDefaultLayout` (le simulateur est le groupe actif à cet instant).
 2. ✅ **Bouton du menu → hamburger 3 barres épaisses** (au lieu de `⋯`, peu visible). `span.more-menu__burger` + 2 pseudo-éléments, barres de 20×3 px, teinte `--vscode-icon-foreground`.

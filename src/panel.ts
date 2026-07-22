@@ -425,13 +425,12 @@ export class SimulatorPanel {
   }
 
   /** Titre de l'onglet du simulateur : « Kablix — Simulator », le nom du projet,
-   *  puis un GROS point noir « ⬤ » (après le nom) tant que des modifications ne
-   *  sont pas enregistrées. Le titre d'onglet est du texte brut : le point plus
-   *  gros passe par un glyphe plus large (U+2B24), pas par du CSS. */
+   *  puis un point noir « ● » (après le nom) tant que des modifications ne sont
+   *  pas enregistrées. Le titre d'onglet est du texte brut. */
   private updateTitle(): void {
     const project = this.projectBaseName ? `${this.projectBaseName}.Projix` : this.projectDisplayName();
     const base = project ? `${l10n.t('Kablix — Simulator')} — ${project}` : l10n.t('Kablix — Simulator');
-    this.panel.title = this.projectDirty ? `${base} ⬤` : base;
+    this.panel.title = this.projectDirty ? `${base} ●` : base;
   }
 
   /** Référence du fichier de code pour le .projix : chemin relatif au workspace, sinon nom. */

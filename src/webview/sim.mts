@@ -1894,7 +1894,7 @@ function renderProjectName(): void {
   if (projectDirty) {
     const dot = document.createElement('span');
     dot.className = 'dirty-dot';
-    dot.textContent = ' ⬤';
+    dot.textContent = ' ●';
     dot.setAttribute('aria-label', t('Unsaved changes'));
     projectNameEl.append(dot);
   }
