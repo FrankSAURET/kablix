@@ -799,6 +799,11 @@ function refreshVisuals(): void {
         const digits = Math.max(1, Number(part.attrs?.digits ?? 1) || 1);
         const commonAnode = part.attrs?.common === 'anode';
         let vals: number[];
+        // Segments réellement CONDUCTEURS à cet instant (avant tout lissage
+        // d'affichage) : sert au calcul de sur-courant/grillage, qui est
+        // électrique et INSTANTANÉ — il ne doit pas attendre le settle/latch
+        // d'affichage, sinon l'explosion apparaît en retard (retour Frank).
+        let conducting: number[];
         if (digits <= 1) {
           // Un segment piloté en PWM (variateur de luminosité, bit-banging
           // MicroPython inclus) bascule trop vite/irrégulièrement pour que le
@@ -815,6 +820,7 @@ function refreshVisuals(): void {
           };
           const instant = sevenSegmentState(editor.diagram, part.id, read);
           const next = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'DP'].map((seg, i) => readSeg(seg, instant[i]));
+          conducting = next; // état conducteur instantané (avant anti-scintillement)
           const now = performance.now();
           let stable = sevenSegStable.get(part.id);
           if (!stable) {
@@ -841,11 +847,15 @@ function refreshVisuals(): void {
             latch = new Array(digits * 8).fill(0);
             sevenSegLatch.set(part.id, latch);
           }
+          conducting = new Array(digits * 8).fill(0);
           for (let d = 0; d < digits; d++) {
             const { active, values } = sevenSegmentDigit(
               editor.diagram, part.id, read, `DIG${d + 1}`, commonAnode
             );
-            if (active) for (let s = 0; s < 8; s++) latch[d * 8 + s] = values[s];
+            if (active) for (let s = 0; s < 8; s++) {
+              latch[d * 8 + s] = values[s];
+              conducting[d * 8 + s] = values[s]; // segment piloté MAINTENANT
+            }
           }
           vals = latch.slice();
         }
@@ -856,8 +866,11 @@ function refreshVisuals(): void {
         if (!burnedLeds.has(part.id)) {
           const vs = boardFamily(board) === 'rp2040' ? 3.3 : 5;
           const lumBySeg = new Map<string, number>();
-          for (let i = 0; i < vals.length; i++) {
-            if (!vals[i]) continue;
+          // Grillage/luminosité calculés sur l'état CONDUCTEUR INSTANTANÉ (pas
+          // sur `vals` lissé) : le sur-courant est électrique et immédiat, donc
+          // l'explosion apparaît sans le retard du settle/latch d'affichage.
+          for (let i = 0; i < conducting.length; i++) {
+            if (!conducting[i]) continue;
             const segPin = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'DP'][i % 8];
             let lum = lumBySeg.get(segPin);
             if (lum === undefined) {
@@ -871,7 +884,16 @@ function refreshVisuals(): void {
               lum = elec.lum;
               lumBySeg.set(segPin, lum);
             }
-            vals[i] = vals[i] * lum;
+          }
+          // La luminosité (assombrissement par résistance forte) s'applique, elle,
+          // à l'affichage lissé.
+          if (!burnedLeds.has(part.id)) {
+            for (let i = 0; i < vals.length; i++) {
+              if (!vals[i]) continue;
+              const segPin = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'DP'][i % 8];
+              const lum = lumBySeg.get(segPin);
+              if (lum !== undefined) vals[i] = vals[i] * lum;
+            }
           }
         }
         const seg7Burned = burnedLeds.has(part.id);

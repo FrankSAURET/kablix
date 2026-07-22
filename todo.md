@@ -1,11 +1,18 @@
 # À faire
-1. un simple clic (pas drag and drop) sur un composant de la bibliothèque le fait apparaitre **au centre** de la vue canva
+1. Les couleur des composants doivent être traduits y compris GYR -> VJR en français
+1. - les 2 point de l'afficheur 4 digits doivent être centrés gauche droite (voir image)
+1. - ajouter les noms des segments sur les schéma internes des afficheurs
+# v2026.7.159
+1. ✅ **Explosion « Boum » RETARDÉE sur l'afficheur 7 seg** (retour Frank : led/rgb/barre parfaits, afficheur en retard). **Cause** : le grillage du 7 seg se calculait sur `vals` — l'état d'affichage LISSÉ (anti-scintillement `SEVEN_SEG_SETTLE_MS` en 1 chiffre, latch de multiplexage en multi). Le sur-courant n'était donc détecté qu'APRÈS le délai de lissage, alors qu'il est électrique et immédiat (la LED grille au 1er tick conducteur).
+2. ✅ **Fix** (`sim.mts`, cas `7segment`) : nouveau tableau `conducting` = segments réellement pilotés à CET instant (`next` en 1 chiffre, segments actifs du chiffre courant avant latch en multi). Le calcul de sur-courant/grillage se fait sur `conducting` (instantané) ; seul l'assombrissement par résistance (luminosité) reste appliqué à l'affichage lissé `vals`. → explosion synchrone avec les autres composants.
+3. ✅ typecheck + verify:led + verify:boum verts.
+
 # v2026.7.158
 1. ✅ **Explosion « Boum » figée MINUSCULE sur afficheur/barre en SIMULATION → cause racine trouvée** (retour Frank, capture zoomée). Les tailles v157 étaient bonnes hors animation, mais en simulation l'explosion restait coincée à son 1er keyframe (scale minuscule). **Cause** : `sim.mts` réassignait `el.values` avec une array NEUVE à CHAQUE tick sur le 7 seg / la barre grillés → Lit re-render → `boumOverlay()` ré-exécuté → nouvel overlay (nouveau suffixe) → animation RELANCÉE depuis le début, en boucle → jamais au-delà de l'état initial. La LED, elle, posait des valeurs STABLES une fois grillée (pas de re-render) → marchait. MESURÉ en Chrome headless (vrai Editor) : ancien comportement recrée l'overlay `boum-b1`→`boum-b6` en 5 ticks.
-2. ✅ **Fix** (`sim.mts`, cas `7seg` et `led-bar`) : une fois grillé, on N'éteint `values` qu'UNE fois (si encore allumé), puis on ne le réassigne plus → composant stable, animation jouée une seule fois puis vibration permanente. Calqué sur le comportement déjà correct de la LED.
-3. ✅ **Robustesse** (`utils/boum.mts`) : le keyframe `pop` démarre à `scale(0.6)` (au lieu de 0.05) → même si un re-render résiduel relançait l'animation, l'explosion ne descend jamais sous 60 % de sa taille.
-4. ✅ **Banc permanent** `verify:boum` (vrai Editor headless) : tailles LED 50 / 7 seg 90 / barre 110, overlay STABLE au re-render à valeurs inchangées, + contre-épreuve que l'ancien comportement recréait l'overlay. Ajouté à `verify:all`. 5 contrôles verts.
-5. ✅ typecheck + build OK.
+1. ✅ **Fix** (`sim.mts`, cas `7seg` et `led-bar`) : une fois grillé, on N'éteint `values` qu'UNE fois (si encore allumé), puis on ne le réassigne plus → composant stable, animation jouée une seule fois puis vibration permanente. Calqué sur le comportement déjà correct de la LED.
+1. ✅ **Robustesse** (`utils/boum.mts`) : le keyframe `pop` démarre à `scale(0.6)` (au lieu de 0.05) → même si un re-render résiduel relançait l'animation, l'explosion ne descend jamais sous 60 % de sa taille.
+1. ✅ **Banc permanent** `verify:boum` (vrai Editor headless) : tailles LED 50 / 7 seg 90 / barre 110, overlay STABLE au re-render à valeurs inchangées, + contre-épreuve que l'ancien comportement recréait l'overlay. Ajouté à `verify:all`. 5 contrôles verts.
+1. ✅ typecheck + build OK.
 
 # v2026.7.157
 1. ✅ **Explosion « Boum » minuscule sur afficheur ET barre → taille = hauteur du corps** (retour Frank). L'overlay 50 px fixe (v156) recouvrait bien la LED (corps 30×50) mais restait petit sur l'afficheur 7 seg (60–200 large × 90 haut) et la barre (50×110). `boumOverlay(sizePx)` reçoit désormais la HAUTEUR du composant : 7 seg → `h` (≈90), barre → 110, rgb → 70 ; LED garde 50 (défaut). MESURÉ en Chrome headless : boum 90×90 sur les afficheurs (centré, ~1,5× le corps comme la LED), 110 sur la barre.
