@@ -1,5 +1,9 @@
 # À faire
 
+# v2026.7.161
+1. ✅ **Noms des segments plus gros et colorés** (retour Frank). Les labels a-g des schémas internes passent de `#000` opacité 80 %, font-size 5 → **`#FF6075` gras, font-size 11** (≈ ×2), centrés verticalement via `dominant-baseline="central"` (y = centre exact de la diode). Appliqué aux 6 schémas (1/2/4 chiffres × cathode/anode) ; anode régénérée par `_flip-7seg-diodes.mjs`. MESURÉ en Chrome headless : lettres centrées sur chaque diode, mapping inchangé.
+2. ℹ️ **« Retard d'affichage » du 7 seg (projix `demo projix 1` + `7seg-pico.py`) → comportement NORMAL, pas un bug** (confirmé Frank : retard < 1 s). Dans ce montage la LED/RGB/barre sont câblées VBUS↔GND en DIRECT → elles conduisent et grillent dès t=0 (avant que le code tourne). Le 7 seg n'est piloté qu'APRÈS le boot MicroPython (~300 ms, `SEGS[n].value(...)`) → son explosion arrive logiquement un instant après. Impossible d'accélérer sans fausser la physique. Le fix PWM de v160 reste valable pour les segments pilotés en `analogWrite`/PWM.
+
 # v2026.7.160
 1. ✅ **Couleurs des composants traduites en français** (retour Frank). L'infobulle des pastilles de choix de couleur (inspecteur) montrait la valeur technique anglaise (`red`, `GYR`…). Nouvelle fonction `colorDisplayName` (`editor.mts`) : traduit l'AFFICHAGE (`sw.title`) sans changer la valeur envoyée au composant. Clés i18n ajoutées : `Orange`→Orange, `White`→Blanc, `GYR`→**VJR** (green/yellow/red de la barre → vert/jaune/rouge).
 2. ✅ **2 points de l'horloge (afficheur 4 digits) centrés gauche-droite** (retour Frank). Le colon `#colon-4dig` était à `cx=119.44` (collé au chiffre 3). Recalé à **cx=101** = milieu VISUEL des chiffres 2 et 3. MESURÉ en Chrome headless (coords absolues après transforms des chiffres penchés) : colon à 376,4 px vs milieu 376,0 px → écart 0,4 px, centré.

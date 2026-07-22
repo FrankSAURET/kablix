@@ -62,21 +62,21 @@
     <path id="path25-2" style="fill:none;stroke:#26a269;stroke-width:0.5;stroke-linecap:round;stroke-dasharray:none" d="M 79.5392,69.119183 79.565233,62.106818 75.384227,62.082274 V 49.723131 M 89.958419,68.17139 79.52817,69.101809 M 61.876619,49.673694 H 87.652683 M 83.269662,43.548395 V 37.819242 M 72.136309,18.485873 V 27.212519 H 78.353121 V 37.614363 M 89.457897,37.695128 63.626083,37.692281"></path>
     <path style="fill:none;stroke:#26a269;stroke-width:0.5;stroke-linecap:round;stroke-dasharray:none" d="M 59.841042,9.9966473 V 19.993295 H 71.989745" id="path1"></path>
   </g>
-  <!-- Noms des segments (a-g) posés au centre de chaque diode, opacité 80 %. -->
-  <g id="seg-labels" fill="#000000" fill-opacity="0.8" font-family="sans-serif" font-size="5" font-weight="bold" text-anchor="middle" style="stroke:none;pointer-events:none">
-    <text x="28.76" y="20.17">a</text>
-    <text x="40.45" y="32.58">b</text>
-    <text x="35.61" y="58.26">c</text>
-    <text x="22.14" y="70.83">d</text>
-    <text x="9.84" y="58.26">e</text>
-    <text x="14.63" y="32.50">f</text>
-    <text x="25.91" y="45.27">g</text>
-    <text x="79.25" y="20.17">a</text>
-    <text x="90.94" y="32.58">b</text>
-    <text x="86.1" y="58.26">c</text>
-    <text x="72.63" y="70.83">d</text>
-    <text x="60.33" y="58.26">e</text>
-    <text x="65.12" y="32.50">f</text>
-    <text x="76.4" y="45.27">g</text>
+  <!-- Noms des segments (a-g) posés au centre de chaque diode, gras #FF6075. -->
+  <g id="seg-labels" fill="#FF6075" font-family="sans-serif" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central" style="stroke:none;pointer-events:none">
+    <text x="28.76" y="18.47">a</text>
+    <text x="40.45" y="30.88">b</text>
+    <text x="35.61" y="56.56">c</text>
+    <text x="22.14" y="69.13">d</text>
+    <text x="9.84" y="56.56">e</text>
+    <text x="14.63" y="30.8">f</text>
+    <text x="25.91" y="43.57">g</text>
+    <text x="79.25" y="18.47">a</text>
+    <text x="90.94" y="30.88">b</text>
+    <text x="86.1" y="56.56">c</text>
+    <text x="72.63" y="69.13">d</text>
+    <text x="60.33" y="56.56">e</text>
+    <text x="65.12" y="30.8">f</text>
+    <text x="76.4" y="43.57">g</text>
   </g>
 </svg>
