@@ -221,6 +221,13 @@ async function run() {
 	if (boumG) boumG.style.animation = 'none';
 	await new Promise((r) => setTimeout(r, 30));
 	const boumCS = boumG ? getComputedStyle(boumG) : null;
+	// Régression v155 : le dessin injecté par unsafeSVG est un <svg> imbriqué.
+	// SANS width/height explicites il rendait à un viewport ~0 (bbox écrasé
+	// ~30×30 au lieu du viewBox 402×403) → explosion invisible bien que le <g>
+	// soit à scale(1). On vérifie que le bbox du contenu = le viewBox plein.
+	const boumChild = boumG ? boumG.firstElementChild : null;
+	let boumChildW = 0;
+	try { const bb = boumChild && boumChild.getBBox(); if (bb) boumChildW = Math.round(bb.width); } catch (e) {}
 	const segPolys = seg.renderRoot.querySelectorAll('polygon');
 	const barRects = bar.renderRoot.querySelectorAll('#g53 rect');
 	const res = {
@@ -242,6 +249,7 @@ async function run() {
 		rgbHalo: rgb.renderRoot.querySelector('#circle35')?.getAttribute('opacity'),
 		boumRestTransform: boumCS?.transform ?? 'absent',
 		boumRestOpacity: boumCS?.opacity ?? 'absent',
+		boumChildW,
 	};
 	const out = document.createElement('pre');
 	out.id = 'measures';
@@ -272,6 +280,8 @@ if (chrome) {
     r && r.barFull !== '' && String(r.barDim).includes('color-mix') && r.barFlame);
   check('rendu : explosion « boum » VISIBLE au repos (scale 1, opaque) sans animation',
     r && r.boumRestTransform === 'matrix(1, 0, 0, 1, 0, 0)' && r.boumRestOpacity === '1');
+  check('rendu : explosion « boum » PEINTE à sa vraie taille (viewBox plein, pas viewport ~0)',
+    r && r.boumChildW > 300);
 } else {
   console.log('(Chrome introuvable : volet rendu sauté)');
 }

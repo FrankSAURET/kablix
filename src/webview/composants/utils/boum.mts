@@ -15,7 +15,8 @@ import { svg } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import boumDrawing from '../../../../svg/Boum.svg';
 
-const BOUM_VB = 402.5; // côté du viewBox source (carré)
+const BOUM_VB = 402.5; // largeur du viewBox source
+const BOUM_VH = 403.98; // hauteur du viewBox source
 
 let seq = 0; // suffixe d'instance unique (ids + animation)
 
@@ -26,13 +27,29 @@ function scopeIds(src: string, suffix: string): string {
     .replace(/url\(#([^)]+)\)/g, (_m, id) => `url(#${id}__${suffix})`);
 }
 
+// Prépare le dessin source pour l'injection dans un <svg> hôte :
+//   - retire le prolog <?xml …?> (nœud invalide en SVG inline) ;
+//   - AJOUTE width/height = côté du viewBox sur le <svg> imbriqué. Sans taille
+//     explicite, un <svg> imbriqué sans width/height se dimensionne à un viewport
+//     ~0 (mesuré : 3×3 px en Chrome headless) et le scale(k) du <g> parent
+//     n'agrandit rien → explosion invisible. Avec width/height = viewBox, le
+//     viewport imbriqué fait BOUM_VB px et le scale(k) le ramène à `size`.
+function prepare(src: string): string {
+  return src
+    .replace(/<\?xml[^>]*\?>\s*/g, '')
+    .replace(
+      /<svg\b/,
+      `<svg width="${BOUM_VB}" height="${BOUM_VH}"`,
+    );
+}
+
 /** Rend l'explosion centrée en (cx, cy), taille = `size` px (côté). Animée. */
 export function boumSVG(cx: number, cy: number, size: number) {
   const k = size / BOUM_VB;
   const suffix = `b${seq++}`;
-  const drawing = scopeIds(boumDrawing, suffix);
+  const drawing = prepare(scopeIds(boumDrawing, suffix));
   return svg`
-    <g transform="translate(${cx} ${cy}) scale(${k}) translate(${-BOUM_VB / 2} ${-BOUM_VB / 2})">
+    <g transform="translate(${cx} ${cy}) scale(${k}) translate(${-BOUM_VB / 2} ${-BOUM_VH / 2})">
       <style>
         /* État de REPOS visible (scale 1, opaque) : si les animations ne
            tournent pas (webview sans compositing SVG, prefers-reduced-motion,

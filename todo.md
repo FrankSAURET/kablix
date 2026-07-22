@@ -1,6 +1,10 @@
-Nouveau todo.md, j'ai archivé le précédant (todo - v2026.7.144.md).
 # À faire
-1. Flèche ROUGE de l'autoroutage (alignement maximal des équipotentielles) : à re-tenter si un montage la met en défaut — voir note v146 (mesurée neutre sur le montage 16 servos, tracé déjà propre).
+1. un simple clic (pas drag and drop) sur un composant de la bibliothèque le fait apparaitre **au centre** de la vue canva
+# v2026.7.155
+1. ✅ **Explosion « Boum » TOUJOURS invisible malgré v154 → corrigée** (retour Frank). Le fix v154 rendait le `<g>` animé visible (scale 1, opaque), mais le VRAI symptôme était ailleurs : `boumSVG` injecte le dessin via `unsafeSVG`, or le dessin est un `<svg>` COMPLET (avec prolog `<?xml?>`) imbriqué dans le `<svg>` hôte. Ce `<svg>` imbriqué n'avait NI `width` NI `height` → viewport ~0. MESURÉ en Chrome headless : bbox du contenu écrasé à **30×30 au lieu du viewBox 402×403**, groupe peint à ~3 px : présent dans le DOM mais quasi invisible.
+2. ✅ **Fix** (`utils/boum.mts`, fonction `prepare`) : retrait du prolog `<?xml…?>` (nœud invalide en SVG inline) + AJOUT de `width="402.5" height="403.98"` sur le `<svg>` imbriqué = son viewBox. Le `scale(k)` du `<g>` parent le ramène alors à la taille voulue. Centrage vertical corrigé (`BOUM_VH` = vraie hauteur). MESURÉ après fix : bbox du contenu = **402×403** (plein).
+3. ✅ **Test de non-régression** : `verify:led` — nouveau contrôle « explosion PEINTE à sa vraie taille (viewBox plein, pas viewport ~0) » via `getBBox()` du contenu injecté (le contrôle v154 ne mesurait que le transform du `<g>`, pas la taille peinte, d'où le faux vert). 21 → **22 contrôles**, tous verts.
+4. ✅ typecheck OK.
 
 # v2026.7.154
 1. ✅ **Explosion « Boum » invisible en simulation (afficheur, LED…) → corrigée** (retour Frank). Le `<g>` animé de `boum.mts` démarrait à `transform: scale(0); opacity: 0` avec `animation … both` : si l'animation ne tourne PAS (webview sans compositing d'animations SVG, `prefers-reduced-motion`, ou simple rendu non animé), l'explosion restait **coincée à scale(0)** — donc présente dans le DOM (335 paths mesurés) mais invisible. Reproduit en Chrome headless (screenshot + sonde : `computed transform matrix(0,0,0,0,0,0)`, `opacity 0`).
