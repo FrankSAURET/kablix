@@ -17,7 +17,7 @@ import {
   type ProjixManifest,
 } from './projix';
 import { resolveMicropythonFirmware, FirmwareCancelled } from './firmware';
-import { applyDefaultLayout } from './layout';
+import { applyDefaultLayout, lockSimulatorGroup } from './layout';
 
 const ARTIFACT_EXTS = ['.hex', '.uf2', '.elf', '.bin'];
 
@@ -553,8 +553,11 @@ export class SimulatorPanel {
     vscode.debug.onDidChangeBreakpoints(() => this.sendBreakpoints(), null, this.disposables);
     // Première ouverture de la session : pose la disposition par défaut
     // (explorateur fermé, code 1/3 à gauche · simulateur 2/3 à droite). Après un
-    // ajustement manuel, on ne la réimpose pas (voir applyDefaultLayout).
-    void applyDefaultLayout(context);
+    // ajustement manuel, on ne la réimpose pas (voir applyDefaultLayout). Puis
+    // verrouille le groupe du simulateur (actif à cet instant) : tout code
+    // ouvert ensuite (explorateur, double-clic, .projix) ira dans la colonne de
+    // gauche, jamais par-dessus le simulateur.
+    void applyDefaultLayout(context).then(() => lockSimulatorGroup());
   }
 
   // --- Débogage : points d'arrêt et ligne courante ------------------------------
@@ -1240,14 +1243,14 @@ export class SimulatorPanel {
     <button id="open-help" class="toolbar__icon-btn" title="${l10n.t('Open help')}"><img src="${aideIconUri}" alt="${l10n.t('Open help')}" /></button>
     <span id="project-name" class="project-name" title="${l10n.t('Current project')}"></span>
     <div class="more-menu" id="more-menu">
-      <button id="more-btn" class="toolbar__icon-btn more-menu__btn" title="${l10n.t('Other functions')}" aria-haspopup="true" aria-expanded="false">⋯</button>
+      <button id="more-btn" class="toolbar__icon-btn more-menu__btn" title="${l10n.t('Other functions')}" aria-haspopup="true" aria-expanded="false" aria-label="${l10n.t('Other functions')}"><span class="more-menu__burger" aria-hidden="true"></span></button>
       <ul id="more-list" class="more-menu__list" role="menu" hidden>
         <li role="menuitem" data-cmd="kablix.importWokwiDiagram">${l10n.t('Import a Wokwi diagram')}</li>
         <li role="menuitem" data-cmd="kablix.exportWokwiDiagram">${l10n.t('Export a Wokwi diagram')}</li>
         <li role="menuitem" data-cmd="kablix.upgradePicoFirmware">${l10n.t('Update the Pico firmware')}</li>
         <li role="menuitem" data-cmd="kablix.checkLibraryUpdates">${l10n.t('Check for library updates')}</li>
         <li class="more-menu__sep" role="separator"></li>
-        <li role="menuitem" data-cmd="kablix.saveDefaultLayout">${l10n.t('Save the default layout')}</li>
+        <li role="menuitem" data-cmd="kablix.saveDefaultLayout">${l10n.t('Save this layout as default')}</li>
       </ul>
     </div>
     <span id="status" class="status">Prêt</span>

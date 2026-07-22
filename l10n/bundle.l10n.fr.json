@@ -87,7 +87,7 @@
   "Export a Wokwi diagram": "Exporter un schéma Wokwi",
   "Update the Pico firmware": "Mettre à jour le firmware du Pico",
   "Check for library updates": "Vérifier les mises à jour des bibliothèques",
-  "Save the default layout": "Sauvegarder l'organisation par défaut",
+  "Save this layout as default": "Sauvegarder cette organisation par défaut",
   "Kablix: default layout saved ({0}% / {1}%).": "Kablix : organisation par défaut enregistrée ({0} % / {1} %).",
   "Kablix: default layout saved.": "Kablix : organisation par défaut enregistrée.",
   "Open the GitHub repository": "Ouvrir le dépôt GitHub",

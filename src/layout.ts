@@ -64,6 +64,17 @@ export async function applyDefaultLayout(
 }
 
 /**
+ * Verrouille le groupe d'éditeurs du simulateur (celui appelant, supposé actif
+ * au moment de la création du panneau). Un groupe verrouillé refuse tout nouvel
+ * éditeur : les fichiers de code ouverts ensuite (explorateur, double-clic,
+ * onglet du .projix) vont donc dans l'AUTRE groupe — la colonne de code à
+ * gauche. Sans effet si le groupe est déjà verrouillé (commande idempotente).
+ */
+export async function lockSimulatorGroup(): Promise<void> {
+  await vscode.commands.executeCommand('workbench.action.lockEditorGroup');
+}
+
+/**
  * « Sauvegarder l'organisation par défaut » : lit la grille d'éditeurs courante
  * et en déduit le ratio de la colonne de gauche (code), mémorisé pour les
  * prochains lancements. Le layout ne conserve que les ratios de largeur —

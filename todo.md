@@ -2,6 +2,12 @@ Nouveau todo.md, j'ai archivé le précédant (todo - v2026.7.144.md).
 # À faire
 1. Flèche ROUGE de l'autoroutage (alignement maximal des équipotentielles) : à re-tenter si un montage la met en défaut — voir note v146 (mesurée neutre sur le montage 16 servos, tracé déjà propre).
 
+# v2026.7.149
+1. ✅ **Code TOUJOURS dans la colonne de gauche** (retour Frank). Le groupe d'éditeurs du simulateur est VERROUILLÉ (`workbench.action.lockEditorGroup`) à chaque création du panneau : un groupe verrouillé refuse tout nouvel éditeur, donc les fichiers de code ouverts ensuite (explorateur, double-clic, onglet du `.projix`) vont dans l'AUTRE groupe (colonne de gauche), jamais par-dessus Kablix. `lockSimulatorGroup` appelé après `applyDefaultLayout` (le simulateur est le groupe actif à cet instant).
+2. ✅ **Bouton du menu → hamburger 3 barres épaisses** (au lieu de `⋯`, peu visible). `span.more-menu__burger` + 2 pseudo-éléments, barres de 20×3 px, teinte `--vscode-icon-foreground`.
+3. ✅ Renommé « Sauvegarder l'organisation par défaut » → **« Sauvegarder cette organisation par défaut »** (libellé + bundle FR).
+4. ✅ typecheck + build OK.
+
 # v2026.7.148
 1. ✅ **Organisation des fenêtres au lancement (demande Frank)**. Nouveau module `src/layout.ts` : à la PREMIÈRE ouverture du simulateur dans la session, `workbench.action.closeSidebar` (explorateur fermé) + `vscode.setEditorLayout` deux colonnes horizontales — code 1/3 à gauche, simulateur 2/3 à droite. Idempotent PAR SESSION (variable de module, pas globalState) : reposé au 1er lancement de chaque session, plus ensuite → un ajustement manuel en cours de session tient. `applyDefaultLayout` appelé depuis le constructeur de `SimulatorPanel` (vraie création, pas au `reveal`).
 2. ✅ **Menu « Autres fonctions » (⋯)** à droite du nom de projet dans la barre Kablix : Importer/Exporter un schéma Wokwi, Mettre à jour le firmware Pico, Vérifier les mises à jour des bibliothèques, **Sauvegarder l'organisation par défaut**. Menu maison (HTML/CSS/JS dans `panel.ts` + `sim.mts` + `styles.css`), ouverture au clic, fermeture au clic ailleurs/Échap/choix. La webview poste `menuCommand` → hôte relaie la commande VS Code via **liste blanche stricte** (jamais une commande arbitraire).
