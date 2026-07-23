@@ -116,11 +116,15 @@ textarea {
   display: inline-flex;
 }
 .more-menu__btn {
-  padding: 4px 6px;
-  /* Vrai bouton (bordure + fond) plutôt qu'une simple icône hamburger nue. */
-  border: 1px solid var(--vscode-button-border, var(--vscode-contrastBorder, var(--vscode-dropdown-border, #555))) !important;
+  padding: 4px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Vrai bouton encadré (comme « Noms »), pas une icône hamburger nue : bordure
+     + fond bouton secondaire toujours visibles (demande de Frank). */
+  border: 1px solid var(--vscode-button-border, var(--vscode-contrastBorder, var(--vscode-dropdown-border, #555)));
   border-radius: 4px;
-  background: var(--vscode-button-secondaryBackground, var(--vscode-dropdown-background, #333));
+  background: var(--vscode-button-secondaryBackground, var(--vscode-dropdown-background, #3a3d41));
 }
 .more-menu__btn:hover {
   background: var(--vscode-button-secondaryHoverBackground, var(--vscode-toolbar-hoverBackground, #444));
@@ -1257,6 +1261,13 @@ textarea {
    le schéma est figé et les pastilles sont déjà neutralisées : on réactive donc
    les pointeurs sur le composant pour que son contrôle redevienne saisissable. */
 .part--sim-active .part__body {
+  pointer-events: auto;
+}
+
+/* Alim en simulation : contrôle SVG accessible SANS hisser le composant devant
+   les fils (il reste sous le câblage, cf. keepUnderWires dans setLocked). On
+   réactive juste les pointeurs pour que son bouton de tension réponde. */
+.part--sim-under-wires .part__body {
   pointer-events: auto;
 }
 

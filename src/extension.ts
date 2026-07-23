@@ -3,7 +3,7 @@ import { SimulatorPanel } from './panel';
 import { HelpPanel } from './help';
 import { promptLibraryUpdates } from './updates';
 import { upgradeFirmware, checkFirmwareUpdate } from './firmware';
-import { saveDefaultLayout } from './layout';
+import { saveDefaultLayout, applyDefaultLayout } from './layout';
 import { registerProjixEditor, ProjixEditorProvider } from './projix-editor';
 
 const l10n = vscode.l10n;
@@ -32,12 +32,28 @@ export function activate(context: vscode.ExtensionContext): void {
     homeView.onDidChangeVisibility((e) => {
       if (!e.visible || !startupSettled) return;
       // Icône Kablix : révèle l'atelier .projix actif s'il y en a un, sinon en
-      // ouvre un nouveau (document untitled).
+      // ouvre un nouveau (document untitled). On NE rebascule PAS sur
+      // l'Explorateur (ça volait le focus au .projix → applyDefaultLayout, qui
+      // attend `panel.active`, ne se posait jamais quand un dossier était ouvert,
+      // et rouvrait la sidebar que le layout veut fermer). On se contente de
+      // fermer la sidebar Kablix : le layout du .projix (explorateur fermé +
+      // grille 1/3-2/3) fait le reste. reveal() ferme aussi la sidebar.
       const active = SimulatorPanel.active();
-      if (active) active.reveal();
-      else void openNewProjix();
-      // Rebascule sur l'Explorateur : le volet Kablix ne reste pas affiché.
-      void vscode.commands.executeCommand('workbench.view.explorer');
+      if (active) {
+        // reveal() rend le groupe du .projix actif → applyDefaultLayout peut
+        // reposer la grille sur le BON groupe. `force` : un clic sur l'icône est
+        // une action explicite, on rétablit la disposition Kablix même si elle a
+        // déjà été posée cette session (ex. explorateur rouvert entre-temps).
+        active.reveal();
+        setTimeout(() => void applyDefaultLayout(context, true), 80);
+      } else {
+        // Nouveau projet : resolveCustomEditor pose déjà le layout à panel.active.
+        // On force en plus (clic icône = action explicite) au cas où la
+        // disposition aurait déjà été consommée cette session.
+        void openNewProjix().then(() =>
+          setTimeout(() => void applyDefaultLayout(context, true), 120)
+        );
+      }
     })
   );
 

@@ -12,7 +12,9 @@
 //    signal PWMn (P1 = canal 0 … P16 = canal 15, comme les bibliothèques),
 //    Pn.5V (rail V+) et Pn.GND (masse) — colorées rouge/noir par
 //    pinElectricalRole. Les rails internes vivent dans buildNets (model.mts).
+import { render } from 'lit';
 import drawing from './externe/pca9685.svg';
+import { boumOverlay } from './utils/boum.mjs';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -61,6 +63,20 @@ export class Pca9685Element extends HTMLElement {
 
   private root: ShadowRoot;
   private rendered = false;
+  private _burned = false;
+  /** Conteneur de l'explosion « Boum » (carte grillée par surtension V+ > 5,5 V). */
+  private boumHost: HTMLElement | null = null;
+
+  /** Carte grillée : affiche l'explosion (piloté par sim.mts en surtension). */
+  set burned(v: boolean) {
+    const on = !!v;
+    if (on === this._burned) return;
+    this._burned = on;
+    this.updateBoum();
+  }
+  get burned(): boolean {
+    return this._burned;
+  }
 
   constructor() {
     super();
@@ -71,10 +87,18 @@ export class Pca9685Element extends HTMLElement {
     if (!this.rendered) this.render();
   }
 
+  /** Monte/démonte l'overlay d'explosion selon `burned`. */
+  private updateBoum(): void {
+    if (!this.boumHost) return;
+    render(this._burned ? boumOverlay(90) : null, this.boumHost);
+  }
+
   private render(): void {
     this.rendered = true;
     const wrap = document.createElement('div');
     wrap.style.lineHeight = '0';
+    // `position: relative` requis par boumOverlay (span centré en absolu).
+    wrap.style.position = 'relative';
 
     const svg = document.createElementNS(SVG_NS, 'svg');
     svg.setAttribute('xmlns', SVG_NS);
@@ -94,7 +118,12 @@ export class Pca9685Element extends HTMLElement {
     }
 
     wrap.appendChild(svg);
+    // Hôte de l'explosion, par-dessus le dessin (centré par boumOverlay).
+    this.boumHost = document.createElement('span');
+    wrap.appendChild(this.boumHost);
+
     this.root.replaceChildren(wrap);
+    this.updateBoum();
   }
 }
 

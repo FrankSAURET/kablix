@@ -58,8 +58,12 @@ export async function applyDefaultLayout(
 ): Promise<void> {
   if (!force && layoutAppliedThisSession) return;
   layoutAppliedThisSession = true;
-  // Barre latérale (explorateur) fermée : le simulateur occupe toute la largeur.
+  // Tous panneaux fermés (demande de Frank) : barre latérale (explorateur) ET
+  // panneau du bas (terminal/problèmes) fermés — il ne reste que les deux zones
+  // d'éditeurs (code à gauche, Kablix à droite).
   await vscode.commands.executeCommand('workbench.action.closeSidebar');
+  await vscode.commands.executeCommand('workbench.action.closePanel');
+  await vscode.commands.executeCommand('workbench.action.closeAuxiliaryBar');
   await applyEditorGrid(context);
 }
 

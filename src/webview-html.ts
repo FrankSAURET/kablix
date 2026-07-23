@@ -100,7 +100,7 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
     <button id="open-help" class="toolbar__icon-btn" title="${l10n.t('Open help')}"><img src="${aideIconUri}" alt="${l10n.t('Open help')}" /></button>
     <span id="project-name" class="project-name" title="${l10n.t('Current project')}"></span>
     <div class="more-menu" id="more-menu">
-      <button id="more-btn" class="toolbar__icon-btn more-menu__btn" title="${l10n.t('Other functions')}" aria-haspopup="true" aria-expanded="false" aria-label="${l10n.t('Other functions')}"><span class="more-menu__burger" aria-hidden="true"></span></button>
+      <button id="more-btn" class="more-menu__btn" title="${l10n.t('Other functions')}" aria-haspopup="true" aria-expanded="false" aria-label="${l10n.t('Other functions')}"><span class="more-menu__burger" aria-hidden="true"></span></button>
       <ul id="more-list" class="more-menu__list" role="menu" hidden>
         <li role="menuitem" data-cmd="kablix.importWokwiDiagram">${l10n.t('Import a Wokwi diagram')}</li>
         <li role="menuitem" data-cmd="kablix.exportWokwiDiagram">${l10n.t('Export a Wokwi diagram')}</li>

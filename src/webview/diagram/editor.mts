@@ -384,8 +384,15 @@ export class Editor {
       // passe aussi par-dessus voisins et fils (z-index), sinon son curseur peut
       // se retrouver caché par un composant posé après lui ou par un fil qui le
       // traverse (les fils sont normalement au-dessus des composants en édition).
+      // EXCEPTION : l'alim (kind psu) est un GROS dessin traversé par des câbles ;
+      // la hisser à z=60 la ferait passer devant TOUT le câblage au lancement de
+      // la sim (moche — demande de Frank). Son bouton de tension est un dessin SVG
+      // plein (pas un <input> HTML) : il reste cliquable sous les fils dès que le
+      // corps recapte les pointeurs. On la garde donc SOUS les fils en sim.
       if (partDef(r.part.type).simControl) {
-        r.container.classList.toggle('part--sim-active', locked);
+        const keepUnderWires = partDef(r.part.type).kind === 'psu';
+        r.container.classList.toggle('part--sim-active', locked && !keepUnderWires);
+        r.container.classList.toggle('part--sim-under-wires', locked && keepUnderWires);
         // `makeDrawingHitPainted` a posé `pointer-events:none` EN INLINE sur le
         // host kablix-* (letterbox du viewBox) : le curseur/bouton HTML du
         // contrôle de simulation (un <input>, pas un trait SVG) héritait ce

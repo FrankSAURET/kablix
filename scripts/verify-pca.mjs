@@ -161,8 +161,18 @@ check('alim réglée sur 3 V → inertes (fenêtre 4,5–5,5 V)',
   st({ parts: [PCA, SRV, ALIM('3')], wires: [...baseWires, ...alimWires] })?.ok === false);
 check('alim réglée sur 12 V → inertes',
   st({ parts: [PCA, SRV, ALIM('12')], wires: [...baseWires, ...alimWires] })?.ok === false);
+check('surtension 12 V → carte grillée (overVolt)',
+  st({ parts: [PCA, SRV, ALIM('12')], wires: [...baseWires, ...alimWires] })?.overVolt === true);
+check('surtension juste au-dessus 5,5 V (5,6 V) → grillée',
+  st({ parts: [PCA, SRV, ALIM('5.6')], wires: [...baseWires, ...alimWires] })?.overVolt === true);
+check('5,5 V pile → PAS grillée (borne incluse)',
+  st({ parts: [PCA, SRV, ALIM('5.5')], wires: [...baseWires, ...alimWires] })?.overVolt === false);
+check('sous-tension 3 V → PAS grillée (inerte, pas overVolt)',
+  st({ parts: [PCA, SRV, ALIM('3')], wires: [...baseWires, ...alimWires] })?.overVolt === false);
 check('tension LIVE du bouton prioritaire (5 V attr mais 8 V au bouton → inertes)',
   st(full, () => 8)?.ok === false);
+check('surtension LIVE du bouton (8 V) → grillée',
+  st(full, () => 8)?.overVolt === true);
 check('courant insuffisant (max 0,1 A < 0,2 A servo) → inertes + alim identifiée',
   st({ parts: [PCA, SRV, ALIM('5', '0.1')], wires: [...baseWires, ...alimWires] })?.ok === false &&
   st({ parts: [PCA, SRV, ALIM('5', '0.1')], wires: [...baseWires, ...alimWires] })?.psuId === 'psu1');

@@ -269,6 +269,9 @@ let sevenSegStable = new Map<string, { shown: number[]; pending: number[]; pendi
 // LED grillées pendant ce run (résistance série trop faible → sur-courant) :
 // l'état est définitif jusqu'au prochain lancement (la LED est « remplacée »).
 const burnedLeds = new Set<string>();
+// PCA9685 (carte 16 servos) grillés pendant ce run : surtension du bornier V+
+// (> 5,5 V). Définitif jusqu'au prochain lancement (carte « remplacée »).
+const burnedPcas = new Set<string>();
 // Facteur de luminosité par LED (résistance trop forte → LED sombre), mémorisé
 // à la dernière frame où la LED conduisait.
 const ledLumFactor = new Map<string, number>();
@@ -1669,18 +1672,29 @@ function renderNeopixel(
 
 /** Propage les rapports cycliques des PCA9685 vers les composants pilotés. */
 function applyPca9685(): void {
-  if (pcaBindings.length === 0) return;
+  // Aucune carte PCA9685 dans le schéma : rien à faire (évite un buildNets par
+  // frame). Sinon on traite l'état d'alim MÊME sans servo câblé, pour que la
+  // surtension grille la carte quand elle est seule.
+  const hasPca = editor.diagram.parts.some((p) => p.type === 'pca9685');
+  if (!hasPca) return;
   // PCA9685 natif : sans alim de laboratoire ~5 V au courant suffisant sur le
   // bornier V+/GND.2, les SORTIES ne bougent pas (la puce répond toujours sur
   // I²C — VCC logique séparé, comme la vraie carte). Les anciens PCA importés
   // (composants personnalisés, sans bornier) restent toujours alimentés.
-  const power = new Map(
-    pca9685PowerState(editor.diagram, psuLiveVolts, liveVariableOhms).map((p) => [p.partId, p.ok])
-  );
+  const states = pca9685PowerState(editor.diagram, psuLiveVolts, liveVariableOhms);
+  // Surtension (> 5,5 V) sur le bornier V+ : la carte grille définitivement.
+  for (const s of states) {
+    if (s.overVolt) burnedPcas.add(s.partId);
+    const pcaEl = editor.elementOf(s.partId) as { burned?: boolean } | null;
+    if (pcaEl) pcaEl.burned = burnedPcas.has(s.partId);
+  }
+  if (pcaBindings.length === 0) return;
+  const power = new Map(states.map((p) => [p.partId, p.ok]));
   for (const b of pcaBindings) {
     const dev = i2cDevices.get(b.partId);
     if (!(dev instanceof Pca9685Device)) continue;
-    const powered = power.get(b.partId) ?? true;
+    // Carte grillée : plus aucune sortie (même si l'alim redescend sous 5,5 V).
+    const powered = !burnedPcas.has(b.partId) && (power.get(b.partId) ?? true);
     for (const c of b.channels) {
       const el = editor.elementOf(c.targetId);
       if (!el) continue;
@@ -1884,6 +1898,7 @@ function startRun(): void {
   sevenSegLatch = new Map(); // nouveau run : les chiffres mémorisés repartent à zéro
   sevenSegStable = new Map();
   burnedLeds.clear(); // LED grillées « remplacées » à chaque nouveau lancement
+  burnedPcas.clear(); // carte 16 servos grillée « remplacée » à chaque lancement
   ledLumFactor.clear();
   buildI2cDevices();
   rebind();

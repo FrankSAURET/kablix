@@ -503,6 +503,8 @@ export interface Pca9685Power {
   ok: boolean;
   /** Alim de laboratoire reliée au bornier V+/GND.2 (null si aucune). */
   psuId: string | null;
+  /** Surtension sur V+ (> PCA_VOLTS_MAX) : la carte GRILLE (irréversible). */
+  overVolt: boolean;
 }
 
 /** Fenêtre de tension acceptée sur le bornier V+ du PCA9685 (« 5 V »). */
@@ -530,6 +532,7 @@ export function pca9685PowerState(
     const vNet = nets.netOf({ partId: part.id, pin: 'V+' });
     const gNet = nets.netOf({ partId: part.id, pin: 'GND.2' });
     let ok = false;
+    let overVolt = false;
     let psuId: string | null = null;
     for (const psu of psuParts(diagram)) {
       if (nets.netOf({ partId: psu.id, pin: 'V+' }) !== vNet) continue;
@@ -537,13 +540,17 @@ export function pca9685PowerState(
       psuId = psu.id;
       const live = psuVolts?.(psu.id);
       const v = live ?? (Number(psu.attrs?.voltage ?? 0) || 0);
-      if (v < PCA_VOLTS_MIN || v > PCA_VOLTS_MAX) break;
+      // Surtension : au-delà de 5,5 V sur le bornier V+, la carte grille
+      // (demande de Frank — comportement réel : les servos/le PCA n'encaissent
+      // pas plus). Signalé à part de la sous-tension (qui rend juste inerte).
+      if (v > PCA_VOLTS_MAX) { overVolt = true; break; }
+      if (v < PCA_VOLTS_MIN) break;
       const maxAmps = Math.max(0.05, Number(psu.attrs?.maxcurrent ?? 1) || 1);
       if (psuLoadAmps(diagram, psu.id, v, liveOhms) > maxAmps) break;
       ok = true;
       break;
     }
-    out.push({ partId: part.id, ok, psuId });
+    out.push({ partId: part.id, ok, psuId, overVolt });
   }
   return out;
 }
