@@ -127,7 +127,11 @@ type LabelsMode = 'all' | 'selected' | 'none';
 
 /** État sauvegardé dans la webview pour survivre à un déplacement d'onglet. */
 interface PersistedState {
-  diagram?: { parts?: unknown[]; wires?: unknown[] };
+  diagram?: {
+    parts?: unknown[];
+    wires?: unknown[];
+    camera?: { zoom?: number; panX?: number; panY?: number } | null;
+  };
   board?: BoardId;
   /** Héritage (≤ v2026.7.107) : true = tous les noms, false = sélection seule. */
   showLabels?: boolean;
@@ -1961,15 +1965,38 @@ function renderProjectName(): void {
     : t('Current project');
 }
 
+// Vrai pendant qu'on applique un undo/redo demandé par l'HÔTE (VS Code
+// CustomEditor) : l'onChange qui en résulte ne doit PAS refaire remonter un
+// nouvel edit (sinon la pile VS Code se désynchronise).
+let applyingHostUndo = false;
+
 editor.onChange = () => {
   persistState();
   if (!loadingProject) {
-    setDirty(true);
+    // « modifié » = l'état diffère du dernier enregistrement (pas un simple « a
+    // changé ») : un aller-retour pose→annulation, ou suppression→annulation,
+    // qui ramène au même schéma efface bien le point ●.
+    setDirty(editor.isDirty());
     // Tient à jour côté hôte le schéma « à enregistrer » (setDirty ne renotifie
     // pas quand l'état dirty ne change pas) — utile si l'onglet est fermé.
     vscode.postMessage({ type: 'syncDiagram', diagram: editor.serialize(), board });
+    // Édition utilisateur (pas un undo/redo piloté par VS Code) : notifie l'hôte
+    // pour empiler un edit dans le CustomEditor → point ● natif + Ctrl+Z natif.
+    if (!applyingHostUndo) {
+      vscode.postMessage({ type: 'docEdit', diagram: editor.serialize(), board });
+    }
   }
   if (engine) rebind();
+};
+
+// Changement de VUE (zoom / déplacement de la page) : on persiste la caméra sans
+// marquer le projet « modifié » (pas de point ●, pas d'edit annulable). Elle est
+// gardée dans l'état webview (survit au déplacement d'onglet) et poussée à l'hôte
+// pour être écrite au prochain enregistrement. Pas envoyé pendant un chargement.
+editor.onCameraChange = () => {
+  if (loadingProject) return;
+  persistState();
+  vscode.postMessage({ type: 'syncDiagram', diagram: editor.serialize(), board });
 };
 
 // Persistance de l'atelier dans l'état de la webview : il survit ainsi au
@@ -2040,31 +2067,27 @@ loadBtn.addEventListener('click', () => {
 exportBtn.addEventListener('click', () => {
   vscode.postMessage({ type: 'exportSvg', svg: editor.exportSvg() });
 });
+// Enregistrer : passe par le save NATIF de VS Code (l'onglet .projix est un
+// CustomEditor) → VS Code écrit via saveCustomDocument PUIS marque l'onglet
+// « enregistré » (retire le point ●). Écrire nous-mêmes laisserait VS Code
+// croire l'onglet toujours modifié (prompt « enregistrer sous » à la fermeture).
 saveProjectBtn.addEventListener('click', () => {
-  vscode.postMessage({ type: 'saveProject', diagram: editor.serialize(), board });
+  vscode.postMessage({ type: 'nativeSave' });
 });
-// Enregistrer sous : boîte de dialogue systématique côté hôte.
+// Enregistrer sous : commande native « Enregistrer sous » de VS Code.
 saveProjectAsBtn.addEventListener('click', () => {
-  vscode.postMessage({ type: 'saveProjectAs', diagram: editor.serialize(), board });
+  vscode.postMessage({ type: 'nativeSaveAs' });
 });
-// Ctrl+S / Cmd+S dans l'atelier : Enregistrer (même chemin que le bouton —
-// écriture directe si un .projix est connu, boîte sinon). preventDefault pour
-// que VS Code ne déclenche pas sa propre commande de sauvegarde d'éditeur.
-window.addEventListener('keydown', (e) => {
-  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 's') {
-    e.preventDefault();
-    vscode.postMessage({ type: 'saveProject', diagram: editor.serialize(), board });
-  }
-});
+// Ctrl+S / Cmd+S : NE PAS intercepter — VS Code le capte et sauve l'onglet
+// CustomEditor nativement (sinon le point ● ne disparaît jamais).
 // Nouveau projet : vide le schéma (annulable Ctrl+Z) et oublie le .projix
 // courant côté hôte (le prochain enregistrement demandera un nouveau nom).
 newProjectBtn.addEventListener('click', () => {
-  if (editor.isLocked()) return; // simulation en cours : pas d'édition
-  editor.clear();
-  vscode.postMessage({ type: 'newProject' });
-  setStatus(t('New project'));
+  // Nouveau projet = NOUVEL onglet .projix (ne vide pas le canvas courant).
+  vscode.postMessage({ type: 'newProjectTab' });
 });
 openProjectBtn.addEventListener('click', () => {
+  // Ouvre un projet dans un NOUVEL onglet (ne remplace pas le projet courant).
   vscode.postMessage({ type: 'openProject' });
 });
 // Ouvre la page d'aide (commande kablix.openHelp côté hôte).
@@ -2421,7 +2444,24 @@ window.addEventListener('message', (event: MessageEvent) => {
     case 'projectSaved':
       // Confirmation d'enregistrement du .projix : message temporaire visible.
       flashStatus(t('Project saved'));
+      editor.markSaved(); // état courant = référence « propre »
       setDirty(false); // schéma désormais aligné sur le disque
+      break;
+    case 'setDirty':
+      // L'hôte impose l'état « non enregistré » (restauration hot-exit).
+      setDirty(msg.dirty === true);
+      break;
+    case 'undo':
+      // Ctrl+Z natif de VS Code (CustomEditor) : annulation pilotée par l'hôte.
+      // Le drapeau évite de renvoyer un nouvel edit (garde la pile VS Code juste).
+      applyingHostUndo = true;
+      editor.undo();
+      applyingHostUndo = false;
+      break;
+    case 'redo':
+      applyingHostUndo = true;
+      editor.redo();
+      applyingHostUndo = false;
       break;
     case 'requestWokwiExport':
       // Conversion du schéma au format projet Wokwi (diagram.json).
@@ -2454,20 +2494,23 @@ window.addEventListener('message', (event: MessageEvent) => {
       if (Array.isArray(msg.customParts)) {
         editor.loadCustomParts(msg.customParts as CustomPartData[]);
       }
-      editor.loadDiagram(msg.diagram as Parameters<typeof editor.loadDiagram>[0]);
+      const loadedDiagram = msg.diagram as Parameters<typeof editor.loadDiagram>[0];
+      editor.loadDiagram(loadedDiagram);
       loadingProject = false;
       // Projet fraîchement chargé = aligné sur le disque, SAUF réouverture après
       // une fermeture avec modifications non enregistrées (markDirty) : le schéma
       // restauré n'est pas encore enregistré, on garde le point « non enregistré ».
+      if (msg.markDirty !== true) editor.markSaved(); // référence « propre » = état chargé
       setDirty(msg.markDirty === true);
       if (isBoardId(msg.board)) {
         switchBoard(msg.board);
         boardSelect.value = msg.board;
       }
-      // Ouverture d'un projet : recentre et ajuste la vue sur tout le schéma
-      // (comme le bouton « recentrer »). Différé d'une frame : les corps des
-      // composants n'ont leur taille réelle qu'après le rendu.
-      requestAnimationFrame(() => editor.fitView());
+      // Ouverture d'un projet : si le .projix embarque une caméra (zoom +
+      // position enregistrés), loadDiagram l'a déjà restaurée — on n'y touche pas.
+      // Sinon (ancien projet), on recentre/ajuste comme le bouton « recentrer ».
+      // Différé d'une frame : les corps n'ont leur taille réelle qu'après rendu.
+      if (!loadedDiagram?.camera) requestAnimationFrame(() => editor.fitView());
       // Statut neutre après chargement (clé déjà traduite dans i18n).
       setStatus(t('Ready'));
       break;

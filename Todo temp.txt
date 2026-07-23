@@ -1,15 +1,25 @@
-
- _______       _            _     _          ______        _                 _ 
-(_______)     (_)       _  (_)   | |        (____  \      (_)               | |
- _______  ____ _  ___ _| |_ _  __| |_____    ____)  ) ____ _ _____ ____   __| |
-|  ___  |/ ___) |/___|_   _) |/ _  | ___ |  |  __  ( / ___) (____ |  _ \ / _  |
-| |   | | |   | |___ | | |_| ( (_| | ____|  | |__)  ) |   | / ___ | | | ( (_| |
-|_|   |_|_|   |_(___/   \__)_|\____|_____)  |______/|_|   |_\_____|_| |_|\____|
-    
-Auteur: Frank SAURET(frank.sauret.prof@gmail.com) 
-Todo temp.txt(Ɔ) 2026
-Description : Saisissez la description puis « Tab »
-Créé le :  jeudi 23 juillet 2026 à 8:32:01 
-Dernière modification : 
+- double clic ouvre bien le projet
+- si modif le point apparait mais probleme si ctrl + z le point ne disparait pas et ctrl z permet de retourner en arrière jusqu'à un fichier vide et là le point disparait
+- ctrl+s sauvegarde le fichier mais pas la vue
+- Hot-exit : réouverture ne restaure pas l'état
+- ouverture d'un projet à partir de l'icone "ouvrir un pprojet" fonctionne mais ne garde pas le nom du pojet. Il apparait au début mais si ontente de quitter un numéro apparait à la place du nom et la fenètre enregistre sous apparait.
+- si j'enregistre en cliquant sur le bouton enregistrer, le numéro  apparait aussi.
+- simulation ok debogage aussi (testé sur 2 fichiers pico)
 
 
+- layout non respecté (il faudrait respecter le 1/3 code et le 2/3 kablix) et ouverture de code systématiquement dans 1/3 gauche et de projix dans 2/3 droit. Et si plusieurs kablix ouvert il s'ouvre dans le même panneau pas dans un  à coté.
+- ouverture d'un projet à partir de l'icone "ouvrir un projet" fonctionne mais ne garde pas le nom du pojet si un projet était déjà ouvert, il garde l'ancien nom par contre dans la barre le nom est bon. 
+-  Hot-exit ok nom, layout de la fermeture respecté mais indique dés l'ouverture que le fichier n'est pas sauvegardé
+- clic sur nv projet si projet ouvert devrait ouvrir sur un nouvel onglet, la s'ouvre à la place du précédant
+
+- layout tjs non respecté et fermeture de l'explorateur non plus
+- ouverture d'un nouveau prj ok dans nouvel onglet et même panneau. Validé.
+- Plusieurs .projix → onglets empilés à droite. validé.
+- modif + ctrl+z ne supprime pas le point de sauvegarde. Annulation bizarre : je pose un afficheur à une position, CTRL + z déplace l'afficheur à l'origine deuxième ctrl+z le supprime. Point tjs présent. toisieme ctrl+z, efface le schéma point disparu de l'onglet. 
+- facteur de zoom et position de la page dans la vue canva tjs pas sauvegardés
+
+- Ctrl+ z validé au début pose + ctrl + z = point disparait MAIS pose + supprimer point reste
+- Layout toujours invalide. C'était un pb réglé dans la version 163 tu peux t'en inspirer
+- si on est sur un nouveau projet, l'ouverture d'un fichier doit se fair à la place du nouveau projet et non dans un nouvel onglet
+
+- Au lancement le dernier projet ouvert s'ouvre mais est noté comme a sauvegarder alors que sauvé avent de fermer vscode.

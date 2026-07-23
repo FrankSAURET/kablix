@@ -4,12 +4,11 @@ import { HelpPanel } from './help';
 import { promptLibraryUpdates } from './updates';
 import { upgradeFirmware, checkFirmwareUpdate } from './firmware';
 import { saveDefaultLayout } from './layout';
-import { registerProtoCustomEditor } from './proto-custom-editor';
+import { registerProjixEditor, ProjixEditorProvider } from './projix-editor';
+
+const l10n = vscode.l10n;
 
 export function activate(context: vscode.ExtensionContext): void {
-  // PROTOTYPE JETABLE — validation du point ● modifié natif (CustomEditor).
-  registerProtoCustomEditor(context);
-
   // Vue de la barre d'activité : cliquer l'icône Kablix ouvre DIRECTEMENT le
   // simulateur (panneau éditeur) et rend la main au volet Explorateur, pour que
   // le volet Kablix (quasi vide) n'occupe pas la barre latérale.
@@ -32,41 +31,42 @@ export function activate(context: vscode.ExtensionContext): void {
     new vscode.Disposable(() => clearTimeout(startupTimer)),
     homeView.onDidChangeVisibility((e) => {
       if (!e.visible || !startupSettled) return;
-      SimulatorPanel.createOrShow(context);
+      // Icône Kablix : révèle l'atelier .projix actif s'il y en a un, sinon en
+      // ouvre un nouveau (document untitled).
+      const active = SimulatorPanel.active();
+      if (active) active.reveal();
+      else void openNewProjix();
       // Rebascule sur l'Explorateur : le volet Kablix ne reste pas affiché.
       void vscode.commands.executeCommand('workbench.view.explorer');
     })
   );
 
+  // Éditeur personnalisé des projets .projix : l'onglet EST le document, d'où le
+  // point ● « non enregistré » NATIF, Ctrl+S natif et le prompt de fermeture natif.
+  registerProjixEditor(context);
+
   context.subscriptions.push(
     vscode.commands.registerCommand('kablix.openSimulator', () => {
-      SimulatorPanel.createOrShow(context);
+      void openNewProjix();
     }),
     vscode.commands.registerCommand('kablix.compileAndRun', () => {
-      const panel = SimulatorPanel.createOrShow(context);
-      void panel.compileActiveFile();
+      void SimulatorPanel.active()?.compileActiveFile();
     }),
     vscode.commands.registerCommand('kablix.loadWorkspaceArtifact', () => {
-      const panel = SimulatorPanel.createOrShow(context);
-      void panel.loadWorkspaceArtifact();
+      void SimulatorPanel.active()?.loadWorkspaceArtifact();
     }),
     vscode.commands.registerCommand('kablix.saveProject', () => {
-      // Révèle le panneau puis demande le schéma à la webview (→ 'saveProject').
-      const panel = SimulatorPanel.createOrShow(context);
-      panel.requestSaveProject();
+      // Enregistrement natif de l'onglet .projix actif (Ctrl+S).
+      void vscode.commands.executeCommand('workbench.action.files.save');
     }),
     vscode.commands.registerCommand('kablix.openProject', () => {
-      const panel = SimulatorPanel.createOrShow(context);
-      void panel.openProject();
+      void openProjixViaDialog(context);
     }),
     vscode.commands.registerCommand('kablix.exportWokwiDiagram', () => {
-      // Révèle le panneau puis demande le schéma converti (→ 'wokwiExport').
-      const panel = SimulatorPanel.createOrShow(context);
-      panel.requestWokwiExport();
+      SimulatorPanel.active()?.requestWokwiExport();
     }),
     vscode.commands.registerCommand('kablix.importWokwiDiagram', () => {
-      const panel = SimulatorPanel.createOrShow(context);
-      void panel.importWokwiDiagram();
+      void SimulatorPanel.active()?.importWokwiDiagram();
     }),
     vscode.commands.registerCommand('kablix.checkLibraryUpdates', () => {
       // Vérification manuelle : affiche aussi la notification « à jour ».
@@ -83,42 +83,6 @@ export function activate(context: vscode.ExtensionContext): void {
     })
   );
 
-  // Double-clic sur un .projix dans l'explorateur : éditeur personnalisé
-  // « relais » — l'onglet ouvre le projet dans le simulateur Kablix puis se
-  // referme aussitôt (le .projix est une archive ZIP, illisible en texte).
-  context.subscriptions.push(
-    vscode.window.registerCustomEditorProvider(
-      'kablix.projix',
-      {
-        openCustomDocument: (uri: vscode.Uri) => ({ uri, dispose: () => undefined }),
-        resolveCustomEditor: (
-          document: vscode.CustomDocument,
-          webviewPanel: vscode.WebviewPanel
-        ) => {
-          webviewPanel.webview.html = '<!doctype html><html><body></body></html>';
-          const panel = SimulatorPanel.createOrShow(context);
-          void panel.openProject(document.uri);
-          // Fermeture différée : l'onglet relais doit être résolu avant d'être fermé.
-          setTimeout(() => webviewPanel.dispose(), 0);
-        },
-      },
-      { supportsMultipleEditorsPerDocument: false }
-    )
-  );
-
-  // Empêche VS Code de rouvrir le panneau du simulateur au lancement : un
-  // panneau restauré est immédiatement fermé (l'utilisateur le rouvre via
-  // l'icône Kablix ou la commande).
-  if (vscode.window.registerWebviewPanelSerializer) {
-    context.subscriptions.push(
-      vscode.window.registerWebviewPanelSerializer(SimulatorPanel.viewType, {
-        async deserializeWebviewPanel(panel: vscode.WebviewPanel): Promise<void> {
-          panel.dispose();
-        },
-      })
-    );
-  }
-
   // Vérification au démarrage, opt-in et non bloquante (silence si à jour).
   const checkOnStartup = vscode.workspace
     .getConfiguration('kablix')
@@ -134,25 +98,63 @@ export function activate(context: vscode.ExtensionContext): void {
     void checkFirmwareUpdate(context, true);
   }
 
-  // Restauration au démarrage : rouvre le dernier projet (.projix) ouvert à la
-  // fermeture, dans le simulateur — comme un onglet VS Code classique. Les
-  // autres onglets texte (le fichier de code inclus) sont restaurés nativement
-  // par VS Code. Opt-out via le réglage `kablix.restoreLastProjectOnStartup`.
-  const restoreProject = vscode.workspace
-    .getConfiguration('kablix')
-    .get<boolean>('restoreLastProjectOnStartup', true);
-  if (restoreProject) {
-    const last = SimulatorPanel.lastProjectUri(context);
-    if (last) {
-      void vscode.workspace.fs.stat(last).then(
-        () => {
-          const panel = SimulatorPanel.createOrShow(context);
-          void panel.openProject(last);
-        },
-        () => undefined // dernier projet déplacé/supprimé : rien à rouvrir
-      );
-    }
-  }
+  // Restauration au démarrage : les onglets .projix (CustomEditor) sont désormais
+  // restaurés NATIVEMENT par VS Code (comme n'importe quel onglet d'éditeur), y
+  // compris les modifications non enregistrées via le hot-exit. Plus besoin de
+  // rouvrir manuellement le dernier projet — ce serait un doublon.
+}
+
+/** Compteur d'untitled pour donner une URI DISTINCTE à chaque « nouveau projet »
+ *  (même URI ⇒ VS Code révèle l'onglet existant au lieu d'en ouvrir un autre). */
+let untitledCounter = 0;
+
+/** Colonne cible du simulateur : 2/3 droite (le code va à gauche). */
+const SIM_COLUMN = vscode.ViewColumn.Two;
+
+/**
+ * Ouvre un nouveau projet Kablix : un document .projix « untitled » dans
+ * l'éditeur personnalisé, dans un NOUVEL onglet à droite. Le point ● natif
+ * apparaît dès la première modification ; Ctrl+S propose l'emplacement.
+ */
+async function openNewProjix(): Promise<void> {
+  // URI untitled unique : sans le suffixe, rouvrir « nouveau projet » ne ferait
+  // que révéler l'onglet déjà ouvert.
+  const suffix = untitledCounter === 0 ? '' : ` ${untitledCounter + 1}`;
+  untitledCounter++;
+  const name = l10n.t('New project') + suffix + '.projix';
+  const uri = vscode.Uri.parse('untitled:' + name);
+  await vscode.commands.executeCommand(
+    'vscode.openWith',
+    uri,
+    ProjixEditorProvider.viewType,
+    SIM_COLUMN
+  );
+}
+
+/** « Ouvrir un projet » : dialogue de fichier puis ouverture dans l'éditeur .projix
+ *  (colonne 2/3 droite). */
+async function openProjixViaDialog(_context: vscode.ExtensionContext): Promise<void> {
+  const picked = await vscode.window.showOpenDialog({
+    canSelectMany: false,
+    filters: { [l10n.t('Kablix project')]: ['projix'] },
+    title: l10n.t('Open a Kablix project'),
+  });
+  if (!picked || picked.length === 0) return;
+  // Si l'onglet actif est un « nouveau projet » vierge (untitled jamais modifié),
+  // on ouvre le fichier À SA PLACE (même colonne, puis fermeture de l'onglet vide)
+  // plutôt que d'empiler un onglet de plus.
+  const activeSession = SimulatorPanel.active();
+  const pristine =
+    activeSession && activeSession.isPristineUntitled() ? activeSession : undefined;
+  const column = pristine?.getViewColumn() ?? SIM_COLUMN;
+  await vscode.commands.executeCommand(
+    'vscode.openWith',
+    picked[0],
+    ProjixEditorProvider.viewType,
+    column
+  );
+  // Ferme l'onglet vierge remplacé (après l'ouverture réussie du fichier).
+  pristine?.closeTab();
 }
 
 export function deactivate(): void {

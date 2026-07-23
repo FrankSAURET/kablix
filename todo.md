@@ -1,5 +1,56 @@
 # À faire
+- si on est sur un 4 digit normal qu'on affiche le schéma interne et qu'on passe sur le modele avec horloge le schéma interne doit être actualisé immédiatement. Actuellement il faut sortir et relancer l'affichage du schéma interne
 
+# v2026.7.164 — CustomEditor .projix : corrections F5 #4→#6 (livré pour tests approfondis)
+1. ✅ Ctrl+Z : pose d'un composant = UNE seule entrée d'historique (addPart/snap/plug en mode `silent`) — fini le « 1er Ctrl+Z déplace à l'origine, 2e supprime ».
+2. ✅ Point ● maison : suit l'écart réel à l'état enregistré (`savedHistoryIndex` + `editor.isDirty()`/`markSaved()`) — un aller-retour pose→annulation efface le point.
+3. ✅ Zoom + position de la page enregistrés dans le .projix (`camera` dans serialize/loadDiagram) et restaurés à l'ouverture ; un zoom NE marque PAS « modifié » (onCameraChange = persist sans ●). Layout validé F5 #6.
+4. ✅ Layout 1/3-2/3 + explorateur fermé : posé quand le groupe du .projix est ACTIF (`panel.active`, comme v163) — validé F5 #6.
+5. ✅ Ouvrir un fichier depuis un « nouveau projet » vierge → remplace l'onglet untitled vierge (même colonne + closeTab) au lieu d'empiler un onglet.
+6. ✅ Hot-exit : projet SAUVÉ avant fermeture ne revient plus marqué « à enregistrer » — le ● n'est remis que si le backup DIFFÈRE réellement du disque (comparaison du schéma normalisé sans ids ; octets bruts inutilisables à cause de createdAt/zip).
+7. ⬜ À VALIDER F5 #7 : hot-exit propre (pas de ●), + tests approfondis sur vsix.
+
+# À TESTER EN F5 — Point ● natif via CustomEditor — MIGRATION COMPLÈTE (baseline de repli = v2026.7.164)
+Décision Frank : migration complète d'un bloc, untitled inclus. SimulatorPanel devient une SESSION par document CustomEditor.
+Fait (build + typecheck + verify:diagram verts) :
+- ✅ HTML webview extrait dans src/webview-html.ts (partagé WebviewPanel + CustomEditor).
+- ✅ Interface SimulatorHost + adaptateur : setDirtyIndicator → ⬤ titre (WebviewPanel legacy) OU point ● NATIF (CustomEditor).
+- ✅ SimulatorPanel.createForHost(host) : instancie une session pilotée par un hôte quelconque. bindDocument(uri), loadProjixBytes(bytes,uri), saveToDocument(uri,oneShot), buildProjixBytes, openProjixFromBytes.
+- ✅ ProjixEditorProvider (src/projix-editor.ts) sur kablix.projix : open/resolve montent webview partagée + session ; projectDirty→fire onDidChangeCustomDocument (● natif) ; saveCustomDocument/As→saveToDocument ; revert ; backup hot-exit (oneShot). retainContextWhenHidden.
+- ✅ extension.ts : registerProjixEditor ; kablix.openSimulator + icône → openNewProjix (untitled .projix, reveal si session active) ; openProject → dialogue + openWith ; saveProject → workbench.action.files.save natif ; compile/wokwi/import → SimulatorPanel.active().
+- ✅ Restauration démarrage : déléguée au hot-exit natif VS Code (plus de réouverture manuelle du dernier .projix).
+- ✅ Prototype supprimé (proto-custom-editor.ts, commande, customEditor .kxproto, proto-test.kxproto).
+- ℹ️ Code legacy laissé INERTE (createOrShow/wrapWebviewPanel/targetColumn/pendingReopen/resumeAfterUnsavedClose/LAST_COLUMN_KEY) : jamais exécuté car toute session est document-backed (documentUri toujours défini). Nettoyage = lot suivant.
+Correctifs 2e passe (retours F5 #1) — build vert :
+- ✅ Ctrl+Z/● : undo/redo routés par VS Code (Ctrl+Z/Y non interceptés par la webview → captés par VS Code → messages 'undo'/'redo' relayés). Chaque édition user remonte 'docEdit' → fire onDidChangeCustomDocument (pile ● exacte). Flag applyingHostUndo anti-boucle.
+- ✅ Ctrl+S/●/nom/numéro/enregistrer-sous : le save passe par le NATIF VS Code (bouton→'nativeSave'/'nativeSaveAs'→workbench.action.files.save/saveAs ; Ctrl+S non intercepté). Fini le save maison qui laissait VS Code croire l'onglet modifié.
+- ✅ Hot-exit : openCustomDocument lit openContext.backupId → resolve recharge le backup au lieu du disque + markDirtyFromRestore (● + setDirty webview).
+- ✅ Layout : applyDefaultLayout/lockSimulatorGroup sortis du constructeur de session → posés par le provider après montage de l'onglet.
+
+Reste À RE-TESTER (F5 #2) et à corriger si besoin :
+1. ⬜ Icône Kablix / commande → onglet .projix untitled s'ouvre. (RISQUE : support untitled+CustomEditor binaire dans VS Code.)
+2. ⬜ Modifier le schéma → point ● NATIF sur la croix de fermeture.
+3. ⬜ Ctrl+S → untitled propose l'emplacement ; .projix existant écrit direct ; ● disparaît.
+4. ⬜ Fermer onglet modifié → prompt natif « enregistrer ? ».
+5. ⬜ Double-clic .projix explorateur + « Ouvrir un projet » → ouvre dans l'éditeur.
+6. ⬜ Hot-exit : fermer VS Code avec modif non enregistrée → réouverture restaure l'état.
+7. ⬜ Simulation run/stop, debug (breakpoints/step/ligne), exports SVG/CSV/Wokwi, chip code, pont réseau Pico W → toujours OK par-document.
+8. ⬜ Layout : applyDefaultLayout/lockSimulatorGroup à réévaluer (s'exécute à chaque ouverture d'onglet .projix).
+9. ⬜ verify:all complet.
+Filet : si blocage, git checkout vers v2026.7.163.
+Objectif : remplacer le hack `panel.title += ⬤` par le VRAI point modifié natif de VS Code (croix de fermeture), Ctrl+S natif, prompt de fermeture natif. Décision Frank : modèle « .projix untitled » (l'icône Kablix ouvre un document untitled via CustomEditor).
+Prototype validé (v163) : CustomEditor minimal → point ● natif OK.
+Contrat webview↔hôte DÉJÀ en place et réutilisable tel quel : `projectDirty`/`syncDiagram`/`loadProject`/`projectSaved`/`requestSaveProject` + `setDirty` côté sim.mts.
+Étapes :
+1. ⬜ Extraire `getHtml` de panel.ts dans un module partagé (webview-html.ts) — réutilisé par SimulatorPanel ET le CustomEditor.
+2. ⬜ `ProjixEditorProvider` (CustomEditorProvider<ProjixDocument>) sur viewType `kablix.projix` (déjà déclaré dans package.json, selector *.projix) : openCustomDocument lit le .projix (unpackProject) ; resolveCustomEditor monte la webview (même HTML) ; message `projectDirty` → fire onDidChangeCustomDocument (● natif) ; saveCustomDocument → packProject + writeFile ; backup pour hot-exit.
+3. ⬜ Untitled : `openCustomDocument` sur URI `untitled:` → document neuf vide. L'icône Kablix / commande openSimulator ouvre un untitled .projix au lieu de SimulatorPanel.createOrShow.
+4. ⬜ Rapatrier dans le provider la logique métier de panel.ts qui doit vivre par-document : compile/run, chip code, breakpoints, debug line, exports SVG/CSV/Wokwi, pont réseau Pico W.
+5. ⬜ Restauration démarrage (LAST_PROJECT_KEY) → `vscode.window.tabGroups` / openWith du dernier .projix, ou hot-exit natif. Supprimer pendingReopen/discardAccepted (remplacés par le prompt natif).
+6. ⬜ Layout par défaut (applyDefaultLayout/lockSimulatorGroup) : réévaluer avec le modèle éditeur.
+7. ⬜ Supprimer le prototype (proto-custom-editor.ts + commande + customEditor .kxproto).
+8. ⬜ verify:all + test manuel (nouveau, ouvrir, modifier→●, Ctrl+S, fermer→prompt, hot-exit).
+Filet : si blocage, `git checkout` vers le commit v2026.7.163.
 # v2026.7.163
 1. ✅ **Le schéma interne 4 chiffres suit l'attribut « Colon (clock) »** (correction de la demande v162 : Frank voulait DEUX schémas, pas un seul). Colon = **non** → schéma interne ORIGINAL (`7seg-4dig-schema.*`, restauré depuis le commit parent) ; colon = **true** → nouveau schéma avec les 2 points d'horloge câblés (`7seg-4dig-clock-schema.*`). Sélection dans `internal-wiring.mts` (`SEVEN_SEG_CLOCK_SCHEMA`, test `digits==='4' && attrs.colon==='true'`). VÉRIFIÉ en Chrome headless : colon=no rend l'original sans colon, colon=true rend le colon (cathode + anode flip OK).
 

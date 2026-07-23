@@ -169,6 +169,10 @@ export class Editor {
   onSelectionChange: ((info: { partId: string | null; schema: boolean; shown: boolean }) => void) | null = null;
   /** Appelé quand une action d'ÉDITION est tentée pendant la simulation (verrouillé). */
   onBlockedEdit: (() => void) | null = null;
+  /** Appelé au changement de VUE (zoom / déplacement de la page). Léger : persiste
+   *  la caméra dans l'état webview + le schéma côté hôte, SANS empiler d'edit
+   *  (pas de point ● : un zoom n'est pas une modification annulable). */
+  onCameraChange: (() => void) | null = null;
 
   private paletteSort: PaletteSort = 'category';
   private paletteFilter = '';
@@ -236,6 +240,11 @@ export class Editor {
   /** Pile d'annulation (états sérialisés du schéma) et position courante. */
   private history: string[] = [];
   private historyIndex = -1;
+  /** Index d'historique correspondant au dernier ENREGISTREMENT (ou à l'état
+   *  chargé). « modifié » = historyIndex différent de celui-ci — ainsi un
+   *  aller-retour (pose puis annulation, ou suppression puis annulation) qui
+   *  ramène au même état efface bien le point ●. */
+  private savedHistoryIndex = 0;
   /** Vrai pendant une restauration (annuler/refaire) : ne pas réenregistrer l'historique. */
   private restoring = false;
   /** Presse-papier interne pour dupliquer une sélection (Ctrl+C / Ctrl+V / Ctrl+D). */
@@ -412,6 +421,17 @@ export class Editor {
     this.restoreHistory();
   }
 
+  /** L'état courant diffère-t-il du dernier enregistrement ? (point ●) */
+  isDirty(): boolean {
+    return this.historyIndex !== this.savedHistoryIndex;
+  }
+
+  /** Marque l'état courant comme « enregistré » (après un save ou un chargement)
+   *  — le point ● s'efface tant qu'on ne s'en écarte pas. */
+  markSaved(): void {
+    this.savedHistoryIndex = this.historyIndex;
+  }
+
   private restoreHistory(): void {
     const state = this.history[this.historyIndex];
     if (!state) return;
@@ -448,7 +468,25 @@ export class Editor {
     this.panY = cy - wy * z;
     this.zoom = z;
     this.applyTransform();
+    this.onCameraChange?.();
   };
+
+  /** Caméra courante (zoom + translation de la page), pour la persistance .projix. */
+  getCamera(): { zoom: number; panX: number; panY: number } {
+    return { zoom: this.zoom, panX: this.panX, panY: this.panY };
+  }
+
+  /** Restaure une caméra enregistrée. Ignore les valeurs invalides (schéma ancien). */
+  setCamera(cam?: { zoom?: number; panX?: number; panY?: number } | null): boolean {
+    if (!cam) return false;
+    const { zoom, panX, panY } = cam;
+    if (![zoom, panX, panY].every((n) => typeof n === 'number' && Number.isFinite(n))) return false;
+    this.zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoom as number));
+    this.panX = panX as number;
+    this.panY = panY as number;
+    this.applyTransform();
+    return true;
+  }
 
   /**
    * Broche recouverte par un composant voisin : le corps d'un composant (surtout
@@ -582,6 +620,7 @@ export class Editor {
     const b = this.contentBounds();
     if (b) this.centerOn((b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2);
     else this.centerOn(SHEET_W / 2, SHEET_H / 2);
+    this.onCameraChange?.();
   }
 
   /** Déplacement de la vue à la souris (bouton central), en pixels écran. */
@@ -605,6 +644,7 @@ export class Editor {
       window.removeEventListener('pointerup', up);
       window.removeEventListener('pointercancel', end);
       window.removeEventListener('blur', end);
+      this.onCameraChange?.();
     };
     const move = (ev: PointerEvent): void => {
       // Filet de sécurité : bouton central plus tenu (pointerup raté — sortie
@@ -674,6 +714,7 @@ export class Editor {
     this.panX = cw / 2 - ((minX + maxX) / 2) * z;
     this.panY = (ch + topInset) / 2 - ((minY + maxY) / 2) * z;
     this.applyTransform();
+    this.onCameraChange?.();
   }
 
   /** Badge flottant « ⟳ 100 % » : clic = réinitialise zoom et position. */
@@ -1264,7 +1305,8 @@ export class Editor {
    */
   addPartAtVisibleCenter(type: string): Part {
     const center = this.visibleWorldCenter();
-    const part = this.addPart(type, center.x, center.y);
+    // silent : addPart + centrage + snap = UNE pose ; seul le snap final notifie.
+    const part = this.addPart(type, center.x, center.y, true);
     this.centerPartOn(part.id, center);
     this.snapPartToGrid(part.id);
     return part;
@@ -1288,7 +1330,7 @@ export class Editor {
   private startPlaceFromPalette(e: PointerEvent, type: string): void {
     if (this.locked || this.pending) return;
     e.preventDefault();
-    const part = this.addPart(type, 0, 0);
+    const part = this.addPart(type, 0, 0, true); // silent : seul le notify() du lâcher compte
     this.placingFromPalette = part.id;
     // Distingue un simple clic (pas de déplacement) d'un glisser : le curseur
     // d'appui est sur la palette (à gauche) ; un clic sec doit poser le composant
@@ -1330,7 +1372,8 @@ export class Editor {
       this.placingFromPalette = null;
       // Alignement final sur la grille (comme toute pose) puis enfichage
       // éventuel sur une platine posée dessous, via le chemin ordinaire.
-      this.snapPartToGrid(part.id);
+      // silent : la pose entière = UNE entrée d'historique via le notify() final.
+      this.snapPartToGrid(part.id, true);
       this.plugPlacedPart(part);
       this.redrawWires();
       this.select({ kind: 'part', id: part.id });
@@ -1351,7 +1394,8 @@ export class Editor {
     const picoLike = kind === 'mcu' && (def.board === 'pico' || def.board === 'picow');
     if (kind === 'breadboard' || kind === 'grove-shield' || (kind === 'mcu' && !picoLike)) return;
     const holes = this.collectBreadboardHoles(part.id, picoLike);
-    if (holes.length > 0) this.plugIntoBreadboard(part, holes);
+    // silent : la pose depuis palette fusionne l'enfichage dans son notify() final.
+    if (holes.length > 0) this.plugIntoBreadboard(part, holes, true);
   }
 
   /**
@@ -1370,7 +1414,7 @@ export class Editor {
     r.container.style.top = `${r.part.y}px`;
   }
 
-  addPart(type: string, x = 40 + this.diagram.parts.length * 30, y = 60): Part {
+  addPart(type: string, x = 40 + this.diagram.parts.length * 30, y = 60, silent = false): Part {
     const def = partDef(type);
     const part: Part = { id: uid(type + '-'), type, x, y, attrs: { ...def.attrs } };
     this.diagram.parts.push(part);
@@ -1378,7 +1422,10 @@ export class Editor {
     this.recordRecent(type);
     this.select({ kind: 'part', id: part.id }); // à la pose : montre le câblage interne
     this.onPartAdded?.(part); // ex. : sélection automatique de la carte de simulation
-    this.notify();
+    // `silent` : la pose (palette / centre) enchaîne addPart puis positionnement ;
+    // seul le notify() FINAL doit empiler une entrée d'historique, sinon 1 pose =
+    // 2 undos (origine puis suppression).
+    if (!silent) this.notify();
     return part;
   }
 
@@ -1467,8 +1514,11 @@ export class Editor {
   }
 
   /** Copie sérialisable du schéma (composants + fils) pour la sauvegarde. */
-  serialize(): { parts: Part[]; wires: Wire[] } {
-    return JSON.parse(JSON.stringify(this.diagram)) as { parts: Part[]; wires: Wire[] };
+  serialize(): { parts: Part[]; wires: Wire[]; camera: { zoom: number; panX: number; panY: number } } {
+    const d = JSON.parse(JSON.stringify(this.diagram)) as { parts: Part[]; wires: Wire[] };
+    // Caméra (zoom + position de la page) jointe au schéma : elle est ainsi
+    // enregistrée dans le .projix et restaurée à la réouverture.
+    return { ...d, camera: this.getCamera() };
   }
 
   /**
@@ -1476,7 +1526,11 @@ export class Editor {
    * ré-aiguillés) pour éviter toute collision avec d'éventuels composants déjà
    * créés pendant la session.
    */
-  loadDiagram(data: { parts?: Part[]; wires?: Wire[] }): void {
+  loadDiagram(data: {
+    parts?: Part[];
+    wires?: Wire[];
+    camera?: { zoom?: number; panX?: number; panY?: number } | null;
+  }): void {
     this.clear();
     // Réalignement doux après rendu : les schémas enregistrés AVANT le re-snap
     // de rotation (v2026.7.105) peuvent porter des composants tournés dont les
@@ -1514,6 +1568,8 @@ export class Editor {
     }
     this.redrawWires();
     this.scheduleSettle();
+    // Caméra enregistrée : restaurée telle quelle (l'appelant ne fera pas fitView).
+    this.setCamera(data.camera);
     this.notify();
   }
 
@@ -2162,7 +2218,7 @@ export class Editor {
    * Enfichage au relâchement : aligne le composant sur les trous touchés puis
    * crée des fils implicites (invisibles, `auto`) broche ↔ trou pour la netlist.
    */
-  private plugIntoBreadboard(part: Part, holes: BreadboardHole[]): void {
+  private plugIntoBreadboard(part: Part, holes: BreadboardHole[], silent = false): void {
     const before = this.diagram.wires.length;
     this.diagram.wires = this.diagram.wires.filter(
       (w) => !(w.auto && (w.a.partId === part.id || w.b.partId === part.id))
@@ -2194,7 +2250,7 @@ export class Editor {
       }
       changed = true;
     }
-    if (changed) this.notify();
+    if (changed && !silent) this.notify();
   }
 
   // --- Câblage ---------------------------------------------------------------
@@ -2304,15 +2360,12 @@ export class Editor {
     // Raccourcis Ctrl : annuler/refaire, copier (toujours), coller/dupliquer.
     if (e.ctrlKey && !typing) {
       const k = e.key.toLowerCase();
-      if (k === 'z') {
-        e.preventDefault();
-        if (e.shiftKey) this.redo();
-        else this.undo();
-        return;
-      }
-      if (k === 'y') {
-        e.preventDefault();
-        this.redo();
+      // Annuler/refaire : NE PAS traiter ici. Dans le CustomEditor VS Code
+      // (onglet .projix), Ctrl+Z/Y sont captés par VS Code, qui pilote la pile
+      // du document et rappelle la webview (messages 'undo'/'redo'). Intercepter
+      // ici (preventDefault) empêcherait VS Code de recevoir le raccourci et
+      // désynchroniserait le point ● « non enregistré ».
+      if (k === 'z' || k === 'y') {
         return;
       }
       if (k === 'c') {

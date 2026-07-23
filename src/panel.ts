@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { randomBytes } from 'node:crypto';
 const l10n = vscode.l10n;
+import { buildWebviewHtml } from './webview-html';
 import {
   compile,
   loadArtifact,
@@ -17,7 +17,6 @@ import {
   type ProjixManifest,
 } from './projix';
 import { resolveMicropythonFirmware, FirmwareCancelled } from './firmware';
-import { applyDefaultLayout, lockSimulatorGroup } from './layout';
 
 const ARTIFACT_EXTS = ['.hex', '.uf2', '.elf', '.bin'];
 
@@ -53,11 +52,92 @@ const LAST_PROJECT_KEY = 'kablix.lastProject';
  * Gère le panneau webview du simulateur. Un seul panneau est ouvert à la fois ;
  * un nouvel appel le révèle au lieu d'en créer un second.
  */
+/**
+ * Enveloppe hôte de l'atelier. Deux implémentations :
+ *  - `WebviewPanel` natif de VS Code (panneau historique, point ● simulé dans le
+ *    titre), qui satisfait déjà cette interface ;
+ *  - un adaptateur `CustomEditor` (ProjixEditorProvider) qui traduit le point ●
+ *    en état « modifié » NATIF de l'onglet (onDidChangeCustomDocument).
+ * `setDirtyIndicator` centralise l'affichage du « non enregistré » : le titre
+ * pour le WebviewPanel, l'event dirty natif pour le CustomEditor.
+ */
+export interface SimulatorHost {
+  readonly webview: vscode.Webview;
+  readonly viewColumn: vscode.ViewColumn | undefined;
+  reveal(column?: vscode.ViewColumn, preserveFocus?: boolean): void;
+  dispose(): void;
+  onDidDispose(listener: () => void, thisArgs: unknown, disposables: vscode.Disposable[]): void;
+  onDidChangeViewState(
+    listener: () => void,
+    thisArgs: unknown,
+    disposables: vscode.Disposable[]
+  ): void;
+  /** Titre de base (sans le ●) + état « non enregistré » : l'hôte choisit le rendu. */
+  setDirtyIndicator(dirty: boolean, baseTitle: string): void;
+  /** Édition utilisateur signalée par la webview : le CustomEditor empile un edit
+   *  (point ● natif + Ctrl+Z natif). Optionnel (le WebviewPanel legacy l'ignore). */
+  onDocEdit?(): void;
+}
+
 export class SimulatorPanel {
   public static readonly viewType = 'kablix.simulator';
   private static current: SimulatorPanel | undefined;
+  /** Dernière session ayant interagi (onglet .projix actif) : cible des
+   *  commandes globales (Enregistrer, Import/Export Wokwi…) en mode CustomEditor. */
+  private static lastActive: SimulatorPanel | undefined;
 
-  private readonly panel: vscode.WebviewPanel;
+  /** Session de l'atelier actuellement au premier plan (CustomEditor), sinon le
+   *  panneau singleton historique s'il existe. undefined si rien n'est ouvert. */
+  public static active(): SimulatorPanel | undefined {
+    return SimulatorPanel.lastActive ?? SimulatorPanel.current;
+  }
+
+  /** Révèle l'onglet de cette session (sans le déplacer). */
+  public reveal(): void {
+    this.panel.reveal(undefined, false);
+  }
+
+  /** Ferme l'onglet de cette session (utilisé pour remplacer un onglet
+   *  « nouveau projet » vierge par un fichier qu'on vient d'ouvrir). */
+  public closeTab(): void {
+    this.panel.dispose();
+  }
+
+  /** Ctrl+Z / Ctrl+Y natifs du CustomEditor : relaie l'annulation/rétablissement
+   *  à la pile d'historique de la webview (qui exécute le vrai undo/redo). */
+  public postUndo(): void {
+    this.post({ type: 'undo' });
+  }
+  public postRedo(): void {
+    this.post({ type: 'redo' });
+  }
+
+  /** Restauration hot-exit depuis un backup : le schéma chargé n'est PAS aligné
+   *  sur le disque → remet le point ● « non enregistré » (webview + pile VS Code). */
+  public markDirtyFromRestore(): void {
+    this.projectDirty = true;
+    this.updateTitle();
+    this.post({ type: 'setDirty', dirty: true });
+    this.panel.onDocEdit?.();
+  }
+
+  /** URI du document lié (fichier .projix ou untitled). */
+  public getDocumentUri(): vscode.Uri | undefined {
+    return this.documentUri;
+  }
+
+  /** Colonne d'éditeur où vit cet onglet (pour rouvrir un fichier à sa place). */
+  public getViewColumn(): vscode.ViewColumn | undefined {
+    return this.panel.viewColumn;
+  }
+
+  /** Onglet « nouveau projet » vierge : untitled ET jamais modifié. Un tel onglet
+   *  peut être remplacé par l'ouverture d'un fichier (au lieu d'un nouvel onglet). */
+  public isPristineUntitled(): boolean {
+    return this.documentUri?.scheme === 'untitled' && !this.projectDirty;
+  }
+
+  private readonly panel: SimulatorHost;
   private readonly extensionUri: vscode.Uri;
   private readonly context: vscode.ExtensionContext;
   private readonly disposables: vscode.Disposable[] = [];
@@ -146,8 +226,14 @@ export class SimulatorPanel {
       }
     );
 
-    SimulatorPanel.current = new SimulatorPanel(panel, context);
+    SimulatorPanel.current = new SimulatorPanel(wrapWebviewPanel(panel), context);
     return SimulatorPanel.current;
+  }
+
+  /** Instancie une session pilotée par un hôte quelconque (WebviewPanel ou
+   *  CustomEditor). Utilisé par le ProjixEditorProvider. */
+  public static createForHost(host: SimulatorHost, context: vscode.ExtensionContext): SimulatorPanel {
+    return new SimulatorPanel(host, context);
   }
 
   public static dispose(): void {
@@ -167,6 +253,50 @@ export class SimulatorPanel {
   /** Mémorise le .projix courant comme « dernier projet » (rouvert au démarrage). */
   private rememberLastProject(uri: vscode.Uri): void {
     void this.context.globalState.update(LAST_PROJECT_KEY, uri.fsPath);
+  }
+
+  // --- Façade CustomEditor (ProjixEditorProvider) -----------------------------
+
+  /** Résout la sauvegarde en cours demandée par le CustomEditor (Ctrl+S natif). */
+  private pendingSaveResolve: (() => void) | undefined;
+
+  /** Cible d'écriture directe imposée par le CustomEditor (l'URI du document) :
+   *  quand elle est posée, Enregistrer n'ouvre jamais de boîte de dialogue. */
+  private documentUri: vscode.Uri | undefined;
+
+  /** Le CustomEditor lie la session à un fichier .projix (ou untitled) : écriture
+   *  directe dans ce fichier, sans dialogue. Untitled → dialogue au 1er save. */
+  public bindDocument(uri: vscode.Uri): void {
+    this.documentUri = uri;
+    if (uri.scheme !== 'untitled') {
+      this.projectUri = uri;
+      this.projectBaseName = baseNameNoExt(uri.fsPath);
+    }
+  }
+
+  /** Charge un .projix déjà lu en octets (ouverture par le CustomEditor). */
+  public async loadProjixBytes(bytes: Uint8Array, uri: vscode.Uri): Promise<void> {
+    await this.openProjectFromBytes(bytes, uri);
+  }
+
+  /** Écriture ponctuelle vers une cible qui NE devient PAS la cible courante
+   *  (utilisé pour le backup hot-exit du CustomEditor). */
+  private oneShotTarget: vscode.Uri | undefined;
+
+  /** Ctrl+S natif du CustomEditor : demande le schéma à la webview puis écrit le
+   *  .projix. La promesse se résout quand l'écriture est confirmée.
+   *  `oneShot` : écrit vers `target` sans en faire la cible permanente (backup). */
+  public saveToDocument(target?: vscode.Uri, oneShot = false): Promise<void> {
+    return new Promise<void>((resolve) => {
+      this.pendingSaveResolve = resolve;
+      if (oneShot) {
+        this.oneShotTarget = target;
+      } else if (target) {
+        this.documentUri = target;
+      }
+      // La webview renvoie le schéma via le message 'saveProject' (voir onMessage).
+      this.post({ type: 'requestSaveProject' });
+    });
   }
 
   /**
@@ -449,7 +579,9 @@ export class SimulatorPanel {
   private updateTitle(): void {
     const project = this.projectBaseName ? `${this.projectBaseName}.Projix` : this.projectDisplayName();
     const base = project ? `${l10n.t('Kablix — Simulator')} — ${project}` : l10n.t('Kablix — Simulator');
-    this.panel.title = this.projectDirty ? `${base} ⬤` : base;
+    // L'hôte décide du rendu du « non enregistré » : ⬤ dans le titre pour le
+    // WebviewPanel, point ● NATIF de l'onglet pour le CustomEditor.
+    this.panel.setDirtyIndicator(this.projectDirty, base);
   }
 
   /** Référence du fichier de code pour le .projix : chemin relatif au workspace, sinon nom. */
@@ -546,7 +678,7 @@ export class SimulatorPanel {
     this.setCodeFile(picked[0]);
   }
 
-  private constructor(panel: vscode.WebviewPanel, context: vscode.ExtensionContext) {
+  private constructor(panel: SimulatorHost, context: vscode.ExtensionContext) {
     this.panel = panel;
     this.context = context;
     this.extensionUri = context.extensionUri;
@@ -569,13 +701,11 @@ export class SimulatorPanel {
     );
     // Gouttière VS Code → simulateur : tout changement de point d'arrêt est relayé.
     vscode.debug.onDidChangeBreakpoints(() => this.sendBreakpoints(), null, this.disposables);
-    // Première ouverture de la session : pose la disposition par défaut
-    // (explorateur fermé, code 1/3 à gauche · simulateur 2/3 à droite). Après un
-    // ajustement manuel, on ne la réimpose pas (voir applyDefaultLayout). Puis
-    // verrouille le groupe du simulateur (actif à cet instant) : tout code
-    // ouvert ensuite (explorateur, double-clic, .projix) ira dans la colonne de
-    // gauche, jamais par-dessus le simulateur.
-    void applyDefaultLayout(context).then(() => lockSimulatorGroup());
+    // NOTE : la disposition par défaut (applyDefaultLayout/lockSimulatorGroup)
+    // n'est plus posée ici. En mode CustomEditor, l'onglet .projix est placé par
+    // VS Code ; poser le layout par-document, avant que l'onglet soit positionné,
+    // le mettait dans la mauvaise colonne. Le layout est désormais géré par le
+    // provider à l'ouverture (voir ProjixEditorProvider). [layout à finaliser]
   }
 
   // --- Débogage : points d'arrêt et ligne courante ------------------------------
@@ -657,6 +787,9 @@ export class SimulatorPanel {
     dirty?: boolean;
     command?: string;
   }): void {
+    // Toute interaction de la webview marque cette session comme « active » :
+    // les commandes globales (Enregistrer, Wokwi…) la ciblent.
+    SimulatorPanel.lastActive = this;
     switch (msg?.type) {
       case 'ready':
         // Renvoie les composants personnalisés et les préférences d'interface.
@@ -743,6 +876,13 @@ export class SimulatorPanel {
       case 'debugResumed':
         this.clearDebugLine();
         break;
+      case 'nativeSave':
+        // Bouton Enregistrer : délègue au save NATIF de VS Code (CustomEditor).
+        void vscode.commands.executeCommand('workbench.action.files.save');
+        break;
+      case 'nativeSaveAs':
+        void vscode.commands.executeCommand('workbench.action.files.saveAs');
+        break;
       case 'saveProject':
         // La webview fournit le schéma sérialisé : on construit le .projix.
         // Écriture directe si un .projix est déjà connu, boîte de dialogue sinon.
@@ -771,13 +911,23 @@ export class SimulatorPanel {
         if (msg.board) this.pendingBoard = msg.board;
         this.discardAccepted = false; // une modification est survenue
         break;
+      case 'docEdit':
+        // Édition utilisateur : empile un edit dans le CustomEditor (● + Ctrl+Z natifs).
+        this.pendingDiagram = msg.diagram;
+        if (msg.board) this.pendingBoard = msg.board;
+        this.panel.onDocEdit?.();
+        break;
       case 'openProject':
-        void this.openProject();
+        // Ouvre un projet dans un NOUVEL onglet (commande = openProjixViaDialog).
+        void vscode.commands.executeCommand('kablix.openProject');
+        break;
+      case 'newProjectTab':
+        // Nouveau projet = nouvel onglet .projix untitled (ne touche pas le courant).
+        void vscode.commands.executeCommand('kablix.openSimulator');
         break;
       case 'newProject':
-        // Nouveau projet : la webview a déjà vidé le schéma ; on oublie le nom
-        // du .projix courant ainsi que le fichier de code associé (chip du
-        // canvas) pour que le prochain enregistrement/lancement reparte à neuf.
+        // (legacy WebviewPanel) Nouveau projet en place : la webview a déjà vidé
+        // le schéma ; on oublie le nom du .projix courant et le fichier de code.
         this.projectBaseName = undefined;
         this.projectUri = undefined;
         this.currentSourceUri = undefined;
@@ -953,11 +1103,45 @@ export class SimulatorPanel {
    * personnalisés. Le code n'est plus inclus (le .projix ne contient que le
    * schéma).
    */
+  /** Sérialise le projet .projix (manifeste + schéma + composants perso). */
+  private async buildProjixBytes(diagram: unknown, board?: Board): Promise<Uint8Array> {
+    // Le schéma est enrichi des composants personnalisés utilisés (stockés côté
+    // hôte) pour rester autonome à la réouverture sur un autre poste.
+    const customParts = this.context.globalState.get<unknown[]>(CUSTOM_PARTS_KEY, []);
+    const diagramPayload = { ...(diagram as object), customParts };
+    const manifest: ProjixManifest = {
+      format: 'projix',
+      version: PROJIX_FORMAT_VERSION,
+      app: this.appVersion(),
+      board: board ?? this.currentBoard,
+      createdAt: new Date().toISOString(),
+      codeFile: this.codeFileRef(),
+      codeFileAbs: this.codeFileUri?.fsPath,
+    };
+    // Schéma seul : pas de codeRoot transmis.
+    return packProject({ manifest, diagramJson: JSON.stringify(diagramPayload) });
+  }
+
   private async saveProject(diagram: unknown, board?: Board, saveAs = false): Promise<void> {
+    // Écriture ponctuelle (backup hot-exit) : écrit à cet endroit sans changer
+    // la cible courante ni l'état projet.
+    const oneShot = this.oneShotTarget;
+    this.oneShotTarget = undefined;
     try {
+      if (oneShot) {
+        const bytes = await this.buildProjixBytes(diagram, board);
+        await vscode.workspace.fs.writeFile(oneShot, bytes);
+        return;
+      }
+      // Cible imposée par le CustomEditor (Ctrl+S natif) : l'URI du document,
+      // sauf s'il est encore « untitled » (→ dialogue au premier enregistrement).
+      const boundTarget =
+        this.documentUri && this.documentUri.scheme !== 'untitled'
+          ? this.documentUri
+          : undefined;
       // Enregistrer (pas « sous ») avec un .projix déjà connu : écriture
       // directe au même endroit, sans boîte de dialogue.
-      let target = saveAs ? undefined : this.projectUri;
+      let target = saveAs ? undefined : (boundTarget ?? this.projectUri);
       const silent = target !== undefined;
       if (!target) {
         const folders = vscode.workspace.workspaceFolders;
@@ -977,27 +1161,7 @@ export class SimulatorPanel {
         if (!target) return;
       }
 
-      // Le schéma est enrichi des composants personnalisés utilisés (stockés
-      // côté hôte) pour rester autonome à la réouverture sur un autre poste.
-      const customParts = this.context.globalState.get<unknown[]>(CUSTOM_PARTS_KEY, []);
-      const diagramPayload = { ...(diagram as object), customParts };
-
-      const manifest: ProjixManifest = {
-        format: 'projix',
-        version: PROJIX_FORMAT_VERSION,
-        app: this.appVersion(),
-        board: board ?? this.currentBoard,
-        createdAt: new Date().toISOString(),
-        codeFile: this.codeFileRef(),
-        codeFileAbs: this.codeFileUri?.fsPath,
-      };
-
-      // Schéma seul : pas de codeRoot transmis.
-      const bytes = await packProject({
-        manifest,
-        diagramJson: JSON.stringify(diagramPayload),
-      });
-
+      const bytes = await this.buildProjixBytes(diagram, board);
       await vscode.workspace.fs.writeFile(target, bytes);
       this.projectUri = target;
       this.projectBaseName = baseNameNoExt(target.fsPath);
@@ -1016,8 +1180,15 @@ export class SimulatorPanel {
           l10n.t('Kablix: project saved to {0}', target.fsPath)
         );
       }
+      // Untitled devenu un vrai fichier : le CustomEditor doit désormais viser
+      // ce fichier pour les Ctrl+S suivants.
+      this.documentUri = target;
     } catch (err) {
       this.reportError(err);
+    } finally {
+      // Débloque un éventuel Ctrl+S natif du CustomEditor en attente.
+      this.pendingSaveResolve?.();
+      this.pendingSaveResolve = undefined;
     }
   }
 
@@ -1050,38 +1221,47 @@ export class SimulatorPanel {
       if (!picked || picked.length === 0) return;
 
       const bytes = await vscode.workspace.fs.readFile(picked[0]);
-      const project = await unpackProject(bytes);
-      this.projectUri = picked[0]; // cible du bouton Enregistrer (sans dialogue)
-      this.projectBaseName = baseNameNoExt(picked[0].fsPath);
-      this.rememberLastProject(picked[0]);
-      this.postProjectName();
-
-      // Recharge le schéma et la carte dans la webview (et les composants perso).
-      const diagram = project.diagram as { customParts?: unknown[] } | undefined;
-      const customParts = Array.isArray(diagram?.customParts) ? diagram.customParts : undefined;
-      if (customParts) {
-        await this.context.globalState.update(CUSTOM_PARTS_KEY, customParts);
-      }
-      this.currentBoard = project.manifest.board ?? this.currentBoard;
-      this.post({
-        type: 'loadProject',
-        diagram: project.diagram,
-        board: project.manifest.board,
-        customParts,
-      });
-      // Restaure le fichier de code à exécuter/déboguer mémorisé dans le projet
-      // (résolu en priorité à côté du .projix ; l'ancien fichier est oublié).
-      await this.restoreCodeFile(
-        project.manifest.codeFile,
-        vscode.Uri.joinPath(picked[0], '..'),
-        project.manifest.codeFileAbs
-      );
+      await this.openProjectFromBytes(bytes, picked[0]);
       vscode.window.showInformationMessage(
         l10n.t('Kablix: project {0} loaded.', picked[0].fsPath.split(/[\\/]/).pop() ?? '')
       );
     } catch (err) {
       this.reportError(err);
     }
+  }
+
+  /**
+   * Recharge un projet .projix à partir de ses octets et de son URI (appelé par
+   * openProject après lecture disque, et par le CustomEditor à l'ouverture d'un
+   * document). Ne touche pas à l'UI de dialogue.
+   */
+  private async openProjectFromBytes(bytes: Uint8Array, uri: vscode.Uri): Promise<void> {
+    const project = await unpackProject(bytes);
+    this.projectUri = uri; // cible du bouton Enregistrer (sans dialogue)
+    this.projectBaseName = baseNameNoExt(uri.fsPath);
+    this.rememberLastProject(uri);
+    this.postProjectName();
+
+    // Recharge le schéma et la carte dans la webview (et les composants perso).
+    const diagram = project.diagram as { customParts?: unknown[] } | undefined;
+    const customParts = Array.isArray(diagram?.customParts) ? diagram.customParts : undefined;
+    if (customParts) {
+      await this.context.globalState.update(CUSTOM_PARTS_KEY, customParts);
+    }
+    this.currentBoard = project.manifest.board ?? this.currentBoard;
+    this.post({
+      type: 'loadProject',
+      diagram: project.diagram,
+      board: project.manifest.board,
+      customParts,
+    });
+    // Restaure le fichier de code à exécuter/déboguer mémorisé dans le projet
+    // (résolu en priorité à côté du .projix ; l'ancien fichier est oublié).
+    await this.restoreCodeFile(
+      project.manifest.codeFile,
+      vscode.Uri.joinPath(uri, '..'),
+      project.manifest.codeFileAbs
+    );
   }
 
   /** Version de l'extension (depuis package.json), « ? » si introuvable. */
@@ -1203,7 +1383,11 @@ export class SimulatorPanel {
     // permet PAS d'annuler la fermeture, mais le schéma reçu de la webview est
     // encore en mémoire. On rouvre le panneau avec ce schéma et on propose de
     // l'enregistrer (fenêtre modale Enregistrer / Continuer sans enregistrer).
+    // Réouverture « modifications non enregistrées » : hack réservé au panneau
+    // WebviewPanel historique. Un CustomEditor (document-backed) a le prompt de
+    // fermeture NATIF de VS Code — ne pas rouvrir de panneau par-dessus.
     const reopen =
+      this.documentUri === undefined &&
       this.projectDirty &&
       !this.discardAccepted && // l'utilisateur a déjà accepté la perte
       this.pendingDiagram !== undefined &&
@@ -1218,7 +1402,8 @@ export class SimulatorPanel {
       };
     }
 
-    SimulatorPanel.current = undefined;
+    if (SimulatorPanel.lastActive === this) SimulatorPanel.lastActive = undefined;
+    if (SimulatorPanel.current === this) SimulatorPanel.current = undefined;
     this.clearDebugLine();
     this.debugLineDecoration?.dispose();
     this.debugLineDecoration = undefined;
@@ -1233,227 +1418,26 @@ export class SimulatorPanel {
   }
 
   private getHtml(webview: vscode.Webview): string {
-    const scriptUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, 'dist', 'webview.js')
-    );
-    const styleUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, 'media', 'styles.css')
-    );
-    const gommeUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, 'media', 'Gomme.svg')
-    );
-    const stepUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, 'media', 'step.png')
-    );
-    const autoRouteUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, 'media', 'autoroutage.png')
-    );
-    const fitViewUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, 'media', 'recentrer.svg')
-    );
-    const serialMonitorUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, 'media', 'serialMonitor.svg')
-    );
-    const plotterIconUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, 'media', 'serialTracer.svg')
-    );
-    // Icônes de la barre d'outils (extraites de media/icones.svg).
-    const newIconUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, 'media', 'nouveau.svg')
-    );
-    const openIconUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, 'media', 'ouvrir.svg')
-    );
-    const saveIconUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, 'media', 'enregistrer.svg')
-    );
-    const saveAsIconUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, 'media', 'enregistrerSous.svg')
-    );
-    const svgIconUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, 'media', 'exportSvg.svg')
-    );
-    const aideIconUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, 'media', 'aide.svg')
-    );
-    const grilleIconUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, 'media', 'grille.svg')
-    );
-    // Base des posters de brochage (dist/pinout/<carte>.svg) : ils ne sont plus
-    // inlinés dans webview.js et sont récupérés par fetch au clic sur ☢.
-    const pinoutBase = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, 'dist', 'pinout')
-    );
-    const nonce = getNonce();
-    const version =
-      vscode.extensions.getExtension('franksauret.kablix')?.packageJSON?.version ?? '';
-    // Couleur de sélection réglable (composants/fils/coudes) : posée en variable
-    // CSS --kx-select. Défaut vif (#e973e9) pour rester visible sur tout thème.
-    const rawSelColor = vscode.workspace
-      .getConfiguration('kablix')
-      .get<string>('selectionColor', '#e973e9');
-    const selColor = /^#[0-9a-fA-F]{6}$/.test(rawSelColor ?? '') ? rawSelColor : '#e973e9';
-    const csp = [
-      `default-src 'none'`,
-      // Les composants Lit injectent des styles dans leur
-      // shadow DOM ; on autorise les styles inline pour la webview locale.
-      `style-src ${webview.cspSource} 'unsafe-inline'`,
-      `script-src 'nonce-${nonce}'`,
-      `img-src ${webview.cspSource} data:`,
-      // fetch des posters de brochage (dist/pinout/*.svg), chargés à la demande.
-      `connect-src ${webview.cspSource}`,
-      // Police LED des écrans LCD (media/font/led_board-7.ttf, @font-face).
-      `font-src ${webview.cspSource}`,
-    ].join('; ');
-
-    return /* html */ `<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="${csp}" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link href="${styleUri}" rel="stylesheet" />
-  <style>:root { --kx-select: ${selColor}; --kx-help-icon: url("${aideIconUri}"); }</style>
-  <title>Kablix</title>
-</head>
-<body>
-  <header class="toolbar">
-    <span class="brand" id="brand" title="${l10n.t('Open the GitHub repository')}">
-      <strong class="brand__name">Kablix</strong>
-      <small class="brand__version">v${version}</small>
-    </span>
-    <!-- Sélecteur de carte masqué : la carte de simulation est désormais choisie
-         en déposant un microcontrôleur sur le canvas. Conservé (caché) pour la
-         logique interne (valeur de la carte courante). -->
-    <select id="board" hidden title="${l10n.t('Simulated board')}">
-      <optgroup label="Arduino (AVR)">
-        <option value="uno" selected>Arduino Uno</option>
-        <option value="nano">Arduino Nano</option>
-        <option value="mega">Arduino Mega 2560</option>
-      </optgroup>
-      <optgroup label="Raspberry Pi (RP2040)">
-        <option value="pico">Raspberry Pi Pico</option>
-        <option value="picow">Raspberry Pi Pico W</option>
-      </optgroup>
-    </select>
-    <button id="load-workspace" hidden title="${l10n.t('Load a compiled .uf2 (Pico) or .hex (Arduino) from the workspace')}">↑ ${l10n.t('Load binary')}</button>
-    <button id="new-project" class="toolbar__icon-btn" title="${l10n.t('New project')}"><img src="${newIconUri}" alt="${l10n.t('New project')}" /></button>
-    <button id="open-project" class="toolbar__icon-btn" title="${l10n.t('Open a project')}"><img src="${openIconUri}" alt="${l10n.t('Open a project')}" /></button>
-    <button id="save-project" class="toolbar__icon-btn" title="${l10n.t('Save the project')}"><img src="${saveIconUri}" alt="${l10n.t('Save the project')}" /></button>
-    <button id="save-project-as" class="toolbar__icon-btn" title="${l10n.t('Save the project as…')}"><img src="${saveAsIconUri}" alt="${l10n.t('Save the project as…')}" /></button>
-    <button id="export-svg" class="toolbar__icon-btn" title="${l10n.t('Export the diagram as SVG')}"><img src="${svgIconUri}" alt="${l10n.t('Export the diagram as SVG')}" /></button>
-    <button id="toggle-labels" title="${l10n.t('Show/hide part names')}">${l10n.t('Names')}</button>
-    <button id="open-help" class="toolbar__icon-btn" title="${l10n.t('Open help')}"><img src="${aideIconUri}" alt="${l10n.t('Open help')}" /></button>
-    <span id="project-name" class="project-name" title="${l10n.t('Current project')}"></span>
-    <div class="more-menu" id="more-menu">
-      <button id="more-btn" class="toolbar__icon-btn more-menu__btn" title="${l10n.t('Other functions')}" aria-haspopup="true" aria-expanded="false" aria-label="${l10n.t('Other functions')}"><span class="more-menu__burger" aria-hidden="true"></span></button>
-      <ul id="more-list" class="more-menu__list" role="menu" hidden>
-        <li role="menuitem" data-cmd="kablix.importWokwiDiagram">${l10n.t('Import a Wokwi diagram')}</li>
-        <li role="menuitem" data-cmd="kablix.exportWokwiDiagram">${l10n.t('Export a Wokwi diagram')}</li>
-        <li role="menuitem" data-cmd="kablix.upgradePicoFirmware">${l10n.t('Update the Pico firmware')}</li>
-        <li role="menuitem" data-cmd="kablix.checkLibraryUpdates">${l10n.t('Check for library updates')}</li>
-        <li class="more-menu__sep" role="separator"></li>
-        <li role="menuitem" data-cmd="kablix.saveDefaultLayout">${l10n.t('Save this layout as default')}</li>
-      </ul>
-    </div>
-    <span id="status" class="status">Prêt</span>
-  </header>
-
-  <main class="stage">
-    <div class="workshop">
-      <aside id="palette" class="palette"></aside>
-      <div class="splitter" id="splitter-palette" data-target="palette" title="${l10n.t('Drag to resize')}"></div>
-      <div id="canvas" class="canvas">
-        <!-- Commandes de simulation en surimpression du canvas (icônes + bulle). -->
-        <div class="canvas-controls" role="toolbar">
-          <button id="run" class="canvas-controls__btn primary" title="${l10n.t('Start')}">▶</button>
-          <button id="stop" class="canvas-controls__btn" disabled title="${l10n.t('Stop')}">■</button>
-          <button id="pause" class="canvas-controls__btn" disabled title="${l10n.t('Pause - resume the simulation')}">⏸</button>
-          <button id="step" class="canvas-controls__btn canvas-controls__btn--step" disabled title="${l10n.t('Run next source line')}"><img class="canvas-controls__icon" src="${stepUri}" alt="${l10n.t('Run next source line')}" /></button>
-          <select id="speed" class="canvas-controls__speed" title="${l10n.t('Simulation speed')}">
-            <option value="1" selected>🐇 100 %</option>
-            <option value="0.1">🐢 10 %</option>
-            <option value="0.01">🐌 1 %</option>
-          </select>
-          <button id="code-file" class="canvas-controls__file" title="${l10n.t('Code file to run / debug — click to change, double-click to open')}">📄 ${l10n.t('No file')}</button>
-          <button id="repl" class="canvas-controls__btn canvas-controls__btn--repl" hidden title="${l10n.t('Start an interactive MicroPython REPL (no script)')}">REPL</button>
-          <button id="toggle-serial" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Show/hide the serial monitor')}"><img class="canvas-controls__icon" src="${serialMonitorUri}" alt="${l10n.t('Show/hide the serial monitor')}" /></button>
-          <button id="toggle-plotter" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Show/hide the plotter (curves)')}"><img class="canvas-controls__icon" src="${plotterIconUri}" alt="${l10n.t('Show/hide the plotter (curves)')}" /></button>
-        </div>
-        <!-- Barre droite : recentrer/ajuster, réinitialiser, effacer (alignée et de
-             même hauteur que la barre de simulation à gauche). -->
-        <div class="canvas-controls canvas-controls--right" role="toolbar">
-          <button id="internal-toggle" class="canvas-controls__btn canvas-controls__btn--internal" hidden title="${l10n.t('Show/hide the internal wiring')}"></button>
-          <button id="auto-route" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Auto-route the wires (right angles) — selection, or whole diagram')}"><img class="canvas-controls__icon" src="${autoRouteUri}" alt="${l10n.t('Auto-route the wires (right angles) — selection, or whole diagram')}" /></button>
-          <button id="toggle-grid" class="canvas-controls__btn canvas-controls__btn--grid canvas-controls__btn--icon is-on" title="${l10n.t('Show/hide the grid')}"><img class="canvas-controls__icon" src="${grilleIconUri}" alt="${l10n.t('Show/hide the grid')}" /></button>
-          <button id="fit-view" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Recenter and fit the view')}"><img class="canvas-controls__icon" src="${fitViewUri}" alt="${l10n.t('Recenter and fit the view')}" /></button>
-          <button id="reset-sim" class="canvas-controls__btn canvas-controls__btn--reset" title="${l10n.t('Reset all components')}">⟲</button>
-          <button id="clear-canvas" class="canvas-controls__btn canvas-controls__btn--eraser" title="${l10n.t('Clear the diagram (Ctrl+Z to undo)')}"><img class="canvas__clear-icon" src="${gommeUri}" alt="${l10n.t('Clear')}" /></button>
-        </div>
-        <!-- Bandeau permanent « Simulation en cours » (rouge sur jaune), entre les
-             deux barres d'outils. Visible pendant la simulation ; clignote sur
-             tentative d'édition interdite. -->
-        <div id="sim-banner" class="sim-banner" hidden></div>
-        <svg id="wires" class="wires"></svg>
-      </div>
-      <div class="splitter" id="splitter-inspector" data-target="inspector" title="${l10n.t('Drag to resize')}"></div>
-      <aside id="inspector" class="inspector"></aside>
-    </div>
-
-    <section id="debug" class="debug" hidden>
-      <div class="debug__head">
-        <span>🔍 ${l10n.t('Variables')}</span>
-        <span id="debug-line" class="debug__line"></span>
-      </div>
-      <table id="debug-vars" class="debug__vars"></table>
-    </section>
-
-    <section class="serial" id="serial-section">
-      <div class="serial__head">
-        <span id="serial-title">${l10n.t('Serial monitor')}</span>
-        <span class="serial__head-actions">
-          <button id="clear-serial">${l10n.t('Clear')}</button>
-          <button id="close-serial" title="${l10n.t('Close the serial monitor')}">✕</button>
-        </span>
-      </div>
-      <pre id="serial" class="serial__out" tabindex="0" aria-live="polite"></pre>
-      <div class="serial__input" id="serial-input-row">
-        <input id="serial-input" type="text" placeholder="${l10n.t('Send to the microcontroller (Enter)…')}" />
-        <button id="serial-send">${l10n.t('Send')}</button>
-      </div>
-    </section>
-
-    <!-- Traceur de courbes : télémétrie série « >nom:valeur » (format Teleplot)
-         et sondes internes (tension des broches analogiques). -->
-    <section class="plotter" id="plotter-section" hidden>
-      <div class="serial__head">
-        <span><img class="plotter__head-icon" src="${plotterIconUri}" alt="" /> ${l10n.t('Plotter')}</span>
-        <span class="serial__head-actions">
-          <select id="plotter-window" class="plotter__window" title="${l10n.t('Time window')}"></select>
-          <button id="plotter-pause"></button>
-          <button id="plotter-csv" title="${l10n.t('Export the measurements (CSV)')}">CSV</button>
-          <button id="clear-plotter">${l10n.t('Clear')}</button>
-          <button id="close-plotter" title="${l10n.t('Close the plotter')}">✕</button>
-        </span>
-      </div>
-      <div id="plotter-legend" class="plotter__legend" hidden></div>
-      <div class="plotter__wrap">
-        <canvas id="plotter-canvas" class="plotter__canvas"></canvas>
-        <div id="plotter-tooltip" class="plotter__tooltip" hidden></div>
-        <div id="plotter-empty" class="plotter__empty">${l10n.t('Waiting for data — print ">name:value" on the serial port, or wire an analog sensor (its pin is plotted automatically).')}</div>
-      </div>
-    </section>
-  </main>
-
-  <script nonce="${nonce}">window.KABLIX_LANG = ${JSON.stringify(vscode.env.language)};
-window.KABLIX_PINOUT_BASE = ${JSON.stringify(pinoutBase.toString())};</script>
-  <script nonce="${nonce}" src="${scriptUri}"></script>
-</body>
-</html>`;
+    return buildWebviewHtml(webview, this.extensionUri);
   }
 }
 
-function getNonce(): string {
-  // Nonce CSP : aléa cryptographique (Math.random serait prédictible).
-  return randomBytes(24).toString('base64');
+/** Enveloppe un WebviewPanel natif en SimulatorHost : le point « non
+ *  enregistré » reste simulé par un ⬤ concaténé au titre de l'onglet. */
+function wrapWebviewPanel(panel: vscode.WebviewPanel): SimulatorHost {
+  return {
+    get webview() {
+      return panel.webview;
+    },
+    get viewColumn() {
+      return panel.viewColumn;
+    },
+    reveal: (column, preserveFocus) => panel.reveal(column, preserveFocus),
+    dispose: () => panel.dispose(),
+    onDidDispose: (l, t, d) => panel.onDidDispose(l, t, d),
+    onDidChangeViewState: (l, t, d) => panel.onDidChangeViewState(l, t, d),
+    setDirtyIndicator: (dirty, baseTitle) => {
+      panel.title = dirty ? `${baseTitle} ⬤` : baseTitle;
+    },
+  };
 }
