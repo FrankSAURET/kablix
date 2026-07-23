@@ -1984,11 +1984,6 @@ editor.onChange = () => {
     if (!applyingHostUndo && dirty) {
       vscode.postMessage({ type: 'docEdit', diagram: editor.serialize(), board });
     }
-    // DEBUG (temporaire) : trace chaque onChange pour trouver l'origine du faux ●.
-    vscode.postMessage({
-      type: 'hotexitTrace',
-      text: `onChange dirty=${dirty} host=${applyingHostUndo} dbg=${editor.debugHistory()}`,
-    });
   }
   if (engine) rebind();
 };
@@ -2520,11 +2515,6 @@ window.addEventListener('message', (event: MessageEvent) => {
       // restauré n'est pas encore enregistré, on garde le point « non enregistré ».
       if (msg.markDirty !== true) editor.markSaved(); // référence « propre » = état chargé
       setDirty(msg.markDirty === true);
-      // DEBUG (temporaire) : état juste après chargement + markSaved.
-      vscode.postMessage({
-        type: 'hotexitTrace',
-        text: `loadProject markDirty=${msg.markDirty} ${editor.debugHistory()}`,
-      });
       if (isBoardId(msg.board)) {
         switchBoard(msg.board);
         boardSelect.value = msg.board;

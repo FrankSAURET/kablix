@@ -1,5 +1,12 @@
 # À faire
-(vide — les 4 items traités en v2026.7.165)
+- au lancement de la simulation, l'alim passe devant les câbles.$
+- 
+
+# v2026.7.166 — faux point ● hot-exit corrigé + heure de build en test F5
+1. ✅ **Faux point ● à la réouverture d'un projet propre (hot-exit)** — CORRIGÉ. Cause trouvée par traçage (fichiers scratchpad) : le re-snap différé du chargement (minuteries 120/350/800 ms + settle rAF de `loadDiagram`) déplace les composants tournés de quelques px APRÈS `markSaved()` → un `notify()` empile une entrée d'historique → `historyIndex` avance → `isDirty()` vrai à tort → `docEdit` émis → ● natif. Fix (editor.mts) : fenêtre `settling` posée par `loadDiagram` (fermée à 1000 ms, > dernière minuterie 800 ms) ; pendant cette fenêtre `notify()` cale `savedHistoryIndex = historyIndex` → l'undo reste possible mais `isDirty()` reste faux. Validé F5 : tous sauvés → hot-exit → aucun ● ; 1 seul modifié → hot-exit → ● sur lui seul (drapeau `dirtyAtExit` du manifest de backup).
+2. ✅ **Heure de build affichée sous « Kablix »** (à la suite du numéro de version, opacité .6) pendant les tests F5 — repère visuel du build exécuté. `__BUILD_TIME__` injecté par esbuild define. Ajouté aux habitudes de codage (mémoire).
+3. ✅ Nettoyage du code DEBUG temporaire (hotexitTrace/debugTrace/debugHistory) retiré de sim.mts, panel.ts, editor.mts.
+4. ✅ typecheck + build verts.
 
 # v2026.7.165 — 4 corrections (équipotentielles GND cartes, curseurs sim, schéma colon live, ouverture projix)
 1. ✅ **GND des cartes = une seule équipotentielle** (pico/mega/uno/nano). `buildNets` fusionnait déjà les rails du PCA/alim/grove mais PAS les masses multiples des cartes MCU : un composant sur GND.1 et un autre sur GND.2 ne se voyaient pas en simulation. Nouvelle fonction `mcuInternalStrips(board)` (catalog.mts) : réunit tous les GND.n + les 5V/5V.1/5V.2 du Mega ; laisse séparés les rails de tensions DIFFÉRENTES (3V3/VBUS/VSYS ; 3.3V/5V/VIN). Branchée dans le cas `kind === 'mcu'` de `buildNets`. Test `verify:equipot` (18 contrôles) ajouté à verify:all.

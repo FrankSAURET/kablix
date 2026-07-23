@@ -247,6 +247,15 @@ export class Editor {
   private savedHistoryIndex = 0;
   /** Vrai pendant une restauration (annuler/refaire) : ne pas réenregistrer l'historique. */
   private restoring = false;
+  /** Vrai pendant la fenêtre de settle qui suit un chargement (re-snap différé des
+   *  composants tournés, mise à l'échelle des dessins Lit). Les notify émis dans
+   *  cette fenêtre déplacent des composants au pixel près SANS action utilisateur :
+   *  ils sont enregistrés dans l'historique (pour l'undo) mais la référence
+   *  « enregistré » suit, de sorte que `isDirty()` reste faux — sinon un projet
+   *  propre rouvert apparaît « à enregistrer » (faux point ● natif). */
+  private settling = false;
+  /** Minuterie qui clôt la fenêtre `settling` (après le dernier re-snap différé). */
+  private settleEndTimer: ReturnType<typeof setTimeout> | undefined;
   /** Presse-papier interne pour dupliquer une sélection (Ctrl+C / Ctrl+V / Ctrl+D). */
   private clipboard: { parts: Part[]; wires: Wire[] } | null = null;
   /** Quadrillage de la feuille affiché (bouton ▦ de la barre de dessin). */
@@ -431,11 +440,6 @@ export class Editor {
   /** L'état courant diffère-t-il du dernier enregistrement ? (point ●) */
   isDirty(): boolean {
     return this.historyIndex !== this.savedHistoryIndex;
-  }
-
-  /** DEBUG (temporaire) : état de l'historique pour diagnostic du faux ●. */
-  debugHistory(): string {
-    return `hi=${this.historyIndex} si=${this.savedHistoryIndex} len=${this.history.length} restoring=${this.restoring}`;
   }
 
   /** Marque l'état courant comme « enregistré » (après un save ou un chargement)
@@ -1554,6 +1558,14 @@ export class Editor {
     // dessin change, le centre de rotation avec), les rAF seuls rataient le
     // recollage d'un composant tourné à 0,5 px près.
     this.snapSettleLeft = 8;
+    // Fenêtre de settle : tout notify émis d'ici la dernière passe de re-snap ne
+    // compte pas comme une édition (cf. `notify`), le projet reste « propre ».
+    this.settling = true;
+    if (this.settleEndTimer) clearTimeout(this.settleEndTimer);
+    this.settleEndTimer = setTimeout(() => {
+      this.settling = false;
+      this.settleEndTimer = undefined;
+    }, 1000); // > dernière minuterie (800 ms) + marge
     for (const ms of [120, 350, 800]) {
       setTimeout(() => {
         for (const id of [...this.rendered.keys()]) this.snapPartToGrid(id, true, true);
@@ -4489,6 +4501,12 @@ export class Editor {
 
   private notify(): void {
     this.recordHistory();
+    // Pendant le settle post-chargement, un notify ne traduit AUCUNE édition
+    // utilisateur (re-snap différé, mise à l'échelle des dessins) : on cale la
+    // référence « enregistré » sur le nouvel index pour que `isDirty()` reste
+    // faux (pas de faux point ● à la réouverture d'un projet propre). L'undo
+    // reste possible : l'entrée est bien empilée, seule la base dirty suit.
+    if (this.settling) this.savedHistoryIndex = this.historyIndex;
     this.onChange?.();
   }
 
