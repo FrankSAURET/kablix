@@ -1,5 +1,10 @@
 # À faire
 
+# v2026.7.162
+1. ✅ **Nouveau schéma interne pour l'afficheur 4 digits avec 2 points d'horloge** (demande Frank). Colon d'horloge dessiné à la main (Inkscape) et câblé aux broches (traits `#e5a50a`, 2 diodes centrales entre digit 2 et digit 3). Source `7seg-4dig-schema.edit.svg` remplacée → `.clean.svg` régénéré (`_clean-7seg-schema.mjs`), `.anode.svg` régénéré (`_flip-7seg-diodes.mjs`, 30 diodes retournées). VÉRIFIÉ en Chrome headless (`view-internal.mjs`) : colon présent et centré, câblage cohérent.
+2. ✅ **Schéma interne relâché quand on quitte le composant** (demande Frank). Avant : `select()` retirait l'overlay DOM mais gardait `internalShown`/`pinoutShown` → au re-clic le schéma se réaffichait tout seul. Désormais la déselection VIDE ces états (sauf si le composant reste le sélectionné, ex. re-render après édition) + retire la classe active du bouton ☢. Au retour, un nouveau clic sur K est nécessaire.
+3. ✅ typecheck + verify:diagram + verify:components verts.
+
 # v2026.7.161
 1. ✅ **Noms des segments plus gros et colorés** (retour Frank). Les labels a-g des schémas internes passent de `#000` opacité 80 %, font-size 5 → **`#FF6075` gras, font-size 11** (≈ ×2), centrés verticalement via `dominant-baseline="central"` (y = centre exact de la diode). Appliqué aux 6 schémas (1/2/4 chiffres × cathode/anode) ; anode régénérée par `_flip-7seg-diodes.mjs`. MESURÉ en Chrome headless : lettres centrées sur chaque diode, mapping inchangé.
 2. ℹ️ **« Retard d'affichage » du 7 seg (projix `demo projix 1` + `7seg-pico.py`) → comportement NORMAL, pas un bug** (confirmé Frank : retard < 1 s). Dans ce montage la LED/RGB/barre sont câblées VBUS↔GND en DIRECT → elles conduisent et grillent dès t=0 (avant que le code tourne). Le 7 seg n'est piloté qu'APRÈS le boot MicroPython (~300 ms, `SEGS[n].value(...)`) → son explosion arrive logiquement un instant après. Impossible d'accélérer sans fausser la physique. Le fix PWM de v160 reste valable pour les segments pilotés en `analogWrite`/PWM.

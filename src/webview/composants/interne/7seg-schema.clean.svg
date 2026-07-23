@@ -36,14 +36,4 @@
   <path style="fill:none;stroke:#000000;stroke-width:0.5;stroke-linecap:round;stroke-dasharray:none" d="M 52.236252,69.347955 50.08915,79.922615" id="path16"></path>
   <path style="fill:none;stroke:#0000ff;stroke-width:0.5;stroke-linecap:round;stroke-dasharray:none" d="M 36.484696,44.192616 V 49.788967" id="path22"></path>
   <path id="path25" style="fill:none;stroke:#0000ff;stroke-width:0.5;stroke-linecap:round;stroke-dasharray:none" d="M 33.901387,70.427784 V 63.645763 H 29.029835 L 28.897252,50.11419 M 29.943251,80.073327 H 33.952132 L 33.930035,71.325734 M 43.476798,69.335332 33.918986,70.233979 33.91449,71.352354 M 16.210919,50.063952 H 41.329859 M 36.474824,44.276589 36.585309,38.989788 M 25.828134,18.720141 V 28.211288 H 31.956483 V 38.781591 M 29.892507,9.9924319 H 25.832879 V 18.733704 M 42.903241,38.863664 18.58826,38.860771"></path>
-  <!-- Noms des segments (a-g) posés au centre de chaque diode, gras #FF6075. -->
-  <g id="seg-labels" fill="#FF6075" font-family="sans-serif" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central" style="stroke:none;pointer-events:none">
-    <text x="32.74" y="18.92">a</text>
-    <text x="44.36" y="31.94">b</text>
-    <text x="39.81" y="57.14">c</text>
-    <text x="26.82" y="69.74">d</text>
-    <text x="14.67" y="56.98">e</text>
-    <text x="20.06" y="31.94">f</text>
-    <text x="29.65" y="44.16">g</text>
-  </g>
 </svg>

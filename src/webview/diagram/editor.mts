@@ -3317,11 +3317,19 @@ export class Editor {
       for (const wid of this.selectedWires) this.setWireHighlight(wid, false);
       this.selectedWires.clear();
     }
+    const keptId = sel?.kind === 'part' ? sel.id : null;
     for (const id of this.selectedParts) {
       const c = this.rendered.get(id)?.container;
       c?.querySelector('.part__internal')?.remove();
       c?.querySelector('.part__pinout')?.remove();
       c?.classList.remove('part--pinout-shown');
+      // Quitter le composant relâche l'affichage du schéma : un nouveau clic sur
+      // le bouton ☢ (K) sera nécessaire pour le réafficher au retour. On préserve
+      // l'état quand le composant reste le sélectionné (re-render après édition).
+      if (id === keptId) continue;
+      this.internalShown.delete(id);
+      this.pinoutShown.delete(id);
+      c?.querySelector('.part__internal-toggle')?.classList.remove('part__internal-toggle--active');
     }
 
     this.selection = sel;
