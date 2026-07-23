@@ -121,9 +121,15 @@ export class SimulatorPanel {
     this.panel.onDocEdit?.();
   }
 
+
   /** URI du document lié (fichier .projix ou untitled). */
   public getDocumentUri(): vscode.Uri | undefined {
     return this.documentUri;
+  }
+
+  /** Le projet a-t-il des modifications non enregistrées ? (backup hot-exit) */
+  public isProjectDirty(): boolean {
+    return this.projectDirty;
   }
 
   /** Colonne d'éditeur où vit cet onglet (pour rouvrir un fichier à sa place). */
@@ -283,14 +289,24 @@ export class SimulatorPanel {
    *  (utilisé pour le backup hot-exit du CustomEditor). */
   private oneShotTarget: vscode.Uri | undefined;
 
+  /** DEBUG (temporaire) : lignes de trace du faux ●. */
+  private debugTrace: string[] = [];
+
+  /** Drapeau « modifications non enregistrées » à graver dans le PROCHAIN backup
+   *  hot-exit (manifest.dirtyAtExit) : posé par saveToDocument(oneShot), consommé
+   *  par buildProjixBytes. undefined = enregistrement normal (pas de drapeau). */
+  private backupDirtyFlag: boolean | undefined;
+
   /** Ctrl+S natif du CustomEditor : demande le schéma à la webview puis écrit le
    *  .projix. La promesse se résout quand l'écriture est confirmée.
-   *  `oneShot` : écrit vers `target` sans en faire la cible permanente (backup). */
-  public saveToDocument(target?: vscode.Uri, oneShot = false): Promise<void> {
+   *  `oneShot` : écrit vers `target` sans en faire la cible permanente (backup).
+   *  `backupDirty` : état ● au moment du backup, gravé dans le manifest. */
+  public saveToDocument(target?: vscode.Uri, oneShot = false, backupDirty?: boolean): Promise<void> {
     return new Promise<void>((resolve) => {
       this.pendingSaveResolve = resolve;
       if (oneShot) {
         this.oneShotTarget = target;
+        this.backupDirtyFlag = backupDirty;
       } else if (target) {
         this.documentUri = target;
       }
@@ -786,6 +802,7 @@ export class SimulatorPanel {
     url?: string;
     dirty?: boolean;
     command?: string;
+    text?: string;
   }): void {
     // Toute interaction de la webview marque cette session comme « active » :
     // les commandes globales (Enregistrer, Wokwi…) la ciblent.
@@ -917,6 +934,18 @@ export class SimulatorPanel {
         if (msg.board) this.pendingBoard = msg.board;
         this.panel.onDocEdit?.();
         break;
+      case 'hotexitTrace': {
+        // DEBUG (temporaire) : accumule le diagnostic du faux ● dans un fichier.
+        this.debugTrace.push(`${new Date().toISOString()} ${msg.text ?? ''}`);
+        const name = (this.projectBaseName ?? 'x').replace(/[^\w.-]/g, '_');
+        void vscode.workspace.fs.writeFile(
+          vscode.Uri.file(
+            `V:/Temp/claude/h--OneDrive-4-Programation---VS-Code-Extensions-Kablix/bc96e436-3170-4966-9450-6fef593fca15/scratchpad/trace-${name}.txt`
+          ),
+          new TextEncoder().encode(this.debugTrace.join('\n') + '\n')
+        );
+        break;
+      }
       case 'openProject':
         // Ouvre un projet dans un NOUVEL onglet (commande = openProjixViaDialog).
         void vscode.commands.executeCommand('kablix.openProject');
@@ -1118,6 +1147,12 @@ export class SimulatorPanel {
       codeFile: this.codeFileRef(),
       codeFileAbs: this.codeFileUri?.fsPath,
     };
+    // Backup hot-exit : grave l'état ● du moment (consommé ici). Les .projix
+    // enregistrés normalement n'ont jamais ce champ (toujours « propre »).
+    if (this.backupDirtyFlag !== undefined) {
+      manifest.dirtyAtExit = this.backupDirtyFlag;
+      this.backupDirtyFlag = undefined;
+    }
     // Schéma seul : pas de codeRoot transmis.
     return packProject({ manifest, diagramJson: JSON.stringify(diagramPayload) });
   }

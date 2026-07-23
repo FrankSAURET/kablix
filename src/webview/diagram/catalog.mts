@@ -847,3 +847,21 @@ export function mcuPins(board: BoardId): readonly string[] {
       return AVR328_PINS;
   }
 }
+
+/**
+ * Rails internes d'une carte : broches physiquement reliées SUR le PCB, donc à
+ * la même équipotentielle en simulation. Toutes les masses (GND.n) sont une
+ * seule masse ; le Mega expose plusieurs broches 5 V (5V/5V.1/5V.2) reliées au
+ * même rail. Les rails de tensions DIFFÉRENTES (3V3 vs VBUS/VSYS sur le Pico,
+ * 3.3V vs 5V vs VIN sur l'AVR) restent SÉPARÉS.
+ */
+export function mcuInternalStrips(board: BoardId): readonly string[][] {
+  const pins = mcuPins(board);
+  const strips: string[][] = [];
+  const gnd = pins.filter((p) => p.startsWith('GND'));
+  if (gnd.length > 1) strips.push(gnd);
+  // 5V, 5V.1, 5V.2… = même rail 5 V (Mega). `5V` sans suffixe et ses variantes.
+  const v5 = pins.filter((p) => p === '5V' || p.startsWith('5V.'));
+  if (v5.length > 1) strips.push(v5);
+  return strips;
+}

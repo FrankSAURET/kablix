@@ -20,6 +20,11 @@ export interface ProjixManifest {
    *  résolution quand la référence relative ne se retrouve pas (autre workspace
    *  ouvert, .projix enregistré loin du code…). Ignoré sur un autre poste. */
   codeFileAbs?: string;
+  /** Présent UNIQUEMENT dans les backups hot-exit : reflète si le projet avait
+   *  des modifications non enregistrées au moment de la fermeture. À la
+   *  restauration, on remet le point ● « non enregistré » ssi ce drapeau est vrai.
+   *  Absent des .projix enregistrés normalement (toujours « propre »). */
+  dirtyAtExit?: boolean;
 }
 
 /** Données extraites d'une archive ouverte. */

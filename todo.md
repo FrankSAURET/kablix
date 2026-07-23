@@ -1,5 +1,12 @@
 # À faire
-- si on est sur un 4 digit normal qu'on affiche le schéma interne et qu'on passe sur le modele avec horloge le schéma interne doit être actualisé immédiatement. Actuellement il faut sortir et relancer l'affichage du schéma interne
+(vide — les 4 items traités en v2026.7.165)
+
+# v2026.7.165 — 4 corrections (équipotentielles GND cartes, curseurs sim, schéma colon live, ouverture projix)
+1. ✅ **GND des cartes = une seule équipotentielle** (pico/mega/uno/nano). `buildNets` fusionnait déjà les rails du PCA/alim/grove mais PAS les masses multiples des cartes MCU : un composant sur GND.1 et un autre sur GND.2 ne se voyaient pas en simulation. Nouvelle fonction `mcuInternalStrips(board)` (catalog.mts) : réunit tous les GND.n + les 5V/5V.1/5V.2 du Mega ; laisse séparés les rails de tensions DIFFÉRENTES (3V3/VBUS/VSYS ; 3.3V/5V/VIN). Branchée dans le cas `kind === 'mcu'` de `buildNets`. Test `verify:equipot` (18 contrôles) ajouté à verify:all.
+2. ✅ **Curseurs de simulation cassés** (pir/joystick marchaient). Cause : `makeDrawingHitPainted` pose `pointer-events:none` EN INLINE sur le host kablix-* (letterbox du viewBox) ; le curseur/bouton HTML des contrôles de sim (un `<input>`, pas un trait SVG) héritait ce `none` → insaisissable à la souris. Fix `setLocked` : en simulation, les composants `simControl` repassent le host en `pointer-events:auto` (le dessin reste peint) ; rétabli au déverrouillage. + règle CSS `.part--sim-active .part__body` (filet). Le pot (svg visiblePainted) n'était pas touché.
+3. ✅ **Schéma interne 4 chiffres actualisé immédiatement au changement d'horloge** (colon). Le schéma `SEVEN_SEG_CLOCK_SCHEMA` se choisit selon `attrs.colon`, mais changer l'attribut ne re-rendait pas l'overlay affiché (il fallait quitter + re-cliquer sur K). `updatePartAttr` : `attr === 'colon'` && interne affiché → `renderInternalWiring` sur-le-champ (comme `common`).
+4. ✅ **Fichiers .projix longs à ouvrir** (régression migration v164). `resolveCustomEditor` (projix-editor.ts) affectait `panel.webview.html` DEUX fois : une fois direct (ligne 72) puis via le constructeur de `SimulatorPanel` (createForHost → getHtml, même HTML). Le bundle webview (4,7 Mo) était donc re-fetché/reparsé/réévalué 2× par ouverture d'onglet. Ligne 72 + import `buildWebviewHtml` retirés → un seul montage. Diagnostic confirmé par agent (git v163 : un seul set).
+5. ✅ typecheck + build + verify:all (exit 0) verts.
 
 # v2026.7.164 — CustomEditor .projix : corrections F5 #4→#6 (livré pour tests approfondis)
 1. ✅ Ctrl+Z : pose d'un composant = UNE seule entrée d'historique (addPart/snap/plug en mode `silent`) — fini le « 1er Ctrl+Z déplace à l'origine, 2e supprime ».

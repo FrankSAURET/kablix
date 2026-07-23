@@ -117,6 +117,13 @@ textarea {
 }
 .more-menu__btn {
   padding: 4px 6px;
+  /* Vrai bouton (bordure + fond) plutôt qu'une simple icône hamburger nue. */
+  border: 1px solid var(--vscode-button-border, var(--vscode-contrastBorder, var(--vscode-dropdown-border, #555))) !important;
+  border-radius: 4px;
+  background: var(--vscode-button-secondaryBackground, var(--vscode-dropdown-background, #333));
+}
+.more-menu__btn:hover {
+  background: var(--vscode-button-secondaryHoverBackground, var(--vscode-toolbar-hoverBackground, #444));
 }
 /* Icône hamburger : 3 barres épaisses (barre centrale + 2 pseudo-éléments). */
 .more-menu__burger,
@@ -1241,6 +1248,16 @@ textarea {
    édition à z=5) pour que son curseur reste toujours accessible. */
 .part--sim-active {
   z-index: 60 !important;
+}
+
+/* Le corps est `pointer-events: none` (broches recouvertes) : en simulation il
+   PRIVAIT de souris le curseur/bouton interne du composant (capteurs flamme/gaz/
+   son/lumière, potentiomètre, LDR/CTN…) → les curseurs « ne marchaient plus »
+   alors que PIR/joystick (pilotés par le survol du canevas) répondaient. En sim
+   le schéma est figé et les pastilles sont déjà neutralisées : on réactive donc
+   les pointeurs sur le composant pour que son contrôle redevienne saisissable. */
+.part--sim-active .part__body {
+  pointer-events: auto;
 }
 
 /* Le curseur approche une broche de CE composant : on le hisse au-dessus des

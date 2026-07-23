@@ -1948,18 +1948,13 @@ function setDirty(dirty: boolean): void {
   vscode.postMessage({ type: 'projectDirty', dirty, diagram: dirty ? editor.serialize() : undefined, board });
 }
 
-// Nom du projet dans la barre, SUIVI d'un gros point noir « ⬤ » quand des
-// modifications ne sont pas enregistrées (même signal que dans l'onglet).
+// Nom du projet dans la barre Kablix. Le point « non enregistré » n'est PLUS
+// affiché ici : le point ● NATIF de l'onglet VS Code (croix de fermeture) est le
+// seul indicateur, il suffit. (L'état projectDirty reste utilisé côté hôte pour
+// le garde-fou de fermeture et le hot-exit.)
 function renderProjectName(): void {
   projectNameEl.replaceChildren();
   if (currentProjectName) projectNameEl.append(`— ${currentProjectName}`);
-  if (projectDirty) {
-    const dot = document.createElement('span');
-    dot.className = 'dirty-dot';
-    dot.textContent = ' ●';
-    dot.setAttribute('aria-label', t('Unsaved changes'));
-    projectNameEl.append(dot);
-  }
   projectNameEl.title = currentProjectName
     ? t('Current project: {0}', currentProjectName)
     : t('Current project');
@@ -1976,15 +1971,24 @@ editor.onChange = () => {
     // « modifié » = l'état diffère du dernier enregistrement (pas un simple « a
     // changé ») : un aller-retour pose→annulation, ou suppression→annulation,
     // qui ramène au même schéma efface bien le point ●.
-    setDirty(editor.isDirty());
+    const dirty = editor.isDirty();
+    setDirty(dirty);
     // Tient à jour côté hôte le schéma « à enregistrer » (setDirty ne renotifie
     // pas quand l'état dirty ne change pas) — utile si l'onglet est fermé.
     vscode.postMessage({ type: 'syncDiagram', diagram: editor.serialize(), board });
     // Édition utilisateur (pas un undo/redo piloté par VS Code) : notifie l'hôte
     // pour empiler un edit dans le CustomEditor → point ● natif + Ctrl+Z natif.
-    if (!applyingHostUndo) {
+    // UNIQUEMENT si l'état s'écarte réellement du dernier enregistrement : un
+    // onChange « neutre » après chargement (settle, re-rendu) ne doit PAS empiler
+    // d'edit, sinon un projet propre rouvert apparaît « à enregistrer » (● natif).
+    if (!applyingHostUndo && dirty) {
       vscode.postMessage({ type: 'docEdit', diagram: editor.serialize(), board });
     }
+    // DEBUG (temporaire) : trace chaque onChange pour trouver l'origine du faux ●.
+    vscode.postMessage({
+      type: 'hotexitTrace',
+      text: `onChange dirty=${dirty} host=${applyingHostUndo} dbg=${editor.debugHistory()}`,
+    });
   }
   if (engine) rebind();
 };
@@ -2098,6 +2102,20 @@ helpBtn.addEventListener('click', () => {
 document.getElementById('brand')?.addEventListener('click', () => {
   vscode.postMessage({ type: 'openRepo' });
 });
+
+// Heure de build (injectée par esbuild) affichée sous la version : repère visuel
+// pendant les tests F5 pour confirmer qu'on exécute bien le dernier build.
+declare const __BUILD_TIME__: string;
+{
+  const brandVersion = document.querySelector('.brand__version');
+  if (brandVersion) {
+    const t0 = document.createElement('small');
+    t0.className = 'brand__buildtime';
+    t0.textContent = `build ${__BUILD_TIME__}`;
+    t0.style.cssText = 'display:block;opacity:.6;font-size:.85em;';
+    brandVersion.after(t0);
+  }
+}
 
 // Menu « Autres fonctions » (⋯) : commandes Kablix relayées à l'hôte. Ouvre au
 // clic, se ferme au clic ailleurs, sur Échap, ou après un choix.
@@ -2502,6 +2520,11 @@ window.addEventListener('message', (event: MessageEvent) => {
       // restauré n'est pas encore enregistré, on garde le point « non enregistré ».
       if (msg.markDirty !== true) editor.markSaved(); // référence « propre » = état chargé
       setDirty(msg.markDirty === true);
+      // DEBUG (temporaire) : état juste après chargement + markSaved.
+      vscode.postMessage({
+        type: 'hotexitTrace',
+        text: `loadProject markDirty=${msg.markDirty} ${editor.debugHistory()}`,
+      });
       if (isBoardId(msg.board)) {
         switchBoard(msg.board);
         boardSelect.value = msg.board;

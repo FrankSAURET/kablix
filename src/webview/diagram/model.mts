@@ -1,6 +1,6 @@
 // Modèle de schéma (pur, sans DOM) : composants, fils, calcul de la netlist et
 // résolution logique des composants. Entièrement testable hors navigateur.
-import { mcuPinRole, mcuPins, partDef, rolePin, type BoardId, type PartKind } from './catalog.mjs';
+import { mcuInternalStrips, mcuPinRole, mcuPins, partDef, rolePin, type BoardId, type PartKind } from './catalog.mjs';
 import { breadboardStrips, normalizeSize } from './breadboard.mjs';
 import { groveShieldStrips, normalizePower } from './grove-shield.mjs';
 
@@ -166,6 +166,17 @@ export function buildNets(diagram: Diagram, joinResistors = true): Nets {
       for (const strip of PCA9685_STRIPS) {
         for (let i = 1; i < strip.length; i++) {
           dsu.union(`${part.id}/${strip[0]}`, `${part.id}/${strip[i]}`);
+        }
+      }
+    } else if (kind === 'mcu') {
+      // Carte MCU : les broches physiquement reliées sur le PCB (toutes les
+      // masses GND.n ; les 5V/5V.1/5V.2 du Mega) sont une même équipotentielle.
+      const board = partDef(part.type).board;
+      if (board) {
+        for (const strip of mcuInternalStrips(board)) {
+          for (let i = 1; i < strip.length; i++) {
+            dsu.union(`${part.id}/${strip[0]}`, `${part.id}/${strip[i]}`);
+          }
         }
       }
     }

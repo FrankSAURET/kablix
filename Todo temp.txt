@@ -22,4 +22,16 @@
 - Layout toujours invalide. C'était un pb réglé dans la version 163 tu peux t'en inspirer
 - si on est sur un nouveau projet, l'ouverture d'un fichier doit se fair à la place du nouveau projet et non dans un nouvel onglet
 
-- Au lancement le dernier projet ouvert s'ouvre mais est noté comme a sauvegarder alors que sauvé avent de fermer vscode.
+- clic sur icone kablix, ouverture avec respect du layout. 
+- Au lancement le dernier projet ouvert s'ouvre mais est noté comme a sauvegarder alors que sauvé avant de fermer vscode.
+- transformer le menu hamburger en bouton (avec une bordure)
+- supprimer le point noir (et le code afférent) du nom du fichier sur la barre kablix (celui de l'onglet marche parfaitement)
+- hot-exit -> projet sauvé rouvert AVEC ●.
+
+
+?? Où sont stockés les composants créés par l'utilisateur
+
+- Les curseurs de simulation ne marchent plus par contre les autres composants actifs marchent (pir, joystick ...)
+- il ne considère pas les gnd (carte pico, mega, nano, uno )  comme une équipotentielle. Par contre pour la carte 16 servo ou l'alim ou la grove c'est bon. Vérifie pour tous les composants. les pattes reliées en interne sont des équipotentielles
+- les fichiers projix sont à nouveau longs à ouvrir
+

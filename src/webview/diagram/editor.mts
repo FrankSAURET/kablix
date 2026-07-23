@@ -377,6 +377,13 @@ export class Editor {
       // traverse (les fils sont normalement au-dessus des composants en édition).
       if (partDef(r.part.type).simControl) {
         r.container.classList.toggle('part--sim-active', locked);
+        // `makeDrawingHitPainted` a posé `pointer-events:none` EN INLINE sur le
+        // host kablix-* (letterbox du viewBox) : le curseur/bouton HTML du
+        // contrôle de simulation (un <input>, pas un trait SVG) héritait ce
+        // `none` et devenait insaisissable à la souris → « les curseurs ne
+        // marchent plus ». En sim on rend le host captant (le dessin reste
+        // peint) ; au déverrouillage on rétablit l'état letterbox-transparent.
+        (r.el as unknown as HTMLElement).style.pointerEvents = locked ? 'auto' : 'none';
       }
     }
   }
@@ -424,6 +431,11 @@ export class Editor {
   /** L'état courant diffère-t-il du dernier enregistrement ? (point ●) */
   isDirty(): boolean {
     return this.historyIndex !== this.savedHistoryIndex;
+  }
+
+  /** DEBUG (temporaire) : état de l'historique pour diagnostic du faux ●. */
+  debugHistory(): string {
+    return `hi=${this.historyIndex} si=${this.savedHistoryIndex} len=${this.history.length} restoring=${this.restoring}`;
   }
 
   /** Marque l'état courant comme « enregistré » (après un save ou un chargement)
@@ -4031,6 +4043,12 @@ export class Editor {
         dot.title = pinDisplayName(kind, name, r.part.type, r.part.attrs);
       }
       if (this.internalShown.has(partId)) this.renderInternalWiring(partId);
+    }
+    // Afficheur 4 chiffres : `colon` (mode horloge 88:88) choisit un AUTRE schéma
+    // interne (2 points d'horloge). S'il est affiché, le régénérer sur-le-champ —
+    // sinon il faut quitter puis re-cliquer sur K pour voir le bon schéma.
+    if (attr === 'colon' && this.internalShown.has(partId)) {
+      this.renderInternalWiring(partId);
     }
     // Attribut dont dépend la VISIBILITÉ d'une autre propriété (showIf) : l'inspecteur
     // est reconstruit pour faire apparaître/disparaître la propriété conditionnelle

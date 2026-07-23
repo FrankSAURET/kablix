@@ -1,49 +1,9 @@
 import * as vscode from 'vscode';
 import { SimulatorPanel } from './panel';
-import { buildWebviewHtml } from './webview-html';
 import { applyDefaultLayout, lockSimulatorGroup } from './layout';
 import { unpackProject } from './projix';
 
 const l10n = vscode.l10n;
-
-/**
- * Représentation canonique d'un schéma .projix pour comparer DEUX enregistrements
- * indépendamment des identifiants : les ids des composants et des fils sont
- * régénérés à chaque chargement (uid), donc un même schéma sauvé deux fois porte
- * des ids différents. On remappe les ids sur leur INDEX (l'ordre est conservé)
- * puis on sérialise ; deux schémas identiques donnent la même chaîne.
- */
-function canonicalDiagram(diagram: unknown): string {
-  const d = (diagram ?? {}) as {
-    parts?: Array<{ id?: string; [k: string]: unknown }>;
-    wires?: Array<{ id?: string; a?: { partId?: string }; b?: { partId?: string }; [k: string]: unknown }>;
-    camera?: unknown;
-    customParts?: unknown;
-  };
-  const parts = d.parts ?? [];
-  const idIndex = new Map<string, number>();
-  parts.forEach((p, i) => {
-    if (typeof p.id === 'string') idIndex.set(p.id, i);
-  });
-  const remapPart = (partId?: string): number =>
-    partId !== undefined && idIndex.has(partId) ? idIndex.get(partId)! : -1;
-  const normParts = parts.map((p) => {
-    const { id: _id, ...rest } = p;
-    return rest;
-  });
-  const normWires = (d.wires ?? []).map((w) => {
-    const { id: _id, a, b, ...rest } = w;
-    return {
-      ...rest,
-      a: { ...(a ?? {}), partId: remapPart(a?.partId) },
-      b: { ...(b ?? {}), partId: remapPart(b?.partId) },
-    };
-  });
-  // La CAMÉRA (zoom/position) est volontairement EXCLUE : un zoom ne marque pas
-  // le projet « modifié » (cf. onCameraChange), il ne doit donc pas faire réapparaître
-  // le ● à la réouverture. customParts fait partie du schéma (inclus).
-  return JSON.stringify({ parts: normParts, wires: normWires, customParts: d.customParts ?? null });
-}
 
 /**
  * Éditeur personnalisé des projets Kablix (`.projix`). Remplace le WebviewPanel
@@ -108,7 +68,12 @@ export class ProjixEditorProvider implements vscode.CustomEditorProvider<ProjixD
         vscode.Uri.joinPath(extensionUri, 'media'),
       ],
     };
-    panel.webview.html = buildWebviewHtml(panel.webview, extensionUri);
+    // Le HTML (et le bundle webview de 4,7 Mo qu'il référence) est posé par le
+    // constructeur de SimulatorPanel juste après (createForHost → getHtml). NE PAS
+    // le poser ici en plus : l'affecter deux fois faisait recharger, reparser et
+    // réévaluer le bundle DEUX fois à chaque ouverture d'onglet → .projix longs à
+    // ouvrir (régression v2026.7.164). `webview.options` doit rester posé AVANT
+    // (asWebviewUri exige localResourceRoots) — c'est le cas.
 
     // Adaptateur hôte. Le point ● « non enregistré » NATIF est piloté par la
     // pile d'edits du CustomEditor : chaque édition utilisateur (onDocEdit) empile
@@ -148,20 +113,33 @@ export class ProjixEditorProvider implements vscode.CustomEditorProvider<ProjixD
     // Priorité au backup hot-exit (schéma non enregistré restauré par VS Code) ;
     // sinon le fichier .projix sur disque ; untitled sans backup = atelier vide.
     const source = document.backupUri ?? document.uri;
+    // État ● gravé dans le backup hot-exit (manifest.dirtyAtExit) : c'est l'état
+    // « non enregistré » réel AU MOMENT de la fermeture, écrit par
+    // backupCustomDocument. VS Code sauve un backup de CHAQUE onglet (même propre) ;
+    // le drapeau distingue « vraiment modifié » de « juste sauvegardé » sans aucune
+    // comparaison (approche fiable et instantanée).
+    let restoreDirty = false;
     if (source.scheme !== 'untitled') {
       try {
         const bytes = await vscode.workspace.fs.readFile(source);
-        if (bytes.length > 0) await session.loadProjixBytes(bytes, document.uri);
+        if (bytes.length > 0) {
+          if (document.backupUri) {
+            try {
+              const { manifest } = await unpackProject(bytes);
+              restoreDirty = manifest.dirtyAtExit === true;
+            } catch {
+              restoreDirty = true; // backup illisible : prudence, ● affiché
+            }
+          }
+          await session.loadProjixBytes(bytes, document.uri);
+        }
       } catch {
         // fichier illisible / vide : atelier vide (l'utilisateur repart de zéro).
       }
     }
-    // Restauré depuis un backup = potentiellement des modifications non
-    // enregistrées → point ●. MAIS VS Code écrit un backup hot-exit de CHAQUE
-    // onglet à la fermeture, même propre : un projet sauvé avant de quitter
-    // revenait donc marqué « à enregistrer ». On ne remet le ● que si le backup
-    // DIFFÈRE réellement du fichier disque (untitled : toujours, pas de disque).
-    if (document.backupUri && (await this.backupDiffersFromDisk(document))) {
+    // Untitled restauré : toujours ● (aucun fichier de référence, tout est « non
+    // enregistré »). Fichier restauré : ● seulement si dirtyAtExit était vrai.
+    if (document.backupUri && (document.uri.scheme === 'untitled' || restoreDirty)) {
       setTimeout(() => session.markDirtyFromRestore(), 0);
     }
 
@@ -185,33 +163,6 @@ export class ProjixEditorProvider implements vscode.CustomEditorProvider<ProjixD
         once.dispose();
         setTimeout(layout, 80);
       });
-    }
-  }
-
-  /** Le backup hot-exit reflète-t-il des modifications non enregistrées ?
-   *  - untitled : oui (aucun fichier disque de référence) ;
-   *  - fichier .projix : seulement si le SCHÉMA du backup diffère de celui sur
-   *    disque. VS Code sauve un backup de CHAQUE onglet à la fermeture (même
-   *    propre) ; comparer les octets bruts ne marche pas (le manifeste porte un
-   *    `createdAt` horodaté et le zip des dates → toujours différents), on compare
-   *    donc le schéma décodé et normalisé (ids régénérés au chargement ignorés). */
-  private async backupDiffersFromDisk(document: ProjixDocument): Promise<boolean> {
-    if (!document.backupUri) return false;
-    if (document.uri.scheme === 'untitled') return true;
-    try {
-      const [backup, disk] = await Promise.all([
-        vscode.workspace.fs.readFile(document.backupUri),
-        vscode.workspace.fs.readFile(document.uri),
-      ]);
-      const [pb, pd] = await Promise.all([unpackProject(backup), unpackProject(disk)]);
-      const diff =
-        canonicalDiagram(pb.diagram) !== canonicalDiagram(pd.diagram) ||
-        pb.manifest.board !== pd.manifest.board;
-      return diff;
-    } catch {
-      // Décodage impossible (fichier déplacé/supprimé, archive illisible) : on
-      // conserve le backup (● affiché) plutôt que de perdre des modifications.
-      return true;
     }
   }
 
@@ -245,8 +196,13 @@ export class ProjixEditorProvider implements vscode.CustomEditorProvider<ProjixD
   ): Promise<vscode.CustomDocumentBackup> {
     // Hot-exit : écrit le schéma courant dans le fichier de backup fourni SANS
     // en faire la cible d'enregistrement (oneShot) — sinon les Ctrl+S/saves
-    // suivants viseraient le backup (nom perdu, « enregistrer sous »).
-    await document.session?.saveToDocument(backup.destination, true);
+    // suivants viseraient le backup (nom perdu, « enregistrer sous »). L'état ●
+    // du moment est gravé dans le manifest (dirtyAtExit) pour la restauration.
+    await document.session?.saveToDocument(
+      backup.destination,
+      true,
+      document.session.isProjectDirty()
+    );
     return {
       id: backup.destination.toString(),
       delete: async () => {

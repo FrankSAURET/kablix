@@ -9,6 +9,11 @@ const path = require('path');
 const production = process.argv.includes('--production');
 const watch = process.argv.includes('--watch');
 
+// Heure de build (HH:MM:SS) injectée dans le bundle webview : repère visuel sous
+// le nom Kablix pour confirmer, pendant les tests F5, qu'on exécute bien le
+// dernier build (cf. habitude de codage). Figée à la compilation.
+const BUILD_TIME = new Date().toLocaleTimeString('fr-FR', { hour12: false });
+
 // Posters de brochage (bouton ☢) : ~3,7 Mo de SVG à eux cinq. Ils ne sont PAS
 // inlinés dans webview.js — la webview les chargerait à chaque ouverture de
 // projet alors qu'ils ne servent qu'à la demande. Copiés tels quels dans
@@ -54,6 +59,7 @@ const webviewConfig = {
   target: 'es2020',
   // Les dessins de cartes (Pico / Pico W) sont importés comme texte SVG.
   loader: { '.svg': 'text' },
+  define: { __BUILD_TIME__: JSON.stringify(BUILD_TIME) },
   sourcemap: !production,
   minify: production,
   logLevel: 'info',
