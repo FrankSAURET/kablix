@@ -20,6 +20,10 @@ import sevenSegK4 from '../composants/interne/7seg-4dig-schema.clean.svg';
 import sevenSegA1 from '../composants/interne/7seg-schema.anode.svg';
 import sevenSegA2 from '../composants/interne/7seg-2dig.schema.anode.svg';
 import sevenSegA4 from '../composants/interne/7seg-4dig-schema.anode.svg';
+// Variante 4 chiffres AVEC 2 points d'horloge (colon), sélectionnée quand
+// l'attribut `colon` du composant est vrai (mode 88:88).
+import sevenSegK4Clock from '../composants/interne/7seg-4dig-clock-schema.clean.svg';
+import sevenSegA4Clock from '../composants/interne/7seg-4dig-clock-schema.anode.svg';
 // Symboles des résistances variables nues, dessinés à la main (Inkscape) —
 // même viewBox que le dessin externe, superposés tels quels.
 import ldrSchema from '../composants/interne/ldr-schema.svg';
@@ -211,7 +215,13 @@ function sevenSegment(
 ): string | null {
   const commonAnode = attrs?.common === 'anode';
   const digits = (attrs?.digits ?? '1') as '1' | '2' | '4';
-  const schema = SEVEN_SEG_SCHEMA[commonAnode ? 'anode' : 'cathode'][digits] ?? SEVEN_SEG_SCHEMA.cathode['1'];
+  // Afficheur 4 chiffres en mode horloge (attribut `colon`) : schéma dédié avec
+  // les 2 points centraux câblés. Sinon schéma standard.
+  const clock = digits === '4' && attrs?.colon === 'true';
+  const bank = commonAnode ? 'anode' : 'cathode';
+  const schema = clock
+    ? SEVEN_SEG_CLOCK_SCHEMA[bank]
+    : SEVEN_SEG_SCHEMA[bank][digits] ?? SEVEN_SEG_SCHEMA.cathode['1'];
   if (!box) return schema.inner;
   // Scale simple : le schéma (repère = viewBox du SVG dessiné) est mis à l'échelle
   // de la boîte du composant. Le SVG de Frank a ses broches déjà posées au bon
@@ -240,6 +250,11 @@ type Schema = { inner: string; w: number; h: number };
 const SEVEN_SEG_SCHEMA: Record<'cathode' | 'anode', Record<'1' | '2' | '4', Schema>> = {
   cathode: { '1': parseSchema(sevenSegK1), '2': parseSchema(sevenSegK2), '4': parseSchema(sevenSegK4) },
   anode: { '1': parseSchema(sevenSegA1), '2': parseSchema(sevenSegA2), '4': parseSchema(sevenSegA4) },
+};
+// Variante 4 chiffres avec 2 points d'horloge (attribut `colon`).
+const SEVEN_SEG_CLOCK_SCHEMA: Record<'cathode' | 'anode', Schema> = {
+  cathode: parseSchema(sevenSegK4Clock),
+  anode: parseSchema(sevenSegA4Clock),
 };
 // Symboles LDR / CTN / CTP : le SVG de Frank partage le viewBox du dessin
 // externe → simple mise à l'échelle de la boîte du composant (comme le clavier).

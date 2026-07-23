@@ -4,8 +4,12 @@ import { HelpPanel } from './help';
 import { promptLibraryUpdates } from './updates';
 import { upgradeFirmware, checkFirmwareUpdate } from './firmware';
 import { saveDefaultLayout } from './layout';
+import { registerProtoCustomEditor } from './proto-custom-editor';
 
 export function activate(context: vscode.ExtensionContext): void {
+  // PROTOTYPE JETABLE — validation du point ● modifié natif (CustomEditor).
+  registerProtoCustomEditor(context);
+
   // Vue de la barre d'activité : cliquer l'icône Kablix ouvre DIRECTEMENT le
   // simulateur (panneau éditeur) et rend la main au volet Explorateur, pour que
   // le volet Kablix (quasi vide) n'occupe pas la barre latérale.

@@ -1,5 +1,8 @@
 # À faire
 
+# v2026.7.163
+1. ✅ **Le schéma interne 4 chiffres suit l'attribut « Colon (clock) »** (correction de la demande v162 : Frank voulait DEUX schémas, pas un seul). Colon = **non** → schéma interne ORIGINAL (`7seg-4dig-schema.*`, restauré depuis le commit parent) ; colon = **true** → nouveau schéma avec les 2 points d'horloge câblés (`7seg-4dig-clock-schema.*`). Sélection dans `internal-wiring.mts` (`SEVEN_SEG_CLOCK_SCHEMA`, test `digits==='4' && attrs.colon==='true'`). VÉRIFIÉ en Chrome headless : colon=no rend l'original sans colon, colon=true rend le colon (cathode + anode flip OK).
+
 # v2026.7.162
 1. ✅ **Nouveau schéma interne pour l'afficheur 4 digits avec 2 points d'horloge** (demande Frank). Colon d'horloge dessiné à la main (Inkscape) et câblé aux broches (traits `#e5a50a`, 2 diodes centrales entre digit 2 et digit 3). Source `7seg-4dig-schema.edit.svg` remplacée → `.clean.svg` régénéré (`_clean-7seg-schema.mjs`), `.anode.svg` régénéré (`_flip-7seg-diodes.mjs`, 30 diodes retournées). VÉRIFIÉ en Chrome headless (`view-internal.mjs`) : colon présent et centré, câblage cohérent.
 2. ✅ **Schéma interne relâché quand on quitte le composant** (demande Frank). Avant : `select()` retirait l'overlay DOM mais gardait `internalShown`/`pinoutShown` → au re-clic le schéma se réaffichait tout seul. Désormais la déselection VIDE ces états (sauf si le composant reste le sélectionné, ex. re-render après édition) + retire la classe active du bouton ☢. Au retour, un nouveau clic sur K est nécessaire.

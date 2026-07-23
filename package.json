@@ -1,7 +1,7 @@
 {
   "name": "kablix",
   "displayName": "Kablix",
-  "version": "2026.7.162",
+  "version": "2026.7.163",
   "description": "%kablix.description%",
   "publisher": "franksauret",
   "author": {
@@ -90,6 +90,11 @@
         "command": "kablix.saveDefaultLayout",
         "title": "%kablix.cmd.saveDefaultLayout%",
         "category": "Kablix"
+      },
+      {
+        "command": "kablix.protoCustomEditor",
+        "title": "Proto: point modifié natif (CustomEditor)",
+        "category": "Kablix"
       }
     ],
     "viewsContainers": {
@@ -125,6 +130,16 @@
           }
         ],
         "priority": "default"
+      },
+      {
+        "viewType": "kablix.protoCustomEditor",
+        "displayName": "Kablix proto (jetable)",
+        "selector": [
+          {
+            "filenamePattern": "*.kxproto"
+          }
+        ],
+        "priority": "option"
       }
     ],
     "configuration": {
