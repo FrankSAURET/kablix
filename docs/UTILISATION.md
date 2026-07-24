@@ -1,63 +1,58 @@
 # Kablix — Guide d'utilisation
-
-Simulateur **Arduino Uno** / **Raspberry Pi Pico** intégré à VS Code, 100% offline.
-
+![Kablix](../Kablix.png)
 > English version: [USAGE.en.md](USAGE.en.md)
 
 ## Sommaire
 
 1. [Démarrage](#démarrage)
-2. [L'interface](#linterface)
-3. [Construire un montage](#construire-un-montage)
-4. [Exécuter du code](#exécuter-du-code)
-5. [MicroPython sur le Pico](#micropython-sur-le-pico)
-6. [Déboguer pas à pas](#déboguer-pas-à-pas)
-7. [Moniteur série](#moniteur-série)
-8. [Exporter le schéma en SVG](#exporter-le-schéma-en-svg)
-9. [Créer ses propres composants](#créer-ses-propres-composants)
-10. [Format de fichier des composants (.kablix-part.json)](#format-de-fichier-des-composants-kablix-partjson)
-11. [Où trouver des composants existants](#où-trouver-des-composants-existants)
-12. [Enregistrer / ouvrir un projet (.projix)](#enregistrer--ouvrir-un-projet-projix)
-13. [Interopérabilité Wokwi (diagram.json)](#interopérabilité-wokwi-diagramjson)
-14. [Mises à jour des bibliothèques](#mises-à-jour-des-bibliothèques)
-15. [Raccourcis clavier](#raccourcis-clavier)
+2. [Fonctionnalités](#fonctionnalités)
+3. [L'interface](#linterface)
+4. [Construire un montage](#construire-un-montage)
+5. [Exécuter du code](#exécuter-du-code)
+6. [MicroPython sur le Pico](#micropython-sur-le-pico)
+7. [Déboguer pas à pas](#déboguer-pas-à-pas)
+8. [Moniteur série](#moniteur-série)
+9. [Exporter le schéma en SVG](#exporter-le-schéma-en-svg)
+10. [Créer ses propres composants](#créer-ses-propres-composants)
+11. [Format de fichier des composants (.kablix-part.json)](#format-de-fichier-des-composants-kablix-partjson)
+12. [Où trouver des composants existants](#où-trouver-des-composants-existants)
+13. [Enregistrer / ouvrir un projet (.projix)](#enregistrer--ouvrir-un-projet-projix)
+14. [Interopérabilité Wokwi (diagram.json)](#interopérabilité-wokwi-diagramjson)
+15. [Mises à jour des bibliothèques](#mises-à-jour-des-bibliothèques)
+16. [Raccourcis clavier](#raccourcis-clavier)
 
 ---
 
 ## Démarrage
 
-Trois façons d'ouvrir le simulateur :
+1. Pour démarrer, cliquer sur l'icône <img src="../media/KNB.png" alt="Kablix" width="30" /> dans la barre d'activité à gauche ;
+  - Ou dans un dossier de projet, double cliquer sur un fichier projix ;
+  - Ou si vous avez fait l'association, dans l'explorateur Windows double cliquer sur un fichier projix.
+![Démarrer Kablix](../media/demarrer.gif)
 
-- **Icône Kablix** dans la barre d'activité (à gauche) → la vue s'ouvre et lance
-  le simulateur ;
-- Palette de commandes (`Ctrl+Shift+P`) → **« Kablix : Ouvrir le simulateur »** ;
-- Commande **« Kablix : Compiler & exécuter le fichier actif »** (ouvre le
-  simulateur et y charge le fichier en cours d'édition).
+2. **Construire son montage** : Glisser/poser un composant à partir de la bibliothèque à gauche. Relier les broches en direct et cliquer sur le bouton autoroutage (route les composants sélectionnés ou tout le montage si aucun n'est sélectionné).
+![Construire un montage](../media/dessiner.gif)
 
-Au premier affichage, la **feuille de dessin est vide** : posez vos composants
-depuis la palette, câblez-les, puis cliquez **▶ Démarrer** (programme de
-démonstration intégré : LED D13/GP25 clignotante) ou **⚙ Compiler & exécuter
-le fichier actif** pour exécuter votre propre code.
+3. **Exécuter son code** : Associer un fichier de code (attention les codes ino doivent être dans un dossier de même nom) puis **▶ « démarrer »** :
+  - `.ino`/`.c`/`.cpp` -> compilation via la toolchain locale ;
+  - `.py` -> MicroPython sur le Pico simulé (firmware `.uf2` requis, voir ci-dessous) ;
+  - `.hex` / `.uf2`/`.elf` / `.bin` -> chargé directement sans compilation.
+
+4. **Enregistrer son montage** : « Kablix : Enregistrer le projet (.projix) » ;
+  un `.projix` se rouvre ensuite d'un double-clic dans l'explorateur.
+  Import/export au format Wokwi (`diagram.json`) également disponibles.
+![Simuler dans Kablix](../media/simuler.gif)
 
 ## L'interface
+![alt text](../media/interface.png)
+*Interface de Kablix : **①** la **palette** des composants à gauche, **②** le **canvas** de montage au centre, **③** l'**inspecteur** (Propriétés/variables) à droite, **④** le **moniteur série/Console/REPL**, **⑤** le **Traceur** en bas et **⑥** les **barres d'outils** (Simulation et dessin) en haut.*
 
-![Interface de Kablix](../Kablix.png)
-
-<!-- TODO: capture annotée -->
-*Interface de Kablix : la **palette** des composants à gauche, le **canvas** de montage au centre, l'**inspecteur** (Propriétés) à droite, le **moniteur série** en bas et la **barre d'outils** (carte, exécution, compilation, export) en haut.*
-
-- **Sélecteur de carte** : Arduino Uno ou Raspberry Pi Pico (le montage en
-  cours est conservé, la simulation est arrêtée).
-- **Palette** : cliquer un composant le pose sur le canvas. Deux tris au choix
-  (boutons en haut) : **AZ** (alphabétique) ou **🗂** (par catégories — Cartes &
-  platines, Affichage & LED, Commandes, Capteurs, Actionneurs, Divers). Une
-  zone **« Derniers utilisés »** (10 max) reste en tête, et la palette défile
-  (ascenseur) si elle dépasse la fenêtre. Les composants personnalisés (★)
-  gardent leurs boutons ⇩ (export) et ✕ (suppression du modèle).
-- **🏷 Noms** : force l'affichage du nom au-dessus de **tous** les composants.
-  Désactivé (défaut), le nom n'apparaît que sur le composant **sélectionné**.
-- **Propriétés** (inspecteur) : édite l'élément sélectionné — composant
-  (couleur, valeur, angle…) ou fil (couleur Dupont, suppression).
+- **Palette** : cliquer un composant le pose sur le canvas. Deux tris au choix (boutons en haut) ![alt text](<../media/boutons trie.png>): alphabétique ou  par catégories
+Une zone **« Derniers utilisés »** (10 max) peut rester en tête (troisième bouton). Le dernier bouton permet de changer le mode de réaction de la bibliothèque.
+- ![alt text](<../media/barre kablix.png>)
+**Barre d'outil Kablix** : les fonctions habituelles de gestion de fichier + le bouton Noms qui fait apparaitre le nom sur le composant **sélectionné** ou tous les composants + le menu hamburger pour des fonctions d'utiliation  moins fréquentes.
+- **Propriétés/Varriables** (inspecteur) : Pendant le dessin, édite le composant
+sélectionné (couleur, valeur, angle…) ou fil (couleur Dupont, suppression, noeud [équipotielle]) ; pendant la simulation, affiche les variables.
 
 ## Construire un montage
 

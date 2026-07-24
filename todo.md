@@ -1,5 +1,12 @@
 # À faire
 
+# v2026.7.170 — régression labels de segments a-g sur les schémas internes
+1. ✅ **Labels de segments a-g restaurés** sur les schémas internes 1 digit, 2 digit et 4 digit AVEC horloge (le 4 digit sans horloge était le seul intact). Perdus à la régénération v2026.7.162 : le script `_clean-7seg-schema.mjs` supprime tous les `<text>` (labels de broche) et rasait aussi les a-g, absents des `.edit.svg` (posés à la main dans les `.clean.svg` en v160/161).
+2. ✅ **Anti re-régression** : `_clean-7seg-schema.mjs` réinjecte désormais le groupe `<g id="seg-labels">` APRÈS nettoyage. Positions du digit 1 en dur (`SEG_D1`) + décalage X par digit (`DIGIT_DX`), généré selon le champ `digits` de chaque job. 1dig/2dig/4dig régénérés (clean + `.anode` via flip) → 7 / 14 / 28 labels.
+3. ✅ **4dig-clock** (généré à la main, hors JOBS) : mêmes positions de triangles que le 4dig sans horloge → groupe `seg-labels` collé dans `.clean` et `.anode`. Colon d'horloge intact.
+4. ✅ Rendu Chrome headless des 4 schémas : labels a-g centrés sur chaque diode, alignés.
+5. ✅ typecheck + build verts.
+
 # v2026.7.169 — icône SVG hamburger + inversion aide/hamburger
 1. ✅ **Nouvelle icône hamburger** : `media/hamburger.svg` extrait du groupe `hamburger` de `media/icones.svg` (comme `aide.svg` : gradients repris, path-effects Inkscape retirés, `viewBox` calé sur le cadre). Rendu Chrome headless validé (3 barres orange + cadre orange, cohérent avec les autres icônes).
 2. ✅ **Le bouton `#more-btn` (hamburger) utilise l'icône SVG** au lieu du dessin CSS 3-barres. Passé de `.more-menu__btn` (bouton encadré) à `.toolbar__icon-btn` (transparent, sans bordure) comme toutes les autres icônes — le cadre fait partie du dessin. CSS obsolète retiré (`.more-menu__btn`, `.more-menu__burger` + pseudo-éléments) ; `.more-menu` (position relative pour le dropdown) et `.more-menu__list` conservés.
