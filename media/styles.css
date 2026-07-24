@@ -115,50 +115,9 @@ textarea {
   position: relative;
   display: inline-flex;
 }
-.more-menu__btn {
-  padding: 4px 8px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  /* Vrai bouton encadré (comme « Noms »), pas une icône hamburger nue : bordure
-     + fond bouton secondaire toujours visibles (demande de Frank). */
-  border: 1px solid var(--vscode-button-border, var(--vscode-contrastBorder, var(--vscode-dropdown-border, #555)));
-  border-radius: 4px;
-  background: var(--vscode-button-secondaryBackground, var(--vscode-dropdown-background, #3a3d41));
-}
-.more-menu__btn:hover {
-  background: var(--vscode-button-secondaryHoverBackground, var(--vscode-toolbar-hoverBackground, #444));
-}
-/* Icône hamburger : 3 barres épaisses (barre centrale + 2 pseudo-éléments). */
-.more-menu__burger,
-.more-menu__burger::before,
-.more-menu__burger::after {
-  display: block;
-  width: 20px;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--vscode-icon-foreground, var(--vscode-foreground, #ccc));
-}
-.more-menu__burger {
-  position: relative;
-}
-.more-menu__burger::before,
-.more-menu__burger::after {
-  content: '';
-  position: absolute;
-  left: 0;
-}
-.more-menu__burger::before {
-  top: -6px;
-}
-.more-menu__burger::after {
-  top: 6px;
-}
-.more-menu__btn:hover .more-menu__burger,
-.more-menu__btn:hover .more-menu__burger::before,
-.more-menu__btn:hover .more-menu__burger::after {
-  background: var(--vscode-foreground, #fff);
-}
+/* Le bouton hamburger est désormais une icône SVG (media/hamburger.svg), stylée
+   comme les autres boutons à icône de la barre (.toolbar__icon-btn) : le cadre
+   fait partie du dessin. */
 .more-menu__list {
   position: absolute;
   top: calc(100% + 4px);

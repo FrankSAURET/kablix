@@ -34,6 +34,7 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
   const saveAsIconUri = asset('enregistrerSous.svg');
   const svgIconUri = asset('exportSvg.svg');
   const aideIconUri = asset('aide.svg');
+  const hamburgerIconUri = asset('hamburger.svg');
   const grilleIconUri = asset('grille.svg');
   // Base des posters de brochage (dist/pinout/<carte>.svg) : récupérés par fetch au clic sur ☢.
   const pinoutBase = webview.asWebviewUri(
@@ -97,10 +98,8 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
     <button id="save-project-as" class="toolbar__icon-btn" title="${l10n.t('Save the project as…')}"><img src="${saveAsIconUri}" alt="${l10n.t('Save the project as…')}" /></button>
     <button id="export-svg" class="toolbar__icon-btn" title="${l10n.t('Export the diagram as SVG')}"><img src="${svgIconUri}" alt="${l10n.t('Export the diagram as SVG')}" /></button>
     <button id="toggle-labels" title="${l10n.t('Show/hide part names')}">${l10n.t('Names')}</button>
-    <button id="open-help" class="toolbar__icon-btn" title="${l10n.t('Open help')}"><img src="${aideIconUri}" alt="${l10n.t('Open help')}" /></button>
-    <span id="project-name" class="project-name" title="${l10n.t('Current project')}"></span>
     <div class="more-menu" id="more-menu">
-      <button id="more-btn" class="more-menu__btn" title="${l10n.t('Other functions')}" aria-haspopup="true" aria-expanded="false" aria-label="${l10n.t('Other functions')}"><span class="more-menu__burger" aria-hidden="true"></span></button>
+      <button id="more-btn" class="toolbar__icon-btn" title="${l10n.t('Other functions')}" aria-haspopup="true" aria-expanded="false" aria-label="${l10n.t('Other functions')}"><img src="${hamburgerIconUri}" alt="${l10n.t('Other functions')}" /></button>
       <ul id="more-list" class="more-menu__list" role="menu" hidden>
         <li role="menuitem" data-cmd="kablix.importWokwiDiagram">${l10n.t('Import a Wokwi diagram')}</li>
         <li role="menuitem" data-cmd="kablix.exportWokwiDiagram">${l10n.t('Export a Wokwi diagram')}</li>
@@ -110,6 +109,8 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
         <li role="menuitem" data-cmd="kablix.saveDefaultLayout">${l10n.t('Save this layout as default')}</li>
       </ul>
     </div>
+    <button id="open-help" class="toolbar__icon-btn" title="${l10n.t('Open help')}"><img src="${aideIconUri}" alt="${l10n.t('Open help')}" /></button>
+    <span id="project-name" class="project-name" title="${l10n.t('Current project')}"></span>
     <span id="status" class="status">Prêt</span>
   </header>
 

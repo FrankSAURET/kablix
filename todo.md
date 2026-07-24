@@ -1,5 +1,11 @@
 # À faire
-(rien)
+
+# v2026.7.169 — icône SVG hamburger + inversion aide/hamburger
+1. ✅ **Nouvelle icône hamburger** : `media/hamburger.svg` extrait du groupe `hamburger` de `media/icones.svg` (comme `aide.svg` : gradients repris, path-effects Inkscape retirés, `viewBox` calé sur le cadre). Rendu Chrome headless validé (3 barres orange + cadre orange, cohérent avec les autres icônes).
+2. ✅ **Le bouton `#more-btn` (hamburger) utilise l'icône SVG** au lieu du dessin CSS 3-barres. Passé de `.more-menu__btn` (bouton encadré) à `.toolbar__icon-btn` (transparent, sans bordure) comme toutes les autres icônes — le cadre fait partie du dessin. CSS obsolète retiré (`.more-menu__btn`, `.more-menu__burger` + pseudo-éléments) ; `.more-menu` (position relative pour le dropdown) et `.more-menu__list` conservés.
+3. ✅ **Positions aide ↔ hamburger inversées** (demande Frank) : le hamburger (`more-menu`) est maintenant AVANT le bouton d'aide (`#open-help`) ; l'aide + le nom du projet passent à sa droite.
+4. ✅ typecheck + build verts.
+5. ⬜ À VALIDER EN F5 : icône hamburger affichée · menu « Autres fonctions » toujours fonctionnel · aide bien à droite du hamburger.
 
 # v2026.7.168 — icône Kablix pour .projix, proposition au 1er lancement, commande d'association
 1. ✅ **Le script `outils/associer-projix-windows.ps1` pose l'icône `kablix.ico`** (au lieu de celle de VS Code). Nouveau paramètre `-IconPath` (fourni automatiquement par l'extension = `media/kablix.ico`) ; l'icône est copiée dans un emplacement STABLE `%LOCALAPPDATA%\Kablix\kablix.ico` (survit aux mises à jour d'extension, qui changent le dossier de version) et le registre `Kablix.projix\DefaultIcon` pointe dessus. Fallback si `-IconPath` absent : cherche `kablix.ico` à côté du script / racine repo / `media/`. `-Remove` supprime aussi l'icône copiée. `SHChangeNotify(SHCNE_ASSOCCHANGED)` pour rafraîchir l'Explorateur sans reconnexion. Association posée et vérifiée sur la machine (registre + icône copiée OK).
