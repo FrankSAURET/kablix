@@ -9,8 +9,15 @@ tsconfig.json
 .gitignore
 .vscodeignore
 CLAUDE.md
+PROGRESSION.md
 **/*.map
 **/.git/**
+
+# --- Doublons / journaux / assets orphelins (repérés à l'audit v171) ---
+README copy.md
+ks.svg
+debug.log
+*.log
 
 # --- dist : les deux bundles esbuild + les posters de brochage ---
 # dist/pinout/*.svg : posters du bouton ☢, volontairement HORS du bundle
@@ -58,12 +65,26 @@ media/parts/**
 media/icones.svg
 media/Gomme.png
 media/Boum.gif
+# media/accroche2.png : orphelin (aucun README/doc/code ne le charge) — 1,7 Mo.
+media/accroche2.png
+# Images servant UNIQUEMENT aux guides UTILISATION/USAGE (exclus du vsix, lus via GitHub).
+media/BarreDessin.png
+media/BarreSimulation.png
+media/barre kablix.png
+media/boutons trie.png
+media/interface.png
 # examples/ : non référencés par l'extension (disponibles sur GitHub).
 examples/**
 # firmware : seul rp2040_ram.ld sert (script de lien de la compilation Pico).
 firmware/avr/**
 firmware/**/*.c
-# docs de développement (les fiches docs/composants/*.md restent : aide locale).
+# docs de développement (les fiches docs/composants/{fr,en}/*.md restent : aide locale).
 docs/DEBOGAGE.md
-docs/Modifier svg composants.md
+docs/fr/Modifier-svg-composants.md
+docs/en/Editing-svg-components.md
 docs/Recette-de-test.docx
+# fiche d'audit interne (liste de fichiers inutiles) : hors paquet.
+docs/fichiers-inutiles.md
+# Guides utilisateur : jamais lus en local (l'aide les ouvre via URL GitHub) → hors vsix.
+docs/fr/UTILISATION.md
+docs/en/USAGE.md

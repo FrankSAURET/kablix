@@ -3,8 +3,8 @@ import { randomBytes } from 'node:crypto';
 
 // Liens « aide en ligne » : dépôt GitHub et documentation utilisateur (FR/EN).
 const REPO_URL = 'https://github.com/FrankSAURET/kablix';
-const DOC_URL = 'https://github.com/FrankSAURET/kablix/blob/main/docs/UTILISATION.md';
-const DOC_URL_EN = 'https://github.com/FrankSAURET/kablix/blob/main/docs/USAGE.en.md';
+const DOC_URL = 'https://github.com/FrankSAURET/kablix/blob/main/docs/fr/UTILISATION.md';
+const DOC_URL_EN = 'https://github.com/FrankSAURET/kablix/blob/main/docs/en/USAGE.md';
 
 /** Document HTML complet de l'aide pour une langue donnée. */
 interface HelpLocale {
@@ -369,7 +369,7 @@ r.close()</pre>
     <h2 id="en-ligne">Aide en ligne</h2>
     <p>La documentation complète et à jour est en ligne :</p>
     <div class="online">
-      <a href="${DOC_URL}">📖 Guide d'utilisation (docs/UTILISATION.md)</a>
+      <a href="${DOC_URL}">📖 Guide d'utilisation (docs/fr/UTILISATION.md)</a>
       <a href="${REPO_URL}">⭐ Dépôt GitHub Kablix</a>
     </div>
     <p class="top"><a href="#demarrage">↑ Retour au sommaire</a></p>
@@ -557,7 +557,7 @@ r.close()</pre>
     <h2 id="online">Online help</h2>
     <p>The full, up-to-date documentation is online:</p>
     <div class="online">
-      <a href="${DOC_URL_EN}">📖 User guide (docs/USAGE.en.md)</a>
+      <a href="${DOC_URL_EN}">📖 User guide (docs/en/USAGE.md)</a>
       <a href="${REPO_URL}">⭐ Kablix GitHub repository</a>
     </div>
     <p class="top"><a href="#start">↑ Back to top</a></p>

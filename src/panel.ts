@@ -980,13 +980,22 @@ export class SimulatorPanel {
         void vscode.env.openExternal(vscode.Uri.parse('https://github.com/FrankSAURET/kablix'));
         break;
       case 'componentHelp':
-        // Aide locale (hors-ligne) d'un composant : aperçu de docs/composants/<type>.md.
+        // Aide locale (hors-ligne) d'un composant : aperçu de docs/composants/<lang>/<type>.md.
+        // La langue suit VS Code (en si elle commence par « en », fr sinon = repli).
         if (typeof msg.part === 'string' && /^[a-z0-9-]+$/i.test(msg.part)) {
-          const md = vscode.Uri.joinPath(this.extensionUri, 'docs', 'composants', `${msg.part}.md`);
-          void vscode.workspace.fs.stat(md).then(
-            () => vscode.commands.executeCommand('markdown.showPreviewToSide', md),
-            () => vscode.window.showInformationMessage(vscode.l10n.t('No help available for this part yet.'))
-          );
+          const lang = vscode.env.language.startsWith('en') ? 'en' : 'fr';
+          const localized = vscode.Uri.joinPath(this.extensionUri, 'docs', 'composants', lang, `${msg.part}.md`);
+          const fallback = vscode.Uri.joinPath(this.extensionUri, 'docs', 'composants', 'fr', `${msg.part}.md`);
+          const openOrFallback = () =>
+            vscode.workspace.fs.stat(localized).then(
+              () => vscode.commands.executeCommand('markdown.showPreviewToSide', localized),
+              // Fiche localisée absente : on retombe sur la fiche FR (toujours présente).
+              () => vscode.workspace.fs.stat(fallback).then(
+                () => vscode.commands.executeCommand('markdown.showPreviewToSide', fallback),
+                () => vscode.window.showInformationMessage(vscode.l10n.t('No help available for this part yet.'))
+              )
+            );
+          void openOrFallback();
         }
         break;
       case 'wokwiExport':

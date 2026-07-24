@@ -46,8 +46,8 @@ La simulation s’appuie sur deux moteurs open-sources embarqués dans l’exten
 - ✅ **Intégrable à Windows**.
 
 
-> 📖 **Guide complet** : [docs/UTILISATION.md](docs/UTILISATION.md) (français)/
-> [docs/USAGE.en.md](docs/USAGE.en.md) (English) — interface, câblage, création
+> 📖 **Guide complet** : [docs/fr/UTILISATION.md](docs/fr/UTILISATION.md) (français)/
+> [docs/en/USAGE.md](docs/en/USAGE.md) (English) — interface, câblage, création
 > de composants personnalisés (avec prompt IA), format `.kablix-part.json`,
 > sources de composants existants.
 >

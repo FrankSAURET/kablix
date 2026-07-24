@@ -1,5 +1,17 @@
 # À faire
 
+# v2026.7.171 — audit, i18n des fiches composants, allègement marketplace
+1. ✅ **Audit bugs** : `npm run typecheck` + `npm run verify:all` verts (exit 0, 30 contrôles export/rechargement OK). Aucune régression.
+2. ✅ **Orthographe FR** : scan des 46 fichiers FR (docs + `l10n/bundle.l10n.fr.json` + `package.nls.fr.json`). Une seule faute : « surement » → « sûrement » dans `docs/fr/Modifier-svg-composants.md`. Strings utilisateur FR impeccables. Fichiers EN non touchés (demande Frank).
+3. ✅ **Fichiers inutiles** : fiche [docs/fichiers-inutiles.md](docs/fichiers-inutiles.md) (rien supprimé, liens + explications). Repérés : `README copy.md` (doublon v0.6.0), `ks.svg` (orphelin), `debug.log`, `media/accroche2.png` (orphelin 1,7 Mo), `uno-pinout.svg.bak`.
+4. ✅ **i18n fiches composants** : `docs/composants/fr/` + `en/`, `img/` PARTAGÉ (non dupliqué). Les 40 fiches FR déplacées (`git mv`, refs `img/` → `../img/`). `panel.ts` choisit la langue selon `vscode.env.language` (en si commence par « en », repli FR si fiche EN absente).
+5. ✅ **40 fiches EN traduites** (parité 40/40, aucun résidu FR). Liens croisés inter-fiches (alim/pca9685) conservés dans le même dossier langue.
+6. ✅ **Guides principaux rangés par langue** : `docs/fr/UTILISATION.md`, `docs/en/USAGE.md`, `docs/fr/Modifier-svg-composants.md`, `docs/en/Editing-svg-components.md` (refs relatives `../` → `../../`, liens croisés corrigés).
+7. ✅ **Tous les liens mis à jour** : `help.ts` (DOC_URL/DOC_URL_EN + libellés), `README.md`, `package.nls.fr.json`, `package.nls.json`, liens croisés docs. Plus aucun lien vers les anciens chemins.
+8. ✅ **Taille marketplace** : `.vscodeignore` étendu (README copy, ks.svg, debug.log, `*.log`, PROGRESSION.md, accroche2.png, guides SVG, UTILISATION/USAGE non lus en local, 5 images de guide, fichiers-inutiles.md). Paquet : 173 → 165 fichiers, ~2 Mo exclus. `vsce ls` vérifié.
+9. ✅ typecheck + build verts.
+10. ⬜ À VALIDER EN F5 : bouton d'aide d'un composant ouvre la fiche FR (VS Code en FR) / EN (VS Code en EN, repli FR si absente).
+
 # v2026.7.170 — régression labels de segments a-g sur les schémas internes
 1. ✅ **Labels de segments a-g restaurés** sur les schémas internes 1 digit, 2 digit et 4 digit AVEC horloge (le 4 digit sans horloge était le seul intact). Perdus à la régénération v2026.7.162 : le script `_clean-7seg-schema.mjs` supprime tous les `<text>` (labels de broche) et rasait aussi les a-g, absents des `.edit.svg` (posés à la main dans les `.clean.svg` en v160/161).
 2. ✅ **Anti re-régression** : `_clean-7seg-schema.mjs` réinjecte désormais le groupe `<g id="seg-labels">` APRÈS nettoyage. Positions du digit 1 en dur (`SEG_D1`) + décalage X par digit (`DIGIT_DX`), généré selon le champ `digits` de chaque job. 1dig/2dig/4dig régénérés (clean + `.anode` via flip) → 7 / 14 / 28 labels.
