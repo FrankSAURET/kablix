@@ -11,6 +11,7 @@
   "kablix.cmd.upgradePicoFirmware": "Kablix: Upgrade Pico firmware",
   "kablix.cmd.openHelp": "Kablix: Help",
   "kablix.cmd.saveDefaultLayout": "Kablix: Save the default layout",
+  "kablix.cmd.associateProjix": "Kablix: Associate .projix files with Kablix",
   "kablix.view.home": "Simulator",
   "kablix.welcome": "Arduino Uno / Raspberry Pi Pico simulator, 100% offline.\n[▶ Open the simulator](command:kablix.openSimulator)\n[📂 Open a project (.projix)](command:kablix.openProject)\n[⚙ Compile & run the active file](command:kablix.compileAndRun)\n[↑ Load the workspace artifact](command:kablix.loadWorkspaceArtifact)\n[📖 Documentation](https://github.com/franksauret/kablix/blob/main/docs/USAGE.en.md)",
   "kablix.config.micropythonUf2": "Path (absolute or workspace-relative) of the MicroPython .uf2 firmware used to run .py files on the simulated Pico. Leave empty: Kablix auto-detects a firmware in the workspace, and otherwise offers to download the official firmware on first run.",

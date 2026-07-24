@@ -5,6 +5,7 @@ import { promptLibraryUpdates } from './updates';
 import { upgradeFirmware, checkFirmwareUpdate } from './firmware';
 import { saveDefaultLayout, applyDefaultLayout } from './layout';
 import { registerProjixEditor, ProjixEditorProvider } from './projix-editor';
+import { associateProjix, promptProjixAssociationOnFirstRun } from './associate';
 
 const l10n = vscode.l10n;
 
@@ -96,8 +97,14 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.commands.registerCommand('kablix.saveDefaultLayout', () => {
       void saveDefaultLayout(context);
+    }),
+    vscode.commands.registerCommand('kablix.associateProjix', () => {
+      void associateProjix(context);
     })
   );
+
+  // Première activation (Windows) : propose une seule fois d'associer les .projix.
+  void promptProjixAssociationOnFirstRun(context);
 
   // Vérification au démarrage, opt-in et non bloquante (silence si à jour).
   const checkOnStartup = vscode.workspace

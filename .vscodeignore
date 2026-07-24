@@ -44,6 +44,11 @@ Kablix.png
 K.png
 KN&B.png
 KablixMini.png
+# kablix.ico racine = source ; la copie packagée est media/kablix.ico.
+kablix.ico
+K2.png
+k3.png
+k.svg
 
 # --- Ressources non utilisées à l'exécution ---
 # parts/ : composants d'exemple importables — distribués via GitHub, pas dans le vsix.

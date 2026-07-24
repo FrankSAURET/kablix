@@ -1,5 +1,13 @@
 # À faire
-(vide — à valider en F5 : voir v167)
+(rien)
+
+# v2026.7.168 — icône Kablix pour .projix, proposition au 1er lancement, commande d'association
+1. ✅ **Le script `outils/associer-projix-windows.ps1` pose l'icône `kablix.ico`** (au lieu de celle de VS Code). Nouveau paramètre `-IconPath` (fourni automatiquement par l'extension = `media/kablix.ico`) ; l'icône est copiée dans un emplacement STABLE `%LOCALAPPDATA%\Kablix\kablix.ico` (survit aux mises à jour d'extension, qui changent le dossier de version) et le registre `Kablix.projix\DefaultIcon` pointe dessus. Fallback si `-IconPath` absent : cherche `kablix.ico` à côté du script / racine repo / `media/`. `-Remove` supprime aussi l'icône copiée. `SHChangeNotify(SHCNE_ASSOCCHANGED)` pour rafraîchir l'Explorateur sans reconnexion. Association posée et vérifiée sur la machine (registre + icône copiée OK).
+2. ✅ **Proposition d'association au PREMIER lancement** (Windows uniquement). Nouveau module `src/associate.ts` : `promptProjixAssociationOnFirstRun` s'exécute à l'activation, propose une notification « Associer / Plus tard » UNE SEULE fois (drapeau `kablix.projixAssociationPrompted` en globalState, posé quel que soit le choix → plus jamais redemandé). « Associer » → lance le script.
+3. ✅ **Nouvelle commande `kablix.associateProjix`** — « Kablix : Associer les fichiers .projix à Kablix ». `associateProjix()` lance le script PowerShell packagé (`execFile powershell.exe -File … -IconPath media/kablix.ico`) sous barre de progression, avec message de succès/erreur. Déclarée dans package.json (catégorie Kablix) + libellés nls FR/EN + chaînes l10n FR du bundle.
+4. ✅ `media/kablix.ico` (copie packagée dans le vsix, `vsce ls` confirme `outils/…ps1` + `media/kablix.ico`) ; `kablix.ico`/`K2.png`/`k3.png`/`k.svg` racine ajoutés à `.vscodeignore` (sources hors paquet).
+5. ✅ typecheck + build verts.
+6. ⬜ À VALIDER EN F5 / vsix : 1er lancement propose l'association · commande « Associer les .projix » · double-clic .projix Windows → icône Kablix + ouverture dans l'éditeur Kablix.
 
 # v2026.7.167 — alim sous les câbles, carte 16 servo qui grille, lot layout/UX
 1. ✅ **Alim ne passe plus devant les câbles en simulation.** Cause : `.part--sim-active` (z=60) hissait l'alim (`simControl`, gros dessin traversé de fils) au-dessus du câblage (z=5) au lancement de la sim. Fix : les composants `kind:'psu'` restent SOUS les fils en sim (classe `.part--sim-under-wires`, editor.mts `keepUnderWires`) ; leur bouton de tension SVG reste cliquable (`pointer-events:auto`). Les capteurs à `<input>` HTML gardent le hoisting z=60.

@@ -1,5 +1,12 @@
 {
   "Kablix — Simulator": "Kablix — Simulateur",
+  "File association is only available on Windows.": "L'association de fichiers n'est disponible que sous Windows.",
+  "Associating .projix files…": "Association des fichiers .projix…",
+  "Could not associate .projix files: {0}": "Impossible d'associer les fichiers .projix : {0}",
+  ".projix files are now associated with Kablix. Double-click a .projix file in Explorer to open it.": "Les fichiers .projix sont maintenant associés à Kablix. Double-cliquez un fichier .projix dans l'Explorateur pour l'ouvrir.",
+  "Associate .projix files with Kablix so a double-click in Explorer opens them (with the Kablix icon)?": "Associer les fichiers .projix à Kablix pour qu'un double-clic dans l'Explorateur les ouvre (avec l'icône Kablix) ?",
+  "Associate": "Associer",
+  "Not now": "Plus tard",
   "Kablix: no active file to compile.": "Kablix : aucun fichier actif à compiler.",
   "Preparing…": "Préparation…",
   "Kablix: compiling ({0})…": "Kablix : compilation ({0})…",
