@@ -1,7 +1,15 @@
 # À faire
-1. Retouche l'organisation de docs. en, fr et img à la racine de docs puis dans chacun le dossier composants. Bien sûr les fichiers des 2 langues vont dans leurs dossier respectifs. Tu retouche tous les liens. Et ils sont tous intégrés à l'extension si publish
 1. une autre régression. Le routage automatique reroute des bons fils (droit horizontaux ou verticaux directement connectés aux pins des composant ).  Recherche dans ta mémoire ma définition complète de "bon fil" et vérifie qu'on ne le reroute en aucun cas. J'ai même des fils qui traversent des composants.
 1. une autre régression.Si la pico pi (ou w) est enfiché sur la grove, elle doit toujours rester au premier plan
+1. Si je sélectionne et déplace plusieurs coude et que je maintient CTRL, le déplacement ne doit être qu'horizontal ou vertical si je relache CTRL il redevient libre
+
+# v2026.7.175 — réorganisation docs/ (langue au 1er niveau, composants au 2e, img partagé)
+1. ✅ **Structure inversée** : `docs/{fr,en,img}/` à la racine, `composants/` dans chacun. `docs/composants/fr` → `docs/fr/composants`, `docs/composants/en` → `docs/en/composants`, `docs/composants/img` → `docs/img/composants` (`git mv`, historique conservé). Les guides `docs/fr/`, `docs/en/` étaient déjà bien placés (inchangés).
+2. ✅ **80 fiches réécrites** : refs images `](../img/x.png)` → `](../../img/composants/x.png)` (fiche descend d'un niveau, img remonte à racine docs + composants). Liens inter-fiches (alim/pca9685, même dossier) et liens Wokwi (URL) inchangés. 0 reste `../img/`.
+3. ✅ **panel.ts** : chemin d'aide locale `docs/composants/<lang>` → `docs/<lang>/composants` (localized + fallback FR). Commentaires editor.mts mis à jour.
+4. ✅ **verify-psu.mjs** recalé sur `docs/fr/composants/` (base de résolution des refs relatives). `.vscodeignore` : commentaire à jour, aucune règle n'exclut fiches/images → intégrées au vsix.
+5. ✅ typecheck + verify:psu verts.
+6. ⬜ À VALIDER EN F5 : bouton d'aide d'un composant ouvre la fiche (FR/EN) avec son image affichée.
 
 # v2026.7.174 — régression : nom du code proposé pour un .projix untitled avec code
 1. ✅ **Nom du code par défaut à l'enregistrement** (bouton Enregistrer + Ctrl+S). Cause : la migration CustomEditor (v164) a supprimé le save maison qui posait `defaultUri: codeFileUri` ; VS Code appelait `saveCustomDocumentAs` avec le nom de l'untitled (« Nouveau projet.projix »).

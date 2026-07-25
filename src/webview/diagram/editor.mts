@@ -159,7 +159,7 @@ export class Editor {
   onPartAdded: ((part: Part) => void) | null = null;
   /** Appelé pour ouvrir un lien externe (doc Wokwi d'un composant). */
   onOpenExternal: ((url: string) => void) | null = null;
-  /** Appelé pour ouvrir l'aide locale d'un composant (fiche docs/composants/<type>.md). */
+  /** Appelé pour ouvrir l'aide locale d'un composant (fiche docs/<lang>/composants/<type>.md). */
   onComponentHelp: ((type: string) => void) | null = null;
   /**
    * Appelé quand la sélection change : `schema` indique si le composant
@@ -4267,7 +4267,7 @@ export class Editor {
     subtitle.textContent = t(def.label);
     this.inspector.appendChild(subtitle);
 
-    // Bouton d'aide locale sur le composant (fiche FR hors-ligne, docs/composants).
+    // Bouton d'aide locale sur le composant (fiche hors-ligne, docs/<lang>/composants).
     // Affiché pour les composants intégrés (les composants perso n'ont pas de fiche).
     if (def.tag !== 'kablix-custom-part') {
       const help = document.createElement('button');

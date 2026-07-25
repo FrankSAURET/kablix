@@ -1016,12 +1016,12 @@ export class SimulatorPanel {
         void vscode.env.openExternal(vscode.Uri.parse('https://github.com/FrankSAURET/kablix'));
         break;
       case 'componentHelp':
-        // Aide locale (hors-ligne) d'un composant : aperçu de docs/composants/<lang>/<type>.md.
+        // Aide locale (hors-ligne) d'un composant : aperçu de docs/<lang>/composants/<type>.md.
         // La langue suit VS Code (en si elle commence par « en », fr sinon = repli).
         if (typeof msg.part === 'string' && /^[a-z0-9-]+$/i.test(msg.part)) {
           const lang = vscode.env.language.startsWith('en') ? 'en' : 'fr';
-          const localized = vscode.Uri.joinPath(this.extensionUri, 'docs', 'composants', lang, `${msg.part}.md`);
-          const fallback = vscode.Uri.joinPath(this.extensionUri, 'docs', 'composants', 'fr', `${msg.part}.md`);
+          const localized = vscode.Uri.joinPath(this.extensionUri, 'docs', lang, 'composants', `${msg.part}.md`);
+          const fallback = vscode.Uri.joinPath(this.extensionUri, 'docs', 'fr', 'composants', `${msg.part}.md`);
           const openOrFallback = () =>
             vscode.workspace.fs.stat(localized).then(
               () => vscode.commands.executeCommand('markdown.showPreviewToSide', localized),

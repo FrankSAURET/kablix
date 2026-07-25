@@ -48,17 +48,17 @@ check('catalogue : propriétés voltage (0-30) et maxcurrent',
   def.props?.some((p) => p.attr === 'voltage' && p.max === 30) &&
   def.props?.some((p) => p.attr === 'maxcurrent'));
 
-// --- Aide locale (bouton d'aide de l'inspecteur → docs/composants/<type>.md) ----
+// --- Aide locale (bouton d'aide de l'inspecteur → docs/<lang>/composants/<type>.md) ----
 // Le bouton est affiché pour TOUT composant intégré : sans la fiche, il n'ouvre
 // rien et affiche « Aucune aide disponible ».
-const helpMd = join(root, 'docs', 'composants', 'fr', `${def.type}.md`);
-check('aide : fiche docs/composants/fr/alim.md présente', existsSync(helpMd));
+const helpMd = join(root, 'docs', 'fr', 'composants', `${def.type}.md`);
+check('aide : fiche docs/fr/composants/alim.md présente', existsSync(helpMd));
 if (existsSync(helpMd)) {
   const md = readFileSync(helpMd, 'utf8');
   // Chaque image et chaque lien relatif de la fiche doit exister (l'aperçu
   // Markdown de VS Code affiche sinon une image cassée / un lien mort).
   const refs = [...md.matchAll(/\]\((?!https?:)([^)#]+)\)/g)].map((m) => decodeURIComponent(m[1]));
-  const missing = refs.filter((r) => !existsSync(join(root, 'docs', 'composants', 'fr', r)));
+  const missing = refs.filter((r) => !existsSync(join(root, 'docs', 'fr', 'composants', r)));
   check(`aide : images et liens relatifs valides (${refs.length} réf.)${missing.length ? ` — manquant : ${missing.join(', ')}` : ''}`,
     refs.length > 0 && missing.length === 0);
   // Points que la fiche doit couvrir : bornes, plage du bouton, limitation.

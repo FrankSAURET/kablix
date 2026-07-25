@@ -87,7 +87,7 @@ examples/**
 # firmware : seul rp2040_ram.ld sert (script de lien de la compilation Pico).
 firmware/avr/**
 firmware/**/*.c
-# docs de développement (les fiches docs/composants/{fr,en}/*.md restent : aide locale).
+# docs de développement (les fiches docs/{fr,en}/composants/*.md + docs/img/composants/ restent : aide locale).
 docs/DEBOGAGE.md
 docs/fr/Modifier-svg-composants.md
 docs/en/Editing-svg-components.md
