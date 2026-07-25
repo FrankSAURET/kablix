@@ -1,5 +1,11 @@
 # À faire
 
+# v2026.7.172 — vsix allégé (vitrine README servie via GitHub)
+1. ✅ **Vitrine README hébergée sur GitHub** : les 3 GIF de démo + `accroche.png` + `KNB.png` (~14 Mo) sont servis via `https://raw.githubusercontent.com/FrankSAURET/kablix/main/media/...` (le marketplace charge les images distantes). Refs README réécrites (5), URL raw testée (HTTP 200). Assets restent versionnés sur GitHub.
+2. ✅ **Sortis du vsix** : les 5 assets vitrine + `.github/**` + `patches/**` (patch dev rp2040js) via `.vscodeignore`. `outils/associer-projix-windows.ps1` CONSERVÉ (chargé à l'exécution par `associate.ts`).
+3. ✅ **Poids vsix : 20,61 Mo → 3,83 Mo** (`media/` 17,53 Mo → 625 Ko). 167 → 158 fichiers.
+4. ✅ vsix construit : `kablix-2026.7.172.vsix`.
+
 # v2026.7.171 — audit, i18n des fiches composants, allègement marketplace
 1. ✅ **Audit bugs** : `npm run typecheck` + `npm run verify:all` verts (exit 0, 30 contrôles export/rechargement OK). Aucune régression.
 2. ✅ **Orthographe FR** : scan des 46 fichiers FR (docs + `l10n/bundle.l10n.fr.json` + `package.nls.fr.json`). Une seule faute : « surement » → « sûrement » dans `docs/fr/Modifier-svg-composants.md`. Strings utilisateur FR impeccables. Fichiers EN non touchés (demande Frank).

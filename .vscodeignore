@@ -1,8 +1,10 @@
 # --- Sources et outillage (jamais dans le paquet) ---
 .vscode/**
+.github/**
 .claude/**
 src/**
 scripts/**
+patches/**
 node_modules/**
 esbuild.js
 tsconfig.json
@@ -67,6 +69,13 @@ media/Gomme.png
 media/Boum.gif
 # media/accroche2.png : orphelin (aucun README/doc/code ne le charge) — 1,7 Mo.
 media/accroche2.png
+# Vitrine README (GIF de démo + accroche + logo KNB) : ~14 Mo, servis via URL raw.githubusercontent
+# (le marketplace charge les images distantes) → hors vsix. Restent versionnés sur GitHub.
+media/accroche.png
+media/KNB.png
+media/demarrer.gif
+media/dessiner.gif
+media/simuler.gif
 # Images servant UNIQUEMENT aux guides UTILISATION/USAGE (exclus du vsix, lus via GitHub).
 media/BarreDessin.png
 media/BarreSimulation.png
