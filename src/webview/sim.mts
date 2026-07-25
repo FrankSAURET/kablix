@@ -85,6 +85,7 @@ import {
   pca9685Bindings,
   rgbLedBindings,
   sevenSegmentBindings,
+  sevenSegmentMuxBindings,
   neopixelBindings,
   lcdParallelBindings,
   spiDeviceBindings,
@@ -93,6 +94,7 @@ import {
   VARIABLE_RESISTOR_TYPES,
   type Part,
   type Pca9685Binding,
+  type SevenSegmentMuxBinding,
 } from './diagram/model.mjs';
 import { AvrEngine } from './engines/avr.mjs';
 import { PicoEngine, type PicoProgram } from './engines/pico.mjs';
@@ -258,6 +260,12 @@ let spiTftDevices = new Map<string, Ili9341Device>();
 // chaque chiffre (le balayage n'éclaire qu'un chiffre à la fois ; on conserve la
 // dernière valeur connue de chacun pour reconstituer l'affichage complet).
 let sevenSegLatch = new Map<string, number[]>();
+// Afficheurs 7 segments multiplexés : broches MCU (segments + communs de chiffre)
+// résolues UNE FOIS au démarrage. Le latch ci-dessus est alimenté par
+// `sampleSevenSegLatches()` à CHAQUE front GPIO (haute fréquence, temps simulé),
+// et non plus au seul rythme du rendu — sinon on rate les chiffres brièvement
+// actifs (~2 ms) et l'affichage défile chiffre par chiffre.
+let sevenSegMux: SevenSegmentMuxBinding[] = [];
 // Afficheur 7 segments à 1 chiffre : anti-scintillement. Un script MicroPython
 // (interprété, donc lent face à l'AVR compilé) écrit ses broches de segment une
 // par une ; l'écart réel entre deux écritures peut dépasser plusieurs frames de
@@ -581,6 +589,41 @@ function queueRefresh(): void {
   });
 }
 
+/**
+ * Échantillonne le latch des afficheurs 7 segments MULTIPLEXÉS. Appelée à CHAQUE
+ * front GPIO (via engine.onUpdate, non coalescé) — donc en temps simulé, bien
+ * plus souvent que le rendu (~16 ms). Chaque chiffre n'est éclairé que ~2 ms par
+ * le balayage : à la seule cadence du rAF on en ratait la plupart (affichage qui
+ * défile chiffre par chiffre). Ici on lit directement les broches MCU
+ * pré-résolues (pas de buildNets), on repère le chiffre actif et on mémorise ses
+ * segments ; le rendu lit ensuite ce latch complet. Coût : quelques lectures de
+ * broches par binding, négligeable devant un rebâtissage de nets.
+ */
+function sampleSevenSegLatches(): void {
+  if (!engine || sevenSegMux.length === 0) return;
+  for (const b of sevenSegMux) {
+    let latch = sevenSegLatch.get(b.partId);
+    if (!latch || latch.length !== b.digits * 8) {
+      latch = new Array(b.digits * 8).fill(0);
+      sevenSegLatch.set(b.partId, latch);
+    }
+    for (let d = 0; d < b.digits; d++) {
+      const digPin = b.digitPins[d];
+      if (!digPin) continue;
+      const common = engine.readDigital(digPin) ? 1 : 0; // niveau du commun de ce chiffre
+      const active = b.commonAnode ? common === 1 : common === 0;
+      if (!active) continue; // chiffre éteint : on garde sa dernière valeur (latch)
+      for (let s = 0; s < 8; s++) {
+        const segPin = b.segPins[s];
+        const seg = segPin ? (engine.readDigital(segPin) ? 1 : 0) : (b.commonAnode ? 1 : 0);
+        latch[d * 8 + s] = b.commonAnode
+          ? (seg === 0 && common === 1 ? 1 : 0)
+          : (seg === 1 && common === 0 ? 1 : 0);
+      }
+    }
+  }
+}
+
 // Boucle de rendu continue (découplée du moteur) pendant toute la simulation.
 // Nécessaire car une mise à jour PONCTUELLE du calque transformé du canvas (LCD
 // écrit une fois puis inactif) n'est pas toujours repeinte par le navigateur : la
@@ -862,9 +905,11 @@ function refreshVisuals(): void {
           }
           vals = stable.shown.slice();
         } else {
-          // Multiplexage : on échantillonne le chiffre actuellement sélectionné
-          // (broche DIGn active) et on mémorise ses segments ; les autres gardent
-          // leur dernière valeur connue → l'affichage complet reste stable.
+          // Multiplexage : le latch est alimenté à HAUTE FRÉQUENCE (à chaque front
+          // GPIO) par sampleSevenSegLatches — chaque chiffre bref est capté. Ici,
+          // au rendu, on lit simplement le latch complet. `conducting` (état
+          // INSTANTANÉ du chiffre actif, pour le grillage électrique) reste calculé
+          // à la volée par sevenSegmentDigit.
           let latch = sevenSegLatch.get(part.id);
           if (!latch || latch.length !== digits * 8) {
             latch = new Array(digits * 8).fill(0);
@@ -876,7 +921,6 @@ function refreshVisuals(): void {
               editor.diagram, part.id, read, `DIG${d + 1}`, commonAnode
             );
             if (active) for (let s = 0; s < 8; s++) {
-              latch[d * 8 + s] = values[s];
               conducting[d * 8 + s] = values[s]; // segment piloté MAINTENANT
             }
           }
@@ -1120,6 +1164,10 @@ function bindInputs(): void {
   rgbLedTargets = new Map(rgbLeds.map((b) => [b.partId, { r: b.r, g: b.g, b: b.b }]));
   const sevenSegs = sevenSegmentBindings(editor.diagram);
   sevenSegTargets = new Map(sevenSegs.map((b) => [b.partId, b.segments]));
+  // Multiplexés (≥ 2 chiffres) : broches résolues une fois pour l'échantillonnage
+  // haute fréquence du latch (cf. sampleSevenSegLatches).
+  sevenSegMux = sevenSegmentMuxBindings(editor.diagram);
+  sevenSegLatch = new Map();
   engine.setPulseMonitors?.([
     ...servoBindings(editor.diagram).map((b) => b.mcuPin),
     ...buzzers.map((b) => b.mcuPin),
@@ -1869,7 +1917,13 @@ function startRun(): void {
     setStatus(t('Error: {0}', err instanceof Error ? err.message : String(err)));
     return;
   }
-  engine.onUpdate = queueRefresh;
+  // À chaque front GPIO : échantillonner le latch des 7 segments multiplexés
+  // (haute fréquence, indispensable pour capter chaque chiffre bref) PUIS
+  // demander un rendu (coalescé au rAF).
+  engine.onUpdate = () => {
+    sampleSevenSegLatches();
+    queueRefresh();
+  };
   // Le flux série passe par le traceur : les lignes de télémétrie Teleplot
   // (`>nom:valeur`) sont absorbées et tracées, le reste va à la console.
   engine.onSerial = (chunk) => {

@@ -1048,6 +1048,42 @@ export function sevenSegmentBindings(diagram: Diagram): SevenSegmentBinding[] {
   return bindings;
 }
 
+export interface SevenSegmentMuxBinding {
+  partId: string;
+  digits: number;
+  commonAnode: boolean;
+  /** Broche MCU de chaque segment A..DP (index 0..7), null si non câblé. */
+  segPins: (string | null)[];
+  /** Broche MCU de chaque broche commune DIG1..DIGn, null si non câblé. */
+  digitPins: (string | null)[];
+}
+
+/**
+ * Afficheurs 7 segments MULTIPLEXÉS (≥ 2 chiffres) : broche MCU de chaque
+ * segment et de chaque commun de chiffre, RÉSOLUE UNE FOIS (buildNets coûteux).
+ * Permet ensuite d'échantillonner le latch d'affichage à HAUTE FRÉQUENCE (à
+ * chaque front GPIO) par de simples lectures de broches, sans rebâtir les nets.
+ * Sans ça, le latch n'était rafraîchi qu'au rythme du rendu (~16 ms) alors que
+ * chaque chiffre n'est actif que ~2 ms → des chiffres étaient ratés (affichage
+ * « chiffre par chiffre », très lent).
+ */
+export function sevenSegmentMuxBindings(diagram: Diagram): SevenSegmentMuxBinding[] {
+  const nets = buildNets(diagram);
+  const out: SevenSegmentMuxBinding[] = [];
+  for (const part of diagram.parts) {
+    if (partDef(part.type).kind !== '7segment') continue;
+    const digits = Math.max(1, Number(part.attrs?.digits ?? 1) || 1);
+    if (digits <= 1) continue; // 1 chiffre : lissé par sevenSegStable
+    const pinOf = (pin: string): string | null =>
+      mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin }));
+    const segPins = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'DP'].map(pinOf);
+    const digitPins: (string | null)[] = [];
+    for (let d = 0; d < digits; d++) digitPins.push(pinOf(`DIG${d + 1}`));
+    out.push({ partId: part.id, digits, commonAnode: part.attrs?.common === 'anode', segPins, digitPins });
+  }
+  return out;
+}
+
 export interface Pca9685Binding {
   /** Identifiant du PCA9685. */
   partId: string;
