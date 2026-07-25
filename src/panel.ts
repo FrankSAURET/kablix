@@ -188,6 +188,9 @@ export class SimulatorPanel {
    *  poste : ▶ refuse alors de compiler l'éditeur actif à la place (on
    *  compilerait le fichier d'un AUTRE projet sans que l'utilisateur le voie). */
   private missingCodeFileRef: string | undefined;
+  /** Fichier de code d'un projet qui vient d'être chargé, à MONTRER dès que la
+   *  disposition est posée (voir revealPendingCodeFile). */
+  private pendingCodeReveal: vscode.Uri | undefined;
   /** Décoration de la ligne en pause (créée à la demande, détruite avec le panneau). */
   private debugLineDecoration: vscode.TextEditorDecorationType | undefined;
   /**
@@ -696,6 +699,7 @@ export class SimulatorPanel {
     abs?: string
   ): Promise<void> {
     this.setCodeFile(undefined);
+    this.pendingCodeReveal = undefined; // jamais le programme du projet PRÉCÉDENT
     if (!ref && !abs) return;
     const candidates: vscode.Uri[] = [];
     if (ref) {
@@ -718,6 +722,9 @@ export class SimulatorPanel {
       try {
         await vscode.workspace.fs.stat(uri);
         this.setCodeFile(uri);
+        // Le programme du projet s'ouvre AUSSI dans le volet de code, mais
+        // seulement une fois la disposition posée (revealPendingCodeFile).
+        this.pendingCodeReveal = uri;
         return;
       } catch {
         // candidat absent : on essaie le suivant
@@ -761,6 +768,31 @@ export class SimulatorPanel {
       preview: false,
       preserveFocus,
     });
+  }
+
+  /**
+   * Ouvre le programme du projet qui vient d'être chargé, côté code, SANS voler
+   * le focus : il reste sur Kablix (demande de Frank — on veut voir le code du
+   * projet, pas y travailler tout de suite).
+   *
+   * Volontairement DIFFÉRÉ jusqu'à la pose de la disposition (appelée par
+   * projix-editor après applyDefaultLayout/lockSimulatorGroup) : ouvrir l'onglet
+   * pendant `resolveCustomEditor` volerait l'activation au .projix, or le layout
+   * attend `panel.active` — il ne se poserait jamais, et le groupe du simulateur
+   * n'étant pas encore verrouillé le code atterrirait DANS le groupe de Kablix.
+   */
+  public async revealPendingCodeFile(): Promise<void> {
+    const uri = this.pendingCodeReveal;
+    this.pendingCodeReveal = undefined;
+    if (!uri) return;
+    // Artefact compilé : binaire, aucun intérêt à l'afficher.
+    if (/\.(hex|uf2|elf|bin)$/i.test(uri.fsPath)) return;
+    try {
+      await this.revealSource(uri, true);
+      this.panel.reveal(undefined, false); // focus rendu à Kablix
+    } catch {
+      // fichier illisible / disparu entre-temps : on n'ouvre rien
+    }
   }
 
   /** Ouvre le fichier de code courant dans le volet d'édition (côté code, opposé à Kablix). */
@@ -1375,6 +1407,9 @@ export class SimulatorPanel {
 
       const bytes = await vscode.workspace.fs.readFile(picked[0]);
       await this.openProjectFromBytes(bytes, picked[0]);
+      // Disposition déjà posée ici (projet ouvert depuis un atelier existant) :
+      // le programme peut être montré tout de suite.
+      await this.revealPendingCodeFile();
       vscode.window.showInformationMessage(
         l10n.t('Kablix: project {0} loaded.', picked[0].fsPath.split(/[\\/]/).pop() ?? '')
       );

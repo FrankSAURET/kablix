@@ -389,6 +389,49 @@ ok('panel.ts : openCodeFile et la ligne de débogage passent par revealSource',
   (panelSrc.match(/this\.revealSource\(/g) ?? []).length >= 2
   && /private async revealSource\(/.test(panelSrc));
 
+// 15. v2026.7.188 — à l'ouverture d'un projet, son programme s'ouvre AUSSI, à
+//     côté, sans voler le focus à Kablix. Le point délicat est le MOMENT :
+//     ouvrir l'onglet pendant resolveCustomEditor volerait l'activation au
+//     .projix (le layout attend `panel.active`) et le code atterrirait dans le
+//     groupe de Kablix, pas encore verrouillé.
+const editorSrc = readFileSync(join(ROOT, 'src', 'projix-editor.ts'), 'utf8');
+ok('ouverture : le programme du projet est retenu pour être montré (pendingCodeReveal)',
+  /this\.pendingCodeReveal = uri;/.test(panelSrc) && /public async revealPendingCodeFile\(/.test(panelSrc));
+ok('ouverture : montré SANS voler le focus (revealSource preserveFocus) et focus rendu à Kablix',
+  /revealPendingCodeFile[\s\S]{0,900}?this\.revealSource\(uri, true\)[\s\S]{0,200}?this\.panel\.reveal\(undefined, false\)/.test(panelSrc));
+ok('ouverture : un artefact compilé (.hex/.uf2/.elf/.bin) n’est jamais ouvert',
+  /revealPendingCodeFile[\s\S]{0,600}?\\\.\(hex\|uf2\|elf\|bin\)\$/.test(panelSrc));
+ok('ouverture : le programme du projet PRÉCÉDENT est oublié (remis à undefined)',
+  /restoreCodeFile[\s\S]{0,400}?this\.pendingCodeReveal = undefined;/.test(panelSrc));
+ok('ouverture : le .projix montre le code APRÈS la disposition et le verrou du groupe',
+  editorSrc.indexOf('revealPendingCodeFile') > editorSrc.indexOf('lockSimulatorGroup()')
+  && editorSrc.indexOf('lockSimulatorGroup()') > editorSrc.indexOf('applyDefaultLayout(this.context)'),
+  `layout=${editorSrc.indexOf('applyDefaultLayout(this.context)')} lock=${editorSrc.indexOf('lockSimulatorGroup()')} reveal=${editorSrc.indexOf('revealPendingCodeFile')}`);
+ok('ouverture : « Ouvrir un projet » (dialogue) montre lui aussi le programme',
+  /openProjectFromBytes\(bytes, picked\[0\]\);[\s\S]{0,300}?await this\.revealPendingCodeFile\(\);/.test(panelSrc));
+
+// 16. v2026.7.188 — le panneau d'accueil est réduit à UN bouton. La VUE reste
+//     déclarée : c'est elle qui porte l'icône de la barre d'activité et le
+//     déclencheur d'ouverture (extension.ts, onDidChangeVisibility).
+const manifest = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+const nlsEn = JSON.parse(readFileSync(join(ROOT, 'package.nls.json'), 'utf8'));
+const nlsFr = JSON.parse(readFileSync(join(ROOT, 'package.nls.fr.json'), 'utf8'));
+const links = (s) => [...s.matchAll(/\[[^\]]*\]\(([^)]+)\)/g)].map((m) => m[1]);
+for (const [lang, nls] of [['en', nlsEn], ['fr', nlsFr]]) {
+  ok(`accueil (${lang}) : un seul bouton, « ouvrir le simulateur »`,
+    links(nls['kablix.welcome']).length === 1
+    && links(nls['kablix.welcome'])[0] === 'command:kablix.openSimulator',
+    links(nls['kablix.welcome']).join(' · '));
+}
+ok('accueil : la commande du bouton est bien déclarée dans le manifeste',
+  manifest.contributes.commands.some((c) => c.command === 'kablix.openSimulator'));
+ok('accueil : la vue kablix.home reste déclarée (elle porte l’icône de la barre d’activité)',
+  manifest.contributes.views?.kablix?.some((v) => v.id === 'kablix.home')
+  && manifest.contributes.viewsContainers?.activitybar?.some((c) => c.id === 'kablix'));
+ok('accueil : l’icône Kablix ouvre toujours le simulateur (onDidChangeVisibility)',
+  /createTreeView\('kablix\.home'/.test(readFileSync(join(ROOT, 'src', 'extension.ts'), 'utf8'))
+  && /homeView\.onDidChangeVisibility/.test(readFileSync(join(ROOT, 'src', 'extension.ts'), 'utf8')));
+
 let fail = 0;
 for (const r of checks) {
   if (!r.ok) fail++;

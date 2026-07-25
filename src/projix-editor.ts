@@ -153,8 +153,13 @@ export class ProjixEditorProvider implements vscode.CustomEditorProvider<ProjixD
     // écrasé (grille figée à 50/50) et lockEditorGroup verrouille le mauvais
     // groupe. En CustomEditor le panneau n'est pas actif dès resolveCustomEditor :
     // on attend donc `panel.active` (ou on agit tout de suite s'il l'est déjà).
+    // Le programme du projet (manifest.codeFile) est montré JUSTE APRÈS la
+    // disposition : le groupe du simulateur est alors verrouillé, l'onglet de
+    // code part donc dans l'autre colonne, et le focus revient à Kablix.
     const layout = () => {
-      void applyDefaultLayout(this.context).then(() => lockSimulatorGroup());
+      void applyDefaultLayout(this.context)
+        .then(() => lockSimulatorGroup())
+        .then(() => session.revealPendingCodeFile());
     };
     if (panel.active) {
       setTimeout(layout, 80);

@@ -40,6 +40,8 @@
 
 4. **Enregistrer son montage** : « Kablix : Enregistrer le projet (.projix) » ;
   un `.projix` se rouvre ensuite d'un double-clic dans l'explorateur.
+  À la réouverture, le programme associé au projet s'ouvre **aussi**, dans le
+  volet de code à côté du montage — le curseur, lui, reste dans Kablix.
   Import/export au format Wokwi (`diagram.json`) également disponibles.
 ![Simuler dans Kablix](../../media/simuler.gif)
 

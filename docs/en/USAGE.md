@@ -40,6 +40,8 @@
 
 4. **Save your circuit**: “Kablix: Save the project (.projix)”;
   a `.projix` then reopens with a double-click in Explorer.
+  On reopening, the project's code file opens **too**, in the code pane next to
+  the circuit — while the caret stays in Kablix.
   Import/export in the Wokwi format (`diagram.json`) are also available.
 ![Simulate in Kablix](../../media/simuler.gif)
 
