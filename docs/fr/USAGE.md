@@ -53,8 +53,8 @@ Une zone **« Derniers utilisés »** (10 max) peut rester en tête (troisième 
 ![alt text](<../../media/barre kablix.png>)
     - les fonctions habituelles de gestion de fichier,
     - le bouton Noms qui fait apparaitre le nom sur le composant **sélectionné** ou tous les composants
+    - **réarranger** : rétablit l'organisation Kablix (code d'un côté, Kablix de l'autre, panneaux fermés). Vous pouvez inverser les deux zones et régler leur largeur à la souris, puis **Sauvegarder cette organisation par défaut** (menu hamburger) : le côté de Kablix **et** la largeur sont mémorisés, et « réarranger » les rétablit — y compris en remettant Kablix du côté choisi s'il en a changé depuis. Le fichier de code, lui, n'est jamais ouvert en double : s'il est déjà ouvert (même du mauvais côté), Kablix réutilise son onglet et le replace du côté du code.
     - le menu hamburger pour des fonctions d'utiliation  moins fréquentes.
-    - **réarranger** : rétablit l'organisation Kablix (code d'un côté, Kablix de l'autre, panneaux fermés). Vous pouvez inverser les deux zones et régler leur largeur à la souris, puis **Sauvegarder cette organisation par défaut** (menu hamburger) : le côté de Kablix **et** la largeur sont mémorisés, et « réarranger » les rétablit — y compris en remettant Kablix du côté choisi s'il en a changé depuis.
     - accés à cette aide.
 - **Barre de simulation**
 ![Barre de simulation](../../media/BarreSimulation.png)

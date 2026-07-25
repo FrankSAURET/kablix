@@ -27,6 +27,25 @@ const DEFAULT_CODE_RATIO = 1 / 3;
 export type KablixSide = 'left' | 'right';
 
 /**
+ * Exécute une commande du workbench SANS jamais faire échouer la suite.
+ * `executeCommand` REJETTE sur un id inconnu (« command 'x' not found ») : une
+ * seule commande absente d'une version de VS Code suffisait à interrompre toute
+ * la disposition (la grille n'était plus posée du tout). Chaque étape est donc
+ * indépendante ; l'échec est seulement journalisé.
+ */
+async function run(command: string, arg?: unknown): Promise<boolean> {
+  try {
+    await (arg === undefined
+      ? vscode.commands.executeCommand(command)
+      : vscode.commands.executeCommand(command, arg));
+    return true;
+  } catch (err) {
+    console.warn(`Kablix layout: ${command} — ${err instanceof Error ? err.message : String(err)}`);
+    return false;
+  }
+}
+
+/**
  * Disposition déjà posée pour CETTE session ? Variable de module (pas
  * globalState) : elle repart à false à chaque relance de VS Code, si bien que la
  * disposition est reposée à la première ouverture de chaque session — mais plus
@@ -74,7 +93,7 @@ export async function applyEditorGrid(context: vscode.ExtensionContext): Promise
   const ratio = codeRatio(context);
   const codeLeft = kablixSide(context) === 'right'; // code à gauche ⇔ Kablix à droite
   const sizes = codeLeft ? [ratio, 1 - ratio] : [1 - ratio, ratio];
-  await vscode.commands.executeCommand('vscode.setEditorLayout', {
+  await run('vscode.setEditorLayout', {
     orientation: 0, // 0 = horizontal (colonnes côte à côte)
     groups: [{ size: sizes[0] }, { size: sizes[1] }],
   });
@@ -95,9 +114,9 @@ export async function applyDefaultLayout(
   // Tous panneaux fermés (demande de Frank) : barre latérale (explorateur) ET
   // panneau du bas (terminal/problèmes) fermés — il ne reste que les deux zones
   // d'éditeurs (code d'un côté, Kablix de l'autre).
-  await vscode.commands.executeCommand('workbench.action.closeSidebar');
-  await vscode.commands.executeCommand('workbench.action.closePanel');
-  await vscode.commands.executeCommand('workbench.action.closeAuxiliaryBar');
+  await run('workbench.action.closeSidebar');
+  await run('workbench.action.closePanel');
+  await run('workbench.action.closeAuxiliaryBar');
   // Côté AVANT largeurs : l'échange des groupes emporte leurs tailles, la grille
   // doit donc être reposée après coup.
   await placeKablixSide(context);
@@ -112,7 +131,7 @@ export async function applyDefaultLayout(
  * effet si le groupe est déjà verrouillé (commande idempotente).
  */
 export async function lockSimulatorGroup(): Promise<void> {
-  await vscode.commands.executeCommand('workbench.action.lockEditorGroup');
+  await run('workbench.action.lockEditorGroup');
 }
 
 /**
@@ -139,6 +158,57 @@ function projixColumn(): vscode.ViewColumn | undefined {
 }
 
 /**
+ * Colonne d'un onglet de TEXTE déjà ouvert sur ce fichier, ou `undefined`. Si le
+ * fichier est ouvert plusieurs fois, `preferred` l'emporte (on garde alors
+ * l'onglet du bon côté). Les onglets d'éditeurs personnalisés (le .projix, une
+ * fiche d'aide) portent un `viewType` : ils sont ignorés.
+ */
+export function textTabColumn(
+  uri: vscode.Uri,
+  preferred?: vscode.ViewColumn
+): vscode.ViewColumn | undefined {
+  const wanted = uri.toString();
+  let found: vscode.ViewColumn | undefined;
+  for (const group of vscode.window.tabGroups.all) {
+    for (const tab of group.tabs) {
+      const input = tab.input as { uri?: vscode.Uri; viewType?: string } | undefined;
+      if (!input || typeof input !== 'object' || 'viewType' in input) continue;
+      if (input.uri?.toString() !== wanted) continue;
+      if (group.viewColumn === preferred) return group.viewColumn;
+      found ??= group.viewColumn;
+    }
+  }
+  return found;
+}
+
+/** Commande de déplacement de l'ÉDITEUR actif d'un cran vers la colonne cible. */
+export function editorMoveCommand(current: number, target: number): string | null {
+  if (current === target) return null;
+  return target < current
+    ? 'workbench.action.moveEditorToLeftGroup'
+    : 'workbench.action.moveEditorToRightGroup';
+}
+
+/**
+ * Déplace l'onglet de `uri` (supposé ACTIF) jusqu'à la colonne `target`, un cran
+ * à la fois. Sert à ne PAS ouvrir un second onglet du même fichier quand il est
+ * déjà ouvert du mauvais côté : on repositionne l'existant.
+ *
+ * VS Code n'a pas de `moveEditorToNthGroup` (seuls First/Last/Left/Right
+ * existent) : d'où la boucle, bornée et interrompue dès qu'un déplacement reste
+ * sans effet (colonne relue entre chaque cran).
+ */
+export async function moveEditorToColumn(uri: vscode.Uri, target: vscode.ViewColumn): Promise<void> {
+  for (let step = 0; step < FOCUS_GROUP_COMMANDS.length; step++) {
+    const current = textTabColumn(uri, target);
+    const cmd = current === undefined ? null : editorMoveCommand(current, target);
+    if (!cmd) return;
+    if (!(await run(cmd))) return;
+    if (textTabColumn(uri, target) === current) return; // sans effet : ne pas insister
+  }
+}
+
+/**
  * Commande d'échange des deux groupes pour amener celui de Kablix (colonne
  * `current`) sur la colonne `target`. `null` s'il n'y a rien à faire.
  *
@@ -146,19 +216,43 @@ function projixColumn(): vscode.ViewColumn | undefined {
  * viderait, VS Code fermerait le groupe vide et il ne resterait qu'une colonne.
  * L'échange conserve les deux zones, leurs contenus et le verrou du groupe
  * simulateur (le verrou est une propriété du groupe, il suit le déplacement).
+ *
+ * Les ids sont `moveACTIVEEditorGroupLeft/Right` : `moveEditorGroupLeft/Right`
+ * (v183) n'existe PAS dans VS Code — `executeCommand` rejetait, la disposition
+ * s'arrêtait là et plus rien n'était rétabli, ni le côté ni les largeurs.
  */
 export function groupSwapCommand(current: number, target: number): string | null {
   if (current === target) return null;
   return target < current
-    ? 'workbench.action.moveEditorGroupLeft'
-    : 'workbench.action.moveEditorGroupRight';
+    ? 'workbench.action.moveActiveEditorGroupLeft'
+    : 'workbench.action.moveActiveEditorGroupRight';
 }
 
-/** Donne le focus à un groupe d'éditeur par sa colonne (1 = gauche, 2 = droite). */
-async function focusGroup(column: number): Promise<void> {
-  await vscode.commands.executeCommand(
-    column === 1 ? 'workbench.action.focusFirstEditorGroup' : 'workbench.action.focusSecondEditorGroup'
-  );
+/**
+ * Commandes de focus par NUMÉRO de colonne (1 = gauche). VS Code n'en fournit
+ * que jusqu'à la 8e — au-delà, on ne touche à rien plutôt que de risquer de
+ * déplacer le mauvais groupe.
+ */
+const FOCUS_GROUP_COMMANDS = [
+  'workbench.action.focusFirstEditorGroup',
+  'workbench.action.focusSecondEditorGroup',
+  'workbench.action.focusThirdEditorGroup',
+  'workbench.action.focusFourthEditorGroup',
+  'workbench.action.focusFifthEditorGroup',
+  'workbench.action.focusSixthEditorGroup',
+  'workbench.action.focusSeventhEditorGroup',
+  'workbench.action.focusEighthEditorGroup',
+];
+
+/** Commande de focus du groupe de la colonne donnée, `null` hors des 8 premières. */
+export function focusGroupCommand(column: number): string | null {
+  return FOCUS_GROUP_COMMANDS[column - 1] ?? null;
+}
+
+/** Donne le focus au groupe d'éditeur de la colonne donnée (1 = gauche). */
+async function focusGroup(column: number): Promise<boolean> {
+  const cmd = focusGroupCommand(column);
+  return cmd ? run(cmd) : false;
 }
 
 /**
@@ -169,11 +263,18 @@ async function focusGroup(column: number): Promise<void> {
  */
 async function placeKablixSide(context: vscode.ExtensionContext): Promise<void> {
   if (vscode.window.tabGroups.all.length < 2) return; // une seule zone : rien à échanger
-  const current = projixColumn();
-  const cmd = current === undefined ? null : groupSwapCommand(current, kablixColumn(context));
-  if (!cmd) return;
-  await focusGroup(current as number);
-  await vscode.commands.executeCommand(cmd);
+  const target = kablixColumn(context);
+  // Boucle bornée : avec 3 colonnes ou plus, un seul échange ne suffit pas à
+  // ramener Kablix sur la colonne cible. On relit la colonne réelle à chaque
+  // tour — si la commande reste sans effet, on s'arrête au lieu de tourner.
+  for (let step = 0; step < FOCUS_GROUP_COMMANDS.length; step++) {
+    const current = projixColumn();
+    const cmd = current === undefined ? null : groupSwapCommand(current, target);
+    if (!cmd) return;
+    if (!(await focusGroup(current as number))) return; // groupe hors de portée
+    if (!(await run(cmd))) return;
+    if (projixColumn() === current) return; // sans effet : ne pas insister
+  }
 }
 
 /**

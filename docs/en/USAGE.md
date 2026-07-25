@@ -53,8 +53,8 @@ A **“Recently used”** zone (10 max) can stay at the top (third button). The 
 ![Kablix bar](<../../media/barre kablix.png>)
     - the usual file-management functions,
     - the Names button, which shows the name on the **selected** part or on all parts,
+    - **rearrange**: restores the Kablix layout (code on one side, Kablix on the other, panels closed). You can swap the two zones and set their width with the mouse, then use **Save this layout as the default** (hamburger menu): both the side of Kablix **and** the width are remembered, and “rearrange” restores them — including moving Kablix back to the chosen side if it has changed since. The code file is never opened twice: if it is already open (even on the wrong side), Kablix reuses its tab and moves it back to the code side.
     - the hamburger menu for less frequent functions,
-    - **rearrange**: restores the Kablix layout (code on one side, Kablix on the other, panels closed). You can swap the two zones and set their width with the mouse, then use **Save this layout as the default** (hamburger menu): both the side of Kablix **and** the width are remembered, and “rearrange” restores them — including moving Kablix back to the chosen side if it has changed since.
     - access to this help.
 - **Simulation bar**
 ![Simulation bar](../../media/BarreSimulation.png)

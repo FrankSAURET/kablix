@@ -18,7 +18,7 @@ import {
 } from './projix';
 import { resolveMicropythonFirmware, FirmwareCancelled } from './firmware';
 import { PartHelpPanel } from './partHelp';
-import { codeColumn } from './layout';
+import { codeColumn, moveEditorToColumn, textTabColumn } from './layout';
 
 const ARTIFACT_EXTS = ['.hex', '.uf2', '.elf', '.bin'];
 
@@ -699,11 +699,38 @@ export class SimulatorPanel {
     );
   }
 
+  /**
+   * Montre un fichier source dans la colonne de code, SANS jamais en ouvrir un
+   * second onglet. Demander `viewColumn: codeColumn` alors que le fichier est
+   * déjà ouvert ailleurs faisait apparaître un DOUBLON (signalé au lancement du
+   * débogage : le programme était ouvert à côté, un deuxième onglet s'ouvrait).
+   * On réutilise donc l'onglet existant et, s'il est du mauvais côté, on le
+   * REPOSITIONNE — le déplacement exige le focus, rendu ensuite à Kablix quand
+   * l'appelant ne voulait pas le perdre (pas à pas).
+   */
+  private async revealSource(
+    uri: vscode.Uri,
+    preserveFocus: boolean
+  ): Promise<vscode.TextEditor | undefined> {
+    const target = codeColumn(this.context);
+    const existing = textTabColumn(uri, target);
+    if (existing !== undefined && existing !== target) {
+      await vscode.window.showTextDocument(uri, { viewColumn: existing, preview: false });
+      await moveEditorToColumn(uri, target);
+      if (preserveFocus) this.panel.reveal(undefined, false); // focus rendu au simulateur
+    }
+    return vscode.window.showTextDocument(uri, {
+      viewColumn: textTabColumn(uri, target) ?? target,
+      preview: false,
+      preserveFocus,
+    });
+  }
+
   /** Ouvre le fichier de code courant dans le volet d'édition (côté code, opposé à Kablix). */
   public async openCodeFile(): Promise<void> {
     if (!this.codeFileUri) return;
     try {
-      await vscode.window.showTextDocument(this.codeFileUri, { viewColumn: codeColumn(this.context) });
+      await this.revealSource(this.codeFileUri, false);
     } catch {
       // fichier renommé/supprimé depuis : rien à ouvrir
     }
@@ -793,11 +820,8 @@ export class SimulatorPanel {
         isWholeLine: true,
         backgroundColor: new vscode.ThemeColor('editor.stackFrameHighlightBackground'),
       });
-      const editor = await vscode.window.showTextDocument(source, {
-        preserveFocus: true,
-        preview: false,
-        viewColumn: codeColumn(this.context),
-      });
+      const editor = await this.revealSource(source, true);
+      if (!editor) return;
       const range = editor.document.lineAt(
         Math.min(line - 1, editor.document.lineCount - 1)
       ).range;
