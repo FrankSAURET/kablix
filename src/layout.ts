@@ -98,6 +98,9 @@ export async function applyDefaultLayout(
   await vscode.commands.executeCommand('workbench.action.closeSidebar');
   await vscode.commands.executeCommand('workbench.action.closePanel');
   await vscode.commands.executeCommand('workbench.action.closeAuxiliaryBar');
+  // Côté AVANT largeurs : l'échange des groupes emporte leurs tailles, la grille
+  // doit donc être reposée après coup.
+  await placeKablixSide(context);
   await applyEditorGrid(context);
 }
 
@@ -113,25 +116,64 @@ export async function lockSimulatorGroup(): Promise<void> {
 }
 
 /**
- * Groupe d'éditeur contenant l'onglet .projix ACTIF, s'il y en a un. Sert à
- * savoir de quel côté (gauche/droite) l'utilisateur a placé Kablix au moment de
- * « Sauvegarder cette organisation par défaut ».
+ * Groupe d'éditeur contenant un onglet .projix. Sert à savoir de quel côté
+ * (gauche/droite) l'utilisateur a placé Kablix — au moment de « Sauvegarder
+ * cette organisation par défaut » comme au moment de réarranger.
+ *
+ * On balaie TOUS les onglets de chaque groupe, pas seulement l'onglet actif :
+ * il suffisait qu'un autre onglet soit au premier plan dans la colonne de
+ * Kablix (ou que le focus soit passé au code) pour ne rien trouver — le côté
+ * retombait alors sur « droite » et l'inversion n'était pas mémorisée.
  */
-function activeProjixColumn(): vscode.ViewColumn | undefined {
+function projixColumn(): vscode.ViewColumn | undefined {
   for (const group of vscode.window.tabGroups.all) {
-    const tab = group.activeTab;
-    const input = tab?.input as { uri?: vscode.Uri; viewType?: string } | undefined;
-    if (
-      tab &&
-      input &&
-      typeof input === 'object' &&
-      'viewType' in input &&
-      String(input.viewType).includes('kablix.projix')
-    ) {
-      return group.viewColumn;
+    for (const tab of group.tabs) {
+      const input = tab.input as { uri?: vscode.Uri; viewType?: string } | undefined;
+      if (input && typeof input === 'object' && 'viewType' in input
+        && String(input.viewType).includes('kablix.projix')) {
+        return group.viewColumn;
+      }
     }
   }
   return undefined;
+}
+
+/**
+ * Commande d'échange des deux groupes pour amener celui de Kablix (colonne
+ * `current`) sur la colonne `target`. `null` s'il n'y a rien à faire.
+ *
+ * On déplace le GROUPE, pas l'onglet : sortir l'onglet Kablix de son groupe le
+ * viderait, VS Code fermerait le groupe vide et il ne resterait qu'une colonne.
+ * L'échange conserve les deux zones, leurs contenus et le verrou du groupe
+ * simulateur (le verrou est une propriété du groupe, il suit le déplacement).
+ */
+export function groupSwapCommand(current: number, target: number): string | null {
+  if (current === target) return null;
+  return target < current
+    ? 'workbench.action.moveEditorGroupLeft'
+    : 'workbench.action.moveEditorGroupRight';
+}
+
+/** Donne le focus à un groupe d'éditeur par sa colonne (1 = gauche, 2 = droite). */
+async function focusGroup(column: number): Promise<void> {
+  await vscode.commands.executeCommand(
+    column === 1 ? 'workbench.action.focusFirstEditorGroup' : 'workbench.action.focusSecondEditorGroup'
+  );
+}
+
+/**
+ * Remet le groupe de Kablix du côté mémorisé. Sans cela, « réarranger » ne
+ * reposait que les LARGEURS : si l'utilisateur avait inversé les deux zones
+ * depuis, le code restait à gauche et Kablix à droite (l'inversion n'était
+ * rétablie qu'à la réouverture du .projix, qui vise `kablixColumn`).
+ */
+async function placeKablixSide(context: vscode.ExtensionContext): Promise<void> {
+  if (vscode.window.tabGroups.all.length < 2) return; // une seule zone : rien à échanger
+  const current = projixColumn();
+  const cmd = current === undefined ? null : groupSwapCommand(current, kablixColumn(context));
+  if (!cmd) return;
+  await focusGroup(current as number);
+  await vscode.commands.executeCommand(cmd);
 }
 
 /**
@@ -150,7 +192,7 @@ export async function saveDefaultLayout(context: vscode.ExtensionContext): Promi
     };
     const groups = layout?.groups ?? [];
     // Côté de Kablix = colonne de l'onglet .projix actif (1 = gauche, 2 = droite).
-    const kablixCol = activeProjixColumn();
+    const kablixCol = projixColumn();
     const side: KablixSide = kablixCol === 1 ? 'left' : 'right';
     await context.globalState.update(LAYOUT_SIDE_KEY, side);
 

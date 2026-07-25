@@ -1,7 +1,16 @@
 # À faire
 1. Je retouche rearanger.svg rien à faire pour toi.
-1. la fonction de rearrangement ne fonctionne pas parfaitement si j'inverse la partie code et la partie kablix, il maintient le code à gauche et kablix à droite et ne mémorise que la taille des zones. Par contre si réouverture de kablix sa fonctionne
 1. Autoroutage : Toujours le même fichier de test. Le fil orange 2-GP2 est parfait. Si je lui enlève tous ces coudes et quie je reroute il met un cour de plus que moi à la main en faisant une arrivées sur la résistance par le haut au lieu de par la droite. Et il a donc un coure de plus que moi. Il sort dans toutes les directions de la patte 1 de la résistance mais toujours en vertical de la patte 2 (enfin c'est une impression)
+
+# v2026.7.183 — réarranger : le côté de Kablix est rétabli, pas seulement les largeurs
+1. ✅ **Cause 1 — le côté n'était pas toujours mémorisé** : `saveDefaultLayout` cherchait le .projix parmi les onglets **ACTIFS** seulement. Un autre onglet au premier plan dans la colonne de Kablix (ou le focus laissé au code) et plus rien n'était trouvé → repli silencieux sur « droite ». Le balayage porte maintenant sur TOUS les onglets de chaque groupe.
+2. ✅ **Cause 2 — « réarranger » ne reposait que la grille** : `applyDefaultLayout` appelait `setEditorLayout` (des LARGEURS) sans jamais déplacer quoi que ce soit ; zones inversées à la main, le code restait à gauche. Seule la réouverture du .projix corrigeait le tir (elle vise `kablixColumn`) — d'où « par contre si réouverture de kablix ça fonctionne ».
+3. ✅ **Correctif** : nouveau `placeKablixSide()` appelé AVANT la grille — il donne le focus au groupe du .projix et **échange les deux groupes** (`workbench.action.moveEditorGroup{Left,Right}`) si Kablix n'est pas du côté mémorisé. On déplace le GROUPE, pas l'onglet : sortir l'onglet le viderait, VS Code fermerait le groupe vide et il ne resterait qu'une colonne. Le verrou du groupe simulateur suit le groupe. Les largeurs sont reposées après l'échange (qui emporte les tailles).
+4. ✅ Aucun déplacement quand Kablix est déjà du bon côté (pas de clignotement), ni quand il n'y a qu'une seule zone d'éditeur.
+5. ✅ **Aide FR + EN** : « réarranger » et « Sauvegarder cette organisation par défaut » documentés dans la section « L'interface » (côté ET largeur mémorisés).
+6. ✅ Nouveau banc `verify:layout` (15 contrôles) : le VRAI `layout.ts` bundlé sur un faux `vscode` qui enregistre les commandes émises — côté/colonnes, ordre du ratio selon le côté, les deux régressions ci-dessus, et les cas sans effet (déjà bien placé, une seule zone).
+7. ✅ typecheck + build + `verify:all` (exit 0) verts.
+8. ⬜ À VALIDER EN F5 : inverser les deux zones à la souris → Sauvegarder cette organisation par défaut → bouger/réduire une zone → « réarranger » remet Kablix du côté choisi ET à la bonne largeur.
 
 # v2026.7.182 — panneau Variables : masquer celles qui ne servent à rien
 1. ℹ️ La fonctionnalité décrite n'existait PAS dans le code (aucun clic droit, aucune liste) : elle a donc été **implémentée** puis documentée, plutôt que seulement documentée.
