@@ -1206,6 +1206,17 @@ textarea {
   z-index: 0;
 }
 
+/* Le shield NE remonte JAMAIS devant la Pico enfichée dessus, même quand le
+   curseur approche une de ses broches (hissage `.part--pin-reachable`, z=4) :
+   sinon le socle du shield passait devant la Pico et la « masquait » au survol
+   (régression signalée par Frank : la Pico enfichée doit TOUJOURS rester au
+   premier plan). Les broches propres du shield ne sont de toute façon masquées
+   que par la Pico posée dessus (comportement voulu) ; ses ports Grove latéraux
+   restent dégagés et câblables sans hissage. */
+.part--shield.part--pin-reachable {
+  z-index: 0;
+}
+
 /* Composant EN SIMULATION avec un contrôle actif (curseur/bouton) : passe
    par-dessus tout (voisins et fils, normalement au-dessus des composants en
    édition à z=5) pour que son curseur reste toujours accessible. */

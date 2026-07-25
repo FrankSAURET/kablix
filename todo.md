@@ -1,9 +1,15 @@
 # À faire
-1. une autre régression.Si la pico pi (ou w) est enfiché sur la grove, elle doit toujours rester au premier plan
 1. Si je sélectionne et déplace plusieurs coude et que je maintient CTRL, le déplacement ne doit être qu'horizontal ou vertical si je relache CTRL il redevient libre
 1. Le comportement des afficheurs ou la gesion du temps pose un probleme (test sur pico.) Mon fichier de test : testkablix\7seg-pico2.projix. Affichage trés lent, on voit les digits changer 1 par 1 . Si je baisse DELAIS (de 500 à 50 par exemple), l'affichage ne suit pas du tout
 1. En cliquant sur une variable (clic gauche pour la sélectionner puis clic droit dessus ) une option apparait qui propose de désactiver son affichage. Elle ne sera alors plus affiché. Si on clic sur variables, une liste déroulante des variables affichable et actuellement masqué apparaitra. Rajoute tout ça dans l'aide de la simulation en français et anglais
-1. la fonction de rearrangement ne fonctionne pas parfaitement si j'inverse la partie code et la partie kablix, il maintient le code à gauche et kablix à droite et ne mémorise que la taille des zones
+1. Je retouche rearanger.svg riena à faire pour toi.
+1. la fonction de rearrangement ne fonctionne pas parfaitement si j'inverse la partie code et la partie kablix, il maintient le code à gauche et kablix à droite et ne mémorise que la taille des zones. Par contre si réouverture de kablix sa fonctionne
+1. Autoroutage rerout toujours mes fils qui sont conformes. Mon fichier d'exemple : testkablix\7seg-pico2.projix. Actuellement parfait. Si je reroute, le fil jaune DIG2-GP11 est retouté 
+
+# v2026.7.177 — régression : Pico enfichée masquée par le Grove Shield au survol
+1. ✅ **Cause** : au survol d'une broche du Grove Shield, le hissage `.part--pin-reachable` (z=4) faisait passer le shield DEVANT la Pico enfichée (z=1) — la Pico « disparaissait » sous le socle tant qu'on survolait une de ses broches. (Le z de repos était correct : shield z=0 sous Pico z=1.)
+2. ✅ **Correctif CSS** : `.part--shield.part--pin-reachable { z-index: 0 }` — le shield ne remonte JAMAIS devant la Pico posée dessus. Ses ports Grove latéraux restent dégagés et câblables sans hissage ; ses broches de socle ne sont masquées que par la Pico (comportement voulu).
+3. ✅ Vérifié en repro headless (shield hissé → Pico toujours devant) + `verify:grove` (21 contrôles, dont « empilement conservé shield z=0 sous Pico z=1 ») + `verify:all` (exit 0) verts.
 
 # v2026.7.176 — régression : bons fils droits reroutés (et traversant des composants)
 1. ✅ **Préservation relâchée sur le RAS d'un tiers** : un fil droit H/V qui longe le bord d'un composant voisin (rangée de résistances serrées à 10 px) n'est plus disqualifié. Seule une traversée DE PART EN PART du cœur (corps rétréci de `DEEP=4`) rejette le fil. Appliqué aux DEUX branches de `autoRoute` (préservation `overComp` + ligne droite prioritaire `blocked`), via nouveau helper `segRectDeepCross`. Les corps d'extrémité gardent la tolérance de ras `ENDCAP=1,5·GRID`.
