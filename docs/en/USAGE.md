@@ -28,10 +28,10 @@
 1. To start, click the <img src="../../media/KNB.webp" alt="Kablix" width="30" /> icon in the activity bar on the left;
   - Or, inside a project folder, double-click a projix file;
   - Or, if you set up the association, double-click a projix file in Windows Explorer.
-![Start Kablix](../../media/demarrer.gif)
+![Start Kablix](../../media/demarrer.webm)
 
 2. **Build your circuit**: drag and drop a part from the palette on the left. Wire the pins directly and click the autoroute button (routes the selected parts, or the whole circuit if none is selected).
-![Build a circuit](../../media/dessiner.gif)
+![Build a circuit](../../media/dessiner.webm)
 
 3. **Run your code**: associate a code file (note that `.ino` files must be inside a folder with the same name) then **▶ “Start”**:
   - `.ino`/`.c`/`.cpp` -> compilation through the local toolchain;
@@ -43,7 +43,7 @@
   On reopening, the project's code file opens **too**, in the code pane next to
   the circuit — while the caret stays in Kablix.
   Import/export in the Wokwi format (`diagram.json`) are also available.
-![Simulate in Kablix](../../media/simuler.gif)
+![Simulate in Kablix](../../media/simuler.webm)
 
 ## The interface
 ![interface](../../media/interface.webp)

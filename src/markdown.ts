@@ -11,7 +11,9 @@
 // La syntaxe couverte est celle RÉELLEMENT employée par les fiches
 // `docs/<lang>/composants/*.md` : titres, paragraphes, images, liens, listes à
 // puces et numérotées, tableaux (avec alignement), citations, blocs de code,
-// séparateurs, gras/italique/code en ligne.
+// séparateurs, gras/italique/code en ligne. Une « image » qui pointe une vidéo
+// (`.webm`) est rendue en `<video>` : les démos des guides sont passées du GIF
+// au WebM en v2026.7.190 pour tenir dans le paquet.
 
 export interface MarkdownOptions {
   /** Chemin relatif d'une image → URI affichable par la webview. */
@@ -40,6 +42,9 @@ function linkTarget(raw: string): string {
 
 /** Cible d'un lien, échappée ou non — `&lt;chemin avec espaces&gt;` compris. */
 const TARGET = String.raw`(&lt;[^)]*?&gt;|<[^>]+>|[^)\s]+)`;
+
+/** Cibles rendues en `<video>` et non en `<img>` (démos des guides). */
+const VIDEO = /\.(webm|mp4)$/i;
 
 /**
  * Ancre d'un titre, pour les liens `#section`. Mêmes règles que GitHub — la
@@ -89,7 +94,15 @@ function inline(src: string, opt: MarkdownOptions): string {
 
   // Image ![alt](src) — avant les liens (même syntaxe, préfixée de `!`).
   out = out.replace(new RegExp(String.raw`!\[([^\]]*)\]\(${TARGET}\)`, 'g'), (_m, alt: string, raw: string) => {
-    const src2 = opt.resolveAsset(decodeURIComponent(linkTarget(raw)));
+    const target = decodeURIComponent(linkTarget(raw));
+    const src2 = opt.resolveAsset(target);
+    // Démo animée : un <img> n'affiche pas un WebM. Les guides gardent la
+    // syntaxe d'image (portable, vérifiable comme un lien), on rend une vidéo
+    // qui se comporte comme le GIF qu'elle remplace — muette et en boucle —
+    // mais avec les contrôles, une démo de 40 s méritant une pause.
+    if (VIDEO.test(target)) {
+      return `<video src="${src2}" title="${alt}" autoplay loop muted playsinline controls></video>`;
+    }
     return `<img src="${src2}" alt="${alt}" />`;
   });
 

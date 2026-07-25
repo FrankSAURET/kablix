@@ -66,8 +66,11 @@ media/Gomme.webp
 media/Boum.gif
 # media/accroche2.webp : orphelin (aucun README/doc/code ne le charge).
 media/accroche2.webp
-# Vitrine README : les GIF de démo (~12,8 Mo) restent hors vsix, servis via URL
-# raw.githubusercontent (le marketplace charge les images distantes).
+# Vitrine README : les GIF de démo (~12,2 Mo) restent hors vsix, servis via URL
+# raw.githubusercontent (le marketplace charge les images distantes) — le README
+# est la seule vitrine qui en a encore besoin, le marketplace ne lisant pas de
+# vidéo. Les guides, eux, affichent les mêmes démos en WebM VP9 (1,2 Mo à trois,
+# v2026.7.190) : media/*.webm est EMBARQUÉ, l'aide ❔ reste animée hors-ligne.
 # accroche.webp n'est affichée que par le README (marketplace) → hors paquet.
 media/accroche.webp
 media/demarrer.gif

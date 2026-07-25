@@ -1,6 +1,18 @@
 # À faire
 
-1. j'ai ffmpeg ici "A:\Imagerie\Vidéo\ffmpeg\bin" si c'est possible convertit les 3 gif de façon assez agressive en webm avec un codec compatible chromium afin de garder les 3 vidéos de démo dans usage.md. Si ça marche corrige aussi la version anglaise
+1. *(rien en attente)*
+
+# v2026.7.190 — les 3 démos des guides passent du GIF distant au WebM embarqué
+1. ✅ **12,17 Mo de GIF → 1,20 Mo de WebM** (`demarrer` 1,90 → 0,11 · `dessiner` 3,29 → 0,23 · `simuler` 6,99 → 0,85). Les trois démos étaient **hors du vsix** et servies depuis GitHub (v187) : sans connexion, l'aide ❔ n'en montrait aucune. Elles sont maintenant **embarquées** et animées hors-ligne.
+2. ✅ **Réglages choisis après mesure**, pas au hasard (`scripts/_gif2webm.mjs`, nouveau) : **cadence source conservée** — les GIF ne tournent qu'à ~3 im/s, forcer 12 im/s triplait les images à encoder pour rien —, **VP9 profile 0 / yuv420p** (le seul dont Chromium garantit la lecture), **CRF 32** sans débit cible, dimensions ramenées au pair (yuv420p l'exige : 800x525 → 800x524). SSIM mesuré contre le GIF source : **0,99 / 0,99 / 0,95**. CRF 28 pesait 1,61 Mo pour un SSIM à peine meilleur, CRF 44 abîmait le texte des captures.
+3. ✅ **Rendu Markdown maison** (`src/markdown.ts`) : une « image » qui pointe un `.webm`/`.mp4` sort en **`<video autoplay loop muted playsinline controls>`** — un `<img>` n'affiche pas un WebM. Les guides gardent donc la syntaxe `![…](…)`, vérifiable comme un lien ordinaire, et la démo se comporte comme le GIF qu'elle remplace (muette, en boucle) avec en plus la **pause** — utile sur 40 s.
+4. ✅ **CSP des deux webviews d'aide** : `media-src` ajouté (`guide.ts` avec repli `https:`, `partHelp.ts`) — sans lui, `default-src 'none'` bloquait la vidéo **sans un mot d'erreur**. Style : `img, video { max-width: 100% }`.
+5. ✅ **`.vscodeignore`** : `media/*.webm` embarqué, les 3 `.gif` restent exclus — le **README** (marketplace) en a encore besoin, le marketplace ne lisant pas de vidéo. Aucun GIF n'est plus référencé par les guides.
+6. ✅ **Décodage prouvé, pas supposé** : page locale + Chrome headless → les 3 vidéos atteignent `readyState=4` aux bonnes dimensions (800x524, 784x528, 800x462) et bonnes durées (13,3 s / 15,5 s / 39,9 s).
+7. ✅ **`verify:docs` porté à 19 contrôles** : plus aucun GIF référencé par les guides et les 3 WebM bien cités · chaque WebM présent, **VP9** (CodecID `V_VP9` lu dans l'en-tête Matroska), < 1,5 Mo et non exclu du paquet · le rendu maison sort bien une `<video>` muette en boucle et **pas** un `<img>` · `media-src` présent dans les deux CSP.
+8. ✅ **Version anglaise faite aussi** (les 3 références de `docs/en/USAGE.md`), comme demandé.
+9. ✅ typecheck + build + `verify:all` verts.
+10. ⬜ À VALIDER EN F5 : aide ❔ → les 3 démos du démarrage tournent en boucle, sans connexion, avec les contrôles de lecture · README sur GitHub inchangé (toujours les GIF).
 
 # v2026.7.189 — clic droit sur une variable : binaire, hexa, décimal, caractère
 1. ✅ **Menu au clic droit sur une variable** (le clic droit était libre depuis la v186 : c'est l'œil 👁 qui masque désormais) : **Binaire**, **Hexadécimal**, **Décimal**, **Caractère**, dans cet ordre, avec la base courante **cochée ✓** et en gras. Titre du menu « Affichage de “nom” », calé sur le curseur, refermé au clic ailleurs / Échap comme la liste déroulante des masquées. Les 6 libellés sont traduisibles (`i18n.mts`, FR fourni).

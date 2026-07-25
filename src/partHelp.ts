@@ -110,10 +110,12 @@ async function readSheet(extensionUri: vscode.Uri, type: string): Promise<Sheet 
 
 function pageHtml(webview: vscode.Webview, lang: string, title: string, body: string): string {
   const nonce = randomBytes(24).toString('base64');
+  // `media-src` : une fiche peut illustrer un composant par une démo WebM.
   const csp = [
     `default-src 'none'`,
     `style-src 'nonce-${nonce}'`,
     `img-src ${webview.cspSource} data:`,
+    `media-src ${webview.cspSource}`,
   ].join('; ');
 
   return /* html */ `<!DOCTYPE html>
@@ -146,7 +148,7 @@ function pageHtml(webview: vscode.Webview, lang: string, title: string, body: st
     a { color: var(--vscode-textLink-foreground); text-decoration: none; }
     a:hover { color: var(--vscode-textLink-activeForeground); text-decoration: underline; }
     figure { margin: 1rem 0; text-align: center; }
-    img { max-width: 100%; height: auto; }
+    img, video { max-width: 100%; height: auto; }
     code {
       font-family: var(--vscode-editor-font-family, monospace);
       background: var(--vscode-textCodeBlock-background, rgba(128,128,128,.15));

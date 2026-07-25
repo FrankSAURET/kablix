@@ -7,7 +7,7 @@
 // large, ou écrire dans une fiche une syntaxe que le rendu maison ignore.
 // Ce test couvre les trois, plus la couverture du catalogue et la parité FR/EN.
 import esbuild from 'esbuild';
-import { readdirSync, readFileSync, existsSync, mkdtempSync } from 'node:fs';
+import { readdirSync, readFileSync, existsSync, mkdtempSync, statSync } from 'node:fs';
 import { join, dirname, resolve, relative } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -197,8 +197,9 @@ ok(`vsix : les ${mustShip.length} fiches, guides et images d'aide sont dans le p
 
 // Captures des guides : embarquées (lisibles hors-ligne) SAUF les lourdes, que
 // `guide.ts` va chercher sur GitHub. Une capture légère exclue = trou hors-ligne.
-// Depuis le passage des images en WebP (v2026.7.187), seuls les GIF de démo
-// (~12,8 Mo) restent hors du paquet : les captures pèsent désormais ~1 Mo.
+// Depuis le passage des images en WebP (v2026.7.187) puis des démos en WebM
+// (v2026.7.190), plus RIEN de lourd n'est référencé par les guides — les GIF ne
+// servent plus qu'au README. Le motif reste pour ne pas piéger un futur GIF.
 const HEAVY = /\.gif$/i;
 const guideAssets = new Set();
 for (const lang of ['fr', 'en']) {
@@ -238,6 +239,51 @@ ok('images : les icônes du manifeste restent en PNG (marketplace et barre d’a
   && manifest.contributes.viewsContainers.activitybar[0].icon === 'media/activity-icon.png'
   && existsSync(join(root, 'media', 'icon.png')) && existsSync(join(root, 'media', 'activity-icon.png')),
   'icône du manifeste absente ou convertie');
+
+// --- 6. Démos animées : WebM embarqué au lieu du GIF distant (v2026.7.190) ----
+// 12,2 Mo de GIF servis depuis GitHub = aucune démo hors connexion. Les mêmes
+// animations en VP9 pèsent 1,2 Mo à elles trois et tiennent dans le paquet.
+const DEMOS = ['demarrer', 'dessiner', 'simuler'];
+const guideRefs = [...guideAssets].map(([, r]) => r);
+const gifRefs = guideRefs.filter((r) => /\.gif$/i.test(r));
+const missingDemo = DEMOS.filter((d) => !guideRefs.includes(`../../media/${d}.webm`));
+ok('démos : les guides montrent les 3 WebM et plus aucun GIF',
+  gifRefs.length === 0 && missingDemo.length === 0,
+  [...gifRefs, ...missingDemo.map((d) => `${d}.webm non référencée`)].join(' · '));
+
+const demoIssues = [];
+for (const d of DEMOS) {
+  const p = join(root, 'media', `${d}.webm`);
+  if (!existsSync(p)) { demoIssues.push(`${d}.webm absente`); continue; }
+  // CodecID Matroska en clair dans l'en-tête : VP9 est le seul profil dont la
+  // lecture est garantie dans Chromium, donc dans la webview.
+  if (!readFileSync(p).subarray(0, 8192).toString('latin1').includes('V_VP9')) {
+    demoIssues.push(`${d}.webm : pas du VP9`);
+  }
+  const mo = statSync(p).size / 1048576;
+  if (mo > 1.5) demoIssues.push(`${d}.webm : ${mo.toFixed(2)} Mo`);
+  if (excluded(`media/${d}.webm`)) demoIssues.push(`${d}.webm exclue du vsix`);
+}
+ok('démos : 3 WebM VP9 légers et embarqués (animées hors-ligne)', demoIssues.length === 0,
+  demoIssues.join(' · '));
+
+// Le rendu maison doit produire une VIDÉO : un <img> n'affiche pas un WebM.
+const demoHtml = renderMarkdown('![Démo](../../media/simuler.webm)', {
+  resolveAsset: (r) => 'asset:' + r,
+  resolveDocLink: () => '',
+});
+ok('rendu : une démo .webm sort en <video> muette et en boucle, pas en <img>',
+  /<video src="asset:\.\.\/\.\.\/media\/simuler\.webm"/.test(demoHtml)
+  && /\bautoplay\b/.test(demoHtml) && /\bloop\b/.test(demoHtml) && /\bmuted\b/.test(demoHtml)
+  && !/<img/.test(demoHtml),
+  demoHtml.slice(0, 140));
+
+// Sans `media-src`, `default-src 'none'` bloque la vidéo sans un mot d'erreur.
+const guideSrc = readFileSync(join(root, 'src', 'guide.ts'), 'utf8');
+const partSrc = readFileSync(join(root, 'src', 'partHelp.ts'), 'utf8');
+ok('webviews : media-src autorisé dans la CSP de l’aide (guides et fiches)',
+  /media-src \$\{webview\.cspSource\}/.test(guideSrc) && /media-src \$\{webview\.cspSource\}/.test(partSrc),
+  `guide=${/media-src/.test(guideSrc)} fiches=${/media-src/.test(partSrc)}`);
 
 // Garde-fou du matcher : des règles connues doivent bien s'appliquer.
 ok('vsix : matcher .vscodeignore cohérent (src/ exclu, dist/webview.js ré-inclus)',

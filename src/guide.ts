@@ -133,9 +133,10 @@ function commandUri(command: string, arg: string): string {
 }
 
 /**
- * URI d'affichage de chaque image du guide. Une image PRÉSENTE dans l'extension
- * est servie en local (hors-ligne) ; une image sortie du vsix pour l'alléger
- * (GIF de démo, logo) est servie depuis le dépôt GitHub.
+ * URI d'affichage de chaque image (ou vidéo) du guide. Un fichier PRÉSENT dans
+ * l'extension est servi en local (hors-ligne) — c'est le cas des 3 démos WebM
+ * depuis la v2026.7.190 ; un fichier sorti du vsix pour l'alléger est servi
+ * depuis le dépôt GitHub.
  */
 async function resolveAssets(
   webview: vscode.Webview,
@@ -173,10 +174,13 @@ async function resolveAssets(
 function pageHtml(webview: vscode.Webview, lang: string, title: string, body: string): string {
   const nonce = randomBytes(24).toString('base64');
   // `https:` : les captures lourdes restées hors du vsix viennent du dépôt.
+  // `media-src` : les 3 démos WebM du guide, embarquées (v2026.7.190) — `https:`
+  // couvre le repli GitHub si une vidéo venait à sortir du paquet.
   const csp = [
     `default-src 'none'`,
     `style-src 'nonce-${nonce}'`,
     `img-src ${webview.cspSource} https: data:`,
+    `media-src ${webview.cspSource} https:`,
   ].join('; ');
 
   return /* html */ `<!DOCTYPE html>
@@ -209,7 +213,7 @@ function pageHtml(webview: vscode.Webview, lang: string, title: string, body: st
     a { color: var(--vscode-textLink-foreground); text-decoration: none; }
     a:hover { color: var(--vscode-textLink-activeForeground); text-decoration: underline; }
     figure { margin: 1rem 0; text-align: center; }
-    img { max-width: 100%; height: auto; vertical-align: middle; }
+    img, video { max-width: 100%; height: auto; vertical-align: middle; }
     code {
       font-family: var(--vscode-editor-font-family, monospace);
       background: var(--vscode-textCodeBlock-background, rgba(128,128,128,.15));
