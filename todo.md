@@ -1,8 +1,18 @@
 # À faire
-1. En cliquant sur une variable (clic gauche pour la sélectionner puis clic droit dessus ) une option apparait qui propose de désactiver son affichage. Elle ne sera alors plus affiché. Si on clic sur variables, une liste déroulante des variables affichable et actuellement masqué apparaitra. Rajoute tout ça dans l'aide de la simulation en français et anglais
 1. Je retouche rearanger.svg rien à faire pour toi.
 1. la fonction de rearrangement ne fonctionne pas parfaitement si j'inverse la partie code et la partie kablix, il maintient le code à gauche et kablix à droite et ne mémorise que la taille des zones. Par contre si réouverture de kablix sa fonctionne
 1. Autoroutage : Toujours le même fichier de test. Le fil orange 2-GP2 est parfait. Si je lui enlève tous ces coudes et quie je reroute il met un cour de plus que moi à la main en faisant une arrivées sur la résistance par le haut au lieu de par la droite. Et il a donc un coure de plus que moi. Il sort dans toutes les directions de la patte 1 de la résistance mais toujours en vertical de la patte 2 (enfin c'est une impression)
+
+# v2026.7.182 — panneau Variables : masquer celles qui ne servent à rien
+1. ℹ️ La fonctionnalité décrite n'existait PAS dans le code (aucun clic droit, aucune liste) : elle a donc été **implémentée** puis documentée, plutôt que seulement documentée.
+2. ✅ **Masquer** (`sim.mts`) : clic gauche sur une variable = sélection (ligne surlignée) ; clic droit = menu flottant **« Masquer "nom" »**. La variable quitte le panneau mais reste **suivie** en arrière-plan (`next.set` AVANT le saut), donc son rouge « a changé au dernier pas » est exact à son retour.
+3. ✅ **Réafficher** : le titre devient un bouton **🔍 Variables ▾** qui déroule la liste des masquées (chacune cliquable, plus **Tout réafficher**, détaché par un filet). Liste vide → « Aucune variable masquée — clic droit sur une variable pour la masquer ». Toutes masquées → le tableau le dit au lieu d'afficher « aucune variable lisible ».
+4. ✅ **Rendu « à blanc »** : `renderDebugPause(state, redraw)` re-dessine après un masquage SANS avancer la référence des rouges ni re-signaler la ligne courante à l'extension — masquer une variable n'efface plus les changements du pas en cours.
+5. ✅ Portée des masquages : toute la session d'atelier (ils survivent aux arrêts/redémarrages de simulation, on ne re-masque pas à chaque pas), oubliés à la fermeture du projet. Menus refermés au clic ailleurs, à Échap et à la réinitialisation du panneau.
+6. ✅ **Aide FR + EN** : nouvelle section « Masquer des variables » / « Hiding variables » sous « Déboguer pas à pas », avec le comportement du suivi en arrière-plan et la portée des masquages.
+7. ✅ Nouveau banc `verify:debugvars` (8 contrôles) : les id `debug-*` interrogés par `sim.mts` existent dans le HTML (un id manquant planterait la webview AU CHARGEMENT), les 5 classes CSS sont habillées, les 6 libellés ont leur traduction FR, l'ordre `next.set`/`continue` et la garde `redraw` sont préservés, et l'aide documente bien la fonctionnalité dans les deux langues.
+8. ✅ typecheck + build + `verify:all` (exit 0) verts ; rendu des deux menus vérifié en capture headless sur la vraie feuille `media/styles.css`.
+9. ⬜ À VALIDER EN F5 : pas à pas → clic droit sur une variable la masque · le titre 🔍 Variables ▾ la propose au retour · le rouge reste juste après un masquage.
 
 # v2026.7.181 — l'aide générale ❔ ouvre le VRAI guide (fin de l'aide figée dans le code)
 1. ✅ **`src/help.ts` supprimé** (~570 lignes de HTML dupliqué, en retard sur la doc depuis des mois). Le bouton ❔ ouvre désormais `docs/<lang>/USAGE.md` — le guide versionné lui-même, images comprises : il ne peut plus diverger de la documentation. Bundle de l'extension : 257,2 ko → 218,2 ko.

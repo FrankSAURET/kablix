@@ -159,9 +159,12 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
 
     <section id="debug" class="debug" hidden>
       <div class="debug__head">
-        <span>🔍 ${l10n.t('Variables')}</span>
+        <!-- Titre cliquable : ouvre la liste des variables masquées (clic droit
+             sur une ligne du tableau) pour les réafficher. -->
+        <button id="debug-title" class="debug__title" title="${l10n.t('Show the hidden variables')}">🔍 ${l10n.t('Variables')} ▾</button>
         <span id="debug-line" class="debug__line"></span>
       </div>
+      <div id="debug-hidden" class="debug__menu" hidden></div>
       <table id="debug-vars" class="debug__vars"></table>
     </section>
 

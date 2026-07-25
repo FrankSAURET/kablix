@@ -2187,6 +2187,75 @@ textarea {
   color: inherit;
 }
 
+/* Titre « 🔍 Variables ▾ » : bouton d'ouverture de la liste des masquées. */
+.debug__title {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.debug__title:hover {
+  color: var(--vscode-textLink-foreground, #4fa3ff);
+}
+
+/* Liste déroulante des variables masquées (sous le titre) et menu contextuel
+   d'une ligne : même habillage, l'un en flux, l'autre positionné au curseur. */
+.debug__menu {
+  margin-bottom: 0.3rem;
+  padding: 0.2rem;
+  font-size: 0.8rem;
+  background: var(--vscode-editorWidget-background, #252526);
+  border: 1px solid var(--vscode-widget-border, rgba(255, 255, 255, 0.15));
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.debug__menu--float {
+  position: fixed;
+  z-index: 40;
+  margin: 0;
+  min-width: 160px;
+}
+
+.debug__menu button {
+  display: block;
+  width: 100%;
+  padding: 0.25rem 0.5rem;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.debug__menu button:hover {
+  background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.1));
+}
+
+/* « Tout réafficher » : détaché de la liste des variables masquées. */
+.debug__menu button.debug__menu-all {
+  margin-top: 0.15rem;
+  padding-top: 0.3rem;
+  border-top: 1px solid var(--vscode-widget-border, rgba(255, 255, 255, 0.15));
+  border-radius: 0;
+}
+
+.debug__menu-empty {
+  padding: 0.25rem 0.5rem;
+  opacity: 0.6;
+  font-style: italic;
+}
+
+/* Ligne sélectionnée dans le tableau des variables (clic gauche). */
+.debug__vars tr.debug__row--sel td {
+  background: var(--vscode-list-activeSelectionBackground, rgba(80, 140, 255, 0.25));
+}
+
 /* En-tête permanent (C/Arduino) : seules les globales sont lisibles. Cliquable. */
 .debug__vars td.debug__cinfo {
   font-size: 0.78rem;

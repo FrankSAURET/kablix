@@ -182,6 +182,15 @@ Prérequis et limites :
 
 Les artefacts chargés directement (`.hex`, `.uf2`, `.elf`, `.bin`) s'exécutent sans infos de débogage : pause et ralenti restent disponibles, pas le pas à pas.
 
+### Masquer des variables
+
+Un programme expose souvent des variables sans intérêt (constantes, objets de configuration) qui noient les deux ou trois que vous surveillez. Le panneau **Variables** permet de faire le tri :
+
+- **Masquer** : cliquer sur la variable pour la sélectionner, puis **clic droit** dessus — l'option **Masquer « nom »** apparaît. La variable disparaît du panneau.
+- **Réafficher** : cliquer sur le titre **🔍 Variables ▾** — la liste déroulante des variables actuellement masquées s'ouvre. Cliquer sur l'une d'elles la remet dans le panneau ; **Tout réafficher** les remet toutes.
+
+Une variable masquée continue d'être **suivie** en arrière-plan : au retour, son rouge (« a changé au dernier pas ») est exact, comme si elle n'avait jamais quitté le panneau. Les masquages tiennent tant que l'atelier reste ouvert — ils survivent aux arrêts et redémarrages de la simulation — et sont oubliés à la fermeture du projet.
+
 ## Moniteur série
 
 - **Sortie** : USART (Uno), USB-CDC et UART0 (Pico), en temps réel.

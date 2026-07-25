@@ -336,6 +336,15 @@ const FR: Record<string, string> = {
   'No readable variable (define module-level variables to inspect them).':
     'Aucune variable lisible (définissez des variables au niveau du module pour les inspecter).',
   'No readable variable here.': 'Aucune variable lisible ici.',
+  // Masquage des variables du panneau (clic droit / liste du titre)
+  'Show the hidden variables': 'Afficher les variables masquées',
+  'Hide “{0}”': 'Masquer « {0} »',
+  'Show this variable again': 'Réafficher cette variable',
+  'Show all again': 'Tout réafficher',
+  'No hidden variable — right-click a variable to hide it.':
+    'Aucune variable masquée — clic droit sur une variable pour la masquer.',
+  'All variables are hidden (click “Variables” to show them again).':
+    'Toutes les variables sont masquées (cliquez sur « Variables » pour les réafficher).',
 
   // Moniteur série / console
   'Serial monitor': 'Moniteur série',

@@ -171,6 +171,8 @@ const stageEl = document.querySelector('.stage') as HTMLElement;
 const serialEl0 = document.querySelector('.serial') as HTMLElement;
 const debugLineEl = document.getElementById('debug-line') as HTMLSpanElement;
 const debugVarsEl = document.getElementById('debug-vars') as HTMLTableElement;
+const debugTitleBtn = document.getElementById('debug-title') as HTMLButtonElement;
+const debugHiddenEl = document.getElementById('debug-hidden') as HTMLDivElement;
 const statusEl = document.getElementById('status') as HTMLSpanElement;
 const serialEl = document.getElementById('serial') as HTMLPreElement;
 const serialInput = document.getElementById('serial-input') as HTMLInputElement;
@@ -1812,9 +1814,24 @@ let previousVarValues = new Map<string, string>();
 /** Vrai si la simulation en cours exécute du MicroPython (sinon C/Arduino). */
 let runIsPython = false;
 
+// Variables volontairement retirées du panneau (clic droit → « Masquer »). Un
+// programme expose souvent des variables sans intérêt (constantes, objets de
+// configuration) qui noient les deux ou trois qu'on surveille. Le masquage vaut
+// pour toute la session d'édition, pas seulement pour la pause en cours : on ne
+// veut pas re-masquer à chaque pas. Le nom masqué reste connu même s'il
+// disparaît (sortie de portée) puis revient.
+const hiddenVars = new Set<string>();
+/** Nom de la variable sélectionnée (clic gauche), cible du clic droit. */
+let selectedVar: string | null = null;
+/** Dernier instantané reçu, pour re-dessiner après un masquage sans nouvelle pause. */
+let lastPauseState: DebugPauseState | null = null;
+
 /** Réinitialise l'état des variables (au démarrage / à l'arrêt de la simulation). */
 function resetDebugVars(): void {
   previousVarValues = new Map();
+  lastPauseState = null;
+  selectedVar = null;
+  closeVarMenus();
   debugVarsEl.innerHTML = '';
 }
 
@@ -1823,7 +1840,8 @@ function clearDebugVarsDisplay(): void {
   debugVarsEl.innerHTML = '';
 }
 
-function renderDebugPause(state: DebugPauseState): void {
+function renderDebugPause(state: DebugPauseState, redraw = false): void {
+  lastPauseState = state;
   debugSection.hidden = false;
   debugLineEl.textContent = state.line !== undefined ? t('Line {0}', state.line) : '';
   debugVarsEl.innerHTML = '';
@@ -1838,33 +1856,135 @@ function renderDebugPause(state: DebugPauseState): void {
     hCell.textContent = t('ℹ Only global variables are shown');
     hCell.title = t('In C/Arduino, declare a variable outside setup() and loop() (global) to inspect it here.');
   }
-  if (state.variables.length === 0) {
+  const shown = state.variables.filter((v) => !hiddenVars.has(v.name));
+  if (shown.length === 0) {
     const row = debugVarsEl.insertRow();
     const cell = row.insertCell();
     cell.colSpan = 2;
     cell.className = 'debug__empty';
-    cell.textContent = runIsPython
-      ? t('No readable variable (define module-level variables to inspect them).')
-      : t('No readable variable here.');
+    cell.textContent = state.variables.length > 0
+      ? t('All variables are hidden (click “Variables” to show them again).')
+      : runIsPython
+        ? t('No readable variable (define module-level variables to inspect them).')
+        : t('No readable variable here.');
   }
   // Affichage « nom : valeur » (sans le type) ; valeur en rouge uniquement si
   // elle diffère de celle du dernier arrêt (delta d'un pas), sans cumul : au
   // prochain arrêt, une variable inchangée depuis revient automatiquement en noir.
   const next = new Map<string, string>();
   for (const v of state.variables) {
+    next.set(v.name, v.value);
+    if (hiddenVars.has(v.name)) continue; // masquée : suivie, mais pas affichée
     const changed = previousVarValues.has(v.name) && previousVarValues.get(v.name) !== v.value;
     const row = debugVarsEl.insertRow();
     row.insertCell().textContent = `${v.name} :`;
     const valueCell = row.insertCell();
     valueCell.textContent = v.value;
     if (changed) valueCell.classList.add('debug__changed');
-    next.set(v.name, v.value);
+    // Clic gauche : sélection. Clic droit : menu « Masquer cette variable ».
+    if (v.name === selectedVar) row.classList.add('debug__row--sel');
+    row.addEventListener('click', () => selectVar(v.name));
+    row.addEventListener('contextmenu', (ev) => {
+      ev.preventDefault();
+      selectVar(v.name);
+      openVarContextMenu(v.name, ev.clientX, ev.clientY);
+    });
   }
-  previousVarValues = next;
+  if (!redraw) previousVarValues = next;
   // Signale la ligne courante à l'extension (surlignage dans l'éditeur).
-  if (state.line !== undefined) vscode.postMessage({ type: 'debugLine', line: state.line });
+  if (!redraw && state.line !== undefined) vscode.postMessage({ type: 'debugLine', line: state.line });
   updateDebugButtons();
 }
+
+// --- Masquage des variables du panneau ---------------------------------------
+
+/** Sélectionne une ligne (surlignage) ; la sélection survit au re-rendu. */
+function selectVar(name: string): void {
+  selectedVar = name;
+  for (const row of Array.from(debugVarsEl.rows)) {
+    row.classList.toggle('debug__row--sel', row.cells[0]?.textContent === `${name} :`);
+  }
+}
+
+/** Ferme le menu contextuel flottant ET la liste déroulante du titre. */
+function closeVarMenus(): void {
+  document.querySelector('.debug__menu--float')?.remove();
+  debugHiddenEl.hidden = true;
+}
+
+/**
+ * Re-dessine le panneau depuis le dernier instantané (après un masquage). Rendu
+ * « à blanc » : la référence des rouges (`previousVarValues`) n'est PAS avancée,
+ * sinon masquer une variable effacerait les changements du pas en cours.
+ */
+function refreshDebugVars(): void {
+  if (lastPauseState) renderDebugPause(lastPauseState, true);
+}
+
+/** Menu au clic droit sur une variable : la retirer du panneau. */
+function openVarContextMenu(name: string, x: number, y: number): void {
+  closeVarMenus();
+  const menu = document.createElement('div');
+  menu.className = 'debug__menu debug__menu--float';
+  const btn = document.createElement('button');
+  btn.textContent = t('Hide “{0}”', name);
+  btn.addEventListener('click', () => {
+    hiddenVars.add(name);
+    if (selectedVar === name) selectedVar = null;
+    closeVarMenus();
+    refreshDebugVars();
+  });
+  menu.appendChild(btn);
+  document.body.appendChild(menu);
+  // Calé sur le curseur, ramené dans la fenêtre si le menu déborde.
+  const r = menu.getBoundingClientRect();
+  menu.style.left = `${Math.min(x, window.innerWidth - r.width - 4)}px`;
+  menu.style.top = `${Math.min(y, window.innerHeight - r.height - 4)}px`;
+}
+
+/** Liste déroulante du titre : les variables masquées, cliquables pour revenir. */
+function toggleHiddenVarsList(): void {
+  if (!debugHiddenEl.hidden) { closeVarMenus(); return; }
+  closeVarMenus();
+  debugHiddenEl.innerHTML = '';
+  if (hiddenVars.size === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'debug__menu-empty';
+    empty.textContent = t('No hidden variable — right-click a variable to hide it.');
+    debugHiddenEl.appendChild(empty);
+  } else {
+    for (const name of [...hiddenVars].sort()) {
+      const btn = document.createElement('button');
+      btn.textContent = `👁 ${name}`;
+      btn.title = t('Show this variable again');
+      btn.addEventListener('click', () => {
+        hiddenVars.delete(name);
+        closeVarMenus();
+        refreshDebugVars();
+      });
+      debugHiddenEl.appendChild(btn);
+    }
+    const all = document.createElement('button');
+    all.className = 'debug__menu-all';
+    all.textContent = t('Show all again');
+    all.addEventListener('click', () => {
+      hiddenVars.clear();
+      closeVarMenus();
+      refreshDebugVars();
+    });
+    debugHiddenEl.appendChild(all);
+  }
+  debugHiddenEl.hidden = false;
+}
+
+debugTitleBtn.addEventListener('click', toggleHiddenVarsList);
+// Clic ailleurs / Échap : referme les menus (sauf clic DANS un menu).
+document.addEventListener('pointerdown', (ev) => {
+  const el = ev.target as HTMLElement | null;
+  if (el?.closest('.debug__menu') || el === debugTitleBtn) return;
+  closeVarMenus();
+}, true);
+document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') closeVarMenus(); });
 
 function updateDebugButtons(): void {
   const paused = engine?.paused ?? false;
