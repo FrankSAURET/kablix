@@ -4,7 +4,6 @@
 1. En cliquant sur une variable (clic gauche pour la sélectionner puis clic droit dessus ) une option apparait qui propose de désactiver son affichage. Elle ne sera alors plus affiché. Si on clic sur variables, une liste déroulante des variables affichable et actuellement masqué apparaitra. Rajoute tout ça dans l'aide de la simulation en français et anglais
 1. Je retouche rearanger.svg riena à faire pour toi.
 1. la fonction de rearrangement ne fonctionne pas parfaitement si j'inverse la partie code et la partie kablix, il maintient le code à gauche et kablix à droite et ne mémorise que la taille des zones. Par contre si réouverture de kablix sa fonctionne
-1. Autoroutage rerout toujours mes fils qui sont conformes. Mon fichier d'exemple : testkablix\7seg-pico2.projix. Actuellement parfait. Si je reroute, le fil jaune DIG2-GP11 est retouté 
 
 # v2026.7.177 — régression : Pico enfichée masquée par le Grove Shield au survol
 1. ✅ **Cause** : au survol d'une broche du Grove Shield, le hissage `.part--pin-reachable` (z=4) faisait passer le shield DEVANT la Pico enfichée (z=1) — la Pico « disparaissait » sous le socle tant qu'on survolait une de ses broches. (Le z de repos était correct : shield z=0 sous Pico z=1.)
@@ -17,6 +16,7 @@
 3. ✅ **Comparaison sans faux positifs** : le garde-fou ne compare que des originaux déjà orthogonaux (H/V) — un fil neuf diagonal laisse la main au rerouté. Perforation profonde des corps d'extrémité (`deepEnds`, ×1000) taxée des deux côtés → un fil droit dont la broche est sous son propre corps (2 LED empilées) est bien détourné, sans casser le recouvrement d'une branche même-net sur sa dorsale.
 4. ✅ Vérifié en repro headless (7seg-pico : 17 bons fils, 0 rerouté, 0 traversée ; Horloge : 19 bons fils, 0 rerouté, la seule traversée résiduelle `resistor-6` corrigée).
 5. ✅ typecheck + `verify:route` (23 contrôles) + `verify:all` (exit 0) verts.
+6. ℹ️ **Cas signalé `7seg-pico2.projix`** (fil rose 1→GP8, fil vert C→1) : re-vérifié en repro headless sur CE montage → les 2 fils sont `good`, `moved:false`, `cross:null` après reroute. Déjà couvert par ce lot ; à re-tester chez Frank avec le vsix ≥ v176 installé.
 
 # v2026.7.175 — réorganisation docs/ (langue au 1er niveau, composants au 2e, img partagé)
 1. ✅ **Structure inversée** : `docs/{fr,en,img}/` à la racine, `composants/` dans chacun. `docs/composants/fr` → `docs/fr/composants`, `docs/composants/en` → `docs/en/composants`, `docs/composants/img` → `docs/img/composants` (`git mv`, historique conservé). Les guides `docs/fr/`, `docs/en/` étaient déjà bien placés (inchangés).
