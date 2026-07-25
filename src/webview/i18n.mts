@@ -348,6 +348,14 @@ const FR: Record<string, string> = {
   'All variables are hidden (click “Variables” to show them again).':
     'Toutes les variables sont masquées (cliquez sur « Variables » pour les réafficher).',
 
+  // Base d'affichage d'une variable (menu au clic droit)
+  'Display of “{0}”': 'Affichage de « {0} »',
+  'Right-click to change the display base': 'Clic droit pour changer la base d’affichage',
+  'Binary': 'Binaire',
+  'Hexadecimal': 'Hexadécimal',
+  'Decimal': 'Décimal',
+  'Character': 'Caractère',
+
   // Moniteur série / console
   'Serial monitor': 'Moniteur série',
   'Console': 'Console',

@@ -195,6 +195,23 @@ Un programme expose souvent des variables sans intérêt (constantes, objets de 
 
 Une variable masquée continue d'être **suivie** en arrière-plan : au retour, son rouge (« a changé au dernier pas ») est exact, comme si elle n'avait jamais quitté le panneau. Sans mémorisation, les masquages tiennent tant que l'atelier reste ouvert — ils survivent aux arrêts et redémarrages de la simulation — et sont oubliés à la fermeture du projet.
 
+### Base d'affichage d'une variable
+
+Un masque de bits ou un registre se lit mieux en binaire qu'en décimal. **Clic droit** sur une variable ouvre un menu qui propose quatre bases d'affichage : **Binaire**, **Hexadécimal**, **Décimal** (celle par défaut) et **Caractère**. La base retenue est cochée ✓.
+
+La valeur porte alors son indice de base, et ses chiffres sont groupés pour être lisibles :
+
+| Base | `160` affiché | Groupement |
+| --- | --- | --- |
+| Binaire | `1010 0000₂` | 4 bits |
+| Hexadécimal | `A0₁₆` | 4 chiffres |
+| Décimal | `160₁₀` | 3 chiffres |
+| Caractère | `' '` | — |
+
+En **Caractère**, les codes de contrôle sortent échappés (`'\n'`, `'\t'`, `'\0'`…), les autres valeurs hors plage imprimable en `'\x1f'`. Les valeurs qui ne sont pas des entiers (flottants, chaînes, listes, objets) sont laissées **telles quelles** quelle que soit la base choisie. Dans tous les cas, la bulle de la valeur rappelle l'écriture brute.
+
+Le choix vaut pour **cette variable** et tient tant que l'atelier reste ouvert ; il n'est pas enregistré dans le projet.
+
 ## Moniteur série
 
 - **Sortie** : USART (Uno), USB-CDC et UART0 (Pico), en temps réel.

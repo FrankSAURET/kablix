@@ -193,6 +193,23 @@ A program often exposes variables you do not care about (constants, configuratio
 
 A hidden variable is still **tracked** in the background: when it comes back, its red mark (“changed on the last step”) is accurate, as if it had never left the panel. Without saving, hiding lasts as long as the workshop stays open — it survives stopping and restarting the simulation — and is forgotten when the project is closed.
 
+### Display base of a variable
+
+A bit mask or a register reads better in binary than in decimal. **Right-click** a variable to open a menu offering four display bases: **Binary**, **Hexadecimal**, **Decimal** (the default one) and **Character**. The current base is ticked ✓.
+
+The value then carries its base subscript, and its digits are grouped to stay readable:
+
+| Base | `160` shown as | Grouping |
+| --- | --- | --- |
+| Binary | `1010 0000₂` | 4 bits |
+| Hexadecimal | `A0₁₆` | 4 digits |
+| Decimal | `160₁₀` | 3 digits |
+| Character | `' '` | — |
+
+In **Character**, control codes come out escaped (`'\n'`, `'\t'`, `'\0'`…), other values outside the printable range as `'\x1f'`. Values that are not integers (floats, strings, lists, objects) are left **as they are** whatever base you pick. In every case the value tooltip recalls the raw form.
+
+The choice applies to **that variable** and lasts as long as the workshop stays open; it is not saved in the project.
+
 ## Serial monitor
 
 - **Output**: USART (Uno), USB-CDC and UART0 (Pico), real time.

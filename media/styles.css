@@ -2263,6 +2263,21 @@ textarea {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
+/* Menu du clic droit (base d'affichage d'une variable) : posé sur le curseur. */
+.debug__menu--float {
+  position: fixed;
+  z-index: 40;
+  margin: 0;
+  min-width: 170px;
+}
+
+/* Titre du menu flottant : rappelle la variable visée. */
+.debug__menu-head {
+  padding: 0.2rem 0.5rem 0.3rem;
+  border-bottom: 1px solid var(--vscode-widget-border, rgba(255, 255, 255, 0.15));
+  opacity: 0.7;
+}
+
 .debug__menu button {
   display: block;
   width: 100%;
@@ -2292,6 +2307,16 @@ textarea {
   padding: 0.25rem 0.5rem;
   opacity: 0.6;
   font-style: italic;
+}
+
+/* Base d'affichage active dans le menu du clic droit. */
+.debug__menu button.debug__menu-cur {
+  font-weight: 600;
+}
+
+/* Valeurs : chiffres alignés d'une pause à l'autre (binaire et hexa surtout). */
+.debug__vars td:last-child {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Ligne sélectionnée dans le tableau des variables (clic gauche). */

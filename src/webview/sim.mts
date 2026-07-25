@@ -116,6 +116,7 @@ import type {
 } from './engines/types.mjs';
 import { UNO_DEMO } from './programs/uno-demo.mjs';
 import { PICO_BLINK } from './programs/pico-blink.mjs';
+import { formatVarValue, type VarBase } from './varbase.mjs';
 
 interface VsCodeApi {
   postMessage(message: unknown): void;
@@ -1823,6 +1824,12 @@ let runIsPython = false;
 // de portée) puis revient. La disquette du titre le rend permanent (mémorisé par
 // l'extension pour ce programme).
 const hiddenVars = new Set<string>();
+/**
+ * Base d'affichage choisie au clic droit, par variable (absente = décimal).
+ * Utile dès qu'on suit un registre ou un masque de bits : en décimal, `160` ne
+ * dit rien, `1010 0000₂` tout de suite plus.
+ */
+const varBases = new Map<string, VarBase>();
 /** Nom de la variable sélectionnée (clic gauche) : simple repère visuel. */
 let selectedVar: string | null = null;
 /** Dernier instantané reçu, pour re-dessiner après un masquage sans nouvelle pause. */
@@ -1894,11 +1901,23 @@ function renderDebugPause(state: DebugPauseState, redraw = false): void {
     eyeCell.appendChild(eye);
     row.insertCell().textContent = `${v.name} :`;
     const valueCell = row.insertCell();
-    valueCell.textContent = v.value;
+    const base = varBases.get(v.name) ?? 'dec';
+    valueCell.textContent = formatVarValue(v.value, base);
+    // Valeur brute en bulle dès qu'elle diffère de l'affichage (hexa, binaire,
+    // caractère) : on ne perd jamais le nombre d'origine.
+    valueCell.title = valueCell.textContent === v.value
+      ? t('Right-click to change the display base')
+      : `${v.value} · ${t('Right-click to change the display base')}`;
     if (changed) valueCell.classList.add('debug__changed');
     // Clic gauche sur la ligne : sélection (repère visuel pendant le pas à pas).
     if (v.name === selectedVar) row.classList.add('debug__row--sel');
     row.addEventListener('click', () => selectVar(v.name));
+    // Clic droit : choix de la base d'affichage de CETTE variable.
+    row.addEventListener('contextmenu', (ev) => {
+      ev.preventDefault();
+      selectVar(v.name);
+      openVarBaseMenu(v.name, ev.clientX, ev.clientY);
+    });
   }
   if (!redraw) previousVarValues = next;
   // Signale la ligne courante à l'extension (surlignage dans l'éditeur).
@@ -1917,9 +1936,55 @@ function selectVar(name: string): void {
   }
 }
 
-/** Ferme la liste déroulante des variables masquées. */
+/** Ferme le menu flottant des bases ET la liste déroulante des masquées. */
 function closeVarMenus(): void {
+  document.querySelector('.debug__menu--float')?.remove();
   debugHiddenEl.hidden = true;
+}
+
+/** Bases proposées au clic droit, dans l'ordre demandé (libellés traduits). */
+const VAR_BASES: { base: VarBase; label: () => string }[] = [
+  { base: 'bin', label: () => t('Binary') },
+  { base: 'hex', label: () => t('Hexadecimal') },
+  { base: 'dec', label: () => t('Decimal') },
+  { base: 'char', label: () => t('Character') },
+];
+
+/**
+ * Menu au clic droit sur une variable : base d'affichage (binaire, hexadécimal,
+ * décimal, caractère). La base courante est cochée. Le choix vaut pour la
+ * session d'atelier, comme le masquage.
+ */
+function openVarBaseMenu(name: string, x: number, y: number): void {
+  closeVarMenus();
+  const current = varBases.get(name) ?? 'dec';
+  const menu = document.createElement('div');
+  menu.className = 'debug__menu debug__menu--float';
+  const head = document.createElement('div');
+  head.className = 'debug__menu-head';
+  head.textContent = t('Display of “{0}”', name);
+  menu.appendChild(head);
+  for (const { base, label } of VAR_BASES) {
+    const btn = document.createElement('button');
+    // Puce de la base active : ✓ devant, place réservée sinon (libellés alignés).
+    btn.textContent = `${base === current ? '✓' : ' '} ${label()}`;
+    if (base === current) btn.classList.add('debug__menu-cur');
+    btn.addEventListener('click', () => setVarBase(name, base));
+    menu.appendChild(btn);
+  }
+  document.body.appendChild(menu);
+  // Calé sur le curseur, ramené dans la fenêtre si le menu déborde.
+  const r = menu.getBoundingClientRect();
+  menu.style.left = `${Math.min(x, window.innerWidth - r.width - 4)}px`;
+  menu.style.top = `${Math.min(y, window.innerHeight - r.height - 4)}px`;
+}
+
+/** Applique une base d'affichage à une variable (décimal = état par défaut). */
+function setVarBase(name: string, base: VarBase): void {
+  if (base === 'dec') varBases.delete(name);
+  else varBases.set(name, base);
+  closeVarMenus();
+  refreshDebugVars();
 }
 
 /** Retire une variable du panneau (clic sur son œil). Elle reste suivie. */
