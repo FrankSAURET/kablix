@@ -76,24 +76,17 @@ media/KNB.png
 media/demarrer.gif
 media/dessiner.gif
 media/simuler.gif
-# Images servant UNIQUEMENT aux guides UTILISATION/USAGE (exclus du vsix, lus via GitHub).
-media/BarreDessin.png
-media/BarreSimulation.png
-media/barre kablix.png
-media/boutons trie.png
-media/interface.png
+# media/BarreDessin, BarreSimulation, barre kablix, boutons trie, interface :
+# captures des guides USAGE (~200 Ko au total) — EMBARQUÉES depuis v2026.7.181,
+# l'aide ❔ sert le guide local et doit rester lisible hors-ligne.
 # examples/ : non référencés par l'extension (disponibles sur GitHub).
 examples/**
 # firmware : seul rp2040_ram.ld sert (script de lien de la compilation Pico).
 firmware/avr/**
 firmware/**/*.c
-# docs de développement (les fiches docs/{fr,en}/composants/*.md + docs/img/composants/ restent : aide locale).
+# docs de développement. Les fiches docs/{fr,en}/composants/*.md, docs/img/composants/
+# et les guides docs/{fr,en}/*.md restent : ils SONT l'aide locale (boutons ❔).
 docs/DEBOGAGE.md
-docs/fr/Modifier-svg-composants.md
-docs/en/Editing-svg-components.md
 docs/Recette-de-test.docx
 # fiche d'audit interne (liste de fichiers inutiles) : hors paquet.
 docs/fichiers-inutiles.md
-# Guides utilisateur : jamais lus en local (l'aide les ouvre via URL GitHub) → hors vsix.
-docs/fr/UTILISATION.md
-docs/en/USAGE.md

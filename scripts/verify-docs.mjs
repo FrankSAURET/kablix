@@ -93,6 +93,56 @@ ok(`rendu : les ${fr.length + en.length} fiches passent le rendu maison sans res
 ok('rendu : chaque fiche affiche au moins une image, toutes présentes',
   imgIssues.length === 0, imgIssues.slice(0, 4).join(' · '));
 
+// --- 2 bis. Les GUIDES (aide ❔) ----------------------------------------------
+// `src/guide.ts` sert docs/<lang>/USAGE.md avec le même rendu. Les guides ont une
+// syntaxe plus riche que les fiches (sommaire à ancres accentuées, <img> bruts,
+// captures hors du dossier docs/) : on les contrôle à part.
+const guidesOf = (lang) => {
+  const d = join(root, 'docs', lang);
+  return existsSync(d) ? readdirSync(d).filter((f) => f.endsWith('.md')).map((f) => f.slice(0, -3)) : [];
+};
+const guidesFr = guidesOf('fr');
+const guidesEn = guidesOf('en');
+ok(`guides : USAGE.md présent en FR et EN (noms de fichiers en anglais)`,
+  guidesFr.includes('USAGE') && guidesEn.includes('USAGE') &&
+  [...guidesFr, ...guidesEn].every((n) => /^[A-Za-z0-9_-]+$/.test(n)),
+  `fr=${guidesFr.join(',')} en=${guidesEn.join(',')}`);
+
+const guideIssues = [];
+const anchorIssues = [];
+for (const lang of ['fr', 'en']) {
+  for (const name of guidesOf(lang)) {
+    const p = join(root, 'docs', lang, `${name}.md`);
+    const text = readFileSync(p, 'utf8');
+    const ids = new Set();
+    const html = renderMarkdown(text, {
+      resolveAsset: (r) => 'asset:' + r,
+      resolveDocLink: (r) => (/^(composants\/)?[A-Za-z0-9_-]+\.md$/.test(r.split('#')[0]) ? 'doc:' + r : ''),
+    });
+    for (const m of html.matchAll(/<h[1-6] id="([^"]*)"/g)) ids.add(m[1]);
+    // Le sommaire doit tomber sur un titre réel (ancres accentuées re-slugifiées).
+    for (const m of html.matchAll(/href="#([^"]*)"/g)) {
+      if (!ids.has(m[1])) anchorIssues.push(`${lang}/${name} → #${m[1]}`);
+    }
+    const leftovers = [
+      [/\]\(/, 'lien non rendu'],
+      [/\*\*/, 'gras non rendu'],
+      [/^\s*#{1,6}\s/m, 'titre non rendu'],
+      [/^\s*\|/m, 'tableau non rendu'],
+      [/&lt;img/, 'balise <img> échappée'],
+      [/```/, 'bloc de code non rendu'],
+    ].filter(([re]) => re.test(html)).map(([, why]) => why);
+    if (leftovers.length) guideIssues.push(`${lang}/${name}: ${leftovers.join(', ')}`);
+  }
+}
+ok(`guides : les ${guidesFr.length + guidesEn.length} guides passent le rendu maison`,
+  guideIssues.length === 0, guideIssues.slice(0, 4).join(' · '));
+ok('guides : chaque lien du sommaire tombe sur un titre', anchorIssues.length === 0,
+  anchorIssues.slice(0, 5).join(' · '));
+
+// L'ancienne aide HTML figée dans le code ne doit pas revenir.
+ok('aide : plus de copie HTML figée (src/help.ts supprimé)', !existsSync(join(root, 'src', 'help.ts')));
+
 // --- 3. Parité FR/EN ----------------------------------------------------------
 const missingEn = fr.filter((n) => !en.includes(n));
 const orphanEn = en.filter((n) => !fr.includes(n));
@@ -138,10 +188,38 @@ const mustShip = [
   ...fr.map((n) => `docs/fr/composants/${n}.md`),
   ...en.map((n) => `docs/en/composants/${n}.md`),
   ...readdirSync(join(root, 'docs', 'img', 'composants')).map((f) => `docs/img/composants/${f}`),
+  ...guidesFr.map((n) => `docs/fr/${n}.md`),
+  ...guidesEn.map((n) => `docs/en/${n}.md`),
 ];
 const dropped = mustShip.filter(excluded);
-ok(`vsix : les ${mustShip.length} fiches + images d'aide sont dans le paquet`, dropped.length === 0,
+ok(`vsix : les ${mustShip.length} fiches, guides et images d'aide sont dans le paquet`, dropped.length === 0,
   dropped.slice(0, 5).join(' · '));
+
+// Captures des guides : embarquées (lisibles hors-ligne) SAUF les lourdes, que
+// `guide.ts` va chercher sur GitHub. Une capture légère exclue = trou hors-ligne.
+const HEAVY = /\.gif$|(^|\/)(Kablix|KNB|accroche)\.png$/i;
+const guideAssets = new Set();
+for (const lang of ['fr', 'en']) {
+  for (const name of guidesOf(lang)) {
+    const p = join(root, 'docs', lang, `${name}.md`);
+    const text = readFileSync(p, 'utf8');
+    for (const m of text.matchAll(/!\[[^\]]*\]\((<[^>]+>|[^)\s]+)\)/g)) {
+      guideAssets.add([dirname(p), decodeURIComponent(m[1].replace(/^<|>$/g, '').trim())]);
+    }
+    for (const m of text.matchAll(/<img\s+[^>]*?\bsrc\s*=\s*"([^"]*)"/gi)) {
+      guideAssets.add([dirname(p), decodeURIComponent(m[1])]);
+    }
+  }
+}
+const lightMissing = [];
+for (const [dir, r] of guideAssets) {
+  if (/^https?:/i.test(r)) continue;
+  const abs = resolve(dir, r);
+  if (!existsSync(abs)) { lightMissing.push(`${rel(abs)} (absente du dépôt)`); continue; }
+  if (!HEAVY.test(r) && excluded(rel(abs))) lightMissing.push(`${rel(abs)} (exclue du vsix)`);
+}
+ok(`vsix : les captures légères des guides (${guideAssets.size} refs) sont embarquées`,
+  lightMissing.length === 0, lightMissing.slice(0, 5).join(' · '));
 // Garde-fou du matcher : des règles connues doivent bien s'appliquer.
 ok('vsix : matcher .vscodeignore cohérent (src/ exclu, dist/webview.js ré-inclus)',
   excluded('src/panel.ts') && excluded('dist/pinout/uno.svg') === false && !excluded('dist/webview.js'),

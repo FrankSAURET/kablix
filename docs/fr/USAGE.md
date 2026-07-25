@@ -5,22 +5,21 @@
 ## Sommaire
 
 1. [Démarrage](#démarrage)
-2. [Fonctionnalités](#fonctionnalités)
-3. [L'interface](#linterface)
-4. [Construire un montage](#construire-un-montage)
-5. [Exécuter du code](#exécuter-du-code)
-6. [MicroPython sur le Pico](#micropython-sur-le-pico)
-7. [Déboguer pas à pas](#déboguer-pas-à-pas)
-8. [Moniteur série](#moniteur-série)
-9. [Traceur de courbes](#traceur-de-courbes)
-10. [Exporter le schéma en SVG](#exporter-le-schéma-en-svg)
-11. [Créer ses propres composants](#créer-ses-propres-composants)
-12. [Format de fichier des composants (.kablix-part.json)](#format-de-fichier-des-composants-kablix-partjson)
-13. [Où trouver des composants existants](#où-trouver-des-composants-existants)
-14. [Enregistrer / ouvrir un projet (.projix)](#enregistrer--ouvrir-un-projet-projix)
-15. [Interopérabilité Wokwi (diagram.json)](#interopérabilité-wokwi-diagramjson)
-16. [Mises à jour des bibliothèques](#mises-à-jour-des-bibliothèques)
-17. [Raccourcis clavier](#raccourcis-clavier)
+2. [L'interface](#linterface)
+3. [Construire un montage](#construire-un-montage)
+4. [Exécuter du code](#exécuter-du-code)
+5. [MicroPython sur le Pico](#micropython-sur-le-pico)
+6. [Déboguer pas à pas](#déboguer-pas-à-pas)
+7. [Moniteur série](#moniteur-série)
+8. [Traceur de courbes](#traceur-de-courbes)
+9. [Exporter le schéma en SVG](#exporter-le-schéma-en-svg)
+10. [Créer ses propres composants](#créer-ses-propres-composants)
+11. [Format de fichier des composants (.kablix-part.json)](#format-de-fichier-des-composants-kablix-partjson)
+12. [Où trouver des composants existants](#où-trouver-des-composants-existants)
+13. [Enregistrer / ouvrir un projet (.projix)](#enregistrer--ouvrir-un-projet-projix)
+14. [Interopérabilité Wokwi (diagram.json)](#interopérabilité-wokwi-diagramjson)
+15. [Mises à jour des bibliothèques](#mises-à-jour-des-bibliothèques)
+16. [Raccourcis clavier](#raccourcis-clavier)
 
 ---
 
@@ -225,7 +224,7 @@ Bouton **Disquette SVG** : le schéma complet (composants avec leurs rotations, 
 ## Créer ses propres composants
 > ⚠ Expérimentale ⚠
 
-> Guide détaillé : [Modifier les SVG des composants et leurs schémas internes](Modifier-svg-composants.md) — retoucher le dessin SVG, la grille de 10 px, et modifier les schémas internes (vue K).
+> Guide détaillé : [Modifier les SVG des composants et leurs schémas internes](Editing-svg-components.md) — retoucher le dessin SVG, la grille de 10 px, et modifier les schémas internes (vue K).
 
 Bouton **« + Créer un composant »** en bas de la palette : une fenêtre plein écran s'ouvre, avec le formulaire à gauche et **deux aperçus** à droite (vue externe et vue interne). Les boutons **zoom** en haut (−, %, +, ⛶ *ajuster*) mettent les deux aperçus à l'échelle.
 

@@ -1,26 +1,25 @@
 # Kablix — User guide
 ![Kablix](../../Kablix.png)
-> Version française : [UTILISATION.md](../fr/UTILISATION.md)
+> Version française : [USAGE.md](../fr/USAGE.md)
 
 ## Contents
 
 1. [Getting started](#getting-started)
-2. [Features](#features)
-3. [The interface](#the-interface)
-4. [Building a circuit](#building-a-circuit)
-5. [Running code](#running-code)
-6. [MicroPython on the Pico](#micropython-on-the-pico)
-7. [Step-by-step debugging](#step-by-step-debugging)
-8. [Serial monitor](#serial-monitor)
-9. [Plotter](#plotter)
-10. [Exporting the diagram as SVG](#exporting-the-diagram-as-svg)
-11. [Creating your own parts](#creating-your-own-parts)
-12. [Part file format (.kablix-part.json)](#part-file-format-kablix-partjson)
-13. [Where to find existing parts](#where-to-find-existing-parts)
-14. [Saving / opening a project (.projix)](#saving--opening-a-project-projix)
-15. [Wokwi interoperability (diagram.json)](#wokwi-interoperability-diagramjson)
-16. [Library updates](#library-updates)
-17. [Keyboard shortcuts](#keyboard-shortcuts)
+2. [The interface](#the-interface)
+3. [Building a circuit](#building-a-circuit)
+4. [Running code](#running-code)
+5. [MicroPython on the Pico](#micropython-on-the-pico)
+6. [Step-by-step debugging](#step-by-step-debugging)
+7. [Serial monitor](#serial-monitor)
+8. [Plotter](#plotter)
+9. [Exporting the diagram as SVG](#exporting-the-diagram-as-svg)
+10. [Creating your own parts](#creating-your-own-parts)
+11. [Part file format (.kablix-part.json)](#part-file-format-kablix-partjson)
+12. [Where to find existing parts](#where-to-find-existing-parts)
+13. [Saving / opening a project (.projix)](#saving--opening-a-project-projix)
+14. [Wokwi interoperability (diagram.json)](#wokwi-interoperability-diagramjson)
+15. [Library updates](#library-updates)
+16. [Keyboard shortcuts](#keyboard-shortcuts)
 
 ---
 

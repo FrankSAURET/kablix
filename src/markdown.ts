@@ -29,44 +29,77 @@ function esc(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
-/** Cible d'un lien Markdown : `<a b>` (espaces autorisés) ou `a b`. */
+/**
+ * Cible d'un lien Markdown : `<a b>` (chevrons obligatoires si le chemin
+ * contient une espace) ou `a`. Les liens sont traités APRÈS `esc()`, d'où la
+ * forme échappée `&lt;…&gt;`.
+ */
 function linkTarget(raw: string): string {
-  return raw.trim().replace(/^<|>$/g, '');
+  return raw.trim().replace(/^(<|&lt;)/, '').replace(/(>|&gt;)$/, '');
 }
 
-/** Ancre stable pour un titre (accents retirés), pour les liens `#section`. */
+/** Cible d'un lien, échappée ou non — `&lt;chemin avec espaces&gt;` compris. */
+const TARGET = String.raw`(&lt;[^)]*?&gt;|<[^>]+>|[^)\s]+)`;
+
+/**
+ * Ancre d'un titre, pour les liens `#section`. Mêmes règles que GitHub — la
+ * ponctuation est SUPPRIMÉE (et non remplacée par un tiret) puis les espaces
+ * deviennent des tirets — pour que les sommaires écrits à la main dans les
+ * guides (`#linterface`, `#enregistrer--ouvrir-un-projet-projix`) tombent bien
+ * sur leur titre. Les accents sont retirés des deux côtés, donc cohérents.
+ */
 function slug(text: string): string {
   return text
     .normalize('NFD')
     .replace(/[^\x20-\x7e]/g, '') // NFD a détaché les accents : on ne garde que l'ASCII
-    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    .toLowerCase()
+    .replace(/[^a-z0-9 -]/g, '')
+    .trim()
+    .replace(/ /g, '-');
 }
 
 /** Rendu des marques EN LIGNE : code, images, liens, gras, italique. */
 function inline(src: string, opt: MarkdownOptions): string {
-  // Le code en ligne est mis de côté AVANT tout le reste : son contenu ne doit
-  // subir ni le gras ni l'italique (`**` littéral dans un exemple de code).
+  // Le code en ligne et les <img> bruts sont mis de côté AVANT tout le reste :
+  // le code ne doit subir ni gras ni italique (`**` littéral dans un exemple de
+  // code), et la balise <img> ne doit pas être échappée.
   const codes: string[] = [];
   // Sentinelle : caractère de contrôle absent des fiches, neutre pour esc().
   const MARK = '\u0001';
-  let out = src.replace(/`([^`]+)`/g, (_m, code: string) => {
-    codes.push(`<code>${esc(code)}</code>`);
+  const keep = (html: string): string => {
+    codes.push(html);
     return `${MARK}${codes.length - 1}${MARK}`;
+  };
+
+  let out = src.replace(/`([^`]+)`/g, (_m, code: string) => keep(`<code>${esc(code)}</code>`));
+
+  // `<img src="…" width="30" />` brut : les guides s'en servent pour caler une
+  // icône DANS une phrase (le Markdown ne sait pas dimensionner une image).
+  out = out.replace(/<img\s+([^>]*?)\/?>/gi, (m, attrs: string) => {
+    const srcAttr = attrs.match(/\bsrc\s*=\s*"([^"]*)"/i);
+    if (!srcAttr) return m;
+    const rewritten = attrs.replace(
+      /\bsrc\s*=\s*"[^"]*"/i,
+      `src="${opt.resolveAsset(decodeURIComponent(srcAttr[1]))}"`
+    );
+    return keep(`<img ${rewritten.trim()} />`);
   });
 
   out = esc(out);
 
   // Image ![alt](src) — avant les liens (même syntaxe, préfixée de `!`).
-  out = out.replace(/!\[([^\]]*)\]\((<[^>]+>|[^)\s]+)\)/g, (_m, alt: string, raw: string) => {
+  out = out.replace(new RegExp(String.raw`!\[([^\]]*)\]\(${TARGET}\)`, 'g'), (_m, alt: string, raw: string) => {
     const src2 = opt.resolveAsset(decodeURIComponent(linkTarget(raw)));
     return `<img src="${src2}" alt="${alt}" />`;
   });
 
   // Lien [texte](cible) : externe (http/mailto), ancre (#), ou autre fiche (.md).
-  out = out.replace(/\[([^\]]+)\]\((<[^>]+>|[^)\s]+)\)/g, (_m, text: string, raw: string) => {
+  out = out.replace(new RegExp(String.raw`\[([^\]]+)\]\(${TARGET}\)`, 'g'), (_m, text: string, raw: string) => {
     const target = linkTarget(raw);
     if (/^(https?:|mailto:)/i.test(target)) return `<a href="${target}">${text}</a>`;
-    if (target.startsWith('#')) return `<a href="${target}">${text}</a>`;
+    // Ancre interne : re-slugifiée pour retomber sur l'id du titre (les sommaires
+    // des guides écrivent l'ancre accentuée, `#démarrage` → id `demarrage`).
+    if (target.startsWith('#')) return `<a href="#${slug(decodeURIComponent(target.slice(1)))}">${text}</a>`;
     const href = opt.resolveDocLink(decodeURIComponent(target));
     return href ? `<a href="${href}">${text}</a>` : text;
   });

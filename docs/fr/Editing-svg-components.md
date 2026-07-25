@@ -52,7 +52,7 @@ Un `.kablix-part.json` ressemble à :
 }
 ```
 
-(Format complet : voir l'aide intégrée, section *Format de fichier des composants*, ou [`docs/UTILISATION.md`](UTILISATION.md).)
+(Format complet : voir l'aide intégrée, section *Format de fichier des composants*, ou [`docs/USAGE.md`](USAGE.md).)
 
 ### b. Éditer le dessin
 

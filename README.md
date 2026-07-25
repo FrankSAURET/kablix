@@ -49,7 +49,7 @@ La simulation s’appuie sur deux moteurs open-sources embarqués dans l’exten
 - ✅ **Intégrable à Windows**.
 
 
-> 📖 **Guide complet** : [docs/fr/UTILISATION.md](docs/fr/UTILISATION.md) (français)/
+> 📖 **Guide complet** : [docs/fr/USAGE.md](docs/fr/USAGE.md) (français)/
 > [docs/en/USAGE.md](docs/en/USAGE.md) (English) — interface, câblage, création
 > de composants personnalisés (avec prompt IA), format `.kablix-part.json`,
 > sources de composants existants.
@@ -58,31 +58,44 @@ La simulation s’appuie sur deux moteurs open-sources embarqués dans l’exten
 > Le mécanisme est extensible à d’autres langues — voir [Internationalisation](#internationalisation).
 ## Internationalisation
 
-L’interface suit la langue de VS Code (`vscode.env.language`) : **français si elle commence par `fr`, anglais sinon** (langue de repli). La traduction repose sur deux registres indépendants, parce qu’ils traduisent des choses de nature différente :
+L’interface suit la langue de VS Code (`vscode.env.language`) : **français si elle commence par `fr`, anglais sinon** (langue de repli). La traduction repose sur trois registres indépendants, parce qu’ils traduisent des choses de nature différente :
 
 | Quoi | Fichier | Forme |
 | --- | --- | --- |
-| Chaînes de la webview (barre d’outils, palette, inspecteur, catalogue…) | `src/webview/i18n.mts` | dictionnaire **clé (anglais) → traduction** (`DICTS`) ; `t()` retombe sur la clé anglaise si absente |
-| Page d’aide (`kablix.openHelp`) | `src/help.ts` | registre de **documents HTML complets** par langue (`HELP_LOCALES`) ; repli sur l’anglais |
+| Chaînes de la webview (barre d’outils, palette, inspecteur, catalogue…) | `src/webview/i18n.mts` | dictionnaire **clé (anglais) → traduction** (`DICTS`) ; `t()` retombe sur la clé anglaise si absente |
+| Chaînes de l’extension (commandes, notifications, dialogues) | `package.nls.<lang>.json` + `l10n/bundle.l10n.<lang>.json` | mécanisme natif VS Code (`%clé%` dans `package.json`, `vscode.l10n.t()` dans le code) ; le fichier sans suffixe est l’anglais |
+| Aide : guide utilisateur (❔) et fiches de composants | `docs/<lang>/*.md` et `docs/<lang>/composants/*.md` | **Markdown versionné**, rendu hors-ligne dans une webview (`src/markdown.ts` → `src/guide.ts` / `src/partHelp.ts`) |
 
-Les deux utilisent la même résolution : le **code base** de la langue (`fr-FR` → `fr`)
-sélectionne l’entrée correspondante, et l’anglais sert de repli quand elle est absente.
+L’aide n’est plus une copie HTML figée dans le code : c’est **le guide lui-même** qui
+s’affiche, images comprises — donc jamais en retard sur la documentation. Les captures
+lourdes (GIF de démo, logo) restent hors du `.vsix` et sont servies depuis GitHub ;
+toutes les autres sont embarquées, donc lisibles sans connexion.
+
+Les trois registres utilisent la même résolution : le **code base** de la langue
+(`fr-FR` → `fr`) sélectionne l’entrée correspondante, et l’anglais sert de repli quand
+elle est absente.
 
 ### Ajouter une langue (ex. allemand, `de`)
 
-À faire aux **deux** registres — une langue déclarée à un seul endroit ne sera traduite
-qu’à moitié :
+À faire aux **trois** registres — une langue déclarée à un seul endroit ne sera traduite
+qu’en partie :
 
-1. **Webview** — dans [`src/webview/i18n.mts`](src/webview/i18n.mts) : créer le
+1. **Webview** — dans [`src/webview/i18n.mts`](src/webview/i18n.mts) : créer le
    dictionnaire `const DE = { … }` (mêmes clés anglaises que `FR`) puis l’ajouter à
-   `DICTS` → `{ fr : FR, de : DE }`. Les clés non traduites retombent automatiquement
+   `DICTS` → `{ fr : FR, de : DE }`. Les clés non traduites retombent automatiquement
    sur l’anglais.
-2. **Aide** — dans [`src/help.ts`](src/help.ts) : écrire `bodyDe()` (copie traduite de
-   `bodyFr`/`bodyEn`), ajouter l’URL de doc `DOC_URL_DE`, puis une entrée à
-   `HELP_LOCALES` → `de : { lang : 'de', title: 'Kablix — Hilfe', docUrl : DOC_URL_DE, body: bodyDe }`.
+2. **Extension** — copier `package.nls.json` en `package.nls.de.json` et
+   `l10n/bundle.l10n.fr.json` en `l10n/bundle.l10n.de.json`, puis traduire les valeurs
+   (les clés restent identiques). VS Code choisit le fichier tout seul.
+3. **Aide** — créer `docs/de/` : le guide `USAGE.md` et le dossier `composants/`
+   (mêmes NOMS de fichiers que `docs/fr/`, seul le contenu est traduit ; les images sont
+   mutualisées dans `docs/img/`). Élargir ensuite `docLang()` dans
+   [`src/guide.ts`](src/guide.ts) et [`src/partHelp.ts`](src/partHelp.ts) — une fiche
+   absente retombe déjà sur une autre langue.
 
-Aucune autre modification de logique n’est nécessaire : la sélection et le repli sont
-gérés par `initLocale()` (webview) et `resolveLocale()` (aide).
+Aucune autre modification de logique n’est nécessaire : la sélection et le repli sont
+gérés par `initLocale()` (webview) et `docLang()` (aide). `npm run verify:docs` contrôle
+que les guides et les fiches restent complets, illustrés et embarqués dans le paquet.
 
 ## Crédits
 

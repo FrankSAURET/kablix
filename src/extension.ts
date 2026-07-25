@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { SimulatorPanel } from './panel';
-import { HelpPanel } from './help';
+import { GuidePanel, SHOW_GUIDE } from './guide';
 import { promptLibraryUpdates } from './updates';
 import { upgradeFirmware, checkFirmwareUpdate } from './firmware';
 import { saveDefaultLayout, applyDefaultLayout, kablixColumn } from './layout';
@@ -104,7 +104,7 @@ export function activate(context: vscode.ExtensionContext): void {
       void upgradeFirmware(context);
     }),
     vscode.commands.registerCommand('kablix.openHelp', () => {
-      HelpPanel.createOrShow();
+      void GuidePanel.show(context.extensionUri);
     }),
     vscode.commands.registerCommand('kablix.saveDefaultLayout', () => {
       void saveDefaultLayout(context);
@@ -123,6 +123,13 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand(SHOW_PART_HELP, (type: unknown) => {
       if (typeof type === 'string' && /^[a-z0-9-]+$/i.test(type)) {
         void PartHelpPanel.show(context.extensionUri, type);
+      }
+    }),
+    // Navigation d'un guide à l'autre (liens entre USAGE.md et les guides
+    // annexes). Commande interne, comme SHOW_PART_HELP.
+    vscode.commands.registerCommand(SHOW_GUIDE, (name: unknown) => {
+      if (typeof name === 'string' && /^[a-z0-9_-]+$/i.test(name)) {
+        void GuidePanel.show(context.extensionUri, name);
       }
     })
   );
