@@ -2852,15 +2852,21 @@ export class Editor {
           if (dx > TOL && dy > TOL) { hv = false; break; }
         }
         if (hv && bends <= 4) {
-          // Survol de composant : le tracé INTERNE (sans les pattes broche→coude)
-          // ne doit couvrir aucun corps ; les deux corps d'extrémité tolèrent le
-          // ras (la broche vit au bord du corps).
+          // Survol de composant. Demande de Frank (préserver un bon fil sauf s'il
+          // TRAVERSE un composant) : le simple RAS d'un composant voisin (fil qui
+          // longe son bord, cas d'une rangée de résistances serrées à 10 px) ne
+          // disqualifie plus le fil — seule une traversée DE PART EN PART, mesurée
+          // contre le cœur du corps (rétréci de DEEP), le fait rerouter. Les deux
+          // corps d'extrémité gardent la tolérance de ras historique (ENDCAP).
           const ENDCAP = 1.5 * GRID;
+          const DEEP = 4; // marge sur chaque bord : cœur du composant
           let overComp = false;
           for (const o of obstacles) {
             const isEnd = o.id === wire.a.partId || o.id === wire.b.partId;
             let ov = 0;
-            for (let i = 0; i < full.length - 1; i++) ov += segRectOverlap(full[i], full[i + 1], o);
+            for (let i = 0; i < full.length - 1; i++) {
+              ov += isEnd ? segRectOverlap(full[i], full[i + 1], o) : segRectDeepCross(full[i], full[i + 1], o, DEEP);
+            }
             if (ov > (isEnd ? ENDCAP : TOL)) { overComp = true; break; }
           }
           // Superposition avec un AUTRE fil (équipotentielle différente).
@@ -2897,10 +2903,11 @@ export class Editor {
       // la ligne (le créneau anti-superposition du routeur reprend la main).
       if (Math.abs(a.x - b.x) <= TOL || Math.abs(a.y - b.y) <= TOL) {
         const ENDCAP = 1.5 * GRID; // chevauchement toléré dans un corps d'extrémité
+        const DEEP = 4; // marge : seule une traversée du cœur d'un tiers bloque
         let blocked = false;
         for (const o of obstacles) {
-          const ov = segRectOverlap(a, b, o);
           const isEnd = o.id === wire.a.partId || o.id === wire.b.partId;
+          const ov = isEnd ? segRectOverlap(a, b, o) : segRectDeepCross(a, b, o, DEEP);
           if (ov > (isEnd ? ENDCAP : TOL)) {
             blocked = true;
             break;
@@ -2967,50 +2974,39 @@ export class Editor {
       // les deux d'extrémité : seules les pattes a→pa / pb→b ont le droit de
       // traverser un corps — repro Frank : le Z de repli coupait le LCD en plein
       // milieu car `others` excluait les composants d'extrémité).
-      const cost = (sa: XY | null, sb: XY | null, c: XY[]): number => {
-        const pa = sa ?? a;
-        const pb = sb ?? b;
-        const poly = [a, pa, ...c, pb, b];
-        const comp = polylineRectOverlap([pa, ...c, pb], obstacles);
+      // Score d'une polyligne complète [a..b]. `innerForComp` = tronçon dont le
+      // survol de composant est mesuré (les pattes d'extrémité ont le droit de
+      // toucher leur propre corps ; on les exclut). Utilisé pour départager les
+      // tracés candidats ET pour comparer le tracé ORIGINAL au meilleur rerouté.
+      const scorePoly = (poly: XY[], innerForComp: XY[], compObstacles: PartRect[] = obstacles): number => {
+        const comp = polylineRectOverlap(innerForComp, compObstacles);
         const { overlap, near } = polylineWireCost(poly, otherSegs, GAP);
         const { len, bends } = polyLenBends(poly);
-        // Aller-retour sur soi-même (la patte d'arrivée qui rebrousse chemin le
-        // long du tracé) : aussi laid qu'un chevauchement d'un autre fil.
         let selfOv = 0;
         for (let i = 0; i < poly.length - 1; i++) {
           for (let j = i + 1; j < poly.length - 1; j++) {
             selfOv += collinearOverlap(poly[i], poly[i + 1], poly[j], poly[j + 1]);
           }
         }
-        // Croisements transversaux : à éviter quand un petit détour suffit.
         let cross = 0;
         for (let i = 0; i < poly.length - 1; i++) {
           for (const [s, t] of otherSegs) if (segsCross(poly[i], poly[i + 1], s, t)) cross++;
         }
-        // Recouvrement d'un fil de la MÊME équipotentielle : un BONUS (le fil
-        // « monte » sur la dorsale, chaque px suivi ne coûte plus que 25 % de sa
-        // longueur) — borné par la longueur pour ne jamais rendre le coût négatif.
         const sameOv = sameSegs.length > 0 ? Math.min(len, polylineWireCost(poly, sameSegs, GAP).overlap) : 0;
-        // Broche étrangère TRAVERSÉE par le tracé : interdit (poids ×2000, pire
-        // que traverser un composant) — un fil ne doit jamais recouvrir une
-        // broche à laquelle il n'est pas connecté.
-        // Seuil 4 px = rayon de pastille (cf. PIN_CLR dans astarRoute) : un fil qui
-        // RECOUVRE une broche voisine est pénalisé, un fil qui passe à mi-chemin
-        // entre deux broches (5 px) ne l'est pas.
         let onPin = 0;
         for (const fp of foreignPins) {
           for (let i = 0; i < poly.length - 1; i++) {
-            if (pointOnSegment(fp.c, poly[i], poly[i + 1], 4)) {
-              onPin++;
-              break;
-            }
+            if (pointOnSegment(fp.c, poly[i], poly[i + 1], 4)) { onPin++; break; }
           }
         }
-        // Poids massifs, hiérarchisés : passer sur une broche étrangère (×2000)
-        // est le pire, puis traverser un composant (×1000), suivre un autre fil
-        // (×100), un croisement (1,5 coude). À coût « dur » égal, le plus court
-        // et le moins coudé gagne.
         return onPin * 2000 + comp * 1000 + (overlap + selfOv) * 100 + cross * BEND * 1.5 + near * 0.6 + len + bends * BEND - sameOv * RIDE;
+      };
+      const cost = (sa: XY | null, sb: XY | null, c: XY[]): number => {
+        const pa = sa ?? a;
+        const pb = sb ?? b;
+        // Le tracé interne [pa..pb] (sans les pattes a→pa / pb→b) porte la mesure de
+        // survol de composant : seules les pattes ont le droit de toucher leur corps.
+        return scorePoly([a, pa, ...c, pb, b], [pa, ...c, pb]);
       };
       // Routeur A* (contourne les obstacles et les fils), essayé pour CHAQUE
       // combinaison de sorties candidates (≤ 2 par extrémité) : pour une broche
@@ -3105,6 +3101,59 @@ export class Editor {
       // 2. Purement géométrique (le tracé ne bouge pas), donc toujours sûr : pas
       // de nouveau survol de broche ni de composant.
       pts = collapseColinear([a, ...pts, b], 1).slice(1, -1);
+      // NE JAMAIS DÉGRADER UN FIL EXISTANT : dans un montage dense (composants à
+      // 10 px), l'A* peut être contraint de pondre un tracé qui traverse un
+      // composant ou ajoute des coudes — parfois PIRE que le fil déjà en place
+      // (repro Frank : bons fils droits reroutés, certains traversant un composant).
+      // On compare le coût du tracé rerouté à celui de l'ORIGINAL et on garde le
+      // meilleur. Pour l'original, le survol de composant se mesure contre tous les
+      // corps SAUF les deux d'extrémité (les pattes broche→coude ont le droit de
+      // toucher leur propre corps, comme pour le tracé interne d'un rerouté).
+      const origPts = wire.points ?? [];
+      const origPoly = [a, ...origPts, b];
+      // Le garde-fou « ne jamais dégrader » ne compare QUE des originaux déjà
+      // orthogonaux (H/V) : un fil diagonal (ex. fil neuf non encore routé, ou fil
+      // sale) n'a rien à préserver et laisse toujours la main au tracé rerouté —
+      // sinon `segRectDeepCross` (aveugle aux diagonales) fausserait la balance en
+      // faveur d'un original diagonal qui « ne perce rien » par construction.
+      let origOrtho = true;
+      for (let i = 0; i < origPoly.length - 1; i++) {
+        if (Math.abs(origPoly[i].x - origPoly[i + 1].x) > TOL && Math.abs(origPoly[i].y - origPoly[i + 1].y) > TOL) {
+          origOrtho = false;
+          break;
+        }
+      }
+      // Survol de composant mesuré contre les corps TIERS (hors les deux d'extrémité,
+      // dont le ras est toléré). Même règle appliquée aux deux tracés pour comparer.
+      const thirdParty = obstacles.filter((o) => o.id !== wire.a.partId && o.id !== wire.b.partId);
+      const newPoly = [a, ...pts, b];
+      // Perforation PROFONDE des corps d'EXTRÉMITÉ (au-delà du ras toléré) : un fil
+      // droit dont la broche est sous son propre corps peut le trancher de part en
+      // part (ex. 2 LED superposées). Le survol tiers étant déjà couvert par
+      // `thirdParty`, on ne taxe ici QUE le cœur des deux corps d'extrémité, pour
+      // que l'original perforant ne soit pas jugé « parfait » face au détour (qui,
+      // lui, approche la broche par le côté et perce moins).
+      const DEEP = 4;
+      const endBodies = obstacles.filter((o) => o.id === wire.a.partId || o.id === wire.b.partId);
+      const deepEnds = (poly: XY[]): number => {
+        let ov = 0;
+        for (const o of endBodies) {
+          for (let i = 0; i < poly.length - 1; i++) ov += segRectDeepCross(poly[i], poly[i + 1], o, DEEP);
+        }
+        return ov;
+      };
+      const origScore = scorePoly(origPoly, origPoly, thirdParty) + deepEnds(origPoly) * 1000;
+      const newScore = scorePoly(newPoly, newPoly, thirdParty) + deepEnds(newPoly) * 1000;
+      if (origOrtho && origScore <= newScore + 0.01) {
+        // Le reroutage n'améliore rien (ou dégrade) : on garde le fil tel quel,
+        // en n'appliquant que l'optimisation colinéaire (elle ne déplace rien).
+        const kept = collapseColinear(origPoly, 1).slice(1, -1);
+        if (kept.length !== origPts.length) changed = true;
+        wire.points = kept.length > 0 ? kept : undefined;
+        wireSegs.set(wire.id, toSegs([a, ...kept, b]));
+        this.positionWire(wire);
+        continue;
+      }
       wire.points = pts.length > 0 ? pts : undefined;
       wireSegs.set(wire.id, toSegs([a, ...pts, b]));
       changed = true;
@@ -5288,6 +5337,17 @@ function segRectOverlap(p: XY, q: XY, r: { x: number; y: number; w: number; h: n
   const x = (p.x + q.x) / 2;
   if (x < r.x || x > r.x + r.w) return 0;
   return Math.max(0, Math.min(Math.max(p.y, q.y), r.y + r.h) - Math.max(Math.min(p.y, q.y), r.y));
+}
+
+/** Longueur d'un segment aligné qui passe par le CŒUR d'un rectangle (rétréci de
+ *  `inset` sur chaque bord) : distingue une vraie traversée de part en part d'un
+ *  simple ras du bord (une broche vit au bord de son corps ; un fil qui longe le
+ *  bord d'un composant voisin ne le « traverse » pas). Renvoie 0 si le rect
+ *  rétréci est vide ou si le segment reste en dehors de son cœur. */
+function segRectDeepCross(p: XY, q: XY, r: { x: number; y: number; w: number; h: number }, inset: number): number {
+  const rr = { x: r.x + inset, y: r.y + inset, w: r.w - 2 * inset, h: r.h - 2 * inset };
+  if (rr.w <= 0 || rr.h <= 0) return 0;
+  return segRectOverlap(p, q, rr);
 }
 
 /** Axe d'un segment aligné : 'h' (horizontal), 'v' (vertical) ou null (diagonale). */

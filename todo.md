@@ -1,7 +1,16 @@
 # À faire
-1. une autre régression. Le routage automatique reroute des bons fils (droit horizontaux ou verticaux directement connectés aux pins des composant ).  Recherche dans ta mémoire ma définition complète de "bon fil" et vérifie qu'on ne le reroute en aucun cas. J'ai même des fils qui traversent des composants.
 1. une autre régression.Si la pico pi (ou w) est enfiché sur la grove, elle doit toujours rester au premier plan
 1. Si je sélectionne et déplace plusieurs coude et que je maintient CTRL, le déplacement ne doit être qu'horizontal ou vertical si je relache CTRL il redevient libre
+1. Le comportement des afficheurs ou la gesion du temps pose un probleme (test sur pico.) Mon fichier de test : testkablix\7seg-pico2.projix. Affichage trés lent, on voit les digits changer 1 par 1 . Si je baisse DELAIS (de 500 à 50 par exemple), l'affichage ne suit pas du tout
+1. En cliquant sur une variable (clic gauche pour la sélectionner puis clic droit dessus ) une option apparait qui propose de désactiver son affichage. Elle ne sera alors plus affiché. Si on clic sur variables, une liste déroulante des variables affichable et actuellement masqué apparaitra. Rajoute tout ça dans l'aide de la simulation en français et anglais
+1. la fonction de rearrangement ne fonctionne pas parfaitement si j'inverse la partie code et la partie kablix, il maintient le code à gauche et kablix à droite et ne mémorise que la taille des zones
+
+# v2026.7.176 — régression : bons fils droits reroutés (et traversant des composants)
+1. ✅ **Préservation relâchée sur le RAS d'un tiers** : un fil droit H/V qui longe le bord d'un composant voisin (rangée de résistances serrées à 10 px) n'est plus disqualifié. Seule une traversée DE PART EN PART du cœur (corps rétréci de `DEEP=4`) rejette le fil. Appliqué aux DEUX branches de `autoRoute` (préservation `overComp` + ligne droite prioritaire `blocked`), via nouveau helper `segRectDeepCross`. Les corps d'extrémité gardent la tolérance de ras `ENDCAP=1,5·GRID`.
+2. ✅ **Garde-fou « ne jamais dégrader »** : avant d'écraser un fil, on compare le score du tracé A\* rerouté à celui de l'ORIGINAL et on garde le meilleur (`scorePoly` factorisé hors de `cost`). Empêche l'A\* de pondre, dans un montage dense, un tracé PIRE que le fil en place (repro Frank : bons fils reroutés, certains traversant un composant).
+3. ✅ **Comparaison sans faux positifs** : le garde-fou ne compare que des originaux déjà orthogonaux (H/V) — un fil neuf diagonal laisse la main au rerouté. Perforation profonde des corps d'extrémité (`deepEnds`, ×1000) taxée des deux côtés → un fil droit dont la broche est sous son propre corps (2 LED empilées) est bien détourné, sans casser le recouvrement d'une branche même-net sur sa dorsale.
+4. ✅ Vérifié en repro headless (7seg-pico : 17 bons fils, 0 rerouté, 0 traversée ; Horloge : 19 bons fils, 0 rerouté, la seule traversée résiduelle `resistor-6` corrigée).
+5. ✅ typecheck + `verify:route` (23 contrôles) + `verify:all` (exit 0) verts.
 
 # v2026.7.175 — réorganisation docs/ (langue au 1er niveau, composants au 2e, img partagé)
 1. ✅ **Structure inversée** : `docs/{fr,en,img}/` à la racine, `composants/` dans chacun. `docs/composants/fr` → `docs/fr/composants`, `docs/composants/en` → `docs/en/composants`, `docs/composants/img` → `docs/img/composants` (`git mv`, historique conservé). Les guides `docs/fr/`, `docs/en/` étaient déjà bien placés (inchangés).
