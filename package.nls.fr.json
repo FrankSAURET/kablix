@@ -4,6 +4,7 @@
   "kablix.cmd.compileAndRun": "Kablix : Compiler",
   "kablix.cmd.loadWorkspaceArtifact": "Kablix : Charger l'artefact compilé du workspace",
   "kablix.cmd.saveProject": "Kablix : Enregistrer le projet (.projix)",
+  "kablix.cmd.saveProjectSmart": "Kablix : Enregistrer le projet (nom intelligent)",
   "kablix.cmd.openProject": "Kablix : Ouvrir un projet (.projix)",
   "kablix.cmd.exportWokwiDiagram": "Kablix : Exporter le schéma Wokwi (diagram.json)",
   "kablix.cmd.importWokwiDiagram": "Kablix : Importer un schéma Wokwi (diagram.json)",

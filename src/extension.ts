@@ -76,6 +76,16 @@ export function activate(context: vscode.ExtensionContext): void {
       // Enregistrement natif de l'onglet .projix actif (Ctrl+S).
       void vscode.commands.executeCommand('workbench.action.files.save');
     }),
+    vscode.commands.registerCommand('kablix.saveProjectSmart', () => {
+      // Ctrl+S sur un .projix untitled : passe par saveSmart pour proposer le
+      // nom du code par défaut (au lieu du nom untitled). Sinon Ctrl+S natif.
+      const panel = SimulatorPanel.active();
+      if (panel) {
+        panel.saveSmart(false);
+      } else {
+        void vscode.commands.executeCommand('workbench.action.files.save');
+      }
+    }),
     vscode.commands.registerCommand('kablix.openProject', () => {
       void openProjixViaDialog(context);
     }),

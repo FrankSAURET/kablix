@@ -4,6 +4,7 @@
   "kablix.cmd.compileAndRun": "Kablix: Compile",
   "kablix.cmd.loadWorkspaceArtifact": "Kablix: Load the compiled artifact of the workspace",
   "kablix.cmd.saveProject": "Kablix: Save project (.projix)",
+  "kablix.cmd.saveProjectSmart": "Kablix: Save project (smart name)",
   "kablix.cmd.openProject": "Kablix: Open project (.projix)",
   "kablix.cmd.exportWokwiDiagram": "Kablix: Export the Wokwi diagram (diagram.json)",
   "kablix.cmd.importWokwiDiagram": "Kablix: Import a Wokwi diagram (diagram.json)",

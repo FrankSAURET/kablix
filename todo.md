@@ -1,6 +1,15 @@
 # À faire
 1. Retouche l'organisation de docs. en, fr et img à la racine de docs puis dans chacun le dossier composants. Bien sûr les fichiers des 2 langues vont dans leurs dossier respectifs. Tu retouche tous les liens. Et ils sont tous intégrés à l'extension si publish
-1. Une régression si je sauvegarde un fichier projix qui contient un code il doit proposer par défaut le même nom que le code
+1. une autre régression. Le routage automatique reroute des bons fils (droit horizontaux ou verticaux directement connectés aux pins des composant ).  Recherche dans ta mémoire ma définition complète de "bon fil" et vérifie qu'on ne le reroute en aucun cas. J'ai même des fils qui traversent des composants.
+1. une autre régression.Si la pico pi (ou w) est enfiché sur la grove, elle doit toujours rester au premier plan
+
+# v2026.7.174 — régression : nom du code proposé pour un .projix untitled avec code
+1. ✅ **Nom du code par défaut à l'enregistrement** (bouton Enregistrer + Ctrl+S). Cause : la migration CustomEditor (v164) a supprimé le save maison qui posait `defaultUri: codeFileUri` ; VS Code appelait `saveCustomDocumentAs` avec le nom de l'untitled (« Nouveau projet.projix »).
+2. ✅ **`saveSmart(saveAs)`** dans panel.ts : untitled + code associé (`shouldSaveUntitledWithCodeName`) → `requestSaveProject` → save maison `saveProject()` (dialogue avec `defaultUri` = nom du code via `projectDisplayName`). Sinon → save natif de VS Code. `nativeSave`/`nativeSaveAs` routés vers `saveSmart`.
+3. ✅ **Remplacement de l'onglet untitled** après écriture (`pendingReopenAfterSave` → `reopenAsFile`) : ouvre le vrai fichier dans l'éditeur Kablix (même colonne) puis ferme l'onglet untitled (plus de ●, nom correct).
+4. ✅ **Ctrl+S couvert** : commande `kablix.saveProjectSmart` (extension.ts) + keybinding `ctrl+s`/`cmd+s` `when: activeCustomEditorId == 'kablix.projix' && resourceScheme == 'untitled'` (package.json + nls FR/EN). Le Ctrl+S natif d'un CustomEditor untitled contournait la webview → intercepté.
+5. ✅ typecheck + build + verify:all verts (test verify-psu recalé sur `docs/composants/fr/` — chemin de fiche déplacé en v171, échec pré-existant sans rapport).
+6. ⬜ À VALIDER EN F5 : nouveau projet + ouvrir un code + Enregistrer (bouton) → nom du code proposé · idem avec Ctrl+S · après save, l'onglet est le vrai fichier (sans ●).
 
 # v2026.7.173 — icône « réarranger » + emplacements code/Kablix dédiés (côté mémorisé)
 1. ✅ **Icône « réarranger » entre Noms et le hamburger** : groupe `rearranger` (ex-`g31`, 2 rectangles 1/3-2/3) extrait de `media/icones.svg` → `media/rearranger.svg` (script généralisé `scripts/_extract-icon.mjs`, viewBox recadré 225.12 80.5 63.65 63.65, defs des dégradés, rendu Chrome headless 16×16 OK). Bouton `#rearrange-layout` (classe `toolbar__icon-btn`) dans la barre ; clic → `menuCommand kablix.rearrangeLayout` → `applyDefaultLayout(force)`. Liste blanche du relais + commande `kablix.rearrangeLayout` (package.json + nls FR/EN + l10n FR).

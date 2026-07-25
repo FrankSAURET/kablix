@@ -295,6 +295,38 @@ export class SimulatorPanel {
    *  par buildProjixBytes. undefined = enregistrement normal (pas de drapeau). */
   private backupDirtyFlag: boolean | undefined;
 
+  /** Save d'un untitled nommé d'après le code : après écriture réussie, il faut
+   *  remplacer l'onglet untitled par le vrai fichier (ouverture + fermeture). */
+  private pendingReopenAfterSave = false;
+
+  /** Un enregistrement doit-il court-circuiter le save natif pour proposer le nom
+   *  du fichier de code ? Vrai si le document est ENCORE untitled et qu'un code
+   *  est associé — sinon (fichier .projix déjà nommé, ou aucun code) le save
+   *  natif de VS Code convient. */
+  private shouldSaveUntitledWithCodeName(): boolean {
+    return (
+      this.documentUri?.scheme === 'untitled' &&
+      this.codeFileUri !== undefined
+    );
+  }
+
+  /** Enregistrement « intelligent » d'un onglet .projix (bouton Enregistrer ou
+   *  Ctrl+S). Untitled + code associé → save maison (nom par défaut = celui du
+   *  code) puis remplacement de l'onglet untitled par le vrai fichier. Sinon →
+   *  save natif de VS Code (le nom est déjà connu ou n'a pas de code à proposer). */
+  public saveSmart(saveAs = false): void {
+    if (this.shouldSaveUntitledWithCodeName()) {
+      this.pendingReopenAfterSave = true;
+      // saveAs importe peu ici : untitled ⇒ dialogue de toute façon.
+      void saveAs;
+      this.post({ type: 'requestSaveProject' });
+    } else {
+      void vscode.commands.executeCommand(
+        saveAs ? 'workbench.action.files.saveAs' : 'workbench.action.files.save'
+      );
+    }
+  }
+
   /** Ctrl+S natif du CustomEditor : demande le schéma à la webview puis écrit le
    *  .projix. La promesse se résout quand l'écriture est confirmée.
    *  `oneShot` : écrit vers `target` sans en faire la cible permanente (backup).
@@ -891,11 +923,13 @@ export class SimulatorPanel {
         this.clearDebugLine();
         break;
       case 'nativeSave':
-        // Bouton Enregistrer : délègue au save NATIF de VS Code (CustomEditor).
-        void vscode.commands.executeCommand('workbench.action.files.save');
+        // Bouton Enregistrer : save « intelligent » — un projet untitled avec un
+        // fichier de code associé propose le nom du code (au lieu de « Nouveau
+        // projet.projix »), sinon save natif de VS Code (nom déjà connu).
+        this.saveSmart(false);
         break;
       case 'nativeSaveAs':
-        void vscode.commands.executeCommand('workbench.action.files.saveAs');
+        this.saveSmart(true);
         break;
       case 'saveProject':
         // La webview fournit le schéma sérialisé : on construit le .projix.
@@ -1212,13 +1246,43 @@ export class SimulatorPanel {
       }
       // Untitled devenu un vrai fichier : le CustomEditor doit désormais viser
       // ce fichier pour les Ctrl+S suivants.
+      const wasUntitled = this.documentUri?.scheme === 'untitled';
       this.documentUri = target;
+      // Save « intelligent » d'un untitled : l'onglet untitled reste marqué ●
+      // côté VS Code (il ignore notre écriture). On le REMPLACE par le vrai
+      // fichier ouvert dans le même éditeur Kablix, à la même place.
+      if (this.pendingReopenAfterSave && wasUntitled) {
+        this.pendingReopenAfterSave = false;
+        await this.reopenAsFile(target);
+      }
     } catch (err) {
       this.reportError(err);
     } finally {
+      this.pendingReopenAfterSave = false;
       // Débloque un éventuel Ctrl+S natif du CustomEditor en attente.
       this.pendingSaveResolve?.();
       this.pendingSaveResolve = undefined;
+    }
+  }
+
+  /** Remplace l'onglet untitled courant par le fichier .projix qu'on vient
+   *  d'écrire : ouvre le vrai fichier dans l'éditeur Kablix (même colonne) puis
+   *  ferme l'onglet untitled — l'utilisateur retrouve son schéma, désormais nommé
+   *  et sans point ●. */
+  private async reopenAsFile(target: vscode.Uri): Promise<void> {
+    const column = this.panel.viewColumn;
+    try {
+      await vscode.commands.executeCommand(
+        'vscode.openWith',
+        target,
+        'kablix.projix',
+        column
+      );
+      // Ferme l'onglet untitled remplacé (après l'ouverture du fichier réel).
+      this.panel.dispose();
+    } catch {
+      // Ouverture impossible : on laisse l'onglet untitled en place (le fichier
+      // est déjà écrit sur le disque, rien n'est perdu).
     }
   }
 

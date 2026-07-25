@@ -21,6 +21,12 @@ Décisions Frank (2026-07-24) :
 - vsce ls (avant) : contient README copy.md, debug.log, ks.svg, docs/Editing svg components.md → à exclure
 
 ## Journal
+### v2026.7.174 — régression nom de sauvegarde (untitled + code → nom du code)
+- `saveSmart(saveAs)` dans panel.ts : untitled avec code associé → save maison (`defaultUri` = nom du code) au lieu du `saveCustomDocumentAs` natif (nom untitled). Puis remplacement de l'onglet untitled par le vrai fichier (`reopenAsFile`).
+- Ctrl+S couvert : commande `kablix.saveProjectSmart` + keybinding `ctrl+s` `when: activeCustomEditorId == 'kablix.projix' && resourceScheme == 'untitled'`.
+- verify-psu recalé sur `docs/composants/fr/` (fiche déplacée en v171).
+- Restent 3 items « à faire » : réorg docs, régression routage « bons fils », régression Pico-sur-Grove au premier plan.
+
 ### v2026.7.173 — icône « réarranger » + emplacements code/Kablix dédiés
 - Icône `rearranger.svg` extraite de `media/icones.svg` (groupe renommé `g31`→`rearranger`), bouton dans la barre entre Noms et hamburger, commande `kablix.rearrangeLayout` → `applyDefaultLayout(force)`.
 - `layout.ts` : mémorise le CÔTÉ de Kablix (`kablix.layout.kablixSide`) en plus du ratio. `kablixColumn`/`codeColumn` remplacent les `ViewColumn.One/Two` en dur (extension.ts, panel.ts). `saveDefaultLayout` déduit le côté de la colonne du .projix actif. Placer Kablix à gauche + sauver → restauré à gauche.
