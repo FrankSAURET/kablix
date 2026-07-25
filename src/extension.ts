@@ -6,6 +6,7 @@ import { upgradeFirmware, checkFirmwareUpdate } from './firmware';
 import { saveDefaultLayout, applyDefaultLayout, kablixColumn } from './layout';
 import { registerProjixEditor, ProjixEditorProvider } from './projix-editor';
 import { associateProjix, promptProjixAssociationOnFirstRun } from './associate';
+import { PartHelpPanel, SHOW_PART_HELP } from './partHelp';
 
 const l10n = vscode.l10n;
 
@@ -115,6 +116,14 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.commands.registerCommand('kablix.associateProjix', () => {
       void associateProjix(context);
+    }),
+    // Navigation d'une fiche d'aide à l'autre (liens `[texte](alim.md)` d'une
+    // fiche). Commande interne : pas déclarée dans contributes.commands, donc
+    // absente de la palette ; seule la webview d'aide l'appelle (command URI).
+    vscode.commands.registerCommand(SHOW_PART_HELP, (type: unknown) => {
+      if (typeof type === 'string' && /^[a-z0-9-]+$/i.test(type)) {
+        void PartHelpPanel.show(context.extensionUri, type);
+      }
     })
   );
 

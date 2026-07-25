@@ -17,6 +17,7 @@ import {
   type ProjixManifest,
 } from './projix';
 import { resolveMicropythonFirmware, FirmwareCancelled } from './firmware';
+import { PartHelpPanel } from './partHelp';
 import { codeColumn } from './layout';
 
 const ARTIFACT_EXTS = ['.hex', '.uf2', '.elf', '.bin'];
@@ -1016,22 +1017,14 @@ export class SimulatorPanel {
         void vscode.env.openExternal(vscode.Uri.parse('https://github.com/FrankSAURET/kablix'));
         break;
       case 'componentHelp':
-        // Aide locale (hors-ligne) d'un composant : aperçu de docs/<lang>/composants/<type>.md.
-        // La langue suit VS Code (en si elle commence par « en », fr sinon = repli).
+        // Aide locale (hors-ligne) d'un composant : fiche docs/<lang>/composants/<type>.md
+        // rendue dans une webview Kablix. L'aperçu Markdown de VS Code ne
+        // convient pas : il bloque les images atteintes par « ../.. » quand la
+        // fiche n'est pas dans le workspace (cas du .vsix installé) — cf. partHelp.ts.
         if (typeof msg.part === 'string' && /^[a-z0-9-]+$/i.test(msg.part)) {
-          const lang = vscode.env.language.startsWith('en') ? 'en' : 'fr';
-          const localized = vscode.Uri.joinPath(this.extensionUri, 'docs', lang, 'composants', `${msg.part}.md`);
-          const fallback = vscode.Uri.joinPath(this.extensionUri, 'docs', 'fr', 'composants', `${msg.part}.md`);
-          const openOrFallback = () =>
-            vscode.workspace.fs.stat(localized).then(
-              () => vscode.commands.executeCommand('markdown.showPreviewToSide', localized),
-              // Fiche localisée absente : on retombe sur la fiche FR (toujours présente).
-              () => vscode.workspace.fs.stat(fallback).then(
-                () => vscode.commands.executeCommand('markdown.showPreviewToSide', fallback),
-                () => vscode.window.showInformationMessage(vscode.l10n.t('No help available for this part yet.'))
-              )
-            );
-          void openOrFallback();
+          void PartHelpPanel.show(this.extensionUri, msg.part).then((found) => {
+            if (!found) void vscode.window.showInformationMessage(vscode.l10n.t('No help available for this part yet.'));
+          });
         }
         break;
       case 'wokwiExport':
