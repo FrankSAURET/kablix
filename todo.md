@@ -1,6 +1,14 @@
 # À faire
 1. Je retouche rearanger.svg rien à faire pour toi.
-1. Autoroutage : Toujours le même fichier de test. Le fil orange 2-GP2 est parfait. Si je lui enlève tous ces coudes et quie je reroute il met un cour de plus que moi à la main en faisant une arrivées sur la résistance par le haut au lieu de par la droite. Et il a donc un coure de plus que moi. Il sort dans toutes les directions de la patte 1 de la résistance mais toujours en vertical de la patte 2 (enfin c'est une impression)
+
+# v2026.7.184 — autoroutage : la patte 2 d'une résistance ne sortait jamais en axial
+1. ✅ **Repro headless du cas exact** (`scripts/_mesure-7seg2-gp2.mjs`, vrai `Editor` sur `testkablix/7seg-pico2.projix` lu directement dans le .projix) : fil orange `resistor-5.2 → GP2`, coudes retirés puis autoroutage → **4 coudes / 390 px** en sortant par le HAUT, contre **3 coudes / 350 px** à la main en sortant par la DROITE. Impression de Frank confirmée par les stubs mesurés : patte 1 = `gauche | haut`, patte 2 = `haut | bas` — aucune sortie axiale proposée à la patte 2.
+2. ✅ **Cause** : `pinStubs` triait les bords par distance puis **tronquait la liste aux DEUX premiers**. Sur une résistance horizontale, la patte est à 10,0 px du haut, 10,0 px du bas et **10,2 px du bord droit** (corps large de 80,2 px, pas un multiple de la grille) : la sortie axiale, pourtant la bonne, arrivait 3ᵉ et était jetée avant même d'atteindre l'A\*. La patte 1 échappait au couperet par pur hasard d'arrondi (bord gauche à 10,0 px) — d'où l'asymétrie entre les deux pattes.
+3. ✅ **Correctif** : `pinStubs` renvoie **tous** les bords quasi équidistants (fenêtre inchangée : bord le plus proche ±5 px), au lieu des deux premiers. L'autoroutage essayait déjà chaque combinaison de sorties et gardait la moins coûteuse — le coût (longueur + coudes + pénalités) tranche donc de lui-même. Après correctif, le tracé rerouté est **identique au point près** à celui fait à la main.
+4. ✅ **Aucune régression** : banc `_mesure-autoroute.mjs` sur le montage 16 servos rejoué avant/après → chiffres strictement identiques (30 fils, 77 coudes, 0 biais, 0 colinéaire superflu, 1 seul survol de broche préexistant), durée inchangée (~10 s).
+5. ✅ `verify:route` passe à **25 contrôles** : la sortie axiale de la patte 2 est bien proposée à l'A\*, et une patte 2 alignée avec sa cible donne un fil DROIT. Garde-fou vérifié : le 1ᵉʳ contrôle ÉCHOUE bien sur le code d'avant (`370,490 | 370,530`).
+6. ✅ typecheck + build + `verify:all` (exit 0) verts.
+7. ⬜ À VALIDER EN F5 : `7seg-pico2.projix` → retirer les coudes du fil orange GP2, réautoroutage → sortie par la droite de la résistance, 3 coudes comme à la main.
 
 # v2026.7.183 — réarranger : le côté de Kablix est rétabli, pas seulement les largeurs
 1. ✅ **Cause 1 — le côté n'était pas toujours mémorisé** : `saveDefaultLayout` cherchait le .projix parmi les onglets **ACTIFS** seulement. Un autre onglet au premier plan dans la colonne de Kablix (ou le focus laissé au code) et plus rien n'était trouvé → repli silencieux sur « droite ». Le balayage porte maintenant sur TOUS les onglets de chaque groupe.

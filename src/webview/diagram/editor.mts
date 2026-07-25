@@ -2706,11 +2706,14 @@ export class Editor {
    * le corps **ou sur son bord** (cartes, platines, gros modules, broches d'un LCD
    * alignées sur le bord) : la sortie est prolongée de `len` **à l'extérieur** du
    * corps, si bien que l'A\* aborde ensuite la broche depuis l'extérieur au lieu de
-   * traverser le corps pour l'atteindre. Renvoie jusqu'à DEUX candidats (bords
-   * quasi équidistants, ±5 px) : pour une broche d'angle — dernier plot d'une
-   * rangée de carte, coins d'un bouton — le bord strictement le plus proche n'est
-   * pas toujours la bonne sortie ; l'autoroutage essaie chaque combinaison et
-   * garde le tracé le moins coûteux. Renvoie [] seulement pour une broche
+   * traverser le corps pour l'atteindre. Renvoie **tous** les bords quasi
+   * équidistants (±5 px) : pour une broche d'angle — dernier plot d'une rangée de
+   * carte, coins d'un bouton, patte d'une résistance — le bord strictement le plus
+   * proche n'est pas toujours la bonne sortie ; l'autoroutage essaie chaque
+   * combinaison et garde le tracé le moins coûteux. (v2026.7.184 : la liste était
+   * tronquée aux DEUX premiers, ce qui privait la patte 2 d'une résistance de sa
+   * sortie AXIALE — bord droit à 10,2 px contre 10,0 px pour le haut et le bas —
+   * et coûtait un coude de plus qu'à la main.) Renvoie [] seulement pour une broche
    * franchement **hors du corps** (patte saillante d'un petit composant : aucune
    * traversée à craindre).
    */
@@ -2746,7 +2749,7 @@ export class Editor {
     if (dLeft <= m + TIE) cands.push({ d: dLeft, p: left });
     if (dRight <= m + TIE) cands.push({ d: dRight, p: right });
     cands.sort((u, v) => u.d - v.d); // tri stable : à égalité, ordre haut/bas/gauche/droite
-    const picked = cands.slice(0, 2).map((c) => c.p);
+    const picked = cands.map((c) => c.p);
     // Broches ALIGNÉES en colonne/rangée (cas du PCA : PWM7 / P8.5V / P8.GND à
     // x=1720, espacées de 10 px) : la sortie perpendiculaire par le bord le plus
     // proche PASSE SUR les broches voisines. On ajoute alors les sorties LATÉRALES

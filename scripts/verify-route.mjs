@@ -385,6 +385,32 @@ async function run() {
 		ok('colonne PCA : broches PWM7/P8.5V présentes', false, 'broches introuvables sur le dessin PCA');
 	}
 
+	// --- Sortie AXIALE d'une patte de résistance (item v2026.7.184) -------------
+	// Les pattes d'une résistance sont sur les bords GAUCHE et DROIT du corps, à
+	// la même distance (10 px) que les bords haut et bas : la liste des sorties
+	// candidates, tronquée aux deux premières, perdait justement l'axiale (bord
+	// droit à 10,2 px contre 10,0 px) et le fil de la patte 2 partait toujours en
+	// vertical — un coude de plus qu'à la main (repro 7seg-pico2, fil orange GP2).
+	for (const p of [...editor.diagram.parts]) editor.removePart?.(p.id);
+	await wait(30);
+	const axR = editor.addPart('resistor', 300, 500); // pattes (310,510) et (370,510)
+	const axT = editor.addPart('ntc', 590, 440); // patte 1 en (600,510) : même y que la patte 2
+	await wait(80);
+	const axC = editor.hotspotCenter({ partId: axR.id, pin: '2' });
+	const axRects = new Map(editor.partObstacles().map((o) => [o.id, o]));
+	const axStubs = editor.pinStubs({ partId: axR.id, pin: '2' }, axC, axRects, 10) ?? [];
+	ok('résistance : la sortie AXIALE de la patte 2 est proposée à l A*',
+		axStubs.some((p) => p.x > axC.x + 1 && Math.abs(p.y - axC.y) < 1),
+		axStubs.map((p) => Math.round(p.x) + ',' + Math.round(p.y)).join(' | '));
+	editor.addWire({ partId: axR.id, pin: '2' }, { partId: axT.id, pin: '1' });
+	await wait(30);
+	editor.select(null); editor.autoRoute();
+	await wait(50);
+	const wAx = editor.diagram.wires[editor.diagram.wires.length - 1];
+	ok('résistance : patte 2 alignée avec la cible → fil DROIT (aucun coude)',
+		(wAx.points?.length ?? 0) === 0,
+		JSON.stringify((wAx.points ?? []).map((p) => [Math.round(p.x), Math.round(p.y)])));
+
 	const out = document.createElement('pre');
 	out.id = 'measures';
 	out.textContent = JSON.stringify(checks);
