@@ -2112,6 +2112,11 @@ helpBtn.addEventListener('click', () => {
 document.getElementById('brand')?.addEventListener('click', () => {
   vscode.postMessage({ type: 'openRepo' });
 });
+// Icône « réarranger » (entre Noms et le hamburger) → rétablit la disposition
+// Kablix mémorisée (code / Kablix côte à côte, côté + ratio enregistrés).
+document.getElementById('rearrange-layout')?.addEventListener('click', () => {
+  vscode.postMessage({ type: 'menuCommand', command: 'kablix.rearrangeLayout' });
+});
 
 // Heure de build (injectée par esbuild) affichée sous la version : repère visuel
 // pendant les tests F5 pour confirmer qu'on exécute bien le dernier build.

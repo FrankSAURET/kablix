@@ -3,7 +3,7 @@ import { SimulatorPanel } from './panel';
 import { HelpPanel } from './help';
 import { promptLibraryUpdates } from './updates';
 import { upgradeFirmware, checkFirmwareUpdate } from './firmware';
-import { saveDefaultLayout, applyDefaultLayout } from './layout';
+import { saveDefaultLayout, applyDefaultLayout, kablixColumn } from './layout';
 import { registerProjixEditor, ProjixEditorProvider } from './projix-editor';
 import { associateProjix, promptProjixAssociationOnFirstRun } from './associate';
 
@@ -51,7 +51,7 @@ export function activate(context: vscode.ExtensionContext): void {
         // Nouveau projet : resolveCustomEditor pose déjà le layout à panel.active.
         // On force en plus (clic icône = action explicite) au cas où la
         // disposition aurait déjà été consommée cette session.
-        void openNewProjix().then(() =>
+        void openNewProjix(context).then(() =>
           setTimeout(() => void applyDefaultLayout(context, true), 120)
         );
       }
@@ -64,7 +64,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(
     vscode.commands.registerCommand('kablix.openSimulator', () => {
-      void openNewProjix();
+      void openNewProjix(context);
     }),
     vscode.commands.registerCommand('kablix.compileAndRun', () => {
       void SimulatorPanel.active()?.compileActiveFile();
@@ -97,6 +97,11 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.commands.registerCommand('kablix.saveDefaultLayout', () => {
       void saveDefaultLayout(context);
+    }),
+    vscode.commands.registerCommand('kablix.rearrangeLayout', () => {
+      // Icône « réarranger » : rétablit la disposition Kablix mémorisée (côté +
+      // ratio). Force = action explicite, même si déjà posée cette session.
+      void applyDefaultLayout(context, true);
     }),
     vscode.commands.registerCommand('kablix.associateProjix', () => {
       void associateProjix(context);
@@ -131,15 +136,13 @@ export function activate(context: vscode.ExtensionContext): void {
  *  (même URI ⇒ VS Code révèle l'onglet existant au lieu d'en ouvrir un autre). */
 let untitledCounter = 0;
 
-/** Colonne cible du simulateur : 2/3 droite (le code va à gauche). */
-const SIM_COLUMN = vscode.ViewColumn.Two;
-
 /**
  * Ouvre un nouveau projet Kablix : un document .projix « untitled » dans
- * l'éditeur personnalisé, dans un NOUVEL onglet à droite. Le point ● natif
- * apparaît dès la première modification ; Ctrl+S propose l'emplacement.
+ * l'éditeur personnalisé, dans un NOUVEL onglet du côté Kablix mémorisé (droite
+ * par défaut). Le point ● natif apparaît dès la première modification ; Ctrl+S
+ * propose l'emplacement.
  */
-async function openNewProjix(): Promise<void> {
+async function openNewProjix(context: vscode.ExtensionContext): Promise<void> {
   // URI untitled unique : sans le suffixe, rouvrir « nouveau projet » ne ferait
   // que révéler l'onglet déjà ouvert.
   const suffix = untitledCounter === 0 ? '' : ` ${untitledCounter + 1}`;
@@ -150,13 +153,13 @@ async function openNewProjix(): Promise<void> {
     'vscode.openWith',
     uri,
     ProjixEditorProvider.viewType,
-    SIM_COLUMN
+    kablixColumn(context)
   );
 }
 
 /** « Ouvrir un projet » : dialogue de fichier puis ouverture dans l'éditeur .projix
- *  (colonne 2/3 droite). */
-async function openProjixViaDialog(_context: vscode.ExtensionContext): Promise<void> {
+ *  (colonne Kablix mémorisée). */
+async function openProjixViaDialog(context: vscode.ExtensionContext): Promise<void> {
   const picked = await vscode.window.showOpenDialog({
     canSelectMany: false,
     filters: { [l10n.t('Kablix project')]: ['projix'] },
@@ -169,7 +172,7 @@ async function openProjixViaDialog(_context: vscode.ExtensionContext): Promise<v
   const activeSession = SimulatorPanel.active();
   const pristine =
     activeSession && activeSession.isPristineUntitled() ? activeSession : undefined;
-  const column = pristine?.getViewColumn() ?? SIM_COLUMN;
+  const column = pristine?.getViewColumn() ?? kablixColumn(context);
   await vscode.commands.executeCommand(
     'vscode.openWith',
     picked[0],

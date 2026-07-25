@@ -17,6 +17,7 @@ import {
   type ProjixManifest,
 } from './projix';
 import { resolveMicropythonFirmware, FirmwareCancelled } from './firmware';
+import { codeColumn } from './layout';
 
 const ARTIFACT_EXTS = ['.hex', '.uf2', '.elf', '.bin'];
 
@@ -665,11 +666,11 @@ export class SimulatorPanel {
     );
   }
 
-  /** Ouvre le fichier de code courant dans le volet d'édition (à gauche de Kablix). */
+  /** Ouvre le fichier de code courant dans le volet d'édition (côté code, opposé à Kablix). */
   public async openCodeFile(): Promise<void> {
     if (!this.codeFileUri) return;
     try {
-      await vscode.window.showTextDocument(this.codeFileUri, { viewColumn: vscode.ViewColumn.One });
+      await vscode.window.showTextDocument(this.codeFileUri, { viewColumn: codeColumn(this.context) });
     } catch {
       // fichier renommé/supprimé depuis : rien à ouvrir
     }
@@ -762,7 +763,7 @@ export class SimulatorPanel {
       const editor = await vscode.window.showTextDocument(source, {
         preserveFocus: true,
         preview: false,
-        viewColumn: vscode.ViewColumn.One,
+        viewColumn: codeColumn(this.context),
       });
       const range = editor.document.lineAt(
         Math.min(line - 1, editor.document.lineCount - 1)
@@ -959,6 +960,7 @@ export class SimulatorPanel {
             'kablix.upgradePicoFirmware',
             'kablix.checkLibraryUpdates',
             'kablix.saveDefaultLayout',
+            'kablix.rearrangeLayout',
           ]);
           if (allowed.has(msg.command)) {
             void vscode.commands.executeCommand(msg.command);

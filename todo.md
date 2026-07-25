@@ -1,4 +1,12 @@
 # À faire
+1. Retouche l'organisation de docs. en, fr et img à la racine de docs puis dans chacun le dossier composants. Bien sûr les fichiers des 2 langues vont dans leurs dossier respectifs. Tu retouche tous les liens. Et ils sont tous intégrés à l'extension si publish
+1. Une régression si je sauvegarde un fichier projix qui contient un code il doit proposer par défaut le même nom que le code
+
+# v2026.7.173 — icône « réarranger » + emplacements code/Kablix dédiés (côté mémorisé)
+1. ✅ **Icône « réarranger » entre Noms et le hamburger** : groupe `rearranger` (ex-`g31`, 2 rectangles 1/3-2/3) extrait de `media/icones.svg` → `media/rearranger.svg` (script généralisé `scripts/_extract-icon.mjs`, viewBox recadré 225.12 80.5 63.65 63.65, defs des dégradés, rendu Chrome headless 16×16 OK). Bouton `#rearrange-layout` (classe `toolbar__icon-btn`) dans la barre ; clic → `menuCommand kablix.rearrangeLayout` → `applyDefaultLayout(force)`. Liste blanche du relais + commande `kablix.rearrangeLayout` (package.json + nls FR/EN + l10n FR).
+2. ✅ **Emplacements dédiés (côté + ratio)** : `layout.ts` mémorise désormais `kablixSide` ('left'/'right', défaut droite) EN PLUS du ratio de code. `saveDefaultLayout` lit la colonne de l'onglet .projix actif → déduit le côté + le ratio du groupe de code de ce côté. `applyEditorGrid` pose la grille du bon côté (ratio en 1er si code à gauche, en 2e sinon). Ouverture des .projix via `kablixColumn(context)` (au lieu de `ViewColumn.Two` en dur) ; code ouvert via `codeColumn(context)` dans panel.ts (openCodeFile + ligne de debug). → sauver « Kablix à gauche / code à droite » le restaure ainsi.
+3. ✅ typecheck + build verts.
+4. ⬜ À VALIDER EN F5 : icône réarranger visible entre Noms et hamburger · clic → dispo rétablie · placer Kablix à gauche + « Sauvegarder cette organisation » → au relancement Kablix reste à gauche, code à droite.
 
 # v2026.7.172 — vsix allégé (vitrine README servie via GitHub)
 1. ✅ **Vitrine README hébergée sur GitHub** : les 3 GIF de démo + `accroche.png` + `KNB.png` (~14 Mo) sont servis via `https://raw.githubusercontent.com/FrankSAURET/kablix/main/media/...` (le marketplace charge les images distantes). Refs README réécrites (5), URL raw testée (HTTP 200). Assets restent versionnés sur GitHub.

@@ -36,6 +36,7 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
   const aideIconUri = asset('aide.svg');
   const hamburgerIconUri = asset('hamburger.svg');
   const grilleIconUri = asset('grille.svg');
+  const rearrangerIconUri = asset('rearranger.svg');
   // Base des posters de brochage (dist/pinout/<carte>.svg) : récupérés par fetch au clic sur ☢.
   const pinoutBase = webview.asWebviewUri(
     vscode.Uri.joinPath(extensionUri, 'dist', 'pinout')
@@ -98,6 +99,7 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
     <button id="save-project-as" class="toolbar__icon-btn" title="${l10n.t('Save the project as…')}"><img src="${saveAsIconUri}" alt="${l10n.t('Save the project as…')}" /></button>
     <button id="export-svg" class="toolbar__icon-btn" title="${l10n.t('Export the diagram as SVG')}"><img src="${svgIconUri}" alt="${l10n.t('Export the diagram as SVG')}" /></button>
     <button id="toggle-labels" title="${l10n.t('Show/hide part names')}">${l10n.t('Names')}</button>
+    <button id="rearrange-layout" class="toolbar__icon-btn" title="${l10n.t('Rearrange the windows (code / Kablix)')}"><img src="${rearrangerIconUri}" alt="${l10n.t('Rearrange the windows (code / Kablix)')}" /></button>
     <div class="more-menu" id="more-menu">
       <button id="more-btn" class="toolbar__icon-btn" title="${l10n.t('Other functions')}" aria-haspopup="true" aria-expanded="false" aria-label="${l10n.t('Other functions')}"><img src="${hamburgerIconUri}" alt="${l10n.t('Other functions')}" /></button>
       <ul id="more-list" class="more-menu__list" role="menu" hidden>

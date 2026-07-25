@@ -144,8 +144,9 @@ export class ProjixEditorProvider implements vscode.CustomEditorProvider<ProjixD
     }
 
     // Disposition par défaut à la première ouverture de la session : explorateur
-    // fermé, grille 1/3 code · 2/3 simulateur, groupe du simulateur verrouillé
-    // (le code ouvert ensuite va à gauche). Idempotent/session (applyDefaultLayout).
+    // fermé, grille code/simulateur selon le côté mémorisé, groupe du simulateur
+    // verrouillé (le code ouvert ensuite va dans l'AUTRE groupe, opposé à
+    // Kablix). Idempotent/session (applyDefaultLayout).
     //
     // Comme en v163 (constructeur du panel singleton), le layout DOIT être posé
     // quand le groupe du .projix est le groupe ACTIF — sinon setEditorLayout est

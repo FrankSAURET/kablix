@@ -11,6 +11,7 @@
   "kablix.cmd.upgradePicoFirmware": "Kablix : Mettre à jour le firmware du Pico",
   "kablix.cmd.openHelp": "Kablix : Aide",
   "kablix.cmd.saveDefaultLayout": "Kablix : Sauvegarder l'organisation par défaut",
+  "kablix.cmd.rearrangeLayout": "Kablix : Réarranger les fenêtres",
   "kablix.cmd.associateProjix": "Kablix : Associer les fichiers .projix à Kablix",
   "kablix.view.home": "Simulateur",
   "kablix.welcome": "Simulateur Arduino Uno / Raspberry Pi Pico, 100% offline.\n[▶ Ouvrir le simulateur](command:kablix.openSimulator)\n[📂 Ouvrir un projet (.projix)](command:kablix.openProject)\n[⚙ Compiler & exécuter le fichier actif](command:kablix.compileAndRun)\n[↑ Charger l'artefact du workspace](command:kablix.loadWorkspaceArtifact)\n[📖 Documentation](https://github.com/franksauret/kablix/blob/main/docs/fr/UTILISATION.md)",

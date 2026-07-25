@@ -1,7 +1,7 @@
 {
   "name": "kablix",
   "displayName": "Kablix",
-  "version": "2026.7.172",
+  "version": "2026.7.173",
   "description": "%kablix.description%",
   "publisher": "franksauret",
   "author": {
@@ -89,6 +89,11 @@
       {
         "command": "kablix.saveDefaultLayout",
         "title": "%kablix.cmd.saveDefaultLayout%",
+        "category": "Kablix"
+      },
+      {
+        "command": "kablix.rearrangeLayout",
+        "title": "%kablix.cmd.rearrangeLayout%",
         "category": "Kablix"
       },
       {

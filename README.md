@@ -17,8 +17,10 @@ La simulation s’appuie sur deux moteurs open-sources embarqués dans l’exten
 1. Pour démarrer, cliquer sur l’icône <img src="https://raw.githubusercontent.com/FrankSAURET/kablix/main/media/KNB.png" alt="Kablix" width="30" /> dans la barre d’activité à gauche ;
     - Ou dans un dossier de projet, double cliquer sur un fichier projix ;
     - Ou si vous avez fait l’association, dans l’explorateur Windows double cliquer sur un fichier projix.
+
 ![alt text](https://raw.githubusercontent.com/FrankSAURET/kablix/main/media/demarrer.gif)
 1. **Construire son montage** : Glisser/poser un composant à partir de la bibliothèque à gauche. Relier les broches en direct et clique sur le bouton autoroutage (route les composants sélectionnés ou tout le montage si aucun n’est sélectionné).
+ 
 ![alt text](https://raw.githubusercontent.com/FrankSAURET/kablix/main/media/dessiner.gif)
 1. **Exécuter son code** : Associer un fichier de code (attention les codes ino doivent être dans un dossier de même nom) puis **▶ « démarrer»** :
    - `.ino`/`.c`/`.cpp` → compilation via la toolchain locale ;
@@ -28,6 +30,7 @@ La simulation s’appuie sur deux moteurs open-sources embarqués dans l’exten
 1. **Enregistrer son montage** : « Kablix : Enregistrer le projet (.projix) » ;
    un `.projix` se rouvre ensuite d’un double-clic dans l’explorateur.
    Import/export au format Wokwi (`diagram.json`) également disponibles.
+
 ![alt text](https://raw.githubusercontent.com/FrankSAURET/kablix/main/media/simuler.gif)
 ## Fonctionnalités
 

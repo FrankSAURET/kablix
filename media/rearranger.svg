@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Icône « rearranger » extraite de media/icones.svg (dessin de Frank). -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="16" height="16" viewBox="225.12 80.5 63.65 63.65">
+<defs><linearGradient xlink:href="#linearGradient28" id="linearGradient1" gradientUnits="userSpaceOnUse" gradientTransform="matrix(0.30416672,0,0,0.97083337,177.02588,-43.350598)" x1="193.15149" y1="127.67603" x2="193.15149" y2="193.02811"></linearGradient><linearGradient xlink:href="#linearGradient28" id="linearGradient24" gradientUnits="userSpaceOnUse" gradientTransform="matrix(0.59583339,0,0,0.97083338,153.76284,-43.350599)" x1="193.15149" y1="127.67603" x2="193.15149" y2="193.02811"></linearGradient><linearGradient id="linearGradient28">
+      <stop style="stop-color:#100ae5;stop-opacity:1;" offset="0" id="stop24"></stop>
+      <stop style="stop-color:#0b7d09;stop-opacity:1;" offset="1" id="stop25"></stop>
+    </linearGradient></defs><g id="rearranger" transform="translate(-8.2282667,-2.2803257)">
+      <rect style="fill:#fefefe;fill-opacity:1;stroke:url(#linearGradient1);stroke-width:1.85208;stroke-linecap:round" id="rect29-1" width="19.314587" height="61.647919" x="226.11884" y="81.50058" rx="5.2916665" ry="5.2916665"></rect>
+      <rect style="fill:#c0c0c0;fill-opacity:1;stroke:url(#linearGradient24);stroke-width:1.85208;stroke-linecap:round" id="rect29-1-2" width="37.835419" height="61.647919" x="249.93123" y="81.50058" rx="5.2916665" ry="5.2916665"></rect>
+    </g>
+</svg>
