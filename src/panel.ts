@@ -49,6 +49,8 @@ const UI_STATE_KEY = 'kablix.uiState';
 const LAST_COLUMN_KEY = 'kablix.lastColumn';
 /** Chemin du dernier .projix ouvert/enregistré (rouvert au démarrage). */
 const LAST_PROJECT_KEY = 'kablix.lastProject';
+/** Variables du panneau de débogage masquées durablement, par programme. */
+const HIDDEN_VARS_KEY = 'kablix.hiddenVars';
 
 /**
  * Gère le panneau webview du simulateur. Un seul panneau est ouvert à la fois ;
@@ -602,6 +604,41 @@ export class SimulatorPanel {
     this.missingCodeFileRef = undefined; // fichier (re)choisi ou oublié : plus de référence en échec
     this.post({ type: 'codeFile', name: uri ? uri.fsPath.split(/[\\/]/).pop() : null });
     this.postProjectName();
+    this.postHiddenVars(); // masquages mémorisés du NOUVEAU programme
+  }
+
+  // --- Variables masquées du panneau de débogage (bouton disquette) ------------
+
+  /**
+   * Clé de rangement des masquages : le fichier de CODE (les variables lui
+   * appartiennent), à défaut le .projix. Sans l'un ni l'autre, rien n'est
+   * mémorisé — les masquages restent alors valables pour la session seulement.
+   */
+  private hiddenVarsKey(): string | undefined {
+    return this.codeFileUri?.fsPath ?? this.projectUri?.fsPath;
+  }
+
+  /** Envoie à la webview les masquages mémorisés du programme courant. */
+  private postHiddenVars(): void {
+    const key = this.hiddenVarsKey();
+    const all = this.context.globalState.get<Record<string, string[]>>(HIDDEN_VARS_KEY, {});
+    const names = key ? (all[key] ?? []) : [];
+    this.post({ type: 'hiddenVars', names });
+  }
+
+  /** Range (ou efface) la liste des masquées pour le programme courant. */
+  private async saveHiddenVars(names: string[]): Promise<void> {
+    const key = this.hiddenVarsKey();
+    if (!key) {
+      void vscode.window.showInformationMessage(
+        l10n.t('Choose a code file or save the project to remember the hidden variables.'),
+      );
+      return;
+    }
+    const all = { ...this.context.globalState.get<Record<string, string[]>>(HIDDEN_VARS_KEY, {}) };
+    if (names.length > 0) all[key] = names;
+    else delete all[key]; // plus rien de masqué : on ne laisse pas d'entrée vide
+    await this.context.globalState.update(HIDDEN_VARS_KEY, all);
   }
 
   /** Nom du projet (sans chemin) : .projix ouvert/enregistré, sinon fichier de code. */
@@ -857,6 +894,7 @@ export class SimulatorPanel {
     url?: string;
     dirty?: boolean;
     command?: string;
+    names?: unknown[];
   }): void {
     // Toute interaction de la webview marque cette session comme « active » :
     // les commandes globales (Enregistrer, Wokwi…) la ciblent.
@@ -891,6 +929,7 @@ export class SimulatorPanel {
             name: this.missingCodeFileRef.split(/[\\/]/).pop(),
             missing: true,
           });
+          this.postHiddenVars(); // le chip est en alerte, les masquages restent utiles
         } else {
           this.setCodeFile(this.codeFileUri);
         }
@@ -909,6 +948,9 @@ export class SimulatorPanel {
         break;
       case 'saveUiState':
         void this.context.globalState.update(UI_STATE_KEY, msg.state ?? {});
+        break;
+      case 'saveHiddenVars':
+        void this.saveHiddenVars(Array.isArray(msg.names) ? msg.names.map(String) : []);
         break;
       case 'board':
         if (msg.board) this.currentBoard = msg.board;

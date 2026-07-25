@@ -185,10 +185,11 @@ Artifacts loaded directly (`.hex`, `.uf2`, `.elf`, `.bin`) run without debug inf
 
 A program often exposes variables you do not care about (constants, configuration objects) that bury the two or three you are actually watching. The **Variables** panel lets you weed them out:
 
-- **Hide**: click the variable to select it, then **right-click** it — the **Hide “name”** option appears. The variable leaves the panel.
+- **Hide**: click the **👁** on the left of the variable (tooltip “Click to hide”). The variable leaves the panel.
 - **Show again**: click the **🔍 Variables ▾** title — the drop-down list of the currently hidden variables opens. Clicking one puts it back in the panel; **Show all again** restores every one of them.
+- **Remember**: the floppy-disk button on the right of **Variables** saves the hidden list for **this program**. Those variables start out hidden the next times you open it, until you show them again and save once more. With no code file and no saved project, there is nothing to attach the list to: Kablix says so and saves nothing.
 
-A hidden variable is still **tracked** in the background: when it comes back, its red mark (“changed on the last step”) is accurate, as if it had never left the panel. Hiding lasts as long as the workshop stays open — it survives stopping and restarting the simulation — and is forgotten when the project is closed.
+A hidden variable is still **tracked** in the background: when it comes back, its red mark (“changed on the last step”) is accurate, as if it had never left the panel. Without saving, hiding lasts as long as the workshop stays open — it survives stopping and restarting the simulation — and is forgotten when the project is closed.
 
 ## Serial monitor
 

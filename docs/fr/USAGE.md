@@ -187,10 +187,11 @@ Les artefacts chargés directement (`.hex`, `.uf2`, `.elf`, `.bin`) s'exécutent
 
 Un programme expose souvent des variables sans intérêt (constantes, objets de configuration) qui noient les deux ou trois que vous surveillez. Le panneau **Variables** permet de faire le tri :
 
-- **Masquer** : cliquer sur la variable pour la sélectionner, puis **clic droit** dessus — l'option **Masquer « nom »** apparaît. La variable disparaît du panneau.
+- **Masquer** : cliquer sur le **👁** à gauche de la variable (bulle « Cliquer pour masquer »). La variable disparaît du panneau.
 - **Réafficher** : cliquer sur le titre **🔍 Variables ▾** — la liste déroulante des variables actuellement masquées s'ouvre. Cliquer sur l'une d'elles la remet dans le panneau ; **Tout réafficher** les remet toutes.
+- **Mémoriser** : la disquette à droite de **Variables** enregistre la liste des masquées pour **ce programme**. Elles seront masquées d'office aux prochaines ouvertures, jusqu'à ce que vous réaffichiez puis mémorisiez de nouveau. Sans fichier de code ni projet enregistré, il n'y a rien à quoi rattacher la liste : Kablix le signale et ne mémorise rien.
 
-Une variable masquée continue d'être **suivie** en arrière-plan : au retour, son rouge (« a changé au dernier pas ») est exact, comme si elle n'avait jamais quitté le panneau. Les masquages tiennent tant que l'atelier reste ouvert — ils survivent aux arrêts et redémarrages de la simulation — et sont oubliés à la fermeture du projet.
+Une variable masquée continue d'être **suivie** en arrière-plan : au retour, son rouge (« a changé au dernier pas ») est exact, comme si elle n'avait jamais quitté le panneau. Sans mémorisation, les masquages tiennent tant que l'atelier reste ouvert — ils survivent aux arrêts et redémarrages de la simulation — et sont oubliés à la fermeture du projet.
 
 ## Moniteur série
 

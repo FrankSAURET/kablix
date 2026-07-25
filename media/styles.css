@@ -2187,6 +2187,57 @@ textarea {
   color: inherit;
 }
 
+/* Titre + disquette de mémorisation, groupés à gauche de la ligne d'en-tête. */
+.debug__titlebar {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* Disquette « mémoriser les variables masquées » (à droite de « Variables »). */
+.debug__save {
+  display: flex;
+  align-items: center;
+  padding: 0.1rem;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.75;
+}
+
+.debug__save img {
+  width: 14px;
+  height: 14px;
+}
+
+.debug__save:hover {
+  background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.1));
+  opacity: 1;
+}
+
+/* Œil de masquage, à gauche de chaque variable : colonne au plus juste. */
+.debug__vars td.debug__eyecell {
+  width: 1%;
+  padding: 0.2rem 0.15rem 0.2rem 0.4rem;
+}
+
+.debug__eye {
+  padding: 0;
+  background: none;
+  border: none;
+  font-size: 0.8rem;
+  line-height: 1;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.45;
+}
+
+.debug__eye:hover {
+  opacity: 1;
+  color: var(--vscode-textLink-foreground, #4fa3ff);
+}
+
 /* Titre « 🔍 Variables ▾ » : bouton d'ouverture de la liste des masquées. */
 .debug__title {
   background: none;
@@ -2201,8 +2252,7 @@ textarea {
   color: var(--vscode-textLink-foreground, #4fa3ff);
 }
 
-/* Liste déroulante des variables masquées (sous le titre) et menu contextuel
-   d'une ligne : même habillage, l'un en flux, l'autre positionné au curseur. */
+/* Liste déroulante des variables masquées (sous le titre). */
 .debug__menu {
   margin-bottom: 0.3rem;
   padding: 0.2rem;
@@ -2211,13 +2261,6 @@ textarea {
   border: 1px solid var(--vscode-widget-border, rgba(255, 255, 255, 0.15));
   border-radius: 6px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
-}
-
-.debug__menu--float {
-  position: fixed;
-  z-index: 40;
-  margin: 0;
-  min-width: 160px;
 }
 
 .debug__menu button {
