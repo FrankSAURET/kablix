@@ -3183,8 +3183,16 @@ export class Editor {
         this.clearGuides();
       }
       const o0 = orig.get(index)!;
-      const dx = pos.x - o0.x;
-      const dy = pos.y - o0.y;
+      let dx = pos.x - o0.x;
+      let dy = pos.y - o0.y;
+      // Ctrl maintenu sur un LOT de coudes : le déplacement du groupe est
+      // contraint à un seul axe (l'axe dominant du geste) — horizontal pur si
+      // |dx| ≥ |dy|, vertical pur sinon. Relâcher Ctrl rend le geste libre en 2D
+      // (recalculé à chaque pointermove, la contrainte suit l'état courant).
+      if (ev.ctrlKey && group.length > 1) {
+        if (Math.abs(dx) >= Math.abs(dy)) dy = 0;
+        else dx = 0;
+      }
       for (const i of group) {
         const o = orig.get(i)!;
         wire.points[i] = { x: o.x + dx, y: o.y + dy };

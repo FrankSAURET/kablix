@@ -1,9 +1,15 @@
 # À faire
-1. Si je sélectionne et déplace plusieurs coude et que je maintient CTRL, le déplacement ne doit être qu'horizontal ou vertical si je relache CTRL il redevient libre
 1. Le comportement des afficheurs ou la gesion du temps pose un probleme (test sur pico.) Mon fichier de test : testkablix\7seg-pico2.projix. Affichage trés lent, on voit les digits changer 1 par 1 . Si je baisse DELAIS (de 500 à 50 par exemple), l'affichage ne suit pas du tout
 1. En cliquant sur une variable (clic gauche pour la sélectionner puis clic droit dessus ) une option apparait qui propose de désactiver son affichage. Elle ne sera alors plus affiché. Si on clic sur variables, une liste déroulante des variables affichable et actuellement masqué apparaitra. Rajoute tout ça dans l'aide de la simulation en français et anglais
-1. Je retouche rearanger.svg riena à faire pour toi.
+1. Je retouche rearanger.svg rien à faire pour toi.
 1. la fonction de rearrangement ne fonctionne pas parfaitement si j'inverse la partie code et la partie kablix, il maintient le code à gauche et kablix à droite et ne mémorise que la taille des zones. Par contre si réouverture de kablix sa fonctionne
+1. Autoroutage : Toujours le même fichier de test. Le fil orange 2-GP2 est parfait. Si je lui enlève tous ces coudes et quie je reroute il met un cour de plus que moi à la main en faisant une arrivées sur la résistance par le haut au lieu de par la droite. Et il a donc un coure de plus que moi.
+
+# v2026.7.178 — déplacement d'un LOT de coudes : Ctrl contraint à un seul axe
+1. ✅ **Contrainte mono-axe sous Ctrl** : plusieurs coudes sélectionnés (`selectedHandles`) et déplacés ensemble → Ctrl MAINTENU pendant la glisse fige le lot sur l'axe DOMINANT du geste (`|dx|≥|dy|` → horizontal pur, sinon vertical pur). Ctrl relâché → geste libre en 2D. Recalculé à chaque `pointermove`, la contrainte suit l'état courant de la touche. `dragHandle` (editor.mts) : `move()` passe `dx/dy` en `let` et annule l'axe secondaire quand `ev.ctrlKey && group.length > 1`.
+2. ℹ️ La branche Ctrl sur UN SEUL coude (`group.length === 1`, réticule + `alignToNeighbours`) est INCHANGÉE : Ctrl sur un lot n'aligne pas sur les voisins, il contraint l'axe du déplacement groupé.
+3. ✅ Nouveau test `verify:selection` (7 contrôles) : lot de 2 coudes, geste diagonal Ctrl horizontal → Y figé + lot solidaire ; Ctrl vertical → X figé ; SANS Ctrl → libre en 2D.
+4. ✅ typecheck + `verify:selection` (104 contrôles) + `verify:all` verts.
 
 # v2026.7.177 — régression : Pico enfichée masquée par le Grove Shield au survol
 1. ✅ **Cause** : au survol d'une broche du Grove Shield, le hissage `.part--pin-reachable` (z=4) faisait passer le shield DEVANT la Pico enfichée (z=1) — la Pico « disparaissait » sous le socle tant qu'on survolait une de ses broches. (Le z de repos était correct : shield z=0 sous Pico z=1.)

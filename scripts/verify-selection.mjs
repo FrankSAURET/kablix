@@ -787,6 +787,91 @@ async function run() {
 	ok('7seg colon OFF : DP de nouveau visibles',
 		dp1 && getComputedStyle(dp1).display !== 'none', dp1 ? getComputedStyle(dp1).display : 'absent');
 
+	// --- Déplacement d'un LOT de coudes : Ctrl contraint à un seul axe ----------
+	// (item v2026.7.178) Plusieurs coudes sélectionnés et déplacés ensemble : si
+	// Ctrl est MAINTENU pendant la glisse, le lot ne bouge que sur un axe (l'axe
+	// dominant du geste) ; Ctrl relâché, le geste redevient libre en 2D. On pilote
+	// dragHandle par le vrai chemin (pointerdown sur une poignée + pointermove).
+	for (const p of [...editor.diagram.parts]) editor.removePart?.(p.id);
+	await wait(30);
+	const cl1 = editor.addPart('led', 100, 2600);
+	const cl2 = editor.addPart('led', 500, 2600);
+	await wait(120);
+	// Fil à DEUX coudes intermédiaires (indices 0 et 1).
+	editor.addWire({ partId: cl1.id, pin: 'A' }, { partId: cl2.id, pin: 'C' },
+		{ points: [{ x: 250, y: 2560 }, { x: 350, y: 2560 }], color: 'green' });
+	const cw = editor.diagram.wires[editor.diagram.wires.length - 1];
+	editor.redrawWires();
+	editor.select({ kind: 'wire', id: cw.id });
+	await wait(60);
+	const cwPoints = () => editor.diagram.wires.find((w) => w.id === cw.id).points.map((q) => ({ x: q.x, y: q.y }));
+	const p0 = cwPoints();
+	// Ctrl+clic sur les deux poignées de coude → elles entrent dans le lot.
+	editor.handles[0].dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, ctrlKey: true }));
+	editor.handles[1].dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, ctrlKey: true }));
+	await wait(20);
+	ok('coudes : lot de 2 poignées sélectionné (Ctrl+clic)', editor.selectedHandles.size === 2,
+		'n=' + editor.selectedHandles.size);
+	// Position ÉCRAN de la poignée saisie (world → client), pour un geste réaliste.
+	const hRect = () => editor.handles[0].getBoundingClientRect();
+	let hr = hRect();
+	const grabX = hr.left + hr.width / 2, grabY = hr.top + hr.height / 2;
+	// --- 1) Ctrl MAINTENU : glisse diagonale, |Δx| > |Δy| → axe X pur (y figé). --
+	editor.handles[0].dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, clientX: grabX, clientY: grabY }));
+	window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: grabX + 120, clientY: grabY + 30, ctrlKey: true }));
+	await wait(20);
+	const pCtrlX = cwPoints();
+	window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }));
+	await wait(20);
+	// y INCHANGÉ sur les 2 coudes, x DÉPLACÉ pareil (même vecteur, lot solidaire).
+	const dyMax = Math.max(...pCtrlX.map((q, i) => Math.abs(q.y - p0[i].y)));
+	const dxMin = Math.min(...pCtrlX.map((q, i) => Math.abs(q.x - p0[i].x)));
+	ok('coudes + Ctrl (geste horizontal) : Y du lot FIGÉ (≤1 px)', dyMax <= 1, 'dyMax=' + dyMax);
+	ok('coudes + Ctrl (geste horizontal) : X du lot bien déplacé', dxMin > 20, 'dxMin=' + dxMin);
+	ok('coudes + Ctrl : lot SOLIDAIRE (même vecteur sur les 2)',
+		Math.abs((pCtrlX[0].x - p0[0].x) - (pCtrlX[1].x - p0[1].x)) <= 1,
+		(pCtrlX[0].x - p0[0].x) + ' vs ' + (pCtrlX[1].x - p0[1].x));
+	// --- 2) Ctrl MAINTENU, geste vertical dominant → axe Y pur (x figé). --------
+	editor.select(null);
+	editor.select({ kind: 'wire', id: cw.id });
+	await wait(40);
+	const p1 = cwPoints();
+	editor.handles[0].dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, ctrlKey: true }));
+	editor.handles[1].dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, ctrlKey: true }));
+	await wait(20);
+	hr = hRect();
+	const gX = hr.left + hr.width / 2, gY = hr.top + hr.height / 2;
+	editor.handles[0].dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, clientX: gX, clientY: gY }));
+	window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: gX + 25, clientY: gY + 110, ctrlKey: true }));
+	await wait(20);
+	const pCtrlY = cwPoints();
+	window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }));
+	await wait(20);
+	const dxMaxV = Math.max(...pCtrlY.map((q, i) => Math.abs(q.x - p1[i].x)));
+	const dyMinV = Math.min(...pCtrlY.map((q, i) => Math.abs(q.y - p1[i].y)));
+	ok('coudes + Ctrl (geste vertical) : X du lot FIGÉ (≤1 px)', dxMaxV <= 1, 'dxMax=' + dxMaxV);
+	ok('coudes + Ctrl (geste vertical) : Y du lot bien déplacé', dyMinV > 20, 'dyMin=' + dyMinV);
+	// --- 3) SANS Ctrl : le geste diagonal déplace le lot en 2D (x ET y). --------
+	editor.select(null);
+	editor.select({ kind: 'wire', id: cw.id });
+	await wait(40);
+	const p2 = cwPoints();
+	editor.handles[0].dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, ctrlKey: true }));
+	editor.handles[1].dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, ctrlKey: true }));
+	await wait(20);
+	hr = hRect();
+	const fX = hr.left + hr.width / 2, fY = hr.top + hr.height / 2;
+	editor.handles[0].dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, clientX: fX, clientY: fY }));
+	window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: fX + 90, clientY: fY + 70 }));
+	await wait(20);
+	const pFree = cwPoints();
+	window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }));
+	await wait(20);
+	const dxFree = Math.min(...pFree.map((q, i) => Math.abs(q.x - p2[i].x)));
+	const dyFree = Math.min(...pFree.map((q, i) => Math.abs(q.y - p2[i].y)));
+	ok('coudes SANS Ctrl : geste diagonal → déplacement LIBRE en 2D (x ET y)',
+		dxFree > 20 && dyFree > 20, 'dx=' + dxFree + ' dy=' + dyFree);
+
 	const out = document.createElement('pre');
 	out.id = 'measures';
 	out.textContent = JSON.stringify(checks);

@@ -1,12 +1,85 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!-- Icône « rearranger » extraite de media/icones.svg (dessin de Frank). -->
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
-     width="16" height="16" viewBox="225.12 80.5 63.65 63.65">
-<defs><linearGradient xlink:href="#linearGradient28" id="linearGradient1" gradientUnits="userSpaceOnUse" gradientTransform="matrix(0.30416672,0,0,0.97083337,177.02588,-43.350598)" x1="193.15149" y1="127.67603" x2="193.15149" y2="193.02811"></linearGradient><linearGradient xlink:href="#linearGradient28" id="linearGradient24" gradientUnits="userSpaceOnUse" gradientTransform="matrix(0.59583339,0,0,0.97083338,153.76284,-43.350599)" x1="193.15149" y1="127.67603" x2="193.15149" y2="193.02811"></linearGradient><linearGradient id="linearGradient28">
-      <stop style="stop-color:#100ae5;stop-opacity:1;" offset="0" id="stop24"></stop>
-      <stop style="stop-color:#0b7d09;stop-opacity:1;" offset="1" id="stop25"></stop>
-    </linearGradient></defs><g id="rearranger" transform="translate(-8.2282667,-2.2803257)">
-      <rect style="fill:#fefefe;fill-opacity:1;stroke:url(#linearGradient1);stroke-width:1.85208;stroke-linecap:round" id="rect29-1" width="19.314587" height="61.647919" x="226.11884" y="81.50058" rx="5.2916665" ry="5.2916665"></rect>
-      <rect style="fill:#c0c0c0;fill-opacity:1;stroke:url(#linearGradient24);stroke-width:1.85208;stroke-linecap:round" id="rect29-1-2" width="37.835419" height="61.647919" x="249.93123" y="81.50058" rx="5.2916665" ry="5.2916665"></rect>
-    </g>
+
+<svg
+   width="16"
+   height="16"
+   viewBox="225.12 80.5 63.65 63.65"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="rearranger.svg"
+   inkscape:version="1.4.4 (dcaf3e7, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="27.3125"
+     inkscape:cx="0.036613272"
+     inkscape:cy="9.5926773"
+     inkscape:window-width="1920"
+     inkscape:window-height="1057"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
+  <defs
+     id="defs1">
+    <linearGradient
+       xlink:href="#linearGradient28"
+       id="linearGradient1"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(0.30416672,0,0,0.97083337,177.02814,-43.350137)"
+       x1="193.15149"
+       y1="127.67603"
+       x2="193.15149"
+       y2="193.02811" />
+    <linearGradient
+       xlink:href="#linearGradient28"
+       id="linearGradient24"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(0.59583339,0,0,0.97083338,153.7651,-43.350138)"
+       x1="193.15149"
+       y1="127.67603"
+       x2="193.15149"
+       y2="193.02811" />
+    <linearGradient
+       id="linearGradient28">
+      <stop
+         style="stop-color:#100ae5;stop-opacity:1;"
+         offset="0"
+         id="stop24" />
+      <stop
+         style="stop-color:#0b7d09;stop-opacity:1;"
+         offset="1"
+         id="stop25" />
+    </linearGradient>
+  </defs>
+  <rect
+     style="fill:#f1d0f1;fill-opacity:1;stroke:url(#linearGradient1);stroke-width:1.85208;stroke-linecap:round"
+     id="rect29-1"
+     width="19.314587"
+     height="61.647919"
+     x="226.12109"
+     y="81.501038"
+     rx="5.2916665"
+     ry="5.2916665" />
+  <rect
+     style="fill:#c0c0c0;fill-opacity:1;stroke:url(#linearGradient24);stroke-width:1.85208;stroke-linecap:round"
+     id="rect29-1-2"
+     width="37.835419"
+     height="61.647919"
+     x="249.93349"
+     y="81.501038"
+     rx="5.2916665"
+     ry="5.2916665" />
 </svg>
