@@ -23,8 +23,8 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
   );
   const styleUri = asset('styles.css');
   const gommeUri = asset('Gomme.svg');
-  const stepUri = asset('step.png');
-  const autoRouteUri = asset('autoroutage.png');
+  const stepUri = asset('step.webp');
+  const autoRouteUri = asset('autoroutage.webp');
   const fitViewUri = asset('recentrer.svg');
   const serialMonitorUri = asset('serialMonitor.svg');
   const plotterIconUri = asset('serialTracer.svg');

@@ -1,6 +1,6 @@
 # NeoPixel ring
 
-![NeoPixel ring](../../img/composants/led-ring.png)
+![NeoPixel ring](../../img/composants/led-ring.webp)
 
 Ring of addressable RGB LEDs (WS2812).
 

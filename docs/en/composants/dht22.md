@@ -1,6 +1,6 @@
 # DHT22 temperature/humidity sensor
 
-![DHT22 temperature/humidity sensor](../../img/composants/dht22.png)
+![DHT22 temperature/humidity sensor](../../img/composants/dht22.webp)
 
 1-wire digital temperature and humidity sensor.
 

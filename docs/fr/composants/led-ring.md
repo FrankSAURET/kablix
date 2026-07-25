@@ -1,6 +1,6 @@
 # Anneau NeoPixel
 
-![Anneau NeoPixel](../../img/composants/led-ring.png)
+![Anneau NeoPixel](../../img/composants/led-ring.webp)
 
 Anneau de LED RGB adressables (WS2812).
 

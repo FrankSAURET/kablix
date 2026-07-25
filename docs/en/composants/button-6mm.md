@@ -1,6 +1,6 @@
 # Push button (6 mm)
 
-![Push button (6 mm)](../../img/composants/button-6mm.png)
+![Push button (6 mm)](../../img/composants/button-6mm.webp)
 
 Small 6 mm tactile button, same behavior as the 12 mm button.
 

@@ -1,6 +1,6 @@
 # Platine d'essai (breadboard)
 
-![Platine d'essai](../../img/composants/breadboard.png)
+![Platine d'essai](../../img/composants/breadboard.webp)
 
 Plaque de prototypage sans soudure. Les trous sont reliés par bandes pour connecter
 les composants en enfichant simplement leurs pattes.

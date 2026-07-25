@@ -1,6 +1,6 @@
 # OLED display (SSD1306)
 
-![OLED display (SSD1306)](../../img/composants/oled-ssd1306.png)
+![OLED display (SSD1306)](../../img/composants/oled-ssd1306.webp)
 
 Small 128×64 monochrome OLED display (SPI). Ideal for text and graphics.
 

@@ -1,6 +1,6 @@
 # Bench power supply
 
-![Bench power supply](../../img/composants/alim.png)
+![Bench power supply](../../img/composants/alim.webp)
 
 DC voltage source **adjustable from 0 to 30 V**, with current limiting.
 It powers a circuit **without a microcontroller** (a LED lights up on the supply

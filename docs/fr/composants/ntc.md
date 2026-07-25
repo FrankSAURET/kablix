@@ -1,6 +1,6 @@
 # Thermistance NTC
 
-![Thermistance NTC](../../img/composants/ntc.png)
+![Thermistance NTC](../../img/composants/ntc.webp)
 
 Thermistance à coefficient **négatif** : sa résistance **baisse** quand la
 température monte. Composant nu à deux pattes, à câbler soi-même en pont

@@ -1,6 +1,6 @@
 # Capteur de pouls
 
-![Capteur de pouls](../../img/composants/heartbeat.png)
+![Capteur de pouls](../../img/composants/heartbeat.webp)
 
 Capteur optique de fréquence cardiaque. Sortie analogique (pulsation).
 

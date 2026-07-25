@@ -1,6 +1,6 @@
 # Buzzer
 
-![Buzzer](../../img/composants/buzzer.png)
+![Buzzer](../../img/composants/buzzer.webp)
 
 Buzzer piézo actif : émet un son tant qu'une tension est appliquée entre ses bornes.
 

@@ -1,6 +1,6 @@
 # Gas sensor (MQ)
 
-![Gas sensor (MQ)](../../img/composants/gas-sensor.png)
+![Gas sensor (MQ)](../../img/composants/gas-sensor.webp)
 
 MQ-series gas/smoke sensor. Analog (concentration) and digital (threshold) outputs.
 

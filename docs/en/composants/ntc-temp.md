@@ -1,6 +1,6 @@
 # NTC temperature sensor
 
-![NTC temperature sensor](../../img/composants/ntc-temp.png)
+![NTC temperature sensor](../../img/composants/ntc-temp.webp)
 
 NTC thermistor: resistance as a function of temperature. Analog output.
 

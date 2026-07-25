@@ -1,6 +1,6 @@
 # NeoPixel matrix
 
-![NeoPixel matrix](../../img/composants/neopixel-matrix.png)
+![NeoPixel matrix](../../img/composants/neopixel-matrix.webp)
 
 Matrix of addressable RGB LEDs (WS2812), driven by a single data pin.
 

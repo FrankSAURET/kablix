@@ -1,6 +1,6 @@
 # Capteur de flamme
 
-![Capteur de flamme](../../img/composants/flame.png)
+![Capteur de flamme](../../img/composants/flame.webp)
 
 Détecteur de flamme (infrarouge). Sorties analogique et numérique.
 

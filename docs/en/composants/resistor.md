@@ -1,6 +1,6 @@
 # Resistor
 
-![Resistor](../../img/composants/resistor.png)
+![Resistor](../../img/composants/resistor.webp)
 
 Fixed resistor. Limits current (LED) or forms a divider / pull-up / pull-down.
 

@@ -1,6 +1,6 @@
 # LCD Texte
 
-![LCD Texte](../../img/composants/lcd.png)
+![LCD Texte](../../img/composants/lcd.webp)
 
 Afficheur LCD à caractères (HD44780). 16×2 ou 20×4, en I²C (4 fils) ou parallèle.
 

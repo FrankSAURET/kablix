@@ -1,6 +1,6 @@
 # NTC thermistor
 
-![NTC thermistor](../../img/composants/ntc.png)
+![NTC thermistor](../../img/composants/ntc.webp)
 
 **Negative** temperature coefficient thermistor: its resistance **drops** as
 temperature rises. Bare two-lead part, to be wired as a voltage divider. Positive

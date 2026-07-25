@@ -1,6 +1,6 @@
 # Arduino Mega 2560
 
-![Arduino Mega 2560](../../img/composants/mega.png)
+![Arduino Mega 2560](../../img/composants/mega.webp)
 
 ATmega2560 board: 54 digital I/O (15 PWM), 16 analog inputs, 4 UARTs.
 

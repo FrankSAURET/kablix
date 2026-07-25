@@ -1,6 +1,6 @@
 # Servo motor
 
-![Servo motor](../../img/composants/servo.png)
+![Servo motor](../../img/composants/servo.webp)
 
 Positional servo motor driven by a PWM signal (angle 0–180°).
 

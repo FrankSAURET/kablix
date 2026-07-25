@@ -1,6 +1,6 @@
 # Heart-rate sensor
 
-![Heart-rate sensor](../../img/composants/heartbeat.png)
+![Heart-rate sensor](../../img/composants/heartbeat.webp)
 
 Optical heart-rate sensor. Analog output (pulse).
 

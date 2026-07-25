@@ -1,6 +1,6 @@
 # Capteur d'inclinaison
 
-![Capteur d'inclinaison](../../img/composants/tilt.png)
+![Capteur d'inclinaison](../../img/composants/tilt.webp)
 
 Interrupteur à bille : se ferme/ouvre selon l'inclinaison.
 

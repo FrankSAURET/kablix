@@ -1,6 +1,6 @@
 # LED bar graph
 
-![LED bar graph](../../img/composants/led-bar.png)
+![LED bar graph](../../img/composants/led-bar.webp)
 
 Bar graph of 10 independent LEDs (anodes A1–A10, cathodes C1–C10).
 

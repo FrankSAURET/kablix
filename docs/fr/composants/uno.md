@@ -1,6 +1,6 @@
 # Arduino Uno
 
-![Arduino Uno](../../img/composants/uno.png)
+![Arduino Uno](../../img/composants/uno.webp)
 
 Carte ATmega328P : 14 E/S numériques (6 PWM), 6 entrées analogiques, USB.
 

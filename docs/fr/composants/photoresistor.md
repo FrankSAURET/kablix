@@ -1,6 +1,6 @@
 # Photorésistance (LDR)
 
-![Photorésistance (LDR)](../../img/composants/photoresistor.png)
+![Photorésistance (LDR)](../../img/composants/photoresistor.webp)
 
 Capteur de lumière : sa résistance varie avec l'éclairement. Sortie analogique et numérique.
 

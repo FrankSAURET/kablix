@@ -1,6 +1,6 @@
 # Capteur de mouvement PIR
 
-![Capteur de mouvement PIR](../../img/composants/pir.png)
+![Capteur de mouvement PIR](../../img/composants/pir.webp)
 
 Détecteur de mouvement infrarouge passif. Sortie numérique haute en cas de détection.
 

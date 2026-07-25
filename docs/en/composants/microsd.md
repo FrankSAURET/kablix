@@ -1,6 +1,6 @@
 # microSD card (SPI)
 
-![microSD card (SPI)](../../img/composants/microsd.png)
+![microSD card (SPI)](../../img/composants/microsd.webp)
 
 microSD card reader over SPI: file storage.
 

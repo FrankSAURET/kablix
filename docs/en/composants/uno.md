@@ -1,6 +1,6 @@
 # Arduino Uno
 
-![Arduino Uno](../../img/composants/uno.png)
+![Arduino Uno](../../img/composants/uno.webp)
 
 ATmega328P board: 14 digital I/O (6 PWM), 6 analog inputs, USB.
 

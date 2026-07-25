@@ -1,6 +1,6 @@
 # Capteur de gaz (MQ)
 
-![Capteur de gaz (MQ)](../../img/composants/gas-sensor.png)
+![Capteur de gaz (MQ)](../../img/composants/gas-sensor.webp)
 
 Capteur de gaz/fumée série MQ. Sorties analogique (concentration) et numérique (seuil).
 

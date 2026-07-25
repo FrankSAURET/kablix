@@ -1,6 +1,6 @@
 # Character LCD
 
-![Character LCD](../../img/composants/lcd.png)
+![Character LCD](../../img/composants/lcd.webp)
 
 Character LCD display (HD44780). 16×2 or 20×4, in I²C (4 wires) or parallel.
 

@@ -1,6 +1,6 @@
 # Matrice NeoPixel
 
-![Matrice NeoPixel](../../img/composants/neopixel-matrix.png)
+![Matrice NeoPixel](../../img/composants/neopixel-matrix.webp)
 
 Matrice de LED RGB adressables (WS2812), pilotée par une seule broche de données.
 

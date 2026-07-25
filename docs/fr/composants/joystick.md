@@ -1,6 +1,6 @@
 # Joystick analogique
 
-![Joystick analogique](../../img/composants/joystick.png)
+![Joystick analogique](../../img/composants/joystick.webp)
 
 Manette 2 axes (X/Y) avec bouton poussoir intégré.
 

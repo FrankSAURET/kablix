@@ -1,6 +1,6 @@
 # PTC thermistor
 
-![PTC thermistor](../../img/composants/ptc.png)
+![PTC thermistor](../../img/composants/ptc.webp)
 
 **Positive** temperature coefficient thermistor: its resistance **rises** with
 temperature. Used as a linear sensor (KTY-style probes) or as a resettable

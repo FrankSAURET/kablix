@@ -1,6 +1,6 @@
 # LDR (photoresistor)
 
-![LDR (photoresistor)](../../img/composants/ldr.png)
+![LDR (photoresistor)](../../img/composants/ldr.webp)
 
 **Bare** photoresistor, two leads: its resistance drops as light increases. Not
 to be confused with the [light sensor module](photoresistor.md), which is a full

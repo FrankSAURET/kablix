@@ -1,6 +1,6 @@
 # Résistance
 
-![Résistance](../../img/composants/resistor.png)
+![Résistance](../../img/composants/resistor.webp)
 
 Résistance fixe. Limite le courant (LED) ou forme un pont diviseur / pull-up / pull-down.
 

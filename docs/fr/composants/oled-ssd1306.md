@@ -1,6 +1,6 @@
 # Écran OLED (SSD1306)
 
-![Écran OLED (SSD1306)](../../img/composants/oled-ssd1306.png)
+![Écran OLED (SSD1306)](../../img/composants/oled-ssd1306.webp)
 
 Petit écran OLED monochrome 128×64 (SPI). Idéal pour textes et graphiques.
 

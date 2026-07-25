@@ -1,6 +1,6 @@
 # Capteur température/humidité DHT22
 
-![Capteur température/humidité DHT22](../../img/composants/dht22.png)
+![Capteur température/humidité DHT22](../../img/composants/dht22.webp)
 
 Capteur numérique 1-wire de température et d'humidité.
 

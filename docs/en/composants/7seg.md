@@ -1,6 +1,6 @@
 # 7-segment display
 
-![7-segment display](../../img/composants/7seg.png)
+![7-segment display](../../img/composants/7seg.webp)
 
 Seven-segment display (+ decimal point) for digits and simple symbols. 1 to 4 digits, common cathode or common anode.
 

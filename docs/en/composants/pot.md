@@ -1,6 +1,6 @@
 # Potentiometer
 
-![Potentiometer](../../img/composants/pot.png)
+![Potentiometer](../../img/composants/pot.webp)
 
 Variable resistor with a rotary knob. The wiper provides a voltage proportional to its position.
 

@@ -1,6 +1,6 @@
 # Capteur ultrason HC-SR04
 
-![Capteur ultrason HC-SR04](../../img/composants/hcsr04.png)
+![Capteur ultrason HC-SR04](../../img/composants/hcsr04.webp)
 
 Télémètre à ultrasons : mesure une distance (2–400 cm) par temps de vol.
 

@@ -197,7 +197,9 @@ ok(`vsix : les ${mustShip.length} fiches, guides et images d'aide sont dans le p
 
 // Captures des guides : embarquées (lisibles hors-ligne) SAUF les lourdes, que
 // `guide.ts` va chercher sur GitHub. Une capture légère exclue = trou hors-ligne.
-const HEAVY = /\.gif$|(^|\/)(Kablix|KNB|accroche)\.png$/i;
+// Depuis le passage des images en WebP (v2026.7.187), seuls les GIF de démo
+// (~12,8 Mo) restent hors du paquet : les captures pèsent désormais ~1 Mo.
+const HEAVY = /\.gif$/i;
 const guideAssets = new Set();
 for (const lang of ['fr', 'en']) {
   for (const name of guidesOf(lang)) {
@@ -220,6 +222,23 @@ for (const [dir, r] of guideAssets) {
 }
 ok(`vsix : les captures légères des guides (${guideAssets.size} refs) sont embarquées`,
   lightMissing.length === 0, lightMissing.slice(0, 5).join(' · '));
+// Toutes les images de l'aide sont en WebP (v2026.7.187) : un PNG rescapé
+// pèserait 10 à 50 fois plus lourd pour un rendu identique dans la webview.
+const pngRefs = [...guideAssets].map(([, r]) => r).filter((r) => /\.png$/i.test(r));
+const pngFiles = readdirSync(join(root, 'docs', 'img', 'composants')).filter((f) => /\.png$/i.test(f));
+ok('images : plus aucun PNG dans l’aide (guides et fiches en WebP)',
+  pngRefs.length === 0 && pngFiles.length === 0,
+  [...pngRefs, ...pngFiles].slice(0, 5).join(' · '));
+// Les deux seules images du manifeste restent en PNG : l'icône du marketplace
+// (format imposé par la publication) et celle de la barre d'activité (chargée
+// par le workbench, pas par une webview).
+const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+ok('images : les icônes du manifeste restent en PNG (marketplace et barre d’activité)',
+  manifest.icon === 'media/icon.png'
+  && manifest.contributes.viewsContainers.activitybar[0].icon === 'media/activity-icon.png'
+  && existsSync(join(root, 'media', 'icon.png')) && existsSync(join(root, 'media', 'activity-icon.png')),
+  'icône du manifeste absente ou convertie');
+
 // Garde-fou du matcher : des règles connues doivent bien s'appliquer.
 ok('vsix : matcher .vscodeignore cohérent (src/ exclu, dist/webview.js ré-inclus)',
   excluded('src/panel.ts') && excluded('dist/pinout/uno.svg') === false && !excluded('dist/webview.js'),

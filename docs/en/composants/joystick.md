@@ -1,6 +1,6 @@
 # Analog joystick
 
-![Analog joystick](../../img/composants/joystick.png)
+![Analog joystick](../../img/composants/joystick.webp)
 
 2-axis (X/Y) stick with built-in push button.
 

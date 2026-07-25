@@ -1,6 +1,6 @@
 # Grove Shield (Pico)
 
-![Grove Shield (Pico)](../../img/composants/grove-pico.png)
+![Grove Shield (Pico)](../../img/composants/grove-pico.webp)
 
 **Grove Shield for Pi Pico v1.0** expansion board (Seeed Studio). The Pico (or
 Pico W) plugs into the two centre rows; the shield routes its I/O to 10 four-pin

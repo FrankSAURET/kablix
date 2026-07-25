@@ -1,6 +1,6 @@
 # Slide potentiometer
 
-![Slide potentiometer](../../img/composants/slide-pot.png)
+![Slide potentiometer](../../img/composants/slide-pot.webp)
 
 Linear potentiometer with a sliding wiper. Same principle as the rotary one.
 

@@ -1,6 +1,6 @@
 # Flame sensor
 
-![Flame sensor](../../img/composants/flame.png)
+![Flame sensor](../../img/composants/flame.webp)
 
 Flame detector (infrared). Analog and digital outputs.
 

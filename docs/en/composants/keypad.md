@@ -1,6 +1,6 @@
 # Matrix keypad
 
-![Matrix keypad](../../img/composants/keypad.png)
+![Matrix keypad](../../img/composants/keypad.webp)
 
 4×3 or 4×4 membrane or key keypad: a matrix of keys, rows × columns.
 

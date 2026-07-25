@@ -1,6 +1,6 @@
 # Grove Shield (Pico)
 
-![Grove Shield (Pico)](../../img/composants/grove-pico.png)
+![Grove Shield (Pico)](../../img/composants/grove-pico.webp)
 
 Carte d'extension **Grove Shield for Pi Pico v1.0** (Seeed Studio). La Pico (ou
 Pico W) s'enfiche sur les deux rangées centrales ; le shield redirige ses E/S

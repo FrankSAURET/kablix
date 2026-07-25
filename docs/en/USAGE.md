@@ -1,5 +1,5 @@
 # Kablix — User guide
-![Kablix](../../Kablix.png)
+![Kablix](../../Kablix.webp)
 > Version française : [USAGE.md](../fr/USAGE.md)
 
 ## Contents
@@ -25,7 +25,7 @@
 
 ## Getting started
 
-1. To start, click the <img src="../../media/KNB.png" alt="Kablix" width="30" /> icon in the activity bar on the left;
+1. To start, click the <img src="../../media/KNB.webp" alt="Kablix" width="30" /> icon in the activity bar on the left;
   - Or, inside a project folder, double-click a projix file;
   - Or, if you set up the association, double-click a projix file in Windows Explorer.
 ![Start Kablix](../../media/demarrer.gif)
@@ -44,20 +44,20 @@
 ![Simulate in Kablix](../../media/simuler.gif)
 
 ## The interface
-![interface](../../media/interface.png)
+![interface](../../media/interface.webp)
 *Kablix interface: **①** the parts **palette** on the left, **②** the circuit **canvas** in the center, **③** the **inspector** (Properties/variables) on the right, **④** the **serial monitor/Console/REPL**, **⑤** the **Plotter** at the bottom and **⑥** the **toolbars** (Simulation and drawing) at the top.*
 
-- **Palette**: clicking a part places it on the canvas. Two sort modes to choose from (buttons at the top) ![sort buttons](<../../media/boutons trie.png>): alphabetical or by categories.
+- **Palette**: clicking a part places it on the canvas. Two sort modes to choose from (buttons at the top) ![sort buttons](<../../media/boutons trie.webp>): alphabetical or by categories.
 A **“Recently used”** zone (10 max) can stay at the top (third button). The last button changes the palette's reaction mode.
 - **Kablix toolbar**
-![Kablix bar](<../../media/barre kablix.png>)
+![Kablix bar](<../../media/barre kablix.webp>)
     - the usual file-management functions,
     - the Names button, which shows the name on the **selected** part or on all parts,
     - **rearrange**: restores the Kablix layout (code on one side, Kablix on the other, panels closed). You can swap the two zones and set their width with the mouse, then use **Save this layout as the default** (hamburger menu): both the side of Kablix **and** the width are remembered, and “rearrange” restores them — including moving Kablix back to the chosen side if it has changed since. The code file is never opened twice: if it is already open (even on the wrong side), Kablix reuses its tab and moves it back to the code side.
     - the hamburger menu for less frequent functions,
     - access to this help.
 - **Simulation bar**
-![Simulation bar](../../media/BarreSimulation.png)
+![Simulation bar](../../media/BarreSimulation.webp)
     - **▶ start**
     - **■ stop**
     - **⏸ pause/resume**
@@ -68,7 +68,7 @@ A **“Recently used”** zone (10 max) can stay at the top (third button). The 
     - **serial monitor / console**
     - **Plotter**.
 - **Drawing bar**
-![Drawing bar](../../media/BarreDessin.png)
+![Drawing bar](../../media/BarreDessin.webp)
   - **Kablix button** shows the internal schematic or the full pinout of the part.
     - **autoroute** routes the selection or the whole circuit
     - **grid** (show/hide)

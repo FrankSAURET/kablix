@@ -1,6 +1,6 @@
 # LED RGB
 
-![LED RGB](../../img/composants/rgb-led.png)
+![LED RGB](../../img/composants/rgb-led.webp)
 
 LED tricolore (rouge/vert/bleu) à cathode (ou anode) commune. Mélange des trois canaux pour obtenir n'importe quelle couleur.
 

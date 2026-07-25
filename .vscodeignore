@@ -47,38 +47,36 @@ test-assets/**
 # testkablix/ : recette de test par composant — distribuée via GitHub, pas dans le vsix.
 testkablix/**
 
-# --- Images sources (l'icône du paquet est media/icon.png) ---
+# --- Images sources (l'icône du paquet est media/icon.png, seul PNG restant) ---
+# Kablix.webp (racine) N'EST PAS exclue : les guides USAGE l'affichent en tête.
 images/**
-Kablix.png
-K.png
-KN&B.png
-KablixMini.png
+K.webp
+KN&B.webp
 # kablix.ico racine = source ; la copie packagée est media/kablix.ico.
 kablix.ico
-K2.png
-k3.png
 k.svg
 
 # --- Ressources non utilisées à l'exécution ---
 # parts/ : composants d'exemple importables — distribués via GitHub, pas dans le vsix.
 parts/**
-# media/parts + media/icones.svg + media/Gomme.png : sources SVG/PNG non chargées par le code.
+# media/parts + media/icones.svg + media/Gomme.webp : sources SVG/image non chargées par le code.
 media/parts/**
 media/icones.svg
-media/Gomme.png
+media/Gomme.webp
 media/Boum.gif
-# media/accroche2.png : orphelin (aucun README/doc/code ne le charge) — 1,7 Mo.
-media/accroche2.png
-# Vitrine README (GIF de démo + accroche + logo KNB) : ~14 Mo, servis via URL raw.githubusercontent
-# (le marketplace charge les images distantes) → hors vsix. Restent versionnés sur GitHub.
-media/accroche.png
-media/KNB.png
+# media/accroche2.webp : orphelin (aucun README/doc/code ne le charge).
+media/accroche2.webp
+# Vitrine README : les GIF de démo (~12,8 Mo) restent hors vsix, servis via URL
+# raw.githubusercontent (le marketplace charge les images distantes).
+# accroche.webp n'est affichée que par le README (marketplace) → hors paquet.
+media/accroche.webp
 media/demarrer.gif
 media/dessiner.gif
 media/simuler.gif
-# media/BarreDessin, BarreSimulation, barre kablix, boutons trie, interface :
-# captures des guides USAGE (~200 Ko au total) — EMBARQUÉES depuis v2026.7.181,
-# l'aide ❔ sert le guide local et doit rester lisible hors-ligne.
+# media/KNB, BarreDessin, BarreSimulation, barre kablix, boutons trie, interface :
+# captures des guides USAGE — EMBARQUÉES (v2026.7.181, toutes en WebP depuis la
+# v2026.7.187 : ~1 Mo de PNG en moins) ; l'aide ❔ sert le guide local et doit
+# rester lisible hors-ligne.
 # examples/ : non référencés par l'extension (disponibles sur GitHub).
 examples/**
 # firmware : seul rp2040_ram.ld sert (script de lien de la compilation Pico).

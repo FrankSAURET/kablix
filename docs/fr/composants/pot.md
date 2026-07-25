@@ -1,6 +1,6 @@
 # Potentiomètre
 
-![Potentiomètre](../../img/composants/pot.png)
+![Potentiomètre](../../img/composants/pot.webp)
 
 Résistance variable à bouton rotatif. Le curseur fournit une tension proportionnelle à sa position.
 

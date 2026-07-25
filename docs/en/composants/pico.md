@@ -1,6 +1,6 @@
 # Raspberry Pi Pico
 
-![Raspberry Pi Pico](../../img/composants/pico.png)
+![Raspberry Pi Pico](../../img/composants/pico.webp)
 
 RP2040 microcontroller board (dual-core ARM Cortex-M0+). 26 GPIO pins, 3
 analog inputs (ADC), **3.3 V** logic level.

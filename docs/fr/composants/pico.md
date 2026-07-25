@@ -1,6 +1,6 @@
 # Raspberry Pi Pico
 
-![Raspberry Pi Pico](../../img/composants/pico.png)
+![Raspberry Pi Pico](../../img/composants/pico.webp)
 
 Carte microcontrôleur RP2040 (double cœur ARM Cortex-M0+). 26 broches GPIO, 3
 entrées analogiques (ADC), niveau logique **3,3 V**.

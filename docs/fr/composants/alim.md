@@ -1,6 +1,6 @@
 # Alimentation de laboratoire
 
-![Alimentation de laboratoire](../../img/composants/alim.png)
+![Alimentation de laboratoire](../../img/composants/alim.webp)
 
 Source de tension continue **réglable de 0 à 30 V**, avec limitation de courant.
 Elle alimente un montage **sans microcontrôleur** (une LED s'allume sur l'alim

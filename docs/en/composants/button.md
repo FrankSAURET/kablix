@@ -1,6 +1,6 @@
 # Push button
 
-![Push button](../../img/composants/button.png)
+![Push button](../../img/composants/button.webp)
 
 12 mm momentary tactile button. At rest the circuit is open; when pressed, it links its two contacts.
 

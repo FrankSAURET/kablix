@@ -1,6 +1,6 @@
 # Capteur de température NTC
 
-![Capteur de température NTC](../../img/composants/ntc-temp.png)
+![Capteur de température NTC](../../img/composants/ntc-temp.webp)
 
 Thermistance NTC : résistance fonction de la température. Sortie analogique.
 

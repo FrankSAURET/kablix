@@ -1,5 +1,5 @@
 # Kablix — Guide d'utilisation
-![Kablix](../../Kablix.png)
+![Kablix](../../Kablix.webp)
 > English version: [USAGE.md](../en/USAGE.md)
 
 ## Sommaire
@@ -25,7 +25,7 @@
 
 ## Démarrage
 
-1. Pour démarrer, cliquer sur l'icône <img src="../../media/KNB.png" alt="Kablix" width="30" /> dans la barre d'activité à gauche ;
+1. Pour démarrer, cliquer sur l'icône <img src="../../media/KNB.webp" alt="Kablix" width="30" /> dans la barre d'activité à gauche ;
   - Ou dans un dossier de projet, double cliquer sur un fichier projix ;
   - Ou si vous avez fait l'association, dans l'explorateur Windows double cliquer sur un fichier projix.
 ![Démarrer Kablix](../../media/demarrer.gif)
@@ -44,20 +44,20 @@
 ![Simuler dans Kablix](../../media/simuler.gif)
 
 ## L'interface
-![alt text](../../media/interface.png)
+![alt text](../../media/interface.webp)
 *Interface de Kablix : **①** la **palette** des composants à gauche, **②** le **canvas** de montage au centre, **③** l'**inspecteur** (Propriétés/variables) à droite, **④** le **moniteur série/Console/REPL**, **⑤** le **Traceur** en bas et **⑥** les **barres d'outils** (Simulation et dessin) en haut.*
 
-- **Palette** : cliquer un composant le pose sur le canvas. Deux tris au choix (boutons en haut) ![alt text](<../../media/boutons trie.png>): alphabétique ou  par catégories
+- **Palette** : cliquer un composant le pose sur le canvas. Deux tris au choix (boutons en haut) ![alt text](<../../media/boutons trie.webp>): alphabétique ou  par catégories
 Une zone **« Derniers utilisés »** (10 max) peut rester en tête (troisième bouton). Le dernier bouton permet de changer le mode de réaction de la bibliothèque.
 - **Barre d'outil Kablix**
-![alt text](<../../media/barre kablix.png>)
+![alt text](<../../media/barre kablix.webp>)
     - les fonctions habituelles de gestion de fichier,
     - le bouton Noms qui fait apparaitre le nom sur le composant **sélectionné** ou tous les composants
     - **réarranger** : rétablit l'organisation Kablix (code d'un côté, Kablix de l'autre, panneaux fermés). Vous pouvez inverser les deux zones et régler leur largeur à la souris, puis **Sauvegarder cette organisation par défaut** (menu hamburger) : le côté de Kablix **et** la largeur sont mémorisés, et « réarranger » les rétablit — y compris en remettant Kablix du côté choisi s'il en a changé depuis. Le fichier de code, lui, n'est jamais ouvert en double : s'il est déjà ouvert (même du mauvais côté), Kablix réutilise son onglet et le replace du côté du code.
     - le menu hamburger pour des fonctions d'utiliation  moins fréquentes.
     - accés à cette aide.
 - **Barre de simulation**
-![Barre de simulation](../../media/BarreSimulation.png)
+![Barre de simulation](../../media/BarreSimulation.webp)
     - **▶ démarrer**
     - **■ arrêter**
     - **⏸ pause/reprendre**
@@ -68,7 +68,7 @@ Une zone **« Derniers utilisés »** (10 max) peut rester en tête (troisième 
     - **moniteur série / console**
     - **Traceur** de courbes.
 - **Barre de dessin**
-![Barre de dessin](../../media/BarreDessin.png)
+![Barre de dessin](../../media/BarreDessin.webp)
   - **Bouton Kablix** Affiche le schéma interne ou le brochage complet du composant.
     - **autoroutage** route la sélection ou tout le montage
     - **grille** (afficher/masquer)

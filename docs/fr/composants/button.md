@@ -1,6 +1,6 @@
 # Bouton poussoir
 
-![Bouton poussoir](../../img/composants/button.png)
+![Bouton poussoir](../../img/composants/button.webp)
 
 Bouton tactile 12 mm momentané. Au repos le circuit est ouvert ; appuyé, il relie ses deux contacts.
 

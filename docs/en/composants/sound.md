@@ -1,6 +1,6 @@
 # Sound sensor
 
-![Sound sensor](../../img/composants/sound.png)
+![Sound sensor](../../img/composants/sound.webp)
 
 Microphone with a comparator. Analog (level) and digital (threshold) outputs.
 

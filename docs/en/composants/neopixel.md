@@ -1,6 +1,6 @@
 # NeoPixel
 
-![NeoPixel](../../img/composants/neopixel.png)
+![NeoPixel](../../img/composants/neopixel.webp)
 
 Addressable RGB LED (WS2812). Chainable: the output of one LED feeds the input of the next.
 

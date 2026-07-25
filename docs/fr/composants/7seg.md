@@ -1,6 +1,6 @@
 # Afficheur 7 segments
 
-![Afficheur 7 segments](../../img/composants/7seg.png)
+![Afficheur 7 segments](../../img/composants/7seg.webp)
 
 Afficheur à 7 segments (+ point décimal) pour chiffres et symboles simples. 1 à 4 digits, cathode ou anode commune.
 

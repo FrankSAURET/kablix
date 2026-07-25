@@ -1,6 +1,6 @@
 # Interrupteur à glissière
 
-![Interrupteur à glissière](../../img/composants/slide-switch.png)
+![Interrupteur à glissière](../../img/composants/slide-switch.webp)
 
 Interrupteur SPDT à 2 positions : le commun bascule entre deux bornes.
 

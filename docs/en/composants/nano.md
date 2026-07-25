@@ -1,6 +1,6 @@
 # Arduino Nano
 
-![Arduino Nano](../../img/composants/nano.png)
+![Arduino Nano](../../img/composants/nano.webp)
 
 Compact ATmega328P board (same core as the Uno), breadboard form factor.
 

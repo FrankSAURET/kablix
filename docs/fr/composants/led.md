@@ -1,6 +1,6 @@
 # LED
 
-![LED](../../img/composants/led.png)
+![LED](../../img/composants/led.webp)
 
 Diode électroluminescente 5 mm. S'allume quand l'anode est au + et la cathode à la masse, via une résistance de limitation.
 

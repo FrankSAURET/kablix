@@ -1,6 +1,6 @@
 # Photoresistor (LDR)
 
-![Photoresistor (LDR)](../../img/composants/photoresistor.png)
+![Photoresistor (LDR)](../../img/composants/photoresistor.webp)
 
 Light sensor: its resistance varies with illumination. Analog and digital outputs.
 

@@ -1,6 +1,6 @@
 # HC-SR04 ultrasonic sensor
 
-![HC-SR04 ultrasonic sensor](../../img/composants/hcsr04.png)
+![HC-SR04 ultrasonic sensor](../../img/composants/hcsr04.webp)
 
 Ultrasonic rangefinder: measures a distance (2–400 cm) by time of flight.
 

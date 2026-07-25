@@ -1,6 +1,6 @@
 # LDR (photorésistance)
 
-![LDR (photorésistance)](../../img/composants/ldr.png)
+![LDR (photorésistance)](../../img/composants/ldr.webp)
 
 Photorésistance **nue**, à deux pattes : sa résistance chute quand la lumière
 augmente. À ne pas confondre avec le [module capteur de lumière](photoresistor.md),

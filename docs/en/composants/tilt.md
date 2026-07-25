@@ -1,6 +1,6 @@
 # Tilt sensor
 
-![Tilt sensor](../../img/composants/tilt.png)
+![Tilt sensor](../../img/composants/tilt.webp)
 
 Ball switch: closes/opens depending on tilt.
 

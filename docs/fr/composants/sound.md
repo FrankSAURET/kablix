@@ -1,6 +1,6 @@
 # Capteur de son
 
-![Capteur de son](../../img/composants/sound.png)
+![Capteur de son](../../img/composants/sound.webp)
 
 Microphone avec comparateur. Sorties analogique (niveau) et numérique (seuil).
 

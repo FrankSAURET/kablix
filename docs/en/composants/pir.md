@@ -1,6 +1,6 @@
 # PIR motion sensor
 
-![PIR motion sensor](../../img/composants/pir.png)
+![PIR motion sensor](../../img/composants/pir.webp)
 
 Passive infrared motion detector. Digital output goes high on detection.
 

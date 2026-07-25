@@ -1,6 +1,6 @@
 # Thermistance PTC
 
-![Thermistance PTC](../../img/composants/ptc.png)
+![Thermistance PTC](../../img/composants/ptc.webp)
 
 Thermistance à coefficient **positif** : sa résistance **monte** avec la
 température. Sert de capteur linéaire (sondes type KTY) ou de protection

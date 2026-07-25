@@ -1,6 +1,6 @@
 # Bouton poussoir (6 mm)
 
-![Bouton poussoir (6 mm)](../../img/composants/button-6mm.png)
+![Bouton poussoir (6 mm)](../../img/composants/button-6mm.webp)
 
 Petit bouton tactile 6 mm, même fonctionnement que le bouton 12 mm.
 

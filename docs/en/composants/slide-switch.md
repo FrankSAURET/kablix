@@ -1,6 +1,6 @@
 # Slide switch
 
-![Slide switch](../../img/composants/slide-switch.png)
+![Slide switch](../../img/composants/slide-switch.webp)
 
 2-position SPDT switch: the common toggles between two terminals.
 

@@ -1,7 +1,10 @@
-// Capture PNG d'un composant pour illustrer sa fiche d'aide
-// (docs/img/composants/<type>.png). Rend le VRAI élément forké dans Chrome
+// Capture d'un composant pour illustrer sa fiche d'aide
+// (docs/img/composants/<type>.webp). Rend le VRAI élément forké dans Chrome
 // headless, sur fond transparent, à la même largeur que les images existantes
-// (~360 px). Usage : node scripts/_capture-part.mjs <type> [<type>…]
+// (~360 px). Chrome ne sait tirer qu'en PNG : la capture est convertie en WebP
+// (avec sa transparence) par `_png2webp.mjs`, format de TOUTES les images de
+// l'aide depuis la v2026.7.187.
+// Usage : node scripts/_capture-part.mjs <type> [<type>…]
 import { writeFileSync, mkdirSync, existsSync, readFileSync, renameSync, unlinkSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
@@ -110,6 +113,11 @@ setTimeout(() => {
   const png = readFileSync(shot);
   const w = png.readUInt32BE(16), h = png.readUInt32BE(20);
   mkdirSync(OUT, { recursive: true });
-  renameSync(shot, join(OUT, `${type}.png`));
-  console.log(`  ✓ ${type}.png (${w}×${h}, ${(png.length / 1024).toFixed(0)} Ko)`);
+  // Conversion sur place, puis seul le .webp rejoint docs/img/composants.
+  execFileSync(process.execPath, [join(ROOT, 'scripts', '_png2webp.mjs'), shot], { stdio: 'ignore' });
+  const webp = shot.replace(/\.png$/, '.webp');
+  if (!existsSync(webp)) { console.warn(`  ✗ ${type} : conversion WebP échouée`); continue; }
+  renameSync(webp, join(OUT, `${type}.webp`));
+  unlinkSync(shot);
+  console.log(`  ✓ ${type}.webp (${w}×${h}, ${(readFileSync(join(OUT, `${type}.webp`)).length / 1024).toFixed(0)} Ko)`);
 }

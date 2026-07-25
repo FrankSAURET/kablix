@@ -1,6 +1,6 @@
 # Barre de LED
 
-![Barre de LED](../../img/composants/led-bar.png)
+![Barre de LED](../../img/composants/led-bar.webp)
 
 Barregraphe de 10 LED indépendantes (anodes A1–A10, cathodes C1–C10).
 

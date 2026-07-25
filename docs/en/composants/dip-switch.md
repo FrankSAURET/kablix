@@ -1,6 +1,6 @@
 # DIP switch ×8
 
-![DIP switch ×8](../../img/composants/dip-switch.png)
+![DIP switch ×8](../../img/composants/dip-switch.webp)
 
 Block of 8 independent micro-switches (configuration / addresses).
 

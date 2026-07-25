@@ -1,6 +1,6 @@
 # LED
 
-![LED](../../img/composants/led.png)
+![LED](../../img/composants/led.webp)
 
 5 mm light-emitting diode. Lights up when the anode is at + and the cathode at ground, through a limiting resistor.
 

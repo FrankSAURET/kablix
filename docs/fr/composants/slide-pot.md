@@ -1,6 +1,6 @@
 # Potentiomètre à glissière
 
-![Potentiomètre à glissière](../../img/composants/slide-pot.png)
+![Potentiomètre à glissière](../../img/composants/slide-pot.webp)
 
 Potentiomètre linéaire à curseur coulissant. Même principe que le rotatif.
 

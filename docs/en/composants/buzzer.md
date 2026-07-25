@@ -1,6 +1,6 @@
 # Buzzer
 
-![Buzzer](../../img/composants/buzzer.png)
+![Buzzer](../../img/composants/buzzer.webp)
 
 Active piezo buzzer: emits a sound as long as a voltage is applied across its terminals.
 

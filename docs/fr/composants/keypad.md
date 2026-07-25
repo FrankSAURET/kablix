@@ -1,6 +1,6 @@
 # Clavier matriciel
 
-![Clavier matriciel](../../img/composants/keypad.png)
+![Clavier matriciel](../../img/composants/keypad.webp)
 
 Clavier à membrane ou à touche 4×3 ou 4×4 : matrice de touches lignes × colonnes.
 

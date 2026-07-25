@@ -1,6 +1,6 @@
 # Servomoteur
 
-![Servomoteur](../../img/composants/servo.png)
+![Servomoteur](../../img/composants/servo.webp)
 
 Servomoteur positionnel commandé par un signal PWM (angle 0–180°).
 

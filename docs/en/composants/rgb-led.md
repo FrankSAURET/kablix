@@ -1,6 +1,6 @@
 # RGB LED
 
-![RGB LED](../../img/composants/rgb-led.png)
+![RGB LED](../../img/composants/rgb-led.webp)
 
 Tricolor LED (red/green/blue) with a common cathode (or anode). Mix the three channels to get any color.
 

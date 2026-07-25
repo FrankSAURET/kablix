@@ -1,6 +1,6 @@
 # Arduino Mega 2560
 
-![Arduino Mega 2560](../../img/composants/mega.png)
+![Arduino Mega 2560](../../img/composants/mega.webp)
 
 Carte ATmega2560 : 54 E/S numériques (15 PWM), 16 entrées analogiques, 4 UART.
 

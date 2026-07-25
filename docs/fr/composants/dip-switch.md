@@ -1,6 +1,6 @@
 # Interrupteur DIP ×8
 
-![Interrupteur DIP ×8](../../img/composants/dip-switch.png)
+![Interrupteur DIP ×8](../../img/composants/dip-switch.webp)
 
 Bloc de 8 micro-interrupteurs indépendants (configuration / adresses).
 

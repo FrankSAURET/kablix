@@ -1,6 +1,6 @@
 # Arduino Nano
 
-![Arduino Nano](../../img/composants/nano.png)
+![Arduino Nano](../../img/composants/nano.webp)
 
 Carte compacte ATmega328P (même cœur que l'Uno), format breadboard.
 

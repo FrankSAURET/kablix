@@ -1,6 +1,6 @@
 # Carte microSD (SPI)
 
-![Carte microSD (SPI)](../../img/composants/microsd.png)
+![Carte microSD (SPI)](../../img/composants/microsd.webp)
 
 Lecteur de carte microSD en SPI : stockage de fichiers.
 
