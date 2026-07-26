@@ -114,6 +114,7 @@ import type {
   KeypadConfig,
   SimEngine,
 } from './engines/types.mjs';
+import { clampAirTemp, DEFAULT_AIR_TEMP_C } from './engines/ultrasonic.mjs';
 import { UNO_DEMO } from './programs/uno-demo.mjs';
 import { PICO_BLINK } from './programs/pico-blink.mjs';
 import { formatVarValue, type VarBase } from './varbase.mjs';
@@ -1187,10 +1188,11 @@ function bindInputs(): void {
     ...sevenSegs.flatMap((b) => Object.values(b.segments).filter((p): p is string => p !== null)),
   ]);
 
-  // Capteurs ultrason : distance choisie EN SIMULATION par le curseur du
-  // composant (borné par distancemin/distancemax de l'inspecteur). Chaque objet
-  // sensor est muté en direct sur l'événement `input` du curseur — le moteur
-  // relit `distanceCm` à chaque impulsion TRIG (même référence de tableau).
+  // Capteurs ultrason : distance ET température de l'air choisies EN SIMULATION
+  // par les deux curseurs du composant (distance bornée par distancemin/distancemax
+  // de l'inspecteur, température partant de l'attribut `temperature`). Chaque objet
+  // sensor est muté en direct sur l'événement `input` — le moteur relit
+  // `distanceCm`/`temperatureC` à chaque impulsion TRIG (même référence de tableau).
   const ultraSensors = ultrasonicBindings(editor.diagram).map((b) => {
     const part = editor.diagram.parts.find((p) => p.id === b.partId);
     const min = Number(part?.attrs?.distancemin ?? 2);
@@ -1198,11 +1200,14 @@ function bindInputs(): void {
     const el = editor.elementOf(b.partId);
     // Distance de départ : valeur courante du composant, sinon milieu de la plage.
     const cur = el && Number.isFinite(Number(el.distance)) ? Number(el.distance) : (min + max) / 2;
-    const sensor = { trig: b.trig, echo: b.echo, distanceCm: cur };
+    const temp = clampAirTemp(Number(part?.attrs?.temperature ?? DEFAULT_AIR_TEMP_C));
+    const sensor = { trig: b.trig, echo: b.echo, distanceCm: cur, temperatureC: temp };
     if (el) {
       el.distance = cur; // synchronise le curseur avec la distance de départ
+      el.temperature = temp; // idem pour le curseur de température
       const apply = () => {
         sensor.distanceCm = Number(el.distance ?? cur);
+        sensor.temperatureC = clampAirTemp(Number(el.temperature ?? temp));
       };
       el.addEventListener('input', apply);
       inputRemovers.push(() => el.removeEventListener('input', apply));

@@ -213,6 +213,7 @@ const FR: Record<string, string> = {
   'Ultrasonic sensor': 'Capteur à ultrason',
   'Min distance (cm)': 'Distance min (cm)',
   'Max distance (cm)': 'Distance max (cm)',
+  'Air temperature (°C)': 'Température de l’air (°C)',
   'Temp/humidity sensor (DHT22)': 'Capteur temp/humidité (DHT22)',
   'Membrane keypad': 'Clavier matriciel',
   'LCD Texte': 'LCD Texte',

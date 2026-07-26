@@ -454,15 +454,17 @@ export const CATALOG: readonly PartDef[] = [
 
   // Capteur ultrason (élément Wokwi, broches VCC/TRIG/ECHO/GND) : simulé par le
   // protocole ultrason réel (impulsion TRIG → ECHO selon la distance). Distance
-  // min/max réglées dans l'inspecteur ; distance mesurée choisie EN SIMULATION
-  // par un curseur + zone de saisie (simControl).
+  // min/max et température de départ réglées dans l'inspecteur ; distance mesurée
+  // ET température de l'air choisies EN SIMULATION par deux curseurs (simControl).
+  // La température fixe la vitesse du son, donc la durée de l'écho.
   {
     type: 'hcsr04', label: 'Ultrasonic sensor', tag: 'kablix-hc-sr04', kind: 'ultrasonic',
-    attrs: { distancemin: '2', distancemax: '400' },
+    attrs: { distancemin: '2', distancemax: '400', temperature: '20' },
     simControl: true,
     props: [
       { attr: 'distancemin', label: 'Min distance (cm)', kind: 'number', min: 0, max: 400, step: 1 },
       { attr: 'distancemax', label: 'Max distance (cm)', kind: 'number', min: 1, max: 400, step: 1 },
+      { attr: 'temperature', label: 'Air temperature (°C)', kind: 'number', min: -20, max: 60, step: 1 },
     ],
   },
   // Capteur de température/humidité DHT22 (1-wire sur DATA) : répond au protocole

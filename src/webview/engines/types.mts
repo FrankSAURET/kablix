@@ -53,6 +53,11 @@ export interface UltrasonicSensor {
   echo: string;
   /** Distance simulée, en centimètres (réglée dans l'inspecteur). */
   distanceCm: number;
+  /**
+   * Température de l'air (°C) : elle fixe la VITESSE DU SON, donc la durée de
+   * l'écho pour une même distance. Absente → 20 °C (les 58 µs/cm habituels).
+   */
+  temperatureC?: number;
 }
 
 /**

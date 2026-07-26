@@ -4,25 +4,36 @@
 // imports relatifs .mjs ; DESSIN remplacé par la version retouchée (./externe/hcsr04.svg,
 // broches recalées sur la grille de 10 px).
 //   - EN SIMULATION (attribut `simulating` posé par l'éditeur en mode verrouillé) :
-//     un curseur + une zone de saisie, bornés par distanceMin/distanceMax, permettent
-//     de choisir la distance mesurée. `distance` (cm) est la valeur courante lue par
-//     le moteur ; un event `input` est émis à chaque changement.
+//     DEUX réglages. Une distance (curseur + saisie, bornés par distanceMin/distanceMax)
+//     et la TEMPÉRATURE de l'air (curseur), qui fixe la vitesse du son donc la durée
+//     de l'écho. `distance` (cm) et `temperature` (°C) sont lus par le moteur ;
+//     un event `input` est émis à chaque changement.
+//     La formule de la vitesse du son vient de ../engines/ultrasonic.mjs — un seul
+//     point de vérité, partagé avec les moteurs (module de physique pure, sans DOM).
 import { css, html, LitElement } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
 import { simControlStyles } from './utils/sim-control-styles.mjs';
+import {
+  AIR_TEMP_MAX_C,
+  AIR_TEMP_MIN_C,
+  DEFAULT_AIR_TEMP_C,
+  soundSpeedMs,
+} from '../engines/ultrasonic.mjs';
 import drawing from './externe/hcsr04.svg';
 
 export class HCSR04Element extends LitElement {
   declare distance: number;
   declare distanceMin: number;
   declare distanceMax: number;
+  declare temperature: number;
   declare simulating: boolean;
 
   static properties = {
     distance: { type: Number },
     distanceMin: { type: Number, attribute: 'distancemin' },
     distanceMax: { type: Number, attribute: 'distancemax' },
+    temperature: { type: Number },
     simulating: { type: Boolean },
   };
 
@@ -31,6 +42,7 @@ export class HCSR04Element extends LitElement {
     this.distanceMin = 2;
     this.distanceMax = 400;
     this.distance = 20;
+    this.temperature = DEFAULT_AIR_TEMP_C;
     this.simulating = false;
   }
 
@@ -47,6 +59,18 @@ export class HCSR04Element extends LitElement {
       css`
         :host {
           display: inline-block;
+        }
+        /* Deux réglages empilés (distance, température) : le contrôle partagé est
+           une rangée, on le passe en colonne et chaque réglage devient une rangée. */
+        .sim-control {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 1px;
+        }
+        .sim-control .row {
+          display: flex;
+          align-items: center;
+          gap: 2px;
         }
         .sim-control input[type='number'] {
           width: 40px;
@@ -69,6 +93,13 @@ export class HCSR04Element extends LitElement {
   private onRange = (e: Event) => this.setDistance(Number((e.target as HTMLInputElement).value));
   private onNumber = (e: Event) => this.setDistance(Number((e.target as HTMLInputElement).value));
 
+  /** Température de l'air : borne la valeur et notifie (le moteur relit l'écho). */
+  private onTemperature = (e: Event) => {
+    const v = Number((e.target as HTMLInputElement).value);
+    this.temperature = Math.max(AIR_TEMP_MIN_C, Math.min(AIR_TEMP_MAX_C, v));
+    this.dispatchEvent(new Event('input'));
+  };
+
   render() {
     const lo = Math.min(this.distanceMin, this.distanceMax);
     const hi = Math.max(this.distanceMin, this.distanceMax);
@@ -79,23 +110,38 @@ export class HCSR04Element extends LitElement {
       ${this.simulating
         ? html`
             <div class="sim-control">
-              <input
-                type="range"
-                min=${lo}
-                max=${hi}
-                step="1"
-                .value=${String(this.distance)}
-                @input=${this.onRange}
-              />
-              <input
-                type="number"
-                min=${lo}
-                max=${hi}
-                step="1"
-                .value=${String(this.distance)}
-                @input=${this.onNumber}
-              />
-              <span class="unit">cm</span>
+              <div class="row">
+                <input
+                  type="range"
+                  min=${lo}
+                  max=${hi}
+                  step="1"
+                  .value=${String(this.distance)}
+                  @input=${this.onRange}
+                />
+                <input
+                  type="number"
+                  min=${lo}
+                  max=${hi}
+                  step="1"
+                  .value=${String(this.distance)}
+                  @input=${this.onNumber}
+                />
+                <span class="unit">cm</span>
+              </div>
+              <div class="row" title=${`Vitesse du son : ${soundSpeedMs(this.temperature).toFixed(1)} m/s`}>
+                <label>🌡</label>
+                <input
+                  type="range"
+                  class="temp"
+                  min=${AIR_TEMP_MIN_C}
+                  max=${AIR_TEMP_MAX_C}
+                  step="1"
+                  .value=${String(this.temperature)}
+                  @input=${this.onTemperature}
+                />
+                <span class="val">${Math.round(this.temperature)} °C</span>
+              </div>
             </div>
           `
         : null}

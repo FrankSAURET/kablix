@@ -58,6 +58,7 @@ import {
   DHT22_START_LOW_US,
   type Dht22Monitor,
 } from './dht22.mjs';
+import { DEFAULT_AIR_TEMP_C, echoUsPerCm } from './ultrasonic.mjs';
 import { selectSpiDevice, Hd44780, type I2cDevice, type SpiDevice } from './i2c-devices.mjs';
 import { Ws2812Decoder } from './ws2812.mjs';
 
@@ -725,7 +726,9 @@ export class AvrEngine implements SimEngine {
       if (s.trig !== trigName) continue;
       const cm = Math.max(2, Math.min(400, s.distanceCm || 0)); // plage HC-SR04 : 2–400 cm
       const start = this.cpu.cycles + 200 * CYCLES_PER_US; // ~200 µs de latence capteur
-      const widthCycles = cm * 58 * CYCLES_PER_US; // 58 µs/cm (aller-retour)
+      // Durée d'écho = distance × µs/cm, ce dernier VARIANT AVEC LA TEMPÉRATURE
+      // (vitesse du son). 20 °C → 58,24 µs/cm, la constante des exemples Arduino.
+      const widthCycles = cm * echoUsPerCm(s.temperatureC ?? DEFAULT_AIR_TEMP_C) * CYCLES_PER_US;
       this.scheduled.push({ cycle: start, name: s.echo, value: true });
       this.scheduled.push({ cycle: start + widthCycles, name: s.echo, value: false });
     }

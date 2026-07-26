@@ -81,7 +81,7 @@ const ROWS = [
   ['Capteurs NTC / gaz / pouls', 'Sortie → entrée analogique ; régler la valeur', 'analogRead varie', 'sources analogiques'],
   ['Capteurs PIR / inclinaison / flamme / son', 'Sortie → entrée ; basculer l’état dans l’inspecteur', 'digitalRead suit l’état (0/1)', 'sources numériques'],
   ['Servomoteur', 'Signal → D9 ; Servo.write(0 / 90 / 180)', 'Le bras se positionne à l’angle RÉEL (largeur d’impulsion)', 'angle réel mesuré'],
-  ['HC-SR04 (ultrason)', 'Trig → D2, Echo → D3 ; impulsion + pulseIn(Echo) ; régler l’attribut « distance »', 'Distance mesurée ≈ valeur réglée (≈ 58 µs/cm)', 'AVR uniquement'],
+  ['HC-SR04 (ultrason)', 'Trig → D2, Echo → D3 ; impulsion + pulseIn(Echo) ; curseurs distance ET température', 'Distance mesurée ≈ valeur réglée à 20 °C ; refroidir l’air ALLONGE l’écho (obstacle vu plus loin)', '58 µs/cm à 20 °C seulement'],
   ['LCD 16×2 I²C', 'SDA → A4, SCL → A5 ; LiquidCrystal_I2C ; lcd.print("…")', 'Le texte s’affiche superposé sur l’écran', 'adresse 0x27'],
   ['PCA9685 (16 PWM)', 'SDA → A4, SCL → A5 ; régler un canal ; servo/LED relié à PWMn', 'Le servo/LED suit le rapport cyclique du canal', 'I²C 0x40'],
   ['OLED SSD1306 (SPI)', 'DATA → D11, CLK → D13, DC → D9, CS → D10 ; Adafruit_SSD1306 dessine', 'Le dessin s’affiche (blanc sur noir)', 'SPI 4 fils'],
@@ -107,7 +107,7 @@ const ROWS = [
   ['Écran TFT ILI9341 (SPI)', 'machine.SPI + D/C + CS ; remplir', 'L’image couleur s’affiche', ''],
   ['Carte microSD (SPI)', 'machine.SPI ; pilote sdcard + uos.mount', 'La carte est détectée (init OK)', 'FAT non préchargé'],
   ['NeoPixel', 'neopixel.NeoPixel(machine.Pin(0), n) ; np[i]=(r,g,b) ; np.write()', 'Les LED prennent les couleurs définies', 'validé sur Pico réel'],
-  ['HC-SR04 (ultrason)', '—', 'NON simulé sur RP2040', 'disponible sur AVR uniquement'],
+  ['HC-SR04 (ultrason)', 'Trig → GP15, Echo → GP14 ; impulsion + time_pulse_us(echo, 1)', 'Durée ≈ distance × 58 µs à 20 °C ; le curseur de température l’allonge (froid) ou la raccourcit (chaud)', 'vérifié par verify:ultrasonic sur le vrai moteur'],
   ['Moniteur série', 'print() ; saisie dans le champ → REPL', 'Sortie affichée ; REPL interactif après le script', 'USB-CDC'],
 
   { s: 'Partie 2 — RP2040 : Pico W (Wi-Fi)' },

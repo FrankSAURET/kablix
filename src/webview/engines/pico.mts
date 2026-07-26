@@ -22,6 +22,7 @@ import type {
 import { selectSpiDevice, Hd44780, type I2cDevice, type SpiDevice } from './i2c-devices.mjs';
 import { Ws2812Decoder } from './ws2812.mjs';
 import { buildDht22Schedule, DHT22_START_LOW_US, type DhtTransition } from './dht22.mjs';
+import { DEFAULT_AIR_TEMP_C, echoUsPerCm } from './ultrasonic.mjs';
 
 const RAM_START = 0x20000000;
 const FLASH_START = 0x10000000;
@@ -532,7 +533,10 @@ export class PicoEngine implements SimEngine {
       if (s.trig !== trigName) continue;
       const cm = Math.max(2, Math.min(400, s.distanceCm || 0)); // plage HC-SR04 : 2–400 cm
       const startNanos = nowNanos + 200 * cyclesPerUs * nanosPerCycle; // ~200 µs de latence capteur
-      const widthNanos = cm * 58 * cyclesPerUs * nanosPerCycle; // 58 µs/cm (aller-retour)
+      // Durée d'écho = distance × µs/cm, ce dernier VARIANT AVEC LA TEMPÉRATURE
+      // (vitesse du son). 20 °C → 58,24 µs/cm, la constante des exemples Arduino.
+      const usPerCm = echoUsPerCm(s.temperatureC ?? DEFAULT_AIR_TEMP_C);
+      const widthNanos = cm * usPerCm * cyclesPerUs * nanosPerCycle;
       this.scheduled.push({ nanos: startNanos, name: s.echo, value: true });
       this.scheduled.push({ nanos: startNanos + widthNanos, name: s.echo, value: false });
     }
