@@ -24,6 +24,11 @@
 
 - SDA to a digital pin (10 kΩ pull-up).
 - DHT library: one reading every ~2 s.
+- While simulating, two sliders set temperature and humidity **live**: the next
+  reading returns the new value.
+- If the displayed value looks frozen, check that the program waits at least 2 s
+  between readings: the DHT library returns its **cached value** when polled
+  faster, exactly like a real sensor.
 
 ---
 

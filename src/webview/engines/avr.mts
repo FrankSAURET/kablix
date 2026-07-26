@@ -655,16 +655,33 @@ export class AvrEngine implements SimEngine {
   }
 
   setDht22(sensors: Dht22Sensor[]): void {
-    this.dht22 = sensors.map((s) => ({
-      pin: s.pin,
-      tempC: s.temperatureC,
-      humidity: s.humidity,
-      wasLow: false,
-      lowStart: 0,
-      busyUntil: 0,
-    }));
-    // Ligne de données au repos = HAUT (pull-up) ; le MCU la tire BAS pour démarrer.
-    for (const d of this.dht22) this.setInput(d.pin, true);
+    const before = this.dht22;
+    this.dht22 = sensors.map((s) => {
+      // Curseur bougé pendant une lecture : on MET À JOUR le moniteur existant.
+      // Le recréer remettait à zéro l'état de détection ET reforçait la ligne à
+      // HAUT, ce qui coupait la trame en cours d'émission : la bibliothèque
+      // Arduino voyait un checksum faux, renvoyait NaN, et le sketch conservait
+      // sa valeur précédente — d'où « le DHT22 ne marche que la première fois,
+      // après il relit toujours la même valeur » (v205).
+      const prev = before.find((d) => d.pin === s.pin);
+      if (prev) {
+        prev.tempC = s.temperatureC;
+        prev.humidity = s.humidity;
+        return prev;
+      }
+      return {
+        pin: s.pin,
+        tempC: s.temperatureC,
+        humidity: s.humidity,
+        wasLow: false,
+        lowStart: 0,
+        busyUntil: 0,
+      };
+    });
+    // Ligne de données au repos = HAUT (pull-up) ; le MCU la tire BAS pour
+    // démarrer. Réservé aux capteurs NOUVEAUX : forcer les autres écraserait la
+    // réponse en cours.
+    for (const d of this.dht22) if (!before.includes(d)) this.setInput(d.pin, true);
   }
 
   /**

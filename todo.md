@@ -6,12 +6,24 @@
     1. la compilation est trés longue
     1. Test des arduino fichiers dans testkablix\ + sous dossier arduino (Attention tous les composants marches avec pico il faut donc d'abord penser que ça vient du simulateur arduino et me signaler en cas de retouche des composants pour que je puisse aussi retester pico):
         1. ✅ testkablix\blink-mega\blink-mega.projix ne marche pas. a priori pas de led builtin. Idem nano et uno. — corrigé en v2026.7.204 (LED L de D13 + LED verte ON animées sur Uno, Nano et Mega).
-        1. dht22 : ne marche que la première fois aprés relis tjs la même valeur 
+        1. ✅ dht22 : ne marche que la première fois aprés relis tjs la même valeur — corrigé en v2026.7.205 (le curseur bougé coupait la trame en cours) + `delay(2100)` remis dans le sketch de test.
         1. HCSR04 : Marche mais trés long temps de réaction (> 12 s)
         1. Keypad-uno ne marche pas
         1. led-ring semble marcher mais super lent (avec le prg de test 100 ms fon env 3s)
         1. Carte sd ne marche pas pas testé avec pico. Fais un  prg + projix de test
-        1. neopixel-uno si je chaine 3 led seule la première s'allume
+        1. ✅ neopixel-uno si je chaine 3 led seule la première s'allume — corrigé par la v2026.7.202 (chaînage DOUT → DIN commun aux deux moteurs), attesté sur le **vrai** `.projix` par `verify:npchain` (v2026.7.205).
+
+# v2026.7.205 — DHT22 : bouger le curseur ne casse plus la lecture en cours
+1. ✅ **Cause racine du « dht22 ne marche que la première fois »** (`setDht22`, `src/webview/engines/avr.mts`) : chaque `input` d'un curseur du composant **recrée** les moniteurs du capteur — état de détection remis à zéro **et** ligne de données reforcée à HAUT. Or une trame DHT22 dure ~5 ms : un geste sur le curseur tombe presque toujours **en pleine émission**, la coupe, la bibliothèque Arduino voit un checksum faux, `readTemperature()` renvoie `NaN` et le sketch garde sa valeur précédente. D'où la valeur figée sur la toute première lecture réussie.
+2. ✅ **Correctif** : `setDht22` **met à jour** le moniteur existant de la même broche (température, humidité) au lieu de le remplacer, et ne remet la ligne au repos que pour un capteur **nouveau**. Même correctif côté `pico.mts` (le défaut y était identique, juste moins visible).
+3. ✅ **Second facteur, côté sketch** : `testkablix\dht22-uno\dht22-uno.ino` avait son `delay(2100)` **commenté**. La bibliothèque DHT ne produit une nouvelle mesure que toutes les 2 s et renvoie sa **valeur en cache** entre-temps : lue en boucle serrée, elle noie le moniteur série de lignes identiques. Délai rétabli et commenté.
+4. ✅ **Nouveau banc `verify:dht22`** (15 contrôles, Node pur) : le banc **joue le MCU** — il écrit vraiment `DDRD`/`PORTD` comme la bibliothèque Arduino (INPUT_PULLUP → OUTPUT LOW 1,1 ms → relâche), laisse tourner le temps simulé en servant les actions programmées, puis **décode la trame** vue sur la broche (accusé, 40 bits, checksum). Couvre : 1re lecture, 2e et 3e lectures 2 s plus tard, curseur déplacé entre deux lectures (température **négative** comprise), deux lectures qui s'enchaînent, **curseur bougé en pleine trame**, ligne relâchée au repos, plus les contrôles de source des deux moteurs et du sketch de test. Ajouté à `verify:all`.
+5. ✅ **Garde-fou vérifié** : sur le code de la v204, le contrôle « curseur bougé EN PLEINE trame » **échoue** (température lue `123.4` au lieu de `21`, checksum faux).
+6. ✅ **`verify:npchain` passe à 15 contrôles** : le **vrai** `testkablix\neopixel-uno\neopixel-uno.projix` est lu, ses 3 pixels chaînés sont reconnus sur la même broche (D6, celle du sketch) aux rangs 0, 1, 2 — le sous-item « seule la première s'allume » est donc bien réglé par la v202, sur Arduino comme sur Pico.
+7. ✅ **Aide FR + EN** : fiche DHT22 — les deux curseurs règlent la mesure **en direct**, et une valeur qui semble figée vient du cache de 2 s de la bibliothèque, comme avec un vrai capteur.
+8. ✅ typecheck + build + `verify:all` verts.
+9. ℹ️ **Piste écartée pour le led-ring lent** : la vitesse brute d'avr8js mesurée en Node atteint **36 à 44 M cycles/s**, soit 2,2 à 2,7× le temps réel d'une Uno, avec ou sans écouteurs de port. Le cœur CPU n'explique pas le facteur ~30 signalé — restent le coût du **rendu** (16 LED × 2 `drop-shadow` repeints en continu) et la cadence de la boucle (`MAX_FRAME_MS`, `setTimeout(0)` bridé par le navigateur).
+10. ⬜ À VALIDER EN F5 : `testkablix\dht22-uno\dht22-uno.projix` → simulation, puis **bouger les curseurs** du capteur : le moniteur série suit la nouvelle température/humidité à chaque lecture (une toutes les 2 s), sans « lecture ratee ».
 
 # v2026.7.204 — Arduino : la LED embarquée D13 (et la LED verte ON) s'allument enfin
 1. ✅ **Cause racine du « blink-mega ne marche pas »** (`refreshVisuals`, `src/webview/sim.mts`) : le cas `mcu` ne pilotait **que le Pico** (`ledPower` = GP25). Les cartes AVR n'avaient donc **aucune** LED animée — alors que les trois forks (`arduino-uno/mega/nano-element.mts`) savent dessiner `led13`, `ledPower`, `ledRX` et `ledTX` depuis toujours. Un `blink` sur `LED_BUILTIN` sans LED câblée ne montrait rien : ni sur Mega, ni sur Nano, ni sur Uno.

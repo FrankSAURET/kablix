@@ -179,5 +179,25 @@ if (existsSync(projix)) {
   console.log('ℹ️ testkablix/neopixel-pico.projix absent — contrôle du schéma réel sauté.');
 }
 
+// Même chaîne, côté ARDUINO (repro Frank : « neopixel-uno, si je chaîne 3 LED
+// seule la première s'allume »). Le chaînage se résout dans `model.mts`, commun
+// aux deux moteurs : le correctif de la v202 vaut donc aussi pour l'Uno, et ce
+// contrôle l'atteste sur le vrai fichier au lieu de le supposer.
+const unoProjix = join(root, 'testkablix', 'neopixel-uno', 'neopixel-uno.projix');
+if (existsSync(unoProjix)) {
+  const zip = await JSZip.loadAsync(readFileSync(unoProjix));
+  const diagram = JSON.parse(await zip.files['diagram.json'].async('string'));
+  const bp = neopixelBindings(diagram);
+  const offs = bp.map((b) => b.offset).sort((x, y) => x - y);
+  const pin = bp[0]?.mcuPin;
+  check('neopixel-uno.projix : les 3 pixels chaînés sont tous reconnus sur la même broche',
+    bp.length === 3 && bp.every((b) => b.mcuPin === pin) && JSON.stringify(offs) === '[0,1,2]',
+    JSON.stringify(bp));
+  check('neopixel-uno.projix : la broche est bien une broche numérique de l’Uno (D6 du sketch)',
+    pin === '6', String(pin));
+} else {
+  console.log('ℹ️ testkablix/neopixel-uno/neopixel-uno.projix absent — contrôle du schéma réel sauté.');
+}
+
 console.log(failures ? `npchain : ${failures} échec(s).` : 'npchain : tous les contrôles passent — chaînage DOUT → DIN suivi.');
 process.exit(failures ? 1 : 0);

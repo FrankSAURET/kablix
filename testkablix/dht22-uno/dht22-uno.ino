@@ -10,7 +10,9 @@ void setup() {
 }
 
 void loop() {
-  //delay(2100);   // le DHT22 ne répond qu'une fois toutes les 2 s
+  delay(2100);   // le DHT22 ne fournit une NOUVELLE mesure que toutes les 2 s :
+                 // sans ce délai, la bibliothèque renvoie sa valeur en cache et
+                 // le moniteur série se remplit de lignes identiques.
   t = dht.readTemperature();
   h = dht.readHumidity();
   if (isnan(t) || isnan(h)) {

@@ -458,10 +458,21 @@ export class PicoEngine implements SimEngine {
   }
 
   setDht22(sensors: Dht22Sensor[]): void {
+    const before = this.dht22;
     this.dht22 = [];
     for (const s of sensors) {
       const i = gpioIndex(s.pin);
       if (i === null) continue;
+      // Curseur bougé pendant une lecture : mise à jour du moniteur existant. Le
+      // recréer coupait la trame en cours (état de détection perdu + ligne
+      // reforcée à HAUT) et la lecture ratait — cf. avr.mts, même correctif (v205).
+      const prev = before.find((d) => d.pin === s.pin);
+      if (prev) {
+        prev.tempC = s.temperatureC;
+        prev.humidity = s.humidity;
+        this.dht22.push(prev);
+        continue;
+      }
       this.dht22.push({
         pin: s.pin, index: i, tempC: s.temperatureC, humidity: s.humidity,
         wasLow: false, lowStartNanos: 0, busyUntilNanos: 0,
