@@ -155,6 +155,10 @@ Button **Compile & run the active file** (or the command of the same name) — t
 | `.hex` | Loaded directly (Uno) | — |
 | `.uf2`, `.elf`, `.bin` | Loaded directly (Pico) | — |
 
+### On-board LEDs of the boards
+
+While the simulation runs, the board lights up like the real one: the **green ON LED** stays lit as long as the program runs, and the **L LED** — the one of `LED_BUILTIN`, pin **D13** on Uno, Nano and Mega — follows that pin. A `blink` on `LED_BUILTIN` is therefore visible **without wiring any LED at all**. On the Pico, the on-board **GP25** LED plays that part.
+
 ## MicroPython on the Pico
 1. Open a `.py` file → **Compile & run the active file**.
 2. On first run, if no firmware is found, Kablix **offers to download it automatically** (choose **Pico / Pico W**) from [micropython.org](https://micropython.org/download/RPI_PICO/). The firmware is cached in the extension storage and **reused across all your projects** — you are only asked once.

@@ -5,13 +5,22 @@
     1. Sur la simulation je n'ai pas de retour dans le moniteur série en cas d'erreur
     1. la compilation est trés longue
     1. Test des arduino fichiers dans testkablix\ + sous dossier arduino (Attention tous les composants marches avec pico il faut donc d'abord penser que ça vient du simulateur arduino et me signaler en cas de retouche des composants pour que je puisse aussi retester pico):
-        1. testkablix\blink-mega\blink-mega.projix ne marche pas. a priori pas de led builtin. Idem nano et uno.
+        1. ✅ testkablix\blink-mega\blink-mega.projix ne marche pas. a priori pas de led builtin. Idem nano et uno. — corrigé en v2026.7.204 (LED L de D13 + LED verte ON animées sur Uno, Nano et Mega).
         1. dht22 : ne marche que la première fois aprés relis tjs la même valeur 
         1. HCSR04 : Marche mais trés long temps de réaction (> 12 s)
         1. Keypad-uno ne marche pas
         1. led-ring semble marcher mais super lent (avec le prg de test 100 ms fon env 3s)
         1. Carte sd ne marche pas pas testé avec pico. Fais un  prg + projix de test
         1. neopixel-uno si je chaine 3 led seule la première s'allume
+
+# v2026.7.204 — Arduino : la LED embarquée D13 (et la LED verte ON) s'allument enfin
+1. ✅ **Cause racine du « blink-mega ne marche pas »** (`refreshVisuals`, `src/webview/sim.mts`) : le cas `mcu` ne pilotait **que le Pico** (`ledPower` = GP25). Les cartes AVR n'avaient donc **aucune** LED animée — alors que les trois forks (`arduino-uno/mega/nano-element.mts`) savent dessiner `led13`, `ledPower`, `ledRX` et `ledTX` depuis toujours. Un `blink` sur `LED_BUILTIN` sans LED câblée ne montrait rien : ni sur Mega, ni sur Nano, ni sur Uno.
+2. ✅ **Correctif** : hors RP2040, `led13 = engine.readDigital('13')` (la broche `LED_BUILTIN` des trois cartes, déjà déclarée dans `UNO_PINS` et `MEGA_PINS`) et `ledPower = true` tant que la simulation tourne — comme la vraie carte, allumée dès qu'elle est alimentée. Le Pico est inchangé.
+3. ✅ **Nouveau banc `verify:boardleds`** (21 contrôles, Chrome headless sur les **vrais** forks) : les trois cartes sont rendues, les propriétés posées, et les **cercles de LED réellement dessinés** sont comptés par couleur — aucune allumée au repos, la L s'allume (rouge sur Uno/Mega, **jaune sur le Nano**, couleur du dessin d'origine), la verte ON s'allume, la L retombe sans emporter la verte. Plus le câblage de `sim.mts` (broche 13, `ledPower`, non-régression GP25), la présence de la broche 13 dans les deux tables du moteur AVR et l'aide FR/EN. Ajouté à `verify:all`.
+4. ✅ **Garde-fou vérifié** : sur le code de la v203, `verify:boardleds` tombe à **5 échecs**.
+5. ✅ **Aide FR + EN** : section « LED embarquées des cartes » dans « Exécuter du code » (LED verte ON, LED L de `LED_BUILTIN`/D13, GP25 sur le Pico).
+6. ✅ typecheck + build + `verify:all` verts.
+7. ⬜ À VALIDER EN F5 : `testkablix\blink-mega\blink-mega.projix` → la LED **L** de la carte clignote à 1 Hz et la LED verte reste allumée ; idem `blink-uno` et `blink-nano`.
 
 # v2026.7.203 — variables : espace fine partout, et le réglage marque le projet à enregistrer
 1. ✅ **Séparateur de groupes = espace FINE insécable U+202F** (`src/webview/varbase.mts`), à la place de l'insécable normale U+00A0 : milliers en décimal, quartets en binaire, groupes de 4 en hexadécimal. Toujours insécable — un nombre ne se coupe jamais en fin de ligne dans un panneau étroit.

@@ -1107,8 +1107,16 @@ function refreshVisuals(): void {
         break;
       }
       case 'mcu':
-        // LED embarquée GP25 du Pico / Pico W.
-        if (def.board && boardFamily(def.board) === 'rp2040') el.ledPower = engine.readDigital('GP25');
+        // LED embarquée : GP25 sur le Pico / Pico W, D13 (`LED_BUILTIN`) sur les
+        // cartes AVR — plus la LED verte « ON », allumée dès que la carte tourne
+        // (v203 : les cartes Arduino n'avaient AUCUNE LED animée, un blink sans
+        // LED câblée ne montrait donc rien du tout).
+        if (def.board && boardFamily(def.board) === 'rp2040') {
+          el.ledPower = engine.readDigital('GP25');
+        } else {
+          el.led13 = engine.readDigital('13');
+          el.ledPower = true;
+        }
         break;
     }
     } catch (err) {

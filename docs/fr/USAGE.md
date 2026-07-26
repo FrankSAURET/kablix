@@ -156,6 +156,10 @@ Bouton **Compiler & exécuter le fichier actif** (ou la commande homonyme) — l
 | `.hex` | Chargé directement (Uno) | — |
 | `.uf2`, `.elf`, `.bin` | Chargé directement (Pico) | — |
 
+### LED embarquées des cartes
+
+Pendant la simulation, la carte s'allume comme la vraie : la **LED verte ON** reste allumée tant que le programme tourne, et la **LED L** — celle de `LED_BUILTIN`, la broche **D13** sur Uno, Nano et Mega — suit l'état de cette broche. Un `blink` sur `LED_BUILTIN` se voit donc **sans câbler la moindre LED**. Sur le Pico, c'est la LED embarquée **GP25** qui joue ce rôle.
+
 ## MicroPython sur le Pico
 1. Ouvrir un fichier `.py` → **Compiler & exécuter le fichier actif**.
 2. Au premier lancement, si aucun firmware n'est trouvé, Kablix **propose de le télécharger automatiquement** (choix **Pico / Pico W**) depuis [micropython.org](https://micropython.org/download/RPI_PICO/). Le firmware est mémorisé dans le stockage de l'extension et **réutilisé dans tous vos projets** — la question n'est posée qu'une fois.
