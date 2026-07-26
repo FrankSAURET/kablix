@@ -35,15 +35,17 @@ async function run() {
   const off = st(0);
   ring.setPixel(3, { r: 1, g: 0, b: 0 });
   ring.setPixel(4, { r: 0, g: 0.2, b: 0 });
+  ring.setPixel(5, { r: 0, g: 0, b: 0.1 }); // bleu à 10 % : boîtier encore blanc
   const bright = st(3);
   const dim = st(4);
+  const faint = st(5);
   // Extinction après allumage : retour au blanc, halo retiré.
   ring.setPixel(3, { r: 0, g: 0, b: 0 });
   const offAgain = st(3);
   ring.setPixel(3, { r: 1, g: 1, b: 1 });
   ring.reset();
   const afterReset = st(3);
-  const res = { off, bright, dim, offAgain, afterReset, count: ring.renderRoot.querySelectorAll('rect.pixel').length };
+  const res = { off, bright, dim, faint, offAgain, afterReset, count: ring.renderRoot.querySelectorAll('rect.pixel').length };
   const pre = document.createElement('pre'); pre.id = 'm'; pre.textContent = JSON.stringify(res); document.body.appendChild(pre);
 }
 run();
@@ -83,6 +85,18 @@ if (!chrome) {
   check('LED allumée : halo drop-shadow de sa couleur', r && halo(r.bright) && /rgb\(255, 0, 0\)/.test(r.bright.filter));
   check('halo plus large quand la LED est plus lumineuse', r && haloRadius(r.bright) > haloRadius(r.dim));
   check('LED faible allumée : halo présent quand même', r && halo(r.dim));
+  // Boîtier BLANC teinté à basse luminosité (item Frank) : un bleu à 10 % donnait
+  // rgb(0,0,26), soit un pixel quasi noir, là où la LED réelle reste blanchâtre.
+  const rgbOf = (s) => (String(s.fill).match(/[\d.]+/g) ?? []).map(Number);
+  const faint = r ? rgbOf(r.faint) : [];
+  check('LED faible : boîtier CLAIR, jamais noirâtre', faint.length === 3 && Math.min(...faint) >= 140);
+  check('LED faible : la teinte reste lisible (bleu dominant)',
+    faint.length === 3 && faint[2] === 255 && faint[2] > faint[0] + 40);
+  const dimRgb = r ? rgbOf(r.dim) : [];
+  check('LED faible : plus claire qu une LED vive de la même teinte',
+    dimRgb.length === 3 && rgbOf(r.bright)[1] < dimRgb[0]);
+  check('LED faible : halo atténué (rgba, pas la couleur pleine)',
+    r && /rgba\(/.test(r.faint.filter ?? ''));
   check('extinction après allumage : blanche et sans halo', r && r.offAgain.fill === 'rgb(255, 255, 255)' && !halo(r.offAgain));
   check('reset() : blanche et sans halo', r && r.afterReset.fill === 'rgb(255, 255, 255)' && !halo(r.afterReset));
 }
@@ -91,7 +105,9 @@ if (!chrome) {
 const src = readFileSync(join(ROOT, 'src/webview/composants/led-ring-element.mts'), 'utf8');
 check('led-ring : seuil d\'allumage PIXEL_LIT', /const PIXEL_LIT = /.test(src));
 check('led-ring : LED éteinte → fill vidé (couleur du dessin)', /lum <= PIXEL_LIT[\s\S]{0,320}style\.fill = ''/.test(src));
-check('led-ring : halo en drop-shadow de la couleur', /style\.filter =[\s\S]{0,200}drop-shadow[\s\S]{0,120}\$\{color\}/.test(src));
+check('led-ring : halo en drop-shadow de la couleur', /style\.filter =[\s\S]{0,200}drop-shadow[\s\S]{0,120}\$\{glow\}/.test(src));
+check('led-ring : teinte séparée de l\'intensité (boîtier fondu vers le blanc)',
+  /const hue = \{[\s\S]{0,140}\/ lum/.test(src) && /255 \+ \(c - 255\) \* tint/.test(src));
 check('led-ring : reset() vide aussi le halo', /reset\(\)[\s\S]{0,220}style\.filter = ''/.test(src));
 
 console.log(failures ? `Anneau NeoPixel : ${failures} échec(s).` : 'Anneau NeoPixel : tous les contrôles passent.');

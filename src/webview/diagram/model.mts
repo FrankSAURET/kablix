@@ -1279,8 +1279,14 @@ export interface NeopixelBinding {
   partId: string;
   /** Broche MCU pilotant l'entrée DIN de la chaîne. */
   mcuPin: string;
-  /** Nombre de LED de la chaîne. */
+  /** Nombre de LED de ce composant. */
   count: number;
+  /**
+   * Rang de sa première LED dans la chaîne : les composants câblés en série
+   * (DOUT → DIN) partagent une seule trame WS2812, chacun consommant `count`
+   * couleurs à la suite du précédent.
+   */
+  offset: number;
 }
 
 /** Nombre de LED d'un composant NeoPixel (matrice, anneau ou pixel simple). */
@@ -1291,14 +1297,40 @@ function neopixelCount(part: Part): number {
   return Number(a.count) || 1;
 }
 
-/** Chaînes NeoPixel (WS2812) dont l'entrée DIN est reliée à une broche MCU. */
+/**
+ * Chaînes NeoPixel (WS2812) dont l'entrée DIN est reliée à une broche MCU, en
+ * suivant le CHAÎNAGE : la sortie DOUT d'un composant alimente le DIN du
+ * suivant, et tous se partagent alors la même trame — le premier prend les
+ * `count` premières couleurs, le deuxième les suivantes, etc. Sans ce
+ * parcours, seul le composant de tête était reconnu : les autres restaient
+ * éteints et celui de tête affichait la couleur destinée à ses voisins (repro
+ * `neopixel-pico.projix` : la LED de tête clignotait une fois sur trois).
+ */
 export function neopixelBindings(diagram: Diagram): NeopixelBinding[] {
   const nets = buildNets(diagram);
+  const strips = diagram.parts.filter((p) => partDef(p.type).kind === 'neopixel');
+  const dinNet = new Map<string, string>();
+  const doutNet = new Map<string, string>();
+  for (const p of strips) {
+    dinNet.set(p.id, nets.netOf({ partId: p.id, pin: rolePin(p.type, 'DIN') }));
+    doutNet.set(p.id, nets.netOf({ partId: p.id, pin: rolePin(p.type, 'DOUT') }));
+  }
   const bindings: NeopixelBinding[] = [];
-  for (const part of diagram.parts) {
-    if (partDef(part.type).kind !== 'neopixel') continue;
-    const mcuPin = mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin: rolePin(part.type, 'DIN') }));
-    if (mcuPin) bindings.push({ partId: part.id, mcuPin, count: neopixelCount(part) });
+  const placed = new Set<string>(); // déjà rangé dans une chaîne (anti-boucle)
+  for (const head of strips) {
+    if (placed.has(head.id)) continue;
+    const mcuPin = mcuDigitalOnNet(diagram, nets, dinNet.get(head.id) ?? '');
+    if (!mcuPin) continue; // maillon intermédiaire : atteint depuis sa tête de chaîne
+    let cur: Part | undefined = head;
+    let offset = 0;
+    while (cur && !placed.has(cur.id)) {
+      placed.add(cur.id);
+      const count = neopixelCount(cur);
+      bindings.push({ partId: cur.id, mcuPin, count, offset });
+      offset += count;
+      const out = doutNet.get(cur.id);
+      cur = out ? strips.find((p) => !placed.has(p.id) && dinNet.get(p.id) === out) : undefined;
+    }
   }
   return bindings;
 }

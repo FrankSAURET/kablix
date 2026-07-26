@@ -24,6 +24,8 @@ Anneau de LED RGB adressables (WS2812).
 - DIN vers une broche numérique.
 - Effets circulaires (rotation, jauge).
 - En simulation, une LED **éteinte reste blanche** (comme sur la vraie carte) et une LED **allumée porte un halo** de sa couleur, d'autant plus large qu'elle est lumineuse.
+- À **faible luminosité**, le boîtier reste **blanc teinté** et c'est le halo qui s'atténue : une WS2812 diffuse la lumière, elle ne devient jamais sombre.
+- L'anneau se **chaîne** comme un pixel : DOUT vers le DIN du composant suivant, et il consomme `pixels` couleurs dans la trame commune.
 
 ---
 

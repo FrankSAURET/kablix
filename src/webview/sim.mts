@@ -241,7 +241,7 @@ let i2cDevices = new Map<string, Lcd1602Device | Pca9685Device | Ssd1306Device>(
 // Canaux PCA9685 → composants pilotés (calculé au câblage).
 let pcaBindings: Pca9685Binding[] = [];
 // Chaînes NeoPixel : partId → broche MCU DIN (pour lire les couleurs décodées).
-let neopixelTargets = new Map<string, string>();
+let neopixelTargets = new Map<string, { pin: string; offset: number; count: number }>();
 // Buzzers : partId → broche MCU pilotant le buzzer (pour la fréquence du son).
 let buzzerTargets = new Map<string, string>();
 // Capteurs de pouls : broche analogique MCU + élément (BPM réglé par le curseur).
@@ -1098,9 +1098,11 @@ function refreshVisuals(): void {
       case 'spi-sd':
         break; // carte SD : pas de rendu (répondeur de protocole seulement)
       case 'neopixel': {
-        // Couleurs décodées de la chaîne WS2812 → LED de l'élément.
-        const pin = neopixelTargets.get(part.id);
-        const colors = pin ? engine.readNeopixel?.(pin) ?? [] : [];
+        // Couleurs décodées de la chaîne WS2812 → LED de l'élément. En série,
+        // chacun prend sa TRANCHE dans la trame commune (rang de sa 1re LED).
+        const t = neopixelTargets.get(part.id);
+        const all = t ? engine.readNeopixel?.(t.pin) ?? [] : [];
+        const colors = t ? all.slice(t.offset, t.offset + t.count) : [];
         renderNeopixel(part.type, el, colors, part.attrs);
         break;
       }
@@ -1346,10 +1348,14 @@ function bindInputs(): void {
     }
   }
 
-  // Chaînes NeoPixel (WS2812) : broche DIN décodée par le moteur.
+  // Chaînes NeoPixel (WS2812) : broche DIN décodée par le moteur. Les composants
+  // câblés en série (DOUT → DIN) partagent UN décodeur — donc une entrée par
+  // broche, longue de toute la chaîne — et chacun lit sa tranche de couleurs.
   const nps = neopixelBindings(editor.diagram);
-  neopixelTargets = new Map(nps.map((b) => [b.partId, b.mcuPin]));
-  engine.setNeopixels?.(nps.map((b) => ({ pin: b.mcuPin, count: b.count })));
+  neopixelTargets = new Map(nps.map((b) => [b.partId, { pin: b.mcuPin, offset: b.offset, count: b.count }]));
+  const perPin = new Map<string, number>();
+  for (const b of nps) perPin.set(b.mcuPin, Math.max(perPin.get(b.mcuPin) ?? 0, b.offset + b.count));
+  engine.setNeopixels?.([...perPin].map(([pin, count]) => ({ pin, count })));
 
   // Afficheurs LCD HD44780 en bus parallèle : RS/E/données décodés par le moteur.
   engine.setLcdParallel?.(

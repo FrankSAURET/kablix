@@ -67,14 +67,25 @@ export class LEDRingElement extends LitElement {
       el.style.filter = '';
       return;
     }
-    const color = `rgb(${r * 255},${g * 255},${b * 255})`;
-    el.style.fill = color;
+    // Boîtier BLANC teinté, pas la couleur brute : le corps d'une WS2812 diffuse
+    // la lumière, il ne devient jamais sombre. `rgb(r,g,b)` tel quel donnait un
+    // pixel presque noir dès que la luminosité baissait (bleu à 10 % = rgb(0,0,26)),
+    // alors que la LED réelle reste blanche légèrement bleutée. On sépare donc la
+    // TEINTE (ramenée à pleine échelle) de l'INTENSITÉ, et on fond la teinte vers
+    // le blanc à mesure que la LED faiblit (racine carrée : la teinte reste lisible
+    // à basse luminosité, comme à l'œil).
+    const hue = { r: (r / lum) * 255, g: (g / lum) * 255, b: (b / lum) * 255 };
+    const tint = Math.sqrt(lum);
+    const mix = (c: number) => Math.round(255 + (c - 255) * tint);
+    el.style.fill = `rgb(${mix(hue.r)},${mix(hue.g)},${mix(hue.b)})`;
     // Halo de LED allumée : deux flous concentriques, rayons en unités du dessin
     // (le groupe #board les agrandit ×3,937 à l'écran) et intensité suivant la
-    // luminosité de la LED.
+    // luminosité de la LED. Il porte la teinte pure, atténuée par l'opacité —
+    // c'est lui qui rend l'intensité, le boîtier ne fait que la couleur.
+    const glow = `rgba(${Math.round(hue.r)},${Math.round(hue.g)},${Math.round(hue.b)},${lum.toFixed(2)})`;
     el.style.filter =
-      `drop-shadow(0 0 ${(0.8 + lum * 0.7).toFixed(2)}px ${color})` +
-      ` drop-shadow(0 0 ${(2 + lum * 2).toFixed(2)}px ${color})`;
+      `drop-shadow(0 0 ${(0.8 + lum * 0.7).toFixed(2)}px ${glow})` +
+      ` drop-shadow(0 0 ${(2 + lum * 2).toFixed(2)}px ${glow})`;
   }
 
   /**

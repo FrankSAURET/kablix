@@ -10,12 +10,12 @@ Auteur: Frank SAURET(frank.sauret.prof@gmail.com)
 rv.ino(Ɔ) 2026
 Description : Saisissez la description puis « Tab »
 Créé le :  samedi 18 juillet 2026 à 10:58:00 
-Dernière modification : 
+Dernière modification : dimanche 26 juillet 2026 à 15:38:03
 */
 
 const uint8_t PIN_LDR = A0;
-const uint8_t PIN_CTP = A1;
-const uint8_t PIN_CTN = A2;
+const uint8_t PIN_CTP = A2;
+const uint8_t PIN_CTN = A1;
 
 void setup() {
 	Serial.begin(115200);
