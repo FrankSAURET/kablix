@@ -159,6 +159,12 @@ Button **Compile & run the active file** (or the command of the same name) — t
 
 While the simulation runs, the board lights up like the real one: the **green ON LED** stays lit as long as the program runs, and the **L LED** — the one of `LED_BUILTIN`, pin **D13** on Uno, Nano and Mega — follows that pin. A `blink` on `LED_BUILTIN` is therefore visible **without wiring any LED at all**. On the Pico, the on-board **GP25** LED plays that part.
 
+### Simulation speed
+
+The simulation follows **real time**: one second on screen is one second on the real board, and `delay(1000)` really lasts one second. When the page is busy for a moment (drawing a part, a scrolling serial monitor), the simulation **catches up** as soon as it gets the thread back; only long stalls (more than a quarter of a second, a tab left in the background) are given up — that time is then **skipped**, never replayed fast-forward.
+
+The 🐇/🐢/🐌 selector deliberately slows execution down (100 %, 10 %, 1 % of real time) to watch a fast phenomenon. The simulation never runs **faster** than a real board.
+
 ## MicroPython on the Pico
 1. Open a `.py` file → **Compile & run the active file**.
 2. On first run, if no firmware is found, Kablix **offers to download it automatically** (choose **Pico / Pico W**) from [micropython.org](https://micropython.org/download/RPI_PICO/). The firmware is cached in the extension storage and **reused across all your projects** — you are only asked once.

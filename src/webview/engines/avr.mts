@@ -69,6 +69,15 @@ const CYCLES_PER_US = CLOCK_HZ / 1_000_000; // 16 cycles = 1 µs
 // Budget temps réel d'une tranche de simulation par frame (ms). Sous cette limite
 // le navigateur garde le temps de repeindre l'affichage ; au-delà on cède la main.
 const MAX_FRAME_MS = 12;
+// Retard (temps réel, ms) que la simulation accepte de RATTRAPER. Tout ce qui
+// bloque la page — rendu, layout, moniteur série — vole du temps à la boucle :
+// sans rattrapage, ce temps est du temps simulé définitivement perdu et le
+// sketch tourne au ralenti. Au-delà de cette dette (onglet caché, page figée
+// plusieurs secondes) on ré-ancre : mieux vaut sauter du temps que s'emballer.
+const MAX_DEBT_MS = 250;
+// Avance (temps réel, ms) à partir de laquelle on rend vraiment la main au
+// navigateur par un timer, au lieu d'enchaîner tout de suite une tranche.
+const AHEAD_NAP_MS = 8;
 const VREF = 5;
 // RAMEND du 2560 = 0x21FF : la pile démarre tout en haut de la SRAM, il faut donc
 // dimensionner l'espace données pour le couvrir (data = sramBytes + 0x100).
@@ -234,7 +243,27 @@ export class AvrEngine implements SimEngine {
   // boucle de delay() ne se terminait jamais et la simulation semblait planter).
   private timers: AVRTimer[];
   private rafId: number | null = null; // handle du timer de boucle (setTimeout)
-  private lastTickMs = 0; // horodatage de la dernière tranche (cadencement temps réel)
+  // Cadencement temps réel : ANCRE reliant le temps mur au temps simulé (même
+  // principe que le moteur Pico). L'ancien « dt depuis la tranche précédente »
+  // repartait de l'instant courant à chaque tranche : tout le temps passé
+  // ailleurs (repeinture de la page, moniteur série…) était perdu pour la
+  // simulation, sans jamais être rattrapé. Ici la cible est calculée depuis
+  // l'ancre, donc un retard passager se résorbe.
+  private paceWall = 0; // performance.now() de l'ancre (0 = à ré-ancrer)
+  private paceCycles = 0; // cpu.cycles au moment de l'ancre
+  /** Yield sans clampage : un setTimeout(0) imbriqué est bridé à ~4 ms par le navigateur. */
+  private readonly yieldPort: MessagePort | null = ((): MessagePort | null => {
+    if (typeof MessageChannel !== 'function') return null;
+    const ch = new MessageChannel();
+    ch.port2.onmessage = (e: MessageEvent): void => {
+      if (e.data === this.yieldGen && this.running) this.loop();
+    };
+    // Node (bancs de test) : sans unref, les ports garderaient le process en vie.
+    (ch.port1 as unknown as { unref?: () => void }).unref?.();
+    (ch.port2 as unknown as { unref?: () => void }).unref?.();
+    return ch.port1;
+  })();
+  private yieldGen = 0; // invalide les yields en vol après un stop
   private running = false;
   private rxQueue: number[] = [];
   private isPaused = false;
@@ -778,13 +807,15 @@ export class AvrEngine implements SimEngine {
   start(): void {
     if (this.running) return;
     this.running = true;
+    this.paceWall = 0; // (ré)ancrage au premier tour
     this.loop();
   }
 
   stop(): void {
     this.running = false;
     this.stepping = false;
-    this.lastTickMs = 0;
+    this.paceWall = 0;
+    this.yieldGen++; // un yield déjà posté ne relancera pas la boucle
     if (this.rafId !== null) {
       clearTimeout(this.rafId);
       this.rafId = null;
@@ -814,6 +845,7 @@ export class AvrEngine implements SimEngine {
 
   setSpeed(fraction: number): void {
     this.speed = Math.max(0.001, Math.min(1, fraction));
+    this.paceWall = 0; // le facteur change : l'ancre repart d'ici
   }
 
   /**
@@ -923,14 +955,26 @@ export class AvrEngine implements SimEngine {
   private loop = (): void => {
     if (!this.running) return;
     if (!this.isPaused) {
-      // Cadencement au TEMPS RÉEL écoulé depuis la dernière tranche (borné pour
-      // éviter un rattrapage massif après une inactivité). `speed` ralentit ;
-      // pendant un pas on ignore le ralenti pour franchir au plus vite.
+      // Cadencement sur une ANCRE temps mur ↔ temps simulé : la cible est
+      // recalculée depuis l'ancre, jamais depuis l'instant courant, donc le temps
+      // volé à la boucle par le reste de la page (repeinture, moniteur série…)
+      // se RATTRAPE au lieu d'être perdu. `speed` ralentit ; pendant un pas on
+      // ignore le ralenti pour franchir au plus vite.
       const started = performance.now();
-      const dt = this.lastTickMs ? Math.min(started - this.lastTickMs, 40) : 1000 / 60;
-      this.lastTickMs = started;
       const factor = this.stepping ? 1 : this.speed;
-      const deadline = this.cpu.cycles + dt * (CLOCK_HZ / 1000) * factor;
+      const perMs = (CLOCK_HZ / 1000) * factor; // cycles simulés par ms réelle
+      if (this.paceWall === 0) {
+        this.paceWall = started;
+        this.paceCycles = this.cpu.cycles;
+      }
+      let deadline = this.paceCycles + (started - this.paceWall) * perMs;
+      if (deadline - this.cpu.cycles > MAX_DEBT_MS * perMs) {
+        // Retard trop grand pour être rattrapé (onglet caché, page figée) : on
+        // repart d'ici sans dette, sinon la simulation s'emballerait pour rien.
+        this.paceWall = started;
+        this.paceCycles = this.cpu.cycles;
+        deadline = this.cpu.cycles;
+      }
       // Plafond temps réel : ne jamais bloquer le thread plus qu'une frame, sinon
       // le compositeur ne rafraîchit pas le calque transformé du canvas et
       // l'affichage ne bouge qu'à l'arrêt/la pause. Vérif espacée (coût de now()).
@@ -964,13 +1008,31 @@ export class AvrEngine implements SimEngine {
         }
       }
       this.flushRx();
+      // En avance sur le temps réel : on dort d'autant (le sketch ne doit pas
+      // aller plus vite qu'une vraie carte). En retard : reprise IMMÉDIATE.
+      const aheadMs = (this.cpu.cycles - deadline) / perMs;
+      this.schedule(aheadMs > AHEAD_NAP_MS ? Math.min(aheadMs - 4, 40) : 0);
     } else {
-      this.lastTickMs = 0; // en pause : repart proprement à la reprise
+      this.paceWall = 0; // en pause : l'ancre repart à la reprise
+      this.schedule(16);
     }
-    // setTimeout (et NON requestAnimationFrame) : une boucle rAF qui se replanifie
-    // en continu monopolise le cycle de rendu et le navigateur ne repeint le
-    // calque transformé du canvas qu'une fois la boucle arrêtée (d'où « l'affichage
-    // n'arrive qu'au stop »). Un timer rend la main → repeinture entre les tranches.
-    this.rafId = setTimeout(this.loop, 0) as unknown as number;
   };
+
+  /**
+   * Replanifie la tranche suivante. Un `setTimeout(0)` imbriqué est bridé à ~4 ms
+   * par le navigateur : quand la simulation est en RETARD, ces millisecondes-là
+   * sont autant de temps simulé qui ne sera pas rendu à l'heure. Le yield par
+   * MessageChannel n'a pas ce plafond tout en restant une macrotâche — le
+   * navigateur garde donc la main pour repeindre entre deux tranches (une boucle
+   * rAF, elle, monopoliserait le cycle de rendu : l'affichage n'arrivait qu'à
+   * l'arrêt). Au-delà de zéro on veut vraiment dormir : un timer suffit.
+   */
+  private schedule(delayMs: number): void {
+    if (!this.running) return;
+    if (delayMs > 0 || !this.yieldPort) {
+      this.rafId = setTimeout(this.loop, delayMs) as unknown as number;
+      return;
+    }
+    this.yieldPort.postMessage(this.yieldGen);
+  }
 }

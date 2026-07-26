@@ -36,6 +36,9 @@ export class LEDRingElement extends LitElement {
 
   private pixelElements: SVGRectElement[] | null = null;
 
+  /** Dernier style écrit par pixel (cf. applyStyle) : évite de repeindre pour rien. */
+  private lastStyle: string[] = [];
+
   private animationFrame: number | null = null;
 
   // Broches recalées sur grille 10 px (surcharges pin-overrides.mts « led-ring »).
@@ -58,13 +61,11 @@ export class LEDRingElement extends LitElement {
     if (pixel < 0 || pixel >= pixelElements.length) {
       return;
     }
-    const el = pixelElements[pixel];
     const lum = Math.max(r, g, b);
     if (lum <= PIXEL_LIT) {
       // LED éteinte = BLANCHE (couleur du dessin retouché) : `rgb(0,0,0)`
       // noircissait tout l'anneau au repos, comme s'il était grillé.
-      el.style.fill = '';
-      el.style.filter = '';
+      this.applyStyle(pixel, '', '');
       return;
     }
     // Boîtier BLANC teinté, pas la couleur brute : le corps d'une WS2812 diffuse
@@ -77,24 +78,39 @@ export class LEDRingElement extends LitElement {
     const hue = { r: (r / lum) * 255, g: (g / lum) * 255, b: (b / lum) * 255 };
     const tint = Math.sqrt(lum);
     const mix = (c: number) => Math.round(255 + (c - 255) * tint);
-    el.style.fill = `rgb(${mix(hue.r)},${mix(hue.g)},${mix(hue.b)})`;
+    const fill = `rgb(${mix(hue.r)},${mix(hue.g)},${mix(hue.b)})`;
     // Halo de LED allumée : deux flous concentriques, rayons en unités du dessin
     // (le groupe #board les agrandit ×3,937 à l'écran) et intensité suivant la
     // luminosité de la LED. Il porte la teinte pure, atténuée par l'opacité —
     // c'est lui qui rend l'intensité, le boîtier ne fait que la couleur.
     const glow = `rgba(${Math.round(hue.r)},${Math.round(hue.g)},${Math.round(hue.b)},${lum.toFixed(2)})`;
-    el.style.filter =
+    const filter =
       `drop-shadow(0 0 ${(0.8 + lum * 0.7).toFixed(2)}px ${glow})` +
       ` drop-shadow(0 0 ${(2 + lum * 2).toFixed(2)}px ${glow})`;
+    this.applyStyle(pixel, fill, filter);
+  }
+
+  /**
+   * Écrit le style d'un pixel SEULEMENT s'il change. La simulation repose les 16
+   * couleurs à chaque frame ; réécrire `fill` et `filter` à l'identique invalide
+   * quand même la peinture des 16 rects et de leurs halos `drop-shadow` — un
+   * coût permanent, y compris sur un anneau qui ne bouge pas.
+   */
+  private applyStyle(pixel: number, fill: string, filter: string): void {
+    const style = `${fill}|${filter}`;
+    if (this.lastStyle[pixel] === style) return;
+    this.lastStyle[pixel] = style;
+    const el = this.getPixelElements()[pixel];
+    el.style.fill = fill;
+    el.style.filter = filter;
   }
 
   /**
    * Resets all the pixels to off state (r=0, g=0, b=0).
    */
   reset() {
-    for (const element of this.getPixelElements()) {
-      element.style.fill = '';
-      element.style.filter = '';
+    for (let pixel = 0; pixel < this.getPixelElements().length; pixel++) {
+      this.applyStyle(pixel, '', '');
     }
   }
 
@@ -114,6 +130,10 @@ export class LEDRingElement extends LitElement {
 
   updated(changed: PropertyValues) {
     super.updated(changed);
+    // Le gabarit vient d'être (re)rendu : les rects peuvent être neufs, donc sans
+    // style — le souvenir de applyStyle ne vaut plus rien.
+    this.pixelElements = null;
+    this.lastStyle = [];
     if (this.animation && !this.animationFrame) {
       this.animationFrame = requestAnimationFrame(this.animateStep);
     } else if (!this.animation && this.animationFrame) {

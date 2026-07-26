@@ -104,11 +104,15 @@ if (!chrome) {
 // Garde-fou statique (le rendu headless ne dirait pas d'où vient la couleur).
 const src = readFileSync(join(ROOT, 'src/webview/composants/led-ring-element.mts'), 'utf8');
 check('led-ring : seuil d\'allumage PIXEL_LIT', /const PIXEL_LIT = /.test(src));
-check('led-ring : LED éteinte → fill vidé (couleur du dessin)', /lum <= PIXEL_LIT[\s\S]{0,320}style\.fill = ''/.test(src));
-check('led-ring : halo en drop-shadow de la couleur', /style\.filter =[\s\S]{0,200}drop-shadow[\s\S]{0,120}\$\{glow\}/.test(src));
+check('led-ring : LED éteinte → fill vidé (couleur du dessin)', /lum <= PIXEL_LIT[\s\S]{0,320}applyStyle\(pixel, '', ''\)/.test(src));
+check('led-ring : halo en drop-shadow de la couleur', /const filter =[\s\S]{0,200}drop-shadow[\s\S]{0,120}\$\{glow\}/.test(src));
 check('led-ring : teinte séparée de l\'intensité (boîtier fondu vers le blanc)',
   /const hue = \{[\s\S]{0,140}\/ lum/.test(src) && /255 \+ \(c - 255\) \* tint/.test(src));
-check('led-ring : reset() vide aussi le halo', /reset\(\)[\s\S]{0,220}style\.filter = ''/.test(src));
+check('led-ring : reset() vide aussi le halo', /reset\(\)[\s\S]{0,260}applyStyle\(pixel, '', ''\)/.test(src));
+// Perf : la simulation repose les 16 couleurs à chaque frame. Réécrire le même
+// style invaliderait la peinture des 16 halos pour rien, à chaque frame.
+check('led-ring : le style n\'est écrit que s\'il CHANGE',
+  /if \(this\.lastStyle\[pixel\] === style\) return;/.test(src));
 
 console.log(failures ? `Anneau NeoPixel : ${failures} échec(s).` : 'Anneau NeoPixel : tous les contrôles passent.');
 process.exit(failures ? 1 : 0);

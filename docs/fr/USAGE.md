@@ -160,6 +160,12 @@ Bouton **Compiler & exécuter le fichier actif** (ou la commande homonyme) — l
 
 Pendant la simulation, la carte s'allume comme la vraie : la **LED verte ON** reste allumée tant que le programme tourne, et la **LED L** — celle de `LED_BUILTIN`, la broche **D13** sur Uno, Nano et Mega — suit l'état de cette broche. Un `blink` sur `LED_BUILTIN` se voit donc **sans câbler la moindre LED**. Sur le Pico, c'est la LED embarquée **GP25** qui joue ce rôle.
 
+### Vitesse de la simulation
+
+La simulation suit le **temps réel** : une seconde à l'écran est une seconde sur la vraie carte, `delay(1000)` dure bien une seconde. Quand la page est occupée un instant (dessin d'un composant, moniteur série qui défile), la simulation **rattrape** son retard dès qu'elle reprend la main ; seuls les blocages longs (plus d'un quart de seconde, un onglet laissé en arrière-plan) sont abandonnés — le temps est alors **sauté**, jamais rejoué en accéléré.
+
+Le sélecteur 🐇/🐢/🐌 ralentit volontairement l'exécution (100 %, 10 %, 1 % du temps réel) pour observer un phénomène rapide. La simulation ne va **jamais plus vite** qu'une vraie carte.
+
 ## MicroPython sur le Pico
 1. Ouvrir un fichier `.py` → **Compiler & exécuter le fichier actif**.
 2. Au premier lancement, si aucun firmware n'est trouvé, Kablix **propose de le télécharger automatiquement** (choix **Pico / Pico W**) depuis [micropython.org](https://micropython.org/download/RPI_PICO/). Le firmware est mémorisé dans le stockage de l'extension et **réutilisé dans tous vos projets** — la question n'est posée qu'une fois.
