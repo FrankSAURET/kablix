@@ -14,14 +14,17 @@ Détecteur de mouvement infrarouge passif. Sortie numérique haute en cas de dé
 
 ## Propriétés
 
-| Propriété | Rôle | Défaut |
-|-----------|------|--------|
-| `state` | Mouvement détecté (0/1) | 0 |
+Aucune : en simulation, le mouvement se déclenche **à la souris** (voir ci-dessous).
 
 ## Utilisation
 
 - OUT vers une entrée numérique.
-- Régler « mouvement détecté » dans l'inspecteur pour simuler.
+
+## En simulation : la souris fait le mouvement
+
+- **Bougez la souris au-dessus du capteur** → OUT passe à 1. C'est bien le *mouvement* qui compte, pas la simple présence du pointeur : la sortie retombe à 0 peu après l'arrêt de la souris.
+- **Ctrl+clic** sur le capteur → mouvement **permanent** (OUT reste à 1, souris partie). Ctrl+clic à nouveau pour l'arrêter.
+- Une **bulle d'aide** rappelle ces gestes : elle apparaît **juste sous le pointeur** (5 px), centrée dessus, pour ne pas masquer le capteur.
 
 ---
 

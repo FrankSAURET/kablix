@@ -68,10 +68,12 @@ export class PIRMotionSensorElement extends LitElement {
       :host { display: inline-block; }
       .wrap { position: relative; }
       /* Bulle façon tooltip qui suit le curseur (left/top posés dynamiquement
-         par le composant, décalée au-dessus-à-droite du pointeur). */
+         par le composant). Placement demandé par Frank : JUSTE EN DESSOUS du
+         pointeur (5 px) et CENTRÉE horizontalement dessus — d'où le
+         translate(-50%, 5px), qui vaut aussi pour le repli sans souris. */
       .bubble {
         position: absolute;
-        transform: translate(8px, -100%);
+        transform: translate(-50%, 5px);
         background: #222;
         color: #fff;
         font: 10px sans-serif;
@@ -165,7 +167,7 @@ export class PIRMotionSensorElement extends LitElement {
               class="bubble ${native ? 'native' : ''}"
               style=${showAtCursor
                 ? `left:${this.bubblePos!.x}px;top:${this.bubblePos!.y}px`
-                : 'left:50%;top:0;transform:translate(-50%,-100%)'}
+                : 'left:50%;top:100%'}
             >
               ${bubble}
             </div>`
