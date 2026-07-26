@@ -1507,6 +1507,16 @@ export class Editor {
   }
 
   /**
+   * Composant grillé : hisse son conteneur (classe `.part--burned`, z=70) pour
+   * que l'explosion « Boum », enfermée dans le shadow DOM du composant (donc
+   * dans le contexte d'empilement de `.part`, z=3), passe par-dessus les fils
+   * (z=5) et tout le reste. Appelé par sim.mts en même temps que `el.burned`.
+   */
+  setBurned(id: string, burned: boolean): void {
+    this.rendered.get(id)?.container.classList.toggle('part--burned', burned);
+  }
+
+  /**
    * Réinitialise l'aspect de tous les composants : chaque élément est recréé à
    * partir de ses attributs initiaux, effaçant l'état piloté par la simulation
    * (LED éteintes, afficheurs vides…). Le schéma (fils, positions) est conservé.

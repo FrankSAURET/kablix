@@ -1224,6 +1224,15 @@ textarea {
   z-index: 60 !important;
 }
 
+/* Composant GRILLÉ (explosion « Boum ») : l'explosion vit dans le shadow DOM du
+   composant, donc elle ne peut pas sortir du contexte d'empilement de `.part`
+   (z=3) — les fils (z=5) passaient devant. On hisse tout le composant grillé
+   au-dessus de TOUT (fils, voisins, poster de brochage z=50, contrôle de sim
+   z=60) : l'explosion doit rester entièrement visible. */
+.part--burned {
+  z-index: 70 !important;
+}
+
 /* Le corps est `pointer-events: none` (broches recouvertes) : en simulation il
    PRIVAIT de souris le curseur/bouton interne du composant (capteurs flamme/gaz/
    son/lumière, potentiomètre, LDR/CTN…) → les curseurs « ne marchaient plus »

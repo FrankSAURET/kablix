@@ -1,6 +1,16 @@
 # À faire
-1. L'explosion doit être par dessus tout. Actuellement les cables sont par dessus.
-2. La couleur des led de l'anneau neopixel doit être blanche (actuellement noire) de plus ajoute un halo quand elles sont allumées
+- Ajouter le copier/coller d'un schéma kablix à un autre - également avec CTRL+C et CTRL+V
+# v2026.7.195 — l'explosion passe devant les fils, l'anneau NeoPixel s'éteint en blanc et rayonne allumé
+1. ✅ **Explosion par-dessus TOUT** : l'overlay « Boum » vit dans le **shadow DOM** du composant, donc dans le contexte d'empilement de `.part` (z=3) — aucun z-index interne ne pouvait le faire passer devant les fils (z=5). Le composant grillé est donc **hissé en entier** : classe `.part--burned` (**z=70**, au-dessus des fils, du poster de brochage à 50 et du contrôle de simulation à 60), posée par `editor.setBurned()`.
+2. ✅ **Un seul chemin pour l'état « grillé »** (`sim.mts`) : `markBurned(partId, el, on)` écrit `el.burned` **et** appelle `editor.setBurned()` — les 7 endroits (LED, RGB, 7 segments, barre, PCA9685) y passent, plus aucune écriture directe de `.burned`. Au **lancement** d'une simulation, le hissage des composants grillés du run précédent est retiré (un composant qui ne serait plus rafraîchi resterait devant les fils).
+3. ✅ **Anneau NeoPixel : LED éteinte = BLANCHE** (`led-ring-element.mts`). `sim.mts` écrit les couleurs décodées de la chaîne WS2812, donc `rgb(0,0,0)` sur chaque LED au repos : l'anneau devenait **noir** alors que le dessin retouché a des LED blanches. Sous le seuil `PIXEL_LIT`, le `fill` en ligne est **vidé** → la couleur du dessin revient.
+4. ✅ **Halo de LED allumée** : deux `drop-shadow` concentriques de la **couleur de la LED**, rayons en unités du dessin (agrandis ×3,937 à l'écran) et **croissants avec la luminosité**. `reset()` efface aussi le halo.
+5. ✅ **`verify:boum` porté à 16 contrôles** : les z-index **calculés** dans le vrai éditeur (non grillé sous les fils, grillé à 70 au-dessus des fils / du poster / du contrôle de sim, dégrillé qui redescend), classe posée par `setBurned`, et le câblage `sim.mts` → `editor.setBurned` (helper, 7 appels, aucune écriture directe, hissage retiré au lancement).
+6. ✅ **Nouveau banc `verify:ledring`** (13 contrôles, Chrome headless sur le vrai élément) : 16 LED, éteinte blanche et sans halo, allumée à sa couleur avec halo de la même couleur, halo plus large quand la LED est plus lumineuse, extinction et `reset()` qui rendent le blanc sans halo. Ajouté à `verify:all`.
+7. ✅ **Garde-fou vérifié** : sur le code de la v194, `verify:boum` tombe à **16 échecs** (l'API `setBurned` manque, le banc ne rend plus rien) et `verify:ledring` à **9 échecs**.
+8. ✅ **Fiches FR + EN de l'anneau** : LED éteinte blanche, halo proportionnel à la luminosité.
+9. ✅ typecheck + build + `verify:all` verts.
+10. ⬜ À VALIDER EN F5 : LED câblée **sans résistance** → elle grille, l'explosion s'affiche **devant les fils** qui la traversaient · anneau NeoPixel en simulation → LED éteintes **blanches**, LED allumées **halo coloré** · nouveau lancement → l'anneau et la LED reviennent à l'état neuf.
 
 # v2026.7.194 — variables : préfixes 0b/0x, réglages rangés dans le .projix, colonnes au plus juste
 1. ✅ **Indices remplacés par des PRÉFIXES** (`varbase.mts`) : `0b1010 0000`, `0xA0`, `160` en décimal (plus de `₂`/`₁₆`/`₁₀`). Raison : un préfixe se retape tel quel dans le programme, un indice non. Signe devant le préfixe (`-0b101`, comme en C), groupement des chiffres et séparateur insécable inchangés.

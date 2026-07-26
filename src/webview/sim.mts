@@ -283,6 +283,15 @@ const burnedLeds = new Set<string>();
 // PCA9685 (carte 16 servos) grillés pendant ce run : surtension du bornier V+
 // (> 5,5 V). Définitif jusqu'au prochain lancement (carte « remplacée »).
 const burnedPcas = new Set<string>();
+/**
+ * Pose l'état « grillé » sur le composant ET hisse son conteneur (z=70) : sans
+ * ce hissage, l'explosion « Boum » — enfermée dans le shadow DOM, donc dans le
+ * contexte d'empilement de `.part` (z=3) — passait SOUS les fils (z=5).
+ */
+function markBurned(partId: string, el: Record<string, unknown>, on: boolean): void {
+  el.burned = on;
+  editor.setBurned(partId, on);
+}
 // Facteur de luminosité par LED (résistance trop forte → LED sombre), mémorisé
 // à la dernière frame où la LED conduisait.
 const ledLumFactor = new Map<string, number>();
@@ -767,12 +776,12 @@ function refreshVisuals(): void {
           else ledLumFactor.set(part.id, elec.lum);
         }
         if (burnedLeds.has(part.id)) {
-          el.burned = true;
+          markBurned(part.id, el, true);
           el.value = false;
           el.brightness = 0;
           break;
         }
-        el.burned = false;
+        markBurned(part.id, el, false);
         const lum = ledLumFactor.get(part.id) ?? 1;
         if (duty !== undefined) {
           el.value = duty > 0.001 && lum > 0;
@@ -812,7 +821,7 @@ function refreshVisuals(): void {
         const green = level('G', 'green', chan(s.green, bind?.g));
         const blue = level('B', 'blue', chan(s.blue, bind?.b));
         const burned = burnedLeds.has(part.id);
-        el.burned = burned;
+        markBurned(part.id, el, burned);
         el.ledRed = burned ? 0 : red;
         el.ledGreen = burned ? 0 : green;
         el.ledBlue = burned ? 0 : blue;
@@ -967,7 +976,7 @@ function refreshVisuals(): void {
           }
         }
         const seg7Burned = burnedLeds.has(part.id);
-        el.burned = seg7Burned;
+        markBurned(part.id, el, seg7Burned);
         // Grillé : NE PLUS réassigner `values` (une array neuve à chaque tick
         // re-rendrait le composant en boucle et RELANCERAIT l'animation de
         // l'explosion depuis son 1er keyframe → figée minuscule). On l'éteint
@@ -1000,7 +1009,7 @@ function refreshVisuals(): void {
           }
         }
         const barBurned = burnedLeds.has(part.id);
-        el.burned = barBurned;
+        markBurned(part.id, el, barBurned);
         // Grillé : idem 7 seg — on éteint une seule fois puis on laisse stable,
         // sinon une array neuve à chaque tick relance l'animation d'explosion.
         if (barBurned) {
@@ -1736,8 +1745,8 @@ function applyPca9685(): void {
   // Surtension (> 5,5 V) sur le bornier V+ : la carte grille définitivement.
   for (const s of states) {
     if (s.overVolt) burnedPcas.add(s.partId);
-    const pcaEl = editor.elementOf(s.partId) as { burned?: boolean } | null;
-    if (pcaEl) pcaEl.burned = burnedPcas.has(s.partId);
+    const pcaEl = editor.elementOf(s.partId);
+    if (pcaEl) markBurned(s.partId, pcaEl, burnedPcas.has(s.partId));
   }
   if (pcaBindings.length === 0) return;
   const power = new Map(states.map((p) => [p.partId, p.ok]));
@@ -2176,6 +2185,11 @@ function startRun(): void {
   engine.setBreakpoints?.(breakpoints);
   sevenSegLatch = new Map(); // nouveau run : les chiffres mémorisés repartent à zéro
   sevenSegStable = new Map();
+  // Composants grillés « remplacés » à chaque nouveau lancement : on retire
+  // aussi le hissage z=70 posé par markBurned (l'explosion disparaît au 1er tick,
+  // mais un composant qui ne serait plus rafraîchi resterait devant les fils).
+  for (const id of burnedLeds) editor.setBurned(id, false);
+  for (const id of burnedPcas) editor.setBurned(id, false);
   burnedLeds.clear(); // LED grillées « remplacées » à chaque nouveau lancement
   burnedPcas.clear(); // carte 16 servos grillée « remplacée » à chaque lancement
   ledLumFactor.clear();

@@ -6,12 +6,17 @@
 // exposés dans l'inspecteur, cf. catalog.mts, donc pas de perte de fonctionnalité). Broches
 // recalées sur la grille de 10 px. Pixels pilotés nativement via les 16 `rect.pixel` déjà
 // présents dans le dessin importé (même ordre DOM que l'ancien rendu procédural).
+// LED éteinte : BLANCHE (fill du dessin rétabli) et non plus noire ; LED allumée :
+// halo `drop-shadow` de sa couleur, d'autant plus large que la LED est lumineuse.
 import { html, LitElement } from 'lit';
 import type { PropertyValues } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
 import { RGB } from './types/rgb.mjs';
 import drawing from './externe/led-ring.svg';
+
+/** Seuil de « LED allumée » (sous ce niveau : éteinte, donc blanche et sans halo). */
+const PIXEL_LIT = 0.004;
 
 export class LEDRingElement extends LitElement {
   declare pixels: number;
@@ -53,7 +58,23 @@ export class LEDRingElement extends LitElement {
     if (pixel < 0 || pixel >= pixelElements.length) {
       return;
     }
-    pixelElements[pixel].style.fill = `rgb(${r * 255},${g * 255},${b * 255})`;
+    const el = pixelElements[pixel];
+    const lum = Math.max(r, g, b);
+    if (lum <= PIXEL_LIT) {
+      // LED éteinte = BLANCHE (couleur du dessin retouché) : `rgb(0,0,0)`
+      // noircissait tout l'anneau au repos, comme s'il était grillé.
+      el.style.fill = '';
+      el.style.filter = '';
+      return;
+    }
+    const color = `rgb(${r * 255},${g * 255},${b * 255})`;
+    el.style.fill = color;
+    // Halo de LED allumée : deux flous concentriques, rayons en unités du dessin
+    // (le groupe #board les agrandit ×3,937 à l'écran) et intensité suivant la
+    // luminosité de la LED.
+    el.style.filter =
+      `drop-shadow(0 0 ${(0.8 + lum * 0.7).toFixed(2)}px ${color})` +
+      ` drop-shadow(0 0 ${(2 + lum * 2).toFixed(2)}px ${color})`;
   }
 
   /**
@@ -62,6 +83,7 @@ export class LEDRingElement extends LitElement {
   reset() {
     for (const element of this.getPixelElements()) {
       element.style.fill = '';
+      element.style.filter = '';
     }
   }
 

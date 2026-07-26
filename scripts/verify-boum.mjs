@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { build as esbuild } from 'esbuild';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const read = (p) => readFileSync(join(ROOT, p), 'utf8');
 const CACHE = join(ROOT, 'node_modules', '.cache-boum');
 mkdirSync(CACHE, { recursive: true });
 const SRC = (ROOT + '/src/webview').replace(/\\/g, '/');
@@ -60,10 +61,23 @@ async function run() {
   for (let t = 0; t < 5; t++) { segEl.values = new Array(24).fill(0); await segEl.updateComplete; }
   const idB = boumOf(seg.id)?.className;
 
+  // v195 : hissage du composant grillé. L'explosion vit dans le shadow DOM, donc
+  // dans le contexte d'empilement de .part (z=3) : sans classe .part--burned, les
+  // fils (z=5) la recouvraient. On mesure les z-index CALCULÉS.
+  const zOf = (id) => Number(getComputedStyle(editor.rendered.get(id).container).zIndex);
+  const zWires = Number(getComputedStyle(document.getElementById('wires')).zIndex);
+  const zPlain = zOf(led.id); // avant hissage
+  for (const id of [led.id, seg.id, bar.id]) editor.setBurned(id, true);
+  const zBurned = zOf(led.id);
+  const classBurned = editor.rendered.get(led.id).container.classList.contains('part--burned');
+  editor.setBurned(led.id, false);
+  const zUnburned = zOf(led.id);
+
   const res = {
     ledSize: sizeOf(led.id), segSize: sizeOf(seg.id), barSize: sizeOf(bar.id),
     overlayStableOnResilentRerender: idBefore === idStable,
     oldBehaviorRecreates: idA !== idB,
+    zWires, zPlain, zBurned, zUnburned, classBurned,
   };
   const pre = document.createElement('pre'); pre.id = 'm'; pre.textContent = JSON.stringify(res); document.body.appendChild(pre);
 }
@@ -73,7 +87,7 @@ writeFileSync(join(CACHE, 'e.mjs'), entry);
 const b = await esbuild({ entryPoints: [join(CACHE, 'e.mjs')], bundle: true, format: 'iife', write: false, loader: { '.svg': 'text' }, absWorkingDir: join(ROOT, 'scripts'), logLevel: 'silent' });
 const css = existsSync(join(ROOT, 'media/styles.css')) ? readFileSync(join(ROOT, 'media/styles.css'), 'utf8') : '';
 writeFileSync(join(CACHE, 'p.html'), `<!doctype html><meta charset=utf8><style>${css}</style>
-<div id="canvas" style="position:absolute;inset:0;overflow:hidden"><div id="palette"></div><svg id="wires"></svg></div>
+<div id="canvas" style="position:absolute;inset:0;overflow:hidden"><div id="palette"></div><svg id="wires" class="wires"></svg></div>
 <div id="inspector"></div><script>${b.outputFiles[0].text}</script>`);
 const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
 let failures = 0;
@@ -90,6 +104,24 @@ if (!chrome) {
   check('barre : explosion ≈ 110 px (hauteur du corps)', r && r.barSize >= 100 && r.barSize <= 120);
   check('overlay STABLE si re-render à valeurs inchangées (fix sim.mts v158)', r && r.overlayStableOnResilentRerender);
   check('contre-épreuve : re-render à array neuve RECRÉE l\'overlay (bug d\'origine)', r && r.oldBehaviorRecreates);
+  // v195 : l'explosion passe par-dessus TOUT (les fils la recouvraient).
+  check('composant non grillé : sous les fils (z=3 < z=5)', r && r.zPlain < r.zWires);
+  check('grillé : classe .part--burned posée par setBurned', r && r.classBurned);
+  check('grillé : hissé au-dessus des fils (z=70 > 5)', r && r.zBurned > r.zWires);
+  check('grillé : au-dessus du poster de brochage (50) et du contrôle de sim (60)', r && r.zBurned > 60);
+  check('dégrillé : le composant redescend sous les fils', r && r.zUnburned < r.zWires);
 }
+
+// Câblage sim.mts → editor.setBurned : l'état « grillé » doit TOUJOURS passer par
+// markBurned (sinon un composant grillé garderait z=3 et resterait sous les fils).
+const sim = read('src/webview/sim.mts');
+check('sim.mts : helper markBurned (el.burned + editor.setBurned)', /function markBurned[\s\S]{0,240}editor\.setBurned/.test(sim));
+// Une seule écriture de `.burned` autorisée : celle DANS markBurned.
+check('sim.mts : plus aucune écriture directe de `.burned =` hors markBurned',
+  (sim.match(/\w+\.burned\s*=/g) ?? []).length === 1);
+check('sim.mts : les 6 états grillés passent par markBurned', (sim.match(/markBurned\(/g) ?? []).length >= 7);
+check('sim.mts : nouveau lancement → hissage retiré (setBurned(id, false))', /for \(const id of burnedLeds\) editor\.setBurned\(id, false\)/.test(sim));
+check('editor.mts : setBurned bascule .part--burned', /setBurned\(id: string, burned: boolean\)[\s\S]{0,160}part--burned/.test(read('src/webview/diagram/editor.mts')));
+check('styles.css : .part--burned z-index 70 !important', /\.part--burned\s*\{[^}]*z-index:\s*70\s*!important/.test(read('media/styles.css')));
 console.log(failures ? `Boum : ${failures} échec(s).` : 'Boum : tous les contrôles passent.');
 process.exit(failures ? 1 : 0);

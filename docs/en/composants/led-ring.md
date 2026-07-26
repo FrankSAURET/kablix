@@ -23,6 +23,7 @@ Ring of addressable RGB LEDs (WS2812).
 
 - DIN to a digital pin.
 - Circular effects (rotation, gauge).
+- During simulation an **off LED stays white** (like on the real board) and a **lit LED gets a halo** of its own colour, wider the brighter it is.
 
 ---
 
