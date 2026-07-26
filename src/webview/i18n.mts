@@ -339,8 +339,6 @@ const FR: Record<string, string> = {
   // Masquage des variables du panneau (œil de chaque ligne / liste du titre)
   'Show the hidden variables': 'Afficher les variables masquées',
   'Click to hide': 'Cliquer pour masquer',
-  'Remember the hidden variables': 'Mémoriser les variables masquées',
-  'Hidden variables remembered': 'Variables masquées mémorisées',
   'Show this variable again': 'Réafficher cette variable',
   'Show all again': 'Tout réafficher',
   'No hidden variable — click the 👁 of a variable to hide it.':
@@ -348,9 +346,9 @@ const FR: Record<string, string> = {
   'All variables are hidden (click “Variables” to show them again).':
     'Toutes les variables sont masquées (cliquez sur « Variables » pour les réafficher).',
 
-  // Base d'affichage d'une variable (menu au clic droit)
+  // Base d'affichage d'une variable (menu au clic sur son nom ou sa valeur)
   'Display of “{0}”': 'Affichage de « {0} »',
-  'Right-click to change the display base': 'Clic droit pour changer la base d’affichage',
+  'Click to change the display base': 'Cliquer pour changer la base d’affichage',
   'Binary': 'Binaire',
   'Hexadecimal': 'Hexadécimal',
   'Decimal': 'Décimal',

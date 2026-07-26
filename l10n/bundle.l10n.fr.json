@@ -1,6 +1,5 @@
 {
   "Kablix — Simulator": "Kablix — Simulateur",
-  "Choose a code file or save the project to remember the hidden variables.": "Choisissez un fichier de code ou enregistrez le projet pour mémoriser les variables masquées.",
   "File association is only available on Windows.": "L'association de fichiers n'est disponible que sous Windows.",
   "Associating .projix files…": "Association des fichiers .projix…",
   "Could not associate .projix files: {0}": "Impossible d'associer les fichiers .projix : {0}",
@@ -110,7 +109,6 @@
   "Simulation speed": "Vitesse de simulation",
   "Variables": "Variables",
   "Show the hidden variables": "Afficher les variables masquées",
-  "Remember the hidden variables": "Mémoriser les variables masquées",
   "Kablix: the simulation libraries are up to date.": "Kablix : les bibliothèques de simulation sont à jour.",
   "Kablix: a newer version of the simulation libraries is available ({0}). Updating may break the extension; if a problem occurs, please open an issue on GitHub ({1}).": "Kablix : une version plus récente des bibliothèques de simulation est disponible ({0}). La mise à jour peut casser l'extension ; en cas de problème, ouvrez une demande sur GitHub ({1}).",
   "See on npm": "Voir sur npm",

@@ -1,7 +1,8 @@
 // Masquage des variables du panneau de débogage (v2026.7.182, refondu en v186) :
 // clic sur le 👁 d'une variable → elle quitte le panneau, clic sur le titre
-// « 🔍 Variables ▾ » → liste des masquées pour les réafficher, disquette →
-// masquages mémorisés par programme (globalState de l'extension).
+// « 🔍 Variables ▾ » → liste des masquées pour les réafficher. Depuis la
+// v2026.7.194, masquages ET bases d'affichage sont mémorisés DANS LE PROJET
+// (manifeste du .projix) : plus de disquette, plus de globalState.
 //
 // Ce banc contrôle la COHÉRENCE des fichiers qui doivent bouger ensemble : le
 // squelette HTML (webview-html.ts), la feuille de style, le catalogue de
@@ -37,14 +38,17 @@ const missing = [...new Set(ids)].filter((id) => !html.includes(`id="${id}"`));
 ok(`panneau : les ${new Set(ids).size} id « debug-* » de sim.mts sont dans le HTML`,
   missing.length === 0, 'absents : ' + missing.join(', '));
 
-// 2. Le bouton de mémorisation existe et porte l'icône disquette fournie.
-ok('titre : bouton disquette « mémoriser les variables masquées » présent',
-  html.includes('id="debug-save-hidden"') && html.includes("asset('enregistrer.svg')"),
-  'bouton ou icône absent de webview-html.ts');
+// 2. Plus de disquette (v194) : la mémorisation suit l'enregistrement du projet.
+//    Le bouton et son écouteur doivent avoir disparu ENSEMBLE, sinon sim.mts
+//    planterait au chargement sur un getElementById nul.
+ok('titre : plus de bouton disquette (mémorisation dans le .projix)',
+  !html.includes('id="debug-save-hidden"') && !sim.includes('debugSaveHiddenBtn'),
+  'reste de la disquette dans webview-html.ts ou sim.mts');
 
-// 3. Classes CSS employées par le code (œil, disquette, menu, sélection, titre).
+// 3. Classes CSS employées par le code (œil, cellules, menu, sélection, titre).
 const classes = [
-  '.debug__title', '.debug__titlebar', '.debug__save', '.debug__eye', '.debug__eyecell',
+  '.debug__title', '.debug__titlebar', '.debug__eye', '.debug__eyecell',
+  '.debug__namecell', '.debug__valcell',
   '.debug__menu', '.debug__menu-empty', '.debug__row--sel',
 ];
 const noCss = classes.filter((c) => !css.includes(c));
@@ -55,8 +59,6 @@ ok(`style : les ${classes.length} classes du panneau sont habillées`, noCss.len
 const keys = [
   'Show the hidden variables',
   'Click to hide',
-  'Remember the hidden variables',
-  'Hidden variables remembered',
   'Show this variable again',
   'Show all again',
   'No hidden variable — click the 👁 of a variable to hide it.',
@@ -67,17 +69,22 @@ ok(`i18n : les ${keys.length} libellés du masquage sont traduits en français`,
   untranslated.length === 0, 'sans traduction : ' + untranslated.join(' · '));
 
 // 5. Les info-bulles du HTML passent par l10n de l'EXTENSION (autre catalogue).
-const l10nKeys = ['Show the hidden variables', 'Remember the hidden variables'];
+const l10nKeys = ['Show the hidden variables'];
 const noL10n = l10nKeys.filter((k) => !l10nFr.includes(`"${k}"`));
 ok('i18n : les info-bulles du titre sont traduites côté extension (bundle.l10n.fr)',
   noL10n.length === 0, 'sans traduction : ' + noL10n.join(' · '));
 
-// 6. Le clic droit ne MASQUE plus (c'est l'œil depuis la v186) : il ne sert
-//    qu'à choisir la base d'affichage (v189).
-const ctx = sim.match(/row\.addEventListener\('contextmenu',[\s\S]{0,300}?\}\);/);
-ok('masquage : le clic droit ne masque plus rien (il ouvre le menu des bases)',
-  ctx && /openVarBaseMenu\(v\.name/.test(ctx[0]) && !/hideVar|hiddenVars\.add/.test(ctx[0]),
-  'menu du clic droit absent ou remis à masquer');
+// 6. Ni le clic gauche ni le clic droit ne MASQUENT (c'est l'œil depuis la v186) :
+//    les deux ouvrent le menu des bases (clic gauche = geste principal, v194).
+const openMenu = sim.match(/const openMenu = \(ev: MouseEvent\) => \{[\s\S]{0,300}?\};/);
+ok('clic : le menu des bases s’ouvre sans rien masquer',
+  openMenu && /openVarBaseMenu\(v\.name/.test(openMenu[0])
+  && /selectVar\(v\.name\)/.test(openMenu[0]) && !/hideVar|hiddenVars\.add/.test(openMenu[0]),
+  'ouverture du menu absente ou remise à masquer');
+ok('clic : le clic GAUCHE ouvre le menu (et le clic droit reste accepté)',
+  /row\.addEventListener\('click', openMenu\)/.test(sim)
+  && /row\.addEventListener\('contextmenu', openMenu\)/.test(sim),
+  'écouteur click ou contextmenu absent de la ligne');
 
 // 7. L'œil masque bien la variable de SA ligne, sans sélectionner la ligne au passage.
 const eye = sim.match(/eye\.addEventListener\('click',[\s\S]{0,200}?\}\);/);
@@ -107,22 +114,48 @@ ok('tableau : la colonne de l’œil est prise en compte (colSpan 3, nom en cell
 ok('menus : refermés à la réinitialisation du panneau',
   /function resetDebugVars\(\): void \{[\s\S]*?closeVarMenus\(\);/.test(sim), 'closeVarMenus absent de resetDebugVars');
 
-// 12. Mémorisation : la webview poste, l'extension range, et renvoie la liste.
-ok('mémorisation : la disquette poste « saveHiddenVars » et l’extension le traite',
-  /type: 'saveHiddenVars'/.test(sim) && /case 'saveHiddenVars'/.test(panel),
+// 12. Mémorisation DANS LE PROJET (v194) : la webview pousse masquages + bases à
+//     chaque changement, l'extension les grave dans le manifeste du .projix et
+//     les renvoie à l'ouverture. Un maillon absent = réglages perdus en silence.
+const projix = read('src/projix.ts');
+ok('mémorisation : le manifeste .projix porte les réglages (ProjixDebugVars)',
+  /export interface ProjixDebugVars/.test(projix) && /debugVars\?: ProjixDebugVars;/.test(projix),
+  'champ absent du manifeste (src/projix.ts)');
+ok('mémorisation : la webview pousse « debugVars » (masquages + bases) et l’extension le traite',
+  /type: 'debugVars',[\s\S]{0,120}?hidden: \[\.\.\.hiddenVars\][\s\S]{0,120}?bases: Object\.fromEntries\(varBases\)/.test(sim)
+  && /case 'debugVars'/.test(panel) && /setDebugVars\(msg\.hidden, msg\.bases\)/.test(panel),
   'message ou case absent');
-ok('mémorisation : rangée par programme dans globalState (clé kablix.hiddenVars)',
-  /HIDDEN_VARS_KEY = 'kablix\.hiddenVars'/.test(panel) && /globalState\.update\(HIDDEN_VARS_KEY/.test(panel),
-  'persistance absente de panel.ts');
-ok('mémorisation : la liste est renvoyée à la webview, qui l’applique',
-  /type: 'hiddenVars'/.test(panel) && /case 'hiddenVars'/.test(sim) && /applySavedHiddenVars/.test(sim),
+// Poussé à CHAQUE geste : masquer, réafficher (une ou toutes), changer de base.
+const pushes = (sim.match(/postDebugVars\(\);/g) ?? []).length;
+ok('mémorisation : les 4 gestes poussent l’état (masquer, réafficher, tout réafficher, base)',
+  pushes >= 4, `${pushes} appel(s) à postDebugVars()`);
+ok('mémorisation : les réglages sont écrits dans le manifeste à l’enregistrement',
+  /manifest\.debugVars = debugVars;/.test(panel)
+  && /emptyDebugVars\(debugVars\)/.test(panel), 'écriture absente de buildProjixBytes');
+ok('mémorisation : rien d’écrit quand aucun réglage n’est posé (pas d’entrée vide)',
+  /emptyDebugVars\(d: ProjixDebugVars\): boolean \{[\s\S]{0,200}?!d\.hidden\?\.length && Object\.keys\(d\.bases \?\? \{\}\)\.length === 0/.test(panel),
+  'garde emptyDebugVars absente');
+ok('mémorisation : relus à l’ouverture du .projix et appliqués par la webview',
+  /setDebugVars\(project\.manifest\.debugVars\?\.hidden, project\.manifest\.debugVars\?\.bases\)/.test(panel)
+  && /type: 'debugVars'/.test(panel) && /case 'debugVars'/.test(sim) && /applySavedDebugVars/.test(sim),
   'aller-retour incomplet');
-// Renvoyée à l'ouverture ET à chaque changement de fichier de code (les
-// variables appartiennent au programme, pas à la session).
-ok('mémorisation : liste renvoyée au démarrage et à chaque changement de code',
-  /setCodeFile\(uri: vscode\.Uri \| undefined\): void \{[\s\S]*?postHiddenVars\(\);/.test(panel)
-  && (panel.match(/this\.postHiddenVars\(\)/g) ?? []).length >= 2,
-  'postHiddenVars absent de setCodeFile ou du cas « ready »');
+// Le repli hérité (≤ v193, globalState par programme) est LU, jamais réécrit :
+// une mise à jour ne doit pas faire réapparaître des variables masquées.
+ok('mémorisation : masquages hérités (globalState) encore lus, plus jamais écrits',
+  /HIDDEN_VARS_KEY = 'kablix\.hiddenVars'/.test(panel)
+  && /globalState\.get<Record<string, string\[\]>>\(HIDDEN_VARS_KEY/.test(panel)
+  && !/globalState\.update\(HIDDEN_VARS_KEY/.test(panel),
+  'repli absent, ou écriture dans globalState toujours présente');
+// Renvoyés à l'ouverture ET à chaque changement de fichier de code (le repli
+// hérité est rangé par programme).
+ok('mémorisation : réglages renvoyés au démarrage et à chaque changement de code',
+  /setCodeFile\(uri: vscode\.Uri \| undefined\): void \{[\s\S]*?postDebugVars\(\);/.test(panel)
+  && (panel.match(/this\.postDebugVars\(\)/g) ?? []).length >= 3,
+  'postDebugVars absent de setCodeFile, du cas « ready » ou de l’ouverture de projet');
+// Réglage de lecture, pas modification du montage : aucun point ● ni edit annulable.
+ok('mémorisation : masquer ou changer de base ne marque PAS le projet modifié',
+  !/postDebugVars[\s\S]{0,200}?docEdit/.test(sim) && !/case 'debugVars':[\s\S]{0,200}?onDocEdit/.test(panel),
+  'un edit annulable est empilé pour un simple réglage d’affichage');
 
 // 13. L'aide décrit la fonctionnalité À JOUR, dans les deux langues (l'œil et la
 //     disquette ; plus de clic droit, qui n'existe plus).
@@ -138,11 +171,11 @@ function guideSection(lang, heading) {
   return low.slice(start, next < 0 ? undefined : next);
 }
 for (const [lang, heading, needles, stale] of [
-  ['fr', 'masquer des variables', ['👁', 'disquette'], 'clic droit'],
-  ['en', 'hiding variables', ['👁', 'floppy'], 'right-click'],
+  ['fr', 'masquer des variables', ['👁', '.projix'], 'disquette'],
+  ['en', 'hiding variables', ['👁', '.projix'], 'floppy'],
 ]) {
   const doc = guideSection(lang, heading);
-  ok(`aide ${lang.toUpperCase()} : masquage par l’œil et mémorisation documentés`,
+  ok(`aide ${lang.toUpperCase()} : masquage par l’œil et mémorisation dans le projet documentés`,
     doc && needles.every((n) => doc.includes(n.toLowerCase())) && !doc.includes(stale),
     'section obsolète ou incomplète dans docs/' + lang + '/USAGE.md');
 }
@@ -160,15 +193,15 @@ await esbuild.build({
 const V = await import(pathToFileURL(outfile).href);
 const NB = String.fromCharCode(0xa0); // séparateur attendu (insécable)
 const cases = [
-  // [valeur brute, base, affichage attendu]
-  ['160', 'bin', `1010${NB}0000₂`],
-  ['5', 'bin', '101₂'],
-  ['-5', 'bin', '-101₂'],
-  ['255', 'hex', 'FF₁₆'],
-  ['65535', 'hex', 'FFFF₁₆'],
-  ['1048575', 'hex', `F${NB}FFFF₁₆`],
-  ['1234567', 'dec', `1${NB}234${NB}567₁₀`],
-  ['42', 'dec', '42₁₀'],
+  // [valeur brute, base, affichage attendu] — préfixes 0b/0x, rien en décimal (v194)
+  ['160', 'bin', `0b1010${NB}0000`],
+  ['5', 'bin', '0b101'],
+  ['-5', 'bin', '-0b101'],
+  ['255', 'hex', '0xFF'],
+  ['65535', 'hex', '0xFFFF'],
+  ['1048575', 'hex', `0xF${NB}FFFF`],
+  ['1234567', 'dec', `1${NB}234${NB}567`],
+  ['42', 'dec', '42'],
   ['65', 'char', "'A'"],
   ['10', 'char', "'\\n'"],
   ['0', 'char', "'\\0'"],
@@ -179,12 +212,17 @@ const cases = [
   ["'abc'", 'dec', "'abc'"],
   ['[1, 2, 3]', 'bin', '[1, 2, 3]'],
   // Grand entier Python : BigInt, aucune perte de précision.
-  ['12345678901234567890', 'hex', `AB54${NB}A98C${NB}EB1F${NB}0AD2₁₆`],
+  ['12345678901234567890', 'hex', `0xAB54${NB}A98C${NB}EB1F${NB}0AD2`],
 ];
 const bad = cases.filter(([raw, base, want]) => V.formatVarValue(raw, base) !== want)
   .map(([raw, base, want]) => `${raw}/${base} → ${JSON.stringify(V.formatVarValue(raw, base))} ≠ ${JSON.stringify(want)}`);
-ok(`base : les ${cases.length} formatages attendus sont exacts (indice + groupes)`,
+ok(`base : les ${cases.length} formatages attendus sont exacts (préfixe + groupes)`,
   bad.length === 0, bad.join(' · '));
+// Les indices de la v189 (₂ ₁₆ ₁₀) ne doivent PLUS sortir : ils ne se retapent
+// pas dans un programme, contrairement aux préfixes 0b / 0x.
+const subs = ['bin', 'hex', 'dec', 'char'].filter((b) => /[₂₆₀₁]/.test(V.formatVarValue('160', b)));
+ok('base : plus aucun indice de base (₂ ₁₆ ₁₀) — préfixes seuls', subs.length === 0,
+  'indice encore produit en : ' + subs.join(', '));
 ok('base : séparateur INSÉCABLE (un nombre ne se coupe pas en fin de ligne)',
   V.formatVarValue('1234', 'dec').includes(NB) && !V.formatVarValue('1234', 'dec').includes(' '),
   JSON.stringify(V.formatVarValue('1234', 'dec')));
@@ -213,24 +251,50 @@ ok('menu : le flottant est refermé au clic ailleurs / Échap',
 // 17. Style et traductions du menu.
 const baseClasses = ['.debug__menu--float', '.debug__menu-head', '.debug__menu-cur'];
 const noBaseCss = baseClasses.filter((c) => !css.includes(c));
-ok('style : le menu flottant du clic droit est habillé', noBaseCss.length === 0,
+ok('style : le menu flottant du clic est habillé', noBaseCss.length === 0,
   'manque : ' + noBaseCss.join(', '));
-const baseKeys = ['Display of “{0}”', 'Right-click to change the display base',
+const baseKeys = ['Display of “{0}”', 'Click to change the display base',
   'Binary', 'Hexadecimal', 'Decimal', 'Character'];
 const noBaseFr = baseKeys.filter((k) => !i18n.includes(`'${k}'`));
 ok(`i18n : les ${baseKeys.length} libellés de la base sont traduits en français`,
   noBaseFr.length === 0, 'sans traduction : ' + noBaseFr.join(' · '));
 
-// 18. Aide FR + EN : la base d'affichage est documentée (bases et indices).
+// 18. Aide FR + EN : la base d'affichage est documentée (bases, préfixes, clic).
+//     Les indices de la v189 (₂) ne doivent plus y figurer.
 for (const [lang, heading, needles] of [
-  ['fr', "base d'affichage", ['clic droit', 'binaire', 'hexadécimal', 'caractère', '₂']],
-  ['en', 'display base', ['right-click', 'binary', 'hexadecimal', 'character', '₂']],
+  ['fr', "base d'affichage", ['0b1010', '0xa0', 'binaire', 'hexadécimal', 'caractère', 'projet']],
+  ['en', 'display base', ['0b1010', '0xa0', 'binary', 'hexadecimal', 'character', 'project']],
 ]) {
   const doc = guideSection(lang, heading);
   const absent = needles.filter((n) => !doc.includes(n.toLowerCase()));
-  ok(`aide ${lang.toUpperCase()} : base d’affichage documentée (menu, bases, indices)`,
-    doc && absent.length === 0, 'manque : ' + absent.join(' · '));
+  ok(`aide ${lang.toUpperCase()} : base d’affichage documentée (clic, préfixes, mémorisation)`,
+    doc && absent.length === 0 && !doc.includes('₂'),
+    absent.length ? 'manque : ' + absent.join(' · ') : 'indice ₂ encore présent');
 }
+
+// --- v2026.7.194 : colonnes du tableau et cellules cliquables ----------------
+
+// 19. Colonne du NOM au plus juste et sur une seule ligne, valeur à gauche : sans
+//     `width: 1%` la colonne prend la moitié du panneau et la valeur part au loin.
+const nameCss = css.match(/\.debug__vars td\.debug__namecell \{[^}]*\}/);
+ok('tableau : colonne du nom au plus juste, sur une seule ligne',
+  nameCss && /width:\s*1%/.test(nameCss[0]) && /white-space:\s*nowrap/.test(nameCss[0]),
+  'width: 1% ou white-space: nowrap absent de .debug__namecell');
+const valCss = css.match(/\.debug__vars td\.debug__valcell \{[^}]*\}/);
+ok('tableau : colonne de la valeur alignée à gauche',
+  valCss && /text-align:\s*left/.test(valCss[0]), 'text-align: left absent de .debug__valcell');
+ok('tableau : nom et valeur portent leur classe (cellules 1 et 2)',
+  /nameCell\.className = 'debug__namecell'/.test(sim)
+  && /valueCell\.className = 'debug__valcell'/.test(sim), 'classe absente de renderDebugPause');
+
+// 20. Curseur en main sur le nom ET la valeur : c'est ce qui montre que la ligne
+//     est cliquable (le menu des bases s'y ouvre).
+ok('curseur : main au survol du nom et de la valeur (cliquables)',
+  nameCss && /cursor:\s*pointer/.test(nameCss[0]) && valCss && /cursor:\s*pointer/.test(valCss[0]),
+  'cursor: pointer absent d’une des deux cellules');
+ok('bulle : l’invitation au clic est sur le nom ET sur la valeur',
+  /nameCell\.title = valueCell\.textContent === v\.value \? hint/.test(sim)
+  && /valueCell\.title = nameCell\.title;/.test(sim), 'bulle absente d’une des deux cellules');
 
 let fail = 0;
 for (const r of checks) {

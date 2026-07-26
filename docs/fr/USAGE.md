@@ -191,26 +191,26 @@ Un programme expose souvent des variables sans intérêt (constantes, objets de 
 
 - **Masquer** : cliquer sur le **👁** à gauche de la variable (bulle « Cliquer pour masquer »). La variable disparaît du panneau.
 - **Réafficher** : cliquer sur le titre **🔍 Variables ▾** — la liste déroulante des variables actuellement masquées s'ouvre. Cliquer sur l'une d'elles la remet dans le panneau ; **Tout réafficher** les remet toutes.
-- **Mémoriser** : la disquette à droite de **Variables** enregistre la liste des masquées pour **ce programme**. Elles seront masquées d'office aux prochaines ouvertures, jusqu'à ce que vous réaffichiez puis mémorisiez de nouveau. Sans fichier de code ni projet enregistré, il n'y a rien à quoi rattacher la liste : Kablix le signale et ne mémorise rien.
+- **Mémoriser** : rien à faire de plus. La liste des masquées est rangée **dans le projet** (`.projix`) et réappliquée à sa réouverture. Elle est écrite au prochain **enregistrement** du projet, exactement comme le cadrage de la page : masquer une variable ne marque pas le projet « modifié ».
 
-Une variable masquée continue d'être **suivie** en arrière-plan : au retour, son rouge (« a changé au dernier pas ») est exact, comme si elle n'avait jamais quitté le panneau. Sans mémorisation, les masquages tiennent tant que l'atelier reste ouvert — ils survivent aux arrêts et redémarrages de la simulation — et sont oubliés à la fermeture du projet.
+Une variable masquée continue d'être **suivie** en arrière-plan : au retour, son rouge (« a changé au dernier pas ») est exact, comme si elle n'avait jamais quitté le panneau. Tant que le projet n'est pas enregistré, les masquages tiennent pour l'atelier ouvert — ils survivent aux arrêts et redémarrages de la simulation.
 
 ### Base d'affichage d'une variable
 
-Un masque de bits ou un registre se lit mieux en binaire qu'en décimal. **Clic droit** sur une variable ouvre un menu qui propose quatre bases d'affichage : **Binaire**, **Hexadécimal**, **Décimal** (celle par défaut) et **Caractère**. La base retenue est cochée ✓.
+Un masque de bits ou un registre se lit mieux en binaire qu'en décimal. Le nom et la valeur d'une variable sont **cliquables** (le curseur passe en main) : un **clic** ouvre un menu qui propose quatre bases d'affichage : **Binaire**, **Hexadécimal**, **Décimal** (celle par défaut) et **Caractère**. La base retenue est cochée ✓. Le clic droit ouvre le même menu.
 
-La valeur porte alors son indice de base, et ses chiffres sont groupés pour être lisibles :
+La valeur porte alors le **préfixe** de sa base — le même qu'en C ou en Python, donc directement retapable dans le programme — et ses chiffres sont groupés pour être lisibles :
 
 | Base | `160` affiché | Groupement |
 | --- | --- | --- |
-| Binaire | `1010 0000₂` | 4 bits |
-| Hexadécimal | `A0₁₆` | 4 chiffres |
-| Décimal | `160₁₀` | 3 chiffres |
+| Binaire | `0b1010 0000` | 4 bits |
+| Hexadécimal | `0xA0` | 4 chiffres |
+| Décimal | `160` | 3 chiffres |
 | Caractère | `' '` | — |
 
 En **Caractère**, les codes de contrôle sortent échappés (`'\n'`, `'\t'`, `'\0'`…), les autres valeurs hors plage imprimable en `'\x1f'`. Les valeurs qui ne sont pas des entiers (flottants, chaînes, listes, objets) sont laissées **telles quelles** quelle que soit la base choisie. Dans tous les cas, la bulle de la valeur rappelle l'écriture brute.
 
-Le choix vaut pour **cette variable** et tient tant que l'atelier reste ouvert ; il n'est pas enregistré dans le projet.
+Le choix vaut pour **cette variable** et il est mémorisé **dans le projet**, comme les masquages : à la réouverture du `.projix`, chaque variable retrouve sa base.
 
 ## Moniteur série
 

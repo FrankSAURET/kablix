@@ -189,26 +189,26 @@ A program often exposes variables you do not care about (constants, configuratio
 
 - **Hide**: click the **👁** on the left of the variable (tooltip “Click to hide”). The variable leaves the panel.
 - **Show again**: click the **🔍 Variables ▾** title — the drop-down list of the currently hidden variables opens. Clicking one puts it back in the panel; **Show all again** restores every one of them.
-- **Remember**: the floppy-disk button on the right of **Variables** saves the hidden list for **this program**. Those variables start out hidden the next times you open it, until you show them again and save once more. With no code file and no saved project, there is nothing to attach the list to: Kablix says so and saves nothing.
+- **Remember**: nothing more to do. The hidden list is stored **in the project** (`.projix`) and re-applied when you reopen it. It is written the next time the project is **saved**, exactly like the page framing: hiding a variable does not mark the project as modified.
 
-A hidden variable is still **tracked** in the background: when it comes back, its red mark (“changed on the last step”) is accurate, as if it had never left the panel. Without saving, hiding lasts as long as the workshop stays open — it survives stopping and restarting the simulation — and is forgotten when the project is closed.
+A hidden variable is still **tracked** in the background: when it comes back, its red mark (“changed on the last step”) is accurate, as if it had never left the panel. As long as the project is not saved, hiding lasts for the open workshop — it survives stopping and restarting the simulation.
 
 ### Display base of a variable
 
-A bit mask or a register reads better in binary than in decimal. **Right-click** a variable to open a menu offering four display bases: **Binary**, **Hexadecimal**, **Decimal** (the default one) and **Character**. The current base is ticked ✓.
+A bit mask or a register reads better in binary than in decimal. The name and the value of a variable are **clickable** (the cursor turns into a hand): a **click** opens a menu offering four display bases: **Binary**, **Hexadecimal**, **Decimal** (the default one) and **Character**. The current base is ticked ✓. Right-click opens the same menu.
 
-The value then carries its base subscript, and its digits are grouped to stay readable:
+The value then carries its base **prefix** — the very one you write in C or Python, so it can be typed straight back into the program — and its digits are grouped to stay readable:
 
 | Base | `160` shown as | Grouping |
 | --- | --- | --- |
-| Binary | `1010 0000₂` | 4 bits |
-| Hexadecimal | `A0₁₆` | 4 digits |
-| Decimal | `160₁₀` | 3 digits |
+| Binary | `0b1010 0000` | 4 bits |
+| Hexadecimal | `0xA0` | 4 digits |
+| Decimal | `160` | 3 digits |
 | Character | `' '` | — |
 
 In **Character**, control codes come out escaped (`'\n'`, `'\t'`, `'\0'`…), other values outside the printable range as `'\x1f'`. Values that are not integers (floats, strings, lists, objects) are left **as they are** whatever base you pick. In every case the value tooltip recalls the raw form.
 
-The choice applies to **that variable** and lasts as long as the workshop stays open; it is not saved in the project.
+The choice applies to **that variable** and is stored **in the project**, just like the hidden list: reopening the `.projix` gives every variable its base back.
 
 ## Serial monitor
 

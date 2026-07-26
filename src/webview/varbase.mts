@@ -5,10 +5,13 @@
 // que le banc `verify:debugvars` vérifie le formatage sur de VRAIES valeurs et
 // non par une relecture de la source.
 //
-// Conventions demandées par Frank : la base est rappelée en INDICE à la fin
-// (₂, ₁₆, ₁₀) et les chiffres sont groupés pour la lisibilité — par 4 en binaire
-// et en hexadécimal, par 3 en décimal. Séparateur insécable : un nombre ne doit
-// jamais se couper en fin de ligne dans un panneau étroit.
+// Conventions demandées par Frank : la base est annoncée par un PRÉFIXE devant
+// les chiffres — `0b` en binaire, `0x` en hexadécimal, rien en décimal (v193) —
+// comme dans le code source, où ces préfixes s'écrivent et se relisent. Les
+// indices de fin (₂, ₁₆, ₁₀) de la v189 sont abandonnés : ils ne se retapent pas
+// dans un programme. Les chiffres restent groupés pour la lisibilité — par 4 en
+// binaire et en hexadécimal, par 3 en décimal. Séparateur insécable : un nombre
+// ne doit jamais se couper en fin de ligne dans un panneau étroit.
 
 /** Base d'affichage d'une variable. `dec` est le défaut. */
 export type VarBase = 'dec' | 'hex' | 'bin' | 'char';
@@ -16,11 +19,11 @@ export type VarBase = 'dec' | 'hex' | 'bin' | 'char';
 /** Espace insécable : le nombre reste d'un seul bloc. */
 const NBSP = '\u00a0';
 
-/** Radix, taille des groupes de chiffres et indice de chaque base numérique. */
-const NUMERIC: Record<'dec' | 'hex' | 'bin', { radix: number; group: number; sub: string }> = {
-  bin: { radix: 2, group: 4, sub: '₂' },
-  hex: { radix: 16, group: 4, sub: '₁₆' },
-  dec: { radix: 10, group: 3, sub: '₁₀' },
+/** Radix, taille des groupes de chiffres et préfixe de chaque base numérique. */
+const NUMERIC: Record<'dec' | 'hex' | 'bin', { radix: number; group: number; prefix: string }> = {
+  bin: { radix: 2, group: 4, prefix: '0b' },
+  hex: { radix: 16, group: 4, prefix: '0x' },
+  dec: { radix: 10, group: 3, prefix: '' },
 };
 
 /** Échappements des caractères de contrôle usuels (mode « caractère »). */
@@ -71,14 +74,14 @@ export function charLiteral(n: bigint): string {
 
 /**
  * Valeur d'une variable telle qu'affichée dans le panneau, selon la base choisie.
- * Le signe est conservé et porté devant les chiffres (`-1010₂`) : on ne connaît
- * pas la largeur du type, donc pas de complément à deux à inventer.
+ * Le signe est conservé et porté devant le préfixe (`-0b1010`, comme en C) : on
+ * ne connaît pas la largeur du type, donc pas de complément à deux à inventer.
  */
 export function formatVarValue(raw: string, base: VarBase): string {
   const n = integerValue(raw);
   if (n === undefined) return raw;
   if (base === 'char') return charLiteral(n);
-  const { radix, group, sub } = NUMERIC[base];
+  const { radix, group, prefix } = NUMERIC[base];
   const digits = (n < 0n ? -n : n).toString(radix).toUpperCase();
-  return `${n < 0n ? '-' : ''}${groupDigits(digits, group)}${sub}`;
+  return `${n < 0n ? '-' : ''}${prefix}${groupDigits(digits, group)}`;
 }

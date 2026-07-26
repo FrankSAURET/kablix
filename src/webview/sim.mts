@@ -174,7 +174,6 @@ const debugLineEl = document.getElementById('debug-line') as HTMLSpanElement;
 const debugVarsEl = document.getElementById('debug-vars') as HTMLTableElement;
 const debugTitleBtn = document.getElementById('debug-title') as HTMLButtonElement;
 const debugHiddenEl = document.getElementById('debug-hidden') as HTMLDivElement;
-const debugSaveHiddenBtn = document.getElementById('debug-save-hidden') as HTMLButtonElement;
 const statusEl = document.getElementById('status') as HTMLSpanElement;
 const serialEl = document.getElementById('serial') as HTMLPreElement;
 const serialInput = document.getElementById('serial-input') as HTMLInputElement;
@@ -1821,13 +1820,13 @@ let runIsPython = false;
 // qui noient les deux ou trois qu'on surveille. Le masquage vaut pour toute la
 // session d'édition, pas seulement pour la pause en cours : on ne veut pas
 // re-masquer à chaque pas. Le nom masqué reste connu même s'il disparaît (sortie
-// de portée) puis revient. La disquette du titre le rend permanent (mémorisé par
-// l'extension pour ce programme).
+// de portée) puis revient. Il est mémorisé AVEC LE PROJET (v2026.7.194) : plus
+// de disquette à cliquer, l'enregistrement du .projix suffit.
 const hiddenVars = new Set<string>();
 /**
- * Base d'affichage choisie au clic droit, par variable (absente = décimal).
- * Utile dès qu'on suit un registre ou un masque de bits : en décimal, `160` ne
- * dit rien, `1010 0000₂` tout de suite plus.
+ * Base d'affichage choisie au clic sur une variable (absente = décimal). Utile
+ * dès qu'on suit un registre ou un masque de bits : en décimal, `160` ne dit
+ * rien, `0b1010 0000` tout de suite plus. Mémorisée avec le projet elle aussi.
  */
 const varBases = new Map<string, VarBase>();
 /** Nom de la variable sélectionnée (clic gauche) : simple repère visuel. */
@@ -1899,25 +1898,33 @@ function renderDebugPause(state: DebugPauseState, redraw = false): void {
       hideVar(v.name);
     });
     eyeCell.appendChild(eye);
-    row.insertCell().textContent = `${v.name} :`;
+    // Nom : sur UNE seule ligne, colonne au plus juste (cf. .debug__namecell) —
+    // le nom le plus long donne la largeur, la valeur prend tout le reste.
+    const nameCell = row.insertCell();
+    nameCell.className = 'debug__namecell';
+    nameCell.textContent = `${v.name} :`;
     const valueCell = row.insertCell();
+    valueCell.className = 'debug__valcell';
     const base = varBases.get(v.name) ?? 'dec';
     valueCell.textContent = formatVarValue(v.value, base);
     // Valeur brute en bulle dès qu'elle diffère de l'affichage (hexa, binaire,
     // caractère) : on ne perd jamais le nombre d'origine.
-    valueCell.title = valueCell.textContent === v.value
-      ? t('Right-click to change the display base')
-      : `${v.value} · ${t('Right-click to change the display base')}`;
+    const hint = t('Click to change the display base');
+    nameCell.title = valueCell.textContent === v.value ? hint : `${v.value} · ${hint}`;
+    valueCell.title = nameCell.title;
     if (changed) valueCell.classList.add('debug__changed');
-    // Clic gauche sur la ligne : sélection (repère visuel pendant le pas à pas).
+    // Clic GAUCHE sur le nom ou la valeur : sélection de la ligne (repère visuel
+    // pendant le pas à pas) ET menu des bases — le clic droit reste accepté, mais
+    // le geste principal est le clic gauche (v2026.7.194), signalé par le curseur
+    // en main. Un clic sur l'œil ne remonte pas jusqu'ici (stopPropagation).
     if (v.name === selectedVar) row.classList.add('debug__row--sel');
-    row.addEventListener('click', () => selectVar(v.name));
-    // Clic droit : choix de la base d'affichage de CETTE variable.
-    row.addEventListener('contextmenu', (ev) => {
+    const openMenu = (ev: MouseEvent) => {
       ev.preventDefault();
       selectVar(v.name);
       openVarBaseMenu(v.name, ev.clientX, ev.clientY);
-    });
+    };
+    row.addEventListener('click', openMenu);
+    row.addEventListener('contextmenu', openMenu);
   }
   if (!redraw) previousVarValues = next;
   // Signale la ligne courante à l'extension (surlignage dans l'éditeur).
@@ -1985,6 +1992,7 @@ function setVarBase(name: string, base: VarBase): void {
   else varBases.set(name, base);
   closeVarMenus();
   refreshDebugVars();
+  postDebugVars();
 }
 
 /** Retire une variable du panneau (clic sur son œil). Elle reste suivie. */
@@ -1993,6 +2001,21 @@ function hideVar(name: string): void {
   if (selectedVar === name) selectedVar = null;
   closeVarMenus();
   refreshDebugVars();
+  postDebugVars();
+}
+
+/**
+ * Pousse les réglages du panneau (masquages + bases) vers l'hôte, qui les grave
+ * dans le manifeste du .projix au prochain enregistrement. Comme la caméra, ces
+ * réglages ne marquent PAS le projet « modifié » : masquer une variable n'est pas
+ * une modification du montage, c'est une façon de le lire.
+ */
+function postDebugVars(): void {
+  vscode.postMessage({
+    type: 'debugVars',
+    hidden: [...hiddenVars],
+    bases: Object.fromEntries(varBases),
+  });
 }
 
 /**
@@ -2023,6 +2046,7 @@ function toggleHiddenVarsList(): void {
         hiddenVars.delete(name);
         closeVarMenus();
         refreshDebugVars();
+        postDebugVars();
       });
       debugHiddenEl.appendChild(btn);
     }
@@ -2033,6 +2057,7 @@ function toggleHiddenVarsList(): void {
       hiddenVars.clear();
       closeVarMenus();
       refreshDebugVars();
+      postDebugVars();
     });
     debugHiddenEl.appendChild(all);
   }
@@ -2042,20 +2067,18 @@ function toggleHiddenVarsList(): void {
 debugTitleBtn.addEventListener('click', toggleHiddenVarsList);
 
 /**
- * Disquette : mémorise la liste des masquées pour les prochaines ouvertures de
- * CE programme (l'extension la range par fichier de code / projet). Sans ce
- * bouton, les masquages ne valaient que pour la session d'atelier en cours.
+ * Réglages mémorisés renvoyés par l'extension (ouverture d'un projet, changement
+ * de fichier de code) : variables masquées et base d'affichage de chacune. Rien
+ * n'est reposté vers l'hôte — ce sont ses propres données.
  */
-debugSaveHiddenBtn.addEventListener('click', () => {
-  vscode.postMessage({ type: 'saveHiddenVars', names: [...hiddenVars] });
-  closeVarMenus();
-  flashStatus(t('Hidden variables remembered'));
-});
-
-/** Masquages mémorisés renvoyés par l'extension (ouverture, changement de code). */
-function applySavedHiddenVars(names: string[]): void {
+function applySavedDebugVars(names: string[], bases: Record<string, string>): void {
   hiddenVars.clear();
   for (const name of names) hiddenVars.add(name);
+  varBases.clear();
+  for (const [name, base] of Object.entries(bases)) {
+    // `dec` est l'état par défaut : aucune entrée à créer pour lui.
+    if (base === 'hex' || base === 'bin' || base === 'char') varBases.set(name, base);
+  }
   closeVarMenus();
   refreshDebugVars();
 }
@@ -2720,10 +2743,13 @@ window.addEventListener('message', (event: MessageEvent) => {
           : t('Code file to run / debug — click to change, double-click to open');
       break;
     }
-    case 'hiddenVars':
-      // Variables masquées mémorisées pour ce programme (envoyées à l'ouverture
-      // et à chaque changement de fichier de code).
-      applySavedHiddenVars(Array.isArray(msg.names) ? (msg.names as string[]) : []);
+    case 'debugVars':
+      // Réglages du panneau de débogage mémorisés dans le .projix (masquages +
+      // base d'affichage), envoyés à l'ouverture et à chaque changement de code.
+      applySavedDebugVars(
+        Array.isArray(msg.hidden) ? (msg.hidden as string[]) : [],
+        (msg.bases as Record<string, string>) ?? {},
+      );
       break;
     case 'projectName': {
       // Nom du projet courant (sans chemin), affiché à côté du bouton d'aide.

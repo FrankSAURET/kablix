@@ -7,6 +7,17 @@ import JSZip from 'jszip';
  * de code nécessaires à l'exécution. Ce module reste indépendant de la webview.
  */
 
+/**
+ * Réglages du panneau de débogage rangés dans le manifeste : variables retirées
+ * du panneau et base d'affichage par variable (`bin`, `hex`, `char` — `dec` est
+ * l'état par défaut et ne laisse jamais d'entrée). Les deux tableaux sont omis
+ * quand ils sont vides : un projet neuf n'emporte aucun réglage.
+ */
+export interface ProjixDebugVars {
+  hidden?: string[];
+  bases?: Record<string, 'hex' | 'bin' | 'char'>;
+}
+
 /** Manifeste écrit dans `kablix.json` à la racine de l'archive. */
 export interface ProjixManifest {
   format: 'projix';
@@ -20,6 +31,10 @@ export interface ProjixManifest {
    *  résolution quand la référence relative ne se retrouve pas (autre workspace
    *  ouvert, .projix enregistré loin du code…). Ignoré sur un autre poste. */
   codeFileAbs?: string;
+  /** Panneau de débogage : variables masquées (👁) et base d'affichage choisie au
+   *  clic droit, mémorisées AVEC LE PROJET (v2026.7.194) et non plus dans l'état
+   *  global de l'extension — elles décrivent la façon de lire CE montage. */
+  debugVars?: ProjixDebugVars;
   /** Présent UNIQUEMENT dans les backups hot-exit : reflète si le projet avait
    *  des modifications non enregistrées au moment de la fermeture. À la
    *  restauration, on remet le point ● « non enregistré » ssi ce drapeau est vrai.

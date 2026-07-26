@@ -163,8 +163,9 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
           <!-- Titre cliquable : ouvre la liste des variables masquées (œil de
                chaque ligne du tableau) pour les réafficher. -->
           <button id="debug-title" class="debug__title" title="${l10n.t('Show the hidden variables')}">🔍 ${l10n.t('Variables')} ▾</button>
-          <!-- Disquette : mémorise les masquages pour les prochaines ouvertures. -->
-          <button id="debug-save-hidden" class="debug__save" title="${l10n.t('Remember the hidden variables')}"><img src="${saveIconUri}" alt="${l10n.t('Remember the hidden variables')}" /></button>
+          <!-- Plus de disquette depuis la v2026.7.194 : masquages et bases
+               d'affichage sont mémorisés AVEC LE PROJET (manifeste du .projix),
+               écrits au prochain enregistrement. -->
         </div>
         <span id="debug-line" class="debug__line"></span>
       </div>

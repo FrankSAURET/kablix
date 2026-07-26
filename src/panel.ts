@@ -15,6 +15,7 @@ import {
   unpackProject,
   PROJIX_FORMAT_VERSION,
   type ProjixManifest,
+  type ProjixDebugVars,
 } from './projix';
 import { resolveMicropythonFirmware, FirmwareCancelled } from './firmware';
 import { PartHelpPanel } from './partHelp';
@@ -49,7 +50,8 @@ const UI_STATE_KEY = 'kablix.uiState';
 const LAST_COLUMN_KEY = 'kablix.lastColumn';
 /** Chemin du dernier .projix ouvert/enregistré (rouvert au démarrage). */
 const LAST_PROJECT_KEY = 'kablix.lastProject';
-/** Variables du panneau de débogage masquées durablement, par programme. */
+/** ≤ v2026.7.193 : masquages rangés dans l'état global, par programme. Lu en
+ *  REPLI uniquement (migration) — les réglages vivent désormais dans le .projix. */
 const HIDDEN_VARS_KEY = 'kablix.hiddenVars';
 
 /**
@@ -607,41 +609,59 @@ export class SimulatorPanel {
     this.missingCodeFileRef = undefined; // fichier (re)choisi ou oublié : plus de référence en échec
     this.post({ type: 'codeFile', name: uri ? uri.fsPath.split(/[\\/]/).pop() : null });
     this.postProjectName();
-    this.postHiddenVars(); // masquages mémorisés du NOUVEAU programme
+    this.postDebugVars(); // réglages de débogage (repli hérité inclus)
   }
 
-  // --- Variables masquées du panneau de débogage (bouton disquette) ------------
+  // --- Réglages du panneau de débogage : masquages 👁 + base d'affichage -------
+  // Ils appartiennent au PROJET (v2026.7.194) : la webview les pousse à chaque
+  // changement, ils sont gravés dans le manifeste du .projix au prochain
+  // enregistrement (comme la caméra), et relus à l'ouverture. Aucun point ● et
+  // aucun edit annulable : masquer une variable n'est pas une modification du
+  // montage, c'est une façon de le lire.
+
+  /** Réglages de débogage du projet courant, tels que reçus de la webview. */
+  private debugVars: ProjixDebugVars = {};
+
+  /** Vrai si aucun réglage n'est posé (rien à écrire dans le manifeste). */
+  private static emptyDebugVars(d: ProjixDebugVars): boolean {
+    return !d.hidden?.length && Object.keys(d.bases ?? {}).length === 0;
+  }
 
   /**
-   * Clé de rangement des masquages : le fichier de CODE (les variables lui
-   * appartiennent), à défaut le .projix. Sans l'un ni l'autre, rien n'est
-   * mémorisé — les masquages restent alors valables pour la session seulement.
+   * Réglages à envoyer à la webview : ceux du projet, ou à défaut les masquages
+   * hérités de l'état global (≤ v193, rangés par fichier de code puis .projix) —
+   * sans quoi une mise à jour ferait réapparaître des variables masquées de
+   * longue date. Le repli est lu, jamais réécrit.
    */
-  private hiddenVarsKey(): string | undefined {
-    return this.codeFileUri?.fsPath ?? this.projectUri?.fsPath;
-  }
-
-  /** Envoie à la webview les masquages mémorisés du programme courant. */
-  private postHiddenVars(): void {
-    const key = this.hiddenVarsKey();
+  private effectiveDebugVars(): ProjixDebugVars {
+    if (!SimulatorPanel.emptyDebugVars(this.debugVars)) return this.debugVars;
     const all = this.context.globalState.get<Record<string, string[]>>(HIDDEN_VARS_KEY, {});
-    const names = key ? (all[key] ?? []) : [];
-    this.post({ type: 'hiddenVars', names });
+    const legacy =
+      (this.codeFileUri ? all[this.codeFileUri.fsPath] : undefined) ??
+      (this.projectUri ? all[this.projectUri.fsPath] : undefined);
+    return legacy?.length ? { hidden: legacy } : this.debugVars;
   }
 
-  /** Range (ou efface) la liste des masquées pour le programme courant. */
-  private async saveHiddenVars(names: string[]): Promise<void> {
-    const key = this.hiddenVarsKey();
-    if (!key) {
-      void vscode.window.showInformationMessage(
-        l10n.t('Choose a code file or save the project to remember the hidden variables.'),
-      );
-      return;
+  /** Envoie à la webview les réglages de débogage du projet courant. */
+  private postDebugVars(): void {
+    const { hidden, bases } = this.effectiveDebugVars();
+    this.post({ type: 'debugVars', hidden: hidden ?? [], bases: bases ?? {} });
+  }
+
+  /** Réglages reçus de la webview (masquage, réaffichage, changement de base). */
+  private setDebugVars(hidden: unknown, bases: unknown): void {
+    const names = Array.isArray(hidden) ? hidden.map(String) : [];
+    const map: Record<string, 'hex' | 'bin' | 'char'> = {};
+    if (bases && typeof bases === 'object') {
+      for (const [name, base] of Object.entries(bases as Record<string, unknown>)) {
+        // `dec` est l'état par défaut : il ne laisse jamais d'entrée.
+        if (base === 'hex' || base === 'bin' || base === 'char') map[name] = base;
+      }
     }
-    const all = { ...this.context.globalState.get<Record<string, string[]>>(HIDDEN_VARS_KEY, {}) };
-    if (names.length > 0) all[key] = names;
-    else delete all[key]; // plus rien de masqué : on ne laisse pas d'entrée vide
-    await this.context.globalState.update(HIDDEN_VARS_KEY, all);
+    this.debugVars = {
+      ...(names.length ? { hidden: names } : {}),
+      ...(Object.keys(map).length ? { bases: map } : {}),
+    };
   }
 
   /** Nom du projet (sans chemin) : .projix ouvert/enregistré, sinon fichier de code. */
@@ -926,7 +946,9 @@ export class SimulatorPanel {
     url?: string;
     dirty?: boolean;
     command?: string;
-    names?: unknown[];
+    /** Réglages du panneau de débogage (message `debugVars`). */
+    hidden?: unknown;
+    bases?: unknown;
   }): void {
     // Toute interaction de la webview marque cette session comme « active » :
     // les commandes globales (Enregistrer, Wokwi…) la ciblent.
@@ -961,7 +983,7 @@ export class SimulatorPanel {
             name: this.missingCodeFileRef.split(/[\\/]/).pop(),
             missing: true,
           });
-          this.postHiddenVars(); // le chip est en alerte, les masquages restent utiles
+          this.postDebugVars(); // le chip est en alerte, les réglages restent utiles
         } else {
           this.setCodeFile(this.codeFileUri);
         }
@@ -981,8 +1003,10 @@ export class SimulatorPanel {
       case 'saveUiState':
         void this.context.globalState.update(UI_STATE_KEY, msg.state ?? {});
         break;
-      case 'saveHiddenVars':
-        void this.saveHiddenVars(Array.isArray(msg.names) ? msg.names.map(String) : []);
+      case 'debugVars':
+        // Masquage / réaffichage / base d'affichage : réglages du projet, écrits
+        // dans le manifeste au prochain enregistrement (pas de point ●).
+        this.setDebugVars(msg.hidden, msg.bases);
         break;
       case 'board':
         if (msg.board) this.currentBoard = msg.board;
@@ -1267,6 +1291,12 @@ export class SimulatorPanel {
       codeFile: this.codeFileRef(),
       codeFileAbs: this.codeFileUri?.fsPath,
     };
+    // Réglages du panneau de débogage (masquages 👁 + bases d'affichage) : gravés
+    // avec le projet, omis tant que rien n'est réglé. `effectiveDebugVars` fait
+    // suivre les masquages hérités de l'état global (≤ v193) : le premier
+    // enregistrement les fait passer dans le .projix.
+    const debugVars = this.effectiveDebugVars();
+    if (!SimulatorPanel.emptyDebugVars(debugVars)) manifest.debugVars = debugVars;
     // Backup hot-exit : grave l'état ● du moment (consommé ici). Les .projix
     // enregistrés normalement n'ont jamais ce champ (toujours « propre »).
     if (this.backupDirtyFlag !== undefined) {
@@ -1437,6 +1467,11 @@ export class SimulatorPanel {
       await this.context.globalState.update(CUSTOM_PARTS_KEY, customParts);
     }
     this.currentBoard = project.manifest.board ?? this.currentBoard;
+    // Réglages du panneau de débogage du projet (masquages + bases). Envoyés
+    // AVANT restoreCodeFile : celui-ci repostera le repli hérité si le projet
+    // n'en porte aucun.
+    this.setDebugVars(project.manifest.debugVars?.hidden, project.manifest.debugVars?.bases);
+    this.postDebugVars();
     this.post({
       type: 'loadProject',
       diagram: project.diagram,

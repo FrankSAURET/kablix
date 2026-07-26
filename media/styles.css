@@ -2169,8 +2169,21 @@ textarea {
   border-bottom: 1px solid var(--vscode-widget-border, rgba(255, 255, 255, 0.08));
 }
 
-.debug__vars td:first-child {
+/* Colonne du NOM : au plus juste (le nom le plus long donne la largeur) et sur
+   UNE seule ligne — `width: 1%` avec `table-layout: auto` réduit la colonne à son
+   contenu, la valeur récupère tout le reste. Curseur en main : un clic ouvre le
+   menu des bases d'affichage. */
+.debug__vars td.debug__namecell {
+  width: 1%;
+  white-space: nowrap;
   color: var(--vscode-charts-blue, #61afef);
+  cursor: pointer;
+}
+
+/* Colonne de la VALEUR : collée à gauche, juste après le nom. */
+.debug__vars td.debug__valcell {
+  text-align: left;
+  cursor: pointer;
 }
 
 /* Valeur ayant changé depuis le démarrage : en rouge pur (255,0,0). */
@@ -2187,33 +2200,13 @@ textarea {
   color: inherit;
 }
 
-/* Titre + disquette de mémorisation, groupés à gauche de la ligne d'en-tête. */
+/* Titre du panneau, à gauche de la ligne d'en-tête. (La disquette de
+   mémorisation a disparu en v2026.7.194 : masquages et bases sont mémorisés avec
+   le projet.) */
 .debug__titlebar {
   display: flex;
   align-items: center;
   gap: 0.35rem;
-}
-
-/* Disquette « mémoriser les variables masquées » (à droite de « Variables »). */
-.debug__save {
-  display: flex;
-  align-items: center;
-  padding: 0.1rem;
-  background: none;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  opacity: 0.75;
-}
-
-.debug__save img {
-  width: 14px;
-  height: 14px;
-}
-
-.debug__save:hover {
-  background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.1));
-  opacity: 1;
 }
 
 /* Œil de masquage, à gauche de chaque variable : colonne au plus juste. */
@@ -2317,6 +2310,12 @@ textarea {
 /* Valeurs : chiffres alignés d'une pause à l'autre (binaire et hexa surtout). */
 .debug__vars td:last-child {
   font-variant-numeric: tabular-nums;
+}
+
+/* Survol d'une ligne de variable : elle est cliquable (menu des bases). */
+.debug__vars tr:hover td.debug__namecell,
+.debug__vars tr:hover td.debug__valcell {
+  background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.08));
 }
 
 /* Ligne sélectionnée dans le tableau des variables (clic gauche). */
