@@ -449,37 +449,170 @@ export class Ili9341Device implements SpiDevice {
   }
 }
 
+// --- Carte microSD : géométrie de l'image FAT16 préformatée --------------------
+// Une carte VIERGE n'a pas de système de fichiers : `SD.begin()` réussit (la carte
+// répond) mais `SD.open()` échoue toujours, ce qui rend le composant inutilisable.
+// La carte simulée est donc livrée FORMATÉE, comme une vraie carte du commerce.
+// La bibliothèque SD d'Arduino (SdFat) refuse le FAT12 : il faut au moins 4085
+// clusters. Avec un cluster d'un seul secteur, 4200 clusters suffisent (≈ 2 Mo).
+const SD_PART_START = 1; // 1er secteur du volume (0 = MBR ; SdFat exige ≠ 0)
+const SD_RESERVED = 1; // secteurs réservés (le secteur de démarrage)
+const SD_FAT_COUNT = 2;
+const SD_ROOT_ENTRIES = 512; // → 32 secteurs de répertoire racine
+const SD_CLUSTERS = 4200; // > 4085 : FAT16 et non FAT12
+const SD_SECTORS_PER_FAT = Math.ceil(((SD_CLUSTERS + 2) * 2) / 512);
+const SD_ROOT_SECTORS = (SD_ROOT_ENTRIES * 32) / 512;
+const SD_DATA_START = SD_RESERVED + SD_FAT_COUNT * SD_SECTORS_PER_FAT + SD_ROOT_SECTORS;
+const SD_VOLUME_SECTORS = SD_DATA_START + SD_CLUSTERS;
+const SD_TOTAL_SECTORS = SD_PART_START + SD_VOLUME_SECTORS;
+
 /**
- * Carte microSD en mode SPI : répondeur de PROTOCOLE (pas de système de fichiers).
+ * Carte microSD en mode SPI : répondeur de protocole + stockage de blocs.
+ *
  * Gère l'initialisation (CMD0→idle, CMD8, CMD55/ACMD41→prêt, CMD58) et la
- * lecture/écriture de blocs de 512 o vers un stockage RAM (64 Ko). Permet à une
- * bibliothèque SD de détecter et d'initialiser la carte ; aucun FAT n'est
- * préchargé (l'ouverture de fichiers d'une carte vierge échoue, comme attendu).
+ * lecture/écriture de blocs de 512 o. La carte s'annonce **SDHC** (bit CCS de
+ * l'OCR) : l'argument des commandes de bloc est donc un NUMÉRO de bloc, ce que
+ * suppose déjà le code de lecture/écriture.
+ *
+ * Le stockage est **paresseux** (un tableau par bloc réellement écrit) : une carte
+ * de 2 Mo ne coûte que les blocs utilisés. Les blocs du formatage FAT16 sont
+ * générés au premier accès.
  */
 export class SdCardSpiDevice implements SpiDevice {
   csPin?: string;
-  private store = new Uint8Array(512 * 128); // 64 Ko de blocs
+  private blocks = new Map<number, Uint8Array>();
   private cmd: number[] = [];
   private resp: number[] = [];
   private ready = false;
-  // Réception d'un bloc d'écriture : -1 = pas en écriture, sinon octets restants.
-  private writeAddr = -1;
+  // Réception d'un bloc d'écriture : -1 = pas en écriture, sinon n° de bloc visé.
+  private writeBlock = -1;
   private writeBuf: number[] = [];
 
+  constructor() {
+    this.format();
+  }
+
+  /** Nombre de blocs de 512 o de la carte simulée. */
+  get blockCount(): number {
+    return SD_TOTAL_SECTORS;
+  }
+
+  /** Lecture d'un bloc (jamais `undefined` : un bloc jamais écrit vaut zéro). */
+  readBlock(index: number): Uint8Array {
+    return this.blocks.get(index) ?? new Uint8Array(512);
+  }
+
+  /** Bloc modifiable, créé à la volée. */
+  private blockFor(index: number): Uint8Array {
+    let b = this.blocks.get(index);
+    if (!b) {
+      b = new Uint8Array(512);
+      this.blocks.set(index, b);
+    }
+    return b;
+  }
+
+  /**
+   * Écrit le MBR, le secteur de démarrage FAT16 et les deux tables d'allocation :
+   * la carte est vue formatée par la bibliothèque SD, `open()` et `write()`
+   * fonctionnent. Le reste (racine, données) part à zéro, comme après un formatage.
+   */
+  private format(): void {
+    const le16 = (b: Uint8Array, off: number, v: number): void => {
+      b[off] = v & 0xff;
+      b[off + 1] = (v >> 8) & 0xff;
+    };
+    const le32 = (b: Uint8Array, off: number, v: number): void => {
+      le16(b, off, v & 0xffff);
+      le16(b, off + 2, (v >>> 16) & 0xffff);
+    };
+    const ascii = (b: Uint8Array, off: number, s: string, len: number): void => {
+      for (let i = 0; i < len; i++) b[off + i] = i < s.length ? s.charCodeAt(i) : 0x20;
+    };
+
+    // MBR : une seule partition FAT16, amorçable non marquée.
+    const mbr = this.blockFor(0);
+    const p = 446;
+    mbr[p] = 0x00; // pas de drapeau d'amorçage (SdFat exige boot & 0x7F == 0)
+    mbr[p + 1] = 0x01; // CHS de début, valeurs sans importance ici
+    mbr[p + 2] = 0x01;
+    mbr[p + 3] = 0x00;
+    mbr[p + 4] = 0x06; // type 0x06 : FAT16
+    mbr[p + 5] = 0xfe;
+    mbr[p + 6] = 0xff;
+    mbr[p + 7] = 0xff;
+    le32(mbr, p + 8, SD_PART_START);
+    le32(mbr, p + 12, SD_VOLUME_SECTORS);
+    mbr[510] = 0x55;
+    mbr[511] = 0xaa;
+
+    // Secteur de démarrage (BIOS Parameter Block) du volume FAT16.
+    const bs = this.blockFor(SD_PART_START);
+    bs[0] = 0xeb;
+    bs[1] = 0x3c;
+    bs[2] = 0x90;
+    ascii(bs, 3, 'MSDOS5.0', 8);
+    le16(bs, 11, 512); // octets par secteur
+    bs[13] = 1; // secteurs par cluster
+    le16(bs, 14, SD_RESERVED);
+    bs[16] = SD_FAT_COUNT;
+    le16(bs, 17, SD_ROOT_ENTRIES);
+    le16(bs, 19, SD_VOLUME_SECTORS); // tient sur 16 bits (≈ 4 300)
+    bs[21] = 0xf8; // disque fixe
+    le16(bs, 22, SD_SECTORS_PER_FAT);
+    le16(bs, 24, 63); // secteurs par piste (hérité, ignoré)
+    le16(bs, 26, 255); // têtes (hérité, ignoré)
+    le32(bs, 28, SD_PART_START); // secteurs cachés
+    le32(bs, 32, 0); // total 32 bits inutilisé : le champ 16 bits suffit
+    bs[36] = 0x80;
+    bs[38] = 0x29; // signature de bloc étendu
+    le32(bs, 39, 0x4b41424c); // numéro de série
+    ascii(bs, 43, 'KABLIX', 11);
+    ascii(bs, 54, 'FAT16', 8);
+    bs[510] = 0x55;
+    bs[511] = 0xaa;
+
+    // Premier secteur de chaque table : entrées 0 et 1 réservées.
+    for (let f = 0; f < SD_FAT_COUNT; f++) {
+      const fat = this.blockFor(SD_PART_START + SD_RESERVED + f * SD_SECTORS_PER_FAT);
+      le16(fat, 0, 0xfff8);
+      le16(fat, 2, 0xffff);
+    }
+  }
+
+  /** Réinitialise l'automate de trame quand la carte est désélectionnée. */
+  onSelect(selected: boolean): void {
+    if (selected) return;
+    this.cmd = [];
+    this.resp = [];
+    this.writeBlock = -1;
+    this.writeBuf = [];
+  }
+
   transfer(mosi: number): number {
+    // L'octet renvoyé est celui préparé AVANT ce transfert. Une vraie carte a
+    // toujours au moins un octet de latence (Ncr) entre le dernier octet d'une
+    // commande et son premier octet de réponse — et la bibliothèque ne lit
+    // qu'APRÈS avoir envoyé les six octets. En répondant dans le même octet, la
+    // carte plaçait son R1 là où personne ne le lisait : la bibliothèque ne
+    // recevait plus que des 0xFF, `SD.begin()` expirait, et rien ne marchait.
+    const out = this.resp.length ? this.resp.shift()! : 0xff;
     // Écriture d'un bloc en cours : on avale 0xFE + 512 o + 2 CRC.
-    if (this.writeAddr >= 0) {
+    if (this.writeBlock >= 0) {
       this.feedWrite(mosi);
-      return this.resp.length ? this.resp.shift()! : 0xff;
+      return out;
     }
     // Collecte d'une commande : démarre sur un octet à bits 7..6 = 01.
     if (this.cmd.length === 0 && (mosi & 0xc0) === 0x40) this.cmd.push(mosi);
     else if (this.cmd.length > 0) this.cmd.push(mosi);
     if (this.cmd.length === 6) {
-      this.handleCommand(this.cmd[0] & 0x3f, (this.cmd[1] << 24) | (this.cmd[2] << 16) | (this.cmd[3] << 8) | this.cmd[4]);
+      this.handleCommand(
+        this.cmd[0] & 0x3f,
+        ((this.cmd[1] << 24) | (this.cmd[2] << 16) | (this.cmd[3] << 8) | this.cmd[4]) >>> 0
+      );
       this.cmd = [];
     }
-    return this.resp.length ? this.resp.shift()! : 0xff;
+    return out;
   }
 
   private r1(): number {
@@ -501,20 +634,36 @@ export class SdCardSpiDevice implements SpiDevice {
         this.ready = true;
         this.resp.push(0x00);
         break;
-      case 58: // READ_OCR
-        this.resp.push(this.r1(), 0x80, 0xff, 0x80, 0x00);
+      case 58: {
+        // READ_OCR. Bits 31 (alimentée) ET 30 (CCS) à 1 : carte SDHC, donc
+        // l'argument des CMD17/CMD24 est un NUMÉRO DE BLOC. Avec 0x80, SdFat
+        // aurait pris une carte à adressage par octet et multiplié l'adresse par
+        // 512 de son côté — la carte lisait alors 512 blocs plus loin.
+        this.resp.push(this.r1(), 0xc0, 0xff, 0x80, 0x00);
         break;
+      }
+      case 9: {
+        // SEND_CSD : CSD v2 (SDHC), capacité en unités de 512 Ko.
+        const size = Math.max(0, Math.ceil(SD_TOTAL_SECTORS / 1024) - 1);
+        const csd = [
+          0x40, 0x0e, 0x00, 0x32, 0x5b, 0x59, 0x00, 0x00,
+          (size >> 16) & 0x3f, (size >> 8) & 0xff, size & 0xff, 0x7f,
+          0x80, 0x0a, 0x40, 0x01,
+        ];
+        this.resp.push(0x00, 0xfe, ...csd, 0xff, 0xff);
+        break;
+      }
       case 17: {
         // READ_SINGLE_BLOCK : R1=0, jeton 0xFE, 512 o, 2 CRC.
         this.resp.push(0x00, 0xfe);
-        const base = (arg * 512) % this.store.length;
-        for (let i = 0; i < 512; i++) this.resp.push(this.store[base + i]);
+        const b = this.readBlock(arg);
+        for (let i = 0; i < 512; i++) this.resp.push(b[i]);
         this.resp.push(0xff, 0xff);
         break;
       }
       case 24: // WRITE_BLOCK : R1=0 puis on attend le bloc
         this.resp.push(0x00);
-        this.writeAddr = (arg * 512) % this.store.length;
+        this.writeBlock = arg;
         this.writeBuf = [];
         break;
       default:
@@ -527,9 +676,10 @@ export class SdCardSpiDevice implements SpiDevice {
     this.writeBuf.push(b);
     // 1 (jeton) + 512 (données) + 2 (CRC) = 515 octets.
     if (this.writeBuf.length === 515) {
-      for (let i = 0; i < 512; i++) this.store[this.writeAddr + i] = this.writeBuf[i + 1];
+      const dst = this.blockFor(this.writeBlock);
+      for (let i = 0; i < 512; i++) dst[i] = this.writeBuf[i + 1];
       this.resp.push(0x05, 0x00); // data response « accepté » + fin d'occupation
-      this.writeAddr = -1;
+      this.writeBlock = -1;
       this.writeBuf = [];
     }
   }

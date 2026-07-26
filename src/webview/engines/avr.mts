@@ -322,6 +322,8 @@ export class AvrEngine implements SimEngine {
   private keypads: KeypadConfig[] = [];
   private applyingKeypads = false;
   private keypadPinLevel = new Map<string, boolean>();
+  private spiDevices: SpiDevice[] = [];
+  private spiSelected = new Map<SpiDevice, boolean>();
 
   // Capteurs DHT22 : surveillance du signal de départ (1-wire) par broche.
   private dht22: Dht22Monitor[] = [];
@@ -397,6 +399,7 @@ export class AvrEngine implements SimEngine {
         this.sampleNeopixels();
         this.sampleLcdParallel();
         this.sampleDht22();
+        this.sampleSpiSelect();
         this.applyKeypads();
         this.onUpdate?.();
       });
@@ -600,6 +603,8 @@ export class AvrEngine implements SimEngine {
    * la broche CS est active (bas), ou celui sans CS à défaut.
    */
   setSpiDevices(devices: SpiDevice[]): void {
+    this.spiDevices = devices;
+    this.spiSelected.clear();
     this.spi.onByte = (mosi: number) => {
       const dev = selectSpiDevice(devices, (p) => this.readDigital(p));
       if (!dev) {
@@ -609,6 +614,22 @@ export class AvrEngine implements SimEngine {
       const dc = dev.dcPin ? this.readDigital(dev.dcPin) : false;
       this.spi.completeTransfer(dev.transfer(mosi, dc));
     };
+  }
+
+  /**
+   * Surveille les broches CS pour prévenir les périphériques qui le demandent
+   * (`onSelect`). Une carte SD s'en sert pour repartir d'une trame propre : sans
+   * cela, une commande interrompue en cours de route laissait des octets de
+   * réponse en attente, décalant toutes les suivantes.
+   */
+  private sampleSpiSelect(): void {
+    for (const dev of this.spiDevices) {
+      if (!dev.onSelect || !dev.csPin) continue;
+      const on = !this.readDigital(dev.csPin); // CS actif bas
+      if (this.spiSelected.get(dev) === on) continue;
+      this.spiSelected.set(dev, on);
+      dev.onSelect(on);
+    }
   }
 
   setUltrasonic(sensors: UltrasonicSensor[]): void {

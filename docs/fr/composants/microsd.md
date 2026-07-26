@@ -18,7 +18,11 @@ Lecteur de carte microSD en SPI : stockage de fichiers.
 ## Utilisation
 
 - Bus SPI + CS. Bibliothèque `SD`.
-- Init, lecture/écriture de blocs simulées.
+- La carte simulée est livrée **formatée en FAT16** (environ 2 Mo), comme une carte
+  du commerce : `SD.begin()`, `SD.open()`, l'écriture et la relecture de fichiers
+  fonctionnent sans rien préparer.
+- Le contenu vit en mémoire : il est **perdu à l'arrêt de la simulation**, et la
+  carte repart vide au démarrage suivant.
 
 ---
 

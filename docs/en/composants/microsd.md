@@ -18,7 +18,11 @@ microSD card reader over SPI: file storage.
 ## Usage
 
 - SPI bus + CS. `SD` library.
-- Init and block read/write are simulated.
+- The simulated card ships **FAT16-formatted** (about 2 MB), just like a card off
+  the shelf: `SD.begin()`, `SD.open()`, writing and reading files back all work
+  with no preparation.
+- Its contents live in memory: they are **lost when the simulation stops**, and the
+  card starts out empty on the next run.
 
 ---
 

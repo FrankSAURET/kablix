@@ -164,19 +164,25 @@ console.log('ILI9341 TFT (SPI) :');
 console.log('microSD (SPI) :');
 {
   const sd = new SdCardSpiDevice();
-  const send = (bytes) => { let last = 0xff; for (const b of bytes) last = sd.transfer(b); return last; };
+  const send = (bytes) => { for (const b of bytes) sd.transfer(b); };
   const clock = () => sd.transfer(0xff);
-  check('CMD0 → idle (0x01)', send([0x40, 0, 0, 0, 0, 0x95]) === 0x01);
-  send([0x77, 0, 0, 0, 0, 0x01]); // CMD55
-  check('ACMD41 → prêt (0x00)', send([0x69, 0x40, 0, 0, 0, 0x01]) === 0x00);
+  // La réponse arrive APRÈS le dernier octet de la commande (latence Ncr d'une
+  // vraie carte) : la bibliothèque lit en envoyant des 0xFF jusqu'au premier
+  // octet dont le bit 7 est à zéro.
+  const r1 = () => { let s = 0xff; for (let i = 0; (s & 0x80) !== 0 && i < 16; i++) s = clock(); return s; };
+  send([0x40, 0, 0, 0, 0, 0x95]);
+  check('CMD0 → idle (0x01)', r1() === 0x01);
+  send([0x77, 0, 0, 0, 0, 0x01]); r1(); // CMD55
+  send([0x69, 0x40, 0, 0, 0, 0x01]);
+  check('ACMD41 → prêt (0x00)', r1() === 0x00);
   // Écrit le bloc 0 : R1, jeton 0xFE, 512 o (0..),  2 CRC → réponse 0x05.
-  send([0x58, 0, 0, 0, 0, 0x01]); // CMD24 (write block 0)
+  send([0x58, 0, 0, 0, 0, 0x01]); r1(); // CMD24 (write block 0)
   sd.transfer(0xfe);
   for (let i = 0; i < 512; i++) sd.transfer(i === 0 ? 0xab : 0x00);
   sd.transfer(0xff); const wr = sd.transfer(0xff); // CRC + réponse data
   check('écriture bloc → data response 0x05', wr === 0x05 || sd.transfer(0xff) === 0x05);
   // Relit le bloc 0 : R1, attendre le jeton 0xFE puis lire le 1er octet.
-  send([0x51, 0, 0, 0, 0, 0x01]); // CMD17 (read block 0)
+  send([0x51, 0, 0, 0, 0, 0x01]); r1(); // CMD17 (read block 0)
   let g = 0; while (clock() !== 0xfe && g++ < 8) { /* attend le jeton */ }
   check('relecture bloc → 1er octet 0xAB', clock() === 0xab);
 }

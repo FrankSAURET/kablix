@@ -241,6 +241,8 @@ export class PicoEngine implements SimEngine {
   private keypads: KeypadConfig[] = [];
   private applyingKeypads = false;
   private keypadPinLevel = new Map<string, boolean>();
+  private spiDevices: SpiDevice[] = [];
+  private spiSelected = new Map<SpiDevice, boolean>();
   // Capteurs ultrason (HC-SR04) : impulsion TRIG (mesurée comme un pulseMonitor)
   // -> ECHO programmé en TEMPS SIMULÉ (nanosecondes horloge RP2040), vérifié à
   // chaque avance de `KablixSimulator.execute()` via `sim.onTick`. Un setTimeout
@@ -313,6 +315,7 @@ export class PicoEngine implements SimEngine {
         this.sampleNeopixels();
         this.sampleLcdParallel();
         this.sampleDht22();
+        this.sampleSpiSelect();
         this.applyKeypads();
         this.onUpdate?.();
       });
@@ -579,6 +582,8 @@ export class PicoEngine implements SimEngine {
   }
 
   setSpiDevices(devices: SpiDevice[]): void {
+    this.spiDevices = devices;
+    this.spiSelected.clear();
     for (const ctrl of this.mcu.spi) {
       ctrl.onTransmit = (mosi: number) => {
         const dev = selectSpiDevice(devices, (p) => this.readDigital(p));
@@ -589,6 +594,20 @@ export class PicoEngine implements SimEngine {
         const dc = dev.dcPin ? this.readDigital(dev.dcPin) : false;
         ctrl.completeTransmit(dev.transfer(mosi, dc));
       };
+    }
+  }
+
+  /**
+   * Surveille les broches CS pour prévenir les périphériques qui le demandent
+   * (`onSelect`) — la carte SD s'en sert pour repartir d'une trame propre.
+   */
+  private sampleSpiSelect(): void {
+    for (const dev of this.spiDevices) {
+      if (!dev.onSelect || !dev.csPin) continue;
+      const on = !this.readDigital(dev.csPin); // CS actif bas
+      if (this.spiSelected.get(dev) === on) continue;
+      this.spiSelected.set(dev, on);
+      dev.onSelect(on);
     }
   }
 
