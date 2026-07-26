@@ -1,6 +1,11 @@
 import * as vscode from 'vscode';
 import { SimulatorPanel } from './panel';
-import { applyDefaultLayout, lockSimulatorGroup } from './layout';
+import {
+  applyDefaultLayout,
+  editorGroupCount,
+  lockSimulatorGroup,
+  settleLayoutAfterCode,
+} from './layout';
 import { unpackProject } from './projix';
 
 const l10n = vscode.l10n;
@@ -156,10 +161,18 @@ export class ProjixEditorProvider implements vscode.CustomEditorProvider<ProjixD
     // Le programme du projet (manifest.codeFile) est montré JUSTE APRÈS la
     // disposition : le groupe du simulateur est alors verrouillé, l'onglet de
     // code part donc dans l'autre colonne, et le focus revient à Kablix.
+    // La disposition est REPOSÉE après l'ouverture du code quand la seconde zone
+    // vient seulement d'apparaître (tous les fichiers de code étaient fermés) :
+    // la grille posée sur une zone vide ne survit pas, VS Code refermant les
+    // groupes vides (voir settleLayoutAfterCode).
     const layout = () => {
       void applyDefaultLayout(this.context)
         .then(() => lockSimulatorGroup())
-        .then(() => session.revealPendingCodeFile());
+        .then(async () => {
+          const groupsBefore = editorGroupCount();
+          await session.revealPendingCodeFile();
+          await settleLayoutAfterCode(this.context, groupsBefore);
+        });
     };
     if (panel.active) {
       setTimeout(layout, 80);

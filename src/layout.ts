@@ -123,6 +123,37 @@ export async function applyDefaultLayout(
   await applyEditorGrid(context);
 }
 
+/** Nombre de zones d'éditeurs (groupes d'onglets) actuellement ouvertes. */
+export function editorGroupCount(): number {
+  return vscode.window.tabGroups.all.length;
+}
+
+/**
+ * Re-pose côté ET largeurs APRÈS l'ouverture du fichier de code, mais SEULEMENT
+ * si la seconde zone vient d'apparaître (`groupsBefore` valait 1).
+ *
+ * Pourquoi c'est nécessaire : quand tous les fichiers de code sont fermés, il ne
+ * reste qu'UNE zone à l'ouverture du .projix. `setEditorLayout` crée bien la
+ * seconde, mais elle est VIDE — et VS Code referme aussitôt les groupes vides
+ * (`workbench.editor.closeEmptyGroups`, activé par défaut). La grille est donc
+ * annulée dans la seconde qui suit ; le fichier de code, ouvert juste après,
+ * recrée un groupe avec les largeurs par défaut (50/50) et du côté que VS Code
+ * choisit. D'où le symptôme signalé par Frank : « le code s'ouvre au bon endroit
+ * mais la taille des panneaux n'est pas refaite ».
+ *
+ * On ne fait rien si les deux zones existaient déjà : la disposition posée plus
+ * tôt (ou ajustée à la main) doit être respectée.
+ */
+export async function settleLayoutAfterCode(
+  context: vscode.ExtensionContext,
+  groupsBefore: number
+): Promise<void> {
+  if (groupsBefore >= 2) return; // la seconde zone n'est pas nouvelle
+  if (editorGroupCount() < 2) return; // toujours une seule zone : rien à répartir
+  await placeKablixSide(context);
+  await applyEditorGrid(context);
+}
+
 /**
  * Verrouille le groupe d'éditeurs du simulateur (celui appelant, supposé actif
  * au moment de la création du panneau). Un groupe verrouillé refuse tout nouvel

@@ -78,6 +78,26 @@ export const commands = {
     }
     if (globalThis.__vs.failing.includes(name)) throw new Error('échec simulé : ' + name);
     if (name === 'vscode.getEditorLayout') return globalThis.__vs.layout;
+    // Pose de la grille : les groupes manquants sont créés VIDES… puis VS Code
+    // les referme aussitôt (workbench.editor.closeEmptyGroups, activé par
+    // défaut). C'est exactement ce qui annulait la disposition quand tous les
+    // fichiers de code étaient fermés.
+    if (name === 'vscode.setEditorLayout') {
+      globalThis.__vs.grid = (arg?.groups ?? []).map((g) => g.size);
+      const g = globalThis.__vs.groups;
+      while (g.length < (arg?.groups ?? []).length) {
+        g.push({ viewColumn: g.length + 1, tabs: [], activeTab: undefined });
+      }
+      if (globalThis.__vs.closeEmptyGroups !== false) {
+        const kept = g.filter((gr) => gr.tabs.length > 0);
+        if (kept.length) {
+          kept.forEach((gr, i) => { gr.viewColumn = i + 1; });
+          globalThis.__vs.groups = kept;
+          if (kept.length < (arg?.groups ?? []).length) globalThis.__vs.grid = undefined;
+        }
+      }
+      return undefined;
+    }
     // Effets simulés : le focus retient la colonne active, et l'échange de
     // groupes PERMUTE réellement les contenus (la colonne suit la position) —
     // sans quoi on ne pourrait pas vérifier où Kablix atterrit.
@@ -431,6 +451,70 @@ ok('accueil : la vue kablix.home reste déclarée (elle porte l’icône de la b
 ok('accueil : l’icône Kablix ouvre toujours le simulateur (onDidChangeVisibility)',
   /createTreeView\('kablix\.home'/.test(readFileSync(join(ROOT, 'src', 'extension.ts'), 'utf8'))
   && /homeView\.onDidChangeVisibility/.test(readFileSync(join(ROOT, 'src', 'extension.ts'), 'utf8')));
+
+// 17. v2026.7.199 — RÉGRESSION signalée par Frank : « tous les fichiers de code
+//     fermés, j'ouvre un .projix → le code s'ouvre au bon endroit mais la taille
+//     des panneaux n'est pas refaite ». Il n'y a alors qu'UNE zone : la seconde,
+//     créée vide par setEditorLayout, est refermée par VS Code (closeEmptyGroups)
+//     et la grille est perdue AVANT que le code n'arrive.
+/** Ouvre un onglet de code : le groupe de Kablix étant verrouillé, il part dans
+ *  une NOUVELLE zone, à droite (ce que fait VS Code). */
+function openCodeTabInNewGroup() {
+  const g = globalThis.__vs.groups;
+  g.push({ viewColumn: g.length + 1, tabs: [{ input: { uri: 'main.py' } }], activeTab: undefined });
+  g[g.length - 1].activeTab = g[g.length - 1].tabs[0];
+}
+
+setWorld({ projixCol: 1, groups: 1 });
+globalThis.__vs.groups[0].tabs = [{ input: { viewType: 'kablix.projix', uri: 'x.projix' } }];
+const ctxSettle = makeContext({ 'kablix.layout.kablixSide': 'right', 'kablix.layout.codeRatio': 0.3 });
+await L.applyDefaultLayout(ctxSettle, true);
+ok('une seule zone : la grille posée sur une zone VIDE ne survit pas (cause de la régression)',
+  globalThis.__vs.groups.length === 1 && globalThis.__vs.grid === undefined,
+  `zones=${globalThis.__vs.groups.length} grille=${JSON.stringify(globalThis.__vs.grid)}`);
+
+// Repli si l'API manque (ancienne version) : le banc doit ÉCHOUER en listant les
+// contrôles, pas casser net sur un TypeError.
+ok('layout.ts : editorGroupCount et settleLayoutAfterCode sont exportés',
+  typeof L.editorGroupCount === 'function' && typeof L.settleLayoutAfterCode === 'function');
+const editorGroupCount = L.editorGroupCount ?? (() => globalThis.__vs.groups.length);
+const settleLayoutAfterCode = L.settleLayoutAfterCode ?? (async () => {});
+
+const groupsBefore = editorGroupCount();
+ok('mesure : une seule zone avant l’ouverture du code', groupsBefore === 1, groupsBefore);
+openCodeTabInNewGroup();
+globalThis.__vs.calls = [];
+await settleLayoutAfterCode(ctxSettle, groupsBefore);
+names = emitted();
+ok('après le code : la grille est REPOSÉE (30 % code / 70 % Kablix)',
+  Math.abs((globalThis.__vs.grid ?? [])[0] - 0.3) < 1e-9
+  && Math.abs((globalThis.__vs.grid ?? [])[1] - 0.7) < 1e-9,
+  JSON.stringify(globalThis.__vs.grid));
+ok('après le code : Kablix ramené du côté mémorisé (droite), le code à gauche',
+  projixColumnNow() === 2, projixColumnNow());
+ok('après le code : largeurs reposées APRÈS l’échange de côté',
+  names.indexOf('vscode.setEditorLayout') > names.indexOf('workbench.action.moveActiveEditorGroupRight'),
+  names.join(' · '));
+
+// 17 bis. Les deux zones existaient déjà : on ne retouche à RIEN (un ajustement
+//     manuel de l'utilisateur doit être respecté).
+setWorld({ projixCol: 2 });
+globalThis.__vs.calls = [];
+await settleLayoutAfterCode(makeContext({ 'kablix.layout.kablixSide': 'left' }), 2);
+ok('deux zones déjà là : aucune commande (la disposition en place est respectée)',
+  emitted().length === 0, emitted().join(' · '));
+
+// 17 ter. Le code n'a finalement pas ouvert de seconde zone (artefact compilé,
+//     fichier disparu) : rien à répartir, aucune commande.
+setWorld({ projixCol: 1, groups: 1 });
+globalThis.__vs.calls = [];
+await settleLayoutAfterCode(makeContext({ 'kablix.layout.kablixSide': 'right' }), 1);
+ok('toujours une seule zone : aucune commande', emitted().length === 0, emitted().join(' · '));
+
+// 17 quater. Le câblage : projix-editor mesure les zones AVANT le reveal du code
+//     et repose la disposition APRÈS.
+ok('projix-editor : zones comptées avant le reveal, disposition reposée après',
+  /const groupsBefore = editorGroupCount\(\);[\s\S]{0,200}?revealPendingCodeFile\(\);[\s\S]{0,200}?settleLayoutAfterCode\(this\.context, groupsBefore\)/.test(editorSrc));
 
 let fail = 0;
 for (const r of checks) {
