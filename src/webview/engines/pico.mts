@@ -240,7 +240,7 @@ export class PicoEngine implements SimEngine {
   // Claviers matriciels : touches enfoncées → colonnes tirées à LOW.
   private keypads: KeypadConfig[] = [];
   private applyingKeypads = false;
-  private keypadColLevel = new Map<string, boolean>();
+  private keypadPinLevel = new Map<string, boolean>();
   // Capteurs ultrason (HC-SR04) : impulsion TRIG (mesurée comme un pulseMonitor)
   // -> ECHO programmé en TEMPS SIMULÉ (nanosecondes horloge RP2040), vérifié à
   // chaque avance de `KablixSimulator.execute()` via `sim.onTick`. Un setTimeout
@@ -348,9 +348,11 @@ export class PicoEngine implements SimEngine {
 
   setKeypads(keypads: KeypadConfig[]): void {
     this.keypads = keypads;
-    this.keypadColLevel.clear();
-    // Colonnes au repos = HAUT (pull-up).
+    this.keypadPinLevel.clear();
+    // Lignes ET colonnes au repos = HAUT (pull-up) : le code peut balayer dans un
+    // sens comme dans l'autre, les deux côtés doivent partir au repos.
     for (const kp of keypads) {
+      for (const row of kp.rows) if (row) this.setInput(row, true);
       for (const col of kp.cols) if (col) this.setInput(col, true);
     }
   }
@@ -363,9 +365,11 @@ export class PicoEngine implements SimEngine {
   }
 
   /**
-   * Recalcule le niveau des colonnes : une colonne est tirée à LOW si une touche
-   * enfoncée la relie à une ligne actuellement pilotée à LOW (sortie basse). Les
-   * lignes en entrée haute impédance sont ignorées (pas de touche fantôme).
+   * Recalcule le niveau des broches du clavier. Une touche enfoncée est un contact
+   * entre sa ligne et sa colonne : le balayage marche dans les DEUX sens (ligne
+   * pilotée BASSE et lecture des colonnes, ou l'inverse comme la bibliothèque
+   * Keypad d'Arduino). On tire donc le côté non piloté vers le côté piloté à LOW.
+   * Les broches en haute impédance sont ignorées (pas de touche fantôme).
    * Garde-fou de ré-entrance (setInput redéclenche l'écouteur de broche).
    */
   private applyKeypads(): void {
@@ -373,21 +377,21 @@ export class PicoEngine implements SimEngine {
     this.applyingKeypads = true;
     try {
       for (const kp of this.keypads) {
-        for (let c = 0; c < kp.cols.length; c++) {
+        const low = new Set<string>(); // broches tirées à LOW par un contact
+        for (const key of kp.pressed) {
+          const [r, c] = key.split(',').map(Number);
+          const row = kp.rows[r];
           const col = kp.cols[c];
-          if (!col) continue;
-          let pulled = false;
-          for (let r = 0; r < kp.rows.length; r++) {
-            const row = kp.rows[r];
-            if (row && kp.pressed.has(`${r},${c}`) && this.pinDrivenLow(row)) {
-              pulled = true;
-              break;
-            }
-          }
-          const level = !pulled;
-          if (this.keypadColLevel.get(col) !== level) {
-            this.keypadColLevel.set(col, level);
-            this.setInput(col, level);
+          if (!row || !col) continue;
+          if (this.pinDrivenLow(row)) low.add(col);
+          if (this.pinDrivenLow(col)) low.add(row);
+        }
+        for (const name of [...kp.rows, ...kp.cols]) {
+          if (!name) continue;
+          const level = !low.has(name);
+          if (this.keypadPinLevel.get(name) !== level) {
+            this.keypadPinLevel.set(name, level);
+            this.setInput(name, level);
           }
         }
       }

@@ -321,7 +321,7 @@ export class AvrEngine implements SimEngine {
   // à chaque changement de port). Garde-fou de ré-entrance + dernier niveau posé.
   private keypads: KeypadConfig[] = [];
   private applyingKeypads = false;
-  private keypadColLevel = new Map<string, boolean>();
+  private keypadPinLevel = new Map<string, boolean>();
 
   // Capteurs DHT22 : surveillance du signal de départ (1-wire) par broche.
   private dht22: Dht22Monitor[] = [];
@@ -632,10 +632,14 @@ export class AvrEngine implements SimEngine {
 
   setKeypads(keypads: KeypadConfig[]): void {
     this.keypads = keypads;
-    this.keypadColLevel.clear();
-    // Colonnes au repos = HAUT (pull-up). Le firmware lit ce niveau tant qu'aucune
-    // touche n'est enfoncée sur une ligne tirée à LOW.
+    this.keypadPinLevel.clear();
+    // Lignes ET colonnes au repos = HAUT (pull-up). Le firmware lit ce niveau tant
+    // qu'aucune touche ne relie la broche à une broche pilotée à LOW. Ne forcer que
+    // les colonnes laissait les lignes à leur niveau externe par défaut (BAS) : la
+    // bibliothèque Keypad, qui lit les LIGNES, voyait alors les 16 touches
+    // enfoncées en permanence.
     for (const kp of keypads) {
+      for (const row of kp.rows) if (row) this.setInput(row, true);
       for (const col of kp.cols) if (col) this.setInput(col, true);
     }
   }
@@ -648,33 +652,36 @@ export class AvrEngine implements SimEngine {
   }
 
   /**
-   * Recalcule le niveau des colonnes de chaque clavier : une colonne est tirée à
-   * LOW si une touche enfoncée la relie à une ligne actuellement pilotée à LOW (le
-   * firmware balaie en mettant une ligne en sortie BASSE puis en lisant les
-   * colonnes ; les autres lignes sont en entrée haute impédance, donc ignorées
-   * pour éviter les touches fantômes). Garde-fou de ré-entrance : `setInput`
-   * redéclenche l'écouteur de port.
+   * Recalcule le niveau des broches de chaque clavier. Une touche enfoncée est un
+   * simple contact entre sa ligne et sa colonne : le balayage marche dans les DEUX
+   * sens, et la bibliothèque choisit lequel. Beaucoup de sketches mettent une
+   * LIGNE en sortie BASSE puis lisent les colonnes ; la bibliothèque Keypad
+   * d'Arduino fait l'inverse (lignes en INPUT_PULLUP, impulsion BASSE sur chaque
+   * COLONNE). On tire donc le côté non piloté vers le côté piloté à LOW, quel que
+   * soit le sens. Les broches en haute impédance sont ignorées : sans cela, une
+   * touche enfoncée en ferait apparaître d'autres (touches fantômes). Garde-fou de
+   * ré-entrance : `setInput` redéclenche l'écouteur de port.
    */
   private applyKeypads(): void {
     if (this.keypads.length === 0 || this.applyingKeypads) return;
     this.applyingKeypads = true;
     try {
       for (const kp of this.keypads) {
-        for (let c = 0; c < kp.cols.length; c++) {
+        const low = new Set<string>(); // broches tirées à LOW par un contact
+        for (const key of kp.pressed) {
+          const [r, c] = key.split(',').map(Number);
+          const row = kp.rows[r];
           const col = kp.cols[c];
-          if (!col) continue;
-          let pulled = false;
-          for (let r = 0; r < kp.rows.length; r++) {
-            const row = kp.rows[r];
-            if (row && kp.pressed.has(`${r},${c}`) && this.pinDrivenLow(row)) {
-              pulled = true;
-              break;
-            }
-          }
-          const level = !pulled; // tiré à LOW si une touche relie à une ligne basse
-          if (this.keypadColLevel.get(col) !== level) {
-            this.keypadColLevel.set(col, level);
-            this.setInput(col, level);
+          if (!row || !col) continue;
+          if (this.pinDrivenLow(row)) low.add(col);
+          if (this.pinDrivenLow(col)) low.add(row);
+        }
+        for (const name of [...kp.rows, ...kp.cols]) {
+          if (!name) continue;
+          const level = !low.has(name);
+          if (this.keypadPinLevel.get(name) !== level) {
+            this.keypadPinLevel.set(name, level);
+            this.setInput(name, level);
           }
         }
       }

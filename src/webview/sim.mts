@@ -1213,7 +1213,8 @@ function bindInputs(): void {
 
   // Claviers matriciels : une touche enfoncée relie sa ligne et sa colonne. On
   // suit les touches enfoncées via les événements de l'élément (button-press /
-  // button-release) ; le moteur tire la colonne à LOW quand la ligne l'est.
+  // button-release) ; le moteur tire à LOW le côté non piloté du contact, quel que
+  // soit le sens du balayage (ligne pilotée ou colonne pilotée).
   const keypads: KeypadConfig[] = [];
   for (const b of keypadBindings(editor.diagram)) {
     const el = editor.elementOf(b.partId);
