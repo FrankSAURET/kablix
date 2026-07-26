@@ -10,14 +10,17 @@
 // comme dans le code source, où ces préfixes s'écrivent et se relisent. Les
 // indices de fin (₂, ₁₆, ₁₀) de la v189 sont abandonnés : ils ne se retapent pas
 // dans un programme. Les chiffres restent groupés pour la lisibilité — par 4 en
-// binaire et en hexadécimal, par 3 en décimal. Séparateur insécable : un nombre
-// ne doit jamais se couper en fin de ligne dans un panneau étroit.
+// binaire et en hexadécimal, par 3 en décimal. Séparateur : une ESPACE FINE
+// INSÉCABLE (U+202F, v203) — assez large pour détacher les groupes, assez fine
+// pour que le nombre reste un bloc à l'œil ; et insécable, donc jamais coupé en
+// fin de ligne dans un panneau étroit. La même fine détache le préfixe des
+// chiffres (`0b 1010 0000`) : sans elle, `0b` se lisait comme un groupe de plus.
 
 /** Base d'affichage d'une variable. `dec` est le défaut. */
 export type VarBase = 'dec' | 'hex' | 'bin' | 'char';
 
-/** Espace insécable : le nombre reste d'un seul bloc. */
-const NBSP = '\u00a0';
+/** Espace FINE insécable : le nombre reste d'un seul bloc, sans trou béant. */
+export const THIN = '\u202f';
 
 /** Radix, taille des groupes de chiffres et préfixe de chaque base numérique. */
 const NUMERIC: Record<'dec' | 'hex' | 'bin', { radix: number; group: number; prefix: string }> = {
@@ -54,7 +57,7 @@ export function groupDigits(digits: string, size: number): string {
   for (let end = digits.length; end > 0; end -= size) {
     out.unshift(digits.slice(Math.max(0, end - size), end));
   }
-  return out.join(NBSP);
+  return out.join(THIN);
 }
 
 /**
@@ -74,8 +77,10 @@ export function charLiteral(n: bigint): string {
 
 /**
  * Valeur d'une variable telle qu'affichée dans le panneau, selon la base choisie.
- * Le signe est conservé et porté devant le préfixe (`-0b1010`, comme en C) : on
+ * Le signe est conservé et porté devant le préfixe (`-0b 1010`, comme en C) : on
  * ne connaît pas la largeur du type, donc pas de complément à deux à inventer.
+ * Le préfixe est détaché des chiffres par la même fine que les groupes : recopier
+ * la valeur dans un programme demande de retirer les fines, dans les deux cas.
  */
 export function formatVarValue(raw: string, base: VarBase): string {
   const n = integerValue(raw);
@@ -83,5 +88,6 @@ export function formatVarValue(raw: string, base: VarBase): string {
   if (base === 'char') return charLiteral(n);
   const { radix, group, prefix } = NUMERIC[base];
   const digits = (n < 0n ? -n : n).toString(radix).toUpperCase();
-  return `${n < 0n ? '-' : ''}${prefix}${groupDigits(digits, group)}`;
+  const sep = prefix ? THIN : ''; // décimal : pas de préfixe, donc pas de fine
+  return `${n < 0n ? '-' : ''}${prefix}${sep}${groupDigits(digits, group)}`;
 }

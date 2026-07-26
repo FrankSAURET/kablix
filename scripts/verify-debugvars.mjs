@@ -152,10 +152,21 @@ ok('mémorisation : réglages renvoyés au démarrage et à chaque changement de
   /setCodeFile\(uri: vscode\.Uri \| undefined\): void \{[\s\S]*?postDebugVars\(\);/.test(panel)
   && (panel.match(/this\.postDebugVars\(\)/g) ?? []).length >= 3,
   'postDebugVars absent de setCodeFile, du cas « ready » ou de l’ouverture de projet');
-// Réglage de lecture, pas modification du montage : aucun point ● ni edit annulable.
-ok('mémorisation : masquer ou changer de base ne marque PAS le projet modifié',
-  !/postDebugVars[\s\S]{0,200}?docEdit/.test(sim) && !/case 'debugVars':[\s\S]{0,200}?onDocEdit/.test(panel),
-  'un edit annulable est empilé pour un simple réglage d’affichage');
+// v203 : ces réglages font partie du FICHIER, donc un geste de l'utilisateur le
+// marque « à enregistrer » (point ● natif) — sinon le réglage part en fumée à la
+// fermeture de l'onglet sans que rien ne l'annonce.
+ok('modifié : un geste (masquer, changer de base) marque le projet à enregistrer',
+  /function postDebugVars\(dirty = true\)/.test(sim) && /dirty,/.test(sim)
+  && /case 'debugVars':[\s\S]{0,700}?if \(msg\.dirty === true\) this\.markProjectDirty\(\);/.test(panel),
+  'drapeau dirty absent du message ou non traité par panel.ts');
+ok('modifié : le point ● natif est bien posé (edit empilé dans le CustomEditor)',
+  /private markProjectDirty\(\): void \{[\s\S]{0,300}?this\.panel\.onDocEdit\?\.\(\);/.test(panel),
+  'markProjectDirty n’empile pas d’edit');
+// …mais les réglages RELUS à l'ouverture n'en salissent aucun : ils ne repassent
+// pas par postDebugVars (sinon un projet propre s'ouvrirait déjà « modifié »).
+const applied = sim.match(/function applySavedDebugVars\([\s\S]*?\n\}/);
+ok('modifié : les réglages relus à l’ouverture ne salissent pas le projet',
+  applied && !/postDebugVars/.test(applied[0]), 'applySavedDebugVars reposte les réglages');
 
 // 13. L'aide décrit la fonctionnalité À JOUR, dans les deux langues (l'œil et la
 //     disquette ; plus de clic droit, qui n'existe plus).
@@ -191,15 +202,16 @@ await esbuild.build({
   outfile, bundle: true, platform: 'node', format: 'esm', logLevel: 'silent',
 });
 const V = await import(pathToFileURL(outfile).href);
-const NB = String.fromCharCode(0xa0); // séparateur attendu (insécable)
+const NB = String.fromCharCode(0x202f); // séparateur attendu : espace FINE insécable (v203)
 const cases = [
-  // [valeur brute, base, affichage attendu] — préfixes 0b/0x, rien en décimal (v194)
-  ['160', 'bin', `0b1010${NB}0000`],
-  ['5', 'bin', '0b101'],
-  ['-5', 'bin', '-0b101'],
-  ['255', 'hex', '0xFF'],
-  ['65535', 'hex', '0xFFFF'],
-  ['1048575', 'hex', `0xF${NB}FFFF`],
+  // [valeur brute, base, affichage attendu] — préfixes 0b/0x, rien en décimal (v194),
+  // fine entre le préfixe et les chiffres comme entre les groupes (v203).
+  ['160', 'bin', `0b${NB}1010${NB}0000`],
+  ['5', 'bin', `0b${NB}101`],
+  ['-5', 'bin', `-0b${NB}101`],
+  ['255', 'hex', `0x${NB}FF`],
+  ['65535', 'hex', `0x${NB}FFFF`],
+  ['1048575', 'hex', `0x${NB}F${NB}FFFF`],
   ['1234567', 'dec', `1${NB}234${NB}567`],
   ['42', 'dec', '42'],
   ['65', 'char', "'A'"],
@@ -212,7 +224,7 @@ const cases = [
   ["'abc'", 'dec', "'abc'"],
   ['[1, 2, 3]', 'bin', '[1, 2, 3]'],
   // Grand entier Python : BigInt, aucune perte de précision.
-  ['12345678901234567890', 'hex', `0xAB54${NB}A98C${NB}EB1F${NB}0AD2`],
+  ['12345678901234567890', 'hex', `0x${NB}AB54${NB}A98C${NB}EB1F${NB}0AD2`],
 ];
 const bad = cases.filter(([raw, base, want]) => V.formatVarValue(raw, base) !== want)
   .map(([raw, base, want]) => `${raw}/${base} → ${JSON.stringify(V.formatVarValue(raw, base))} ≠ ${JSON.stringify(want)}`);
@@ -226,6 +238,16 @@ ok('base : plus aucun indice de base (₂ ₁₆ ₁₀) — préfixes seuls', s
 ok('base : séparateur INSÉCABLE (un nombre ne se coupe pas en fin de ligne)',
   V.formatVarValue('1234', 'dec').includes(NB) && !V.formatVarValue('1234', 'dec').includes(' '),
   JSON.stringify(V.formatVarValue('1234', 'dec')));
+// v203 : la fine (U+202F) remplace l'insécable normale (U+00A0), trop large entre
+// deux groupes de chiffres — et elle détache aussi le préfixe de la valeur.
+const wide = ['bin', 'hex', 'dec'].filter((b) => V.formatVarValue('1234567', b).includes(String.fromCharCode(0xa0)));
+ok('base : séparateur FINE (U+202F), plus l’insécable large (U+00A0)', wide.length === 0,
+  'insécable large encore produite en : ' + wide.join(', '));
+const gap = ['bin', 'hex'].filter((b) => !new RegExp(`^0[bx]${NB}`).test(V.formatVarValue('255', b)));
+ok('base : une fine sépare le préfixe 0b / 0x des chiffres', gap.length === 0,
+  'préfixe encore collé en : ' + gap.join(', '));
+ok('base : le décimal n’a ni préfixe ni fine en tête',
+  /^1/.test(V.formatVarValue('1234', 'dec')), JSON.stringify(V.formatVarValue('1234', 'dec')));
 
 // 15. Le panneau utilise bien ce module (et pas un formatage recopié sur place).
 ok('base : sim.mts formate les valeurs via varbase.mjs',
@@ -262,8 +284,10 @@ ok(`i18n : les ${baseKeys.length} libellés de la base sont traduits en françai
 // 18. Aide FR + EN : la base d'affichage est documentée (bases, préfixes, clic).
 //     Les indices de la v189 (₂) ne doivent plus y figurer.
 for (const [lang, heading, needles] of [
-  ['fr', "base d'affichage", ['0b1010', '0xa0', 'binaire', 'hexadécimal', 'caractère', 'projet']],
-  ['en', 'display base', ['0b1010', '0xa0', 'binary', 'hexadecimal', 'character', 'project']],
+  ['fr', "base d'affichage", ['0b 1010', '0x a0', 'binaire', 'hexadécimal', 'caractère', 'projet',
+    'espace fine', 'à enregistrer']],
+  ['en', 'display base', ['0b 1010', '0x a0', 'binary', 'hexadecimal', 'character', 'project',
+    'no-break space', 'to be saved']],
 ]) {
   const doc = guideSection(lang, heading);
   const absent = needles.filter((n) => !doc.includes(n.toLowerCase()));

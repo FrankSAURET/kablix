@@ -1,5 +1,4 @@
 # À faire
-1. Affichage des variables. Mettre une espace fine entre 0b ou 0x et la valeur. Une espace fine aussi comme séparateur de millier, de quartet et aussi pour l'hexadécimal. Des changements dans l'affichage des variables (affichage ou base) doivent mettre le fichier comme à sauvegarder
 1. Regression autoroutage. Des fils qui devraient être droit de pin à pin se trouvent avec 3 coudes. Le meilleurs score est toujours le moins de coude (en respectant les règles) et donc la ligne droite est tje le meilleur — ⏳ **non reproductible** : balayage des 80 `.projix` de `testkablix\` fils remis à neuf (v2026.7.201) → **0 détour injustifié**, chaque détour observé était imposé par une broche étrangère posée sur la ligne. Il me faut le `.projix` + le nom des deux broches concernées.
 1. Arduino :
     1. Si je change de dossier. Il ouvre un nouveau kablix dans un nouveau panneau je veux das le même panneau kablix s'il en  existe un  d'ouvert.
@@ -13,6 +12,18 @@
         1. led-ring semble marcher mais super lent (avec le prg de test 100 ms fon env 3s)
         1. Carte sd ne marche pas pas testé avec pico. Fais un  prg + projix de test
         1. neopixel-uno si je chaine 3 led seule la première s'allume
+
+# v2026.7.203 — variables : espace fine partout, et le réglage marque le projet à enregistrer
+1. ✅ **Séparateur de groupes = espace FINE insécable U+202F** (`src/webview/varbase.mts`), à la place de l'insécable normale U+00A0 : milliers en décimal, quartets en binaire, groupes de 4 en hexadécimal. Toujours insécable — un nombre ne se coupe jamais en fin de ligne dans un panneau étroit.
+2. ✅ **La même fine détache le préfixe des chiffres** : `0b 1010 0000`, `0x AB54 A98C`, `-0b 101`. Avant, `0b` se lisait comme un groupe de plus. Le décimal, sans préfixe, ne gagne aucune fine en tête.
+3. ✅ **Changer de base ou masquer une variable marque le projet « à enregistrer »** (point ● natif de l'onglet) : la webview joint `dirty` au message `debugVars` (`sim.mts`), `panel.ts` appelle un nouveau `markProjectDirty()` — extrait de `markDirtyFromRestore()`, même effet : titre, état de la webview et **edit empilé dans le CustomEditor**. Ces réglages sont écrits dans le manifeste du `.projix` : les perdre en fermant l'onglet sans que rien ne le signale était un piège.
+4. ✅ **Les réglages RELUS à l'ouverture ne salissent rien** : ils passent par `applySavedDebugVars()`, qui ne reposte jamais vers l'hôte — un `.projix` propre s'ouvre propre.
+5. ✅ **Rendu de la fine vérifié en Chrome headless** : U+202F ne produit **aucun** glyphe manquant (0 pixel encré, comme une espace ordinaire ; une lettre en encre 75). En police à **chasse fixe** (Consolas, la police de l'éditeur), elle occupe la même chasse que l'espace — la finesse ne se voit que si la police du panneau est proportionnelle.
+6. ✅ **`verify:debugvars` passe à 46 contrôles** : les 17 formatages attendus réécrits avec la fine, plus « séparateur FINE (U+202F), plus l'insécable large », « une fine sépare le préfixe 0b / 0x des chiffres », « le décimal n'a ni préfixe ni fine en tête », « un geste marque le projet à enregistrer », « le point ● natif est bien posé » et « les réglages relus à l'ouverture ne salissent pas le projet ». Le contrôle inverse de la v194 (« ne marque PAS le projet modifié ») est remplacé.
+7. ✅ **Garde-fou vérifié** : sur le code de la v202, `verify:debugvars` tombe à **8 échecs**.
+8. ✅ **Aide FR + EN** : tableau des bases mis à jour (`0b 1010 0000`, `0x A0`), mention de l'espace fine insécable et du point ● « à enregistrer ».
+9. ✅ typecheck + build + `verify:all` verts.
+10. ⬜ À VALIDER EN F5 : simulation en pause → clic sur une variable → **Binaire** : la valeur s'affiche `0b 1010 0000` et l'onglet prend le point ● · `Ctrl+S` puis réouverture : la base est retrouvée et le projet est propre.
 
 # v2026.7.202 — NeoPixel : le chaînage DOUT → DIN est suivi, boîtier blanc à basse luminosité
 1. ✅ **Cause racine du « ça clignote »** (`neopixelBindings`, `src/webview/diagram/model.mts`) : seul le composant dont **DIN touchait la broche du MCU** était reconnu. Les suivants, alimentés par le **DOUT** du précédent, n'avaient aucun binding — donc restaient éteints — et celui de tête affichait `pixel[0]`, c'est-à-dire une couleur sur trois quand le programme promène un point lumineux sur la chaîne. D'où la LED unique qui clignote (repro `neopixel-pico.projix` : 3 pixels sur GP0).

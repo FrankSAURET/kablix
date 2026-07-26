@@ -121,6 +121,14 @@ export class SimulatorPanel {
   /** Restauration hot-exit depuis un backup : le schéma chargé n'est PAS aligné
    *  sur le disque → remet le point ● « non enregistré » (webview + pile VS Code). */
   public markDirtyFromRestore(): void {
+    this.markProjectDirty();
+  }
+
+  /** Marque le projet « non enregistré » depuis l'hôte : point ● natif (edit
+   *  empilé dans le CustomEditor), titre et état de la webview alignés. Sert aux
+   *  changements qui ne passent pas par le schéma — restauration hot-exit,
+   *  réglages du panneau de débogage (v203). */
+  private markProjectDirty(): void {
     this.projectDirty = true;
     this.updateTitle();
     this.post({ type: 'setDirty', dirty: true });
@@ -1008,8 +1016,12 @@ export class SimulatorPanel {
         break;
       case 'debugVars':
         // Masquage / réaffichage / base d'affichage : réglages du projet, écrits
-        // dans le manifeste au prochain enregistrement (pas de point ●).
+        // dans le manifeste au prochain enregistrement. Un GESTE de l'utilisateur
+        // (`dirty`) marque le fichier « à enregistrer » (v203) — sinon le réglage
+        // serait perdu en fermant l'onglet sans que rien ne le signale. Les
+        // réglages relus à l'ouverture arrivent sans `dirty` : projet propre.
         this.setDebugVars(msg.hidden, msg.bases);
+        if (msg.dirty === true) this.markProjectDirty();
         break;
       case 'board':
         if (msg.board) this.currentBoard = msg.board;

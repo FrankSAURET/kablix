@@ -2026,15 +2026,18 @@ function hideVar(name: string): void {
 
 /**
  * Pousse les réglages du panneau (masquages + bases) vers l'hôte, qui les grave
- * dans le manifeste du .projix au prochain enregistrement. Comme la caméra, ces
- * réglages ne marquent PAS le projet « modifié » : masquer une variable n'est pas
- * une modification du montage, c'est une façon de le lire.
+ * dans le manifeste du .projix au prochain enregistrement. Un GESTE de
+ * l'utilisateur (`dirty`) marque le projet « à enregistrer » (v203) : ces
+ * réglages font partie du fichier, les perdre en fermant l'onglet sans que rien
+ * ne le signale serait un piège. L'application des réglages relus à l'ouverture
+ * ne passe pas par ici — elle ne salit donc jamais un projet propre.
  */
-function postDebugVars(): void {
+function postDebugVars(dirty = true): void {
   vscode.postMessage({
     type: 'debugVars',
     hidden: [...hiddenVars],
     bases: Object.fromEntries(varBases),
+    dirty,
   });
 }
 

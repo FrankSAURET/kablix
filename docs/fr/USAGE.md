@@ -203,14 +203,16 @@ La valeur porte alors le **préfixe** de sa base — le même qu'en C ou en Pyth
 
 | Base | `160` affiché | Groupement |
 | --- | --- | --- |
-| Binaire | `0b1010 0000` | 4 bits |
-| Hexadécimal | `0xA0` | 4 chiffres |
+| Binaire | `0b 1010 0000` | 4 bits |
+| Hexadécimal | `0x A0` | 4 chiffres |
 | Décimal | `160` | 3 chiffres |
 | Caractère | `' '` | — |
 
+Le séparateur des groupes, comme celui qui détache le préfixe, est une **espace fine insécable** : les groupes se distinguent d'un coup d'œil et le nombre ne se coupe jamais en fin de ligne, même dans un panneau étroit.
+
 En **Caractère**, les codes de contrôle sortent échappés (`'\n'`, `'\t'`, `'\0'`…), les autres valeurs hors plage imprimable en `'\x1f'`. Les valeurs qui ne sont pas des entiers (flottants, chaînes, listes, objets) sont laissées **telles quelles** quelle que soit la base choisie. Dans tous les cas, la bulle de la valeur rappelle l'écriture brute.
 
-Le choix vaut pour **cette variable** et il est mémorisé **dans le projet**, comme les masquages : à la réouverture du `.projix`, chaque variable retrouve sa base.
+Le choix vaut pour **cette variable** et il est mémorisé **dans le projet**, comme les masquages : à la réouverture du `.projix`, chaque variable retrouve sa base. Comme ces réglages font partie du fichier, les changer marque le projet **à enregistrer** (point ● de l'onglet) : `Ctrl+S` les grave.
 
 ## Moniteur série
 

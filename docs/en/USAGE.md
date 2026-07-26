@@ -201,14 +201,16 @@ The value then carries its base **prefix** — the very one you write in C or Py
 
 | Base | `160` shown as | Grouping |
 | --- | --- | --- |
-| Binary | `0b1010 0000` | 4 bits |
-| Hexadecimal | `0xA0` | 4 digits |
+| Binary | `0b 1010 0000` | 4 bits |
+| Hexadecimal | `0x A0` | 4 digits |
 | Decimal | `160` | 3 digits |
 | Character | `' '` | — |
 
+The group separator, like the one detaching the prefix, is a **narrow no-break space**: groups stand out at a glance and the number never breaks at the end of a line, even in a narrow panel.
+
 In **Character**, control codes come out escaped (`'\n'`, `'\t'`, `'\0'`…), other values outside the printable range as `'\x1f'`. Values that are not integers (floats, strings, lists, objects) are left **as they are** whatever base you pick. In every case the value tooltip recalls the raw form.
 
-The choice applies to **that variable** and is stored **in the project**, just like the hidden list: reopening the `.projix` gives every variable its base back.
+The choice applies to **that variable** and is stored **in the project**, just like the hidden list: reopening the `.projix` gives every variable its base back. Since those settings belong to the file, changing them marks the project **to be saved** (the ● on the tab): `Ctrl+S` writes them.
 
 ## Serial monitor
 
