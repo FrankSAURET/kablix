@@ -11,15 +11,24 @@
 // La syntaxe couverte est celle RÉELLEMENT employée par les fiches
 // `docs/<lang>/composants/*.md` : titres, paragraphes, images, liens, listes à
 // puces et numérotées, tableaux (avec alignement), citations, blocs de code,
-// séparateurs, gras/italique/code en ligne. Une « image » qui pointe une vidéo
-// (`.webm`) est rendue en `<video>` : les démos des guides sont passées du GIF
-// au WebM en v2026.7.190 pour tenir dans le paquet.
+// séparateurs, gras/italique/code en ligne. Les démos animées des guides sont
+// écrites en `<video src="…">` HTML — pas en `![…](…)` — pour que l'APERÇU
+// Markdown de VS Code les lise aussi ; le `src` est remplacé ici par une
+// `<source>` par voie d'accès (cf. resolveMedia). Une « image » qui pointe un
+// `.webm` sort quand même en `<video>`, la syntaxe restant admise.
 
 export interface MarkdownOptions {
   /** Chemin relatif d'une image → URI affichable par la webview. */
   resolveAsset: (relPath: string) => string;
   /** Chemin relatif d'une autre fiche (`led.md`) → href de navigation. */
   resolveDocLink: (relPath: string) => string;
+  /**
+   * Chemin relatif d'une vidéo → une source PAR VOIE d'accès, la plus sûre
+   * d'abord. Le lecteur essaie les `<source>` dans l'ordre et s'arrête à la
+   * première qui charge : si l'URI de webview reste muette (ce qui est arrivé
+   * en v2026.7.190), le `data:` de repli prend le relais tout seul.
+   */
+  resolveMedia?: (relPath: string) => string[];
 }
 
 /** Échappe le texte destiné au HTML (le Markdown des fiches n'a pas de HTML brut). */
@@ -49,6 +58,13 @@ const VIDEO = /\.(webm|mp4)$/i;
 /** Type MIME déclaré à la `<source>` — le démuxeur ne le devine pas toujours. */
 const videoMime = (target: string): string =>
   /\.mp4$/i.test(target) ? 'video/mp4' : 'video/webm';
+
+/** `<source>` d'une démo : une par voie d'accès, la plus sûre d'abord. */
+function videoSources(target: string, opt: MarkdownOptions): string {
+  const urls = opt.resolveMedia?.(target) ?? [opt.resolveAsset(target)];
+  const mime = videoMime(target);
+  return urls.filter(Boolean).map((u) => `<source src="${u}" type="${mime}" />`).join('');
+}
 
 /**
  * Ancre d'un titre, pour les liens `#section`. Mêmes règles que GitHub — la
@@ -84,15 +100,25 @@ function inline(src: string, opt: MarkdownOptions): string {
 
   // `<img src="…" width="30" />` brut : les guides s'en servent pour caler une
   // icône DANS une phrase (le Markdown ne sait pas dimensionner une image).
-  out = out.replace(/<img\s+([^>]*?)\/?>/gi, (m, attrs: string) => {
+  // `<video src="…">` / `<source src="…">` : les démos animées. Elles sont
+  // écrites en HTML dans les guides — pas en `![…](…)` — pour que l'APERÇU
+  // Markdown de VS Code les lise lui aussi (une image n'affiche pas un WebM).
+  out = out.replace(/<(img|video|source)\s+([^>]*?)\/?>/gi, (m, tag: string, attrs: string) => {
     const srcAttr = attrs.match(/\bsrc\s*=\s*"([^"]*)"/i);
     if (!srcAttr) return m;
-    const rewritten = attrs.replace(
-      /\bsrc\s*=\s*"[^"]*"/i,
-      `src="${opt.resolveAsset(decodeURIComponent(srcAttr[1]))}"`
-    );
+    const target = decodeURIComponent(srcAttr[1]);
+    const t = tag.toLowerCase();
+    // Vidéo : `src` retiré et remplacé par des `<source>` — un `src` présent
+    // ferait ignorer les sources de repli. La balise ne se referme pas seule.
+    if (t === 'video') {
+      const rest = attrs.replace(/\bsrc\s*=\s*"[^"]*"/i, '').replace(/\s+/g, ' ').trim();
+      return keep(`<video ${rest} preload="auto">${videoSources(target, opt)}`);
+    }
+    const rewritten = attrs.replace(/\bsrc\s*=\s*"[^"]*"/i, `src="${opt.resolveAsset(target)}"`);
+    if (t === 'source') return keep(`<source ${rewritten.trim()} type="${videoMime(target)}" />`);
     return keep(`<img ${rewritten.trim()} />`);
   });
+  out = out.replace(/<\/video>/gi, () => keep('</video>'));
 
   out = esc(out);
 
@@ -108,7 +134,7 @@ function inline(src: string, opt: MarkdownOptions): string {
     // quand la réponse n'annonce pas `video/webm` (v2026.7.191).
     if (VIDEO.test(target)) {
       return `<video title="${alt}" autoplay loop muted playsinline controls preload="auto">`
-        + `<source src="${src2}" type="${videoMime(target)}" /></video>`;
+        + `${videoSources(target, opt)}</video>`;
     }
     return `<img src="${src2}" alt="${alt}" />`;
   });
@@ -246,7 +272,9 @@ export function renderMarkdown(src: string, opt: MarkdownOptions): string {
       buf.push(lines[i++].trim());
     }
     const joined = buf.join(' ');
-    if (/^!\[[^\]]*\]\([^)]*\)$/.test(joined)) html.push(`<figure>${inline(joined, opt)}</figure>`);
+    // Une image ou une démo animée seule sur sa ligne : bloc à part entière.
+    const alone = /^!\[[^\]]*\]\([^)]*\)$/.test(joined) || /^<video\b[^>]*>(<source\b[^>]*>)*<\/video>$/i.test(joined);
+    if (alone) html.push(`<figure>${inline(joined, opt)}</figure>`);
     else paragraph(buf);
   }
 

@@ -209,7 +209,9 @@ for (const lang of ['fr', 'en']) {
     for (const m of text.matchAll(/!\[[^\]]*\]\((<[^>]+>|[^)\s]+)\)/g)) {
       guideAssets.add([dirname(p), decodeURIComponent(m[1].replace(/^<|>$/g, '').trim())]);
     }
-    for (const m of text.matchAll(/<img\s+[^>]*?\bsrc\s*=\s*"([^"]*)"/gi)) {
+    // `<img>` (icône dans une phrase) et `<video>` (les démos animées, écrites
+    // en HTML pour rester lisibles dans l'aperçu Markdown de VS Code).
+    for (const m of text.matchAll(/<(?:img|video|source)\s+[^>]*?\bsrc\s*=\s*"([^"]*)"/gi)) {
       guideAssets.add([dirname(p), decodeURIComponent(m[1])]);
     }
   }
@@ -267,18 +269,49 @@ for (const d of DEMOS) {
 ok('démos : 3 WebM VP9 légers et embarqués (animées hors-ligne)', demoIssues.length === 0,
   demoIssues.join(' · '));
 
-// Le rendu maison doit produire une VIDÉO : un <img> n'affiche pas un WebM.
-// Le type MIME est déclaré sur une <source> : sans lui, le lecteur reste inerte
+// Les démos sont écrites en `<video>` HTML dans les guides, PAS en `![…](…)` :
+// une image n'affiche pas un WebM, et l'aperçu Markdown de VS Code — celui dont
+// Frank se sert pour relire ses guides — ne rend que la balise vidéo.
+const demoTags = [];
+for (const lang of ['fr', 'en']) {
+  const t = readFileSync(join(root, 'docs', lang, 'USAGE.md'), 'utf8');
+  for (const d of DEMOS) {
+    const tag = new RegExp(`<video\\s[^>]*src="\\.\\./\\.\\./media/${d}\\.webm"[^>]*>`, 'i').exec(t)?.[0];
+    if (!tag) { demoTags.push(`${lang}/${d} : pas de <video src>`); continue; }
+    for (const a of ['controls', 'autoplay', 'loop', 'muted']) {
+      if (!new RegExp(`\\b${a}\\b`).test(tag)) demoTags.push(`${lang}/${d} : ${a} manquant`);
+    }
+  }
+  if (/!\[[^\]]*\]\([^)]*\.webm\)/i.test(t)) demoTags.push(`${lang} : démo encore écrite en ![…]()`);
+}
+ok('guides : les 3 démos sont des <video> HTML (lisibles dans l’aperçu Markdown)',
+  demoTags.length === 0, demoTags.join(' · '));
+
+// Le rendu maison ne doit ni échapper cette balise ni la laisser sur un `src`
+// unique : le `src` est remplacé par une <source> PAR VOIE d'accès, sinon le
+// repli ne peut pas jouer. Type MIME déclaré : sans lui le lecteur reste inerte
 // quand la réponse n'annonce pas `video/webm` (constaté en v190).
-const demoHtml = renderMarkdown('![Démo](../../media/simuler.webm)', {
+const demoHtml = renderMarkdown('<video src="../../media/simuler.webm" controls autoplay loop muted></video>', {
+  resolveAsset: (r) => 'asset:' + r,
+  resolveDocLink: () => '',
+  resolveMedia: (r) => ['webview:' + r, 'data:video/webm;base64,AAA'],
+});
+ok('rendu : la démo garde sa <video> et reçoit ses deux sources (repli possible)',
+  /<figure><video [^>]*>/.test(demoHtml)
+  && /<video(?![^>]*\bsrc=)[^>]*>/.test(demoHtml)
+  && /<source src="webview:\.\.\/\.\.\/media\/simuler\.webm" type="video\/webm" \/><source src="data:video\/webm;base64,AAA" type="video\/webm" \/><\/video>/.test(demoHtml)
+  && /\bautoplay\b/.test(demoHtml) && /\bloop\b/.test(demoHtml) && /\bmuted\b/.test(demoHtml)
+  && !/&lt;video/.test(demoHtml) && !/<img/.test(demoHtml),
+  demoHtml.slice(0, 200));
+
+// La syntaxe Markdown reste admise (une fiche peut encore l'employer).
+const demoMd = renderMarkdown('![Démo](../../media/simuler.webm)', {
   resolveAsset: (r) => 'asset:' + r,
   resolveDocLink: () => '',
 });
-ok('rendu : une démo .webm sort en <video> muette et en boucle, pas en <img>',
-  /<video[^>]*>\s*<source src="asset:\.\.\/\.\.\/media\/simuler\.webm" type="video\/webm"/.test(demoHtml)
-  && /\bautoplay\b/.test(demoHtml) && /\bloop\b/.test(demoHtml) && /\bmuted\b/.test(demoHtml)
-  && !/<img/.test(demoHtml),
-  demoHtml.slice(0, 160));
+ok('rendu : une image .webm sort quand même en <video>, pas en <img>',
+  /<video[^>]*><source src="asset:\.\.\/\.\.\/media\/simuler\.webm" type="video\/webm"/.test(demoMd)
+  && !/<img/.test(demoMd), demoMd.slice(0, 160));
 
 // Sans `media-src`, `default-src 'none'` bloque la vidéo sans un mot d'erreur.
 // Le guide doit en plus accepter `data:` : c'est ainsi qu'il sert ses démos.
@@ -289,13 +322,15 @@ ok('webviews : media-src autorisé dans la CSP de l’aide (guides et fiches)',
   && /media-src \$\{webview\.cspSource\}/.test(partSrc),
   `guide=${/media-src/.test(guideSrc)} fiches=${/media-src/.test(partSrc)}`);
 
-// Les vidéos du guide sont injectées EN DUR (data:) : derrière l'URI de webview
-// le lecteur restait inactif, le média y arrivant sans type annoncé et sans
-// requêtes de plage (v2026.7.191).
-ok('guide : les démos sont injectées en data:, pas par une URI de webview',
-  /VIDEO_EXT\.test\(rel\)/.test(guideSrc) && /data:\$\{mime\};base64,/.test(guideSrc)
-  && /readFile/.test(guideSrc),
-  'resolveAssets ne passe plus par dataUri pour les vidéos');
+// Deux voies d'accès par démo, la webview d'abord et le `data:` en repli : le
+// lecteur essaie les <source> dans l'ordre, donc une voie muette (v190) ne
+// suffit plus à faire un lecteur inerte (v2026.7.192).
+ok('guide : chaque démo reçoit l’URI de webview PUIS le data: de repli',
+  /resolveMedia/.test(guideSrc)
+  && /asWebviewUri\(uri\)\.toString\(\), await dataUri\(uri\)/.test(guideSrc)
+  && /data:\$\{mime\};base64,/.test(guideSrc)
+  && /<\(\?:video\|source\)/.test(guideSrc),
+  'resolveMedia absent ou ne fournit pas les deux sources');
 
 // Garde-fou du matcher : des règles connues doivent bien s'appliquer.
 ok('vsix : matcher .vscodeignore cohérent (src/ exclu, dist/webview.js ré-inclus)',

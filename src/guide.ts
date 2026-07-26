@@ -14,7 +14,8 @@ import { SHOW_PART_HELP } from './partHelp';
 // Les captures qui manquent localement (restées hors du vsix pour ne pas
 // alourdir le paquet) sont servies depuis le dépôt GitHub, les autres depuis
 // l'extension — donc hors-ligne. Les 3 démos animées sont embarquées en WebM
-// (v2026.7.190) et injectées en `data:` dans la page (v2026.7.191).
+// (v2026.7.190) ; elles reçoivent DEUX sources — URI de webview puis `data:` —
+// pour que le lecteur ne dépende pas d'une seule voie d'accès (v2026.7.192).
 
 /** Commande interne : navigation d'un guide à l'autre (liens entre guides). */
 export const SHOW_GUIDE = 'kablix.showGuide';
@@ -88,10 +89,12 @@ export class GuidePanel {
     const webview = this.panel.webview;
     const base = vscode.Uri.joinPath(this.extensionUri, 'docs', guide.lang);
     const assets = await resolveAssets(webview, this.extensionUri, base, guide.text);
+    const media = await resolveMedia(webview, base, guide.text);
 
     const body = renderMarkdown(guide.text, {
       resolveAsset: (rel) => assets.get(rel) ?? rel,
       resolveDocLink: (rel) => docHref(rel),
+      resolveMedia: (rel) => media.get(rel) ?? [assets.get(rel) ?? rel],
     });
     this.panel.title = guide.title;
     webview.html = pageHtml(webview, guide.lang, guide.title, body);
@@ -159,7 +162,9 @@ async function resolveAssets(
   for (const m of text.matchAll(/!\[[^\]]*\]\((<[^>]+>|[^)\s]+)\)/g)) {
     rels.add(decodeURIComponent(m[1].replace(/^<|>$/g, '').trim()));
   }
-  for (const m of text.matchAll(/<img\s+[^>]*?\bsrc\s*=\s*"([^"]*)"/gi)) {
+  // `<img>` (icônes calées dans une phrase) et `<video>`/`<source>` (les démos
+  // animées, écrites en HTML pour que l'aperçu Markdown de VS Code les lise).
+  for (const m of text.matchAll(/<(?:img|video|source)\s+[^>]*?\bsrc\s*=\s*"([^"]*)"/gi)) {
     rels.add(decodeURIComponent(m[1]));
   }
 
@@ -170,17 +175,50 @@ async function resolveAssets(
       if (/^https?:/i.test(rel)) { out.set(rel, rel); return; }
       const uri = vscode.Uri.joinPath(base, rel);
       try {
-        // Vidéo : servie EN DUR dans la page (data:). Derrière l'URI de webview
-        // le lecteur restait inerte — le média y arrive sans type annoncé et
-        // sans requêtes de plage. Un data: porte son MIME et tout l'octet-stream,
-        // et les 3 démos ne pèsent que 1,2 Mo à elles trois (v2026.7.191).
-        if (VIDEO_EXT.test(rel)) { out.set(rel, await dataUri(uri)); return; }
         await vscode.workspace.fs.stat(uri);
         out.set(rel, webview.asWebviewUri(uri).toString());
       } catch {
         // Absente du paquet : chemin relatif à la racine du dépôt → URL raw.
         const inRepo = uri.path.startsWith(root + '/') ? uri.path.slice(root.length + 1) : '';
         out.set(rel, inRepo ? RAW_BASE + inRepo.split('/').map(encodeURIComponent).join('/') : '');
+      }
+    })
+  );
+  return out;
+}
+
+/**
+ * Sources d'une démo animée, dans l'ordre où le lecteur les essaiera :
+ *  1. l'URI de webview — la voie normale, celle qu'utilise l'aperçu vidéo de
+ *     VS Code, et la seule qui n'alourdit pas la page ;
+ *  2. le même fichier en `data:` — repli si la première reste muette, ce qui
+ *     s'est produit en v2026.7.190 (lecteur affiché mais inerte).
+ * Une vidéo absente du paquet n'a aucune source locale : elle retombe sur
+ * l'URL raw de `resolveAssets`.
+ */
+async function resolveMedia(
+  webview: vscode.Webview,
+  base: vscode.Uri,
+  text: string
+): Promise<Map<string, string[]>> {
+  const rels = new Set<string>();
+  for (const m of text.matchAll(/<(?:video|source)\s+[^>]*?\bsrc\s*=\s*"([^"]*)"/gi)) {
+    rels.add(decodeURIComponent(m[1]));
+  }
+  for (const m of text.matchAll(/!\[[^\]]*\]\((<[^>]+>|[^)\s]+)\)/g)) {
+    const rel = decodeURIComponent(m[1].replace(/^<|>$/g, '').trim());
+    if (VIDEO_EXT.test(rel)) rels.add(rel);
+  }
+
+  const out = new Map<string, string[]>();
+  await Promise.all(
+    [...rels].map(async (rel) => {
+      if (!VIDEO_EXT.test(rel) || /^https?:/i.test(rel)) return;
+      const uri = vscode.Uri.joinPath(base, rel);
+      try {
+        out.set(rel, [webview.asWebviewUri(uri).toString(), await dataUri(uri)]);
+      } catch {
+        // Absente du paquet : `resolveAssets` fournira l'URL du dépôt.
       }
     })
   );

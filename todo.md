@@ -1,4 +1,17 @@
 # À faire
+- Pour la représentation des variables passe des indices à des préfixe, 0b pour le binaire, 0x pour l'hexa et rien pour le décimal. Mémorise aussi la représentation choisis. Je n'ai pas trouvé ou tu mémorisais les variable masqués mais il faut que ce soit dans le projix ainsi que la représentation
+- Pour le tableau des variables la colonne "nom" doit faire la largeur du nom de variable le plus grand (affichage sur une ligne) et la colonne "valeur" alignée à gauche
+# v2026.7.192 — les démos passent en `<video>` HTML : lisibles AUSSI dans l'aperçu Markdown
+1. ✅ **Deux constats de Frank** : rien ne s'affiche toujours dans l'aide ❔, **et** le guide ne se prévisualise plus dans VS Code. Le second explique le premier : une **`![…](…webm)` est une image**, jamais un lecteur — l'aperçu Markdown de VS Code n'a aucune raison d'en faire une vidéo, et notre rendu maison était seul à savoir la convertir.
+2. ✅ **Les guides écrivent la balise en clair** (FR + EN, les 3 démos) : `<video src="../../media/demarrer.webm" title="…" controls autoplay loop muted playsinline></video>`. C'est du HTML dans du Markdown — donc lu **nativement** par l'aperçu de VS Code, par GitHub et par le rendu de Kablix. Fini le format qui ne marche qu'ici.
+3. ✅ **Rendu maison** (`src/markdown.ts`) : `<video>` et `<source>` bruts ne sont plus échappés (`&lt;video`), leur `src` est résolu comme celui d'une image, et une balise seule sur sa ligne devient une `<figure>` centrée comme les captures.
+4. ✅ **Deux sources par démo au lieu d'un pari** (`resolveMedia`, `guide.ts`) : le `src` est remplacé par **une `<source>` par voie d'accès** — URI de webview d'abord (la voie normale, celle de l'aperçu vidéo de VS Code), **`data:` en repli**. Le lecteur les essaie dans l'ordre : une voie muette ne suffit plus à donner un lecteur inerte. *(Un `src` laissé sur la balise ferait ignorer les `<source>` : il est retiré.)*
+5. ✅ **`resolveAssets` collecte aussi les `src` de `<video>`/`<source>`** — sans quoi la démo gardait un chemin relatif, introuvable depuis une webview.
+6. ✅ **Repli prouvé, pas supposé** : rendu du vrai `USAGE.md` par le vrai `markdown.ts`, première source volontairement injoignable → les 3 démos basculent seules sur le `data:` et atteignent `readyState=4` (1183x720, 1077x720, 1251x720).
+7. ✅ **Les 3 WebM de Frank gardés tels quels** (réencodés depuis les MP4 d'origine, 720p, 4 im/s, VP9 profile 0 / yuv420p) : **0,77 Mo** à eux trois (0,13 · 0,20 · 0,44), `canPlayType` = *probably*. **`scripts/_gif2webm.mjs` supprimé** comme demandé : l'encodage demande un contrôle visuel, Frank le fait lui-même.
+8. ✅ **`verify:docs` porté à 22 contrôles** : les guides emploient bien `<video>` (et plus `![…]()`) avec `controls autoplay loop muted`, la balise survit au rendu avec ses **deux** sources et sans `src`, la syntaxe Markdown reste admise en secours, `resolveMedia` fournit bien webview **puis** `data:`.
+9. ✅ typecheck + build + `verify:all` verts.
+10. ⬜ À VALIDER EN F5 : aide ❔ → les 3 démos s'animent · **et** aperçu Markdown de `docs/fr/USAGE.md` → les démos s'y voient aussi. Si l'aide reste vide alors que l'aperçu marche, le coupable est la webview (CSP ou service worker), pas le fichier.
 
 # v2026.7.191 — les démos ne s'affichaient pas : lecteur inactif dans l'aide
 1. ✅ **Constat** : les 3 vidéos livrées en v190 donnaient un **lecteur inerte** dans l'aide ❔ (aucune image, contrôles morts) alors que les fichiers sont bien dans le vsix (`vsce ls` : les 3 `media/*.webm`) et que Chromium les décode (`readyState=4` en headless). Le fichier n'était donc pas en cause : c'est son **acheminement jusqu'au lecteur** qui échouait.
@@ -7,7 +20,7 @@
 4. ✅ **CSP** : `media-src … data:` ajouté au guide (sans quoi la vidéo est bloquée en silence). `preload="auto"` sur le lecteur.
 5. ✅ **Vérifié en headless sur la page COMPLÈTE** (les 3 `data:` d'un coup, 1,69 Mo de HTML) : `readyState=4` pour les trois, aux bonnes dimensions.
 6. ✅ **`verify:docs` porté à 20 contrôles** : le rendu sort bien `<source … type="video/webm">`, la CSP du guide accepte `data:`, et `resolveAssets` passe bien par `dataUri` pour les vidéos.
-7. ✅ **`simuler.webm` refait à la main par Frank** (le CRF 32 le dégradait trop) et **gardé tel quel** — aucun réencodage de ma part : VP9 profile 0, 834x480, yuv420p, 24 im/s, 81,1 s, **0,92 Mo**, donc conforme au banc (`V_VP9`, < 1,5 Mo) et décodé en headless avec les deux autres. Total des démos : **1,26 Mo** (`demarrer` 0,11 · `dessiner` 0,23 · `simuler` 0,92).
+7. ✅ **`simuler.webm` refait à la main par Frank** (le CRF 32 le dégradait trop) et **gardé tel quel** — aucun réencodage de ma part : VP9 profile 0, yuv420p, conforme au banc (`V_VP9`, < 1,5 Mo) et décodé en headless avec les deux autres. *(Frank a repris les trois depuis les MP4 d'origine juste après : chiffres définitifs en v192.)*
 8. ✅ **Garde-fou anti-écrasement** (`scripts/_gif2webm.mjs`) : un WebM **plus récent que son GIF** est sauté (« conservé ») au lieu d'être réencodé — sinon un simple passage du convertisseur détruisait la version refaite à la main. `--force` pour réencoder quand même.
 9. ℹ️ **Fiches de composants non concernées** : aucune n'affiche de vidéo ; `partHelp.ts` garde `media-src ${webview.cspSource}` (à basculer en `data:` le jour où une fiche en aura une).
 10. ✅ typecheck + build + `verify:all` verts.
