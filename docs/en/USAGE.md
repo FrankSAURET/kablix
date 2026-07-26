@@ -28,10 +28,10 @@
 1. To start, click the <img src="../../media/KNB.webp" alt="Kablix" width="30" /> icon in the activity bar on the left;
   - Or, inside a project folder, double-click a projix file;
   - Or, if you set up the association, double-click a projix file in Windows Explorer.
-<video src="../../media/demarrer.webm" title="Start Kablix" controls autoplay loop muted playsinline></video>
+<video src="../../media/demarrer.mp4" title="Start Kablix" controls autoplay loop muted playsinline></video>
 
 2. **Build your circuit**: drag and drop a part from the palette on the left. Wire the pins directly and click the autoroute button (routes the selected parts, or the whole circuit if none is selected).
-<video src="../../media/dessiner.webm" title="Build a circuit" controls autoplay loop muted playsinline></video>
+<video src="../../media/dessiner.mp4" title="Build a circuit" controls autoplay loop muted playsinline></video>
 
 3. **Run your code**: associate a code file (note that `.ino` files must be inside a folder with the same name) then **▶ “Start”**:
   - `.ino`/`.c`/`.cpp` -> compilation through the local toolchain;
@@ -43,7 +43,7 @@
   On reopening, the project's code file opens **too**, in the code pane next to
   the circuit — while the caret stays in Kablix.
   Import/export in the Wokwi format (`diagram.json`) are also available.
-<video src="../../media/simuler.webm" title="Simulate in Kablix" controls autoplay loop muted playsinline></video>
+<video src="../../media/simuler.mp4" title="Simulate in Kablix" controls autoplay loop muted playsinline></video>
 
 ## The interface
 ![interface](../../media/interface.webp)

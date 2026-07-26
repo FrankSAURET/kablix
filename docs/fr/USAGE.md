@@ -28,10 +28,10 @@
 1. Pour démarrer, cliquer sur l'icône <img src="../../media/KNB.webp" alt="Kablix" width="30" /> dans la barre d'activité à gauche ;
   - Ou dans un dossier de projet, double cliquer sur un fichier projix ;
   - Ou si vous avez fait l'association, dans l'explorateur Windows double cliquer sur un fichier projix.
-<video src="../../media/demarrer.webm" title="Démarrer Kablix" controls autoplay loop muted playsinline></video>
+<video src="../../media/demarrer.mp4" title="Démarrer Kablix" controls autoplay loop muted playsinline></video>
 
 2. **Construire son montage** : Glisser/poser un composant à partir de la bibliothèque à gauche. Relier les broches en direct et cliquer sur le bouton autoroutage (route les composants sélectionnés ou tout le montage si aucun n'est sélectionné).
-<video src="../../media/dessiner.webm" title="Construire un montage" controls autoplay loop muted playsinline></video>
+<video src="../../media/dessiner.mp4" title="Construire un montage" controls autoplay loop muted playsinline></video>
 
 3. **Exécuter son code** : Associer un fichier de code (attention les codes ino doivent être dans un dossier de même nom) puis **▶ « démarrer »** :
   - `.ino`/`.c`/`.cpp` -> compilation via la toolchain locale ;
@@ -43,7 +43,7 @@
   À la réouverture, le programme associé au projet s'ouvre **aussi**, dans le
   volet de code à côté du montage — le curseur, lui, reste dans Kablix.
   Import/export au format Wokwi (`diagram.json`) également disponibles.
-<video src="../../media/simuler.webm" title="Simuler dans Kablix" controls autoplay loop muted playsinline></video>
+<video src="../../media/simuler.mp4" title="Simuler dans Kablix" controls autoplay loop muted playsinline></video>
 
 ## L'interface
 ![alt text](../../media/interface.webp)

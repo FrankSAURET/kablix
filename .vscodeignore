@@ -69,8 +69,11 @@ media/accroche2.webp
 # Vitrine README : les GIF de démo (~12,2 Mo) restent hors vsix, servis via URL
 # raw.githubusercontent (le marketplace charge les images distantes) — le README
 # est la seule vitrine qui en a encore besoin, le marketplace ne lisant pas de
-# vidéo. Les guides, eux, affichent les mêmes démos en WebM VP9 (1,2 Mo à trois,
-# v2026.7.190) : media/*.webm est EMBARQUÉ, l'aide ❔ reste animée hors-ligne.
+# vidéo. Les guides, eux, affichent les mêmes démos en MP4 H.264 EMBARQUÉ
+# (media/*.mp4), pour rester animés hors-ligne. Le WebM a été abandonné en
+# v2026.7.193 : l'Electron de VS Code n'a pas de démuxeur Matroska, donc AUCUN
+# .webm n'y est lisible, quel que soit son codec — media/*.webm est exclu.
+media/*.webm
 # accroche.webp n'est affichée que par le README (marketplace) → hors paquet.
 media/accroche.webp
 media/demarrer.gif

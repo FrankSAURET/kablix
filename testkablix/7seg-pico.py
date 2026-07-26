@@ -19,7 +19,8 @@ SEG_ON = COMMUNE
 SEG_OFF = 1 - COMMUNE
 DIGIT_ON = 1 - COMMUNE
 DIGIT_OFF = COMMUNE
-DELAIS=100
+DELAIS=10
+
 
 
 def eteindre_tous_les_digits():

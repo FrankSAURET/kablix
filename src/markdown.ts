@@ -14,8 +14,10 @@
 // séparateurs, gras/italique/code en ligne. Les démos animées des guides sont
 // écrites en `<video src="…">` HTML — pas en `![…](…)` — pour que l'APERÇU
 // Markdown de VS Code les lise aussi ; le `src` est remplacé ici par une
-// `<source>` par voie d'accès (cf. resolveMedia). Une « image » qui pointe un
-// `.webm` sort quand même en `<video>`, la syntaxe restant admise.
+// `<source>` par voie d'accès (cf. resolveMedia). Une « image » qui pointe une
+// vidéo sort quand même en `<video>`, la syntaxe restant admise. Format des
+// démos : MP4/H.264 — l'Electron de VS Code n'a pas de démuxeur Matroska, donc
+// aucun `.webm` n'y joue (v2026.7.193), même si `canPlayType` prétend le contraire.
 
 export interface MarkdownOptions {
   /** Chemin relatif d'une image → URI affichable par la webview. */
@@ -126,12 +128,12 @@ function inline(src: string, opt: MarkdownOptions): string {
   out = out.replace(new RegExp(String.raw`!\[([^\]]*)\]\(${TARGET}\)`, 'g'), (_m, alt: string, raw: string) => {
     const target = decodeURIComponent(linkTarget(raw));
     const src2 = opt.resolveAsset(target);
-    // Démo animée : un <img> n'affiche pas un WebM. Les guides gardent la
+    // Démo animée : un <img> n'affiche pas une vidéo. Les guides gardent la
     // syntaxe d'image (portable, vérifiable comme un lien), on rend une vidéo
     // qui se comporte comme le GIF qu'elle remplace — muette et en boucle —
     // mais avec les contrôles, une démo de 40 s méritant une pause.
     // Le type est déclaré sur une <source> : sans lui, le lecteur reste inerte
-    // quand la réponse n'annonce pas `video/webm` (v2026.7.191).
+    // quand la réponse n'annonce pas `video/mp4` (v2026.7.191).
     if (VIDEO.test(target)) {
       return `<video title="${alt}" autoplay loop muted playsinline controls preload="auto">`
         + `${videoSources(target, opt)}</video>`;

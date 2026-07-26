@@ -242,47 +242,60 @@ ok('images : les icônes du manifeste restent en PNG (marketplace et barre d’a
   && existsSync(join(root, 'media', 'icon.png')) && existsSync(join(root, 'media', 'activity-icon.png')),
   'icône du manifeste absente ou convertie');
 
-// --- 6. Démos animées : WebM embarqué au lieu du GIF distant (v2026.7.190) ----
-// 12,2 Mo de GIF servis depuis GitHub = aucune démo hors connexion. Les mêmes
-// animations en VP9 pèsent 1,2 Mo à elles trois et tiennent dans le paquet.
+// --- 6. Démos animées : MP4 H.264 embarqué (v2026.7.193) ---------------------
+// 12,2 Mo de GIF servis depuis GitHub = aucune démo hors connexion. Le WebM les
+// a remplacés en v190… sans jamais s'afficher : l'Electron de VS Code n'embarque
+// PAS le démuxeur Matroska, donc aucun .webm n'y est lisible, quel que soit son
+// codec — et `canPlayType` répond quand même « probably », d'où trois versions
+// perdues à chercher ailleurs. Le MP4, lui, a son démuxeur, et H.264 passe par
+// le décodeur de la plateforme.
 const DEMOS = ['demarrer', 'dessiner', 'simuler'];
 const guideRefs = [...guideAssets].map(([, r]) => r);
-const gifRefs = guideRefs.filter((r) => /\.gif$/i.test(r));
-const missingDemo = DEMOS.filter((d) => !guideRefs.includes(`../../media/${d}.webm`));
-ok('démos : les guides montrent les 3 WebM et plus aucun GIF',
-  gifRefs.length === 0 && missingDemo.length === 0,
-  [...gifRefs, ...missingDemo.map((d) => `${d}.webm non référencée`)].join(' · '));
+const badRefs = guideRefs.filter((r) => /\.(gif|webm|mkv)$/i.test(r));
+const missingDemo = DEMOS.filter((d) => !guideRefs.includes(`../../media/${d}.mp4`));
+ok('démos : les guides montrent les 3 MP4, aucun WebM ni GIF (indémuxables ici)',
+  badRefs.length === 0 && missingDemo.length === 0,
+  [...badRefs, ...missingDemo.map((d) => `${d}.mp4 non référencée`)].join(' · '));
 
 const demoIssues = [];
 for (const d of DEMOS) {
-  const p = join(root, 'media', `${d}.webm`);
-  if (!existsSync(p)) { demoIssues.push(`${d}.webm absente`); continue; }
-  // CodecID Matroska en clair dans l'en-tête : VP9 est le seul profil dont la
-  // lecture est garantie dans Chromium, donc dans la webview.
-  if (!readFileSync(p).subarray(0, 8192).toString('latin1').includes('V_VP9')) {
-    demoIssues.push(`${d}.webm : pas du VP9`);
-  }
+  const p = join(root, 'media', `${d}.mp4`);
+  if (!existsSync(p)) { demoIssues.push(`${d}.mp4 absente`); continue; }
+  const head = readFileSync(p).subarray(0, 4096).toString('latin1');
+  // `ftyp` = conteneur ISO-BMFF, `avc1` = piste H.264 : le seul couple dont la
+  // lecture est acquise dans une webview de VS Code.
+  if (!head.includes('ftyp')) demoIssues.push(`${d}.mp4 : pas un conteneur MP4`);
+  if (!head.includes('avc1')) demoIssues.push(`${d}.mp4 : pas du H.264 (avc1)`);
+  // `moov` avant `mdat` (faststart) : sinon le lecteur attend tout le fichier.
+  const moov = head.indexOf('moov');
+  const mdat = head.indexOf('mdat');
+  if (moov === -1 || (mdat !== -1 && mdat < moov)) demoIssues.push(`${d}.mp4 : moov pas en tête (faststart)`);
   const mo = statSync(p).size / 1048576;
-  if (mo > 1.5) demoIssues.push(`${d}.webm : ${mo.toFixed(2)} Mo`);
-  if (excluded(`media/${d}.webm`)) demoIssues.push(`${d}.webm exclue du vsix`);
+  if (mo > 1.5) demoIssues.push(`${d}.mp4 : ${mo.toFixed(2)} Mo`);
+  if (excluded(`media/${d}.mp4`)) demoIssues.push(`${d}.mp4 exclue du vsix`);
 }
-ok('démos : 3 WebM VP9 légers et embarqués (animées hors-ligne)', demoIssues.length === 0,
-  demoIssues.join(' · '));
+ok('démos : 3 MP4 H.264 légers, faststart et embarqués (animées hors-ligne)',
+  demoIssues.length === 0, demoIssues.join(' · '));
+
+// Un .webm resté dans media/ serait embarqué pour rien : illisible côté VS Code.
+const strays = DEMOS.filter((d) => existsSync(join(root, 'media', `${d}.webm`)));
+ok('démos : plus aucun WebM dans media/ (l’Electron de VS Code ne les démuxe pas)',
+  strays.length === 0, strays.map((d) => `${d}.webm`).join(' · '));
 
 // Les démos sont écrites en `<video>` HTML dans les guides, PAS en `![…](…)` :
-// une image n'affiche pas un WebM, et l'aperçu Markdown de VS Code — celui dont
+// une image n'affiche pas une vidéo, et l'aperçu Markdown de VS Code — celui dont
 // Frank se sert pour relire ses guides — ne rend que la balise vidéo.
 const demoTags = [];
 for (const lang of ['fr', 'en']) {
   const t = readFileSync(join(root, 'docs', lang, 'USAGE.md'), 'utf8');
   for (const d of DEMOS) {
-    const tag = new RegExp(`<video\\s[^>]*src="\\.\\./\\.\\./media/${d}\\.webm"[^>]*>`, 'i').exec(t)?.[0];
+    const tag = new RegExp(`<video\\s[^>]*src="\\.\\./\\.\\./media/${d}\\.mp4"[^>]*>`, 'i').exec(t)?.[0];
     if (!tag) { demoTags.push(`${lang}/${d} : pas de <video src>`); continue; }
     for (const a of ['controls', 'autoplay', 'loop', 'muted']) {
       if (!new RegExp(`\\b${a}\\b`).test(tag)) demoTags.push(`${lang}/${d} : ${a} manquant`);
     }
   }
-  if (/!\[[^\]]*\]\([^)]*\.webm\)/i.test(t)) demoTags.push(`${lang} : démo encore écrite en ![…]()`);
+  if (/!\[[^\]]*\]\([^)]*\.(?:mp4|webm)\)/i.test(t)) demoTags.push(`${lang} : démo encore écrite en ![…]()`);
 }
 ok('guides : les 3 démos sont des <video> HTML (lisibles dans l’aperçu Markdown)',
   demoTags.length === 0, demoTags.join(' · '));
@@ -290,27 +303,27 @@ ok('guides : les 3 démos sont des <video> HTML (lisibles dans l’aperçu Markd
 // Le rendu maison ne doit ni échapper cette balise ni la laisser sur un `src`
 // unique : le `src` est remplacé par une <source> PAR VOIE d'accès, sinon le
 // repli ne peut pas jouer. Type MIME déclaré : sans lui le lecteur reste inerte
-// quand la réponse n'annonce pas `video/webm` (constaté en v190).
-const demoHtml = renderMarkdown('<video src="../../media/simuler.webm" controls autoplay loop muted></video>', {
+// quand la réponse n'annonce pas `video/mp4` (constaté en v190).
+const demoHtml = renderMarkdown('<video src="../../media/simuler.mp4" controls autoplay loop muted></video>', {
   resolveAsset: (r) => 'asset:' + r,
   resolveDocLink: () => '',
-  resolveMedia: (r) => ['webview:' + r, 'data:video/webm;base64,AAA'],
+  resolveMedia: (r) => ['webview:' + r, 'data:video/mp4;base64,AAA'],
 });
 ok('rendu : la démo garde sa <video> et reçoit ses deux sources (repli possible)',
   /<figure><video [^>]*>/.test(demoHtml)
   && /<video(?![^>]*\bsrc=)[^>]*>/.test(demoHtml)
-  && /<source src="webview:\.\.\/\.\.\/media\/simuler\.webm" type="video\/webm" \/><source src="data:video\/webm;base64,AAA" type="video\/webm" \/><\/video>/.test(demoHtml)
+  && /<source src="webview:\.\.\/\.\.\/media\/simuler\.mp4" type="video\/mp4" \/><source src="data:video\/mp4;base64,AAA" type="video\/mp4" \/><\/video>/.test(demoHtml)
   && /\bautoplay\b/.test(demoHtml) && /\bloop\b/.test(demoHtml) && /\bmuted\b/.test(demoHtml)
   && !/&lt;video/.test(demoHtml) && !/<img/.test(demoHtml),
   demoHtml.slice(0, 200));
 
 // La syntaxe Markdown reste admise (une fiche peut encore l'employer).
-const demoMd = renderMarkdown('![Démo](../../media/simuler.webm)', {
+const demoMd = renderMarkdown('![Démo](../../media/simuler.mp4)', {
   resolveAsset: (r) => 'asset:' + r,
   resolveDocLink: () => '',
 });
-ok('rendu : une image .webm sort quand même en <video>, pas en <img>',
-  /<video[^>]*><source src="asset:\.\.\/\.\.\/media\/simuler\.webm" type="video\/webm"/.test(demoMd)
+ok('rendu : une image .mp4 sort quand même en <video>, pas en <img>',
+  /<video[^>]*><source src="asset:\.\.\/\.\.\/media\/simuler\.mp4" type="video\/mp4"/.test(demoMd)
   && !/<img/.test(demoMd), demoMd.slice(0, 160));
 
 // Sans `media-src`, `default-src 'none'` bloque la vidéo sans un mot d'erreur.
