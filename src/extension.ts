@@ -78,8 +78,15 @@ export function activate(context: vscode.ExtensionContext): void {
       void vscode.commands.executeCommand('workbench.action.files.save');
     }),
     vscode.commands.registerCommand('kablix.saveProjectSmart', () => {
-      // Ctrl+S sur un .projix untitled : passe par saveSmart pour proposer le
-      // nom du code par défaut (au lieu du nom untitled). Sinon Ctrl+S natif.
+      // Ctrl+S sur un onglet .projix : MÊME chemin que le bouton « Enregistrer »
+      // de l'atelier (saveSmart) — un projet untitled avec un fichier de code
+      // associé propose le nom du code, tout le reste retombe sur le Ctrl+S natif.
+      // Le `when` du raccourci ne teste plus QUE `activeCustomEditorId` : la
+      // condition `resourceScheme == 'untitled'` qui l'accompagnait ne se
+      // vérifiait pas sur un .projix untitled (signalé par Frank : Ctrl+S
+      // proposait « Nouveau projet.projix » alors que le bouton Enregistrer
+      // proposait bien le nom du code). Le tri se fait ici, dans saveSmart, qui
+      // sait déjà distinguer untitled + code du reste.
       const panel = SimulatorPanel.active();
       if (panel) {
         panel.saveSmart(false);

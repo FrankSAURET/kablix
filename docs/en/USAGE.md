@@ -397,6 +397,7 @@ The matching reference (roles, fields, constraints) is in the [file format](#par
 A **Kablix project** gathers in a single `.projix` file (a ZIP archive) **the diagram** (parts, wires, custom parts) and the target **board**. The `.projix` is light and self-contained — ideal to archive, share or hand in a diagram. It **does not embed the code**: the code file is only **referenced** (by its path), it stays on the machine.
 
 - **💾 Save the project** (toolbar button or command **“Kablix: Save the project (.projix)”**): choose the location of the `.projix` file. Kablix puts the current diagram, the custom parts used and the board in it. The associated code file (if any) is stored as a **reference** in the manifest; its content is not copied into the archive.
+- **`Ctrl+S`** does exactly what the 💾 button does: on a project that was **never saved** but already has a code file, the suggested name is the **code**'s (`my-program.py` → `my-program.projix`), not some “New project”. On an already named project it rewrites the file without asking anything.
 - **📂 Open a project** (button or command **“Kablix: Open a project (.projix)”**): select a `.projix`. The diagram and the board are reloaded into the simulator. If a code file was referenced, Kablix tries to find it again on the machine (path relative to the workspace, then absolute fallback path).
 
 Contents of a `.projix` archive:
@@ -442,6 +443,7 @@ Kablix bundles three simulation libraries (`avr8js`, `rp2040js`, `@wokwi/element
 | `Ctrl+C` | Copy the selection (parts + wires) — allowed even during simulation |
 | `Ctrl+V` | Paste the selection, **including into another Kablix project** |
 | `Ctrl+D` | Duplicate the selection in place |
+| `Ctrl+S` | Save the project — same as the **Save** button (default name = the code file's name) |
 | `Enter` (serial field) | Send the line to the microcontroller |
 
 ### Copy and paste from one project to another

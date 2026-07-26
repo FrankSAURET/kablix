@@ -401,6 +401,7 @@ L'aide correspondante (rôles, champs, contraintes) est dans la section [Format 
 Un **projet Kablix** réunit dans un seul fichier `.projix` (une archive ZIP) **le schéma** (composants, fils, composants personnalisés) et la **carte** cible. Le `.projix` est léger et autonome — idéal pour archiver, partager ou rendre un schéma. Il **n'embarque pas le code** : le fichier de code est seulement **référencé** (par son chemin), il reste sur le poste.
 
 - **💾 Enregistrer le projet** (bouton de la barre d'outils ou commande **« Kablix : Enregistrer le projet (.projix) »**) : choisissez l'emplacement du fichier `.projix`. Kablix y place le schéma courant, les composants personnalisés utilisés et la carte. Le fichier de code associé (s'il y en a un) est mémorisé sous forme de **référence** dans le manifeste ; son contenu n'est pas copié dans l'archive.
+- **`Ctrl+S`** fait exactement la même chose que le bouton 💾 : sur un projet **jamais enregistré** qui a déjà un fichier de code, le nom proposé est celui du **code** (`mon-programme.py` → `mon-programme.projix`), et non un « Nouveau projet ». Sur un projet déjà nommé, il réécrit le fichier sans rien demander.
 - **📂 Ouvrir un projet** (bouton ou commande **« Kablix : Ouvrir un projet (.projix) »**) : sélectionnez un `.projix`. Le schéma et la carte sont rechargés dans le simulateur. Si un fichier de code était référencé, Kablix tente de le retrouver sur le poste (chemin relatif au workspace, puis chemin  absolu de secours).
 
 Contenu d'une archive `.projix` :
@@ -446,6 +447,7 @@ Kablix embarque trois bibliothèques de simulation (`avr8js`, `rp2040js`, `@wokw
 | `Ctrl+C` | Copier la sélection (composants + fils) — autorisé même en simulation |
 | `Ctrl+V` | Coller la sélection, **y compris dans un autre projet Kablix** |
 | `Ctrl+D` | Dupliquer la sélection sur place |
+| `Ctrl+S` | Enregistrer le projet — identique au bouton **Enregistrer** (nom proposé = celui du fichier de code) |
 | `Entrée` (champ série) | Envoyer la ligne au microcontrôleur |
 
 ### Copier-coller d'un projet à l'autre

@@ -1,5 +1,4 @@
 # À faire
-1. Le CTRL + S ne propose pas par défaut le nom du fichier de code alors que le clic sur sauvegarder le fait.
 1. Si tout les fichiers code sont fermés (et donc le "panneau code")et que j'ouvre un projix; Il ouvre le code au bon endroit mais ne refait pas la taille des panneau. Du reste il semble y avoir une régression. La remise en forme ne marche pas à tous les coups
 1. Pour le PIR les bulles d'aide doivent apparaitre juste en dessous de la souris (5 px) et la bulle centrée (gauche droite) sur la souris
 1. Le routage auto traverse encore des composants (test avec testkablix\schema-kablix.projix - dil A-GP13 Noeud 6 passe sur résistance)
@@ -9,6 +8,14 @@
 1. Regression autoroutage. Des fils qui devraient être droit de pin à pin se trouvent avec 3 coudes. Le meilleurs score est toujours le moins de coude (en respectant les règles) et donc la ligne droite est tje le meilleur
 1. Si je change de dossier. Il ouvre un nouveau kablix dans un nouveau panneau je veux das le même panneau kablix s'il en  existe un  d'ouvert.
 1. Blink mehga ne marche pas
+# v2026.7.198 — Ctrl+S propose enfin le nom du fichier de code
+1. ✅ **Une condition de trop dans le raccourci** : `Ctrl+S` était lié à `kablix.saveProjectSmart` sous `activeCustomEditorId == 'kablix.projix' **&& resourceScheme == 'untitled'**`. Le second morceau ne se vérifiait pas sur un `.projix` untitled, donc le raccourci ne se déclenchait pas et VS Code faisait son **save natif** — d'où « Nouveau projet.projix » proposé, alors que le bouton 💾 (qui n'a jamais eu ce filtre) proposait bien le nom du code.
+2. ✅ **Le tri se fait dans le code, pas dans le `when`** : le raccourci ne teste plus que l'onglet `.projix`, et c'est `saveSmart()` — le **même** point d'entrée que le bouton Enregistrer — qui décide : untitled **+** fichier de code → dialogue maison avec le nom du code ; tout le reste → `workbench.action.files.save` natif, exactement comme avant.
+3. ✅ **Nouveau banc `verify:savename`** (20 contrôles) : raccourci et commande (le `when` ne dépend plus de `resourceScheme`, `Ctrl+S` et le bouton passent par le même `saveSmart`) · **nom réellement proposé**, en exécutant `saveProject` de `panel.ts` bundlé avec un faux `vscode` et en lisant le `defaultUri` reçu par `showSaveDialog` : untitled + `mon-programme.py` → **`mon-programme.projix`** dans le dossier du workspace, untitled sans code → repli `schema-kablix.projix`, projet déjà nommé → **aucun** dialogue et réécriture au même endroit, nom du projet prioritaire sur celui du code · aide FR + EN. Garde-fou vérifié : sur le code de la v197, le banc échoue.
+4. ✅ **Aide FR + EN** : `Ctrl+S` ajouté au tableau des raccourcis et explicité dans « Enregistrer / ouvrir un projet ».
+5. ✅ typecheck + build + `verify:all` verts.
+6. ⬜ À VALIDER EN F5 : nouveau projet + ouvrir `mon-programme.py` + câbler → **`Ctrl+S`** → le dialogue propose **`mon-programme.projix`** (comme le bouton 💾) · enregistrer puis re-`Ctrl+S` → écriture directe, aucun dialogue · `Ctrl+S` dans un fichier de code → save natif inchangé.
+
 # v2026.7.197 — capteur ultrason : la température de l'air fait varier la mesure
 1. ✅ **La constante 58 µs/cm sortait de nulle part** : c'est 20000/c avec c = vitesse du son, et **c dépend de la température**. Nouveau module de physique pure `src/webview/engines/ultrasonic.mts` (sans DOM, testable en Node) : `soundSpeedMs(T) = 331,3 + 0,606·T`, `echoUsPerCm(T) = 20000/c`, plage −20…60 °C, recalage des valeurs aberrantes. À 20 °C : 343,4 m/s et **58,24 µs/cm** — la constante des exemples Arduino, retrouvée et non plus postulée.
 2. ✅ **Deux curseurs en simulation** sur le HC-SR04 (`hc-sr04-element.mts`) : la distance (inchangée) **et la température de l'air**, avec la vitesse du son obtenue en bulle d'aide. Le fork **importe** le module des moteurs : une seule formule dans tout le projet, aucune copie à faire diverger.
