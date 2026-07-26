@@ -98,6 +98,7 @@ import {
 } from './diagram/model.mjs';
 import { AvrEngine } from './engines/avr.mjs';
 import { PicoEngine, type PicoProgram } from './engines/pico.mjs';
+import { SerialConsole } from './serialbuffer.mjs';
 import {
   Lcd1602Device,
   Pca9685Device,
@@ -330,49 +331,33 @@ const flashStatus = (text: string): void => {
 };
 
 /**
- * Micro-émulation terminal : le REPL MicroPython édite sa ligne avec
- * Backspace (0x08) + « effacer jusqu'à fin de ligne » (`\x1b[K`) plutôt que
- * de renvoyer tout le texte — sans ce traitement, `textContent += chunk`
- * afficherait le code de contrôle brut (ex. littéralement « [K » à l'écran).
- * Les séquences ANSI non gérées (couleurs, curseur…) sont juste avalées.
+ * Console série : le texte vit dans un tampon JavaScript (`SerialConsole`, qui
+ * fait aussi la micro-émulation terminal — Backspace et `\x1b[K` du REPL
+ * MicroPython) et n'est porté dans le DOM qu'UNE FOIS PAR FRAME. Le firmware
+ * transmet octet par octet et `onSerial` est appelé depuis la boucle
+ * d'exécution : écrire dans le DOM à chaque octet (réécriture complète du
+ * `textContent` + lecture de `scrollHeight`) coûtait ~36 s pour 18 000 octets et
+ * ralentissait la simulation d'autant. Voir `serialbuffer.mts`.
  */
-let ansiEscape = ''; // séquence "\x1b[...": accumulée jusqu'à sa lettre finale
-function processAnsi(chunk: string): string {
-  let text = serialEl.textContent ?? '';
-  for (const ch of chunk) {
-    if (ansiEscape) {
-      ansiEscape += ch;
-      // Terminée par une lettre (ex. « K » = efface jusqu'à fin de ligne) : le
-      // Backspace qui précède toujours cette séquence a déjà reculé le curseur
-      // d'un cran, donc rien de plus à effacer dans ce buffer texte simplifié.
-      if (/[A-Za-z]/.test(ch)) ansiEscape = '';
-      continue;
-    }
-    if (ch === '\x1b') {
-      ansiEscape = ch;
-    } else if (ch === '\b' || ch === '\x7f') {
-      text = text.slice(0, -1);
-    } else if (ch === '\r') {
-      // MicroPython envoie \r\n en fin de ligne ; en white-space: pre-wrap,
-      // le navigateur rend déjà un CR comme un saut de ligne à lui seul — le
-      // \n qui suit en ajouterait un second. On avale le CR, le \n fait le travail.
-      continue;
-    } else {
-      text += ch;
-    }
-  }
-  return text;
+const serialBuf = new SerialConsole();
+let serialFlushQueued = false;
+
+function flushSerial(): void {
+  serialFlushQueued = false;
+  serialBuf.flush(serialEl);
 }
 
 const appendSerial = (chunk: string): void => {
-  serialEl.textContent = processAnsi(chunk);
-  serialEl.scrollTop = serialEl.scrollHeight;
+  serialBuf.write(chunk);
+  if (serialFlushQueued) return;
+  serialFlushQueued = true;
+  requestAnimationFrame(flushSerial);
 };
 
 /** Vide la console/moniteur série. */
 const clearSerial = (): void => {
-  serialEl.textContent = '';
-  ansiEscape = '';
+  serialBuf.clear();
+  flushSerial();
 };
 
 /**

@@ -1,7 +1,7 @@
 {
   "name": "kablix",
   "displayName": "Kablix",
-  "version": "2026.7.205",
+  "version": "2026.7.206",
   "description": "%kablix.description%",
   "publisher": "franksauret",
   "author": {
@@ -226,7 +226,7 @@
     "verify:ledring": "node scripts/verify-ledring.mjs",
     "verify:creator": "node scripts/verify-creator.mjs",
     "verify:debug": "node scripts/verify-debug-py.mjs",
-    "verify:all": "npm run verify && npm run verify:compiler && npm run verify:diagram && npm run verify:uf2 && npm run verify:micropython && npm run verify:wokwi && npm run verify:net && npm run verify:equipot && npm run verify:i2c && npm run verify:components && npm run verify:spi && npm run verify:neopixel && npm run verify:ledring && npm run verify:creator && npm run verify:debug && npm run verify:plotter && npm run verify:simshift && npm run verify:led && npm run verify:boum && npm run verify:divider && npm run verify:selection && npm run verify:align && npm run verify:route && npm run verify:keypad && npm run verify:grove && npm run verify:psu && npm run verify:pca && npm run verify:pca-e2e && npm run verify:servo && npm run verify:pinout && npm run verify:export && npm run verify:7seg-mux && npm run verify:docs && npm run verify:debugvars && npm run verify:layout && npm run verify:clipboard && npm run verify:ultrasonic && npm run verify:savename && npm run verify:pir && npm run verify:npchain && npm run verify:boardleds && npm run verify:dht22",
+    "verify:all": "npm run verify && npm run verify:compiler && npm run verify:diagram && npm run verify:uf2 && npm run verify:micropython && npm run verify:wokwi && npm run verify:net && npm run verify:equipot && npm run verify:i2c && npm run verify:components && npm run verify:spi && npm run verify:neopixel && npm run verify:ledring && npm run verify:creator && npm run verify:debug && npm run verify:plotter && npm run verify:simshift && npm run verify:led && npm run verify:boum && npm run verify:divider && npm run verify:selection && npm run verify:align && npm run verify:route && npm run verify:keypad && npm run verify:grove && npm run verify:psu && npm run verify:pca && npm run verify:pca-e2e && npm run verify:servo && npm run verify:pinout && npm run verify:export && npm run verify:7seg-mux && npm run verify:docs && npm run verify:debugvars && npm run verify:layout && npm run verify:clipboard && npm run verify:ultrasonic && npm run verify:savename && npm run verify:pir && npm run verify:npchain && npm run verify:boardleds && npm run verify:dht22 && npm run verify:serial",
     "package": "vsce package --no-dependencies",
     "verify:plotter": "node scripts/verify-plotter.mjs",
     "verify:simshift": "node scripts/verify-simshift.mjs",
@@ -254,7 +254,8 @@
     "verify:pir": "node scripts/verify-pir.mjs",
     "verify:npchain": "node scripts/verify-npchain.mjs",
     "verify:boardleds": "node scripts/verify-boardleds.mjs",
-    "verify:dht22": "node scripts/verify-dht22.mjs"
+    "verify:dht22": "node scripts/verify-dht22.mjs",
+    "verify:serial": "node scripts/verify-serial.mjs"
   },
   "dependencies": {
     "@xmldom/xmldom": "^0.9.10",
