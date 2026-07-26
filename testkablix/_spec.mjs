@@ -1179,11 +1179,20 @@ while True:
 
   test({
     name: 'rgb-led-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'rgb1', type: 'rgb-led', x: 680, y: 80, attrs: { common: 'cathode' } }],
+    parts: [
+      MCU('pico'),
+      { id: 'r1', type: 'resistor', x: 500, y: 60, attrs: { value: '120' } },
+      { id: 'r2', type: 'resistor', x: 500, y: 100, attrs: { value: '120' } },
+      { id: 'r3', type: 'resistor', x: 500, y: 140, attrs: { value: '120' } },
+      { id: 'rgb1', type: 'rgb-led', x: 680, y: 80, attrs: { common: 'cathode' } },
+    ],
     wires: () => [
-      w('rgb1', 'R', 'mcu1', 'GP13', 'orange'),
-      w('rgb1', 'G', 'mcu1', 'GP14', 'green'),
-      w('rgb1', 'B', 'mcu1', 'GP15', 'blue'),
+      w('mcu1', 'GP13', 'r1', '1', 'orange'),
+      w('r1', '2', 'rgb1', 'R', 'orange'),
+      w('mcu1', 'GP14', 'r2', '1', 'green'),
+      w('r2', '2', 'rgb1', 'G', 'green'),
+      w('mcu1', 'GP15', 'r3', '1', 'blue'),
+      w('r3', '2', 'rgb1', 'B', 'blue'),
       w('rgb1', 'COM', 'mcu1', 'GND.5', 'black'),
     ],
     expect: { kind: 'rgb-led', partId: 'rgb1', r: 'GP13', g: 'GP14', b: 'GP15' },

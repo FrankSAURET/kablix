@@ -1,9 +1,8 @@
 # À faire
-1. Le routage auto traverse encore des composants (test avec testkablix\schema-kablix.projix - dil A-GP13 Noeud 6 passe sur résistance)
 1. Le chainage de plusieurs LED neopixel ne marche pas et si j'en mets plusieurs ça clignote. Ficier de test  testkablix\neopixel-pico.projix
 1. **Anneau NeoPixel : LED éteinte = BLANCHE** le fond des LED allumées est aussi noir il doit être blanc. important si luminosité pas max.
 1. Affichage des variables. Mettre une espace fine entre 0b ou 0x et la valeur. Une espace fine aussi comme séparateur de millier, de quartet et aussi pour l'hexadécimal. Des changements dans l'affichage des variables (affichage ou base) doivent mettre le fichier comme à sauvegarder
-1. Regression autoroutage. Des fils qui devraient être droit de pin à pin se trouvent avec 3 coudes. Le meilleurs score est toujours le moins de coude (en respectant les règles) et donc la ligne droite est tje le meilleur
+1. Regression autoroutage. Des fils qui devraient être droit de pin à pin se trouvent avec 3 coudes. Le meilleurs score est toujours le moins de coude (en respectant les règles) et donc la ligne droite est tje le meilleur — ⏳ **non reproductible** : balayage des 80 `.projix` de `testkablix\` fils remis à neuf (v2026.7.201) → **0 détour injustifié**, chaque détour observé était imposé par une broche étrangère posée sur la ligne. Il me faut le `.projix` + le nom des deux broches concernées.
 1. Arduino :
     1. Si je change de dossier. Il ouvre un nouveau kablix dans un nouveau panneau je veux das le même panneau kablix s'il en  existe un  d'ouvert.
     1. Sur la simulation je n'ai pas de retour dans le moniteur série en cas d'erreur
@@ -12,6 +11,17 @@
         1. testkablix\blink-mega\blink-mega.projix ne marche pas. a priori pas de led builtin. Idem nano et uno.
         1. dht22 : ne marche que la première fois aprés relis tjs la même valeur 
         1. HCSR04 : Marche mais trés long temps de réaction (> 12 s)
+# v2026.7.201 — autoroutage : la boîte d'un composant TOURNÉ suit enfin sa rotation
+1. ✅ **Cause racine du fil qui traverse une résistance** (`partObstacles()`, `src/webview/diagram/editor.mts`) : l'encombrement donné au routeur était calculé sur `(part.x, part.y)` + la taille **non tournée** du dessin. La rotation est pourtant appliquée en **CSS** sur `.part__body`, autour de son centre : une résistance à 90° (dessin 80×20) était déclarée **80×20 depuis son coin haut-gauche** alors qu'elle occupe **20×80 autour de son centre**. La boîte tombait à côté du vrai corps — le routeur voyait un mur là où il n'y a rien, et un couloir libre en plein milieu de la résistance. Repro de Frank : `schema-kablix.projix`, fil LED A → GP13.
+2. ✅ **Correctif : la boîte est la boîte ÉCRAN du SVG ramenée en coordonnées monde** (`canvasPoint()` sur les deux coins). Elle tient compte de la rotation **et** du miroir, quelle que soit la façon dont ils sont appliqués. Repli inchangé sur la taille nominale du SVG si la mesure est indisponible (largeur en % sans viewport résolu).
+3. ✅ **Second défaut, corps « soft »** (`astarRoute()`) : un corps devient traversable dès qu'une borne du fil tombe dans sa **clearance** (voisins jointifs à 10 px) — c'est fait pour laisser une broche **sortir**, pas pour couper le composant en deux. La seule taxe au prorata du survol (×20/px) ne pesait pas assez : sur `7seg-uno`, le fil COM.1 → GND préférait couper **12 px** d'une résistance voisine plutôt que de faire le détour. Traversée du **cœur** (bords rognés de 4 px) désormais taxée **×1000**.
+4. ✅ **Mesures sur les 80 `.projix` de `testkablix\`**, fils remis à neuf (coudes effacés, comme si Frank retirait puis remettait chaque fil) : **0 traversée** sur 79 schémas, et **0 détour injustifié**. Reste `Horloge.projix` : la broche DIG1 du 7 segments est coincée **sous deux résistances empilées** qui recouvrent le bord haut du composant — aucune sortie ne peut les éviter, il faut écarter les composants. Cas limite documenté, pas un défaut du routeur.
+5. ✅ **Garde-fou vérifié** : sur le code de la v200, `verify:route` tombe à **2 échecs** (boîte mesurée `w=80 h=20` au lieu de tournée, et fil filant **droit à travers** la résistance sur 12 px).
+6. ✅ **`verify:route` passe à 29 contrôles** : boîte d'obstacle d'une résistance à 90° (haute et étroite), fil dont la ligne droite tombe **dans le corps tourné mais hors de l'ancienne boîte** → contourne sans entamer le cœur (corps reconstruit à partir des **pattes**, surtout pas à partir de `partObstacles()` qui est ce qu'on teste), et contrôle statique de la taxe ×1000 sur le cœur des corps « soft ».
+7. ✅ typecheck + build + `verify:all` verts.
+8. ℹ️ **Journal réparé** : les sections **v197 à v199** avaient disparu du `todo.md` (écrasé avant le commit de la v199). Récupérées depuis le commit `2e5ca34` et réécrites.
+9. ⬜ À VALIDER EN F5 : `schema-kablix.projix` → retirer le fil LED A → GP13 et le refaire : il contourne la résistance verticale au lieu de la traverser.
+
 # v2026.7.200 — PIR : la bulle d'aide se place juste sous la souris
 1. ✅ **Bulle SOUS le pointeur et CENTRÉE dessus** (`src/webview/composants/pir-motion-sensor-element.mts`) : `transform: translate(-50%, 5px)` au lieu de `translate(8px, -100%)`. Avant, elle était plaquée **au-dessus-à-droite** du curseur : elle masquait le capteur qu'on venait survoler et partait en biais dès qu'on approchait du bord.
 2. ✅ **Même règle pour le repli sans souris** (mouvement permanent, souris partie) : style en ligne `left:50%;top:100%` — la bulle se pose 5 px **sous le composant**, centrée dessus, au lieu d'être collée au-dessus du dessin.

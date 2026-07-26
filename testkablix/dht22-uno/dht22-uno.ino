@@ -2,16 +2,17 @@
 #include <DHT.h>
 
 DHT dht(2, DHT22);
-
+float t;
+float h;
 void setup() {
   Serial.begin(115200);
   dht.begin();
 }
 
 void loop() {
-  delay(2100);   // le DHT22 ne répond qu'une fois toutes les 2 s
-  float t = dht.readTemperature();
-  float h = dht.readHumidity();
+  //delay(2100);   // le DHT22 ne répond qu'une fois toutes les 2 s
+  t = dht.readTemperature();
+  h = dht.readHumidity();
   if (isnan(t) || isnan(h)) {
     Serial.println("lecture ratee");
     return;

@@ -1,5 +1,5 @@
 // Test LED RGB (cathode commune) : fondu sur chaque canal PWM.
-const int R = 9, G = 10, B = 11;
+const int R = 12, G = 10, B = 9;
 
 void setup() {
   Serial.begin(115200);

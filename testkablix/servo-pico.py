@@ -2,7 +2,7 @@
 from machine import Pin, PWM
 import time
 
-servo = PWM(Pin(15))
+servo = PWM(Pin(28))
 servo.freq(50)
 
 def angle(micros):

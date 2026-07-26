@@ -2,9 +2,9 @@
 from machine import ADC, Pin
 import time
 
-axe_y = ADC(26)
-axe_x = ADC(27)
-bouton = Pin(14, Pin.IN, Pin.PULL_UP)
+axe_y = ADC(27)
+axe_x = ADC(26)
+bouton = Pin(22, Pin.IN, Pin.PULL_UP)
 while True:
     b = "APPUYE" if bouton.value() == 0 else "relache"
     print("Y =", axe_y.read_u16(), " X =", axe_x.read_u16(), " bouton =", b)

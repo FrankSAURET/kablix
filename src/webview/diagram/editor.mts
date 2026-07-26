@@ -2734,16 +2734,36 @@ export class Editor {
     const rects: PartRect[] = [];
     for (const r of this.rendered.values()) {
       const body = r.container.querySelector('.part__body') as HTMLElement | null;
+      let x = r.part.x;
+      let y = r.part.y;
       let w = 0;
       let h = 0;
       try {
         const svg = (r.el.shadowRoot ?? r.el).querySelector('svg');
-        w = svg?.width?.baseVal?.value || 0;
-        h = svg?.height?.baseVal?.value || 0;
+        // Boîte ÉCRAN du dessin, ramenée en coordonnées monde : elle tient compte
+        // de la ROTATION (appliquée en CSS sur `.part__body`, autour de son centre)
+        // et du miroir. La mesure « x/y du composant + taille nominale du SVG »
+        // ignorait la rotation : une résistance à 90° (dessin 80×20) était
+        // déclarée en 80×20 à partir de son coin haut-gauche alors qu'elle occupe
+        // 20×80 autour de son centre — la boîte tombait à côté du vrai corps, et
+        // l'autoroutage faisait tranquillement passer un fil au travers
+        // (repro Frank : schema-kablix.projix, fil LED A → GP13).
+        const box = svg?.getBoundingClientRect();
+        if (box && box.width > 0 && box.height > 0) {
+          const tl = this.canvasPoint(box.left, box.top);
+          const br = this.canvasPoint(box.right, box.bottom);
+          x = Math.min(tl.x, br.x);
+          y = Math.min(tl.y, br.y);
+          w = Math.abs(br.x - tl.x);
+          h = Math.abs(br.y - tl.y);
+        } else {
+          w = svg?.width?.baseVal?.value || 0;
+          h = svg?.height?.baseVal?.value || 0;
+        }
       } catch {
         // Largeur svg en % sans viewport résolu : repli sur la boîte DOM.
       }
-      rects.push({ id: r.part.id, x: r.part.x, y: r.part.y, w: w || body?.offsetWidth || 40, h: h || body?.offsetHeight || 40 });
+      rects.push({ id: r.part.id, x, y, w: w || body?.offsetWidth || 40, h: h || body?.offsetHeight || 40 });
     }
     return rects;
   }
@@ -5707,7 +5727,13 @@ function astarRoute(
   });
   const softCost = (p: XY, q: XY): number => {
     let c = 0;
-    for (const r of soft) c += segRectOverlap(p, q, r) * 20;
+    // Ras du corps (la broche sort de sa pastille) : taxe douce, identique pour
+    // tous les chemins. Traversée du CŒUR : prohibitive — un corps devient « soft »
+    // parce qu'une borne tombe dans sa CLEARANCE (composants jointifs à 10 px), pas
+    // pour qu'un fil le coupe en deux (repro 7seg-uno : le fil COM.1 → GND coupait
+    // une résistance voisine sur 12 px, la taxe ×20 ne pesait pas assez face au
+    // détour).
+    for (const r of soft) c += segRectOverlap(p, q, r) * 20 + segRectDeepCross(p, q, r, 4) * 1000;
     return c;
   };
   // Un segment [p,q] aligné traverse-t-il l'intérieur d'un composant ? (test au

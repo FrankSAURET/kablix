@@ -2,7 +2,7 @@
 from machine import Pin, PWM
 import time
 
-canaux = {"Rouge": PWM(Pin(13)), "Vert": PWM(Pin(14)), "Bleu": PWM(Pin(15))}
+canaux = {"Rouge": PWM(Pin(15)), "Vert": PWM(Pin(14)), "Bleu": PWM(Pin(13))}
 for p in canaux.values():
     p.freq(1000)
     p.duty_u16(0)

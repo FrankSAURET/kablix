@@ -411,6 +411,73 @@ async function run() {
 		(wAx.points?.length ?? 0) === 0,
 		JSON.stringify((wAx.points ?? []).map((p) => [Math.round(p.x), Math.round(p.y)])));
 
+	// --- Composant TOURNÉ : sa boîte d'obstacle suit la rotation (item v2026.7.201) -
+	// La rotation est appliquée en CSS sur .part__body (autour de son centre) ;
+	// l'encombrement retenu par le routeur se lisait, lui, sur (part.x, part.y) et
+	// la taille NON tournée du dessin. Pour une résistance à 90° (dessin 80×20) le
+	// routeur voyait donc 80×20 posés en haut à gauche là où le corps occupe 20×80
+	// autour de son centre : la boîte tombait à côté du vrai corps et les fils
+	// passaient tranquillement au travers (repro Frank : schema-kablix.projix, fil
+	// LED A → GP13 traversant une résistance verticale).
+	for (const p of [...editor.diagram.parts]) editor.removePart?.(p.id);
+	await wait(30);
+	const rr = editor.addPart('resistor', 300, 300);
+	await wait(60);
+	editor.rotateSelection(90);
+	await wait(120);
+	const rBox = editor.partObstacles().find((o) => o.id === rr.id);
+	ok('résistance à 90° : boîte d obstacle TOURNÉE (haute et étroite)',
+		!!rBox && rBox.h > rBox.w + 20,
+		rBox ? 'w=' + rBox.w.toFixed(0) + ' h=' + rBox.h.toFixed(0) : 'boîte introuvable');
+	// Fil dont la LIGNE DROITE passe en plein dans le corps tourné, mais en dehors
+	// de l'ancienne boîte (fausse) : sans le correctif, le fil file tout droit et
+	// traverse la résistance. Le corps réel est reconstruit à partir des PATTES
+	// (posées à 10 px des bords du dessin) — surtout pas à partir de la boîte de
+	// partObstacles(), qui est justement ce qu'on teste.
+	const rp1 = editor.hotspotCenter({ partId: rr.id, pin: '1' });
+	const rp2 = editor.hotspotCenter({ partId: rr.id, pin: '2' });
+	if (rp1 && rp2) {
+		const cx = (rp1.x + rp2.x) / 2, cy = (rp1.y + rp2.y) / 2;
+		const half = Math.abs(rp1.y - rp2.y) / 2 + 10; // demi-hauteur du corps tourné (≈40)
+		const yLine = cy + half - 18; // dans le corps réel, hors de l'ancienne boîte (20 px de haut)
+		const gl = editor.addPart('ntc', cx - 250, yLine - 70); // patte 2 à yLine
+		const gr = editor.addPart('ntc', cx + 170, yLine - 70); // patte 1 à yLine
+		await wait(120);
+		const cL = editor.hotspotCenter({ partId: gl.id, pin: '2' });
+		const cR = editor.hotspotCenter({ partId: gr.id, pin: '1' });
+		ok('repro : ligne droite dans le corps tourné mais HORS de l ancienne boîte',
+			Math.abs(cL.y - cR.y) <= 1 && cL.x < cx - 10 && cR.x > cx + 10 &&
+			yLine > cy + 15 && yLine < cy + half - 4 &&
+			Math.abs(yLine - Math.max(rp1.y, rp2.y)) > 4,
+			'ligne y=' + yLine.toFixed(0) + ' corps y=' + (cy - half).toFixed(0) + '..' + (cy + half).toFixed(0) +
+			' ancienne boîte y=' + (cy - 10).toFixed(0) + '..' + (cy + 10).toFixed(0) +
+			' pattes y=' + rp1.y.toFixed(0) + '/' + rp2.y.toFixed(0));
+		editor.addWire({ partId: gl.id, pin: '2' }, { partId: gr.id, pin: '1' });
+		await wait(30);
+		editor.select(null); editor.autoRoute();
+		await wait(60);
+		const wRot = editor.diagram.wires[editor.diagram.wires.length - 1];
+		const polyRot = [cL, ...(wRot.points ?? []), cR];
+		// Traversée du CŒUR de la résistance tournée (bords rognés de 4 px).
+		const M = 4;
+		const x0 = cx - 10 + M, x1 = cx + 10 - M, y0 = cy - half + M, y1 = cy + half - M;
+		let deep = 0;
+		for (let i = 0; i < polyRot.length - 1; i++) {
+			const p = polyRot[i], q = polyRot[i + 1];
+			if (Math.abs(p.y - q.y) < 1 && p.y >= y0 && p.y <= y1) {
+				deep += Math.max(0, Math.min(Math.max(p.x, q.x), x1) - Math.max(Math.min(p.x, q.x), x0));
+			} else if (Math.abs(p.x - q.x) < 1 && p.x >= x0 && p.x <= x1) {
+				deep += Math.max(0, Math.min(Math.max(p.y, q.y), y1) - Math.max(Math.min(p.y, q.y), y0));
+			}
+		}
+		ok('fil qui passerait dans une résistance TOURNÉE : contourne (aucune traversée)',
+			deep <= 1, 'traversée=' + deep.toFixed(0) + 'px points=' +
+			JSON.stringify((wRot.points ?? []).map((p) => [Math.round(p.x), Math.round(p.y)])));
+	} else {
+		ok('repro : ligne droite dans le corps tourné mais HORS de l ancienne boîte', false, 'pattes introuvables');
+		ok('fil qui passerait dans une résistance TOURNÉE : contourne (aucune traversée)', false, 'pattes introuvables');
+	}
+
 	const out = document.createElement('pre');
 	out.id = 'measures';
 	out.textContent = JSON.stringify(checks);
@@ -441,6 +508,21 @@ const dom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--no-sandb
 const m = dom.match(/<pre id="measures"[^>]*>([\s\S]*?)<\/pre>/);
 if (!m) { console.log('MESURES INTROUVABLES'); process.exit(1); }
 const rows = JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>'));
+
+// --- Contrôle statique : traverser le CŒUR d'un corps « soft » reste prohibitif -
+// Un corps devient « soft » (traversable) parce qu'une borne du fil tombe dans sa
+// clearance — voisins jointifs à 10 px — et non pour qu'un fil le coupe en deux.
+// La seule taxe au prorata du survol (×20/px) ne pesait pas assez : sur 7seg-uno
+// le fil COM.1 → GND coupait 12 px d'une résistance voisine plutôt que de faire
+// le détour (v2026.7.201).
+const src = readFileSync(join(ROOT, 'src/webview/diagram/editor.mts'), 'utf8');
+const soft = src.match(/const softCost[\s\S]{0,800}?\n\s*\};/);
+rows.push({
+	name: 'A* : la traversée du CŒUR d un corps « soft » est prohibitive',
+	ok: !!soft && /segRectDeepCross\([^)]*\)\s*\*\s*(\d{3,})/.test(soft[0]),
+	detail: soft ? soft[0].replace(/\s+/g, ' ').slice(0, 200) : 'softCost introuvable',
+});
+
 let fail = 0;
 for (const r of rows) {
 	if (!r.ok) fail++;

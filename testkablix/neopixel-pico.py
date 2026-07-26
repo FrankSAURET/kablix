@@ -1,9 +1,10 @@
-# Test NeoPixel (1 pixel WS2812) : cycle complet des couleurs.
+# Test NeoPixel (3 pixels WS2812) : cycle complet des couleurs.
 from machine import Pin
 import neopixel
 import time
 
-pixel = neopixel.NeoPixel(Pin(0), 1)
+nbLED = 3
+pixel = neopixel.NeoPixel(Pin(0), nbLED)
 
 
 def roue_couleurs(position):
@@ -19,6 +20,8 @@ def roue_couleurs(position):
 
 while True:
     for position in range(256):
-        pixel[0] = roue_couleurs(position)
+        for i in range(nbLED):
+            pixel[i] = (0, 0, 0)
+        pixel[position % nbLED] = roue_couleurs(position)
         pixel.write()
         time.sleep(0.02)

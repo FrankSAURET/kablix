@@ -2,7 +2,9 @@
 from machine import ADC
 import time
 
-pot = ADC(26)
+pot = ADC(0)
+pot2 = ADC(1)
 while True:
-    print("ADC0 =", pot.read_u16())
+    print("Pot Tot=", pot.read_u16())
+    print("Pot Lin=", pot2.read_u16())
     time.sleep(0.25)

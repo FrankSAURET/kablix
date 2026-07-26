@@ -1,22 +1,24 @@
-// Test NeoPixel (1 pixel WS2812) : rouge, vert, bleu en boucle.
+// Test NeoPixel (3 pixels WS2812) : allumage successif en boucle.
 #include <Adafruit_NeoPixel.h>
 
-Adafruit_NeoPixel pixel(1, 6, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel pixel(3, 6, NEO_GRB + NEO_KHZ800);
 
 void setup() {
   pixel.begin();
   Serial.begin(115200);
 }
 
-void couleur(uint32_t c, const char* nom) {
-  pixel.setPixelColor(0, c);
+void allumerSuccessif(uint8_t index, uint32_t c) {
+  pixel.clear();
+  pixel.setPixelColor(index, c);
   pixel.show();
-  Serial.println(nom);
-  delay(600);
+  Serial.print("LED ");
+  Serial.println(index + 1);
+  delay(400);
 }
 
 void loop() {
-  couleur(pixel.Color(255, 0, 0), "Rouge");
-  couleur(pixel.Color(0, 255, 0), "Vert");
-  couleur(pixel.Color(0, 0, 255), "Bleu");
+  allumerSuccessif(0, pixel.Color(0, 0, 255));
+  allumerSuccessif(1, pixel.Color(0, 0, 255));
+  allumerSuccessif(2, pixel.Color(0, 0, 255));
 }
