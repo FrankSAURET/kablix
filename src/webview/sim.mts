@@ -2590,6 +2590,33 @@ editor.onComponentHelp = (part: string) => {
 editor.onExportCustomPart = (part: CustomPartData) => {
   vscode.postMessage({ type: 'exportCustomPart', part });
 };
+// --- Presse-papier système par l'hôte ----------------------------------------
+// Copier/coller d'un schéma d'un atelier à l'autre : chaque webview a son propre
+// presse-papier interne, seul celui du SYSTÈME leur est commun. L'API
+// `navigator.clipboard` d'une webview peut être refusée (permission, focus) ;
+// l'extension, elle, y accède toujours (`vscode.env.clipboard`). D'où cet
+// aller-retour, avec un identifiant par demande pour apparier la réponse.
+let clipboardSeq = 0;
+const clipboardWaiters = new Map<number, (text: string | null) => void>();
+
+editor.onClipboardWrite = (text: string) => {
+  vscode.postMessage({ type: 'clipboardWrite', text });
+};
+editor.onClipboardRead = () =>
+  new Promise<string | null>((resolve) => {
+    const id = ++clipboardSeq;
+    // Garde-fou : sans réponse de l'hôte (message perdu, hôte occupé), la
+    // promesse ne doit pas rester en suspens — le collage retombe alors sur le
+    // presse-papier interne.
+    const timer = setTimeout(() => {
+      if (clipboardWaiters.delete(id)) resolve(null);
+    }, 1500);
+    clipboardWaiters.set(id, (text) => {
+      clearTimeout(timer);
+      resolve(text);
+    });
+    vscode.postMessage({ type: 'clipboardRead', id });
+  });
 // Le dépôt d'une carte à microcontrôleur choisit l'outil de simulation (carte) :
 // le menu déroulant de la barre d'outils n'est donc plus nécessaire (masqué).
 editor.onPartAdded = (part) => {
@@ -2736,6 +2763,15 @@ window.addEventListener('message', (event: MessageEvent) => {
       }
       restoredState = undefined;
       break;
+    case 'clipboardText': {
+      // Réponse de l'hôte à une demande de lecture du presse-papier système.
+      const waiter = clipboardWaiters.get(msg.id as number);
+      if (waiter) {
+        clipboardWaiters.delete(msg.id as number);
+        waiter(typeof msg.text === 'string' ? msg.text : null);
+      }
+      break;
+    }
     case 'simModels':
       // Préréglages de modèles de simulation importés (créateur de composants).
       editor.loadSimModels((msg.models as Parameters<typeof editor.loadSimModels>[0]) ?? []);

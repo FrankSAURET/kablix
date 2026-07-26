@@ -949,6 +949,9 @@ export class SimulatorPanel {
     /** Réglages du panneau de débogage (message `debugVars`). */
     hidden?: unknown;
     bases?: unknown;
+    /** Presse-papier système (messages `clipboardRead` / `clipboardWrite`). */
+    id?: number;
+    text?: string;
   }): void {
     // Toute interaction de la webview marque cette session comme « active » :
     // les commandes globales (Enregistrer, Wokwi…) la ciblent.
@@ -1025,6 +1028,18 @@ export class SimulatorPanel {
         break;
       case 'exportSvg':
         if (msg.svg) void this.saveSvg(msg.svg);
+        break;
+      case 'clipboardRead':
+        // Copier/coller d'un atelier à l'autre : la webview n'a pas toujours le
+        // droit de LIRE le presse-papier, l'extension l'a toujours.
+        void vscode.env.clipboard.readText().then(
+          (text) => this.post({ type: 'clipboardText', id: msg.id, text }),
+          () => this.post({ type: 'clipboardText', id: msg.id, text: null })
+        );
+        break;
+      case 'clipboardWrite':
+        // Repli d'écriture (navigator.clipboard refusé côté webview).
+        if (typeof msg.text === 'string') void vscode.env.clipboard.writeText(msg.text);
         break;
       case 'exportCsv':
         if (typeof msg.csv === 'string') void this.saveCsv(msg.csv);

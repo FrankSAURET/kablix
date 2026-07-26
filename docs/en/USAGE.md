@@ -438,4 +438,14 @@ Kablix bundles three simulation libraries (`avr8js`, `rp2040js`, `@wokwi/element
 | `Del` / `Backspace` | Delete the selection (part or wire) |
 | `Esc` | Cancel the wire being drawn / deselect |
 | `Ctrl` (while dragging a handle) | Crosshair + H/V alignment of the corner |
+| `Ctrl+A` | Select every part |
+| `Ctrl+C` | Copy the selection (parts + wires) — allowed even during simulation |
+| `Ctrl+V` | Paste the selection, **including into another Kablix project** |
+| `Ctrl+D` | Duplicate the selection in place |
 | `Enter` (serial field) | Send the line to the microcontroller |
+
+### Copy and paste from one project to another
+
+`Ctrl+C` puts **an SVG image** of the selection on the clipboard: pasted into a document, an e-mail or a drawing program, it still is the vector picture it always was. That same SVG quietly carries the diagram (parts, positions, settings, wires) inside a `<metadata>` tag that viewers ignore.
+
+As a result, `Ctrl+V` in **another Kablix project** recreates the parts and their wires, offset by 20 px so they stay visible; a second paste offsets them again. Parts unknown to the receiving project (missing custom parts) are skipped, the rest is pasted. Pasting arbitrary text does nothing, and pasting is refused while a simulation runs.

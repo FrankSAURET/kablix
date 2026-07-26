@@ -442,4 +442,14 @@ Kablix embarque trois bibliothèques de simulation (`avr8js`, `rp2040js`, `@wokw
 | `Suppr` / `Retour arrière` | Supprimer la sélection (composant ou fil) |
 | `Échap` | Annuler le câblage en cours / désélectionner |
 | `Ctrl` (pendant le glissement d'une poignée) | Réticule + alignement H/V du coude |
+| `Ctrl+A` | Sélectionner tous les composants |
+| `Ctrl+C` | Copier la sélection (composants + fils) — autorisé même en simulation |
+| `Ctrl+V` | Coller la sélection, **y compris dans un autre projet Kablix** |
+| `Ctrl+D` | Dupliquer la sélection sur place |
 | `Entrée` (champ série) | Envoyer la ligne au microcontrôleur |
+
+### Copier-coller d'un projet à l'autre
+
+`Ctrl+C` place dans le presse-papier **une image SVG** de la sélection : collée dans un document, un mail ou un logiciel de dessin, elle reste un dessin vectoriel comme avant. Ce même SVG transporte discrètement le schéma (composants, positions, réglages, fils) dans une balise `<metadata>` que les visionneuses ignorent.
+
+Résultat : `Ctrl+V` dans **un autre projet Kablix** recrée les composants et leurs fils, décalés de 20 px pour rester visibles ; un second collage se décale encore. Les composants inconnus du projet d'accueil (composants personnalisés absents) sont ignorés, le reste est collé. Coller un texte quelconque ne fait rien, et le collage est refusé pendant une simulation.

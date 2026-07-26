@@ -24,6 +24,7 @@ import {
   type SimModelPreset,
 } from './catalog.mjs';
 import { breadboardPins, normalizeSize, stripOfPin } from './breadboard.mjs';
+import { embedClipboardInSvg, encodeClipboard, extractClipboard, type ClipboardPayload } from './clipboard.mjs';
 import { groveSocketPins } from './grove-shield.mjs';
 import { internalWiringSvg, type PinPoint } from './internal-wiring.mjs';
 import { hasPinout, pinoutPoster, loadPinoutSvg } from './pinout.mjs';
@@ -94,6 +95,10 @@ const ZOOM_MIN = 0.2;
 const ZOOM_MAX = 10; // 1000 %
 /** Pas de la grille magnétique d'alignement (px) = écartement des broches. */
 const GRID = 10;
+/** Décalage d'un collage par rapport à la copie : 2 pas de grille — la copie
+ *  reste visible sous l'original ET ses broches restent enfichables (un décalage
+ *  hors grille les aurait toutes désalignées). */
+const PASTE_OFFSET = 2 * GRID;
 /** Remise par px de tracé couché sur un fil de la MÊME équipotentielle (autoroutage) :
  *  suivre la dorsale coûte (1 − RIDE) = 25 % de la longueur — le recouvrement
  *  même-net est PRÉFÉRÉ, l'embranchement se fait au plus près de la broche. */
@@ -105,6 +110,19 @@ const SHEET_W = 4000;
 const SHEET_H = 3000;
 /** Aligne une coordonnée sur la grille magnétique. */
 const snapToGrid = (v: number): number => Math.round(v / GRID) * GRID;
+/**
+ * Vrai si le type est au catalogue de CE poste (composants standard ou
+ * personnalisés enregistrés). Un schéma collé depuis un autre atelier peut citer
+ * un composant personnalisé absent d'ici : `partDef` lèverait, on l'ignore.
+ */
+const knownPartType = (type: string): boolean => {
+  try {
+    partDef(type);
+    return true;
+  } catch {
+    return false;
+  }
+};
 /**
  * Cale une broche sur la grille **par rapport à la 1re broche (ancre)** : on force
  * un pas multiple de 10 depuis l'ancre, sans bouger l'ancre. Les coordonnées Wokwi
@@ -169,6 +187,19 @@ export class Editor {
   onSelectionChange: ((info: { partId: string | null; schema: boolean; shown: boolean }) => void) | null = null;
   /** Appelé quand une action d'ÉDITION est tentée pendant la simulation (verrouillé). */
   onBlockedEdit: (() => void) | null = null;
+  /**
+   * Écriture du presse-papier SYSTÈME par l'hôte VS Code (repli). L'API
+   * `navigator.clipboard` d'une webview peut être refusée (focus, permission) :
+   * l'extension, elle, a toujours accès au presse-papier.
+   */
+  onClipboardWrite: ((text: string) => void) | null = null;
+  /**
+   * Lecture du presse-papier SYSTÈME par l'hôte VS Code. C'est ce chemin qui
+   * permet de coller un schéma copié dans un AUTRE atelier Kablix : chaque
+   * webview a son propre presse-papier interne, seul le presse-papier du
+   * système leur est commun.
+   */
+  onClipboardRead: (() => Promise<string | null>) | null = null;
   /** Appelé au changement de VUE (zoom / déplacement de la page). Léger : persiste
    *  la caméra dans l'état webview + le schéma côté hôte, SANS empiler d'edit
    *  (pas de point ● : un zoom n'est pas une modification annulable). */
@@ -257,7 +288,11 @@ export class Editor {
   /** Minuterie qui clôt la fenêtre `settling` (après le dernier re-snap différé). */
   private settleEndTimer: ReturnType<typeof setTimeout> | undefined;
   /** Presse-papier interne pour dupliquer une sélection (Ctrl+C / Ctrl+V / Ctrl+D). */
-  private clipboard: { parts: Part[]; wires: Wire[] } | null = null;
+  private clipboard: ClipboardPayload | null = null;
+  /** Décalage des collages successifs d'une MÊME copie : 20, 40, 60 px… (sinon
+   *  deux Ctrl+V posaient les copies exactement l'une sur l'autre). La clé est
+   *  la charge utile collée : coller autre chose repart de 20 px. */
+  private pasteRun: { key: string; n: number } | null = null;
   /** Quadrillage de la feuille affiché (bouton ▦ de la barre de dessin). */
   private gridShown = true;
 
@@ -2416,8 +2451,12 @@ export class Editor {
         return;
       }
       if (k === 'v' && !this.locked) {
+        // preventDefault : le collage natif (qui ne saurait de toute façon rien
+        // faire d'un schéma) est écarté, un SEUL chemin colle — la lecture
+        // asynchrone du presse-papier système, qui atteint aussi les copies
+        // faites dans un AUTRE atelier Kablix.
         e.preventDefault();
-        this.paste();
+        void this.pasteFromSystem();
         return;
       }
       if (k === 'd' && !this.locked) {
@@ -3816,34 +3855,77 @@ export class Editor {
   /**
    * Copie la sélection : presse-papier interne (pour Coller/Dupliquer dans le
    * schéma) + image vectorielle SVG dans le presse-papier système (pour coller
-   * dans un autre logiciel, ex. Inkscape).
+   * dans un autre logiciel, ex. Inkscape). Le SVG copié porte EN PLUS le schéma
+   * de la sélection dans une balise `<metadata>` : c'est lui qui permet de
+   * coller les composants dans un AUTRE atelier Kablix (cf. clipboard.mts).
    */
   copySelection(): void {
     if (this.selectedParts.size === 0) return;
     const ids = new Set(this.selectedParts);
     const parts = this.diagram.parts.filter((p) => ids.has(p.id));
-    // Seuls les fils entièrement contenus dans la sélection sont copiés.
-    const wires = this.diagram.wires.filter(
-      (w) => !w.auto && ids.has(w.a.partId) && ids.has(w.b.partId)
-    );
-    this.clipboard = JSON.parse(JSON.stringify({ parts, wires })) as { parts: Part[]; wires: Wire[] };
-    void this.copyAsVectorImage(this.buildSvg(ids));
+    // Seuls les fils entièrement contenus dans la sélection sont copiés — les
+    // fils implicites d'enfichage compris (une Pico copiée avec son socle garde
+    // ses connexions, exactement comme à l'enregistrement du projet).
+    const wires = this.diagram.wires.filter((w) => ids.has(w.a.partId) && ids.has(w.b.partId));
+    const payload = JSON.parse(JSON.stringify({ parts, wires })) as ClipboardPayload;
+    this.clipboard = payload;
+    this.pasteRun = null; // nouvelle copie : le décalage des collages repart de zéro
+    void this.copyAsVectorImage(embedClipboardInSvg(this.buildSvg(ids), encodeClipboard(payload)));
+  }
+
+  /**
+   * Colle : d'abord le schéma trouvé dans le presse-papier SYSTÈME (donc copié
+   * dans n'importe quel atelier Kablix), sinon le presse-papier interne. Un
+   * texte quelconque dans le presse-papier ne colle rien : on retombe alors sur
+   * la dernière copie faite ici.
+   */
+  async pasteFromSystem(): Promise<void> {
+    if (this.locked) return;
+    const text = await this.readSystemClipboard();
+    const external = text ? extractClipboard(text) : null;
+    if (external) {
+      this.insertPayload(external);
+      return;
+    }
+    this.paste();
   }
 
   /** Colle le presse-papier interne (composants décalés, fils internes conservés). */
   paste(): void {
     if (!this.clipboard || this.clipboard.parts.length === 0) return;
-    const OFFSET = 24;
+    this.insertPayload(this.clipboard);
+  }
+
+  /**
+   * Pose une charge utile (interne ou venue d'un autre atelier) : identifiants
+   * neufs, décalage d'un cran de grille, fils rattachés aux copies. Les types de
+   * composants inconnus de ce poste sont ignorés — plutôt que de faire échouer
+   * tout le collage.
+   */
+  private insertPayload(payload: ClipboardPayload): void {
+    const parts = payload.parts.filter((p) => knownPartType(p.type));
+    if (parts.length === 0) return;
+    // Collages successifs de la MÊME copie : chaque coller s'écarte d'un cran de
+    // plus (20 px = 2 pas de grille), sinon les copies s'empilent au même point.
+    const key = `${parts.length}:${parts.map((p) => `${p.type}@${p.x},${p.y}`).join('|')}`;
+    this.pasteRun = this.pasteRun?.key === key ? { key, n: this.pasteRun.n + 1 } : { key, n: 1 };
+    const offset = PASTE_OFFSET * this.pasteRun.n;
     const idMap = new Map<string, string>();
     const newIds = new Set<string>();
-    for (const p of this.clipboard.parts) {
-      const np: Part = { ...p, id: uid(`${p.type}-`), x: p.x + OFFSET, y: p.y + OFFSET };
+    for (const p of parts) {
+      const np: Part = {
+        ...p,
+        id: uid(`${p.type}-`),
+        x: p.x + offset,
+        y: p.y + offset,
+        attrs: migratePartAttrs(p),
+      };
       idMap.set(p.id, np.id);
       this.diagram.parts.push(np);
       this.renderPart(np);
       newIds.add(np.id);
     }
-    for (const w of this.clipboard.wires) {
+    for (const w of payload.wires) {
       const a = idMap.get(w.a.partId);
       const b = idMap.get(w.b.partId);
       if (!a || !b) continue;
@@ -3852,10 +3934,11 @@ export class Editor {
         id: uid('w-'),
         a: { partId: a, pin: w.a.pin },
         b: { partId: b, pin: w.b.pin },
-        points: w.points?.map((pt) => ({ x: pt.x + OFFSET, y: pt.y + OFFSET })),
+        points: w.points?.map((pt) => ({ x: pt.x + offset, y: pt.y + offset })),
       };
       this.diagram.wires.push(nw);
-      this.drawWire(nw);
+      // Les fils implicites d'enfichage ne sont jamais tracés (cf. loadDiagram).
+      if (!nw.auto) this.drawWire(nw);
     }
     this.redrawWires();
     // Sélectionne les copies fraîchement posées.
@@ -3870,6 +3953,26 @@ export class Editor {
   duplicateSelection(): void {
     this.copySelection();
     this.paste();
+  }
+
+  /**
+   * Texte du presse-papier système : API du navigateur d'abord, hôte VS Code
+   * ensuite. Dans une webview, `navigator.clipboard.readText()` peut être
+   * refusée sans erreur exploitable — l'extension (`vscode.env.clipboard`), elle,
+   * y accède toujours.
+   */
+  private async readSystemClipboard(): Promise<string | null> {
+    try {
+      const text = await navigator.clipboard?.readText();
+      if (text) return text;
+    } catch {
+      // lecture refusée (permission / focus) : on passe par l'hôte.
+    }
+    try {
+      return (await this.onClipboardRead?.()) ?? null;
+    } catch {
+      return null;
+    }
   }
 
   /** Écrit le SVG fourni dans le presse-papier système (image vectorielle, repli texte). */
@@ -3889,9 +3992,13 @@ export class Editor {
     }
     try {
       await navigator.clipboard?.writeText(svg);
+      return;
     } catch {
-      // presse-papier indisponible (focus/permission) : on n'échoue pas.
+      // presse-papier indisponible (focus/permission) : repli sur l'hôte.
     }
+    // Dernier recours : c'est l'extension qui écrit le presse-papier système —
+    // sans quoi la copie ne sortirait pas de cette webview.
+    this.onClipboardWrite?.(svg);
   }
 
   // --- Câblage interne (commandé par le bouton ☢ du bandeau) ------------------
@@ -4264,7 +4371,7 @@ export class Editor {
     const help = [
       t('+ or − to rotate the parts'),
       t('Drag a part to move the whole selection.'),
-      t('Ctrl+C / Ctrl+V: copy / paste — Ctrl+D: duplicate.'),
+      t('Ctrl+C / Ctrl+V: copy / paste, from one project to another too — Ctrl+D: duplicate.'),
     ];
     if (homogeneous) help.unshift(t('Changing a property applies to the whole selection.'));
     this.appendHelp(help);

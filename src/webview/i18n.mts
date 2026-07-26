@@ -70,7 +70,8 @@ const FR: Record<string, string> = {
   '+ or − to rotate the part': '+ ou − pour faire tourner le composant',
   '+ or − to rotate the parts': '+ ou − pour faire tourner les composants',
   'Drag a part to move the whole selection.': 'Glisser un composant déplace toute la sélection.',
-  'Ctrl+C / Ctrl+V: copy / paste — Ctrl+D: duplicate.': 'Ctrl+C / Ctrl+V : copier / coller — Ctrl+D : dupliquer.',
+  'Ctrl+C / Ctrl+V: copy / paste, from one project to another too — Ctrl+D: duplicate.':
+    'Ctrl+C / Ctrl+V : copier / coller, d’un projet à l’autre aussi — Ctrl+D : dupliquer.',
   '{0} parts selected': '{0} composants sélectionnés',
   '{0} × {1} — shared properties': '{0} × {1} — propriétés communes',
   'Changing a property applies to the whole selection.': 'Modifier une propriété l’applique à toute la sélection.',
