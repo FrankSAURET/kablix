@@ -11,9 +11,10 @@ import { SHOW_PART_HELP } from './partHelp';
 // l'aperçu Markdown de VS Code limite ses ressources locales au dossier du
 // document et perdrait toutes les captures.
 //
-// Les captures lourdes (GIF de démo, logo) restent HORS du vsix pour ne pas
-// alourdir le paquet de ~14 Mo : celles qui manquent localement sont servies
-// depuis le dépôt GitHub, les autres depuis l'extension (donc hors-ligne).
+// Les captures qui manquent localement (restées hors du vsix pour ne pas
+// alourdir le paquet) sont servies depuis le dépôt GitHub, les autres depuis
+// l'extension — donc hors-ligne. Les 3 démos animées sont embarquées en WebM
+// (v2026.7.190) et injectées en `data:` dans la page (v2026.7.191).
 
 /** Commande interne : navigation d'un guide à l'autre (liens entre guides). */
 export const SHOW_GUIDE = 'kablix.showGuide';
@@ -23,6 +24,16 @@ export const MAIN_GUIDE = 'USAGE';
 
 /** Base des ressources non embarquées dans le vsix (captures lourdes). */
 const RAW_BASE = 'https://raw.githubusercontent.com/FrankSAURET/kablix/main/';
+
+/** Démos animées du guide : traitées à part (cf. resolveAssets). */
+const VIDEO_EXT = /\.(webm|mp4)$/i;
+
+/** Fichier local → `data:` (MIME + octets dans la page, aucune requête). */
+async function dataUri(uri: vscode.Uri): Promise<string> {
+  const bytes = await vscode.workspace.fs.readFile(uri);
+  const mime = /\.mp4$/i.test(uri.path) ? 'video/mp4' : 'video/webm';
+  return `data:${mime};base64,${Buffer.from(bytes).toString('base64')}`;
+}
 
 /** Langue des guides selon VS Code (repli anglais). */
 function docLang(): 'fr' | 'en' {
@@ -159,6 +170,11 @@ async function resolveAssets(
       if (/^https?:/i.test(rel)) { out.set(rel, rel); return; }
       const uri = vscode.Uri.joinPath(base, rel);
       try {
+        // Vidéo : servie EN DUR dans la page (data:). Derrière l'URI de webview
+        // le lecteur restait inerte — le média y arrive sans type annoncé et
+        // sans requêtes de plage. Un data: porte son MIME et tout l'octet-stream,
+        // et les 3 démos ne pèsent que 1,2 Mo à elles trois (v2026.7.191).
+        if (VIDEO_EXT.test(rel)) { out.set(rel, await dataUri(uri)); return; }
         await vscode.workspace.fs.stat(uri);
         out.set(rel, webview.asWebviewUri(uri).toString());
       } catch {
@@ -174,13 +190,14 @@ async function resolveAssets(
 function pageHtml(webview: vscode.Webview, lang: string, title: string, body: string): string {
   const nonce = randomBytes(24).toString('base64');
   // `https:` : les captures lourdes restées hors du vsix viennent du dépôt.
-  // `media-src` : les 3 démos WebM du guide, embarquées (v2026.7.190) — `https:`
-  // couvre le repli GitHub si une vidéo venait à sortir du paquet.
+  // `media-src` : les 3 démos WebM du guide, embarquées (v2026.7.190) et
+  // servies en `data:` (v2026.7.191) ; `https:` couvre le repli GitHub si une
+  // vidéo venait à sortir du paquet.
   const csp = [
     `default-src 'none'`,
     `style-src 'nonce-${nonce}'`,
     `img-src ${webview.cspSource} https: data:`,
-    `media-src ${webview.cspSource} https:`,
+    `media-src ${webview.cspSource} https: data:`,
   ].join('; ');
 
   return /* html */ `<!DOCTYPE html>

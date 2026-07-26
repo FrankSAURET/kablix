@@ -46,6 +46,10 @@ const TARGET = String.raw`(&lt;[^)]*?&gt;|<[^>]+>|[^)\s]+)`;
 /** Cibles rendues en `<video>` et non en `<img>` (démos des guides). */
 const VIDEO = /\.(webm|mp4)$/i;
 
+/** Type MIME déclaré à la `<source>` — le démuxeur ne le devine pas toujours. */
+const videoMime = (target: string): string =>
+  /\.mp4$/i.test(target) ? 'video/mp4' : 'video/webm';
+
 /**
  * Ancre d'un titre, pour les liens `#section`. Mêmes règles que GitHub — la
  * ponctuation est SUPPRIMÉE (et non remplacée par un tiret) puis les espaces
@@ -100,8 +104,11 @@ function inline(src: string, opt: MarkdownOptions): string {
     // syntaxe d'image (portable, vérifiable comme un lien), on rend une vidéo
     // qui se comporte comme le GIF qu'elle remplace — muette et en boucle —
     // mais avec les contrôles, une démo de 40 s méritant une pause.
+    // Le type est déclaré sur une <source> : sans lui, le lecteur reste inerte
+    // quand la réponse n'annonce pas `video/webm` (v2026.7.191).
     if (VIDEO.test(target)) {
-      return `<video src="${src2}" title="${alt}" autoplay loop muted playsinline controls></video>`;
+      return `<video title="${alt}" autoplay loop muted playsinline controls preload="auto">`
+        + `<source src="${src2}" type="${videoMime(target)}" /></video>`;
     }
     return `<img src="${src2}" alt="${alt}" />`;
   });

@@ -10,7 +10,10 @@
 //  - CRF 32 sans débit cible : 12,2 Mo → 1,2 Mo, SSIM 0,95 à 0,99 contre le GIF.
 //  - dimensions ramenées au pair (yuv420p l'exige : 800x525 → 800x524).
 //
-// Usage : node scripts/_gif2webm.mjs [fichier.gif …]   (défaut : les 3 démos)
+// Usage : node scripts/_gif2webm.mjs [--force] [fichier.gif …]  (défaut : les 3
+// démos). Un WebM PLUS RÉCENT que son GIF est laissé tel quel : il a été refait
+// à la main (Frank a réencodé `simuler.webm`, jugé trop dégradé) et ce script ne
+// doit pas l'écraser au prochain passage. `--force` réencode quand même.
 // ffmpeg est cherché dans FFMPEG (variable d'environnement), puis à l'endroit
 // où il est installé sur le poste, puis dans le PATH.
 import { spawnSync } from 'node:child_process';
@@ -40,7 +43,9 @@ function ffmpeg() {
 
 const FF = ffmpeg();
 const mb = (p) => (statSync(p).size / 1048576).toFixed(2);
-const gifs = process.argv.slice(2).length ? process.argv.slice(2) : DEMOS;
+const args = process.argv.slice(2);
+const FORCE = args.includes('--force');
+const gifs = args.filter((a) => a !== '--force').length ? args.filter((a) => a !== '--force') : DEMOS;
 
 let total = 0;
 let totalGif = 0;
@@ -48,6 +53,11 @@ for (const g of gifs) {
   const src = g.includes('/') || g.includes('\\') ? g : join(MEDIA, g);
   if (!existsSync(src)) { console.error(`❌ ${g} : absent`); process.exitCode = 1; continue; }
   const dst = join(MEDIA, basename(src).replace(/\.gif$/i, '.webm'));
+  // WebM refait à la main (donc plus récent que son GIF) : on n'y touche pas.
+  if (!FORCE && existsSync(dst) && statSync(dst).mtimeMs > statSync(src).mtimeMs) {
+    console.log(`⏭️  ${basename(dst)} ${mb(dst)} Mo : plus récent que le GIF, conservé (--force pour réencoder)`);
+    continue;
+  }
   const r = spawnSync(FF, [
     '-y', '-i', src,
     '-c:v', 'libvpx-vp9', '-crf', CRF, '-b:v', '0',

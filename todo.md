@@ -1,6 +1,17 @@
 # À faire
 
-1. *(rien en attente)*
+# v2026.7.191 — les démos ne s'affichaient pas : lecteur inactif dans l'aide
+1. ✅ **Constat** : les 3 vidéos livrées en v190 donnaient un **lecteur inerte** dans l'aide ❔ (aucune image, contrôles morts) alors que les fichiers sont bien dans le vsix (`vsce ls` : les 3 `media/*.webm`) et que Chromium les décode (`readyState=4` en headless). Le fichier n'était donc pas en cause : c'est son **acheminement jusqu'au lecteur** qui échouait.
+2. ✅ **Correctif 1 — type MIME déclaré** (`src/markdown.ts`) : `<video><source src="…" type="video/webm"></video>` au lieu d'un simple `<video src>`. Sans `type`, le lecteur ne démarre pas quand la réponse n'annonce pas `video/webm` — et une ressource de webview arrive sans type utile.
+3. ✅ **Correctif 2 — vidéo injectée EN DUR** (`src/guide.ts`) : les démos ne passent plus par `asWebviewUri` mais par un **`data:video/webm;base64,…`**. Cela supprime d'un coup toute la classe de causes possibles (protocole de webview, type de réponse, requêtes de plage refusées par le service worker) : l'URI porte son MIME et **tous** les octets. Les 3 démos ne pèsent que 1,26 Mo, la page du guide passe à 1,7 Mo — sans requête réseau ni disque.
+4. ✅ **CSP** : `media-src … data:` ajouté au guide (sans quoi la vidéo est bloquée en silence). `preload="auto"` sur le lecteur.
+5. ✅ **Vérifié en headless sur la page COMPLÈTE** (les 3 `data:` d'un coup, 1,69 Mo de HTML) : `readyState=4` pour les trois, aux bonnes dimensions.
+6. ✅ **`verify:docs` porté à 20 contrôles** : le rendu sort bien `<source … type="video/webm">`, la CSP du guide accepte `data:`, et `resolveAssets` passe bien par `dataUri` pour les vidéos.
+7. ✅ **`simuler.webm` refait à la main par Frank** (le CRF 32 le dégradait trop) et **gardé tel quel** — aucun réencodage de ma part : VP9 profile 0, 834x480, yuv420p, 24 im/s, 81,1 s, **0,92 Mo**, donc conforme au banc (`V_VP9`, < 1,5 Mo) et décodé en headless avec les deux autres. Total des démos : **1,26 Mo** (`demarrer` 0,11 · `dessiner` 0,23 · `simuler` 0,92).
+8. ✅ **Garde-fou anti-écrasement** (`scripts/_gif2webm.mjs`) : un WebM **plus récent que son GIF** est sauté (« conservé ») au lieu d'être réencodé — sinon un simple passage du convertisseur détruisait la version refaite à la main. `--force` pour réencoder quand même.
+9. ℹ️ **Fiches de composants non concernées** : aucune n'affiche de vidéo ; `partHelp.ts` garde `media-src ${webview.cspSource}` (à basculer en `data:` le jour où une fiche en aura une).
+10. ✅ typecheck + build + `verify:all` verts.
+11. ⬜ À VALIDER EN F5 : aide ❔ → les 3 démos du démarrage s'animent en boucle, contrôles actifs, sans connexion.
 
 # v2026.7.190 — les 3 démos des guides passent du GIF distant au WebM embarqué
 1. ✅ **12,17 Mo de GIF → 1,20 Mo de WebM** (`demarrer` 1,90 → 0,11 · `dessiner` 3,29 → 0,23 · `simuler` 6,99 → 0,85). Les trois démos étaient **hors du vsix** et servies depuis GitHub (v187) : sans connexion, l'aide ❔ n'en montrait aucune. Elles sont maintenant **embarquées** et animées hors-ligne.
@@ -8,7 +19,7 @@
 3. ✅ **Rendu Markdown maison** (`src/markdown.ts`) : une « image » qui pointe un `.webm`/`.mp4` sort en **`<video autoplay loop muted playsinline controls>`** — un `<img>` n'affiche pas un WebM. Les guides gardent donc la syntaxe `![…](…)`, vérifiable comme un lien ordinaire, et la démo se comporte comme le GIF qu'elle remplace (muette, en boucle) avec en plus la **pause** — utile sur 40 s.
 4. ✅ **CSP des deux webviews d'aide** : `media-src` ajouté (`guide.ts` avec repli `https:`, `partHelp.ts`) — sans lui, `default-src 'none'` bloquait la vidéo **sans un mot d'erreur**. Style : `img, video { max-width: 100% }`.
 5. ✅ **`.vscodeignore`** : `media/*.webm` embarqué, les 3 `.gif` restent exclus — le **README** (marketplace) en a encore besoin, le marketplace ne lisant pas de vidéo. Aucun GIF n'est plus référencé par les guides.
-6. ✅ **Décodage prouvé, pas supposé** : page locale + Chrome headless → les 3 vidéos atteignent `readyState=4` aux bonnes dimensions (800x524, 784x528, 800x462) et bonnes durées (13,3 s / 15,5 s / 39,9 s).
+6. ✅ **Décodage prouvé, pas supposé** : page locale + Chrome headless → les 3 vidéos atteignent `readyState=4` aux bonnes dimensions (800x524, 784x528, 800x462) et bonnes durées (13,3 s / 15,5 s / 39,9 s). *(Chiffres de `simuler` avant son réencodage manuel — cf. v191.)*
 7. ✅ **`verify:docs` porté à 19 contrôles** : plus aucun GIF référencé par les guides et les 3 WebM bien cités · chaque WebM présent, **VP9** (CodecID `V_VP9` lu dans l'en-tête Matroska), < 1,5 Mo et non exclu du paquet · le rendu maison sort bien une `<video>` muette en boucle et **pas** un `<img>` · `media-src` présent dans les deux CSP.
 8. ✅ **Version anglaise faite aussi** (les 3 références de `docs/en/USAGE.md`), comme demandé.
 9. ✅ typecheck + build + `verify:all` verts.

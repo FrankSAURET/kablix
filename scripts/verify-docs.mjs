@@ -268,22 +268,34 @@ ok('démos : 3 WebM VP9 légers et embarqués (animées hors-ligne)', demoIssues
   demoIssues.join(' · '));
 
 // Le rendu maison doit produire une VIDÉO : un <img> n'affiche pas un WebM.
+// Le type MIME est déclaré sur une <source> : sans lui, le lecteur reste inerte
+// quand la réponse n'annonce pas `video/webm` (constaté en v190).
 const demoHtml = renderMarkdown('![Démo](../../media/simuler.webm)', {
   resolveAsset: (r) => 'asset:' + r,
   resolveDocLink: () => '',
 });
 ok('rendu : une démo .webm sort en <video> muette et en boucle, pas en <img>',
-  /<video src="asset:\.\.\/\.\.\/media\/simuler\.webm"/.test(demoHtml)
+  /<video[^>]*>\s*<source src="asset:\.\.\/\.\.\/media\/simuler\.webm" type="video\/webm"/.test(demoHtml)
   && /\bautoplay\b/.test(demoHtml) && /\bloop\b/.test(demoHtml) && /\bmuted\b/.test(demoHtml)
   && !/<img/.test(demoHtml),
-  demoHtml.slice(0, 140));
+  demoHtml.slice(0, 160));
 
 // Sans `media-src`, `default-src 'none'` bloque la vidéo sans un mot d'erreur.
+// Le guide doit en plus accepter `data:` : c'est ainsi qu'il sert ses démos.
 const guideSrc = readFileSync(join(root, 'src', 'guide.ts'), 'utf8');
 const partSrc = readFileSync(join(root, 'src', 'partHelp.ts'), 'utf8');
 ok('webviews : media-src autorisé dans la CSP de l’aide (guides et fiches)',
-  /media-src \$\{webview\.cspSource\}/.test(guideSrc) && /media-src \$\{webview\.cspSource\}/.test(partSrc),
+  /media-src \$\{webview\.cspSource\}[^`]*data:/.test(guideSrc)
+  && /media-src \$\{webview\.cspSource\}/.test(partSrc),
   `guide=${/media-src/.test(guideSrc)} fiches=${/media-src/.test(partSrc)}`);
+
+// Les vidéos du guide sont injectées EN DUR (data:) : derrière l'URI de webview
+// le lecteur restait inactif, le média y arrivant sans type annoncé et sans
+// requêtes de plage (v2026.7.191).
+ok('guide : les démos sont injectées en data:, pas par une URI de webview',
+  /VIDEO_EXT\.test\(rel\)/.test(guideSrc) && /data:\$\{mime\};base64,/.test(guideSrc)
+  && /readFile/.test(guideSrc),
+  'resolveAssets ne passe plus par dataUri pour les vidéos');
 
 // Garde-fou du matcher : des règles connues doivent bien s'appliquer.
 ok('vsix : matcher .vscodeignore cohérent (src/ exclu, dist/webview.js ré-inclus)',
