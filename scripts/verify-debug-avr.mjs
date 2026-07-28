@@ -115,45 +115,59 @@ check(`globale compteur (int, 2 octets, SRAM) : ${JSON.stringify(compteur)}`,
 check(`globale seuil (float, 4 octets, SRAM) : ${JSON.stringify(seuil)}`,
   !!seuil && seuil.size === 4 && seuil.addr >= 0x100 && (seuil.type ?? '').includes('float'));
 
-// --- Pas à pas dans le moteur ------------------------------------------------
-console.log('Pas à pas et variables (AvrEngine) :');
+// --- Point d'arrêt dans la boucle d'exécution --------------------------------
+// Le moteur exécute sa boucle en tâches de fond (setTimeout / MessageChannel) et
+// `step()` ne fait qu'ARMER un pas : il faut laisser la boucle tourner et
+// attendre le `onDebugPause`, pas dérouler des frames à la main.
+console.log("Point d'arrêt (boucle d'exécution) :");
 const engine = new AvrEngine(Uint16Array.from(p.bytes), debug);
 const states = [];
-engine.onDebugPause = (s) => states.push(s);
+let waiting = null;
+engine.onDebugPause = (s) => {
+  states.push(s);
+  waiting?.(s);
+};
 
-engine.pause(); // démarre en pause (PC encore dans crt0, ligne indéfinie)
-for (let i = 0; i < 14; i++) engine.step();
+/** Attend le prochain arrêt du moteur (null au bout de `ms`). */
+const nextPause = (ms = 15000) =>
+  new Promise((resolve) => {
+    const timer = setTimeout(() => { waiting = null; resolve(null); }, ms);
+    waiting = (s) => { clearTimeout(timer); waiting = null; resolve(s); };
+  });
 
-const visited = [...new Set(states.map((s) => s.line).filter((l) => l !== undefined))];
+engine.setBreakpoints([{ line: loopLine }]);
+engine.start();
+const bpState = await nextPause();
+check(`arrêt sur la ligne ${loopLine} (ligne ${bpState?.line})`, engine.paused && bpState?.line === loopLine);
+
+// --- Pas à pas et variables ---------------------------------------------------
+console.log('Pas à pas et variables (AvrEngine) :');
+// Le point d'arrêt gênerait le pas à pas (il re-déclencherait à chaque tour) :
+// on le retire, on avance ligne à ligne dans le corps de loop().
+engine.setBreakpoints([]);
+const stepped = [];
+for (let i = 0; i < 8; i++) {
+  engine.step();
+  const s = await nextPause();
+  if (!s) break;
+  stepped.push(s);
+}
+const visited = [...new Set(stepped.map((s) => s.line).filter((l) => l !== undefined))];
 check(`le pas à pas visite plusieurs lignes (${visited.join(', ')})`, visited.length >= 2);
 
-const last = states[states.length - 1];
-const lastCompteur = last.variables.find((v) => v.name === 'compteur');
-const lastSeuil = last.variables.find((v) => v.name === 'seuil');
+const last = stepped[stepped.length - 1];
+const lastCompteur = last?.variables.find((v) => v.name === 'compteur');
+const lastSeuil = last?.variables.find((v) => v.name === 'seuil');
 check(`compteur incrémenté (${lastCompteur?.value})`, !!lastCompteur && parseInt(lastCompteur.value, 10) >= 1);
 check(`seuil flottant > 3 (${lastSeuil?.value})`, !!lastSeuil && parseFloat(lastSeuil.value) > 3);
 
-// --- Point d'arrêt dans la boucle 60 fps --------------------------------------
-console.log('Point d\'arrêt (boucle d\'exécution) :');
-let rafCb = null;
-globalThis.requestAnimationFrame = (cb) => { rafCb = cb; return 1; };
-globalThis.cancelAnimationFrame = () => {};
-
+// Reprise : on doit pouvoir repartir et retomber sur le même point d'arrêt.
+console.log('Reprise après le point d\'arrêt :');
 engine.setBreakpoints([{ line: loopLine }]);
 engine.resume();
-engine.start();
-for (let i = 0; i < 240 && !engine.paused; i++) rafCb?.();
+const again = await nextPause();
+check('le point d\'arrêt re-déclenche après resume()', engine.paused && again?.line === loopLine);
 engine.stop();
-
-const bpState = states[states.length - 1];
-check(`arrêt sur la ligne ${loopLine} (ligne ${bpState?.line})`, engine.paused && bpState?.line === loopLine);
-
-// Reprise : on doit pouvoir repartir et retomber sur le même point d'arrêt.
-engine.resume();
-engine.start();
-for (let i = 0; i < 240 && !engine.paused; i++) rafCb?.();
-engine.stop();
-check('le point d\'arrêt re-déclenche après resume()', engine.paused && states[states.length - 1]?.line === loopLine);
 
 console.log(failures === 0 ? '\nRESULTAT: OK' : `\nRESULTAT: ECHEC (${failures})`);
 process.exit(failures === 0 ? 0 : 1);
