@@ -2724,11 +2724,21 @@ export class Editor {
 
   /**
    * Rectangles d'encombrement de tous les composants (coordonnées monde). La boîte
-   * retenue est celle du DESSIN (svg de l'élément, déjà mis à l'échelle par
-   * `applyPinScale`) : la boîte DOM `.part__body` peut être plus haute de
-   * quelques px (interligne du span d'étiquette sous le dessin), ce qui faussait
-   * la sortie perpendiculaire des broches du bas — le fil « sortait » de côté au
-   * lieu de descendre, d'où des boucles autour des LED.
+   * retenue est celle du DESSIN, c'est-à-dire **exactement le rectangle de
+   * sélection** (`fitSelectionBox` → `getBBox` du SVG) : un viewBox est presque
+   * toujours plus grand que ce qu'il dessine — mesuré sur `7seg-uno.projix`, une
+   * résistance occupe 60×11 px dans un viewBox de 80×20, et le 7 segments 50×78
+   * dans 60×90. L'autoroutage voyait donc des composants collés là où il reste
+   * 10 px de couloir bien visible, et détournait des fils pour rien (retour
+   * Frank : « visuellement on a la place », broche DIG1 déclarée inatteignable
+   * sous deux résistances qui ne la recouvrent pas).
+   *
+   * La boîte du viewBox est conservée dans `outer` : les broches vivent dans CE
+   * repère, et `pinStubs` a besoin de savoir qu'une broche du bord appartient
+   * bien au composant.
+   *
+   * (La boîte DOM `.part__body`, elle, n'est qu'un repli : elle peut être plus
+   * haute de quelques px — interligne du span d'étiquette sous le dessin.)
    */
   private partObstacles(): PartRect[] {
     const rects: PartRect[] = [];
@@ -2738,24 +2748,38 @@ export class Editor {
       let y = r.part.y;
       let w = 0;
       let h = 0;
+      let outer: PartRect['outer'];
       try {
         const svg = (r.el.shadowRoot ?? r.el).querySelector('svg');
-        // Boîte ÉCRAN du dessin, ramenée en coordonnées monde : elle tient compte
-        // de la ROTATION (appliquée en CSS sur `.part__body`, autour de son centre)
-        // et du miroir. La mesure « x/y du composant + taille nominale du SVG »
+        // Boîte ÉCRAN, ramenée en coordonnées monde : elle tient compte de la
+        // ROTATION (appliquée en CSS sur `.part__body`, autour de son centre) et
+        // du miroir. La mesure « x/y du composant + taille nominale du SVG »
         // ignorait la rotation : une résistance à 90° (dessin 80×20) était
         // déclarée en 80×20 à partir de son coin haut-gauche alors qu'elle occupe
         // 20×80 autour de son centre — la boîte tombait à côté du vrai corps, et
         // l'autoroutage faisait tranquillement passer un fil au travers
         // (repro Frank : schema-kablix.projix, fil LED A → GP13).
-        const box = svg?.getBoundingClientRect();
-        if (box && box.width > 0 && box.height > 0) {
-          const tl = this.canvasPoint(box.left, box.top);
-          const br = this.canvasPoint(box.right, box.bottom);
-          x = Math.min(tl.x, br.x);
-          y = Math.min(tl.y, br.y);
-          w = Math.abs(br.x - tl.x);
-          h = Math.abs(br.y - tl.y);
+        const toWorld = (b: DOMRect): { x: number; y: number; w: number; h: number } => {
+          const tl = this.canvasPoint(b.left, b.top);
+          const br = this.canvasPoint(b.right, b.bottom);
+          return {
+            x: Math.min(tl.x, br.x),
+            y: Math.min(tl.y, br.y),
+            w: Math.abs(br.x - tl.x),
+            h: Math.abs(br.y - tl.y),
+          };
+        };
+        const vbox = svg?.getBoundingClientRect();
+        // Le rectangle de sélection est (re)calé maintenant : c'est LUI la boîte
+        // du dessin, et le mesurer en DOM donne rotation et miroir gratuitement.
+        this.fitSelectionBox(r.part.id);
+        const sel = r.container.querySelector('.part__selbox') as HTMLElement | null;
+        const sbox = sel?.getBoundingClientRect();
+        if (sbox && sbox.width > 0 && sbox.height > 0) {
+          ({ x, y, w, h } = toWorld(sbox));
+          if (vbox && vbox.width > 0 && vbox.height > 0) outer = toWorld(vbox);
+        } else if (vbox && vbox.width > 0 && vbox.height > 0) {
+          ({ x, y, w, h } = toWorld(vbox));
         } else {
           w = svg?.width?.baseVal?.value || 0;
           h = svg?.height?.baseVal?.value || 0;
@@ -2763,7 +2787,7 @@ export class Editor {
       } catch {
         // Largeur svg en % sans viewport résolu : repli sur la boîte DOM.
       }
-      rects.push({ id: r.part.id, x, y, w: w || body?.offsetWidth || 40, h: h || body?.offsetHeight || 40 });
+      rects.push({ id: r.part.id, x, y, w: w || body?.offsetWidth || 40, h: h || body?.offsetHeight || 40, outer });
     }
     return rects;
   }
@@ -2804,8 +2828,19 @@ export class Editor {
     // Broche franchement en dehors du corps (patte saillante) : aucune sortie à
     // forcer. En revanche, une broche SUR le bord (dX ≈ 0) reçoit bien un stub
     // sortant (le fil ne doit pas repasser par le corps pour l'atteindre).
+    // L'appartenance se juge sur le VIEWBOX (`outer`), pas sur le dessin : les
+    // broches sont posées dans ce repère et tombent volontiers dans sa marge (le
+    // 7 segments dessine à 6 px du haut de son viewBox, ses broches sont au ras).
+    const own = box.outer ?? box;
     const OUT = 2;
-    if (dTop < -OUT || dBot < -OUT || dLeft < -OUT || dRight < -OUT) return [];
+    if (
+      center.y - own.y < -OUT ||
+      own.y + own.h - center.y < -OUT ||
+      center.x - own.x < -OUT ||
+      own.x + own.w - center.x < -OUT
+    ) {
+      return [];
+    }
     const m = Math.min(dTop, dBot, dLeft, dRight);
     const TIE = GRID / 2; // bords considérés équivalents à ±5 px près
     const top: XY = { x: center.x, y: box.y - len };
@@ -3205,12 +3240,19 @@ export class Editor {
       // `thirdParty`, on ne taxe ici QUE le cœur des deux corps d'extrémité, pour
       // que l'original perforant ne soit pas jugé « parfait » face au détour (qui,
       // lui, approche la broche par le côté et perce moins).
-      const DEEP = 4;
+      // Même règle que partout ailleurs pour un corps d'extrémité : le ras est
+      // toléré jusqu'à ENDCAP, au-delà c'est une perforation. (Un inset fixe ne
+      // marchait pas : sur un corps étroit — la LED fait 17 px de large — son
+      // « cœur » devient si mince que la broche du bord tombe en dehors, et la
+      // traversée mesurée retombait à zéro.)
+      const ENDCAP = 1.5 * GRID;
       const endBodies = obstacles.filter((o) => o.id === wire.a.partId || o.id === wire.b.partId);
       const deepEnds = (poly: XY[]): number => {
         let ov = 0;
         for (const o of endBodies) {
-          for (let i = 0; i < poly.length - 1; i++) ov += segRectDeepCross(poly[i], poly[i + 1], o, DEEP);
+          let cross = 0;
+          for (let i = 0; i < poly.length - 1; i++) cross += segRectOverlap(poly[i], poly[i + 1], o);
+          ov += Math.max(0, cross - ENDCAP);
         }
         return ov;
       };
@@ -5469,6 +5511,14 @@ interface PartRect {
   y: number;
   w: number;
   h: number;
+  /**
+   * Boîte du VIEWBOX (dessin + son vide), quand elle diffère de l'encombrement
+   * réel ci-dessus. Les broches sont positionnées dans ce repère : une broche du
+   * bord d'un composant tombe souvent HORS du dessin (le 7 segments a 6 px de
+   * marge en haut). `pinStubs` teste l'appartenance là-dessus, sinon il croirait
+   * la broche « franchement en dehors » et ne sortirait plus perpendiculairement.
+   */
+  outer?: { x: number; y: number; w: number; h: number };
 }
 
 /**

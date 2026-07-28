@@ -27,6 +27,7 @@ import '../../src/webview/composants/led-element.mjs';
 import '../../src/webview/composants/resistor-element.mjs';
 import '../../src/webview/composants/pca9685-element.mjs';
 import '../../src/webview/composants/servo-element.mjs';
+import '../../src/webview/composants/7segment-element.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const checks = [];
 const ok = (name, cond, detail = '') => checks.push({ name, ok: !!cond, detail: String(detail) });
@@ -431,15 +432,17 @@ async function run() {
 		rBox ? 'w=' + rBox.w.toFixed(0) + ' h=' + rBox.h.toFixed(0) : 'boîte introuvable');
 	// Fil dont la LIGNE DROITE passe en plein dans le corps tourné, mais en dehors
 	// de l'ancienne boîte (fausse) : sans le correctif, le fil file tout droit et
-	// traverse la résistance. Le corps réel est reconstruit à partir des PATTES
-	// (posées à 10 px des bords du dessin) — surtout pas à partir de la boîte de
-	// partObstacles(), qui est justement ce qu'on teste.
+	// traverse la résistance. Le corps réel est reconstruit à partir des PATTES —
+	// surtout pas à partir de la boîte de partObstacles(), qui est justement ce
+	// qu'on teste. Depuis v2026.7.214 la boîte colle au DESSIN (et non plus au
+	// viewBox) : les pattes tombent exactement sur ses bords, donc la demi-hauteur
+	// du corps tourné vaut la demi-distance entre pattes, sans marge à ajouter.
 	const rp1 = editor.hotspotCenter({ partId: rr.id, pin: '1' });
 	const rp2 = editor.hotspotCenter({ partId: rr.id, pin: '2' });
 	if (rp1 && rp2) {
 		const cx = (rp1.x + rp2.x) / 2, cy = (rp1.y + rp2.y) / 2;
-		const half = Math.abs(rp1.y - rp2.y) / 2 + 10; // demi-hauteur du corps tourné (≈40)
-		const yLine = cy + half - 18; // dans le corps réel, hors de l'ancienne boîte (20 px de haut)
+		const half = Math.abs(rp1.y - rp2.y) / 2; // demi-hauteur du corps tourné (≈30)
+		const yLine = cy + half - 8; // dans le corps réel, hors de l'ancienne boîte (20 px de haut)
 		const gl = editor.addPart('ntc', cx - 250, yLine - 70); // patte 2 à yLine
 		const gr = editor.addPart('ntc', cx + 170, yLine - 70); // patte 1 à yLine
 		await wait(120);
@@ -458,9 +461,10 @@ async function run() {
 		await wait(60);
 		const wRot = editor.diagram.wires[editor.diagram.wires.length - 1];
 		const polyRot = [cL, ...(wRot.points ?? []), cR];
-		// Traversée du CŒUR de la résistance tournée (bords rognés de 4 px).
+		// Traversée du CŒUR de la résistance tournée (bords rognés de 4 px). Le
+		// corps tourné fait ~11 px de large : ±6 px autour de l'axe des pattes.
 		const M = 4;
-		const x0 = cx - 10 + M, x1 = cx + 10 - M, y0 = cy - half + M, y1 = cy + half - M;
+		const x0 = cx - 6, x1 = cx + 6, y0 = cy - half + M, y1 = cy + half - M;
 		let deep = 0;
 		for (let i = 0; i < polyRot.length - 1; i++) {
 			const p = polyRot[i], q = polyRot[i + 1];
@@ -477,6 +481,51 @@ async function run() {
 		ok('repro : ligne droite dans le corps tourné mais HORS de l ancienne boîte', false, 'pattes introuvables');
 		ok('fil qui passerait dans une résistance TOURNÉE : contourne (aucune traversée)', false, 'pattes introuvables');
 	}
+
+	// --- La boîte d'obstacle est le DESSIN, pas le viewBox (item v2026.7.201) ---
+	// Un SVG de composant a du vide autour de son dessin (le 7 segments : 60×90 de
+	// viewBox pour 50×78 de dessin, la résistance : 80×20 pour 60×11). Le routeur
+	// prenait le viewBox et voyait donc des composants plus gros qu'ils ne sont —
+	// des couloirs pourtant libres lui étaient fermés. La boîte doit désormais être
+	// celle du rectangle de SÉLECTION, qui suit le dessin (fitSelectionBox).
+	for (const p of [...editor.diagram.parts]) editor.removePart?.(p.id);
+	await wait(30);
+	const bSeg = editor.addPart('7seg', 700, 60);
+	const bRes = editor.addPart('resistor', 700, 220);
+	await wait(200);
+	const bBoxes = new Map(editor.partObstacles().map((o) => [o.id, o]));
+	for (const [id, nom, vw, vh] of [[bSeg.id, '7 segments', 60, 90], [bRes.id, 'résistance', 80, 20]]) {
+		const o = bBoxes.get(id);
+		ok(nom + ' : boîte d obstacle PLUS PETITE que le viewBox du SVG',
+			!!o && o.w < vw - 2 && o.h < vh - 2,
+			o ? o.w.toFixed(1) + 'x' + o.h.toFixed(1) + ' contre viewBox ' + vw + 'x' + vh : 'boîte introuvable');
+		// …et exactement le rectangle de sélection montré à l'utilisateur.
+		const r = editor.rendered.get(id);
+		editor.fitSelectionBox(id);
+		const sb = r?.container.querySelector('.part__selbox')?.getBoundingClientRect();
+		const tl = sb && editor.canvasPoint(sb.left, sb.top);
+		const br = sb && editor.canvasPoint(sb.right, sb.bottom);
+		ok(nom + ' : boîte d obstacle = rectangle de SÉLECTION',
+			!!o && !!tl && Math.abs(o.x - Math.min(tl.x, br.x)) < 1 && Math.abs(o.y - Math.min(tl.y, br.y)) < 1 &&
+			Math.abs(o.w - Math.abs(br.x - tl.x)) < 1 && Math.abs(o.h - Math.abs(br.y - tl.y)) < 1,
+			o && tl ? 'obstacle ' + o.x.toFixed(0) + ',' + o.y.toFixed(0) + ' ' + o.w.toFixed(0) + 'x' + o.h.toFixed(0) +
+				' | selbox ' + Math.min(tl.x, br.x).toFixed(0) + ',' + Math.min(tl.y, br.y).toFixed(0) + ' ' +
+				Math.abs(br.x - tl.x).toFixed(0) + 'x' + Math.abs(br.y - tl.y).toFixed(0) : 'mesure impossible');
+	}
+	// Le cas EXACT de la plainte : deux résistances empilées recouvrent le bord
+	// haut du 7 segments, la broche coincée dessous n'avait plus aucune sortie.
+	// Avec la boîte au dessin, il reste 10 px de couloir libre entre le bas réel
+	// des résistances et le haut réel de l'afficheur.
+	const cSeg = editor.addPart('7seg', 300, 100);
+	const cR1 = editor.addPart('resistor', 250, 30);
+	const cR2 = editor.addPart('resistor', 260, 40);
+	await wait(200);
+	const cBox = new Map(editor.partObstacles().map((o) => [o.id, o]));
+	const bas = Math.max(cBox.get(cR1.id).y + cBox.get(cR1.id).h, cBox.get(cR2.id).y + cBox.get(cR2.id).h);
+	const haut = cBox.get(cSeg.id).y;
+	ok('résistances empilées sur un 7 segments : le couloir libre est VU (≥ 5 px)',
+		haut - bas >= 5, 'couloir=' + (haut - bas).toFixed(1) + 'px (bas résistances ' + bas.toFixed(1) +
+		', haut afficheur ' + haut.toFixed(1) + ')');
 
 	const out = document.createElement('pre');
 	out.id = 'measures';

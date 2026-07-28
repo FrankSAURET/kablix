@@ -1324,15 +1324,18 @@ textarea {
   box-shadow: none;
 }
 
+/* Masquée par `visibility` et NON par `display` : l'autoroutage la mesure pour
+   connaître l'encombrement réel du composant (cf. partObstacles), or un élément
+   `display: none` n'a plus aucune boîte à mesurer. */
 .part__selbox {
   position: absolute;
   pointer-events: none;
-  display: none;
+  visibility: hidden;
   border-radius: 4px;
 }
 
 .part--selected .part__selbox {
-  display: block;
+  visibility: visible;
   outline: 2px dashed var(--kx-select, #e973e9);
   outline-offset: 3px;
   box-shadow:
@@ -1341,7 +1344,7 @@ textarea {
 }
 
 .canvas--locked .part--selected .part__selbox {
-  display: none;
+  visibility: hidden;
 }
 
 /* Simulation en cours : pas de sélection ni bandeau de nom, schéma figé
