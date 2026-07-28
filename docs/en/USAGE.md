@@ -236,6 +236,7 @@ The choice applies to **that variable** and is stored **in the project**, just l
 
 - **Output**: USART (Uno), USB-CDC and UART0 (Pico), real time.
 - **Input**: text field + `Enter` (or the Send button). On the Pico the input feeds the USB-CDC (MicroPython REPL) **and** the UART0.
+- **Compilation errors**: when the program does not compile, the **full** compiler messages appear here, under a `── Compilation failed ──` heading (the monitor unfolds by itself if it was collapsed). The notification only repeats the **first** error — `file.ino:12 : 'digitalWrit' was not declared in this scope` — as it is almost always the one to fix first, the others following from it.
 
 ## Plotter
 

@@ -2800,6 +2800,13 @@ window.addEventListener('message', (event: MessageEvent) => {
     case 'status':
       setStatus(String(msg.text));
       break;
+    case 'hostLog':
+      // Message de l'hôte destiné à l'élève (diagnostics du compilateur). Le
+      // panneau s'ouvre s'il était replié : sans ça, le texte tomberait dans une
+      // console invisible et l'échec resterait muet.
+      if (!serialVisible) setSerialVisible(true, false);
+      appendSerial(`\n── ${String(msg.title)} ──\n${String(msg.text).trimEnd()}\n`);
+      break;
     case 'config':
       // Bouton « Charger binaire » : masqué sauf si le réglage l'active.
       loadBtn.hidden = !msg.showLoadBinary;

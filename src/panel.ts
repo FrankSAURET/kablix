@@ -6,6 +6,7 @@ import {
   loadArtifact,
   loadPythonProgram,
   loadMicropythonRepl,
+  CompileFailed,
   type Board,
   type CompileResult,
   type ToolPaths,
@@ -471,7 +472,7 @@ export class SimulatorPanel {
         const toolPaths = this.toolPaths();
         result = await vscode.window.withProgress(
           { location: vscode.ProgressLocation.Notification, title: l10n.t('Kablix: compiling ({0})…', board) },
-          () => Promise.resolve(compile(board, filePath, this.extensionUri.fsPath, toolPaths))
+          () => compile(board, filePath, this.extensionUri.fsPath, toolPaths)
         );
       }
       // Compilation/chargement réussi : mémorise la signature pour que ▶ puisse
@@ -629,6 +630,18 @@ export class SimulatorPanel {
   private reportError(err: unknown): void {
     const message = err instanceof Error ? err.message : String(err);
     this.post({ type: 'status', text: l10n.t('Load failed') });
+    // Erreur de COMPILATION : les diagnostics complets partent dans le moniteur
+    // série, qui s'ouvre pour l'occasion. Avant, l'élève n'avait qu'une bulle
+    // « échec de la compilation » et devait deviner ce que gcc reprochait à son
+    // programme (demande de Frank). La notification, elle, ne garde que la
+    // première erreur : c'est presque toujours celle qui compte.
+    if (err instanceof CompileFailed) {
+      this.post({
+        type: 'hostLog',
+        title: l10n.t('Compilation failed'),
+        text: err.log,
+      });
+    }
     vscode.window.showErrorMessage(`Kablix : ${message}`);
   }
 

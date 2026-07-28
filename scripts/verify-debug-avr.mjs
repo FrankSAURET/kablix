@@ -101,7 +101,7 @@ if (tools.arduinoCli) {
 }
 
 console.log(`Compilation de ${srcPath} (Arduino Uno, infos de débogage) :`);
-const res = compile('uno', srcPath, root);
+const res = await compile('uno', srcPath, root);
 const p = res.payload;
 check(`format avr-progmem, ${p.bytes.length} mots`, p.format === 'avr-progmem' && p.bytes.length > 0);
 check('payload.debug présent', !!p.debug);

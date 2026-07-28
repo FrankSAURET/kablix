@@ -238,6 +238,7 @@ Le choix vaut pour **cette variable** et il est mémorisé **dans le projet**, c
 
 - **Sortie** : USART (Uno), USB-CDC et UART0 (Pico), en temps réel.
 - **Entrée** : champ de saisie + `Entrée` (ou bouton Envoyer). Sur le Pico, l'entrée alimente l'USB-CDC (REPL MicroPython) **et** l'UART0.
+- **Erreurs de compilation** : quand le programme ne compile pas, les messages **complets** du compilateur s'affichent ici, sous un titre `── Échec de la compilation ──` (le moniteur se déplie tout seul s'il était replié). La bulle de notification, elle, ne rappelle que la **première** erreur — `fichier.ino:12 : 'digitalWrit' was not declared in this scope` : c'est presque toujours celle qu'il faut corriger d'abord, les suivantes en découlent.
 
 ## Traceur de courbes
 

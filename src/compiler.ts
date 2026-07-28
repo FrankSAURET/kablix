@@ -3,10 +3,11 @@
 // une image exécutable par le simulateur, ou charge directement un artefact
 // déjà compilé (.hex, .uf2, .elf, .bin). Fonctionne hors-ligne : aucun service
 // distant n'est sollicité.
-import { execFileSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, delimiter, dirname, extname, join } from 'node:path';
+import { promisify } from 'node:util';
 import { parseUf2 } from './shared/uf2';
 import { parseElf32 } from './shared/elf';
 import { instrumentPython } from './shared/pydebug';
@@ -149,6 +150,11 @@ function resolveTool(cmd: string, opts: { override?: string; searchDir?: string 
   return null;
 }
 
+/** Chemin retenu pour arduino-cli (null si introuvable) — utile aux bancs de test. */
+export function findArduinoCli(paths: ToolPaths = {}): string | null {
+  return resolveTool('arduino-cli', { override: paths.arduinoCli, searchDir: paths.searchDir });
+}
+
 export function detectToolchain(paths: ToolPaths = {}): Toolchain {
   return {
     arduinoCli: resolveTool('arduino-cli', { override: paths.arduinoCli, searchDir: paths.searchDir }) !== null,
@@ -201,14 +207,97 @@ function hexToProgmem(hexText: string): number[] {
 
 const toB64 = (data: Uint8Array): string => Buffer.from(data).toString('base64');
 
-function run(cmd: string, args: string[]): string {
+const execFileAsync = promisify(execFile);
+
+// Le vidage DWARF d'un gros sketch dépasse allègrement le méga-octet par défaut
+// de Node : trop court, la lecture échouait en ENOBUFS et les infos de débogage
+// disparaissaient sans explication.
+const MAX_TOOL_OUTPUT = 64 * 1024 * 1024;
+
+/** Échec d'un outil externe : le message est court, `output` porte tout ce qu'il a dit. */
+export class ToolError extends Error {
+  constructor(
+    message: string,
+    /** Sortie brute de l'outil (stderr puis stdout) : diagnostics du compilateur. */
+    readonly output: string
+  ) {
+    super(message);
+    this.name = 'ToolError';
+  }
+}
+
+/**
+ * Échec de compilation du code de l'élève. `log` porte les diagnostics COMPLETS
+ * du compilateur : l'appelant les déverse dans le moniteur série (sans eux,
+ * l'élève ne voyait qu'un « échec de la compilation » sans la moindre piste).
+ */
+export class CompileFailed extends Error {
+  constructor(
+    message: string,
+    readonly log: string
+  ) {
+    super(message);
+    this.name = 'CompileFailed';
+  }
+}
+
+/**
+ * Lance un outil externe SANS bloquer l'hôte de l'extension. C'était un
+ * `execFileSync` : pendant les 3 à 6 secondes d'un `arduino-cli compile`, VS Code
+ * entier était figé — la barre de progression elle-même ne tournait pas, d'où
+ * l'impression d'une compilation interminable.
+ */
+async function run(cmd: string, args: string[]): Promise<string> {
   try {
-    return execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    const { stdout } = await execFileAsync(cmd, args, {
+      encoding: 'utf8',
+      maxBuffer: MAX_TOOL_OUTPUT,
+    });
+    return stdout;
   } catch (err) {
     const e = err as { stderr?: Buffer | string; stdout?: Buffer | string; message?: string };
     const stderr = e.stderr ? e.stderr.toString() : '';
     const stdout = e.stdout ? e.stdout.toString() : '';
-    throw new Error(`${cmd} a échoué :\n${stderr || stdout || e.message}`);
+    const output = [stderr, stdout].filter((s) => s.trim()).join('\n');
+    throw new ToolError(`${cmd} a échoué :\n${output || e.message}`, output || (e.message ?? ''));
+  }
+}
+
+// Diagnostic gcc/avr-gcc : « fichier.ino:12:5: error: … » (ou « fatal error » pour
+// une bibliothèque introuvable). Sa présence prouve que le compilateur a bien
+// tourné et que c'est le CODE qu'il refuse.
+const DIAG_LINE = /^(.*?):(\d+):(?:(\d+):)?\s*(?:fatal error|error):\s*(.*)$/;
+
+/** Vrai si la sortie contient un diagnostic du compilateur (le code est en cause). */
+export function isSourceError(output: string): boolean {
+  return output.split(/\r?\n/).some((l) => DIAG_LINE.test(l));
+}
+
+/**
+ * Première erreur réelle, mise en forme courte pour la notification :
+ * « blink.ino:12 : 'digitalWrit' was not declared in this scope ».
+ */
+export function firstErrorLine(output: string): string | undefined {
+  for (const raw of output.split(/\r?\n/)) {
+    const m = DIAG_LINE.exec(raw);
+    if (m) return `${basename(m[1].trim())}:${m[2]} : ${m[4].trim()}`;
+  }
+  return undefined;
+}
+
+/**
+ * Comme `run`, mais pour un COMPILATEUR : un refus accompagné de diagnostics
+ * devient un `CompileFailed` — l'appelant sait alors qu'il tient un message
+ * destiné à l'élève et le déverse dans le moniteur série.
+ */
+async function runSource(cmd: string, args: string[]): Promise<string> {
+  try {
+    return await run(cmd, args);
+  } catch (err) {
+    if (err instanceof ToolError && isSourceError(err.output)) {
+      throw new CompileFailed(firstErrorLine(err.output) ?? 'Échec de la compilation.', err.output);
+    }
+    throw err;
   }
 }
 
@@ -562,12 +651,12 @@ const AVR_SRAM_START = 0x100; // début de la SRAM dans l'espace données
 const AVR_SRAM_END = 0x900; // fin de la SRAM ATmega328P (0x8FF inclus)
 
 /** Localise avr-objdump : PATH d'abord, sinon toolchain gérée par arduino-cli. */
-function findAvrObjdump(arduinoCli: string | null, searchDir?: string): string | null {
+async function findAvrObjdump(arduinoCli: string | null, searchDir?: string): Promise<string | null> {
   const direct = resolveTool('avr-objdump', { searchDir });
   if (direct) return direct;
   if (!arduinoCli) return null;
   try {
-    const cfg = JSON.parse(run(arduinoCli, ['config', 'dump', '--format', 'json']));
+    const cfg = JSON.parse(await run(arduinoCli, ['config', 'dump', '--format', 'json']));
     const data: string | undefined = cfg?.directories?.data ?? cfg?.config?.directories?.data;
     if (!data) return null;
     const gccRoot = join(data, 'packages', 'arduino', 'tools', 'avr-gcc');
@@ -704,22 +793,22 @@ function parseDwarfGlobals(text: string, srcPath: string): AvrDebugInfo['globals
  * Extrait table des lignes et globales de l'ELF via avr-objdump. Toute
  * défaillance est non bloquante : la compilation aboutit sans infos de débogage.
  */
-function extractAvrDebug(
+async function extractAvrDebug(
   elfPath: string,
   srcPath: string,
   log: string[],
   arduinoCli: string | null,
   searchDir?: string
-): AvrDebugInfo | undefined {
+): Promise<AvrDebugInfo | undefined> {
   try {
     if (!existsSync(elfPath)) return undefined;
-    const objdump = findAvrObjdump(arduinoCli, searchDir);
+    const objdump = await findAvrObjdump(arduinoCli, searchDir);
     if (!objdump) {
       log.push('avr-objdump introuvable : pas à pas et variables indisponibles.');
       return undefined;
     }
-    const lines = parseDecodedLines(run(objdump, ['--dwarf=decodedline', elfPath]), srcPath);
-    const globals = parseDwarfGlobals(run(objdump, ['--dwarf=info', elfPath]), srcPath);
+    const lines = parseDecodedLines(await run(objdump, ['--dwarf=decodedline', elfPath]), srcPath);
+    const globals = parseDwarfGlobals(await run(objdump, ['--dwarf=info', elfPath]), srcPath);
     if (lines.length === 0 && globals.length === 0) return undefined;
     log.push(`Infos de débogage : ${lines.length} point(s) de ligne, ${globals.length} globale(s).`);
     return { lines, globals };
@@ -731,13 +820,22 @@ function extractAvrDebug(
 
 // --- Compilation ------------------------------------------------------------
 
+/**
+ * Stratégie de compilation qui a marché la dernière fois, mémorisée pour la
+ * session. Sans elle, une chaîne qui refuse la 1re option la repayait à CHAQUE
+ * lancement — et, pire, alternait les options d'un essai à l'autre, ce qui
+ * invalide le cache de build d'arduino-cli et impose une reconstruction
+ * complète à chaque fois (mesuré : 5,5 s au lieu de 3,4 s sur le même sketch).
+ */
+let avrStrategyMemo = 0;
+
 /** Compile le fichier indiqué pour la carte choisie. */
-export function compile(
+export async function compile(
   board: Board,
   filePath: string,
   extensionPath: string,
   toolPaths: ToolPaths = {}
-): CompileResult {
+): Promise<CompileResult> {
   const searchDir = toolPaths.searchDir;
   const tmp = mkdtempSync(join(tmpdir(), 'kablix-'));
   const log: string[] = [];
@@ -750,10 +848,9 @@ export function compile(
     // Sketch Arduino complet (API Arduino) via arduino-cli. Un .c/.cpp « nu »
     // n'est PAS un sketch valide pour arduino-cli (il lui faut un .ino dans un
     // dossier de même nom) : ces fichiers passent par avr-gcc en bare-metal.
-    const withArduinoCli = (cli: string): CompileResult => {
-      const compileWith = (extra: string[]): void => {
+    const withArduinoCli = async (cli: string): Promise<CompileResult> => {
+      const compileWith = (extra: string[]): Promise<string> =>
         run(cli, ['compile', '--fqbn', fqbn, ...extra, '--output-dir', tmp, filePath]);
-      };
       // Stratégies de compilation, de la plus fidèle au débogage à la plus sûre.
       // On retombe sur la suivante si une échoue → la compilation n'est JAMAIS
       // cassée par les options de débogage.
@@ -773,23 +870,39 @@ export function compile(
         { extra: ['--optimize-for-debug'], note: '--optimize-for-debug (-Og)' },
         { extra: [], note: 'standard (-Os)' },
       ];
+      // La stratégie retenue la dernière fois passe en tête (cache de build chaud).
+      const order = [avrStrategyMemo, ...attempts.keys()].filter(
+        (i, k, all) => i < attempts.length && all.indexOf(i) === k
+      );
       let compiled = false;
-      for (const a of attempts) {
+      let lastOutput = '';
+      for (const i of order) {
+        const a = attempts[i];
         try {
-          compileWith(a.extra);
+          await compileWith(a.extra);
           log.push(`Compilation arduino-cli (${fqbn}) : ${a.note}.`);
+          avrStrategyMemo = i;
           compiled = true;
           break;
         } catch (err) {
-          log.push(`Échec compilation (${a.note}) : ${(err as Error).message.split('\n')[0]}`);
+          lastOutput = err instanceof ToolError ? err.output : (err as Error).message;
+          log.push(`Échec compilation (${a.note}) : ${firstErrorLine(lastOutput) ?? lastOutput.split('\n')[0]}`);
+          // Le compilateur a parlé : c'est le CODE qui est faux, pas l'option.
+          // Réessayer les autres jeux d'options ne ferait que tripler l'attente
+          // pour aboutir au même refus (mesuré : 4,6 s au lieu de 1,4 s) — et
+          // brouillerait le diagnostic affiché.
+          if (isSourceError(lastOutput)) break;
         }
       }
       if (!compiled) {
-        throw new Error('Échec de la compilation arduino-cli (voir le journal Kablix).');
+        throw new CompileFailed(
+          firstErrorLine(lastOutput) ?? 'Échec de la compilation arduino-cli.',
+          lastOutput
+        );
       }
       const hex = readFileSync(join(tmp, `${basename(filePath)}.hex`), 'utf8');
       // L'ELF (compilé avec -g par la plateforme AVR) livre les infos de débogage.
-      const debug = extractAvrDebug(join(tmp, `${basename(filePath)}.elf`), filePath, log, cli, searchDir);
+      const debug = await extractAvrDebug(join(tmp, `${basename(filePath)}.elf`), filePath, log, cli, searchDir);
       return { payload: { board: 'uno', format: 'avr-progmem', bytes: hexToProgmem(hex), debug }, log: log.join('\n') };
     };
 
@@ -810,9 +923,9 @@ export function compile(
       const elf = join(tmp, 'out.elf');
       const hex = join(tmp, 'out.hex');
       // -O0 -g3 : débogage fidèle (lignes + variables non optimisées).
-      run(avrCompiler, [`-mmcu=${mmcu}`, '-O0', '-g3', '-DF_CPU=16000000UL', '-o', elf, filePath]);
-      run(objcopy, ['-O', 'ihex', '-R', '.eeprom', elf, hex]);
-      const debug = extractAvrDebug(elf, filePath, log, arduinoCli, searchDir);
+      await runSource(avrCompiler, [`-mmcu=${mmcu}`, '-O0', '-g3', '-DF_CPU=16000000UL', '-o', elf, filePath]);
+      await run(objcopy, ['-O', 'ihex', '-R', '.eeprom', elf, hex]);
+      const debug = await extractAvrDebug(elf, filePath, log, arduinoCli, searchDir);
       return {
         payload: { board: 'uno', format: 'avr-progmem', bytes: hexToProgmem(readFileSync(hex, 'utf8')), debug },
         log: log.join('\n'),
@@ -843,14 +956,14 @@ export function compile(
   const ld = join(extensionPath, 'firmware', 'pico', 'rp2040_ram.ld');
   const elf = join(tmp, 'out.elf');
   const bin = join(tmp, 'out.bin');
-  run(armCompiler, [
+  await runSource(armCompiler, [
     // RP2040 bare-metal en RAM : on garde -Os (pas de débogage DWARF côté Pico,
     // et -nostdlib + -O0 risquerait des appels manquants à memcpy/memset).
     '-mcpu=cortex-m0plus', '-mthumb', '-Os', '-ffreestanding',
     '-nostdlib', '-nostartfiles', '-Wl,--build-id=none',
     '-T', ld, '-o', elf, filePath,
   ]);
-  run(objcopy, ['-O', 'binary', elf, bin]);
+  await run(objcopy, ['-O', 'binary', elf, bin]);
   return {
     // Le payload ne porte que la FAMILLE ('pico' = RP2040) ; Pico et Pico W
     // partagent le même cœur et le même binaire bare-metal.

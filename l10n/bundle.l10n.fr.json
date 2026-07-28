@@ -10,6 +10,7 @@
   "Kablix: no active file to compile.": "Kablix : aucun fichier actif à compiler.",
   "Preparing…": "Préparation…",
   "Kablix: compiling ({0})…": "Kablix : compilation ({0})…",
+  "Compilation failed": "Échec de la compilation",
   "Kablix: no .hex file found in the workspace.": "Kablix : aucun fichier .hex trouvé dans le workspace.",
   "Kablix: no .uf2 file found in the workspace (build/ folder).": "Kablix : aucun fichier .uf2 trouvé dans le workspace (dossier build/).",
   "MicroPython firmware not found: {0} (kablix.micropythonUf2 setting).": "Firmware MicroPython introuvable : {0} (réglage kablix.micropythonUf2).",
