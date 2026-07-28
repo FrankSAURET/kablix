@@ -386,6 +386,70 @@ async function run() {
 		ok('colonne PCA : broches PWM7/P8.5V présentes', false, 'broches introuvables sur le dessin PCA');
 	}
 
+	// --- Broche ENCLAVÉE : échappée latérale (item v2026.7.217) -----------------
+	// P2.5V..P7.5V sont au MILIEU d'une colonne de 3 broches, avec les colonnes
+	// voisines à 10 px : aucune sortie franche (haut/bas/gauche/droite) ne les
+	// atteint sans écraser une voisine. Le routeur doit dégager d'un pas de grille
+	// vers une colonne LIBRE, sortir de la carte par là, puis revenir de 10 px —
+	// exactement le geste de la main (repro « 16 servo + alim.projix »).
+	for (const p of [...editor.diagram.parts]) editor.removePart?.(p.id);
+	await wait(30);
+	const pcaE = editor.addPart('pca9685', 300, 300);
+	const srvE = editor.addPart('servo', 300, 100);
+	await wait(200);
+	editor.select(null);
+	if (hasPin(pcaE.id, 'P5.5V') && hasPin(srvE.id, 'V+')) {
+		const encRects = new Map(editor.partObstacles().map((o) => [o.id, o]));
+		const encEnd = { partId: pcaE.id, pin: 'P5.5V' };
+		const encC = editor.hotspotCenter(encEnd);
+		const encPins = [];
+		for (const [id, r] of editor.rendered) {
+			for (const pin of r.hotspots.keys()) {
+				const c = editor.hotspotCenter({ partId: id, pin });
+				if (c && !(id === encEnd.partId && pin === encEnd.pin)) encPins.push(c);
+			}
+		}
+		const encStubs = editor.pinStubs(encEnd, encC, encRects, 10, encPins);
+		ok('broche enclavée : une échappée latérale (patte à 2 points) est proposée',
+			encStubs.some((path) => path.length === 2 && Math.abs(path[0].y - encC.y) < 1 && Math.abs(path[0].x - encC.x - 0) > 1),
+			encStubs.map((p) => p.map((q) => Math.round(q.x) + ',' + Math.round(q.y)).join('→')).join(' | '));
+		editor.addWire({ partId: srvE.id, pin: 'V+' }, encEnd);
+		editor.select(null); editor.autoRoute();
+		await wait(50);
+		const wE = editor.diagram.wires[editor.diagram.wires.length - 1];
+		const pE = [editor.hotspotCenter(wE.a), ...(wE.points ?? []), editor.hotspotCenter(wE.b)];
+		const dsegE = (p, a, b) => {
+			const vx = b.x - a.x, vy = b.y - a.y, L2 = vx*vx+vy*vy;
+			let t = L2 ? ((p.x-a.x)*vx+(p.y-a.y)*vy)/L2 : 0; t = Math.max(0, Math.min(1, t));
+			return Math.hypot(p.x-(a.x+t*vx), p.y-(a.y+t*vy));
+		};
+		let pire = Infinity;
+		let coupable = '';
+		for (const [id, r] of editor.rendered) {
+			for (const pin of r.hotspots.keys()) {
+				if (id === wE.a.partId && pin === wE.a.pin) continue;
+				if (id === wE.b.partId && pin === wE.b.pin) continue;
+				const c = editor.hotspotCenter({ partId: id, pin });
+				if (!c) continue;
+				for (let i = 0; i < pE.length - 1; i++) {
+					const d = dsegE(c, pE[i], pE[i + 1]);
+					if (d < pire) { pire = d; coupable = id + '.' + pin; }
+				}
+			}
+		}
+		ok('broche enclavée : le fil vers P5.5V n’écrase AUCUNE broche voisine',
+			pire > 4, 'plus proche = ' + coupable + ' à ' + pire.toFixed(1) + ' px | ' +
+			pE.map((p) => Math.round(p.x) + ',' + Math.round(p.y)).join(' '));
+		// Idempotence : le garde anti-dégradation ne doit pas reprendre l'ancien tracé.
+		const encAvant = JSON.stringify((wE.points ?? []).map((p) => [Math.round(p.x), Math.round(p.y)]));
+		editor.select(null); editor.autoRoute();
+		await wait(50);
+		const encApres = JSON.stringify((editor.diagram.wires[editor.diagram.wires.length - 1].points ?? []).map((p) => [Math.round(p.x), Math.round(p.y)]));
+		ok('broche enclavée : tracé stable au 2e autoRoute', encAvant === encApres, encApres);
+	} else {
+		ok('broche enclavée : broche P5.5V présente', false, 'broche introuvable sur le dessin PCA');
+	}
+
 	// --- Sortie AXIALE d'une patte de résistance (item v2026.7.184) -------------
 	// Les pattes d'une résistance sont sur les bords GAUCHE et DROIT du corps, à
 	// la même distance (10 px) que les bords haut et bas : la liste des sorties
@@ -399,7 +463,8 @@ async function run() {
 	await wait(80);
 	const axC = editor.hotspotCenter({ partId: axR.id, pin: '2' });
 	const axRects = new Map(editor.partObstacles().map((o) => [o.id, o]));
-	const axStubs = editor.pinStubs({ partId: axR.id, pin: '2' }, axC, axRects, 10) ?? [];
+	// Une sortie est désormais un CHEMIN (1 point en général, 2 pour une échappée).
+	const axStubs = (editor.pinStubs({ partId: axR.id, pin: '2' }, axC, axRects, 10) ?? []).map((path) => path[path.length - 1]);
 	ok('résistance : la sortie AXIALE de la patte 2 est proposée à l A*',
 		axStubs.some((p) => p.x > axC.x + 1 && Math.abs(p.y - axC.y) < 1),
 		axStubs.map((p) => Math.round(p.x) + ',' + Math.round(p.y)).join(' | '));

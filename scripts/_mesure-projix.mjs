@@ -1,5 +1,7 @@
-// Diagnostic : autoroutage d'un .projix quelconque (argv[2]) — coudes par fil
-// et traversées des corps tiers, mesurées sur les boîtes d'obstacle réelles.
+// Diagnostic : autoroutage d'un .projix quelconque (argv[2]) — coudes par fil,
+// traversées des corps tiers et SURVOL DE BROCHES ÉTRANGÈRES, mesurés sur les
+// boîtes d'obstacle et les pastilles réelles de l'éditeur.
+// Usage : node scripts/_mesure-projix.mjs <projix> [neuf]
 import { mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
@@ -46,6 +48,17 @@ function ov(p, q, r) {
 	return 0;
 }
 
+// Même règle que l'éditeur : une pastille est « survolée » si son centre tombe
+// sur un segment du fil, à 4 px près.
+function onSeg(p, a, b, tol) {
+	const dx = b.x - a.x, dy = b.y - a.y;
+	const len2 = dx * dx + dy * dy;
+	if (len2 === 0) return Math.hypot(p.x - a.x, p.y - a.y) <= tol;
+	let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2;
+	t = Math.max(0, Math.min(1, t));
+	return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy)) <= tol;
+}
+
 async function run() {
 	const editor = new Editor(
 		document.getElementById('canvas'), document.getElementById('palette'),
@@ -58,6 +71,14 @@ async function run() {
 	editor.select(null); editor.autoRoute();
 	await wait(300);
 	const obs = editor.partObstacles();
+	// Toutes les pastilles du schéma (repère monde), comme le fait autoRoute.
+	const pinCenters = [];
+	for (const [id, r] of editor.rendered) {
+		for (const pin of r.hotspots.keys()) {
+			const c = editor.hotspotCenter({ partId: id, pin });
+			if (c) pinCenters.push({ partId: id, pin, c });
+		}
+	}
 	const rows = [];
 	editor.diagram.wires.forEach((w, i) => {
 		const a = editor.hotspotCenter(w.a), b = editor.hotspotCenter(w.b);
@@ -70,13 +91,26 @@ async function run() {
 			for (let k = 0; k < poly.length - 1; k++) c += ov(poly[k], poly[k + 1], o);
 			if (c > 1) pierce.push(o.id + ':' + c.toFixed(0));
 		}
+		// Broches étrangères survolées (les 2 broches du fil exclues).
+		const surPins = [];
+		for (const p of pinCenters) {
+			if (p.partId === w.a.partId && p.pin === w.a.pin) continue;
+			if (p.partId === w.b.partId && p.pin === w.b.pin) continue;
+			for (let k = 0; k < poly.length - 1; k++) {
+				if (onSeg(p.c, poly[k], poly[k + 1], 4)) { surPins.push(p.partId + '.' + p.pin); break; }
+			}
+		}
 		rows.push({ w: w.a.partId + '.' + w.a.pin + '→' + w.b.partId + '.' + w.b.pin,
-			avant: avant[i], apres: (w.points ?? []).length, pierce,
+			avant: avant[i], apres: (w.points ?? []).length, pierce, surPins,
 			pts: poly.map((p) => Math.round(p.x) + ',' + Math.round(p.y)).join(' ') });
 	});
 	const out = document.createElement('pre');
 	out.id = 'measures';
-	out.textContent = JSON.stringify({ boxes: obs.map((o) => o.id + ' ' + o.x.toFixed(0) + ',' + o.y.toFixed(0) + ' ' + o.w.toFixed(0) + 'x' + o.h.toFixed(0)), rows });
+	out.textContent = JSON.stringify({
+		boxes: obs.map((o) => o.id + ' ' + o.x.toFixed(0) + ',' + o.y.toFixed(0) + ' ' + o.w.toFixed(0) + 'x' + o.h.toFixed(0)),
+		pins: pinCenters.map((p) => p.partId + '.' + p.pin + ' ' + Math.round(p.c.x) + ',' + Math.round(p.c.y)),
+		rows,
+	});
 	document.body.appendChild(out);
 }
 run().catch((e) => {

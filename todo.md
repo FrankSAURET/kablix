@@ -2,7 +2,6 @@
 
 *(Coches vertes validées par Frank en v2026.7.215 : les items terminés sont retirés d'ici, leur détail reste dans le journal par version ci-dessous.)*
 
-1. Autoroutage : fichier de texte 16 servp + alim.projix certains fils du noeud 13 (V+->P2.5V / V+->P3.5V / V+->P4.5V / V+->P5.5V / V+->P6.5V / V+->P7.5V /) passent encore par dessus des broches de Pilote PWM 16 canaux.
 1. Pour le PIR il me semble que la bulle (blanc sur noir) est écrite plus petit que la jaune sur noir. Met la à la même taile. De plus positionne la bulle - quand on quite le survol du PIR - centrée sur le centre du PIR.
 1. Le lancement de la simulation doit sauvegarder le fichier projix et le fichier de code
 1. Rajouter les extensions conseillées : electropol-fr.arduino-vscode-ide et framboise-pi.frappy-pi-pico
@@ -13,6 +12,17 @@
 1. ⏳ v2026.7.208 du coup le clavier qui marchait parfaitement (avec pico) est devenu trés lent pour pico — **lenteur non reproductible** : moteur Pico mesuré à 1,00× le temps réel avec le vrai firmware et le vrai script, et le clavier n'affame pas le thread (40,2 img/s contre 37,3 de référence). **À CHIFFRER EN F5 avec le badge de vitesse** (v2026.7.211).
 1. ⏳ v2026.7.207 du coup le neopixel ring qui marchait parfaitement est devenu trés lent pour pico — **non reproductible** : anneau mesuré à 1,00× thread libre et 0,97× page occupée à 30 % ; `buildNets` coûte 0,009–0,045 ms. Double rendu par image supprimé + **badge de vitesse** en v2026.7.211. **À CHIFFRER EN F5.**
 1. ⏳ Arduino HCSR04 : Marche mais trés long temps de réaction (> 12 s) — **cause majeure corrigée en v2026.7.206** (le moniteur série volait le temps de simulation : ~36 s pour 18 000 octets, désormais 65 ms). À RETESTER en F5 ; si c'est encore lent, le reste se joue ailleurs.
+
+# v2026.7.217 — les fils du PCA n'écrasent plus les broches voisines
+1. ✅ **Cause racine n°1 — la broche est ENCLAVÉE.** Sur le PCA9685, chaque connecteur servo est une **colonne de 3 broches au pas de 10 px** (`PWMn` / `Pn.5V` / `Pn.GND`) et les colonnes voisines sont, elles aussi, à 10 px. Pour `P2.5V`..`P7.5V` — la broche du **milieu** — les quatre sorties franches écrasent toutes une voisine : en haut `PWMn`, en bas `Pn.GND`, à gauche et à droite les 5 V des ports d'à côté. Seules `P8.5V` et `P1.5V`, aux deux bouts de la rangée, avaient une issue — d'où les deux seuls fils propres du schéma.
+2. ✅ **Correctif n°1 : l'échappée latérale** (`pinStubs`). Une sortie de broche n'est plus un point mais un **chemin** (2 points au besoin) : quand aucune sortie franche n'est propre, le fil dégage d'un pas de grille jusqu'à la première **colonne libre**, puis sort de la carte par là. Exactement le geste de la main. Toute la patte reste exemptée du coût de traversée du corps.
+3. ✅ **Cause racine n°2 — le garde anti-dégradation préférait le tracé sale.** `deepEnds` taxait 1000 par pixel toute traversée d'un corps d'**extrémité** au-delà d'un plafond FIXE de 15 px. Or les connecteurs servo du PCA sont à **34 px** du bord : le fil qui écrasait `PWMn` écopait de 19 000, celui qui l'évitait de 29 000 (10 px de crochet en plus) — et le survol de broche, pourtant à 2 000, ne pesait plus rien. Le fil sale était donc **conservé** alors que le routeur savait déjà en tracer un propre (visible dès qu'on remettait les fils à neuf).
+4. ✅ **Correctif n°2 : plafond adaptatif** (`capOf`) — profondeur réelle de la broche dans son corps + 15 px de marge, appliqué aux deux endroits qui jugeaient une traversée d'extrémité (garde « fil déjà propre » et garde anti-dégradation). Un fil ne peut plus être puni pour avoir simplement rejoint sa propre broche.
+5. ✅ **Mesuré sur le vrai `16 servo + alim.projix`** (Chrome headless, vrai éditeur) : **0 fil sur 30** survole une broche, contre 6 avant. Chaque V+ descend sur une colonne libre puis fait un crochet de 10 px — `servo-7.V+→P5.5V` : `1810,1380 → 1810,1436 → 1780,1436 → 1780,1480 → 1770,1480`.
+6. ✅ **Balayage de non-régression des 44 `.projix` de `testkablix\`** : **0 survol de broche, 0 traversée de corps tiers**, partout.
+7. ✅ **`verify:route` passe à 37 contrôles** : échappée latérale proposée pour une broche enclavée, fil vers `P5.5V` n'écrasant aucune voisine, et **tracé stable au 2e autoroutage** (le garde ne reprend pas l'ancien).
+8. ✅ typecheck + `verify:all` verts.
+9. ⬜ À VALIDER EN F5 : ouvrir `testkablix\16 servo + alim.projix`, « tout réarranger » → aucun fil V+ ne doit passer sur une broche PWM du pilote.
 
 # v2026.7.216 — les deux points de l'horloge s'allument enfin
 1. ✅ **Cause racine** (`sevenSegmentMuxBindings` + `sampleSevenSegLatches`) : sur un afficheur MULTIPLEXÉ, chaque segment était lu par `engine.readDigital(brocheMCU)`. Or les deux points d'une horloge ne sont reliés à **aucune broche** : ils sont tirés au 3,3 V à travers une résistance. La broche valant `null`, le latch retombait sur « segment éteint » — les points ne pouvaient **jamais** s'allumer.

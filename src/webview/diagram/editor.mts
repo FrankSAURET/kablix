@@ -2816,6 +2816,10 @@ export class Editor {
    * et coûtait un coude de plus qu'à la main.) Renvoie [] seulement pour une broche
    * franchement **hors du corps** (patte saillante d'un petit composant : aucune
    * traversée à craindre).
+   *
+   * Chaque candidat est un **chemin** (1 point en général, 2 pour une échappée
+   * latérale) : le fil suit ce chemin depuis la broche avant que l'A\* ne prenne
+   * le relais. Toute la patte est exemptée du coût de traversée du corps.
    */
   private pinStubs(
     end: Endpoint,
@@ -2823,7 +2827,7 @@ export class Editor {
     rects: Map<string, PartRect>,
     len: number,
     foreignPins?: XY[]
-  ): XY[] {
+  ): XY[][] {
     const r = this.rendered.get(end.partId);
     if (!r) return [];
     const box = rects.get(end.partId);
@@ -2860,24 +2864,62 @@ export class Editor {
     if (dLeft <= m + TIE) cands.push({ d: dLeft, p: left });
     if (dRight <= m + TIE) cands.push({ d: dRight, p: right });
     cands.sort((u, v) => u.d - v.d); // tri stable : à égalité, ordre haut/bas/gauche/droite
-    const picked = cands.map((c) => c.p);
-    // Broches ALIGNÉES en colonne/rangée (cas du PCA : PWM7 / P8.5V / P8.GND à
-    // x=1720, espacées de 10 px) : la sortie perpendiculaire par le bord le plus
-    // proche PASSE SUR les broches voisines. On ajoute alors les sorties LATÉRALES
-    // (perpendiculaires à la file de broches) comme candidats — le coût (onPin)
-    // choisira celle qui n'écrase aucune broche, comme le ferait la main.
-    if (foreignPins && foreignPins.length) {
-      const hitsPin = (p: XY): boolean =>
-        foreignPins.some((c) => pointOnSegment(c, center, p, 4));
-      const extra: XY[] = [];
-      for (const cand of picked) {
-        if (!hitsPin(cand)) continue;
-        // Le stub visé écrase une broche : proposer les deux sorties latérales.
-        const lateral = Math.abs(cand.x - center.x) < 0.5 ? [left, right] : [top, bot];
-        for (const lat of lateral) if (!hitsPin(lat) && !extra.includes(lat)) extra.push(lat);
+    const picked: XY[][] = cands.map((c) => [c.p]);
+    if (!foreignPins || foreignPins.length === 0) return picked;
+    // Une patte est PROPRE si aucun de ses segments ne passe sur une broche étrangère.
+    const clean = (path: XY[]): boolean => {
+      let prev = center;
+      for (const p of path) {
+        if (foreignPins.some((c) => pointOnSegment(c, prev, p, 4))) return false;
+        prev = p;
       }
-      return [...picked, ...extra];
+      return true;
+    };
+    if (picked.some(clean)) return picked;
+    // Broches ALIGNÉES en colonne/rangée (cas du PCA : PWM6 / P7.5V / P7.GND à
+    // x=1730, espacées de 10 px) : la sortie perpendiculaire par le bord le plus
+    // proche PASSE SUR les broches voisines. On propose alors les autres bords —
+    // le coût (onPin) gardera celui qui n'écrase rien.
+    const extra: XY[][] = [];
+    for (const lat of [top, bot, left, right]) {
+      if (picked.some((p) => p[0] === lat)) continue;
+      if (clean([lat])) extra.push([lat]);
     }
+    if (extra.length > 0) return [...picked, ...extra];
+    // Broche ENCLAVÉE (P2.5V..P7.5V du PCA : broche du MILIEU d'une colonne de 3,
+    // colonnes voisines à 10 px) : aucune sortie franche ne l'atteint sans écraser
+    // une voisine — ni verticalement (PWMn / Pn.GND), ni horizontalement (les 5V
+    // des ports voisins). On dégage alors d'un pas de grille jusqu'à la première
+    // voie LIBRE puis on sort de la carte par là, exactement le geste de la main
+    // (repro « 16 servo + alim.projix », v2026.7.217).
+    const escapes: XY[][] = [];
+    for (const step of [
+      { dx: GRID, dy: 0 },
+      { dx: -GRID, dy: 0 },
+      { dx: 0, dy: GRID },
+      { dx: 0, dy: -GRID },
+    ]) {
+      for (let k = 1; k <= 3; k++) {
+        const e: XY = { x: center.x + step.dx * k, y: center.y + step.dy * k };
+        // Voie barrée par une voisine : inutile de pousser plus loin dans ce sens.
+        if (!clean([e])) break;
+        const outs: XY[] = [
+          { x: e.x, y: box.y - len },
+          { x: e.x, y: box.y + box.h + len },
+          { x: box.x - len, y: e.y },
+          { x: box.x + box.w + len, y: e.y },
+        ];
+        outs.sort((u, v) => Math.hypot(u.x - e.x, u.y - e.y) - Math.hypot(v.x - e.x, v.y - e.y));
+        const out = outs.find((o) => clean([e, o]));
+        if (out) {
+          escapes.push([e, out]);
+          break;
+        }
+      }
+    }
+    // Les échappées passent devant : elles seules atteignent la broche proprement.
+    // On garde deux sorties franches en repli (l'A* peut échouer sur une échappée).
+    if (escapes.length > 0) return [...escapes, ...picked.slice(0, 2)];
     return picked;
   }
 
@@ -2951,6 +2993,26 @@ export class Editor {
       const a = this.hotspotCenter(wire.a);
       const b = this.hotspotCenter(wire.b);
       if (!a || !b) continue;
+      // Tolérance de traversée d'un corps d'EXTRÉMITÉ : la patte doit pouvoir aller
+      // de la broche jusqu'au bord, donc au moins la PROFONDEUR de la broche dans le
+      // corps — les 16 connecteurs servo du PCA sont à 34 px du bord — plus la marge
+      // historique d'un pas et demi (échappée latérale comprise). Un plafond fixe
+      // condamnait tout fil de ces broches à « perforer » son propre corps, et le
+      // garde-fou anti-dégradation préférait alors le tracé qui écrase une voisine
+      // (repro « 16 servo + alim.projix », v2026.7.217).
+      const ENDCAP = 1.5 * GRID;
+      const capOf = (o: PartRect): number => {
+        let depth = 0;
+        for (const [end, c] of [
+          [wire.a, a],
+          [wire.b, b],
+        ] as Array<[Endpoint, XY]>) {
+          if (end.partId !== o.id) continue;
+          const d = Math.min(c.x - o.x, o.x + o.w - c.x, c.y - o.y, o.y + o.h - c.y);
+          depth = Math.max(depth, Math.max(0, d));
+        }
+        return depth + ENDCAP;
+      };
       // Fil DÉJÀ bien tracé (demande de Frank : ne pas rajouter de coude à un fil
       // propre). Un fil est préservé TEL QUEL si sa polyligne complète (broches
       // comprises) est faite de segments H/V, compte 4 coudes ou moins, ne survole
@@ -2972,7 +3034,6 @@ export class Editor {
           // disqualifie plus le fil — seule une traversée DE PART EN PART, mesurée
           // contre le cœur du corps (rétréci de DEEP), le fait rerouter. Les deux
           // corps d'extrémité gardent la tolérance de ras historique (ENDCAP).
-          const ENDCAP = 1.5 * GRID;
           const DEEP = 4; // marge sur chaque bord : cœur du composant
           let overComp = false;
           for (const o of obstacles) {
@@ -2981,7 +3042,7 @@ export class Editor {
             for (let i = 0; i < full.length - 1; i++) {
               ov += isEnd ? segRectOverlap(full[i], full[i + 1], o) : segRectDeepCross(full[i], full[i + 1], o, DEEP);
             }
-            if (ov > (isEnd ? ENDCAP : TOL)) { overComp = true; break; }
+            if (ov > (isEnd ? capOf(o) : TOL)) { overComp = true; break; }
           }
           // Superposition avec un AUTRE fil (équipotentielle différente).
           const others: Array<[XY, XY]> = [];
@@ -3061,8 +3122,8 @@ export class Editor {
         .map((p) => p.c);
       const saList = this.pinStubs(wire.a, a, rectOf, STUB, foreignPinC);
       const sbList = this.pinStubs(wire.b, b, rectOf, STUB, foreignPinC);
-      const saCands: Array<XY | null> = saList.length > 0 ? saList : [null];
-      const sbCands: Array<XY | null> = sbList.length > 0 ? sbList : [null];
+      const saCands: Array<XY[] | null> = saList.length > 0 ? saList : [null];
+      const sbCands: Array<XY[] | null> = sbList.length > 0 ? sbList : [null];
       // Ségrégation par équipotentielle : `otherSegs` (autres nets) restent des
       // obstacles ; `sameSegs` (même net, fils visibles) deviennent des dorsales
       // que le tracé est encouragé à suivre (bonus de recouvrement).
@@ -3115,12 +3176,16 @@ export class Editor {
         }
         return onPin * 2000 + comp * 1000 + (overlap + selfOv) * 100 + cross * BEND * 1.5 + near * 0.6 + len + bends * BEND - sameOv * RIDE;
       };
-      const cost = (sa: XY | null, sb: XY | null, c: XY[]): number => {
-        const pa = sa ?? a;
-        const pb = sb ?? b;
+      // Une patte se lit de la broche vers l'extérieur : celle de `b` est donc
+      // parcourue à l'envers dans le tracé final (… → pb → … → b).
+      const cost = (sa: XY[] | null, sb: XY[] | null, c: XY[]): number => {
+        const legA = sa ?? [];
+        const legB = sb ? [...sb].reverse() : [];
+        const pa = legA.length > 0 ? legA[legA.length - 1] : a;
+        const pb = legB.length > 0 ? legB[0] : b;
         // Le tracé interne [pa..pb] (sans les pattes a→pa / pb→b) porte la mesure de
         // survol de composant : seules les pattes ont le droit de toucher leur corps.
-        return scorePoly([a, pa, ...c, pb, b], [pa, ...c, pb]);
+        return scorePoly([a, ...legA, ...c, ...legB, b], [pa, ...c, pb]);
       };
       // Routeur A* (contourne les obstacles et les fils), essayé pour CHAQUE
       // combinaison de sorties candidates (≤ 2 par extrémité) : pour une broche
@@ -3132,21 +3197,25 @@ export class Editor {
       // `astarRoute` exclut malgré tout le bloc qui contient encore le point de
       // départ/arrivée, pour laisser la broche s'échapper.) Le chemin va de pa à
       // pb inclus ; on retire ces deux bornes (réinjectées via sa/sb ou a/b).
-      let sa: XY | null = saCands[0];
-      let sb: XY | null = sbCands[0];
+      let sa: XY[] | null = saCands[0];
+      let sb: XY[] | null = sbCands[0];
       let routed: XY[] | null = null;
       let bestCost = Infinity;
       // Direction dominante d'un déplacement (encodage de l'A* : 0..3).
       const dirOf = (from: XY, to: XY): number =>
         Math.abs(to.x - from.x) > Math.abs(to.y - from.y) ? (to.x > from.x ? 0 : 1) : to.y > from.y ? 2 : 3;
+      // Bout de patte où l'A* prend le relais, et point d'où il vient (pour ne pas
+      // repartir en marche arrière sur le dernier segment de la patte).
+      const tip = (leg: XY[] | null, pin: XY): XY => (leg && leg.length > 0 ? leg[leg.length - 1] : pin);
+      const prev = (leg: XY[] | null, pin: XY): XY => (leg && leg.length > 1 ? leg[leg.length - 2] : pin);
       for (const ca of saCands) {
         for (const cb of sbCands) {
-          const path = astarRoute(ca ?? a, cb ?? b, obstacles, otherSegs, {
+          const path = astarRoute(tip(ca, a), tip(cb, b), obstacles, otherSegs, {
             clr: GRID / 2,
             bend: BEND,
             gap: GAP,
-            startDir: ca ? dirOf(a, ca) : undefined,
-            endDir: cb ? dirOf(cb, b) : undefined,
+            startDir: ca ? dirOf(prev(ca, a), tip(ca, a)) : undefined,
+            endDir: cb ? dirOf(tip(cb, b), prev(cb, b)) : undefined,
             same: sameSegs,
             pins: foreignPins.map((p) => p.c),
           });
@@ -3161,8 +3230,10 @@ export class Editor {
           }
         }
       }
-      const pa = sa ?? a; // point de départ du routage (après sortie perpendiculaire)
-      const pb = sb ?? b;
+      const legA = sa ?? [];
+      const legB = sb ? [...sb].reverse() : [];
+      const pa = tip(sa, a); // point de départ du routage (après sortie perpendiculaire)
+      const pb = legB.length > 0 ? legB[0] : b;
       const pick = (cands: XY[][]): XY[] => {
         let best = cands[0];
         let bestK = Infinity;
@@ -3209,7 +3280,7 @@ export class Editor {
         }
         inner = pick(cands);
       }
-      let pts = [...(sa ? [sa] : []), ...inner, ...(sb ? [sb] : [])];
+      let pts = [...legA, ...inner, ...legB];
       // Passe d'optimisation : supprime les coudes intermédiaires quand 3 points
       // consécutifs sont alignés (points de connexion a/b compris) — ne laisse que
       // 2. Purement géométrique (le tracé ne bouge pas), donc toujours sûr : pas
@@ -3248,18 +3319,17 @@ export class Editor {
       // que l'original perforant ne soit pas jugé « parfait » face au détour (qui,
       // lui, approche la broche par le côté et perce moins).
       // Même règle que partout ailleurs pour un corps d'extrémité : le ras est
-      // toléré jusqu'à ENDCAP, au-delà c'est une perforation. (Un inset fixe ne
-      // marchait pas : sur un corps étroit — la LED fait 17 px de large — son
-      // « cœur » devient si mince que la broche du bord tombe en dehors, et la
-      // traversée mesurée retombait à zéro.)
-      const ENDCAP = 1.5 * GRID;
+      // toléré jusqu'à `capOf` (profondeur de la broche + une marge), au-delà c'est
+      // une perforation. (Un inset fixe ne marchait pas : sur un corps étroit — la
+      // LED fait 17 px de large — son « cœur » devient si mince que la broche du
+      // bord tombe en dehors, et la traversée mesurée retombait à zéro.)
       const endBodies = obstacles.filter((o) => o.id === wire.a.partId || o.id === wire.b.partId);
       const deepEnds = (poly: XY[]): number => {
         let ov = 0;
         for (const o of endBodies) {
           let cross = 0;
           for (let i = 0; i < poly.length - 1; i++) cross += segRectOverlap(poly[i], poly[i + 1], o);
-          ov += Math.max(0, cross - ENDCAP);
+          ov += Math.max(0, cross - capOf(o));
         }
         return ov;
       };
