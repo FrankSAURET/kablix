@@ -30,6 +30,10 @@
   - Or, if you set up the association, double-click a projix file in Windows Explorer.
 <video src="../../media/demarrer.mp4" title="Start Kablix" controls autoplay loop muted playsinline></video>
 
+  The icon **only creates a new project when none is open**: if a circuit is
+  already there — including one reopened on its own after you switched folders —
+  it brings that one back instead of opening a second workbench.
+
 2. **Build your circuit**: drag and drop a part from the palette on the left. Wire the pins directly and click the autoroute button (routes the selected parts, or the whole circuit if none is selected).
 <video src="../../media/dessiner.mp4" title="Build a circuit" controls autoplay loop muted playsinline></video>
 

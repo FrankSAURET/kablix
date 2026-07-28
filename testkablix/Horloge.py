@@ -1,6 +1,5 @@
 from machine import Pin
 import time
-from typing import List
 
 # Afficheur 4 digits 7 segments cathode commune.
 # Segments a..g : GP2..GP8
@@ -32,8 +31,8 @@ CHIFFRES = (
 	0x6F,  # 9
 )
 
-segments: List[Pin] = [Pin(pin, Pin.OUT) for pin in SEG_PINS]
-digits: List[Pin] = [Pin(pin, Pin.OUT) for pin in DIGIT_PINS]
+segments = [Pin(pin, Pin.OUT) for pin in SEG_PINS]
+digits = [Pin(pin, Pin.OUT) for pin in DIGIT_PINS]
 
 
 def eteindre_tous_les_digits():

@@ -7,6 +7,7 @@ import { saveDefaultLayout, applyDefaultLayout, kablixColumn } from './layout';
 import { registerProjixEditor, ProjixEditorProvider } from './projix-editor';
 import { associateProjix, promptProjixAssociationOnFirstRun } from './associate';
 import { PartHelpPanel, SHOW_PART_HELP } from './partHelp';
+import { openNewProjix, openOrRevealProjix } from './openproject';
 
 const l10n = vscode.l10n;
 
@@ -49,10 +50,10 @@ export function activate(context: vscode.ExtensionContext): void {
         active.reveal();
         setTimeout(() => void applyDefaultLayout(context, true), 80);
       } else {
-        // Nouveau projet : resolveCustomEditor pose déjà le layout à panel.active.
-        // On force en plus (clic icône = action explicite) au cas où la
-        // disposition aurait déjà été consommée cette session.
-        void openNewProjix(context).then(() =>
+        // Atelier existant révélé, ou nouveau projet à défaut. On force en plus le
+        // layout (clic icône = action explicite) au cas où la disposition aurait
+        // déjà été consommée cette session.
+        void openOrRevealProjix(context).then(() =>
           setTimeout(() => void applyDefaultLayout(context, true), 120)
         );
       }
@@ -163,31 +164,6 @@ export function activate(context: vscode.ExtensionContext): void {
   // restaurés NATIVEMENT par VS Code (comme n'importe quel onglet d'éditeur), y
   // compris les modifications non enregistrées via le hot-exit. Plus besoin de
   // rouvrir manuellement le dernier projet — ce serait un doublon.
-}
-
-/** Compteur d'untitled pour donner une URI DISTINCTE à chaque « nouveau projet »
- *  (même URI ⇒ VS Code révèle l'onglet existant au lieu d'en ouvrir un autre). */
-let untitledCounter = 0;
-
-/**
- * Ouvre un nouveau projet Kablix : un document .projix « untitled » dans
- * l'éditeur personnalisé, dans un NOUVEL onglet du côté Kablix mémorisé (droite
- * par défaut). Le point ● natif apparaît dès la première modification ; Ctrl+S
- * propose l'emplacement.
- */
-async function openNewProjix(context: vscode.ExtensionContext): Promise<void> {
-  // URI untitled unique : sans le suffixe, rouvrir « nouveau projet » ne ferait
-  // que révéler l'onglet déjà ouvert.
-  const suffix = untitledCounter === 0 ? '' : ` ${untitledCounter + 1}`;
-  untitledCounter++;
-  const name = l10n.t('New project') + suffix + '.projix';
-  const uri = vscode.Uri.parse('untitled:' + name);
-  await vscode.commands.executeCommand(
-    'vscode.openWith',
-    uri,
-    ProjixEditorProvider.viewType,
-    kablixColumn(context)
-  );
 }
 
 /** « Ouvrir un projet » : dialogue de fichier puis ouverture dans l'éditeur .projix

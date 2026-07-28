@@ -1,4 +1,14 @@
-1. Keypad-uno ne marche pas
-1. led-ring semble marcher mais super lent (avec le prg de test 100 ms fon env 3s)
-1. Carte sd ne marche pas pas testé avec pico. Fais un  prg + projix de test
-1. neopixel-uno si je chaine 3 led seule la première s'allume
+<!--
+ _______       _            _     _          ______        _                 _ 
+(_______)     (_)       _  (_)   | |        (____  \      (_)               | |
+ _______  ____ _  ___ _| |_ _  __| |_____    ____)  ) ____ _ _____ ____   __| |
+|  ___  |/ ___) |/___|_   _) |/ _  | ___ |  |  __  ( / ___) (____ |  _ \ / _  |
+| |   | | |   | |___ | | |_| ( (_| | ____|  | |__)  ) |   | / ___ | | | ( (_| |
+|_|   |_|_|   |_(___/   \__)_|\____|_____)  |______/|_|   |_\_____|_| |_|\____|
+    
+Auteur: Frank SAURET(frank.sauret.prof@gmail.com) 
+Todo temp.md(Ɔ) 2026
+Description : Saisissez la description puis « Tab »
+Créé le :  lundi 27 juillet 2026 à 12:27:57 
+Dernière modification : samedi 25 juillet 2026 à 13:01:56-->
+

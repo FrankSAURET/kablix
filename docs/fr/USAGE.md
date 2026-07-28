@@ -30,6 +30,10 @@
   - Ou si vous avez fait l'association, dans l'explorateur Windows double cliquer sur un fichier projix.
 <video src="../../media/demarrer.mp4" title="Démarrer Kablix" controls autoplay loop muted playsinline></video>
 
+  L'icône **ne crée un nouveau projet que s'il n'y en a aucun d'ouvert** : si un
+  montage est déjà là — y compris rouvert tout seul après un changement de
+  dossier — elle revient dessus au lieu d'ouvrir un deuxième atelier.
+
 2. **Construire son montage** : Glisser/poser un composant à partir de la bibliothèque à gauche. Relier les broches en direct et cliquer sur le bouton autoroutage (route les composants sélectionnés ou tout le montage si aucun n'est sélectionné).
 <video src="../../media/dessiner.mp4" title="Construire un montage" controls autoplay loop muted playsinline></video>
 

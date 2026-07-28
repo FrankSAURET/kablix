@@ -7,6 +7,7 @@ import {
   settleLayoutAfterCode,
 } from './layout';
 import { unpackProject } from './projix';
+import { PROJIX_VIEW_TYPE } from './openproject';
 
 const l10n = vscode.l10n;
 
@@ -37,7 +38,9 @@ class ProjixDocument implements vscode.CustomDocument {
 }
 
 export class ProjixEditorProvider implements vscode.CustomEditorProvider<ProjixDocument> {
-  public static readonly viewType = 'kablix.projix';
+  // Source unique du type d'éditeur : `openproject.ts` le déclare, car le
+  // repérage des onglets .projix doit rester testable sans tirer tout l'éditeur.
+  public static readonly viewType = PROJIX_VIEW_TYPE;
 
   private readonly onDidChangeEmitter =
     new vscode.EventEmitter<vscode.CustomDocumentEditEvent<ProjixDocument>>();

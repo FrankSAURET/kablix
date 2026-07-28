@@ -24,4 +24,4 @@ while True:
             pixel[i] = (0, 0, 0)
         pixel[position % nbLED] = roue_couleurs(position)
         pixel.write()
-        time.sleep(0.02)
+        time.sleep(0.1)
