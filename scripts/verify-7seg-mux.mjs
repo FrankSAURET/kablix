@@ -10,23 +10,152 @@
 // fait sim.mts et décode le nombre affiché. Il exige que le latch corresponde au
 // dernier `print(nombre)` du script (au déphasage d'affichage près), et fait la
 // contre-épreuve : au seul rythme du rendu, le décodage échoue.
+//
+// Deuxième volet (v2026.7.216) : les DEUX POINTS d'une horloge. Ils sont câblés
+// en dur au 3,3 V à travers une résistance — donc sans aucune broche MCU. Le
+// latch les lisait par `engine.readDigital(segPin)` avec `segPin` à null, et
+// retombait sur « segment éteint » : les points ne s'allumaient JAMAIS
+// (testkablix/Horloge.projix, retour Frank). Le binding publie désormais le
+// niveau imposé par le rail (`segFixed`), que le latch utilise à défaut de
+// broche. Cette section n'a pas besoin du firmware.
 import esbuild from 'esbuild';
 import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import JSZip from 'jszip';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const fw = join(root, 'test-assets', 'RPI_PICO-20230426-v1.20.0.uf2');
-if (!existsSync(fw)) {
-  console.log('SKIP : firmware MicroPython absent (test-assets/RPI_PICO-20230426-v1.20.0.uf2).');
-  process.exit(0);
-}
 const tmp = mkdtempSync(join(tmpdir(), 'kablix-7seg-'));
 async function load(entry, name) {
   const out = join(tmp, name);
   await esbuild.build({ entryPoints: [join(root, entry)], outfile: out, bundle: true, platform: 'node', format: 'esm', logLevel: 'silent' });
   return import(pathToFileURL(out).href);
+}
+
+const checks = [];
+const ok = (name, cond, detail = '') => { checks.push({ name, ok: !!cond, detail: String(detail) }); };
+const bilan = () => {
+  let fail = 0;
+  for (const r of checks) {
+    if (!r.ok) fail++;
+    console.log(`${r.ok ? '✅' : '❌'} ${r.name}${!r.ok && r.detail ? ` — ${r.detail}` : ''}`);
+  }
+  console.log(fail ? `7seg-mux : ${fail} échec(s).` : `7seg-mux : ${checks.length} contrôles OK — le latch multiplexé suit le nombre affiché.`);
+  process.exit(fail ? 1 : 0);
+};
+
+/**
+ * Reproduit FIDÈLEMENT `sampleSevenSegLatches` (sim.mts) — la fonction n'est pas
+ * exportée ; une garde statique plus bas vérifie que le code du produit lit bien
+ * `segFixed`/`digitFixed`. `read(pin)` joue le moteur.
+ */
+function latchOf(binding, read) {
+  const latch = new Array(binding.digits * 8).fill(0);
+  for (let d = 0; d < binding.digits; d++) {
+    const digPin = binding.digitPins[d];
+    const digFixed = binding.digitFixed[d];
+    if (!digPin && digFixed === null) continue;
+    const common = digPin ? (read(digPin) ? 1 : 0) : digFixed;
+    const active = binding.commonAnode ? common === 1 : common === 0;
+    if (!active) continue;
+    for (let s = 0; s < 8; s++) {
+      const segPin = binding.segPins[s];
+      const fixed = binding.segFixed[s];
+      const seg = segPin ? (read(segPin) ? 1 : 0) : (fixed ?? (binding.commonAnode ? 1 : 0));
+      latch[d * 8 + s] = binding.commonAnode
+        ? (seg === 0 && common === 1 ? 1 : 0)
+        : (seg === 1 && common === 0 ? 1 : 0);
+    }
+  }
+  return latch;
+}
+
+/** Ancienne logique (avant v2026.7.216) : sert de contre-épreuve. */
+function latchAvant(binding, read) {
+  const latch = new Array(binding.digits * 8).fill(0);
+  for (let d = 0; d < binding.digits; d++) {
+    const digPin = binding.digitPins[d];
+    if (!digPin) continue;
+    const common = read(digPin) ? 1 : 0;
+    if (binding.commonAnode ? common !== 1 : common !== 0) continue;
+    for (let s = 0; s < 8; s++) {
+      const segPin = binding.segPins[s];
+      const seg = segPin ? (read(segPin) ? 1 : 0) : (binding.commonAnode ? 1 : 0);
+      latch[d * 8 + s] = binding.commonAnode
+        ? (seg === 0 && common === 1 ? 1 : 0)
+        : (seg === 1 && common === 0 ? 1 : 0);
+    }
+  }
+  return latch;
+}
+
+async function colonSection() {
+  const { sevenSegmentMuxBindings } = await load('src/webview/diagram/model.mts', 'model.mjs');
+  const diagramOf = async (rel) => {
+    const zip = await JSZip.loadAsync(readFileSync(join(root, rel)));
+    return JSON.parse(await zip.files['diagram.json'].async('string'));
+  };
+
+  // Les deux schémas d'horloge de Frank : Pico (3V3) et Uno (3.3V). Même
+  // câblage, mêmes attentes — la résolution est commune aux deux moteurs.
+  for (const [rel, digit1, seg] of [
+    ['testkablix/Horloge.projix', 'GP10', 'GP2'],
+    ['testkablix/horloge-uno/horloge-uno.projix', '10', '2'],
+  ]) {
+    const nom = rel.split('/').pop();
+    if (!existsSync(join(root, rel))) { ok(`${nom} : fichier présent`, false, 'absent'); continue; }
+    const diagram = await diagramOf(rel);
+    const b = sevenSegmentMuxBindings(diagram)[0];
+    ok(`${nom} : afficheur 4 chiffres cathode commune reconnu`,
+      b && b.digits === 4 && b.commonAnode === false, JSON.stringify(b ?? null));
+    if (!b) continue;
+    ok(`${nom} : le DP n a AUCUNE broche MCU (il est tiré au rail)`,
+      b.segPins[7] === null, String(b.segPins[7]));
+    ok(`${nom} : le DP est reconnu à 1 par le rail d alimentation (segFixed)`,
+      b.segFixed[7] === 1, String(b.segFixed[7]));
+    ok(`${nom} : les 7 segments gardent bien leur broche MCU`,
+      b.segPins.slice(0, 7).every((p) => p !== null) && b.segPins[0] === seg,
+      JSON.stringify(b.segPins));
+    ok(`${nom} : les 4 communs de chiffre sont sur des broches MCU`,
+      b.digitPins.every((p) => p !== null) && b.digitPins[0] === digit1,
+      JSON.stringify(b.digitPins));
+
+    // Balayage : chiffre 1 sélectionné (commun BAS), segments A..C allumés.
+    const bas = new Set([b.digitPins[0]]);
+    const hauts = new Set([b.segPins[0], b.segPins[1], b.segPins[2], ...b.digitPins.slice(1)]);
+    const read = (pin) => (bas.has(pin) ? false : hauts.has(pin));
+    const latch = latchOf(b, read);
+    ok(`${nom} : LES DEUX POINTS S ALLUMENT (dp du chiffre balayé à 1)`,
+      latch[7] === 1, JSON.stringify(latch.slice(0, 8)));
+    ok(`${nom} : les segments pilotés suivent (A,B,C allumés, D..G éteints)`,
+      latch[0] === 1 && latch[1] === 1 && latch[2] === 1 && latch.slice(3, 7).every((v) => v === 0),
+      JSON.stringify(latch.slice(0, 8)));
+    ok(`${nom} : contre-épreuve — l ancienne logique laissait les points ÉTEINTS`,
+      latchAvant(b, read)[7] === 0, JSON.stringify(latchAvant(b, read).slice(0, 8)));
+  }
+
+  // Le latch du produit doit vraiment se servir de ces niveaux figés.
+  const sim = readFileSync(join(root, 'src/webview/sim.mts'), 'utf8');
+  ok('sim.mts : le latch retombe sur le niveau du rail quand la broche manque',
+    /fixed\s*\?\?\s*\(b\.commonAnode \? 1 : 0\)/.test(sim), 'segFixed non utilisé dans sampleSevenSegLatches');
+  ok('sim.mts : un commun câblé en dur à un rail sélectionne quand même son chiffre',
+    /digitFixed\[d\]/.test(sim) && /!digPin && digFixed === null/.test(sim), 'digitFixed non utilisé');
+  // Et le fork doit reporter le dp sur les 2 points centraux.
+  const el = readFileSync(join(root, 'src/webview/composants/7segment-element.mts'), 'utf8');
+  ok('7segment-element : les 2 points suivent le dp le plus fort de l afficheur',
+    /Math\.max\(level, Number\(values\[d \* 8 \+ 7\]\)/.test(el), 'report du dp introuvable');
+  // Le sketch Arduino équivalent doit exister à côté du schéma Uno.
+  ok('horloge-uno.ino : le programme Arduino équivalent est livré',
+    existsSync(join(root, 'testkablix/horloge-uno/horloge-uno.ino')), 'absent');
+}
+
+await colonSection();
+
+const fw = join(root, 'test-assets', 'RPI_PICO-20230426-v1.20.0.uf2');
+if (!existsSync(fw)) {
+  console.log('ℹ️ firmware MicroPython absent (test-assets/RPI_PICO-20230426-v1.20.0.uf2) — section multiplexage sautée.');
+  bilan();
 }
 const { parseUf2 } = await load('src/shared/uf2.ts', 'uf2.mjs');
 const { PicoEngine } = await load('src/webview/engines/pico.mts', 'pico.mjs');
@@ -119,9 +248,6 @@ async function run(mode, RUN_MS, DELAIS = 100) {
   return { ...m, printed, prints, speed, pctOk: m.total ? 100 * m.ok / m.total : 0 };
 }
 
-const checks = [];
-const ok = (name, cond, detail = '') => { checks.push({ name, ok: !!cond, detail: String(detail) }); };
-
 console.log('Banc 7 segments multiplexé (max ~40 s)…');
 const hf = await run('hf', 6000, 100);
 ok('multiplexage : le script a bien tourné (nombre imprimé)', hf.printed !== null && hf.printed > 0, 'dernier print=' + hf.printed);
@@ -148,10 +274,4 @@ ok('contre-épreuve : au seul rythme du rendu, le latch suit NETTEMENT moins bie
   raf.pctOk <= hf.pctOk - 20,
   `rendu-seul ${raf.pctOk.toFixed(1)} % (${raf.ok}/${raf.total}) vs haute fréquence ${hf.pctOk.toFixed(1)} %`);
 
-let fail = 0;
-for (const r of checks) {
-  if (!r.ok) fail++;
-  console.log(`${r.ok ? '✅' : '❌'} ${r.name}${!r.ok && r.detail ? ` — ${r.detail}` : ''}`);
-}
-console.log(fail ? `7seg-mux : ${fail} échec(s).` : `7seg-mux : ${checks.length} contrôles OK — le latch multiplexé suit le nombre affiché.`);
-process.exit(fail ? 1 : 0);
+bilan();

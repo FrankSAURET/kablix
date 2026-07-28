@@ -613,13 +613,21 @@ function sampleSevenSegLatches(): void {
     }
     for (let d = 0; d < b.digits; d++) {
       const digPin = b.digitPins[d];
-      if (!digPin) continue;
-      const common = engine.readDigital(digPin) ? 1 : 0; // niveau du commun de ce chiffre
+      // Un commun sans broche MCU peut être câblé en dur à un rail : il vaut
+      // alors ce rail. Sans rail NI broche, le chiffre n'est pas alimenté.
+      const digFixed = b.digitFixed[d];
+      if (!digPin && digFixed === null) continue;
+      const common = digPin ? (engine.readDigital(digPin) ? 1 : 0) : digFixed!; // niveau du commun
       const active = b.commonAnode ? common === 1 : common === 0;
       if (!active) continue; // chiffre éteint : on garde sa dernière valeur (latch)
       for (let s = 0; s < 8; s++) {
         const segPin = b.segPins[s];
-        const seg = segPin ? (engine.readDigital(segPin) ? 1 : 0) : (b.commonAnode ? 1 : 0);
+        // Segment sans broche MCU : niveau du rail auquel il est soudé (les deux
+        // points d'une horloge sont tirés au 3,3 V), sinon éteint.
+        const fixed = b.segFixed[s];
+        const seg = segPin
+          ? (engine.readDigital(segPin) ? 1 : 0)
+          : (fixed ?? (b.commonAnode ? 1 : 0));
         latch[d * 8 + s] = b.commonAnode
           ? (seg === 0 && common === 1 ? 1 : 0)
           : (seg === 1 && common === 0 ? 1 : 0);

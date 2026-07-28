@@ -27,6 +27,7 @@ Seven-segment display (+ decimal point) for digits and simple symbols. 1 to 4 di
 - One resistor per segment.
 - Common cathode: COM to ground, segments to +; common anode: the opposite.
 - Multi-digit: multiplexing (light one digit at a time, quickly).
+- **Clock mode** (`colon`, 4 digits): the decimal points give way to the two central dots, which light up as soon as any DP is driven. To keep them lit permanently, wire DP to the board **+ rail** (3.3 V or 5 V) through a resistor — no MCU pin needed: the simulation takes it into account.
 
 ---
 

@@ -27,6 +27,7 @@ Afficheur à 7 segments (+ point décimal) pour chiffres et symboles simples. 1 
 - Une résistance par segment.
 - Cathode commune : COM à la masse, segments au + ; anode commune : l'inverse.
 - Multi-digits : multiplexage (allumer un digit à la fois, rapidement).
+- **Mode horloge** (`colon`, 4 digits) : les points décimaux disparaissent au profit des deux points centraux, qui s'allument dès qu'un DP est piloté. Pour les laisser allumés en permanence, câbler DP au **+ de la carte** (3,3 V ou 5 V) à travers une résistance — sans passer par une broche : la simulation en tient compte.
 
 ---
 

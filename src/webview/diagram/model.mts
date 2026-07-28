@@ -1056,6 +1056,15 @@ export interface SevenSegmentMuxBinding {
   segPins: (string | null)[];
   /** Broche MCU de chaque broche commune DIG1..DIGn, null si non câblé. */
   digitPins: (string | null)[];
+  /**
+   * Niveau IMPOSÉ PAR UN RAIL pour chaque segment A..DP : 1 si le net est collé à
+   * une alimentation, 0 s'il est collé à la masse, null sinon. Un segment câblé
+   * en dur — les deux points d'une horloge, reliés au 3,3 V par une résistance —
+   * n'a aucune broche MCU : sans ça il restait éteint pour toujours.
+   */
+  segFixed: (number | null)[];
+  /** Idem pour chaque commun DIG1..DIGn (un commun soudé à la masse reste actif). */
+  digitFixed: (number | null)[];
 }
 
 /**
@@ -1076,10 +1085,28 @@ export function sevenSegmentMuxBindings(diagram: Diagram): SevenSegmentMuxBindin
     if (digits <= 1) continue; // 1 chiffre : lissé par sevenSegStable
     const pinOf = (pin: string): string | null =>
       mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin }));
-    const segPins = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'DP'].map(pinOf);
+    // Niveau figé d'une broche reliée à un rail (alimentation ou masse) et à
+    // aucune sortie MCU : c'est le cas des deux points d'une horloge, câblés au
+    // 3,3 V à travers une résistance.
+    const fixedOf = (pin: string): number | null => {
+      const net = nets.netOf({ partId: part.id, pin });
+      if (netHasVcc(diagram, nets, net)) return 1;
+      if (netHasGnd(diagram, nets, net)) return 0;
+      return null;
+    };
+    const SEGS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'DP'];
+    const segPins = SEGS.map(pinOf);
+    const segFixed = SEGS.map(fixedOf);
     const digitPins: (string | null)[] = [];
-    for (let d = 0; d < digits; d++) digitPins.push(pinOf(`DIG${d + 1}`));
-    out.push({ partId: part.id, digits, commonAnode: part.attrs?.common === 'anode', segPins, digitPins });
+    const digitFixed: (number | null)[] = [];
+    for (let d = 0; d < digits; d++) {
+      digitPins.push(pinOf(`DIG${d + 1}`));
+      digitFixed.push(fixedOf(`DIG${d + 1}`));
+    }
+    out.push({
+      partId: part.id, digits, commonAnode: part.attrs?.common === 'anode',
+      segPins, digitPins, segFixed, digitFixed,
+    });
   }
   return out;
 }
