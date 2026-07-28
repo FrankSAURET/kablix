@@ -164,6 +164,25 @@ textarea {
   white-space: nowrap;
 }
 
+/* Vitesse réelle de la simulation : n'apparaît QUE si la carte n'arrive plus à
+   suivre le temps réel (page trop occupée, schéma lourd). Badge d'alerte, sans
+   clignotement — il se met à jour en continu. */
+.sim-speed {
+  margin-left: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--vscode-inputValidation-warningBackground, #7a5b00) 80%, transparent);
+  color: var(--vscode-inputValidation-warningForeground, var(--vscode-foreground, #fff));
+  border: 1px solid color-mix(in srgb, var(--vscode-inputValidation-warningBorder, #c9a227) 70%, transparent);
+  white-space: nowrap;
+}
+
+.sim-speed[hidden] {
+  display: none;
+}
+
 /* Clignotement 3× à chaque nouveau message (posé/retiré par sim.mts). */
 .status--flash {
   animation: kablix-status-flash 1.05s steps(1, end) 1;

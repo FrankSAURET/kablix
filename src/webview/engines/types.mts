@@ -125,6 +125,12 @@ export interface SimEngine {
   setBreakpoints?(breakpoints: Breakpoint[]): void;
   /** Appelé à chaque pause avec la ligne courante et les variables lisibles. */
   onDebugPause: ((state: DebugPauseState) => void) | null;
+  /**
+   * Temps SIMULÉ écoulé depuis le démarrage, en ms (cycles CPU ÷ horloge). Comparé
+   * au temps réel, il donne la vitesse effective de la simulation : c'est le seul
+   * moyen de distinguer « le programme est lent » de « la page ne suit plus ».
+   */
+  simulatedMs?(): number;
   /** État logique d'une broche numérique nommée (ex. '13', 'A0', 'GP25'). */
   readDigital(name: string): boolean;
   /**
@@ -149,6 +155,13 @@ export interface SimEngine {
   setUltrasonic?(sensors: UltrasonicSensor[]): void;
   /** Déclare les claviers matriciels : une touche enfoncée court-circuite ligne/colonne. */
   setKeypads?(keypads: KeypadConfig[]): void;
+  /**
+   * Réévalue TOUT DE SUITE les contacts du clavier. Les ensembles `pressed` sont
+   * partagés par référence et relus à chaque front GPIO : sans front (simulation
+   * en pause ou en pas à pas), une touche enfoncée pendant que la ligne est DÉJÀ
+   * basse n'était jamais vue. À appeler à chaque appui/relâchement.
+   */
+  syncKeypads?(): void;
   /** Déclare les capteurs DHT22 : répond au protocole 1-wire avec température/humidité. */
   setDht22?(sensors: Dht22Sensor[]): void;
   /** Relie des périphériques I²C (esclaves) au bus du MCU (LCD, PCA9685…). */

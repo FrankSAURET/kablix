@@ -424,6 +424,11 @@ export class AvrEngine implements SimEngine {
     }
   }
 
+  /** Temps simulé depuis le démarrage (ms) : cycles CPU ÷ horloge de la carte. */
+  simulatedMs(): number {
+    return (this.cpu.cycles / CLOCK_HZ) * 1000;
+  }
+
   readDigital(name: string): boolean {
     const map = this.pinMap[name];
     if (!map) return false;
@@ -663,6 +668,16 @@ export class AvrEngine implements SimEngine {
       for (const row of kp.rows) if (row) this.setInput(row, true);
       for (const col of kp.cols) if (col) this.setInput(col, true);
     }
+  }
+
+  /**
+   * Réévalue les contacts du clavier hors changement de port : appelée quand
+   * l'utilisateur appuie/relâche une touche. Sans elle, une touche enfoncée alors
+   * que sa ligne est déjà basse (cas courant en pas à pas, où plus rien ne bouge
+   * entre deux pas) n'était vue qu'au balayage suivant — jamais en pas à pas.
+   */
+  syncKeypads(): void {
+    this.applyKeypads();
   }
 
   /** Vrai si la broche est PILOTÉE à LOW (sortie basse), pas seulement flottante. */

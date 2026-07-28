@@ -198,7 +198,9 @@ function bench() {
 
 {
   // Appui SURVENANT alors que la ligne est déjà tirée à LOW (clic souris en plein
-  // balayage) : le contact doit être vu tout de suite, sans attendre un front.
+  // balayage, ou simulation figée en pas à pas) : rien ne bouge sur les broches,
+  // donc aucun écouteur ne se déclenche. `syncKeypads()` est le seul moyen de voir
+  // le contact — c'est ce que sim.mts appelle à chaque appui/relâchement.
   const { eng, pressed } = bench();
   const cpu = eng.cpu;
   const row = regs(rows[0]);
@@ -207,12 +209,27 @@ function bench() {
   setBit(cpu, row.port, row.bit, false); // ligne 0 maintenue basse
   advance(eng, 50);
   pressed.add('0,2');
-  eng.applyKeypads?.(); // sim.mts n'appelle rien : le moteur doit suivre seul
   advance(eng, 50);
   check(
-    'appui pendant que la ligne est déjà basse : contact vu',
+    'sans réévaluation, un appui hors front reste invisible (le bug)',
+    ((cpu.data[col.pin] >> col.bit) & 1) === 1,
+    'la colonne est descendue toute seule : le contrôle suivant ne prouverait rien',
+  );
+  eng.syncKeypads();
+  advance(eng, 50);
+  check(
+    'appui pendant que la ligne est déjà basse : contact vu après syncKeypads()',
     ((cpu.data[col.pin] >> col.bit) & 1) === 0,
     'la colonne est restée haute',
+  );
+  // Relâchement dans la même situation : la colonne doit remonter aussitôt.
+  pressed.delete('0,2');
+  eng.syncKeypads();
+  advance(eng, 50);
+  check(
+    'relâchement hors front : la colonne remonte après syncKeypads()',
+    ((cpu.data[col.pin] >> col.bit) & 1) === 1,
+    'la colonne est restée basse',
   );
 }
 
@@ -356,6 +373,26 @@ for (const [nom, fichier] of [
       /for \(const col of kp\.cols\) if \(col\) this\.setInput\(col, true\);/.test(src),
   );
   check(`${nom} : plus de cache réservé aux colonnes`, !/keypadColLevel/.test(src));
+  check(
+    `${nom} : réévaluation à la demande (syncKeypads)`,
+    /syncKeypads\(\): void \{\s*this\.applyKeypads\(\);/.test(src),
+  );
+}
+
+// sim.mts doit RÉELLEMENT appeler cette réévaluation : `pressed` est partagé par
+// référence, mais sans appel le moteur ne le relit qu'au prochain front de broche
+// — jamais en pas à pas, où plus rien ne bouge entre deux pas (retour Frank :
+// « si je bloque une touche en position appuyée, en pas à pas elle n'est jamais
+// vue comme appuyée »).
+{
+  const sim = readFileSync(join(root, 'src/webview/sim.mts'), 'utf8');
+  const bloc = sim.slice(sim.indexOf('const keypads: KeypadConfig[] = []'), sim.indexOf('engine.setKeypads?.(keypads)'));
+  const appels = (bloc.match(/engine\?\.syncKeypads\?\.\(\)/g) ?? []).length;
+  check(
+    'sim.mts réévalue le clavier à chaque appui/relâchement',
+    appels >= 2,
+    `${appels} appel(s) à syncKeypads dans le branchement du clavier`,
+  );
 }
 
 console.log(failures === 0 ? '\n✅ clavier matriciel en simulation : OK' : `\n❌ ${failures} échec(s)`);

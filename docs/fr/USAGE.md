@@ -170,6 +170,8 @@ La simulation suit le **temps réel** : une seconde à l'écran est une seconde 
 
 Le sélecteur 🐇/🐢/🐌 ralentit volontairement l'exécution (100 %, 10 %, 1 % du temps réel) pour observer un phénomène rapide. La simulation ne va **jamais plus vite** qu'une vraie carte.
 
+Si malgré tout la carte n'arrive plus à suivre, un badge **« Ralentie : 0,45× le temps réel »** apparaît à droite de la barre d'état : la page est trop chargée pour la simulation (schéma volumineux, machine occupée). Le ralenti volontaire du sélecteur n'est pas compté comme un défaut. Le badge disparaît dès que la simulation revient à l'heure, et à l'arrêt.
+
 ## MicroPython sur le Pico
 1. Ouvrir un fichier `.py` → **Compiler & exécuter le fichier actif**.
 2. Au premier lancement, si aucun firmware n'est trouvé, Kablix **propose de le télécharger automatiquement** (choix **Pico / Pico W**) depuis [micropython.org](https://micropython.org/download/RPI_PICO/). Le firmware est mémorisé dans le stockage de l'extension et **réutilisé dans tous vos projets** — la question n'est posée qu'une fois.

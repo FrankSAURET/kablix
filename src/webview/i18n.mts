@@ -21,6 +21,9 @@ const FR: Record<string, string> = {
   'Resume': 'Reprendre',
   'Reset': 'Réinitialisé',
   'Line {0}': 'Ligne {0}',
+  'Slowed down: {0}× real time': 'Ralentie : {0}× le temps réel',
+  'The page cannot keep up with the simulation.':
+    'La page n\'arrive plus à suivre la simulation.',
 
   // Palette
   'Components': 'Composants',

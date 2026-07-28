@@ -329,6 +329,11 @@ export class PicoEngine implements SimEngine {
     };
   }
 
+  /** Temps simulé depuis le démarrage (ms) : cycles du cœur ÷ horloge système. */
+  simulatedMs(): number {
+    return (this.mcu.core.cycles / (this.mcu.clkSys || 125_000_000)) * 1000;
+  }
+
   readDigital(name: string): boolean {
     const i = gpioIndex(name);
     if (i === null) return false;
@@ -358,6 +363,16 @@ export class PicoEngine implements SimEngine {
       for (const row of kp.rows) if (row) this.setInput(row, true);
       for (const col of kp.cols) if (col) this.setInput(col, true);
     }
+  }
+
+  /**
+   * Réévalue les contacts du clavier hors front GPIO : appelée quand l'utilisateur
+   * appuie/relâche une touche. Sans elle, une touche enfoncée alors que sa ligne
+   * est déjà basse (cas courant en pas à pas, où plus rien ne bouge entre deux
+   * pas) n'était vue qu'au balayage suivant — jamais en pas à pas.
+   */
+  syncKeypads(): void {
+    this.applyKeypads();
   }
 
   /** Vrai si la broche est PILOTÉE à LOW (sortie basse), pas seulement flottante. */

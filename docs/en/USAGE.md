@@ -169,6 +169,8 @@ The simulation follows **real time**: one second on screen is one second on the 
 
 The 🐇/🐢/🐌 selector deliberately slows execution down (100 %, 10 %, 1 % of real time) to watch a fast phenomenon. The simulation never runs **faster** than a real board.
 
+If the board still cannot keep up, a **“Slowed down: 0.45× real time”** badge appears next to the status bar: the page is too busy for the simulation (large diagram, loaded machine). Slowing down on purpose with the selector is not counted as a fault. The badge disappears as soon as the simulation is back on time, and when it stops.
+
 ## MicroPython on the Pico
 1. Open a `.py` file → **Compile & run the active file**.
 2. On first run, if no firmware is found, Kablix **offers to download it automatically** (choose **Pico / Pico W**) from [micropython.org](https://micropython.org/download/RPI_PICO/). The firmware is cached in the extension storage and **reused across all your projects** — you are only asked once.

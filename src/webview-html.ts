@@ -114,6 +114,9 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
     <button id="open-help" class="toolbar__icon-btn" title="${l10n.t('Open help')}"><img src="${aideIconUri}" alt="${l10n.t('Open help')}" /></button>
     <span id="project-name" class="project-name" title="${l10n.t('Current project')}"></span>
     <span id="status" class="status">Prêt</span>
+    <!-- Vitesse réelle de la simulation (temps simulé / temps réel) : n'apparaît
+         que si la page ne suit plus, sinon la barre reste sobre. -->
+    <span id="sim-speed" class="sim-speed" hidden></span>
   </header>
 
   <main class="stage">

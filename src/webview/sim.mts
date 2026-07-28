@@ -177,6 +177,7 @@ const debugVarsEl = document.getElementById('debug-vars') as HTMLTableElement;
 const debugTitleBtn = document.getElementById('debug-title') as HTMLButtonElement;
 const debugHiddenEl = document.getElementById('debug-hidden') as HTMLDivElement;
 const statusEl = document.getElementById('status') as HTMLSpanElement;
+const simSpeedEl = document.getElementById('sim-speed') as HTMLSpanElement;
 const serialEl = document.getElementById('serial') as HTMLPreElement;
 const serialInput = document.getElementById('serial-input') as HTMLInputElement;
 const serialSend = document.getElementById('serial-send') as HTMLButtonElement;
@@ -579,6 +580,11 @@ const buzzerAudio = (() => {
 let refreshQueued = false;
 
 function queueRefresh(): void {
+  // Pendant la simulation, `renderTick` redessine DÉJÀ à chaque frame : planifier
+  // un second rAF faisait tourner refreshVisuals deux fois par image (netlists,
+  // styles, halos… recalculés pour rien). Hors simulation, la file reste utile
+  // (police LED chargée, changement de schéma).
+  if (renderRaf) return;
   if (refreshQueued) return;
   refreshQueued = true;
   requestAnimationFrame(() => {
@@ -638,7 +644,48 @@ function renderTick(): void {
   updatePulses();
   updateMotion();
   refreshVisuals();
+  updateSpeedBadge();
   renderRaf = requestAnimationFrame(renderTick);
+}
+
+// Vitesse réelle de la simulation = temps SIMULÉ écoulé ÷ temps réel écoulé, sur
+// une fenêtre glissante d'une seconde. 1 = la carte est à l'heure. En dessous, le
+// programme s'exécute au ralenti — la page n'arrive plus à suivre (schéma lourd,
+// rendu coûteux, machine chargée) et c'est visible à l'œil. Sans ce repère, un
+// « c'est très lent » ne se distingue pas d'un programme réellement lent.
+const SPEED_WINDOW_MS = 1000;
+const SPEED_WARN = 0.8; // en dessous : on affiche le badge
+let speedWallStart = 0;
+let speedSimStart = 0;
+function resetSpeedBadge(): void {
+  speedWallStart = 0;
+  simSpeedEl.hidden = true;
+}
+function updateSpeedBadge(): void {
+  if (!engine?.simulatedMs || engine.paused) {
+    // En pause, le temps simulé ne bouge plus : la mesure repartira à la reprise.
+    speedWallStart = 0;
+    return;
+  }
+  const now = performance.now();
+  if (!speedWallStart) {
+    speedWallStart = now;
+    speedSimStart = engine.simulatedMs();
+    return;
+  }
+  const wall = now - speedWallStart;
+  if (wall < SPEED_WINDOW_MS) return;
+  const ratio = (engine.simulatedMs() - speedSimStart) / wall;
+  speedWallStart = now;
+  speedSimStart = engine.simulatedMs();
+  // Le ralenti VOLONTAIRE (menu 🐢) n'est pas un défaut : on compare au réglage.
+  const wanted = Number(speedSelect.value) || 1;
+  const slow = ratio < SPEED_WARN * wanted;
+  simSpeedEl.hidden = !slow;
+  if (slow) {
+    simSpeedEl.textContent = t('Slowed down: {0}× real time', ratio.toFixed(2).replace('.', ','));
+    simSpeedEl.title = t('The page cannot keep up with the simulation.');
+  }
 }
 
 /** Met à jour la sortie des capteurs PIR selon le survol souris (au changement). */
@@ -1242,7 +1289,7 @@ function bindInputs(): void {
         const node = el.shadowRoot?.querySelector(`[data-key-name="${keyText.toUpperCase()}"]`);
         node?.classList.toggle('pressed', on);
       };
-      const update = (e: Event, add: boolean): void => {
+      const applyKeys = (e: Event, add: boolean): void => {
         const d = (e as CustomEvent).detail as { row?: number; column?: number; key?: string };
         if (typeof d?.row !== 'number' || typeof d?.column !== 'number') return;
         const key = `${d.row},${d.column}`;
@@ -1288,9 +1335,17 @@ function bindInputs(): void {
             setTimeout(() => {
               pressed.delete(key);
               releaseTimers.delete(key);
+              engine?.syncKeypads?.();
             }, wait)
           );
         }
+      };
+      // `pressed` est partagé par référence, mais le moteur ne le relit qu'à un
+      // front GPIO : en pause / pas à pas, ou si la ligne est déjà basse, la touche
+      // n'était jamais vue. On force donc la réévaluation à chaque appui/relâchement.
+      const update = (e: Event, add: boolean): void => {
+        applyKeys(e, add);
+        engine?.syncKeypads?.();
       };
       const onPress = (e: Event): void => update(e, true);
       const onRelease = (e: Event): void => update(e, false);
@@ -2204,6 +2259,7 @@ function startRun(): void {
   buildI2cDevices();
   rebind();
   engine.start();
+  resetSpeedBadge(); // fenêtre de mesure de vitesse remise à zéro
   startRenderLoop(); // rendu continu tant que le moteur tourne
   editor.setLocked(true); // schéma figé pendant la simulation
   showSimBanner(true); // bandeau permanent « Simulation en cours »
@@ -2233,6 +2289,7 @@ function stopRun(): void {
   setReplMode(false);
   plotter.stop(); // courbes figées mais conservées pour analyse
   stopRenderLoop(); // fin du rendu continu
+  resetSpeedBadge(); // plus de simulation : plus d'alerte de ralentissement
   editor.setLocked(false); // édition du schéma de nouveau possible
   showSimBanner(false); // masque le bandeau de simulation
   // Arrêt (ou nouveau lancement, qui commence par un stopRun) : on repart d'un
