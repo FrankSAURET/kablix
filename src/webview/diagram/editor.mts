@@ -506,6 +506,11 @@ export class Editor {
     this.world.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.zoom})`;
     // La grille vit dans la feuille (.canvas__sheet), enfant du monde : elle suit
     // donc la transform ci-dessus automatiquement — aucun calage manuel ici.
+    // Le facteur est publié en variable CSS : les bulles d'aide des composants
+    // s'en servent pour se CONTRE-mettre à l'échelle et garder leur taille (et
+    // leur distance à la souris) de 100 % quel que soit le zoom. Une propriété
+    // personnalisée est héritée et traverse le shadow DOM des composants.
+    this.world.style.setProperty('--kablix-zoom', String(this.zoom));
     if (this.zoomBadge) this.zoomBadge.textContent = `⟳ ${Math.round(this.zoom * 100)} %`;
   }
 
@@ -1938,8 +1943,10 @@ export class Editor {
     const bubble = document.createElement('div');
     bubble.className = 'pin-bubble';
     bubble.textContent = pinDisplayName(partDef(part.type).kind, endpoint.pin, part.type, part.attrs);
+    // Ancrée au CENTRE de la broche : l'écart de 9 px est posé dans la transform
+    // de `.pin-bubble`, pour rester 9 px à l'écran quel que soit le zoom.
     bubble.style.left = `${p.x}px`;
-    bubble.style.top = `${p.y - 9}px`;
+    bubble.style.top = `${p.y}px`;
     this.world.appendChild(bubble);
     this.pinBubble = bubble;
     // Le title natif se tait le temps de la bulle (sinon doublon en mode clic-à-clic).

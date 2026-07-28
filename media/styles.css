@@ -1593,7 +1593,12 @@ textarea {
    posée dans le monde juste au-dessus de la pastille visée. */
 .pin-bubble {
   position: absolute;
-  transform: translate(-50%, -100%);
+  /* Taille et écart à la pastille mesurés à l'ÉCRAN : la bulle se contre-met à
+     l'échelle du zoom (--kablix-zoom, publié par l'éditeur sur le monde), sinon
+     elle devenait minuscule en vue d'ensemble et énorme en gros plan. L'origine
+     en haut à gauche garde le point d'ancrage — le centre de la broche — fixe. */
+  transform-origin: 0 0;
+  transform: scale(calc(1 / var(--kablix-zoom, 1))) translate(-50%, calc(-100% - 9px));
   padding: 2px 7px;
   background: rgba(30, 30, 30, 0.92);
   color: #ffd633;

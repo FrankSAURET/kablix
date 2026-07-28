@@ -284,6 +284,24 @@ async function run() {
 	ok('bulle : porte le nom de la broche (anode)', /A|anode/i.test(bubble?.textContent ?? ''));
 	ok('bulle : halo jaune préservé (pastilles .pin toujours survolables)',
 		getComputedStyle(hotspotOf(led2.id, 'A')).pointerEvents !== 'none');
+	// Taille et écart à la pastille mesurés à l'ÉCRAN : la bulle se contre-met à
+	// l'échelle du zoom (v2026.7.215), sinon elle rétrécissait en vue d'ensemble.
+	const bMesure = () => {
+		const d = hotspotOf(led2.id, 'A').getBoundingClientRect();
+		const b = document.querySelector('.pin-bubble').getBoundingClientRect();
+		return { ecart: d.top + d.height / 2 - b.bottom, dx: b.left + b.width / 2 - (d.left + d.width / 2), w: b.width, h: b.height };
+	};
+	const bZ1 = bMesure();
+	const camAvant = editor.getCamera();
+	editor.setCamera({ ...camAvant, zoom: 2 });
+	const bZ2 = bMesure();
+	editor.setCamera(camAvant);
+	ok('bulle : posée 9 px au-dessus du centre de la pastille',
+		Math.abs(bZ1.ecart - 9) <= 1 && Math.abs(bZ1.dx) <= 1, 'écart=' + bZ1.ecart.toFixed(1) + ' Δcentre=' + bZ1.dx.toFixed(1));
+	ok('bulle : zoom ×2 → même écart et même taille À L ÉCRAN',
+		Math.abs(bZ2.ecart - 9) <= 1 && Math.abs(bZ2.w - bZ1.w) <= 1 && Math.abs(bZ2.h - bZ1.h) <= 1,
+		'écart=' + bZ2.ecart.toFixed(1) + ' ' + bZ2.w.toFixed(0) + 'x' + bZ2.h.toFixed(0) +
+		' contre ' + bZ1.w.toFixed(0) + 'x' + bZ1.h.toFixed(0));
 	// Fil terminé : la bulle disparaît et le title natif est restauré.
 	hotspotOf(led2.id, 'A').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
 	ok('bulle : retirée à la fin du câblage', !document.querySelector('.pin-bubble'));

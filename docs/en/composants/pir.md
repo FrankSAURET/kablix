@@ -24,7 +24,7 @@ None: during simulation the motion is triggered **with the mouse** (see below).
 
 - **Move the mouse over the sensor** → OUT goes to 1. What counts is the *motion*, not the mere presence of the pointer: the output falls back to 0 shortly after the mouse stops.
 - **Ctrl+click** on the sensor → **permanent** motion (OUT stays at 1, even with the mouse away). Ctrl+click again to stop it.
-- A **hint bubble** recalls those gestures: it shows up **just below the pointer** (5 px), centred on it, so that it never hides the sensor.
+- A **hint bubble** recalls those gestures: it shows up **25 px below the pointer**, centred on it, so that it never hides the sensor. It stays visible as long as the mouse hovers the sensor, even when still, and keeps its size and its distance to the pointer **whatever the zoom** of the workshop.
 
 ---
 

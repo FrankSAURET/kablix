@@ -21,12 +21,19 @@ export class PIRMotionSensorElement extends LitElement {
   declare simulating: boolean;
   /** Souris actuellement au-dessus du capteur ET en mouvement (avec tolérance). */
   declare hovering: boolean;
+  /**
+   * Souris au-dessus du capteur, qu'elle bouge ou non. Sert UNIQUEMENT à la bulle
+   * d'aide, qui doit rester affichée tant qu'on survole (`hovering`, lui, retombe
+   * dès que la souris s'arrête : c'est l'état de la sortie OUT, pas de l'aide).
+   */
+  declare over: boolean;
   /** Mouvement verrouillé (Ctrl+clic) : reste actif même sans survol. */
   declare sticky: boolean;
 
   static properties = {
     simulating: { type: Boolean },
     hovering: { state: true },
+    over: { state: true },
     sticky: { state: true },
     bubblePos: { state: true },
   };
@@ -35,6 +42,7 @@ export class PIRMotionSensorElement extends LitElement {
     super();
     this.simulating = false;
     this.hovering = false;
+    this.over = false;
     this.sticky = false;
     this.bubblePos = null;
   }
@@ -68,12 +76,19 @@ export class PIRMotionSensorElement extends LitElement {
       :host { display: inline-block; }
       .wrap { position: relative; }
       /* Bulle façon tooltip qui suit le curseur (left/top posés dynamiquement
-         par le composant). Placement demandé par Frank : JUSTE EN DESSOUS du
-         pointeur (5 px) et CENTRÉE horizontalement dessus — d'où le
-         translate(-50%, 5px), qui vaut aussi pour le repli sans souris. */
+         par le composant). Placement demandé par Frank : 25 px SOUS le pointeur
+         et CENTRÉE horizontalement dessus, taille et distance mesurées à l'ÉCRAN
+         — donc indépendantes du zoom de l'atelier.
+         scale(1/zoom) annule l'agrandissement du monde (l'éditeur publie le
+         facteur dans --kablix-zoom) ; le translate qui SUIT est exprimé dans le
+         repère déjà mis à l'échelle, d'où un 25px qui vaut 25 px écran, et un
+         -50% qui centre la bulle sur son point d'ancrage. L'origine en haut à
+         gauche garde ce point d'ancrage fixe pendant la mise à l'échelle. Vaut
+         aussi pour le repli sans souris (ancré sous le composant). */
       .bubble {
         position: absolute;
-        transform: translate(-50%, 5px);
+        transform-origin: 0 0;
+        transform: scale(calc(1 / var(--kablix-zoom, 1))) translate(-50%, 25px);
         background: #222;
         color: #fff;
         font: 10px sans-serif;
@@ -97,19 +112,26 @@ export class PIRMotionSensorElement extends LitElement {
 
   private onEnter = () => {
     this.lastPos = null;
+    this.over = true;
   };
   private onLeave = () => {
     this.hovering = false;
+    this.over = false;
     this.lastPos = null;
     this.bubblePos = null;
     this.clearGraceTimer();
   };
   private onMove = (e: PointerEvent) => {
     if (!this.simulating) return;
+    this.over = true;
     // Position relative au composant (coin haut-gauche de son rectangle) :
     // la bulle suit le curseur au lieu de rester plaquée en haut du dessin.
+    // Le rectangle est mesuré à l'ÉCRAN (zoom compris) alors que left/top sont
+    // posés dans le repère du composant : on ramène l'écart au zoom pour que la
+    // bulle reste sous le pointeur même agrandie.
     const rect = this.getBoundingClientRect();
-    this.bubblePos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    const z = rect.width ? rect.width / this.offsetWidth : 1;
+    this.bubblePos = { x: (e.clientX - rect.left) / z, y: (e.clientY - rect.top) / z };
     const prev = this.lastPos;
     this.lastPos = { x: e.clientX, y: e.clientY };
     // Pas un vrai mouvement (arrivée sur l'élément, ou position identique) : ne
@@ -136,14 +158,15 @@ export class PIRMotionSensorElement extends LitElement {
 
   render() {
     const active = this.motion;
-    // La bulle n'apparaît qu'au survol effectif (ou en sticky, état permanent
-    // qu'il reste utile de rappeler même souris partie) — plus d'affichage
-    // fixe hors survol.
+    // La bulle n'apparaît qu'au survol (ou en sticky, état permanent qu'il reste
+    // utile de rappeler même souris partie) — plus d'affichage fixe hors survol.
+    // Elle tient tant que la souris est DESSUS (`over`), même immobile : c'est
+    // une aide, pas un témoin de la sortie.
     let bubble: string | null = null;
     let native = false;
     if (this.sticky) {
       bubble = 'Mouvement permanent (Ctrl+clic pour arrêter)';
-    } else if (this.hovering) {
+    } else if (this.over && this.simulating) {
       bubble = 'Détecte les mouvements de la souris — Ctrl+clic pour un mouvement permanent';
       native = true;
     }
