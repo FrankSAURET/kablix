@@ -20,12 +20,14 @@
 //     continues −1..1 sur les deux axes (course = pleine déflexion du dessin,
 //     bornée au cercle unité) ; au relâchement le manche revient au centre,
 //     sauf Ctrl/Cmd tenu = position verrouillée. Les flèches (clic ou clavier)
-//     gardent la déflexion tout-ou-rien d'origine.
+//     gardent la déflexion tout-ou-rien d'origine ;
+//   - bouton SEL : Ctrl/Cmd au relâchement VERROUILLE l'appui (même geste que
+//     le bouton poussoir), un clic simple suivant le libère.
 import { css, html, LitElement } from 'lit';
 import type { PropertyValues } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { analog, ElementPin, GND, VCC } from './pin.mjs';
-import { SPACE_KEYS } from './utils/keys.mjs';
+import { ctrlCmdPressed, SPACE_KEYS } from './utils/keys.mjs';
 import drawing from './externe/joystick.svg';
 
 const W = 120;
@@ -67,6 +69,8 @@ export class AnalogJoystickElement extends LitElement {
   private selEl: SVGElement | null = null;
   private selOff = '#aaa';
   private dragCenter: { x: number; y: number } | null = null;
+  /** Appui SEL verrouillé par Ctrl/Cmd : ni le relâchement, ni la sortie du curseur ne le libèrent. */
+  private sticky = false;
 
   static get styles() {
     return css`
@@ -228,7 +232,8 @@ export class AnalogJoystickElement extends LitElement {
             cy="13.6"
             r="3"
             @mousedown=${(e: MouseEvent) => this.press(e)}
-            @mouseup=${() => this.release()}
+            @mouseup=${(e: MouseEvent) => this.release(e)}
+            @mouseleave=${(e: MouseEvent) => this.leave(e)}
           />
         </g>
       </svg>
@@ -273,7 +278,7 @@ export class AnalogJoystickElement extends LitElement {
         break;
     }
     if (SPACE_KEYS.includes(e.key)) {
-      this.release();
+      this.release(e);
     }
   }
 
@@ -301,16 +306,35 @@ export class AnalogJoystickElement extends LitElement {
   }
 
   private press(e?: MouseEvent) {
-    this.pressed = true;
-    this.dispatchEvent(new InputEvent('button-press'));
+    // Déjà enfoncé (appui verrouillé) : ne pas ré-émettre `button-press`, sinon
+    // le maintien minimal de la simulation repart pour un tour à chaque clic.
+    if (!this.pressed) {
+      this.pressed = true;
+      this.dispatchEvent(new InputEvent('button-press'));
+    }
     this.knobEl?.focus();
     e?.preventDefault(); // Prevents stealing focus
   }
 
-  private release() {
+  private release(e?: KeyboardEvent | MouseEvent) {
+    if (!this.pressed) return;
+    // Ctrl/Cmd tenu au relâchement : l'appui reste VERROUILLÉ (même geste que le
+    // bouton poussoir), pour tester un maintien sans garder le doigt sur la souris.
+    // Un clic simple suivant passe ici sans Ctrl et libère le bouton.
+    if (e && ctrlCmdPressed(e)) {
+      this.sticky = true;
+      this.knobEl?.focus();
+      return;
+    }
+    this.sticky = false;
     this.pressed = false;
     this.dispatchEvent(new InputEvent('button-release'));
     this.knobEl?.focus();
+  }
+
+  /** Curseur sorti de la zone SEL en cours d'appui : relâche, sauf appui verrouillé. */
+  private leave(e: MouseEvent) {
+    if (!this.sticky) this.release(e);
   }
 
   private valueChanged() {

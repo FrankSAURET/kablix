@@ -70,23 +70,26 @@ const bloque = (ms) => {
 }
 
 {
-  // Page occupée pour de bon (60 % du temps volé) : la mesure doit DÉCROCHER,
-  // sinon le badge ne se déclencherait jamais quand la page rame.
+  // Page franchement bloquée : 700 ms volés d'un coup, bien au-delà de la dette
+  // rattrapable (MAX_DEBT_MS = 250 ms). Le moteur ré-ancre et SAUTE le temps
+  // perdu — la mesure doit le voir, sinon le badge ne se déclencherait jamais.
+  // (Une charge plus légère est RATTRAPÉE : c'est le comportement voulu depuis
+  // la v2026.7.207, et `verify:realtime` le vérifie déjà — inutile d'en faire un
+  // décrochage ici, la mesure dépendrait de la vitesse de la machine.)
   const eng = new AvrEngine(UNO_DEMO, null, 'avr328');
   eng.start();
   await sleep(150);
-  const timer = setInterval(() => bloque(60), 100);
   const t0 = performance.now();
   const s0 = eng.simulatedMs();
-  await sleep(600);
+  bloque(700);
+  await sleep(300);
   const ratio = (eng.simulatedMs() - s0) / (performance.now() - t0);
-  clearInterval(timer);
   eng.stop();
   eng.dispose();
   check(
-    `page occupée 60 % : mesure ${ratio.toFixed(2)}× — un décrochage est visible`,
-    ratio < 0.95,
-    'la mesure reste à 1 alors que la page est saturée',
+    `page bloquée 700 ms : mesure ${ratio.toFixed(2)}× — le décrochage est visible`,
+    ratio < 0.85,
+    'la mesure reste à 1 alors que la page a été bloquée plus longtemps que la dette',
   );
 }
 
