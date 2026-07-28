@@ -362,12 +362,42 @@ export class SimulatorPanel {
   }
 
   /**
+   * Lancement de la simulation : le schéma doit être sur le disque, comme le
+   * fichier de code (demande de Frank — on ne simule pas une version périmée).
+   * Le code, lui, est enregistré par `compileActiveFile` (`doc.save()`).
+   *
+   * On passe par le save **natif** de VS Code plutôt que d'écrire nous-mêmes :
+   * sans lui, l'onglet garderait son point ● et proposerait « enregistrer sous »
+   * à la fermeture. Un projet **jamais enregistré** (untitled, sans nom) est
+   * laissé tel quel : ouvrir une boîte de dialogue bloquerait le ▶.
+   */
+  private async saveProjectBeforeRun(): Promise<void> {
+    if (!this.projectDirty) return;
+    const doc = this.documentUri;
+    if (doc && doc.scheme !== 'untitled') {
+      try {
+        // L'URI en argument évite de dépendre de l'onglet ACTIF (le ▶ peut venir
+        // d'un raccourci alors que le curseur est dans le fichier de code).
+        await vscode.commands.executeCommand('workbench.action.files.save', doc);
+      } catch {
+        // Fichier verrouillé, disque plein… : on lance quand même la simulation.
+      }
+      return;
+    }
+    // Panneau ouvert hors CustomEditor mais .projix déjà nommé : écriture directe.
+    if (!doc && this.projectUri && this.pendingDiagram !== undefined) {
+      await this.saveProject(this.pendingDiagram, this.pendingBoard);
+    }
+  }
+
+  /**
    * Compile ou charge le fichier actif selon son type :
    *   .py → firmware MicroPython du workspace + injection du script ;
    *   .hex/.uf2/.elf/.bin → artefact chargé directement ;
    *   sinon → compilation via la toolchain locale pour la carte courante.
    */
   public async compileActiveFile(onlyIfChanged = false): Promise<void> {
+    await this.saveProjectBeforeRun();
     // Fichier choisi explicitement (chip du canvas) en priorité, sinon l'éditeur actif.
     let doc: vscode.TextDocument | undefined;
     if (this.codeFileUri) {
@@ -468,6 +498,7 @@ export class SimulatorPanel {
    * interactif (bouton « REPL » de la barre de simulation).
    */
   public async startReplMode(): Promise<void> {
+    await this.saveProjectBeforeRun();
     try {
       const isPicoW = this.currentBoard === 'picow';
       const firmware = await resolveMicropythonFirmware(this.context, isPicoW ? 'picow' : 'pico');
@@ -490,6 +521,7 @@ export class SimulatorPanel {
    * build/ pour le Pico) et le lance dans le simulateur.
    */
   public async loadWorkspaceArtifact(): Promise<void> {
+    await this.saveProjectBeforeRun();
     try {
       const board = this.currentBoard;
       const file =

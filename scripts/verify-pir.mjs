@@ -50,7 +50,7 @@ async function run() {
   const at = (x, y) => {
     const r = bubble().getBoundingClientRect();
     return { top: r.top - y, centerDx: r.left + r.width / 2 - x, width: r.width, height: r.height,
-      text: bubble().textContent.trim() };
+      font: getComputedStyle(bubble()).fontSize, text: bubble().textContent.trim() };
   };
 
   // 1) Hors simulation : aucune bulle, quoi qu'il arrive.
@@ -78,15 +78,17 @@ async function run() {
   const stickyAt = at(70, 20);
   const stickyMotion = pir.motion;
 
-  // 5) Souris partie mais mouvement permanent : bulle toujours là, CENTRÉE sur
-  //    le composant et en dessous (plus de bulle plaquée au-dessus du dessin).
+  // 5) Souris partie mais mouvement permanent : bulle toujours là, ancrée au
+  //    CENTRE du composant (item v2026.7.218) — donc 25 px sous ce centre et
+  //    centrée dessus, au lieu de pendre sous le bas du dessin.
   wrap().dispatchEvent(new PointerEvent('pointerleave', { bubbles: true }));
   await pir.updateComplete;
   const host = pir.getBoundingClientRect();
   const b = bubble().getBoundingClientRect();
   const away = {
-    below: b.top - host.bottom,
+    below: b.top - (host.top + host.height / 2),
     centerDx: b.left + b.width / 2 - (host.left + host.width / 2),
+    font: getComputedStyle(bubble()).fontSize,
     motion: pir.motion,
   };
 
@@ -163,9 +165,14 @@ if (!chrome) {
     check('Ctrl+clic : mouvement permanent annoncé', /permanent/i.test(r.stickyAt.text) && r.stickyMotion === true, r.stickyAt.text);
     check('Ctrl+clic : même placement (25 px sous le curseur, centré)',
       near(r.stickyAt.top, 25) && near(r.stickyAt.centerDx, 0), `top=${r.stickyAt.top} Δcentre=${r.stickyAt.centerDx}`);
-    check('souris partie + permanent : bulle 25 px SOUS le composant', near(r.away.below, 25), `écart=${r.away.below}`);
+    check('souris partie + permanent : bulle 25 px sous le CENTRE du composant', near(r.away.below, 25), `écart=${r.away.below}`);
     check('souris partie + permanent : bulle centrée sur le composant', near(r.away.centerDx, 0), `Δcentre=${r.away.centerDx}`);
     check('souris partie + permanent : OUT reste à 1', r.away.motion === true);
+    // Les deux bulles (jaune d'aide, noire « mouvement permanent ») se relaient au
+    // même endroit : un écart de corps entre elles se voyait (demande de Frank).
+    check('bulle jaune et bulle noire : MÊME taille de police',
+      r.hover.font === r.away.font && parseFloat(r.away.font) >= 11,
+      `jaune=${r.hover.font} noire=${r.away.font}`);
     check('Ctrl+clic à nouveau : plus de bulle, OUT à 0', !r.off.bubble && r.off.motion === false);
     // Bulle d'aide PERMANENTE au survol (item v2026.7.200) : elle ne suit pas OUT.
     check('survol immobile : la bulle d’aide RESTE affichée', r.immobile.bubble === true, r.immobile.text);

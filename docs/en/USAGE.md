@@ -42,6 +42,10 @@
   - `.py` -> MicroPython on the simulated Pico (`.uf2` firmware required, see below);
   - `.hex` / `.uf2` / `.elf` / `.bin` -> loaded directly, no compilation.
 
+  **▶ saves first**: the circuit and the code file are written to disk before the
+  simulation starts, so what runs is always what is on disk. A project that was
+  never saved (no name yet) is left alone — no dialog interrupts the launch.
+
 4. **Save your circuit**: “Kablix: Save the project (.projix)”;
   a `.projix` then reopens with a double-click in Explorer.
   On reopening, the project's code file opens **too**, in the code pane next to
@@ -447,6 +451,19 @@ Kablix bundles three simulation libraries (`avr8js`, `rp2040js`, `@wokwi/element
 - **Startup check** (optional): enable the **`kablix.checkUpdatesOnStartup`** setting (off by default). A notification then appears only when an update is available, silently otherwise.
 
 > **Warning**: updating these libraries may **break the extension** (API changes). If a problem occurs, open an issue on the GitHub repository: [github.com/franksauret/kablix/issues](https://github.com/franksauret/kablix/issues). A missing or failed network check stays silent and does not affect offline operation.
+
+## Recommended extensions
+
+Kablix **simulates**; these two extensions cover the rest of the chain and pair
+well with it. They are **optional** — Kablix works on its own.
+
+| Extension | What it does |
+| --- | --- |
+| [`electropol-fr.arduino-vscode-ide`](https://marketplace.visualstudio.com/items?itemName=electropol-fr.arduino-vscode-ide) | Arduino toolchain inside VS Code: boards, libraries, compilation and **uploading to a real board** |
+| [`framboise-pi.frappy-pi-pico`](https://marketplace.visualstudio.com/items?itemName=framboise-pi.frappy-pi-pico) | Raspberry Pi Pico with MicroPython: pushing files to the board, hardware REPL |
+
+Kablix offers them **once**, on its first activation. To bring them back:
+command palette (`Ctrl+Shift+P`) → **“Kablix: Recommended extensions”**.
 
 ## Keyboard shortcuts
 

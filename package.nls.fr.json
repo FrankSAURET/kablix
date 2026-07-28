@@ -14,6 +14,7 @@
   "kablix.cmd.saveDefaultLayout": "Kablix : Sauvegarder l'organisation par défaut",
   "kablix.cmd.rearrangeLayout": "Kablix : Réarranger les fenêtres",
   "kablix.cmd.associateProjix": "Kablix : Associer les fichiers .projix à Kablix",
+  "kablix.cmd.recommendedExtensions": "Kablix : Extensions conseillées",
   "kablix.view.home": "Simulateur",
   "kablix.welcome": "[▶ Ouvrir le simulateur](command:kablix.openSimulator)",
   "kablix.config.micropythonUf2": "Chemin (absolu ou relatif au workspace) du firmware MicroPython .uf2 utilisé pour exécuter les fichiers .py sur le Pico simulé. Laisser vide : Kablix détecte automatiquement un firmware dans le workspace, et propose sinon de télécharger le firmware officiel au premier lancement.",

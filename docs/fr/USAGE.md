@@ -42,6 +42,10 @@
   - `.py` -> MicroPython sur le Pico simulé (firmware `.uf2` requis, voir ci-dessous) ;
   - `.hex` / `.uf2`/`.elf` / `.bin` -> chargé directement sans compilation.
 
+  Le **▶ enregistre d'abord** le schéma et le fichier de code : ce qui tourne dans
+  le simulateur est toujours ce qui est sur le disque. Un projet jamais enregistré
+  (sans nom) est laissé tel quel — aucune boîte de dialogue ne vient couper le lancement.
+
 4. **Enregistrer son montage** : « Kablix : Enregistrer le projet (.projix) » ;
   un `.projix` se rouvre ensuite d'un double-clic dans l'explorateur.
   À la réouverture, le programme associé au projet s'ouvre **aussi**, dans le
@@ -451,6 +455,19 @@ Kablix embarque trois bibliothèques de simulation (`avr8js`, `rp2040js`, `@wokw
 - **Vérification au démarrage** (optionnelle) : activez le réglage **`kablix.checkUpdatesOnStartup`** (désactivé par défaut). Une notification n'apparaît alors qu'en cas de mise à jour disponible, en silence sinon.
 
 > **Avertissement** : mettre à jour ces bibliothèques peut **casser l'extension** (changements d'API). En cas de problème, ouvrez une demande sur le dépôt GitHub : [github.com/franksauret/kablix/issues](https://github.com/franksauret/kablix/issues). Une vérification réseau absente ou échouée reste silencieuse et n'affecte pas le fonctionnement hors-ligne.
+
+## Extensions conseillées
+
+Kablix **simule** ; ces deux extensions s'occupent du reste de la chaîne et se
+marient bien avec elle. Elles sont **facultatives** — Kablix fonctionne seul.
+
+| Extension | À quoi elle sert |
+| --- | --- |
+| [`electropol-fr.arduino-vscode-ide`](https://marketplace.visualstudio.com/items?itemName=electropol-fr.arduino-vscode-ide) | Chaîne Arduino dans VS Code : cartes, bibliothèques, compilation et **téléversement sur la vraie carte** |
+| [`framboise-pi.frappy-pi-pico`](https://marketplace.visualstudio.com/items?itemName=framboise-pi.frappy-pi-pico) | Raspberry Pi Pico en MicroPython : envoi des fichiers sur la carte, REPL matériel |
+
+Kablix les propose **une seule fois** à sa première activation. Pour y revenir :
+palette de commandes (`Ctrl+Shift+P`) → **« Kablix : Extensions conseillées »**.
 
 ## Raccourcis clavier
 

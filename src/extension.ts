@@ -6,6 +6,7 @@ import { upgradeFirmware, checkFirmwareUpdate } from './firmware';
 import { saveDefaultLayout, applyDefaultLayout, kablixColumn } from './layout';
 import { registerProjixEditor, ProjixEditorProvider } from './projix-editor';
 import { associateProjix, promptProjixAssociationOnFirstRun } from './associate';
+import { promptRecommendedExtensions } from './recommend';
 import { PartHelpPanel, SHOW_PART_HELP } from './partHelp';
 import { openNewProjix, openOrRevealProjix } from './openproject';
 
@@ -125,6 +126,9 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('kablix.associateProjix', () => {
       void associateProjix(context);
     }),
+    vscode.commands.registerCommand('kablix.recommendedExtensions', () => {
+      void promptRecommendedExtensions(context, true);
+    }),
     // Navigation d'une fiche d'aide à l'autre (liens `[texte](alim.md)` d'une
     // fiche). Commande interne : pas déclarée dans contributes.commands, donc
     // absente de la palette ; seule la webview d'aide l'appelle (command URI).
@@ -144,6 +148,11 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Première activation (Windows) : propose une seule fois d'associer les .projix.
   void promptProjixAssociationOnFirstRun(context);
+
+  // Première activation : propose une seule fois les extensions conseillées
+  // (téléversement sur la vraie carte, gestion des cartes et bibliothèques).
+  // Ensuite, seule la commande « Extensions conseillées » les rappelle.
+  void promptRecommendedExtensions(context);
 
   // Vérification au démarrage, opt-in et non bloquante (silence si à jour).
   const checkOnStartup = vscode.workspace

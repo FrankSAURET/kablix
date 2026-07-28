@@ -132,5 +132,13 @@
   " — debug info unavailable (avr-objdump not found)": " — infos de débogage indisponibles (avr-objdump introuvable)",
   "Start an interactive MicroPython REPL (no script)": "Démarrer un REPL MicroPython interactif (sans script)",
   "Code file: {0} — click to change, double-click to open": "Fichier de code : {0} — cliquer pour changer, double-cliquer pour ouvrir",
-  "Kablix: the project code file \"{0}\" was not found on this computer. Click the 📄 chip to choose the file to run.": "Kablix : le fichier de code du projet « {0} » est introuvable sur ce poste. Cliquez la puce 📄 pour choisir le fichier à exécuter."
+  "Kablix: the project code file \"{0}\" was not found on this computer. Click the 📄 chip to choose the file to run.": "Kablix : le fichier de code du projet « {0} » est introuvable sur ce poste. Cliquez la puce 📄 pour choisir le fichier à exécuter.",
+  "Kablix: the recommended extensions are already installed.": "Kablix : les extensions conseillées sont déjà installées.",
+  "Kablix: installing the recommended extensions…": "Kablix : installation des extensions conseillées…",
+  "Kablix: could not install {0}. Install it from the Extensions view.": "Kablix : impossible d'installer {0}. Installez-la depuis la vue Extensions.",
+  "Kablix: recommended extensions installed.": "Kablix : extensions conseillées installées.",
+  "Kablix works well with {0}: uploading to a real board, board and library management. Install them?": "Kablix s'accompagne bien de {0} : téléversement sur la vraie carte, gestion des cartes et des bibliothèques. Les installer ?",
+  "Install": "Installer",
+  "See them": "Les voir",
+  " and ": " et "
 }

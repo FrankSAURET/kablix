@@ -84,14 +84,19 @@ export class PIRMotionSensorElement extends LitElement {
          repère déjà mis à l'échelle, d'où un 25px qui vaut 25 px écran, et un
          -50% qui centre la bulle sur son point d'ancrage. L'origine en haut à
          gauche garde ce point d'ancrage fixe pendant la mise à l'échelle. Vaut
-         aussi pour le repli sans souris (ancré sous le composant). */
+         aussi pour le repli SANS souris (bulle « mouvement permanent » après un
+         Ctrl+clic, la souris ayant quitté le capteur) : elle s'ancre alors au
+         CENTRE du composant (left 50% / top 50%) au lieu de pendre sous son bas,
+         pour rester attachée au capteur qu'elle décrit (demande de Frank). */
       .bubble {
         position: absolute;
         transform-origin: 0 0;
         transform: scale(calc(1 / var(--kablix-zoom, 1))) translate(-50%, 25px);
         background: #222;
         color: #fff;
-        font: 10px sans-serif;
+        /* Même corps que la bulle jaune : les deux se relaient au même endroit,
+           un changement de taille entre les deux se voyait (demande de Frank). */
+        font: 11px sans-serif;
         padding: 2px 6px;
         border-radius: 4px;
         white-space: nowrap;
@@ -190,7 +195,7 @@ export class PIRMotionSensorElement extends LitElement {
               class="bubble ${native ? 'native' : ''}"
               style=${showAtCursor
                 ? `left:${this.bubblePos!.x}px;top:${this.bubblePos!.y}px`
-                : 'left:50%;top:100%'}
+                : 'left:50%;top:50%'}
             >
               ${bubble}
             </div>`
