@@ -464,7 +464,10 @@ const SD_SECTORS_PER_FAT = Math.ceil(((SD_CLUSTERS + 2) * 2) / 512);
 const SD_ROOT_SECTORS = (SD_ROOT_ENTRIES * 32) / 512;
 const SD_DATA_START = SD_RESERVED + SD_FAT_COUNT * SD_SECTORS_PER_FAT + SD_ROOT_SECTORS;
 const SD_VOLUME_SECTORS = SD_DATA_START + SD_CLUSTERS;
-const SD_TOTAL_SECTORS = SD_PART_START + SD_VOLUME_SECTORS;
+// Taille de carte arrondie au multiple de 1024 blocs (512 Ko) : c'est l'unité du
+// champ C_SIZE d'un CSD v2, donc la seule capacité qu'une carte SDHC peut annoncer
+// exactement. Sinon le pilote annonce moins de blocs que n'en occupe la partition.
+const SD_TOTAL_SECTORS = Math.ceil((SD_PART_START + SD_VOLUME_SECTORS) / 1024) * 1024;
 
 /**
  * Carte microSD en mode SPI : répondeur de protocole + stockage de blocs.
@@ -487,6 +490,12 @@ export class SdCardSpiDevice implements SpiDevice {
   // Réception d'un bloc d'écriture : -1 = pas en écriture, sinon n° de bloc visé.
   private writeBlock = -1;
   private writeBuf: number[] = [];
+  // Écriture MULTIPLE (CMD25) : les blocs se suivent, chacun précédé du jeton
+  // 0xFC, la série se terminant par 0xFD.
+  private writeMulti = false;
+  // Lecture MULTIPLE (CMD18) : numéro du prochain bloc à servir, -1 si aucune.
+  private readMulti = -1;
+  private selected = false;
 
   constructor() {
     this.format();
@@ -582,11 +591,20 @@ export class SdCardSpiDevice implements SpiDevice {
 
   /** Réinitialise l'automate de trame quand la carte est désélectionnée. */
   onSelect(selected: boolean): void {
+    this.selected = selected;
     if (selected) return;
     this.cmd = [];
     this.resp = [];
-    this.writeBlock = -1;
-    this.writeBuf = [];
+    // Une écriture ANNONCÉE dont aucune donnée n'est encore arrivée survit à la
+    // désélection : le pilote `sdcard.py` de MicroPython relève CS entre le CMD24
+    // et le bloc de données (et à chaque bloc d'une série CMD25). Tout annuler ici
+    // faisait perdre l'écriture — le fichier restait vide. En revanche, un bloc
+    // COMMENCÉ puis interrompu est bel et bien une trame cassée : on l'abandonne.
+    if (this.writeBuf.length > 0) {
+      this.writeBlock = -1;
+      this.writeBuf = [];
+      this.writeMulti = false;
+    }
   }
 
   transfer(mosi: number): number {
@@ -596,6 +614,11 @@ export class SdCardSpiDevice implements SpiDevice {
     // qu'APRÈS avoir envoyé les six octets. En répondant dans le même octet, la
     // carte plaçait son R1 là où personne ne le lisait : la bibliothèque ne
     // recevait plus que des 0xFF, `SD.begin()` expirait, et rien ne marchait.
+    // Lecture MULTIPLE en cours : dès que la réponse est épuisée, la carte enchaîne
+    // le bloc suivant — mais SEULEMENT si elle est sélectionnée. Le pilote
+    // MicroPython relève CS entre deux blocs puis envoie un octet à vide : servir
+    // le jeton 0xFE à ce moment-là le ferait manquer, et tout le bloc se décalerait.
+    if (this.readMulti >= 0 && this.resp.length === 0 && this.selected) this.pushBlock(this.readMulti++);
     const out = this.resp.length ? this.resp.shift()! : 0xff;
     // Écriture d'un bloc en cours : on avale 0xFE + 512 o + 2 CRC.
     if (this.writeBlock >= 0) {
@@ -619,7 +642,21 @@ export class SdCardSpiDevice implements SpiDevice {
     return this.ready ? 0x00 : 0x01; // bit 0 = idle
   }
 
+  /** Empile un bloc de données : jeton 0xFE, 512 octets, 2 octets de CRC. */
+  private pushBlock(index: number): void {
+    this.resp.push(0xfe);
+    const b = this.readBlock(index);
+    for (let i = 0; i < 512; i++) this.resp.push(b[i]);
+    this.resp.push(0xff, 0xff);
+  }
+
   private handleCommand(cmd: number, arg: number): void {
+    // Toute commande autre que l'arrêt interrompt une lecture multiple en cours :
+    // sinon sa réponse se rangerait DERRIÈRE des centaines d'octets de données.
+    if (cmd !== 12 && this.readMulti >= 0) {
+      this.readMulti = -1;
+      this.resp = [];
+    }
     switch (cmd) {
       case 0: // GO_IDLE_STATE
         this.resp.push(0x01);
@@ -643,28 +680,56 @@ export class SdCardSpiDevice implements SpiDevice {
         break;
       }
       case 9: {
-        // SEND_CSD : CSD v2 (SDHC), capacité en unités de 512 Ko.
-        const size = Math.max(0, Math.ceil(SD_TOTAL_SECTORS / 1024) - 1);
+        // SEND_CSD : CSD v2 (SDHC). C_SIZE tient sur 22 bits, à cheval sur les
+        // octets 7 (6 bits de poids fort), 8 et 9 — et NON 8/9/10 : décalé d'un
+        // octet, le pilote `sdcard.py` de MicroPython (qui lit `csd[8]<<8|csd[9]`)
+        // voyait une carte de 512 Ko au lieu de 2,5 Mo, plus petite que sa propre
+        // partition. Capacité = (C_SIZE + 1) × 512 Ko, d'où la taille de carte
+        // arrondie au multiple de 1024 blocs.
+        const size = SD_TOTAL_SECTORS / 1024 - 1;
         const csd = [
-          0x40, 0x0e, 0x00, 0x32, 0x5b, 0x59, 0x00, 0x00,
-          (size >> 16) & 0x3f, (size >> 8) & 0xff, size & 0xff, 0x7f,
-          0x80, 0x0a, 0x40, 0x01,
+          0x40, 0x0e, 0x00, 0x32, 0x5b, 0x59, 0x00,
+          (size >> 16) & 0x3f, (size >> 8) & 0xff, size & 0xff,
+          0x00, 0x7f, 0x80, 0x0a, 0x40, 0x01,
         ];
         this.resp.push(0x00, 0xfe, ...csd, 0xff, 0xff);
         break;
       }
-      case 17: {
-        // READ_SINGLE_BLOCK : R1=0, jeton 0xFE, 512 o, 2 CRC.
-        this.resp.push(0x00, 0xfe);
-        const b = this.readBlock(arg);
-        for (let i = 0; i < 512; i++) this.resp.push(b[i]);
-        this.resp.push(0xff, 0xff);
+      case 17: // READ_SINGLE_BLOCK : R1=0, jeton 0xFE, 512 o, 2 CRC.
+        this.resp.push(0x00);
+        this.pushBlock(arg);
         break;
-      }
+      case 18: // READ_MULTIPLE_BLOCK : blocs enchaînés jusqu'au CMD12
+        this.resp.push(0x00);
+        this.readMulti = arg;
+        break;
+      case 12:
+        // STOP_TRANSMISSION : arrête la lecture multiple. Le premier octet renvoyé
+        // est un octet bidon (« stuff byte ») que le pilote saute — d'où le
+        // `skip1=True` de `sdcard.py` — avant le R1 et l'octet d'occupation.
+        this.readMulti = -1;
+        this.resp = [0xff, this.r1(), 0x00];
+        break;
       case 24: // WRITE_BLOCK : R1=0 puis on attend le bloc
         this.resp.push(0x00);
         this.writeBlock = arg;
         this.writeBuf = [];
+        this.writeMulti = false;
+        break;
+      case 25: // WRITE_MULTIPLE_BLOCK : série de blocs consécutifs
+        this.resp.push(0x00);
+        this.writeBlock = arg;
+        this.writeBuf = [];
+        this.writeMulti = true;
+        break;
+      case 13:
+        // SEND_STATUS : réponse R2, soit DEUX octets (R1 + un octet d'état).
+        // `Sd2Card::writeBlock` la lit APRÈS chaque bloc écrit et échoue si le
+        // second octet n'est pas nul. Avec la réponse R1 d'un seul octet, la
+        // bibliothèque lisait 0xFF en second et concluait à une erreur de
+        // programmation : `SD.open(..., FILE_WRITE)` échouait à tous les coups
+        // alors que l'initialisation et la lecture, elles, marchaient.
+        this.resp.push(this.r1(), 0x00);
         break;
       default:
         this.resp.push(this.r1());
@@ -672,15 +737,26 @@ export class SdCardSpiDevice implements SpiDevice {
   }
 
   private feedWrite(b: number): void {
-    if (this.writeBuf.length === 0 && b !== 0xfe) return; // attend le jeton de départ
+    if (this.writeBuf.length === 0) {
+      // Fin d'une série CMD25 : jeton d'arrêt, puis un octet d'occupation.
+      if (this.writeMulti && b === 0xfd) {
+        this.resp.push(0x00);
+        this.writeBlock = -1;
+        this.writeMulti = false;
+        return;
+      }
+      if (b !== (this.writeMulti ? 0xfc : 0xfe)) return; // attend le jeton de départ
+    }
     this.writeBuf.push(b);
     // 1 (jeton) + 512 (données) + 2 (CRC) = 515 octets.
     if (this.writeBuf.length === 515) {
       const dst = this.blockFor(this.writeBlock);
       for (let i = 0; i < 512; i++) dst[i] = this.writeBuf[i + 1];
       this.resp.push(0x05, 0x00); // data response « accepté » + fin d'occupation
-      this.writeBlock = -1;
       this.writeBuf = [];
+      // En série, le bloc suivant s'écrit juste après ; sinon l'écriture est finie.
+      if (this.writeMulti) this.writeBlock++;
+      else this.writeBlock = -1;
     }
   }
 }
