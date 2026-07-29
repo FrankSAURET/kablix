@@ -131,6 +131,12 @@ export interface SimEngine {
    * moyen de distinguer « le programme est lent » de « la page ne suit plus ».
    */
   simulatedMs?(): number;
+  /**
+   * Temps RÉEL cumulé passé dans la boucle du moteur, en ms. Comparé au temps mur,
+   * il dit si le moteur sature le thread (il lui faut plus d'une ms réelle par ms
+   * simulée) ou s'il attend — auquel cas le retard vient du reste de la page.
+   */
+  busyMs?(): number;
   /** État logique d'une broche numérique nommée (ex. '13', 'A0', 'GP25'). */
   readDigital(name: string): boolean;
   /**

@@ -73,6 +73,8 @@ class KablixSimulator extends Simulator {
   onTick: (() => void) | null = null;
   /** Échéance (temps simulé, ns) de la plus proche action programmée par `onTick`, ou null. */
   nextScheduledNanos: number | null = null;
+  /** Temps réel cumulé passé DANS la boucle (ms) — diagnostic, cf. SimEngine.busyMs. */
+  busyAccum = 0;
 
   constructor() {
     super();
@@ -92,6 +94,7 @@ class KablixSimulator extends Simulator {
     const { rp2040, clock } = this;
     this.executeTimer = null;
     this.stopped = false;
+    const busyStart = performance.now();
     const deadline = Date.now() + 16; // budget réel par tranche (fluidité UI)
     let idle = false;
     let napMs = 0; // simulation en avance sur le réel : durée à laisser passer
@@ -158,6 +161,7 @@ class KablixSimulator extends Simulator {
         this.onTick?.();
       }
     }
+    this.busyAccum += performance.now() - busyStart;
     if (this.stopped) return;
     if (idle || napMs > 0) {
       this.executeTimer = setTimeout(() => this.execute(), idle ? 1 : napMs);
@@ -332,6 +336,11 @@ export class PicoEngine implements SimEngine {
   /** Temps simulé depuis le démarrage (ms) : cycles du cœur ÷ horloge système. */
   simulatedMs(): number {
     return (this.mcu.core.cycles / (this.mcu.clkSys || 125_000_000)) * 1000;
+  }
+
+  /** Temps réel cumulé passé dans la boucle du moteur (ms) — voir SimEngine.busyMs. */
+  busyMs(): number {
+    return this.sim.busyAccum;
   }
 
   readDigital(name: string): boolean {

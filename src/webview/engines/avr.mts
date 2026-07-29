@@ -251,6 +251,7 @@ export class AvrEngine implements SimEngine {
   // l'ancre, donc un retard passager se résorbe.
   private paceWall = 0; // performance.now() de l'ancre (0 = à ré-ancrer)
   private paceCycles = 0; // cpu.cycles au moment de l'ancre
+  private busyAccum = 0; // temps réel cumulé passé DANS la boucle (diagnostic)
   /** Yield sans clampage : un setTimeout(0) imbriqué est bridé à ~4 ms par le navigateur. */
   private readonly yieldPort: MessagePort | null = ((): MessagePort | null => {
     if (typeof MessageChannel !== 'function') return null;
@@ -427,6 +428,11 @@ export class AvrEngine implements SimEngine {
   /** Temps simulé depuis le démarrage (ms) : cycles CPU ÷ horloge de la carte. */
   simulatedMs(): number {
     return (this.cpu.cycles / CLOCK_HZ) * 1000;
+  }
+
+  /** Temps réel cumulé passé dans la boucle du moteur (ms) — voir SimEngine.busyMs. */
+  busyMs(): number {
+    return this.busyAccum;
   }
 
   readDigital(name: string): boolean {
@@ -1054,6 +1060,7 @@ export class AvrEngine implements SimEngine {
       // En avance sur le temps réel : on dort d'autant (le sketch ne doit pas
       // aller plus vite qu'une vraie carte). En retard : reprise IMMÉDIATE.
       const aheadMs = (this.cpu.cycles - deadline) / perMs;
+      this.busyAccum += performance.now() - started;
       this.schedule(aheadMs > AHEAD_NAP_MS ? Math.min(aheadMs - 4, 40) : 0);
     } else {
       this.paceWall = 0; // en pause : l'ancre repart à la reprise

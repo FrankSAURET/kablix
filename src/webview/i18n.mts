@@ -24,6 +24,10 @@ const FR: Record<string, string> = {
   'Slowed down: {0}× real time': 'Ralentie : {0}× le temps réel',
   'The page cannot keep up with the simulation.':
     'La page n\'arrive plus à suivre la simulation.',
+  // Répartition du temps réel, dans l'infobulle du badge « ralentie ».
+  'Engine': 'Moteur',
+  'Rendering': 'Rendu',
+  'Browser': 'Navigateur',
 
   // Palette
   'Components': 'Composants',

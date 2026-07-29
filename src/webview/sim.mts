@@ -667,6 +667,14 @@ const SPEED_WINDOW_MS = 1000;
 const SPEED_WARN = 0.8; // en dessous : on affiche le badge
 let speedWallStart = 0;
 let speedSimStart = 0;
+// Répartition du temps réel sur la fenêtre de mesure : sans elle, « ça rame » ne
+// distingue pas un moteur trop lent d'un rendu trop lourd — et on optimise à
+// l'aveugle. `refreshAccum` est le temps DANS refreshVisuals, `busyMs` celui dans
+// la boucle du moteur ; le reste de la seconde est pris par le navigateur
+// lui-même (style, mise en page, peinture) ou par une autre tâche de la page.
+let refreshAccum = 0;
+let refreshCount = 0;
+let speedBusyStart = 0;
 function resetSpeedBadge(): void {
   speedWallStart = 0;
   simSpeedEl.hidden = true;
@@ -681,20 +689,33 @@ function updateSpeedBadge(): void {
   if (!speedWallStart) {
     speedWallStart = now;
     speedSimStart = engine.simulatedMs();
+    speedBusyStart = engine.busyMs?.() ?? 0;
+    refreshAccum = 0;
+    refreshCount = 0;
     return;
   }
   const wall = now - speedWallStart;
   if (wall < SPEED_WINDOW_MS) return;
   const ratio = (engine.simulatedMs() - speedSimStart) / wall;
+  const busy = (engine.busyMs?.() ?? 0) - speedBusyStart;
+  const render = refreshAccum;
+  const fps = refreshCount / (wall / 1000);
   speedWallStart = now;
   speedSimStart = engine.simulatedMs();
+  speedBusyStart = engine.busyMs?.() ?? 0;
+  refreshAccum = 0;
+  refreshCount = 0;
   // Le ralenti VOLONTAIRE (menu 🐢) n'est pas un défaut : on compare au réglage.
   const wanted = Number(speedSelect.value) || 1;
   const slow = ratio < SPEED_WARN * wanted;
   simSpeedEl.hidden = !slow;
   if (slow) {
+    const pc = (ms: number): string => Math.round((ms / wall) * 100).toString();
     simSpeedEl.textContent = t('Slowed down: {0}× real time', ratio.toFixed(2).replace('.', ','));
-    simSpeedEl.title = t('The page cannot keep up with the simulation.');
+    simSpeedEl.title =
+      `${t('The page cannot keep up with the simulation.')}\n` +
+      `${t('Engine')} ${pc(busy)} % · ${t('Rendering')} ${pc(render)} % · ` +
+      `${t('Browser')} ${pc(Math.max(0, wall - busy - render))} % · ${Math.round(fps)} fps`;
   }
 }
 
@@ -791,11 +812,14 @@ function psuLiveVolts(psuId: string): number | null {
  */
 function refreshVisuals(): void {
   if (!engine) return;
+  const t0 = performance.now();
   beginModelFrame(editor.diagram);
   try {
     refreshVisualsInner();
   } finally {
     endModelFrame();
+    refreshAccum += performance.now() - t0;
+    refreshCount++;
   }
 }
 

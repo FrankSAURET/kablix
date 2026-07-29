@@ -110,6 +110,30 @@ const bloque = (ms) => {
 }
 
 {
+  // Occupation CPU du moteur (busyMs) : c'est elle qui dit si le retard vient du
+  // moteur (saturé) ou du reste de la page. Elle doit rester dans [0, temps réel]
+  // et être NON NULLE dès que la simulation avance — sinon l'infobulle du badge
+  // désignerait le mauvais coupable.
+  const eng = new AvrEngine(UNO_DEMO, null, 'avr328');
+  check('le moteur AVR expose busyMs()', typeof eng.busyMs === 'function');
+  eng.start();
+  await sleep(150);
+  const t0 = performance.now();
+  const b0 = eng.busyMs();
+  await sleep(500);
+  const wall = performance.now() - t0;
+  const busy = eng.busyMs() - b0;
+  eng.stop();
+  eng.dispose();
+  const part = busy / wall;
+  check(
+    `occupation CPU du moteur mesurée : ${(part * 100).toFixed(0)} % du temps réel`,
+    part > 0.05 && part <= 1.05,
+    `${busy.toFixed(0)} ms pour ${wall.toFixed(0)} ms réelles — mesure incohérente`,
+  );
+}
+
+{
   // En pause, le temps simulé ne bouge plus : le badge ne doit rien en conclure.
   const eng = new AvrEngine(UNO_DEMO, null, 'avr328');
   eng.start();
@@ -131,8 +155,15 @@ check(
   /simulatedMs\(\): number \{[\s\S]{0,200}core\.cycles/.test(pico),
 );
 
+check(
+  'le moteur Pico expose lui aussi busyMs()',
+  /busyMs\(\): number \{[\s\S]{0,120}sim\.busyAccum/.test(pico)
+    && /this\.busyAccum \+= performance\.now\(\) - busyStart;/.test(pico),
+);
+
 const types = readFileSync(join(root, 'src/webview/engines/types.mts'), 'utf8');
 check('simulatedMs est au contrat SimEngine', /simulatedMs\?\(\): number;/.test(types));
+check('busyMs est au contrat SimEngine', /busyMs\?\(\): number;/.test(types));
 
 const sim = readFileSync(join(root, 'src/webview/sim.mts'), 'utf8');
 check(
@@ -160,10 +191,21 @@ check('le badge existe dans la barre d\'état', /id="sim-speed"[^>]*hidden/.test
 const css = readFileSync(join(root, 'media/styles.css'), 'utf8');
 check('le badge a son style (et reste masqué par défaut)', /\.sim-speed \{/.test(css) && /\.sim-speed\[hidden\]/.test(css));
 
+check(
+  'l\'infobulle du badge donne la répartition moteur / rendu / navigateur',
+  /simSpeedEl\.title =[\s\S]{0,400}t\('Engine'\)[\s\S]{0,200}t\('Rendering'\)[\s\S]{0,200}t\('Browser'\)/.test(sim)
+    && /refreshAccum \+= performance\.now\(\) - t0;/.test(sim),
+  'sans elle, impossible de savoir si le retard vient du moteur ou du rendu',
+);
+
 const i18n = readFileSync(join(root, 'src/webview/i18n.mts'), 'utf8');
 check(
   'les deux messages sont traduits en français',
   /'Slowed down: \{0\}× real time':/.test(i18n) && /'The page cannot keep up with the simulation\.':/.test(i18n),
+);
+check(
+  'les postes de l\'infobulle sont traduits',
+  /'Engine': 'Moteur'/.test(i18n) && /'Rendering': 'Rendu'/.test(i18n) && /'Browser': 'Navigateur'/.test(i18n),
 );
 
 console.log(failures === 0 ? '\n✅ vitesse de simulation : OK' : `\n❌ ${failures} échec(s)`);
