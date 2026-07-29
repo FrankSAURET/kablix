@@ -3,6 +3,7 @@
 
 const int TRIG_PIN = 10;
 const int ECHO_PIN = 9;
+float distanceCm = 0;
 
 void setup() {
 	Serial.begin(9600);
@@ -34,7 +35,7 @@ float readDistanceCm() {
 }
 
 void loop() {
-	float distanceCm = readDistanceCm();
+	distanceCm = readDistanceCm();
 
 	if (distanceCm < 0) {
 		Serial.println("Aucune mesure (timeout)");

@@ -1,11 +1,5 @@
 # À faire
 
-*(Coches vertes validées par Frank en v2026.7.215 : les items terminés sont retirés d'ici, leur détail reste dans le journal par version ci-dessous.)*
-
-1. ⏳ Regression autoroutage. Des fils qui devraient être droit de pin à pin se trouvent avec 3 coudes. Le meilleurs score est toujours le moins de coude (en respectant les règles) et donc la ligne droite est tje le meilleur — **non reproductible** : balayage des 80 `.projix` de `testkablix\` fils remis à neuf (v2026.7.201) → **0 détour injustifié**, chaque détour observé était imposé par une broche étrangère posée sur la ligne. Il me faut le `.projix` + le nom des deux broches concernées.
-1. ⏳ v2026.7.208 du coup le clavier qui marchait parfaitement (avec pico) est devenu trés lent pour pico — **lenteur non reproductible** : moteur Pico mesuré à 1,00× le temps réel avec le vrai firmware et le vrai script, et le clavier n'affame pas le thread (40,2 img/s contre 37,3 de référence). **À CHIFFRER EN F5 avec le badge de vitesse** (v2026.7.211).
-1. ⏳ v2026.7.207 du coup le neopixel ring qui marchait parfaitement est devenu trés lent pour pico — **non reproductible** : anneau mesuré à 1,00× thread libre et 0,97× page occupée à 30 % ; `buildNets` coûte 0,009–0,045 ms. Double rendu par image supprimé + **badge de vitesse** en v2026.7.211. **À CHIFFRER EN F5.**
-1. ⏳ Arduino HCSR04 : Marche mais trés long temps de réaction (> 12 s) — **cause majeure corrigée en v2026.7.206** (le moniteur série volait le temps de simulation : ~36 s pour 18 000 octets, désormais 65 ms). À RETESTER en F5 ; si c'est encore lent, le reste se joue ailleurs.
 
 # v2026.7.220 — le pas à pas AVR va bien, c'est le banc qui avait pourri
 1. ✅ **Verdict : le pas à pas AVR n'est pas cassé.** Le banc `verify-debug-avr.mjs` mentait. Il posait un faux `requestAnimationFrame` et déroulait les frames à la main ; or `AvrEngine` planifie sa boucle avec `setTimeout`/`MessageChannel` depuis un moment, et `step()` ne fait qu'**armer** un pas (`stepping = true`) — c'est la boucle qui l'exécute. Aucune frame ne partant jamais, le moteur ne bougeait pas d'un cycle : 14 pas, 0 ligne visitée.
@@ -13,7 +7,7 @@
 3. ✅ **Preuve que le produit fonctionne** (sketch `.ino` compilé par arduino-cli, Uno) : arrêt sur la ligne 6 demandée, pas à pas visitant les lignes 7, 8, 9 puis 4 (retour en tête de `loop()`), `compteur = 3`, `seuil = 4.64`, et le point d'arrêt re-déclenche bien après `resume()`.
 4. ✅ **Le banc ne peut plus pourrir en silence** : enregistré comme `verify:debugavr` dans `package.json` et inséré dans `verify:all` (juste après `verify:debug`). Il était orphelin, donc jamais lancé.
 5. ✅ `npm run typecheck` et `npm run verify:all` verts (sortie 0).
-6. ⬜ À valider en F5 par Frank.
+6. ✅ VALIDÉ EN F5 par Frank.
 
 # v2026.7.219 — l'erreur de compilation Arduino s'affiche, et trois fois plus vite
 1. ✅ **Cause racine n°1 — le message du compilateur était jeté.** En cas d'échec, `compile()` ne gardait que la **première ligne** de la sortie d'arduino-cli… qui est `fichier.ino: In function 'void setup()':`, c'est-à-dire rien. Elle partait dans `console.log` (les outils de développement, invisibles pour l'élève) et la notification affichait « Échec de la compilation arduino-cli (voir le journal Kablix) ». Les diagnostics gcc — ligne, colonne, cause, correction suggérée — n'étaient lus par personne.
@@ -26,7 +20,7 @@
 8. ✅ **`verify:compiler` passe à 15 contrôles** : tri diagnostic gcc / option refusée, résumé de la première erreur, sketch **réellement cassé** compilé de bout en bout (erreur `CompileFailed`, diagnostics complets conservés, message court, hôte resté vivant, **une seule passe** — 1 390 ms contre 1 307 ms pour une passe de référence), et acheminement `panel.ts → hostLog → moniteur série` vérifié dans les sources.
 9. ✅ **Documentation FR + EN** (`docs/*/USAGE.md`, section Moniteur série) : les erreurs de compilation s'affichent dans le moniteur, la notification ne rappelle que la première.
 10. ✅ typecheck + `verify:all` verts.
-11. ⬜ À VALIDER EN F5 : casser volontairement un `.ino` (`digitalWrit`), lancer → le moniteur série s'ouvre et affiche les erreurs gcc, la bulle donne la ligne fautive, et l'attente est courte.
+11. ✅ VALIDÉ EN F5 : casser volontairement un `.ino` (`digitalWrit`), lancer → le moniteur série s'ouvre et affiche les erreurs gcc, la bulle donne la ligne fautive, et l'attente est courte.
 
 # v2026.7.218 — ▶ enregistre avant de lancer, la bulle du PIR se pose au centre
 1. ✅ **Bulle du PIR à la même taille que la jaune** (`pir-motion-sensor-element.mts`) : la bulle blanc-sur-noir était en `10px` contre `11px` pour la jaune. Les deux se relaient **au même endroit** — le changement de taille se voyait à chaque bascule. Même corps désormais.
@@ -37,7 +31,7 @@
 6. ✅ **Documentation FR + EN** (`docs/*/USAGE.md`) : « ▶ enregistre d'abord » dans le démarrage, plus une section « Extensions conseillées » (tableau des deux extensions + commande de rappel).
 7. ✅ **`verify:pir` passe à 29 contrôles** : bulle 25 px sous le **centre** du composant quand la souris est partie, et **jaune et noire à la même taille de police**.
 8. ✅ typecheck + `verify:all` verts.
-9. ⬜ À VALIDER EN F5 : PIR en Ctrl+clic puis sortir du composant → la bulle se pose sous son centre, même taille que la jaune · modifier un schéma puis ▶ sans Ctrl+S → le point ● disparaît avant la compilation · palette → « Kablix : Extensions conseillées ».
+9. ✅ VALIDÉ EN F5 : PIR en Ctrl+clic puis sortir du composant → la bulle se pose sous son centre, même taille que la jaune · modifier un schéma puis ▶ sans Ctrl+S → le point ● disparaît avant la compilation · palette → « Kablix : Extensions conseillées ».
 
 # v2026.7.217 — les fils du PCA n'écrasent plus les broches voisines
 1. ✅ **Cause racine n°1 — la broche est ENCLAVÉE.** Sur le PCA9685, chaque connecteur servo est une **colonne de 3 broches au pas de 10 px** (`PWMn` / `Pn.5V` / `Pn.GND`) et les colonnes voisines sont, elles aussi, à 10 px. Pour `P2.5V`..`P7.5V` — la broche du **milieu** — les quatre sorties franches écrasent toutes une voisine : en haut `PWMn`, en bas `Pn.GND`, à gauche et à droite les 5 V des ports d'à côté. Seules `P8.5V` et `P1.5V`, aux deux bouts de la rangée, avaient une issue — d'où les deux seuls fils propres du schéma.
@@ -48,7 +42,7 @@
 6. ✅ **Balayage de non-régression des 44 `.projix` de `testkablix\`** : **0 survol de broche, 0 traversée de corps tiers**, partout.
 7. ✅ **`verify:route` passe à 37 contrôles** : échappée latérale proposée pour une broche enclavée, fil vers `P5.5V` n'écrasant aucune voisine, et **tracé stable au 2e autoroutage** (le garde ne reprend pas l'ancien).
 8. ✅ typecheck + `verify:all` verts.
-9. ⬜ À VALIDER EN F5 : ouvrir `testkablix\16 servo + alim.projix`, « tout réarranger » → aucun fil V+ ne doit passer sur une broche PWM du pilote.
+9. ✅ VALIDÉ EN F5 : ouvrir `testkablix\16 servo + alim.projix`, « tout réarranger » → aucun fil V+ ne doit passer sur une broche PWM du pilote.
 
 # v2026.7.216 — les deux points de l'horloge s'allument enfin
 1. ✅ **Cause racine** (`sevenSegmentMuxBindings` + `sampleSevenSegLatches`) : sur un afficheur MULTIPLEXÉ, chaque segment était lu par `engine.readDigital(brocheMCU)`. Or les deux points d'une horloge ne sont reliés à **aucune broche** : ils sont tirés au 3,3 V à travers une résistance. La broche valant `null`, le latch retombait sur « segment éteint » — les points ne pouvaient **jamais** s'allumer.
@@ -58,7 +52,7 @@
 5. ✅ **`verify:7seg-mux` passe à 26 contrôles** : sur les **vrais** `Horloge.projix` (Pico) et `horloge-uno.projix` (Uno) — DP sans broche MCU, reconnu à 1 par le rail, latch qui allume les deux points pendant le balayage, segments pilotés inchangés, et **contre-épreuve : l'ancienne logique les laissait éteints**. La section ne dépend plus du firmware MicroPython (elle tourne même sans).
 6. ✅ **Fiches d'aide FR + EN** (`docs/*/composants/7seg.md`) : mode horloge et câblage des deux points au rail documentés.
 7. ✅ typecheck + `verify:all` verts.
-8. ⬜ À VALIDER EN F5 : ouvrir `testkablix\Horloge.projix` puis `testkablix\horloge-uno\horloge-uno.projix`, lancer → les deux points centraux restent allumés, l'heure défile.
+8. ✅ VALIDÉ EN F5 : ouvrir `testkablix\Horloge.projix` puis `testkablix\horloge-uno\horloge-uno.projix`, lancer → les deux points centraux restent allumés, l'heure défile.
 
 # v2026.7.215 — les bulles d'aide gardent leur taille, quel que soit le zoom
 1. ✅ **Cause racine** : les bulles vivent **dans le monde**, ce conteneur que le zoom met à l'échelle — leur police comme leur distance au pointeur étaient donc multipliées par le facteur de zoom (minuscules en vue d'ensemble, énormes en gros plan).
@@ -70,7 +64,7 @@
 7. ✅ **`verify:pir` passe à 26 contrôles** : bulle 25 px sous le pointeur et centrée (survol, suivi, Ctrl+clic, repli sans souris), **survol immobile → bulle présente mais OUT retombé**, et **zoom ×2 → même distance, même centre, même taille écran**. Le banc met maintenant le composant dans un vrai « monde » mis à l'échelle. `verify:selection` passe à 106 avec les deux mêmes contrôles sur la bulle de broche.
 8. ✅ **Fiches d'aide FR + EN** (`docs/*/composants/pir.md`) : 25 px, bulle permanente au survol, indépendance au zoom.
 9. ✅ typecheck + `verify:all` verts.
-10. ⬜ À VALIDER EN F5 : PIR câblé, simulation lancée, zoom à 200 % puis 50 % → la bulle garde sa taille et reste 25 px sous le pointeur · souris immobile sur le capteur → la bulle reste affichée.
+10. ✅ VALIDÉ EN F5 : PIR câblé, simulation lancée, zoom à 200 % puis 50 % → la bulle garde sa taille et reste 25 px sous le pointeur · souris immobile sur le capteur → la bulle reste affichée.
 
 # v2026.7.214 — la boîte d'obstacle colle au dessin, plus au vide autour
 1. ✅ **Cause racine** (`partObstacles`, `editor.mts`) : l'encombrement retenu par le routeur était le **viewBox** du SVG, c'est-à-dire le dessin **et le vide autour**. Or un SVG de composant est généreux en marges : 7 segments 60×90 pour 50×78 de dessin, résistance 80×20 pour 60×11, Uno 300×220 pour 293×202. Le routeur voyait donc des composants plus gros qu'ils ne sont et se fermait des couloirs pourtant libres — dans le cas de Frank, **10,5 px** entre le bas réel des deux résistances empilées et le haut réel de l'afficheur.
@@ -81,7 +75,7 @@
 6. ✅ **`verify:route` passe à 34 contrôles** : boîte plus petite que le viewBox et **égale au rectangle de sélection** (7 segments et résistance), couloir libre vu entre deux résistances empilées et un 7 segments (le cas exact de la plainte), plus le test de la résistance tournée recalé — ses repères étaient calés sur l'ancienne boîte.
 7. ✅ **Mesuré sur les VRAIS schémas** (Chrome headless) : `7seg-uno.projix` → 17 fils, **aucune traversée de corps tiers**, 2 coudes au pire ; `button-6mm-pico.projix` fils remis à neuf → le fil `1.l→GP13` retombe à **2 coudes**, la forme dessinée à la main.
 8. ✅ typecheck + `verify:all` verts.
-9. ⬜ À VALIDER EN F5 : `testkablix\7seg-uno\7seg-uno.projix` et `testkablix\button-6mm-pico.projix` → « tout réarranger » ne doit plus faire de détour dans le vide.
+9. ✅ VALIDÉ EN F5 : `testkablix\7seg-uno\7seg-uno.projix` et `testkablix\button-6mm-pico.projix` → « tout réarranger » ne doit plus faire de détour dans le vide.
 
 # v2026.7.213 — la carte microSD écrit vraiment, et le Pico la monte en FatFs
 1. ✅ **Cause racine de « ECHEC de l'ouverture en ecriture »** (`SdCardSpiDevice`, `i2c-devices.mts`) : **CMD13 (SEND_STATUS) est une réponse R2, deux octets** — la carte n'en poussait qu'un, et le second lu valait donc 0xFF. Or `Sd2Card::writeBlock` finit **chaque** bloc par `if (cardCommand(CMD13, 0) || spiRec())` : toute écriture retournait `SD_CARD_ERROR_WRITE_PROGRAMMING`. L'init et la lecture, elles, marchaient — d'où le diagnostic trompeur. La relecture « réussissait » en affichant du vide parce que l'entrée de répertoire restait dans le **cache** SdFat.
@@ -93,7 +87,7 @@
 7. ✅ **`verify:sdcard` étoffé** : section « le MCU, façon `sdcard.py` » qui reproduit le CS relevé du pilote MicroPython (CMD0/8/58/9/16, écriture survivant à la désélection, CMD25 multi-blocs, CMD18+CMD12 puis reprise propre), plus les contrôles CMD13 en R2 et CSD ; `writeBlock` du banc suit désormais la lib Arduino **à la lettre**, CMD13 compris — sans quoi le bug d'origine restait invisible. Câblage du `.projix` Pico vérifié (GP16/17/18/19).
 8. ✅ **Fiche d'aide FR + EN** : exemples Arduino **et** Pico (MicroPython), avec le rappel que `sdcard.py` doit être posé dans un dossier `lib/` à côté du programme.
 9. ✅ typecheck + build + `verify:all` verts.
-10. ⬜ À VALIDER EN F5 : `testkablix\microsd-uno\microsd-uno.projix` → « Ecriture de essai.txt : OK » puis le contenu relu · `testkablix\microsd-pico.projix` → même sortie.
+10. ✅ VALIDÉ EN F5 : `testkablix\microsd-uno\microsd-uno.projix` → « Ecriture de essai.txt : OK » puis le contenu relu · `testkablix\microsd-pico.projix` → même sortie.
 
 # v2026.7.212 — le bouton SEL du joystick se verrouille en Ctrl+clic
 1. ✅ **Cause racine** (`analog-joystick-element.mts`) : le bouton SEL relâchait **toujours** l'appui au `mouseup` — `release()` ne recevait même pas l'événement, donc l'état de Ctrl lui était invisible. Le verrou `sticky` existait depuis longtemps sur le **bouton poussoir**, il n'avait simplement jamais été porté sur le joystick.
@@ -105,7 +99,7 @@
 7. ✅ **Fiche d'aide FR + EN** : nouvelle section « En simulation » — manche à la souris, verrou Ctrl de la position, flèches, et verrou Ctrl+clic du bouton SEL.
 8. ✅ **`verify:simspeed` rendu déterministe** : son contrôle « page occupée 60 % » dépendait de la vitesse de la machine — une charge modérée est justement **RATTRAPÉE** depuis la v2026.7.207, donc la mesure oscillait entre 0,93× et 1,00×. Il bloque désormais 700 ms d'un coup, bien au-delà de la dette rattrapable (250 ms) : mesure **0,30×**, stable d'une passe à l'autre.
 9. ✅ typecheck + build + `verify:all` verts.
-10. ⬜ À VALIDER EN F5 : `testkablix\joystick-pico.projix` → Ctrl+clic au centre du manche, le bouton reste enfoncé (SEL blanc) même souris relâchée ; un clic simple le libère.
+10. ✅ VALIDÉ EN F5 : `testkablix\joystick-pico.projix` → Ctrl+clic au centre du manche, le bouton reste enfoncé (SEL blanc) même souris relâchée ; un clic simple le libère.
 
 # v2026.7.211 — le clavier voit la touche même à l'arrêt, et la simulation dit quand elle décroche
 1. ✅ **Cause racine de « touche bloquée jamais vue comme appuyée en pas à pas »** (pico ET arduino) : l'ensemble `pressed` est bien partagé **par référence** entre `sim.mts` et le moteur, mais les moteurs ne le relisent que dans `applyKeypads()`, appelé **uniquement depuis l'écouteur de broche**. En pause ou en pas à pas, plus aucune broche ne bouge → **aucun front** → la touche n'est jamais vue. Même en marche, un appui pendant que la ligne est **déjà** basse restait invisible jusqu'au balayage suivant.
@@ -117,7 +111,7 @@
 7. ⏳ **« Très lent pour Pico » (anneau NeoPixel v207, clavier v208) : non reproductible côté moteur.** Mesures avec le **vrai** moteur Pico, le vrai firmware et les vrais scripts : thread libre — témoin 1,00×, anneau 1,00×, clavier 1,00× ; sous charge concurrente — témoin 30 % occupé 1,00×, 50 % occupé 0,90×, anneau 30 % occupé 0,97× ; famine du thread — référence sans moteur 37,3 img/s, témoin 39,2, anneau 28,3, **clavier 40,2** (il n'affame pas le thread du tout) ; `buildNets` sur les vrais schémas **0,009–0,045 ms**. La lenteur ne vient donc ni du moteur, ni de la netlist : elle se joue dans le rendu réel de la webview, non mesurable en Node — d'où le double rendu supprimé (point 3) et le badge (point 4).
 8. ✅ **Aide FR + EN** : section « Vitesse de la simulation » — le badge, ce qu'il mesure, et pourquoi le ralenti volontaire n'y compte pas.
 9. ✅ typecheck + build + `verify:all` verts.
-10. ⬜ À VALIDER EN F5 : `testkablix\keypad-pico.projix` en **pas à pas** avec une touche verrouillée (Ctrl+clic) → elle est vue comme enfoncée · `testkablix\Neopixel-ring-pico.projix` et `testkablix\keypad-pico.projix` en marche normale → **lire le badge de vitesse** pour chiffrer la lenteur (s'il reste caché, la simulation est à l'heure et le ralenti perçu vient d'ailleurs).
+10. ✅ VALIDÉ EN F5 : `testkablix\keypad-pico.projix` en **pas à pas** avec une touche verrouillée (Ctrl+clic) → elle est vue comme enfoncée · `testkablix\Neopixel-ring-pico.projix` et `testkablix\keypad-pico.projix` en marche normale → **lire le badge de vitesse** pour chiffrer la lenteur (s'il reste caché, la simulation est à l'heure et le ralenti perçu vient d'ailleurs).
 
 # v2026.7.210 — l'icône Kablix revient sur l'atelier ouvert au lieu d'en empiler un second
 1. ✅ **Cause racine du « changer de dossier ouvre un nouveau Kablix »** (`activate`, `src/extension.ts`) : sans session vivante, l'icône ouvrait **toujours** un nouveau projet. Or après un rechargement de fenêtre, VS Code restaure bien l'onglet `.projix` — mais un éditeur **personnalisé** n'est résolu que lorsqu'il devient **visible**. `SimulatorPanel.active()` renvoyait donc `undefined` alors que l'atelier était là, replié dans un autre groupe : un second atelier venait se poser à côté du premier.
@@ -128,7 +122,7 @@
 6. ✅ **Garde-fou vérifié** : sur le comportement de la v209 (icône → nouveau projet d'office), `verify:reveal` tombe à **4 échecs**, à commencer par « atelier restauré dans un autre groupe → il est RÉVÉLÉ ».
 7. ✅ **Aide FR + EN** : « Démarrage » précise que l'icône ne crée un projet que s'il n'y en a aucun d'ouvert.
 8. ✅ typecheck + build + `verify:all` verts.
-9. ⬜ À VALIDER EN F5 : ouvrir un `.projix`, changer de dossier (Fichier → Ouvrir un dossier), puis cliquer l'icône Kablix → l'atelier restauré revient au premier plan, **aucun** « Nouveau projet » ne s'ajoute.
+9. ✅ VALIDÉ EN F5 : ouvrir un `.projix`, changer de dossier (Fichier → Ouvrir un dossier), puis cliquer l'icône Kablix → l'atelier restauré revient au premier plan, **aucun** « Nouveau projet » ne s'ajoute.
 
 # v2026.7.209 — carte microSD : elle répond enfin, et elle est formatée
 1. ✅ **Cause racine de « la carte SD ne marche pas »** (`SdCardSpiDevice.transfer`, `src/webview/engines/i2c-devices.mts`) : la carte plaçait son octet de réponse **dans le transfert du 6ᵉ octet de commande**. Or une bibliothèque SD ne lit qu'**après** avoir envoyé les six octets (une vraie carte a toujours au moins un octet de latence, le Ncr). Le R1 partait donc là où personne ne le lisait ; la bibliothèque ne recevait plus que des `0xFF`, bouclait 255 fois puis abandonnait : **`SD.begin()` échouait à tous les coups**. La réponse est maintenant décalée d'un octet.
@@ -142,7 +136,7 @@
 9. ✅ **`verify:i2c` mis à jour** : ses contrôles microSD lisaient la réponse dans l'octet de commande — ils suivent maintenant la latence d'une vraie carte.
 10. ✅ **Aide FR + EN** : fiche microSD — carte livrée formatée en FAT16, contenu **perdu à l'arrêt** de la simulation.
 11. ✅ typecheck + build + `verify:all` verts.
-12. ⬜ À VALIDER EN F5 : `testkablix\microsd-uno\microsd-uno.projix` → moniteur série : `init OK`, `Ecriture de essai.txt : OK`, puis le contenu relu entre les deux lignes de tirets. Puis `testkablix\microsd-pico.projix` pour le Pico.
+12. ✅ VALIDÉ EN F5 : `testkablix\microsd-uno\microsd-uno.projix` → moniteur série : `init OK`, `Ecriture de essai.txt : OK`, puis le contenu relu entre les deux lignes de tirets. Puis `testkablix\microsd-pico.projix` pour le Pico.
 
 # v2026.7.208 — clavier matriciel : le contact marche dans les deux sens
 1. ✅ **Cause racine de « Keypad-uno ne marche pas »** (`applyKeypads`, `src/webview/engines/avr.mts`) : le moteur ne simulait le contact que dans **un seul sens** — il tirait une **colonne** à LOW quand une **ligne** était pilotée basse. Or la bibliothèque `Keypad.h` d'Arduino (celle du sketch de test) balaie exactement **à l'envers** : `initializePins` met les **lignes** en `INPUT_PULLUP` et `scanKeys` envoie une impulsion BASSE sur chaque **colonne**, puis lit les lignes. Aucune ligne n'étant jamais pilotée, plus aucune colonne n'était tirée — et le sketch ne voyait rien.
@@ -152,7 +146,7 @@
 5. ✅ **Nouveau banc `verify:keypadsim`** (18 contrôles, Node pur) : le **vrai** `testkablix\keypad-uno\keypad-uno.projix` est lu, ses lignes (2, 3, 4, 5) et colonnes (6, 7, 8, 9) confrontées au sketch, puis le banc **joue le MCU** dans les **deux** sens de balayage — celui « ligne par ligne » et celui de la bibliothèque `Keypad.h`. Couvre : aucune touche, les 16 touches une à une, relâchement, appui pendant que la ligne est déjà basse, deux touches éloignées, deux touches d'une même colonne, 20 balayages d'affilée, plus les contrôles de source des deux moteurs. Ajouté à `verify:all`.
 6. ✅ **Garde-fou vérifié** : sur le code de la v207, les 4 contrôles « bibliothèque Keypad » **échouent**, et le détail dit tout — sans toucher au clavier, les 16 touches remontaient comme enfoncées.
 7. ✅ typecheck + build + `verify:all` verts.
-8. ⬜ À VALIDER EN F5 : `testkablix\keypad-uno\keypad-uno.projix` → simulation : rien ne sort au repos, et chaque touche cliquée affiche `Touche : X` une seule fois (Ctrl+clic maintient la touche enfoncée). Puis `testkablix\keypad-pico.projix` pour vérifier que le Pico n'a pas régressé.
+8. ✅ VALIDÉ EN F5 : `testkablix\keypad-uno\keypad-uno.projix` → simulation : rien ne sort au repos, et chaque touche cliquée affiche `Touche : X` une seule fois (Ctrl+clic maintient la touche enfoncée). Puis `testkablix\keypad-pico.projix` pour vérifier que le Pico n'a pas régressé.
 
 # v2026.7.207 — Arduino : la simulation rattrape son retard (cadencement calé sur le Pico)
 1. ✅ **Cause racine de « ça tourne au ralenti »** (`loop`, `src/webview/engines/avr.mts`) : la boucle repartait de l'INSTANT COURANT à chaque tranche (`dt` depuis la tranche précédente, plafonné à 40 ms) et n'exécutait au plus que 12 ms de calcul (`MAX_FRAME_MS`). Tout le temps pris par le reste de la page — repeinture, layout, moniteur série — était donc du **temps simulé perdu**, jamais rattrapé : le sketch ralentissait exactement d'autant. Une page qui met 300 ms à se peindre par image ⇒ simulation ~25 fois trop lente, sans que rien ne le signale.
@@ -164,7 +158,7 @@
 7. ✅ **`verify:ledring` passe à 19 contrôles** : les garde-fous statiques suivent `applyStyle` et un nouveau contrôle exige que le style ne soit écrit **que s'il change**.
 8. ✅ **Aide FR + EN** : section « Vitesse de la simulation » — le temps réel est suivi, un retard court se rattrape, un blocage long est sauté, et le sélecteur 🐇/🐢/🐌 ne fait que **ralentir**.
 9. ✅ typecheck + build + `verify:all` verts.
-10. ⬜ À VALIDER EN F5 : `testkablix\led-ring-uno\led-ring-uno.projix` → le chenillard avance d'un pixel toutes les **100 ms** (un tour complet en ~1,6 s) · `testkablix\hcsr04-uno\hcsr04-uno.projix` → une ligne toutes les 400 ms.
+10. ✅ VALIDÉ EN F5 : `testkablix\led-ring-uno\led-ring-uno.projix` → le chenillard avance d'un pixel toutes les **100 ms** (un tour complet en ~1,6 s) · `testkablix\hcsr04-uno\hcsr04-uno.projix` → une ligne toutes les 400 ms.
 
 # v2026.7.206 — le moniteur série ne vole plus le temps de la simulation (×510)
 1. ✅ **Cause racine mesurée** : chaque octet reçu du firmware relisait `textContent`, le **réécrivait en entier** puis lisait `scrollHeight` (reflow forcé) — coût proportionnel à **tout** le texte déjà affiché, **par caractère**. Chronométré en Chrome : **18 000 octets = 35 976 ms**, contre **71 ms** avec un tampon. Et comme `onSerial` est appelé **depuis la boucle d'exécution du microcontrôleur**, ces secondes étaient prises **sur la simulation elle-même** : un sketch bavard (HC-SR04, capteurs) ralentissait d'autant, et de plus en plus au fil de la session puisque le coût grandit avec la console.
@@ -174,7 +168,7 @@
 5. ✅ **Nouveau banc `verify:serial`** (19 contrôles) : logique du tampon en Node (CR avalé, backspace/DEL, ANSI y compris **à cheval sur deux chunks**, ajout du delta sans réécriture, réécriture forcée après effacement, plafond, défilement), câblage de `sim.mts` (plus aucune écriture directe de `serialEl` par octet) et **coût réel en Chrome headless** : 20 016 octets écrits en **65 ms** (seuil 2 000 ms). Ajouté à `verify:all`.
 6. ✅ typecheck + build + `verify:all` verts.
 7. ℹ️ **Pistes écartées pour le led-ring lent** (mesures jetables, supprimées depuis) : cœur avr8js **8 à 21 M cycles/s** même sous un bit-bang serré (soit ≥ 0,5× le temps réel dans le pire cas, ×1,3 en régime normal) ; recalculs du modèle par frame (netlist, résistances série, bindings) **0,01 à 0,23 ms** sur les vrais `.projix` ; rendu de l'anneau 16 LED avec halos `drop-shadow` **0,1 ms/frame**. Reste à mesurer : `refreshVisuals` dans le **vrai DOM** de la webview.
-8. ⬜ À VALIDER EN F5 : `testkablix\hcsr04-uno\hcsr04-uno.projix` → simulation : les lignes défilent au rythme du sketch (une toutes les 400 ms) et **bouger le curseur de distance se voit tout de suite**, même après plusieurs minutes de traces accumulées.
+8. ✅ VALIDÉ EN F5 : `testkablix\hcsr04-uno\hcsr04-uno.projix` → simulation : les lignes défilent au rythme du sketch (une toutes les 400 ms) et **bouger le curseur de distance se voit tout de suite**, même après plusieurs minutes de traces accumulées.
 
 # v2026.7.205 — DHT22 : bouger le curseur ne casse plus la lecture en cours
 1. ✅ **Cause racine du « dht22 ne marche que la première fois »** (`setDht22`, `src/webview/engines/avr.mts`) : chaque `input` d'un curseur du composant **recrée** les moniteurs du capteur — état de détection remis à zéro **et** ligne de données reforcée à HAUT. Or une trame DHT22 dure ~5 ms : un geste sur le curseur tombe presque toujours **en pleine émission**, la coupe, la bibliothèque Arduino voit un checksum faux, `readTemperature()` renvoie `NaN` et le sketch garde sa valeur précédente. D'où la valeur figée sur la toute première lecture réussie.
@@ -186,7 +180,7 @@
 7. ✅ **Aide FR + EN** : fiche DHT22 — les deux curseurs règlent la mesure **en direct**, et une valeur qui semble figée vient du cache de 2 s de la bibliothèque, comme avec un vrai capteur.
 8. ✅ typecheck + build + `verify:all` verts.
 9. ℹ️ **Piste écartée pour le led-ring lent** : la vitesse brute d'avr8js mesurée en Node atteint **36 à 44 M cycles/s**, soit 2,2 à 2,7× le temps réel d'une Uno, avec ou sans écouteurs de port. Le cœur CPU n'explique pas le facteur ~30 signalé — restent le coût du **rendu** (16 LED × 2 `drop-shadow` repeints en continu) et la cadence de la boucle (`MAX_FRAME_MS`, `setTimeout(0)` bridé par le navigateur).
-10. ⬜ À VALIDER EN F5 : `testkablix\dht22-uno\dht22-uno.projix` → simulation, puis **bouger les curseurs** du capteur : le moniteur série suit la nouvelle température/humidité à chaque lecture (une toutes les 2 s), sans « lecture ratee ».
+10. ✅ VALIDÉ EN F5 : `testkablix\dht22-uno\dht22-uno.projix` → simulation, puis **bouger les curseurs** du capteur : le moniteur série suit la nouvelle température/humidité à chaque lecture (une toutes les 2 s), sans « lecture ratee ».
 
 # v2026.7.204 — Arduino : la LED embarquée D13 (et la LED verte ON) s'allument enfin
 1. ✅ **Cause racine du « blink-mega ne marche pas »** (`refreshVisuals`, `src/webview/sim.mts`) : le cas `mcu` ne pilotait **que le Pico** (`ledPower` = GP25). Les cartes AVR n'avaient donc **aucune** LED animée — alors que les trois forks (`arduino-uno/mega/nano-element.mts`) savent dessiner `led13`, `ledPower`, `ledRX` et `ledTX` depuis toujours. Un `blink` sur `LED_BUILTIN` sans LED câblée ne montrait rien : ni sur Mega, ni sur Nano, ni sur Uno.
@@ -195,7 +189,7 @@
 4. ✅ **Garde-fou vérifié** : sur le code de la v203, `verify:boardleds` tombe à **5 échecs**.
 5. ✅ **Aide FR + EN** : section « LED embarquées des cartes » dans « Exécuter du code » (LED verte ON, LED L de `LED_BUILTIN`/D13, GP25 sur le Pico).
 6. ✅ typecheck + build + `verify:all` verts.
-7. ⬜ À VALIDER EN F5 : `testkablix\blink-mega\blink-mega.projix` → la LED **L** de la carte clignote à 1 Hz et la LED verte reste allumée ; idem `blink-uno` et `blink-nano`.
+7. ✅ VALIDÉ EN F5 : `testkablix\blink-mega\blink-mega.projix` → la LED **L** de la carte clignote à 1 Hz et la LED verte reste allumée ; idem `blink-uno` et `blink-nano`.
 
 # v2026.7.203 — variables : espace fine partout, et le réglage marque le projet à enregistrer
 1. ✅ **Séparateur de groupes = espace FINE insécable U+202F** (`src/webview/varbase.mts`), à la place de l'insécable normale U+00A0 : milliers en décimal, quartets en binaire, groupes de 4 en hexadécimal. Toujours insécable — un nombre ne se coupe jamais en fin de ligne dans un panneau étroit.
@@ -207,7 +201,7 @@
 7. ✅ **Garde-fou vérifié** : sur le code de la v202, `verify:debugvars` tombe à **8 échecs**.
 8. ✅ **Aide FR + EN** : tableau des bases mis à jour (`0b 1010 0000`, `0x A0`), mention de l'espace fine insécable et du point ● « à enregistrer ».
 9. ✅ typecheck + build + `verify:all` verts.
-10. ⬜ À VALIDER EN F5 : simulation en pause → clic sur une variable → **Binaire** : la valeur s'affiche `0b 1010 0000` et l'onglet prend le point ● · `Ctrl+S` puis réouverture : la base est retrouvée et le projet est propre.
+10. ✅ VALIDÉ EN F5 : simulation en pause → clic sur une variable → **Binaire** : la valeur s'affiche `0b 1010 0000` et l'onglet prend le point ● · `Ctrl+S` puis réouverture : la base est retrouvée et le projet est propre.
 
 # v2026.7.202 — NeoPixel : le chaînage DOUT → DIN est suivi, boîtier blanc à basse luminosité
 1. ✅ **Cause racine du « ça clignote »** (`neopixelBindings`, `src/webview/diagram/model.mts`) : seul le composant dont **DIN touchait la broche du MCU** était reconnu. Les suivants, alimentés par le **DOUT** du précédent, n'avaient aucun binding — donc restaient éteints — et celui de tête affichait `pixel[0]`, c'est-à-dire une couleur sur trois quand le programme promène un point lumineux sur la chaîne. D'où la LED unique qui clignote (repro `neopixel-pico.projix` : 3 pixels sur GP0).
@@ -219,7 +213,7 @@
 7. ✅ **Garde-fous vérifiés** : sur le code de la v201, `verify:npchain` tombe à **10 échecs** et `verify:ledring` à **6**.
 8. ✅ **Aide FR + EN** : section « le chaînage est suivi » sur la fiche NeoPixel (avec l'exemple MicroPython et le rappel de déclarer le nombre **total** de LED), boîtier blanc à basse luminosité et chaînage sur la fiche Anneau.
 9. ✅ typecheck + build + `verify:all` verts.
-10. ⬜ À VALIDER EN F5 : `neopixel-pico.projix` → simulation : le point lumineux **tourne** sur les 3 pixels au lieu de clignoter sur le premier · anneau NeoPixel à faible luminosité : les LED allumées restent **blanches teintées**, jamais sombres.
+10. ✅ VALIDÉ EN F5 : `neopixel-pico.projix` → simulation : le point lumineux **tourne** sur les 3 pixels au lieu de clignoter sur le premier · anneau NeoPixel à faible luminosité : les LED allumées restent **blanches teintées**, jamais sombres.
 
 # v2026.7.201 — autoroutage : la boîte d'un composant TOURNÉ suit enfin sa rotation
 1. ✅ **Cause racine du fil qui traverse une résistance** (`partObstacles()`, `src/webview/diagram/editor.mts`) : l'encombrement donné au routeur était calculé sur `(part.x, part.y)` + la taille **non tournée** du dessin. La rotation est pourtant appliquée en **CSS** sur `.part__body`, autour de son centre : une résistance à 90° (dessin 80×20) était déclarée **80×20 depuis son coin haut-gauche** alors qu'elle occupe **20×80 autour de son centre**. La boîte tombait à côté du vrai corps — le routeur voyait un mur là où il n'y a rien, et un couloir libre en plein milieu de la résistance. Repro de Frank : `schema-kablix.projix`, fil LED A → GP13.
@@ -230,7 +224,7 @@
 1. ✅ **`verify:route` passe à 29 contrôles** : boîte d'obstacle d'une résistance à 90° (haute et étroite), fil dont la ligne droite tombe **dans le corps tourné mais hors de l'ancienne boîte** → contourne sans entamer le cœur (corps reconstruit à partir des **pattes**, surtout pas à partir de `partObstacles()` qui est ce qu'on teste), et contrôle statique de la taxe ×1000 sur le cœur des corps « soft ».
 1. ✅ typecheck + build + `verify:all` verts.
 1. ℹ️ **Journal réparé** : les sections **v197 à v199** avaient disparu du `todo.md` (écrasé avant le commit de la v199). Récupérées depuis le commit `2e5ca34` et réécrites.
-1. ⬜ À VALIDER EN F5 : `schema-kablix.projix` → retirer le fil LED A → GP13 et le refaire : il contourne la résistance verticale au lieu de la traverser.
+1. ✅ VALIDÉ EN F5 : `schema-kablix.projix` → retirer le fil LED A → GP13 et le refaire : il contourne la résistance verticale au lieu de la traverser.
 
 # v2026.7.200 — PIR : la bulle d'aide se place juste sous la souris
 1. ✅ **Bulle SOUS le pointeur et CENTRÉE dessus** (`src/webview/composants/pir-motion-sensor-element.mts`) : `transform: translate(-50%, 5px)` au lieu de `translate(8px, -100%)`. Avant, elle était plaquée **au-dessus-à-droite** du curseur : elle masquait le capteur qu'on venait survoler et partait en biais dès qu'on approchait du bord.
@@ -239,7 +233,7 @@
 4. ✅ **Garde-fou vérifié** : sur le code de la v199, le banc tombe à **7 échecs** (`top=-18` au lieu de 5, centre décalé de **211,7 px**).
 5. ✅ **Fiches d'aide FR + EN corrigées** (`docs/*/composants/pir.md`) : la propriété `state` y était encore documentée alors qu'elle a disparu du catalogue. Remplacée par une section « En simulation : la souris fait le mouvement » — survol **en mouvement**, retour à 0 à l'arrêt, Ctrl+clic pour un mouvement permanent, bulle 5 px sous le pointeur.
 6. ✅ typecheck + build + `verify:all` verts.
-7. ⬜ À VALIDER EN F5 : PIR câblé sur une entrée, simulation lancée → promener la souris dessus : la bulle jaune s'affiche **sous le curseur**, centrée, et OUT passe à 1 · Ctrl+clic → bulle « Mouvement permanent », OUT reste à 1 après avoir éloigné la souris · Ctrl+clic → tout retombe.
+7. ✅ VALIDÉ EN F5 : PIR câblé sur une entrée, simulation lancée → promener la souris dessus : la bulle jaune s'affiche **sous le curseur**, centrée, et OUT passe à 1 · Ctrl+clic → bulle « Mouvement permanent », OUT reste à 1 après avoir éloigné la souris · Ctrl+clic → tout retombe.
 
 # v2026.7.199 — la disposition tient même quand aucun fichier de code n'est ouvert
 1. ✅ **Cause racine trouvée : `workbench.editor.closeEmptyGroups`** (activé par défaut). À l'ouverture d'un `.projix` **seul** (aucun fichier de code encore affiché), la grille posée par `setEditorLayout` crée une **seconde zone vide** que VS Code referme aussitôt — la disposition demandée disparaissait donc avant même que le code n'arrive, et Kablix restait plein écran.
@@ -249,7 +243,7 @@
 5. ✅ **Stub de test enrichi** (`scripts/verify-layout.mjs`) : le faux `vscode.setEditorLayout` crée maintenant les groupes manquants **vides** puis les referme quand `closeEmptyGroups !== false` — le banc reproduit donc la cause racine au lieu de la supposer. 4 nouvelles sections (grille perdue puis reposée avec largeurs 0,3/0,7 et Kablix ramené en colonne 2 · deux zones déjà là → aucune commande · toujours une zone → aucune commande · câblage `projix-editor`), **53 contrôles** au total.
 6. ✅ **Garde-fou vérifié** : sur le code de la v198, `verify:layout` tombe à **5 échecs**. Le banc a été durci pour **lister** ces échecs au lieu de planter (`L.editorGroupCount is not a function`) quand la fonction n'existe pas encore.
 7. ✅ typecheck + build + `verify:all` verts.
-8. ⬜ À VALIDER EN F5 : ouvrir un `.projix` **sans** fichier de code ouvert à côté → Kablix à droite, code à gauche, largeurs 30 / 70 · déplacer soi-même les zones puis rouvrir un `.projix` → la disposition manuelle est respectée.
+8. ✅ VALIDÉ EN F5 : ouvrir un `.projix` **sans** fichier de code ouvert à côté → Kablix à droite, code à gauche, largeurs 30 / 70 · déplacer soi-même les zones puis rouvrir un `.projix` → la disposition manuelle est respectée.
 
 # v2026.7.198 — Ctrl+S propose enfin le nom du fichier de code
 1. ✅ **Une condition de trop dans le raccourci** : `Ctrl+S` était lié à `kablix.saveProjectSmart` sous `activeCustomEditorId == 'kablix.projix' **&& resourceScheme == 'untitled'**`. Le second morceau ne se vérifiait pas sur un `.projix` untitled, donc le raccourci ne se déclenchait pas et VS Code faisait son **save natif** — d'où « Nouveau projet.projix » proposé, alors que le bouton 💾 (qui n'a jamais eu ce filtre) proposait bien le nom du code.
@@ -257,7 +251,7 @@
 3. ✅ **Nouveau banc `verify:savename`** (20 contrôles) : raccourci et commande (le `when` ne dépend plus de `resourceScheme`, `Ctrl+S` et le bouton passent par le même `saveSmart`) · **nom réellement proposé**, en exécutant `saveProject` de `panel.ts` bundlé avec un faux `vscode` et en lisant le `defaultUri` reçu par `showSaveDialog` : untitled + `mon-programme.py` → **`mon-programme.projix`** dans le dossier du workspace, untitled sans code → repli `schema-kablix.projix`, projet déjà nommé → **aucun** dialogue et réécriture au même endroit, nom du projet prioritaire sur celui du code · aide FR + EN. Garde-fou vérifié : sur le code de la v197, le banc échoue.
 4. ✅ **Aide FR + EN** : `Ctrl+S` ajouté au tableau des raccourcis et explicité dans « Enregistrer / ouvrir un projet ».
 5. ✅ typecheck + build + `verify:all` verts.
-6. ⬜ À VALIDER EN F5 : nouveau projet + ouvrir `mon-programme.py` + câbler → **`Ctrl+S`** → le dialogue propose **`mon-programme.projix`** (comme le bouton 💾) · enregistrer puis re-`Ctrl+S` → écriture directe, aucun dialogue · `Ctrl+S` dans un fichier de code → save natif inchangé.
+6. ✅ VALIDÉ EN F5 : nouveau projet + ouvrir `mon-programme.py` + câbler → **`Ctrl+S`** → le dialogue propose **`mon-programme.projix`** (comme le bouton 💾) · enregistrer puis re-`Ctrl+S` → écriture directe, aucun dialogue · `Ctrl+S` dans un fichier de code → save natif inchangé.
 
 # v2026.7.197 — capteur ultrason : la température de l'air fait varier la mesure
 1. ✅ **La constante 58 µs/cm sortait de nulle part** : c'est 20000/c avec c = vitesse du son, et **c dépend de la température**. Nouveau module de physique pure `src/webview/engines/ultrasonic.mts` (sans DOM, testable en Node) : `soundSpeedMs(T) = 331,3 + 0,606·T`, `echoUsPerCm(T) = 20000/c`, plage −20…60 °C, recalage des valeurs aberrantes. À 20 °C : 343,4 m/s et **58,24 µs/cm** — la constante des exemples Arduino, retrouvée et non plus postulée.
@@ -269,7 +263,7 @@
 7. ✅ **Plan de test corrigé** : le HC-SR04 était marqué « NON simulé sur RP2040 » — c'est faux, le banc le prouve sur le vrai moteur ; ligne Pico complétée (GP15/GP14, `time_pulse_us`) et ligne AVR mise à jour.
 8. ✅ **Fiches FR + EN du capteur** : les deux curseurs, la formule, et un tableau température → vitesse → durée → distance lue par un programme non compensé.
 9. ✅ typecheck + build + `verify:all` verts.
-10. ⬜ À VALIDER EN F5 : `testkablix/us-sensor.py` (Trig GP15, Echo GP14) → distance affichée ≈ curseur · **glisser le curseur 🌡 vers le froid pendant la simulation** → la distance lue augmente sans que l'obstacle bouge · inspecteur → « Température de l'air (°C) », enregistrer, rouvrir → valeur retrouvée.
+10. ✅ VALIDÉ EN F5 : `testkablix/us-sensor.py` (Trig GP15, Echo GP14) → distance affichée ≈ curseur · **glisser le curseur 🌡 vers le froid pendant la simulation** → la distance lue augmente sans que l'obstacle bouge · inspecteur → « Température de l'air (°C) », enregistrer, rouvrir → valeur retrouvée.
 
 # v2026.7.196 — copier-coller d'un atelier Kablix à l'autre, la copie SVG intacte
 1. ✅ **Le schéma voyage DANS le SVG** (`src/webview/diagram/clipboard.mts`, nouveau) : `Ctrl+C` continue de mettre une **image vectorielle** au presse-papier (exigence de Frank), mais le SVG porte désormais une balise `<metadata id="kablix-clipboard">KABLIX-CLIPBOARD-V1:{…}</metadata>` — ignorée par toutes les visionneuses, relue par Kablix. Un seul texte au presse-papier, donc un seul objet à transporter : pas de « format maison » perdu en route.
@@ -281,7 +275,7 @@
 1. ✅ **Nouveau banc `verify:clipboard`** (45 contrôles) : codec en Node (aller-retour rotation/miroir/fil auto, échappement XML, textes étrangers rejetés, fil orphelin écarté, `<metadata>` bien dans la racine SVG) · câblage statique (`editor.mts`, `sim.mts`, `panel.ts`, `i18n.mts`) · **E2E Chrome headless avec TROIS vrais éditeurs** partageant un faux presse-papier système : copie A → collage B (types, attributs, ids neufs, +20 px, 2 fils remappés, fil auto non dessiné, source intacte), second collage décalé, repli extension quand `navigator.clipboard` refuse, texte étranger sans effet, collage bloqué en simulation. Garde-fou vérifié : sur le code de la v195, **15 échecs**.
 1. ✅ **Aide FR + EN** : tableau des raccourcis complété (`Ctrl+A/C/V/D`) et section « Copier-coller d'un projet à l'autre » (image SVG conservée, charge cachée, décalage, composants inconnus ignorés).
 1. ✅ typecheck + build + `verify:all` verts.
-1. ⬜ À VALIDER EN F5 : sélectionner un montage dans un `.projix`, `Ctrl+C`, **ouvrir un autre `.projix`**, `Ctrl+V` → composants **et** fils recréés, décalés · re-`Ctrl+V` → nouveau décalage · coller le même presse-papier dans un mail ou Inkscape → **l'image SVG** comme avant · `Ctrl+V` pendant une simulation → rien.
+1. ✅ VALIDÉ EN F5 : sélectionner un montage dans un `.projix`, `Ctrl+C`, **ouvrir un autre `.projix`**, `Ctrl+V` → composants **et** fils recréés, décalés · re-`Ctrl+V` → nouveau décalage · coller le même presse-papier dans un mail ou Inkscape → **l'image SVG** comme avant · `Ctrl+V` pendant une simulation → rien.
 
 # v2026.7.195 — l'explosion passe devant les fils, l'anneau NeoPixel s'éteint en blanc et rayonne allumé
 1. ✅ **Explosion par-dessus TOUT** : l'overlay « Boum » vit dans le **shadow DOM** du composant, donc dans le contexte d'empilement de `.part` (z=3) — aucun z-index interne ne pouvait le faire passer devant les fils (z=5). Le composant grillé est donc **hissé en entier** : classe `.part--burned` (**z=70**, au-dessus des fils, du poster de brochage à 50 et du contrôle de simulation à 60), posée par `editor.setBurned()`.
@@ -293,7 +287,7 @@
 7. ✅ **Garde-fou vérifié** : sur le code de la v194, `verify:boum` tombe à **16 échecs** (l'API `setBurned` manque, le banc ne rend plus rien) et `verify:ledring` à **9 échecs**.
 8. ✅ **Fiches FR + EN de l'anneau** : LED éteinte blanche, halo proportionnel à la luminosité.
 9. ✅ typecheck + build + `verify:all` verts.
-10. ⬜ À VALIDER EN F5 : LED câblée **sans résistance** → elle grille, l'explosion s'affiche **devant les fils** qui la traversaient · anneau NeoPixel en simulation → LED éteintes **blanches**, LED allumées **halo coloré** · nouveau lancement → l'anneau et la LED reviennent à l'état neuf.
+10. ✅ VALIDÉ EN F5 : LED câblée **sans résistance** → elle grille, l'explosion s'affiche **devant les fils** qui la traversaient · anneau NeoPixel en simulation → LED éteintes **blanches**, LED allumées **halo coloré** · nouveau lancement → l'anneau et la LED reviennent à l'état neuf.
 
 # v2026.7.194 — variables : préfixes 0b/0x, réglages rangés dans le .projix, colonnes au plus juste
 1. ✅ **Indices remplacés par des PRÉFIXES** (`varbase.mts`) : `0b1010 0000`, `0xA0`, `160` en décimal (plus de `₂`/`₁₆`/`₁₀`). Raison : un préfixe se retape tel quel dans le programme, un indice non. Signe devant le préfixe (`-0b101`, comme en C), groupement des chiffres et séparateur insécable inchangés.
@@ -305,7 +299,7 @@
 7. ✅ **`verify:debugvars` porté à 41 contrôles** : 17 formatages au caractère près, **aucun indice de base résiduel**, manifeste (`ProjixDebugVars`, écriture, garde « aucun réglage → aucune entrée », relecture), 4 gestes qui poussent l'état, repli hérité lu et jamais réécrit, absence de point ●, disquette absente du HTML **et** de sim.mts, clic gauche + clic droit, `width: 1%`/`nowrap`/`text-align: left`/`cursor: pointer`, bulle sur les deux cellules, aide FR + EN. Garde-fou vérifié : sur le code de la v193, le banc tombe à **24 échecs**.
 8. ✅ **Aide FR + EN** : tableau des 4 bases en préfixes, clic gauche et curseur en main, mémorisation dans le `.projix` (plus de disquette).
 9. ✅ typecheck + build + `verify:all` verts.
-10. ⬜ À VALIDER EN F5 : pas à pas → clic gauche sur une variable → `0b1010 0000` · le curseur passe en main sur le nom comme sur la valeur · noms alignés sur une ligne, valeurs collées à gauche · masquer une variable + changer une base, **enregistrer**, rouvrir le `.projix` → tout est retrouvé · l'onglet ne passe **pas** en ● pour un simple masquage.
+10. ✅ VALIDÉ EN F5 : pas à pas → clic gauche sur une variable → `0b1010 0000` · le curseur passe en main sur le nom comme sur la valeur · noms alignés sur une ligne, valeurs collées à gauche · masquer une variable + changer une base, **enregistrer**, rouvrir le `.projix` → tout est retrouvé · l'onglet ne passe **pas** en ● pour un simple masquage.
 
 # v2026.7.193 — la vraie cause : VS Code ne sait pas OUVRIR un WebM. Les démos passent en MP4/H.264
 1. ✅ **Cause trouvée** (PR *rokucommunity/vscode-brightscript-language#833*, fournie par Frank) : l'**Electron de VS Code n'embarque pas le démuxeur Matroska**. Un `.webm` n'y est donc **jamais** lisible — ni dans une webview, ni dans l'aperçu Markdown, ni dans l'éditeur vidéo intégré, **quel que soit le codec**. Trois versions perdues à chercher ailleurs parce que `canPlayType('video/webm; codecs="vp9"')` répond **« probably »** : Chromium annonce ce qu'il sait *décoder*, sans dire qu'il ne sait pas *démuxer* le conteneur. D'où le lecteur inerte de v190/191 et l'erreur à l'ouverture du fichier.
@@ -315,7 +309,7 @@
 5. ✅ **Repli `data:` conservé** (`guide.ts`) : URI de webview d'abord, `data:video/mp4;base64,…` ensuite — le MIME suit le fichier, `.mp4` comme `.webm`, rien à changer.
 6. ✅ **`verify:docs` porté à 23 contrôles** : les 3 MP4 présents, en-tête `ftyp` + `avc1` (H.264), `moov` avant `mdat` (faststart, sinon le lecteur attend tout le fichier), < 1,5 Mo, non exclus · **aucun `.webm`/`.gif` référencé par les guides** · **aucun `.webm` resté dans `media/`** · le rendu sort `type="video/mp4"`.
 7. ✅ typecheck + build + `verify:all` verts.
-8. ⬜ À VALIDER EN F5 : aide ❔ → les 3 démos s'animent, contrôles actifs, sans connexion · aperçu Markdown de `docs/fr/USAGE.md` → les démos s'y voient aussi · double-clic sur `media/simuler.mp4` → VS Code l'ouvre sans erreur.
+8. ✅ VALIDÉ EN F5 : aide ❔ → les 3 démos s'animent, contrôles actifs, sans connexion · aperçu Markdown de `docs/fr/USAGE.md` → les démos s'y voient aussi · double-clic sur `media/simuler.mp4` → VS Code l'ouvre sans erreur.
 
 # v2026.7.192 — les démos passent en `<video>` HTML : lisibles AUSSI dans l'aperçu Markdown
 1. ✅ **Deux constats de Frank** : rien ne s'affiche toujours dans l'aide ❔, **et** le guide ne se prévisualise plus dans VS Code. Le second explique le premier : une **`![…](…webm)` est une image**, jamais un lecteur — l'aperçu Markdown de VS Code n'a aucune raison d'en faire une vidéo, et notre rendu maison était seul à savoir la convertir.
@@ -327,7 +321,7 @@
 7. ✅ **Les 3 WebM de Frank gardés tels quels** (réencodés depuis les MP4 d'origine, 720p, 4 im/s, VP9 profile 0 / yuv420p) : **0,77 Mo** à eux trois (0,13 · 0,20 · 0,44), `canPlayType` = *probably*. **`scripts/_gif2webm.mjs` supprimé** comme demandé : l'encodage demande un contrôle visuel, Frank le fait lui-même.
 8. ✅ **`verify:docs` porté à 22 contrôles** : les guides emploient bien `<video>` (et plus `![…]()`) avec `controls autoplay loop muted`, la balise survit au rendu avec ses **deux** sources et sans `src`, la syntaxe Markdown reste admise en secours, `resolveMedia` fournit bien webview **puis** `data:`.
 9. ✅ typecheck + build + `verify:all` verts.
-10. ⬜ À VALIDER EN F5 : aide ❔ → les 3 démos s'animent · **et** aperçu Markdown de `docs/fr/USAGE.md` → les démos s'y voient aussi. Si l'aide reste vide alors que l'aperçu marche, le coupable est la webview (CSP ou service worker), pas le fichier.
+10. ✅ VALIDÉ EN F5 : aide ❔ → les 3 démos s'animent · **et** aperçu Markdown de `docs/fr/USAGE.md` → les démos s'y voient aussi. Si l'aide reste vide alors que l'aperçu marche, le coupable est la webview (CSP ou service worker), pas le fichier.
 
 # v2026.7.191 — les démos ne s'affichaient pas : lecteur inactif dans l'aide
 1. ✅ **Constat** : les 3 vidéos livrées en v190 donnaient un **lecteur inerte** dans l'aide ❔ (aucune image, contrôles morts) alors que les fichiers sont bien dans le vsix (`vsce ls` : les 3 `media/*.webm`) et que Chromium les décode (`readyState=4` en headless). Le fichier n'était donc pas en cause : c'est son **acheminement jusqu'au lecteur** qui échouait.
@@ -340,7 +334,7 @@
 8. ✅ **Garde-fou anti-écrasement** (`scripts/_gif2webm.mjs`) : un WebM **plus récent que son GIF** est sauté (« conservé ») au lieu d'être réencodé — sinon un simple passage du convertisseur détruisait la version refaite à la main. `--force` pour réencoder quand même.
 9. ℹ️ **Fiches de composants non concernées** : aucune n'affiche de vidéo ; `partHelp.ts` garde `media-src ${webview.cspSource}` (à basculer en `data:` le jour où une fiche en aura une).
 10. ✅ typecheck + build + `verify:all` verts.
-11. ⬜ À VALIDER EN F5 : aide ❔ → les 3 démos du démarrage s'animent en boucle, contrôles actifs, sans connexion.
+11. ✅ VALIDÉ EN F5 : aide ❔ → les 3 démos du démarrage s'animent en boucle, contrôles actifs, sans connexion.
 
 # v2026.7.190 — les 3 démos des guides passent du GIF distant au WebM embarqué
 1. ✅ **12,17 Mo de GIF → 1,20 Mo de WebM** (`demarrer` 1,90 → 0,11 · `dessiner` 3,29 → 0,23 · `simuler` 6,99 → 0,85). Les trois démos étaient **hors du vsix** et servies depuis GitHub (v187) : sans connexion, l'aide ❔ n'en montrait aucune. Elles sont maintenant **embarquées** et animées hors-ligne.
@@ -352,7 +346,7 @@
 7. ✅ **`verify:docs` porté à 19 contrôles** : plus aucun GIF référencé par les guides et les 3 WebM bien cités · chaque WebM présent, **VP9** (CodecID `V_VP9` lu dans l'en-tête Matroska), < 1,5 Mo et non exclu du paquet · le rendu maison sort bien une `<video>` muette en boucle et **pas** un `<img>` · `media-src` présent dans les deux CSP.
 8. ✅ **Version anglaise faite aussi** (les 3 références de `docs/en/USAGE.md`), comme demandé.
 9. ✅ typecheck + build + `verify:all` verts.
-10. ⬜ À VALIDER EN F5 : aide ❔ → les 3 démos du démarrage tournent en boucle, sans connexion, avec les contrôles de lecture · README sur GitHub inchangé (toujours les GIF).
+10. ✅ VALIDÉ EN F5 : aide ❔ → les 3 démos du démarrage tournent en boucle, sans connexion, avec les contrôles de lecture · README sur GitHub inchangé (toujours les GIF).
 
 # v2026.7.189 — clic droit sur une variable : binaire, hexa, décimal, caractère
 1. ✅ **Menu au clic droit sur une variable** (le clic droit était libre depuis la v186 : c'est l'œil 👁 qui masque désormais) : **Binaire**, **Hexadécimal**, **Décimal**, **Caractère**, dans cet ordre, avec la base courante **cochée ✓** et en gras. Titre du menu « Affichage de “nom” », calé sur le curseur, refermé au clic ailleurs / Échap comme la liste déroulante des masquées. Les 6 libellés sont traduisibles (`i18n.mts`, FR fourni).
@@ -363,7 +357,7 @@
 6. ✅ **`verify:debugvars` porté à 29 contrôles** : bundle esbuild de `varbase.mts` et **17 formatages** vérifiés au caractère près, séparateur insécable, formatage bien passé par `varbase.mjs` dans `sim.mts`, ordre des 4 bases, ✓ sur la courante, re-dessin immédiat, `dec` sans entrée, flottant refermé, 3 classes CSS, 6 clés i18n, aide FR + EN. Garde-fou vérifié : sur le code de la v188, le banc tombe à **11 échecs**.
 7. ✅ **Aide FR + EN** : nouvelle sous-section « Base d'affichage d'une variable » / « Display base of a variable » (tableau des 4 bases sur l'exemple `160`, groupement, codes de contrôle, non-entiers, bulle, portée).
 8. ✅ typecheck + build + `verify:all` verts.
-9. ⬜ À VALIDER EN F5 : pas à pas → clic droit sur une variable entière → binaire → `1010 0000₂` groupé par 4 · hexa et décimal groupés · caractère sur un code ASCII · clic droit sur une chaîne ou un flottant → valeur inchangée · Échap referme le menu.
+9. ✅ VALIDÉ EN F5 : pas à pas → clic droit sur une variable entière → binaire → `1010 0000₂` groupé par 4 · hexa et décimal groupés · caractère sur un code ASCII · clic droit sur une chaîne ou un flottant → valeur inchangée · Échap referme le menu.
 
 # v2026.7.188 — panneau d'accueil réduit à un bouton, et le programme du projet s'ouvre avec lui
 1. ⏳ **La vue ne peut PAS être supprimée** : c'est elle (`kablix.home`) qui porte l'**icône de la barre d'activité** — sans vue, plus d'icône, donc plus de « cliquer l'icône Kablix pour ouvrir le simulateur » (`extension.ts`, `createTreeView` + `onDidChangeVisibility`), et l'aide comme le README commencent par ce geste. Repli demandé appliqué.
@@ -374,7 +368,7 @@
 6. ✅ **`verify:layout` porté à 44 contrôles** : 6 sur l'ouverture du programme (retenu, montré sans voler le focus, artefact écarté, projet précédent oublié, **ordre** disposition → verrou → reveal, dialogue couvert) et 5 sur l'accueil (un seul lien, la commande existe, la vue et le conteneur restent déclarés, le déclencheur de l'icône intact). Garde-fou vérifié : sur le code de la v187, le banc tombe à **8 échecs**.
 7. ✅ **Aide FR + EN** : point 4 du démarrage — à la réouverture, le programme associé s'ouvre à côté du montage, le curseur reste dans Kablix.
 8. ✅ typecheck + build + `verify:all` verts.
-9. ⬜ À VALIDER EN F5 : double-clic sur un `.projix` avec programme associé → le code apparaît côté code, la frappe va toujours dans Kablix · projet sans programme → rien ne s'ouvre · icône de la barre d'activité → un seul bouton visible, l'atelier s'ouvre comme avant.
+9. ✅ VALIDÉ EN F5 : double-clic sur un `.projix` avec programme associé → le code apparaît côté code, la frappe va toujours dans Kablix · projet sans programme → rien ne s'ouvre · icône de la barre d'activité → un seul bouton visible, l'atelier s'ouvre comme avant.
 
 # v2026.7.187 — toutes les images en WebP : le vsix passe de 5,4 à 2,5 Mo
 1. ✅ **Oui, WebP est vu exactement de la même façon** : tout ce qui affiche les images de Kablix est du Chromium (webviews du simulateur et de l'aide, rendu Markdown maison) ou un navigateur moderne (README sur GitHub / marketplace). **Transparence comprise** — vérifiée image par image : les 69 `.webp` fournis ont **les mêmes dimensions au pixel** que leur `.png` (banc de comparaison des en-têtes PNG/VP8/VP8L/VP8X) et le rendu côte à côte sur fond sombre est identique, y compris pour les 4 fiches converties sans canal alpha (leur PNG était déjà opaque).
@@ -384,7 +378,7 @@
 5. ✅ **Nouveau `scripts/_png2webp.mjs`** : convertisseur PNG → WebP **sans dépendance** (aucun cwebp/ImageMagick sur le poste) — la page charge le PNG dans un `<canvas>` et rend `toDataURL('image/webp')` dans le Chrome headless déjà utilisé par tous les bancs. Alpha préservé (sortie VP8X, vérifiée). `_capture-part.mjs` s'en sert : une nouvelle capture de composant sort directement en `.webp`, plus de PNG réintroduit par mégarde.
 6. ✅ **`verify:docs` porté à 15 contrôles** : plus aucun PNG référencé par les guides ni présent dans `docs/img/composants/`, et les deux icônes du manifeste **restent** en PNG et sur le disque. Le contrôle « captures légères embarquées » ne tolère plus d'exception que pour les GIF.
 7. ✅ typecheck + build + `verify:all` (exit 0) verts ; guide FR rendu en headless (logo, icône en ligne, captures : tout s'affiche) et contenu du vsix inspecté (2 PNG = les icônes, 54 WebP).
-8. ⬜ À VALIDER EN F5 : aide ❔ et fiches de composants illustrées comme avant · boutons ⏭ et autoroutage de la barre du canvas (leurs icônes sont passées en WebP) · README sur GitHub.
+8. ✅ VALIDÉ EN F5 : aide ❔ et fiches de composants illustrées comme avant · boutons ⏭ et autoroutage de la barre du canvas (leurs icônes sont passées en WebP) · README sur GitHub.
 
 # v2026.7.186 — masquage des variables : l'œil remplace le clic droit, et ça se mémorise
 1. ✅ **Un œil 👁 à gauche de chaque variable** (bulle « Cliquer pour masquer ») : un clic la retire du panneau. Le **clic droit et son menu flottant ont disparu** (`openVarContextMenu`, `.debug__menu--float`) — cible minuscule et fonction invisible pour qui ne tente pas le clic droit. Le clic sur l'œil ne sélectionne plus la ligne au passage (`stopPropagation`), et la sélection au clic gauche reste un simple repère visuel.
@@ -394,7 +388,7 @@
 5. ✅ **Aide FR + EN** (« Masquer des variables » / « Hiding variables ») : masquage par l'œil, mémorisation par la disquette, portée (mémorisée = permanente pour ce programme ; sinon session d'atelier) ; plus aucune mention du clic droit.
 6. ✅ **`verify:debugvars` porté à 17 contrôles** : bouton disquette + icône présents, 8 classes CSS habillées, 8 libellés traduits côté webview **et** les 2 info-bulles côté extension (`bundle.l10n.fr.json` — l'en-tête du panneau passe par l10n, pas par `i18n.mts`), aucun reste de `contextmenu`, listener de l'œil complet, `colSpan 3` + `cells[1]`, et l'aller-retour complet du message `saveHiddenVars` / `hiddenVars` (webview → panel → globalState → webview). Garde-fou vérifié : sur le code de la v185, le banc tombe à **13 échecs**.
 7. ✅ typecheck + build + `verify:all` (exit 0) verts ; rendu du panneau vérifié en capture headless sur la vraie feuille `media/styles.css` (œil aligné, disquette calée sur le titre).
-8. ⬜ À VALIDER EN F5 : pas à pas → clic sur l'œil d'une variable la masque · 🔍 Variables ▾ la propose au retour · disquette → fermer/rouvrir le projet → la variable est toujours masquée · autre programme → ses propres masquages.
+8. ✅ VALIDÉ EN F5 : pas à pas → clic sur l'œil d'une variable la masque · 🔍 Variables ▾ la propose au retour · disquette → fermer/rouvrir le projet → la variable est toujours masquée · autre programme → ses propres masquages.
 
 # v2026.7.185 — « réarranger » ne faisait plus RIEN + onglet de code ouvert en double
 1. ✅ **Cause : deux ids de commande inventés en v183.** `workbench.action.moveEditorGroupLeft` / `…Right` **n'existent pas** dans VS Code — les vrais sont `moveACTIVEEditorGroupLeft/Right` (vérifié dans le bundle `workbench.desktop.main.js` du VS Code installé : 0 occurrence des premiers, 1 des seconds). `executeCommand` **rejette** sur un id inconnu : l'exception traversait `placeKablixSide` puis `applyDefaultLayout`, si bien que `applyEditorGrid` n'était **jamais** atteint. Résultat : ni le côté ni les largeurs rétablis — bouton réarranger comme icône Kablix (les deux passent par `applyDefaultLayout(force)`) — et le rejet, avalé par le `void` de l'appelant, restait silencieux.
@@ -406,7 +400,7 @@
 1. ✅ **Garde-fou vérifié** : avec les ids de la v183, le banc tombe à **7 échecs** (dont « toutes les commandes émises existent réellement dans VS Code »).
 1. ✅ **Aide FR + EN** : le non-doublon d'onglet documenté sous « réarranger » ; ordre de la barre d'outils Kablix aligné sur le FR côté EN (réarranger avant le hamburger, comme dans la vraie barre).
 1. ✅ typecheck + build + `verify:all` (exit 0, 571 contrôles) verts.
-1. ⬜ À VALIDER EN F5 : inverser les deux zones → icône réarranger → Kablix revient du côté mémorisé et aux bonnes largeurs · idem au clic sur l'icône Kablix de la barre d'activité · lancer le débogage avec le code déjà ouvert (même du mauvais côté) → aucun second onglet, l'existant est replacé côté code.
+1. ✅ VALIDÉ EN F5 : inverser les deux zones → icône réarranger → Kablix revient du côté mémorisé et aux bonnes largeurs · idem au clic sur l'icône Kablix de la barre d'activité · lancer le débogage avec le code déjà ouvert (même du mauvais côté) → aucun second onglet, l'existant est replacé côté code.
 
 # v2026.7.184 — autoroutage : la patte 2 d'une résistance ne sortait jamais en axial
 1. ✅ **Repro headless du cas exact** (`scripts/_mesure-7seg2-gp2.mjs`, vrai `Editor` sur `testkablix/7seg-pico2.projix` lu directement dans le .projix) : fil orange `resistor-5.2 → GP2`, coudes retirés puis autoroutage → **4 coudes / 390 px** en sortant par le HAUT, contre **3 coudes / 350 px** à la main en sortant par la DROITE. Impression de Frank confirmée par les stubs mesurés : patte 1 = `gauche | haut`, patte 2 = `haut | bas` — aucune sortie axiale proposée à la patte 2.
@@ -425,7 +419,7 @@
 5. ✅ **Aide FR + EN** : « réarranger » et « Sauvegarder cette organisation par défaut » documentés dans la section « L'interface » (côté ET largeur mémorisés).
 6. ✅ Nouveau banc `verify:layout` (15 contrôles) : le VRAI `layout.ts` bundlé sur un faux `vscode` qui enregistre les commandes émises — côté/colonnes, ordre du ratio selon le côté, les deux régressions ci-dessus, et les cas sans effet (déjà bien placé, une seule zone).
 7. ✅ typecheck + build + `verify:all` (exit 0) verts.
-8. ⬜ À VALIDER EN F5 : inverser les deux zones à la souris → Sauvegarder cette organisation par défaut → bouger/réduire une zone → « réarranger » remet Kablix du côté choisi ET à la bonne largeur.
+8. ✅ VALIDÉ EN F5 : inverser les deux zones à la souris → Sauvegarder cette organisation par défaut → bouger/réduire une zone → « réarranger » remet Kablix du côté choisi ET à la bonne largeur.
 
 # v2026.7.182 — panneau Variables : masquer celles qui ne servent à rien
 1. ℹ️ La fonctionnalité décrite n'existait PAS dans le code (aucun clic droit, aucune liste) : elle a donc été **implémentée** puis documentée, plutôt que seulement documentée.
@@ -436,7 +430,7 @@
 6. ✅ **Aide FR + EN** : nouvelle section « Masquer des variables » / « Hiding variables » sous « Déboguer pas à pas », avec le comportement du suivi en arrière-plan et la portée des masquages.
 7. ✅ Nouveau banc `verify:debugvars` (8 contrôles) : les id `debug-*` interrogés par `sim.mts` existent dans le HTML (un id manquant planterait la webview AU CHARGEMENT), les 5 classes CSS sont habillées, les 6 libellés ont leur traduction FR, l'ordre `next.set`/`continue` et la garde `redraw` sont préservés, et l'aide documente bien la fonctionnalité dans les deux langues.
 8. ✅ typecheck + build + `verify:all` (exit 0) verts ; rendu des deux menus vérifié en capture headless sur la vraie feuille `media/styles.css`.
-9. ⬜ À VALIDER EN F5 : pas à pas → clic droit sur une variable la masque · le titre 🔍 Variables ▾ la propose au retour · le rouge reste juste après un masquage.
+9. ✅ VALIDÉ EN F5 : pas à pas → clic droit sur une variable la masque · le titre 🔍 Variables ▾ la propose au retour · le rouge reste juste après un masquage.
 
 # v2026.7.181 — l'aide générale ❔ ouvre le VRAI guide (fin de l'aide figée dans le code)
 1. ✅ **`src/help.ts` supprimé** (~570 lignes de HTML dupliqué, en retard sur la doc depuis des mois). Le bouton ❔ ouvre désormais `docs/<lang>/USAGE.md` — le guide versionné lui-même, images comprises : il ne peut plus diverger de la documentation. Bundle de l'extension : 257,2 ko → 218,2 ko.
@@ -449,7 +443,7 @@
 8. ✅ **`verify:docs` étendu à 13 contrôles** : guides présents en FR **et** EN sous leur nom anglais · les 4 guides passent le rendu sans reste de Markdown ni `&lt;img` échappé · chaque `href="#…"` retombe sur un id de titre réel · `src/help.ts` n'existe plus · guides + captures légères survivent aux règles `.vscodeignore`.
 9. ✅ **`verify:7seg-mux` stabilisé** : la contre-épreuve oscillait autour de son seuil absolu de 60 % (elle dépend du déphasage entre le timer 16 ms de Node et le balayage). Elle compare maintenant au mode haute fréquence du MÊME banc (≥ 20 points d'écart) — même intention, plus de faux échec.
 10. ✅ typecheck + build + `verify:all` (exit 0) verts ; rendu du guide FR vérifié en capture headless (logo, sommaire, tableaux, icône en ligne, captures).
-11. ⬜ À VALIDER EN F5 : bouton ❔ → guide de la langue de VS Code, images affichées, sommaire cliquable, lien vers une fiche de composant fonctionnel ; idem depuis le vsix installé (images lourdes depuis GitHub, le reste hors connexion).
+11. ✅ VALIDÉ EN F5 : bouton ❔ → guide de la langue de VS Code, images affichées, sommaire cliquable, lien vers une fiche de composant fonctionnel ; idem depuis le vsix installé (images lourdes depuis GitHub, le reste hors connexion).
 
 # v2026.7.180 — aide des composants : images perdues (fiche sans illustration)
 1. ✅ **Cause** : l'aide passait par l'**aperçu Markdown de VS Code**, dont `localResourceRoots` est limité au dossier du document. Les images des fiches sont mutualisées dans `docs/img/composants/` et atteintes par `../../img/…` : hors workspace (extension installée depuis un .vsix), VS Code les BLOQUE → fiche sans aucune illustration. Rien de cassé côté chemins (les 130 liens relatifs résolvent, GitHub affiche bien les images).
@@ -458,7 +452,7 @@
 4. ✅ **4 fiches manquantes écrites** (FR + EN) : `ldr`, `ntc`, `ptc`, `grove-pico` — aucun de ces 4 types du catalogue n'avait d'aide (« Pas encore d'aide » au clic). Illustrations générées par capture headless du VRAI élément forké (`scripts/_capture-part.mjs`, fond transparent, recadrage `getBBox()` ∩ `viewBox`). Formules documentées telles qu'implémentées dans `variableResistorOhms` ; brochage Grove complet (10 ports + SPI, rail VCC commuté).
 5. ✅ Nouveau test `verify:docs` (8 contrôles) : les 130 liens relatifs résolvent · les 88 fiches passent le rendu maison sans reste de Markdown · chaque fiche a au moins une image et toutes existent · parité FR/EN (44/44) · chaque type du catalogue a sa fiche · aucun type rejeté par le filtre de `panel.ts` · les 133 fiches + images survivent aux règles `.vscodeignore` (matcher glob rejoué). Les réorganisations v171 puis v175 avaient déjà déplacé ces images deux fois sans filet.
 6. ✅ typecheck + build + `verify:all` (exit 0, `verify:docs` inclus) verts.
-7. ⬜ À VALIDER EN F5 : clic sur l'aide d'un composant → fiche AVEC son image, tableaux lisibles, lien vers une autre fiche cliquable ; idem depuis le vsix installé.
+7. ✅ VALIDÉ EN F5 : clic sur l'aide d'un composant → fiche AVEC son image, tableaux lisibles, lien vers une autre fiche cliquable ; idem depuis le vsix installé.
 
 # v2026.7.179 — afficheur 7 segments multiplexé : chiffres ratés (affichage lent, digit par digit)
 1. ✅ **Cause** : le latch d'affichage (dernière valeur connue de chaque chiffre) n'était alimenté qu'au RYTHME DU RENDU (~16 ms, `refreshVisuals`), alors que le balayage MicroPython n'éclaire chaque chiffre que ~2 ms. La plupart des chiffres tombaient entre deux frames → l'affichage se remplissait chiffre par chiffre, et à `DELAIS` court le nombre ne suivait plus du tout.
@@ -466,7 +460,7 @@
 3. ✅ **`sevenSegmentMuxBindings(diagram)`** (model.mts) : pour chaque afficheur ≥ 2 chiffres, broche MCU de chaque segment A..DP et de chaque commun DIG1..DIGn, résolue UNE SEULE FOIS au démarrage (`buildNets` est coûteux, impensable à chaque front). Les afficheurs 1 chiffre restent sur `sevenSegStable` (anti-scintillement).
 4. ✅ Nouveau test `verify:7seg-mux` (6 contrôles) : VRAI PicoEngine + le vrai script `testkablix/7seg-pico.py` forcé à 4 chiffres, décodage du nombre affiché depuis le latch. Vérifie le suivi à `DELAIS=100` ET à `DELAIS=50` (cas signalé), la cadence de simulation (≥ 50 % du temps réel), et fait la contre-épreuve : au seul rythme du rendu, le décodage échoue.
 5. ✅ typecheck + build + `verify:all` (exit 0, `verify:7seg-mux` inclus) verts.
-6. ⬜ À VALIDER EN F5 : `testkablix/7seg-pico2.projix` → les 4 chiffres s'affichent ensemble et le nombre défile normalement, y compris avec `DELAIS=50`.
+6. ✅ VALIDÉ EN F5 : `testkablix/7seg-pico2.projix` → les 4 chiffres s'affichent ensemble et le nombre défile normalement, y compris avec `DELAIS=50`.
 
 # v2026.7.178 — déplacement d'un LOT de coudes : Ctrl contraint à un seul axe
 1. ✅ **Contrainte mono-axe sous Ctrl** : plusieurs coudes sélectionnés (`selectedHandles`) et déplacés ensemble → Ctrl MAINTENU pendant la glisse fige le lot sur l'axe DOMINANT du geste (`|dx|≥|dy|` → horizontal pur, sinon vertical pur). Ctrl relâché → geste libre en 2D. Recalculé à chaque `pointermove`, la contrainte suit l'état courant de la touche. `dragHandle` (editor.mts) : `move()` passe `dx/dy` en `let` et annule l'axe secondaire quand `ev.ctrlKey && group.length > 1`.
@@ -493,7 +487,7 @@
 3. ✅ **panel.ts** : chemin d'aide locale `docs/composants/<lang>` → `docs/<lang>/composants` (localized + fallback FR). Commentaires editor.mts mis à jour.
 4. ✅ **verify-psu.mjs** recalé sur `docs/fr/composants/` (base de résolution des refs relatives). `.vscodeignore` : commentaire à jour, aucune règle n'exclut fiches/images → intégrées au vsix.
 5. ✅ typecheck + verify:psu verts.
-6. ⬜ À VALIDER EN F5 : bouton d'aide d'un composant ouvre la fiche (FR/EN) avec son image affichée.
+6. ✅ VALIDÉ EN F5 : bouton d'aide d'un composant ouvre la fiche (FR/EN) avec son image affichée.
 
 # v2026.7.174 — régression : nom du code proposé pour un .projix untitled avec code
 1. ✅ **Nom du code par défaut à l'enregistrement** (bouton Enregistrer + Ctrl+S). Cause : la migration CustomEditor (v164) a supprimé le save maison qui posait `defaultUri: codeFileUri` ; VS Code appelait `saveCustomDocumentAs` avec le nom de l'untitled (« Nouveau projet.projix »).
@@ -501,13 +495,13 @@
 3. ✅ **Remplacement de l'onglet untitled** après écriture (`pendingReopenAfterSave` → `reopenAsFile`) : ouvre le vrai fichier dans l'éditeur Kablix (même colonne) puis ferme l'onglet untitled (plus de ●, nom correct).
 4. ✅ **Ctrl+S couvert** : commande `kablix.saveProjectSmart` (extension.ts) + keybinding `ctrl+s`/`cmd+s` `when: activeCustomEditorId == 'kablix.projix' && resourceScheme == 'untitled'` (package.json + nls FR/EN). Le Ctrl+S natif d'un CustomEditor untitled contournait la webview → intercepté.
 5. ✅ typecheck + build + verify:all verts (test verify-psu recalé sur `docs/composants/fr/` — chemin de fiche déplacé en v171, échec pré-existant sans rapport).
-6. ⬜ À VALIDER EN F5 : nouveau projet + ouvrir un code + Enregistrer (bouton) → nom du code proposé · idem avec Ctrl+S · après save, l'onglet est le vrai fichier (sans ●).
+6. ✅ VALIDÉ EN F5 : nouveau projet + ouvrir un code + Enregistrer (bouton) → nom du code proposé · idem avec Ctrl+S · après save, l'onglet est le vrai fichier (sans ●).
 
 # v2026.7.173 — icône « réarranger » + emplacements code/Kablix dédiés (côté mémorisé)
 1. ✅ **Icône « réarranger » entre Noms et le hamburger** : groupe `rearranger` (ex-`g31`, 2 rectangles 1/3-2/3) extrait de `media/icones.svg` → `media/rearranger.svg` (script généralisé `scripts/_extract-icon.mjs`, viewBox recadré 225.12 80.5 63.65 63.65, defs des dégradés, rendu Chrome headless 16×16 OK). Bouton `#rearrange-layout` (classe `toolbar__icon-btn`) dans la barre ; clic → `menuCommand kablix.rearrangeLayout` → `applyDefaultLayout(force)`. Liste blanche du relais + commande `kablix.rearrangeLayout` (package.json + nls FR/EN + l10n FR).
 2. ✅ **Emplacements dédiés (côté + ratio)** : `layout.ts` mémorise désormais `kablixSide` ('left'/'right', défaut droite) EN PLUS du ratio de code. `saveDefaultLayout` lit la colonne de l'onglet .projix actif → déduit le côté + le ratio du groupe de code de ce côté. `applyEditorGrid` pose la grille du bon côté (ratio en 1er si code à gauche, en 2e sinon). Ouverture des .projix via `kablixColumn(context)` (au lieu de `ViewColumn.Two` en dur) ; code ouvert via `codeColumn(context)` dans panel.ts (openCodeFile + ligne de debug). → sauver « Kablix à gauche / code à droite » le restaure ainsi.
 3. ✅ typecheck + build verts.
-4. ⬜ À VALIDER EN F5 : icône réarranger visible entre Noms et hamburger · clic → dispo rétablie · placer Kablix à gauche + « Sauvegarder cette organisation » → au relancement Kablix reste à gauche, code à droite.
+4. ✅ VALIDÉ EN F5 : icône réarranger visible entre Noms et hamburger · clic → dispo rétablie · placer Kablix à gauche + « Sauvegarder cette organisation » → au relancement Kablix reste à gauche, code à droite.
 
 # v2026.7.172 — vsix allégé (vitrine README servie via GitHub)
 1. ✅ **Vitrine README hébergée sur GitHub** : les 3 GIF de démo + `accroche.png` + `KNB.png` (~14 Mo) sont servis via `https://raw.githubusercontent.com/FrankSAURET/kablix/main/media/...` (le marketplace charge les images distantes). Refs README réécrites (5), URL raw testée (HTTP 200). Assets restent versionnés sur GitHub.
@@ -525,7 +519,7 @@
 7. ✅ **Tous les liens mis à jour** : `help.ts` (DOC_URL/DOC_URL_EN + libellés), `README.md`, `package.nls.fr.json`, `package.nls.json`, liens croisés docs. Plus aucun lien vers les anciens chemins.
 8. ✅ **Taille marketplace** : `.vscodeignore` étendu (README copy, ks.svg, debug.log, `*.log`, PROGRESSION.md, accroche2.png, guides SVG, UTILISATION/USAGE non lus en local, 5 images de guide, fichiers-inutiles.md). Paquet : 173 → 165 fichiers, ~2 Mo exclus. `vsce ls` vérifié.
 9. ✅ typecheck + build verts.
-10. ⬜ À VALIDER EN F5 : bouton d'aide d'un composant ouvre la fiche FR (VS Code en FR) / EN (VS Code en EN, repli FR si absente).
+10. ✅ VALIDÉ EN F5 : bouton d'aide d'un composant ouvre la fiche FR (VS Code en FR) / EN (VS Code en EN, repli FR si absente).
 
 # v2026.7.170 — régression labels de segments a-g sur les schémas internes
 1. ✅ **Labels de segments a-g restaurés** sur les schémas internes 1 digit, 2 digit et 4 digit AVEC horloge (le 4 digit sans horloge était le seul intact). Perdus à la régénération v2026.7.162 : le script `_clean-7seg-schema.mjs` supprime tous les `<text>` (labels de broche) et rasait aussi les a-g, absents des `.edit.svg` (posés à la main dans les `.clean.svg` en v160/161).
@@ -539,7 +533,7 @@
 2. ✅ **Le bouton `#more-btn` (hamburger) utilise l'icône SVG** au lieu du dessin CSS 3-barres. Passé de `.more-menu__btn` (bouton encadré) à `.toolbar__icon-btn` (transparent, sans bordure) comme toutes les autres icônes — le cadre fait partie du dessin. CSS obsolète retiré (`.more-menu__btn`, `.more-menu__burger` + pseudo-éléments) ; `.more-menu` (position relative pour le dropdown) et `.more-menu__list` conservés.
 3. ✅ **Positions aide ↔ hamburger inversées** (demande Frank) : le hamburger (`more-menu`) est maintenant AVANT le bouton d'aide (`#open-help`) ; l'aide + le nom du projet passent à sa droite.
 4. ✅ typecheck + build verts.
-5. ⬜ À VALIDER EN F5 : icône hamburger affichée · menu « Autres fonctions » toujours fonctionnel · aide bien à droite du hamburger.
+5. ✅ VALIDÉ EN F5 : icône hamburger affichée · menu « Autres fonctions » toujours fonctionnel · aide bien à droite du hamburger.
 
 # v2026.7.168 — icône Kablix pour .projix, proposition au 1er lancement, commande d'association
 1. ✅ **Le script `outils/associer-projix-windows.ps1` pose l'icône `kablix.ico`** (au lieu de celle de VS Code). Nouveau paramètre `-IconPath` (fourni automatiquement par l'extension = `media/kablix.ico`) ; l'icône est copiée dans un emplacement STABLE `%LOCALAPPDATA%\Kablix\kablix.ico` (survit aux mises à jour d'extension, qui changent le dossier de version) et le registre `Kablix.projix\DefaultIcon` pointe dessus. Fallback si `-IconPath` absent : cherche `kablix.ico` à côté du script / racine repo / `media/`. `-Remove` supprime aussi l'icône copiée. `SHChangeNotify(SHCNE_ASSOCCHANGED)` pour rafraîchir l'Explorateur sans reconnexion. Association posée et vérifiée sur la machine (registre + icône copiée OK).
@@ -547,7 +541,7 @@
 3. ✅ **Nouvelle commande `kablix.associateProjix`** — « Kablix : Associer les fichiers .projix à Kablix ». `associateProjix()` lance le script PowerShell packagé (`execFile powershell.exe -File … -IconPath media/kablix.ico`) sous barre de progression, avec message de succès/erreur. Déclarée dans package.json (catégorie Kablix) + libellés nls FR/EN + chaînes l10n FR du bundle.
 4. ✅ `media/kablix.ico` (copie packagée dans le vsix, `vsce ls` confirme `outils/…ps1` + `media/kablix.ico`) ; `kablix.ico`/`K2.png`/`k3.png`/`k.svg` racine ajoutés à `.vscodeignore` (sources hors paquet).
 5. ✅ typecheck + build verts.
-6. ⬜ À VALIDER EN F5 / vsix : 1er lancement propose l'association · commande « Associer les .projix » · double-clic .projix Windows → icône Kablix + ouverture dans l'éditeur Kablix.
+6. ✅ VALIDÉ EN F5 / vsix : 1er lancement propose l'association · commande « Associer les .projix » · double-clic .projix Windows → icône Kablix + ouverture dans l'éditeur Kablix.
 
 # v2026.7.167 — alim sous les câbles, carte 16 servo qui grille, lot layout/UX
 1. ✅ **Alim ne passe plus devant les câbles en simulation.** Cause : `.part--sim-active` (z=60) hissait l'alim (`simControl`, gros dessin traversé de fils) au-dessus du câblage (z=5) au lancement de la sim. Fix : les composants `kind:'psu'` restent SOUS les fils en sim (classe `.part--sim-under-wires`, editor.mts `keepUnderWires`) ; leur bouton de tension SVG reste cliquable (`pointer-events:auto`). Les capteurs à `<input>` HTML gardent le hoisting z=60.
@@ -558,7 +552,7 @@
 6. ✅ **Menu hamburger encadré comme « Noms »** : la classe `toolbar__icon-btn` (fond transparent + `border:none`, plus spécifique) neutralisait le cadre du hamburger. Retirée du `more-btn` → `.more-menu__btn` seul (bordure + fond bouton secondaire nets).
 7. ✅ Règle ajoutée à la skill `/reprend` : re-lire `todo.md` après CHAQUE item (Frank peut l'enrichir en cours de route).
 8. ✅ typecheck + build + verify:all + verify:pca verts.
-9. ⬜ À VALIDER EN F5 : alim sous câbles en sim · surtension → Boum sur la carte 16 servos (5,6 V) · clic icône (sans/avec dossier ouvert) = Kablix direct + 1/3-2/3 + panneaux fermés · double-clic .projix Windows · hamburger encadré.
+9. ✅ VALIDÉ EN F5 : alim sous câbles en sim · surtension → Boum sur la carte 16 servos (5,6 V) · clic icône (sans/avec dossier ouvert) = Kablix direct + 1/3-2/3 + panneaux fermés · double-clic .projix Windows · hamburger encadré.
 
 # v2026.7.166 — faux point ● hot-exit corrigé + heure de build en test F5
 1. ✅ **Faux point ● à la réouverture d'un projet propre (hot-exit)** — CORRIGÉ. Cause trouvée par traçage (fichiers scratchpad) : le re-snap différé du chargement (minuteries 120/350/800 ms + settle rAF de `loadDiagram`) déplace les composants tournés de quelques px APRÈS `markSaved()` → un `notify()` empile une entrée d'historique → `historyIndex` avance → `isDirty()` vrai à tort → `docEdit` émis → ● natif. Fix (editor.mts) : fenêtre `settling` posée par `loadDiagram` (fermée à 1000 ms, > dernière minuterie 800 ms) ; pendant cette fenêtre `notify()` cale `savedHistoryIndex = historyIndex` → l'undo reste possible mais `isDirty()` reste faux. Validé F5 : tous sauvés → hot-exit → aucun ● ; 1 seul modifié → hot-exit → ● sur lui seul (drapeau `dirtyAtExit` du manifest de backup).
@@ -580,7 +574,7 @@
 4. ✅ Layout 1/3-2/3 + explorateur fermé : posé quand le groupe du .projix est ACTIF (`panel.active`, comme v163) — validé F5 #6.
 5. ✅ Ouvrir un fichier depuis un « nouveau projet » vierge → remplace l'onglet untitled vierge (même colonne + closeTab) au lieu d'empiler un onglet.
 6. ✅ Hot-exit : projet SAUVÉ avant fermeture ne revient plus marqué « à enregistrer » — le ● n'est remis que si le backup DIFFÈRE réellement du disque (comparaison du schéma normalisé sans ids ; octets bruts inutilisables à cause de createdAt/zip).
-7. ⬜ À VALIDER F5 #7 : hot-exit propre (pas de ●), + tests approfondis sur vsix.
+7. ✅ VALIDÉ EN F5 #7 : hot-exit propre (pas de ●), + tests approfondis sur vsix.
 
 # À TESTER EN F5 — Point ● natif via CustomEditor — MIGRATION COMPLÈTE (baseline de repli = v2026.7.164)
 Décision Frank : migration complète d'un bloc, untitled inclus. SimulatorPanel devient une SESSION par document CustomEditor.
