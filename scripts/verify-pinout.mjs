@@ -39,12 +39,20 @@ const bundlePath = join(ROOT, 'dist', 'webview.js');
 if (existsSync(bundlePath)) {
 	const bundle = readFileSync(bundlePath, 'utf8');
 	const bundleMo = bundle.length / 1024 / 1024;
-	// Repère : un fragment présent dans le poster mega mais nulle part ailleurs.
+	// Repère : un ÉCHANTILLON d'ids du poster mega. Un seul id ne suffit pas — depuis
+	// que les posters passent par SVGO au build (v2026.7.225), leurs ids sont des
+	// `clipPathN` génériques qu'un SVG de composant peut porter aussi, et le repère
+	// unique donnait un faux positif. Si les posters étaient réinlinés, la quasi-
+	// totalité de l'échantillon se retrouverait dans le bundle ; quelques collisions
+	// isolées sont normales.
 	const megaPoster = readFileSync(join(distPinout, 'mega.svg'), 'utf8');
-	const idMatch = megaPoster.match(/id="([A-Za-z][\w-]{8,})"/);
-	const marker = idMatch ? idMatch[1] : null;
+	const ids = [...new Set([...megaPoster.matchAll(/id="([A-Za-z][\w-]{8,})"/g)].map((m) => m[1]))];
+	const pas = Math.max(1, Math.floor(ids.length / 20));
+	const echantillon = ids.filter((_, i) => i % pas === 0).slice(0, 20);
+	const trouves = echantillon.filter((id) => bundle.includes(`"${id}"`)).length;
 	ok('bundle : markup des posters ABSENT de webview.js',
-		marker !== null && !bundle.includes(marker), 'repère=' + marker);
+		echantillon.length >= 10 && trouves <= echantillon.length / 4,
+		`${trouves}/${echantillon.length} ids du poster présents dans le bundle`);
 	// Garde-fou de poids : le bundle pesait 7,9 Mo avec les posters inlinés.
 	ok('bundle : webview.js sous 6 Mo (posters sortis du bundle)', bundleMo < 6,
 		bundleMo.toFixed(2) + ' Mo');

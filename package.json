@@ -1,7 +1,7 @@
 {
   "name": "kablix",
   "displayName": "Kablix",
-  "version": "2026.7.224",
+  "version": "2026.7.225",
   "description": "%kablix.description%",
   "publisher": "franksauret",
   "author": {
@@ -284,6 +284,7 @@
     "@vscode/vsce": "3.9.2",
     "esbuild": "0.28.0",
     "patch-package": "^8.0.1",
+    "svgo": "^4.0.2",
     "typescript": "6.0.3"
   },
   "l10n": "./l10n"

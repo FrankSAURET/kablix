@@ -4,10 +4,13 @@
 .claude/**
 src/**
 scripts/**
+outils/**
+!outils/associer-projix-windows.ps1
 patches/**
 node_modules/**
 esbuild.js
 tsconfig.json
+package-lock.json
 .gitignore
 .vscodeignore
 CLAUDE.md
@@ -15,82 +18,66 @@ PROGRESSION.md
 **/*.map
 **/.git/**
 
-# --- Doublons / journaux / assets orphelins (repérés à l'audit v171) ---
-README copy.md
-ks.svg
-debug.log
-*.log
+# --- Journaux ---
+**/*.log
 
 # --- dist : les deux bundles esbuild + les posters de brochage ---
 # dist/pinout/*.svg : posters du bouton ☢, volontairement HORS du bundle
-# (3,7 Mo chargés à chaque ouverture sinon) et récupérés par fetch à la demande.
+# (chargés à chaque ouverture sinon) et récupérés par fetch à la demande.
 # Sans cette exception le vsix les perdrait et le bouton ☢ resterait sans effet.
+# Ils sont passés à SVGO au build (esbuild.js) : 3,6 Mo → 1,8 Mo.
 dist/**
 !dist/extension.js
 !dist/webview.js
 !dist/pinout/**
 
 # --- Fichiers de travail / captures / archives ---
+# NB : les motifs sont évalués sur le chemin COMPLET — un motif sans « **/ » ne
+# vaut que pour la racine (« *.docx » laissait passer docs/Recette-de-test.docx).
 svg/**
 svg retouche/**
-*.edit.svg
-*.vsix
-*.rar
-*.mjs
+**/*.edit.svg
+**/*.vsix
+**/*.rar
+**/*.zip
+**/*.mjs
+**/*.docx
 preview-*.png
 Routage*.png
 .tmp-*
-Todo*.txt
-todo*.md
-Composants.md
+# suivi interne : todo.md, « Todo temp.md »… (la casse varie, d'où la classe)
+[Tt]odo*.md
+[Tt]odo*.txt
 test-assets/**
 # testkablix/ : recette de test par composant — distribuée via GitHub, pas dans le vsix.
 testkablix/**
 
-# --- Images sources (l'icône du paquet est media/icon.png, seul PNG restant) ---
-# Kablix.webp (racine) N'EST PAS exclue : les guides USAGE l'affichent en tête.
-images/**
-K.webp
-KN&B.webp
-# kablix.ico racine = source ; la copie packagée est media/kablix.ico.
-kablix.ico
-k.svg
-
 # --- Ressources non utilisées à l'exécution ---
+# Kablix.webp (racine) N'EST PAS exclue : les guides USAGE l'affichent en tête.
 # parts/ : composants d'exemple importables — distribués via GitHub, pas dans le vsix.
 parts/**
-# media/parts + media/icones.svg + media/Gomme.webp : sources SVG/image non chargées par le code.
+# media/parts + media/icones.svg : sources SVG non chargées par le code.
 media/parts/**
 media/icones.svg
-media/Gomme.webp
-media/Boum.gif
-# media/accroche2.webp : orphelin (aucun README/doc/code ne le charge).
-media/accroche2.webp
 # Vitrine README : les GIF de démo (~12,2 Mo) restent hors vsix, servis via URL
 # raw.githubusercontent (le marketplace charge les images distantes) — le README
 # est la seule vitrine qui en a encore besoin, le marketplace ne lisant pas de
 # vidéo. Les guides, eux, affichent les mêmes démos en MP4 H.264 EMBARQUÉ
 # (media/*.mp4), pour rester animés hors-ligne. Le WebM a été abandonné en
 # v2026.7.193 : l'Electron de VS Code n'a pas de démuxeur Matroska, donc AUCUN
-# .webm n'y est lisible, quel que soit son codec — media/*.webm est exclu.
+# .webm n'y est lisible, quel que soit son codec.
+media/*.gif
 media/*.webm
 # accroche.webp n'est affichée que par le README (marketplace) → hors paquet.
 media/accroche.webp
-media/demarrer.gif
-media/dessiner.gif
-media/simuler.gif
 # media/KNB, BarreDessin, BarreSimulation, barre kablix, boutons trie, interface :
 # captures des guides USAGE — EMBARQUÉES (v2026.7.181, toutes en WebP depuis la
-# v2026.7.187 : ~1 Mo de PNG en moins) ; l'aide ❔ sert le guide local et doit
-# rester lisible hors-ligne.
+# v2026.7.187) ; l'aide ❔ sert le guide local et doit rester lisible hors-ligne.
 # examples/ : non référencés par l'extension (disponibles sur GitHub).
 examples/**
 # firmware : seul rp2040_ram.ld sert (script de lien de la compilation Pico).
 firmware/avr/**
 firmware/**/*.c
-# docs de développement. Les fiches docs/{fr,en}/composants/*.md, docs/img/composants/
-# et les guides docs/{fr,en}/*.md restent : ils SONT l'aide locale (boutons ❔).
-docs/DEBOGAGE.md
-docs/Recette-de-test.docx
-# fiche d'audit interne (liste de fichiers inutiles) : hors paquet.
-docs/fichiers-inutiles.md
+# docs : les fiches docs/{fr,en}/composants/*.md, docs/img/composants/ et les guides
+# docs/{fr,en}/*.md restent — ils SONT l'aide locale (boutons ❔). Seuls les
+# documents de travail (recette de test .docx) sont exclus, via *.docx ci-dessus.

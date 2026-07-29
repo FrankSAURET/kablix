@@ -5,6 +5,7 @@
 const esbuild = require('esbuild');
 const fs = require('fs');
 const path = require('path');
+const { optimizeSvg } = require('./scripts/svgo-preset');
 
 const production = process.argv.includes('--production');
 const watch = process.argv.includes('--watch');
@@ -29,11 +30,30 @@ const PINOUTS = {
 function copyPinouts() {
   const dir = path.join(__dirname, 'dist', 'pinout');
   fs.mkdirSync(dir, { recursive: true });
+  let avant = 0, apres = 0;
   for (const [out, src] of Object.entries(PINOUTS)) {
-    fs.copyFileSync(path.join(__dirname, src), path.join(dir, out));
+    const source = fs.readFileSync(path.join(__dirname, src), 'utf8');
+    const { data } = optimizeSvg(source, out);
+    avant += source.length;
+    apres += data.length;
+    fs.writeFileSync(path.join(dir, out), data);
   }
-  console.log(`[pinout] ${Object.keys(PINOUTS).length} posters copiés dans dist/pinout/`);
+  const ko = (n) => `${(n / 1024).toFixed(0)} Ko`;
+  console.log(`[pinout] ${Object.keys(PINOUTS).length} posters copiés dans dist/pinout/ (${ko(avant)} → ${ko(apres)})`);
 }
+
+// Les dessins de composants sont inlinés en texte dans webview.js : les optimiser
+// à la volée allège le bundle (~40 %) sans toucher aux sources retouchées.
+const svgoLoader = {
+  name: 'svgo',
+  setup(build) {
+    build.onLoad({ filter: /\.svg$/ }, (args) => {
+      const source = fs.readFileSync(args.path, 'utf8');
+      const { data } = optimizeSvg(source, path.basename(args.path));
+      return { contents: data, loader: 'text' };
+    });
+  },
+};
 
 /** @type {import('esbuild').BuildOptions} */
 const extensionConfig = {
@@ -57,8 +77,10 @@ const webviewConfig = {
   platform: 'browser',
   format: 'iife',
   target: 'es2020',
-  // Les dessins de cartes (Pico / Pico W) sont importés comme texte SVG.
+  // Les dessins de cartes (Pico / Pico W) sont importés comme texte SVG, optimisés
+  // au passage par svgoLoader (le loader texte reste le repli si le plugin saute).
   loader: { '.svg': 'text' },
+  plugins: [svgoLoader],
   define: { __BUILD_TIME__: JSON.stringify(BUILD_TIME) },
   sourcemap: !production,
   minify: production,
