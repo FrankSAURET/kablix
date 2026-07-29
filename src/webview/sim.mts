@@ -675,8 +675,20 @@ let speedSimStart = 0;
 let refreshAccum = 0;
 let refreshCount = 0;
 let speedBusyStart = 0;
+// Le démarrage est LENT par nature — compilation JIT du moteur, premier rendu
+// complet, chargement de la police des afficheurs — et faisait clignoter le badge
+// une seconde à chaque lancement, sur des schémas qui tiennent ensuite le temps
+// réel sans effort. Un ralenti passager n'intéresse personne : on ignore la
+// première fenêtre puis on exige deux fenêtres lentes d'affilée. Le badge met donc
+// ~3 s à apparaître, mais quand il apparaît, il dit vrai.
+const SPEED_WARMUP_WINDOWS = 1;
+const SPEED_SLOW_STREAK = 2;
+let speedWindows = 0;
+let speedSlowStreak = 0;
 function resetSpeedBadge(): void {
   speedWallStart = 0;
+  speedWindows = 0;
+  speedSlowStreak = 0;
   simSpeedEl.hidden = true;
 }
 function updateSpeedBadge(): void {
@@ -708,8 +720,14 @@ function updateSpeedBadge(): void {
   // Le ralenti VOLONTAIRE (menu 🐢) n'est pas un défaut : on compare au réglage.
   const wanted = Number(speedSelect.value) || 1;
   const slow = ratio < SPEED_WARN * wanted;
-  simSpeedEl.hidden = !slow;
-  if (slow) {
+  speedWindows++;
+  // Les fenêtres d'échauffement sont mesurées mais ne comptent PAS dans la série :
+  // sinon un démarrage lent de deux secondes suffirait encore à faire clignoter le
+  // badge. Une seule fenêtre rapide, elle, l'éteint aussitôt.
+  if (speedWindows > SPEED_WARMUP_WINDOWS) speedSlowStreak = slow ? speedSlowStreak + 1 : 0;
+  const afficher = slow && speedSlowStreak >= SPEED_SLOW_STREAK;
+  simSpeedEl.hidden = !afficher;
+  if (afficher) {
     const pc = (ms: number): string => Math.round((ms / wall) * 100).toString();
     simSpeedEl.textContent = t('Slowed down: {0}× real time', ratio.toFixed(2).replace('.', ','));
     simSpeedEl.title =

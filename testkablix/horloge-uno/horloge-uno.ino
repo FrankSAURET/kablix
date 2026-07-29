@@ -7,7 +7,7 @@
 // resistance : ils restent allumes en permanence, comme sur une vraie horloge.
 
 const uint8_t SEG_PINS[7] = { 2, 3, 4, 5, 6, 7, 8 };   // a, b, c, d, e, f, g
-const uint8_t DIGIT_PINS[4] = { 10, 11, 12, 13 };      // chiffre 1..4
+const uint8_t DIGIT_PINS[4] = { 10, 11, 12, 9 };      // chiffre 1..4
 
 // Cathode commune : segment allume a 1, chiffre actif a 0.
 const uint8_t SEG_ON = HIGH;

@@ -191,6 +191,48 @@ check('le badge existe dans la barre d\'état', /id="sim-speed"[^>]*hidden/.test
 const css = readFileSync(join(root, 'media/styles.css'), 'utf8');
 check('le badge a son style (et reste masqué par défaut)', /\.sim-speed \{/.test(css) && /\.sim-speed\[hidden\]/.test(css));
 
+// Anti-clignotement : le démarrage (JIT du moteur, premier rendu, police des
+// afficheurs) fait toujours une première seconde lente. La logique du badge est
+// rejouée ici telle qu'elle est écrite dans sim.mts, sur des scénarios de mesures.
+{
+  const src = /const SPEED_WARMUP_WINDOWS = (\d+);[\s\S]*?const SPEED_SLOW_STREAK = (\d+);/.exec(sim);
+  const [warmup, streakMin] = src ? [Number(src[1]), Number(src[2])] : [0, 1];
+  /** Rejoue une suite de fenêtres (true = lente) et rend les états du badge. */
+  const rejoue = (fenetres) => {
+    let windows = 0;
+    let streak = 0;
+    return fenetres.map((slow) => {
+      windows++;
+      if (windows > warmup) streak = slow ? streak + 1 : 0;
+      return slow && streak >= streakMin;
+    });
+  };
+  check(
+    'démarrage lent une seconde puis normal : le badge ne s\'allume jamais',
+    rejoue([true, false, false, false]).every((v) => v === false),
+    'c\'est exactement le cas relevé par Frank (0,77× pendant 1 s au lancement)',
+  );
+  check(
+    'démarrage lent DEUX secondes puis normal : toujours rien',
+    rejoue([true, true, false, false]).every((v) => v === false),
+  );
+  check(
+    'ralenti durable : le badge finit par s\'allumer (et le reste)',
+    rejoue([true, true, true, true, true]).slice(-2).every((v) => v === true),
+  );
+  check(
+    'une seule fenêtre rapide suffit à éteindre le badge',
+    rejoue([true, true, true, true, false]).at(-1) === false,
+  );
+  check(
+    'schéma sain : le badge ne s\'allume pas',
+    rejoue([false, false, false, false]).every((v) => v === false),
+  );
+}
+check(
+  'la fenêtre d\'échauffement et la série sont remises à zéro au lancement',
+  /function resetSpeedBadge\(\): void \{[\s\S]{0,300}speedWindows = 0;[\s\S]{0,100}speedSlowStreak = 0;/.test(sim),
+);
 check(
   'l\'infobulle du badge donne la répartition moteur / rendu / navigateur',
   /simSpeedEl\.title =[\s\S]{0,400}t\('Engine'\)[\s\S]{0,200}t\('Rendering'\)[\s\S]{0,200}t\('Browser'\)/.test(sim)
