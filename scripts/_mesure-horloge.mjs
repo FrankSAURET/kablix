@@ -47,6 +47,13 @@ const DIG = ['10', '11', '12', '13'];
 
 const mesure = async (label, onUpdate) => {
   const engine = new AvrEngine(program, res.payload.debug);
+  // Nombre de TRANCHES par seconde : la boucle se replanifie par MessageChannel
+  // dès qu'elle a atteint sa cible. Si elle ne prend qu'un tout petit bout de
+  // temps simulé à chaque tour, le surcoût fixe du tour (now(), deadline, yield,
+  // flushRx) est payé des milliers de fois pour rien.
+  let tours = 0;
+  const boucle = engine.loop;
+  engine.loop = () => { tours++; boucle(); };
   let fronts = 0;
   engine.onUpdate = () => {
     fronts++;
@@ -60,8 +67,10 @@ const mesure = async (label, onUpdate) => {
   const sim = engine.simulatedMs();
   engine.dispose();
   const busy = engine.busyMs?.() ?? 0;
+  const parTour = tours ? (sim / tours) * 1000 : 0; // temps simulé produit par tranche (µs)
   console.log(
     `${label} : ratio ${(sim / wall).toFixed(2)}× · occupation CPU ${(100 * busy / wall).toFixed(0)} %`
+    + ` · ${Math.round(tours / (wall / 1000))} tranches/s (${parTour.toFixed(0)} µs simulées chacune)`
     + ` · ${Math.round(fronts / (wall / 1000))} fronts GPIO/s`
   );
   return sim / wall;

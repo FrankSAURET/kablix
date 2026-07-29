@@ -1027,14 +1027,19 @@ export class AvrEngine implements SimEngine {
       // Plafond temps réel : ne jamais bloquer le thread plus qu'une frame, sinon
       // le compositeur ne rafraîchit pas le calque transformé du canvas et
       // l'affichage ne bouge qu'à l'arrêt/la pause. Vérif espacée (coût de now()).
+      // (Un « noyau chaud » sans ces tests, exécuté par paquets de 256
+      // instructions, a été essayé et MESURÉ : 1,24× contre 1,23× pour la boucle
+      // ci-dessous, soit rien du tout — V8 prédit parfaitement des tests dont
+      // l'issue ne change jamais. Ne pas y revenir : cf. v2026.7.223.)
+      const cpu = this.cpu;
       let guard = 0;
-      while (this.cpu.cycles < deadline && !this.isPaused) {
-        avrInstruction(this.cpu);
-        this.cpu.tick();
+      while (cpu.cycles < deadline && !this.isPaused) {
+        avrInstruction(cpu);
+        cpu.tick();
         // Actions d'entrée programmées (ECHO ultrason) à échéance en temps simulé.
         if (this.scheduled.length > 0) this.fireScheduled();
         if ((++guard & 0x1fff) === 0 && performance.now() - started > MAX_FRAME_MS) break;
-        const pcBytes = this.cpu.pc * 2;
+        const pcBytes = cpu.pc * 2;
         // Points d'arrêt : test du PC (en octets) après chaque instruction.
         if (this.breakpoints.size > 0) {
           if (pcBytes !== this.skipBreakAddr) this.skipBreakAddr = null;
@@ -1049,7 +1054,7 @@ export class AvrEngine implements SimEngine {
         // la pile revenue au niveau de départ (les appels sont franchis d'un bloc).
         if (this.stepping) {
           const line = this.lineForPc(pcBytes);
-          if (line !== undefined && line !== this.stepStartLine && this.cpu.SP >= this.stepStartSp) {
+          if (line !== undefined && line !== this.stepStartLine && cpu.SP >= this.stepStartSp) {
             this.stepping = false;
             this.pause(); // émet l'état (isPaused devient vrai)
             break;
