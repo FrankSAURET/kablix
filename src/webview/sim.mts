@@ -92,6 +92,8 @@ import {
   adcDividerLevels,
   variableResistorOhms,
   VARIABLE_RESISTOR_TYPES,
+  beginModelFrame,
+  endModelFrame,
   type Part,
   type Pca9685Binding,
   type SevenSegmentMuxBinding,
@@ -778,7 +780,26 @@ function psuLiveVolts(psuId: string): number | null {
   return Number.isFinite(v) ? v : null;
 }
 
+/**
+ * Une frame de rendu interroge le modèle composant par composant et CHAQUE
+ * helper rebâtissait la netlist (et le graphe résistif) pour lui seul : sur un
+ * schéma de 60 composants, ~15 ms par frame — tout le budget d'image, dont le
+ * moteur avait besoin (d'où le badge « ralenti »). Le schéma ne peut pas changer
+ * pendant ce parcours synchrone : on ouvre le cache de frame du modèle, qui ne
+ * bâtit alors qu'UNE netlist pour tout le monde. `finally` : un composant qui
+ * lève ne doit pas laisser le cache ouvert (netlist périmée à la frame suivante).
+ */
 function refreshVisuals(): void {
+  if (!engine) return;
+  beginModelFrame(editor.diagram);
+  try {
+    refreshVisualsInner();
+  } finally {
+    endModelFrame();
+  }
+}
+
+function refreshVisualsInner(): void {
   if (!engine) return;
   const read = (name: string): boolean => engine!.readDigital(name);
   const servoTargets = new Map(servoBindings(editor.diagram).map((b) => [b.partId, b.mcuPin]));
@@ -1679,7 +1700,14 @@ function bindInputs(): void {
 }
 
 function rebind(): void {
-  bindInputs();
+  // Même raison que refreshVisuals : bindInputs enchaîne une vingtaine de
+  // `*Bindings(diagram)`, chacun rebâtissant la netlist. Un seul calcul suffit.
+  beginModelFrame(editor.diagram);
+  try {
+    bindInputs();
+  } finally {
+    endModelFrame();
+  }
   queueRefresh();
 }
 

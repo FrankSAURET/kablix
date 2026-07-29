@@ -127,6 +127,36 @@ export function nameEquipotentials(diagram: Diagram): Equipotentials {
 }
 
 /**
+ * Cache de FRAME de la netlist et du graphe résistif. Une frame de rendu
+ * rappelle les helpers composant par composant (`ledOn`, `ledMcuPin`,
+ * `ledPowerCircuit`…) et CHACUN rebâtissait la netlist entière : sur un schéma
+ * de 60 composants, ~15 ms par frame, soit tout le budget d'image — le moteur
+ * n'avait plus de temps et la simulation tournait au ralenti.
+ * La fenêtre est ouverte/fermée explicitement autour d'un traitement
+ * SYNCHRONE (`beginModelFrame`/`endModelFrame`) : le schéma ne peut pas changer
+ * pendant, donc aucune invalidation à maintenir et aucun risque de netlist
+ * périmée. Hors fenêtre, tout est recalculé comme avant.
+ */
+let frameDiagram: Diagram | null = null;
+const frameNets = new Map<boolean, Nets>(); // clé : joinResistors
+const frameGraphs = new Map<unknown, ResistiveGraph>(); // clé : callback liveOhms
+const NO_LIVE_OHMS = Symbol('liveOhms absent');
+
+/** Ouvre la fenêtre de cache pour un traitement synchrone sur `diagram`. */
+export function beginModelFrame(diagram: Diagram): void {
+  frameDiagram = diagram;
+  frameNets.clear();
+  frameGraphs.clear();
+}
+
+/** Referme la fenêtre : les calculs suivants repartent d'une netlist fraîche. */
+export function endModelFrame(): void {
+  frameDiagram = null;
+  frameNets.clear();
+  frameGraphs.clear();
+}
+
+/**
  * Construit la netlist. Les fils relient les broches ; une résistance se
  * comporte comme un fil entre ses deux pattes (1 ↔ 2) ; une platine d'essai
  * relie les trous de chaque bande (colonnes a–e / f–j et rails).
@@ -134,6 +164,17 @@ export function nameEquipotentials(diagram: Diagram): Equipotentials {
  * nets séparés — utilisé par ledSeriesOhms pour mesurer la résistance série.
  */
 export function buildNets(diagram: Diagram, joinResistors = true): Nets {
+  if (frameDiagram === diagram) {
+    const cached = frameNets.get(joinResistors);
+    if (cached) return cached;
+    const fresh = computeNets(diagram, joinResistors);
+    frameNets.set(joinResistors, fresh);
+    return fresh;
+  }
+  return computeNets(diagram, joinResistors);
+}
+
+function computeNets(diagram: Diagram, joinResistors: boolean): Nets {
   const dsu = new DSU();
   for (const wire of diagram.wires) {
     dsu.union(key(wire.a), key(wire.b));
@@ -209,9 +250,77 @@ function mcuParts(diagram: Diagram): Array<{ part: Part; board: BoardId }> {
 }
 
 /**
- * Détermine le niveau d'un net en parcourant toutes les broches MCU qui s'y
- * rattachent. GND est prioritaire sur VCC, lui-même prioritaire sur les broches
- * pilotées par le microcontrôleur.
+ * Ce qu'un net « voit » côté alimentation : broche d'alim atteinte en premier
+ * (ordre de balayage des cartes puis des broches — c'est lui qui tranche quand
+ * un net touche à la fois GND et VCC), broches numériques première et dernière,
+ * et présence d'une masse quelque part sur le net.
+ */
+interface NetSupply {
+  /** Première broche d'alim rencontrée : elle fixe le niveau du net. */
+  first?: 'gnd' | 'vcc';
+  /** Première broche numérique du net (broche pilote d'une LED, d'un buzzer…). */
+  firstDigital?: string;
+  /** Dernière broche numérique : niveau retenu quand aucune alim n'est câblée. */
+  lastDigital?: string;
+  /** Une masse (MCU) est présente sur le net, même si une VCC vient avant. */
+  hasGnd?: boolean;
+}
+
+interface NetIndex {
+  mcu: Map<string, NetSupply>;
+  psuGnd: Set<string>;
+  psuVplus: Set<string>;
+}
+
+/**
+ * Index net → broches d'alimentation, construit UNE fois par netlist. Sans lui,
+ * `netLevel`, `mcuDigitalOnNet` et `netHasGnd` rebalayaient chacun TOUTES les
+ * broches de TOUTES les cartes (une Mega en a une centaine) à chaque appel, soit
+ * une trentaine de balayages complets par frame de rendu. La clé est l'objet
+ * `Nets` lui-même : il correspond à un état figé du schéma (toute modification
+ * en reconstruit un neuf), donc l'index ne peut pas être périmé.
+ */
+const netIndexCache = new WeakMap<Nets, NetIndex>();
+
+function netIndex(diagram: Diagram, nets: Nets): NetIndex {
+  const hit = netIndexCache.get(nets);
+  if (hit) return hit;
+  const index: NetIndex = { mcu: new Map(), psuGnd: new Set(), psuVplus: new Set() };
+  for (const { part, board } of mcuParts(diagram)) {
+    for (const pin of mcuPins(board)) {
+      const role = mcuPinRole(board, pin);
+      if (role.role !== 'gnd' && role.role !== 'vcc' && !(role.role === 'digital' && role.name)) {
+        continue;
+      }
+      const net = nets.netOf({ partId: part.id, pin });
+      let entry = index.mcu.get(net);
+      if (!entry) {
+        entry = {};
+        index.mcu.set(net, entry);
+      }
+      if (role.role === 'gnd') {
+        entry.hasGnd = true;
+        entry.first ??= 'gnd';
+      } else if (role.role === 'vcc') {
+        entry.first ??= 'vcc';
+      } else {
+        entry.firstDigital ??= role.name;
+        entry.lastDigital = role.name;
+      }
+    }
+  }
+  for (const part of psuParts(diagram)) {
+    index.psuGnd.add(nets.netOf({ partId: part.id, pin: 'GND' }));
+    index.psuVplus.add(nets.netOf({ partId: part.id, pin: 'V+' }));
+  }
+  netIndexCache.set(nets, index);
+  return index;
+}
+
+/**
+ * Détermine le niveau d'un net d'après les broches MCU qui s'y rattachent. GND
+ * est prioritaire sur VCC, lui-même prioritaire sur les broches pilotées par le
+ * microcontrôleur.
  */
 function netLevel(
   diagram: Diagram,
@@ -219,24 +328,16 @@ function netLevel(
   netId: string,
   readPin: (name: string) => boolean
 ): Level {
-  let mcuLevel: Level;
-  for (const { part, board } of mcuParts(diagram)) {
-    for (const pin of mcuPins(board)) {
-      if (nets.netOf({ partId: part.id, pin }) !== netId) continue;
-      const role = mcuPinRole(board, pin);
-      if (role.role === 'gnd') return 0;
-      if (role.role === 'vcc') return 1;
-      if (role.role === 'digital' && role.name) mcuLevel = readPin(role.name) ? 1 : 0;
-    }
-  }
+  const idx = netIndex(diagram, nets);
+  const entry = idx.mcu.get(netId);
+  if (entry?.first === 'gnd') return 0;
+  if (entry?.first === 'vcc') return 1;
   // Alimentation de laboratoire : V+ = rail haut, GND = masse. Le niveau est
   // logique (binaire) — la TENSION réelle de l'alim est prise en compte par les
   // calculs de courant (ledElectrical via ledPowerCircuit, psuLoadAmps).
-  for (const part of psuParts(diagram)) {
-    if (nets.netOf({ partId: part.id, pin: 'GND' }) === netId) return 0;
-    if (nets.netOf({ partId: part.id, pin: 'V+' }) === netId) return 1;
-  }
-  return mcuLevel;
+  if (idx.psuGnd.has(netId)) return 0;
+  if (idx.psuVplus.has(netId)) return 1;
+  return entry?.lastDigital === undefined ? undefined : readPin(entry.lastDigital) ? 1 : 0;
 }
 
 function partType(diagram: Diagram, partId: string): string {
@@ -367,7 +468,32 @@ function nominalOhms(part: Part): number {
  * courante du curseur en simulation, à défaut le point de repos des attrs), et
  * les nets des broches MCU sont classés par rôle (sources numériques/VCC, masses).
  */
-function resistiveGraph(diagram: Diagram, liveOhms?: (part: Part) => number | null) {
+interface ResistiveGraph {
+  nets: Nets;
+  adj: Map<string, Array<{ to: string; ohms: number; partId: string }>>;
+  digitalNets: Set<string>;
+  vccNets: Set<string>;
+  gndNets: Set<string>;
+}
+
+function resistiveGraph(diagram: Diagram, liveOhms?: (part: Part) => number | null): ResistiveGraph {
+  // Le graphe dépend du callback `liveOhms` (curseur d'une résistance variable) :
+  // une entrée de cache PAR callback. Dans une même frame ses valeurs sont figées.
+  if (frameDiagram === diagram) {
+    const k = liveOhms ?? NO_LIVE_OHMS;
+    const cached = frameGraphs.get(k);
+    if (cached) return cached;
+    const fresh = computeResistiveGraph(diagram, liveOhms);
+    frameGraphs.set(k, fresh);
+    return fresh;
+  }
+  return computeResistiveGraph(diagram, liveOhms);
+}
+
+function computeResistiveGraph(
+  diagram: Diagram,
+  liveOhms?: (part: Part) => number | null
+): ResistiveGraph {
   const nets = buildNets(diagram, false);
   const adj = new Map<string, Array<{ to: string; ohms: number; partId: string }>>();
   const link = (a: string, b: string, ohms: number, partId: string) => {
@@ -1411,27 +1537,12 @@ function mcuAnalogOnNet(diagram: Diagram, nets: Nets, netId: string): string | n
 }
 
 function mcuDigitalOnNet(diagram: Diagram, nets: Nets, netId: string): string | null {
-  for (const { part, board } of mcuParts(diagram)) {
-    for (const pin of mcuPins(board)) {
-      if (nets.netOf({ partId: part.id, pin }) !== netId) continue;
-      const role = mcuPinRole(board, pin);
-      if (role.role === 'digital' && role.name) return role.name;
-    }
-  }
-  return null;
+  return netIndex(diagram, nets).mcu.get(netId)?.firstDigital ?? null;
 }
 
 function netHasGnd(diagram: Diagram, nets: Nets, netId: string): boolean {
-  for (const { part, board } of mcuParts(diagram)) {
-    for (const pin of mcuPins(board)) {
-      if (nets.netOf({ partId: part.id, pin }) !== netId) continue;
-      if (mcuPinRole(board, pin).role === 'gnd') return true;
-    }
-  }
-  for (const part of psuParts(diagram)) {
-    if (nets.netOf({ partId: part.id, pin: 'GND' }) === netId) return true;
-  }
-  return false;
+  const idx = netIndex(diagram, nets);
+  return idx.mcu.get(netId)?.hasGnd === true || idx.psuGnd.has(netId);
 }
 
 function netHasVcc(diagram: Diagram, nets: Nets, netId: string): boolean {
