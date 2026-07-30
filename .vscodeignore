@@ -34,6 +34,11 @@ dist/**
 # --- Fichiers de travail / captures / archives ---
 # NB : les motifs sont évalués sur le chemin COMPLET — un motif sans « **/ » ne
 # vaut que pour la racine (« *.docx » laissait passer docs/Recette-de-test.docx).
+# « Archives/ » : sources écartées du produit mais conservées sur GitHub.
+# « A Examiner/ » : ménage en attente de tri par Frank. Versionnés tous les deux,
+# jamais publiés dans le vsix.
+Archives/**
+A Examiner/**
 svg/**
 svg retouche/**
 **/*.edit.svg

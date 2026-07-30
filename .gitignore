@@ -3,6 +3,9 @@ dist/
 *.vsix
 .DS_Store
 test-assets/
+# NB : « Archives/ » est VERSIONNÉ (sources écartées du produit mais conservées),
+# et « A Examiner/ » aussi — c'est là que va le ménage en attente de tri.
+# Les deux sont seulement exclus du vsix (.vscodeignore).
 
 __pycache__/
 debug.log
