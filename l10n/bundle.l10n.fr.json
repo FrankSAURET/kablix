@@ -138,8 +138,8 @@
   "Kablix: installing the recommended extensions…": "Kablix : installation des extensions conseillées…",
   "Kablix: could not install {0}. Install it from the Extensions view.": "Kablix : impossible d'installer {0}. Installez-la depuis la vue Extensions.",
   "Kablix: recommended extensions installed.": "Kablix : extensions conseillées installées.",
-  "Kablix works well with {0}: uploading to a real board, board and library management. Install them?": "Kablix s'accompagne bien de {0} : téléversement sur la vraie carte, gestion des cartes et des bibliothèques. Les installer ?",
+  "Kablix recommends the “Arduino VS Code IDE” extension for the Arduino development environment.": "Kablix conseille l'extension « Arduino VS Code IDE » pour l'environnement de développement Arduino.",
+  "Kablix recommends the “Raspberry Pi Pico” extension for the Raspberry Pi Pico C/C++ and MicroPython development environment.": "Kablix conseille l'extension « Raspberry Pi Pico » pour l'environnement de développement C/C++ et MicroPython du Raspberry Pi Pico.",
   "Install": "Installer",
-  "See them": "Les voir",
-  " and ": " et "
+  "See it": "La voir"
 }

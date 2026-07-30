@@ -9,14 +9,34 @@ const l10n = vscode.l10n;
 /** Marque « proposition déjà faite » (une seule fois par machine). */
 const RECO_PROMPTED_KEY = 'kablix.recommendedExtensionsPrompted';
 
-/** Extensions conseillées (choix de Frank). */
-export const RECOMMENDED_EXTENSIONS: ReadonlyArray<{ id: string; name: string }> = [
-  { id: 'electropol-fr.arduino-vscode-ide', name: 'Arduino VS Code IDE' },
-  { id: 'framboise-pi.frappy-pi-pico', name: 'Frappy Pi Pico' },
+/**
+ * Extensions conseillées (choix de Frank). `reason` est une fonction : la
+ * traduction doit être résolue à l'affichage, pas au chargement du module.
+ */
+export interface RecommendedExtension {
+  id: string;
+  name: string;
+  reason: () => string;
+}
+export const RECOMMENDED_EXTENSIONS: ReadonlyArray<RecommendedExtension> = [
+  {
+    id: 'electropol-fr.arduino-vscode-ide',
+    name: 'Arduino VS Code IDE',
+    reason: () =>
+      l10n.t('Kablix recommends the “Arduino VS Code IDE” extension for the Arduino development environment.'),
+  },
+  {
+    id: 'raspberry-pi.raspberry-pi-pico',
+    name: 'Raspberry Pi Pico',
+    reason: () =>
+      l10n.t(
+        'Kablix recommends the “Raspberry Pi Pico” extension for the Raspberry Pi Pico C/C++ and MicroPython development environment.'
+      ),
+  },
 ];
 
 /** Celles qui ne sont pas encore installées. */
-export function missingRecommended(): Array<{ id: string; name: string }> {
+export function missingRecommended(): RecommendedExtension[] {
   return RECOMMENDED_EXTENSIONS.filter((e) => !vscode.extensions.getExtension(e.id));
 }
 
@@ -25,8 +45,8 @@ export function missingRecommended(): Array<{ id: string; name: string }> {
  * une : `installExtension` ne prend qu'un identifiant). Les échecs sont signalés
  * sans interrompre les suivantes.
  */
-export async function installRecommendedExtensions(): Promise<void> {
-  const missing = missingRecommended();
+export async function installRecommendedExtensions(only?: RecommendedExtension): Promise<void> {
+  const missing = only ? [only] : missingRecommended();
   if (missing.length === 0) {
     void vscode.window.showInformationMessage(
       l10n.t('Kablix: the recommended extensions are already installed.')
@@ -61,10 +81,11 @@ export async function installRecommendedExtensions(): Promise<void> {
  * Ouvre la vue Extensions filtrée sur les extensions conseillées : l'utilisateur
  * voit les fiches et décide lui-même. Repli si la recherche n'est pas disponible.
  */
-export async function showRecommendedExtensions(): Promise<void> {
+export async function showRecommendedExtensions(only?: RecommendedExtension): Promise<void> {
+  const shown = only ? [only] : RECOMMENDED_EXTENSIONS;
   await vscode.commands.executeCommand(
     'workbench.extensions.search',
-    RECOMMENDED_EXTENSIONS.map((e) => `@id:${e.id}`).join(' ')
+    shown.map((e) => `@id:${e.id}`).join(' ')
   );
 }
 
@@ -90,19 +111,14 @@ export async function promptRecommendedExtensions(
     return;
   }
   const install = l10n.t('Install');
-  const see = l10n.t('See them');
+  const see = l10n.t('See it');
   const later = l10n.t('Not now');
-  const choice = await vscode.window.showInformationMessage(
-    l10n.t(
-      'Kablix works well with {0}: uploading to a real board, board and library management. Install them?',
-      missing.map((e) => e.name).join(l10n.t(' and '))
-    ),
-    install,
-    see,
-    later
-  );
+  // Une bulle par extension : chaque texte dit ce qu'elle apporte.
+  for (const e of missing) {
+    const choice = await vscode.window.showInformationMessage(e.reason(), install, see, later);
+    if (choice === install) await installRecommendedExtensions(e);
+    else if (choice === see) await showRecommendedExtensions(e);
+  }
   // Quel que soit le choix (y compris fermeture), on ne redemande plus tout seul.
   await context.globalState.update(RECO_PROMPTED_KEY, true);
-  if (choice === install) await installRecommendedExtensions();
-  else if (choice === see) await showRecommendedExtensions();
 }

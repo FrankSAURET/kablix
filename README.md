@@ -1,5 +1,6 @@
  <img src="https://raw.githubusercontent.com/FrankSAURET/kablix/main/media/accroche.webp" alt="Kablix" width="1000" />
 
+>Extension en cours de developpement
 # Kablix
 Une application **Gauloise** de simulation de microcontrôleurs (**Arduino Uno/Raspberry Pi Pico**) directement dans VS Code,
 - **100 % Offline**
@@ -13,7 +14,6 @@ La simulation s’appuie sur deux moteurs open-sources embarqués dans l’exten
 
 
 ## Utilisation
-
 1. Pour démarrer, cliquer sur l’icône <img src="https://raw.githubusercontent.com/FrankSAURET/kablix/main/media/KNB.webp" alt="Kablix" width="30" /> dans la barre d’activité à gauche ;
     - Ou dans un dossier de projet, double cliquer sur un fichier projix ;
     - Ou si vous avez fait l’association, dans l’explorateur Windows double cliquer sur un fichier projix.

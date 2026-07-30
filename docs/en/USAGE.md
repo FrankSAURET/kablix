@@ -461,7 +461,7 @@ well with it. They are **optional** — Kablix works on its own.
 | Extension | What it does |
 | --- | --- |
 | [`electropol-fr.arduino-vscode-ide`](https://marketplace.visualstudio.com/items?itemName=electropol-fr.arduino-vscode-ide) | Arduino toolchain inside VS Code: boards, libraries, compilation and **uploading to a real board** |
-| [`framboise-pi.frappy-pi-pico`](https://marketplace.visualstudio.com/items?itemName=framboise-pi.frappy-pi-pico) | Raspberry Pi Pico with MicroPython: pushing files to the board, hardware REPL |
+| [`raspberry-pi.raspberry-pi-pico`](https://marketplace.visualstudio.com/items?itemName=raspberry-pi.raspberry-pi-pico) | Raspberry Pi Pico with MicroPython: pushing files to the board, hardware REPL |
 
 Kablix offers them **once**, on its first activation. To bring them back:
 command palette (`Ctrl+Shift+P`) → **“Kablix: Recommended extensions”**.

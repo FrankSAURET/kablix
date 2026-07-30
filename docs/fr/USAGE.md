@@ -465,7 +465,7 @@ marient bien avec elle. Elles sont **facultatives** — Kablix fonctionne seul.
 | Extension | À quoi elle sert |
 | --- | --- |
 | [`electropol-fr.arduino-vscode-ide`](https://marketplace.visualstudio.com/items?itemName=electropol-fr.arduino-vscode-ide) | Chaîne Arduino dans VS Code : cartes, bibliothèques, compilation et **téléversement sur la vraie carte** |
-| [`framboise-pi.frappy-pi-pico`](https://marketplace.visualstudio.com/items?itemName=framboise-pi.frappy-pi-pico) | Raspberry Pi Pico en MicroPython : envoi des fichiers sur la carte, REPL matériel |
+| [`raspberry-pi.raspberry-pi-pico`](https://marketplace.visualstudio.com/items?itemName=raspberry-pi.raspberry-pi-pico) | Raspberry Pi Pico en MicroPython : envoi des fichiers sur la carte, REPL matériel |
 
 Kablix les propose **une seule fois** à sa première activation. Pour y revenir :
 palette de commandes (`Ctrl+Shift+P`) → **« Kablix : Extensions conseillées »**.
