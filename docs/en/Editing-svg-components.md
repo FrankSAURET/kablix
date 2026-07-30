@@ -34,7 +34,7 @@ All pins must fall on a **10 px grid** (= 0.1″, the hole pitch of a breadboard
 
 - Palette → **⇪ Import (.json)** of an existing file, or
 - **+ Create a part** button (palette) → the built-in editor, or
-- start from a file in the [`parts/`](../../parts) folder (e.g. `picow-module.kablix-part.json`).
+- start from the reference example in the [`parts/`](../../parts) folder (`hc-sr04.kablix-part.json`).
 
 A `.kablix-part.json` looks like:
 
@@ -83,7 +83,7 @@ Palette → **⇪ Import (.json)**. The component (★) appears, ready to place.
 Their SVGs live in `node_modules/@wokwi/elements/dist/esm/*-element.js` (MIT license) and are **embedded at build time**: they aren't modified from the interface. Two options:
 
 - **Recommended**: recreate a variant as a **custom component** (§3) and use it instead.
-- **Advanced** (recompilation): the Pico board is an "in-house" element ([`src/webview/composants/pico-board.mts`](../../src/webview/composants/pico-board.mts)), which reuses the `parts/picow-module` drawing and adds margins + pin names. That's the model to follow to build a custom built-in element.
+- **Advanced** (recompilation): the Pico board is an "in-house" element ([`src/webview/composants/pico-board.mts`](../../src/webview/composants/pico-board.mts)), which starts from Frank's drawing and adds margins + pin names. That's the model to follow to build a custom built-in element.
 
 ---
 

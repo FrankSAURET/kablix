@@ -34,7 +34,7 @@ Toutes les broches doivent tomber sur une **grille de 10 px** (= 0,1″, le pas 
 
 - Palette → **⇪ Importer (.json)** d'un fichier existant, ou
 - bouton **+ Créer un composant** (palette) → l'éditeur intégré, ou
-- partez d'un fichier du dossier [`parts/`](../../parts) (ex. `picow-module.kablix-part.json`).
+- partez de l'exemple de référence du dossier [`parts/`](../../parts) (`hc-sr04.kablix-part.json`).
 
 Un `.kablix-part.json` ressemble à :
 
@@ -83,7 +83,7 @@ Palette → **⇪ Importer (.json)**. Le composant (★) apparaît, prêt à pos
 Leurs SVG vivent dans `node_modules/@wokwi/elements/dist/esm/*-element.js` (licence MIT) et sont **embarqués au build** : on ne les modifie pas depuis l'interface. Deux options :
 
 - **Recommandé** : recréez une variante en **composant personnalisé** (§3) et utilisez-la à la place.
-- **Avancé** (recompilation) : la carte Pico est un élément « maison » ([`src/webview/composants/pico-board.mts`](../../src/webview/composants/pico-board.mts)), qui reprend le dessin de `parts/picow-module` et ajoute marges + noms de broches. C'est le modèle à suivre pour fabriquer un élément intégré sur mesure.
+- **Avancé** (recompilation) : la carte Pico est un élément « maison » ([`src/webview/composants/pico-board.mts`](../../src/webview/composants/pico-board.mts)), qui part du dessin de Frank et ajoute marges + noms de broches. C'est le modèle à suivre pour fabriquer un élément intégré sur mesure.
 
 ---
 

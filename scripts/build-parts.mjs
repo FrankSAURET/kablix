@@ -23,8 +23,9 @@ const PAD_R = 3; // rayon visuel d'une pastille de broche
 
 // Spécifications par composant. `pinRoles` mappe le rôle du modèle de simulation
 // au nom de broche ; `pins` liste les broches dans l'ordre, regroupées par bord.
-// Brochages issus des fiches techniques (PCA9685, HC-SR04, LCD I2C PCF8574,
-// Grove Shield for Pi Pico, Raspberry Pi Pico W).
+// Brochages issus des fiches techniques. Il ne reste qu'un composant ici : les
+// autres sont devenus NATIFS (voir les NOTE ci-dessous) et le HC-SR04 subsiste
+// comme EXEMPLE de référence du format ouvert `.kablix-part.json`.
 const SPECS = [
   // NOTE : le « 16-Channel PWM Driver(PCA9685).svg » n'est PLUS généré ici —
   // c'est un composant NATIF depuis v2026.7.116 (<kablix-pca9685>, catégorie
@@ -40,32 +41,17 @@ const SPECS = [
     padLabels: false, // les noms VCC/Trig/Echo/GND sont déjà sérigraphiés sur le dessin
     edges: { bottom: ['VCC', 'Trig', 'Echo', 'GND'] },
   },
-  {
-    file: 'LCD_16x2_I2C.svg',
-    type: 'lcd1602-i2c',
-    label: 'LCD 16×2 I2C',
-    kind: 'i2c-lcd', // simulé : I²C (PCF8574 + HD44780) → texte affiché
-    attrs: { address: '0x27', cols: '16', rows: '2' },
-    // Zone écran (fraction du corps) où le texte est superposé ; ajustable ensuite.
-    screenFrac: { x: 0.16, y: 0.12, w: 0.68, h: 0.5 },
-    edges: { left: ['GND', 'VCC', 'SDA', 'SCL'] },
-  },
+  // NOTE : le « LCD_16x2_I2C.svg » n'est PLUS généré ici — l'afficheur texte est
+  // NATIF (<kablix-lcd1602>, catégorie Afficheurs : type `lcd` du catalogue,
+  // src/webview/composants/lcd1602-element.mts). Le .json généré autrefois est
+  // conservé dans « A Examiner/parts/lcd1602-i2c.kablix-part.json ».
   // NOTE : le « Grove pour Pico Pi.svg » n'est PLUS généré ici — c'est un
   // composant NATIF depuis v2026.7.114 (<kablix-grove-pico>, enfichage de la
   // Pico + switch 3V3/5V : src/webview/composants/grove-shield-element.mts).
-  {
-    file: 'Raspberry Pi Pico W h.svg',
-    type: 'picow-module',
-    label: 'Pico W (dessin, non simulé)',
-    kind: 'passive',
-    // Brochage physique Pico W (colonnes gauche/droite, de haut en bas).
-    edges: {
-      left: ['GP0', 'GP1', 'GND', 'GP2', 'GP3', 'GP4', 'GP5', 'GND', 'GP6', 'GP7',
-        'GP8', 'GP9', 'GND', 'GP10', 'GP11', 'GP12', 'GP13', 'GND', 'GP14', 'GP15'],
-      right: ['VBUS', 'VSYS', 'GND', '3V3_EN', '3V3', 'ADC_VREF', 'GP28', 'GND', 'GP27', 'GP26',
-        'RUN', 'GP22', 'GND', 'GP21', 'GP20', 'GP19', 'GP18', 'GND', 'GP17', 'GP16'],
-    },
-  },
+  // NOTE : le « Raspberry Pi Pico W h.svg » n'est PLUS généré ici — la carte est
+  // NATIVE (<kablix-pico-board>, type `picow` du catalogue), et c'est elle qui
+  // reprend ce dessin (src/webview/composants/pico-board.mts). Le .json généré
+  // autrefois est conservé dans « A Examiner/parts/picow-module.kablix-part.json ».
 ];
 
 /** Dimension px d'une longueur SVG (mm/in/px) au rendu navigateur (96 dpi). */
