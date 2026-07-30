@@ -1,9 +1,9 @@
 {
   "name": "kablix",
   "displayName": "Kablix",
-  "version": "2026.7.225",
+  "version": "2026.7.226",
   "description": "%kablix.description%",
-  "publisher": "franksauret",
+  "publisher": "electropol-fr",
   "author": {
     "name": "electropol.fr",
     "url": "https://electropol.fr"

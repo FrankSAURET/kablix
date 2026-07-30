@@ -43,7 +43,7 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
   );
   const nonce = getNonce();
   const version =
-    vscode.extensions.getExtension('franksauret.kablix')?.packageJSON?.version ?? '';
+    vscode.extensions.getExtension('electropol-fr.kablix')?.packageJSON?.version ?? '';
   // Couleur de sélection réglable (composants/fils/coudes) : variable CSS --kx-select.
   const rawSelColor = vscode.workspace
     .getConfiguration('kablix')

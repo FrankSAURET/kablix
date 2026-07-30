@@ -1562,7 +1562,7 @@ export class SimulatorPanel {
   /** Version de l'extension (depuis package.json), « ? » si introuvable. */
   private appVersion(): string {
     return (
-      vscode.extensions.getExtension('franksauret.kablix')?.packageJSON?.version ?? '?'
+      vscode.extensions.getExtension('electropol-fr.kablix')?.packageJSON?.version ?? '?'
     );
   }
 
