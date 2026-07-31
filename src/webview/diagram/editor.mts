@@ -4322,7 +4322,20 @@ export class Editor {
   updatePartAttr(partId: string, attr: string, value: string): void {
     const r = this.rendered.get(partId);
     if (!r) return;
-    r.part.attrs = { ...r.part.attrs, [attr]: value };
+    const prevAttrs = { ...r.part.attrs };
+    r.part.attrs = { ...prevAttrs, [attr]: value };
+    // Transistor : une patte ne porte qu'UNE électrode. Poser E sur la patte
+    // déjà occupée par C échange les deux (plutôt que d'empiler deux électrodes
+    // au même endroit) ; l'inspecteur est redessiné pour montrer l'échange.
+    if ((attr === 'e' || attr === 'b' || attr === 'c') && partDef(r.part.type).kind === 'transistor') {
+      const prev = prevAttrs[attr] ?? '';
+      const other = (['e', 'b', 'c'] as const).find((k) => k !== attr && (prevAttrs[k] ?? '') === value);
+      if (other && prev !== '') {
+        r.part.attrs = { ...r.part.attrs, [other]: prev };
+        r.el.setAttribute(other, prev);
+        queueMicrotask(() => this.renderInspector());
+      }
+    }
     // LCD Texte : le format 16×2 / 20×4 pilote cols + rows de l'élément (et du
     // périphérique I²C simulé). Le changement de `pins` (i2c↔parallèle) change le
     // jeu de broches → re-rendu comme pour une taille.
@@ -4733,6 +4746,16 @@ export class Editor {
       }
       select.addEventListener('change', () => setAttr(prop.attr, select.value));
       this.inspector.appendChild(select);
+    } else if (prop.kind === 'text') {
+      // Texte libre sur PLUSIEURS lignes (inscription d'un boîtier partagé) :
+      // les sauts de ligne sont gardés tels quels dans l'attribut, le composant
+      // en fait une ligne de sérigraphie chacun.
+      const area = document.createElement('textarea');
+      area.className = 'inspector__control inspector__textarea';
+      area.rows = prop.rows ?? 2;
+      area.value = current;
+      area.addEventListener('change', () => setAttr(prop.attr, area.value));
+      this.inspector.appendChild(area);
     } else if (prop.suffixes) {
       // Champ texte acceptant les suffixes SI (p n µ m k M G), ex. « 2.2k ».
       const input = document.createElement('input');
@@ -4765,11 +4788,14 @@ export class Editor {
       if (prop.max !== undefined) input.max = String(prop.max);
       input.step = String(step);
       input.value = current;
+      // Pas fractionnaire : on arrondit au nombre de décimales DU PAS (5,1 + 0,1
+      // → 5,2, jamais 5.199999999999999 — demandé pour l'alim, vaut partout).
+      // Un pas de 0,1 borne donc la saisie à une décimale (gain d'un transistor).
+      const decimals = step < 1 ? (String(step).split('.')[1]?.length ?? 2) : 0;
       const commit = (v: number): void => {
-        // Pas fractionnaire : valeur arrondie à 2 décimales (5,1 + 0,1 → 5,2,
-        // jamais 5.199999999999999 — demandé pour l'alim, vaut partout).
         const c = clamp(v);
-        const value = String(step < 1 ? Math.round(c * 100) / 100 : c);
+        const p = 10 ** decimals;
+        const value = String(decimals > 0 ? Math.round(c * p) / p : c);
         input.value = value;
         setAttr(prop.attr, value);
       };
@@ -5167,6 +5193,9 @@ function pinDisplayName(
     if (pinName === '1') return '−';
     if (pinName === '2') return '+';
   }
+  // Relais : le commun sort des deux côtés du boîtier, mais c'est la MÊME lame.
+  // Les deux pastilles (Com.1 / Com.2) s'affichent donc simplement « Com ».
+  if (kind === 'relay' && /^Com\.\d+$/.test(pinName)) return 'Com';
   return pinName;
 }
 

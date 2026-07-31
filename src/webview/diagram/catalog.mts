@@ -12,6 +12,8 @@ export type PartKind =
   | 'resistor'
   | 'diode'
   | 'capacitor'
+  | 'transistor'
+  | 'relay'
   | 'fan'
   | 'buzzer'
   | 'potentiometer'
@@ -66,7 +68,7 @@ export interface PropDef {
   /** Attribut HTML correspondant sur l'élément. */
   attr: string;
   label: string;
-  kind: 'select' | 'number' | 'checkbox';
+  kind: 'select' | 'number' | 'checkbox' | 'text';
   /** Pour kind 'select' : valeurs proposées. */
   options?: readonly string[];
   /** Libellé affiché (clé i18n) pour certaines valeurs : { valeur → libellé }. */
@@ -76,6 +78,8 @@ export interface PropDef {
   step?: number;
   /** Autorise les suffixes SI (p n µ m k M G) dans la valeur (champ texte). */
   suffixes?: boolean;
+  /** Pour kind 'text' : nombre de lignes de la zone de saisie (défaut 2). */
+  rows?: number;
   /** N'affiche cette propriété que si un autre attribut vaut l'une des valeurs données. */
   showIf?: { attr: string; equals: readonly string[] };
 }
@@ -217,6 +221,19 @@ const CAPACITOR_PROPS: readonly PropDef[] = [
   },
   { attr: 'value', label: 'Nominal value (F)', kind: 'number', min: 1e-12, max: 1, suffixes: true },
   { attr: 'vmax', label: 'Max voltage (V)', kind: 'number', min: 1, max: 1000, step: 1 },
+];
+// Prototypes de transistor (NPN/PNP) : boîtier au choix, électrodes affectées
+// aux pattes par l'utilisateur (une patte ne peut porter qu'une électrode :
+// poser une valeur déjà prise ÉCHANGE les deux), inscription libre du boîtier.
+const TRANSISTOR_PROPS: readonly PropDef[] = [
+  { attr: 'pkg', label: 'Package', kind: 'select', options: ['to92'], optionLabels: { to92: 'TO-92' } },
+  { attr: 'e', label: 'Emitter on pin', kind: 'select', options: ['1', '2', '3'] },
+  { attr: 'b', label: 'Base on pin', kind: 'select', options: ['1', '2', '3'] },
+  { attr: 'c', label: 'Collector on pin', kind: 'select', options: ['1', '2', '3'] },
+  { attr: 'gain', label: 'Current gain (β)', kind: 'number', min: 0.1, step: 0.1 },
+  { attr: 'text', label: 'Marking (one line each)', kind: 'text', rows: 2 },
+  { attr: 'vcemax', label: 'Max Vce (V)', kind: 'number', min: 1, max: 1000, step: 1 },
+  { attr: 'icmax', label: 'Max Ic (A)', kind: 'number', min: 0.001, max: 100, suffixes: true },
 ];
 
 export const CATALOG: readonly PartDef[] = [
@@ -422,6 +439,46 @@ export const CATALOG: readonly PartDef[] = [
       { attr: 'current', label: 'Current draw (A)', kind: 'number', min: 0.001, max: 5, suffixes: true },
     ],
   },
+  // Transistors bipolaires (dessin de Frank) : premier BOÎTIER PARTAGÉ. Le même
+  // dessin externe (to92) sert à tous, seule l'inscription change ; le symbole
+  // interne (npn/pnp) et le gain viennent du modèle. `named` = référence figée,
+  // pattes nommées E/B/C ; sans lui, pattes 1/2/3 et électrodes réglables.
+  {
+    type: 'pn2222a', label: 'Transistor PN2222A (NPN)', tag: 'kablix-transistor', kind: 'transistor',
+    attrs: {
+      pkg: 'to92', symbol: 'npn', text: 'PN\n2222A', named: '1',
+      e: '1', b: '2', c: '3', gain: '35', vcemax: '40', icmax: '0.6',
+    },
+  },
+  {
+    type: 'npn', label: 'Transistor NPN (generic)', tag: 'kablix-transistor', kind: 'transistor',
+    attrs: {
+      pkg: 'to92', symbol: 'npn', text: 'NPN',
+      e: '1', b: '2', c: '3', gain: '100', vcemax: '40', icmax: '0.6',
+    },
+    props: TRANSISTOR_PROPS,
+  },
+  {
+    type: 'pnp', label: 'Transistor PNP (generic)', tag: 'kablix-transistor', kind: 'transistor',
+    attrs: {
+      pkg: 'to92', symbol: 'pnp', text: 'PNP',
+      e: '1', b: '2', c: '3', gain: '100', vcemax: '40', icmax: '0.6',
+    },
+    props: TRANSISTOR_PROPS,
+  },
+  // Relais OMRON G5V (dessin de Frank) : bobine B1/B2, contact Com/NF/NO. La
+  // tension de commande est inscrite sur le boîtier ; sous le seuil, le relais
+  // ne colle pas. Diode de roue libre obligatoire entre B1 et B2 (relayStates).
+  {
+    type: 'relais', label: 'Relay OMRON G5V', tag: 'kablix-relais', kind: 'relay',
+    attrs: { voltage: '5' },
+    props: [
+      {
+        attr: 'voltage', label: 'Coil voltage (V)', kind: 'select',
+        options: ['3', '5', '6', '9', '12', '24'],
+      },
+    ],
+  },
 
   // --- Composants supplémentaires (forkés du catalogue Wokwi).
   // Afficheur LCD texte unifié (HD44780). Un seul élément `kablix-lcd1602` couvre
@@ -609,6 +666,7 @@ export function partCategory(def: PartDef): string {
     case 'rgb-led':
     case 'diode':
     case 'capacitor':
+    case 'transistor':
       return 'Passive'; // « Discrets » (composants discrets : R, LED, diode, condo…)
     case 'psu':
       return 'Instruments'; // « Appareils de mesure » : alim de laboratoire…
@@ -629,6 +687,7 @@ export function partCategory(def: PartDef): string {
     case 'buzzer':
     case 'servo':
     case 'fan':
+    case 'relay':
       return 'Actuators';
     default:
       return 'Passive';
@@ -656,6 +715,8 @@ export const CUSTOM_KINDS: ReadonlyArray<{ kind: PartKind; label: string; roles:
   { kind: 'pushbutton', label: 'Pushbutton (pulls the pin to GND)', roles: ['1.l', '2.l'] },
   { kind: 'resistor', label: 'Resistor (joins its two pins)', roles: ['1', '2'] },
   { kind: 'buzzer', label: 'Buzzer (active when voltage across 1 and 2)', roles: ['1', '2'] },
+  { kind: 'transistor', label: 'Bipolar transistor (saturated switch C→E)', roles: ['E', 'B', 'C'] },
+  { kind: 'relay', label: 'Relay (coil B1/B2 switches Com from NF to NO)', roles: ['B1', 'B2', 'Com', 'NF', 'NO'] },
   { kind: 'digital-source', label: 'Digital source (state set in Properties)', roles: ['OUT'] },
   { kind: 'analog-source', label: 'Analog source (value set in Properties)', roles: ['AO'] },
   { kind: 'ultrasonic', label: 'Ultrasonic sensor HC-SR04 (Trig/Echo)', roles: ['TRIG', 'ECHO'] },

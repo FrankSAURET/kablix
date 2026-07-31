@@ -14,8 +14,16 @@
 // Le cadre livré est choisi pour que chaque pastille tombe sur un multiple de
 // 10 px (calage grille) avec au moins 10 px de marge autour.
 //
+// Boîtiers partagés (TO92…) : un schéma interne peut vivre dans un groupe qui ne
+// s'appelle PAS « <nom>-interne » et dont les pastilles portent d'autres noms
+// (to92 numérote 1/2/3, NPN1 nomme e/b/c). La syntaxe « NPN1@to92 » extrait NPN1
+// comme schéma interne en reprenant le cadre du boîtier to92, les pastilles étant
+// appariées par nom puis, à défaut, par position (même ordre haut→bas, gauche→droite).
+//
 // Usage : node scripts/_extract-composants.mjs diode condo-np ...
 //         node scripts/_extract-composants.mjs --png diode   (aperçu PNG seulement)
+//         node scripts/_extract-composants.mjs to92 NPN1@to92 --drop=txt-TO92
+//         node scripts/_extract-composants.mjs NPN1@to92 --drop=path409 --suffix=-libre
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
@@ -31,11 +39,27 @@ const MM2PX = 1 / 0.26458333;
 
 const args = process.argv.slice(2);
 const pngOnly = args.includes('--png');
-const names = args.filter((a) => !a.startsWith('--'));
+const DROP = (args.find((a) => a.startsWith('--drop='))?.slice(7) ?? '').split(',').filter(Boolean);
+const SUFFIX = args.find((a) => a.startsWith('--suffix='))?.slice(9) ?? '';
+// « NPN1@to92 » → schéma interne NPN1 calé sur le boîtier to92 déjà extrait.
+const names = args
+  .filter((a) => !a.startsWith('--'))
+  .map((a) => {
+    const [id, host] = a.split('@');
+    return { id, host: host || null };
+  });
 if (names.length === 0) {
-  console.error('Usage: node scripts/_extract-composants.mjs [--png] <nom> [...]');
+  console.error('Usage: node scripts/_extract-composants.mjs [--png] [--drop=id,…] [--suffix=x] <nom>[@boîtier] [...]');
   process.exit(1);
 }
+// Un boîtier cité en hôte doit être extrait avant (son cadre sert de référence).
+for (const n of names) {
+  if (n.host && !names.some((m) => m.id === n.host && !m.host)) {
+    console.error(`  ! ${n.id}@${n.host} : ajoutez « ${n.host} » à la ligne de commande, avant.`);
+    process.exit(1);
+  }
+}
+names.sort((a, b) => Number(!!a.host) - Number(!!b.host));
 
 const source = readFileSync(join(ROOT, 'Composants.svg'), 'utf8').replace(/<\?xml[^>]*\?>/, '');
 
@@ -45,6 +69,7 @@ const script = `
 try {
 const MM2PX = ${MM2PX};
 const NAMES = ${JSON.stringify(names)};
+const DROP = ${JSON.stringify(DROP)};
 const root = document.querySelector('#board svg');
 const out = [];
 const isPad = (el) => {
@@ -53,18 +78,21 @@ const isPad = (el) => {
 };
 function findGroup(id) {
   // Inkscape laisse parfois passer une coquille dans l'id : on accepte le même
-  // nom avec un point à la place de N'IMPORTE QUEL tiret (condo.p-1).
+  // nom avec un point ou un souligné à la place de N'IMPORTE QUEL tiret
+  // (condo.p-1, relais_interne).
   const hit = root.getElementById(id);
   if (hit) return hit;
   for (let i = 0; i < id.length; i++) {
     if (id[i] !== '-') continue;
-    const alt = id.slice(0, i) + '.' + id.slice(i + 1);
-    const el = root.querySelector('[id="' + alt + '"]');
-    if (el) return el;
+    for (const sep of ['.', '_']) {
+      const alt = id.slice(0, i) + sep + id.slice(i + 1);
+      const el = root.querySelector('[id="' + alt + '"]');
+      if (el) return el;
+    }
   }
   return null;
 }
-function collect(name, ids, parent) {
+function collect(name, ids, parent, host) {
   let g = null, id = null;
   for (const cand of [].concat(ids)) { g = findGroup(cand); if (g) { id = cand; break; } }
   if (!g) { out.push({ name, missing: [].concat(ids).join(' / ') }); return; }
@@ -92,9 +120,9 @@ function collect(name, ids, parent) {
     }
     pads.push({ x: p.x * MM2PX, y: p.y * MM2PX, name: best ? best.txt : '?', el: c, label: best });
   }
-  // Clone nettoyé : pastilles et libellés retirés.
+  // Clone nettoyé : pastilles, libellés et ids explicitement écartés (--drop).
   const clone = g.cloneNode(true);
-  const kill = new Set();
+  const kill = new Set(DROP);
   for (const p of pads) { kill.add(p.el.getAttribute('id')); if (p.label) kill.add(p.label.el.getAttribute('id')); }
   for (const el of [...clone.querySelectorAll('*')]) {
     if (kill.has(el.getAttribute('id'))) el.remove();
@@ -117,7 +145,7 @@ function collect(name, ids, parent) {
   // Transformation cumulée du groupe (planche → groupe), à reporter sur la sortie.
   const m = rootCTM.inverse().multiply(g.getScreenCTM());
   out.push({
-    name, id, parent,
+    name, id, parent, host: host ?? null,
     pads: pads.map((p) => ({ name: p.name, x: p.x, y: p.y })),
     box,
     ctm: [m.a, m.b, m.c, m.d, m.e, m.f],
@@ -125,11 +153,12 @@ function collect(name, ids, parent) {
   });
 }
 for (const n of NAMES) {
-  collect(n, n);
+  if (n.host) { collect(n.id, n.id, null, n.host); continue; }
+  collect(n.id, n.id);
   // Schéma interne : « <nom>-interne », ou celui de la famille pour une variante
   // numérotée (condo-p-1 / condo-p-2 partagent « condo-p-interne »).
-  const fam = n.replace(/-\\d+$/, '');
-  collect(n + '-interne', fam === n ? [n + '-interne'] : [n + '-interne', fam + '-interne'], n);
+  const fam = n.id.replace(/-\\d+$/, '');
+  collect(n.id + '-interne', fam === n.id ? [n.id + '-interne'] : [n.id + '-interne', fam + '-interne'], n.id);
 }
 document.getElementById('result').textContent = JSON.stringify(out);
 } catch (e) { document.getElementById('result').textContent = 'ERR:' + (e && e.stack || e); }
@@ -236,14 +265,19 @@ for (const it of items) {
   if (done.has(it.name)) { console.log(`  = ${it.name}.svg déjà extrait`); continue; }
   done.add(it.name);
   let f = frame(it.pads, it.box);
-  const base = it.parent ?? it.name.replace(/-interne$/, '');
-  if (it.name.endsWith('-interne') && extFrames.has(base)) {
-    // Calage sur la pastille homonyme du dessin externe (à défaut, la première).
+  const isInt = it.name.endsWith('-interne') || !!it.host;
+  const base = it.host ?? it.parent ?? it.name.replace(/-interne$/, '');
+  if (isInt && extFrames.has(base)) {
+    // Calage sur la pastille homonyme du dessin externe ; pour un boîtier partagé
+    // les noms diffèrent (1/2/3 contre e/b/c), on apparie alors par POSITION.
     const ext = extFrames.get(base);
-    const ref = it.pads[0];
-    const twin = ext.pads.find((p) => p.name === ref.name) ?? ext.pads[0];
+    const order = (a, b) => a.y - b.y || a.x - b.x;
+    const mine = [...it.pads].sort(order);
+    const theirs = [...ext.pads].sort(order);
+    const ref = mine[0];
+    const twin = theirs.find((p) => p.name === ref.name) ?? theirs[0];
     f = { x: ref.x - (twin.x - ext.f.x), y: ref.y - (twin.y - ext.f.y), w: ext.f.w, h: ext.f.h };
-  } else if (!it.name.endsWith('-interne')) {
+  } else if (!isInt) {
     extFrames.set(it.name, { f, pads: it.pads });
   }
   // planche (mm) → sortie (px) : mise à l'échelle puis translation du cadre.
@@ -252,19 +286,29 @@ for (const it of items) {
   const M = [a * s, b * s, c * s, d * s, e * s - f.x, ff * s - f.y];
   const defs = neededDefs(it.inner);
   const body = `<g transform="matrix(${M.map(R3).join(',')})">${it.inner}</g>`;
-  const svg =
+  // Attributs d'atelier Inkscape : sans effet sur le rendu (le `d` est déjà
+  // calculé) mais svgo refuse un fichier qui les porte sans son espace de noms.
+  const svg = (
     `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${R3(f.w)} ${R3(f.h)}">` +
     (defs.length ? `<defs>${defs.join('')}</defs>` : '') +
     body +
-    `</svg>\n`;
-  const dir = it.name.endsWith('-interne') ? INT_DIR : EXT_DIR;
+    `</svg>\n`
+  ).replace(/\s(?:inkscape|sodipodi):[\w-]+="[^"]*"/g, '');
+  const dir = isInt ? INT_DIR : EXT_DIR;
+  // Nom livré : « <nom><suffixe>[-interne].svg », en minuscules pour un groupe de
+  // boîtier partagé (NPN1@to92 → npn1-libre-interne.svg).
+  // (le suffixe ne vise que les variantes de schéma interne : un boîtier cité
+  // comme hôte est extrait tel quel, sans doublon suffixé)
+  const outName = isInt
+    ? (it.host ? it.name.toLowerCase() : it.name.replace(/-interne$/, '')) + SUFFIX + '-interne'
+    : it.name;
   mkdirSync(dir, { recursive: true });
-  const file = join(dir, `${it.name}.svg`);
+  const file = join(dir, `${outName}.svg`);
   if (!pngOnly) writeFileSync(file, svg);
   const pins = it.pads
     .map((p) => ({ name: p.name, x: R3(p.x - f.x), y: R3(p.y - f.y) }))
     .sort((p, q) => p.y - q.y || p.x - q.x);
-  console.log(`  ✓ ${it.name}.svg  viewBox 0 0 ${R3(f.w)} ${R3(f.h)}  (${(svg.length / 1024).toFixed(1)} Ko)`);
+  console.log(`  ✓ ${outName}.svg  viewBox 0 0 ${R3(f.w)} ${R3(f.h)}  (${(svg.length / 1024).toFixed(1)} Ko)`);
   if (process.env.DEBUG_BOX) console.log(`    bbox : ${R3(it.box.x0)},${R3(it.box.y0)} → ${R3(it.box.x1)},${R3(it.box.y1)}`);
   console.log(`    pins : ${pins.map((p) => `${p.name}(${p.x},${p.y})`).join(' ')}`);
   // Aperçu PNG (contrôle visuel + grille 10 px).

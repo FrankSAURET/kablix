@@ -4,7 +4,7 @@ from machine import Pin
 import dht
 import time
 
-capteur = dht.DHT11(Pin(14))
+capteur = dht.DHT11(Pin(22))
 while True:
     time.sleep(1.1)   # le DHT11 ne repond qu'une fois par seconde
     try:

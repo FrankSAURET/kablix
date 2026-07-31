@@ -30,6 +30,12 @@ Chaque composant du catalogue a deux tests : `<composant>-uno` (Arduino, C) et
 | Bouton poussoir | `button-uno` | `button-pico` | appui → « APPUYE » + LED |
 | Bouton 6 mm | `button-6mm-uno` | `button-6mm-pico` | idem |
 | Résistance | `resistor-uno` | `resistor-pico` | LED allumée (continuité) |
+| Diode | `diode-uno` | `diode-pico` | passante / à l'envers = bloquée |
+| Condensateurs | `condo-uno` | `condo-pico` | charge et décharge RC sur A0 |
+| Transistor PN2222A | `pn2222a-uno` | `pn2222a-pico` | saturé = ventilateur tourne |
+| Transistor NPN (proto) | `npn-uno` | `npn-pico` | commande côté bas d'une LED |
+| Transistor PNP (proto) | `pnp-uno` | `pnp-pico` | commande côté haut (logique inversée) |
+| Relais OMRON G5V | `relais-uno` | `relais-pico` | seul le relais bien câblé colle |
 | Buzzer | `buzzer-uno` | `buzzer-pico` | halo actif + tone/PWM |
 | Potentiomètre | `pot-uno` | `pot-pico` | valeur suit le curseur |
 | Potentiomètre à glissière | `slide-pot-uno` | `slide-pot-pico` | idem |
@@ -55,7 +61,9 @@ Chaque composant du catalogue a deux tests : `<composant>-uno` (Arduino, C) et
 | Capteur de flamme | `flame-uno` | `flame-pico` | AOUT + DOUT |
 | Capteur de son | `sound-uno` | `sound-pico` | AOUT + DOUT |
 | HC-SR04 (ultrason) | `hcsr04-uno` | — (AVR seulement) | distance en cm |
+| Ventilateur | `ventilo-uno` | `ventilo-pico` | tourne sur l'alim, cale sur une broche |
 | DHT22 (temp/humidité) | `dht22-uno` | `dht22-pico` | T + H toutes les 2 s |
+| DHT11 (temp/humidité) | `dht11-uno` | `dht11-pico` | valeurs entières, 1 lecture/s |
 | Clavier matriciel 4×4 | `keypad-uno` | `keypad-pico` | touche affichée |
 
 Libs Arduino requises (installées via `arduino-cli lib install`) : Servo,

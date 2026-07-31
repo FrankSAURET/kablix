@@ -43,6 +43,8 @@ import './composants/hc-sr04-element.mjs';
 import './composants/dht22-element.mjs';
 import './composants/membrane-keypad-element.mjs';
 import './composants/ventilo-element.mjs';
+import './composants/transistor-element.mjs';
+import './composants/relais-element.mjs';
 // Composants entièrement maison.
 import './composants/pico-board.mjs';
 import './composants/breadboard.mjs';
@@ -100,7 +102,12 @@ import {
   VARIABLE_RESISTOR_TYPES,
   beginModelFrame,
   endModelFrame,
+  commandedBridges,
+  setActiveBridges,
+  bridgeSignature,
+  relayStates,
   type Part,
+  type RelayFault,
   type Pca9685Binding,
   type SevenSegmentMuxBinding,
 } from './diagram/model.mjs';
@@ -844,11 +851,61 @@ function psuLiveVolts(psuId: string): number | null {
  * bâtit alors qu'UNE netlist pour tout le monde. `finally` : un composant qui
  * lève ne doit pas laisser le cache ouvert (netlist périmée à la frame suivante).
  */
+/**
+ * Ponts commandés de la frame : un transistor saturé et un contact de relais
+ * collé sont des interrupteurs FERMÉS dont dépend tout l'aval… alors que leur
+ * propre commande dépend des niveaux, donc des mêmes interrupteurs. On tourne
+ * en point fixe : deux tours suffisent au cas courant (une carte commande un
+ * transistor qui commande un relais), le troisième couvre les cascades. Sans
+ * convergence, on garde le dernier état — jamais de boucle sans fin.
+ *
+ * À appeler DANS la frame du modèle, avant tout autre calcul : setActiveBridges
+ * vide les caches de frame quand l'état change.
+ */
+function resolveBridges(): void {
+  if (!engine) return;
+  const read = (name: string): boolean => engine!.readDigital(name);
+  const vcc = boardFamily(board) === 'rp2040' ? 3.3 : 5;
+  setActiveBridges([]);
+  let signature = bridgeSignature([]);
+  for (let pass = 0; pass < 3; pass++) {
+    const list = commandedBridges(editor.diagram, read, vcc, psuLiveVolts, liveVariableOhms);
+    const next = bridgeSignature(list);
+    setActiveBridges(list);
+    if (next === signature) break;
+    signature = next;
+  }
+}
+
+/** Défauts de câblage des relais signalés une seule fois par changement d'état. */
+const relayFaults = new Map<string, RelayFault>();
+
+/**
+ * Diode de roue libre : sans elle, la surtension de coupure de la bobine
+ * détruirait le transistor de commande — Kablix refuse de faire coller le
+ * relais et le dit. Le message n'est affiché qu'au CHANGEMENT de défaut, sinon
+ * il repartirait à chaque frame.
+ */
+function reportRelayFaults(): void {
+  if (!engine) return;
+  const read = (name: string): boolean => engine!.readDigital(name);
+  const vcc = boardFamily(board) === 'rp2040' ? 3.3 : 5;
+  for (const st of relayStates(editor.diagram, read, vcc, psuLiveVolts, liveVariableOhms)) {
+    if ((relayFaults.get(st.partId) ?? 'none') === st.fault) continue;
+    relayFaults.set(st.partId, st.fault);
+    if (st.fault === 'reversed-diode') setStatus(t('Flyback diode is reversed'));
+    else if (st.fault === 'no-diode') setStatus(t('A flyback diode is required'));
+    else if (st.fault === 'weak') setStatus(t('Coil voltage too low: the relay does not pull in'));
+    else if (st.fault === 'starved') setStatus(t('The supply cannot deliver the coil current'));
+  }
+}
+
 function refreshVisuals(): void {
   if (!engine) return;
   const t0 = performance.now();
   beginModelFrame(editor.diagram);
   try {
+    resolveBridges();
     refreshVisualsInner();
   } finally {
     endModelFrame();
@@ -915,6 +972,7 @@ function stepCapacitors(): void {
 function refreshVisualsInner(): void {
   if (!engine) return;
   stepCapacitors();
+  reportRelayFaults();
   const read = (name: string): boolean => engine!.readDigital(name);
   const servoTargets = new Map(servoBindings(editor.diagram).map((b) => [b.partId, b.mcuPin]));
   for (const part of editor.diagram.parts) {
@@ -1855,6 +1913,7 @@ function rebind(): void {
   // `*Bindings(diagram)`, chacun rebâtissant la netlist. Un seul calcul suffit.
   beginModelFrame(editor.diagram);
   try {
+    resolveBridges(); // les liaisons vues par bindInputs dépendent des ponts fermés
     bindInputs();
   } finally {
     endModelFrame();
@@ -2447,6 +2506,7 @@ function startRun(): void {
   ledLumFactor.clear();
   capVolts.clear(); // condensateurs déchargés au début de chaque simulation
   capLastMs = null;
+  relayFaults.clear(); // défauts de câblage des relais re-signalés au 1er enclenchement
   buildI2cDevices();
   rebind();
   engine.start();

@@ -20,6 +20,14 @@ export const PART_PINS = {
   'condo-p-1': ['1', '2'],
   'condo-p-2': ['1', '2'],
   ventilo: ['+', '-'],
+  // Transistors : la référence figée nomme ses pattes d'après les électrodes,
+  // les prototypes génériques les numérotent (l'affectation e/b/c est une
+  // propriété — changer d'affectation ne doit orphéliner aucun fil).
+  pn2222a: ['E', 'B', 'C'],
+  npn: ['1', '2', '3'],
+  pnp: ['1', '2', '3'],
+  // Relais : le commun sort des deux côtés du boîtier, c'est la même lame.
+  relais: ['NF', 'B1', 'Com.1', 'NO', 'B2', 'Com.2'],
   buzzer: ['1', '2'],
   pot: ['GND', 'SIG', 'VCC'],
   'slide-pot': ['GND', 'SIG', 'VCC'],
@@ -1189,6 +1197,259 @@ void loop() {
   }),
 
   test({
+    name: 'pn2222a-uno', board: 'uno', ext: 'ino',
+    parts: [
+      MCU('uno'),
+      { id: 'alim1', type: 'alim', x: 620, y: 380, attrs: { voltage: '5', maxcurrent: '1' } },
+      { id: 'r1', type: 'resistor', x: 300, y: 180, attrs: { value: '1000' } },
+      { id: 'q1', type: 'pn2222a', x: 440, y: 200 },
+      { id: 'fan1', type: 'ventilo', x: 620, y: 40, attrs: { voltage: '5', current: '0.12' } },
+      { id: 'r2', type: 'resistor', x: 300, y: 280, attrs: { value: '10000' } },
+      { id: 'q2', type: 'pn2222a', x: 880, y: 200 },
+      { id: 'fan2', type: 'ventilo', x: 900, y: 40, attrs: { voltage: '5', current: '0.12' } },
+    ],
+    wires: () => [
+      // Base bien attaquee (1 kOhm) : Ib = 4,3 mA, donc Ic max = 35 x 4,3 = 150 mA.
+      w('r1', '1', 'mcu1', '9', 'green'),
+      w('r1', '2', 'q1', 'B', 'green'),
+      w('q1', 'E', 'mcu1', 'GND.1', 'black'),
+      w('q1', 'C', 'fan1', '-', 'blue'),
+      w('fan1', '+', 'alim1', 'V+', 'red'),
+      w('alim1', 'GND', 'mcu1', 'GND.2', 'black'),
+      // Base a peine attaquee (10 kOhm) : Ic max = 15 mA, le ventilateur cale.
+      w('r2', '1', 'mcu1', '10', 'orange'),
+      w('r2', '2', 'q2', 'B', 'orange'),
+      w('q2', 'E', 'mcu1', 'GND.3', 'black'),
+      w('q2', 'C', 'fan2', '-', 'blue'),
+      w('fan2', '+', 'alim1', 'V+', 'red'),
+    ],
+    expect: {
+      kind: 'transistor',
+      steps: [
+        { high: ['9', '10'], on: { q1: 0.1505, q2: 0.01505 }, fanAmps: 0.12, fanSpins: ['fan1'], fanStalls: ['fan2'] },
+        { high: [], off: ['q1', 'q2'], fanAmps: 0.12, fanStalls: ['fan1'] },
+      ],
+    },
+    code: `// Test transistor PN2222A : le meme ventilateur 5 V / 120 mA sur les deux
+// branches, commande par la broche 9 (base via 1 kOhm) et par la broche 10
+// (base via 10 kOhm). Le transistor ne transmet que Gain x Ib :
+//   broche 9  : Ib = (5 - 0,7) / 1000  = 4,3 mA  -> Ic max = 35 x 4,3  = 150 mA
+//   broche 10 : Ib = (5 - 0,7) / 10000 = 0,43 mA -> Ic max = 35 x 0,43 = 15 mA
+// Le premier ventilateur tourne, le second ne demarre JAMAIS : on vise la
+// SATURATION, sinon le montage aval ne marche pas.
+const int SATURE = 9;
+const int PAS_SATURE = 10;
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(SATURE, OUTPUT);
+  pinMode(PAS_SATURE, OUTPUT);
+  Serial.println("Broche 10 : base sous-attaquee, son ventilateur ne tournera pas.");
+}
+
+void loop() {
+  digitalWrite(SATURE, HIGH);
+  digitalWrite(PAS_SATURE, HIGH);
+  delay(2000);
+  digitalWrite(SATURE, LOW);
+  digitalWrite(PAS_SATURE, LOW);
+  delay(1000);
+}
+`,
+  }),
+
+  test({
+    name: 'npn-uno', board: 'uno', ext: 'ino',
+    parts: [
+      MCU('uno'),
+      { id: 'r1', type: 'resistor', x: 300, y: 180, attrs: { value: '4700' } },
+      // Prototype generique : les pattes sont numerotees, l'affectation des
+      // electrodes est une propriete — ici B sur 1, C sur 2, E sur 3.
+      { id: 'q1', type: 'npn', x: 440, y: 200, attrs: { text: '2N\n2222', b: '1', c: '2', e: '3', gain: '100' } },
+      { id: 'r2', type: 'resistor', x: 620, y: 60, attrs: { value: '220' } },
+      { id: 'led1', type: 'led', x: 760, y: 60, attrs: { color: 'yellow' } },
+    ],
+    wires: () => [
+      w('r1', '1', 'mcu1', '7', 'green'),
+      w('r1', '2', 'q1', '1', 'green'),
+      w('q1', '3', 'mcu1', 'GND.1', 'black'),
+      w('q1', '2', 'led1', 'C', 'blue'),
+      w('led1', 'A', 'r2', '2', 'red'),
+      w('r2', '1', 'mcu1', '5V', 'red'),
+    ],
+    expect: {
+      kind: 'transistor',
+      steps: [
+        { high: ['7'], on: { q1: 0.0915 }, ledOn: ['led1'] },
+        { high: [], off: ['q1'], ledOff: ['led1'] },
+      ],
+    },
+    code: `// Test transistor NPN generique (prototype de l'editeur de composant) :
+// commande cote BAS. La LED est cablee au 5 V par sa resistance, le transistor
+// ferme le circuit vers la masse quand la broche 7 passe au niveau haut.
+// Les pattes du prototype sont numerotees : ici la base est sur la patte 1, le
+// collecteur sur la 2 et l'emetteur sur la 3 (proprietes b / c / e).
+const int COMMANDE = 7;
+
+void setup() {
+  pinMode(COMMANDE, OUTPUT);
+}
+
+void loop() {
+  digitalWrite(COMMANDE, HIGH);   // transistor sature : LED allumee
+  delay(800);
+  digitalWrite(COMMANDE, LOW);    // transistor bloque : LED eteinte
+  delay(800);
+}
+`,
+  }),
+
+  test({
+    name: 'pnp-uno', board: 'uno', ext: 'ino',
+    parts: [
+      MCU('uno'),
+      { id: 'r1', type: 'resistor', x: 300, y: 180, attrs: { value: '4700' } },
+      { id: 'q1', type: 'pnp', x: 440, y: 200, attrs: { text: '2N\n2907', e: '1', b: '2', c: '3', gain: '100' } },
+      { id: 'r2', type: 'resistor', x: 760, y: 60, attrs: { value: '220' } },
+      { id: 'led1', type: 'led', x: 620, y: 60, attrs: { color: 'blue' } },
+    ],
+    wires: () => [
+      // Emetteur au +, la LED pend sous le collecteur : commande cote HAUT.
+      w('q1', '1', 'mcu1', '5V', 'red'),
+      w('r1', '1', 'mcu1', '8', 'green'),
+      w('r1', '2', 'q1', '2', 'green'),
+      w('q1', '3', 'led1', 'A', 'blue'),
+      w('led1', 'C', 'r2', '1', 'blue'),
+      w('r2', '2', 'mcu1', 'GND.1', 'black'),
+    ],
+    expect: {
+      kind: 'transistor',
+      steps: [
+        { high: [], on: { q1: 0.0915 }, ledOn: ['led1'] },
+        { high: ['8'], off: ['q1'], ledOff: ['led1'] },
+      ],
+    },
+    code: `// Test transistor PNP generique (prototype de l'editeur de composant) :
+// commande cote HAUT. L'emetteur est au 5 V, la LED pend sous le collecteur.
+// Un PNP conduit quand sa base est TIREE VERS LE BAS : la LED s'allume quand la
+// broche 8 est a LOW et s'eteint quand elle passe a HIGH — logique inversee.
+const int COMMANDE = 8;
+
+void setup() {
+  pinMode(COMMANDE, OUTPUT);
+  digitalWrite(COMMANDE, LOW);    // au repos : base tiree en bas, LED allumee
+}
+
+void loop() {
+  digitalWrite(COMMANDE, LOW);    // transistor sature : LED allumee
+  delay(800);
+  digitalWrite(COMMANDE, HIGH);   // base au +5 V : transistor bloque
+  delay(800);
+}
+`,
+  }),
+
+  test({
+    name: 'relais-uno', board: 'uno', ext: 'ino',
+    parts: [
+      MCU('uno'),
+      { id: 'r1', type: 'resistor', x: 300, y: 280, attrs: { value: '1000' } },
+      { id: 'q1', type: 'pn2222a', x: 440, y: 300 },
+      { id: 'd1', type: 'diode', x: 620, y: 140 },
+      { id: 'rl1', type: 'relais', x: 620, y: 220, attrs: { voltage: '5' } },
+      { id: 'r2', type: 'resistor', x: 860, y: 120, attrs: { value: '220' } },
+      { id: 'led1', type: 'led', x: 1000, y: 120, attrs: { color: 'green' } },
+      { id: 'rl2', type: 'relais', x: 620, y: 420, attrs: { voltage: '5' } },
+      { id: 'rl3', type: 'relais', x: 620, y: 580, attrs: { voltage: '5' } },
+      { id: 'd3', type: 'diode', x: 860, y: 580 },
+      { id: 'rl4', type: 'relais', x: 620, y: 740, attrs: { voltage: '12' } },
+      { id: 'd4', type: 'diode', x: 860, y: 740 },
+    ],
+    wires: () => [
+      // rl1 : cablage CORRECT — bobine commandee par un transistor sature,
+      // diode de roue libre cathode vers le + (broche B1).
+      w('r1', '1', 'mcu1', '8', 'green'),
+      w('r1', '2', 'q1', 'B', 'green'),
+      w('q1', 'E', 'mcu1', 'GND.1', 'black'),
+      w('q1', 'C', 'rl1', 'B2', 'blue'),
+      w('rl1', 'B1', 'mcu1', '5V', 'red'),
+      w('d1', 'K', 'rl1', 'B1', 'red'),
+      w('d1', 'A', 'rl1', 'B2', 'blue'),
+      // Contact de travail : la LED est alimentee quand le relais colle.
+      w('rl1', 'Com.1', 'mcu1', '5V', 'red'),
+      w('rl1', 'NO', 'r2', '1', 'green'),
+      w('r2', '2', 'led1', 'A', 'green'),
+      w('led1', 'C', 'mcu1', 'GND.2', 'black'),
+      // rl2 : bobine directement sur une broche, SANS diode de roue libre.
+      w('rl2', 'B1', 'mcu1', '7', 'orange'),
+      w('rl2', 'B2', 'mcu1', 'GND.3', 'black'),
+      // rl3 : diode montee A L'ENVERS (anode vers le +).
+      w('rl3', 'B1', 'mcu1', '4', 'yellow'),
+      w('rl3', 'B2', 'mcu1', 'GND.3', 'black'),
+      w('d3', 'A', 'rl3', 'B1', 'yellow'),
+      w('d3', 'K', 'rl3', 'B2', 'black'),
+      // rl4 : relais 12 V alimente en 5 V — tension de commande insuffisante.
+      w('rl4', 'B1', 'mcu1', '5V', 'red'),
+      w('rl4', 'B2', 'mcu1', 'GND.3', 'black'),
+      w('d4', 'K', 'rl4', 'B1', 'red'),
+      w('d4', 'A', 'rl4', 'B2', 'black'),
+    ],
+    expect: {
+      kind: 'relay',
+      steps: [
+        {
+          high: ['8', '7', '4'],
+          relays: {
+            rl1: { commanded: true, closed: true, fault: 'none' },
+            rl2: { commanded: true, closed: false, fault: 'no-diode' },
+            rl3: { commanded: true, closed: false, fault: 'reversed-diode' },
+            rl4: { commanded: true, closed: false, fault: 'weak' },
+          },
+          ledOn: ['led1'],
+        },
+        {
+          high: [],
+          relays: { rl1: { commanded: false, closed: false }, rl2: { commanded: false } },
+          ledOff: ['led1'],
+        },
+      ],
+    },
+    code: `// Test relais OMRON G5V. Quatre cablages sur la meme carte :
+//   rl1 : CORRECT — bobine commandee par un PN2222A sature (base via 1 kOhm),
+//         diode de roue libre entre B1 et B2, cathode vers le +. Il colle et
+//         allume la LED cablee sur son contact de travail (NO).
+//   rl2 : bobine sur la broche 7 SANS diode de roue libre -> interdit.
+//   rl3 : diode montee a l'envers (anode vers le +) -> interdit aussi.
+//   rl4 : relais 12 V alimente en 5 V -> tension de commande insuffisante.
+// Une bobine est une self : a la coupure elle renvoie une surtension qui detruit
+// le transistor de commande. La diode de roue libre l'absorbe — elle n'est pas
+// facultative.
+const int COMMANDE = 8;          // rl1, via le transistor
+const int SANS_DIODE = 7;        // rl2
+const int DIODE_INVERSEE = 4;    // rl3
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(COMMANDE, OUTPUT);
+  pinMode(SANS_DIODE, OUTPUT);
+  pinMode(DIODE_INVERSEE, OUTPUT);
+}
+
+void loop() {
+  digitalWrite(COMMANDE, HIGH);
+  digitalWrite(SANS_DIODE, HIGH);
+  digitalWrite(DIODE_INVERSEE, HIGH);
+  Serial.println("Seul rl1 colle : les autres sont mal cables.");
+  delay(1500);
+  digitalWrite(COMMANDE, LOW);
+  digitalWrite(SANS_DIODE, LOW);
+  digitalWrite(DIODE_INVERSEE, LOW);
+  delay(1500);
+}
+`,
+  }),
+
+  test({
     name: 'keypad-uno', board: 'uno', ext: 'ino',
     parts: [MCU('uno'), { id: 'kp1', type: 'keypad', x: 560, y: 40, attrs: { columns: '4' } }],
     wires: () => [
@@ -2344,6 +2605,236 @@ while True:
     for v in range(65535, -1, -1024):
         commande.duty_u16(max(0, v))
         time.sleep(0.04)
+`,
+  }),
+
+  test({
+    name: 'pn2222a-pico', board: 'pico', ext: 'py',
+    parts: [
+      MCU('pico'),
+      { id: 'alim1', type: 'alim', x: 620, y: 380, attrs: { voltage: '5', maxcurrent: '1' } },
+      { id: 'r1', type: 'resistor', x: 300, y: 180, attrs: { value: '470' } },
+      { id: 'q1', type: 'pn2222a', x: 440, y: 200 },
+      { id: 'fan1', type: 'ventilo', x: 620, y: 40, attrs: { voltage: '5', current: '0.12' } },
+      { id: 'r2', type: 'resistor', x: 300, y: 280, attrs: { value: '10000' } },
+      { id: 'q2', type: 'pn2222a', x: 880, y: 200 },
+      { id: 'fan2', type: 'ventilo', x: 900, y: 40, attrs: { voltage: '5', current: '0.12' } },
+    ],
+    wires: () => [
+      // Sortie a 3,3 V : il faut une base plus attaquee qu'en 5 V (470 ohms).
+      w('r1', '1', 'mcu1', 'GP15', 'green'),
+      w('r1', '2', 'q1', 'B', 'green'),
+      w('q1', 'E', 'mcu1', 'GND.5', 'black'),
+      w('q1', 'C', 'fan1', '-', 'blue'),
+      w('fan1', '+', 'alim1', 'V+', 'red'),
+      w('alim1', 'GND', 'mcu1', 'GND.4', 'black'),
+      w('r2', '1', 'mcu1', 'GP14', 'orange'),
+      w('r2', '2', 'q2', 'B', 'orange'),
+      w('q2', 'E', 'mcu1', 'GND.3', 'black'),
+      w('q2', 'C', 'fan2', '-', 'blue'),
+      w('fan2', '+', 'alim1', 'V+', 'red'),
+    ],
+    expect: {
+      kind: 'transistor',
+      steps: [
+        { high: ['GP15', 'GP14'], on: { q1: 0.1936, q2: 0.0091 }, fanAmps: 0.12, fanSpins: ['fan1'], fanStalls: ['fan2'] },
+        { high: [], off: ['q1', 'q2'], fanAmps: 0.12, fanStalls: ['fan1'] },
+      ],
+    },
+    code: `# Test transistor PN2222A : le meme ventilateur 5 V / 120 mA sur les deux
+# branches, commande par GP15 (base via 470 ohms) et par GP14 (base via
+# 10 kOhms). Le transistor ne transmet que Gain x Ib :
+#   GP15 : Ib = (3,3 - 0,7) / 470   = 5,5 mA  -> Ic max = 35 x 5,5  = 194 mA
+#   GP14 : Ib = (3,3 - 0,7) / 10000 = 0,26 mA -> Ic max = 35 x 0,26 = 9 mA
+# Le premier ventilateur tourne, le second ne demarre JAMAIS : on vise la
+# SATURATION, sinon le montage aval ne marche pas.
+from machine import Pin
+import time
+
+sature = Pin(15, Pin.OUT)
+pas_sature = Pin(14, Pin.OUT)
+print("GP14 : base sous-attaquee, son ventilateur ne tournera pas.")
+
+while True:
+    sature.value(1)
+    pas_sature.value(1)
+    time.sleep(2)
+    sature.value(0)
+    pas_sature.value(0)
+    time.sleep(1)
+`,
+  }),
+
+  test({
+    name: 'npn-pico', board: 'pico', ext: 'py',
+    parts: [
+      MCU('pico'),
+      { id: 'r1', type: 'resistor', x: 300, y: 180, attrs: { value: '4700' } },
+      // Prototype generique : pattes numerotees, electrodes affectees dans
+      // l'inspecteur — ici B sur 1, C sur 2, E sur 3.
+      { id: 'q1', type: 'npn', x: 440, y: 200, attrs: { text: '2N\n2222', b: '1', c: '2', e: '3', gain: '100' } },
+      { id: 'r2', type: 'resistor', x: 620, y: 60, attrs: { value: '220' } },
+      { id: 'led1', type: 'led', x: 760, y: 60, attrs: { color: 'yellow' } },
+    ],
+    wires: () => [
+      w('r1', '1', 'mcu1', 'GP16', 'green'),
+      w('r1', '2', 'q1', '1', 'green'),
+      w('q1', '3', 'mcu1', 'GND.5', 'black'),
+      w('q1', '2', 'led1', 'C', 'blue'),
+      w('led1', 'A', 'r2', '2', 'red'),
+      w('r2', '1', 'mcu1', '3V3', 'red'),
+    ],
+    expect: {
+      kind: 'transistor',
+      steps: [
+        { high: ['GP16'], on: { q1: 0.0553 }, ledOn: ['led1'] },
+        { high: [], off: ['q1'], ledOff: ['led1'] },
+      ],
+    },
+    code: `# Test transistor NPN generique (prototype de l'editeur de composant) :
+# commande cote BAS. La LED est cablee au 3,3 V par sa resistance, le transistor
+# ferme le circuit vers la masse quand GP16 passe au niveau haut.
+# Les pattes du prototype sont numerotees : ici la base est sur la patte 1, le
+# collecteur sur la 2 et l'emetteur sur la 3 (proprietes b / c / e).
+from machine import Pin
+import time
+
+commande = Pin(16, Pin.OUT)
+
+while True:
+    commande.value(1)   # transistor sature : LED allumee
+    time.sleep(0.8)
+    commande.value(0)   # transistor bloque : LED eteinte
+    time.sleep(0.8)
+`,
+  }),
+
+  test({
+    name: 'pnp-pico', board: 'pico', ext: 'py',
+    parts: [
+      MCU('pico'),
+      { id: 'r1', type: 'resistor', x: 300, y: 180, attrs: { value: '4700' } },
+      { id: 'q1', type: 'pnp', x: 440, y: 200, attrs: { text: '2N\n2907', e: '1', b: '2', c: '3', gain: '100' } },
+      { id: 'r2', type: 'resistor', x: 760, y: 60, attrs: { value: '220' } },
+      { id: 'led1', type: 'led', x: 620, y: 60, attrs: { color: 'blue' } },
+    ],
+    wires: () => [
+      w('q1', '1', 'mcu1', '3V3', 'red'),
+      w('r1', '1', 'mcu1', 'GP17', 'green'),
+      w('r1', '2', 'q1', '2', 'green'),
+      w('q1', '3', 'led1', 'A', 'blue'),
+      w('led1', 'C', 'r2', '1', 'blue'),
+      w('r2', '2', 'mcu1', 'GND.5', 'black'),
+    ],
+    expect: {
+      kind: 'transistor',
+      steps: [
+        { high: [], on: { q1: 0.0553 }, ledOn: ['led1'] },
+        { high: ['GP17'], off: ['q1'], ledOff: ['led1'] },
+      ],
+    },
+    code: `# Test transistor PNP generique (prototype de l'editeur de composant) :
+# commande cote HAUT. L'emetteur est au 3,3 V, la LED pend sous le collecteur.
+# Un PNP conduit quand sa base est TIREE VERS LE BAS : la LED s'allume quand
+# GP17 est a 0 et s'eteint quand il passe a 1 — logique inversee.
+from machine import Pin
+import time
+
+commande = Pin(17, Pin.OUT, value=0)   # au repos : base en bas, LED allumee
+
+while True:
+    commande.value(0)   # transistor sature : LED allumee
+    time.sleep(0.8)
+    commande.value(1)   # base au 3,3 V : transistor bloque
+    time.sleep(0.8)
+`,
+  }),
+
+  test({
+    name: 'relais-pico', board: 'pico', ext: 'py',
+    parts: [
+      MCU('pico'),
+      { id: 'alim1', type: 'alim', x: 300, y: 700, attrs: { voltage: '5', maxcurrent: '1' } },
+      { id: 'r1', type: 'resistor', x: 300, y: 280, attrs: { value: '470' } },
+      { id: 'q1', type: 'pn2222a', x: 440, y: 300 },
+      { id: 'd1', type: 'diode', x: 620, y: 140 },
+      { id: 'rl1', type: 'relais', x: 620, y: 220, attrs: { voltage: '5' } },
+      { id: 'r2', type: 'resistor', x: 860, y: 120, attrs: { value: '220' } },
+      { id: 'led1', type: 'led', x: 1000, y: 120, attrs: { color: 'green' } },
+      { id: 'rl2', type: 'relais', x: 620, y: 420, attrs: { voltage: '5' } },
+      { id: 'rl3', type: 'relais', x: 620, y: 580, attrs: { voltage: '5' } },
+      { id: 'd3', type: 'diode', x: 860, y: 580 },
+    ],
+    wires: () => [
+      // rl1 : bobine 5 V prise sur l'alim de laboratoire (le 3,3 V du Pico ne
+      // ferait pas coller un G5V), commandee par un PN2222A sature.
+      w('r1', '1', 'mcu1', 'GP15', 'green'),
+      w('r1', '2', 'q1', 'B', 'green'),
+      w('q1', 'E', 'mcu1', 'GND.5', 'black'),
+      w('q1', 'C', 'rl1', 'B2', 'blue'),
+      w('rl1', 'B1', 'alim1', 'V+', 'red'),
+      w('alim1', 'GND', 'mcu1', 'GND.4', 'black'),
+      w('d1', 'K', 'rl1', 'B1', 'red'),
+      w('d1', 'A', 'rl1', 'B2', 'blue'),
+      w('rl1', 'Com.1', 'alim1', 'V+', 'red'),
+      w('rl1', 'NO', 'r2', '1', 'green'),
+      w('r2', '2', 'led1', 'A', 'green'),
+      w('led1', 'C', 'mcu1', 'GND.3', 'black'),
+      // rl2 : bobine directement sur GP13, SANS diode de roue libre.
+      w('rl2', 'B1', 'mcu1', 'GP13', 'orange'),
+      w('rl2', 'B2', 'mcu1', 'GND.2', 'black'),
+      // rl3 : diode montee A L'ENVERS (anode vers le +).
+      w('rl3', 'B1', 'mcu1', 'GP12', 'yellow'),
+      w('rl3', 'B2', 'mcu1', 'GND.2', 'black'),
+      w('d3', 'A', 'rl3', 'B1', 'yellow'),
+      w('d3', 'K', 'rl3', 'B2', 'black'),
+    ],
+    expect: {
+      kind: 'relay',
+      steps: [
+        {
+          high: ['GP15', 'GP13', 'GP12'],
+          relays: {
+            rl1: { commanded: true, closed: true, fault: 'none' },
+            rl2: { commanded: true, closed: false, fault: 'no-diode' },
+            rl3: { commanded: true, closed: false, fault: 'reversed-diode' },
+          },
+          ledOn: ['led1'],
+        },
+        {
+          high: [],
+          relays: { rl1: { commanded: false, closed: false }, rl2: { commanded: false } },
+          ledOff: ['led1'],
+        },
+      ],
+    },
+    code: `# Test relais OMRON G5V. Trois cablages sur la meme carte :
+#   rl1 : CORRECT — bobine 5 V prise sur l'alimentation de laboratoire (une
+#         sortie du Pico ne sort que 3,3 V, un G5V 5 V ne collerait pas) et
+#         commandee par un PN2222A sature, diode de roue libre entre B1 et B2,
+#         cathode vers le +. Il colle et allume la LED cablee sur NO.
+#   rl2 : bobine sur GP13 SANS diode de roue libre -> interdit.
+#   rl3 : diode montee a l'envers (anode vers le +) -> interdit aussi.
+# Une bobine est une self : a la coupure elle renvoie une surtension qui detruit
+# le transistor de commande. La diode de roue libre l'absorbe — elle n'est pas
+# facultative.
+from machine import Pin
+import time
+
+commande = Pin(15, Pin.OUT)          # rl1, via le transistor
+sans_diode = Pin(13, Pin.OUT)        # rl2
+diode_inversee = Pin(12, Pin.OUT)    # rl3
+
+while True:
+    commande.value(1)
+    sans_diode.value(1)
+    diode_inversee.value(1)
+    print("Seul rl1 colle : les autres sont mal cables.")
+    time.sleep(1.5)
+    commande.value(0)
+    sans_diode.value(0)
+    diode_inversee.value(0)
+    time.sleep(1.5)
 `,
   }),
 

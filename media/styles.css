@@ -1138,6 +1138,16 @@ textarea {
   padding: 0.25rem 0.4rem;
 }
 
+/* Texte sur plusieurs lignes (inscription d'un boîtier partagé : « PN / 2222A »).
+   Redimensionnable en hauteur seulement — la largeur suit le panneau. */
+.inspector__textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  font-family: var(--vscode-editor-font-family, 'Consolas', monospace);
+  line-height: 1.3;
+}
+
 /* Valeur numérique + boutons +/− (- [__] +) : édition rapide en simulation
    (composants dynamiques : sources analogiques/digitales, potentiomètres…). */
 .inspector__stepper {

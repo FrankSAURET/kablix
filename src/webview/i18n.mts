@@ -24,6 +24,13 @@ const FR: Record<string, string> = {
   'Slowed down: {0}× real time': 'Ralentie : {0}× le temps réel',
   'The page cannot keep up with the simulation.':
     'La page n\'arrive plus à suivre la simulation.',
+  // Relais : défauts de câblage signalés pendant la simulation.
+  'Flyback diode is reversed': 'Diode à l\'envers',
+  'A flyback diode is required': 'Une diode de roue libre est obligatoire',
+  'Coil voltage too low: the relay does not pull in':
+    'Tension de commande insuffisante : le relais ne colle pas',
+  'The supply cannot deliver the coil current':
+    'L\'alimentation ne peut pas fournir le courant de la bobine',
   // Répartition du temps réel, dans l'infobulle du badge « ralentie ».
   'Engine': 'Moteur',
   'Rendering': 'Rendu',
@@ -238,6 +245,22 @@ const FR: Record<string, string> = {
   'Fan': 'Ventilateur',
   'Rated voltage (V)': 'Tension nominale (V)',
   'Current draw (A)': 'Courant consommé (A)',
+  // Transistors : une référence figée (PN2222A) et deux prototypes réglables.
+  // Les trois se suivent dans la palette, d'où le même premier mot.
+  'Transistor PN2222A (NPN)': 'Transistor PN2222A (NPN)',
+  'Transistor NPN (generic)': 'Transistor NPN (générique)',
+  'Transistor PNP (generic)': 'Transistor PNP (générique)',
+  'Package': 'Boîtier',
+  'Emitter on pin': 'Émetteur sur la patte',
+  'Base on pin': 'Base sur la patte',
+  'Collector on pin': 'Collecteur sur la patte',
+  'Current gain (β)': 'Gain en courant (β)',
+  'Marking (one line each)': 'Inscription (une ligne par ligne)',
+  'Max Vce (V)': 'Vce max (V)',
+  'Max Ic (A)': 'Ic max (A)',
+  // Relais
+  'Relay OMRON G5V': 'Relais OMRON G5V',
+  'Coil voltage (V)': 'Tension de commande (V)',
   'Membrane keypad': 'Clavier matriciel',
   'LCD Texte': 'LCD Texte',
   'Interface': 'Interface',
@@ -333,6 +356,8 @@ const FR: Record<string, string> = {
   'Pushbutton (pulls the pin to GND)': 'Bouton poussoir (tire la broche à GND)',
   'Resistor (joins its two pins)': 'Résistance (relie ses deux broches)',
   'Buzzer (active when voltage across 1 and 2)': 'Buzzer (actif si tension entre 1 et 2)',
+  'Bipolar transistor (saturated switch C→E)': 'Transistor bipolaire (interrupteur saturé C→E)',
+  'Relay (coil B1/B2 switches Com from NF to NO)': 'Relais (la bobine B1/B2 fait passer Com de NF à NO)',
   'Digital source (state set in Properties)': 'Source numérique (état piloté dans Propriétés)',
   'Analog source (value set in Properties)': 'Source analogique (valeur pilotée dans Propriétés)',
   'Decorative (no behavior)': 'Décoratif (aucun comportement)',

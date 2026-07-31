@@ -22,6 +22,14 @@ Frank dessine TOUS les nouveaux composants dans `Composants.svg` (Inkscape, plan
 - **Simulation précisée au cas par cas** par Frank — ne rien inventer.
 - Noms de pattes, propriétés et outils de simulation (curseurs, aide…) sont **traduisibles** et effectivement traduits EN + FR.
 - Tout nouveau composant : **tests `testkablix`** obligatoires — un test Arduino (`<type>-uno`) ET un test Pico (`<type>-pico`), via `_spec.mjs` + `node testkablix/_generate.mjs` (jamais à la main), plus la ligne dans `testkablix/README.md`.
+- Tout nouveau composant : **fiche d'aide obligatoire** en FR **et** en EN (`docs/fr/composants/<type>.md` + `docs/en/…`), avec son illustration `docs/img/composants/<type>.webp` produite par `node scripts/_capture-part.mjs <type>` (jamais une capture d'écran à la main). `npm run verify:docs` compte les fiches.
+
+### Boîtiers partagés (TO-92 et suivants)
+Un **boîtier** (`to92`…) sert à des dizaines de composants : c'est un DESSIN, pas un composant.
+- Le dessin externe du boîtier vit dans `src/webview/composants/externe/<boîtier>.svg`, et l'élément qui l'utilise l'habille : Frank dit **quoi écrire dessus** (attribut `text`, une ligne par saut de ligne), donne le **schéma interne** (`NPN1`, `PNP1`…) et les **paramètres de simulation**.
+- L'élément expose donc `pkg` (choix du boîtier — d'autres viendront) et le symbole interne : ajouter un boîtier = une entrée dans `PACKAGES` (`transistor-element.mts` = modèle), pas un nouvel élément.
+- Un schéma interne **resservira** à d'autres composants : le garder générique (pattes numérotées 1/2/3 côté prototype, nommées côté référence figée).
+- Deux niveaux de composant : la **référence figée** (`pn2222a` — inscription et paramètres fixés) et le **prototype générique** (`npn`/`pnp` — tout est propriété, l'import de son propre SVG reste possible).
 
 ## Retouche SVG (détail : /retouche)
 - Convention : CENTRE de pastille = croisement de la grille 10 px ; repère = coin haut-gauche du viewBox « tel quel » ; power = rond rouge, gnd = rond noir.

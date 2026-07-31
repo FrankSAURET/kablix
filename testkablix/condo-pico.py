@@ -5,7 +5,7 @@
 from machine import Pin
 import time
 
-broche = Pin(15, Pin.OUT, value=0)
+broche = Pin(16, Pin.OUT, value=0)
 
 while True:
     broche.init(Pin.OUT, value=0)

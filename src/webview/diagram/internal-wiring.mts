@@ -35,6 +35,16 @@ import ptcSchema from '../composants/interne/ptc-schema.svg';
 import diodeSchema from '../composants/interne/diode-interne.svg';
 import condoNpSchema from '../composants/interne/condo-np-interne.svg';
 import condoPSchema from '../composants/interne/condo-p-interne.svg';
+import relaisSchema from '../composants/interne/relais-interne.svg';
+// Symboles de BOÎTIER PARTAGÉ : dessinés dans un groupe indépendant (« NPN1 »,
+// « PNP1 ») et extraits au cadre du boîtier qui les porte (to92). Deux variantes :
+// la nommée relie les pattes aux électrodes par des fils colorés (référence
+// figée, PN2222A), la « libre » ne les relie pas — sur un prototype générique,
+// c'est l'utilisateur qui décide quelle patte est E, B ou C.
+import npn1Schema from '../composants/interne/npn1-interne.svg';
+import pnp1Schema from '../composants/interne/pnp1-interne.svg';
+import npn1LibreSchema from '../composants/interne/npn1-libre-interne.svg';
+import pnp1LibreSchema from '../composants/interne/pnp1-libre-interne.svg';
 
 export interface PinPoint {
   name: string;
@@ -277,6 +287,12 @@ const CAPACITOR_SCHEMA: Record<'np' | 'p', Schema> = {
   np: parseSchema(condoNpSchema),
   p: parseSchema(condoPSchema),
 };
+const RELAIS_SCHEMA = parseSchema(relaisSchema);
+// Transistors : [symbole][pattes reliées ou non aux électrodes].
+const TRANSISTOR_SCHEMA: Record<'npn' | 'pnp', Record<'nomme' | 'libre', Schema>> = {
+  npn: { nomme: parseSchema(npn1Schema), libre: parseSchema(npn1LibreSchema) },
+  pnp: { nomme: parseSchema(pnp1Schema), libre: parseSchema(pnp1LibreSchema) },
+};
 
 /** Superpose un schéma dessiné à la main, mis à l'échelle du corps du composant. */
 function scaledSchema(s: Schema, box?: { w: number; h: number }): string {
@@ -378,6 +394,15 @@ export function internalWiringSvg(
     case 'capacitor':
       // Les deux polarisés (tantale, chimique) partagent le même symbole.
       return scaledSchema(CAPACITOR_SCHEMA[attrs?.ctype === 'np' ? 'np' : 'p'], box);
+    case 'transistor': {
+      // Référence figée (pattes nommées E/B/C) → symbole avec les fils colorés ;
+      // prototype générique (pattes 1/2/3) → symbole sans liaison.
+      const sym = attrs?.symbol === 'pnp' ? 'pnp' : 'npn';
+      const named = pins.some((p) => p.name === 'B');
+      return scaledSchema(TRANSISTOR_SCHEMA[sym][named ? 'nomme' : 'libre'], box);
+    }
+    case 'relay':
+      return scaledSchema(RELAIS_SCHEMA, box);
     case 'pushbutton':
       return pushbutton(pins);
     case 'led':

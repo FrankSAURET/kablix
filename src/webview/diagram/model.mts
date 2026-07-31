@@ -157,6 +157,49 @@ export function endModelFrame(): void {
 }
 
 /**
+ * Pont COMMANDÉ : interrupteur fermé par un composant actif — transistor saturé
+ * (collecteur→émetteur) ou contact de relais (Com↔NF ou Com↔NO). Il conduit
+ * comme un fil, en perdant `drop` volts et sans laisser passer plus de
+ * `limitAmps` ampères.
+ */
+export interface ActiveBridge {
+  partId: string;
+  /** BROCHE d'entrée du composant (côté « haut » d'un transistor : le collecteur).
+   *  Des broches, pas des nets : chaque calcul les rapporte à SA netlist (les
+   *  identifiants de net diffèrent selon `joinResistors`). */
+  a: string;
+  /** Broche de sortie (côté « bas » : l'émetteur). */
+  b: string;
+  /** Tension perdue dans le pont (V) : Vce de saturation, 0 pour un contact. */
+  drop?: number;
+  /** Courant maximal transmis (A) : Gain × Ib pour un transistor. */
+  limitAmps?: number;
+  /** Le courant ne passe que de `a` vers `b` (transistor) ; sinon les deux sens. */
+  oneWay?: boolean;
+}
+
+/**
+ * Ponts fermés à cet instant. Ils sont posés PAR LA SIMULATION avant chaque
+ * frame (setActiveBridges), car leur état dépend des niveaux… qui dépendent des
+ * ponts : c'est un point fixe, résolu en quelques tours par l'appelant
+ * (commandedBridges). Le changement de liste vide le cache de frame, sinon la
+ * netlist du tour précédent servirait à calculer le tour suivant.
+ */
+let activeBridges: readonly ActiveBridge[] = [];
+
+/** Signature d'une liste de ponts (comparaison bon marché entre deux tours). */
+export function bridgeSignature(list: readonly ActiveBridge[]): string {
+  return list.map((b) => `${b.partId}:${b.a}>${b.b}:${b.limitAmps ?? ''}`).sort().join('|');
+}
+
+export function setActiveBridges(list: readonly ActiveBridge[]): void {
+  if (bridgeSignature(list) === bridgeSignature(activeBridges)) return;
+  activeBridges = list;
+  frameNets.clear();
+  frameGraphs.clear();
+}
+
+/**
  * Construit la netlist. Les fils relient les broches ; une résistance se
  * comporte comme un fil entre ses deux pattes (1 ↔ 2) ; une platine d'essai
  * relie les trous de chaque bande (colonnes a–e / f–j et rails).
@@ -187,6 +230,10 @@ function computeNets(diagram: Diagram, joinResistors: boolean): Nets {
       // Les deux pastilles d'une même borne (gauche/droite) sont reliées en interne.
       dsu.union(`${part.id}/1.l`, `${part.id}/1.r`);
       dsu.union(`${part.id}/2.l`, `${part.id}/2.r`);
+    } else if (kind === 'relay') {
+      // Le commun sort des DEUX côtés du boîtier (Com.1 et Com.2) : c'est la
+      // même lame, donc le même nœud, quel que soit le côté câblé.
+      dsu.union(`${part.id}/Com.1`, `${part.id}/Com.2`);
     } else if (kind === 'breadboard') {
       for (const strip of breadboardStrips(normalizeSize(part.attrs?.size))) {
         for (let i = 1; i < strip.length; i++) {
@@ -270,8 +317,10 @@ interface NetIndex {
   mcu: Map<string, NetSupply>;
   psuGnd: Set<string>;
   psuVplus: Set<string>;
-  /** Diodes du schéma, par nets : un niveau ne traverse que de A vers K. */
-  diodes: Array<{ a: string; k: string }>;
+  /** Liaisons ORIENTÉES du schéma, par nets : un niveau ne les traverse que de
+   *  `a` vers `k` (diode A→K, transistor saturé C→E, contact fermé — celui-ci
+   *  compte pour deux liaisons tête-bêche, il conduit dans les deux sens). */
+  oneWayLinks: Array<{ a: string; k: string }>;
 }
 
 /**
@@ -287,7 +336,7 @@ const netIndexCache = new WeakMap<Nets, NetIndex>();
 function netIndex(diagram: Diagram, nets: Nets): NetIndex {
   const hit = netIndexCache.get(nets);
   if (hit) return hit;
-  const index: NetIndex = { mcu: new Map(), psuGnd: new Set(), psuVplus: new Set(), diodes: [] };
+  const index: NetIndex = { mcu: new Map(), psuGnd: new Set(), psuVplus: new Set(), oneWayLinks: [] };
   for (const { part, board } of mcuParts(diagram)) {
     for (const pin of mcuPins(board)) {
       const role = mcuPinRole(board, pin);
@@ -317,10 +366,18 @@ function netIndex(diagram: Diagram, nets: Nets): NetIndex {
   }
   for (const part of diagram.parts) {
     if (partDef(part.type).kind !== 'diode') continue;
-    index.diodes.push({
+    index.oneWayLinks.push({
       a: nets.netOf({ partId: part.id, pin: rolePin(part.type, 'A') }),
       k: nets.netOf({ partId: part.id, pin: rolePin(part.type, 'K') }),
     });
+  }
+  // Ponts commandés fermés : le niveau les franchit comme une diode (le 1
+  // descend de `a` vers `b`, le 0 remonte), dans les deux sens pour un contact.
+  for (const b of activeBridges) {
+    const a = nets.netOf({ partId: b.partId, pin: b.a });
+    const k = nets.netOf({ partId: b.partId, pin: b.b });
+    index.oneWayLinks.push({ a, k });
+    if (!b.oneWay) index.oneWayLinks.push({ a: k, k: a });
   }
   netIndexCache.set(nets, index);
   return index;
@@ -348,17 +405,18 @@ function netLevel(
   if (idx.psuGnd.has(netId)) return 0;
   if (idx.psuVplus.has(netId)) return 1;
   if (entry?.lastDigital !== undefined) return readPin(entry.lastDigital) ? 1 : 0;
-  return diodeLevel(diagram, nets, netId, readPin, seen);
+  return linkedLevel(diagram, nets, netId, readPin, seen);
 }
 
 /**
- * Niveau amené sur un net PAR UNE DIODE, quand rien ne le pilote directement :
- * un niveau HAUT ne franchit une diode que de l'anode vers la cathode, un
- * niveau BAS que de la cathode vers l'anode (le net est alors tiré à la masse à
- * travers la diode). La masse reste prioritaire, comme pour les nets directs.
+ * Niveau amené sur un net PAR UNE LIAISON ORIENTÉE (diode, transistor saturé,
+ * contact de relais fermé), quand rien ne le pilote directement : un niveau
+ * HAUT ne franchit une diode que de l'anode vers la cathode, un niveau BAS que
+ * de la cathode vers l'anode (le net est alors tiré à la masse à travers elle).
+ * La masse reste prioritaire, comme pour les nets directs.
  * `seen` coupe les boucles (diodes tête-bêche, ponts).
  */
-function diodeLevel(
+function linkedLevel(
   diagram: Diagram,
   nets: Nets,
   netId: string,
@@ -366,14 +424,14 @@ function diodeLevel(
   seen?: Set<string>
 ): Level {
   const idx = netIndex(diagram, nets);
-  if (idx.diodes.length === 0) return undefined;
+  if (idx.oneWayLinks.length === 0) return undefined;
   const visited = seen ?? new Set<string>();
   if (visited.has(netId)) return undefined;
   visited.add(netId);
-  for (const d of idx.diodes) {
+  for (const d of idx.oneWayLinks) {
     if (d.a === netId && netLevel(diagram, nets, d.k, readPin, visited) === 0) return 0;
   }
-  for (const d of idx.diodes) {
+  for (const d of idx.oneWayLinks) {
     if (d.k === netId && netLevel(diagram, nets, d.a, readPin, visited) === 1) return 1;
   }
   return undefined;
@@ -437,24 +495,29 @@ interface ResistiveEdge {
   oneWay?: boolean;
   /** Pour une arête orientée : parcourir cur → `to` suit-il le sens du courant. */
   forward?: boolean;
-  /** Tension perdue (V) en traversant l'arête (seuil de la diode). */
+  /** Tension perdue (V) en traversant l'arête (seuil de la diode, Vce de saturation). */
   drop?: number;
+  /** Courant maximal (A) que l'arête laisse passer : un transistor ne transmet
+   *  que Gain × Ib. Absent = pas de limite propre à l'arête. */
+  limitAmps?: number;
 }
 
 /** Plus court chemin (somme des résistances) d'un net vers l'un des nets cibles.
  *  `avoid` : nets qui ne peuvent pas être traversés (rail opposé du diviseur —
  *  un rail est une source équipotentielle, pas un conducteur de passage).
- *  `reached.drop` reçoit la somme des seuils de diode franchis sur ce chemin. */
+ *  `reached.drop` reçoit la somme des seuils de diode franchis sur ce chemin,
+ *  `reached.limitAmps` le plus petit plafond de courant rencontré (transistor). */
 function minOhmsPath(
   from: string,
   targets: Set<string>,
   adj: Map<string, ResistiveEdge[]>,
   avoid?: Set<string>,
-  reached?: { net?: string; drop?: number },
+  reached?: { net?: string; drop?: number; limitAmps?: number },
   dir: FlowDir = 'sink'
 ): number | null {
   const dist = new Map<string, number>([[from, 0]]);
   const drops = new Map<string, number>([[from, 0]]);
+  const limits = new Map<string, number>([[from, Infinity]]);
   const done = new Set<string>();
   for (;;) {
     let cur: string | null = null;
@@ -470,6 +533,7 @@ function minOhmsPath(
       if (reached) {
         reached.net = cur;
         reached.drop = drops.get(cur) ?? 0;
+        reached.limitAmps = limits.get(cur) ?? Infinity;
       }
       return best;
     }
@@ -482,6 +546,7 @@ function minOhmsPath(
       if (d < (dist.get(e.to) ?? Infinity)) {
         dist.set(e.to, d);
         drops.set(e.to, (drops.get(cur) ?? 0) + (e.drop ?? 0));
+        limits.set(e.to, Math.min(limits.get(cur) ?? Infinity, e.limitAmps ?? Infinity));
       }
     }
   }
@@ -589,6 +654,30 @@ function computeResistiveGraph(
       const drop = diodeForwardV(part);
       link(a, k, { ohms: 0, partId: part.id, oneWay: true, forward: true, drop });
       link(k, a, { ohms: 0, partId: part.id, oneWay: true, forward: false, drop });
+    } else if (kind === 'relay') {
+      // La bobine est une résistance comme une autre pour le reste du schéma
+      // (U²/P, soit 125 Ω sous 5 V) : c'est elle qui fixe le courant appelé.
+      const coil = relayPins(part);
+      const a = nets.netOf({ partId: part.id, pin: coil.b1 });
+      const b = nets.netOf({ partId: part.id, pin: coil.b2 });
+      const ohms = coilOhms(part);
+      link(a, b, { ohms, partId: part.id });
+      link(b, a, { ohms, partId: part.id });
+    }
+  }
+  // Ponts commandés fermés : un transistor saturé conduit de C vers E en
+  // perdant son Vce et sans dépasser Gain × Ib ; un contact de relais conduit
+  // dans les deux sens, sans perte.
+  for (const b of activeBridges) {
+    const a = nets.netOf({ partId: b.partId, pin: b.a });
+    const k = nets.netOf({ partId: b.partId, pin: b.b });
+    const edge = { ohms: 0, partId: b.partId, drop: b.drop, limitAmps: b.limitAmps };
+    if (b.oneWay) {
+      link(a, k, { ...edge, oneWay: true, forward: true });
+      link(k, a, { ...edge, oneWay: true, forward: false });
+    } else {
+      link(a, k, edge);
+      link(k, a, edge);
     }
   }
   const digitalNets = new Set<string>();
@@ -1106,8 +1195,8 @@ export function fanCircuit(
   liveOhms?: (part: Part) => number | null
 ): FanCircuit | null {
   const { nets, adj, digitalNets, vccNets, gndNets } = resistiveGraph(diagram, liveOhms);
-  const reached: { net?: string; drop?: number } = {};
-  const sink: { net?: string; drop?: number } = {};
+  const reached: { net?: string; drop?: number; limitAmps?: number } = {};
+  const sink: { net?: string; drop?: number; limitAmps?: number } = {};
   const up = minOhmsPath(
     nets.netOf({ partId: fanId, pin: '+' }),
     new Set([...digitalNets, ...vccNets]),
@@ -1118,25 +1207,43 @@ export function fanCircuit(
   );
   const down = minOhmsPath(nets.netOf({ partId: fanId, pin: '-' }), gndNets, adj, undefined, sink, 'sink');
   if (up === null || down === null || reached.net === undefined) return null;
-  const net = reached.net;
-  let supplyVolts = vcc;
-  let supplyAmps = USB_RAIL_AMPS;
-  let mcuPin: string | null = null;
+  const src = netSupply(diagram, nets, reached.net, vcc, digitalNets, vccNets, psuVolts);
+  // Les diodes du chemin prélèvent leur tension de seuil au passage ; un
+  // transistor sur la maille ne transmet que Gain × Ib (s'il ne sature pas, le
+  // ventilateur est affamé — c'est le montage aval qui ne marche pas).
+  const supplyVolts = Math.max(0, src.volts - (reached.drop ?? 0) - (sink.drop ?? 0));
+  const supplyAmps = Math.min(src.amps, reached.limitAmps ?? Infinity, sink.limitAmps ?? Infinity);
+  return { supplyVolts, supplyAmps, ohms: up + down, mcuPin: src.mcuPin };
+}
+
+/**
+ * Source atteinte par un net remontant : tension à vide et courant qu'elle peut
+ * débiter. Alim de laboratoire (V+ / courant max réglés), rail VCC d'une carte
+ * (0,5 A sur USB) ou sortie numérique (40 mA).
+ */
+function netSupply(
+  diagram: Diagram,
+  nets: Nets,
+  net: string,
+  vcc: number,
+  digitalNets: Set<string>,
+  vccNets: Set<string>,
+  psuVolts?: (partId: string) => number | null
+): { volts: number; amps: number; mcuPin: string | null } {
   for (const psu of psuParts(diagram)) {
     if (nets.netOf({ partId: psu.id, pin: 'V+' }) !== net) continue;
     const v = psuVolts?.(psu.id) ?? Number(psu.attrs?.voltage ?? 0);
-    supplyVolts = Number.isFinite(v) ? v : 0;
     const a = Number(psu.attrs?.maxcurrent);
-    supplyAmps = Number.isFinite(a) && a > 0 ? a : 1;
-    break;
+    return {
+      volts: Number.isFinite(v) ? v : 0,
+      amps: Number.isFinite(a) && a > 0 ? a : 1,
+      mcuPin: null,
+    };
   }
   if (digitalNets.has(net) && !vccNets.has(net)) {
-    mcuPin = mcuDigitalOnNet(diagram, nets, net);
-    supplyAmps = MCU_PIN_AMPS;
+    return { volts: vcc, amps: MCU_PIN_AMPS, mcuPin: mcuDigitalOnNet(diagram, nets, net) };
   }
-  // Les diodes du chemin prélèvent leur tension de seuil au passage.
-  supplyVolts = Math.max(0, supplyVolts - (reached.drop ?? 0) - (sink.drop ?? 0));
-  return { supplyVolts, supplyAmps, ohms: up + down, mcuPin };
+  return { volts: vcc, amps: USB_RAIL_AMPS, mcuPin: null };
 }
 
 /**
@@ -1164,6 +1271,296 @@ export function fanSpeed(
   const speed = volts / ratedVolts;
   // Sous 30 % de sa tension nominale, un moteur à courant continu ne démarre pas.
   return { speed: speed < 0.3 ? 0 : Math.min(1, speed), volts, amps, starved: false };
+}
+
+// --- Ponts commandés : transistors bipolaires et relais ----------------------
+
+/** Tension base-émetteur d'un bipolaire au silicium qui conduit (V). */
+const VBE_ON = 0.7;
+/** Tension collecteur-émetteur d'un bipolaire SATURÉ (V). */
+const VCE_SAT = 0.2;
+/** Courant de base retenu quand la base est câblée SANS résistance (A) : la
+ *  maille ne limite rien, le transistor sature à coup sûr (et chaufferait). */
+const BASE_DIRECT_AMPS = 0.1;
+
+/** Puissance de la bobine d'un G5V (W) : Rbobine = U²/P (5 V → 125 Ω, 40 mA). */
+const COIL_WATTS = 0.2;
+/** Fraction de la tension nominale à partir de laquelle la bobine colle. */
+const PULL_IN_RATIO = 0.8;
+
+export interface TransistorState {
+  partId: string;
+  /** NPN (sinon PNP : tout s'inverse, le courant entre par l'émetteur). */
+  npn: boolean;
+  /** Base polarisée dans le bon sens : le transistor conduit. */
+  on: boolean;
+  /** Courant de base imposé par la maille de base (A). */
+  baseAmps: number;
+  /** Courant maximal transmis au collecteur (A) = Gain × Ib. Au-delà, le
+   *  transistor sort de la saturation et le montage aval ne marche plus. */
+  maxCollectorAmps: number;
+}
+
+/** Ce qui empêche un relais de coller. */
+export type RelayFault = 'none' | 'no-diode' | 'reversed-diode' | 'weak' | 'starved';
+
+export interface RelayState {
+  partId: string;
+  /** Une tension est appliquée à la bobine (B1 haut et B2 bas, ou l'inverse). */
+  commanded: boolean;
+  /** Contact travail (NO) fermé ; sinon c'est le repos (NF) qui l'est. */
+  closed: boolean;
+  /** Tension réellement appliquée à la bobine (V) et courant qui la traverse (A). */
+  coilVolts: number;
+  coilAmps: number;
+  fault: RelayFault;
+}
+
+/** Valeur d'un attribut : celle de l'instance, sinon le défaut du catalogue. */
+function partAttr(part: Part, name: string, dflt: string): string {
+  return part.attrs?.[name] ?? partDef(part.type).attrs?.[name] ?? dflt;
+}
+
+function numAttr(part: Part, name: string, dflt: number): number {
+  const v = Number(part.attrs?.[name] ?? part.attrs?.[`prm_${name}`] ?? partDef(part.type).attrs?.[name]);
+  return Number.isFinite(v) && v > 0 ? v : dflt;
+}
+
+/**
+ * Broches E/B/C d'un transistor. Sur une référence figée (PN2222A) les pattes
+ * portent le nom de l'électrode ; sur un prototype générique elles sont
+ * numérotées 1/2/3 et ce sont les attributs e/b/c qui disent où est chacune.
+ */
+function transistorPins(part: Part): { e: string; b: string; c: string } {
+  const def = partDef(part.type);
+  if (def.custom) {
+    return { e: rolePin(part.type, 'E'), b: rolePin(part.type, 'B'), c: rolePin(part.type, 'C') };
+  }
+  if (partAttr(part, 'named', '') !== '') return { e: 'E', b: 'B', c: 'C' };
+  return { e: partAttr(part, 'e', '1'), b: partAttr(part, 'b', '2'), c: partAttr(part, 'c', '3') };
+}
+
+/** Broches d'un relais (le commun sort des deux côtés du boîtier natif). */
+function relayPins(part: Part): { b1: string; b2: string; com: string; nf: string; no: string } {
+  const t = part.type;
+  if (partDef(t).custom) {
+    return {
+      b1: rolePin(t, 'B1'), b2: rolePin(t, 'B2'), com: rolePin(t, 'Com'),
+      nf: rolePin(t, 'NF'), no: rolePin(t, 'NO'),
+    };
+  }
+  return { b1: 'B1', b2: 'B2', com: 'Com.1', nf: 'NF', no: 'NO' };
+}
+
+/** Résistance de la bobine (Ω) d'après sa tension nominale, à puissance constante. */
+function coilOhms(part: Part): number {
+  const nominal = numAttr(part, 'voltage', 5);
+  return (nominal * nominal) / COIL_WATTS;
+}
+
+/**
+ * État de chaque transistor du schéma. Il conduit quand sa base est polarisée
+ * dans le bon sens (NPN : base haute et émetteur bas ; PNP : l'inverse), et ne
+ * transmet alors que Gain × Ib — c'est TOUT le modèle : on vise la saturation,
+ * et si le montage aval demande davantage, il ne marche pas.
+ */
+export function transistorStates(
+  diagram: Diagram,
+  readPin: (name: string) => boolean,
+  vcc: number,
+  psuVolts?: (partId: string) => number | null,
+  liveOhms?: (part: Part) => number | null
+): TransistorState[] {
+  const parts = diagram.parts.filter((p) => partDef(p.type).kind === 'transistor');
+  if (parts.length === 0) return [];
+  const nets = buildNets(diagram);
+  const g = resistiveGraph(diagram, liveOhms);
+  const { sources, sinks } = levelledRails(diagram, g, readPin);
+  const out: TransistorState[] = [];
+  for (const part of parts) {
+    const pins = transistorPins(part);
+    const npn = partAttr(part, 'symbol', 'npn') !== 'pnp';
+    const level = (pin: string): Level =>
+      netLevel(diagram, nets, nets.netOf({ partId: part.id, pin }), readPin);
+    const on = npn
+      ? level(pins.b) === 1 && level(pins.e) === 0
+      : level(pins.b) === 0 && level(pins.e) === 1;
+    if (!on) {
+      out.push({ partId: part.id, npn, on: false, baseAmps: 0, maxCollectorAmps: 0 });
+      continue;
+    }
+    // Maille de base : un NPN prend son courant de base à la source (base → +),
+    // un PNP l'évacue vers la masse (base → −). Reste la tension d'attaque
+    // moins Vbe, divisée par la résistance de base.
+    const rNet = g.nets;
+    const bNet = rNet.netOf({ partId: part.id, pin: pins.b });
+    const eNet = rNet.netOf({ partId: part.id, pin: pins.e });
+    const reached: { net?: string; drop?: number } = {};
+    const rb = npn
+      ? minOhmsPath(bNet, sources, g.adj, undefined, reached, 'source')
+      : minOhmsPath(bNet, sinks, g.adj, undefined, reached, 'sink');
+    // Tension d'attaque : celle de la source qui alimente la base (NPN) ou
+    // l'émetteur (PNP, dont l'émetteur est au +).
+    const supplyNet = npn ? reached.net : emitterSupplyNet(g, eNet, sources);
+    const supply = supplyNet === undefined
+      ? { volts: vcc, amps: USB_RAIL_AMPS, mcuPin: null }
+      : netSupply(diagram, rNet, supplyNet, vcc, g.digitalNets, g.vccNets, psuVolts);
+    const drive = Math.max(0, supply.volts - VBE_ON - (reached.drop ?? 0));
+    let baseAmps = 0;
+    if (rb !== null) baseAmps = rb <= 0 ? BASE_DIRECT_AMPS : Math.min(BASE_DIRECT_AMPS, drive / rb);
+    const gain = numAttr(part, 'gain', 100);
+    out.push({ partId: part.id, npn, on: baseAmps > 0, baseAmps, maxCollectorAmps: gain * baseAmps });
+  }
+  return out;
+}
+
+/**
+ * Rails du schéma classés par NIVEAU : une sortie de carte n'est pas seulement
+ * une source, elle absorbe aussi le courant quand elle est à l'état bas (c'est
+ * ce qui permet de commander un PNP ou une LED câblée au +). On range donc
+ * chaque net numérique du côté de son niveau du moment ; un net en haute
+ * impédance n'est ni l'un ni l'autre.
+ */
+function levelledRails(
+  diagram: Diagram,
+  g: ResistiveGraph,
+  readPin: (name: string) => boolean
+): { sources: Set<string>; sinks: Set<string> } {
+  const sources = new Set(g.vccNets);
+  const sinks = new Set(g.gndNets);
+  for (const net of g.digitalNets) {
+    const level = netLevel(diagram, g.nets, net, readPin);
+    if (level === 1) sources.add(net);
+    else if (level === 0) sinks.add(net);
+  }
+  return { sources, sinks };
+}
+
+/** Net de la source qui alimente l'émetteur d'un PNP (son « + »). */
+function emitterSupplyNet(g: ResistiveGraph, eNet: string, sources: Set<string>): string | undefined {
+  const reached: { net?: string } = {};
+  minOhmsPath(eNet, sources, g.adj, undefined, reached, 'source');
+  return reached.net;
+}
+
+/**
+ * État de chaque relais du schéma. La bobine colle si la tension qui lui est
+ * réellement appliquée atteint 80 % de sa tension nominale (« must operate
+ * voltage » d'un G5V), si la source peut fournir son courant, ET si une diode
+ * de roue libre est montée entre B1 et B2, cathode vers le + — sans elle, la
+ * surtension de coupure détruirait le transistor de commande.
+ */
+export function relayStates(
+  diagram: Diagram,
+  readPin: (name: string) => boolean,
+  vcc: number,
+  psuVolts?: (partId: string) => number | null,
+  liveOhms?: (part: Part) => number | null
+): RelayState[] {
+  const parts = diagram.parts.filter((p) => partDef(p.type).kind === 'relay');
+  if (parts.length === 0) return [];
+  const nets = buildNets(diagram);
+  const g = resistiveGraph(diagram, liveOhms);
+  const { sources, sinks } = levelledRails(diagram, g, readPin);
+  const out: RelayState[] = [];
+  for (const part of parts) {
+    const pins = relayPins(part);
+    const level = (pin: string): Level =>
+      netLevel(diagram, nets, nets.netOf({ partId: part.id, pin }), readPin);
+    const idle: RelayState = {
+      partId: part.id, commanded: false, closed: false, coilVolts: 0, coilAmps: 0, fault: 'none',
+    };
+    // La bobine n'a pas de polarité : on essaie les deux sens et on garde celui
+    // qui met bien un + d'un côté et une masse de l'autre.
+    const hi = level(pins.b1) === 1 && level(pins.b2) === 0 ? pins.b1
+      : level(pins.b2) === 1 && level(pins.b1) === 0 ? pins.b2
+      : null;
+    if (hi === null) {
+      out.push(idle);
+      continue;
+    }
+    const lo = hi === pins.b1 ? pins.b2 : pins.b1;
+    const hiNet = g.nets.netOf({ partId: part.id, pin: hi });
+    const loNet = g.nets.netOf({ partId: part.id, pin: lo });
+    const up: { net?: string; drop?: number; limitAmps?: number } = {};
+    const down: { net?: string; drop?: number; limitAmps?: number } = {};
+    const rUp = minOhmsPath(hiNet, sources, g.adj, undefined, up, 'source');
+    const rDown = minOhmsPath(loNet, sinks, g.adj, undefined, down, 'sink');
+    if (rUp === null || rDown === null || up.net === undefined) {
+      out.push(idle);
+      continue;
+    }
+    const supply = netSupply(diagram, g.nets, up.net, vcc, g.digitalNets, g.vccNets, psuVolts);
+    const rCoil = coilOhms(part);
+    const volts = Math.max(0, supply.volts - (up.drop ?? 0) - (down.drop ?? 0));
+    // Diviseur : la bobine ne reçoit que sa part de la tension disponible.
+    const coilVolts = (volts * rCoil) / (rCoil + rUp + rDown);
+    const coilAmps = coilVolts / rCoil;
+    const nominal = numAttr(part, 'voltage', 5);
+    // Courant réellement disponible : celui de la source, plafonné par le plus
+    // petit maillon du chemin (transistor de commande mal saturé, typiquement).
+    const maxAmps = Math.min(supply.amps, up.limitAmps ?? Infinity, down.limitAmps ?? Infinity);
+    const fault: RelayFault =
+      flybackFault(diagram, g.nets, hiNet, loNet)
+      ?? (coilVolts < PULL_IN_RATIO * nominal ? 'weak'
+        : coilAmps > maxAmps ? 'starved'
+        : 'none');
+    out.push({ partId: part.id, commanded: true, closed: fault === 'none', coilVolts, coilAmps, fault });
+  }
+  return out;
+}
+
+/**
+ * Diode de roue libre montée entre les deux bornes de la bobine : obligatoire,
+ * cathode vers le + de l'alimentation. Retourne le défaut constaté, ou null si
+ * tout est correct.
+ */
+function flybackFault(diagram: Diagram, nets: Nets, hiNet: string, loNet: string): RelayFault | null {
+  let reversed = false;
+  for (const part of diagram.parts) {
+    if (partDef(part.type).kind !== 'diode') continue;
+    const a = nets.netOf({ partId: part.id, pin: rolePin(part.type, 'A') });
+    const k = nets.netOf({ partId: part.id, pin: rolePin(part.type, 'K') });
+    if (k === hiNet && a === loNet) return null; // cathode au +
+    if (a === hiNet && k === loNet) reversed = true;
+  }
+  return reversed ? 'reversed-diode' : 'no-diode';
+}
+
+/**
+ * Ponts fermés à cet instant : collecteur→émetteur des transistors saturés, et
+ * contact des relais (travail si la bobine colle, repos sinon). L'état dépend
+ * des niveaux, qui dépendent des ponts : l'appelant boucle jusqu'au point fixe
+ * (setActiveBridges puis nouvel appel — deux tours suffisent en pratique).
+ */
+export function commandedBridges(
+  diagram: Diagram,
+  readPin: (name: string) => boolean,
+  vcc: number,
+  psuVolts?: (partId: string) => number | null,
+  liveOhms?: (part: Part) => number | null
+): ActiveBridge[] {
+  const out: ActiveBridge[] = [];
+  for (const st of transistorStates(diagram, readPin, vcc, psuVolts, liveOhms)) {
+    if (!st.on) continue;
+    const part = diagram.parts.find((p) => p.id === st.partId)!;
+    const pins = transistorPins(part);
+    // Le courant entre par le collecteur (NPN) ou par l'émetteur (PNP).
+    out.push({
+      partId: st.partId,
+      a: st.npn ? pins.c : pins.e,
+      b: st.npn ? pins.e : pins.c,
+      drop: VCE_SAT,
+      limitAmps: st.maxCollectorAmps,
+      oneWay: true,
+    });
+  }
+  for (const st of relayStates(diagram, readPin, vcc, psuVolts, liveOhms)) {
+    const part = diagram.parts.find((p) => p.id === st.partId)!;
+    const pins = relayPins(part);
+    out.push({ partId: st.partId, a: pins.com, b: st.closed ? pins.no : pins.nf });
+  }
+  return out;
 }
 
 /**

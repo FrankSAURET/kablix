@@ -28,6 +28,12 @@ const PARTS = {
   'condo-p-2': { module: 'capacitor-element.mjs', tag: 'kablix-capacitor', width: 125, attrs: { ctype: 'chem', value: '1e-4' } },
   ventilo: { module: 'ventilo-element.mjs', tag: 'kablix-ventilo' },
   dht11: { module: 'dht22-element.mjs', tag: 'kablix-dht11' },
+  // Boîtier partagé TO-92 : même dessin pour les trois, seule l'inscription
+  // change (`text`, une ligne par saut de ligne) — comme dans le catalogue.
+  pn2222a: { module: 'transistor-element.mjs', tag: 'kablix-transistor', width: 200, attrs: { text: 'PN\n2222A', named: '1' } },
+  npn: { module: 'transistor-element.mjs', tag: 'kablix-transistor', width: 200, attrs: { text: 'NPN' } },
+  pnp: { module: 'transistor-element.mjs', tag: 'kablix-transistor', width: 200, attrs: { symbol: 'pnp', text: 'PNP' } },
+  relais: { module: 'relais-element.mjs', tag: 'kablix-relais' },
 };
 
 const WIDTH = 360; // largeur des illustrations de fiche déjà en place
@@ -61,7 +67,7 @@ for (const type of todo) {
   const entry = `
 import '../../src/webview/composants/${spec.module}';
 const el = document.createElement('${spec.tag}');
-${Object.entries(spec.attrs ?? {}).map(([k, v]) => `el.setAttribute('${k}', '${v}');`).join('\n')}
+${Object.entries(spec.attrs ?? {}).map(([k, v]) => `el.setAttribute('${k}', ${JSON.stringify(v)});`).join('\n')}
 document.body.appendChild(el);
 setTimeout(() => {
   const svg = el.shadowRoot && el.shadowRoot.querySelector('svg');

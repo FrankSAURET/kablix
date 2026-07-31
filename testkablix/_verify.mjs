@@ -49,6 +49,23 @@ const TESTS = ONLY.size > 0 ? ALL_TESTS.filter((t) => ONLY.has(t.name)) : ALL_TE
 const model = await bundle('src/webview/diagram/model.mts', 'model.mjs');
 const catalog = await bundle('src/webview/diagram/catalog.mjs', 'catalog.mjs');
 
+/**
+ * Point fixe des ponts commandés (transistor saturé, contact de relais fermé) :
+ * un pont ferme un circuit, ce qui change des niveaux, donc l'état des autres
+ * ponts. Même boucle que sim.mts — trois tours suffisent largement.
+ */
+function resolveBridges(diagram, read, vcc) {
+  model.setActiveBridges([]);
+  let signature = model.bridgeSignature([]);
+  for (let pass = 0; pass < 3; pass++) {
+    const list = model.commandedBridges(diagram, read, vcc);
+    const next = model.bridgeSignature(list);
+    model.setActiveBridges(list);
+    if (next === signature) break;
+    signature = next;
+  }
+}
+
 // --- 1. Validation des .projix ------------------------------------------------
 console.log(`--- Validation des ${TESTS.length} .projix (structure + câblage) ---`);
 for (const t of TESTS) {
@@ -226,6 +243,64 @@ for (const t of TESTS) {
       const cale = model.fanSpeed(model.fanCircuit(diagram, e.starved, vcc), 5, 0.85, 1);
       check(`${t.name} : ventilateur sur broche = courant insuffisant`,
         cale.speed === 0 && cale.starved, JSON.stringify(cale));
+      break;
+    }
+    case 'transistor': {
+      const vcc = t.board === 'pico' || t.board === 'picow' ? 3.3 : 5;
+      for (const s of e.steps) {
+        const hauts = s.high ?? [];
+        const read = (p) => hauts.includes(p);
+        const etat = hauts.length ? `[${hauts.join(',')} haut]` : '[tout bas]';
+        resolveBridges(diagram, read, vcc);
+        const states = model.transistorStates(diagram, read, vcc);
+        for (const [id, ic] of Object.entries(s.on ?? {})) {
+          const st = states.find((x) => x.partId === id);
+          check(`${t.name} ${etat} : ${id} conduit, Ic max ${(ic * 1000).toFixed(1)} mA`,
+            !!st && st.on && Math.abs(st.maxCollectorAmps - ic) / ic < 0.02, JSON.stringify(st));
+        }
+        for (const id of s.off ?? []) {
+          const st = states.find((x) => x.partId === id);
+          check(`${t.name} ${etat} : ${id} bloqué`, !!st && !st.on, JSON.stringify(st));
+        }
+        for (const id of s.ledOn ?? []) {
+          check(`${t.name} ${etat} : ${id} allumée`, model.ledOn(diagram, id, read));
+        }
+        for (const id of s.ledOff ?? []) {
+          check(`${t.name} ${etat} : ${id} éteinte`, !model.ledOn(diagram, id, read));
+        }
+        for (const id of s.fanSpins ?? []) {
+          const r = model.fanSpeed(model.fanCircuit(diagram, id, vcc), 5, s.fanAmps, 1);
+          check(`${t.name} ${etat} : ${id} tourne`, r.speed > 0.9 && !r.starved, JSON.stringify(r));
+        }
+        for (const id of s.fanStalls ?? []) {
+          const r = model.fanSpeed(model.fanCircuit(diagram, id, vcc), 5, s.fanAmps, 1);
+          check(`${t.name} ${etat} : ${id} cale`, r.speed === 0, JSON.stringify(r));
+        }
+      }
+      model.setActiveBridges([]); // pas de fuite d'état d'un test au suivant
+      break;
+    }
+    case 'relay': {
+      const vcc = t.board === 'pico' || t.board === 'picow' ? 3.3 : 5;
+      for (const s of e.steps) {
+        const hauts = s.high ?? [];
+        const read = (p) => hauts.includes(p);
+        const etat = hauts.length ? `[${hauts.join(',')} haut]` : '[tout bas]';
+        resolveBridges(diagram, read, vcc);
+        const states = model.relayStates(diagram, read, vcc);
+        for (const [id, want] of Object.entries(s.relays ?? {})) {
+          const st = states.find((x) => x.partId === id);
+          const ok = !!st && Object.entries(want).every(([k, v]) => st[k] === v);
+          check(`${t.name} ${etat} : ${id} → ${JSON.stringify(want)}`, ok, JSON.stringify(st));
+        }
+        for (const id of s.ledOn ?? []) {
+          check(`${t.name} ${etat} : ${id} allumée`, model.ledOn(diagram, id, read));
+        }
+        for (const id of s.ledOff ?? []) {
+          check(`${t.name} ${etat} : ${id} éteinte`, !model.ledOn(diagram, id, read));
+        }
+      }
+      model.setActiveBridges([]);
       break;
     }
     case 'keypad': {
