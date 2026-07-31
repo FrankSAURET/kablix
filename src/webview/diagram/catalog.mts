@@ -429,7 +429,7 @@ export const CATALOG: readonly PartDef[] = [
     ],
   },
   // Ventilateur (dessin de Frank, Composants.svg — l'hélice `ventilo-helices`
-  // tourne autour de son centre). Commandé en PWM ou en tension continue ; il
+  // tourne autour de l'axe du moyeu). Commandé en PWM ou en tension continue ; il
   // ne démarre que si la source peut FOURNIR le courant demandé (fanState).
   {
     type: 'ventilo', label: 'Fan', tag: 'kablix-ventilo', kind: 'fan',
