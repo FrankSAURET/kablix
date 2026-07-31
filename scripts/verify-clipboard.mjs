@@ -306,7 +306,7 @@ run().catch((e) => {
 writeFileSync(join(CACHE, 'e.mjs'), entry);
 const bundle = await esbuild({
   entryPoints: [join(CACHE, 'e.mjs')], bundle: true, format: 'iife', write: false,
-  loader: { '.svg': 'text' }, absWorkingDir: ROOT,
+  loader: { '.svg': 'text', '.webp': 'dataurl' }, absWorkingDir: ROOT,
 });
 const css = read('media/styles.css');
 const zone = (s) =>

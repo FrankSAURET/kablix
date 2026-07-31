@@ -48,7 +48,7 @@ run();
 `;
 mkdirSync(CACHE, { recursive: true });
 writeFileSync(join(CACHE, 'v.mjs'), entry);
-const b = await esbuild({ entryPoints: [join(CACHE, 'v.mjs')], bundle: true, format: 'iife', write: false, loader: { '.svg': 'text' }, absWorkingDir: ROOT });
+const b = await esbuild({ entryPoints: [join(CACHE, 'v.mjs')], bundle: true, format: 'iife', write: false, loader: { '.svg': 'text', '.webp': 'dataurl' }, absWorkingDir: ROOT });
 const css = readFileSync(join(ROOT, 'media', 'styles.css'), 'utf8');
 writeFileSync(
 	join(CACHE, 'v.html'),

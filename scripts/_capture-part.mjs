@@ -80,7 +80,7 @@ setTimeout(() => {
 `;
   const entryPath = join(SCRATCH, 'entry.mjs');
   writeFileSync(entryPath, entry);
-  const bundle = await esbuild({ entryPoints: [entryPath], bundle: true, format: 'iife', write: false, loader: { '.svg': 'text' } });
+  const bundle = await esbuild({ entryPoints: [entryPath], bundle: true, format: 'iife', write: false, loader: { '.svg': 'text', '.webp': 'dataurl' } });
   const htmlPath = join(SCRATCH, 'page.html');
   writeFileSync(htmlPath,
     `<!doctype html><meta charset="utf-8">` +

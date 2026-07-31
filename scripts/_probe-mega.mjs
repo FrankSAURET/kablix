@@ -40,7 +40,7 @@ run().catch(e=>document.getElementById('result').textContent='ERR:'+(e&&e.stack|
 `;
 const entryPath = join(SCRATCH, 'mg-entry.mjs');
 writeFileSync(entryPath, entry);
-const bundle = await esbuild({ entryPoints: [entryPath], bundle: true, format: 'iife', write: false, loader: { '.svg': 'text' } });
+const bundle = await esbuild({ entryPoints: [entryPath], bundle: true, format: 'iife', write: false, loader: { '.svg': 'text', '.webp': 'dataurl' } });
 const htmlPath = join(SCRATCH, 'mg.html');
 writeFileSync(htmlPath, `<!doctype html><meta charset=utf-8><body><pre id="result"></pre><script>${bundle.outputFiles[0].text}</script></body>`);
 const cand = [process.env.CHROME_PATH, 'C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'].filter(Boolean);

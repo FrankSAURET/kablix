@@ -19,7 +19,7 @@ const buildTo = async (entry, outfile) => {
     bundle: true,
     platform: 'node',
     format: 'esm',
-    loader: { '.svg': 'text' },
+    loader: { '.svg': 'text', '.webp': 'dataurl' },
     logLevel: 'silent',
   });
   return import(pathToFileURL(join(tmp, outfile)).href);

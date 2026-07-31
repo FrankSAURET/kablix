@@ -10,7 +10,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const SP = 'V:/Temp/claude/h--OneDrive-4-Programation---VS-Code-Extensions-Kablix/3a50b9e7-84d9-4776-83f6-f55321d5e6a5/scratchpad';
 const out = join(mkdtempSync(join(tmpdir(), 'kx-iw-')), 'iw.mjs');
-await esbuild.build({ entryPoints: [join(root, 'src/webview/diagram/internal-wiring.mts')], outfile: out, bundle: true, platform: 'node', format: 'esm', logLevel: 'silent', loader: { '.svg': 'text' } });
+await esbuild.build({ entryPoints: [join(root, 'src/webview/diagram/internal-wiring.mts')], outfile: out, bundle: true, platform: 'node', format: 'esm', logLevel: 'silent', loader: { '.svg': 'text', '.webp': 'dataurl' } });
 const { internalWiringSvg } = await import(pathToFileURL(out).href);
 
 // pins des variantes (repère de conception), échelle box = corps en px (×~3.5)

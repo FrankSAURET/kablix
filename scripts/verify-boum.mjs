@@ -73,7 +73,11 @@ async function run() {
   editor.setBurned(led.id, false);
   const zUnburned = zOf(led.id);
 
+  // v228 : le feu est un WebP animé inliné en data URI (plus le dessin Boum.svg).
+  const img = boumOf(led.id)?.querySelector('img');
   const res = {
+    fireIsWebp: !!img && img.src.startsWith('data:image/webp;base64,'),
+    fireBytes: img ? img.src.length : 0,
     ledSize: sizeOf(led.id), segSize: sizeOf(seg.id), barSize: sizeOf(bar.id),
     overlayStableOnResilentRerender: idBefore === idStable,
     oldBehaviorRecreates: idA !== idB,
@@ -84,7 +88,7 @@ async function run() {
 run();
 `;
 writeFileSync(join(CACHE, 'e.mjs'), entry);
-const b = await esbuild({ entryPoints: [join(CACHE, 'e.mjs')], bundle: true, format: 'iife', write: false, loader: { '.svg': 'text' }, absWorkingDir: join(ROOT, 'scripts'), logLevel: 'silent' });
+const b = await esbuild({ entryPoints: [join(CACHE, 'e.mjs')], bundle: true, format: 'iife', write: false, loader: { '.svg': 'text', '.webp': 'dataurl' }, absWorkingDir: join(ROOT, 'scripts'), logLevel: 'silent' });
 const css = existsSync(join(ROOT, 'media/styles.css')) ? readFileSync(join(ROOT, 'media/styles.css'), 'utf8') : '';
 writeFileSync(join(CACHE, 'p.html'), `<!doctype html><meta charset=utf8><style>${css}</style>
 <div id="canvas" style="position:absolute;inset:0;overflow:hidden"><div id="palette"></div><svg id="wires" class="wires"></svg></div>
@@ -99,6 +103,8 @@ if (!chrome) {
   const dom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--no-sandbox', '--virtual-time-budget=15000', '--dump-dom', url], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
   const m = dom.match(/<pre id="m"[^>]*>([^<]+)<\/pre>/);
   const r = m ? JSON.parse(m[1].replace(/&quot;/g, '"')) : null;
+  check('feu = WebP animé inliné en data URI (plus de dessin Boum.svg)', r && r.fireIsWebp);
+  check('feu : data URI sous 40 Ko (poids du bundle webview)', r && r.fireBytes > 0 && r.fireBytes < 40 * 1024);
   check('LED : explosion ≈ 50 px (hauteur du corps)', r && r.ledSize >= 40 && r.ledSize <= 60);
   check('7 seg : explosion ≈ 90 px (hauteur du corps, pas minuscule)', r && r.segSize >= 80 && r.segSize <= 100);
   check('barre : explosion ≈ 110 px (hauteur du corps)', r && r.barSize >= 100 && r.barSize <= 120);

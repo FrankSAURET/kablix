@@ -157,7 +157,7 @@ const bundle = await esbuild({
   bundle: true,
   format: 'iife',
   write: false,
-  loader: { '.svg': 'text' },
+  loader: { '.svg': 'text', '.webp': 'dataurl' },
 });
 const js = bundle.outputFiles[0].text;
 

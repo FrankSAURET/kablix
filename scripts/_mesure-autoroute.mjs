@@ -148,7 +148,7 @@ run().catch((e) => {
 `;
 mkdirSync(CACHE, { recursive: true });
 writeFileSync(join(CACHE, 'e.mjs'), entry);
-const b = await esbuild({ entryPoints: [join(CACHE, 'e.mjs')], bundle: true, format: 'iife', write: false, loader: { '.svg': 'text' }, absWorkingDir: ROOT });
+const b = await esbuild({ entryPoints: [join(CACHE, 'e.mjs')], bundle: true, format: 'iife', write: false, loader: { '.svg': 'text', '.webp': 'dataurl' }, absWorkingDir: ROOT });
 const css = readFileSync(join(ROOT, 'media', 'styles.css'), 'utf8');
 writeFileSync(
   join(CACHE, 'p.html'),

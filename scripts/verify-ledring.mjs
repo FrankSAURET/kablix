@@ -53,7 +53,7 @@ run();
 writeFileSync(join(CACHE, 'e.mjs'), entry);
 const b = await esbuild({
   entryPoints: [join(CACHE, 'e.mjs')], bundle: true, format: 'iife', write: false,
-  loader: { '.svg': 'text' }, absWorkingDir: join(ROOT, 'scripts'), logLevel: 'silent',
+  loader: { '.svg': 'text', '.webp': 'dataurl' }, absWorkingDir: join(ROOT, 'scripts'), logLevel: 'silent',
 });
 writeFileSync(join(CACHE, 'p.html'), `<!doctype html><meta charset=utf8><body><script>${b.outputFiles[0].text}</script>`);
 

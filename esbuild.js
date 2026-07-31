@@ -79,7 +79,9 @@ const webviewConfig = {
   target: 'es2020',
   // Les dessins de cartes (Pico / Pico W) sont importés comme texte SVG, optimisés
   // au passage par svgoLoader (le loader texte reste le repli si le plugin saute).
-  loader: { '.svg': 'text' },
+  // Le feu des composants grillés (utils/boum.webp, ~21 Ko) est inliné en data URI
+  // — la CSP de la webview autorise déjà `img-src … data:`.
+  loader: { '.svg': 'text', '.webp': 'dataurl' },
   plugins: [svgoLoader],
   define: { __BUILD_TIME__: JSON.stringify(BUILD_TIME) },
   sourcemap: !production,

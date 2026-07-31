@@ -147,7 +147,7 @@ await esbuild({
   outfile: bundle,
   bundle: true,
   format: 'iife',
-  loader: { '.svg': 'text' },
+  loader: { '.svg': 'text', '.webp': 'dataurl' },
   logLevel: 'silent',
 });
 const page = join(CACHE, 'page.html');
