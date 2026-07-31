@@ -239,6 +239,8 @@ export class AvrEngine implements SimEngine {
   private twi: AVRTWI;
   private spi: AVRSPI;
   private adc: AVRADC;
+  /** Canaux dont la tension est CALCULÉE à la conversion (cf. setAnalogSampler). */
+  private analogSamplers = new Map<number, () => number>();
   // Timers 0/1/2 : indispensables pour millis()/micros()/delay() (sans eux la
   // boucle de delay() ne se terminait jamais et la simulation semblait planter).
   private timers: AVRTimer[];
@@ -377,6 +379,18 @@ export class AvrEngine implements SimEngine {
     this.twi = new AVRTWI(this.cpu, isMega ? MEGA_TWI : twiConfig, CLOCK_HZ); // bus I²C (Wire) — esclaves branchés via setI2cDevices
     this.spi = new AVRSPI(this.cpu, isMega ? MEGA_SPI : spiConfig, CLOCK_HZ); // bus SPI — esclave branché via setSpiDevices
     this.adc = new AVRADC(this.cpu, isMega ? MEGA_ADC_CONFIG : adcConfig);
+    // Échantillonnage à l'instant EXACT de la conversion : on rafraîchit la
+    // tension du canal juste avant que l'implémentation par défaut la lise.
+    {
+      const defaultRead = this.adc.onADCRead;
+      this.adc.onADCRead = (input): void => {
+        if (input.type === ADCMuxInputType.SingleEnded) {
+          const sample = this.analogSamplers.get(input.channel);
+          if (sample) this.adc.channelValues[input.channel] = Math.max(0, Math.min(1, sample())) * VREF;
+        }
+        defaultRead(input);
+      };
+    }
     this.timers = isMega
       ? [
           new AVRTimer(this.cpu, MEGA_TIMER0),
@@ -863,6 +877,14 @@ export class AvrEngine implements SimEngine {
     const ch = this.adcMap[name];
     if (ch === undefined) return;
     this.adc.channelValues[ch] = Math.max(0, Math.min(1, fraction)) * VREF;
+  }
+
+  /** cf. SimEngine.setAnalogSampler — la tension est relue à l'instant exact de la conversion. */
+  setAnalogSampler(name: string, sample: (() => number) | null): void {
+    const ch = this.adcMap[name];
+    if (ch === undefined) return;
+    if (sample) this.analogSamplers.set(ch, sample);
+    else this.analogSamplers.delete(ch);
   }
 
   writeSerial(text: string): void {

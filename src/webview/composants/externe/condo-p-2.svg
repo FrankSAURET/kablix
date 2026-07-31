@@ -1,25 +1,28 @@
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 30 70"><defs><linearGradient
+      
        xlink:href="#ntc-linearGradient594-5"
        id="linearGradient20"
        x1="10.384896"
        y1="132.29166"
        x2="10.78177"
        y2="132.29166"
-       gradientUnits="userSpaceOnUse" /><linearGradient
+       gradientUnits="userSpaceOnUse" gradientTransform="translate(0,0)" /><linearGradient
+      
        xlink:href="#ntc-linearGradient594-5"
        id="linearGradient21"
        gradientUnits="userSpaceOnUse"
        x1="10.384896"
        y1="132.29166"
        x2="10.78177"
-       y2="132.29166" /><linearGradient
+       y2="132.29166" gradientTransform="translate(0,0)" /><linearGradient
        id="ntc-linearGradient594-5"
        gradientTransform="scale(2.1251161,0.47056253)"
        x1="80.503075"
        y1="293.71899"
        x2="82.611275"
        y2="293.71899"
-       gradientUnits="userSpaceOnUse"><stop
+       gradientUnits="userSpaceOnUse"
+      ><stop
          style="stop-color:#e8e8e8;stop-opacity:1;"
          offset="0.0033557"
          id="ntc-stop589" /><stop

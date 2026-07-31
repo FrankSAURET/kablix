@@ -24,6 +24,8 @@ wired backwards.
 
 ## Usage
 
+- Drop the **Capacitor** from the library, then set `ctype` to "polarized":
+  the tantalum has no entry of its own in the palette.
 - Mind the polarity: **+** to the higher potential, **−** to ground.
 - The value you type is printed on the body of the part.
 - Energy reservoir next to a load that draws current spikes (servo, motor),

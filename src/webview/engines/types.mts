@@ -200,6 +200,16 @@ export interface SimEngine {
   setInput(name: string, value: boolean): void;
   /** Tension externe d'une broche analogique, en fraction 0..1 de VREF. */
   setAnalog(name: string, fraction: number): void;
+  /**
+   * Tension analogique CALCULÉE AU MOMENT DE LA CONVERSION : la fonction est
+   * appelée par l'ADC lui-même, pas une fois par frame. Indispensable pour un
+   * signal qui varie plus vite que l'affichage — la charge d'un condensateur
+   * lue toutes les 50 ms de temps simulé apparaîtrait sinon en escalier, la
+   * tension ne changeant qu'aux ~16 ms de temps RÉEL d'une frame.
+   * `sample` renvoie une fraction 0..1 de VREF ; `null` rend la broche à
+   * `setAnalog`.
+   */
+  setAnalogSampler?(name: string, sample: (() => number) | null): void;
   /** Envoie du texte au microcontrôleur sur la liaison série. */
   writeSerial(text: string): void;
   /** Appelé à chaque changement d'état des broches (pour rafraîchir l'affichage). */

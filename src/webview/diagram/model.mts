@@ -1030,7 +1030,7 @@ export type PinDrive = 'high' | 'low' | 'pullup' | 'pulldown' | 'hiz';
 /** Résistance interne (Ω) des sources vues par un réseau RC. */
 const RAIL_OHMS = 1; //         rail d'alimentation (carte ou alim de labo)
 const MCU_OUTPUT_OHMS = 25; //  sortie numérique en conduction
-const MCU_PULL_OHMS = 40_000; // rappel interne (AVR 20-50 kΩ, RP2040 ~50-80 kΩ)
+const MCU_PULL_OHMS = 65_000; // rappel interne (RP2040 50-80 kΩ, AVR 20-50 kΩ)
 
 /** Nœud RC : un condensateur, sa source de Thévenin et les broches qui l'observent. */
 export interface CapacitorNode {

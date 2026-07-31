@@ -23,6 +23,8 @@ lot : charge et décharge exponentielles, terminées à 5·R·C.
 
 ## Utilisation
 
+- Posez le **Condensateur** de la bibliothèque puis mettez `ctype` sur
+  « chimique » : le chimique n'a pas d'entrée à lui dans la palette.
 - Respectez la polarité : la bande claire du corps marque le **−**. À l'envers,
   un vrai condensateur chimique gonfle puis explose.
 - Filtrage d'alimentation : 100 µF à 1000 µF en sortie de régulateur.

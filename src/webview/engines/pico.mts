@@ -196,6 +196,8 @@ export class PicoEngine implements SimEngine {
   private disposed = false;
   private sim: KablixSimulator;
   private mcu: RP2040;
+  /** Canaux ADC dont la tension est CALCULÉE à la conversion (cf. setAnalogSampler). */
+  private analogSamplers = new Map<number, () => number>();
   private cdc: USBCDC | null = null;
   private script: string | null = null;
   private replPhase: ReplPhase = 'idle';
@@ -269,6 +271,16 @@ export class PicoEngine implements SimEngine {
     this.sim.onTick = () => this.fireScheduled();
     this.mcu = this.sim.rp2040;
     this.mcu.logger = new ConsoleLogger(LogLevel.Error);
+    // Échantillonnage à l'instant EXACT de la conversion (cf. setAnalogSampler) :
+    // la tension du canal est recalculée juste avant la lecture par défaut.
+    {
+      const defaultRead = this.mcu.adc.onADCRead;
+      this.mcu.adc.onADCRead = (channel: number): void => {
+        const sample = this.analogSamplers.get(channel);
+        if (sample) this.mcu.adc.channelValues[channel] = Math.round(Math.max(0, Math.min(1, sample())) * 0xfff);
+        defaultRead(channel);
+      };
+    }
 
     if (program.kind === 'ram') {
       this.mcu.sram.set(program.image, 0); // image chargée à 0x20000000
@@ -787,6 +799,14 @@ export class PicoEngine implements SimEngine {
     if (ch === null) return;
     // rp2040js attend la valeur brute 12 bits du convertisseur.
     this.mcu.adc.channelValues[ch] = Math.round(Math.max(0, Math.min(1, fraction)) * 0xfff);
+  }
+
+  /** cf. SimEngine.setAnalogSampler — la tension est relue à l'instant exact de la conversion. */
+  setAnalogSampler(name: string, sample: (() => number) | null): void {
+    const ch = adcChannel(name);
+    if (ch === null) return;
+    if (sample) this.analogSamplers.set(ch, sample);
+    else this.analogSamplers.delete(ch);
   }
 
   writeSerial(text: string): void {

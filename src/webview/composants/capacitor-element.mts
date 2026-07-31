@@ -16,11 +16,13 @@ import drawingNp from './externe/condo-np.svg';
 import drawingP from './externe/condo-p-1.svg';
 import drawingChem from './externe/condo-p-2.svg';
 
-/** Habillage par type : dessin, boîte, y des pattes et calage de la valeur. */
+/** Habillage par type : dessin, boîte, y des pattes et calage de la valeur.
+ *  `font` = taille d'inscription au repos, `textW` = largeur utile du corps :
+ *  au-delà, l'inscription est rétrécie pour tenir (cf. fitValue). */
 const SKINS = {
-  np: { svg: drawingNp, w: 30, h: 50, pinY: 40, tx: 15.5, ty: 13, fill: '#ffffff' },
-  p: { svg: drawingP, w: 30, h: 70, pinY: 60, tx: 16, ty: 22, fill: '#3a2400' },
-  chem: { svg: drawingChem, w: 30, h: 70, pinY: 60, tx: 16, ty: 30, fill: '#ffffff' },
+  np: { svg: drawingNp, w: 30, h: 50, pinY: 40, tx: 15.5, ty: 19, font: 7, textW: 13, fill: '#ffffff' },
+  p: { svg: drawingP, w: 30, h: 70, pinY: 60, tx: 16, ty: 22, font: 7, textW: 16, fill: '#3a2400' },
+  chem: { svg: drawingChem, w: 30, h: 70, pinY: 60, tx: 16, ty: 30, font: 7, textW: 15, fill: '#ffffff' },
 } as const;
 
 export type CapacitorType = keyof typeof SKINS;
@@ -73,8 +75,29 @@ export class CapacitorElement extends LitElement {
   static get styles() {
     return css`
       :host { display: inline-block; }
-      text { font: 7px/1 sans-serif; text-anchor: middle; pointer-events: none; }
+      text.value { font: 7px/1 sans-serif; text-anchor: middle; pointer-events: none; }
     `;
+  }
+
+  /**
+   * Ajuste l'inscription à la largeur du corps : « 4,7µ » s'écrit en grand,
+   * « 100µ » ou « 470n » rétrécissent juste ce qu'il faut. La largeur est
+   * MESURÉE (getComputedTextLength) plutôt qu'estimée : elle dépend de la
+   * police réellement servie et des caractères (le µ est plus large qu'un 1).
+   */
+  private fitValue(): void {
+    // `.value` et pas `text` : le dessin du tantale contient déjà un texte (son
+    // « + »), qui viendrait en premier dans l'ordre du DOM.
+    const el = this.renderRoot.querySelector('text.value') as SVGTextElement | null;
+    if (!el || typeof el.getComputedTextLength !== 'function') return;
+    const s = this.skin;
+    el.style.fontSize = `${s.font}px`;
+    const width = el.getComputedTextLength();
+    if (width > s.textW && width > 0) el.style.fontSize = `${((s.font * s.textW) / width).toFixed(2)}px`;
+  }
+
+  updated(): void {
+    this.fitValue();
   }
 
   render() {
@@ -82,7 +105,7 @@ export class CapacitorElement extends LitElement {
     return html`
       <svg width=${s.w} height=${s.h} viewBox="0 0 ${s.w} ${s.h}" xmlns="http://www.w3.org/2000/svg">
         ${unsafeSVG(s.svg)}
-        <text x=${s.tx} y=${s.ty} fill=${s.fill}>${formatFarads(this.value)}</text>
+        <text class="value" x=${s.tx} y=${s.ty} fill=${s.fill}>${formatFarads(this.value)}</text>
       </svg>
     `;
   }

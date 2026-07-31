@@ -29,8 +29,11 @@ pleine charge (ou décharge complète) au bout de 5·R·C.
 - Mesure RC : chargez par une broche mise à `HIGH` à travers une résistance,
   lisez la montée sur une entrée analogique. τ = R·C, et 5τ = pleine charge.
 - Fonctionne aussi sur une entrée à **pull-up interne** (Arduino ou Pico) : le
-  pull-up (~40 kΩ) tient lieu de résistance de charge, aucune résistance externe
-  n'est nécessaire.
+  pull-up (65 kΩ dans Kablix ; la doc RP2040 annonce 50 à 80 kΩ) tient lieu de
+  résistance de charge, aucune résistance externe n'est nécessaire. Sur le Pico,
+  le **pull-down** interne décharge le condensateur de la même façon.
+- La bibliothèque ne propose qu'un seul **Condensateur** : le type (film,
+  tantale, chimique) se choisit dans la propriété `ctype`.
 - Changer `ctype` ne renomme pas les broches : les fils déjà tracés restent en
   place.
 

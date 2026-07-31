@@ -7,8 +7,8 @@
 // broche termine le fil. Échap annule. Les fils sont tracés avec un congé à
 // chaque changement de direction et colorés selon la nappe Dupont.
 import {
-  CATALOG,
   CATEGORY_ORDER,
+  PALETTE_CATALOG,
   listCustomParts,
   migratePartAttrs,
   partCategory,
@@ -1146,7 +1146,7 @@ export class Editor {
 
     // Derniers utilisés (10 max), en tête — sauf si masqués par le bouton 🕘.
     const recentDefs = this.recentTypes
-      .map((type) => CATALOG.find((d) => d.type === type) ?? customs.find((d) => d.type === type))
+      .map((type) => PALETTE_CATALOG.find((d) => d.type === type) ?? customs.find((d) => d.type === type))
       .filter((d): d is PartDef => d !== undefined);
 
     // Applique le mode de pliage aux sections présentes (avant leur création).
@@ -1155,7 +1155,7 @@ export class Editor {
       if (this.showRecents && recentDefs.length > 0) presentKeys.push('recent');
       if (this.paletteSort === 'category') {
         for (const c of CATEGORY_ORDER) {
-          if (CATALOG.some((d) => partCategory(d) === c) || customs.some((d) => d.custom?.category === c)) {
+          if (PALETTE_CATALOG.some((d) => partCategory(d) === c) || customs.some((d) => d.custom?.category === c)) {
             presentKeys.push(c);
           }
         }
@@ -1173,13 +1173,13 @@ export class Editor {
       // En-tête séparant les derniers utilisés de la liste alphabétique complète.
       this.paletteSection(t('All components'));
       // Liste plate, tous composants confondus, triée sur le libellé traduit.
-      for (const def of [...CATALOG, ...customs].sort(byLabel)) {
+      for (const def of [...PALETTE_CATALOG, ...customs].sort(byLabel)) {
         if (def.custom) this.appendCustomRow(def);
         else this.palette.appendChild(this.paletteButton(def, false));
       }
     } else {
       for (const category of CATEGORY_ORDER) {
-        const defs = CATALOG.filter((d) => partCategory(d) === category).sort(byLabel);
+        const defs = PALETTE_CATALOG.filter((d) => partCategory(d) === category).sort(byLabel);
         // Composants personnalisés ASSIGNÉS à cette catégorie (liste du créateur) :
         // rangés avec les intégrés, en gardant leur ligne à boutons (✎/⇩/✕).
         const cust = customs.filter((d) => d.custom?.category === category).sort(byLabel);

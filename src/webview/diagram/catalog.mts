@@ -173,6 +173,13 @@ export interface PartDef {
     category?: string;
   };
   /**
+   * Variante d'un composant déjà listé : le type reste parfaitement valide
+   * (projets enregistrés, import Wokwi, tests) mais n'apparaît PAS dans la
+   * palette — on le choisit dans les propriétés du composant listé. Les trois
+   * condensateurs sont ainsi un seul élément dont `ctype` change l'habillage.
+   */
+  variant?: boolean;
+  /**
    * Facteur d'agrandissement appliqué au dessin ET aux broches pour ramener le
    * pas des broches à 10 px (= grille / platine). Les éléments forkés
    * sont au pas physique 0,1″ ≈ 9,6 px : on les met à l'échelle 10/9,6. Absent
@@ -310,17 +317,20 @@ export const CATALOG: readonly PartDef[] = [
   // <kablix-capacitor>, broches '1'/'2' communes (l'éditeur affiche « − »/« + »
   // sur les polarisés). En série avec une résistance, la tension à leurs bornes
   // suit la charge/décharge exponentielle (capacitorNodes, model.mts).
+  // UNE seule entrée dans la palette : le type (film / tantale / chimique) se
+  // choisit dans les propriétés. Les deux autres restent des types valides pour
+  // les projets déjà enregistrés — d'où `variant`.
   {
-    type: 'condo-np', label: 'Capacitor (film)', tag: 'kablix-capacitor', kind: 'capacitor',
+    type: 'condo-np', label: 'Capacitor', tag: 'kablix-capacitor', kind: 'capacitor',
     attrs: { ctype: 'np', value: '1e-7', vmax: '400' }, props: CAPACITOR_PROPS,
   },
   {
     type: 'condo-p-1', label: 'Capacitor (tantalum)', tag: 'kablix-capacitor', kind: 'capacitor',
-    attrs: { ctype: 'p', value: '1e-5', vmax: '16' }, props: CAPACITOR_PROPS,
+    variant: true, attrs: { ctype: 'p', value: '1e-5', vmax: '16' }, props: CAPACITOR_PROPS,
   },
   {
     type: 'condo-p-2', label: 'Capacitor (electrolytic)', tag: 'kablix-capacitor', kind: 'capacitor',
-    attrs: { ctype: 'chem', value: '1e-4', vmax: '16' }, props: CAPACITOR_PROPS,
+    variant: true, attrs: { ctype: 'chem', value: '1e-4', vmax: '16' }, props: CAPACITOR_PROPS,
   },
   // Résistances variables nues (2 pattes, sans polarité) : traitées comme des
   // résistances dans la netlist, leur valeur suit le curseur de simulation
@@ -641,6 +651,10 @@ export const CATALOG: readonly PartDef[] = [
     }],
   },
 ];
+
+/** Composants PROPOSÉS dans la palette : le catalogue moins les variantes
+ *  (`variant`), qu'on choisit dans les propriétés d'un composant déjà listé. */
+export const PALETTE_CATALOG: readonly PartDef[] = CATALOG.filter((d) => !d.variant);
 
 // --- Catégories de la palette --------------------------------------------------
 /** Catégorie d'affichage d'un composant dans la palette (clé i18n). */

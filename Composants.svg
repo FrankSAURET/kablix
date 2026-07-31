@@ -709,7 +709,7 @@
        y1="132.29166"
        x2="10.78177"
        y2="132.29166"
-       gradientUnits="userSpaceOnUse" /><inkscape:path-effect
+       gradientUnits="userSpaceOnUse" gradientTransform="translate(0,0)" /><inkscape:path-effect
        effect="simplify"
        id="path-effect19-2"
        is_visible="true"
@@ -727,7 +727,7 @@
        x1="10.384896"
        y1="132.29166"
        x2="10.78177"
-       y2="132.29166" /><inkscape:path-effect
+       y2="132.29166" gradientTransform="translate(0,0)" /><inkscape:path-effect
        effect="simplify"
        id="path-effect19-1"
        is_visible="true"
@@ -755,7 +755,7 @@
        x1="10.384896"
        y1="132.29166"
        x2="10.78177"
-       y2="132.29166" /><linearGradient
+       y2="132.29166" gradientTransform="translate(0,0)" /><linearGradient
        inkscape:collect="always"
        xlink:href="#ntc-linearGradient594-5"
        id="linearGradient23"
@@ -763,7 +763,7 @@
        x1="10.384896"
        y1="132.29166"
        x2="10.78177"
-       y2="132.29166" /><inkscape:path-effect
+       y2="132.29166" gradientTransform="translate(0,0)" /><inkscape:path-effect
        effect="simplify"
        id="path-effect13-8"
        is_visible="true"
@@ -2123,7 +2123,7 @@
            font-family="sans-serif"
            id="text9-7-6"
            style="stroke-width:0.264583">+</text></g></g><g
-       id="condo.p-1"><g
+       id="condo-p-1"><g
          id="g25"
          transform="translate(27.516662,-119.06249)"><g
            id="g23"
@@ -2162,14 +2162,14 @@
              fill="#550000"
              opacity="0.1632"
              id="path28"
-             style="stroke-width:0.352776" /><text
+             style="stroke-width:0.352776" /><text text-anchor="middle"
              fill="#684312"
-             font-family="ocra10"
-             font-size="2.6392px"
+             font-family="132.918"
+             font-size="1.3229px"
              id="text26"
              transform="rotate(0.14323915)"
              style="opacity:0.9904;stroke-width:0.352778"
-             x="32.149498"
+             x="32.35"
              y="131.80667">+</text></g></g><g
          id="g10-8-8"
          transform="translate(-41.851833,-95.066858)"><circle

@@ -29,7 +29,11 @@ charge (or full discharge) after 5·R·C.
 - RC measurement: charge through a resistor from a pin driven `HIGH`, read the
   rise on an analog input. τ = R·C, and 5τ = full charge.
 - Also works on an input with the **internal pull-up** (Arduino or Pico): the
-  pull-up (~40 kΩ) acts as the charging resistor, no external resistor needed.
+  pull-up (65 kΩ in Kablix; the RP2040 datasheet gives 50 to 80 kΩ) acts as the
+  charging resistor, no external resistor needed. On the Pico the internal
+  **pull-down** discharges the capacitor the same way.
+- The library lists a single **Capacitor**: the type (film, tantalum,
+  electrolytic) is picked in the `ctype` property.
 - Changing `ctype` does not rename the pins: wires already drawn stay put.
 
 ---

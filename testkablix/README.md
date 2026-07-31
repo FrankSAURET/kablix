@@ -31,7 +31,7 @@ Chaque composant du catalogue a deux tests : `<composant>-uno` (Arduino, C) et
 | Bouton 6 mm | `button-6mm-uno` | `button-6mm-pico` | idem |
 | Résistance | `resistor-uno` | `resistor-pico` | LED allumée (continuité) |
 | Diode | `diode-uno` | `diode-pico` | passante / à l'envers = bloquée |
-| Condensateurs | `condo-uno` | `condo-pico` | charge et décharge RC sur A0 |
+| Condensateurs | `condo-uno` | `condo-pico` | charge et décharge RC (A0 ; rappel interne 65 kΩ sur ADC0) |
 | Transistor PN2222A | `pn2222a-uno` | `pn2222a-pico` | saturé = ventilateur tourne |
 | Transistor NPN (proto) | `npn-uno` | `npn-pico` | commande côté bas d'une LED |
 | Transistor PNP (proto) | `pnp-uno` | `pnp-pico` | commande côté haut (logique inversée) |

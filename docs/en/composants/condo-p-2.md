@@ -23,6 +23,8 @@ the family: exponential charge and discharge, done after 5·R·C.
 
 ## Usage
 
+- Drop the **Capacitor** from the library, then set `ctype` to "electrolytic":
+  it has no entry of its own in the palette.
 - Mind the polarity: the light stripe marks the **−** terminal. Wired backwards,
   a real electrolytic swells then bursts.
 - Supply filtering: 100 µF to 1000 µF at a regulator's output.

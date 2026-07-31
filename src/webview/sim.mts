@@ -321,6 +321,12 @@ const ledLumFactor = new Map<string, number>();
 const capVolts = new Map<string, number>();
 // Date (ms simulées) de la dernière intégration RC ; null = pas encore démarrée.
 let capLastMs: number | null = null;
+// Point de départ de l'exponentielle pour chaque broche analogique qui observe
+// un condensateur : l'ADC recalcule la tension à l'instant de SA conversion à
+// partir de ces valeurs (cf. capSamplerFor).
+const capPinState = new Map<string, { v0: number; target: number; tau: number; t0: number; vcc: number }>();
+// Échantillonneurs posés sur le moteur, par broche (pour les retirer au besoin).
+const capSamplers = new Map<string, () => number>();
 // Condensateurs claqués pendant ce run (tension de service dépassée).
 const burnedCaps = new Set<string>();
 let breakpoints: Breakpoint[] = []; // points d'arrêt envoyés par l'extension (ligne + condition)
@@ -929,6 +935,12 @@ function refreshVisuals(): void {
  * La tension obtenue est renvoyée au moteur sur les broches qui observent le
  * nœud : `setAnalog` (lecture ADC) et `setInput` avec l'hystérésis d'une entrée
  * logique (bascule à 0,6·Vcc en montant, 0,3·Vcc en descendant).
+ *
+ * `setAnalog` seul ne suffirait pas : un sketch qui échantillonne toutes les
+ * 50 ms de temps SIMULÉ lirait plusieurs fois la même valeur (celle de la
+ * dernière frame, ~16 ms de temps RÉEL) puis un saut — l'exponentielle
+ * apparaîtrait en escalier. On pose donc aussi un échantillonneur appelé par
+ * l'ADC lui-même, qui rend la valeur exacte à l'instant de la conversion.
  */
 function stepCapacitors(): void {
   if (!engine) return;
@@ -942,11 +954,13 @@ function stepCapacitors(): void {
   );
   if (nodes.length === 0) {
     capLastMs = null;
+    clearCapSamplers();
     return;
   }
   const now = engine.simulatedMs?.() ?? performance.now();
   const dt = capLastMs === null ? 0 : Math.max(0, (now - capLastMs) / 1000);
   capLastMs = now;
+  const observed = new Set<string>();
   for (const node of nodes) {
     let v = capVolts.get(node.partId) ?? 0;
     if (node.tau === 0) {
@@ -960,6 +974,16 @@ function stepCapacitors(): void {
     if (v > node.vmax && !burnedCaps.has(node.partId)) burnedCaps.add(node.partId);
     if (el) markBurned(node.partId, el, burnedCaps.has(node.partId));
     for (const pin of node.mcuPins) {
+      observed.add(pin);
+      // Point de départ de l'exponentielle, relu par l'échantillonneur ADC.
+      capPinState.set(pin, { v0: v, target: node.target, tau: node.tau, t0: now, vcc });
+      if (!capSamplers.has(pin)) {
+        const sampler = (): number => capVoltsAt(pin) / vcc;
+        capSamplers.set(pin, sampler);
+        engine.setAnalogSampler?.(pin, sampler);
+      }
+      // Valeur de la frame : sert aux moteurs sans échantillonneur et alimente
+      // les sondes du traceur (elles écoutent setAnalog).
       engine.setAnalog(pin, Math.max(0, Math.min(1, v / vcc)));
       // Hystérésis d'entrée logique : le seuil dépend de l'état précédent, sinon
       // une charge lente ferait osciller l'entrée autour du point de bascule.
@@ -967,6 +991,39 @@ function stepCapacitors(): void {
       engine.setInput(pin, wasHigh ? v > 0.3 * vcc : v > 0.6 * vcc);
     }
   }
+  // Broches qui n'observent plus de condensateur (fil retiré, nœud flottant) :
+  // elles redeviennent de simples entrées analogiques.
+  for (const pin of [...capSamplers.keys()]) {
+    if (!observed.has(pin)) {
+      capSamplers.delete(pin);
+      capPinState.delete(pin);
+      engine.setAnalogSampler?.(pin, null);
+    }
+  }
+}
+
+/**
+ * Tension (V) du condensateur observé par `pin` à l'instant PRÉCIS de l'appel :
+ * la solution exacte v(t) = V∞ + (v0 − V∞)·e^(−Δt/RC) prolongée depuis la
+ * dernière frame. Appelée par l'ADC du moteur, donc en plein milieu du
+ * programme simulé : c'est ce qui rend la courbe de charge continue.
+ */
+function capVoltsAt(pin: string): number {
+  const st = capPinState.get(pin);
+  if (!st) return 0;
+  if (st.tau === 0) return st.target;
+  if (!Number.isFinite(st.tau)) return st.v0; // nœud flottant : charge figée
+  const now = engine?.simulatedMs?.() ?? st.t0;
+  const dt = Math.max(0, (now - st.t0) / 1000);
+  const v = st.target + (st.v0 - st.target) * Math.exp(-dt / st.tau);
+  return Math.max(0, Math.min(st.vcc, v));
+}
+
+/** Retire tous les échantillonneurs RC posés sur le moteur. */
+function clearCapSamplers(): void {
+  for (const pin of capSamplers.keys()) engine?.setAnalogSampler?.(pin, null);
+  capSamplers.clear();
+  capPinState.clear();
 }
 
 function refreshVisualsInner(): void {
@@ -2506,6 +2563,7 @@ function startRun(): void {
   ledLumFactor.clear();
   capVolts.clear(); // condensateurs déchargés au début de chaque simulation
   capLastMs = null;
+  clearCapSamplers(); // (le moteur est neuf : on repart sans échantillonneur)
   relayFaults.clear(); // défauts de câblage des relais re-signalés au 1er enclenchement
   buildI2cDevices();
   rebind();
@@ -2537,6 +2595,7 @@ function stopRun(): void {
   inputRemovers = [];
   engine?.dispose();
   engine = null;
+  clearCapSamplers(); // plus de moteur : les échantillonneurs RC n'ont plus de sens
   setReplMode(false);
   plotter.stop(); // courbes figées mais conservées pour analyse
   stopRenderLoop(); // fin du rendu continu

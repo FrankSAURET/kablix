@@ -24,6 +24,8 @@ supporte pas d'être branché à l'envers.
 
 ## Utilisation
 
+- Posez le **Condensateur** de la bibliothèque puis mettez `ctype` sur
+  « polarisé » : le tantale n'a pas d'entrée à lui dans la palette.
 - Respectez la polarité : **+** au potentiel le plus haut, **−** à la masse.
 - La valeur saisie est inscrite sur le corps du composant.
 - Réservoir d'énergie près d'une charge qui appelle des pointes de courant
