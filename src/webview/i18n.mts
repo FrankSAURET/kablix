@@ -195,6 +195,18 @@ const FR: Record<string, string> = {
   'RGB LED': 'LED RGB',
   'Pushbutton': 'Bouton',
   'Resistor': 'Résistance',
+  'Diode': 'Diode',
+  'Threshold voltage (V)': 'Tension de seuil (V)',
+  // Les trois condensateurs se suivent dans la palette : leur libellé commence
+  // par le même mot dans les deux langues (la liste est triée alphabétiquement).
+  'Capacitor (film)': 'Condensateur (film)',
+  'Capacitor (tantalum)': 'Condensateur (tantale)',
+  'Capacitor (electrolytic)': 'Condensateur (chimique)',
+  'Non-polarized': 'Non polarisé',
+  'Polarized': 'Polarisé',
+  'Electrolytic': 'Chimique',
+  'Nominal value (F)': 'Valeur nominale (F)',
+  'Max voltage (V)': 'Tension max (V)',
   'Potentiometer': 'Potentiomètre',
   'Slide potentiometer': 'Potentiomètre glissière',
   '7-segment display': 'Afficheur 7 segments',
@@ -222,6 +234,10 @@ const FR: Record<string, string> = {
   'Max distance (cm)': 'Distance max (cm)',
   'Air temperature (°C)': 'Température de l’air (°C)',
   'Temp/humidity sensor (DHT22)': 'Capteur temp/humidité (DHT22)',
+  'Temp/humidity sensor (DHT11)': 'Capteur temp/humidité (DHT11)',
+  'Fan': 'Ventilateur',
+  'Rated voltage (V)': 'Tension nominale (V)',
+  'Current draw (A)': 'Courant consommé (A)',
   'Membrane keypad': 'Clavier matriciel',
   'LCD Texte': 'LCD Texte',
   'Interface': 'Interface',
@@ -256,6 +272,7 @@ const FR: Record<string, string> = {
 
   // Propriétés du catalogue
   'Color': 'Couleur',
+  'Type': 'Type',
   'Size': 'Taille',
   'Mini': 'Mini',
   'Medium': 'Moyenne',

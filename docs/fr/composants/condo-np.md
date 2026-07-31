@@ -1,0 +1,39 @@
+# Condensateur non polarisé
+
+![Condensateur non polarisé](../../img/composants/condo-np.webp)
+
+Condensateur film plastique, sans polarité. En série avec une résistance, il
+forme un circuit RC : la tension à ses bornes monte et descend exponentiellement,
+pleine charge (ou décharge complète) au bout de 5·R·C.
+
+## Broches
+
+| Broche | Rôle |
+|--------|------|
+| **1** | Borne 1 |
+| **2** | Borne 2 (non polarisé : les deux sont équivalentes) |
+
+## Propriétés
+
+| Propriété | Rôle | Défaut |
+|-----------|------|--------|
+| `ctype` | Type : non polarisé / polarisé / chimique | non polarisé |
+| `value` | Valeur nominale en farads (suffixes `m`, `µ`, `n`, `p` acceptés) | 100n |
+| `vmax` | Tension maximale admissible (V) | 400 |
+| `angle` | Orientation (0/90/180/270°) | 0 |
+
+## Utilisation
+
+- La valeur saisie est **inscrite sur le corps** du composant (`10µ`, `100n`…).
+- Découplage d'alimentation : 100 nF au plus près de la broche VCC du circuit.
+- Mesure RC : chargez par une broche mise à `HIGH` à travers une résistance,
+  lisez la montée sur une entrée analogique. τ = R·C, et 5τ = pleine charge.
+- Fonctionne aussi sur une entrée à **pull-up interne** (Arduino ou Pico) : le
+  pull-up (~40 kΩ) tient lieu de résistance de charge, aucune résistance externe
+  n'est nécessaire.
+- Changer `ctype` ne renomme pas les broches : les fils déjà tracés restent en
+  place.
+
+---
+
+*Composant maison Kablix — dessin de Frank Sauret.*

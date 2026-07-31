@@ -29,6 +29,12 @@ import sevenSegA4Clock from '../composants/interne/7seg-4dig-clock-schema.anode.
 import ldrSchema from '../composants/interne/ldr-schema.svg';
 import ntcSchema from '../composants/interne/ntc-schema.svg';
 import ptcSchema from '../composants/interne/ptc-schema.svg';
+// Symboles dessinés dans Composants.svg (groupes « <nom>-interne ») : même
+// viewBox que le dessin externe, donc superposables tels quels. Les deux
+// condensateurs polarisés partagent « condo-p-interne ».
+import diodeSchema from '../composants/interne/diode-interne.svg';
+import condoNpSchema from '../composants/interne/condo-np-interne.svg';
+import condoPSchema from '../composants/interne/condo-p-interne.svg';
 
 export interface PinPoint {
   name: string;
@@ -264,8 +270,16 @@ const VARISTOR_SCHEMA: Record<'ldr' | 'ntc' | 'ptc', Schema> = {
   ptc: parseSchema(ptcSchema),
 };
 
-function varistorSchema(type: 'ldr' | 'ntc' | 'ptc', box?: { w: number; h: number }): string {
-  const s = VARISTOR_SCHEMA[type];
+// Diode et condensateurs (dessins de Frank) : mêmes repères que leur dessin
+// externe, une simple mise à l'échelle de la boîte suffit.
+const DIODE_SCHEMA = parseSchema(diodeSchema);
+const CAPACITOR_SCHEMA: Record<'np' | 'p', Schema> = {
+  np: parseSchema(condoNpSchema),
+  p: parseSchema(condoPSchema),
+};
+
+/** Superpose un schéma dessiné à la main, mis à l'échelle du corps du composant. */
+function scaledSchema(s: Schema, box?: { w: number; h: number }): string {
   if (!box) return s.inner;
   const sx = (box.w / s.w).toFixed(4);
   const sy = (box.h / s.h).toFixed(4);
@@ -357,8 +371,13 @@ export function internalWiringSvg(
   if (type === 'pot') return rotaryPot(pins);
   // Résistances variables nues : symbole dessiné à la main (avant le cas
   // générique `resistor`, qui ne tracerait qu'une boîte).
-  if (type === 'ldr' || type === 'ntc' || type === 'ptc') return varistorSchema(type, box);
+  if (type === 'ldr' || type === 'ntc' || type === 'ptc') return scaledSchema(VARISTOR_SCHEMA[type], box);
   switch (kind) {
+    case 'diode':
+      return scaledSchema(DIODE_SCHEMA, box);
+    case 'capacitor':
+      // Les deux polarisés (tantale, chimique) partagent le même symbole.
+      return scaledSchema(CAPACITOR_SCHEMA[attrs?.ctype === 'np' ? 'np' : 'p'], box);
     case 'pushbutton':
       return pushbutton(pins);
     case 'led':

@@ -1,5 +1,5 @@
 ---
-description: Livre le lot courant — todo.md, bump version, build, commit, push, vsix
+description: Livre le lot courant — todo.md, bump version, build, commit, push
 argument-hint: [résumé du lot]
 ---
 Livre le lot courant, dans cet ordre, sans t'arrêter entre les étapes :
@@ -10,6 +10,7 @@ Livre le lot courant, dans cet ordre, sans t'arrêter entre les étapes :
 4. `npm run build`
 5. `git add -A && git commit -m "vX : <résumé du lot>"` (+ signature Claude).
 6. `git push`
-7. `npm run package` — vérifier que le `.vsix` est bien produit.
+
+Ne PAS construire le `.vsix` : `npm run package` seulement si Frank le demande explicitement.
 
 Fin : tableau Action | Résultat | Annulation.

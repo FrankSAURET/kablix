@@ -10,6 +10,9 @@ export type PartKind =
   | 'rgb-led'
   | 'pushbutton'
   | 'resistor'
+  | 'diode'
+  | 'capacitor'
+  | 'fan'
   | 'buzzer'
   | 'potentiometer'
   | '7segment'
@@ -205,6 +208,16 @@ const STATE_PROP: PropDef = { attr: 'state', label: 'State (0/1)', kind: 'select
 const VALUE_PROP: PropDef = { attr: 'value', label: 'Position (%)', kind: 'number', min: 0, max: 100, step: 1 };
 // Seuil de bascule DOUT des capteurs à double sortie (flamme, gaz, son, lumière).
 const SENSITIVITY_PROP: PropDef = { attr: 'sensitivity', label: 'Sensitivity (%)', kind: 'number', min: 0, max: 100, step: 1 };
+// Propriétés communes aux trois condensateurs (le type choisit l'habillage du
+// même élément ; la valeur est saisie en farads avec suffixes m µ n p).
+const CAPACITOR_PROPS: readonly PropDef[] = [
+  {
+    attr: 'ctype', label: 'Type', kind: 'select', options: ['np', 'p', 'chem'],
+    optionLabels: { np: 'Non-polarized', p: 'Polarized', chem: 'Electrolytic' },
+  },
+  { attr: 'value', label: 'Nominal value (F)', kind: 'number', min: 1e-12, max: 1, suffixes: true },
+  { attr: 'vmax', label: 'Max voltage (V)', kind: 'number', min: 1, max: 1000, step: 1 },
+];
 
 export const CATALOG: readonly PartDef[] = [
   // Cartes AVR : éléments forkés, mis à l'échelle 10/9,6 px pour que
@@ -266,6 +279,31 @@ export const CATALOG: readonly PartDef[] = [
     props: [
       { attr: 'value', label: 'Value (Ω)', kind: 'number', min: 1, max: 10_000_000, step: 1, suffixes: true },
     ],
+  },
+  // Diode de redressement (dessin de Frank, Composants.svg) : elle ne laisse
+  // passer le courant que de A vers K, en perdant sa tension de seuil. Sens
+  // bloqué = le niveau ne se propage pas (netLevel, graphe résistif orienté).
+  {
+    type: 'diode', label: 'Diode', tag: 'kablix-diode', kind: 'diode', attrs: { vf: '0.6' },
+    props: [
+      { attr: 'vf', label: 'Threshold voltage (V)', kind: 'number', min: 0, max: 5, step: 0.1 },
+    ],
+  },
+  // Condensateurs (dessins de Frank) : trois habillages d'un même élément
+  // <kablix-capacitor>, broches '1'/'2' communes (l'éditeur affiche « − »/« + »
+  // sur les polarisés). En série avec une résistance, la tension à leurs bornes
+  // suit la charge/décharge exponentielle (capacitorNodes, model.mts).
+  {
+    type: 'condo-np', label: 'Capacitor (film)', tag: 'kablix-capacitor', kind: 'capacitor',
+    attrs: { ctype: 'np', value: '1e-7', vmax: '400' }, props: CAPACITOR_PROPS,
+  },
+  {
+    type: 'condo-p-1', label: 'Capacitor (tantalum)', tag: 'kablix-capacitor', kind: 'capacitor',
+    attrs: { ctype: 'p', value: '1e-5', vmax: '16' }, props: CAPACITOR_PROPS,
+  },
+  {
+    type: 'condo-p-2', label: 'Capacitor (electrolytic)', tag: 'kablix-capacitor', kind: 'capacitor',
+    attrs: { ctype: 'chem', value: '1e-4', vmax: '16' }, props: CAPACITOR_PROPS,
   },
   // Résistances variables nues (2 pattes, sans polarité) : traitées comme des
   // résistances dans la netlist, leur valeur suit le curseur de simulation
@@ -373,6 +411,17 @@ export const CATALOG: readonly PartDef[] = [
       { attr: 'speed', label: 'Rotation time (s/turn)', kind: 'number', min: 0, max: 30, step: 0.1 },
     ],
   },
+  // Ventilateur (dessin de Frank, Composants.svg — l'hélice `ventilo-helices`
+  // tourne autour de son centre). Commandé en PWM ou en tension continue ; il
+  // ne démarre que si la source peut FOURNIR le courant demandé (fanState).
+  {
+    type: 'ventilo', label: 'Fan', tag: 'kablix-ventilo', kind: 'fan',
+    attrs: { voltage: '5', current: '0.85' },
+    props: [
+      { attr: 'voltage', label: 'Rated voltage (V)', kind: 'number', min: 1, max: 24, step: 0.1 },
+      { attr: 'current', label: 'Current draw (A)', kind: 'number', min: 0.001, max: 5, suffixes: true },
+    ],
+  },
 
   // --- Composants supplémentaires (forkés du catalogue Wokwi).
   // Afficheur LCD texte unifié (HD44780). Un seul élément `kablix-lcd1602` couvre
@@ -471,7 +520,15 @@ export const CATALOG: readonly PartDef[] = [
   // réel. Température/humidité réglées EN SIMULATION par deux curseurs (simControl).
   {
     type: 'dht22', label: 'Temp/humidity sensor (DHT22)', tag: 'kablix-dht22', kind: 'passive',
-    simControl: true, attrs: { temperature: '22', humidity: '50' },
+    simControl: true, attrs: { model: 'dht22', temperature: '22', humidity: '50' },
+    props: [],
+  },
+  // DHT11 : même élément, même protocole, boîtier et plages différents (dessin
+  // de Frank, Composants.svg). Précision ±2 °C / ±5 %HR, résolution 1 °C /
+  // 1 %HR (trame à décimales nulles), mesure de 0 à +50 °C et de 20 à 90 %HR.
+  {
+    type: 'dht11', label: 'Temp/humidity sensor (DHT11)', tag: 'kablix-dht11', kind: 'passive',
+    simControl: true, attrs: { model: 'dht11', temperature: '22', humidity: '50' },
     props: [],
   },
   // Module Grove « 16-Channel PWM Driver (PCA9685) » de Seeed (dessin Fritzing
@@ -532,7 +589,7 @@ export const CATALOG: readonly PartDef[] = [
 /** Catégorie d'affichage d'un composant dans la palette (clé i18n). */
 export function partCategory(def: PartDef): string {
   // Composants rangés par type quand le `kind` ne suffit pas à les classer.
-  if (def.type === 'dht22' || def.type === 'hcsr04') return 'Sensors';
+  if (def.type === 'dht22' || def.type === 'dht11' || def.type === 'hcsr04') return 'Sensors';
   if (def.type === 'keypad') return 'Controls';
   switch (def.kind) {
     case 'mcu':
@@ -550,7 +607,9 @@ export function partCategory(def: PartDef): string {
       return 'Displays & LEDs';
     case 'led':
     case 'rgb-led':
-      return 'Passive'; // « Discrets » (composants discrets : R, LED…)
+    case 'diode':
+    case 'capacitor':
+      return 'Passive'; // « Discrets » (composants discrets : R, LED, diode, condo…)
     case 'psu':
       return 'Instruments'; // « Appareils de mesure » : alim de laboratoire…
     case 'spi-sd':
@@ -569,6 +628,7 @@ export function partCategory(def: PartDef): string {
       return 'Sensors';
     case 'buzzer':
     case 'servo':
+    case 'fan':
       return 'Actuators';
     default:
       return 'Passive';

@@ -42,11 +42,11 @@ const check = (label, ok) => {
 const tools = detectToolchain();
 const b64ToBytes = (b64) => Uint8Array.from(Buffer.from(b64, 'base64'));
 
-// examples/blink_uno.c est du C bare-metal : seul avr-gcc le compile
+// testkablix/blink_uno.c est du C bare-metal : seul avr-gcc le compile
 // (arduino-cli attend un sketch .ino dans un dossier de même nom).
 if (tools.avrGcc) {
-  console.log('Compilation de examples/blink_uno.c (Arduino Uno) :');
-  const res = await compile('uno', join(root, 'examples/blink_uno.c'), root);
+  console.log('Compilation de testkablix/blink_uno.c (Arduino Uno) :');
+  const res = await compile('uno', join(root, 'testkablix/blink_uno.c'), root);
   const p = res.payload;
   check(`format avr-progmem, ${p.bytes.length} mots`, p.format === 'avr-progmem' && p.bytes.length > 0);
   const cpu = new CPU(Uint16Array.from(p.bytes));
@@ -67,8 +67,8 @@ if (tools.avrGcc) {
 }
 
 if (tools.armGcc) {
-  console.log('Compilation de examples/blink_pico.c (Raspberry Pi Pico) :');
-  const res = await compile('pico', join(root, 'examples/blink_pico.c'), root);
+  console.log('Compilation de testkablix/blink_pico.c (Raspberry Pi Pico) :');
+  const res = await compile('pico', join(root, 'testkablix/blink_pico.c'), root);
   const p = res.payload;
   const image = b64ToBytes(p.b64);
   check(`format rp2040-ram, ${image.length} octets`, p.format === 'rp2040-ram' && image.length > 0);

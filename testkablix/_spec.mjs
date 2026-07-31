@@ -13,6 +13,13 @@ export const PART_PINS = {
   button: ['1.l', '2.l', '1.r', '2.r'],
   'button-6mm': ['1.l', '2.l', '1.r', '2.r'],
   resistor: ['1', '2'],
+  diode: ['K', 'A'],
+  // Les trois condensateurs partagent les mêmes broches : changer de type dans
+  // l'inspecteur ne doit jamais orphéliner un fil.
+  'condo-np': ['1', '2'],
+  'condo-p-1': ['1', '2'],
+  'condo-p-2': ['1', '2'],
+  ventilo: ['+', '-'],
   buzzer: ['1', '2'],
   pot: ['GND', 'SIG', 'VCC'],
   'slide-pot': ['GND', 'SIG', 'VCC'],
@@ -42,6 +49,7 @@ export const PART_PINS = {
   sound: ['AOUT', 'DOUT', 'GND', 'VCC'],
   hcsr04: ['VCC', 'TRIG', 'ECHO', 'GND'],
   dht22: ['VCC', 'DATA', 'NC', 'GND'],
+  dht11: ['VCC', 'DATA', 'NC', 'GND'],
   keypad: ['R1', 'R2', 'R3', 'R4', 'C1', 'C2', 'C3', 'C4'],
   // Module Grove PCA9685 : bus Grove + bornier alim servo + 16 colonnes servo.
   pca9685: [
@@ -1003,6 +1011,179 @@ void loop() {
   Serial.print(" C   H = ");
   Serial.print(h);
   Serial.println(" %");
+}
+`,
+  }),
+
+  test({
+    name: 'diode-uno', board: 'uno', ext: 'ino',
+    parts: [
+      MCU('uno'),
+      { id: 'd1', type: 'diode', x: 400, y: 60 },
+      { id: 'r1', type: 'resistor', x: 500, y: 60, attrs: { value: '220' } },
+      { id: 'led1', type: 'led', x: 600, y: 60, attrs: { color: 'green' } },
+      { id: 'd2', type: 'diode', x: 400, y: 160 },
+      { id: 'r2', type: 'resistor', x: 500, y: 160, attrs: { value: '220' } },
+      { id: 'led2', type: 'led', x: 600, y: 160, attrs: { color: 'red' } },
+    ],
+    wires: () => [
+      // Branche du haut : diode dans le bon sens (anode côté broche 8).
+      w('d1', 'A', 'mcu1', '8', 'green'),
+      w('d1', 'K', 'r1', '1', 'green'),
+      w('r1', '2', 'led1', 'A', 'green'),
+      w('led1', 'C', 'mcu1', 'GND.1', 'black'),
+      // Branche du bas : diode À L'ENVERS (cathode côté broche 9) → elle bloque.
+      w('d2', 'K', 'mcu1', '9', 'orange'),
+      w('d2', 'A', 'r2', '1', 'orange'),
+      w('r2', '2', 'led2', 'A', 'orange'),
+      w('led2', 'C', 'mcu1', 'GND.2', 'black'),
+    ],
+    expect: { kind: 'diode', ledOn: 'led1', ledOff: 'led2', drop: 0.6 },
+    code: `// Test diode : les deux broches passent au niveau haut en meme temps.
+// Seule la LED verte s'allume — la diode de la branche rouge est montee a
+// l'envers (cathode cote broche 9) et bloque le passage du courant.
+const int BRANCHE_PASSANTE = 8;
+const int BRANCHE_BLOQUEE = 9;
+
+void setup() {
+  pinMode(BRANCHE_PASSANTE, OUTPUT);
+  pinMode(BRANCHE_BLOQUEE, OUTPUT);
+}
+
+void loop() {
+  digitalWrite(BRANCHE_PASSANTE, HIGH);
+  digitalWrite(BRANCHE_BLOQUEE, HIGH);
+  delay(1000);
+  digitalWrite(BRANCHE_PASSANTE, LOW);
+  digitalWrite(BRANCHE_BLOQUEE, LOW);
+  delay(1000);
+}
+`,
+  }),
+
+  test({
+    name: 'condo-uno', board: 'uno', ext: 'ino',
+    parts: [
+      MCU('uno'),
+      { id: 'r1', type: 'resistor', x: 420, y: 80, attrs: { value: '10000' } },
+      { id: 'c1', type: 'condo-np', x: 560, y: 80, attrs: { ctype: 'np', value: '1e-5', vmax: '400' } },
+    ],
+    wires: () => [
+      w('r1', '1', 'mcu1', '8', 'green'),
+      w('r1', '2', 'c1', '1', 'green'),
+      w('c1', '1', 'mcu1', 'A0', 'blue'),
+      w('c1', '2', 'mcu1', 'GND.1', 'black'),
+    ],
+    // 10 kΩ × 10 µF = 0,1 s de constante de temps ; charge pleine à 5 RC = 0,5 s.
+    expect: { kind: 'capacitor', partId: 'c1', drivePin: '8', drive: 'high', volts: 5, target: 5, tau: 0.1, mcuPins: ['A0'] },
+    code: `// Test condensateur : circuit RC 10 kOhm + 10 uF (RC = 0,1 s) charge par la
+// broche 8 et mesure sur A0. La tension atteint 63 % de 5 V au bout d'un RC et
+// la charge est pleine a 5 RC (0,5 s) — de meme pour la decharge.
+const int CHARGE = 8;
+const int MESURE = A0;
+
+void trace(const char *phase) {
+  for (int i = 0; i < 12; i++) {
+    delay(50);
+    Serial.print(phase);
+    Serial.print(" t=");
+    Serial.print((i + 1) * 50);
+    Serial.print(" ms  U=");
+    Serial.print(analogRead(MESURE) * 5.0 / 1023.0, 2);
+    Serial.println(" V");
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(CHARGE, OUTPUT);
+}
+
+void loop() {
+  digitalWrite(CHARGE, HIGH);
+  trace("charge  ");
+  digitalWrite(CHARGE, LOW);
+  trace("decharge");
+}
+`,
+  }),
+
+  test({
+    name: 'dht11-uno', board: 'uno', ext: 'ino',
+    parts: [MCU('uno'), { id: 'dht1', type: 'dht11', x: 620, y: 90, attrs: { temperature: '22', humidity: '50' } }],
+    wires: () => [
+      w('dht1', 'VCC', 'mcu1', '5V', 'red'),
+      w('dht1', 'DATA', 'mcu1', '2', 'green'),
+      w('dht1', 'GND', 'mcu1', 'GND.1', 'black'),
+    ],
+    expect: { kind: 'dht22', partId: 'dht1', mcuPin: '2', model: 'dht11' },
+    code: `// Test DHT11 : meme protocole 1-wire que le DHT22, mais des valeurs ENTIERES
+// (pas de dixieme), 20 a 90 % HR et 0 a 50 degres C.
+#include <DHT.h>
+
+DHT dht(2, DHT11);
+
+void setup() {
+  Serial.begin(115200);
+  dht.begin();
+}
+
+void loop() {
+  delay(1100);   // le DHT11 ne repond qu'une fois par seconde
+  float t = dht.readTemperature();
+  float h = dht.readHumidity();
+  if (isnan(t) || isnan(h)) {
+    Serial.println("lecture ratee");
+    return;
+  }
+  Serial.print("T = ");
+  Serial.print(t);
+  Serial.print(" C   H = ");
+  Serial.print(h);
+  Serial.println(" %");
+}
+`,
+  }),
+
+  test({
+    name: 'ventilo-uno', board: 'uno', ext: 'ino',
+    parts: [
+      MCU('uno'),
+      { id: 'alim1', type: 'alim', x: 620, y: 300, attrs: { voltage: '5', maxcurrent: '1' } },
+      { id: 'fan1', type: 'ventilo', x: 620, y: 40, attrs: { voltage: '5', current: '0.85' } },
+      { id: 'fan2', type: 'ventilo', x: 900, y: 40, attrs: { voltage: '5', current: '0.85' } },
+    ],
+    wires: () => [
+      // Alimente par l'alim de laboratoire (5 V, 1 A) : il tourne.
+      w('fan1', '+', 'alim1', 'V+', 'red'),
+      w('fan1', '-', 'alim1', 'GND', 'black'),
+      // Alimente par une sortie Arduino (40 mA) : il ne demarre jamais.
+      w('fan2', '+', 'mcu1', '9', 'orange'),
+      w('fan2', '-', 'mcu1', 'GND.2', 'black'),
+    ],
+    expect: { kind: 'fan', spins: 'fan1', starved: 'fan2' },
+    code: `// Test ventilateur. Le premier tourne : il est branche sur l'alimentation de
+// laboratoire (5 V, 1 A), qui fournit largement ses 850 mA.
+// Le second est cable sur la broche 9 en PWM : il ne demarre JAMAIS, une sortie
+// Arduino ne debite que 40 mA. En vrai comme en simulation, il faut un
+// transistor (ou un MOSFET) commande par la broche pour piloter un moteur.
+const int COMMANDE = 9;
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(COMMANDE, OUTPUT);
+  Serial.println("Le ventilateur de la broche 9 ne tournera pas : courant insuffisant.");
+}
+
+void loop() {
+  for (int v = 0; v <= 255; v += 5) {
+    analogWrite(COMMANDE, v);
+    delay(40);
+  }
+  for (int v = 255; v >= 0; v -= 5) {
+    analogWrite(COMMANDE, v);
+    delay(40);
+  }
 }
 `,
   }),
@@ -2025,6 +2206,144 @@ while True:
         print("T =", capteur.temperature(), "C   H =", capteur.humidity(), "%")
     except OSError as e:
         print("lecture ratee :", e)
+`,
+  }),
+
+  test({
+    name: 'diode-pico', board: 'pico', ext: 'py',
+    parts: [
+      MCU('pico'),
+      { id: 'd1', type: 'diode', x: 400, y: 60 },
+      { id: 'r1', type: 'resistor', x: 500, y: 60, attrs: { value: '220' } },
+      { id: 'led1', type: 'led', x: 600, y: 60, attrs: { color: 'green' } },
+      { id: 'd2', type: 'diode', x: 400, y: 160 },
+      { id: 'r2', type: 'resistor', x: 500, y: 160, attrs: { value: '220' } },
+      { id: 'led2', type: 'led', x: 600, y: 160, attrs: { color: 'red' } },
+    ],
+    wires: () => [
+      w('d1', 'A', 'mcu1', 'GP15', 'green'),
+      w('d1', 'K', 'r1', '1', 'green'),
+      w('r1', '2', 'led1', 'A', 'green'),
+      w('led1', 'C', 'mcu1', 'GND.5', 'black'),
+      // Diode à l'envers : la branche rouge ne s'allume jamais.
+      w('d2', 'K', 'mcu1', 'GP14', 'orange'),
+      w('d2', 'A', 'r2', '1', 'orange'),
+      w('r2', '2', 'led2', 'A', 'orange'),
+      w('led2', 'C', 'mcu1', 'GND.3', 'black'),
+    ],
+    expect: { kind: 'diode', ledOn: 'led1', ledOff: 'led2', drop: 0.6 },
+    code: `# Test diode : les deux broches passent au niveau haut en meme temps.
+# Seule la LED verte s'allume — la diode de la branche rouge est montee a
+# l'envers (cathode cote GP14) et bloque le passage du courant.
+from machine import Pin
+import time
+
+passante = Pin(15, Pin.OUT)
+bloquee = Pin(14, Pin.OUT)
+
+while True:
+    passante.value(1)
+    bloquee.value(1)
+    time.sleep(1)
+    passante.value(0)
+    bloquee.value(0)
+    time.sleep(1)
+`,
+  }),
+
+  test({
+    name: 'condo-pico', board: 'pico', ext: 'py',
+    parts: [
+      MCU('pico'),
+      { id: 'c1', type: 'condo-p-2', x: 560, y: 80, attrs: { ctype: 'chem', value: '1e-6', vmax: '16' } },
+    ],
+    wires: () => [
+      w('c1', '1', 'mcu1', 'GP15', 'blue'),
+      w('c1', '2', 'mcu1', 'GND.5', 'black'),
+    ],
+    // Rappel interne (~40 kΩ) × 1 µF ≈ 40 ms de constante de temps.
+    expect: { kind: 'capacitor', partId: 'c1', drivePin: 'GP15', drive: 'pullup', volts: 3.3, target: 3.3, tau: 0.04, mcuPins: ['GP15'] },
+    code: `# Test condensateur sur une entree a rappel interne (pull-up), sans aucune
+# resistance exterieure : GP15 en sortie basse vide le condensateur, puis passe
+# en entree pull-up et le rappel interne (~40 kOhm) le recharge. Le temps de
+# remontee mesure la constante de temps RC (~40 ms pour 1 uF).
+from machine import Pin
+import time
+
+broche = Pin(15, Pin.OUT, value=0)
+
+while True:
+    broche.init(Pin.OUT, value=0)
+    time.sleep(0.3)                       # decharge complete (5 RC)
+    broche.init(Pin.IN, Pin.PULL_UP)      # charge par le rappel interne
+    debut = time.ticks_us()
+    while broche.value() == 0 and time.ticks_diff(time.ticks_us(), debut) < 1000000:
+        pass
+    print("remontee :", time.ticks_diff(time.ticks_us(), debut), "us")
+    time.sleep(0.5)
+`,
+  }),
+
+  test({
+    name: 'dht11-pico', board: 'pico', ext: 'py',
+    parts: [MCU('pico'), { id: 'dht1', type: 'dht11', x: 680, y: 90, attrs: { temperature: '22', humidity: '50' } }],
+    wires: () => [
+      w('dht1', 'VCC', 'mcu1', '3V3', 'red'),
+      w('dht1', 'DATA', 'mcu1', 'GP14', 'green'),
+      w('dht1', 'GND', 'mcu1', 'GND.5', 'black'),
+    ],
+    expect: { kind: 'dht22', partId: 'dht1', mcuPin: 'GP14', model: 'dht11' },
+    code: `# Test DHT11 : meme module MicroPython que le DHT22, mais des valeurs
+# ENTIERES (pas de dixieme), 20 a 90 % HR et 0 a 50 degres C.
+from machine import Pin
+import dht
+import time
+
+capteur = dht.DHT11(Pin(14))
+while True:
+    time.sleep(1.1)   # le DHT11 ne repond qu'une fois par seconde
+    try:
+        capteur.measure()
+        print("T =", capteur.temperature(), "C   H =", capteur.humidity(), "%")
+    except OSError as e:
+        print("lecture ratee :", e)
+`,
+  }),
+
+  test({
+    name: 'ventilo-pico', board: 'pico', ext: 'py',
+    parts: [
+      MCU('pico'),
+      { id: 'alim1', type: 'alim', x: 620, y: 300, attrs: { voltage: '5', maxcurrent: '1' } },
+      { id: 'fan1', type: 'ventilo', x: 620, y: 40, attrs: { voltage: '5', current: '0.85' } },
+      { id: 'fan2', type: 'ventilo', x: 900, y: 40, attrs: { voltage: '5', current: '0.85' } },
+    ],
+    wires: () => [
+      w('fan1', '+', 'alim1', 'V+', 'red'),
+      w('fan1', '-', 'alim1', 'GND', 'black'),
+      w('fan2', '+', 'mcu1', 'GP15', 'orange'),
+      w('fan2', '-', 'mcu1', 'GND.5', 'black'),
+    ],
+    expect: { kind: 'fan', spins: 'fan1', starved: 'fan2' },
+    code: `# Test ventilateur. Le premier tourne : il est branche sur l'alimentation de
+# laboratoire (5 V, 1 A), qui fournit largement ses 850 mA.
+# Le second est cable sur GP15 en PWM : il ne demarre JAMAIS, une sortie du Pico
+# ne debite que quelques milliamperes. En vrai comme en simulation, il faut un
+# transistor (ou un MOSFET) commande par la broche pour piloter un moteur.
+from machine import Pin, PWM
+import time
+
+commande = PWM(Pin(15))
+commande.freq(1000)
+print("Le ventilateur de GP15 ne tournera pas : courant insuffisant.")
+
+while True:
+    for v in range(0, 65536, 1024):
+        commande.duty_u16(v)
+        time.sleep(0.04)
+    for v in range(65535, -1, -1024):
+        commande.duty_u16(max(0, v))
+        time.sleep(0.04)
 `,
   }),
 

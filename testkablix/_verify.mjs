@@ -6,7 +6,9 @@
 //   3. chaque .py : compilation syntaxique via python -m py_compile ;
 //   4. bout en bout : blink-uno et blink-mega exécutés dans avr8js (LED D13),
 //      led-pico.py exécuté dans PicoEngine avec le vrai firmware MicroPython.
-//   node testkablix/_verify.mjs [--quick]   (--quick : saute compilations + e2e)
+//   node testkablix/_verify.mjs [--quick] [nom…]
+//   --quick : saute compilations + bout en bout ; les noms limitent le contrôle
+//   aux tests cités (les .projix du dépôt ne sont pas tous régénérés).
 import esbuild from 'esbuild';
 import JSZip from 'jszip';
 import { execFileSync } from 'node:child_process';
@@ -14,11 +16,13 @@ import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { TESTS, PART_PINS } from './_spec.mjs';
+import { TESTS as ALL_TESTS, PART_PINS } from './_spec.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');
 const QUICK = process.argv.includes('--quick');
+// Noms passés en argument : ne contrôler que ces tests-là.
+const ONLY = new Set(process.argv.slice(2).filter((a) => !a.startsWith('--')));
 const tmp = mkdtempSync(join(tmpdir(), 'kx-testkablix-'));
 
 let failures = 0;
@@ -39,6 +43,8 @@ async function bundle(entry, name) {
   });
   return import(pathToFileURL(out).href);
 }
+
+const TESTS = ONLY.size > 0 ? ALL_TESTS.filter((t) => ONLY.has(t.name)) : ALL_TESTS;
 
 const model = await bundle('src/webview/diagram/model.mts', 'model.mjs');
 const catalog = await bundle('src/webview/diagram/catalog.mjs', 'catalog.mjs');
@@ -178,6 +184,48 @@ for (const t of TESTS) {
     case 'dht22': {
       const b = model.dht22Bindings(diagram).find((x) => x.partId === e.partId);
       check(`${t.name} : DATA → ${e.mcuPin}`, b?.pin === e.mcuPin, JSON.stringify(b));
+      if (e.model) {
+        check(`${t.name} : modèle ${e.model}`, b?.model === e.model, JSON.stringify(b));
+      }
+      break;
+    }
+    case 'diode': {
+      // Les deux broches sont au niveau haut : seule la branche dont la diode
+      // est dans le bon sens (A → K) laisse passer le courant.
+      const haut = () => true;
+      check(`${t.name} : diode passante → LED allumée`, model.ledOn(diagram, e.ledOn, haut));
+      check(`${t.name} : diode inversée → LED éteinte`, !model.ledOn(diagram, e.ledOff, haut));
+      const circ = model.ledPowerCircuit(diagram, e.ledOn);
+      check(`${t.name} : seuil de ${e.drop} V compté dans le circuit`,
+        Math.abs((circ.diodeDrop ?? 0) - e.drop) < 1e-6, JSON.stringify(circ));
+      const bloque = model.ledPowerCircuit(diagram, e.ledOff);
+      check(`${t.name} : circuit ouvert côté diode inversée`, bloque.ohms === null, JSON.stringify(bloque));
+      break;
+    }
+    case 'capacitor': {
+      // Équivalent de Thévenin vu par l'armature chaude : c'est lui qui fixe la
+      // tension d'équilibre et la constante de temps du transitoire.
+      const nodes = model.capacitorNodes(diagram, e.volts, (p) => (p === e.drivePin ? e.drive : 'hiz'));
+      const n = nodes.find((x) => x.partId === e.partId);
+      check(`${t.name} : nœud RC trouvé`, !!n, JSON.stringify(nodes));
+      if (n) {
+        check(`${t.name} : tension d'équilibre ${e.target} V`,
+          Math.abs(n.target - e.target) < 0.05, `cible=${n.target}`);
+        check(`${t.name} : constante de temps ${e.tau} s`,
+          Math.abs(n.tau - e.tau) / e.tau < 0.05, `tau=${n.tau}`);
+        check(`${t.name} : broches de mesure ${e.mcuPins.join(',')}`,
+          e.mcuPins.every((p) => n.mcuPins.includes(p)), JSON.stringify(n.mcuPins));
+      }
+      break;
+    }
+    case 'fan': {
+      const vcc = t.board === 'pico' || t.board === 'picow' ? 3.3 : 5;
+      const tourne = model.fanSpeed(model.fanCircuit(diagram, e.spins, vcc), 5, 0.85, 1);
+      check(`${t.name} : ventilateur sur l'alim tourne`,
+        tourne.speed > 0.9 && !tourne.starved, JSON.stringify(tourne));
+      const cale = model.fanSpeed(model.fanCircuit(diagram, e.starved, vcc), 5, 0.85, 1);
+      check(`${t.name} : ventilateur sur broche = courant insuffisant`,
+        cale.speed === 0 && cale.starved, JSON.stringify(cale));
       break;
     }
     case 'keypad': {

@@ -8,6 +8,8 @@ import './composants/arduino-mega-element.mjs';
 import './composants/led-element.mjs';
 import './composants/pushbutton-element.mjs';
 import './composants/resistor-element.mjs';
+import './composants/diode-element.mjs';
+import './composants/capacitor-element.mjs';
 import './composants/ldr-element.mjs';
 import './composants/ntc-element.mjs';
 import './composants/ptc-element.mjs';
@@ -40,6 +42,7 @@ import './composants/small-sound-sensor-element.mjs';
 import './composants/hc-sr04-element.mjs';
 import './composants/dht22-element.mjs';
 import './composants/membrane-keypad-element.mjs';
+import './composants/ventilo-element.mjs';
 // Composants entièrement maison.
 import './composants/pico-board.mjs';
 import './composants/breadboard.mjs';
@@ -90,6 +93,9 @@ import {
   lcdParallelBindings,
   spiDeviceBindings,
   adcDividerLevels,
+  capacitorNodes,
+  fanCircuit,
+  fanSpeed,
   variableResistorOhms,
   VARIABLE_RESISTOR_TYPES,
   beginModelFrame,
@@ -281,6 +287,9 @@ let sevenSegMux: SevenSegmentMuxBinding[] = [];
 // republie le nouvel état seulement s'il n'a plus changé depuis un court délai
 // réel (attend la fin de la rafale d'écritures avant d'afficher).
 const SEVEN_SEG_SETTLE_MS = 40;
+// Vitesse de rotation affichée d'un ventilateur à plein régime, en tours par
+// seconde : au-delà les pales deviennent illisibles (stroboscope à 60 Hz).
+const FAN_MAX_TURNS_PER_S = 8;
 let sevenSegStable = new Map<string, { shown: number[]; pending: number[]; pendingSince: number }>();
 // LED grillées pendant ce run (résistance série trop faible → sur-courant) :
 // l'état est définitif jusqu'au prochain lancement (la LED est « remplacée »).
@@ -300,6 +309,13 @@ function markBurned(partId: string, el: Record<string, unknown>, on: boolean): v
 // Facteur de luminosité par LED (résistance trop forte → LED sombre), mémorisé
 // à la dernière frame où la LED conduisait.
 const ledLumFactor = new Map<string, number>();
+// Charge des condensateurs : tension actuelle (V) de chaque armature chaude,
+// intégrée frame par frame en TEMPS SIMULÉ (cf. stepCapacitors).
+const capVolts = new Map<string, number>();
+// Date (ms simulées) de la dernière intégration RC ; null = pas encore démarrée.
+let capLastMs: number | null = null;
+// Condensateurs claqués pendant ce run (tension de service dépassée).
+const burnedCaps = new Set<string>();
 let breakpoints: Breakpoint[] = []; // points d'arrêt envoyés par l'extension (ligne + condition)
 // Vrai dès qu'un programme compilé/chargé a été reçu : sinon, lancer la
 // simulation déclenche d'abord une compilation automatique du fichier de code.
@@ -841,8 +857,64 @@ function refreshVisuals(): void {
   }
 }
 
+/**
+ * Transitoire des condensateurs, une fois par frame de rendu.
+ *
+ * Le modèle donne pour chaque condensateur sa source de Thévenin (tension
+ * d'équilibre + constante de temps RC). La charge suit la solution EXACTE de
+ * l'exponentielle sur l'intervalle écoulé — v += (V∞ − v)·(1 − e^(−Δt/RC)) — donc
+ * le pas de temps n'introduit aucune erreur, même avec des frames irrégulières :
+ * la charge est pleine à 5·RC quelle que soit la cadence d'affichage.
+ *
+ * Δt est mesuré en temps SIMULÉ (`simulatedMs`) : au ralenti comme à pleine
+ * vitesse, le condensateur se charge à la même heure que le programme.
+ *
+ * La tension obtenue est renvoyée au moteur sur les broches qui observent le
+ * nœud : `setAnalog` (lecture ADC) et `setInput` avec l'hystérésis d'une entrée
+ * logique (bascule à 0,6·Vcc en montant, 0,3·Vcc en descendant).
+ */
+function stepCapacitors(): void {
+  if (!engine) return;
+  const vcc = boardFamily(board) === 'rp2040' ? 3.3 : 5;
+  const nodes = capacitorNodes(
+    editor.diagram,
+    vcc,
+    (pin) => engine!.readPinDrive?.(pin) ?? 'hiz',
+    psuLiveVolts,
+    liveVariableOhms
+  );
+  if (nodes.length === 0) {
+    capLastMs = null;
+    return;
+  }
+  const now = engine.simulatedMs?.() ?? performance.now();
+  const dt = capLastMs === null ? 0 : Math.max(0, (now - capLastMs) / 1000);
+  capLastMs = now;
+  for (const node of nodes) {
+    let v = capVolts.get(node.partId) ?? 0;
+    if (node.tau === 0) {
+      v = node.target; // aucune résistance : le nœud suit la source instantanément
+    } else if (Number.isFinite(node.tau) && dt > 0) {
+      v += (node.target - v) * (1 - Math.exp(-dt / node.tau));
+    }
+    // Nœud flottant (tau infini) : la charge reste où elle est.
+    capVolts.set(node.partId, v);
+    const el = editor.elementOf(node.partId);
+    if (v > node.vmax && !burnedCaps.has(node.partId)) burnedCaps.add(node.partId);
+    if (el) markBurned(node.partId, el, burnedCaps.has(node.partId));
+    for (const pin of node.mcuPins) {
+      engine.setAnalog(pin, Math.max(0, Math.min(1, v / vcc)));
+      // Hystérésis d'entrée logique : le seuil dépend de l'état précédent, sinon
+      // une charge lente ferait osciller l'entrée autour du point de bascule.
+      const wasHigh = engine.readDigital(pin);
+      engine.setInput(pin, wasHigh ? v > 0.3 * vcc : v > 0.6 * vcc);
+    }
+  }
+}
+
 function refreshVisualsInner(): void {
   if (!engine) return;
+  stepCapacitors();
   const read = (name: string): boolean => engine!.readDigital(name);
   const servoTargets = new Map(servoBindings(editor.diagram).map((b) => [b.partId, b.mcuPin]));
   for (const part of editor.diagram.parts) {
@@ -874,7 +946,9 @@ function refreshVisualsInner(): void {
           // Tension de la source : celle de l'alim de laboratoire si le chemin
           // de l'anode y aboutit (bouton relu en direct), sinon VCC de la carte.
           const circ = ledPowerCircuit(editor.diagram, part.id, psuLiveVolts);
-          const vs = circ.supplyVolts ?? (boardFamily(board) === 'rp2040' ? 3.3 : 5);
+          // Une diode en série prélève sa tension de seuil avant la LED.
+          const vsrc = circ.supplyVolts ?? (boardFamily(board) === 'rp2040' ? 3.3 : 5);
+          const vs = Math.max(0, vsrc - (circ.diodeDrop ?? 0));
           const elec = ledElectrical(circ.ohms, vs, part.attrs?.color);
           if (elec.overCurrent) burnedLeds.add(part.id);
           else ledLumFactor.set(part.id, elec.lum);
@@ -1144,6 +1218,34 @@ function refreshVisualsInner(): void {
         }
         break;
       }
+      case 'fan': {
+        // Physique stricte : le ventilateur ne tourne que si la source atteinte
+        // peut fournir son courant nominal sous une tension suffisante. Une
+        // broche de carte (40 mA) est très loin du compte pour un moteur de
+        // 850 mA : il faut une alimentation, comme sur la table de câblage.
+        const circ = fanCircuit(
+          editor.diagram,
+          part.id,
+          boardFamily(board) === 'rp2040' ? 3.3 : 5,
+          psuLiveVolts,
+          liveVariableOhms
+        );
+        // Commande en PWM : c'est le rapport cyclique, pas le niveau instantané,
+        // qui fixe la tension moyenne aux bornes du moteur.
+        const duty =
+          circ?.mcuPin && engine.pulseActive?.(circ.mcuPin)
+            ? engine.readPwmDuty?.(circ.mcuPin) ?? 1
+            : circ?.mcuPin
+              ? engine.readDigital(circ.mcuPin)
+                ? 1
+                : 0
+              : 1;
+        const rated = Number(part.attrs?.voltage) || 5;
+        const amps = Number(part.attrs?.current) || 0.85;
+        const st = fanSpeed(circ, rated, amps, duty);
+        el.speed = st.speed * FAN_MAX_TURNS_PER_S;
+        break;
+      }
       case 'i2c-lcd': {
         // Texte décodé affiché sur le LCD. En I²C : Lcd1602Device (bus décodé) ;
         // en parallèle (pins=full) : readLcdParallel (RS/E/données décodés par le
@@ -1294,9 +1396,15 @@ function bindInputs(): void {
   // haute fréquence du latch (cf. sampleSevenSegLatches).
   sevenSegMux = sevenSegmentMuxBindings(editor.diagram);
   sevenSegLatch = new Map();
+  // Ventilateurs : leur broche de commande est mesurée en rapport cyclique (PWM).
+  const fanPins = editor.diagram.parts
+    .filter((p) => partDef(p.type).kind === 'fan')
+    .map((p) => fanCircuit(editor.diagram, p.id, boardFamily(board) === 'rp2040' ? 3.3 : 5)?.mcuPin)
+    .filter((p): p is string => !!p);
   engine.setPulseMonitors?.([
     ...servoBindings(editor.diagram).map((b) => b.mcuPin),
     ...buzzers.map((b) => b.mcuPin),
+    ...fanPins,
     ...rgbLeds.flatMap((b) => [b.r, b.g, b.b].filter((p): p is string => p !== null)),
     ...sevenSegs.flatMap((b) => Object.values(b.segments).filter((p): p is string => p !== null)),
   ]);
@@ -1450,14 +1558,15 @@ function bindInputs(): void {
         if (part?.attrs?.temperature) el.temperature = Number(part.attrs.temperature);
         if (part?.attrs?.humidity) el.humidity = Number(part.attrs.humidity);
       }
-      return { pin: b.pin, el };
+      return { pin: b.pin, el, model: b.model ?? 'dht22' };
     });
     const pushDht = () =>
       engine?.setDht22?.(
-        dhtEls.map(({ pin, el }) => ({
+        dhtEls.map(({ pin, el, model }) => ({
           pin,
           temperatureC: Number(el?.temperature ?? 22),
           humidity: Number(el?.humidity ?? 50),
+          model,
         }))
       );
     pushDht();
@@ -2331,9 +2440,13 @@ function startRun(): void {
   // mais un composant qui ne serait plus rafraîchi resterait devant les fils).
   for (const id of burnedLeds) editor.setBurned(id, false);
   for (const id of burnedPcas) editor.setBurned(id, false);
+  for (const id of burnedCaps) editor.setBurned(id, false);
   burnedLeds.clear(); // LED grillées « remplacées » à chaque nouveau lancement
   burnedPcas.clear(); // carte 16 servos grillée « remplacée » à chaque lancement
+  burnedCaps.clear(); // condensateurs claqués « remplacés » eux aussi
   ledLumFactor.clear();
+  capVolts.clear(); // condensateurs déchargés au début de chaque simulation
+  capLastMs = null;
   buildI2cDevices();
   rebind();
   engine.start();

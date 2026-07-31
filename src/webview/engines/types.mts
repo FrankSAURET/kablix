@@ -81,6 +81,8 @@ export interface Dht22Sensor {
   temperatureC: number;
   /** Humidité relative simulée, en % (réglée dans l'inspecteur). */
   humidity: number;
+  /** Modèle : le DHT11 code des entiers, le DHT22 des dixièmes (défaut). */
+  model?: 'dht11' | 'dht22';
 }
 
 /** Afficheur LCD HD44780 en bus parallèle (broches côté MCU). */
@@ -139,6 +141,13 @@ export interface SimEngine {
   busyMs?(): number;
   /** État logique d'une broche numérique nommée (ex. '13', 'A0', 'GP25'). */
   readDigital(name: string): boolean;
+  /**
+   * Ce que le MCU IMPOSE sur une broche, indépendamment du signal extérieur :
+   * sortie haute/basse, entrée avec résistance de rappel (haute ou basse) ou
+   * entrée haute impédance. C'est la source vue par un réseau RC extérieur
+   * (charge par la pull-up, décharge par la sortie basse) — cf. capacitorNodes.
+   */
+  readPinDrive?(name: string): 'high' | 'low' | 'pullup' | 'pulldown' | 'hiz';
   /**
    * Déclare les broches dont la largeur d'impulsion doit être mesurée (servo :
    * 1000–2000 µs ↔ 0–180°). À appeler au (re)câblage avec les broches de servo.

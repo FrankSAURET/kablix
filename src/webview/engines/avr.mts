@@ -442,6 +442,22 @@ export class AvrEngine implements SimEngine {
     return this.ports[port]?.pinState(bit) === PinState.High;
   }
 
+  /** Ce que le cœur impose sur la broche (voir SimEngine.readPinDrive). */
+  readPinDrive(name: string): 'high' | 'low' | 'pullup' | 'pulldown' | 'hiz' {
+    const map = this.pinMap[name];
+    if (!map) return 'hiz';
+    switch (this.ports[map[0]]?.pinState(map[1])) {
+      case PinState.High:
+        return 'high';
+      case PinState.Low:
+        return 'low';
+      case PinState.InputPullUp:
+        return 'pullup';
+      default:
+        return 'hiz'; // PinState.Input : entrée sans rappel (l'AVR n'a pas de pull-down)
+    }
+  }
+
   setInput(name: string, value: boolean): void {
     const map = this.pinMap[name];
     if (!map) return;
@@ -745,12 +761,14 @@ export class AvrEngine implements SimEngine {
       if (prev) {
         prev.tempC = s.temperatureC;
         prev.humidity = s.humidity;
+        prev.model = s.model ?? 'dht22';
         return prev;
       }
       return {
         pin: s.pin,
         tempC: s.temperatureC,
         humidity: s.humidity,
+        model: s.model ?? 'dht22',
         wasLow: false,
         lowStart: 0,
         busyUntil: 0,
@@ -781,7 +799,7 @@ export class AvrEngine implements SimEngine {
         const lowUs = (now - d.lowStart) / CYCLES_PER_US;
         if (lowUs >= DHT22_START_LOW_US && now >= d.busyUntil) {
           const start = now + 30 * CYCLES_PER_US; // ~30 µs après le relâchement
-          const sched = buildDht22Schedule(d.tempC, d.humidity, start, CYCLES_PER_US);
+          const sched = buildDht22Schedule(d.tempC, d.humidity, start, CYCLES_PER_US, d.model);
           for (const ev of sched) this.scheduled.push({ cycle: ev.cycle, name: d.pin, value: ev.value });
           d.busyUntil = start + dht22ResponseCycles(sched, start);
         }

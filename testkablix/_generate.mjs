@@ -4,7 +4,14 @@
 //   - tests .py   → <nom>.py et <nom>.projix côte à côte à la racine.
 // Les .projix sont des archives ZIP (kablix.json + diagram.json), comme
 // celles produites par « Enregistrer le projet » de l'extension.
-//   node testkablix/_generate.mjs      (depuis la racine du dépôt)
+//   node testkablix/_generate.mjs                  (depuis la racine du dépôt)
+//   node testkablix/_generate.mjs diode-uno …      (ces tests-là seulement)
+//
+// ATTENTION : sans argument, TOUS les fichiers sont réécrits depuis _spec.mjs.
+// Plusieurs .ino/.py du dossier ont été retouchés à la main APRÈS génération
+// (7seg-pico.py multiplexé, heartbeat, microsd, neopixel…) : les régénérer en
+// bloc écrase ces retouches. Pour ajouter un composant, ne générer QUE ses
+// tests en les nommant en argument.
 import JSZip from 'jszip';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -36,9 +43,20 @@ async function buildProjix(test, codeFileRef) {
   });
 }
 
+// Filtre facultatif : noms de tests passés en argument (sinon, tout le dossier).
+const only = new Set(process.argv.slice(2));
+if (only.size > 0) {
+  const inconnus = [...only].filter((n) => !TESTS.some((t) => t.name === n));
+  if (inconnus.length > 0) {
+    console.error(`Tests inconnus : ${inconnus.join(', ')}`);
+    process.exit(1);
+  }
+}
+
 let nIno = 0;
 let nPy = 0;
 for (const test of TESTS) {
+  if (only.size > 0 && !only.has(test.name)) continue;
   if (test.ext === 'ino') {
     // Sketch Arduino : dossier du même nom que le .ino (exigence arduino-cli).
     const dir = join(HERE, test.name);
@@ -55,4 +73,4 @@ for (const test of TESTS) {
   }
 }
 
-console.log(`OK : ${nIno} sketchs .ino (dossiers) + ${nPy} scripts .py générés, ${TESTS.length} .projix.`);
+console.log(`OK : ${nIno} sketchs .ino (dossiers) + ${nPy} scripts .py générés, ${nIno + nPy} .projix.`);

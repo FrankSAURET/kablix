@@ -270,6 +270,8 @@ interface NetIndex {
   mcu: Map<string, NetSupply>;
   psuGnd: Set<string>;
   psuVplus: Set<string>;
+  /** Diodes du schéma, par nets : un niveau ne traverse que de A vers K. */
+  diodes: Array<{ a: string; k: string }>;
 }
 
 /**
@@ -285,7 +287,7 @@ const netIndexCache = new WeakMap<Nets, NetIndex>();
 function netIndex(diagram: Diagram, nets: Nets): NetIndex {
   const hit = netIndexCache.get(nets);
   if (hit) return hit;
-  const index: NetIndex = { mcu: new Map(), psuGnd: new Set(), psuVplus: new Set() };
+  const index: NetIndex = { mcu: new Map(), psuGnd: new Set(), psuVplus: new Set(), diodes: [] };
   for (const { part, board } of mcuParts(diagram)) {
     for (const pin of mcuPins(board)) {
       const role = mcuPinRole(board, pin);
@@ -313,6 +315,13 @@ function netIndex(diagram: Diagram, nets: Nets): NetIndex {
     index.psuGnd.add(nets.netOf({ partId: part.id, pin: 'GND' }));
     index.psuVplus.add(nets.netOf({ partId: part.id, pin: 'V+' }));
   }
+  for (const part of diagram.parts) {
+    if (partDef(part.type).kind !== 'diode') continue;
+    index.diodes.push({
+      a: nets.netOf({ partId: part.id, pin: rolePin(part.type, 'A') }),
+      k: nets.netOf({ partId: part.id, pin: rolePin(part.type, 'K') }),
+    });
+  }
   netIndexCache.set(nets, index);
   return index;
 }
@@ -326,7 +335,8 @@ function netLevel(
   diagram: Diagram,
   nets: Nets,
   netId: string,
-  readPin: (name: string) => boolean
+  readPin: (name: string) => boolean,
+  seen?: Set<string>
 ): Level {
   const idx = netIndex(diagram, nets);
   const entry = idx.mcu.get(netId);
@@ -337,7 +347,36 @@ function netLevel(
   // calculs de courant (ledElectrical via ledPowerCircuit, psuLoadAmps).
   if (idx.psuGnd.has(netId)) return 0;
   if (idx.psuVplus.has(netId)) return 1;
-  return entry?.lastDigital === undefined ? undefined : readPin(entry.lastDigital) ? 1 : 0;
+  if (entry?.lastDigital !== undefined) return readPin(entry.lastDigital) ? 1 : 0;
+  return diodeLevel(diagram, nets, netId, readPin, seen);
+}
+
+/**
+ * Niveau amené sur un net PAR UNE DIODE, quand rien ne le pilote directement :
+ * un niveau HAUT ne franchit une diode que de l'anode vers la cathode, un
+ * niveau BAS que de la cathode vers l'anode (le net est alors tiré à la masse à
+ * travers la diode). La masse reste prioritaire, comme pour les nets directs.
+ * `seen` coupe les boucles (diodes tête-bêche, ponts).
+ */
+function diodeLevel(
+  diagram: Diagram,
+  nets: Nets,
+  netId: string,
+  readPin: (name: string) => boolean,
+  seen?: Set<string>
+): Level {
+  const idx = netIndex(diagram, nets);
+  if (idx.diodes.length === 0) return undefined;
+  const visited = seen ?? new Set<string>();
+  if (visited.has(netId)) return undefined;
+  visited.add(netId);
+  for (const d of idx.diodes) {
+    if (d.a === netId && netLevel(diagram, nets, d.k, readPin, visited) === 0) return 0;
+  }
+  for (const d of idx.diodes) {
+    if (d.k === netId && netLevel(diagram, nets, d.a, readPin, visited) === 1) return 1;
+  }
+  return undefined;
 }
 
 function partType(diagram: Diagram, partId: string): string {
@@ -379,17 +418,43 @@ export const LED_FORWARD_V: Record<string, number> = {
   purple: 3.0,
 };
 
+/**
+ * Sens du COURANT dans le chemin cherché, vu depuis `from` :
+ *  - 'sink'   : le courant part de `from` vers la cible (chemin vers la masse) ;
+ *  - 'source' : le courant vient de la cible vers `from` (chemin vers VCC).
+ * Seules les diodes en tiennent compte — elles ne se laissent traverser que
+ * dans le sens A → K.
+ */
+type FlowDir = 'sink' | 'source';
+
+/** Arête du graphe résistif : une résistance (les deux sens) ou une diode
+ *  (un seul sens de courant, avec sa chute de tension directe). */
+interface ResistiveEdge {
+  to: string;
+  ohms: number;
+  partId: string;
+  /** Arête orientée (diode) : le courant ne passe que dans un sens. */
+  oneWay?: boolean;
+  /** Pour une arête orientée : parcourir cur → `to` suit-il le sens du courant. */
+  forward?: boolean;
+  /** Tension perdue (V) en traversant l'arête (seuil de la diode). */
+  drop?: number;
+}
+
 /** Plus court chemin (somme des résistances) d'un net vers l'un des nets cibles.
  *  `avoid` : nets qui ne peuvent pas être traversés (rail opposé du diviseur —
- *  un rail est une source équipotentielle, pas un conducteur de passage). */
+ *  un rail est une source équipotentielle, pas un conducteur de passage).
+ *  `reached.drop` reçoit la somme des seuils de diode franchis sur ce chemin. */
 function minOhmsPath(
   from: string,
   targets: Set<string>,
-  adj: Map<string, Array<{ to: string; ohms: number }>>,
+  adj: Map<string, ResistiveEdge[]>,
   avoid?: Set<string>,
-  reached?: { net?: string }
+  reached?: { net?: string; drop?: number },
+  dir: FlowDir = 'sink'
 ): number | null {
   const dist = new Map<string, number>([[from, 0]]);
+  const drops = new Map<string, number>([[from, 0]]);
   const done = new Set<string>();
   for (;;) {
     let cur: string | null = null;
@@ -402,14 +467,22 @@ function minOhmsPath(
     }
     if (cur === null) return null;
     if (targets.has(cur)) {
-      if (reached) reached.net = cur;
+      if (reached) {
+        reached.net = cur;
+        reached.drop = drops.get(cur) ?? 0;
+      }
       return best;
     }
     done.add(cur);
     if (avoid?.has(cur)) continue;
     for (const e of adj.get(cur) ?? []) {
+      // Diode : franchissable seulement si le courant la traverse de A vers K.
+      if (e.oneWay && e.forward !== (dir === 'sink')) continue;
       const d = best + e.ohms;
-      if (d < (dist.get(e.to) ?? Infinity)) dist.set(e.to, d);
+      if (d < (dist.get(e.to) ?? Infinity)) {
+        dist.set(e.to, d);
+        drops.set(e.to, (drops.get(cur) ?? 0) + (e.drop ?? 0));
+      }
     }
   }
 }
@@ -470,7 +543,7 @@ function nominalOhms(part: Part): number {
  */
 interface ResistiveGraph {
   nets: Nets;
-  adj: Map<string, Array<{ to: string; ohms: number; partId: string }>>;
+  adj: Map<string, ResistiveEdge[]>;
   digitalNets: Set<string>;
   vccNets: Set<string>;
   gndNets: Set<string>;
@@ -495,18 +568,28 @@ function computeResistiveGraph(
   liveOhms?: (part: Part) => number | null
 ): ResistiveGraph {
   const nets = buildNets(diagram, false);
-  const adj = new Map<string, Array<{ to: string; ohms: number; partId: string }>>();
-  const link = (a: string, b: string, ohms: number, partId: string) => {
+  const adj = new Map<string, ResistiveEdge[]>();
+  const link = (a: string, b: string, edge: Omit<ResistiveEdge, 'to'>) => {
     if (!adj.has(a)) adj.set(a, []);
-    adj.get(a)!.push({ to: b, ohms, partId });
+    adj.get(a)!.push({ to: b, ...edge });
   };
   for (const part of diagram.parts) {
-    if (partDef(part.type).kind !== 'resistor') continue;
-    const a = nets.netOf({ partId: part.id, pin: '1' });
-    const b = nets.netOf({ partId: part.id, pin: '2' });
-    const ohms = Math.max(0, liveOhms?.(part) ?? nominalOhms(part));
-    link(a, b, ohms, part.id);
-    link(b, a, ohms, part.id);
+    const kind = partDef(part.type).kind;
+    if (kind === 'resistor') {
+      const a = nets.netOf({ partId: part.id, pin: '1' });
+      const b = nets.netOf({ partId: part.id, pin: '2' });
+      const ohms = Math.max(0, liveOhms?.(part) ?? nominalOhms(part));
+      link(a, b, { ohms, partId: part.id });
+      link(b, a, { ohms, partId: part.id });
+    } else if (kind === 'diode') {
+      // Diode passante de A vers K seulement, en perdant sa tension de seuil.
+      // Résistance dynamique négligeable devant celle du circuit (0 Ω).
+      const a = nets.netOf({ partId: part.id, pin: rolePin(part.type, 'A') });
+      const k = nets.netOf({ partId: part.id, pin: rolePin(part.type, 'K') });
+      const drop = diodeForwardV(part);
+      link(a, k, { ohms: 0, partId: part.id, oneWay: true, forward: true, drop });
+      link(k, a, { ohms: 0, partId: part.id, oneWay: true, forward: false, drop });
+    }
   }
   const digitalNets = new Set<string>();
   const vccNets = new Set<string>();
@@ -552,13 +635,18 @@ export function ledPowerCircuit(
   diagram: Diagram,
   ledId: string,
   psuVolts?: (partId: string) => number | null
-): { ohms: number | null; supplyVolts: number | null } {
+): { ohms: number | null; supplyVolts: number | null; diodeDrop?: number } {
   const { nets, adj, digitalNets, vccNets, gndNets } = resistiveGraph(diagram);
   const type = partType(diagram, ledId);
   const src = new Set([...digitalNets, ...vccNets]);
-  const reached: { net?: string } = {};
-  const up = minOhmsPath(nets.netOf({ partId: ledId, pin: rolePin(type, 'A') }), src, adj, undefined, reached);
-  const down = minOhmsPath(nets.netOf({ partId: ledId, pin: rolePin(type, 'C') }), gndNets, adj);
+  const reached: { net?: string; drop?: number } = {};
+  const sink: { drop?: number } = {};
+  const up = minOhmsPath(
+    nets.netOf({ partId: ledId, pin: rolePin(type, 'A') }), src, adj, undefined, reached, 'source'
+  );
+  const down = minOhmsPath(
+    nets.netOf({ partId: ledId, pin: rolePin(type, 'C') }), gndNets, adj, undefined, sink, 'sink'
+  );
   if (up === null || down === null) return { ohms: null, supplyVolts: null };
   let supplyVolts: number | null = null;
   if (reached.net !== undefined) {
@@ -570,7 +658,16 @@ export function ledPowerCircuit(
       break;
     }
   }
+  // Diodes traversées : leur seuil est autant de tension en moins pour la LED.
+  const diodeDrop = (reached.drop ?? 0) + (sink.drop ?? 0);
+  if (diodeDrop > 0) return { ohms: up + down, supplyVolts, diodeDrop };
   return { ohms: up + down, supplyVolts };
+}
+
+/** Tension de seuil (V) d'une diode, depuis son attribut `vf` (0,6 V par défaut). */
+function diodeForwardV(part: Part): number {
+  const v = Number(part.attrs?.vf);
+  return Number.isFinite(v) && v >= 0 ? v : 0.6;
 }
 
 /** Courant considéré comme un court-circuit franc sur une alim (A). */
@@ -607,7 +704,10 @@ export function psuLoadAmps(
       const up = minOhmsPath(
         nets.netOf({ partId: part.id, pin: rolePin(part.type, 'A') }),
         new Set([vplus]),
-        adj
+        adj,
+        undefined,
+        undefined,
+        'source'
       );
       const down = minOhmsPath(nets.netOf({ partId: part.id, pin: rolePin(part.type, 'C') }), gndNets, adj);
       if (up === null || down === null) continue;
@@ -801,8 +901,8 @@ export function adcDividerLevels(
       const net = nets.netOf({ partId: part.id, pin });
       if (vccNets.has(net) || gndNets.has(net)) continue; // collée à un rail : pas un pont
       if (!hasVariable(net)) continue;
-      const up = minOhmsPath(net, vccNets, adj, gndNets);
-      const down = minOhmsPath(net, gndNets, adj, vccNets);
+      const up = minOhmsPath(net, vccNets, adj, gndNets, undefined, 'source');
+      const down = minOhmsPath(net, gndNets, adj, vccNets, undefined, 'sink');
       if (up === null && down === null) continue;
       let level: number;
       if (up === null) level = 0;
@@ -833,6 +933,237 @@ export function ledElectrical(
   const overCurrent = amps > 0.035;
   const lum = amps < 0.0002 ? 0 : Math.min(1, amps / 0.01);
   return { amps, overCurrent, lum };
+}
+
+/** Ce que le microcontrôleur impose sur une broche (cf. SimEngine.readPinDrive). */
+export type PinDrive = 'high' | 'low' | 'pullup' | 'pulldown' | 'hiz';
+
+/** Résistance interne (Ω) des sources vues par un réseau RC. */
+const RAIL_OHMS = 1; //         rail d'alimentation (carte ou alim de labo)
+const MCU_OUTPUT_OHMS = 25; //  sortie numérique en conduction
+const MCU_PULL_OHMS = 40_000; // rappel interne (AVR 20-50 kΩ, RP2040 ~50-80 kΩ)
+
+/** Nœud RC : un condensateur, sa source de Thévenin et les broches qui l'observent. */
+export interface CapacitorNode {
+  partId: string;
+  /** Capacité (F). */
+  farads: number;
+  /** Tension d'équilibre du nœud (V) — la charge y tend exponentiellement. */
+  target: number;
+  /** Constante de temps RC (s) ; la charge est pleine à 5·RC. */
+  tau: number;
+  /** Tension de service maximale (V) : au-delà le condensateur claque. */
+  vmax: number;
+  /** Broches MCU reliées au nœud chaud (elles LISENT la tension du condensateur). */
+  mcuPins: string[];
+}
+
+/**
+ * Réseaux RC du schéma : pour chaque condensateur, l'équivalent de Thévenin vu
+ * par son armature « chaude » (celle qui n'est pas à la masse).
+ *
+ * Chaque source du montage (rail VCC/GND, sortie MCU haute ou basse, rappel
+ * interne) est une branche : sa résistance est le plus court chemin résistif du
+ * nœud jusqu'à elle (les AUTRES sources étant infranchissables — un rail est une
+ * équipotentielle, pas un conducteur de passage), plus sa résistance interne. Le
+ * théorème de Millman donne alors Rth = 1/ΣGi et Vth = ΣViGi / ΣGi : c'est exactement
+ * le pont diviseur R haute / R basse dans le cas classique, et la seule pull-up
+ * interne dans le montage « entrée + condensateur » d'Arduino ou du Pico.
+ *
+ * Aucune source atteignable → nœud flottant : `tau` vaut Infinity et la tension
+ * garde sa valeur (l'appelant ne l'intègre pas).
+ */
+export function capacitorNodes(
+  diagram: Diagram,
+  vcc: number,
+  drive?: (pin: string) => PinDrive,
+  psuVolts?: (partId: string) => number | null,
+  liveOhms?: (part: Part) => number | null
+): CapacitorNode[] {
+  const caps = diagram.parts.filter((p) => partDef(p.type).kind === 'capacitor');
+  if (caps.length === 0) return [];
+  const { nets, adj, vccNets, gndNets } = resistiveGraph(diagram, liveOhms);
+  // Sources du montage : rails, puis broches MCU selon ce que le firmware impose.
+  const sources: Array<{ net: string; volts: number; ohms: number }> = [];
+  for (const net of vccNets) {
+    let volts = vcc;
+    for (const psu of psuParts(diagram)) {
+      if (nets.netOf({ partId: psu.id, pin: 'V+' }) !== net) continue;
+      const v = psuVolts?.(psu.id) ?? Number(psu.attrs?.voltage ?? 0);
+      if (Number.isFinite(v)) volts = v;
+      break;
+    }
+    sources.push({ net, volts, ohms: RAIL_OHMS });
+  }
+  for (const net of gndNets) sources.push({ net, volts: 0, ohms: RAIL_OHMS });
+  const pinsOnNet = new Map<string, string[]>();
+  for (const { part, board } of mcuParts(diagram)) {
+    for (const pin of mcuPins(board)) {
+      const role = mcuPinRole(board, pin);
+      if (role.role !== 'digital' || !role.name) continue;
+      const net = nets.netOf({ partId: part.id, pin });
+      if (vccNets.has(net) || gndNets.has(net)) continue; // broche collée à un rail
+      const list = pinsOnNet.get(net);
+      if (list) list.push(role.name);
+      else pinsOnNet.set(net, [role.name]);
+      switch (drive?.(role.name)) {
+        case 'high':
+          sources.push({ net, volts: vcc, ohms: MCU_OUTPUT_OHMS });
+          break;
+        case 'low':
+          sources.push({ net, volts: 0, ohms: MCU_OUTPUT_OHMS });
+          break;
+        case 'pullup':
+          sources.push({ net, volts: vcc, ohms: MCU_PULL_OHMS });
+          break;
+        case 'pulldown':
+          sources.push({ net, volts: 0, ohms: MCU_PULL_OHMS });
+          break;
+        default: // entrée haute impédance : ne charge pas le condensateur
+          break;
+      }
+    }
+  }
+  const sourceNets = new Set(sources.map((s) => s.net));
+  const out: CapacitorNode[] = [];
+  for (const cap of caps) {
+    const n1 = nets.netOf({ partId: cap.id, pin: '1' });
+    const n2 = nets.netOf({ partId: cap.id, pin: '2' });
+    // L'armature de référence est celle qui est à la masse ; à défaut la seconde.
+    const hot = gndNets.has(n1) && !gndNets.has(n2) ? n2 : n1;
+    const farads = capacitorFarads(cap);
+    const vmaxAttr = Number(cap.attrs?.vmax);
+    const node: CapacitorNode = {
+      partId: cap.id,
+      farads,
+      target: 0,
+      tau: Infinity,
+      vmax: Number.isFinite(vmaxAttr) && vmaxAttr > 0 ? vmaxAttr : 400,
+      mcuPins: pinsOnNet.get(hot) ?? [],
+    };
+    if (gndNets.has(hot)) {
+      // Les deux armatures à la masse : court-circuit, rien à intégrer.
+      node.target = 0;
+      node.tau = 0;
+      out.push(node);
+      continue;
+    }
+    let cond = 0; // ΣGi
+    let sum = 0; //  ΣViGi
+    for (const src of sources) {
+      const others = new Set(sourceNets);
+      others.delete(src.net);
+      let path: number | null;
+      if (src.net === hot) path = 0;
+      else path = minOhmsPath(hot, new Set([src.net]), adj, others, undefined, src.volts > 0 ? 'source' : 'sink');
+      if (path === null) continue;
+      const g = 1 / Math.max(0.1, path + src.ohms);
+      cond += g;
+      sum += src.volts * g;
+    }
+    if (cond > 0) {
+      const rth = 1 / cond;
+      node.target = sum / cond;
+      node.tau = farads > 0 ? rth * farads : 0;
+    }
+    out.push(node);
+  }
+  return out;
+}
+
+/** Capacité (F) d'un condensateur, depuis son attribut `value` (100 nF par défaut). */
+function capacitorFarads(part: Part): number {
+  const f = Number(part.attrs?.value);
+  return Number.isFinite(f) && f > 0 ? f : 1e-7;
+}
+
+/** Courant (A) que peut fournir chaque type de source alimentant un moteur. */
+const USB_RAIL_AMPS = 0.5; //  rail 5 V d'une carte alimentée en USB
+const MCU_PIN_AMPS = 0.04; //  broche numérique (AVR 40 mA, RP2040 ~12 mA)
+
+/** Circuit d'alimentation d'un ventilateur, vu depuis ses bornes + et −. */
+export interface FanCircuit {
+  /** Tension à vide de la source atteinte par « + » (V). */
+  supplyVolts: number;
+  /** Courant que cette source peut débiter (A). */
+  supplyAmps: number;
+  /** Résistance série du circuit hors ventilateur (Ω). */
+  ohms: number;
+  /** Broche MCU alimentant « + », si la source est une sortie de carte (PWM). */
+  mcuPin: string | null;
+}
+
+/**
+ * Alimentation d'un ventilateur : remonte de la borne « + » vers une source
+ * (V+ d'alim de labo, rail VCC de carte ou broche numérique) et redescend de la
+ * borne « − » vers une masse. Retourne null si le circuit est ouvert.
+ */
+export function fanCircuit(
+  diagram: Diagram,
+  fanId: string,
+  vcc: number,
+  psuVolts?: (partId: string) => number | null,
+  liveOhms?: (part: Part) => number | null
+): FanCircuit | null {
+  const { nets, adj, digitalNets, vccNets, gndNets } = resistiveGraph(diagram, liveOhms);
+  const reached: { net?: string; drop?: number } = {};
+  const sink: { net?: string; drop?: number } = {};
+  const up = minOhmsPath(
+    nets.netOf({ partId: fanId, pin: '+' }),
+    new Set([...digitalNets, ...vccNets]),
+    adj,
+    undefined,
+    reached,
+    'source'
+  );
+  const down = minOhmsPath(nets.netOf({ partId: fanId, pin: '-' }), gndNets, adj, undefined, sink, 'sink');
+  if (up === null || down === null || reached.net === undefined) return null;
+  const net = reached.net;
+  let supplyVolts = vcc;
+  let supplyAmps = USB_RAIL_AMPS;
+  let mcuPin: string | null = null;
+  for (const psu of psuParts(diagram)) {
+    if (nets.netOf({ partId: psu.id, pin: 'V+' }) !== net) continue;
+    const v = psuVolts?.(psu.id) ?? Number(psu.attrs?.voltage ?? 0);
+    supplyVolts = Number.isFinite(v) ? v : 0;
+    const a = Number(psu.attrs?.maxcurrent);
+    supplyAmps = Number.isFinite(a) && a > 0 ? a : 1;
+    break;
+  }
+  if (digitalNets.has(net) && !vccNets.has(net)) {
+    mcuPin = mcuDigitalOnNet(diagram, nets, net);
+    supplyAmps = MCU_PIN_AMPS;
+  }
+  // Les diodes du chemin prélèvent leur tension de seuil au passage.
+  supplyVolts = Math.max(0, supplyVolts - (reached.drop ?? 0) - (sink.drop ?? 0));
+  return { supplyVolts, supplyAmps, ohms: up + down, mcuPin };
+}
+
+/**
+ * Vitesse d'un ventilateur, en fraction 0..1 de son régime nominal.
+ * Physique stricte : le moteur est vu comme une résistance R = Unom/Inom en
+ * série avec le circuit ; s'il demande plus de courant que la source ne peut en
+ * fournir, il ne démarre pas (`starved`), tout comme sous 30 % de sa tension.
+ * `duty` : rapport cyclique PWM 0..1 mesuré sur la broche de commande.
+ */
+export function fanSpeed(
+  circuit: FanCircuit | null,
+  ratedVolts: number,
+  ratedAmps: number,
+  duty = 1
+): { speed: number; volts: number; amps: number; starved: boolean } {
+  const idle = { speed: 0, volts: 0, amps: 0, starved: false };
+  if (!circuit || ratedVolts <= 0 || ratedAmps <= 0) return idle;
+  const rFan = ratedVolts / ratedAmps;
+  const applied = circuit.supplyVolts * Math.max(0, Math.min(1, duty));
+  if (applied <= 0) return idle;
+  const amps = applied / (rFan + circuit.ohms);
+  const volts = amps * rFan;
+  // Le courant appelé dépasse ce que la source peut donner : elle s'effondre.
+  if (amps > circuit.supplyAmps) return { speed: 0, volts, amps, starved: true };
+  const speed = volts / ratedVolts;
+  // Sous 30 % de sa tension nominale, un moteur à courant continu ne démarre pas.
+  return { speed: speed < 0.3 ? 0 : Math.min(1, speed), volts, amps, starved: false };
 }
 
 /**
@@ -1328,19 +1659,21 @@ export function keypadBindings(diagram: Diagram): KeypadBinding[] {
 }
 
 export interface Dht22Binding {
+  /** Modèle du capteur : le DHT11 code des entiers, le DHT22 des dixièmes. */
+  model?: 'dht11' | 'dht22';
   partId: string;
   /** Broche MCU reliée à la ligne de données (DATA, 1-wire). */
   pin: string;
 }
 
-/** Capteurs DHT22 du schéma dont la ligne de données est reliée à une broche MCU. */
+/** Capteurs DHT (11 ou 22) du schéma dont la ligne de données va à une broche MCU. */
 export function dht22Bindings(diagram: Diagram): Dht22Binding[] {
   const nets = buildNets(diagram);
   const out: Dht22Binding[] = [];
   for (const part of diagram.parts) {
-    if (part.type !== 'dht22') continue;
+    if (part.type !== 'dht22' && part.type !== 'dht11') continue;
     const pin = mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin: 'DATA' }));
-    if (pin) out.push({ partId: part.id, pin });
+    if (pin) out.push({ partId: part.id, pin, model: part.type === 'dht11' ? 'dht11' : 'dht22' });
   }
   return out;
 }

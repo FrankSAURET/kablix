@@ -2,19 +2,39 @@
 // Balise <kablix-dht22> (ex <wokwi-dht22>). Licence d'origine : LICENSE-wokwi.md (même dossier).
 // Adaptations Kablix : sans décorateurs ; DESSIN retouché (./externe/dht22.svg).
 //   - broche de données renommée SDA → DATA (nom réel du DHT22) ;
-//   - EN SIMULATION : deux curseurs règlent l'humidité (0-100 %) et la température
-//     (-40 → +80 °C). Le moteur lit `el.humidity` / `el.temperature` en direct.
+//   - EN SIMULATION : deux curseurs règlent l'humidité et la température.
+//     Le moteur lit `el.humidity` / `el.temperature` en direct.
+//   - PROPRIÉTÉ `model` : le même élément habille le DHT11 (dessin de Frank,
+//     Composants.svg → ./externe/DHT11.svg), balise <kablix-dht11>. Le modèle
+//     fixe le boîtier, la position des broches ET les plages des curseurs
+//     (DHT11 : 20-90 %HR, 0-50 °C ; DHT22 : 0-100 %HR, -40-80 °C).
 import { css, html, LitElement } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
-import drawing from './externe/dht22.svg';
+import drawing22 from './externe/dht22.svg';
+import drawing11 from './externe/DHT11.svg';
+
+export type DhtModel = 'dht11' | 'dht22';
+
+/**
+ * Caractéristiques par modèle (datasheet) : boîtier, ordonnée des broches et
+ * plages de mesure. Le DHT11 ne descend pas sous 0 °C ni sous 20 %HR — ses
+ * curseurs sont bornés à sa plage réelle (précision ±2 °C / ±5 %HR, résolution
+ * 1 °C / 1 %HR : c'est l'encodage des trames qui la reproduit, cf. engines/dht22.mts).
+ */
+const MODELS = {
+  dht22: { svg: drawing22, w: 70, h: 124.99033, pinY: 120, hmin: 0, hmax: 100, tmin: -40, tmax: 80 },
+  dht11: { svg: drawing11, w: 70, h: 100, pinY: 90, hmin: 20, hmax: 90, tmin: 0, tmax: 50 },
+} as const;
 
 export class DHT22Element extends LitElement {
+  declare model: DhtModel;
   declare temperature: number;
   declare humidity: number;
   declare simulating: boolean;
 
   static properties = {
+    model: { type: String },
     temperature: { type: Number },
     humidity: { type: Number },
     simulating: { type: Boolean },
@@ -22,17 +42,25 @@ export class DHT22Element extends LitElement {
 
   constructor() {
     super();
+    this.model = 'dht22';
     this.temperature = 22;
     this.humidity = 50;
     this.simulating = false;
   }
 
-  readonly pinInfo: ElementPin[] = [
-    { name: 'VCC', x: 20, y: 120, signals: [{ type: 'power', signal: 'VCC' }], number: 1 },
-    { name: 'DATA', x: 30, y: 120, signals: [], number: 2 },
-    { name: 'NC', x: 40, y: 120, signals: [], number: 3 },
-    { name: 'GND', x: 50, y: 120, signals: [{ type: 'power', signal: 'GND' }], number: 4 },
-  ];
+  private get spec() {
+    return MODELS[this.model] ?? MODELS.dht22;
+  }
+
+  get pinInfo(): ElementPin[] {
+    const y = this.spec.pinY;
+    return [
+      { name: 'VCC', x: 20, y, signals: [{ type: 'power', signal: 'VCC' }], number: 1 },
+      { name: 'DATA', x: 30, y, signals: [], number: 2 },
+      { name: 'NC', x: 40, y, signals: [], number: 3 },
+      { name: 'GND', x: 50, y, signals: [{ type: 'power', signal: 'GND' }], number: 4 },
+    ];
+  }
 
   static get styles() {
     return css`
@@ -64,26 +92,27 @@ export class DHT22Element extends LitElement {
   };
 
   render() {
+    const s = this.spec;
     return html`
       <svg
-        width="70"
-        height="124.99033"
-        viewBox="0 0 70 124.99033"
+        width=${s.w}
+        height=${s.h}
+        viewBox="0 0 ${s.w} ${s.h}"
         xmlns="http://www.w3.org/2000/svg"
       >
-        ${unsafeSVG(drawing)}
+        ${unsafeSVG(s.svg)}
       </svg>
       ${this.simulating
         ? html`
             <div class="sim-control">
               <div class="row">
                 <label title="Humidité">💧</label>
-                <input type="range" min="0" max="100" step="1" .value=${String(this.humidity)} @input=${this.onHumidity} />
+                <input type="range" min=${s.hmin} max=${s.hmax} step="1" .value=${String(this.humidity)} @input=${this.onHumidity} />
                 <span class="val">${Math.round(this.humidity)} %</span>
               </div>
               <div class="row">
                 <label title="Température">🌡</label>
-                <input type="range" min="-40" max="80" step="1" .value=${String(this.temperature)} @input=${this.onTemperature} />
+                <input type="range" min=${s.tmin} max=${s.tmax} step="1" .value=${String(this.temperature)} @input=${this.onTemperature} />
                 <span class="val">${Math.round(this.temperature)} °C</span>
               </div>
             </div>
@@ -93,6 +122,19 @@ export class DHT22Element extends LitElement {
   }
 }
 
+/** Variante DHT11 : même élément, modèle figé (balise dédiée pour la palette). */
+export class DHT11Element extends DHT22Element {
+  constructor() {
+    super();
+    this.model = 'dht11';
+    this.temperature = 22;
+    this.humidity = 50;
+  }
+}
+
 if (!customElements.get('kablix-dht22')) {
   customElements.define('kablix-dht22', DHT22Element);
+}
+if (!customElements.get('kablix-dht11')) {
+  customElements.define('kablix-dht11', DHT11Element);
 }

@@ -15,11 +15,19 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(ROOT, 'docs', 'img', 'composants');
 
 // type → module d'élément + balise + attributs de la variante illustrée.
+// `width` : largeur de sortie si 360 px donne une image démesurée (composant
+// étroit et haut, comme les condensateurs — 360 de large = 1000 de haut).
 const PARTS = {
   ldr: { module: 'ldr-element.mjs', tag: 'kablix-ldr' },
   ntc: { module: 'ntc-element.mjs', tag: 'kablix-ntc' },
   ptc: { module: 'ptc-element.mjs', tag: 'kablix-ptc' },
   'grove-pico': { module: 'grove-shield-element.mjs', tag: 'kablix-grove-pico', attrs: { pwr: '3v3' } },
+  diode: { module: 'diode-element.mjs', tag: 'kablix-diode' },
+  'condo-np': { module: 'capacitor-element.mjs', tag: 'kablix-capacitor', width: 190, attrs: { ctype: 'np', value: '1e-7' } },
+  'condo-p-1': { module: 'capacitor-element.mjs', tag: 'kablix-capacitor', width: 165, attrs: { ctype: 'p', value: '1e-5' } },
+  'condo-p-2': { module: 'capacitor-element.mjs', tag: 'kablix-capacitor', width: 125, attrs: { ctype: 'chem', value: '1e-4' } },
+  ventilo: { module: 'ventilo-element.mjs', tag: 'kablix-ventilo' },
+  dht11: { module: 'dht22-element.mjs', tag: 'kablix-dht11' },
 };
 
 const WIDTH = 360; // largeur des illustrations de fiche déjà en place
@@ -68,7 +76,7 @@ setTimeout(() => {
   const x1 = Math.min(vb.x + vb.width, bb.x + bb.width);
   const y1 = Math.min(vb.y + vb.height, bb.y + bb.height);
   const px = box.width / vb.width; // px CSS par unité de viewBox
-  const scale = ${WIDTH} / ((x1 - x0) * px);
+  const scale = ${spec.width ?? WIDTH} / ((x1 - x0) * px);
   el.style.transformOrigin = '0 0';
   el.style.transform = 'scale(' + scale + ') translate(' + (-x0 * px) + 'px,' + (-y0 * px) + 'px)';
   // La page est recadrée sur le dessin mis à l'échelle (marge de 4 px).

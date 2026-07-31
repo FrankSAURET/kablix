@@ -21,7 +21,7 @@ import type {
 } from './types.mjs';
 import { selectSpiDevice, Hd44780, type I2cDevice, type SpiDevice } from './i2c-devices.mjs';
 import { Ws2812Decoder } from './ws2812.mjs';
-import { buildDht22Schedule, DHT22_START_LOW_US, type DhtTransition } from './dht22.mjs';
+import { buildDht22Schedule, DHT22_START_LOW_US, type DhtModel, type DhtTransition } from './dht22.mjs';
 import { DEFAULT_AIR_TEMP_C, echoUsPerCm } from './ultrasonic.mjs';
 
 const RAM_START = 0x20000000;
@@ -260,7 +260,7 @@ export class PicoEngine implements SimEngine {
   // en broche, réponse programmée en temps simulé). La broche est au repos HAUT
   // (pull-up) ; le MCU la tire BAS ≥ 500 µs pour démarrer une mesure.
   private dht22: Array<{
-    pin: string; index: number; tempC: number; humidity: number;
+    pin: string; index: number; tempC: number; humidity: number; model: DhtModel;
     wasLow: boolean; lowStartNanos: number; busyUntilNanos: number;
   }> = [];
 
@@ -355,6 +355,24 @@ export class PicoEngine implements SimEngine {
     if (pin.value === GPIOPinState.High) return true;
     if (pin.value === GPIOPinState.Low) return false;
     return pin.inputValue;
+  }
+
+  /** Ce que le cœur impose sur la broche (voir SimEngine.readPinDrive). */
+  readPinDrive(name: string): 'high' | 'low' | 'pullup' | 'pulldown' | 'hiz' {
+    const i = gpioIndex(name);
+    if (i === null) return 'hiz';
+    switch (this.mcu.gpio[i].value) {
+      case GPIOPinState.High:
+        return 'high';
+      case GPIOPinState.Low:
+        return 'low';
+      case GPIOPinState.InputPullUp:
+        return 'pullup';
+      case GPIOPinState.InputPullDown:
+        return 'pulldown';
+      default:
+        return 'hiz'; // Input / InputBusKeeper : rien d'imposé au réseau extérieur
+    }
   }
 
   setInput(name: string, value: boolean): void {
@@ -501,11 +519,13 @@ export class PicoEngine implements SimEngine {
       if (prev) {
         prev.tempC = s.temperatureC;
         prev.humidity = s.humidity;
+        prev.model = s.model ?? 'dht22';
         this.dht22.push(prev);
         continue;
       }
       this.dht22.push({
         pin: s.pin, index: i, tempC: s.temperatureC, humidity: s.humidity,
+        model: s.model ?? 'dht22',
         wasLow: false, lowStartNanos: 0, busyUntilNanos: 0,
       });
       // Ligne de données au repos = HAUT (pull-up) ; le MCU la tire BAS pour démarrer.
@@ -534,7 +554,7 @@ export class PicoEngine implements SimEngine {
         if (lowUs >= DHT22_START_LOW_US && nowNanos >= d.busyUntilNanos) {
           const startNanos = nowNanos + 30_000; // ~30 µs après le relâchement
           const startCycles = Math.round(startNanos / nanosPerCycle);
-          const sched: DhtTransition[] = buildDht22Schedule(d.tempC, d.humidity, startCycles, cyclesPerUs);
+          const sched: DhtTransition[] = buildDht22Schedule(d.tempC, d.humidity, startCycles, cyclesPerUs, d.model);
           for (const ev of sched) {
             this.scheduled.push({ nanos: ev.cycle * nanosPerCycle, name: d.pin, value: ev.value });
           }

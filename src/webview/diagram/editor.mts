@@ -5160,6 +5160,13 @@ function pinDisplayName(
     if (pinName === 'VCC') return '2';
     if (pinName === 'SIG') return 'V';
   }
+  // Condensateur : les broches restent nommées 1/2 dans la netlist (changer de
+  // type ne doit jamais orphéliner un fil), mais un modèle polarisé affiche sa
+  // polarité — c'est elle qui compte au câblage.
+  if (kind === 'capacitor' && attrs?.ctype !== 'np') {
+    if (pinName === '1') return '−';
+    if (pinName === '2') return '+';
+  }
   return pinName;
 }
 

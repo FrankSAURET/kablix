@@ -54,7 +54,8 @@ Routage*.png
 [Tt]odo*.md
 [Tt]odo*.txt
 test-assets/**
-# testkablix/ : recette de test par composant — distribuée via GitHub, pas dans le vsix.
+# testkablix/ : recette de test par composant + exemples de code (blink_*.c/.py,
+# compilés par verify:compiler) — distribuée via GitHub, pas dans le vsix.
 testkablix/**
 
 # --- Ressources non utilisées à l'exécution ---
@@ -78,8 +79,6 @@ media/accroche.webp
 # media/KNB, BarreDessin, BarreSimulation, barre kablix, boutons trie, interface :
 # captures des guides USAGE — EMBARQUÉES (v2026.7.181, toutes en WebP depuis la
 # v2026.7.187) ; l'aide ❔ sert le guide local et doit rester lisible hors-ligne.
-# examples/ : non référencés par l'extension (disponibles sur GitHub).
-examples/**
 # firmware : seul rp2040_ram.ld sert (script de lien de la compilation Pico).
 firmware/avr/**
 firmware/**/*.c

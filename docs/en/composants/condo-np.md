@@ -1,0 +1,37 @@
+# Non-polarized capacitor
+
+![Non-polarized capacitor](../../img/composants/condo-np.webp)
+
+Plastic film capacitor, no polarity. In series with a resistor it forms an RC
+circuit: the voltage across it rises and falls exponentially, reaching full
+charge (or full discharge) after 5·R·C.
+
+## Pins
+
+| Pin | Role |
+|--------|------|
+| **1** | Terminal 1 |
+| **2** | Terminal 2 (non-polarized: both are equivalent) |
+
+## Properties
+
+| Property | Role | Default |
+|-----------|------|--------|
+| `ctype` | Type: non-polarized / polarized / electrolytic | non-polarized |
+| `value` | Nominal value in farads (`m`, `µ`, `n`, `p` suffixes accepted) | 100n |
+| `vmax` | Maximum rated voltage (V) | 400 |
+| `angle` | Orientation (0/90/180/270°) | 0 |
+
+## Usage
+
+- The value you type is **printed on the body** of the part (`10µ`, `100n`…).
+- Supply decoupling: 100 nF as close as possible to the chip's VCC pin.
+- RC measurement: charge through a resistor from a pin driven `HIGH`, read the
+  rise on an analog input. τ = R·C, and 5τ = full charge.
+- Also works on an input with the **internal pull-up** (Arduino or Pico): the
+  pull-up (~40 kΩ) acts as the charging resistor, no external resistor needed.
+- Changing `ctype` does not rename the pins: wires already drawn stay put.
+
+---
+
+*Kablix in-house component — drawing by Frank Sauret.*
