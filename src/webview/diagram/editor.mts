@@ -3355,6 +3355,37 @@ export class Editor {
       // 2. Purement géométrique (le tracé ne bouge pas), donc toujours sûr : pas
       // de nouveau survol de broche ni de composant.
       pts = collapseColinear([a, ...pts, b], 1).slice(1, -1);
+      // Survol de composant mesuré contre les corps TIERS (hors les deux d'extrémité,
+      // dont le ras est toléré). Même règle appliquée à tous les tracés comparés.
+      const thirdParty = obstacles.filter((o) => o.id !== wire.a.partId && o.id !== wire.b.partId);
+      // Perforation PROFONDE des corps d'EXTRÉMITÉ (au-delà du ras toléré) : un fil
+      // droit dont la broche est sous son propre corps peut le trancher de part en
+      // part (ex. 2 LED superposées). Le survol tiers étant déjà couvert par
+      // `thirdParty`, on ne taxe ici QUE le cœur des deux corps d'extrémité, pour
+      // que l'original perforant ne soit pas jugé « parfait » face au détour (qui,
+      // lui, approche la broche par le côté et perce moins).
+      // Même règle que partout ailleurs pour un corps d'extrémité : le ras est
+      // toléré jusqu'à `capOf` (profondeur de la broche + une marge), au-delà c'est
+      // une perforation. (Un inset fixe ne marchait pas : sur un corps étroit — la
+      // LED fait 17 px de large — son « cœur » devient si mince que la broche du
+      // bord tombe en dehors, et la traversée mesurée retombait à zéro.)
+      const endBodies = obstacles.filter((o) => o.id === wire.a.partId || o.id === wire.b.partId);
+      const deepEnds = (poly: XY[]): number => {
+        let ov = 0;
+        for (const o of endBodies) {
+          let cross = 0;
+          for (let i = 0; i < poly.length - 1; i++) cross += segRectOverlap(poly[i], poly[i + 1], o);
+          ov += Math.max(0, cross - capOf(o));
+        }
+        return ov;
+      };
+      // Coût d'une polyligne COMPLÈTE [a..b], sert à départager deux tracés du même
+      // fil (rerouté / original / redressé).
+      const polyScore = (poly: XY[]): number => scorePoly(poly, poly, thirdParty) + deepEnds(poly) * 1000;
+      // Redressement des escaliers : un décroché d'un demi-pas collé à une broche
+      // (le « zigouigoui » de `A Examiner/bug routage.png`) coûte deux coudes pour
+      // rien. On réaligne les deux tronçons quand le tracé redressé est meilleur.
+      pts = unstairPoly([a, ...pts, b], GRID, polyScore, TOL).slice(1, -1);
       // NE JAMAIS DÉGRADER UN FIL EXISTANT : dans un montage dense (composants à
       // 10 px), l'A* peut être contraint de pondre un tracé qui traverse un
       // composant ou ajoute des coudes — parfois PIRE que le fil déjà en place
@@ -3377,37 +3408,38 @@ export class Editor {
           break;
         }
       }
-      // Survol de composant mesuré contre les corps TIERS (hors les deux d'extrémité,
-      // dont le ras est toléré). Même règle appliquée aux deux tracés pour comparer.
-      const thirdParty = obstacles.filter((o) => o.id !== wire.a.partId && o.id !== wire.b.partId);
       const newPoly = [a, ...pts, b];
-      // Perforation PROFONDE des corps d'EXTRÉMITÉ (au-delà du ras toléré) : un fil
-      // droit dont la broche est sous son propre corps peut le trancher de part en
-      // part (ex. 2 LED superposées). Le survol tiers étant déjà couvert par
-      // `thirdParty`, on ne taxe ici QUE le cœur des deux corps d'extrémité, pour
-      // que l'original perforant ne soit pas jugé « parfait » face au détour (qui,
-      // lui, approche la broche par le côté et perce moins).
-      // Même règle que partout ailleurs pour un corps d'extrémité : le ras est
-      // toléré jusqu'à `capOf` (profondeur de la broche + une marge), au-delà c'est
-      // une perforation. (Un inset fixe ne marchait pas : sur un corps étroit — la
-      // LED fait 17 px de large — son « cœur » devient si mince que la broche du
-      // bord tombe en dehors, et la traversée mesurée retombait à zéro.)
-      const endBodies = obstacles.filter((o) => o.id === wire.a.partId || o.id === wire.b.partId);
-      const deepEnds = (poly: XY[]): number => {
-        let ov = 0;
-        for (const o of endBodies) {
-          let cross = 0;
-          for (let i = 0; i < poly.length - 1; i++) cross += segRectOverlap(poly[i], poly[i + 1], o);
-          ov += Math.max(0, cross - capOf(o));
+      const origScore = polyScore(origPoly);
+      const newScore = polyScore(newPoly);
+      // … MAIS un fil de plus de 4 coudes n'est PAS un bon fil (définition Kablix) :
+      // le garde-fou ne doit pas le protéger sous prétexte qu'il longe une dorsale du
+      // même net (le bonus `sameOv` peut à lui seul lui donner le meilleur score).
+      // On le remplace dès que le rerouté a moins de coudes SANS ajouter de défaut
+      // (survol de composant, de broche étrangère, superposition d'un autre net).
+      const flaws = (poly: XY[]): number => {
+        let onPin = 0;
+        for (const fp of foreignPins) {
+          for (let i = 0; i < poly.length - 1; i++) {
+            if (pointOnSegment(fp.c, poly[i], poly[i + 1], 4)) { onPin++; break; }
+          }
         }
-        return ov;
+        return (
+          polylineRectOverlap(poly, thirdParty) +
+          deepEnds(poly) +
+          polylineWireCost(poly, otherSegs, GAP).overlap +
+          onPin
+        );
       };
-      const origScore = scorePoly(origPoly, origPoly, thirdParty) + deepEnds(origPoly) * 1000;
-      const newScore = scorePoly(newPoly, newPoly, thirdParty) + deepEnds(newPoly) * 1000;
-      if (origOrtho && origScore <= newScore + 0.01) {
-        // Le reroutage n'améliore rien (ou dégrade) : on garde le fil tel quel,
-        // en n'appliquant que l'optimisation colinéaire (elle ne déplace rien).
-        const kept = collapseColinear(origPoly, 1).slice(1, -1);
+      const origBends = polyLenBends(origPoly).bends;
+      const rescue =
+        origBends > 4 &&
+        polyLenBends(newPoly).bends < origBends &&
+        flaws(newPoly) <= flaws(origPoly) + 0.01;
+      if (origOrtho && !rescue && origScore <= newScore + 0.01) {
+        // Le reroutage n'améliore rien (ou dégrade) : on garde le fil tel quel, en
+        // n'appliquant que l'optimisation colinéaire et le redressement des
+        // escaliers — deux passes qui ne peuvent que faire baisser son coût.
+        const kept = unstairPoly(origPoly, GRID, polyScore, 1).slice(1, -1);
         if (kept.length !== origPts.length) changed = true;
         wire.points = kept.length > 0 ? kept : undefined;
         wireSegs.set(wire.id, toSegs([a, ...kept, b]));
@@ -6062,6 +6094,63 @@ function collapseColinear(pts: XY[], tol = 0.5): XY[] {
     out.push(p);
   }
   return out;
+}
+
+/**
+ * Redresse les « escaliers » d'un tracé orthogonal : un segment COURT (≤ `maxStep`)
+ * coincé entre deux segments du MÊME axe décale le fil d'un demi-pas et coûte deux
+ * coudes pour rien — le petit zigouigoui collé à une broche (repro Frank :
+ * `A Examiner/bug routage.png`). On réaligne les deux tronçons sur une seule ligne :
+ * le segment perpendiculaire voisin s'allonge d'autant, et les deux extrémités (les
+ * points de connexion) ne bougent JAMAIS — d'où deux candidats par escalier (amont
+ * ramené sur l'aval, ou l'inverse), le premier interdit quand l'amont touche la
+ * broche, le second quand c'est l'aval. Chaque candidat passe par `score` (survol de
+ * composant, de broche étrangère, superposition d'un autre fil, longueur, coudes) et
+ * n'est retenu que s'il fait BAISSER le coût : un décroché qui esquive vraiment
+ * quelque chose reste en place. Plusieurs passes, car redresser une marche peut en
+ * démasquer une autre.
+ */
+export function unstairPoly(pts: XY[], maxStep: number, score: (poly: XY[]) => number, tol = 1): XY[] {
+  let cur = collapseColinear(pts, tol);
+  for (let pass = 0; pass < 4; pass++) {
+    let best: XY[] | null = null;
+    let bestK = score(cur) - 0.01;
+    for (let i = 1; i + 2 < cur.length; i++) {
+      const p0 = cur[i - 1];
+      const p1 = cur[i];
+      const p2 = cur[i + 1];
+      const p3 = cur[i + 2];
+      // Deux segments du même axe séparés par une marche perpendiculaire.
+      const horiz =
+        Math.abs(p0.y - p1.y) <= tol && Math.abs(p2.y - p3.y) <= tol && Math.abs(p1.x - p2.x) <= tol;
+      const vert =
+        Math.abs(p0.x - p1.x) <= tol && Math.abs(p2.x - p3.x) <= tol && Math.abs(p1.y - p2.y) <= tol;
+      if (horiz === vert) continue; // virage normal (ou tracé non orthogonal)
+      const step = horiz ? Math.abs(p2.y - p1.y) : Math.abs(p2.x - p1.x);
+      if (step <= tol || step > maxStep) continue; // marche nulle ou vrai détour
+      const cands: XY[][] = [];
+      const moved = (from: number, to: number, ref: XY): XY[] => {
+        const c = cur.map((p) => ({ x: p.x, y: p.y }));
+        for (let k = from; k <= to; k++) {
+          if (horiz) c[k].y = ref.y;
+          else c[k].x = ref.x;
+        }
+        return collapseColinear(c, tol);
+      };
+      if (i - 1 > 0) cands.push(moved(i - 1, i, p2)); // amont ramené sur l'aval
+      if (i + 2 < cur.length - 1) cands.push(moved(i + 1, i + 2, p1)); // aval sur l'amont
+      for (const c of cands) {
+        const k = score(c);
+        if (k < bestK) {
+          bestK = k;
+          best = c;
+        }
+      }
+    }
+    if (!best) break;
+    cur = best;
+  }
+  return cur;
 }
 
 /**

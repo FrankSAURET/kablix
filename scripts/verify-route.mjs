@@ -18,7 +18,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CACHE = join(ROOT, 'node_modules', '.cache-route');
 
 const entry = `
-import { Editor } from '../../src/webview/diagram/editor.mjs';
+import { Editor, unstairPoly } from '../../src/webview/diagram/editor.mjs';
 import { nameEquipotentials } from '../../src/webview/diagram/model.mjs';
 import '../../src/webview/composants/ntc-element.mjs';
 import '../../src/webview/composants/ptc-element.mjs';
@@ -591,6 +591,92 @@ async function run() {
 	ok('résistances empilées sur un 7 segments : le couloir libre est VU (≥ 5 px)',
 		haut - bas >= 5, 'couloir=' + (haut - bas).toFixed(1) + 'px (bas résistances ' + bas.toFixed(1) +
 		', haut afficheur ' + haut.toFixed(1) + ')');
+
+	// --- Redressement des ESCALIERS — « zigouigoui » (v2026.7.241) --------------
+	// Une marche d'un demi-pas entre deux segments du MÊME axe coûte deux coudes
+	// pour rien (repro Frank : « A Examiner/bug routage.png », condo-pico).
+	// unstairPoly est une fonction pure : on lui donne ici le coût géométrique nu
+	// (longueur + 20 par coude) pour vérifier le mécanisme, puis un score qui
+	// refuse tout changement pour vérifier qu'il a bien le dernier mot.
+	const lenBends = (poly) => {
+		let len = 0, bends = 0, prev = null;
+		for (let i = 0; i < poly.length - 1; i++) {
+			const dx = Math.abs(poly[i + 1].x - poly[i].x), dy = Math.abs(poly[i + 1].y - poly[i].y);
+			if (dx < 0.5 && dy < 0.5) continue;
+			len += dx + dy;
+			const ax = dx >= dy ? 'h' : 'v';
+			if (prev && ax !== prev) bends++;
+			prev = ax;
+		}
+		return { len, bends };
+	};
+	const geo = (poly) => { const { len, bends } = lenBends(poly); return len + 20 * bends; };
+	const P = (...xy) => xy.map(([x, y]) => ({ x, y }));
+	const S = (poly) => poly.map((p) => Math.round(p.x) + ',' + Math.round(p.y)).join(' ');
+	const ortho = (poly) => poly.every((p, i) =>
+		i === 0 || Math.abs(p.x - poly[i - 1].x) <= 1 || Math.abs(p.y - poly[i - 1].y) <= 1);
+	// Décroché : segment court entre deux segments de même axe ET de même sens.
+	const jogs = (poly, maxLen = 20) => {
+		let n = 0;
+		for (let i = 1; i < poly.length - 2; i++) {
+			const [p0, p1, p2, p3] = [poly[i - 1], poly[i], poly[i + 1], poly[i + 2]];
+			const len = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+			if (len > maxLen || len < 0.5) continue;
+			const ax = (p, q) => (Math.abs(p.x - q.x) <= 1 ? 'V' : 'H');
+			if (ax(p0, p1) !== ax(p2, p3) || ax(p1, p2) === ax(p0, p1)) continue;
+			const dir = (p, q) => (ax(p, q) === 'V' ? Math.sign(q.y - p.y) : Math.sign(q.x - p.x));
+			if (dir(p0, p1) === dir(p2, p3)) n++;
+		}
+		return n;
+	};
+	// Marche de 5 px au milieu d'un tracé : elle disparaît, un des deux tronçons
+	// glisse sur l'autre et le segment perpendiculaire voisin s'allonge d'autant.
+	const esc = P([100, 100], [100, 140], [220, 140], [220, 145], [400, 145], [400, 200]);
+	const red = unstairPoly(esc, 10, geo);
+	ok('escalier : la marche de 5 px disparaît (coudes 4 → 2)', lenBends(red).bends === 2, S(red));
+	ok('escalier : plus aucun décroché', jogs(red) === 0, S(red));
+	ok('escalier : les deux extrémités NE bougent PAS',
+		S([red[0], red[red.length - 1]]) === S([esc[0], esc[esc.length - 1]]), S(red));
+	ok('escalier : tracé toujours orthogonal (H/V)', ortho(red), S(red));
+	// Escalier à deux marches : les passes successives les redressent toutes.
+	const esc2 = P([100, 100], [100, 140], [200, 140], [200, 145], [300, 145], [300, 150], [400, 150], [400, 200]);
+	ok('escalier à 2 marches : redressé en une seule ligne (2 coudes)',
+		lenBends(unstairPoly(esc2, 10, geo)).bends === 2, S(unstairPoly(esc2, 10, geo)));
+	// Le score a le DERNIER mot : un décroché qui esquive quelque chose reste.
+	const refuse = (poly) => (S(poly) === S(esc) ? 0 : 1e6);
+	ok('escalier : le score peut REFUSER le redressement (décroché justifié gardé)',
+		S(unstairPoly(esc, 10, refuse)) === S(esc), S(unstairPoly(esc, 10, refuse)));
+	// Marche plus haute qu'un pas de grille : c'est un vrai détour, on n'y touche pas.
+	const detour = P([100, 100], [100, 140], [220, 140], [220, 200], [400, 200], [400, 260]);
+	ok('détour de 60 px : ce n est pas un escalier, tracé inchangé',
+		S(unstairPoly(detour, 10, geo)) === S(detour), S(unstairPoly(detour, 10, geo)));
+	// Marche entre les DEUX points de connexion (broches décalées de 10 px) :
+	// aucun point n'est déplaçable, le Z reste — c'est le tracé minimal.
+	const zMin = P([100, 100], [140, 100], [140, 110], [200, 110]);
+	ok('marche imposée par les broches (Z minimal) : conservée',
+		S(unstairPoly(zMin, 10, geo)) === S(zMin), S(unstairPoly(zMin, 10, geo)));
+
+	// Intégration : un fil posé avec un escalier de 5 px ressort SANS décroché.
+	for (const p of [...editor.diagram.parts]) editor.removePart?.(p.id);
+	await wait(30);
+	const za = editor.addPart('ntc', 100, 100);
+	const zb = editor.addPart('ntc', 500, 400);
+	await wait(60);
+	const zca = editor.hotspotCenter({ partId: za.id, pin: '2' });
+	const zcb = editor.hotspotCenter({ partId: zb.id, pin: '1' });
+	editor.addWire({ partId: za.id, pin: '2' }, { partId: zb.id, pin: '1' }, {
+		points: [
+			{ x: zca.x, y: zca.y + 60 }, { x: zca.x + 100, y: zca.y + 60 },
+			{ x: zca.x + 100, y: zca.y + 65 }, { x: zcb.x, y: zca.y + 65 },
+		],
+	});
+	const wZig = editor.diagram.wires[editor.diagram.wires.length - 1];
+	editor.select(null); editor.autoRoute();
+	await wait(50);
+	const wZigR = editor.diagram.wires.find((x) => x.id === wZig.id);
+	const zPoly = [editor.hotspotCenter(wZigR.a), ...(wZigR.points ?? []), editor.hotspotCenter(wZigR.b)];
+	ok('autoRoute : le fil posé avec un escalier ressort SANS décroché', jogs(zPoly) === 0, S(zPoly));
+	ok('autoRoute : et avec 4 coudes au plus (bon fil)', lenBends(zPoly).bends <= 4, S(zPoly));
 
 	const out = document.createElement('pre');
 	out.id = 'measures';
