@@ -7,19 +7,20 @@
 1. [Démarrage](#démarrage)
 2. [L'interface](#linterface)
 3. [Construire un montage](#construire-un-montage)
-4. [Exécuter du code](#exécuter-du-code)
-5. [MicroPython sur le Pico](#micropython-sur-le-pico)
-6. [Déboguer pas à pas](#déboguer-pas-à-pas)
-7. [Moniteur série](#moniteur-série)
-8. [Traceur de courbes](#traceur-de-courbes)
-9. [Exporter le schéma en SVG](#exporter-le-schéma-en-svg)
-10. [Créer ses propres composants](#créer-ses-propres-composants)
-11. [Format de fichier des composants (.kablix-part.json)](#format-de-fichier-des-composants-kablix-partjson)
-12. [Où trouver des composants existants](#où-trouver-des-composants-existants)
-13. [Enregistrer / ouvrir un projet (.projix)](#enregistrer--ouvrir-un-projet-projix)
-14. [Interopérabilité Wokwi (diagram.json)](#interopérabilité-wokwi-diagramjson)
-15. [Mises à jour des bibliothèques](#mises-à-jour-des-bibliothèques)
-16. [Raccourcis clavier](#raccourcis-clavier)
+1. [Simuler](#simuler)
+    1. [Exécuter du code](#exécuter-du-code)
+    2. [MicroPython sur le Pico](#micropython-sur-le-pico)
+    1. [Déboguer](#déboguer)
+    1. [Moniteur série](#moniteur-série)
+    1. [Traceur de courbes](#traceur-de-courbes)
+1. [Exporter le schéma en SVG](#exporter-le-schéma-en-svg)
+1. [Créer ses propres composants](#créer-ses-propres-composants)
+1. [Format de fichier des composants (.kablix-part.json)](#format-de-fichier-des-composants-kablix-partjson)
+1. [Où trouver des composants existants](#où-trouver-des-composants-existants)
+1. [Enregistrer / ouvrir un projet (.projix)](#enregistrer--ouvrir-un-projet-projix)
+1. [Interopérabilité Wokwi (diagram.json)](#interopérabilité-wokwi-diagramjson)
+1. [Mises à jour des bibliothèques](#mises-à-jour-des-bibliothèques)
+1. [Raccourcis clavier](#raccourcis-clavier)
 
 ---
 
@@ -152,8 +153,9 @@ Certains composant spéciaux (seulement LED RVB pour l'instant) ont des couleurs
 | Détecteur PIR, capteur d'inclinaison | Sortie numérique OUT, état réglé dans Propriétés |
 | Servomoteur | Bras à 90° quand la broche PWM est haute (simplifié) |
 
-## Exécuter du code
+## Simuler
 
+### Exécuter du code
 Bouton **Compiler & exécuter le fichier actif** (ou la commande homonyme) — le traitement dépend de l'extension du fichier actif :
 
 | Fichier | Traitement | Prérequis |
@@ -164,11 +166,11 @@ Bouton **Compiler & exécuter le fichier actif** (ou la commande homonyme) — l
 | `.hex` | Chargé directement (Uno) | — |
 | `.uf2`, `.elf`, `.bin` | Chargé directement (Pico) | — |
 
-### LED embarquées des cartes
+#### LED embarquées des cartes
 
 Pendant la simulation, la carte s'allume comme la vraie : la **LED verte ON** reste allumée tant que le programme tourne, et la **LED L** — celle de `LED_BUILTIN`, la broche **D13** sur Uno, Nano et Mega — suit l'état de cette broche. Un `blink` sur `LED_BUILTIN` se voit donc **sans câbler la moindre LED**. Sur le Pico, c'est la LED embarquée **GP25** qui joue ce rôle.
 
-### Vitesse de la simulation
+#### Vitesse de la simulation
 
 La simulation suit le **temps réel** : une seconde à l'écran est une seconde sur la vraie carte, `delay(1000)` dure bien une seconde. Quand la page est occupée un instant (dessin d'un composant, moniteur série qui défile), la simulation **rattrape** son retard dès qu'elle reprend la main ; seuls les blocages longs (plus d'un quart de seconde, un onglet laissé en arrière-plan) sont abandonnés — le temps est alors **sauté**, jamais rejoué en accéléré.
 
@@ -176,7 +178,7 @@ Le sélecteur 🐇/🐢/🐌 ralentit volontairement l'exécution (100 %, 10 %, 
 
 Si malgré tout la carte n'arrive plus à suivre, un badge **« Ralentie : 0,45× le temps réel »** apparaît à droite de la barre d'état : la page est trop chargée pour la simulation (schéma volumineux, machine occupée). Le ralenti volontaire du sélecteur n'est pas compté comme un défaut. Le badge disparaît dès que la simulation revient à l'heure, et à l'arrêt.
 
-## MicroPython sur le Pico
+### MicroPython sur le Pico
 1. Ouvrir un fichier `.py` → **Compiler & exécuter le fichier actif**.
 2. Au premier lancement, si aucun firmware n'est trouvé, Kablix **propose de le télécharger automatiquement** (choix **Pico / Pico W**) depuis [micropython.org](https://micropython.org/download/RPI_PICO/). Le firmware est mémorisé dans le stockage de l'extension et **réutilisé dans tous vos projets** — la question n'est posée qu'une fois.
 
@@ -187,9 +189,7 @@ Pour fournir votre propre firmware (hors ligne, version précise…) : placez un
 Le firmware démarre dans le simulateur (bootrom + flash + USB), puis le script est injecté via le **raw REPL**. Les `print()` apparaissent dans le moniteur série ; à la fin du script, le **REPL interactif** reste disponible via le
 champ d'envoi ou en cliquant sur le bouton REPL.
 
-## Déboguer pas à pas
-
-Pensé pour observer un programme, sans débogueur externe.
+### Déboguer
 
 - **⏸ Pause / ▶ Reprendre** : gèle la simulation ; l'état des broches et des LED reste affiché. Le sélecteur 🐇/🐢/🐌 ralentit l'exécution (Uno).
 - **Pas** : exécute une ligne du fichier source puis se remet en pause. Le panneau **Variables**  montre alors la ligne courante et les variables globales du programme ; la ligne est aussi surlignée dans l'éditeur VS Code.
@@ -200,12 +200,12 @@ Prérequis et limites :
 
 | Langage | Comment | Limites |
 | --- | --- | --- |
-| C / Arduino (Uno) | infos DWARF extraites à la compilation (`avr-objdump`, fourni avec arduino-cli ou avr-gcc) | variables **globales** simples (int, float, bool…) ; un `delay()` long avance par tranches de 0,25 s simulée |
+| C / Arduino (Uno) | Données de débogage extraites à la compilation (`avr-objdump`, fourni avec arduino-cli ou avr-gcc) | variables **globales** simples (int, float, bool…) ; un `delay()` long avance par tranches de 0,25 s simulée |
 | MicroPython (Pico) | le script est instrumenté automatiquement avant injection | variables **globales** uniquement ; la pause prend effet à la ligne suivante ; pas de ralenti |
 
 Les artefacts chargés directement (`.hex`, `.uf2`, `.elf`, `.bin`) s'exécutent sans infos de débogage : pause et ralenti restent disponibles, pas le pas à pas.
 
-### Masquer des variables
+#### Masquer des variables
 
 Un programme expose souvent des variables sans intérêt (constantes, objets de configuration) qui noient les deux ou trois que vous surveillez. Le panneau **Variables** permet de faire le tri :
 
@@ -215,7 +215,7 @@ Un programme expose souvent des variables sans intérêt (constantes, objets de 
 
 Une variable masquée continue d'être **suivie** en arrière-plan : au retour, son rouge (« a changé au dernier pas ») est exact, comme si elle n'avait jamais quitté le panneau. Tant que le projet n'est pas enregistré, les masquages tiennent pour l'atelier ouvert — ils survivent aux arrêts et redémarrages de la simulation.
 
-### Base d'affichage d'une variable
+#### Base d'affichage d'une variable
 
 Un masque de bits ou un registre se lit mieux en binaire qu'en décimal. Le nom et la valeur d'une variable sont **cliquables** (le curseur passe en main) : un **clic** ouvre un menu qui propose quatre bases d'affichage : **Binaire**, **Hexadécimal**, **Décimal** (celle par défaut) et **Caractère**. La base retenue est cochée ✓. Le clic droit ouvre le même menu.
 
@@ -234,13 +234,13 @@ En **Caractère**, les codes de contrôle sortent échappés (`'\n'`, `'\t'`, `'
 
 Le choix vaut pour **cette variable** et il est mémorisé **dans le projet**, comme les masquages : à la réouverture du `.projix`, chaque variable retrouve sa base. Comme ces réglages font partie du fichier, les changer marque le projet **à enregistrer** (point ● de l'onglet) : `Ctrl+S` les grave.
 
-## Moniteur série
+### Moniteur série
 
 - **Sortie** : USART (Uno), USB-CDC et UART0 (Pico), en temps réel.
 - **Entrée** : champ de saisie + `Entrée` (ou bouton Envoyer). Sur le Pico, l'entrée alimente l'USB-CDC (REPL MicroPython) **et** l'UART0.
 - **Erreurs de compilation** : quand le programme ne compile pas, les messages **complets** du compilateur s'affichent ici, sous un titre `── Échec de la compilation ──` (le moniteur se déplie tout seul s'il était replié). La bulle de notification, elle, ne rappelle que la **première** erreur — `fichier.ino:12 : 'digitalWrit' was not declared in this scope` : c'est presque toujours celle qu'il faut corriger d'abord, les suivantes en découlent.
 
-## Traceur de courbes
+### Traceur de courbes
 
 Panneau en bas de l'écran : visualise en temps réel les grandeurs numériques, sans quitter Kablix ni ajouter de dépendance.
 

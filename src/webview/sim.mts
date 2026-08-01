@@ -156,6 +156,8 @@ interface PersistedState {
   /** Héritage (≤ v2026.7.107) : true = tous les noms, false = sélection seule. */
   showLabels?: boolean;
   labelsMode?: LabelsMode;
+  /** Case « Afficher l'id des composants » du menu Noms (indépendante du mode). */
+  showIds?: boolean;
 }
 declare function acquireVsCodeApi(): VsCodeApi;
 declare global {
@@ -899,10 +901,14 @@ function reportRelayFaults(): void {
   for (const st of relayStates(editor.diagram, read, vcc, psuLiveVolts, liveVariableOhms)) {
     if ((relayFaults.get(st.partId) ?? 'none') === st.fault) continue;
     relayFaults.set(st.partId, st.fault);
-    if (st.fault === 'reversed-diode') setStatus(t('Flyback diode is reversed'));
-    else if (st.fault === 'no-diode') setStatus(t('A flyback diode is required'));
-    else if (st.fault === 'weak') setStatus(t('Coil voltage too low: the relay does not pull in'));
-    else if (st.fault === 'starved') setStatus(t('The supply cannot deliver the coil current'));
+    // Chaque message NOMME le composant en cause — le relais, ou la diode de
+    // roue libre quand c'est elle qui est montée à l'envers. Sur un schéma à
+    // plusieurs relais il fallait sinon deviner lequel reprendre.
+    const blame = (msg: string, id: string): void => setStatus(`${msg} (${id})`);
+    if (st.fault === 'reversed-diode') blame(t('Flyback diode is reversed'), st.faultPartId ?? st.partId);
+    else if (st.fault === 'no-diode') blame(t('A flyback diode is required'), st.partId);
+    else if (st.fault === 'weak') blame(t('Coil voltage too low: the relay does not pull in'), st.partId);
+    else if (st.fault === 'starved') blame(t('The supply cannot deliver the coil current'), st.partId);
   }
 }
 
@@ -2685,7 +2691,7 @@ editor.onCameraChange = () => {
 // déplacement de l'onglet (passage en plein écran, autre groupe d'éditeurs…)
 // qui recharge la webview et effaçait auparavant le schéma.
 function persistState(): void {
-  vscode.setState({ diagram: editor.serialize(), board, labelsMode } satisfies PersistedState);
+  vscode.setState({ diagram: editor.serialize(), board, labelsMode, showIds } satisfies PersistedState);
 }
 
 /**
@@ -2829,6 +2835,9 @@ document.addEventListener('keydown', (e) => {
 // « Uniquement les composants sélectionnés » ; aucune cochée = aucun nom.
 // Défaut : sélection seule (comportement historique).
 let labelsMode: LabelsMode = 'selected';
+// Case indépendante du menu Noms : l'id du composant sort sur TOUS les
+// composants (avant leur nom quand celui-ci est affiché aussi).
+let showIds = false;
 let paletteState: PaletteState = { sort: 'category', recents: [], showRecents: true, collapsed: [] };
 let paletteWidth = 0; // 0 = largeur par défaut (CSS)
 let inspectorWidth = 0;
@@ -2836,7 +2845,8 @@ let inspectorWidth = 0;
 function applyShowLabels(): void {
   canvas.classList.toggle('canvas--show-labels', labelsMode === 'all');
   canvas.classList.toggle('canvas--labels-sel', labelsMode === 'selected');
-  labelsBtn.classList.toggle('primary', labelsMode !== 'none');
+  canvas.classList.toggle('canvas--show-ids', showIds);
+  labelsBtn.classList.toggle('primary', labelsMode !== 'none' || showIds);
 }
 applyShowLabels();
 
@@ -2853,7 +2863,7 @@ function applyPanelWidths(): void {
 function saveUiState(): void {
   vscode.postMessage({
     type: 'saveUiState',
-    state: { ...paletteState, labelsMode, paletteWidth, inspectorWidth, serialVisible, plotterVisible: plotterUserPref, gridShown },
+    state: { ...paletteState, labelsMode, showIds, paletteWidth, inspectorWidth, serialVisible, plotterVisible: plotterUserPref, gridShown },
   });
 }
 
@@ -2906,10 +2916,11 @@ function openLabelsMenu(): void {
     const box = document.createElement('input');
     box.type = 'checkbox';
     box.checked = labelsMode === mode;
+    box.dataset.exclusive = '1'; // seules ces deux cases s'excluent
     box.addEventListener('change', () => {
       // Cocher l'une décoche l'autre ; décocher la case active → aucun nom.
       labelsMode = box.checked ? mode : 'none';
-      for (const other of menu.querySelectorAll('input')) {
+      for (const other of menu.querySelectorAll('input[data-exclusive]')) {
         (other as HTMLInputElement).checked = false;
       }
       box.checked = labelsMode === mode;
@@ -2923,6 +2934,23 @@ function openLabelsMenu(): void {
   };
   menu.appendChild(mkRow(t('All names'), 'all'));
   menu.appendChild(mkRow(t('Selected parts only'), 'selected'));
+  // Troisième case, INDÉPENDANTE des deux précédentes : elle montre l'id de tous
+  // les composants (« relay-1 »), seul ou devant le nom quand celui-ci sort aussi.
+  {
+    const row = document.createElement('label');
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.checked = showIds;
+    box.addEventListener('change', () => {
+      showIds = box.checked;
+      applyShowLabels();
+      saveUiState();
+      persistState();
+    });
+    row.appendChild(box);
+    row.appendChild(document.createTextNode(t('Show part ids')));
+    menu.appendChild(row);
+  }
   document.body.appendChild(menu);
   // Sous le bouton, aligné à gauche (position fixe : la barre ne défile pas).
   const r = labelsBtn.getBoundingClientRect();
@@ -3135,13 +3163,13 @@ window.addEventListener('message', (event: MessageEvent) => {
           updateSerialTitle();
           vscode.postMessage({ type: 'board', board });
         }
+        if (typeof restoredState.showIds === 'boolean') showIds = restoredState.showIds;
         if (restoredState.labelsMode === 'all' || restoredState.labelsMode === 'selected' || restoredState.labelsMode === 'none') {
           labelsMode = restoredState.labelsMode;
-          applyShowLabels();
         } else if (typeof restoredState.showLabels === 'boolean') {
           labelsMode = legacyLabelsMode(restoredState.showLabels);
-          applyShowLabels();
         }
+        applyShowLabels();
       }
       restoredState = undefined;
       break;
@@ -3270,9 +3298,11 @@ window.addEventListener('message', (event: MessageEvent) => {
       const state = (msg.state ?? {}) as Partial<PaletteState> & {
         showLabels?: boolean;
         labelsMode?: LabelsMode;
+        showIds?: boolean;
         paletteWidth?: number;
         inspectorWidth?: number;
       };
+      if (typeof state.showIds === 'boolean') showIds = state.showIds;
       if (state.labelsMode === 'all' || state.labelsMode === 'selected' || state.labelsMode === 'none') {
         labelsMode = state.labelsMode;
       } else if (typeof state.showLabels === 'boolean') {

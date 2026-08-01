@@ -1314,6 +1314,9 @@ export interface RelayState {
   coilVolts: number;
   coilAmps: number;
   fault: RelayFault;
+  /** Composant en cause quand le défaut en désigne un (diode de roue libre
+   *  montée à l'envers) : son id, pour que le message dise LEQUEL reprendre. */
+  faultPartId?: string;
 }
 
 /** Valeur d'un attribut : celle de l'instance, sinon le défaut du catalogue. */
@@ -1500,31 +1503,37 @@ export function relayStates(
     // Courant réellement disponible : celui de la source, plafonné par le plus
     // petit maillon du chemin (transistor de commande mal saturé, typiquement).
     const maxAmps = Math.min(supply.amps, up.limitAmps ?? Infinity, down.limitAmps ?? Infinity);
+    const flyback = flybackFault(diagram, g.nets, hiNet, loNet);
     const fault: RelayFault =
-      flybackFault(diagram, g.nets, hiNet, loNet)
+      flyback?.fault
       ?? (coilVolts < PULL_IN_RATIO * nominal ? 'weak'
         : coilAmps > maxAmps ? 'starved'
         : 'none');
-    out.push({ partId: part.id, commanded: true, closed: fault === 'none', coilVolts, coilAmps, fault });
+    out.push({
+      partId: part.id, commanded: true, closed: fault === 'none', coilVolts, coilAmps, fault,
+      ...(flyback?.diodeId ? { faultPartId: flyback.diodeId } : {}),
+    });
   }
   return out;
 }
 
 /**
  * Diode de roue libre montée entre les deux bornes de la bobine : obligatoire,
- * cathode vers le + de l'alimentation. Retourne le défaut constaté, ou null si
- * tout est correct.
+ * cathode vers le + de l'alimentation. Retourne le défaut constaté (avec l'id de
+ * la diode fautive quand il y en a une), ou null si tout est correct.
  */
-function flybackFault(diagram: Diagram, nets: Nets, hiNet: string, loNet: string): RelayFault | null {
-  let reversed = false;
+function flybackFault(
+  diagram: Diagram, nets: Nets, hiNet: string, loNet: string
+): { fault: RelayFault; diodeId?: string } | null {
+  let reversed: string | null = null;
   for (const part of diagram.parts) {
     if (partDef(part.type).kind !== 'diode') continue;
     const a = nets.netOf({ partId: part.id, pin: rolePin(part.type, 'A') });
     const k = nets.netOf({ partId: part.id, pin: rolePin(part.type, 'K') });
     if (k === hiNet && a === loNet) return null; // cathode au +
-    if (a === hiNet && k === loNet) reversed = true;
+    if (a === hiNet && k === loNet) reversed = part.id;
   }
-  return reversed ? 'reversed-diode' : 'no-diode';
+  return reversed ? { fault: 'reversed-diode', diodeId: reversed } : { fault: 'no-diode' };
 }
 
 /**

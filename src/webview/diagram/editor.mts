@@ -1744,6 +1744,9 @@ export class Editor {
     // Le Grove Shield descend d'un cran de plus (z=0) : la Pico (mcu, z=1)
     // enfichée dessus doit rester visible par-dessus le shield.
     if (def.kind === 'grove-shield') container.classList.add('part--shield');
+    // Platine d'essai : marquée pour qu'elle NE REMONTE JAMAIS devant les
+    // composants enfichés dessus au survol de ses trous (cf. styles.css).
+    if (def.kind === 'breadboard') container.classList.add('part--board');
     // Trous serrés (pas de 10 px) : pastilles réduites pour rester cliquables.
     if (def.kind === 'breadboard' || def.kind === 'grove-shield') container.classList.add('part--dense');
     container.style.left = `${part.x}px`;
@@ -1751,6 +1754,17 @@ export class Editor {
 
     const head = document.createElement('div');
     head.className = 'part__head';
+    // Identifiant du composant, affiché par la case « Afficher l'id des
+    // composants » du menu Noms (classe `canvas--show-ids`). Le séparateur est
+    // un span à part : il ne sort que si l'id ET le nom sont visibles.
+    const pid = document.createElement('span');
+    pid.className = 'part__id';
+    pid.textContent = part.id;
+    head.appendChild(pid);
+    const sep = document.createElement('span');
+    sep.className = 'part__sep';
+    sep.textContent = ' - ';
+    head.appendChild(sep);
     const name = document.createElement('span');
     name.className = 'part__name';
     name.textContent = t(def.label);
@@ -2007,9 +2021,14 @@ export class Editor {
     const sx = part.flipH ? -1 : 1;
     const sy = part.flipV ? -1 : 1;
     body.style.transformOrigin = 'center center';
+    // Le miroir est posé AVANT la rotation dans la liste CSS (= appliqué APRÈS
+    // elle sur le dessin : la fonction la plus à gauche est la plus externe).
+    // Autrement le miroir jouait dans le repère LOCAL du composant : sur une
+    // diode couchée à 90°, « retourner horizontalement » la retournait
+    // verticalement à l'écran — les deux axes paraissaient échangés.
     const tf: string[] = [];
-    if (deg) tf.push(`rotate(${deg}deg)`);
     if (sx !== 1 || sy !== 1) tf.push(`scale(${sx}, ${sy})`);
+    if (deg) tf.push(`rotate(${deg}deg)`);
     body.style.transform = tf.join(' ');
     const head = body.parentElement?.querySelector('.part__head') as HTMLDivElement | null;
     if (head) this.positionHead(part, head, body);
@@ -4593,7 +4612,10 @@ export class Editor {
 
     const subtitle = document.createElement('p');
     subtitle.className = 'inspector__subtitle';
-    subtitle.textContent = t(def.label);
+    // Identifiant du composant devant son libellé (« relay-1 - Relais OMRON G5V ») :
+    // c'est ce nom que portent les messages de simulation et les fils de la netlist,
+    // il doit se retrouver d'un coup d'œil depuis les propriétés.
+    subtitle.textContent = `${partId} - ${t(def.label)}`;
     this.inspector.appendChild(subtitle);
 
     // Bouton d'aide locale sur le composant (fiche hors-ligne, docs/<lang>/composants).
@@ -4918,6 +4940,11 @@ export class Editor {
         h = h || Math.abs(br.y - tl.y) || 60;
       }
       const deg = r.part.rotation ?? 0;
+      // Retournement : même convention qu'à l'écran (miroir appliqué APRÈS la
+      // rotation, autour du centre du corps). Il ne change pas le cadrage — un
+      // miroir autour du centre laisse la boîte englobante identique.
+      const fx = r.part.flipH ? -1 : 1;
+      const fy = r.part.flipV ? -1 : 1;
 
       // CENTRE de rotation = centre RÉEL du corps en unités monde. `.part__body`
       // n'est PAS à (part.x, part.y) : le conteneur porte d'abord le bandeau de
@@ -4988,9 +5015,13 @@ export class Editor {
         // positions écran annule le pan : /zoom suffit ici (pas besoin de canvasPoint).
         const vx = (svgRect.left + svgRect.width / 2 - (bodyRectC.left + bodyRectC.width / 2)) / this.zoom;
         const vy = (svgRect.top + svgRect.height / 2 - (bodyRectC.top + bodyRectC.height / 2)) / this.zoom;
-        // Dé-tournage vers le repère local du composant.
-        const lvx = vx * rc - vy * rs;
-        const lvy = vx * rs + vy * rc;
+        // Dé-MIROIR puis dé-tournage vers le repère local du composant : à l'écran
+        // le miroir s'applique APRÈS la rotation (cf. applyRotation), l'offset
+        // mesuré est donc S(R(local)) — et S est sa propre réciproque.
+        const uvx = vx * fx;
+        const uvy = vy * fy;
+        const lvx = uvx * rc - uvy * rs;
+        const lvy = uvx * rs + uvy * rc;
         // Repli sur le corps si la boîte rendue est inexploitable (élément pas
         // encore mis en page, hors écran) : l'ancien comportement.
         const useRect = rw > 0.5 && rh > 0.5;
@@ -5053,7 +5084,12 @@ export class Editor {
           `stroke="#444"/><text x="${x + w / 2}" y="${y + h / 2}" font-size="10" ` +
           `fill="#fff" text-anchor="middle" font-family="sans-serif">${label}</text></g>`;
       }
-      parts.push(deg ? `<g transform="rotate(${deg} ${cx} ${cy})">${inner}</g>` : inner);
+      // Enveloppe d'orientation : miroir (le plus externe, comme à l'écran) puis
+      // rotation, tous deux autour du centre du corps.
+      const xform: string[] = [];
+      if (fx !== 1 || fy !== 1) xform.push(`translate(${cx} ${cy}) scale(${fx} ${fy}) translate(${-cx} ${-cy})`);
+      if (deg) xform.push(`rotate(${deg} ${cx} ${cy})`);
+      parts.push(xform.length ? `<g transform="${xform.join(' ')}">${inner}</g>` : inner);
     }
 
     // Nommage des équipotentielles : chaque fil exporté porte son nom unique

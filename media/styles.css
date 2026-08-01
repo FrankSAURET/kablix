@@ -1246,6 +1246,16 @@ textarea {
   z-index: 0;
 }
 
+/* Même règle pour la PLATINE D'ESSAI : elle passait devant les composants
+   enfichés dessus dès qu'on approchait d'un de ses trous (hissage
+   `.part--pin-reachable`, z=4) — la LED ou la résistance piquée dans la platine
+   disparaissait sous son dessin. Elle reste donc à z=1, sous les composants
+   (z=3). Les autres priorités (shield z=0, cartes z=1, fils z=5) sont
+   inchangées. */
+.part--board.part--pin-reachable {
+  z-index: 1;
+}
+
 /* Composant EN SIMULATION avec un contrôle actif (curseur/bouton) : passe
    par-dessus tout (voisins et fils, normalement au-dessus des composants en
    édition à z=5) pour que son curseur reste toujours accessible. */
@@ -1392,8 +1402,10 @@ textarea {
   box-sizing: border-box;
   display: none;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
+  /* id, séparateur et nom se suivent sans écart : le bandeau peut être plus
+     large que son texte (min-width: 100%), un `space-between` les éparpillerait. */
+  justify-content: flex-start;
+  gap: 0;
   font-size: 0.7rem;
   padding: 1px 6px;
   background: rgba(0, 0, 0, 0.55);
@@ -1407,8 +1419,34 @@ textarea {
    sélectionnés » = canvas--labels-sel (le bandeau ne sort qu'à la sélection) ;
    aucune case cochée = aucune classe → aucun nom affiché. */
 .canvas--labels-sel .part--selected .part__head,
-.canvas--show-labels .part__head {
+.canvas--show-labels .part__head,
+.canvas--show-ids .part__head {
   display: flex;
+}
+
+/* Case « Afficher l'id des composants » (canvas--show-ids), indépendante des
+   deux modes de noms : l'id sort sur TOUS les composants, même quand aucun nom
+   n'est demandé. Le nom, lui, suit son mode ; le séparateur « - » n'apparaît
+   que lorsque les deux sont affichés. */
+.part__id,
+.part__sep,
+.part__name {
+  display: none;
+}
+
+.canvas--show-ids .part__id {
+  display: inline;
+  opacity: 0.75;
+}
+
+.canvas--show-labels .part__name,
+.canvas--labels-sel .part--selected .part__name {
+  display: inline;
+}
+
+.canvas--show-ids.canvas--show-labels .part__sep,
+.canvas--show-ids.canvas--labels-sel .part--selected .part__sep {
+  display: inline;
 }
 
 /* Brochage affiché : le poster recouvre la barre de nom → on l'efface (seul le

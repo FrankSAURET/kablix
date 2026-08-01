@@ -333,6 +333,7 @@ const FR: Record<string, string> = {
   'Hard keys (instead of membrane)': 'Touches dures (au lieu de membrane)',
   'All names': 'Tous les noms',
   'Selected parts only': 'Uniquement les composants sélectionnés',
+  'Show part ids': 'Afficher l\'id des composants',
   'Ctrl+click to lock the position': 'Ctrl + clic pour verrouiller la position',
   '{0} wire(s) selected': '{0} câble(s) sélectionné(s)',
   'Delete these wires': 'Supprimer ces câbles',
