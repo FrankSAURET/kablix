@@ -238,8 +238,12 @@ async function run() {
 	ok('collage : les attributs voyagent (valeur de la résistance)',
 		!!b.diagram.parts.find((p) => p.type === 'resistor')?.attrs?.value,
 		JSON.stringify(b.diagram.parts.find((p) => p.type === 'resistor')?.attrs));
-	ok('collage : identifiants NEUFS (aucun conflit avec l’atelier d’origine)',
-		b.diagram.parts.every((p) => p.id !== led.id && p.id !== res.id));
+	// Depuis les repères (R1, L1…), la numérotation est PROPRE À CHAQUE SCHÉMA :
+	// un collage dans un atelier vide redonne légitimement R1. Ce qui compte est
+	// qu'aucun repère ne soit en double DANS l'atelier de destination.
+	ok('collage : repères sans doublon dans l’atelier de destination',
+		new Set(b.diagram.parts.map((p) => p.id)).size === b.diagram.parts.length,
+		b.diagram.parts.map((p) => p.id).join(','));
 	const bLed = b.diagram.parts.find((p) => p.type === 'led');
 	ok('collage : décalé d’un cran de grille (20 px), broches toujours enfichables',
 		bLed.x === led.x + 20 && bLed.y === led.y + 20 && bLed.x % 10 === 0,
@@ -261,6 +265,10 @@ async function run() {
 	const stacked = b.diagram.parts.filter((p) => p.type === 'led');
 	ok('collage : un 2e Ctrl+V ne repose pas la copie au MÊME endroit',
 		stacked.length === 2 && stacked[0].x !== stacked[1].x, stacked.map((p) => p.x).join(' / '));
+	// L'atelier contient déjà R1 et L1 : la copie doit prendre les repères SUIVANTS.
+	ok('collage : la 2e copie prend des repères NEUFS (aucun doublon)',
+		new Set(b.diagram.parts.map((p) => p.id)).size === b.diagram.parts.length,
+		b.diagram.parts.map((p) => p.id).join(','));
 
 	// --- Repli par l'hôte VS Code : navigator.clipboard refusé ----------------
 	const c = makeEditor('C');

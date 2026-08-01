@@ -202,9 +202,9 @@ const FR: Record<string, string> = {
   'Package “{0}” drawn — {1} pin(s).': 'Boîtier « {0} » dessiné — {1} patte(s).',
   'Symbol': 'Symbole',
   'Draws the symbol in the internal view': 'Dessine le symbole dans la vue interne',
-  'Open in the default editor…': "Ouvrir dans l'éditeur par défaut…",
-  'Opens the drawing in your default SVG editor; it is reloaded here at every save.':
-    "Ouvre le dessin dans votre éditeur SVG par défaut ; il est rechargé ici à chaque enregistrement.",
+  'Open in the SVG editor…': "Ouvrir dans l'éditeur SVG…",
+  'Opens the drawing in the SVG editor of your choice (asked once, then remembered); it is reloaded here at every save.':
+    "Ouvre le dessin dans l'éditeur SVG de votre choix (demandé une fois, puis retenu) ; il est rechargé ici à chaque enregistrement.",
   'Drawing opened in your editor — it is reloaded at every save.':
     'Dessin ouvert dans votre éditeur — il est rechargé à chaque enregistrement.',
   'Drawing updated from the external editor.': "Dessin actualisé depuis l'éditeur externe.",
@@ -358,6 +358,11 @@ const FR: Record<string, string> = {
   'Voltage': 'Tension',
   'Current limit': 'Courant limite',
 
+  // Nomenclature exportée en CSV (en-tête du tableau)
+  'Ref.': 'Repère',
+  'Part': 'Composant',
+  'Characteristics': 'Caractéristiques',
+
   // Propriétés du catalogue
   'Color': 'Couleur',
   'Type': 'Type',
@@ -493,11 +498,19 @@ const FR: Record<string, string> = {
 const DICTS: Record<string, Record<string, string>> = { fr: FR };
 
 let dict: Record<string, string> = {};
+let current = 'en';
 
 /** Initialise la langue ('fr', 'fr-FR', 'en'…). Anglais par défaut. */
 export function initLocale(language: string | undefined): void {
   const base = (language ?? 'en').toLowerCase().split(/[-_]/)[0];
+  current = base;
   dict = DICTS[base] ?? {};
+}
+
+/** Langue active ('fr', 'en'…) — pour les tables qui ne passent pas par t(),
+ *  comme les préfixes de repère (R1, BP2…), trop courts pour servir de clé. */
+export function locale(): string {
+  return current;
 }
 
 /** Traduit une chaîne source et remplace {0}, {1}… par les arguments. */

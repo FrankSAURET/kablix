@@ -890,6 +890,87 @@ async function run() {
 	ok('coudes SANS Ctrl : geste diagonal → déplacement LIBRE en 2D (x ET y)',
 		dxFree > 20 && dyFree > 20, 'dx=' + dxFree + ' dy=' + dyFree);
 
+	// --- Cadre ROUGE du composant mis en cause par un défaut (v2026.7.240) -----
+	// Les messages de défaut (relais sans diode de roue libre, diode montée à
+	// l'envers…) nomment le coupable : « (Mod2) ». Encore faut-il le TROUVER des
+	// yeux sur un schéma chargé — d'où un cadre rouge, aux MÊMES dimensions que
+	// le rectangle de sélection (c'est la même boîte mesurée .part__selbox), qui
+	// doit rester visible PENDANT la simulation (canvas verrouillé).
+	for (const p of [...editor.diagram.parts]) editor.removePart?.(p.id);
+	for (const w of [...editor.diagram.wires]) editor.removeWire(w.id);
+	await wait(30);
+	const fLed = editor.addPart('led', 200, 3000);
+	const fRes = editor.addPart('resistor', 500, 3000);
+	await wait(160);
+	const fCont = editor.rendered.get(fLed.id).container;
+	const fBox = () => fCont.querySelector('.part__selbox');
+	const rectOf = (el) => { const r = el.getBoundingClientRect(); return { w: r.width, h: r.height, l: r.left, t: r.top }; };
+	// Référence : dimensions du rectangle de SÉLECTION du même composant.
+	editor.select({ kind: 'part', id: fLed.id });
+	await wait(80);
+	const selRect = fBox() ? rectOf(fBox()) : null;
+	// getComputedStyle renvoie un objet VIVANT : on fige les valeurs tout de suite,
+	// sinon elles reflèteraient l'état d'après (cadre de défaut posé).
+	const snap = (el) => { const c = getComputedStyle(el); return { visibility: c.visibility, outlineStyle: c.outlineStyle, outlineColor: c.outlineColor, outlineWidth: c.outlineWidth, outlineOffset: c.outlineOffset }; };
+	const csSel = fBox() ? snap(fBox()) : null;
+	editor.select(null);
+	await wait(40);
+	ok('défaut : composant NON marqué au départ', !fCont.classList.contains('part--faulty'));
+	editor.setFaulty(fLed.id, true);
+	await wait(40);
+	const csFault = fBox() ? snap(fBox()) : null;
+	const faultRect = fBox() ? rectOf(fBox()) : null;
+	ok('défaut : classe part--faulty posée sur le composant nommé',
+		fCont.classList.contains('part--faulty'), fCont.className);
+	ok('défaut : cadre VISIBLE sans sélection', csFault && csFault.visibility === 'visible',
+		csFault && csFault.visibility);
+	ok('défaut : cadre ROUGE en trait plein',
+		csFault && csFault.outlineStyle === 'solid' && /rgb\\(2[23]\\d, ?\\d+, ?\\d+\\)/.test(csFault.outlineColor),
+		csFault && csFault.outlineStyle + ' ' + csFault.outlineColor);
+	ok('défaut : couleur DIFFÉRENTE de la sélection (rose)',
+		csSel && csFault && csSel.outlineColor !== csFault.outlineColor,
+		(csSel && csSel.outlineColor) + ' vs ' + (csFault && csFault.outlineColor));
+	ok('défaut : MÊMES dimensions que le rectangle de sélection (±0,5 px)',
+		selRect && faultRect && Math.abs(selRect.w - faultRect.w) <= 0.5 && Math.abs(selRect.h - faultRect.h) <= 0.5 &&
+		Math.abs(selRect.l - faultRect.l) <= 0.5 && Math.abs(selRect.t - faultRect.t) <= 0.5,
+		JSON.stringify(selRect) + ' vs ' + JSON.stringify(faultRect));
+	ok('défaut : même épaisseur et même écart que la sélection',
+		csSel && csFault && csSel.outlineWidth === csFault.outlineWidth && csSel.outlineOffset === csFault.outlineOffset,
+		csSel && (csSel.outlineWidth + '/' + csSel.outlineOffset) + ' vs ' + (csFault && (csFault.outlineWidth + '/' + csFault.outlineOffset)));
+	// Le défaut se déclare PENDANT la simulation : schéma verrouillé, et pourtant
+	// le cadre doit rester visible (le rectangle de sélection, lui, s'efface).
+	editor.setLocked(true);
+	await wait(40);
+	ok('défaut : cadre TOUJOURS visible schéma verrouillé (simulation en cours)',
+		fBox() && getComputedStyle(fBox()).visibility === 'visible',
+		fBox() && getComputedStyle(fBox()).visibility);
+	editor.select({ kind: 'part', id: fRes.id });
+	await wait(60);
+	const rBox = editor.rendered.get(fRes.id).container.querySelector('.part__selbox');
+	ok('contre-épreuve : le rectangle de SÉLECTION reste masqué pendant la simulation',
+		rBox && getComputedStyle(rBox).visibility === 'hidden', rBox && getComputedStyle(rBox).visibility);
+	editor.select(null);
+	editor.setLocked(false);
+	await wait(40);
+	// Défaut corrigé : le cadre s'en va.
+	editor.setFaulty(fLed.id, false);
+	await wait(40);
+	ok('défaut corrigé : classe retirée et cadre de nouveau masqué',
+		!fCont.classList.contains('part--faulty') && fBox() && getComputedStyle(fBox()).visibility === 'hidden');
+	// Arrêt de la simulation : clearFaults enlève TOUS les cadres d'un coup.
+	editor.setFaulty(fLed.id, true);
+	editor.setFaulty(fRes.id, true);
+	await wait(30);
+	ok('défaut : plusieurs composants marquables en même temps',
+		document.querySelectorAll('.part--faulty').length === 2,
+		document.querySelectorAll('.part--faulty').length);
+	editor.clearFaults();
+	await wait(30);
+	ok('arrêt : clearFaults() retire tous les cadres',
+		document.querySelectorAll('.part--faulty').length === 0);
+	ok('défaut : setFaulty sur un id inconnu ne casse rien',
+		(() => { try { editor.setFaulty('zz-inexistant', true); return true; } catch { return false; } })());
+
 	const out = document.createElement('pre');
 	out.id = 'measures';
 	out.textContent = JSON.stringify(checks);
@@ -932,6 +1013,36 @@ rows.push({
 	name: 'i18n : infobulle du nœud traduite',
 	ok: /'Select every wire of this node':\s*'[^']+'/.test(i18n),
 	detail: 'clé absente du catalogue FR',
+});
+// Câblage du cadre de défaut côté simulation : c'est le message qui nomme le
+// coupable qui doit AUSSI le marquer, et l'arrêt/le lancement qui l'efface.
+const sim = readFileSync(join(ROOT, 'src', 'webview', 'sim.mts'), 'utf8');
+rows.push({
+	name: 'défaut : le message qui nomme le coupable pose le cadre (setFaulty)',
+	ok: /const blame = \([\s\S]{0,200}?setStatus\(`\$\{msg\} \(\$\{id\}\)`\);[\s\S]{0,120}?editor\.setFaulty\(id, true\)/.test(sim),
+	detail: 'blame() ne marque pas le composant',
+});
+rows.push({
+	name: 'défaut : cadre du défaut PRÉCÉDENT retiré avant d en poser un autre',
+	ok: /relayFaultMarks\.get\(st\.partId\)[\s\S]{0,200}?editor\.setFaulty\(previous, false\)/.test(sim),
+	detail: 'ancien cadre laissé en place',
+});
+rows.push({
+	name: 'défaut : lancement et arrêt de simulation effacent les cadres',
+	ok: (sim.match(/clearRelayFaults\(\);/g) ?? []).length >= 2 &&
+		/function clearRelayFaults\(\): void \{[\s\S]{0,200}?editor\.clearFaults\(\);/.test(sim),
+	detail: 'clearRelayFaults absent du lancement ou de l arrêt',
+});
+const ed = readFileSync(join(ROOT, 'src', 'webview', 'diagram', 'editor.mts'), 'utf8');
+rows.push({
+	name: 'éditeur : setFaulty / clearFaults exposés',
+	ok: /setFaulty\(id: string, faulty: boolean\): void/.test(ed) && /clearFaults\(\): void/.test(ed),
+	detail: 'méthodes absentes de l éditeur',
+});
+rows.push({
+	name: 'CSS : cadre de défaut visible même schéma verrouillé',
+	ok: /\.canvas--locked \.part--faulty \.part__selbox/.test(css) && /--kx-fault/.test(css),
+	detail: 'règle .canvas--locked .part--faulty absente',
 });
 let fail = 0;
 for (const r of rows) {

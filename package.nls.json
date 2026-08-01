@@ -8,6 +8,7 @@
   "kablix.cmd.openProject": "Kablix: Open project (.projix)",
   "kablix.cmd.exportWokwiDiagram": "Kablix: Export the Wokwi diagram (diagram.json)",
   "kablix.cmd.importWokwiDiagram": "Kablix: Import a Wokwi diagram (diagram.json)",
+  "kablix.cmd.exportPartsCsv": "Kablix: Export the part list (CSV)",
   "kablix.cmd.checkLibraryUpdates": "Kablix: Check for library updates",
   "kablix.cmd.upgradePicoFirmware": "Kablix: Upgrade Pico firmware",
   "kablix.cmd.openHelp": "Kablix: Help",
@@ -15,6 +16,7 @@
   "kablix.cmd.rearrangeLayout": "Kablix: Rearrange the windows",
   "kablix.cmd.associateProjix": "Kablix: Associate .projix files with Kablix",
   "kablix.cmd.recommendedExtensions": "Kablix: Recommended extensions",
+  "kablix.cmd.chooseSvgEditor": "Kablix: Choose the SVG editor…",
   "kablix.view.home": "Simulator",
   "kablix.welcome": "[▶ Open the simulator](command:kablix.openSimulator)",
   "kablix.config.micropythonUf2": "Path (absolute or workspace-relative) of the MicroPython .uf2 firmware used to run .py files on the simulated Pico. Leave empty: Kablix auto-detects a firmware in the workspace, and otherwise offers to download the official firmware on first run.",
@@ -26,5 +28,6 @@
   "kablix.config.showLoadBinaryButton": "Show the \"Load binary\" button in the simulator toolbar (loads an already-compiled .hex/.uf2 from the workspace without recompiling). Hidden by default.",
   "kablix.config.picowNetworkBridge": "Pico W: let MicroPython scripts make REAL HTTP requests (network/urequests) tunneled through the host (the Wi-Fi chip is not emulated). The host performs the actual fetch and returns the response to the script. On by default; turn off to block all outbound requests from simulated scripts.",
   "kablix.editor.projix": "Kablix simulator",
-  "kablix.config.selectionColor": "Selection color (parts, wires, bends). Any #rrggbb hex color. Kept vivid by default so it stays visible on all themes."
+  "kablix.config.selectionColor": "Selection color (parts, wires, bends). Any #rrggbb hex color. Kept vivid by default so it stays visible on all themes.",
+  "kablix.config.svgEditorPath": "Full path of the SVG editor (Inkscape, Illustrator…) used by \"Open in the SVG editor\" in the part creator. Empty: Kablix asks you to pick it the first time and remembers it here."
 }

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { SimulatorPanel } from './panel';
+import { SimulatorPanel, chooseSvgEditor } from './panel';
 import { GuidePanel, SHOW_GUIDE } from './guide';
 import { promptLibraryUpdates } from './updates';
 import { upgradeFirmware, checkFirmwareUpdate } from './firmware';
@@ -102,6 +102,9 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('kablix.exportWokwiDiagram', () => {
       SimulatorPanel.active()?.requestWokwiExport();
     }),
+    vscode.commands.registerCommand('kablix.exportPartsCsv', () => {
+      SimulatorPanel.active()?.requestPartsCsv();
+    }),
     vscode.commands.registerCommand('kablix.importWokwiDiagram', () => {
       void SimulatorPanel.active()?.importWokwiDiagram();
     }),
@@ -125,6 +128,11 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.commands.registerCommand('kablix.associateProjix', () => {
       void associateProjix(context);
+    }),
+    // Éditeur SVG des retouches du créateur de composants : demandé à la
+    // première retouche, changeable ensuite par cette commande.
+    vscode.commands.registerCommand('kablix.chooseSvgEditor', () => {
+      void chooseSvgEditor();
     }),
     vscode.commands.registerCommand('kablix.recommendedExtensions', () => {
       void promptRecommendedExtensions(context, true);

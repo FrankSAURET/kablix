@@ -38,7 +38,8 @@ pleine charge (ou décharge complète) au bout de 5·R·C.
   place.
 - Le **traceur de courbes** montre l'exponentielle **sans une ligne de code** :
   toute tension posée sur une entrée analogique y est tracée par une sonde
-  interne, sous le nom de la broche (`A0`, `GP26`…). Mettez plusieurs branches
+  interne, sous le nom du canal et de la broche (`ADC0 (A0)`, `ADC0 (GP26)`…).
+  Mettez plusieurs branches
   RC en parallèle sur la même broche de commande et leurs courbes se comparent
   sur le même graphe.
 

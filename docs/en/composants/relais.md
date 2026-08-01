@@ -40,6 +40,10 @@ part.
   supply +**. Without it you get *"A flyback diode is required"*; wired the
   wrong way round, *"Flyback diode is reversed"* — in both cases the relay does
   not pull in.
+- Every message **names the culprit** ("(Mod2)") **and draws a red frame around
+  it** on the schematic, the same size as the selection rectangle: no more
+  hunting for which relay to rework. The frame goes away once the fault is
+  fixed, and when the simulation stops.
 - Board output: a pin only sources 40 mA. Driving the coil directly barely
   makes it; the proper circuit uses a **transistor** (PN2222A) between the coil
   and ground.

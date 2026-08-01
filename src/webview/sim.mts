@@ -56,9 +56,10 @@ import './composants/custom-part.mjs';
 import { initLocale, t } from './i18n.mjs';
 import { Plotter } from './plotter.mjs';
 import { Editor, KABLIX_BADGE, type PaletteState } from './diagram/editor.mjs';
-import { partDef, boardFamily, isBoardId, PARAM_ATTR_PREFIX, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
+import { partDef, boardFamily, isBoardId, mcuPinRole, PARAM_ATTR_PREFIX, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
 import { compileExpr } from './diagram/expr.mjs';
 import { toWokwiDiagram, fromWokwiDiagram } from './diagram/wokwi.mjs';
+import { partsCsv } from './diagram/bom.mjs';
 import {
   ledOn,
   ledMcuPin,
@@ -501,6 +502,18 @@ function setSerialVisible(visible: boolean, persist = true): void {
 
 // --- Traceur de courbes (télémétrie `>nom:valeur` + sondes analogiques) -------
 const plotter = new Plotter();
+
+/**
+ * Nom d'une sonde interne dans le traceur : « ADC0 (GP26) ». Le CANAL du
+ * convertisseur d'abord (c'est lui que nomme la documentation et le programme
+ * — `machine.ADC(0)`), la broche sérigraphiée ensuite. Même forme sur toutes
+ * les cartes : « ADC0 (A0) » sur Arduino. Une broche sans convertisseur garde
+ * son nom tel quel.
+ */
+function probeLabel(board: BoardId, pin: string): string {
+  const adc = mcuPinRole(board, pin).adcChannel;
+  return adc === undefined ? pin : `ADC${adc} (${pin})`;
+}
 // Préférence utilisateur persistée : undefined = jamais touché → le panneau
 // s'ouvre tout seul à la première donnée reçue ; false = fermé explicitement.
 let plotterUserPref: boolean | undefined;
@@ -888,6 +901,15 @@ function resolveBridges(): void {
 
 /** Défauts de câblage des relais signalés une seule fois par changement d'état. */
 const relayFaults = new Map<string, RelayFault>();
+/** Relais en défaut → composant qui porte actuellement le cadre rouge. */
+const relayFaultMarks = new Map<string, string>();
+
+/** Fin de simulation (ou nouveau lancement) : plus de défaut, plus de cadre. */
+function clearRelayFaults(): void {
+  relayFaults.clear();
+  relayFaultMarks.clear();
+  editor.clearFaults();
+}
 
 /**
  * Diode de roue libre : sans elle, la surtension de coupure de la bobine
@@ -904,8 +926,18 @@ function reportRelayFaults(): void {
     relayFaults.set(st.partId, st.fault);
     // Chaque message NOMME le composant en cause — le relais, ou la diode de
     // roue libre quand c'est elle qui est montée à l'envers. Sur un schéma à
-    // plusieurs relais il fallait sinon deviner lequel reprendre.
-    const blame = (msg: string, id: string): void => setStatus(`${msg} (${id})`);
+    // plusieurs relais il fallait sinon deviner lequel reprendre. Le nom seul ne
+    // suffisait pas à le retrouver des yeux : un cadre ROUGE le désigne aussi.
+    const previous = relayFaultMarks.get(st.partId);
+    if (previous !== undefined) {
+      editor.setFaulty(previous, false); // défaut corrigé (ou remplacé) : cadre retiré
+      relayFaultMarks.delete(st.partId);
+    }
+    const blame = (msg: string, id: string): void => {
+      setStatus(`${msg} (${id})`);
+      editor.setFaulty(id, true);
+      relayFaultMarks.set(st.partId, id);
+    };
     if (st.fault === 'reversed-diode') blame(t('Flyback diode is reversed'), st.faultPartId ?? st.partId);
     else if (st.fault === 'no-diode') blame(t('A flyback diode is required'), st.partId);
     else if (st.fault === 'weak') blame(t('Coil voltage too low: the relay does not pull in'), st.partId);
@@ -2545,7 +2577,7 @@ function startRun(): void {
     const engineSetAnalog = engine.setAnalog.bind(engine);
     engine.setAnalog = (pin, fraction) => {
       engineSetAnalog(pin, fraction);
-      plotter.probe(pin, Math.round(fraction * vref * 1000) / 1000);
+      plotter.probe(probeLabel(board, pin), Math.round(fraction * vref * 1000) / 1000);
     };
   }
   plotter.start(); // nouvelles courbes à chaque run (comme la console)
@@ -2571,7 +2603,7 @@ function startRun(): void {
   capVolts.clear(); // condensateurs déchargés au début de chaque simulation
   capLastMs = null;
   clearCapSamplers(); // (le moteur est neuf : on repart sans échantillonneur)
-  relayFaults.clear(); // défauts de câblage des relais re-signalés au 1er enclenchement
+  clearRelayFaults(); // défauts de câblage des relais re-signalés au 1er enclenchement
   buildI2cDevices();
   rebind();
   engine.start();
@@ -2609,6 +2641,7 @@ function stopRun(): void {
   resetSpeedBadge(); // plus de simulation : plus d'alerte de ralentissement
   editor.setLocked(false); // édition du schéma de nouveau possible
   showSimBanner(false); // masque le bandeau de simulation
+  clearRelayFaults(); // plus de simulation : les cadres rouges n'ont plus de sens
   // Arrêt (ou nouveau lancement, qui commence par un stopRun) : on repart d'un
   // état propre — console vidée et composants réinitialisés (LED éteintes,
   // afficheurs vides…). Idem au (re)chargement d'un programme Python.
@@ -3261,6 +3294,10 @@ window.addEventListener('message', (event: MessageEvent) => {
     case 'requestWokwiExport':
       // Conversion du schéma au format projet Wokwi (diagram.json).
       vscode.postMessage({ type: 'wokwiExport', json: toWokwiDiagram(editor.diagram) });
+      break;
+    case 'requestPartsCsv':
+      // Nomenclature : repère, composant, type, caractéristiques (séparateur ;).
+      vscode.postMessage({ type: 'partsCsv', csv: partsCsv(editor.diagram.parts) });
       break;
     case 'importWokwi': {
       // Projet Wokwi reçu de l'hôte : conversion puis chargement.

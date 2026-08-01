@@ -17,10 +17,11 @@ def phase(niveau, nom):
     charge.value(niveau)
     for _ in range(10):               # 10 x 500 ms = 5 s = 5 RC du plus lent
         time.sleep_ms(500)
-        volts = ["%.2f V" % (a.read_u16() * 3.3 / 65535) for a in mesure]
-        print(nom, "   ".join(volts))
+        # volts = ["%.2f V" % (a.read_u16() * 3.3 / 65535) for a in mesure]
+        # print(nom, "   ".join(volts))
 
 print("          film(GP26) tantale(GP27) chimique(GP28)")
 while True:
     phase(1, "charge  ")
     phase(0, "decharge")
+    

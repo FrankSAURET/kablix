@@ -34,6 +34,8 @@ import {
   transistorSummary,
   type TransistorFilter,
 } from './transistors.mjs';
+import { nextPartId } from './refnames.mjs';
+import { colorDisplayName, colorSwatchBackground } from './colors.mjs';
 import { breadboardPins, normalizeSize, stripOfPin } from './breadboard.mjs';
 import { embedClipboardInSvg, encodeClipboard, extractClipboard, type ClipboardPayload } from './clipboard.mjs';
 import { groveSocketPins } from './grove-shield.mjs';
@@ -1501,7 +1503,7 @@ export class Editor {
 
   addPart(type: string, x = 40 + this.diagram.parts.length * 30, y = 60, silent = false): Part {
     const def = partDef(type);
-    const part: Part = { id: uid(type + '-'), type, x, y, attrs: { ...def.attrs } };
+    const part: Part = { id: this.freeRef(type), type, x, y, attrs: { ...def.attrs } };
     this.diagram.parts.push(part);
     this.renderPart(part);
     this.recordRecent(type);
@@ -1512,6 +1514,11 @@ export class Editor {
     // 2 undos (origine puis suppression).
     if (!silent) this.notify();
     return part;
+  }
+
+  /** Repère libre du prochain composant de ce type (R1, R2, BP1…). */
+  private freeRef(type: string): string {
+    return nextPartId(type, this.diagram.parts.map((p) => p.id));
   }
 
   /** Décalage (monde) de la première broche par rapport à l'origine d'un composant. */
@@ -1576,6 +1583,21 @@ export class Editor {
    */
   setBurned(id: string, burned: boolean): void {
     this.rendered.get(id)?.container.classList.toggle('part--burned', burned);
+  }
+
+  /**
+   * Composant mis en cause par un message de défaut : cadre ROUGE aux dimensions
+   * exactes du rectangle de sélection (c'est la même boîte mesurée). Le message
+   * de la barre d'état nomme le coupable, le cadre le montre — sur un schéma
+   * chargé, lire « (Mod2) » ne suffisait pas à le trouver des yeux.
+   */
+  setFaulty(id: string, faulty: boolean): void {
+    this.rendered.get(id)?.container.classList.toggle('part--faulty', faulty);
+  }
+
+  /** Retire tous les cadres rouges (nouveau lancement, arrêt, réinitialisation). */
+  clearFaults(): void {
+    for (const r of this.rendered.values()) r.container.classList.remove('part--faulty');
   }
 
   /**
@@ -1650,9 +1672,15 @@ export class Editor {
         for (const id of [...this.rendered.keys()]) this.snapPartToGrid(id, true, true);
       }, ms);
     }
+    // Les repères du fichier sont CONSERVÉS : R1 reste R1 d'une ouverture à
+    // l'autre (c'est le nom que porte le schéma sur le papier et dans les
+    // messages de simulation). Seuls un doublon ou un repère vide — vieux
+    // fichier, fusion à la main — reçoivent un repère neuf, les fils suivant
+    // par la table de correspondance.
     const idMap = new Map<string, string>();
     for (const p of data.parts ?? []) {
-      const np: Part = { ...p, id: uid(`${p.type}-`), attrs: migratePartAttrs(p) };
+      const free = !p.id || this.diagram.parts.some((q) => q.id === p.id);
+      const np: Part = { ...p, id: free ? this.freeRef(p.type) : p.id, attrs: migratePartAttrs(p) };
       idMap.set(p.id, np.id);
       this.diagram.parts.push(np);
       this.renderPart(np);
@@ -4095,7 +4123,7 @@ export class Editor {
     for (const p of parts) {
       const np: Part = {
         ...p,
-        id: uid(`${p.type}-`),
+        id: this.freeRef(p.type),
         x: p.x + offset,
         y: p.y + offset,
         attrs: migratePartAttrs(p),
@@ -5408,42 +5436,6 @@ export class Editor {
   }
 }
 
-/**
- * Couleur de fond d'un bouton de sélection de couleur de composant. Les noms
- * usuels sont des couleurs CSS valides ; quelques cas particuliers (ex. « GYR »
- * de la barre de LED) sont rendus par un dégradé représentatif.
- */
-function colorSwatchBackground(value: string): string {
-  switch (value) {
-    case 'GYR':
-      return 'linear-gradient(90deg, #3c3 0 33%, #fd3 33% 66%, #e33 66%)';
-    case 'white':
-      return '#fafafa';
-    default:
-      return value; // red, green, blue, yellow, orange, purple, black… = couleurs CSS
-  }
-}
-
-/**
- * Nom de couleur traduit pour l'infobulle des pastilles de choix. Les valeurs
- * techniques restent inchangées (envoyées au composant) ; seul l'affichage est
- * traduit. « GYR » (green/yellow/red de la barre) → « VJR ».
- */
-function colorDisplayName(value: string): string {
-  const KEYS: Record<string, string> = {
-    red: 'Red',
-    green: 'Green',
-    blue: 'Blue',
-    yellow: 'Yellow',
-    orange: 'Orange',
-    white: 'White',
-    purple: 'Purple',
-    black: 'Black',
-    GYR: 'GYR',
-  };
-  const key = KEYS[value];
-  return key ? t(key) : value;
-}
 
 /**
  * Nom de broche affiché à l'utilisateur. Pour les LED, la cathode (broche 'C'

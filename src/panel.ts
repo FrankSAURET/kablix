@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 const l10n = vscode.l10n;
 import { buildWebviewHtml } from './webview-html';
 import {
@@ -33,6 +35,76 @@ function isAvrBoard(board: Board): boolean {
 function baseNameNoExt(fsPath: string): string {
   const name = fsPath.split(/[\\/]/).pop() ?? fsPath;
   return name.replace(/\.[^.]+$/, '');
+}
+
+/**
+ * Demande l'application qui ouvrira les dessins SVG et la retient dans le
+ * réglage `kablix.svgEditorPath`. Sans elle, Windows affiche sa fenêtre
+ * « Comment voulez-vous ouvrir ce fichier ? » à chaque retouche, même quand
+ * Inkscape est l'application par défaut du système.
+ */
+export async function chooseSvgEditor(): Promise<string | null> {
+  const picked = await vscode.window.showOpenDialog({
+    canSelectMany: false,
+    openLabel: l10n.t('Use this editor'),
+    title: l10n.t('Choose the SVG editor (Inkscape…)'),
+    filters:
+      process.platform === 'win32'
+        ? { [l10n.t('Applications')]: ['exe', 'com', 'bat', 'cmd'] }
+        : undefined,
+  });
+  const fsPath = picked?.[0]?.fsPath;
+  if (!fsPath) return null;
+  await vscode.workspace
+    .getConfiguration('kablix')
+    .update('svgEditorPath', fsPath, vscode.ConfigurationTarget.Global);
+  vscode.window.showInformationMessage(l10n.t('Kablix: SVG editor set to {0}', fsPath));
+  return fsPath;
+}
+
+/** Ouvre un fichier dans l'éditeur SVG retenu (choisi au premier appel). */
+async function openInSvgEditor(uri: vscode.Uri): Promise<void> {
+  const config = vscode.workspace.getConfiguration('kablix');
+  let exe = (config.get<string>('svgEditorPath') ?? '').trim();
+  if (exe && !existsSync(exe)) {
+    // Application déplacée ou désinstallée : on la redemande plutôt que
+    // d'échouer en silence.
+    vscode.window.showWarningMessage(l10n.t('Kablix: SVG editor not found ({0}).', exe));
+    exe = '';
+  }
+  if (!exe) {
+    const choose = l10n.t('Choose an application…');
+    const system = l10n.t('System default');
+    const answer = await vscode.window.showInformationMessage(
+      l10n.t('Which application should open the drawing? Kablix will remember your choice.'),
+      choose,
+      system
+    );
+    if (!answer) return; // message écarté : on n'ouvre rien
+    if (answer === choose) exe = (await chooseSvgEditor()) ?? '';
+  }
+  if (exe) {
+    const fallback = (): void => {
+      void vscode.env.openExternal(uri);
+    };
+    try {
+      // Processus détaché : l'éditeur survit à la fermeture de VS Code, et son
+      // écriture du fichier est ce que la surveillance guette.
+      const child = spawn(exe, [uri.fsPath], { detached: true, stdio: 'ignore' });
+      child.on('error', () => {
+        vscode.window.showWarningMessage(l10n.t('Kablix: could not start {0}.', exe));
+        fallback();
+      });
+      child.unref();
+      return;
+    } catch {
+      fallback();
+      return;
+    }
+  }
+  // Repli : application par défaut du système, puis éditeur de VS Code.
+  const opened = await vscode.env.openExternal(uri);
+  if (!opened) await vscode.commands.executeCommand('vscode.open', uri);
 }
 
 /** Requête du pont réseau Pico W (forme miroir de NetRequest côté webview). */
@@ -1202,6 +1274,7 @@ export class SimulatorPanel {
           const allowed = new Set([
             'kablix.importWokwiDiagram',
             'kablix.exportWokwiDiagram',
+            'kablix.exportPartsCsv',
             'kablix.upgradePicoFirmware',
             'kablix.checkLibraryUpdates',
             'kablix.saveDefaultLayout',
@@ -1240,6 +1313,10 @@ export class SimulatorPanel {
       case 'wokwiExport':
         // La webview a converti le schéma au format Wokwi : on l'enregistre.
         void this.saveWokwiDiagram(msg.json);
+        break;
+      case 'partsCsv':
+        // La webview a dressé la nomenclature : on l'enregistre.
+        void this.savePartsCsv(msg.csv);
         break;
       case 'net':
         // Pont réseau Pico W : requête HTTP émise par le script simulé.
@@ -1329,6 +1406,41 @@ export class SimulatorPanel {
       );
       vscode.window.showInformationMessage(
         l10n.t('Kablix: Wokwi diagram exported to {0}', target.fsPath)
+      );
+    } catch (err) {
+      this.reportError(err);
+    }
+  }
+
+  // --- Nomenclature (liste des composants en CSV) ------------------------------
+
+  /** Demande à la webview la liste de ses composants, pour l'écrire en CSV. */
+  public requestPartsCsv(): void {
+    this.post({ type: 'requestPartsCsv' });
+  }
+
+  /**
+   * Écrit la nomenclature renvoyée par la webview. Le fichier proposé porte le
+   * NOM DU PROJET (« ventilo.csv »), rangé à côté du .projix quand il existe —
+   * une nomenclature sans projet n'a pas de nom naturel.
+   */
+  private async savePartsCsv(csv: unknown): Promise<void> {
+    try {
+      const text = typeof csv === 'string' ? csv : '';
+      const name = `${this.projectDisplayName() ?? l10n.t('parts')}.csv`;
+      const folder =
+        this.projectUri && this.projectUri.scheme !== 'untitled'
+          ? vscode.Uri.joinPath(this.projectUri, '..')
+          : vscode.workspace.workspaceFolders?.[0]?.uri;
+      const target = await vscode.window.showSaveDialog({
+        defaultUri: folder ? vscode.Uri.joinPath(folder, name) : vscode.Uri.file(name),
+        filters: { [l10n.t('Part list')]: ['csv'] },
+        title: l10n.t('Export the part list (CSV)'),
+      });
+      if (!target) return;
+      await vscode.workspace.fs.writeFile(target, new TextEncoder().encode(text));
+      vscode.window.showInformationMessage(
+        l10n.t('Kablix: part list exported to {0}', target.fsPath)
       );
     } catch (err) {
       this.reportError(err);
@@ -1605,9 +1717,10 @@ export class SimulatorPanel {
   /**
    * Retouche d'un dessin du créateur de composants dans l'éditeur SVG du
    * système (Inkscape…) : le dessin part dans un fichier de travail, s'ouvre
-   * avec l'application par défaut, et chaque ENREGISTREMENT le renvoie à la
-   * webview. On ne peut pas savoir quand l'éditeur se ferme — mais on voit
-   * chacune de ses écritures, ce qui vaut mieux qu'une seule relecture finale.
+   * dans l'éditeur CHOISI PAR L'UTILISATEUR (réglage `kablix.svgEditorPath`),
+   * et chaque ENREGISTREMENT le renvoie à la webview. On ne peut pas savoir
+   * quand l'éditeur se ferme — mais on voit chacune de ses écritures, ce qui
+   * vaut mieux qu'une seule relecture finale.
    */
   private async editSvgExternally(which: 'ext' | 'int', svg: string): Promise<void> {
     const dir = this.context.globalStorageUri;
@@ -1625,10 +1738,7 @@ export class SimulatorPanel {
       mtime: stat.mtime,
       timer: setInterval(() => void this.pollEditedSvg(which), 800),
     });
-    // openExternal délègue au système ; si la plateforme refuse le file:, on se
-    // rabat sur l'éditeur de VS Code (mieux que rien du tout).
-    const opened = await vscode.env.openExternal(uri);
-    if (!opened) await vscode.commands.executeCommand('vscode.open', uri);
+    await openInSvgEditor(uri);
   }
 
   /** Le fichier de travail a-t-il été réenregistré ? Si oui, retour à la webview. */

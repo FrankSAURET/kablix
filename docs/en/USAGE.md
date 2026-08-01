@@ -245,7 +245,7 @@ Panel at the bottom of the screen: visualizes numeric quantities in real time, w
 Two sources plotted automatically:
 
 - **Program telemetry**: every line in the **Teleplot** format `>name:value` (optional unit `§u`) emitted on the serial port becomes a curve. Compatible with the Teleplot tool on real hardware — the same sketch plots here and there. These lines are **absorbed** by the plotter: they do not clutter the serial monitor.
-- **Internal probes**: the voltage each analog sensor puts on its pin is plotted **without a line of code** in the sketch (step plot, the value holds between two changes).
+- **Internal probes**: the voltage each analog sensor puts on its pin is plotted **without a line of code** in the sketch (step plot, the value holds between two changes). Each curve is named after the **converter channel followed by the pin** — `ADC0 (A0)` on Arduino, `ADC0 (GP26)` on Pico — so it matches the `analogRead(A0)` or `machine.ADC(0)` in your program at a glance.
 
 Emission examples:
 

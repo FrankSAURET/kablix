@@ -40,6 +40,10 @@ composant.
   Sans elle, message *« Une diode de roue libre est obligatoire »* ; montée à
   l'envers, message *« Diode à l'envers »* — dans les deux cas le relais ne
   colle pas.
+- Chaque message **nomme le coupable** (« (Mod2) ») **et l'entoure d'un cadre
+  rouge** sur le schéma, aux dimensions du rectangle de sélection : plus besoin
+  de chercher lequel des relais reprendre. Le cadre disparaît quand le défaut
+  est corrigé, et à l'arrêt de la simulation.
 - Sortie de carte : une broche ne fournit que 40 mA. Commander la bobine
   directement passe tout juste ; le montage propre est un **transistor**
   (PN2222A) entre la bobine et la masse.

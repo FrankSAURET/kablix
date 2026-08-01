@@ -247,7 +247,7 @@ Panneau en bas de l'écran : visualise en temps réel les grandeurs numériques,
 Deux sources tracées automatiquement :
 
 - **Télémétrie du programme** : chaque ligne au format **Teleplot** `>nom:valeur` (unité optionnelle `§u`) émise sur le port série devient une courbe. Compatible avec l'outil Teleplot sur vrai matériel — le même sketch trace ici et là-bas. Ces lignes sont **absorbées** par le traceur : elles n'encombrent pas le moniteur série.
-- **Sondes internes** : la tension que chaque capteur analogique pose sur sa broche est tracée **sans une ligne de code** dans le sketch (tracé en escalier, la valeur tient entre deux changements).
+- **Sondes internes** : la tension que chaque capteur analogique pose sur sa broche est tracée **sans une ligne de code** dans le sketch (tracé en escalier, la valeur tient entre deux changements). La courbe porte le nom du **canal du convertisseur suivi de la broche** — `ADC0 (A0)` sur Arduino, `ADC0 (GP26)` sur Pico — pour retrouver d'un coup d'œil le `analogRead(A0)` ou le `machine.ADC(0)` du programme.
 
 Exemples d'émission :
 

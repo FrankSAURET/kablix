@@ -8,6 +8,7 @@
   "kablix.cmd.openProject": "Kablix : Ouvrir un projet (.projix)",
   "kablix.cmd.exportWokwiDiagram": "Kablix : Exporter le schéma Wokwi (diagram.json)",
   "kablix.cmd.importWokwiDiagram": "Kablix : Importer un schéma Wokwi (diagram.json)",
+  "kablix.cmd.exportPartsCsv": "Kablix : Exporter la liste des composants (CSV)",
   "kablix.cmd.checkLibraryUpdates": "Kablix : Vérifier les mises à jour des bibliothèques",
   "kablix.cmd.upgradePicoFirmware": "Kablix : Mettre à jour le firmware du Pico",
   "kablix.cmd.openHelp": "Kablix : Aide",
@@ -15,6 +16,7 @@
   "kablix.cmd.rearrangeLayout": "Kablix : Réarranger les fenêtres",
   "kablix.cmd.associateProjix": "Kablix : Associer les fichiers .projix à Kablix",
   "kablix.cmd.recommendedExtensions": "Kablix : Extensions conseillées",
+  "kablix.cmd.chooseSvgEditor": "Kablix : Choisir l'éditeur SVG…",
   "kablix.view.home": "Simulateur",
   "kablix.welcome": "[▶ Ouvrir le simulateur](command:kablix.openSimulator)",
   "kablix.config.micropythonUf2": "Chemin (absolu ou relatif au workspace) du firmware MicroPython .uf2 utilisé pour exécuter les fichiers .py sur le Pico simulé. Laisser vide : Kablix détecte automatiquement un firmware dans le workspace, et propose sinon de télécharger le firmware officiel au premier lancement.",
@@ -26,5 +28,6 @@
   "kablix.config.showLoadBinaryButton": "Afficher le bouton « Charger binaire » dans la barre du simulateur (charge un .hex/.uf2 déjà compilé du workspace, sans recompiler). Masqué par défaut.",
   "kablix.config.picowNetworkBridge": "Pico W : permet aux scripts MicroPython de faire de VRAIES requêtes HTTP (network/urequests) relayées par l'hôte (la puce Wi-Fi n'est pas émulée). L'hôte exécute le vrai fetch et renvoie la réponse au script. Activé par défaut ; désactivez pour bloquer toute requête sortante des scripts simulés.",
   "kablix.editor.projix": "Simulateur Kablix",
-  "kablix.config.selectionColor": "Couleur de sélection (composants, câbles, coudes). Couleur hexadécimale #rrggbb. Vive par défaut pour rester visible sur tous les thèmes."
+  "kablix.config.selectionColor": "Couleur de sélection (composants, câbles, coudes). Couleur hexadécimale #rrggbb. Vive par défaut pour rester visible sur tous les thèmes.",
+  "kablix.config.svgEditorPath": "Chemin complet de l'éditeur SVG (Inkscape, Illustrator…) utilisé par « Ouvrir dans l'éditeur SVG » du créateur de composants. Vide : Kablix vous le demande à la première retouche et le retient ici."
 }

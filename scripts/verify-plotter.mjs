@@ -4,10 +4,10 @@
 // légende cliquable, export CSV et rendu effectif sur le canvas.
 //
 // Usage : node scripts/verify-plotter.mjs
-import { writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { buildSync } from 'esbuild';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -174,6 +174,42 @@ check('4 puces de légende', res.chips === 4, String(res.chips));
 check('clic sur puce : série masquée + estompée', res.chipOff === true, String(res.chipOff));
 check('CSV : en-tête + 7 lignes de mesures', res.csvHead === 'time_s,name,value,unit' && res.csvLines === 8, `${res.csvHead} / ${res.csvLines}`);
 check('canvas peint (grille + courbes)', res.painted > 500, `${res.painted} px (${res.canvasSize})`);
+
+// --- Nom des sondes internes : « ADC0 (GP26) », toutes cartes ---------------------
+// Le canal du convertisseur d'abord (c'est lui que nomme le programme :
+// machine.ADC(0)), la broche sérigraphiée ensuite.
+const sim = readFileSync(join(ROOT, 'src', 'webview', 'sim.mts'), 'utf8');
+check('sim : la sonde est nommée par probeLabel, pas par la broche brute',
+  /plotter\.probe\(probeLabel\(board, pin\)/.test(sim));
+check('sim : la forme du nom est « ADC<n> (<broche>) »',
+  /return adc === undefined \? pin : `ADC\$\{adc\} \(\$\{pin\}\)`;/.test(sim));
+
+const catalogFile = join(SCRATCH, 'catalog.bundle.mjs');
+buildSync({
+  entryPoints: [join(ROOT, 'src', 'webview', 'diagram', 'catalog.mts')],
+  outfile: catalogFile, bundle: true, platform: 'node', format: 'esm',
+  loader: { '.svg': 'text', '.webp': 'dataurl' }, absWorkingDir: ROOT,
+});
+const { mcuPinRole } = await import(pathToFileURL(catalogFile).href);
+const label = (board, pin) => {
+  const adc = mcuPinRole(board, pin).adcChannel;
+  return adc === undefined ? pin : `ADC${adc} (${pin})`;
+};
+check('Uno : A0 → ADC0 (A0), A5 → ADC5 (A5)',
+  label('uno', 'A0') === 'ADC0 (A0)' && label('uno', 'A5') === 'ADC5 (A5)',
+  label('uno', 'A0') + ' / ' + label('uno', 'A5'));
+check('Mega : les 16 entrées analogiques sont numérotées ADC0..ADC15',
+  Array.from({ length: 16 }, (_, i) => label('mega', `A${i}`)).every((s, i) => s === `ADC${i} (A${i})`),
+  label('mega', 'A15'));
+check('Pico : GP26 → ADC0 (GP26), GP28 → ADC2 (GP28)',
+  label('pico', 'GP26') === 'ADC0 (GP26)' && label('pico', 'GP28') === 'ADC2 (GP28)',
+  label('pico', 'GP26') + ' / ' + label('pico', 'GP28'));
+check('une broche SANS convertisseur garde son nom',
+  label('pico', 'GP15') === 'GP15' && label('uno', '13') === '13',
+  label('pico', 'GP15') + ' / ' + label('uno', '13'));
+check('documentation FR et EN à jour (forme du nom de sonde)',
+  /ADC0 \(GP26\)/.test(readFileSync(join(ROOT, 'docs', 'fr', 'USAGE.md'), 'utf8')) &&
+  /ADC0 \(GP26\)/.test(readFileSync(join(ROOT, 'docs', 'en', 'USAGE.md'), 'utf8')));
 
 console.log(failures ? `\n${failures} échec(s)` : '\nTraceur : tous les contrôles passent.');
 process.exit(failures ? 1 : 0);

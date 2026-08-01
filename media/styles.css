@@ -1419,6 +1419,31 @@ textarea {
   visibility: hidden;
 }
 
+/* Composant mis en cause par un message de défaut (relais sans diode de roue
+   libre, diode montée à l'envers…) : MÊME rectangle que la sélection, en rouge
+   et en trait plein. Il doit rester visible PENDANT la simulation, où le canvas
+   est verrouillé — c'est justement là que les défauts se déclarent. */
+.part--faulty .part__selbox,
+.canvas--locked .part--faulty .part__selbox {
+  visibility: visible;
+  outline: 2px solid var(--kx-fault, #e5484d);
+  outline-offset: 3px;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--kx-fault, #e5484d) 25%, transparent),
+    0 0 12px 2px color-mix(in srgb, var(--kx-fault, #e5484d) 55%, transparent);
+}
+
+/* Composant sans boîte mesurée : c'est son corps qui porte le cadre (même
+   règle que pour la sélection). */
+.part--faulty .part__body:not(:has(.part__selbox)) {
+  outline: 2px solid var(--kx-fault, #e5484d);
+  outline-offset: 3px;
+  border-radius: 4px;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--kx-fault, #e5484d) 25%, transparent),
+    0 0 12px 2px color-mix(in srgb, var(--kx-fault, #e5484d) 55%, transparent);
+}
+
 /* Simulation en cours : pas de sélection ni bandeau de nom, schéma figé
    (les broches restent en place pour les fils mais ne captent plus les clics). */
 .canvas--locked .part__head {
@@ -1892,6 +1917,10 @@ textarea {
   cursor: pointer;
 }
 
+/* Grille du dessin : un carreau = 10 px du COMPOSANT, pas 10 px d'écran. Le pas
+   affiché est donc remis à l'échelle du zoom en JS (background-size), et
+   `background-attachment: local` la fait défiler avec le dessin — sans quoi la
+   grille glissait sous les pastilles au moindre défilement. */
 .creator__preview {
   position: relative;
   flex: 1;
@@ -1900,11 +1929,19 @@ textarea {
     linear-gradient(rgba(127, 127, 127, 0.12) 1px, transparent 1px),
     linear-gradient(90deg, rgba(127, 127, 127, 0.12) 1px, transparent 1px);
   background-size: 10px 10px;
+  background-attachment: local;
   background-color: var(--vscode-editor-background, #1e1e1e);
   border: 1px solid var(--vscode-input-border, #555);
   border-radius: 6px;
   overflow: auto;
   cursor: crosshair;
+}
+
+/* Pastilles de l'aperçu : visibles ici (contrairement à l'éditeur, où elles ne
+   se révèlent qu'au survol) — c'est ce qu'on vient caler sur la grille. */
+.creator__preview-inner > .pin {
+  background: rgba(220, 50, 50, 0.8);
+  border-color: rgba(150, 20, 20, 0.95);
 }
 
 /* Ancre verte de calage externe/interne (marqueur détecté à l'import). */

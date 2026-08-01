@@ -28,8 +28,10 @@ import { internalWiringSvg } from './internal-wiring.mjs';
 import { PACKAGE_LABELS, PACKAGES, type TransistorPackage } from '../composants/transistor-element.mjs';
 import { t } from '../i18n.mjs';
 
+// Dessin de départ calé sur la grille de 10 px (comme tout composant Kablix) :
+// coins sur des croisements, hauteur et largeur multiples du carreau.
 const DEFAULT_SVG = `<svg width="80" height="60" xmlns="http://www.w3.org/2000/svg">
-  <rect x="6" y="10" width="68" height="40" rx="6" fill="#3a6ea5" stroke="#1d3d5c" stroke-width="2"/>
+  <rect x="10" y="10" width="60" height="40" rx="6" fill="#3a6ea5" stroke="#1d3d5c" stroke-width="2"/>
   <text x="40" y="34" font-size="10" fill="#fff" text-anchor="middle">MODULE</text>
 </svg>`;
 
@@ -38,6 +40,12 @@ const DEFAULT_INNER_SVG = `<svg width="80" height="60" xmlns="http://www.w3.org/
 
 /** Largeur minimale d'une des trois zones (poignées de redimensionnement). */
 const MIN_COL = 160;
+
+/** Pas de la grille des aperçus, en pixels du composant (celui de l'éditeur). */
+const GRID = 10;
+
+/** Coordonnée ramenée au croisement de grille le plus proche. */
+const snap10 = (v: number): number => Math.round(v / GRID) * GRID;
 
 type XY = { x: number; y: number };
 
@@ -152,8 +160,8 @@ export class PartCreator {
             <label class="inspector__label">${t('External view')}</label>
             <button type="button" id="cr-ext-pick">${t('Load an SVG…')}</button>
             <button type="button" id="cr-ext-edit" title="${t(
-              'Opens the drawing in your default SVG editor; it is reloaded here at every save.'
-            )}">${t('Open in the default editor…')}</button>
+              'Opens the drawing in the SVG editor of your choice (asked once, then remembered); it is reloaded here at every save.'
+            )}">${t('Open in the SVG editor…')}</button>
           </div>
           <div id="cr-preview-ext" class="creator__preview"></div>
           <p class="inspector__hint">${t('Click the preview to add a connection point.')}</p>
@@ -164,8 +172,8 @@ export class PartCreator {
             <label class="inspector__label">${t('Internal view')}</label>
             <button type="button" id="cr-int-pick">${t('Load an SVG…')}</button>
             <button type="button" id="cr-int-edit" title="${t(
-              'Opens the drawing in your default SVG editor; it is reloaded here at every save.'
-            )}">${t('Open in the default editor…')}</button>
+              'Opens the drawing in the SVG editor of your choice (asked once, then remembered); it is reloaded here at every save.'
+            )}">${t('Open in the SVG editor…')}</button>
             <label class="creator__check"><input type="checkbox" id="cr-int-overlay" />${t('Overlay')}</label>
             <button type="button" id="cr-int-del" title="${t('Remove the internal view')}">✕</button>
           </div>
@@ -221,8 +229,10 @@ export class PartCreator {
       if ((e.target as HTMLElement).closest('.pin')) return; // clic sur une pastille existante
       const inner = extPreview.firstElementChild as HTMLElement | null;
       const rect = (inner ?? extPreview).getBoundingClientRect();
-      const x = Math.round((e.clientX - rect.left) / this.zoom);
-      const y = Math.round((e.clientY - rect.top) / this.zoom);
+      // Accrochage sur la grille : une broche tombe TOUJOURS sur un croisement,
+      // comme dans l'éditeur (pas de 10 px) — un fil s'y branche droit.
+      const x = snap10((e.clientX - rect.left) / this.zoom);
+      const y = snap10((e.clientY - rect.top) / this.zoom);
       this.pins.push({ name: `pin${this.pins.length + 1}`, x, y });
       refresh();
     });
@@ -546,6 +556,12 @@ export class PartCreator {
     const ext = modal.querySelector('#cr-preview-ext') as HTMLDivElement;
     const int = modal.querySelector('#cr-preview-int') as HTMLDivElement;
 
+    // Un carreau vaut 10 px du COMPOSANT : le pas dessiné suit donc le zoom, et
+    // le coin haut-gauche du dessin (0,0) tombe sur un croisement.
+    const step = `${GRID * this.zoom}px ${GRID * this.zoom}px`;
+    ext.style.backgroundSize = step;
+    int.style.backgroundSize = step;
+
     // Conteneur interne mis à l'échelle (zoom) : le SVG et les pastilles vivent
     // en coordonnées réelles, le zoom n'est qu'un transform d'affichage.
     const makeInner = (svg: string): HTMLDivElement => {
@@ -788,6 +804,7 @@ export class PartCreator {
       const mkCoord = (axis: 'x' | 'y'): HTMLInputElement => {
         const input = document.createElement('input');
         input.type = 'number';
+        input.step = String(GRID); // les flèches sautent de carreau en carreau
         input.className = 'inspector__control creator__coord';
         input.value = String(pin[axis]);
         input.title = axis.toUpperCase();

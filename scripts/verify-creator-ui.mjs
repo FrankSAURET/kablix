@@ -99,8 +99,43 @@ async function run() {
 	ok('symbole : superposition activée pour contrôler le calage',
 		modal().querySelector('#cr-int-overlay').checked);
 
-	// --- 5. Retouche dans l éditeur du système --------------------------------
-	byText('button', 'default editor').click();
+	// --- 5. Grille de 10 px des aperçus ---------------------------------------
+	const zoomOf = () => parseFloat(modal().querySelector('#cr-zoom-label').textContent) / 100;
+	const gridStep = (sel) => parseFloat(getComputedStyle(modal().querySelector(sel)).backgroundSize);
+	ok('grille : un carreau = 10 px du composant',
+		Math.abs(gridStep('#cr-preview-ext') - 10 * zoomOf()) < 0.5,
+		gridStep('#cr-preview-ext') + ' pour un zoom de ' + zoomOf());
+	ok('grille : même pas dans les deux vues',
+		Math.abs(gridStep('#cr-preview-int') - gridStep('#cr-preview-ext')) < 0.01);
+	// (on dézoome : l'accueil cale déjà le dessin au zoom maximal)
+	const before = gridStep('#cr-preview-ext');
+	modal().querySelector('#cr-zoom-out').click();
+	await wait(40);
+	ok('grille : le carreau suit le zoom (÷1,25)',
+		Math.abs(gridStep('#cr-preview-ext') - before / 1.25) < 0.5,
+		before + ' → ' + gridStep('#cr-preview-ext'));
+	ok('grille : elle défile avec le dessin',
+		getComputedStyle(modal().querySelector('#cr-preview-ext')).backgroundAttachment.includes('local'));
+	// Clic hors croisement : la broche posée tombe quand même sur la grille.
+	const pv = modal().querySelector('#cr-preview-ext');
+	const box = pv.getBoundingClientRect();
+	const z = zoomOf();
+	pv.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true,
+		clientX: box.left + 23.7 * z, clientY: box.top + 46.2 * z, pointerId: 7 }));
+	await wait(40);
+	const last = [...modal().querySelectorAll('#cr-preview-ext .pin')].pop();
+	const lx = parseFloat(last.style.left), ly = parseFloat(last.style.top);
+	ok('grille : une broche posée au clic s accroche au croisement',
+		lx % 10 === 0 && ly % 10 === 0, lx + ',' + ly);
+	ok('grille : les pastilles de l aperçu sont visibles',
+		getComputedStyle(last).backgroundColor !== 'rgba(0, 0, 0, 0)', getComputedStyle(last).backgroundColor);
+	// Retour au zoom d origine et retrait de la broche d essai.
+	modal().querySelector('#cr-zoom-in').click();
+	[...modal().querySelectorAll('#cr-pins .creator__pinrow')].pop().querySelector('button').click();
+	await wait(40);
+
+	// --- 6. Retouche dans l éditeur du système --------------------------------
+	byText('button', 'SVG editor').click();
 	await wait(20);
 	ok('éditeur externe : le dessin externe part en retouche',
 		edits.length === 1 && edits[0].which === 'ext' && /svg/.test(edits[0].svg), JSON.stringify(edits.length));
@@ -118,14 +153,14 @@ async function run() {
 	const names = [...modal().querySelectorAll('#cr-pins .creator__pinrow input:not(.creator__coord)')].map((i) => i.value);
 	ok('éditeur externe : les pastilles rouges ajoutées deviennent des broches',
 		names.join(',') === 'IN,OUT', JSON.stringify(names));
-	byText('button', 'default editor').click();
+	byText('button', 'SVG editor').click();
 	// (le second bouton porte le même libellé : on vise celui de la vue interne)
 	modal().querySelector('#cr-int-edit').click();
 	await wait(20);
 	ok('éditeur externe : la vue interne aussi peut être retouchée',
 		edits.some((e) => e.which === 'int'), JSON.stringify(edits.map((e) => e.which)));
 
-	// --- 6. Trois zones redimensionnables -------------------------------------
+	// --- 7. Trois zones redimensionnables -------------------------------------
 	const form = modal().querySelector('.creator__form');
 	const gutter = modal().querySelector('.creator__gutter[data-gutter="0"]');
 	ok('zones : deux poignées entre les trois zones',
@@ -153,7 +188,7 @@ async function run() {
 		modal().querySelectorAll('.creator__pane')[0].getBoundingClientRect().width >= 159,
 		modal().querySelectorAll('.creator__pane')[0].getBoundingClientRect().width);
 
-	// --- 7. Composant enregistré ----------------------------------------------
+	// --- 8. Composant enregistré ----------------------------------------------
 	for (const s of modal().querySelectorAll('select[data-role]')) s.value = s.options[0].value;
 	modal().querySelector('#cr-save').click();
 	await wait(40);
@@ -206,7 +241,7 @@ const rows = JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&').repl
 // Contrôles i18n côté Node (le banc Chrome tourne en anglais).
 const i18n = readFileSync(join(ROOT, 'src', 'webview', 'i18n.mts'), 'utf8');
 for (const [key, label] of [
-	["'Open in the default editor…'", 'bouton de retouche externe'],
+	["'Open in the SVG editor…'", 'bouton de retouche externe'],
 	["'Add a simulation control \\(slider, switch\\)'", 'bouton ＋ du contrôle'],
 	["'Free drawing'", 'boîtier « dessin libre »'],
 	["'Drag to resize'", 'infobulle des poignées'],
@@ -217,6 +252,27 @@ for (const [key, label] of [
 		detail: 'clé absente du catalogue FR',
 	});
 }
+// Choix de l'éditeur SVG : réglage déclaré, commande offerte, messages traduits.
+const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+const bundle = JSON.parse(readFileSync(join(ROOT, 'l10n', 'bundle.l10n.fr.json'), 'utf8'));
+const nlsFr = JSON.parse(readFileSync(join(ROOT, 'package.nls.fr.json'), 'utf8'));
+rows.push({
+	name: 'éditeur SVG : réglage kablix.svgEditorPath déclaré',
+	ok: !!pkg.contributes.configuration.properties['kablix.svgEditorPath'],
+	detail: 'absent de package.json',
+});
+rows.push({
+	name: 'éditeur SVG : commande de changement offerte',
+	ok: pkg.contributes.commands.some((c) => c.command === 'kablix.chooseSvgEditor') &&
+		!!nlsFr['kablix.cmd.chooseSvgEditor'] && !!nlsFr['kablix.config.svgEditorPath'],
+	detail: 'commande ou traduction manquante',
+});
+rows.push({
+	name: 'éditeur SVG : messages du choix traduits',
+	ok: ['Choose an application…', 'System default', 'Choose the SVG editor (Inkscape…)',
+		'Kablix: SVG editor not found ({0}).'].every((k) => !!bundle[k]),
+	detail: 'clé absente de bundle.l10n.fr.json',
+});
 let fail = 0;
 for (const r of rows) {
 	if (!r.ok) fail++;
