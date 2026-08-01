@@ -1072,49 +1072,81 @@ void loop() {
 `,
   }),
 
+  // Trois branches RC EN PARALLÈLE sur la même broche de commande : un
+  // condensateur n'est pas une arête résistive, chaque branche est donc un nœud
+  // indépendant et la tension d'une armature ne peut pas fuir vers la voisine.
+  // Seule la constante de temps change (0,1 s / 0,33 s / 1 s) — c'est la
+  // démonstration : trois exponentielles étagées sur le même graphe.
   test({
     name: 'condo-uno', board: 'uno', ext: 'ino',
     parts: [
       MCU('uno'),
-      { id: 'r1', type: 'resistor', x: 420, y: 80, attrs: { value: '10000' } },
-      { id: 'c1', type: 'condo-np', x: 560, y: 80, attrs: { ctype: 'np', value: '1e-5', vmax: '400' } },
+      { id: 'r1', type: 'resistor', x: 420, y: 60, attrs: { value: '100000' } },
+      { id: 'c1', type: 'condo-np', x: 560, y: 60, attrs: { ctype: 'np', value: '1e-6', vmax: '63' } },
+      { id: 'r2', type: 'resistor', x: 420, y: 180, attrs: { value: '33000' } },
+      { id: 'c2', type: 'condo-np', x: 560, y: 180, attrs: { ctype: 'p', value: '1e-5', vmax: '16' } },
+      { id: 'r3', type: 'resistor', x: 420, y: 300, attrs: { value: '10000' } },
+      { id: 'c3', type: 'condo-np', x: 560, y: 300, attrs: { ctype: 'chem', value: '1e-4', vmax: '16' } },
     ],
     wires: () => [
       w('r1', '1', 'mcu1', '8', 'green'),
       w('r1', '2', 'c1', '1', 'green'),
       w('c1', '1', 'mcu1', 'A0', 'blue'),
       w('c1', '2', 'mcu1', 'GND.1', 'black'),
+      w('r2', '1', 'mcu1', '8', 'green'),
+      w('r2', '2', 'c2', '1', 'green'),
+      w('c2', '1', 'mcu1', 'A1', 'blue'),
+      w('c2', '2', 'mcu1', 'GND.2', 'black'),
+      w('r3', '1', 'mcu1', '8', 'green'),
+      w('r3', '2', 'c3', '1', 'green'),
+      w('c3', '1', 'mcu1', 'A2', 'blue'),
+      w('c3', '2', 'mcu1', 'GND.3', 'black'),
     ],
-    // 10 kΩ × 10 µF = 0,1 s de constante de temps ; charge pleine à 5 RC = 0,5 s.
-    expect: { kind: 'capacitor', partId: 'c1', drivePin: '8', drive: 'high', volts: 5, target: 5, tau: 0.1, mcuPins: ['A0'] },
-    code: `// Test condensateur : circuit RC 10 kOhm + 10 uF (RC = 0,1 s) charge par la
-// broche 8 et mesure sur A0. La tension atteint 63 % de 5 V au bout d'un RC et
-// la charge est pleine a 5 RC (0,5 s) — de meme pour la decharge.
+    // RC = R × C, la sortie du MCU ajoutant ses 25 Ω : 0,1 s / 0,33 s / 1 s.
+    // Charge pleine à 5 RC, soit 5 s pour la plus lente des trois.
+    expect: {
+      kind: 'capacitor', drivePin: '8', drive: 'high', volts: 5,
+      caps: [
+        { partId: 'c1', target: 5, tau: 0.1, mcuPins: ['A0'] },
+        { partId: 'c2', target: 5, tau: 0.33, mcuPins: ['A1'] },
+        { partId: 'c3', target: 5, tau: 1, mcuPins: ['A2'] },
+      ],
+    },
+    code: `// Trois circuits RC sur la MEME broche de commande. Seule la constante de
+// temps RC change : 100 kOhm x 1 uF = 0,1 s (film), 33 kOhm x 10 uF = 0,33 s
+// (tantale), 10 kOhm x 100 uF = 1 s (chimique). A un RC la tension a fait
+// 63 % du chemin, a 5 RC la charge est pleine — d'ou les 5 s par phase.
+//
+// Le TRACEUR DE COURBES affiche les trois exponentielles SANS une seule ligne
+// de code : la tension du condensateur est posee sur A0, A1 et A2, et toute
+// tension posee sur une entree analogique est tracee par une sonde interne.
+// Le moniteur serie ne sert ici qu'a relire les memes valeurs en clair.
 const int CHARGE = 8;
-const int MESURE = A0;
+const int MESURE[3] = { A0, A1, A2 };
 
-void trace(const char *phase) {
-  for (int i = 0; i < 12; i++) {
-    delay(50);
-    Serial.print(phase);
-    Serial.print(" t=");
-    Serial.print((i + 1) * 50);
-    Serial.print(" ms  U=");
-    Serial.print(analogRead(MESURE) * 5.0 / 1023.0, 2);
-    Serial.println(" V");
+void phase(int niveau, const char *nom) {
+  digitalWrite(CHARGE, niveau);
+  for (int i = 0; i < 10; i++) {   // 10 x 500 ms = 5 s = 5 RC du plus lent
+    delay(500);
+    Serial.print(nom);
+    for (int c = 0; c < 3; c++) {
+      Serial.print("   ");
+      Serial.print(analogRead(MESURE[c]) * 5.0 / 1023.0, 2);
+      Serial.print(" V");
+    }
+    Serial.println();
   }
 }
 
 void setup() {
   Serial.begin(115200);
   pinMode(CHARGE, OUTPUT);
+  Serial.println("          film(A0) tantale(A1) chimique(A2)");
 }
 
 void loop() {
-  digitalWrite(CHARGE, HIGH);
-  trace("charge  ");
-  digitalWrite(CHARGE, LOW);
-  trace("decharge");
+  phase(HIGH, "charge  ");
+  phase(LOW, "decharge");
 }
 `,
   }),
@@ -2596,43 +2628,70 @@ while True:
 `,
   }),
 
+  // Même montage que `condo-uno` sous 3,3 V, avec les trois ADC du RP2040. Les
+  // condensateurs sont posés ici avec leurs types HISTORIQUES (`condo-p-1`,
+  // `condo-p-2`) : ils ont quitté la palette en v2026.7.232 mais restent des
+  // types valides — un projet enregistré avant ne doit jamais cesser de s'ouvrir.
   test({
     name: 'condo-pico', board: 'pico', ext: 'py',
     parts: [
       MCU('pico'),
-      { id: 'c1', type: 'condo-p-2', x: 560, y: 80, attrs: { ctype: 'chem', value: '1e-6', vmax: '16' } },
+      { id: 'r1', type: 'resistor', x: 480, y: 60, attrs: { value: '100000' } },
+      { id: 'c1', type: 'condo-np', x: 620, y: 60, attrs: { ctype: 'np', value: '1e-6', vmax: '63' } },
+      { id: 'r2', type: 'resistor', x: 480, y: 180, attrs: { value: '33000' } },
+      { id: 'c2', type: 'condo-p-1', x: 620, y: 180, attrs: { ctype: 'p', value: '1e-5', vmax: '16' } },
+      { id: 'r3', type: 'resistor', x: 480, y: 300, attrs: { value: '10000' } },
+      { id: 'c3', type: 'condo-p-2', x: 620, y: 300, attrs: { ctype: 'chem', value: '1e-4', vmax: '16' } },
     ],
     wires: () => [
-      w('c1', '1', 'mcu1', 'GP15', 'blue'),
+      w('r1', '1', 'mcu1', 'GP15', 'green'),
+      w('r1', '2', 'c1', '1', 'green'),
+      w('c1', '1', 'mcu1', 'GP26', 'blue'),
       w('c1', '2', 'mcu1', 'GND.5', 'black'),
-      w('c1', '1', 'mcu1', 'GP26', 'yellow'),
+      w('r2', '1', 'mcu1', 'GP15', 'green'),
+      w('r2', '2', 'c2', '1', 'green'),
+      w('c2', '1', 'mcu1', 'GP27', 'blue'),
+      w('c2', '2', 'mcu1', 'GND.6', 'black'),
+      w('r3', '1', 'mcu1', 'GP15', 'green'),
+      w('r3', '2', 'c3', '1', 'green'),
+      w('c3', '1', 'mcu1', 'GP28', 'blue'),
+      w('c3', '2', 'mcu1', 'GND.7', 'black'),
     ],
-    // Rappel interne (65 kΩ) × 1 µF = 65 ms de constante de temps.
-    expect: { kind: 'capacitor', partId: 'c1', drivePin: 'GP15', drive: 'pullup', volts: 3.3, target: 3.3, tau: 0.065, mcuPins: ['GP15', 'GP26'] },
-    code: `# Test condensateur sur une entree a rappel interne, SANS aucune resistance
-# exterieure : le rappel du RP2040 (50 a 80 kOhm, 65 kOhm dans Kablix) sert de
-# resistance de charge (PULL_UP) puis de decharge (PULL_DOWN). Avec 1 uF, la
-# constante de temps vaut 65 ms : 63 % de la tension a 1 RC, tout est fini a
-# 5 RC. La tension est lue sur ADC0 (GP26), cable sur la meme armature.
+    // RC = R × C, la sortie du RP2040 ajoutant ses 25 Ω : 0,1 s / 0,33 s / 1 s.
+    expect: {
+      kind: 'capacitor', drivePin: 'GP15', drive: 'high', volts: 3.3,
+      caps: [
+        { partId: 'c1', target: 3.3, tau: 0.1, mcuPins: ['GP26'] },
+        { partId: 'c2', target: 3.3, tau: 0.33, mcuPins: ['GP27'] },
+        { partId: 'c3', target: 3.3, tau: 1, mcuPins: ['GP28'] },
+      ],
+    },
+    code: `# Trois circuits RC sur la MEME broche de commande. Seule la constante de
+# temps RC change : 100 kOhm x 1 uF = 0,1 s (film), 33 kOhm x 10 uF = 0,33 s
+# (tantale), 10 kOhm x 100 uF = 1 s (chimique). A un RC la tension a fait
+# 63 % du chemin, a 5 RC la charge est pleine — d'ou les 5 s par phase.
+#
+# Le TRACEUR DE COURBES affiche les trois exponentielles SANS une seule ligne
+# de code : la tension du condensateur est posee sur ADC0/1/2 (GP26, GP27,
+# GP28), et toute tension posee sur une entree analogique est tracee par une
+# sonde interne. La console ne sert ici qu'a relire les valeurs en clair.
 from machine import ADC, Pin
 import time
 
-broche = Pin(15, Pin.OUT, value=0)
-mesure = ADC(Pin(26))
+charge = Pin(15, Pin.OUT, value=0)
+mesure = [ADC(Pin(26)), ADC(Pin(27)), ADC(Pin(28))]
 
-def trace(phase):
-    for i in range(15):
-        time.sleep_ms(20)
-        volts = mesure.read_u16() * 3.3 / 65535
-        print(phase, "t=", (i + 1) * 20, "ms  U=", "%.2f" % volts, "V")
+def phase(niveau, nom):
+    charge.value(niveau)
+    for _ in range(10):               # 10 x 500 ms = 5 s = 5 RC du plus lent
+        time.sleep_ms(500)
+        volts = ["%.2f V" % (a.read_u16() * 3.3 / 65535) for a in mesure]
+        print(nom, "   ".join(volts))
 
+print("          film(GP26) tantale(GP27) chimique(GP28)")
 while True:
-    broche.init(Pin.OUT, value=0)
-    time.sleep_ms(400)                    # decharge complete (5 RC)
-    broche.init(Pin.IN, Pin.PULL_UP)      # charge par le rappel interne
-    trace("charge  ")
-    broche.init(Pin.IN, Pin.PULL_DOWN)    # decharge par le meme rappel
-    trace("decharge")
+    phase(1, "charge  ")
+    phase(0, "decharge")
 `,
   }),
 

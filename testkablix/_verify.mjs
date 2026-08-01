@@ -221,17 +221,21 @@ for (const t of TESTS) {
     }
     case 'capacitor': {
       // Équivalent de Thévenin vu par l'armature chaude : c'est lui qui fixe la
-      // tension d'équilibre et la constante de temps du transitoire.
+      // tension d'équilibre et la constante de temps du transitoire. Plusieurs
+      // branches RC peuvent partager la MÊME broche de commande : chacune est un
+      // nœud indépendant (un condensateur n'est pas une arête résistive, le
+      // chemin d'une branche ne peut donc pas passer par la voisine).
       const nodes = model.capacitorNodes(diagram, e.volts, (p) => (p === e.drivePin ? e.drive : 'hiz'));
-      const n = nodes.find((x) => x.partId === e.partId);
-      check(`${t.name} : nœud RC trouvé`, !!n, JSON.stringify(nodes));
-      if (n) {
-        check(`${t.name} : tension d'équilibre ${e.target} V`,
-          Math.abs(n.target - e.target) < 0.05, `cible=${n.target}`);
-        check(`${t.name} : constante de temps ${e.tau} s`,
-          Math.abs(n.tau - e.tau) / e.tau < 0.05, `tau=${n.tau}`);
-        check(`${t.name} : broches de mesure ${e.mcuPins.join(',')}`,
-          e.mcuPins.every((p) => n.mcuPins.includes(p)), JSON.stringify(n.mcuPins));
+      for (const c of e.caps) {
+        const n = nodes.find((x) => x.partId === c.partId);
+        check(`${t.name} : nœud RC ${c.partId} trouvé`, !!n, JSON.stringify(nodes));
+        if (!n) continue;
+        check(`${t.name} : ${c.partId} tension d'équilibre ${c.target} V`,
+          Math.abs(n.target - c.target) < 0.05, `cible=${n.target}`);
+        check(`${t.name} : ${c.partId} constante de temps ${c.tau} s`,
+          Math.abs(n.tau - c.tau) / c.tau < 0.05, `tau=${n.tau}`);
+        check(`${t.name} : ${c.partId} broches de mesure ${c.mcuPins.join(',')}`,
+          c.mcuPins.every((p) => n.mcuPins.includes(p)), JSON.stringify(n.mcuPins));
       }
       break;
     }

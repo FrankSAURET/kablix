@@ -35,6 +35,10 @@ charge (or full discharge) after 5·R·C.
 - The library lists a single **Capacitor**: the type (film, tantalum,
   electrolytic) is picked in the `ctype` property.
 - Changing `ctype` does not rename the pins: wires already drawn stay put.
+- The **plotter** shows the exponential **without a single line of code**: every
+  voltage applied to an analog input is plotted by an internal probe, named
+  after the pin (`A0`, `GP26`…). Put several RC branches in parallel on the same
+  driving pin and their curves compare on one graph.
 
 ---
 

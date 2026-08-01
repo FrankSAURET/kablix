@@ -36,6 +36,11 @@ pleine charge (ou décharge complète) au bout de 5·R·C.
   tantale, chimique) se choisit dans la propriété `ctype`.
 - Changer `ctype` ne renomme pas les broches : les fils déjà tracés restent en
   place.
+- Le **traceur de courbes** montre l'exponentielle **sans une ligne de code** :
+  toute tension posée sur une entrée analogique y est tracée par une sonde
+  interne, sous le nom de la broche (`A0`, `GP26`…). Mettez plusieurs branches
+  RC en parallèle sur la même broche de commande et leurs courbes se comparent
+  sur le même graphe.
 
 ---
 

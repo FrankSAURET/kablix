@@ -1,29 +1,36 @@
-// Test condensateur : circuit RC 10 kOhm + 10 uF (RC = 0,1 s) charge par la
-// broche 8 et mesure sur A0. La tension atteint 63 % de 5 V au bout d'un RC et
-// la charge est pleine a 5 RC (0,5 s) — de meme pour la decharge.
+// Trois circuits RC sur la MEME broche de commande. Seule la constante de
+// temps RC change : 100 kOhm x 1 uF = 0,1 s (film), 33 kOhm x 10 uF = 0,33 s
+// (tantale), 10 kOhm x 100 uF = 1 s (chimique). A un RC la tension a fait
+// 63 % du chemin, a 5 RC la charge est pleine — d'ou les 5 s par phase.
+//
+// Le TRACEUR DE COURBES affiche les trois exponentielles SANS une seule ligne
+// de code : la tension du condensateur est posee sur A0, A1 et A2, et toute
+// tension posee sur une entree analogique est tracee par une sonde interne.
+// Le moniteur serie ne sert ici qu'a relire les memes valeurs en clair.
 const int CHARGE = 8;
-const int MESURE = A0;
+const int MESURE[3] = { A0, A1, A2 };
 
-void trace(const char *phase) {
-  for (int i = 0; i < 12; i++) {
-    delay(50);
-    Serial.print(phase);
-    Serial.print(" t=");
-    Serial.print((i + 1) * 50);
-    Serial.print(" ms  U=");
-    Serial.print(analogRead(MESURE) * 5.0 / 1023.0, 2);
-    Serial.println(" V");
+void phase(int niveau, const char *nom) {
+  digitalWrite(CHARGE, niveau);
+  for (int i = 0; i < 10; i++) {   // 10 x 500 ms = 5 s = 5 RC du plus lent
+    delay(500);
+    Serial.print(nom);
+    for (int c = 0; c < 3; c++) {
+      Serial.print("   ");
+      Serial.print(analogRead(MESURE[c]) * 5.0 / 1023.0, 2);
+      Serial.print(" V");
+    }
+    Serial.println();
   }
 }
 
 void setup() {
   Serial.begin(115200);
   pinMode(CHARGE, OUTPUT);
+  Serial.println("          film(A0) tantale(A1) chimique(A2)");
 }
 
 void loop() {
-  digitalWrite(CHARGE, HIGH);
-  trace("charge  ");
-  digitalWrite(CHARGE, LOW);
-  trace("decharge");
+  phase(HIGH, "charge  ");
+  phase(LOW, "decharge");
 }
