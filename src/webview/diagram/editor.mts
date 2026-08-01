@@ -190,6 +190,15 @@ export class Editor {
   onOpenExternal: ((url: string) => void) | null = null;
   /** Appelé pour ouvrir l'aide locale d'un composant (fiche docs/<lang>/composants/<type>.md). */
   onComponentHelp: ((type: string) => void) | null = null;
+  /** Appelé pour retoucher un dessin du créateur dans l'éditeur SVG du système. */
+  onEditSvg: ((which: 'ext' | 'int', svg: string) => void) | null = null;
+  /** Appelé à la fermeture du créateur : plus de dessin à surveiller. */
+  onStopEditSvg: (() => void) | null = null;
+
+  /** Dessin revenu de l'éditeur externe (fichier enregistré) → créateur. */
+  applyEditedSvg(which: 'ext' | 'int', svg: string): void {
+    this.creator.applyEditedSvg(which, svg);
+  }
   /**
    * Appelé quand la sélection change : `schema` indique si le composant
    * sélectionné dispose d'un câblage interne ou d'un poster de brochage (pour
@@ -265,6 +274,8 @@ export class Editor {
     const c = new PartCreator((data) => this.saveCustomPart(data));
     c.onModelsChange = (models) => this.onSimModelsChange?.(models);
     c.onOpenExternal = (url) => this.onOpenExternal?.(url);
+    c.onEditSvg = (which, svg) => this.onEditSvg?.(which, svg);
+    c.onStopEditSvg = () => this.onStopEditSvg?.();
     return c;
   })();
   private handles: HTMLDivElement[] = [];

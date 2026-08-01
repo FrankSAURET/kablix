@@ -204,6 +204,11 @@ export class SimulatorPanel {
   private pendingCodeReveal: vscode.Uri | undefined;
   /** Décoration de la ligne en pause (créée à la demande, détruite avec le panneau). */
   private debugLineDecoration: vscode.TextEditorDecorationType | undefined;
+  /** Dessins du créateur ouverts dans l'éditeur SVG du système (surveillés). */
+  private svgWatches = new Map<
+    'ext' | 'int',
+    { uri: vscode.Uri; mtime: number; timer: ReturnType<typeof setInterval> }
+  >();
   /**
    * Signature de la dernière compilation réussie (chemin + date de modification
    * + carte). Permet à ▶ de ne recompiler que si le source a changé.
@@ -999,6 +1004,8 @@ export class SimulatorPanel {
     url?: string;
     dirty?: boolean;
     command?: string;
+    /** Dessin retouché dans l'éditeur SVG du système (messages `editSvg`). */
+    which?: string;
     /** Réglages du panneau de débogage (message `debugVars`). */
     hidden?: unknown;
     bases?: unknown;
@@ -1109,6 +1116,15 @@ export class SimulatorPanel {
         break;
       case 'exportCustomPart':
         if (msg.part) void this.saveCustomPartFile(msg.part as { label?: string });
+        break;
+      case 'editSvg':
+        // Créateur de composants : retouche d'un dessin dans l'éditeur SVG du système.
+        if (typeof msg.svg === 'string' && (msg.which === 'ext' || msg.which === 'int')) {
+          void this.editSvgExternally(msg.which, msg.svg);
+        }
+        break;
+      case 'stopEditSvg':
+        this.stopSvgWatchers();
         break;
       case 'debugLine':
         // Simulation en pause sur une ligne : surligne dans l'éditeur du source.
@@ -1586,6 +1602,56 @@ export class SimulatorPanel {
     vscode.window.showInformationMessage(l10n.t('Kablix: part exported to {0}', target.fsPath));
   }
 
+  /**
+   * Retouche d'un dessin du créateur de composants dans l'éditeur SVG du
+   * système (Inkscape…) : le dessin part dans un fichier de travail, s'ouvre
+   * avec l'application par défaut, et chaque ENREGISTREMENT le renvoie à la
+   * webview. On ne peut pas savoir quand l'éditeur se ferme — mais on voit
+   * chacune de ses écritures, ce qui vaut mieux qu'une seule relecture finale.
+   */
+  private async editSvgExternally(which: 'ext' | 'int', svg: string): Promise<void> {
+    const dir = this.context.globalStorageUri;
+    await vscode.workspace.fs.createDirectory(dir);
+    const uri = vscode.Uri.joinPath(
+      dir,
+      which === 'ext' ? 'kablix-dessin-externe.svg' : 'kablix-schema-interne.svg'
+    );
+    await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(svg));
+    const stat = await vscode.workspace.fs.stat(uri);
+    const previous = this.svgWatches.get(which);
+    if (previous) clearInterval(previous.timer);
+    this.svgWatches.set(which, {
+      uri,
+      mtime: stat.mtime,
+      timer: setInterval(() => void this.pollEditedSvg(which), 800),
+    });
+    // openExternal délègue au système ; si la plateforme refuse le file:, on se
+    // rabat sur l'éditeur de VS Code (mieux que rien du tout).
+    const opened = await vscode.env.openExternal(uri);
+    if (!opened) await vscode.commands.executeCommand('vscode.open', uri);
+  }
+
+  /** Le fichier de travail a-t-il été réenregistré ? Si oui, retour à la webview. */
+  private async pollEditedSvg(which: 'ext' | 'int'): Promise<void> {
+    const watch = this.svgWatches.get(which);
+    if (!watch) return;
+    try {
+      const stat = await vscode.workspace.fs.stat(watch.uri);
+      if (stat.mtime <= watch.mtime) return;
+      watch.mtime = stat.mtime;
+      const text = new TextDecoder().decode(await vscode.workspace.fs.readFile(watch.uri));
+      if (text.trim()) this.post({ type: 'svgEdited', which, svg: text });
+    } catch {
+      // Enregistrement atomique : le fichier disparaît une fraction de seconde.
+    }
+  }
+
+  /** Fin de la surveillance (créateur refermé, panneau détruit). */
+  private stopSvgWatchers(): void {
+    for (const watch of this.svgWatches.values()) clearInterval(watch.timer);
+    this.svgWatches.clear();
+  }
+
   /** Enregistre le schéma exporté en SVG via un dialogue de sauvegarde. */
   private async saveSvg(svg: string): Promise<void> {
     const folders = vscode.workspace.workspaceFolders;
@@ -1700,6 +1766,7 @@ export class SimulatorPanel {
     if (SimulatorPanel.lastActive === this) SimulatorPanel.lastActive = undefined;
     if (SimulatorPanel.current === this) SimulatorPanel.current = undefined;
     this.clearDebugLine();
+    this.stopSvgWatchers();
     this.debugLineDecoration?.dispose();
     this.debugLineDecoration = undefined;
     while (this.disposables.length) {

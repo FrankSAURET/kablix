@@ -1791,13 +1791,29 @@ textarea {
   justify-content: space-between;
 }
 
-/* Colonne de formulaire fixe + deux grandes zones d'aperçu (externe/interne). */
+/* Formulaire + deux grandes zones d'aperçu (externe/interne), séparés par des
+   poignées de redimensionnement (largeurs pilotées en JS dès la mise en page). */
 .creator__grid {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 280px 1fr 1fr;
-  gap: 1rem;
+  grid-template-columns: 280px 6px 1fr 6px 1fr;
+  gap: 0.5rem;
+}
+
+/* Poignée entre deux zones : discrète, elle s'éclaire au survol. */
+.creator__gutter {
+  align-self: stretch;
+  border-radius: 3px;
+  background: var(--vscode-panel-border, #444);
+  opacity: 0.5;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.creator__gutter:hover {
+  opacity: 1;
+  background: var(--vscode-focusBorder, #0a84ff);
 }
 
 .creator__form {
@@ -1947,6 +1963,23 @@ textarea {
   grid-template-columns: 92px 1fr;
   gap: 0.4rem;
   align-items: center;
+}
+
+/* Ligne « Type » du contrôle : le ✕ de retrait tient au bout. */
+.creator__ctrlrow--type {
+  grid-template-columns: 92px 1fr auto;
+}
+
+.creator__ctrlrow--type button {
+  width: 22px;
+  height: 22px;
+  font: inherit;
+  line-height: 1;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-input-border, #555);
+  background: var(--vscode-input-background, #333);
+  color: inherit;
+  cursor: pointer;
 }
 
 /* Conteneur interne mis à l'échelle (zoom de l'aperçu). */

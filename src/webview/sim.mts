@@ -2988,6 +2988,14 @@ editor.onSimModelsChange = (models) => {
 editor.onOpenExternal = (url: string) => {
   vscode.postMessage({ type: 'openExternal', url });
 };
+// Retouche d'un dessin du créateur dans l'éditeur SVG du système : l'extension
+// écrit un fichier, l'ouvre, et renvoie le contenu à chaque enregistrement.
+editor.onEditSvg = (which, svg) => {
+  vscode.postMessage({ type: 'editSvg', which, svg });
+};
+editor.onStopEditSvg = () => {
+  vscode.postMessage({ type: 'stopEditSvg' });
+};
 editor.onComponentHelp = (part: string) => {
   vscode.postMessage({ type: 'componentHelp', part });
 };
@@ -3151,6 +3159,12 @@ window.addEventListener('message', (event: MessageEvent) => {
       // condition optionnelle évaluée côté moteur).
       breakpoints = Array.isArray(msg.breakpoints) ? (msg.breakpoints as Breakpoint[]) : [];
       engine?.setBreakpoints?.(breakpoints);
+      break;
+    case 'svgEdited':
+      // Le dessin ouvert dans l'éditeur SVG du système vient d'être enregistré.
+      if (typeof msg.svg === 'string' && (msg.which === 'ext' || msg.which === 'int')) {
+        editor.applyEditedSvg(msg.which, msg.svg);
+      }
       break;
     case 'customParts':
       editor.loadCustomParts((msg.parts as CustomPartData[]) ?? []);

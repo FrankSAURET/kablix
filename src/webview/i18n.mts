@@ -173,6 +173,8 @@ const FR: Record<string, string> = {
   'label': 'libellé',
   'value': 'valeur',
   'Simulation control': 'Contrôle de simulation',
+  'Add a simulation control (slider, switch)': 'Ajouter un contrôle de simulation (curseur, interrupteur)',
+  'Remove the simulation control': 'Retirer le contrôle de simulation',
   'None': 'Aucun',
   'Slider (analog output)': 'Curseur (sortie analogique)',
   'Switch (digital output)': 'Interrupteur (sortie numérique)',
@@ -191,6 +193,22 @@ const FR: Record<string, string> = {
   'No point — click the preview.': "Aucun point — cliquez l'aperçu.",
   'Delete this point': 'Supprimer ce point',
   'Pin for role "{0}"': 'Broche pour le rôle « {0} »',
+  'Maximum collector-emitter voltage': 'Tension collecteur-émetteur maximale',
+  'Current gain: Ic = β × Ib once saturated': 'Gain en courant : Ic = β × Ib à saturation',
+  'Maximum collector current': 'Courant de collecteur maximal',
+  'Free drawing': 'Dessin libre',
+  'Draws the package in the external view, pins included':
+    'Dessine le boîtier dans la vue externe, pattes comprises',
+  'Package “{0}” drawn — {1} pin(s).': 'Boîtier « {0} » dessiné — {1} patte(s).',
+  'Symbol': 'Symbole',
+  'Draws the symbol in the internal view': 'Dessine le symbole dans la vue interne',
+  'Open in the default editor…': "Ouvrir dans l'éditeur par défaut…",
+  'Opens the drawing in your default SVG editor; it is reloaded here at every save.':
+    "Ouvre le dessin dans votre éditeur SVG par défaut ; il est rechargé ici à chaque enregistrement.",
+  'Drawing opened in your editor — it is reloaded at every save.':
+    'Dessin ouvert dans votre éditeur — il est rechargé à chaque enregistrement.',
+  'Drawing updated from the external editor.': "Dessin actualisé depuis l'éditeur externe.",
+  'Drag to resize': 'Glisser pour redimensionner',
   'Cancel': 'Annuler',
   'Save': 'Enregistrer',
 

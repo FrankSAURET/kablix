@@ -24,12 +24,20 @@ import {
 } from './catalog.mjs';
 import { analyzeMarkedSvg } from './svg-markers.mjs';
 import { compileExpr } from './expr.mjs';
+import { internalWiringSvg } from './internal-wiring.mjs';
+import { PACKAGE_LABELS, PACKAGES, type TransistorPackage } from '../composants/transistor-element.mjs';
 import { t } from '../i18n.mjs';
 
 const DEFAULT_SVG = `<svg width="80" height="60" xmlns="http://www.w3.org/2000/svg">
   <rect x="6" y="10" width="68" height="40" rx="6" fill="#3a6ea5" stroke="#1d3d5c" stroke-width="2"/>
   <text x="40" y="34" font-size="10" fill="#fff" text-anchor="middle">MODULE</text>
 </svg>`;
+
+/** Feuille vierge envoyée à l'éditeur externe quand la vue interne est vide. */
+const DEFAULT_INNER_SVG = `<svg width="80" height="60" xmlns="http://www.w3.org/2000/svg"></svg>`;
+
+/** Largeur minimale d'une des trois zones (poignées de redimensionnement). */
+const MIN_COL = 160;
 
 type XY = { x: number; y: number };
 
@@ -52,11 +60,25 @@ export class PartCreator {
   private params: CustomParam[] = [];
   /** Contrôle de simulation (curseur/interrupteur), ou null. */
   private control: CustomControl | null = null;
+  /** Caractéristiques du modèle choisi (transistor : gain, Vce max, Ic max…). */
+  private kindAttrs: Record<string, string> = {};
+  /** Boîtier posé dans la vue externe, ou '' (dessin libre importé). */
+  private pkg = '';
+  /**
+   * Largeur des trois zones, en pixels. Partagée par toutes les ouvertures de
+   * la fenêtre : une disposition ajustée à la main ne se perd pas au premier
+   * composant suivant.
+   */
+  private static cols: [number, number, number] | null = null;
 
   /** La liste des modèles importés a changé (à persister côté extension). */
   onModelsChange?: (models: SimModelPreset[]) => void;
   /** Ouverture d'un lien externe (formulaire GitHub de soumission). */
   onOpenExternal?: (url: string) => void;
+  /** Ouverture d'un des deux dessins dans l'éditeur SVG par défaut du système. */
+  onEditSvg?: (which: 'ext' | 'int', svg: string) => void;
+  /** Fenêtre refermée : plus rien à surveiller côté extension. */
+  onStopEditSvg?: () => void;
 
   constructor(private readonly onSave: (data: CustomPartData) => void) {}
 
@@ -73,6 +95,8 @@ export class PartCreator {
     this.overlayInternal = !!this.innerSvg;
     this.params = existing?.params ? existing.params.map((p) => ({ ...p })) : [];
     this.control = existing?.control ? { ...existing.control } : null;
+    this.kindAttrs = { ...existing?.attrs };
+    this.pkg = '';
 
     const overlay = document.createElement('div');
     overlay.className = 'creator__overlay';
@@ -110,12 +134,10 @@ export class PartCreator {
             <button type="button" id="cr-param-add" title="${t('Add a parameter (usable in the characteristic)')}">＋</button>
           </div>
           <div id="cr-params" class="creator__params"></div>
-          <label class="inspector__label">${t('Simulation control')}</label>
-          <select id="cr-ctrl-type" class="inspector__control">
-            <option value="">${t('None')}</option>
-            <option value="slider">${t('Slider (analog output)')}</option>
-            <option value="switch">${t('Switch (digital output)')}</option>
-          </select>
+          <div class="creator__section-head">
+            <label class="inspector__label">${t('Simulation control')}</label>
+            <button type="button" id="cr-ctrl-add" title="${t('Add a simulation control (slider, switch)')}">＋</button>
+          </div>
           <div id="cr-ctrl"></div>
           <label class="inspector__label">${t('Connection points')}</label>
           <div id="cr-pins" class="creator__pins"></div>
@@ -124,18 +146,26 @@ export class PartCreator {
             'Markers: red circle (opacity 0.8) = pin, green circle (0.5) = alignment anchor, red text = pin name. They are removed from the final part.'
           )}</p>
         </div>
+        <div class="creator__gutter" data-gutter="0" title="${t('Drag to resize')}"></div>
         <section class="creator__pane">
           <div class="creator__pane-head">
             <label class="inspector__label">${t('External view')}</label>
             <button type="button" id="cr-ext-pick">${t('Load an SVG…')}</button>
+            <button type="button" id="cr-ext-edit" title="${t(
+              'Opens the drawing in your default SVG editor; it is reloaded here at every save.'
+            )}">${t('Open in the default editor…')}</button>
           </div>
           <div id="cr-preview-ext" class="creator__preview"></div>
           <p class="inspector__hint">${t('Click the preview to add a connection point.')}</p>
         </section>
+        <div class="creator__gutter" data-gutter="1" title="${t('Drag to resize')}"></div>
         <section class="creator__pane">
           <div class="creator__pane-head">
             <label class="inspector__label">${t('Internal view')}</label>
             <button type="button" id="cr-int-pick">${t('Load an SVG…')}</button>
+            <button type="button" id="cr-int-edit" title="${t(
+              'Opens the drawing in your default SVG editor; it is reloaded here at every save.'
+            )}">${t('Open in the default editor…')}</button>
             <label class="creator__check"><input type="checkbox" id="cr-int-overlay" />${t('Overlay')}</label>
             <button type="button" id="cr-int-del" title="${t('Remove the internal view')}">✕</button>
           </div>
@@ -174,23 +204,10 @@ export class PartCreator {
       this.renderParams(modal);
       this.renderControlForm(modal);
     });
-    const ctrlType = modal.querySelector('#cr-ctrl-type') as HTMLSelectElement;
-    ctrlType.value = this.control?.type ?? '';
-    ctrlType.addEventListener('change', () => {
-      const v = ctrlType.value as '' | 'slider' | 'switch';
-      const prev = this.control;
-      if (v === '') this.control = null;
-      else if (v === 'slider') {
-        this.control = {
-          type: 'slider',
-          label: prev?.label,
-          unit: prev?.unit,
-          min: prev?.min ?? 0,
-          max: prev?.max ?? 100,
-          step: prev?.step ?? 1,
-          expr: prev?.expr,
-        };
-      } else this.control = { type: 'switch', label: prev?.label };
+    // Un composant n'a le plus souvent RIEN à régler pendant la simulation : le
+    // formulaire du contrôle n'apparaît qu'à la demande, comme un paramètre.
+    (modal.querySelector('#cr-ctrl-add') as HTMLButtonElement).addEventListener('click', () => {
+      this.control = { type: 'slider', min: 0, max: 100, step: 1 };
       this.renderControlForm(modal);
     });
     this.renderParams(modal);
@@ -275,6 +292,18 @@ export class PartCreator {
         }
       })
     );
+    // --- Retouche dans l'éditeur SVG du système -------------------------------
+    // Le dessin part dans un fichier ; chaque ENREGISTREMENT le ramène ici (on
+    // ne peut pas savoir quand Inkstape se ferme, mais on sait quand il écrit).
+    (modal.querySelector('#cr-ext-edit') as HTMLButtonElement).addEventListener('click', () => {
+      this.onEditSvg?.('ext', this.svg);
+      this.note(modal, t('Drawing opened in your editor — it is reloaded at every save.'));
+    });
+    (modal.querySelector('#cr-int-edit') as HTMLButtonElement).addEventListener('click', () => {
+      this.onEditSvg?.('int', this.innerSvg ?? DEFAULT_INNER_SVG);
+      this.note(modal, t('Drawing opened in your editor — it is reloaded at every save.'));
+    });
+
     const overlayCheck = modal.querySelector('#cr-int-overlay') as HTMLInputElement;
     overlayCheck.checked = this.overlayInternal;
     overlayCheck.addEventListener('change', () => {
@@ -330,7 +359,13 @@ export class PartCreator {
         kind === 'digital-source' ? { state: '0' }
         : kind === 'analog-source' ? { value: '50' }
         : undefined;
-      const attrs = baseAttrs || preset?.attrs ? { ...baseAttrs, ...preset?.attrs } : undefined;
+      // Caractéristiques saisies dans la zone du modèle (gain, Vce max…) : ce
+      // sont elles que la simulation lira sur le composant posé.
+      const kindAttrs = this.modelAttrs(kind);
+      const attrs =
+        baseAttrs || preset?.attrs || kindAttrs
+          ? { ...baseAttrs, ...preset?.attrs, ...kindAttrs }
+          : undefined;
       // Paramètres : nom identifiant valide + uniques (sinon inutilisables en
       // expression), les lignes vides sont ignorées silencieusement.
       const seen = new Set<string>();
@@ -385,6 +420,7 @@ export class PartCreator {
       });
     });
 
+    this.setupGutters(modal);
     refresh();
     // Zoom d'accueil : remplit la zone une fois la fenêtre mise en page.
     requestAnimationFrame(() => fit());
@@ -393,6 +429,66 @@ export class PartCreator {
   close(): void {
     this.overlay?.remove();
     this.overlay = null;
+    this.onStopEditSvg?.();
+  }
+
+  /**
+   * Poignées de redimensionnement entre les trois zones : glisser déplace la
+   * frontière, les deux zones voisines se partageant la largeur (le reste de la
+   * fenêtre ne bouge pas). La disposition survit à la fermeture de la fenêtre.
+   */
+  private setupGutters(modal: HTMLElement): void {
+    const grid = modal.querySelector('.creator__grid') as HTMLElement;
+    const apply = (): void => {
+      const c = PartCreator.cols;
+      if (c) grid.style.gridTemplateColumns = `${c[0]}px 6px ${c[1]}px 6px ${c[2]}px`;
+    };
+    // Première ouverture (ou fenêtre devenue trop étroite) : formulaire à sa
+    // largeur d'origine, les deux aperçus se partagent le reste.
+    const layout = (): void => {
+      // Largeur disponible : la fenêtre moins les deux poignées et les écarts.
+      const gap = parseFloat(getComputedStyle(grid).columnGap) || 0;
+      const total = grid.clientWidth - 12 - 4 * gap;
+      const c = PartCreator.cols;
+      if (total > 0 && (!c || Math.abs(c[0] + c[1] + c[2] - total) > 2)) {
+        const form = Math.min(c?.[0] ?? 280, Math.max(MIN_COL, total - 2 * MIN_COL));
+        const rest = Math.max(MIN_COL, (total - form) / 2);
+        PartCreator.cols = [form, rest, rest];
+      }
+      apply();
+    };
+    requestAnimationFrame(layout);
+
+    for (const gutter of modal.querySelectorAll<HTMLElement>('.creator__gutter')) {
+      const i = Number(gutter.dataset.gutter); // 0 = formulaire/externe, 1 = externe/interne
+      gutter.addEventListener('pointerdown', (e) => {
+        if (!PartCreator.cols) layout(); // mise en page pas encore mesurée
+        const cols = PartCreator.cols;
+        if (!cols) return;
+        e.preventDefault();
+        try {
+          gutter.setPointerCapture(e.pointerId);
+        } catch {
+          // Pointeur synthétique (bancs de test) : le suivi marche sans capture.
+        }
+        const x0 = e.clientX;
+        const a0 = cols[i];
+        const b0 = cols[i + 1];
+        const move = (ev: PointerEvent): void => {
+          // Somme constante : seule la frontière bouge, jamais la largeur totale.
+          const d = Math.max(MIN_COL - a0, Math.min(b0 - MIN_COL, ev.clientX - x0));
+          cols[i] = a0 + d;
+          cols[i + 1] = b0 - d;
+          apply();
+        };
+        const up = (): void => {
+          gutter.removeEventListener('pointermove', move);
+          gutter.removeEventListener('pointerup', up);
+        };
+        gutter.addEventListener('pointermove', move);
+        gutter.addEventListener('pointerup', up);
+      });
+    }
   }
 
   /** Coin haut-gauche de la vue interne dans le repère externe (calage vert). */
@@ -550,7 +646,10 @@ export class PartCreator {
   private renderControlForm(modal: HTMLElement): void {
     const container = modal.querySelector('#cr-ctrl') as HTMLDivElement;
     container.replaceChildren();
+    const add = modal.querySelector('#cr-ctrl-add') as HTMLButtonElement | null;
     const ctrl = this.control;
+    // Un seul contrôle par composant : le ＋ s'efface tant qu'il en existe un.
+    if (add) add.style.visibility = ctrl ? 'hidden' : '';
     if (!ctrl) return;
     const row = (label: string, input: HTMLElement): void => {
       const wrap = document.createElement('div');
@@ -561,6 +660,52 @@ export class PartCreator {
       wrap.append(lab, input);
       container.appendChild(wrap);
     };
+
+    // Type du contrôle + retrait, en tête de son propre formulaire.
+    const typeRow = document.createElement('div');
+    typeRow.className = 'creator__ctrlrow creator__ctrlrow--type';
+    const typeLab = document.createElement('label');
+    typeLab.className = 'inspector__label';
+    typeLab.textContent = t('Type');
+    const typeSel = document.createElement('select');
+    typeSel.id = 'cr-ctrl-type';
+    typeSel.className = 'inspector__control';
+    for (const [value, label] of [
+      ['slider', t('Slider (analog output)')],
+      ['switch', t('Switch (digital output)')],
+    ] as const) {
+      const o = document.createElement('option');
+      o.value = value;
+      o.textContent = label;
+      typeSel.appendChild(o);
+    }
+    typeSel.value = ctrl.type;
+    typeSel.addEventListener('change', () => {
+      this.control =
+        typeSel.value === 'switch'
+          ? { type: 'switch', label: ctrl.label }
+          : {
+              type: 'slider',
+              label: ctrl.label,
+              unit: ctrl.unit,
+              min: ctrl.min ?? 0,
+              max: ctrl.max ?? 100,
+              step: ctrl.step ?? 1,
+              expr: ctrl.expr,
+            };
+      this.renderControlForm(modal);
+    });
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.id = 'cr-ctrl-del';
+    del.textContent = '✕';
+    del.title = t('Remove the simulation control');
+    del.addEventListener('click', () => {
+      this.control = null;
+      this.renderControlForm(modal);
+    });
+    typeRow.append(typeLab, typeSel, del);
+    container.appendChild(typeRow);
     const text = (value: string, onChange: (v: string) => void): HTMLInputElement => {
       const input = document.createElement('input');
       input.className = 'inspector__control';
@@ -676,16 +821,28 @@ export class PartCreator {
     }
   }
 
-  /** Selon le modèle choisi : à quel point correspond chaque rôle (anode…). */
+  /**
+   * Zone du modèle de simulation : une LIGNE par rôle (l'électrode à gauche, la
+   * patte à droite) puis les caractéristiques propres au modèle. Empilées, les
+   * trois électrodes d'un transistor se lisent d'un coup d'œil au lieu de tenir
+   * six lignes de libellés pleine largeur.
+   */
   private renderRoles(modal: HTMLElement): void {
     const container = modal.querySelector('#cr-roles') as HTMLDivElement;
     container.replaceChildren();
     const { kind, preset } = this.selectedModel(modal.querySelector('#cr-kind') as HTMLSelectElement);
     const roles = CUSTOM_KINDS.find((k) => k.kind === kind)?.roles ?? [];
+    const row = (label: string, title: string, control: HTMLElement): void => {
+      const wrap = document.createElement('div');
+      wrap.className = 'creator__ctrlrow';
+      const lab = document.createElement('label');
+      lab.className = 'inspector__label';
+      lab.textContent = label;
+      lab.title = title;
+      wrap.append(lab, control);
+      container.appendChild(wrap);
+    };
     for (const role of roles) {
-      const label = document.createElement('label');
-      label.className = 'inspector__label';
-      label.textContent = t('Pin for role "{0}"', role);
       const select = document.createElement('select');
       select.className = 'inspector__control';
       select.dataset.role = role;
@@ -697,7 +854,190 @@ export class PartCreator {
         if (wanted === pin.name || (!wanted && pin.name === role)) o.selected = true;
         select.appendChild(o);
       }
-      container.append(label, select);
+      row(role, t('Pin for role "{0}"', role), select);
     }
+    if (kind === 'transistor') this.renderTransistorFields(modal, row);
+  }
+
+  /**
+   * Caractéristiques d'un transistor : Vce max, gain, Ic max, puis le BOÎTIER
+   * (qui devient la vue externe, dessiné par le vrai composant, inscription
+   * comprise) et le SYMBOLE NPN/PNP (qui devient la vue interne).
+   */
+  private renderTransistorFields(
+    modal: HTMLElement,
+    row: (label: string, title: string, control: HTMLElement) => void
+  ): void {
+    const num = (key: string, fallback: string, step: string): HTMLInputElement => {
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.step = step;
+      input.className = 'inspector__control';
+      input.dataset.attr = key;
+      input.value = this.kindAttrs[key] ?? fallback;
+      this.kindAttrs[key] = input.value;
+      input.addEventListener('change', () => {
+        this.kindAttrs[key] = input.value.trim() || fallback;
+      });
+      return input;
+    };
+    row(t('Max Vce (V)'), t('Maximum collector-emitter voltage'), num('vcemax', '40', '1'));
+    row(t('Current gain (β)'), t('Current gain: Ic = β × Ib once saturated'), num('gain', '100', '10'));
+    row(t('Max Ic (A)'), t('Maximum collector current'), num('icmax', '0.6', '0.1'));
+
+    const pkgSelect = document.createElement('select');
+    pkgSelect.className = 'inspector__control';
+    pkgSelect.id = 'cr-pkg';
+    for (const [value, label] of [['', t('Free drawing')], ...Object.entries(PACKAGE_LABELS)]) {
+      const o = document.createElement('option');
+      o.value = value;
+      o.textContent = label;
+      pkgSelect.appendChild(o);
+    }
+    pkgSelect.value = this.pkg;
+    pkgSelect.addEventListener('change', () => {
+      this.pkg = pkgSelect.value;
+      if (this.pkg) void this.applyTransistorPackage(modal);
+    });
+    row(t('Package'), t('Draws the package in the external view, pins included'), pkgSelect);
+
+    const symSelect = document.createElement('select');
+    symSelect.className = 'inspector__control';
+    symSelect.id = 'cr-symbol';
+    for (const [value, label] of [['npn', 'NPN'], ['pnp', 'PNP']]) {
+      const o = document.createElement('option');
+      o.value = value;
+      o.textContent = label;
+      symSelect.appendChild(o);
+    }
+    symSelect.value = this.kindAttrs.symbol ?? 'npn';
+    this.kindAttrs.symbol = symSelect.value;
+    symSelect.addEventListener('change', () => {
+      this.kindAttrs.symbol = symSelect.value;
+      this.applyTransistorSymbol(modal);
+    });
+    row(t('Symbol'), t('Draws the symbol in the internal view'), symSelect);
+  }
+
+  /** Caractéristiques à embarquer dans le composant selon le modèle choisi. */
+  private modelAttrs(kind: PartKind): Record<string, string> | undefined {
+    if (kind !== 'transistor') return undefined;
+    return {
+      symbol: this.kindAttrs.symbol ?? 'npn',
+      gain: this.kindAttrs.gain ?? '100',
+      vcemax: this.kindAttrs.vcemax ?? '40',
+      icmax: this.kindAttrs.icmax ?? '0.6',
+    };
+  }
+
+  /**
+   * Pose le boîtier choisi dans la vue externe. Le dessin est produit par le
+   * VRAI composant `kablix-transistor` : inscription (le nom saisi), police et
+   * position des pattes viennent de lui, jamais d'une copie du calage.
+   */
+  private async applyTransistorPackage(modal: HTMLElement): Promise<void> {
+    const pkg = this.pkg as TransistorPackage;
+    if (!PACKAGES[pkg]) return;
+    const el = document.createElement('kablix-transistor') as HTMLElement & {
+      updateComplete?: Promise<unknown>;
+      pinInfo?: { name: string; x: number; y: number }[];
+      pkg?: string;
+      symbol?: string;
+      text?: string;
+    };
+    el.pkg = pkg;
+    el.symbol = this.kindAttrs.symbol ?? 'npn';
+    el.text = this.markingLines(modal);
+    el.style.position = 'absolute';
+    el.style.left = '-9999px';
+    document.body.appendChild(el);
+    await el.updateComplete;
+    const src = el.shadowRoot?.querySelector('svg');
+    if (src) {
+      // Le dessin quitte le shadow DOM : la police de l'inscription le suit,
+      // sans quoi le texte partirait à gauche du boîtier.
+      this.svg = src.outerHTML.replace(
+        /^(<svg[^>]*>)/,
+        `$1<style>text{font-family:'OCR A Std','Consolas',monospace;text-anchor:middle}</style>`
+      );
+      this.pins = (el.pinInfo ?? []).map((p) => ({ name: p.name, x: p.x, y: p.y }));
+      this.extAnchor = null;
+    }
+    el.remove();
+    this.applyTransistorSymbol(modal);
+    // Les pattes du boîtier viennent d'arriver : les rôles E/B/C peuvent enfin
+    // les viser.
+    this.renderRoles(modal);
+    this.note(modal, t('Package “{0}” drawn — {1} pin(s).', PACKAGE_LABELS[pkg], String(this.pins.length)));
+  }
+
+  /** Pose le symbole NPN/PNP dans la vue interne, à la taille du dessin externe. */
+  private applyTransistorSymbol(modal: HTMLElement): void {
+    const box = this.extSize();
+    const inner = internalWiringSvg(
+      'transistor',
+      this.pins,
+      { symbol: this.kindAttrs.symbol ?? 'npn' },
+      'transistor',
+      box
+    );
+    if (!inner) return;
+    this.innerSvg =
+      `<svg width="${box.w}" height="${box.h}" viewBox="0 0 ${box.w} ${box.h}" xmlns="http://www.w3.org/2000/svg">` +
+      `<g fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${inner}</g></svg>`;
+    // Même repère que l'externe (le symbole est dessiné à sa taille) : les deux
+    // vues se superposent sans ancre verte.
+    this.intAnchor = null;
+    this.overlayInternal = true;
+    const check = modal.querySelector('#cr-int-overlay') as HTMLInputElement | null;
+    if (check) check.checked = true;
+    this.renderPreviews(modal);
+    this.renderPinsTable(modal);
+  }
+
+  /** Taille du dessin externe (attributs width/height, à défaut le viewBox). */
+  private extSize(): { w: number; h: number } {
+    const doc = new DOMParser().parseFromString(this.svg, 'image/svg+xml');
+    const svg = doc.documentElement;
+    const w = parseFloat(svg.getAttribute('width') ?? '');
+    const h = parseFloat(svg.getAttribute('height') ?? '');
+    if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) return { w, h };
+    const vb = (svg.getAttribute('viewBox') ?? '').split(/[\s,]+/).map(Number);
+    return vb.length === 4 && vb[2] > 0 ? { w: vb[2], h: vb[3] } : { w: 50, h: 50 };
+  }
+
+  /** Nom saisi découpé en lignes d'inscription (un mot par ligne, 3 au plus). */
+  private markingLines(modal: HTMLElement): string {
+    const name = (modal.querySelector('#cr-name') as HTMLInputElement | null)?.value.trim() ?? '';
+    return name.split(/\s+/).filter(Boolean).slice(0, 3).join('\n');
+  }
+
+  /**
+   * Dessin revenu de l'éditeur externe (le fichier vient d'être enregistré) :
+   * marqueurs relus au passage — des pastilles rouges ajoutées dans Inkscape
+   * deviennent des broches, un dessin sans marqueur garde celles déjà posées.
+   */
+  applyEditedSvg(which: 'ext' | 'int', text: string): void {
+    const modal = this.overlay?.querySelector('.creator') as HTMLElement | null;
+    if (!modal) return;
+    let r: ReturnType<typeof analyzeMarkedSvg>;
+    try {
+      r = analyzeMarkedSvg(text);
+    } catch {
+      this.note(modal, t('Import failed: {0}', t('invalid SVG file.')), true);
+      return;
+    }
+    if (which === 'ext') {
+      this.svg = r.svg;
+      if (r.anchor) this.extAnchor = r.anchor;
+      if (r.pins.length > 0) this.pins = r.pins;
+    } else {
+      this.innerSvg = r.svg;
+      if (r.anchor) this.intAnchor = r.anchor;
+    }
+    this.note(modal, t('Drawing updated from the external editor.'));
+    this.renderPreviews(modal);
+    this.renderPinsTable(modal);
+    this.renderRoles(modal);
   }
 }

@@ -26,9 +26,12 @@ import to92 from './externe/to92.svg';
  * 9,89→21,04 en y pour le TO-92), `tw` la largeur utilisable, `font` la taille
  * maximale de l'inscription (elle rétrécit si la ligne est trop longue).
  */
-const PACKAGES = {
+export const PACKAGES = {
   to92: { svg: to92, w: 50, h: 50, pinY: 40, pinX: [20, 30, 40], tx: 29.77, cy: 15.47, tw: 11.8, font: 3.8, fill: '#e6e6e6' },
 } as const;
+
+/** Libellé de chaque boîtier (créateur de composants). */
+export const PACKAGE_LABELS: Record<keyof typeof PACKAGES, string> = { to92: 'TO-92' };
 
 export type TransistorPackage = keyof typeof PACKAGES;
 
