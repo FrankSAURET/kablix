@@ -4403,9 +4403,13 @@ export class Editor {
     // Transistor à pattes NOMMÉES : changer l'affectation d'une électrode change
     // le nom porté par chaque pastille (E passe de la patte 1 à la patte 3 en
     // adoptant un BC547) — re-rendu, sinon les pastilles gardent leur ancien nom.
+    // Condensateur : `ctype` change de DESSIN, donc de boîte (30×50 pour le film,
+    // 30×70 pour les polarisés) et de hauteur de pattes (y = 40 → 60). Sans
+    // re-rendu, le dessin plus haut était comprimé dans l'ancienne boîte et les
+    // pastilles restaient à mi-corps ; les noms affichés (« − »/« + ») aussi.
     const movesElectrode = (attr === 'e' || attr === 'b' || attr === 'c')
       && partDef(r.part.type).kind === 'transistor' && (r.part.attrs?.named ?? '') !== '';
-    if (movesElectrode || attr === 'angle' || attr === 'flip' || attr === 'size' || attr === 'pins' || attr === 'lcdSize' || attr === 'columns' || attr === 'digits') {
+    if (movesElectrode || attr === 'ctype' || attr === 'angle' || attr === 'flip' || attr === 'size' || attr === 'pins' || attr === 'lcdSize' || attr === 'columns' || attr === 'digits') {
       this.rerenderPart(partId); // renderPart restaure le câblage interne s'il était affiché
       if (this.selection?.kind === 'part' && this.selection.id === partId) {
         this.rendered.get(partId)?.container.classList.add('part--selected');

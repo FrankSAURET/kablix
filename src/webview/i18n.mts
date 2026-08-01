@@ -195,9 +195,25 @@ const FR: Record<string, string> = {
   'Save': 'Enregistrer',
 
   // Libellés du catalogue
+  // Les noms qui ne CHANGENT PAS en français (marques, sigles) sont écrits ici
+  // quand même : `verify:i18n` exige une entrée pour chaque libellé du catalogue,
+  // et l'identité assumée vaut mieux qu'un oubli silencieux (cf. « Capacitor »,
+  // resté en anglais de la v2026.7.232 à la v2026.7.235).
+  'Arduino Uno': 'Arduino Uno',
+  'Arduino Nano': 'Arduino Nano',
+  'Arduino Mega 2560': 'Arduino Mega 2560',
+  'Raspberry Pi Pico': 'Raspberry Pi Pico',
+  'Raspberry Pi Pico W': 'Raspberry Pi Pico W',
+  'LED': 'LED',
+  'Buzzer': 'Buzzer',
+  'NeoPixel': 'NeoPixel',
+  'DIP switch ×8': 'Interrupteur DIP ×8',
+  'TFT display (ILI9341, SPI)': 'Écran TFT (ILI9341, SPI)',
+  'microSD card (SPI)': 'Carte microSD (SPI)',
   'Breadboard': "Platine d'essai",
   'Grove Shield (Pico)': 'Grove Shield (Pico)',
   'Grove VCC rail': 'Alimentation des ports Grove (VCC)',
+  '3.3 V': '3,3 V',
   '5 V (VBUS)': '5 V (VBUS)',
   'RGB LED': 'LED RGB',
   'Pushbutton': 'Bouton',
@@ -206,6 +222,10 @@ const FR: Record<string, string> = {
   'Threshold voltage (V)': 'Tension de seuil (V)',
   // Les trois condensateurs se suivent dans la palette : leur libellé commence
   // par le même mot dans les deux langues (la liste est triée alphabétiquement).
+  // Seul « Capacitor » est encore dans la bibliothèque (les polarisés sont des
+  // variantes), mais les trois libellés servent encore : inspecteur, projets
+  // enregistrés, import Wokwi.
+  'Capacitor': 'Condensateur',
   'Capacitor (film)': 'Condensateur (film)',
   'Capacitor (tantalum)': 'Condensateur (tantale)',
   'Capacitor (electrolytic)': 'Condensateur (chimique)',
@@ -281,7 +301,11 @@ const FR: Record<string, string> = {
   'LCD Texte': 'LCD Texte',
   'Interface': 'Interface',
   'I²C (4 wires)': 'I²C (4 fils)',
+  'I²C (SDA/SCL)': 'I²C (SDA/SCL)',
+  'SPI (4 wires)': 'SPI (4 fils)',
   'Parallel (HD44780)': 'Parallèle (HD44780)',
+  '16 × 2': '16 × 2',
+  '20 × 4': '20 × 4',
   'OLED display (SSD1306)': 'Écran OLED (SSD1306)',
   'NeoPixel matrix': 'Matrice NeoPixel',
   'NeoPixel ring': 'Anneau NeoPixel',

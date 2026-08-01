@@ -1,10 +1,18 @@
 # À faire
-1. Pour les condo, tu n'a pas baissé le texte mais déplacé le composant, ce qui fait que les broches des polarisés se trouvent au milieu du corps.
-1.  Capacitor doit être traduit en Condensateur
-1. J'ai retouché usage.md en français, répercute en anglais
 1. Retouches les fichiers de simulation pour les condensateurs. Code Plus simple avec des résistances sur le montage et les 3 condensateurs. Un des RC doit être de l'ordre de la seconde. Et rééxplique moi pourquoi et comment on  voit la trace dans le traceur de courbes
+1. Pour le ventilo, si je baisse la tension  la rotation  accélère c'est le contraire
+1. J'ai modifié le relais. Mets à jour
+1. Le schéma de test des transistor est incomplet
+1. Transistor : la zone inscription ne dois pas avoir la mention (une ligne par ligne) et doit être pluis grande (par défaut permet d'écrire 3 ligne)
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# v2026.7.235 — les pastilles suivent le condensateur, et plus rien ne sort en anglais
+1. ✅ **Broches des condensateurs polarisés au milieu du corps** : changer le type (`ctype`) change de DESSIN — le film fait 30×50 avec ses pattes à y = 40, les deux polarisés 30×70 avec les leurs à y = 60. Or `ctype` ne provoquait **aucun re-rendu** : le dessin s'agrandissait, les pastilles restaient à 40, c'est-à-dire **dans le corps** du tantale (mesuré : `30x70 pastilles 10,40 20,40`). Le composant est maintenant re-rendu comme pour un changement d'angle ou de taille — les pastilles reviennent au bout des pattes, et les noms affichés « − »/« + » avec elles.
+2. ✅ **`verify:capacitor` reçoit un volet géométrie** (Chrome headless, vrai éditeur) : film → tantale → chimique → retour au film, dessin et pastilles mesurés à chaque fois (bout de patte à 10 px du bas dans les trois habillages). Vérifié qu'il **tombe** (2 échecs) si l'on retire le re-rendu.
+3. ✅ **« Capacitor » sortait en anglais dans la palette** depuis la v2026.7.232 : devenu l'entrée unique de la bibliothèque, son libellé avait changé mais pas le dictionnaire — les trois anciens (`Capacitor (film)`…) restaient traduits sans que personne ne les demande.
+4. ✅ **Nouveau banc `verify:i18n`** : chaque libellé de composant, de propriété et de valeur de liste du catalogue **doit** avoir son entrée FR. Il a débusqué 15 autres oublis (« DIP switch ×8 », « TFT display (ILI9341, SPI) », « microSD card (SPI) », « SPI (4 wires) », « 3.3 V » qui s'écrit « 3,3 V »…). Les noms qui ne changent pas en français (Arduino Uno, LED, NeoPixel…) sont désormais **écrits quand même** : l'identité assumée vaut mieux qu'un oubli silencieux. Ajouté à `verify:all`.
+5. ✅ **Retouches de Frank sur `USAGE.md` répercutées en anglais** : nouveau chapitre **« Simulating »** qui coiffe Running code / MicroPython / Debugging / Serial monitor / Plotter (sommaire à deux niveaux compris), « Step-by-step debugging » raccourci en « Debugging » sans sa phrase d'introduction, et « DWARF info » remplacé par « Debug data » dans le tableau du débogueur.
 
 # v2026.7.234 — un seul « Transistor » dans la bibliothèque, 16 références au choix
 1. ✅ **Une seule entrée « Transistor » dans la palette** : `pn2222a`, `npn` et `pnp` deviennent des **variantes** (`variant: true`) — types toujours valides pour les projets enregistrés et les tests, simplement absents de la bibliothèque.

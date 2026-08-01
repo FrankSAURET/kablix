@@ -8,7 +8,8 @@
 // analogRead(A8) en boucle et publie « a8=… » sur Serial1.
 import esbuild from 'esbuild';
 import { avrInstruction } from 'avr8js';
-import { mkdtempSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -138,6 +139,100 @@ console.log('Échantillonneur RP2040 :');
   check('échantillonneur retiré : la valeur posée par setAnalog est conservée',
     engine.mcu.adc.channelValues[0] === 0);
   engine.dispose();
+}
+
+// --- 4. Géométrie dans l'éditeur : changer `ctype` change de DESSIN ----------
+// Le film fait 30×50 (pattes à y = 40), les deux polarisés 30×70 (pattes à
+// y = 60) : sans re-rendu du composant, les pastilles restaient à la hauteur de
+// l'ancien habillage — au MILIEU du corps du tantale (bug signalé par Frank).
+// Dans les trois habillages, le bout des pattes est à 10 px du bas du dessin.
+console.log('Géométrie dans l’éditeur (Chrome headless) :');
+{
+  const CACHE = join(ROOT, 'node_modules', '.cache-condo-geom');
+  const entry = `
+import { Editor } from '../../src/webview/diagram/editor.mjs';
+import '../../src/webview/composants/capacitor-element.mjs';
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const checks = [];
+const ok = (name, cond, detail = '') => checks.push({ name, ok: !!cond, detail: String(detail) });
+async function run() {
+  const editor = new Editor(
+    document.getElementById('canvas'), document.getElementById('palette'),
+    document.getElementById('wires'), document.getElementById('inspector'));
+  // Dessin rendu et pastilles, exprimés dans le repère du SVG du composant.
+  const geo = () => {
+    const cont = [...document.querySelectorAll('.part')].pop();
+    const el = cont.querySelector('.part__body').firstElementChild;
+    const sr = el.shadowRoot.querySelector('svg').getBoundingClientRect();
+    const pins = [...cont.querySelectorAll('.pin')].map((d) => {
+      const r = d.getBoundingClientRect();
+      return { x: +(r.left + r.width / 2 - sr.left).toFixed(1), y: +(r.top + r.height / 2 - sr.top).toFixed(1) };
+    });
+    return { w: Math.round(sr.width), h: Math.round(sr.height), pins };
+  };
+  const fmt = (g) => g.w + 'x' + g.h + ' pastilles ' + g.pins.map((p) => p.x + ',' + p.y).join(' ');
+  const bout = (g) => g.pins.length === 2 && g.pins.every((p) => Math.abs(g.h - p.y - 10) <= 1);
+
+  const part = editor.addPart('condo-np', 200, 200);
+  await wait(120);
+  const np = geo();
+  ok('film : dessin 30×50, pastilles au bout des pattes', np.w === 30 && np.h === 50 && bout(np), fmt(np));
+
+  editor.updatePartAttr(part.id, 'ctype', 'p');
+  await wait(120);
+  const tantale = geo();
+  ok('tantale : dessin 30×70 et pastilles suivies jusqu’au bout des pattes',
+    tantale.w === 30 && tantale.h === 70 && bout(tantale), fmt(tantale));
+
+  editor.updatePartAttr(part.id, 'ctype', 'chem');
+  await wait(120);
+  const chimique = geo();
+  ok('chimique : dessin 30×70, pastilles au bout des pattes',
+    chimique.w === 30 && chimique.h === 70 && bout(chimique), fmt(chimique));
+
+  editor.updatePartAttr(part.id, 'ctype', 'np');
+  await wait(120);
+  const retour = geo();
+  ok('retour au film : dessin 30×50, pastilles au bout des pattes',
+    retour.w === 30 && retour.h === 50 && bout(retour), fmt(retour));
+
+  const out = document.createElement('pre');
+  out.id = 'measures';
+  out.textContent = JSON.stringify(checks);
+  document.body.appendChild(out);
+}
+run().catch((e) => {
+  const out = document.createElement('pre');
+  out.id = 'measures';
+  out.textContent = JSON.stringify([{ name: 'exception : ' + (e && e.message), ok: false, detail: String(e && e.stack).slice(0, 300) }]);
+  document.body.appendChild(out);
+});
+`;
+  mkdirSync(CACHE, { recursive: true });
+  writeFileSync(join(CACHE, 'e.mjs'), entry);
+  const b = await esbuild.build({
+    entryPoints: [join(CACHE, 'e.mjs')], bundle: true, format: 'iife', write: false,
+    loader: { '.svg': 'text', '.webp': 'dataurl' }, absWorkingDir: ROOT, logLevel: 'silent',
+  });
+  const css = readFileSync(join(ROOT, 'media', 'styles.css'), 'utf8');
+  writeFileSync(join(CACHE, 'p.html'),
+    `<!doctype html><meta charset=utf8><style>${css}</style><body style="margin:0">` +
+    `<div class="workshop"><aside id="palette" class="palette"></aside>` +
+    `<div id="canvas" class="canvas" style="width:800px;height:600px"><svg id="wires" class="wires"></svg></div>` +
+    `<aside id="inspector" class="inspector"></aside></div>` +
+    `<script>${b.outputFiles[0].text}</script></body>`);
+  const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
+  if (!chrome) {
+    console.log('  – Chrome introuvable, géométrie non vérifiée');
+  } else {
+    const dom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--no-sandbox', '--virtual-time-budget=20000', '--dump-dom',
+      `file:///${join(CACHE, 'p.html').replace(/\\/g, '/')}`], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+    const m = dom.match(/<pre id="measures"[^>]*>([\s\S]*?)<\/pre>/);
+    if (!m) check('mesures relevées', false, 'aucune mesure dans le DOM');
+    else for (const r of JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>'))) {
+      check(r.name, r.ok, r.detail);
+    }
+  }
 }
 
 console.log(failures === 0 ? 'RESULTAT: OK' : `RESULTAT: ${failures} échec(s)`);

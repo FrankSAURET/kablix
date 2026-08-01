@@ -7,19 +7,20 @@
 1. [Getting started](#getting-started)
 2. [The interface](#the-interface)
 3. [Building a circuit](#building-a-circuit)
-4. [Running code](#running-code)
-5. [MicroPython on the Pico](#micropython-on-the-pico)
-6. [Step-by-step debugging](#step-by-step-debugging)
-7. [Serial monitor](#serial-monitor)
-8. [Plotter](#plotter)
-9. [Exporting the diagram as SVG](#exporting-the-diagram-as-svg)
-10. [Creating your own parts](#creating-your-own-parts)
-11. [Part file format (.kablix-part.json)](#part-file-format-kablix-partjson)
-12. [Where to find existing parts](#where-to-find-existing-parts)
-13. [Saving / opening a project (.projix)](#saving--opening-a-project-projix)
-14. [Wokwi interoperability (diagram.json)](#wokwi-interoperability-diagramjson)
-15. [Library updates](#library-updates)
-16. [Keyboard shortcuts](#keyboard-shortcuts)
+1. [Simulating](#simulating)
+    1. [Running code](#running-code)
+    2. [MicroPython on the Pico](#micropython-on-the-pico)
+    1. [Debugging](#debugging)
+    1. [Serial monitor](#serial-monitor)
+    1. [Plotter](#plotter)
+1. [Exporting the diagram as SVG](#exporting-the-diagram-as-svg)
+1. [Creating your own parts](#creating-your-own-parts)
+1. [Part file format (.kablix-part.json)](#part-file-format-kablix-partjson)
+1. [Where to find existing parts](#where-to-find-existing-parts)
+1. [Saving / opening a project (.projix)](#saving--opening-a-project-projix)
+1. [Wokwi interoperability (diagram.json)](#wokwi-interoperability-diagramjson)
+1. [Library updates](#library-updates)
+1. [Keyboard shortcuts](#keyboard-shortcuts)
 
 ---
 
@@ -151,8 +152,9 @@ Some special parts (only the RGB LED for now) have preset initial colors (I'll l
 | PIR sensor, tilt sensor | Digital output OUT, state set in Properties |
 | Servo motor | Horn at 90° when the PWM pin is high (simplified) |
 
-## Running code
+## Simulating
 
+### Running code
 Button **Compile & run the active file** (or the command of the same name) — the processing depends on the extension of the active file:
 
 | File | Processing | Requirement |
@@ -163,11 +165,11 @@ Button **Compile & run the active file** (or the command of the same name) — t
 | `.hex` | Loaded directly (Uno) | — |
 | `.uf2`, `.elf`, `.bin` | Loaded directly (Pico) | — |
 
-### On-board LEDs of the boards
+#### On-board LEDs of the boards
 
 While the simulation runs, the board lights up like the real one: the **green ON LED** stays lit as long as the program runs, and the **L LED** — the one of `LED_BUILTIN`, pin **D13** on Uno, Nano and Mega — follows that pin. A `blink` on `LED_BUILTIN` is therefore visible **without wiring any LED at all**. On the Pico, the on-board **GP25** LED plays that part.
 
-### Simulation speed
+#### Simulation speed
 
 The simulation follows **real time**: one second on screen is one second on the real board, and `delay(1000)` really lasts one second. When the page is busy for a moment (drawing a part, a scrolling serial monitor), the simulation **catches up** as soon as it gets the thread back; only long stalls (more than a quarter of a second, a tab left in the background) are given up — that time is then **skipped**, never replayed fast-forward.
 
@@ -175,7 +177,7 @@ The 🐇/🐢/🐌 selector deliberately slows execution down (100 %, 10 %, 1 % 
 
 If the board still cannot keep up, a **“Slowed down: 0.45× real time”** badge appears next to the status bar: the page is too busy for the simulation (large diagram, loaded machine). Slowing down on purpose with the selector is not counted as a fault. The badge disappears as soon as the simulation is back on time, and when it stops.
 
-## MicroPython on the Pico
+### MicroPython on the Pico
 1. Open a `.py` file → **Compile & run the active file**.
 2. On first run, if no firmware is found, Kablix **offers to download it automatically** (choose **Pico / Pico W**) from [micropython.org](https://micropython.org/download/RPI_PICO/). The firmware is cached in the extension storage and **reused across all your projects** — you are only asked once.
 
@@ -185,9 +187,7 @@ To supply your own firmware (offline, a specific version…): put an official `.
 
 The firmware boots in the simulator (bootrom + flash + USB), then the script is injected through the **raw REPL**. `print()` output shows up in the serial monitor; when the script ends, the **interactive REPL** stays available through the input field or by clicking the REPL button.
 
-## Step-by-step debugging
-
-Designed for watching a program run, without an external debugger.
+### Debugging
 
 - **⏸ Pause / ▶ Resume**: freezes the simulation; pin and LED states stay displayed. The 🐇/🐢/🐌 selector slows execution down (Uno).
 - **Step**: runs one line of the source file then pauses again. The **Variables** panel then shows the current line and the program's global variables; the line is also highlighted in the VS Code editor.
@@ -198,12 +198,12 @@ Requirements and limits:
 
 | Language | How | Limits |
 | --- | --- | --- |
-| C / Arduino (Uno) | DWARF info extracted at compile time (`avr-objdump`, shipped with arduino-cli or avr-gcc) | simple **global** variables (int, float, bool…); a long `delay()` advances in 0.25 s simulated slices |
+| C / Arduino (Uno) | Debug data extracted at compile time (`avr-objdump`, shipped with arduino-cli or avr-gcc) | simple **global** variables (int, float, bool…); a long `delay()` advances in 0.25 s simulated slices |
 | MicroPython (Pico) | the script is instrumented automatically before injection | **global** variables only; pause takes effect on the next line; no slow motion |
 
 Artifacts loaded directly (`.hex`, `.uf2`, `.elf`, `.bin`) run without debug info: pause and slow motion still work, stepping does not.
 
-### Hiding variables
+#### Hiding variables
 
 A program often exposes variables you do not care about (constants, configuration objects) that bury the two or three you are actually watching. The **Variables** panel lets you weed them out:
 
@@ -213,7 +213,7 @@ A program often exposes variables you do not care about (constants, configuratio
 
 A hidden variable is still **tracked** in the background: when it comes back, its red mark (“changed on the last step”) is accurate, as if it had never left the panel. As long as the project is not saved, hiding lasts for the open workshop — it survives stopping and restarting the simulation.
 
-### Display base of a variable
+#### Display base of a variable
 
 A bit mask or a register reads better in binary than in decimal. The name and the value of a variable are **clickable** (the cursor turns into a hand): a **click** opens a menu offering four display bases: **Binary**, **Hexadecimal**, **Decimal** (the default one) and **Character**. The current base is ticked ✓. Right-click opens the same menu.
 
@@ -232,13 +232,13 @@ In **Character**, control codes come out escaped (`'\n'`, `'\t'`, `'\0'`…), ot
 
 The choice applies to **that variable** and is stored **in the project**, just like the hidden list: reopening the `.projix` gives every variable its base back. Since those settings belong to the file, changing them marks the project **to be saved** (the ● on the tab): `Ctrl+S` writes them.
 
-## Serial monitor
+### Serial monitor
 
 - **Output**: USART (Uno), USB-CDC and UART0 (Pico), real time.
 - **Input**: text field + `Enter` (or the Send button). On the Pico the input feeds the USB-CDC (MicroPython REPL) **and** the UART0.
 - **Compilation errors**: when the program does not compile, the **full** compiler messages appear here, under a `── Compilation failed ──` heading (the monitor unfolds by itself if it was collapsed). The notification only repeats the **first** error — `file.ino:12 : 'digitalWrit' was not declared in this scope` — as it is almost always the one to fix first, the others following from it.
 
-## Plotter
+### Plotter
 
 Panel at the bottom of the screen: visualizes numeric quantities in real time, without leaving Kablix or adding any dependency.
 
