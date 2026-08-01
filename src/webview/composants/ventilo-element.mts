@@ -1,7 +1,9 @@
 // Composant maison <kablix-ventilo> : ventilateur 5 V, dessin de Frank
 // (Composants.svg, groupe « ventilo » → ./externe/ventilo.svg). Le groupe
 // `ventilo-helices` tourne autour de l'AXE du moyeu, à la vitesse imposée par
-// le moteur : `speed` = tours par seconde (0 = arrêté).
+// le moteur : `speed` = tours par seconde RÉELS (0 = arrêté). L'élément décide
+// seul de ce qui est affichable : au-delà de ce qu'un écran à 60 Hz sait
+// montrer, la rotation est plafonnée et la vitesse se lit au flou de bougé.
 // Simulation : voir fanState (model.mts) — tension d'alimentation ET courant
 // disponible ; sans courant suffisant, l'hélice ne tourne pas.
 import { css, html, LitElement } from 'lit';
@@ -12,10 +14,80 @@ import drawing from './externe/ventilo.svg';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-/** Origine de rotation, mesurée une seule fois : le dessin est le même pour
- *  tous les ventilateurs. Coordonnées relatives au coin de la boîte de
- *  l'enveloppe (repère `transform-box: fill-box`). */
-let spinOrigin: { x: number; y: number } | null = null;
+/** Rafraîchissement d'écran retenu pour le calcul de l'alias (Hz). */
+const SCREEN_HZ = 60;
+/**
+ * Fraction de la période de pale qu'une image d'écran a le droit d'avaler. À la
+ * moitié l'image devient ambiguë (roue de charrette : l'hélice paraît ralentir
+ * puis tourner À L'ENVERS), on s'arrête donc au quart.
+ */
+const ALIAS_MARGIN = 4;
+/** Pales supposées si la mesure échoue. Repli PRUDENT (le dessin en a 7) : une
+ *  hélice un peu lente se voit moins qu'une hélice qui recule. */
+const BLADES_FALLBACK = 8;
+/** Régime nominal d'un petit ventilateur 5 V : 3000 tr/min = 50 tours/s. */
+const NOMINAL_TURNS_PER_S = 50;
+/** Flou de bougé des pales à plein régime (unités du dessin). */
+const MAX_BLUR = 3;
+/** Transparence des pales à plein régime : un ventilateur lancé se traverse. */
+const MAX_FADE = 0.35;
+
+/** Repère de l'hélice, mesuré une seule fois : le dessin est le même pour tous
+ *  les ventilateurs. `x`/`y` = axe de rotation, relatif au coin de la boîte de
+ *  l'enveloppe (repère `transform-box: fill-box`) ; `blades` = nombre de pales,
+ *  qui fixe la vitesse au-delà de laquelle l'écran ne suit plus. */
+let spin: { x: number; y: number; blades: number } | null = null;
+
+/**
+ * Nombre de pales : on fait le tour d'un CERCLE centré sur l'axe et on compte
+ * les passages vide → matière. Un profil de RAYON ne dirait rien (les bouts de
+ * pale forment un disque plein, mesuré : symétrie indécidable) ; ce que l'on
+ * traverse, si. La mesure est reprise à plusieurs rayons et l'on garde la
+ * valeur la plus fréquente — une pale ne s'interrompt pas en chemin.
+ */
+function countBlades(
+  wrap: SVGGElement,
+  toLocal: DOMMatrix,
+  ax: number,
+  ay: number,
+  radius: number
+): number {
+  const shapes: { el: SVGGeometryElement; inv: DOMMatrix }[] = [];
+  for (const el of wrap.querySelectorAll<SVGGeometryElement>('path,circle,ellipse,rect,polygon')) {
+    const ctm = el.getCTM();
+    if (!ctm || typeof el.isPointInFill !== 'function') continue;
+    shapes.push({ el, inv: toLocal.multiply(ctm).inverse() });
+  }
+  if (!shapes.length || !(radius > 0)) return BLADES_FALLBACK;
+  const filled = (x: number, y: number): boolean =>
+    shapes.some(({ el, inv }) =>
+      el.isPointInFill(new DOMPoint(inv.a * x + inv.c * y + inv.e, inv.b * x + inv.d * y + inv.f))
+    );
+  const votes = new Map<number, number>();
+  for (const frac of [0.5, 0.65, 0.8, 0.9]) {
+    const r = radius * frac;
+    const N = 360;
+    let fronts = 0;
+    let previous = filled(ax + r, ay);
+    const first = previous;
+    for (let i = 1; i <= N; i++) {
+      const a = (i * 2 * Math.PI) / N;
+      const here = i === N ? first : filled(ax + r * Math.cos(a), ay + r * Math.sin(a));
+      if (here && !previous) fronts++;
+      previous = here;
+    }
+    if (fronts >= 2) votes.set(fronts, (votes.get(fronts) ?? 0) + 1);
+  }
+  let best = BLADES_FALLBACK;
+  let bestVotes = 0;
+  for (const [pales, n] of votes) {
+    if (n > bestVotes) {
+      bestVotes = n;
+      best = pales;
+    }
+  }
+  return best;
+}
 
 /**
  * Cherche l'axe de l'hélice : les BOUTS de pale sont tous à la même distance de
@@ -24,7 +96,7 @@ let spinOrigin: { x: number; y: number } | null = null;
  * décroissant. Le centre de la BOÎTE des pales ne convient pas : avec un nombre
  * impair de pales elle est dissymétrique (≈ 5 px de balourd sur ce dessin).
  */
-function measureSpinOrigin(wrap: SVGGElement): { x: number; y: number } | null {
+function measureSpin(wrap: SVGGElement): { x: number; y: number; blades: number } | null {
   const toLocal = wrap.getCTM()?.inverse();
   const box = wrap.getBBox();
   if (!toLocal || !(box.width > 0)) return null; // pas encore rendu
@@ -44,9 +116,10 @@ function measureSpinOrigin(wrap: SVGGElement): { x: number; y: number } | null {
   if (pts.length < 3) return null;
   let ax = box.x + box.width / 2;
   let ay = box.y + box.height / 2;
+  let far = 0;
   for (let i = 0; i < 300; i++) {
     let best = pts[0];
-    let far = -1;
+    far = -1;
     for (const p of pts) {
       const d = (p.x - ax) ** 2 + (p.y - ay) ** 2;
       if (d > far) {
@@ -58,7 +131,8 @@ function measureSpinOrigin(wrap: SVGGElement): { x: number; y: number } | null {
     ax += (best.x - ax) * k;
     ay += (best.y - ay) * k;
   }
-  return { x: ax - box.x, y: ay - box.y };
+  // `far` est le carré du rayon de l'hélice : le bout de pale le plus éloigné.
+  return { x: ax - box.x, y: ay - box.y, blades: countBlades(wrap, toLocal, ax, ay, Math.sqrt(far)) };
 }
 
 export class VentiloElement extends LitElement {
@@ -80,6 +154,11 @@ export class VentiloElement extends LitElement {
     this.voltage = 5;
     this.current = 0.85;
     this.speed = 0;
+  }
+
+  /** Pales trouvées dans le dessin (mesure de symétrie) — lecture seule. */
+  get bladeCount(): number {
+    return spin?.blades ?? BLADES_FALLBACK;
   }
 
   // Broches : centre des pastilles du dessin (grille de 10 px).
@@ -133,12 +212,24 @@ export class VentiloElement extends LitElement {
     super.updated(changed);
     const wrap = this.ensureSpinner();
     if (!wrap) return;
-    if (!spinOrigin) spinOrigin = measureSpinOrigin(wrap);
-    if (spinOrigin) wrap.style.transformOrigin = `${spinOrigin.x.toFixed(3)}px ${spinOrigin.y.toFixed(3)}px`;
-    // Durée d'un tour ; vitesse nulle → animation coupée (hélice figée).
+    if (!spin) spin = measureSpin(wrap);
+    if (spin) wrap.style.transformOrigin = `${spin.x.toFixed(3)}px ${spin.y.toFixed(3)}px`;
     const turns = Number.isFinite(this.speed) ? Math.max(0, this.speed) : 0;
-    wrap.style.animationDuration = turns > 0 ? `${(1 / turns).toFixed(3)}s` : '0s';
-    wrap.style.animationPlayState = turns > 0 ? 'running' : 'paused';
+    // Un écran ne montre qu'une image tous les 1/60 s : au-delà d'un quart de
+    // pale par image, l'hélice paraît RALENTIR puis tourner à l'envers, si bien
+    // que baisser la tension l'accélérait. La rotation affichée est donc
+    // plafonnée là, et c'est le flou de bougé qui dit la vitesse au-dessus —
+    // exactement ce que voit l'œil sur un vrai ventilateur.
+    const maxTurns = SCREEN_HZ / (spin?.blades ?? BLADES_FALLBACK) / ALIAS_MARGIN;
+    const shown = Math.min(turns, maxTurns);
+    // Durée d'un tour, arrondie vers le HAUT (au millième de seconde) : arrondir
+    // vers le bas repasserait de justesse au-dessus du plafond. Vitesse nulle →
+    // animation coupée (hélice figée).
+    wrap.style.animationDuration = shown > 0 ? `${(Math.ceil(1000 / shown) / 1000).toFixed(3)}s` : '0s';
+    wrap.style.animationPlayState = shown > 0 ? 'running' : 'paused';
+    const excess = Math.max(0, Math.min(1, (turns - maxTurns) / Math.max(1, NOMINAL_TURNS_PER_S - maxTurns)));
+    wrap.style.filter = excess > 0 ? `blur(${(excess * MAX_BLUR).toFixed(2)}px)` : '';
+    wrap.style.opacity = excess > 0 ? (1 - excess * MAX_FADE).toFixed(3) : '';
   }
 
   render() {

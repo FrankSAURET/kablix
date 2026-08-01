@@ -32,6 +32,12 @@ appliquée est élevée ; il se commande aussi en **PWM**.
   de commande ; la vitesse de l'hélice suit le rapport cyclique.
 - Ajoutez une diode en roue libre en parallèle du moteur pour absorber la
   surtension de coupure.
+- **Lecture de la vitesse à l'écran** : un moniteur ne montre qu'une image tous
+  les 1/60 s. Au-delà de deux ou trois tours par seconde, une hélice à 7 pales
+  paraîtrait ralentir puis tourner à l'envers (l'effet « roue de charrette » des
+  westerns). La rotation affichée est donc plafonnée juste avant ce décrochage,
+  et au-dessus c'est le **flou de l'hélice** qui dit la vitesse — comme à l'œil
+  nu sur un vrai ventilateur.
 
 ---
 

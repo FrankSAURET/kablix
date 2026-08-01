@@ -1319,6 +1319,19 @@ void loop() {
         },
       },
       { id: 'fan2', type: 'ventilo', x: 900, y: 40, attrs: { voltage: '5', current: '0.06' } },
+      // Troisieme branche : la moitie PNP du selecteur (8 references sur 16), que
+      // les deux NPN ne montraient pas. Emetteur au +, LED sous le collecteur,
+      // base tiree vers le BAS pour conduire — logique inversee.
+      { id: 'r3', type: 'resistor', x: 300, y: 560, attrs: { value: '4700' } },
+      {
+        id: 'q3', type: 'transistor', x: 440, y: 580,
+        attrs: {
+          pkg: 'to92', symbol: 'pnp', text: 'BC\n557', named: '1', ref: 'BC557',
+          e: '3', b: '2', c: '1', gain: '200', vcemax: '45', icmax: '0.1',
+        },
+      },
+      { id: 'led1', type: 'led', x: 620, y: 580, attrs: { color: 'yellow' } },
+      { id: 'r4', type: 'resistor', x: 760, y: 580, attrs: { value: '220' } },
     ],
     wires: () => [
       // BC547 (gain 200) : Ib = 0,43 mA, donc Ic max = 200 x 0,43 = 86 mA.
@@ -1334,41 +1347,61 @@ void loop() {
       w('q2', 'E', 'mcu1', 'GND.3', 'black'),
       w('q2', 'C', 'fan2', '-', 'blue'),
       w('fan2', '+', 'alim1', 'V+', 'red'),
+      // BC557 (PNP, C-B-E comme le BC547) : emetteur au 5 V, LED a la masse.
+      w('q3', 'E', 'mcu1', '5V', 'red'),
+      w('r3', '1', 'mcu1', '11', 'purple'),
+      w('r3', '2', 'q3', 'B', 'purple'),
+      w('q3', 'C', 'led1', 'A', 'blue'),
+      w('led1', 'C', 'r4', '1', 'blue'),
+      w('r4', '2', 'alim1', 'GND', 'black'),
     ],
     expect: {
       kind: 'transistor',
       steps: [
-        { high: ['9', '10'], on: { q1: 0.086, q2: 0.043 }, fanAmps: 0.06, fanSpins: ['fan1'], fanStalls: ['fan2'] },
-        { high: [], off: ['q1', 'q2'], fanAmps: 0.06, fanStalls: ['fan1'] },
+        {
+          high: ['9', '10'], on: { q1: 0.086, q2: 0.043, q3: 0.183 },
+          ledOn: ['led1'], fanAmps: 0.06, fanSpins: ['fan1'], fanStalls: ['fan2'],
+        },
+        {
+          high: ['11'], off: ['q1', 'q2', 'q3'],
+          ledOff: ['led1'], fanAmps: 0.06, fanStalls: ['fan1'],
+        },
       ],
     },
     code: `// Test du composant « Transistor » : un seul item de bibliotheque, le modele
-// se choisit dans les proprietes. Ici deux references du selecteur commandent
-// le MEME ventilateur 5 V / 60 mA a travers la MEME resistance de base 10 kOhm.
-//   broche 9  : BC547  (gain 200) -> Ic max = 200 x 0,43 mA = 86 mA
-//   broche 10 : 2N3904 (gain 100) -> Ic max = 100 x 0,43 mA = 43 mA
+// se choisit dans les proprietes. Ici trois references du selecteur, dont les
+// deux premieres commandent le MEME ventilateur 5 V / 60 mA a travers la MEME
+// resistance de base 10 kOhm.
+//   broche 9  : BC547  (NPN, gain 200) -> Ic max = 200 x 0,43 mA = 86 mA
+//   broche 10 : 2N3904 (NPN, gain 100) -> Ic max = 100 x 0,43 mA = 43 mA
+//   broche 11 : BC557  (PNP, gain 200) -> LED cote HAUT, logique INVERSEE
 // Le premier ventilateur tourne, le second ne demarre JAMAIS : a montage egal,
 // c'est le gain qui decide.
 //
-// Les deux transistors n'ont PAS le meme brochage (BC547 = C-B-E, 2N3904 =
+// Les transistors n'ont PAS le meme brochage (BC547 et BC557 = C-B-E, 2N3904 =
 // E-B-C), et pourtant les fils sont identiques : les broches gardent toujours
 // les noms E, B et C, seule la patte qui les porte change.
 const int FORT = 9;
 const int FAIBLE = 10;
+const int INVERSE = 11;   // PNP : conduit quand la broche est a LOW
 
 void setup() {
   Serial.begin(115200);
   pinMode(FORT, OUTPUT);
   pinMode(FAIBLE, OUTPUT);
+  pinMode(INVERSE, OUTPUT);
   Serial.println("Broche 10 : gain deux fois plus faible, son ventilateur ne tournera pas.");
+  Serial.println("Broche 11 : PNP, sa LED s'allume quand les ventilateurs sont commandes.");
 }
 
 void loop() {
   digitalWrite(FORT, HIGH);
   digitalWrite(FAIBLE, HIGH);
+  digitalWrite(INVERSE, LOW);    // base tiree en bas : PNP sature, LED allumee
   delay(2000);
   digitalWrite(FORT, LOW);
   digitalWrite(FAIBLE, LOW);
+  digitalWrite(INVERSE, HIGH);   // base au 5 V : PNP bloque, LED eteinte
   delay(1000);
 }
 `,
@@ -2840,6 +2873,19 @@ while True:
         },
       },
       { id: 'fan2', type: 'ventilo', x: 900, y: 40, attrs: { voltage: '5', current: '0.04' } },
+      // Troisieme branche : la moitie PNP du selecteur (8 references sur 16), que
+      // les deux NPN ne montraient pas. Emetteur au 3,3 V, LED sous le
+      // collecteur, base tiree vers le BAS pour conduire — logique inversee.
+      { id: 'r3', type: 'resistor', x: 300, y: 560, attrs: { value: '4700' } },
+      {
+        id: 'q3', type: 'transistor', x: 440, y: 580,
+        attrs: {
+          pkg: 'to92', symbol: 'pnp', text: 'BC\n557', named: '1', ref: 'BC557',
+          e: '3', b: '2', c: '1', gain: '200', vcemax: '45', icmax: '0.1',
+        },
+      },
+      { id: 'led1', type: 'led', x: 620, y: 580, attrs: { color: 'yellow' } },
+      { id: 'r4', type: 'resistor', x: 760, y: 580, attrs: { value: '220' } },
     ],
     wires: () => [
       w('r1', '1', 'mcu1', 'GP15', 'green'),
@@ -2853,23 +2899,38 @@ while True:
       w('q2', 'E', 'mcu1', 'GND.3', 'black'),
       w('q2', 'C', 'fan2', '-', 'blue'),
       w('fan2', '+', 'alim1', 'V+', 'red'),
+      // BC557 (PNP, C-B-E comme le BC547) : emetteur au 3,3 V, LED a la masse.
+      w('q3', 'E', 'mcu1', '3V3', 'red'),
+      w('r3', '1', 'mcu1', 'GP13', 'purple'),
+      w('r3', '2', 'q3', 'B', 'purple'),
+      w('q3', 'C', 'led1', 'A', 'blue'),
+      w('led1', 'C', 'r4', '1', 'blue'),
+      w('r4', '2', 'alim1', 'GND', 'black'),
     ],
     expect: {
       kind: 'transistor',
       steps: [
-        { high: ['GP15', 'GP14'], on: { q1: 0.052, q2: 0.026 }, fanAmps: 0.04, fanSpins: ['fan1'], fanStalls: ['fan2'] },
-        { high: [], off: ['q1', 'q2'], fanAmps: 0.04, fanStalls: ['fan1'] },
+        {
+          high: ['GP15', 'GP14'], on: { q1: 0.052, q2: 0.026, q3: 0.1106 },
+          ledOn: ['led1'], fanAmps: 0.04, fanSpins: ['fan1'], fanStalls: ['fan2'],
+        },
+        {
+          high: ['GP13'], off: ['q1', 'q2', 'q3'],
+          ledOff: ['led1'], fanAmps: 0.04, fanStalls: ['fan1'],
+        },
       ],
     },
     code: `# Test du composant « Transistor » : un seul item de bibliotheque, le modele
-# se choisit dans les proprietes. Ici deux references du selecteur commandent
-# le MEME ventilateur 5 V / 40 mA a travers la MEME resistance de base 10 kOhm.
-#   GP15 : BC547  (gain 200) -> Ic max = 200 x 0,26 mA = 52 mA
-#   GP14 : 2N3904 (gain 100) -> Ic max = 100 x 0,26 mA = 26 mA
+# se choisit dans les proprietes. Ici trois references du selecteur, dont les
+# deux premieres commandent le MEME ventilateur 5 V / 40 mA a travers la MEME
+# resistance de base 10 kOhm.
+#   GP15 : BC547  (NPN, gain 200) -> Ic max = 200 x 0,26 mA = 52 mA
+#   GP14 : 2N3904 (NPN, gain 100) -> Ic max = 100 x 0,26 mA = 26 mA
+#   GP13 : BC557  (PNP, gain 200) -> LED cote HAUT, logique INVERSEE
 # Le premier ventilateur tourne, le second ne demarre JAMAIS : a montage egal,
 # c'est le gain qui decide.
 #
-# Les deux transistors n'ont PAS le meme brochage (BC547 = C-B-E, 2N3904 =
+# Les transistors n'ont PAS le meme brochage (BC547 et BC557 = C-B-E, 2N3904 =
 # E-B-C), et pourtant les fils sont identiques : les broches gardent toujours
 # les noms E, B et C, seule la patte qui les porte change.
 from machine import Pin
@@ -2877,14 +2938,18 @@ import time
 
 fort = Pin(15, Pin.OUT)
 faible = Pin(14, Pin.OUT)
+inverse = Pin(13, Pin.OUT, value=1)   # PNP : conduit quand la broche est a 0
 print("GP14 : gain deux fois plus faible, son ventilateur ne tournera pas.")
+print("GP13 : PNP, sa LED s'allume quand les ventilateurs sont commandes.")
 
 while True:
     fort.value(1)
     faible.value(1)
+    inverse.value(0)   # base tiree en bas : PNP sature, LED allumee
     time.sleep(2)
     fort.value(0)
     faible.value(0)
+    inverse.value(1)   # base au 3,3 V : PNP bloque, LED eteinte
     time.sleep(1)
 `,
   }),

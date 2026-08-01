@@ -30,6 +30,11 @@ driven by **PWM**.
 - PWM control: `analogWrite()` (Arduino) or `PWM` (MicroPython) on the control
   pin; blade speed follows the duty cycle.
 - Add a flyback diode across the motor to absorb the switch-off spike.
+- **Reading the speed on screen**: a monitor only shows one frame every 1/60 s.
+  Past two or three turns per second, a 7-blade fan would seem to slow down and
+  then spin backwards (the wagon-wheel effect seen in westerns). The displayed
+  rotation is therefore capped just below that point, and above it the **blur of
+  the blades** carries the speed — exactly what the eye sees on a real fan.
 
 ---
 

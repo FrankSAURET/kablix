@@ -280,6 +280,13 @@ const FR: Record<string, string> = {
   'Custom PNP': 'PNP personnalisé',
   'Every characteristic stays editable': 'Toutes les caractéristiques restent réglables',
   'Change transistor…': 'Changer de transistor…',
+  'Save to my parts…': 'Enregistrer dans mes composants…',
+  'Add this transistor to the library, under “Custom parts”':
+    'Ajoute ce transistor à la bibliothèque, dans « Composants personnalisés »',
+  '“{0}” saved: you will find it in the library, under “Custom parts”.':
+    '« {0} » enregistré : tu le retrouveras dans la bibliothèque, dans « Composants personnalisés ».',
+  '“{0}” updated in the library, under “Custom parts”.':
+    '« {0} » mis à jour dans la bibliothèque, dans « Composants personnalisés ».',
   'Pinout (flat face)': 'Brochage (face plate)',
   'Pick a model, or a custom NPN/PNP to set everything yourself.':
     'Choisis un modèle, ou un NPN/PNP personnalisé pour tout régler toi-même.',
@@ -291,7 +298,7 @@ const FR: Record<string, string> = {
   'Base on pin': 'Base sur la patte',
   'Collector on pin': 'Collecteur sur la patte',
   'Current gain (β)': 'Gain en courant (β)',
-  'Marking (one line each)': 'Inscription (une ligne par ligne)',
+  'Marking': 'Inscription',
   'Max Vce (V)': 'Vce max (V)',
   'Max Ic (A)': 'Ic max (A)',
   // Relais

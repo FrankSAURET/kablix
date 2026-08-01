@@ -113,237 +113,244 @@ for (const t of TESTS) {
   }
 
   // Câblage résolu comme le ferait la simulation (bindings du modèle).
+  // Un .projix désynchronisé (ré-enregistré depuis l'éditeur : les id des
+  // composants y sont renumérotés) fait lever le modèle — c'est un ÉCHEC de ce
+  // test, pas une raison d'interrompre le banc et de masquer les suivants.
   const e = t.expect;
-  switch (e.kind) {
-    case 'board-only':
-      check(`${t.name} : carte seule`, diagram.parts.length === 1 && diagram.parts[0].type === t.board);
-      break;
-    case 'led':
-      check(`${t.name} : LED pilotée par ${e.mcuPin}`, model.ledMcuPin(diagram, e.partId) === e.mcuPin,
-        `résolu=${model.ledMcuPin(diagram, e.partId)}`);
-      break;
-    case 'rgb-led': {
-      const [b] = model.rgbLedBindings(diagram);
-      check(`${t.name} : canaux R/G/B`, b && b.r === e.r && b.g === e.g && b.b === e.b, JSON.stringify(b));
-      break;
-    }
-    case 'button': {
-      const b = model.buttonBindings(diagram).find((x) => x.partId === e.partId);
-      check(`${t.name} : bouton → ${e.mcuPin}`, b?.mcuPin === e.mcuPin, JSON.stringify(b));
-      break;
-    }
-    case 'buzzer': {
-      const b = model.buzzerBindings(diagram).find((x) => x.partId === e.partId);
-      check(`${t.name} : buzzer → ${e.mcuPin}`, b?.mcuPin === e.mcuPin, JSON.stringify(b));
-      break;
-    }
-    case 'pot': {
-      const b = model.potBindings(diagram).find((x) => x.partId === e.partId);
-      check(`${t.name} : curseur → ${e.mcuPin}`, b?.mcuPin === e.mcuPin && b?.inverted === false, JSON.stringify(b));
-      break;
-    }
-    case '7seg': {
-      const [b] = model.sevenSegmentBindings(diagram);
-      const ok = b && Object.entries(e.segments).every(([seg, pin]) => b.segments[seg] === pin);
-      check(`${t.name} : 8 segments câblés`, !!ok, JSON.stringify(b?.segments));
-      break;
-    }
-    case 'led-bar': {
-      const state = model.ledBarState(diagram, e.partId, (n) => n === e.firstPin);
-      check(`${t.name} : LED1 s'allume via ${e.firstPin}`,
-        state[0] === 1 && state.slice(1).every((v) => v === 0), JSON.stringify(state));
-      break;
-    }
-    case 'slide-switch': {
-      const bs = model.slideSwitchBindings(diagram).filter((x) => x.partId === e.partId);
-      const ok = [1, 3].every((side) => bs.find((b) => b.side === side)?.mcuPin === e.sides[side]);
-      check(`${t.name} : côtés 1 et 3 résolus`, ok, JSON.stringify(bs));
-      break;
-    }
-    case 'dip-switch': {
-      const bs = model.dipSwitchBindings(diagram).filter((x) => x.partId === e.partId);
-      check(`${t.name} : ${e.channels} canaux résolus`, bs.length === e.channels, `${bs.length} canaux`);
-      break;
-    }
-    case 'joystick': {
-      const [b] = model.joystickBindings(diagram);
-      check(`${t.name} : VERT/HORZ/SEL`, b && b.vert === e.vert && b.horz === e.horz && b.sel === e.sel,
-        JSON.stringify(b));
-      break;
-    }
-    case 'ao-do': {
-      const b = model.aoDoSensorBindings(diagram).find((x) => x.partId === e.partId);
-      check(`${t.name} : AO=${e.analog} DO=${e.digital}`,
-        b?.analogPin === e.analog && b?.digitalPin === e.digital, JSON.stringify(b));
-      break;
-    }
-    case 'digital-source': {
-      const b = model.digitalSourceBindings(diagram).find((x) => x.partId === e.partId);
-      check(`${t.name} : sortie → ${e.mcuPin}`, b?.mcuPin === e.mcuPin, JSON.stringify(b));
-      break;
-    }
-    case 'analog-source': {
-      const b = model.analogSourceBindings(diagram).find((x) => x.partId === e.partId);
-      check(`${t.name} : sortie → ${e.mcuPin}`, b?.mcuPin === e.mcuPin, JSON.stringify(b));
-      break;
-    }
-    case 'servo': {
-      const b = model.servoBindings(diagram).find((x) => x.partId === e.partId);
-      check(`${t.name} : PWM → ${e.mcuPin}`, b?.mcuPin === e.mcuPin, JSON.stringify(b));
-      break;
-    }
-    case 'ultrasonic': {
-      const b = model.ultrasonicBindings(diagram).find((x) => x.partId === e.partId);
-      check(`${t.name} : TRIG=${e.trig} ECHO=${e.echo}`, b?.trig === e.trig && b?.echo === e.echo,
-        JSON.stringify(b));
-      break;
-    }
-    case 'dht22': {
-      const b = model.dht22Bindings(diagram).find((x) => x.partId === e.partId);
-      check(`${t.name} : DATA → ${e.mcuPin}`, b?.pin === e.mcuPin, JSON.stringify(b));
-      if (e.model) {
-        check(`${t.name} : modèle ${e.model}`, b?.model === e.model, JSON.stringify(b));
+  try {
+    switch (e.kind) {
+      case 'board-only':
+        check(`${t.name} : carte seule`, diagram.parts.length === 1 && diagram.parts[0].type === t.board);
+        break;
+      case 'led':
+        check(`${t.name} : LED pilotée par ${e.mcuPin}`, model.ledMcuPin(diagram, e.partId) === e.mcuPin,
+          `résolu=${model.ledMcuPin(diagram, e.partId)}`);
+        break;
+      case 'rgb-led': {
+        const [b] = model.rgbLedBindings(diagram);
+        check(`${t.name} : canaux R/G/B`, b && b.r === e.r && b.g === e.g && b.b === e.b, JSON.stringify(b));
+        break;
       }
-      break;
-    }
-    case 'diode': {
-      // Les deux broches sont au niveau haut : seule la branche dont la diode
-      // est dans le bon sens (A → K) laisse passer le courant.
-      const haut = () => true;
-      check(`${t.name} : diode passante → LED allumée`, model.ledOn(diagram, e.ledOn, haut));
-      check(`${t.name} : diode inversée → LED éteinte`, !model.ledOn(diagram, e.ledOff, haut));
-      const circ = model.ledPowerCircuit(diagram, e.ledOn);
-      check(`${t.name} : seuil de ${e.drop} V compté dans le circuit`,
-        Math.abs((circ.diodeDrop ?? 0) - e.drop) < 1e-6, JSON.stringify(circ));
-      const bloque = model.ledPowerCircuit(diagram, e.ledOff);
-      check(`${t.name} : circuit ouvert côté diode inversée`, bloque.ohms === null, JSON.stringify(bloque));
-      break;
-    }
-    case 'capacitor': {
-      // Équivalent de Thévenin vu par l'armature chaude : c'est lui qui fixe la
-      // tension d'équilibre et la constante de temps du transitoire. Plusieurs
-      // branches RC peuvent partager la MÊME broche de commande : chacune est un
-      // nœud indépendant (un condensateur n'est pas une arête résistive, le
-      // chemin d'une branche ne peut donc pas passer par la voisine).
-      const nodes = model.capacitorNodes(diagram, e.volts, (p) => (p === e.drivePin ? e.drive : 'hiz'));
-      for (const c of e.caps) {
-        const n = nodes.find((x) => x.partId === c.partId);
-        check(`${t.name} : nœud RC ${c.partId} trouvé`, !!n, JSON.stringify(nodes));
-        if (!n) continue;
-        check(`${t.name} : ${c.partId} tension d'équilibre ${c.target} V`,
-          Math.abs(n.target - c.target) < 0.05, `cible=${n.target}`);
-        check(`${t.name} : ${c.partId} constante de temps ${c.tau} s`,
-          Math.abs(n.tau - c.tau) / c.tau < 0.05, `tau=${n.tau}`);
-        check(`${t.name} : ${c.partId} broches de mesure ${c.mcuPins.join(',')}`,
-          c.mcuPins.every((p) => n.mcuPins.includes(p)), JSON.stringify(n.mcuPins));
+      case 'button': {
+        const b = model.buttonBindings(diagram).find((x) => x.partId === e.partId);
+        check(`${t.name} : bouton → ${e.mcuPin}`, b?.mcuPin === e.mcuPin, JSON.stringify(b));
+        break;
       }
-      break;
-    }
-    case 'fan': {
-      const vcc = t.board === 'pico' || t.board === 'picow' ? 3.3 : 5;
-      const tourne = model.fanSpeed(model.fanCircuit(diagram, e.spins, vcc), 5, 0.85, 1);
-      check(`${t.name} : ventilateur sur l'alim tourne`,
-        tourne.speed > 0.9 && !tourne.starved, JSON.stringify(tourne));
-      const cale = model.fanSpeed(model.fanCircuit(diagram, e.starved, vcc), 5, 0.85, 1);
-      check(`${t.name} : ventilateur sur broche = courant insuffisant`,
-        cale.speed === 0 && cale.starved, JSON.stringify(cale));
-      break;
-    }
-    case 'transistor': {
-      const vcc = t.board === 'pico' || t.board === 'picow' ? 3.3 : 5;
-      for (const s of e.steps) {
-        const hauts = s.high ?? [];
-        const read = (p) => hauts.includes(p);
-        const etat = hauts.length ? `[${hauts.join(',')} haut]` : '[tout bas]';
-        resolveBridges(diagram, read, vcc);
-        const states = model.transistorStates(diagram, read, vcc);
-        for (const [id, ic] of Object.entries(s.on ?? {})) {
-          const st = states.find((x) => x.partId === id);
-          check(`${t.name} ${etat} : ${id} conduit, Ic max ${(ic * 1000).toFixed(1)} mA`,
-            !!st && st.on && Math.abs(st.maxCollectorAmps - ic) / ic < 0.02, JSON.stringify(st));
-        }
-        for (const id of s.off ?? []) {
-          const st = states.find((x) => x.partId === id);
-          check(`${t.name} ${etat} : ${id} bloqué`, !!st && !st.on, JSON.stringify(st));
-        }
-        for (const id of s.ledOn ?? []) {
-          check(`${t.name} ${etat} : ${id} allumée`, model.ledOn(diagram, id, read));
-        }
-        for (const id of s.ledOff ?? []) {
-          check(`${t.name} ${etat} : ${id} éteinte`, !model.ledOn(diagram, id, read));
-        }
-        for (const id of s.fanSpins ?? []) {
-          const r = model.fanSpeed(model.fanCircuit(diagram, id, vcc), 5, s.fanAmps, 1);
-          check(`${t.name} ${etat} : ${id} tourne`, r.speed > 0.9 && !r.starved, JSON.stringify(r));
-        }
-        for (const id of s.fanStalls ?? []) {
-          const r = model.fanSpeed(model.fanCircuit(diagram, id, vcc), 5, s.fanAmps, 1);
-          check(`${t.name} ${etat} : ${id} cale`, r.speed === 0, JSON.stringify(r));
-        }
+      case 'buzzer': {
+        const b = model.buzzerBindings(diagram).find((x) => x.partId === e.partId);
+        check(`${t.name} : buzzer → ${e.mcuPin}`, b?.mcuPin === e.mcuPin, JSON.stringify(b));
+        break;
       }
-      model.setActiveBridges([]); // pas de fuite d'état d'un test au suivant
-      break;
-    }
-    case 'relay': {
-      const vcc = t.board === 'pico' || t.board === 'picow' ? 3.3 : 5;
-      for (const s of e.steps) {
-        const hauts = s.high ?? [];
-        const read = (p) => hauts.includes(p);
-        const etat = hauts.length ? `[${hauts.join(',')} haut]` : '[tout bas]';
-        resolveBridges(diagram, read, vcc);
-        const states = model.relayStates(diagram, read, vcc);
-        for (const [id, want] of Object.entries(s.relays ?? {})) {
-          const st = states.find((x) => x.partId === id);
-          const ok = !!st && Object.entries(want).every(([k, v]) => st[k] === v);
-          check(`${t.name} ${etat} : ${id} → ${JSON.stringify(want)}`, ok, JSON.stringify(st));
-        }
-        for (const id of s.ledOn ?? []) {
-          check(`${t.name} ${etat} : ${id} allumée`, model.ledOn(diagram, id, read));
-        }
-        for (const id of s.ledOff ?? []) {
-          check(`${t.name} ${etat} : ${id} éteinte`, !model.ledOn(diagram, id, read));
-        }
+      case 'pot': {
+        const b = model.potBindings(diagram).find((x) => x.partId === e.partId);
+        check(`${t.name} : curseur → ${e.mcuPin}`, b?.mcuPin === e.mcuPin && b?.inverted === false, JSON.stringify(b));
+        break;
       }
-      model.setActiveBridges([]);
-      break;
+      case '7seg': {
+        const [b] = model.sevenSegmentBindings(diagram);
+        const ok = b && Object.entries(e.segments).every(([seg, pin]) => b.segments[seg] === pin);
+        check(`${t.name} : 8 segments câblés`, !!ok, JSON.stringify(b?.segments));
+        break;
+      }
+      case 'led-bar': {
+        const state = model.ledBarState(diagram, e.partId, (n) => n === e.firstPin);
+        check(`${t.name} : LED1 s'allume via ${e.firstPin}`,
+          state[0] === 1 && state.slice(1).every((v) => v === 0), JSON.stringify(state));
+        break;
+      }
+      case 'slide-switch': {
+        const bs = model.slideSwitchBindings(diagram).filter((x) => x.partId === e.partId);
+        const ok = [1, 3].every((side) => bs.find((b) => b.side === side)?.mcuPin === e.sides[side]);
+        check(`${t.name} : côtés 1 et 3 résolus`, ok, JSON.stringify(bs));
+        break;
+      }
+      case 'dip-switch': {
+        const bs = model.dipSwitchBindings(diagram).filter((x) => x.partId === e.partId);
+        check(`${t.name} : ${e.channels} canaux résolus`, bs.length === e.channels, `${bs.length} canaux`);
+        break;
+      }
+      case 'joystick': {
+        const [b] = model.joystickBindings(diagram);
+        check(`${t.name} : VERT/HORZ/SEL`, b && b.vert === e.vert && b.horz === e.horz && b.sel === e.sel,
+          JSON.stringify(b));
+        break;
+      }
+      case 'ao-do': {
+        const b = model.aoDoSensorBindings(diagram).find((x) => x.partId === e.partId);
+        check(`${t.name} : AO=${e.analog} DO=${e.digital}`,
+          b?.analogPin === e.analog && b?.digitalPin === e.digital, JSON.stringify(b));
+        break;
+      }
+      case 'digital-source': {
+        const b = model.digitalSourceBindings(diagram).find((x) => x.partId === e.partId);
+        check(`${t.name} : sortie → ${e.mcuPin}`, b?.mcuPin === e.mcuPin, JSON.stringify(b));
+        break;
+      }
+      case 'analog-source': {
+        const b = model.analogSourceBindings(diagram).find((x) => x.partId === e.partId);
+        check(`${t.name} : sortie → ${e.mcuPin}`, b?.mcuPin === e.mcuPin, JSON.stringify(b));
+        break;
+      }
+      case 'servo': {
+        const b = model.servoBindings(diagram).find((x) => x.partId === e.partId);
+        check(`${t.name} : PWM → ${e.mcuPin}`, b?.mcuPin === e.mcuPin, JSON.stringify(b));
+        break;
+      }
+      case 'ultrasonic': {
+        const b = model.ultrasonicBindings(diagram).find((x) => x.partId === e.partId);
+        check(`${t.name} : TRIG=${e.trig} ECHO=${e.echo}`, b?.trig === e.trig && b?.echo === e.echo,
+          JSON.stringify(b));
+        break;
+      }
+      case 'dht22': {
+        const b = model.dht22Bindings(diagram).find((x) => x.partId === e.partId);
+        check(`${t.name} : DATA → ${e.mcuPin}`, b?.pin === e.mcuPin, JSON.stringify(b));
+        if (e.model) {
+          check(`${t.name} : modèle ${e.model}`, b?.model === e.model, JSON.stringify(b));
+        }
+        break;
+      }
+      case 'diode': {
+        // Les deux broches sont au niveau haut : seule la branche dont la diode
+        // est dans le bon sens (A → K) laisse passer le courant.
+        const haut = () => true;
+        check(`${t.name} : diode passante → LED allumée`, model.ledOn(diagram, e.ledOn, haut));
+        check(`${t.name} : diode inversée → LED éteinte`, !model.ledOn(diagram, e.ledOff, haut));
+        const circ = model.ledPowerCircuit(diagram, e.ledOn);
+        check(`${t.name} : seuil de ${e.drop} V compté dans le circuit`,
+          Math.abs((circ.diodeDrop ?? 0) - e.drop) < 1e-6, JSON.stringify(circ));
+        const bloque = model.ledPowerCircuit(diagram, e.ledOff);
+        check(`${t.name} : circuit ouvert côté diode inversée`, bloque.ohms === null, JSON.stringify(bloque));
+        break;
+      }
+      case 'capacitor': {
+        // Équivalent de Thévenin vu par l'armature chaude : c'est lui qui fixe la
+        // tension d'équilibre et la constante de temps du transitoire. Plusieurs
+        // branches RC peuvent partager la MÊME broche de commande : chacune est un
+        // nœud indépendant (un condensateur n'est pas une arête résistive, le
+        // chemin d'une branche ne peut donc pas passer par la voisine).
+        const nodes = model.capacitorNodes(diagram, e.volts, (p) => (p === e.drivePin ? e.drive : 'hiz'));
+        for (const c of e.caps) {
+          const n = nodes.find((x) => x.partId === c.partId);
+          check(`${t.name} : nœud RC ${c.partId} trouvé`, !!n, JSON.stringify(nodes));
+          if (!n) continue;
+          check(`${t.name} : ${c.partId} tension d'équilibre ${c.target} V`,
+            Math.abs(n.target - c.target) < 0.05, `cible=${n.target}`);
+          check(`${t.name} : ${c.partId} constante de temps ${c.tau} s`,
+            Math.abs(n.tau - c.tau) / c.tau < 0.05, `tau=${n.tau}`);
+          check(`${t.name} : ${c.partId} broches de mesure ${c.mcuPins.join(',')}`,
+            c.mcuPins.every((p) => n.mcuPins.includes(p)), JSON.stringify(n.mcuPins));
+        }
+        break;
+      }
+      case 'fan': {
+        const vcc = t.board === 'pico' || t.board === 'picow' ? 3.3 : 5;
+        const tourne = model.fanSpeed(model.fanCircuit(diagram, e.spins, vcc), 5, 0.85, 1);
+        check(`${t.name} : ventilateur sur l'alim tourne`,
+          tourne.speed > 0.9 && !tourne.starved, JSON.stringify(tourne));
+        const cale = model.fanSpeed(model.fanCircuit(diagram, e.starved, vcc), 5, 0.85, 1);
+        check(`${t.name} : ventilateur sur broche = courant insuffisant`,
+          cale.speed === 0 && cale.starved, JSON.stringify(cale));
+        break;
+      }
+      case 'transistor': {
+        const vcc = t.board === 'pico' || t.board === 'picow' ? 3.3 : 5;
+        for (const s of e.steps) {
+          const hauts = s.high ?? [];
+          const read = (p) => hauts.includes(p);
+          const etat = hauts.length ? `[${hauts.join(',')} haut]` : '[tout bas]';
+          resolveBridges(diagram, read, vcc);
+          const states = model.transistorStates(diagram, read, vcc);
+          for (const [id, ic] of Object.entries(s.on ?? {})) {
+            const st = states.find((x) => x.partId === id);
+            check(`${t.name} ${etat} : ${id} conduit, Ic max ${(ic * 1000).toFixed(1)} mA`,
+              !!st && st.on && Math.abs(st.maxCollectorAmps - ic) / ic < 0.02, JSON.stringify(st));
+          }
+          for (const id of s.off ?? []) {
+            const st = states.find((x) => x.partId === id);
+            check(`${t.name} ${etat} : ${id} bloqué`, !!st && !st.on, JSON.stringify(st));
+          }
+          for (const id of s.ledOn ?? []) {
+            check(`${t.name} ${etat} : ${id} allumée`, model.ledOn(diagram, id, read));
+          }
+          for (const id of s.ledOff ?? []) {
+            check(`${t.name} ${etat} : ${id} éteinte`, !model.ledOn(diagram, id, read));
+          }
+          for (const id of s.fanSpins ?? []) {
+            const r = model.fanSpeed(model.fanCircuit(diagram, id, vcc), 5, s.fanAmps, 1);
+            check(`${t.name} ${etat} : ${id} tourne`, r.speed > 0.9 && !r.starved, JSON.stringify(r));
+          }
+          for (const id of s.fanStalls ?? []) {
+            const r = model.fanSpeed(model.fanCircuit(diagram, id, vcc), 5, s.fanAmps, 1);
+            check(`${t.name} ${etat} : ${id} cale`, r.speed === 0, JSON.stringify(r));
+          }
+        }
+        model.setActiveBridges([]); // pas de fuite d'état d'un test au suivant
+        break;
+      }
+      case 'relay': {
+        const vcc = t.board === 'pico' || t.board === 'picow' ? 3.3 : 5;
+        for (const s of e.steps) {
+          const hauts = s.high ?? [];
+          const read = (p) => hauts.includes(p);
+          const etat = hauts.length ? `[${hauts.join(',')} haut]` : '[tout bas]';
+          resolveBridges(diagram, read, vcc);
+          const states = model.relayStates(diagram, read, vcc);
+          for (const [id, want] of Object.entries(s.relays ?? {})) {
+            const st = states.find((x) => x.partId === id);
+            const ok = !!st && Object.entries(want).every(([k, v]) => st[k] === v);
+            check(`${t.name} ${etat} : ${id} → ${JSON.stringify(want)}`, ok, JSON.stringify(st));
+          }
+          for (const id of s.ledOn ?? []) {
+            check(`${t.name} ${etat} : ${id} allumée`, model.ledOn(diagram, id, read));
+          }
+          for (const id of s.ledOff ?? []) {
+            check(`${t.name} ${etat} : ${id} éteinte`, !model.ledOn(diagram, id, read));
+          }
+        }
+        model.setActiveBridges([]);
+        break;
+      }
+      case 'keypad': {
+        const b = model.keypadBindings(diagram).find((x) => x.partId === e.partId);
+        const ok = b && e.rows.every((p, i) => b.rows[i] === p) && e.cols.every((p, i) => b.cols[i] === p);
+        check(`${t.name} : lignes/colonnes résolues`, !!ok, JSON.stringify(b));
+        break;
+      }
+      case 'neopixel': {
+        const b = model.neopixelBindings(diagram).find((x) => x.partId === e.partId);
+        check(`${t.name} : DIN → ${e.mcuPin}, ${e.count} px`,
+          b?.mcuPin === e.mcuPin && b?.count === e.count, JSON.stringify(b));
+        break;
+      }
+      case 'spi-device': {
+        const b = model.spiDeviceBindings(diagram).find((x) => x.partId === e.partId);
+        check(`${t.name} : D/C=${e.dcPin} CS=${e.csPin}`,
+          b?.dcPin === e.dcPin && b?.csPin === e.csPin, JSON.stringify(b));
+        break;
+      }
+      case 'i2c-part': {
+        // Les périphériques I²C sont instanciés par la présence du composant
+        // (bus global) : on vérifie le composant + son adresse/attributs.
+        const part = diagram.parts.find((p) => p.id === e.partId);
+        check(`${t.name} : composant I²C présent`, !!part && (part.attrs?.pins ?? 'i2c') === 'i2c');
+        break;
+      }
+      case 'pca9685': {
+        const b = model.pca9685Bindings(diagram).find((x) => x.partId === e.partId);
+        const ch = b?.channels.find((c) => c.ch === e.channel);
+        check(`${t.name} : canal ${e.channel} → ${e.targetId}`,
+          ch?.targetId === e.targetId, JSON.stringify(b?.channels));
+        const p = model.pca9685PowerState(diagram).find((x) => x.partId === e.partId);
+        check(`${t.name} : alim servo ${e.powered ? 'OK' : 'absente'} (bornier V+/GND.2)`,
+          p?.ok === e.powered, JSON.stringify(p));
+        break;
+      }
+      default:
+        check(`${t.name} : attente inconnue`, false, e.kind);
     }
-    case 'keypad': {
-      const b = model.keypadBindings(diagram).find((x) => x.partId === e.partId);
-      const ok = b && e.rows.every((p, i) => b.rows[i] === p) && e.cols.every((p, i) => b.cols[i] === p);
-      check(`${t.name} : lignes/colonnes résolues`, !!ok, JSON.stringify(b));
-      break;
-    }
-    case 'neopixel': {
-      const b = model.neopixelBindings(diagram).find((x) => x.partId === e.partId);
-      check(`${t.name} : DIN → ${e.mcuPin}, ${e.count} px`,
-        b?.mcuPin === e.mcuPin && b?.count === e.count, JSON.stringify(b));
-      break;
-    }
-    case 'spi-device': {
-      const b = model.spiDeviceBindings(diagram).find((x) => x.partId === e.partId);
-      check(`${t.name} : D/C=${e.dcPin} CS=${e.csPin}`,
-        b?.dcPin === e.dcPin && b?.csPin === e.csPin, JSON.stringify(b));
-      break;
-    }
-    case 'i2c-part': {
-      // Les périphériques I²C sont instanciés par la présence du composant
-      // (bus global) : on vérifie le composant + son adresse/attributs.
-      const part = diagram.parts.find((p) => p.id === e.partId);
-      check(`${t.name} : composant I²C présent`, !!part && (part.attrs?.pins ?? 'i2c') === 'i2c');
-      break;
-    }
-    case 'pca9685': {
-      const b = model.pca9685Bindings(diagram).find((x) => x.partId === e.partId);
-      const ch = b?.channels.find((c) => c.ch === e.channel);
-      check(`${t.name} : canal ${e.channel} → ${e.targetId}`,
-        ch?.targetId === e.targetId, JSON.stringify(b?.channels));
-      const p = model.pca9685PowerState(diagram).find((x) => x.partId === e.partId);
-      check(`${t.name} : alim servo ${e.powered ? 'OK' : 'absente'} (bornier V+/GND.2)`,
-        p?.ok === e.powered, JSON.stringify(p));
-      break;
-    }
-    default:
-      check(`${t.name} : attente inconnue`, false, e.kind);
+  } catch (err) {
+    check(`${t.name} : câblage résolu`, false, `${String(err).split('\n')[0]} — test à régénérer ?`);
   }
 }
 console.log(`Projix : ${checks} contrôles, ${failures} échec(s).`);
@@ -366,7 +373,9 @@ if (!tools.arduinoCli) {
     const file = join(HERE, t.name, `${t.name}.ino`);
     const before = failures;
     try {
-      const res = compile(t.board, file, ROOT);
+      // compile() est ASYNCHRONE (stratégies arduino-cli enchaînées) : sans
+      // `await`, res.payload est indéfini et TOUS les .ino tombaient.
+      const res = await compile(t.board, file, ROOT);
       compiled.set(t.name, res.payload);
       check(`${t.name}.ino compile`, res.payload.bytes.length > 0);
     } catch (err) {

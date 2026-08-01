@@ -296,9 +296,10 @@ let sevenSegMux: SevenSegmentMuxBinding[] = [];
 // republie le nouvel état seulement s'il n'a plus changé depuis un court délai
 // réel (attend la fin de la rafale d'écritures avant d'afficher).
 const SEVEN_SEG_SETTLE_MS = 40;
-// Vitesse de rotation affichée d'un ventilateur à plein régime, en tours par
-// seconde : au-delà les pales deviennent illisibles (stroboscope à 60 Hz).
-const FAN_MAX_TURNS_PER_S = 8;
+// Régime nominal d'un petit ventilateur 5 V, en tours par seconde (3000 tr/min).
+// C'est la vitesse RÉELLE : l'élément se charge d'en montrer ce qu'un écran sait
+// montrer (plafond anti-stroboscope, puis flou de bougé).
+const FAN_NOMINAL_TURNS_PER_S = 50;
 let sevenSegStable = new Map<string, { shown: number[]; pending: number[]; pendingSince: number }>();
 // LED grillées pendant ce run (résistance série trop faible → sur-courant) :
 // l'état est définitif jusqu'au prochain lancement (la LED est « remplacée »).
@@ -1364,7 +1365,7 @@ function refreshVisualsInner(): void {
         const rated = Number(part.attrs?.voltage) || 5;
         const amps = Number(part.attrs?.current) || 0.85;
         const st = fanSpeed(circ, rated, amps, duty);
-        el.speed = st.speed * FAN_MAX_TURNS_PER_S;
+        el.speed = st.speed * FAN_NOMINAL_TURNS_PER_S;
         break;
       }
       case 'i2c-lcd': {

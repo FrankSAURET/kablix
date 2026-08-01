@@ -4665,6 +4665,9 @@ export class Editor {
       this.appendPropControl(partId, r.part, prop);
     }
     if (def.type === 'transistor') this.appendTransistorSummary(partId, r.part);
+    // Prototypes génériques (types npn / pnp) : tout est réglable, donc tout est
+    // enregistrable — même bouton que sur le modèle personnalisé du sélecteur.
+    if (def.type === 'npn' || def.type === 'pnp') this.appendSaveTransistorButton(partId, r.part);
     // PCA9685 : l'adresse résultant des six pads AD0..AD5, écrite comme sur la
     // fiche du module (0x40..0x7F) — c'est elle qu'attend le programme.
     if (def.kind === 'i2c-pwm') {
@@ -4819,6 +4822,94 @@ export class Editor {
     change.textContent = t('Change transistor…');
     change.addEventListener('click', () => this.openTransistorPicker(partId, part));
     this.inspector.appendChild(change);
+    // Un modèle du commerce est figé par sa fiche : il n'y a rien à enregistrer.
+    // Le personnalisé, lui, n'existe que dans ce schéma tant qu'on ne le range
+    // pas dans la bibliothèque.
+    if (custom) this.appendSaveTransistorButton(partId, part);
+  }
+
+  /** Bouton « Enregistrer dans mes composants » d'un transistor générique. */
+  private appendSaveTransistorButton(partId: string, part: Part): void {
+    const btn = document.createElement('button');
+    btn.className = 'inspector__button';
+    btn.textContent = t('Save to my parts…');
+    btn.title = t('Add this transistor to the library, under “Custom parts”');
+    btn.addEventListener('click', () => this.saveTransistorAsPart(partId, part));
+    this.inspector.appendChild(btn);
+  }
+
+  /**
+   * Range le transistor générique courant dans les composants personnalisés :
+   * son dessin (inscription comprise), son schéma interne et ses caractéristiques
+   * deviennent un composant à part entière, reposable depuis la bibliothèque et
+   * conservé d'un projet à l'autre. Réenregistrer la même inscription MET À JOUR
+   * le composant au lieu d'en empiler un second.
+   */
+  private saveTransistorAsPart(partId: string, part: Part): void {
+    const r = this.rendered.get(partId);
+    const src = r ? ((r.el.shadowRoot ?? r.el).querySelector('svg') as SVGSVGElement | null) : null;
+    if (!r || !src) return;
+    const w = src.width?.baseVal?.value || 50;
+    const h = src.height?.baseVal?.value || 50;
+    // Le dessin quitte le shadow DOM de l'élément : sa feuille de style ne le
+    // suit pas. L'inscription emporte donc sa police et son centrage avec elle,
+    // sans quoi elle partirait à gauche du boîtier dans le composant enregistré.
+    const svg = src.outerHTML.replace(
+      /^(<svg[^>]*>)/,
+      `$1<style>text{font-family:'OCR A Std','Consolas',monospace;text-anchor:middle}</style>`
+    );
+    const pins = ((r.el.pinInfo ?? []) as PinPoint[]).map((p) => ({ name: p.name, x: p.x, y: p.y }));
+    // Les électrodes deviennent des RÔLES : le modèle de simulation les retrouve
+    // par là, y compris quand les pattes s'appellent 1/2/3 (prototype générique).
+    const legName = (k: 'e' | 'b' | 'c'): string => {
+      const n = Number(part.attrs?.[k] ?? 0);
+      return pins[n - 1]?.name ?? k.toUpperCase();
+    };
+    const inner = internalWiringSvg('transistor', pins, part.attrs, part.type, { w, h });
+    const innerSvg = inner
+      ? `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="${SVG_NS}">` +
+        `<g fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${inner}</g></svg>`
+      : undefined;
+    const marking = String(part.attrs?.text ?? '').split('\n').map((l) => l.trim()).filter(Boolean).join(' ');
+    const pnp = (part.attrs?.symbol ?? (part.type === 'pnp' ? 'pnp' : 'npn')) === 'pnp';
+    const label = marking || (pnp ? t('Custom PNP') : t('Custom NPN'));
+    const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'transistor';
+    const type = `custom-${pnp ? 'pnp' : 'npn'}-${slug}`;
+    const known = this.customData.has(type);
+    this.saveCustomPart({
+      type,
+      label,
+      kind: 'transistor',
+      svg,
+      pins,
+      pinRoles: { E: legName('e'), B: legName('b'), C: legName('c') },
+      // Le gain est ce que lit la simulation ; Vce max et Ic max restent
+      // informatifs, comme sur une référence du commerce.
+      attrs: {
+        symbol: pnp ? 'pnp' : 'npn',
+        gain: part.attrs?.gain ?? '100',
+        vcemax: part.attrs?.vcemax ?? '40',
+        icmax: part.attrs?.icmax ?? '0.6',
+      },
+      innerSvg,
+      innerOffset: innerSvg ? { x: 0, y: 0 } : undefined,
+    });
+    this.showInspectorNote(
+      known
+        ? t('“{0}” updated in the library, under “Custom parts”.', label)
+        : t('“{0}” saved: you will find it in the library, under “Custom parts”.', label)
+    );
+  }
+
+  /** Message passager sous les propriétés (confirmation d'une action). */
+  private showInspectorNote(message: string): void {
+    this.inspector.querySelector('.inspector__note')?.remove();
+    const note = document.createElement('p');
+    note.className = 'inspector__hint inspector__note';
+    note.style.color = '#8ae08a';
+    note.textContent = message;
+    this.inspector.appendChild(note);
+    setTimeout(() => note.remove(), 8000);
   }
 
   /**

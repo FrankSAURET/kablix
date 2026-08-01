@@ -242,7 +242,10 @@ const TRANSISTOR_PROPS: readonly PropDef[] = [
   { attr: 'b', label: 'Base on pin', kind: 'select', options: ['1', '2', '3'] },
   { attr: 'c', label: 'Collector on pin', kind: 'select', options: ['1', '2', '3'] },
   { attr: 'gain', label: 'Current gain (β)', kind: 'number', min: 0.1, step: 0.1 },
-  { attr: 'text', label: 'Marking (one line each)', kind: 'text', rows: 2 },
+  // Inscription du boîtier : trois lignes visibles d'emblée (une référence tient
+  // rarement sur deux), le champ reste libre — chaque ligne saisie est une ligne
+  // écrite sur la face plate.
+  { attr: 'text', label: 'Marking', kind: 'text', rows: 3 },
   { attr: 'vcemax', label: 'Max Vce (V)', kind: 'number', min: 1, max: 1000, step: 1 },
   { attr: 'icmax', label: 'Max Ic (A)', kind: 'number', min: 0.001, max: 100, suffixes: true },
 ];
