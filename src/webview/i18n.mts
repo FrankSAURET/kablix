@@ -245,8 +245,24 @@ const FR: Record<string, string> = {
   'Fan': 'Ventilateur',
   'Rated voltage (V)': 'Tension nominale (V)',
   'Current draw (A)': 'Courant consommé (A)',
-  // Transistors : une référence figée (PN2222A) et deux prototypes réglables.
-  // Les trois se suivent dans la palette, d'où le même premier mot.
+  // Transistors : un seul item de bibliothèque, la référence se choisit dans les
+  // propriétés (sélecteur à critères). Les trois entrées d'origine restent des
+  // types valides pour les projets déjà enregistrés, mais sortent de la palette.
+  'Transistor': 'Transistor',
+  'Max Ic at least': 'Ic max d’au moins',
+  'Max Vce at least': 'Vce max d’au moins',
+  'Gain at least': 'Gain d’au moins',
+  'Any': 'Peu importe',
+  'TO-92': 'TO-92',
+  'Matching models': 'Modèles correspondants',
+  'No model matches these criteria.': 'Aucun modèle ne répond à ces critères.',
+  'Custom NPN': 'NPN personnalisé',
+  'Custom PNP': 'PNP personnalisé',
+  'Every characteristic stays editable': 'Toutes les caractéristiques restent réglables',
+  'Change transistor…': 'Changer de transistor…',
+  'Pinout (flat face)': 'Brochage (face plate)',
+  'Pick a model, or a custom NPN/PNP to set everything yourself.':
+    'Choisis un modèle, ou un NPN/PNP personnalisé pour tout régler toi-même.',
   'Transistor PN2222A (NPN)': 'Transistor PN2222A (NPN)',
   'Transistor NPN (generic)': 'Transistor NPN (générique)',
   'Transistor PNP (generic)': 'Transistor PNP (générique)',

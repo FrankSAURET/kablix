@@ -399,7 +399,12 @@ export function internalWiringSvg(
       // prototype générique (pattes 1/2/3) → symbole sans liaison.
       const sym = attrs?.symbol === 'pnp' ? 'pnp' : 'npn';
       const named = pins.some((p) => p.name === 'B');
-      return scaledSchema(TRANSISTOR_SCHEMA[sym][named ? 'nomme' : 'libre'], box);
+      // Les fils colorés du symbole « nommé » sont DESSINÉS vers les pattes dans
+      // l'ordre E-B-C : un modèle câblé autrement (la famille BC5xx est C-B-E)
+      // se rabat sur le symbole sans liaison plutôt que de mentir sur son
+      // brochage — le nom écrit sur chaque pastille reste, lui, exact.
+      const ebc = (attrs?.e ?? '1') === '1' && (attrs?.b ?? '2') === '2' && (attrs?.c ?? '3') === '3';
+      return scaledSchema(TRANSISTOR_SCHEMA[sym][named && ebc ? 'nomme' : 'libre'], box);
     }
     case 'relay':
       return scaledSchema(RELAIS_SCHEMA, box);

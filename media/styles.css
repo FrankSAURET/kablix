@@ -1087,6 +1087,58 @@ textarea {
   margin-top: 0.3rem;
 }
 
+/* Sélecteur de transistor : la liste des modèles retenus par les critères, puis
+   le bouton pour rouvrir le choix une fois le modèle posé. */
+.inspector__reflist {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 13rem;
+  overflow-y: auto;
+  margin-top: 0.15rem;
+}
+
+.inspector__ref {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  font: inherit;
+  text-align: left;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: var(--vscode-input-background, #333);
+  color: var(--vscode-input-foreground, #fff);
+  cursor: pointer;
+}
+
+.inspector__ref:hover {
+  border-color: var(--vscode-focusBorder, #0af);
+}
+
+.inspector__ref--active {
+  border-color: var(--vscode-focusBorder, #0af);
+  background: var(--vscode-list-activeSelectionBackground, #04395e);
+}
+
+.inspector__ref small {
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
+.inspector__button {
+  margin-top: 0.4rem;
+  font: inherit;
+  font-size: 0.72rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-input-border, #555);
+  background: var(--vscode-input-background, #333);
+  color: var(--vscode-input-foreground, #fff);
+  cursor: pointer;
+}
+
 /* Barre d'orientation : rotation (↺ ↻) et retournement (⇆ ⇅), icônes seules. */
 .inspector__transform {
   display: flex;

@@ -232,6 +232,10 @@ const CAPACITOR_PROPS: readonly PropDef[] = [
 // Prototypes de transistor (NPN/PNP) : boîtier au choix, électrodes affectées
 // aux pattes par l'utilisateur (une patte ne peut porter qu'une électrode :
 // poser une valeur déjà prise ÉCHANGE les deux), inscription libre du boîtier.
+// Sur le composant « Transistor » de la bibliothèque, ces propriétés ne
+// s'ouvrent que pour les modèles PERSONNALISÉS (`ref` = custom-npn/custom-pnp) :
+// une référence du commerce est figée par sa fiche.
+const CUSTOM_ONLY = { attr: 'ref', equals: ['custom-npn', 'custom-pnp'] } as const;
 const TRANSISTOR_PROPS: readonly PropDef[] = [
   { attr: 'pkg', label: 'Package', kind: 'select', options: ['to92'], optionLabels: { to92: 'TO-92' } },
   { attr: 'e', label: 'Emitter on pin', kind: 'select', options: ['1', '2', '3'] },
@@ -242,6 +246,8 @@ const TRANSISTOR_PROPS: readonly PropDef[] = [
   { attr: 'vcemax', label: 'Max Vce (V)', kind: 'number', min: 1, max: 1000, step: 1 },
   { attr: 'icmax', label: 'Max Ic (A)', kind: 'number', min: 0.001, max: 100, suffixes: true },
 ];
+/** Mêmes propriétés, mais réservées aux modèles personnalisés du sélecteur. */
+const CUSTOM_TRANSISTOR_PROPS: readonly PropDef[] = TRANSISTOR_PROPS.map((p) => ({ ...p, showIf: CUSTOM_ONLY }));
 
 export const CATALOG: readonly PartDef[] = [
   // Cartes AVR : éléments forkés, mis à l'échelle 10/9,6 px pour que
@@ -453,8 +459,23 @@ export const CATALOG: readonly PartDef[] = [
   // dessin externe (to92) sert à tous, seule l'inscription change ; le symbole
   // interne (npn/pnp) et le gain viennent du modèle. `named` = référence figée,
   // pattes nommées E/B/C ; sans lui, pattes 1/2/3 et électrodes réglables.
+  // UNE seule entrée dans la palette : la référence se choisit dans les
+  // propriétés (sélecteur à critères, transistors.mts). Elle garde TOUJOURS
+  // `named` — changer de modèle recâble le dessin, jamais les noms de broches,
+  // donc aucun fil ne devient orphelin. `ref` vide = modèle pas encore choisi.
+  {
+    type: 'transistor', label: 'Transistor', tag: 'kablix-transistor', kind: 'transistor',
+    attrs: {
+      pkg: 'to92', symbol: 'npn', text: '?', named: '1', ref: '',
+      e: '1', b: '2', c: '3', gain: '100', vcemax: '40', icmax: '0.6',
+    },
+    props: CUSTOM_TRANSISTOR_PROPS,
+  },
+  // Les trois entrées d'origine restent des types VALIDES (projets enregistrés,
+  // tests, import Wokwi) mais sortent de la bibliothèque — d'où `variant`.
   {
     type: 'pn2222a', label: 'Transistor PN2222A (NPN)', tag: 'kablix-transistor', kind: 'transistor',
+    variant: true,
     attrs: {
       pkg: 'to92', symbol: 'npn', text: 'PN\n2222A', named: '1',
       e: '1', b: '2', c: '3', gain: '35', vcemax: '40', icmax: '0.6',
@@ -462,6 +483,7 @@ export const CATALOG: readonly PartDef[] = [
   },
   {
     type: 'npn', label: 'Transistor NPN (generic)', tag: 'kablix-transistor', kind: 'transistor',
+    variant: true,
     attrs: {
       pkg: 'to92', symbol: 'npn', text: 'NPN',
       e: '1', b: '2', c: '3', gain: '100', vcemax: '40', icmax: '0.6',
@@ -470,6 +492,7 @@ export const CATALOG: readonly PartDef[] = [
   },
   {
     type: 'pnp', label: 'Transistor PNP (generic)', tag: 'kablix-transistor', kind: 'transistor',
+    variant: true,
     attrs: {
       pkg: 'to92', symbol: 'pnp', text: 'PNP',
       e: '1', b: '2', c: '3', gain: '100', vcemax: '40', icmax: '0.6',

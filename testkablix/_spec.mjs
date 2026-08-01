@@ -23,6 +23,9 @@ export const PART_PINS = {
   // Transistors : la référence figée nomme ses pattes d'après les électrodes,
   // les prototypes génériques les numérotent (l'affectation e/b/c est une
   // propriété — changer d'affectation ne doit orphéliner aucun fil).
+  // Le composant de bibliothèque garde TOUJOURS ses pattes nommées : changer de
+  // référence déplace l'électrode sur une autre patte, jamais son nom.
+  transistor: ['E', 'B', 'C'],
   pn2222a: ['E', 'B', 'C'],
   npn: ['1', '2', '3'],
   pnp: ['1', '2', '3'],
@@ -1253,6 +1256,87 @@ void loop() {
   delay(2000);
   digitalWrite(SATURE, LOW);
   digitalWrite(PAS_SATURE, LOW);
+  delay(1000);
+}
+`,
+  }),
+
+  test({
+    name: 'transistor-uno', board: 'uno', ext: 'ino',
+    parts: [
+      MCU('uno'),
+      { id: 'alim1', type: 'alim', x: 620, y: 380, attrs: { voltage: '5', maxcurrent: '1' } },
+      { id: 'r1', type: 'resistor', x: 300, y: 180, attrs: { value: '10000' } },
+      // Deux modeles choisis dans le selecteur : meme boitier, meme cablage par
+      // NOM (E/B/C), mais brochages opposes — le BC547 est C-B-E, le 2N3904
+      // E-B-C. Seul le GAIN change ce que le montage sait faire.
+      {
+        id: 'q1', type: 'transistor', x: 440, y: 200,
+        attrs: {
+          pkg: 'to92', symbol: 'npn', text: 'BC\n547', named: '1', ref: 'BC547',
+          e: '3', b: '2', c: '1', gain: '200', vcemax: '45', icmax: '0.1',
+        },
+      },
+      { id: 'fan1', type: 'ventilo', x: 620, y: 40, attrs: { voltage: '5', current: '0.06' } },
+      { id: 'r2', type: 'resistor', x: 300, y: 280, attrs: { value: '10000' } },
+      {
+        id: 'q2', type: 'transistor', x: 880, y: 200,
+        attrs: {
+          pkg: 'to92', symbol: 'npn', text: '2N\n3904', named: '1', ref: '2N3904',
+          e: '1', b: '2', c: '3', gain: '100', vcemax: '40', icmax: '0.2',
+        },
+      },
+      { id: 'fan2', type: 'ventilo', x: 900, y: 40, attrs: { voltage: '5', current: '0.06' } },
+    ],
+    wires: () => [
+      // BC547 (gain 200) : Ib = 0,43 mA, donc Ic max = 200 x 0,43 = 86 mA.
+      w('r1', '1', 'mcu1', '9', 'green'),
+      w('r1', '2', 'q1', 'B', 'green'),
+      w('q1', 'E', 'mcu1', 'GND.1', 'black'),
+      w('q1', 'C', 'fan1', '-', 'blue'),
+      w('fan1', '+', 'alim1', 'V+', 'red'),
+      w('alim1', 'GND', 'mcu1', 'GND.2', 'black'),
+      // 2N3904 (gain 100) : meme base, moitie moins de courant — 43 mA.
+      w('r2', '1', 'mcu1', '10', 'orange'),
+      w('r2', '2', 'q2', 'B', 'orange'),
+      w('q2', 'E', 'mcu1', 'GND.3', 'black'),
+      w('q2', 'C', 'fan2', '-', 'blue'),
+      w('fan2', '+', 'alim1', 'V+', 'red'),
+    ],
+    expect: {
+      kind: 'transistor',
+      steps: [
+        { high: ['9', '10'], on: { q1: 0.086, q2: 0.043 }, fanAmps: 0.06, fanSpins: ['fan1'], fanStalls: ['fan2'] },
+        { high: [], off: ['q1', 'q2'], fanAmps: 0.06, fanStalls: ['fan1'] },
+      ],
+    },
+    code: `// Test du composant « Transistor » : un seul item de bibliotheque, le modele
+// se choisit dans les proprietes. Ici deux references du selecteur commandent
+// le MEME ventilateur 5 V / 60 mA a travers la MEME resistance de base 10 kOhm.
+//   broche 9  : BC547  (gain 200) -> Ic max = 200 x 0,43 mA = 86 mA
+//   broche 10 : 2N3904 (gain 100) -> Ic max = 100 x 0,43 mA = 43 mA
+// Le premier ventilateur tourne, le second ne demarre JAMAIS : a montage egal,
+// c'est le gain qui decide.
+//
+// Les deux transistors n'ont PAS le meme brochage (BC547 = C-B-E, 2N3904 =
+// E-B-C), et pourtant les fils sont identiques : les broches gardent toujours
+// les noms E, B et C, seule la patte qui les porte change.
+const int FORT = 9;
+const int FAIBLE = 10;
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(FORT, OUTPUT);
+  pinMode(FAIBLE, OUTPUT);
+  Serial.println("Broche 10 : gain deux fois plus faible, son ventilateur ne tournera pas.");
+}
+
+void loop() {
+  digitalWrite(FORT, HIGH);
+  digitalWrite(FAIBLE, HIGH);
+  delay(2000);
+  digitalWrite(FORT, LOW);
+  digitalWrite(FAIBLE, LOW);
   delay(1000);
 }
 `,
@@ -2668,6 +2752,80 @@ while True:
     time.sleep(2)
     sature.value(0)
     pas_sature.value(0)
+    time.sleep(1)
+`,
+  }),
+
+  test({
+    name: 'transistor-pico', board: 'pico', ext: 'py',
+    parts: [
+      MCU('pico'),
+      { id: 'alim1', type: 'alim', x: 620, y: 380, attrs: { voltage: '5', maxcurrent: '1' } },
+      { id: 'r1', type: 'resistor', x: 300, y: 180, attrs: { value: '10000' } },
+      // Memes deux modeles qu'en Arduino, mais attaques en 3,3 V : le courant de
+      // base tombe a 0,26 mA, et avec lui tout ce que le montage peut commander.
+      {
+        id: 'q1', type: 'transistor', x: 440, y: 200,
+        attrs: {
+          pkg: 'to92', symbol: 'npn', text: 'BC\n547', named: '1', ref: 'BC547',
+          e: '3', b: '2', c: '1', gain: '200', vcemax: '45', icmax: '0.1',
+        },
+      },
+      { id: 'fan1', type: 'ventilo', x: 620, y: 40, attrs: { voltage: '5', current: '0.04' } },
+      { id: 'r2', type: 'resistor', x: 300, y: 280, attrs: { value: '10000' } },
+      {
+        id: 'q2', type: 'transistor', x: 880, y: 200,
+        attrs: {
+          pkg: 'to92', symbol: 'npn', text: '2N\n3904', named: '1', ref: '2N3904',
+          e: '1', b: '2', c: '3', gain: '100', vcemax: '40', icmax: '0.2',
+        },
+      },
+      { id: 'fan2', type: 'ventilo', x: 900, y: 40, attrs: { voltage: '5', current: '0.04' } },
+    ],
+    wires: () => [
+      w('r1', '1', 'mcu1', 'GP15', 'green'),
+      w('r1', '2', 'q1', 'B', 'green'),
+      w('q1', 'E', 'mcu1', 'GND.5', 'black'),
+      w('q1', 'C', 'fan1', '-', 'blue'),
+      w('fan1', '+', 'alim1', 'V+', 'red'),
+      w('alim1', 'GND', 'mcu1', 'GND.4', 'black'),
+      w('r2', '1', 'mcu1', 'GP14', 'orange'),
+      w('r2', '2', 'q2', 'B', 'orange'),
+      w('q2', 'E', 'mcu1', 'GND.3', 'black'),
+      w('q2', 'C', 'fan2', '-', 'blue'),
+      w('fan2', '+', 'alim1', 'V+', 'red'),
+    ],
+    expect: {
+      kind: 'transistor',
+      steps: [
+        { high: ['GP15', 'GP14'], on: { q1: 0.052, q2: 0.026 }, fanAmps: 0.04, fanSpins: ['fan1'], fanStalls: ['fan2'] },
+        { high: [], off: ['q1', 'q2'], fanAmps: 0.04, fanStalls: ['fan1'] },
+      ],
+    },
+    code: `# Test du composant « Transistor » : un seul item de bibliotheque, le modele
+# se choisit dans les proprietes. Ici deux references du selecteur commandent
+# le MEME ventilateur 5 V / 40 mA a travers la MEME resistance de base 10 kOhm.
+#   GP15 : BC547  (gain 200) -> Ic max = 200 x 0,26 mA = 52 mA
+#   GP14 : 2N3904 (gain 100) -> Ic max = 100 x 0,26 mA = 26 mA
+# Le premier ventilateur tourne, le second ne demarre JAMAIS : a montage egal,
+# c'est le gain qui decide.
+#
+# Les deux transistors n'ont PAS le meme brochage (BC547 = C-B-E, 2N3904 =
+# E-B-C), et pourtant les fils sont identiques : les broches gardent toujours
+# les noms E, B et C, seule la patte qui les porte change.
+from machine import Pin
+import time
+
+fort = Pin(15, Pin.OUT)
+faible = Pin(14, Pin.OUT)
+print("GP14 : gain deux fois plus faible, son ventilateur ne tournera pas.")
+
+while True:
+    fort.value(1)
+    faible.value(1)
+    time.sleep(2)
+    fort.value(0)
+    faible.value(0)
     time.sleep(1)
 `,
   }),

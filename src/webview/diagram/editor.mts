@@ -23,6 +23,17 @@ import {
   type PropDef,
   type SimModelPreset,
 } from './catalog.mjs';
+import {
+  CUSTOM_NPN,
+  CUSTOM_PNP,
+  DEFAULT_TRANSISTOR_FILTER,
+  TRANSISTOR_FILTER_OPTIONS,
+  filterTransistors,
+  isCustomRef,
+  transistorAttrs,
+  transistorSummary,
+  type TransistorFilter,
+} from './transistors.mjs';
 import { breadboardPins, normalizeSize, stripOfPin } from './breadboard.mjs';
 import { embedClipboardInSvg, encodeClipboard, extractClipboard, type ClipboardPayload } from './clipboard.mjs';
 import { groveSocketPins } from './grove-shield.mjs';
@@ -4389,7 +4400,12 @@ export class Editor {
     // re-rendu complet nécessaire (sinon les pastilles restent aux positions de
     // l'ancienne variante — ex. le 7 segments 2/4 chiffres gardait le brochage
     // du 1 chiffre, DIG1..DIG4 absentes).
-    if (attr === 'angle' || attr === 'flip' || attr === 'size' || attr === 'pins' || attr === 'lcdSize' || attr === 'columns' || attr === 'digits') {
+    // Transistor à pattes NOMMÉES : changer l'affectation d'une électrode change
+    // le nom porté par chaque pastille (E passe de la patte 1 à la patte 3 en
+    // adoptant un BC547) — re-rendu, sinon les pastilles gardent leur ancien nom.
+    const movesElectrode = (attr === 'e' || attr === 'b' || attr === 'c')
+      && partDef(r.part.type).kind === 'transistor' && (r.part.attrs?.named ?? '') !== '';
+    if (movesElectrode || attr === 'angle' || attr === 'flip' || attr === 'size' || attr === 'pins' || attr === 'lcdSize' || attr === 'columns' || attr === 'digits') {
       this.rerenderPart(partId); // renderPart restaure le câblage interne s'il était affiché
       if (this.selection?.kind === 'part' && this.selection.id === partId) {
         this.rendered.get(partId)?.container.classList.add('part--selected');
@@ -4629,10 +4645,22 @@ export class Editor {
       this.inspector.appendChild(help);
     }
 
+    // Transistor de la bibliothèque : tant qu'aucune référence n'est choisie
+    // (ou qu'on demande à en changer), l'inspecteur montre le SÉLECTEUR à la
+    // place des propriétés — critères en haut, modèles retenus en dessous.
+    if (def.type === 'transistor' && this.transistorPicking(partId, r.part)) {
+      this.appendTransistorPicker(partId, r.part);
+      this.appendTransformControl(r.part);
+      this.appendDeleteButton(t('Delete the part'), () => this.removePart(partId));
+      this.appendHelp([t('Pick a model, or a custom NPN/PNP to set everything yourself.')]);
+      return;
+    }
+
     for (const prop of def.props ?? []) {
       if (!this.propVisible(def, r.part, prop)) continue;
       this.appendPropControl(partId, r.part, prop);
     }
+    if (def.type === 'transistor') this.appendTransistorSummary(partId, r.part);
     // PCA9685 : l'adresse résultant des six pads AD0..AD5, écrite comme sur la
     // fiche du module (0x40..0x7F) — c'est elle qu'attend le programme.
     if (def.kind === 'i2c-pwm') {
@@ -4655,6 +4683,138 @@ export class Editor {
     if (def.interactive) lines.push(t('Right-click to move it.'));
     if (def.kind === 'pushbutton') lines.push(t('In simulation: Ctrl+click keeps it pressed.'));
     this.appendHelp(lines);
+  }
+
+  // --- Sélecteur de transistor -------------------------------------------------
+  // Un seul « Transistor » dans la bibliothèque : le modèle se choisit ici, par
+  // critères. Les critères sont un état d'INTERFACE (ils ne partent pas dans le
+  // .projix) ; seul le résultat du choix est écrit dans les attributs.
+  private transistorFilter: TransistorFilter = { ...DEFAULT_TRANSISTOR_FILTER };
+  /** Composant dont on est en train de (re)choisir le modèle, le cas échéant. */
+  private pickingTransistor: string | null = null;
+
+  private transistorPicking(partId: string, part: Part): boolean {
+    return this.pickingTransistor === partId || (part.attrs?.ref ?? '') === '';
+  }
+
+  /** Ouvre (ou rouvre) le sélecteur, critères calés sur le modèle en place. */
+  private openTransistorPicker(partId: string, part: Part): void {
+    this.pickingTransistor = partId;
+    this.transistorFilter = {
+      ...DEFAULT_TRANSISTOR_FILTER,
+      symbol: part.attrs?.symbol === 'pnp' ? 'pnp' : 'npn',
+      pkg: part.attrs?.pkg ?? 'to92',
+    };
+    this.renderInspector();
+  }
+
+  private appendTransistorPicker(partId: string, part: Part): void {
+    const f = this.transistorFilter;
+    // Une liste déroulante de critère : le seuil vide vaut « peu importe ».
+    const criterion = (
+      label: string,
+      key: keyof TransistorFilter,
+      options: readonly string[],
+      text: (v: string) => string
+    ): void => {
+      const lab = document.createElement('label');
+      lab.className = 'inspector__label';
+      lab.textContent = t(label);
+      this.inspector.appendChild(lab);
+      const select = document.createElement('select');
+      select.className = 'inspector__control';
+      for (const opt of options) {
+        const o = document.createElement('option');
+        o.value = opt;
+        o.textContent = opt === '' ? t('Any') : text(opt);
+        if (opt === f[key]) o.selected = true;
+        select.appendChild(o);
+      }
+      select.addEventListener('change', () => {
+        this.transistorFilter = { ...this.transistorFilter, [key]: select.value } as TransistorFilter;
+        this.renderInspector(); // la liste des modèles suit les critères
+      });
+      this.inspector.appendChild(select);
+    };
+
+    criterion('Type', 'symbol', ['npn', 'pnp'], (v) => v.toUpperCase());
+    criterion('Package', 'pkg', TRANSISTOR_FILTER_OPTIONS.pkg, () => t('TO-92'));
+    criterion('Max Ic at least', 'icmax', TRANSISTOR_FILTER_OPTIONS.icmax,
+      (v) => (Number(v) < 1 ? `${Math.round(Number(v) * 1000)} mA` : `${v} A`));
+    criterion('Max Vce at least', 'vcemax', TRANSISTOR_FILTER_OPTIONS.vcemax, (v) => `${v} V`);
+    criterion('Gain at least', 'gain', TRANSISTOR_FILTER_OPTIONS.gain, (v) => `β ${v}`);
+
+    const title = document.createElement('label');
+    title.className = 'inspector__label';
+    title.textContent = t('Matching models');
+    this.inspector.appendChild(title);
+
+    const list = document.createElement('div');
+    list.className = 'inspector__reflist';
+    const choose = (choice: string): void => {
+      for (const [attr, value] of Object.entries(transistorAttrs(choice, this.transistorFilter))) {
+        this.updatePartAttr(partId, attr, value);
+      }
+      this.pickingTransistor = null;
+      this.renderInspector(); // retour à l'affichage normal des propriétés
+    };
+    const entry = (value: string, name: string, detail: string): void => {
+      const btn = document.createElement('button');
+      btn.className = 'inspector__ref' + (part.attrs?.ref === value ? ' inspector__ref--active' : '');
+      const strong = document.createElement('strong');
+      strong.textContent = name;
+      const small = document.createElement('small');
+      small.textContent = detail;
+      btn.append(strong, small);
+      btn.addEventListener('click', () => choose(value));
+      list.appendChild(btn);
+    };
+
+    const matches = filterTransistors(f);
+    for (const ref of matches) entry(ref.ref, ref.ref, transistorSummary(ref));
+    if (matches.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'inspector__hint';
+      empty.textContent = t('No model matches these criteria.');
+      list.appendChild(empty);
+    }
+    // Le modèle personnalisé reste TOUJOURS proposé : c'est la porte de sortie
+    // quand aucune référence du commerce ne convient, et il arrive pré-rempli
+    // avec les critères demandés.
+    const isPnp = f.symbol === 'pnp';
+    entry(isPnp ? CUSTOM_PNP : CUSTOM_NPN,
+      isPnp ? t('Custom PNP') : t('Custom NPN'),
+      t('Every characteristic stays editable'));
+    this.inspector.appendChild(list);
+  }
+
+  /** Sous les propriétés : le modèle en place et le bouton pour en changer. */
+  private appendTransistorSummary(partId: string, part: Part): void {
+    const ref = part.attrs?.ref ?? '';
+    const custom = isCustomRef(ref);
+    const line = document.createElement('p');
+    line.className = 'inspector__hint';
+    const ic = Number(part.attrs?.icmax ?? 0);
+    const icText = ic < 1 ? `${Math.round(ic * 1000)} mA` : `${ic} A`;
+    const name = custom ? (ref === CUSTOM_PNP ? t('Custom PNP') : t('Custom NPN')) : ref;
+    line.textContent = `${name} — ${part.attrs?.vcemax ?? ''} V, ${icText}, β ${part.attrs?.gain ?? ''}`;
+    this.inspector.appendChild(line);
+    // Brochage : il change d'un modèle à l'autre (la famille BC5xx est C-B-E)
+    // alors que les NOMS de broches, eux, ne bougent jamais.
+    const pinout = document.createElement('p');
+    pinout.className = 'inspector__hint';
+    const legs = ['1', '2', '3'].map((n) => {
+      const el = (['e', 'b', 'c'] as const).find((k) => (part.attrs?.[k] ?? '') === n);
+      return el ? el.toUpperCase() : '–';
+    });
+    pinout.textContent = `${t('Pinout (flat face)')} : ${legs.join(' ')}`;
+    this.inspector.appendChild(pinout);
+
+    const change = document.createElement('button');
+    change.className = 'inspector__button';
+    change.textContent = t('Change transistor…');
+    change.addEventListener('click', () => this.openTransistorPicker(partId, part));
+    this.inspector.appendChild(change);
   }
 
   /**

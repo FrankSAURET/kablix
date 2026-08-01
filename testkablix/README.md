@@ -32,6 +32,7 @@ Chaque composant du catalogue a deux tests : `<composant>-uno` (Arduino, C) et
 | Résistance | `resistor-uno` | `resistor-pico` | LED allumée (continuité) |
 | Diode | `diode-uno` | `diode-pico` | passante / à l'envers = bloquée |
 | Condensateurs | `condo-uno` | `condo-pico` | charge et décharge RC (A0 ; rappel interne 65 kΩ sur ADC0) |
+| Transistor (sélecteur) | `transistor-uno` | `transistor-pico` | BC547 vs 2N3904 : à montage égal, le gain décide |
 | Transistor PN2222A | `pn2222a-uno` | `pn2222a-pico` | saturé = ventilateur tourne |
 | Transistor NPN (proto) | `npn-uno` | `npn-pico` | commande côté bas d'une LED |
 | Transistor PNP (proto) | `pnp-uno` | `pnp-pico` | commande côté haut (logique inversée) |

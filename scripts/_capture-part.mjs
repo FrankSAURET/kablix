@@ -30,6 +30,9 @@ const PARTS = {
   dht11: { module: 'dht22-element.mjs', tag: 'kablix-dht11' },
   // Boîtier partagé TO-92 : même dessin pour les trois, seule l'inscription
   // change (`text`, une ligne par saut de ligne) — comme dans le catalogue.
+  // Le composant de bibliothèque : illustré avec la référence la plus courante,
+  // celle que le sélecteur propose en tête de liste.
+  transistor: { module: 'transistor-element.mjs', tag: 'kablix-transistor', width: 200, attrs: { text: 'PN\n2222A', named: '1' } },
   pn2222a: { module: 'transistor-element.mjs', tag: 'kablix-transistor', width: 200, attrs: { text: 'PN\n2222A', named: '1' } },
   npn: { module: 'transistor-element.mjs', tag: 'kablix-transistor', width: 200, attrs: { text: 'NPN' } },
   pnp: { module: 'transistor-element.mjs', tag: 'kablix-transistor', width: 200, attrs: { symbol: 'pnp', text: 'PNP' } },
