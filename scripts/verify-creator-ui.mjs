@@ -10,7 +10,7 @@
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build as esbuild } from 'esbuild';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -269,13 +269,15 @@ rows.push({
 });
 rows.push({
 	name: 'éditeur SVG : messages du choix traduits',
-	ok: ['Choose an application…', 'System default', 'Choose the SVG editor',
-		'Kablix: SVG editor not found ({0}).'].every((k) => !!bundle[k]),
+	ok: ['Choose the SVG editor', 'Kablix: SVG editor not found ({0}).',
+		'Kablix: could not save the SVG editor in the settings (kablix.svgEditorPath).',
+		'Kablix: could not start {0}.'].every((k) => !!bundle[k]),
 	detail: 'clé absente de bundle.l10n.fr.json',
 });
 // La fenêtre ne doit pas pousser Inkscape, et doit s'ouvrir dans le dossier
 // des applications du système (Program Files / /Applications / /usr/bin).
 const panelSrc = readFileSync(join(ROOT, 'src', 'panel.ts'), 'utf8');
+const detectSrc = readFileSync(join(ROOT, 'src', 'svgEditorDetect.ts'), 'utf8');
 rows.push({
 	name: 'éditeur SVG : la fenêtre de choix ne préconise aucune application',
 	ok: !/title:\s*l10n\.t\('Choose the SVG editor[^']*Inkscape/.test(panelSrc) &&
@@ -284,11 +286,77 @@ rows.push({
 });
 rows.push({
 	name: 'éditeur SVG : fenêtre ouverte dans le dossier des applications de l’OS',
-	ok: /function defaultAppsDir\(\)/.test(panelSrc) &&
-		/ProgramFiles/.test(panelSrc) && /\/Applications/.test(panelSrc) &&
-		/\/usr\/bin/.test(panelSrc) && /defaultUri:\s*defaultAppsDir\(\)/.test(panelSrc),
+	ok: /export function defaultAppsDirPath\(\)/.test(detectSrc) &&
+		/ProgramFiles/.test(detectSrc) && /\/Applications/.test(detectSrc) &&
+		/\/usr\/bin/.test(detectSrc) && /defaultUri:\s*defaultAppsDir\(\)/.test(panelSrc),
 	detail: 'defaultUri absent ou dossier par OS incomplet',
 });
+// v2026.7.243 : on ne DEMANDE plus tant qu'on peut TROUVER, et ce qu'on trouve
+// est écrit dans les réglages (relecture vérifiée).
+rows.push({
+	name: 'éditeur SVG : trouvé tout seul avant d’être demandé',
+	ok: /const detected = await detectSvgEditor\(\)/.test(panelSrc) &&
+		panelSrc.indexOf('await detectSvgEditor()') < panelSrc.indexOf('await chooseSvgEditor()) ?? \'\''),
+	detail: 'la fenêtre de choix passe avant la détection',
+});
+rows.push({
+	name: 'éditeur SVG : plus de message à boutons avant la fenêtre de choix',
+	ok: !/Which application should open the drawing/.test(panelSrc),
+	detail: 'le message intermédiaire (qui se referme tout seul) est de retour',
+});
+rows.push({
+	name: 'éditeur SVG : l’écriture du réglage est relue et signalée si elle échoue',
+	ok: /async function rememberSvgEditor/.test(panelSrc) &&
+		/get<string>\('svgEditorPath'\) \?\? ''/.test(panelSrc.slice(panelSrc.indexOf('rememberSvgEditor'))) &&
+		/could not save the SVG editor/.test(panelSrc),
+	detail: 'réglage écrit sans contrôle de relecture',
+});
+
+// --- Le module de détection, exécuté pour de vrai (aucune dépendance vscode) --
+{
+	const out = join(CACHE, 'detect.mjs');
+	await esbuild({
+		entryPoints: [join(ROOT, 'src', 'svgEditorDetect.ts')],
+		bundle: true, format: 'esm', platform: 'node', external: ['node:*'], outfile: out,
+	});
+	const d = await import(pathToFileURL(out).href);
+	const push = (name, ok, detail = '') => rows.push({ name, ok: !!ok, detail });
+
+	push('détection : chemin entre guillemets du registre',
+		d.parseShellCommandExe('"C:\\Program Files\\Inkscape\\bin\\inkscape.exe" "%1"')
+			=== 'C:\\Program Files\\Inkscape\\bin\\inkscape.exe',
+		'guillemets mal retirés');
+	push('détection : chemin SANS guillemets, espaces compris',
+		d.parseShellCommandExe('C:\\Program Files\\App\\mon app.exe %1')
+			=== 'C:\\Program Files\\App\\mon app.exe',
+		'coupé au premier espace');
+	push('détection : REG_EXPAND_SZ développé',
+		d.parseShellCommandExe('"%ProgramFiles%\\Inkscape\\bin\\inkscape.exe" "%1"')
+			=== `${process.env.ProgramFiles}\\Inkscape\\bin\\inkscape.exe`,
+		'%ProgramFiles% laissé tel quel');
+	push('détection : un éditeur est retenu, un simple visualiseur non',
+		d.isUsableSvgEditor('C:\\x\\inkscape.exe') &&
+		d.isUsableSvgEditor('/usr/bin/inkscape') &&
+		!d.isUsableSvgEditor('C:\\x\\chrome.exe') &&
+		!d.isUsableSvgEditor('C:\\x\\msedge.exe') &&
+		!d.isUsableSvgEditor('C:\\x\\Code.exe'),
+		'navigateur accepté ou éditeur refusé');
+	push('détection : lancement direct d’un exécutable',
+		JSON.stringify(d.svgEditorLaunch('C:\\x\\inkscape.exe', 'C:\\a.svg'))
+			=== JSON.stringify({ cmd: 'C:\\x\\inkscape.exe', args: ['C:\\a.svg'] }),
+		'ligne de lancement inattendue');
+	// Les deux cas qu'un spawn direct rate (vérifiés quel que soit l'OS du banc,
+	// via le nom de la fonction : le code de lancement est le même partout).
+	push('détection : les cas .app / .bat sont prévus',
+		/darwin.*\.app/s.test(detectSrc) && /open', args: \['-a'/.test(detectSrc) &&
+		/\.\(bat\|cmd\)/.test(detectSrc) && /ComSpec/.test(detectSrc),
+		'paquet macOS ou script Windows non traités');
+	const found = await d.detectSvgEditor();
+	push('détection : éditeur du système trouvé sur cette machine',
+		found === null || (existsSync(found) && d.isUsableSvgEditor(found)),
+		`chemin invalide : ${found}`);
+	console.log(`   (éditeur SVG trouvé ici : ${found ?? 'aucun'})`);
+}
 let fail = 0;
 for (const r of rows) {
 	if (!r.ok) fail++;

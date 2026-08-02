@@ -123,6 +123,10 @@ const pkg = JSON.parse(read('package.json'));
 
 ok('menu hamburger : l’entrée « liste des composants » est là',
   /data-cmd="kablix\.exportPartsCsv">\$\{l10n\.t\('Export the part list \(CSV\)'\)\}/.test(html));
+// Un séparateur la suit : les exports (Wokwi, nomenclature) d'un côté, les
+// mises à jour de l'autre.
+ok('menu hamburger : un séparateur suit la liste des composants',
+  /data-cmd="kablix\.exportPartsCsv">[^\n]*\n\s*<li class="more-menu__sep" role="separator"><\/li>/.test(html));
 ok('extension : la commande kablix.exportPartsCsv est enregistrée',
   /registerCommand\('kablix\.exportPartsCsv'[\s\S]{0,120}requestPartsCsv\(\)/.test(ext));
 ok('package.json : la commande est déclarée (palette de commandes)',

@@ -23,6 +23,7 @@ import {
 import { resolveMicropythonFirmware, FirmwareCancelled } from './firmware';
 import { PartHelpPanel } from './partHelp';
 import { codeColumn, moveEditorToColumn, textTabColumn } from './layout';
+import { defaultAppsDirPath, detectSvgEditor, svgEditorLaunch } from './svgEditorDetect';
 
 const ARTIFACT_EXTS = ['.hex', '.uf2', '.elf', '.bin'];
 
@@ -42,13 +43,32 @@ function baseNameNoExt(fsPath: string): string {
  * là plutôt que dans le dernier dossier visité (souvent le projet).
  */
 function defaultAppsDir(): vscode.Uri | undefined {
-  if (process.platform === 'win32') {
-    // « Program Files » de l'architecture courante, avec repli sur le 32 bits.
-    const dir = process.env.ProgramFiles ?? process.env['ProgramFiles(x86)'] ?? 'C:\\Program Files';
-    return existsSync(dir) ? vscode.Uri.file(dir) : undefined;
+  const dir = defaultAppsDirPath();
+  return dir ? vscode.Uri.file(dir) : undefined;
+}
+
+/**
+ * Écrit le chemin retenu dans `kablix.svgEditorPath` (réglage utilisateur) et
+ * VÉRIFIE la relecture : une écriture refusée (réglage verrouillé par une
+ * stratégie, profil en lecture seule) doit se voir tout de suite, sinon Kablix
+ * redemande l'éditeur à chaque retouche sans qu'on sache pourquoi.
+ */
+async function rememberSvgEditor(fsPath: string): Promise<boolean> {
+  try {
+    await vscode.workspace
+      .getConfiguration('kablix')
+      .update('svgEditorPath', fsPath, vscode.ConfigurationTarget.Global);
+  } catch {
+    /* message ci-dessous */
   }
-  const dir = process.platform === 'darwin' ? '/Applications' : '/usr/bin';
-  return existsSync(dir) ? vscode.Uri.file(dir) : undefined;
+  const saved = (
+    vscode.workspace.getConfiguration('kablix').get<string>('svgEditorPath') ?? ''
+  ).trim();
+  if (saved === fsPath) return true;
+  vscode.window.showWarningMessage(
+    l10n.t('Kablix: could not save the SVG editor in the settings (kablix.svgEditorPath).')
+  );
+  return false;
 }
 
 /**
@@ -73,42 +93,51 @@ export async function chooseSvgEditor(): Promise<string | null> {
   });
   const fsPath = picked?.[0]?.fsPath;
   if (!fsPath) return null;
-  await vscode.workspace
-    .getConfiguration('kablix')
-    .update('svgEditorPath', fsPath, vscode.ConfigurationTarget.Global);
+  await rememberSvgEditor(fsPath);
   vscode.window.showInformationMessage(l10n.t('Kablix: SVG editor set to {0}', fsPath));
   return fsPath;
 }
 
-/** Ouvre un fichier dans l'éditeur SVG retenu (choisi au premier appel). */
-async function openInSvgEditor(uri: vscode.Uri): Promise<void> {
+/**
+ * Chemin de l'éditeur SVG à employer : réglage déjà retenu, sinon celui que le
+ * système associe aux .svg (Inkscape neuf fois sur dix) — trouvé tout seul et
+ * retenu sans rien demander —, sinon la fenêtre de choix.
+ */
+async function resolveSvgEditor(): Promise<string> {
   const config = vscode.workspace.getConfiguration('kablix');
-  let exe = (config.get<string>('svgEditorPath') ?? '').trim();
-  if (exe && !existsSync(exe)) {
-    // Application déplacée ou désinstallée : on la redemande plutôt que
-    // d'échouer en silence.
-    vscode.window.showWarningMessage(l10n.t('Kablix: SVG editor not found ({0}).', exe));
-    exe = '';
+  const saved = (config.get<string>('svgEditorPath') ?? '').trim();
+  if (saved && existsSync(saved)) return saved;
+  if (saved) {
+    // Application déplacée ou désinstallée : on en cherche une autre plutôt
+    // que d'échouer en silence.
+    vscode.window.showWarningMessage(l10n.t('Kablix: SVG editor not found ({0}).', saved));
   }
-  if (!exe) {
-    const choose = l10n.t('Choose an application…');
-    const system = l10n.t('System default');
-    const answer = await vscode.window.showInformationMessage(
-      l10n.t('Which application should open the drawing? Kablix will remember your choice.'),
-      choose,
-      system
-    );
-    if (!answer) return; // message écarté : on n'ouvre rien
-    if (answer === choose) exe = (await chooseSvgEditor()) ?? '';
+  const detected = await detectSvgEditor();
+  if (detected) {
+    // Trouvé : on l'inscrit dans les réglages, où il reste modifiable.
+    await rememberSvgEditor(detected);
+    return detected;
   }
+  // Rien d'associé, rien d'installé aux emplacements connus : c'est la seule
+  // situation où l'on dérange l'utilisateur, et on ouvre DIRECTEMENT le
+  // sélecteur de fichiers (un message à boutons se referme tout seul).
+  return (await chooseSvgEditor()) ?? '';
+}
+
+/** Ouvre un fichier dans l'éditeur SVG retenu (trouvé ou choisi au premier appel). */
+async function openInSvgEditor(uri: vscode.Uri): Promise<void> {
+  const exe = await resolveSvgEditor();
   if (exe) {
     const fallback = (): void => {
       void vscode.env.openExternal(uri);
     };
     try {
+      // Paquet .app de macOS, script .bat de Windows ou exécutable ordinaire :
+      // la ligne de lancement n'est pas la même.
+      const { cmd, args } = svgEditorLaunch(exe, uri.fsPath);
       // Processus détaché : l'éditeur survit à la fermeture de VS Code, et son
       // écriture du fichier est ce que la surveillance guette.
-      const child = spawn(exe, [uri.fsPath], { detached: true, stdio: 'ignore' });
+      const child = spawn(cmd, args, { detached: true, stdio: 'ignore' });
       child.on('error', () => {
         vscode.window.showWarningMessage(l10n.t('Kablix: could not start {0}.', exe));
         fallback();

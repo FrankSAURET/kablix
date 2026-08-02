@@ -29,5 +29,5 @@
   "kablix.config.picowNetworkBridge": "Pico W : permet aux scripts MicroPython de faire de VRAIES requêtes HTTP (network/urequests) relayées par l'hôte (la puce Wi-Fi n'est pas émulée). L'hôte exécute le vrai fetch et renvoie la réponse au script. Activé par défaut ; désactivez pour bloquer toute requête sortante des scripts simulés.",
   "kablix.editor.projix": "Simulateur Kablix",
   "kablix.config.selectionColor": "Couleur de sélection (composants, câbles, coudes). Couleur hexadécimale #rrggbb. Vive par défaut pour rester visible sur tous les thèmes.",
-  "kablix.config.svgEditorPath": "Chemin complet de l'éditeur SVG (Inkscape, Illustrator…) utilisé par « Ouvrir dans l'éditeur SVG » du créateur de composants. Vide : Kablix vous le demande à la première retouche et le retient ici."
+  "kablix.config.svgEditorPath": "Chemin complet de l'éditeur SVG (Inkscape, Illustrator…) utilisé par « Ouvrir dans l'éditeur SVG » du créateur de composants. Vide : Kablix cherche l'application que votre système associe aux fichiers .svg, l'inscrit ici, et ne vous demande rien. Il n'ouvre la fenêtre de choix que s'il ne trouve aucun éditeur."
 }
