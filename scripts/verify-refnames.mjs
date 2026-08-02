@@ -6,9 +6,9 @@
 //  1. la famille : elle vient du modèle de simulation (`kind`), pas de la
 //     catégorie de palette — une LDR est une résistance, un joystick est un
 //     potentiomètre, une carte SD est un « module » ;
-//  2. la numérotation : on repart du plus grand numéro DÉJÀ posé, jamais du
-//     nombre de composants, sinon supprimer R2 puis reposer une résistance
-//     rendrait un R2 en double ;
+//  2. la numérotation : le prochain numéro est le PREMIER LIBRE en partant de 1
+//     (v2026.7.244) — supprimer R1 puis reposer une résistance redonne R1, et
+//     jamais un doublon puisqu'un numéro pris est enjambé ;
 //  3. la STABILITÉ à l'ouverture : un projet enregistré garde ses repères
 //     (c'est le nom écrit sur le papier et dans les messages de simulation) —
 //     seuls un repère vide ou en double reçoivent un repère neuf, les fils
@@ -35,7 +35,7 @@ mkdirSync(CACHE, { recursive: true });
 // ---------------------------------------------------------------------------
 writeFileSync(join(CACHE, 'api.mjs'), `
 export { refFamily, refPrefix, nextPartId } from '../../src/webview/diagram/refnames.mjs';
-export { CATALOG, partDef } from '../../src/webview/diagram/catalog.mjs';
+export { CATALOG, partDef, partCategory } from '../../src/webview/diagram/catalog.mjs';
 export { initLocale } from '../../src/webview/i18n.mjs';
 `);
 const apiFile = join(CACHE, 'api.bundle.mjs');
@@ -73,9 +73,14 @@ ok('familles (FR) : un joystick, ce sont deux potentiomètres → Pot',
   ['pot', 'slide-pot', 'joystick'].map(famille).join(' '));
 ok('familles (FR) : capteurs Capt (DHT compris), actionneurs Act, alim Alim',
   ['dht22', 'hcsr04', 'pir', 'flame'].every((t) => A.refPrefix(t) === 'Capt') &&
-  ['buzzer', 'servo', 'relais', 'ventilo'].every((t) => A.refPrefix(t) === 'Act') &&
+  ['buzzer', 'servo', 'ventilo'].every((t) => A.refPrefix(t) === 'Act') &&
   A.refPrefix('alim') === 'Alim',
-  ['dht22', 'hcsr04', 'buzzer', 'relais', 'alim'].map(famille).join(' '));
+  ['dht22', 'hcsr04', 'buzzer', 'alim'].map(famille).join(' '));
+// Un relais est un interrupteur COMMANDÉ : son propre préfixe, sa propre
+// section de palette (Frank, v2026.7.244).
+ok('familles : le relais a son préfixe Rl et va dans « Commandes »',
+  A.refPrefix('relais') === 'Rl' && A.partCategory(A.partDef('relais')) === 'Controls',
+  `${famille('relais')} ${A.partCategory(A.partDef('relais'))}`);
 
 A.initLocale('en');
 ok('familles (EN) : préfixes traduits (PB, SW, KP, Aff→Disp, Capt→Sens)',
@@ -105,17 +110,17 @@ ok('type inconnu (projet plus récent) : repli Mod, aucune exception',
 // ---------------------------------------------------------------------------
 ok('numérotation : premier composant d’une famille = 1',
   A.nextPartId('resistor', []) === 'R1' && A.nextPartId('led', ['R1', 'R2']) === 'L1');
-ok('numérotation : suivante = plus grand numéro POSÉ + 1',
+ok('numérotation : série pleine → on continue à la suite',
   A.nextPartId('resistor', ['R1', 'R2', 'R3']) === 'R4');
-ok('numérotation : un trou n’est PAS rebouché (R2 supprimé → R4, pas R2)',
-  A.nextPartId('resistor', ['R1', 'R3']) === 'R4');
+ok('numérotation : un trou EST rebouché (R2 supprimé → R2, pas R4)',
+  A.nextPartId('resistor', ['R1', 'R3']) === 'R2');
 ok('numérotation : chaque famille compte pour elle seule',
   A.nextPartId('condo-np', ['R1', 'R2', 'R3', 'C1']) === 'C2');
-ok('numérotation : repère déjà pris (fichier importé) enjambé',
-  A.nextPartId('resistor', ['R1', 'R4', 'R5']) === 'R6');
+ok('numérotation : le premier libre, même loin des repères déjà pris',
+  A.nextPartId('resistor', ['R1', 'R4', 'R5']) === 'R2');
 ok('numérotation : les vieux repères (led-3, r-1) ne perturbent rien',
   A.nextPartId('led', ['led-3', 'led-7']) === 'L1' &&
-  A.nextPartId('resistor', ['r-1', 'R2']) === 'R3');
+  A.nextPartId('resistor', ['r-1', 'R2']) === 'R1');
 ok('numérotation : Pot et BP ne se confondent pas (préfixes de longueurs ≠)',
   A.nextPartId('pot', ['Pot1', 'BP1', 'BP2']) === 'Pot2' &&
   A.nextPartId('button', ['Pot1', 'BP1', 'BP2']) === 'BP3');
@@ -171,11 +176,12 @@ async function run() {
 	ok('atelier : le repère est bien la clé du composant dessiné',
 		!!a.elementOf('R1') && !!a.elementOf('BP1'));
 
-	// Suppression de R1 : la suivante est R3, jamais un second R2.
+	// Suppression de R1 : le numéro 1 est de nouveau libre, on le reprend.
 	a.removePart('R1');
 	await wait(40);
 	const r3 = a.addPart('resistor', 500, 100);
-	ok('atelier : R1 supprimée → la suivante est R3 (aucun doublon)', r3.id === 'R3', r3.id);
+	ok('atelier : R1 supprimée → la suivante reprend R1 (aucun doublon)',
+		r3.id === 'R1' && a.diagram.parts.filter((p) => p.id === 'R1').length === 1, r3.id);
 
 	// --- Ouverture d'un projet enregistré : les repères sont GARDÉS -----------
 	const saved = {

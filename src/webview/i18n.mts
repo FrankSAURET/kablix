@@ -249,6 +249,8 @@ const FR: Record<string, string> = {
   'Capacitor (electrolytic)': 'Condensateur (chimique)',
   'Non-polarized': 'Non polarisé',
   'Polarized': 'Polarisé',
+  'Plastic': 'Plastique',
+  'Tantalum': 'Tantale',
   'Electrolytic': 'Chimique',
   'Nominal value (F)': 'Valeur nominale (F)',
   'Max voltage (V)': 'Tension max (V)',
@@ -362,6 +364,8 @@ const FR: Record<string, string> = {
   'Ref.': 'Repère',
   'Part': 'Composant',
   'Characteristics': 'Caractéristiques',
+  'Value': 'Valeur',
+  'Comment': 'Commentaire',
 
   // Propriétés du catalogue
   'Color': 'Couleur',

@@ -266,6 +266,23 @@ Panel controls:
 
 When the simulation stops, the curves stay displayed for analysis.
 
+## Exporting the part list (CSV bill of materials)
+
+Hamburger menu → **“Export the part list (CSV)”**. One row per part, five columns:
+
+| Ref. | Part | Type | Value | Comment |
+| --- | --- | --- | --- | --- |
+| `C2` | Electrolytic capacitor | `condo-p-1` | `10 µF` | `Max voltage: 400 V` |
+| `R1` | Resistor | `resistor` | `10 kΩ` | `Power: 0.25 W` |
+| `T1` | Transistor | `transistor` | | `Max Vce: 40 V · Current gain (β): 100 · …` |
+
+- **Value**: the one printed on the part, with its unit and prefix (`10 µF`, `100 kΩ`, `4.7 mH`). A part without one — a transistor, a display — leaves the cell empty.
+- **Comment**: every other inspector characteristic, separated by `·`, written `Max voltage: 400 V`.
+- The three capacitors are told apart by their name: **plastic**, **tantalum** or **electrolytic**.
+- The list is sorted by family then by number (`R2` before `R10`), and the suggested file is **`<project name>.csv`**, next to the project.
+
+Separator `;`, UTF-8 byte-order mark and CRLF line endings: the file opens straight into a spreadsheet set up for French.
+
 ## Exporting the diagram as SVG
 
 Button **SVG floppy disk**: the complete diagram (parts with their rotations, colored wires with their rounded corners) is exported as a **standalone SVG file** through a save dialog. Usable in a document, a website, a printout…

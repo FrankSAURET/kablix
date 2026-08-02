@@ -4,9 +4,15 @@
 // qu'attend un tableur configuré en français, où la virgule est la décimale.
 // Le fichier commence par la marque d'ordre des octets UTF-8, sans quoi Excel
 // affiche « RÃ©sistance » au lieu de « Résistance ».
-import { partDef, type PartDef } from './catalog.mjs';
+//
+// Cinq colonnes (v2026.7.244) : Repère ; Composant ; Type ; Valeur ; Commentaire.
+// La VALEUR est celle qu'on lit sur le composant — « 10 µF », « 100 kΩ » —,
+// avec son unité et son préfixe. Tout le reste passe en COMMENTAIRE, sous la
+// forme « Tension max : 400 V ». Un transistor n'a pas de valeur : ses
+// caractéristiques sont donc toutes en commentaire.
+import { partDef, type PartDef, type PropDef } from './catalog.mjs';
 import type { Part } from './model.mjs';
-import { t } from '../i18n.mjs';
+import { t, locale } from '../i18n.mjs';
 import { colorDisplayName } from './colors.mjs';
 
 /** Une ligne de la nomenclature. */
@@ -14,7 +20,8 @@ export interface BomRow {
   ref: string;
   label: string;
   type: string;
-  specs: string;
+  value: string;
+  comment: string;
 }
 
 /** Valeur effective d'un attribut : celle du composant, sinon celle par défaut. */
@@ -22,38 +29,162 @@ function attrOf(def: PartDef, part: Part, attr: string): string {
   return part.attrs?.[attr] ?? def.attrs?.[attr] ?? '';
 }
 
+// --- Unités et préfixes --------------------------------------------------------
+/** Unités qui prennent un préfixe (une résistance va de l'ohm au mégohm). */
+const SCALED_UNITS = new Set(['Ω', 'F', 'H', 'A', 'Hz', 'W', 'S']);
+/** Unités écrites telles quelles (une tension d'alimentation reste en volts). */
+const PLAIN_UNITS = new Set(['V', '%', '°', '°C', 's', 'ms', 'µs', 'mm', 'cm', 'm', 'rpm']);
+/** Préfixes, du plus grand au plus petit. */
+const SI_STEPS: readonly [number, string][] = [
+  [1e9, 'G'],
+  [1e6, 'M'],
+  [1e3, 'k'],
+  [1, ''],
+  [1e-3, 'm'],
+  [1e-6, 'µ'],
+  [1e-9, 'n'],
+  [1e-12, 'p'],
+];
+
+/** Unité écrite entre parenthèses à la fin d'un libellé : « Value (Ω) » → « Ω ». */
+export function labelUnit(label: string): string | null {
+  const m = /\(([^()]+)\)\s*$/.exec(label);
+  const unit = m?.[1]?.trim();
+  if (!unit) return null;
+  return SCALED_UNITS.has(unit) || PLAIN_UNITS.has(unit) ? unit : null;
+}
+
+/** Le même libellé sans son unité : « Tension max (V) » → « Tension max ». */
+function labelWithoutUnit(label: string): string {
+  return label.replace(/\s*\([^()]+\)\s*$/, '').trim();
+}
+
+/** Nombre écrit dans la langue de l'interface (virgule décimale en français). */
+function localizeNumber(n: number): string {
+  const text = String(Number(n.toPrecision(4)));
+  return locale() === 'fr' ? text.replace('.', ',') : text;
+}
+
 /**
- * Caractéristiques lisibles d'un composant : ses propriétés d'inspecteur, dans
- * l'ordre où elles y figurent, sous la forme « Libellé : valeur ». Les
- * propriétés masquées par une condition (`showIf`) et les valeurs vides sont
- * sautées — elles ne disent rien de plus que le type du composant.
+ * Grandeur lisible : « 100000 » + « Ω » → « 100 kΩ », « 1e-5 » + « F » →
+ * « 10 µF », « 0.6 » + « A » → « 600 mA ». Les unités sans préfixe (V, %, °C)
+ * gardent leur nombre tel quel.
  */
-export function partSpecs(part: Part): string {
+export function formatQuantity(raw: string, unit: string | null): string {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return unit ? `${raw} ${unit}` : raw;
+  if (!unit) return localizeNumber(n);
+  if (!SCALED_UNITS.has(unit) || n === 0) return `${localizeNumber(n)} ${unit}`;
+  const abs = Math.abs(n);
+  const [factor, prefix] = SI_STEPS.find(([p]) => abs >= p) ?? SI_STEPS[SI_STEPS.length - 1];
+  return `${localizeNumber(n / factor)} ${prefix}${unit}`;
+}
+
+// --- Colonnes ------------------------------------------------------------------
+/** Propriétés effectivement visibles dans l'inspecteur pour ce composant. */
+function visibleProps(def: PartDef, part: Part): PropDef[] {
+  return (def.props ?? []).filter(
+    (prop) => !prop.showIf || prop.showIf.equals.includes(attrOf(def, part, prop.showIf.attr))
+  );
+}
+
+/**
+ * La propriété qui porte la VALEUR du composant : `value` mesurée dans une
+ * unité de composant (ohm, farad, henry). La « Position (%) » d'un curseur
+ * porte le même nom d'attribut mais n'est pas une valeur de nomenclature.
+ */
+function valueProp(props: readonly PropDef[]): PropDef | undefined {
+  return props.find((p) => {
+    if (p.attr !== 'value') return false;
+    const unit = labelUnit(p.label);
+    return !!unit && SCALED_UNITS.has(unit);
+  });
+}
+
+/** Texte d'une propriété dans le commentaire : « Tension max : 400 V ». */
+function propText(def: PartDef, part: Part, prop: PropDef): string | null {
+  const value = attrOf(def, part, prop.attr);
+  if (value === '') return null;
+  // Une case cochée ne vaut que par son libellé.
+  if (prop.kind === 'checkbox') return t(prop.label);
+  const label = t(prop.label);
+  if (prop.attr === 'color') {
+    // Les couleurs n'ont pas de libellé de liste : l'inspecteur les montre en
+    // pastilles, dont l'infobulle donne déjà le nom traduit.
+    return `${label} : ${colorDisplayName(value)}`;
+  }
+  const optionLabel = prop.optionLabels?.[value];
+  if (optionLabel) return `${label} : ${t(optionLabel)}`;
+  const unit = labelUnit(prop.label);
+  if (unit && prop.kind === 'number') {
+    return `${labelWithoutUnit(label)} : ${formatQuantity(value, unit)}`;
+  }
+  // Une inscription de boîtier tient sur plusieurs lignes : elle passe sur une
+  // seule dans la cellule, sinon le CSV se lit de travers.
+  return `${label} : ${value.replace(/\s*\n\s*/g, ' ')}`;
+}
+
+/**
+ * Nom du composant. Les trois condensateurs sont un seul type dont `ctype`
+ * change l'habillage : la nomenclature doit dire LEQUEL — « Condensateur
+ * plastique », « Condensateur tantale », « Condensateur chimique ».
+ */
+export function partLabel(part: Part): string {
+  let def: PartDef;
+  try {
+    def = partDef(part.type);
+  } catch {
+    return part.type; // type inconnu de ce poste (projet plus récent)
+  }
+  const label = t(def.label);
+  if (def.kind !== 'capacitor') return label;
+  const prop = (def.props ?? []).find((p) => p.attr === 'ctype');
+  const option = prop?.optionLabels?.[attrOf(def, part, 'ctype')];
+  if (!option) return label;
+  // « Condensateur » + « Plastique » → « Condensateur plastique ».
+  const kindName = t(option);
+  return `${label} ${kindName.charAt(0).toLowerCase()}${kindName.slice(1)}`;
+}
+
+/** Valeur lue sur le composant : « 220 Ω », « 10 µF ». Vide s'il n'en a pas. */
+export function partValue(part: Part): string {
+  let def: PartDef;
+  try {
+    def = partDef(part.type);
+  } catch {
+    return '';
+  }
+  const prop = valueProp(visibleProps(def, part));
+  if (!prop) return '';
+  const raw = attrOf(def, part, prop.attr);
+  return raw === '' ? '' : formatQuantity(raw, labelUnit(prop.label));
+}
+
+/**
+ * Les AUTRES caractéristiques, dans l'ordre de l'inspecteur, sous la forme
+ * « Libellé : valeur ». La valeur du composant en est retirée (elle a sa
+ * colonne) ainsi que le type de condensateur (il est déjà dans son nom).
+ */
+export function partComment(part: Part): string {
   let def: PartDef;
   try {
     def = partDef(part.type);
   } catch {
     return ''; // type inconnu de ce poste : la ligne garde au moins son repère
   }
+  const props = visibleProps(def, part);
+  const skip = new Set<PropDef>();
+  const value = valueProp(props);
+  if (value) skip.add(value);
+  if (def.kind === 'capacitor') {
+    const ctype = props.find((p) => p.attr === 'ctype');
+    if (ctype) skip.add(ctype);
+  }
   const bits: string[] = [];
-  for (const prop of def.props ?? []) {
-    if (prop.showIf && !prop.showIf.equals.includes(attrOf(def, part, prop.showIf.attr))) continue;
-    const value = attrOf(def, part, prop.attr);
-    if (value === '') continue;
-    if (prop.kind === 'checkbox') {
-      bits.push(t(prop.label));
-      continue;
-    }
-    if (prop.attr === 'color') {
-      // Les couleurs n'ont pas de libellé de liste : l'inspecteur les montre en
-      // pastilles, dont l'infobulle donne déjà le nom traduit.
-      bits.push(`${t(prop.label)} : ${colorDisplayName(value)}`);
-      continue;
-    }
-    const optionLabel = prop.optionLabels?.[value];
-    // Une inscription de boîtier tient sur plusieurs lignes : elle passe sur une
-    // seule dans la cellule, sinon le CSV se lit de travers.
-    bits.push(`${t(prop.label)} : ${(optionLabel ? t(optionLabel) : value).replace(/\s*\n\s*/g, ' ')}`);
+  for (const prop of props) {
+    if (skip.has(prop)) continue;
+    const text = propText(def, part, prop);
+    if (text) bits.push(text);
   }
   return bits.join(' · ');
 }
@@ -66,15 +197,13 @@ function refKey(id: string): [string, number] {
 
 /** Nomenclature du schéma, triée par famille puis par numéro de repère. */
 export function bomRows(parts: readonly Part[]): BomRow[] {
-  const rows = parts.map((p) => {
-    let label = p.type;
-    try {
-      label = t(partDef(p.type).label);
-    } catch {
-      /* type inconnu : on garde le type brut */
-    }
-    return { ref: p.id, label, type: p.type, specs: partSpecs(p) };
-  });
+  const rows = parts.map((p) => ({
+    ref: p.id,
+    label: partLabel(p),
+    type: p.type,
+    value: partValue(p),
+    comment: partComment(p),
+  }));
   return rows.sort((a, b) => {
     const [pa, na] = refKey(a.ref);
     const [pb, nb] = refKey(b.ref);
@@ -92,9 +221,11 @@ function cell(value: string): string {
  * puis un composant par ligne. Les fils ne sont pas de la nomenclature.
  */
 export function partsCsv(parts: readonly Part[]): string {
-  const head = [t('Ref.'), t('Part'), t('Type'), t('Characteristics')];
+  const head = [t('Ref.'), t('Part'), t('Type'), t('Value'), t('Comment')];
   const lines = [head.map(cell).join(';')];
-  for (const r of bomRows(parts)) lines.push([r.ref, r.label, r.type, r.specs].map(cell).join(';'));
+  for (const r of bomRows(parts)) {
+    lines.push([r.ref, r.label, r.type, r.value, r.comment].map(cell).join(';'));
+  }
   // CRLF : le format le plus sûr pour les tableurs sous Windows.
   return `﻿${lines.join('\r\n')}\r\n`;
 }

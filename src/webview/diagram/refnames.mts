@@ -26,6 +26,9 @@ const FAMILIES = {
   pot: { en: 'Pot', fr: 'Pot' },
   sensor: { en: 'Sens', fr: 'Capt' },
   actuator: { en: 'Act', fr: 'Act' },
+  // Le relais est une COMMANDE (interrupteur commandé), pas un actionneur : il
+  // a son propre préfixe, comme sur un schéma d'automatisme.
+  relay: { en: 'Rl', fr: 'Rl' },
   psu: { en: 'PSU', fr: 'Alim' },
 } as const;
 
@@ -67,7 +70,7 @@ const BY_KIND: Record<string, RefFamily> = {
   buzzer: 'actuator',
   servo: 'actuator',
   fan: 'actuator',
-  relay: 'actuator',
+  relay: 'relay',
   psu: 'psu',
 };
 
@@ -96,22 +99,17 @@ export function refPrefix(type: string): string {
 }
 
 /**
- * Repère libre pour un composant de ce type : préfixe + premier numéro non
- * pris. On repart du plus grand numéro DÉJÀ posé (et non du nombre de
- * composants) — supprimer R2 puis poser une résistance donne R3, jamais un R2
- * qui rendrait deux fois le même repère à l'ouverture d'un vieux fichier.
+ * Repère libre pour un composant de ce type : préfixe + PREMIER numéro libre en
+ * partant de 1 (Frank, v2026.7.244). Supprimer R1 puis reposer une résistance
+ * redonne R1 : la nomenclature reste sans trou, ce que l'on attend d'un schéma
+ * qu'on retouche. Le numéro n'est donc pas un identifiant à vie — deux
+ * composants successifs peuvent porter le même repère à quelques minutes
+ * d'écart, mais jamais en même temps.
  */
 export function nextPartId(type: string, taken: Iterable<string>): string {
   const prefix = refPrefix(type);
-  const re = new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\d+)$`);
-  let max = 0;
-  const used = new Set<string>();
-  for (const id of taken) {
-    used.add(id);
-    const m = re.exec(id);
-    if (m) max = Math.max(max, Number(m[1]));
-  }
-  let n = max + 1;
-  while (used.has(`${prefix}${n}`)) n++; // repère occupé par un autre schéma d'origine
+  const used = new Set<string>(taken);
+  let n = 1;
+  while (used.has(`${prefix}${n}`)) n++;
   return `${prefix}${n}`;
 }

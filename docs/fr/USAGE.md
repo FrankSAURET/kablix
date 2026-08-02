@@ -268,6 +268,23 @@ Commandes du panneau :
 
 À l'arrêt de la simulation, les courbes restent affichées pour analyse.
 
+## Exporter la liste des composants (nomenclature CSV)
+
+Menu hamburger → **« Exporter la liste des composants (CSV) »**. Une ligne par composant, cinq colonnes :
+
+| Repère | Composant | Type | Valeur | Commentaire |
+| --- | --- | --- | --- | --- |
+| `C2` | Condensateur chimique | `condo-p-1` | `10 µF` | `Tension max : 400 V` |
+| `R1` | Résistance | `resistor` | `10 kΩ` | `Puissance : 0,25 W` |
+| `T1` | Transistor | `transistor` | | `Vce max : 40 V · Gain en courant (β) : 100 · …` |
+
+- **Valeur** : celle qu'on lit sur le composant, avec son unité et son préfixe (`10 µF`, `100 kΩ`, `4,7 mH`). Un composant qui n'en a pas — un transistor, un afficheur — laisse la case vide.
+- **Commentaire** : toutes les autres caractéristiques de l'inspecteur, séparées par `·`, sous la forme `Tension max : 400 V`.
+- Les trois condensateurs se distinguent par leur nom : **plastique**, **tantale** ou **chimique**.
+- La liste est triée par famille puis par numéro (`R2` avant `R10`), et le fichier proposé s'appelle **`<nom du projet>.csv`**, à côté du projet.
+
+Séparateur `;`, marque UTF-8 et fins de ligne CRLF : le fichier s'ouvre directement dans un tableur configuré en français.
+
 ## Exporter le schéma en SVG
 
 Bouton **Disquette SVG** : le schéma complet (composants avec leurs rotations, fils colorés avec leurs arrondis) est exporté en **fichier SVG autonome** via un dialogue de sauvegarde. Utilisable dans un document, un site, une impression…

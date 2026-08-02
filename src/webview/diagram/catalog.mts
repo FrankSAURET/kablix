@@ -223,8 +223,11 @@ const SENSITIVITY_PROP: PropDef = { attr: 'sensitivity', label: 'Sensitivity (%)
 // même élément ; la valeur est saisie en farads avec suffixes m µ n p).
 const CAPACITOR_PROPS: readonly PropDef[] = [
   {
+    // Les noms d'atelier (plastique / tantale / chimique) plutôt que la
+    // physique (non polarisé / polarisé) : c'est ainsi qu'on les demande, et
+    // c'est ce que la nomenclature doit écrire (Frank, v2026.7.244).
     attr: 'ctype', label: 'Type', kind: 'select', options: ['np', 'p', 'chem'],
-    optionLabels: { np: 'Non-polarized', p: 'Polarized', chem: 'Electrolytic' },
+    optionLabels: { np: 'Plastic', p: 'Tantalum', chem: 'Electrolytic' },
   },
   { attr: 'value', label: 'Nominal value (F)', kind: 'number', min: 1e-12, max: 1, suffixes: true },
   { attr: 'vmax', label: 'Max voltage (V)', kind: 'number', min: 1, max: 1000, step: 1 },
@@ -718,6 +721,9 @@ export function partCategory(def: PartDef): string {
     case 'slide-switch':
     case 'dip-switch':
     case 'joystick':
+    // Un relais est un interrupteur COMMANDÉ : sa place est parmi les
+    // commandes, pas parmi les actionneurs (Frank, v2026.7.244).
+    case 'relay':
       return 'Controls';
     case 'analog-source':
     case 'digital-source':
@@ -727,7 +733,6 @@ export function partCategory(def: PartDef): string {
     case 'buzzer':
     case 'servo':
     case 'fan':
-    case 'relay':
       return 'Actuators';
     default:
       return 'Passive';

@@ -1,21 +1,31 @@
 # À faire
-1. **Numérotation qui ne recule pas** : le prochain numéro est le premier libre en partant de 1. Supprimer `R1` puis reposer une résistance donne `R1`, pas `R3`
-1. Dans l'export CSV, pour les condensateurs tu mets plastique, tantale ou chimique. Pour les caractéristique tu mets toujours les unité sous la forme 10 µF ou 10kΩ... dans une colonne valeur et les autres caractéristiques dans une colonne commentaire sous la forme Tension max : 400 V (par exemple). Pour les transistors toutes les caractéristiques seront dans la colonne commentaire.
-1. Les relais passent dans la catégorie "Commandes" et leur préfix est "Rl"
+1. Les composants encadrés en rouge Affichent un message à leur coté (uniquement pdt la simulation) qui explique le problème (Message Jaune sur fond rouge avec). Pour l'instant :
+    1. Diode à l'envers -> Diode à l'envers
+    1. Diode manquante pour un relais -> La commande d'un relais est une bobine : a la coupure elle renvoie une surtension qui detruit le transistor de commande. La diode de roue libre l'absorbe — elle n'est pas facultative.
+    1. Pour les autres fait moi des propositions
+1. Refais le projix de test pour le relais-pico il est vide
+1. Je viens de rajouter dans composants.svg un schéma interne NPN-Generique et et PNP-générique à utiliser pour tous les transistors dont le schéma interne ne correspont pas à NPN1 ou PNP1.
+1. Vsix quand liste ci-dessus terminée
+    
 1. ✅ ouvrir un svg dans l'éditeur de composant ne fonctionne pas il ne trouve jamais l'application. Je n'ai pas non plus trouvé de propriété kablix : editeur svg par defaut dans le settings.json et rien n'est sauvegardé.
 1. ✅ Dans le menu hamburger, met un séparateur en dessous de exporter la liste des composants (CSV)
 1. ✅ le choix d'une application pour l'éditeur svg doit ouvrir dans le dossier programme par défaut (selon OS).
-1. ✅ La grille dans l'éditeur de copmposant devrait de 10 px et les éléments alignés dessus.
-1. ✅ Quand je clic sur ouvrir dans l'éditeur par défaut, ça m'ouvre la fenêtre windows pour obtenir un application pour ouvrir ce fichier. Alors qu'inkscape est mon éditeur par défaut (sur windows pas dans vscode). Il faudrait plutôt que ça permette de choisir l'éditeur et que ça l'enregistre dans une propriété kablix
 1. ✅ Nommage des composants comme suit : PréfixXX par exemple R1 avec un suivit sur un schéma. Première résistance = R1, deuxième R2 ...
 Voici les préfix à utiliser (traduisible) et respecte la casse : Résistance (R) [ y compris, ctn, ctp, LDR et autres], Condensateur (C), Led (L), transistor (T), Carte à µc (U), Module [platine d'essai ou carte grove inactive, carte SD, carte 16 Pwm : toutes cartes complexes qui ne rentre pas dans les autres catégories] (Mod), Tous les afficheurs (Aff), Bouton poussoir (BP), Clavier (Cl), Interrupteur (Inter), Potentiometre (Pot), Joystick(Pot), Capteur (Capt), Actionneur (Act), 
-1. ✅ Dans le menu hamburger ajoute une fonction qui sort la liste des composants sous forme d'un fichier CSV (;) nom du projet.csv.
-1. ✅ Encore un  petit bug dans l'autoroutage (A Examiner\bug routage.png) fichier condo-pico.projix. LEs petit zigouigoui sur l'image de gauche sont facilement supprimable (un exemple image de droite). Ce qui de plus rendrait la plupart des fils conforme (bon fils 4 coudes ou moins)
-1. ✅ Pour les sondes analogiques interne sur le traceur tu les notes sour la forme " ADC0 (GP26)" et pareil pour toutes les cartes (arduino et raspberry)
-1. ✅ Les messages de défaut nomment le coupable et doivent aussi lui mettre rectangle rouge autour (mêmes dimensions que le rectangle de sélection)
-1. 
+
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# v2026.7.244 — les repères rebouchent les trous, la nomenclature sépare valeur et commentaire, les relais sont des commandes
+1. ✅ **Le prochain numéro est le PREMIER LIBRE**, en partant de 1 (règle inverse de la v2026.7.240, à la demande de Frank) : supprimer `R1` puis reposer une résistance redonne `R1`, et non plus `R3`. La nomenclature d'un schéma retouché reste donc sans trou. Un numéro déjà pris est toujours enjambé — jamais de doublon.
+2. ✅ **Le relais devient une COMMANDE** : c'est un interrupteur commandé, pas un actionneur. Il quitte la section « Actionneurs » de la palette pour **« Commandes »** et prend son propre préfixe **`Rl`** (`Rl1`, `Rl2`…) au lieu de `Act`. Casse respectée, en français comme en anglais.
+3. ✅ **Nomenclature CSV en CINQ colonnes** : `Repère ; Composant ; Type ; **Valeur** ; **Commentaire**`. La **valeur** est celle qu'on lit sur le composant, unité et préfixe compris — `10 µF`, `100 kΩ`, `4,7 mH`, `600 mA` — calculée du picofarad au gigahertz ; le reste part en **commentaire**, sous la forme `Tension max : 400 V`, séparé par `·`. Un transistor n'a pas de valeur : toutes ses caractéristiques sont donc en commentaire, comme demandé.
+4. ✅ **Les trois condensateurs se distinguent par leur nom** : « Condensateur **plastique** », « **tantale** », « **chimique** » (au lieu de « polarisé / non polarisé », qui ne disait pas lequel acheter). Le type ne figure plus en commentaire, il est déjà dans le nom.
+5. ✅ **La « Position (%) » d'un potentiomètre n'est pas une valeur de nomenclature** : seule une propriété `value` mesurée dans une unité de composant (Ω, F, H, A, Hz, W, S) remplit la colonne Valeur. Les volts, degrés, pourcentages et millimètres restent en commentaire, écrits tels quels.
+6. ✅ **Décimale de la langue** : `0,25 W` en français, `0.25 W` en anglais.
+7. ✅ **Tous les projets de `testkablix` renommés** (101 `.projix` sur 102) : `mcu1` → `U1`, `r1` → `R1`, `led1` → `L1`, `q1` → `T1`, `rl1` → `Rl1`, `uno-35` → `U1`… Les fils suivent leur composant. Renommage **sur place** dans les archives, sans régénérer : les positions et les tracés retouchés à la main sont conservés. `_spec.mjs` renommé de la même façon (1203 identifiants), programmes `.ino`/`.py` intacts (seuls les commentaires `rl1` → `Rl1` du test relais suivent). Nouvel outil `scripts/_rename-testkablix.mjs`.
+8. ✅ **`testkablix/_verify.mjs` : 78 → 20 échecs** — les schémas du dépôt, réenregistrés par Frank avec les nouveaux repères, ne correspondaient plus aux attentes de `_spec.mjs`. Aucun échec nouveau. Les 20 restants sont antérieurs (broches déplacées dans des `.projix` retouchés, `relais-pico` vide, manifestes de `blink-pico` / `led-bar-pico`) et sont déjà dans la liste « à faire ».
+9. ✅ **`verify:refnames` (36 contrôles) et `verify:bom` (49 contrôles) à jour** : trou rebouché, relais en « Commandes » avec son préfixe `Rl`, cinq colonnes, écriture des grandeurs avec préfixe SI, virgule française contre point anglais. Nomenclature CSV documentée dans `USAGE.md` **FR et EN** (elle ne l'était pas depuis la v2026.7.240).
 
 # v2026.7.243 — Kablix TROUVE l'éditeur SVG au lieu de le demander
 1. ✅ **L'éditeur SVG du système est trouvé tout seul** : Inkscape était bien l'application associée aux `.svg` chez Frank, mais Kablix ne le savait pas — il redemandait, ou laissait Windows afficher sa fenêtre « Comment voulez-vous ouvrir ce fichier ? ». Nouveau module `svgEditorDetect.ts` : sur Windows il lit le **choix de l'utilisateur** dans le registre (`FileExts\.svg\UserChoice` → `ProgId` → `shell\open\command`), sur Linux `xdg-mime query default image/svg+xml` puis le `.desktop`, et à défaut il cherche les éditeurs installés aux emplacements connus (Inkscape, Boxy SVG, Affinity, Illustrator). Vérifié sur la machine de Frank : `C:\Program Files\Inkscape\bin\inkscape.exe`, sans rien demander.

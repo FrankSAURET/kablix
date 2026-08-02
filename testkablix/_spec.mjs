@@ -89,7 +89,7 @@ function test(def) {
   return built;
 }
 
-const MCU = (board, x = 40, y = 60) => ({ id: 'mcu1', type: board, x, y });
+const MCU = (board, x = 40, y = 60) => ({ id: 'U1', type: board, x, y });
 
 // ================================================================================
 // Partie AVR — Arduino Uno (un test .ino par composant, dossier par sketch)
@@ -97,9 +97,9 @@ const MCU = (board, x = 40, y = 60) => ({ id: 'mcu1', type: board, x, y });
 const AVR_TESTS = [
   test({
     name: 'led-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'r1', type: 'resistor', x: 480, y: 90, attrs: { value: '220' } }, { id: 'led1', type: 'led', x: 620, y: 60, attrs: { color: 'red' } }],
-    wires: () => [w('r1', '1', 'mcu1', '13', 'green'), w('led1', 'A', 'r1', '2', 'green'), w('led1', 'C', 'mcu1', 'GND.1', 'black')],
-    expect: { kind: 'led', partId: 'led1', mcuPin: '13' },
+    parts: [MCU('uno'), { id: 'R1', type: 'resistor', x: 480, y: 90, attrs: { value: '220' } }, { id: 'L1', type: 'led', x: 620, y: 60, attrs: { color: 'red' } }],
+    wires: () => [w('R1', '1', 'U1', '13', 'green'), w('L1', 'A', 'R1', '2', 'green'), w('L1', 'C', 'U1', 'GND.1', 'black')],
+    expect: { kind: 'led', partId: 'L1', mcuPin: '13' },
     code: `// Test LED : clignote sur D13 (via une résistance de 220 ohms).
 void setup() {
   pinMode(13, OUTPUT);
@@ -119,14 +119,14 @@ void loop() {
 
   test({
     name: 'rgb-led-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'rgb1', type: 'rgb-led', x: 620, y: 80, attrs: { common: 'cathode' } }],
+    parts: [MCU('uno'), { id: 'L1', type: 'rgb-led', x: 620, y: 80, attrs: { common: 'cathode' } }],
     wires: () => [
-      w('rgb1', 'R', 'mcu1', '9', 'orange'),
-      w('rgb1', 'G', 'mcu1', '10', 'green'),
-      w('rgb1', 'B', 'mcu1', '11', 'blue'),
-      w('rgb1', 'COM', 'mcu1', 'GND.1', 'black'),
+      w('L1', 'R', 'U1', '9', 'orange'),
+      w('L1', 'G', 'U1', '10', 'green'),
+      w('L1', 'B', 'U1', '11', 'blue'),
+      w('L1', 'COM', 'U1', 'GND.1', 'black'),
     ],
-    expect: { kind: 'rgb-led', partId: 'rgb1', r: '9', g: '10', b: '11' },
+    expect: { kind: 'rgb-led', partId: 'L1', r: '9', g: '10', b: '11' },
     code: `// Test LED RGB (cathode commune) : fondu sur chaque canal PWM.
 const int R = 9, G = 10, B = 11;
 
@@ -155,9 +155,9 @@ void loop() {
 
   test({
     name: 'button-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'btn1', type: 'button', x: 620, y: 100, attrs: { color: 'green' } }],
-    wires: () => [w('btn1', '1.l', 'mcu1', '2', 'yellow'), w('btn1', '2.l', 'mcu1', 'GND.1', 'black')],
-    expect: { kind: 'button', partId: 'btn1', mcuPin: '2' },
+    parts: [MCU('uno'), { id: 'BP1', type: 'button', x: 620, y: 100, attrs: { color: 'green' } }],
+    wires: () => [w('BP1', '1.l', 'U1', '2', 'yellow'), w('BP1', '2.l', 'U1', 'GND.1', 'black')],
+    expect: { kind: 'button', partId: 'BP1', mcuPin: '2' },
     code: `// Test bouton poussoir : appui = LOW (pull-up interne), recopié sur la LED D13.
 void setup() {
   pinMode(2, INPUT_PULLUP);
@@ -176,9 +176,9 @@ void loop() {
 
   test({
     name: 'button-6mm-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'btn1', type: 'button-6mm', x: 620, y: 100, attrs: { color: 'red' } }],
-    wires: () => [w('btn1', '1.l', 'mcu1', '3', 'yellow'), w('btn1', '2.l', 'mcu1', 'GND.1', 'black')],
-    expect: { kind: 'button', partId: 'btn1', mcuPin: '3' },
+    parts: [MCU('uno'), { id: 'BP1', type: 'button-6mm', x: 620, y: 100, attrs: { color: 'red' } }],
+    wires: () => [w('BP1', '1.l', 'U1', '3', 'yellow'), w('BP1', '2.l', 'U1', 'GND.1', 'black')],
+    expect: { kind: 'button', partId: 'BP1', mcuPin: '3' },
     code: `// Test bouton 6 mm : identique au bouton standard, sur D3.
 void setup() {
   pinMode(3, INPUT_PULLUP);
@@ -197,9 +197,9 @@ void loop() {
 
   test({
     name: 'resistor-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'r1', type: 'resistor', x: 480, y: 90, attrs: { value: '220' } }, { id: 'led1', type: 'led', x: 620, y: 60, attrs: { color: 'yellow' } }],
-    wires: () => [w('r1', '1', 'mcu1', '8', 'green'), w('led1', 'A', 'r1', '2', 'green'), w('led1', 'C', 'mcu1', 'GND.2', 'black')],
-    expect: { kind: 'led', partId: 'led1', mcuPin: '8' },
+    parts: [MCU('uno'), { id: 'R1', type: 'resistor', x: 480, y: 90, attrs: { value: '220' } }, { id: 'L1', type: 'led', x: 620, y: 60, attrs: { color: 'yellow' } }],
+    wires: () => [w('R1', '1', 'U1', '8', 'green'), w('L1', 'A', 'R1', '2', 'green'), w('L1', 'C', 'U1', 'GND.2', 'black')],
+    expect: { kind: 'led', partId: 'L1', mcuPin: '8' },
     code: `// Test résistance : en série avec une LED sur D8 (continuité du courant).
 void setup() {
   pinMode(8, OUTPUT);
@@ -218,9 +218,9 @@ void loop() {
 
   test({
     name: 'buzzer-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'bz1', type: 'buzzer', x: 620, y: 90 }],
-    wires: () => [w('bz1', '1', 'mcu1', '8', 'purple'), w('bz1', '2', 'mcu1', 'GND.1', 'black')],
-    expect: { kind: 'buzzer', partId: 'bz1', mcuPin: '8' },
+    parts: [MCU('uno'), { id: 'Act1', type: 'buzzer', x: 620, y: 90 }],
+    wires: () => [w('Act1', '1', 'U1', '8', 'purple'), w('Act1', '2', 'U1', 'GND.1', 'black')],
+    expect: { kind: 'buzzer', partId: 'Act1', mcuPin: '8' },
     code: `// Test buzzer : niveau haut simple puis tone() (halo actif sur le buzzer).
 void setup() {
   pinMode(8, OUTPUT);
@@ -243,13 +243,13 @@ void loop() {
 
   test({
     name: 'pot-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'pot1', type: 'pot', x: 620, y: 90, attrs: { min: '0', max: '100', value: '50' } }],
+    parts: [MCU('uno'), { id: 'Pot1', type: 'pot', x: 620, y: 90, attrs: { min: '0', max: '100', value: '50' } }],
     wires: () => [
-      w('pot1', 'VCC', 'mcu1', '5V', 'red'),
-      w('pot1', 'SIG', 'mcu1', 'A0', 'green'),
-      w('pot1', 'GND', 'mcu1', 'GND.1', 'black'),
+      w('Pot1', 'VCC', 'U1', '5V', 'red'),
+      w('Pot1', 'SIG', 'U1', 'A0', 'green'),
+      w('Pot1', 'GND', 'U1', 'GND.1', 'black'),
     ],
-    expect: { kind: 'pot', partId: 'pot1', mcuPin: 'A0' },
+    expect: { kind: 'pot', partId: 'Pot1', mcuPin: 'A0' },
     code: `// Test potentiomètre : lecture analogique 0-1023 sur A0.
 void setup() {
   Serial.begin(115200);
@@ -266,13 +266,13 @@ void loop() {
 
   test({
     name: 'slide-pot-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'pot1', type: 'slide-pot', x: 600, y: 100, attrs: { min: '0', max: '100', value: '50' } }],
+    parts: [MCU('uno'), { id: 'Pot1', type: 'slide-pot', x: 600, y: 100, attrs: { min: '0', max: '100', value: '50' } }],
     wires: () => [
-      w('pot1', 'VCC', 'mcu1', '5V', 'red'),
-      w('pot1', 'SIG', 'mcu1', 'A0', 'green'),
-      w('pot1', 'GND', 'mcu1', 'GND.1', 'black'),
+      w('Pot1', 'VCC', 'U1', '5V', 'red'),
+      w('Pot1', 'SIG', 'U1', 'A0', 'green'),
+      w('Pot1', 'GND', 'U1', 'GND.1', 'black'),
     ],
-    expect: { kind: 'pot', partId: 'pot1', mcuPin: 'A0' },
+    expect: { kind: 'pot', partId: 'Pot1', mcuPin: 'A0' },
     code: `// Test potentiomètre à glissière : lecture analogique 0-1023 sur A0.
 void setup() {
   Serial.begin(115200);
@@ -289,19 +289,19 @@ void loop() {
 
   test({
     name: '7seg-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'seg1', type: '7seg', x: 620, y: 80, attrs: { color: 'red', common: 'cathode', digits: '1' } }],
+    parts: [MCU('uno'), { id: 'Aff1', type: '7seg', x: 620, y: 80, attrs: { color: 'red', common: 'cathode', digits: '1' } }],
     wires: () => [
-      w('seg1', 'A', 'mcu1', '2', 'green'),
-      w('seg1', 'B', 'mcu1', '3', 'green'),
-      w('seg1', 'C', 'mcu1', '4', 'green'),
-      w('seg1', 'D', 'mcu1', '5', 'green'),
-      w('seg1', 'E', 'mcu1', '6', 'green'),
-      w('seg1', 'F', 'mcu1', '7', 'green'),
-      w('seg1', 'G', 'mcu1', '8', 'green'),
-      w('seg1', 'DP', 'mcu1', '9', 'green'),
-      w('seg1', 'COM.1', 'mcu1', 'GND.1', 'black'),
+      w('Aff1', 'A', 'U1', '2', 'green'),
+      w('Aff1', 'B', 'U1', '3', 'green'),
+      w('Aff1', 'C', 'U1', '4', 'green'),
+      w('Aff1', 'D', 'U1', '5', 'green'),
+      w('Aff1', 'E', 'U1', '6', 'green'),
+      w('Aff1', 'F', 'U1', '7', 'green'),
+      w('Aff1', 'G', 'U1', '8', 'green'),
+      w('Aff1', 'DP', 'U1', '9', 'green'),
+      w('Aff1', 'COM.1', 'U1', 'GND.1', 'black'),
     ],
-    expect: { kind: '7seg', partId: 'seg1', segments: { A: '2', B: '3', C: '4', D: '5', E: '6', F: '7', G: '8', DP: '9' } },
+    expect: { kind: '7seg', partId: 'Aff1', segments: { A: '2', B: '3', C: '4', D: '5', E: '6', F: '7', G: '8', DP: '9' } },
     code: `// Test afficheur 7 segments (cathode commune) : compte de 0 à 9.
 // Segments A,B,C,D,E,F,G,DP sur D2..D9 ; commun COM sur GND.
 const int SEGS[8] = {2, 3, 4, 5, 6, 7, 8, 9};
@@ -329,12 +329,12 @@ void loop() {
 
   test({
     name: 'led-bar-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'bar1', type: 'led-bar', x: 620, y: 80, attrs: { color: 'GYR' } }],
+    parts: [MCU('uno'), { id: 'Aff1', type: 'led-bar', x: 620, y: 80, attrs: { color: 'GYR' } }],
     wires: () => [
-      ...Array.from({ length: 10 }, (_, i) => w('bar1', `A${i + 1}`, 'mcu1', String(i + 2), 'green')),
-      ...Array.from({ length: 10 }, (_, i) => w('bar1', `C${i + 1}`, 'mcu1', `GND.${(i % 3) + 1}`, 'black')),
+      ...Array.from({ length: 10 }, (_, i) => w('Aff1', `A${i + 1}`, 'U1', String(i + 2), 'green')),
+      ...Array.from({ length: 10 }, (_, i) => w('Aff1', `C${i + 1}`, 'U1', `GND.${(i % 3) + 1}`, 'black')),
     ],
-    expect: { kind: 'led-bar', partId: 'bar1', firstPin: '2' },
+    expect: { kind: 'led-bar', partId: 'Aff1', firstPin: '2' },
     code: `// Test barre de 10 LED : vumètre qui monte puis descend (anodes sur D2..D11).
 void setup() {
   for (int i = 2; i <= 11; i++) pinMode(i, OUTPUT);
@@ -356,13 +356,13 @@ void loop() {
 
   test({
     name: 'slide-switch-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'sw1', type: 'slide-switch', x: 620, y: 100 }],
+    parts: [MCU('uno'), { id: 'Inter1', type: 'slide-switch', x: 620, y: 100 }],
     wires: () => [
-      w('sw1', '1', 'mcu1', '7', 'yellow'),
-      w('sw1', '2', 'mcu1', 'GND.1', 'black'),
-      w('sw1', '3', 'mcu1', '8', 'orange'),
+      w('Inter1', '1', 'U1', '7', 'yellow'),
+      w('Inter1', '2', 'U1', 'GND.1', 'black'),
+      w('Inter1', '3', 'U1', '8', 'orange'),
     ],
-    expect: { kind: 'slide-switch', partId: 'sw1', sides: { 1: '7', 3: '8' } },
+    expect: { kind: 'slide-switch', partId: 'Inter1', sides: { 1: '7', 3: '8' } },
     code: `// Test interrupteur à glissière : le commun (2) est à GND, les côtés 1 et 3
 // sont lus en pull-up : le côté connecté passe à LOW.
 void setup() {
@@ -382,12 +382,12 @@ void loop() {
 
   test({
     name: 'dip-switch-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'dip1', type: 'dip-switch', x: 620, y: 90 }],
+    parts: [MCU('uno'), { id: 'Inter1', type: 'dip-switch', x: 620, y: 90 }],
     wires: () => [
-      ...Array.from({ length: 8 }, (_, i) => w('dip1', `${i + 1}a`, 'mcu1', String(i + 2), 'yellow')),
-      ...Array.from({ length: 8 }, (_, i) => w('dip1', `${i + 1}b`, 'mcu1', `GND.${(i % 3) + 1}`, 'black')),
+      ...Array.from({ length: 8 }, (_, i) => w('Inter1', `${i + 1}a`, 'U1', String(i + 2), 'yellow')),
+      ...Array.from({ length: 8 }, (_, i) => w('Inter1', `${i + 1}b`, 'U1', `GND.${(i % 3) + 1}`, 'black')),
     ],
-    expect: { kind: 'dip-switch', partId: 'dip1', channels: 8 },
+    expect: { kind: 'dip-switch', partId: 'Inter1', channels: 8 },
     code: `// Test DIP switch x8 : chaque canal fermé tire sa broche (D2..D9) à LOW.
 void setup() {
   for (int i = 2; i <= 9; i++) pinMode(i, INPUT_PULLUP);
@@ -405,15 +405,15 @@ void loop() {
 
   test({
     name: 'joystick-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'joy1', type: 'joystick', x: 620, y: 80 }],
+    parts: [MCU('uno'), { id: 'Pot1', type: 'joystick', x: 620, y: 80 }],
     wires: () => [
-      w('joy1', 'VCC', 'mcu1', '5V', 'red'),
-      w('joy1', 'VERT', 'mcu1', 'A0', 'green'),
-      w('joy1', 'HORZ', 'mcu1', 'A1', 'blue'),
-      w('joy1', 'SEL', 'mcu1', '2', 'yellow'),
-      w('joy1', 'GND', 'mcu1', 'GND.1', 'black'),
+      w('Pot1', 'VCC', 'U1', '5V', 'red'),
+      w('Pot1', 'VERT', 'U1', 'A0', 'green'),
+      w('Pot1', 'HORZ', 'U1', 'A1', 'blue'),
+      w('Pot1', 'SEL', 'U1', '2', 'yellow'),
+      w('Pot1', 'GND', 'U1', 'GND.1', 'black'),
     ],
-    expect: { kind: 'joystick', partId: 'joy1', vert: 'A0', horz: 'A1', sel: '2' },
+    expect: { kind: 'joystick', partId: 'Pot1', vert: 'A0', horz: 'A1', sel: '2' },
     code: `// Test joystick analogique : X/Y en analogique, bouton SEL en pull-up.
 void setup() {
   pinMode(2, INPUT_PULLUP);
@@ -434,14 +434,14 @@ void loop() {
 
   test({
     name: 'photoresistor-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'ldr1', type: 'photoresistor', x: 620, y: 90, attrs: { sensitivity: '50' } }],
+    parts: [MCU('uno'), { id: 'Capt1', type: 'photoresistor', x: 620, y: 90, attrs: { sensitivity: '50' } }],
     wires: () => [
-      w('ldr1', 'VCC', 'mcu1', '5V', 'red'),
-      w('ldr1', 'GND', 'mcu1', 'GND.1', 'black'),
-      w('ldr1', 'AO', 'mcu1', 'A0', 'green'),
-      w('ldr1', 'DO', 'mcu1', '2', 'yellow'),
+      w('Capt1', 'VCC', 'U1', '5V', 'red'),
+      w('Capt1', 'GND', 'U1', 'GND.1', 'black'),
+      w('Capt1', 'AO', 'U1', 'A0', 'green'),
+      w('Capt1', 'DO', 'U1', '2', 'yellow'),
     ],
-    expect: { kind: 'ao-do', partId: 'ldr1', analog: 'A0', digital: '2' },
+    expect: { kind: 'ao-do', partId: 'Capt1', analog: 'A0', digital: '2' },
     code: `// Test capteur de lumière (LDR) : sortie analogique AO + sortie numérique DO
 // (DO est actif bas : LOW = seuil dépassé).
 void setup() {
@@ -461,13 +461,13 @@ void loop() {
 
   test({
     name: 'pir-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'pir1', type: 'pir', x: 620, y: 90 }],
+    parts: [MCU('uno'), { id: 'Capt1', type: 'pir', x: 620, y: 90 }],
     wires: () => [
-      w('pir1', 'VCC', 'mcu1', '5V', 'red'),
-      w('pir1', 'OUT', 'mcu1', '2', 'yellow'),
-      w('pir1', 'GND', 'mcu1', 'GND.1', 'black'),
+      w('Capt1', 'VCC', 'U1', '5V', 'red'),
+      w('Capt1', 'OUT', 'U1', '2', 'yellow'),
+      w('Capt1', 'GND', 'U1', 'GND.1', 'black'),
     ],
-    expect: { kind: 'digital-source', partId: 'pir1', mcuPin: '2' },
+    expect: { kind: 'digital-source', partId: 'Capt1', mcuPin: '2' },
     code: `// Test capteur PIR : en simulation, survoler le capteur déclenche le mouvement.
 void setup() {
   pinMode(2, INPUT);
@@ -486,13 +486,13 @@ void loop() {
 
   test({
     name: 'tilt-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'tilt1', type: 'tilt', x: 620, y: 90 }],
+    parts: [MCU('uno'), { id: 'Capt1', type: 'tilt', x: 620, y: 90 }],
     wires: () => [
-      w('tilt1', 'VCC', 'mcu1', '5V', 'red'),
-      w('tilt1', 'OUT', 'mcu1', '2', 'yellow'),
-      w('tilt1', 'GND', 'mcu1', 'GND.1', 'black'),
+      w('Capt1', 'VCC', 'U1', '5V', 'red'),
+      w('Capt1', 'OUT', 'U1', '2', 'yellow'),
+      w('Capt1', 'GND', 'U1', 'GND.1', 'black'),
     ],
-    expect: { kind: 'digital-source', partId: 'tilt1', mcuPin: '2' },
+    expect: { kind: 'digital-source', partId: 'Capt1', mcuPin: '2' },
     code: `// Test capteur d'inclinaison : en simulation, maintenir le clic incline le capteur.
 void setup() {
   pinMode(2, INPUT);
@@ -508,13 +508,13 @@ void loop() {
 
   test({
     name: 'servo-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'srv1', type: 'servo', x: 620, y: 80, attrs: { horn: 'single', pulsemin: '500', pulsemax: '2500' } }],
+    parts: [MCU('uno'), { id: 'Act1', type: 'servo', x: 620, y: 80, attrs: { horn: 'single', pulsemin: '500', pulsemax: '2500' } }],
     wires: () => [
-      w('srv1', 'V+', 'mcu1', '5V', 'red'),
-      w('srv1', 'GND', 'mcu1', 'GND.1', 'black'),
-      w('srv1', 'PWM', 'mcu1', '9', 'orange'),
+      w('Act1', 'V+', 'U1', '5V', 'red'),
+      w('Act1', 'GND', 'U1', 'GND.1', 'black'),
+      w('Act1', 'PWM', 'U1', '9', 'orange'),
     ],
-    expect: { kind: 'servo', partId: 'srv1', mcuPin: '9' },
+    expect: { kind: 'servo', partId: 'Act1', mcuPin: '9' },
     code: `// Test servomoteur : le bras se positionne à 0°, 90° puis 180°.
 #include <Servo.h>
 
@@ -543,22 +543,22 @@ void loop() {
     name: 'pca9685-uno', board: 'uno', ext: 'ino',
     parts: [
       MCU('uno'),
-      { id: 'pca1', type: 'pca9685', x: 560, y: 40, attrs: { address: '0x40' } },
-      { id: 'srv1', type: 'servo', x: 940, y: 40, attrs: { horn: 'single', pulsemin: '500', pulsemax: '2500' } },
-      { id: 'alim1', type: 'alim', x: 940, y: 260, attrs: { voltage: '5', maxcurrent: '1' } },
+      { id: 'Mod1', type: 'pca9685', x: 560, y: 40, attrs: { address: '0x40' } },
+      { id: 'Act1', type: 'servo', x: 940, y: 40, attrs: { horn: 'single', pulsemin: '500', pulsemax: '2500' } },
+      { id: 'Alim1', type: 'alim', x: 940, y: 260, attrs: { voltage: '5', maxcurrent: '1' } },
     ],
     wires: () => [
-      w('pca1', 'GND', 'mcu1', 'GND.1', 'black'),
-      w('pca1', 'VCC', 'mcu1', '5V', 'red'),
-      w('pca1', 'SDA', 'mcu1', 'A4', 'blue'),
-      w('pca1', 'SCL', 'mcu1', 'A5', 'yellow'),
-      w('srv1', 'PWM', 'pca1', 'PWM0', 'orange'),
-      w('srv1', 'V+', 'pca1', 'P1.5V', 'red'),
-      w('srv1', 'GND', 'pca1', 'P1.GND', 'black'),
-      w('alim1', 'V+', 'pca1', 'V+', 'red'),
-      w('alim1', 'GND', 'pca1', 'GND.2', 'black'),
+      w('Mod1', 'GND', 'U1', 'GND.1', 'black'),
+      w('Mod1', 'VCC', 'U1', '5V', 'red'),
+      w('Mod1', 'SDA', 'U1', 'A4', 'blue'),
+      w('Mod1', 'SCL', 'U1', 'A5', 'yellow'),
+      w('Act1', 'PWM', 'Mod1', 'PWM0', 'orange'),
+      w('Act1', 'V+', 'Mod1', 'P1.5V', 'red'),
+      w('Act1', 'GND', 'Mod1', 'P1.GND', 'black'),
+      w('Alim1', 'V+', 'Mod1', 'V+', 'red'),
+      w('Alim1', 'GND', 'Mod1', 'GND.2', 'black'),
     ],
-    expect: { kind: 'pca9685', partId: 'pca1', channel: 0, targetId: 'srv1', powered: true },
+    expect: { kind: 'pca9685', partId: 'Mod1', channel: 0, targetId: 'Act1', powered: true },
     code: `// Test PCA9685 : le servo branché sur P1 (canal 0) balaie 0°, 90° puis 180°.
 // SANS l'alimentation de laboratoire réglée sur 5 V (courant suffisant) sur le
 // bornier V+/GND du module, les sorties ne bougent pas.
@@ -601,14 +601,14 @@ void loop() {
 
   test({
     name: 'lcd-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'lcd1', type: 'lcd', x: 560, y: 60, attrs: { pins: 'i2c', address: '0x27', cols: '16', rows: '2', lcdSize: '16x2' } }],
+    parts: [MCU('uno'), { id: 'Aff1', type: 'lcd', x: 560, y: 60, attrs: { pins: 'i2c', address: '0x27', cols: '16', rows: '2', lcdSize: '16x2' } }],
     wires: () => [
-      w('lcd1', 'GND', 'mcu1', 'GND.1', 'black'),
-      w('lcd1', 'VCC', 'mcu1', '5V', 'red'),
-      w('lcd1', 'SDA', 'mcu1', 'A4', 'blue'),
-      w('lcd1', 'SCL', 'mcu1', 'A5', 'yellow'),
+      w('Aff1', 'GND', 'U1', 'GND.1', 'black'),
+      w('Aff1', 'VCC', 'U1', '5V', 'red'),
+      w('Aff1', 'SDA', 'U1', 'A4', 'blue'),
+      w('Aff1', 'SCL', 'U1', 'A5', 'yellow'),
     ],
-    expect: { kind: 'i2c-part', partId: 'lcd1' },
+    expect: { kind: 'i2c-part', partId: 'Aff1' },
     code: `// Test LCD 16x2 en I2C (adresse 0x27) : texte + compteur.
 #include <LiquidCrystal_I2C.h>
 
@@ -633,14 +633,14 @@ void loop() {
 
   test({
     name: 'oled-ssd1306-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'oled1', type: 'oled-ssd1306', x: 600, y: 70, attrs: { pins: 'i2c' } }],
+    parts: [MCU('uno'), { id: 'Aff1', type: 'oled-ssd1306', x: 600, y: 70, attrs: { pins: 'i2c' } }],
     wires: () => [
-      w('oled1', 'GND', 'mcu1', 'GND.1', 'black'),
-      w('oled1', 'VDD', 'mcu1', '3.3V', 'red'),
-      w('oled1', 'SDA', 'mcu1', 'A4', 'blue'),
-      w('oled1', 'SCL', 'mcu1', 'A5', 'yellow'),
+      w('Aff1', 'GND', 'U1', 'GND.1', 'black'),
+      w('Aff1', 'VDD', 'U1', '3.3V', 'red'),
+      w('Aff1', 'SDA', 'U1', 'A4', 'blue'),
+      w('Aff1', 'SCL', 'U1', 'A5', 'yellow'),
     ],
-    expect: { kind: 'i2c-part', partId: 'oled1' },
+    expect: { kind: 'i2c-part', partId: 'Aff1' },
     code: `// Test OLED SSD1306 en I2C (0x3C) : cadre, texte et diagonale.
 #include <Adafruit_SSD1306.h>
 
@@ -666,19 +666,19 @@ void loop() {
 
   test({
     name: 'ili9341-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'tft1', type: 'ili9341', x: 560, y: 40 }],
+    parts: [MCU('uno'), { id: 'Aff1', type: 'ili9341', x: 560, y: 40 }],
     wires: () => [
-      w('tft1', 'VCC', 'mcu1', '5V', 'red'),
-      w('tft1', 'GND', 'mcu1', 'GND.1', 'black'),
-      w('tft1', 'CS', 'mcu1', '10', 'yellow'),
-      w('tft1', 'RST', 'mcu1', '8', 'gray'),
-      w('tft1', 'D/C', 'mcu1', '9', 'orange'),
-      w('tft1', 'MOSI', 'mcu1', '11', 'blue'),
-      w('tft1', 'SCK', 'mcu1', '13', 'green'),
-      w('tft1', 'MISO', 'mcu1', '12', 'purple'),
-      w('tft1', 'LED', 'mcu1', '3.3V', 'red'),
+      w('Aff1', 'VCC', 'U1', '5V', 'red'),
+      w('Aff1', 'GND', 'U1', 'GND.1', 'black'),
+      w('Aff1', 'CS', 'U1', '10', 'yellow'),
+      w('Aff1', 'RST', 'U1', '8', 'gray'),
+      w('Aff1', 'D/C', 'U1', '9', 'orange'),
+      w('Aff1', 'MOSI', 'U1', '11', 'blue'),
+      w('Aff1', 'SCK', 'U1', '13', 'green'),
+      w('Aff1', 'MISO', 'U1', '12', 'purple'),
+      w('Aff1', 'LED', 'U1', '3.3V', 'red'),
     ],
-    expect: { kind: 'spi-device', partId: 'tft1', dcPin: '9', csPin: '10' },
+    expect: { kind: 'spi-device', partId: 'Aff1', dcPin: '9', csPin: '10' },
     code: `// Test écran TFT ILI9341 (SPI) : aplats de couleur + texte.
 #include <Adafruit_ILI9341.h>
 
@@ -707,16 +707,16 @@ void loop() {
 
   test({
     name: 'microsd-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'sd1', type: 'microsd', x: 620, y: 90 }],
+    parts: [MCU('uno'), { id: 'Mod1', type: 'microsd', x: 620, y: 90 }],
     wires: () => [
-      w('sd1', 'VCC', 'mcu1', '5V', 'red'),
-      w('sd1', 'GND', 'mcu1', 'GND.1', 'black'),
-      w('sd1', 'CS', 'mcu1', '4', 'yellow'),
-      w('sd1', 'DI', 'mcu1', '11', 'blue'),
-      w('sd1', 'DO', 'mcu1', '12', 'purple'),
-      w('sd1', 'SCK', 'mcu1', '13', 'green'),
+      w('Mod1', 'VCC', 'U1', '5V', 'red'),
+      w('Mod1', 'GND', 'U1', 'GND.1', 'black'),
+      w('Mod1', 'CS', 'U1', '4', 'yellow'),
+      w('Mod1', 'DI', 'U1', '11', 'blue'),
+      w('Mod1', 'DO', 'U1', '12', 'purple'),
+      w('Mod1', 'SCK', 'U1', '13', 'green'),
     ],
-    expect: { kind: 'spi-device', partId: 'sd1', dcPin: null, csPin: '4' },
+    expect: { kind: 'spi-device', partId: 'Mod1', dcPin: null, csPin: '4' },
     code: `// Test carte microSD (SPI) : SD.begin doit réussir (carte détectée).
 // Note : pas de système de fichiers FAT préchargé, open() échouera — c'est normal.
 #include <SD.h>
@@ -738,13 +738,13 @@ void loop() {
 
   test({
     name: 'neopixel-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'np1', type: 'neopixel', x: 620, y: 100 }],
+    parts: [MCU('uno'), { id: 'L1', type: 'neopixel', x: 620, y: 100 }],
     wires: () => [
-      w('np1', 'VDD', 'mcu1', '5V', 'red'),
-      w('np1', 'VSS', 'mcu1', 'GND.1', 'black'),
-      w('np1', 'DIN', 'mcu1', '6', 'green'),
+      w('L1', 'VDD', 'U1', '5V', 'red'),
+      w('L1', 'VSS', 'U1', 'GND.1', 'black'),
+      w('L1', 'DIN', 'U1', '6', 'green'),
     ],
-    expect: { kind: 'neopixel', partId: 'np1', mcuPin: '6', count: 1 },
+    expect: { kind: 'neopixel', partId: 'L1', mcuPin: '6', count: 1 },
     code: `// Test NeoPixel (1 pixel WS2812) : rouge, vert, bleu en boucle.
 #include <Adafruit_NeoPixel.h>
 
@@ -772,13 +772,13 @@ void loop() {
 
   test({
     name: 'neopixel-matrix-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'npm1', type: 'neopixel-matrix', x: 600, y: 50, attrs: { rows: '8', cols: '8' } }],
+    parts: [MCU('uno'), { id: 'L1', type: 'neopixel-matrix', x: 600, y: 50, attrs: { rows: '8', cols: '8' } }],
     wires: () => [
-      w('npm1', 'VCC', 'mcu1', '5V', 'red'),
-      w('npm1', 'GND', 'mcu1', 'GND.1', 'black'),
-      w('npm1', 'DIN', 'mcu1', '6', 'green'),
+      w('L1', 'VCC', 'U1', '5V', 'red'),
+      w('L1', 'GND', 'U1', 'GND.1', 'black'),
+      w('L1', 'DIN', 'U1', '6', 'green'),
     ],
-    expect: { kind: 'neopixel', partId: 'npm1', mcuPin: '6', count: 64 },
+    expect: { kind: 'neopixel', partId: 'L1', mcuPin: '6', count: 64 },
     code: `// Test matrice NeoPixel 8x8 (64 pixels) : diagonale + dégradé.
 #include <Adafruit_NeoPixel.h>
 
@@ -804,13 +804,13 @@ void loop() {
 
   test({
     name: 'led-ring-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'ring1', type: 'led-ring', x: 620, y: 60, attrs: { pixels: '16' } }],
+    parts: [MCU('uno'), { id: 'L1', type: 'led-ring', x: 620, y: 60, attrs: { pixels: '16' } }],
     wires: () => [
-      w('ring1', 'VCC', 'mcu1', '5V', 'red'),
-      w('ring1', 'GND', 'mcu1', 'GND.1', 'black'),
-      w('ring1', 'DIN', 'mcu1', '6', 'green'),
+      w('L1', 'VCC', 'U1', '5V', 'red'),
+      w('L1', 'GND', 'U1', 'GND.1', 'black'),
+      w('L1', 'DIN', 'U1', '6', 'green'),
     ],
-    expect: { kind: 'neopixel', partId: 'ring1', mcuPin: '6', count: 16 },
+    expect: { kind: 'neopixel', partId: 'L1', mcuPin: '6', count: 16 },
     code: `// Test anneau NeoPixel (16 pixels) : chenillard bleu.
 #include <Adafruit_NeoPixel.h>
 
@@ -834,13 +834,13 @@ void loop() {
 
   test({
     name: 'ntc-temp-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'ntc1', type: 'ntc-temp', x: 620, y: 90, attrs: { temperature: '25' } }],
+    parts: [MCU('uno'), { id: 'Capt1', type: 'ntc-temp', x: 620, y: 90, attrs: { temperature: '25' } }],
     wires: () => [
-      w('ntc1', 'VCC', 'mcu1', '5V', 'red'),
-      w('ntc1', 'GND', 'mcu1', 'GND.1', 'black'),
-      w('ntc1', 'OUT', 'mcu1', 'A0', 'green'),
+      w('Capt1', 'VCC', 'U1', '5V', 'red'),
+      w('Capt1', 'GND', 'U1', 'GND.1', 'black'),
+      w('Capt1', 'OUT', 'U1', 'A0', 'green'),
     ],
-    expect: { kind: 'analog-source', partId: 'ntc1', mcuPin: 'A0' },
+    expect: { kind: 'analog-source', partId: 'Capt1', mcuPin: 'A0' },
     code: `// Test capteur de température NTC : lecture analogique sur A0
 // (en simulation, la température se règle avec le curseur du capteur).
 void setup() {
@@ -857,14 +857,14 @@ void loop() {
 
   test({
     name: 'gas-sensor-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'gas1', type: 'gas-sensor', x: 620, y: 90, attrs: { sensitivity: '50' } }],
+    parts: [MCU('uno'), { id: 'Capt1', type: 'gas-sensor', x: 620, y: 90, attrs: { sensitivity: '50' } }],
     wires: () => [
-      w('gas1', 'VCC', 'mcu1', '5V', 'red'),
-      w('gas1', 'GND', 'mcu1', 'GND.1', 'black'),
-      w('gas1', 'AOUT', 'mcu1', 'A0', 'green'),
-      w('gas1', 'DOUT', 'mcu1', '2', 'yellow'),
+      w('Capt1', 'VCC', 'U1', '5V', 'red'),
+      w('Capt1', 'GND', 'U1', 'GND.1', 'black'),
+      w('Capt1', 'AOUT', 'U1', 'A0', 'green'),
+      w('Capt1', 'DOUT', 'U1', '2', 'yellow'),
     ],
-    expect: { kind: 'ao-do', partId: 'gas1', analog: 'A0', digital: '2' },
+    expect: { kind: 'ao-do', partId: 'Capt1', analog: 'A0', digital: '2' },
     code: `// Test capteur de gaz (MQ) : AOUT analogique + DOUT numérique (actif bas).
 void setup() {
   pinMode(2, INPUT);
@@ -883,13 +883,13 @@ void loop() {
 
   test({
     name: 'heartbeat-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'hb1', type: 'heartbeat', x: 620, y: 90, attrs: { bpm: '72' } }],
+    parts: [MCU('uno'), { id: 'Capt1', type: 'heartbeat', x: 620, y: 90, attrs: { bpm: '72' } }],
     wires: () => [
-      w('hb1', 'VCC', 'mcu1', '5V', 'red'),
-      w('hb1', 'GND', 'mcu1', 'GND.1', 'black'),
-      w('hb1', 'OUT', 'mcu1', 'A0', 'green'),
+      w('Capt1', 'VCC', 'U1', '5V', 'red'),
+      w('Capt1', 'GND', 'U1', 'GND.1', 'black'),
+      w('Capt1', 'OUT', 'U1', 'A0', 'green'),
     ],
-    expect: { kind: 'analog-source', partId: 'hb1', mcuPin: 'A0' },
+    expect: { kind: 'analog-source', partId: 'Capt1', mcuPin: 'A0' },
     code: `// Test capteur de pouls : le signal analogique bat au rythme cardiaque.
 void setup() {
   Serial.begin(115200);
@@ -906,14 +906,14 @@ void loop() {
 
   test({
     name: 'flame-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'fl1', type: 'flame', x: 620, y: 90, attrs: { sensitivity: '50' } }],
+    parts: [MCU('uno'), { id: 'Capt1', type: 'flame', x: 620, y: 90, attrs: { sensitivity: '50' } }],
     wires: () => [
-      w('fl1', 'VCC', 'mcu1', '5V', 'red'),
-      w('fl1', 'GND', 'mcu1', 'GND.1', 'black'),
-      w('fl1', 'AOUT', 'mcu1', 'A0', 'green'),
-      w('fl1', 'DOUT', 'mcu1', '2', 'yellow'),
+      w('Capt1', 'VCC', 'U1', '5V', 'red'),
+      w('Capt1', 'GND', 'U1', 'GND.1', 'black'),
+      w('Capt1', 'AOUT', 'U1', 'A0', 'green'),
+      w('Capt1', 'DOUT', 'U1', '2', 'yellow'),
     ],
-    expect: { kind: 'ao-do', partId: 'fl1', analog: 'A0', digital: '2' },
+    expect: { kind: 'ao-do', partId: 'Capt1', analog: 'A0', digital: '2' },
     code: `// Test capteur de flamme : AOUT baisse quand la flamme approche, DOUT actif bas.
 void setup() {
   pinMode(2, INPUT);
@@ -932,14 +932,14 @@ void loop() {
 
   test({
     name: 'sound-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'snd1', type: 'sound', x: 620, y: 90, attrs: { sensitivity: '50' } }],
+    parts: [MCU('uno'), { id: 'Capt1', type: 'sound', x: 620, y: 90, attrs: { sensitivity: '50' } }],
     wires: () => [
-      w('snd1', 'VCC', 'mcu1', '5V', 'red'),
-      w('snd1', 'GND', 'mcu1', 'GND.1', 'black'),
-      w('snd1', 'AOUT', 'mcu1', 'A0', 'green'),
-      w('snd1', 'DOUT', 'mcu1', '2', 'yellow'),
+      w('Capt1', 'VCC', 'U1', '5V', 'red'),
+      w('Capt1', 'GND', 'U1', 'GND.1', 'black'),
+      w('Capt1', 'AOUT', 'U1', 'A0', 'green'),
+      w('Capt1', 'DOUT', 'U1', '2', 'yellow'),
     ],
-    expect: { kind: 'ao-do', partId: 'snd1', analog: 'A0', digital: '2' },
+    expect: { kind: 'ao-do', partId: 'Capt1', analog: 'A0', digital: '2' },
     code: `// Test capteur de son : AOUT analogique + DOUT numérique (actif bas).
 void setup() {
   pinMode(2, INPUT);
@@ -958,14 +958,14 @@ void loop() {
 
   test({
     name: 'hcsr04-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'us1', type: 'hcsr04', x: 600, y: 80, attrs: { distancemin: '2', distancemax: '400' } }],
+    parts: [MCU('uno'), { id: 'Capt1', type: 'hcsr04', x: 600, y: 80, attrs: { distancemin: '2', distancemax: '400' } }],
     wires: () => [
-      w('us1', 'VCC', 'mcu1', '5V', 'red'),
-      w('us1', 'TRIG', 'mcu1', '2', 'yellow'),
-      w('us1', 'ECHO', 'mcu1', '3', 'green'),
-      w('us1', 'GND', 'mcu1', 'GND.1', 'black'),
+      w('Capt1', 'VCC', 'U1', '5V', 'red'),
+      w('Capt1', 'TRIG', 'U1', '2', 'yellow'),
+      w('Capt1', 'ECHO', 'U1', '3', 'green'),
+      w('Capt1', 'GND', 'U1', 'GND.1', 'black'),
     ],
-    expect: { kind: 'ultrasonic', partId: 'us1', trig: '2', echo: '3' },
+    expect: { kind: 'ultrasonic', partId: 'Capt1', trig: '2', echo: '3' },
     code: `// Test HC-SR04 (ultrason) : impulsion TRIG puis mesure d'ECHO (~58 µs/cm).
 const int TRIG = 2, ECHO = 3;
 
@@ -992,13 +992,13 @@ void loop() {
 
   test({
     name: 'dht22-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'dht1', type: 'dht22', x: 620, y: 90, attrs: { temperature: '22', humidity: '50' } }],
+    parts: [MCU('uno'), { id: 'Capt1', type: 'dht22', x: 620, y: 90, attrs: { temperature: '22', humidity: '50' } }],
     wires: () => [
-      w('dht1', 'VCC', 'mcu1', '5V', 'red'),
-      w('dht1', 'DATA', 'mcu1', '2', 'green'),
-      w('dht1', 'GND', 'mcu1', 'GND.1', 'black'),
+      w('Capt1', 'VCC', 'U1', '5V', 'red'),
+      w('Capt1', 'DATA', 'U1', '2', 'green'),
+      w('Capt1', 'GND', 'U1', 'GND.1', 'black'),
     ],
-    expect: { kind: 'dht22', partId: 'dht1', mcuPin: '2' },
+    expect: { kind: 'dht22', partId: 'Capt1', mcuPin: '2' },
     code: `// Test DHT22 : température et humidité sur la ligne DATA (1-wire).
 #include <DHT.h>
 
@@ -1030,26 +1030,26 @@ void loop() {
     name: 'diode-uno', board: 'uno', ext: 'ino',
     parts: [
       MCU('uno'),
-      { id: 'd1', type: 'diode', x: 400, y: 60 },
-      { id: 'r1', type: 'resistor', x: 500, y: 60, attrs: { value: '220' } },
-      { id: 'led1', type: 'led', x: 600, y: 60, attrs: { color: 'green' } },
-      { id: 'd2', type: 'diode', x: 400, y: 160 },
-      { id: 'r2', type: 'resistor', x: 500, y: 160, attrs: { value: '220' } },
-      { id: 'led2', type: 'led', x: 600, y: 160, attrs: { color: 'red' } },
+      { id: 'D1', type: 'diode', x: 400, y: 60 },
+      { id: 'R1', type: 'resistor', x: 500, y: 60, attrs: { value: '220' } },
+      { id: 'L1', type: 'led', x: 600, y: 60, attrs: { color: 'green' } },
+      { id: 'D2', type: 'diode', x: 400, y: 160 },
+      { id: 'R2', type: 'resistor', x: 500, y: 160, attrs: { value: '220' } },
+      { id: 'L2', type: 'led', x: 600, y: 160, attrs: { color: 'red' } },
     ],
     wires: () => [
       // Branche du haut : diode dans le bon sens (anode côté broche 8).
-      w('d1', 'A', 'mcu1', '8', 'green'),
-      w('d1', 'K', 'r1', '1', 'green'),
-      w('r1', '2', 'led1', 'A', 'green'),
-      w('led1', 'C', 'mcu1', 'GND.1', 'black'),
+      w('D1', 'A', 'U1', '8', 'green'),
+      w('D1', 'K', 'R1', '1', 'green'),
+      w('R1', '2', 'L1', 'A', 'green'),
+      w('L1', 'C', 'U1', 'GND.1', 'black'),
       // Branche du bas : diode À L'ENVERS (cathode côté broche 9) → elle bloque.
-      w('d2', 'K', 'mcu1', '9', 'orange'),
-      w('d2', 'A', 'r2', '1', 'orange'),
-      w('r2', '2', 'led2', 'A', 'orange'),
-      w('led2', 'C', 'mcu1', 'GND.2', 'black'),
+      w('D2', 'K', 'U1', '9', 'orange'),
+      w('D2', 'A', 'R2', '1', 'orange'),
+      w('R2', '2', 'L2', 'A', 'orange'),
+      w('L2', 'C', 'U1', 'GND.2', 'black'),
     ],
-    expect: { kind: 'diode', ledOn: 'led1', ledOff: 'led2', drop: 0.6 },
+    expect: { kind: 'diode', ledOn: 'L1', ledOff: 'L2', drop: 0.6 },
     code: `// Test diode : les deux broches passent au niveau haut en meme temps.
 // Seule la LED verte s'allume — la diode de la branche rouge est montee a
 // l'envers (cathode cote broche 9) et bloque le passage du courant.
@@ -1081,35 +1081,35 @@ void loop() {
     name: 'condo-uno', board: 'uno', ext: 'ino',
     parts: [
       MCU('uno'),
-      { id: 'r1', type: 'resistor', x: 420, y: 60, attrs: { value: '100000' } },
-      { id: 'c1', type: 'condo-np', x: 560, y: 60, attrs: { ctype: 'np', value: '1e-6', vmax: '63' } },
-      { id: 'r2', type: 'resistor', x: 420, y: 180, attrs: { value: '33000' } },
-      { id: 'c2', type: 'condo-np', x: 560, y: 180, attrs: { ctype: 'p', value: '1e-5', vmax: '16' } },
-      { id: 'r3', type: 'resistor', x: 420, y: 300, attrs: { value: '10000' } },
-      { id: 'c3', type: 'condo-np', x: 560, y: 300, attrs: { ctype: 'chem', value: '1e-4', vmax: '16' } },
+      { id: 'R1', type: 'resistor', x: 420, y: 60, attrs: { value: '100000' } },
+      { id: 'C1', type: 'condo-np', x: 560, y: 60, attrs: { ctype: 'np', value: '1e-6', vmax: '63' } },
+      { id: 'R2', type: 'resistor', x: 420, y: 180, attrs: { value: '33000' } },
+      { id: 'C2', type: 'condo-np', x: 560, y: 180, attrs: { ctype: 'p', value: '1e-5', vmax: '16' } },
+      { id: 'R3', type: 'resistor', x: 420, y: 300, attrs: { value: '10000' } },
+      { id: 'C3', type: 'condo-np', x: 560, y: 300, attrs: { ctype: 'chem', value: '1e-4', vmax: '16' } },
     ],
     wires: () => [
-      w('r1', '1', 'mcu1', '8', 'green'),
-      w('r1', '2', 'c1', '1', 'green'),
-      w('c1', '1', 'mcu1', 'A0', 'blue'),
-      w('c1', '2', 'mcu1', 'GND.1', 'black'),
-      w('r2', '1', 'mcu1', '8', 'green'),
-      w('r2', '2', 'c2', '1', 'green'),
-      w('c2', '1', 'mcu1', 'A1', 'blue'),
-      w('c2', '2', 'mcu1', 'GND.2', 'black'),
-      w('r3', '1', 'mcu1', '8', 'green'),
-      w('r3', '2', 'c3', '1', 'green'),
-      w('c3', '1', 'mcu1', 'A2', 'blue'),
-      w('c3', '2', 'mcu1', 'GND.3', 'black'),
+      w('R1', '1', 'U1', '8', 'green'),
+      w('R1', '2', 'C1', '1', 'green'),
+      w('C1', '1', 'U1', 'A0', 'blue'),
+      w('C1', '2', 'U1', 'GND.1', 'black'),
+      w('R2', '1', 'U1', '8', 'green'),
+      w('R2', '2', 'C2', '1', 'green'),
+      w('C2', '1', 'U1', 'A1', 'blue'),
+      w('C2', '2', 'U1', 'GND.2', 'black'),
+      w('R3', '1', 'U1', '8', 'green'),
+      w('R3', '2', 'C3', '1', 'green'),
+      w('C3', '1', 'U1', 'A2', 'blue'),
+      w('C3', '2', 'U1', 'GND.3', 'black'),
     ],
     // RC = R × C, la sortie du MCU ajoutant ses 25 Ω : 0,1 s / 0,33 s / 1 s.
     // Charge pleine à 5 RC, soit 5 s pour la plus lente des trois.
     expect: {
       kind: 'capacitor', drivePin: '8', drive: 'high', volts: 5,
       caps: [
-        { partId: 'c1', target: 5, tau: 0.1, mcuPins: ['A0'] },
-        { partId: 'c2', target: 5, tau: 0.33, mcuPins: ['A1'] },
-        { partId: 'c3', target: 5, tau: 1, mcuPins: ['A2'] },
+        { partId: 'C1', target: 5, tau: 0.1, mcuPins: ['A0'] },
+        { partId: 'C2', target: 5, tau: 0.33, mcuPins: ['A1'] },
+        { partId: 'C3', target: 5, tau: 1, mcuPins: ['A2'] },
       ],
     },
     code: `// Trois circuits RC sur la MEME broche de commande. Seule la constante de
@@ -1153,13 +1153,13 @@ void loop() {
 
   test({
     name: 'dht11-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'dht1', type: 'dht11', x: 620, y: 90, attrs: { temperature: '22', humidity: '50' } }],
+    parts: [MCU('uno'), { id: 'Capt1', type: 'dht11', x: 620, y: 90, attrs: { temperature: '22', humidity: '50' } }],
     wires: () => [
-      w('dht1', 'VCC', 'mcu1', '5V', 'red'),
-      w('dht1', 'DATA', 'mcu1', '2', 'green'),
-      w('dht1', 'GND', 'mcu1', 'GND.1', 'black'),
+      w('Capt1', 'VCC', 'U1', '5V', 'red'),
+      w('Capt1', 'DATA', 'U1', '2', 'green'),
+      w('Capt1', 'GND', 'U1', 'GND.1', 'black'),
     ],
-    expect: { kind: 'dht22', partId: 'dht1', mcuPin: '2', model: 'dht11' },
+    expect: { kind: 'dht22', partId: 'Capt1', mcuPin: '2', model: 'dht11' },
     code: `// Test DHT11 : meme protocole 1-wire que le DHT22, mais des valeurs ENTIERES
 // (pas de dixieme), 20 a 90 % HR et 0 a 50 degres C.
 #include <DHT.h>
@@ -1192,19 +1192,19 @@ void loop() {
     name: 'ventilo-uno', board: 'uno', ext: 'ino',
     parts: [
       MCU('uno'),
-      { id: 'alim1', type: 'alim', x: 620, y: 300, attrs: { voltage: '5', maxcurrent: '1' } },
-      { id: 'fan1', type: 'ventilo', x: 620, y: 40, attrs: { voltage: '5', current: '0.85' } },
-      { id: 'fan2', type: 'ventilo', x: 900, y: 40, attrs: { voltage: '5', current: '0.85' } },
+      { id: 'Alim1', type: 'alim', x: 620, y: 300, attrs: { voltage: '5', maxcurrent: '1' } },
+      { id: 'Act1', type: 'ventilo', x: 620, y: 40, attrs: { voltage: '5', current: '0.85' } },
+      { id: 'Act2', type: 'ventilo', x: 900, y: 40, attrs: { voltage: '5', current: '0.85' } },
     ],
     wires: () => [
       // Alimente par l'alim de laboratoire (5 V, 1 A) : il tourne.
-      w('fan1', '+', 'alim1', 'V+', 'red'),
-      w('fan1', '-', 'alim1', 'GND', 'black'),
+      w('Act1', '+', 'Alim1', 'V+', 'red'),
+      w('Act1', '-', 'Alim1', 'GND', 'black'),
       // Alimente par une sortie Arduino (40 mA) : il ne demarre jamais.
-      w('fan2', '+', 'mcu1', '9', 'orange'),
-      w('fan2', '-', 'mcu1', 'GND.2', 'black'),
+      w('Act2', '+', 'U1', '9', 'orange'),
+      w('Act2', '-', 'U1', 'GND.2', 'black'),
     ],
-    expect: { kind: 'fan', spins: 'fan1', starved: 'fan2' },
+    expect: { kind: 'fan', spins: 'Act1', starved: 'Act2' },
     code: `// Test ventilateur. Le premier tourne : il est branche sur l'alimentation de
 // laboratoire (5 V, 1 A), qui fournit largement ses 850 mA.
 // Le second est cable sur la broche 9 en PWM : il ne demarre JAMAIS, une sortie
@@ -1235,34 +1235,34 @@ void loop() {
     name: 'pn2222a-uno', board: 'uno', ext: 'ino',
     parts: [
       MCU('uno'),
-      { id: 'alim1', type: 'alim', x: 620, y: 380, attrs: { voltage: '5', maxcurrent: '1' } },
-      { id: 'r1', type: 'resistor', x: 300, y: 180, attrs: { value: '1000' } },
-      { id: 'q1', type: 'pn2222a', x: 440, y: 200 },
-      { id: 'fan1', type: 'ventilo', x: 620, y: 40, attrs: { voltage: '5', current: '0.12' } },
-      { id: 'r2', type: 'resistor', x: 300, y: 280, attrs: { value: '10000' } },
-      { id: 'q2', type: 'pn2222a', x: 880, y: 200 },
-      { id: 'fan2', type: 'ventilo', x: 900, y: 40, attrs: { voltage: '5', current: '0.12' } },
+      { id: 'Alim1', type: 'alim', x: 620, y: 380, attrs: { voltage: '5', maxcurrent: '1' } },
+      { id: 'R1', type: 'resistor', x: 300, y: 180, attrs: { value: '1000' } },
+      { id: 'T1', type: 'pn2222a', x: 440, y: 200 },
+      { id: 'Act1', type: 'ventilo', x: 620, y: 40, attrs: { voltage: '5', current: '0.12' } },
+      { id: 'R2', type: 'resistor', x: 300, y: 280, attrs: { value: '10000' } },
+      { id: 'T2', type: 'pn2222a', x: 880, y: 200 },
+      { id: 'Act2', type: 'ventilo', x: 900, y: 40, attrs: { voltage: '5', current: '0.12' } },
     ],
     wires: () => [
       // Base bien attaquee (1 kOhm) : Ib = 4,3 mA, donc Ic max = 35 x 4,3 = 150 mA.
-      w('r1', '1', 'mcu1', '9', 'green'),
-      w('r1', '2', 'q1', 'B', 'green'),
-      w('q1', 'E', 'mcu1', 'GND.1', 'black'),
-      w('q1', 'C', 'fan1', '-', 'blue'),
-      w('fan1', '+', 'alim1', 'V+', 'red'),
-      w('alim1', 'GND', 'mcu1', 'GND.2', 'black'),
+      w('R1', '1', 'U1', '9', 'green'),
+      w('R1', '2', 'T1', 'B', 'green'),
+      w('T1', 'E', 'U1', 'GND.1', 'black'),
+      w('T1', 'C', 'Act1', '-', 'blue'),
+      w('Act1', '+', 'Alim1', 'V+', 'red'),
+      w('Alim1', 'GND', 'U1', 'GND.2', 'black'),
       // Base a peine attaquee (10 kOhm) : Ic max = 15 mA, le ventilateur cale.
-      w('r2', '1', 'mcu1', '10', 'orange'),
-      w('r2', '2', 'q2', 'B', 'orange'),
-      w('q2', 'E', 'mcu1', 'GND.3', 'black'),
-      w('q2', 'C', 'fan2', '-', 'blue'),
-      w('fan2', '+', 'alim1', 'V+', 'red'),
+      w('R2', '1', 'U1', '10', 'orange'),
+      w('R2', '2', 'T2', 'B', 'orange'),
+      w('T2', 'E', 'U1', 'GND.3', 'black'),
+      w('T2', 'C', 'Act2', '-', 'blue'),
+      w('Act2', '+', 'Alim1', 'V+', 'red'),
     ],
     expect: {
       kind: 'transistor',
       steps: [
-        { high: ['9', '10'], on: { q1: 0.1505, q2: 0.01505 }, fanAmps: 0.12, fanSpins: ['fan1'], fanStalls: ['fan2'] },
-        { high: [], off: ['q1', 'q2'], fanAmps: 0.12, fanStalls: ['fan1'] },
+        { high: ['9', '10'], on: { T1: 0.1505, T2: 0.01505 }, fanAmps: 0.12, fanSpins: ['Act1'], fanStalls: ['Act2'] },
+        { high: [], off: ['T1', 'T2'], fanAmps: 0.12, fanStalls: ['Act1'] },
       ],
     },
     code: `// Test transistor PN2222A : le meme ventilateur 5 V / 120 mA sur les deux
@@ -1297,74 +1297,74 @@ void loop() {
     name: 'transistor-uno', board: 'uno', ext: 'ino',
     parts: [
       MCU('uno'),
-      { id: 'alim1', type: 'alim', x: 620, y: 380, attrs: { voltage: '5', maxcurrent: '1' } },
-      { id: 'r1', type: 'resistor', x: 300, y: 180, attrs: { value: '10000' } },
+      { id: 'Alim1', type: 'alim', x: 620, y: 380, attrs: { voltage: '5', maxcurrent: '1' } },
+      { id: 'R1', type: 'resistor', x: 300, y: 180, attrs: { value: '10000' } },
       // Deux modeles choisis dans le selecteur : meme boitier, meme cablage par
       // NOM (E/B/C), mais brochages opposes — le BC547 est C-B-E, le 2N3904
       // E-B-C. Seul le GAIN change ce que le montage sait faire.
       {
-        id: 'q1', type: 'transistor', x: 440, y: 200,
+        id: 'T1', type: 'transistor', x: 440, y: 200,
         attrs: {
           pkg: 'to92', symbol: 'npn', text: 'BC\n547', named: '1', ref: 'BC547',
           e: '3', b: '2', c: '1', gain: '200', vcemax: '45', icmax: '0.1',
         },
       },
-      { id: 'fan1', type: 'ventilo', x: 620, y: 40, attrs: { voltage: '5', current: '0.06' } },
-      { id: 'r2', type: 'resistor', x: 300, y: 280, attrs: { value: '10000' } },
+      { id: 'Act1', type: 'ventilo', x: 620, y: 40, attrs: { voltage: '5', current: '0.06' } },
+      { id: 'R2', type: 'resistor', x: 300, y: 280, attrs: { value: '10000' } },
       {
-        id: 'q2', type: 'transistor', x: 880, y: 200,
+        id: 'T2', type: 'transistor', x: 880, y: 200,
         attrs: {
           pkg: 'to92', symbol: 'npn', text: '2N\n3904', named: '1', ref: '2N3904',
           e: '1', b: '2', c: '3', gain: '100', vcemax: '40', icmax: '0.2',
         },
       },
-      { id: 'fan2', type: 'ventilo', x: 900, y: 40, attrs: { voltage: '5', current: '0.06' } },
+      { id: 'Act2', type: 'ventilo', x: 900, y: 40, attrs: { voltage: '5', current: '0.06' } },
       // Troisieme branche : la moitie PNP du selecteur (8 references sur 16), que
       // les deux NPN ne montraient pas. Emetteur au +, LED sous le collecteur,
       // base tiree vers le BAS pour conduire — logique inversee.
-      { id: 'r3', type: 'resistor', x: 300, y: 560, attrs: { value: '4700' } },
+      { id: 'R3', type: 'resistor', x: 300, y: 560, attrs: { value: '4700' } },
       {
-        id: 'q3', type: 'transistor', x: 440, y: 580,
+        id: 'T3', type: 'transistor', x: 440, y: 580,
         attrs: {
           pkg: 'to92', symbol: 'pnp', text: 'BC\n557', named: '1', ref: 'BC557',
           e: '3', b: '2', c: '1', gain: '200', vcemax: '45', icmax: '0.1',
         },
       },
-      { id: 'led1', type: 'led', x: 620, y: 580, attrs: { color: 'yellow' } },
-      { id: 'r4', type: 'resistor', x: 760, y: 580, attrs: { value: '220' } },
+      { id: 'L1', type: 'led', x: 620, y: 580, attrs: { color: 'yellow' } },
+      { id: 'R4', type: 'resistor', x: 760, y: 580, attrs: { value: '220' } },
     ],
     wires: () => [
       // BC547 (gain 200) : Ib = 0,43 mA, donc Ic max = 200 x 0,43 = 86 mA.
-      w('r1', '1', 'mcu1', '9', 'green'),
-      w('r1', '2', 'q1', 'B', 'green'),
-      w('q1', 'E', 'mcu1', 'GND.1', 'black'),
-      w('q1', 'C', 'fan1', '-', 'blue'),
-      w('fan1', '+', 'alim1', 'V+', 'red'),
-      w('alim1', 'GND', 'mcu1', 'GND.2', 'black'),
+      w('R1', '1', 'U1', '9', 'green'),
+      w('R1', '2', 'T1', 'B', 'green'),
+      w('T1', 'E', 'U1', 'GND.1', 'black'),
+      w('T1', 'C', 'Act1', '-', 'blue'),
+      w('Act1', '+', 'Alim1', 'V+', 'red'),
+      w('Alim1', 'GND', 'U1', 'GND.2', 'black'),
       // 2N3904 (gain 100) : meme base, moitie moins de courant — 43 mA.
-      w('r2', '1', 'mcu1', '10', 'orange'),
-      w('r2', '2', 'q2', 'B', 'orange'),
-      w('q2', 'E', 'mcu1', 'GND.3', 'black'),
-      w('q2', 'C', 'fan2', '-', 'blue'),
-      w('fan2', '+', 'alim1', 'V+', 'red'),
+      w('R2', '1', 'U1', '10', 'orange'),
+      w('R2', '2', 'T2', 'B', 'orange'),
+      w('T2', 'E', 'U1', 'GND.3', 'black'),
+      w('T2', 'C', 'Act2', '-', 'blue'),
+      w('Act2', '+', 'Alim1', 'V+', 'red'),
       // BC557 (PNP, C-B-E comme le BC547) : emetteur au 5 V, LED a la masse.
-      w('q3', 'E', 'mcu1', '5V', 'red'),
-      w('r3', '1', 'mcu1', '11', 'purple'),
-      w('r3', '2', 'q3', 'B', 'purple'),
-      w('q3', 'C', 'led1', 'A', 'blue'),
-      w('led1', 'C', 'r4', '1', 'blue'),
-      w('r4', '2', 'alim1', 'GND', 'black'),
+      w('T3', 'E', 'U1', '5V', 'red'),
+      w('R3', '1', 'U1', '11', 'purple'),
+      w('R3', '2', 'T3', 'B', 'purple'),
+      w('T3', 'C', 'L1', 'A', 'blue'),
+      w('L1', 'C', 'R4', '1', 'blue'),
+      w('R4', '2', 'Alim1', 'GND', 'black'),
     ],
     expect: {
       kind: 'transistor',
       steps: [
         {
-          high: ['9', '10'], on: { q1: 0.086, q2: 0.043, q3: 0.183 },
-          ledOn: ['led1'], fanAmps: 0.06, fanSpins: ['fan1'], fanStalls: ['fan2'],
+          high: ['9', '10'], on: { T1: 0.086, T2: 0.043, T3: 0.183 },
+          ledOn: ['L1'], fanAmps: 0.06, fanSpins: ['Act1'], fanStalls: ['Act2'],
         },
         {
-          high: ['11'], off: ['q1', 'q2', 'q3'],
-          ledOff: ['led1'], fanAmps: 0.06, fanStalls: ['fan1'],
+          high: ['11'], off: ['T1', 'T2', 'T3'],
+          ledOff: ['L1'], fanAmps: 0.06, fanStalls: ['Act1'],
         },
       ],
     },
@@ -1411,26 +1411,26 @@ void loop() {
     name: 'npn-uno', board: 'uno', ext: 'ino',
     parts: [
       MCU('uno'),
-      { id: 'r1', type: 'resistor', x: 300, y: 180, attrs: { value: '4700' } },
+      { id: 'R1', type: 'resistor', x: 300, y: 180, attrs: { value: '4700' } },
       // Prototype generique : les pattes sont numerotees, l'affectation des
       // electrodes est une propriete — ici B sur 1, C sur 2, E sur 3.
-      { id: 'q1', type: 'npn', x: 440, y: 200, attrs: { text: '2N\n2222', b: '1', c: '2', e: '3', gain: '100' } },
-      { id: 'r2', type: 'resistor', x: 620, y: 60, attrs: { value: '220' } },
-      { id: 'led1', type: 'led', x: 760, y: 60, attrs: { color: 'yellow' } },
+      { id: 'T1', type: 'npn', x: 440, y: 200, attrs: { text: '2N\n2222', b: '1', c: '2', e: '3', gain: '100' } },
+      { id: 'R2', type: 'resistor', x: 620, y: 60, attrs: { value: '220' } },
+      { id: 'L1', type: 'led', x: 760, y: 60, attrs: { color: 'yellow' } },
     ],
     wires: () => [
-      w('r1', '1', 'mcu1', '7', 'green'),
-      w('r1', '2', 'q1', '1', 'green'),
-      w('q1', '3', 'mcu1', 'GND.1', 'black'),
-      w('q1', '2', 'led1', 'C', 'blue'),
-      w('led1', 'A', 'r2', '2', 'red'),
-      w('r2', '1', 'mcu1', '5V', 'red'),
+      w('R1', '1', 'U1', '7', 'green'),
+      w('R1', '2', 'T1', '1', 'green'),
+      w('T1', '3', 'U1', 'GND.1', 'black'),
+      w('T1', '2', 'L1', 'C', 'blue'),
+      w('L1', 'A', 'R2', '2', 'red'),
+      w('R2', '1', 'U1', '5V', 'red'),
     ],
     expect: {
       kind: 'transistor',
       steps: [
-        { high: ['7'], on: { q1: 0.0915 }, ledOn: ['led1'] },
-        { high: [], off: ['q1'], ledOff: ['led1'] },
+        { high: ['7'], on: { T1: 0.0915 }, ledOn: ['L1'] },
+        { high: [], off: ['T1'], ledOff: ['L1'] },
       ],
     },
     code: `// Test transistor NPN generique (prototype de l'editeur de composant) :
@@ -1457,25 +1457,25 @@ void loop() {
     name: 'pnp-uno', board: 'uno', ext: 'ino',
     parts: [
       MCU('uno'),
-      { id: 'r1', type: 'resistor', x: 300, y: 180, attrs: { value: '4700' } },
-      { id: 'q1', type: 'pnp', x: 440, y: 200, attrs: { text: '2N\n2907', e: '1', b: '2', c: '3', gain: '100' } },
-      { id: 'r2', type: 'resistor', x: 760, y: 60, attrs: { value: '220' } },
-      { id: 'led1', type: 'led', x: 620, y: 60, attrs: { color: 'blue' } },
+      { id: 'R1', type: 'resistor', x: 300, y: 180, attrs: { value: '4700' } },
+      { id: 'T1', type: 'pnp', x: 440, y: 200, attrs: { text: '2N\n2907', e: '1', b: '2', c: '3', gain: '100' } },
+      { id: 'R2', type: 'resistor', x: 760, y: 60, attrs: { value: '220' } },
+      { id: 'L1', type: 'led', x: 620, y: 60, attrs: { color: 'blue' } },
     ],
     wires: () => [
       // Emetteur au +, la LED pend sous le collecteur : commande cote HAUT.
-      w('q1', '1', 'mcu1', '5V', 'red'),
-      w('r1', '1', 'mcu1', '8', 'green'),
-      w('r1', '2', 'q1', '2', 'green'),
-      w('q1', '3', 'led1', 'A', 'blue'),
-      w('led1', 'C', 'r2', '1', 'blue'),
-      w('r2', '2', 'mcu1', 'GND.1', 'black'),
+      w('T1', '1', 'U1', '5V', 'red'),
+      w('R1', '1', 'U1', '8', 'green'),
+      w('R1', '2', 'T1', '2', 'green'),
+      w('T1', '3', 'L1', 'A', 'blue'),
+      w('L1', 'C', 'R2', '1', 'blue'),
+      w('R2', '2', 'U1', 'GND.1', 'black'),
     ],
     expect: {
       kind: 'transistor',
       steps: [
-        { high: [], on: { q1: 0.0915 }, ledOn: ['led1'] },
-        { high: ['8'], off: ['q1'], ledOff: ['led1'] },
+        { high: [], on: { T1: 0.0915 }, ledOn: ['L1'] },
+        { high: ['8'], off: ['T1'], ledOff: ['L1'] },
       ],
     },
     code: `// Test transistor PNP generique (prototype de l'editeur de composant) :
@@ -1502,46 +1502,46 @@ void loop() {
     name: 'relais-uno', board: 'uno', ext: 'ino',
     parts: [
       MCU('uno'),
-      { id: 'r1', type: 'resistor', x: 300, y: 280, attrs: { value: '1000' } },
-      { id: 'q1', type: 'pn2222a', x: 440, y: 300 },
-      { id: 'd1', type: 'diode', x: 620, y: 140 },
-      { id: 'rl1', type: 'relais', x: 620, y: 220, attrs: { voltage: '5' } },
-      { id: 'r2', type: 'resistor', x: 860, y: 120, attrs: { value: '220' } },
-      { id: 'led1', type: 'led', x: 1000, y: 120, attrs: { color: 'green' } },
-      { id: 'rl2', type: 'relais', x: 620, y: 420, attrs: { voltage: '5' } },
-      { id: 'rl3', type: 'relais', x: 620, y: 580, attrs: { voltage: '5' } },
-      { id: 'd3', type: 'diode', x: 860, y: 580 },
-      { id: 'rl4', type: 'relais', x: 620, y: 740, attrs: { voltage: '12' } },
-      { id: 'd4', type: 'diode', x: 860, y: 740 },
+      { id: 'R1', type: 'resistor', x: 300, y: 280, attrs: { value: '1000' } },
+      { id: 'T1', type: 'pn2222a', x: 440, y: 300 },
+      { id: 'D1', type: 'diode', x: 620, y: 140 },
+      { id: 'Rl1', type: 'relais', x: 620, y: 220, attrs: { voltage: '5' } },
+      { id: 'R2', type: 'resistor', x: 860, y: 120, attrs: { value: '220' } },
+      { id: 'L1', type: 'led', x: 1000, y: 120, attrs: { color: 'green' } },
+      { id: 'Rl2', type: 'relais', x: 620, y: 420, attrs: { voltage: '5' } },
+      { id: 'Rl3', type: 'relais', x: 620, y: 580, attrs: { voltage: '5' } },
+      { id: 'D2', type: 'diode', x: 860, y: 580 },
+      { id: 'Rl4', type: 'relais', x: 620, y: 740, attrs: { voltage: '12' } },
+      { id: 'D3', type: 'diode', x: 860, y: 740 },
     ],
     wires: () => [
-      // rl1 : cablage CORRECT — bobine commandee par un transistor sature,
+      // Rl1 : cablage CORRECT — bobine commandee par un transistor sature,
       // diode de roue libre cathode vers le + (broche B1).
-      w('r1', '1', 'mcu1', '8', 'green'),
-      w('r1', '2', 'q1', 'B', 'green'),
-      w('q1', 'E', 'mcu1', 'GND.1', 'black'),
-      w('q1', 'C', 'rl1', 'B2', 'blue'),
-      w('rl1', 'B1', 'mcu1', '5V', 'red'),
-      w('d1', 'K', 'rl1', 'B1', 'red'),
-      w('d1', 'A', 'rl1', 'B2', 'blue'),
+      w('R1', '1', 'U1', '8', 'green'),
+      w('R1', '2', 'T1', 'B', 'green'),
+      w('T1', 'E', 'U1', 'GND.1', 'black'),
+      w('T1', 'C', 'Rl1', 'B2', 'blue'),
+      w('Rl1', 'B1', 'U1', '5V', 'red'),
+      w('D1', 'K', 'Rl1', 'B1', 'red'),
+      w('D1', 'A', 'Rl1', 'B2', 'blue'),
       // Contact de travail : la LED est alimentee quand le relais colle.
-      w('rl1', 'Com.1', 'mcu1', '5V', 'red'),
-      w('rl1', 'NO', 'r2', '1', 'green'),
-      w('r2', '2', 'led1', 'A', 'green'),
-      w('led1', 'C', 'mcu1', 'GND.2', 'black'),
-      // rl2 : bobine directement sur une broche, SANS diode de roue libre.
-      w('rl2', 'B1', 'mcu1', '7', 'orange'),
-      w('rl2', 'B2', 'mcu1', 'GND.3', 'black'),
-      // rl3 : diode montee A L'ENVERS (anode vers le +).
-      w('rl3', 'B1', 'mcu1', '4', 'yellow'),
-      w('rl3', 'B2', 'mcu1', 'GND.3', 'black'),
-      w('d3', 'A', 'rl3', 'B1', 'yellow'),
-      w('d3', 'K', 'rl3', 'B2', 'black'),
-      // rl4 : relais 12 V alimente en 5 V — tension de commande insuffisante.
-      w('rl4', 'B1', 'mcu1', '5V', 'red'),
-      w('rl4', 'B2', 'mcu1', 'GND.3', 'black'),
-      w('d4', 'K', 'rl4', 'B1', 'red'),
-      w('d4', 'A', 'rl4', 'B2', 'black'),
+      w('Rl1', 'Com.1', 'U1', '5V', 'red'),
+      w('Rl1', 'NO', 'R2', '1', 'green'),
+      w('R2', '2', 'L1', 'A', 'green'),
+      w('L1', 'C', 'U1', 'GND.2', 'black'),
+      // Rl2 : bobine directement sur une broche, SANS diode de roue libre.
+      w('Rl2', 'B1', 'U1', '7', 'orange'),
+      w('Rl2', 'B2', 'U1', 'GND.3', 'black'),
+      // Rl3 : diode montee A L'ENVERS (anode vers le +).
+      w('Rl3', 'B1', 'U1', '4', 'yellow'),
+      w('Rl3', 'B2', 'U1', 'GND.3', 'black'),
+      w('D2', 'A', 'Rl3', 'B1', 'yellow'),
+      w('D2', 'K', 'Rl3', 'B2', 'black'),
+      // Rl4 : relais 12 V alimente en 5 V — tension de commande insuffisante.
+      w('Rl4', 'B1', 'U1', '5V', 'red'),
+      w('Rl4', 'B2', 'U1', 'GND.3', 'black'),
+      w('D3', 'K', 'Rl4', 'B1', 'red'),
+      w('D3', 'A', 'Rl4', 'B2', 'black'),
     ],
     expect: {
       kind: 'relay',
@@ -1549,33 +1549,33 @@ void loop() {
         {
           high: ['8', '7', '4'],
           relays: {
-            rl1: { commanded: true, closed: true, fault: 'none' },
-            rl2: { commanded: true, closed: false, fault: 'no-diode' },
-            rl3: { commanded: true, closed: false, fault: 'reversed-diode' },
-            rl4: { commanded: true, closed: false, fault: 'weak' },
+            Rl1: { commanded: true, closed: true, fault: 'none' },
+            Rl2: { commanded: true, closed: false, fault: 'no-diode' },
+            Rl3: { commanded: true, closed: false, fault: 'reversed-diode' },
+            Rl4: { commanded: true, closed: false, fault: 'weak' },
           },
-          ledOn: ['led1'],
+          ledOn: ['L1'],
         },
         {
           high: [],
-          relays: { rl1: { commanded: false, closed: false }, rl2: { commanded: false } },
-          ledOff: ['led1'],
+          relays: { Rl1: { commanded: false, closed: false }, Rl2: { commanded: false } },
+          ledOff: ['L1'],
         },
       ],
     },
     code: `// Test relais OMRON G5V. Quatre cablages sur la meme carte :
-//   rl1 : CORRECT — bobine commandee par un PN2222A sature (base via 1 kOhm),
+//   Rl1 : CORRECT — bobine commandee par un PN2222A sature (base via 1 kOhm),
 //         diode de roue libre entre B1 et B2, cathode vers le +. Il colle et
 //         allume la LED cablee sur son contact de travail (NO).
-//   rl2 : bobine sur la broche 7 SANS diode de roue libre -> interdit.
-//   rl3 : diode montee a l'envers (anode vers le +) -> interdit aussi.
-//   rl4 : relais 12 V alimente en 5 V -> tension de commande insuffisante.
+//   Rl2 : bobine sur la broche 7 SANS diode de roue libre -> interdit.
+//   Rl3 : diode montee a l'envers (anode vers le +) -> interdit aussi.
+//   Rl4 : relais 12 V alimente en 5 V -> tension de commande insuffisante.
 // Une bobine est une self : a la coupure elle renvoie une surtension qui detruit
 // le transistor de commande. La diode de roue libre l'absorbe — elle n'est pas
 // facultative.
-const int COMMANDE = 8;          // rl1, via le transistor
-const int SANS_DIODE = 7;        // rl2
-const int DIODE_INVERSEE = 4;    // rl3
+const int COMMANDE = 8;          // Rl1, via le transistor
+const int SANS_DIODE = 7;        // Rl2
+const int DIODE_INVERSEE = 4;    // Rl3
 
 void setup() {
   Serial.begin(115200);
@@ -1588,7 +1588,7 @@ void loop() {
   digitalWrite(COMMANDE, HIGH);
   digitalWrite(SANS_DIODE, HIGH);
   digitalWrite(DIODE_INVERSEE, HIGH);
-  Serial.println("Seul rl1 colle : les autres sont mal cables.");
+  Serial.println("Seul Rl1 colle : les autres sont mal cables.");
   delay(1500);
   digitalWrite(COMMANDE, LOW);
   digitalWrite(SANS_DIODE, LOW);
@@ -1600,18 +1600,18 @@ void loop() {
 
   test({
     name: 'keypad-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'kp1', type: 'keypad', x: 560, y: 40, attrs: { columns: '4' } }],
+    parts: [MCU('uno'), { id: 'Cl1', type: 'keypad', x: 560, y: 40, attrs: { columns: '4' } }],
     wires: () => [
-      w('kp1', 'R1', 'mcu1', '2', 'yellow'),
-      w('kp1', 'R2', 'mcu1', '3', 'yellow'),
-      w('kp1', 'R3', 'mcu1', '4', 'yellow'),
-      w('kp1', 'R4', 'mcu1', '5', 'yellow'),
-      w('kp1', 'C1', 'mcu1', '6', 'green'),
-      w('kp1', 'C2', 'mcu1', '7', 'green'),
-      w('kp1', 'C3', 'mcu1', '8', 'green'),
-      w('kp1', 'C4', 'mcu1', '9', 'green'),
+      w('Cl1', 'R1', 'U1', '2', 'yellow'),
+      w('Cl1', 'R2', 'U1', '3', 'yellow'),
+      w('Cl1', 'R3', 'U1', '4', 'yellow'),
+      w('Cl1', 'R4', 'U1', '5', 'yellow'),
+      w('Cl1', 'C1', 'U1', '6', 'green'),
+      w('Cl1', 'C2', 'U1', '7', 'green'),
+      w('Cl1', 'C3', 'U1', '8', 'green'),
+      w('Cl1', 'C4', 'U1', '9', 'green'),
     ],
-    expect: { kind: 'keypad', partId: 'kp1', rows: ['2', '3', '4', '5'], cols: ['6', '7', '8', '9'] },
+    expect: { kind: 'keypad', partId: 'Cl1', rows: ['2', '3', '4', '5'], cols: ['6', '7', '8', '9'] },
     code: `// Test clavier matriciel 4x4 : affiche la touche pressée.
 #include <Keypad.h>
 
@@ -1750,9 +1750,9 @@ while True:
 const PICO_TESTS = [
   test({
     name: 'led-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'r1', type: 'resistor', x: 560, y: 90, attrs: { value: '220' } }, { id: 'led1', type: 'led', x: 680, y: 60, attrs: { color: 'red' } }],
-    wires: () => [w('r1', '1', 'mcu1', 'GP15', 'green'), w('led1', 'A', 'r1', '2', 'green'), w('led1', 'C', 'mcu1', 'GND.5', 'black')],
-    expect: { kind: 'led', partId: 'led1', mcuPin: 'GP15' },
+    parts: [MCU('pico'), { id: 'R1', type: 'resistor', x: 560, y: 90, attrs: { value: '220' } }, { id: 'L1', type: 'led', x: 680, y: 60, attrs: { color: 'red' } }],
+    wires: () => [w('R1', '1', 'U1', 'GP15', 'green'), w('L1', 'A', 'R1', '2', 'green'), w('L1', 'C', 'U1', 'GND.5', 'black')],
+    expect: { kind: 'led', partId: 'L1', mcuPin: 'GP15' },
     code: `# Test LED : clignote sur GP15 (via une résistance de 220 ohms).
 from machine import Pin
 import time
@@ -1772,21 +1772,21 @@ while True:
     name: 'rgb-led-pico', board: 'pico', ext: 'py',
     parts: [
       MCU('pico'),
-      { id: 'r1', type: 'resistor', x: 500, y: 60, attrs: { value: '120' } },
-      { id: 'r2', type: 'resistor', x: 500, y: 100, attrs: { value: '120' } },
-      { id: 'r3', type: 'resistor', x: 500, y: 140, attrs: { value: '120' } },
-      { id: 'rgb1', type: 'rgb-led', x: 680, y: 80, attrs: { common: 'cathode' } },
+      { id: 'R1', type: 'resistor', x: 500, y: 60, attrs: { value: '120' } },
+      { id: 'R2', type: 'resistor', x: 500, y: 100, attrs: { value: '120' } },
+      { id: 'R3', type: 'resistor', x: 500, y: 140, attrs: { value: '120' } },
+      { id: 'L1', type: 'rgb-led', x: 680, y: 80, attrs: { common: 'cathode' } },
     ],
     wires: () => [
-      w('mcu1', 'GP13', 'r1', '1', 'orange'),
-      w('r1', '2', 'rgb1', 'R', 'orange'),
-      w('mcu1', 'GP14', 'r2', '1', 'green'),
-      w('r2', '2', 'rgb1', 'G', 'green'),
-      w('mcu1', 'GP15', 'r3', '1', 'blue'),
-      w('r3', '2', 'rgb1', 'B', 'blue'),
-      w('rgb1', 'COM', 'mcu1', 'GND.5', 'black'),
+      w('U1', 'GP13', 'R1', '1', 'orange'),
+      w('R1', '2', 'L1', 'R', 'orange'),
+      w('U1', 'GP14', 'R2', '1', 'green'),
+      w('R2', '2', 'L1', 'G', 'green'),
+      w('U1', 'GP15', 'R3', '1', 'blue'),
+      w('R3', '2', 'L1', 'B', 'blue'),
+      w('L1', 'COM', 'U1', 'GND.5', 'black'),
     ],
-    expect: { kind: 'rgb-led', partId: 'rgb1', r: 'GP13', g: 'GP14', b: 'GP15' },
+    expect: { kind: 'rgb-led', partId: 'L1', r: 'GP13', g: 'GP14', b: 'GP15' },
     code: `# Test LED RGB (cathode commune) : fondu PWM sur chaque canal.
 from machine import Pin, PWM
 import time
@@ -1808,9 +1808,9 @@ while True:
 
   test({
     name: 'button-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'btn1', type: 'button', x: 680, y: 100, attrs: { color: 'green' } }],
-    wires: () => [w('btn1', '1.l', 'mcu1', 'GP14', 'yellow'), w('btn1', '2.l', 'mcu1', 'GND.5', 'black')],
-    expect: { kind: 'button', partId: 'btn1', mcuPin: 'GP14' },
+    parts: [MCU('pico'), { id: 'BP1', type: 'button', x: 680, y: 100, attrs: { color: 'green' } }],
+    wires: () => [w('BP1', '1.l', 'U1', 'GP14', 'yellow'), w('BP1', '2.l', 'U1', 'GND.5', 'black')],
+    expect: { kind: 'button', partId: 'BP1', mcuPin: 'GP14' },
     code: `# Test bouton poussoir : appui = 0 (pull-up interne), recopié sur la LED GP25.
 from machine import Pin
 import time
@@ -1827,9 +1827,9 @@ while True:
 
   test({
     name: 'button-6mm-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'btn1', type: 'button-6mm', x: 680, y: 100, attrs: { color: 'red' } }],
-    wires: () => [w('btn1', '1.l', 'mcu1', 'GP13', 'yellow'), w('btn1', '2.l', 'mcu1', 'GND.5', 'black')],
-    expect: { kind: 'button', partId: 'btn1', mcuPin: 'GP13' },
+    parts: [MCU('pico'), { id: 'BP1', type: 'button-6mm', x: 680, y: 100, attrs: { color: 'red' } }],
+    wires: () => [w('BP1', '1.l', 'U1', 'GP13', 'yellow'), w('BP1', '2.l', 'U1', 'GND.5', 'black')],
+    expect: { kind: 'button', partId: 'BP1', mcuPin: 'GP13' },
     code: `# Test bouton 6 mm : identique au bouton standard, sur GP13.
 from machine import Pin
 import time
@@ -1843,9 +1843,9 @@ while True:
 
   test({
     name: 'resistor-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'r1', type: 'resistor', x: 560, y: 90, attrs: { value: '220' } }, { id: 'led1', type: 'led', x: 680, y: 60, attrs: { color: 'yellow' } }],
-    wires: () => [w('r1', '1', 'mcu1', 'GP16', 'green'), w('led1', 'A', 'r1', '2', 'green'), w('led1', 'C', 'mcu1', 'GND.6', 'black')],
-    expect: { kind: 'led', partId: 'led1', mcuPin: 'GP16' },
+    parts: [MCU('pico'), { id: 'R1', type: 'resistor', x: 560, y: 90, attrs: { value: '220' } }, { id: 'L1', type: 'led', x: 680, y: 60, attrs: { color: 'yellow' } }],
+    wires: () => [w('R1', '1', 'U1', 'GP16', 'green'), w('L1', 'A', 'R1', '2', 'green'), w('L1', 'C', 'U1', 'GND.6', 'black')],
+    expect: { kind: 'led', partId: 'L1', mcuPin: 'GP16' },
     code: `# Test résistance : en série avec une LED sur GP16 (continuité du courant).
 from machine import Pin
 import time
@@ -1862,9 +1862,9 @@ while True:
 
   test({
     name: 'buzzer-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'bz1', type: 'buzzer', x: 680, y: 90 }],
-    wires: () => [w('bz1', '1', 'mcu1', 'GP16', 'purple'), w('bz1', '2', 'mcu1', 'GND.6', 'black')],
-    expect: { kind: 'buzzer', partId: 'bz1', mcuPin: 'GP16' },
+    parts: [MCU('pico'), { id: 'Act1', type: 'buzzer', x: 680, y: 90 }],
+    wires: () => [w('Act1', '1', 'U1', 'GP16', 'purple'), w('Act1', '2', 'U1', 'GND.6', 'black')],
+    expect: { kind: 'buzzer', partId: 'Act1', mcuPin: 'GP16' },
     code: `# Test buzzer : niveau haut simple puis « bip » en PWM.
 from machine import Pin, PWM
 import time
@@ -1890,13 +1890,13 @@ while True:
 
   test({
     name: 'pot-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'pot1', type: 'pot', x: 680, y: 90, attrs: { min: '0', max: '100', value: '50' } }],
+    parts: [MCU('pico'), { id: 'Pot1', type: 'pot', x: 680, y: 90, attrs: { min: '0', max: '100', value: '50' } }],
     wires: () => [
-      w('pot1', 'VCC', 'mcu1', '3V3', 'red'),
-      w('pot1', 'SIG', 'mcu1', 'GP26', 'green'),
-      w('pot1', 'GND', 'mcu1', 'GND.7', 'black'),
+      w('Pot1', 'VCC', 'U1', '3V3', 'red'),
+      w('Pot1', 'SIG', 'U1', 'GP26', 'green'),
+      w('Pot1', 'GND', 'U1', 'GND.7', 'black'),
     ],
-    expect: { kind: 'pot', partId: 'pot1', mcuPin: 'GP26' },
+    expect: { kind: 'pot', partId: 'Pot1', mcuPin: 'GP26' },
     code: `# Test potentiomètre : lecture analogique 0-65535 sur GP26 (ADC0).
 from machine import ADC
 import time
@@ -1910,13 +1910,13 @@ while True:
 
   test({
     name: 'slide-pot-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'pot1', type: 'slide-pot', x: 660, y: 100, attrs: { min: '0', max: '100', value: '50' } }],
+    parts: [MCU('pico'), { id: 'Pot1', type: 'slide-pot', x: 660, y: 100, attrs: { min: '0', max: '100', value: '50' } }],
     wires: () => [
-      w('pot1', 'VCC', 'mcu1', '3V3', 'red'),
-      w('pot1', 'SIG', 'mcu1', 'GP27', 'green'),
-      w('pot1', 'GND', 'mcu1', 'GND.7', 'black'),
+      w('Pot1', 'VCC', 'U1', '3V3', 'red'),
+      w('Pot1', 'SIG', 'U1', 'GP27', 'green'),
+      w('Pot1', 'GND', 'U1', 'GND.7', 'black'),
     ],
-    expect: { kind: 'pot', partId: 'pot1', mcuPin: 'GP27' },
+    expect: { kind: 'pot', partId: 'Pot1', mcuPin: 'GP27' },
     code: `# Test potentiomètre à glissière : lecture analogique sur GP27 (ADC1).
 from machine import ADC
 import time
@@ -1930,19 +1930,19 @@ while True:
 
   test({
     name: '7seg-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'seg1', type: '7seg', x: 680, y: 80, attrs: { color: 'red', common: 'cathode', digits: '1' } }],
+    parts: [MCU('pico'), { id: 'Aff1', type: '7seg', x: 680, y: 80, attrs: { color: 'red', common: 'cathode', digits: '1' } }],
     wires: () => [
-      w('seg1', 'A', 'mcu1', 'GP2', 'green'),
-      w('seg1', 'B', 'mcu1', 'GP3', 'green'),
-      w('seg1', 'C', 'mcu1', 'GP4', 'green'),
-      w('seg1', 'D', 'mcu1', 'GP5', 'green'),
-      w('seg1', 'E', 'mcu1', 'GP6', 'green'),
-      w('seg1', 'F', 'mcu1', 'GP7', 'green'),
-      w('seg1', 'G', 'mcu1', 'GP8', 'green'),
-      w('seg1', 'DP', 'mcu1', 'GP9', 'green'),
-      w('seg1', 'COM.1', 'mcu1', 'GND.3', 'black'),
+      w('Aff1', 'A', 'U1', 'GP2', 'green'),
+      w('Aff1', 'B', 'U1', 'GP3', 'green'),
+      w('Aff1', 'C', 'U1', 'GP4', 'green'),
+      w('Aff1', 'D', 'U1', 'GP5', 'green'),
+      w('Aff1', 'E', 'U1', 'GP6', 'green'),
+      w('Aff1', 'F', 'U1', 'GP7', 'green'),
+      w('Aff1', 'G', 'U1', 'GP8', 'green'),
+      w('Aff1', 'DP', 'U1', 'GP9', 'green'),
+      w('Aff1', 'COM.1', 'U1', 'GND.3', 'black'),
     ],
-    expect: { kind: '7seg', partId: 'seg1', segments: { A: 'GP2', B: 'GP3', C: 'GP4', D: 'GP5', E: 'GP6', F: 'GP7', G: 'GP8', DP: 'GP9' } },
+    expect: { kind: '7seg', partId: 'Aff1', segments: { A: 'GP2', B: 'GP3', C: 'GP4', D: 'GP5', E: 'GP6', F: 'GP7', G: 'GP8', DP: 'GP9' } },
     code: `# Test afficheur 7 segments (cathode commune) : compte de 0 à 9.
 # Segments A..G,DP sur GP2..GP9 ; commun COM sur GND.
 from machine import Pin
@@ -1963,12 +1963,12 @@ while True:
 
   test({
     name: 'led-bar-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'bar1', type: 'led-bar', x: 680, y: 80, attrs: { color: 'GYR' } }],
+    parts: [MCU('pico'), { id: 'Aff1', type: 'led-bar', x: 680, y: 80, attrs: { color: 'GYR' } }],
     wires: () => [
-      ...Array.from({ length: 10 }, (_, i) => w('bar1', `A${i + 1}`, 'mcu1', `GP${i + 2}`, 'green')),
-      ...Array.from({ length: 10 }, (_, i) => w('bar1', `C${i + 1}`, 'mcu1', `GND.${(i % 4) + 1}`, 'black')),
+      ...Array.from({ length: 10 }, (_, i) => w('Aff1', `A${i + 1}`, 'U1', `GP${i + 2}`, 'green')),
+      ...Array.from({ length: 10 }, (_, i) => w('Aff1', `C${i + 1}`, 'U1', `GND.${(i % 4) + 1}`, 'black')),
     ],
-    expect: { kind: 'led-bar', partId: 'bar1', firstPin: 'GP2' },
+    expect: { kind: 'led-bar', partId: 'Aff1', firstPin: 'GP2' },
     code: `# Test barre de 10 LED : vumètre qui monte puis descend (anodes sur GP2..GP11).
 from machine import Pin
 import time
@@ -1992,13 +1992,13 @@ while True:
 
   test({
     name: 'slide-switch-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'sw1', type: 'slide-switch', x: 680, y: 100 }],
+    parts: [MCU('pico'), { id: 'Inter1', type: 'slide-switch', x: 680, y: 100 }],
     wires: () => [
-      w('sw1', '1', 'mcu1', 'GP14', 'yellow'),
-      w('sw1', '2', 'mcu1', 'GND.5', 'black'),
-      w('sw1', '3', 'mcu1', 'GP13', 'orange'),
+      w('Inter1', '1', 'U1', 'GP14', 'yellow'),
+      w('Inter1', '2', 'U1', 'GND.5', 'black'),
+      w('Inter1', '3', 'U1', 'GP13', 'orange'),
     ],
-    expect: { kind: 'slide-switch', partId: 'sw1', sides: { 1: 'GP14', 3: 'GP13' } },
+    expect: { kind: 'slide-switch', partId: 'Inter1', sides: { 1: 'GP14', 3: 'GP13' } },
     code: `# Test interrupteur à glissière : le commun (2) est à GND, le côté connecté = 0.
 from machine import Pin
 import time
@@ -2018,12 +2018,12 @@ while True:
 
   test({
     name: 'dip-switch-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'dip1', type: 'dip-switch', x: 680, y: 90 }],
+    parts: [MCU('pico'), { id: 'Inter1', type: 'dip-switch', x: 680, y: 90 }],
     wires: () => [
-      ...Array.from({ length: 8 }, (_, i) => w('dip1', `${i + 1}a`, 'mcu1', `GP${i + 2}`, 'yellow')),
-      ...Array.from({ length: 8 }, (_, i) => w('dip1', `${i + 1}b`, 'mcu1', `GND.${(i % 4) + 1}`, 'black')),
+      ...Array.from({ length: 8 }, (_, i) => w('Inter1', `${i + 1}a`, 'U1', `GP${i + 2}`, 'yellow')),
+      ...Array.from({ length: 8 }, (_, i) => w('Inter1', `${i + 1}b`, 'U1', `GND.${(i % 4) + 1}`, 'black')),
     ],
-    expect: { kind: 'dip-switch', partId: 'dip1', channels: 8 },
+    expect: { kind: 'dip-switch', partId: 'Inter1', channels: 8 },
     code: `# Test DIP switch x8 : chaque canal fermé tire sa broche (GP2..GP9) à 0.
 from machine import Pin
 import time
@@ -2038,15 +2038,15 @@ while True:
 
   test({
     name: 'joystick-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'joy1', type: 'joystick', x: 680, y: 80 }],
+    parts: [MCU('pico'), { id: 'Pot1', type: 'joystick', x: 680, y: 80 }],
     wires: () => [
-      w('joy1', 'VCC', 'mcu1', '3V3', 'red'),
-      w('joy1', 'VERT', 'mcu1', 'GP26', 'green'),
-      w('joy1', 'HORZ', 'mcu1', 'GP27', 'blue'),
-      w('joy1', 'SEL', 'mcu1', 'GP14', 'yellow'),
-      w('joy1', 'GND', 'mcu1', 'GND.7', 'black'),
+      w('Pot1', 'VCC', 'U1', '3V3', 'red'),
+      w('Pot1', 'VERT', 'U1', 'GP26', 'green'),
+      w('Pot1', 'HORZ', 'U1', 'GP27', 'blue'),
+      w('Pot1', 'SEL', 'U1', 'GP14', 'yellow'),
+      w('Pot1', 'GND', 'U1', 'GND.7', 'black'),
     ],
-    expect: { kind: 'joystick', partId: 'joy1', vert: 'GP26', horz: 'GP27', sel: 'GP14' },
+    expect: { kind: 'joystick', partId: 'Pot1', vert: 'GP26', horz: 'GP27', sel: 'GP14' },
     code: `# Test joystick analogique : X/Y sur les ADC, bouton SEL en pull-up.
 from machine import ADC, Pin
 import time
@@ -2063,14 +2063,14 @@ while True:
 
   test({
     name: 'photoresistor-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'ldr1', type: 'photoresistor', x: 680, y: 90, attrs: { sensitivity: '50' } }],
+    parts: [MCU('pico'), { id: 'Capt1', type: 'photoresistor', x: 680, y: 90, attrs: { sensitivity: '50' } }],
     wires: () => [
-      w('ldr1', 'VCC', 'mcu1', '3V3', 'red'),
-      w('ldr1', 'GND', 'mcu1', 'GND.7', 'black'),
-      w('ldr1', 'AO', 'mcu1', 'GP26', 'green'),
-      w('ldr1', 'DO', 'mcu1', 'GP14', 'yellow'),
+      w('Capt1', 'VCC', 'U1', '3V3', 'red'),
+      w('Capt1', 'GND', 'U1', 'GND.7', 'black'),
+      w('Capt1', 'AO', 'U1', 'GP26', 'green'),
+      w('Capt1', 'DO', 'U1', 'GP14', 'yellow'),
     ],
-    expect: { kind: 'ao-do', partId: 'ldr1', analog: 'GP26', digital: 'GP14' },
+    expect: { kind: 'ao-do', partId: 'Capt1', analog: 'GP26', digital: 'GP14' },
     code: `# Test capteur de lumière (LDR) : AO analogique + DO numérique (actif bas).
 from machine import ADC, Pin
 import time
@@ -2086,13 +2086,13 @@ while True:
 
   test({
     name: 'pir-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'pir1', type: 'pir', x: 680, y: 90 }],
+    parts: [MCU('pico'), { id: 'Capt1', type: 'pir', x: 680, y: 90 }],
     wires: () => [
-      w('pir1', 'VCC', 'mcu1', '3V3', 'red'),
-      w('pir1', 'OUT', 'mcu1', 'GP14', 'yellow'),
-      w('pir1', 'GND', 'mcu1', 'GND.5', 'black'),
+      w('Capt1', 'VCC', 'U1', '3V3', 'red'),
+      w('Capt1', 'OUT', 'U1', 'GP14', 'yellow'),
+      w('Capt1', 'GND', 'U1', 'GND.5', 'black'),
     ],
-    expect: { kind: 'digital-source', partId: 'pir1', mcuPin: 'GP14' },
+    expect: { kind: 'digital-source', partId: 'Capt1', mcuPin: 'GP14' },
     code: `# Test capteur PIR : en simulation, survoler le capteur déclenche le mouvement.
 from machine import Pin
 import time
@@ -2109,13 +2109,13 @@ while True:
 
   test({
     name: 'tilt-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'tilt1', type: 'tilt', x: 680, y: 90 }],
+    parts: [MCU('pico'), { id: 'Capt1', type: 'tilt', x: 680, y: 90 }],
     wires: () => [
-      w('tilt1', 'VCC', 'mcu1', '3V3', 'red'),
-      w('tilt1', 'OUT', 'mcu1', 'GP14', 'yellow'),
-      w('tilt1', 'GND', 'mcu1', 'GND.5', 'black'),
+      w('Capt1', 'VCC', 'U1', '3V3', 'red'),
+      w('Capt1', 'OUT', 'U1', 'GP14', 'yellow'),
+      w('Capt1', 'GND', 'U1', 'GND.5', 'black'),
     ],
-    expect: { kind: 'digital-source', partId: 'tilt1', mcuPin: 'GP14' },
+    expect: { kind: 'digital-source', partId: 'Capt1', mcuPin: 'GP14' },
     code: `# Test capteur d'inclinaison : maintenir le clic incline le capteur.
 from machine import Pin
 import time
@@ -2129,13 +2129,13 @@ while True:
 
   test({
     name: 'servo-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'srv1', type: 'servo', x: 680, y: 80, attrs: { horn: 'single', pulsemin: '500', pulsemax: '2500' } }],
+    parts: [MCU('pico'), { id: 'Act1', type: 'servo', x: 680, y: 80, attrs: { horn: 'single', pulsemin: '500', pulsemax: '2500' } }],
     wires: () => [
-      w('srv1', 'V+', 'mcu1', 'VBUS', 'red'),
-      w('srv1', 'GND', 'mcu1', 'GND.5', 'black'),
-      w('srv1', 'PWM', 'mcu1', 'GP15', 'orange'),
+      w('Act1', 'V+', 'U1', 'VBUS', 'red'),
+      w('Act1', 'GND', 'U1', 'GND.5', 'black'),
+      w('Act1', 'PWM', 'U1', 'GP15', 'orange'),
     ],
-    expect: { kind: 'servo', partId: 'srv1', mcuPin: 'GP15' },
+    expect: { kind: 'servo', partId: 'Act1', mcuPin: 'GP15' },
     code: `# Test servomoteur : PWM 50 Hz, impulsions 500/1500/2500 µs = 0/90/180°.
 from machine import Pin, PWM
 import time
@@ -2163,22 +2163,22 @@ while True:
     name: 'pca9685-pico', board: 'pico', ext: 'py',
     parts: [
       MCU('pico'),
-      { id: 'pca1', type: 'pca9685', x: 620, y: 40, attrs: { address: '0x40' } },
-      { id: 'srv1', type: 'servo', x: 1000, y: 40, attrs: { horn: 'single', pulsemin: '500', pulsemax: '2500' } },
-      { id: 'alim1', type: 'alim', x: 1000, y: 260, attrs: { voltage: '5', maxcurrent: '1' } },
+      { id: 'Mod1', type: 'pca9685', x: 620, y: 40, attrs: { address: '0x40' } },
+      { id: 'Act1', type: 'servo', x: 1000, y: 40, attrs: { horn: 'single', pulsemin: '500', pulsemax: '2500' } },
+      { id: 'Alim1', type: 'alim', x: 1000, y: 260, attrs: { voltage: '5', maxcurrent: '1' } },
     ],
     wires: () => [
-      w('pca1', 'GND', 'mcu1', 'GND.1', 'black'),
-      w('pca1', 'VCC', 'mcu1', '3V3', 'red'),
-      w('pca1', 'SDA', 'mcu1', 'GP0', 'blue'),
-      w('pca1', 'SCL', 'mcu1', 'GP1', 'yellow'),
-      w('srv1', 'PWM', 'pca1', 'PWM0', 'orange'),
-      w('srv1', 'V+', 'pca1', 'P1.5V', 'red'),
-      w('srv1', 'GND', 'pca1', 'P1.GND', 'black'),
-      w('alim1', 'V+', 'pca1', 'V+', 'red'),
-      w('alim1', 'GND', 'pca1', 'GND.2', 'black'),
+      w('Mod1', 'GND', 'U1', 'GND.1', 'black'),
+      w('Mod1', 'VCC', 'U1', '3V3', 'red'),
+      w('Mod1', 'SDA', 'U1', 'GP0', 'blue'),
+      w('Mod1', 'SCL', 'U1', 'GP1', 'yellow'),
+      w('Act1', 'PWM', 'Mod1', 'PWM0', 'orange'),
+      w('Act1', 'V+', 'Mod1', 'P1.5V', 'red'),
+      w('Act1', 'GND', 'Mod1', 'P1.GND', 'black'),
+      w('Alim1', 'V+', 'Mod1', 'V+', 'red'),
+      w('Alim1', 'GND', 'Mod1', 'GND.2', 'black'),
     ],
-    expect: { kind: 'pca9685', partId: 'pca1', channel: 0, targetId: 'srv1', powered: true },
+    expect: { kind: 'pca9685', partId: 'Mod1', channel: 0, targetId: 'Act1', powered: true },
     code: `# Test PCA9685 : le servo branché sur P1 (canal 0) balaie 0°, 90° puis 180°.
 # SANS l'alimentation de laboratoire réglée sur 5 V (courant suffisant) sur le
 # bornier V+/GND du module, les sorties ne bougent pas.
@@ -2210,14 +2210,14 @@ while True:
 
   test({
     name: 'lcd-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'lcd1', type: 'lcd', x: 620, y: 60, attrs: { pins: 'i2c', address: '0x27', cols: '16', rows: '2', lcdSize: '16x2' } }],
+    parts: [MCU('pico'), { id: 'Aff1', type: 'lcd', x: 620, y: 60, attrs: { pins: 'i2c', address: '0x27', cols: '16', rows: '2', lcdSize: '16x2' } }],
     wires: () => [
-      w('lcd1', 'GND', 'mcu1', 'GND.1', 'black'),
-      w('lcd1', 'VCC', 'mcu1', 'VBUS', 'red'),
-      w('lcd1', 'SDA', 'mcu1', 'GP0', 'blue'),
-      w('lcd1', 'SCL', 'mcu1', 'GP1', 'yellow'),
+      w('Aff1', 'GND', 'U1', 'GND.1', 'black'),
+      w('Aff1', 'VCC', 'U1', 'VBUS', 'red'),
+      w('Aff1', 'SDA', 'U1', 'GP0', 'blue'),
+      w('Aff1', 'SCL', 'U1', 'GP1', 'yellow'),
     ],
-    expect: { kind: 'i2c-part', partId: 'lcd1' },
+    expect: { kind: 'i2c-part', partId: 'Aff1' },
     code: `# Test LCD 16x2 en I2C (PCF8574 à l'adresse 0x27) : pilote HD44780 4 bits inline.
 from machine import Pin, I2C
 import time
@@ -2260,14 +2260,14 @@ print("Texte envoye au LCD")
 
   test({
     name: 'oled-ssd1306-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'oled1', type: 'oled-ssd1306', x: 660, y: 70, attrs: { pins: 'i2c' } }],
+    parts: [MCU('pico'), { id: 'Aff1', type: 'oled-ssd1306', x: 660, y: 70, attrs: { pins: 'i2c' } }],
     wires: () => [
-      w('oled1', 'GND', 'mcu1', 'GND.1', 'black'),
-      w('oled1', 'VDD', 'mcu1', '3V3', 'red'),
-      w('oled1', 'SDA', 'mcu1', 'GP0', 'blue'),
-      w('oled1', 'SCL', 'mcu1', 'GP1', 'yellow'),
+      w('Aff1', 'GND', 'U1', 'GND.1', 'black'),
+      w('Aff1', 'VDD', 'U1', '3V3', 'red'),
+      w('Aff1', 'SDA', 'U1', 'GP0', 'blue'),
+      w('Aff1', 'SCL', 'U1', 'GP1', 'yellow'),
     ],
-    expect: { kind: 'i2c-part', partId: 'oled1' },
+    expect: { kind: 'i2c-part', partId: 'Aff1' },
     code: `# Test OLED SSD1306 en I2C (0x3C) : cadre + damier, pilote minimal inline.
 from machine import Pin, I2C
 import time
@@ -2308,19 +2308,19 @@ print("Dessin envoye a l'OLED")
 
   test({
     name: 'ili9341-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'tft1', type: 'ili9341', x: 620, y: 40 }],
+    parts: [MCU('pico'), { id: 'Aff1', type: 'ili9341', x: 620, y: 40 }],
     wires: () => [
-      w('tft1', 'VCC', 'mcu1', '3V3', 'red'),
-      w('tft1', 'GND', 'mcu1', 'GND.1', 'black'),
-      w('tft1', 'CS', 'mcu1', 'GP17', 'yellow'),
-      w('tft1', 'RST', 'mcu1', 'GP21', 'gray'),
-      w('tft1', 'D/C', 'mcu1', 'GP20', 'orange'),
-      w('tft1', 'MOSI', 'mcu1', 'GP19', 'blue'),
-      w('tft1', 'SCK', 'mcu1', 'GP18', 'green'),
-      w('tft1', 'MISO', 'mcu1', 'GP16', 'purple'),
-      w('tft1', 'LED', 'mcu1', '3V3', 'red'),
+      w('Aff1', 'VCC', 'U1', '3V3', 'red'),
+      w('Aff1', 'GND', 'U1', 'GND.1', 'black'),
+      w('Aff1', 'CS', 'U1', 'GP17', 'yellow'),
+      w('Aff1', 'RST', 'U1', 'GP21', 'gray'),
+      w('Aff1', 'D/C', 'U1', 'GP20', 'orange'),
+      w('Aff1', 'MOSI', 'U1', 'GP19', 'blue'),
+      w('Aff1', 'SCK', 'U1', 'GP18', 'green'),
+      w('Aff1', 'MISO', 'U1', 'GP16', 'purple'),
+      w('Aff1', 'LED', 'U1', '3V3', 'red'),
     ],
-    expect: { kind: 'spi-device', partId: 'tft1', dcPin: 'GP20', csPin: 'GP17' },
+    expect: { kind: 'spi-device', partId: 'Aff1', dcPin: 'GP20', csPin: 'GP17' },
     code: `# Test écran TFT ILI9341 (SPI) : init registres bruts + carré rouge 100x100.
 from machine import Pin, SPI
 import time
@@ -2363,16 +2363,16 @@ print("Carre rouge envoye au TFT")
 
   test({
     name: 'microsd-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'sd1', type: 'microsd', x: 680, y: 90 }],
+    parts: [MCU('pico'), { id: 'Mod1', type: 'microsd', x: 680, y: 90 }],
     wires: () => [
-      w('sd1', 'VCC', 'mcu1', '3V3', 'red'),
-      w('sd1', 'GND', 'mcu1', 'GND.1', 'black'),
-      w('sd1', 'CS', 'mcu1', 'GP17', 'yellow'),
-      w('sd1', 'DI', 'mcu1', 'GP19', 'blue'),
-      w('sd1', 'DO', 'mcu1', 'GP16', 'purple'),
-      w('sd1', 'SCK', 'mcu1', 'GP18', 'green'),
+      w('Mod1', 'VCC', 'U1', '3V3', 'red'),
+      w('Mod1', 'GND', 'U1', 'GND.1', 'black'),
+      w('Mod1', 'CS', 'U1', 'GP17', 'yellow'),
+      w('Mod1', 'DI', 'U1', 'GP19', 'blue'),
+      w('Mod1', 'DO', 'U1', 'GP16', 'purple'),
+      w('Mod1', 'SCK', 'U1', 'GP18', 'green'),
     ],
-    expect: { kind: 'spi-device', partId: 'sd1', dcPin: null, csPin: 'GP17' },
+    expect: { kind: 'spi-device', partId: 'Mod1', dcPin: null, csPin: 'GP17' },
     code: `# Test carte microSD (SPI) : initialisation protocole brut (CMD0/CMD8/ACMD41).
 from machine import Pin, SPI
 import time
@@ -2412,13 +2412,13 @@ print("Carte SD detectee : init OK" if resultat == 0 else "ECHEC de l'init SD")
 
   test({
     name: 'neopixel-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'np1', type: 'neopixel', x: 680, y: 100 }],
+    parts: [MCU('pico'), { id: 'L1', type: 'neopixel', x: 680, y: 100 }],
     wires: () => [
-      w('np1', 'VDD', 'mcu1', 'VBUS', 'red'),
-      w('np1', 'VSS', 'mcu1', 'GND.1', 'black'),
-      w('np1', 'DIN', 'mcu1', 'GP0', 'green'),
+      w('L1', 'VDD', 'U1', 'VBUS', 'red'),
+      w('L1', 'VSS', 'U1', 'GND.1', 'black'),
+      w('L1', 'DIN', 'U1', 'GP0', 'green'),
     ],
-    expect: { kind: 'neopixel', partId: 'np1', mcuPin: 'GP0', count: 1 },
+    expect: { kind: 'neopixel', partId: 'L1', mcuPin: 'GP0', count: 1 },
     code: `# Test NeoPixel (1 pixel WS2812) : rouge, vert, bleu en boucle.
 from machine import Pin
 import neopixel
@@ -2437,13 +2437,13 @@ while True:
 
   test({
     name: 'neopixel-matrix-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'npm1', type: 'neopixel-matrix', x: 660, y: 50, attrs: { rows: '8', cols: '8' } }],
+    parts: [MCU('pico'), { id: 'L1', type: 'neopixel-matrix', x: 660, y: 50, attrs: { rows: '8', cols: '8' } }],
     wires: () => [
-      w('npm1', 'VCC', 'mcu1', 'VBUS', 'red'),
-      w('npm1', 'GND', 'mcu1', 'GND.1', 'black'),
-      w('npm1', 'DIN', 'mcu1', 'GP0', 'green'),
+      w('L1', 'VCC', 'U1', 'VBUS', 'red'),
+      w('L1', 'GND', 'U1', 'GND.1', 'black'),
+      w('L1', 'DIN', 'U1', 'GP0', 'green'),
     ],
-    expect: { kind: 'neopixel', partId: 'npm1', mcuPin: 'GP0', count: 64 },
+    expect: { kind: 'neopixel', partId: 'L1', mcuPin: 'GP0', count: 64 },
     code: `# Test matrice NeoPixel 8x8 (64 pixels) : diagonale blanche + dégradé.
 from machine import Pin
 import neopixel
@@ -2463,13 +2463,13 @@ print("Matrice remplie")
 
   test({
     name: 'led-ring-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'ring1', type: 'led-ring', x: 680, y: 60, attrs: { pixels: '16' } }],
+    parts: [MCU('pico'), { id: 'L1', type: 'led-ring', x: 680, y: 60, attrs: { pixels: '16' } }],
     wires: () => [
-      w('ring1', 'VCC', 'mcu1', 'VBUS', 'red'),
-      w('ring1', 'GND', 'mcu1', 'GND.1', 'black'),
-      w('ring1', 'DIN', 'mcu1', 'GP0', 'green'),
+      w('L1', 'VCC', 'U1', 'VBUS', 'red'),
+      w('L1', 'GND', 'U1', 'GND.1', 'black'),
+      w('L1', 'DIN', 'U1', 'GP0', 'green'),
     ],
-    expect: { kind: 'neopixel', partId: 'ring1', mcuPin: 'GP0', count: 16 },
+    expect: { kind: 'neopixel', partId: 'L1', mcuPin: 'GP0', count: 16 },
     code: `# Test anneau NeoPixel (16 pixels) : chenillard bleu.
 from machine import Pin
 import neopixel
@@ -2487,13 +2487,13 @@ while True:
 
   test({
     name: 'ntc-temp-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'ntc1', type: 'ntc-temp', x: 680, y: 90, attrs: { temperature: '25' } }],
+    parts: [MCU('pico'), { id: 'Capt1', type: 'ntc-temp', x: 680, y: 90, attrs: { temperature: '25' } }],
     wires: () => [
-      w('ntc1', 'VCC', 'mcu1', '3V3', 'red'),
-      w('ntc1', 'GND', 'mcu1', 'GND.7', 'black'),
-      w('ntc1', 'OUT', 'mcu1', 'GP26', 'green'),
+      w('Capt1', 'VCC', 'U1', '3V3', 'red'),
+      w('Capt1', 'GND', 'U1', 'GND.7', 'black'),
+      w('Capt1', 'OUT', 'U1', 'GP26', 'green'),
     ],
-    expect: { kind: 'analog-source', partId: 'ntc1', mcuPin: 'GP26' },
+    expect: { kind: 'analog-source', partId: 'Capt1', mcuPin: 'GP26' },
     code: `# Test capteur de température NTC : lecture analogique sur GP26 (ADC0).
 from machine import ADC
 import time
@@ -2507,14 +2507,14 @@ while True:
 
   test({
     name: 'gas-sensor-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'gas1', type: 'gas-sensor', x: 680, y: 90, attrs: { sensitivity: '50' } }],
+    parts: [MCU('pico'), { id: 'Capt1', type: 'gas-sensor', x: 680, y: 90, attrs: { sensitivity: '50' } }],
     wires: () => [
-      w('gas1', 'VCC', 'mcu1', '3V3', 'red'),
-      w('gas1', 'GND', 'mcu1', 'GND.7', 'black'),
-      w('gas1', 'AOUT', 'mcu1', 'GP26', 'green'),
-      w('gas1', 'DOUT', 'mcu1', 'GP14', 'yellow'),
+      w('Capt1', 'VCC', 'U1', '3V3', 'red'),
+      w('Capt1', 'GND', 'U1', 'GND.7', 'black'),
+      w('Capt1', 'AOUT', 'U1', 'GP26', 'green'),
+      w('Capt1', 'DOUT', 'U1', 'GP14', 'yellow'),
     ],
-    expect: { kind: 'ao-do', partId: 'gas1', analog: 'GP26', digital: 'GP14' },
+    expect: { kind: 'ao-do', partId: 'Capt1', analog: 'GP26', digital: 'GP14' },
     code: `# Test capteur de gaz (MQ) : AOUT analogique + DOUT numérique (actif bas).
 from machine import ADC, Pin
 import time
@@ -2530,13 +2530,13 @@ while True:
 
   test({
     name: 'heartbeat-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'hb1', type: 'heartbeat', x: 680, y: 90, attrs: { bpm: '72' } }],
+    parts: [MCU('pico'), { id: 'Capt1', type: 'heartbeat', x: 680, y: 90, attrs: { bpm: '72' } }],
     wires: () => [
-      w('hb1', 'VCC', 'mcu1', '3V3', 'red'),
-      w('hb1', 'GND', 'mcu1', 'GND.7', 'black'),
-      w('hb1', 'OUT', 'mcu1', 'GP26', 'green'),
+      w('Capt1', 'VCC', 'U1', '3V3', 'red'),
+      w('Capt1', 'GND', 'U1', 'GND.7', 'black'),
+      w('Capt1', 'OUT', 'U1', 'GP26', 'green'),
     ],
-    expect: { kind: 'analog-source', partId: 'hb1', mcuPin: 'GP26' },
+    expect: { kind: 'analog-source', partId: 'Capt1', mcuPin: 'GP26' },
     code: `# Test capteur de pouls : le signal analogique bat au rythme cardiaque.
 from machine import ADC
 import time
@@ -2550,14 +2550,14 @@ while True:
 
   test({
     name: 'flame-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'fl1', type: 'flame', x: 680, y: 90, attrs: { sensitivity: '50' } }],
+    parts: [MCU('pico'), { id: 'Capt1', type: 'flame', x: 680, y: 90, attrs: { sensitivity: '50' } }],
     wires: () => [
-      w('fl1', 'VCC', 'mcu1', '3V3', 'red'),
-      w('fl1', 'GND', 'mcu1', 'GND.7', 'black'),
-      w('fl1', 'AOUT', 'mcu1', 'GP26', 'green'),
-      w('fl1', 'DOUT', 'mcu1', 'GP14', 'yellow'),
+      w('Capt1', 'VCC', 'U1', '3V3', 'red'),
+      w('Capt1', 'GND', 'U1', 'GND.7', 'black'),
+      w('Capt1', 'AOUT', 'U1', 'GP26', 'green'),
+      w('Capt1', 'DOUT', 'U1', 'GP14', 'yellow'),
     ],
-    expect: { kind: 'ao-do', partId: 'fl1', analog: 'GP26', digital: 'GP14' },
+    expect: { kind: 'ao-do', partId: 'Capt1', analog: 'GP26', digital: 'GP14' },
     code: `# Test capteur de flamme : AOUT baisse quand la flamme approche, DOUT actif bas.
 from machine import ADC, Pin
 import time
@@ -2573,14 +2573,14 @@ while True:
 
   test({
     name: 'sound-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'snd1', type: 'sound', x: 680, y: 90, attrs: { sensitivity: '50' } }],
+    parts: [MCU('pico'), { id: 'Capt1', type: 'sound', x: 680, y: 90, attrs: { sensitivity: '50' } }],
     wires: () => [
-      w('snd1', 'VCC', 'mcu1', '3V3', 'red'),
-      w('snd1', 'GND', 'mcu1', 'GND.7', 'black'),
-      w('snd1', 'AOUT', 'mcu1', 'GP26', 'green'),
-      w('snd1', 'DOUT', 'mcu1', 'GP14', 'yellow'),
+      w('Capt1', 'VCC', 'U1', '3V3', 'red'),
+      w('Capt1', 'GND', 'U1', 'GND.7', 'black'),
+      w('Capt1', 'AOUT', 'U1', 'GP26', 'green'),
+      w('Capt1', 'DOUT', 'U1', 'GP14', 'yellow'),
     ],
-    expect: { kind: 'ao-do', partId: 'snd1', analog: 'GP26', digital: 'GP14' },
+    expect: { kind: 'ao-do', partId: 'Capt1', analog: 'GP26', digital: 'GP14' },
     code: `# Test capteur de son : AOUT analogique + DOUT numérique (actif bas).
 from machine import ADC, Pin
 import time
@@ -2596,13 +2596,13 @@ while True:
 
   test({
     name: 'dht22-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'dht1', type: 'dht22', x: 680, y: 90, attrs: { temperature: '22', humidity: '50' } }],
+    parts: [MCU('pico'), { id: 'Capt1', type: 'dht22', x: 680, y: 90, attrs: { temperature: '22', humidity: '50' } }],
     wires: () => [
-      w('dht1', 'VCC', 'mcu1', '3V3', 'red'),
-      w('dht1', 'DATA', 'mcu1', 'GP14', 'green'),
-      w('dht1', 'GND', 'mcu1', 'GND.5', 'black'),
+      w('Capt1', 'VCC', 'U1', '3V3', 'red'),
+      w('Capt1', 'DATA', 'U1', 'GP14', 'green'),
+      w('Capt1', 'GND', 'U1', 'GND.5', 'black'),
     ],
-    expect: { kind: 'dht22', partId: 'dht1', mcuPin: 'GP14' },
+    expect: { kind: 'dht22', partId: 'Capt1', mcuPin: 'GP14' },
     code: `# Test DHT22 : température et humidité via le module dht de MicroPython.
 from machine import Pin
 import dht
@@ -2623,25 +2623,25 @@ while True:
     name: 'diode-pico', board: 'pico', ext: 'py',
     parts: [
       MCU('pico'),
-      { id: 'd1', type: 'diode', x: 400, y: 60 },
-      { id: 'r1', type: 'resistor', x: 500, y: 60, attrs: { value: '220' } },
-      { id: 'led1', type: 'led', x: 600, y: 60, attrs: { color: 'green' } },
-      { id: 'd2', type: 'diode', x: 400, y: 160 },
-      { id: 'r2', type: 'resistor', x: 500, y: 160, attrs: { value: '220' } },
-      { id: 'led2', type: 'led', x: 600, y: 160, attrs: { color: 'red' } },
+      { id: 'D1', type: 'diode', x: 400, y: 60 },
+      { id: 'R1', type: 'resistor', x: 500, y: 60, attrs: { value: '220' } },
+      { id: 'L1', type: 'led', x: 600, y: 60, attrs: { color: 'green' } },
+      { id: 'D2', type: 'diode', x: 400, y: 160 },
+      { id: 'R2', type: 'resistor', x: 500, y: 160, attrs: { value: '220' } },
+      { id: 'L2', type: 'led', x: 600, y: 160, attrs: { color: 'red' } },
     ],
     wires: () => [
-      w('d1', 'A', 'mcu1', 'GP15', 'green'),
-      w('d1', 'K', 'r1', '1', 'green'),
-      w('r1', '2', 'led1', 'A', 'green'),
-      w('led1', 'C', 'mcu1', 'GND.5', 'black'),
+      w('D1', 'A', 'U1', 'GP15', 'green'),
+      w('D1', 'K', 'R1', '1', 'green'),
+      w('R1', '2', 'L1', 'A', 'green'),
+      w('L1', 'C', 'U1', 'GND.5', 'black'),
       // Diode à l'envers : la branche rouge ne s'allume jamais.
-      w('d2', 'K', 'mcu1', 'GP14', 'orange'),
-      w('d2', 'A', 'r2', '1', 'orange'),
-      w('r2', '2', 'led2', 'A', 'orange'),
-      w('led2', 'C', 'mcu1', 'GND.3', 'black'),
+      w('D2', 'K', 'U1', 'GP14', 'orange'),
+      w('D2', 'A', 'R2', '1', 'orange'),
+      w('R2', '2', 'L2', 'A', 'orange'),
+      w('L2', 'C', 'U1', 'GND.3', 'black'),
     ],
-    expect: { kind: 'diode', ledOn: 'led1', ledOff: 'led2', drop: 0.6 },
+    expect: { kind: 'diode', ledOn: 'L1', ledOff: 'L2', drop: 0.6 },
     code: `# Test diode : les deux broches passent au niveau haut en meme temps.
 # Seule la LED verte s'allume — la diode de la branche rouge est montee a
 # l'envers (cathode cote GP14) et bloque le passage du courant.
@@ -2669,34 +2669,34 @@ while True:
     name: 'condo-pico', board: 'pico', ext: 'py',
     parts: [
       MCU('pico'),
-      { id: 'r1', type: 'resistor', x: 480, y: 60, attrs: { value: '100000' } },
-      { id: 'c1', type: 'condo-np', x: 620, y: 60, attrs: { ctype: 'np', value: '1e-6', vmax: '63' } },
-      { id: 'r2', type: 'resistor', x: 480, y: 180, attrs: { value: '33000' } },
-      { id: 'c2', type: 'condo-p-1', x: 620, y: 180, attrs: { ctype: 'p', value: '1e-5', vmax: '16' } },
-      { id: 'r3', type: 'resistor', x: 480, y: 300, attrs: { value: '10000' } },
-      { id: 'c3', type: 'condo-p-2', x: 620, y: 300, attrs: { ctype: 'chem', value: '1e-4', vmax: '16' } },
+      { id: 'R1', type: 'resistor', x: 480, y: 60, attrs: { value: '100000' } },
+      { id: 'C1', type: 'condo-np', x: 620, y: 60, attrs: { ctype: 'np', value: '1e-6', vmax: '63' } },
+      { id: 'R2', type: 'resistor', x: 480, y: 180, attrs: { value: '33000' } },
+      { id: 'C2', type: 'condo-p-1', x: 620, y: 180, attrs: { ctype: 'p', value: '1e-5', vmax: '16' } },
+      { id: 'R3', type: 'resistor', x: 480, y: 300, attrs: { value: '10000' } },
+      { id: 'C3', type: 'condo-p-2', x: 620, y: 300, attrs: { ctype: 'chem', value: '1e-4', vmax: '16' } },
     ],
     wires: () => [
-      w('r1', '1', 'mcu1', 'GP15', 'green'),
-      w('r1', '2', 'c1', '1', 'green'),
-      w('c1', '1', 'mcu1', 'GP26', 'blue'),
-      w('c1', '2', 'mcu1', 'GND.5', 'black'),
-      w('r2', '1', 'mcu1', 'GP15', 'green'),
-      w('r2', '2', 'c2', '1', 'green'),
-      w('c2', '1', 'mcu1', 'GP27', 'blue'),
-      w('c2', '2', 'mcu1', 'GND.6', 'black'),
-      w('r3', '1', 'mcu1', 'GP15', 'green'),
-      w('r3', '2', 'c3', '1', 'green'),
-      w('c3', '1', 'mcu1', 'GP28', 'blue'),
-      w('c3', '2', 'mcu1', 'GND.7', 'black'),
+      w('R1', '1', 'U1', 'GP15', 'green'),
+      w('R1', '2', 'C1', '1', 'green'),
+      w('C1', '1', 'U1', 'GP26', 'blue'),
+      w('C1', '2', 'U1', 'GND.5', 'black'),
+      w('R2', '1', 'U1', 'GP15', 'green'),
+      w('R2', '2', 'C2', '1', 'green'),
+      w('C2', '1', 'U1', 'GP27', 'blue'),
+      w('C2', '2', 'U1', 'GND.6', 'black'),
+      w('R3', '1', 'U1', 'GP15', 'green'),
+      w('R3', '2', 'C3', '1', 'green'),
+      w('C3', '1', 'U1', 'GP28', 'blue'),
+      w('C3', '2', 'U1', 'GND.7', 'black'),
     ],
     // RC = R × C, la sortie du RP2040 ajoutant ses 25 Ω : 0,1 s / 0,33 s / 1 s.
     expect: {
       kind: 'capacitor', drivePin: 'GP15', drive: 'high', volts: 3.3,
       caps: [
-        { partId: 'c1', target: 3.3, tau: 0.1, mcuPins: ['GP26'] },
-        { partId: 'c2', target: 3.3, tau: 0.33, mcuPins: ['GP27'] },
-        { partId: 'c3', target: 3.3, tau: 1, mcuPins: ['GP28'] },
+        { partId: 'C1', target: 3.3, tau: 0.1, mcuPins: ['GP26'] },
+        { partId: 'C2', target: 3.3, tau: 0.33, mcuPins: ['GP27'] },
+        { partId: 'C3', target: 3.3, tau: 1, mcuPins: ['GP28'] },
       ],
     },
     code: `# Trois circuits RC sur la MEME broche de commande. Seule la constante de
@@ -2730,13 +2730,13 @@ while True:
 
   test({
     name: 'dht11-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'dht1', type: 'dht11', x: 680, y: 90, attrs: { temperature: '22', humidity: '50' } }],
+    parts: [MCU('pico'), { id: 'Capt1', type: 'dht11', x: 680, y: 90, attrs: { temperature: '22', humidity: '50' } }],
     wires: () => [
-      w('dht1', 'VCC', 'mcu1', '3V3', 'red'),
-      w('dht1', 'DATA', 'mcu1', 'GP14', 'green'),
-      w('dht1', 'GND', 'mcu1', 'GND.5', 'black'),
+      w('Capt1', 'VCC', 'U1', '3V3', 'red'),
+      w('Capt1', 'DATA', 'U1', 'GP14', 'green'),
+      w('Capt1', 'GND', 'U1', 'GND.5', 'black'),
     ],
-    expect: { kind: 'dht22', partId: 'dht1', mcuPin: 'GP14', model: 'dht11' },
+    expect: { kind: 'dht22', partId: 'Capt1', mcuPin: 'GP14', model: 'dht11' },
     code: `# Test DHT11 : meme module MicroPython que le DHT22, mais des valeurs
 # ENTIERES (pas de dixieme), 20 a 90 % HR et 0 a 50 degres C.
 from machine import Pin
@@ -2758,17 +2758,17 @@ while True:
     name: 'ventilo-pico', board: 'pico', ext: 'py',
     parts: [
       MCU('pico'),
-      { id: 'alim1', type: 'alim', x: 620, y: 300, attrs: { voltage: '5', maxcurrent: '1' } },
-      { id: 'fan1', type: 'ventilo', x: 620, y: 40, attrs: { voltage: '5', current: '0.85' } },
-      { id: 'fan2', type: 'ventilo', x: 900, y: 40, attrs: { voltage: '5', current: '0.85' } },
+      { id: 'Alim1', type: 'alim', x: 620, y: 300, attrs: { voltage: '5', maxcurrent: '1' } },
+      { id: 'Act1', type: 'ventilo', x: 620, y: 40, attrs: { voltage: '5', current: '0.85' } },
+      { id: 'Act2', type: 'ventilo', x: 900, y: 40, attrs: { voltage: '5', current: '0.85' } },
     ],
     wires: () => [
-      w('fan1', '+', 'alim1', 'V+', 'red'),
-      w('fan1', '-', 'alim1', 'GND', 'black'),
-      w('fan2', '+', 'mcu1', 'GP15', 'orange'),
-      w('fan2', '-', 'mcu1', 'GND.5', 'black'),
+      w('Act1', '+', 'Alim1', 'V+', 'red'),
+      w('Act1', '-', 'Alim1', 'GND', 'black'),
+      w('Act2', '+', 'U1', 'GP15', 'orange'),
+      w('Act2', '-', 'U1', 'GND.5', 'black'),
     ],
-    expect: { kind: 'fan', spins: 'fan1', starved: 'fan2' },
+    expect: { kind: 'fan', spins: 'Act1', starved: 'Act2' },
     code: `# Test ventilateur. Le premier tourne : il est branche sur l'alimentation de
 # laboratoire (5 V, 1 A), qui fournit largement ses 850 mA.
 # Le second est cable sur GP15 en PWM : il ne demarre JAMAIS, une sortie du Pico
@@ -2795,33 +2795,33 @@ while True:
     name: 'pn2222a-pico', board: 'pico', ext: 'py',
     parts: [
       MCU('pico'),
-      { id: 'alim1', type: 'alim', x: 620, y: 380, attrs: { voltage: '5', maxcurrent: '1' } },
-      { id: 'r1', type: 'resistor', x: 300, y: 180, attrs: { value: '470' } },
-      { id: 'q1', type: 'pn2222a', x: 440, y: 200 },
-      { id: 'fan1', type: 'ventilo', x: 620, y: 40, attrs: { voltage: '5', current: '0.12' } },
-      { id: 'r2', type: 'resistor', x: 300, y: 280, attrs: { value: '10000' } },
-      { id: 'q2', type: 'pn2222a', x: 880, y: 200 },
-      { id: 'fan2', type: 'ventilo', x: 900, y: 40, attrs: { voltage: '5', current: '0.12' } },
+      { id: 'Alim1', type: 'alim', x: 620, y: 380, attrs: { voltage: '5', maxcurrent: '1' } },
+      { id: 'R1', type: 'resistor', x: 300, y: 180, attrs: { value: '470' } },
+      { id: 'T1', type: 'pn2222a', x: 440, y: 200 },
+      { id: 'Act1', type: 'ventilo', x: 620, y: 40, attrs: { voltage: '5', current: '0.12' } },
+      { id: 'R2', type: 'resistor', x: 300, y: 280, attrs: { value: '10000' } },
+      { id: 'T2', type: 'pn2222a', x: 880, y: 200 },
+      { id: 'Act2', type: 'ventilo', x: 900, y: 40, attrs: { voltage: '5', current: '0.12' } },
     ],
     wires: () => [
       // Sortie a 3,3 V : il faut une base plus attaquee qu'en 5 V (470 ohms).
-      w('r1', '1', 'mcu1', 'GP15', 'green'),
-      w('r1', '2', 'q1', 'B', 'green'),
-      w('q1', 'E', 'mcu1', 'GND.5', 'black'),
-      w('q1', 'C', 'fan1', '-', 'blue'),
-      w('fan1', '+', 'alim1', 'V+', 'red'),
-      w('alim1', 'GND', 'mcu1', 'GND.4', 'black'),
-      w('r2', '1', 'mcu1', 'GP14', 'orange'),
-      w('r2', '2', 'q2', 'B', 'orange'),
-      w('q2', 'E', 'mcu1', 'GND.3', 'black'),
-      w('q2', 'C', 'fan2', '-', 'blue'),
-      w('fan2', '+', 'alim1', 'V+', 'red'),
+      w('R1', '1', 'U1', 'GP15', 'green'),
+      w('R1', '2', 'T1', 'B', 'green'),
+      w('T1', 'E', 'U1', 'GND.5', 'black'),
+      w('T1', 'C', 'Act1', '-', 'blue'),
+      w('Act1', '+', 'Alim1', 'V+', 'red'),
+      w('Alim1', 'GND', 'U1', 'GND.4', 'black'),
+      w('R2', '1', 'U1', 'GP14', 'orange'),
+      w('R2', '2', 'T2', 'B', 'orange'),
+      w('T2', 'E', 'U1', 'GND.3', 'black'),
+      w('T2', 'C', 'Act2', '-', 'blue'),
+      w('Act2', '+', 'Alim1', 'V+', 'red'),
     ],
     expect: {
       kind: 'transistor',
       steps: [
-        { high: ['GP15', 'GP14'], on: { q1: 0.1936, q2: 0.0091 }, fanAmps: 0.12, fanSpins: ['fan1'], fanStalls: ['fan2'] },
-        { high: [], off: ['q1', 'q2'], fanAmps: 0.12, fanStalls: ['fan1'] },
+        { high: ['GP15', 'GP14'], on: { T1: 0.1936, T2: 0.0091 }, fanAmps: 0.12, fanSpins: ['Act1'], fanStalls: ['Act2'] },
+        { high: [], off: ['T1', 'T2'], fanAmps: 0.12, fanStalls: ['Act1'] },
       ],
     },
     code: `# Test transistor PN2222A : le meme ventilateur 5 V / 120 mA sur les deux
@@ -2852,71 +2852,71 @@ while True:
     name: 'transistor-pico', board: 'pico', ext: 'py',
     parts: [
       MCU('pico'),
-      { id: 'alim1', type: 'alim', x: 620, y: 380, attrs: { voltage: '5', maxcurrent: '1' } },
-      { id: 'r1', type: 'resistor', x: 300, y: 180, attrs: { value: '10000' } },
+      { id: 'Alim1', type: 'alim', x: 620, y: 380, attrs: { voltage: '5', maxcurrent: '1' } },
+      { id: 'R1', type: 'resistor', x: 300, y: 180, attrs: { value: '10000' } },
       // Memes deux modeles qu'en Arduino, mais attaques en 3,3 V : le courant de
       // base tombe a 0,26 mA, et avec lui tout ce que le montage peut commander.
       {
-        id: 'q1', type: 'transistor', x: 440, y: 200,
+        id: 'T1', type: 'transistor', x: 440, y: 200,
         attrs: {
           pkg: 'to92', symbol: 'npn', text: 'BC\n547', named: '1', ref: 'BC547',
           e: '3', b: '2', c: '1', gain: '200', vcemax: '45', icmax: '0.1',
         },
       },
-      { id: 'fan1', type: 'ventilo', x: 620, y: 40, attrs: { voltage: '5', current: '0.04' } },
-      { id: 'r2', type: 'resistor', x: 300, y: 280, attrs: { value: '10000' } },
+      { id: 'Act1', type: 'ventilo', x: 620, y: 40, attrs: { voltage: '5', current: '0.04' } },
+      { id: 'R2', type: 'resistor', x: 300, y: 280, attrs: { value: '10000' } },
       {
-        id: 'q2', type: 'transistor', x: 880, y: 200,
+        id: 'T2', type: 'transistor', x: 880, y: 200,
         attrs: {
           pkg: 'to92', symbol: 'npn', text: '2N\n3904', named: '1', ref: '2N3904',
           e: '1', b: '2', c: '3', gain: '100', vcemax: '40', icmax: '0.2',
         },
       },
-      { id: 'fan2', type: 'ventilo', x: 900, y: 40, attrs: { voltage: '5', current: '0.04' } },
+      { id: 'Act2', type: 'ventilo', x: 900, y: 40, attrs: { voltage: '5', current: '0.04' } },
       // Troisieme branche : la moitie PNP du selecteur (8 references sur 16), que
       // les deux NPN ne montraient pas. Emetteur au 3,3 V, LED sous le
       // collecteur, base tiree vers le BAS pour conduire — logique inversee.
-      { id: 'r3', type: 'resistor', x: 300, y: 560, attrs: { value: '4700' } },
+      { id: 'R3', type: 'resistor', x: 300, y: 560, attrs: { value: '4700' } },
       {
-        id: 'q3', type: 'transistor', x: 440, y: 580,
+        id: 'T3', type: 'transistor', x: 440, y: 580,
         attrs: {
           pkg: 'to92', symbol: 'pnp', text: 'BC\n557', named: '1', ref: 'BC557',
           e: '3', b: '2', c: '1', gain: '200', vcemax: '45', icmax: '0.1',
         },
       },
-      { id: 'led1', type: 'led', x: 620, y: 580, attrs: { color: 'yellow' } },
-      { id: 'r4', type: 'resistor', x: 760, y: 580, attrs: { value: '220' } },
+      { id: 'L1', type: 'led', x: 620, y: 580, attrs: { color: 'yellow' } },
+      { id: 'R4', type: 'resistor', x: 760, y: 580, attrs: { value: '220' } },
     ],
     wires: () => [
-      w('r1', '1', 'mcu1', 'GP15', 'green'),
-      w('r1', '2', 'q1', 'B', 'green'),
-      w('q1', 'E', 'mcu1', 'GND.5', 'black'),
-      w('q1', 'C', 'fan1', '-', 'blue'),
-      w('fan1', '+', 'alim1', 'V+', 'red'),
-      w('alim1', 'GND', 'mcu1', 'GND.4', 'black'),
-      w('r2', '1', 'mcu1', 'GP14', 'orange'),
-      w('r2', '2', 'q2', 'B', 'orange'),
-      w('q2', 'E', 'mcu1', 'GND.3', 'black'),
-      w('q2', 'C', 'fan2', '-', 'blue'),
-      w('fan2', '+', 'alim1', 'V+', 'red'),
+      w('R1', '1', 'U1', 'GP15', 'green'),
+      w('R1', '2', 'T1', 'B', 'green'),
+      w('T1', 'E', 'U1', 'GND.5', 'black'),
+      w('T1', 'C', 'Act1', '-', 'blue'),
+      w('Act1', '+', 'Alim1', 'V+', 'red'),
+      w('Alim1', 'GND', 'U1', 'GND.4', 'black'),
+      w('R2', '1', 'U1', 'GP14', 'orange'),
+      w('R2', '2', 'T2', 'B', 'orange'),
+      w('T2', 'E', 'U1', 'GND.3', 'black'),
+      w('T2', 'C', 'Act2', '-', 'blue'),
+      w('Act2', '+', 'Alim1', 'V+', 'red'),
       // BC557 (PNP, C-B-E comme le BC547) : emetteur au 3,3 V, LED a la masse.
-      w('q3', 'E', 'mcu1', '3V3', 'red'),
-      w('r3', '1', 'mcu1', 'GP13', 'purple'),
-      w('r3', '2', 'q3', 'B', 'purple'),
-      w('q3', 'C', 'led1', 'A', 'blue'),
-      w('led1', 'C', 'r4', '1', 'blue'),
-      w('r4', '2', 'alim1', 'GND', 'black'),
+      w('T3', 'E', 'U1', '3V3', 'red'),
+      w('R3', '1', 'U1', 'GP13', 'purple'),
+      w('R3', '2', 'T3', 'B', 'purple'),
+      w('T3', 'C', 'L1', 'A', 'blue'),
+      w('L1', 'C', 'R4', '1', 'blue'),
+      w('R4', '2', 'Alim1', 'GND', 'black'),
     ],
     expect: {
       kind: 'transistor',
       steps: [
         {
-          high: ['GP15', 'GP14'], on: { q1: 0.052, q2: 0.026, q3: 0.1106 },
-          ledOn: ['led1'], fanAmps: 0.04, fanSpins: ['fan1'], fanStalls: ['fan2'],
+          high: ['GP15', 'GP14'], on: { T1: 0.052, T2: 0.026, T3: 0.1106 },
+          ledOn: ['L1'], fanAmps: 0.04, fanSpins: ['Act1'], fanStalls: ['Act2'],
         },
         {
-          high: ['GP13'], off: ['q1', 'q2', 'q3'],
-          ledOff: ['led1'], fanAmps: 0.04, fanStalls: ['fan1'],
+          high: ['GP13'], off: ['T1', 'T2', 'T3'],
+          ledOff: ['L1'], fanAmps: 0.04, fanStalls: ['Act1'],
         },
       ],
     },
@@ -2958,26 +2958,26 @@ while True:
     name: 'npn-pico', board: 'pico', ext: 'py',
     parts: [
       MCU('pico'),
-      { id: 'r1', type: 'resistor', x: 300, y: 180, attrs: { value: '4700' } },
+      { id: 'R1', type: 'resistor', x: 300, y: 180, attrs: { value: '4700' } },
       // Prototype generique : pattes numerotees, electrodes affectees dans
       // l'inspecteur — ici B sur 1, C sur 2, E sur 3.
-      { id: 'q1', type: 'npn', x: 440, y: 200, attrs: { text: '2N\n2222', b: '1', c: '2', e: '3', gain: '100' } },
-      { id: 'r2', type: 'resistor', x: 620, y: 60, attrs: { value: '220' } },
-      { id: 'led1', type: 'led', x: 760, y: 60, attrs: { color: 'yellow' } },
+      { id: 'T1', type: 'npn', x: 440, y: 200, attrs: { text: '2N\n2222', b: '1', c: '2', e: '3', gain: '100' } },
+      { id: 'R2', type: 'resistor', x: 620, y: 60, attrs: { value: '220' } },
+      { id: 'L1', type: 'led', x: 760, y: 60, attrs: { color: 'yellow' } },
     ],
     wires: () => [
-      w('r1', '1', 'mcu1', 'GP16', 'green'),
-      w('r1', '2', 'q1', '1', 'green'),
-      w('q1', '3', 'mcu1', 'GND.5', 'black'),
-      w('q1', '2', 'led1', 'C', 'blue'),
-      w('led1', 'A', 'r2', '2', 'red'),
-      w('r2', '1', 'mcu1', '3V3', 'red'),
+      w('R1', '1', 'U1', 'GP16', 'green'),
+      w('R1', '2', 'T1', '1', 'green'),
+      w('T1', '3', 'U1', 'GND.5', 'black'),
+      w('T1', '2', 'L1', 'C', 'blue'),
+      w('L1', 'A', 'R2', '2', 'red'),
+      w('R2', '1', 'U1', '3V3', 'red'),
     ],
     expect: {
       kind: 'transistor',
       steps: [
-        { high: ['GP16'], on: { q1: 0.0553 }, ledOn: ['led1'] },
-        { high: [], off: ['q1'], ledOff: ['led1'] },
+        { high: ['GP16'], on: { T1: 0.0553 }, ledOn: ['L1'] },
+        { high: [], off: ['T1'], ledOff: ['L1'] },
       ],
     },
     code: `# Test transistor NPN generique (prototype de l'editeur de composant) :
@@ -3002,24 +3002,24 @@ while True:
     name: 'pnp-pico', board: 'pico', ext: 'py',
     parts: [
       MCU('pico'),
-      { id: 'r1', type: 'resistor', x: 300, y: 180, attrs: { value: '4700' } },
-      { id: 'q1', type: 'pnp', x: 440, y: 200, attrs: { text: '2N\n2907', e: '1', b: '2', c: '3', gain: '100' } },
-      { id: 'r2', type: 'resistor', x: 760, y: 60, attrs: { value: '220' } },
-      { id: 'led1', type: 'led', x: 620, y: 60, attrs: { color: 'blue' } },
+      { id: 'R1', type: 'resistor', x: 300, y: 180, attrs: { value: '4700' } },
+      { id: 'T1', type: 'pnp', x: 440, y: 200, attrs: { text: '2N\n2907', e: '1', b: '2', c: '3', gain: '100' } },
+      { id: 'R2', type: 'resistor', x: 760, y: 60, attrs: { value: '220' } },
+      { id: 'L1', type: 'led', x: 620, y: 60, attrs: { color: 'blue' } },
     ],
     wires: () => [
-      w('q1', '1', 'mcu1', '3V3', 'red'),
-      w('r1', '1', 'mcu1', 'GP17', 'green'),
-      w('r1', '2', 'q1', '2', 'green'),
-      w('q1', '3', 'led1', 'A', 'blue'),
-      w('led1', 'C', 'r2', '1', 'blue'),
-      w('r2', '2', 'mcu1', 'GND.5', 'black'),
+      w('T1', '1', 'U1', '3V3', 'red'),
+      w('R1', '1', 'U1', 'GP17', 'green'),
+      w('R1', '2', 'T1', '2', 'green'),
+      w('T1', '3', 'L1', 'A', 'blue'),
+      w('L1', 'C', 'R2', '1', 'blue'),
+      w('R2', '2', 'U1', 'GND.5', 'black'),
     ],
     expect: {
       kind: 'transistor',
       steps: [
-        { high: [], on: { q1: 0.0553 }, ledOn: ['led1'] },
-        { high: ['GP17'], off: ['q1'], ledOff: ['led1'] },
+        { high: [], on: { T1: 0.0553 }, ledOn: ['L1'] },
+        { high: ['GP17'], off: ['T1'], ledOff: ['L1'] },
       ],
     },
     code: `# Test transistor PNP generique (prototype de l'editeur de composant) :
@@ -3043,40 +3043,40 @@ while True:
     name: 'relais-pico', board: 'pico', ext: 'py',
     parts: [
       MCU('pico'),
-      { id: 'alim1', type: 'alim', x: 300, y: 700, attrs: { voltage: '5', maxcurrent: '1' } },
-      { id: 'r1', type: 'resistor', x: 300, y: 280, attrs: { value: '470' } },
-      { id: 'q1', type: 'pn2222a', x: 440, y: 300 },
-      { id: 'd1', type: 'diode', x: 620, y: 140 },
-      { id: 'rl1', type: 'relais', x: 620, y: 220, attrs: { voltage: '5' } },
-      { id: 'r2', type: 'resistor', x: 860, y: 120, attrs: { value: '220' } },
-      { id: 'led1', type: 'led', x: 1000, y: 120, attrs: { color: 'green' } },
-      { id: 'rl2', type: 'relais', x: 620, y: 420, attrs: { voltage: '5' } },
-      { id: 'rl3', type: 'relais', x: 620, y: 580, attrs: { voltage: '5' } },
-      { id: 'd3', type: 'diode', x: 860, y: 580 },
+      { id: 'Alim1', type: 'alim', x: 300, y: 700, attrs: { voltage: '5', maxcurrent: '1' } },
+      { id: 'R1', type: 'resistor', x: 300, y: 280, attrs: { value: '470' } },
+      { id: 'T1', type: 'pn2222a', x: 440, y: 300 },
+      { id: 'D1', type: 'diode', x: 620, y: 140 },
+      { id: 'Rl1', type: 'relais', x: 620, y: 220, attrs: { voltage: '5' } },
+      { id: 'R2', type: 'resistor', x: 860, y: 120, attrs: { value: '220' } },
+      { id: 'L1', type: 'led', x: 1000, y: 120, attrs: { color: 'green' } },
+      { id: 'Rl2', type: 'relais', x: 620, y: 420, attrs: { voltage: '5' } },
+      { id: 'Rl3', type: 'relais', x: 620, y: 580, attrs: { voltage: '5' } },
+      { id: 'D2', type: 'diode', x: 860, y: 580 },
     ],
     wires: () => [
-      // rl1 : bobine 5 V prise sur l'alim de laboratoire (le 3,3 V du Pico ne
+      // Rl1 : bobine 5 V prise sur l'alim de laboratoire (le 3,3 V du Pico ne
       // ferait pas coller un G5V), commandee par un PN2222A sature.
-      w('r1', '1', 'mcu1', 'GP15', 'green'),
-      w('r1', '2', 'q1', 'B', 'green'),
-      w('q1', 'E', 'mcu1', 'GND.5', 'black'),
-      w('q1', 'C', 'rl1', 'B2', 'blue'),
-      w('rl1', 'B1', 'alim1', 'V+', 'red'),
-      w('alim1', 'GND', 'mcu1', 'GND.4', 'black'),
-      w('d1', 'K', 'rl1', 'B1', 'red'),
-      w('d1', 'A', 'rl1', 'B2', 'blue'),
-      w('rl1', 'Com.1', 'alim1', 'V+', 'red'),
-      w('rl1', 'NO', 'r2', '1', 'green'),
-      w('r2', '2', 'led1', 'A', 'green'),
-      w('led1', 'C', 'mcu1', 'GND.3', 'black'),
-      // rl2 : bobine directement sur GP13, SANS diode de roue libre.
-      w('rl2', 'B1', 'mcu1', 'GP13', 'orange'),
-      w('rl2', 'B2', 'mcu1', 'GND.2', 'black'),
-      // rl3 : diode montee A L'ENVERS (anode vers le +).
-      w('rl3', 'B1', 'mcu1', 'GP12', 'yellow'),
-      w('rl3', 'B2', 'mcu1', 'GND.2', 'black'),
-      w('d3', 'A', 'rl3', 'B1', 'yellow'),
-      w('d3', 'K', 'rl3', 'B2', 'black'),
+      w('R1', '1', 'U1', 'GP15', 'green'),
+      w('R1', '2', 'T1', 'B', 'green'),
+      w('T1', 'E', 'U1', 'GND.5', 'black'),
+      w('T1', 'C', 'Rl1', 'B2', 'blue'),
+      w('Rl1', 'B1', 'Alim1', 'V+', 'red'),
+      w('Alim1', 'GND', 'U1', 'GND.4', 'black'),
+      w('D1', 'K', 'Rl1', 'B1', 'red'),
+      w('D1', 'A', 'Rl1', 'B2', 'blue'),
+      w('Rl1', 'Com.1', 'Alim1', 'V+', 'red'),
+      w('Rl1', 'NO', 'R2', '1', 'green'),
+      w('R2', '2', 'L1', 'A', 'green'),
+      w('L1', 'C', 'U1', 'GND.3', 'black'),
+      // Rl2 : bobine directement sur GP13, SANS diode de roue libre.
+      w('Rl2', 'B1', 'U1', 'GP13', 'orange'),
+      w('Rl2', 'B2', 'U1', 'GND.2', 'black'),
+      // Rl3 : diode montee A L'ENVERS (anode vers le +).
+      w('Rl3', 'B1', 'U1', 'GP12', 'yellow'),
+      w('Rl3', 'B2', 'U1', 'GND.2', 'black'),
+      w('D2', 'A', 'Rl3', 'B1', 'yellow'),
+      w('D2', 'K', 'Rl3', 'B2', 'black'),
     ],
     expect: {
       kind: 'relay',
@@ -3084,41 +3084,41 @@ while True:
         {
           high: ['GP15', 'GP13', 'GP12'],
           relays: {
-            rl1: { commanded: true, closed: true, fault: 'none' },
-            rl2: { commanded: true, closed: false, fault: 'no-diode' },
-            rl3: { commanded: true, closed: false, fault: 'reversed-diode' },
+            Rl1: { commanded: true, closed: true, fault: 'none' },
+            Rl2: { commanded: true, closed: false, fault: 'no-diode' },
+            Rl3: { commanded: true, closed: false, fault: 'reversed-diode' },
           },
-          ledOn: ['led1'],
+          ledOn: ['L1'],
         },
         {
           high: [],
-          relays: { rl1: { commanded: false, closed: false }, rl2: { commanded: false } },
-          ledOff: ['led1'],
+          relays: { Rl1: { commanded: false, closed: false }, Rl2: { commanded: false } },
+          ledOff: ['L1'],
         },
       ],
     },
     code: `# Test relais OMRON G5V. Trois cablages sur la meme carte :
-#   rl1 : CORRECT — bobine 5 V prise sur l'alimentation de laboratoire (une
+#   Rl1 : CORRECT — bobine 5 V prise sur l'alimentation de laboratoire (une
 #         sortie du Pico ne sort que 3,3 V, un G5V 5 V ne collerait pas) et
 #         commandee par un PN2222A sature, diode de roue libre entre B1 et B2,
 #         cathode vers le +. Il colle et allume la LED cablee sur NO.
-#   rl2 : bobine sur GP13 SANS diode de roue libre -> interdit.
-#   rl3 : diode montee a l'envers (anode vers le +) -> interdit aussi.
+#   Rl2 : bobine sur GP13 SANS diode de roue libre -> interdit.
+#   Rl3 : diode montee a l'envers (anode vers le +) -> interdit aussi.
 # Une bobine est une self : a la coupure elle renvoie une surtension qui detruit
 # le transistor de commande. La diode de roue libre l'absorbe — elle n'est pas
 # facultative.
 from machine import Pin
 import time
 
-commande = Pin(15, Pin.OUT)          # rl1, via le transistor
-sans_diode = Pin(13, Pin.OUT)        # rl2
-diode_inversee = Pin(12, Pin.OUT)    # rl3
+commande = Pin(15, Pin.OUT)          # Rl1, via le transistor
+sans_diode = Pin(13, Pin.OUT)        # Rl2
+diode_inversee = Pin(12, Pin.OUT)    # Rl3
 
 while True:
     commande.value(1)
     sans_diode.value(1)
     diode_inversee.value(1)
-    print("Seul rl1 colle : les autres sont mal cables.")
+    print("Seul Rl1 colle : les autres sont mal cables.")
     time.sleep(1.5)
     commande.value(0)
     sans_diode.value(0)
@@ -3129,18 +3129,18 @@ while True:
 
   test({
     name: 'keypad-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'kp1', type: 'keypad', x: 620, y: 40, attrs: { columns: '4' } }],
+    parts: [MCU('pico'), { id: 'Cl1', type: 'keypad', x: 620, y: 40, attrs: { columns: '4' } }],
     wires: () => [
-      w('kp1', 'R1', 'mcu1', 'GP2', 'yellow'),
-      w('kp1', 'R2', 'mcu1', 'GP3', 'yellow'),
-      w('kp1', 'R3', 'mcu1', 'GP4', 'yellow'),
-      w('kp1', 'R4', 'mcu1', 'GP5', 'yellow'),
-      w('kp1', 'C1', 'mcu1', 'GP6', 'green'),
-      w('kp1', 'C2', 'mcu1', 'GP7', 'green'),
-      w('kp1', 'C3', 'mcu1', 'GP8', 'green'),
-      w('kp1', 'C4', 'mcu1', 'GP9', 'green'),
+      w('Cl1', 'R1', 'U1', 'GP2', 'yellow'),
+      w('Cl1', 'R2', 'U1', 'GP3', 'yellow'),
+      w('Cl1', 'R3', 'U1', 'GP4', 'yellow'),
+      w('Cl1', 'R4', 'U1', 'GP5', 'yellow'),
+      w('Cl1', 'C1', 'U1', 'GP6', 'green'),
+      w('Cl1', 'C2', 'U1', 'GP7', 'green'),
+      w('Cl1', 'C3', 'U1', 'GP8', 'green'),
+      w('Cl1', 'C4', 'U1', 'GP9', 'green'),
     ],
-    expect: { kind: 'keypad', partId: 'kp1', rows: ['GP2', 'GP3', 'GP4', 'GP5'], cols: ['GP6', 'GP7', 'GP8', 'GP9'] },
+    expect: { kind: 'keypad', partId: 'Cl1', rows: ['GP2', 'GP3', 'GP4', 'GP5'], cols: ['GP6', 'GP7', 'GP8', 'GP9'] },
     code: `# Test clavier matriciel 4x4 : balayage des lignes, colonnes en pull-up.
 from machine import Pin
 import time
