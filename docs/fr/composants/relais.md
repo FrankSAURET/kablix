@@ -44,6 +44,11 @@ composant.
   rouge** sur le schéma, aux dimensions du rectangle de sélection : plus besoin
   de chercher lequel des relais reprendre. Le cadre disparaît quand le défaut
   est corrigé, et à l'arrêt de la simulation.
+- À côté du cadre, une **étiquette jaune sur fond rouge explique le problème**
+  et ce qu'il faut corriger (par exemple : *« La commande d'un relais est une
+  bobine : à la coupure elle renvoie une surtension qui détruit le transistor
+  de commande. La diode de roue libre l'absorbe — elle n'est pas facultative. »*).
+  Elle ne s'affiche que pendant la simulation.
 - Sortie de carte : une broche ne fournit que 40 mA. Commander la bobine
   directement passe tout juste ; le montage propre est un **transistor**
   (PN2222A) entre la bobine et la masse.

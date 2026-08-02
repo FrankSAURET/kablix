@@ -178,6 +178,22 @@ Le sélecteur 🐇/🐢/🐌 ralentit volontairement l'exécution (100 %, 10 %, 
 
 Si malgré tout la carte n'arrive plus à suivre, un badge **« Ralentie : 0,45× le temps réel »** apparaît à droite de la barre d'état : la page est trop chargée pour la simulation (schéma volumineux, machine occupée). Le ralenti volontaire du sélecteur n'est pas compté comme un défaut. Le badge disparaît dès que la simulation revient à l'heure, et à l'arrêt.
 
+#### Composants en défaut : cadre rouge et explication
+
+Quand la simulation détecte une erreur de câblage ou un composant détruit, elle **entoure le coupable d'un cadre rouge** sur le schéma et affiche **à côté de lui une étiquette jaune sur fond rouge** qui explique le problème et ce qu'il faut corriger. La barre d'état, elle, ne garde que la dernière phrase : l'étiquette reste, sous les yeux, au bon endroit.
+
+| Ce que Kablix voit | Ce que dit l'étiquette |
+| --- | --- |
+| Diode de roue libre montée à l'envers | Diode à l'envers |
+| Relais sans diode de roue libre | La bobine renvoie une surtension à la coupure ; elle détruit le transistor de commande, la diode l'absorbe |
+| Bobine sous-alimentée | Le relais ne colle pas : alimenter la bobine sous sa tension nominale |
+| Alimentation trop faible pour la bobine | Augmenter le courant maximal, ou mettre moins de bobines sur la même source |
+| LED grillée (💥) | Pas de résistance série, ou trop faible : 220 Ω à 1 kΩ limitent le courant |
+| Condensateur claqué (💥) | Tension de service dépassée : en prendre un de tension nominale supérieure |
+| Carte 16 servos grillée (💥) | Le bornier V+ accepte 5 V, pas plus |
+
+Le cadre et l'étiquette n'apparaissent que **pendant la simulation** ; ils disparaissent dès que le défaut est corrigé, et à l'arrêt.
+
 ### MicroPython sur le Pico
 1. Ouvrir un fichier `.py` → **Compiler & exécuter le fichier actif**.
 2. Au premier lancement, si aucun firmware n'est trouvé, Kablix **propose de le télécharger automatiquement** (choix **Pico / Pico W**) depuis [micropython.org](https://micropython.org/download/RPI_PICO/). Le firmware est mémorisé dans le stockage de l'extension et **réutilisé dans tous vos projets** — la question n'est posée qu'une fois.

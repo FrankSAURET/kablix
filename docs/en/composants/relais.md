@@ -44,6 +44,10 @@ part.
   it** on the schematic, the same size as the selection rectangle: no more
   hunting for which relay to rework. The frame goes away once the fault is
   fixed, and when the simulation stops.
+- Next to the frame, a **yellow-on-red label explains the problem** and what to
+  fix (for instance: *"A relay coil is an inductor: when the current is cut it
+  sends back a surge that destroys the driving transistor. The flyback diode
+  absorbs it — it is not optional."*). It only shows while the simulation runs.
 - Board output: a pin only sources 40 mA. Driving the coil directly barely
   makes it; the proper circuit uses a **transistor** (PN2222A) between the coil
   and ground.

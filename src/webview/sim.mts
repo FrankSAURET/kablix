@@ -309,13 +309,32 @@ const burnedLeds = new Set<string>();
 // (> 5,5 V). Définitif jusqu'au prochain lancement (carte « remplacée »).
 const burnedPcas = new Set<string>();
 /**
+ * Ce qu'on lit à côté d'un composant qui vient d'exploser. L'explosion dit QUI
+ * est mort, l'étiquette dit POURQUOI et comment ne pas recommencer.
+ */
+const BURN_NOTE = {
+  led: 'This LED burned out: with no series resistor (or far too small a one) the current goes past what the junction can take. A 220 Ω to 1 kΩ resistor limits it.',
+  cap: 'This capacitor broke down: the voltage across it went past its rated working voltage. Pick one rated well above the supply voltage.',
+  pca: 'This board burned out: the V+ servo terminal takes 5 V, no more. Beyond 5.5 V the chip is destroyed.',
+} as const;
+/** Composants actuellement encadrés parce que grillés → texte de l'étiquette. */
+const burnNotes = new Map<string, string>();
+/**
  * Pose l'état « grillé » sur le composant ET hisse son conteneur (z=70) : sans
  * ce hissage, l'explosion « Boum » — enfermée dans le shadow DOM, donc dans le
  * contexte d'empilement de `.part` (z=3) — passait SOUS les fils (z=5).
+ *
+ * `why` ajoute le cadre rouge et son explication. La pose ne se fait qu'au
+ * CHANGEMENT : markBurned repasse sur chaque composant à chaque frame.
  */
-function markBurned(partId: string, el: Record<string, unknown>, on: boolean): void {
+function markBurned(partId: string, el: Record<string, unknown>, on: boolean, why = ''): void {
   el.burned = on;
   editor.setBurned(partId, on);
+  const note = on && why ? t(why) : '';
+  if ((burnNotes.get(partId) ?? '') === note) return;
+  if (note) burnNotes.set(partId, note);
+  else burnNotes.delete(partId);
+  editor.setFaulty(partId, !!note, note);
 }
 // Facteur de luminosité par LED (résistance trop forte → LED sombre), mémorisé
 // à la dernière frame où la LED conduisait.
@@ -908,6 +927,7 @@ const relayFaultMarks = new Map<string, string>();
 function clearRelayFaults(): void {
   relayFaults.clear();
   relayFaultMarks.clear();
+  burnNotes.clear();
   editor.clearFaults();
 }
 
@@ -933,15 +953,22 @@ function reportRelayFaults(): void {
       editor.setFaulty(previous, false); // défaut corrigé (ou remplacé) : cadre retiré
       relayFaultMarks.delete(st.partId);
     }
-    const blame = (msg: string, id: string): void => {
+    // Le cadre rouge désigne, l'étiquette explique : la barre d'état ne garde
+    // que la dernière phrase et se perd de vue sur un grand schéma.
+    const blame = (msg: string, id: string, note: string): void => {
       setStatus(`${msg} (${id})`);
-      editor.setFaulty(id, true);
+      editor.setFaulty(id, true, note);
       relayFaultMarks.set(st.partId, id);
     };
-    if (st.fault === 'reversed-diode') blame(t('Flyback diode is reversed'), st.faultPartId ?? st.partId);
-    else if (st.fault === 'no-diode') blame(t('A flyback diode is required'), st.partId);
-    else if (st.fault === 'weak') blame(t('Coil voltage too low: the relay does not pull in'), st.partId);
-    else if (st.fault === 'starved') blame(t('The supply cannot deliver the coil current'), st.partId);
+    if (st.fault === 'reversed-diode') {
+      blame(t('Flyback diode is reversed'), st.faultPartId ?? st.partId, t('Diode reversed'));
+    } else if (st.fault === 'no-diode') {
+      blame(t('A flyback diode is required'), st.partId, t('A relay coil is an inductor: when the current is cut it sends back a surge that destroys the driving transistor. The flyback diode absorbs it — it is not optional.'));
+    } else if (st.fault === 'weak') {
+      blame(t('Coil voltage too low: the relay does not pull in'), st.partId, t('Coil voltage too low: this relay does not pull in. Supply the coil at its rated voltage.'));
+    } else if (st.fault === 'starved') {
+      blame(t('The supply cannot deliver the coil current'), st.partId, t('The supply cannot deliver the coil current: raise its maximum current, or share fewer coils on the same source.'));
+    }
   }
 }
 
@@ -1011,7 +1038,7 @@ function stepCapacitors(): void {
     capVolts.set(node.partId, v);
     const el = editor.elementOf(node.partId);
     if (v > node.vmax && !burnedCaps.has(node.partId)) burnedCaps.add(node.partId);
-    if (el) markBurned(node.partId, el, burnedCaps.has(node.partId));
+    if (el) markBurned(node.partId, el, burnedCaps.has(node.partId), BURN_NOTE.cap);
     for (const pin of node.mcuPins) {
       observed.add(pin);
       // Point de départ de l'exponentielle, relu par l'échantillonneur ADC.
@@ -1108,7 +1135,7 @@ function refreshVisualsInner(): void {
           else ledLumFactor.set(part.id, elec.lum);
         }
         if (burnedLeds.has(part.id)) {
-          markBurned(part.id, el, true);
+          markBurned(part.id, el, true, BURN_NOTE.led);
           el.value = false;
           el.brightness = 0;
           break;
@@ -1153,7 +1180,7 @@ function refreshVisualsInner(): void {
         const green = level('G', 'green', chan(s.green, bind?.g));
         const blue = level('B', 'blue', chan(s.blue, bind?.b));
         const burned = burnedLeds.has(part.id);
-        markBurned(part.id, el, burned);
+        markBurned(part.id, el, burned, BURN_NOTE.led);
         el.ledRed = burned ? 0 : red;
         el.ledGreen = burned ? 0 : green;
         el.ledBlue = burned ? 0 : blue;
@@ -1308,7 +1335,7 @@ function refreshVisualsInner(): void {
           }
         }
         const seg7Burned = burnedLeds.has(part.id);
-        markBurned(part.id, el, seg7Burned);
+        markBurned(part.id, el, seg7Burned, BURN_NOTE.led);
         // Grillé : NE PLUS réassigner `values` (une array neuve à chaque tick
         // re-rendrait le composant en boucle et RELANCERAIT l'animation de
         // l'explosion depuis son 1er keyframe → figée minuscule). On l'éteint
@@ -1341,7 +1368,7 @@ function refreshVisualsInner(): void {
           }
         }
         const barBurned = burnedLeds.has(part.id);
-        markBurned(part.id, el, barBurned);
+        markBurned(part.id, el, barBurned, BURN_NOTE.led);
         // Grillé : idem 7 seg — on éteint une seule fois puis on laisse stable,
         // sinon une array neuve à chaque tick relance l'animation d'explosion.
         if (barBurned) {
@@ -2148,7 +2175,7 @@ function applyPca9685(): void {
   for (const s of states) {
     if (s.overVolt) burnedPcas.add(s.partId);
     const pcaEl = editor.elementOf(s.partId);
-    if (pcaEl) markBurned(s.partId, pcaEl, burnedPcas.has(s.partId));
+    if (pcaEl) markBurned(s.partId, pcaEl, burnedPcas.has(s.partId), BURN_NOTE.pca);
   }
   if (pcaBindings.length === 0) return;
   const power = new Map(states.map((p) => [p.partId, p.ok]));

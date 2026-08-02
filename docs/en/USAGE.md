@@ -177,6 +177,22 @@ The 🐇/🐢/🐌 selector deliberately slows execution down (100 %, 10 %, 1 % 
 
 If the board still cannot keep up, a **“Slowed down: 0.45× real time”** badge appears next to the status bar: the page is too busy for the simulation (large diagram, loaded machine). Slowing down on purpose with the selector is not counted as a fault. The badge disappears as soon as the simulation is back on time, and when it stops.
 
+#### Faulty parts: red frame and explanation
+
+When the simulation spots a wiring mistake or a destroyed part, it **draws a red frame around the culprit** on the schematic and shows **a yellow-on-red label next to it** explaining the problem and what to fix. The status bar only keeps the last sentence; the label stays put, right where you are looking.
+
+| What Kablix sees | What the label says |
+| --- | --- |
+| Flyback diode wired the wrong way round | Diode reversed |
+| Relay with no flyback diode | The coil sends back a surge when the current is cut; it destroys the driving transistor, the diode absorbs it |
+| Coil voltage too low | The relay does not pull in: supply the coil at its rated voltage |
+| Supply too weak for the coil | Raise its maximum current, or share fewer coils on the same source |
+| Burned LED (💥) | No series resistor, or far too small a one: 220 Ω to 1 kΩ limits the current |
+| Blown capacitor (💥) | Rated working voltage exceeded: pick one rated well above the supply |
+| Burned 16-servo board (💥) | The V+ terminal takes 5 V, no more |
+
+Frame and label only show **while the simulation runs**; they go away as soon as the fault is fixed, and when it stops.
+
 ### MicroPython on the Pico
 1. Open a `.py` file → **Compile & run the active file**.
 2. On first run, if no firmware is found, Kablix **offers to download it automatically** (choose **Pico / Pico W**) from [micropython.org](https://micropython.org/download/RPI_PICO/). The firmware is cached in the extension storage and **reused across all your projects** — you are only asked once.

@@ -937,6 +937,37 @@ async function run() {
 	ok('défaut : même épaisseur et même écart que la sélection',
 		csSel && csFault && csSel.outlineWidth === csFault.outlineWidth && csSel.outlineOffset === csFault.outlineOffset,
 		csSel && (csSel.outlineWidth + '/' + csSel.outlineOffset) + ' vs ' + (csFault && (csFault.outlineWidth + '/' + csFault.outlineOffset)));
+
+	// --- L'étiquette qui EXPLIQUE le défaut (v2026.7.245) ----------------------
+	// Le cadre désigne le coupable, l'étiquette dit quoi corriger : jaune sur
+	// rouge, posée À CÔTÉ du composant. La barre d'état, elle, ne garde que la
+	// dernière phrase et se perd de vue sur un grand schéma.
+	const noteOf = () => fCont.querySelector('.part__fault');
+	ok('explication : pas d étiquette tant qu aucun texte n est donné', !noteOf());
+	editor.setFaulty(fLed.id, true, "Diode à l'envers");
+	await wait(60);
+	const noteEl = noteOf();
+	const nRect = noteEl ? rectOf(noteEl) : null;
+	const nCs = noteEl ? getComputedStyle(noteEl) : null;
+	ok('explication : étiquette posée sur le composant en défaut',
+		!!noteEl && noteEl.textContent === "Diode à l'envers", noteEl && noteEl.textContent);
+	ok('explication : texte JAUNE sur fond ROUGE',
+		nCs && nCs.color === 'rgb(255, 224, 0)' && nCs.backgroundColor === 'rgb(192, 0, 0)',
+		nCs && (nCs.color + ' sur ' + nCs.backgroundColor));
+	ok('explication : posée À CÔTÉ du cadre, sans le recouvrir',
+		nRect && faultRect && nRect.l >= faultRect.l + faultRect.w,
+		nRect && (JSON.stringify(nRect) + ' vs ' + JSON.stringify(faultRect)));
+	ok('explication : alignée sur le haut du composant (±12 px)',
+		nRect && faultRect && Math.abs(nRect.t - faultRect.t) <= 12,
+		nRect && (nRect.t + ' vs ' + faultRect.t));
+	ok('explication : ne capte pas les clics', nCs && nCs.pointerEvents === 'none', nCs && nCs.pointerEvents);
+	ok('explication : au-dessus des fils et des composants (z ≥ 10)',
+		nCs && Number(nCs.zIndex) >= 10, nCs && nCs.zIndex);
+	// Cadre SANS explication : possible aussi (un défaut peut n'avoir que le cadre).
+	editor.setFaulty(fLed.id, true);
+	await wait(40);
+	ok('explication : cadre sans texte → aucune étiquette',
+		!noteOf() && fCont.classList.contains('part--faulty'));
 	// Le défaut se déclare PENDANT la simulation : schéma verrouillé, et pourtant
 	// le cadre doit rester visible (le rectangle de sélection, lui, s'efface).
 	editor.setLocked(true);
@@ -944,6 +975,14 @@ async function run() {
 	ok('défaut : cadre TOUJOURS visible schéma verrouillé (simulation en cours)',
 		fBox() && getComputedStyle(fBox()).visibility === 'visible',
 		fBox() && getComputedStyle(fBox()).visibility);
+	// L'explication ne se lit QUE pendant la simulation : c'est justement là que
+	// le canvas est verrouillé et que le bandeau de nom disparaît.
+	editor.setFaulty(fLed.id, true, "Diode à l'envers");
+	await wait(40);
+	ok('explication : étiquette lisible schéma verrouillé (simulation en cours)',
+		noteOf() && getComputedStyle(noteOf()).visibility === 'visible' &&
+		getComputedStyle(noteOf()).display !== 'none',
+		noteOf() && getComputedStyle(noteOf()).display);
 	editor.select({ kind: 'part', id: fRes.id });
 	await wait(60);
 	const rBox = editor.rendered.get(fRes.id).container.querySelector('.part__selbox');
@@ -957,8 +996,9 @@ async function run() {
 	await wait(40);
 	ok('défaut corrigé : classe retirée et cadre de nouveau masqué',
 		!fCont.classList.contains('part--faulty') && fBox() && getComputedStyle(fBox()).visibility === 'hidden');
+	ok('défaut corrigé : l explication s en va avec le cadre', !noteOf());
 	// Arrêt de la simulation : clearFaults enlève TOUS les cadres d'un coup.
-	editor.setFaulty(fLed.id, true);
+	editor.setFaulty(fLed.id, true, "Diode à l'envers");
 	editor.setFaulty(fRes.id, true);
 	await wait(30);
 	ok('défaut : plusieurs composants marquables en même temps',
@@ -968,6 +1008,8 @@ async function run() {
 	await wait(30);
 	ok('arrêt : clearFaults() retire tous les cadres',
 		document.querySelectorAll('.part--faulty').length === 0);
+	ok('arrêt : clearFaults() retire aussi toutes les explications',
+		document.querySelectorAll('.part__fault').length === 0);
 	ok('défaut : setFaulty sur un id inconnu ne casse rien',
 		(() => { try { editor.setFaulty('zz-inexistant', true); return true; } catch { return false; } })());
 
@@ -1019,8 +1061,29 @@ rows.push({
 const sim = readFileSync(join(ROOT, 'src', 'webview', 'sim.mts'), 'utf8');
 rows.push({
 	name: 'défaut : le message qui nomme le coupable pose le cadre (setFaulty)',
-	ok: /const blame = \([\s\S]{0,200}?setStatus\(`\$\{msg\} \(\$\{id\}\)`\);[\s\S]{0,120}?editor\.setFaulty\(id, true\)/.test(sim),
+	ok: /const blame = \([\s\S]{0,200}?setStatus\(`\$\{msg\} \(\$\{id\}\)`\);[\s\S]{0,120}?editor\.setFaulty\(id, true, note\)/.test(sim),
 	detail: 'blame() ne marque pas le composant',
+});
+// Chaque défaut de relais s'explique : le cadre seul ne dit pas quoi corriger.
+for (const [fault, mot] of [
+	['reversed-diode', 'Diode reversed'],
+	['no-diode', 'A relay coil is an inductor'],
+	['weak', 'Coil voltage too low: this relay'],
+	['starved', 'The supply cannot deliver the coil current: raise'],
+]) {
+	rows.push({
+		name: `défaut « ${fault} » : une explication accompagne le cadre`,
+		ok: new RegExp(`st\\.fault === '${fault}'[\\s\\S]{0,400}?t\\('${mot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(sim),
+		detail: 'blame() appelé sans texte d explication',
+	});
+}
+// Composant qui explose : l'explosion dit QUI est mort, l'étiquette dit pourquoi.
+rows.push({
+	name: 'grillé : le composant qui explose reçoit lui aussi son explication',
+	ok: /const BURN_NOTE = \{[\s\S]{0,900}?\} as const;/.test(sim) &&
+		/function markBurned\([\s\S]{0,400}?editor\.setFaulty\(partId, !!note, note\)/.test(sim) &&
+		(sim.match(/markBurned\([^;]{0,120}?BURN_NOTE\.(led|cap|pca)\)/g) ?? []).length >= 6,
+	detail: 'BURN_NOTE absent, ou points d appel non câblés',
 });
 rows.push({
 	name: 'défaut : cadre du défaut PRÉCÉDENT retiré avant d en poser un autre',
@@ -1036,13 +1099,32 @@ rows.push({
 const ed = readFileSync(join(ROOT, 'src', 'webview', 'diagram', 'editor.mts'), 'utf8');
 rows.push({
 	name: 'éditeur : setFaulty / clearFaults exposés',
-	ok: /setFaulty\(id: string, faulty: boolean\): void/.test(ed) && /clearFaults\(\): void/.test(ed),
+	ok: /setFaulty\(id: string, faulty: boolean, note = ''\): void/.test(ed) && /clearFaults\(\): void/.test(ed),
 	detail: 'méthodes absentes de l éditeur',
+});
+rows.push({
+	name: 'éditeur : l explication est portée par .part, pas par le corps tourné',
+	ok: /private setFaultNote\(container: HTMLElement, text: string\): void/.test(ed) &&
+		/container\.appendChild\(note\)/.test(ed) && /part__selbox'\) as HTMLElement \| null\) \?\? body/.test(ed),
+	detail: 'setFaultNote absente, ou accrochée au corps (elle tournerait avec le composant)',
 });
 rows.push({
 	name: 'CSS : cadre de défaut visible même schéma verrouillé',
 	ok: /\.canvas--locked \.part--faulty \.part__selbox/.test(css) && /--kx-fault/.test(css),
 	detail: 'règle .canvas--locked .part--faulty absente',
+});
+rows.push({
+	name: 'i18n : les explications de défaut sont traduites en français',
+	ok: [
+		'Diode reversed',
+		'A relay coil is an inductor',
+		'Coil voltage too low: this relay',
+		'The supply cannot deliver the coil current: raise',
+		'This LED burned out',
+		'This capacitor broke down',
+		'This board burned out',
+	].every((k) => new RegExp(`^\\s*'${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^\\n]*':`, 'm').test(i18n)),
+	detail: 'une explication sortirait en anglais',
 });
 let fail = 0;
 for (const r of rows) {

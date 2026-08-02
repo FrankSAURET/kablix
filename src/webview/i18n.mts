@@ -31,6 +31,23 @@ const FR: Record<string, string> = {
     'Tension de commande insuffisante : le relais ne colle pas',
   'The supply cannot deliver the coil current':
     'L\'alimentation ne peut pas fournir le courant de la bobine',
+  // Étiquette posée à côté du composant encadré : elle EXPLIQUE le défaut, là
+  // où la barre d'état se contente de le nommer.
+  'Diode reversed': 'Diode à l\'envers',
+  'A relay coil is an inductor: when the current is cut it sends back a surge that destroys the driving transistor. The flyback diode absorbs it — it is not optional.':
+    'La commande d\'un relais est une bobine : à la coupure elle renvoie une surtension qui détruit le transistor de commande. La diode de roue libre l\'absorbe — elle n\'est pas facultative.',
+  'Coil voltage too low: this relay does not pull in. Supply the coil at its rated voltage.':
+    'Tension de bobine trop faible : ce relais ne colle pas. Alimentez la bobine sous sa tension nominale.',
+  'The supply cannot deliver the coil current: raise its maximum current, or share fewer coils on the same source.':
+    'L\'alimentation ne fournit pas le courant de la bobine : augmentez son courant maximal, ou mettez moins de bobines sur la même source.',
+  // Même étiquette pour les composants qui viennent d'exploser : l'explosion dit
+  // qui est mort, le texte dit pourquoi.
+  'This LED burned out: with no series resistor (or far too small a one) the current goes past what the junction can take. A 220 Ω to 1 kΩ resistor limits it.':
+    'Cette LED a grillé : sans résistance série (ou avec une trop faible), le courant dépasse ce que la jonction supporte. Une résistance de 220 Ω à 1 kΩ le limite.',
+  'This capacitor broke down: the voltage across it went past its rated working voltage. Pick one rated well above the supply voltage.':
+    'Ce condensateur a claqué : la tension à ses bornes a dépassé sa tension de service. Prenez-en un dont la tension nominale est bien supérieure à celle du montage.',
+  'This board burned out: the V+ servo terminal takes 5 V, no more. Beyond 5.5 V the chip is destroyed.':
+    'Cette carte a grillé : le bornier V+ des servos accepte 5 V, pas plus. Au-delà de 5,5 V la puce est détruite.',
   // Répartition du temps réel, dans l'infobulle du badge « ralentie ».
   'Engine': 'Moteur',
   'Rendering': 'Rendu',

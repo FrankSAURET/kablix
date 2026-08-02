@@ -1,8 +1,4 @@
 # À faire
-1. Les composants encadrés en rouge Affichent un message à leur coté (uniquement pdt la simulation) qui explique le problème (Message Jaune sur fond rouge avec). Pour l'instant :
-    1. Diode à l'envers -> Diode à l'envers
-    1. Diode manquante pour un relais -> La commande d'un relais est une bobine : a la coupure elle renvoie une surtension qui detruit le transistor de commande. La diode de roue libre l'absorbe — elle n'est pas facultative.
-    1. Pour les autres fait moi des propositions
 1. Refais le projix de test pour le relais-pico il est vide
 1. Je viens de rajouter dans composants.svg un schéma interne NPN-Generique et et PNP-générique à utiliser pour tous les transistors dont le schéma interne ne correspont pas à NPN1 ou PNP1.
 1. Vsix quand liste ci-dessus terminée
@@ -15,6 +11,16 @@ Voici les préfix à utiliser (traduisible) et respecte la casse : Résistance (
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# v2026.7.245 — le cadre rouge EXPLIQUE le défaut
+1. ✅ **Étiquette jaune sur fond rouge à côté du composant encadré**, pendant la simulation seulement : le cadre désigne le coupable, l'étiquette dit quoi corriger. La barre d'état ne gardait que la dernière phrase et se perdait de vue sur un grand schéma.
+2. ✅ **Diode de roue libre à l'envers** → « Diode à l'envers ».
+3. ✅ **Relais sans diode de roue libre** → « La commande d'un relais est une bobine : à la coupure elle renvoie une surtension qui détruit le transistor de commande. La diode de roue libre l'absorbe — elle n'est pas facultative. » (texte de Frank).
+4. ✅ **Propositions pour les autres défauts** (à corriger si le ton ne convient pas) : bobine sous-alimentée → « Tension de bobine trop faible : ce relais ne colle pas. Alimentez la bobine sous sa tension nominale. » ; alimentation trop faible → « L'alimentation ne fournit pas le courant de la bobine : augmentez son courant maximal, ou mettez moins de bobines sur la même source. »
+5. ✅ **Les composants qui EXPLOSENT s'expliquent aussi** (l'explosion disait qui était mort, jamais pourquoi) : LED / afficheur 7 seg / barre / RGB grillés → « sans résistance série, ou trop faible : 220 Ω à 1 kΩ limitent le courant » ; condensateur claqué → « tension de service dépassée » ; carte 16 servos → « le bornier V+ accepte 5 V, pas plus ».
+6. ✅ **L'étiquette est portée par `.part`, pas par `.part__body`** : le corps subit la rotation du composant, un relais tourné à 90° aurait écrit son message de bas en haut. Elle se cale sur le DESSIN mesuré (`.part__selbox`, la boîte du cadre rouge), zoom compris, pour ne pas tomber sur un composant tourné.
+7. ✅ **Posée au CHANGEMENT seulement** : `markBurned` repasse sur chaque composant à chaque frame — aucun travail DOM tant que rien ne change. Étiquettes effacées avec les cadres au lancement et à l'arrêt de la simulation.
+8. ✅ Textes **traduits FR et EN**. `verify:selection` complété : **142 contrôles** (étiquette posée à côté du cadre sans le recouvrir, jaune sur rouge, lisible schéma verrouillé, retirée avec le cadre et par `clearFaults`, traductions présentes). Documenté dans `USAGE.md` FR + EN (tableau des sept défauts) et dans la fiche du relais.
 
 # v2026.7.244 — les repères rebouchent les trous, la nomenclature sépare valeur et commentaire, les relais sont des commandes
 1. ✅ **Le prochain numéro est le PREMIER LIBRE**, en partant de 1 (règle inverse de la v2026.7.240, à la demande de Frank) : supprimer `R1` puis reposer une résistance redonne `R1`, et non plus `R3`. La nomenclature d'un schéma retouché reste donc sans trou. Un numéro déjà pris est toujours enjambé — jamais de doublon.

@@ -1444,6 +1444,27 @@ textarea {
     0 0 12px 2px color-mix(in srgb, var(--kx-fault, #e5484d) 55%, transparent);
 }
 
+/* L'explication du défaut, à CÔTÉ du composant encadré : jaune sur rouge, le
+   temps de la simulation. Le cadre montre le coupable, cette étiquette dit quoi
+   corriger sans aller relire la barre d'état. z=60 : au-dessus des fils (5) et
+   des composants (3), sous l'explosion d'un composant grillé (70). */
+.part__fault {
+  position: absolute;
+  z-index: 60;
+  max-width: 260px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  border: 1px solid #ffe000;
+  background: #c00000;
+  color: #ffe000;
+  font-size: 11px;
+  line-height: 1.35;
+  font-weight: 600;
+  text-align: left;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
 /* Simulation en cours : pas de sélection ni bandeau de nom, schéma figé
    (les broches restent en place pour les fils mais ne captent plus les clics). */
 .canvas--locked .part__head {

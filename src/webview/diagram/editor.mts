@@ -1591,13 +1591,60 @@ export class Editor {
    * de la barre d'état nomme le coupable, le cadre le montre — sur un schéma
    * chargé, lire « (Mod2) » ne suffisait pas à le trouver des yeux.
    */
-  setFaulty(id: string, faulty: boolean): void {
-    this.rendered.get(id)?.container.classList.toggle('part--faulty', faulty);
+  setFaulty(id: string, faulty: boolean, note = ''): void {
+    const r = this.rendered.get(id);
+    if (!r) return;
+    r.container.classList.toggle('part--faulty', faulty);
+    this.setFaultNote(r.container, faulty ? note : '');
+  }
+
+  /**
+   * L'étiquette qui EXPLIQUE le défaut, posée à côté du composant encadré (jaune
+   * sur rouge, pendant la simulation seulement). Le cadre désigne le coupable,
+   * l'étiquette dit quoi corriger — la barre d'état, elle, ne garde que la
+   * dernière phrase et se perd de vue sur un grand schéma.
+   *
+   * Elle est portée par `.part` et NON par `.part__body` : le corps subit la
+   * rotation du composant, un relais tourné à 90° aurait donc écrit son message
+   * de bas en haut. La position se calcule sur la boîte de mise en page du
+   * corps (`offsetLeft`/`offsetWidth`, insensibles au `transform`).
+   */
+  private setFaultNote(container: HTMLElement, text: string): void {
+    let note = container.querySelector('.part__fault') as HTMLElement | null;
+    if (!text) {
+      note?.remove();
+      return;
+    }
+    if (!note) {
+      note = document.createElement('div');
+      note.className = 'part__fault';
+      container.appendChild(note);
+    }
+    note.textContent = text;
+    const body = container.querySelector('.part__body') as HTMLElement | null;
+    // Position calée sur le DESSIN mesuré (`.part__selbox`, la boîte du cadre
+    // rouge) plutôt que sur le corps : un composant tourné à 90° déborde de sa
+    // boîte de mise en page, l'étiquette lui serait tombée dessus. Les rectangles
+    // écran se ramènent en pixels du monde par le zoom.
+    const box = (container.querySelector('.part__selbox') as HTMLElement | null) ?? body;
+    const z = this.zoom || 1;
+    const cr = container.getBoundingClientRect();
+    const br = box?.getBoundingClientRect();
+    if (br && br.width > 0) {
+      note.style.left = `${(br.right - cr.left) / z + 12}px`;
+      note.style.top = `${(br.top - cr.top) / z}px`;
+    } else {
+      note.style.left = `${(body?.offsetLeft ?? 0) + (body?.offsetWidth ?? 0) + 12}px`;
+      note.style.top = `${body?.offsetTop ?? 0}px`;
+    }
   }
 
   /** Retire tous les cadres rouges (nouveau lancement, arrêt, réinitialisation). */
   clearFaults(): void {
-    for (const r of this.rendered.values()) r.container.classList.remove('part--faulty');
+    for (const r of this.rendered.values()) {
+      r.container.classList.remove('part--faulty');
+      this.setFaultNote(r.container, '');
+    }
   }
 
   /**
