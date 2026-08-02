@@ -34,6 +34,7 @@ import {
   transistorSummary,
   type TransistorFilter,
 } from './transistors.mjs';
+import { PACKAGE_LABELS, type TransistorPackage } from '../composants/transistor-element.mjs';
 import { nextPartId } from './refnames.mjs';
 import { colorDisplayName, colorSwatchBackground } from './colors.mjs';
 import { breadboardPins, normalizeSize, stripOfPin } from './breadboard.mjs';
@@ -4863,7 +4864,8 @@ export class Editor {
     };
 
     criterion('Type', 'symbol', ['npn', 'pnp'], (v) => v.toUpperCase());
-    criterion('Package', 'pkg', TRANSISTOR_FILTER_OPTIONS.pkg, () => t('TO-92'));
+    criterion('Package', 'pkg', TRANSISTOR_FILTER_OPTIONS.pkg,
+      (v) => PACKAGE_LABELS[v as TransistorPackage] ?? v);
     criterion('Max Ic at least', 'icmax', TRANSISTOR_FILTER_OPTIONS.icmax,
       (v) => (Number(v) < 1 ? `${Math.round(Number(v) * 1000)} mA` : `${v} A`));
     criterion('Max Vce at least', 'vcemax', TRANSISTOR_FILTER_OPTIONS.vcemax, (v) => `${v} V`);

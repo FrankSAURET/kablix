@@ -45,6 +45,15 @@ import npn1Schema from '../composants/interne/npn1-interne.svg';
 import pnp1Schema from '../composants/interne/pnp1-interne.svg';
 import npn1LibreSchema from '../composants/interne/npn1-libre-interne.svg';
 import pnp1LibreSchema from '../composants/interne/pnp1-libre-interne.svg';
+// Symboles GÉNÉRIQUES (Composants.svg) : les électrodes y sont écrites (e/b/c,
+// g/d/s) mais jamais reliées aux pattes — le brochage change d'une référence à
+// l'autre, seul le nom écrit sur chaque pastille dit la vérité. Ils resservent
+// donc à des dizaines de modèles, quel que soit leur boîtier.
+import npnGeneriqueSchema from '../composants/interne/npn-generique-interne.svg';
+import pnpGeneriqueSchema from '../composants/interne/pnp-generique-interne.svg';
+import darlingtonNpnSchema from '../composants/interne/darlington-npn-interne.svg';
+import darlingtonPnpSchema from '../composants/interne/darlington-pnp-interne.svg';
+import nmosDSchema from '../composants/interne/nmos-d-interne.svg';
 
 export interface PinPoint {
   name: string;
@@ -293,6 +302,32 @@ const TRANSISTOR_SCHEMA: Record<'npn' | 'pnp', Record<'nomme' | 'libre', Schema>
   npn: { nomme: parseSchema(npn1Schema), libre: parseSchema(npn1LibreSchema) },
   pnp: { nomme: parseSchema(pnp1Schema), libre: parseSchema(pnp1LibreSchema) },
 };
+// Symboles internes choisis NOMMÉMENT par l'attribut `schema` : le dessin d'une
+// référence ne se déduit pas de sa famille (deux NPN peuvent porter NPN1 ou
+// NPN-Générique), c'est sa fiche qui le dit.
+const TRANSISTOR_SCHEMAS: Record<string, Schema> = {
+  npn1: parseSchema(npn1Schema),
+  pnp1: parseSchema(pnp1Schema),
+  'npn-generique': parseSchema(npnGeneriqueSchema),
+  'pnp-generique': parseSchema(pnpGeneriqueSchema),
+  'darlington-npn': parseSchema(darlingtonNpnSchema),
+  'darlington-pnp': parseSchema(darlingtonPnpSchema),
+  'nmos-d': parseSchema(nmosDSchema),
+};
+// Repère commun à TOUS ces symboles : la patte 1 du boîtier sur lequel ils ont
+// été extraits (to92). Ils se posent donc par simple TRANSLATION sur la patte 1
+// réelle du composant — un TO-220, deux fois plus haut, garde ainsi son symbole
+// à la même distance des pattes au lieu de le voir étiré de 80 %.
+const TRANSISTOR_SCHEMA_PIN1 = { x: 20, y: 40 };
+
+/** Symbole posé par translation : son repère tombe sur la première patte. */
+function pinnedSchema(s: Schema, pins: PinPoint[]): string {
+  const first = pins[0];
+  if (!first) return s.inner;
+  const dx = (first.x - TRANSISTOR_SCHEMA_PIN1.x).toFixed(2);
+  const dy = (first.y - TRANSISTOR_SCHEMA_PIN1.y).toFixed(2);
+  return `<g transform="translate(${dx} ${dy})">${s.inner}</g>`;
+}
 
 /** Superpose un schéma dessiné à la main, mis à l'échelle du corps du composant. */
 function scaledSchema(s: Schema, box?: { w: number; h: number }): string {
@@ -395,7 +430,12 @@ export function internalWiringSvg(
       // Les deux polarisés (tantale, chimique) partagent le même symbole.
       return scaledSchema(CAPACITOR_SCHEMA[attrs?.ctype === 'np' ? 'np' : 'p'], box);
     case 'transistor': {
-      // Référence figée (pattes nommées E/B/C) → symbole avec les fils colorés ;
+      // Symbole désigné par la fiche du modèle (`schema`) : il est générique,
+      // donc jamais relié aux pattes, et se pose par translation.
+      const chosen = TRANSISTOR_SCHEMAS[attrs?.schema ?? ''];
+      if (chosen) return pinnedSchema(chosen, pins);
+      // Sans fiche (projets d'avant, prototypes npn/pnp) : symbole historique
+      // NPN1 / PNP1. Référence figée (pattes nommées E/B/C) → fils colorés ;
       // prototype générique (pattes 1/2/3) → symbole sans liaison.
       const sym = attrs?.symbol === 'pnp' ? 'pnp' : 'npn';
       const named = pins.some((p) => p.name === 'B');

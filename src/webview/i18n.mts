@@ -42,8 +42,8 @@ const FR: Record<string, string> = {
     'L\'alimentation ne fournit pas le courant de la bobine : augmentez son courant maximal, ou mettez moins de bobines sur la même source.',
   // Même étiquette pour les composants qui viennent d'exploser : l'explosion dit
   // qui est mort, le texte dit pourquoi.
-  'This LED burned out: with no series resistor (or far too small a one) the current goes past what the junction can take. A 220 Ω to 1 kΩ resistor limits it.':
-    'Cette LED a grillé : sans résistance série (ou avec une trop faible), le courant dépasse ce que la jonction supporte. Une résistance de 220 Ω à 1 kΩ le limite.',
+  'This LED burned out: with no series resistor (or far too small a one) the current goes past what the junction can take.':
+    'Cette LED a grillé : sans résistance série (ou avec une trop faible), le courant dépasse ce que la jonction supporte.',
   'This capacitor broke down: the voltage across it went past its rated working voltage. Pick one rated well above the supply voltage.':
     'Ce condensateur a claqué : la tension à ses bornes a dépassé sa tension de service. Prenez-en un dont la tension nominale est bien supérieure à celle du montage.',
   'This board burned out: the V+ servo terminal takes 5 V, no more. Beyond 5.5 V the chip is destroyed.':
@@ -311,6 +311,7 @@ const FR: Record<string, string> = {
   'Gain at least': 'Gain d’au moins',
   'Any': 'Peu importe',
   'TO-92': 'TO-92',
+  'TO-220': 'TO-220',
   'Matching models': 'Modèles correspondants',
   'No model matches these criteria.': 'Aucun modèle ne répond à ces critères.',
   'Custom NPN': 'NPN personnalisé',

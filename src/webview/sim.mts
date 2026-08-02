@@ -313,7 +313,7 @@ const burnedPcas = new Set<string>();
  * est mort, l'étiquette dit POURQUOI et comment ne pas recommencer.
  */
 const BURN_NOTE = {
-  led: 'This LED burned out: with no series resistor (or far too small a one) the current goes past what the junction can take. A 220 Ω to 1 kΩ resistor limits it.',
+  led: 'This LED burned out: with no series resistor (or far too small a one) the current goes past what the junction can take.',
   cap: 'This capacitor broke down: the voltage across it went past its rated working voltage. Pick one rated well above the supply voltage.',
   pca: 'This board burned out: the V+ servo terminal takes 5 V, no more. Beyond 5.5 V the chip is destroyed.',
 } as const;

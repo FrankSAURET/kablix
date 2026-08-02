@@ -188,7 +188,7 @@ Quand la simulation détecte une erreur de câblage ou un composant détruit, el
 | Relais sans diode de roue libre | La bobine renvoie une surtension à la coupure ; elle détruit le transistor de commande, la diode l'absorbe |
 | Bobine sous-alimentée | Le relais ne colle pas : alimenter la bobine sous sa tension nominale |
 | Alimentation trop faible pour la bobine | Augmenter le courant maximal, ou mettre moins de bobines sur la même source |
-| LED grillée (💥) | Pas de résistance série, ou trop faible : 220 Ω à 1 kΩ limitent le courant |
+| LED grillée (💥) | Sans résistance série (ou avec une trop faible), le courant dépasse ce que la jonction supporte |
 | Condensateur claqué (💥) | Tension de service dépassée : en prendre un de tension nominale supérieure |
 | Carte 16 servos grillée (💥) | Le bornier V+ accepte 5 V, pas plus |
 

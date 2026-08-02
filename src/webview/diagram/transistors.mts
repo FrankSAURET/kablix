@@ -78,7 +78,7 @@ export interface TransistorFilter {
 
 /** Seuils proposés dans les listes déroulantes du sélecteur. */
 export const TRANSISTOR_FILTER_OPTIONS = {
-  pkg: ['to92'],
+  pkg: ['to92', 'to220'],
   icmax: ['', '0.1', '0.5', '0.6', '0.8'],
   vcemax: ['', '25', '40', '45', '60'],
   gain: ['', '50', '100', '200'],

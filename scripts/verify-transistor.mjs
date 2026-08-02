@@ -20,6 +20,7 @@ const entry = `
 import { Editor } from '../../src/webview/diagram/editor.mjs';
 import { partDef } from '../../src/webview/diagram/catalog.mjs';
 import { transistorStates } from '../../src/webview/diagram/model.mjs';
+import { internalWiringSvg } from '../../src/webview/diagram/internal-wiring.mjs';
 import '../../src/webview/composants/transistor-element.mjs';
 import '../../src/webview/composants/resistor-element.mjs';
 import '../../src/webview/composants/led-element.mjs';
@@ -160,6 +161,61 @@ async function run() {
 		note && note.textContent);
 	ok('confirmation : elle dit OÙ retrouver le composant',
 		note && /personnalis|Custom/i.test(note.textContent || ''), note && note.textContent);
+
+	// --- 6. Boîtier TO-220 (v2026.7.247) ---------------------------------------
+	const q3 = editor.addPart('transistor', 700, 300);
+	editor.updatePartAttr(q3.id, 'pkg', 'to220');
+	editor.updatePartAttr(q3.id, 'text', 'BD911');
+	await wait(80);
+	const el3 = editor.elementOf(q3.id);
+	const svg3 = el3 && el3.shadowRoot && el3.shadowRoot.querySelector('svg');
+	ok('TO-220 : dessin 60 × 90 px', svg3 && svg3.getAttribute('viewBox') === '0 0 60 90',
+		svg3 && svg3.getAttribute('viewBox'));
+	const pins3 = el3 ? el3.pinInfo : [];
+	ok('TO-220 : trois pattes au pas de 10 px, alignées sous le boîtier',
+		pins3.length === 3 && pins3.every((p, i) => p.x === 20 + 10 * i && p.y === 80),
+		JSON.stringify(pins3));
+	const t3 = svg3 && svg3.querySelector('text');
+	const ty = t3 ? Number(t3.getAttribute('y')) : 0;
+	ok('TO-220 : inscription centrée sur la face noire (x = 30, y entre 39 et 61)',
+		t3 && Number(t3.getAttribute('x')) === 30 && ty > 39 && ty < 61,
+		t3 && t3.outerHTML.slice(0, 90));
+	ok('TO-220 : inscription claire sur le noir, à sa taille pleine',
+		t3 && t3.getAttribute('fill') === '#e6e6e6' && Number(t3.getAttribute('font-size')) === 5.5,
+		t3 && t3.outerHTML.slice(0, 90));
+	// La face du TO-220 est assez large pour une référence entière, là où le
+	// TO-92 oblige à la couper en deux lignes.
+	ok('TO-220 : une référence entière tient sur UNE ligne',
+		svg3 && svg3.querySelectorAll('text').length === 1,
+		svg3 && svg3.querySelectorAll('text').length);
+
+	// --- 7. Symboles internes désignés par la fiche (v2026.7.247) --------------
+	// Symboles GÉNÉRIQUES : pattes non reliées, posés par TRANSLATION sur la
+	// patte 1 (repère 20,40) — un TO-220, deux fois plus haut, ne les étire pas.
+	const trio = (y) => [{ name: '1', x: 20, y }, { name: '2', x: 30, y }, { name: '3', x: 40, y }];
+	const wiring = (attrs, y, box) => internalWiringSvg('transistor', trio(y), attrs, 'transistor', box);
+	const gros = { w: 60, h: 90 };
+	const petit = { w: 50, h: 50 };
+	const NOUVEAUX = ['npn-generique', 'pnp-generique', 'darlington-npn', 'darlington-pnp', 'nmos-d'];
+	const dessins = new Map();
+	for (const nom of NOUVEAUX) {
+		const s = wiring({ schema: nom }, 40, petit);
+		dessins.set(nom, s || '');
+		ok('symbole « ' + nom + ' » : dessin trouvé et calé sur la patte 1',
+			!!s && s.length > 200 && s.startsWith('<g transform="translate(0.00 0.00)">'),
+			s ? s.slice(0, 60) : 'absent');
+	}
+	ok('symboles : les cinq dessins sont bien distincts',
+		new Set([...dessins.values()]).size === NOUVEAUX.length);
+	const surTo220 = wiring({ schema: 'npn-generique' }, 80, gros);
+	ok('symbole sur TO-220 : posé par translation, jamais étiré',
+		surTo220 && /translate\\(0\\.00 40\\.00\\)/.test(surTo220) && !/scale\\(/.test(surTo220),
+		surTo220 && surTo220.slice(0, 60));
+	const sansFiche = wiring({ symbol: 'npn' }, 40, petit);
+	ok('sans fiche (projets d avant) : symbole NPN1 à l ancienne, mis à l échelle',
+		sansFiche && /scale\\(/.test(sansFiche), sansFiche && sansFiche.slice(0, 60));
+	ok('fiche inconnue : on retombe sur le symbole historique',
+		wiring({ schema: 'inexistant', symbol: 'pnp' }, 40, petit) === wiring({ symbol: 'pnp' }, 40, petit));
 
 	const out = document.createElement('pre');
 	out.id = 'measures';

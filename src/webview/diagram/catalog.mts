@@ -240,7 +240,10 @@ const CAPACITOR_PROPS: readonly PropDef[] = [
 // une référence du commerce est figée par sa fiche.
 const CUSTOM_ONLY = { attr: 'ref', equals: ['custom-npn', 'custom-pnp'] } as const;
 const TRANSISTOR_PROPS: readonly PropDef[] = [
-  { attr: 'pkg', label: 'Package', kind: 'select', options: ['to92'], optionLabels: { to92: 'TO-92' } },
+  {
+    attr: 'pkg', label: 'Package', kind: 'select', options: ['to92', 'to220'],
+    optionLabels: { to92: 'TO-92', to220: 'TO-220' },
+  },
   { attr: 'e', label: 'Emitter on pin', kind: 'select', options: ['1', '2', '3'] },
   { attr: 'b', label: 'Base on pin', kind: 'select', options: ['1', '2', '3'] },
   { attr: 'c', label: 'Collector on pin', kind: 'select', options: ['1', '2', '3'] },
