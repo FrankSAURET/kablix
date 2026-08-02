@@ -1,6 +1,5 @@
 # À faire
-1. Refais le projix de test pour le relais-pico il est vide
-1. Je viens de rajouter dans composants.svg un schéma interne NPN-Generique et et PNP-générique à utiliser pour tous les transistors dont le schéma interne ne correspont pas à NPN1 ou PNP1.
+1. ⛔ Je viens de rajouter dans composants.svg un schéma interne NPN-Generique et et PNP-générique à utiliser pour tous les transistors dont le schéma interne ne correspont pas à NPN1 ou PNP1. — **BLOQUÉ** : `Composants.svg` (dernière écriture 01/08 10:25) ne contient que `NPN1` et `PNP1`, aucun groupe `NPN-Generique` / `PNP-générique`. Le dessin n'a pas été enregistré. Réenregistrer depuis Inkscape et relancer.
 1. Vsix quand liste ci-dessus terminée
     
 1. ✅ ouvrir un svg dans l'éditeur de composant ne fonctionne pas il ne trouve jamais l'application. Je n'ai pas non plus trouvé de propriété kablix : editeur svg par defaut dans le settings.json et rien n'est sauvegardé.
@@ -11,6 +10,12 @@ Voici les préfix à utiliser (traduisible) et respecte la casse : Résistance (
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# v2026.7.246 — le test relais-pico est de nouveau complet
+1. ✅ **`testkablix/relais-pico.projix` refait** : il ne contenait plus que 5 composants et 2 fils (Pico, trois relais, alimentation ; bobine de `Rl1` et alimentation câblées, rien d'autre) — un enregistrement tronqué. Régénéré depuis `_spec.mjs` : **11 composants et 18 fils**, les trois câblages du test (`Rl1` correct via PN2222A + diode de roue libre, `Rl2` sans diode, `Rl3` diode à l'envers) avec la LED témoin sur le contact NO.
+2. ✅ **`relais-pico.py` inchangé** (le programme sur disque était déjà celui de la spécification : rien d'écrasé).
+3. ✅ **`_verify.mjs --quick` : 20 → 16 échecs**, les 4 du relais Pico ont disparu. Les 16 restants sont antérieurs et étrangers à ce lot (broches déplacées dans des `.projix` retouchés à la main, manifestes de `blink-pico` / `led-bar-pico`).
+4. ⛔ **Schémas internes NPN/PNP génériques : rien à intégrer** — `Composants.svg` ne contient que `NPN1` et `PNP1`, aucun groupe générique. Dessin non enregistré côté Inkscape.
 
 # v2026.7.245 — le cadre rouge EXPLIQUE le défaut
 1. ✅ **Étiquette jaune sur fond rouge à côté du composant encadré**, pendant la simulation seulement : le cadre désigne le coupable, l'étiquette dit quoi corriger. La barre d'état ne gardait que la dernière phrase et se perdait de vue sur un grand schéma.
