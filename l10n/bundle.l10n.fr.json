@@ -50,7 +50,7 @@
   "Kablix part": "Composant Kablix",
   "Kablix: part exported to {0}": "Kablix : composant exporté vers {0}",
   "Use this editor": "Utiliser cet éditeur",
-  "Choose the SVG editor (Inkscape…)": "Choisir l'éditeur SVG (Inkscape…)",
+  "Choose the SVG editor": "Choisir l'éditeur SVG",
   "Applications": "Applications",
   "Kablix: SVG editor set to {0}": "Kablix : éditeur SVG réglé sur {0}",
   "Kablix: SVG editor not found ({0}).": "Kablix : éditeur SVG introuvable ({0}).",

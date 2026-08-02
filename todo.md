@@ -1,4 +1,5 @@
 # À faire
+1. ✅ le choix d'une application pour l'éditeur svg doit ouvrir dans le dossier programme par défaut (selon OS).
 1. ✅ La grille dans l'éditeur de copmposant devrait de 10 px et les éléments alignés dessus.
 2. ✅ Quand je clic sur ouvrir dans l'éditeur par défaut, ça m'ouvre la fenêtre windows pour obtenir un application pour ouvrir ce fichier. Alors qu'inkscape est mon éditeur par défaut (sur windows pas dans vscode). Il faudrait plutôt que ça permette de choisir l'éditeur et que ça l'enregistre dans une propriété kablix
 3. ✅ Nommage des composants comme suit : PréfixXX par exemple R1 avec un suivit sur un schéma. Première résistance = R1, deuxième R2 ...
@@ -10,6 +11,12 @@ Voici les préfix à utiliser (traduisible) et respecte la casse : Résistance (
 8. 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# v2026.7.242 — la fenêtre de choix de l'éditeur SVG s'ouvre là où sont les applications
+1. ✅ **Elle s'ouvre dans le dossier des applications du système** au lieu du dernier dossier visité (le projet, neuf fois sur dix) : `%ProgramFiles%` sur Windows — repli sur celui des applications 32 bits puis `C:\Program Files` —, `/Applications` sur macOS, `/usr/bin` sur Linux. Dossier absent = aucun forçage, VS Code garde son comportement habituel.
+2. ✅ **macOS : les paquets `.app` sont sélectionnables** (une application y est un dossier ; sans cela rien n'était cliquable).
+3. ✅ **Plus aucune application préconisée dans le titre** : « Choisir l'éditeur SVG », sans citer Inkscape.
+4. ✅ **`verify:creator-ui` complété (45 contrôles)** : titre sans nom d'application (clé de traduction comprise) et dossier de départ défini pour les trois systèmes.
 
 # v2026.7.241 — plus de « zigouigoui » : les fils entrent droit dans leur broche
 1. ✅ **Les petites marches d'un demi-pas ont disparu** (repro Frank : `A Examiner/bug routage.png`, `condo-pico`). Un fil arrivait sur sa broche par un escalier de 5 px — deux coudes pour un décalage invisible, et le fil passait au-dessus de la barre des 4 coudes. Nouvelle passe `unstairPoly` après le routage : une marche **plus courte qu'un pas de grille**, coincée entre deux segments du **même axe**, est effacée en faisant glisser l'un des deux tronçons sur l'autre — le segment perpendiculaire voisin s'allonge d'autant. Les **points de connexion ne bougent jamais** : le côté collé à la broche n'est pas déplaçable, c'est l'autre qui rejoint.

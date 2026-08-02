@@ -269,9 +269,25 @@ rows.push({
 });
 rows.push({
 	name: 'éditeur SVG : messages du choix traduits',
-	ok: ['Choose an application…', 'System default', 'Choose the SVG editor (Inkscape…)',
+	ok: ['Choose an application…', 'System default', 'Choose the SVG editor',
 		'Kablix: SVG editor not found ({0}).'].every((k) => !!bundle[k]),
 	detail: 'clé absente de bundle.l10n.fr.json',
+});
+// La fenêtre ne doit pas pousser Inkscape, et doit s'ouvrir dans le dossier
+// des applications du système (Program Files / /Applications / /usr/bin).
+const panelSrc = readFileSync(join(ROOT, 'src', 'panel.ts'), 'utf8');
+rows.push({
+	name: 'éditeur SVG : la fenêtre de choix ne préconise aucune application',
+	ok: !/title:\s*l10n\.t\('Choose the SVG editor[^']*Inkscape/.test(panelSrc) &&
+		!Object.keys(bundle).some((k) => /Choose the SVG editor.*Inkscape/.test(k)),
+	detail: 'Inkscape encore cité dans le titre de la fenêtre',
+});
+rows.push({
+	name: 'éditeur SVG : fenêtre ouverte dans le dossier des applications de l’OS',
+	ok: /function defaultAppsDir\(\)/.test(panelSrc) &&
+		/ProgramFiles/.test(panelSrc) && /\/Applications/.test(panelSrc) &&
+		/\/usr\/bin/.test(panelSrc) && /defaultUri:\s*defaultAppsDir\(\)/.test(panelSrc),
+	detail: 'defaultUri absent ou dossier par OS incomplet',
 });
 let fail = 0;
 for (const r of rows) {

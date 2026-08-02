@@ -38,16 +38,34 @@ function baseNameNoExt(fsPath: string): string {
 }
 
 /**
+ * Dossier où le système range ses applications : la fenêtre de choix s'ouvre
+ * là plutôt que dans le dernier dossier visité (souvent le projet).
+ */
+function defaultAppsDir(): vscode.Uri | undefined {
+  if (process.platform === 'win32') {
+    // « Program Files » de l'architecture courante, avec repli sur le 32 bits.
+    const dir = process.env.ProgramFiles ?? process.env['ProgramFiles(x86)'] ?? 'C:\\Program Files';
+    return existsSync(dir) ? vscode.Uri.file(dir) : undefined;
+  }
+  const dir = process.platform === 'darwin' ? '/Applications' : '/usr/bin';
+  return existsSync(dir) ? vscode.Uri.file(dir) : undefined;
+}
+
+/**
  * Demande l'application qui ouvrira les dessins SVG et la retient dans le
  * réglage `kablix.svgEditorPath`. Sans elle, Windows affiche sa fenêtre
  * « Comment voulez-vous ouvrir ce fichier ? » à chaque retouche, même quand
- * Inkscape est l'application par défaut du système.
+ * une application est associée aux SVG dans le système.
  */
 export async function chooseSvgEditor(): Promise<string | null> {
   const picked = await vscode.window.showOpenDialog({
     canSelectMany: false,
+    canSelectFiles: true,
+    // macOS : une application est un dossier (.app), sans quoi rien n'est cliquable.
+    canSelectFolders: process.platform === 'darwin',
     openLabel: l10n.t('Use this editor'),
-    title: l10n.t('Choose the SVG editor (Inkscape…)'),
+    title: l10n.t('Choose the SVG editor'),
+    defaultUri: defaultAppsDir(),
     filters:
       process.platform === 'win32'
         ? { [l10n.t('Applications')]: ['exe', 'com', 'bat', 'cmd'] }
