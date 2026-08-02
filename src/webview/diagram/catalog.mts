@@ -80,8 +80,25 @@ export interface PropDef {
   suffixes?: boolean;
   /** Pour kind 'text' : nombre de lignes de la zone de saisie (défaut 2). */
   rows?: number;
-  /** N'affiche cette propriété que si un autre attribut vaut l'une des valeurs données. */
-  showIf?: { attr: string; equals: readonly string[] };
+  /**
+   * N'affiche cette propriété que si un autre attribut vaut l'une des valeurs
+   * données. Plusieurs conditions se cumulent (ET) : le brochage d'un MOSFET,
+   * par exemple, n'est réglable que sur un modèle personnalisé ET de la famille
+   * MOS.
+   */
+  showIf?: PropCondition | readonly PropCondition[];
+}
+
+/** Une condition d'affichage : « cet attribut vaut l'une de ces valeurs ». */
+export interface PropCondition {
+  attr: string;
+  equals: readonly string[];
+}
+
+/** Conditions d'affichage d'une propriété, toujours ramenées à une liste (ET). */
+export function propConditions(showIf: PropDef['showIf']): readonly PropCondition[] {
+  if (!showIf) return [];
+  return Array.isArray(showIf) ? showIf : [showIf as PropCondition];
 }
 
 export interface CustomPin {
@@ -238,25 +255,46 @@ const CAPACITOR_PROPS: readonly PropDef[] = [
 // Sur le composant « Transistor » de la bibliothèque, ces propriétés ne
 // s'ouvrent que pour les modèles PERSONNALISÉS (`ref` = custom-npn/custom-pnp) :
 // une référence du commerce est figée par sa fiche.
-const CUSTOM_ONLY = { attr: 'ref', equals: ['custom-npn', 'custom-pnp'] } as const;
+const CUSTOM_ONLY = {
+  attr: 'ref',
+  equals: ['custom-npn', 'custom-pnp', 'custom-darlington-npn', 'custom-darlington-pnp', 'custom-nmos'],
+} as const;
+/** Familles bipolaires : elles portent E/B/C et un gain en courant. */
+const BIPOLAIRE = { attr: 'symbol', equals: ['npn', 'pnp', 'darlington-npn', 'darlington-pnp'] } as const;
+/** MOSFET : électrodes G/D/S, pas de gain mais une résistance de passage. */
+const MOS = { attr: 'symbol', equals: ['nmos'] } as const;
 const TRANSISTOR_PROPS: readonly PropDef[] = [
   {
     attr: 'pkg', label: 'Package', kind: 'select', options: ['to92', 'to220'],
     optionLabels: { to92: 'TO-92', to220: 'TO-220' },
   },
-  { attr: 'e', label: 'Emitter on pin', kind: 'select', options: ['1', '2', '3'] },
-  { attr: 'b', label: 'Base on pin', kind: 'select', options: ['1', '2', '3'] },
-  { attr: 'c', label: 'Collector on pin', kind: 'select', options: ['1', '2', '3'] },
-  { attr: 'gain', label: 'Current gain (β)', kind: 'number', min: 0.1, step: 0.1 },
+  { attr: 'e', label: 'Emitter on pin', kind: 'select', options: ['1', '2', '3'], showIf: BIPOLAIRE },
+  { attr: 'b', label: 'Base on pin', kind: 'select', options: ['1', '2', '3'], showIf: BIPOLAIRE },
+  { attr: 'c', label: 'Collector on pin', kind: 'select', options: ['1', '2', '3'], showIf: BIPOLAIRE },
+  { attr: 'g', label: 'Gate on pin', kind: 'select', options: ['1', '2', '3'], showIf: MOS },
+  { attr: 'd', label: 'Drain on pin', kind: 'select', options: ['1', '2', '3'], showIf: MOS },
+  { attr: 's', label: 'Source on pin', kind: 'select', options: ['1', '2', '3'], showIf: MOS },
+  { attr: 'gain', label: 'Current gain (β)', kind: 'number', min: 0.1, step: 0.1, showIf: BIPOLAIRE },
+  { attr: 'rdson', label: 'Rds(on) (Ω)', kind: 'number', min: 0.001, max: 100, step: 0.01, showIf: MOS },
   // Inscription du boîtier : trois lignes visibles d'emblée (une référence tient
   // rarement sur deux), le champ reste libre — chaque ligne saisie est une ligne
   // écrite sur la face plate.
   { attr: 'text', label: 'Marking', kind: 'text', rows: 3 },
-  { attr: 'vcemax', label: 'Max Vce (V)', kind: 'number', min: 1, max: 1000, step: 1 },
-  { attr: 'icmax', label: 'Max Ic (A)', kind: 'number', min: 0.001, max: 100, suffixes: true },
+  // Même attribut, deux libellés : le catalogue ne dit pas « Vce » à un MOSFET.
+  { attr: 'vcemax', label: 'Max Vce (V)', kind: 'number', min: 1, max: 1000, step: 1, showIf: BIPOLAIRE },
+  { attr: 'vcemax', label: 'Max Vds (V)', kind: 'number', min: 1, max: 1000, step: 1, showIf: MOS },
+  { attr: 'icmax', label: 'Max Ic (A)', kind: 'number', min: 0.001, max: 100, suffixes: true, showIf: BIPOLAIRE },
+  { attr: 'icmax', label: 'Max Id (A)', kind: 'number', min: 0.001, max: 100, suffixes: true, showIf: MOS },
 ];
-/** Mêmes propriétés, mais réservées aux modèles personnalisés du sélecteur. */
-const CUSTOM_TRANSISTOR_PROPS: readonly PropDef[] = TRANSISTOR_PROPS.map((p) => ({ ...p, showIf: CUSTOM_ONLY }));
+/**
+ * Mêmes propriétés, mais réservées aux modèles personnalisés du sélecteur : une
+ * référence du commerce est figée par sa fiche. La condition « personnalisé »
+ * s'AJOUTE à celle de la famille.
+ */
+const CUSTOM_TRANSISTOR_PROPS: readonly PropDef[] = TRANSISTOR_PROPS.map((p) => ({
+  ...p,
+  showIf: p.showIf ? [CUSTOM_ONLY, ...(Array.isArray(p.showIf) ? p.showIf : [p.showIf])] : CUSTOM_ONLY,
+}));
 
 export const CATALOG: readonly PartDef[] = [
   // Cartes AVR : éléments forkés, mis à l'échelle 10/9,6 px pour que
@@ -475,8 +513,9 @@ export const CATALOG: readonly PartDef[] = [
   {
     type: 'transistor', label: 'Transistor', tag: 'kablix-transistor', kind: 'transistor',
     attrs: {
-      pkg: 'to92', symbol: 'npn', text: '?', named: '1', ref: '',
-      e: '1', b: '2', c: '3', gain: '100', vcemax: '40', icmax: '0.6',
+      pkg: 'to92', symbol: 'npn', schema: 'npn1', text: '?', named: '1', ref: '',
+      e: '1', b: '2', c: '3', g: '1', d: '2', s: '3',
+      gain: '100', rdson: '0.5', vcemax: '40', icmax: '0.6',
     },
     props: CUSTOM_TRANSISTOR_PROPS,
   },

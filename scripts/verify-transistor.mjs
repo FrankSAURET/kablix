@@ -21,6 +21,7 @@ import { Editor } from '../../src/webview/diagram/editor.mjs';
 import { partDef } from '../../src/webview/diagram/catalog.mjs';
 import { transistorStates } from '../../src/webview/diagram/model.mjs';
 import { internalWiringSvg } from '../../src/webview/diagram/internal-wiring.mjs';
+import { DEFAULT_TRANSISTOR_FILTER, TRANSISTOR_REFS, transistorAttrs } from '../../src/webview/diagram/transistors.mjs';
 import '../../src/webview/composants/transistor-element.mjs';
 import '../../src/webview/composants/resistor-element.mjs';
 import '../../src/webview/composants/led-element.mjs';
@@ -217,10 +218,125 @@ async function run() {
 	ok('fiche inconnue : on retombe sur le symbole historique',
 		wiring({ schema: 'inexistant', symbol: 'pnp' }, 40, petit) === wiring({ symbol: 'pnp' }, 40, petit));
 
+	// --- 8. Liste de Frank : darlington, MOSFET, mise en évidence (v2026.7.248) --
+	const q4 = editor.addPart('transistor', 120, 480);
+	editor.select({ kind: 'part', id: q4.id });
+	await wait(60);
+	// Un transistor neuf n'a pas de modèle : le sélecteur s'ouvre tout seul.
+	const selects = () => [...inspector.querySelectorAll('select')];
+	const etiquettes = () => [...inspector.querySelectorAll('.inspector__label')].map((l) => l.textContent || '');
+	const refBtn = (nom) => [...inspector.querySelectorAll('.inspector__ref')]
+		.find((b) => ((b.querySelector('strong') || {}).textContent || '') === nom);
+	ok('sélecteur : les cinq familles sont proposées',
+		selects()[0] && selects()[0].options.length === 5,
+		selects()[0] && [...selects()[0].options].map((o) => o.value).join(','));
+	ok('NPN TO-92 : les références de la liste sont proposées',
+		!!refBtn('BC639') && !!refBtn('MPSA42'));
+	ok('références de la liste mises en évidence',
+		refBtn('BC639') && refBtn('BC639').classList.contains('inspector__ref--nouveau'));
+	ok('références déjà en place laissées telles quelles',
+		refBtn('BC547') && !refBtn('BC547').classList.contains('inspector__ref--nouveau'));
+	const choisir = (index, valeur) => {
+		const s = selects()[index];
+		s.value = valeur;
+		s.dispatchEvent(new Event('change'));
+	};
+	choisir(0, 'darlington-npn');
+	await wait(40);
+	ok('famille darlington : BC517 proposé, sans les NPN ordinaires',
+		!!refBtn('BC517') && !refBtn('BC547'));
+	// Famille MOSFET : les critères ne sont plus les mêmes (pas de gain).
+	choisir(0, 'nmos');
+	await wait(40);
+	ok('MOSFET : le critère Rds(on) remplace le gain',
+		etiquettes().some((l) => /Rds/.test(l)) && !etiquettes().some((l) => /Gain|β/.test(l)),
+		JSON.stringify(etiquettes()));
+	ok('MOSFET TO-92 : BS170 proposé, aucun bipolaire', !!refBtn('BS170') && !refBtn('BC337'));
+	choisir(1, 'to220');
+	await wait(40);
+	ok('MOSFET TO-220 : IRF530 proposé', !!refBtn('IRF530'));
+	refBtn('IRF530').click();
+	await wait(80);
+	const el4 = editor.elementOf(q4.id);
+	ok('IRF530 : pattes nommées G, D, S (brochage du boîtier)',
+		el4 && el4.pinInfo.map((p) => p.name).join('') === 'GDS',
+		el4 && JSON.stringify(el4.pinInfo.map((p) => p.name)));
+	ok('IRF530 : dessin TO-220',
+		el4 && el4.shadowRoot.querySelector('svg').getAttribute('viewBox') === '0 0 60 90');
+	ok('IRF530 : le résumé annonce le brochage G D S et la résistance de passage',
+		/G D S/.test(inspector.textContent) && /Rds\\(on\\) 0.16/.test(inspector.textContent),
+		inspector.textContent.slice(0, 200));
+	// Prototype personnalisé de la famille : c'est là que tout se règle.
+	(button(inspector, 'Changer') || button(inspector, 'Change transistor')).click();
+	await wait(40);
+	choisir(0, 'nmos');
+	await wait(40);
+	const perso = [...inspector.querySelectorAll('.inspector__ref')].pop();
+	ok('prototype personnalisé : proposé sous le nom de sa famille',
+		perso && /MOSFET/.test(perso.textContent || ''), perso && perso.textContent);
+	perso.click();
+	await wait(60);
+	ok('MOSFET personnalisé : grille/drain/source réglables, pas E/B/C',
+		etiquettes().some((l) => /Grille|Gate/.test(l)) && !etiquettes().some((l) => /Base/.test(l)),
+		JSON.stringify(etiquettes()));
+	ok('MOSFET personnalisé : Rds(on) réglable, pas le gain',
+		etiquettes().some((l) => /Rds/.test(l)) && !etiquettes().some((l) => /β/.test(l)),
+		JSON.stringify(etiquettes()));
+
+	// --- 9. Simulation des nouvelles familles (v2026.7.248) ---------------------
+	// Darlington : DEUX jonctions base-émetteur, donc 1,4 V perdus sur la base et
+	// 0,9 V entre collecteur et émetteur une fois saturé.
+	const q5 = editor.addPart('transistor', 430, 480);
+	for (const [a, v] of Object.entries(transistorAttrs('BC517', DEFAULT_TRANSISTOR_FILTER))) {
+		editor.updatePartAttr(q5.id, a, v);
+	}
+	const r2 = editor.addPart('resistor', 300, 480);
+	editor.updatePartAttr(r2.id, 'value', '4700');
+	await wait(80);
+	editor.addWire({ partId: mcu.id, pin: '8' }, { partId: r2.id, pin: '1' }, { color: 'green' });
+	editor.addWire({ partId: r2.id, pin: '2' }, { partId: q5.id, pin: 'B' }, { color: 'green' });
+	editor.addWire({ partId: q5.id, pin: 'E' }, { partId: mcu.id, pin: 'GND.1' }, { color: 'black' });
+	editor.addWire({ partId: q5.id, pin: 'C' }, { partId: mcu.id, pin: '5V' }, { color: 'red' });
+	// MOSFET : grille ISOLÉE, aucun courant n'y entre — la tension suffit. On
+	// repose l'IRF530 sur le composant, laissé en « personnalisé » par le test
+	// précédent, pour retrouver ses 14 A de courant de drain.
+	for (const [a, v] of Object.entries(transistorAttrs('IRF530', DEFAULT_TRANSISTOR_FILTER))) {
+		editor.updatePartAttr(q4.id, a, v);
+	}
+	await wait(40);
+	editor.addWire({ partId: mcu.id, pin: '9' }, { partId: q4.id, pin: 'G' }, { color: 'green' });
+	editor.addWire({ partId: q4.id, pin: 'S' }, { partId: mcu.id, pin: 'GND.1' }, { color: 'black' });
+	editor.addWire({ partId: q4.id, pin: 'D' }, { partId: mcu.id, pin: '5V' }, { color: 'red' });
+	await wait(60);
+	const dar = etats(['8']).find((s) => s.partId === q5.id);
+	const darIb = (5 - 1.4) / 4700;
+	ok('darlington : conduit, avec DEUX jonctions à franchir (Vbe = 1,4 V)',
+		dar && dar.on && Math.abs(dar.baseAmps - darIb) / darIb < 0.02, JSON.stringify(dar));
+	ok('darlington : ne descend pas sous 0,9 V entre collecteur et émetteur',
+		dar && dar.drop === 0.9, dar && dar.drop);
+	ok('darlington : son gain énorme se retrouve dans le courant transmis',
+		dar && dar.maxCollectorAmps > 20, dar && dar.maxCollectorAmps);
+	const nmosOn = etats(['9']).find((s) => s.partId === q4.id);
+	const nmosOff = etats([]).find((s) => s.partId === q4.id);
+	ok('MOSFET : passant dès que la grille est haute', nmosOn && nmosOn.on, JSON.stringify(nmosOn));
+	ok('MOSFET : sa grille ne consomme aucun courant',
+		nmosOn && nmosOn.baseAmps === 0 && nmosOn.mos === true, JSON.stringify(nmosOn));
+	ok('MOSFET : laisse passer jusqu au courant de drain du composant (14 A)',
+		nmosOn && Math.abs(nmosOn.maxCollectorAmps - 14) < 0.01, nmosOn && nmosOn.maxCollectorAmps);
+	ok('MOSFET : sa chute est négligeable, contrairement à un bipolaire',
+		nmosOn && nmosOn.drop === 0, nmosOn && nmosOn.drop);
+	ok('MOSFET : bloqué quand la grille retombe', nmosOff && !nmosOff.on, JSON.stringify(nmosOff));
+
 	const out = document.createElement('pre');
 	out.id = 'measures';
 	out.textContent = JSON.stringify(checks);
 	document.body.appendChild(out);
+	// La base des modèles part telle quelle : elle est confrontée au CSV de Frank
+	// côté Node (le banc, lui, ne sait pas lire de fichier).
+	const base = document.createElement('pre');
+	base.id = 'refs';
+	base.textContent = JSON.stringify(TRANSISTOR_REFS);
+	document.body.appendChild(base);
 }
 run().catch((e) => {
 	const out = document.createElement('pre');
@@ -253,9 +369,63 @@ const dom = execFileSync(
 		'--dump-dom', `file:///${join(CACHE, 'p.html').replace(/\\/g, '/')}`],
 	{ encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }
 );
+const unesc = (s) => s.replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 const m = dom.match(/<pre id="measures"[^>]*>([\s\S]*?)<\/pre>/);
 if (!m) { console.log('MESURES INTROUVABLES'); process.exit(1); }
-const rows = JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>'));
+const rows = JSON.parse(unesc(m[1]));
+
+// --- La base des modèles tient-elle la liste de Frank ? ------------------------
+// Le CSV donne, pour chaque référence, ses limites, son symbole interne et le
+// NUMÉRO DE PATTE de chaque électrode — c'est le brochage qui piège en pratique.
+const mr = dom.match(/<pre id="refs"[^>]*>([\s\S]*?)<\/pre>/);
+const base = mr ? JSON.parse(unesc(mr[1])) : [];
+const csv = readFileSync(join(ROOT, 'A Examiner', 'transistor.csv'), 'utf8').replace(/^﻿/, '');
+const nombre = (s) => Number(String(s).replace(',', '.'));
+for (const ligne of csv.split(/\r?\n/)) {
+	const col = ligne.split(';');
+	if (col.length < 10 || col[0] === '' || col[0] === 'Ref') continue;
+	const [ref, type, boitier, vmax, imax, valeur, schema, p1, p2, p3] = col;
+	const r = base.find((x) => x.ref === ref);
+	const attendu = { schema: schema.toLowerCase(), pkg: boitier.toLowerCase() };
+	const mos = type.toUpperCase() === 'NMOS';
+	// Brochage : le CSV dit « telle électrode est sur telle patte » ; la base le
+	// range dans l'ordre des pattes. Les MOSFET n'en donnent pas (colonnes vides).
+	const roles = mos ? ['G', 'D', 'S'] : ['E', 'B', 'C'];
+	const places = [p1, p2, p3];
+	const brochage = ['', '', ''];
+	roles.forEach((role, i) => { if (places[i] !== '') brochage[Number(places[i]) - 1] = role; });
+	const detail = JSON.stringify(r ?? null);
+	rows.push({ name: `liste de Frank : ${ref} présent dans la base`, ok: !!r, detail: 'référence absente' });
+	if (!r) continue;
+	rows.push({
+		name: `${ref} : boîtier, symbole interne et famille conformes au CSV`,
+		ok: r.pkg === attendu.pkg && r.schema === attendu.schema
+			&& (mos ? r.symbol === 'nmos' : r.symbol.includes(type.toLowerCase())),
+		detail,
+	});
+	rows.push({
+		name: `${ref} : limites conformes au CSV (${vmax} V, ${imax} A)`,
+		ok: r.vcemax === nombre(vmax) && r.icmax === nombre(imax),
+		detail,
+	});
+	rows.push({
+		name: `${ref} : ${mos ? 'Rds(on)' : 'gain'} conforme au CSV (${valeur})`,
+		ok: mos ? r.rdson === nombre(valeur) : r.gain === nombre(valeur),
+		detail,
+	});
+	if (!brochage.includes('')) {
+		rows.push({
+			name: `${ref} : brochage ${brochage.join('-')} (le piège de cette référence)`,
+			ok: r.pins.join('') === brochage.join(''),
+			detail,
+		});
+	}
+	rows.push({
+		name: `${ref} : mis en évidence dans le sélecteur`,
+		ok: r.nouveau === true,
+		detail,
+	});
+}
 // Contrôles i18n côté Node (le banc Chrome tourne en anglais).
 const i18n = readFileSync(join(ROOT, 'src', 'webview', 'i18n.mts'), 'utf8');
 rows.push({
@@ -267,6 +437,25 @@ rows.push({
 	name: 'i18n : bouton d enregistrement traduit',
 	ok: /'Save to my parts…':\s*'[^']+'/.test(i18n),
 	detail: 'clé absente du catalogue FR',
+});
+// Nouvelles familles et critères MOSFET : rien ne doit rester en anglais.
+const A_TRADUIRE = [
+	'Custom {0}', 'NPN Darlington', 'PNP Darlington', 'N-channel MOSFET',
+	'Max Id at least', 'Max Vds at least', 'Rds\\(on\\) at most',
+	'Gate on pin', 'Drain on pin', 'Source on pin',
+	'Rds\\(on\\) \\(Ω\\)', 'Max Vds \\(V\\)', 'Max Id \\(A\\)',
+];
+const manquantes = A_TRADUIRE.filter((k) => !new RegExp(`'${k.replace(/[{}]/g, '\\$&')}':\\s*'[^']+'`).test(i18n));
+rows.push({
+	name: 'i18n : familles et critères des MOSFET traduits en français',
+	ok: manquantes.length === 0,
+	detail: `clés absentes : ${manquantes.join(', ')}`,
+});
+const cssSrc = readFileSync(join(ROOT, 'media', 'styles.css'), 'utf8');
+rows.push({
+	name: 'sélecteur : les modèles de la liste sont écrits dans la couleur demandée (#1a5fb4)',
+	ok: /\.inspector__ref--nouveau\s*\{[^}]*#1a5fb4/i.test(cssSrc),
+	detail: 'règle CSS absente',
 });
 let fail = 0;
 for (const r of rows) {

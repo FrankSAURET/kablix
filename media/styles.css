@@ -1127,6 +1127,12 @@ textarea {
   opacity: 0.7;
 }
 
+/* Modèles de la dernière liste de Frank : écrits en bleu pour se repérer
+   d'un coup d'œil parmi les références déjà en place. */
+.inspector__ref--nouveau {
+  color: #1a5fb4;
+}
+
 .inspector__button {
   margin-top: 0.4rem;
   font: inherit;

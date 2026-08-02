@@ -24,8 +24,10 @@ export const PART_PINS = {
   // les prototypes génériques les numérotent (l'affectation e/b/c est une
   // propriété — changer d'affectation ne doit orphéliner aucun fil).
   // Le composant de bibliothèque garde TOUJOURS ses pattes nommées : changer de
-  // référence déplace l'électrode sur une autre patte, jamais son nom.
-  transistor: ['E', 'B', 'C'],
+  // référence déplace l'électrode sur une autre patte, jamais son nom. Un MOSFET
+  // porte G/D/S là où un bipolaire porte E/B/C — deux jeux de noms pour le même
+  // composant, selon la famille choisie dans le sélecteur.
+  transistor: ['E', 'B', 'C', 'G', 'D', 'S'],
   pn2222a: ['E', 'B', 'C'],
   npn: ['1', '2', '3'],
   pnp: ['1', '2', '3'],
@@ -1332,6 +1334,31 @@ void loop() {
       },
       { id: 'L1', type: 'led', x: 620, y: 580, attrs: { color: 'yellow' } },
       { id: 'R4', type: 'resistor', x: 760, y: 580, attrs: { value: '220' } },
+      // Quatrieme branche : DARLINGTON. Meme ventilateur, mais une resistance de
+      // base DIX FOIS plus grande (100 kOhm) — un NPN ordinaire n'y arriverait
+      // pas, son gain de 30 000 si.
+      { id: 'R5', type: 'resistor', x: 300, y: 760, attrs: { value: '100000' } },
+      {
+        id: 'T4', type: 'transistor', x: 440, y: 780,
+        attrs: {
+          pkg: 'to92', symbol: 'darlington-npn', schema: 'darlington-npn',
+          text: 'BC\n517', named: '1', ref: 'BC517',
+          e: '3', b: '2', c: '1', gain: '30000', vcemax: '30', icmax: '0.4',
+        },
+      },
+      { id: 'Act3', type: 'ventilo', x: 620, y: 740, attrs: { voltage: '5', current: '0.06' } },
+      // Cinquieme branche : MOSFET canal N, commande en TENSION. Sa grille est
+      // isolee : elle se cable DIRECTEMENT sur la broche, sans resistance.
+      {
+        id: 'T5', type: 'transistor', x: 880, y: 780,
+        attrs: {
+          pkg: 'to92', symbol: 'nmos', schema: 'nmos-d',
+          text: 'BS\n170', named: '1', ref: 'BS170',
+          s: '1', g: '2', d: '3', gain: '0', rdson: '2.5', vcemax: '60', icmax: '0.5',
+        },
+      },
+      { id: 'L2', type: 'led', x: 1040, y: 780, attrs: { color: 'green' } },
+      { id: 'R6', type: 'resistor', x: 1180, y: 780, attrs: { value: '220' } },
     ],
     wires: () => [
       // BC547 (gain 200) : Ib = 0,43 mA, donc Ic max = 200 x 0,43 = 86 mA.
@@ -1354,54 +1381,83 @@ void loop() {
       w('T3', 'C', 'L1', 'A', 'blue'),
       w('L1', 'C', 'R4', '1', 'blue'),
       w('R4', '2', 'Alim1', 'GND', 'black'),
+      // BC517 (darlington, gain 30 000) : Ib = (5 - 1,4) / 100k = 36 uA, donc
+      // Ic max = 1,08 A — le ventilateur demarre malgre la base tres peu attaquee.
+      w('R5', '1', 'U1', '6', 'brown'),
+      w('R5', '2', 'T4', 'B', 'brown'),
+      w('T4', 'E', 'Alim1', 'GND', 'black'),
+      w('T4', 'C', 'Act3', '-', 'blue'),
+      w('Act3', '+', 'Alim1', 'V+', 'red'),
+      // BS170 (MOSFET) : grille DIRECTEMENT sur la broche, aucun courant n'y entre.
+      w('T5', 'G', 'U1', '5', 'gray'),
+      w('T5', 'S', 'Alim1', 'GND', 'black'),
+      w('T5', 'D', 'L2', 'C', 'blue'),
+      w('L2', 'A', 'R6', '1', 'green'),
+      w('R6', '2', 'Alim1', 'V+', 'red'),
     ],
     expect: {
       kind: 'transistor',
       steps: [
         {
-          high: ['9', '10'], on: { T1: 0.086, T2: 0.043, T3: 0.183 },
-          ledOn: ['L1'], fanAmps: 0.06, fanSpins: ['Act1'], fanStalls: ['Act2'],
+          high: ['9', '10', '6', '5'],
+          on: { T1: 0.086, T2: 0.043, T3: 0.183, T4: 1.08, T5: 0.5 },
+          ledOn: ['L1', 'L2'], fanAmps: 0.06,
+          // Act3 tourne, mais sous 4,1 V : le darlington perd 0,9 V.
+          fanSpins: ['Act1'], fanSlow: ['Act3'], fanStalls: ['Act2'],
         },
         {
-          high: ['11'], off: ['T1', 'T2', 'T3'],
-          ledOff: ['L1'], fanAmps: 0.06, fanStalls: ['Act1'],
+          high: ['11'], off: ['T1', 'T2', 'T3', 'T4', 'T5'],
+          ledOff: ['L1', 'L2'], fanAmps: 0.06, fanStalls: ['Act1', 'Act3'],
         },
       ],
     },
     code: `// Test du composant « Transistor » : un seul item de bibliotheque, le modele
-// se choisit dans les proprietes. Ici trois references du selecteur, dont les
-// deux premieres commandent le MEME ventilateur 5 V / 60 mA a travers la MEME
-// resistance de base 10 kOhm.
-//   broche 9  : BC547  (NPN, gain 200) -> Ic max = 200 x 0,43 mA = 86 mA
-//   broche 10 : 2N3904 (NPN, gain 100) -> Ic max = 100 x 0,43 mA = 43 mA
-//   broche 11 : BC557  (PNP, gain 200) -> LED cote HAUT, logique INVERSEE
+// se choisit dans les proprietes. Ici cinq references du selecteur, une par
+// famille. Les deux premieres commandent le MEME ventilateur 5 V / 60 mA a
+// travers la MEME resistance de base 10 kOhm.
+//   broche 9  : BC547  (NPN, gain 200)        -> Ic max = 200 x 0,43 mA = 86 mA
+//   broche 10 : 2N3904 (NPN, gain 100)        -> Ic max = 100 x 0,43 mA = 43 mA
+//   broche 11 : BC557  (PNP, gain 200)        -> LED cote HAUT, logique INVERSEE
+//   broche 6  : BC517  (darlington, β 30 000) -> base 100 kOhm et pourtant 1,08 A
+//   broche 5  : BS170  (MOSFET canal N)       -> grille DIRECTE, sans resistance
 // Le premier ventilateur tourne, le second ne demarre JAMAIS : a montage egal,
-// c'est le gain qui decide.
+// c'est le gain qui decide. Le troisieme tourne avec DIX FOIS moins de courant
+// de base : c'est tout l'interet du darlington.
 //
 // Les transistors n'ont PAS le meme brochage (BC547 et BC557 = C-B-E, 2N3904 =
 // E-B-C), et pourtant les fils sont identiques : les broches gardent toujours
-// les noms E, B et C, seule la patte qui les porte change.
+// les noms E, B et C, seule la patte qui les porte change. Le MOSFET, lui,
+// porte G, D et S : il se commande en TENSION, sa grille ne consomme rien.
 const int FORT = 9;
 const int FAIBLE = 10;
 const int INVERSE = 11;   // PNP : conduit quand la broche est a LOW
+const int DARLINGTON = 6; // base 100 kOhm : un NPN ordinaire ne suivrait pas
+const int GRILLE = 5;     // MOSFET : commande en tension, sans resistance
 
 void setup() {
   Serial.begin(115200);
   pinMode(FORT, OUTPUT);
   pinMode(FAIBLE, OUTPUT);
   pinMode(INVERSE, OUTPUT);
+  pinMode(DARLINGTON, OUTPUT);
+  pinMode(GRILLE, OUTPUT);
   Serial.println("Broche 10 : gain deux fois plus faible, son ventilateur ne tournera pas.");
   Serial.println("Broche 11 : PNP, sa LED s'allume quand les ventilateurs sont commandes.");
+  Serial.println("Broche 6 : darlington, base 100 kOhm, son ventilateur tourne quand meme.");
 }
 
 void loop() {
   digitalWrite(FORT, HIGH);
   digitalWrite(FAIBLE, HIGH);
   digitalWrite(INVERSE, LOW);    // base tiree en bas : PNP sature, LED allumee
+  digitalWrite(DARLINGTON, HIGH);
+  digitalWrite(GRILLE, HIGH);    // canal ouvert : LED verte allumee
   delay(2000);
   digitalWrite(FORT, LOW);
   digitalWrite(FAIBLE, LOW);
   digitalWrite(INVERSE, HIGH);   // base au 5 V : PNP bloque, LED eteinte
+  digitalWrite(DARLINGTON, LOW);
+  digitalWrite(GRILLE, LOW);
   delay(1000);
 }
 `,
@@ -2886,6 +2942,31 @@ while True:
       },
       { id: 'L1', type: 'led', x: 620, y: 580, attrs: { color: 'yellow' } },
       { id: 'R4', type: 'resistor', x: 760, y: 580, attrs: { value: '220' } },
+      // Quatrieme branche : DARLINGTON. Meme ventilateur, mais une resistance de
+      // base DIX FOIS plus grande (100 kOhm) — sous 3,3 V un NPN ordinaire n'y
+      // arriverait pas, son gain de 30 000 si.
+      { id: 'R5', type: 'resistor', x: 300, y: 760, attrs: { value: '100000' } },
+      {
+        id: 'T4', type: 'transistor', x: 440, y: 780,
+        attrs: {
+          pkg: 'to92', symbol: 'darlington-npn', schema: 'darlington-npn',
+          text: 'BC\n517', named: '1', ref: 'BC517',
+          e: '3', b: '2', c: '1', gain: '30000', vcemax: '30', icmax: '0.4',
+        },
+      },
+      { id: 'Act3', type: 'ventilo', x: 620, y: 740, attrs: { voltage: '5', current: '0.04' } },
+      // Cinquieme branche : MOSFET canal N, commande en TENSION. Sa grille est
+      // isolee : elle se cable DIRECTEMENT sur la broche, sans resistance.
+      {
+        id: 'T5', type: 'transistor', x: 880, y: 780,
+        attrs: {
+          pkg: 'to92', symbol: 'nmos', schema: 'nmos-d',
+          text: 'BS\n170', named: '1', ref: 'BS170',
+          s: '1', g: '2', d: '3', gain: '0', rdson: '2.5', vcemax: '60', icmax: '0.5',
+        },
+      },
+      { id: 'L2', type: 'led', x: 1040, y: 780, attrs: { color: 'green' } },
+      { id: 'R6', type: 'resistor', x: 1180, y: 780, attrs: { value: '220' } },
     ],
     wires: () => [
       w('R1', '1', 'U1', 'GP15', 'green'),
@@ -2906,50 +2987,77 @@ while True:
       w('T3', 'C', 'L1', 'A', 'blue'),
       w('L1', 'C', 'R4', '1', 'blue'),
       w('R4', '2', 'Alim1', 'GND', 'black'),
+      // BC517 (darlington, gain 30 000) : Ib = (3,3 - 1,4) / 100k = 19 uA, donc
+      // Ic max = 0,57 A — le ventilateur demarre malgre la base tres peu attaquee.
+      w('R5', '1', 'U1', 'GP12', 'brown'),
+      w('R5', '2', 'T4', 'B', 'brown'),
+      w('T4', 'E', 'Alim1', 'GND', 'black'),
+      w('T4', 'C', 'Act3', '-', 'blue'),
+      w('Act3', '+', 'Alim1', 'V+', 'red'),
+      // BS170 (MOSFET) : grille DIRECTEMENT sur la broche, aucun courant n'y entre.
+      w('T5', 'G', 'U1', 'GP11', 'gray'),
+      w('T5', 'S', 'Alim1', 'GND', 'black'),
+      w('T5', 'D', 'L2', 'C', 'blue'),
+      w('L2', 'A', 'R6', '1', 'green'),
+      w('R6', '2', 'Alim1', 'V+', 'red'),
     ],
     expect: {
       kind: 'transistor',
       steps: [
         {
-          high: ['GP15', 'GP14'], on: { T1: 0.052, T2: 0.026, T3: 0.1106 },
-          ledOn: ['L1'], fanAmps: 0.04, fanSpins: ['Act1'], fanStalls: ['Act2'],
+          high: ['GP15', 'GP14', 'GP12', 'GP11'],
+          on: { T1: 0.052, T2: 0.026, T3: 0.1106, T4: 0.57, T5: 0.5 },
+          ledOn: ['L1', 'L2'], fanAmps: 0.04,
+          // Act3 tourne, mais sous 4,1 V : le darlington perd 0,9 V.
+          fanSpins: ['Act1'], fanSlow: ['Act3'], fanStalls: ['Act2'],
         },
         {
-          high: ['GP13'], off: ['T1', 'T2', 'T3'],
-          ledOff: ['L1'], fanAmps: 0.04, fanStalls: ['Act1'],
+          high: ['GP13'], off: ['T1', 'T2', 'T3', 'T4', 'T5'],
+          ledOff: ['L1', 'L2'], fanAmps: 0.04, fanStalls: ['Act1', 'Act3'],
         },
       ],
     },
     code: `# Test du composant « Transistor » : un seul item de bibliotheque, le modele
-# se choisit dans les proprietes. Ici trois references du selecteur, dont les
-# deux premieres commandent le MEME ventilateur 5 V / 40 mA a travers la MEME
-# resistance de base 10 kOhm.
-#   GP15 : BC547  (NPN, gain 200) -> Ic max = 200 x 0,26 mA = 52 mA
-#   GP14 : 2N3904 (NPN, gain 100) -> Ic max = 100 x 0,26 mA = 26 mA
-#   GP13 : BC557  (PNP, gain 200) -> LED cote HAUT, logique INVERSEE
+# se choisit dans les proprietes. Ici cinq references du selecteur, une par
+# famille. Les deux premieres commandent le MEME ventilateur 5 V / 40 mA a
+# travers la MEME resistance de base 10 kOhm.
+#   GP15 : BC547  (NPN, gain 200)        -> Ic max = 200 x 0,26 mA = 52 mA
+#   GP14 : 2N3904 (NPN, gain 100)        -> Ic max = 100 x 0,26 mA = 26 mA
+#   GP13 : BC557  (PNP, gain 200)        -> LED cote HAUT, logique INVERSEE
+#   GP12 : BC517  (darlington, β 30 000) -> base 100 kOhm et pourtant 0,57 A
+#   GP11 : BS170  (MOSFET canal N)       -> grille DIRECTE, sans resistance
 # Le premier ventilateur tourne, le second ne demarre JAMAIS : a montage egal,
-# c'est le gain qui decide.
+# c'est le gain qui decide. Le troisieme tourne avec DIX FOIS moins de courant
+# de base : c'est tout l'interet du darlington.
 #
 # Les transistors n'ont PAS le meme brochage (BC547 et BC557 = C-B-E, 2N3904 =
 # E-B-C), et pourtant les fils sont identiques : les broches gardent toujours
-# les noms E, B et C, seule la patte qui les porte change.
+# les noms E, B et C, seule la patte qui les porte change. Le MOSFET, lui,
+# porte G, D et S : il se commande en TENSION, sa grille ne consomme rien.
 from machine import Pin
 import time
 
 fort = Pin(15, Pin.OUT)
 faible = Pin(14, Pin.OUT)
 inverse = Pin(13, Pin.OUT, value=1)   # PNP : conduit quand la broche est a 0
+darlington = Pin(12, Pin.OUT)         # base 100 kOhm : un NPN ne suivrait pas
+grille = Pin(11, Pin.OUT)             # MOSFET : commande en tension
 print("GP14 : gain deux fois plus faible, son ventilateur ne tournera pas.")
 print("GP13 : PNP, sa LED s'allume quand les ventilateurs sont commandes.")
+print("GP12 : darlington, base 100 kOhm, son ventilateur tourne quand meme.")
 
 while True:
     fort.value(1)
     faible.value(1)
     inverse.value(0)   # base tiree en bas : PNP sature, LED allumee
+    darlington.value(1)
+    grille.value(1)    # canal ouvert : LED verte allumee
     time.sleep(2)
     fort.value(0)
     faible.value(0)
     inverse.value(1)   # base au 3,3 V : PNP bloque, LED eteinte
+    darlington.value(0)
+    grille.value(0)
     time.sleep(1)
 `,
   }),

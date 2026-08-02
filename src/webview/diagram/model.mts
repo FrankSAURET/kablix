@@ -3,6 +3,7 @@
 import { mcuInternalStrips, mcuPinRole, mcuPins, partDef, rolePin, type BoardId, type PartKind } from './catalog.mjs';
 import { breadboardStrips, normalizeSize } from './breadboard.mjs';
 import { groveShieldStrips, normalizePower } from './grove-shield.mjs';
+import { isDarlingtonType, isMosType, isPnpType } from './transistors.mjs';
 
 export interface Endpoint {
   partId: string;
@@ -1279,6 +1280,12 @@ export function fanSpeed(
 const VBE_ON = 0.7;
 /** Tension collecteur-émetteur d'un bipolaire SATURÉ (V). */
 const VCE_SAT = 0.2;
+/** Darlington : DEUX jonctions base-émetteur en série, donc deux fois plus. */
+const VBE_DARLINGTON = 1.4;
+/** Darlington saturé : le Vbe du second transistor s'ajoute à sa saturation. */
+const VCE_SAT_DARLINGTON = 0.9;
+/** MOSFET passant : sa chute est celle de Rds(on), négligeable ici. */
+const VDS_ON = 0;
 /** Courant de base retenu quand la base est câblée SANS résistance (A) : la
  *  maille ne limite rien, le transistor sature à coup sûr (et chaufferait). */
 const BASE_DIRECT_AMPS = 0.1;
@@ -1290,15 +1297,21 @@ const PULL_IN_RATIO = 0.8;
 
 export interface TransistorState {
   partId: string;
-  /** NPN (sinon PNP : tout s'inverse, le courant entre par l'émetteur). */
+  /** NPN (sinon PNP : tout s'inverse, le courant entre par l'émetteur).
+   *  Un MOSFET canal N compte comme un NPN : le courant entre par le drain. */
   npn: boolean;
+  /** MOSFET : commandé en TENSION, sa grille ne consomme aucun courant. */
+  mos: boolean;
   /** Base polarisée dans le bon sens : le transistor conduit. */
   on: boolean;
-  /** Courant de base imposé par la maille de base (A). */
+  /** Courant de base imposé par la maille de base (A). Nul sur un MOSFET. */
   baseAmps: number;
   /** Courant maximal transmis au collecteur (A) = Gain × Ib. Au-delà, le
-   *  transistor sort de la saturation et le montage aval ne marche plus. */
+   *  transistor sort de la saturation et le montage aval ne marche plus.
+   *  Sur un MOSFET, c'est simplement son courant de drain maximal. */
   maxCollectorAmps: number;
+  /** Tension perdue dans le composant passant (V) : Vce de saturation. */
+  drop: number;
 }
 
 /** Ce qui empêche un relais de coller. */
@@ -1333,14 +1346,25 @@ function numAttr(part: Part, name: string, dflt: number): number {
  * Broches E/B/C d'un transistor. Sur une référence figée (PN2222A) les pattes
  * portent le nom de l'électrode ; sur un prototype générique elles sont
  * numérotées 1/2/3 et ce sont les attributs e/b/c qui disent où est chacune.
+ *
+ * Un MOSFET rend ses électrodes AUX MÊMES PLACES : la grille commande comme une
+ * base, le courant entre par le drain et sort par la source. Tout le reste du
+ * modèle (ponts, mailles) marche donc sans distinguer les deux familles.
  */
 function transistorPins(part: Part): { e: string; b: string; c: string } {
   const def = partDef(part.type);
+  const mos = isMosType(partAttr(part, 'symbol', 'npn'));
   if (def.custom) {
-    return { e: rolePin(part.type, 'E'), b: rolePin(part.type, 'B'), c: rolePin(part.type, 'C') };
+    return mos
+      ? { e: rolePin(part.type, 'S'), b: rolePin(part.type, 'G'), c: rolePin(part.type, 'D') }
+      : { e: rolePin(part.type, 'E'), b: rolePin(part.type, 'B'), c: rolePin(part.type, 'C') };
   }
-  if (partAttr(part, 'named', '') !== '') return { e: 'E', b: 'B', c: 'C' };
-  return { e: partAttr(part, 'e', '1'), b: partAttr(part, 'b', '2'), c: partAttr(part, 'c', '3') };
+  if (partAttr(part, 'named', '') !== '') {
+    return mos ? { e: 'S', b: 'G', c: 'D' } : { e: 'E', b: 'B', c: 'C' };
+  }
+  return mos
+    ? { e: partAttr(part, 's', '3'), b: partAttr(part, 'g', '1'), c: partAttr(part, 'd', '2') }
+    : { e: partAttr(part, 'e', '1'), b: partAttr(part, 'b', '2'), c: partAttr(part, 'c', '3') };
 }
 
 /** Broches d'un relais (le commun sort des deux côtés du boîtier natif). */
@@ -1382,14 +1406,33 @@ export function transistorStates(
   const out: TransistorState[] = [];
   for (const part of parts) {
     const pins = transistorPins(part);
-    const npn = partAttr(part, 'symbol', 'npn') !== 'pnp';
+    const famille = partAttr(part, 'symbol', 'npn');
+    const mos = isMosType(famille);
+    // Un MOSFET canal N conduit dans le même sens qu'un NPN : le drain joue le
+    // rôle du collecteur, la source celui de l'émetteur.
+    const npn = !isPnpType(famille);
+    const darlington = isDarlingtonType(famille);
+    // Deux jonctions en série dans un darlington : il lui faut 1,4 V sur la base
+    // pour conduire, et il ne descend jamais sous 0,9 V entre C et E.
+    const vbe = darlington ? VBE_DARLINGTON : VBE_ON;
+    const drop = mos ? VDS_ON : darlington ? VCE_SAT_DARLINGTON : VCE_SAT;
     const level = (pin: string): Level =>
       netLevel(diagram, nets, nets.netOf({ partId: part.id, pin }), readPin);
     const on = npn
       ? level(pins.b) === 1 && level(pins.e) === 0
       : level(pins.b) === 0 && level(pins.e) === 1;
     if (!on) {
-      out.push({ partId: part.id, npn, on: false, baseAmps: 0, maxCollectorAmps: 0 });
+      out.push({ partId: part.id, npn, mos, on: false, baseAmps: 0, maxCollectorAmps: 0, drop });
+      continue;
+    }
+    // MOSFET : la grille est ISOLÉE, rien n'y entre — pas de maille de base, pas
+    // de gain. La tension suffit à ouvrir le canal, qui laisse alors passer
+    // jusqu'au courant de drain maximal du composant.
+    if (mos) {
+      out.push({
+        partId: part.id, npn, mos, on: true, baseAmps: 0,
+        maxCollectorAmps: numAttr(part, 'icmax', 0.5), drop,
+      });
       continue;
     }
     // Maille de base : un NPN prend son courant de base à la source (base → +),
@@ -1408,11 +1451,14 @@ export function transistorStates(
     const supply = supplyNet === undefined
       ? { volts: vcc, amps: USB_RAIL_AMPS, mcuPin: null }
       : netSupply(diagram, rNet, supplyNet, vcc, g.digitalNets, g.vccNets, psuVolts);
-    const drive = Math.max(0, supply.volts - VBE_ON - (reached.drop ?? 0));
+    const drive = Math.max(0, supply.volts - vbe - (reached.drop ?? 0));
     let baseAmps = 0;
     if (rb !== null) baseAmps = rb <= 0 ? BASE_DIRECT_AMPS : Math.min(BASE_DIRECT_AMPS, drive / rb);
     const gain = numAttr(part, 'gain', 100);
-    out.push({ partId: part.id, npn, on: baseAmps > 0, baseAmps, maxCollectorAmps: gain * baseAmps });
+    out.push({
+      partId: part.id, npn, mos, on: baseAmps > 0, baseAmps,
+      maxCollectorAmps: gain * baseAmps, drop,
+    });
   }
   return out;
 }
@@ -1559,7 +1605,7 @@ export function commandedBridges(
       partId: st.partId,
       a: st.npn ? pins.c : pins.e,
       b: st.npn ? pins.e : pins.c,
-      drop: VCE_SAT,
+      drop: st.drop,
       limitAmps: st.maxCollectorAmps,
       oneWay: true,
     });

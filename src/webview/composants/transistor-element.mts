@@ -40,21 +40,32 @@ export const PACKAGE_LABELS: Record<keyof typeof PACKAGES, string> = { to92: 'TO
 
 export type TransistorPackage = keyof typeof PACKAGES;
 
-/** Électrodes, dans l'ordre d'affichage des propriétés. */
+/** Électrodes d'un bipolaire, dans l'ordre d'affichage des propriétés. */
 export const ELECTRODES = ['e', 'b', 'c'] as const;
 export type Electrode = (typeof ELECTRODES)[number];
+
+/** Électrodes d'un MOSFET : grille, drain, source (la grille ne consomme rien). */
+export const MOS_ELECTRODES = ['g', 'd', 's'] as const;
+export type MosElectrode = (typeof MOS_ELECTRODES)[number];
+
+/** Un MOSFET porte G/D/S là où un bipolaire porte E/B/C. */
+export const isMosSymbol = (symbol: string): boolean => symbol === 'nmos';
 
 export class TransistorElement extends LitElement {
   /** Boîtier (dessin externe). D'autres viendront s'ajouter au fil des dessins. */
   declare pkg: TransistorPackage;
-  /** Symbole du schéma interne : 'npn' ou 'pnp'. */
-  declare symbol: 'npn' | 'pnp';
+  /** Famille : 'npn', 'pnp', 'darlington-npn', 'darlington-pnp', 'nmos'. */
+  declare symbol: string;
   /** Inscription du boîtier, une ligne par saut de ligne (« PN\n2222A »). */
   declare text: string;
-  /** Numéro de patte (1..3) de chaque électrode. */
+  /** Numéro de patte (1..3) de chaque électrode — bipolaire. */
   declare e: number;
   declare b: number;
   declare c: number;
+  /** Idem pour un MOSFET : grille, drain, source. */
+  declare g: number;
+  declare d: number;
+  declare s: number;
   /** Gain en courant (β = Ic/Ib). */
   declare gain: number;
   /** Tension collecteur-émetteur maximale (V) — informative. */
@@ -71,6 +82,9 @@ export class TransistorElement extends LitElement {
     e: { type: Number },
     b: { type: Number },
     c: { type: Number },
+    g: { type: Number },
+    d: { type: Number },
+    s: { type: Number },
     gain: { type: Number },
     vcemax: { type: Number },
     icmax: { type: Number },
@@ -85,6 +99,9 @@ export class TransistorElement extends LitElement {
     this.e = 1;
     this.b = 2;
     this.c = 3;
+    this.g = 1;
+    this.d = 2;
+    this.s = 3;
     this.gain = 100;
     this.vcemax = 40;
     this.icmax = 0.6;
@@ -95,12 +112,17 @@ export class TransistorElement extends LitElement {
     return PACKAGES[this.pkg] ?? PACKAGES.to92;
   }
 
-  /** Nom de chaque patte, de la première à la dernière. */
+  /**
+   * Nom de chaque patte, de la première à la dernière. Un MOSFET porte G/D/S,
+   * un bipolaire E/B/C : ce sont deux jeux d'attributs distincts, pour qu'un
+   * changement de famille ne fasse pas lire un brochage pour l'autre.
+   */
   private get pinNames(): string[] {
     const out = ['1', '2', '3'];
     if (!this.named) return out;
-    for (const el of ELECTRODES) {
-      const n = Number(this[el]);
+    const roles: readonly string[] = isMosSymbol(this.symbol) ? MOS_ELECTRODES : ELECTRODES;
+    for (const el of roles) {
+      const n = Number((this as unknown as Record<string, unknown>)[el]);
       if (n >= 1 && n <= 3) out[n - 1] = el.toUpperCase();
     }
     return out;

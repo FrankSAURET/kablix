@@ -280,6 +280,13 @@ for (const t of TESTS) {
             const r = model.fanSpeed(model.fanCircuit(diagram, id, vcc), 5, s.fanAmps, 1);
             check(`${t.name} ${etat} : ${id} tourne`, r.speed > 0.9 && !r.starved, JSON.stringify(r));
           }
+          // Un darlington coûte 0,9 V de saturation (deux jonctions) : sa charge
+          // tourne, mais sous sa tension nominale. C'est le prix de son gain.
+          for (const id of s.fanSlow ?? []) {
+            const r = model.fanSpeed(model.fanCircuit(diagram, id, vcc), 5, s.fanAmps, 1);
+            check(`${t.name} ${etat} : ${id} tourne au ralenti (chute du darlington)`,
+              r.speed > 0.5 && r.speed < 0.95 && !r.starved, JSON.stringify(r));
+          }
           for (const id of s.fanStalls ?? []) {
             const r = model.fanSpeed(model.fanCircuit(diagram, id, vcc), 5, s.fanAmps, 1);
             check(`${t.name} ${etat} : ${id} cale`, r.speed === 0, JSON.stringify(r));

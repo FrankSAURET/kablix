@@ -10,7 +10,7 @@
 // avec son unité et son préfixe. Tout le reste passe en COMMENTAIRE, sous la
 // forme « Tension max : 400 V ». Un transistor n'a pas de valeur : ses
 // caractéristiques sont donc toutes en commentaire.
-import { partDef, type PartDef, type PropDef } from './catalog.mjs';
+import { partDef, propConditions, type PartDef, type PropDef } from './catalog.mjs';
 import type { Part } from './model.mjs';
 import { t, locale } from '../i18n.mjs';
 import { colorDisplayName } from './colors.mjs';
@@ -83,8 +83,8 @@ export function formatQuantity(raw: string, unit: string | null): string {
 // --- Colonnes ------------------------------------------------------------------
 /** Propriétés effectivement visibles dans l'inspecteur pour ce composant. */
 function visibleProps(def: PartDef, part: Part): PropDef[] {
-  return (def.props ?? []).filter(
-    (prop) => !prop.showIf || prop.showIf.equals.includes(attrOf(def, part, prop.showIf.attr))
+  return (def.props ?? []).filter((prop) =>
+    propConditions(prop.showIf).every((c) => c.equals.includes(attrOf(def, part, c.attr)))
   );
 }
 

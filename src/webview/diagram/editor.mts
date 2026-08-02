@@ -20,19 +20,24 @@ import {
   unregisterCustomPart,
   type CustomPartData,
   type PartDef,
+  type PropCondition,
   type PropDef,
   type SimModelPreset,
 } from './catalog.mjs';
 import {
-  CUSTOM_NPN,
-  CUSTOM_PNP,
   DEFAULT_TRANSISTOR_FILTER,
   TRANSISTOR_FILTER_OPTIONS,
+  TRANSISTOR_TYPES,
+  TYPE_LABELS,
+  customRefOf,
+  customRefType,
   filterTransistors,
   isCustomRef,
+  isMosType,
   transistorAttrs,
   transistorSummary,
   type TransistorFilter,
+  type TransistorType,
 } from './transistors.mjs';
 import { PACKAGE_LABELS, type TransistorPackage } from '../composants/transistor-element.mjs';
 import { nextPartId } from './refnames.mjs';
@@ -174,6 +179,11 @@ const TREE_ICON =
   `<path d="M8 4.5V7M3.5 11V8.5H12.5V11"/></svg>`;
 let idSeq = 0;
 const uid = (prefix: string): string => `${prefix}${++idSeq}`;
+
+/** « NPN personnalisé », « MOSFET canal N personnalisé »… */
+function customTransistorName(type: string): string {
+  return t('Custom {0}', t(TYPE_LABELS[type as TransistorType] ?? type));
+}
 
 export class Editor {
   readonly diagram: Diagram = { parts: [], wires: [] };
@@ -4560,7 +4570,11 @@ export class Editor {
     // est reconstruit pour faire apparaître/disparaître la propriété conditionnelle
     // (ex. « Colon » n'existe que pour l'afficheur 4 chiffres).
     const def = partDef(r.part.type);
-    const gatesAProp = (def.props ?? []).some((p) => p.showIf?.attr === attr);
+    const gatesAProp = (def.props ?? []).some((p) => {
+      if (!p.showIf) return false;
+      const conds = Array.isArray(p.showIf) ? p.showIf : [p.showIf as PropCondition];
+      return conds.some((c) => c.attr === attr);
+    });
     if (gatesAProp && this.selection?.kind === 'part' && this.selection.id === partId) {
       this.renderInspector();
     }
@@ -4826,9 +4840,10 @@ export class Editor {
   /** Ouvre (ou rouvre) le sélecteur, critères calés sur le modèle en place. */
   private openTransistorPicker(partId: string, part: Part): void {
     this.pickingTransistor = partId;
+    const type = (part.attrs?.symbol ?? 'npn') as TransistorType;
     this.transistorFilter = {
       ...DEFAULT_TRANSISTOR_FILTER,
-      symbol: part.attrs?.symbol === 'pnp' ? 'pnp' : 'npn',
+      symbol: TRANSISTOR_TYPES.includes(type) ? type : 'npn',
       pkg: part.attrs?.pkg ?? 'to92',
     };
     this.renderInspector();
@@ -4863,13 +4878,18 @@ export class Editor {
       this.inspector.appendChild(select);
     };
 
-    criterion('Type', 'symbol', ['npn', 'pnp'], (v) => v.toUpperCase());
+    const mos = isMosType(f.symbol);
+    criterion('Type', 'symbol', TRANSISTOR_TYPES, (v) => t(TYPE_LABELS[v as TransistorType]));
     criterion('Package', 'pkg', TRANSISTOR_FILTER_OPTIONS.pkg,
       (v) => PACKAGE_LABELS[v as TransistorPackage] ?? v);
-    criterion('Max Ic at least', 'icmax', TRANSISTOR_FILTER_OPTIONS.icmax,
+    // Les deux familles ne se choisissent pas sur les mêmes chiffres : un MOSFET
+    // n'a pas de gain (sa grille ne consomme rien), un bipolaire pas de Rds(on).
+    criterion(mos ? 'Max Id at least' : 'Max Ic at least', 'icmax', TRANSISTOR_FILTER_OPTIONS.icmax,
       (v) => (Number(v) < 1 ? `${Math.round(Number(v) * 1000)} mA` : `${v} A`));
-    criterion('Max Vce at least', 'vcemax', TRANSISTOR_FILTER_OPTIONS.vcemax, (v) => `${v} V`);
-    criterion('Gain at least', 'gain', TRANSISTOR_FILTER_OPTIONS.gain, (v) => `β ${v}`);
+    criterion(mos ? 'Max Vds at least' : 'Max Vce at least', 'vcemax',
+      TRANSISTOR_FILTER_OPTIONS.vcemax, (v) => `${v} V`);
+    if (mos) criterion('Rds(on) at most', 'rdson', TRANSISTOR_FILTER_OPTIONS.rdson, (v) => `${v} Ω`);
+    else criterion('Gain at least', 'gain', TRANSISTOR_FILTER_OPTIONS.gain, (v) => `β ${v}`);
 
     const title = document.createElement('label');
     title.className = 'inspector__label';
@@ -4885,9 +4905,13 @@ export class Editor {
       this.pickingTransistor = null;
       this.renderInspector(); // retour à l'affichage normal des propriétés
     };
-    const entry = (value: string, name: string, detail: string): void => {
+    const entry = (value: string, name: string, detail: string, nouveau = false): void => {
       const btn = document.createElement('button');
-      btn.className = 'inspector__ref' + (part.attrs?.ref === value ? ' inspector__ref--active' : '');
+      // `--nouveau` : les modèles de la dernière liste de Frank, écrits en bleu
+      // pour se repérer d'un coup d'œil parmi les anciens.
+      btn.className = 'inspector__ref'
+        + (part.attrs?.ref === value ? ' inspector__ref--active' : '')
+        + (nouveau ? ' inspector__ref--nouveau' : '');
       const strong = document.createElement('strong');
       strong.textContent = name;
       const small = document.createElement('small');
@@ -4898,7 +4922,7 @@ export class Editor {
     };
 
     const matches = filterTransistors(f);
-    for (const ref of matches) entry(ref.ref, ref.ref, transistorSummary(ref));
+    for (const ref of matches) entry(ref.ref, ref.ref, transistorSummary(ref), ref.nouveau);
     if (matches.length === 0) {
       const empty = document.createElement('p');
       empty.className = 'inspector__hint';
@@ -4907,10 +4931,8 @@ export class Editor {
     }
     // Le modèle personnalisé reste TOUJOURS proposé : c'est la porte de sortie
     // quand aucune référence du commerce ne convient, et il arrive pré-rempli
-    // avec les critères demandés.
-    const isPnp = f.symbol === 'pnp';
-    entry(isPnp ? CUSTOM_PNP : CUSTOM_NPN,
-      isPnp ? t('Custom PNP') : t('Custom NPN'),
+    // avec les critères demandés — dans la famille choisie.
+    entry(customRefOf(f.symbol), customTransistorName(f.symbol),
       t('Every characteristic stays editable'));
     this.inspector.appendChild(list);
   }
@@ -4923,15 +4945,20 @@ export class Editor {
     line.className = 'inspector__hint';
     const ic = Number(part.attrs?.icmax ?? 0);
     const icText = ic < 1 ? `${Math.round(ic * 1000)} mA` : `${ic} A`;
-    const name = custom ? (ref === CUSTOM_PNP ? t('Custom PNP') : t('Custom NPN')) : ref;
-    line.textContent = `${name} — ${part.attrs?.vcemax ?? ''} V, ${icText}, β ${part.attrs?.gain ?? ''}`;
+    const type = part.attrs?.symbol ?? 'npn';
+    const mos = isMosType(type);
+    const name = custom ? customTransistorName(customRefType(ref)) : ref;
+    // Un MOSFET se juge sur sa résistance de passage, un bipolaire sur son gain.
+    const dernier = mos ? `Rds(on) ${part.attrs?.rdson ?? ''} Ω` : `β ${part.attrs?.gain ?? ''}`;
+    line.textContent = `${name} — ${part.attrs?.vcemax ?? ''} V, ${icText}, ${dernier}`;
     this.inspector.appendChild(line);
     // Brochage : il change d'un modèle à l'autre (la famille BC5xx est C-B-E)
     // alors que les NOMS de broches, eux, ne bougent jamais.
     const pinout = document.createElement('p');
     pinout.className = 'inspector__hint';
+    const roles = mos ? (['g', 'd', 's'] as const) : (['e', 'b', 'c'] as const);
     const legs = ['1', '2', '3'].map((n) => {
-      const el = (['e', 'b', 'c'] as const).find((k) => (part.attrs?.[k] ?? '') === n);
+      const el = roles.find((k) => (part.attrs?.[k] ?? '') === n);
       return el ? el.toUpperCase() : '–';
     });
     pinout.textContent = `${t('Pinout (flat face)')} : ${legs.join(' ')}`;
@@ -4981,7 +5008,7 @@ export class Editor {
     const pins = ((r.el.pinInfo ?? []) as PinPoint[]).map((p) => ({ name: p.name, x: p.x, y: p.y }));
     // Les électrodes deviennent des RÔLES : le modèle de simulation les retrouve
     // par là, y compris quand les pattes s'appellent 1/2/3 (prototype générique).
-    const legName = (k: 'e' | 'b' | 'c'): string => {
+    const legName = (k: string): string => {
       const n = Number(part.attrs?.[k] ?? 0);
       return pins[n - 1]?.name ?? k.toUpperCase();
     };
@@ -4991,10 +5018,11 @@ export class Editor {
         `<g fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${inner}</g></svg>`
       : undefined;
     const marking = String(part.attrs?.text ?? '').split('\n').map((l) => l.trim()).filter(Boolean).join(' ');
-    const pnp = (part.attrs?.symbol ?? (part.type === 'pnp' ? 'pnp' : 'npn')) === 'pnp';
-    const label = marking || (pnp ? t('Custom PNP') : t('Custom NPN'));
+    const famille = part.attrs?.symbol ?? (part.type === 'pnp' ? 'pnp' : 'npn');
+    const mos = isMosType(famille);
+    const label = marking || customTransistorName(famille);
     const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'transistor';
-    const type = `custom-${pnp ? 'pnp' : 'npn'}-${slug}`;
+    const type = `custom-${famille}-${slug}`;
     const known = this.customData.has(type);
     this.saveCustomPart({
       type,
@@ -5002,12 +5030,16 @@ export class Editor {
       kind: 'transistor',
       svg,
       pins,
-      pinRoles: { E: legName('e'), B: legName('b'), C: legName('c') },
-      // Le gain est ce que lit la simulation ; Vce max et Ic max restent
-      // informatifs, comme sur une référence du commerce.
+      // Rôles lus par la simulation : G/D/S sur un MOSFET, E/B/C sinon.
+      pinRoles: mos
+        ? { G: legName('g'), D: legName('d'), S: legName('s') }
+        : { E: legName('e'), B: legName('b'), C: legName('c') },
+      // Le gain (ou Rds(on)) est ce que lit la simulation ; les tensions et
+      // courants maximaux restent informatifs, comme sur une référence.
       attrs: {
-        symbol: pnp ? 'pnp' : 'npn',
+        symbol: famille,
         gain: part.attrs?.gain ?? '100',
+        rdson: part.attrs?.rdson ?? '0.5',
         vcemax: part.attrs?.vcemax ?? '40',
         icmax: part.attrs?.icmax ?? '0.6',
       },
@@ -5085,7 +5117,9 @@ export class Editor {
   /** Une propriété conditionnelle (showIf) n'est affichée que si sa condition est remplie. */
   private propVisible(def: PartDef, part: Part, prop: PropDef): boolean {
     if (!prop.showIf) return true;
-    return prop.showIf.equals.includes(this.effectiveAttr(def, part, prop.showIf.attr));
+    // Conditions cumulatives : toutes doivent être remplies.
+    const conds = Array.isArray(prop.showIf) ? prop.showIf : [prop.showIf as PropCondition];
+    return conds.every((c) => c.equals.includes(this.effectiveAttr(def, part, c.attr)));
   }
 
   private appendPropControl(partId: string | string[], part: Part | Part[], prop: PropDef): void {
