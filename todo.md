@@ -2,7 +2,7 @@
 1. ✅ Je viens de rajouter dans composants.svg un schéma interne NPN-Generique et et PNP-générique à utiliser pour tous les transistors dont le schéma interne ne correspont pas à NPN1 ou PNP1.
 1. ✅ Tu trouvera une liste  "A Examiner\transistor.csv" avec des transistor à ajouter. Le svg existent dans Composants.svg. Tu les fera apparaitre en couleur de texte (1a5fb4ff) dans la liste de choix (laisse les autres en bleu). Rajouter les types darlington-NPN, darlington-PNP et NMOS.
 1. ✅ Retouche ce texte LED / 7 seg / barre / RGB grillés (💥) → « Cette LED a grillé : sans résistance série (ou avec une trop faible), le courant dépasse ce que la jonction supporte.  »
-1. Vsix quand liste ci-dessus terminée
+1. ✅ Vsix quand liste ci-dessus terminée → `kablix-2026.7.248.vsix` (3,18 Mo, 220 fichiers)
     
 1. ✅ ouvrir un svg dans l'éditeur de composant ne fonctionne pas il ne trouve jamais l'application. Je n'ai pas non plus trouvé de propriété kablix : editeur svg par defaut dans le settings.json et rien n'est sauvegardé.
 1. ✅ Dans le menu hamburger, met un séparateur en dessous de exporter la liste des composants (CSV)
