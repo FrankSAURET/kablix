@@ -1131,8 +1131,15 @@ textarea {
 }
 
 /* Modèles de la dernière liste de Frank : écrits en bleu pour se repérer
-   d'un coup d'œil parmi les références déjà en place. */
+   d'un coup d'œil parmi les références déjà en place. Le bleu du dessin
+   (#1a5fb4) est FONCÉ : sur le fond sombre de l'inspecteur il ne se lisait
+   plus (Frank, v2026.7.252). Variante éclaircie par défaut — les webviews
+   sont sombres sauf indication contraire —, bleu d'origine en thème clair. */
 .inspector__ref--nouveau {
+  color: #63a4f0;
+}
+
+body.vscode-light .inspector__ref--nouveau {
   color: #1a5fb4;
 }
 
@@ -1701,6 +1708,17 @@ textarea {
 
 .part__internal svg {
   display: block;
+}
+
+/* Les LETTRES d'un symbole (e/b/c d'un transistor, g/d/s d'un MOSFET, segments
+   d'un afficheur) ne sont pas des traits : le contour noir de 2 px posé sur tout
+   l'overlay les empâtait au point de les rendre illisibles et d'effacer leur
+   couleur (Frank, v2026.7.252). Un texte qui n'a pas de couleur à lui reste noir
+   plein — le `fill` écrit dans le dessin de Frank (style en ligne) gagne, lui. */
+.part__internal text,
+.part__internal tspan {
+  stroke: none;
+  fill: #111;
 }
 
 /* Poster de brochage complet (bouton ☢ d'une carte Pico/Pico W) : surimpression

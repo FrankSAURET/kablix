@@ -37,14 +37,12 @@ import condoNpSchema from '../composants/interne/condo-np-interne.svg';
 import condoPSchema from '../composants/interne/condo-p-interne.svg';
 import relaisSchema from '../composants/interne/relais-interne.svg';
 // Symboles de BOÎTIER PARTAGÉ : dessinés dans un groupe indépendant (« NPN1 »,
-// « PNP1 ») et extraits au cadre du boîtier qui les porte (to92). Deux variantes :
-// la nommée relie les pattes aux électrodes par des fils colorés (référence
-// figée, PN2222A), la « libre » ne les relie pas — sur un prototype générique,
-// c'est l'utilisateur qui décide quelle patte est E, B ou C.
+// « PNP1 ») et extraits au cadre du boîtier qui les porte (to92). Ils relient
+// les pattes aux électrodes par des fils colorés dans l'ordre E-B-C : seule une
+// référence CÂBLÉE ainsi peut les porter, et c'est la liste de Frank
+// (`A Examiner/transistor.csv`) qui le dit, modèle par modèle.
 import npn1Schema from '../composants/interne/npn1-interne.svg';
 import pnp1Schema from '../composants/interne/pnp1-interne.svg';
-import npn1LibreSchema from '../composants/interne/npn1-libre-interne.svg';
-import pnp1LibreSchema from '../composants/interne/pnp1-libre-interne.svg';
 // Symboles GÉNÉRIQUES (Composants.svg) : les électrodes y sont écrites (e/b/c,
 // g/d/s) mais jamais reliées aux pattes — le brochage change d'une référence à
 // l'autre, seul le nom écrit sur chaque pastille dit la vérité. Ils resservent
@@ -297,11 +295,6 @@ const CAPACITOR_SCHEMA: Record<'np' | 'p', Schema> = {
   p: parseSchema(condoPSchema),
 };
 const RELAIS_SCHEMA = parseSchema(relaisSchema);
-// Transistors : [symbole][pattes reliées ou non aux électrodes].
-const TRANSISTOR_SCHEMA: Record<'npn' | 'pnp', Record<'nomme' | 'libre', Schema>> = {
-  npn: { nomme: parseSchema(npn1Schema), libre: parseSchema(npn1LibreSchema) },
-  pnp: { nomme: parseSchema(pnp1Schema), libre: parseSchema(pnp1LibreSchema) },
-};
 // Symboles internes choisis NOMMÉMENT par l'attribut `schema` : le dessin d'une
 // référence ne se déduit pas de sa famille (deux NPN peuvent porter NPN1 ou
 // NPN-Générique), c'est sa fiche qui le dit.
@@ -313,6 +306,14 @@ const TRANSISTOR_SCHEMAS: Record<string, Schema> = {
   'darlington-npn': parseSchema(darlingtonNpnSchema),
   'darlington-pnp': parseSchema(darlingtonPnpSchema),
   'nmos-d': parseSchema(nmosDSchema),
+};
+/** Symbole générique de chaque famille, quand la fiche n'en désigne aucun. */
+const GENERIC_SCHEMA: Record<string, string> = {
+  npn: 'npn-generique',
+  pnp: 'pnp-generique',
+  'darlington-npn': 'darlington-npn',
+  'darlington-pnp': 'darlington-pnp',
+  nmos: 'nmos-d',
 };
 // Repère commun à TOUS ces symboles : la patte 1 du boîtier sur lequel ils ont
 // été extraits (to92). Ils se posent donc par simple TRANSLATION sur la patte 1
@@ -434,17 +435,12 @@ export function internalWiringSvg(
       // donc jamais relié aux pattes, et se pose par translation.
       const chosen = TRANSISTOR_SCHEMAS[attrs?.schema ?? ''];
       if (chosen) return pinnedSchema(chosen, pins);
-      // Sans fiche (projets d'avant, prototypes npn/pnp) : symbole historique
-      // NPN1 / PNP1. Référence figée (pattes nommées E/B/C) → fils colorés ;
-      // prototype générique (pattes 1/2/3) → symbole sans liaison.
-      const sym = attrs?.symbol === 'pnp' ? 'pnp' : 'npn';
-      const named = pins.some((p) => p.name === 'B');
-      // Les fils colorés du symbole « nommé » sont DESSINÉS vers les pattes dans
-      // l'ordre E-B-C : un modèle câblé autrement (la famille BC5xx est C-B-E)
-      // se rabat sur le symbole sans liaison plutôt que de mentir sur son
-      // brochage — le nom écrit sur chaque pastille reste, lui, exact.
-      const ebc = (attrs?.e ?? '1') === '1' && (attrs?.b ?? '2') === '2' && (attrs?.c ?? '3') === '3';
-      return scaledSchema(TRANSISTOR_SCHEMA[sym][named && ebc ? 'nomme' : 'libre'], box);
+      // Aucune fiche (projets d'avant, fiche inconnue) : symbole GÉNÉRIQUE de la
+      // famille. Le symbole historique NPN1 relie ses électrodes aux pattes dans
+      // l'ordre E-B-C ; le poser au hasard ferait lire un brochage faux sur la
+      // moitié des modèles (la famille BC5xx est C-B-E). Mieux vaut un symbole
+      // qui ne dit rien du brochage que le mauvais brochage (Frank, v2026.7.252).
+      return pinnedSchema(TRANSISTOR_SCHEMAS[GENERIC_SCHEMA[attrs?.symbol ?? ''] ?? 'npn-generique']!, pins);
     }
     case 'relay':
       return scaledSchema(RELAIS_SCHEMA, box);

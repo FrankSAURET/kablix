@@ -212,11 +212,22 @@ async function run() {
 	ok('symbole sur TO-220 : posé par translation, jamais étiré',
 		surTo220 && /translate\\(0\\.00 40\\.00\\)/.test(surTo220) && !/scale\\(/.test(surTo220),
 		surTo220 && surTo220.slice(0, 60));
+	// Sans fiche : le symbole GÉNÉRIQUE de la famille, jamais NPN1 — celui-ci
+	// relie ses électrodes aux pattes dans l'ordre E-B-C et mentirait sur le
+	// brochage d'un modèle câblé autrement (Frank, v2026.7.252).
 	const sansFiche = wiring({ symbol: 'npn' }, 40, petit);
-	ok('sans fiche (projets d avant) : symbole NPN1 à l ancienne, mis à l échelle',
-		sansFiche && /scale\\(/.test(sansFiche), sansFiche && sansFiche.slice(0, 60));
-	ok('fiche inconnue : on retombe sur le symbole historique',
-		wiring({ schema: 'inexistant', symbol: 'pnp' }, 40, petit) === wiring({ symbol: 'pnp' }, 40, petit));
+	ok('sans fiche (projets d avant) : symbole GÉNÉRIQUE, posé par translation',
+		sansFiche === dessins.get('npn-generique'), sansFiche && sansFiche.slice(0, 60));
+	ok('sans fiche : jamais le symbole NPN1, qui suppose un brochage E-B-C',
+		sansFiche !== wiring({ schema: 'npn1' }, 40, petit));
+	ok('fiche inconnue : on retombe sur le générique de la famille',
+		wiring({ schema: 'inexistant', symbol: 'pnp' }, 40, petit) === dessins.get('pnp-generique'));
+	ok('famille inconnue : repli sur le générique NPN plutôt que rien',
+		wiring({ symbol: 'sait-pas' }, 40, petit) === dessins.get('npn-generique'));
+	for (const [famille, attendu] of [['darlington-npn', 'darlington-npn'], ['darlington-pnp', 'darlington-pnp'], ['nmos', 'nmos-d']]) {
+		ok('sans fiche : la famille « ' + famille + ' » garde SON symbole',
+			wiring({ symbol: famille }, 40, petit) === dessins.get(attendu));
+	}
 
 	// --- 8. Liste de Frank : darlington, MOSFET, mise en évidence (v2026.7.248) --
 	const q4 = editor.addPart('transistor', 120, 480);
@@ -327,6 +338,38 @@ async function run() {
 		nmosOn && nmosOn.drop === 0, nmosOn && nmosOn.drop);
 	ok('MOSFET : bloqué quand la grille retombe', nmosOff && !nmosOff.on, JSON.stringify(nmosOff));
 
+	// --- 10. Changer de référence PENDANT que le composant est posé (v2026.7.252) --
+	// L'IRF530 est un TO-220 à électrodes G/D/S : ses pastilles descendent de 40 à
+	// 80 px et changent de nom. Sans re-rendu, le composant gardait les pastilles
+	// E/B/C du TO-92 précédent, à mi-corps, loin des pattes dessinées.
+	const q6 = editor.addPart('transistor', 700, 480);
+	for (const [a, v] of Object.entries(transistorAttrs('PN2222A', DEFAULT_TRANSISTOR_FILTER))) {
+		editor.updatePartAttr(q6.id, a, v);
+	}
+	await wait(80);
+	editor.select({ kind: 'part', id: q6.id });
+	await wait(80);
+	const cadre = () => {
+		const c = editor.rendered.get(q6.id).container.querySelector('.part__selbox');
+		return c ? [parseFloat(c.style.left), parseFloat(c.style.top), parseFloat(c.style.width), parseFloat(c.style.height)] : null;
+	};
+	const pastilles = () => [...editor.rendered.get(q6.id).container.querySelectorAll('.pin')]
+		.map((p) => p.title + '@' + parseFloat(p.style.top));
+	const cadre92 = cadre();
+	ok('TO-92 sélectionné : cadre resserré sur le dessin, pas sur le viewBox',
+		cadre92 && cadre92[2] < 45 && cadre92[3] < 45, JSON.stringify(cadre92));
+	for (const [a, v] of Object.entries(transistorAttrs('IRF530', DEFAULT_TRANSISTOR_FILTER))) {
+		editor.updatePartAttr(q6.id, a, v);
+	}
+	await wait(200);
+	ok('changement de référence à chaud : pastilles G/D/S descendues sous le TO-220',
+		pastilles().join(' ') === 'G@80 D@80 S@80', JSON.stringify(pastilles()));
+	const cadre220 = cadre();
+	ok('changement de référence à chaud : le cadre de sélection suit le nouveau dessin',
+		cadre220 && cadre220[3] > 60 && cadre220[3] < 90, JSON.stringify(cadre220));
+	ok('cadre : jamais le viewBox entier (il reste plus étroit que le corps)',
+		cadre220 && cadre220[2] < 60 && cadre220[0] > 0, JSON.stringify(cadre220));
+
 	const out = document.createElement('pre');
 	out.id = 'measures';
 	out.textContent = JSON.stringify(checks);
@@ -381,10 +424,12 @@ const mr = dom.match(/<pre id="refs"[^>]*>([\s\S]*?)<\/pre>/);
 const base = mr ? JSON.parse(unesc(mr[1])) : [];
 const csv = readFileSync(join(ROOT, 'A Examiner', 'transistor.csv'), 'utf8').replace(/^﻿/, '');
 const nombre = (s) => Number(String(s).replace(',', '.'));
+const dansLeCsv = new Set();
 for (const ligne of csv.split(/\r?\n/)) {
 	const col = ligne.split(';');
 	if (col.length < 10 || col[0] === '' || col[0] === 'Ref') continue;
 	const [ref, type, boitier, vmax, imax, valeur, schema, p1, p2, p3] = col;
+	dansLeCsv.add(ref);
 	const r = base.find((x) => x.ref === ref);
 	const attendu = { schema: schema.toLowerCase(), pkg: boitier.toLowerCase() };
 	const mos = type.toUpperCase() === 'NMOS';
@@ -426,6 +471,20 @@ for (const ligne of csv.split(/\r?\n/)) {
 		detail,
 	});
 }
+// Hors liste de Frank : symbole GÉNÉRIQUE obligatoire. Un symbole nommé (NPN1)
+// relie ses électrodes aux pattes dans un ordre figé — le poser sur une
+// référence qui n'a pas été vérifiée ferait lire un faux brochage.
+const GENERIQUES = {
+	npn: 'npn-generique', pnp: 'pnp-generique',
+	'darlington-npn': 'darlington-npn', 'darlington-pnp': 'darlington-pnp', nmos: 'nmos-d',
+};
+const intruses = base.filter((r) => !dansLeCsv.has(r.ref) && r.schema !== GENERIQUES[r.symbol]);
+rows.push({
+	name: `hors liste de Frank : les ${base.length - dansLeCsv.size} autres références portent le symbole générique`,
+	ok: intruses.length === 0,
+	detail: intruses.map((r) => `${r.ref} → ${r.schema}`).join(', '),
+});
+
 // Contrôles i18n côté Node (le banc Chrome tourne en anglais).
 const i18n = readFileSync(join(ROOT, 'src', 'webview', 'i18n.mts'), 'utf8');
 rows.push({
@@ -452,10 +511,39 @@ rows.push({
 	detail: `clés absentes : ${manquantes.join(', ')}`,
 });
 const cssSrc = readFileSync(join(ROOT, 'media', 'styles.css'), 'utf8');
+// Le bleu du dessin (#1a5fb4) est foncé : illisible sur le fond sombre de
+// l'inspecteur. Variante éclaircie par défaut (les webviews sont sombres),
+// bleu d'origine rendu au thème clair (Frank, v2026.7.252).
+const bleuDefaut = /\.inspector__ref--nouveau\s*\{[^}]*color:\s*(#[0-9a-f]{3,8})/i.exec(cssSrc);
 rows.push({
-	name: 'sélecteur : les modèles de la liste sont écrits dans la couleur demandée (#1a5fb4)',
-	ok: /\.inspector__ref--nouveau\s*\{[^}]*#1a5fb4/i.test(cssSrc),
+	name: 'sélecteur : les modèles de la liste sont éclaircis en thème sombre',
+	ok: !!bleuDefaut && bleuDefaut[1].toLowerCase() !== '#1a5fb4',
+	detail: bleuDefaut ? bleuDefaut[1] : 'règle CSS absente',
+});
+rows.push({
+	name: 'sélecteur : le bleu d origine (#1a5fb4) est rendu au thème clair',
+	ok: /body\.vscode-light\s+\.inspector__ref--nouveau\s*\{[^}]*#1a5fb4/i.test(cssSrc),
+	detail: 'règle de thème clair absente',
+});
+// Lettres des symboles internes : l'overlay pose un contour de 2 px sur tout le
+// dessin, ce qui empâtait les e/b/c au point de les rendre illisibles.
+rows.push({
+	name: 'symboles internes : les lettres ne portent pas le contour du câblage',
+	ok: /\.part__internal (?:text|tspan)[^{]*\{[^}]*stroke:\s*none/i.test(cssSrc),
 	detail: 'règle CSS absente',
+});
+// La couleur écrite dans le dessin de Frank est un style EN LIGNE : elle gagne
+// contre la règle CSS. Ce contrôle garde le dessin conforme à cette hypothèse.
+const symboles = ['npn-generique', 'pnp-generique', 'darlington-npn', 'darlington-pnp', 'nmos-d'];
+const sansCouleur = symboles.filter((nom) => {
+	const svg = readFileSync(join(ROOT, 'src', 'webview', 'composants', 'interne', `${nom}-interne.svg`), 'utf8');
+	const textes = svg.match(/<(?:text|tspan)\b[^>]*>/gs) || [];
+	return textes.length === 0 || textes.some((t) => !/style="[^"]*fill\s*:/s.test(t));
+});
+rows.push({
+	name: 'symboles internes : chaque lettre porte SA couleur en style en ligne',
+	ok: sansCouleur.length === 0,
+	detail: `symboles dont une lettre n a pas de couleur propre : ${sansCouleur.join(', ')}`,
 });
 let fail = 0;
 for (const r of rows) {

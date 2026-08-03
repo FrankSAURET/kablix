@@ -85,26 +85,30 @@ const GDS = ['G', 'D', 'S'] as const;
 
 export const TRANSISTOR_REFS: readonly TransistorRef[] = [
   // --- NPN ---
-  { ref: 'PN2222A', text: 'PN\n2222A', symbol: 'npn', schema: 'npn1', pkg: 'to92', pins: EBC, gain: 35, vcemax: 40, icmax: 0.6 },
-  { ref: '2N3904', text: '2N\n3904', symbol: 'npn', schema: 'npn1', pkg: 'to92', pins: EBC, gain: 100, vcemax: 40, icmax: 0.2 },
-  { ref: '2N4401', text: '2N\n4401', symbol: 'npn', schema: 'npn1', pkg: 'to92', pins: EBC, gain: 100, vcemax: 40, icmax: 0.6 },
-  { ref: '2N5551', text: '2N\n5551', symbol: 'npn', schema: 'npn1', pkg: 'to92', pins: EBC, gain: 80, vcemax: 160, icmax: 0.6 },
-  { ref: 'BC337', text: 'BC\n337', symbol: 'npn', schema: 'npn1', pkg: 'to92', pins: EBC, gain: 100, vcemax: 45, icmax: 0.8 },
-  { ref: 'S8050', text: 'S\n8050', symbol: 'npn', schema: 'npn1', pkg: 'to92', pins: EBC, gain: 120, vcemax: 25, icmax: 0.7 },
-  { ref: 'BC547', text: 'BC\n547', symbol: 'npn', schema: 'npn1', pkg: 'to92', pins: CBE, gain: 200, vcemax: 45, icmax: 0.1 },
-  { ref: 'BC548', text: 'BC\n548', symbol: 'npn', schema: 'npn1', pkg: 'to92', pins: CBE, gain: 200, vcemax: 30, icmax: 0.1 },
+  // Seule la liste de Frank (`A Examiner/transistor.csv`) nomme un symbole
+  // interne. Pour toutes les autres références, c'est le symbole GÉNÉRIQUE qui
+  // est posé : NPN1 relie ses électrodes aux pattes dans l'ordre E-B-C et
+  // mentirait sur le brochage de la moitié d'entre elles (les BC5xx sont C-B-E).
+  { ref: 'PN2222A', text: 'PN\n2222A', symbol: 'npn', schema: 'npn-generique', pkg: 'to92', pins: EBC, gain: 35, vcemax: 40, icmax: 0.6 },
+  { ref: '2N3904', text: '2N\n3904', symbol: 'npn', schema: 'npn-generique', pkg: 'to92', pins: EBC, gain: 100, vcemax: 40, icmax: 0.2 },
+  { ref: '2N4401', text: '2N\n4401', symbol: 'npn', schema: 'npn-generique', pkg: 'to92', pins: EBC, gain: 100, vcemax: 40, icmax: 0.6 },
+  { ref: '2N5551', text: '2N\n5551', symbol: 'npn', schema: 'npn-generique', pkg: 'to92', pins: EBC, gain: 80, vcemax: 160, icmax: 0.6 },
+  { ref: 'BC337', text: 'BC\n337', symbol: 'npn', schema: 'npn-generique', pkg: 'to92', pins: EBC, gain: 100, vcemax: 45, icmax: 0.8 },
+  { ref: 'S8050', text: 'S\n8050', symbol: 'npn', schema: 'npn-generique', pkg: 'to92', pins: EBC, gain: 120, vcemax: 25, icmax: 0.7 },
+  { ref: 'BC547', text: 'BC\n547', symbol: 'npn', schema: 'npn-generique', pkg: 'to92', pins: CBE, gain: 200, vcemax: 45, icmax: 0.1 },
+  { ref: 'BC548', text: 'BC\n548', symbol: 'npn', schema: 'npn-generique', pkg: 'to92', pins: CBE, gain: 200, vcemax: 30, icmax: 0.1 },
   { ref: 'BC639', text: 'BC\n639', symbol: 'npn', schema: 'npn-generique', pkg: 'to92', pins: ECB, gain: 63, vcemax: 80, icmax: 1, nouveau: true },
   { ref: 'MPSA42', text: 'MPS\nA42', symbol: 'npn', schema: 'npn1', pkg: 'to92', pins: EBC, gain: 25, vcemax: 300, icmax: 0.5, nouveau: true },
   { ref: 'BD911', text: 'BD911', symbol: 'npn', schema: 'npn-generique', pkg: 'to220', pins: BCE, gain: 5, vcemax: 100, icmax: 15, nouveau: true },
   // --- PNP ---
-  { ref: '2N2907A', text: '2N\n2907A', symbol: 'pnp', schema: 'pnp1', pkg: 'to92', pins: EBC, gain: 100, vcemax: 60, icmax: 0.6 },
-  { ref: '2N3906', text: '2N\n3906', symbol: 'pnp', schema: 'pnp1', pkg: 'to92', pins: EBC, gain: 100, vcemax: 40, icmax: 0.2 },
-  { ref: '2N4403', text: '2N\n4403', symbol: 'pnp', schema: 'pnp1', pkg: 'to92', pins: EBC, gain: 100, vcemax: 40, icmax: 0.6 },
-  { ref: '2N5401', text: '2N\n5401', symbol: 'pnp', schema: 'pnp1', pkg: 'to92', pins: EBC, gain: 60, vcemax: 150, icmax: 0.6 },
-  { ref: 'BC327', text: 'BC\n327', symbol: 'pnp', schema: 'pnp1', pkg: 'to92', pins: EBC, gain: 100, vcemax: 45, icmax: 0.8 },
-  { ref: 'S8550', text: 'S\n8550', symbol: 'pnp', schema: 'pnp1', pkg: 'to92', pins: EBC, gain: 120, vcemax: 25, icmax: 0.7 },
-  { ref: 'BC557', text: 'BC\n557', symbol: 'pnp', schema: 'pnp1', pkg: 'to92', pins: CBE, gain: 200, vcemax: 45, icmax: 0.1 },
-  { ref: 'BC558', text: 'BC\n558', symbol: 'pnp', schema: 'pnp1', pkg: 'to92', pins: CBE, gain: 200, vcemax: 30, icmax: 0.1 },
+  { ref: '2N2907A', text: '2N\n2907A', symbol: 'pnp', schema: 'pnp-generique', pkg: 'to92', pins: EBC, gain: 100, vcemax: 60, icmax: 0.6 },
+  { ref: '2N3906', text: '2N\n3906', symbol: 'pnp', schema: 'pnp-generique', pkg: 'to92', pins: EBC, gain: 100, vcemax: 40, icmax: 0.2 },
+  { ref: '2N4403', text: '2N\n4403', symbol: 'pnp', schema: 'pnp-generique', pkg: 'to92', pins: EBC, gain: 100, vcemax: 40, icmax: 0.6 },
+  { ref: '2N5401', text: '2N\n5401', symbol: 'pnp', schema: 'pnp-generique', pkg: 'to92', pins: EBC, gain: 60, vcemax: 150, icmax: 0.6 },
+  { ref: 'BC327', text: 'BC\n327', symbol: 'pnp', schema: 'pnp-generique', pkg: 'to92', pins: EBC, gain: 100, vcemax: 45, icmax: 0.8 },
+  { ref: 'S8550', text: 'S\n8550', symbol: 'pnp', schema: 'pnp-generique', pkg: 'to92', pins: EBC, gain: 120, vcemax: 25, icmax: 0.7 },
+  { ref: 'BC557', text: 'BC\n557', symbol: 'pnp', schema: 'pnp-generique', pkg: 'to92', pins: CBE, gain: 200, vcemax: 45, icmax: 0.1 },
+  { ref: 'BC558', text: 'BC\n558', symbol: 'pnp', schema: 'pnp-generique', pkg: 'to92', pins: CBE, gain: 200, vcemax: 30, icmax: 0.1 },
   { ref: 'BC640', text: 'BC\n640', symbol: 'pnp', schema: 'pnp-generique', pkg: 'to92', pins: ECB, gain: 100, vcemax: 50, icmax: 1, nouveau: true },
   { ref: 'MPSA92', text: 'MPS\nA92', symbol: 'pnp', schema: 'pnp-generique', pkg: 'to92', pins: EBC, gain: 25, vcemax: 300, icmax: 0.5, nouveau: true },
   { ref: 'BD912', text: 'BD912', symbol: 'pnp', schema: 'pnp-generique', pkg: 'to220', pins: BCE, gain: 5, vcemax: 100, icmax: 15, nouveau: true },
@@ -203,10 +207,14 @@ export function filterTransistors(f: TransistorFilter): TransistorRef[] {
  * demandés dans le sélecteur (« les choix déjà faits sont déjà complétés »),
  * en retombant sur des valeurs courantes quand le critère était « peu importe ».
  */
-/** Symbole interne d'un modèle personnalisé, à défaut de fiche. */
+/**
+ * Symbole interne d'un modèle personnalisé, à défaut de fiche. Un modèle
+ * personnalisé n'a AUCUN brochage garanti (Frank le règle patte par patte) :
+ * seul le symbole générique, aux électrodes numérotées 1-2-3, dit la vérité.
+ */
 const DEFAULT_SCHEMA: Record<TransistorType, string> = {
-  npn: 'npn1',
-  pnp: 'pnp1',
+  npn: 'npn-generique',
+  pnp: 'pnp-generique',
   'darlington-npn': 'darlington-npn',
   'darlington-pnp': 'darlington-pnp',
   nmos: 'nmos-d',

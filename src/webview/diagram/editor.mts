@@ -3913,8 +3913,9 @@ export class Editor {
    *
    * La géométrie du composant n'est pas touchée : ni sa position, ni sa taille,
    * ni ses broches — donc les pattes restent sur la grille. Seul le cadre change.
-   * Repli sur le corps entier si la mesure est absente ou aberrante (dessin qui
-   * déborde de son viewBox, ou SVG imbriqué dont la bbox dépasse le corps).
+   * Repli sur le corps entier quand rien n'est mesurable. Un dessin qui déborde
+   * de son viewBox n'annule plus la mesure : il est ROGNÉ comme le fait le SVG
+   * lui-même, au lieu de laisser le cadre revenir à tout le corps.
    */
   private fitSelectionBox(partId: string): void {
     const r = this.rendered.get(partId);
@@ -3943,14 +3944,14 @@ export class Editor {
         const sy = vb && vb.height ? vh / vb.height : 1;
         const ox = vb ? vb.x : 0;
         const oy = vb ? vb.y : 0;
-        const l = (bb.x - ox) * sx;
-        const t = (bb.y - oy) * sy;
-        const w = bb.width * sx;
-        const h = bb.height * sy;
-        // Aberrante = déborde le dessin : on ne resserre alors sur rien.
-        if (l >= -0.5 && t >= -0.5 && l + w <= vw + 0.5 && t + h <= vh + 0.5 && w > 4 && h > 4) {
-          box = { l, t, w, h };
-        }
+        // Un SVG racine ROGNE ce qui déborde de son viewport : le cadre se limite
+        // donc à ce qui est réellement peint, débord compris dans le calcul mais
+        // pas dans le résultat.
+        const l = Math.max(0, (bb.x - ox) * sx);
+        const t = Math.max(0, (bb.y - oy) * sy);
+        const w = Math.min(vw, (bb.x - ox + bb.width) * sx) - l;
+        const h = Math.min(vh, (bb.y - oy + bb.height) * sy) - t;
+        if (w > 4 && h > 4) box = { l, t, w, h };
       }
     } catch {
       // SVG non mesurable (largeur en %, viewport non résolu) : repli.
@@ -4507,9 +4508,14 @@ export class Editor {
     // Transistor : une patte ne porte qu'UNE électrode. Poser E sur la patte
     // déjà occupée par C échange les deux (plutôt que d'empiler deux électrodes
     // au même endroit) ; l'inspecteur est redessiné pour montrer l'échange.
-    if ((attr === 'e' || attr === 'b' || attr === 'c') && partDef(r.part.type).kind === 'transistor') {
+    // Un MOSFET porte G/D/S là où un bipolaire porte E/B/C (Frank, v2026.7.252) :
+    // l'échange vaut pour les deux triplets, jamais entre les deux.
+    const electrodes = (['e', 'b', 'c'] as const).includes(attr as 'e')
+      ? (['e', 'b', 'c'] as const)
+      : (['g', 'd', 's'] as const).includes(attr as 'g') ? (['g', 'd', 's'] as const) : null;
+    if (electrodes && partDef(r.part.type).kind === 'transistor') {
       const prev = prevAttrs[attr] ?? '';
-      const other = (['e', 'b', 'c'] as const).find((k) => k !== attr && (prevAttrs[k] ?? '') === value);
+      const other = electrodes.find((k) => k !== attr && (prevAttrs[k] ?? '') === value);
       if (other && prev !== '') {
         r.part.attrs = { ...r.part.attrs, [other]: prev };
         r.el.setAttribute(other, prev);
@@ -4571,12 +4577,27 @@ export class Editor {
     // 30×70 pour les polarisés) et de hauteur de pattes (y = 40 → 60). Sans
     // re-rendu, le dessin plus haut était comprimé dans l'ancienne boîte et les
     // pastilles restaient à mi-corps ; les noms affichés (« − »/« + ») aussi.
-    const movesElectrode = (attr === 'e' || attr === 'b' || attr === 'c')
+    // Transistor : changer de RÉFÉRENCE pose d'un coup son boîtier, sa famille,
+    // son symbole interne et son brochage. Sans re-rendu, l'IRF530 (TO-220,
+    // G/D/S) gardait les pastilles du TO-92 bipolaire précédent : trois pastilles
+    // E/B/C à mi-corps, loin des pattes dessinées (Frank, v2026.7.252). Le BD911
+    // n'y échappait que par accident, ses attributs e/b/c déclenchant le re-rendu.
+    const movesElectrode = electrodes !== null
       && partDef(r.part.type).kind === 'transistor' && (r.part.attrs?.named ?? '') !== '';
-    if (movesElectrode || attr === 'ctype' || attr === 'angle' || attr === 'flip' || attr === 'size' || attr === 'pins' || attr === 'lcdSize' || attr === 'columns' || attr === 'digits') {
+    const rebuildsTransistor = (attr === 'pkg' || attr === 'symbol' || attr === 'schema' || attr === 'named' || attr === 'ref')
+      && partDef(r.part.type).kind === 'transistor';
+    if (movesElectrode || rebuildsTransistor || attr === 'ctype' || attr === 'angle' || attr === 'flip' || attr === 'size' || attr === 'pins' || attr === 'lcdSize' || attr === 'columns' || attr === 'digits') {
       this.rerenderPart(partId); // renderPart restaure le câblage interne s'il était affiché
       if (this.selection?.kind === 'part' && this.selection.id === partId) {
-        this.rendered.get(partId)?.container.classList.add('part--selected');
+        const again = this.rendered.get(partId);
+        again?.container.classList.add('part--selected');
+        // Le re-rendu a DÉTRUIT le corps, donc le rectangle de sélection avec
+        // lui : sans ce recalage, changer de référence pendant que le composant
+        // est sélectionné laissait le cadre du modèle précédent — un TO-92 encore
+        // encadré alors qu'un TO-220 y était dessiné (Frank, v2026.7.252). On
+        // attend que Lit ait rendu, sinon il n'y a rien à mesurer.
+        void (again?.el as { updateComplete?: Promise<unknown> })?.updateComplete
+          ?.then(() => this.fitSelectionBox(partId));
       }
     } else if (value === '') {
       r.el.removeAttribute(attr);

@@ -5,14 +5,17 @@
 1. ✅ Vsix ici → `kablix-2026.7.250.vsix` (3,25 Mo, 225 fichiers)
 1. ✅ Pour la nomenclature, les condensateurs ont bien  identifiés comme des plastiques, tantale ou chimique mais leur type à tous les 3 est "condo-np" et la tension max est 400V pour le trois.
 1. ✅ Rajoute une propriété (valeur) aux potentiomètres elle est en Ohm et sera dans la nomenclature. Par défaut 10kΩ. La position sera en % (xx Ω)
-1. Transistor
-    1. Les lettres ebc sur les schéma internes des transistors non pas conservé leur couleur et son devenu trés épaisse au poin  d'être illisibles
-    1. Le schéma interne doit être celui désigné dans le fichier transistor.csv s'il n'y en a pas tu mets le schéma générique afin de ne pas induire en erreur sur les broches ebc.
-    1. les bornes de l'IRF530 sont mal placées
-    1. Le cadre de sélection des transistors n'est pas toujours bien ajusté
-    1. Un point à trancher : #1a5fb4 est un bleu foncé. Sur fond sombre de l'inspecteur (--vscode-input-background), les modèles neufs sont peu lisibles. Je veux une variante éclaircie en thème sombre.
-    1. Un MOSFET porte G/D/S, pas E/B/C (j'ai complété le fichier transistor.csv)
-1. Vsix ici
+1. ✅ Transistor
+    1. ✅ Les lettres ebc sur les schéma internes des transistors non pas conservé leur couleur et son devenu trés épaisse au poin  d'être illisibles
+    1. ✅ Le schéma interne doit être celui désigné dans le fichier transistor.csv s'il n'y en a pas tu mets le schéma générique afin de ne pas induire en erreur sur les broches ebc.
+    1. ✅ les bornes de l'IRF530 sont mal placées
+    1. ✅ Le cadre de sélection des transistors n'est pas toujours bien ajusté
+    1. ✅ Un point à trancher : #1a5fb4 est un bleu foncé. Sur fond sombre de l'inspecteur (--vscode-input-background), les modèles neufs sont peu lisibles. Je veux une variante éclaircie en thème sombre. → éclairci `#63a4f0` par défaut, `#1a5fb4` gardé en thème clair
+    1. ✅ Un MOSFET porte G/D/S, pas E/B/C (j'ai complété le fichier transistor.csv)
+1. J'ai complété composants avec les schéma internes nécessaires et fait un tableau A Examiner\CI.csv. Ajoute les dans la bibliothèque dans l'entrée Circuit Intégrés. Ils sont tous enfichables sur platine d'essais. Rajoute les simulations et doc correspondantes et fais les fichiers de test pour pico et uno (tous dans un seul fichier "CI" et toutes les portes doivent être testées) Tu apliques le nom des pattes du schéma interne la correspondance de la patte 1 est notée dans le tableau. VDD ou VCC (patte 14) est power (fil  rouge) et GND (patte 7) la masse (fil  noir).
+1. Les tensions d'alimentation sont les suivantes : C -> 3 à 15 | HC, AC, ACT ->  2 à 6 | HCT, ALS, F -> 4,5 à 5 | S, LS -> 4,75 à 5,25 | Série 4000 -> 3 à 18V
+Si elle est inférieur le composant ne marche pas, si elle est supérieure le composant explose. Message d'erreur dans les 2 cas " Tensions d'alimentations incompatibles"
+
 1. ✅ Ajoute une moteurDC. le groupe moteurDC-axe-rotatif tourne (même principe que ventilo). Plus la tension est élevé plus il tourne vite. Propritée tension nominale en volts (5 par défaut). Courant à vide en A (200mA par défaut). Si courant pas suffisant il ne tourne pas si tension > 1,5 fois tension nominale il grille. Si pas de diode de roue libre (ou diode intégré au NMOS-D). Erreur signalée et transistor explose.
 1. ✅ Je viens de rajouter dans composants.svg un schéma interne NPN-Generique et et PNP-générique à utiliser pour tous les transistors dont le schéma interne ne correspont pas à NPN1 ou PNP1.
 1. ✅ Tu trouvera une liste  "A Examiner\transistor.csv" avec des transistor à ajouter. Le svg existent dans Composants.svg. Tu les fera apparaitre en couleur de texte (1a5fb4ff) dans la liste de choix (laisse les autres en bleu). Rajouter les types darlington-NPN, darlington-PNP et NMOS.
@@ -27,6 +30,15 @@ Voici les préfix à utiliser (traduisible) et respecte la casse : Résistance (
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# v2026.7.252 — le transistor dit la vérité sur ses broches
+1. ✅ **Les lettres des symboles internes ont retrouvé leur couleur et leur finesse** : l'overlay du câblage interne peint TOUT son contenu avec un contour noir de 2 px — parfait pour des fils, désastreux pour des lettres de 5 px, qui devenaient des pâtés noirs. Les `<text>` et `<tspan>` du câblage interne ne portent plus ce contour (`stroke: none`) ; la couleur écrite dans le dessin de Frank (style en ligne) reprend la main. Vaut aussi pour les repères des afficheurs 7 segments.
+2. ✅ **Le symbole interne est celui que dit `A Examiner/transistor.csv`, et RIEN d'autre** : les 16 références qui n'y figurent pas portaient `NPN1`/`PNP1`, dont les électrodes sont reliées aux pattes dans l'ordre E-B-C — un brochage faux pour la moitié d'entre elles (la famille BC5xx est C-B-E). Elles passent toutes au symbole **générique** de leur famille, qui ne relie rien. Idem pour le repli sans fiche (projets d'avant) et pour les prototypes personnalisés.
+3. ✅ **Les bornes de l'IRF530 sont à leur place** : `updatePartAttr` ne re-rendait le composant que sur `e`/`b`/`c`. Changer de référence pose pourtant d'un coup son boîtier, sa famille et son brochage — l'IRF530 (TO-220, G/D/S) gardait donc les trois pastilles E/B/C du TO-92 précédent, à mi-corps, loin des pattes dessinées. `pkg`, `symbol`, `schema`, `named` et `ref` déclenchent maintenant le re-rendu, et l'échange de deux électrodes vaut aussi pour le triplet G/D/S d'un MOSFET.
+4. ✅ **Le cadre de sélection suit le nouveau dessin** : le re-rendu DÉTRUIT le corps, donc le rectangle de sélection avec lui — changer de référence pendant que le composant est sélectionné laissait le cadre du modèle précédent. Il est recalé dès que Lit a rendu. Un dessin qui déborde de son viewBox est désormais **rogné** comme le fait le SVG lui-même, au lieu d'annuler la mesure et de rendre le cadre à tout le corps.
+5. ✅ **Les modèles neufs se lisent sur fond sombre** : `#1a5fb4` est un bleu foncé, illisible sur `--vscode-input-background`. Variante éclaircie `#63a4f0` par défaut (une webview est sombre sauf indication contraire), bleu d'origine rendu au thème clair (`body.vscode-light`).
+6. ℹ️ **G/D/S vérifié de bout en bout** : le brochage `nmos` était déjà correct dans la base (BS170 D-G-S, IRF530 G-D-S), dans le sélecteur, dans les propriétés et dans la simulation — seul le re-rendu manquait pour le voir à l'écran. Rien d'autre à corriger.
+7. ✅ **Banc `verify:transistor` : 39 → 136 contrôles** — repli générique par famille (et la contre-épreuve : jamais NPN1), conformité au CSV étendue à « toute référence hors liste porte le générique », changement de référence à chaud (pastilles G/D/S descendues à 80 px, cadre recalé, cadre jamais égal au viewBox), lettres sans contour et couleur en style en ligne dans les cinq symboles, bleu éclairci en sombre et bleu d'origine en clair.
 
 # v2026.7.251 — la nomenclature dit le bon condensateur, et le potentiomètre a enfin une valeur
 1. ✅ **La colonne « Type » nomme le condensateur AFFICHÉ** : les trois condensateurs sont posés depuis une seule entrée de palette, dont l'attribut `ctype` change le dessin — la nomenclature écrivait donc `condo-np` pour les trois, tantale et chimique compris. `partType()` (nouveau, dans `bom.mts`) retrouve l'entrée du catalogue qui porte ce `ctype` et écrit SON type : `condo-np`, `condo-p-1`, `condo-p-2`.
