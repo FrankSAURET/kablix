@@ -31,6 +31,11 @@ const FR: Record<string, string> = {
     'Tension de commande insuffisante : le relais ne colle pas',
   'The supply cannot deliver the coil current':
     'L\'alimentation ne peut pas fournir le courant de la bobine',
+  // Moteur à courant continu : c'est une inductance, comme la bobine d'un
+  // relais — mêmes règles de roue libre, plus la surtension qui le grille.
+  'The supply cannot deliver the motor current':
+    'L\'alimentation ne peut pas fournir le courant du moteur',
+  'Motor overvoltage: it burned out': 'Surtension : le moteur a grillé',
   // Étiquette posée à côté du composant encadré : elle EXPLIQUE le défaut, là
   // où la barre d'état se contente de le nommer.
   'Diode reversed': 'Diode à l\'envers',
@@ -48,6 +53,12 @@ const FR: Record<string, string> = {
     'Ce condensateur a claqué : la tension à ses bornes a dépassé sa tension de service. Prenez-en un dont la tension nominale est bien supérieure à celle du montage.',
   'This board burned out: the V+ servo terminal takes 5 V, no more. Beyond 5.5 V the chip is destroyed.':
     'Cette carte a grillé : le bornier V+ des servos accepte 5 V, pas plus. Au-delà de 5,5 V la puce est détruite.',
+  'This motor burned out: it was fed more than 1.5 times its rated voltage. Its windings do not take that.':
+    'Ce moteur a grillé : il a reçu plus de 1,5 fois sa tension nominale. Ses bobinages ne le supportent pas.',
+  'This transistor was destroyed: a motor is a coil, and cutting its current sends back a surge. A flyback diode across the motor absorbs it — it is not optional.':
+    'Ce transistor a été détruit : un moteur est une bobine, et couper son courant renvoie une surtension. Une diode de roue libre aux bornes du moteur l\'absorbe — elle n\'est pas facultative.',
+  'The supply cannot deliver the current this motor draws: a board pin is far too weak for a motor. Use a power supply and a transistor.':
+    'L\'alimentation ne fournit pas le courant que demande ce moteur : une broche de carte est très loin du compte. Passez par une alimentation et un transistor.',
   // Répartition du temps réel, dans l'infobulle du badge « ralentie ».
   'Engine': 'Moteur',
   'Rendering': 'Rendu',
@@ -302,6 +313,8 @@ const FR: Record<string, string> = {
   'Fan': 'Ventilateur',
   'Rated voltage (V)': 'Tension nominale (V)',
   'Current draw (A)': 'Courant consommé (A)',
+  'DC motor': 'Moteur à courant continu',
+  'No-load current (A)': 'Courant à vide (A)',
   // Transistors : un seul item de bibliothèque, la référence se choisit dans les
   // propriétés (sélecteur à critères). Les trois entrées d'origine restent des
   // types valides pour les projets déjà enregistrés, mais sortent de la palette.

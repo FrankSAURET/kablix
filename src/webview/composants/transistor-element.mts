@@ -18,6 +18,7 @@
 import { css, html, svg, LitElement } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
+import { boumOverlay } from './utils/boum.mjs';
 import to92 from './externe/to92.svg';
 import to220 from './externe/to220.svg';
 
@@ -74,6 +75,9 @@ export class TransistorElement extends LitElement {
   declare icmax: number;
   /** Broches nommées d'après les électrodes (référence figée) plutôt que 1/2/3. */
   declare named: boolean;
+  /** Transistor DÉTRUIT : commande d'une charge inductive (moteur, bobine de
+   *  relais) sans diode de roue libre — la surtension de coupure l'a percé. */
+  declare burned: boolean;
 
   static properties = {
     pkg: { type: String },
@@ -89,6 +93,7 @@ export class TransistorElement extends LitElement {
     vcemax: { type: Number },
     icmax: { type: Number },
     named: { type: Boolean },
+    burned: { type: Boolean },
   };
 
   constructor() {
@@ -106,6 +111,7 @@ export class TransistorElement extends LitElement {
     this.vcemax = 40;
     this.icmax = 0.6;
     this.named = false;
+    this.burned = false;
   }
 
   private get skin() {
@@ -135,7 +141,8 @@ export class TransistorElement extends LitElement {
 
   static get styles() {
     return css`
-      :host { display: inline-block; }
+      /* position: relative — requis par boumOverlay (span centré en absolu). */
+      :host { display: inline-block; position: relative; }
       text { font-family: 'OCR A Std', 'Consolas', monospace; text-anchor: middle; pointer-events: none; }
     `;
   }
@@ -163,6 +170,7 @@ export class TransistorElement extends LitElement {
           (line, i) => svg`<text x=${s.tx} y=${top + i * step} font-size=${font} fill=${s.fill}>${line}</text>`
         )}
       </svg>
+      ${this.burned ? boumOverlay(40) : null}
     `;
   }
 }

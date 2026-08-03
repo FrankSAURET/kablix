@@ -63,6 +63,7 @@ Chaque composant du catalogue a deux tests : `<composant>-uno` (Arduino, C) et
 | Capteur de son | `sound-uno` | `sound-pico` | AOUT + DOUT |
 | HC-SR04 (ultrason) | `hcsr04-uno` | — (AVR seulement) | distance en cm |
 | Ventilateur | `ventilo-uno` | `ventilo-pico` | tourne sur l'alim, cale sur une broche |
+| Moteur à courant continu | `moteur-dc-uno` | `moteur-dc-pico` | tourne avec sa diode, cale sur une broche, transistor détruit sans roue libre |
 | DHT22 (temp/humidité) | `dht22-uno` | `dht22-pico` | T + H toutes les 2 s |
 | DHT11 (temp/humidité) | `dht11-uno` | `dht11-pico` | valeurs entières, 1 lecture/s |
 | Clavier matriciel 4×4 | `keypad-uno` | `keypad-pico` | touche affichée |

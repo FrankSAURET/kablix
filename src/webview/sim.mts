@@ -43,6 +43,7 @@ import './composants/hc-sr04-element.mjs';
 import './composants/dht22-element.mjs';
 import './composants/membrane-keypad-element.mjs';
 import './composants/ventilo-element.mjs';
+import './composants/moteur-dc-element.mjs';
 import './composants/transistor-element.mjs';
 import './composants/relais-element.mjs';
 // Composants entièrement maison.
@@ -107,8 +108,12 @@ import {
   setActiveBridges,
   bridgeSignature,
   relayStates,
+  motorStates,
+  motorMcuPin,
   type Part,
   type RelayFault,
+  type MotorFault,
+  type MotorState,
   type Pca9685Binding,
   type SevenSegmentMuxBinding,
 } from './diagram/model.mjs';
@@ -301,6 +306,10 @@ const SEVEN_SEG_SETTLE_MS = 40;
 // C'est la vitesse RÉELLE : l'élément se charge d'en montrer ce qu'un écran sait
 // montrer (plafond anti-stroboscope, puis flou de bougé).
 const FAN_NOMINAL_TURNS_PER_S = 50;
+// Régime nominal d'un petit moteur à courant continu 5 V, en tours par seconde
+// (6000 tr/min). Comme le ventilateur, c'est la vitesse RÉELLE : l'élément
+// n'affiche que ce qu'un écran sait montrer, le reste passe en flou de bougé.
+const MOTOR_NOMINAL_TURNS_PER_S = 100;
 let sevenSegStable = new Map<string, { shown: number[]; pending: number[]; pendingSince: number }>();
 // LED grillées pendant ce run (résistance série trop faible → sur-courant) :
 // l'état est définitif jusqu'au prochain lancement (la LED est « remplacée »).
@@ -308,6 +317,12 @@ const burnedLeds = new Set<string>();
 // PCA9685 (carte 16 servos) grillés pendant ce run : surtension du bornier V+
 // (> 5,5 V). Définitif jusqu'au prochain lancement (carte « remplacée »).
 const burnedPcas = new Set<string>();
+// Moteurs grillés pendant ce run : alimentés au-delà de 1,5 fois leur tension
+// nominale. Définitif jusqu'au prochain lancement (moteur « remplacé »).
+const burnedMotors = new Set<string>();
+// Transistors percés pendant ce run : ils commandaient un moteur SANS diode de
+// roue libre, la surtension de coupure les a traversés. Définitif de même.
+const blownDrivers = new Set<string>();
 /**
  * Ce qu'on lit à côté d'un composant qui vient d'exploser. L'explosion dit QUI
  * est mort, l'étiquette dit POURQUOI et comment ne pas recommencer.
@@ -316,6 +331,8 @@ const BURN_NOTE = {
   led: 'This LED burned out: with no series resistor (or far too small a one) the current goes past what the junction can take.',
   cap: 'This capacitor broke down: the voltage across it went past its rated working voltage. Pick one rated well above the supply voltage.',
   pca: 'This board burned out: the V+ servo terminal takes 5 V, no more. Beyond 5.5 V the chip is destroyed.',
+  motor: 'This motor burned out: it was fed more than 1.5 times its rated voltage. Its windings do not take that.',
+  driver: 'This transistor was destroyed: a motor is a coil, and cutting its current sends back a surge. A flyback diode across the motor absorbs it — it is not optional.',
 } as const;
 /** Composants actuellement encadrés parce que grillés → texte de l'étiquette. */
 const burnNotes = new Map<string, string>();
@@ -922,11 +939,21 @@ function resolveBridges(): void {
 const relayFaults = new Map<string, RelayFault>();
 /** Relais en défaut → composant qui porte actuellement le cadre rouge. */
 const relayFaultMarks = new Map<string, string>();
+/** Défauts de câblage des moteurs, signalés une seule fois par changement. */
+const motorFaults = new Map<string, MotorFault>();
+/** Moteur en défaut → composant qui porte actuellement le cadre rouge. */
+const motorFaultMarks = new Map<string, string>();
+/** État de chaque moteur à cette frame : calculé UNE fois (le modèle refait
+ *  sinon tout le graphe résistif par composant), relu par le rendu. */
+let motorFrame = new Map<string, MotorState>();
 
 /** Fin de simulation (ou nouveau lancement) : plus de défaut, plus de cadre. */
 function clearRelayFaults(): void {
   relayFaults.clear();
   relayFaultMarks.clear();
+  motorFaults.clear();
+  motorFaultMarks.clear();
+  motorFrame = new Map();
   burnNotes.clear();
   editor.clearFaults();
 }
@@ -969,6 +996,69 @@ function reportRelayFaults(): void {
     } else if (st.fault === 'starved') {
       blame(t('The supply cannot deliver the coil current'), st.partId, t('The supply cannot deliver the coil current: raise its maximum current, or share fewer coils on the same source.'));
     }
+  }
+}
+
+/**
+ * Moteurs à courant continu : vitesse, défauts de câblage et casse.
+ *
+ * L'état est calculé UNE fois par frame (le rendu le relit ensuite) parce que
+ * chaque appel refait le graphe résistif du schéma. Deux avaries définitives
+ * pour ce run :
+ *   - le moteur GRILLE au-delà de 1,5 fois sa tension nominale ;
+ *   - son transistor de commande est PERCÉ s'il n'y a pas de diode de roue
+ *     libre — un moteur est une bobine, la coupure lui renvoie une surtension.
+ * Un MOSFET dont le schéma interne porte déjà sa diode de structure (`nmos-d`)
+ * n'a besoin de rien de plus : le modèle ne le compte pas comme fautif.
+ */
+function reportMotorFaults(): void {
+  if (!engine) return;
+  const vcc = boardFamily(board) === 'rp2040' ? 3.3 : 5;
+  // Commande en PWM : c'est le rapport cyclique, pas le niveau instantané, qui
+  // fixe la tension moyenne aux bornes du moteur.
+  const duty = (mcuPin: string | null): number => {
+    if (!mcuPin) return 1;
+    if (engine!.pulseActive?.(mcuPin)) return engine!.readPwmDuty?.(mcuPin) ?? 1;
+    return engine!.readDigital(mcuPin) ? 1 : 0;
+  };
+  motorFrame = new Map(
+    motorStates(editor.diagram, vcc, duty, psuLiveVolts, liveVariableOhms).map((st) => [st.partId, st])
+  );
+  for (const st of motorFrame.values()) {
+    // Avaries définitives : une fois grillé, un composant le reste jusqu'au
+    // prochain lancement (il a été « remplacé »).
+    if (st.fault === 'overvolt') burnedMotors.add(st.partId);
+    if (st.blownTransistorId) blownDrivers.add(st.blownTransistorId);
+    const motorEl = editor.elementOf(st.partId);
+    if (motorEl) markBurned(st.partId, motorEl, burnedMotors.has(st.partId), BURN_NOTE.motor);
+    if ((motorFaults.get(st.partId) ?? 'none') === st.fault) continue;
+    motorFaults.set(st.partId, st.fault);
+    // Le cadre rouge désigne, l'étiquette explique (même règle que le relais).
+    const previous = motorFaultMarks.get(st.partId);
+    if (previous !== undefined && previous !== st.partId) {
+      editor.setFaulty(previous, false); // défaut corrigé (ou remplacé) : cadre retiré
+      motorFaultMarks.delete(st.partId);
+    }
+    const blame = (msg: string, id: string, note: string): void => {
+      setStatus(`${msg} (${id})`);
+      editor.setFaulty(id, true, note);
+      motorFaultMarks.set(st.partId, id);
+    };
+    if (st.fault === 'reversed-diode') {
+      blame(t('Flyback diode is reversed'), st.faultPartId ?? st.partId, t('Diode reversed'));
+    } else if (st.fault === 'no-diode') {
+      setStatus(`${t('A flyback diode is required')} (${st.partId})`);
+    } else if (st.fault === 'starved') {
+      blame(t('The supply cannot deliver the motor current'), st.partId, t('The supply cannot deliver the current this motor draws: a board pin is far too weak for a motor. Use a power supply and a transistor.'));
+    } else if (st.fault === 'overvolt') {
+      setStatus(`${t('Motor overvoltage: it burned out')} (${st.partId})`);
+    }
+  }
+  // Transistors percés : l'explosion et son explication sont posées sur EUX,
+  // pas sur le moteur — c'est le transistor qui est mort.
+  for (const id of blownDrivers) {
+    const el = editor.elementOf(id);
+    if (el) markBurned(id, el, true, BURN_NOTE.driver);
   }
 }
 
@@ -1096,6 +1186,7 @@ function refreshVisualsInner(): void {
   if (!engine) return;
   stepCapacitors();
   reportRelayFaults();
+  reportMotorFaults();
   const read = (name: string): boolean => engine!.readDigital(name);
   const servoTargets = new Map(servoBindings(editor.diagram).map((b) => [b.partId, b.mcuPin]));
   for (const part of editor.diagram.parts) {
@@ -1427,6 +1518,14 @@ function refreshVisualsInner(): void {
         el.speed = st.speed * FAN_NOMINAL_TURNS_PER_S;
         break;
       }
+      case 'motor': {
+        // Tout est déjà calculé pour la frame (vitesse, défauts, casse) par
+        // reportMotorFaults : ici on ne fait que montrer le régime. Un moteur
+        // grillé est figé — l'explosion a remplacé la rotation.
+        const st = motorFrame.get(part.id);
+        el.speed = st && !burnedMotors.has(part.id) ? st.speed * MOTOR_NOMINAL_TURNS_PER_S : 0;
+        break;
+      }
       case 'i2c-lcd': {
         // Texte décodé affiché sur le LCD. En I²C : Lcd1602Device (bus décodé) ;
         // en parallèle (pins=full) : readLcdParallel (RS/E/données décodés par le
@@ -1582,10 +1681,17 @@ function bindInputs(): void {
     .filter((p) => partDef(p.type).kind === 'fan')
     .map((p) => fanCircuit(editor.diagram, p.id, boardFamily(board) === 'rp2040' ? 3.3 : 5)?.mcuPin)
     .filter((p): p is string => !!p);
+  // Moteurs : leur broche de commande est mesurée en rapport cyclique (PWM) —
+  // c'est ainsi qu'on fait varier leur vitesse.
+  const motorPins = editor.diagram.parts
+    .filter((p) => partDef(p.type).kind === 'motor')
+    .map((p) => motorMcuPin(editor.diagram, p.id, boardFamily(board) === 'rp2040' ? 3.3 : 5))
+    .filter((p): p is string => !!p);
   engine.setPulseMonitors?.([
     ...servoBindings(editor.diagram).map((b) => b.mcuPin),
     ...buzzers.map((b) => b.mcuPin),
     ...fanPins,
+    ...motorPins,
     ...rgbLeds.flatMap((b) => [b.r, b.g, b.b].filter((p): p is string => p !== null)),
     ...sevenSegs.flatMap((b) => Object.values(b.segments).filter((p): p is string => p !== null)),
   ]);
@@ -2623,9 +2729,13 @@ function startRun(): void {
   for (const id of burnedLeds) editor.setBurned(id, false);
   for (const id of burnedPcas) editor.setBurned(id, false);
   for (const id of burnedCaps) editor.setBurned(id, false);
+  for (const id of burnedMotors) editor.setBurned(id, false);
+  for (const id of blownDrivers) editor.setBurned(id, false);
   burnedLeds.clear(); // LED grillées « remplacées » à chaque nouveau lancement
   burnedPcas.clear(); // carte 16 servos grillée « remplacée » à chaque lancement
   burnedCaps.clear(); // condensateurs claqués « remplacés » eux aussi
+  burnedMotors.clear(); // moteurs survoltés « remplacés » à chaque lancement
+  blownDrivers.clear(); // transistors percés par une bobine sans roue libre
   ledLumFactor.clear();
   capVolts.clear(); // condensateurs déchargés au début de chaque simulation
   capLastMs = null;

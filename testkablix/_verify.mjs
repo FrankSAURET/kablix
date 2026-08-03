@@ -253,6 +253,27 @@ for (const t of TESTS) {
           cale.speed === 0 && cale.starved, JSON.stringify(cale));
         break;
       }
+      case 'motor': {
+        // Moteur à courant continu : l'état dépend des transistors de commande,
+        // donc des ponts — on les résout comme la simulation avant chaque frame.
+        // `spins: true` = au moins 90 % du régime nominal.
+        const vcc = t.board === 'pico' || t.board === 'picow' ? 3.3 : 5;
+        for (const s of e.steps) {
+          const hauts = s.high ?? [];
+          const read = (p) => hauts.includes(p);
+          const etat = hauts.length ? `[${hauts.join(',')} haut]` : '[tout bas]';
+          resolveBridges(diagram, read, vcc);
+          const states = model.motorStates(diagram, vcc);
+          for (const [id, want] of Object.entries(s.motors ?? {})) {
+            const st = states.find((x) => x.partId === id);
+            const ok = !!st && Object.entries(want).every(([k, v]) =>
+              k === 'spins' ? st.speed > 0.9 === v : st[k] === v);
+            check(`${t.name} ${etat} : ${id} → ${JSON.stringify(want)}`, ok, JSON.stringify(st));
+          }
+        }
+        model.setActiveBridges([]);
+        break;
+      }
       case 'transistor': {
         const vcc = t.board === 'pico' || t.board === 'picow' ? 3.3 : 5;
         for (const s of e.steps) {

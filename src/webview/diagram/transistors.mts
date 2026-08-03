@@ -80,7 +80,7 @@ const EBC = ['E', 'B', 'C'] as const;
 const CBE = ['C', 'B', 'E'] as const;
 const ECB = ['E', 'C', 'B'] as const;
 const BCE = ['B', 'C', 'E'] as const;
-const SGD = ['S', 'G', 'D'] as const;
+const DGS = ['D', 'G', 'S'] as const;
 const GDS = ['G', 'D', 'S'] as const;
 
 export const TRANSISTOR_REFS: readonly TransistorRef[] = [
@@ -112,7 +112,9 @@ export const TRANSISTOR_REFS: readonly TransistorRef[] = [
   { ref: 'BC517', text: 'BC\n517', symbol: 'darlington-npn', schema: 'darlington-npn', pkg: 'to92', pins: CBE, gain: 30000, vcemax: 30, icmax: 0.4, nouveau: true },
   { ref: 'BC516', text: 'BC\n516', symbol: 'darlington-pnp', schema: 'darlington-pnp', pkg: 'to92', pins: CBE, gain: 30000, vcemax: 30, icmax: 0.4, nouveau: true },
   // --- MOSFET canal N : commandés en tension, grille isolée (gain sans objet) ---
-  { ref: 'BS170', text: 'BS\n170', symbol: 'nmos', schema: 'nmos-d', pkg: 'to92', pins: SGD, gain: 0, vcemax: 60, icmax: 0.5, rdson: 2.5, nouveau: true },
+  // Le BS170 est le piège du lot : même boîtier que le 2N7000, brochage INVERSÉ
+  // (drain sur la patte 1, source sur la 3) — brochage donné par la liste de Frank.
+  { ref: 'BS170', text: 'BS\n170', symbol: 'nmos', schema: 'nmos-d', pkg: 'to92', pins: DGS, gain: 0, vcemax: 60, icmax: 0.5, rdson: 2.5, nouveau: true },
   { ref: 'IRF530', text: 'IRF530', symbol: 'nmos', schema: 'nmos-d', pkg: 'to220', pins: GDS, gain: 0, vcemax: 100, icmax: 14, rdson: 0.16, nouveau: true },
 ];
 

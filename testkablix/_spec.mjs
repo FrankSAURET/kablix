@@ -20,6 +20,9 @@ export const PART_PINS = {
   'condo-p-1': ['1', '2'],
   'condo-p-2': ['1', '2'],
   ventilo: ['+', '-'],
+  // Un moteur à courant continu n'est pas polarisé : ses deux fils sont
+  // simplement numérotés (les inverser inverse son sens de rotation).
+  'moteur-dc': ['1', '2'],
   // Transistors : la référence figée nomme ses pattes d'après les électrodes,
   // les prototypes génériques les numérotent (l'affectation e/b/c est une
   // propriété — changer d'affectation ne doit orphéliner aucun fil).
@@ -1234,6 +1237,98 @@ void loop() {
   }),
 
   test({
+    name: 'moteur-dc-uno', board: 'uno', ext: 'ino',
+    parts: [
+      MCU('uno'),
+      { id: 'Alim1', type: 'alim', x: 620, y: 460, attrs: { voltage: '5', maxcurrent: '1' } },
+      { id: 'R1', type: 'resistor', x: 300, y: 180, attrs: { value: '1000' } },
+      { id: 'T1', type: 'pn2222a', x: 440, y: 200 },
+      { id: 'D1', type: 'diode', x: 620, y: 180, attrs: { vf: '0.6' } },
+      { id: 'Act1', type: 'moteur-dc', x: 620, y: 40, attrs: { voltage: '5', current: '0.1' } },
+      { id: 'Act2', type: 'moteur-dc', x: 1160, y: 40, attrs: { voltage: '5', current: '0.1' } },
+      { id: 'R2', type: 'resistor', x: 300, y: 300, attrs: { value: '1000' } },
+      { id: 'T2', type: 'pn2222a', x: 880, y: 200 },
+      { id: 'Act3', type: 'moteur-dc', x: 900, y: 40, attrs: { voltage: '5', current: '0.1' } },
+    ],
+    wires: () => [
+      // Montage correct : broche 9 -> base, moteur sur l'alim, diode de roue
+      // libre en travers (cathode au +). Il tourne.
+      w('R1', '1', 'U1', '9', 'green'),
+      w('R1', '2', 'T1', 'B', 'green'),
+      w('T1', 'E', 'U1', 'GND.1', 'black'),
+      w('T1', 'C', 'Act1', '2', 'blue'),
+      w('Act1', '1', 'Alim1', 'V+', 'red'),
+      w('Alim1', 'GND', 'U1', 'GND.2', 'black'),
+      w('D1', 'K', 'Act1', '1', 'purple'),
+      w('D1', 'A', 'Act1', '2', 'purple'),
+      // Moteur branche EN DIRECT sur une broche : 40 mA contre 100 mA demandes.
+      w('Act2', '1', 'U1', '11', 'orange'),
+      w('Act2', '2', 'U1', 'GND.3', 'black'),
+      // Meme montage que le premier, mais SANS diode de roue libre : c'est le
+      // transistor qui explose a la coupure.
+      w('R2', '1', 'U1', '10', 'orange'),
+      w('R2', '2', 'T2', 'B', 'orange'),
+      w('T2', 'E', 'Alim1', 'GND', 'black'),
+      w('T2', 'C', 'Act3', '2', 'blue'),
+      w('Act3', '1', 'Alim1', 'V+', 'red'),
+    ],
+    expect: {
+      kind: 'motor',
+      steps: [
+        {
+          high: ['9', '10'],
+          motors: {
+            Act1: { fault: 'none', spins: true },
+            Act2: { fault: 'starved' },
+            Act3: { fault: 'no-diode', blownTransistorId: 'T2' },
+          },
+        },
+        { high: [], motors: { Act1: { powered: false }, Act3: { powered: false } } },
+      ],
+    },
+    code: `// Test moteur a courant continu. Trois moteurs 5 V / 100 mA :
+//   - broche 9  : commande par un PN2222A, alimentation de laboratoire et diode
+//     de roue libre en travers du moteur -> il tourne, tout est correct ;
+//   - broche 11 : moteur branche EN DIRECT sur la broche. Une sortie Arduino ne
+//     debite que 40 mA contre les 100 mA demandes : il ne demarre JAMAIS ;
+//   - broche 10 : meme montage que le premier mais SANS diode de roue libre.
+//     Un moteur est une bobine : couper son courant renvoie une surtension qui
+//     detruit le transistor. Kablix le fait exploser.
+const int BON = 9;
+const int SANS_DIODE = 10;
+const int EN_DIRECT = 11;
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(BON, OUTPUT);
+  pinMode(SANS_DIODE, OUTPUT);
+  pinMode(EN_DIRECT, OUTPUT);
+  Serial.println("Broche 11 : moteur en direct, courant insuffisant.");
+  Serial.println("Broche 10 : pas de diode de roue libre, le transistor va lacher.");
+}
+
+void loop() {
+  // Montee et descente en PWM : la vitesse suit le rapport cyclique.
+  for (int v = 0; v <= 255; v += 5) {
+    analogWrite(BON, v);
+    analogWrite(EN_DIRECT, v);
+    delay(40);
+  }
+  for (int v = 255; v >= 0; v -= 5) {
+    analogWrite(BON, v);
+    analogWrite(EN_DIRECT, v);
+    delay(40);
+  }
+  // Tout ou rien sur la branche sans diode : c'est la COUPURE qui tue.
+  digitalWrite(SANS_DIODE, HIGH);
+  delay(1000);
+  digitalWrite(SANS_DIODE, LOW);
+  delay(1000);
+}
+`,
+  }),
+
+  test({
     name: 'pn2222a-uno', board: 'uno', ext: 'ino',
     parts: [
       MCU('uno'),
@@ -1354,7 +1449,7 @@ void loop() {
         attrs: {
           pkg: 'to92', symbol: 'nmos', schema: 'nmos-d',
           text: 'BS\n170', named: '1', ref: 'BS170',
-          s: '1', g: '2', d: '3', gain: '0', rdson: '2.5', vcemax: '60', icmax: '0.5',
+          s: '3', g: '2', d: '1', gain: '0', rdson: '2.5', vcemax: '60', icmax: '0.5',
         },
       },
       { id: 'L2', type: 'led', x: 1040, y: 780, attrs: { color: 'green' } },
@@ -2848,6 +2943,93 @@ while True:
   }),
 
   test({
+    name: 'moteur-dc-pico', board: 'pico', ext: 'py',
+    parts: [
+      MCU('pico'),
+      { id: 'Alim1', type: 'alim', x: 620, y: 460, attrs: { voltage: '5', maxcurrent: '1' } },
+      { id: 'R1', type: 'resistor', x: 300, y: 180, attrs: { value: '470' } },
+      { id: 'T1', type: 'pn2222a', x: 440, y: 200 },
+      { id: 'D1', type: 'diode', x: 620, y: 180, attrs: { vf: '0.6' } },
+      { id: 'Act1', type: 'moteur-dc', x: 620, y: 40, attrs: { voltage: '5', current: '0.1' } },
+      { id: 'Act2', type: 'moteur-dc', x: 1160, y: 40, attrs: { voltage: '5', current: '0.1' } },
+      { id: 'R2', type: 'resistor', x: 300, y: 300, attrs: { value: '470' } },
+      { id: 'T2', type: 'pn2222a', x: 880, y: 200 },
+      { id: 'Act3', type: 'moteur-dc', x: 900, y: 40, attrs: { voltage: '5', current: '0.1' } },
+    ],
+    wires: () => [
+      // Sortie a 3,3 V : base plus attaquee qu'en 5 V (470 ohms).
+      w('R1', '1', 'U1', 'GP15', 'green'),
+      w('R1', '2', 'T1', 'B', 'green'),
+      w('T1', 'E', 'U1', 'GND.5', 'black'),
+      w('T1', 'C', 'Act1', '2', 'blue'),
+      w('Act1', '1', 'Alim1', 'V+', 'red'),
+      w('Alim1', 'GND', 'U1', 'GND.4', 'black'),
+      w('D1', 'K', 'Act1', '1', 'purple'),
+      w('D1', 'A', 'Act1', '2', 'purple'),
+      // Moteur branche EN DIRECT sur une broche du Pico : quelques milliamperes.
+      w('Act2', '1', 'U1', 'GP13', 'orange'),
+      w('Act2', '2', 'U1', 'GND.3', 'black'),
+      // Sans diode de roue libre : le transistor explose a la coupure.
+      w('R2', '1', 'U1', 'GP14', 'orange'),
+      w('R2', '2', 'T2', 'B', 'orange'),
+      w('T2', 'E', 'Alim1', 'GND', 'black'),
+      w('T2', 'C', 'Act3', '2', 'blue'),
+      w('Act3', '1', 'Alim1', 'V+', 'red'),
+    ],
+    expect: {
+      kind: 'motor',
+      steps: [
+        {
+          high: ['GP15', 'GP14'],
+          motors: {
+            Act1: { fault: 'none', spins: true },
+            Act2: { fault: 'starved' },
+            Act3: { fault: 'no-diode', blownTransistorId: 'T2' },
+          },
+        },
+        { high: [], motors: { Act1: { powered: false }, Act3: { powered: false } } },
+      ],
+    },
+    code: `# Test moteur a courant continu. Trois moteurs 5 V / 100 mA :
+#   - GP15 : commande par un PN2222A, alimentation de laboratoire et diode de
+#     roue libre en travers du moteur -> il tourne, tout est correct ;
+#   - GP13 : moteur branche EN DIRECT sur la broche. Une sortie du Pico ne
+#     debite que quelques milliamperes contre les 100 mA demandes : il ne
+#     demarre JAMAIS ;
+#   - GP14 : meme montage que le premier mais SANS diode de roue libre. Un
+#     moteur est une bobine : couper son courant renvoie une surtension qui
+#     detruit le transistor. Kablix le fait exploser.
+from machine import Pin, PWM
+import time
+
+bon = PWM(Pin(15))
+bon.freq(1000)
+en_direct = PWM(Pin(13))
+en_direct.freq(1000)
+sans_diode = Pin(14, Pin.OUT)
+
+print("GP13 : moteur en direct, courant insuffisant.")
+print("GP14 : pas de diode de roue libre, le transistor va lacher.")
+
+while True:
+    # Montee et descente en PWM : la vitesse suit le rapport cyclique.
+    for v in range(0, 65536, 1024):
+        bon.duty_u16(v)
+        en_direct.duty_u16(v)
+        time.sleep(0.04)
+    for v in range(65535, -1, -1024):
+        bon.duty_u16(max(0, v))
+        en_direct.duty_u16(max(0, v))
+        time.sleep(0.04)
+    # Tout ou rien sur la branche sans diode : c'est la COUPURE qui tue.
+    sans_diode.value(1)
+    time.sleep(1)
+    sans_diode.value(0)
+    time.sleep(1)
+`,
+  }),
+
+  test({
     name: 'pn2222a-pico', board: 'pico', ext: 'py',
     parts: [
       MCU('pico'),
@@ -2962,7 +3144,7 @@ while True:
         attrs: {
           pkg: 'to92', symbol: 'nmos', schema: 'nmos-d',
           text: 'BS\n170', named: '1', ref: 'BS170',
-          s: '1', g: '2', d: '3', gain: '0', rdson: '2.5', vcemax: '60', icmax: '0.5',
+          s: '3', g: '2', d: '1', gain: '0', rdson: '2.5', vcemax: '60', icmax: '0.5',
         },
       },
       { id: 'L2', type: 'led', x: 1040, y: 780, attrs: { color: 'green' } },

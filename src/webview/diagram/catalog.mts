@@ -15,6 +15,7 @@ export type PartKind =
   | 'transistor'
   | 'relay'
   | 'fan'
+  | 'motor'
   | 'buzzer'
   | 'potentiometer'
   | '7segment'
@@ -502,6 +503,19 @@ export const CATALOG: readonly PartDef[] = [
       { attr: 'current', label: 'Current draw (A)', kind: 'number', min: 0.001, max: 5, suffixes: true },
     ],
   },
+  // Moteur à courant continu (dessin de Frank — le pignon `moteurDC-axe-rotatif`
+  // tourne autour de son axe). Sa vitesse suit la TENSION appliquée ; il ne
+  // démarre pas si la source ne fournit pas son courant, et il GRILLE au-delà de
+  // 1,5 fois sa tension nominale. Une diode de roue libre est obligatoire quand
+  // il est commandé par un transistor (motorStates).
+  {
+    type: 'moteur-dc', label: 'DC motor', tag: 'kablix-moteur-dc', kind: 'motor',
+    attrs: { voltage: '5', current: '0.2' },
+    props: [
+      { attr: 'voltage', label: 'Rated voltage (V)', kind: 'number', min: 1, max: 24, step: 0.1 },
+      { attr: 'current', label: 'No-load current (A)', kind: 'number', min: 0.001, max: 5, suffixes: true },
+    ],
+  },
   // Transistors bipolaires (dessin de Frank) : premier BOÎTIER PARTAGÉ. Le même
   // dessin externe (to92) sert à tous, seule l'inscription change ; le symbole
   // interne (npn/pnp) et le gain viennent du modèle. `named` = référence figée,
@@ -775,6 +789,7 @@ export function partCategory(def: PartDef): string {
     case 'buzzer':
     case 'servo':
     case 'fan':
+    case 'motor':
       return 'Actuators';
     default:
       return 'Passive';

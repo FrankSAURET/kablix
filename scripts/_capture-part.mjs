@@ -27,6 +27,7 @@ const PARTS = {
   'condo-p-1': { module: 'capacitor-element.mjs', tag: 'kablix-capacitor', width: 165, attrs: { ctype: 'p', value: '1e-5' } },
   'condo-p-2': { module: 'capacitor-element.mjs', tag: 'kablix-capacitor', width: 125, attrs: { ctype: 'chem', value: '1e-4' } },
   ventilo: { module: 'ventilo-element.mjs', tag: 'kablix-ventilo' },
+  'moteur-dc': { module: 'moteur-dc-element.mjs', tag: 'kablix-moteur-dc', width: 250 },
   dht11: { module: 'dht22-element.mjs', tag: 'kablix-dht11' },
   // Boîtier partagé TO-92 : même dessin pour les trois, seule l'inscription
   // change (`text`, une ligne par saut de ligne) — comme dans le catalogue.

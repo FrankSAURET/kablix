@@ -187,6 +187,9 @@ When the simulation spots a wiring mistake or a destroyed part, it **draws a red
 | Relay with no flyback diode | The coil sends back a surge when the current is cut; it destroys the driving transistor, the diode absorbs it |
 | Coil voltage too low | The relay does not pull in: supply the coil at its rated voltage |
 | Supply too weak for the coil | Raise its maximum current, or share fewer coils on the same source |
+| Motor with no flyback diode (💥) | A motor is a coil: the switch-off surge destroys the driving transistor, the diode absorbs it |
+| Supply too weak for the motor | A board pin is far too weak: use a power supply and a transistor |
+| Motor overvoltage (💥) | More than 1.5 times its rated voltage: its windings do not take that |
 | Burned LED (💥) | With no series resistor (or far too small a one) the current goes past what the junction can take |
 | Blown capacitor (💥) | Rated working voltage exceeded: pick one rated well above the supply |
 | Burned 16-servo board (💥) | The V+ terminal takes 5 V, no more |

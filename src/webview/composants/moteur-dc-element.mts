@@ -1,0 +1,157 @@
+// Composant maison <kablix-moteur-dc> : moteur à courant continu, dessin de
+// Frank (Composants.svg, groupe « moteurDC » → ./externe/moteur-dc.svg). Le
+// groupe `moteurDC-axe-rotatif` — le pignon de sortie — tourne autour de son
+// axe, à la vitesse imposée par le moteur de simulation : `speed` = tours par
+// seconde RÉELS (0 = arrêté). Même principe que le ventilateur : au-delà de ce
+// qu'un écran à 60 Hz sait montrer, la rotation est plafonnée et la vitesse se
+// lit au flou de bougé.
+//
+// Simulation : voir motorStates (model.mts) — la vitesse suit la TENSION
+// appliquée, le moteur ne démarre pas si la source ne fournit pas son courant,
+// et il GRILLE au-delà de 1,5 fois sa tension nominale.
+import { css, html, LitElement } from 'lit';
+import type { PropertyValues } from 'lit';
+import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
+import { ElementPin } from './pin.mjs';
+import { boumOverlay } from './utils/boum.mjs';
+import { measureSpin, SPOKES_FALLBACK, type Spin } from './utils/spin.mjs';
+import drawing from './externe/moteur-dc.svg';
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/** Rafraîchissement d'écran retenu pour le calcul de l'alias (Hz). */
+const SCREEN_HZ = 60;
+/**
+ * Fraction de la période de dent qu'une image d'écran a le droit d'avaler. À la
+ * moitié l'image devient ambiguë (roue de charrette : le pignon paraît ralentir
+ * puis tourner À L'ENVERS), on s'arrête donc au quart.
+ */
+const ALIAS_MARGIN = 4;
+/** Régime nominal d'un petit moteur 5 V : 6000 tr/min = 100 tours/s. */
+const NOMINAL_TURNS_PER_S = 100;
+/** Flou de bougé du pignon à plein régime (unités du dessin). */
+const MAX_BLUR = 2;
+/** Transparence du pignon à plein régime : une pièce lancée se traverse. */
+const MAX_FADE = 0.3;
+
+/** Repère du pignon, mesuré une seule fois : le dessin est le même pour tous les
+ *  moteurs (axe de rotation + nombre de dents). */
+let spin: Spin | null = null;
+
+export class MoteurDcElement extends LitElement {
+  /** Tension nominale (V) — inspecteur. */
+  declare voltage: number;
+  /** Courant à vide (A) — inspecteur. */
+  declare current: number;
+  /** Vitesse imposée par la simulation, en TOURS PAR SECONDE (0 = arrêté). */
+  declare speed: number;
+  /** Moteur grillé (surtension) : l'explosion remplace la rotation. */
+  declare burned: boolean;
+
+  static properties = {
+    voltage: { type: Number },
+    current: { type: Number },
+    speed: { type: Number },
+    burned: { type: Boolean },
+  };
+
+  constructor() {
+    super();
+    this.voltage = 5;
+    this.current = 0.2;
+    this.speed = 0;
+    this.burned = false;
+  }
+
+  /** Dents trouvées dans le dessin (mesure de symétrie) — lecture seule. */
+  get bladeCount(): number {
+    return spin?.blades ?? SPOKES_FALLBACK;
+  }
+
+  // Broches : centre des pastilles du dessin (grille de 10 px). Un moteur à
+  // courant continu n'a pas de polarité imposée — les deux fils sont nommés
+  // comme sur le dessin de Frank, et la simulation essaie les deux sens.
+  readonly pinInfo: ElementPin[] = [
+    { name: '1', x: 30, y: 90, signals: [] },
+    { name: '2', x: 60, y: 90, signals: [] },
+  ];
+
+  /** Enveloppe neutre qui porte l'animation (créée au premier rendu). */
+  private spinner: SVGGElement | null = null;
+
+  /**
+   * Le groupe du pignon porte SON PROPRE `transform` (mise à l'échelle
+   * Inkscape) : une animation CSS posée dessus l'écraserait — le pignon
+   * sauterait et changerait de taille dès le démarrage. On l'emballe donc dans
+   * un groupe neutre, qui seul porte la rotation.
+   */
+  private ensureSpinner(): SVGGElement | null {
+    if (this.spinner?.isConnected) return this.spinner;
+    const shaft = this.renderRoot.querySelector('#moteurDC-axe-rotatif') as SVGGElement | null;
+    if (!shaft?.parentNode) return null;
+    const wrap = document.createElementNS(SVG_NS, 'g');
+    wrap.setAttribute('class', 'spin');
+    shaft.parentNode.insertBefore(wrap, shaft);
+    wrap.appendChild(shaft);
+    this.spinner = wrap;
+    return wrap;
+  }
+
+  static get styles() {
+    return css`
+      /* position: relative — requis par boumOverlay (span centré en absolu). */
+      :host { display: inline-block; position: relative; }
+      /* fill-box : l'origine est comptée depuis le coin de la boîte du pignon,
+         donc valable où qu'il soit dans le viewBox (pas de coordonnées codées en
+         dur). Le 50 % n'est qu'un repli : l'axe réel est mesuré. */
+      .spin {
+        transform-box: fill-box;
+        transform-origin: 50% 50%;
+        animation-name: kablix-motor-spin;
+        animation-timing-function: linear;
+        animation-iteration-count: infinite;
+      }
+      @keyframes kablix-motor-spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+    `;
+  }
+
+  updated(changed: PropertyValues): void {
+    super.updated(changed);
+    const wrap = this.ensureSpinner();
+    if (!wrap) return;
+    if (!spin) spin = measureSpin(wrap);
+    if (spin) wrap.style.transformOrigin = `${spin.x.toFixed(3)}px ${spin.y.toFixed(3)}px`;
+    // Un moteur grillé ne tourne plus, quoi que dise la simulation.
+    const turns = !this.burned && Number.isFinite(this.speed) ? Math.max(0, this.speed) : 0;
+    // Un écran ne montre qu'une image tous les 1/60 s : au-delà d'un quart de
+    // dent par image, le pignon paraît RALENTIR puis tourner à l'envers, si bien
+    // qu'augmenter la tension le ralentirait. La rotation affichée est donc
+    // plafonnée là, et c'est le flou de bougé qui dit la vitesse au-dessus.
+    const maxTurns = SCREEN_HZ / (spin?.blades ?? SPOKES_FALLBACK) / ALIAS_MARGIN;
+    const shown = Math.min(turns, maxTurns);
+    // Durée d'un tour, arrondie vers le HAUT (au millième de seconde) : arrondir
+    // vers le bas repasserait de justesse au-dessus du plafond. Vitesse nulle →
+    // animation coupée (pignon figé).
+    wrap.style.animationDuration = shown > 0 ? `${(Math.ceil(1000 / shown) / 1000).toFixed(3)}s` : '0s';
+    wrap.style.animationPlayState = shown > 0 ? 'running' : 'paused';
+    const excess = Math.max(0, Math.min(1, (turns - maxTurns) / Math.max(1, NOMINAL_TURNS_PER_S - maxTurns)));
+    wrap.style.filter = excess > 0 ? `blur(${(excess * MAX_BLUR).toFixed(2)}px)` : '';
+    wrap.style.opacity = excess > 0 ? (1 - excess * MAX_FADE).toFixed(3) : '';
+  }
+
+  render() {
+    return html`
+      <svg width="90" height="100" viewBox="0 0 90 100" xmlns="http://www.w3.org/2000/svg">
+        ${unsafeSVG(drawing)}
+      </svg>
+      ${this.burned ? boumOverlay(60) : null}
+    `;
+  }
+}
+
+if (!customElements.get('kablix-moteur-dc')) {
+  customElements.define('kablix-moteur-dc', MoteurDcElement);
+}

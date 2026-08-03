@@ -1,8 +1,8 @@
-﻿Repère;Composant;Type;Caractéristiques
-C1;Condensateur;condo-np;Type : Non polarisé · Valeur nominale (F) : 0.000001 · Tension max (V) : 400
-C2;Condensateur;condo-np;Type : Polarisé · Valeur nominale (F) : 0.000009999999999999999 · Tension max (V) : 400
-C3;Condensateur;condo-np;Type : Chimique · Valeur nominale (F) : 0.00009999999999999999 · Tension max (V) : 400
-R1;Résistance;resistor;Valeur (Ω) : 100000
-R2;Résistance;resistor;Valeur (Ω) : 33000
-R3;Résistance;resistor;Valeur (Ω) : 10000
-U1;Raspberry Pi Pico;pico;
+﻿Repère;Composant;Type;Valeur;Commentaire
+C1;Condensateur plastique;condo-np;1 µF;Tension max : 400 V
+C2;Condensateur tantale;condo-np;10 µF;Tension max : 400 V
+C3;Condensateur chimique;condo-np;100 µF;Tension max : 400 V
+R1;Résistance;resistor;100 kΩ;
+R2;Résistance;resistor;33 kΩ;
+R3;Résistance;resistor;10 kΩ;
+U1;Raspberry Pi Pico;pico;;

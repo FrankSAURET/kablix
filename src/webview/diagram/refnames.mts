@@ -70,6 +70,7 @@ const BY_KIND: Record<string, RefFamily> = {
   buzzer: 'actuator',
   servo: 'actuator',
   fan: 'actuator',
+  motor: 'actuator',
   relay: 'relay',
   psu: 'psu',
 };

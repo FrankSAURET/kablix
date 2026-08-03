@@ -1195,26 +1195,43 @@ export function fanCircuit(
   psuVolts?: (partId: string) => number | null,
   liveOhms?: (part: Part) => number | null
 ): FanCircuit | null {
+  return dcLoadCircuit(diagram, fanId, '+', '-', vcc, psuVolts, liveOhms);
+}
+
+/**
+ * Alimentation d'une charge à deux bornes (ventilateur, moteur) : remonte de la
+ * borne HAUTE vers une source (V+ d'alim de labo, rail VCC de carte ou broche
+ * numérique) et redescend de la borne BASSE vers une masse. Retourne null si le
+ * circuit est ouvert. Le nom des bornes est passé en paramètre : le ventilateur
+ * est polarisé (+ / −), un moteur à courant continu ne l'est pas (1 / 2).
+ */
+function dcLoadCircuit(
+  diagram: Diagram,
+  partId: string,
+  hiPin: string,
+  loPin: string,
+  vcc: number,
+  psuVolts?: (partId: string) => number | null,
+  liveOhms?: (part: Part) => number | null
+): (FanCircuit & { hiNet: string; loNet: string; nets: Nets }) | null {
   const { nets, adj, digitalNets, vccNets, gndNets } = resistiveGraph(diagram, liveOhms);
   const reached: { net?: string; drop?: number; limitAmps?: number } = {};
   const sink: { net?: string; drop?: number; limitAmps?: number } = {};
-  const up = minOhmsPath(
-    nets.netOf({ partId: fanId, pin: '+' }),
-    new Set([...digitalNets, ...vccNets]),
-    adj,
-    undefined,
-    reached,
-    'source'
-  );
-  const down = minOhmsPath(nets.netOf({ partId: fanId, pin: '-' }), gndNets, adj, undefined, sink, 'sink');
+  const hiNet = nets.netOf({ partId, pin: hiPin });
+  const loNet = nets.netOf({ partId, pin: loPin });
+  const up = minOhmsPath(hiNet, new Set([...digitalNets, ...vccNets]), adj, undefined, reached, 'source');
+  const down = minOhmsPath(loNet, gndNets, adj, undefined, sink, 'sink');
   if (up === null || down === null || reached.net === undefined) return null;
   const src = netSupply(diagram, nets, reached.net, vcc, digitalNets, vccNets, psuVolts);
   // Les diodes du chemin prélèvent leur tension de seuil au passage ; un
-  // transistor sur la maille ne transmet que Gain × Ib (s'il ne sature pas, le
-  // ventilateur est affamé — c'est le montage aval qui ne marche pas).
+  // transistor sur la maille ne transmet que Gain × Ib (s'il ne sature pas, la
+  // charge est affamée — c'est le montage aval qui ne marche pas).
   const supplyVolts = Math.max(0, src.volts - (reached.drop ?? 0) - (sink.drop ?? 0));
   const supplyAmps = Math.min(src.amps, reached.limitAmps ?? Infinity, sink.limitAmps ?? Infinity);
-  return { supplyVolts, supplyAmps, ohms: up + down, mcuPin: src.mcuPin };
+  // `nets` accompagne le résultat : hiNet/loNet ne veulent rien dire dans une
+  // AUTRE netlist (les identifiants de net dépendent du graphe construit), et
+  // l'appelant a besoin d'y chercher la diode de roue libre et le transistor.
+  return { supplyVolts, supplyAmps, ohms: up + down, mcuPin: src.mcuPin, hiNet, loNet, nets };
 }
 
 /**
@@ -1272,6 +1289,155 @@ export function fanSpeed(
   const speed = volts / ratedVolts;
   // Sous 30 % de sa tension nominale, un moteur à courant continu ne démarre pas.
   return { speed: speed < 0.3 ? 0 : Math.min(1, speed), volts, amps, starved: false };
+}
+
+// --- Moteur à courant continu -----------------------------------------------
+
+/** Fraction de la tension nominale sous laquelle un moteur ne démarre pas. */
+const MOTOR_START_RATIO = 0.3;
+/** Au-delà de ce multiple de sa tension nominale, le moteur GRILLE. */
+export const MOTOR_BURN_RATIO = 1.5;
+/** Vitesse maximale affichée, en multiple du régime nominal : un moteur
+ *  survolté tourne plus vite, mais pas indéfiniment (il grille avant). */
+const MOTOR_MAX_SPEED = MOTOR_BURN_RATIO;
+
+/** Ce qui empêche un moteur à courant continu de tourner correctement. */
+export type MotorFault = 'none' | 'no-diode' | 'reversed-diode' | 'starved' | 'overvolt';
+
+export interface MotorState {
+  partId: string;
+  /** Le moteur est alimenté (les deux bornes voient un + et une masse). */
+  powered: boolean;
+  /** Tension réellement appliquée à ses bornes (V). */
+  volts: number;
+  /** Courant appelé (A). */
+  amps: number;
+  /** Vitesse en fraction du régime nominal (0 = arrêté, 1 = nominal). */
+  speed: number;
+  fault: MotorFault;
+  /** Composant à ENCADRER : la diode montée à l'envers, ou le transistor de
+   *  commande détruit par la surtension de coupure. */
+  faultPartId?: string;
+  /** Transistor de commande DÉTRUIT par l'absence de diode de roue libre. */
+  blownTransistorId?: string;
+}
+
+/**
+ * État de chaque moteur à courant continu du schéma.
+ *
+ * Un moteur n'est pas polarisé : ses deux fils sont interchangeables, on essaie
+ * donc les deux sens et on garde celui qui met un + d'un côté et une masse de
+ * l'autre. Sa vitesse suit la TENSION appliquée (`speed` = U/Unom) ; il ne
+ * démarre pas sous 30 % de sa tension nominale, ni si la source ne peut pas
+ * fournir le courant qu'il demande, et il GRILLE au-delà de 1,5 fois sa tension
+ * nominale.
+ *
+ * Comme une bobine de relais, un moteur est une INDUCTANCE : à la coupure il
+ * renvoie une surtension qui détruit le transistor de commande. Une diode de
+ * roue libre est donc obligatoire — sauf derrière un MOSFET dont le schéma
+ * interne en porte déjà une (diode de structure du `nmos-d`).
+ */
+export function motorStates(
+  diagram: Diagram,
+  vcc: number,
+  duty?: (mcuPin: string | null) => number,
+  psuVolts?: (partId: string) => number | null,
+  liveOhms?: (part: Part) => number | null
+): MotorState[] {
+  const parts = diagram.parts.filter((p) => partDef(p.type).kind === 'motor');
+  if (parts.length === 0) return [];
+  const out: MotorState[] = [];
+  for (const part of parts) {
+    const idle: MotorState = {
+      partId: part.id, powered: false, volts: 0, amps: 0, speed: 0, fault: 'none',
+    };
+    // Les deux fils sont interchangeables : le bon sens est celui qui trouve à
+    // la fois une source en haut et une masse en bas.
+    const circuit =
+      dcLoadCircuit(diagram, part.id, '1', '2', vcc, psuVolts, liveOhms) ??
+      dcLoadCircuit(diagram, part.id, '2', '1', vcc, psuVolts, liveOhms);
+    if (!circuit) {
+      out.push(idle);
+      continue;
+    }
+    const rated = numAttr(part, 'voltage', 5);
+    const noLoad = numAttr(part, 'current', 0.2);
+    if (rated <= 0 || noLoad <= 0) {
+      out.push(idle);
+      continue;
+    }
+    // Le moteur est vu comme sa résistance à vide, en série avec le circuit.
+    const rMotor = rated / noLoad;
+    const applied = circuit.supplyVolts * Math.max(0, Math.min(1, duty?.(circuit.mcuPin) ?? 1));
+    if (applied <= 0) {
+      out.push({ ...idle, powered: true });
+      continue;
+    }
+    const amps = applied / (rMotor + circuit.ohms);
+    const volts = amps * rMotor;
+    // Le courant appelé dépasse ce que la source peut donner : elle s'effondre
+    // et le moteur ne démarre pas (broche de carte sur un moteur, typiquement).
+    if (amps > circuit.supplyAmps) {
+      out.push({ ...idle, powered: true, volts, amps, fault: 'starved' });
+      continue;
+    }
+    // Roue libre : passée en revue AVANT la surtension, c'est le défaut de
+    // câblage — celui qui détruit le transistor, pas le moteur.
+    const driver = motorDriver(diagram, circuit.nets, circuit.hiNet, circuit.loNet);
+    const flyback = driver ? flybackFault(diagram, circuit.nets, circuit.hiNet, circuit.loNet) : null;
+    if (driver && flyback) {
+      out.push({
+        partId: part.id, powered: true, volts, amps, speed: 0, fault: flyback.fault,
+        faultPartId: flyback.diodeId ?? driver.id,
+        // Sans diode du tout, c'est le transistor qui part : la surtension de
+        // coupure passe entièrement à travers lui.
+        ...(flyback.fault === 'no-diode' ? { blownTransistorId: driver.id } : {}),
+      });
+      continue;
+    }
+    if (volts > MOTOR_BURN_RATIO * rated) {
+      out.push({ partId: part.id, powered: true, volts, amps, speed: 0, fault: 'overvolt' });
+      continue;
+    }
+    const ratio = volts / rated;
+    out.push({
+      partId: part.id, powered: true, volts, amps,
+      speed: ratio < MOTOR_START_RATIO ? 0 : Math.min(MOTOR_MAX_SPEED, ratio),
+      fault: 'none',
+    });
+  }
+  return out;
+}
+
+/**
+ * Broche de carte qui alimente ce moteur, s'il en est commandé une : c'est elle
+ * que le moteur de simulation surveille en rapport cyclique (PWM), la seule
+ * façon de faire varier la vitesse depuis un programme.
+ */
+export function motorMcuPin(diagram: Diagram, motorId: string, vcc: number): string | null {
+  const circuit =
+    dcLoadCircuit(diagram, motorId, '1', '2', vcc) ?? dcLoadCircuit(diagram, motorId, '2', '1', vcc);
+  return circuit?.mcuPin ?? null;
+}
+
+/**
+ * Transistor qui COMMANDE ce moteur : celui dont le collecteur (ou le drain)
+ * touche l'une des deux bornes. Sans lui, personne ne coupe le courant — un
+ * moteur câblé en direct sur une alimentation n'a pas besoin de roue libre.
+ * Un MOSFET dont le schéma interne porte déjà sa diode de structure (`nmos-d`)
+ * ne compte pas non plus : la roue libre est dans le boîtier.
+ */
+function motorDriver(diagram: Diagram, nets: Nets, hiNet: string, loNet: string): Part | null {
+  for (const part of diagram.parts) {
+    if (partDef(part.type).kind !== 'transistor') continue;
+    if (partAttr(part, 'schema', '') === 'nmos-d') continue; // diode intégrée
+    const pins = transistorPins(part);
+    for (const pin of [pins.c, pins.e]) {
+      const net = nets.netOf({ partId: part.id, pin });
+      if (net === hiNet || net === loNet) return part;
+    }
+  }
+  return null;
 }
 
 // --- Ponts commandés : transistors bipolaires et relais ----------------------
@@ -1570,7 +1736,7 @@ export function relayStates(
  */
 function flybackFault(
   diagram: Diagram, nets: Nets, hiNet: string, loNet: string
-): { fault: RelayFault; diodeId?: string } | null {
+): { fault: 'no-diode' | 'reversed-diode'; diodeId?: string } | null {
   let reversed: string | null = null;
   for (const part of diagram.parts) {
     if (partDef(part.type).kind !== 'diode') continue;

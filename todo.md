@@ -1,4 +1,19 @@
 # À faire
+1. 1. Kablix : impossible d'enregistrer l'éditeur SVG dans les réglages (kablix.svgEditorPath). Mais maintenant le svg s'ouvre correctement.
+1. Lorsqu'un texte d'erreur apparait, il doit être un peut moins gros et s'il est long il doit être plus large (5 à 10 mots par ligne)
+1. Rajoute dans la barre de simulation  un bouton erreur avec l'icone erreur de media\icones.svg. Il fonctionne en  bascule et affiche ou non les erreurs du texte ci-dessus.
+1. Vsix ici
+1. 1. Pour la nomenclature, les condensateurs ont bien  identifiés comme des plastiques, tantale ou chimique mais leur type à tous les 3 est "condo-np" et la tension max est 400V pour le trois.
+1. Rajoute une propriété (valeur) aux potentiomètres elle est en Ohm et sera dans la nomenclature. Par défaut 10kΩ. La position sera en % (xx Ω)
+1. Transistor
+    1. Les lettres ebc sur les schéma internes des transistors non pas conservé leur couleur et son devenu trés épaisse au poin  d'être illisibles
+    1. Le schéma interne doit être celui désigné dans le fichier transistor.csv s'il n'y en a pas tu mets le schéma générique afin de ne pas induire en erreur sur les broches ebc.
+    1. les bornes de l'IRF530 sont mal placées
+    1. Le cadre de sélection des transistors n'est pas toujours bien ajusté
+    1. Un point à trancher : #1a5fb4 est un bleu foncé. Sur fond sombre de l'inspecteur (--vscode-input-background), les modèles neufs sont peu lisibles. Je veux une variante éclaircie en thème sombre.
+    1. Un MOSFET porte G/D/S, pas E/B/C (j'ai complété le fichier transistor.csv)
+1. Vsix ici
+1. ✅ Ajoute une moteurDC. le groupe moteurDC-axe-rotatif tourne (même principe que ventilo). Plus la tension est élevé plus il tourne vite. Propritée tension nominale en volts (5 par défaut). Courant à vide en A (200mA par défaut). Si courant pas suffisant il ne tourne pas si tension > 1,5 fois tension nominale il grille. Si pas de diode de roue libre (ou diode intégré au NMOS-D). Erreur signalée et transistor explose.
 1. ✅ Je viens de rajouter dans composants.svg un schéma interne NPN-Generique et et PNP-générique à utiliser pour tous les transistors dont le schéma interne ne correspont pas à NPN1 ou PNP1.
 1. ✅ Tu trouvera une liste  "A Examiner\transistor.csv" avec des transistor à ajouter. Le svg existent dans Composants.svg. Tu les fera apparaitre en couleur de texte (1a5fb4ff) dans la liste de choix (laisse les autres en bleu). Rajouter les types darlington-NPN, darlington-PNP et NMOS.
 1. ✅ Retouche ce texte LED / 7 seg / barre / RGB grillés (💥) → « Cette LED a grillé : sans résistance série (ou avec une trop faible), le courant dépasse ce que la jonction supporte.  »
@@ -12,6 +27,21 @@ Voici les préfix à utiliser (traduisible) et respecte la casse : Résistance (
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# v2026.7.249 — le moteur à courant continu tourne, cale ou grille, et exige sa diode de roue libre
+1. ✅ **Nouveau composant `moteur-dc`** (dessin de Frank extrait de `Composants.svg` vers `externe/moteur-dc.svg`, élément `kablix-moteur-dc`) : deux fils **non polarisés** (`1`/`2` — les inverser inverse le sens), repère `Act` comme le ventilateur, même catégorie de palette.
+2. ✅ **L'axe tourne à la vitesse de la tension** : le groupe `moteurDC-axe-rotatif` du SVG est enveloppé dans un `.spin` et tourne d'autant plus vite que le moteur est alimenté. Vitesse = tension appliquée / tension nominale, PWM compris (rapport cyclique).
+3. ✅ **Rotation et animation mises en commun avec le ventilateur** (`composants/utils/spin.mts`) : plafond anti-crénelage (un quart de la période de dent à 60 Hz), flou de mouvement et fondu au-delà, arrêt net quand le composant grille. Le ventilateur perd 111 lignes dupliquées, son comportement ne bouge pas.
+4. ✅ **Deux propriétés, traduites FR/EN** : tension nominale `voltage` (5 V par défaut) et courant à vide `current` (0,2 A par défaut). Le moteur est modélisé comme une résistance U/I (25 Ω par défaut).
+5. ✅ **Quatre défauts diagnostiqués** (`motorStates` dans `model.mts`) : `starved` (l'alimentation ne fournit pas le courant — typiquement une broche de µc, 40 mA), pas de démarrage sous 30 % de la tension nominale, `overvolt` **au-delà de 1,5 × la tension nominale → le moteur grille** (💥), et `no-diode`.
+6. ✅ **La diode de roue libre est OBLIGATOIRE dès qu'un transistor commande le moteur** : sans elle (ou montée à l'envers), le défaut est signalé **et le transistor explose** (💥) — c'est bien lui que la surtension de coupure détruit. Un MOSFET dont le symbole interne est `NMOS-D` porte déjà sa diode de corps : il en est exempté.
+7. ✅ **Correction de fond dans `dcLoadCircuit`** : il rend maintenant la netlist qui a produit ses nets. Les identifiants de net **ne sont pas comparables d'une netlist à l'autre** — `motorDriver` et `flybackFault` cherchaient la diode dans un autre graphe, donc ne trouvaient jamais rien.
+8. ✅ **`reportMotorFaults` dans `sim.mts`** : cadre rouge + étiquette explicative sur le moteur fautif ou sur le transistor détruit, posté seulement au changement, comme les autres défauts.
+9. ✅ **Banc `npm run verify:motor` (neuf)** : modèle (vitesse, seuils, PWM, fils inversés, alimentation trop faible, surtension), roue libre (absente, inversée, correcte, MOSFET simple vs `NMOS-D`), catalogue/repères/fiches, puis rendu réel en Chrome headless (l'axe tourne, plafond anti-crénelage, flou croissant, moteur grillé = 💥 et rotation figée). Branché dans `verify:all`.
+10. ✅ **Tests `moteur-dc-uno` et `moteur-dc-pico`** (via `_spec.mjs` + `_generate.mjs`) : trois moteurs 5 V/0,1 A — un commandé proprement (PN2222A + diode) qui tourne, un branché direct sur une broche qui cale, un sans diode dont le transistor explose. `_verify.mjs` résout les ponts avant chaque relevé, comme la simulation.
+11. ✅ **Fiches d'aide FR + EN** (`docs/*/composants/moteur-dc.md` + illustration `_capture-part.mjs`) et trois lignes de plus au tableau des défauts d'`USAGE.md` (roue libre manquante, alimentation trop faible, surtension).
+12. ✅ **Brochage du BS170 corrigé (D-G-S)** : Frank a rempli les colonnes `g;d;s` des MOSFET dans `A Examiner/transistor.csv`, et `verify:transistor` compare la base à ce CSV. La base avait recopié le brochage du 2N7000 (S-G-D) — même boîtier, brochage inversé, le piège classique. Corrigé aussi dans les tests `transistor-uno`/`transistor-pico`.
+13. ℹ️ **`_spec.mjs` a DÉRIVÉ des fichiers du dépôt** : `node testkablix/_generate.mjs` (obligatoire pour ajouter un test) réécrit TOUT, et écrase donc les retouches faites à la main depuis — dont `7seg-pico.py`, passé de multiplexé à simple, ce qui casse `verify:7seg-mux`. Les fichiers du dépôt ont été rétablis (la régénération complète reste dans `git stash@{0}`) et seuls les fichiers `moteur-dc-*` sont neufs. **`node testkablix/_verify.mjs` compte 16 écarts spec ↔ `.projix`** (blink-pico devenu picow, broches déplacées sur joystick/tilt/servo/flame/dht11, 7seg-pico à 4 chiffres, canaux RGB, led-bar…) : à trancher — soit la spec rattrape les schémas, soit l'inverse. `verify:all` n'en dépend pas.
 
 # v2026.7.247 — les symboles internes génériques, le boîtier TO-220, la LED grillée s'explique mieux
 1. ✅ **Cinq symboles internes de plus, extraits de `Composants.svg`** (Frank les a dessinés depuis la v2026.7.246, où ils manquaient encore) : `NPN-Generique`, `PNP-Generique`, `Darlington-NPN`, `Darlington-PNP`, `NMOS-D`. Ils rejoignent `NPN1`/`PNP1` dans `internal-wiring.mts`.
