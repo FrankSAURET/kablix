@@ -1,8 +1,8 @@
 # À faire
-1. 1. Kablix : impossible d'enregistrer l'éditeur SVG dans les réglages (kablix.svgEditorPath). Mais maintenant le svg s'ouvre correctement.
-1. Lorsqu'un texte d'erreur apparait, il doit être un peut moins gros et s'il est long il doit être plus large (5 à 10 mots par ligne)
-1. Rajoute dans la barre de simulation  un bouton erreur avec l'icone erreur de media\icones.svg. Il fonctionne en  bascule et affiche ou non les erreurs du texte ci-dessus.
-1. Vsix ici
+1. ✅ Kablix : impossible d'enregistrer l'éditeur SVG dans les réglages (kablix.svgEditorPath). Mais maintenant le svg s'ouvre correctement.
+1. ✅ Lorsqu'un texte d'erreur apparait, il doit être un peut moins gros et s'il est long il doit être plus large (5 à 10 mots par ligne)
+1. ✅ Rajoute dans la barre de simulation  un bouton erreur avec l'icone erreur de media\icones.svg. Il fonctionne en  bascule et affiche ou non les erreurs du texte ci-dessus.
+1. ✅ Vsix ici
 1. 1. Pour la nomenclature, les condensateurs ont bien  identifiés comme des plastiques, tantale ou chimique mais leur type à tous les 3 est "condo-np" et la tension max est 400V pour le trois.
 1. Rajoute une propriété (valeur) aux potentiomètres elle est en Ohm et sera dans la nomenclature. Par défaut 10kΩ. La position sera en % (xx Ω)
 1. Transistor
@@ -27,6 +27,15 @@ Voici les préfix à utiliser (traduisible) et respecte la casse : Résistance (
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# v2026.7.250 — l'éditeur SVG se retient enfin, les défauts se lisent et se taisent
+1. ✅ **L'éditeur SVG choisi est VRAIMENT enregistré dans les réglages** (`kablix.svgEditorPath`, portée globale) : la relecture qui validait l'écriture lisait la valeur **EFFECTIVE** — un réglage d'espace de travail masquant le réglage global, l'écriture paraissait réussie alors que rien n'était retenu. Elle interroge maintenant `inspect().globalValue`, la valeur réellement écrite.
+2. ✅ **Comparaison de chemins à la façon de Windows** : `C:\Program Files\Inkscape\bin\inkscape.exe` et `c:/program files/inkscape/bin/inkscape.exe` désignent le même exécutable — la casse et le sens des barres obliques ne comptent pas. Une deuxième lecture 50 ms plus tard laisse à VS Code le temps d'écrire son fichier de réglages avant de conclure à l'échec.
+3. ✅ **Un refus est DIT, avec le bouton pour aller voir** : si l'enregistrement échoue vraiment, un avertissement nomme la cause et ouvre directement `kablix.svgEditorPath` dans les réglages (traduit FR/EN). Auparavant, l'échec était silencieux et il fallait redemander l'éditeur à chaque ouverture.
+4. ✅ **Les explications de défaut se lisent d'un trait** : écriture ramenée de 11 à 10 px et pavé élargi à `56ch` — 5 à 10 mots par ligne, la longueur qu'on saisit d'un coup d'œil. `width: max-content` était indispensable : une boîte absolue se rétrécit à la place restante dans `.part`, un message long tombait donc en **colonne de trois mots** (82 px de large). Un texte court, lui, reste étroit.
+5. ✅ **Bouton ⚠ dans la barre de simulation** (icône `erreur` extraite de la planche de Frank vers `media/erreur.svg`) : bascule qui **coupe ou rend les explications** de défaut. Le cadre rouge, lui, reste dans les deux cas — le coupable est toujours désigné, mais le câblage qu'on cherche à corriger n'est plus recouvert quand plusieurs composants tombent en défaut ensemble. Icône grisée quand la bascule est basse, préférence retenue d'une session à l'autre (`faultsShown`).
+6. ✅ **`verify:selection` : 145 → 156 contrôles** — lisibilité mesurée pour de vrai (police ≤ 10 px, 24 mots comptés sur leurs lignes, texte court non étiré), bascule (masquage, cadre conservé, défaut déclaré pendant que la bascule est basse, forçage explicite), et présence du bouton, de l'icône, du câblage et du style allumé/éteint. `verify:creator-ui` : 55 → 59 contrôles pour l'enregistrement du chemin.
+7. ✅ **`.vsix` construit** à la demande de Frank (fin du premier bloc de la liste).
 
 # v2026.7.249 — le moteur à courant continu tourne, cale ou grille, et exige sa diode de roue libre
 1. ✅ **Nouveau composant `moteur-dc`** (dessin de Frank extrait de `Composants.svg` vers `externe/moteur-dc.svg`, élément `kablix-moteur-dc`) : deux fils **non polarisés** (`1`/`2` — les inverser inverse le sens), repère `Act` comme le ventilateur, même catégorie de palette.

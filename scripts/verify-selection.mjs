@@ -963,6 +963,62 @@ async function run() {
 	ok('explication : ne capte pas les clics', nCs && nCs.pointerEvents === 'none', nCs && nCs.pointerEvents);
 	ok('explication : au-dessus des fils et des composants (z ≥ 10)',
 		nCs && Number(nCs.zIndex) >= 10, nCs && nCs.zIndex);
+
+	// --- Lisibilité d'une explication LONGUE (v2026.7.250) ---------------------
+	// Écriture plus petite et pavé plus large : une phrase entière tenait sur
+	// cinq lignes de trois mots, qu'on relisait deux fois. Repère de Frank :
+	// 5 à 10 mots par ligne.
+	const LONG = 'La diode de roue libre manque et le transistor qui commande le moteur sera perce par la surtension de coupure des enroulements du moteur';
+	const MOTS = LONG.split(' ').length; // 24
+	editor.setFaulty(fLed.id, true, LONG);
+	await wait(60);
+	const longEl = noteOf();
+	const lCs = longEl ? getComputedStyle(longEl) : null;
+	const lignes = longEl && lCs
+		? Math.round((longEl.clientHeight - parseFloat(lCs.paddingTop) - parseFloat(lCs.paddingBottom)) / parseFloat(lCs.lineHeight))
+		: 0;
+	const motsParLigne = lignes ? MOTS / lignes : 0;
+	ok('explication : écriture plus petite qu avant (≤ 10 px)',
+		lCs && parseFloat(lCs.fontSize) <= 10, lCs && lCs.fontSize);
+	ok('explication longue : 5 à 10 mots par ligne',
+		motsParLigne >= 5 && motsParLigne <= 10,
+		MOTS + ' mots sur ' + lignes + ' lignes → ' + motsParLigne.toFixed(1) + '/ligne (largeur ' + (longEl && longEl.clientWidth) + ' px)');
+	const largeurLongue = longEl ? longEl.clientWidth : 0;
+	// Contre-épreuve : un texte COURT ne doit pas être étiré à la largeur maxi.
+	editor.setFaulty(fLed.id, true, 'Diode à l’envers');
+	await wait(40);
+	ok('explication courte : pavé ajusté au texte, pas étiré',
+		noteOf() && noteOf().clientWidth < largeurLongue * 0.75,
+		(noteOf() && noteOf().clientWidth) + ' vs ' + largeurLongue);
+
+	// --- Bascule ⚠ de la barre de simulation (v2026.7.250) ---------------------
+	// Sur un schéma serré, plusieurs défauts simultanés couvrent le câblage
+	// qu'on cherche à corriger : le bouton coupe les EXPLICATIONS, le cadre
+	// rouge reste (le coupable est toujours désigné).
+	ok('bascule : explications affichées au départ', editor.isFaultNotesShown());
+	editor.toggleFaultNotes();
+	await wait(40);
+	ok('bascule : une pression masque l explication',
+		noteOf() && getComputedStyle(noteOf()).display === 'none',
+		noteOf() && getComputedStyle(noteOf()).display);
+	ok('bascule : le cadre rouge du coupable RESTE visible',
+		fCont.classList.contains('part--faulty') && fBox() && getComputedStyle(fBox()).visibility === 'visible',
+		fBox() && getComputedStyle(fBox()).visibility);
+	ok('bascule : état rendu par isFaultNotesShown()', editor.isFaultNotesShown() === false);
+	// Un défaut déclaré PENDANT que la bascule est basse reste muet.
+	editor.setFaulty(fRes.id, true, 'Résistance grillée');
+	await wait(40);
+	const rNote = editor.rendered.get(fRes.id).container.querySelector('.part__fault');
+	ok('bascule : un nouveau défaut n affiche pas son explication non plus',
+		rNote && getComputedStyle(rNote).display === 'none', rNote && getComputedStyle(rNote).display);
+	editor.setFaulty(fRes.id, false);
+	editor.toggleFaultNotes();
+	await wait(40);
+	ok('bascule : seconde pression, l explication revient',
+		editor.isFaultNotesShown() && noteOf() && getComputedStyle(noteOf()).display !== 'none',
+		noteOf() && getComputedStyle(noteOf()).display);
+	ok('bascule : forçage explicite toggleFaultNotes(false/true)',
+		editor.toggleFaultNotes(false) === false && editor.toggleFaultNotes(true) === true);
 	// Cadre SANS explication : possible aussi (un défaut peut n'avoir que le cadre).
 	editor.setFaulty(fLed.id, true);
 	await wait(40);
@@ -1125,6 +1181,33 @@ rows.push({
 		'This board burned out',
 	].every((k) => new RegExp(`^\\s*'${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^\\n]*':`, 'm').test(i18n)),
 	detail: 'une explication sortirait en anglais',
+});
+// --- Bouton ⚠ de la barre de simulation (v2026.7.250) ------------------------
+const htmlSrc = readFileSync(join(ROOT, 'src', 'webview-html.ts'), 'utf8');
+rows.push({
+	name: 'barre de simulation : bouton ⚠ présent, allumé au départ',
+	ok: /id="toggle-faults"[^>]*canvas-controls__btn--faults[^>]*\bis-on\b/.test(htmlSrc) &&
+		/erreurIconUri = asset\('erreur\.svg'\)/.test(htmlSrc),
+	detail: 'bouton absent de .canvas-controls, ou icône erreur.svg non chargée',
+});
+rows.push({
+	name: 'bouton ⚠ : icône extraite de la planche de Frank',
+	ok: existsSync(join(ROOT, 'media', 'erreur.svg')) &&
+		/id="erreur"/.test(readFileSync(join(ROOT, 'media', 'icones.svg'), 'utf8')),
+	detail: 'media/erreur.svg manquant, ou groupe « erreur » non nommé dans icones.svg',
+});
+rows.push({
+	name: 'bouton ⚠ : bascule câblée et préférence retenue d une session à l autre',
+	ok: /toggleFaultsBtn\.addEventListener\('click'[\s\S]{0,200}?editor\.toggleFaultNotes\(\)[\s\S]{0,120}?saveUiState\(\)/.test(sim) &&
+		/state: \{[^}]*faultsShown[^}]*\}/.test(sim) &&
+		/faultsShown = \(state as \{ faultsShown\?: boolean \}\)\.faultsShown!/.test(sim),
+	detail: 'clic non câblé, ou préférence non enregistrée / non relue',
+});
+rows.push({
+	name: 'bouton ⚠ : état lisible sans ouvrir de menu (icône grisée quand coupé)',
+	ok: /\.canvas-controls__btn--faults \{[\s\S]{0,80}?opacity: 0\.45/.test(css) &&
+		/\.canvas-controls__btn--faults\.is-on \{/.test(css),
+	detail: 'pas de style allumé/éteint pour le bouton',
 });
 let fail = 0;
 for (const r of rows) {

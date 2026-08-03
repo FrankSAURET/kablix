@@ -48,26 +48,65 @@ function defaultAppsDir(): vscode.Uri | undefined {
 }
 
 /**
+ * Deux chemins désignent-ils le même fichier ? Windows ignore la casse et
+ * accepte les deux séparateurs : `C:\Program Files\Inkscape\bin\inkscape.exe`
+ * et `c:/Program Files/inkscape/bin/inkscape.exe` sont le même exécutable.
+ */
+function samePath(a: string, b: string): boolean {
+  const norm = (p: string): string => {
+    const clean = p.trim().replace(/[\\/]+/g, '/').replace(/\/+$/, '');
+    return process.platform === 'win32' ? clean.toLowerCase() : clean;
+  };
+  return !!a.trim() && norm(a) === norm(b);
+}
+
+/**
  * Écrit le chemin retenu dans `kablix.svgEditorPath` (réglage utilisateur) et
  * VÉRIFIE la relecture : une écriture refusée (réglage verrouillé par une
  * stratégie, profil en lecture seule) doit se voir tout de suite, sinon Kablix
  * redemande l'éditeur à chaque retouche sans qu'on sache pourquoi.
+ *
+ * Trois pièges faisaient crier « impossible d'enregistrer » alors que le réglage
+ * ÉTAIT bien écrit (retour de Frank, v2026.7.250) :
+ *   - on relisait la valeur EFFECTIVE, qu'un réglage de dossier ou de workspace
+ *     masque : c'est `inspect().globalValue`, la valeur écrite, qui fait foi ;
+ *   - on comparait les chemins au caractère près, alors que Windows ignore la
+ *     casse et mélange `\` et `/` ;
+ *   - on relisait trop tôt : le modèle de configuration se met à jour un tick
+ *     après la promesse, d'où une deuxième chance avant de conclure.
+ * Et si l'écriture échoue pour de bon, on DIT pourquoi (l'erreur était avalée)
+ * et on offre d'ouvrir le réglage pour le renseigner à la main.
  */
 async function rememberSvgEditor(fsPath: string): Promise<boolean> {
+  let cause = '';
   try {
     await vscode.workspace
       .getConfiguration('kablix')
       .update('svgEditorPath', fsPath, vscode.ConfigurationTarget.Global);
-  } catch {
-    /* message ci-dessous */
+  } catch (err) {
+    cause = err instanceof Error ? err.message : String(err);
   }
-  const saved = (
-    vscode.workspace.getConfiguration('kablix').get<string>('svgEditorPath') ?? ''
-  ).trim();
-  if (saved === fsPath) return true;
-  vscode.window.showWarningMessage(
-    l10n.t('Kablix: could not save the SVG editor in the settings (kablix.svgEditorPath).')
+  for (let essai = 0; essai < 2; essai++) {
+    const ecrit =
+      vscode.workspace.getConfiguration('kablix').inspect<string>('svgEditorPath')?.globalValue ??
+      '';
+    if (samePath(ecrit, fsPath)) return true;
+    await new Promise<void>((resolve) => setTimeout(resolve, 50));
+  }
+  const message = l10n.t(
+    'Kablix: could not save the SVG editor in the settings (kablix.svgEditorPath).'
   );
+  const bouton = l10n.t('Open settings');
+  void vscode.window
+    .showWarningMessage(cause ? `${message} ${cause}` : message, bouton)
+    .then((choix) => {
+      if (choix === bouton) {
+        void vscode.commands.executeCommand(
+          'workbench.action.openSettings',
+          'kablix.svgEditorPath'
+        );
+      }
+    });
   return false;
 }
 

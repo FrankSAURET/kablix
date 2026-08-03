@@ -677,14 +677,17 @@ textarea {
   font-weight: 900;
 }
 
-/* Bouton grille : bascule d'affichage du quadrillage. L'icône (media/grille.svg,
-   dessin de Frank, v2026.7.136 — auparavant le glyphe ▦) est grisée quand la
-   grille est masquée, pour lire l'état sans ouvrir de menu. */
-.canvas-controls__btn.canvas-controls__btn--grid {
+/* Boutons bascule — grille (media/grille.svg, dessin de Frank, v2026.7.136 —
+   auparavant le glyphe ▦) et explications de défaut (media/erreur.svg) :
+   l'icône est grisée quand la fonction est coupée, pour lire l'état sans
+   ouvrir de menu. */
+.canvas-controls__btn.canvas-controls__btn--grid,
+.canvas-controls__btn.canvas-controls__btn--faults {
   opacity: 0.45;
 }
 
-.canvas-controls__btn.canvas-controls__btn--grid.is-on {
+.canvas-controls__btn.canvas-controls__btn--grid.is-on,
+.canvas-controls__btn.canvas-controls__btn--faults.is-on {
   opacity: 1;
   border-color: var(--vscode-focusBorder, #0e639c);
 }
@@ -1457,18 +1460,34 @@ textarea {
 .part__fault {
   position: absolute;
   z-index: 60;
-  max-width: 260px;
+  /* Écriture plus petite et pavé plus large qu'à l'origine (11 px / 260 px) :
+     une phrase longue tenait sur cinq lignes étroites, illisibles. La largeur
+     est donnée en `ch` — elle suit la taille du texte et cadre le retour à la
+     ligne sur 5 à 10 mots, la longueur qu'on lit d'un coup d'œil. Un texte
+     court, lui, reste étroit (`max-content` = largeur d'une seule ligne).
+     `width` est OBLIGATOIRE : une boîte absolue se rétrécit sinon à la place
+     restante dans `.part`, soit la largeur du composant — un message long
+     tombait en colonne de trois mots. */
+  width: max-content;
+  max-width: 56ch;
   padding: 5px 8px;
   border-radius: 4px;
   border: 1px solid #ffe000;
   background: #c00000;
   color: #ffe000;
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.35;
   font-weight: 600;
   text-align: left;
   pointer-events: none;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+/* Bouton ⚠ de la barre de simulation relevé : les explications se taisent, le
+   cadre rouge reste (le coupable est toujours désigné, le schéma redevient
+   lisible quand plusieurs composants tombent en défaut ensemble). */
+.canvas--no-faults .part__fault {
+  display: none;
 }
 
 /* Simulation en cours : pas de sélection ni bandeau de nom, schéma figé

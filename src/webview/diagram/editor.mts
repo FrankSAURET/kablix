@@ -330,6 +330,8 @@ export class Editor {
   private pasteRun: { key: string; n: number } | null = null;
   /** Quadrillage de la feuille affiché (bouton ▦ de la barre de dessin). */
   private gridShown = true;
+  /** Explications de défaut affichées (bouton ⚠ de la barre de simulation). */
+  private faultNotesShown = true;
 
   /** Calque transformable (zoom + translation) contenant fils et composants. */
   private readonly world: HTMLDivElement;
@@ -781,6 +783,24 @@ export class Editor {
   /** Le quadrillage est-il affiché ? */
   isGridShown(): boolean {
     return this.gridShown;
+  }
+
+  /**
+   * Affiche ou masque les ÉTIQUETTES d'explication des défauts (bouton ⚠ de la
+   * barre de simulation). Le cadre rouge, lui, reste : il désigne le coupable
+   * sans rien recouvrir, alors que le texte finit par masquer un schéma serré
+   * quand plusieurs composants tombent en défaut en même temps.
+   */
+  toggleFaultNotes(on?: boolean): boolean {
+    const next = on ?? !this.faultNotesShown;
+    this.faultNotesShown = next;
+    this.canvas.classList.toggle('canvas--no-faults', !next);
+    return next;
+  }
+
+  /** Les explications de défaut sont-elles affichées ? */
+  isFaultNotesShown(): boolean {
+    return this.faultNotesShown;
   }
 
   /**

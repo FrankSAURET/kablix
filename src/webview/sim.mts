@@ -211,6 +211,7 @@ const closeSerialBtn = document.getElementById('close-serial') as HTMLButtonElem
 const toggleSerialBtn = document.getElementById('toggle-serial') as HTMLButtonElement;
 const plotterSection = document.getElementById('plotter-section') as HTMLElement;
 const togglePlotterBtn = document.getElementById('toggle-plotter') as HTMLButtonElement;
+const toggleFaultsBtn = document.getElementById('toggle-faults') as HTMLButtonElement;
 const closePlotterBtn = document.getElementById('close-plotter') as HTMLButtonElement;
 const canvas = document.getElementById('canvas') as HTMLDivElement;
 const palette = document.getElementById('palette') as HTMLDivElement;
@@ -555,6 +556,8 @@ function probeLabel(board: BoardId, pin: string): string {
 let plotterUserPref: boolean | undefined;
 /** Quadrillage de la feuille affiché (bouton ▦, préférence persistée). */
 let gridShown = true;
+/** Explications de défaut affichées (bouton ⚠, préférence persistée). */
+let faultsShown = true;
 let plotterVisible = false;
 
 /** Affiche ou masque le traceur (persist = choix explicite de l'utilisateur). */
@@ -2910,6 +2913,14 @@ toggleGridBtn.addEventListener('click', () => {
   toggleGridBtn.classList.toggle('is-on', gridShown);
   saveUiState();
 });
+// Explications de défaut (étiquettes jaune sur rouge) : bascule d'affichage.
+// Le cadre rouge reste dans les deux cas — sur un schéma serré, plusieurs
+// défauts simultanés couvrent le câblage qu'on cherche justement à corriger.
+toggleFaultsBtn.addEventListener('click', () => {
+  faultsShown = editor.toggleFaultNotes();
+  toggleFaultsBtn.classList.toggle('is-on', faultsShown);
+  saveUiState();
+});
 // Autoroutage : fils en angles droits (sélection, sinon tout le schéma).
 autoRouteBtn.addEventListener('click', () => editor.autoRoute());
 // Effacer le schéma (annulable avec Ctrl+Z).
@@ -3034,7 +3045,7 @@ function applyPanelWidths(): void {
 function saveUiState(): void {
   vscode.postMessage({
     type: 'saveUiState',
-    state: { ...paletteState, labelsMode, showIds, paletteWidth, inspectorWidth, serialVisible, plotterVisible: plotterUserPref, gridShown },
+    state: { ...paletteState, labelsMode, showIds, paletteWidth, inspectorWidth, serialVisible, plotterVisible: plotterUserPref, gridShown, faultsShown },
   });
 }
 
@@ -3515,6 +3526,12 @@ window.addEventListener('message', (event: MessageEvent) => {
         gridShown = (state as { gridShown?: boolean }).gridShown!;
         editor.toggleGrid(gridShown);
         toggleGridBtn.classList.toggle('is-on', gridShown);
+      }
+      // Explications de défaut (défaut : affichées).
+      if (typeof (state as { faultsShown?: boolean }).faultsShown === 'boolean') {
+        faultsShown = (state as { faultsShown?: boolean }).faultsShown!;
+        editor.toggleFaultNotes(faultsShown);
+        toggleFaultsBtn.classList.toggle('is-on', faultsShown);
       }
       paletteState = {
         sort: state.sort === 'alpha' ? 'alpha' : 'category',

@@ -37,6 +37,7 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
   const hamburgerIconUri = asset('hamburger.svg');
   const grilleIconUri = asset('grille.svg');
   const rearrangerIconUri = asset('rearranger.svg');
+  const erreurIconUri = asset('erreur.svg');
   // Base des posters de brochage (dist/pinout/<carte>.svg) : récupérés par fetch au clic sur ☢.
   const pinoutBase = webview.asWebviewUri(
     vscode.Uri.joinPath(extensionUri, 'dist', 'pinout')
@@ -141,6 +142,7 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
           <button id="repl" class="canvas-controls__btn canvas-controls__btn--repl" hidden title="${l10n.t('Start an interactive MicroPython REPL (no script)')}">REPL</button>
           <button id="toggle-serial" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Show/hide the serial monitor')}"><img class="canvas-controls__icon" src="${serialMonitorUri}" alt="${l10n.t('Show/hide the serial monitor')}" /></button>
           <button id="toggle-plotter" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Show/hide the plotter (curves)')}"><img class="canvas-controls__icon" src="${plotterIconUri}" alt="${l10n.t('Show/hide the plotter (curves)')}" /></button>
+          <button id="toggle-faults" class="canvas-controls__btn canvas-controls__btn--faults canvas-controls__btn--icon is-on" title="${l10n.t('Show/hide the fault explanations')}"><img class="canvas-controls__icon" src="${erreurIconUri}" alt="${l10n.t('Show/hide the fault explanations')}" /></button>
         </div>
         <!-- Barre droite : recentrer/ajuster, réinitialiser, effacer (alignée et de
              même hauteur que la barre de simulation à gauche). -->

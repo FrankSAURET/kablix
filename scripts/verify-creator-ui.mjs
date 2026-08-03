@@ -307,9 +307,38 @@ rows.push({
 rows.push({
 	name: 'éditeur SVG : l’écriture du réglage est relue et signalée si elle échoue',
 	ok: /async function rememberSvgEditor/.test(panelSrc) &&
-		/get<string>\('svgEditorPath'\) \?\? ''/.test(panelSrc.slice(panelSrc.indexOf('rememberSvgEditor'))) &&
+		/inspect<string>\('svgEditorPath'\)\?\.globalValue/.test(panelSrc) &&
 		/could not save the SVG editor/.test(panelSrc),
 	detail: 'réglage écrit sans contrôle de relecture',
+});
+// v2026.7.250 : la relecture criait au loup. On relit la valeur ÉCRITE (et pas
+// l'effective, qu'un réglage de dossier masque), on compare les chemins comme
+// Windows le fait (casse, séparateurs), on laisse au modèle un tick pour se
+// mettre à jour, et l'erreur d'écriture n'est plus avalée.
+rows.push({
+	name: 'éditeur SVG : la relecture ne compare plus la valeur EFFECTIVE',
+	ok: !/get<string>\('svgEditorPath'\) \?\? ''/.test(
+		panelSrc.slice(panelSrc.indexOf('async function rememberSvgEditor'), panelSrc.indexOf('export async function chooseSvgEditor'))),
+	detail: 'rememberSvgEditor relit encore la valeur effective',
+});
+rows.push({
+	name: 'éditeur SVG : chemins comparés à la façon de Windows (casse, séparateurs)',
+	ok: /function samePath\(/.test(panelSrc) && /toLowerCase\(\)/.test(panelSrc) &&
+		/samePath\(ecrit, fsPath\)/.test(panelSrc),
+	detail: 'comparaison au caractère près',
+});
+rows.push({
+	name: 'éditeur SVG : deuxième chance avant de conclure à l’échec',
+	ok: /for \(let essai = 0; essai < 2; essai\+\+\)/.test(panelSrc) &&
+		/setTimeout\(resolve, 50\)/.test(panelSrc),
+	detail: 'relecture unique, juste après l’écriture',
+});
+rows.push({
+	name: 'éditeur SVG : la cause du refus est DITE, avec accès aux réglages',
+	ok: /cause = err instanceof Error \? err\.message/.test(panelSrc) &&
+		/workbench\.action\.openSettings/.test(panelSrc) &&
+		!!bundle['Open settings'],
+	detail: 'erreur avalée par un catch vide',
 });
 
 // --- Le module de détection, exécuté pour de vrai (aucune dépendance vscode) --
