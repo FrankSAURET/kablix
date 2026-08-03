@@ -2,7 +2,7 @@
 1. ✅ Kablix : impossible d'enregistrer l'éditeur SVG dans les réglages (kablix.svgEditorPath). Mais maintenant le svg s'ouvre correctement.
 1. ✅ Lorsqu'un texte d'erreur apparait, il doit être un peut moins gros et s'il est long il doit être plus large (5 à 10 mots par ligne)
 1. ✅ Rajoute dans la barre de simulation  un bouton erreur avec l'icone erreur de media\icones.svg. Il fonctionne en  bascule et affiche ou non les erreurs du texte ci-dessus.
-1. ✅ Vsix ici
+1. ✅ Vsix ici → `kablix-2026.7.250.vsix` (3,25 Mo, 225 fichiers)
 1. 1. Pour la nomenclature, les condensateurs ont bien  identifiés comme des plastiques, tantale ou chimique mais leur type à tous les 3 est "condo-np" et la tension max est 400V pour le trois.
 1. Rajoute une propriété (valeur) aux potentiomètres elle est en Ohm et sera dans la nomenclature. Par défaut 10kΩ. La position sera en % (xx Ω)
 1. Transistor
@@ -35,7 +35,7 @@ Voici les préfix à utiliser (traduisible) et respecte la casse : Résistance (
 4. ✅ **Les explications de défaut se lisent d'un trait** : écriture ramenée de 11 à 10 px et pavé élargi à `56ch` — 5 à 10 mots par ligne, la longueur qu'on saisit d'un coup d'œil. `width: max-content` était indispensable : une boîte absolue se rétrécit à la place restante dans `.part`, un message long tombait donc en **colonne de trois mots** (82 px de large). Un texte court, lui, reste étroit.
 5. ✅ **Bouton ⚠ dans la barre de simulation** (icône `erreur` extraite de la planche de Frank vers `media/erreur.svg`) : bascule qui **coupe ou rend les explications** de défaut. Le cadre rouge, lui, reste dans les deux cas — le coupable est toujours désigné, mais le câblage qu'on cherche à corriger n'est plus recouvert quand plusieurs composants tombent en défaut ensemble. Icône grisée quand la bascule est basse, préférence retenue d'une session à l'autre (`faultsShown`).
 6. ✅ **`verify:selection` : 145 → 156 contrôles** — lisibilité mesurée pour de vrai (police ≤ 10 px, 24 mots comptés sur leurs lignes, texte court non étiré), bascule (masquage, cadre conservé, défaut déclaré pendant que la bascule est basse, forçage explicite), et présence du bouton, de l'icône, du câblage et du style allumé/éteint. `verify:creator-ui` : 55 → 59 contrôles pour l'enregistrement du chemin.
-7. ✅ **`.vsix` construit** à la demande de Frank (fin du premier bloc de la liste).
+7. ✅ **`.vsix` construit** à la demande de Frank (fin du premier bloc de la liste) : `kablix-2026.7.250.vsix`, 3,25 Mo, 225 fichiers.
 
 # v2026.7.249 — le moteur à courant continu tourne, cale ou grille, et exige sa diode de roue libre
 1. ✅ **Nouveau composant `moteur-dc`** (dessin de Frank extrait de `Composants.svg` vers `externe/moteur-dc.svg`, élément `kablix-moteur-dc`) : deux fils **non polarisés** (`1`/`2` — les inverser inverse le sens), repère `Act` comme le ventilateur, même catégorie de palette.
