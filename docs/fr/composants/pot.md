@@ -16,6 +16,7 @@ Résistance variable à bouton rotatif. Le curseur fournit une tension proportio
 
 | Propriété | Rôle | Défaut |
 |-----------|------|--------|
+| `ohms` | Valeur nominale : résistance totale entre VCC et GND (Ω) | 10 000 |
 | `value` | Position initiale (0–100 %) | 50 |
 
 ## Utilisation

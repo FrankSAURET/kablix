@@ -16,6 +16,7 @@ Potentiomètre linéaire à curseur coulissant. Même principe que le rotatif.
 
 | Propriété | Rôle | Défaut |
 |-----------|------|--------|
+| `ohms` | Valeur nominale : résistance totale entre VCC et GND (Ω) | 10 000 |
 | `value` | Position initiale (0–100 %) | 50 |
 
 ## Utilisation

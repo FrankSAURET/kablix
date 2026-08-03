@@ -109,6 +109,17 @@ ok('condensateur : plastique, tantale et chimique se lisent dans le nom',
   [line('C1'), line('C2'), line('C3')].map((l) => l.split(';')[1]).join(' / '));
 ok('condensateur : le type ne se répète pas dans le commentaire',
   !/Type/.test(line('C1').split(';')[4]), line('C1'));
+// La colonne TYPE disait « condo-np » pour les trois : ils se posent depuis une
+// seule entrée de palette, seul `ctype` les distingue (Frank, v2026.7.251).
+ok('condensateur : la colonne Type distingue les trois habillages',
+  line('C1').split(';')[2] === 'condo-np' && line('C2').split(';')[2] === 'condo-p-1' &&
+  line('C3').split(';')[2] === 'condo-p-2',
+  [line('C1'), line('C2'), line('C3')].map((l) => l.split(';')[2]).join(' / '));
+ok('condensateur : chacun sort AVEC SA tension max (400 V / 16 V / 16 V)',
+  line('C1').split(';')[4] === 'Tension max : 400 V' &&
+  line('C2').split(';')[4] === 'Tension max : 16 V' &&
+  line('C3').split(';')[4] === 'Tension max : 16 V',
+  [line('C1'), line('C2'), line('C3')].map((l) => l.split(';')[4]).join(' / '));
 
 // --- Mise en forme des grandeurs, unité par unité ----------------------------
 ok('grandeurs : préfixes SI du pico au giga',
@@ -128,9 +139,22 @@ ok('grandeurs : « (β) » n’est pas une unité, le libellé le garde',
   A.labelUnit('Current gain (β)') === null && A.labelUnit('Value (Ω)') === 'Ω' &&
   A.labelUnit('Position (%)') === '%',
   String(A.labelUnit('Current gain (β)')));
-ok('grandeurs : la POSITION d’un curseur n’est pas une valeur de nomenclature',
-  A.partValue({ id: 'Pot1', type: 'pot', x: 0, y: 0 }) === '',
+// Potentiomètre (v2026.7.251) : la valeur de nomenclature est la résistance
+// TOTALE (celle qu'on lit sur le boîtier), pas la position du curseur — qui
+// porte pourtant le même attribut `value` sur l'élément.
+ok('potentiomètre : la valeur de nomenclature est la résistance nominale (10 kΩ par défaut)',
+  A.partValue({ id: 'Pot1', type: 'pot', x: 0, y: 0 }) === '10 kΩ',
   A.partValue({ id: 'Pot1', type: 'pot', x: 0, y: 0 }));
+ok('potentiomètre : la position reste un COMMENTAIRE, avec la résistance qu’elle vaut',
+  A.partComment({ id: 'Pot1', type: 'pot', x: 0, y: 0 }) === 'Position : 50 % (5 kΩ)',
+  A.partComment({ id: 'Pot1', type: 'pot', x: 0, y: 0 }));
+ok('potentiomètre : une autre valeur nominale change la résistance affichée',
+  A.partComment({ id: 'Pot1', type: 'pot', x: 0, y: 0, attrs: { ohms: '4700', value: '25' } }) ===
+  'Position : 25 % (1,175 kΩ)',
+  A.partComment({ id: 'Pot1', type: 'pot', x: 0, y: 0, attrs: { ohms: '4700', value: '25' } }));
+ok('potentiomètre glissière : même traitement',
+  A.partValue({ id: 'Pot2', type: 'slide-pot', x: 0, y: 0 }) === '10 kΩ',
+  A.partValue({ id: 'Pot2', type: 'slide-pot', x: 0, y: 0 }));
 
 // Échappement : un « ; » ou un guillemet dans une valeur ne doit pas décaler
 // les colonnes.

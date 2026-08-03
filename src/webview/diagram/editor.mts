@@ -9,6 +9,7 @@
 import {
   CATEGORY_ORDER,
   PALETTE_CATALOG,
+  capacitorDefOf,
   listCustomParts,
   migratePartAttrs,
   partCategory,
@@ -4512,6 +4513,20 @@ export class Editor {
       if (other && prev !== '') {
         r.part.attrs = { ...r.part.attrs, [other]: prev };
         r.el.setAttribute(other, prev);
+        queueMicrotask(() => this.renderInspector());
+      }
+    }
+    // Condensateur : la tension maximale par défaut n'est pas la même selon le
+    // type — 400 V pour un plastique, 16 V pour un tantale ou un chimique. Les
+    // trois se posent depuis UNE entrée de palette : passer un condensateur en
+    // chimique lui laissait les 400 V du plastique, que la nomenclature
+    // recopiait telle quelle (Frank, v2026.7.251). La tension suit donc le type,
+    // TANT QU'ELLE n'a pas été saisie à la main — une valeur choisie est gardée.
+    if (attr === 'ctype' && partDef(r.part.type).kind === 'capacitor') {
+      const avant = capacitorDefOf(prevAttrs.ctype ?? '')?.attrs?.vmax ?? '';
+      const apres = capacitorDefOf(value)?.attrs?.vmax ?? '';
+      if (apres && (prevAttrs.vmax ?? '') === avant) {
+        r.part.attrs = { ...r.part.attrs, vmax: apres };
         queueMicrotask(() => this.renderInspector());
       }
     }

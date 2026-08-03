@@ -82,6 +82,13 @@ export interface PropDef {
   /** Pour kind 'text' : nombre de lignes de la zone de saisie (défaut 2). */
   rows?: number;
   /**
+   * C'est LA valeur du composant, celle qui a sa colonne dans la nomenclature.
+   * Sans ce drapeau, la valeur est reconnue à son attribut `value` — mais un
+   * potentiomètre l'utilise déjà pour la POSITION de son curseur, sa valeur
+   * nominale porte donc un autre nom (v2026.7.251).
+   */
+  isValue?: boolean;
+  /**
    * N'affiche cette propriété que si un autre attribut vaut l'une des valeurs
    * données. Plusieurs conditions se cumulent (ET) : le brochage d'un MOSFET,
    * par exemple, n'est réglable que sur un modèle personnalisé ET de la famille
@@ -235,6 +242,17 @@ export interface CustomPartData {
 
 const STATE_PROP: PropDef = { attr: 'state', label: 'State (0/1)', kind: 'select', options: ['0', '1'] };
 const VALUE_PROP: PropDef = { attr: 'value', label: 'Position (%)', kind: 'number', min: 0, max: 100, step: 1 };
+// Potentiomètres : `value` est la POSITION du curseur (0-100 %, c'est l'attribut
+// de l'élément), la valeur nominale du composant est la résistance TOTALE entre
+// ses deux extrémités — celle qu'on lit sur le boîtier et qu'on achète, d'où sa
+// place dans la nomenclature (Frank, v2026.7.251).
+const POT_PROPS: readonly PropDef[] = [
+  {
+    attr: 'ohms', label: 'Nominal value (Ω)', kind: 'number',
+    min: 1, max: 10_000_000, step: 1, suffixes: true, isValue: true,
+  },
+  VALUE_PROP,
+];
 // Seuil de bascule DOUT des capteurs à double sortie (flamme, gaz, son, lumière).
 const SENSITIVITY_PROP: PropDef = { attr: 'sensitivity', label: 'Sensitivity (%)', kind: 'number', min: 0, max: 100, step: 1 };
 // Propriétés communes aux trois condensateurs (le type choisit l'habillage du
@@ -421,13 +439,13 @@ export const CATALOG: readonly PartDef[] = [
   { type: 'buzzer', label: 'Buzzer', tag: 'kablix-buzzer', kind: 'buzzer' },
   {
     type: 'pot', label: 'Potentiometer', tag: 'kablix-potentiometer', kind: 'potentiometer',
-    attrs: { min: '0', max: '100', value: '50' }, interactive: true,
-    props: [VALUE_PROP],
+    attrs: { min: '0', max: '100', value: '50', ohms: '10000' }, interactive: true,
+    props: POT_PROPS,
   },
   {
     type: 'slide-pot', label: 'Slide potentiometer', tag: 'kablix-slide-potentiometer', kind: 'potentiometer',
-    attrs: { min: '0', max: '100', value: '50' }, interactive: true,
-    props: [VALUE_PROP],
+    attrs: { min: '0', max: '100', value: '50', ohms: '10000' }, interactive: true,
+    props: POT_PROPS,
   },
   {
     type: '7seg', label: '7-segment display', tag: 'kablix-7segment', kind: '7segment',
@@ -924,6 +942,18 @@ export function partDef(type: string): PartDef {
   const def = CATALOG.find((p) => p.type === type) ?? customParts.get(type);
   if (!def) throw new Error(`Type de composant inconnu : ${type}`);
   return def;
+}
+
+/**
+ * L'entrée de catalogue qui correspond à un type de condensateur (`ctype`).
+ * Les trois condensateurs sont UN seul élément dont `ctype` change l'habillage :
+ * un condensateur posé depuis la palette garde donc le type `condo-np` même
+ * devenu tantale ou chimique. La nomenclature doit pourtant écrire le VRAI type
+ * (`condo-p-1`, `condo-p-2`), et la tension maximale par défaut n'est pas la
+ * même — 400 V pour un plastique, 16 V pour un polarisé.
+ */
+export function capacitorDefOf(ctype: string): PartDef | undefined {
+  return CATALOG.find((p) => p.kind === 'capacitor' && p.attrs?.ctype === ctype);
 }
 
 /**

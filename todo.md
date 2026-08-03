@@ -3,8 +3,8 @@
 1. ✅ Lorsqu'un texte d'erreur apparait, il doit être un peut moins gros et s'il est long il doit être plus large (5 à 10 mots par ligne)
 1. ✅ Rajoute dans la barre de simulation  un bouton erreur avec l'icone erreur de media\icones.svg. Il fonctionne en  bascule et affiche ou non les erreurs du texte ci-dessus.
 1. ✅ Vsix ici → `kablix-2026.7.250.vsix` (3,25 Mo, 225 fichiers)
-1. 1. Pour la nomenclature, les condensateurs ont bien  identifiés comme des plastiques, tantale ou chimique mais leur type à tous les 3 est "condo-np" et la tension max est 400V pour le trois.
-1. Rajoute une propriété (valeur) aux potentiomètres elle est en Ohm et sera dans la nomenclature. Par défaut 10kΩ. La position sera en % (xx Ω)
+1. ✅ Pour la nomenclature, les condensateurs ont bien  identifiés comme des plastiques, tantale ou chimique mais leur type à tous les 3 est "condo-np" et la tension max est 400V pour le trois.
+1. ✅ Rajoute une propriété (valeur) aux potentiomètres elle est en Ohm et sera dans la nomenclature. Par défaut 10kΩ. La position sera en % (xx Ω)
 1. Transistor
     1. Les lettres ebc sur les schéma internes des transistors non pas conservé leur couleur et son devenu trés épaisse au poin  d'être illisibles
     1. Le schéma interne doit être celui désigné dans le fichier transistor.csv s'il n'y en a pas tu mets le schéma générique afin de ne pas induire en erreur sur les broches ebc.
@@ -27,6 +27,15 @@ Voici les préfix à utiliser (traduisible) et respecte la casse : Résistance (
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# v2026.7.251 — la nomenclature dit le bon condensateur, et le potentiomètre a enfin une valeur
+1. ✅ **La colonne « Type » nomme le condensateur AFFICHÉ** : les trois condensateurs sont posés depuis une seule entrée de palette, dont l'attribut `ctype` change le dessin — la nomenclature écrivait donc `condo-np` pour les trois, tantale et chimique compris. `partType()` (nouveau, dans `bom.mts`) retrouve l'entrée du catalogue qui porte ce `ctype` et écrit SON type : `condo-np`, `condo-p-1`, `condo-p-2`.
+2. ✅ **La tension max suit le type choisi** : elle restait à 400 V pour les trois — la valeur par défaut du plastique — alors que le tantale et le chimique du catalogue sont donnés pour 16 V. Changer le type met maintenant la tension à celle du nouveau modèle, **sauf si Frank l'a saisie à la main** (une valeur personnelle n'est jamais écrasée).
+3. ✅ **Nouvelle propriété `ohms` sur les deux potentiomètres** (rotatif et rectiligne) : la valeur nominale, résistance totale entre les deux extrémités, **10 kΩ par défaut**. C'est elle qui part dans la colonne « Valeur » de la nomenclature (nouveau drapeau `isValue` du catalogue), là où les potentiomètres n'en avaient aucune.
+4. ✅ **La position dit ce qu'elle vaut en ohms** : le commentaire porte « Position : 25 % (1,175 kΩ) » — le pourcentage seul ne disait pas ce qu'on mesure entre le curseur et l'extrémité basse. Calculé sur la valeur nominale, dans l'unité échelonnée habituelle.
+5. ✅ **Fiches d'aide FR + EN à jour** (`pot.md`, `slide-pot.md`) : la ligne `ohms` rejoint le tableau des propriétés.
+6. ℹ️ **Simulation inchangée** : aucune résistance de potentiomètre n'y est modélisée aujourd'hui (les broches rendent une tension, pas une résistance). `ohms` est donc une caractéristique de nomenclature — le comportement électrique reste à préciser au cas par cas.
+7. ✅ **Bancs : `verify:bom` 49 → 54 contrôles** (type et tension des trois condensateurs, valeur `10 kΩ` du potentiomètre, position en ohms sur les deux modèles) et **`verify:capacitor` +4 contrôles** (la tension suit le type, une saisie manuelle est conservée).
 
 # v2026.7.250 — l'éditeur SVG se retient enfin, les défauts se lisent et se taisent
 1. ✅ **L'éditeur SVG choisi est VRAIMENT enregistré dans les réglages** (`kablix.svgEditorPath`, portée globale) : la relecture qui validait l'écriture lisait la valeur **EFFECTIVE** — un réglage d'espace de travail masquant le réglage global, l'écriture paraissait réussie alors que rien n'était retenu. Elle interroge maintenant `inspect().globalValue`, la valeur réellement écrite.

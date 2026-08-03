@@ -10,7 +10,7 @@
 // avec son unité et son préfixe. Tout le reste passe en COMMENTAIRE, sous la
 // forme « Tension max : 400 V ». Un transistor n'a pas de valeur : ses
 // caractéristiques sont donc toutes en commentaire.
-import { partDef, propConditions, type PartDef, type PropDef } from './catalog.mjs';
+import { capacitorDefOf, partDef, propConditions, type PartDef, type PropDef } from './catalog.mjs';
 import type { Part } from './model.mjs';
 import { t, locale } from '../i18n.mjs';
 import { colorDisplayName } from './colors.mjs';
@@ -89,12 +89,14 @@ function visibleProps(def: PartDef, part: Part): PropDef[] {
 }
 
 /**
- * La propriété qui porte la VALEUR du composant : `value` mesurée dans une
- * unité de composant (ohm, farad, henry). La « Position (%) » d'un curseur
- * porte le même nom d'attribut mais n'est pas une valeur de nomenclature.
+ * La propriété qui porte la VALEUR du composant : celle marquée `isValue`
+ * (potentiomètre, dont `value` désigne déjà la position du curseur), sinon
+ * l'attribut `value` mesuré dans une unité de composant (ohm, farad, henry).
+ * La « Position (%) » d'un curseur porte le même nom d'attribut mais n'est pas
+ * une valeur de nomenclature.
  */
 function valueProp(props: readonly PropDef[]): PropDef | undefined {
-  return props.find((p) => {
+  return props.find((p) => p.isValue) ?? props.find((p) => {
     if (p.attr !== 'value') return false;
     const unit = labelUnit(p.label);
     return !!unit && SCALED_UNITS.has(unit);
@@ -117,7 +119,18 @@ function propText(def: PartDef, part: Part, prop: PropDef): string | null {
   if (optionLabel) return `${label} : ${t(optionLabel)}`;
   const unit = labelUnit(prop.label);
   if (unit && prop.kind === 'number') {
-    return `${labelWithoutUnit(label)} : ${formatQuantity(value, unit)}`;
+    const text = `${labelWithoutUnit(label)} : ${formatQuantity(value, unit)}`;
+    // Potentiomètre : « 50 % » ne dit pas ce qu'on mesure entre le curseur et
+    // l'extrémité basse — la résistance correspondante suit entre parenthèses
+    // (Frank, v2026.7.251).
+    if (def.kind === 'potentiometer' && prop.attr === 'value') {
+      const total = Number(attrOf(def, part, 'ohms'));
+      const percent = Number(value);
+      if (Number.isFinite(total) && Number.isFinite(percent)) {
+        return `${text} (${formatQuantity(String((total * percent) / 100), 'Ω')})`;
+      }
+    }
+    return text;
   }
   // Une inscription de boîtier tient sur plusieurs lignes : elle passe sur une
   // seule dans la cellule, sinon le CSV se lit de travers.
@@ -144,6 +157,23 @@ export function partLabel(part: Part): string {
   // « Condensateur » + « Plastique » → « Condensateur plastique ».
   const kindName = t(option);
   return `${label} ${kindName.charAt(0).toLowerCase()}${kindName.slice(1)}`;
+}
+
+/**
+ * Type du composant pour la nomenclature. Les trois condensateurs sont posés
+ * depuis UNE seule entrée de palette : passer un `condo-np` en tantale ne
+ * changeait que son dessin, la colonne Type disait `condo-np` pour les trois
+ * (Frank, v2026.7.251). C'est le type du DESSIN affiché qui est écrit.
+ */
+export function partType(part: Part): string {
+  let def: PartDef;
+  try {
+    def = partDef(part.type);
+  } catch {
+    return part.type;
+  }
+  if (def.kind !== 'capacitor') return part.type;
+  return capacitorDefOf(attrOf(def, part, 'ctype'))?.type ?? part.type;
 }
 
 /** Valeur lue sur le composant : « 220 Ω », « 10 µF ». Vide s'il n'en a pas. */
@@ -200,7 +230,7 @@ export function bomRows(parts: readonly Part[]): BomRow[] {
   const rows = parts.map((p) => ({
     ref: p.id,
     label: partLabel(p),
-    type: p.type,
+    type: partType(p),
     value: partValue(p),
     comment: partComment(p),
   }));

@@ -196,6 +196,24 @@ async function run() {
   ok('retour au film : dessin 30×50, pastilles au bout des pattes',
     retour.w === 30 && retour.h === 50 && bout(retour), fmt(retour));
 
+  // La TENSION MAX suit le type (v2026.7.251) : les trois condensateurs sortent
+  // d'une seule entrée de palette, un plastique passé en chimique gardait donc
+  // ses 400 V — une tension que le composant réel ne tient pas, et que la
+  // nomenclature recopiait.
+  const vmax = () => editor.rendered.get(part.id).part.attrs.vmax;
+  ok('tension max : 400 V sur le plastique', vmax() === '400', vmax());
+  editor.updatePartAttr(part.id, 'ctype', 'p');
+  await wait(60);
+  ok('tension max : le tantale retombe à 16 V', vmax() === '16', vmax());
+  editor.updatePartAttr(part.id, 'ctype', 'np');
+  await wait(60);
+  ok('tension max : le retour au plastique reprend 400 V', vmax() === '400', vmax());
+  // Une tension SAISIE est un choix : elle survit au changement de type.
+  editor.updatePartAttr(part.id, 'vmax', '63');
+  editor.updatePartAttr(part.id, 'ctype', 'chem');
+  await wait(60);
+  ok('tension max : une valeur saisie à la main est conservée', vmax() === '63', vmax());
+
   const out = document.createElement('pre');
   out.id = 'measures';
   out.textContent = JSON.stringify(checks);

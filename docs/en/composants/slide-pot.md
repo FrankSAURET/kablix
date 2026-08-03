@@ -16,6 +16,7 @@ Linear potentiometer with a sliding wiper. Same principle as the rotary one.
 
 | Property | Role | Default |
 |-----------|------|--------|
+| `ohms` | Nominal value: total resistance between VCC and GND (Ω) | 10,000 |
 | `value` | Initial position (0–100 %) | 50 |
 
 ## Usage

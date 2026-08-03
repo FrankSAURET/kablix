@@ -282,6 +282,7 @@ const FR: Record<string, string> = {
   'Electrolytic': 'Chimique',
   'Nominal value (F)': 'Valeur nominale (F)',
   'Max voltage (V)': 'Tension max (V)',
+  'Nominal value (Ω)': 'Valeur nominale (Ω)',
   'Potentiometer': 'Potentiomètre',
   'Slide potentiometer': 'Potentiomètre glissière',
   '7-segment display': 'Afficheur 7 segments',

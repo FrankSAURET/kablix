@@ -16,6 +16,7 @@ Variable resistor with a rotary knob. The wiper provides a voltage proportional 
 
 | Property | Role | Default |
 |-----------|------|--------|
+| `ohms` | Nominal value: total resistance between VCC and GND (Ω) | 10,000 |
 | `value` | Initial position (0–100 %) | 50 |
 
 ## Usage
