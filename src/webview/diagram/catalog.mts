@@ -3,6 +3,7 @@
 // voir ../composants/LICENSE-wokwi.md) sauf la
 // carte Pico (<kablix-pico-board>) et les composants créés par l'utilisateur
 // (<kablix-custom-part>, enregistrés à l'exécution).
+import { DEFAULT_IC74_FAMILY, IC74_FAMILY_OPTIONS, IC_REFS, IC_REF_OPTIONS, icAttrs, icLabel } from './ics.mjs';
 
 export type PartKind =
   | 'mcu'
@@ -13,6 +14,7 @@ export type PartKind =
   | 'diode'
   | 'capacitor'
   | 'transistor'
+  | 'logic-ic'
   | 'relay'
   | 'fan'
   | 'motor'
@@ -314,6 +316,34 @@ const CUSTOM_TRANSISTOR_PROPS: readonly PropDef[] = TRANSISTOR_PROPS.map((p) => 
   ...p,
   showIf: p.showIf ? [CUSTOM_ONLY, ...(Array.isArray(p.showIf) ? p.showIf : [p.showIf])] : CUSTOM_ONLY,
 }));
+// Circuits intégrés logiques : la référence reste changeable dans les propriétés
+// (le boîtier est le même, seul le brochage suit). La FAMILLE ne concerne que la
+// série 74 — elle y remplace le « xx » de la référence et décide de la plage
+// d'alimentation, donc de la compatibilité avec la carte (un 74LS08 ne marche
+// pas sous les 3,3 V d'une Pico, un 74HC08 si).
+const IC_PROPS: readonly PropDef[] = [
+  {
+    attr: 'ref', label: 'Model', kind: 'select', options: IC_REF_OPTIONS, isValue: true,
+  },
+  {
+    attr: 'family', label: '74 series family', kind: 'select', options: IC74_FAMILY_OPTIONS,
+    showIf: { attr: 'ref', equals: IC_REFS.filter((r) => r.series === '74').map((r) => r.ref) },
+  },
+];
+/**
+ * Une entrée de bibliothèque par référence : le type est la référence en
+ * minuscules (`cd4081`, `74xx08`), le libellé « CD4081 quad 2-input AND gate ».
+ * Changer la référence dans les propriétés ne change PAS le type — c'est le jeu
+ * d'attributs qui suit (`icAttrs`), comme le modèle d'un transistor.
+ */
+const IC_CATALOG: readonly PartDef[] = IC_REFS.map((r) => ({
+  type: r.ref.toLowerCase(),
+  label: icLabel(r.ref),
+  tag: 'kablix-ic',
+  kind: 'logic-ic' as PartKind,
+  attrs: icAttrs(r.ref, DEFAULT_IC74_FAMILY),
+  props: IC_PROPS,
+}));
 
 export const CATALOG: readonly PartDef[] = [
   // Cartes AVR : éléments forkés, mis à l'échelle 10/9,6 px pour que
@@ -579,6 +609,10 @@ export const CATALOG: readonly PartDef[] = [
     },
     props: TRANSISTOR_PROPS,
   },
+  // Circuits intégrés logiques (dessins de Frank) : DEUXIÈME boîtier partagé, et
+  // le plus partagé de tous — un seul dessin de DIL-14 pour les onze références
+  // (`ics.mts`), une entrée de bibliothèque chacune.
+  ...IC_CATALOG,
   // Relais OMRON G5V (dessin de Frank) : bobine B1/B2, contact Com/NF/NO. La
   // tension de commande est inscrite sur le boîtier ; sous le seuil, le relais
   // ne colle pas. Diode de roue libre obligatoire entre B1 et B2 (relayStates).
@@ -785,6 +819,8 @@ export function partCategory(def: PartDef): string {
     case 'capacitor':
     case 'transistor':
       return 'Passive'; // « Discrets » (composants discrets : R, LED, diode, condo…)
+    case 'logic-ic':
+      return 'Integrated circuits';
     case 'psu':
       return 'Instruments'; // « Appareils de mesure » : alim de laboratoire…
     case 'spi-sd':
@@ -818,6 +854,7 @@ export function partCategory(def: PartDef): string {
 export const CATEGORY_ORDER: readonly string[] = [
   'Boards',
   'Passive', // « Discrets » : juste sous Cartes & platines
+  'Integrated circuits', // « Circuits intégrés » : les discrets, puis les boîtiers
   'Displays & LEDs',
   'Controls',
   'Sensors',

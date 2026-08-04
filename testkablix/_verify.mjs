@@ -66,6 +66,30 @@ function resolveBridges(diagram, read, vcc) {
   }
 }
 
+/**
+ * Même point fixe, ponts ET portes logiques ensemble : la sortie d'un circuit
+ * intégré impose son niveau à son réseau comme le ferait une broche de sortie,
+ * elle change donc ce que lisent les autres portes. Copie de sim.mts.
+ * Renvoie l'état des boîtiers du dernier tour.
+ */
+function resolveLogic(diagram, read, vcc) {
+  model.setActiveBridges([]);
+  model.setGateDrives([]);
+  let states = [];
+  let signature = `${model.bridgeSignature([])}#${model.gateDriveSignature([])}`;
+  for (let pass = 0; pass < 3; pass++) {
+    const list = model.commandedBridges(diagram, read, vcc);
+    states = model.logicIcStates(diagram, read, vcc);
+    const drives = model.logicIcDrives(states);
+    const next = `${model.bridgeSignature(list)}#${model.gateDriveSignature(drives)}`;
+    model.setActiveBridges(list);
+    model.setGateDrives(drives);
+    if (next === signature) break;
+    signature = next;
+  }
+  return states;
+}
+
 // --- 1. Validation des .projix ------------------------------------------------
 console.log(`--- Validation des ${TESTS.length} .projix (structure + câblage) ---`);
 for (const t of TESTS) {
@@ -337,6 +361,32 @@ for (const t of TESTS) {
           }
         }
         model.setActiveBridges([]);
+        break;
+      }
+      case 'logic-ic': {
+        // Onze boîtiers alimentés par la carte, deux entrées communes. Chaque
+        // sortie doit valoir ce que dit la table de vérité, et ce niveau doit
+        // remonter jusqu'à la broche de lecture du microcontrôleur.
+        const vcc = t.board === 'pico' || t.board === 'picow' ? 3.3 : 5;
+        for (const s of e.steps) {
+          const hauts = s.high ?? [];
+          const read = (p) => hauts.includes(p);
+          const etat = hauts.length ? `[${hauts.join(',')} haut]` : '[tout bas]';
+          const states = resolveLogic(diagram, read, vcc);
+          const entrees = model.logicIcMcuInputs(diagram, states);
+          for (const [id, want] of Object.entries(s.outputs ?? {})) {
+            const st = states.find((x) => x.partId === id);
+            const ok = !!st && st.fault === 'none' && st.outputs.length > 0
+              && st.outputs.every((o) => o.level === want);
+            check(`${t.name} ${etat} : ${id} sort ${want}`, ok,
+              JSON.stringify(st && { fault: st.fault, volts: st.volts, outputs: st.outputs }));
+            const pin = e.reads?.[id];
+            const lu = entrees.find((x) => x.mcuPin === pin);
+            check(`${t.name} ${etat} : ${id} lu sur ${pin}`, lu?.level === want, JSON.stringify(lu));
+          }
+        }
+        model.setActiveBridges([]);
+        model.setGateDrives([]); // pas de fuite d'état d'un test au suivant
         break;
       }
       case 'keypad': {

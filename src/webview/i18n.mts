@@ -59,6 +59,14 @@ const FR: Record<string, string> = {
     'Ce transistor a été détruit : un moteur est une bobine, et couper son courant renvoie une surtension. Une diode de roue libre aux bornes du moteur l\'absorbe — elle n\'est pas facultative.',
   'The supply cannot deliver the current this motor draws: a board pin is far too weak for a motor. Use a power supply and a transistor.':
     'L\'alimentation ne fournit pas le courant que demande ce moteur : une broche de carte est très loin du compte. Passez par une alimentation et un transistor.',
+  // Circuit intégré logique : la famille (LS, HC…) fixe la plage d'alimentation.
+  // Sous le minimum le boîtier reste muet, au-dessus il est détruit — même
+  // message dans les deux cas, la tension mesurée départage.
+  'Incompatible supply voltage': 'Tensions d\'alimentation incompatibles',
+  'Incompatible supply voltage: this chip is fed below the minimum of its family, so it does nothing. Check the supply against the family printed on the package.':
+    'Tensions d\'alimentation incompatibles : ce circuit est alimenté sous le minimum de sa famille, il ne fait donc rien. Comparez l\'alimentation à la famille inscrite sur le boîtier.',
+  'This chip was destroyed: it was fed above the maximum supply voltage of its family. The family printed on the package sets that limit.':
+    'Ce circuit a été détruit : il a été alimenté au-dessus de la tension maximale de sa famille. C\'est la famille inscrite sur le boîtier qui fixe cette limite.',
   // Répartition du temps réel, dans l'infobulle du badge « ralentie ».
   'Engine': 'Moteur',
   'Rendering': 'Rendu',
@@ -368,6 +376,22 @@ const FR: Record<string, string> = {
   'Max Ic (A)': 'Ic max (A)',
   'Max Vds (V)': 'Vds max (V)',
   'Max Id (A)': 'Id max (A)',
+  // Circuits intégrés logiques : une entrée de bibliothèque par référence, le
+  // libellé porte la référence ET la fonction (c'est ainsi qu'on cherche un CI).
+  'Integrated circuits': 'Circuits intégrés',
+  'Model': 'Modèle',
+  '74 series family': 'Famille (série 74)',
+  'CD4081 quad 2-input AND gate': 'CD4081 4 portes ET à 2 entrées',
+  'CD4071 quad 2-input OR gate': 'CD4071 4 portes OU à 2 entrées',
+  'CD4070 quad 2-input XOR gate': 'CD4070 4 portes OU exclusif à 2 entrées',
+  'CD4011 quad 2-input NAND gate': 'CD4011 4 portes NON-ET à 2 entrées',
+  'CD4001 quad 2-input NOR gate': 'CD4001 4 portes NON-OU à 2 entrées',
+  'CD40106 hex Schmitt-trigger inverter': 'CD40106 6 inverseurs à trigger de Schmitt',
+  '74xx08 quad 2-input AND gate': '74xx08 4 portes ET à 2 entrées',
+  '74xx32 quad 2-input OR gate': '74xx32 4 portes OU à 2 entrées',
+  '74xx86 quad 2-input XOR gate': '74xx86 4 portes OU exclusif à 2 entrées',
+  '74xx00 quad 2-input NAND gate': '74xx00 4 portes NON-ET à 2 entrées',
+  '74xx02 quad 2-input NOR gate': '74xx02 4 portes NON-OU à 2 entrées',
   // Relais
   'Relay OMRON G5V': 'Relais OMRON G5V',
   'Coil voltage (V)': 'Tension de commande (V)',

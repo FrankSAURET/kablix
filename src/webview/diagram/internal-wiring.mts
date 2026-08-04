@@ -52,6 +52,20 @@ import pnpGeneriqueSchema from '../composants/interne/pnp-generique-interne.svg'
 import darlingtonNpnSchema from '../composants/interne/darlington-npn-interne.svg';
 import darlingtonPnpSchema from '../composants/interne/darlington-pnp-interne.svg';
 import nmosDSchema from '../composants/interne/nmos-d-interne.svg';
+// Circuits intégrés logiques : un symbole par RÉFÉRENCE (le brochage change d'une
+// référence à l'autre), extrait au cadre du boîtier DIL-14 qui les porte — même
+// viewBox que `externe/ic14.svg`, donc superposable tel quel.
+import cd4081Schema from '../composants/interne/cd4081-interne.svg';
+import cd4071Schema from '../composants/interne/cd4071-interne.svg';
+import cd4070Schema from '../composants/interne/cd4070-interne.svg';
+import cd40106Schema from '../composants/interne/cd40106-interne.svg';
+import cd4011Schema from '../composants/interne/cd4011-interne.svg';
+import cd4001Schema from '../composants/interne/cd4001-interne.svg';
+import ic7408Schema from '../composants/interne/7408-interne.svg';
+import ic7432Schema from '../composants/interne/7432-interne.svg';
+import ic7486Schema from '../composants/interne/7486-interne.svg';
+import ic7400Schema from '../composants/interne/7400-interne.svg';
+import ic7402Schema from '../composants/interne/7402-interne.svg';
 
 export interface PinPoint {
   name: string;
@@ -307,6 +321,25 @@ const TRANSISTOR_SCHEMAS: Record<string, Schema> = {
   'darlington-pnp': parseSchema(darlingtonPnpSchema),
   'nmos-d': parseSchema(nmosDSchema),
 };
+/**
+ * Symboles internes des circuits intégrés, choisis par l'attribut `schema` de la
+ * référence (`ics.mts`). Deux boîtiers de même fonction n'ont pas le même
+ * brochage — le 74xx02 sort sa première porte sur la patte 1 là où le 74xx00 y
+ * entre : c'est la référence, jamais la fonction, qui désigne le dessin.
+ */
+const IC_SCHEMAS: Record<string, Schema> = {
+  cd4081: parseSchema(cd4081Schema),
+  cd4071: parseSchema(cd4071Schema),
+  cd4070: parseSchema(cd4070Schema),
+  cd40106: parseSchema(cd40106Schema),
+  cd4011: parseSchema(cd4011Schema),
+  cd4001: parseSchema(cd4001Schema),
+  '7408': parseSchema(ic7408Schema),
+  '7432': parseSchema(ic7432Schema),
+  '7486': parseSchema(ic7486Schema),
+  '7400': parseSchema(ic7400Schema),
+  '7402': parseSchema(ic7402Schema),
+};
 /** Symbole générique de chaque famille, quand la fiche n'en désigne aucun. */
 const GENERIC_SCHEMA: Record<string, string> = {
   npn: 'npn-generique',
@@ -441,6 +474,14 @@ export function internalWiringSvg(
       // moitié des modèles (la famille BC5xx est C-B-E). Mieux vaut un symbole
       // qui ne dit rien du brochage que le mauvais brochage (Frank, v2026.7.252).
       return pinnedSchema(TRANSISTOR_SCHEMAS[GENERIC_SCHEMA[attrs?.symbol ?? ''] ?? 'npn-generique']!, pins);
+    }
+    case 'logic-ic': {
+      // Symbole désigné par la référence (`schema`) : il a été extrait au cadre
+      // du boîtier, donc il se superpose par simple mise à l'échelle. Référence
+      // inconnue (projet plus récent) : pas de vue interne plutôt qu'un faux
+      // brochage.
+      const chosen = IC_SCHEMAS[attrs?.schema ?? ''];
+      return chosen ? scaledSchema(chosen, box) : null;
     }
     case 'relay':
       return scaledSchema(RELAIS_SCHEMA, box);

@@ -67,6 +67,7 @@ Chaque composant du catalogue a deux tests : `<composant>-uno` (Arduino, C) et
 | DHT22 (temp/humidité) | `dht22-uno` | `dht22-pico` | T + H toutes les 2 s |
 | DHT11 (temp/humidité) | `dht11-uno` | `dht11-pico` | valeurs entières, 1 lecture/s |
 | Clavier matriciel 4×4 | `keypad-uno` | `keypad-pico` | touche affichée |
+| Circuits intégrés logiques | `CI-uno` | `CI-pico` | les 11 boîtiers DIL-14 (46 portes) sur deux entrées communes, table de vérité comparée porte par porte |
 
 Libs Arduino requises (installées via `arduino-cli lib install`) : Servo,
 LiquidCrystal I2C, Adafruit SSD1306, Adafruit ILI9341, Adafruit NeoPixel, SD,

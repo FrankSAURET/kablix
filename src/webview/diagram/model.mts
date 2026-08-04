@@ -3,6 +3,7 @@
 import { mcuInternalStrips, mcuPinRole, mcuPins, partDef, rolePin, type BoardId, type PartKind } from './catalog.mjs';
 import { breadboardStrips, normalizeSize } from './breadboard.mjs';
 import { groveShieldStrips, normalizePower } from './grove-shield.mjs';
+import { gateOutput, icMarking, icRef, icSupplyRange, type SupplyRange } from './ics.mjs';
 import { isDarlingtonType, isMosType, isPnpType } from './transistors.mjs';
 
 export interface Endpoint {
@@ -201,6 +202,36 @@ export function setActiveBridges(list: readonly ActiveBridge[]): void {
 }
 
 /**
+ * Sortie de porte logique qui IMPOSE son niveau à un net. Ce n'est pas un pont :
+ * un circuit intégré ne relie pas deux nets, il pilote le sien — exactement
+ * comme une broche de carte en sortie.
+ */
+export interface GateDrive {
+  partId: string;
+  /** Patte de SORTIE du boîtier (Q1, a̅…). */
+  pin: string;
+  level: 0 | 1;
+}
+
+/**
+ * Sorties actives à cet instant, posées par la simulation avant chaque frame
+ * (même point fixe que les ponts : la sortie d'une porte peut piloter l'entrée
+ * d'une autre). Le changement vide le cache de frame.
+ */
+let gateDrives: readonly GateDrive[] = [];
+
+export function gateDriveSignature(list: readonly GateDrive[]): string {
+  return list.map((d) => `${d.partId}/${d.pin}=${d.level}`).sort().join('|');
+}
+
+export function setGateDrives(list: readonly GateDrive[]): void {
+  if (gateDriveSignature(list) === gateDriveSignature(gateDrives)) return;
+  gateDrives = list;
+  frameNets.clear();
+  frameGraphs.clear();
+}
+
+/**
  * Construit la netlist. Les fils relient les broches ; une résistance se
  * comporte comme un fil entre ses deux pattes (1 ↔ 2) ; une platine d'essai
  * relie les trous de chaque bande (colonnes a–e / f–j et rails).
@@ -322,6 +353,8 @@ interface NetIndex {
    *  `a` vers `k` (diode A→K, transistor saturé C→E, contact fermé — celui-ci
    *  compte pour deux liaisons tête-bêche, il conduit dans les deux sens). */
   oneWayLinks: Array<{ a: string; k: string }>;
+  /** Nets pilotés par une sortie de porte logique et leur niveau. */
+  drives: Map<string, 0 | 1>;
 }
 
 /**
@@ -337,7 +370,13 @@ const netIndexCache = new WeakMap<Nets, NetIndex>();
 function netIndex(diagram: Diagram, nets: Nets): NetIndex {
   const hit = netIndexCache.get(nets);
   if (hit) return hit;
-  const index: NetIndex = { mcu: new Map(), psuGnd: new Set(), psuVplus: new Set(), oneWayLinks: [] };
+  const index: NetIndex = {
+    mcu: new Map(),
+    psuGnd: new Set(),
+    psuVplus: new Set(),
+    oneWayLinks: [],
+    drives: new Map(),
+  };
   for (const { part, board } of mcuParts(diagram)) {
     for (const pin of mcuPins(board)) {
       const role = mcuPinRole(board, pin);
@@ -380,6 +419,13 @@ function netIndex(diagram: Diagram, nets: Nets): NetIndex {
     index.oneWayLinks.push({ a, k });
     if (!b.oneWay) index.oneWayLinks.push({ a: k, k: a });
   }
+  // Sorties de portes logiques. Deux sorties reliées entre elles (câblage
+  // douteux mais courant) : le 0 l'emporte, la sortie basse tire le net à la
+  // masse à travers celle qui est haute.
+  for (const d of gateDrives) {
+    const net = nets.netOf({ partId: d.partId, pin: d.pin });
+    index.drives.set(net, index.drives.get(net) === 0 || d.level === 0 ? 0 : 1);
+  }
   netIndexCache.set(nets, index);
   return index;
 }
@@ -405,6 +451,11 @@ function netLevel(
   // calculs de courant (ledElectrical via ledPowerCircuit, psuLoadAmps).
   if (idx.psuGnd.has(netId)) return 0;
   if (idx.psuVplus.has(netId)) return 1;
+  // Sortie de porte logique AVANT la broche de carte : une sortie de CI câblée
+  // sur une entrée de carte doit imposer SON niveau, pas relire celui que la
+  // carte croit avoir sur cette broche.
+  const driven = idx.drives.get(netId);
+  if (driven !== undefined) return driven;
   if (entry?.lastDigital !== undefined) return readPin(entry.lastDigital) ? 1 : 0;
   return linkedLevel(diagram, nets, netId, readPin, seen);
 }
@@ -699,6 +750,14 @@ function computeResistiveGraph(
   for (const part of psuParts(diagram)) {
     vccNets.add(nets.netOf({ partId: part.id, pin: 'V+' }));
     gndNets.add(nets.netOf({ partId: part.id, pin: 'GND' }));
+  }
+  // Sortie de porte logique : une source au même titre qu'une broche de carte —
+  // haute elle alimente (la LED qu'elle pilote s'allume vraiment, avec son
+  // courant), basse elle sert de retour à la masse.
+  for (const d of gateDrives) {
+    const net = nets.netOf({ partId: d.partId, pin: d.pin });
+    if (d.level === 1) digitalNets.add(net);
+    else gndNets.add(net);
   }
   return { nets, adj, digitalNets, vccNets, gndNets };
 }
@@ -1780,6 +1839,113 @@ export function commandedBridges(
     const part = diagram.parts.find((p) => p.id === st.partId)!;
     const pins = relayPins(part);
     out.push({ partId: st.partId, a: pins.com, b: st.closed ? pins.no : pins.nf });
+  }
+  return out;
+}
+
+// --- Circuits intégrés logiques ---------------------------------------------
+
+/**
+ * Ce qui empêche un boîtier logique de fonctionner :
+ *  - `unpowered` : une de ses deux pattes d'alimentation n'est pas câblée ;
+ *  - `undervolt` : alimenté SOUS le minimum de sa famille — il reste muet ;
+ *  - `overvolt`  : alimenté AU-DESSUS du maximum — il est détruit.
+ */
+export type IcFault = 'none' | 'unpowered' | 'undervolt' | 'overvolt';
+
+export interface LogicIcState {
+  partId: string;
+  /** Référence du boîtier (« CD4011 », « 74xx00 »). */
+  ref: string;
+  /** Inscription lisible sur le dessus (« 74HC00 ») — pour les messages. */
+  marking: string;
+  /** Tension mesurée entre sa patte d'alimentation et sa masse (V). */
+  volts: number;
+  /** Plage acceptée par la famille du boîtier (V). */
+  range: SupplyRange;
+  fault: IcFault;
+  /** Sorties qui imposent leur niveau. Vide si le boîtier ne fonctionne pas. */
+  outputs: ReadonlyArray<{ pin: string; level: 0 | 1 }>;
+}
+
+/**
+ * État des circuits intégrés logiques du schéma : tension d'alimentation
+ * mesurée entre leurs deux pattes d'alim (comme une charge continue), puis
+ * niveau de chaque sortie si la tension convient. Une entrée en l'air ne rend
+ * pas forcément la sortie indéterminée (voir `gateOutput`).
+ * `dead` : boîtiers déjà détruits pendant cette simulation — ils ne sortent
+ * plus rien, même si l'alimentation redevient correcte.
+ */
+export function logicIcStates(
+  diagram: Diagram,
+  readPin: (name: string) => boolean,
+  vcc: number,
+  psuVolts?: (partId: string) => number | null,
+  liveOhms?: (part: Part) => number | null,
+  dead?: ReadonlySet<string>
+): LogicIcState[] {
+  const out: LogicIcState[] = [];
+  for (const part of diagram.parts) {
+    if (partDef(part.type).kind !== 'logic-ic') continue;
+    const ref = icRef(part.attrs?.ref ?? '');
+    if (!ref) continue;
+    const family = part.attrs?.family ?? '';
+    const range = icSupplyRange(ref.ref, family);
+    const supply = dcLoadCircuit(diagram, part.id, ref.vcc, ref.gnd, vcc, psuVolts, liveOhms);
+    const volts = supply ? supply.supplyVolts : 0;
+    let fault: IcFault = 'none';
+    if (!supply) fault = 'unpowered';
+    else if (volts > range.max) fault = 'overvolt';
+    else if (volts < range.min) fault = 'undervolt';
+    const state: LogicIcState = {
+      partId: part.id,
+      ref: ref.ref,
+      marking: icMarking(ref.ref, family),
+      volts,
+      range,
+      fault,
+      outputs: [],
+    };
+    if (fault !== 'none' || dead?.has(part.id)) {
+      out.push(state);
+      continue;
+    }
+    const nets = buildNets(diagram);
+    const level = (pin: string): Level =>
+      netLevel(diagram, nets, nets.netOf({ partId: part.id, pin }), readPin);
+    const outputs: Array<{ pin: string; level: 0 | 1 }> = [];
+    for (const gate of ref.gates) {
+      const value = gateOutput(ref.op, gate.inputs.map(level));
+      if (value !== undefined) outputs.push({ pin: gate.output, level: value });
+    }
+    out.push({ ...state, outputs });
+  }
+  return out;
+}
+
+/** Sorties actives de tous les boîtiers, prêtes pour `setGateDrives`. */
+export function logicIcDrives(states: readonly LogicIcState[]): GateDrive[] {
+  return states.flatMap((s) =>
+    s.outputs.map((o) => ({ partId: s.partId, pin: o.pin, level: o.level }))
+  );
+}
+
+/**
+ * Sorties de CI reliées à une broche de carte : la simulation doit y injecter
+ * le niveau (`setInput`), sinon le programme relit une broche flottante.
+ */
+export function logicIcMcuInputs(
+  diagram: Diagram,
+  states: readonly LogicIcState[]
+): Array<{ mcuPin: string; level: 0 | 1 }> {
+  if (states.length === 0) return [];
+  const nets = buildNets(diagram);
+  const out: Array<{ mcuPin: string; level: 0 | 1 }> = [];
+  for (const s of states) {
+    for (const o of s.outputs) {
+      const pin = mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: s.partId, pin: o.pin }));
+      if (pin) out.push({ mcuPin: pin, level: o.level });
+    }
   }
   return out;
 }

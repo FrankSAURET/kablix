@@ -45,6 +45,7 @@ import './composants/membrane-keypad-element.mjs';
 import './composants/ventilo-element.mjs';
 import './composants/moteur-dc-element.mjs';
 import './composants/transistor-element.mjs';
+import './composants/logic-ic-element.mjs';
 import './composants/relais-element.mjs';
 // Composants entièrement maison.
 import './composants/pico-board.mjs';
@@ -107,6 +108,11 @@ import {
   commandedBridges,
   setActiveBridges,
   bridgeSignature,
+  logicIcStates,
+  logicIcDrives,
+  logicIcMcuInputs,
+  setGateDrives,
+  gateDriveSignature,
   relayStates,
   motorStates,
   motorMcuPin,
@@ -114,6 +120,8 @@ import {
   type RelayFault,
   type MotorFault,
   type MotorState,
+  type IcFault,
+  type LogicIcState,
   type Pca9685Binding,
   type SevenSegmentMuxBinding,
 } from './diagram/model.mjs';
@@ -324,6 +332,9 @@ const burnedMotors = new Set<string>();
 // Transistors percés pendant ce run : ils commandaient un moteur SANS diode de
 // roue libre, la surtension de coupure les a traversés. Définitif de même.
 const blownDrivers = new Set<string>();
+// Circuits intégrés détruits pendant ce run : alimentés au-dessus du maximum de
+// leur famille. Définitif jusqu'au prochain lancement (boîtier « remplacé »).
+const burnedIcs = new Set<string>();
 /**
  * Ce qu'on lit à côté d'un composant qui vient d'exploser. L'explosion dit QUI
  * est mort, l'étiquette dit POURQUOI et comment ne pas recommencer.
@@ -334,6 +345,7 @@ const BURN_NOTE = {
   pca: 'This board burned out: the V+ servo terminal takes 5 V, no more. Beyond 5.5 V the chip is destroyed.',
   motor: 'This motor burned out: it was fed more than 1.5 times its rated voltage. Its windings do not take that.',
   driver: 'This transistor was destroyed: a motor is a coil, and cutting its current sends back a surge. A flyback diode across the motor absorbs it — it is not optional.',
+  ic: 'This chip was destroyed: it was fed above the maximum supply voltage of its family. The family printed on the package sets that limit.',
 } as const;
 /** Composants actuellement encadrés parce que grillés → texte de l'étiquette. */
 const burnNotes = new Map<string, string>();
@@ -928,11 +940,20 @@ function resolveBridges(): void {
   const read = (name: string): boolean => engine!.readDigital(name);
   const vcc = boardFamily(board) === 'rp2040' ? 3.3 : 5;
   setActiveBridges([]);
-  let signature = bridgeSignature([]);
+  setGateDrives([]);
+  icFrame = [];
+  let signature = `${bridgeSignature([])}#${gateDriveSignature([])}`;
   for (let pass = 0; pass < 3; pass++) {
     const list = commandedBridges(editor.diagram, read, vcc, psuLiveVolts, liveVariableOhms);
-    const next = bridgeSignature(list);
+    // Les circuits intégrés entrent dans le MÊME point fixe : la sortie d'une
+    // porte peut commander un transistor, et le contact d'un relais alimenter
+    // le boîtier. Trois tours suffisent aux cascades habituelles.
+    const states = logicIcStates(editor.diagram, read, vcc, psuLiveVolts, liveVariableOhms, burnedIcs);
+    const drives = logicIcDrives(states);
+    const next = `${bridgeSignature(list)}#${gateDriveSignature(drives)}`;
     setActiveBridges(list);
+    setGateDrives(drives);
+    icFrame = states;
     if (next === signature) break;
     signature = next;
   }
@@ -949,6 +970,10 @@ const motorFaultMarks = new Map<string, string>();
 /** État de chaque moteur à cette frame : calculé UNE fois (le modèle refait
  *  sinon tout le graphe résistif par composant), relu par le rendu. */
 let motorFrame = new Map<string, MotorState>();
+/** État des circuits intégrés logiques, calculé par le point fixe de la frame. */
+let icFrame: readonly LogicIcState[] = [];
+/** Défauts d'alimentation signalés une seule fois par changement d'état. */
+const icFaults = new Map<string, IcFault>();
 
 /** Fin de simulation (ou nouveau lancement) : plus de défaut, plus de cadre. */
 function clearRelayFaults(): void {
@@ -957,6 +982,8 @@ function clearRelayFaults(): void {
   motorFaults.clear();
   motorFaultMarks.clear();
   motorFrame = new Map();
+  icFaults.clear();
+  icFrame = [];
   burnNotes.clear();
   editor.clearFaults();
 }
@@ -1062,6 +1089,45 @@ function reportMotorFaults(): void {
   for (const id of blownDrivers) {
     const el = editor.elementOf(id);
     if (el) markBurned(id, el, true, BURN_NOTE.driver);
+  }
+}
+
+/**
+ * Circuits intégrés logiques : alimentation et sorties.
+ *
+ * L'état vient du point fixe de la frame (`icFrame`). Deux issues hors de la
+ * plage d'alimentation de la famille — sous le minimum le boîtier reste muet,
+ * au-dessus du maximum il est DÉTRUIT (définitif jusqu'au prochain lancement) —
+ * et le même message dans les deux cas, tension mesurée à l'appui.
+ *
+ * Les sorties sont ensuite renvoyées vers la carte : une porte câblée sur une
+ * broche d'entrée doit y imposer son niveau, sinon le programme relit une
+ * broche en l'air.
+ */
+function reportIcFaults(): void {
+  if (!engine) return;
+  for (const st of icFrame) {
+    if (st.fault === 'overvolt') burnedIcs.add(st.partId);
+    const el = editor.elementOf(st.partId);
+    if (el) markBurned(st.partId, el, burnedIcs.has(st.partId), BURN_NOTE.ic);
+    if ((icFaults.get(st.partId) ?? 'none') === st.fault) continue;
+    icFaults.set(st.partId, st.fault);
+    // « Pas alimenté » n'est pas un défaut : un boîtier posé sur la platine et
+    // pas encore câblé n'a rien à se reprocher.
+    if (st.fault === 'unpowered') {
+      if (!burnedIcs.has(st.partId)) editor.setFaulty(st.partId, false);
+      continue;
+    }
+    if (st.fault === 'none') {
+      if (!burnedIcs.has(st.partId)) editor.setFaulty(st.partId, false);
+      continue;
+    }
+    // La tension mesurée et la plage admise disent tout de suite ce qui cloche.
+    const detail = `${st.marking} ${st.range.min}–${st.range.max} V, ${st.volts.toFixed(1)} V`;
+    setStatus(`${t('Incompatible supply voltage')} — ${detail} (${st.partId})`);
+    if (st.fault === 'undervolt') {
+      editor.setFaulty(st.partId, true, t('Incompatible supply voltage: this chip is fed below the minimum of its family, so it does nothing. Check the supply against the family printed on the package.'));
+    }
   }
 }
 
@@ -1190,6 +1256,10 @@ function refreshVisualsInner(): void {
   stepCapacitors();
   reportRelayFaults();
   reportMotorFaults();
+  reportIcFaults();
+  // Sorties de portes câblées sur une broche de carte : le niveau y est injecté
+  // à chaque frame, comme le fait un bouton ou un capteur.
+  for (const b of logicIcMcuInputs(editor.diagram, icFrame)) engine.setInput(b.mcuPin, b.level === 1);
   const read = (name: string): boolean => engine!.readDigital(name);
   const servoTargets = new Map(servoBindings(editor.diagram).map((b) => [b.partId, b.mcuPin]));
   for (const part of editor.diagram.parts) {
@@ -2734,6 +2804,8 @@ function startRun(): void {
   for (const id of burnedCaps) editor.setBurned(id, false);
   for (const id of burnedMotors) editor.setBurned(id, false);
   for (const id of blownDrivers) editor.setBurned(id, false);
+  for (const id of burnedIcs) editor.setBurned(id, false);
+  burnedIcs.clear(); // circuits intégrés détruits « remplacés » eux aussi
   burnedLeds.clear(); // LED grillées « remplacées » à chaque nouveau lancement
   burnedPcas.clear(); // carte 16 servos grillée « remplacée » à chaque lancement
   burnedCaps.clear(); // condensateurs claqués « remplacés » eux aussi

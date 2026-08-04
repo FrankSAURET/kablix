@@ -1,21 +1,20 @@
 # À faire
-1. ✅ Kablix : impossible d'enregistrer l'éditeur SVG dans les réglages (kablix.svgEditorPath). Mais maintenant le svg s'ouvre correctement.
-1. ✅ Lorsqu'un texte d'erreur apparait, il doit être un peut moins gros et s'il est long il doit être plus large (5 à 10 mots par ligne)
-1. ✅ Rajoute dans la barre de simulation  un bouton erreur avec l'icone erreur de media\icones.svg. Il fonctionne en  bascule et affiche ou non les erreurs du texte ci-dessus.
-1. ✅ Vsix ici → `kablix-2026.7.250.vsix` (3,25 Mo, 225 fichiers)
-1. ✅ Pour la nomenclature, les condensateurs ont bien  identifiés comme des plastiques, tantale ou chimique mais leur type à tous les 3 est "condo-np" et la tension max est 400V pour le trois.
-1. ✅ Rajoute une propriété (valeur) aux potentiomètres elle est en Ohm et sera dans la nomenclature. Par défaut 10kΩ. La position sera en % (xx Ω)
-1. ✅ Transistor
-    1. ✅ Les lettres ebc sur les schéma internes des transistors non pas conservé leur couleur et son devenu trés épaisse au poin  d'être illisibles
-    1. ✅ Le schéma interne doit être celui désigné dans le fichier transistor.csv s'il n'y en a pas tu mets le schéma générique afin de ne pas induire en erreur sur les broches ebc.
-    1. ✅ les bornes de l'IRF530 sont mal placées
-    1. ✅ Le cadre de sélection des transistors n'est pas toujours bien ajusté
-    1. ✅ Un point à trancher : #1a5fb4 est un bleu foncé. Sur fond sombre de l'inspecteur (--vscode-input-background), les modèles neufs sont peu lisibles. Je veux une variante éclaircie en thème sombre. → éclairci `#63a4f0` par défaut, `#1a5fb4` gardé en thème clair
-    1. ✅ Un MOSFET porte G/D/S, pas E/B/C (j'ai complété le fichier transistor.csv)
-1. J'ai complété composants avec les schéma internes nécessaires et fait un tableau A Examiner\CI.csv. Ajoute les dans la bibliothèque dans l'entrée Circuit Intégrés. Ils sont tous enfichables sur platine d'essais. Rajoute les simulations et doc correspondantes et fais les fichiers de test pour pico et uno (tous dans un seul fichier "CI" et toutes les portes doivent être testées) Tu apliques le nom des pattes du schéma interne la correspondance de la patte 1 est notée dans le tableau. VDD ou VCC (patte 14) est power (fil  rouge) et GND (patte 7) la masse (fil  noir).
-1. Les tensions d'alimentation sont les suivantes : C -> 3 à 15 | HC, AC, ACT ->  2 à 6 | HCT, ALS, F -> 4,5 à 5 | S, LS -> 4,75 à 5,25 | Série 4000 -> 3 à 18V
-Si elle est inférieur le composant ne marche pas, si elle est supérieure le composant explose. Message d'erreur dans les 2 cas " Tensions d'alimentations incompatibles"
+1. Il n'y a pas d'icône visible sur le bouton Afficher/masquer les explicqations de défaut. Je l'ai retouché rien à faire pour toi
+1. La visualisation de rotation de l'axe du moteur est incompréhensible on a l'impression que ça clignote. Ici on se fout d'une vitesse de rotation réaliste on veut juste la voir et que si la tension continue ou le rapport cyclique augmente on  ai un impression de vitesse qui augmente
+1. J'ai toujours cette erreur : Kablix : impossible d'enregistrer l'éditeur SVG dans les réglages (kablix.svgEditorPath). Impossible d'écrire dans Paramètres utilisateur, car kablix.svgEditorPath n'est pas une configuration inscrite. Du moins au premier lancement. Aprs ça semble marcher. Corrige.
+1. CI :
+    1. Ajoute le 74xx14 (fichier csv complété)
+    1. Dans les CI  le style des symbole internes (>=1, &, =1)est mauvais. Il faut fill = noir et stroke = none. Sauf pour le symbole hystérésis (CD40106 et 74xx14) qui reste tel qu'il est
+    1. La catégorie circuit intégrés doit être la dernière
+1. La position dit ce qu'elle vaut en ohms** : le commentaire porte « Position : 25 % (1,175 kΩ) ». Affiche ça en dynamique pendant la simulation juste au dessus du composant (au plus pret du composant)
+1. Quand la souris a sélectionné un composant ou un fil (glissé) si elle sort de la fenêtre la vue suit
+1. L'impression de vitesse sur les ventilo n'est pas probante. On ne sse rend pas bien compte de l'accélération ou du ralentissement.
+1. Le cadre de sélection autour des transistors TO92 n'est pas bon. C'était de ma faute. J'ai corrigé. Importe la nouvelle version.
+1. Quand tu retouche ou refait un schéma de test que j'ai retouché, garde les emplacements des composant (sauf à tout refaire différemment)
 
+1. ✅ J'ai complété composants avec les schéma internes nécessaires et fait un tableau A Examiner\CI.csv. Ajoute les dans la bibliothèque dans l'entrée Circuit Intégrés. Ils sont tous enfichables sur platine d'essais. Rajoute les simulations et doc correspondantes et fais les fichiers de test pour pico et uno (tous dans un seul fichier "CI" et toutes les portes doivent être testées) Tu apliques le nom des pattes du schéma interne la correspondance de la patte 1 est notée dans le tableau. VDD ou VCC (patte 14) est power (fil  rouge) et GND (patte 7) la masse (fil  noir).
+1. ✅ Les tensions d'alimentation sont les suivantes : C -> 3 à 15 | HC, AC, ACT ->  2 à 6 | HCT, ALS, F -> 4,5 à 5 | S, LS -> 4,75 à 5,25 | Série 4000 -> 3 à 18V
+Si elle est inférieur le composant ne marche pas, si elle est supérieure le composant explose. Message d'erreur dans les 2 cas " Tensions d'alimentations incompatibles"
 1. ✅ Ajoute une moteurDC. le groupe moteurDC-axe-rotatif tourne (même principe que ventilo). Plus la tension est élevé plus il tourne vite. Propritée tension nominale en volts (5 par défaut). Courant à vide en A (200mA par défaut). Si courant pas suffisant il ne tourne pas si tension > 1,5 fois tension nominale il grille. Si pas de diode de roue libre (ou diode intégré au NMOS-D). Erreur signalée et transistor explose.
 1. ✅ Je viens de rajouter dans composants.svg un schéma interne NPN-Generique et et PNP-générique à utiliser pour tous les transistors dont le schéma interne ne correspont pas à NPN1 ou PNP1.
 1. ✅ Tu trouvera une liste  "A Examiner\transistor.csv" avec des transistor à ajouter. Le svg existent dans Composants.svg. Tu les fera apparaitre en couleur de texte (1a5fb4ff) dans la liste de choix (laisse les autres en bleu). Rajouter les types darlington-NPN, darlington-PNP et NMOS.
@@ -30,6 +29,21 @@ Voici les préfix à utiliser (traduisible) et respecte la casse : Résistance (
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# v2026.7.253 — onze circuits intégrés logiques, alimentés ou détruits
+1. ✅ **Onze références dans la palette** (catégorie « Circuits intégrés ») : CD4081, CD4071, CD4070, CD4011, CD4001 et CD40106 pour la série CMOS 4000 ; 74xx08, 74xx32, 74xx86, 74xx00 et 74xx02 pour la série 74. Toutes en boîtier **DIL-14** (dessin `ic14` extrait de `Composants.svg`), enfichables sur la platine d'essai, repère `IC`.
+2. ✅ **Un dessin, onze références** : `kablix-ic` habille le même boîtier, la base `ics.mts` fournit le reste — inscription (`74xx00` + famille `LS` → « 74LS00 »), noms de pattes et schéma interne. Changer `ref` dans les propriétés change le brochage, pas le dessin.
+3. ✅ **Brochage du schéma interne de Frank** (`A Examiner/CI.csv`) : entrées `A`/`B` et sortie `Q` pour les portes à deux entrées, `a`…`f` et `a̅`…`f̅` pour les six inverseurs du CD40106. Patte 14 = alimentation (VDD ou VCC, **fil rouge**), patte 7 = masse (GND, **fil noir**). Le 74xx02 sort sa première porte sur la **patte 1** — le piège du lot.
+4. ✅ **Les portes calculent pour de vrai** : la sortie d'une porte devient une **source de niveau** sur son réseau (`GateDrive`), exactement comme une broche de carte. Elle allume donc une LED (avec sa résistance série, courant compris), commande un transistor, attaque un autre boîtier, et se lit sur une entrée du microcontrôleur.
+5. ✅ **Point fixe commun aux ponts et aux portes** : une porte peut piloter un transistor, un contact de relais peut alimenter un boîtier. Trois tours, signature comparée, caches d'image vidés — la sortie d'un étage est l'entrée du suivant dans la MÊME image de simulation.
+6. ✅ **Une entrée en l'air n'est pas un 0** : la sortie ne devient indéterminée que lorsque cette entrée compte — un ET dont une entrée est à 0 sort 0, un OU dont une entrée est à 1 sort 1 ; le OU EXCLUSIF et l'inverseur, eux, exigent toutes leurs entrées.
+7. ✅ **Plages d'alimentation par famille** (données de Frank) : C 3 à 15 V, HC/AC/ACT 2 à 6 V, HCT/ALS/F 4,5 à 5 V, S/LS 4,75 à 5,25 V, série 4000 3 à 18 V. La famille remplace le « xx » de l'inscription et **décide de la compatibilité avec la carte** : un 74LS00 ne fait rien sous les 3,3 V d'une Pico, un 74HC00 si.
+8. ✅ **Sous la plage le boîtier ne fait rien, au-dessus il EXPLOSE** : « Tensions d'alimentation incompatibles » dans les deux cas, avec l'inscription, la plage attendue et la tension mesurée. Le boîtier détruit porte le 💥 et le reste jusqu'à la simulation suivante. Un boîtier **pas encore alimenté** n'est pas un défaut : il ne dit rien.
+9. ✅ **Messages traduits FR + EN** — trois entrées de plus dans `i18n.mts`, `verify:i18n` toujours vert.
+10. ✅ **Banc `npm run verify:ic` (neuf)** : bibliothèque (11 entrées, catégorie, repère `IC`, brochage DIL-14, inscription selon la famille), **toutes les portes de toutes les références confrontées à une table de vérité indépendante**, entrées en l'air, plages d'alimentation (2,5 / 3 / 12 / 18 / 19 V sur le CD4011, 3,3 V contre 5 V sur 74LS00 et 74HC00), boîtier détruit qui le reste, et propagation en cascade jusqu'à une LED. Branché dans `verify:all`.
+11. ✅ **Tests `CI-uno` et `CI-pico`** : les onze boîtiers dans UN schéma, deux broches d'entrée communes à tout le monde. Les quatre portes d'un boîtier font la même chose sur les mêmes entrées : leurs sorties se relient donc sans conflit sur une seule broche de lecture — **46 portes câblées et vérifiées avec 13 broches**. `_verify.mjs` résout le nouveau `logic-ic` comme la simulation : 796 contrôles rien que pour ces deux tests.
+12. ✅ **22 fiches d'aide** (11 FR + 11 EN) : brochage patte par patte, table de vérité, tableau des familles et de leurs tensions, pièges d'alimentation. Les 11 illustrations viennent de `_capture-part.mjs`, qui sait maintenant prendre les attributs d'une variante **dans le catalogue** au lieu de les recopier.
+13. ℹ️ **Équivalences « série 74 » du tableau laissées de côté** : `A Examiner/CI.csv` met 74C81, 74C71, 74C70, 74C11 et 74C01 en face des CD40xx. Ces références-là ne figurent chez aucun fabricant (le quadruple ET CMOS de la série 74 est le **74C08**, le NON-ET le **74C00**). Elles sont conservées telles quelles dans la base, en champ informatif, mais **ne sont affichées nulle part** — à trancher par Frank.
 
 # v2026.7.252 — le transistor dit la vérité sur ses broches
 1. ✅ **Les lettres des symboles internes ont retrouvé leur couleur et leur finesse** : l'overlay du câblage interne peint TOUT son contenu avec un contour noir de 2 px — parfait pour des fils, désastreux pour des lettres de 5 px, qui devenaient des pâtés noirs. Les `<text>` et `<tspan>` du câblage interne ne portent plus ce contour (`stroke: none`) ; la couleur écrite dans le dessin de Frank (style en ligne) reprend la main. Vaut aussi pour les repères des afficheurs 7 segments.

@@ -40,6 +40,14 @@ const PARTS = {
   relais: { module: 'relais-element.mjs', tag: 'kablix-relais' },
 };
 
+// Circuits intégrés logiques : onze références pour UN dessin (le boîtier
+// DIL-14), seule l'inscription et les noms de pattes changent. `catalog` prend
+// ces attributs à la source (`partDef`) au lieu de les recopier ici.
+for (const t of ['cd4081', 'cd4071', 'cd4070', 'cd4011', 'cd4001', 'cd40106',
+  '74xx08', '74xx32', '74xx86', '74xx00', '74xx02']) {
+  PARTS[t] = { module: 'logic-ic-element.mjs', tag: 'kablix-ic', catalog: t };
+}
+
 const WIDTH = 360; // largeur des illustrations de fiche déjà en place
 const asked = process.argv.slice(2).filter((a) => !a.startsWith('-'));
 const todo = (asked.length ? asked : Object.keys(PARTS)).filter((t) => {
@@ -70,7 +78,9 @@ for (const type of todo) {
   // Page minimale : l'élément seul, mis à la largeur voulue, fond transparent.
   const entry = `
 import '../../src/webview/composants/${spec.module}';
+${spec.catalog ? `import { partDef } from '../../src/webview/diagram/catalog.mjs';` : ''}
 const el = document.createElement('${spec.tag}');
+${spec.catalog ? `for (const [k, v] of Object.entries(partDef(${JSON.stringify(spec.catalog)}).attrs ?? {})) el.setAttribute(k, v);` : ''}
 ${Object.entries(spec.attrs ?? {}).map(([k, v]) => `el.setAttribute('${k}', ${JSON.stringify(v)});`).join('\n')}
 document.body.appendChild(el);
 setTimeout(() => {

@@ -18,6 +18,9 @@ const FAMILIES = {
   display: { en: 'Disp', fr: 'Aff' },
   transistor: { en: 'T', fr: 'T' },
   diode: { en: 'D', fr: 'D' },
+  // Circuit intégré : « IC » dans les deux langues (« CI » en français serait
+  // juste, mais tout le monde lit IC1 sur un schéma — Frank).
+  ic: { en: 'IC', fr: 'IC' },
   board: { en: 'U', fr: 'U' },
   module: { en: 'Mod', fr: 'Mod' },
   button: { en: 'PB', fr: 'BP' },
@@ -50,6 +53,7 @@ const BY_KIND: Record<string, RefFamily> = {
   'spi-oled': 'display',
   'spi-tft': 'display',
   transistor: 'transistor',
+  'logic-ic': 'ic',
   diode: 'diode',
   mcu: 'board',
   // Cartes complexes sans famille propre : platine d'essai, shield, carte SD,

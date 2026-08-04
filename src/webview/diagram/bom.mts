@@ -11,6 +11,7 @@
 // forme « Tension max : 400 V ». Un transistor n'a pas de valeur : ses
 // caractéristiques sont donc toutes en commentaire.
 import { capacitorDefOf, partDef, propConditions, type PartDef, type PropDef } from './catalog.mjs';
+import { icLabel, icMarking } from './ics.mjs';
 import type { Part } from './model.mjs';
 import { t, locale } from '../i18n.mjs';
 import { colorDisplayName } from './colors.mjs';
@@ -149,6 +150,10 @@ export function partLabel(part: Part): string {
   } catch {
     return part.type; // type inconnu de ce poste (projet plus récent)
   }
+  // Circuit intégré : chaque référence a son entrée de bibliothèque, mais la
+  // référence reste changeable dans les propriétés — c'est celle du composant
+  // POSÉ que la nomenclature nomme, pas celle de l'entrée d'où il vient.
+  if (def.kind === 'logic-ic') return t(icLabel(attrOf(def, part, 'ref')));
   const label = t(def.label);
   if (def.kind !== 'capacitor') return label;
   const prop = (def.props ?? []).find((p) => p.attr === 'ctype');
@@ -172,6 +177,9 @@ export function partType(part: Part): string {
   } catch {
     return part.type;
   }
+  // Même raison que pour le nom : le type suit la référence choisie, pas
+  // l'entrée de palette d'origine.
+  if (def.kind === 'logic-ic') return attrOf(def, part, 'ref').toLowerCase() || part.type;
   if (def.kind !== 'capacitor') return part.type;
   return capacitorDefOf(attrOf(def, part, 'ctype'))?.type ?? part.type;
 }
@@ -183,6 +191,11 @@ export function partValue(part: Part): string {
     def = partDef(part.type);
   } catch {
     return '';
+  }
+  // Ce qu'on lit sur un circuit intégré — et ce qu'on commande — c'est son
+  // INSCRIPTION, famille comprise : un « 74xx08 » en famille LS s'achète 74LS08.
+  if (def.kind === 'logic-ic') {
+    return icMarking(attrOf(def, part, 'ref'), attrOf(def, part, 'family'));
   }
   const prop = valueProp(visibleProps(def, part));
   if (!prop) return '';
@@ -209,6 +222,11 @@ export function partComment(part: Part): string {
   if (def.kind === 'capacitor') {
     const ctype = props.find((p) => p.attr === 'ctype');
     if (ctype) skip.add(ctype);
+  }
+  // Circuit intégré : la référence et la famille sont déjà dans l'inscription
+  // (colonne Valeur) — les répéter en commentaire n'apprendrait rien.
+  if (def.kind === 'logic-ic') {
+    for (const p of props) if (p.attr === 'ref' || p.attr === 'family') skip.add(p);
   }
   const bits: string[] = [];
   for (const prop of props) {

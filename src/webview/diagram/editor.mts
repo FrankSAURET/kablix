@@ -40,6 +40,7 @@ import {
   type TransistorFilter,
   type TransistorType,
 } from './transistors.mjs';
+import { icAttrs, icRef } from './ics.mjs';
 import { PACKAGE_LABELS, type TransistorPackage } from '../composants/transistor-element.mjs';
 import { nextPartId } from './refnames.mjs';
 import { colorDisplayName, colorSwatchBackground } from './colors.mjs';
@@ -4552,6 +4553,29 @@ export class Editor {
       r.el.setAttribute('address', r.part.attrs.address);
       queueMicrotask(() => this.renderInspector());
     }
+    // Circuit intégré : la référence (et, en série 74, la famille) pose d'un coup
+    // l'inscription, le symbole interne et le BROCHAGE. Changer de référence
+    // rebaptise donc les pattes — et le 74xx02 ne met pas ses sorties là où le
+    // 74xx00 met les siennes. Les fils sont ancrés au NOM de la broche : on les
+    // reporte patte par patte (même numéro, nouveau nom), sinon ils sauteraient
+    // d'une patte à l'autre (« A1 » n'est pas la même patte d'une référence à
+    // l'autre) ou deviendraient orphelins (le CD40106 nomme les siennes a, a̅…).
+    if ((attr === 'ref' || attr === 'family') && partDef(r.part.type).kind === 'logic-ic') {
+      const family = attr === 'family' ? value : (r.part.attrs?.family ?? '');
+      const before = icRef(prevAttrs.ref ?? '')?.pins;
+      r.part.attrs = { ...r.part.attrs, ...icAttrs(r.part.attrs?.ref ?? '', family) };
+      const after = icRef(r.part.attrs.ref ?? '')?.pins;
+      if (before && after && before !== after) {
+        for (const w of this.diagram.wires) {
+          for (const end of [w.a, w.b]) {
+            if (end.partId !== partId) continue;
+            const n = before.indexOf(end.pin);
+            if (n >= 0 && after[n]) end.pin = after[n];
+          }
+        }
+      }
+      queueMicrotask(() => this.renderInspector());
+    }
     // Platine rétrécie : retire les fils pointant vers des trous disparus.
     if (attr === 'size' && partDef(r.part.type).kind === 'breadboard') {
       const valid = new Set(breadboardPins(normalizeSize(value)).map((p) => p.name));
@@ -4586,7 +4610,10 @@ export class Editor {
       && partDef(r.part.type).kind === 'transistor' && (r.part.attrs?.named ?? '') !== '';
     const rebuildsTransistor = (attr === 'pkg' || attr === 'symbol' || attr === 'schema' || attr === 'named' || attr === 'ref')
       && partDef(r.part.type).kind === 'transistor';
-    if (movesElectrode || rebuildsTransistor || attr === 'ctype' || attr === 'angle' || attr === 'flip' || attr === 'size' || attr === 'pins' || attr === 'lcdSize' || attr === 'columns' || attr === 'digits') {
+    // Circuit intégré : la référence rebaptise les pattes, la famille réécrit
+    // l'inscription du boîtier — les deux se voient sur le dessin.
+    const rebuildsIc = (attr === 'ref' || attr === 'family') && partDef(r.part.type).kind === 'logic-ic';
+    if (movesElectrode || rebuildsTransistor || rebuildsIc || attr === 'ctype' || attr === 'angle' || attr === 'flip' || attr === 'size' || attr === 'pins' || attr === 'lcdSize' || attr === 'columns' || attr === 'digits') {
       this.rerenderPart(partId); // renderPart restaure le câblage interne s'il était affiché
       if (this.selection?.kind === 'part' && this.selection.id === partId) {
         const again = this.rendered.get(partId);
