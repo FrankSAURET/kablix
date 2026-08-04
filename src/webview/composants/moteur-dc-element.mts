@@ -2,9 +2,9 @@
 // Frank (Composants.svg, groupe « moteurDC » → ./externe/moteur-dc.svg). Le
 // groupe `moteurDC-axe-rotatif` — le pignon de sortie — tourne autour de son
 // axe, à la vitesse imposée par le moteur de simulation : `speed` = tours par
-// seconde RÉELS (0 = arrêté). Même principe que le ventilateur : au-delà de ce
-// qu'un écran à 60 Hz sait montrer, la rotation est plafonnée et la vitesse se
-// lit au flou de bougé.
+// seconde RÉELS (0 = arrêté). Même principe que le ventilateur : un pignon à
+// 6000 tr/min n'est qu'une bouillie, la rotation est donc RALENTIE — mais elle
+// accélère avec la tension, ce que l'œil doit pouvoir lire (voir spinDisplay).
 //
 // Simulation : voir motorStates (model.mts) — la vitesse suit la TENSION
 // appliquée, le moteur ne démarre pas si la source ne fournit pas son courant,
@@ -14,25 +14,16 @@ import type { PropertyValues } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
 import { boumOverlay } from './utils/boum.mjs';
-import { measureSpin, SPOKES_FALLBACK, type Spin } from './utils/spin.mjs';
+import { measureSpin, spinDisplay, SPOKES_FALLBACK, type Spin } from './utils/spin.mjs';
 import drawing from './externe/moteur-dc.svg';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-/** Rafraîchissement d'écran retenu pour le calcul de l'alias (Hz). */
-const SCREEN_HZ = 60;
-/**
- * Fraction de la période de dent qu'une image d'écran a le droit d'avaler. À la
- * moitié l'image devient ambiguë (roue de charrette : le pignon paraît ralentir
- * puis tourner À L'ENVERS), on s'arrête donc au quart.
- */
-const ALIAS_MARGIN = 4;
 /** Régime nominal d'un petit moteur 5 V : 6000 tr/min = 100 tours/s. */
 const NOMINAL_TURNS_PER_S = 100;
-/** Flou de bougé du pignon à plein régime (unités du dessin). */
-const MAX_BLUR = 2;
-/** Transparence du pignon à plein régime : une pièce lancée se traverse. */
-const MAX_FADE = 0.3;
+/** Flou de bougé du pignon à plein régime (unités du dessin). Léger : c'est la
+ *  rotation qui dit la vitesse, le flou ne fait que l'appuyer. */
+const MAX_BLUR = 1;
 
 /** Repère du pignon, mesuré une seule fois : le dessin est le même pour tous les
  *  moteurs (axe de rotation + nombre de dents). */
@@ -125,21 +116,17 @@ export class MoteurDcElement extends LitElement {
     if (!spin) spin = measureSpin(wrap);
     if (spin) wrap.style.transformOrigin = `${spin.x.toFixed(3)}px ${spin.y.toFixed(3)}px`;
     // Un moteur grillé ne tourne plus, quoi que dise la simulation.
-    const turns = !this.burned && Number.isFinite(this.speed) ? Math.max(0, this.speed) : 0;
-    // Un écran ne montre qu'une image tous les 1/60 s : au-delà d'un quart de
-    // dent par image, le pignon paraît RALENTIR puis tourner à l'envers, si bien
-    // qu'augmenter la tension le ralentirait. La rotation affichée est donc
-    // plafonnée là, et c'est le flou de bougé qui dit la vitesse au-dessus.
-    const maxTurns = SCREEN_HZ / (spin?.blades ?? SPOKES_FALLBACK) / ALIAS_MARGIN;
-    const shown = Math.min(turns, maxTurns);
-    // Durée d'un tour, arrondie vers le HAUT (au millième de seconde) : arrondir
-    // vers le bas repasserait de justesse au-dessus du plafond. Vitesse nulle →
-    // animation coupée (pignon figé).
-    wrap.style.animationDuration = shown > 0 ? `${(Math.ceil(1000 / shown) / 1000).toFixed(3)}s` : '0s';
+    const turns = this.burned ? 0 : this.speed;
+    // Rotation ralentie mais MONOTONE sur toute la plage utile : c'est elle qui
+    // dit la vitesse, le flou ne fait que l'appuyer à haut régime.
+    const { turns: shown, blur } = spinDisplay(
+      turns, NOMINAL_TURNS_PER_S, spin?.blades ?? SPOKES_FALLBACK
+    );
+    // Durée d'un tour (au millième de seconde). Vitesse nulle → animation
+    // coupée (pignon figé).
+    wrap.style.animationDuration = shown > 0 ? `${(1 / shown).toFixed(3)}s` : '0s';
     wrap.style.animationPlayState = shown > 0 ? 'running' : 'paused';
-    const excess = Math.max(0, Math.min(1, (turns - maxTurns) / Math.max(1, NOMINAL_TURNS_PER_S - maxTurns)));
-    wrap.style.filter = excess > 0 ? `blur(${(excess * MAX_BLUR).toFixed(2)}px)` : '';
-    wrap.style.opacity = excess > 0 ? (1 - excess * MAX_FADE).toFixed(3) : '';
+    wrap.style.filter = blur > 0 ? `blur(${(blur * MAX_BLUR).toFixed(2)}px)` : '';
   }
 
   render() {

@@ -7,9 +7,10 @@
 //      ce transistor ; une diode à l'envers ne protège rien ; un MOSFET dont le
 //      schéma interne porte sa diode de structure (nmos-d) est dispensé ;
 //   3. catalogue, nom de repère et fiches d'aide FR/EN ;
-//   4. l'AFFICHAGE de la rotation, comme pour le ventilateur : un écran ne
-//      montre qu'une image tous les 1/60 s, la rotation est donc plafonnée au
-//      quart de la période de dent et la vitesse au-delà se lit au flou.
+//   4. l'AFFICHAGE de la rotation, comme pour le ventilateur : un pignon à
+//      6000 tr/min n'est qu'une bouillie, la rotation est donc ralentie à une
+//      fréquence de passage de dent LISIBLE (1,5 à 7 dents par seconde) qui
+//      croît avec la tension — l'accélération doit se voir, pas le vrai régime.
 import esbuild from 'esbuild';
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -221,7 +222,6 @@ async function run() {
       shown: dur > 0 ? 1 / dur : 0,          // tours/s réellement animés
       paused: st.animationPlayState === 'paused',
       blur: parseFloat((st.filter.match(/blur\\(([\\d.]+)px\\)/) || [0, 0])[1]) || 0,
-      fade: st.opacity === '' ? 1 : parseFloat(st.opacity),
     };
   };
 
@@ -232,31 +232,43 @@ async function run() {
   ok('le pignon reste dans l’enveloppe, son transform intact',
     shaft && shaft.parentNode === spin(), shaft ? shaft.getAttribute('transform') || '(aucun)' : 'absent');
   const dents = el.bladeCount;
-  ok('dents comptées dans le dessin (≥ 3)', dents >= 3, String(dents));
-  const limite = 360 / dents / 4;
+  // La denture n'occupe que le dernier dixième du pignon : sondée trop près du
+  // centre, elle passait inaperçue (3 dents relevées pour une vingtaine, la
+  // rotation affichée était alors sept fois trop rapide — d'où le clignotement).
+  ok('dents comptées dans le dessin (≥ 8)', dents >= 8, String(dents));
 
   const arret = await etat(0);
   ok('à l’arrêt : animation en pause', arret.paused && arret.shown === 0);
 
-  const vitesses = [0.5, 1, 2, 3, 5, 10, 25, 50, 100];
+  // Plage RÉELLEMENT parcourue : le moteur décroche sous 30 % de sa tension
+  // nominale et grille au-dessus de 1,5 fois — soit 30 à 150 tr/s.
+  const NOMINAL = 100;
+  const vitesses = [30, 45, 60, 75, 90, 100];
   const etats = [];
   for (const v of vitesses) etats.push(await etat(v));
+  const motif = (e) => e.shown * dents;
+  const lisible = etats.map(motif);
+  ok('la rotation accélère à CHAQUE cran de tension (aucun palier)',
+    etats.every((e, i) => i === 0 || e.shown > etats[i - 1].shown + 1e-6),
+    etats.map((e) => e.turns + 'tr/s→' + e.shown.toFixed(2) + 'tr/s').join(' '));
+  ok('du décrochage au plein régime, la rotation est au moins triplée',
+    lisible[lisible.length - 1] >= lisible[0] * 3,
+    \`\${lisible[0].toFixed(1)} → \${lisible[lisible.length - 1].toFixed(1)} dents/s\`);
+  ok('jamais plus de 8 dents par seconde : au-delà ça clignote',
+    Math.max(...lisible) <= 8, Math.max(...lisible).toFixed(1) + ' dents/s');
+  ok('jamais moins de 1 dent par seconde : en dessous ça paraît figé',
+    Math.min(...lisible) >= 1, Math.min(...lisible).toFixed(1) + ' dents/s');
+  ok('pas de flou à basse vitesse', etats[0].blur === 0, etats[0].blur.toFixed(2));
+  ok('le flou croît sur la moitié haute de la plage',
+    etats[etats.length - 1].blur > 0 &&
+    etats.every((e, i) => i === 0 || e.blur >= etats[i - 1].blur - 1e-6),
+    etats.map((e) => e.blur.toFixed(2)).join(' '));
+  // Sécurité anti-stroboscope, surtension comprise (le moteur tourne jusqu'à
+  // 1,5 fois son régime avant de griller).
   const degres = (e) => (e.shown * 360) / SCREEN_HZ;
-  const pire = Math.max(...etats.map(degres));
-  ok(\`aucune image ne dépasse \${limite.toFixed(1)}° (pire : \${pire.toFixed(1)}°)\`, pire <= limite + 0.01,
-    etats.map((e) => e.turns + 'tr/s→' + degres(e).toFixed(1) + '°').join(' '));
-  const lents = etats.filter((e) => e.turns <= SCREEN_HZ / dents / 4);
-  ok('sous le plafond, la rotation affichée est la vraie vitesse',
-    lents.every((e) => Math.abs(e.shown - e.turns) < 0.05), lents.map((e) => e.shown.toFixed(2)).join(' '));
-  ok('rotation affichée jamais décroissante',
-    etats.every((e, i) => i === 0 || e.shown >= etats[i - 1].shown - 1e-6),
-    etats.map((e) => e.shown.toFixed(2)).join(' '));
-  const rapides = etats.filter((e) => e.blur > 0);
-  ok('au-delà du plafond, le flou croît avec la vitesse',
-    rapides.length >= 3 && rapides.every((e, i) => i === 0 || e.blur > rapides[i - 1].blur),
-    rapides.map((e) => e.turns + 'tr/s→' + e.blur.toFixed(2) + 'px').join(' '));
-  ok('le pignon s’efface à plein régime', etats[etats.length - 1].fade < 0.8,
-    etats[etats.length - 1].fade.toFixed(2));
+  const limite = 360 / dents / 4;
+  const pire = Math.max(...etats.map(degres), degres(await etat(NOMINAL * 1.5)));
+  ok(\`aucune image ne dépasse \${limite.toFixed(1)}° (pire : \${pire.toFixed(1)}°)\`, pire <= limite + 0.01);
 
   // Moteur GRILLÉ : explosion, et plus aucune rotation quoi que dise la sim.
   el.burned = true;
@@ -268,7 +280,7 @@ async function run() {
   ok('moteur grillé : le pignon est figé', spin().style.animationPlayState === 'paused');
   el.burned = false;
   const retour = await etat(0);
-  ok('retour à l’arrêt : ni flou ni transparence', retour.blur === 0 && retour.fade === 1);
+  ok('retour à l’arrêt : figé et net', retour.paused && retour.blur === 0);
 
   const out = document.createElement('pre');
   out.id = 'measures';

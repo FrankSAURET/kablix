@@ -1,12 +1,20 @@
 // Mesure de l'axe et de la symétrie d'une pièce TOURNANTE (hélice de
-// ventilateur, pignon de moteur). Partagé par les composants qui font tourner un
-// groupe du dessin de Frank : l'axe ne peut pas être codé en dur, il dépend du
-// dessin, et la symétrie fixe la vitesse au-delà de laquelle un écran à 60 Hz ne
-// suit plus (effet stroboscope : la pièce paraît reculer).
+// ventilateur, pignon de moteur), et loi d'affichage de sa vitesse. Partagé par
+// les composants qui font tourner un groupe du dessin de Frank : l'axe ne peut
+// pas être codé en dur, il dépend du dessin, et le nombre de branches décide de
+// la vitesse à laquelle l'œil suit encore le mouvement.
 
 /** Symétries supposées si la mesure échoue. Repli PRUDENT : une pièce un peu
  *  lente se voit moins qu'une pièce qui recule. */
 export const SPOKES_FALLBACK = 8;
+
+/**
+ * Rayons d'échantillonnage, en fraction du rayon de la pièce. Les grands rayons
+ * sont indispensables : une DENTURE d'engrenage n'occupe que le dernier dixième
+ * du disque — sondé plus près du centre, le pignon du moteur est plein et ne
+ * révèle aucune symétrie (il était compté « 3 dents » pour une vingtaine).
+ */
+const SAMPLE_RADII = [0.5, 0.65, 0.8, 0.9, 0.94, 0.97] as const;
 
 /**
  * Nombre de branches (pales, dents) : on fait le tour d'un CERCLE centré sur
@@ -35,9 +43,11 @@ function countSpokes(
       el.isPointInFill(new DOMPoint(inv.a * x + inv.c * y + inv.e, inv.b * x + inv.d * y + inv.f))
     );
   const votes = new Map<number, number>();
-  for (const frac of [0.5, 0.65, 0.8, 0.9]) {
+  for (const frac of SAMPLE_RADII) {
     const r = radius * frac;
-    const N = 360;
+    // Deux points par degré : une denture fine (20 dents = une période de 18°)
+    // reste largement échantillonnée.
+    const N = 720;
     let fronts = 0;
     let previous = filled(ax + r, ay);
     const first = previous;
@@ -52,7 +62,10 @@ function countSpokes(
   let best = SPOKES_FALLBACK;
   let bestVotes = 0;
   for (const [n, count] of votes) {
-    if (count > bestVotes) {
+    // À égalité de voix on retient le PLUS GRAND nombre de branches : la sous-
+    // estimer ferait défiler la pièce trop vite (scintillement), la surestimer
+    // la ralentit seulement.
+    if (count > bestVotes || (count === bestVotes && n > best)) {
       bestVotes = count;
       best = n;
     }
@@ -113,4 +126,58 @@ export function measureSpin(wrap: SVGGElement): Spin | null {
   }
   // `far` est le carré du rayon : le point le plus éloigné de l'axe.
   return { x: ax - box.x, y: ay - box.y, blades: countSpokes(wrap, toLocal, ax, ay, Math.sqrt(far)) };
+}
+
+// --- Loi d'affichage de la vitesse ------------------------------------------
+// Montrer le vrai régime ne sert à rien : un ventilateur tourne à 50 tr/s, un
+// pignon à 100, et sept pales à 50 tr/s font défiler 350 pales par seconde —
+// l'œil n'y voit qu'un scintillement, et augmenter la tension ne change RIEN à
+// ce qu'il perçoit. Ce que l'œil lit, c'est la fréquence de passage des
+// BRANCHES : on la tient dans une plage lisible et on la fait croître avec le
+// régime. La pièce tourne donc lentement, mais l'accélération se voit.
+
+/** Rafraîchissement d'écran retenu pour le garde-fou d'alias (Hz). */
+const SCREEN_HZ = 60;
+/** Au-delà du quart d'une période de branche par image, la pièce paraît reculer
+ *  (roue de charrette). Jamais atteint par la loi ci-dessous : simple filet. */
+const ALIAS_MARGIN = 4;
+/** Branches par seconde au décrochage : assez lent pour suivre une pale à l'œil,
+ *  assez vif pour qu'on voie tout de suite que la pièce est partie. */
+export const MOTIF_MIN_HZ = 1.5;
+/** Branches par seconde au régime nominal. Au-delà de ~10 Hz les passages
+ *  fusionnent et la vitesse cesse de se lire : on s'arrête nettement avant. */
+export const MOTIF_MAX_HZ = 7;
+/** Régime relatif en dessous duquel le modèle considère que rien ne tourne
+ *  (`fanSpeed`, `motorStates`). La plage utile va donc de là au nominal, et
+ *  c'est ELLE qu'il faut étaler — pas l'intervalle 0…nominal, dont le premier
+ *  tiers n'est jamais parcouru. */
+export const START_RATIO = 0.3;
+
+/** Consigne d'affichage : `turns` = tours par seconde à ANIMER, `blur` = flou de
+ *  bougé (0…1, à multiplier par le flou maximal du composant). */
+export interface SpinDisplay {
+  turns: number;
+  blur: number;
+}
+
+/**
+ * Traduit un régime RÉEL (tours/s) en rotation affichable.
+ * @param turnsPerS vitesse réelle imposée par la simulation (0 = arrêté)
+ * @param nominalTurnsPerS régime nominal du composant (plein régime)
+ * @param blades nombre de branches mesuré dans le dessin
+ */
+export function spinDisplay(turnsPerS: number, nominalTurnsPerS: number, blades: number): SpinDisplay {
+  const turns = Number.isFinite(turnsPerS) ? Math.max(0, turnsPerS) : 0;
+  if (turns <= 0) return { turns: 0, blur: 0 };
+  const n = Math.max(1, blades);
+  const ratio = nominalTurnsPerS > 0 ? turns / nominalTurnsPerS : 0;
+  // 0 au décrochage, 1 au régime nominal. Peut dépasser 1 (surtension d'un
+  // moteur avant destruction) : seul le flou en tient compte.
+  const u = (ratio - START_RATIO) / (1 - START_RATIO);
+  const uv = Math.max(0, Math.min(1, u));
+  const motif = MOTIF_MIN_HZ + (MOTIF_MAX_HZ - MOTIF_MIN_HZ) * uv;
+  const shown = Math.min(motif / n, SCREEN_HZ / n / ALIAS_MARGIN);
+  // Le flou n'arrive qu'à mi-plage : à basse vitesse il ne dirait rien et
+  // brouillerait une pièce qu'on cherche justement à suivre.
+  return { turns: shown, blur: Math.max(0, Math.min(1, (u - 0.5) / 0.5)) };
 }

@@ -52,11 +52,12 @@ swapping its two wires simply reverses the direction of rotation.
   diode between terminal 1 (cathode) and terminal 2 (anode).
 - PWM control: `analogWrite()` (Arduino) or `PWM` (MicroPython) on the control
   pin; speed follows the duty cycle.
-- **Reading the speed on screen**: a monitor only shows one frame every 1/60 s.
-  Past a few turns per second the pinion would seem to slow down and then spin
-  backwards (the wagon-wheel effect seen in westerns). The displayed rotation is
-  therefore capped just below that point, and above it the **blur of the
-  pinion** carries the speed — exactly what the eye sees on a real motor.
+- **Reading the speed on screen**: at 6000 rpm the pinion teeth sweep by far too
+  fast for the eye — all you see is a flicker, and changing the voltage changes
+  nothing visible. The pinion therefore spins in **slow motion**: 1.5 to 7 teeth
+  per second depending on the regime. It is not the true speed, it is its
+  **change** that matters — raising the duty cycle shows at a glance. The
+  **pinion blur** backs up the upper half of the range.
 
 ---
 

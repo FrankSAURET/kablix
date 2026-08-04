@@ -1,13 +1,12 @@
 // Vérifie le ventilateur :
 //   1. le modèle : plus de tension = plus de vitesse (monotone), et sous 30 %
 //      de la tension nominale le moteur ne démarre pas ;
-//   2. l'AFFICHAGE de la rotation. Un écran ne montre qu'une image tous les
-//      1/60 s : au-delà d'une demi-période de pale par image (25,7° pour une
-//      hélice à 7 pales), l'hélice paraît RALENTIR puis tourner à l'envers
-//      (roue de charrette). C'est ce que voyait Frank : baisser la tension
-//      accélérait la rotation apparente. L'élément plafonne donc la rotation
-//      affichée au quart de la période de pale et rend la vitesse au-delà par
-//      un flou de bougé — l'indication reste monotone de 0 au plein régime.
+//   2. l'AFFICHAGE de la rotation. Une hélice à 3000 tr/min fait défiler 350
+//      pales par seconde : l'œil n'y voit qu'un scintillement, et changer la
+//      tension n'y change RIEN de visible. La rotation est donc ralentie à une
+//      fréquence de passage de pale LISIBLE (1,5 à 7 pales par seconde), qui
+//      croît avec le régime — c'est l'accélération qui doit se voir, pas la
+//      vitesse réelle.
 import esbuild from 'esbuild';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -85,45 +84,51 @@ async function run() {
       shown: dur > 0 ? 1 / dur : 0,          // tours/s réellement animés
       paused: st.animationPlayState === 'paused',
       blur: parseFloat((st.filter.match(/blur\\(([\\d.]+)px\\)/) || [0, 0])[1]) || 0,
-      fade: st.opacity === '' ? 1 : parseFloat(st.opacity),
     };
   };
 
   ok('hélice trouvée et emballée dans un groupe neutre', !!spin());
   const pales = el.bladeCount;
   ok('pales comptées dans le dessin : 7', pales === 7, String(pales));
-  // Angle qu'une image d'écran a le droit d'avaler : un quart de la période de
-  // pale. À la moitié l'image est ambiguë, au-delà elle recule.
-  const limite = 360 / pales / 4;
 
   const arret = await etat(0);
   ok('à l’arrêt : animation en pause', arret.paused && arret.shown === 0);
 
-  const vitesses = [0.5, 1, 2, 3, 5, 10, 25, 50];
+  // Plage RÉELLEMENT parcourue par la simulation : le modèle décroche sous 30 %
+  // de la tension nominale, donc de 15 à 50 tr/s. C'est celle-là qui doit se
+  // lire — l'ancienne loi y était plate (rotation figée, seul le flou bougeait).
+  const NOMINAL = 50;
+  const vitesses = [15, 20, 25, 30, 35, 40, 45, 50];
   const etats = [];
   for (const v of vitesses) etats.push(await etat(v));
+  // Ce que l'œil lit : le nombre de pales qui passent par seconde.
+  const motif = (e) => e.shown * pales;
+  const lisible = etats.map(motif);
+  ok('la rotation accélère à CHAQUE cran de tension (aucun palier)',
+    etats.every((e, i) => i === 0 || e.shown > etats[i - 1].shown + 1e-6),
+    etats.map((e) => e.turns + 'tr/s→' + e.shown.toFixed(2) + 'tr/s').join(' '));
+  ok('du décrochage au plein régime, la rotation est au moins triplée',
+    lisible[lisible.length - 1] >= lisible[0] * 3,
+    \`\${lisible[0].toFixed(1)} → \${lisible[lisible.length - 1].toFixed(1)} pales/s\`);
+  ok('jamais plus de 8 pales par seconde : au-delà ça scintille',
+    Math.max(...lisible) <= 8, Math.max(...lisible).toFixed(1) + ' pales/s');
+  ok('jamais moins de 1 pale par seconde : en dessous ça paraît figé',
+    Math.min(...lisible) >= 1, Math.min(...lisible).toFixed(1) + ' pales/s');
+  // Le flou ne fait qu'APPUYER la vitesse, il n'est plus le seul indicateur :
+  // rien à basse vitesse (on veut suivre la pale), net au plein régime.
+  ok('pas de flou à basse vitesse', etats[0].blur === 0, etats[0].blur.toFixed(2));
+  ok('le flou croît sur la moitié haute de la plage',
+    etats[etats.length - 1].blur > 0 &&
+    etats.every((e, i) => i === 0 || e.blur >= etats[i - 1].blur - 1e-6),
+    etats.map((e) => e.blur.toFixed(2)).join(' '));
+  // Sécurité anti-stroboscope : une image d'écran ne doit jamais avaler plus du
+  // quart d'une période de pale, sinon l'hélice paraît reculer.
   const degres = (e) => (e.shown * 360) / SCREEN_HZ;
-  const pire = Math.max(...etats.map(degres));
-  ok(\`aucune image ne dépasse \${limite.toFixed(1)}° (pire : \${pire.toFixed(1)}°)\`, pire <= limite + 0.01,
-    etats.map((e) => e.turns + 'tr/s→' + degres(e).toFixed(1) + '°').join(' '));
-  // Lentement, la rotation affichée EST la vitesse réelle : rien n'est faussé
-  // tant que l'écran suit.
-  const lents = etats.filter((e) => e.turns <= SCREEN_HZ / pales / 4);
-  ok('sous le plafond, la rotation affichée est la vraie vitesse',
-    lents.every((e) => Math.abs(e.shown - e.turns) < 0.05), lents.map((e) => e.shown.toFixed(2)).join(' '));
-  // Indication monotone : la rotation ne décroît jamais, et au-delà du plafond
-  // c'est le flou qui continue de croître (sinon 25 et 50 tr/s se ressemblent).
-  ok('rotation affichée jamais décroissante',
-    etats.every((e, i) => i === 0 || e.shown >= etats[i - 1].shown - 1e-6),
-    etats.map((e) => e.shown.toFixed(2)).join(' '));
-  const rapides = etats.filter((e) => e.blur > 0);
-  ok('au-delà du plafond, le flou croît avec la vitesse',
-    rapides.length >= 3 && rapides.every((e, i) => i === 0 || e.blur > rapides[i - 1].blur),
-    rapides.map((e) => e.turns + 'tr/s→' + e.blur.toFixed(2) + 'px').join(' '));
-  ok('les pales s’effacent à plein régime', etats[etats.length - 1].fade < 0.8,
-    etats[etats.length - 1].fade.toFixed(2));
+  const limite = 360 / pales / 4;
+  const pire = Math.max(...etats.map(degres), degres(await etat(NOMINAL * 1.5)));
+  ok(\`aucune image ne dépasse \${limite.toFixed(1)}° (pire : \${pire.toFixed(1)}°)\`, pire <= limite + 0.01);
   const retour = await etat(0);
-  ok('retour à l’arrêt : ni flou ni transparence', retour.blur === 0 && retour.fade === 1);
+  ok('retour à l’arrêt : figé et net', retour.paused && retour.blur === 0);
 
   const out = document.createElement('pre');
   out.id = 'measures';

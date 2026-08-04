@@ -2,33 +2,25 @@
 // (Composants.svg, groupe « ventilo » → ./externe/ventilo.svg). Le groupe
 // `ventilo-helices` tourne autour de l'AXE du moyeu, à la vitesse imposée par
 // le moteur : `speed` = tours par seconde RÉELS (0 = arrêté). L'élément décide
-// seul de ce qui est affichable : au-delà de ce qu'un écran à 60 Hz sait
-// montrer, la rotation est plafonnée et la vitesse se lit au flou de bougé.
+// seul de ce qui est affichable : une hélice à 3000 tr/min n'est qu'un
+// scintillement, alors la rotation est RALENTIE — mais elle accélère avec le
+// régime, ce que l'œil doit pouvoir lire (voir spinDisplay).
 // Simulation : voir fanState (model.mts) — tension d'alimentation ET courant
 // disponible ; sans courant suffisant, l'hélice ne tourne pas.
 import { css, html, LitElement } from 'lit';
 import type { PropertyValues } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
-import { measureSpin, SPOKES_FALLBACK, type Spin } from './utils/spin.mjs';
+import { measureSpin, spinDisplay, SPOKES_FALLBACK, type Spin } from './utils/spin.mjs';
 import drawing from './externe/ventilo.svg';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-/** Rafraîchissement d'écran retenu pour le calcul de l'alias (Hz). */
-const SCREEN_HZ = 60;
-/**
- * Fraction de la période de pale qu'une image d'écran a le droit d'avaler. À la
- * moitié l'image devient ambiguë (roue de charrette : l'hélice paraît ralentir
- * puis tourner À L'ENVERS), on s'arrête donc au quart.
- */
-const ALIAS_MARGIN = 4;
 /** Régime nominal d'un petit ventilateur 5 V : 3000 tr/min = 50 tours/s. */
 const NOMINAL_TURNS_PER_S = 50;
-/** Flou de bougé des pales à plein régime (unités du dessin). */
-const MAX_BLUR = 3;
-/** Transparence des pales à plein régime : un ventilateur lancé se traverse. */
-const MAX_FADE = 0.35;
+/** Flou de bougé des pales à plein régime (unités du dessin). Léger : c'est la
+ *  rotation qui dit la vitesse, le flou ne fait que l'appuyer. */
+const MAX_BLUR = 1.5;
 
 /** Repère de l'hélice, mesuré une seule fois : le dessin est le même pour tous
  *  les ventilateurs (axe de rotation + nombre de pales). */
@@ -113,22 +105,16 @@ export class VentiloElement extends LitElement {
     if (!wrap) return;
     if (!spin) spin = measureSpin(wrap);
     if (spin) wrap.style.transformOrigin = `${spin.x.toFixed(3)}px ${spin.y.toFixed(3)}px`;
-    const turns = Number.isFinite(this.speed) ? Math.max(0, this.speed) : 0;
-    // Un écran ne montre qu'une image tous les 1/60 s : au-delà d'un quart de
-    // pale par image, l'hélice paraît RALENTIR puis tourner à l'envers, si bien
-    // que baisser la tension l'accélérait. La rotation affichée est donc
-    // plafonnée là, et c'est le flou de bougé qui dit la vitesse au-dessus —
-    // exactement ce que voit l'œil sur un vrai ventilateur.
-    const maxTurns = SCREEN_HZ / (spin?.blades ?? SPOKES_FALLBACK) / ALIAS_MARGIN;
-    const shown = Math.min(turns, maxTurns);
-    // Durée d'un tour, arrondie vers le HAUT (au millième de seconde) : arrondir
-    // vers le bas repasserait de justesse au-dessus du plafond. Vitesse nulle →
-    // animation coupée (hélice figée).
-    wrap.style.animationDuration = shown > 0 ? `${(Math.ceil(1000 / shown) / 1000).toFixed(3)}s` : '0s';
+    // Rotation ralentie mais MONOTONE sur toute la plage utile : c'est elle qui
+    // dit la vitesse, le flou ne fait que l'appuyer à haut régime.
+    const { turns: shown, blur } = spinDisplay(
+      this.speed, NOMINAL_TURNS_PER_S, spin?.blades ?? SPOKES_FALLBACK
+    );
+    // Durée d'un tour (au millième de seconde). Vitesse nulle → animation
+    // coupée (hélice figée).
+    wrap.style.animationDuration = shown > 0 ? `${(1 / shown).toFixed(3)}s` : '0s';
     wrap.style.animationPlayState = shown > 0 ? 'running' : 'paused';
-    const excess = Math.max(0, Math.min(1, (turns - maxTurns) / Math.max(1, NOMINAL_TURNS_PER_S - maxTurns)));
-    wrap.style.filter = excess > 0 ? `blur(${(excess * MAX_BLUR).toFixed(2)}px)` : '';
-    wrap.style.opacity = excess > 0 ? (1 - excess * MAX_FADE).toFixed(3) : '';
+    wrap.style.filter = blur > 0 ? `blur(${(blur * MAX_BLUR).toFixed(2)}px)` : '';
   }
 
   render() {

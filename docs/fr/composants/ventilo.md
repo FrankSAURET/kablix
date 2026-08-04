@@ -32,12 +32,13 @@ appliquée est élevée ; il se commande aussi en **PWM**.
   de commande ; la vitesse de l'hélice suit le rapport cyclique.
 - Ajoutez une diode en roue libre en parallèle du moteur pour absorber la
   surtension de coupure.
-- **Lecture de la vitesse à l'écran** : un moniteur ne montre qu'une image tous
-  les 1/60 s. Au-delà de deux ou trois tours par seconde, une hélice à 7 pales
-  paraîtrait ralentir puis tourner à l'envers (l'effet « roue de charrette » des
-  westerns). La rotation affichée est donc plafonnée juste avant ce décrochage,
-  et au-dessus c'est le **flou de l'hélice** qui dit la vitesse — comme à l'œil
-  nu sur un vrai ventilateur.
+- **Lecture de la vitesse à l'écran** : à 3000 tr/min, une hélice à 7 pales en
+  fait défiler 350 par seconde — l'œil n'y voit qu'un scintillement, et changer
+  la tension n'y change rien de visible. L'hélice tourne donc **au ralenti** :
+  de 1,5 à 7 pales par seconde selon le régime. Ce n'est pas la vraie vitesse,
+  c'est son **évolution** qui compte — l'accélération et le ralentissement se
+  voient d'un coup d'œil. Le **flou de l'hélice** vient appuyer la moitié haute
+  de la plage.
 
 ---
 

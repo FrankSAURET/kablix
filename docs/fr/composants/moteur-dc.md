@@ -55,12 +55,13 @@ inverse simplement son sens de rotation.
   l'alimentation ; diode entre la borne 1 (cathode) et la borne 2 (anode).
 - Commande PWM : `analogWrite()` (Arduino) ou `PWM` (MicroPython) sur la broche
   de commande ; la vitesse suit le rapport cyclique.
-- **Lecture de la vitesse à l'écran** : un moniteur ne montre qu'une image tous
-  les 1/60 s. Au-delà de quelques tours par seconde, le pignon paraîtrait
-  ralentir puis tourner à l'envers (l'effet « roue de charrette » des westerns).
-  La rotation affichée est donc plafonnée juste avant ce décrochage, et au-dessus
-  c'est le **flou du pignon** qui dit la vitesse — comme à l'œil nu sur un vrai
-  moteur.
+- **Lecture de la vitesse à l'écran** : à 6000 tr/min, les dents du pignon
+  défilent bien trop vite pour l'œil — on n'y voit qu'un scintillement, et
+  changer la tension n'y change rien de visible. Le pignon tourne donc **au
+  ralenti** : de 1,5 à 7 dents par seconde selon le régime. Ce n'est pas la
+  vraie vitesse, c'est son **évolution** qui compte — monter le rapport
+  cyclique se voit d'un coup d'œil. Le **flou du pignon** vient appuyer la
+  moitié haute de la plage.
 
 ---
 

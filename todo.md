@@ -1,14 +1,14 @@
 # À faire
 1. Il n'y a pas d'icône visible sur le bouton Afficher/masquer les explicqations de défaut. Je l'ai retouché rien à faire pour toi
-1. La visualisation de rotation de l'axe du moteur est incompréhensible on a l'impression que ça clignote. Ici on se fout d'une vitesse de rotation réaliste on veut juste la voir et que si la tension continue ou le rapport cyclique augmente on  ai un impression de vitesse qui augmente
 1. J'ai toujours cette erreur : Kablix : impossible d'enregistrer l'éditeur SVG dans les réglages (kablix.svgEditorPath). Impossible d'écrire dans Paramètres utilisateur, car kablix.svgEditorPath n'est pas une configuration inscrite. Du moins au premier lancement. Aprs ça semble marcher. Corrige.
 1. La position dit ce qu'elle vaut en ohms** : le commentaire porte « Position : 25 % (1,175 kΩ) ». Affiche ça en dynamique pendant la simulation juste au dessus du composant (au plus pret du composant)
 1. Quand la souris a sélectionné un composant ou un fil (glissé) si elle sort de la fenêtre la vue suit
-1. L'impression de vitesse sur les ventilo n'est pas probante. On ne sse rend pas bien compte de l'accélération ou du ralentissement.
 1. Le cadre de sélection autour des transistors TO92 n'est pas bon. C'était de ma faute. J'ai corrigé. Importe la nouvelle version.
 1. Quand tu retouche ou refait un schéma de test que j'ai retouché, garde les emplacements des composant (sauf à tout refaire différemment)
 1. Vsix quand liste ci-dessus terminée
 
+1. ✅ La visualisation de rotation de l'axe du moteur est incompréhensible on a l'impression que ça clignote. Ici on se fout d'une vitesse de rotation réaliste on veut juste la voir et que si la tension continue ou le rapport cyclique augmente on  ai un impression de vitesse qui augmente
+1. ✅ L'impression de vitesse sur les ventilo n'est pas probante. On ne sse rend pas bien compte de l'accélération ou du ralentissement.
 1. ✅ CI :
     1. ✅ Ajoute le 74xx14 (fichier csv complété)
     1. ✅ Dans les CI  le style des symbole internes (>=1, &, =1)est mauvais. Il faut fill = noir et stroke = none. Sauf pour le symbole hystérésis (CD40106 et 74xx14) qui reste tel qu'il est
@@ -30,6 +30,15 @@ Voici les préfix à utiliser (traduisible) et respecte la casse : Résistance (
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# v2026.7.255 — le moteur et le ventilateur tournent au ralenti, et ça se voit
+1. ✅ **La rotation dit enfin la vitesse** : à 3000 tr/min une hélice à 7 pales en fait défiler 350 par seconde, et un pignon 6000 tr/min bien plus encore — l'œil n'y voit qu'un scintillement. L'ancienne loi plafonnait la rotation puis laissait le flou porter l'information : sur TOUTE la plage utile (15 à 50 tr/s pour le ventilateur, 30 à 150 pour le moteur) la pièce tournait donc exactement à la même vitesse apparente. Monter la tension ne changeait rien de visible.
+2. ✅ **Ce que l'œil lit, c'est le passage des branches** : la rotation est désormais calée sur une fréquence de passage LISIBLE — **1,5 pale (ou dent) par seconde au décrochage, 7 au régime nominal**. La pièce tourne lentement, mais chaque cran de tension ou de rapport cyclique l'accélère : mesuré, **13° → 63° par quart de seconde** pour le pignon, **19° → 90°** pour l'hélice.
+3. ✅ **Le pignon comptait 3 dents pour une dizaine** : la denture n'occupe que le dernier dixième du disque, et la mesure de symétrie ne sondait que jusqu'aux 90 % du rayon — au centre le pignon est plein. Deux rayons de plus (94 % et 97 %), deux fois plus de points par tour, et le compte est juste. La rotation affichée était sinon trois fois trop rapide : le « clignotement » venait de là.
+4. ✅ **Plus de pièce transparente** : les pales et le pignon s'effaçaient à haut régime (jusqu'à −35 % d'opacité), ce qui les rendait justement plus difficiles à suivre. Le **flou de bougé** reste, plus discret (1,5 px sur l'hélice, 1 px sur le pignon) et seulement sur la moitié haute de la plage — à basse vitesse on veut suivre la pale, pas la deviner.
+5. ✅ **Loi commune aux deux composants** (`spinDisplay`, dans `utils/spin.mts`) : un seul endroit décide de ce qui est affichable, garde-fou anti-stroboscope compris — vérifié jusqu'à 1,5 fois le régime nominal, la surtension d'un moteur avant destruction.
+6. ✅ **`verify:fan` et `verify:motor` mesurent maintenant ce que Frank reprochait** : accélération à CHAQUE cran (aucun palier), rotation au moins triplée du décrochage au plein régime, jamais plus de 8 passages par seconde (ça clignote) ni moins de 1 (ça paraît figé).
+7. ✅ **Fiches d'aide FR + EN** du ventilateur et du moteur reprises : ce n'est pas la vraie vitesse qui est montrée, c'est son évolution.
 
 # v2026.7.254 — le douzième boîtier, et les symboles qui se lisent
 1. ✅ **74xx14 dans la palette** : sextuple inverseur à trigger de Schmitt, le jumeau série 74 du CD40106 — même brochage (patte 1 = `a`, entrées `a`…`f`, sorties `a̅`…`f̅`), **VCC** en patte 14 au lieu de VDD, et c'est la famille choisie qui décide de l'alimentation (un 74LS14 ne fait rien sous les 3,3 V d'une Pico). Douzième référence, toujours le même dessin `ic14`.
