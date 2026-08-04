@@ -116,6 +116,9 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
     </div>
     <button id="open-help" class="toolbar__icon-btn" title="${l10n.t('Open help')}"><img src="${aideIconUri}" alt="${l10n.t('Open help')}" /></button>
     <span id="project-name" class="project-name" title="${l10n.t('Current project')}"></span>
+    <!-- Fichier de code du projet : à DROITE du nom du .projix (demande de Frank
+         — il appartient au projet, pas aux commandes de simulation). -->
+    <button id="code-file" class="toolbar__file" title="${l10n.t('Code file to run / debug — click to change, double-click to open')}">📄 ${l10n.t('No file')}</button>
     <span id="status" class="status">Prêt</span>
     <!-- Vitesse réelle de la simulation (temps simulé / temps réel) : n'apparaît
          que si la page ne suit plus, sinon la barre reste sobre. -->
@@ -138,7 +141,6 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
             <option value="0.1">🐢 10 %</option>
             <option value="0.01">🐌 1 %</option>
           </select>
-          <button id="code-file" class="canvas-controls__file" title="${l10n.t('Code file to run / debug — click to change, double-click to open')}">📄 ${l10n.t('No file')}</button>
           <button id="repl" class="canvas-controls__btn canvas-controls__btn--repl" hidden title="${l10n.t('Start an interactive MicroPython REPL (no script)')}">REPL</button>
           <button id="toggle-serial" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Show/hide the serial monitor')}"><img class="canvas-controls__icon" src="${serialMonitorUri}" alt="${l10n.t('Show/hide the serial monitor')}" /></button>
           <button id="toggle-plotter" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Show/hide the plotter (curves)')}"><img class="canvas-controls__icon" src="${plotterIconUri}" alt="${l10n.t('Show/hide the plotter (curves)')}" /></button>

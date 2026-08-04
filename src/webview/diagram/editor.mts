@@ -1535,16 +1535,17 @@ export class Editor {
     for (const d of [0, 16, 32, 64, 120]) setTimeout(follow, d);
     if (typeof requestAnimationFrame === 'function') requestAnimationFrame(follow);
 
+    // PAS de défilement automatique ici (demande de Frank) : le geste PART de la
+    // palette, donc du bord gauche de la vue. La bande sensible se déclencherait
+    // dès l'appui et la vue filerait avant même qu'on ait choisi où poser. Le
+    // composant une fois lâché se déplace, lui, avec la vue qui suit.
     const move = (ev: PointerEvent): void => {
       if (!dragged && Math.hypot(ev.clientX - startX, ev.clientY - startY) > 4) dragged = true;
-      auto.track(ev); // posé au bord : la vue découvre la place qui manque
       at = this.canvasPoint(ev.clientX, ev.clientY);
       this.centerPartOn(part.id, at);
       this.redrawWires();
     };
-    const auto = this.beginAutoPan<PointerEvent>(move);
     const end = (ev: PointerEvent): void => {
-      auto.stop();
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', end);
       // Clic sec (jamais déplacé) : pose au centre de la vue. Sinon : sous le curseur.
@@ -2937,6 +2938,7 @@ export class Editor {
   private dragEndpoint(wire: Wire, which: 'a' | 'b', handle: HTMLDivElement): void {
     const path = this.wirePaths.get(wire.id);
     const move = (ev: PointerEvent): void => {
+      auto.track(ev);
       const at = this.canvasPoint(ev.clientX, ev.clientY);
       handle.style.left = `${at.x}px`;
       handle.style.top = `${at.y}px`;
@@ -2947,7 +2949,12 @@ export class Editor {
         path.setAttribute('d', roundedWirePath(pts));
       }
     };
+    // L'extrémité tirée au bord entraîne la vue, comme un coude ou un composant
+    // (retour de Frank) : sans ça, rebrancher un fil sur une broche hors écran
+    // obligeait à lâcher, déplacer la vue, puis reprendre l'extrémité.
+    const auto = this.beginAutoPan<PointerEvent>(move);
     const end = (ev: PointerEvent): void => {
+      auto.stop();
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', end);
       const at = this.canvasPoint(ev.clientX, ev.clientY);
@@ -5167,6 +5174,27 @@ export class Editor {
 
     const list = document.createElement('div');
     list.className = 'inspector__reflist';
+    // Molette : UN cran = UNE entrée (demande de Frank). Le défilement libre du
+    // navigateur avance d'une centaine de pixels, soit deux ou trois modèles à
+    // la fois, et coupe des lignes en deux — on perd celle qu'on suivait. Les
+    // entrées n'ont pas toutes la même hauteur (le modèle personnalisé porte
+    // une explication plus longue) : le bond se calcule donc sur la position
+    // RÉELLE de chaque bouton, jamais sur une hauteur supposée.
+    list.addEventListener('wheel', (ev: WheelEvent) => {
+      if (ev.deltaY === 0 || ev.ctrlKey) return; // Ctrl+molette = zoom du navigateur
+      const rows = [...list.children] as HTMLElement[];
+      if (rows.length < 2) return;
+      ev.preventDefault();
+      // Origine du contenu défilé : le haut de la liste, corrigé du défilement
+      // en cours (les rectangles sont en coordonnées écran).
+      const base = list.getBoundingClientRect().top - list.scrollTop;
+      const tops = rows.map((r) => r.getBoundingClientRect().top - base);
+      const cible =
+        ev.deltaY > 0
+          ? tops.find((y) => y > list.scrollTop + 1)
+          : [...tops].reverse().find((y) => y < list.scrollTop - 1);
+      if (cible !== undefined) list.scrollTop = cible;
+    });
     const choose = (choice: string): void => {
       for (const [attr, value] of Object.entries(transistorAttrs(choice, this.transistorFilter))) {
         this.updatePartAttr(partId, attr, value);

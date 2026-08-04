@@ -33,7 +33,7 @@ Small DC motor with its output pinion. It spins faster as the applied voltage ri
 
 - Typical circuit: MCU pin → 1 kΩ resistor → base of a PN2222A; emitter to ground; collector on motor terminal **2**; terminal **1** to the supply +; diode between terminal 1 (cathode) and terminal 2 (anode).
 - PWM control: `analogWrite()` (Arduino) or `PWM` (MicroPython) on the control pin; speed follows the duty cycle.
-- **Reading the speed on screen**: at 6000 rpm the pinion teeth sweep by far too fast for the eye — all you see is a flicker, and changing the voltage changes nothing visible. The pinion therefore spins in **slow motion**: 1.5 to 7 teeth per second depending on the regime. It is not the true speed, it is its **change** that matters — raising the duty cycle shows at a glance. The **pinion blur** backs up the upper half of the range.
+- **Reading the speed on screen**: at 6000 rpm the pinion teeth sweep by far too fast for the eye — all you see is a flicker, and changing the voltage changes nothing visible. The pinion therefore spins in **slow motion**: 1 to 3.5 teeth per second depending on the regime — a gear tooth is far finer and far closer to its neighbour than a fan blade, so it needs half the rate of the fan. It is not the true speed, it is its **change** that matters — raising the duty cycle shows at a glance. The **pinion blur** backs up the upper half of the range.
 
 ---
 

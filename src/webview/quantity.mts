@@ -49,3 +49,22 @@ export function formatQuantity(raw: string, unit: string | null): string {
   const [factor, prefix] = SI_STEPS.find(([p]) => abs >= p) ?? SI_STEPS[SI_STEPS.length - 1];
   return `${localizeNumber(n / factor)} ${prefix}${unit}`;
 }
+
+/**
+ * Les DEUX moitiés de la piste d'un potentiomètre : « 6,6 kΩ|3,4 kΩ ». D'abord
+ * du curseur à l'extrémité basse (celle qu'un ohmmètre lit vers GND), puis le
+ * reste, jusqu'à l'extrémité haute — la somme fait toujours la valeur nominale
+ * (demande de Frank : le pourcentage seul ne dit pas ce que voit le montage,
+ * et un pont diviseur se juge sur ses deux bras). Valeur nominale
+ * inexploitable → chaîne vide, l'appelant n'affiche alors que le pourcentage.
+ */
+export function potTracksText(percent: number | string, ohms: number | string): string {
+  // Coercition explicite : le fork du potentiomètre rotatif déclare `value: {}`
+  // sans `type: Number` (code d'origine @wokwi), l'attribut arrive donc en
+  // TEXTE au premier rendu — « 50 » et non 50.
+  const total = Number(ohms);
+  const part = Number(percent);
+  if (!Number.isFinite(total) || total <= 0 || !Number.isFinite(part)) return '';
+  const base = (total * part) / 100;
+  return `${formatQuantity(String(base), 'Ω')}|${formatQuantity(String(total - base), 'Ω')}`;
+}

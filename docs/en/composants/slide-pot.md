@@ -23,7 +23,7 @@ Linear potentiometer with a sliding wiper. Same principle as the rotary one.
 
 - SIG to an analog input, read with `analogRead()`.
 - Adjust in simulation: **drag** the slider.
-- While the simulation runs, a label above the part gives the position **and** the matching resistance — “Position : 25 % (1.175 kΩ)”: what an ohmmeter would read between the wiper and GND.
+- While the simulation runs, a label above the part gives the position **and** both halves of the track — “Position : 25 % (1.175 kΩ|3.525 kΩ)”: first what an ohmmeter would read between the wiper and GND, then the rest up to the other end. Both arms of the divider at a glance; they always add up to the nominal value.
 
 ---
 

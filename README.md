@@ -1,6 +1,8 @@
  <img src="https://raw.githubusercontent.com/FrankSAURET/kablix/main/media/accroche.webp" alt="Kablix" width="1000" />
 
->Extension en cours de developpement
+*[English version](README.en.md)*
+
+>Extension en cours de developpement. Et si vous trouvez que j'écris comme une IA c'est surement parce qu'il y a du vrai.
 # Kablix
 Une application **Gauloise** de simulation de microcontrôleurs (**Arduino Uno/Raspberry Pi Pico**) directement dans VS Code,
 - **100 % Offline**
@@ -12,7 +14,8 @@ La simulation s’appuie sur deux moteurs open-sources embarqués dans l’exten
 [avr8js](https://github.com/wokwi/avr8js) (ATmega328P) et
 [rp2040js](https://github.com/wokwi/rp2040js) (RP2040), tous deux sous licence MIT.
 
-
+## Tests
+Ma bilothèque de test est disponible : [TestKablix](https://github.com/FrankSAURET/kablix/tree/main/testkablix)
 ## Utilisation
 1. Pour démarrer, cliquer sur l’icône <img src="https://raw.githubusercontent.com/FrankSAURET/kablix/main/media/KNB.webp" alt="Kablix" width="30" /> dans la barre d’activité à gauche ;
     - Ou dans un dossier de projet, double cliquer sur un fichier projix ;
@@ -35,9 +38,9 @@ La simulation s’appuie sur deux moteurs open-sources embarqués dans l’exten
 ## Fonctionnalités
 
 - ✅ **Atelier visuel** : routage automatique. 
-- ✅ **Créateur de composants**.
+- ✅ **Créateur de composants** : Possibilité de créer des composant « Perso » via ce créateur ou mieux,  faire un fork, utiliser la [doc](docs/fr/Creating-components.md) pour ajouter le composant et faire une PR (demande de publication) il sera dans la version suivante pour tout le monde et merci de fournir aussi le fichier de test (pico + arduino).
 - ✅ **Export SVG**.
-- ✅ **Bibliothèque de composant** : afficheur 7 segments, barre de 10 LED, interrupteur à glissière, DIP switch, joystick, potentiomètre, photorésistance (LDR), détecteur de mouvement PIR, capteur d’inclinaison, servomoteur, LED, LED RGB, bouton poussoir, résistance, buzzer et potentiomètre.
+- ✅ **Bibliothèque de composant** : afficheur 7 segments, barre de 10 LED, interrupteur à glissière, DIP switch, joystick, potentiomètre, photorésistance (LDR), détecteur de mouvement PIR, capteur d’inclinaison, servomoteur, LED, LED RGB, bouton poussoir, résistance, buzzer et potentiomètre, transistors, Circuit logiques, moteur, Ventilateur, condensateurs, relais, alimentation ...
 - ✅ **Cartes de développements prises en charge** : Arduino Uno, Nano, Pro Mini, Mega 2560 et Raspberry Pi Pico/Pico W, enfichables sur platine d’essai.
 - ✅ **Flash RP2040 réel**.
 - ✅ **Chargement direct d’artefacts** : `.hex`, `.uf2`, `.elf`, `.bin` compilés ailleurs, chargés sans recompilation

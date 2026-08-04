@@ -14,7 +14,10 @@ import type { PropertyValues } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
 import { boumOverlay } from './utils/boum.mjs';
-import { measureSpin, spinDisplay, SPOKES_FALLBACK, type Spin } from './utils/spin.mjs';
+import {
+  GEAR_MOTIF_MAX_HZ, GEAR_MOTIF_MIN_HZ,
+  measureSpin, spinDisplay, SPOKES_FALLBACK, type Spin,
+} from './utils/spin.mjs';
 import drawing from './externe/moteur-dc.svg';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -120,7 +123,8 @@ export class MoteurDcElement extends LitElement {
     // Rotation ralentie mais MONOTONE sur toute la plage utile : c'est elle qui
     // dit la vitesse, le flou ne fait que l'appuyer à haut régime.
     const { turns: shown, blur } = spinDisplay(
-      turns, NOMINAL_TURNS_PER_S, spin?.blades ?? SPOKES_FALLBACK
+      turns, NOMINAL_TURNS_PER_S, spin?.blades ?? SPOKES_FALLBACK,
+      { min: GEAR_MOTIF_MIN_HZ, max: GEAR_MOTIF_MAX_HZ }
     );
     // Durée d'un tour (au millième de seconde). Vitesse nulle → animation
     // coupée (pignon figé).

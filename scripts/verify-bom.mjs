@@ -145,12 +145,12 @@ ok('grandeurs : « (β) » n’est pas une unité, le libellé le garde',
 ok('potentiomètre : la valeur de nomenclature est la résistance nominale (10 kΩ par défaut)',
   A.partValue({ id: 'Pot1', type: 'pot', x: 0, y: 0 }) === '10 kΩ',
   A.partValue({ id: 'Pot1', type: 'pot', x: 0, y: 0 }));
-ok('potentiomètre : la position reste un COMMENTAIRE, avec la résistance qu’elle vaut',
-  A.partComment({ id: 'Pot1', type: 'pot', x: 0, y: 0 }) === 'Position : 50 % (5 kΩ)',
+ok('potentiomètre : la position reste un COMMENTAIRE, avec les deux bras de la piste',
+  A.partComment({ id: 'Pot1', type: 'pot', x: 0, y: 0 }) === 'Position : 50 % (5 kΩ|5 kΩ)',
   A.partComment({ id: 'Pot1', type: 'pot', x: 0, y: 0 }));
-ok('potentiomètre : une autre valeur nominale change la résistance affichée',
+ok('potentiomètre : une autre valeur nominale change les résistances affichées',
   A.partComment({ id: 'Pot1', type: 'pot', x: 0, y: 0, attrs: { ohms: '4700', value: '25' } }) ===
-  'Position : 25 % (1,175 kΩ)',
+  'Position : 25 % (1,175 kΩ|3,525 kΩ)',
   A.partComment({ id: 'Pot1', type: 'pot', x: 0, y: 0, attrs: { ohms: '4700', value: '25' } }));
 ok('potentiomètre glissière : même traitement',
   A.partValue({ id: 'Pot2', type: 'slide-pot', x: 0, y: 0 }) === '10 kΩ',

@@ -122,17 +122,35 @@ console.log('Loi de défilement :');
 console.log('Gestes branchés sur le défilement :');
 {
 	const src = readFileSync(join(ROOT, 'src', 'webview', 'diagram', 'editor.mts'), 'utf8');
-	const corps = (debut, fin) => src.slice(src.indexOf(debut), src.indexOf(fin));
+	// Bornes VÉRIFIÉES : un repère absent rendait `indexOf` négatif et le bloc
+	// s'étendait jusqu'à la fin du fichier — le contrôle passait alors sur le
+	// code d'un tout autre geste (`private addPart(` n'existe pas : la méthode
+	// est publique).
+	const corps = (debut, fin) => {
+		const i = src.indexOf(debut);
+		const j = src.indexOf(fin);
+		if (i < 0 || j <= i) return '';
+		return src.slice(i, j);
+	};
 	for (const [nom, debut, fin] of [
 		['composant déplacé', 'private startDrag(', '// --- Platine d\'essai'],
-		['pose depuis la palette', 'private startPlaceFromPalette(', 'private addPart('],
 		['coude de fil tiré', 'private dragHandle(', 'private alignToNeighbours('],
+		['extrémité de fil rebranchée', 'private dragEndpoint(', 'private nearestPin('],
 		['boîte de sélection', 'private startMarquee(', 'private partsInRect('],
 	]) {
 		const bloc = corps(debut, fin);
-		check(nom + ' : défilement branché et arrêté à la fin du geste',
-			bloc.length > 0 && /beginAutoPan/.test(bloc) && /auto\.track\(/.test(bloc) && /auto\.stop\(\)/.test(bloc),
-			bloc.length === 0 ? 'bloc introuvable' : 'beginAutoPan/track/stop incomplet');
+		const branche = bloc.length > 0 && /beginAutoPan/.test(bloc) && /auto\.track\(/.test(bloc) && /auto\.stop\(\)/.test(bloc);
+		check(nom + ' : défilement branché et arrêté à la fin du geste', branche,
+			branche ? '' : bloc.length === 0 ? 'bloc introuvable' : 'beginAutoPan/track/stop incomplet');
+	}
+	// L'exception voulue par Frank : la pose depuis la BIBLIOTHÈQUE ne défile
+	// pas. Le geste part de la palette, donc du bord gauche : la bande sensible
+	// s'amorcerait à l'appui et la vue filerait avant tout choix de place.
+	{
+		const bloc = corps('private startPlaceFromPalette(', 'private plugPlacedPart(');
+		const propre = bloc.length > 0 && !/beginAutoPan/.test(bloc) && !/auto\.track\(/.test(bloc);
+		check('pose depuis la palette : AUCUN défilement (demande de Frank)', propre,
+			propre ? '' : bloc.length === 0 ? 'bloc introuvable' : 'il reste un beginAutoPan/track');
 	}
 	check('câblage en cours : défilement lancé à la broche et coupé avec le fil',
 		/this\.pendingAutoPan = this\.beginAutoPan/.test(src) &&
@@ -261,6 +279,62 @@ async function run() {
 	ok('fil posé : le défilement est coupé',
 		Math.abs(editor.getCamera().panX - finPan) < 0.01 && !document.querySelector('path.wire--temp'),
 		'panX ' + finPan.toFixed(1) + ' → ' + editor.getCamera().panX.toFixed(1));
+
+	// --- Extrémité de fil rebranchée (demande de Frank) ----------------------
+	// Le fil qui vient d'être posé relie les deux LED : on saisit sa poignée
+	// d'extrémité et on l'emmène au bord. La vue doit suivre, comme pour un
+	// coude — sinon rebrancher sur une broche hors écran oblige à lâcher.
+	{
+		const fil = editor.diagram.wires[editor.diagram.wires.length - 1];
+		editor.select({ kind: 'wire', id: fil.id });
+		await wait(40);
+		const poignee = document.querySelectorAll('.wire-endpoint')[0];
+		ok('extrémité de fil : la poignée existe', !!poignee);
+		if (poignee) {
+			const p = poignee.getBoundingClientRect();
+			poignee.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, buttons: 1,
+				clientX: p.left + p.width / 2, clientY: p.top + p.height / 2 }));
+			pmove(vue.right - 6, y0);
+			const boutAvant = editor.getCamera().panX;
+			await wait(200);
+			const boutApres = editor.getCamera().panX;
+			ok('extrémité de fil tirée au BORD : la vue défile',
+				boutApres < boutAvant - 40,
+				'panX ' + boutAvant.toFixed(1) + ' → ' + boutApres.toFixed(1));
+			pup();
+			await wait(30);
+			const boutLache = editor.getCamera().panX;
+			pmove(vue.right - 6, y0, 0);
+			await wait(150);
+			ok('extrémité relâchée : le défilement est coupé',
+				Math.abs(editor.getCamera().panX - boutLache) < 0.01,
+				'panX ' + boutLache.toFixed(1) + ' → ' + editor.getCamera().panX.toFixed(1));
+		}
+	}
+
+	// --- Pose depuis la BIBLIOTHÈQUE : surtout pas de défilement -------------
+	// Le geste part de la palette, au bord gauche de la vue : la bande sensible
+	// s'amorcerait dès l'appui et le plan de travail fuirait tout seul.
+	{
+		const paletteX = vue.left + 4;
+		editor.startPlaceFromPalette(
+			new PointerEvent('pointerdown', { bubbles: true, button: 0, buttons: 1, clientX: paletteX, clientY: y0 }),
+			'led');
+		await wait(30);
+		const posePan = editor.getCamera().panX;
+		pmove(paletteX, y0);          // toujours sur la palette : le pire cas
+		await wait(200);
+		ok('pose depuis la bibliothèque : la vue ne bouge pas au bord GAUCHE',
+			Math.abs(editor.getCamera().panX - posePan) < 0.01,
+			'panX ' + posePan.toFixed(1) + ' → ' + editor.getCamera().panX.toFixed(1));
+		pmove(vue.right - 6, y0);     // et pas davantage au bord droit
+		await wait(200);
+		ok('pose depuis la bibliothèque : la vue ne bouge pas au bord DROIT',
+			Math.abs(editor.getCamera().panX - posePan) < 0.01,
+			'panX ' + posePan.toFixed(1) + ' → ' + editor.getCamera().panX.toFixed(1));
+		pup();
+		await wait(30);
+	}
 
 	const out = document.createElement('pre');
 	out.id = 'measures';

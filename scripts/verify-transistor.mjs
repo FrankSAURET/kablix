@@ -295,6 +295,66 @@ async function run() {
 		etiquettes().some((l) => /Rds/.test(l)) && !etiquettes().some((l) => /β/.test(l)),
 		JSON.stringify(etiquettes()));
 
+	// --- 8 bis. La molette avance d'UNE entrée à la fois (demande de Frank) -----
+	// La liste des modèles est plus haute que sa fenêtre : un cran de molette
+	// doit caler la ligne suivante en haut, pas sauter deux ou trois modèles et
+	// couper le quatrième en deux.
+	(button(inspector, 'Changer') || button(inspector, 'Change transistor')).click();
+	await wait(40);
+	choisir(0, 'npn');
+	choisir(1, 'to92');
+	await wait(60);
+	{
+		const liste = inspector.querySelector('.inspector__reflist');
+		const lignes = liste ? [...liste.children] : [];
+		const cran = (sens) => liste.dispatchEvent(
+			new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: sens * 120 }));
+		// Position de chaque entrée dans le contenu défilé (hauteurs inégales :
+		// le modèle personnalisé porte une explication plus longue).
+		const hauts = () => {
+			const base = liste.getBoundingClientRect().top - liste.scrollTop;
+			return lignes.map((r) => r.getBoundingClientRect().top - base);
+		};
+		ok('modèles : la liste déborde de sa fenêtre (il y a de quoi défiler)',
+			liste && liste.scrollHeight > liste.clientHeight + 20,
+			liste && liste.scrollHeight + ' px pour ' + liste.clientHeight + ' px visibles');
+		const t0 = hauts();
+		cran(1);
+		ok('un cran de molette : la DEUXIÈME entrée passe en haut',
+			Math.abs(liste.scrollTop - t0[1]) < 0.5,
+			'scrollTop ' + liste.scrollTop.toFixed(1) + ' pour ' + t0[1].toFixed(1));
+		cran(1);
+		cran(1);
+		ok('trois crans : la QUATRIÈME entrée, jamais une ligne coupée',
+			Math.abs(liste.scrollTop - t0[3]) < 0.5,
+			'scrollTop ' + liste.scrollTop.toFixed(1) + ' pour ' + t0[3].toFixed(1));
+		cran(-1);
+		ok('cran vers le haut : on remonte d’une entrée, pas davantage',
+			Math.abs(liste.scrollTop - t0[2]) < 0.5,
+			'scrollTop ' + liste.scrollTop.toFixed(1) + ' pour ' + t0[2].toFixed(1));
+		// Butées : en haut on ne remonte pas plus, en bas on ne descend pas plus.
+		liste.scrollTop = 0;
+		cran(-1);
+		ok('déjà en haut : la molette ne fait rien', liste.scrollTop === 0, liste.scrollTop);
+		liste.scrollTop = liste.scrollHeight;
+		const fond = liste.scrollTop;
+		cran(1);
+		ok('déjà en bas : la molette ne fait rien', liste.scrollTop === fond,
+			liste.scrollTop + ' pour ' + fond);
+		// Le geste est CONSOMMÉ : sans preventDefault, le navigateur ajouterait
+		// son propre défilement par-dessus le nôtre.
+		liste.scrollTop = 0;
+		const evt = new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: 120 });
+		liste.dispatchEvent(evt);
+		ok('le défilement natif est neutralisé (un seul bond par cran)', evt.defaultPrevented);
+	}
+	// Retour à l'IRF530 : la suite du banc compte dessus.
+	choisir(0, 'nmos');
+	choisir(1, 'to220');
+	await wait(40);
+	refBtn('IRF530').click();
+	await wait(60);
+
 	// --- 9. Simulation des nouvelles familles (v2026.7.248) ---------------------
 	// Darlington : DEUX jonctions base-émetteur, donc 1,4 V perdus sur la base et
 	// 0,9 V entre collecteur et émetteur une fois saturé.

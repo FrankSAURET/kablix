@@ -1,19 +1,34 @@
 # À faire
-1. Déplace le bouton qui donne le fichier de code à droite du nom du fichier projix - dans la barre généraliste.
-1. La rotation du moteur de l'engrenage du moteur est encore trop rapide de plus l'axe n'est pas le bon et donc l'engrenage bouge. Je pense que tu as pris pour axe le centre de l'axe avec méplat (gris)mais comme il a un méplat ce n'est pas bon. Prend le centre de l'engrenage (jaune)
-1. Tu as vidé le fichire de teste ventilo-pico
-1. Pour les potentiomètres, met les 3 valeurs %, Rbase et Rreste par exemple Position : 66 % (6,6 kΩ|3,4 kΩ). 
-1. la vue suit la souris qui sort de la fenêtre : C'est ça mais ça ne doit pas fonctionner quand on glisse et pose un composant à partir de la bibliothèque. Et actuellement ça ne fonctionne pas quand c'est une connection de l'extrémité d'un fil  que l'onveut déplacer
-1. Le défilement des transistors dans modèles correspondant doit se faire par bond d'une ligne interne
-1. J'ai mis à jour readme en français, fait le pour l'anglais.
-1. Vsix
+1. ⏳ Tu as vidé le fichire de teste ventilo-pico — **pas reproductible** : `ventilo-pico.projix` contient bien ses 4 composants et 4 fils, `ventilo-pico.py` est identique à l'octet près à sa version d'origine, et le rendu dans le vrai éditeur montre le montage complet. Dis-moi ce que tu as vu à l'écran.
 
+1. ✅ Déplace le bouton qui donne le fichier de code à droite du nom du fichier projix - dans la barre généraliste.
+1. ✅ La rotation du moteur de l'engrenage du moteur est encore trop rapide de plus l'axe n'est pas le bon et donc l'engrenage bouge. Je pense que tu as pris pour axe le centre de l'axe avec méplat (gris)mais comme il a un méplat ce n'est pas bon. Prend le centre de l'engrenage (jaune)
+1. ✅ Pour les potentiomètres, met les 3 valeurs %, Rbase et Rreste par exemple Position : 66 % (6,6 kΩ|3,4 kΩ). 
+1. ✅ la vue suit la souris qui sort de la fenêtre : C'est ça mais ça ne doit pas fonctionner quand on glisse et pose un composant à partir de la bibliothèque. Et actuellement ça ne fonctionne pas quand c'est une connection de l'extrémité d'un fil  que l'onveut déplacer
+1. ✅ Le défilement des transistors dans modèles correspondant doit se faire par bond d'une ligne interne
+1. ✅ J'ai mis à jour readme en français, fait le pour l'anglais.
+1. ✅ Vsix
 1. ✅ La barre du égale du symbole ≥1 (barre inclinée sous le >) de la porte ou doit être un rectangle plein noir sans contour.
 1. ✅ Le schéma interne du 74xx14 est décalé de 10 px vers la gauche
 1. ✅ Quand j'ai cliqué sur routage automatique de CI-Pico.projix, impossible d'en sortir. Y compris en fermant tous les schémas ouverts. Je veux que dans ce cas (tâche trés longue) tu mettes un barre de progression avec un bouton annuler. Du coup fait 3 fichiers de test des CI (CI1, CI2 et CI3). Place les CI à une distance faible de la carte de dev. Pas trop prêt non plus.
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# v2026.7.266 — le pignon tourne rond, le potentiomètre dit ses deux bras
+1. ✅ **Le bouton du fichier de code monte dans la barre généraliste**, juste à droite du nom du `.projix` : il appartient au projet, pas aux commandes de simulation. Il garde tout son comportement (clic = changer, double-clic = ouvrir, jaune sur rouge et clignotement quand aucun fichier n'est choisi).
+2. ✅ **L'axe du pignon du moteur était faux** : la recherche du centre approchait le plus petit cercle englobant par pas décroissants — elle n'y arrivait pas. Elle est remplacée par un calcul **exact** (Welzl, mélange à graine : deux mesures du même dessin donnent le même axe). Balourd mesuré à l'écran : **1,6 px → 0**, le pignon ne décrit plus de petit cercle en tournant.
+3. ✅ **L'échantillonnage du contour se fait au PAS, plus au nombre de points** : un pignon ne mesure qu'une quinzaine d'unités de dessin, l'ancienne règle lui accordait **12 points pour dix dents** — aucun bout de dent n'était touché, d'où l'axe à côté. Un point tous les 400e de la pièce, quelle que soit sa taille.
+4. ✅ **La denture tourne deux fois moins vite** : une dent est bien plus fine et bien plus rapprochée qu'une pale d'hélice, à 7 passages par seconde elle redevenait un scintillement. Le pignon a sa propre plage (1 → 3,5 Hz) ; l'hélice du ventilateur garde la sienne. L'accélération reste lisible : ×3,5 du décrochage au plein régime.
+5. ✅ **Les potentiomètres donnent les DEUX bras de la piste** : « Position : 66 % (6,6 kΩ|3,4 kΩ) », d'abord curseur→bas, ensuite le reste — leur somme fait la valeur nominale, le pont diviseur se lit d'un coup d'œil. Même texte à l'écran et dans la nomenclature : un seul formateur (`quantity.mts`), ils ne peuvent pas diverger. Fiches d'aide FR + EN des deux potentiomètres à jour.
+6. ✅ **Le défilement automatique corrigé aux deux bouts** : plus rien ne file quand on **pose un composant depuis la bibliothèque** (le geste part du bord gauche, la vue partait avant même qu'on ait choisi où poser), et il fonctionne enfin quand on **rebranche l'extrémité d'un fil** — rejoindre une broche hors écran obligeait à lâcher, déplacer la vue, reprendre.
+7. ✅ **Molette dans la liste des modèles de transistor : un cran = une entrée**. Le défilement libre du navigateur avançait de deux ou trois modèles à la fois et coupait des lignes en deux. Le bond se calcule sur la position RÉELLE de chaque bouton — les entrées n'ont pas toutes la même hauteur.
+8. ✅ **README anglais** (`README.en.md`), traduit du français mis à jour par Frank, avec lien croisé entre les deux versions.
+9. ✅ **`verify:autopan` réparé** : un repère de fin absent (`private addPart(` — la méthode est publique) rendait `indexOf` négatif, le bloc examiné s'étendait jusqu'à la fin du fichier et le contrôle passait sur le code d'un tout autre geste. Bornes vérifiées, et le contrôle de la pose depuis la palette devient réel.
+10. ✅ **Bancs élargis** : `verify:pot` (position ou valeur nominale reçue en TEXTE — le fork rotatif déclare `value: {}` sans type), `verify:bom`, `verify:autopan` (extrémité de fil, palette), `verify:transistor` (7 contrôles de molette, 146 au total), `verify:motor` et `verify:fan` (axe et régime).
+11. ✅ **Paquet `.vsix` construit** (demande de Frank) : `kablix-2026.7.266.vsix`, 261 fichiers, **2,82 Mo**. Au passage, `Composants - Copie.svg` (1,08 Mo) partait dans le paquet — les copies de l'explorateur Windows (`… - Copie.*`) sont désormais exclues, le vsix maigrit de 3,38 à 2,82 Mo. **`Composants.svg` (614 ko) y est toujours** : dis-moi si tu veux l'en sortir aussi, il ne sert pas à l'exécution.
+12. ℹ️ **`src/webview/composants/externe/servo.edit.webp` manque à l'appel** dans le dépôt (supprimé hors de mes mains, avant ce lot) : c'est un fichier de travail, hors paquet. Dis-moi si je le restaure (`git checkout`).
+13. ⏳ **`ventilo-pico` : rien de vidé** — le fichier contient ses 4 composants et 4 fils, le `.py` est identique à l'octet près à son commit d'origine, et le rendu dans le vrai éditeur montre le montage complet. J'attends ce que tu as vu à l'écran.
 
 # v2026.7.265 — l'autoroutage rend la main, et les CI tiennent en trois planches
 1. ✅ **Barre d'avancement et bouton « Annuler » sur l'autoroutage** : l'ancien montage `CI-pico` (12 boîtiers, 168 fils étalés sur 1300 px) figeait la webview **6 minutes 26** — chronométré en navigateur, aucune sortie possible, même en fermant les schémas. Le routage se fait maintenant par tranches de 40 ms : un voile sur le canvas, `n / total` qui monte, et un bouton qui arrête net.

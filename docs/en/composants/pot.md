@@ -23,7 +23,7 @@ Variable resistor with a rotary knob. The wiper provides a voltage proportional 
 
 - SIG to an analog input (A0…), read with `analogRead()` (0–1023).
 - Adjust in simulation: drag the knob, or arrows / Page ↑↓.
-- While the simulation runs, a label above the part gives the position **and** the matching resistance — “Position : 25 % (1.175 kΩ)”: what an ohmmeter would read between the wiper and GND.
+- While the simulation runs, a label above the part gives the position **and** both halves of the track — “Position : 25 % (1.175 kΩ|3.525 kΩ)”: first what an ohmmeter would read between the wiper and GND, then the rest up to the other end. Both arms of the divider at a glance; they always add up to the nominal value.
 
 ---
 

@@ -15,7 +15,7 @@ import { icLabel, icMarking } from './ics.mjs';
 import type { Part } from './model.mjs';
 import { t } from '../i18n.mjs';
 import { colorDisplayName } from './colors.mjs';
-import { formatQuantity, labelUnit, SCALED_UNITS } from '../quantity.mjs';
+import { formatQuantity, labelUnit, potTracksText, SCALED_UNITS } from '../quantity.mjs';
 
 /** Une ligne de la nomenclature. */
 export interface BomRow {
@@ -82,15 +82,13 @@ function propText(def: PartDef, part: Part, prop: PropDef): string | null {
   const unit = labelUnit(prop.label);
   if (unit && prop.kind === 'number') {
     const text = `${labelWithoutUnit(label)} : ${formatQuantity(value, unit)}`;
-    // Potentiomètre : « 50 % » ne dit pas ce qu'on mesure entre le curseur et
-    // l'extrémité basse — la résistance correspondante suit entre parenthèses
-    // (Frank, v2026.7.251).
+    // Potentiomètre : « 50 % » ne dit pas ce que voit le montage — les DEUX
+    // bras de la piste suivent entre parenthèses, curseur→bas puis
+    // curseur→haut (Frank, v2026.7.251 puis v2026.7.266). Même texte qu'à
+    // l'écran en simulation : un seul formateur pour les deux.
     if (def.kind === 'potentiometer' && prop.attr === 'value') {
-      const total = Number(attrOf(def, part, 'ohms'));
-      const percent = Number(value);
-      if (Number.isFinite(total) && Number.isFinite(percent)) {
-        return `${text} (${formatQuantity(String((total * percent) / 100), 'Ω')})`;
-      }
+      const tracks = potTracksText(Number(value), Number(attrOf(def, part, 'ohms')));
+      if (tracks) return `${text} (${tracks})`;
     }
     return text;
   }

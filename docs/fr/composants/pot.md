@@ -23,7 +23,7 @@ Résistance variable à bouton rotatif. Le curseur fournit une tension proportio
 
 - SIG vers une entrée analogique (A0…), lecture `analogRead()` (0–1023).
 - Régler en simulation : glisser le bouton, ou flèches / Page ↑↓.
-- Pendant la simulation, une étiquette au-dessus du composant dit la position **et** la résistance correspondante — « Position : 25 % (1,175 kΩ) » : ce qu'un ohmmètre lirait entre le curseur et GND.
+- Pendant la simulation, une étiquette au-dessus du composant dit la position **et** les deux moitiés de la piste — « Position : 25 % (1,175 kΩ|3,525 kΩ) » : d'abord ce qu'un ohmmètre lirait entre le curseur et GND, ensuite le reste jusqu'à l'autre extrémité. Les deux bras du pont diviseur, d'un coup d'œil ; leur somme fait toujours la valeur nominale.
 
 ---
 

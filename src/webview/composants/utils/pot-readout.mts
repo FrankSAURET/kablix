@@ -1,5 +1,5 @@
 // Étiquette de lecture des potentiomètres, affichée EN SIMULATION juste
-// au-dessus du dessin : « Position : 25 % (1,175 kΩ) ».
+// au-dessus du dessin : « Position : 66 % (6,6 kΩ|3,4 kΩ) ».
 //
 // Le pourcentage seul ne dit pas ce qu'on mesure entre le curseur et
 // l'extrémité basse — c'est déjà le raisonnement du commentaire de nomenclature
@@ -10,7 +10,7 @@
 import { css, html } from 'lit';
 import type { TemplateResult } from 'lit';
 import { t } from '../../i18n.mjs';
-import { formatQuantity } from '../../quantity.mjs';
+import { formatQuantity, potTracksText } from '../../quantity.mjs';
 
 export const potReadoutStyles = css`
   /* HORS DU FLUX, comme les curseurs de simulation : si l'étiquette comptait
@@ -42,14 +42,15 @@ function positionLabel(): string {
 }
 
 /**
- * Texte affiché : « Position : 25 % (1,175 kΩ) ». La résistance est celle
- * mesurée entre le curseur et l'extrémité basse, soit la fraction de la valeur
- * nominale. Sans valeur nominale exploitable, le pourcentage reste seul.
+ * Texte affiché : « Position : 66 % (6,6 kΩ|3,4 kΩ) ». LES DEUX bras de la
+ * piste, pas seulement celui du bas : un potentiomètre câblé en pont diviseur
+ * se juge sur le rapport des deux (demande de Frank). Sans valeur nominale
+ * exploitable, le pourcentage reste seul.
  */
 export function potReadoutText(percent: number, ohms: number): string {
   const text = `${positionLabel()} : ${formatQuantity(String(percent), '%')}`;
-  if (!Number.isFinite(ohms) || ohms <= 0) return text;
-  return `${text} (${formatQuantity(String((ohms * percent) / 100), 'Ω')})`;
+  const tracks = potTracksText(percent, ohms);
+  return tracks ? `${text} (${tracks})` : text;
 }
 
 /** L'étiquette elle-même — rien du tout hors simulation. */

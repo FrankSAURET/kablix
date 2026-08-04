@@ -1,8 +1,9 @@
-// Vérifie la LECTURE des potentiomètres : « Position : 25 % (1,175 kΩ) »
+// Vérifie la LECTURE des potentiomètres : « Position : 66 % (6,6 kΩ|3,4 kΩ) »
 // affiché juste au-dessus du dessin PENDANT LA SIMULATION (demande de Frank).
-// Le pourcentage seul ne dit pas ce qu'on mesure entre le curseur et
-// l'extrémité basse ; le commentaire de nomenclature le disait déjà, l'écran
-// doit le dire aussi — et le dire PAREIL (même formatage, cf. quantity.mts).
+// Le pourcentage seul ne dit pas ce que voit le montage : les DEUX bras de la
+// piste sont donnés, curseur→bas puis curseur→haut, et leur somme fait la
+// valeur nominale. Le commentaire de nomenclature dit exactement la même chose
+// — et la dit PAREIL (même formatage, cf. quantity.mts).
 //
 // Deux composants portent la même étiquette : le potentiomètre rotatif et la
 // glissière. Le banc les mesure tous les deux dans un vrai navigateur.
@@ -31,6 +32,7 @@ console.log('Texte de la lecture :');
   // d'elles (la lecture serait restée en anglais).
   writeFileSync(join(CACHE, 'api.mjs'), `
 export { potReadoutText } from '../../src/webview/composants/utils/pot-readout.mjs';
+export { potTracksText } from '../../src/webview/quantity.mjs';
 export { partComment } from '../../src/webview/diagram/bom.mjs';
 export { initLocale } from '../../src/webview/i18n.mjs';
 `);
@@ -44,17 +46,32 @@ export { initLocale } from '../../src/webview/i18n.mjs';
 
   A.initLocale('fr');
   check('exactement le texte demandé par Frank',
-    A.potReadoutText(25, 4700) === 'Position : 25 % (1,175 kΩ)',
+    A.potReadoutText(66, 10_000) === 'Position : 66 % (6,6 kΩ|3,4 kΩ)',
+    A.potReadoutText(66, 10_000));
+  check('les deux bras de la piste, dans l’ordre curseur→bas puis curseur→haut',
+    A.potReadoutText(25, 4700) === 'Position : 25 % (1,175 kΩ|3,525 kΩ)',
     A.potReadoutText(25, 4700));
+  // La somme des deux bras fait toujours la valeur nominale : c'est LA
+  // propriété que Frank veut lire d'un coup d'œil sur un pont diviseur.
+  check('la somme des deux bras fait la valeur nominale',
+    A.potTracksText(66, 10_000) === '6,6 kΩ|3,4 kΩ' &&
+    A.potTracksText(80, 4700) === '3,76 kΩ|940 Ω',
+    A.potTracksText(80, 4700));
   // Le même préfixe SI que la nomenclature : c'est le seul et même formateur.
   check('les ohms suivent le préfixe : Ω, kΩ, MΩ',
-    A.potReadoutText(50, 500).endsWith('(250 Ω)') &&
-    A.potReadoutText(50, 10_000).endsWith('(5 kΩ)') &&
-    A.potReadoutText(100, 2_000_000).endsWith('(2 MΩ)'),
-    [500, 10_000, 2_000_000].map((o) => A.potReadoutText(50, o)).join(' | '));
-  check('curseur en butée basse : 0 Ω, pas de trou',
-    A.potReadoutText(0, 10_000) === 'Position : 0 % (0 Ω)',
-    A.potReadoutText(0, 10_000));
+    A.potReadoutText(50, 500).endsWith('(250 Ω|250 Ω)') &&
+    A.potReadoutText(50, 10_000).endsWith('(5 kΩ|5 kΩ)') &&
+    A.potReadoutText(50, 2_000_000).endsWith('(1 MΩ|1 MΩ)'),
+    [500, 10_000, 2_000_000].map((o) => A.potReadoutText(50, o)).join(' / '));
+  check('curseur en butée : 0 Ω d’un côté, tout de l’autre',
+    A.potReadoutText(0, 10_000) === 'Position : 0 % (0 Ω|10 kΩ)' &&
+    A.potReadoutText(100, 10_000) === 'Position : 100 % (10 kΩ|0 Ω)',
+    A.potReadoutText(0, 10_000) + ' / ' + A.potReadoutText(100, 10_000));
+  // Le fork rotatif déclare `value: {}` sans type : au premier rendu la
+  // position arrive en TEXTE. La lecture ne doit pas se vider pour autant.
+  check('position ou valeur nominale reçue en texte : lue quand même',
+    A.potTracksText('25', '4700') === '1,175 kΩ|3,525 kΩ',
+    A.potTracksText('25', '4700'));
   check('sans valeur nominale exploitable, le pourcentage reste seul',
     A.potReadoutText(30, 0) === 'Position : 30 %' &&
     A.potReadoutText(30, NaN) === 'Position : 30 %',
@@ -67,7 +84,7 @@ export { initLocale } from '../../src/webview/i18n.mjs';
 
   A.initLocale('en');
   check('en anglais : point décimal',
-    A.potReadoutText(25, 4700) === 'Position : 25 % (1.175 kΩ)',
+    A.potReadoutText(25, 4700) === 'Position : 25 % (1.175 kΩ|3.525 kΩ)',
     A.potReadoutText(25, 4700));
   A.initLocale('fr');
 }
@@ -100,20 +117,21 @@ async function run() {
     el.toggleAttribute('simulating', true);
     await el.updateComplete;
     ok(nom + ' : la lecture apparaît au lancement de la simulation',
-      !!lire() && lire().textContent.trim() === 'Position : 50 % (5 kΩ)',
+      !!lire() && lire().textContent.trim() === 'Position : 50 % (5 kΩ|5 kΩ)',
       lire() ? lire().textContent.trim() : 'absente');
 
-    // Tourner le bouton = ce que fait la souris en simulation.
+    // Tourner le bouton = ce que fait la souris en simulation. Les deux bras
+    // bougent en sens inverse : c'est ce qui rend le pont diviseur lisible.
     el.value = 25;
     await el.updateComplete;
-    ok(nom + ' : la lecture SUIT le curseur',
-      lire().textContent.trim() === 'Position : 25 % (2,5 kΩ)', lire().textContent.trim());
+    ok(nom + ' : la lecture SUIT le curseur, les deux bras compris',
+      lire().textContent.trim() === 'Position : 25 % (2,5 kΩ|7,5 kΩ)', lire().textContent.trim());
 
     // Changer la valeur nominale dans l'inspecteur recalcule les ohms.
     el.setAttribute('ohms', '4700');
     await el.updateComplete;
     ok(nom + ' : changer la valeur nominale recalcule les ohms',
-      lire().textContent.trim() === 'Position : 25 % (1,175 kΩ)', lire().textContent.trim());
+      lire().textContent.trim() === 'Position : 25 % (1,175 kΩ|3,525 kΩ)', lire().textContent.trim());
 
     // « Juste au-dessus du composant, au plus près » : l'étiquette est hors du
     // dessin, au-dessus, et à moins de 4 px de son bord haut.

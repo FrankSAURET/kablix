@@ -825,8 +825,10 @@ textarea {
   cursor: pointer;
 }
 
-/* Fichier de code à exécuter / déboguer (clic = changer). */
-.canvas-controls__file {
+/* Fichier de code à exécuter / déboguer (clic = changer). Il vit dans la barre
+   généraliste, juste à droite du nom du projet. Sélecteur doublé (.toolbar) pour
+   passer devant la règle générale `.toolbar button`. */
+.toolbar button.toolbar__file {
   font: inherit;
   font-size: 0.78rem;
   max-width: 200px;
@@ -842,13 +844,12 @@ textarea {
   cursor: pointer;
 }
 
-.canvas-controls__file:hover {
+.toolbar button.toolbar__file:hover {
   border-color: var(--vscode-focusBorder, #0e639c);
 }
 
-/* Aucun fichier de code choisi : bouton en jaune sur rouge (avertissement).
-   Double classe pour l'emporter sur .canvas-controls__file. */
-.canvas-controls__file.canvas-controls__file--nofile {
+/* Aucun fichier de code choisi : bouton en jaune sur rouge (avertissement). */
+.toolbar button.toolbar__file.toolbar__file--nofile {
   color: #ffe14d;
   background: #b30000;
   border-color: #ff5b5b;
@@ -856,7 +857,7 @@ textarea {
 }
 
 /* Lancement de la simulation sans fichier : clignote 3 fois. */
-.canvas-controls__file.canvas-controls__file--blink {
+.toolbar button.toolbar__file.toolbar__file--blink {
   animation: kablix-nofile-blink 0.3s steps(1, end) 3;
 }
 

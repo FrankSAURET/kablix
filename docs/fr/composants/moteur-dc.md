@@ -33,7 +33,7 @@ Petit moteur à courant continu, avec son pignon de sortie. Il tourne d'autant p
 
 - Montage type : broche MCU → résistance 1 kΩ → base d'un PN2222A ; émetteur à la masse ; collecteur sur la borne **2** du moteur ; borne **1** au + de l'alimentation ; diode entre la borne 1 (cathode) et la borne 2 (anode).
 - Commande PWM : `analogWrite()` (Arduino) ou `PWM` (MicroPython) sur la broche de commande ; la vitesse suit le rapport cyclique.
-- **Lecture de la vitesse à l'écran** : à 6000 tr/min, les dents du pignon défilent bien trop vite pour l'œil — on n'y voit qu'un scintillement, et changer la tension n'y change rien de visible. Le pignon tourne donc **au ralenti** : de 1,5 à 7 dents par seconde selon le régime. Ce n'est pas la vraie vitesse, c'est son **évolution** qui compte — monter le rapport cyclique se voit d'un coup d'œil. Le **flou du pignon** vient appuyer la moitié haute de la plage.
+- **Lecture de la vitesse à l'écran** : à 6000 tr/min, les dents du pignon défilent bien trop vite pour l'œil — on n'y voit qu'un scintillement, et changer la tension n'y change rien de visible. Le pignon tourne donc **au ralenti** : de 1 à 3,5 dents par seconde selon le régime — une dent d'engrenage est bien plus fine et plus rapprochée qu'une pale d'hélice, elle demande donc moitié moins vite que le ventilateur. Ce n'est pas la vraie vitesse, c'est son **évolution** qui compte — monter le rapport cyclique se voit d'un coup d'œil. Le **flou du pignon** vient appuyer la moitié haute de la plage.
 
 ---
 

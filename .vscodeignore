@@ -42,6 +42,9 @@ A Examiner/**
 svg/**
 svg retouche/**
 **/*.edit.svg
+# Copies de travail de l'explorateur Windows (« Composants - Copie.svg », 1 Mo) :
+# jamais publiées — elles doublent une source déjà présente.
+**/* - Copie.*
 **/*.vsix
 **/*.rar
 **/*.zip

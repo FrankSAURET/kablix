@@ -66,6 +66,54 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const checks = [];
 const ok = (name, cond, detail = '') => checks.push({ name, ok: !!cond, detail: String(detail) });
 const SCREEN_HZ = 60;
+
+/** Centre À L'ÉCRAN du plus petit cercle contenant une pièce (point matériel du
+ *  dessin : il suit la pièce, où que soit l'origine de rotation). */
+function centreEcran(node) {
+  const formes = node.matches('path,circle,ellipse,rect,polygon,polyline')
+    ? [node] : [...node.querySelectorAll('path,circle,ellipse,rect,polygon,polyline')];
+  const pts = [];
+  for (const n of formes) {
+    const len = n.getTotalLength ? n.getTotalLength() : 0;
+    const m = n.getScreenCTM();
+    if (!(len > 0) || !m) continue;
+    for (let i = 0; i < 1200; i++) {
+      const p = n.getPointAtLength((len * i) / 1200);
+      pts.push({ x: m.a * p.x + m.c * p.y + m.e, y: m.b * p.x + m.d * p.y + m.f });
+    }
+  }
+  let ax = pts.reduce((s, p) => s + p.x, 0) / pts.length;
+  let ay = pts.reduce((s, p) => s + p.y, 0) / pts.length;
+  for (let i = 0; i < 2000; i++) {
+    let best = pts[0], far = -1;
+    for (const p of pts) { const d = (p.x-ax)**2 + (p.y-ay)**2; if (d > far) { far = d; best = p; } }
+    const k = 1 / (i + 2);
+    ax += (best.x - ax) * k; ay += (best.y - ay) * k;
+  }
+  return { x: ax, y: ay };
+}
+
+/** Amplitude du déplacement de ce centre quand la pièce tourne : 0 = l'origine
+ *  de rotation EST l'axe. La forme courte « animation » effacerait durée et
+ *  état de lecture posés en ligne : on n'agit que sur animation-name. */
+function mesureBalourd(wrap, piece, angles) {
+  const duree = wrap.style.animationDuration;
+  const etatLecture = wrap.style.animationPlayState;
+  wrap.style.animationName = 'none';
+  const centres = angles.map((deg) => {
+    wrap.style.transform = 'rotate(' + deg + 'deg)';
+    return centreEcran(piece);
+  });
+  wrap.style.transform = '';
+  wrap.style.animationName = '';
+  wrap.style.animationDuration = duree;
+  wrap.style.animationPlayState = etatLecture;
+  return {
+    dx: Math.max(...centres.map((c) => c.x)) - Math.min(...centres.map((c) => c.x)),
+    dy: Math.max(...centres.map((c) => c.y)) - Math.min(...centres.map((c) => c.y)),
+  };
+}
+
 async function run() {
   const el = document.createElement('kablix-ventilo');
   document.body.appendChild(el);
@@ -90,6 +138,21 @@ async function run() {
   ok('hélice trouvée et emballée dans un groupe neutre', !!spin());
   const pales = el.bladeCount;
   ok('pales comptées dans le dessin : 7', pales === 7, String(pales));
+
+  // L'AXE : l'hélice tourne sur elle-même, elle ne décrit pas un petit cercle.
+  // On repère le centre de la pièce À L'ÉCRAN (centre du cercle qui la contient
+  // tout juste) à plusieurs angles : c'est un point MATÉRIEL du dessin, il ne
+  // bouge que si l'origine de rotation n'est pas l'axe. La boîte englobante ne
+  // conviendrait pas : avec 7 pales elle est dissymétrique et tourne autour de
+  // l'axe même quand tout est juste.
+  {
+    const wrap = spin();
+    const balourd = mesureBalourd(wrap, el.shadowRoot.querySelector('#ventilo-helices'),
+      [0, 13, 26, 51, 90, 180, 270]);
+    ok('l’hélice tourne sur elle-même : centre immobile (< 0,1 px)',
+      balourd.dx < 0.1 && balourd.dy < 0.1,
+      'balourd ' + balourd.dx.toFixed(3) + ' × ' + balourd.dy.toFixed(3) + ' px');
+  }
 
   const arret = await etat(0);
   ok('à l’arrêt : animation en pause', arret.paused && arret.shown === 0);

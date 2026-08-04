@@ -9,7 +9,7 @@
 //   3. catalogue, nom de repère et fiches d'aide FR/EN ;
 //   4. l'AFFICHAGE de la rotation, comme pour le ventilateur : un pignon à
 //      6000 tr/min n'est qu'une bouillie, la rotation est donc ralentie à une
-//      fréquence de passage de dent LISIBLE (1,5 à 7 dents par seconde) qui
+//      fréquence de passage de dent LISIBLE (1 à 3,5 dents par seconde) qui
 //      croît avec la tension — l'accélération doit se voir, pas le vrai régime.
 import esbuild from 'esbuild';
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
@@ -205,6 +205,54 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const checks = [];
 const ok = (name, cond, detail = '') => checks.push({ name, ok: !!cond, detail: String(detail) });
 const SCREEN_HZ = 60;
+
+/** Centre À L'ÉCRAN du plus petit cercle contenant une pièce (point matériel du
+ *  dessin : il suit la pièce, où que soit l'origine de rotation). */
+function centreEcran(node) {
+  const formes = node.matches('path,circle,ellipse,rect,polygon,polyline')
+    ? [node] : [...node.querySelectorAll('path,circle,ellipse,rect,polygon,polyline')];
+  const pts = [];
+  for (const n of formes) {
+    const len = n.getTotalLength ? n.getTotalLength() : 0;
+    const m = n.getScreenCTM();
+    if (!(len > 0) || !m) continue;
+    for (let i = 0; i < 1200; i++) {
+      const p = n.getPointAtLength((len * i) / 1200);
+      pts.push({ x: m.a * p.x + m.c * p.y + m.e, y: m.b * p.x + m.d * p.y + m.f });
+    }
+  }
+  let ax = pts.reduce((s, p) => s + p.x, 0) / pts.length;
+  let ay = pts.reduce((s, p) => s + p.y, 0) / pts.length;
+  for (let i = 0; i < 2000; i++) {
+    let best = pts[0], far = -1;
+    for (const p of pts) { const d = (p.x-ax)**2 + (p.y-ay)**2; if (d > far) { far = d; best = p; } }
+    const k = 1 / (i + 2);
+    ax += (best.x - ax) * k; ay += (best.y - ay) * k;
+  }
+  return { x: ax, y: ay };
+}
+
+/** Amplitude du déplacement de ce centre quand la pièce tourne : 0 = l'origine
+ *  de rotation EST l'axe. La forme courte « animation » effacerait durée et
+ *  état de lecture posés en ligne : on n'agit que sur animation-name. */
+function mesureBalourd(wrap, piece, angles) {
+  const duree = wrap.style.animationDuration;
+  const etatLecture = wrap.style.animationPlayState;
+  wrap.style.animationName = 'none';
+  const centres = angles.map((deg) => {
+    wrap.style.transform = 'rotate(' + deg + 'deg)';
+    return centreEcran(piece);
+  });
+  wrap.style.transform = '';
+  wrap.style.animationName = '';
+  wrap.style.animationDuration = duree;
+  wrap.style.animationPlayState = etatLecture;
+  return {
+    dx: Math.max(...centres.map((c) => c.x)) - Math.min(...centres.map((c) => c.x)),
+    dy: Math.max(...centres.map((c) => c.y)) - Math.min(...centres.map((c) => c.y)),
+  };
+}
+
 async function run() {
   const el = document.createElement('kablix-moteur-dc');
   document.body.appendChild(el);
@@ -237,6 +285,20 @@ async function run() {
   // rotation affichée était alors sept fois trop rapide — d'où le clignotement).
   ok('dents comptées dans le dessin (≥ 8)', dents >= 8, String(dents));
 
+  // L'AXE : le pignon doit tourner sur lui-même, pas décrire un petit cercle.
+  // L'échantillonnage du contour était si grossier (12 points pour dix dents)
+  // qu'aucun bout de dent n'était touché : l'axe tombait à 0,2 unité du vrai
+  // centre et le pignon se déplaçait de 1,7 px à l'écran en tournant.
+  {
+    // Le PIGNON seul (le jaune) : c'est SON centre qui est l'axe, pas celui de
+    // l'arbre à méplat, dissymétrique par construction (remarque de Frank).
+    const balourd = mesureBalourd(spin(), el.shadowRoot.querySelector('#path222-7'),
+      [0, 9, 18, 45, 90, 180, 270]);
+    ok('le pignon tourne sur lui-même : centre immobile (< 0,1 px)',
+      balourd.dx < 0.1 && balourd.dy < 0.1,
+      'balourd ' + balourd.dx.toFixed(3) + ' × ' + balourd.dy.toFixed(3) + ' px');
+  }
+
   const arret = await etat(0);
   ok('à l’arrêt : animation en pause', arret.paused && arret.shown === 0);
 
@@ -254,8 +316,10 @@ async function run() {
   ok('du décrochage au plein régime, la rotation est au moins triplée',
     lisible[lisible.length - 1] >= lisible[0] * 3,
     \`\${lisible[0].toFixed(1)} → \${lisible[lisible.length - 1].toFixed(1)} dents/s\`);
-  ok('jamais plus de 8 dents par seconde : au-delà ça clignote',
-    Math.max(...lisible) <= 8, Math.max(...lisible).toFixed(1) + ' dents/s');
+  // Une dent d'engrenage est plus fine et plus rapprochée qu'une pale : la
+  // plage du pignon est la MOITIÉ de celle de l'hélice (1 à 3,5 dents/s).
+  ok('jamais plus de 3,5 dents par seconde : au-delà la denture scintille',
+    Math.max(...lisible) <= 3.51, Math.max(...lisible).toFixed(2) + ' dents/s');
   ok('jamais moins de 1 dent par seconde : en dessous ça paraît figé',
     Math.min(...lisible) >= 1, Math.min(...lisible).toFixed(1) + ' dents/s');
   ok('pas de flou à basse vitesse', etats[0].blur === 0, etats[0].blur.toFixed(2));

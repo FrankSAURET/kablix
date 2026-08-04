@@ -82,50 +82,100 @@ export interface Spin {
   blades: number;
 }
 
+interface Pt {
+  x: number;
+  y: number;
+}
+interface Circle extends Pt {
+  r: number;
+}
+
+/** Cercle passant par deux points (ils en sont le diamètre). */
+function circleFrom2(a: Pt, b: Pt): Circle {
+  const x = (a.x + b.x) / 2;
+  const y = (a.y + b.y) / 2;
+  return { x, y, r: Math.hypot(a.x - x, a.y - y) };
+}
+
+/** Cercle circonscrit à trois points (null s'ils sont alignés). */
+function circleFrom3(a: Pt, b: Pt, c: Pt): Circle | null {
+  const d = 2 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y));
+  if (Math.abs(d) < 1e-12) return null;
+  const a2 = a.x * a.x + a.y * a.y;
+  const b2 = b.x * b.x + b.y * b.y;
+  const c2 = c.x * c.x + c.y * c.y;
+  const x = (a2 * (b.y - c.y) + b2 * (c.y - a.y) + c2 * (a.y - b.y)) / d;
+  const y = (a2 * (c.x - b.x) + b2 * (a.x - c.x) + c2 * (b.x - a.x)) / d;
+  return { x, y, r: Math.hypot(a.x - x, a.y - y) };
+}
+
+/**
+ * Plus petit cercle englobant (Welzl, incrémental). EXACT, là où l'ancienne
+ * approche — se déplacer vers le point le plus lointain d'un pas décroissant —
+ * ne faisait qu'en approcher le centre. Le mélange est fait avec un générateur
+ * À GRAINE : deux mesures du même dessin donnent le même axe.
+ */
+function minEnclosingCircle(input: Pt[]): Circle {
+  const pts = input.slice();
+  let seed = 0x9e3779b9;
+  for (let i = pts.length - 1; i > 0; i--) {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    const j = seed % (i + 1);
+    [pts[i], pts[j]] = [pts[j], pts[i]];
+  }
+  const inside = (c: Circle, p: Pt): boolean =>
+    Math.hypot(p.x - c.x, p.y - c.y) <= c.r + 1e-9;
+  let c: Circle = { x: pts[0].x, y: pts[0].y, r: 0 };
+  for (let i = 1; i < pts.length; i++) {
+    if (inside(c, pts[i])) continue;
+    c = { x: pts[i].x, y: pts[i].y, r: 0 };
+    for (let j = 0; j < i; j++) {
+      if (inside(c, pts[j])) continue;
+      c = circleFrom2(pts[i], pts[j]);
+      for (let k = 0; k < j; k++) {
+        if (inside(c, pts[k])) continue;
+        c = circleFrom3(pts[i], pts[j], pts[k]) ?? c;
+      }
+    }
+  }
+  return c;
+}
+
 /**
  * Cherche l'axe : les BOUTS de branche sont tous à la même distance de l'axe,
- * donc le centre du plus petit cercle contenant les contours EST l'axe. On
- * l'approche en se déplaçant vers le point le plus lointain d'un pas décroissant.
- * Le centre de la BOÎTE ne convient pas : avec un nombre impair de branches elle
+ * donc le centre du plus petit cercle contenant les contours EST l'axe. Le
+ * centre de la BOÎTE ne convient pas : avec un nombre impair de branches elle
  * est dissymétrique (≈ 5 px de balourd sur l'hélice du ventilateur).
+ *
+ * L'échantillonnage se fait au PAS, pas en nombre de points : un contour de
+ * pignon ne mesure qu'une quinzaine d'unités de dessin, l'ancienne règle
+ * (`len / 4`, plafond 120) lui accordait donc **12 points pour dix dents** —
+ * aucun bout de dent n'était touché, l'axe tombait à côté et le pignon
+ * décrivait un petit cercle en tournant (1,6 px de balourd mesuré à l'écran).
  */
 export function measureSpin(wrap: SVGGElement): Spin | null {
   const toLocal = wrap.getCTM()?.inverse();
   const box = wrap.getBBox();
   if (!toLocal || !(box.width > 0)) return null; // pas encore rendu
-  const pts: { x: number; y: number }[] = [];
+  // Un point tous les 400e de la pièce : les bouts de branche sont touchés quel
+  // que soit le nombre d'unités de dessin de la pièce.
+  const step = Math.max(box.width, box.height) / 400;
+  const pts: Pt[] = [];
   for (const el of wrap.querySelectorAll<SVGGeometryElement>('path,circle,ellipse,rect,polygon,polyline')) {
     if (typeof el.getTotalLength !== 'function') continue;
     const len = el.getTotalLength();
     const ctm = el.getCTM();
     if (!(len > 0) || !ctm) continue;
     const m = toLocal.multiply(ctm);
-    const n = Math.min(120, Math.max(12, Math.round(len / 4)));
+    const n = Math.min(4000, Math.max(24, Math.round(len / step)));
     for (let i = 0; i < n; i++) {
       const p = el.getPointAtLength((len * i) / n);
       pts.push({ x: m.a * p.x + m.c * p.y + m.e, y: m.b * p.x + m.d * p.y + m.f });
     }
   }
   if (pts.length < 3) return null;
-  let ax = box.x + box.width / 2;
-  let ay = box.y + box.height / 2;
-  let far = 0;
-  for (let i = 0; i < 300; i++) {
-    let best = pts[0];
-    far = -1;
-    for (const p of pts) {
-      const d = (p.x - ax) ** 2 + (p.y - ay) ** 2;
-      if (d > far) {
-        far = d;
-        best = p;
-      }
-    }
-    const k = 1 / (i + 2);
-    ax += (best.x - ax) * k;
-    ay += (best.y - ay) * k;
-  }
-  // `far` est le carré du rayon : le point le plus éloigné de l'axe.
-  return { x: ax - box.x, y: ay - box.y, blades: countSpokes(wrap, toLocal, ax, ay, Math.sqrt(far)) };
+  const c = minEnclosingCircle(pts);
+  return { x: c.x - box.x, y: c.y - box.y, blades: countSpokes(wrap, toLocal, c.x, c.y, c.r) };
 }
 
 // --- Loi d'affichage de la vitesse ------------------------------------------
@@ -147,6 +197,16 @@ export const MOTIF_MIN_HZ = 1.5;
 /** Branches par seconde au régime nominal. Au-delà de ~10 Hz les passages
  *  fusionnent et la vitesse cesse de se lire : on s'arrête nettement avant. */
 export const MOTIF_MAX_HZ = 7;
+
+/**
+ * Plage de passage propre au PIGNON du moteur. Une dent d'engrenage est bien
+ * plus fine et bien plus rapprochée qu'une pale d'hélice : à 7 dents par
+ * seconde la denture redevient un scintillement (constat de Frank, « encore
+ * trop rapide »). La moitié suffit, et l'accélération reste largement lisible
+ * (rotation multipliée par 3,5 du décrochage au plein régime).
+ */
+export const GEAR_MOTIF_MIN_HZ = 1;
+export const GEAR_MOTIF_MAX_HZ = 3.5;
 /** Régime relatif en dessous duquel le modèle considère que rien ne tourne
  *  (`fanSpeed`, `motorStates`). La plage utile va donc de là au nominal, et
  *  c'est ELLE qu'il faut étaler — pas l'intervalle 0…nominal, dont le premier
@@ -165,8 +225,14 @@ export interface SpinDisplay {
  * @param turnsPerS vitesse réelle imposée par la simulation (0 = arrêté)
  * @param nominalTurnsPerS régime nominal du composant (plein régime)
  * @param blades nombre de branches mesuré dans le dessin
+ * @param motif plage de passage de branche (Hz) — par défaut celle de l'hélice
  */
-export function spinDisplay(turnsPerS: number, nominalTurnsPerS: number, blades: number): SpinDisplay {
+export function spinDisplay(
+  turnsPerS: number,
+  nominalTurnsPerS: number,
+  blades: number,
+  motif: { min: number; max: number } = { min: MOTIF_MIN_HZ, max: MOTIF_MAX_HZ }
+): SpinDisplay {
   const turns = Number.isFinite(turnsPerS) ? Math.max(0, turnsPerS) : 0;
   if (turns <= 0) return { turns: 0, blur: 0 };
   const n = Math.max(1, blades);
@@ -175,8 +241,8 @@ export function spinDisplay(turnsPerS: number, nominalTurnsPerS: number, blades:
   // moteur avant destruction) : seul le flou en tient compte.
   const u = (ratio - START_RATIO) / (1 - START_RATIO);
   const uv = Math.max(0, Math.min(1, u));
-  const motif = MOTIF_MIN_HZ + (MOTIF_MAX_HZ - MOTIF_MIN_HZ) * uv;
-  const shown = Math.min(motif / n, SCREEN_HZ / n / ALIAS_MARGIN);
+  const motifHz = motif.min + (motif.max - motif.min) * uv;
+  const shown = Math.min(motifHz / n, SCREEN_HZ / n / ALIAS_MARGIN);
   // Le flou n'arrive qu'à mi-plage : à basse vitesse il ne dirait rien et
   // brouillerait une pièce qu'on cherche justement à suivre.
   return { turns: shown, blur: Math.max(0, Math.min(1, (u - 0.5) / 0.5)) };

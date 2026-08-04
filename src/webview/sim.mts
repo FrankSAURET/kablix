@@ -524,18 +524,18 @@ serialEl.addEventListener('paste', (e) => {
 });
 
 // --- Fichier de code : état « aucun fichier choisi » --------------------------
-// Vrai dès qu'un fichier de code est associé (chip du canvas). Sinon le bouton
+// Vrai dès qu'un fichier de code est associé (bouton de la barre). Sinon il
 // s'affiche en jaune sur rouge (avertissement) et clignote au lancement.
 let hasCodeFile = false;
 
 /** Fait clignoter 3 fois le bouton du fichier de code (avertissement : aucun choisi). */
 function blinkCodeFileBtn(): void {
-  codeFileBtn.classList.remove('canvas-controls__file--blink');
+  codeFileBtn.classList.remove('toolbar__file--blink');
   void codeFileBtn.offsetWidth; // reflow : relance l'animation à chaque appel
-  codeFileBtn.classList.add('canvas-controls__file--blink');
+  codeFileBtn.classList.add('toolbar__file--blink');
 }
 codeFileBtn.addEventListener('animationend', () => {
-  codeFileBtn.classList.remove('canvas-controls__file--blink');
+  codeFileBtn.classList.remove('toolbar__file--blink');
 });
 
 // --- Visibilité du moniteur série / console -----------------------------------
@@ -3497,7 +3497,7 @@ window.addEventListener('message', (event: MessageEvent) => {
       hasCodeFile = name !== null && !missing;
       codeFileBtn.textContent = name ? `📄 ${name}` : `📄 ${t('No file')}`;
       // Aucun fichier choisi (ou introuvable) : bouton en jaune sur rouge.
-      codeFileBtn.classList.toggle('canvas-controls__file--nofile', !hasCodeFile);
+      codeFileBtn.classList.toggle('toolbar__file--nofile', !hasCodeFile);
       codeFileBtn.title = missing
         ? t('Code file {0} not found on this computer — click to choose the file to run', name ?? '')
         : name
