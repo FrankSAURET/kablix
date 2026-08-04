@@ -66,6 +66,7 @@ import ic7432Schema from '../composants/interne/7432-interne.svg';
 import ic7486Schema from '../composants/interne/7486-interne.svg';
 import ic7400Schema from '../composants/interne/7400-interne.svg';
 import ic7402Schema from '../composants/interne/7402-interne.svg';
+import ic7414Schema from '../composants/interne/7414-interne.svg';
 
 export interface PinPoint {
   name: string;
@@ -339,6 +340,7 @@ const IC_SCHEMAS: Record<string, Schema> = {
   '7486': parseSchema(ic7486Schema),
   '7400': parseSchema(ic7400Schema),
   '7402': parseSchema(ic7402Schema),
+  '7414': parseSchema(ic7414Schema),
 };
 /** Symbole générique de chaque famille, quand la fiche n'en désigne aucun. */
 const GENERIC_SCHEMA: Record<string, string> = {

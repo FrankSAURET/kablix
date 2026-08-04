@@ -392,6 +392,7 @@ const FR: Record<string, string> = {
   '74xx86 quad 2-input XOR gate': '74xx86 4 portes OU exclusif à 2 entrées',
   '74xx00 quad 2-input NAND gate': '74xx00 4 portes NON-ET à 2 entrées',
   '74xx02 quad 2-input NOR gate': '74xx02 4 portes NON-OU à 2 entrées',
+  '74xx14 hex Schmitt-trigger inverter': '74xx14 6 inverseurs à trigger de Schmitt',
   // Relais
   'Relay OMRON G5V': 'Relais OMRON G5V',
   'Coil voltage (V)': 'Tension de commande (V)',

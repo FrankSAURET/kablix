@@ -8,9 +8,11 @@
 //      maximum il est DÉTRUIT — « Tensions d'alimentation incompatibles » dans
 //      les deux cas ;
 //   4. la PROPAGATION : la sortie d'une porte pilote l'entrée d'une autre, une
-//      LED, ou une broche de carte (point fixe de la simulation).
+//      LED, ou une broche de carte (point fixe de la simulation) ;
+//   5. le DESSIN : les symboles de fonction (&, ≥1, =1) sont des lettres pleines,
+//      l'hystérésis du CD40106 / 74xx14 reste un tracé.
 import esbuild from 'esbuild';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -79,13 +81,13 @@ const sortie = (st, pin) => st?.outputs.find((o) => o.pin === pin)?.level ?? 'z'
 console.log('Bibliothèque :');
 {
   const entrees = catalog.CATALOG.filter((d) => d.kind === 'logic-ic');
-  check('onze références dans la bibliothèque', entrees.length === 11, `${entrees.length} entrées`);
+  check('douze références dans la bibliothèque', entrees.length === 12, `${entrees.length} entrées`);
   check('toutes en kablix-ic (un seul élément, un seul boîtier)',
     entrees.every((d) => d.tag === 'kablix-ic'));
   check('toutes rangées dans « Integrated circuits »',
     entrees.every((d) => catalog.partCategory(d) === 'Integrated circuits'));
-  check('la catégorie est proposée dans l ordre de la palette',
-    catalog.CATEGORY_ORDER.includes('Integrated circuits'));
+  check('la catégorie ferme la palette (Frank : toujours en dernier)',
+    catalog.CATEGORY_ORDER.at(-1) === 'Integrated circuits', catalog.CATEGORY_ORDER.at(-1));
   check('libellé = référence + fonction (on cherche « CD4011 » ou « NAND »)',
     entrees.every((d) => d.label.startsWith(d.attrs.ref) && d.label.length > d.attrs.ref.length),
     entrees[0].label);
@@ -101,6 +103,11 @@ console.log('Bibliothèque :');
     ics.icMarking('74xx00', 'LS') === '74LS00' && ics.icMarking('CD4011', 'LS') === 'CD4011');
   check('74xx02 : sortie de la porte 1 sur la patte 1 (brochage à part)',
     ics.icRef('74xx02').pins[0] === 'Q1' && ics.icRef('74xx00').pins[0] === 'A1');
+  check('74xx14 : le jumeau du CD40106 — même brochage, VCC au lieu de VDD',
+    ics.icRef('74xx14').pins.slice(0, 13).join() === ics.icRef('CD40106').pins.slice(0, 13).join()
+    && ics.icRef('74xx14').vcc === 'VCC' && ics.icRef('CD40106').vcc === 'VDD');
+  check('74xx14 : six inverseurs, un symbole interne à lui',
+    ics.icRef('74xx14').gates.length === 6 && ics.icRef('74xx14').schema === '7414');
   check('attributs posés par la bibliothèque : dessin, pattes, schéma interne',
     entrees.every((d) => d.attrs.pkg === 'ic14' && d.attrs.pinnames.split(',').length === 14 && d.attrs.schema));
 }
@@ -168,6 +175,8 @@ console.log('Alimentation (plage de la famille) :');
   check('74HC00 sous 12 V : il explose', faute('74xx00', 12, 'HC') === 'overvolt');
   check('74HCT00 sous 3,3 V : ne fonctionne pas (4,5 V minimum)',
     faute('74xx00', 3.3, 'HCT') === 'undervolt');
+  check('74LS14 sous 3,3 V : même refus que les autres LS',
+    etat(montage('74xx14', { a: 1 }, 3.3, 'LS')).fault === 'undervolt');
   check('plage lue dans l état : elle est affichable dans le message',
     JSON.stringify(etat(montage('74xx00', {}, 5, 'LS')).range) === '{"min":4.75,"max":5.25}');
   check('inscription reprise dans l état (pour nommer le fautif)',
@@ -264,6 +273,24 @@ console.log('Propagation (point fixe de la simulation) :');
   model.setGateDrives([]);
   check('sorties retirées : la LED s éteint (rien ne la pilote plus)',
     model.ledOn(surLed, 'd1', READ_LOW) === false);
+}
+
+// --- 5. Dessin : symboles de fonction pleins, hystérésis intacte -------------
+console.log('Symboles internes :');
+{
+  const css = readFileSync(join(ROOT, 'media/styles.css'), 'utf8');
+  const regle = /\.part__internal path\[aria-label\]\s*\{[^}]*\}/.exec(css)?.[0] ?? '';
+  check('les glyphes (&, ≥1, =1) sont peints pleins et sans contour',
+    /stroke:\s*none/.test(regle) && /fill:\s*#/.test(regle), regle.replace(/\s+/g, ' '));
+  // Inkscape laisse l'`aria-label` du texte d'origine sur le tracé qu'il produit :
+  // c'est LUI qui distingue un glyphe d'un symbole dessiné à la main.
+  const svg = (s) => readFileSync(join(ROOT, `src/webview/composants/interne/${s}-interne.svg`), 'utf8');
+  const glyphes = ics.IC_REFS.filter((r) => r.op !== 'not');
+  check('chaque porte porte son glyphe (un aria-label par porte)',
+    glyphes.every((r) => (svg(r.schema).match(/aria-label=/g) ?? []).length === r.gates.length),
+    glyphes.map((r) => `${r.schema}:${(svg(r.schema).match(/aria-label=/g) ?? []).length}`).join(' '));
+  check('l hystérésis (CD40106, 74xx14) est un dessin, pas un glyphe : elle garde son trait',
+    ics.IC_REFS.filter((r) => r.op === 'not').every((r) => !svg(r.schema).includes('aria-label')));
 }
 
 console.log(failures === 0

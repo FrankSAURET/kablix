@@ -2,16 +2,17 @@
 1. Il n'y a pas d'icône visible sur le bouton Afficher/masquer les explicqations de défaut. Je l'ai retouché rien à faire pour toi
 1. La visualisation de rotation de l'axe du moteur est incompréhensible on a l'impression que ça clignote. Ici on se fout d'une vitesse de rotation réaliste on veut juste la voir et que si la tension continue ou le rapport cyclique augmente on  ai un impression de vitesse qui augmente
 1. J'ai toujours cette erreur : Kablix : impossible d'enregistrer l'éditeur SVG dans les réglages (kablix.svgEditorPath). Impossible d'écrire dans Paramètres utilisateur, car kablix.svgEditorPath n'est pas une configuration inscrite. Du moins au premier lancement. Aprs ça semble marcher. Corrige.
-1. CI :
-    1. Ajoute le 74xx14 (fichier csv complété)
-    1. Dans les CI  le style des symbole internes (>=1, &, =1)est mauvais. Il faut fill = noir et stroke = none. Sauf pour le symbole hystérésis (CD40106 et 74xx14) qui reste tel qu'il est
-    1. La catégorie circuit intégrés doit être la dernière
 1. La position dit ce qu'elle vaut en ohms** : le commentaire porte « Position : 25 % (1,175 kΩ) ». Affiche ça en dynamique pendant la simulation juste au dessus du composant (au plus pret du composant)
 1. Quand la souris a sélectionné un composant ou un fil (glissé) si elle sort de la fenêtre la vue suit
 1. L'impression de vitesse sur les ventilo n'est pas probante. On ne sse rend pas bien compte de l'accélération ou du ralentissement.
 1. Le cadre de sélection autour des transistors TO92 n'est pas bon. C'était de ma faute. J'ai corrigé. Importe la nouvelle version.
 1. Quand tu retouche ou refait un schéma de test que j'ai retouché, garde les emplacements des composant (sauf à tout refaire différemment)
+1. Vsix quand liste ci-dessus terminée
 
+1. ✅ CI :
+    1. ✅ Ajoute le 74xx14 (fichier csv complété)
+    1. ✅ Dans les CI  le style des symbole internes (>=1, &, =1)est mauvais. Il faut fill = noir et stroke = none. Sauf pour le symbole hystérésis (CD40106 et 74xx14) qui reste tel qu'il est
+    1. ✅ La catégorie circuit intégrés doit être la dernière
 1. ✅ J'ai complété composants avec les schéma internes nécessaires et fait un tableau A Examiner\CI.csv. Ajoute les dans la bibliothèque dans l'entrée Circuit Intégrés. Ils sont tous enfichables sur platine d'essais. Rajoute les simulations et doc correspondantes et fais les fichiers de test pour pico et uno (tous dans un seul fichier "CI" et toutes les portes doivent être testées) Tu apliques le nom des pattes du schéma interne la correspondance de la patte 1 est notée dans le tableau. VDD ou VCC (patte 14) est power (fil  rouge) et GND (patte 7) la masse (fil  noir).
 1. ✅ Les tensions d'alimentation sont les suivantes : C -> 3 à 15 | HC, AC, ACT ->  2 à 6 | HCT, ALS, F -> 4,5 à 5 | S, LS -> 4,75 à 5,25 | Série 4000 -> 3 à 18V
 Si elle est inférieur le composant ne marche pas, si elle est supérieure le composant explose. Message d'erreur dans les 2 cas " Tensions d'alimentations incompatibles"
@@ -29,6 +30,16 @@ Voici les préfix à utiliser (traduisible) et respecte la casse : Résistance (
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# v2026.7.254 — le douzième boîtier, et les symboles qui se lisent
+1. ✅ **74xx14 dans la palette** : sextuple inverseur à trigger de Schmitt, le jumeau série 74 du CD40106 — même brochage (patte 1 = `a`, entrées `a`…`f`, sorties `a̅`…`f̅`), **VCC** en patte 14 au lieu de VDD, et c'est la famille choisie qui décide de l'alimentation (un 74LS14 ne fait rien sous les 3,3 V d'une Pico). Douzième référence, toujours le même dessin `ic14`.
+2. ✅ **Schéma interne `7414`** extrait de `Composants.svg` au cadre du boîtier, superposable au dessin externe comme les onze autres.
+3. ✅ **Les symboles de fonction se lisent enfin** : Inkscape exporte `&`, `≥1` et `=1` en `<path>`, qui héritaient donc du contour de 2 px et du `fill: none` de l'overlay — des lettres creuses et baveuses, le `=1` du CD4070 réduit à un pâté. Ils sont maintenant **pleins et sans contour**. Le repère : l'`aria-label` que laisse Inkscape sur un tracé venu d'un texte.
+4. ✅ **L'hystérésis reste un dessin** : le symbole du CD40106 et du 74xx14 est tracé à la main, sans `aria-label` — il garde son trait, exactement comme Frank l'a dessiné.
+5. ✅ **La catégorie « Circuits intégrés » ferme la palette** (dernière de `CATEGORY_ORDER`), et le banc le vérifie.
+6. ✅ **`verify:ic` étendu** : douze références, brochage du 74xx14 comparé à celui du CD40106, 74LS14 refusé sous 3,3 V, plus un contrôle de DESSIN — un glyphe par porte sur les dix boîtiers à portes, aucun sur les deux inverseurs à hystérésis, et la règle CSS présente.
+7. ✅ **`CI-uno` et `CI-pico` passent à douze boîtiers** : une broche de lecture de plus sur chaque carte (A1 sur l'Uno, GP15 sur le Pico) — **52 portes câblées et vérifiées avec 14 broches**, 868 contrôles pour ces deux tests.
+8. ✅ **Fiches d'aide FR + EN du 74xx14** (avec son illustration capturée), renvoi croisé avec le CD40106, et les 22 fiches existantes corrigées : le test câble désormais douze boîtiers.
 
 # v2026.7.253 — onze circuits intégrés logiques, alimentés ou détruits
 1. ✅ **Onze références dans la palette** (catégorie « Circuits intégrés ») : CD4081, CD4071, CD4070, CD4011, CD4001 et CD40106 pour la série CMOS 4000 ; 74xx08, 74xx32, 74xx86, 74xx00 et 74xx02 pour la série 74. Toutes en boîtier **DIL-14** (dessin `ic14` extrait de `Composants.svg`), enfichables sur la platine d'essai, repère `IC`.

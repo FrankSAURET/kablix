@@ -1721,6 +1721,18 @@ body.vscode-light .inspector__ref--nouveau {
   fill: #111;
 }
 
+/* Même problème pour les symboles de fonction d'un circuit intégré (`&`, `≥1`,
+   `=1`) : Inkscape les exporte en `<path>` — ils héritaient donc du contour de
+   2 px et du `fill: none` de l'overlay, qui les dessinait en lettres creuses et
+   baveuses. Inkscape laisse sur ces tracés l'`aria-label` du texte d'origine :
+   c'est le marqueur exact des GLYPHES, qui doivent être pleins et sans contour.
+   Un symbole vraiment dessiné à la main (l'hystérésis du CD40106 et du 74xx14)
+   n'a pas d'aria-label et garde son trait (Frank, v2026.7.254). */
+.part__internal path[aria-label] {
+  stroke: none;
+  fill: #111;
+}
+
 /* Poster de brochage complet (bouton ☢ d'une carte Pico/Pico W) : surimpression
    de la carte, à sa largeur exacte (les étiquettes débordent en haut et en bas, la
    carte transparaît dans la bande centrale). Hors flux et sans dimension propre →

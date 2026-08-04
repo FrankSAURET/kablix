@@ -40,11 +40,11 @@ const PARTS = {
   relais: { module: 'relais-element.mjs', tag: 'kablix-relais' },
 };
 
-// Circuits intégrés logiques : onze références pour UN dessin (le boîtier
+// Circuits intégrés logiques : douze références pour UN dessin (le boîtier
 // DIL-14), seule l'inscription et les noms de pattes changent. `catalog` prend
 // ces attributs à la source (`partDef`) au lieu de les recopier ici.
 for (const t of ['cd4081', 'cd4071', 'cd4070', 'cd4011', 'cd4001', 'cd40106',
-  '74xx08', '74xx32', '74xx86', '74xx00', '74xx02']) {
+  '74xx08', '74xx32', '74xx86', '74xx00', '74xx02', '74xx14']) {
   PARTS[t] = { module: 'logic-ic-element.mjs', tag: 'kablix-ic', catalog: t };
 }
 

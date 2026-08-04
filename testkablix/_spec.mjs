@@ -96,24 +96,26 @@ function test(def) {
 
 const MCU = (board, x = 40, y = 60) => ({ id: 'U1', type: board, x, y });
 
-// --- Circuits intégrés logiques : UN test pour les onze références --------------
-// Les onze boîtiers DIL-14 partagent les deux MÊMES entrées (une broche « A »,
+// --- Circuits intégrés logiques : UN test pour les douze références -------------
+// Les douze boîtiers DIL-14 partagent les deux MÊMES entrées (une broche « A »,
 // une broche « B ») et chacun renvoie ses quatre (ou six) sorties sur UNE
 // broche de lecture : les sorties d'un même boîtier réalisent la même fonction
 // sur les mêmes entrées, elles portent donc le même niveau et se relient sans
-// conflit. Toutes les portes sont ainsi câblées et vérifiées, avec 13 broches.
+// conflit. Toutes les portes sont ainsi câblées et vérifiées, avec 14 broches.
 const CD4000_QUAD_PINS = ['A1', 'B1', 'Q1', 'Q2', 'A2', 'B2', 'GND', 'A3', 'B3', 'Q3', 'Q4', 'A4', 'B4', 'VDD'];
 const TTL_QUAD_PINS = ['A1', 'B1', 'Q1', 'A2', 'B2', 'Q2', 'GND', 'Q3', 'B3', 'A3', 'Q4', 'A4', 'B4', 'VCC'];
 const TTL_NOR_PINS = ['Q1', 'A1', 'B1', 'Q2', 'A2', 'B2', 'GND', 'B3', 'A3', 'Q3', 'B4', 'A4', 'Q4', 'VCC'];
 // Six inverseurs : entrée `x`, sortie `x̅` (x suivi du macron combinant U+0305).
 const HEX_INV_PINS = ['a', 'a̅', 'b', 'b̅', 'c', 'c̅', 'GND', 'd̅', 'd', 'e̅', 'e', 'f̅', 'f', 'VDD'];
+// Le même en série 74 : seule la patte 14 change de nom (VCC au lieu de VDD).
+const HEX_INV_TTL_PINS = [...HEX_INV_PINS.slice(0, 13), 'VCC'];
 
 /** Les quatre portes d'un boîtier quadruple. */
 const QUAD_GATES = [1, 2, 3, 4].map((n) => ({ in: [`A${n}`, `B${n}`], out: `Q${n}` }));
 /** Les six inverseurs. */
 const HEX_GATES = ['a', 'b', 'c', 'd', 'e', 'f'].map((l) => ({ in: [l], out: `${l}̅` }));
 
-/** Les onze références de la bibliothèque, dans l'ordre de la palette. */
+/** Les douze références de la bibliothèque, dans l'ordre de la palette. */
 const IC_CHIPS = [
   { id: 'U2', ref: 'CD4081', op: 'and', schema: 'cd4081', pins: CD4000_QUAD_PINS, gates: QUAD_GATES, vcc: 'VDD' },
   { id: 'U3', ref: 'CD4071', op: 'or', schema: 'cd4071', pins: CD4000_QUAD_PINS, gates: QUAD_GATES, vcc: 'VDD' },
@@ -126,6 +128,7 @@ const IC_CHIPS = [
   { id: 'U10', ref: '74xx86', op: 'xor', schema: '7486', pins: TTL_QUAD_PINS, gates: QUAD_GATES, vcc: 'VCC' },
   { id: 'U11', ref: '74xx00', op: 'nand', schema: '7400', pins: TTL_QUAD_PINS, gates: QUAD_GATES, vcc: 'VCC' },
   { id: 'U12', ref: '74xx02', op: 'nor', schema: '7402', pins: TTL_NOR_PINS, gates: QUAD_GATES, vcc: 'VCC' },
+  { id: 'U13', ref: '74xx14', op: 'not', schema: '7414', pins: HEX_INV_TTL_PINS, gates: HEX_GATES, vcc: 'VCC' },
 ];
 
 // Le brochage de chaque référence complète la table de validité des fils : le
@@ -136,15 +139,15 @@ for (const c of IC_CHIPS) PART_PINS[c.ref.toLowerCase()] = c.pins;
 // 5 V (Uno) — un 74LS00 ne fonctionnerait pas sur le Pico.
 const IC_FAMILY = 'HC';
 
-/** Broches de chaque carte : deux entrées, onze lectures, l'alimentation. */
+/** Broches de chaque carte : deux entrées, douze lectures, l'alimentation. */
 const IC_BOARD = {
   uno: {
     a: '2', b: '3', vcc: '5V', gnds: ['GND.1', 'GND.2', 'GND.3'],
-    reads: ['4', '5', '6', '7', '8', '9', '10', '11', '12', '13', 'A0'],
+    reads: ['4', '5', '6', '7', '8', '9', '10', '11', '12', '13', 'A0', 'A1'],
   },
   pico: {
     a: 'GP2', b: 'GP3', vcc: '3V3', gnds: ['GND.1', 'GND.2', 'GND.3', 'GND.4', 'GND.5', 'GND.6', 'GND.7', 'GND.8'],
-    reads: ['GP4', 'GP5', 'GP6', 'GP7', 'GP8', 'GP9', 'GP10', 'GP11', 'GP12', 'GP13', 'GP14'],
+    reads: ['GP4', 'GP5', 'GP6', 'GP7', 'GP8', 'GP9', 'GP10', 'GP11', 'GP12', 'GP13', 'GP14', 'GP15'],
   },
 };
 
@@ -1899,32 +1902,32 @@ void loop() {
     parts: icParts('uno'),
     wires: () => icWires('uno'),
     expect: icExpect('uno'),
-    code: `// Test des ONZE circuits integres logiques de la bibliotheque, en un seul
+    code: `// Test des DOUZE circuits integres logiques de la bibliotheque, en un seul
 // montage. Tous sont des boitiers DIL-14 alimentes en 5 V : patte 14 (VDD ou
 // VCC) au rail rouge, patte 7 (GND) a la masse noire.
 //
-// Les onze boitiers recoivent les MEMES deux entrees : D2 (A) et D3 (B). Les
-// quatre portes d'un meme boitier (six pour le CD40106) font la meme chose sur
-// les memes entrees : elles sortent donc le meme niveau et se relient sans
-// conflit sur UNE broche de lecture. Les 46 portes du montage sont ainsi
-// toutes cablees, avec seulement treize broches.
+// Les douze boitiers recoivent les MEMES deux entrees : D2 (A) et D3 (B). Les
+// quatre portes d'un meme boitier (six pour les inverseurs) font la meme chose
+// sur les memes entrees : elles sortent donc le meme niveau et se relient sans
+// conflit sur UNE broche de lecture. Les 52 portes du montage sont ainsi
+// toutes cablees, avec seulement quatorze broches.
 //
-//   D2 = A, D3 = B ; D4..D13 et A0 : lecture des onze boitiers.
+//   D2 = A, D3 = B ; D4..D13, A0 et A1 : lecture des douze boitiers.
 //
 // Le programme balaye les quatre combinaisons A/B et compare chaque sortie a la
 // table de verite : « OK » ou « ERREUR » sur le moniteur serie.
 const int A_PIN = 2;
 const int B_PIN = 3;
-const int NB = 11;
+const int NB = 12;
 // Fonction : 0 ET, 1 OU, 2 OU EXCLUSIF, 3 NON-ET, 4 NON-OU, 5 NON.
 const char* NOMS[NB] = {
   "CD4081  ET        ", "CD4071  OU        ", "CD4070  OU EXCLUSIF",
   "CD4011  NON-ET    ", "CD4001  NON-OU    ", "CD40106 NON       ",
   "74HC08  ET        ", "74HC32  OU        ", "74HC86  OU EXCLUSIF",
-  "74HC00  NON-ET    ", "74HC02  NON-OU    ",
+  "74HC00  NON-ET    ", "74HC02  NON-OU    ", "74HC14  NON       ",
 };
-const int LECTURE[NB] = {4, 5, 6, 7, 8, 9, 10, 11, 12, 13, A0};
-const int FONCTION[NB] = {0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4};
+const int LECTURE[NB] = {4, 5, 6, 7, 8, 9, 10, 11, 12, 13, A0, A1};
+const int FONCTION[NB] = {0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5};
 
 int attendu(int fonction, int a, int b) {
   switch (fonction) {
@@ -1942,7 +1945,7 @@ void setup() {
   pinMode(A_PIN, OUTPUT);
   pinMode(B_PIN, OUTPUT);
   for (int i = 0; i < NB; i++) pinMode(LECTURE[i], INPUT);
-  Serial.println("Portes logiques : A et B communes aux onze boitiers.");
+  Serial.println("Portes logiques : A et B communes aux douze boitiers.");
 }
 
 void loop() {
@@ -3639,18 +3642,18 @@ while True:
     parts: icParts('pico'),
     wires: () => icWires('pico'),
     expect: icExpect('pico'),
-    code: `# Test des ONZE circuits integres logiques de la bibliotheque, en un seul
+    code: `# Test des DOUZE circuits integres logiques de la bibliotheque, en un seul
 # montage. Tous sont des boitiers DIL-14 alimentes en 3,3 V : patte 14 (VDD ou
 # VCC) au rail rouge, patte 7 (GND) a la masse noire. Les familles CD4000 et HC
 # acceptent cette tension ; une famille TTL (LS, ALS, F...) refuserait.
 #
-# Les onze boitiers recoivent les MEMES deux entrees : GP2 (A) et GP3 (B). Les
-# quatre portes d'un meme boitier (six pour le CD40106) font la meme chose sur
-# les memes entrees : elles sortent donc le meme niveau et se relient sans
-# conflit sur UNE broche de lecture. Les 46 portes du montage sont ainsi toutes
-# cablees, avec seulement treize broches.
+# Les douze boitiers recoivent les MEMES deux entrees : GP2 (A) et GP3 (B). Les
+# quatre portes d'un meme boitier (six pour les inverseurs) font la meme chose
+# sur les memes entrees : elles sortent donc le meme niveau et se relient sans
+# conflit sur UNE broche de lecture. Les 52 portes du montage sont ainsi toutes
+# cablees, avec seulement quatorze broches.
 #
-#   GP2 = A, GP3 = B ; GP4..GP14 : lecture des onze boitiers.
+#   GP2 = A, GP3 = B ; GP4..GP15 : lecture des douze boitiers.
 #
 # Le programme balaye les quatre combinaisons A/B et compare chaque sortie a la
 # table de verite : « OK » ou « ERREUR ».
@@ -3673,6 +3676,7 @@ BOITIERS = [
     ("74HC86  OU EXCLUSIF", 12, "ouex"),
     ("74HC00  NON-ET    ", 13, "nonet"),
     ("74HC02  NON-OU    ", 14, "nonou"),
+    ("74HC14  NON       ", 15, "non"),
 ]
 lectures = [Pin(broche, Pin.IN) for (_, broche, _) in BOITIERS]
 
@@ -3691,7 +3695,7 @@ def attendu(fonction, a, b):
     return 1 - a   # l'inverseur ne regarde que l'entree A
 
 
-print("Portes logiques : A et B communes aux onze boitiers.")
+print("Portes logiques : A et B communes aux douze boitiers.")
 while True:
     for a, b in ((0, 0), (1, 0), (0, 1), (1, 1)):
         a_pin.value(a)

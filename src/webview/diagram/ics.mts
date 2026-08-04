@@ -1,13 +1,13 @@
 // Base des circuits intégrés logiques de la bibliothèque : un même composant
-// (`kablix-ic`, boîtier DIL) sous onze entrées, une par référence — on cherche un
+// (`kablix-ic`, boîtier DIL) sous douze entrées, une par référence — on cherche un
 // CD4011 dans la palette, pas un « circuit intégré » à configurer. La référence
 // reste changeable dans les propriétés.
 //
-// Onze références, dessinées par Frank dans `Composants.svg` et listées dans
+// Douze références, dessinées par Frank dans `Composants.svg` et listées dans
 // `A Examiner/CI.csv` : les six CMOS de la série 4000 (CD4081, CD4071, CD4070,
-// CD40106, CD4011, CD4001) et les cinq TTL/CMOS de la série 74 (74xx08, 74xx32,
-// 74xx86, 74xx00, 74xx02). Toutes en boîtier DIL-14, enfichables sur platine
-// d'essai.
+// CD40106, CD4011, CD4001) et les six TTL/CMOS de la série 74 (74xx08, 74xx32,
+// 74xx86, 74xx00, 74xx02, 74xx14). Toutes en boîtier DIL-14, enfichables sur
+// platine d'essai.
 //
 // Le « xx » d'une référence 74 est sa FAMILLE (LS, HC, HCT…) : elle ne change ni
 // la fonction ni le brochage, mais elle décide de la PLAGE D'ALIMENTATION — et
@@ -96,6 +96,8 @@ const TTL_QUAD = ['A1', 'B1', 'Q1', 'A2', 'B2', 'Q2', 'GND', 'Q3', 'B3', 'A3', '
 const TTL_NOR = ['Q1', 'A1', 'B1', 'Q2', 'A2', 'B2', 'GND', 'B3', 'A3', 'Q3', 'B4', 'A4', 'Q4', 'VCC'] as const;
 /** Six inverseurs : entrée `x`, sortie `x̅` (x barre). */
 const HEX_INV = ['a', 'a̅', 'b', 'b̅', 'c', 'c̅', 'GND', 'd̅', 'd', 'e̅', 'e', 'f̅', 'f', 'VDD'] as const;
+/** Le même en série 74 : seule l'alimentation change de nom (VCC au lieu de VDD). */
+const HEX_INV_TTL = [...HEX_INV.slice(0, 13), 'VCC'] as const;
 
 /** Les quatre portes d'un boîtier quadruple, à partir du numéro de chaque. */
 const QUAD_GATES: readonly IcGate[] = [1, 2, 3, 4].map((n) => ({ inputs: [`A${n}`, `B${n}`], output: `Q${n}` }));
@@ -118,6 +120,9 @@ export const IC_REFS: readonly IcRef[] = [
   { ref: '74xx86', label: 'quad 2-input XOR gate', schema: '7486', pkg: 'ic14', pins: TTL_QUAD, op: 'xor', gates: QUAD_GATES, vcc: 'VCC', gnd: 'GND', series: '74' },
   { ref: '74xx00', label: 'quad 2-input NAND gate', schema: '7400', pkg: 'ic14', pins: TTL_QUAD, op: 'nand', gates: QUAD_GATES, vcc: 'VCC', gnd: 'GND', series: '74' },
   { ref: '74xx02', label: 'quad 2-input NOR gate', schema: '7402', pkg: 'ic14', pins: TTL_NOR, op: 'nor', gates: QUAD_GATES, vcc: 'VCC', gnd: 'GND', series: '74' },
+  // Le jumeau série 74 du CD40106 : même fonction, même brochage, mais la famille
+  // décide de l'alimentation (un 74LS14 refuse les 3,3 V d'une Pico).
+  { ref: '74xx14', label: 'hex Schmitt-trigger inverter', schema: '7414', pkg: 'ic14', pins: HEX_INV_TTL, op: 'not', gates: HEX_GATES, vcc: 'VCC', gnd: 'GND', series: '74', equivalent: 'CD40106' },
 ];
 
 /** Références proposées dans le sélecteur, dans l'ordre de la base. */

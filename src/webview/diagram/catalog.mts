@@ -854,13 +854,13 @@ export function partCategory(def: PartDef): string {
 export const CATEGORY_ORDER: readonly string[] = [
   'Boards',
   'Passive', // « Discrets » : juste sous Cartes & platines
-  'Integrated circuits', // « Circuits intégrés » : les discrets, puis les boîtiers
   'Displays & LEDs',
   'Controls',
   'Sensors',
   'Actuators',
   'Instruments',
   'Divers',
+  'Integrated circuits', // « Circuits intégrés » : toujours en dernier (Frank, v2026.7.254)
 ];
 
 // --- Composants personnalisés (créés par l'utilisateur) -----------------------
