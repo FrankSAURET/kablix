@@ -24,13 +24,13 @@ import to220 from './externe/to220.svg';
 
 /**
  * Habillage par boîtier : dessin, boîte, pattes et calage de l'inscription.
- * `tx`/`cy` = centre de la FACE PLATE (mesurée sur le dessin : 23,53→36,01 en x,
+ * `tx`/`cy` = centre de la FACE PLATE (mesurée sur le dessin : 13,53→26,01 en x,
  * 9,89→21,04 en y pour le TO-92 ; 11,49→48,49 et 39,14→61,36 pour le TO-220),
  * `tw` la largeur utilisable, `font` la taille maximale de l'inscription (elle
  * rétrécit si la ligne est trop longue).
  */
 export const PACKAGES = {
-  to92: { svg: to92, w: 50, h: 50, pinY: 40, pinX: [20, 30, 40], tx: 29.77, cy: 15.47, tw: 11.8, font: 3.8, fill: '#e6e6e6' },
+  to92: { svg: to92, w: 40, h: 50, pinY: 40, pinX: [10, 20, 30], tx: 19.77, cy: 15.47, tw: 11.8, font: 3.8, fill: '#e6e6e6' },
   // TO-220 : boîtier de puissance à semelle, face avant noire beaucoup plus
   // large — une référence entière y tient sur une seule ligne.
   to220: { svg: to220, w: 60, h: 90, pinY: 80, pinX: [20, 30, 40], tx: 30, cy: 50.25, tw: 32, font: 5.5, fill: '#e6e6e6' },

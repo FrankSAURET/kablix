@@ -192,11 +192,12 @@ async function run() {
 
 	// --- 7. Symboles internes désignés par la fiche (v2026.7.247) --------------
 	// Symboles GÉNÉRIQUES : pattes non reliées, posés par TRANSLATION sur la
-	// patte 1 (repère 20,40) — un TO-220, deux fois plus haut, ne les étire pas.
-	const trio = (y) => [{ name: '1', x: 20, y }, { name: '2', x: 30, y }, { name: '3', x: 40, y }];
-	const wiring = (attrs, y, box) => internalWiringSvg('transistor', trio(y), attrs, 'transistor', box);
-	const gros = { w: 60, h: 90 };
-	const petit = { w: 50, h: 50 };
+	// patte 1 (repère 10,40 — celui du TO-92, cadre 40 × 50) : un TO-220, deux
+	// fois plus haut et décalé, ne les étire pas.
+	const trio = (y, x0) => [0, 1, 2].map((i) => ({ name: String(i + 1), x: x0 + 10 * i, y }));
+	const wiring = (attrs, y, box) => internalWiringSvg('transistor', trio(y, box.x0), attrs, 'transistor', box);
+	const gros = { w: 60, h: 90, x0: 20 };
+	const petit = { w: 40, h: 50, x0: 10 };
 	const NOUVEAUX = ['npn-generique', 'pnp-generique', 'darlington-npn', 'darlington-pnp', 'nmos-d'];
 	const dessins = new Map();
 	for (const nom of NOUVEAUX) {
@@ -210,7 +211,7 @@ async function run() {
 		new Set([...dessins.values()]).size === NOUVEAUX.length);
 	const surTo220 = wiring({ schema: 'npn-generique' }, 80, gros);
 	ok('symbole sur TO-220 : posé par translation, jamais étiré',
-		surTo220 && /translate\\(0\\.00 40\\.00\\)/.test(surTo220) && !/scale\\(/.test(surTo220),
+		surTo220 && /translate\\(10\\.00 40\\.00\\)/.test(surTo220) && !/scale\\(/.test(surTo220),
 		surTo220 && surTo220.slice(0, 60));
 	// Sans fiche : le symbole GÉNÉRIQUE de la famille, jamais NPN1 — celui-ci
 	// relie ses électrodes aux pattes dans l'ordre E-B-C et mentirait sur le
@@ -355,9 +356,21 @@ async function run() {
 	};
 	const pastilles = () => [...editor.rendered.get(q6.id).container.querySelectorAll('.pin')]
 		.map((p) => p.title + '@' + parseFloat(p.style.top));
+	const pastilles92 = () => [...editor.rendered.get(q6.id).container.querySelectorAll('.pin')]
+		.map((p) => p.title + '@' + parseFloat(p.style.left));
 	const cadre92 = cadre();
 	ok('TO-92 sélectionné : cadre resserré sur le dessin, pas sur le viewBox',
 		cadre92 && cadre92[2] < 45 && cadre92[3] < 45, JSON.stringify(cadre92));
+	// Dessin repris de Composants.svg (v2026.7.259) : le cadre du boîtier serrait
+	// 10 px de vide à droite, que le corps du composant traînait avec lui.
+	const corps92 = editor.rendered.get(q6.id).container.querySelector('.part__body');
+	ok('TO-92 : le corps a la largeur du dessin (40 px), sans vide à droite',
+		corps92 && corps92.offsetWidth === 40,
+		corps92 && corps92.offsetWidth + 'x' + corps92.offsetHeight);
+	ok('TO-92 : cadre centré sur la patte du milieu (boîtier symétrique)',
+		cadre92 && Math.abs(cadre92[0] + cadre92[2] / 2 - 20) <= 2, JSON.stringify(cadre92));
+	ok('TO-92 : les trois pastilles au pas de 10 px, sous le cadre',
+		pastilles92().join(' ') === 'E@10 B@20 C@30', JSON.stringify(pastilles92()));
 	for (const [a, v] of Object.entries(transistorAttrs('IRF530', DEFAULT_TRANSISTOR_FILTER))) {
 		editor.updatePartAttr(q6.id, a, v);
 	}

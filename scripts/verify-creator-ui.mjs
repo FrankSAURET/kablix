@@ -75,10 +75,10 @@ async function run() {
 	await wait(200);
 	const ext = modal().querySelector('#cr-preview-ext svg');
 	ok('boîtier : le dessin TO-92 arrive dans la vue externe',
-		!!ext && Number(ext.getAttribute('width')) === 50, ext && ext.outerHTML.slice(0, 60));
+		!!ext && Number(ext.getAttribute('width')) === 40, ext && ext.outerHTML.slice(0, 60));
 	const pinDots = [...modal().querySelectorAll('#cr-preview-ext .pin')].map((d) => parseFloat(d.style.left) + ',' + parseFloat(d.style.top));
 	ok('boîtier : les 3 pattes sont posées au bon endroit',
-		pinDots.join(' ') === '20,40 30,40 40,40', JSON.stringify(pinDots));
+		pinDots.join(' ') === '10,40 20,40 30,40', JSON.stringify(pinDots));
 	ok('boîtier : le nom saisi est inscrit sur la face plate',
 		!!ext && /KB/.test(ext.textContent || '') && /741/.test(ext.textContent || ''), ext && ext.textContent);
 	ok('boîtier : l inscription emporte sa police (hors du shadow DOM)',
@@ -95,7 +95,7 @@ async function run() {
 	ok('symbole : le schéma PNP arrive dans la vue interne', !!int && int.querySelectorAll('path').length > 2,
 		int && int.outerHTML.slice(0, 80));
 	ok('symbole : vue interne à la taille du dessin externe',
-		!!int && Number(int.getAttribute('width')) === 50, int && int.getAttribute('width'));
+		!!int && Number(int.getAttribute('width')) === 40, int && int.getAttribute('width'));
 	ok('symbole : superposition activée pour contrôler le calage',
 		modal().querySelector('#cr-int-overlay').checked);
 

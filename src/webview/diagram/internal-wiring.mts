@@ -354,7 +354,7 @@ const GENERIC_SCHEMA: Record<string, string> = {
 // été extraits (to92). Ils se posent donc par simple TRANSLATION sur la patte 1
 // réelle du composant — un TO-220, deux fois plus haut, garde ainsi son symbole
 // à la même distance des pattes au lieu de le voir étiré de 80 %.
-const TRANSISTOR_SCHEMA_PIN1 = { x: 20, y: 40 };
+const TRANSISTOR_SCHEMA_PIN1 = { x: 10, y: 40 };
 
 /** Symbole posé par translation : son repère tombe sur la première patte. */
 function pinnedSchema(s: Schema, pins: PinPoint[]): string {

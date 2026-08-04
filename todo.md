@@ -1,6 +1,4 @@
 # À faire
-1. Il n'y a pas d'icône visible sur le bouton Afficher/masquer les explicqations de défaut. Je l'ai retouché rien à faire pour toi
-1. Le cadre de sélection autour des transistors TO92 n'est pas bon. C'était de ma faute. J'ai corrigé. Importe la nouvelle version.
 1. Quand tu retouche ou refait un schéma de test que j'ai retouché, garde les emplacements des composant (sauf à tout refaire différemment)
 1. Dans les docs il y a des sauts de ligne non nécessaire qui hachent la lecture. Supprime les
 1. J'ai retouché qq docs en français reporte en anglais.
@@ -8,6 +6,8 @@
 1. A partir de ce qu'on a fait dernierement pour la création de composants (fichier composants.svg ...) fais un tuto ( schéma, schéma interne et simuilation) pour en créer d'autre. Avec et sans IA. Dispo dans doc uniquement sur github. Traduit en anglais
 1. Comit + push
 
+1. ✅ Le cadre de sélection autour des transistors TO92 n'est pas bon. C'était de ma faute. J'ai corrigé. Importe la nouvelle version.
+1. ℹ️ Il n'y a pas d'icône visible sur le bouton Afficher/masquer les explicqations de défaut. Je l'ai retouché rien à faire pour toi
 1. ✅ Quand la souris a sélectionné un composant ou un fil (glissé) si elle sort de la fenêtre la vue suit
 1. ✅ La position dit ce qu'elle vaut en ohms** : le commentaire porte « Position : 25 % (1,175 kΩ) ». Affiche ça en dynamique pendant la simulation juste au dessus du composant (au plus pret du composant)
 1. ✅ J'ai toujours cette erreur : Kablix : impossible d'enregistrer l'éditeur SVG dans les réglages (kablix.svgEditorPath). Impossible d'écrire dans Paramètres utilisateur, car kablix.svgEditorPath n'est pas une configuration inscrite. Du moins au premier lancement. Aprs ça semble marcher. Corrige.
@@ -34,6 +34,14 @@ Voici les préfix à utiliser (traduisible) et respecte la casse : Résistance (
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# v2026.7.259 — le TO-92 repris au dessin corrigé, cadre de sélection compris
+1. ✅ **Boîtier repris de `Composants.svg`** : Frank a corrigé son dessin, le cadre du TO-92 traînait 10 px de vide à droite. Le boîtier passe de 50 × 50 à **40 × 50**, ses trois pattes de (20, 30, 40) à **(10, 20, 30)** — le pas de 10 px et la hauteur ne bougent pas, aucun schéma existant n'est à retoucher (les fils sont rangés par NOM de patte).
+2. ✅ **Les sept symboles internes réextraits sur ce cadre** (`npn1`, `pnp1`, `npn-generique`, `pnp-generique`, `darlington-npn`, `darlington-pnp`, `nmos-d`) : ils se posent par translation sur la patte 1, dont le repère suit le boîtier (`internal-wiring.mts`). Un TO-220, deux fois plus haut, garde son symbole à la même distance de ses pattes.
+3. ✅ **L'étiquette « TO92 » du dessin écartée à l'extraction** (`--drop=txt-TO92`) : l'inscription est écrite par le composant (attribut `text`, PN/2222A…), pas par le boîtier — deux textes se seraient superposés.
+4. ✅ **Inscription recentrée sur la face plate** (`tx` 29,77 → 19,77) : elle suit le dessin dans son nouveau cadre.
+5. ✅ **Illustrations d'aide refaites** : `transistor`, `pn2222a`, `npn`, `pnp`.
+6. ✅ **Trois contrôles de plus dans `verify:transistor`** (139 au total) : corps large de 40 px sans vide à droite, cadre de sélection centré sur la patte du milieu, pastilles à 10/20/30. `verify:creator-ui` suit le nouveau cadre (63 contrôles).
 
 # v2026.7.258 — la vue suit la souris qui sort de la fenêtre
 1. ✅ **Le plan de travail suit le geste** : composant tenu, coude de fil tiré, câble en cours de pose ou boîte de sélection — dès que le curseur atteint le bord de la vue (ou le franchit), la vue défile toute seule pour découvrir la suite. Avant, un déplacement plus long que l'écran obligeait à lâcher, déplacer la vue au bouton du milieu, puis reprendre le composant.
