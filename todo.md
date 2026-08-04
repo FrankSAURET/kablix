@@ -1,5 +1,4 @@
 # À faire
-1. La barre du égale du symbole ≥1 (barre inclinée sous le >) de la porte ou doit être un rectangle plein noir sans contour.
 1. Le schéma interne du 74xx14 est décalé de 10 px vers la gauche
 1. Quand j'ai cliqué sur routage automatique de CI-Pico.projix, impossible d'en sortir. Y compris en fermant tous les schémas ouverts. Je veux que dans ce cas (tâche trés longue) tu mettes un barre de progression avec un bouton annuler. Du coup fait 3 fichiers de test des CI (CI1, CI2 et CI3). Place les CI à une distance faible de la carte de dev. Pas trop prêt non plus.
 1. Déplace le bouton qui donne le fichier de code à droite du nom du fichier projix - dans la barre généraliste.
@@ -11,41 +10,18 @@
 1. J'ai mis à jour readme en français, fait le pour l'anglais.
 1. Vsix
 
-1. ✅ Un CI posé sur une platine d'essai ne "propage" pas la couleur des power et gnd au fils relié dans les trous de la ligne de la platine concernée.
-1. ✅ A partir de ce qu'on a fait dernierement pour la création de composants (fichier composants.svg ...) fais un tuto ( schéma, schéma interne et simuilation) pour en créer d'autre. Avec et sans IA. Dispo dans doc uniquement sur github. Traduit en anglais
-1. ✅ Comit + push
-1. ✅ Vsix quand liste ci-dessus terminée → `kablix-2026.7.260.vsix` (3,37 Mo, 261 fichiers)
-1. ✅ Quand tu retouche ou refait un schéma de test que j'ai retouché, garde les emplacements des composant (sauf à tout refaire différemment)
-1. ✅ Dans les docs il y a des sauts de ligne non nécessaire qui hachent la lecture. Supprime les
-1. ✅ J'ai retouché qq docs en français reporte en anglais.
-1. ✅ Le cadre de sélection autour des transistors TO92 n'est pas bon. C'était de ma faute. J'ai corrigé. Importe la nouvelle version.
-1. ℹ️ Il n'y a pas d'icône visible sur le bouton Afficher/masquer les explicqations de défaut. Je l'ai retouché rien à faire pour toi
-1. ✅ Quand la souris a sélectionné un composant ou un fil (glissé) si elle sort de la fenêtre la vue suit
-1. ✅ La position dit ce qu'elle vaut en ohms** : le commentaire porte « Position : 25 % (1,175 kΩ) ». Affiche ça en dynamique pendant la simulation juste au dessus du composant (au plus pret du composant)
-1. ✅ J'ai toujours cette erreur : Kablix : impossible d'enregistrer l'éditeur SVG dans les réglages (kablix.svgEditorPath). Impossible d'écrire dans Paramètres utilisateur, car kablix.svgEditorPath n'est pas une configuration inscrite. Du moins au premier lancement. Aprs ça semble marcher. Corrige.
-1. ✅ La visualisation de rotation de l'axe du moteur est incompréhensible on a l'impression que ça clignote. Ici on se fout d'une vitesse de rotation réaliste on veut juste la voir et que si la tension continue ou le rapport cyclique augmente on  ai un impression de vitesse qui augmente
-1. ✅ L'impression de vitesse sur les ventilo n'est pas probante. On ne sse rend pas bien compte de l'accélération ou du ralentissement.
-1. ✅ CI :
-    1. ✅ Ajoute le 74xx14 (fichier csv complété)
-    1. ✅ Dans les CI  le style des symbole internes (>=1, &, =1)est mauvais. Il faut fill = noir et stroke = none. Sauf pour le symbole hystérésis (CD40106 et 74xx14) qui reste tel qu'il est
-    1. ✅ La catégorie circuit intégrés doit être la dernière
-1. ✅ J'ai complété composants avec les schéma internes nécessaires et fait un tableau A Examiner\CI.csv. Ajoute les dans la bibliothèque dans l'entrée Circuit Intégrés. Ils sont tous enfichables sur platine d'essais. Rajoute les simulations et doc correspondantes et fais les fichiers de test pour pico et uno (tous dans un seul fichier "CI" et toutes les portes doivent être testées) Tu apliques le nom des pattes du schéma interne la correspondance de la patte 1 est notée dans le tableau. VDD ou VCC (patte 14) est power (fil  rouge) et GND (patte 7) la masse (fil  noir).
-1. ✅ Les tensions d'alimentation sont les suivantes : C -> 3 à 15 | HC, AC, ACT ->  2 à 6 | HCT, ALS, F -> 4,5 à 5 | S, LS -> 4,75 à 5,25 | Série 4000 -> 3 à 18V
-Si elle est inférieur le composant ne marche pas, si elle est supérieure le composant explose. Message d'erreur dans les 2 cas " Tensions d'alimentations incompatibles"
-1. ✅ Ajoute une moteurDC. le groupe moteurDC-axe-rotatif tourne (même principe que ventilo). Plus la tension est élevé plus il tourne vite. Propritée tension nominale en volts (5 par défaut). Courant à vide en A (200mA par défaut). Si courant pas suffisant il ne tourne pas si tension > 1,5 fois tension nominale il grille. Si pas de diode de roue libre (ou diode intégré au NMOS-D). Erreur signalée et transistor explose.
-1. ✅ Je viens de rajouter dans composants.svg un schéma interne NPN-Generique et et PNP-générique à utiliser pour tous les transistors dont le schéma interne ne correspont pas à NPN1 ou PNP1.
-1. ✅ Tu trouvera une liste  "A Examiner\transistor.csv" avec des transistor à ajouter. Le svg existent dans Composants.svg. Tu les fera apparaitre en couleur de texte (1a5fb4ff) dans la liste de choix (laisse les autres en bleu). Rajouter les types darlington-NPN, darlington-PNP et NMOS.
-1. ✅ Retouche ce texte LED / 7 seg / barre / RGB grillés (💥) → « Cette LED a grillé : sans résistance série (ou avec une trop faible), le courant dépasse ce que la jonction supporte.  »
-1. ✅ Vsix quand liste ci-dessus terminée → `kablix-2026.7.248.vsix` (3,18 Mo, 220 fichiers)
-    
-
-1. ✅ Nommage des composants comme suit : PréfixXX par exemple R1 avec un suivit sur un schéma. Première résistance = R1, deuxième R2 ...
-Voici les préfix à utiliser (traduisible) et respecte la casse : Résistance (R) [ y compris, ctn, ctp, LDR et autres], Condensateur (C), Led (L), transistor (T), Carte à µc (U), Module [platine d'essai ou carte grove inactive, carte SD, carte 16 Pwm : toutes cartes complexes qui ne rentre pas dans les autres catégories] (Mod), Tous les afficheurs (Aff), Bouton poussoir (BP), Clavier (Cl), Interrupteur (Inter), Potentiometre (Pot), Joystick(Pot), Capteur (Capt), Actionneur (Act), 
+1. ✅ La barre du égale du symbole ≥1 (barre inclinée sous le >) de la porte ou doit être un rectangle plein noir sans contour.
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
 
-# v2026.7.262 — la bande de la platine porte sa couleur d'alimentation
+# v2026.7.263 — la barre du ≥1 redevient un trait net
+1. ✅ **La barre du « ≥ » est un aplat noir sans contour** dans les quatre schémas de portes OU / NON-OU (`cd4001`, `cd4071`, `7402`, `7432`). Inkscape ne la dessine pas comme un glyphe (elle n'a pas d'`aria-label`, contrairement au `>1` juste au-dessus) : elle échappait donc à la règle des symboles pleins et récupérait le contour de 2 px de l'habillage par-dessus son noir. Résultat : un pavé baveux au lieu du simple rectangle incliné.
+2. ✅ **Règle CSS ciblée** (`media/styles.css`) : seuls les tracés SANS `aria-label` d'un groupe de symbole « >1 » perdent leur trait. Une règle générale aurait effacé le cadre et les pattes des portes « & » du 7400/7408, qui sont, eux, des tracés sans remplissage.
+3. ✅ **Mesuré dans un vrai rendu** (Chrome headless, overlay du schéma interne) : la barre passe de `stroke rgb(17,17,17)` épais de 0,71 unité à `stroke: none` sur un `fill` noir ; le cadre des portes du 74xx00 garde son trait.
+4. ✅ **Trois contrôles de plus dans `npm run verify:ic`** : la règle existe et supprime bien le contour, elle ne vise que les groupes « >1 », et chaque schéma de OU / NON-OU porte une barre pleine par porte (4/4 sur les quatre boîtiers).
+
+# >>> v2026.7.262 — la bande de la platine porte sa couleur d'alimentation
 1. ✅ **Un CI enfiché amène son VCC / sa masse à toute la bande** : le fil piqué dans un autre trou de la même ligne naît rouge (ou noir), comme s'il touchait la broche d'alim elle-même. Jusqu'ici la couleur automatique ne regardait que le rôle des DEUX extrémités du fil : un trou de platine n'étant qu'un trou, le fil sortait en couleur de nappe.
 2. ✅ **Une seule règle pour les deux moments** : `powerRoleOf` sert à la création du fil (`autoColor`) ET au rebranchement d'une extrémité (`powerColorOf`). Rôle direct d'abord, sinon rôle vu sur le MÊME nœud électrique (fils implicites de l'enfichage compris), la masse l'emportant sur le VCC.
 3. ✅ **L'alimentation ne traverse pas une résistance** : la netlist est demandée avec `joinResistors: false`, l'autre patte n'est pas un rail (sinon tout un montage à pont diviseur virait au rouge).

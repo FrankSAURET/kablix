@@ -291,6 +291,21 @@ console.log('Symboles internes :');
     glyphes.map((r) => `${r.schema}:${(svg(r.schema).match(/aria-label=/g) ?? []).length}`).join(' '));
   check('l hystérésis (CD40106, 74xx14) est un dessin, pas un glyphe : elle garde son trait',
     ics.IC_REFS.filter((r) => r.op === 'not').every((r) => !svg(r.schema).includes('aria-label')));
+
+  // La barre du « ≥ » (trait incliné sous le >) est dessinée à part, sans
+  // aria-label : sans règle dédiée elle prenait le contour de l'overlay
+  // par-dessus son noir et sortait en pavé baveux (Frank, v2026.7.263).
+  const barre = /\.part__internal g:has\(> path\[aria-label='>1'\]\)[^{]*\{[^}]*\}/.exec(css)?.[0] ?? '';
+  check('la barre du ≥1 est un aplat noir SANS contour',
+    /stroke:\s*none/.test(barre), barre.replace(/\s+/g, ' ') || 'règle absente');
+  check('la règle ne vise que les groupes « >1 » (le cadre des portes & garde son trait)',
+    /path:not\(\[aria-label\]\)/.test(barre) && !/aria-label='&'/.test(barre));
+  // Une barre par porte dans chaque schéma de OU / NON-OU, et elle est pleine.
+  const ou = ics.IC_REFS.filter((r) => r.op === 'or' || r.op === 'nor');
+  const barres = (s) => (svg(s).match(/style="fill:#000000;stroke-width:0\.706531/g) ?? []).length;
+  check('chaque porte OU / NON-OU a sa barre pleine (fill noir, pas de stroke à elle)',
+    ou.length === 4 && ou.every((r) => barres(r.schema) === r.gates.length),
+    ou.map((r) => `${r.schema}:${barres(r.schema)}/${r.gates.length}`).join(' '));
 }
 
 console.log(failures === 0

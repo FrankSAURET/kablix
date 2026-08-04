@@ -1733,6 +1733,17 @@ body.vscode-light .inspector__ref--nouveau {
   fill: #111;
 }
 
+/* La barre du « ≥ » (le trait incliné sous le `>`) n'est PAS un glyphe : Inkscape
+   la dessine à part, en tracé plein sans aria-label. Elle gardait donc le contour
+   de 2 px de l'overlay par-dessus son noir, ce qui l'empâtait en pavé baveux au
+   lieu du simple rectangle incliné voulu (Frank, v2026.7.263). On la retrouve
+   sans ambiguïté : c'est l'enfant SANS aria-label d'un groupe de symbole « >1 »
+   (les groupes « & » du 7400/7408, eux, contiennent le cadre et les pattes de la
+   porte, qui doivent garder leur trait). */
+.part__internal g:has(> path[aria-label='>1']) > path:not([aria-label]) {
+  stroke: none;
+}
+
 /* Poster de brochage complet (bouton ☢ d'une carte Pico/Pico W) : surimpression
    de la carte, à sa largeur exacte (les étiquettes débordent en haut et en bas, la
    carte transparaît dans la bande centrale). Hors flux et sans dimension propre →
