@@ -1,12 +1,14 @@
 # À faire
 1. Il n'y a pas d'icône visible sur le bouton Afficher/masquer les explicqations de défaut. Je l'ai retouché rien à faire pour toi
-1. Quand la souris a sélectionné un composant ou un fil (glissé) si elle sort de la fenêtre la vue suit
 1. Le cadre de sélection autour des transistors TO92 n'est pas bon. C'était de ma faute. J'ai corrigé. Importe la nouvelle version.
 1. Quand tu retouche ou refait un schéma de test que j'ai retouché, garde les emplacements des composant (sauf à tout refaire différemment)
 1. Dans les docs il y a des sauts de ligne non nécessaire qui hachent la lecture. Supprime les
 1. J'ai retouché qq docs en français reporte en anglais.
 1. Vsix quand liste ci-dessus terminée
+1. A partir de ce qu'on a fait dernierement pour la création de composants (fichier composants.svg ...) fais un tuto ( schéma, schéma interne et simuilation) pour en créer d'autre. Avec et sans IA. Dispo dans doc uniquement sur github. Traduit en anglais
+1. Comit + push
 
+1. ✅ Quand la souris a sélectionné un composant ou un fil (glissé) si elle sort de la fenêtre la vue suit
 1. ✅ La position dit ce qu'elle vaut en ohms** : le commentaire porte « Position : 25 % (1,175 kΩ) ». Affiche ça en dynamique pendant la simulation juste au dessus du composant (au plus pret du composant)
 1. ✅ J'ai toujours cette erreur : Kablix : impossible d'enregistrer l'éditeur SVG dans les réglages (kablix.svgEditorPath). Impossible d'écrire dans Paramètres utilisateur, car kablix.svgEditorPath n'est pas une configuration inscrite. Du moins au premier lancement. Aprs ça semble marcher. Corrige.
 1. ✅ La visualisation de rotation de l'axe du moteur est incompréhensible on a l'impression que ça clignote. Ici on se fout d'une vitesse de rotation réaliste on veut juste la voir et que si la tension continue ou le rapport cyclique augmente on  ai un impression de vitesse qui augmente
@@ -32,6 +34,14 @@ Voici les préfix à utiliser (traduisible) et respecte la casse : Résistance (
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# v2026.7.258 — la vue suit la souris qui sort de la fenêtre
+1. ✅ **Le plan de travail suit le geste** : composant tenu, coude de fil tiré, câble en cours de pose ou boîte de sélection — dès que le curseur atteint le bord de la vue (ou le franchit), la vue défile toute seule pour découvrir la suite. Avant, un déplacement plus long que l'écran obligeait à lâcher, déplacer la vue au bouton du milieu, puis reprendre le composant.
+2. ✅ **Le composant ne s'échappe pas** : le déplacement se calcule par écart d'écran, il fallait donc retrancher ce que la vue a défilé toute seule — sinon la pièce partait à la vitesse du défilement. Mesuré dans un vrai navigateur : 76 px de vue parcourus, la pièce reste à 4 px près sous le curseur (soit un demi-pas de grille).
+3. ✅ **Une loi de défilement unique** (`diagram/autopan.mts`) : nul dans la zone franche, il croît dans une bande de 24 px le long du bord, continue de croître au-delà du bord et plafonne à 22 px par pas (~1300 px/s) — la vue ne part jamais à l'autre bout du plan. La bande démarre AVANT le bord parce qu'en câblage clic-à-clic le curseur ne sort jamais de la fenêtre.
+4. ✅ **Deux garde-fous** : rien ne défile quand le curseur est au repos, et rien ne défile quand il quitte la vue **sans rien tenir** — aller cliquer un bouton de la barre d'outils pendant un câblage faisait sinon fuir le plan de travail.
+5. ✅ **Le pointeur est capturé pendant le déplacement d'un composant** : un `pointerup` survenu hors de la fenêtre n'était jamais délivré et le composant restait collé au curseur. Filets ajoutés aussi sur `pointercancel` et la perte de focus, pour tous les gestes.
+6. ✅ **`verify:autopan`, nouveau banc** (25 contrôles) : la loi seule (bandes, signes, plafond, vue étroite), les cinq gestes branchés, puis le vrai éditeur en Chrome headless — la vue file au bord, la pièce reste sous le curseur et avance d'autant dans le monde, le fil rejoint le curseur dans le monde défilé, et tout s'arrête au lâcher.
 
 # v2026.7.257 — le potentiomètre dit ses ohms pendant qu'on le tourne
 1. ✅ **La lecture est sous les yeux** : pendant la simulation, une étiquette collée au bord haut du composant porte « **Position : 25 % (1,175 kΩ)** ». Le pourcentage seul ne dit pas ce qu'on mesure entre le curseur et l'extrémité basse ; ce texte était déjà celui du commentaire de nomenclature, il fallait le voir en tournant le bouton, pas dans un CSV.

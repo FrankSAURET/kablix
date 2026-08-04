@@ -52,6 +52,7 @@ import { hasPinout, pinoutPoster, loadPinoutSvg } from './pinout.mjs';
 import { BOARD_W, BOARD_H } from '../composants/pico-board.mjs';
 import { nameEquipotentials, type Diagram, type Endpoint, type Part, type Wire } from './model.mjs';
 import { DEFAULT_WIRE_COLORS, DUPONT_COLORS, dupontHex, roundedWirePath, snapPoint, type XY } from './geometry.mjs';
+import { startAutoPan, type AutoPan } from './autopan.mjs';
 import { PartCreator } from './creator.mjs';
 import '../composants/custom-part.mjs';
 import { t } from '../i18n.mjs';
@@ -269,6 +270,8 @@ export class Editor {
   private junctionsG: SVGGElement | null = null;
   private junctionsQueued = false;
   private pending: PendingWire | null = null;
+  /** Défilement automatique du câblage en cours (arrêté avec `pending`). */
+  private pendingAutoPan: AutoPan<PointerEvent> | null = null;
   private tempPath: SVGPathElement | null = null;
   /** Bulle de nom de broche affichée pendant le câblage (showPinBubble). */
   private pinBubble: HTMLDivElement | null = null;
@@ -766,6 +769,61 @@ export class Editor {
     window.addEventListener('pointerup', up);
     window.addEventListener('pointercancel', end);
     window.addEventListener('blur', end);
+  }
+
+  /**
+   * Fait suivre la vue au curseur pendant un glissé (voir `autopan.mts`) :
+   * composant déplacé, coude de fil, câblage en cours, boîte de sélection. Le
+   * geste en cours est REJOUÉ après chaque pas de défilement — sans ça, la vue
+   * filerait sous un composant resté immobile dans le monde.
+   *
+   * La caméra n'est publiée (persistance) qu'à la fin du geste, comme pour le
+   * déplacement au bouton du milieu : un `onCameraChange` par pas d'horloge
+   * inonderait l'historique.
+   */
+  private beginAutoPan<E extends { clientX: number; clientY: number }>(
+    replay: (ev: E) => void
+  ): AutoPan<E> {
+    let bouge = false;
+    const auto = startAutoPan<E>(
+      {
+        viewport: () => this.canvas.getBoundingClientRect(),
+        pan: (dx, dy) => {
+          bouge = true;
+          this.panX += dx;
+          this.panY += dy;
+          this.applyTransform();
+        },
+      },
+      replay
+    );
+    return {
+      track: (ev: E) => auto.track(ev),
+      tick: () => auto.tick(),
+      stop: () => {
+        auto.stop();
+        if (bouge) this.onCameraChange?.();
+      },
+    };
+  }
+
+  /**
+   * Garde le pointeur jusqu'au relâché : sans capture, un `pointerup` survenu
+   * HORS de la fenêtre n'est jamais délivré et le geste reste collé au curseur
+   * — d'autant plus gênant depuis que la vue suit la souris au-delà du bord.
+   * Rend la fonction de libération, à appeler à la fin du geste.
+   */
+  private capturePointer(e: PointerEvent): () => void {
+    try {
+      this.canvas.setPointerCapture(e.pointerId);
+    } catch {
+      /* pointeur déjà disparu : rien à libérer */
+    }
+    return () => {
+      if (this.canvas.hasPointerCapture?.(e.pointerId)) {
+        this.canvas.releasePointerCapture(e.pointerId);
+      }
+    };
   }
 
   /**
@@ -1479,11 +1537,14 @@ export class Editor {
 
     const move = (ev: PointerEvent): void => {
       if (!dragged && Math.hypot(ev.clientX - startX, ev.clientY - startY) > 4) dragged = true;
+      auto.track(ev); // posé au bord : la vue découvre la place qui manque
       at = this.canvasPoint(ev.clientX, ev.clientY);
       this.centerPartOn(part.id, at);
       this.redrawWires();
     };
+    const auto = this.beginAutoPan<PointerEvent>(move);
     const end = (ev: PointerEvent): void => {
+      auto.stop();
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', end);
       // Clic sec (jamais déplacé) : pose au centre de la vue. Sinon : sous le curseur.
@@ -2320,14 +2381,20 @@ export class Editor {
     // aligne CETTE broche sur la grille (et donc toutes les autres, espacées de
     // multiples du pas), pas le coin du composant.
     const pinOff = this.gridOffset(part.id) ?? { x: 0, y: 0 };
+    // Caméra à l'appui : le suivi se fait par DELTA d'écran, il faut donc
+    // retrancher ce que la vue a défilé toute seule depuis (cf. autopan.mts),
+    // sinon le composant s'échapperait du curseur d'autant.
+    const startPanX = this.panX;
+    const startPanY = this.panY;
     const move = (ev: PointerEvent) => {
       const dx = ev.clientX - startX;
       const dy = ev.clientY - startY;
       if (!moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
       moved = true;
+      auto.track(ev);
       // Le déplacement écran est converti en déplacement monde (zoom courant).
-      let wdx = dx / this.zoom;
-      let wdy = dy / this.zoom;
+      let wdx = (dx - (this.panX - startPanX)) / this.zoom;
+      let wdy = (dy - (this.panY - startPanY)) / this.zoom;
       if (useGrid && primary) {
         // Aligne la première broche du meneur sur la grille ; le même décalage
         // s'applique au groupe pour préserver les positions relatives.
@@ -2347,9 +2414,15 @@ export class Editor {
       this.redrawWires();
       if (holes.length > 0) this.previewBreadboardSnap(part, holes);
     };
+    const auto = this.beginAutoPan<PointerEvent>(move);
+    const release = this.capturePointer(e);
     const end = () => {
+      auto.stop();
+      release();
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+      window.removeEventListener('blur', end);
       this.clearBreadboardHighlights();
       if (!moved) {
         this.select({ kind: 'part', id: part.id }); // simple clic = sélection
@@ -2362,6 +2435,10 @@ export class Editor {
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', end);
+    // Filets : pointeur perdu ou fenêtre défocalisée — le défilement
+    // automatique ne doit jamais rester en marche après le geste.
+    window.addEventListener('pointercancel', end);
+    window.addEventListener('blur', end);
   }
 
   // --- Platine d'essai : surbrillance et enfichage -----------------------------
@@ -2504,6 +2581,10 @@ export class Editor {
     this.tempPath.setAttribute('class', 'wire wire--temp');
     this.svg.appendChild(this.tempPath);
     this.updateTempPath(p);
+    // Le fil suit la souris jusqu'au bord : la vue défile pour découvrir la
+    // broche visée quand elle est hors champ (le geste dure jusqu'au fil posé,
+    // bouton relâché compris — d'où l'arrêt dans `cancelPending`).
+    this.pendingAutoPan = this.beginAutoPan<PointerEvent>((ev) => this.onPointerMove(ev));
 
     // Fin du geste initial : sur une autre broche -> fil direct (les broches
     // gèrent leur propre pointerup) ; ailleurs -> passage en mode clic-à-clic.
@@ -2567,11 +2648,14 @@ export class Editor {
     this.pending = null;
     this.tempPath?.remove();
     this.tempPath = null;
+    this.pendingAutoPan?.stop();
+    this.pendingAutoPan = null;
     this.hidePinBubble();
   }
 
   private onPointerMove = (e: PointerEvent): void => {
     if (!this.pending || !this.tempPath) return;
+    this.pendingAutoPan?.track(e);
     // Aperçu fidèle : le pointillé rejoint le curseur RÉEL. L'aimantation H/V
     // (snapPoint) ne s'applique qu'à la pose du point (addPendingPoint) —
     // appliquée ici, elle écartait le bout du tracé de la souris (jusqu'à
@@ -3546,6 +3630,7 @@ export class Editor {
     const orig = new Map(group.map((i) => [i, { x: wire.points![i].x, y: wire.points![i].y }]));
     const move = (ev: PointerEvent) => {
       if (!wire.points) return;
+      auto.track(ev);
       let pos = this.canvasPoint(ev.clientX, ev.clientY);
       if (ev.ctrlKey && group.length === 1) {
         // Réticule + forçage : aligne le coude sur ses voisins (segments H/V).
@@ -3576,14 +3661,22 @@ export class Editor {
       }
       this.positionWire(wire);
     };
+    // Le coude tiré au bord entraîne la vue : un fil peut ainsi être rallongé
+    // au-delà de ce que l'écran montre, sans lâcher la poignée.
+    const auto = this.beginAutoPan<PointerEvent>(move);
     const end = () => {
+      auto.stop();
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+      window.removeEventListener('blur', end);
       this.clearGuides();
       this.notify();
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+    window.addEventListener('blur', end);
   }
 
   /** Force le coude sur l'horizontale/verticale de ses voisins (points ou broches). */
@@ -4068,6 +4161,7 @@ export class Editor {
       const cur = this.canvasPoint(ev.clientX, ev.clientY);
       if (!moved && Math.hypot(cur.x - start.x, cur.y - start.y) < DRAG_THRESHOLD) return;
       moved = true;
+      auto.track(ev); // la boîte peut s'étendre au-delà de l'écran
       const x = Math.min(start.x, cur.x);
       const y = Math.min(start.y, cur.y);
       const w = Math.abs(cur.x - start.x);
@@ -4092,9 +4186,13 @@ export class Editor {
         this.selectedWires = next;
       }
     };
+    const auto = this.beginAutoPan<PointerEvent>(move);
     const up = (): void => {
+      auto.stop();
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      window.removeEventListener('blur', up);
       rectEl.remove();
       if (!moved) {
         this.select(null); // simple clic sur le fond = désélection
@@ -4134,6 +4232,8 @@ export class Editor {
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+    window.addEventListener('blur', up);
   }
 
   /**
