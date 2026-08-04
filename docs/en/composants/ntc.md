@@ -2,9 +2,7 @@
 
 ![NTC thermistor](../../img/composants/ntc.webp)
 
-**Negative** temperature coefficient thermistor: its resistance **drops** as
-temperature rises. Bare two-lead part, to be wired as a voltage divider. Positive
-coefficient variant: the [PTC](ptc.md).
+**Negative** temperature coefficient thermistor: its resistance **drops** as temperature rises. Bare two-lead part, to be wired as a voltage divider. Positive coefficient variant: the [PTC](ptc.md).
 
 ## Pins
 
@@ -24,8 +22,7 @@ coefficient variant: the [PTC](ptc.md).
 
 ## In simulation
 
-A **temperature slider** appears on the part while simulating, bounded by `tmin`
-and `tmax`. Resistance follows the Beta law:
+A **temperature slider** appears on the part while simulating, bounded by `tmin` and `tmax`. Resistance follows the Beta law:
 
 ```
 R = r25 x exp( beta x (1/(T+273.15) - 1/298.15) )
@@ -35,8 +32,7 @@ With the defaults: 10 kΩ at 25 °C, ~34 kΩ at 0 °C, ~3.6 kΩ at 50 °C.
 
 ## Usage
 
-- Wire the NTC as a **voltage divider** with a fixed resistor of the same order
-  as `r25` (10 kΩ for a 10 kΩ NTC), the midpoint going to an analog input.
+- Wire the NTC as a **voltage divider** with a fixed resistor of the same order as `r25` (10 kΩ for a 10 kΩ NTC), the midpoint going to an analog input.
 - `beta` comes from the thermistor datasheet (3380, 3950, 4050…).
 - Non-polarized part: the two leads are equivalent.
 

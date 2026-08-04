@@ -1,11 +1,22 @@
 # À faire
-1. Quand tu retouche ou refait un schéma de test que j'ai retouché, garde les emplacements des composant (sauf à tout refaire différemment)
-1. Dans les docs il y a des sauts de ligne non nécessaire qui hachent la lecture. Supprime les
-1. J'ai retouché qq docs en français reporte en anglais.
 1. Vsix quand liste ci-dessus terminée
 1. A partir de ce qu'on a fait dernierement pour la création de composants (fichier composants.svg ...) fais un tuto ( schéma, schéma interne et simuilation) pour en créer d'autre. Avec et sans IA. Dispo dans doc uniquement sur github. Traduit en anglais
 1. Comit + push
+1. Un CI posé sur une platine d'essai ne "propage" pas la couleur des power et gnd au fils relié dans les trous de la ligne de la platine concernée.
+1. La barre du égale du symbole ≥1 (barre inclinée sous le >) de la porte ou doit être un rectangle plein noir sans contour.
+1. Le schéma interne du 74xx14 est décalé de 10 px vers la gauche
+1. Quand j'ai cliqué sur routage automatique de CI-Pico.projix, impossible d'en sortir. Y compris en fermant tous les schémas ouverts. Je veux que dans ce cas (tâche trés longue) tu mettes un barre de progression avec un bouton annuler. Du coup fait 3 fichiers de test des CI (CI1, CI2 et CI3). Place les CI à une distance faible de la carte de dev. Pas trop prêt non plus.
+1. Déplace le bouton qui donne le fichier de code à droite du nom du fichier projix - dans la barre généraliste.
+1. La rotation du moteur de l'engrenage du moteur est encore trop rapide de plus l'axe n'est pas le bon et donc l'engrenage bouge. Je pense que tu as pris pour axe le centre de l'axe avec méplat (gris)mais comme il a un méplat ce n'est pas bon. Prend le centre de l'engrenage (jaune)
+1. Tu as vidé le fichire de teste ventilo-pico
+1. Pour les potentiomètres, met les 3 valeurs %, Rbase et Rreste par exemple Position : 66 % (6,6 kΩ|3,4 kΩ). 
+1. la vue suit la souris qui sort de la fenêtre : C'est ça mais ça ne doit pas fonctionner quand on glisse et pose un composant à partir de la bibliothèque. Et actuellement ça ne fonctionne pas quand c'est une connection de l'extrémité d'un fil  que l'onveut déplacer
+1. Le défilement des transistors dans modèles correspondant doit se faire par bond d'une ligne interne
+1. Vsix
 
+1. ✅ Quand tu retouche ou refait un schéma de test que j'ai retouché, garde les emplacements des composant (sauf à tout refaire différemment)
+1. ✅ Dans les docs il y a des sauts de ligne non nécessaire qui hachent la lecture. Supprime les
+1. ✅ J'ai retouché qq docs en français reporte en anglais.
 1. ✅ Le cadre de sélection autour des transistors TO92 n'est pas bon. C'était de ma faute. J'ai corrigé. Importe la nouvelle version.
 1. ℹ️ Il n'y a pas d'icône visible sur le bouton Afficher/masquer les explicqations de défaut. Je l'ai retouché rien à faire pour toi
 1. ✅ Quand la souris a sélectionné un composant ou un fil (glissé) si elle sort de la fenêtre la vue suit
@@ -34,6 +45,12 @@ Voici les préfix à utiliser (traduisible) et respecte la casse : Résistance (
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# v2026.7.260 — les fiches d'aide se lisent d'un trait
+1. ✅ **Paragraphes déroulés dans 62 fiches** de `docs/` : un paragraphe, un item de liste ou un paragraphe de citation tient désormais sur UNE ligne du fichier source. Les retours à la ligne au milieu d'une phrase hachaient la lecture et rendaient les comparaisons FR/EN illisibles. Le rendu HTML, lui, ne bouge pas : le moteur Markdown maison joint déjà les lignes d'un même paragraphe par une espace.
+2. ✅ **Restés intacts** : tableaux, blocs de code, titres, séparateurs, HTML brut, et les images ou vidéos posées seules sur leur ligne — les guides collent leurs captures sous le texte sans ligne vide, les absorber les aurait fait disparaître du paragraphe.
+3. ✅ **Retouches françaises reportées en anglais** : « NOR is universal too » → « NOR is universal » (`cd4001`, `74xx02`), plus l'espace avant deux-points remise dans `docs/fr/composants/cd4001.md`. Vérification de structure FR/EN : 0 écart sur 70 fiches (titres, puces, tableaux, images, volume).
+4. ✅ **Consigne inscrite dans le `CLAUDE.md` du projet** : un schéma de test déjà retouché par Frank garde les `x`/`y` de son `_spec.mjs` — retoucher ou refaire un test ne redispose pas la planche, sauf à la refaire entièrement et différemment.
 
 # v2026.7.259 — le TO-92 repris au dessin corrigé, cadre de sélection compris
 1. ✅ **Boîtier repris de `Composants.svg`** : Frank a corrigé son dessin, le cadre du TO-92 traînait 10 px de vide à droite. Le boîtier passe de 50 × 50 à **40 × 50**, ses trois pattes de (20, 30, 40) à **(10, 20, 30)** — le pas de 10 px et la hauteur ne bougent pas, aucun schéma existant n'est à retoucher (les fils sont rangés par NOM de patte).

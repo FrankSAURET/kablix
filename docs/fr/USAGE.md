@@ -31,9 +31,7 @@
   - Ou si vous avez fait l'association, dans l'explorateur Windows double cliquer sur un fichier projix.
 <video src="../../media/demarrer.mp4" title="Démarrer Kablix" controls autoplay loop muted playsinline></video>
 
-  L'icône **ne crée un nouveau projet que s'il n'y en a aucun d'ouvert** : si un
-  montage est déjà là — y compris rouvert tout seul après un changement de
-  dossier — elle revient dessus au lieu d'ouvrir un deuxième atelier.
+  L'icône **ne crée un nouveau projet que s'il n'y en a aucun d'ouvert** : si un montage est déjà là — y compris rouvert tout seul après un changement de dossier — elle revient dessus au lieu d'ouvrir un deuxième atelier.
 
 2. **Construire son montage** : Glisser/poser un composant à partir de la bibliothèque à gauche. Relier les broches en direct et cliquer sur le bouton autoroutage (route les composants sélectionnés ou tout le montage si aucun n'est sélectionné).
 <video src="../../media/dessiner.mp4" title="Construire un montage" controls autoplay loop muted playsinline></video>
@@ -43,23 +41,16 @@
   - `.py` -> MicroPython sur le Pico simulé (firmware `.uf2` requis, voir ci-dessous) ;
   - `.hex` / `.uf2`/`.elf` / `.bin` -> chargé directement sans compilation.
 
-  Le **▶ enregistre d'abord** le schéma et le fichier de code : ce qui tourne dans
-  le simulateur est toujours ce qui est sur le disque. Un projet jamais enregistré
-  (sans nom) est laissé tel quel — aucune boîte de dialogue ne vient couper le lancement.
+  Le **▶ enregistre d'abord** le schéma et le fichier de code : ce qui tourne dans le simulateur est toujours ce qui est sur le disque. Un projet jamais enregistré (sans nom) est laissé tel quel — aucune boîte de dialogue ne vient couper le lancement.
 
-4. **Enregistrer son montage** : « Kablix : Enregistrer le projet (.projix) » ;
-  un `.projix` se rouvre ensuite d'un double-clic dans l'explorateur.
-  À la réouverture, le programme associé au projet s'ouvre **aussi**, dans le
-  volet de code à côté du montage — le curseur, lui, reste dans Kablix.
-  Import/export au format Wokwi (`diagram.json`) également disponibles.
+4. **Enregistrer son montage** : « Kablix : Enregistrer le projet (.projix) » ; un `.projix` se rouvre ensuite d'un double-clic dans l'explorateur. À la réouverture, le programme associé au projet s'ouvre **aussi**, dans le volet de code à côté du montage — le curseur, lui, reste dans Kablix. Import/export au format Wokwi (`diagram.json`) également disponibles.
 <video src="../../media/simuler.mp4" title="Simuler dans Kablix" controls autoplay loop muted playsinline></video>
 
 ## L'interface
 ![alt text](../../media/interface.webp)
 *Interface de Kablix : **①** la **palette** des composants à gauche, **②** le **canvas** de montage au centre, **③** l'**inspecteur** (Propriétés/variables) à droite, **④** le **moniteur série/Console/REPL**, **⑤** le **Traceur** en bas et **⑥** les **barres d'outils** (Simulation et dessin) en haut.*
 
-- **Palette** : cliquer un composant le pose sur le canvas. Deux tris au choix (boutons en haut) ![alt text](<../../media/boutons trie.webp>): alphabétique ou  par catégories
-Une zone **« Derniers utilisés »** (10 max) peut rester en tête (troisième bouton). Le dernier bouton permet de changer le mode de réaction de la bibliothèque.
+- **Palette** : cliquer un composant le pose sur le canvas. Deux tris au choix (boutons en haut) ![alt text](<../../media/boutons trie.webp>): alphabétique ou  par catégories Une zone **« Derniers utilisés »** (10 max) peut rester en tête (troisième bouton). Le dernier bouton permet de changer le mode de réaction de la bibliothèque.
 - **Barre d'outil Kablix**
 ![alt text](<../../media/barre kablix.webp>)
     - les fonctions habituelles de gestion de fichier,
@@ -74,7 +65,7 @@ Une zone **« Derniers utilisés »** (10 max) peut rester en tête (troisième 
     - **⏸ pause/reprendre**
     - **pas à pas**
     - le sélecteur de **vitesse** 🐇/🐢/🐌 pour accélérer ou ralentir la simulation
-    - **fichier de code**  clic = changer, double-clic = ouvrir (ouvre le fichier de code du projet sur la gauche) 
+    - **fichier de code**  clic = changer, double-clic = ouvrir (ouvre le fichier de code du projet sur la gauche)
     - **REPL** : pour Pico uniquement affiche la console python traditionnelle
     - **moniteur série / console**
     - **Traceur** de courbes.
@@ -86,17 +77,15 @@ Une zone **« Derniers utilisés »** (10 max) peut rester en tête (troisième 
     - **recentrer/ajuster la vue**
     - **⟲ réinitialiser** les composants
     - **gomme** (effacer le schéma).
-- **Propriétés/Variables** (inspecteur) : 
-    - Pendant le dessin, édite le composant
-    sélectionné (couleur, valeur, angle…) ou fil (couleur Dupont, suppression, noeud [équipotielle])
+- **Propriétés/Variables** (inspecteur) :
+    - Pendant le dessin, édite le composant sélectionné (couleur, valeur, angle…) ou fil (couleur Dupont, suppression, noeud [équipotielle])
     - pendant la simulation, affiche les variables.
 
 ## Construire un montage
 
 ### Poser et déplacer
 
-- **Poser** : clic sur un composant de la palette (posé au centre), ou
-  **glisser-déposer** depuis la palette vers l'endroit voulu du canvas.
+- **Poser** : clic sur un composant de la palette (posé au centre), ou **glisser-déposer** depuis la palette vers l'endroit voulu du canvas.
 - **Déplacer** : glisser le composant (n'importe où sur son corps), ou **glisser avec le clic droit** — indispensable pour les composants interactifs (bouton, potentiomètre, interrupteurs, joystick) dont le clic gauche actionne le contrôle.
 - **Tourner** : sélectionner le composant puis touches **`+`** (45° horaire) ou **`-`** (45° antihoraire). Les broches et les fils suivent ; un rappel apparaît dans la zone d'aide de l'inspecteur.
 - **Zoomer** : **molette** dans le canvas (centré sur le curseur). Le badge **⟳ %** en bas à droite donne le facteur ; un clic dessus réinitialise la vue.
@@ -104,9 +93,7 @@ Une zone **« Derniers utilisés »** (10 max) peut rester en tête (troisième 
 
 ### Platine d'essai
 
-Le composant **Platine d'essai** (catégorie Cartes & platines) existe en trois tailles — *mini* (17 colonnes, sans rails), *moyenne* (30 colonnes) et *grande*
-(63 colonnes) — réglables dans **Propriétés**. Les connexions internes réelles sont simulées : colonnes **a–e** et **f–j** reliées par bande, **rails +/−**
-sur toute la longueur.
+Le composant **Platine d'essai** (catégorie Cartes & platines) existe en trois tailles — *mini* (17 colonnes, sans rails), *moyenne* (30 colonnes) et *grande* (63 colonnes) — réglables dans **Propriétés**. Les connexions internes réelles sont simulées : colonnes **a–e** et **f–j** reliées par bande, **rails +/−** sur toute la longueur.
 
 Pendant le déplacement d'un composant au-dessus de la platine, les **bandes qui recevraient ses broches s'allument en jaune**. Au relâchement, le composant s'**enfiche** : il se cale sur les trous et les connexions sont établies automatiquement (sans fil visible). Les fils passent par-dessus les cartes et les platines.
 
@@ -205,14 +192,12 @@ Pour fournir votre propre firmware (hors ligne, version précise…) : placez un
 
 > ⚠ **Fonctionnement entièrement hors-ligne.** Pour qu'un poste sans Internet n'ait jamais à télécharger le firmware, **placez le `.uf2` dans le dossier du projet** : il sera versionné et distribué avec le projet. Kablix cherche le firmware **d'abord dans le workspace**, puis dans le firmware téléchargé/mémorisé, et ne propose le téléchargement qu'en dernier recours. Un projet qui embarque son firmware est ainsi reproductible et autonome.
 
-Le firmware démarre dans le simulateur (bootrom + flash + USB), puis le script est injecté via le **raw REPL**. Les `print()` apparaissent dans le moniteur série ; à la fin du script, le **REPL interactif** reste disponible via le
-champ d'envoi ou en cliquant sur le bouton REPL.
+Le firmware démarre dans le simulateur (bootrom + flash + USB), puis le script est injecté via le **raw REPL**. Les `print()` apparaissent dans le moniteur série ; à la fin du script, le **REPL interactif** reste disponible via le champ d'envoi ou en cliquant sur le bouton REPL.
 
 ### Déboguer
 
 - **⏸ Pause / ▶ Reprendre** : gèle la simulation ; l'état des broches et des LED reste affiché. Le sélecteur 🐇/🐢/🐌 ralentit l'exécution (Uno).
-- **Pas** : exécute une ligne du fichier source puis se remet en pause. Le panneau **Variables**  montre alors la ligne courante et les variables globales du programme ; la ligne est aussi surlignée dans l'éditeur VS Code.
-Une variable qui vient de changer est affichée en rouge
+- **Pas** : exécute une ligne du fichier source puis se remet en pause. Le panneau **Variables**  montre alors la ligne courante et les variables globales du programme ; la ligne est aussi surlignée dans l'éditeur VS Code. Une variable qui vient de changer est affichée en rouge
 - **Points d'arrêt** : cliquer dans la gouttière de l'éditeur (à gauche des numéros de ligne) avant ou pendant l'exécution ; la simulation se met en pause en atteignant la ligne. Les points d'arrêt peuvent être conditionnels.
 
 Prérequis et limites :
@@ -397,9 +382,7 @@ Un composant exporté est un fichier **JSON** autonome :
 | `innerOffset` | objet | Décalage `{ x, y }` de la vue interne dans le repère du dessin externe (calage). |
 | `extAnchor` / `intAnchor` | objet | Ancres vertes `{ x, y }` mesurées à l'import ; recalculent le calage si un seul SVG est réimporté. |
 
-Les valeurs de `kind` disponibles pour les modules I²C/SPI complets sont aussi :
-`ultrasonic` (HC-SR04, rôles `TRIG`/`ECHO`), `i2c-lcd`, `i2c-pwm`, `i2c-oled`
-(bus I²C, sans rôle), `spi-oled` (rôle `DC`).
+Les valeurs de `kind` disponibles pour les modules I²C/SPI complets sont aussi : `ultrasonic` (HC-SR04, rôles `TRIG`/`ECHO`), `i2c-lcd`, `i2c-pwm`, `i2c-oled` (bus I²C, sans rôle), `spi-oled` (rôle `DC`).
 
 Conseils pour le dessin SVG :
 
@@ -477,8 +460,7 @@ Contenu d'une archive `.projix` :
 Les composants intégrés de Kablix sont les éléments **@wokwi/elements** (mêmes types, mêmes noms de broches), ce qui permet d'échanger des schémas avec le format de projet **Wokwi** (`diagram.json`).
 
 - **Exporter** (Bouton hamburger ou palette de commandes → **« Kablix : Exporter le schéma Wokwi (diagram.json) »**) : écrit le schéma courant au format Wokwi.
-- **Importer** (Bouton hamburger ou **« Kablix : Importer un schéma Wokwi (diagram.json) »**) :
-  charge un `diagram.json` ; les types Wokwi non pris en charge par Kablix sont ignorés (leur nombre est indiqué dans la barre d'état).
+- **Importer** (Bouton hamburger ou **« Kablix : Importer un schéma Wokwi (diagram.json) »**) : charge un `diagram.json` ; les types Wokwi non pris en charge par Kablix sont ignorés (leur nombre est indiqué dans la barre d'état).
 
 > ⚠ Le **retournement** (flipH/flipV) et les **coudes des fils** n'ont pas  d'équivalent standard dans `diagram.json` : Kablix les conserve dans un bloc d'extension `kablix` (clé ignorée par Wokwi), si bien qu'un aller-retour Kablix → diagram.json → Kablix les restitue à l'identique. Ouvert dans Wokwi, le schéma reste valide (composants et liaisons standard), simplement sans le retournement ni les coudes.
 >
@@ -495,16 +477,14 @@ Kablix embarque trois bibliothèques de simulation (`avr8js`, `rp2040js`, `@wokw
 
 ## Extensions conseillées
 
-Kablix **simule** ; ces deux extensions s'occupent du reste de la chaîne et se
-marient bien avec elle. Elles sont **facultatives** — Kablix fonctionne seul.
+Kablix **simule** ; ces deux extensions s'occupent du reste de la chaîne et se marient bien avec elle. Elles sont **facultatives** — Kablix fonctionne seul.
 
 | Extension | À quoi elle sert |
 | --- | --- |
 | [`electropol-fr.arduino-vscode-ide`](https://marketplace.visualstudio.com/items?itemName=electropol-fr.arduino-vscode-ide) | Chaîne Arduino dans VS Code : cartes, bibliothèques, compilation et **téléversement sur la vraie carte** |
 | [`raspberry-pi.raspberry-pi-pico`](https://marketplace.visualstudio.com/items?itemName=raspberry-pi.raspberry-pi-pico) | Raspberry Pi Pico en MicroPython : envoi des fichiers sur la carte, REPL matériel |
 
-Kablix les propose **une seule fois** à sa première activation. Pour y revenir :
-palette de commandes (`Ctrl+Shift+P`) → **« Kablix : Extensions conseillées »**.
+Kablix les propose **une seule fois** à sa première activation. Pour y revenir : palette de commandes (`Ctrl+Shift+P`) → **« Kablix : Extensions conseillées »**.
 
 ## Raccourcis clavier
 

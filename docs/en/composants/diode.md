@@ -2,8 +2,7 @@
 
 ![Diode](../../img/composants/diode.webp)
 
-Rectifier diode. Current only flows from the anode **A** to the cathode **K**,
-losing the threshold voltage on the way.
+Rectifier diode. Current only flows from the anode **A** to the cathode **K**, losing the threshold voltage on the way.
 
 ## Pins
 
@@ -21,12 +20,9 @@ losing the threshold voltage on the way.
 
 ## Usage
 
-- Polarized: it blocks in the K → A direction. An LED wired behind a reversed
-  diode never lights up — the simplest test there is.
-- In the forward direction, the downstream voltage drops by `vf`
-  (0.6 V for a silicon diode, 0.3 V for a Schottky).
-- Used to protect an input against reverse polarity, or as a flyback diode
-  across a coil (relay, motor) to clamp its voltage spike.
+- Polarized: it blocks in the K → A direction. An LED wired behind a reversed diode never lights up — the simplest test there is.
+- In the forward direction, the downstream voltage drops by `vf` (0.6 V for a silicon diode, 0.3 V for a Schottky).
+- Used to protect an input against reverse polarity, or as a flyback diode across a coil (relay, motor) to clamp its voltage spike.
 
 ---
 

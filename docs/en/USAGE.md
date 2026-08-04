@@ -31,9 +31,7 @@
   - Or, if you set up the association, double-click a projix file in Windows Explorer.
 <video src="../../media/demarrer.mp4" title="Start Kablix" controls autoplay loop muted playsinline></video>
 
-  The icon **only creates a new project when none is open**: if a circuit is
-  already there — including one reopened on its own after you switched folders —
-  it brings that one back instead of opening a second workbench.
+  The icon **only creates a new project when none is open**: if a circuit is already there — including one reopened on its own after you switched folders — it brings that one back instead of opening a second workbench.
 
 2. **Build your circuit**: drag and drop a part from the palette on the left. Wire the pins directly and click the autoroute button (routes the selected parts, or the whole circuit if none is selected).
 <video src="../../media/dessiner.mp4" title="Build a circuit" controls autoplay loop muted playsinline></video>
@@ -43,23 +41,16 @@
   - `.py` -> MicroPython on the simulated Pico (`.uf2` firmware required, see below);
   - `.hex` / `.uf2` / `.elf` / `.bin` -> loaded directly, no compilation.
 
-  **▶ saves first**: the circuit and the code file are written to disk before the
-  simulation starts, so what runs is always what is on disk. A project that was
-  never saved (no name yet) is left alone — no dialog interrupts the launch.
+  **▶ saves first**: the circuit and the code file are written to disk before the simulation starts, so what runs is always what is on disk. A project that was never saved (no name yet) is left alone — no dialog interrupts the launch.
 
-4. **Save your circuit**: “Kablix: Save the project (.projix)”;
-  a `.projix` then reopens with a double-click in Explorer.
-  On reopening, the project's code file opens **too**, in the code pane next to
-  the circuit — while the caret stays in Kablix.
-  Import/export in the Wokwi format (`diagram.json`) are also available.
+4. **Save your circuit**: “Kablix: Save the project (.projix)”; a `.projix` then reopens with a double-click in Explorer. On reopening, the project's code file opens **too**, in the code pane next to the circuit — while the caret stays in Kablix. Import/export in the Wokwi format (`diagram.json`) are also available.
 <video src="../../media/simuler.mp4" title="Simulate in Kablix" controls autoplay loop muted playsinline></video>
 
 ## The interface
 ![interface](../../media/interface.webp)
 *Kablix interface: **①** the parts **palette** on the left, **②** the circuit **canvas** in the center, **③** the **inspector** (Properties/variables) on the right, **④** the **serial monitor/Console/REPL**, **⑤** the **Plotter** at the bottom and **⑥** the **toolbars** (Simulation and drawing) at the top.*
 
-- **Palette**: clicking a part places it on the canvas. Two sort modes to choose from (buttons at the top) ![sort buttons](<../../media/boutons trie.webp>): alphabetical or by categories.
-A **“Recently used”** zone (10 max) can stay at the top (third button). The last button changes the palette's reaction mode.
+- **Palette**: clicking a part places it on the canvas. Two sort modes to choose from (buttons at the top) ![sort buttons](<../../media/boutons trie.webp>): alphabetical or by categories. A **“Recently used”** zone (10 max) can stay at the top (third button). The last button changes the palette's reaction mode.
 - **Kablix toolbar**
 ![Kablix bar](<../../media/barre kablix.webp>)
     - the usual file-management functions,
@@ -94,8 +85,7 @@ A **“Recently used”** zone (10 max) can stay at the top (third button). The 
 
 ### Placing and moving
 
-- **Place**: click a part in the palette (placed at the center), or
-  **drag and drop** it from the palette to wherever you want on the canvas.
+- **Place**: click a part in the palette (placed at the center), or **drag and drop** it from the palette to wherever you want on the canvas.
 - **Move**: drag the part (anywhere on its body), or **drag with the right click** — essential for interactive parts (button, potentiometer, switches, joystick) whose left click operates the control.
 - **Rotate**: select the part then press **`+`** (45° clockwise) or **`-`** (45° counter-clockwise). Pins and wires follow; a reminder appears in the inspector help area.
 - **Zoom**: **mouse wheel** over the canvas (centered on the cursor). The **⟳ %** badge at the bottom right gives the factor; clicking it resets the view.
@@ -103,9 +93,7 @@ A **“Recently used”** zone (10 max) can stay at the top (third button). The 
 
 ### Breadboard
 
-The **Breadboard** part (Boards & breadboards category) comes in three sizes — *mini* (17 columns, no rails), *half* (30 columns) and *full*
-(63 columns) — set in **Properties**. Real internal connections are simulated: columns **a–e** and **f–j** joined per strip, **+/− rails**
-along the full length.
+The **Breadboard** part (Boards & breadboards category) comes in three sizes — *mini* (17 columns, no rails), *half* (30 columns) and *full* (63 columns) — set in **Properties**. Real internal connections are simulated: columns **a–e** and **f–j** joined per strip, **+/− rails** along the full length.
 
 While dragging a part over the breadboard, the **strips that would receive its pins light up in yellow**. On release, the part **plugs in**: it snaps to the holes and the connections are made automatically (no visible wire). Wires are drawn over boards and breadboards.
 
@@ -209,8 +197,7 @@ The firmware boots in the simulator (bootrom + flash + USB), then the script is 
 ### Debugging
 
 - **⏸ Pause / ▶ Resume**: freezes the simulation; pin and LED states stay displayed. The 🐇/🐢/🐌 selector slows execution down (Uno).
-- **Step**: runs one line of the source file then pauses again. The **Variables** panel then shows the current line and the program's global variables; the line is also highlighted in the VS Code editor.
-A variable that has just changed is shown in red.
+- **Step**: runs one line of the source file then pauses again. The **Variables** panel then shows the current line and the program's global variables; the line is also highlighted in the VS Code editor. A variable that has just changed is shown in red.
 - **Breakpoints**: click in the editor gutter (left of the line numbers) before or during the run; the simulation pauses when the line is reached. Breakpoints can be conditional.
 
 Requirements and limits:
@@ -395,9 +382,7 @@ An exported part is a standalone **JSON** file:
 | `innerOffset` | object | Offset `{ x, y }` of the internal view in the external drawing's coordinate frame (alignment). |
 | `extAnchor` / `intAnchor` | object | Green anchors `{ x, y }` measured at import; recompute the alignment if a single SVG is re-imported. |
 
-The `kind` values available for the full I²C/SPI modules are also:
-`ultrasonic` (HC-SR04, roles `TRIG`/`ECHO`), `i2c-lcd`, `i2c-pwm`, `i2c-oled`
-(I²C bus, no role), `spi-oled` (role `DC`).
+The `kind` values available for the full I²C/SPI modules are also: `ultrasonic` (HC-SR04, roles `TRIG`/`ECHO`), `i2c-lcd`, `i2c-pwm`, `i2c-oled` (I²C bus, no role), `spi-oled` (role `DC`).
 
 Tips for the SVG drawing:
 
@@ -473,8 +458,7 @@ Contents of a `.projix` archive:
 Kablix's built-in parts are the **@wokwi/elements** elements (same types, same pin names), which allows exchanging diagrams with the **Wokwi** project format (`diagram.json`).
 
 - **Export** (hamburger button or command palette → **“Kablix: Export the Wokwi diagram (diagram.json)”**): writes the current diagram in the Wokwi format.
-- **Import** (hamburger button or **“Kablix: Import a Wokwi diagram (diagram.json)”**):
-  loads a `diagram.json`; Wokwi types not supported by Kablix are ignored (their count is shown in the status bar).
+- **Import** (hamburger button or **“Kablix: Import a Wokwi diagram (diagram.json)”**): loads a `diagram.json`; Wokwi types not supported by Kablix are ignored (their count is shown in the status bar).
 
 > ⚠ **Flipping** (flipH/flipV) and **wire corners** have no standard equivalent in `diagram.json`: Kablix keeps them in a `kablix` extension block (key ignored by Wokwi), so that a round trip Kablix → diagram.json → Kablix restores them identically. Opened in Wokwi, the diagram stays valid (standard parts and links), simply without the flipping or the corners.
 >
@@ -491,16 +475,14 @@ Kablix bundles three simulation libraries (`avr8js`, `rp2040js`, `@wokwi/element
 
 ## Recommended extensions
 
-Kablix **simulates**; these two extensions cover the rest of the chain and pair
-well with it. They are **optional** — Kablix works on its own.
+Kablix **simulates**; these two extensions cover the rest of the chain and pair well with it. They are **optional** — Kablix works on its own.
 
 | Extension | What it does |
 | --- | --- |
 | [`electropol-fr.arduino-vscode-ide`](https://marketplace.visualstudio.com/items?itemName=electropol-fr.arduino-vscode-ide) | Arduino toolchain inside VS Code: boards, libraries, compilation and **uploading to a real board** |
 | [`raspberry-pi.raspberry-pi-pico`](https://marketplace.visualstudio.com/items?itemName=raspberry-pi.raspberry-pi-pico) | Raspberry Pi Pico with MicroPython: pushing files to the board, hardware REPL |
 
-Kablix offers them **once**, on its first activation. To bring them back:
-command palette (`Ctrl+Shift+P`) → **“Kablix: Recommended extensions”**.
+Kablix offers them **once**, on its first activation. To bring them back: command palette (`Ctrl+Shift+P`) → **“Kablix: Recommended extensions”**.
 
 ## Keyboard shortcuts
 

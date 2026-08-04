@@ -20,10 +20,7 @@ LED RGB adressable (WS2812). Chaînable : la sortie d'une LED alimente l'entrée
 
 ## En simulation : le chaînage est suivi
 
-Reliez **DOUT** d'un pixel au **DIN** du suivant : Kablix suit la chaîne et
-distribue la trame. Le premier pixel câblé sur la broche du microcontrôleur
-affiche `pixel[0]`, le suivant `pixel[1]`, etc. Un anneau ou une matrice inséré
-dans la chaîne consomme autant de couleurs qu'il a de LED.
+Reliez **DOUT** d'un pixel au **DIN** du suivant : Kablix suit la chaîne et distribue la trame. Le premier pixel câblé sur la broche du microcontrôleur affiche `pixel[0]`, le suivant `pixel[1]`, etc. Un anneau ou une matrice inséré dans la chaîne consomme autant de couleurs qu'il a de LED.
 
 Déclarez donc dans le programme le nombre **total** de LED de la chaîne :
 

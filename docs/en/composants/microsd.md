@@ -18,11 +18,8 @@ microSD card reader over SPI: file storage.
 ## Usage
 
 - SPI bus + CS. `SD` library.
-- The simulated card ships **FAT16-formatted** (about 2 MB), just like a card off
-  the shelf: `SD.begin()`, `SD.open()`, writing and reading files back all work
-  with no preparation.
-- Its contents live in memory: they are **lost when the simulation stops**, and the
-  card starts out empty on the next run.
+- The simulated card ships **FAT16-formatted** (about 2 MB), just like a card off the shelf: `SD.begin()`, `SD.open()`, writing and reading files back all work with no preparation.
+- Its contents live in memory: they are **lost when the simulation stops**, and the card starts out empty on the next run.
 
 ### Arduino
 
@@ -36,9 +33,7 @@ f.close();
 
 ### Pico (MicroPython)
 
-MicroPython ships no SD card driver: drop the `sdcard.py` file (from the official
-*micropython-lib*) into a `lib/` folder **next to your program** — Kablix injects
-it automatically.
+MicroPython ships no SD card driver: drop the `sdcard.py` file (from the official *micropython-lib*) into a `lib/` folder **next to your program** — Kablix injects it automatically.
 
 ```python
 from machine import Pin, SPI

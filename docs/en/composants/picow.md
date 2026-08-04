@@ -2,8 +2,7 @@
 
 ![Raspberry Pi Pico W](../../img/composants/picow.webp)
 
-Identical to the Pico (RP2040, 3.3 V, same pins) with a built-in **Wi-Fi/Bluetooth**
-module. The physical pinout is the same as the Pico.
+Identical to the Pico (RP2040, 3.3 V, same pins) with a built-in **Wi-Fi/Bluetooth** module. The physical pinout is the same as the Pico.
 
 ## Pins
 

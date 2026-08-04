@@ -2,15 +2,11 @@
 
 ![Transistor NPN générique](../../img/composants/npn.webp)
 
-Prototype de transistor bipolaire **NPN** : le boîtier, l'inscription, le gain
-et le brochage se règlent dans les propriétés. À utiliser pour tout modèle qui
-n'a pas encore sa fiche dédiée (BC547, 2N3904, S8050…).
+Prototype de transistor bipolaire **NPN** : le boîtier, l'inscription, le gain et le brochage se règlent dans les propriétés. À utiliser pour tout modèle qui n'a pas encore sa fiche dédiée (BC547, 2N3904, S8050…).
 
 ## Broches
 
-Les pattes s'appellent **1**, **2** et **3**, dans l'ordre du dessin — jamais
-E/B/C. Changer l'affectation des électrodes ne renomme donc aucune patte, et
-**aucun fil ne devient orphelin**.
+Les pattes s'appellent **1**, **2** et **3**, dans l'ordre du dessin — jamais E/B/C. Changer l'affectation des électrodes ne renomme donc aucune patte, et **aucun fil ne devient orphelin**.
 
 | Broche | Rôle |
 |--------|------|
@@ -31,24 +27,18 @@ E/B/C. Changer l'affectation des électrodes ne renomme donc aucune patte, et
 | `vcemax` | Vce max (V) | 40 |
 | `icmax` | Ic max (A) | 0,6 |
 
-Une patte ne porte **qu'une** électrode : poser l'émetteur sur la patte déjà
-prise par le collecteur **échange** les deux.
+Une patte ne porte **qu'une** électrode : poser l'émetteur sur la patte déjà prise par le collecteur **échange** les deux.
 
 ## Simulation
 
 - Conduit quand la **base est haute et l'émetteur bas**.
-- Courant transmis plafonné à **Gain × Ib** : on vise la saturation, sinon le
-  montage aval ne fonctionne pas.
-- Le brochage réel dépend du modèle : sur un BC547 vu de face, c'est
-  C-B-E (1-2-3), sur un 2N2222 en TO-92 c'est E-B-C. C'est justement le rôle
-  des propriétés `e`, `b`, `c`.
+- Courant transmis plafonné à **Gain × Ib** : on vise la saturation, sinon le montage aval ne fonctionne pas.
+- Le brochage réel dépend du modèle : sur un BC547 vu de face, c'est C-B-E (1-2-3), sur un 2N2222 en TO-92 c'est E-B-C. C'est justement le rôle des propriétés `e`, `b`, `c`.
 
 ## Utilisation
 
-- Écrire la référence sur le boîtier avec `text` : une ligne par ligne saisie
-  (« BC » puis « 547 » donne deux lignes sur le composant).
-- Pour importer son propre dessin, passer par le **créateur de composant**
-  (modèle de simulation « Transistor bipolaire »).
+- Écrire la référence sur le boîtier avec `text` : une ligne par ligne saisie (« BC » puis « 547 » donne deux lignes sur le composant).
+- Pour importer son propre dessin, passer par le **créateur de composant** (modèle de simulation « Transistor bipolaire »).
 
 ---
 

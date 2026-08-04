@@ -2,9 +2,7 @@
 
 ![Grove Shield (Pico)](../../img/composants/grove-pico.webp)
 
-Carte d'extension **Grove Shield for Pi Pico v1.0** (Seeed Studio). La Pico (ou
-Pico W) s'enfiche sur les deux rangées centrales ; le shield redirige ses E/S
-vers 10 ports Grove à 4 broches, plus un connecteur SPI 2×3.
+Carte d'extension **Grove Shield for Pi Pico v1.0** (Seeed Studio). La Pico (ou Pico W) s'enfiche sur les deux rangées centrales ; le shield redirige ses E/S vers 10 ports Grove à 4 broches, plus un connecteur SPI 2×3.
 
 ## Ports Grove
 
@@ -22,9 +20,7 @@ vers 10 ports Grove à 4 broches, plus un connecteur SPI 2×3.
 | **D20** | GND · VCC · D21 · D20 | GP21 / GP20 |
 | **SPI** | SCK · TX · RX / GND · 3V3 · CS | GP2 / GP3 / GP4 / GP5 |
 
-Les ports numériques et série exposent **deux** signaux : le second est le GPIO
-qui donne son nom au port. Les ports analogiques partagent leur voie avec le
-port voisin (A1 reprend A0, A2 reprend A1).
+Les ports numériques et série exposent **deux** signaux : le second est le GPIO qui donne son nom au port. Les ports analogiques partagent leur voie avec le port voisin (A1 reprend A0, A2 reprend A1).
 
 ## Propriétés
 
@@ -34,16 +30,11 @@ port voisin (A1 reprend A0, A2 reprend A1).
 
 ## Utilisation
 
-- Poser le shield, puis **glisser la Pico dessus** : elle s'enfiche sur le socle
-  et reste au premier plan. Le câblage des ports Grove suit alors le brochage
-  ci-dessus, sans fil à tirer vers la Pico.
-- L'interrupteur `pwr` fixe le rail VCC des ports **I2C / UART / D16-D20**. Les
-  ports analogiques et le SPI restent toujours en 3,3 V.
-- En 5 V, VCC vient de VBUS (USB) : les signaux, eux, restent en 3,3 V — vérifier
-  que le module Grove l'accepte.
+- Poser le shield, puis **glisser la Pico dessus** : elle s'enfiche sur le socle et reste au premier plan. Le câblage des ports Grove suit alors le brochage ci-dessus, sans fil à tirer vers la Pico.
+- L'interrupteur `pwr` fixe le rail VCC des ports **I2C / UART / D16-D20**. Les ports analogiques et le SPI restent toujours en 3,3 V.
+- En 5 V, VCC vient de VBUS (USB) : les signaux, eux, restent en 3,3 V — vérifier que le module Grove l'accepte.
 - Toutes les masses (socle, ports, SPI) sont sur un rail unique.
 
 ---
 
-*Composant Kablix — brochage relevé sur le schéma officiel Seeed
-`Grove_shield_for_PI_PICO v1.0.sch`.*
+*Composant Kablix — brochage relevé sur le schéma officiel Seeed `Grove_shield_for_PI_PICO v1.0.sch`.*

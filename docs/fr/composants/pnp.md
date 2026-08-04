@@ -2,15 +2,11 @@
 
 ![Transistor PNP générique](../../img/composants/pnp.webp)
 
-Prototype de transistor bipolaire **PNP** : tout s'inverse par rapport au NPN.
-L'émetteur va au **+** de l'alimentation, la charge est côté collecteur, et la
-commande se fait en **tirant la base vers le bas**.
+Prototype de transistor bipolaire **PNP** : tout s'inverse par rapport au NPN. L'émetteur va au **+** de l'alimentation, la charge est côté collecteur, et la commande se fait en **tirant la base vers le bas**.
 
 ## Broches
 
-Les pattes s'appellent **1**, **2** et **3**, dans l'ordre du dessin — jamais
-E/B/C. Changer l'affectation des électrodes ne renomme donc aucune patte, et
-**aucun fil ne devient orphelin**.
+Les pattes s'appellent **1**, **2** et **3**, dans l'ordre du dessin — jamais E/B/C. Changer l'affectation des électrodes ne renomme donc aucune patte, et **aucun fil ne devient orphelin**.
 
 | Broche | Rôle |
 |--------|------|
@@ -31,23 +27,18 @@ E/B/C. Changer l'affectation des électrodes ne renomme donc aucune patte, et
 | `vcemax` | Vce max (V) | 40 |
 | `icmax` | Ic max (A) | 0,6 |
 
-Une patte ne porte **qu'une** électrode : poser l'émetteur sur la patte déjà
-prise par le collecteur **échange** les deux.
+Une patte ne porte **qu'une** électrode : poser l'émetteur sur la patte déjà prise par le collecteur **échange** les deux.
 
 ## Simulation
 
 - Conduit quand la **base est basse et l'émetteur haut** (l'émetteur au +).
 - Courant transmis plafonné à **Gain × Ib**, comme le NPN.
-- Monté en « interrupteur haut » (high-side) : il alimente une charge dont
-  l'autre borne est à la masse.
+- Monté en « interrupteur haut » (high-side) : il alimente une charge dont l'autre borne est à la masse.
 
 ## Utilisation
 
-- Attention à la commande depuis une carte 5 V : une sortie à 0 V tire bien la
-  base vers le bas, mais une sortie « haute » à 3,3 V ne bloque pas un PNP dont
-  l'émetteur est à 5 V. Le NPN est plus simple pour débuter.
-- Pour importer son propre dessin, passer par le **créateur de composant**
-  (modèle de simulation « Transistor bipolaire »).
+- Attention à la commande depuis une carte 5 V : une sortie à 0 V tire bien la base vers le bas, mais une sortie « haute » à 3,3 V ne bloque pas un PNP dont l'émetteur est à 5 V. Le NPN est plus simple pour débuter.
+- Pour importer son propre dessin, passer par le **créateur de composant** (modèle de simulation « Transistor bipolaire »).
 
 ---
 

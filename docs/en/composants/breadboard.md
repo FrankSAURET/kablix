@@ -2,8 +2,7 @@
 
 ![Breadboard](../../img/composants/breadboard.webp)
 
-Solderless prototyping board. The holes are linked in strips to connect
-components by simply plugging in their legs.
+Solderless prototyping board. The holes are linked in strips to connect components by simply plugging in their legs.
 
 ## Internal connections
 

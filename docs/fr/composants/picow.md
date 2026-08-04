@@ -2,8 +2,7 @@
 
 ![Raspberry Pi Pico W](../../img/composants/picow.webp)
 
-Identique au Pico (RP2040, 3,3 V, mêmes broches) avec un module **Wi-Fi/Bluetooth**
-intégré. Le brochage physique est le même que le Pico.
+Identique au Pico (RP2040, 3,3 V, mêmes broches) avec un module **Wi-Fi/Bluetooth** intégré. Le brochage physique est le même que le Pico.
 
 ## Broches
 

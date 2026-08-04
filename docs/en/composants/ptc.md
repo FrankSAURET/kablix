@@ -2,9 +2,7 @@
 
 ![PTC thermistor](../../img/composants/ptc.webp)
 
-**Positive** temperature coefficient thermistor: its resistance **rises** with
-temperature. Used as a linear sensor (KTY-style probes) or as a resettable
-overcurrent protection.
+**Positive** temperature coefficient thermistor: its resistance **rises** with temperature. Used as a linear sensor (KTY-style probes) or as a resettable overcurrent protection.
 
 ## Pins
 
@@ -24,8 +22,7 @@ overcurrent protection.
 
 ## In simulation
 
-A **temperature slider** appears on the part while simulating, bounded by `tmin`
-and `tmax`. Resistance follows a linear law:
+A **temperature slider** appears on the part while simulating, bounded by `tmin` and `tmax`. Resistance follows a linear law:
 
 ```
 R = r25 x ( 1 + (tc/100) x (T - 25) )
@@ -35,10 +32,8 @@ With the defaults: 2 kΩ at 25 °C, ~1.6 kΩ at 0 °C, ~2.4 kΩ at 50 °C.
 
 ## Usage
 
-- Same wiring as the [NTC](ntc.md): voltage divider with a fixed resistor close
-  to `r25`, midpoint going to an analog input.
-- Unlike the NTC, the voltage read **increases** with temperature when the PTC
-  sits on the high side of the divider.
+- Same wiring as the [NTC](ntc.md): voltage divider with a fixed resistor close to `r25`, midpoint going to an analog input.
+- Unlike the NTC, the voltage read **increases** with temperature when the PTC sits on the high side of the divider.
 - Non-polarized part: the two leads are equivalent.
 
 ---

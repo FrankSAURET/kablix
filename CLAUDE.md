@@ -22,6 +22,7 @@ Frank dessine TOUS les nouveaux composants dans `Composants.svg` (Inkscape, plan
 - **Simulation précisée au cas par cas** par Frank — ne rien inventer.
 - Noms de pattes, propriétés et outils de simulation (curseurs, aide…) sont **traduisibles** et effectivement traduits EN + FR.
 - Tout nouveau composant : **tests `testkablix`** obligatoires — un test Arduino (`<type>-uno`) ET un test Pico (`<type>-pico`), via `_spec.mjs` + `node testkablix/_generate.mjs` (jamais à la main), plus la ligne dans `testkablix/README.md`.
+- **Schéma de test déjà retouché par Frank : garder les emplacements des composants** (`x`/`y` de `_spec.mjs`). Retoucher ou refaire un test ne doit pas redisposer la planche — sauf à la refaire entièrement et différemment. `_generate.mjs` écrase tout : relire la spec avant, et ne régénérer que les fichiers du lot.
 - Tout nouveau composant : **fiche d'aide obligatoire** en FR **et** en EN (`docs/fr/composants/<type>.md` + `docs/en/…`), avec son illustration `docs/img/composants/<type>.webp` produite par `node scripts/_capture-part.mjs <type>` (jamais une capture d'écran à la main). `npm run verify:docs` compte les fiches.
 
 ### Boîtiers partagés (TO-92 et suivants)

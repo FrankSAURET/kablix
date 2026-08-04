@@ -2,9 +2,7 @@
 
 ![Grove Shield (Pico)](../../img/composants/grove-pico.webp)
 
-**Grove Shield for Pi Pico v1.0** expansion board (Seeed Studio). The Pico (or
-Pico W) plugs into the two centre rows; the shield routes its I/O to 10 four-pin
-Grove ports, plus a 2×3 SPI header.
+**Grove Shield for Pi Pico v1.0** expansion board (Seeed Studio). The Pico (or Pico W) plugs into the two centre rows; the shield routes its I/O to 10 four-pin Grove ports, plus a 2×3 SPI header.
 
 ## Grove ports
 
@@ -22,9 +20,7 @@ Grove ports, plus a 2×3 SPI header.
 | **D20** | GND · VCC · D21 · D20 | GP21 / GP20 |
 | **SPI** | SCK · TX · RX / GND · 3V3 · CS | GP2 / GP3 / GP4 / GP5 |
 
-Digital and serial ports expose **two** signals: the second one is the GPIO the
-port is named after. Analog ports share a channel with their neighbour (A1
-repeats A0, A2 repeats A1).
+Digital and serial ports expose **two** signals: the second one is the GPIO the port is named after. Analog ports share a channel with their neighbour (A1 repeats A0, A2 repeats A1).
 
 ## Properties
 
@@ -34,16 +30,11 @@ repeats A0, A2 repeats A1).
 
 ## Usage
 
-- Drop the shield, then **drag the Pico onto it**: it plugs into the socket and
-  stays in front. Grove port wiring then follows the pinout above, with no wire
-  to run back to the Pico.
-- The `pwr` switch sets the VCC rail of the **I2C / UART / D16-D20** ports. Analog
-  ports and the SPI header always stay at 3.3 V.
-- At 5 V, VCC comes from VBUS (USB): signals themselves stay at 3.3 V — check
-  that your Grove module accepts this.
+- Drop the shield, then **drag the Pico onto it**: it plugs into the socket and stays in front. Grove port wiring then follows the pinout above, with no wire to run back to the Pico.
+- The `pwr` switch sets the VCC rail of the **I2C / UART / D16-D20** ports. Analog ports and the SPI header always stay at 3.3 V.
+- At 5 V, VCC comes from VBUS (USB): signals themselves stay at 3.3 V — check that your Grove module accepts this.
 - All grounds (socket, ports, SPI) sit on a single rail.
 
 ---
 
-*Kablix component — pinout taken from the official Seeed schematic
-`Grove_shield_for_PI_PICO v1.0.sch`.*
+*Kablix component — pinout taken from the official Seeed schematic `Grove_shield_for_PI_PICO v1.0.sch`.*

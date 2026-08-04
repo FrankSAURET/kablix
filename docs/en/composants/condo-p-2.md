@@ -2,8 +2,7 @@
 
 ![Electrolytic capacitor](../../img/composants/condo-p-2.webp)
 
-Aluminium electrolytic capacitor, **polarized**. The high-capacitance member of
-the family: exponential charge and discharge, done after 5·R·C.
+Aluminium electrolytic capacitor, **polarized**. The high-capacitance member of the family: exponential charge and discharge, done after 5·R·C.
 
 ## Pins
 
@@ -23,13 +22,10 @@ the family: exponential charge and discharge, done after 5·R·C.
 
 ## Usage
 
-- Drop the **Capacitor** from the library, then set `ctype` to "electrolytic":
-  it has no entry of its own in the palette.
-- Mind the polarity: the light stripe marks the **−** terminal. Wired backwards,
-  a real electrolytic swells then bursts.
+- Drop the **Capacitor** from the library, then set `ctype` to "electrolytic": it has no entry of its own in the palette.
+- Mind the polarity: the light stripe marks the **−** terminal. Wired backwards, a real electrolytic swells then bursts.
 - Supply filtering: 100 µF to 1000 µF at a regulator's output.
-- Long time constant: with 10 kΩ, 100 µF gives τ = 1 s, so 5 s for a full
-  charge — clearly visible in the plotter.
+- Long time constant: with 10 kΩ, 100 µF gives τ = 1 s, so 5 s for a full charge — clearly visible in the plotter.
 
 ---
 

@@ -2,15 +2,11 @@
 
 ![Generic PNP transistor](../../img/composants/pnp.webp)
 
-Prototype of a **PNP** bipolar transistor: everything is reversed compared to
-the NPN. The emitter goes to the supply **+**, the load sits on the collector
-side, and it is driven by **pulling the base low**.
+Prototype of a **PNP** bipolar transistor: everything is reversed compared to the NPN. The emitter goes to the supply **+**, the load sits on the collector side, and it is driven by **pulling the base low**.
 
 ## Pins
 
-The legs are named **1**, **2** and **3**, in drawing order — never E/B/C.
-Changing the electrode assignment therefore renames no pin, and **no wire is
-ever orphaned**.
+The legs are named **1**, **2** and **3**, in drawing order — never E/B/C. Changing the electrode assignment therefore renames no pin, and **no wire is ever orphaned**.
 
 | Pin | Role |
 |--------|------|
@@ -31,8 +27,7 @@ ever orphaned**.
 | `vcemax` | Max Vce (V) | 40 |
 | `icmax` | Max Ic (A) | 0.6 |
 
-A leg carries **one** electrode only: assigning the emitter to the leg already
-taken by the collector **swaps** the two.
+A leg carries **one** electrode only: assigning the emitter to the leg already taken by the collector **swaps** the two.
 
 ## Simulation
 
@@ -42,11 +37,8 @@ taken by the collector **swaps** the two.
 
 ## Usage
 
-- Mind the drive from a 5 V board: a 0 V output does pull the base low, but a
-  "high" 3.3 V output does not turn off a PNP whose emitter sits at 5 V. The
-  NPN is simpler to start with.
-- To import your own drawing, use the **part creator** (simulation model
-  "Bipolar transistor").
+- Mind the drive from a 5 V board: a 0 V output does pull the base low, but a "high" 3.3 V output does not turn off a PNP whose emitter sits at 5 V. The NPN is simpler to start with.
+- To import your own drawing, use the **part creator** (simulation model "Bipolar transistor").
 
 ---
 

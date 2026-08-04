@@ -2,9 +2,7 @@
 
 ![Condensateur polarisé (tantale)](../../img/composants/condo-p-1.webp)
 
-Condensateur tantale goutte, **polarisé**. Même comportement RC que le modèle non
-polarisé — charge et décharge exponentielles, terminées à 5·R·C — mais il ne
-supporte pas d'être branché à l'envers.
+Condensateur tantale goutte, **polarisé**. Même comportement RC que le modèle non polarisé — charge et décharge exponentielles, terminées à 5·R·C — mais il ne supporte pas d'être branché à l'envers.
 
 ## Broches
 
@@ -24,12 +22,10 @@ supporte pas d'être branché à l'envers.
 
 ## Utilisation
 
-- Posez le **Condensateur** de la bibliothèque puis mettez `ctype` sur
-  « polarisé » : le tantale n'a pas d'entrée à lui dans la palette.
+- Posez le **Condensateur** de la bibliothèque puis mettez `ctype` sur « polarisé » : le tantale n'a pas d'entrée à lui dans la palette.
 - Respectez la polarité : **+** au potentiel le plus haut, **−** à la masse.
 - La valeur saisie est inscrite sur le corps du composant.
-- Réservoir d'énergie près d'une charge qui appelle des pointes de courant
-  (servo, moteur), en complément d'un 100 nF de découplage.
+- Réservoir d'énergie près d'une charge qui appelle des pointes de courant (servo, moteur), en complément d'un 100 nF de découplage.
 - Le tantale tient mal la surtension : gardez une bonne marge sur `vmax`.
 
 ---
