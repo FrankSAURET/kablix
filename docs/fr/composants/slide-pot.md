@@ -23,6 +23,7 @@ Potentiomètre linéaire à curseur coulissant. Même principe que le rotatif.
 
 - SIG vers une entrée analogique, lecture `analogRead()`.
 - Régler en simulation : **glisser** le curseur.
+- Pendant la simulation, une étiquette au-dessus du composant dit la position **et** la résistance correspondante — « Position : 25 % (1,175 kΩ) » : ce qu'un ohmmètre lirait entre le curseur et GND.
 
 ---
 

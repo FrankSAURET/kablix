@@ -2,10 +2,7 @@
 
 ![Relais OMRON G5V](../../img/composants/relais.webp)
 
-Relais électromécanique 1 RT (un contact inverseur). Une bobine, alimentée sous
-sa tension nominale, attire une lame et fait passer le commun du contact
-**repos** au contact **travail**. Il sépare complètement le circuit de commande
-(carte) du circuit de puissance (lampe, moteur, 230 V…).
+Relais électromécanique 1 RT (un contact inverseur). Une bobine, alimentée sous sa tension nominale, attire une lame et fait passer le commun du contact **repos** au contact **travail**. Il sépare complètement le circuit de commande (carte) du circuit de puissance (lampe, moteur, 230 V…).
 
 ## Broches
 
@@ -17,8 +14,7 @@ sa tension nominale, attire une lame et fait passer le commun du contact
 | **NO** | Contact **normalement ouvert** (travail) |
 | **Com** | Commun de la lame — sorti des deux côtés du boîtier, c'est la **même** broche |
 
-Les deux pastilles « Com » sont électriquement identiques : câbler l'une ou
-l'autre revient exactement au même, c'est le confort de tracé qui décide.
+Les deux pastilles « Com » sont électriquement identiques : câbler l'une ou l'autre revient exactement au même, c'est le confort de tracé qui décide.
 
 ## Propriétés
 

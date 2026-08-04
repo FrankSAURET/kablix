@@ -11,6 +11,7 @@ import type { PropertyValues } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { analog, GND, VCC, type ElementPin } from './pin.mjs';
 import { clamp } from './utils/clamp.mjs';
+import { potReadout, potReadoutStyles } from './utils/pot-readout.mjs';
 import drawing from './externe/pot.svg';
 
 // Centre de rotation du curseur (unités du dessin = ellipse #knob du SVG retouché).
@@ -26,6 +27,9 @@ export class PotentiometerElement extends LitElement {
   declare step: number;
   declare startDegree: number;
   declare endDegree: number;
+  /** Résistance totale entre les deux extrémités (celle qu'on lit sur le boîtier). */
+  declare ohms: number;
+  declare simulating: boolean;
 
   /** Propriétés réactives lit (remplace les décorateurs @property du code d'origine). */
   static properties = {
@@ -35,6 +39,8 @@ export class PotentiometerElement extends LitElement {
     step: {},
     startDegree: {},
     endDegree: {},
+    ohms: { type: Number },
+    simulating: { type: Boolean },
   };
 
   constructor() {
@@ -45,6 +51,8 @@ export class PotentiometerElement extends LitElement {
     this.step = 1;
     this.startDegree = -135;
     this.endDegree = 135;
+    this.ohms = 10_000;
+    this.simulating = false;
   }
 
   private pressed = false;
@@ -58,7 +66,9 @@ export class PotentiometerElement extends LitElement {
   ];
 
   static get styles() {
-    return css`
+    return [potReadoutStyles, css`
+      /* Repère de l'étiquette de lecture (posée hors flux, cf. pot-readout). */
+      :host { display: inline-block; position: relative; }
       #rotating {
         transform-origin: ${knobCenter.x}px ${knobCenter.y}px;
         transform: rotate(var(--knob-angle, 0deg));
@@ -75,7 +85,7 @@ export class PotentiometerElement extends LitElement {
         stroke: #ccdae3;
         filter: url(#outline);
       }
-    `;
+    `];
   }
 
   mapToMinMax(value: number, min: number, max: number): number {
@@ -115,6 +125,7 @@ export class PotentiometerElement extends LitElement {
         @input="${this.onValueChange}"
       />
       ${this.renderSVG()}
+      ${potReadout(this.simulating, this.value, this.ohms)}
     `;
   }
 

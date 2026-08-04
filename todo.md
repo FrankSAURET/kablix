@@ -1,11 +1,13 @@
 # À faire
 1. Il n'y a pas d'icône visible sur le bouton Afficher/masquer les explicqations de défaut. Je l'ai retouché rien à faire pour toi
-1. La position dit ce qu'elle vaut en ohms** : le commentaire porte « Position : 25 % (1,175 kΩ) ». Affiche ça en dynamique pendant la simulation juste au dessus du composant (au plus pret du composant)
 1. Quand la souris a sélectionné un composant ou un fil (glissé) si elle sort de la fenêtre la vue suit
 1. Le cadre de sélection autour des transistors TO92 n'est pas bon. C'était de ma faute. J'ai corrigé. Importe la nouvelle version.
 1. Quand tu retouche ou refait un schéma de test que j'ai retouché, garde les emplacements des composant (sauf à tout refaire différemment)
+1. Dans les docs il y a des sauts de ligne non nécessaire qui hachent la lecture. Supprime les
+1. J'ai retouché qq docs en français reporte en anglais.
 1. Vsix quand liste ci-dessus terminée
 
+1. ✅ La position dit ce qu'elle vaut en ohms** : le commentaire porte « Position : 25 % (1,175 kΩ) ». Affiche ça en dynamique pendant la simulation juste au dessus du composant (au plus pret du composant)
 1. ✅ J'ai toujours cette erreur : Kablix : impossible d'enregistrer l'éditeur SVG dans les réglages (kablix.svgEditorPath). Impossible d'écrire dans Paramètres utilisateur, car kablix.svgEditorPath n'est pas une configuration inscrite. Du moins au premier lancement. Aprs ça semble marcher. Corrige.
 1. ✅ La visualisation de rotation de l'axe du moteur est incompréhensible on a l'impression que ça clignote. Ici on se fout d'une vitesse de rotation réaliste on veut juste la voir et que si la tension continue ou le rapport cyclique augmente on  ai un impression de vitesse qui augmente
 1. ✅ L'impression de vitesse sur les ventilo n'est pas probante. On ne sse rend pas bien compte de l'accélération ou du ralentissement.
@@ -30,6 +32,14 @@ Voici les préfix à utiliser (traduisible) et respecte la casse : Résistance (
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# v2026.7.257 — le potentiomètre dit ses ohms pendant qu'on le tourne
+1. ✅ **La lecture est sous les yeux** : pendant la simulation, une étiquette collée au bord haut du composant porte « **Position : 25 % (1,175 kΩ)** ». Le pourcentage seul ne dit pas ce qu'on mesure entre le curseur et l'extrémité basse ; ce texte était déjà celui du commentaire de nomenclature, il fallait le voir en tournant le bouton, pas dans un CSV.
+2. ✅ **Les deux potentiomètres** l'affichent : le rotatif et la glissière, par la même étiquette (`utils/pot-readout.mts`). Elle suit le curseur au pixel près pendant la manœuvre, et recalcule les ohms dès qu'on change la valeur nominale dans l'inspecteur.
+3. ✅ **Un seul formateur de grandeurs** : la mise en forme SI (« 1,175 kΩ », virgule décimale en français) quitte `bom.mts` pour `webview/quantity.mts`, désormais partagée par la nomenclature et l'écran. Le banc compare les deux textes — ils ne peuvent plus diverger.
+4. ✅ **Rien en édition, rien à l'arrêt**, et **hors du flux** : l'étiquette ne compte pas dans la taille du composant (sinon son apparition déplacerait le centre de rotation et tout composant tourné se décalerait), et ne prend aucun clic — le bouton reste saisissable jusqu'à son bord.
+5. ✅ **`verify:pot`, nouveau banc** (20 contrôles) : le texte exact demandé par Frank, les préfixes Ω/kΩ/MΩ, la butée à 0 Ω, le repli sans valeur nominale, le point décimal anglais, l'identité avec la nomenclature — puis, dans un vrai navigateur, l'étiquette mesurée au-dessus du dessin (à 1 px), centrée, transparente aux clics et sans effet sur la taille.
+6. ✅ **Fiches d'aide FR + EN** des deux potentiomètres complétées.
 
 # v2026.7.256 — l'éditeur SVG choisi n'est plus perdu au premier lancement
 1. ✅ **« kablix.svgEditorPath n'est pas une configuration inscrite »** : VS Code n'enregistre les réglages d'une extension qu'au **chargement de la fenêtre**. Installer un `.vsix` puis s'en servir dans la foulée laisse donc le réglage inconnu, et l'écriture est refusée — d'où l'alerte au premier lancement seulement, tout rentrant dans l'ordre au redémarrage suivant (constat de Frank : « après ça semble marcher »).

@@ -13,6 +13,7 @@ import type { PropertyValues } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { analog, GND, VCC, type ElementPin } from './pin.mjs';
 import { clamp } from './utils/clamp.mjs';
+import { potReadout, potReadoutStyles } from './utils/pot-readout.mjs';
 import drawing from './externe/slide-pot.svg';
 
 // Translation de base du groupe #tip dans le dessin (position de repos).
@@ -28,6 +29,9 @@ export class SlidePotentiometerElement extends LitElement {
   declare min: number;
   declare max: number;
   declare step: number;
+  /** Résistance totale entre les deux extrémités (celle qu'on lit sur le boîtier). */
+  declare ohms: number;
+  declare simulating: boolean;
 
   /** Propriétés réactives lit (remplace les décorateurs @property du code d'origine). */
   static properties = {
@@ -36,6 +40,8 @@ export class SlidePotentiometerElement extends LitElement {
     min: { type: Number },
     max: { type: Number },
     step: { type: Number },
+    ohms: { type: Number },
+    simulating: { type: Boolean },
   };
 
   constructor() {
@@ -45,6 +51,8 @@ export class SlidePotentiometerElement extends LitElement {
     this.min = 0;
     this.max = 100;
     this.step = 2;
+    this.ohms = 10_000;
+    this.simulating = false;
   }
 
   private dragging = false;
@@ -61,7 +69,9 @@ export class SlidePotentiometerElement extends LitElement {
   }
 
   static get styles() {
-    return css`
+    return [potReadoutStyles, css`
+      /* Repère de l'étiquette de lecture (posée hors flux, cf. pot-readout). */
+      :host { display: inline-block; position: relative; }
       .hide-input {
         position: absolute;
         clip: rect(0 0 0 0);
@@ -73,7 +83,7 @@ export class SlidePotentiometerElement extends LitElement {
         /* some style to add when the element has focus */
         filter: url(#outline);
       }
-    `;
+    `];
   }
 
   update(changedProperties: Map<string, unknown>) {
@@ -108,6 +118,7 @@ export class SlidePotentiometerElement extends LitElement {
         class="hide-input"
       />
       ${this.renderSVG()}
+      ${potReadout(this.simulating, this.value, this.ohms)}
     `;
   }
 
