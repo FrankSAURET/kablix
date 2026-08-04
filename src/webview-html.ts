@@ -158,6 +158,16 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
              deux barres d'outils. Visible pendant la simulation ; clignote sur
              tentative d'édition interdite. -->
         <div id="sim-banner" class="sim-banner" hidden></div>
+        <!-- Tâche longue (autoroutage d'un gros schéma) : voile sur le canvas,
+             avancement et bouton d'annulation. Le voile prend les clics, le
+             schéma ne bouge donc pas pendant le calcul. -->
+        <div id="task" class="task" hidden role="status" aria-live="polite">
+          <div class="task__box">
+            <span id="task-label" class="task__label"></span>
+            <progress id="task-bar" class="task__bar" max="100" value="0"></progress>
+            <button id="task-cancel" class="task__cancel">${l10n.t('Cancel')}</button>
+          </div>
+        </div>
         <svg id="wires" class="wires"></svg>
       </div>
       <div class="splitter" id="splitter-inspector" data-target="inspector" title="${l10n.t('Drag to resize')}"></div>

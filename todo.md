@@ -1,5 +1,4 @@
 # À faire
-1. Quand j'ai cliqué sur routage automatique de CI-Pico.projix, impossible d'en sortir. Y compris en fermant tous les schémas ouverts. Je veux que dans ce cas (tâche trés longue) tu mettes un barre de progression avec un bouton annuler. Du coup fait 3 fichiers de test des CI (CI1, CI2 et CI3). Place les CI à une distance faible de la carte de dev. Pas trop prêt non plus.
 1. Déplace le bouton qui donne le fichier de code à droite du nom du fichier projix - dans la barre généraliste.
 1. La rotation du moteur de l'engrenage du moteur est encore trop rapide de plus l'axe n'est pas le bon et donc l'engrenage bouge. Je pense que tu as pris pour axe le centre de l'axe avec méplat (gris)mais comme il a un méplat ce n'est pas bon. Prend le centre de l'engrenage (jaune)
 1. Tu as vidé le fichire de teste ventilo-pico
@@ -11,9 +10,18 @@
 
 1. ✅ La barre du égale du symbole ≥1 (barre inclinée sous le >) de la porte ou doit être un rectangle plein noir sans contour.
 1. ✅ Le schéma interne du 74xx14 est décalé de 10 px vers la gauche
+1. ✅ Quand j'ai cliqué sur routage automatique de CI-Pico.projix, impossible d'en sortir. Y compris en fermant tous les schémas ouverts. Je veux que dans ce cas (tâche trés longue) tu mettes un barre de progression avec un bouton annuler. Du coup fait 3 fichiers de test des CI (CI1, CI2 et CI3). Place les CI à une distance faible de la carte de dev. Pas trop prêt non plus.
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# v2026.7.265 — l'autoroutage rend la main, et les CI tiennent en trois planches
+1. ✅ **Barre d'avancement et bouton « Annuler » sur l'autoroutage** : l'ancien montage `CI-pico` (12 boîtiers, 168 fils étalés sur 1300 px) figeait la webview **6 minutes 26** — chronométré en navigateur, aucune sortie possible, même en fermant les schémas. Le routage se fait maintenant par tranches de 40 ms : un voile sur le canvas, `n / total` qui monte, et un bouton qui arrête net.
+2. ✅ **L'annulation ne casse rien** : le cœur de l'autoroutage est devenu un générateur qui rend la main fil par fil et reçoit l'ordre d'arrêt. Les fils déjà routés restent routés, les suivants gardent leur tracé, la sélection et l'enregistrement se font quand même. `autoRoute()` (le chemin synchrone) appelle exactement le même code, d'un trait.
+3. ✅ **Le montage des CI éclaté en TROIS planches** : `CI1` (ET et OU), `CI2` (OU EXCLUSIF et NON-ET), `CI3` (NON-OU et NON) — chaque fonction avec son jumeau CMOS (CD4000) et son jumeau TTL (74HC), quatre boîtiers et 56 fils par planche, en Uno et en Pico. Les douze références restent toutes testées.
+4. ✅ **Les boîtiers posés près de la carte**, deux colonnes de deux, à 80 px du bord (assez loin pour laisser un couloir de câblage). Autoroutage mesuré : **3 à 12 s** par planche au lieu de 386 s.
+5. ✅ **Six contrôles de plus dans `npm run verify:route`** (53 au total) : même tracé qu'en synchrone, avancement croissant de 0 au total, la page respire pendant le calcul (un `setInterval` continue de tourner), annulation prise en cours de route, et fils déjà routés conservés.
+6. ℹ️ **L'ancien montage `CI-uno` / `CI-pico` est déplacé dans `A Examiner/testkablix/`** — c'est le cas qui figeait ; il reste consultable, à toi de dire s'il part ou s'il revient comme test de charge.
 
 # v2026.7.264 — le 74xx14 remis dans sa case
 1. ✅ **Le schéma interne du 74xx14 était 10 px trop à gauche** : ses six inverseurs débordaient du boîtier côté patte 1. La translation d'Inkscape (`matrix(…,-499.95,…)`) portait l'écart ; elle passe à `-489.95`, le dessin lui-même ne bouge pas.

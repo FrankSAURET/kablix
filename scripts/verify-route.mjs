@@ -678,6 +678,58 @@ async function run() {
 	ok('autoRoute : le fil posé avec un escalier ressort SANS décroché', jogs(zPoly) === 0, S(zPoly));
 	ok('autoRoute : et avec 4 coudes au plus (bon fil)', lenBends(zPoly).bends <= 4, S(zPoly));
 
+	// --- Autoroutage PROGRESSIF : avancement, annulation, page vivante (v2026.7.265) -
+	// Sur un gros schéma le calcul dure des minutes : il se fait par tranches, avec
+	// barre d'avancement et bouton Annuler. Le tracé obtenu doit être le MÊME que
+	// d'un trait, et la page doit continuer à servir ses tâches entre deux tranches.
+	for (const p of [...editor.diagram.parts]) editor.removePart?.(p.id);
+	await wait(30);
+	const prog = [];
+	for (let i = 0; i < 8; i++) prog.push(editor.addPart('ntc', 100 + (i % 4) * 180, 100 + Math.floor(i / 4) * 200));
+	await wait(120);
+	editor.select(null);
+	// Fils en diagonale : chacun demande un vrai routage (coudes, obstacles).
+	for (let i = 0; i < 4; i++) editor.addWire({ partId: prog[i].id, pin: '2' }, { partId: prog[7 - i].id, pin: '1' });
+	await wait(50);
+	const polys = () => editor.diagram.wires.map((w) =>
+		[editor.hotspotCenter(w.a), ...(w.points ?? []), editor.hotspotCenter(w.b)]
+			.map((p) => Math.round(p.x) + ',' + Math.round(p.y)).join(' ')).join(' | ');
+	editor.select(null); editor.autoRoute();
+	await wait(50);
+	const dUnTrait = polys();
+	// Remise à plat : les fils repartent sans coude, pour router à neuf.
+	for (const w of editor.diagram.wires) { w.points = undefined; editor.positionWire(w); }
+	await wait(30);
+	const vus = [];
+	let ticks = 0;
+	const tic = setInterval(() => { ticks++; }, 0);
+	const r1 = await editor.autoRouteProgressive({ sliceMs: 0, onProgress: (d, t2) => vus.push([d, t2]) });
+	clearInterval(tic);
+	await wait(30);
+	ok('progressif : même tracé que d un trait', polys() === dUnTrait, 'progressif=' + polys());
+	ok('progressif : tous les fils routés, sans annulation',
+		r1.cancelled === false && r1.done === r1.total && r1.total === editor.diagram.wires.length,
+		JSON.stringify(r1));
+	ok('progressif : l avancement monte de 0 au total',
+		vus.length >= 2 && vus[0][0] === 0 && vus[vus.length - 1][0] === r1.total &&
+		vus.every((v, i) => i === 0 || v[0] >= vus[i - 1][0]),
+		JSON.stringify(vus));
+	ok('progressif : la page respire entre deux tranches (macrotâches servies)',
+		ticks > 0, 'tâches servies pendant le calcul = ' + ticks);
+
+	// Annulation : ce qui est routé reste, le reste garde son tracé d'avant.
+	for (const w of editor.diagram.wires) { w.points = undefined; editor.positionWire(w); }
+	await wait(30);
+	// Annulé à la 3e tranche : deux fils sont passés, les autres non.
+	let vues = 0;
+	const r2 = await editor.autoRouteProgressive({ sliceMs: 0, shouldCancel: () => ++vues >= 3 });
+	await wait(30);
+	ok('progressif : annulation prise en cours de route',
+		r2.cancelled === true && r2.done >= 1 && r2.done < r2.total, JSON.stringify(r2));
+	const routes = editor.diagram.wires.filter((w) => (w.points ?? []).length > 0).length;
+	ok('progressif : annulé, les fils déjà routés sont conservés',
+		routes >= 1 && routes <= r2.done, 'fils avec coudes = ' + routes + ' pour ' + r2.done + ' traités');
+
 	const out = document.createElement('pre');
 	out.id = 'measures';
 	out.textContent = JSON.stringify(checks);

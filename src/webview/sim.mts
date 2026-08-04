@@ -2994,7 +2994,41 @@ toggleFaultsBtn.addEventListener('click', () => {
   saveUiState();
 });
 // Autoroutage : fils en angles droits (sélection, sinon tout le schéma).
-autoRouteBtn.addEventListener('click', () => editor.autoRoute());
+// Sur un schéma chargé le calcul dure : il se fait par tranches, avancement
+// affiché et bouton d'annulation — la page reste vivante (v2026.7.265).
+const taskEl = document.getElementById('task') as HTMLDivElement;
+const taskLabel = document.getElementById('task-label') as HTMLSpanElement;
+const taskBar = document.getElementById('task-bar') as HTMLProgressElement;
+const taskCancelBtn = document.getElementById('task-cancel') as HTMLButtonElement;
+let taskCancelled = false;
+taskCancelBtn.addEventListener('click', () => {
+  taskCancelled = true;
+  taskCancelBtn.disabled = true;
+});
+let routing = false;
+autoRouteBtn.addEventListener('click', async () => {
+  if (routing) return;
+  routing = true;
+  taskCancelled = false;
+  taskCancelBtn.disabled = false;
+  taskBar.value = 0;
+  taskLabel.textContent = t('Auto-routing the wires…');
+  taskEl.hidden = false;
+  try {
+    const { done, total, cancelled } = await editor.autoRouteProgressive({
+      onProgress: (fait, sur) => {
+        taskBar.max = Math.max(1, sur);
+        taskBar.value = fait;
+        taskLabel.textContent = `${t('Auto-routing the wires…')} ${fait} / ${sur}`;
+      },
+      shouldCancel: () => taskCancelled,
+    });
+    if (cancelled) flashStatus(t('Auto-routing stopped: {0} of {1} wires routed', String(done), String(total)));
+  } finally {
+    taskEl.hidden = true;
+    routing = false;
+  }
+});
 // Effacer le schéma (annulable avec Ctrl+Z).
 clearCanvasBtn.addEventListener('click', () => {
   if (!editor.isLocked()) editor.clear();

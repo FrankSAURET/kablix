@@ -565,6 +565,9 @@ const FR: Record<string, string> = {
 
   // Barre d'outils du canvas
   'Auto-route the wires (right angles)': 'Autoroutage des fils (angles droits)',
+  'Auto-routing the wires…': 'Autoroutage des fils…',
+  'Auto-routing stopped: {0} of {1} wires routed':
+    'Autoroutage interrompu : {0} fils routés sur {1}',
   'Zoom in': 'Zoom avant',
   'Zoom out': 'Zoom arrière',
   'Drag a pin endpoint onto another pin to reconnect it.':

@@ -3195,6 +3195,53 @@ export class Editor {
    * sélectionnés, sinon sur tout le dessin.
    */
   autoRoute(): void {
+    for (const _ of this.autoRouteSteps()) { /* déroulé d'un trait */ }
+  }
+
+  /**
+   * Autoroutage progressif : le même travail, mais la main est rendue au
+   * navigateur toutes les ~40 ms. Un schéma chargé (CI enfichés, des centaines
+   * de fils) occupait la page plusieurs minutes sans rien afficher, et rien ne
+   * permettait d'en sortir — même en fermant les schémas (Frank, v2026.7.265).
+   * `onProgress` alimente la barre d'avancement, `shouldCancel` l'arrête net :
+   * les fils déjà routés le restent, les suivants gardent leur tracé.
+   */
+  async autoRouteProgressive(opts: {
+    onProgress?: (done: number, total: number) => void;
+    shouldCancel?: () => boolean;
+    /** Durée d'une tranche de calcul, en ms (0 = rendre la main à chaque fil). */
+    sliceMs?: number;
+  } = {}): Promise<{ done: number; total: number; cancelled: boolean }> {
+    const slice = opts.sliceMs ?? 40;
+    let etat = { done: 0, total: 0 };
+    let cancelled = false;
+    let repere = performance.now();
+    const it = this.autoRouteSteps();
+    let pas = it.next();
+    while (!pas.done) {
+      etat = pas.value;
+      // Un fil se route en une fraction de milliseconde : rendre la main à
+      // CHAQUE fil coûterait plus cher que le calcul lui-même.
+      if (performance.now() - repere < slice) { pas = it.next(false); continue; }
+      opts.onProgress?.(etat.done, etat.total);
+      await new Promise<void>((r) => setTimeout(r, 0));
+      repere = performance.now();
+      // L'annulation est rendue AU générateur : il sort de sa boucle et range
+      // proprement (poignées, notification) ce qui est déjà routé.
+      cancelled = opts.shouldCancel?.() === true;
+      pas = it.next(cancelled);
+    }
+    // Le générateur va au bout de lui-même : sans annulation, tout est routé.
+    if (!cancelled) etat = { done: etat.total, total: etat.total };
+    opts.onProgress?.(etat.done, etat.total);
+    return { ...etat, cancelled };
+  }
+
+  /**
+   * Cœur de l'autoroutage, fil par fil : rend `{ done, total }` avant chaque
+   * fil et s'arrête si l'appelant lui repasse `true`.
+   */
+  private *autoRouteSteps(): Generator<{ done: number; total: number }, void, boolean | undefined> {
     if (this.locked) return;
     const sel = this.selectedParts;
     const all = sel.size === 0;
@@ -3249,9 +3296,18 @@ export class Editor {
       }
     }
     let changed = false;
-    for (const wire of this.diagram.wires) {
-      if (wire.auto) continue;
-      if (!all && !(sel.has(wire.a.partId) || sel.has(wire.b.partId))) continue;
+    // Liste arrêtée d'avance : elle donne le total de la barre d'avancement, et
+    // le routage progressif ne doit pas courir après un schéma qui bouge.
+    const todo = this.diagram.wires.filter(
+      (w) => !w.auto && (all || sel.has(w.a.partId) || sel.has(w.b.partId)),
+    );
+    const total = todo.length;
+    let done = 0;
+    for (const wire of todo) {
+      if (yield { done, total }) break; // annulé : on garde ce qui est routé
+      done++;
+      // Le fil a pu disparaître entre deux pauses (suppression au clavier).
+      if (!this.diagram.wires.includes(wire)) continue;
       const a = this.hotspotCenter(wire.a);
       const b = this.hotspotCenter(wire.b);
       if (!a || !b) continue;
@@ -3644,6 +3700,7 @@ export class Editor {
       changed = true;
       this.positionWire(wire);
     }
+    // Vaut aussi pour un arrêt anticipé : ce qui est routé est rangé et enregistré.
     if (this.selection?.kind === 'wire') this.buildHandles(this.selection.id);
     if (changed) this.notify();
   }

@@ -117,19 +117,33 @@ const HEX_GATES = ['a', 'b', 'c', 'd', 'e', 'f'].map((l) => ({ in: [l], out: `${
 
 /** Les douze références de la bibliothèque, dans l'ordre de la palette. */
 const IC_CHIPS = [
-  { id: 'U2', ref: 'CD4081', op: 'and', schema: 'cd4081', pins: CD4000_QUAD_PINS, gates: QUAD_GATES, vcc: 'VDD' },
-  { id: 'U3', ref: 'CD4071', op: 'or', schema: 'cd4071', pins: CD4000_QUAD_PINS, gates: QUAD_GATES, vcc: 'VDD' },
-  { id: 'U4', ref: 'CD4070', op: 'xor', schema: 'cd4070', pins: CD4000_QUAD_PINS, gates: QUAD_GATES, vcc: 'VDD' },
-  { id: 'U5', ref: 'CD4011', op: 'nand', schema: 'cd4011', pins: CD4000_QUAD_PINS, gates: QUAD_GATES, vcc: 'VDD' },
-  { id: 'U6', ref: 'CD4001', op: 'nor', schema: 'cd4001', pins: CD4000_QUAD_PINS, gates: QUAD_GATES, vcc: 'VDD' },
-  { id: 'U7', ref: 'CD40106', op: 'not', schema: 'cd40106', pins: HEX_INV_PINS, gates: HEX_GATES, vcc: 'VDD' },
-  { id: 'U8', ref: '74xx08', op: 'and', schema: '7408', pins: TTL_QUAD_PINS, gates: QUAD_GATES, vcc: 'VCC' },
-  { id: 'U9', ref: '74xx32', op: 'or', schema: '7432', pins: TTL_QUAD_PINS, gates: QUAD_GATES, vcc: 'VCC' },
-  { id: 'U10', ref: '74xx86', op: 'xor', schema: '7486', pins: TTL_QUAD_PINS, gates: QUAD_GATES, vcc: 'VCC' },
-  { id: 'U11', ref: '74xx00', op: 'nand', schema: '7400', pins: TTL_QUAD_PINS, gates: QUAD_GATES, vcc: 'VCC' },
-  { id: 'U12', ref: '74xx02', op: 'nor', schema: '7402', pins: TTL_NOR_PINS, gates: QUAD_GATES, vcc: 'VCC' },
-  { id: 'U13', ref: '74xx14', op: 'not', schema: '7414', pins: HEX_INV_TTL_PINS, gates: HEX_GATES, vcc: 'VCC' },
+  { ref: 'CD4081', op: 'and', schema: 'cd4081', pins: CD4000_QUAD_PINS, gates: QUAD_GATES, vcc: 'VDD' },
+  { ref: 'CD4071', op: 'or', schema: 'cd4071', pins: CD4000_QUAD_PINS, gates: QUAD_GATES, vcc: 'VDD' },
+  { ref: 'CD4070', op: 'xor', schema: 'cd4070', pins: CD4000_QUAD_PINS, gates: QUAD_GATES, vcc: 'VDD' },
+  { ref: 'CD4011', op: 'nand', schema: 'cd4011', pins: CD4000_QUAD_PINS, gates: QUAD_GATES, vcc: 'VDD' },
+  { ref: 'CD4001', op: 'nor', schema: 'cd4001', pins: CD4000_QUAD_PINS, gates: QUAD_GATES, vcc: 'VDD' },
+  { ref: 'CD40106', op: 'not', schema: 'cd40106', pins: HEX_INV_PINS, gates: HEX_GATES, vcc: 'VDD' },
+  { ref: '74xx08', op: 'and', schema: '7408', pins: TTL_QUAD_PINS, gates: QUAD_GATES, vcc: 'VCC' },
+  { ref: '74xx32', op: 'or', schema: '7432', pins: TTL_QUAD_PINS, gates: QUAD_GATES, vcc: 'VCC' },
+  { ref: '74xx86', op: 'xor', schema: '7486', pins: TTL_QUAD_PINS, gates: QUAD_GATES, vcc: 'VCC' },
+  { ref: '74xx00', op: 'nand', schema: '7400', pins: TTL_QUAD_PINS, gates: QUAD_GATES, vcc: 'VCC' },
+  { ref: '74xx02', op: 'nor', schema: '7402', pins: TTL_NOR_PINS, gates: QUAD_GATES, vcc: 'VCC' },
+  { ref: '74xx14', op: 'not', schema: '7414', pins: HEX_INV_TTL_PINS, gates: HEX_GATES, vcc: 'VCC' },
 ];
+const IC_BY_REF = new Map(IC_CHIPS.map((c) => [c.ref, c]));
+
+// Les douze boîtiers d'un seul tenant faisaient un schéma de 170 fils étalé sur
+// 1300 px : l'autoroutage y tournait des minutes (Frank, v2026.7.265). Ils sont
+// répartis sur TROIS planches, chacune tenant deux fonctions avec leur jumeau
+// CMOS (CD4000) et TTL (74HC) — la même fonction, deux familles, deux tensions
+// d'alimentation nommées différemment (VDD / VCC).
+const IC_GROUPS = {
+  CI1: { fonctions: 'ET et OU', refs: ['CD4081', '74xx08', 'CD4071', '74xx32'] },
+  CI2: { fonctions: 'OU EXCLUSIF et NON-ET', refs: ['CD4070', '74xx86', 'CD4011', '74xx00'] },
+  CI3: { fonctions: 'NON-OU et NON', refs: ['CD4001', '74xx02', 'CD40106', '74xx14'] },
+};
+/** Les quatre boîtiers d'une planche, repérés U2..U5 dans l'ordre de pose. */
+const icChips = (groupe) => IC_GROUPS[groupe].refs.map((r, i) => ({ ...IC_BY_REF.get(r), id: `U${i + 2}` }));
 
 // Le brochage de chaque référence complète la table de validité des fils : le
 // nom des pattes vient du schéma interne, il n'y a rien à recopier de plus.
@@ -163,25 +177,45 @@ function icExpected(op, a, b) {
   }
 }
 
-const icParts = (board) => [
-  MCU(board),
-  ...IC_CHIPS.map((c, i) => ({
-    id: c.id, type: c.ref.toLowerCase(),
-    x: 420 + (i % 4) * 300, y: 40 + Math.floor(i / 4) * 260,
-    attrs: {
-      ref: c.ref,
-      family: c.ref.startsWith('74') ? IC_FAMILY : '',
-      text: c.ref.replace('xx', IC_FAMILY),
-      pinnames: c.pins.join(','),
-      schema: c.schema,
-      pkg: 'ic14',
-    },
-  })),
-];
+/** Nom de la fonction, tel qu'il s'affiche dans le moniteur série. */
+const IC_FONCTION = { and: 'ET', or: 'OU', xor: 'OU EXCLUSIF', nand: 'NON-ET', nor: 'NON-OU', not: 'NON' };
+/** Le même repère, côté code : un numéro en C, un mot en Python. */
+const IC_NUM = { and: 0, or: 1, xor: 2, nand: 3, nor: 4, not: 5 };
+const IC_MOT = { and: 'et', or: 'ou', xor: 'ouex', nand: 'nonet', nor: 'nonou', not: 'non' };
+/** L'inscription du boîtier : « CD4081 » tel quel, « 74xx08 » devient « 74HC08 ». */
+const icNom = (c) => c.ref.replace('xx', IC_FAMILY);
 
-const icWires = (board) => {
+// Pose des quatre boîtiers : deux colonnes, deux rangées, posées juste à droite
+// de la carte. Assez PRÈS pour des fils courts (l'autoroutage d'un schéma étalé
+// coûtait des minutes), assez loin pour qu'il reste un couloir entre la carte et
+// la première colonne.
+const IC_GRID = {
+  uno: { x: 420, y: 80, dx: 160, dy: 140 },   // la Uno occupe x 46..340, y 69..271
+  pico: { x: 340, y: 60, dx: 160, dy: 140 },  // le Pico occupe x 46..255, y 69..152
+};
+
+const icParts = (board, groupe) => {
+  const g = IC_GRID[board];
+  return [
+    MCU(board),
+    ...icChips(groupe).map((c, i) => ({
+      id: c.id, type: c.ref.toLowerCase(),
+      x: g.x + (i % 2) * g.dx, y: g.y + Math.floor(i / 2) * g.dy,
+      attrs: {
+        ref: c.ref,
+        family: c.ref.startsWith('74') ? IC_FAMILY : '',
+        text: icNom(c),
+        pinnames: c.pins.join(','),
+        schema: c.schema,
+        pkg: 'ic14',
+      },
+    })),
+  ];
+};
+
+const icWires = (board, groupe) => {
   const p = IC_BOARD[board];
-  return IC_CHIPS.flatMap((c, i) => [
+  return icChips(groupe).flatMap((c, i) => [
     // Alimentation : patte 14 au rail (fil rouge), patte 7 à la masse (fil noir).
     w(c.id, c.vcc, 'U1', p.vcc, 'red'),
     w(c.id, 'GND', 'U1', p.gnds[i % p.gnds.length], 'black'),
@@ -193,13 +227,158 @@ const icWires = (board) => {
   ]);
 };
 
-const icExpect = (board) => ({
+const icExpect = (board, groupe) => ({
   kind: 'logic-ic',
-  reads: Object.fromEntries(IC_CHIPS.map((c, i) => [c.id, IC_BOARD[board].reads[i]])),
+  reads: Object.fromEntries(icChips(groupe).map((c, i) => [c.id, IC_BOARD[board].reads[i]])),
   steps: [[0, 0], [1, 0], [0, 1], [1, 1]].map(([a, b]) => ({
     high: [...(a ? [IC_BOARD[board].a] : []), ...(b ? [IC_BOARD[board].b] : [])],
-    outputs: Object.fromEntries(IC_CHIPS.map((c) => [c.id, icExpected(c.op, a, b)])),
+    outputs: Object.fromEntries(icChips(groupe).map((c) => [c.id, icExpected(c.op, a, b)])),
   })),
+});
+
+/** L'en-tête commun aux six sketches, au commentaire près de la carte. */
+const icEntete = (groupe, board, com) => {
+  const chips = icChips(groupe);
+  const p = IC_BOARD[board];
+  const portes = chips.reduce((n, c) => n + c.gates.length, 0);
+  const volts = board === 'uno' ? '5 V' : '3,3 V';
+  const tension = board === 'uno' ? '' : `${com} Les familles CD4000 et HC acceptent cette tension ; une famille TTL
+${com} (LS, ALS, F...) refuserait.\n`;
+  return `${com} Test des QUATRE circuits integres logiques ${IC_GROUPS[groupe].fonctions} : chaque
+${com} fonction avec son jumeau CMOS (CD4000) et son jumeau TTL (74HC). Tous sont
+${com} des boitiers DIL-14 alimentes en ${volts} : patte 14 (VDD ou VCC) au rail rouge,
+${com} patte 7 (GND) a la masse noire.
+${tension}${com}
+${com} Les quatre boitiers recoivent les MEMES deux entrees : ${p.a} (A) et ${p.b} (B). Les
+${com} portes d'un meme boitier font la meme chose sur les memes entrees : elles
+${com} sortent donc le meme niveau et se relient sans conflit sur UNE broche de
+${com} lecture. Les ${portes} portes du montage sont ainsi toutes cablees, avec six broches.
+${com}
+${com}   ${p.a} = A, ${p.b} = B ; ${p.reads[0]}..${p.reads[3]} : lecture des quatre boitiers.
+${com}
+${com} Le programme balaye les quatre combinaisons A/B et compare chaque sortie a la
+${com} table de verite : « OK » ou « ERREUR ».`;
+};
+
+/** Le sketch Arduino d'une planche : mêmes lignes pour les trois, seule la
+ *  table des boîtiers change. */
+const icCodeUno = (groupe) => {
+  const chips = icChips(groupe);
+  const p = IC_BOARD.uno;
+  const noms = chips.map((c) => `  "${icNom(c).padEnd(7)} ${IC_FONCTION[c.op].padEnd(11)}",`).join('\n');
+  return `${icEntete(groupe, 'uno', '//')}
+const int A_PIN = ${p.a};
+const int B_PIN = ${p.b};
+const int NB = 4;
+// Fonction : 0 ET, 1 OU, 2 OU EXCLUSIF, 3 NON-ET, 4 NON-OU, 5 NON.
+const char* NOMS[NB] = {
+${noms}
+};
+const int LECTURE[NB] = {${p.reads.slice(0, 4).join(', ')}};
+const int FONCTION[NB] = {${chips.map((c) => IC_NUM[c.op]).join(', ')}};
+
+int attendu(int fonction, int a, int b) {
+  switch (fonction) {
+    case 0: return a && b;
+    case 1: return a || b;
+    case 2: return a != b;
+    case 3: return !(a && b);
+    case 4: return !(a || b);
+    default: return !a;   // l'inverseur ne regarde que l'entree A
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(A_PIN, OUTPUT);
+  pinMode(B_PIN, OUTPUT);
+  for (int i = 0; i < NB; i++) pinMode(LECTURE[i], INPUT);
+  Serial.println("Portes logiques : A et B communes aux quatre boitiers.");
+}
+
+void loop() {
+  for (int combo = 0; combo < 4; combo++) {
+    int a = combo & 1;
+    int b = (combo >> 1) & 1;
+    digitalWrite(A_PIN, a);
+    digitalWrite(B_PIN, b);
+    delay(200);   // laisse les sorties se propager
+    Serial.print("A=");
+    Serial.print(a);
+    Serial.print("  B=");
+    Serial.println(b);
+    for (int i = 0; i < NB; i++) {
+      int lu = digitalRead(LECTURE[i]);
+      Serial.print("  ");
+      Serial.print(NOMS[i]);
+      Serial.print(" = ");
+      Serial.print(lu);
+      Serial.println(lu == attendu(FONCTION[i], a, b) ? "   OK" : "   ERREUR");
+    }
+    delay(800);
+  }
+}
+`;
+};
+
+/** Le même programme en MicroPython, pour le Pico. */
+const icCodePico = (groupe) => {
+  const chips = icChips(groupe);
+  const p = IC_BOARD.pico;
+  const gp = (nom) => nom.replace('GP', '');
+  const table = chips
+    .map((c, i) => `    ("${icNom(c).padEnd(7)} ${IC_FONCTION[c.op].padEnd(11)}", ${gp(p.reads[i])}, "${IC_MOT[c.op]}"),`)
+    .join('\n');
+  return `${icEntete(groupe, 'pico', '#')}
+from machine import Pin
+import time
+
+a_pin = Pin(${gp(p.a)}, Pin.OUT)
+b_pin = Pin(${gp(p.b)}, Pin.OUT)
+
+# nom du boitier, broche de lecture, fonction logique
+BOITIERS = [
+${table}
+]
+lectures = [Pin(broche, Pin.IN) for (_, broche, _) in BOITIERS]
+
+
+def attendu(fonction, a, b):
+    if fonction == "et":
+        return a & b
+    if fonction == "ou":
+        return a | b
+    if fonction == "ouex":
+        return a ^ b
+    if fonction == "nonet":
+        return 1 - (a & b)
+    if fonction == "nonou":
+        return 1 - (a | b)
+    return 1 - a   # l'inverseur ne regarde que l'entree A
+
+
+print("Portes logiques : A et B communes aux quatre boitiers.")
+while True:
+    for a, b in ((0, 0), (1, 0), (0, 1), (1, 1)):
+        a_pin.value(a)
+        b_pin.value(b)
+        time.sleep(0.2)   # laisse les sorties se propager
+        print("A=%d  B=%d" % (a, b))
+        for i, (nom, _, fonction) in enumerate(BOITIERS):
+            lu = lectures[i].value()
+            etat = "OK" if lu == attendu(fonction, a, b) else "ERREUR"
+            print("  %s = %d   %s" % (nom, lu, etat))
+        time.sleep(0.8)
+`;
+};
+
+/** Une planche de CI, côté Uno ou côté Pico : tout se déduit du groupe. */
+const icTest = (groupe, board) => test({
+  name: `${groupe}-${board}`, board, ext: board === 'uno' ? 'ino' : 'py',
+  parts: icParts(board, groupe),
+  wires: () => icWires(board, groupe),
+  expect: icExpect(board, groupe),
+  code: board === 'uno' ? icCodeUno(groupe) : icCodePico(groupe),
 });
 
 // ================================================================================
@@ -1897,81 +2076,9 @@ void loop() {
 `,
   }),
 
-  test({
-    name: 'CI-uno', board: 'uno', ext: 'ino',
-    parts: icParts('uno'),
-    wires: () => icWires('uno'),
-    expect: icExpect('uno'),
-    code: `// Test des DOUZE circuits integres logiques de la bibliotheque, en un seul
-// montage. Tous sont des boitiers DIL-14 alimentes en 5 V : patte 14 (VDD ou
-// VCC) au rail rouge, patte 7 (GND) a la masse noire.
-//
-// Les douze boitiers recoivent les MEMES deux entrees : D2 (A) et D3 (B). Les
-// quatre portes d'un meme boitier (six pour les inverseurs) font la meme chose
-// sur les memes entrees : elles sortent donc le meme niveau et se relient sans
-// conflit sur UNE broche de lecture. Les 52 portes du montage sont ainsi
-// toutes cablees, avec seulement quatorze broches.
-//
-//   D2 = A, D3 = B ; D4..D13, A0 et A1 : lecture des douze boitiers.
-//
-// Le programme balaye les quatre combinaisons A/B et compare chaque sortie a la
-// table de verite : « OK » ou « ERREUR » sur le moniteur serie.
-const int A_PIN = 2;
-const int B_PIN = 3;
-const int NB = 12;
-// Fonction : 0 ET, 1 OU, 2 OU EXCLUSIF, 3 NON-ET, 4 NON-OU, 5 NON.
-const char* NOMS[NB] = {
-  "CD4081  ET        ", "CD4071  OU        ", "CD4070  OU EXCLUSIF",
-  "CD4011  NON-ET    ", "CD4001  NON-OU    ", "CD40106 NON       ",
-  "74HC08  ET        ", "74HC32  OU        ", "74HC86  OU EXCLUSIF",
-  "74HC00  NON-ET    ", "74HC02  NON-OU    ", "74HC14  NON       ",
-};
-const int LECTURE[NB] = {4, 5, 6, 7, 8, 9, 10, 11, 12, 13, A0, A1};
-const int FONCTION[NB] = {0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5};
-
-int attendu(int fonction, int a, int b) {
-  switch (fonction) {
-    case 0: return a && b;
-    case 1: return a || b;
-    case 2: return a != b;
-    case 3: return !(a && b);
-    case 4: return !(a || b);
-    default: return !a;   // l'inverseur ne regarde que l'entree A
-  }
-}
-
-void setup() {
-  Serial.begin(115200);
-  pinMode(A_PIN, OUTPUT);
-  pinMode(B_PIN, OUTPUT);
-  for (int i = 0; i < NB; i++) pinMode(LECTURE[i], INPUT);
-  Serial.println("Portes logiques : A et B communes aux douze boitiers.");
-}
-
-void loop() {
-  for (int combo = 0; combo < 4; combo++) {
-    int a = combo & 1;
-    int b = (combo >> 1) & 1;
-    digitalWrite(A_PIN, a);
-    digitalWrite(B_PIN, b);
-    delay(200);   // laisse les sorties se propager
-    Serial.print("A=");
-    Serial.print(a);
-    Serial.print("  B=");
-    Serial.println(b);
-    for (int i = 0; i < NB; i++) {
-      int lu = digitalRead(LECTURE[i]);
-      Serial.print("  ");
-      Serial.print(NOMS[i]);
-      Serial.print(" = ");
-      Serial.print(lu);
-      Serial.println(lu == attendu(FONCTION[i], a, b) ? "   OK" : "   ERREUR");
-    }
-    delay(800);
-  }
-}
-`,
-  }),
+  icTest('CI1', 'uno'),
+  icTest('CI2', 'uno'),
+  icTest('CI3', 'uno'),
 ];
 
 // ================================================================================
@@ -3637,78 +3744,9 @@ while True:
 `,
   }),
 
-  test({
-    name: 'CI-pico', board: 'pico', ext: 'py',
-    parts: icParts('pico'),
-    wires: () => icWires('pico'),
-    expect: icExpect('pico'),
-    code: `# Test des DOUZE circuits integres logiques de la bibliotheque, en un seul
-# montage. Tous sont des boitiers DIL-14 alimentes en 3,3 V : patte 14 (VDD ou
-# VCC) au rail rouge, patte 7 (GND) a la masse noire. Les familles CD4000 et HC
-# acceptent cette tension ; une famille TTL (LS, ALS, F...) refuserait.
-#
-# Les douze boitiers recoivent les MEMES deux entrees : GP2 (A) et GP3 (B). Les
-# quatre portes d'un meme boitier (six pour les inverseurs) font la meme chose
-# sur les memes entrees : elles sortent donc le meme niveau et se relient sans
-# conflit sur UNE broche de lecture. Les 52 portes du montage sont ainsi toutes
-# cablees, avec seulement quatorze broches.
-#
-#   GP2 = A, GP3 = B ; GP4..GP15 : lecture des douze boitiers.
-#
-# Le programme balaye les quatre combinaisons A/B et compare chaque sortie a la
-# table de verite : « OK » ou « ERREUR ».
-from machine import Pin
-import time
-
-a_pin = Pin(2, Pin.OUT)
-b_pin = Pin(3, Pin.OUT)
-
-# nom du boitier, broche de lecture, fonction logique
-BOITIERS = [
-    ("CD4081  ET        ", 4, "et"),
-    ("CD4071  OU        ", 5, "ou"),
-    ("CD4070  OU EXCLUSIF", 6, "ouex"),
-    ("CD4011  NON-ET    ", 7, "nonet"),
-    ("CD4001  NON-OU    ", 8, "nonou"),
-    ("CD40106 NON       ", 9, "non"),
-    ("74HC08  ET        ", 10, "et"),
-    ("74HC32  OU        ", 11, "ou"),
-    ("74HC86  OU EXCLUSIF", 12, "ouex"),
-    ("74HC00  NON-ET    ", 13, "nonet"),
-    ("74HC02  NON-OU    ", 14, "nonou"),
-    ("74HC14  NON       ", 15, "non"),
-]
-lectures = [Pin(broche, Pin.IN) for (_, broche, _) in BOITIERS]
-
-
-def attendu(fonction, a, b):
-    if fonction == "et":
-        return a & b
-    if fonction == "ou":
-        return a | b
-    if fonction == "ouex":
-        return a ^ b
-    if fonction == "nonet":
-        return 1 - (a & b)
-    if fonction == "nonou":
-        return 1 - (a | b)
-    return 1 - a   # l'inverseur ne regarde que l'entree A
-
-
-print("Portes logiques : A et B communes aux douze boitiers.")
-while True:
-    for a, b in ((0, 0), (1, 0), (0, 1), (1, 1)):
-        a_pin.value(a)
-        b_pin.value(b)
-        time.sleep(0.2)   # laisse les sorties se propager
-        print("A=%d  B=%d" % (a, b))
-        for i, (nom, _, fonction) in enumerate(BOITIERS):
-            lu = lectures[i].value()
-            etat = "OK" if lu == attendu(fonction, a, b) else "ERREUR"
-            print("  %s = %d   %s" % (nom, lu, etat))
-        time.sleep(0.8)
-`,
-  }),
+  icTest('CI1', 'pico'),
+  icTest('CI2', 'pico'),
+  icTest('CI3', 'pico'),
 ];
 
 export const TESTS = [...BOARD_TESTS, ...AVR_TESTS, ...PICO_TESTS];
