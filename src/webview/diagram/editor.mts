@@ -50,7 +50,7 @@ import { groveSocketPins } from './grove-shield.mjs';
 import { internalWiringSvg, type PinPoint } from './internal-wiring.mjs';
 import { hasPinout, pinoutPoster, loadPinoutSvg } from './pinout.mjs';
 import { BOARD_W, BOARD_H } from '../composants/pico-board.mjs';
-import { nameEquipotentials, type Diagram, type Endpoint, type Part, type Wire } from './model.mjs';
+import { buildNets, nameEquipotentials, type Diagram, type Endpoint, type Part, type Wire } from './model.mjs';
 import { DEFAULT_WIRE_COLORS, DUPONT_COLORS, dupontHex, roundedWirePath, snapPoint, type XY } from './geometry.mjs';
 import { startAutoPan, type AutoPan } from './autopan.mjs';
 import { PartCreator } from './creator.mjs';
@@ -1860,16 +1860,9 @@ export class Editor {
    * dans l'inspecteur (la couleur n'est jamais ré-imposée).
    */
   private autoColor(a: Endpoint, b: Endpoint): string {
-    const roles = [a, b].map((e) => {
-      const part = this.diagram.parts.find((p) => p.id === e.partId);
-      if (!part) return 'other';
-      // Potentiomètre : ses extrémités ne sont pas des rails d'alimentation, on
-      // n'impose donc ni rouge ni noir (cohérent avec l'affichage des pastilles).
-      if (partDef(part.type).kind === 'potentiometer') return 'other';
-      return pinElectricalRole(part.type, e.pin);
-    });
-    if (roles.includes('gnd')) return 'black';
-    if (roles.includes('vcc')) return 'red';
+    const power = this.powerRoleOf([a, b]);
+    if (power === 'gnd') return 'black';
+    if (power === 'vcc') return 'red';
     // LED RGB : chaque canal prend d'office la couleur qu'il pilote
     // (R → rouge, G → vert, B → bleu), plus lisible pour les élèves.
     const rgb = this.rgbLedChannelColor(a) ?? this.rgbLedChannelColor(b);
@@ -1904,14 +1897,50 @@ export class Editor {
 
   /** Couleur d'alimentation d'un fil ('black' si masse, 'red' si VCC), sinon null. */
   private powerColorOf(wire: Wire): string | null {
-    for (const e of [wire.a, wire.b]) {
-      const part = this.diagram.parts.find((p) => p.id === e.partId);
-      if (!part || partDef(part.type).kind === 'potentiometer') continue;
-      const role = pinElectricalRole(part.type, e.pin);
-      if (role === 'gnd') return 'black';
-      if (role === 'vcc') return 'red';
+    const role = this.powerRoleOf([wire.a, wire.b]);
+    return role === 'gnd' ? 'black' : role === 'vcc' ? 'red' : null;
+  }
+
+  /**
+   * Rôle d'alimentation d'un fil : celui de ses propres extrémités, sinon celui
+   * d'une broche d'alim posée sur le MÊME nœud électrique. Un CI (ou n'importe
+   * quel composant) enfiché sur une platine d'essai amène son VCC/GND à toute
+   * la bande : les fils plantés dans les autres trous de cette bande doivent en
+   * prendre la couleur. La masse l'emporte quand le nœud voit les deux.
+   */
+  private powerRoleOf(ends: readonly Endpoint[]): 'gnd' | 'vcc' | null {
+    let vcc = false;
+    for (const e of ends) {
+      const role = this.pinPowerRole(e);
+      if (role === 'gnd') return 'gnd';
+      if (role === 'vcc') vcc = true;
     }
-    return null;
+    if (vcc) return 'vcc';
+    // Rien en direct : on interroge le nœud. `joinResistors: false` évite qu'une
+    // alim traverse une résistance (l'autre patte n'est plus un rail d'alim).
+    const nets = buildNets(this.diagram, false);
+    const targets = new Set(ends.map((e) => nets.netOf(e)));
+    for (const w of this.diagram.wires) {
+      for (const e of [w.a, w.b]) {
+        if (!targets.has(nets.netOf(e))) continue;
+        const role = this.pinPowerRole(e);
+        if (role === 'gnd') return 'gnd';
+        if (role === 'vcc') vcc = true;
+      }
+    }
+    return vcc ? 'vcc' : null;
+  }
+
+  /**
+   * Rôle d'alim d'une broche ('gnd' / 'vcc'), sinon null. Potentiomètre exclu :
+   * ses extrémités ne sont pas des rails d'alimentation (cohérent avec
+   * l'affichage des pastilles).
+   */
+  private pinPowerRole(e: Endpoint): 'gnd' | 'vcc' | null {
+    const part = this.diagram.parts.find((p) => p.id === e.partId);
+    if (!part || partDef(part.type).kind === 'potentiometer') return null;
+    const role = pinElectricalRole(part.type, e.pin);
+    return role === 'gnd' || role === 'vcc' ? role : null;
   }
 
   private nextColor(): string {

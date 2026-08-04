@@ -1,5 +1,4 @@
 # À faire
-1. Un CI posé sur une platine d'essai ne "propage" pas la couleur des power et gnd au fils relié dans les trous de la ligne de la platine concernée.
 1. La barre du égale du symbole ≥1 (barre inclinée sous le >) de la porte ou doit être un rectangle plein noir sans contour.
 1. Le schéma interne du 74xx14 est décalé de 10 px vers la gauche
 1. Quand j'ai cliqué sur routage automatique de CI-Pico.projix, impossible d'en sortir. Y compris en fermant tous les schémas ouverts. Je veux que dans ce cas (tâche trés longue) tu mettes un barre de progression avec un bouton annuler. Du coup fait 3 fichiers de test des CI (CI1, CI2 et CI3). Place les CI à une distance faible de la carte de dev. Pas trop prêt non plus.
@@ -9,8 +8,10 @@
 1. Pour les potentiomètres, met les 3 valeurs %, Rbase et Rreste par exemple Position : 66 % (6,6 kΩ|3,4 kΩ). 
 1. la vue suit la souris qui sort de la fenêtre : C'est ça mais ça ne doit pas fonctionner quand on glisse et pose un composant à partir de la bibliothèque. Et actuellement ça ne fonctionne pas quand c'est une connection de l'extrémité d'un fil  que l'onveut déplacer
 1. Le défilement des transistors dans modèles correspondant doit se faire par bond d'une ligne interne
+1. J'ai mis à jour readme en français, fait le pour l'anglais.
 1. Vsix
 
+1. ✅ Un CI posé sur une platine d'essai ne "propage" pas la couleur des power et gnd au fils relié dans les trous de la ligne de la platine concernée.
 1. ✅ A partir de ce qu'on a fait dernierement pour la création de composants (fichier composants.svg ...) fais un tuto ( schéma, schéma interne et simuilation) pour en créer d'autre. Avec et sans IA. Dispo dans doc uniquement sur github. Traduit en anglais
 1. ✅ Comit + push
 1. ✅ Vsix quand liste ci-dessus terminée → `kablix-2026.7.260.vsix` (3,37 Mo, 261 fichiers)
@@ -37,14 +38,18 @@ Si elle est inférieur le composant ne marche pas, si elle est supérieure le co
 1. ✅ Retouche ce texte LED / 7 seg / barre / RGB grillés (💥) → « Cette LED a grillé : sans résistance série (ou avec une trop faible), le courant dépasse ce que la jonction supporte.  »
 1. ✅ Vsix quand liste ci-dessus terminée → `kablix-2026.7.248.vsix` (3,18 Mo, 220 fichiers)
     
-1. ✅ ouvrir un svg dans l'éditeur de composant ne fonctionne pas il ne trouve jamais l'application. Je n'ai pas non plus trouvé de propriété kablix : editeur svg par defaut dans le settings.json et rien n'est sauvegardé.
-1. ✅ Dans le menu hamburger, met un séparateur en dessous de exporter la liste des composants (CSV)
-1. ✅ le choix d'une application pour l'éditeur svg doit ouvrir dans le dossier programme par défaut (selon OS).
+
 1. ✅ Nommage des composants comme suit : PréfixXX par exemple R1 avec un suivit sur un schéma. Première résistance = R1, deuxième R2 ...
 Voici les préfix à utiliser (traduisible) et respecte la casse : Résistance (R) [ y compris, ctn, ctp, LDR et autres], Condensateur (C), Led (L), transistor (T), Carte à µc (U), Module [platine d'essai ou carte grove inactive, carte SD, carte 16 Pwm : toutes cartes complexes qui ne rentre pas dans les autres catégories] (Mod), Tous les afficheurs (Aff), Bouton poussoir (BP), Clavier (Cl), Interrupteur (Inter), Potentiometre (Pot), Joystick(Pot), Capteur (Capt), Actionneur (Act), 
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# v2026.7.262 — la bande de la platine porte sa couleur d'alimentation
+1. ✅ **Un CI enfiché amène son VCC / sa masse à toute la bande** : le fil piqué dans un autre trou de la même ligne naît rouge (ou noir), comme s'il touchait la broche d'alim elle-même. Jusqu'ici la couleur automatique ne regardait que le rôle des DEUX extrémités du fil : un trou de platine n'étant qu'un trou, le fil sortait en couleur de nappe.
+2. ✅ **Une seule règle pour les deux moments** : `powerRoleOf` sert à la création du fil (`autoColor`) ET au rebranchement d'une extrémité (`powerColorOf`). Rôle direct d'abord, sinon rôle vu sur le MÊME nœud électrique (fils implicites de l'enfichage compris), la masse l'emportant sur le VCC.
+3. ✅ **L'alimentation ne traverse pas une résistance** : la netlist est demandée avec `joinResistors: false`, l'autre patte n'est pas un rail (sinon tout un montage à pont diviseur virait au rouge).
+4. ✅ **Test de régression `npm run verify:wirecolor`** (11 contrôles, vrai éditeur en Chrome headless) : 74xx00 enfiché sur une demi-platine, fils rouges/noirs sur les bandes VCC et GND, contre-épreuve sur une bande d'entrée logique, comportement d'origine préservé (5V et GND de carte), non-propagation à travers une résistance, et recoloriage au rebranchement. Ajouté à `verify:all`.
 
 # v2026.7.261 — le tuto de création de composants, à la main ou avec une IA
 1. ✅ **Nouveau guide `docs/{fr,en}/Creating-components.md`** : la chaîne complète suivie depuis la v2026.7.229, du dessin dans `Composants.svg` au composant posable, câblé, simulé, testé et documenté. Dix étapes, une par fichier à toucher : extraction, élément Lit, catalogue, préfixe de repère, schéma interne, comportement de simulation, traductions, tests Uno + Pico, fiche d'aide FR/EN, livraison.
