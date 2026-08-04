@@ -340,6 +340,43 @@ rows.push({
 		!!bundle['Open settings'],
 	detail: 'erreur avalée par un catch vide',
 });
+// v2026.7.255 : « kablix.svgEditorPath n'est pas une configuration inscrite ».
+// VS Code n'enregistre les réglages d'une extension qu'au chargement de la
+// fenêtre : un .vsix installé puis utilisé dans la foulée refuse l'écriture,
+// sans que rien ne soit cassé. Le choix passe donc par un filet (mémoire de
+// l'extension), réinscrit au démarrage suivant, et l'utilisateur n'est plus
+// alerté pour une situation qui se répare toute seule.
+const extSrc = readFileSync(join(ROOT, 'src', 'extension.ts'), 'utf8');
+rows.push({
+	name: 'éditeur SVG : filet de mémoire branché à l’activation',
+	ok: /export function useSvgEditorMemory\(memory: vscode\.Memento\)/.test(panelSrc) &&
+		/useSvgEditorMemory\(context\.globalState\)/.test(extSrc) &&
+		/useSvgEditorMemory/.test(extSrc.slice(0, extSrc.indexOf('export function activate'))),
+	detail: 'globalState non confiée au panneau',
+});
+{
+	const corps = panelSrc.slice(panelSrc.indexOf('async function rememberSvgEditor'),
+		panelSrc.indexOf('export async function chooseSvgEditor'));
+	rows.push({
+		name: 'éditeur SVG : le choix est rangé dans le filet AVANT d’écrire le réglage',
+		ok: corps.indexOf('svgEditorMemory?.update(SVG_EDITOR_KEY') > 0 &&
+			corps.indexOf('svgEditorMemory?.update(SVG_EDITOR_KEY') <
+			corps.indexOf(".update('svgEditorPath'"),
+		detail: 'le filet ne se pose qu’après l’échec',
+	});
+	rows.push({
+		name: 'éditeur SVG : plus d’alerte quand le filet a retenu le choix',
+		ok: /if \(svgEditorMemory\) \{[\s\S]*?return true;/.test(corps) &&
+			corps.indexOf('if (svgEditorMemory) {') < corps.indexOf('could not save the SVG editor'),
+		detail: 'la popup passe avant le filet',
+	});
+}
+rows.push({
+	name: 'éditeur SVG : le filet est relu et RÉINSCRIT au démarrage suivant',
+	ok: /svgEditorMemory\?\.get<string>\(SVG_EDITOR_KEY\)/.test(panelSrc) &&
+		/const filet = [\s\S]{0,120}await rememberSvgEditor\(filet\)/.test(panelSrc),
+	detail: 'choix gardé mais jamais remis dans les réglages',
+});
 
 // --- Le module de détection, exécuté pour de vrai (aucune dépendance vscode) --
 {

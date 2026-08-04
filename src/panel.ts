@@ -60,11 +60,25 @@ function samePath(a: string, b: string): boolean {
   return !!a.trim() && norm(a) === norm(b);
 }
 
+/** Clé du repli : le choix de l'éditeur SVG gardé par l'extension elle-même. */
+const SVG_EDITOR_KEY = 'kablix.svgEditorPath';
+
+/**
+ * Mémoire globale de l'extension, confiée par `activate`. Elle sert de FILET au
+ * réglage : elle, on peut toujours y écrire.
+ */
+let svgEditorMemory: vscode.Memento | undefined;
+
+/** Branche le filet du choix de l'éditeur SVG (appelé une fois, à l'activation). */
+export function useSvgEditorMemory(memory: vscode.Memento): void {
+  svgEditorMemory = memory;
+}
+
 /**
  * Écrit le chemin retenu dans `kablix.svgEditorPath` (réglage utilisateur) et
  * VÉRIFIE la relecture : une écriture refusée (réglage verrouillé par une
- * stratégie, profil en lecture seule) doit se voir tout de suite, sinon Kablix
- * redemande l'éditeur à chaque retouche sans qu'on sache pourquoi.
+ * stratégie, profil en lecture seule) doit se voir, sinon Kablix redemande
+ * l'éditeur à chaque retouche sans qu'on sache pourquoi.
  *
  * Trois pièges faisaient crier « impossible d'enregistrer » alors que le réglage
  * ÉTAIT bien écrit (retour de Frank, v2026.7.250) :
@@ -74,10 +88,20 @@ function samePath(a: string, b: string): boolean {
  *     casse et mélange `\` et `/` ;
  *   - on relisait trop tôt : le modèle de configuration se met à jour un tick
  *     après la promesse, d'où une deuxième chance avant de conclure.
- * Et si l'écriture échoue pour de bon, on DIT pourquoi (l'erreur était avalée)
- * et on offre d'ouvrir le réglage pour le renseigner à la main.
+ *
+ * Restait un cas où l'écriture échoue SANS que rien ne soit cassé (retour de
+ * Frank, v2026.7.255) : « kablix.svgEditorPath n'est pas une configuration
+ * inscrite ». VS Code n'enregistre les réglages d'une extension qu'au
+ * chargement de la fenêtre — installer un `.vsix` puis s'en servir tout de
+ * suite laisse donc le réglage inconnu jusqu'au redémarrage suivant. D'où le
+ * FILET : le choix est d'abord rangé dans la mémoire de l'extension, où rien ne
+ * peut le refuser, et l'inscription est retentée au prochain démarrage
+ * (`resolveSvgEditor`). Plus rien à signaler à l'utilisateur tant que le filet
+ * a fait son office.
  */
 async function rememberSvgEditor(fsPath: string): Promise<boolean> {
+  // Le filet d'abord : quoi qu'il advienne du réglage, le choix est retenu.
+  void svgEditorMemory?.update(SVG_EDITOR_KEY, fsPath);
   let cause = '';
   try {
     await vscode.workspace
@@ -92,6 +116,13 @@ async function rememberSvgEditor(fsPath: string): Promise<boolean> {
       '';
     if (samePath(ecrit, fsPath)) return true;
     await new Promise<void>((resolve) => setTimeout(resolve, 50));
+  }
+  if (svgEditorMemory) {
+    // Le choix est sauf, l'utilisateur n'a rien à faire : une popup ne servirait
+    // qu'à l'inquiéter. La trace reste dans le journal de l'extension.
+    console.warn(`Kablix : réglage svgEditorPath non écrit (${cause || 'refus silencieux'}) —` +
+      ' le choix est gardé par l’extension et sera réinscrit au prochain démarrage.');
+    return true;
   }
   const message = l10n.t(
     'Kablix: could not save the SVG editor in the settings (kablix.svgEditorPath).'
@@ -146,6 +177,17 @@ async function resolveSvgEditor(): Promise<string> {
   const config = vscode.workspace.getConfiguration('kablix');
   const saved = (config.get<string>('svgEditorPath') ?? '').trim();
   if (saved && existsSync(saved)) return saved;
+  if (!saved) {
+    // Choix gardé par le filet quand le réglage n'était pas encore inscrit
+    // (extension installée sans rechargement de fenêtre) : on le reprend, et
+    // c'est l'occasion de l'inscrire pour de bon — la fenêtre a redémarré
+    // depuis, le réglage existe maintenant.
+    const filet = (svgEditorMemory?.get<string>(SVG_EDITOR_KEY) ?? '').trim();
+    if (filet && existsSync(filet)) {
+      await rememberSvgEditor(filet);
+      return filet;
+    }
+  }
   if (saved) {
     // Application déplacée ou désinstallée : on en cherche une autre plutôt
     // que d'échouer en silence.

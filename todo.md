@@ -1,12 +1,12 @@
 # À faire
 1. Il n'y a pas d'icône visible sur le bouton Afficher/masquer les explicqations de défaut. Je l'ai retouché rien à faire pour toi
-1. J'ai toujours cette erreur : Kablix : impossible d'enregistrer l'éditeur SVG dans les réglages (kablix.svgEditorPath). Impossible d'écrire dans Paramètres utilisateur, car kablix.svgEditorPath n'est pas une configuration inscrite. Du moins au premier lancement. Aprs ça semble marcher. Corrige.
 1. La position dit ce qu'elle vaut en ohms** : le commentaire porte « Position : 25 % (1,175 kΩ) ». Affiche ça en dynamique pendant la simulation juste au dessus du composant (au plus pret du composant)
 1. Quand la souris a sélectionné un composant ou un fil (glissé) si elle sort de la fenêtre la vue suit
 1. Le cadre de sélection autour des transistors TO92 n'est pas bon. C'était de ma faute. J'ai corrigé. Importe la nouvelle version.
 1. Quand tu retouche ou refait un schéma de test que j'ai retouché, garde les emplacements des composant (sauf à tout refaire différemment)
 1. Vsix quand liste ci-dessus terminée
 
+1. ✅ J'ai toujours cette erreur : Kablix : impossible d'enregistrer l'éditeur SVG dans les réglages (kablix.svgEditorPath). Impossible d'écrire dans Paramètres utilisateur, car kablix.svgEditorPath n'est pas une configuration inscrite. Du moins au premier lancement. Aprs ça semble marcher. Corrige.
 1. ✅ La visualisation de rotation de l'axe du moteur est incompréhensible on a l'impression que ça clignote. Ici on se fout d'une vitesse de rotation réaliste on veut juste la voir et que si la tension continue ou le rapport cyclique augmente on  ai un impression de vitesse qui augmente
 1. ✅ L'impression de vitesse sur les ventilo n'est pas probante. On ne sse rend pas bien compte de l'accélération ou du ralentissement.
 1. ✅ CI :
@@ -30,6 +30,13 @@ Voici les préfix à utiliser (traduisible) et respecte la casse : Résistance (
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# v2026.7.256 — l'éditeur SVG choisi n'est plus perdu au premier lancement
+1. ✅ **« kablix.svgEditorPath n'est pas une configuration inscrite »** : VS Code n'enregistre les réglages d'une extension qu'au **chargement de la fenêtre**. Installer un `.vsix` puis s'en servir dans la foulée laisse donc le réglage inconnu, et l'écriture est refusée — d'où l'alerte au premier lancement seulement, tout rentrant dans l'ordre au redémarrage suivant (constat de Frank : « après ça semble marcher »).
+2. ✅ **Un filet qui, lui, accepte toujours** : le choix est d'abord rangé dans la mémoire de l'extension (`context.globalState`, branchée à l'activation par `useSvgEditorMemory`) **avant** la tentative d'écriture du réglage. Quoi qu'il arrive au réglage, l'éditeur retenu n'est pas perdu.
+3. ✅ **Réinscrit tout seul au démarrage suivant** : `resolveSvgEditor` relit le filet quand le réglage est vide et le réécrit dans les Paramètres utilisateur — la fenêtre a redémarré depuis, le réglage existe désormais. L'utilisateur n'a rien à refaire.
+4. ✅ **Plus d'alerte pour rien** : la popup « impossible d'enregistrer » ne s'affiche plus tant que le filet a fait son office ; la cause reste tracée dans le journal de l'extension. Elle demeure pour le vrai cas de blocage (réglage verrouillé par une stratégie), avec son accès aux Paramètres.
+5. ✅ **Quatre contrôles de plus dans `verify:creator-ui`** (63 au total) : filet branché à l'activation, choix rangé AVANT l'écriture du réglage, aucune alerte quand le filet a retenu, et relecture + réinscription au démarrage suivant.
 
 # v2026.7.255 — le moteur et le ventilateur tournent au ralenti, et ça se voit
 1. ✅ **La rotation dit enfin la vitesse** : à 3000 tr/min une hélice à 7 pales en fait défiler 350 par seconde, et un pignon 6000 tr/min bien plus encore — l'œil n'y voit qu'un scintillement. L'ancienne loi plafonnait la rotation puis laissait le flou porter l'information : sur TOUTE la plage utile (15 à 50 tr/s pour le ventilateur, 30 à 150 pour le moteur) la pièce tournait donc exactement à la même vitesse apparente. Monter la tension ne changeait rien de visible.

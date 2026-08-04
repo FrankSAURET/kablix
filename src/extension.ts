@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { SimulatorPanel, chooseSvgEditor } from './panel';
+import { SimulatorPanel, chooseSvgEditor, useSvgEditorMemory } from './panel';
 import { GuidePanel, SHOW_GUIDE } from './guide';
 import { promptLibraryUpdates } from './updates';
 import { upgradeFirmware, checkFirmwareUpdate } from './firmware';
@@ -13,6 +13,11 @@ import { openNewProjix, openOrRevealProjix } from './openproject';
 const l10n = vscode.l10n;
 
 export function activate(context: vscode.ExtensionContext): void {
+  // Filet du choix de l'éditeur SVG : VS Code n'inscrit les réglages d'une
+  // extension qu'au chargement de la fenêtre, si bien qu'un `.vsix` installé et
+  // utilisé dans la foulée refuse l'écriture de `kablix.svgEditorPath`. La
+  // mémoire de l'extension, elle, accepte toujours.
+  useSvgEditorMemory(context.globalState);
   // Vue de la barre d'activité : cliquer l'icône Kablix ouvre DIRECTEMENT le
   // simulateur (panneau éditeur) et rend la main au volet Explorateur, pour que
   // le volet Kablix (quasi vide) n'occupe pas la barre latérale.
