@@ -10,9 +10,11 @@
 //   4. la PROPAGATION : la sortie d'une porte pilote l'entrée d'une autre, une
 //      LED, ou une broche de carte (point fixe de la simulation) ;
 //   5. le DESSIN : les symboles de fonction (&, ≥1, =1) sont des lettres pleines,
-//      l'hystérésis du CD40106 / 74xx14 reste un tracé.
+//      l'hystérésis du CD40106 / 74xx14 reste un tracé ;
+//   6. le CADRAGE : tous les schémas internes occupent la même case du boîtier.
 import esbuild from 'esbuild';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -306,6 +308,53 @@ console.log('Symboles internes :');
   check('chaque porte OU / NON-OU a sa barre pleine (fill noir, pas de stroke à elle)',
     ou.length === 4 && ou.every((r) => barres(r.schema) === r.gates.length),
     ou.map((r) => `${r.schema}:${barres(r.schema)}/${r.gates.length}`).join(' '));
+}
+
+// --- 6. Cadrage : chaque schéma interne occupe la même case ------------------
+// Tous les schémas de boîtier 14 broches sont dessinés dans un cadre de 80 × 50
+// avec 10 px de marge : le dessin va de 10 à 70 en x, de 10 à 40 en y. Un
+// schéma mal recalé sort du boîtier ou chevauche les pattes (le 7414 était
+// parti 10 px à gauche — Frank, v2026.7.264). Mesuré dans un vrai navigateur,
+// transformations Inkscape imbriquées comprises.
+console.log('Cadrage des schémas internes :');
+{
+  const schemas = [...new Set(ics.IC_REFS.map((r) => r.schema))].sort();
+  const corps = schemas.map((n) => `<div data-nom="${n}" style="position:absolute;left:0;top:0">` +
+    `${readFileSync(join(ROOT, `src/webview/composants/interne/${n}-interne.svg`), 'utf8')}</div>`).join('');
+  const page = join(tmp, 'cadrage.html');
+  writeFileSync(page, `<!doctype html><meta charset=utf8><body style="margin:0">${corps}<script>
+    const out = [];
+    for (const d of document.querySelectorAll('div[data-nom]')) {
+      const svg = d.querySelector('svg');
+      svg.setAttribute('width', '80'); svg.setAttribute('height', '50');
+      const r0 = svg.getBoundingClientRect();
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const el of svg.querySelectorAll('rect,path,circle,line,text')) {
+        const r = el.getBoundingClientRect();
+        if (!r.width && !r.height) continue;
+        x0 = Math.min(x0, r.left - r0.left); y0 = Math.min(y0, r.top - r0.top);
+        x1 = Math.max(x1, r.right - r0.left); y1 = Math.max(y1, r.bottom - r0.top);
+      }
+      out.push({ nom: d.dataset.nom, x0, y0, x1, y1 });
+    }
+    const pre = document.createElement('pre'); pre.id = 'measures';
+    pre.textContent = JSON.stringify(out); document.body.appendChild(pre);
+  </script></body>`);
+  const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe',
+    'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
+  const dom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--no-sandbox',
+    '--window-size=800,600', '--virtual-time-budget=6000', '--dump-dom',
+    `file:///${page.replace(/\\/g, '/')}`], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  const brut = /<pre id="measures"[^>]*>([\s\S]*?)<\/pre>/.exec(dom)[1];
+  const mesures = JSON.parse(brut.replace(/&quot;/g, '"').replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>'));
+  // 0,1 px de tolérance : la boîte inclut la demi-épaisseur du trait.
+  const cadre = (m) => Math.abs(m.x0 - 10) < 0.1 && Math.abs(m.x1 - 70) < 0.1
+    && Math.abs(m.y0 - 10) < 0.1 && Math.abs(m.y1 - 40) < 0.1;
+  const hors = mesures.filter((m) => !cadre(m));
+  check(`les ${mesures.length} schémas tiennent dans la même case (10..70 × 10..40)`,
+    mesures.length === schemas.length && hors.length === 0,
+    hors.map((m) => `${m.nom} x${m.x0.toFixed(1)}..${m.x1.toFixed(1)} y${m.y0.toFixed(1)}..${m.y1.toFixed(1)}`).join(' '));
 }
 
 console.log(failures === 0

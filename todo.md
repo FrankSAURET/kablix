@@ -1,5 +1,4 @@
 # À faire
-1. Le schéma interne du 74xx14 est décalé de 10 px vers la gauche
 1. Quand j'ai cliqué sur routage automatique de CI-Pico.projix, impossible d'en sortir. Y compris en fermant tous les schémas ouverts. Je veux que dans ce cas (tâche trés longue) tu mettes un barre de progression avec un bouton annuler. Du coup fait 3 fichiers de test des CI (CI1, CI2 et CI3). Place les CI à une distance faible de la carte de dev. Pas trop prêt non plus.
 1. Déplace le bouton qui donne le fichier de code à droite du nom du fichier projix - dans la barre généraliste.
 1. La rotation du moteur de l'engrenage du moteur est encore trop rapide de plus l'axe n'est pas le bon et donc l'engrenage bouge. Je pense que tu as pris pour axe le centre de l'axe avec méplat (gris)mais comme il a un méplat ce n'est pas bon. Prend le centre de l'engrenage (jaune)
@@ -11,9 +10,15 @@
 1. Vsix
 
 1. ✅ La barre du égale du symbole ≥1 (barre inclinée sous le >) de la porte ou doit être un rectangle plein noir sans contour.
+1. ✅ Le schéma interne du 74xx14 est décalé de 10 px vers la gauche
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# v2026.7.264 — le 74xx14 remis dans sa case
+1. ✅ **Le schéma interne du 74xx14 était 10 px trop à gauche** : ses six inverseurs débordaient du boîtier côté patte 1. La translation d'Inkscape (`matrix(…,-499.95,…)`) portait l'écart ; elle passe à `-489.95`, le dessin lui-même ne bouge pas.
+2. ✅ **Vérifié contre son jumeau** : le 74xx14 et le CD40106 ont le même brochage et le même dessin — leurs deux boîtes englobantes coïncident maintenant au centième de pixel.
+3. ✅ **Nouveau contrôle de cadrage dans `npm run verify:ic`** : les 12 schémas internes de CI sont mesurés dans un vrai navigateur (transformations Inkscape imbriquées comprises) et doivent tous tenir dans la même case, 10 px de marge dans le cadre 80 × 50. Le 7414 sortait à `x −0,03..59,97` au lieu de `9,97..69,97`.
 
 # v2026.7.263 — la barre du ≥1 redevient un trait net
 1. ✅ **La barre du « ≥ » est un aplat noir sans contour** dans les quatre schémas de portes OU / NON-OU (`cd4001`, `cd4071`, `7402`, `7432`). Inkscape ne la dessine pas comme un glyphe (elle n'a pas d'`aria-label`, contrairement au `>1` juste au-dessus) : elle échappait donc à la règle des symboles pleins et récupérait le contour de 2 px de l'habillage par-dessus son noir. Résultat : un pavé baveux au lieu du simple rectangle incliné.
