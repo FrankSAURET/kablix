@@ -1,7 +1,4 @@
 # À faire
-1. Vsix quand liste ci-dessus terminée
-1. A partir de ce qu'on a fait dernierement pour la création de composants (fichier composants.svg ...) fais un tuto ( schéma, schéma interne et simuilation) pour en créer d'autre. Avec et sans IA. Dispo dans doc uniquement sur github. Traduit en anglais
-1. Comit + push
 1. Un CI posé sur une platine d'essai ne "propage" pas la couleur des power et gnd au fils relié dans les trous de la ligne de la platine concernée.
 1. La barre du égale du symbole ≥1 (barre inclinée sous le >) de la porte ou doit être un rectangle plein noir sans contour.
 1. Le schéma interne du 74xx14 est décalé de 10 px vers la gauche
@@ -14,6 +11,9 @@
 1. Le défilement des transistors dans modèles correspondant doit se faire par bond d'une ligne interne
 1. Vsix
 
+1. ✅ A partir de ce qu'on a fait dernierement pour la création de composants (fichier composants.svg ...) fais un tuto ( schéma, schéma interne et simuilation) pour en créer d'autre. Avec et sans IA. Dispo dans doc uniquement sur github. Traduit en anglais
+1. ✅ Comit + push
+1. ✅ Vsix quand liste ci-dessus terminée → `kablix-2026.7.260.vsix` (3,37 Mo, 261 fichiers)
 1. ✅ Quand tu retouche ou refait un schéma de test que j'ai retouché, garde les emplacements des composant (sauf à tout refaire différemment)
 1. ✅ Dans les docs il y a des sauts de ligne non nécessaire qui hachent la lecture. Supprime les
 1. ✅ J'ai retouché qq docs en français reporte en anglais.
@@ -45,6 +45,13 @@ Voici les préfix à utiliser (traduisible) et respecte la casse : Résistance (
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# v2026.7.261 — le tuto de création de composants, à la main ou avec une IA
+1. ✅ **Nouveau guide `docs/{fr,en}/Creating-components.md`** : la chaîne complète suivie depuis la v2026.7.229, du dessin dans `Composants.svg` au composant posable, câblé, simulé, testé et documenté. Dix étapes, une par fichier à toucher : extraction, élément Lit, catalogue, préfixe de repère, schéma interne, comportement de simulation, traductions, tests Uno + Pico, fiche d'aide FR/EN, livraison.
+2. ✅ **Les trois voies de simulation expliquées** (modèle électrique de `model.mts`, contrôle `simControl` visible pendant la simulation, périphérique de bus dans `engines/`) et le cas des **boîtiers partagés** : un boîtier est un dessin qu'on habille, une entrée dans `PACKAGES`, jamais un nouvel élément.
+3. ✅ **Section « avec une IA »** : ce que le dépôt lui apprend tout seul (`CLAUDE.md`), les cinq points qu'elle ne peut pas deviner (nom du groupe, comportement attendu, propriétés, inscription du boîtier, montage de test), une demande type à copier, et le tableau de ce qu'il faut relire derrière elle.
+4. ✅ **Distribué sur GitHub uniquement** (demande de Frank) : le guide est exclu du `.vsix` et n'est lié depuis aucun guide embarqué — l'aide ❔ doit rester ouvrable hors-ligne. Lien ajouté au `README.md`.
+5. ✅ **`verify:docs` verrouille cette intention** (24 contrôles) : le guide existe en FR et EN, il est bien hors paquet, et aucun guide embarqué ne renvoie vers lui.
 
 # v2026.7.260 — les fiches d'aide se lisent d'un trait
 1. ✅ **Paragraphes déroulés dans 62 fiches** de `docs/` : un paragraphe, un item de liste ou un paragraphe de citation tient désormais sur UNE ligne du fichier source. Les retours à la ligne au milieu d'une phrase hachaient la lecture et rendaient les comparaisons FR/EN illisibles. Le rendu HTML, lui, ne bouge pas : le moteur Markdown maison joint déjà les lignes d'un même paragraphe par une espace.

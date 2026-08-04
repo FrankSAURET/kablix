@@ -85,3 +85,8 @@ firmware/**/*.c
 # docs : les fiches docs/{fr,en}/composants/*.md, docs/img/composants/ et les guides
 # docs/{fr,en}/*.md restent — ils SONT l'aide locale (boutons ❔). Seuls les
 # documents de travail (recette de test .docx) sont exclus, via *.docx ci-dessus.
+# Exception : le tuto de création de composants s'adresse aux contributeurs qui
+# recompilent l'extension (planche Composants.svg, catalogue, tests). Il est
+# distribué via GitHub uniquement (Frank, v2026.7.260) — donc hors aide embarquée,
+# et jamais lié depuis USAGE.md, qui doit rester ouvrable hors-ligne.
+docs/*/Creating-components.md

@@ -54,6 +54,12 @@ La simulation s’appuie sur deux moteurs open-sources embarqués dans l’exten
 > de composants personnalisés (avec prompt IA), format `.kablix-part.json`,
 > sources de composants existants.
 >
+> **Ajouter un composant à Kablix** (contributeurs, sur GitHub uniquement) :
+> [docs/fr/Creating-components.md](docs/fr/Creating-components.md) (français) /
+> [docs/en/Creating-components.md](docs/en/Creating-components.md) (English) —
+> du dessin dans `Composants.svg` au composant simulé, testé et documenté,
+> à la main ou avec une IA.
+>
 > 🌍 **Interface bilingue** : français si VS Code est en français, anglais sinon.
 > Le mécanisme est extensible à d’autres langues — voir [Internationalisation](#internationalisation).
 ## Internationalisation

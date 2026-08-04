@@ -184,16 +184,40 @@ const excluded = (path) => {
   for (const r of rules) if (toRe(r.pat).test(path)) out = !r.negate;
   return out;
 };
+// Guides destinés aux CONTRIBUTEURS (recompilation de l'extension) : distribués
+// via GitHub, volontairement hors du vsix (Frank, v2026.7.260). Ils ne doivent
+// donc jamais être liés depuis l'aide embarquée — le contrôle suivant s'en assure.
+const GITHUB_ONLY = new Set(['Creating-components']);
 const mustShip = [
   ...fr.map((n) => `docs/fr/composants/${n}.md`),
   ...en.map((n) => `docs/en/composants/${n}.md`),
   ...readdirSync(join(root, 'docs', 'img', 'composants')).map((f) => `docs/img/composants/${f}`),
-  ...guidesFr.map((n) => `docs/fr/${n}.md`),
-  ...guidesEn.map((n) => `docs/en/${n}.md`),
+  ...guidesFr.filter((n) => !GITHUB_ONLY.has(n)).map((n) => `docs/fr/${n}.md`),
+  ...guidesEn.filter((n) => !GITHUB_ONLY.has(n)).map((n) => `docs/en/${n}.md`),
 ];
 const dropped = mustShip.filter(excluded);
 ok(`vsix : les ${mustShip.length} fiches, guides et images d'aide sont dans le paquet`, dropped.length === 0,
   dropped.slice(0, 5).join(' · '));
+
+// L'inverse : un guide « GitHub seulement » présent en FR et EN, exclu du paquet,
+// et qu'aucun guide embarqué ne référence (le lien mènerait à un guide absent).
+const ghIssues = [];
+for (const n of GITHUB_ONLY) {
+  for (const lang of ['fr', 'en']) {
+    if (!guidesOf(lang).includes(n)) { ghIssues.push(`${lang}/${n}.md absent`); continue; }
+    if (!excluded(`docs/${lang}/${n}.md`)) ghIssues.push(`${lang}/${n}.md embarqué dans le vsix`);
+  }
+  for (const lang of ['fr', 'en']) {
+    for (const g of guidesOf(lang)) {
+      if (GITHUB_ONLY.has(g)) continue;
+      if (readFileSync(join(root, 'docs', lang, `${g}.md`), 'utf8').includes(`${n}.md`)) {
+        ghIssues.push(`${lang}/${g}.md renvoie vers ${n}.md`);
+      }
+    }
+  }
+}
+ok(`guides : les ${GITHUB_ONLY.size} guides « GitHub seulement » sont hors vsix et hors aide`,
+  ghIssues.length === 0, ghIssues.slice(0, 4).join(' · '));
 
 // Captures des guides : embarquées (lisibles hors-ligne) SAUF les lourdes, que
 // `guide.ts` va chercher sur GitHub. Une capture légère exclue = trou hors-ligne.
