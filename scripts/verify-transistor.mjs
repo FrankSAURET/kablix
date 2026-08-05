@@ -440,24 +440,29 @@ async function run() {
 			// Chrome headless n'affiche pas de frames : il n'émet donc jamais
 			// l'événement scroll d'une pose programmée. On le pose nous-mêmes,
 			// exactement comme le navigateur le ferait après un clic de flèche.
-			const defile = () => liste.dispatchEvent(new Event('scroll'));
+			// Le recalage attend la FIN du geste (v2026.8.3) : on laisse passer le
+			// délai de silence, comme le fait un vrai relâchement de flèche.
+			const defile = async () => {
+				liste.dispatchEvent(new Event('scroll'));
+				await wait(140);
+			};
 			const plafond = liste.scrollHeight - liste.clientHeight;
 			let dernier = lignes.length - 1;
 			while (dernier > 0 && t0[dernier] > plafond) dernier--;
 			liste.scrollTop = 0;
-			defile();
+			await defile();
 			liste.scrollTop = PAS; // clic sur la flèche « bas »
-			defile();
+			await defile();
 			ok('flèche bas de la barre : la DEUXIÈME entrée est calée en haut, comme à la molette',
 				Math.abs(liste.scrollTop - t0[1]) < 1,
 				'scrollTop ' + liste.scrollTop.toFixed(1) + ' pour ' + t0[1].toFixed(1));
 			liste.scrollTop = liste.scrollTop + PAS;
-			defile();
+			await defile();
 			ok('flèche bas : deuxième clic, la TROISIÈME entrée — jamais de ligne coupée',
 				Math.abs(liste.scrollTop - t0[2]) < 1,
 				'scrollTop ' + liste.scrollTop.toFixed(1) + ' pour ' + t0[2].toFixed(1));
 			liste.scrollTop = liste.scrollTop - PAS;
-			defile();
+			await defile();
 			ok('flèche haut : on remonte d’une entrée, pas davantage',
 				Math.abs(liste.scrollTop - t0[1]) < 1,
 				'scrollTop ' + liste.scrollTop.toFixed(1) + ' pour ' + t0[1].toFixed(1));
@@ -466,9 +471,9 @@ async function run() {
 			// de l'endroit visé.
 			if (dernier >= 4) {
 				liste.scrollTop = 0;
-				defile();
+				await defile();
 				liste.scrollTop = t0[4] + 5;
-				defile();
+				await defile();
 				ok('pouce tiré : on cale sur l’entrée la plus proche, sans revenir en arrière',
 					Math.abs(liste.scrollTop - t0[4]) < 1,
 					'scrollTop ' + liste.scrollTop.toFixed(1) + ' pour ' + t0[4].toFixed(1));
@@ -476,15 +481,44 @@ async function run() {
 			// Fin de liste à la flèche : comme à la molette, on colle au bas, et la
 			// flèche « haut » repart de là par entiers d'entrée, jamais par 40 px.
 			liste.scrollTop = plafond;
-			defile();
+			await defile();
 			ok('flèche bas en fin de liste : collé au bas, plus rien de coupé',
 				Math.abs(liste.scrollTop - plafond) < 1.5,
 				'scrollTop ' + liste.scrollTop.toFixed(1) + ' pour ' + plafond);
 			liste.scrollTop = plafond - PAS;
-			defile();
+			await defile();
 			ok('flèche haut depuis le bas : on décolle d UNE entrée, pas de 40 px',
 				Math.abs(liste.scrollTop - t0[dernier - 1]) < 1,
 				'scrollTop ' + liste.scrollTop.toFixed(1) + ' pour ' + t0[dernier - 1].toFixed(1));
+
+			// --- LA RÉGRESSION de la v2026.8.2 (retour de Frank) ------------------
+			// Chrome ANIME un clic sur une flèche de barre : il émet une dizaine
+			// d'événements « scroll » en chemin, sur SA courbe. Recaler à chacun
+			// d'eux, c'est se disputer la position avec lui — la liste sautait
+			// d'un bout à l'autre et plus aucun modèle n'était sélectionnable.
+			// Rien ne doit bouger tant que le geste n'est pas fini.
+			liste.scrollTop = 0;
+			await defile();
+			const depart = liste.scrollTop;
+			for (const etape of [6, 14, 23, 31, 40]) {   // ce que fait l animation de Chrome
+				liste.scrollTop = depart + etape;
+				liste.dispatchEvent(new Event('scroll'));
+				await wait(12);                            // ~une image
+			}
+			ok('pendant l animation de la flèche, on ne touche à rien',
+				Math.abs(liste.scrollTop - (depart + 40)) < 1,
+				'scrollTop ' + liste.scrollTop.toFixed(1) + ' pour ' + (depart + 40));
+			await wait(140); // le geste est fini : le recalage tombe maintenant
+			ok('le geste fini, l entrée suivante se cale enfin en haut',
+				Math.abs(liste.scrollTop - t0[1]) < 1,
+				'scrollTop ' + liste.scrollTop.toFixed(1) + ' pour ' + t0[1].toFixed(1));
+			// « scrollend » (Chrome >= 114) recale sans attendre le délai de silence.
+			liste.scrollTop = t0[1] + PAS;
+			liste.dispatchEvent(new Event('scroll'));
+			liste.dispatchEvent(new Event('scrollend'));
+			ok('scrollend : le recalage tombe tout de suite, sans attendre',
+				Math.abs(liste.scrollTop - t0[2]) < 1,
+				'scrollTop ' + liste.scrollTop.toFixed(1) + ' pour ' + t0[2].toFixed(1));
 		}
 	}
 	// Retour à l'IRF530 : la suite du banc compte dessus.

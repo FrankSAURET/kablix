@@ -844,11 +844,14 @@ textarea {
 }
 
 /* L'animal remplit le bouton : 28 px moins les deux bordures d'1 px, moins
-   1 px de jeu de chaque côté = 24 px de dessin (mesuré : l'encre d'un emoji
-   fait exactement la taille de sa police). */
+   1 px de jeu de chaque côté = 24 px de dessin. Les cinq dessins de Frank
+   n'ont pas les mêmes proportions (le guépard est long, l'aigle haut) :
+   `object-fit: contain` les met tous à la même LARGEUR sans les déformer,
+   comme sur sa planche. */
 .canvas-controls__speed-face {
-  font-size: 24px;
-  line-height: 1;
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
   pointer-events: none;
 }
 
@@ -894,6 +897,25 @@ textarea {
   background: #b30000;
   border-color: #ff5b5b;
   font-weight: 700;
+}
+
+/* Fichier supprimé SOUS LE NEZ de l'atelier : nom BARRÉ en rouge, comme
+   VS Code barre l'onglet d'un fichier disparu. Le trait passe devant le fond
+   d'avertissement (le bouton est aussi « sans fichier ») : c'est le trait qui
+   dit « il n'existe plus », pas seulement « il en manque un ». */
+.toolbar button.toolbar__file.toolbar__file--deleted {
+  text-decoration: line-through;
+  text-decoration-color: #ff5b5b;
+  text-decoration-thickness: 2px;
+}
+
+/* Le .Projix lui-même supprimé pendant qu'il est ouvert : même traitement sur
+   le nom du projet, qui n'est pas un bouton. */
+.project-name--deleted {
+  text-decoration: line-through;
+  text-decoration-color: #ff5b5b;
+  text-decoration-thickness: 2px;
+  color: #ff5b5b;
 }
 
 /* Lancement de la simulation sans fichier : clignote 3 fois. */
@@ -1550,10 +1572,23 @@ body.vscode-light .inspector__ref--nouveau {
     0 0 12px 2px color-mix(in srgb, var(--kx-fault, #e5484d) 55%, transparent);
 }
 
+/* Couche des explications de défaut, tout en haut de la pile du monde. Hisser
+   le composant fautif (z=65) ne suffisait pas : DEUX composants en défaut ont le
+   même z-index, et le second du DOM passait devant l'étiquette du premier
+   (relais-pico, retour de Frank). Les étiquettes vivent donc hors des `.part`,
+   au-dessus des composants grillés (70) comme du reste. Décorative :
+   `pointer-events: none`, le clic va toujours au schéma. */
+.fault-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 80;
+}
+
 /* L'explication du défaut, à CÔTÉ du composant encadré : jaune sur rouge, le
    temps de la simulation. Le cadre montre le coupable, cette étiquette dit quoi
-   corriger sans aller relire la barre d'état. z=60 : au-dessus des fils (5) et
-   des composants (3), sous l'explosion d'un composant grillé (70). */
+   corriger sans aller relire la barre d'état. Positionnée en pixels du MONDE
+   (cf. setFaultNote) puisqu'elle n'est plus enfermée dans `.part`. */
 .part__fault {
   position: absolute;
   z-index: 60;

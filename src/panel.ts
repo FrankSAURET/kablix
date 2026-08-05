@@ -850,6 +850,23 @@ export class SimulatorPanel {
     vscode.window.showErrorMessage(`Kablix : ${message}`);
   }
 
+  /**
+   * Réglages qui décident de l'INTERFACE : trois boutons de barre, masqués par
+   * défaut. « Charger binaire » (déjà là), plus « Réinitialiser les composants »
+   * et « Effacer le schéma » — retour de Frank : ils ne servent plus, mais on
+   * les range derrière un réglage plutôt que de les supprimer.
+   * Renvoyés à chaque changement de réglage : pas besoin de recharger l'atelier.
+   */
+  private postUiConfig(): void {
+    const cfg = vscode.workspace.getConfiguration('kablix');
+    this.post({
+      type: 'config',
+      showLoadBinary: cfg.get<boolean>('showLoadBinaryButton', false),
+      showResetParts: cfg.get<boolean>('showResetPartsButton', false),
+      showClearDiagram: cfg.get<boolean>('showClearDiagramButton', false),
+    });
+  }
+
   /** Chemins de toolchain fournis par l'utilisateur (réglages Kablix). */
   private toolPaths(): ToolPaths {
     const cfg = vscode.workspace.getConfiguration('kablix');
@@ -865,9 +882,67 @@ export class SimulatorPanel {
   private setCodeFile(uri: vscode.Uri | undefined): void {
     this.codeFileUri = uri;
     this.missingCodeFileRef = undefined; // fichier (re)choisi ou oublié : plus de référence en échec
-    this.post({ type: 'codeFile', name: uri ? uri.fsPath.split(/[\\/]/).pop() : null });
+    this.watchOnDisk('code', uri);
+    this.post({
+      type: 'codeFile',
+      name: uri ? uri.fsPath.split(/[\\/]/).pop() : null,
+      deleted: this.gone.has('code'),
+    });
     this.postProjectName();
     this.postDebugVars(); // réglages de débogage (repli hérité inclus)
+  }
+
+  // --- Fichier supprimé SOUS LE NEZ de l'éditeur (demande de Frank) -------------
+  // VS Code barre le nom d'un onglet dont le fichier vient d'être supprimé.
+  // Kablix affiche deux noms de fichier — le chip 📄 du programme et le nom du
+  // .Projix — qui, eux, restaient impassibles : on croyait le fichier là. Une
+  // suppression faite DEHORS (explorateur Windows, autre outil) ne passe par
+  // aucun événement d'espace de travail ; seule une surveillance du système de
+  // fichiers la voit. Un fichier par rôle, pas de motif large.
+
+  /** Surveillances en cours, par rôle, avec le chemin surveillé. */
+  private watches = new Map<
+    'code' | 'project',
+    { path: string; watcher: vscode.FileSystemWatcher }
+  >();
+  /** Rôles dont le fichier a disparu du disque (nom barré en rouge). */
+  private gone = new Set<'code' | 'project'>();
+
+  /** (Re)pose la surveillance d'un rôle sur son fichier — sans rien refaire si
+   *  c'est déjà le bon. Changer de fichier remet le rôle « présent ». */
+  private watchOnDisk(role: 'code' | 'project', uri: vscode.Uri | undefined): void {
+    const path = uri?.scheme === 'file' ? uri.fsPath : undefined;
+    const current = this.watches.get(role);
+    if (current?.path === path) return;
+    current?.watcher.dispose();
+    this.watches.delete(role);
+    this.gone.delete(role); // autre fichier : l'alerte de l'ancien ne le suit pas
+    if (!path || !uri) return;
+    const watcher = vscode.workspace.createFileSystemWatcher(
+      new vscode.RelativePattern(vscode.Uri.joinPath(uri, '..'), path.split(/[\\/]/).pop() ?? '')
+    );
+    watcher.onDidDelete(() => this.setGone(role, true), null, this.disposables);
+    // Rétabli (annulation, restauration depuis la corbeille, ré-enregistrement) :
+    // le nom redevient normal, sinon il resterait barré pour de bon.
+    watcher.onDidCreate(() => this.setGone(role, false), null, this.disposables);
+    this.watches.set(role, { path, watcher });
+    this.disposables.push(watcher);
+  }
+
+  /** Bascule l'état « disparu » d'un rôle et rafraîchit l'affichage concerné. */
+  private setGone(role: 'code' | 'project', gone: boolean): void {
+    if (gone === this.gone.has(role)) return;
+    if (gone) this.gone.add(role);
+    else this.gone.delete(role);
+    if (role === 'code') {
+      this.post({
+        type: 'codeFile',
+        name: this.codeFileUri ? this.codeFileUri.fsPath.split(/[\\/]/).pop() : null,
+        deleted: gone,
+      });
+    } else {
+      this.postProjectName();
+    }
   }
 
   // --- Réglages du panneau de débogage : masquages 👁 + base d'affichage -------
@@ -931,10 +1006,11 @@ export class SimulatorPanel {
    *  Extension affichée avec un P majuscule (« .Projix ») — le fichier sur
    *  disque reste en minuscule (`.projix`), seul l'affichage change. */
   private postProjectName(): void {
+    this.watchOnDisk('project', this.projectUri); // suppression sous le nez → nom barré
     const name = this.projectBaseName
       ? `${this.projectBaseName}.Projix`
       : this.projectDisplayName();
-    this.post({ type: 'projectName', name: name ?? null });
+    this.post({ type: 'projectName', name: name ?? null, deleted: this.gone.has('project') });
     this.updateTitle(); // le titre de l'onglet reprend le nom du projet
   }
 
@@ -1122,6 +1198,15 @@ export class SimulatorPanel {
     );
     // Gouttière VS Code → simulateur : tout changement de point d'arrêt est relayé.
     vscode.debug.onDidChangeBreakpoints(() => this.sendBreakpoints(), null, this.disposables);
+    // Réglages d'interface changés dans les options : les boutons optionnels
+    // apparaissent/disparaissent tout de suite, sans recharger l'atelier.
+    vscode.workspace.onDidChangeConfiguration(
+      (e) => {
+        if (e.affectsConfiguration('kablix')) this.postUiConfig();
+      },
+      null,
+      this.disposables
+    );
     // NOTE : la disposition par défaut (applyDefaultLayout/lockSimulatorGroup)
     // n'est plus posée ici. En mode CustomEditor, l'onglet .projix est placé par
     // VS Code ; poser le layout par-document, avant que l'onglet soit positionné,
@@ -1218,6 +1303,9 @@ export class SimulatorPanel {
     SimulatorPanel.lastActive = this;
     switch (msg?.type) {
       case 'ready':
+        // La webview écoute enfin : tout ce qui a été émis pendant son chargement
+        // (le schéma du projet en tête) part maintenant, dans l'ordre.
+        this.flushPostQueue();
         // Renvoie les composants personnalisés et les préférences d'interface.
         this.post({
           type: 'simModels',
@@ -1231,13 +1319,7 @@ export class SimulatorPanel {
           type: 'uiState',
           state: this.context.globalState.get<unknown>(UI_STATE_KEY, {}),
         });
-        // Réglages affectant l'interface (bouton « Charger binaire » masqué par défaut).
-        this.post({
-          type: 'config',
-          showLoadBinary: vscode.workspace
-            .getConfiguration('kablix')
-            .get<boolean>('showLoadBinaryButton', false),
-        });
+        this.postUiConfig();
         // Rappelle le fichier de code courant (chip du canvas) après un
         // rechargement — y compris l'état « introuvable » d'un .projix ouvert.
         if (this.missingCodeFileRef) {
@@ -1931,8 +2013,49 @@ export class SimulatorPanel {
     vscode.window.showInformationMessage(l10n.t('Kablix: measurements exported to {0}', target.fsPath));
   }
 
+  /** Vrai dès que la webview a annoncé « ready » : avant, elle n'écoute pas
+   *  encore et tout message envoyé est PERDU. */
+  private webviewReady = false;
+  /** Messages émis avant ce « ready », rejoués dans l'ordre à son arrivée. */
+  private readonly postQueue: unknown[] = [];
+
+  /**
+   * Envoi vers la webview, MIS EN FILE tant qu'elle n'a pas dit « ready ».
+   *
+   * L'atelier s'ouvrait vide au hasard (dht11, CI3-uno, ventilo… retours de
+   * Frank) alors que le `.projix` était intact : `resolveCustomEditor` lit le
+   * fichier et poste `loadProject` en quelques millisecondes, quand la webview
+   * en met bien plus à charger son bundle. Le message partait donc AVANT que le
+   * script n'installe son écouteur — le tampon interne de VS Code le rattrape
+   * la plupart du temps, mais pas toujours (onglet restauré, machine chargée),
+   * et le schéma tombait alors dans le vide : atelier vierge, sans erreur, que
+   * seule une réouverture réparait. La file supprime la course : rien ne part
+   * avant que la webview écoute pour de bon.
+   */
   private post(message: unknown): void {
+    if (!this.webviewReady) {
+      this.postQueue.push(message);
+      // Filet : si « ready » n'arrive jamais (bundle en erreur), on finit par
+      // envoyer quand même — au pire c'est le comportement d'avant, jamais pire.
+      if (this.readyTimer === undefined) {
+        this.readyTimer = setTimeout(() => this.flushPostQueue(), 20_000);
+      }
+      return;
+    }
     void this.panel.webview.postMessage(message);
+  }
+
+  private readyTimer: ReturnType<typeof setTimeout> | undefined;
+
+  /** « ready » reçu : la webview écoute, on vide la file dans l'ordre d'émission. */
+  private flushPostQueue(): void {
+    if (this.readyTimer !== undefined) {
+      clearTimeout(this.readyTimer);
+      this.readyTimer = undefined;
+    }
+    this.webviewReady = true;
+    const attente = this.postQueue.splice(0);
+    for (const m of attente) void this.panel.webview.postMessage(m);
   }
 
   /** Panneau rouvert après une fermeture avec modifications non enregistrées :

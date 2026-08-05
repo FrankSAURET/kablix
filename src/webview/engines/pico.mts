@@ -69,6 +69,14 @@ class KablixSimulator extends Simulator {
   // seraient escamotés pour « rattraper » le retard accumulé.
   private paceWall = 0;
   private paceSim = 0;
+  /**
+   * Facteur de vitesse demandé (menu 🐌…🦅). Il agit sur l'ALLOCATION de temps
+   * simulé : à 0,1 le cœur n'a droit qu'à 0,1 ms simulée par ms réelle, donc il
+   * dort entre deux tranches. Au-dessus de 1× c'est une simple autorisation :
+   * l'interpréteur MicroPython plafonne de toute façon autour du temps réel, et
+   * le retard irrattrapable ré-ancre sans dette — pas d'emballement.
+   */
+  speed = 1;
   /** Actions à échéance en cycles CPU simulés (ex. ECHO ultrason) — cf. PicoEngine. */
   onTick: (() => void) | null = null;
   /** Échéance (temps simulé, ns) de la plus proche action programmée par `onTick`, ou null. */
@@ -90,6 +98,12 @@ class KablixSimulator extends Simulator {
     this.gen++; // un yield déjà posté ne relancera pas la boucle
   }
 
+  /** Repart d'ici sans dette (changement de vitesse : l'ancre d'avant ne vaut plus). */
+  reanchor(): void {
+    this.paceWall = Date.now();
+    this.paceSim = this.clock.nanos;
+  }
+
   override execute(): void {
     const { rp2040, clock } = this;
     this.executeTimer = null;
@@ -101,9 +115,11 @@ class KablixSimulator extends Simulator {
     while (!this.stopped) {
       const now = Date.now();
       if (now >= deadline) break;
-      const aheadMs = (clock.nanos - this.paceSim) / 1e6 - (now - this.paceWall);
+      const aheadMs = (clock.nanos - this.paceSim) / 1e6 - (now - this.paceWall) * this.speed;
       if (aheadMs > 8) {
-        napMs = Math.min(aheadMs - 4, 40);
+        // `aheadMs` est en temps SIMULÉ : la sieste correspondante en temps réel
+        // dure d'autant plus longtemps que le ralenti est fort (÷ speed).
+        napMs = Math.min((aheadMs - 4) / this.speed, 40);
         break;
       }
       if (aheadMs < -50) {
@@ -272,6 +288,29 @@ export class PicoEngine implements SimEngine {
     this.sim.onTick = () => this.fireScheduled();
     this.mcu = this.sim.rp2040;
     this.mcu.logger = new ConsoleLogger(LogLevel.Error);
+    // GPIO_IN doit RELIRE ce que la broche pilote elle-même (KABLIX).
+    // Sur silicium, le tampon d'entrée est branché sur le PAD : une broche en
+    // sortie se relit donc à son propre niveau, et c'est là-dessus que repose le
+    // `Pin.value()` de MicroPython (il lit SIO.GPIO_IN, jamais le registre de
+    // sortie). rp2040js, lui, ne remplit `rawInputValue` que depuis l'EXTÉRIEUR :
+    // une broche jamais pilotée du dehors relisait 0 pour toujours — d'où
+    // `blink-pico` qui imprimait « LED OFF » à chaque tour alors que la LED
+    // clignotait bel et bien (retour Frank). Correction au seul point de lecture
+    // (SIO.GPIO_IN et l'entrée PIO) : les interruptions de broche gardent leur
+    // source d'origine, donc une sortie ne peut pas se réveiller elle-même.
+    {
+      const gpio = this.mcu.gpio;
+      Object.defineProperty(this.mcu, 'gpioValues', {
+        get(): number {
+          let result = 0;
+          for (let i = 0; i < gpio.length; i++) {
+            const pin = gpio[i];
+            if (pin.outputEnable ? pin.outputValue : pin.inputValue) result |= 1 << i;
+          }
+          return result;
+        },
+      });
+    }
     // Échantillonnage à l'instant EXACT de la conversion (cf. setAnalogSampler) :
     // la tension du canal est recalculée juste avant la lecture par défaut.
     {
@@ -890,9 +929,12 @@ export class PicoEngine implements SimEngine {
     }
   }
 
-  setSpeed(_fraction: number): void {
-    // rp2040js ne propose pas de régulation fine ; le ralenti n'est pas
-    // disponible sur le Pico (pause/reprise et pas à pas restent possibles).
+  setSpeed(fraction: number): void {
+    // Le Pico n'avait AUCUN ralenti : le menu 🐢 ne faisait rien du tout côté
+    // rp2040js. Le cadencement temps réel du simulateur (ancre temps mur ↔ temps
+    // simulé) tient déjà la comptabilité — il suffit de doser l'allocation.
+    this.sim.speed = Math.max(0.001, Math.min(100, fraction));
+    this.sim.reanchor(); // le facteur change : l'ancre repart d'ici
   }
 
   /**

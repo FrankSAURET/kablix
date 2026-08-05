@@ -284,6 +284,11 @@ export class Editor {
    *  atteignable au survol, sans hisser le corps du composant. */
   private pinHoistLayer!: HTMLDivElement;
   private pinHoistDot: HTMLDivElement | null = null;
+  /** Couche des EXPLICATIONS de défaut, tout en haut de la pile : hisser le
+   *  composant fautif (z=65) ne suffisait pas, un SECOND composant fautif (même
+   *  z, plus loin dans le DOM) passait encore devant son étiquette
+   *  (relais-pico, retour de Frank). L'étiquette sort donc de `.part`. */
+  private faultLayer!: HTMLDivElement;
   private selection: Selection = null;
   /** Composants sélectionnés (sélection multiple : marquee, Ctrl+clic). */
   private selectedParts = new Set<string>();
@@ -374,6 +379,11 @@ export class Editor {
     this.pinHoistLayer = document.createElement('div');
     this.pinHoistLayer.className = 'pin-hoist-layer';
     this.world.appendChild(this.pinHoistLayer);
+    // Couche des explications de défaut : posée EN DERNIER dans le monde, elle
+    // couvre tout le reste quoi qu'il arrive (cf. setFaultNote).
+    this.faultLayer = document.createElement('div');
+    this.faultLayer.className = 'fault-layer';
+    this.world.appendChild(this.faultLayer);
 
     this.buildPalette();
     this.renderInspector();
@@ -1662,6 +1672,9 @@ export class Editor {
     });
     this.rendered.get(id)?.container.remove();
     this.rendered.delete(id);
+    // L'explication de défaut vit hors du composant (couche `faultLayer`) :
+    // elle ne part donc plus avec lui, il faut la retirer à la main.
+    this.faultLayer.querySelector(`.part__fault[data-part="${CSS.escape(id)}"]`)?.remove();
     this.internalShown.delete(id);
     this.pinoutShown.delete(id);
     this.selectedParts.delete(id);
@@ -1695,7 +1708,7 @@ export class Editor {
     const r = this.rendered.get(id);
     if (!r) return;
     r.container.classList.toggle('part--faulty', faulty);
-    this.setFaultNote(r.container, faulty ? note : '');
+    this.setFaultNote(id, r.container, faulty ? note : '');
   }
 
   /**
@@ -1704,13 +1717,20 @@ export class Editor {
    * l'étiquette dit quoi corriger — la barre d'état, elle, ne garde que la
    * dernière phrase et se perd de vue sur un grand schéma.
    *
-   * Elle est portée par `.part` et NON par `.part__body` : le corps subit la
-   * rotation du composant, un relais tourné à 90° aurait donc écrit son message
-   * de bas en haut. La position se calcule sur la boîte de mise en page du
-   * corps (`offsetLeft`/`offsetWidth`, insensibles au `transform`).
+   * Elle vit dans `faultLayer` et NON dans `.part` : hisser le composant fautif
+   * (z=65) ne la sortait pas d'affaire dès qu'un SECOND composant tombait en
+   * défaut — même z-index, plus loin dans le DOM, il passait devant l'étiquette
+   * du premier (relais-pico, retour de Frank). Une couche à part, posée en
+   * dernier dans le monde, ne peut être recouverte par aucun composant.
+   *
+   * Elle n'est donc pas non plus portée par `.part__body` : le corps subit la
+   * rotation du composant, un relais tourné à 90° aurait écrit son message de
+   * bas en haut. La position est calculée en pixels du MONDE (la couche subit
+   * le même zoom/translation que les composants).
    */
-  private setFaultNote(container: HTMLElement, text: string): void {
-    let note = container.querySelector('.part__fault') as HTMLElement | null;
+  private setFaultNote(id: string, container: HTMLElement, text: string): void {
+    const sel = `.part__fault[data-part="${CSS.escape(id)}"]`;
+    let note = this.faultLayer.querySelector(sel) as HTMLElement | null;
     if (!text) {
       note?.remove();
       return;
@@ -1718,7 +1738,8 @@ export class Editor {
     if (!note) {
       note = document.createElement('div');
       note.className = 'part__fault';
-      container.appendChild(note);
+      note.dataset.part = id;
+      this.faultLayer.appendChild(note);
     }
     note.textContent = text;
     const body = container.querySelector('.part__body') as HTMLElement | null;
@@ -1728,23 +1749,22 @@ export class Editor {
     // écran se ramènent en pixels du monde par le zoom.
     const box = (container.querySelector('.part__selbox') as HTMLElement | null) ?? body;
     const z = this.zoom || 1;
-    const cr = container.getBoundingClientRect();
+    const wr = this.world.getBoundingClientRect();
     const br = box?.getBoundingClientRect();
     if (br && br.width > 0) {
-      note.style.left = `${(br.right - cr.left) / z + 12}px`;
-      note.style.top = `${(br.top - cr.top) / z}px`;
+      note.style.left = `${(br.right - wr.left) / z + 12}px`;
+      note.style.top = `${(br.top - wr.top) / z}px`;
     } else {
-      note.style.left = `${(body?.offsetLeft ?? 0) + (body?.offsetWidth ?? 0) + 12}px`;
-      note.style.top = `${body?.offsetTop ?? 0}px`;
+      const cr = container.getBoundingClientRect();
+      note.style.left = `${(cr.left - wr.left) / z + (body?.offsetWidth ?? 0) + 12}px`;
+      note.style.top = `${(cr.top - wr.top) / z}px`;
     }
   }
 
   /** Retire tous les cadres rouges (nouveau lancement, arrêt, réinitialisation). */
   clearFaults(): void {
-    for (const r of this.rendered.values()) {
-      r.container.classList.remove('part--faulty');
-      this.setFaultNote(r.container, '');
-    }
+    for (const r of this.rendered.values()) r.container.classList.remove('part--faulty');
+    this.faultLayer.replaceChildren();
   }
 
   /**
@@ -2256,6 +2276,9 @@ export class Editor {
     if (!r) return;
     r.container.remove();
     this.rendered.delete(id);
+    // Le composant repart neuf, sans son cadre rouge : son explication, qui vit
+    // désormais dans une couche à part, ne doit pas rester seule à l'écran.
+    this.faultLayer.querySelector(`.part__fault[data-part="${CSS.escape(id)}"]`)?.remove();
     this.renderPart(r.part);
   }
 
@@ -5308,7 +5331,18 @@ export class Editor {
     // avec la même règle : un petit pas (flèche, clavier) = UNE entrée, comme un
     // cran de molette ; un grand saut (pouce tiré, Page↑/↓) se cale sur l'entrée
     // la plus proche de l'endroit visé, sans quoi le pouce ne suivrait plus.
-    list.addEventListener('scroll', () => {
+    //
+    // Le recalage se fait à la FIN du défilement, jamais pendant. Chrome ANIME
+    // un clic sur une flèche de barre (et le répète tant qu'on la maintient) :
+    // il émet une dizaine d'événements `scroll` en chemin, et chaque pose que
+    // nous faisions au milieu de son animation le voyait repartir de SA courbe
+    // à l'image suivante. Les deux se disputaient la position et la liste
+    // sautait d'un bout à l'autre — « les flèches passent directement du haut au
+    // bas » (retour de Frank sur la v2026.8.2). On laisse donc le navigateur
+    // finir, puis on cale l'entrée. (Le banc ne pouvait pas voir ça : Chrome
+    // headless ne peignant aucune image, il n'émet jamais le `scroll` d'une pose
+    // programmée — c'est le va-et-vient qui manquait.)
+    const recale = (): void => {
       const cible = list.scrollTop;
       if (Math.abs(cible - pose) <= 1) return; // c'est notre propre pose
       const rows = [...list.children] as HTMLElement[];
@@ -5348,6 +5382,19 @@ export class Editor {
         list.scrollTop = pos(haut);
       }
       pose = list.scrollTop;
+    };
+    // `scrollend` quand le navigateur le fournit (Chrome ≥ 114) ; sinon un
+    // silence de 90 ms fait office de fin de geste. Le maintien d'une flèche
+    // se répète toutes les ~50 ms : rien ne bouge tant qu'on ne relâche pas.
+    let finDefilement: ReturnType<typeof setTimeout> | null = null;
+    list.addEventListener('scroll', () => {
+      if (finDefilement) clearTimeout(finDefilement);
+      finDefilement = setTimeout(recale, 90);
+    });
+    list.addEventListener('scrollend', () => {
+      if (finDefilement) clearTimeout(finDefilement);
+      finDefilement = null;
+      recale();
     });
     const choose = (choice: string): void => {
       for (const [attr, value] of Object.entries(transistorAttrs(choice, this.transistorFilter))) {

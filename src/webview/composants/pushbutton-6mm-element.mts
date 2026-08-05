@@ -29,6 +29,13 @@ export class Pushbutton6mmElement extends LitElement {
     label: {},
   };
 
+  /** Bouton VERROUILLÉ enfoncé (relâché avec Ctrl/Cmd). Sans ce drapeau, le
+   *  `pointerleave` relâchait le bouton dès que le curseur s'en allait — Ctrl
+   *  n'étant plus enfoncé à ce moment-là, le maintien ne tenait que sous la
+   *  souris (retour de Frank sur `button-6mm-uno`). Même mécanisme que le
+   *  bouton-poussoir ordinaire (`pushbutton-element.mts`). */
+  private sticky = false;
+
   readonly pinInfo: ElementPin[] = [
     { name: '1.l', x: 10, y: 10, signals: [] },
     { name: '2.l', x: 10, y: 30, signals: [] },
@@ -113,7 +120,7 @@ export class Pushbutton6mmElement extends LitElement {
         @mouseup=${this.up}
         @touchstart=${this.down}
         @touchend=${this.up}
-        @pointerleave=${this.up}
+        @pointerleave=${this.leave}
         @keydown=${(e: KeyboardEvent) => SPACE_KEYS.includes(e.key) && this.down()}
         @keyup=${(e: KeyboardEvent) => SPACE_KEYS.includes(e.key) && this.up(e)}
       >
@@ -133,10 +140,20 @@ export class Pushbutton6mmElement extends LitElement {
   }
 
   private up(e: KeyboardEvent | MouseEvent) {
-    if (this.pressed && !ctrlCmdPressed(e)) {
+    if (!this.pressed) return;
+    if (ctrlCmdPressed(e)) {
+      this.sticky = true; // maintenu enfoncé jusqu'au prochain clic simple
+    } else {
+      this.sticky = false;
       this.pressed = false;
       this.dispatchEvent(new Event('button-release'));
     }
+  }
+
+  /** Le curseur s'en va : un bouton VERROUILLÉ le reste (Ctrl n'est plus tenu à
+   *  cet instant, tester la touche ici relâcherait le verrou). */
+  private leave(e: MouseEvent) {
+    if (!this.sticky) this.up(e);
   }
 }
 

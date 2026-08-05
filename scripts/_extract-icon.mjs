@@ -28,6 +28,19 @@ writeFileSync(probe,
 	const doc = document.getElementById('src');
 	const g = doc.querySelector('#' + ${JSON.stringify(GROUP)});
 	const bb = g.getBBox();
+	// getBBox() ignore la transformation PROPRE du groupe et celles de ses
+	// calques parents : sur un dessin Inkscape posé à la main (matrix(...)),
+	// le recadrage tombait à côté et l'icône sortait du viewBox — page vide.
+	// On mesure donc dans le repère de la planche : m = local -> racine.
+	const racine = g.ownerSVGElement;
+	const mm = (x) => [x.a, x.b, x.c, x.d, x.e, x.f];
+	const inv = racine.getScreenCTM().inverse();
+	const m = inv.multiply(g.getScreenCTM());              // avec la sienne
+	const anc = inv.multiply(g.parentNode.getScreenCTM()); // sans la sienne
+	const coins = [[bb.x, bb.y], [bb.x + bb.width, bb.y], [bb.x, bb.y + bb.height], [bb.x + bb.width, bb.y + bb.height]]
+		.map(([x, y]) => [m.a * x + m.c * y + m.e, m.b * x + m.d * y + m.f]);
+	const xs = coins.map((p) => p[0]), ys = coins.map((p) => p[1]);
+	const boite = [Math.min(...xs), Math.min(...ys), Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)];
 	// <defs> réellement référencées par l'icône (dégradés des traits), en
 	// suivant les chaînes d'héritage xlink:href entre dégradés.
 	const want = new Set();
@@ -53,7 +66,8 @@ writeFileSync(probe,
 		}
 	}
 	document.getElementById('out').textContent = JSON.stringify({
-		bbox: [bb.x, bb.y, bb.width, bb.height],
+		bbox: boite,
+		anc: mm(anc),
 		group: g.outerHTML,
 		defs,
 	});
@@ -73,7 +87,11 @@ const strip = (s) =>
 	 .replace(/<(?:sodipodi|inkscape):[^>]*\/>/g, '')
 	 .replace(/<(?:sodipodi|inkscape):[\s\S]*?<\/(?:sodipodi|inkscape):[^>]*>/g, '');
 
-const body = (data.defs.length ? `<defs>${strip(data.defs.join(''))}</defs>` : '') + strip(data.group);
+// Les transformations des CALQUES parents sont perdues en sortant le groupe de
+// la planche : on les recolle dans un enrobage (identité = pas d'enrobage).
+const ident = data.anc.every((v, i) => Math.abs(v - [1, 0, 0, 1, 0, 0][i]) < 1e-9);
+const dessin = ident ? strip(data.group) : `<g transform="matrix(${data.anc.map((v) => Math.round(v * 1e6) / 1e6).join(',')})">${strip(data.group)}</g>`;
+const body = (data.defs.length ? `<defs>${strip(data.defs.join(''))}</defs>` : '') + dessin;
 const [bx, by, bw, bh] = data.bbox;
 const PAD = 1;
 const vb = [bx - PAD, by - PAD, bw + 2 * PAD, bh + 2 * PAD].map((v) => Math.round(v * 100) / 100);

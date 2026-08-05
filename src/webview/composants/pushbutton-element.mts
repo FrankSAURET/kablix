@@ -31,6 +31,8 @@ export class PushbuttonElement extends LitElement {
     label: {},
   };
 
+  /** Bouton VERROUILLÉ enfoncé (relâché avec Ctrl/Cmd) : il le reste quand le
+   *  curseur s'en va, sinon le maintien ne servirait à rien. */
   private sticky = false;
 
   readonly pinInfo: ElementPin[] = [

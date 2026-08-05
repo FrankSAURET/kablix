@@ -687,15 +687,22 @@ ok('une seule zone : l’unique atelier n’est pas ballotté vers une zone inex
   contenu(1) === 'projix:x.projix' && globalThis.__vs.groups.length === 1,
   `col1=[${contenu(1)}] zones=${globalThis.__vs.groups.length}`);
 
-// 18i. Le tri ne tourne QUE sur action explicite (« réarranger »), jamais à
-//      l'ouverture automatique : déplacer les onglets de l'utilisateur sans
-//      qu'il l'ait demandé serait une surprise.
+// 18i. Le tri tourne AUSSI à l'ouverture (retour de Frank en v2026.8.2 : « ça tu
+//      le remets ; à l'ouverture on réorganise comme le format sauvegardé »).
+//      La v2026.8.1 l'avait réservé à « réarranger » ; un atelier resté côté
+//      code après une restauration de session brouillait alors tout le reste.
 const layoutSrc = readFileSync(join(ROOT, 'src', 'layout.ts'), 'utf8');
-ok('tri : appelé sous condition `force` seulement (pas à l’ouverture automatique)',
-  /if \(force\) await sortTabsIntoColumns\(context\);/.test(layoutSrc));
+ok('tri : appelé à CHAQUE pose de disposition, ouverture comprise',
+  /^\s*await sortTabsIntoColumns\(context\);/m.test(layoutSrc)
+  && !/if \(force\) await sortTabsIntoColumns/.test(layoutSrc));
 ok('tri : « réarranger » (kablix.rearrangeLayout) force bien la disposition',
   /registerCommand\('kablix\.rearrangeLayout'[\s\S]{0,300}?applyDefaultLayout\(context, true\)/
     .test(readFileSync(join(ROOT, 'src', 'extension.ts'), 'utf8')));
+// L'ouverture automatique reste IDEMPOTENTE : une fois la disposition posée
+// dans la session, on n'y retouche plus (sinon les onglets sauteraient à chaque
+// projet ouvert, alors que l'utilisateur a peut-être réarrangé à la main).
+ok('ouverture : la disposition n’est posée qu’UNE fois par session',
+  /if \(!force && layoutAppliedThisSession\) return;/.test(layoutSrc));
 
 // 18j. Ateliers dans plusieurs zones : l'échange de GROUPES est suspendu (il
 //      déplacerait des groupes au hasard) — c'est le tri qui rassemble.

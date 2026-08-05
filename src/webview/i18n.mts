@@ -119,6 +119,8 @@ const FR: Record<string, string> = {
   'Right-click drag to move': 'Glisser avec le clic droit pour déplacer',
   '⚠ Simulation running: wiring is locked.': '⚠ Simulation en cours : le câblage est verrouillé.',
   '⚠ Simulation running: editing is disabled.': '⚠ Simulation en cours : édition désactivée',
+  '⚠ Simulation running (speed {0} %): editing is disabled.':
+    '⚠ Simulation en cours (vitesse à {0} %) : édition désactivée',
   'Drag to move — Ctrl: H/V alignment': 'Glisser pour déplacer — Ctrl : alignement H/V',
   '+ or − to rotate the part': '+ ou − pour faire tourner le composant',
   '+ or − to rotate the parts': '+ ou − pour faire tourner les composants',
@@ -152,8 +154,12 @@ const FR: Record<string, string> = {
     'Fichier de code : {0} — cliquer pour changer, double-cliquer pour ouvrir',
   'Code file {0} not found on this computer — click to choose the file to run':
     'Fichier de code {0} introuvable sur ce poste — cliquer pour choisir le fichier à exécuter',
+  'Code file {0} has been deleted — click to choose the file to run':
+    'Fichier de code {0} supprimé — cliquer pour choisir le fichier à exécuter',
   'Current project': 'Projet courant',
   'Current project: {0}': 'Projet courant : {0}',
+  'Project {0} has been deleted from disk — save it again to keep it':
+    'Projet {0} supprimé du disque — l\'enregistrer à nouveau pour le conserver',
   'Unsaved changes': 'Modifications non enregistrées',
 
   // Inspecteur

@@ -1003,7 +1003,8 @@ async function run() {
 	// Le cadre désigne le coupable, l'étiquette dit quoi corriger : jaune sur
 	// rouge, posée À CÔTÉ du composant. La barre d'état, elle, ne garde que la
 	// dernière phrase et se perd de vue sur un grand schéma.
-	const noteOf = () => fCont.querySelector('.part__fault');
+	const noteDe = (id) => document.querySelector('.part__fault[data-part="' + id + '"]');
+	const noteOf = () => noteDe(fLed.id);
 	ok('explication : pas d étiquette tant qu aucun texte n est donné', !noteOf());
 	editor.setFaulty(fLed.id, true, "Diode à l'envers");
 	await wait(60);
@@ -1024,6 +1025,77 @@ async function run() {
 	ok('explication : ne capte pas les clics', nCs && nCs.pointerEvents === 'none', nCs && nCs.pointerEvents);
 	ok('explication : au-dessus des fils et des composants (z ≥ 10)',
 		nCs && Number(nCs.zIndex) >= 10, nCs && nCs.zIndex);
+
+	// --- Une explication ne passe JAMAIS sous un composant (v2026.8.3) ---------
+	// Hisser le composant fautif (z=65) ne suffisait pas : DEUX composants en
+	// défaut portent le MÊME z-index, et le second du DOM passait encore devant
+	// l'étiquette du premier (relais-pico, retour de Frank). Les étiquettes
+	// sortent donc du composant pour une couche à part, posée en dernier.
+	const couche = document.querySelector('.fault-layer');
+	ok('erreur : couche dédiée aux explications, dans le monde transformé',
+		!!couche && couche.parentElement.classList.contains('canvas__world'));
+	ok('erreur : l explication n est plus enfermée dans le composant',
+		!!noteEl && noteEl.parentElement === couche && !noteEl.closest('.part'));
+	// C'est ce qui rend le z-index décisif : couche et composants empilés dans le
+	// MÊME contexte (le monde transformé), donc comparables entre eux.
+	ok('erreur : couche et composants dans la même pile',
+		!!couche && [...document.querySelectorAll('.part')].every((p) => p.parentElement === couche.parentElement));
+	const zMaxPart = Math.max(...[...document.querySelectorAll('.part')].map(zDe), 70);
+	ok('erreur : couche au-dessus de TOUS les composants (fautifs 65, grillés 70)',
+		!!couche && zDe(couche) > zMaxPart, couche && zDe(couche) + ' vs ' + zMaxPart);
+	ok('erreur : la couche ne vole aucun clic',
+		!!couche && getComputedStyle(couche).pointerEvents === 'none');
+	// Épreuve RÉELLE, le cas de Frank : une longue explication s'étale sur un
+	// voisin lui aussi en défaut. Le point visé doit renvoyer l'étiquette, pas le
+	// voisin. (L'étiquette est décorative : on lui rend la souris le temps du
+	// test, sinon elementFromPoint l'ignore. Et le duo est posé DANS LA FENÊTRE :
+	// elementFromPoint ne voit rien hors écran, les autres composants du banc
+	// sont à y=3000.)
+	const oLed = editor.addPart('led', 200, 200);
+	const oRes = editor.addPart('resistor', 520, 200);
+	await wait(160);
+	// Recadrage : le monde est translaté (les composants du banc sont à y=3000),
+	// on ramène le duo dans la fenêtre avant tout test de recouvrement réel.
+	const placer = (id, x, y) => {
+		const rr = editor.rendered.get(id);
+		rr.part.x = x; rr.part.y = y;
+		rr.container.style.left = x + 'px';
+		rr.container.style.top = y + 'px';
+	};
+	const zz = editor.zoom || 1;
+	const ecart = editor.rendered.get(oLed.id).container.getBoundingClientRect();
+	const dy = (150 - ecart.top) / zz;
+	const dx = (60 - ecart.left) / zz;
+	placer(oLed.id, 200 + dx, 200 + dy);
+	placer(oRes.id, 520 + dx, 200 + dy);
+	await wait(60);
+	const RECOUVRE = 'La diode de roue libre manque et le transistor sera perce par la surtension de coupure';
+	editor.setFaulty(oRes.id, true, 'Resistance en defaut');
+	editor.setFaulty(oLed.id, true, RECOUVRE);
+	await wait(80);
+	const nOver = noteDe(oLed.id);
+	const rCont = editor.rendered.get(oRes.id).container;
+	const nR = nOver && nOver.getBoundingClientRect();
+	const rR = rCont.getBoundingClientRect();
+	const chevauche = !!nR && nR.right > rR.left && nR.left < rR.right && nR.bottom > rR.top && nR.top < rR.bottom;
+	ok('repère du banc : l explication de la LED recouvre bien la résistance voisine',
+		chevauche && nR.left >= 0 && nR.top >= 0,
+		nR && JSON.stringify({ nx: [nR.left, nR.right], ny: [nR.top, nR.bottom], rx: [rR.left, rR.right], ry: [rR.top, rR.bottom] }));
+	let dessus = false;
+	if (nR && chevauche) {
+		// Milieu de la zone commune aux deux boîtes.
+		const x = (Math.max(nR.left, rR.left) + Math.min(nR.right, rR.right)) / 2;
+		const y = (Math.max(nR.top, rR.top) + Math.min(nR.bottom, rR.bottom)) / 2;
+		nOver.style.pointerEvents = 'auto';
+		const hit = document.elementFromPoint(x, y);
+		nOver.style.pointerEvents = '';
+		dessus = hit === nOver || (hit && nOver.contains(hit));
+	}
+	ok('erreur : DEUX composants en défaut, l explication du premier reste DEVANT le second',
+		dessus, 'c est le bug relais-pico');
+	editor.removePart(oLed.id);
+	editor.removePart(oRes.id);
+	await wait(40);
 
 	// --- Lisibilité d'une explication LONGUE (v2026.7.250) ---------------------
 	// Écriture plus petite et pavé plus large : une phrase entière tenait sur
@@ -1069,7 +1141,7 @@ async function run() {
 	// Un défaut déclaré PENDANT que la bascule est basse reste muet.
 	editor.setFaulty(fRes.id, true, 'Résistance grillée');
 	await wait(40);
-	const rNote = editor.rendered.get(fRes.id).container.querySelector('.part__fault');
+	const rNote = noteDe(fRes.id);
 	ok('bascule : un nouveau défaut n affiche pas son explication non plus',
 		rNote && getComputedStyle(rNote).display === 'none', rNote && getComputedStyle(rNote).display);
 	editor.setFaulty(fRes.id, false);
@@ -1273,10 +1345,10 @@ rows.push({
 	detail: 'méthodes absentes de l éditeur',
 });
 rows.push({
-	name: 'éditeur : l explication est portée par .part, pas par le corps tourné',
-	ok: /private setFaultNote\(container: HTMLElement, text: string\): void/.test(ed) &&
-		/container\.appendChild\(note\)/.test(ed) && /part__selbox'\) as HTMLElement \| null\) \?\? body/.test(ed),
-	detail: 'setFaultNote absente, ou accrochée au corps (elle tournerait avec le composant)',
+	name: 'éditeur : l explication vit dans sa couche, pas dans le composant tourné',
+	ok: /private setFaultNote\(id: string, container: HTMLElement, text: string\): void/.test(ed) &&
+		/this\.faultLayer\.appendChild\(note\)/.test(ed) && /part__selbox'\) as HTMLElement \| null\) \?\? body/.test(ed),
+	detail: 'setFaultNote absente, ou raccrochée au composant (recouvrable, et elle tournerait avec lui)',
 });
 rows.push({
 	name: 'CSS : cadre de défaut visible même schéma verrouillé',

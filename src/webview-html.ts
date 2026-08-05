@@ -38,6 +38,12 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
   const grilleIconUri = asset('grille.svg');
   const rearrangerIconUri = asset('rearranger.svg');
   const erreurIconUri = asset('erreur.svg');
+  // Les cinq animaux du réglage de vitesse, dessinés par Frank dans icones.svg.
+  const escargotIconUri = asset('escargot.svg');
+  const tortueIconUri = asset('tortue.svg');
+  const lapinIconUri = asset('lapin.svg');
+  const guepardIconUri = asset('guepard.svg');
+  const aigleIconUri = asset('aigle.svg');
   // Base des posters de brochage (dist/pinout/<carte>.svg) : récupérés par fetch au clic sur ☢.
   const pinoutBase = webview.asWebviewUri(
     vscode.Uri.joinPath(extensionUri, 'dist', 'pinout')
@@ -142,11 +148,13 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
                sa liste déroulante (avec les pourcentages) et son clavier
                restent ceux du navigateur. -->
           <span class="canvas-controls__speed" title="${l10n.t('Simulation speed')}">
-            <span id="speed-face" class="canvas-controls__speed-face" aria-hidden="true">🐇</span>
+            <img id="speed-face" class="canvas-controls__speed-face" src="${lapinIconUri}" alt="" aria-hidden="true" />
             <select id="speed" class="canvas-controls__speed-select" title="${l10n.t('Simulation speed')}">
-              <option value="1" selected>🐇 100 %</option>
-              <option value="0.1">🐢 10 %</option>
-              <option value="0.01">🐌 1 %</option>
+              <option value="5" data-icon="${aigleIconUri}">🦅 500 %</option>
+              <option value="2" data-icon="${guepardIconUri}">🐆 200 %</option>
+              <option value="1" selected data-icon="${lapinIconUri}">🐇 100 %</option>
+              <option value="0.1" data-icon="${tortueIconUri}">🐢 10 %</option>
+              <option value="0.01" data-icon="${escargotIconUri}">🐌 1 %</option>
             </select>
           </span>
           <button id="repl" class="canvas-controls__btn canvas-controls__btn--repl" hidden title="${l10n.t('Start an interactive MicroPython REPL (no script)')}">REPL</button>
@@ -161,8 +169,12 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
           <button id="auto-route" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Auto-route the wires (right angles) — selection, or whole diagram')}"><img class="canvas-controls__icon" src="${autoRouteUri}" alt="${l10n.t('Auto-route the wires (right angles) — selection, or whole diagram')}" /></button>
           <button id="toggle-grid" class="canvas-controls__btn canvas-controls__btn--grid canvas-controls__btn--icon is-on" title="${l10n.t('Show/hide the grid')}"><img class="canvas-controls__icon" src="${grilleIconUri}" alt="${l10n.t('Show/hide the grid')}" /></button>
           <button id="fit-view" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Recenter and fit the view')}"><img class="canvas-controls__icon" src="${fitViewUri}" alt="${l10n.t('Recenter and fit the view')}" /></button>
-          <button id="reset-sim" class="canvas-controls__btn canvas-controls__btn--reset" title="${l10n.t('Reset all components')}">⟲</button>
-          <button id="clear-canvas" class="canvas-controls__btn canvas-controls__btn--eraser" title="${l10n.t('Clear the diagram (Ctrl+Z to undo)')}"><img class="canvas__clear-icon" src="${gommeUri}" alt="${l10n.t('Clear')}" /></button>
+          <!-- « Réinitialiser » et « Effacer » sont MASQUÉS par défaut (retour de
+               Frank : ils ne servent plus). Deux réglages de l'extension les
+               ramènent — masqués ici dès le HTML pour qu'ils n'apparaissent pas
+               le temps que le réglage arrive. -->
+          <button id="reset-sim" class="canvas-controls__btn canvas-controls__btn--reset" hidden title="${l10n.t('Reset all components')}">⟲</button>
+          <button id="clear-canvas" class="canvas-controls__btn canvas-controls__btn--eraser" hidden title="${l10n.t('Clear the diagram (Ctrl+Z to undo)')}"><img class="canvas__clear-icon" src="${gommeUri}" alt="${l10n.t('Clear')}" /></button>
         </div>
         <!-- Bandeau permanent « Simulation en cours » (rouge sur jaune), entre les
              deux barres d'outils. Visible pendant la simulation ; clignote sur

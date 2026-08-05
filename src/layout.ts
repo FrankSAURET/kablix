@@ -118,11 +118,14 @@ export async function applyDefaultLayout(
   // Côté AVANT largeurs : l'échange des groupes emporte leurs tailles, la grille
   // doit donc être reposée après coup.
   await placeKablixSide(context);
-  // « Réarranger » (action explicite) remet en plus chaque onglet dans sa zone :
-  // ateliers .projix côté Kablix, fichiers de code côté code. Pas à l'ouverture
-  // automatique (force=false), où déplacer les onglets de l'utilisateur serait
-  // une surprise.
-  if (force) await sortTabsIntoColumns(context);
+  // Chaque onglet est remis dans sa zone : ateliers .projix côté Kablix,
+  // fichiers de code côté code. À l'ouverture AUSSI (retour de Frank : « à
+  // l'ouverture on réorganise comme le format sauvegardé ») — la disposition
+  // enregistrée est ce qu'il attend de retrouver, pas les onglets là où la
+  // restauration de session les a laissés. La v2026.8.1 l'avait réservé à
+  // l'action explicite, ce qui laissait un atelier égaré côté code brouiller
+  // tout le reste (côté de Kablix indéfini, verrou sur la mauvaise zone).
+  await sortTabsIntoColumns(context);
   await applyEditorGrid(context);
 }
 

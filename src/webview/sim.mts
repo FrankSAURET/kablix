@@ -252,7 +252,20 @@ internalToggleBtn.addEventListener('click', () => editor.toggleSelectedSchema())
 const simBanner = document.getElementById('sim-banner') as HTMLDivElement;
 simBanner.textContent = t('⚠ Simulation running: editing is disabled.');
 simBanner.hidden = true;
+/**
+ * Texte du bandeau. Une vitesse autre que 100 % est un réglage VOLONTAIRE, mais
+ * rien à l'écran ne le rappelait : on repart de zéro à chaque ouverture en se
+ * demandant pourquoi le montage rampe (ou s'emballe). Le réglage est donc
+ * annoncé dans le bandeau, et seulement s'il diffère du temps réel.
+ */
+function simBannerText(): string {
+  const vitesse = Number(speedSelect.value) || 1;
+  if (vitesse === 1) return t('⚠ Simulation running: editing is disabled.');
+  const pc = vitesse >= 1 ? String(vitesse * 100) : String(Math.round(vitesse * 100 * 100) / 100);
+  return t('⚠ Simulation running (speed {0} %): editing is disabled.', pc);
+}
 function showSimBanner(show: boolean): void {
+  if (show) simBanner.textContent = simBannerText();
   simBanner.hidden = !show;
   if (!show) simBanner.classList.remove('sim-banner--blink');
 }
@@ -781,13 +794,30 @@ const SPEED_WARMUP_WINDOWS = 1;
 const SPEED_SLOW_STREAK = 2;
 let speedWindows = 0;
 let speedSlowStreak = 0;
+// Le DÉMARRAGE n'est pas un ralenti. Le firmware MicroPython met plusieurs
+// secondes à booter, puis le script est injecté par le raw REPL — sous tempête
+// d'interruptions USB, le temps simulé n'avance qu'à 0,15-0,3 du temps réel, et
+// bien moins encore sur un script à grosses bibliothèques (ili9341 : 7 s de
+// démarrage) ou sur une machine chargée. Mesurée depuis le clic ▶, la vitesse
+// s'effondrait donc mécaniquement et le badge accusait la simulation d'un
+// ralenti qui n'existait pas (retour Frank : « us sensor 0,01 · ili9341 0,01 »
+// alors que les deux tournent ensuite à 1,00). La mesure ne s'arme qu'au signal
+// `onRunning` : quand le script de l'élève commence vraiment.
+let speedArmed = true;
 function resetSpeedBadge(): void {
   speedWallStart = 0;
   speedWindows = 0;
   speedSlowStreak = 0;
   simSpeedEl.hidden = true;
 }
+/** Le script tourne (ou la carte n'a pas de phase de démarrage) : on mesure. */
+function armSpeedBadge(): void {
+  if (speedArmed) return;
+  speedArmed = true;
+  resetSpeedBadge();
+}
 function updateSpeedBadge(): void {
+  if (!speedArmed) return;
   if (!engine?.simulatedMs || engine.paused) {
     // En pause, le temps simulé ne bouge plus : la mesure repartira à la reprise.
     speedWallStart = 0;
@@ -814,7 +844,11 @@ function updateSpeedBadge(): void {
   refreshAccum = 0;
   refreshCount = 0;
   // Le ralenti VOLONTAIRE (menu 🐢) n'est pas un défaut : on compare au réglage.
-  const wanted = Number(speedSelect.value) || 1;
+  // L'ACCÉLÉRÉ (🐆 200 %, 🦅 500 %) est un souhait, pas un dû : aucun moteur ne
+  // dépasse le temps réel sur un sketch chargé, et un badge « ralentie » allumé
+  // en permanence dès qu'on demande 500 % ne dirait rien de l'état du schéma.
+  // Le badge reste donc la sentinelle du TEMPS RÉEL : plafonné à 1×.
+  const wanted = Math.min(Number(speedSelect.value) || 1, 1);
   const slow = ratio < SPEED_WARN * wanted;
   speedWindows++;
   // Les fenêtres d'échauffement sont mesurées mais ne comptent PAS dans la série :
@@ -2746,18 +2780,22 @@ stepBtn.addEventListener('click', () => {
 });
 
 // Le bouton de vitesse ne montre QUE l'animal (les pourcentages restent dans la
-// liste déroulante) : la face reprend le premier mot de l'option choisie, il n'y
-// a donc rien à tenir en double.
-const speedFace = document.getElementById('speed-face') as HTMLElement | null;
+// liste déroulante) : la face reprend le dessin de l'option choisie, porté par
+// son `data-icon` — il n'y a donc rien à tenir en double. Ce sont les animaux
+// dessinés par Frank (media/escargot.svg…), pas des emoji ; la liste native,
+// elle, ne sait afficher que du texte et garde donc son emoji.
+const speedFace = document.getElementById('speed-face') as HTMLImageElement | null;
 function updateSpeedFace(): void {
-  const choix = speedSelect.selectedOptions[0]?.textContent ?? '';
-  if (speedFace) speedFace.textContent = choix.trim().split(/\s+/)[0] ?? '';
+  const icone = speedSelect.selectedOptions[0]?.dataset.icon ?? '';
+  if (speedFace && icone) speedFace.src = icone;
 }
 updateSpeedFace();
 
 speedSelect.addEventListener('change', () => {
   engine?.setSpeed(Number(speedSelect.value) || 1);
   updateSpeedFace();
+  if (!simBanner.hidden) simBanner.textContent = simBannerText(); // le bandeau annonce la vitesse
+  resetSpeedBadge(); // le régime change : la mesure repart d'une fenêtre neuve
 });
 
 // --- Cycle de vie de la simulation -------------------------------------------
@@ -2793,6 +2831,7 @@ function startRun(): void {
   if (engine.onRunning !== undefined) {
     engine.onRunning = () => {
       if (engine && !engine.paused) setStatus(t('Running…'));
+      armSpeedBadge(); // le démarrage est fini : la vitesse redevient mesurable
     };
   }
   // Sondes internes : toute tension posée sur une broche analogique (capteurs,
@@ -2839,6 +2878,12 @@ function startRun(): void {
   rebind();
   engine.start();
   resetSpeedBadge(); // fenêtre de mesure de vitesse remise à zéro
+  // Un script MicroPython commence par un démarrage LENT par nature (boot du
+  // firmware puis injection par le raw REPL) : on ne mesure la vitesse qu'à
+  // partir de `onRunning`. Sketch AVR ou REPL interactif : rien à attendre.
+  speedArmed = !(
+    boardFamily(board) === 'rp2040' && picoProgram.kind === 'flash' && !!picoProgram.script
+  );
   startRenderLoop(); // rendu continu tant que le moteur tourne
   editor.setLocked(true); // schéma figé pendant la simulation
   showSimBanner(true); // bandeau permanent « Simulation en cours »
@@ -2893,6 +2938,8 @@ function stopRun(): void {
 let projectDirty = false;
 let loadingProject = false;
 let currentProjectName: string | null = null;
+/** Le .Projix a été supprimé du disque pendant qu'il est ouvert ici. */
+let currentProjectDeleted = false;
 function setDirty(dirty: boolean): void {
   if (dirty === projectDirty) return;
   projectDirty = dirty;
@@ -2909,9 +2956,14 @@ function setDirty(dirty: boolean): void {
 function renderProjectName(): void {
   projectNameEl.replaceChildren();
   if (currentProjectName) projectNameEl.append(`— ${currentProjectName}`);
-  projectNameEl.title = currentProjectName
-    ? t('Current project: {0}', currentProjectName)
-    : t('Current project');
+  // Projet supprimé sous le nez de l'atelier : nom BARRÉ en rouge (le schéma
+  // reste ouvert et enregistrable, mais plus rien ne l'attend sur le disque).
+  projectNameEl.classList.toggle('project-name--deleted', currentProjectDeleted);
+  projectNameEl.title = currentProjectDeleted && currentProjectName
+    ? t('Project {0} has been deleted from disk — save it again to keep it', currentProjectName)
+    : currentProjectName
+      ? t('Current project: {0}', currentProjectName)
+      : t('Current project');
 }
 
 // Vrai pendant qu'on applique un undo/redo demandé par l'HÔTE (VS Code
@@ -3453,8 +3505,10 @@ window.addEventListener('message', (event: MessageEvent) => {
       appendSerial(`\n── ${String(msg.title)} ──\n${String(msg.text).trimEnd()}\n`);
       break;
     case 'config':
-      // Bouton « Charger binaire » : masqué sauf si le réglage l'active.
+      // Boutons optionnels : masqués sauf si leur réglage les active.
       loadBtn.hidden = !msg.showLoadBinary;
+      resetSimBtn.hidden = !msg.showResetParts;
+      clearCanvasBtn.hidden = !msg.showClearDiagram;
       break;
     case 'netResponse':
       // Réponse réseau de l'hôte : réinjectée dans le script (Pico W).
@@ -3513,15 +3567,21 @@ window.addEventListener('message', (event: MessageEvent) => {
       // poste — nom affiché mais chip en avertissement, aucun fichier actif.
       const name = typeof msg.name === 'string' ? msg.name : null;
       const missing = msg.missing === true;
-      hasCodeFile = name !== null && !missing;
+      // `deleted` : le fichier a disparu du disque SOUS LE NEZ de l'atelier —
+      // son nom est BARRÉ en rouge, comme VS Code barre l'onglet correspondant.
+      const deleted = msg.deleted === true;
+      hasCodeFile = name !== null && !missing && !deleted;
       codeFileBtn.textContent = name ? `📄 ${name}` : `📄 ${t('No file')}`;
       // Aucun fichier choisi (ou introuvable) : bouton en jaune sur rouge.
       codeFileBtn.classList.toggle('toolbar__file--nofile', !hasCodeFile);
-      codeFileBtn.title = missing
-        ? t('Code file {0} not found on this computer — click to choose the file to run', name ?? '')
-        : name
-          ? t('Code file: {0} — click to change, double-click to open', name)
-          : t('Code file to run / debug — click to change, double-click to open');
+      codeFileBtn.classList.toggle('toolbar__file--deleted', deleted);
+      codeFileBtn.title = deleted
+        ? t('Code file {0} has been deleted — click to choose the file to run', name ?? '')
+        : missing
+          ? t('Code file {0} not found on this computer — click to choose the file to run', name ?? '')
+          : name
+            ? t('Code file: {0} — click to change, double-click to open', name)
+            : t('Code file to run / debug — click to change, double-click to open');
       break;
     }
     case 'debugVars':
@@ -3535,6 +3595,7 @@ window.addEventListener('message', (event: MessageEvent) => {
     case 'projectName': {
       // Nom du projet courant (sans chemin), affiché à côté du bouton d'aide.
       currentProjectName = typeof msg.name === 'string' ? msg.name : null;
+      currentProjectDeleted = msg.deleted === true;
       renderProjectName();
       break;
     }

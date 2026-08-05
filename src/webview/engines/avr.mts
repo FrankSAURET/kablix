@@ -933,7 +933,12 @@ export class AvrEngine implements SimEngine {
   }
 
   setSpeed(fraction: number): void {
-    this.speed = Math.max(0.001, Math.min(1, fraction));
+    // Au-dessus de 1× la cible est simplement plus haute : la boucle exécute
+    // autant de cycles qu'elle peut dans sa frame, et le retard irrattrapable
+    // ré-ancre sans dette (MAX_DEBT_MS) — donc pas d'emballement, juste « aussi
+    // vite que la machine le permet ». Le plafond à 1× d'avant interdisait tout
+    // accéléré ; il est levé (menu 🐆 200 %, 🦅 500 %).
+    this.speed = Math.max(0.001, Math.min(100, fraction));
     this.paceWall = 0; // le facteur change : l'ancre repart d'ici
   }
 

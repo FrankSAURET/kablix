@@ -9,7 +9,7 @@
 //    boucle continue (`renderTick`) redessine déjà à chaque frame ; `queueRefresh`
 //    y ajoutait un second rAF, donc deux `refreshVisuals` complets par image.
 import esbuild from 'esbuild';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -147,9 +147,91 @@ const bloque = (ms) => {
   check('en pause, le temps simulé est figé', fige);
 }
 
+// ------------------------------- le DÉMARRAGE n'est pas un ralenti (v2026.8.3) --
+// Retour de Frank : « us sensor 0,01 · ili9341-pico 0,01 · l'horloge pico 0,35 ».
+// Mesuré dans la vraie page (Chrome, schémas et scripts réels), us-sensor et
+// ili9341 tournent à 1,00× — mais leur DÉMARRAGE, lui, rampe : boot du firmware
+// MicroPython puis injection du script par le raw REPL (tempête d'interruptions
+// USB), 0,15 à 0,7× pendant 1 à 7 secondes selon la taille des bibliothèques.
+// Le badge, armé dès le clic ▶, accusait donc la simulation d'un ralenti qui
+// n'existait pas. Il ne se mesure plus qu'à partir de `onRunning`.
+{
+  // Le seuil est celui de la production : si Frank le change, le banc suit.
+  const SPEED_WARN = Number(
+    /const SPEED_WARN = ([\d.]+)/.exec(readFileSync(join(root, 'src/webview/sim.mts'), 'utf8'))?.[1] ?? 0.8,
+  );
+  const fw = ['RPI_PICO-20230426-v1.20.0.uf2']
+    .map((n) => join(root, 'test-assets', n))
+    .find(existsSync);
+  if (!fw) {
+    console.log('  (firmware absent : mesure du démarrage sautée)');
+  } else {
+    const { parseUf2 } = await load('src/shared/uf2.ts', 'uf2.mjs');
+    const { PicoEngine } = await load('src/webview/engines/pico.mts', 'pico.mjs');
+    const segments = parseUf2(new Uint8Array(readFileSync(fw))).map((s) => ({ addr: s.addr, data: s.data }));
+    const script = ['import time', 'n = 0', 'while True:', '    n += 1', '    time.sleep_ms(200)', ''].join('\n');
+    const eng = new PicoEngine({ kind: 'flash', segments, script });
+    eng.onSerial = () => {};
+    let demarrage = null;
+    const t0 = performance.now();
+    eng.onRunning = () => {
+      if (!demarrage) demarrage = { wall: performance.now() - t0, sim: eng.simulatedMs() };
+    };
+    eng.start();
+    const limite = Date.now() + 120000;
+    while (!demarrage && Date.now() < limite) await sleep(50);
+    if (!demarrage) {
+      check('le script MicroPython démarre', false, 'onRunning jamais émis');
+    } else {
+      const boot = demarrage.sim / demarrage.wall;
+      // Fenêtre de régime établi, celle que le badge doit juger.
+      const w0 = performance.now();
+      const s0 = eng.simulatedMs();
+      await sleep(1500);
+      const apres = (eng.simulatedMs() - s0) / (performance.now() - w0);
+      // Le RALENTI sur Pico (v2026.8.3) : `setSpeed` ne faisait rien du tout sur
+      // rp2040js — le menu 🐢 était sans effet côté Pico. Mesuré ici en vrai.
+      eng.setSpeed(0.1);
+      await sleep(300); // l'ancre repart : on laisse passer la tranche en cours
+      const w1 = performance.now();
+      const s1 = eng.simulatedMs();
+      await sleep(1200);
+      const ralenti = (eng.simulatedMs() - s1) / (performance.now() - w1);
+      eng.setSpeed(1);
+      await sleep(300);
+      const w2 = performance.now();
+      const s2 = eng.simulatedMs();
+      await sleep(800);
+      const revenu = (eng.simulatedMs() - s2) / (performance.now() - w2);
+      eng.stop?.();
+      check(
+        `le ralenti 10 % agit AUSSI sur le Pico : ${ralenti.toFixed(2)}×`,
+        ralenti > 0.05 && ralenti < 0.25,
+        'setSpeed ne faisait rien sur rp2040js : le menu 🐢 restait décoratif',
+      );
+      check(
+        `revenu à 100 %, le Pico repart à l'heure : ${revenu.toFixed(2)}×`,
+        revenu > SPEED_WARN,
+        'le ralenti ne se lève plus, ou la dette accumulée est rattrapée en trombe',
+      );
+      check(
+        `le démarrage MicroPython est lent par nature : ${boot.toFixed(2)}× sur ${(demarrage.wall / 1000).toFixed(1)} s`,
+        boot < SPEED_WARN,
+        'le démarrage ne décroche plus : ce banc ne prouve plus rien',
+      );
+      check(
+        `le script, lui, tourne à l'heure : ${apres.toFixed(2)}×`,
+        apres > SPEED_WARN,
+        'même en régime établi le moteur ne suit pas — le ralenti serait réel',
+      );
+    }
+  }
+}
+
 // ------------------------------------------------------------- sources ----
 
 const pico = readFileSync(join(root, 'src/webview/engines/pico.mts'), 'utf8');
+const avr = readFileSync(join(root, 'src/webview/engines/avr.mts'), 'utf8');
 check(
   'le moteur Pico expose lui aussi simulatedMs()',
   /simulatedMs\(\): number \{[\s\S]{0,200}core\.cycles/.test(pico),
@@ -177,13 +259,35 @@ check(
 );
 check(
   'le badge compare au ralenti VOLONTAIRE (menu 🐢), pas à 1×',
-  /const wanted = Number\(speedSelect\.value\) \|\| 1;/.test(sim) && /ratio < SPEED_WARN \* wanted/.test(sim),
+  /const wanted = Math\.min\(Number\(speedSelect\.value\) \|\| 1, 1\);/.test(sim)
+    && /ratio < SPEED_WARN \* wanted/.test(sim),
 );
 check(
   'le badge disparaît à l\'arrêt de la simulation',
   /stopRenderLoop\(\);[\s\S]{0,120}resetSpeedBadge\(\);/.test(sim),
 );
 check('la fenêtre de mesure repart à chaque lancement', /engine\.start\(\);\s*resetSpeedBadge\(\);/.test(sim));
+
+// --- La mesure ne s'arme qu'une fois le script DÉMARRÉ (v2026.8.3) ------------
+check(
+  'la mesure de vitesse est désarmée tant que le script MicroPython démarre',
+  /speedArmed = !\(\s*boardFamily\(board\) === 'rp2040' && picoProgram\.kind === 'flash' && !!picoProgram\.script/.test(sim),
+  'le badge remesurerait le boot du firmware et l\'injection du script',
+);
+check(
+  'désarmée, la mesure ne conclut rien',
+  /function updateSpeedBadge\(\): void \{\s*if \(!speedArmed\) return;/.test(sim),
+);
+check(
+  'le signal onRunning arme la mesure (et remet la fenêtre à zéro)',
+  /engine\.onRunning = \(\) => \{[\s\S]{0,200}armSpeedBadge\(\);/.test(sim)
+    && /function armSpeedBadge\(\): void \{[\s\S]{0,200}speedArmed = true;[\s\S]{0,80}resetSpeedBadge\(\);/.test(sim),
+);
+check(
+  'sketch AVR et REPL interactif n\'attendent rien : la mesure reste armée',
+  /let speedArmed = true;/.test(sim),
+  'sans valeur initiale vraie, un sketch Arduino ne serait jamais mesuré',
+);
 
 const html = readFileSync(join(root, 'src/webview-html.ts'), 'utf8');
 check('le badge existe dans la barre d\'état', /id="sim-speed"[^>]*hidden/.test(html));
@@ -210,21 +314,80 @@ check('le badge a son style (et reste masqué par défaut)', /\.sim-speed \{/.te
     /box-sizing:\s*border-box/.test(bouton), 'sinon 30 px au lieu de 28 et la rangée déborde');
   // L'animal remplit le bouton à 1 px de la bordure : 28 px de bouton, moins les
   // deux bordures d'1 px, moins 1 px de jeu de chaque côté = 24 px de dessin.
-  // (Mesuré en navigateur : l'ENCRE d'un emoji fait la taille de sa police —
-  // c'est sa boîte d'avance, plus large, qui déborde, d'où l'overflow rogné.)
-  const px = Number(taille(face, 'font-size'));
+  const px = Number(taille(face, 'width'));
   const vise = Number(taille(std, 'height')) - 4;
   check('l\'animal occupe le bouton en pleine taille (1 px de la bordure)',
-    px === vise, `${px} px de police pour ${vise} px visés`);
+    px === vise && Number(taille(face, 'height')) === vise,
+    `${px}×${taille(face, 'height')} px de dessin pour ${vise} px visés`);
+  check('les cinq dessins gardent leurs proportions dans le bouton',
+    /object-fit:\s*contain/.test(face),
+    'le guépard est long et l\'aigle haut : sans ça, ils seraient étirés au carré');
   check('rien ne sort du cadre arrondi', /overflow:\s*hidden/.test(bouton));
   check('la liste native est transparente et étalée sur tout le bouton',
     /position:\s*absolute/.test(liste) && /inset:\s*0/.test(liste) && /opacity:\s*0/.test(liste));
   check('les pourcentages restent dans la liste déroulante',
-    /<option value="1"[^>]*>[^<]*100 %/.test(html) && /<option value="0.1">[^<]*10 %/.test(html)
-    && /<option value="0.01">[^<]*1 %/.test(html));
+    /<option value="1"[^>]*>[^<]*100 %/.test(html) && /<option value="0.1"[^>]*>[^<]*10 %/.test(html)
+    && /<option value="0.01"[^>]*>[^<]*1 %/.test(html));
+  // --- Accéléré 200 % / 500 % (v2026.8.3) -----------------------------------
+  check('la liste propose aussi 200 % et 500 %, avec leur animal',
+    /<option value="2"[^>]*>🐆 200 %/.test(html) && /<option value="5"[^>]*>🦅 500 %/.test(html),
+    'demande de Frank : « rajoute un 200 % et 500 % (icônes guépard et aigle) »');
+  check('les vitesses vont du plus rapide au plus lent',
+    ['5', '2', '1', '0.1', '0.01'].join()
+      === [...html.matchAll(/<option value="([\d.]+)"/g)].map((m) => m[1]).join(),
+    'l\'ordre de la liste doit suivre l\'échelle, sinon la molette saute au hasard');
+  check('le moteur AVR accepte l\'accéléré (plus de plafond à 1×)',
+    !/this\.speed = Math\.max\(0\.001, Math\.min\(1,/.test(avr),
+    'Math.min(1, …) ramenait 200 % et 500 % à 100 % sans rien dire');
+  check('le moteur Pico applique VRAIMENT la vitesse (setSpeed n\'est plus vide)',
+    /setSpeed\(fraction: number\): void \{[\s\S]{0,400}this\.sim\.speed = /.test(pico)
+    && /const aheadMs = \(clock\.nanos - this\.paceSim\) \/ 1e6 - \(now - this\.paceWall\) \* this\.speed;/.test(pico),
+    'le menu de vitesse était décoratif sur Pico');
+  check('la sieste du Pico est convertie en temps RÉEL (÷ speed)',
+    /napMs = Math\.min\(\(aheadMs - 4\) \/ this\.speed, 40\)/.test(pico),
+    'sinon un ralenti fort dort dix fois trop peu et brûle le processeur pour rien');
+  // --- Le bandeau annonce la vitesse (v2026.8.3) -----------------------------
+  check('le bandeau « Simulation en cours » annonce la vitesse si elle n\'est pas 100 %',
+    /function simBannerText\(\): string \{[\s\S]{0,500}if \(vitesse === 1\) return t\('⚠ Simulation running: editing is disabled\.'\)/.test(sim)
+    && /t\('⚠ Simulation running \(speed \{0\} %\): editing is disabled\.'/.test(sim),
+    'rien à l\'écran ne rappelait qu\'on tourne au ralenti');
+  check('changer de vitesse en pleine simulation réécrit le bandeau',
+    /speedSelect\.addEventListener\('change'[\s\S]{0,320}simBanner\.textContent = simBannerText\(\)/.test(sim));
+  check('changer de vitesse repart d\'une fenêtre de mesure neuve',
+    /speedSelect\.addEventListener\('change'[\s\S]{0,400}resetSpeedBadge\(\)/.test(sim),
+    'sinon la fenêtre à cheval sur deux régimes ferait clignoter le badge');
+  check('le badge reste la sentinelle du TEMPS RÉEL (accéléré plafonné à 1×)',
+    /const wanted = Math\.min\(Number\(speedSelect\.value\) \|\| 1, 1\);/.test(sim),
+    'à 500 % demandés, le badge « ralentie » resterait allumé en permanence');
   check('la face du bouton reprend l\'animal de l\'option choisie',
     /id="speed-face"/.test(html) && /function updateSpeedFace\(\)/.test(sim)
     && /speedSelect\.addEventListener\('change'[\s\S]{0,160}updateSpeedFace\(\)/.test(sim));
+  // --- Les animaux sont les DESSINS de Frank, pas des emoji (v2026.8.3) ------
+  // Frank les a ajoutés à sa planche media/icones.svg : le bouton doit les
+  // porter, l'emoji ne servant plus qu'à la liste native (qui ne sait afficher
+  // que du texte).
+  const ANIMAUX = [['escargot', '0.01'], ['tortue', '0.1'], ['lapin', '1'], ['guepard', '2'], ['aigle', '5']];
+  const planche = readFileSync(join(root, 'media/icones.svg'), 'utf8');
+  for (const [nom, valeur] of ANIMAUX) {
+    check(`${nom} : dessin de Frank présent dans la planche et extrait`,
+      new RegExp(`id="${nom}"`).test(planche) && existsSync(join(root, 'media', `${nom}.svg`)),
+      `groupe « ${nom} » d'icones.svg → media/${nom}.svg (node scripts/_extract-icon.mjs ${nom} ${nom}.svg)`);
+    check(`${nom} : porté par l'option ${valeur === '0.01' ? '1' : Number(valeur) * 100} %`,
+      new RegExp(`<option value="${valeur.replace('.', '\\.')}"[^>]*data-icon="\\$\\{${nom === 'guepard' ? 'guepard' : nom}IconUri\\}"`).test(html),
+      'la face lit `data-icon` de l\'option choisie');
+    // Le dessin doit tenir DANS son viewBox : un groupe Inkscape posé à la main
+    // porte sa propre matrice, que getBBox() ignore — le recadrage tombait à
+    // côté et le bouton restait vide (constaté au rendu).
+    const svg = readFileSync(join(root, 'media', `${nom}.svg`), 'utf8');
+    const vb = (/viewBox="([-\d. ]+)"/.exec(svg) ?? [])[1] ?? '';
+    const [, , w, h] = vb.split(' ').map(Number);
+    check(`${nom} : recadré sur son dessin (viewBox non vide)`,
+      w > 1 && h > 1 && w < 400 && h < 400, `viewBox « ${vb} »`);
+  }
+  check('la face du bouton est une IMAGE, plus un caractère emoji',
+    /<img id="speed-face"[^>]*src="\$\{lapinIconUri\}"/.test(html)
+    && /speedFace\.src = icone/.test(sim),
+    'demande de Frank : « utilise les images ajoutées dans icones.svg »');
 }
 
 // Anti-clignotement : le démarrage (JIT du moteur, premier rendu, police des
