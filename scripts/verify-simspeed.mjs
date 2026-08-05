@@ -191,6 +191,42 @@ check('le badge existe dans la barre d\'état', /id="sim-speed"[^>]*hidden/.test
 const css = readFileSync(join(root, 'media/styles.css'), 'utf8');
 check('le badge a son style (et reste masqué par défaut)', /\.sim-speed \{/.test(css) && /\.sim-speed\[hidden\]/.test(css));
 
+// --- Le RÉGLAGE de vitesse : un bouton carré, l'animal seul (demande de Frank :
+// « le bouton est trop large »). Le <select> natif étalerait « 🐇 100 % » plus sa
+// flèche : il est posé transparent par-dessus, sa liste garde les pourcentages.
+{
+  const bouton = /\.canvas-controls__speed \{([^}]*)\}/.exec(css)?.[1] ?? '';
+  const face = /\.canvas-controls__speed-face \{([^}]*)\}/.exec(css)?.[1] ?? '';
+  const liste = /\.canvas-controls__speed-select \{([^}]*)\}/.exec(css)?.[1] ?? '';
+  const std = /\.canvas-controls__btn \{([^}]*)\}/.exec(css)?.[1] ?? '';
+  const taille = (bloc, prop) => (new RegExp(`${prop}:\\s*([\\d.]+)px`).exec(bloc) ?? [])[1];
+  check('le réglage de vitesse est un bouton CARRÉ, à la taille des autres',
+    taille(bouton, 'width') === taille(std, 'width')
+    && taille(bouton, 'height') === taille(std, 'height')
+    && taille(bouton, 'width') === taille(bouton, 'height'),
+    `${taille(bouton, 'width')}×${taille(bouton, 'height')} pour ${taille(std, 'width')}×${taille(std, 'height')}`);
+  check('le bouton ne s\'élargit pas au contenu (flex: none)', /flex:\s*none/.test(bouton));
+  check('le bouton se mesure bordures comprises, comme les <button> voisins',
+    /box-sizing:\s*border-box/.test(bouton), 'sinon 30 px au lieu de 28 et la rangée déborde');
+  // L'animal remplit le bouton à 1 px de la bordure : 28 px de bouton, moins les
+  // deux bordures d'1 px, moins 1 px de jeu de chaque côté = 24 px de dessin.
+  // (Mesuré en navigateur : l'ENCRE d'un emoji fait la taille de sa police —
+  // c'est sa boîte d'avance, plus large, qui déborde, d'où l'overflow rogné.)
+  const px = Number(taille(face, 'font-size'));
+  const vise = Number(taille(std, 'height')) - 4;
+  check('l\'animal occupe le bouton en pleine taille (1 px de la bordure)',
+    px === vise, `${px} px de police pour ${vise} px visés`);
+  check('rien ne sort du cadre arrondi', /overflow:\s*hidden/.test(bouton));
+  check('la liste native est transparente et étalée sur tout le bouton',
+    /position:\s*absolute/.test(liste) && /inset:\s*0/.test(liste) && /opacity:\s*0/.test(liste));
+  check('les pourcentages restent dans la liste déroulante',
+    /<option value="1"[^>]*>[^<]*100 %/.test(html) && /<option value="0.1">[^<]*10 %/.test(html)
+    && /<option value="0.01">[^<]*1 %/.test(html));
+  check('la face du bouton reprend l\'animal de l\'option choisie',
+    /id="speed-face"/.test(html) && /function updateSpeedFace\(\)/.test(sim)
+    && /speedSelect\.addEventListener\('change'[\s\S]{0,160}updateSpeedFace\(\)/.test(sim));
+}
+
 // Anti-clignotement : le démarrage (JIT du moteur, premier rendu, police des
 // afficheurs) fait toujours une première seconde lente. La logique du badge est
 // rejouée ici telle qu'elle est écrite dans sim.mts, sur des scénarios de mesures.

@@ -136,11 +136,19 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
           <button id="stop" class="canvas-controls__btn" disabled title="${l10n.t('Stop')}">■</button>
           <button id="pause" class="canvas-controls__btn" disabled title="${l10n.t('Pause - resume the simulation')}">⏸</button>
           <button id="step" class="canvas-controls__btn canvas-controls__btn--step" disabled title="${l10n.t('Run next source line')}"><img class="canvas-controls__icon" src="${stepUri}" alt="${l10n.t('Run next source line')}" /></button>
-          <select id="speed" class="canvas-controls__speed" title="${l10n.t('Simulation speed')}">
-            <option value="1" selected>🐇 100 %</option>
-            <option value="0.1">🐢 10 %</option>
-            <option value="0.01">🐌 1 %</option>
-          </select>
+          <!-- Vitesse de simulation : bouton carré comme les autres, l'animal
+               SEUL dessus. Le <select> natif afficherait aussi le pourcentage et
+               sa flèche — il est donc posé transparent PAR-DESSUS le bouton :
+               sa liste déroulante (avec les pourcentages) et son clavier
+               restent ceux du navigateur. -->
+          <span class="canvas-controls__speed" title="${l10n.t('Simulation speed')}">
+            <span id="speed-face" class="canvas-controls__speed-face" aria-hidden="true">🐇</span>
+            <select id="speed" class="canvas-controls__speed-select" title="${l10n.t('Simulation speed')}">
+              <option value="1" selected>🐇 100 %</option>
+              <option value="0.1">🐢 10 %</option>
+              <option value="0.01">🐌 1 %</option>
+            </select>
+          </span>
           <button id="repl" class="canvas-controls__btn canvas-controls__btn--repl" hidden title="${l10n.t('Start an interactive MicroPython REPL (no script)')}">REPL</button>
           <button id="toggle-serial" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Show/hide the serial monitor')}"><img class="canvas-controls__icon" src="${serialMonitorUri}" alt="${l10n.t('Show/hide the serial monitor')}" /></button>
           <button id="toggle-plotter" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Show/hide the plotter (curves)')}"><img class="canvas-controls__icon" src="${plotterIconUri}" alt="${l10n.t('Show/hide the plotter (curves)')}" /></button>

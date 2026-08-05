@@ -2745,8 +2745,19 @@ stepBtn.addEventListener('click', () => {
   updateDebugButtons();
 });
 
+// Le bouton de vitesse ne montre QUE l'animal (les pourcentages restent dans la
+// liste déroulante) : la face reprend le premier mot de l'option choisie, il n'y
+// a donc rien à tenir en double.
+const speedFace = document.getElementById('speed-face') as HTMLElement | null;
+function updateSpeedFace(): void {
+  const choix = speedSelect.selectedOptions[0]?.textContent ?? '';
+  if (speedFace) speedFace.textContent = choix.trim().split(/\s+/)[0] ?? '';
+}
+updateSpeedFace();
+
 speedSelect.addEventListener('change', () => {
   engine?.setSpeed(Number(speedSelect.value) || 1);
+  updateSpeedFace();
 });
 
 // --- Cycle de vie de la simulation -------------------------------------------

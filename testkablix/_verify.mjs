@@ -215,6 +215,35 @@ for (const t of TESTS) {
         check(`${t.name} : sortie → ${e.mcuPin}`, b?.mcuPin === e.mcuPin, JSON.stringify(b));
         break;
       }
+      case 'variable-resistor': {
+        // Une résistance variable nue ne « sort » rien : elle forme un pont
+        // diviseur avec une résistance fixe, et c'est le niveau de ce pont que
+        // l'entrée ADC lit. Deux points sont contrôlés — le repos (attributs de
+        // l'inspecteur) puis le curseur poussé — pour tenir la LOI de chaque
+        // composant, pas seulement son câblage.
+        const niveaux = (live) => {
+          const l = model.adcDividerLevels(diagram, live);
+          return Object.fromEntries(l.map((x) => [x.mcuPin, x.level]));
+        };
+        const compare = (attendus, vus, quoi) => {
+          for (const [pin, attendu] of Object.entries(attendus)) {
+            const vu = vus[pin];
+            check(`${t.name} : ${quoi} — pont ${pin} à ${(attendu * 100).toFixed(1)} %`,
+              typeof vu === 'number' && Math.abs(vu - attendu) < 0.002,
+              `lu ${typeof vu === 'number' ? (vu * 100).toFixed(2) + ' %' : 'aucun pont'}`);
+          }
+        };
+        compare(e.repos, niveaux(), 'repos');
+        // Curseur poussé : la LDR éclairée et la CTN chauffée descendent en
+        // résistance (le pont monte), la CTP monte (le pont descend).
+        // `null` pour tout ce qui n'est pas variable : les résistances fixes du
+        // pont gardent leur valeur (les pousser aussi effacerait la mesure).
+        const pousse = (p) => (model.VARIABLE_RESISTOR_TYPES.has(p.type)
+          ? model.variableResistorOhms(p.type, p.type === 'ldr' ? e.pousse.lux : e.pousse.celsius, p.attrs)
+          : null);
+        compare(e.pousses, niveaux(pousse), 'curseur poussé');
+        break;
+      }
       case 'servo': {
         const b = model.servoBindings(diagram).find((x) => x.partId === e.partId);
         check(`${t.name} : PWM → ${e.mcuPin}`, b?.mcuPin === e.mcuPin, JSON.stringify(b));

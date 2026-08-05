@@ -1,8 +1,6 @@
 # Change Log
 
-Le journal détaillé, lot par lot, vit dans [`todo.md`](https://github.com/FrankSAURET/kablix/blob/main/todo.md) sur GitHub (il n'est pas embarqué dans l'extension). Cette page ne retient que les jalons.
-
-Numérotation : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque mois.
+Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque mois.
 
 ## 2026.7.267
 - **Bibliothèque de 63 composants** en 9 catégories, chacun avec sa fiche d'aide illustrée (FR + EN) et ses deux montages de test (Arduino et Pico).

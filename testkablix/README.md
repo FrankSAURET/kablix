@@ -57,6 +57,7 @@ Chaque composant du catalogue a deux tests : `<composant>-uno` (Arduino, C) et
 | Matrice NeoPixel 8×8 | `neopixel-matrix-uno` | `neopixel-matrix-pico` | diagonale + dégradé |
 | Anneau NeoPixel 16 | `led-ring-uno` | `led-ring-pico` | chenillard bleu |
 | Température NTC | `ntc-temp-uno` | `ntc-temp-pico` | valeur suit le curseur |
+| Résistances variables LDR + CTN + CTP | `rv-uno` | `rv-pico` | trois ponts diviseurs lus d'un coup ; éclairer la LDR ou chauffer la CTN fait monter la lecture, chauffer la CTP la fait descendre |
 | Capteur de gaz (MQ) | `gas-sensor-uno` | `gas-sensor-pico` | AOUT + DOUT |
 | Capteur de pouls | `heartbeat-uno` | `heartbeat-pico` | signal qui bat |
 | Capteur de flamme | `flame-uno` | `flame-pico` | AOUT + DOUT |

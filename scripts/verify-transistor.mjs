@@ -377,6 +377,34 @@ async function run() {
 		ok('défilement arrondi par l’écran : le cran suivant cale bien la TROISIÈME entrée',
 			Math.abs(liste.scrollTop - t0[2]) < 1,
 			'scrollTop ' + liste.scrollTop.toFixed(1) + ' pour ' + t0[2].toFixed(1));
+		// LA FIN DE LA LISTE (constat de Frank, v2026.7.269 : « le décalage
+		// persiste »). Aligner une entrée en haut sature AVANT le bas du contenu :
+		// sous la dernière entrée alignable il reste jusqu'à une hauteur d'entrée
+		// que plus rien ne pouvait montrer. Mesuré : le défilement plafonnait à
+		// 248 px pour un maximum de 257 — les derniers modèles restaient coupés et
+		// les crans suivants ne faisaient plus rien. Un cran de plus colle au bas.
+		{
+			liste.scrollTop = 0;
+			const plafond = liste.scrollHeight - liste.clientHeight;
+			let dernier = lignes.length - 1;
+			while (dernier > 0 && t0[dernier] > plafond) dernier--;
+			for (let i = 0; i < dernier; i++) cran(1);
+			ok('la dernière entrée alignable est bien calée en haut',
+				Math.abs(liste.scrollTop - t0[dernier]) < 1,
+				'scrollTop ' + liste.scrollTop.toFixed(1) + ' pour ' + t0[dernier].toFixed(1));
+			cran(1);
+			ok('un cran de plus montre la FIN de la liste (plus rien de coupé en bas)',
+				Math.abs(liste.scrollTop - plafond) < 1,
+				'scrollTop ' + liste.scrollTop.toFixed(1) + ' pour ' + plafond);
+			cran(-1);
+			ok('depuis le bas, un cran vers le haut recale la dernière entrée alignable',
+				Math.abs(liste.scrollTop - t0[dernier]) < 1,
+				'scrollTop ' + liste.scrollTop.toFixed(1) + ' pour ' + t0[dernier].toFixed(1));
+			cran(-1);
+			ok('puis on remonte une entrée à la fois, sans en sauter',
+				Math.abs(liste.scrollTop - t0[dernier - 1]) < 1,
+				'scrollTop ' + liste.scrollTop.toFixed(1) + ' pour ' + t0[dernier - 1].toFixed(1));
+		}
 		// Butées : en haut on ne remonte pas plus, en bas on ne descend pas plus.
 		liste.scrollTop = 0;
 		cran(-1);
@@ -386,6 +414,16 @@ async function run() {
 		cran(1);
 		ok('déjà en bas : la molette ne fait rien', liste.scrollTop === fond,
 			liste.scrollTop + ' pour ' + fond);
+		// En butée, le geste est RENDU au panneau (qui défile à notre place) :
+		// une molette qui ne fait rien du tout se ressent comme un blocage.
+		liste.scrollTop = liste.scrollHeight;
+		const evBas = new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: 120 });
+		liste.dispatchEvent(evBas);
+		ok('en butée basse, le geste passe au panneau', !evBas.defaultPrevented);
+		liste.scrollTop = 0;
+		const evHaut = new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: -120 });
+		liste.dispatchEvent(evHaut);
+		ok('en butée haute, le geste passe au panneau', !evHaut.defaultPrevented);
 		// Le geste est CONSOMMÉ : sans preventDefault, le navigateur ajouterait
 		// son propre défilement par-dessus le nôtre.
 		liste.scrollTop = 0;

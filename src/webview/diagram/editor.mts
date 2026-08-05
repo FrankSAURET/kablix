@@ -5187,17 +5187,27 @@ export class Editor {
     // à petit ») : le navigateur arrondit `scrollTop` après chaque bond, et
     // l'écart s'accumulait jusqu'à couper une ligne en deux — 0,5 px dès la
     // cinquième entrée, mesuré en navigateur.
+    //
+    // La FIN de la liste demande un cran de plus. Aligner une entrée en haut
+    // sature avant le bas du contenu : la dernière entrée alignable laisse
+    // sous elle un reste (jusqu'à une hauteur d'entrée) que rien ne pouvait
+    // plus montrer — les derniers modèles restaient coupés et les crans
+    // suivants ne faisaient rien. Un cran de plus colle donc au bas.
     let haut = 0; // index de l'entrée calée en haut de la fenêtre
     let pose = 0; // défilement que NOUS avons posé, pour repérer un autre geste
+    let fond = false; // collé au bas : l'entrée du haut n'est plus au ras
     list.addEventListener('wheel', (ev: WheelEvent) => {
       if (ev.deltaY === 0 || ev.ctrlKey) return; // Ctrl+molette = zoom du navigateur
       const rows = [...list.children] as HTMLElement[];
       if (rows.length < 2) return;
-      ev.preventDefault();
       // Position d'une entrée DANS le contenu défilé : le haut de la fenêtre
       // (bordure comprise) ramené à l'origine du contenu.
       const dessus = list.getBoundingClientRect().top + list.clientTop - list.scrollTop;
       const pos = (i: number): number => rows[i].getBoundingClientRect().top - dessus;
+      // `scrollHeight` et `clientHeight` sont des entiers alors que le contenu
+      // ne l'est pas : le plafond peut dépasser le vrai maximum d'un demi-pixel,
+      // d'où la tolérance de 1 px sur les comparaisons de butée.
+      const plafond = list.scrollHeight - list.clientHeight;
       // Défilement fait autrement (barre tirée à la souris, clavier) : on repart
       // de l'entrée réellement en haut.
       if (Math.abs(list.scrollTop - pose) > 1) {
@@ -5206,22 +5216,48 @@ export class Editor {
             Math.abs(pos(i) - list.scrollTop) < Math.abs(pos(best) - list.scrollTop) ? i : best,
           0
         );
+        fond = list.scrollTop >= plafond - 1;
       }
       // Dernière entrée que le défilement peut réellement amener en haut : au
       // delà il sature, un cran de plus ne bougerait rien et l'index partirait
       // en avance sur l'écran.
-      const plafond = list.scrollHeight - list.clientHeight;
       let dernier = rows.length - 1;
       while (dernier > 0 && pos(dernier) > plafond) dernier--;
-      // Déjà en butée : on ne touche à rien. Recaler sur la dernière entrée
-      // alignable ferait REMONTER la liste sur un cran vers le bas.
-      if (list.scrollTop >= plafond - 0.5 && ev.deltaY > 0) {
-        haut = dernier;
-        pose = list.scrollTop;
-        return;
+      if (ev.deltaY > 0) {
+        // Déjà tout en bas : le geste est RENDU au panneau, qui défile à notre
+        // place. Le retenir pour ne rien faire donnait une molette morte.
+        if (list.scrollTop >= plafond - 1) {
+          haut = dernier;
+          fond = true;
+          return;
+        }
+        ev.preventDefault();
+        // Dernière entrée alignable atteinte : le cran suivant montre la fin.
+        if (haut >= dernier) {
+          list.scrollTop = plafond;
+          fond = true;
+        } else {
+          haut += 1;
+          list.scrollTop = pos(haut);
+        }
+      } else {
+        if (list.scrollTop <= 0.5) {
+          haut = 0;
+          fond = false;
+          return; // rien à remonter : au panneau de jouer
+        }
+        ev.preventDefault();
+        // Depuis le bas, on recale la dernière entrée alignable : elle est déjà
+        // au-dessus du haut de la fenêtre, remonter d'un rang de plus sauterait
+        // une entrée.
+        if (fond) {
+          fond = false;
+          haut = dernier;
+        } else {
+          haut = Math.max(0, haut - 1);
+        }
+        list.scrollTop = pos(haut);
       }
-      haut = Math.max(0, Math.min(dernier, haut + (ev.deltaY > 0 ? 1 : -1)));
-      list.scrollTop = pos(haut);
       pose = list.scrollTop; // relu : le navigateur l'arrondit
     });
     const choose = (choice: string): void => {

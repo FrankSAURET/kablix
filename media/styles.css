@@ -815,13 +815,53 @@ textarea {
 }
 .task__cancel:hover { background: var(--vscode-button-secondaryHoverBackground, #45494e); }
 
+/* Vitesse de simulation : un bouton CARRÉ de la taille des autres (28 px), avec
+   le seul animal dessus, à 1 px de la bordure. La liste déroulante, elle, garde
+   les pourcentages. Le <select> natif ne sait pas afficher autre chose que le
+   texte de l'option choisie (plus sa flèche) : il est rendu transparent et
+   étalé sur tout le bouton — clics, clavier et liste native inchangés. */
 .canvas-controls__speed {
-  font: inherit;
-  font-size: 0.8rem;
+  position: relative;
+  flex: none;
+  /* Les boutons voisins sont des <button> : le navigateur leur pose
+     `box-sizing: border-box`. Sans la même règle, ce <span> mesurerait 30 px
+     (28 + les deux bordures) et dépasserait de la rangée. */
+  box-sizing: border-box;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 6px;
-  border: 1px solid var(--vscode-dropdown-border, #555);
-  background: var(--vscode-dropdown-background, #2a2a2a);
-  color: var(--vscode-dropdown-foreground, #fff);
+  border: 1px solid var(--vscode-input-border, #555);
+  background: var(--vscode-input-background, #2a2a2a);
+  color: var(--vscode-input-foreground, #fff);
+  cursor: pointer;
+  /* Un emoji est plus LARGE que son dessin (blancs d'avance de part et d'autre) :
+     à cette taille sa boîte dépasse le bouton alors que le dessin, lui, tient.
+     Le rognage garantit que rien ne sort du cadre arrondi. */
+  overflow: hidden;
+}
+
+/* L'animal remplit le bouton : 28 px moins les deux bordures d'1 px, moins
+   1 px de jeu de chaque côté = 24 px de dessin (mesuré : l'encre d'un emoji
+   fait exactement la taille de sa police). */
+.canvas-controls__speed-face {
+  font-size: 24px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.canvas-controls__speed-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  font: inherit;
   cursor: pointer;
 }
 

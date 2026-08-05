@@ -1,4 +1,3 @@
-1. l'axe du moteur clignote toujours. On dirait que la partie grise fait des en avant en arrière. Au bout d'un moment ça se stabilise puis ça recommence
-1. Molette dans la liste des modèles de transistor : un cran = une entrée : ça décale petit à petit. Il faut que le trait de séparation entre 2 composants soit toujours en haut de la fenêtre de visualisation
-1.  **Signalé, rien touché — à toi de trancher** : 11 clés mortes dans `l10n/bundle.l10n.fr.json` (traces d'anciennes commandes) ; `testkablix/Test export svg.svg` (4,8 Mo suivis par git, témoin du test d'export) ; une cinquantaine de scripts `_mesure-*` / `_probe-*` / `_view-*` jamais cités dans `package.json` ; `ldr`, `ntc` et `ptc` sans montage de test dédié ; les deux avertissements SVGO du build.
-Détaille mieux ça notamment sur l'impact en cas de suppression et à quoi ça servait
+1. Molette de la liste des modèles de transistor : me décalage persiste
+1. Les résistances variables LDR, CTN et CTP on u fichier de test RV.projix mais fait le test standard normalisé à partir de lui
+1. J'ai tetouché le changelog et on le remettra à jour seulement avant chaque publication. Et c'est moi qui décide. HJe te dirais quand y retoucher.

@@ -1,8 +1,25 @@
 # À faire
-1. *(rien en attente)*
-1. vsix et n'oublie pas l'incrémentation du mois. Mets le en parametre fort pour tous les projets en calver. Prochaine version 2026.8.0.
+1. (rien en attente)
+
+# Consignes permanentes
+1. ℹ️ **`CHANGELOG.md` : Frank seul décide quand il est remis à jour** — juste avant une publication, et sur sa demande expresse. Ne pas y toucher autrement.
+
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# >>>>  v2026.8.0 — la molette touche le fond, les trois résistances variables ont leur banc
+
+1. ✅ **Molette du sélecteur de transistor : la vraie cause était la FIN de la liste.** Caler une entrée en haut de la fenêtre sature *avant* le bas du contenu : sous la dernière entrée alignable il reste jusqu'à une hauteur d'entrée que plus rien ne pouvait montrer. Mesuré en navigateur (Chrome, trois échelles d'écran — 100 %, 125 %, 150 %) : le défilement plafonnait à **248 px pour un maximum de 257** ; les derniers modèles restaient coupés en bas et, une fois là, **tous les crans suivants ne faisaient plus rien**. L'alignement lui-même était juste (écart mesuré < 0,5 px sur toute la descente, aux trois échelles) — c'était bien le fond de la liste qui manquait.
+2. ✅ **Un cran de plus colle désormais au bas** : arrivé sur la dernière entrée alignable, le cran suivant montre la fin de la liste. Depuis le bas, un cran vers le haut **recale cette dernière entrée** (remonter d'un rang de plus aurait sauté une entrée), puis on remonte une par une.
+3. ✅ **En butée, le geste est rendu au panneau** au lieu d'être retenu pour ne rien faire : le panneau de propriétés défile à la place, comme n'importe quelle liste imbriquée. Une molette qui ne fait plus rien du tout se ressent comme un blocage.
+4. ✅ **Six contrôles de plus dans `verify:transistor`** (155 au total) : la dernière entrée alignable est bien calée, un cran de plus atteint le fond, la remontée depuis le fond ne saute pas d'entrée, et le geste passe au panneau aux deux butées.
+5. ✅ **Test normalisé des trois résistances variables (`rv-uno` + `rv-pico`)**, repris du montage que Frank avait câblé à la main dans `testkablix/rv/` : LDR, CTN et CTP forment chacune un pont diviseur avec une résistance fixe de sa valeur de repos, lu sur A0/A1/A2 (Uno) et GP26/27/28 (Pico). Entrés dans `_spec.mjs`, générés par `_generate.mjs`, ligne ajoutée à `testkablix/README.md` — le montage manuel `rv/` reste en place, intact.
+6. ✅ **Le banc contrôle la LOI, pas seulement le câblage** : nouveau genre d'attente `variable-resistor` dans `_verify.mjs`, qui relève le niveau de chaque pont **au repos** (98,7 % / 50 % / 50 %) puis **curseur poussé** (5000 lx et 80 °C : 99,7 % / 88,7 % / 41,1 %). La LDR éclairée et la CTN chauffée font monter la lecture, la CTP la fait descendre — une inversion de caractéristique ne passerait plus. Le `.ino` compile et le `.py` s'analyse : 64 contrôles au vert sur les deux nouveaux schémas.
+7. ✅ **Le bouton de vitesse de simulation devient un bouton carré ordinaire** (28×28, comme ses voisins) : **seul l'animal** y apparaît, les pourcentages restent dans la liste déroulante. Une liste déroulante native ne sait afficher que le texte de l'option choisie, plus sa flèche — elle est donc posée **transparente par-dessus** le bouton, ce qui garde sa liste et son clavier d'origine. La face reprend le premier mot de l'option retenue : rien n'est tenu en double.
+8. ✅ **L'animal remplit le bouton à 1 px de la bordure.** Mesuré en navigateur : l'**encre** d'un emoji fait exactement la taille de sa police (24 px de dessin pour 24 px de police), alors que sa **boîte** est bien plus large (33 px) à cause des blancs d'avance — d'où le rognage au cadre arrondi, qui ne coupe aucun pixel dessiné. Corrigé au passage : sans `box-sizing: border-box` le bouton mesurait **30 px au lieu de 28** (le navigateur ne pose cette règle que sur les `<button>`, pas sur un `<span>`) et dépassait de la rangée.
+9. ✅ **Sept contrôles de plus dans `verify:simspeed`** : bouton carré à la taille des autres, mesuré bordures comprises, qui ne s'élargit pas au contenu, animal à la taille visée, rien hors du cadre, liste transparente étalée sur tout le bouton, pourcentages conservés dans les options.
+10. ✅ **Passage au mois d'août : `2026.8.0`** (l'incrément repart à 0 à chaque changement de mois). La règle est désormais **écrite en dur dans le `CLAUDE.md` global**, valable pour tous les projets en calver : comparer le mois de la version courante à la date du jour avant chaque bump, et ne jamais déduire la date de la dernière version du fichier.
+11. ℹ️ **`CHANGELOG.md` laissé tel que Frank l'a retouché** : il ne sera remis à jour que sur sa demande, avant publication.
 
 # v2026.7.269 — le pignon ne saute plus, la molette tient son rang
 

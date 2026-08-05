@@ -59,6 +59,12 @@ export const PART_PINS = {
   'neopixel-matrix': ['GND', 'VCC', 'DIN', 'DOUT'],
   'led-ring': ['GND', 'VCC', 'DIN', 'DOUT'],
   'ntc-temp': ['GND', 'VCC', 'OUT'],
+  // Résistances variables nues : deux pattes numérotées, sans polarité. Elles
+  // ne « sortent » rien — c'est le pont diviseur qu'elles forment avec une
+  // résistance fixe que l'entrée ADC lit.
+  ldr: ['1', '2'],
+  ntc: ['1', '2'],
+  ptc: ['1', '2'],
   'gas-sensor': ['AOUT', 'DOUT', 'GND', 'VCC'],
   heartbeat: ['GND', 'VCC', 'OUT'],
   flame: ['VCC', 'GND', 'DOUT', 'AOUT'],
@@ -1140,6 +1146,68 @@ void setup() {
 void loop() {
   Serial.print("A0 = ");
   Serial.println(analogRead(A0));
+  delay(300);
+}
+`,
+  }),
+
+  // Les trois résistances variables nues d'un coup : elles se lisent toutes de
+  // la même façon (pont diviseur avec une résistance fixe), et c'est le montage
+  // que Frank a câblé à la main dans `rv/rv.projix`. Chaque résistance fixe vaut
+  // la valeur de repos de sa variable : au repos les trois ponts sont donc
+  // lisibles d'un coup d'œil (moitié de l'échelle pour les thermistances).
+  test({
+    name: 'rv-uno', board: 'uno', ext: 'ino',
+    parts: [
+      MCU('uno'),
+      { id: 'Rv1', type: 'ldr', x: 620, y: 90, attrs: { lux: '500', r1lx: '50000', gamma: '0.7' } },
+      { id: 'Rv2', type: 'ntc', x: 720, y: 90, attrs: { temperature: '25', r25: '10000', beta: '3950', tmin: '-55', tmax: '125' } },
+      { id: 'Rv3', type: 'ptc', x: 820, y: 90, attrs: { temperature: '25', r25: '2000', tc: '0.79', tmin: '-55', tmax: '125' } },
+      { id: 'R1', type: 'resistor', x: 620, y: 200, attrs: { value: '50000' } },
+      { id: 'R2', type: 'resistor', x: 720, y: 200, attrs: { value: '10000' } },
+      { id: 'R3', type: 'resistor', x: 820, y: 200, attrs: { value: '2000' } },
+    ],
+    wires: () => [
+      w('Rv1', '1', 'U1', '5V', 'red'),
+      w('Rv2', '1', 'Rv1', '1', 'red'),
+      w('Rv3', '1', 'Rv2', '1', 'red'),
+      w('Rv1', '2', 'U1', 'A0', 'green'),
+      w('Rv2', '2', 'U1', 'A1', 'green'),
+      w('Rv3', '2', 'U1', 'A2', 'green'),
+      w('R1', '1', 'Rv1', '2', 'blue'),
+      w('R2', '1', 'Rv2', '2', 'blue'),
+      w('R3', '1', 'Rv3', '2', 'blue'),
+      w('R1', '2', 'U1', 'GND.1', 'black'),
+      w('R2', '2', 'R1', '2', 'black'),
+      w('R3', '2', 'R2', '2', 'black'),
+    ],
+    // Niveaux du pont au repos, puis à 5000 lx et 80 °C : c'est la LOI de chaque
+    // composant qui est contrôlée (la LDR et la CTN descendent en résistance
+    // quand on les éclaire/chauffe, la CTP monte).
+    expect: {
+      kind: 'variable-resistor',
+      repos: { A0: 0.98725, A1: 0.5, A2: 0.5 },
+      pousse: { lux: 5000, celsius: 80 },
+      pousses: { A0: 0.99743, A1: 0.88732, A2: 0.41076 },
+    },
+    code: `// Test des trois résistances variables nues : chacune forme un pont
+// diviseur avec une résistance fixe de sa valeur de repos.
+//   A0 : LDR 50 kΩ à 1 lx + 50 kΩ   (curseur = éclairement)
+//   A1 : CTN 10 kΩ à 25 °C + 10 kΩ  (curseur = température)
+//   A2 : CTP 2 kΩ à 25 °C + 2 kΩ    (curseur = température)
+// En simulation : éclairer la LDR et chauffer la CTN FAIT MONTER la lecture,
+// chauffer la CTP la fait descendre.
+void setup() {
+  Serial.begin(115200);
+}
+
+void loop() {
+  Serial.print("LDR A0 = ");
+  Serial.print(analogRead(A0));
+  Serial.print(" | CTN A1 = ");
+  Serial.print(analogRead(A1));
+  Serial.print(" | CTP A2 = ");
+  Serial.println(analogRead(A2));
   delay(300);
 }
 `,
@@ -2941,6 +3009,60 @@ import time
 capteur = ADC(26)
 while True:
     print("ADC0 =", capteur.read_u16())
+    time.sleep(0.3)
+`,
+  }),
+
+  // Même montage que `rv-uno`, sur les trois entrées ADC du Pico (GP26/27/28).
+  test({
+    name: 'rv-pico', board: 'pico', ext: 'py',
+    parts: [
+      MCU('pico'),
+      { id: 'Rv1', type: 'ldr', x: 680, y: 90, attrs: { lux: '500', r1lx: '50000', gamma: '0.7' } },
+      { id: 'Rv2', type: 'ntc', x: 780, y: 90, attrs: { temperature: '25', r25: '10000', beta: '3950', tmin: '-55', tmax: '125' } },
+      { id: 'Rv3', type: 'ptc', x: 880, y: 90, attrs: { temperature: '25', r25: '2000', tc: '0.79', tmin: '-55', tmax: '125' } },
+      { id: 'R1', type: 'resistor', x: 680, y: 200, attrs: { value: '50000' } },
+      { id: 'R2', type: 'resistor', x: 780, y: 200, attrs: { value: '10000' } },
+      { id: 'R3', type: 'resistor', x: 880, y: 200, attrs: { value: '2000' } },
+    ],
+    wires: () => [
+      w('Rv1', '1', 'U1', '3V3', 'red'),
+      w('Rv2', '1', 'Rv1', '1', 'red'),
+      w('Rv3', '1', 'Rv2', '1', 'red'),
+      w('Rv1', '2', 'U1', 'GP26', 'green'),
+      w('Rv2', '2', 'U1', 'GP27', 'green'),
+      w('Rv3', '2', 'U1', 'GP28', 'green'),
+      w('R1', '1', 'Rv1', '2', 'blue'),
+      w('R2', '1', 'Rv2', '2', 'blue'),
+      w('R3', '1', 'Rv3', '2', 'blue'),
+      w('R1', '2', 'U1', 'GND.7', 'black'),
+      w('R2', '2', 'R1', '2', 'black'),
+      w('R3', '2', 'R2', '2', 'black'),
+    ],
+    expect: {
+      kind: 'variable-resistor',
+      repos: { GP26: 0.98725, GP27: 0.5, GP28: 0.5 },
+      pousse: { lux: 5000, celsius: 80 },
+      pousses: { GP26: 0.99743, GP27: 0.88732, GP28: 0.41076 },
+    },
+    code: `# Test des trois résistances variables nues : chacune forme un pont
+# diviseur avec une résistance fixe de sa valeur de repos.
+#   ADC0/GP26 : LDR 50 kΩ à 1 lx + 50 kΩ   (curseur = éclairement)
+#   ADC1/GP27 : CTN 10 kΩ à 25 °C + 10 kΩ  (curseur = température)
+#   ADC2/GP28 : CTP 2 kΩ à 25 °C + 2 kΩ    (curseur = température)
+# En simulation : éclairer la LDR et chauffer la CTN FAIT MONTER la lecture,
+# chauffer la CTP la fait descendre.
+from machine import ADC
+import time
+
+ldr = ADC(26)
+ctn = ADC(27)
+ctp = ADC(28)
+
+while True:
+    print("LDR ADC0 =", ldr.read_u16(),
+          "| CTN ADC1 =", ctn.read_u16(),
+          "| CTP ADC2 =", ctp.read_u16())
     time.sleep(0.3)
 `,
   }),
