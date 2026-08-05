@@ -33,11 +33,9 @@ export type KablixSide = 'left' | 'right';
  * la disposition (la grille n'était plus posée du tout). Chaque étape est donc
  * indépendante ; l'échec est seulement journalisé.
  */
-async function run(command: string, arg?: unknown): Promise<boolean> {
+async function run(command: string, ...args: unknown[]): Promise<boolean> {
   try {
-    await (arg === undefined
-      ? vscode.commands.executeCommand(command)
-      : vscode.commands.executeCommand(command, arg));
+    await vscode.commands.executeCommand(command, ...args);
     return true;
   } catch (err) {
     console.warn(`Kablix layout: ${command} — ${err instanceof Error ? err.message : String(err)}`);
@@ -120,6 +118,11 @@ export async function applyDefaultLayout(
   // Côté AVANT largeurs : l'échange des groupes emporte leurs tailles, la grille
   // doit donc être reposée après coup.
   await placeKablixSide(context);
+  // « Réarranger » (action explicite) remet en plus chaque onglet dans sa zone :
+  // ateliers .projix côté Kablix, fichiers de code côté code. Pas à l'ouverture
+  // automatique (force=false), où déplacer les onglets de l'utilisateur serait
+  // une surprise.
+  if (force) await sortTabsIntoColumns(context);
   await applyEditorGrid(context);
 }
 
@@ -165,8 +168,40 @@ export async function lockSimulatorGroup(): Promise<void> {
   await run('workbench.action.lockEditorGroup');
 }
 
+/** Entrée d'onglet vue de façon souple (webview/custom = `viewType`, texte = `uri` seule). */
+type TabInputLike = { uri?: vscode.Uri | string; viewType?: string };
+
+/** Entrée d'un onglet, ou `undefined` (terminal, diff, aperçu sans ressource). */
+function tabInput(tab: vscode.Tab): TabInputLike | undefined {
+  const input = tab.input as TabInputLike | undefined;
+  return input && typeof input === 'object' ? input : undefined;
+}
+
+/** Onglet d'atelier Kablix (éditeur personnalisé `kablix.projix`). */
+function isProjixTab(tab: vscode.Tab): boolean {
+  const input = tabInput(tab);
+  return !!input && 'viewType' in input && String(input.viewType).includes('kablix.projix');
+}
+
 /**
- * Groupe d'éditeur contenant un onglet .projix. Sert à savoir de quel côté
+ * Onglet de FICHIER ordinaire (programme, README…) : une `uri`, aucun `viewType`.
+ * Les webviews et éditeurs personnalisés (atelier .projix, fiche d'aide, guide)
+ * portent un `viewType` et sont donc exclus — seul l'atelier est repositionné,
+ * les fiches d'aide restent où l'utilisateur les a mises.
+ */
+function isCodeTab(tab: vscode.Tab): boolean {
+  const input = tabInput(tab);
+  return !!input && !('viewType' in input) && input.uri !== undefined;
+}
+
+/** Identité d'un onglet (ressource + nature) : deux onglets de même clé sont des doublons. */
+function tabKey(tab: vscode.Tab): string {
+  const input = tabInput(tab);
+  return `${input?.viewType ?? ''}\n${String(input?.uri ?? '')}`;
+}
+
+/**
+ * Groupe d'éditeur contenant l'atelier .projix. Sert à savoir de quel côté
  * (gauche/droite) l'utilisateur a placé Kablix — au moment de « Sauvegarder
  * cette organisation par défaut » comme au moment de réarranger.
  *
@@ -174,18 +209,161 @@ export async function lockSimulatorGroup(): Promise<void> {
  * il suffisait qu'un autre onglet soit au premier plan dans la colonne de
  * Kablix (ou que le focus soit passé au code) pour ne rien trouver — le côté
  * retombait alors sur « droite » et l'inversion n'était pas mémorisée.
+ *
+ * Quand des .projix traînent dans PLUSIEURS zones (signalé par Frank : « une
+ * projix s'est ouverte dans chaque zone, et là c'est la panique »), le premier
+ * trouvé ne veut plus rien dire. On départage : la zone dont l'onglet .projix
+ * est au premier plan, sinon celle qui en compte le plus, sinon la plus à
+ * gauche. Le tri (`sortTabsIntoColumns`) règle ensuite le fond du problème.
  */
 function projixColumn(): vscode.ViewColumn | undefined {
+  let best: { column: vscode.ViewColumn; count: number; active: boolean } | undefined;
   for (const group of vscode.window.tabGroups.all) {
-    for (const tab of group.tabs) {
-      const input = tab.input as { uri?: vscode.Uri; viewType?: string } | undefined;
-      if (input && typeof input === 'object' && 'viewType' in input
-        && String(input.viewType).includes('kablix.projix')) {
-        return group.viewColumn;
-      }
+    const count = group.tabs.filter(isProjixTab).length;
+    if (count === 0) continue;
+    const active = !!group.activeTab && isProjixTab(group.activeTab);
+    if (!best || (active && !best.active) || (active === best.active && count > best.count)) {
+      best = { column: group.viewColumn, count, active };
     }
   }
-  return undefined;
+  return best?.column;
+}
+
+/** Nombre de zones contenant au moins un atelier .projix (>1 ⇒ disposition à trier). */
+function projixGroupCount(): number {
+  return vscode.window.tabGroups.all.filter((g) => g.tabs.some(isProjixTab)).length;
+}
+
+/**
+ * Verrouille/déverrouille la zone d'une colonne donnée. Un groupe verrouillé
+ * REFUSE tout éditeur entrant : sans le déverrouiller, le tri ne pourrait pas y
+ * ramener un atelier égaré (et si la zone de code s'était retrouvée verrouillée,
+ * plus aucun fichier de code ne pouvait y revenir).
+ */
+async function setGroupLock(column: vscode.ViewColumn, locked: boolean): Promise<void> {
+  if (!(await focusGroup(column as number))) return;
+  await run(locked ? 'workbench.action.lockEditorGroup' : 'workbench.action.unlockEditorGroup');
+}
+
+/**
+ * Rend un onglet ACTIF dans SA propre zone, sans en ouvrir un second : les
+ * commandes de déplacement (`moveEditorTo*Group`) n'agissent que sur l'éditeur
+ * actif, et VS Code n'offre aucun moyen d'activer un onglet arbitraire par
+ * l'API. Rouvrir la même ressource dans la MÊME colonne et le MÊME viewType ne
+ * duplique rien : VS Code active l'onglet en place (cf. `openOrRevealProjix`).
+ */
+async function activateTab(tab: vscode.Tab): Promise<boolean> {
+  const input = tabInput(tab);
+  if (!input?.uri) return false;
+  const column = tab.group.viewColumn;
+  return input.viewType
+    ? run('vscode.openWith', input.uri, input.viewType, column)
+    : run('vscode.open', input.uri, column);
+}
+
+/** Onglet mal placé : sa zone actuelle, la zone attendue, et s'il fait doublon. */
+type MisplacedTab = {
+  tab: vscode.Tab;
+  column: vscode.ViewColumn;
+  target: vscode.ViewColumn;
+  duplicate: boolean;
+};
+
+/**
+ * Onglets qui ne sont pas dans leur zone dédiée : les ateliers .projix hors de
+ * la zone Kablix, les fichiers de code hors de la zone de code. `duplicate` :
+ * la MÊME ressource est déjà ouverte dans la zone cible — on ferme l'exemplaire
+ * égaré au lieu de le déplacer (fermer n'est jamais destructeur ici, il reste
+ * l'autre onglet du même document ; VS Code ne demande d'enregistrer que pour
+ * le dernier).
+ */
+function misplacedTabs(
+  kablixCol: vscode.ViewColumn,
+  codeCol: vscode.ViewColumn
+): MisplacedTab[] {
+  const inTarget = new Map<vscode.ViewColumn, Set<string>>();
+  for (const group of vscode.window.tabGroups.all) {
+    inTarget.set(group.viewColumn, new Set(group.tabs.map(tabKey)));
+  }
+  const out: MisplacedTab[] = [];
+  for (const group of vscode.window.tabGroups.all) {
+    for (const tab of group.tabs) {
+      const projix = isProjixTab(tab);
+      if (!projix && !isCodeTab(tab)) continue; // fiche d'aide, guide, terminal : on n'y touche pas
+      const target = projix ? kablixCol : codeCol;
+      if (group.viewColumn === target) continue;
+      out.push({
+        tab,
+        column: group.viewColumn,
+        target,
+        duplicate: inTarget.get(target)?.has(tabKey(tab)) ?? false,
+      });
+    }
+  }
+  return out;
+}
+
+/** Garde-fou de boucle : au pire un déplacement d'un cran par onglet et par colonne. */
+const MAX_SORT_STEPS = 64;
+
+/**
+ * Remet chaque onglet dans sa zone dédiée : TOUS les ateliers .projix côté
+ * Kablix, TOUS les fichiers de code côté code. Appelé par « réarranger les
+ * fenêtres » (action explicite), jamais en arrière-plan.
+ *
+ * Pourquoi : il suffit qu'un .projix s'ouvre dans la zone de code (glisser un
+ * onglet, « ouvrir sur le côté », restauration de session après changement de
+ * dossier) pour que la disposition devienne incohérente — le côté de Kablix
+ * n'est plus défini, l'échange de groupes déplace n'importe quoi, et le verrou
+ * protège la mauvaise zone.
+ *
+ * L'état est RELU à chaque tour (les colonnes et les index changent à chaque
+ * déplacement) et un onglet qui ne bouge pas est abandonné plutôt que réessayé
+ * en boucle.
+ */
+export async function sortTabsIntoColumns(context: vscode.ExtensionContext): Promise<void> {
+  const kablixCol = kablixColumn(context);
+  const codeCol = codeColumn(context);
+  // Les deux zones sont déverrouillées le temps du tri : le verrou de la zone
+  // Kablix refuserait l'atelier qu'on lui ramène.
+  await setGroupLock(kablixCol, false);
+  if (codeCol !== kablixCol) await setGroupLock(codeCol, false);
+  const abandoned = new Set<string>();
+  for (let step = 0; step < MAX_SORT_STEPS; step++) {
+    const job = misplacedTabs(kablixCol, codeCol).find((m) => !abandoned.has(tabKey(m.tab)));
+    if (!job) break;
+    const key = tabKey(job.tab);
+    if (job.duplicate) {
+      try {
+        await vscode.window.tabGroups.close(job.tab);
+      } catch {
+        abandoned.add(key); // fermeture refusée : on laisse cet onglet tranquille
+      }
+      continue;
+    }
+    // Dernier onglet de sa zone et la zone cible n'existe pas encore : le
+    // déplacer viderait la zone d'origine, VS Code la refermerait aussitôt
+    // (closeEmptyGroups) et l'onglet reviendrait d'où il vient — un aller-retour
+    // visible pour rien. On le laisse en place.
+    const source = vscode.window.tabGroups.all.find((g) => g.viewColumn === job.column);
+    const targetExists = vscode.window.tabGroups.all.some((g) => g.viewColumn === job.target);
+    if (source?.tabs.length === 1 && !targetExists) {
+      abandoned.add(key);
+      continue;
+    }
+    const cmd = editorMoveCommand(job.column as number, job.target as number);
+    if (!cmd || !(await activateTab(job.tab)) || !(await run(cmd))) {
+      abandoned.add(key);
+      continue;
+    }
+    // Sans effet (une seule zone, groupe refusé…) : ne pas insister.
+    const stillThere = misplacedTabs(kablixCol, codeCol)
+      .some((m) => tabKey(m.tab) === key && m.column === job.column);
+    if (stillThere) abandoned.add(key);
+  }
+  // Verrou rétabli sur la SEULE zone Kablix : les fichiers de code ouverts
+  // ensuite repartent dans l'autre colonne. Le focus reste sur l'atelier.
+  await setGroupLock(kablixCol, true);
 }
 
 /**
@@ -294,6 +472,10 @@ async function focusGroup(column: number): Promise<boolean> {
  */
 async function placeKablixSide(context: vscode.ExtensionContext): Promise<void> {
   if (vscode.window.tabGroups.all.length < 2) return; // une seule zone : rien à échanger
+  // Des ateliers .projix dans plusieurs zones : « quel côté est celui de Kablix »
+  // n'a plus de sens et l'échange déplacerait des groupes au hasard. On laisse
+  // le tri (sortTabsIntoColumns) rassembler les onglets d'abord.
+  if (projixGroupCount() > 1) return;
   const target = kablixColumn(context);
   // Boucle bornée : avec 3 colonnes ou plus, un seul échange ne suffit pas à
   // ramener Kablix sur la colonne cible. On relit la colonne réelle à chaque

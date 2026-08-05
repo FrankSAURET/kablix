@@ -40,6 +40,7 @@ const KNOWN_COMMANDS = {
   'workbench.action.closePanel': 'workbench',
   'workbench.action.closeAuxiliaryBar': 'workbench',
   'workbench.action.lockEditorGroup': 'workbench',
+  'workbench.action.unlockEditorGroup': 'workbench',
   'workbench.action.focusFirstEditorGroup': 'workbench',
   'workbench.action.focusSecondEditorGroup': 'workbench',
   'workbench.action.focusThirdEditorGroup': 'workbench',
@@ -54,6 +55,8 @@ const KNOWN_COMMANDS = {
   'workbench.action.moveEditorToRightGroup': 'workbench',
   'vscode.setEditorLayout': 'host',
   'vscode.getEditorLayout': 'host',
+  'vscode.open': 'host',
+  'vscode.openWith': 'host',
 };
 
 // --- Faux module `vscode` ----------------------------------------------------
@@ -64,14 +67,31 @@ const STUB = `
 const KNOWN = ${JSON.stringify(Object.keys(KNOWN_COMMANDS))};
 export const ViewColumn = { One: 1, Two: 2 };
 export const l10n = { t: (s, ...a) => s.replace(/\\{(\\d+)\\}/g, (_m, i) => a[i]) };
+/** Retire un onglet de son groupe (API tabGroups.close), comme le vrai VS Code. */
+function closeTab(tab) {
+  for (const g of globalThis.__vs.groups) {
+    if (!g.tabs.includes(tab)) continue;
+    g.tabs = g.tabs.filter((t) => t !== tab);
+    g.activeTab = g.tabs[0];
+    globalThis.__vs.closed.push(tab);
+    return true;
+  }
+  return false;
+}
 export const window = {
-  get tabGroups() { return { all: globalThis.__vs.groups }; },
+  get tabGroups() {
+    return {
+      all: globalThis.__vs.groups,
+      close: async (tab) => closeTab(tab),
+    };
+  },
   setStatusBarMessage: (m) => globalThis.__vs.status.push(m),
   showErrorMessage: (m) => globalThis.__vs.errors.push(m),
 };
 export const commands = {
-  executeCommand: async (name, arg) => {
-    globalThis.__vs.calls.push(arg === undefined ? name : { name, arg });
+  executeCommand: async (name, ...args) => {
+    const arg = args[0];
+    globalThis.__vs.calls.push(args.length === 0 ? name : { name, arg, args });
     if (!KNOWN.includes(name)) {
       globalThis.__vs.unknown.push(name);
       throw new Error("command '" + name + "' not found");
@@ -112,21 +132,47 @@ export const commands = {
       const j = name.endsWith('Left') ? i - 1 : i + 1;
       if (g[i] && g[j]) {
         const t = g[i].tabs; g[i].tabs = g[j].tabs; g[j].tabs = t;
+        const l = g[i].locked; g[i].locked = g[j].locked; g[j].locked = l;
         g[i].activeTab = g[i].tabs[0]; g[j].activeTab = g[j].tabs[0];
+        // tab.group suit le contenu (l'API expose le groupe depuis l'onglet).
+        for (const gr of [g[i], g[j]]) for (const tab of gr.tabs) tab.group = gr;
         globalThis.__vs.focused = j + 1;
       }
     }
-    // Déplacement d'un ONGLET (pas du groupe) : l'onglet actif est celui du
-    // fichier suivi par le test (__vs.movingUri).
+    // Activation d'un onglet EXISTANT dans sa propre colonne : rouvrir la même
+    // ressource (même viewType) n'ouvre rien de neuf, VS Code active l'onglet en
+    // place. C'est lui qui deviendra la cible des moveEditorTo*Group.
+    if (name === 'vscode.open' || name === 'vscode.openWith') {
+      const uri = args[0];
+      const viewType = name === 'vscode.openWith' ? args[1] : undefined;
+      globalThis.__vs.moving = { uri, viewType };
+      const g = globalThis.__vs.groups.find((gr) =>
+        gr.tabs.some((t) => t.input?.uri === uri && t.input?.viewType === viewType));
+      if (g) {
+        g.activeTab = g.tabs.find((t) => t.input?.uri === uri && t.input?.viewType === viewType);
+        globalThis.__vs.focused = g.viewColumn;
+      }
+    }
+    if (name === 'workbench.action.unlockEditorGroup' || name === 'workbench.action.lockEditorGroup') {
+      const g = globalThis.__vs.groups[(globalThis.__vs.focused ?? 1) - 1];
+      if (g) g.locked = name.startsWith('workbench.action.lock');
+    }
+    // Déplacement d'un ONGLET (pas du groupe) : celui qui vient d'être activé
+    // (vscode.open/openWith), ou à défaut le fichier suivi par le test
+    // (__vs.movingUri — bancs antérieurs au tri par zone).
     if (name === 'workbench.action.moveEditorToLeftGroup' || name === 'workbench.action.moveEditorToRightGroup') {
       const g = globalThis.__vs.groups;
-      const isMoving = (t) => t.input && !('viewType' in t.input) && t.input.uri === globalThis.__vs.movingUri;
+      const ref = globalThis.__vs.moving ?? { uri: globalThis.__vs.movingUri, viewType: undefined };
+      const isMoving = (t) => t.input && t.input.uri === ref.uri && t.input.viewType === ref.viewType;
       const i = g.findIndex((gr) => gr.tabs.some(isMoving));
       const j = name.includes('Left') ? i - 1 : i + 1;
-      if (i >= 0 && g[j]) {
+      // Un groupe VERROUILLÉ refuse tout éditeur entrant : sans déverrouillage
+      // préalable, le tri ne pourrait pas ramener l'atelier dans sa zone.
+      if (i >= 0 && g[j] && !g[j].locked) {
         const tab = g[i].tabs.find(isMoving);
         g[i].tabs = g[i].tabs.filter((t) => t !== tab);
         g[j].tabs.push(tab);
+        tab.group = g[j];
         g[i].activeTab = g[i].tabs[0];
         g[j].activeTab = tab;
       }
@@ -196,7 +242,7 @@ const makeContext = (state = {}) => ({
 });
 
 /** Réinitialise le faux VS Code. `tabs` : colonne du .projix, activeIdx du groupe. */
-function setWorld({ projixCol = 2, projixActive = true, groups = 2, layout, failing = [] } = {}) {
+function setWorld({ projixCol = 2, projixActive = true, groups = 2, layout, failing = [], lockedCol } = {}) {
   const mk = (col) => {
     const tabs = [];
     if (col === projixCol) {
@@ -207,13 +253,26 @@ function setWorld({ projixCol = 2, projixActive = true, groups = 2, layout, fail
     } else {
       tabs.push({ input: { uri: 'main.py' } });
     }
-    return { viewColumn: col, tabs, activeTab: tabs[0] };
+    // Chaque onglet connaît son groupe (tab.group.viewColumn), comme dans l'API.
+    const group = { viewColumn: col, tabs, activeTab: tabs[0], locked: col === lockedCol };
+    for (const t of tabs) t.group = group;
+    return group;
   };
   globalThis.__vs = {
     groups: Array.from({ length: groups }, (_, i) => mk(i + 1)),
     layout: layout ?? { orientation: 0, groups: [{ size: 0.25 }, { size: 0.75 }] },
     calls: [], status: [], errors: [], unknown: [], failing, focused: 1,
+    closed: [], moving: undefined,
   };
+}
+
+/** Ajoute un onglet à une colonne du faux VS Code (en gardant `tab.group` cohérent). */
+function addTab(col, input) {
+  const g = globalThis.__vs.groups[col - 1];
+  const tab = { input, group: g };
+  g.tabs.push(tab);
+  g.activeTab ??= tab;
+  return tab;
 }
 
 /** Colonne où se trouve l'onglet .projix dans le faux VS Code (1 = gauche). */
@@ -365,8 +424,8 @@ function setCodeWorld({ codeCol = 1, groups = 2, alsoIn } = {}) {
   setWorld({ projixCol: groups, groups });
   globalThis.__vs.movingUri = 'code.py';
   for (const g of globalThis.__vs.groups) g.tabs = g.tabs.filter((t) => t.input?.uri !== 'code.py');
-  globalThis.__vs.groups[codeCol - 1].tabs.push({ input: { uri: 'code.py' } });
-  if (alsoIn) globalThis.__vs.groups[alsoIn - 1].tabs.push({ input: { uri: 'code.py' } });
+  addTab(codeCol, { uri: 'code.py' });
+  if (alsoIn) addTab(alsoIn, { uri: 'code.py' });
 }
 const codeTabCol = (preferred) => L.textTabColumn('code.py', preferred);
 
@@ -461,12 +520,13 @@ ok('accueil : l’icône Kablix ouvre toujours le simulateur (onDidChangeVisibil
  *  une NOUVELLE zone, à droite (ce que fait VS Code). */
 function openCodeTabInNewGroup() {
   const g = globalThis.__vs.groups;
-  g.push({ viewColumn: g.length + 1, tabs: [{ input: { uri: 'main.py' } }], activeTab: undefined });
-  g[g.length - 1].activeTab = g[g.length - 1].tabs[0];
+  g.push({ viewColumn: g.length + 1, tabs: [], activeTab: undefined, locked: false });
+  addTab(g.length, { uri: 'main.py' });
 }
 
 setWorld({ projixCol: 1, groups: 1 });
-globalThis.__vs.groups[0].tabs = [{ input: { viewType: 'kablix.projix', uri: 'x.projix' } }];
+globalThis.__vs.groups[0].tabs = [];
+addTab(1, { viewType: 'kablix.projix', uri: 'x.projix' });
 const ctxSettle = makeContext({ 'kablix.layout.kablixSide': 'right', 'kablix.layout.codeRatio': 0.3 });
 await L.applyDefaultLayout(ctxSettle, true);
 ok('une seule zone : la grille posée sur une zone VIDE ne survit pas (cause de la régression)',
@@ -515,6 +575,138 @@ ok('toujours une seule zone : aucune commande', emitted().length === 0, emitted(
 //     et repose la disposition APRÈS.
 ok('projix-editor : zones comptées avant le reveal, disposition reposée après',
   /const groupsBefore = editorGroupCount\(\);[\s\S]{0,200}?revealPendingCodeFile\(\);[\s\S]{0,200}?settleLayoutAfterCode\(this\.context, groupsBefore\)/.test(editorSrc));
+
+// 18. v2026.8.1 — RÉGRESSION signalée par Frank : « pour une raison quelconque
+//     une .projix s'est ouverte dans CHAQUE zone, et là c'est la panique ».
+//     Le côté de Kablix n'est alors plus défini (le premier .projix trouvé ne
+//     veut rien dire), l'échange de groupes déplace n'importe quoi et le verrou
+//     protège la mauvaise zone. « Réarranger » remet désormais chaque onglet
+//     dans SA zone : ateliers côté Kablix, fichiers de code côté code.
+ok('layout.ts : sortTabsIntoColumns est exporté', typeof L.sortTabsIntoColumns === 'function');
+
+/** Monde à deux zones décrit à la carte : onglets de la col.1, puis de la col.2. */
+function setTabs(col1, col2, { lockedCols = [] } = {}) {
+  globalThis.__vs = {
+    groups: [1, 2].map((c) => ({
+      viewColumn: c, tabs: [], activeTab: undefined, locked: lockedCols.includes(c),
+    })),
+    layout: { orientation: 0, groups: [{ size: 0.3 }, { size: 0.7 }] },
+    calls: [], status: [], errors: [], unknown: [], failing: [], focused: 1,
+    closed: [], moving: undefined,
+  };
+  for (const input of col1) addTab(1, input);
+  for (const input of col2) addTab(2, input);
+}
+/** Onglet d'atelier / de fichier / de fiche d'aide (webview à viewType). */
+const P = (uri) => ({ viewType: 'kablix.projix', uri });
+const F = (uri) => ({ uri });
+const AIDE = (uri) => ({ viewType: 'kablix.partHelp', uri });
+/** Contenu lisible d'une colonne : « projix:x.projix code:main.py ». */
+const contenu = (col) => (globalThis.__vs.groups.find((g) => g.viewColumn === col)?.tabs ?? [])
+  .map((t) => (t.input.viewType ? t.input.viewType.replace('kablix.', '') : 'code') + ':' + t.input.uri)
+  .join(' ');
+/** Zones verrouillées, dans l'ordre des colonnes. */
+const verrous = () => globalThis.__vs.groups.map((g) => (g.locked ? g.viewColumn : 0)).filter(Boolean);
+
+const ctxDroite = () => makeContext({ 'kablix.layout.kablixSide': 'right', 'kablix.layout.codeRatio': 0.3 });
+
+// 18a. Le MÊME atelier ouvert des deux côtés : l'exemplaire égaré est FERMÉ (le
+//      document survit dans l'autre onglet — rien à enregistrer, aucun prompt).
+setTabs([F('main.py'), P('x.projix')], [P('x.projix')], { lockedCols: [2] });
+await L.applyDefaultLayout(ctxDroite(), true);
+ok('panique : même atelier dans les deux zones → le doublon est fermé, pas dupliqué',
+  contenu(1) === 'code:main.py' && contenu(2) === 'projix:x.projix',
+  `col1=[${contenu(1)}] col2=[${contenu(2)}]`);
+ok('panique : la fermeture porte bien sur l’onglet égaré (un seul fermé)',
+  globalThis.__vs.closed.length === 1, globalThis.__vs.closed.length);
+
+// 18b. DEUX ateliers différents, un par zone : celui de la zone de code est
+//      déplacé (surtout pas fermé — c'est un autre projet), et le code repart
+//      dans sa zone.
+setTabs([P('a.projix')], [P('b.projix'), F('main.py')], { lockedCols: [2] });
+await L.applyDefaultLayout(ctxDroite(), true);
+ok('panique : deux ateliers différents → tous les deux côté Kablix, aucun fermé',
+  contenu(2).includes('projix:a.projix') && contenu(2).includes('projix:b.projix')
+  && globalThis.__vs.closed.length === 0,
+  `col1=[${contenu(1)}] col2=[${contenu(2)}] fermés=${globalThis.__vs.closed.length}`);
+ok('panique : le fichier de code est renvoyé dans la zone de code',
+  contenu(1) === 'code:main.py', `col1=[${contenu(1)}]`);
+
+// 18c. Le verrou de la zone Kablix refuse les éditeurs entrants : sans
+//      déverrouillage, l'atelier égaré ne pourrait PAS y revenir.
+setTabs([P('a.projix')], [F('main.py')], { lockedCols: [2] });
+await L.applyDefaultLayout(ctxDroite(), true);
+names = emitted();
+ok('verrou : la zone Kablix est déverrouillée avant le tri, reverrouillée après',
+  names.indexOf('workbench.action.unlockEditorGroup') >= 0
+  && names.lastIndexOf('workbench.action.lockEditorGroup') > names.indexOf('workbench.action.moveEditorToRightGroup'),
+  names.join(' · '));
+ok('verrou : à la fin, SEULE la zone Kablix est verrouillée',
+  verrous().join(',') === '2', `verrouillées=[${verrous().join(',')}]`);
+ok('verrou : l’atelier a bien franchi le verrou', contenu(2).includes('projix:a.projix'),
+  `col1=[${contenu(1)}] col2=[${contenu(2)}]`);
+
+// 18d. Zone de CODE restée verrouillée (état hérité) : plus aucun fichier ne
+//      pouvait y revenir. Le tri la déverrouille aussi.
+setTabs([P('a.projix')], [F('main.py')], { lockedCols: [1, 2] });
+await L.applyDefaultLayout(ctxDroite(), true);
+ok('verrou : la zone de code est déverrouillée elle aussi (sinon le code y reste bloqué)',
+  verrous().join(',') === '2', `verrouillées=[${verrous().join(',')}]`);
+
+// 18e. Les webviews Kablix qui ne sont PAS l'atelier (fiche d'aide, guide) ne
+//      sont jamais déplacées : l'utilisateur les met où il veut.
+setTabs([AIDE('led.md'), F('main.py')], [P('x.projix')], { lockedCols: [2] });
+await L.applyDefaultLayout(ctxDroite(), true);
+ok('tri : une fiche d’aide reste où elle est (seul l’atelier est repositionné)',
+  contenu(1) === 'partHelp:led.md code:main.py' && contenu(2) === 'projix:x.projix',
+  `col1=[${contenu(1)}] col2=[${contenu(2)}]`);
+
+// 18f. Kablix à GAUCHE : le tri suit le côté mémorisé, pas une colonne figée.
+setTabs([F('main.py')], [P('x.projix')], { lockedCols: [] });
+await L.applyDefaultLayout(makeContext({ 'kablix.layout.kablixSide': 'left' }), true);
+ok('tri : côté mémorisé à gauche → atelier en col.1, code en col.2',
+  contenu(1).includes('projix:x.projix') && contenu(2).includes('code:main.py'),
+  `col1=[${contenu(1)}] col2=[${contenu(2)}]`);
+
+// 18g. Rien à trier : aucun déplacement, aucune fermeture (pas de clignotement).
+setTabs([F('main.py')], [P('x.projix')], { lockedCols: [2] });
+await L.applyDefaultLayout(ctxDroite(), true);
+names = emitted();
+ok('tri : tout est déjà en place → aucun déplacement d’onglet ni fermeture',
+  !names.includes('workbench.action.moveEditorToLeftGroup')
+  && !names.includes('workbench.action.moveEditorToRightGroup')
+  && globalThis.__vs.closed.length === 0, names.join(' · '));
+
+// 18h. Une seule zone : ne PAS pousser l'unique onglet dans une zone qui
+//      n'existe pas — elle serait créée puis la zone d'origine, vidée, refermée
+//      (aller-retour visible pour rien).
+setTabs([P('x.projix')], [], { lockedCols: [] });
+globalThis.__vs.groups = globalThis.__vs.groups.slice(0, 1);
+await L.applyDefaultLayout(ctxDroite(), true);
+ok('une seule zone : l’unique atelier n’est pas ballotté vers une zone inexistante',
+  contenu(1) === 'projix:x.projix' && globalThis.__vs.groups.length === 1,
+  `col1=[${contenu(1)}] zones=${globalThis.__vs.groups.length}`);
+
+// 18i. Le tri ne tourne QUE sur action explicite (« réarranger »), jamais à
+//      l'ouverture automatique : déplacer les onglets de l'utilisateur sans
+//      qu'il l'ait demandé serait une surprise.
+const layoutSrc = readFileSync(join(ROOT, 'src', 'layout.ts'), 'utf8');
+ok('tri : appelé sous condition `force` seulement (pas à l’ouverture automatique)',
+  /if \(force\) await sortTabsIntoColumns\(context\);/.test(layoutSrc));
+ok('tri : « réarranger » (kablix.rearrangeLayout) force bien la disposition',
+  /registerCommand\('kablix\.rearrangeLayout'[\s\S]{0,300}?applyDefaultLayout\(context, true\)/
+    .test(readFileSync(join(ROOT, 'src', 'extension.ts'), 'utf8')));
+
+// 18j. Ateliers dans plusieurs zones : l'échange de GROUPES est suspendu (il
+//      déplacerait des groupes au hasard) — c'est le tri qui rassemble.
+setTabs([P('a.projix')], [P('b.projix')], { lockedCols: [2] });
+await L.applyDefaultLayout(makeContext({ 'kablix.layout.kablixSide': 'left' }), true);
+names = emitted();
+ok('panique : aucun échange de groupes tant que les ateliers sont éparpillés',
+  !names.some((n) => n.startsWith('workbench.action.moveActiveEditorGroup')), names.join(' · '));
+ok('panique : les deux ateliers finissent dans la zone Kablix (gauche)',
+  contenu(1).includes('projix:a.projix') && contenu(1).includes('projix:b.projix'),
+  `col1=[${contenu(1)}] col2=[${contenu(2)}]`);
 
 let fail = 0;
 for (const r of checks) {

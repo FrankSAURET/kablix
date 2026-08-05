@@ -1,13 +1,28 @@
 # À faire
-1. (rien en attente)
-
-# Consignes permanentes
-1. ℹ️ **`CHANGELOG.md` : Frank seul décide quand il est remis à jour** — juste avant une publication, et sur sa demande expresse. Ne pas y toucher autrement.
-
+1. blink-pico n'éteint plus la LED : 
+[CYW43] Failed to start CYW43
+[CYW43] Failed to start CYW43
+LED ON
+[CYW43] Failed to start CYW43
+LED OFF
+[CYW43] Failed to start CYW43
+LED ON
+[CYW43] Failed to start CYW43
+1. Vérifie condo-pico.py. Courbe trés longue et affichage aussi.
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
 
-# >>>>  v2026.8.0 — la molette touche le fond, les trois résistances variables ont leur banc
+# >>>>  v2026.8.1 — chaque onglet retrouve sa zone
+
+1. ✅ **La cause des « bugs de disposition qui reviennent » est identifiée : un atelier `.projix` ouvert dans CHAQUE zone.** À partir de là, plus rien ne tient : `projixColumn()` renvoyait le **premier** atelier trouvé, donc « de quel côté est Kablix » devenait un tirage au sort ; l'échange de groupes déplaçait des zones au hasard ; et le verrou protégeait la mauvaise zone — les fichiers de code se mettaient à s'ouvrir du côté simulateur.
+2. ✅ **« Réarranger les fenêtres » remet désormais chaque onglet dans sa zone dédiée** (`sortTabsIntoColumns`, [layout.ts](src/layout.ts)) : **tous** les ateliers `.projix` côté Kablix, **tous** les fichiers de code côté code. Le même atelier ouvert des deux côtés → l'exemplaire égaré est **fermé** (le document survit dans l'autre onglet, donc aucune demande d'enregistrement) ; deux ateliers **différents** → les deux sont **déplacés**, jamais fermés.
+3. ✅ **Les verrous de zone sont levés le temps du tri, puis reposés sur la seule zone Kablix.** Un groupe verrouillé refuse tout éditeur entrant : sans ça, l'atelier égaré ne pouvait pas revenir chez lui. Répare au passage l'état où la zone de **code** était restée verrouillée — plus aucun fichier ne pouvait y retourner.
+4. ✅ **`projixColumn()` sait départager plusieurs ateliers** : la zone dont l'atelier est au premier plan, sinon celle qui en compte le plus. Et tant qu'ils sont éparpillés, l'**échange de groupes est suspendu** (il déplacerait des zones au hasard) — le tri rassemble d'abord.
+5. ✅ **Deux garde-fous contre le clignotement** : les webviews qui ne sont pas l'atelier (fiche d'aide, guide) ne sont **jamais** déplacées, et l'unique onglet d'une zone n'est pas poussé vers une zone inexistante — elle serait créée puis la zone d'origine, vidée, refermée aussitôt par VS Code.
+6. ✅ **Le tri ne tourne que sur action explicite** (clic sur « réarranger », icône Kablix) — jamais à l'ouverture automatique d'un projet, où déplacer les onglets de l'utilisateur serait une surprise.
+7. ✅ **17 contrôles de plus dans `verify:layout`** (70 au total) : atelier dupliqué fermé, ateliers différents regroupés, code renvoyé côté code, verrous levés puis reposés au bon endroit, fiche d'aide intouchée, zone unique préservée, côté mémorisé respecté à gauche comme à droite. Contre-épreuve faite en désactivant le tri : **9 contrôles tombent**. Le faux VS Code du banc simule maintenant les verrous de zone et refuse les éditeurs entrants, comme le vrai.
+
+# v2026.8.0 — la molette touche le fond, les trois résistances variables ont leur banc
 
 1. ✅ **Molette du sélecteur de transistor : la vraie cause était la FIN de la liste.** Caler une entrée en haut de la fenêtre sature *avant* le bas du contenu : sous la dernière entrée alignable il reste jusqu'à une hauteur d'entrée que plus rien ne pouvait montrer. Mesuré en navigateur (Chrome, trois échelles d'écran — 100 %, 125 %, 150 %) : le défilement plafonnait à **248 px pour un maximum de 257** ; les derniers modèles restaient coupés en bas et, une fois là, **tous les crans suivants ne faisaient plus rien**. L'alignement lui-même était juste (écart mesuré < 0,5 px sur toute la descente, aux trois échelles) — c'était bien le fond de la liste qui manquait.
 2. ✅ **Un cran de plus colle désormais au bas** : arrivé sur la dernière entrée alignable, le cran suivant montre la fin de la liste. Depuis le bas, un cran vers le haut **recale cette dernière entrée** (remonter d'un rang de plus aurait sauté une entrée), puis on remonte une par une.
@@ -120,7 +135,7 @@
 3. ✅ **Mesuré dans un vrai rendu** (Chrome headless, overlay du schéma interne) : la barre passe de `stroke rgb(17,17,17)` épais de 0,71 unité à `stroke: none` sur un `fill` noir ; le cadre des portes du 74xx00 garde son trait.
 4. ✅ **Trois contrôles de plus dans `npm run verify:ic`** : la règle existe et supprime bien le contour, elle ne vise que les groupes « >1 », et chaque schéma de OU / NON-OU porte une barre pleine par porte (4/4 sur les quatre boîtiers).
 
-# >>> v2026.7.262 — la bande de la platine porte sa couleur d'alimentation
+# 2026.7.262 — la bande de la platine porte sa couleur d'alimentation
 1. ✅ **Un CI enfiché amène son VCC / sa masse à toute la bande** : le fil piqué dans un autre trou de la même ligne naît rouge (ou noir), comme s'il touchait la broche d'alim elle-même. Jusqu'ici la couleur automatique ne regardait que le rôle des DEUX extrémités du fil : un trou de platine n'étant qu'un trou, le fil sortait en couleur de nappe.
 2. ✅ **Une seule règle pour les deux moments** : `powerRoleOf` sert à la création du fil (`autoColor`) ET au rebranchement d'une extrémité (`powerColorOf`). Rôle direct d'abord, sinon rôle vu sur le MÊME nœud électrique (fils implicites de l'enfichage compris), la masse l'emportant sur le VCC.
 3. ✅ **L'alimentation ne traverse pas une résistance** : la netlist est demandée avec `joinResistors: false`, l'autre patte n'est pas un rail (sinon tout un montage à pont diviseur virait au rouge).
