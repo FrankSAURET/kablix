@@ -42,6 +42,10 @@ A Examiner/**
 svg/**
 svg retouche/**
 **/*.edit.svg
+# Composants.svg (614 ko) : planche A3 Inkscape des dessins d'origine. Source de
+# l'extracteur (scripts/, hors paquet), rien ne la lit à l'exécution — les SVG
+# publiés sont déjà extraits dans le bundle. Distribuée via GitHub seulement.
+Composants.svg
 # Copies de travail de l'explorateur Windows (« Composants - Copie.svg », 1 Mo) :
 # jamais publiées — elles doublent une source déjà présente.
 **/* - Copie.*

@@ -15,6 +15,10 @@
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
 
+# v2026.7.268 — la planche de dessin sort du paquet
+
+1. ✅ **`Composants.svg` (614 ko) exclu du `.vsix`** : c'est la planche A3 Inkscape où tu dessines, la source de l'extracteur (`scripts/`, déjà hors paquet). Vérifié — aucun code ne la lit à l'exécution, les dessins publiés sont extraits dans le bundle. Elle reste sur GitHub pour qui recompile. Paquet : 261 fichiers / 2,82 Mo → **260 fichiers / 2,76 Mo** (le SVG se comprime bien, d'où les 60 ko seulement).
+
 # v2026.7.267 — grand ménage : le README dit tout, plus rien ne sort en anglais
 
 1. ✅ **Vérification complète** : `npm run typecheck` sans erreur, `npm run build` sans erreur, **`npm run verify:all` au vert** (68 bancs). Deux avertissements SVGO connus subsistent au build (`alim.svg`, `servo.edit.svg`) — sans effet sur le rendu, signalés plus bas.
