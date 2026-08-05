@@ -233,20 +233,17 @@ function centreEcran(node) {
 }
 
 /** Amplitude du déplacement de ce centre quand la pièce tourne : 0 = l'origine
- *  de rotation EST l'axe. La forme courte « animation » effacerait durée et
- *  état de lecture posés en ligne : on n'agit que sur animation-name. */
+ *  de rotation EST l'axe. L'animation (Web Animations API) l'emporte sur le
+ *  style en ligne : on l'écarte le temps de poser les angles à la main. */
 function mesureBalourd(wrap, piece, angles) {
-  const duree = wrap.style.animationDuration;
-  const etatLecture = wrap.style.animationPlayState;
-  wrap.style.animationName = 'none';
+  const anims = wrap.getAnimations();
+  for (const a of anims) a.cancel();
   const centres = angles.map((deg) => {
     wrap.style.transform = 'rotate(' + deg + 'deg)';
     return centreEcran(piece);
   });
   wrap.style.transform = '';
-  wrap.style.animationName = '';
-  wrap.style.animationDuration = duree;
-  wrap.style.animationPlayState = etatLecture;
+  if (Number(wrap.dataset.spin) > 0) for (const a of anims) a.play();
   return {
     dx: Math.max(...centres.map((c) => c.x)) - Math.min(...centres.map((c) => c.x)),
     dy: Math.max(...centres.map((c) => c.y)) - Math.min(...centres.map((c) => c.y)),
@@ -263,13 +260,13 @@ async function run() {
     el.speed = turns;
     await el.updateComplete;
     await wait(30);
-    const st = spin().style;
-    const dur = parseFloat(st.animationDuration) || 0;
+    const wrap = spin();
+    const anim = wrap.getAnimations()[0];
     return {
       turns,
-      shown: dur > 0 ? 1 / dur : 0,          // tours/s réellement animés
-      paused: st.animationPlayState === 'paused',
-      blur: parseFloat((st.filter.match(/blur\\(([\\d.]+)px\\)/) || [0, 0])[1]) || 0,
+      shown: Number(wrap.dataset.spin) || 0,   // tours/s réellement animés
+      paused: !anim || anim.playState === 'paused',
+      blur: parseFloat((wrap.style.filter.match(/blur\\(([\\d.]+)px\\)/) || [0, 0])[1]) || 0,
     };
   };
 
@@ -301,6 +298,32 @@ async function run() {
 
   const arret = await etat(0);
   ok('à l’arrêt : animation en pause', arret.paused && arret.shown === 0);
+
+  // LE VA-ET-VIENT DE L'ARBRE. La phase d'une animation CSS vaut
+  // (temps écoulé mod durée) / durée : réécrire la durée ne remet pas le
+  // chronomètre à zéro, la pièce SAUTE donc d'un coup, et d'autant plus que la
+  // simulation dure (mesuré : 3,4° après 2 s pour ±1 % de régime, ~86° après une
+  // minute). Le régime étant recalculé à chaque image et fluctuant toujours un
+  // peu, l'arbre à méplat — qui n'a aucune symétrie pour le masquer — avançait
+  // et reculait sans arrêt. La vitesse passe donc par le TAUX DE LECTURE
+  // (updatePlaybackRate), qui préserve la position.
+  {
+    await etat(60);
+    const anim = spin().getAnimations()[0];
+    ok('la rotation est portée par une animation, pas par une règle CSS', !!anim);
+    const duree = anim && anim.effect.getTiming().duration;
+    if (anim) anim.currentTime = 400;          // position quelconque dans le tour
+    await etat(90);                            // le régime change, comme en simulation
+    const apres = spin().getAnimations()[0];
+    ok('un changement de régime ne recrée pas l’animation', apres === anim);
+    ok('la durée de l’animation ne bouge JAMAIS (sinon la pièce saute)',
+      apres && apres.effect.getTiming().duration === duree, String(duree));
+    ok('la position de la pièce est conservée quand le régime change',
+      apres && Math.abs(Number(apres.currentTime) - 400) < 20,
+      apres ? String(Math.round(Number(apres.currentTime))) + ' ms' : 'aucune animation');
+    ok('aucune durée d’animation posée en ligne', !spin().style.animationDuration,
+      spin().style.animationDuration || '(aucune)');
+  }
 
   // Plage RÉELLEMENT parcourue : le moteur décroche sous 30 % de sa tension
   // nominale et grille au-dessus de 1,5 fois — soit 30 à 150 tr/s.
@@ -341,7 +364,8 @@ async function run() {
   await wait(30);
   ok('moteur grillé : explosion affichée',
     !!el.shadowRoot.querySelector('span[class^="boum-"]'));
-  ok('moteur grillé : le pignon est figé', spin().style.animationPlayState === 'paused');
+  ok('moteur grillé : le pignon est figé',
+    spin().dataset.spin === '0' && spin().getAnimations()[0].playState === 'paused');
   el.burned = false;
   const retour = await etat(0);
   ok('retour à l’arrêt : figé et net', retour.paused && retour.blur === 0);

@@ -5174,26 +5174,55 @@ export class Editor {
 
     const list = document.createElement('div');
     list.className = 'inspector__reflist';
-    // Molette : UN cran = UNE entrée (demande de Frank). Le défilement libre du
-    // navigateur avance d'une centaine de pixels, soit deux ou trois modèles à
-    // la fois, et coupe des lignes en deux — on perd celle qu'on suivait. Les
-    // entrées n'ont pas toutes la même hauteur (le modèle personnalisé porte
-    // une explication plus longue) : le bond se calcule donc sur la position
-    // RÉELLE de chaque bouton, jamais sur une hauteur supposée.
+    // Molette : UN cran = UNE entrée, et la séparation entre deux modèles reste
+    // TOUJOURS au ras du haut de la fenêtre (demande de Frank). Le défilement
+    // libre du navigateur avance d'une centaine de pixels, soit deux ou trois
+    // modèles à la fois, et coupe des lignes en deux — on perd celle qu'on
+    // suivait. Les entrées n'ont pas toutes la même hauteur (le modèle
+    // personnalisé porte une explication plus longue) : leur position est
+    // MESURÉE, jamais supposée.
+    //
+    // L'index de l'entrée calée en haut est MÉMORISÉ. Le redéduire du
+    // défilement à chaque cran faisait dériver l'alignement (« ça décale petit
+    // à petit ») : le navigateur arrondit `scrollTop` après chaque bond, et
+    // l'écart s'accumulait jusqu'à couper une ligne en deux — 0,5 px dès la
+    // cinquième entrée, mesuré en navigateur.
+    let haut = 0; // index de l'entrée calée en haut de la fenêtre
+    let pose = 0; // défilement que NOUS avons posé, pour repérer un autre geste
     list.addEventListener('wheel', (ev: WheelEvent) => {
       if (ev.deltaY === 0 || ev.ctrlKey) return; // Ctrl+molette = zoom du navigateur
       const rows = [...list.children] as HTMLElement[];
       if (rows.length < 2) return;
       ev.preventDefault();
-      // Origine du contenu défilé : le haut de la liste, corrigé du défilement
-      // en cours (les rectangles sont en coordonnées écran).
-      const base = list.getBoundingClientRect().top - list.scrollTop;
-      const tops = rows.map((r) => r.getBoundingClientRect().top - base);
-      const cible =
-        ev.deltaY > 0
-          ? tops.find((y) => y > list.scrollTop + 1)
-          : [...tops].reverse().find((y) => y < list.scrollTop - 1);
-      if (cible !== undefined) list.scrollTop = cible;
+      // Position d'une entrée DANS le contenu défilé : le haut de la fenêtre
+      // (bordure comprise) ramené à l'origine du contenu.
+      const dessus = list.getBoundingClientRect().top + list.clientTop - list.scrollTop;
+      const pos = (i: number): number => rows[i].getBoundingClientRect().top - dessus;
+      // Défilement fait autrement (barre tirée à la souris, clavier) : on repart
+      // de l'entrée réellement en haut.
+      if (Math.abs(list.scrollTop - pose) > 1) {
+        haut = rows.reduce(
+          (best, _, i) =>
+            Math.abs(pos(i) - list.scrollTop) < Math.abs(pos(best) - list.scrollTop) ? i : best,
+          0
+        );
+      }
+      // Dernière entrée que le défilement peut réellement amener en haut : au
+      // delà il sature, un cran de plus ne bougerait rien et l'index partirait
+      // en avance sur l'écran.
+      const plafond = list.scrollHeight - list.clientHeight;
+      let dernier = rows.length - 1;
+      while (dernier > 0 && pos(dernier) > plafond) dernier--;
+      // Déjà en butée : on ne touche à rien. Recaler sur la dernière entrée
+      // alignable ferait REMONTER la liste sur un cran vers le bas.
+      if (list.scrollTop >= plafond - 0.5 && ev.deltaY > 0) {
+        haut = dernier;
+        pose = list.scrollTop;
+        return;
+      }
+      haut = Math.max(0, Math.min(dernier, haut + (ev.deltaY > 0 ? 1 : -1)));
+      list.scrollTop = pos(haut);
+      pose = list.scrollTop; // relu : le navigateur l'arrondit
     });
     const choose = (choice: string): void => {
       for (const [attr, value] of Object.entries(transistorAttrs(choice, this.transistorFilter))) {

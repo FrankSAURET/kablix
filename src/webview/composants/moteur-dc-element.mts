@@ -15,7 +15,7 @@ import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
 import { boumOverlay } from './utils/boum.mjs';
 import {
-  GEAR_MOTIF_MAX_HZ, GEAR_MOTIF_MIN_HZ,
+  applySpin, GEAR_MOTIF_MAX_HZ, GEAR_MOTIF_MIN_HZ,
   measureSpin, spinDisplay, SPOKES_FALLBACK, type Spin,
 } from './utils/spin.mjs';
 import drawing from './externe/moteur-dc.svg';
@@ -101,13 +101,6 @@ export class MoteurDcElement extends LitElement {
       .spin {
         transform-box: fill-box;
         transform-origin: 50% 50%;
-        animation-name: kablix-motor-spin;
-        animation-timing-function: linear;
-        animation-iteration-count: infinite;
-      }
-      @keyframes kablix-motor-spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
       }
     `;
   }
@@ -126,10 +119,9 @@ export class MoteurDcElement extends LitElement {
       turns, NOMINAL_TURNS_PER_S, spin?.blades ?? SPOKES_FALLBACK,
       { min: GEAR_MOTIF_MIN_HZ, max: GEAR_MOTIF_MAX_HZ }
     );
-    // Durée d'un tour (au millième de seconde). Vitesse nulle → animation
-    // coupée (pignon figé).
-    wrap.style.animationDuration = shown > 0 ? `${(1 / shown).toFixed(3)}s` : '0s';
-    wrap.style.animationPlayState = shown > 0 ? 'running' : 'paused';
+    // La vitesse passe par le taux de lecture de l'animation, jamais par sa
+    // durée : changer la durée déplacerait le pignon (voir applySpin).
+    applySpin(wrap, shown);
     wrap.style.filter = blur > 0 ? `blur(${(blur * MAX_BLUR).toFixed(2)}px)` : '';
   }
 

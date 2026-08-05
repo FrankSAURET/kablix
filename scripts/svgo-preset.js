@@ -49,20 +49,46 @@ function fixXlink(svg) {
    return svg.replace(/<svg\b/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
 }
 
+// Inkscape coupe les images embarquées (data:…;base64) en lignes de 76 caractères,
+// avec « &#10; » comme séparateur. Le parseur de SVGO s'arrête à 512 entités : le
+// dessin du servo en compte 666 et partait donc NON optimisé (150 ko au lieu de
+// 91). Ces coupures ne servent à rien — base64 ne les tolère que par indulgence
+// des navigateurs. On les retire : image identique, data-URI conforme, et la
+// limite du parseur n'est plus atteinte. Rien d'autre n'est touché.
+function joinDataUris(svg) {
+   return svg.replace(
+      /"(data:[\w.+-]+\/[\w.+-]+;base64,[^"]*)"/g,
+      (whole, uri) => `"${uri.replace(/&#(?:9|10|13|32);|\s/g, '')}"`
+   );
+}
+
 /**
  * Optimise un SVG. En cas d'échec (SVG hors norme), renvoie la source telle quelle
  * : un poster non optimisé vaut mieux qu'un build cassé.
  * @returns {{ data: string, ok: boolean }}
  */
 function optimizeSvg(source, name) {
-   try {
-      const { optimize } = require('svgo');
-      const out = optimize(fixXlink(source), { ...svgoConfig, path: name });
-      return { data: out.data, ok: true };
-   } catch (e) {
-      console.warn(`[svgo] ${name} laissé tel quel (${e.message.split('\n')[0]})`);
-      return { data: source, ok: false };
+   const { optimize } = require('svgo');
+   const prepare = joinDataUris(fixXlink(source));
+   // `minifyStyles` (csso) plante sur certains <style> d'Inkscape — le dessin de
+   // l'alimentation, par exemple. Il ne pèse presque rien dans le gain : plutôt
+   // que d'abandonner tout le préréglage, on repasse sans lui.
+   const essais = [
+      svgoConfig,
+      { ...svgoConfig, plugins: [{ name: 'preset-default', params: {
+         overrides: { ...svgoConfig.plugins[0].params.overrides, minifyStyles: false },
+      } }] },
+   ];
+   let derniere = '';
+   for (const config of essais) {
+      try {
+         return { data: optimize(prepare, { ...config, path: name }).data, ok: true };
+      } catch (e) {
+         derniere = e.message.split('\n')[0];
+      }
    }
+   console.warn(`[svgo] ${name} laissé tel quel (${derniere})`);
+   return { data: source, ok: false };
 }
 
-module.exports = { svgoConfig, optimizeSvg };
+module.exports = { svgoConfig, optimizeSvg, joinDataUris };

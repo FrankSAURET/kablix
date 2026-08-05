@@ -332,6 +332,51 @@ async function run() {
 		ok('cran vers le haut : on remonte d’une entrée, pas davantage',
 			Math.abs(liste.scrollTop - t0[2]) < 0.5,
 			'scrollTop ' + liste.scrollTop.toFixed(1) + ' pour ' + t0[2].toFixed(1));
+		// LA DÉRIVE (constat de Frank : « ça décale petit à petit »). Un cran isolé
+		// tombait juste, mais le bond suivant était redéduit du défilement RÉEL —
+		// or le navigateur arrondit le défilement au pixel après chaque bond. Un
+		// cran finissait par ne RIEN faire (la cible cherchée était celle où l'on
+		// était déjà), et l'entrée du haut prenait du retard sur les crans donnés.
+		// On descend donc toute la liste d'un trait : le rang de l'entrée calée en
+		// haut doit suivre exactement le nombre de crans.
+		liste.scrollTop = 0;
+		{
+			// Entrée réellement calée en haut, à l'arrondi du pixel près.
+			const enHaut = () => {
+				const h = hauts();
+				return h.reduce((best, y, i) =>
+					Math.abs(y - liste.scrollTop) < Math.abs(h[best] - liste.scrollTop) ? i : best, 0);
+			};
+			const plafond = liste.scrollHeight - liste.clientHeight;
+			// Dernière entrée que le défilement peut amener en haut : au delà il
+			// sature et il n'y a plus rien à aligner.
+			let dernier = lignes.length - 1;
+			while (dernier > 0 && t0[dernier] > plafond) dernier--;
+			const rangs = [], ecarts = [];
+			for (let i = 1; i <= dernier; i++) {
+				cran(1);
+				rangs.push(enHaut());
+				ecarts.push(Math.abs(liste.scrollTop - t0[i]));
+			}
+			ok('crans d’affilée : le rang de l’entrée du haut suit les crans, sans retard',
+				rangs.every((r, i) => r === i + 1),
+				dernier + ' crans → rangs ' + rangs.join(',') + ' (attendu 1…' + dernier + ')');
+			ok('aucune dérive : l’écart au haut de l’entrée ne s’accumule pas',
+				ecarts.every((e) => e < 1),
+				'pire écart ' + Math.max(...ecarts).toFixed(2) + ' px sur ' + ecarts.length + ' crans');
+		}
+		// L'ARRONDI DE L'ÉCRAN, la cause du décalage. Sur un affichage à 125 % le
+		// navigateur ramène le défilement au pixel PHYSIQUE : ce qu'on relit
+		// s'écarte de ce qu'on a posé. L'ancienne recherche, tolérante à 1 px près,
+		// retombait alors sur l'entrée où l'on était DÉJÀ — le cran ne faisait
+		// rien et l'affichage prenait un cran de retard à chaque fois.
+		liste.scrollTop = 0;
+		cran(1);                              // la deuxième entrée est en haut
+		liste.scrollTop = liste.scrollTop - 2; // ce que ferait l'arrondi de l'écran
+		cran(1);
+		ok('défilement arrondi par l’écran : le cran suivant cale bien la TROISIÈME entrée',
+			Math.abs(liste.scrollTop - t0[2]) < 1,
+			'scrollTop ' + liste.scrollTop.toFixed(1) + ' pour ' + t0[2].toFixed(1));
 		// Butées : en haut on ne remonte pas plus, en bas on ne descend pas plus.
 		liste.scrollTop = 0;
 		cran(-1);

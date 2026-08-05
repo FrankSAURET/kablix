@@ -11,7 +11,7 @@ import { css, html, LitElement } from 'lit';
 import type { PropertyValues } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
-import { measureSpin, spinDisplay, SPOKES_FALLBACK, type Spin } from './utils/spin.mjs';
+import { applySpin, measureSpin, spinDisplay, SPOKES_FALLBACK, type Spin } from './utils/spin.mjs';
 import drawing from './externe/ventilo.svg';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -88,13 +88,6 @@ export class VentiloElement extends LitElement {
       .spin {
         transform-box: fill-box;
         transform-origin: 50% 50%;
-        animation-name: kablix-fan-spin;
-        animation-timing-function: linear;
-        animation-iteration-count: infinite;
-      }
-      @keyframes kablix-fan-spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
       }
     `;
   }
@@ -110,10 +103,9 @@ export class VentiloElement extends LitElement {
     const { turns: shown, blur } = spinDisplay(
       this.speed, NOMINAL_TURNS_PER_S, spin?.blades ?? SPOKES_FALLBACK
     );
-    // Durée d'un tour (au millième de seconde). Vitesse nulle → animation
-    // coupée (hélice figée).
-    wrap.style.animationDuration = shown > 0 ? `${(1 / shown).toFixed(3)}s` : '0s';
-    wrap.style.animationPlayState = shown > 0 ? 'running' : 'paused';
+    // La vitesse passe par le taux de lecture de l'animation, jamais par sa
+    // durée : changer la durée déplacerait l'hélice (voir applySpin).
+    applySpin(wrap, shown);
     wrap.style.filter = blur > 0 ? `blur(${(blur * MAX_BLUR).toFixed(2)}px)` : '';
   }
 

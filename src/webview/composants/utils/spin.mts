@@ -220,6 +220,62 @@ export interface SpinDisplay {
   blur: number;
 }
 
+// --- Application de la rotation ---------------------------------------------
+
+/** Animation de rotation d'un groupe : une seule, créée au premier appel. */
+const spins = new WeakMap<SVGGElement, { anim: Animation; rate: number }>();
+
+/** Un tour de l'animation de référence (ms). La vitesse ne passe JAMAIS par
+ *  cette durée — voir `applySpin`. */
+const REFERENCE_TURN_MS = 1000;
+
+/** En deçà, la nouvelle vitesse n'est pas appliquée : le régime est recalculé à
+ *  chaque image et fluctue toujours un peu (lecture de rapport cyclique). */
+const RATE_EPSILON = 1e-3;
+
+/**
+ * Fait tourner `wrap` à `turnsPerS` tours par seconde (0 = figé).
+ *
+ * Réécrire `animation-duration` d'une animation CSS en cours NE remet PAS son
+ * chronomètre à zéro : la phase vaut `(temps écoulé mod durée) / durée`, donc
+ * changer la durée DÉPLACE la pièce d'un coup, et d'autant plus que la
+ * simulation dure — mesuré en navigateur, pour ±1 % de vitesse : 3,4° de saut
+ * après 2 s, ~86° après une minute. Comme le régime est recalculé à chaque
+ * image et fluctue, le pignon avançait et reculait sans arrêt (constat de
+ * Frank). Sur une denture régulière le saut passe inaperçu ; sur l'arbre à
+ * MÉPLAT, qui n'a aucune symétrie, il saute aux yeux.
+ *
+ * `updatePlaybackRate()` est fait exactement pour ça : il recale le départ de
+ * l'animation pour que la position courante soit CONSERVÉE (saut mesuré : nul).
+ * La durée, elle, ne bouge plus jamais.
+ */
+export function applySpin(wrap: SVGGElement, turnsPerS: number): void {
+  const rate = Number.isFinite(turnsPerS) ? Math.max(0, turnsPerS) : 0;
+  let entry = spins.get(wrap);
+  if (!entry) {
+    const anim = wrap.animate(
+      [{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }],
+      { duration: REFERENCE_TURN_MS, iterations: Infinity, easing: 'linear' }
+    );
+    anim.pause();
+    entry = { anim, rate: 0 };
+    spins.set(wrap, entry);
+  }
+  // Vitesse affichée, lisible depuis les bancs de vérification (l'API ne rend
+  // le nouveau taux qu'à l'image suivante : `playbackRate` reste en retard).
+  wrap.dataset.spin = String(rate);
+  if (rate <= 0) {
+    if (entry.anim.playState !== 'paused') entry.anim.pause();
+    entry.rate = 0;
+    return;
+  }
+  if (entry.rate <= 0 || Math.abs(rate - entry.rate) / entry.rate > RATE_EPSILON) {
+    entry.anim.updatePlaybackRate(rate);
+    entry.rate = rate;
+  }
+  if (entry.anim.playState !== 'running') entry.anim.play();
+}
+
 /**
  * Traduit un régime RÉEL (tours/s) en rotation affichable.
  * @param turnsPerS vitesse réelle imposée par la simulation (0 = arrêté)
