@@ -2,7 +2,7 @@
 
 ![Arduino Nano](../../img/composants/nano.webp)
 
-Carte compacte ATmega328P (même cœur que l'Uno), format breadboard.
+Carte compacte ATmega328P (même cœur que l'Uno), format platine d'essai.
 
 ## Broches
 

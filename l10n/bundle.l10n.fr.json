@@ -64,6 +64,7 @@
   "Kablix: the project is large ({0} MB). Save anyway?": "Kablix : le projet est volumineux ({0} Mo). Enregistrer quand même ?",
   "Save": "Enregistrer",
   "Cancel": "Annuler",
+  "Edit": "Modification",
   "Kablix: project saved to {0}": "Kablix : projet enregistré vers {0}",
   "Open a Kablix project": "Ouvrir un projet Kablix",
   "Open anyway": "Ouvrir quand même",

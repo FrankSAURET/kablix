@@ -1,0 +1,3 @@
+﻿Repère;Composant;Type;Valeur;Commentaire
+Pot1;Potentiomètre glissière;slide-pot;10 kΩ;Position : 50 % (5 kΩ)
+U1;Raspberry Pi Pico;pico;;

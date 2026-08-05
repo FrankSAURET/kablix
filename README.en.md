@@ -40,8 +40,8 @@ My test library is available here: [TestKablix](https://github.com/FrankSAURET/k
 - ✅ **Visual workshop**: automatic routing. 
 - ✅ **Part creator**: you can build your own “custom” parts with this creator or, better still, fork the repository, follow the [guide](docs/en/Creating-components.md) to add the part and open a PR (publication request) — it will then ship with the next release for everyone, and please provide the test circuits as well (Pico + Arduino).
 - ✅ **SVG export**.
-- ✅ **Part library**: 7-segment display, 10-LED bargraph, slide switch, DIP switch, joystick, potentiometer, photoresistor (LDR), PIR motion detector, tilt sensor, servo, LED, RGB LED, push button, resistor, buzzer and potentiometer, transistors, logic ICs, motor, fan, capacitors, relays, bench power supply…
-- ✅ **Supported development boards**: Arduino Uno, Nano, Pro Mini, Mega 2560 and Raspberry Pi Pico/Pico W, all pluggable onto a breadboard.
+- ✅ **A library of 63 parts** in 9 categories, each with its illustrated help sheet (❔ button) and two ready-to-run test circuits, Arduino and Pico — [full list](#part-library).
+- ✅ **Supported development boards**: Arduino Uno, Nano, Mega 2560 and Raspberry Pi Pico/Pico W, all pluggable onto a breadboard.
 - ✅ **Real RP2040 flashing**.
 - ✅ **Direct artifact loading**: `.hex`, `.uf2`, `.elf`, `.bin` compiled elsewhere, loaded without recompiling
 - ✅ **Real C/C++ code compilation**
@@ -65,6 +65,25 @@ My test library is available here: [TestKablix](https://github.com/FrankSAURET/k
 >
 > 🌍 **Bilingual interface**: French when VS Code runs in French, English otherwise.
 > The mechanism extends to other languages — see [Internationalisation](#internationalisation).
+
+## Part library
+
+**63 parts** you can drop with the mouse, listed in palette order. Each one comes with its **illustrated help sheet** (❔ button in the inspector, offline, English and French) and **two test circuits** ready to simulate in [testkablix](https://github.com/FrankSAURET/kablix/tree/main/testkablix) — one in C on Arduino, one in MicroPython on the Pico.
+
+| Category | Parts |
+| --- | --- |
+| **Boards & breadboards** (7) | Arduino Uno · Arduino Nano · Arduino Mega 2560 · Raspberry Pi Pico · Raspberry Pi Pico W · Grove Shield (Pico) · Breadboard |
+| **Discrete** (9) | LED · RGB LED · Resistor · Diode · Capacitor (film, tantalum, electrolytic) · LDR (photoresistor) · NTC thermistor · PTC thermistor · Transistor (NPN, PNP, darlington, MOSFET — PN2222A and generic models) |
+| **Displays** (8) | 7-segment display (1 to 4 digits) · 10-LED bar graph · Text LCD 16×2 / 20×4 (I²C or parallel) · SSD1306 OLED display (I²C) · ILI9341 TFT display (SPI) · NeoPixel · NeoPixel matrix · NeoPixel ring |
+| **Controls** (9) | Pushbutton · 6 mm pushbutton · Potentiometer · Slide potentiometer · Slide switch · DIP switch ×8 · Analog joystick · OMRON G5V relay · Membrane keypad 3×4 / 4×4 |
+| **Sensors** (11) | Light sensor · PIR motion sensor · Tilt sensor · NTC temperature sensor · Gas sensor (MQ) · Heart-beat sensor · Flame sensor · Sound sensor · Ultrasonic sensor (HC-SR04) · DHT22 temperature/humidity · DHT11 temperature/humidity |
+| **Actuators** (4) | Buzzer · Servo motor · Fan · DC motor |
+| **Instruments** (1) | Bench power supply |
+| **Misc** (2) | microSD card (SPI) · 16-channel PWM driver (PCA9685) |
+| **Integrated circuits** (12) | **CMOS 4000**: CD4081 (quad AND) · CD4071 (quad OR) · CD4070 (quad XOR) · CD4011 (quad NAND) · CD4001 (quad NOR) · CD40106 (hex Schmitt-trigger inverter)<br>**TTL/HC 74**: 74xx08 · 74xx32 · 74xx86 · 74xx00 · 74xx02 · 74xx14 (same functions; the chosen family sets the supply range) |
+
+On top of these come **custom parts**: drawn in the built-in creator, or imported as `.kablix-part.json`.
+
 ## Internationalisation
 
 The interface follows the VS Code language (`vscode.env.language`): **French when it starts with `fr`, English otherwise** (fallback language). Translation rests on three independent registries, because they translate things of a different nature:

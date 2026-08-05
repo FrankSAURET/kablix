@@ -2,7 +2,7 @@
 
 Ce guide décrit la chaîne complète suivie pour tous les composants ajoutés depuis la v2026.7.229 : **un dessin dans `Composants.svg` → un composant posable, câblable, simulé, testé et documenté**. Il s'adresse à qui travaille sur **le dépôt** (composant intégré, recompilation) — pour un composant que l'on garde chez soi, sans toucher au code, la voie rapide reste le fichier `.kablix-part.json` décrit dans [Modifier les SVG des composants](Editing-svg-components.md).
 
-Deux façons de le suivre : [à la main](#a-la-main-la-chaine-complete), étape par étape, ou [en le faisant faire par une IA](#avec-une-ia) à qui l'on fournit le dessin et les règles du jeu. Les deux passent par les mêmes fichiers — la section IA n'est qu'un raccourci sur la même route.
+Deux façons de le suivre : [à la main](#à-la-main-la-chaîne-complète), étape par étape, ou [en le faisant faire par une IA](#avec-une-ia) à qui l'on fournit le dessin et les règles du jeu. Les deux passent par les mêmes fichiers — la section IA n'est qu'un raccourci sur la même route.
 
 ---
 

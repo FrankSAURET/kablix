@@ -633,7 +633,7 @@ export const CATALOG: readonly PartDef[] = [
   // `pins` (i2c = 4 fils GND/VCC/SDA/SCL ; full = parallèle). Le texte n'est simulé
   // qu'en I²C (Lcd1602Device) ; en parallèle l'afficheur reste visuel.
   {
-    type: 'lcd', label: 'LCD Texte', tag: 'kablix-lcd1602', kind: 'i2c-lcd',
+    type: 'lcd', label: 'Text LCD', tag: 'kablix-lcd1602', kind: 'i2c-lcd',
     attrs: { pins: 'i2c', address: '0x27', cols: '16', rows: '2', lcdSize: '16x2' },
     props: [
       {
@@ -825,7 +825,7 @@ export function partCategory(def: PartDef): string {
       return 'Instruments'; // « Appareils de mesure » : alim de laboratoire…
     case 'spi-sd':
     case 'i2c-pwm':
-      return 'Divers'; // modules divers (carte SD, pilote PWM…)
+      return 'Misc'; // « Divers » : modules divers (carte SD, pilote PWM…)
     case 'pushbutton':
     case 'potentiometer':
     case 'slide-switch':
@@ -859,7 +859,7 @@ export const CATEGORY_ORDER: readonly string[] = [
   'Sensors',
   'Actuators',
   'Instruments',
-  'Divers',
+  'Misc',
   'Integrated circuits', // « Circuits intégrés » : toujours en dernier (Frank, v2026.7.254)
 ];
 

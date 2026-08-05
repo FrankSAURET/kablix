@@ -45,7 +45,7 @@ const near = (a, b, eps = 1e-6) => a !== null && a !== undefined && Math.abs(a -
 // --- Catalogue -----------------------------------------------------------------
 const def = partDef('pca9685');
 check('catalogue : pca9685 = kablix-pca9685, kind i2c-pwm, catégorie Divers',
-  def.tag === 'kablix-pca9685' && def.kind === 'i2c-pwm' && partCategory(def) === 'Divers');
+  def.tag === 'kablix-pca9685' && def.kind === 'i2c-pwm' && partCategory(def) === 'Misc');
 check('catalogue : adresse I²C 0x7F par défaut (carte Grove), pads AD0..AD5 tous hauts',
   def.attrs?.address === '0x7F' &&
   [0, 1, 2, 3, 4, 5].every((b) => def.attrs?.[`ad${b}`] === '1'));

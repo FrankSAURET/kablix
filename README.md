@@ -40,8 +40,8 @@ Ma bilothèque de test est disponible : [TestKablix](https://github.com/FrankSAU
 - ✅ **Atelier visuel** : routage automatique. 
 - ✅ **Créateur de composants** : Possibilité de créer des composant « Perso » via ce créateur ou mieux,  faire un fork, utiliser la [doc](docs/fr/Creating-components.md) pour ajouter le composant et faire une PR (demande de publication) il sera dans la version suivante pour tout le monde et merci de fournir aussi le fichier de test (pico + arduino).
 - ✅ **Export SVG**.
-- ✅ **Bibliothèque de composant** : afficheur 7 segments, barre de 10 LED, interrupteur à glissière, DIP switch, joystick, potentiomètre, photorésistance (LDR), détecteur de mouvement PIR, capteur d’inclinaison, servomoteur, LED, LED RGB, bouton poussoir, résistance, buzzer et potentiomètre, transistors, Circuit logiques, moteur, Ventilateur, condensateurs, relais, alimentation ...
-- ✅ **Cartes de développements prises en charge** : Arduino Uno, Nano, Pro Mini, Mega 2560 et Raspberry Pi Pico/Pico W, enfichables sur platine d’essai.
+- ✅ **Bibliothèque de 63 composants** rangés en 9 catégories, chacun avec sa fiche d’aide illustrée (bouton ❔) et ses deux montages de test, Arduino et Pico — [liste complète](#bibliothèque-de-composants).
+- ✅ **Cartes de développements prises en charge** : Arduino Uno, Nano, Mega 2560 et Raspberry Pi Pico/Pico W, enfichables sur platine d’essai.
 - ✅ **Flash RP2040 réel**.
 - ✅ **Chargement direct d’artefacts** : `.hex`, `.uf2`, `.elf`, `.bin` compilés ailleurs, chargés sans recompilation
 - ✅ **Compilation du code réel C/C++**
@@ -65,6 +65,25 @@ Ma bilothèque de test est disponible : [TestKablix](https://github.com/FrankSAU
 >
 > 🌍 **Interface bilingue** : français si VS Code est en français, anglais sinon.
 > Le mécanisme est extensible à d’autres langues — voir [Internationalisation](#internationalisation).
+
+## Bibliothèque de composants
+
+**63 composants** posables à la souris, rangés dans l’ordre de la palette. Chacun a sa **fiche d’aide illustrée** (bouton ❔ de l’inspecteur, hors-ligne, FR et EN) et **deux montages de test** prêts à simuler dans [testkablix](https://github.com/FrankSAURET/kablix/tree/main/testkablix) — un en C sur Arduino, un en MicroPython sur Pico.
+
+| Catégorie | Composants |
+| --- | --- |
+| **Cartes & platines** (7) | Arduino Uno · Arduino Nano · Arduino Mega 2560 · Raspberry Pi Pico · Raspberry Pi Pico W · Grove Shield (Pico) · Platine d’essai |
+| **Discrets** (9) | LED · LED RGB · Résistance · Diode · Condensateur (film, tantale, chimique) · Photorésistance (LDR) · Thermistance CTN · Thermistance CTP · Transistor (NPN, PNP, darlington, MOSFET — PN2222A et modèles génériques) |
+| **Afficheurs** (8) | Afficheur 7 segments (1 à 4 digits) · Barre de 10 LED · LCD texte 16×2 / 20×4 (I²C ou parallèle) · Écran OLED SSD1306 (I²C) · Écran TFT ILI9341 (SPI) · NeoPixel · Matrice NeoPixel · Anneau NeoPixel |
+| **Commandes** (9) | Bouton poussoir · Bouton poussoir 6 mm · Potentiomètre · Potentiomètre à glissière · Interrupteur à glissière · Interrupteur DIP ×8 · Joystick analogique · Relais OMRON G5V · Clavier matriciel 3×4 / 4×4 |
+| **Capteurs** (11) | Capteur de lumière · Détecteur de mouvement PIR · Capteur d’inclinaison · Capteur de température CTN · Capteur de gaz (MQ) · Capteur de pouls · Capteur de flamme · Capteur de son · Capteur à ultrason (HC-SR04) · Température/humidité DHT22 · Température/humidité DHT11 |
+| **Actionneurs** (4) | Buzzer · Servomoteur · Ventilateur · Moteur à courant continu |
+| **Appareils de mesure** (1) | Alimentation de laboratoire |
+| **Divers** (2) | Carte microSD (SPI) · Pilote PWM 16 canaux (PCA9685) |
+| **Circuits intégrés** (12) | **CMOS 4000** : CD4081 (4 × ET) · CD4071 (4 × OU) · CD4070 (4 × OU exclusif) · CD4011 (4 × NON-ET) · CD4001 (4 × NON-OU) · CD40106 (6 × NON, trigger de Schmitt)<br>**TTL/HC 74** : 74xx08 · 74xx32 · 74xx86 · 74xx00 · 74xx02 · 74xx14 (mêmes fonctions, la famille choisie décide de la plage d’alimentation) |
+
+À quoi s’ajoutent les **composants personnalisés** : dessinés dans le créateur intégré, ou importés au format `.kablix-part.json`.
+
 ## Internationalisation
 
 L’interface suit la langue de VS Code (`vscode.env.language`) : **français si elle commence par `fr`, anglais sinon** (langue de repli). La traduction repose sur trois registres indépendants, parce qu’ils traduisent des choses de nature différente :

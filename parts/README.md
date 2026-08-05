@@ -27,8 +27,8 @@ sont alignées sur la grille de **10 px** (= 0,1″), donc enfichables sur plati
 
 ## Composants retirés de ce dossier
 
-Ils sont devenus **natifs** ; leurs anciens `.json` sont conservés dans
-[`A Examiner/parts/`](../A%20Examiner/parts) pour référence.
+Ils sont devenus **natifs** : le format `.json` ne leur sert plus, leur dessin et
+leur modèle vivent maintenant dans l'extension elle-même.
 
 | Ancien `.json` | Devenu natif |
 |---|---|
