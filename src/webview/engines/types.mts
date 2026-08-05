@@ -216,6 +216,13 @@ export interface SimEngine {
   onUpdate: (() => void) | null;
   /** Appelé pour chaque fragment reçu sur la liaison série. */
   onSerial: ((chunk: string) => void) | null;
+  /**
+   * MicroPython : le script de l'utilisateur commence VRAIMENT à s'exécuter.
+   * Le démarrage du firmware puis l'injection par le raw REPL prennent quelques
+   * secondes ; c'est ce signal qui permet de remplacer « Démarrage… » par
+   * « En marche » au bon moment plutôt que de laisser le message en place.
+   */
+  onRunning?: (() => void) | null;
   /** Pont réseau (Pico W) : appelé quand le script émet une requête HTTP. */
   onNetRequest?: ((req: NetRequest) => void) | null;
   /** Réinjecte dans le script la réponse réseau obtenue par l'hôte. */

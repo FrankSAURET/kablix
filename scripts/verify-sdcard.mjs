@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import JSZip from 'jszip';
+import { tk } from '../testkablix/_paths.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const tmp = mkdtempSync(join(tmpdir(), 'kablix-sd-'));
@@ -121,7 +122,7 @@ function writeBlock(card, block, data) {
 
 // ------------------------------------------------------- le câblage réel ------
 {
-  const zip = await JSZip.loadAsync(readFileSync(join(root, 'testkablix/microsd-uno/microsd-uno.projix')));
+  const zip = await JSZip.loadAsync(readFileSync(tk('microsd-uno/microsd-uno.projix')));
   const diagram = JSON.parse(await zip.file('diagram.json').async('string'));
   const bindings = spiDeviceBindings(diagram);
   const sd = bindings.find((b) => b.kind === 'spi-sd');
@@ -138,7 +139,7 @@ function writeBlock(card, block, data) {
 
 {
   // Côté Pico, le bus SPI0 par défaut du pilote sdcard.py : GP16/18/19 + CS GP17.
-  const zip = await JSZip.loadAsync(readFileSync(join(root, 'testkablix/microsd-pico.projix')));
+  const zip = await JSZip.loadAsync(readFileSync(tk('microsd-pico.projix')));
   const diagram = JSON.parse(await zip.file('diagram.json').async('string'));
   const sd = spiDeviceBindings(diagram).find((b) => b.kind === 'spi-sd');
   check('le .projix Pico contient bien une carte SD sur le bus SPI', !!sd);
@@ -492,7 +493,7 @@ check('répertoire racine vide au départ', rootBlock?.[0] === 0x00);
     );
   }
 
-  const ino = readFileSync(join(root, 'testkablix/microsd-uno/microsd-uno.ino'), 'utf8');
+  const ino = readFileSync(tk('microsd-uno/microsd-uno.ino'), 'utf8');
   check(
     'le sketch de test écrit ET relit un fichier',
     /BROCHE_CS = 4/.test(ino) && /SD\.begin\(BROCHE_CS\)/.test(ino) && /FILE_WRITE/.test(ino) && /f\.read\(\)/.test(ino),
@@ -500,13 +501,13 @@ check('répertoire racine vide au départ', rootBlock?.[0] === 0x00);
 
   // Même test côté Pico : le Pico simulé n'a pas de filesystem, le pilote est
   // injecté depuis `testkablix/lib/` — il doit donc y rester.
-  const lib = readFileSync(join(root, 'testkablix/lib/sdcard.py'), 'utf8');
+  const lib = readFileSync(tk('lib/sdcard.py'), 'utf8');
   check(
     'le pilote sdcard.py accompagne le programme Pico',
     /class SDCard/.test(lib) && /def readblocks/.test(lib) && /def writeblocks/.test(lib) && /def ioctl/.test(lib),
   );
 
-  const py = readFileSync(join(root, 'testkablix/microsd-pico.py'), 'utf8');
+  const py = readFileSync(tk('microsd-pico.py'), 'utf8');
   check(
     'le programme Pico monte la carte, écrit ET relit un fichier',
     /import .*\bsdcard\b/.test(py) &&

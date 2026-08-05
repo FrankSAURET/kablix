@@ -2,9 +2,14 @@
 
 Un test = un programme + un projet `.projix` (schéma câblé prêt à simuler).
 
-- **Sketchs Arduino (`.ino`)** : un dossier par sketch (convention Arduino), le
-  `.projix` est **dans le même dossier** que le `.ino`.
+- **Sketchs Arduino (`.ino`)** : rangés sous **`Arduino/`**, un dossier par
+  sketch (convention arduino-cli) — `Arduino/<nom>/<nom>.ino` et son `.projix`
+  dans le même dossier.
 - **Scripts MicroPython (`.py`)** : à la racine, le `.projix` porte le même nom.
+
+Aucun script ne code ces emplacements en dur : `_paths.mjs` retrouve un fichier
+de test où qu'il soit rangé (racine puis sous-dossiers). Déplacer un test ne
+casse donc ni la génération ni les vérifications.
 
 ## Utilisation
 
@@ -29,7 +34,7 @@ Chaque composant du catalogue a deux tests : `<composant>-uno` (Arduino, C) et
 | LED RGB | `rgb-led-uno` | `rgb-led-pico` | fondu R, V, B puis blanc |
 | Bouton poussoir | `button-uno` | `button-pico` | appui → « APPUYE » + LED |
 | Bouton 6 mm | `button-6mm-uno` | `button-6mm-pico` | idem |
-| Résistance | `resistor-uno` | `resistor-pico` | LED allumée (continuité) |
+| Résistance | `resistor-uno` | — | LED allumée (continuité) |
 | Diode | `diode-uno` | `diode-pico` | passante / à l'envers = bloquée |
 | Condensateurs | `condo-uno` | `condo-pico` | 3 branches RC en parallèle (film 0,1 s, tantale 0,33 s, chimique 1 s) lues sur 3 ADC |
 | Transistor (sélecteur) | `transistor-uno` | `transistor-pico` | Une branche par famille — BC547 vs 2N3904 (à montage égal, le gain décide), BC557 (PNP) côté haut, BC517 (darlington) sur 100 kΩ, BS170 (MOSFET) grille directe |
@@ -79,6 +84,9 @@ DHT sensor library, Keypad.
 ## Maintenance et vérification automatique
 
 - `_spec.mjs` — **source de vérité** : schémas, câblages, programmes, attentes.
+- `_paths.mjs` — où trouver un test. La lecture cherche le fichier là où il est,
+  l'écriture conserve son emplacement actuel (un test nouveau naît sous
+  `Arduino/` s'il est en `.ino`, à la racine s'il est en `.py`).
 - `_generate.mjs` — régénère tous les fichiers : `node testkablix/_generate.mjs`.
   Ne pas retoucher les `.ino`/`.py`/`.projix` à la main : modifier la spec puis régénérer.
 - `_verify.mjs` — vérifie tout : `node testkablix/_verify.mjs` (ou `--quick`

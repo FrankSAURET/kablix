@@ -307,6 +307,44 @@ async function run() {
 	ok('bulle : retirée à la fin du câblage', !document.querySelector('.pin-bubble'));
 	ok('bulle : title natif restauré', hotspotOf(led2.id, 'A').title.length > 0);
 
+	// --- 10bis. Bulle en DÉPLAÇANT une extrémité de fil (v2026.8.2) -------------
+	// Le survol ne peut rien déclencher dans ce geste (la poignée reste sous le
+	// curseur) : la broche d'arrivée restait muette alors qu'elle se nomme
+	// pendant un câblage neuf. C'est l'accrochage lui-même qui porte la bulle.
+	for (const w of [...editor.diagram.wires]) editor.removeWire(w.id);
+	await wait(10);
+	editor.addWire({ partId: led1.id, pin: 'A' }, { partId: led2.id, pin: 'C' }, { color: 'green' });
+	editor.redrawWires();
+	const filBulle = editor.diagram.wires[0];
+	editor.select({ kind: 'wire', id: filBulle.id });
+	await wait(30);
+	const bouts = document.querySelectorAll('.wire-endpoint');
+	ok('extrémités : les deux poignées du fil sélectionné sont posées', bouts.length === 2, bouts.length);
+	const centreDe = (dot) => {
+		const r = dot.getBoundingClientRect();
+		return { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 };
+	};
+	const viseA = centreDe(hotspotOf(led2.id, 'A'));
+	pdown(bouts[1], centreDe(bouts[1]));
+	window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, ...viseA }));
+	await wait(20);
+	const bDep = document.querySelector('.pin-bubble');
+	ok('extrémité déplacée : la broche visée se nomme, comme au câblage', !!bDep, bDep && bDep.textContent);
+	ok('extrémité déplacée : la bulle nomme bien l anode visée',
+		/A|anode/i.test((bDep && bDep.textContent) || ''), bDep && bDep.textContent);
+	window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: viseA.clientX + 400, clientY: viseA.clientY + 300 }));
+	await wait(20);
+	ok('extrémité déplacée : loin de toute broche, plus de bulle', !document.querySelector('.pin-bubble'));
+	window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, ...viseA }));
+	await wait(20);
+	ok('extrémité déplacée : la bulle revient en repassant sur la broche',
+		!!document.querySelector('.pin-bubble'));
+	window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, ...viseA }));
+	await wait(20);
+	ok('extrémité lâchée : la bulle est retirée', !document.querySelector('.pin-bubble'));
+	ok('extrémité lâchée : le fil est bien rebranché sur la broche nommée',
+		editor.diagram.wires[0].b.pin === 'A', JSON.stringify(editor.diagram.wires[0].b));
+
 	// --- 11. Couleur de sélection --kx-select (v2026.7.119) ---------------------
 	// On repart d'un schéma propre : le fil de la section 8 a été supprimé et la
 	// section 10 (bulle) a pu créer un fil parasite → on efface tout et on en
@@ -938,6 +976,29 @@ async function run() {
 		csSel && csFault && csSel.outlineWidth === csFault.outlineWidth && csSel.outlineOffset === csFault.outlineOffset,
 		csSel && (csSel.outlineWidth + '/' + csSel.outlineOffset) + ' vs ' + (csFault && (csFault.outlineWidth + '/' + csFault.outlineOffset)));
 
+	// --- L'erreur passe PAR-DESSUS TOUT (v2026.8.2) ----------------------------
+	// Le cadre rouge et son étiquette vivent DANS .part (z=3) : leur z-index
+	// interne ne pouvait pas les sortir de ce contexte d'empilement. Sur un
+	// schéma serré, le message finissait derrière les fils (z=5), un voisin
+	// survolé (z=4), un poster de brochage (z=50) ou le contrôle de simulation
+	// d'un autre composant (z=60). C'est donc le composant fautif qui est hissé.
+	const zDe = (el) => Number(getComputedStyle(el).zIndex) || 0;
+	const zFaute = zDe(fCont);
+	const zVoisin = zDe(editor.rendered.get(fRes.id).container);
+	ok('erreur : repère du banc, les fils sont bien au-dessus des composants',
+		zDe(svg) > zVoisin && zVoisin > 0, zDe(svg) + ' vs ' + zVoisin);
+	ok('erreur : le composant fautif est hissé au-dessus des composants ordinaires',
+		zFaute > zVoisin, zFaute + ' vs ' + zVoisin);
+	ok('erreur : hissé au-dessus des FILS', zFaute > zDe(svg), zFaute + ' vs ' + zDe(svg));
+	ok('erreur : hissé au-dessus du poster de brochage (50) et des contrôles de sim (60)',
+		zFaute > 60, zFaute);
+	editor.setFaulty(fLed.id, false);
+	await wait(20);
+	ok('erreur : le composant redescend une fois le défaut corrigé',
+		zDe(fCont) === zVoisin, zDe(fCont) + ' vs ' + zVoisin);
+	editor.setFaulty(fLed.id, true); // état d'avant, pour la suite du banc
+	await wait(20);
+
 	// --- L'étiquette qui EXPLIQUE le défaut (v2026.7.245) ----------------------
 	// Le cadre désigne le coupable, l'étiquette dit quoi corriger : jaune sur
 	// rouge, posée À CÔTÉ du composant. La barre d'état, elle, ne garde que la
@@ -1068,6 +1129,59 @@ async function run() {
 		document.querySelectorAll('.part__fault').length === 0);
 	ok('défaut : setFaulty sur un id inconnu ne casse rien',
 		(() => { try { editor.setFaulty('zz-inexistant', true); return true; } catch { return false; } })());
+
+	// --- Sélection DÈS L'APPUI, même si le clic devient un glissé (v2026.8.2) ---
+	// Avant : seul le « cliquer-relâcher » sans mouvement sélectionnait. Saisir
+	// un composant pour le déplacer laissait donc le panneau de propriétés sur le
+	// composant PRÉCÉDENT pendant tout le geste, et après.
+	editor.select(null);
+	await wait(20);
+	const selDragA = editor.addPart('led', 500, 400);
+	const selDragB = editor.addPart('led', 700, 400);
+	await wait(60);
+	const bodyDA = editor.rendered.get(selDragA.id).container.querySelector('.part__body');
+	const bodyDB = editor.rendered.get(selDragB.id).container.querySelector('.part__body');
+	const selA = () => editor.rendered.get(selDragA.id).container.classList.contains('part--selected');
+	const selB = () => editor.rendered.get(selDragB.id).container.classList.contains('part--selected');
+	pdown(bodyDA, { clientX: 500, clientY: 400 });
+	ok('appui : le composant est sélectionné SANS attendre le relâchement', selA());
+	pup();
+	await wait(20);
+
+	// Le geste qui échouait : appui sur un AUTRE composant puis glissé.
+	pdown(bodyDB, { clientX: 700, clientY: 400 });
+	window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 760, clientY: 430 }));
+	await wait(20);
+	ok('glissé : le composant saisi devient le sélectionné', selB());
+	ok('glissé : le précédent sélectionné ne l est plus', !selA());
+	pup();
+	await wait(20);
+	ok('après le relâchement, la sélection reste sur le composant déplacé', selB());
+	ok('le geste a bien déplacé le composant (c était un vrai glissé)',
+		selDragB.x !== 700 || selDragB.y !== 400, 'x=' + selDragB.x + ' y=' + selDragB.y);
+
+	// Sélection multiple : saisir un membre ne doit PAS la réduire à l'appui,
+	// sinon le lot ne pourrait plus être déplacé d'un bloc.
+	editor.select({ kind: 'part', id: selDragA.id });
+	pdown(bodyDB, { clientX: 700, clientY: 400, ctrlKey: true });
+	pup();
+	await wait(20);
+	const nSel = () => document.querySelectorAll('.part--selected').length;
+	ok('Ctrl+clic : les deux composants sont sélectionnés', nSel() === 2, nSel());
+	pdown(bodyDA, { clientX: 500, clientY: 400 });
+	await wait(10);
+	ok('lot : saisir un membre ne réduit pas la sélection multiple', nSel() === 2, nSel());
+	window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 540, clientY: 400 }));
+	await wait(10);
+	ok('lot : le glissé conserve la sélection multiple (le lot bouge en bloc)', nSel() === 2, nSel());
+	pup();
+	await wait(20);
+	// Clic SANS glissé sur un membre : là, la sélection se réduit à lui.
+	pdown(bodyDA, { clientX: 540, clientY: 400 });
+	pup();
+	await wait(20);
+	ok('lot : un clic sans glissé réduit la sélection à ce seul composant',
+		nSel() === 1 && selA(), nSel());
 
 	const out = document.createElement('pre');
 	out.id = 'measures';

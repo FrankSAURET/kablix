@@ -1409,6 +1409,18 @@ body.vscode-light .inspector__ref--nouveau {
   z-index: 60 !important;
 }
 
+/* Composant EN DÉFAUT : le cadre rouge et surtout son étiquette d'explication
+   vivent DANS `.part` (z=3), donc dans son contexte d'empilement — leur z-index
+   interne (60) ne pouvait pas les faire sortir de là. Sur un schéma serré, le
+   message se retrouvait derrière les fils (z=5), un voisin survolé (z=4), un
+   poster de brochage (z=50) ou le contrôle de simulation d'un autre composant
+   (z=60). Une erreur ne doit jamais être cachée : on hisse tout le composant
+   fautif au-dessus de tout ça, sous la seule explosion d'un composant grillé
+   (z=70, déclarée juste après pour l'emporter quand le composant est les deux). */
+.part--faulty {
+  z-index: 65 !important;
+}
+
 /* Composant GRILLÉ (explosion « Boum ») : l'explosion vit dans le shadow DOM du
    composant, donc elle ne peut pas sortir du contexte d'empilement de `.part`
    (z=3) — les fils (z=5) passaient devant. On hisse tout le composant grillé

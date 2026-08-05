@@ -3,7 +3,7 @@ from machine import Pin
 import neopixel
 import time
 
-anneau = neopixel.NeoPixel(Pin(0), 16)
+anneau = neopixel.NeoPixel(Pin(28), 16)
 while True:
     for i in range(16):
         anneau.fill((0, 0, 0))

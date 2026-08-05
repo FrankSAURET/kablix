@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import JSZip from 'jszip';
+import { tk } from '../testkablix/_paths.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const tmp = mkdtempSync(join(tmpdir(), 'kablix-npc-'));
@@ -166,7 +167,7 @@ check('sim : chaque composant affiche SA tranche de la trame',
   /\.slice\(t\.offset, t\.offset \+ t\.count\)/.test(sim), 'découpage introuvable dans refreshVisuals');
 
 // --- 7. Le schéma de test de Frank, tel qu'il est sur le disque --------------
-const projix = join(root, 'testkablix', 'neopixel-pico.projix');
+const projix = tk('neopixel-pico.projix');
 if (existsSync(projix)) {
   const zip = await JSZip.loadAsync(readFileSync(projix));
   const diagram = JSON.parse(await zip.files['diagram.json'].async('string'));
@@ -183,7 +184,7 @@ if (existsSync(projix)) {
 // seule la première s'allume »). Le chaînage se résout dans `model.mts`, commun
 // aux deux moteurs : le correctif de la v202 vaut donc aussi pour l'Uno, et ce
 // contrôle l'atteste sur le vrai fichier au lieu de le supposer.
-const unoProjix = join(root, 'testkablix', 'neopixel-uno', 'neopixel-uno.projix');
+const unoProjix = tk('neopixel-uno/neopixel-uno.projix');
 if (existsSync(unoProjix)) {
   const zip = await JSZip.loadAsync(readFileSync(unoProjix));
   const diagram = JSON.parse(await zip.files['diagram.json'].async('string'));

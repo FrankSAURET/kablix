@@ -430,6 +430,62 @@ async function run() {
 		const evt = new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: 120 });
 		liste.dispatchEvent(evt);
 		ok('le défilement natif est neutralisé (un seul bond par cran)', evt.defaultPrevented);
+
+		// --- Les FLÈCHES de la barre de défilement (constat de Frank, v2026.8.2) --
+		// Elles n'émettent pas d'événement wheel : le navigateur défile de SON pas,
+		// qui coupe les entrées en deux. La molette calait proprement, les flèches
+		// non. Tout défilement venu d'ailleurs est donc recalé sur une entrée.
+		{
+			const PAS = 40; // pas d'un clic sur une flèche de barre, chez Chrome
+			// Chrome headless n'affiche pas de frames : il n'émet donc jamais
+			// l'événement scroll d'une pose programmée. On le pose nous-mêmes,
+			// exactement comme le navigateur le ferait après un clic de flèche.
+			const defile = () => liste.dispatchEvent(new Event('scroll'));
+			const plafond = liste.scrollHeight - liste.clientHeight;
+			let dernier = lignes.length - 1;
+			while (dernier > 0 && t0[dernier] > plafond) dernier--;
+			liste.scrollTop = 0;
+			defile();
+			liste.scrollTop = PAS; // clic sur la flèche « bas »
+			defile();
+			ok('flèche bas de la barre : la DEUXIÈME entrée est calée en haut, comme à la molette',
+				Math.abs(liste.scrollTop - t0[1]) < 1,
+				'scrollTop ' + liste.scrollTop.toFixed(1) + ' pour ' + t0[1].toFixed(1));
+			liste.scrollTop = liste.scrollTop + PAS;
+			defile();
+			ok('flèche bas : deuxième clic, la TROISIÈME entrée — jamais de ligne coupée',
+				Math.abs(liste.scrollTop - t0[2]) < 1,
+				'scrollTop ' + liste.scrollTop.toFixed(1) + ' pour ' + t0[2].toFixed(1));
+			liste.scrollTop = liste.scrollTop - PAS;
+			defile();
+			ok('flèche haut : on remonte d’une entrée, pas davantage',
+				Math.abs(liste.scrollTop - t0[1]) < 1,
+				'scrollTop ' + liste.scrollTop.toFixed(1) + ' pour ' + t0[1].toFixed(1));
+			// Pouce TIRÉ à la souris : un grand saut ne se ramène PAS à un cran
+			// (le pouce ne suivrait plus le curseur) mais à l'entrée la plus proche
+			// de l'endroit visé.
+			if (dernier >= 4) {
+				liste.scrollTop = 0;
+				defile();
+				liste.scrollTop = t0[4] + 5;
+				defile();
+				ok('pouce tiré : on cale sur l’entrée la plus proche, sans revenir en arrière',
+					Math.abs(liste.scrollTop - t0[4]) < 1,
+					'scrollTop ' + liste.scrollTop.toFixed(1) + ' pour ' + t0[4].toFixed(1));
+			}
+			// Fin de liste à la flèche : comme à la molette, on colle au bas, et la
+			// flèche « haut » repart de là par entiers d'entrée, jamais par 40 px.
+			liste.scrollTop = plafond;
+			defile();
+			ok('flèche bas en fin de liste : collé au bas, plus rien de coupé',
+				Math.abs(liste.scrollTop - plafond) < 1.5,
+				'scrollTop ' + liste.scrollTop.toFixed(1) + ' pour ' + plafond);
+			liste.scrollTop = plafond - PAS;
+			defile();
+			ok('flèche haut depuis le bas : on décolle d UNE entrée, pas de 40 px',
+				Math.abs(liste.scrollTop - t0[dernier - 1]) < 1,
+				'scrollTop ' + liste.scrollTop.toFixed(1) + ' pour ' + t0[dernier - 1].toFixed(1));
+		}
 	}
 	// Retour à l'IRF530 : la suite du banc compte dessus.
 	choisir(0, 'nmos');

@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import JSZip from 'jszip';
+import { tk } from '../testkablix/_paths.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const tmp = mkdtempSync(join(tmpdir(), 'kablix-kp-'));
@@ -106,7 +107,7 @@ const pressedKeys = (seen) => {
 
 // ------------------------------------------------- câblage du vrai projet ----
 
-const projix = join(root, 'testkablix/keypad-uno/keypad-uno.projix');
+const projix = tk('keypad-uno/keypad-uno.projix');
 let rows = ['2', '3', '4', '5'];
 let cols = ['6', '7', '8', '9'];
 if (!existsSync(projix)) {
@@ -131,7 +132,7 @@ if (!existsSync(projix)) {
     );
   }
   // Le sketch de test déclare 2,3,4,5 / 6,7,8,9 : le câblage doit correspondre.
-  const ino = readFileSync(join(root, 'testkablix/keypad-uno/keypad-uno.ino'), 'utf8');
+  const ino = readFileSync(tk('keypad-uno/keypad-uno.ino'), 'utf8');
   const nums = (re) => (ino.match(re)?.[1] ?? '').match(/\d+/g) ?? [];
   check(
     'les broches du sketch de test sont celles du schéma',

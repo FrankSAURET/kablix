@@ -8,8 +8,9 @@
 import esbuild from 'esbuild';
 import { existsSync, mkdtempSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { tk } from '../testkablix/_paths.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const fw = join(root, 'test-assets', 'RPI_PICO-20230426-v1.20.0.uf2');
@@ -17,7 +18,7 @@ if (!existsSync(fw)) {
   console.log('SKIP : firmware MicroPython absent (test-assets/RPI_PICO-20230426-v1.20.0.uf2).');
   process.exit(0);
 }
-const lib = join(root, 'testkablix', 'grove_16_channels_pwm.py');
+const lib = tk('grove_16_channels_pwm.py');
 if (!existsSync(lib)) {
   console.log('SKIP : lib grove_16_channels_pwm.py absente de testkablix/.');
   process.exit(0);
@@ -57,7 +58,9 @@ const sketchSrc = [
   'pwm.all_off()',
   '',
 ].join('\n');
-const sketchPath = join(root, 'testkablix', '_pca_e2e_tmp.py');
+// Le sketch temporaire va DANS LE DOSSIER DE LA LIB : loadPythonProgram résout
+// les imports à côté du fichier, la lib doit donc être sa voisine.
+const sketchPath = join(dirname(lib), '_pca_e2e_tmp.py');
 writeFileSync(sketchPath, sketchSrc, 'utf8');
 
 const program = loadPythonProgram(fw, sketchSrc, false, sketchPath);

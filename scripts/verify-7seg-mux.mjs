@@ -24,6 +24,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import JSZip from 'jszip';
+import { tk } from '../testkablix/_paths.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const tmp = mkdtempSync(join(tmpdir(), 'kablix-7seg-'));
@@ -93,7 +94,7 @@ function latchAvant(binding, read) {
 async function colonSection() {
   const { sevenSegmentMuxBindings } = await load('src/webview/diagram/model.mts', 'model.mjs');
   const diagramOf = async (rel) => {
-    const zip = await JSZip.loadAsync(readFileSync(join(root, rel)));
+    const zip = await JSZip.loadAsync(readFileSync(tk(rel.replace(/^testkablix\//, ''))));
     return JSON.parse(await zip.files['diagram.json'].async('string'));
   };
 
@@ -104,7 +105,7 @@ async function colonSection() {
     ['testkablix/horloge-uno/horloge-uno.projix', '10', '2'],
   ]) {
     const nom = rel.split('/').pop();
-    if (!existsSync(join(root, rel))) { ok(`${nom} : fichier présent`, false, 'absent'); continue; }
+    if (!existsSync(tk(rel.replace(/^testkablix\//, '')))) { ok(`${nom} : fichier présent`, false, 'absent'); continue; }
     const diagram = await diagramOf(rel);
     const b = sevenSegmentMuxBindings(diagram)[0];
     ok(`${nom} : afficheur 4 chiffres cathode commune reconnu`,
@@ -147,7 +148,7 @@ async function colonSection() {
     /Math\.max\(level, Number\(values\[d \* 8 \+ 7\]\)/.test(el), 'report du dp introuvable');
   // Le sketch Arduino équivalent doit exister à côté du schéma Uno.
   ok('horloge-uno.ino : le programme Arduino équivalent est livré',
-    existsSync(join(root, 'testkablix/horloge-uno/horloge-uno.ino')), 'absent');
+    existsSync(tk('horloge-uno/horloge-uno.ino')), 'absent');
 }
 
 await colonSection();
@@ -162,7 +163,7 @@ const { PicoEngine } = await load('src/webview/engines/pico.mts', 'pico.mjs');
 const segments = parseUf2(new Uint8Array(readFileSync(fw))).map((s) => ({ addr: s.addr, data: s.data }));
 
 const NB = 4;
-const source = readFileSync(join(root, 'testkablix', '7seg-pico.py'), 'utf8');
+const source = readFileSync(tk('7seg-pico.py'), 'utf8');
 // Le script de test est paramétré à la volée : nombre de chiffres et durée
 // d'affichage d'un même nombre (DELAIS, en ms). Frank signale que l'affichage
 // « ne suit pas du tout » à DELAIS court → on teste 100 ms ET 50 ms.

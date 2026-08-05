@@ -187,6 +187,7 @@ export class PicoEngine implements SimEngine {
   onUpdate: (() => void) | null = null;
   onSerial: ((chunk: string) => void) | null = null;
   onDebugPause: ((state: DebugPauseState) => void) | null = null;
+  onRunning: (() => void) | null = null;
   onNetRequest: ((req: NetRequest) => void) | null = null;
 
   /** Pas à pas : défini uniquement en mode script MicroPython (cf. constructeur). */
@@ -928,6 +929,8 @@ export class PicoEngine implements SimEngine {
     this.replPhase = 'stdout';
     if (this.breakpoints.length > 0) this.sendBreakpoints();
     if (this.isPaused && !this.pausedByStop) this.cdc?.sendSerialByte(0x05);
+    // Le script tourne : c'est la fin du « Démarrage MicroPython… ».
+    this.onRunning?.();
   }
 
   // --- USB-CDC : console MicroPython + injection raw REPL ---------------------

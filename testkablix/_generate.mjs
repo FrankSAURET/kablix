@@ -1,7 +1,7 @@
 // Génère tous les fichiers de test de testkablix/ à partir de _spec.mjs :
-//   - tests .ino  → un dossier par sketch (convention Arduino) contenant
-//                   <nom>/<nom>.ino ET <nom>/<nom>.projix ;
-//   - tests .py   → <nom>.py et <nom>.projix côte à côte à la racine.
+//   - tests .ino  → Arduino/<nom>/<nom>.ino ET Arduino/<nom>/<nom>.projix
+//                   (un dossier par sketch, exigence arduino-cli) ;
+//   - tests .py   → PicoPi/<nom>.py et PicoPi/<nom>.projix côte à côte.
 // Les .projix sont des archives ZIP (kablix.json + diagram.json), comme
 // celles produites par « Enregistrer le projet » de l'extension.
 //   node testkablix/_generate.mjs                  (depuis la racine du dépôt)
@@ -15,10 +15,9 @@
 import JSZip from 'jszip';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { HERE, testCode, testCodeRef, testDir, testProjix } from './_paths.mjs';
 import { TESTS } from './_spec.mjs';
 
-const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');
 const APP_VERSION = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
 
@@ -57,20 +56,12 @@ let nIno = 0;
 let nPy = 0;
 for (const test of TESTS) {
   if (only.size > 0 && !only.has(test.name)) continue;
-  if (test.ext === 'ino') {
-    // Sketch Arduino : dossier du même nom que le .ino (exigence arduino-cli).
-    const dir = join(HERE, test.name);
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, `${test.name}.ino`), test.code, 'utf8');
-    const projix = await buildProjix(test, `testkablix/${test.name}/${test.name}.ino`);
-    writeFileSync(join(dir, `${test.name}.projix`), projix);
-    nIno++;
-  } else {
-    writeFileSync(join(HERE, `${test.name}.py`), test.code, 'utf8');
-    const projix = await buildProjix(test, `testkablix/${test.name}.py`);
-    writeFileSync(join(HERE, `${test.name}.projix`), projix);
-    nPy++;
-  }
+  // Banc Arduino (un dossier par sketch) ou banc PicoPi (fichiers côte à côte).
+  mkdirSync(testDir(test), { recursive: true });
+  writeFileSync(testCode(test), test.code, 'utf8');
+  writeFileSync(testProjix(test), await buildProjix(test, testCodeRef(test)));
+  if (test.ext === 'ino') nIno++;
+  else nPy++;
 }
 
 console.log(`OK : ${nIno} sketchs .ino (dossiers) + ${nPy} scripts .py générés, ${nIno + nPy} .projix.`);

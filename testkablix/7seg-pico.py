@@ -8,7 +8,7 @@ K = 1  # Cathode commune : segment allumé à 1.
 A = 0  # Anode commune : segment allumé à 0.
 COMMUNE = K  # Remplacer par A pour un afficheur à anode commune.
 
-NB_DIGITS = 4 # Mettre 1, 2 ou 4 selon l'afficheur câblé.
+NB_DIGITS = 1 # Mettre 1, 2 ou 4 selon l'afficheur câblé.
 
 SEGS = [Pin(n, Pin.OUT) for n in range(2, 9)]
 DIGITS = [Pin(n, Pin.OUT) for n in range(10, 14)]
@@ -19,7 +19,7 @@ SEG_ON = COMMUNE
 SEG_OFF = 1 - COMMUNE
 DIGIT_ON = 1 - COMMUNE
 DIGIT_OFF = COMMUNE
-DELAIS=10
+DELAIS=100
 
 
 

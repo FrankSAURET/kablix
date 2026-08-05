@@ -2787,6 +2787,14 @@ function startRun(): void {
     if (rest) appendSerial(rest);
   };
   engine.onDebugPause = renderDebugPause;
+  // MicroPython : le firmware met quelques secondes à démarrer puis le script
+  // est injecté par le raw REPL. Sans ce signal, le message « Démarrage
+  // MicroPython… » restait affiché tout le temps de la simulation.
+  if (engine.onRunning !== undefined) {
+    engine.onRunning = () => {
+      if (engine && !engine.paused) setStatus(t('Running…'));
+    };
+  }
   // Sondes internes : toute tension posée sur une broche analogique (capteurs,
   // potentiomètres…) est tracée en volts — la Vref dépend de la famille de carte.
   {

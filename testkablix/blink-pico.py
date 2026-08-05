@@ -2,15 +2,8 @@
 from machine import Pin
 import time
 
-# Pico W utilise souvent "LED", Pico classique utilise GP25.
-try:
-    led = Pin("LED", Pin.OUT)
-except Exception:
-    led = Pin(25, Pin.OUT)
-
-state = False
+led = Pin(25, Pin.OUT)
 while True:
-    state = not state
-    led.value(state)
-    print("LED", "ON" if state else "OFF")
+    led.toggle()
+    print("LED", "ON" if led.value() else "OFF")
     time.sleep(0.5)

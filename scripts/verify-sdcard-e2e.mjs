@@ -11,6 +11,7 @@ import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { tk } from '../testkablix/_paths.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const fw = join(root, 'test-assets', 'RPI_PICO-20230426-v1.20.0.uf2');
@@ -40,7 +41,7 @@ const { SdCardSpiDevice } = await load('src/webview/engines/i2c-devices.mts', 'd
 
 // Le VRAI programme de test, tel que Frank l'ouvre : ses `import` se résolvent
 // dans testkablix/lib/ (le Pico simulé n'a pas de système de fichiers).
-const sketchPath = join(root, 'testkablix', 'microsd-pico.py');
+const sketchPath = tk('microsd-pico.py');
 const sketchSrc = readFileSync(sketchPath, 'utf8');
 
 const program = loadPythonProgram(fw, sketchSrc, false, sketchPath);

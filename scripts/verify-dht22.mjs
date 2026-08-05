@@ -9,6 +9,7 @@ import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { tk } from '../testkablix/_paths.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const tmp = mkdtempSync(join(tmpdir(), 'kablix-dht-'));
@@ -184,7 +185,7 @@ check('avr : la ligne n est reforcée à HAUT que pour un capteur NOUVEAU',
   /if \(!before\.includes\(d\)\) this\.setInput\(d\.pin, true\)/.test(avrSrc), 'garde-fou absent');
 
 // --- 7. Le sketch de test attend bien les 2 s du capteur ---------------------
-const ino = readFileSync(join(root, 'testkablix/dht22-uno/dht22-uno.ino'), 'utf8');
+const ino = readFileSync(tk('dht22-uno/dht22-uno.ino'), 'utf8');
 const wait = /^\s*delay\((\d+)\)/m.exec(ino);
 check('sketch de test : une temporisation ≥ 2 s sépare deux lectures',
   !!wait && Number(wait[1]) >= 2000, wait ? wait[1] : 'aucun delay actif');

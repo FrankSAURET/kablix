@@ -2239,11 +2239,14 @@ while True:
     wires: () => [],
     expect: { kind: 'board-only' },
     code: `# Test carte Raspberry Pi Pico W : la LED embarquée clignote.
-# En simulation Kablix la LED est sur GP25 (comme le Pico).
+# Sur une vraie carte, cette LED est câblée sur la puce Wi-Fi et s'adresse par
+# son nom : Pin("LED"). Kablix la simule sur GP25 (la puce Wi-Fi n'est pas
+# émulée) et accepte les DEUX écritures — c'est le code habituel qui doit
+# marcher tel quel.
 from machine import Pin
 import time
 
-led = Pin(25, Pin.OUT)
+led = Pin("LED", Pin.OUT)
 while True:
     led.toggle()
     print("LED", "ON" if led.value() else "OFF")
@@ -2346,25 +2349,6 @@ bouton = Pin(13, Pin.IN, Pin.PULL_UP)
 while True:
     print("APPUYE" if bouton.value() == 0 else "relache")
     time.sleep(0.2)
-`,
-  }),
-
-  test({
-    name: 'resistor-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'R1', type: 'resistor', x: 560, y: 90, attrs: { value: '220' } }, { id: 'L1', type: 'led', x: 680, y: 60, attrs: { color: 'yellow' } }],
-    wires: () => [w('R1', '1', 'U1', 'GP16', 'green'), w('L1', 'A', 'R1', '2', 'green'), w('L1', 'C', 'U1', 'GND.6', 'black')],
-    expect: { kind: 'led', partId: 'L1', mcuPin: 'GP16' },
-    code: `# Test résistance : en série avec une LED sur GP16 (continuité du courant).
-from machine import Pin
-import time
-
-sortie = Pin(16, Pin.OUT)
-while True:
-    sortie.value(1)
-    print("LED allumee a travers la resistance")
-    time.sleep(0.7)
-    sortie.value(0)
-    time.sleep(0.3)
 `,
   }),
 
@@ -2664,55 +2648,6 @@ while True:
     angle(2500)
     print("180 degres")
     time.sleep(1)
-`,
-  }),
-
-  test({
-    name: 'pca9685-pico', board: 'pico', ext: 'py',
-    parts: [
-      MCU('pico'),
-      { id: 'Mod1', type: 'pca9685', x: 620, y: 40, attrs: { address: '0x40' } },
-      { id: 'Act1', type: 'servo', x: 1000, y: 40, attrs: { horn: 'single', pulsemin: '500', pulsemax: '2500' } },
-      { id: 'Alim1', type: 'alim', x: 1000, y: 260, attrs: { voltage: '5', maxcurrent: '1' } },
-    ],
-    wires: () => [
-      w('Mod1', 'GND', 'U1', 'GND.1', 'black'),
-      w('Mod1', 'VCC', 'U1', '3V3', 'red'),
-      w('Mod1', 'SDA', 'U1', 'GP0', 'blue'),
-      w('Mod1', 'SCL', 'U1', 'GP1', 'yellow'),
-      w('Act1', 'PWM', 'Mod1', 'PWM0', 'orange'),
-      w('Act1', 'V+', 'Mod1', 'P1.5V', 'red'),
-      w('Act1', 'GND', 'Mod1', 'P1.GND', 'black'),
-      w('Alim1', 'V+', 'Mod1', 'V+', 'red'),
-      w('Alim1', 'GND', 'Mod1', 'GND.2', 'black'),
-    ],
-    expect: { kind: 'pca9685', partId: 'Mod1', channel: 0, targetId: 'Act1', powered: true },
-    code: `# Test PCA9685 : le servo branché sur P1 (canal 0) balaie 0°, 90° puis 180°.
-# SANS l'alimentation de laboratoire réglée sur 5 V (courant suffisant) sur le
-# bornier V+/GND du module, les sorties ne bougent pas.
-from machine import Pin, I2C
-import time
-
-i2c = I2C(0, sda=Pin(0), scl=Pin(1), freq=100000)
-PCA = 0x40
-
-def pca_ecrit(reg, val):
-    i2c.writeto(PCA, bytes([reg, val]))
-
-# Impulsion du canal : créneau démarré à 0, coupé à durée/20 ms x 4096 pas.
-def pca_impulsion(canal, microsecondes):
-    off = microsecondes * 4096 // 20000
-    i2c.writeto(PCA, bytes([0x06 + 4 * canal, 0x00, 0x00, off & 0xFF, off >> 8]))
-
-pca_ecrit(0x00, 0x10)  # MODE1 : sleep pour régler le prescaler
-pca_ecrit(0xFE, 121)   # prescale 50 Hz (25 MHz / (4096 x 50) - 1)
-pca_ecrit(0x00, 0x20)  # MODE1 : réveil + auto-incrément
-
-while True:
-    for us, angle in ((500, 0), (1500, 90), (2500, 180)):
-        pca_impulsion(0, us)
-        print(angle, "degres")
-        time.sleep(1)
 `,
   }),
 
@@ -3264,12 +3199,14 @@ while True:
     code: `# Trois circuits RC sur la MEME broche de commande. Seule la constante de
 # temps RC change : 100 kOhm x 1 uF = 0,1 s (film), 33 kOhm x 10 uF = 0,33 s
 # (tantale), 10 kOhm x 100 uF = 1 s (chimique). A un RC la tension a fait
-# 63 % du chemin, a 5 RC la charge est pleine — d'ou les 5 s par phase.
+# 63 % du chemin, a 3 RC elle est a 95 % : la courbe est deja plate, d'ou les
+# 3 s par phase (un cycle charge + decharge dure 6 s).
 #
 # Le TRACEUR DE COURBES affiche les trois exponentielles SANS une seule ligne
 # de code : la tension du condensateur est posee sur ADC0/1/2 (GP26, GP27,
 # GP28), et toute tension posee sur une entree analogique est tracee par une
-# sonde interne. La console ne sert ici qu'a relire les valeurs en clair.
+# sonde interne. La console ne sert qu'a relire les valeurs en clair : elle
+# n'imprime qu'une mesure sur deux (la courbe, elle, reste continue).
 from machine import ADC, Pin
 import time
 
@@ -3278,10 +3215,11 @@ mesure = [ADC(Pin(26)), ADC(Pin(27)), ADC(Pin(28))]
 
 def phase(niveau, nom):
     charge.value(niveau)
-    for _ in range(10):               # 10 x 500 ms = 5 s = 5 RC du plus lent
+    for i in range(6):                # 6 x 500 ms = 3 s = 3 RC du plus lent
         time.sleep_ms(500)
-        volts = ["%.2f V" % (a.read_u16() * 3.3 / 65535) for a in mesure]
-        print(nom, "   ".join(volts))
+        if i % 2:
+            volts = ["%.2f V" % (a.read_u16() * 3.3 / 65535) for a in mesure]
+            print(nom, "   ".join(volts))
 
 print("          film(GP26) tantale(GP27) chimique(GP28)")
 while True:

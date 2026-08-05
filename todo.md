@@ -1,18 +1,33 @@
 # À faire
-1. blink-pico n'éteint plus la LED : 
-[CYW43] Failed to start CYW43
-[CYW43] Failed to start CYW43
-LED ON
-[CYW43] Failed to start CYW43
-LED OFF
-[CYW43] Failed to start CYW43
-LED ON
-[CYW43] Failed to start CYW43
 1. Vérifie condo-pico.py. Courbe trés longue et affichage aussi.
+1. Gros ralentis : 
+    1. us sensor - ralentie 0,01
+    1. ili9341-pico - ralentie 0,01
+    1. L'horloge pico - ralentie :0,35
+1. j'ai retouche le code de ili9341-pico pour le rendre plus démonstratif ne le change plus. ne le change plus.
+1.  De temps en temps, comme avec ventilo plus tot, le fichier ouvert s'affiche vide. Si je ferme et rouvre vscode il apparait.
+1. Commite + Push (y compris mes modif) + vsix
+
+# À trancher par Frank
+1. `servo-pico.projix` / `servo-pico.py` ont disparu de `testkablix/` sans que ce soit noté (contrairement à PCA9685 et resistor, retirés volontairement). À refaire ou à laisser tomber ?
+2. Quatre fichiers ont été rétablis d'office alors qu'ils étaient peut-être supprimés exprès : `16 servo + alim.svg`, `condo-pico.csv`, `demo projix 1.projix`, `relais-pico.csv`.
+
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
 
-# >>>>  v2026.8.1 — chaque onglet retrouve sa zone
+# >>>>  v2026.8.2 — le Pico dit qu'il tourne, les pattes se voient, l'erreur passe devant
+
+1. ✅ **`blink-pico` : la LED restait allumée, et le `[CYW43] Failed to start CYW43` défilait sans fin.** Sur une vraie carte, `Pin("LED")` du Pico W ne pilote **pas** un GPIO : la LED est câblée sur la puce Wi-Fi CYW43439, que l'émulateur ne simule pas. Le firmware imprimait donc son échec à chaque écriture **sans lever d'exception** — le `try/except` que tout le monde écrit autour ne basculait jamais sur le repli GP25, et la LED restait figée. `Pin("LED")` est désormais redirigé vers GP25 dans la rustine du module `machine` : le pilote Wi-Fi n'est plus sollicité du tout, et **le code habituel du Pico W marche tel quel**. Nouveau banc `verify:picow-led`.
+2. ✅ **Pattes du DHT11 invisibles sur la grille : un `gradientTransform` HÉRITÉ.** Les quatre pattes se peignent avec des dégradés qui `xlink:href` un dégradé commun — et ce lien **hérite aussi de sa transformation** (`scale(2.125, 0.47)`, piège classique d'export Inkscape). Le dégradé partait donc peindre vers x≈190 alors que les pattes sont à x≈90 : elles ne recevaient que la première teinte, un gris clair invisible sur fond clair. La transformation retirée, **les couleurs d'origine sont intactes** (les bornes x1/x2 des dégradés fils épousent déjà exactement la largeur des pattes). Vérifié au rendu, avant/après, sur grille claire ET sombre.
+3. ✅ **Un composant est sélectionné DÈS L'APPUI, sans attendre le relâchement** : ses propriétés s'affichent pendant qu'on le glisse. Seule exception, un composant DÉJÀ pris dans une sélection multiple — réduire le lot à lui seul dès l'appui empêcherait de déplacer l'ensemble ; c'est le clic **sans** glissé qui le réduit, comme avant.
+4. ✅ **« Démarrage de MicroPython… » ne reste plus affiché toute la simulation.** Le message annonçait le démarrage du firmware puis l'injection du script par le REPL, mais rien ne signalait la fin : nouveau signal `onRunning`, émis à la seconde où le script de l'utilisateur commence vraiment, qui bascule la barre d'état sur « En marche ».
+5. ✅ **Sélecteur de transistor : les flèches de la barre de défilement se comportent enfin comme la molette.** Elles n'émettent pas d'événement de molette — le navigateur défile de SON pas (~40 px), qui coupe les entrées en deux. Tout défilement qui ne vient pas de nous est désormais recalé sur une entrée : petit pas (flèche, clavier) = **une** entrée comme un cran de molette ; grand saut (pouce tiré, Page↑/↓) = l'entrée la **plus proche** de l'endroit visé, sinon le pouce ne suivrait plus le curseur. En fin de liste, on colle au bas, et la flèche « haut » repart de là par entiers d'entrée.
+6. ✅ **L'affichage d'une erreur passe désormais par-dessus tout.** Le cadre rouge et son étiquette d'explication vivent DANS le composant fautif (contexte d'empilement) : leur rang interne ne pouvait pas les faire sortir de là, et sur un schéma serré le message finissait derrière un fil, un voisin survolé, un poster de brochage ou le contrôle de simulation d'un autre composant. C'est le composant fautif entier qui est hissé, juste sous l'explosion d'un composant grillé.
+7. ✅ **La bulle de nom apparaît aussi quand on tire l'EXTRÉMITÉ d'un fil existant.** Dans ce geste le survol ne peut rien déclencher (la poignée reste collée au curseur), donc la broche d'arrivée restait muette alors qu'elle se nomme pendant un câblage neuf. La bulle suit maintenant **l'accrochage lui-même** : elle annonce exactement la broche qui sera reliée en lâchant, et s'efface dès qu'on s'éloigne.
+8. ✅ **19 contrôles de plus** : `verify:selection` passe à 177 (sélection à l'appui, lot multiple préservé, rang de l'erreur au-dessus des fils/posters/contrôles, bulle sur l'extrémité tirée), `verify:transistor` à 161 (les six cas des flèches), `verify:micropython` vérifie que `onRunning` arrive une seule fois et AVANT la sortie du script. Contre-épreuves faites : 4 puis 5 puis 3 contrôles tombent quand on neutralise chaque correction.
+9. ℹ️ **Découvert en chemin, pas de décision prise :** `servo-pico` a disparu de `testkablix/` sans être noté, et quatre fichiers rétablis d'office pourraient avoir été supprimés exprès — listés en tête de ce fichier, sous « À trancher par Frank ».
+
+# v2026.8.1 — chaque onglet retrouve sa zone
 
 1. ✅ **La cause des « bugs de disposition qui reviennent » est identifiée : un atelier `.projix` ouvert dans CHAQUE zone.** À partir de là, plus rien ne tient : `projixColumn()` renvoyait le **premier** atelier trouvé, donc « de quel côté est Kablix » devenait un tirage au sort ; l'échange de groupes déplaçait des zones au hasard ; et le verrou protégeait la mauvaise zone — les fichiers de code se mettaient à s'ouvrir du côté simulateur.
 2. ✅ **« Réarranger les fenêtres » remet désormais chaque onglet dans sa zone dédiée** (`sortTabsIntoColumns`, [layout.ts](src/layout.ts)) : **tous** les ateliers `.projix` côté Kablix, **tous** les fichiers de code côté code. Le même atelier ouvert des deux côtés → l'exemplaire égaré est **fermé** (le document survit dans l'autre onglet, donc aucune demande d'enregistrement) ; deux ateliers **différents** → les deux sont **déplacés**, jamais fermés.

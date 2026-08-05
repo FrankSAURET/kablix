@@ -275,6 +275,11 @@ export class Editor {
   private tempPath: SVGPathElement | null = null;
   /** Bulle de nom de broche affichée pendant le câblage (showPinBubble). */
   private pinBubble: HTMLDivElement | null = null;
+  /** Broche que la bulle affichée nomme (pour ne pas la reconstruire à chaque image). */
+  private pinBubbleFor: Endpoint | null = null;
+  /** Vrai tant qu'on tire l'EXTRÉMITÉ d'un fil existant : la bulle de nom doit
+   *  s'afficher là aussi, comme pendant un câblage neuf (retour de Frank). */
+  private endpointDrag = false;
   /** Couche (au-dessus des fils) où l'on dessine le rond de sélection de la broche
    *  atteignable au survol, sans hisser le corps du composant. */
   private pinHoistLayer!: HTMLDivElement;
@@ -2167,10 +2172,27 @@ export class Editor {
     return dot;
   }
 
+  /**
+   * Bulle de nom sur la broche VISÉE pendant qu'on tire une extrémité de fil
+   * existante. Le survol ne peut rien déclencher dans ce geste (la poignée reste
+   * collée au curseur), et la broche d'arrivée était donc muette alors qu'elle
+   * se nomme pendant un câblage neuf. On suit ici l'accrochage lui-même :
+   * la bulle nomme exactement la broche qui sera reliée en lâchant.
+   */
+  private trackPinBubble(endpoint: Endpoint | null): void {
+    const memo = this.pinBubbleFor;
+    if (endpoint && memo && endpoint.partId === memo.partId && endpoint.pin === memo.pin) return;
+    this.hidePinBubble();
+    if (!endpoint) return;
+    const dot = this.rendered.get(endpoint.partId)?.hotspots.get(endpoint.pin);
+    if (dot) this.showPinBubble(dot, endpoint);
+  }
+
   /** Bulle de nom instantanée sur la broche visée pendant le câblage. */
   private showPinBubble(dot: HTMLDivElement, endpoint: Endpoint): void {
-    if (!this.pending || this.locked) return;
+    if ((!this.pending && !this.endpointDrag) || this.locked) return;
     this.hidePinBubble();
+    this.pinBubbleFor = endpoint;
     const p = this.hotspotCenter(endpoint);
     if (!p) return;
     const part = this.diagram.parts.find((q) => q.id === endpoint.partId);
@@ -2194,6 +2216,7 @@ export class Editor {
   private hidePinBubble(): void {
     this.pinBubble?.remove();
     this.pinBubble = null;
+    this.pinBubbleFor = null;
     for (const d of this.world.querySelectorAll<HTMLElement>('[data-saved-title]')) {
       d.title = d.dataset.savedTitle ?? '';
       delete d.dataset.savedTitle;
@@ -2367,10 +2390,17 @@ export class Editor {
     // Si le composant fait partie d'une sélection multiple, tout le lot bouge ;
     // sinon, juste lui + ce qui est enfiché dedans. Chaque racine entraîne sa
     // grappe d'enfichage.
-    const roots =
-      this.selectedParts.has(part.id) && this.selectedParts.size > 1
-        ? [...this.selectedParts]
-        : [part.id];
+    const inMulti = this.selectedParts.has(part.id) && this.selectedParts.size > 1;
+    // Un composant est sélectionné DÈS L'APPUI, sans attendre le relâchement :
+    // le panneau montre ses propriétés pendant qu'on le glisse. Exception, le
+    // membre d'une sélection multiple — réduire tout de suite la sélection à lui
+    // seul empêcherait de déplacer le lot ; c'est le clic sans glissé (plus bas)
+    // qui la réduit.
+    const dejaSeul = this.selection?.kind === 'part' && this.selection.id === part.id;
+    if (!inMulti && !dejaSeul) {
+      this.select({ kind: 'part', id: part.id });
+    }
+    const roots = inMulti ? [...this.selectedParts] : [part.id];
     const groupIds = new Set<string>();
     for (const rid of roots) for (const g of this.connectedGroup(rid)) groupIds.add(g);
     const members = [...groupIds]
@@ -2455,7 +2485,9 @@ export class Editor {
       window.removeEventListener('blur', end);
       this.clearBreadboardHighlights();
       if (!moved) {
-        this.select({ kind: 'part', id: part.id }); // simple clic = sélection
+        // Déjà sélectionné à l'appui ; ne reste que le cas d'une sélection
+        // multiple, qu'un clic sans glissé réduit à ce seul composant.
+        if (inMulti) this.select({ kind: 'part', id: part.id });
       } else if (pluggable) {
         this.plugIntoBreadboard(part, holes); // notifie si des fils auto changent
         this.notify(); // persiste la nouvelle position même sans enfichage
@@ -2937,11 +2969,18 @@ export class Editor {
   /** Glisse l'extrémité `which` d'un fil ; au relâché, l'accroche à la broche la plus proche. */
   private dragEndpoint(wire: Wire, which: 'a' | 'b', handle: HTMLDivElement): void {
     const path = this.wirePaths.get(wire.id);
+    this.endpointDrag = true;
     const move = (ev: PointerEvent): void => {
       auto.track(ev);
       const at = this.canvasPoint(ev.clientX, ev.clientY);
       handle.style.left = `${at.x}px`;
       handle.style.top = `${at.y}px`;
+      // La broche d'arrivée se nomme, comme pendant un câblage neuf : c'est
+      // l'accrochage réel qu'on suit, donc la bulle annonce ce que le lâcher fera.
+      const vise = this.nearestPin(at);
+      const autre = which === 'a' ? wire.b : wire.a;
+      const bon = vise && !(vise.partId === autre.partId && vise.pin === autre.pin);
+      this.trackPinBubble(bon ? vise : null);
       if (path) {
         const other = this.hotspotCenter(which === 'a' ? wire.b : wire.a);
         const mids = wire.points ?? [];
@@ -2957,6 +2996,8 @@ export class Editor {
       auto.stop();
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', end);
+      this.endpointDrag = false;
+      this.hidePinBubble();
       const at = this.canvasPoint(ev.clientX, ev.clientY);
       const target = this.nearestPin(at);
       const other = which === 'a' ? wire.b : wire.a;
@@ -5259,6 +5300,54 @@ export class Editor {
         list.scrollTop = pos(haut);
       }
       pose = list.scrollTop; // relu : le navigateur l'arrondit
+    });
+    // Les FLÈCHES de la barre de défilement n'émettent pas de `wheel` : elles
+    // font défiler le navigateur de SON pas (~40 px), qui coupe les entrées en
+    // deux — la molette calait proprement, les flèches non (signalé par Frank).
+    // Tout défilement que nous n'avons pas posé est donc recalé sur une entrée,
+    // avec la même règle : un petit pas (flèche, clavier) = UNE entrée, comme un
+    // cran de molette ; un grand saut (pouce tiré, Page↑/↓) se cale sur l'entrée
+    // la plus proche de l'endroit visé, sans quoi le pouce ne suivrait plus.
+    list.addEventListener('scroll', () => {
+      const cible = list.scrollTop;
+      if (Math.abs(cible - pose) <= 1) return; // c'est notre propre pose
+      const rows = [...list.children] as HTMLElement[];
+      if (rows.length < 2) return;
+      const dessus = list.getBoundingClientRect().top + list.clientTop - cible;
+      const pos = (i: number): number => rows[i].getBoundingClientRect().top - dessus;
+      const plafond = list.scrollHeight - list.clientHeight;
+      let dernier = rows.length - 1;
+      while (dernier > 0 && pos(dernier) > plafond) dernier--;
+      // Fin de liste : on colle au bas (le reste sous la dernière entrée
+      // alignable ne se montre pas autrement).
+      if (cible >= plafond - 1) {
+        haut = dernier;
+        fond = true;
+        pose = cible;
+        return;
+      }
+      const delta = cible - pose;
+      const hauteurMoyenne = list.scrollHeight / rows.length;
+      let cran: number;
+      if (Math.abs(delta) <= hauteurMoyenne * 1.5) {
+        cran = delta > 0 ? Math.min(haut + 1, dernier) : Math.max(haut - 1, 0);
+      } else {
+        cran = 0;
+        for (let i = 1; i <= dernier; i++) {
+          if (Math.abs(pos(i) - cible) < Math.abs(pos(cran) - cible)) cran = i;
+        }
+      }
+      // Dernière entrée alignable dépassée : comme à la molette, le cran suivant
+      // montre la fin de la liste.
+      if (cran >= dernier && delta > 0 && haut >= dernier) {
+        list.scrollTop = plafond;
+        fond = true;
+      } else {
+        haut = cran;
+        fond = false;
+        list.scrollTop = pos(haut);
+      }
+      pose = list.scrollTop;
     });
     const choose = (choice: string): void => {
       for (const [attr, value] of Object.entries(transistorAttrs(choice, this.transistorFilter))) {

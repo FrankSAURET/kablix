@@ -14,11 +14,11 @@ import JSZip from 'jszip';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { HERE, testCode, testProjix, tk } from './_paths.mjs';
 import { TESTS as ALL_TESTS, PART_PINS } from './_spec.mjs';
 
-const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');
 const QUICK = process.argv.includes('--quick');
 // Noms passés en argument : ne contrôler que ces tests-là.
@@ -93,9 +93,7 @@ function resolveLogic(diagram, read, vcc) {
 // --- 1. Validation des .projix ------------------------------------------------
 console.log(`--- Validation des ${TESTS.length} .projix (structure + câblage) ---`);
 for (const t of TESTS) {
-  const file = t.ext === 'ino'
-    ? join(HERE, t.name, `${t.name}.projix`)
-    : join(HERE, `${t.name}.projix`);
+  const file = testProjix(t);
   let diagram;
   try {
     const zip = await JSZip.loadAsync(readFileSync(file));
@@ -477,7 +475,7 @@ if (!tools.arduinoCli) {
   const inoTests = TESTS.filter((t) => t.ext === 'ino');
   console.log(`\n--- Compilation de ${inoTests.length} sketchs .ino (arduino-cli) ---`);
   for (const t of inoTests) {
-    const file = join(HERE, t.name, `${t.name}.ino`);
+    const file = testCode(t);
     const before = failures;
     try {
       // compile() est ASYNCHRONE (stratégies arduino-cli enchaînées) : sans
@@ -505,7 +503,7 @@ try {
 }
 if (pythonOk) {
   for (const t of TESTS.filter((x) => x.ext === 'py')) {
-    const file = join(HERE, `${t.name}.py`);
+    const file = testCode(t);
     try {
       execFileSync('python', ['-c', PY_CHECK, file], { stdio: ['ignore', 'pipe', 'pipe'] });
       console.log(`  ✓ ${t.name}.py`);
@@ -562,7 +560,7 @@ if (!existsSync(fw)) {
   const { parseUf2 } = await bundle('src/shared/uf2.ts', 'uf2.mjs');
   const { PicoEngine } = await bundle('src/webview/engines/pico.mts', 'pico.mjs');
   const segments = parseUf2(new Uint8Array(readFileSync(fw))).map((s) => ({ addr: s.addr, data: s.data }));
-  const script = readFileSync(join(HERE, 'led-pico.py'), 'utf8');
+  const script = readFileSync(tk('led-pico.py'), 'utf8');
   const engine = new PicoEngine({ kind: 'flash', segments, script });
 
   let serial = '';

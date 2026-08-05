@@ -386,19 +386,32 @@ function moduleNameOf(rel: string): string {
 }
 
 /**
- * Rustine I²C pour le Pico SIMULÉ. Deux problèmes de l'émulation I²C de rp2040js :
+ * Rustine du module `machine` pour le Pico SIMULÉ. Elle couvre deux sujets.
+ *
+ * **I²C** — deux problèmes de l'émulation I²C de rp2040js :
  *   1. `I2C.scan()` de MicroPython sonde chaque adresse par une écriture de
  *      longueur nulle → non menée à terme → figement ;
  *   2. toute transaction vers une adresse ABSENTE (NAK) se fige aussi.
+ *
+ * **LED embarquée du Pico W** — sur une vraie carte, `Pin("LED")` ne pilote PAS
+ * un GPIO du RP2040 : la LED est câblée sur la puce Wi-Fi CYW43439, que
+ * rp2040js n'émule pas. Le firmware imprime alors `[CYW43] Failed to start
+ * CYW43` à CHAQUE écriture — sans lever d'exception, donc le `try/except` que
+ * tout le monde écrit autour ne bascule jamais sur le repli GP25 et la LED
+ * reste figée. Kablix simule la LED du Pico W sur GP25 (comme le Pico
+ * classique) : `Pin("LED")` y est donc redirigé, et le pilote Wi-Fi n'est plus
+ * sollicité du tout.
+ *
  * On ne peut ni sous-classer `machine.I2C` ni réassigner un attribut du module
  * natif `machine` (lecture seule). On REMPLACE donc le module entier dans
  * `sys.modules` (comme le pont réseau pour `network`/`urequests`) : un module de
  * substitution délègue tout au vrai `machine` via `__getattr__`, sauf `I2C`/
- * `SoftI2C` qu'il enveloppe. Le wrapper délègue `writeto`/`readfrom`… au vrai
- * objet I²C (adresses présentes = OK) mais `scan()` NE SONDE PAS : il renvoie les
- * adresses connues de Kablix (injectées à la place de `_KX_I2C_ADDRS = None` par
- * le moteur, cf. pico.mts). Sans effet hors simulation ; défensif (si ça échoue,
- * rien n'est altéré et on retombe sur le `machine` d'origine).
+ * `SoftI2C`/`Pin` qu'il enveloppe. Le wrapper I²C délègue `writeto`/`readfrom`…
+ * au vrai objet (adresses présentes = OK) mais `scan()` NE SONDE PAS : il
+ * renvoie les adresses connues de Kablix (injectées à la place de
+ * `_KX_I2C_ADDRS = None` par le moteur, cf. pico.mts). Sans effet hors
+ * simulation ; défensif (si ça échoue, rien n'est altéré et on retombe sur le
+ * `machine` d'origine).
  */
 const I2C_SCAN_SHIM = `_KX_I2C_ADDRS = None
 try:
@@ -414,6 +427,15 @@ try:
                     raise AttributeError(_n)
                 return getattr(self._kx, _n)
         return _KxI2C
+    # Fabrique de Pin : un OBJET (et non une classe), pour que Pin.OUT et les
+    # autres constantes restent celles du vrai module via __getattr__.
+    class _KxPin:
+        def __call__(self, _id, *a, **k):
+            if _id == "LED" or _id == "WL_GPIO0":
+                _id = 25   # LED embarquée : GP25 en simulation, y compris Pico W
+            return _kx_rm.Pin(_id, *a, **k)
+        def __getattr__(self, _n):
+            return getattr(_kx_rm.Pin, _n)
     class _KxMachineMod:
         def __getattr__(self, _n):
             return getattr(_kx_rm, _n)
@@ -421,6 +443,7 @@ try:
     _kx_mod.I2C = _kx_mk(_kx_rm.I2C)
     if hasattr(_kx_rm, "SoftI2C"):
         _kx_mod.SoftI2C = _kx_mk(_kx_rm.SoftI2C)
+    _kx_mod.Pin = _KxPin()
     _kx_sys.modules["machine"] = _kx_mod
 except Exception:
     pass

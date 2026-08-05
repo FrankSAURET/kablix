@@ -63,6 +63,16 @@ engine.onUpdate = () => {
   }
 };
 
+// `onRunning` : le script de l'utilisateur entre VRAIMENT en exécution. C'est le
+// signal qui remplace « Démarrage MicroPython… » par « En marche » dans la barre
+// d'état (sans lui, le message de démarrage restait affiché toute la simulation).
+let runningCount = 0;
+let serialAtRunning = null;
+engine.onRunning = () => {
+  runningCount++;
+  if (serialAtRunning === null) serialAtRunning = serial;
+};
+
 console.log('Démarrage de MicroPython dans le simulateur (max 120 s)…');
 const started = Date.now();
 engine.start();
@@ -73,9 +83,16 @@ const timer = setInterval(() => {
     clearInterval(timer);
     engine.dispose();
     console.log(`\n  ✓ script exécuté via raw REPL en ${elapsed.toFixed(1)} s`);
-    console.log(`  ${ledChanges >= 4 ? '✓' : '✗'} LED GP25 a basculé (${ledChanges} changements)`);
-    console.log(ledChanges >= 4 ? '\nRESULTAT: OK' : '\nRESULTAT: ECHEC');
-    process.exit(ledChanges >= 4 ? 0 : 1);
+    const controles = [
+      ['LED GP25 a basculé (' + ledChanges + ' changements)', ledChanges >= 4],
+      ['onRunning signalé une seule fois (' + runningCount + ')', runningCount === 1],
+      ['onRunning arrive AVANT la sortie du script (fin du « Démarrage… »)',
+        serialAtRunning !== null && !serialAtRunning.includes('KABLIX_MPY_OK')],
+    ];
+    for (const [nom, bon] of controles) console.log(`  ${bon ? '✓' : '✗'} ${nom}`);
+    const bon = controles.every(([, c]) => c);
+    console.log(bon ? '\nRESULTAT: OK' : '\nRESULTAT: ECHEC');
+    process.exit(bon ? 0 : 1);
   }
   if (elapsed > 120) {
     clearInterval(timer);
