@@ -4,7 +4,7 @@
 // servo interne (0-180°, même formule que <kablix-servo>) : la hanche tourne le
 // segment "cuisse", le genou tourne le segment "tibia" EMBOÎTÉ dans la cuisse
 // (rotation SVG imbriquée : le pivot genou suit la cuisse automatiquement).
-import { html, LitElement } from 'lit';
+import { css, html, LitElement } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
 import drawing from './externe/patte.svg';
@@ -95,6 +95,16 @@ class JointAnimator {
 }
 
 export class PatteElement extends LitElement {
+  // Sans ceci, `:host` reste `display: inline` : la boîte du composant fait la
+  // hauteur d'une ligne de texte (17 px) au lieu des 90 px du dessin, l'éditeur
+  // ne mesure donc qu'un carré minuscule et un `transform` posé sur l'hôte (la
+  // capture des fiches d'aide) est purement ignoré par le navigateur.
+  static get styles() {
+    return css`
+      :host { display: inline-block; }
+    `;
+  }
+
   /** Consigne d'angle (0-180°, 90° = patte tendue) de chaque articulation. */
   declare hipAngle: number;
   declare kneeAngle: number;

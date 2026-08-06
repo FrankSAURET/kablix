@@ -54,6 +54,7 @@ import './composants/grove-shield-element.mjs';
 import './composants/alim-element.mjs';
 import './composants/pca9685-element.mjs';
 import './composants/powerbank-element.mjs';
+import './composants/patte-element.mjs';
 import './composants/custom-part.mjs';
 
 import { initLocale, t } from './i18n.mjs';
