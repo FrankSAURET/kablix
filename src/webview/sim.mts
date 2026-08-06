@@ -55,6 +55,7 @@ import './composants/alim-element.mjs';
 import './composants/pca9685-element.mjs';
 import './composants/powerbank-element.mjs';
 import './composants/patte-element.mjs';
+import './composants/araignee-element.mjs';
 import './composants/custom-part.mjs';
 
 import { initLocale, t } from './i18n.mjs';
@@ -1750,6 +1751,7 @@ function refreshVisualsInner(): void {
   }
   // Seconde passe : les sorties PCA9685 priment sur l'état « hors-net » des cibles.
   applyPca9685();
+  applyAraignee();
 }
 
 /**
@@ -2303,7 +2305,9 @@ function buildI2cDevices(): void {
       const cols = Number(part.attrs?.cols ?? 16) || 16;
       const rows = Number(part.attrs?.rows ?? 2) || 2;
       i2cDevices.set(part.id, new Lcd1602Device(addr, cols, rows));
-    } else if (kind === 'i2c-pwm') {
+    } else if (kind === 'i2c-pwm' || kind === 'araignee') {
+      // L'araignée embarque son PCA9685 : même périphérique I²C, adresse réglée
+      // dans ses propriétés (ses canaux 0..7 vont à ses 8 articulations).
       const addr = Number(part.attrs?.address ?? 0x40) || 0x40;
       i2cDevices.set(part.id, new Pca9685Device(addr));
     } else if (kind === 'i2c-oled' && (part.attrs?.pins ?? 'i2c') === 'i2c') {
@@ -2453,6 +2457,31 @@ function applyPca9685(): void {
       } else {
         el.hasSignal = duty > 0.04; // buzzer
       }
+    }
+  }
+}
+
+/**
+ * Propage les sorties du PCA9685 EMBARQUÉ dans une araignée vers ses 8
+ * articulations. Rien à router par les fils, contrairement au PCA9685 posé sur
+ * la planche : le câblage interne est fixe — canaux 0..7 = hanche puis genou des
+ * pattes avant-gauche, avant-droite, arrière-gauche, arrière-droite.
+ * La batterie est embarquée elle aussi : les servos sont toujours alimentés (le
+ * bus I²C n'apporte que la logique).
+ */
+function applyAraignee(): void {
+  for (const part of editor.diagram.parts) {
+    if (partDef(part.type).kind !== 'araignee') continue;
+    const dev = i2cDevices.get(part.id);
+    if (!(dev instanceof Pca9685Device)) continue;
+    const el = editor.elementOf(part.id);
+    if (!el) continue;
+    for (let ch = 0; ch < 8; ch++) {
+      // 50 Hz : impulsion = duty × 20 ms ; 1–2 ms → 0–180° (formule du servo).
+      const duty = dev.channelDuty(ch);
+      if (duty <= 0) continue; // canal pas encore piloté : l'articulation ne bouge pas
+      const angle = Math.max(0, Math.min(180, ((duty * 20000 - 1000) / 1000) * 180));
+      el[`${ch % 2 === 0 ? 'hip' : 'knee'}${Math.floor(ch / 2)}`] = angle;
     }
   }
 }

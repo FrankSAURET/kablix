@@ -314,6 +314,9 @@ const FR: Record<string, string> = {
   'Tilt sensor': "Capteur d'inclinaison",
   'Servo motor': 'Servomoteur',
   'Spider leg': "Patte d'araignée",
+  // Robot araignée complet : châssis + 4 pattes, PCA9685 et batterie embarqués.
+  'Spider robot': 'Robot araignée',
+  'Show on-board electronics': "Montrer l'électronique embarquée",
   'Pulse at 0° (µs)': 'Impulsion à 0° (µs)',
   'Pulse at 180° (µs)': 'Impulsion à 180° (µs)',
   'Rotation time (s/turn)': 'Temps de rotation (s/tour)',

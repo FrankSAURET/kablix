@@ -40,6 +40,12 @@ const PARTS = {
   relais: { module: 'relais-element.mjs', tag: 'kablix-relais' },
   powerbank: { module: 'powerbank-element.mjs', tag: 'kablix-powerbank' },
   patte: { module: 'patte-element.mjs', tag: 'kablix-patte', width: 250 },
+  // Araignée : illustrée AVEC son électronique embarquée et les genoux pliés
+  // (`speed: 0` = pas d'animation, la pose est atteinte avant la mesure).
+  araignee: {
+    module: 'araignee-element.mjs', tag: 'kablix-araignee',
+    attrs: { boards: '1', speed: '0', knee0: '120', knee1: '120', knee2: '120', knee3: '120' },
+  },
 };
 
 // Circuits intégrés logiques : douze références pour UN dessin (le boîtier

@@ -12,7 +12,7 @@ import drawing from './externe/patte.svg';
 const cleanDrawing = drawing.replace(/<!--[\s\S]*?-->/g, '');
 
 /** Extrait le groupe `<g id="ID" …> … </g>` complet (gère l'imbrication). */
-function extractGroup(svgText: string, id: string): string {
+export function extractGroup(svgText: string, id: string): string {
   const open = new RegExp(`<g\\s+id="${id}"[^>]*>`);
   const m = open.exec(svgText);
   if (!m) return '';
@@ -32,17 +32,21 @@ function extractGroup(svgText: string, id: string): string {
   return '';
 }
 
-const SEGMENT1 = extractGroup(cleanDrawing, 'segment1');
-const SEGMENT2 = extractGroup(cleanDrawing, 'segment2');
+// Segments et pivots exportés : <kablix-araignee> réutilise EXACTEMENT la même
+// mécanique de patte (4 fois, tournée de 45° par coin du châssis) au lieu d'en
+// redessiner une — une seule patte à maintenir.
+export const SEGMENT1 = extractGroup(cleanDrawing, 'segment1');
+export const SEGMENT2 = extractGroup(cleanDrawing, 'segment2');
 // Pivots mécaniques (grille du dessin, viewBox 0 0 140 90) — fixes, PAS relus
 // dynamiquement : dessin hardcodé par Claude, pas retouché par Frank.
-const HIP = { x: 40, y: 45 };
-const KNEE = { x: 85, y: 45 };
+export const HIP = { x: 40, y: 45 };
+export const KNEE = { x: 85, y: 45 };
 
 /** Anime UN angle vers sa consigne à vitesse limitée (rattrapage image par
  *  image) — même mécanique que <kablix-servo>, factorisée car la patte a DEUX
- *  articulations indépendantes (hanche, genou) tournant chacune à son rythme. */
-class JointAnimator {
+ *  articulations indépendantes (hanche, genou) tournant chacune à son rythme
+ *  (et l'araignée en a huit). */
+export class JointAnimator {
   shown = 90;
   private target = 90;
   private degPerSec = 0;
@@ -65,6 +69,10 @@ class JointAnimator {
     if (degPerSec <= 0) {
       this.stop();
       this.shown = target;
+      // Notifier MÊME sans animation : sans ce rappel, un composant réglé sur
+      // « rotation instantanée » (speed = 0) gardait à l'écran l'angle initial,
+      // l'angle affiché n'étant recopié que par les images d'animation.
+      this.onFrame();
       return;
     }
     if (Math.abs(target - this.shown) < 0.01 || this.raf || this.timer) return;

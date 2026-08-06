@@ -73,6 +73,10 @@ const BY_KIND: Record<string, RefFamily> = {
   'analog-source': 'sensor',
   buzzer: 'actuator',
   servo: 'actuator',
+  // Patte de robot et araignée complète : des actionneurs (servos), même si
+  // l'araignée embarque son propre pilote PWM.
+  patte: 'actuator',
+  araignee: 'actuator',
   fan: 'actuator',
   motor: 'actuator',
   relay: 'relay',

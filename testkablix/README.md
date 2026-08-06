@@ -44,6 +44,7 @@ Chaque composant du catalogue a deux tests : `<composant>-uno` (Arduino, C) et
 | Relais OMRON G5V | `relais-uno` | `relais-pico` | seul le relais bien câblé colle |
 | Batterie externe (Power bank) | `powerbank-uno` | `powerbank-pico` | alimente un PCA9685 + servo, LED de jauge allumées en simulation |
 | Patte d'araignée (placeholder) | `patte-uno` | `patte-pico` | 2 articulations (hanche, genou) sur 2 canaux PCA9685 indépendants |
+| Robot araignée (placeholder) | `araignee-uno` | `araignee-pico` | 8 articulations sur le PCA9685 embarqué — 4 fils I²C en tout |
 | Buzzer | `buzzer-uno` | `buzzer-pico` | halo actif + tone/PWM |
 | Potentiomètre | `pot-uno` | `pot-pico` | valeur suit le curseur |
 | Potentiomètre à glissière | `slide-pot-uno` | `slide-pot-pico` | idem |

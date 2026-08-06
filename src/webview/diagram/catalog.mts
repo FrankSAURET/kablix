@@ -30,6 +30,7 @@ export type PartKind =
   | 'ao-do-sensor'
   | 'servo'
   | 'patte'
+  | 'araignee'
   | 'ultrasonic'
   | 'i2c-lcd'
   | 'i2c-pwm'
@@ -798,6 +799,24 @@ export const CATALOG: readonly PartDef[] = [
       { attr: 'speed', label: 'Rotation time (s/turn)', kind: 'number', min: 0, max: 30, step: 0.1 },
     ],
   },
+  // Robot araignée quadrupède complet (dessin PLACEHOLDER, pas de Frank — cf.
+  // araignee-element.mts) : châssis + 4 pattes (8 articulations), avec son
+  // PCA9685 et sa batterie EMBARQUÉS. Le seul câblage extérieur est le bus I²C
+  // (SCL/SDA/V+/GND) : la simulation instancie un Pca9685Device à l'adresse
+  // réglée, ses canaux 0..7 pilotant les articulations dans l'ordre
+  // avant-gauche, avant-droite, arrière-gauche, arrière-droite (hanche, genou).
+  {
+    type: 'araignee', label: 'Spider robot', tag: 'kablix-araignee', kind: 'araignee',
+    attrs: { address: '0x40', speed: '2', boards: '' },
+    props: [
+      {
+        attr: 'address', label: 'I²C address', kind: 'select',
+        options: ['0x40', '0x41', '0x42', '0x43', '0x44', '0x45', '0x46', '0x47'],
+      },
+      { attr: 'speed', label: 'Rotation time (s/turn)', kind: 'number', min: 0, max: 30, step: 0.1 },
+      { attr: 'boards', label: 'Show on-board electronics', kind: 'checkbox' },
+    ],
+  },
   // Clavier matriciel à membrane (3 ou 4 colonnes). Interactif : une touche
   // enfoncée court-circuite ligne/colonne (lecture matricielle simulée).
   {
@@ -871,6 +890,7 @@ export function partCategory(def: PartDef): string {
     case 'buzzer':
     case 'servo':
     case 'patte':
+    case 'araignee':
     case 'fan':
     case 'motor':
       return 'Actuators';

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Robot araignée quadrupède : CORPS seulement (dessin PLACEHOLDER fait par
+     Claude, PAS par Frank — à refaire quand le châssis PMMA découpé laser sera
+     visible). Les 4 pattes ne sont PAS dans ce fichier : l'élément réutilise le
+     dessin ./patte.svg quatre fois, tourné de 45° par coin (une seule mécanique
+     de patte à maintenir).
+     Vue de dessus, feuille 400x400, grille 10 px. Châssis octogonal 120..280,
+     hanches sur les quatre pans coupés (135,135) (265,135) (135,265) (265,265).
+     Groupe "corps"  : châssis + connecteur 4 broches à gauche (SCL/SDA/V+/GND).
+     Groupe "cartes" : électronique embarquée (Pico, PCA9685, batterie), masquée
+     par défaut (propriété `boards` du composant). -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <g id="corps">
+    <!-- Picots du connecteur (dépassent à gauche du châssis, grille 10 px). -->
+    <g fill="#c8ad63" stroke="#8a7433" stroke-width="1">
+      <rect x="110" y="167" width="12" height="6" rx="2" />
+      <rect x="110" y="187" width="12" height="6" rx="2" />
+      <rect x="110" y="207" width="12" height="6" rx="2" />
+      <rect x="110" y="227" width="12" height="6" rx="2" />
+    </g>
+    <!-- Châssis PMMA translucide (pans coupés : les hanches y prennent appui). -->
+    <polygon points="150,120 250,120 280,150 280,250 250,280 150,280 120,250 120,150"
+      fill="#bcdff0" fill-opacity="0.85" stroke="#4d7d93" stroke-width="2" />
+    <!-- Vis de fixation des équerres de hanche. -->
+    <g fill="#8d9aa1" stroke="#5d666b" stroke-width="1">
+      <circle cx="150" cy="150" r="3" />
+      <circle cx="250" cy="150" r="3" />
+      <circle cx="150" cy="250" r="3" />
+      <circle cx="250" cy="250" r="3" />
+    </g>
+    <!-- Repère d'orientation : l'avant du robot est en haut. -->
+    <polygon points="200,126 208,140 192,140" fill="#4d7d93" fill-opacity="0.7" />
+  </g>
+  <g id="cartes">
+    <!-- Raspberry Pi Pico (carte verte, USB vers l'avant). -->
+    <g>
+      <rect x="163" y="148" width="74" height="32" rx="3" fill="#1f6b3a" stroke="#123f22" stroke-width="1" />
+      <rect x="190" y="145" width="20" height="8" rx="2" fill="#b9bcc0" stroke="#7d8085" stroke-width="1" />
+      <rect x="186" y="158" width="28" height="14" rx="2" fill="#2b2f33" />
+      <g fill="#e8c96a">
+        <rect x="165" y="150" width="4" height="28" rx="1" />
+        <rect x="231" y="150" width="4" height="28" rx="1" />
+      </g>
+    </g>
+    <!-- Pilote PWM 16 canaux PCA9685 (carte bleue). -->
+    <g>
+      <rect x="163" y="190" width="74" height="26" rx="3" fill="#1c5b8f" stroke="#0f3557" stroke-width="1" />
+      <rect x="188" y="196" width="24" height="14" rx="2" fill="#2b2f33" />
+      <g fill="#e8c96a">
+        <rect x="165" y="192" width="4" height="22" rx="1" />
+        <rect x="231" y="192" width="4" height="22" rx="1" />
+      </g>
+    </g>
+    <!-- Batterie (pack lithium sous les cartes). -->
+    <g>
+      <rect x="163" y="226" width="74" height="26" rx="4" fill="#33383c" stroke="#1b1e20" stroke-width="1" />
+      <rect x="167" y="230" width="30" height="18" rx="2" fill="#4a5055" />
+      <text x="210" y="244" font-family="sans-serif" font-size="13" fill="#d9dde0">+ −</text>
+    </g>
+  </g>
+</svg>
