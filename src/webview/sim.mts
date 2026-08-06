@@ -87,6 +87,7 @@ import {
   analogSourceBindings,
   aoDoSensorBindings,
   servoBindings,
+  patteBindings,
   buzzerBindings,
   ultrasonicBindings,
   keypadBindings,
@@ -1306,6 +1307,7 @@ function refreshVisualsInner(): void {
   for (const b of logicIcMcuInputs(editor.diagram, icFrame)) engine.setInput(b.mcuPin, b.level === 1);
   const read = (name: string): boolean => engine!.readDigital(name);
   const servoTargets = new Map(servoBindings(editor.diagram).map((b) => [b.partId, b.mcuPin]));
+  const patteTargets = new Map(patteBindings(editor.diagram).map((b) => [b.partId, b]));
   for (const part of editor.diagram.parts) {
     const def = partDef(part.type);
     const el = editor.elementOf(part.id);
@@ -1607,6 +1609,26 @@ function refreshVisualsInner(): void {
         }
         break;
       }
+      case 'patte': {
+        // 2 articulations indépendantes (hanche, genou) : même mesure d'impulsion
+        // que le servo simple, appliquée séparément à chacune.
+        const bind = patteTargets.get(part.id);
+        if (!bind) break;
+        const pmin = Number(part.attrs?.pulsemin) || 500;
+        const pmax = Number(part.attrs?.pulsemax) || 2500;
+        const span = pmax > pmin ? pmax - pmin : 2000;
+        const angleFor = (pin: string | null): number | undefined => {
+          if (!pin) return undefined;
+          const us = engine!.readPulseUs?.(pin) ?? 0;
+          if (us > 0) return Math.max(0, Math.min(180, ((us - pmin) / span) * 180));
+          return engine!.readDigital(pin) ? 90 : 0;
+        };
+        const hip = angleFor(bind.hanche);
+        const knee = angleFor(bind.genou);
+        if (hip !== undefined) el.hipAngle = hip;
+        if (knee !== undefined) el.kneeAngle = knee;
+        break;
+      }
       case 'fan': {
         // Physique stricte : le ventilateur ne tourne que si la source atteinte
         // peut fournir son courant nominal sous une tension suffisante. Une
@@ -1806,6 +1828,7 @@ function bindInputs(): void {
     .filter((p): p is string => !!p);
   engine.setPulseMonitors?.([
     ...servoBindings(editor.diagram).map((b) => b.mcuPin),
+    ...patteBindings(editor.diagram).flatMap((b) => [b.hanche, b.genou].filter((p): p is string => p !== null)),
     ...buzzers.map((b) => b.mcuPin),
     ...fanPins,
     ...motorPins,
@@ -2415,6 +2438,14 @@ function applyPca9685(): void {
         // 50 Hz : impulsion = duty × 20 ms ; 1–2 ms → 0–180°.
         // Sans alimentation servo : pas d'impulsion → le bras ne bouge pas.
         if (powered) el.angle = Math.max(0, Math.min(180, (duty * 20000 - 1000) / 1000 * 180));
+      } else if (c.targetKind === 'patte') {
+        // Même formule que servo, appliquée à l'articulation exacte visée par
+        // ce canal (targetPin distingue hanche.PWM de genou.PWM).
+        if (powered) {
+          const angle = Math.max(0, Math.min(180, (duty * 20000 - 1000) / 1000 * 180));
+          if (c.targetPin === 'hanche.PWM') el.hipAngle = angle;
+          else if (c.targetPin === 'genou.PWM') el.kneeAngle = angle;
+        }
       } else if (c.targetKind === 'led') {
         el.brightness = duty;
         el.value = duty > 0.04 ? 1 : 0;

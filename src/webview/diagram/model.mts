@@ -2245,6 +2245,29 @@ export function buzzerBindings(diagram: Diagram): SourceBinding[] {
   return bindings;
 }
 
+export interface PatteBinding {
+  partId: string;
+  /** Broche MCU de chaque articulation (null si non câblée au MCU). */
+  hanche: string | null;
+  genou: string | null;
+}
+
+/** Pattes de robot : broche MCU de chaque articulation (hanche, genou),
+ *  résolues indépendamment — même principe qu'une LED RGB à 2 canaux. */
+export function patteBindings(diagram: Diagram): PatteBinding[] {
+  const nets = buildNets(diagram);
+  const bindings: PatteBinding[] = [];
+  for (const part of diagram.parts) {
+    if (partDef(part.type).kind !== 'patte') continue;
+    const pinOf = (pin: string): string | null =>
+      mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin }));
+    const hanche = pinOf('hanche.PWM');
+    const genou = pinOf('genou.PWM');
+    if (hanche || genou) bindings.push({ partId: part.id, hanche, genou });
+  }
+  return bindings;
+}
+
 export interface RgbLedBinding {
   partId: string;
   /** Broche MCU pilotant chaque canal (null si non câblé au MCU). */
@@ -2355,8 +2378,10 @@ export function sevenSegmentMuxBindings(diagram: Diagram): SevenSegmentMuxBindin
 export interface Pca9685Binding {
   /** Identifiant du PCA9685. */
   partId: string;
-  /** Canaux reliés à un composant pilotable (servo, LED, buzzer). */
-  channels: Array<{ ch: number; targetId: string; targetKind: PartKind }>;
+  /** Canaux reliés à un composant pilotable (servo, LED, buzzer, patte).
+   *  `targetPin` = broche exacte touchée par le fil (ex. 'hanche.PWM' pour une
+   *  patte à 2 articulations ; sans intérêt pour les cibles à 1 seule broche PWM). */
+  channels: Array<{ ch: number; targetId: string; targetKind: PartKind; targetPin: string }>;
 }
 
 /**
@@ -2376,13 +2401,13 @@ export function pca9685Bindings(diagram: Diagram): Pca9685Binding[] {
     const channels: Pca9685Binding['channels'] = [];
     for (let ch = 0; ch < 16; ch++) {
       const net = nets.netOf({ partId: part.id, pin: `PWM${ch}` });
-      let found: { ch: number; targetId: string; targetKind: PartKind } | null = null;
+      let found: { ch: number; targetId: string; targetKind: PartKind; targetPin: string } | null = null;
       for (const w of diagram.wires) {
         for (const ep of [w.a, w.b]) {
           if (ep.partId === part.id || nets.netOf(ep) !== net) continue;
           const k = kindOf(ep.partId);
-          if (k === 'servo' || k === 'led' || k === 'buzzer') {
-            found = { ch, targetId: ep.partId, targetKind: k };
+          if (k === 'servo' || k === 'led' || k === 'buzzer' || k === 'patte') {
+            found = { ch, targetId: ep.partId, targetKind: k, targetPin: ep.pin };
             break;
           }
         }

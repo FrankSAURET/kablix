@@ -39,6 +39,7 @@ const PARTS = {
   pnp: { module: 'transistor-element.mjs', tag: 'kablix-transistor', width: 200, attrs: { symbol: 'pnp', text: 'PNP' } },
   relais: { module: 'relais-element.mjs', tag: 'kablix-relais' },
   powerbank: { module: 'powerbank-element.mjs', tag: 'kablix-powerbank' },
+  patte: { module: 'patte-element.mjs', tag: 'kablix-patte', width: 250 },
 };
 
 // Circuits intégrés logiques : douze références pour UN dessin (le boîtier

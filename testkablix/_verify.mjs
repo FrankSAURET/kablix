@@ -446,6 +446,10 @@ for (const t of TESTS) {
         const ch = b?.channels.find((c) => c.ch === e.channel);
         check(`${t.name} : canal ${e.channel} → ${e.targetId}`,
           ch?.targetId === e.targetId, JSON.stringify(b?.channels));
+        if (e.targetPin) {
+          check(`${t.name} : canal ${e.channel} → broche ${e.targetPin}`,
+            ch?.targetPin === e.targetPin, JSON.stringify(b?.channels));
+        }
         const p = model.pca9685PowerState(diagram).find((x) => x.partId === e.partId);
         check(`${t.name} : alim servo ${e.powered ? 'OK' : 'absente'} (bornier V+/GND.2)`,
           p?.ok === e.powered, JSON.stringify(p));

@@ -29,6 +29,7 @@ export type PartKind =
   | 'digital-source'
   | 'ao-do-sensor'
   | 'servo'
+  | 'patte'
   | 'ultrasonic'
   | 'i2c-lcd'
   | 'i2c-pwm'
@@ -784,6 +785,19 @@ export const CATALOG: readonly PartDef[] = [
       { attr: 'maxcurrent', label: 'Max current supplied (A)', kind: 'number', min: 0.1, max: 10, step: 0.1 },
     ],
   },
+  // Patte de robot articulée (dessin PLACEHOLDER, pas de Frank — cf.
+  // patte-element.mts). 1 pièce, 2 servos internes (hanche + genou),
+  // indépendants électriquement mais imbriqués mécaniquement à l'affichage.
+  // Mêmes impulsions/vitesse que <kablix-servo> (même formule PWM→angle).
+  {
+    type: 'patte', label: 'Spider leg', tag: 'kablix-patte', kind: 'patte',
+    attrs: { pulsemin: '500', pulsemax: '2500', speed: '2' },
+    props: [
+      { attr: 'pulsemin', label: 'Pulse at 0° (µs)', kind: 'number', min: 100, max: 3000, step: 1 },
+      { attr: 'pulsemax', label: 'Pulse at 180° (µs)', kind: 'number', min: 100, max: 3000, step: 1 },
+      { attr: 'speed', label: 'Rotation time (s/turn)', kind: 'number', min: 0, max: 30, step: 0.1 },
+    ],
+  },
   // Clavier matriciel à membrane (3 ou 4 colonnes). Interactif : une touche
   // enfoncée court-circuite ligne/colonne (lecture matricielle simulée).
   {
@@ -856,6 +870,7 @@ export function partCategory(def: PartDef): string {
       return 'Sensors';
     case 'buzzer':
     case 'servo':
+    case 'patte':
     case 'fan':
     case 'motor':
       return 'Actuators';

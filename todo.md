@@ -7,6 +7,15 @@
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
 
+# >>>>  v2026.8.6 — la patte d'araignée plie enfin, sur la branche `araignee-3d`
+
+1. ✅ **Nouveau composant : patte de robot articulée (`patte`), dessin PLACEHOLDER.** Frank n'a pas de dessin à donner (araignée réelle en PMMA découpé au laser, assemblée dans SketchUp) : il a explicitement autorisé Claude à dessiner un placeholder simpliste, vue de dessus, en attendant de voir le résultat physique — à refaire ensuite si besoin. 1 seule pièce, **2 servomoteurs internes indépendants** : hanche (axe vertical) et genou (axe horizontal), imbriqués mécaniquement à l'affichage (rotation du genou DANS la rotation de la hanche, comme une vraie patte) — 4 pattes prévues pour l'araignée de Frank.
+2. ✅ **6 broches, 2 borniers 3 fils indépendants** : `hanche.GND`/`hanche.V+`/`hanche.PWM` et `genou.GND`/`genou.V+`/`genou.PWM` — chaque articulation câblable séparément (broche MCU directe ou canal PCA9685).
+3. ✅ **`pca9685Bindings` généralisé** : chaque canal retient désormais aussi `targetPin` (broche exacte visée), pas seulement le composant cible — nécessaire pour distinguer hanche/genou sur une même patte, rétrocompatible pour servo/LED/buzzer.
+4. ✅ Branchée partout : catalogue (palette « Actionneurs »), i18n FR/EN, fiches d'aide `docs/fr` + `docs/en` (mention explicite du dessin provisoire) avec illustration capturée, tests `testkablix` `patte-uno`/`patte-pico` (hanche → canal 0, genou → canal 1 du PCA9685, alimentés par la powerbank).
+5. ✅ Typecheck, build, et vérifications ciblées (`verify:diagram`, `verify:components`, `verify:i18n`, `verify:servo`, `verify:pca`, `verify:pca-e2e`, `verify:docs`) au vert.
+6. ℹ️ **Travail fait sur la branche annexe `araignee-3d`** (pas `main`), à la demande de Frank — pas encore fusionnée/poussée.
+
 # >>>>  v2026.8.5 — la batterie externe alimente le premier servo, sur la branche `araignee-3d`
 
 1. ✅ **Nouveau composant : batterie externe (Power bank).** Dessin de Frank extrait de `Composants.svg` (groupe `Powerbank`, 430×250 px) ; schéma interne partagé `bat-interne` (extrait au cadre du dessin externe, resservira à d'autres composants « pile »). Broches `V+`/`GND`, `kind: 'psu'` comme l'alim de laboratoire mais **tension fixe** (5 V, pas de bouton) — seul `maxcurrent` est réglable (défaut 2 A).

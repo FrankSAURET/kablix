@@ -43,6 +43,7 @@ Chaque composant du catalogue a deux tests : `<composant>-uno` (Arduino, C) et
 | Transistor PNP (proto) | `pnp-uno` | `pnp-pico` | commande côté haut (logique inversée) |
 | Relais OMRON G5V | `relais-uno` | `relais-pico` | seul le relais bien câblé colle |
 | Batterie externe (Power bank) | `powerbank-uno` | `powerbank-pico` | alimente un PCA9685 + servo, LED de jauge allumées en simulation |
+| Patte d'araignée (placeholder) | `patte-uno` | `patte-pico` | 2 articulations (hanche, genou) sur 2 canaux PCA9685 indépendants |
 | Buzzer | `buzzer-uno` | `buzzer-pico` | halo actif + tone/PWM |
 | Potentiomètre | `pot-uno` | `pot-pico` | valeur suit le curseur |
 | Potentiomètre à glissière | `slide-pot-uno` | `slide-pot-pico` | idem |

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Patte de robot articulée : dessin PLACEHOLDER simpliste (fait par Claude,
+     PAS par Frank — Frank prévoit de la redessiner en PMMA découpé laser une
+     fois le résultat vu). Vue de dessus, feuille 140x90, grille 10 px.
+     Groupe "segment1" (cuisse, pivote autour de la hanche 40,45) et "segment2"
+     (tibia + pied, pivote autour du genou 85,45) : le composant les extrait et
+     les imbrique lui-même (rotation genou DANS la rotation hanche). -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 90">
+  <g id="segment1">
+    <circle cx="40" cy="45" r="7" fill="#5a6b73" stroke="#33393c" stroke-width="1" />
+    <rect x="40" y="41" width="45" height="8" rx="3" fill="#8ec6d9" stroke="#3d6e7d" stroke-width="1" />
+  </g>
+  <g id="segment2">
+    <circle cx="85" cy="45" r="6" fill="#5a6b73" stroke="#33393c" stroke-width="1" />
+    <rect x="85" y="41" width="40" height="8" rx="3" fill="#a8d5e3" stroke="#3d6e7d" stroke-width="1" />
+    <circle cx="125" cy="45" r="5" fill="#2b444c" />
+  </g>
+</svg>

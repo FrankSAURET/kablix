@@ -82,6 +82,9 @@ export const PART_PINS = {
   ],
   alim: ['V+', 'GND'],
   powerbank: ['V+', 'GND'],
+  // Patte de robot à 2 articulations : chacune a son propre bornier 3 fils
+  // (comme un servo), électriquement indépendant de l'autre.
+  patte: ['hanche.GND', 'hanche.V+', 'hanche.PWM', 'genou.GND', 'genou.V+', 'genou.PWM'],
 };
 
 // --- Helpers -------------------------------------------------------------------
@@ -955,6 +958,71 @@ void loop() {
   pcaImpulsion(0, 500);  Serial.println("0 degres");   delay(1000);
   pcaImpulsion(0, 1500); Serial.println("90 degres");  delay(1000);
   pcaImpulsion(0, 2500); Serial.println("180 degres"); delay(1000);
+}
+`,
+  }),
+
+  test({
+    // Patte de robot araignée (placeholder, cf. patte-element.mts) : 1 pièce,
+    // 2 articulations indépendantes câblées chacune sur un canal du PCA9685
+    // (hanche → canal 0, genou → canal 1), alimentées par la powerbank.
+    name: 'patte-uno', board: 'uno', ext: 'ino',
+    parts: [
+      MCU('uno'),
+      { id: 'Mod1', type: 'pca9685', x: 560, y: 40, attrs: { address: '0x40' } },
+      { id: 'Act1', type: 'patte', x: 940, y: 40, attrs: { pulsemin: '500', pulsemax: '2500' } },
+      { id: 'Bat1', type: 'powerbank', x: 940, y: 260, attrs: { voltage: '5', maxcurrent: '2' } },
+    ],
+    wires: () => [
+      w('Mod1', 'GND', 'U1', 'GND.1', 'black'),
+      w('Mod1', 'VCC', 'U1', '5V', 'red'),
+      w('Mod1', 'SDA', 'U1', 'A4', 'blue'),
+      w('Mod1', 'SCL', 'U1', 'A5', 'yellow'),
+      w('Act1', 'hanche.PWM', 'Mod1', 'PWM0', 'orange'),
+      w('Act1', 'hanche.V+', 'Mod1', 'P1.5V', 'red'),
+      w('Act1', 'hanche.GND', 'Mod1', 'P1.GND', 'black'),
+      w('Act1', 'genou.PWM', 'Mod1', 'PWM1', 'orange'),
+      w('Act1', 'genou.V+', 'Mod1', 'P2.5V', 'red'),
+      w('Act1', 'genou.GND', 'Mod1', 'P2.GND', 'black'),
+      w('Bat1', 'V+', 'Mod1', 'V+', 'red'),
+      w('Bat1', 'GND', 'Mod1', 'GND.2', 'black'),
+    ],
+    expect: { kind: 'pca9685', partId: 'Mod1', channel: 0, targetId: 'Act1', targetPin: 'hanche.PWM', powered: true },
+    code: `// Test patte d'araignée : hanche (canal 0) et genou (canal 1) du PCA9685
+// balaient chacun 0°, 90° puis 180°, alimentés par la powerbank (V+/GND.2).
+#include <Wire.h>
+
+const uint8_t PCA = 0x40;
+
+void pcaEcrit(uint8_t reg, uint8_t val) {
+  Wire.beginTransmission(PCA);
+  Wire.write(reg);
+  Wire.write(val);
+  Wire.endTransmission();
+}
+
+// Impulsion du canal : créneau démarré à 0, coupé à durée/20 ms × 4096 pas.
+void pcaImpulsion(uint8_t canal, uint16_t microsecondes) {
+  uint16_t off = (uint32_t)microsecondes * 4096UL / 20000UL;
+  Wire.beginTransmission(PCA);
+  Wire.write(0x06 + 4 * canal); // LED0_ON_L (auto-incrément)
+  Wire.write(0x00); Wire.write(0x00);
+  Wire.write(off & 0xFF); Wire.write(off >> 8);
+  Wire.endTransmission();
+}
+
+void setup() {
+  Serial.begin(115200);
+  Wire.begin();
+  pcaEcrit(0x00, 0x10);  // MODE1 : sleep pour régler le prescaler
+  pcaEcrit(0xFE, 121);   // prescale 50 Hz (25 MHz / (4096 x 50) - 1)
+  pcaEcrit(0x00, 0x20);  // MODE1 : réveil + auto-incrément
+}
+
+void loop() {
+  pcaImpulsion(0, 500);  pcaImpulsion(1, 500);  Serial.println("0 degres");   delay(1000);
+  pcaImpulsion(0, 1500); pcaImpulsion(1, 1500); Serial.println("90 degres");  delay(1000);
+  pcaImpulsion(0, 2500); pcaImpulsion(1, 2500); Serial.println("180 degres"); delay(1000);
 }
 `,
   }),
@@ -2763,6 +2831,59 @@ while True:
     pca_impulsion(0, 500);  print("0 degres");   time.sleep(1)
     pca_impulsion(0, 1500); print("90 degres");  time.sleep(1)
     pca_impulsion(0, 2500); print("180 degres"); time.sleep(1)
+`,
+  }),
+
+  test({
+    // Patte de robot araignée (placeholder, cf. patte-element.mts) : 1 pièce,
+    // 2 articulations indépendantes câblées chacune sur un canal du PCA9685
+    // (hanche → canal 0, genou → canal 1), alimentées par la powerbank.
+    name: 'patte-pico', board: 'pico', ext: 'py',
+    parts: [
+      MCU('pico'),
+      { id: 'Mod1', type: 'pca9685', x: 620, y: 40, attrs: { address: '0x40' } },
+      { id: 'Act1', type: 'patte', x: 940, y: 40, attrs: { pulsemin: '500', pulsemax: '2500' } },
+      { id: 'Bat1', type: 'powerbank', x: 940, y: 260, attrs: { voltage: '5', maxcurrent: '2' } },
+    ],
+    wires: () => [
+      w('Mod1', 'GND', 'U1', 'GND.1', 'black'),
+      w('Mod1', 'VCC', 'U1', 'VBUS', 'red'),
+      w('Mod1', 'SDA', 'U1', 'GP0', 'blue'),
+      w('Mod1', 'SCL', 'U1', 'GP1', 'yellow'),
+      w('Act1', 'hanche.PWM', 'Mod1', 'PWM0', 'orange'),
+      w('Act1', 'hanche.V+', 'Mod1', 'P1.5V', 'red'),
+      w('Act1', 'hanche.GND', 'Mod1', 'P1.GND', 'black'),
+      w('Act1', 'genou.PWM', 'Mod1', 'PWM1', 'orange'),
+      w('Act1', 'genou.V+', 'Mod1', 'P2.5V', 'red'),
+      w('Act1', 'genou.GND', 'Mod1', 'P2.GND', 'black'),
+      w('Bat1', 'V+', 'Mod1', 'V+', 'red'),
+      w('Bat1', 'GND', 'Mod1', 'GND.2', 'black'),
+    ],
+    expect: { kind: 'pca9685', partId: 'Mod1', channel: 0, targetId: 'Act1', targetPin: 'hanche.PWM', powered: true },
+    code: `# Test patte d'araignee : hanche (canal 0) et genou (canal 1) du PCA9685
+# balaient chacun 0, 90 puis 180 degres, alimentes par la powerbank (V+/GND.2).
+from machine import Pin, I2C
+import time
+
+i2c = I2C(0, sda=Pin(0), scl=Pin(1), freq=400000)
+PCA = 0x40
+
+def pca_ecrit(reg, val):
+    i2c.writeto_mem(PCA, reg, bytes([val]))
+
+# Impulsion du canal : creneau demarre a 0, coupe a duree/20 ms x 4096 pas.
+def pca_impulsion(canal, microsecondes):
+    off = microsecondes * 4096 // 20000
+    i2c.writeto_mem(PCA, 0x06 + 4 * canal, bytes([0x00, 0x00, off & 0xFF, off >> 8]))
+
+pca_ecrit(0x00, 0x10)  # MODE1 : sleep pour regler le prescaler
+pca_ecrit(0xFE, 121)   # prescale 50 Hz (25 MHz / (4096 x 50) - 1)
+pca_ecrit(0x00, 0x20)  # MODE1 : reveil + auto-increment
+
+while True:
+    pca_impulsion(0, 500);  pca_impulsion(1, 500);  print("0 degres");   time.sleep(1)
+    pca_impulsion(0, 1500); pca_impulsion(1, 1500); print("90 degres");  time.sleep(1)
+    pca_impulsion(0, 2500); pca_impulsion(1, 2500); print("180 degres"); time.sleep(1)
 `,
   }),
 
