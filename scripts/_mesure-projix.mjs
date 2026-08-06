@@ -10,7 +10,7 @@ import { build as esbuild } from 'esbuild';
 
 const ROOT = 'h:/OneDrive/4 Programation/- VS Code/Extensions/Kablix';
 const CACHE = join(ROOT, 'node_modules', '.cache-projix');
-const cible = process.argv[2] ?? 'testkablix/button-6mm-pico.projix';
+const cible = process.argv[2] ?? 'testkablix/button-pico.projix';
 
 const zip = await JSZip.loadAsync(readFileSync(join(ROOT, cible)));
 const diagram = JSON.parse(await zip.file('diagram.json').async('string'));

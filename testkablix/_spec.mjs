@@ -2542,21 +2542,10 @@ while True:
 `,
   }),
 
-  test({
-    name: 'button-6mm-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'BP1', type: 'button-6mm', x: 680, y: 100, attrs: { color: 'red' } }],
-    wires: () => [w('BP1', '1.l', 'U1', 'GP13', 'yellow'), w('BP1', '2.l', 'U1', 'GND.5', 'black')],
-    expect: { kind: 'button', partId: 'BP1', mcuPin: 'GP13' },
-    code: `# Test bouton 6 mm : identique au bouton standard, sur GP13.
-from machine import Pin
-import time
-
-bouton = Pin(13, Pin.IN, Pin.PULL_UP)
-while True:
-    print("APPUYE" if bouton.value() == 0 else "relache")
-    time.sleep(0.2)
-`,
-  }),
+  // Le test `button-6mm-pico` a été retiré de la spec en v2026.8.10, à la
+  // demande de Frank, après qu'il ait supprimé ses fichiers : le bouton 6 mm
+  // n'est plus éprouvé que côté Arduino (`button-6mm-uno`), son comportement
+  // étant identique à celui du poussoir standard, couvert lui sur les deux.
 
   test({
     name: 'buzzer-pico', board: 'pico', ext: 'py',

@@ -26,14 +26,16 @@ Chaque carte de dev a son projix : `blink-uno`, `blink-nano`, `blink-mega`,
 `blink-pico`, `blink-picow` (LED embarquée).
 
 Chaque composant du catalogue a deux tests : `<composant>-uno` (Arduino, C) et
-`<composant>-pico` (MicroPython) — sauf le HC-SR04, simulé sur AVR uniquement.
+`<composant>-pico` (MicroPython) — sauf le HC-SR04, simulé sur AVR uniquement, et
+le bouton 6 mm, dont le test Pico a été retiré (comportement identique au
+poussoir standard, lui couvert sur les deux cartes).
 
 | Composant | Test Uno | Test Pico | Observable |
 |---|---|---|---|
 | LED (+ résistance) | `led-uno` | `led-pico` | clignote 1 Hz |
 | LED RGB | `rgb-led-uno` | `rgb-led-pico` | fondu R, V, B puis blanc |
 | Bouton poussoir | `button-uno` | `button-pico` | appui → « APPUYE » + LED |
-| Bouton 6 mm | `button-6mm-uno` | `button-6mm-pico` | idem |
+| Bouton 6 mm | `button-6mm-uno` | — (retiré) | idem |
 | Résistance | `resistor-uno` | — | LED allumée (continuité) |
 | Diode | `diode-uno` | `diode-pico` | passante / à l'envers = bloquée |
 | Condensateurs | `condo-uno` | `condo-pico` | 3 branches RC en parallèle (film 0,1 s, tantale 0,33 s, chimique 1 s) lues sur 3 ADC |

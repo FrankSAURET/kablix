@@ -8,6 +8,13 @@
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
 
+# >>>>  v2026.8.10 — le test Pico du bouton 6 mm est retiré de la spec
+
+1. ✅ **Entrées `button-6mm-pico` retirées** (« retire les entrées »), après la suppression des fichiers par Frank : l'entrée `test({ name: 'button-6mm-pico' … })` de `testkablix/_spec.mjs` (remplacée par un commentaire qui dit pourquoi elle n'est plus là) et sa colonne dans `testkablix/README.md` (`— (retiré)`). La phrase « chaque composant a deux tests » du README liste maintenant cette exception à côté de celle du HC-SR04.
+2. ✅ **`scripts/_mesure-projix.mjs` réparé au passage** : sa cible par défaut était `testkablix/button-6mm-pico.projix`, un fichier disparu — l'outil de diagnostic d'autoroutage plantait à l'ouverture s'il était lancé sans argument. Il pointe désormais `button-pico.projix`.
+3. ✅ **`node testkablix/_verify.mjs --quick` : 22 échecs sur 2574 contrôles** — un de moins qu'avant, celui du test manquant. Les 22 restants sont la dérive connue entre `_spec.mjs` et les schémas retouchés à la main par Frank ; aucun `.projix` n'a été touché ici.
+4. ℹ️ **Le bouton 6 mm garde son test Arduino** (`button-6mm-uno`) et reste couvert côté simulation par `verify:button-latch`, qui éprouve les **deux** poussoirs (souris, clavier, capuchon enfoncé, maintien Ctrl).
+
 # >>>>  v2026.8.9 — l'araignée entière marche sur ses quatre pattes, sur la branche `araignee-3d`
 
 1. ✅ **Nouveau composant : robot araignée complet (`araignee`), dessin PLACEHOLDER** (« fais une araignée entière avec ces 4 pattes, et son corps »). Châssis octogonal vu de dessus + les **4 pattes**, chacune reprenant **exactement** la mécanique de `<kablix-patte>` (mêmes segments, mêmes pivots, même animation) : `patte-element.mts` exporte désormais ses deux segments, ses pivots et son `JointAnimator`, il n'y a donc **qu'une seule patte à maintenir**. Les pattes de droite sont montées **en miroir** (`scale(1 -1)`) — sans ça les quatre pliaient dans le même sens absolu, allure de roue à aubes.
