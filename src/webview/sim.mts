@@ -860,8 +860,17 @@ function updateSpeedBadge(): void {
   if (afficher) {
     const pc = (ms: number): string => Math.round((ms / wall) * 100).toString();
     simSpeedEl.textContent = t('Slowed down: {0}× real time', ratio.toFixed(2).replace('.', ','));
+    // Deux ralentis très différents, et l'un ne se corrige pas. Quand le moteur
+    // occupe presque toute la seconde, la page n'y est pour rien : l'interpréteur
+    // ARM plafonne (mesuré : 0,29× sur l'horloge multiplexée, 0,07× sur l'écran
+    // ILI9341, moteur à 100 % dans les deux cas) et c'est le programme qui ne
+    // laisse jamais dormir le cœur. Accuser « la page » envoyait chercher un
+    // défaut de rendu qui n'existe pas.
+    const satureMoteur = busy > wall * 0.8;
     simSpeedEl.title =
-      `${t('The page cannot keep up with the simulation.')}\n` +
+      `${satureMoteur
+        ? t('The emulated processor is at its limit: this program computes without ever pausing.')
+        : t('The page cannot keep up with the simulation.')}\n` +
       `${t('Engine')} ${pc(busy)} % · ${t('Rendering')} ${pc(render)} % · ` +
       `${t('Browser')} ${pc(Math.max(0, wall - busy - render))} % · ${Math.round(fps)} fps`;
   }

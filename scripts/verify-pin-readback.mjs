@@ -22,24 +22,32 @@ import { tk } from '../testkablix/_paths.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 
-/** Premier firmware Pico (non-W) trouvé, ou undefined. */
-function findPicoFirmware() {
+/**
+ * TOUS les firmwares MicroPython disponibles (Pico ET Pico W), un par variante.
+ * L'atelier de Frank n'a souvent que le `RPI_PICO_W` en cache : `blink-pico`
+ * tourne alors dessus, et c'est justement le cas qui échouait. Le banc doit
+ * donc éprouver la relecture de broche sur CHAQUE firmware trouvé.
+ */
+function findPicoFirmwares() {
   const dirs = [
     join(root, 'test-assets'),
     join(homedir(), 'AppData', 'Roaming', 'Code', 'User', 'globalStorage', 'electropol-fr.kablix', 'micropython'),
     join(homedir(), '.config', 'Code', 'User', 'globalStorage', 'electropol-fr.kablix', 'micropython'),
   ];
+  const found = new Map(); // variante -> chemin
   for (const dir of dirs) {
     if (!existsSync(dir)) continue;
-    const hit = readdirSync(dir).find((n) => /^RPI_PICO-.*\.uf2$/.test(n));
-    if (hit) return join(dir, hit);
+    for (const name of readdirSync(dir)) {
+      const m = /^(RPI_PICO_W|RPI_PICO|RPI_PICO2_W|RPI_PICO2)-.*\.uf2$/.exec(name);
+      if (m && !found.has(m[1])) found.set(m[1], join(dir, name));
+    }
   }
-  return undefined;
+  return [...found.values()];
 }
 
-const fw = findPicoFirmware();
-if (!fw) {
-  console.log('SKIP : firmware Pico introuvable (RPI_PICO-*.uf2).');
+const firmwares = findPicoFirmwares();
+if (!firmwares.length) {
+  console.log('SKIP : aucun firmware Pico trouvé (RPI_PICO*.uf2).');
   process.exit(0);
 }
 
@@ -65,10 +73,8 @@ function ok(label, cond, detail = '') {
   else { failures++; console.log(`  ✗ ${label}${detail ? ` — ${detail}` : ''}`); }
 }
 
-console.log(`Firmware : ${fw.split(/[\\/]/).pop()}`);
-
 /** Joue un script et relève le journal série + les bascules de GP25. */
-async function run(source, { maxMs = 120_000, jusqua = () => false } = {}) {
+async function run(fw, source, { maxMs = 120_000, jusqua = () => false } = {}) {
   const program = loadPythonProgram(fw, source, false);
   const engine = new PicoEngine({
     kind: 'flash',
@@ -103,19 +109,9 @@ const SKETCH = readFileSync(tk('blink-pico.py'), 'utf8');
 ok('blink-pico.py relit bien l\'état par value() (le cas qui échouait)',
   /led\.value\(\)/.test(SKETCH), JSON.stringify(SKETCH.slice(0, 160)));
 
-const r = await run(SKETCH, { jusqua: (s, t) => /LED ON/.test(s) && /LED OFF/.test(s) && t >= 4 });
-console.log(`(${r.seconds} s, ${r.toggles} bascules de GP25)`);
-ok('le programme tourne (le moniteur série reçoit les états)',
-  /LED (ON|OFF)/.test(r.serial), JSON.stringify(r.serial.slice(-200)));
-ok('GP25 bascule vraiment', r.toggles >= 4, `${r.toggles} bascules`);
-ok('« LED ON » finit par s\'afficher : value() relit le niveau piloté',
-  /LED ON/.test(r.serial), `série ${JSON.stringify(r.serial.slice(-200))}`);
-ok('« LED OFF » aussi : la relecture suit les DEUX niveaux',
-  /LED OFF/.test(r.serial));
-
-// --- La relecture ne doit pas inventer d'état sur une ENTRÉE ------------------
-// Contre-mesure du risque introduit : une broche en entrée doit continuer de
-// lire ce que le schéma lui impose (bouton, capteur), pas un fantôme de sortie.
+// La relecture ne doit pas inventer d'état sur une ENTRÉE : contre-mesure du
+// risque introduit — une broche en entrée doit continuer de lire ce que le
+// schéma lui impose (bouton, capteur), pas un fantôme de sortie.
 const ENTREE = [
   'from machine import Pin',
   'import time',
@@ -130,11 +126,27 @@ const ENTREE = [
   '    time.sleep_ms(200)',
   '',
 ].join('\n');
-const e = await run(ENTREE, { maxMs: 90_000, jusqua: (s) => /ENTREE \d/.test(s) });
-ok('en SORTIE, la broche se relit à son propre niveau (1)',
-  /SORTIE 1/.test(e.serial), `série ${JSON.stringify(e.serial.slice(-200))}`);
-ok('repassée en ENTRÉE, elle relit le schéma (0), pas l\'ancienne sortie',
-  /ENTREE 0/.test(e.serial), `série ${JSON.stringify(e.serial.slice(-200))}`);
+
+for (const fw of firmwares) {
+  const nom = fw.split(/[\\/]/).pop();
+  console.log(`\n--- Firmware : ${nom}`);
+
+  const r = await run(fw, SKETCH, { jusqua: (s, t) => /LED ON/.test(s) && /LED OFF/.test(s) && t >= 4 });
+  console.log(`(${r.seconds} s, ${r.toggles} bascules de GP25)`);
+  ok(`[${nom}] le programme tourne (le moniteur série reçoit les états)`,
+    /LED (ON|OFF)/.test(r.serial), JSON.stringify(r.serial.slice(-200)));
+  ok(`[${nom}] GP25 bascule vraiment`, r.toggles >= 4, `${r.toggles} bascules`);
+  ok(`[${nom}] « LED ON » finit par s'afficher : value() relit le niveau piloté`,
+    /LED ON/.test(r.serial), `série ${JSON.stringify(r.serial.slice(-200))}`);
+  ok(`[${nom}] « LED OFF » aussi : la relecture suit les DEUX niveaux`,
+    /LED OFF/.test(r.serial));
+
+  const e = await run(fw, ENTREE, { maxMs: 90_000, jusqua: (s) => /ENTREE \d/.test(s) });
+  ok(`[${nom}] en SORTIE, la broche se relit à son propre niveau (1)`,
+    /SORTIE 1/.test(e.serial), `série ${JSON.stringify(e.serial.slice(-200))}`);
+  ok(`[${nom}] repassée en ENTRÉE, elle relit le schéma (0), pas l'ancienne sortie`,
+    /ENTREE 0/.test(e.serial), `série ${JSON.stringify(e.serial.slice(-200))}`);
+}
 
 console.log(`\npin-readback : ${checks} contrôles, ${failures} échec(s).`);
 console.log(failures === 0 ? 'RESULTAT: OK' : 'RESULTAT: ECHEC');

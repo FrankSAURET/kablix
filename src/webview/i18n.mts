@@ -27,6 +27,8 @@ const FR: Record<string, string> = {
   'Slowed down: {0}× real time': 'Ralentie : {0}× le temps réel',
   'The page cannot keep up with the simulation.':
     'La page n\'arrive plus à suivre la simulation.',
+  'The emulated processor is at its limit: this program computes without ever pausing.':
+    'Le processeur émulé est à sa limite : ce programme calcule sans jamais faire de pause.',
   // Relais : défauts de câblage signalés pendant la simulation.
   'Flyback diode is reversed': 'Diode à l\'envers',
   'A flyback diode is required': 'Une diode de roue libre est obligatoire',

@@ -121,24 +121,32 @@ ok('le pilote Wi-Fi n est plus sollicité (aucun « Failed to start CYW43 »)',
   !/Failed to start CYW43/.test(r.serial),
   `${(r.serial.match(/Failed to start CYW43/g) ?? []).length} occurrence(s)`);
 
-// Contre-épreuve : la rustine est neutralisée juste après avoir été posée (le
-// vrai module `machine` est remis dans sys.modules). Pin("LED") repart alors
-// vers la puce Wi-Fi absente et le programme ne pilote plus rien.
+// Contre-épreuve : la rustine est neutralisée juste après avoir été posée.
+// PIÈGE — `import machine as _m` ne rend PAS le module natif : il rend ce que
+// sys.modules contient, donc la rustine elle-même, et la « neutralisation » la
+// réinstallait. Il faut EFFACER l'entrée : le prochain `from machine import`
+// recharge alors le vrai module natif. Pin("LED") repart vers la puce Wi-Fi
+// absente et le programme ne pilote plus rien.
 const SANS_RUSTINE = [
-  'import sys as _s, machine as _m',
+  'import sys as _s',
   'try:',
-  '    _s.modules["machine"] = _m',
+  '    del _s.modules["machine"]',
   'except Exception:',
   '    pass',
   '',
 ].join('\n') + SKETCH;
-// Symptôme exact du bug : `toggle()` part vers la puce absente, donc `value()`
-// relit toujours 0 — le programme n'imprime QUE des « LED OFF » et la LED n'est
-// jamais vue allumée, alors qu'il croit la faire clignoter.
+// Symptôme exact du bug : `toggle()` part vers la puce absente, la LED n'est
+// donc JAMAIS vue allumée (le programme n'imprime que des « LED OFF ») et le
+// pilote Wi-Fi crache son échec à chaque écriture.
+// À NE PAS confondre avec les bascules de GP25 : sur Pico W, GP25 est aussi le
+// CS du bus SPI vers la puce Wi-Fi. Le pilote le fait donc remuer en boucle en
+// essayant de la joindre — ce n'est pas la LED qui clignote.
 const c = await run(SANS_RUSTINE, { maxMs: 30_000 });
 ok('contre-épreuve : sans la redirection, la LED n est JAMAIS vue allumée',
   /LED OFF/.test(c.serial) && !/LED ON/.test(c.serial),
   `série ${JSON.stringify(c.serial.slice(-160))}`);
+ok('contre-épreuve : sans la redirection, le pilote Wi-Fi absent se plaint',
+  /Failed to start CYW43/.test(c.serial), `série ${JSON.stringify(c.serial.slice(-160))}`);
 
 console.log(`\npicow-led : ${checks} contrôles, ${failures} échec(s).`);
 console.log(failures === 0 ? 'RESULTAT: OK' : 'RESULTAT: ECHEC');

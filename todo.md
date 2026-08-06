@@ -1,23 +1,26 @@
 # À faire
 1. `servo-pico.projix`, `servo-pico.py`, `16 servo + alim.svg`, `condo-pico.csv`, `demo projix 1.projix`, `relais-pico.csv` , `résistor-uno`, `rv-uno`, `button-6mm-uno` retirés volontairement. Double emplois ou inutiles.
 
-## Test des Pico
-1. Vérifie condo-pico.py. Courbe trés longue et affichage aussi.
-1. Gros ralentis : 
-    1. us sensor - ralentie 0,01
-    1. ili9341-pico - ralentie 0,01
-    1. L'horloge pico - ralentie :0,35
-1. j'ai retouche le code de ili9341-pico pour le rendre plus démonstratif ne le change plus. ne le change plus.
-1. `blink-pico` n'affiche jamais "LED on" tjs off parce que led.value ne passe jamais à 1.
-1. Sélecteur de transistor : les flèches de la barre de défilement de l'ascenseur passe directement de en  haut à en baset ne permettent en aucun cas de sélectionner un transistor
-
 # À trancher par Frank
-
+1. **Le régime de l'émulateur RP2040 plafonne à ≈ 0,3× le temps réel** sur un programme qui calcule sans arrêt (horloge multiplexée, écran ILI9341). Mesuré et profilé en v2026.8.4 : ce n'est ni la page ni le schéma, c'est l'interpréteur ARM de `rp2040js` (46 % du temps à lui seul, le reste étant ses accès mémoire). Le seul levier trouvé — ne plus avancer les PIO à chaque instruction quand aucune machine à états ne tourne — ne rapporte que **4,9 %** (0,290 → 0,304, mesuré) et met en jeu le décodage NeoPixel : **non pris**, à rouvrir seulement si Frank veut ce demi-pourcent-là. Vrai remède : un interpréteur ARM plus rapide, chantier à part entière.
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
 
-# >>>>  v2026.8.3 — l'atelier ne s'ouvre plus vide, l'erreur passe VRAIMENT devant
+# >>>>  v2026.8.4 — les flèches sélectionnent enfin, le condensateur va trois fois plus vite
+
+1. ✅ **Sélecteur de transistor : le VRAI défaut des flèches est trouvé, et prouvé au clic réel.** La correction v2026.8.2 recalait la liste sur `scroll` — c'est-à-dire **en pleine animation de Chrome**, qui anime un clic de flèche et le répète au maintien. Les deux se disputaient la position : mesuré au clic réel, **334 px au premier clic puis le FOND au cinquième** — exactement « les flèches passent directement de en haut à en bas ». Le recalage attend désormais la **fin** du geste (`scrollend`, ou 90 ms de silence) : **37 px par clic, soit une entrée**, à la montée comme à la descente, maintien compris.
+2. ✅ **Le banc ne simulait pas ce qu'il prétendait éprouver.** `verify:transistor` posait `scrollTop` à la main : il ne voyait ni l'animation, ni la répétition, ni `scrollend` — donc pas le défaut. Nouveau banc **`verify:ascenseur`** : Chrome piloté par CDP, la souris clique VRAIMENT sur la flèche de la barre (7 contrôles, contre-épreuve comprise). Le calage a été sorti dans un module à part, [liste-crantee.mts](src/webview/diagram/liste-crantee.mts), pour que le banc éprouve **le code qui tourne chez l'utilisateur** et non une copie.
+3. ✅ **`blink-pico` vérifié sur les DEUX firmwares** (« n'affiche jamais LED on ») : « LED ON » et « LED OFF » s'impriment bien, et une broche déclarée en sortie se relit à son propre niveau. `verify:pin-readback` boucle maintenant sur tous les `.uf2` trouvés — Pico **et** Pico W — parce que le cache de Frank ne contient que le Pico W, celui-là même où le défaut se voyait.
+4. ✅ **Contre-épreuve de `verify:picow-led` réparée : elle ne prouvait plus rien.** Sa neutralisation (`import machine as _m` puis remise dans `sys.modules`) ré-installait **la rustine**, pas le module natif — le banc restait vert quoi qu'il arrive. Elle supprime désormais l'entrée (`del sys.modules["machine"]`). Piège relevé au passage : sur Pico W, GP25 est aussi le **CS du bus SPI vers la puce Wi-Fi**, il bascule donc même sans redirection — le contrôle porte sur ce que le programme imprime, pas sur l'agitation de la broche.
+5. ✅ **`condo-pico` : trois fois plus vif** (« courbe très longue et affichage aussi »). Les trois RC sont divisés par 3 — 33 kΩ×1 µF, 10 kΩ×10 µF, 3,3 kΩ×100 µF — donc la décade 1 / 3,3 / 10 est **intacte** mais un cycle charge + décharge dure **2 s au lieu de 6**. La console imprime dès **125 ms** au lieu d'une seconde. Emplacements des composants inchangés ; les constantes de temps attendues suivent dans `_spec.mjs` (banc `projix` au vert, 38 contrôles).
+6. ✅ **Le badge « ralentie » n'accuse plus la page à tort.** Quand le moteur occupe presque toute la seconde, la page n'y est pour rien : l'infobulle dit maintenant « le processeur émulé est à sa limite : ce programme calcule sans jamais faire de pause », et garde le détail moteur / rendu / navigateur. Traduit FR + EN.
+7. ✅ **Deux outils d'atelier versionnés pour ne plus discuter du ralenti à l'aveugle** : [_mesure-regime-pico.mjs](scripts/_mesure-regime-pico.mjs) (temps simulé par temps réel, sketch par sketch, une fois le démarrage fini) et [_profil-pico.mjs](scripts/_profil-pico.mjs) (où passe le temps, fonction par fonction).
+8. ⏳ **Les « gros ralentis » ne sont pas un défaut de Kablix — chiffres à l'appui.** Les 0,01 relevés par Frank sur `us-sensor` et `ili9341` étaient mesurés **pendant le démarrage du firmware** (corrigé en v2026.8.3 : la mesure ne s'arme qu'au signal `onRunning`). En régime établi : `condo-pico` 0,94 · `blink-pico` 0,95 · `us-sensor` 0,50 · `Horloge` 0,29 · `ili9341` 0,07 à 0,18 selon la charge. Les deux derniers tiennent le moteur à **100 %** : c'est le plafond de l'interpréteur ARM, pas la page. Reporté sous « À trancher par Frank ».
+9. ℹ️ **`testkablix/ili9341-pico.py` n'a pas été touché** (« je l'ai retouché pour le rendre plus démonstratif, ne le change plus »).
+10. ℹ️ **Deux fichiers déplacés dans `A Examiner/scripts/`** (jamais supprimés) : `_probe-fleche-ascenseur.mjs` et `_fleche-liste.js`, la sonde jetable qui a servi à reproduire le défaut des flèches avant que le banc permanent n'existe.
+
+# v2026.8.3 — l'atelier ne s'ouvre plus vide, l'erreur passe VRAIMENT devant
 
 1. ✅ **Trouvé : pourquoi un atelier s'ouvrait VIDE au hasard** (dht11, CI3-uno, ventilo — « le fichier diagram.json semble pourtant correct », « je ferme et rouvre VS Code et il apparaît »). L'ouverture d'un `.projix` lit le fichier et envoie le schéma à la vue **en quelques millisecondes**, alors que la webview met bien plus longtemps à charger son bundle de 3,2 Mo : le message partait **avant que le script n'ait installé son écouteur**. Le tampon interne de VS Code le rattrape la plupart du temps — mais pas toujours (onglet restauré, machine chargée), et le schéma tombait alors dans le vide, sans la moindre erreur. D'où le hasard, et d'où « ça marche si j'ouvre Kablix d'abord » : la vue avait eu le temps de démarrer.
 2. ✅ **Plus aucun envoi ne part dans le vide** : tout message destiné à la vue est mis en **file d'attente** tant qu'elle n'a pas dit « ready », puis rejoué **dans l'ordre d'émission**. Filet de sécurité : si « ready » n'arrivait jamais (bundle en erreur), l'envoi se fait quand même au bout de 20 s — jamais pire qu'avant. Nouveau banc `verify:open-blank` (17 contrôles).

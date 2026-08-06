@@ -3158,7 +3158,8 @@ while True:
 `,
   }),
 
-  // Même montage que `condo-uno` sous 3,3 V, avec les trois ADC du RP2040. Les
+  // Même montage que `condo-uno` sous 3,3 V (mais trois fois plus vif), avec les
+  // trois ADC du RP2040. Les
   // condensateurs sont posés ici avec leurs types HISTORIQUES (`condo-p-1`,
   // `condo-p-2`) : ils ont quitté la palette en v2026.7.232 mais restent des
   // types valides — un projet enregistré avant ne doit jamais cesser de s'ouvrir.
@@ -3166,11 +3167,11 @@ while True:
     name: 'condo-pico', board: 'pico', ext: 'py',
     parts: [
       MCU('pico'),
-      { id: 'R1', type: 'resistor', x: 480, y: 60, attrs: { value: '100000' } },
+      { id: 'R1', type: 'resistor', x: 480, y: 60, attrs: { value: '33000' } },
       { id: 'C1', type: 'condo-np', x: 620, y: 60, attrs: { ctype: 'np', value: '1e-6', vmax: '63' } },
-      { id: 'R2', type: 'resistor', x: 480, y: 180, attrs: { value: '33000' } },
+      { id: 'R2', type: 'resistor', x: 480, y: 180, attrs: { value: '10000' } },
       { id: 'C2', type: 'condo-p-1', x: 620, y: 180, attrs: { ctype: 'p', value: '1e-5', vmax: '16' } },
-      { id: 'R3', type: 'resistor', x: 480, y: 300, attrs: { value: '10000' } },
+      { id: 'R3', type: 'resistor', x: 480, y: 300, attrs: { value: '3300' } },
       { id: 'C3', type: 'condo-p-2', x: 620, y: 300, attrs: { ctype: 'chem', value: '1e-4', vmax: '16' } },
     ],
     wires: () => [
@@ -3187,20 +3188,23 @@ while True:
       w('C3', '1', 'U1', 'GP28', 'blue'),
       w('C3', '2', 'U1', 'GND.7', 'black'),
     ],
-    // RC = R × C, la sortie du RP2040 ajoutant ses 25 Ω : 0,1 s / 0,33 s / 1 s.
+    // RC = R × C, la sortie du RP2040 ajoutant ses 25 Ω : 33 ms / 0,1 s / 0,33 s.
+    // Les trois RC ont été DIVISÉS PAR 3 en v2026.8.4 (retour de Frank : « courbe
+    // très longue et affichage aussi ») : la décade 1 / 3,3 / 10 est intacte, mais
+    // un cycle charge + décharge dure 2 s au lieu de 6.
     expect: {
       kind: 'capacitor', drivePin: 'GP15', drive: 'high', volts: 3.3,
       caps: [
-        { partId: 'C1', target: 3.3, tau: 0.1, mcuPins: ['GP26'] },
-        { partId: 'C2', target: 3.3, tau: 0.33, mcuPins: ['GP27'] },
-        { partId: 'C3', target: 3.3, tau: 1, mcuPins: ['GP28'] },
+        { partId: 'C1', target: 3.3, tau: 0.033, mcuPins: ['GP26'] },
+        { partId: 'C2', target: 3.3, tau: 0.1, mcuPins: ['GP27'] },
+        { partId: 'C3', target: 3.3, tau: 0.33, mcuPins: ['GP28'] },
       ],
     },
     code: `# Trois circuits RC sur la MEME broche de commande. Seule la constante de
-# temps RC change : 100 kOhm x 1 uF = 0,1 s (film), 33 kOhm x 10 uF = 0,33 s
-# (tantale), 10 kOhm x 100 uF = 1 s (chimique). A un RC la tension a fait
-# 63 % du chemin, a 3 RC elle est a 95 % : la courbe est deja plate, d'ou les
-# 3 s par phase (un cycle charge + decharge dure 6 s).
+# temps RC change : 33 kOhm x 1 uF = 33 ms (film), 10 kOhm x 10 uF = 0,1 s
+# (tantale), 3,3 kOhm x 100 uF = 0,33 s (chimique). A un RC la tension a fait
+# 63 % du chemin, a 3 RC elle est a 95 % : la courbe est deja plate, d'ou 1 s
+# par phase (un cycle charge + decharge dure 2 s).
 #
 # Le TRACEUR DE COURBES affiche les trois exponentielles SANS une seule ligne
 # de code : la tension du condensateur est posee sur ADC0/1/2 (GP26, GP27,
@@ -3215,9 +3219,9 @@ mesure = [ADC(Pin(26)), ADC(Pin(27)), ADC(Pin(28))]
 
 def phase(niveau, nom):
     charge.value(niveau)
-    for i in range(6):                # 6 x 500 ms = 3 s = 3 RC du plus lent
-        time.sleep_ms(500)
-        if i % 2:
+    for i in range(8):                # 8 x 125 ms = 1 s = 3 RC du plus lent
+        time.sleep_ms(125)
+        if i % 2 == 0:                # la premiere mesure tombe des 125 ms
             volts = ["%.2f V" % (a.read_u16() * 3.3 / 65535) for a in mesure]
             print(nom, "   ".join(volts))
 
