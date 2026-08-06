@@ -48,35 +48,39 @@
 
 ## L'interface
 ![alt text](../../media/interface.webp)
-*Interface de Kablix : **①** la **palette** des composants à gauche, **②** le **canvas** de montage au centre, **③** l'**inspecteur** (Propriétés/variables) à droite, **④** le **moniteur série/Console/REPL**, **⑤** le **Traceur** en bas et **⑥** les **barres d'outils** (Simulation et dessin) en haut.*
+*Interface de Kablix : **①** la **palette** des composants à gauche, **②** le **canvas** de montage au centre, **③** l'**inspecteur** (Propriétés/variables) à droite, **④** le **moniteur série/Console/REPL**, **⑤** le **Traceur** en bas et **⑥** les **barres d'outils** — celle de Kablix tout en haut, celle de **simulation** à gauche du canvas et celle de **dessin** à droite.*
 
 - **Palette** : cliquer un composant le pose sur le canvas. Deux tris au choix (boutons en haut) ![alt text](<../../media/boutons trie.webp>): alphabétique ou  par catégories Une zone **« Derniers utilisés »** (10 max) peut rester en tête (troisième bouton). Le dernier bouton permet de changer le mode de réaction de la bibliothèque.
-- **Barre d'outil Kablix**
+- **Barre d'outil Kablix** (en haut de la fenêtre)
 ![alt text](<../../media/barre kablix.webp>)
-    - les fonctions habituelles de gestion de fichier,
-    - le bouton Noms qui fait apparaitre le nom sur le composant **sélectionné** ou tous les composants
+    - **Kablix v…** : le nom et le numéro de version ; un clic ouvre le dépôt GitHub.
+    - les fonctions habituelles de gestion de fichier : **nouveau projet**, **ouvrir**, **enregistrer**, **enregistrer sous**, **exporter le schéma en SVG**.
+    - le bouton **Noms** qui fait apparaitre le nom sur le composant **sélectionné** ou tous les composants
     - **réarranger** : rétablit l'organisation Kablix (code d'un côté, Kablix de l'autre, panneaux fermés). Vous pouvez inverser les deux zones et régler leur largeur à la souris, puis **Sauvegarder cette organisation par défaut** (menu hamburger) : le côté de Kablix **et** la largeur sont mémorisés, et « réarranger » les rétablit — y compris en remettant Kablix du côté choisi s'il en a changé depuis. Le fichier de code, lui, n'est jamais ouvert en double : s'il est déjà ouvert (même du mauvais côté), Kablix réutilise son onglet et le replace du côté du code.
-    - le menu hamburger pour des fonctions d'utiliation  moins fréquentes.
-    - accés à cette aide.
-- **Barre de simulation**
+    - le **menu hamburger** pour les fonctions moins fréquentes : importer / exporter un schéma **Wokwi**, exporter la **liste des composants (CSV)**, mettre à jour le **firmware Pico**, vérifier les **mises à jour des bibliothèques**, sauvegarder l'organisation par défaut.
+    - accés à cette **aide**.
+    - le **nom du projet** courant. Si le `.projix` est **supprimé du disque** pendant qu'il est ouvert, son nom est **barré** — dans la barre comme dans l'onglet de VS Code ; il se rétablit si le fichier revient (corbeille, annulation).
+    - le **fichier de code** 📄 du projet, juste à droite du nom : **clic = changer**, **double-clic = ouvrir** (il s'ouvre du côté du code).
+    - la zone d'**état** (« Prêt », messages de compilation…) et, seulement quand la page ne suit plus, le badge **« Ralentie : 0,45× le temps réel »**.
+- **Barre de simulation** (à gauche, par-dessus le canvas)
 ![Barre de simulation](../../media/BarreSimulation.webp)
-    - **▶ démarrer**
+    - **▶ démarrer** (enregistre d'abord le schéma et le code)
     - **■ arrêter**
     - **⏸ pause/reprendre**
     - **pas à pas**
-    - le sélecteur de **vitesse** 🐇/🐢/🐌 pour accélérer ou ralentir la simulation
-    - **fichier de code**  clic = changer, double-clic = ouvrir (ouvre le fichier de code du projet sur la gauche)
-    - **REPL** : pour Pico uniquement affiche la console python traditionnelle
+    - le sélecteur de **vitesse**, un animal par réglage : 🦅 500 %, 🐆 200 %, 🐇 100 % (temps réel), 🐢 10 %, 🐌 1 %. L'accéléré est un **souhait** : la simulation va aussi vite qu'elle peut, jamais plus.
+    - **REPL** : pour Pico uniquement, affiche la console python traditionnelle (n'apparaît que si la carte posée est un Pico)
     - **moniteur série / console**
-    - **Traceur** de courbes.
-- **Barre de dessin**
+    - **Traceur** de courbes
+    - **explications de défaut** : le cadre rouge et l'étiquette jaune posés sur un composant en défaut. Actif par défaut ; le bouton les masque quand ils gênent la lecture du schéma.
+- **Barre de dessin** (à droite, par-dessus le canvas)
 ![Barre de dessin](../../media/BarreDessin.webp)
-  - **Bouton Kablix** Affiche le schéma interne ou le brochage complet du composant.
+    - **bouton du composant** : affiche le **schéma interne** du composant sélectionné, ou le **brochage complet** de la carte. N'apparaît que si le composant sélectionné en propose un.
     - **autoroutage** route la sélection ou tout le montage
     - **grille** (afficher/masquer)
     - **recentrer/ajuster la vue**
-    - **⟲ réinitialiser** les composants
-    - **gomme** (effacer le schéma).
+    - **⟲ réinitialiser les composants** : remet chaque composant au repos (interrupteurs relâchés, curseurs au repos) sans toucher au câblage. **Masqué par défaut** — la case *Afficher le bouton « Réinitialiser les composants »* des paramètres de Kablix le ramène.
+    - **gomme** : efface le schéma entier, composants et fils (Ctrl+Z annule). **Masqué par défaut** lui aussi — case *Afficher le bouton « Effacer le schéma »*.
 - **Propriétés/Variables** (inspecteur) :
     - Pendant le dessin, édite le composant sélectionné (couleur, valeur, angle…) ou fil (couleur Dupont, suppression, noeud [équipotielle])
     - pendant la simulation, affiche les variables.
@@ -161,7 +165,7 @@ Pendant la simulation, la carte s'allume comme la vraie : la **LED verte ON** re
 
 La simulation suit le **temps réel** : une seconde à l'écran est une seconde sur la vraie carte, `delay(1000)` dure bien une seconde. Quand la page est occupée un instant (dessin d'un composant, moniteur série qui défile), la simulation **rattrape** son retard dès qu'elle reprend la main ; seuls les blocages longs (plus d'un quart de seconde, un onglet laissé en arrière-plan) sont abandonnés — le temps est alors **sauté**, jamais rejoué en accéléré.
 
-Le sélecteur 🐇/🐢/🐌 ralentit volontairement l'exécution (100 %, 10 %, 1 % du temps réel) pour observer un phénomène rapide. La simulation ne va **jamais plus vite** qu'une vraie carte.
+Le sélecteur d'animaux ralentit volontairement l'exécution — 🐢 10 %, 🐌 1 % du temps réel — pour observer un phénomène rapide. Dans l'autre sens, 🐆 200 % et 🦅 500 % **demandent** l'accéléré : la simulation prend alors tout ce que la machine peut donner, mais elle ne dépasse le temps réel que sur un programme qui laisse le cœur dormir. 🐇 100 % est le temps réel.
 
 Si malgré tout la carte n'arrive plus à suivre, un badge **« Ralentie : 0,45× le temps réel »** apparaît à droite de la barre d'état : la page est trop chargée pour la simulation (schéma volumineux, machine occupée). Le ralenti volontaire du sélecteur n'est pas compté comme un défaut. Le badge disparaît dès que la simulation revient à l'heure, et à l'arrêt.
 
@@ -196,7 +200,7 @@ Le firmware démarre dans le simulateur (bootrom + flash + USB), puis le script 
 
 ### Déboguer
 
-- **⏸ Pause / ▶ Reprendre** : gèle la simulation ; l'état des broches et des LED reste affiché. Le sélecteur 🐇/🐢/🐌 ralentit l'exécution (Uno).
+- **⏸ Pause / ▶ Reprendre** : gèle la simulation ; l'état des broches et des LED reste affiché. Le sélecteur d'animaux (🦅 500 % → 🐌 1 %) règle le régime d'exécution.
 - **Pas** : exécute une ligne du fichier source puis se remet en pause. Le panneau **Variables**  montre alors la ligne courante et les variables globales du programme ; la ligne est aussi surlignée dans l'éditeur VS Code. Une variable qui vient de changer est affichée en rouge
 - **Points d'arrêt** : cliquer dans la gouttière de l'éditeur (à gauche des numéros de ligne) avant ou pendant l'exécution ; la simulation se met en pause en atteignant la ligne. Les points d'arrêt peuvent être conditionnels.
 

@@ -1,1 +1,3 @@
-1.
+1. Un fichier supprimé sous le nez de l'atelier voit son nom BARRÉ en rouge. Alors pas forcemment en rouge mais dans la couleur du theme. Mais je veux que ce soit dans l'onglet vscode
+1. Les boutons « réinitialiser les composants » et « effacer le schéma » sont MASQUÉS par défaut. Ils le sont dans les paramètres de kablix (décochés) mais les boutons restent présents
+1. Je ne vois rien pour la patte d'araignée. Juste un carré de sélection 10 x 10 

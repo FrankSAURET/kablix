@@ -113,7 +113,7 @@ await esbuild.build({
   logLevel: 'silent',
   alias: { vscode: join(tmp, 'vscode-stub.mjs') },
 });
-const { SimulatorPanel } = await import(pathToFileURL(out).href);
+const { SimulatorPanel, strikeThroughText } = await import(pathToFileURL(out).href);
 
 /** Instance minimale (pas de webview) : on relève ce qui est POSTÉ à la vue. */
 function atelier({ code, projet } = {}) {
@@ -197,7 +197,7 @@ const veille = (nom) => globalThis.__fsw.find((w) => w.glob === nom);
   check('projet « sans titre » : aucune surveillance inutile', globalThis.__fsw.length === 0);
 }
 
-// --- 5. Le rendu : nom BARRÉ EN ROUGE ----------------------------------------
+// --- 5. Le rendu : nom BARRÉ, dans la couleur du THÈME ------------------------
 {
   const css = readFileSync(join(ROOT, 'media/styles.css'), 'utf8');
   const sim = readFileSync(join(ROOT, 'src/webview/sim.mts'), 'utf8');
@@ -206,7 +206,11 @@ const veille = (nom) => globalThis.__fsw.find((w) => w.glob === nom);
   for (const [quoi, sel] of [['le programme', '.toolbar__file--deleted'], ['le projet', '.project-name--deleted']]) {
     const style = bloc(sel);
     check(`${quoi} : le nom est BARRÉ`, /text-decoration:\s*line-through/.test(style), sel);
-    check(`${quoi} : le trait est ROUGE`, /text-decoration-color:\s*#f/i.test(style), style.trim());
+    // Frank : « pas forcément en rouge, dans la couleur du thème ». Le rouge en
+    // dur ne reste qu'en DERNIER repli, derrière deux couleurs du thème.
+    const couleur = /text-decoration-color:\s*([^;]+);/.exec(style)?.[1]?.replace(/\s+/g, ' ').trim() ?? '';
+    check(`${quoi} : le trait prend la couleur du THÈME`,
+      couleur.startsWith('var(--vscode-'), couleur || sel);
   }
   check('la vue pose la classe sur le chip du programme',
     /codeFileBtn\.classList\.toggle\('toolbar__file--deleted', deleted\)/.test(sim));
@@ -222,8 +226,57 @@ const veille = (nom) => globalThis.__fsw.find((w) => w.glob === nom);
     && /'Project \{0\} has been deleted from disk[^']*':\s*\n?\s*'Projet \{0\} supprimé/.test(i18n));
 }
 
+// --- 6. Le nom barré DANS L'ONGLET DE VS CODE --------------------------------
+// Frank : « je veux que ce soit dans l'onglet vscode ». Un titre d'onglet est du
+// texte brut : le seul barré possible est typographique (U+0336 après chaque
+// caractère). VS Code barre nativement l'onglet d'un fichier de TEXTE disparu,
+// mais pas celui d'un éditeur personnalisé — c'est donc au .projix qu'il manquait.
+{
+  check('U+0336 posé sur chaque caractère, les espaces laissés tranquilles',
+    strikeThroughText('ab c') === 'a̶b̶ c̶',
+    JSON.stringify(strikeThroughText('ab c')));
+  check('un nom vide ne produit rien', strikeThroughText('') === '');
+
+  // Le titre construit par panel.ts, avec un hôte qui relève ce qu'on lui donne.
+  const titre = (gone) => {
+    const p = Object.create(SimulatorPanel.prototype);
+    p.projectBaseName = 'demo';
+    p.projectDirty = false;
+    p.gone = new Set(gone ? ['project'] : []);
+    const vu = {};
+    p.panel = {
+      setDirtyIndicator: (dirty, base) => { vu.base = base; vu.dirty = dirty; },
+      setDeletedIndicator: (deleted) => { vu.deleted = deleted; },
+    };
+    p.updateTitle();
+    return vu;
+  };
+  const normal = titre(false);
+  check('tant que le projet est là, le titre est intact',
+    !normal.base.includes('̶') && normal.base.includes('demo.Projix'), normal.base);
+  check('projet présent : l\'hôte est prévenu que rien n\'est barré', normal.deleted === false);
+
+  const efface = titre(true);
+  check('projet supprimé : le nom du projet est barré dans le titre',
+    /d̶e̶m̶o̶/.test(efface.base), efface.base);
+  check('seul le nom du projet est barré, pas « Kablix — Simulator »',
+    !/K̶/.test(efface.base), efface.base);
+  check('projet supprimé : l\'hôte est prévenu (onglet de l\'éditeur personnalisé)',
+    efface.deleted === true);
+
+  // L'onglet du CustomEditor : le titre natif est barré, puis RESTITUÉ tel quel.
+  const editor = readFileSync(join(ROOT, 'src/projix-editor.ts'), 'utf8');
+  check('l\'éditeur personnalisé barre le titre de son onglet',
+    /setDeletedIndicator:\s*\(deleted\)\s*=>\s*\{[\s\S]*?panel\.title = strikeThroughText\(nativeTitle\)/.test(editor));
+  check('le titre posé par VS Code est mémorisé avant d\'être barré',
+    /nativeTitle \?\?= panel\.title/.test(editor));
+  check('fichier rétabli : le titre d\'origine est remis tel quel',
+    /panel\.title = nativeTitle;\s*\n\s*nativeTitle = undefined;/.test(editor),
+    'sinon un projet homonyme perdrait le dossier que VS Code affiche devant son nom');
+}
+
 if (fails.length) {
   console.log(`\ndeleted-file : ${fails.length} ÉCHEC(S) sur ${ok + fails.length} contrôles.`);
   process.exit(1);
 }
-console.log(`\ndeleted-file : ${ok} contrôles OK — un fichier supprimé sous le nez de l'atelier voit son nom barré en rouge.`);
+console.log(`\ndeleted-file : ${ok} contrôles OK — un fichier supprimé sous le nez de l'atelier voit son nom barré, dans l'atelier ET dans l'onglet de VS Code.`);

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { SimulatorPanel } from './panel';
+import { SimulatorPanel, strikeThroughText } from './panel';
 import {
   applyDefaultLayout,
   editorGroupCount,
@@ -83,6 +83,9 @@ export class ProjixEditorProvider implements vscode.CustomEditorProvider<ProjixD
     // ouvrir (régression v2026.7.164). `webview.options` doit rester posé AVANT
     // (asWebviewUri exige localResourceRoots) — c'est le cas.
 
+    // Titre posé par VS Code, mémorisé au premier barrage pour être restitué tel
+    // quel si le fichier revient (corbeille, annulation).
+    let nativeTitle: string | undefined;
     // Adaptateur hôte. Le point ● « non enregistré » NATIF est piloté par la
     // pile d'edits du CustomEditor : chaque édition utilisateur (onDocEdit) empile
     // un edit ; Ctrl+Z/Y natifs de VS Code appellent undo/redo, relayés à la
@@ -104,6 +107,20 @@ export class ProjixEditorProvider implements vscode.CustomEditorProvider<ProjixD
         onDidChangeViewState: () => undefined,
         // Le ● est piloté par onDocEdit + la pile d'edits, pas par le titre.
         setDirtyIndicator: () => undefined,
+        // Projet supprimé du disque : VS Code barre le nom d'un onglet de TEXTE
+        // orphelin, mais pas celui d'un éditeur personnalisé — le titre reste
+        // « Horloge.projix » comme si de rien n'était. On barre donc nous-mêmes,
+        // et on restitue à l'identique le titre que VS Code avait posé (il peut
+        // contenir le dossier parent quand deux projets sont homonymes).
+        setDeletedIndicator: (deleted) => {
+          if (deleted) {
+            nativeTitle ??= panel.title;
+            panel.title = strikeThroughText(nativeTitle);
+          } else if (nativeTitle !== undefined) {
+            panel.title = nativeTitle;
+            nativeTitle = undefined;
+          }
+        },
         onDocEdit: () => {
           this.onDidChangeEmitter.fire({
             document,

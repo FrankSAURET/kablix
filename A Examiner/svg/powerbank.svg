@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 300" width="100%" height="100%">
+  <defs>
+    <!-- Ombres portées -->
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+    <filter id="inner-shadow">
+      <feOffset dx="0" dy="2"/>
+      <feGaussianBlur stdDeviation="2" result="offset-blur"/>
+      <feComposite operator="out" in="SourceGraphic" in2="offset-blur" result="inverse"/>
+      <feFlood flood-color="black" flood-opacity="0.6" result="color"/>
+      <feComposite operator="in" in="color" in2="inverse" result="shadow"/>
+      <feComposite operator="over" in="shadow" in2="SourceGraphic"/>
+    </filter>
+
+    <!-- Gradients plastiques et métaux -->
+    <linearGradient id="body-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#3a3d40"/>
+      <stop offset="15%" stop-color="#26282a"/>
+      <stop offset="50%" stop-color="#151617"/>
+      <stop offset="85%" stop-color="#26282a"/>
+      <stop offset="100%" stop-color="#111213"/>
+    </linearGradient>
+
+    <linearGradient id="metal-shield" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f0f0f0"/>
+      <stop offset="25%" stop-color="#d1d5db"/>
+      <stop offset="50%" stop-color="#9ca3af"/>
+      <stop offset="85%" stop-color="#e5e7eb"/>
+      <stop offset="100%" stop-color="#aaaaaa"/>
+    </linearGradient>
+
+    <linearGradient id="copper-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#b05020"/>
+      <stop offset="30%" stop-color="#ff8c42"/>
+      <stop offset="70%" stop-color="#e2722b"/>
+      <stop offset="100%" stop-color="#7a300c"/>
+    </linearGradient>
+
+    <linearGradient id="foil-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="40%" stop-color="#a1a1aa"/>
+      <stop offset="100%" stop-color="#52525b"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Fond de présentation gris clair -->
+  <rect width="100%" height="100%" fill="#f3f4f6"/>
+
+  <!-- Groupe principal centré -->
+  <g transform="translate(10, 0)">
+    
+    <!-- 1. CORPS DE LA PRISE EN PLASTIQUE NOIR (Vue de dessus) -->
+    <rect x="160" y="85" width="160" height="130" rx="8" fill="url(#body-grad)" filter="url(#shadow)"/>
+    
+    <!-- Stries de grip ergonomiques sur le dessus du plastique -->
+    <rect x="180" y="110" width="12" height="80" fill="#151617" rx="2" opacity="0.6"/>
+    <rect x="200" y="110" width="12" height="80" fill="#151617" rx="2" opacity="0.6"/>
+    <rect x="220" y="110" width="12" height="80" fill="#151617" rx="2" opacity="0.6"/>
+
+    <!-- 2. CONNECTEUR MÉTALLIQUE TYPE A (Sort de la prise à gauche) -->
+    <!-- Partie visible du blindage métallique -->
+    <rect x="60" y="95" width="100" height="110" rx="3" fill="url(#metal-shield)"/>
+    
+    <!-- Les deux ouvertures carrées typiques du dessus de l'USB-A -->
+    <rect x="85" y="115" width="20" height="18" rx="2" fill="#374151" filter="url(#inner-shadow)"/>
+    <rect x="85" y="167" width="20" height="18" rx="2" fill="#374151" filter="url(#inner-shadow)"/>
+    
+    <!-- Ligne de jointure du métal visible sur le dessus -->
+    <line x1="60" y1="150" x2="160" y2="150" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="8 4"/>
+
+    <!-- 3. SECTION DU CÂBLE COUPÉ À RAZ (À droite du bloc plastique) -->
+    <!-- Extrémité du manchon plastique de protection (soulagement de traction coupé net) -->
+    <path d="M 320,120 L 325,122 L 325,178 L 320,180 Z" fill="#1f2123" stroke="#111213" stroke-width="1"/>
+
+    <!-- Gaine extérieure du câble (coupée à plat à x=325) -->
+    <rect x="325" y="125" width="2" height="50" fill="#000000"/>
+
+    <!-- Surface de la coupe du câble (Vue en coupe droite) -->
+    <ellipse cx="325" y="150" rx="4" ry="25" fill="#27272a" />
+
+    <!-- Blindage par tresse métallique / Feuillard alu visible sur la tranche -->
+    <ellipse cx="325" y="150" rx="2" ry="23" fill="none" stroke="url(#foil-grad)" stroke-width="1.5"/>
+
+    <!-- Les 4 fils internes coupés nets (Rouge, Blanc, Vert, Noir) -->
+    <!-- Fil 1: Alimentation VBUS (Rouge) -->
+    <circle cx="325" cy="138" r="4.5" fill="#ef4444"/>
+    <circle cx="325" cy="138" r="1.8" fill="url(#copper-grad)"/> <!-- Âme en cuivre -->
+
+    <!-- Fil 2: Données D- (Blanc) -->
+    <circle cx="325" cy="146" r="4.5" fill="#ffffff" stroke="#e4e4e7" stroke-width="0.5"/>
+    <circle cx="325" cy="146" r="1.8" fill="url(#copper-grad)"/>
+
+    <!-- Fil 3: Données D+ (Vert) -->
+    <circle cx="325" cy="154" r="4.5" fill="#22c55e"/>
+    <circle cx="325" cy="154" r="1.8" fill="url(#copper-grad)"/>
+
+    <!-- Fil 4: Masse GND (Noir) -->
+    <circle cx="325" cy="162" r="4.5" fill="#09090b" stroke="#3f3f46" stroke-width="0.5"/>
+    <circle cx="325" cy="162" r="1.8" fill="url(#copper-grad)"/>
+    
+    <!-- Fils de drainage / Coton de rembourrage interne (Petits détails de coupe) -->
+    <circle cx="324" cy="150" r="1" fill="#a1a1aa"/>
+    <circle cx="326" cy="142" r="0.8" fill="#a1a1aa"/>
+  </g>
+</svg>

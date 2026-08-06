@@ -48,35 +48,39 @@
 
 ## The interface
 ![interface](../../media/interface.webp)
-*Kablix interface: **①** the parts **palette** on the left, **②** the circuit **canvas** in the center, **③** the **inspector** (Properties/variables) on the right, **④** the **serial monitor/Console/REPL**, **⑤** the **Plotter** at the bottom and **⑥** the **toolbars** (Simulation and drawing) at the top.*
+*Kablix interface: **①** the parts **palette** on the left, **②** the circuit **canvas** in the center, **③** the **inspector** (Properties/variables) on the right, **④** the **serial monitor/Console/REPL**, **⑤** the **Plotter** at the bottom and **⑥** the **toolbars** — the Kablix one right at the top, the **simulation** one on the left of the canvas and the **drawing** one on the right.*
 
 - **Palette**: clicking a part places it on the canvas. Two sort modes to choose from (buttons at the top) ![sort buttons](<../../media/boutons trie.webp>): alphabetical or by categories. A **“Recently used”** zone (10 max) can stay at the top (third button). The last button changes the palette's reaction mode.
-- **Kablix toolbar**
+- **Kablix toolbar** (at the top of the window)
 ![Kablix bar](<../../media/barre kablix.webp>)
-    - the usual file-management functions,
-    - the Names button, which shows the name on the **selected** part or on all parts,
+    - **Kablix v…**: the name and version number; clicking it opens the GitHub repository.
+    - the usual file-management functions: **new project**, **open**, **save**, **save as**, **export the diagram as SVG**,
+    - the **Names** button, which shows the name on the **selected** part or on all parts,
     - **rearrange**: restores the Kablix layout (code on one side, Kablix on the other, panels closed). You can swap the two zones and set their width with the mouse, then use **Save this layout as the default** (hamburger menu): both the side of Kablix **and** the width are remembered, and “rearrange” restores them — including moving Kablix back to the chosen side if it has changed since. The code file is never opened twice: if it is already open (even on the wrong side), Kablix reuses its tab and moves it back to the code side.
-    - the hamburger menu for less frequent functions,
-    - access to this help.
-- **Simulation bar**
+    - the **hamburger menu** for less frequent functions: import / export a **Wokwi** diagram, export the **part list (CSV)**, update the **Pico firmware**, check for **library updates**, save the default layout,
+    - access to this **help**,
+    - the current **project name**. If the `.projix` is **deleted from disk** while it is open, its name is **struck through** — in the bar as well as in the VS Code tab; it is restored if the file comes back (recycle bin, undo).
+    - the project's **code file** 📄, right next to the name: **click = change**, **double-click = open** (it opens on the code side),
+    - the **status** area (“Ready”, build messages…) and, only when the page can no longer keep up, the **“Slowed down: 0.45× real time”** badge.
+- **Simulation bar** (on the left, over the canvas)
 ![Simulation bar](../../media/BarreSimulation.webp)
-    - **▶ start**
+    - **▶ start** (saves the diagram and the code first)
     - **■ stop**
     - **⏸ pause/resume**
     - **step**
-    - the **speed** selector 🐇/🐢/🐌 to speed up or slow down the simulation
-    - **code file** click = change, double-click = open (opens the project's code file on the left)
-    - **REPL**: for Pico only, shows the traditional Python console
+    - the **speed** selector, one animal per setting: 🦅 500 %, 🐆 200 %, 🐇 100 % (real time), 🐢 10 %, 🐌 1 %. Speeding up is a **wish**: the simulation runs as fast as it can, never faster.
+    - **REPL**: for Pico only, shows the traditional Python console (it only appears when the board on the canvas is a Pico)
     - **serial monitor / console**
-    - **Plotter**.
-- **Drawing bar**
+    - **Plotter**
+    - **fault explanations**: the red frame and the yellow label put on a faulty part. On by default; the button hides them when they get in the way of reading the diagram.
+- **Drawing bar** (on the right, over the canvas)
 ![Drawing bar](../../media/BarreDessin.webp)
-  - **Kablix button** shows the internal schematic or the full pinout of the part.
+    - **part button**: shows the **internal schematic** of the selected part, or the **full pinout** of the board. It only appears when the selected part offers one.
     - **autoroute** routes the selection or the whole circuit
     - **grid** (show/hide)
     - **recenter/fit the view**
-    - **⟲ reset** the parts
-    - **eraser** (clear the diagram).
+    - **⟲ reset all components**: puts every part back to its idle state (switches released, sliders at rest) without touching the wiring. **Hidden by default** — the *Show the “Reset all components” button* checkbox in the Kablix settings brings it back.
+    - **eraser**: clears the whole diagram, parts and wires (Ctrl+Z undoes it). **Hidden by default** too — *Show the “Clear the diagram” button* checkbox.
 - **Properties/Variables** (inspector):
     - While drawing, edits the selected part (color, value, angle…) or wire (Dupont color, deletion, node [equipotential])
     - during the simulation, shows the variables.
@@ -161,7 +165,7 @@ While the simulation runs, the board lights up like the real one: the **green ON
 
 The simulation follows **real time**: one second on screen is one second on the real board, and `delay(1000)` really lasts one second. When the page is busy for a moment (drawing a part, a scrolling serial monitor), the simulation **catches up** as soon as it gets the thread back; only long stalls (more than a quarter of a second, a tab left in the background) are given up — that time is then **skipped**, never replayed fast-forward.
 
-The 🐇/🐢/🐌 selector deliberately slows execution down (100 %, 10 %, 1 % of real time) to watch a fast phenomenon. The simulation never runs **faster** than a real board.
+The animal selector deliberately slows execution down — 🐢 10 %, 🐌 1 % of real time — to watch a fast phenomenon. The other way round, 🐆 200 % and 🦅 500 % **ask** for a speed-up: the simulation then takes everything the machine can give, but it only goes past real time on a program that lets the core sleep. 🐇 100 % is real time.
 
 If the board still cannot keep up, a **“Slowed down: 0.45× real time”** badge appears next to the status bar: the page is too busy for the simulation (large diagram, loaded machine). Slowing down on purpose with the selector is not counted as a fault. The badge disappears as soon as the simulation is back on time, and when it stops.
 
@@ -196,7 +200,7 @@ The firmware boots in the simulator (bootrom + flash + USB), then the script is 
 
 ### Debugging
 
-- **⏸ Pause / ▶ Resume**: freezes the simulation; pin and LED states stay displayed. The 🐇/🐢/🐌 selector slows execution down (Uno).
+- **⏸ Pause / ▶ Resume**: freezes the simulation; pin and LED states stay displayed. The animal selector (🦅 500 % → 🐌 1 %) sets the execution rate.
 - **Step**: runs one line of the source file then pauses again. The **Variables** panel then shows the current line and the program's global variables; the line is also highlighted in the VS Code editor. A variable that has just changed is shown in red.
 - **Breakpoints**: click in the editor gutter (left of the line numbers) before or during the run; the simulation pauses when the line is reached. Breakpoints can be conditional.
 

@@ -281,9 +281,26 @@ export interface SimulatorHost {
   ): void;
   /** Titre de base (sans le ●) + état « non enregistré » : l'hôte choisit le rendu. */
   setDirtyIndicator(dirty: boolean, baseTitle: string): void;
+  /** Le .projix ouvert a été SUPPRIMÉ du disque : son nom est barré dans l'onglet
+   *  de VS Code (demande de Frank). L'hôte choisit le rendu — l'onglet d'un
+   *  éditeur de TEXTE est barré nativement par VS Code, celui d'un éditeur
+   *  personnalisé ne l'est pas. */
+  setDeletedIndicator?(deleted: boolean): void;
   /** Édition utilisateur signalée par la webview : le CustomEditor empile un edit
    *  (point ● natif + Ctrl+Z natif). Optionnel (le WebviewPanel legacy l'ignore). */
   onDocEdit?(): void;
+}
+
+/**
+ * Texte BARRÉ dans un titre d'onglet. Un titre d'onglet est du texte brut : ni
+ * balise, ni style. Le seul barré possible est typographique — un « combining
+ * long stroke overlay » (U+0336) posé après chaque caractère, qui trace le trait
+ * dans la police elle-même. Les espaces sont laissés tranquilles (le trait
+ * flotterait tout seul entre deux mots).
+ */
+export function strikeThroughText(text: string): string {
+  const STROKE = '̶';
+  return [...text].map((ch) => (ch === ' ' ? ch : ch + STROKE)).join('');
 }
 
 export class SimulatorPanel {
@@ -1018,11 +1035,18 @@ export class SimulatorPanel {
    *  puis un point noir « ● » (après le nom) tant que des modifications ne sont
    *  pas enregistrées. Le titre d'onglet est du texte brut. */
   private updateTitle(): void {
-    const project = this.projectBaseName ? `${this.projectBaseName}.Projix` : this.projectDisplayName();
+    const gone = this.gone.has('project');
+    let project = this.projectBaseName ? `${this.projectBaseName}.Projix` : this.projectDisplayName();
+    // Projet supprimé sous le nez de l'atelier : son nom est barré DANS L'ONGLET,
+    // pas seulement dans la barre de l'atelier.
+    if (project && gone) project = strikeThroughText(project);
     const base = project ? `${l10n.t('Kablix — Simulator')} — ${project}` : l10n.t('Kablix — Simulator');
     // L'hôte décide du rendu du « non enregistré » : ⬤ dans le titre pour le
     // WebviewPanel, point ● NATIF de l'onglet pour le CustomEditor.
     this.panel.setDirtyIndicator(this.projectDirty, base);
+    // Onglet d'un éditeur personnalisé : son titre est le nom du fichier, pas
+    // celui construit ici — c'est l'hôte qui le barre.
+    this.panel.setDeletedIndicator?.(gone);
   }
 
   /** Référence du fichier de code pour le .projix : chemin relatif au workspace, sinon nom. */

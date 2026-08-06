@@ -716,6 +716,14 @@ textarea {
   cursor: pointer;
 }
 
+/* `display: flex` ci-dessus (feuille de l'auteur) bat le `display: none` que le
+   navigateur pose sur [hidden] (feuille de l'UA) : sans cette règle, un bouton
+   masqué par l'extension — « réinitialiser les composants » et « effacer le
+   schéma », décochés dans les réglages — restait bel et bien affiché. */
+.canvas-controls__btn[hidden] {
+  display: none;
+}
+
 .canvas-controls__btn.primary {
   background: var(--vscode-button-background, #0e639c);
   color: var(--vscode-button-foreground, #fff);
@@ -899,13 +907,17 @@ textarea {
   font-weight: 700;
 }
 
-/* Fichier supprimé SOUS LE NEZ de l'atelier : nom BARRÉ en rouge, comme
-   VS Code barre l'onglet d'un fichier disparu. Le trait passe devant le fond
-   d'avertissement (le bouton est aussi « sans fichier ») : c'est le trait qui
-   dit « il n'existe plus », pas seulement « il en manque un ». */
+/* Fichier supprimé SOUS LE NEZ de l'atelier : nom BARRÉ, comme VS Code barre
+   l'onglet d'un fichier disparu. Le trait passe devant le fond d'avertissement
+   (le bouton est aussi « sans fichier ») : c'est le trait qui dit « il n'existe
+   plus », pas seulement « il en manque un ». La couleur vient du THÈME (Frank :
+   « pas forcément en rouge, dans la couleur du thème ») : c'est celle dont
+   VS Code se sert pour un fichier supprimé dans l'explorateur, avec repli sur la
+   couleur d'erreur puis sur le rouge d'avant. */
 .toolbar button.toolbar__file.toolbar__file--deleted {
   text-decoration: line-through;
-  text-decoration-color: #ff5b5b;
+  text-decoration-color: var(--vscode-gitDecoration-deletedResourceForeground,
+    var(--vscode-errorForeground, #ff5b5b));
   text-decoration-thickness: 2px;
 }
 
@@ -913,9 +925,11 @@ textarea {
    le nom du projet, qui n'est pas un bouton. */
 .project-name--deleted {
   text-decoration: line-through;
-  text-decoration-color: #ff5b5b;
+  text-decoration-color: var(--vscode-gitDecoration-deletedResourceForeground,
+    var(--vscode-errorForeground, #ff5b5b));
   text-decoration-thickness: 2px;
-  color: #ff5b5b;
+  color: var(--vscode-gitDecoration-deletedResourceForeground,
+    var(--vscode-errorForeground, #ff5b5b));
 }
 
 /* Lancement de la simulation sans fichier : clignote 3 fois. */
