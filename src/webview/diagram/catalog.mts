@@ -773,6 +773,17 @@ export const CATALOG: readonly PartDef[] = [
       { attr: 'maxcurrent', label: 'Max current supplied (A)', kind: 'number', min: 0.1, max: 10, step: 0.1 },
     ],
   },
+  // Batterie externe USB (dessin de Frank) : source V+/GND comme l'alim de
+  // laboratoire (kind 'psu'), mais sortie RÉGULÉE FIXE (pas de bouton). LED1..4
+  // (jauge de charge du dessin) s'allument ensemble tant que la simulation
+  // tourne (powerbank-element.mts).
+  {
+    type: 'powerbank', label: 'Power bank', tag: 'kablix-powerbank', kind: 'psu',
+    attrs: { voltage: '5', maxcurrent: '2' },
+    props: [
+      { attr: 'maxcurrent', label: 'Max current supplied (A)', kind: 'number', min: 0.1, max: 10, step: 0.1 },
+    ],
+  },
   // Clavier matriciel à membrane (3 ou 4 colonnes). Interactif : une touche
   // enfoncée court-circuite ligne/colonne (lecture matricielle simulée).
   {
@@ -799,6 +810,9 @@ export function partCategory(def: PartDef): string {
   // Composants rangés par type quand le `kind` ne suffit pas à les classer.
   if (def.type === 'dht22' || def.type === 'dht11' || def.type === 'hcsr04') return 'Sensors';
   if (def.type === 'keypad') return 'Controls';
+  // Batterie portable (kind 'psu' comme l'alim de laboratoire, mais ce n'est
+  // pas un appareil de mesure) : rangée avec les modules divers.
+  if (def.type === 'powerbank') return 'Misc';
   switch (def.kind) {
     case 'mcu':
     case 'breadboard':

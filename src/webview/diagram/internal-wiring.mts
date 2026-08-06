@@ -36,6 +36,9 @@ import diodeSchema from '../composants/interne/diode-interne.svg';
 import condoNpSchema from '../composants/interne/condo-np-interne.svg';
 import condoPSchema from '../composants/interne/condo-p-interne.svg';
 import relaisSchema from '../composants/interne/relais-interne.svg';
+// Symbole générique de pile (groupe « bat-interne », Composants.svg), calé sur
+// le cadre du dessin externe Powerbank : resservira à d'autres composants pile.
+import batterySchema from '../composants/interne/bat-interne-interne.svg';
 // Symboles de BOÎTIER PARTAGÉ : dessinés dans un groupe indépendant (« NPN1 »,
 // « PNP1 ») et extraits au cadre du boîtier qui les porte (to92). Ils relient
 // les pattes aux électrodes par des fils colorés dans l'ordre E-B-C : seule une
@@ -310,6 +313,7 @@ const CAPACITOR_SCHEMA: Record<'np' | 'p', Schema> = {
   p: parseSchema(condoPSchema),
 };
 const RELAIS_SCHEMA = parseSchema(relaisSchema);
+const BATTERY_SCHEMA = parseSchema(batterySchema);
 // Symboles internes choisis NOMMÉMENT par l'attribut `schema` : le dessin d'une
 // référence ne se déduit pas de sa famille (deux NPN peuvent porter NPN1 ou
 // NPN-Générique), c'est sa fiche qui le dit.
@@ -459,6 +463,10 @@ export function internalWiringSvg(
   // Résistances variables nues : symbole dessiné à la main (avant le cas
   // générique `resistor`, qui ne tracerait qu'une boîte).
   if (type === 'ldr' || type === 'ntc' || type === 'ptc') return scaledSchema(VARISTOR_SCHEMA[type], box);
+  // Pile générique : dessin de Frank au cadre du Powerbank, simple mise à
+  // l'échelle (comme diode/relais) — l'alim de laboratoire (kind 'psu' aussi)
+  // n'a pas de schéma dessiné, seul `type === 'powerbank'` en a un.
+  if (type === 'powerbank') return scaledSchema(BATTERY_SCHEMA, box);
   switch (kind) {
     case 'diode':
       return scaledSchema(DIODE_SCHEMA, box);

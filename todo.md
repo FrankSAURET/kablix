@@ -7,6 +7,15 @@
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
 
+# >>>>  v2026.8.5 — la batterie externe alimente le premier servo, sur la branche `araignee-3d`
+
+1. ✅ **Nouveau composant : batterie externe (Power bank).** Dessin de Frank extrait de `Composants.svg` (groupe `Powerbank`, 430×250 px) ; schéma interne partagé `bat-interne` (extrait au cadre du dessin externe, resservira à d'autres composants « pile »). Broches `V+`/`GND`, `kind: 'psu'` comme l'alim de laboratoire mais **tension fixe** (5 V, pas de bouton) — seul `maxcurrent` est réglable (défaut 2 A).
+2. ✅ **Les 4 LED de jauge (LED1..LED4) s'allument ensemble, avec un halo blanc**, tant que la simulation tourne — sur le modèle de l'alim de laboratoire (glow dynamique, exclu de l'export SVG).
+3. ✅ Branchée partout : catalogue (palette « Divers »), vue interne (schéma `bat-interne` affiché à la sélection), i18n FR/EN, fiches d'aide `docs/fr` + `docs/en` avec illustration capturée (`_capture-part.mjs`), tests `testkablix` `powerbank-uno`/`powerbank-pico` (alimente un PCA9685 + servo — le montage de base du futur banc araignée).
+4. ✅ Typecheck, build, et vérifications ciblées (`verify:psu`, `verify:pca`, `verify:i18n`, `verify:components`, `verify:diagram`, `verify:docs`) au vert.
+5. ℹ️ **Travail fait sur la branche annexe `araignee-3d`** (pas `main`), à la demande de Frank — pas encore fusionnée/poussée.
+6. ⏳ **Composant araignée : bloqué, aucun dessin dans `Composants.svg`.** Convention du projet : Frank seul dessine les composants. En attendant, un banc électronique (Pico + PCA9685 + 8 servos + powerbank, sans le dessin de l'araignée) peut être livré pour visualiser les mouvements de pattes.
+
 # >>>>  v2026.8.4 — les flèches sélectionnent enfin, le condensateur va trois fois plus vite
 
 1. ✅ **Sélecteur de transistor : le VRAI défaut des flèches est trouvé, et prouvé au clic réel.** La correction v2026.8.2 recalait la liste sur `scroll` — c'est-à-dire **en pleine animation de Chrome**, qui anime un clic de flèche et le répète au maintien. Les deux se disputaient la position : mesuré au clic réel, **334 px au premier clic puis le FOND au cinquième** — exactement « les flèches passent directement de en haut à en bas ». Le recalage attend désormais la **fin** du geste (`scrollend`, ou 90 ms de silence) : **37 px par clic, soit une entrée**, à la montée comme à la descente, maintien compris.

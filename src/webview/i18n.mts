@@ -440,6 +440,7 @@ const FR: Record<string, string> = {
   'Bench power supply': 'Alimentation de laboratoire',
   'Voltage (V)': 'Tension (V)',
   'Max current supplied (A)': 'Courant max fourni (A)',
+  'Power bank': 'Batterie externe',
   'Voltage': 'Tension',
   'Current limit': 'Courant limite',
 
