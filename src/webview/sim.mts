@@ -2896,6 +2896,20 @@ function startRun(): void {
     if (rest) appendSerial(rest);
   };
   engine.onDebugPause = renderDebugPause;
+  // Pico : le programme tourne d'abord sans instrumentation (pleine vitesse) et
+  // n'est relancé en version « pas à pas » qu'au premier point d'arrêt. Le rejeu
+  // se fait en silence jusqu'à ce point : on repart d'une console vierge pour ne
+  // pas afficher deux fois le début du programme.
+  if (engine.onDebugRestart !== undefined) {
+    engine.onDebugRestart = (phase) => {
+      if (phase === 'start') {
+        clearSerial();
+        setStatus(t('Restarting in debug mode…'));
+      } else if (engine && !engine.paused) {
+        setStatus(t('Running…'));
+      }
+    };
+  }
   // MicroPython : le firmware met quelques secondes à démarrer puis le script
   // est injecté par le raw REPL. Sans ce signal, le message « Démarrage
   // MicroPython… » restait affiché tout le temps de la simulation.
@@ -3554,6 +3568,7 @@ window.addEventListener('message', (event: MessageEvent) => {
               data: b64ToBytes(s.b64),
             })),
             script: msg.script as string | undefined,
+            scriptDebug: msg.scriptDebug as string | undefined,
           };
         }
         ensureFamilyForPayload('pico');

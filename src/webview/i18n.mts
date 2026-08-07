@@ -11,6 +11,7 @@ const FR: Record<string, string> = {
   'Compiling…': 'Compilation…',
   'Starting MicroPython… (a few seconds)': 'Démarrage MicroPython… (quelques secondes)',
   'Starting REPL…': 'Démarrage du REPL…',
+  'Restarting in debug mode…': 'Redémarrage en mode débogage…',
   'REPL ready — type your commands in the console':
     'REPL prêt — tapez vos commandes dans la console',
   'Board: {0}': 'Carte : {0}',
@@ -149,7 +150,7 @@ const FR: Record<string, string> = {
   'Click a corner then Del: remove it.': 'Cliquer un coude puis Suppr pour le supprimer.',
   'Drag to move — Ctrl: H/V alignment — Del: remove this corner':
     'Glisser pour déplacer — Ctrl : alignement H/V — Suppr : supprimer ce coude',
-  'No file': 'Aucun fichier',
+  'No file': 'Pas de code associé',
   'Code file to run / debug — click to change, double-click to open':
     'Fichier de code à exécuter / déboguer — cliquer pour changer, double-cliquer pour ouvrir',
   'Code file: {0} — click to change, double-click to open':

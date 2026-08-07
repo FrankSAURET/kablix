@@ -367,5 +367,84 @@ try {
   engine.dispose();
 }
 
+// --- 3. Hybride : script rapide, bascule en débogage au 1er point d'arrêt -----
+// Le programme tourne SANS instrumentation (régime 1,00) ; poser un point
+// d'arrêt à chaud le relance en version instrumentée, en silence, jusqu'à ce
+// point d'arrêt. C'est le comportement réel : le compilateur fournit les deux
+// variantes (payload.script + payload.scriptDebug).
+console.log('\nTest hybride (script rapide → bascule en débogage) :');
+const hybrid = new PicoEngine({
+  kind: 'flash',
+  segments,
+  script,
+  scriptDebug: instrumentPython(script),
+});
+let hSerial = '';
+const hStates = [];
+const restarts = [];
+let mutedChars = 0; //     caractères affichés PENDANT le rejeu (doit rester 0)
+let muted = false;
+hybrid.onSerial = (chunk) => {
+  hSerial += chunk;
+  if (muted) mutedChars += chunk.length;
+};
+hybrid.onDebugPause = (state) => hStates.push(state);
+hybrid.onDebugRestart = (phase) => {
+  restarts.push(phase);
+  muted = phase === 'start';
+};
+const hTicks = () => (hSerial.match(/TICK \d+/g) ?? []).length;
+
+hybrid.start();
+try {
+  await waitFor(() => hSerial.includes('START'), 300000, "'START' (script rapide)");
+  await waitFor(() => hTicks() >= 2, 120000, 'boucle lancée (script rapide)');
+  check('hybride : le script rapide tourne', true);
+  check('hybride : aucun état de débogage sans point d’arrêt', hStates.length === 0);
+
+  // Pause pendant le script rapide : gel du simulateur, sans relance.
+  const ticksBeforePause = hTicks();
+  hybrid.pause();
+  check('hybride : pause immédiate (engine.paused)', hybrid.paused === true);
+  await new Promise((r) => setTimeout(r, 1500));
+  check('hybride : la pause fige vraiment le programme', hTicks() === ticksBeforePause);
+  check('hybride : la pause ne relance pas le programme', restarts.length === 0);
+  hybrid.resume();
+  await waitFor(() => hTicks() > ticksBeforePause, 120000, 'reprise après la pause du script rapide');
+  check('hybride : reprise après pause', true);
+
+  // Point d'arrêt posé à chaud : bascule + rejeu silencieux jusqu'à la ligne 12.
+  hybrid.setBreakpoints([{ line: 12 }]);
+  check('hybride : redémarrage annoncé (start)', restarts[0] === 'start', JSON.stringify(restarts));
+  await waitFor(() => hStates.length >= 1, 180000, 'arrêt sur le point d’arrêt après bascule');
+  const hState = hStates[hStates.length - 1];
+  check('hybride : arrêt sur la ligne 12', hState.line === 12, `ligne=${hState.line}`);
+  check('hybride : engine.paused après bascule', hybrid.paused === true);
+  check('hybride : fin du rejeu annoncée (end)', restarts.includes('end'), JSON.stringify(restarts));
+  check('hybride : rien ne s’affiche pendant le rejeu', mutedChars === 0, `${mutedChars} caractère(s)`);
+  const hVars = Object.fromEntries(hState.variables.map((v) => [v.name, v.value]));
+  check('hybride : variables lisibles après bascule', 'compteur' in hVars, JSON.stringify(hVars));
+
+  // Le pas à pas fonctionne sur le programme rebasculé.
+  const hBefore = hStates.length;
+  hybrid.setBreakpoints([]);
+  hybrid.step();
+  await waitFor(() => hStates.length > hBefore, 60000, 'pas à pas après bascule');
+  check('hybride : pas à pas après bascule', hStates.length > hBefore);
+  const ticksAtBp = hTicks();
+  hybrid.resume();
+  await waitFor(() => hTicks() > ticksAtBp, 120000, 'reprise après le point d’arrêt');
+  check('hybride : reprise finale', true);
+} catch (err) {
+  check(
+    String(err.message ?? err),
+    false,
+    `phase REPL=${hybrid.replPhase ?? '?'}, états=${hStates.length}, bascules=${JSON.stringify(restarts)}, ` +
+      `série : ${JSON.stringify(hSerial.slice(-300))}`
+  );
+} finally {
+  hybrid.dispose();
+}
+
 console.log(failures === 0 ? '\nRESULTAT: OK' : '\nRESULTAT: ECHEC');
 process.exit(failures === 0 ? 0 : 1);

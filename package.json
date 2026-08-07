@@ -1,7 +1,7 @@
 {
   "name": "kablix",
   "displayName": "Kablix",
-  "version": "2026.8.11",
+  "version": "2026.8.12",
   "description": "%kablix.description%",
   "publisher": "electropol-fr",
   "author": {
@@ -24,7 +24,10 @@
   "categories": [
     "Education",
     "Visualization",
-    "Other"
+    "Arduino",
+    "Raspberry Pi",
+    "Pico Pi",
+    "Simulation"
   ],
   "keywords": [
     "arduino",

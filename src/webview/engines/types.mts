@@ -223,6 +223,12 @@ export interface SimEngine {
    * « En marche » au bon moment plutôt que de laisser le message en place.
    */
   onRunning?: (() => void) | null;
+  /**
+   * MicroPython : le programme est relancé en version instrumentée (premier point
+   * d'arrêt posé à chaud). 'start' au moment du redémarrage, 'end' quand le rejeu
+   * silencieux atteint le point d'arrêt — ou renonce.
+   */
+  onDebugRestart?: ((phase: 'start' | 'end') => void) | null;
   /** Pont réseau (Pico W) : appelé quand le script émet une requête HTTP. */
   onNetRequest?: ((req: NetRequest) => void) | null;
   /** Réinjecte dans le script la réponse réseau obtenue par l'hôte. */

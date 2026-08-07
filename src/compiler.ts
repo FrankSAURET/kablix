@@ -45,8 +45,10 @@ export type ProgramPayload =
       board: 'pico';
       format: 'rp2040-flash';
       segments: Array<{ addr: number; b64: string }>;
-      /** Script MicroPython à exécuter après le démarrage du firmware. */
+      /** Script MicroPython à exécuter après le démarrage du firmware (version rapide, non instrumentée). */
       script?: string;
+      /** Même script instrumenté pour le pas à pas, injecté à la place du précédent dès qu'on débogue. */
+      scriptDebug?: string;
     };
 
 export interface CompileResult {
@@ -603,32 +605,41 @@ export function loadPythonProgram(
   scriptPath?: string
 ): CompileResult {
   const segments = parseUf2(new Uint8Array(readFileSync(firmwareUf2Path)));
-  // Instrumente le script pour le pas à pas (préambule __kx + un appel par
-  // ligne) ; en cas d'échec, on retombe sur le script original tel quel.
-  let script = scriptSource;
-  try {
-    script = instrumentPython(scriptSource);
-  } catch {
-    script = scriptSource;
-  }
-  // Pico W : préambule de pont réseau (faux network/urequests tunnelés vers
-  // l'hôte) injecté AVANT tout, pour patcher sys.modules avant les import du script.
-  if (enableNetwork) script = NET_PREAMBLE + '\n' + script;
   // Modules utilisateur injectés dans sys.modules AVANT tout le reste (le script
   // les importe ensuite comme sur une vraie carte, sans système de fichiers).
   // Seuls les modules RÉELLEMENT importés sont retenus (pas les autres .py du dossier).
   const libs = scriptPath ? collectPythonLibs(scriptPath, scriptSource) : [];
   const preamble = pythonLibPreamble(libs);
-  if (preamble) script = preamble + script;
-  // Rustine du scan I²C (évite le figement sur `bus.scan()` en simulation) — en
-  // tout premier, avant l'import de `machine` par le script/les modules.
-  script = I2C_SCAN_SHIM + script;
+  // Préambules communs aux deux variantes. Ils viennent APRÈS l'instrumentation
+  // (qui numérote les lignes du source de l'élève) : les numéros restent ceux du
+  // fichier ouvert dans l'éditeur, quel que soit le nombre de lignes ajoutées.
+  const withPreambles = (body: string): string => {
+    // Pico W : pont réseau (faux network/urequests tunnelés vers l'hôte) avant
+    // tout, pour patcher sys.modules avant les import du script.
+    let s = enableNetwork ? NET_PREAMBLE + '\n' + body : body;
+    if (preamble) s = preamble + s;
+    // Rustine du scan I²C (évite le figement sur `bus.scan()` en simulation) — en
+    // tout premier, avant l'import de `machine` par le script/les modules.
+    return I2C_SCAN_SHIM + s;
+  };
+  // Deux variantes du même programme (cf. PicoEngine) : le script BRUT tourne à
+  // pleine vitesse (l'instrumentation coûte ~25 % de régime, mesuré v2026.8.11),
+  // et la variante instrumentée pour le pas à pas ne prend le relais que si un
+  // point d'arrêt est posé. En cas d'échec de l'instrumentation, les deux sont
+  // identiques : le débogage sera sans effet, mais le programme tournera.
+  let instrumented = scriptSource;
+  try {
+    instrumented = instrumentPython(scriptSource);
+  } catch {
+    instrumented = scriptSource;
+  }
   return {
     payload: {
       board: 'pico',
       format: 'rp2040-flash',
       segments: segments.map((s) => ({ addr: s.addr, b64: toB64(s.data) })),
-      script,
+      script: withPreambles(scriptSource),
+      scriptDebug: withPreambles(instrumented),
     },
     log:
       `Firmware MicroPython : ${basename(firmwareUf2Path)}` +

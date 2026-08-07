@@ -68,6 +68,7 @@ for (const nom of sketches) {
       addr: s.addr, data: new Uint8Array(Buffer.from(s.b64, 'base64')),
     })),
     script: program.payload.script,
+    scriptDebug: program.payload.scriptDebug, // comme en vrai : bascule possible, mais non déclenchée
   });
   let fronts = 0;
   engine.onUpdate = () => { fronts++; }; // un appel par front GPIO

@@ -1,16 +1,22 @@
 # À faire
-
-1. Rajoute les tag Simulation, Arduino, Raspberry, Pico Pi à l'extension
+1. il y a une version  plus récente de rp2040.js. Vérifie les nouveauté, dis les moi et tente la mise à jour.
 1. Quand je clique sur repl la version de micropython est toujours celle du pico pi w, indépendament de la carte choisis. C'est intentionnel ?
-1. Le message "Aucun fichier" (de simulation) doit devenir "Pas de code associé"
-1. Le barré de l'onglet est plus un souligné il faut un barré
+1. Le barré de l'onglet est plus un souligné il faut un "vrai" barré
+1. J'ai mis à jour l'aide fr, fait de même pour en.
 1. Araignée 3D : on était partis sur un aspect 3d, tu m'avais proposé 2 solutions du vrai 3 d ou du 2d qui ressemble à de la 3d. Retrouve la conversation; et dit moi si c'est ce que tu as fait. 
-
-# À trancher par Frank
-1. **Régime du Pico : reste-t-on à 0,78 ou va-t-on chercher le 1,00 ?** La cause du plafond a été trouvée en v2026.8.11 (l'instrumentation de pas à pas, cf. ci-dessous) et le régime de `Horloge.py` est passé de **0,33 à 0,78**. Les **22 % qui manquent** sont le coût irréductible du script instrumenté : la garde `__kx_on and` en tête de chaque ligne (+23 % d'instructions ARM, mesuré) et les cellules de fermeture qu'imposent les lambdas de locales (+18 %). Un script **non instrumenté** tient **1,00** — mesuré. Pour l'atteindre il faudrait envoyer le script BRUT par défaut et **relancer le programme** en version instrumentée au premier clic sur Pause / au premier point d'arrêt. Prix : le programme repart de zéro quand on entre en débogage. À trancher.
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# >>>>  v2026.8.12 — le Pico tourne à 1,00 : le débogueur ne se charge que si on débogue
+
+1. ✅ **Régime `Horloge.py` : 0,78 → 1,00.** Le programme envoyé au Pico est désormais le script **BRUT**, sans une seule ligne d'instrumentation : c'est lui qui tourne tant que personne ne débogue. Le chronomètre de Frank est tenu — l'heure simulée avance à la vitesse de l'heure vraie, et le badge « ralentie » ne s'affiche plus. Mesures : `Horloge.py` **1,00** · `blink-pico.py` **1,00** · `condo-pico.py` **0,99** (`scripts/_mesure-regime-pico.mjs`).
+2. ✅ **Deux variantes du même programme sont préparées à la compilation** (`loadPythonProgram`) : `script` (brut, rapide) et `scriptDebug` (instrumenté pour le pas à pas). Les préambules communs — rustine I²C, modules de l'élève, pont réseau Pico W — sont posés **après** l'instrumentation sur les deux : les numéros de ligne restent ceux du fichier ouvert dans l'éditeur.
+3. ✅ **Hybride demandé par Frank : « si point d'arrêt, relance, mais exécution silencieuse jusqu'au point d'arrêt ».** Point d'arrêt posé **avant** le lancement → le programme démarre directement instrumenté, **aucune relance**. Bouton **Pause** pendant le script rapide → **gel immédiat** du simulateur, sans relance non plus. Point d'arrêt (ou pas à pas) demandé **pendant** que ça tourne → le moteur reprend la main sur le script (Ctrl-C), réinjecte la version instrumentée par le raw REPL **sans redémarrer le firmware**, et rejoue le programme **en silence** jusqu'à ce point d'arrêt.
+4. ✅ **Le rejeu est vraiment silencieux** : la sortie série est **retenue** (jamais affichée pendant le rejeu), le simulateur tourne **à fond** (allocation ×100, réglage de vitesse restauré ensuite), la console est **effacée** au redémarrage (sinon le début du programme s'afficherait deux fois) et le tampon retenu est restitué **d'un bloc** à l'arrivée sur le point d'arrêt. Le moniteur affiche « Redémarrage en mode débogage… » pendant l'opération (FR + EN).
+5. ✅ **Garde-fous** : Ctrl-C réémis jusqu'à 4 fois si le script rapide ne rend pas la main (`sleep` long, `KeyboardInterrupt` rattrapé) ; au bout de **20 s** sans point d'arrêt atteint, le silence est levé et le moniteur reprend la parole — le programme, lui, continue en version instrumentée. Fin du programme pendant le rejeu : le silence est levé aussi, rien n'est perdu.
+6. ✅ **`verify:debug` étendu (14 contrôles de plus, tout au vert)** : le script rapide tourne sans produire aucun état de débogage, la pause fige réellement le programme sans le relancer, le point d'arrêt posé à chaud déclenche la bascule et l'arrêt sur la **bonne ligne**, **rien ne s'affiche pendant le rejeu** (compté caractère par caractère), les variables sont lisibles après bascule, et le pas à pas comme la reprise fonctionnent ensuite.
+7. ℹ️ **Ce qui change pour l'élève** : entrer en débogage **relance** le programme depuis le début (c'est le prix du 1,00, tranché par Frank). Tout le reste est identique — points d'arrêt conditionnels, variables locales, pas à pas, reprise.
 
 # >>>>  v2026.8.11 — le Pico ne traîne plus : le débogueur ne pèse plus sur chaque ligne (0,33 → 0,78)
 

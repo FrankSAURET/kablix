@@ -29,7 +29,19 @@ const FLASH_START = 0x10000000;
 
 export type PicoProgram =
   | { kind: 'ram'; image: Uint8Array }
-  | { kind: 'flash'; segments: FlashSegment[]; script?: string };
+  | {
+      kind: 'flash';
+      segments: FlashSegment[];
+      /** Script MicroPython tel quel : c'est lui qui tourne tant qu'on ne débogue pas. */
+      script?: string;
+      /**
+       * Même script, instrumenté pour le pas à pas (`__kx`). Fourni : le moteur
+       * démarre sur le script rapide et ne bascule sur celui-ci qu'au premier
+       * point d'arrêt / pas à pas. Absent : `script` est supposé déjà instrumenté
+       * (tests, appelants historiques) et sert aux deux usages.
+       */
+      scriptDebug?: string;
+    };
 
 function gpioIndex(name: string): number | null {
   const m = /^(?:GP)?(\d+)$/.exec(name);
@@ -46,6 +58,13 @@ function adcChannel(name: string): number | null {
 
 // Durée d'un cycle à 125 MHz (nanosecondes simulées).
 const CYCLE_NANOS = 1e9 / 125_000_000;
+
+// Rejeu silencieux (bascule vers le script instrumenté, cf. switchToDebug).
+const REPLAY_TICK_MS = 1500; //     période de surveillance (relance du Ctrl-C)
+const REPLAY_KICKS = 4; //          nombre de Ctrl-C avant d'abandonner l'interruption douce
+const REPLAY_MAX_MS = 20_000; //    au-delà, le moniteur reprend la parole
+const REPLAY_SPEED = 100; //        allocation de temps simulé pendant le rejeu (plein régime)
+const REPLAY_BUF_MAX = 200_000; //  sortie retenue : seule la fin est restituée
 
 /**
  * Simulator rp2040js au cadencement optimisé. La boucle d'origine appelle
@@ -205,6 +224,13 @@ export class PicoEngine implements SimEngine {
   onDebugPause: ((state: DebugPauseState) => void) | null = null;
   onRunning: (() => void) | null = null;
   onNetRequest: ((req: NetRequest) => void) | null = null;
+  /**
+   * Bascule vers le script instrumenté (cf. switchToDebug) : 'start' quand le
+   * programme est relancé en mode débogage, 'end' quand le rejeu silencieux
+   * s'achève (point d'arrêt atteint, fin du programme ou délai dépassé). Sert au
+   * message affiché dans le moniteur — le texte traduit est du ressort de l'UI.
+   */
+  onDebugRestart: ((phase: 'start' | 'end') => void) | null = null;
 
   /** Pas à pas : défini uniquement en mode script MicroPython (cf. constructeur). */
   step?: () => void;
@@ -216,7 +242,22 @@ export class PicoEngine implements SimEngine {
   /** Canaux ADC dont la tension est CALCULÉE à la conversion (cf. setAnalogSampler). */
   private analogSamplers = new Map<number, () => number>();
   private cdc: USBCDC | null = null;
+  /** Script actuellement injecté (brut au départ, instrumenté après bascule). */
   private script: string | null = null;
+  /** Variante instrumentée, gardée sous le coude jusqu'au premier point d'arrêt. */
+  private debugSource: string | null = null;
+  /** Vrai quand le script injecté est la variante instrumentée (débogage possible). */
+  private instrumented = false;
+  /** Bascule demandée : le script brut a reçu Ctrl-C, on réinjecte dès qu'il rend la main. */
+  private pendingDebug = false;
+  /** Rejeu silencieux : la sortie du redémarrage est retenue au lieu d'être affichée. */
+  private silentReplay = false;
+  private replayBuf = '';
+  private replayTimer: ReturnType<typeof setTimeout> | null = null;
+  private replayKicks = 0;
+  private replayDeadline = 0;
+  /** Vitesse demandée par l'utilisateur, restaurée après le rejeu (qui tourne à fond). */
+  private speedFraction = 1;
   private replPhase: ReplPhase = 'idle';
   private replBuffer = '';
   // Contrôle de flux raw-paste : le firmware accorde une fenêtre d'octets et
@@ -336,7 +377,11 @@ export class PicoEngine implements SimEngine {
         this.mcu.flash.set(seg.data, offset);
       }
       this.script = program.script ?? null;
-      // Le pas à pas n'existe qu'en mode script MicroPython instrumenté.
+      this.debugSource = program.scriptDebug ?? null;
+      // Sans variante instrumentée fournie, le script reçu EST la version de
+      // débogage (appelants historiques et tests) : pas de bascule à prévoir.
+      this.instrumented = this.debugSource === null;
+      // Le pas à pas n'existe qu'en mode script MicroPython.
       if (this.script) this.step = () => this.doStep();
 
       this.cdc = new USBCDC(this.mcu.usbCtrl);
@@ -874,6 +919,11 @@ export class PicoEngine implements SimEngine {
   dispose(): void {
     this.disposed = true;
     this.stop();
+    if (this.replayTimer !== null) {
+      clearTimeout(this.replayTimer);
+      this.replayTimer = null;
+    }
+    this.silentReplay = false;
     this.scheduled = [];
   }
 
@@ -883,12 +933,24 @@ export class PicoEngine implements SimEngine {
 
   /** Vrai quand le script MicroPython instrumenté est en cours d'exécution. */
   private get scriptRunning(): boolean {
-    return this.script !== null && this.replPhase === 'stdout';
+    return (
+      this.script !== null && this.replPhase === 'stdout' && this.instrumented && !this.pendingDebug
+    );
+  }
+
+  /** Vrai quand le script rapide tourne et qu'une variante instrumentée existe. */
+  private get canSwitchToDebug(): boolean {
+    return this.debugSource !== null && !this.instrumented && !this.pendingDebug && !this.disposed;
   }
 
   pause(): void {
     if (this.isPaused) return;
     this.isPaused = true;
+    // Pause pendant un redémarrage silencieux : le rejeu n'a plus lieu d'être
+    // (le simulateur va être gelé), la sortie retenue revient au moniteur.
+    // L'état « en pause » est posé AVANT, pour que la fin du rejeu ne réaffiche
+    // pas « En cours… » sur un programme qu'on est en train d'arrêter.
+    this.endSilentReplay();
     if (this.scriptRunning) {
       // Pause coopérative : \x05 (ENQ) sera traité au prochain appel __kx du
       // script instrumenté. Le firmware doit continuer à tourner pour lire
@@ -917,7 +979,15 @@ export class PicoEngine implements SimEngine {
 
   /** Un pas de débogage MicroPython (exposé via `step` en mode script). */
   private doStep(): void {
-    if (this.disposed || !this.scriptRunning || this.pausedByStop) return;
+    if (this.disposed) return;
+    if (this.canSwitchToDebug && this.replPhase === 'stdout') {
+      // Le script rapide tourne : il faut la version instrumentée pour avancer
+      // ligne à ligne. On relance en débogage, arrêt sur la première ligne.
+      this.isPaused = true;
+      this.switchToDebug();
+      return;
+    }
+    if (!this.scriptRunning || this.pausedByStop) return;
     if (!this.isPaused) {
       // Première pause : équivalent d'une demande de pause, l'état arrivera
       // au prochain __kx.
@@ -929,11 +999,16 @@ export class PicoEngine implements SimEngine {
     }
   }
 
+  /**
+   * Le Pico n'avait AUCUN ralenti : le menu 🐢 ne faisait rien du tout côté
+   * rp2040js. Le cadencement temps réel du simulateur (ancre temps mur ↔ temps
+   * simulé) tient déjà la comptabilité — il suffit de doser l'allocation. Le
+   * réglage est mémorisé : un rejeu silencieux tourne à fond et le restaure.
+   */
   setSpeed(fraction: number): void {
-    // Le Pico n'avait AUCUN ralenti : le menu 🐢 ne faisait rien du tout côté
-    // rp2040js. Le cadencement temps réel du simulateur (ancre temps mur ↔ temps
-    // simulé) tient déjà la comptabilité — il suffit de doser l'allocation.
-    this.sim.speed = Math.max(0.001, Math.min(100, fraction));
+    this.speedFraction = Math.max(0.001, Math.min(100, fraction));
+    if (this.silentReplay) return;
+    this.sim.speed = this.speedFraction;
     this.sim.reanchor(); // le facteur change : l'ancre repart d'ici
   }
 
@@ -948,6 +1023,11 @@ export class PicoEngine implements SimEngine {
   setBreakpoints(breakpoints: Breakpoint[]): void {
     this.breakpoints = breakpoints.map((b) => ({ ...b }));
     if (this.scriptRunning) this.sendBreakpoints();
+    else if (this.breakpoints.length > 0 && this.canSwitchToDebug && this.replPhase === 'stdout') {
+      // Point d'arrêt posé pendant que le script rapide tourne : on relance en
+      // version instrumentée, en silence, jusqu'à ce point d'arrêt.
+      this.switchToDebug();
+    }
   }
 
   /** Envoie la liste courante des points d'arrêt au script (stdin du REPL). */
@@ -963,15 +1043,116 @@ export class PicoEngine implements SimEngine {
   }
 
   /**
-   * Le script instrumenté entre en exécution : on lui transmet les points
-   * d'arrêt déjà posés (ils n'ont pas pu l'être avant le démarrage) et, si une
-   * pause avait été demandée entre-temps, on la réémet (\x05).
+   * Le script entre en exécution : s'il est instrumenté, on lui transmet les
+   * points d'arrêt déjà posés (ils n'ont pas pu l'être avant le démarrage) et,
+   * si une pause avait été demandée entre-temps, on la réémet (\x05).
    */
   private enterStdout(): void {
     this.replPhase = 'stdout';
-    if (this.breakpoints.length > 0) this.sendBreakpoints();
-    if (this.isPaused && !this.pausedByStop) this.cdc?.sendSerialByte(0x05);
-    // Le script tourne : c'est la fin du « Démarrage MicroPython… ».
+    // Ce que le script rapide a lâché en s'interrompant (KeyboardInterrupt) ne
+    // fait pas partie du rejeu : on repart d'un tampon vide.
+    if (this.silentReplay) this.replayBuf = '';
+    if (this.instrumented) {
+      if (this.breakpoints.length > 0) this.sendBreakpoints();
+      if (this.isPaused && !this.pausedByStop) this.cdc?.sendSerialByte(0x05);
+    } else if (this.breakpoints.length > 0 && this.canSwitchToDebug) {
+      // Point d'arrêt posé pendant le démarrage du firmware : bascule aussitôt.
+      this.switchToDebug();
+      return;
+    }
+    // Le script tourne : c'est la fin du « Démarrage MicroPython… ». Pendant un
+    // rejeu silencieux, ce signal attend la fin du rejeu (il arme la mesure de
+    // vitesse, qui n'aurait aucun sens sur un programme lancé à fond).
+    if (!this.silentReplay) this.onRunning?.();
+  }
+
+  // --- Bascule vers le script instrumenté -------------------------------------
+  /** Le script à injecter devient la version instrumentée. */
+  private useDebugScript(): void {
+    if (this.debugSource === null) return;
+    this.script = this.debugSource;
+    this.instrumented = true;
+  }
+
+  /**
+   * Relance le programme en version instrumentée sans redémarrer le firmware :
+   * Ctrl-C pour reprendre la main sur le script rapide, puis réinjection par le
+   * raw REPL. Le redémarrage est SILENCIEUX — sortie série retenue et simulateur
+   * lancé à fond — jusqu'au point d'arrêt : l'élève retrouve son programme là où
+   * il l'attend, sans revoir défiler tout ce qui précède.
+   */
+  private switchToDebug(): void {
+    if (!this.canSwitchToDebug || !this.cdc) return;
+    this.useDebugScript();
+    this.pendingDebug = true;
+    this.silentReplay = true;
+    this.replayBuf = '';
+    this.replayKicks = 0;
+    this.replayDeadline = Date.now() + REPLAY_MAX_MS;
+    this.sim.speed = REPLAY_SPEED;
+    this.sim.reanchor();
+    // Le simulateur peut être gelé par une pause matérielle : sans lui, plus rien
+    // ne s'injecte (le firmware ne tourne plus).
+    if (this.pausedByStop) {
+      this.pausedByStop = false;
+      this.sim.execute();
+    }
+    this.onDebugRestart?.('start');
+    this.armReplayGuard();
+    if (this.replPhase === 'stdout') this.cdc.sendSerialByte(3); // Ctrl-C : le script rend la main
+    else this.beginRawRepl();
+  }
+
+  /** Ctrl-C ×2 (interrompt le code en cours) puis Ctrl-A : entrée en raw REPL. */
+  private beginRawRepl(): void {
+    if (!this.cdc) return;
+    this.pendingDebug = false;
+    this.replPhase = 'wait-raw';
+    this.replBuffer = '';
+    this.cdc.sendSerialByte(3);
+    this.cdc.sendSerialByte(3);
+    this.cdc.sendSerialByte(1);
+  }
+
+  /** Surveillance du rejeu : Ctrl-C insistant, puis abandon du silence au bout du délai. */
+  private armReplayGuard(): void {
+    if (this.replayTimer !== null) clearTimeout(this.replayTimer);
+    this.replayTimer = setTimeout(() => this.replayTick(), REPLAY_TICK_MS);
+  }
+
+  private replayTick(): void {
+    this.replayTimer = null;
+    if (!this.silentReplay || this.disposed) return;
+    if (this.pendingDebug && this.replPhase === 'stdout' && this.replayKicks < REPLAY_KICKS) {
+      // Le script rapide n'a pas rendu la main (sleep long, KeyboardInterrupt
+      // rattrapé par le programme…) : on réessaie.
+      this.replayKicks++;
+      this.cdc?.sendSerialByte(3);
+      this.armReplayGuard();
+      return;
+    }
+    // Délai dépassé : le point d'arrêt n'est peut-être jamais atteint. On rend la
+    // parole au moniteur — le programme, lui, continue en version instrumentée.
+    if (Date.now() >= this.replayDeadline) this.endSilentReplay();
+    else this.armReplayGuard();
+  }
+
+  /** Fin du rejeu : la sortie retenue est publiée d'un coup et la vitesse revient au réglage. */
+  private endSilentReplay(): void {
+    if (!this.silentReplay) return;
+    this.silentReplay = false;
+    if (this.replayTimer !== null) {
+      clearTimeout(this.replayTimer);
+      this.replayTimer = null;
+    }
+    this.sim.speed = this.speedFraction;
+    this.sim.reanchor();
+    const buf = this.replayBuf;
+    this.replayBuf = '';
+    // 'end' AVANT la restitution : l'UI redevient visible, puis reçoit d'un bloc
+    // ce que le programme a écrit pendant le rejeu.
+    this.onDebugRestart?.('end');
+    if (buf) this.onSerial?.(buf);
     this.onRunning?.();
   }
 
@@ -979,11 +1160,10 @@ export class PicoEngine implements SimEngine {
   private onCdcConnected(): void {
     if (!this.cdc) return;
     if (this.script) {
-      // Ctrl-C ×2 : interrompt un éventuel main.py, puis Ctrl-A : raw REPL.
-      this.replPhase = 'wait-raw';
-      this.cdc.sendSerialByte(3);
-      this.cdc.sendSerialByte(3);
-      this.cdc.sendSerialByte(1);
+      // Points d'arrêt déjà posés avant le lancement : on démarre directement en
+      // version instrumentée, sans relance à subir plus tard.
+      if (this.breakpoints.length > 0 && this.canSwitchToDebug) this.useDebugScript();
+      this.beginRawRepl();
     } else {
       // Affiche simplement l'invite REPL dans le moniteur.
       this.cdc.sendSerialByte(13);
@@ -1010,13 +1190,29 @@ export class PicoEngine implements SimEngine {
     for (const ch of text) this.emitSerialChar(ch);
   }
 
+  /**
+   * Sortie destinée au moniteur série. Pendant un rejeu silencieux elle est
+   * retenue (et publiée d'un bloc à l'arrivée sur le point d'arrêt) : le
+   * programme redémarré ne doit pas re-dérouler tout son affichage.
+   */
+  private output(text: string): void {
+    if (!this.silentReplay) {
+      this.onSerial?.(text);
+      return;
+    }
+    this.replayBuf += text;
+    if (this.replayBuf.length > REPLAY_BUF_MAX) {
+      this.replayBuf = this.replayBuf.slice(-REPLAY_BUF_MAX);
+    }
+  }
+
   private emitSerialChar(ch: string): void {
     if (this.escBuf.length === 0) {
       if (ch === '\x1b') {
         this.escBuf = ch; // début possible d'une séquence
         return;
       }
-      this.onSerial?.(ch);
+      this.output(ch);
       return;
     }
     this.escBuf += ch;
@@ -1046,7 +1242,7 @@ export class PicoEngine implements SimEngine {
   private flushEscBuf(): void {
     const buf = this.escBuf;
     this.escBuf = '';
-    this.onSerial?.(buf.slice(0, -1));
+    this.output(buf.slice(0, -1));
     // Le dernier caractère peut redémarrer une séquence : on le retraite.
     this.emitSerialChar(buf[buf.length - 1]);
   }
@@ -1075,6 +1271,8 @@ export class PicoEngine implements SimEngine {
       // Pause effective confirmée par le script (mode pas à pas actif).
       this.isPaused = true;
       this.pausedByStop = false;
+      // Le rejeu silencieux avait justement pour but d'arriver ici.
+      this.endSilentReplay();
       this.onDebugPause?.({
         line: typeof data.l === 'number' ? data.l : undefined,
         variables: Object.entries(data.v ?? {}).map(([name, value]) => ({
@@ -1156,6 +1354,14 @@ export class PicoEngine implements SimEngine {
           this.cdc?.sendSerialByte(2);
           // Une pause coopérative ne peut plus aboutir : état remis au repos.
           if (this.isPaused && !this.pausedByStop) this.isPaused = false;
+          if (this.pendingDebug) {
+            // Le script rapide vient de rendre la main : place à la version
+            // instrumentée (la bannière du REPL est avalée par la phase wait-raw).
+            this.beginRawRepl();
+          } else {
+            // Programme terminé sans avoir croisé le point d'arrêt : plus rien à attendre.
+            this.endSilentReplay();
+          }
         } else {
           this.emitSerial(ch);
         }
