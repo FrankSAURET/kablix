@@ -306,7 +306,7 @@ Bouton **Disquette SVG** : le schéma complet (composants avec leurs rotations, 
 
 Bouton **« + Créer un composant »** en bas de la palette : une fenêtre plein écran s'ouvre, avec le formulaire à gauche et **deux aperçus** à droite (vue externe et vue interne). Les boutons **zoom** en haut (−, %, +, ⛶ *ajuster*) mettent les deux aperçus à l'échelle.
 
-**1. Nom et catégorie.** Le nom est le libellé affiché dans la palette. La catégorie choisit la section de palette où ranger le composant (Cartes, Discrets, Afficheurs & LED, Commandes, Capteurs, Actionneurs, Instruments, Divers) ; laissée vide, il va dans **Composants personnalisés**.
+**1. Nom et catégorie.** Le nom est le libellé affiché dans la palette. La catégorie choisit la section de palette où ranger le composant (Cartes, Discrets, Afficheurs & LED, Commandes, Capteurs, Actionneurs, Système, Instruments, Divers, Circuits intégrés) ; laissée vide, il va dans **Composants personnalisés**.
 
 **2. Modèle de simulation.** Définit le comportement électrique :
 
@@ -379,7 +379,7 @@ Un composant exporté est un fichier **JSON** autonome :
 | `pins` | tableau | **Obligatoire.** Points de connexion : `name` (unique), `x`, `y` en pixels **relatifs au coin haut-gauche du dessin**. |
 | `pinRoles` | objet | Correspondance *rôle du modèle* → *nom de broche* (voir tableau des modèles). Si absent, les broches doivent porter directement le nom du rôle. |
 | `attrs` | objet | Attributs initiaux. Pour `digital-source` : `{ "state": "0" }` ; pour `analog-source` : `{ "value": "50" }`. |
-| `category` | chaîne | Section de palette (`Boards`, `Passive`, `Displays & LEDs`, `Controls`, `Sensors`, `Actuators`, `Instruments`, `Divers`). Absente = « Composants personnalisés ». |
+| `category` | chaîne | Section de palette (`Boards`, `Passive`, `Displays & LEDs`, `Controls`, `Sensors`, `Actuators`, `Systems`, `Instruments`, `Misc`, `Integrated circuits`). Absente = « Composants personnalisés ». |
 | `params` | tableau | Paramètres de définition : `name` (identifiant), `label`, `value` (nombre). Champs de l'inspecteur, réutilisables dans `control.expr`. |
 | `control` | objet | Contrôle de simulation : `{ "type": "slider", "label", "unit", "min", "max", "step", "expr" }` (tension en volts, `expr` en fonction de `x` et des `params`) **ou** `{ "type": "switch", "label" }`. |
 | `innerSvg` | chaîne | Vue interne facultative (schéma affiché à l'ouverture du composant). |
@@ -476,6 +476,7 @@ Kablix embarque trois bibliothèques de simulation (`avr8js`, `rp2040js`, `@wokw
 
 - **Vérification manuelle** : palette de commandes (`Ctrl+Shift+P`) → **« Kablix : Vérifier les mises à jour des bibliothèques »**. Kablix interroge alors le registre npm et vous indique si une version plus récente existe (ou que tout est à jour).
 - **Vérification au démarrage** (optionnelle) : activez le réglage **`kablix.checkUpdatesOnStartup`** (désactivé par défaut). Une notification n'apparaît alors qu'en cas de mise à jour disponible, en silence sinon.
+- **La notification propose trois réponses** : **Installer** (ouvre la page npm ; dans le dépôt de l'extension, lance directement le `npm install`), **Plus tard** (elle revient à l'ouverture suivante) et **Pas cette version** (celle-ci n'est plus jamais proposée ; une version encore plus récente le sera). La vérification manuelle, elle, répond toujours — même sur une version refusée.
 
 > **Avertissement** : mettre à jour ces bibliothèques peut **casser l'extension** (changements d'API). En cas de problème, ouvrez une demande sur le dépôt GitHub : [github.com/franksauret/kablix/issues](https://github.com/franksauret/kablix/issues). Une vérification réseau absente ou échouée reste silencieuse et n'affecte pas le fonctionnement hors-ligne.
 

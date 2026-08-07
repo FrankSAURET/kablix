@@ -34,6 +34,7 @@ Digital and serial ports expose **two** signals: the second one is the GPIO the 
 - The `pwr` switch sets the VCC rail of the **I2C / UART / D16-D20** ports. Analog ports and the SPI header always stay at 3.3 V.
 - At 5 V, VCC comes from VBUS (USB): signals themselves stay at 3.3 V — check that your Grove module accepts this.
 - All grounds (socket, ports, SPI) sit on a single rail.
+- **The GPIO is written on the pin bubble**: hovering `A1.A0` shows `A1.A0.GP26` — `GP26` is what your program must use. Power pins (VCC, GND, 3V3, NC) keep their plain name.
 
 ---
 

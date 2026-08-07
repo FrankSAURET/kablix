@@ -92,6 +92,42 @@ export function groveSocketPins(): Set<string> {
 }
 
 /**
+ * Signaux des ports Grove → colonne GP du socle (schéma Seeed). Source unique :
+ * la netlist (`groveShieldStrips`) et les bulles de l'éditeur lisent la MÊME
+ * table, pour qu'un nom affiché ne puisse pas mentir sur le câblage simulé.
+ * Alimentations exclues : GND / VCC / 3V3 ne vont sur aucun GPIO.
+ */
+const SIGNAL_STRIPS: ReadonlyArray<readonly string[]> = [
+  ['GP8', 'I2C0.SDA'],
+  ['GP9', 'I2C0.SCL'],
+  ['GP6', 'I2C1.SDA'],
+  ['GP7', 'I2C1.SCL'],
+  ['GP26', 'A0.A0', 'A1.A0'],
+  ['GP27', 'A1.A1', 'A2.A1'],
+  ['GP28', 'A2.A2'],
+  ['GP0', 'UART0.TX'],
+  ['GP1', 'UART0.RX'],
+  ['GP4', 'UART1.TX', 'SPI.RX'],
+  ['GP5', 'UART1.RX', 'SPI.CS'],
+  ['GP16', 'D16.D16'],
+  ['GP17', 'D16.D17'],
+  ['GP18', 'D18.D18'],
+  ['GP19', 'D18.D19'],
+  ['GP20', 'D20.D20'],
+  ['GP21', 'D20.D21'],
+  ['GP2', 'SPI.SCK'],
+  ['GP3', 'SPI.TX'],
+];
+
+/** `I2C0.SDA` → `GP8`. Vide pour un trou du socle ou une alimentation. */
+export function groveSignalGpio(pinName: string): string | undefined {
+  for (const [gp, ...signals] of SIGNAL_STRIPS) {
+    if (signals.includes(pinName)) return gp;
+  }
+  return undefined;
+}
+
+/**
  * Groupes de trous reliés électriquement. Chaque trou du socle est doublé de
  * son trou de dégagement ; les signaux des ports rejoignent la colonne GP
  * correspondante ; GND et 3V3 sont des rails uniques ; le rail VCC des ports
@@ -117,26 +153,6 @@ export function groveShieldStrips(pwr: GrovePower): string[][] {
     'D16.VCC', 'D18.VCC', 'D20.VCC',
   ]);
   // Signaux des ports → colonne GP du socle (schéma Seeed).
-  strips.push(
-    ['GP8', 'I2C0.SDA'],
-    ['GP9', 'I2C0.SCL'],
-    ['GP6', 'I2C1.SDA'],
-    ['GP7', 'I2C1.SCL'],
-    ['GP26', 'A0.A0', 'A1.A0'],
-    ['GP27', 'A1.A1', 'A2.A1'],
-    ['GP28', 'A2.A2'],
-    ['GP0', 'UART0.TX'],
-    ['GP1', 'UART0.RX'],
-    ['GP4', 'UART1.TX', 'SPI.RX'],
-    ['GP5', 'UART1.RX', 'SPI.CS'],
-    ['GP16', 'D16.D16'],
-    ['GP17', 'D16.D17'],
-    ['GP18', 'D18.D18'],
-    ['GP19', 'D18.D19'],
-    ['GP20', 'D20.D20'],
-    ['GP21', 'D20.D21'],
-    ['GP2', 'SPI.SCK'],
-    ['GP3', 'SPI.TX'],
-  );
+  for (const strip of SIGNAL_STRIPS) strips.push([...strip]);
   return strips;
 }

@@ -8,7 +8,7 @@ On the sheet the spider therefore has only **4 wires**: the I²C bus. Every move
 
 > **Placeholder drawing.** This component illustrates a simplified spider (top view) until the physical robot — a laser-cut PMMA spider, assembled by Frank in SketchUp — is visible. The drawing will likely be redone once the result is seen.
 
-Palette category: **Actuators**.
+Palette category: **Systems**.
 
 ## Pins
 

@@ -8,7 +8,7 @@ Sur la planche, l'araignée n'a donc que **4 fils** : le bus I²C. Tout le mouve
 
 > **Dessin provisoire.** Ce composant illustre une araignée simplifiée (vue de dessus) le temps que le robot physique — une araignée en PMMA découpée au laser, assemblée par Frank dans SketchUp — soit visible. Le dessin sera probablement refait une fois le résultat observé.
 
-Catégorie de la palette : **Actionneurs**.
+Catégorie de la palette : **Système**.
 
 ## Broches
 

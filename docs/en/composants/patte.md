@@ -6,7 +6,7 @@ Articulated robot leg with **2 independent internal servo motors**: the **hip** 
 
 > **Placeholder drawing.** This component illustrates a simplified leg (top view) until the physical robot — a laser-cut PMMA spider, assembled by Frank in SketchUp — is visible. The drawing will likely be redone once the result is seen.
 
-Palette category: **Actuators**.
+Palette category: **Systems**.
 
 ## Pins
 

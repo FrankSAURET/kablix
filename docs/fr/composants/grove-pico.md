@@ -34,6 +34,7 @@ Les ports numériques et série exposent **deux** signaux : le second est le GPI
 - L'interrupteur `pwr` fixe le rail VCC des ports **I2C / UART / D16-D20**. Les ports analogiques et le SPI restent toujours en 3,3 V.
 - En 5 V, VCC vient de VBUS (USB) : les signaux, eux, restent en 3,3 V — vérifier que le module Grove l'accepte.
 - Toutes les masses (socle, ports, SPI) sont sur un rail unique.
+- **Le GPIO est écrit sur la bulle de la broche** : survoler `A1.A0` affiche `A1.A0.GP26` — c'est `GP26` qu'il faut écrire dans le programme. Les broches d'alimentation (VCC, GND, 3V3, NC) gardent leur nom.
 
 ---
 

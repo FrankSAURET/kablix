@@ -75,15 +75,71 @@ export async function checkLibraryUpdates(): Promise<LibraryUpdate[]> {
   return results.filter((r): r is LibraryUpdate => r !== null);
 }
 
-// Présente le résultat à l'utilisateur sous forme de notification VS Code.
-// silent : au démarrage, ne rien afficher si tout est à jour.
-export async function promptLibraryUpdates(silent = false): Promise<void> {
+// Versions REFUSÉES par l'utilisateur (bouton « Pas cette version ») :
+// { rp2040js: '1.3.4' }. Une version encore plus récente reproposera.
+const SKIPPED_KEY = 'kablix.libraryUpdates.skipped';
+
+type SkippedMap = Record<string, string>;
+
+function skippedVersions(context: vscode.ExtensionContext): SkippedMap {
+  const raw = context.globalState.get<unknown>(SKIPPED_KEY);
+  if (!raw || typeof raw !== 'object') return {};
+  const out: SkippedMap = {};
+  for (const [name, version] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof version === 'string') out[name] = version;
+  }
+  return out;
+}
+
+/**
+ * Installation réellement possible ? Seulement dans le DÉPÔT de l'extension
+ * (F5 / mode développement) : ailleurs, les bibliothèques sont déjà fondues
+ * dans `dist/webview.js` par esbuild, et un `npm install` n'y changerait rien —
+ * la seule mise à jour possible pour un utilisateur est celle de l'extension.
+ */
+function canInstall(context: vscode.ExtensionContext): boolean {
+  return context.extensionMode === vscode.ExtensionMode.Development;
+}
+
+/** Lance `npm install pkg@version …` dans le dépôt, dans un terminal visible. */
+function installUpdates(context: vscode.ExtensionContext, updates: LibraryUpdate[]): void {
+  const specs = updates.map((u) => `${u.name}@${u.latest}`).join(' ');
+  const term = vscode.window.createTerminal({
+    name: 'Kablix — npm install',
+    cwd: context.extensionUri.fsPath,
+  });
+  term.show();
+  term.sendText(`npm install ${specs}`);
+  void vscode.window.showInformationMessage(
+    vscode.l10n.t('Kablix: once the install is finished, run “npm run build” and restart the extension.')
+  );
+}
+
+/**
+ * Présente le résultat à l'utilisateur sous forme de notification VS Code.
+ * `silent` : au démarrage, ne rien afficher si tout est à jour — et respecter
+ * les versions refusées. La commande manuelle, elle, montre toujours tout :
+ * c'est une action explicite, elle ne doit rien cacher.
+ *
+ * Trois réponses possibles (Frank, v2026.8.21) : installer, plus tard (la
+ * notification revient à la prochaine ouverture), ou refuser CETTE version
+ * (plus jamais reproposée tant qu'elle reste la dernière publiée).
+ */
+export async function promptLibraryUpdates(
+  context: vscode.ExtensionContext,
+  silent = false
+): Promise<void> {
   let updates: LibraryUpdate[];
   try {
     updates = await checkLibraryUpdates();
   } catch {
     // Ne jamais remonter d'erreur visible si le réseau est absent.
     return;
+  }
+
+  if (silent) {
+    const skipped = skippedVersions(context);
+    updates = updates.filter((u) => skipped[u.name] !== u.latest);
   }
 
   if (updates.length === 0) {
@@ -101,12 +157,22 @@ export async function promptLibraryUpdates(silent = false): Promise<void> {
     list,
     GITHUB_ISSUES
   );
-  const seeOnNpm = vscode.l10n.t('See on npm');
-  const close = vscode.l10n.t('Close');
+  // Hors dépôt, « Installer » n'installerait rien : le bouton devient le lien npm.
+  const install = canInstall(context) ? vscode.l10n.t('Install') : vscode.l10n.t('See on npm');
+  const later = vscode.l10n.t('Later');
+  const never = vscode.l10n.t('Not this version');
 
-  const choice = await vscode.window.showWarningMessage(message, seeOnNpm, close);
-  if (choice === seeOnNpm) {
-    const npmPage = `https://www.npmjs.com/package/${updates[0].name}`;
-    void vscode.env.openExternal(vscode.Uri.parse(npmPage));
+  const choice = await vscode.window.showWarningMessage(message, install, later, never);
+  if (choice === install) {
+    if (canInstall(context)) installUpdates(context, updates);
+    else void vscode.env.openExternal(vscode.Uri.parse(`https://www.npmjs.com/package/${updates[0].name}`));
+    return;
   }
+  if (choice === never) {
+    const skipped = skippedVersions(context);
+    for (const u of updates) skipped[u.name] = u.latest;
+    await context.globalState.update(SKIPPED_KEY, skipped);
+  }
+  // « Plus tard » (et la fermeture de la notification) : rien à mémoriser,
+  // la vérification du prochain démarrage reproposera.
 }

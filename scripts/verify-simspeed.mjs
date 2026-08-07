@@ -439,6 +439,79 @@ check(
   'sans elle, impossible de savoir si le retard vient du moteur ou du rendu',
 );
 
+// --- Compteurs du canvas : chrono + vitesse (v2026.8.21) ---------------------
+// Demande de Frank : « affiche le temps écoulé (min:sec:mil) et le pourcentage de
+// vitesse en haut à droite de la simulation juste en dessous de la barre de
+// dessin (fixe et non zoomable) avec 2 icônes (pas de texte) ».
+{
+  check('les compteurs existent dans le canvas, masqués au repos',
+    /<div id="sim-gauge" class="sim-gauge" hidden>/.test(html));
+  check('deux valeurs : le chrono et la vitesse',
+    /id="sim-elapsed"[^>]*>00:00:000</.test(html) && /id="sim-rate"[^>]*>—</.test(html));
+  check('deux icônes SEULES, sans texte à côté (demande de Frank)',
+    (html.match(/class="sim-gauge__icon"/g) ?? []).length === 2
+    && !/sim-gauge__icon"[^>]*>[^<]*<\/span>\s*<span[^>]*>[A-Za-zÀ-ÿ]/.test(html),
+    'un libellé écrit à côté de l\'icône reprendrait la place que Frank veut libre');
+  check('chaque compteur s\'explique dans son infobulle',
+    /class="sim-gauge__item" title="\$\{l10n\.t\('Elapsed simulated time \(min:s:ms\)'\)\}"/.test(html)
+    && /class="sim-gauge__item" title="\$\{l10n\.t\('Actual speed/.test(html),
+    'sans texte visible, l\'infobulle est la seule explication');
+  // Non zoomable : le calque transformé (.canvas__world) est monté en JS par
+  // l'éditeur ; les compteurs, eux, sont dans le HTML statique du canvas — donc
+  // frères du calque, jamais dedans. Ils ne suivent ni le zoom ni la translation.
+  const dansCanvas = /<div id="canvas" class="canvas">([\s\S]*?)\n {6}<\/div>/.exec(html)?.[1] ?? '';
+  const editeur = readFileSync(join(root, 'src/webview/diagram/editor.mts'), 'utf8');
+  check('les compteurs sont HORS du calque zoomé (fixes à l\'écran)',
+    /id="sim-gauge"/.test(dansCanvas)
+    && /this\.world\.className = 'canvas__world';/.test(editeur)
+    && /position:\s*relative/.test(/\.canvas \{([^}]*)\}/.exec(css)?.[1] ?? ''),
+    'placés dans le calque transformé, ils suivraient le zoom et la translation');
+
+  const gauge = /\.sim-gauge \{([^}]*)\}/.exec(css)?.[1] ?? '';
+  const barre = /\.canvas-controls \{([^}]*)\}/.exec(css)?.[1] ?? '';
+  const hautBarre = Number(/top:\s*(\d+)px/.exec(barre)?.[1] ?? 8);
+  const hautGauge = Number(/top:\s*(\d+)px/.exec(gauge)?.[1] ?? 0);
+  check('en haut à DROITE, sous la barre d\'outils',
+    /position:\s*absolute/.test(gauge) && /right:\s*8px/.test(gauge) && hautGauge > hautBarre + 28,
+    `top ${hautGauge}px pour une barre à ${hautBarre}px + 28 px de boutons`);
+  check('les compteurs se masquent avec l\'attribut hidden', /\.sim-gauge\[hidden\] \{\s*display: none;/.test(css));
+  check('les chiffres ne dansent pas (chasse fixe)',
+    /font-variant-numeric:\s*tabular-nums/.test(/\.sim-gauge__value \{([^}]*)\}/.exec(css)?.[1] ?? ''),
+    'sans tabular-nums, les millisecondes font vibrer toute la ligne');
+
+  // Le formatage est celui de la PRODUCTION : la fonction est extraite de sim.mts
+  // et exécutée telle quelle (recopiée dans le banc, elle ne prouverait rien).
+  const src = /function formatElapsed\(ms: number\): string \{([\s\S]*?)\n\}/.exec(sim)?.[1] ?? '';
+  const formatElapsed = new Function('ms', src.replace(/: (number|string)/g, ''));
+  const cas = [[0, '00:00:000'], [7, '00:00:007'], [1234, '00:01:234'], [65432, '01:05:432'],
+    [3600000, '60:00:000'], [-5, '00:00:000']];
+  for (const [ms, attendu] of cas) {
+    check(`${ms} ms → ${attendu}`, formatElapsed(ms) === attendu, `obtenu « ${formatElapsed(ms)} »`);
+  }
+  check('la boucle de rendu met à jour les compteurs à chaque image',
+    /updateSpeedBadge\(\);\s*updateSimGauge\(\);/.test(sim));
+  check('lancement : chrono à zéro et compteurs affichés',
+    /engine\.start\(\);[\s\S]{0,200}resetSimGauge\(true\);/.test(sim));
+  check('arrêt : plus de compteurs à l\'écran',
+    /stopRenderLoop\(\);[\s\S]{0,200}resetSimGauge\(false\);/.test(sim));
+  check('en pause, la fenêtre de mesure repart de zéro',
+    /function updateSimGauge\(\): void \{[\s\S]{0,600}if \(engine\.paused\) \{\s*gaugeWallStart = 0;/.test(sim),
+    'sinon la reprise afficherait 0 % pendant toute la durée de la pause');
+  check('la vitesse est un pourcentage entier, mesuré sur une fenêtre courte',
+    /const GAUGE_WINDOW_MS = (\d+);/.test(sim)
+    && Number(/const GAUGE_WINDOW_MS = (\d+);/.exec(sim)[1]) <= 1000
+    && /simRateEl\.textContent = `\$\{Math\.round\(gaugeRate \* 100\)\} %`;/.test(sim),
+    'une fenêtre longue rendrait l\'affichage mou, un ratio brut serait illisible');
+  check('avant la première mesure, la vitesse affiche « — » (pas 0 %)',
+    /function resetSimGauge\(visible: boolean\): void \{[\s\S]{0,300}simRateEl\.textContent = '—';/.test(sim),
+    '0 % au démarrage ferait croire à une simulation figée');
+
+  const fr = JSON.parse(readFileSync(join(root, 'l10n/bundle.l10n.fr.json'), 'utf8'));
+  check('les deux infobulles sont traduites en français',
+    typeof fr['Elapsed simulated time (min:s:ms)'] === 'string'
+    && typeof fr['Actual speed: simulated time over real time (100% = on time)'] === 'string');
+}
+
 const i18n = readFileSync(join(root, 'src/webview/i18n.mts'), 'utf8');
 check(
   'les deux messages sont traduits en français',

@@ -6,7 +6,7 @@ Patte de robot articulée à **2 servomoteurs internes indépendants** : la **ha
 
 > **Dessin provisoire.** Ce composant illustre une patte simplifiée (vue de dessus) le temps que le robot physique — une araignée en PMMA découpée au laser, assemblée par Frank dans SketchUp — soit visible. Le dessin sera probablement refait une fois le résultat observé.
 
-Catégorie de la palette : **Actionneurs**.
+Catégorie de la palette : **Système**.
 
 ## Broches
 

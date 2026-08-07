@@ -176,6 +176,20 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
           <button id="reset-sim" class="canvas-controls__btn canvas-controls__btn--reset" hidden title="${l10n.t('Reset all components')}">⟲</button>
           <button id="clear-canvas" class="canvas-controls__btn canvas-controls__btn--eraser" hidden title="${l10n.t('Clear the diagram (Ctrl+Z to undo)')}"><img class="canvas__clear-icon" src="${gommeUri}" alt="${l10n.t('Clear')}" /></button>
         </div>
+        <!-- Compteurs de simulation, sous la barre de droite : temps écoulé et
+             vitesse réelle. Posés dans le canvas mais HORS du calque transformé :
+             ils ne bougent ni ne grossissent avec le zoom. Deux icônes seules,
+             sans texte (demande de Frank) ; l'explication est dans l'infobulle. -->
+        <div id="sim-gauge" class="sim-gauge" hidden>
+          <span class="sim-gauge__item" title="${l10n.t('Elapsed simulated time (min:s:ms)')}">
+            <span class="sim-gauge__icon" aria-hidden="true">⏱</span>
+            <span id="sim-elapsed" class="sim-gauge__value">00:00:000</span>
+          </span>
+          <span class="sim-gauge__item" title="${l10n.t('Actual speed: simulated time over real time (100% = on time)')}">
+            <span class="sim-gauge__icon" aria-hidden="true">📈</span>
+            <span id="sim-rate" class="sim-gauge__value">—</span>
+          </span>
+        </div>
         <!-- Bandeau permanent « Simulation en cours » (rouge sur jaune), entre les
              deux barres d'outils. Visible pendant la simulation ; clignote sur
              tentative d'édition interdite. -->

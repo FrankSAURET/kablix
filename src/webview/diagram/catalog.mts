@@ -889,11 +889,15 @@ export function partCategory(def: PartDef): string {
       return 'Sensors';
     case 'buzzer':
     case 'servo':
-    case 'patte':
-    case 'araignee':
     case 'fan':
     case 'motor':
       return 'Actuators';
+    // Systèmes complets : ce ne sont pas des composants mais des ensembles
+    // mécaniques déjà assemblés (patte articulée = 2 servos, araignée = châssis
+    // + 4 pattes + PCA9685 + batterie embarqués). Frank, v2026.8.21.
+    case 'patte':
+    case 'araignee':
+      return 'Systems';
     default:
       return 'Passive';
   }
@@ -907,6 +911,7 @@ export const CATEGORY_ORDER: readonly string[] = [
   'Controls',
   'Sensors',
   'Actuators',
+  'Systems', // « Système » : ensembles assemblés (patte, araignée)
   'Instruments',
   'Misc',
   'Integrated circuits', // « Circuits intégrés » : toujours en dernier (Frank, v2026.7.254)

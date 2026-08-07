@@ -306,7 +306,7 @@ Button **SVG floppy disk**: the complete diagram (parts with their rotations, co
 
 Button **“+ Create a part”** at the bottom of the palette: a full-screen window opens, with the form on the left and **two previews** on the right (external view and internal view). The **zoom** buttons at the top (−, %, +, ⛶ *fit*) scale both previews.
 
-**1. Name and category.** The name is the label shown in the palette. The category picks the palette section where the part is filed (Boards, Passive, Displays & LEDs, Controls, Sensors, Actuators, Instruments, Misc); left blank, it goes into **Custom parts**.
+**1. Name and category.** The name is the label shown in the palette. The category picks the palette section where the part is filed (Boards, Passive, Displays & LEDs, Controls, Sensors, Actuators, Systems, Instruments, Misc, Integrated circuits); left blank, it goes into **Custom parts**.
 
 **2. Simulation model.** Defines the electrical behavior:
 
@@ -379,7 +379,7 @@ An exported part is a standalone **JSON** file:
 | `pins` | array | **Required.** Connection points: `name` (unique), `x`, `y` in pixels **relative to the top-left corner of the drawing**. |
 | `pinRoles` | object | Mapping *model role* → *pin name* (see the models table). If absent, pins must directly bear the role name. |
 | `attrs` | object | Initial attributes. For `digital-source`: `{ "state": "0" }`; for `analog-source`: `{ "value": "50" }`. |
-| `category` | string | Palette section (`Boards`, `Passive`, `Displays & LEDs`, `Controls`, `Sensors`, `Actuators`, `Instruments`, `Misc`). Absent = “Custom parts”. |
+| `category` | string | Palette section (`Boards`, `Passive`, `Displays & LEDs`, `Controls`, `Sensors`, `Actuators`, `Systems`, `Instruments`, `Misc`, `Integrated circuits`). Absent = “Custom parts”. |
 | `params` | array | Definition parameters: `name` (identifier), `label`, `value` (number). Inspector fields, reusable in `control.expr`. |
 | `control` | object | Simulation control: `{ "type": "slider", "label", "unit", "min", "max", "step", "expr" }` (voltage in volts, `expr` as a function of `x` and the `params`) **or** `{ "type": "switch", "label" }`. |
 | `innerSvg` | string | Optional internal view (schematic shown when opening the part). |
@@ -474,6 +474,7 @@ Kablix bundles three simulation libraries (`avr8js`, `rp2040js`, `@wokwi/element
 
 - **Manual check**: command palette (`Ctrl+Shift+P`) → **“Kablix: Check for library updates”**. Kablix then queries the npm registry and tells you whether a newer version exists (or that everything is up to date).
 - **Startup check** (optional): enable the **`kablix.checkUpdatesOnStartup`** setting (off by default). A notification then appears only when an update is available, silently otherwise.
+- **The notification offers three answers**: **Install** (opens the npm page; inside the extension repository it runs `npm install` directly), **Later** (it comes back on the next startup) and **Not this version** (that one is never offered again; a newer one still will be). The manual check always answers — even for a version you turned down.
 
 > **Warning**: updating these libraries may **break the extension** (API changes). If a problem occurs, open an issue on the GitHub repository: [github.com/franksauret/kablix/issues](https://github.com/franksauret/kablix/issues). A missing or failed network check stays silent and does not affect offline operation.
 

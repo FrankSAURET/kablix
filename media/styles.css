@@ -622,6 +622,51 @@ textarea {
   color: #ff6b6b;
 }
 
+/* Compteurs de simulation (temps écoulé, vitesse réelle) : collés sous la barre
+   d'outils de droite, dans le canvas mais hors du calque transformé — donc fixes
+   et insensibles au zoom. La barre fait 8 (haut) + 4 + 28 + 4 + 2 (bordures) px,
+   soit 46 : 50 les pose juste dessous. Chiffres en chasse fixe pour que la
+   milliseconde qui défile ne fasse pas trembler la ligne. */
+.sim-gauge {
+  position: absolute;
+  top: 50px;
+  right: 8px;
+  z-index: 6;
+  display: flex;
+  gap: 10px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-input-border, #555);
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  pointer-events: none; /* jamais dans le chemin d'un clic sur le schéma */
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.sim-gauge[hidden] {
+  display: none;
+}
+
+.sim-gauge__item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  pointer-events: auto; /* sauf pour laisser sortir l'infobulle */
+}
+
+.sim-gauge__icon {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.sim-gauge__value {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Commandes de simulation en surimpression (haut-gauche du canvas). */
 .canvas-controls {
   position: absolute;

@@ -46,7 +46,7 @@ import { nextPartId } from './refnames.mjs';
 import { colorDisplayName, colorSwatchBackground } from './colors.mjs';
 import { breadboardPins, normalizeSize, stripOfPin } from './breadboard.mjs';
 import { embedClipboardInSvg, encodeClipboard, extractClipboard, type ClipboardPayload } from './clipboard.mjs';
-import { groveSocketPins } from './grove-shield.mjs';
+import { groveSignalGpio, groveSocketPins } from './grove-shield.mjs';
 import { internalWiringSvg, type PinPoint } from './internal-wiring.mjs';
 import { hasPinout, pinoutPoster, loadPinoutSvg } from './pinout.mjs';
 import { BOARD_W, BOARD_H } from '../composants/pico-board.mjs';
@@ -5950,6 +5950,13 @@ function pinDisplayName(
   // Relais : le commun sort des deux côtés du boîtier, mais c'est la MÊME lame.
   // Les deux pastilles (Com.1 / Com.2) s'affichent donc simplement « Com ».
   if (kind === 'relay' && /^Com\.\d+$/.test(pinName)) return 'Com';
+  // Grove Shield : un signal de port ne dit pas à quel GPIO de la Pico il mène
+  // (« A1.A0 » est sur GP26, pas GP27). La bulle ajoute donc la broche réelle —
+  // c'est elle qu'il faut écrire dans le programme : « A1.A0.GP26 ».
+  if (kind === 'grove-shield') {
+    const gp = groveSignalGpio(pinName);
+    if (gp) return `${pinName}.${gp}`;
+  }
   return pinName;
 }
 

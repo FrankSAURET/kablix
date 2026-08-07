@@ -179,6 +179,38 @@ async function run() {
 	ok('empilement conservé : shield (z=0) sous la Pico (z=1)',
 		zOf(shield.id) === '0' && zOf(pico.id) === '1', zOf(shield.id) + '/' + zOf(pico.id));
 
+	// --- 9. Bulles de broche : le GPIO de la Pico est écrit dessus ----------------
+	// « I2C0.SDA » ne dit pas où le signal aboutit ; la bulle ajoute le GP réel.
+	const bulle = (n) => rr.hotspots.get(n)?.title ?? '(absente)';
+	ok('bulle : I2C0.SDA → I2C0.SDA.GP8, I2C1.SCL → I2C1.SCL.GP7',
+		bulle('I2C0.SDA') === 'I2C0.SDA.GP8' && bulle('I2C1.SCL') === 'I2C1.SCL.GP7',
+		bulle('I2C0.SDA') + ' / ' + bulle('I2C1.SCL'));
+	// Le vrai piège : sur le port A1, le 2e signal est A0 mais il part sur GP26.
+	ok('bulle : A1.A0 → A1.A0.GP26 et A1.A1 → A1.A1.GP27 (même port, 2 GPIO)',
+		bulle('A1.A0') === 'A1.A0.GP26' && bulle('A1.A1') === 'A1.A1.GP27',
+		bulle('A1.A0') + ' / ' + bulle('A1.A1'));
+	ok('bulle : SPI.RX → SPI.RX.GP4 et UART1.RX → UART1.RX.GP5',
+		bulle('SPI.RX') === 'SPI.RX.GP4' && bulle('UART1.RX') === 'UART1.RX.GP5',
+		bulle('SPI.RX') + ' / ' + bulle('UART1.RX'));
+	ok('bulle : D16.D17 → D16.D17.GP17, D18.D19 → D18.D19.GP19',
+		bulle('D16.D17') === 'D16.D17.GP17' && bulle('D18.D19') === 'D18.D19.GP19',
+		bulle('D16.D17') + ' / ' + bulle('D18.D19'));
+	// Alimentations et trous du socle : rien à ajouter, le nom ne change pas.
+	ok('bulle : alimentations et socle inchangés (VCC, GND, 3V3, NC, GP8)',
+		bulle('I2C0.VCC') === 'I2C0.VCC' && bulle('A0.GND') === 'A0.GND' &&
+		bulle('SPI.3V3') === 'SPI.3V3' && bulle('A0.NC') === 'A0.NC' && bulle('GP8') === 'GP8',
+		[bulle('I2C0.VCC'), bulle('A0.GND'), bulle('SPI.3V3'), bulle('A0.NC'), bulle('GP8')].join(' '));
+	// Contre-preuve : le GPIO annoncé est celui du NET, pas une table recopiée.
+	const etiquetees = [...rr.hotspots.keys()].filter((n) => bulle(n) !== n);
+	const menteuses = etiquetees.filter((n) => {
+		const gp = bulle(n).slice(n.length + 1);
+		return !/^GP\\d+$/.test(gp) || !same(n, gp);
+	});
+	// 23 signaux pour 19 GPIO : GP4, GP5, GP26 et GP27 sortent sur DEUX ports.
+	ok('bulle : les 23 signaux étiquetés, et AUCUN ne ment sur le net',
+		etiquetees.length === 23 && menteuses.length === 0,
+		etiquetees.length + ' étiquetées, menteuses: ' + menteuses.join(','));
+
 	const out = document.createElement('pre');
 	out.id = 'measures';
 	out.textContent = JSON.stringify(checks);

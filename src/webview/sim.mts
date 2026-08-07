@@ -213,6 +213,11 @@ const debugTitleBtn = document.getElementById('debug-title') as HTMLButtonElemen
 const debugHiddenEl = document.getElementById('debug-hidden') as HTMLDivElement;
 const statusEl = document.getElementById('status') as HTMLSpanElement;
 const simSpeedEl = document.getElementById('sim-speed') as HTMLSpanElement;
+// Compteurs du canvas (haut-droite, sous la barre d'outils) : temps écoulé et
+// vitesse réelle, visibles pendant toute la simulation.
+const simGaugeEl = document.getElementById('sim-gauge') as HTMLDivElement;
+const simElapsedEl = document.getElementById('sim-elapsed') as HTMLSpanElement;
+const simRateEl = document.getElementById('sim-rate') as HTMLSpanElement;
 const serialEl = document.getElementById('serial') as HTMLPreElement;
 const serialInput = document.getElementById('serial-input') as HTMLInputElement;
 const serialSend = document.getElementById('serial-send') as HTMLButtonElement;
@@ -768,6 +773,7 @@ function renderTick(): void {
   updateMotion();
   refreshVisuals();
   updateSpeedBadge();
+  updateSimGauge();
   renderRaf = requestAnimationFrame(renderTick);
 }
 
@@ -878,6 +884,62 @@ function updateSpeedBadge(): void {
       `${t('Engine')} ${pc(busy)} % · ${t('Rendering')} ${pc(render)} % · ` +
       `${t('Browser')} ${pc(Math.max(0, wall - busy - render))} % · ${Math.round(fps)} fps`;
   }
+}
+
+// --- Compteurs du canvas : temps écoulé et vitesse réelle ---------------------
+// Deux repères que Frank veut voir EN PERMANENCE pendant la simulation, là où le
+// regard est (haut-droite du canvas), et non dans la barre de titre : le temps
+// SIMULÉ écoulé — celui de la carte, à comparer à sa montre — et le rapport de ce
+// temps au temps réel, en pourcentage. 100 % = la carte est à l'heure.
+//
+// Le badge « ralentie » de la barre de titre garde son rôle d'alerte (il ne sort
+// qu'en cas de retard confirmé, avec son diagnostic) ; ces compteurs, eux, ne
+// jugent rien : ils affichent.
+const GAUGE_WINDOW_MS = 500; // fenêtre du pourcentage : assez court pour suivre
+let gaugeWallStart = 0;
+let gaugeSimStart = 0;
+let gaugeRate = -1; // < 0 : pas encore mesuré (affiche « — »)
+
+/** Remet les compteurs à zéro et les masque (arrêt de la simulation). */
+function resetSimGauge(visible: boolean): void {
+  gaugeWallStart = 0;
+  gaugeRate = -1;
+  simElapsedEl.textContent = '00:00:000';
+  simRateEl.textContent = '—';
+  simGaugeEl.hidden = !visible;
+}
+
+/** mm:ss:mmm — les minutes débordent au-delà de 60 (99:59:999 puis 100:…). */
+function formatElapsed(ms: number): string {
+  const total = Math.max(0, Math.floor(ms));
+  const min = Math.floor(total / 60000);
+  const sec = Math.floor((total % 60000) / 1000);
+  const mil = total % 1000;
+  return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}:${String(mil).padStart(3, '0')}`;
+}
+
+function updateSimGauge(): void {
+  if (!engine?.simulatedMs) return;
+  const sim = engine.simulatedMs();
+  simElapsedEl.textContent = formatElapsed(sim);
+  // En pause, le temps simulé est figé : le pourcentage n'a plus de sens et la
+  // fenêtre repart de zéro à la reprise (sinon la pause se lirait « 0 % »).
+  if (engine.paused) {
+    gaugeWallStart = 0;
+    return;
+  }
+  const now = performance.now();
+  if (!gaugeWallStart) {
+    gaugeWallStart = now;
+    gaugeSimStart = sim;
+    return;
+  }
+  const wall = now - gaugeWallStart;
+  if (wall < GAUGE_WINDOW_MS) return;
+  gaugeRate = (sim - gaugeSimStart) / wall;
+  gaugeWallStart = now;
+  gaugeSimStart = sim;
+  simRateEl.textContent = `${Math.round(gaugeRate * 100)} %`;
 }
 
 /** Met à jour la sortie des capteurs PIR selon le survol souris (au changement). */
@@ -2963,6 +3025,7 @@ function startRun(): void {
   rebind();
   engine.start();
   resetSpeedBadge(); // fenêtre de mesure de vitesse remise à zéro
+  resetSimGauge(true); // compteurs du canvas : chrono à zéro, affichés
   // Un script MicroPython commence par un démarrage LENT par nature (boot du
   // firmware puis injection par le raw REPL) : on ne mesure la vitesse qu'à
   // partir de `onRunning`. Sketch AVR ou REPL interactif : rien à attendre.
@@ -3000,6 +3063,7 @@ function stopRun(): void {
   plotter.stop(); // courbes figées mais conservées pour analyse
   stopRenderLoop(); // fin du rendu continu
   resetSpeedBadge(); // plus de simulation : plus d'alerte de ralentissement
+  resetSimGauge(false); // ni chrono ni vitesse hors simulation
   editor.setLocked(false); // édition du schéma de nouveau possible
   showSimBanner(false); // masque le bandeau de simulation
   clearRelayFaults(); // plus de simulation : les cadres rouges n'ont plus de sens

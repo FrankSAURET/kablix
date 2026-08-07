@@ -100,6 +100,7 @@ const FR: Record<string, string> = {
   'Controls': 'Commandes',
   'Sensors': 'Capteurs',
   'Actuators': 'Actionneurs',
+  'Systems': 'Système',
   'Instruments': 'Appareils de mesure',
   'Misc': 'Divers',
   'Passive': 'Discrets',

@@ -48,7 +48,7 @@ async function run() {
 	ok('catalogue : composant araignee présent', !!def);
 	ok('catalogue : kind « araignee »', def?.kind === 'araignee', def?.kind);
 	ok('catalogue : balise kablix-araignee', def?.tag === 'kablix-araignee', def?.tag);
-	ok('catalogue : rangée dans les actionneurs', def && partCategory(def) === 'Actuators', def && partCategory(def));
+	ok('catalogue : rangée dans « Système »', def && partCategory(def) === 'Systems', def && partCategory(def));
 	ok('catalogue : adresse I²C réglable (0x40 par défaut)',
 		def?.attrs?.address === '0x40' && def?.props?.some((p) => p.attr === 'address'), def?.attrs?.address);
 	ok('catalogue : électronique embarquée MASQUÉE par défaut',

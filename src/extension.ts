@@ -114,8 +114,9 @@ export function activate(context: vscode.ExtensionContext): void {
       void SimulatorPanel.active()?.importWokwiDiagram();
     }),
     vscode.commands.registerCommand('kablix.checkLibraryUpdates', () => {
-      // Vérification manuelle : affiche aussi la notification « à jour ».
-      void promptLibraryUpdates(false);
+      // Vérification manuelle : affiche aussi la notification « à jour », et
+      // ignore les versions refusées (l'utilisateur redemande explicitement).
+      void promptLibraryUpdates(context, false);
     }),
     vscode.commands.registerCommand('kablix.upgradePicoFirmware', () => {
       void upgradeFirmware(context);
@@ -172,7 +173,7 @@ export function activate(context: vscode.ExtensionContext): void {
     .getConfiguration('kablix')
     .get<boolean>('checkUpdatesOnStartup', false);
   if (checkOnStartup) {
-    void promptLibraryUpdates(true);
+    void promptLibraryUpdates(context, true);
   }
 
   const checkFirmwareOnStartup = vscode.workspace
