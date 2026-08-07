@@ -141,8 +141,8 @@ Vu la marge de 6-18 %, ces quatre points peuvent suffire sur cette machine.
 
 | # | Piste | Gain estimé | Coût |
 | --- | --- | --- | --- |
-| 11 | **Cache de décodage** indexé par PC : rp2040js redécode l'opcode à chaque exécution ; MicroPython repasse des millions de fois dans les mêmes boucles | 20-40 % | moyen |
-| 12 | **Table de dispatch** (tableau de fonctions indexé sur les bits de poids fort) à la place de la cascade de `if` | 10-25 % | moyen |
+| 11 | **Cache de décodage** indexé par PC — ⛔ **sans objet** : #12 rend le décodage déjà O(1), cf. §9 | — | — |
+| 12 | **Table de dispatch** à la place de la cascade de `if` — ✅ **fait (v2026.8.19)**, cf. §9 | 10-25 % | moyen |
 | 13 | Cache de page dans `findPeripheral` — ✅ **fait (v2026.8.18)**, cf. §8 | ~5 % | petit |
 | 14 | Accès mémoire directs (SRAM d'abord, opcode lu dans `flashView`) — ✅ **fait (v2026.8.18)**, cf. §8 | 5-10 % | moyen |
 | 15 | **Flags paresseux** : ne calculer N/Z/C/V qu'au moment où un branchement les lit | 2-5 % | moyen |
@@ -193,7 +193,7 @@ compris.
 | --- | --- | --- | --- |
 | 13 | cache de page dans `findPeripheral` — ✅ fait | 0,5 | **oui** (les périphériques restent en JS) |
 | 14 | accès mémoire par TypedArray/DataView — ✅ fait | 1-2 | partiellement (la RAM passe en WASM, le bus périphériques reste) |
-| 11 + 12 | cache de décodage + table de dispatch (à faire ensemble : décoder une fois, mémoriser l'index du gestionnaire) | 4-6 | **non** — jeté |
+| 11 + 12 | cache de décodage + table de dispatch — ✅ fait ; #11 s'est révélé sans objet | 4-6 | **non** — jeté |
 | 15 | flags N/Z/C/V paresseux | 2-4 | **non** — jeté |
 | — | bancs, `verify:all`, `testkablix`, chasse aux régressions de timing | 1-2 | **oui**, réutilisés tels quels |
 | | **Total** | **9-15 j** | ~40 % du travail réutilisable |
@@ -345,13 +345,91 @@ Budget CPU du programme Pico avant rupture du temps réel : **~9 % → ~10 %** s
 la machine de référence. Autrement dit : pas encore le sujet. Le gros morceau du
 niveau 3 reste **#11 + #12** (cache de décodage + table de dispatch, 20-40 %).
 
-## 9. Recommandation
+## 9. Niveau 3, lot 2 — la table de décodage (v2026.8.19)
+
+### Le problème : 42 comparaisons pour choisir une instruction
+
+`executeInstruction` décodait l'opcode par une cascade de **83 `else if`**, rangés
+par ordre alphabétique de mnémonique. Une instruction au milieu de l'alphabet
+payait donc ~42 tests de bits — avant même de commencer son travail. Et le
+processeur hôte se trompe de prédiction à chaque fois que le programme émulé
+change d'instruction, c'est-à-dire tout le temps.
+
+### La solution : les conditions ne dépendent que des bits
+
+Les 83 conditions portent **uniquement sur les bits de l'opcode**, jamais sur
+l'état du cœur. Elles sont donc calculables une fois pour toutes : une table
+`Uint8Array(65536)` (64 Ko, tient au chaud dans le cache) donne directement le
+numéro d'opération, et le `switch` dessus compile en table de saut. Décoder coûte
+désormais **un accès mémoire et un saut**, quelle que soit l'instruction.
+
+Sept branches (BL, DMB, DSB, ISB, MRS, MSR, UDF.W) testent aussi `opcode2`,
+inconnu au moment de remplir la table. Elles partagent toutes le préfixe
+`0b11110` — qu'aucune autre branche ne revendique — et sont regroupées dans un
+`case` unique qui rejoue leur mini-cascade d'origine. BL, la seule fréquente des
+sept, y est testée en premier.
+
+| | meilleur | médiane | dispersion |
+| --- | --- | --- | --- |
+| après le lot 1 | 14,34 Minstr/s | 13,27 | 13,5 % |
+| après la table | **16,61** Minstr/s | **16,35** | **3,9 %** |
+| gain | **+16 %** | +23 % | |
+
+La chute de la dispersion (13,5 % → 3,9 %) est un résultat en soi : le temps
+d'exécution ne dépend plus de *quelle* instruction tombe, donc le débit ne varie
+plus qu'avec l'humeur de la machine.
+
+**Cumul du niveau 3 à ce stade : 12,76 → 16,61 Minstr/s, soit +30 %.**
+
+### #11 est devenu sans objet
+
+Le cache de décodage indexé par PC visait à ne pas repayer la cascade à chaque
+passage dans une boucle. Avec une table indexée par l'opcode, le décodage coûte
+déjà un accès tableau : un cache par PC coûterait autant et consommerait 1 Mo.
+**Piste fermée** — c'est 2 des 4-6 jours estimés qui tombent.
+
+### Un patch produit par script, pas à la main
+
+Déplacer 700 lignes à la main, sans filet, et recommencer à chaque montée de
+version de rp2040js : non. La transformation est faite par
+**`scripts/_gen-decode-rp2040.mjs`**, qui découpe la cascade, recopie les corps
+**octet pour octet** (seule la ligne `else if (…) {` devient `case N: {`) et
+écrit au passage `scripts/_decode-reference.json` — la cascade d'amont, ordre
+compris, avec l'empreinte SHA de chaque corps. Après une montée de version :
+
+```
+npm i rp2040js@<version>
+node scripts/_gen-decode-rp2040.mjs
+npm run verify:decode
+npx patch-package rp2040js
+```
+
+### L'équivalence est prouvée, pas supposée
+
+**`npm run verify:decode`** (dans `verify:all`), 6 contrôles :
+
+1. les 76 corps sont au bon numéro, avec la bonne empreinte — rien n'a été
+   déplacé ni perdu ;
+2. le `case` groupé rejoue les 7 conditions larges **dans l'ordre d'amont** ;
+3. les **65 536** opcodes désignent la même instruction qu'avant — exhaustif ;
+4. **16,8 millions** de couples (opcode, opcode2) pour les instructions larges ;
+5. hors du préfixe `0b11110`, la décision ne dépend jamais d'`opcode2` — c'est
+   l'hypothèse qui autorise à indexer la table sur le seul opcode, elle est
+   vérifiée et non postulée ;
+6. la table couvre bien les 78 opérations déclarées.
+
+**Contre-épreuve faite** (3/3) : un corps altéré, une condition de table élargie
+et l'ordre des instructions larges inversé sont tous les trois détectés.
+
+## 10. Recommandation
 
 1. Niveau 0 chez Frank — vérifier d'abord le sélecteur de vitesse et le chiffre
    de l'infobulle du badge (*Moteur % · Rendu % · Navigateur % · fps*).
 2. ✅ #5 (rattrapage borné) — fait. Reste #8 dans le même esprit (3 % mesuré).
-3. Niveau 3 : ✅ #13 et #14 faits (+12 %). Reste **#11 + #12** — c'est là que se
-   trouve l'essentiel du ×1,5-×2 — puis #15. **C'est là qu'est le vrai sujet** :
-   #5 supprime la dérive accidentelle, il ne crée pas de marge.
+3. Niveau 3 : ✅ #13, #14 (+12 %) et #12 (+16 %) faits — **cumul +30 %** ; #11
+   fermé, sans objet. Reste **#15** (flags N/Z/C/V paresseux, 2-5 %) et un
+   nouveau profil pour voir où va le temps maintenant que le décodage ne coûte
+   plus rien. **C'est là qu'est le vrai sujet** : #5 supprime la dérive
+   accidentelle, il ne crée pas de marge.
 4. Cap long terme : #16 (cœur WASM). #18 seulement si un mode « rapide, moins
    fidèle » devient un objectif produit.

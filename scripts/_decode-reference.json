@@ -1,0 +1,511 @@
+{
+ "commentaire": "Cascade de décodage de rp2040js AVANT transformation. Produit par _gen-decode-rp2040.mjs, lu par _verif-decode-rp2040.mjs. Ne pas éditer à la main.",
+ "version": "1.3.3",
+ "prefixeLarge": "opcode >>> 11 === 0b11110",
+ "opLarge": 76,
+ "opIllegal": 77,
+ "rangLarge": 15,
+ "branches": [
+  {
+   "nom": "ADCS",
+   "cond": "opcode >> 6 === 0b0100000101",
+   "large": false,
+   "sha": "a12342d82d9a7745"
+  },
+  {
+   "nom": "ADD (register = SP plus immediate)",
+   "cond": "opcode >> 11 === 0b10101",
+   "large": false,
+   "sha": "d80b92db6a82749f"
+  },
+  {
+   "nom": "ADD (SP plus immediate)",
+   "cond": "opcode >> 7 === 0b101100000",
+   "large": false,
+   "sha": "155d622f74023abc"
+  },
+  {
+   "nom": "ADDS (Encoding T1)",
+   "cond": "opcode >> 9 === 0b0001110",
+   "large": false,
+   "sha": "65083d7f5c814dc1"
+  },
+  {
+   "nom": "ADDS (Encoding T2)",
+   "cond": "opcode >> 11 === 0b00110",
+   "large": false,
+   "sha": "8bc6029bb0f8fe0e"
+  },
+  {
+   "nom": "ADDS (register)",
+   "cond": "opcode >> 9 === 0b0001100",
+   "large": false,
+   "sha": "789e4c81ce14e710"
+  },
+  {
+   "nom": "ADD (register)",
+   "cond": "opcode >> 8 === 0b01000100",
+   "large": false,
+   "sha": "c07855a8a7c8b642"
+  },
+  {
+   "nom": "ADR",
+   "cond": "opcode >> 11 === 0b10100",
+   "large": false,
+   "sha": "e4a6d1000bea3c0e"
+  },
+  {
+   "nom": "ANDS (Encoding T2)",
+   "cond": "opcode >> 6 === 0b0100000000",
+   "large": false,
+   "sha": "23f826238b3aca47"
+  },
+  {
+   "nom": "ASRS (immediate)",
+   "cond": "opcode >> 11 === 0b00010",
+   "large": false,
+   "sha": "05e9c27e661a3de0"
+  },
+  {
+   "nom": "ASRS (register)",
+   "cond": "opcode >> 6 === 0b0100000100",
+   "large": false,
+   "sha": "7e84c13aa9473215"
+  },
+  {
+   "nom": "B (with cond)",
+   "cond": "opcode >> 12 === 0b1101 && ((opcode >> 9) & 0x7) !== 0b111",
+   "large": false,
+   "sha": "67c12f9105c1ca7d"
+  },
+  {
+   "nom": "B",
+   "cond": "opcode >> 11 === 0b11100",
+   "large": false,
+   "sha": "563a86c4aca05d56"
+  },
+  {
+   "nom": "BICS",
+   "cond": "opcode >> 6 === 0b0100001110",
+   "large": false,
+   "sha": "035edae71080dc57"
+  },
+  {
+   "nom": "BKPT",
+   "cond": "opcode >> 8 === 0b10111110",
+   "large": false,
+   "sha": "0bc1c9402a20c1a5"
+  },
+  {
+   "nom": "BL",
+   "cond": "opcode >> 11 === 0b11110 && opcode2 >> 14 === 0b11 && ((opcode2 >> 12) & 0x1) == 1",
+   "large": true,
+   "sha": "e0d5afba29e5c0b7"
+  },
+  {
+   "nom": "BLX",
+   "cond": "opcode >> 7 === 0b010001111 && (opcode & 0x7) === 0",
+   "large": false,
+   "sha": "1a51ed017f65b0b6"
+  },
+  {
+   "nom": "BX",
+   "cond": "opcode >> 7 === 0b010001110 && (opcode & 0x7) === 0",
+   "large": false,
+   "sha": "8f410d5f83539974"
+  },
+  {
+   "nom": "CMN (register)",
+   "cond": "opcode >> 6 === 0b0100001011",
+   "large": false,
+   "sha": "fb1fd1e46d4e18b1"
+  },
+  {
+   "nom": "CMP immediate",
+   "cond": "opcode >> 11 === 0b00101",
+   "large": false,
+   "sha": "564b3ae981deab9b"
+  },
+  {
+   "nom": "CMP (register)",
+   "cond": "opcode >> 6 === 0b0100001010",
+   "large": false,
+   "sha": "c690063d640bddcc"
+  },
+  {
+   "nom": "CMP (register) encoding T2",
+   "cond": "opcode >> 8 === 0b01000101",
+   "large": false,
+   "sha": "32b9c892d6d9bb10"
+  },
+  {
+   "nom": "CPSID i",
+   "cond": "opcode === 0xb672",
+   "large": false,
+   "sha": "930ea8946ae9dd79"
+  },
+  {
+   "nom": "CPSIE i",
+   "cond": "opcode === 0xb662",
+   "large": false,
+   "sha": "7e6433e925a12d10"
+  },
+  {
+   "nom": "DMB SY",
+   "cond": "opcode === 0xf3bf && (opcode2 & 0xfff0) === 0x8f50",
+   "large": true,
+   "sha": "0b1e0e30703260ee"
+  },
+  {
+   "nom": "DSB SY",
+   "cond": "opcode === 0xf3bf && (opcode2 & 0xfff0) === 0x8f40",
+   "large": true,
+   "sha": "0b1e0e30703260ee"
+  },
+  {
+   "nom": "EORS",
+   "cond": "opcode >> 6 === 0b0100000001",
+   "large": false,
+   "sha": "bd20ad2b6560ce2f"
+  },
+  {
+   "nom": "ISB SY",
+   "cond": "opcode === 0xf3bf && (opcode2 & 0xfff0) === 0x8f60",
+   "large": true,
+   "sha": "0b1e0e30703260ee"
+  },
+  {
+   "nom": "LDMIA",
+   "cond": "opcode >> 11 === 0b11001",
+   "large": false,
+   "sha": "14e6396a90ff4072"
+  },
+  {
+   "nom": "LDR (immediate)",
+   "cond": "opcode >> 11 === 0b01101",
+   "large": false,
+   "sha": "03df11878177c7c9"
+  },
+  {
+   "nom": "LDR (sp + immediate)",
+   "cond": "opcode >> 11 === 0b10011",
+   "large": false,
+   "sha": "0b75c5a4dadb7492"
+  },
+  {
+   "nom": "LDR (literal)",
+   "cond": "opcode >> 11 === 0b01001",
+   "large": false,
+   "sha": "bcf02575e3728445"
+  },
+  {
+   "nom": "LDR (register)",
+   "cond": "opcode >> 9 === 0b0101100",
+   "large": false,
+   "sha": "3965fe9b622daf19"
+  },
+  {
+   "nom": "LDRB (immediate)",
+   "cond": "opcode >> 11 === 0b01111",
+   "large": false,
+   "sha": "aef12317cd189876"
+  },
+  {
+   "nom": "LDRB (register)",
+   "cond": "opcode >> 9 === 0b0101110",
+   "large": false,
+   "sha": "a6aa48a3ce6e1545"
+  },
+  {
+   "nom": "LDRH (immediate)",
+   "cond": "opcode >> 11 === 0b10001",
+   "large": false,
+   "sha": "9f58a3db6a20ffe1"
+  },
+  {
+   "nom": "LDRH (register)",
+   "cond": "opcode >> 9 === 0b0101101",
+   "large": false,
+   "sha": "c922206c868880e3"
+  },
+  {
+   "nom": "LDRSB",
+   "cond": "opcode >> 9 === 0b0101011",
+   "large": false,
+   "sha": "b73fc8a4068ed4d0"
+  },
+  {
+   "nom": "LDRSH",
+   "cond": "opcode >> 9 === 0b0101111",
+   "large": false,
+   "sha": "0a6093c88b30ba59"
+  },
+  {
+   "nom": "LSLS (immediate)",
+   "cond": "opcode >> 11 === 0b00000",
+   "large": false,
+   "sha": "2d158e02dd1c6674"
+  },
+  {
+   "nom": "LSLS (register)",
+   "cond": "opcode >> 6 === 0b0100000010",
+   "large": false,
+   "sha": "515c83e089d69606"
+  },
+  {
+   "nom": "LSRS (immediate)",
+   "cond": "opcode >> 11 === 0b00001",
+   "large": false,
+   "sha": "c3cfdaec752fd748"
+  },
+  {
+   "nom": "LSRS (register)",
+   "cond": "opcode >> 6 === 0b0100000011",
+   "large": false,
+   "sha": "4fcd4128beeebf8e"
+  },
+  {
+   "nom": "MOV",
+   "cond": "opcode >> 8 === 0b01000110",
+   "large": false,
+   "sha": "eefb3470648aebc5"
+  },
+  {
+   "nom": "MOVS",
+   "cond": "opcode >> 11 === 0b00100",
+   "large": false,
+   "sha": "57ee7f8a12c72e4d"
+  },
+  {
+   "nom": "MRS",
+   "cond": "opcode === 0b1111001111101111 && opcode2 >> 12 == 0b1000",
+   "large": true,
+   "sha": "36c8f16b82b7ae24"
+  },
+  {
+   "nom": "MSR",
+   "cond": "opcode >> 4 === 0b111100111000 && opcode2 >> 8 == 0b10001000",
+   "large": true,
+   "sha": "14cadc0b821084a7"
+  },
+  {
+   "nom": "MULS",
+   "cond": "opcode >> 6 === 0b0100001101",
+   "large": false,
+   "sha": "04b61e21f23d6710"
+  },
+  {
+   "nom": "MVNS",
+   "cond": "opcode >> 6 === 0b0100001111",
+   "large": false,
+   "sha": "9d34fc901508e075"
+  },
+  {
+   "nom": "ORRS (Encoding T2)",
+   "cond": "opcode >> 6 === 0b0100001100",
+   "large": false,
+   "sha": "cf68c0502b2a3592"
+  },
+  {
+   "nom": "POP",
+   "cond": "opcode >> 9 === 0b1011110",
+   "large": false,
+   "sha": "498baf9587a4a735"
+  },
+  {
+   "nom": "PUSH",
+   "cond": "opcode >> 9 === 0b1011010",
+   "large": false,
+   "sha": "8b1bfa1b84a7228b"
+  },
+  {
+   "nom": "REV",
+   "cond": "opcode >> 6 === 0b1011101000",
+   "large": false,
+   "sha": "0f7e890adf9db3b6"
+  },
+  {
+   "nom": "REV16",
+   "cond": "opcode >> 6 === 0b1011101001",
+   "large": false,
+   "sha": "adf4ff7cb6aa3f4a"
+  },
+  {
+   "nom": "REVSH",
+   "cond": "opcode >> 6 === 0b1011101011",
+   "large": false,
+   "sha": "ef4c30f1e599ac8d"
+  },
+  {
+   "nom": "ROR",
+   "cond": "opcode >> 6 === 0b0100000111",
+   "large": false,
+   "sha": "99669e770143df69"
+  },
+  {
+   "nom": "NEGS / RSBS",
+   "cond": "opcode >> 6 === 0b0100001001",
+   "large": false,
+   "sha": "50b27689e3ce1b2f"
+  },
+  {
+   "nom": "NOP",
+   "cond": "opcode === 0b1011111100000000",
+   "large": false,
+   "sha": "16dee83daa47c4ac"
+  },
+  {
+   "nom": "SBCS (Encoding T1)",
+   "cond": "opcode >> 6 === 0b0100000110",
+   "large": false,
+   "sha": "e63bb477e4810d9f"
+  },
+  {
+   "nom": "SEV",
+   "cond": "opcode === 0b1011111101000000",
+   "large": false,
+   "sha": "e7d058b92571ca1d"
+  },
+  {
+   "nom": "STMIA",
+   "cond": "opcode >> 11 === 0b11000",
+   "large": false,
+   "sha": "ab2acfbe1a9e3bf2"
+  },
+  {
+   "nom": "STR (immediate)",
+   "cond": "opcode >> 11 === 0b01100",
+   "large": false,
+   "sha": "6a0ab571e26c22e6"
+  },
+  {
+   "nom": "STR (sp + immediate)",
+   "cond": "opcode >> 11 === 0b10010",
+   "large": false,
+   "sha": "7ca558f9f77a367a"
+  },
+  {
+   "nom": "STR (register)",
+   "cond": "opcode >> 9 === 0b0101000",
+   "large": false,
+   "sha": "1c0884547b2abba9"
+  },
+  {
+   "nom": "STRB (immediate)",
+   "cond": "opcode >> 11 === 0b01110",
+   "large": false,
+   "sha": "324767286166dad2"
+  },
+  {
+   "nom": "STRB (register)",
+   "cond": "opcode >> 9 === 0b0101010",
+   "large": false,
+   "sha": "427399bdb4794288"
+  },
+  {
+   "nom": "STRH (immediate)",
+   "cond": "opcode >> 11 === 0b10000",
+   "large": false,
+   "sha": "59f9f5f1829b1380"
+  },
+  {
+   "nom": "STRH (register)",
+   "cond": "opcode >> 9 === 0b0101001",
+   "large": false,
+   "sha": "5c1c13ed8b1ba418"
+  },
+  {
+   "nom": "SUB (SP minus immediate)",
+   "cond": "opcode >> 7 === 0b101100001",
+   "large": false,
+   "sha": "62689f6ac3719150"
+  },
+  {
+   "nom": "SUBS (Encoding T1)",
+   "cond": "opcode >> 9 === 0b0001111",
+   "large": false,
+   "sha": "bc6139dfe52b5cfb"
+  },
+  {
+   "nom": "SUBS (Encoding T2)",
+   "cond": "opcode >> 11 === 0b00111",
+   "large": false,
+   "sha": "dbfba5e6c8f323da"
+  },
+  {
+   "nom": "SUBS (register)",
+   "cond": "opcode >> 9 === 0b0001101",
+   "large": false,
+   "sha": "e674993652cabdbc"
+  },
+  {
+   "nom": "SVC",
+   "cond": "opcode >> 8 === 0b11011111",
+   "large": false,
+   "sha": "b5eb10e511e6c753"
+  },
+  {
+   "nom": "SXTB",
+   "cond": "opcode >> 6 === 0b1011001001",
+   "large": false,
+   "sha": "36ecbd27c153924c"
+  },
+  {
+   "nom": "SXTH",
+   "cond": "opcode >> 6 === 0b1011001000",
+   "large": false,
+   "sha": "e6cf9be9601d181b"
+  },
+  {
+   "nom": "TST",
+   "cond": "opcode >> 6 == 0b0100001000",
+   "large": false,
+   "sha": "c7affa1a5cafa0f5"
+  },
+  {
+   "nom": "UDF",
+   "cond": "opcode >> 8 == 0b11011110",
+   "large": false,
+   "sha": "0bc1c9402a20c1a5"
+  },
+  {
+   "nom": "UDF (Encoding T2)",
+   "cond": "opcode >> 4 === 0b111101111111 && opcode2 >> 12 === 0b1010",
+   "large": true,
+   "sha": "d008e2d55a3c0c83"
+  },
+  {
+   "nom": "UXTB",
+   "cond": "opcode >> 6 == 0b1011001011",
+   "large": false,
+   "sha": "9180d00c43f0edb1"
+  },
+  {
+   "nom": "UXTH",
+   "cond": "opcode >> 6 == 0b1011001010",
+   "large": false,
+   "sha": "5ca0105fdb4f2bf0"
+  },
+  {
+   "nom": "WFE",
+   "cond": "opcode === 0b1011111100100000",
+   "large": false,
+   "sha": "04003608b05a68ea"
+  },
+  {
+   "nom": "WFI",
+   "cond": "opcode === 0b1011111100110000",
+   "large": false,
+   "sha": "ade950cf83cd1a08"
+  },
+  {
+   "nom": "YIELD",
+   "cond": "opcode === 0b1011111100010000",
+   "large": false,
+   "sha": "7689dfe0b4be42bb"
+  }
+ ],
+ "illegal": {
+  "sha": "a2071c7a6f0abaff"
+ }
+}
