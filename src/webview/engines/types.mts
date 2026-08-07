@@ -139,6 +139,12 @@ export interface SimEngine {
    * simulée) ou s'il attend — auquel cas le retard vient du reste de la page.
    */
   busyMs?(): number;
+  /**
+   * Retard (ms simulées) que le moteur doit encore à l'horloge du programme et
+   * qu'il rembourse pendant les accalmies. Ce n'est pas le retard TOTAL : ce qui
+   * dépasse la dette maximale est assumé, donc définitivement perdu.
+   */
+  lagMs?(): number;
   /** État logique d'une broche numérique nommée (ex. '13', 'A0', 'GP25'). */
   readDigital(name: string): boolean;
   /**

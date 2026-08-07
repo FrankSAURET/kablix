@@ -66,6 +66,22 @@ const REPLAY_MAX_MS = 20_000; //    au-delà, le moniteur reprend la parole
 const REPLAY_SPEED = 100; //        allocation de temps simulé pendant le rejeu (plein régime)
 const REPLAY_BUF_MAX = 200_000; //  sortie retenue : seule la fin est restituée
 
+// Cadencement : rattrapage borné (cf. scripts/vitesse-pico.md, piste #5).
+// Avance (temps simulé, ms) à partir de laquelle on rend la main au navigateur.
+const AHEAD_NAP_MS = 8;
+// Retard (temps simulé, ms) à partir duquel le pacing repart de l'instant courant.
+// Le manque n'est plus perdu pour autant : il passe en DETTE, remboursée plus tard.
+const DEBT_STEP_MS = 50;
+// Dette maximale conservée. Au-delà, la machine ne suit pas durablement : mieux
+// vaut assumer le retard que faire courir la simulation pendant des minutes. Un
+// écart PLUS GRAND QUE ÇA d'un seul coup n'est pas un manque de puissance mais un
+// gel de la page (onglet caché, veille, ouverture d'une modale) : rien à rattraper.
+const MAX_DEBT_MS = 2000;
+// Régime maximal pendant le remboursement : 1,25 = la simulation avance au plus
+// 25 % plus vite que le temps réel. Rembourser d'un coup se VERRAIT — un
+// time.sleep() écourté, une LED qui clignote deux fois trop vite.
+const CATCHUP = 1.25;
+
 /**
  * Simulator rp2040js au cadencement optimisé. La boucle d'origine appelle
  * `clock.tick()` et re-teste l'arrêt à CHAQUE instruction, puis rend la main
@@ -83,11 +99,19 @@ class KablixSimulator extends Simulator {
   // Cadencement temps réel : ancre temps réel ↔ temps simulé. Sans elle, les
   // périodes où le cœur dort (WFE + saut d'alarme) s'écouleraient quasi
   // instantanément — un time.sleep(0.5) semblerait durer 0 s. Inversement le
-  // code calculatoire reste sous le temps réel (plafond de l'interpréteur) :
-  // un retard irrattrapable ré-ancre sans dette, sinon les sleep suivants
-  // seraient escamotés pour « rattraper » le retard accumulé.
+  // code calculatoire reste sous le temps réel (plafond de l'interpréteur) : le
+  // retard est mis en DETTE et remboursé pendant les accalmies (cf. debtMs).
   private paceWall = 0;
   private paceSim = 0;
+  /**
+   * Temps simulé (ms) que le moteur DOIT à l'horloge du programme. Le pacing
+   * repart de l'instant courant dès 50 ms de retard, sinon les sleep suivants
+   * seraient escamotés d'un coup pour rattraper ; mais le manque était jusqu'ici
+   * effacé, et une horloge Pico retardait d'autant, définitivement. Il est
+   * désormais noté ici puis rendu à raison de CATCHUP pendant les siestes — une
+   * minute reste une minute tant que la charge MOYENNE passe.
+   */
+  private debtMs = 0;
   /**
    * Facteur de vitesse demandé (menu 🐌…🦅). Il agit sur l'ALLOCATION de temps
    * simulé : à 0,1 le cœur n'a droit qu'à 0,1 ms simulée par ms réelle, donc il
@@ -121,6 +145,12 @@ class KablixSimulator extends Simulator {
   reanchor(): void {
     this.paceWall = Date.now();
     this.paceSim = this.clock.nanos;
+    this.debtMs = 0;
+  }
+
+  /** Retard cumulé non encore remboursé (ms simulées) — diagnostic, cf. SimEngine.lagMs. */
+  get lag(): number {
+    return this.debtMs;
   }
 
   override execute(): void {
@@ -135,13 +165,28 @@ class KablixSimulator extends Simulator {
       const now = Date.now();
       if (now >= deadline) break;
       const aheadMs = (clock.nanos - this.paceSim) / 1e6 - (now - this.paceWall) * this.speed;
-      if (aheadMs > 8) {
+      if (aheadMs > AHEAD_NAP_MS) {
         // `aheadMs` est en temps SIMULÉ : la sieste correspondante en temps réel
         // dure d'autant plus longtemps que le ralenti est fort (÷ speed).
         napMs = Math.min((aheadMs - 4) / this.speed, 40);
+        if (this.debtMs > 0) {
+          // Accalmie (le programme dort) : c'est le SEUL moment où du temps est
+          // disponible pour rembourser — quand il calcule, l'interpréteur est
+          // déjà au plafond. On ne raccourcit PAS la sieste : sur Windows un
+          // setTimeout de quelques ms dérive déjà de plus que ce qu'on lui
+          // retrancherait (mesuré : remboursement nul). On décale l'ancre, ce
+          // qui remet le moteur « en retard » : au réveil il comble tout seul,
+          // et vite, puisque le temps endormi s'obtient par sauts d'alarme —
+          // gratuits. Le montant injecté par sieste plafonne le régime à CATCHUP.
+          const repay = Math.min(this.debtMs, napMs * (1 - 1 / CATCHUP) * this.speed);
+          this.debtMs -= repay;
+          this.paceSim += repay * 1e6;
+        }
         break;
       }
-      if (aheadMs < -50) {
+      if (aheadMs < -DEBT_STEP_MS) {
+        const late = -aheadMs;
+        this.debtMs = late > MAX_DEBT_MS ? 0 : Math.min(this.debtMs + late, MAX_DEBT_MS);
         this.paceWall = now;
         this.paceSim = clock.nanos;
       }
@@ -438,6 +483,11 @@ export class PicoEngine implements SimEngine {
   /** Temps réel cumulé passé dans la boucle du moteur (ms) — voir SimEngine.busyMs. */
   busyMs(): number {
     return this.sim.busyAccum;
+  }
+
+  /** Retard simulé encore dû à l'horloge du programme (ms) — voir SimEngine.lagMs. */
+  lagMs(): number {
+    return this.sim.lag;
   }
 
   readDigital(name: string): boolean {
@@ -970,6 +1020,9 @@ export class PicoEngine implements SimEngine {
     this.isPaused = false;
     if (this.pausedByStop) {
       this.pausedByStop = false;
+      // Le temps passé en pause n'est pas une dette du moteur : on repart d'ici,
+      // sinon le rattrapage borné s'acharnerait à combler une attente voulue.
+      this.sim.reanchor();
       this.sim.execute();
     } else {
       // \x07 (BEL) : __kx désactive le mode pas à pas et rend la main au script.
@@ -1063,7 +1116,14 @@ export class PicoEngine implements SimEngine {
     // Le script tourne : c'est la fin du « Démarrage MicroPython… ». Pendant un
     // rejeu silencieux, ce signal attend la fin du rejeu (il arme la mesure de
     // vitesse, qui n'aurait aucun sens sur un programme lancé à fond).
-    if (!this.silentReplay) this.onRunning?.();
+    if (!this.silentReplay) {
+      // Point zéro du programme de l'élève. Le boot du firmware est du calcul
+      // pur : l'émulateur y accumule forcément du retard, mais ce retard-là
+      // n'appartient à aucune horloge — le rattraper ferait courir les premières
+      // secondes du script.
+      this.sim.reanchor();
+      this.onRunning?.();
+    }
   }
 
   // --- Bascule vers le script instrumenté -------------------------------------

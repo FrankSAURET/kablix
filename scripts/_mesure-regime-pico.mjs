@@ -21,6 +21,9 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const dire = (...a) => writeSync(1, `${a.join(' ')}\n`);
 
 function findFirmware() {
+  // Firmware imposé : le régime dépend beaucoup de la version de MicroPython,
+  // et le cache de VS Code n'a pas forcément celui de test-assets.
+  if (process.env.KABLIX_FW && existsSync(process.env.KABLIX_FW)) return process.env.KABLIX_FW;
   const dirs = [
     join(root, 'test-assets'),
     join(homedir(), 'AppData', 'Roaming', 'Code', 'User', 'globalStorage', 'electropol-fr.kablix', 'micropython'),
