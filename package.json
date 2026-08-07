@@ -1,7 +1,7 @@
 {
   "name": "kablix",
   "displayName": "Kablix",
-  "version": "2026.8.14",
+  "version": "2026.8.15",
   "description": "%kablix.description%",
   "publisher": "electropol-fr",
   "author": {
@@ -331,7 +331,7 @@
     "avr8js": "0.21.0",
     "jszip": "^3.10.1",
     "lit": "3.3.3",
-    "rp2040js": "1.3.2"
+    "rp2040js": "1.3.3"
   },
   "devDependencies": {
     "@types/node": "20.11.0",

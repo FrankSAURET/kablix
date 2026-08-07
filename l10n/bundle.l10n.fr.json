@@ -129,7 +129,7 @@
   "See on npm": "Voir sur npm",
   "Close": "Fermer",
   "Code file to run / debug — click to change, double-click to open": "Fichier de code à exécuter / déboguer — cliquer pour changer, double-cliquer pour ouvrir",
-  "No file": "Aucun fichier",
+  "No file": "Pas de code associé",
   "Source code": "Code source",
   "Compiled artifact": "Artefact compilé",
   "Choose the code file to run / debug": "Choisir le fichier de code à exécuter / déboguer",
