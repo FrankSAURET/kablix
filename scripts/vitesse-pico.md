@@ -76,10 +76,11 @@ réel que parce que le programme dort. Le seuil de rupture, sur cette machine :
 | les deux | 0,94 | 99 % | 10,8 |
 
 Le régime est plafonné à 1,00 par le pacing : c'est la colonne **moteur** qu'il
-faut lire. Supprimer les deux `advance()` inutiles rend ~3 %. Grouper les ticks
-est **contre-productif** (le test « faut-il verser maintenant ? » coûte plus cher
-que le tick lui-même) — la piste abandonnée en v2026.7.86 est définitivement
-close.
+faut lire. Supprimer les deux `advance()` inutiles semble rendre ~3 % — **ce
+chiffre n'a pas tenu**, le même banc rejoué après les lots 1 et 2 ne montre plus
+rien du tout (§10) : c'était du bruit. Grouper les ticks est **contre-productif**
+(le test « faut-il verser maintenant ? » coûte plus cher que le tick lui-même) —
+la piste abandonnée en v2026.7.86 est définitivement close.
 
 ## 3. Pourquoi ça marchait et plus maintenant
 
@@ -133,7 +134,7 @@ Vu la marge de 6-18 %, ces quatre points peuvent suffire sur cette machine.
 
 | # | Piste | Gain mesuré/estimé | Coût |
 | --- | --- | --- | --- |
-| 8 | Supprimer `pio[0].advance()` / `pio[1].advance()` par instruction quand aucune machine PIO n'est armée | **3 % (mesuré)** | petit |
+| 8 | Supprimer `pio[0].advance()` / `pio[1].advance()` par instruction quand aucune machine PIO n'est armée — ⛔ **fermée**, gain réel nul, cf. §10 | 0 % (remesuré) | — |
 | 9 | Espacer le polling USB-CDC quand la console est fermée et qu'aucune entrée n'est en attente (1 alarme par ms simulée aujourd'hui) | 2-5 % | moyen |
 | 10 | Ne pas faire tourner le cœur 1 tant qu'il n'a pas été lancé | selon sketch | petit |
 
@@ -145,11 +146,12 @@ Vu la marge de 6-18 %, ces quatre points peuvent suffire sur cette machine.
 | 12 | **Table de dispatch** à la place de la cascade de `if` — ✅ **fait (v2026.8.19)**, cf. §9 | 10-25 % | moyen |
 | 13 | Cache de page dans `findPeripheral` — ✅ **fait (v2026.8.18)**, cf. §8 | ~5 % | petit |
 | 14 | Accès mémoire directs (SRAM d'abord, opcode lu dans `flashView`) — ✅ **fait (v2026.8.18)**, cf. §8 | 5-10 % | moyen |
-| 15 | **Flags paresseux** : ne calculer N/Z/C/V qu'au moment où un branchement les lit | 2-5 % | moyen |
+| 15 | **Flags paresseux** : ne calculer N/Z/C/V qu'au moment où un branchement les lit — ⛔ **fermée** : plafond 3,3 % au profil, sous la résolution du banc, cf. §10 | — | — |
 
-Cumul réaliste : **×1,5 à ×2**, soit un budget programme de 15-18 % au lieu de 9 %.
-C'est le meilleur rapport gain/risque de la liste. Contrainte : `verify:all` +
-`testkablix` à chaque étape, les régressions de timing sont sournoises.
+Cumul obtenu : **+30 %** (#13, #14, #12), soit un budget programme de ~12 % au
+lieu de 9 %. Le niveau 3 est **terminé** — §10 dit pourquoi les pistes restantes
+ne rendent rien. Contrainte respectée : `verify:all` + `testkablix` à chaque
+étape, les régressions de timing sont sournoises.
 
 ### Niveau 4 — changer de moteur d'exécution
 
@@ -421,15 +423,90 @@ npx patch-package rp2040js
 **Contre-épreuve faite** (3/3) : un corps altéré, une condition de table élargie
 et l'ordre des instructions larges inversé sont tous les trois détectés.
 
-## 10. Recommandation
+## 10. Le niveau 3 s'arrête là — et pourquoi (7 août 2026)
+
+Après le lot 2, un nouveau profil montre que les lots 1 et 2 ont bien vidé leurs
+cibles : `findPeripheral` passe de 5,6 % à 0,4 %, `readUint16` de ~10 % à 0,5 %.
+Le temps restant se répartit ainsi :
+
+| poste | part | verdict |
+| --- | --- | --- |
+| `executeInstruction` (corps des instructions) | 52 % | travail utile, rien à réordonner |
+| boucle `execute` de `pico.mts` | 25,6 % | **attribution trompeuse**, voir ci-dessous |
+| `readUint32` / `writeUint32` | 11,1 % | déjà SRAM-d'abord depuis le lot 1 |
+| `cyclesIO` | 2,7 % | |
+| `substractUpdateFlags` + `addUpdateFlags` | 3,3 % | plafond de #15 |
+
+### Trois tentatives, trois fois rien
+
+**#8 — les deux `pio.advance()` par instruction.** Sortie anticipée sur les quatre
+drapeaux `enabled` de `RPPIO.advance` : 16,44 contre 16,61. Nul, parce que
+`StateMachine.advance` renvoyait déjà immédiatement sur `!this.enabled` —
+l'économie était déjà faite. **Annulé.**
+
+**La boucle `execute` (25,6 % du profil).** Le banc `_ab-boucle-pico.mjs` mesure
+le plafond en NEUTRALISANT les appels, ce qu'aucune optimisation ne pourra
+battre :
+
+```
+ref              15.5 Minstr/s
+sans-pio         15.0
+tick-groupé      14.7
+sans-les-deux    15.6
+```
+
+Supprimer **entièrement** `pio.advance()` ×2 **et** `clock.tick()` ne rend rien.
+Les 25,6 % ne sont donc pas dans ces appels : c'est `executeInstruction`, inliné
+par V8, dont le temps remonte dans l'appelant. **Le profileur désigne ici un
+gisement qui n'existe pas** — vérifier au banc avant d'optimiser sur sa foi.
+
+**Accesseurs mémoire du cœur + `cyclesIO` (13,8 % visés).** Les six accesseurs de
+`CortexM0Core` étaient de simples relais vers `RP2040` ; fenêtre SRAM inlinée
+dedans, plus `if (addr < APB_START_ADDRESS) return 1;` en tête de `cyclesIO`.
+A/B **alterné** (les deux versions run après run dans la même campagne, ordre
+inversé une fois sur deux, 6 paires) :
+
+```
+sans  meilleur 15.54   médiane 14.99
+avec  meilleur 15.43   médiane 15.27
+écart meilleur -0.7 %   médiane +1.8 %
+```
+
+Sous le bruit. **Annulé** : le patch doit être rebasé à chaque montée de version
+de rp2040js, il ne se paie pas 40 lignes qu'on ne sait pas mesurer.
+
+Variante testée au passage : `Uint32Array`/`Uint16Array` sur le buffer SRAM au
+lieu de `DataView` (ce qu'amont fait déjà pour `flash16`). **Plus lent**, y
+compris pour la lecture d'opcode. Ne pas y revenir.
+
+### La résolution du banc est le mur
+
+La même version a donné **16,80** puis **15,94** à vingt minutes d'écart : la
+machine dérive de ~5 % au cours d'une session. Deux campagnes successives ne
+départagent donc rien en dessous de ~6 %, et l'A/B alterné descend à ~2 % au
+mieux. Les mesures de lot à lot ci-dessus restent valables — chacune compare deux
+versions dans la MÊME fenêtre — mais les valeurs absolues ne se comparent pas
+d'un jour à l'autre.
+
+**#15 est fermée sur ce constat** : son plafond au profil est 3,3 %, et le gain
+réel n'en serait qu'une fraction (seuls C et V sont paresseux ; N et Z coûtent
+une comparaison). C'est-à-dire un travail délicat — des drapeaux faux se
+traduisent par un firmware qui part en vrille loin de la cause — pour un résultat
+que le banc ne saura pas distinguer de zéro.
+
+### Bilan du niveau 3
+
+**12,76 → 16,6 Minstr/s, +30 %**, en deux lots (#13, #14, #12), pour ~1,5 jour au
+lieu des 9-15 estimés. #11, #15 et #8 sont fermées. Le reste du facteur ×11
+demande un changement de nature, pas une optimisation : **#16**.
+
+## 11. Recommandation
 
 1. Niveau 0 chez Frank — vérifier d'abord le sélecteur de vitesse et le chiffre
    de l'infobulle du badge (*Moteur % · Rendu % · Navigateur % · fps*).
-2. ✅ #5 (rattrapage borné) — fait. Reste #8 dans le même esprit (3 % mesuré).
-3. Niveau 3 : ✅ #13, #14 (+12 %) et #12 (+16 %) faits — **cumul +30 %** ; #11
-   fermé, sans objet. Reste **#15** (flags N/Z/C/V paresseux, 2-5 %) et un
-   nouveau profil pour voir où va le temps maintenant que le décodage ne coûte
-   plus rien. **C'est là qu'est le vrai sujet** : #5 supprime la dérive
-   accidentelle, il ne crée pas de marge.
-4. Cap long terme : #16 (cœur WASM). #18 seulement si un mode « rapide, moins
-   fidèle » devient un objectif produit.
+2. ✅ #5 (rattrapage borné) — fait.
+3. ✅ **Niveau 3 terminé** : #13, #14 (+12 %) puis #12 (+16 %), **cumul +30 %**.
+   #11 sans objet, #8 et #15 fermées faute de gain mesurable (§10).
+4. Cap : **#16** (cœur Cortex-M0+ en WASM) — la seule piste qui reste à la
+   hauteur de l'écart. #18 seulement si un mode « rapide, moins fidèle » devient
+   un objectif produit.
