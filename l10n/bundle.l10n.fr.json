@@ -19,6 +19,7 @@
   "Choose a file…": "Choisir un fichier…",
   "Which board?": "Quelle carte ?",
   "Select the MicroPython firmware to download": "Sélectionnez le firmware MicroPython à télécharger",
+  "Kablix: no MicroPython firmware for {0}; the simulation starts with the {1} one.": "Kablix : aucun firmware MicroPython pour {0} ; la simulation démarre avec celui du {1}.",
   "Kablix: downloading {0}…": "Kablix : téléchargement de {0}…",
   "Kablix: MicroPython firmware installed ({0}).": "Kablix : firmware MicroPython installé ({0}).",
   "Kablix: firmware download failed ({0}).": "Kablix : échec du téléchargement du firmware ({0}).",

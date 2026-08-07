@@ -72,6 +72,39 @@ async function fetchLatestFirmwareName(variant: FirmwareVariant): Promise<string
   }
 }
 
+/**
+ * Variante déduite du NOM d'un fichier .uf2. `undefined` quand le nom ne dit
+ * rien (`micropython.uf2`, `rp2-pico-…`) : ce fichier-là sert les deux cartes,
+ * il a été déposé exprès par l'utilisateur.
+ * Piège récurrent : `RPI_PICO` est un préfixe de `RPI_PICO_W`, le W se teste donc
+ * EN PREMIER.
+ */
+function variantOfFileName(name: string): FirmwareVariant | undefined {
+  const upper = name.toUpperCase();
+  if (upper.startsWith('RPI_PICO_W')) return 'picow';
+  if (upper.startsWith('RPI_PICO')) return 'pico';
+  return undefined;
+}
+
+/**
+ * Ne garde que les .uf2 utilisables par la carte demandée. Sans carte demandée,
+ * tout passe. Un firmware Pico W lancé sur un Pico simple annonce « Raspberry Pi
+ * Pico W » dans sa bannière et embarque un réseau qui n'existe pas : la date du
+ * fichier ne doit JAMAIS l'emporter sur la carte posée sur la planche.
+ */
+function forVariant(uris: vscode.Uri[], preferred?: FirmwareVariant): vscode.Uri[] {
+  if (!preferred) return uris;
+  return uris.filter((uri) => {
+    const variant = variantOfFileName(baseName(uri));
+    return variant === undefined || variant === preferred;
+  });
+}
+
+/** Nom de fichier d'un URI, séparateur Windows compris. */
+function baseName(uri: vscode.Uri): string {
+  return uri.fsPath.split(/[\\/]/).pop() ?? '';
+}
+
 /** Erreur « pas de firmware » silencieuse : l'utilisateur a annulé, pas un échec. */
 export class FirmwareCancelled extends Error {
   constructor() {
@@ -117,15 +150,33 @@ export async function resolveMicropythonFirmware(
     '**/node_modules/**',
     10
   );
-  const best = await newest(found);
+  const best = await newest(forVariant(found, preferred));
   if (best) return best.fsPath;
 
   // 3. Cache global de l'extension (téléchargement précédent, partagé entre projets).
-  const cached = await findCachedFirmware(context);
+  const cached = await findCachedFirmware(context, preferred);
   if (cached) return cached.fsPath;
 
-  // 4. Rien trouvé : proposer le téléchargement ou la sélection d'un fichier.
-  return promptAndObtain(context, preferred);
+  // 4. Rien pour CETTE carte : proposer le téléchargement ou la sélection d'un
+  //    fichier. Si l'utilisateur renonce et qu'un firmware de l'autre carte
+  //    traîne, mieux vaut démarrer avec lui que ne rien lancer du tout — mais
+  //    en le disant, sinon la bannière annoncera la mauvaise carte sans prévenir.
+  try {
+    return await promptAndObtain(context, preferred);
+  } catch (err) {
+    if (!(err instanceof FirmwareCancelled) || !preferred) throw err;
+    const fallback = (await newest(found)) ?? (await findCachedFirmware(context));
+    if (!fallback) throw err;
+    const other = variantOfFileName(baseName(fallback));
+    void vscode.window.showWarningMessage(
+      l10n.t(
+        'Kablix: no MicroPython firmware for {0}; the simulation starts with the {1} one.',
+        FIRMWARES[preferred].label,
+        other ? FIRMWARES[other].label : baseName(fallback)
+      )
+    );
+    return fallback.fsPath;
+  }
 }
 
 /** Construit l'URI d'un chemin de réglage (absolu, ou relatif au workspace). */
@@ -140,9 +191,13 @@ function cacheDir(context: vscode.ExtensionContext): vscode.Uri {
   return vscode.Uri.joinPath(context.globalStorageUri, 'micropython');
 }
 
-/** Premier .uf2 présent dans le cache global, le cas échéant. */
+/**
+ * .uf2 du cache global utilisable par la carte demandée (le plus récent).
+ * Sans carte demandée, le plus récent tout court.
+ */
 async function findCachedFirmware(
-  context: vscode.ExtensionContext
+  context: vscode.ExtensionContext,
+  preferred?: FirmwareVariant
 ): Promise<vscode.Uri | undefined> {
   const dir = cacheDir(context);
   try {
@@ -150,7 +205,7 @@ async function findCachedFirmware(
     const uris = entries
       .filter(([name, type]) => type === vscode.FileType.File && name.toLowerCase().endsWith('.uf2'))
       .map(([name]) => vscode.Uri.joinPath(dir, name));
-    return newest(uris);
+    return newest(forVariant(uris, preferred));
   } catch {
     return undefined; // dossier de cache inexistant : premier lancement
   }
