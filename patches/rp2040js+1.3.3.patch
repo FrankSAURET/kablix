@@ -18,6 +18,37 @@ index 3b9a7ac..6219177 100644
              lastItem = alarmListItem;
              alarmListItem = alarmListItem.next;
          }
+diff --git a/node_modules/rp2040js/dist/esm/cortex-m0-core.js b/node_modules/rp2040js/dist/esm/cortex-m0-core.js
+index d8d31ae..d9b35b8 100644
+--- a/node_modules/rp2040js/dist/esm/cortex-m0-core.js
++++ b/node_modules/rp2040js/dist/esm/cortex-m0-core.js
+@@ -522,9 +522,24 @@ export class CortexM0Core {
+         }
+         // ARM Thumb instruction encoding - 16 bits / 2 bytes
+         const opcodePC = this.PC & ~1; //ensure no LSB set PC are executed
+-        const opcode = this.readUint16(opcodePC);
++        // KABLIX PATCH: fetch straight from the flash view. Every instruction
++        // used to go through core.readUint16 -> rp2040.readUint16 -> range tests
++        // -> getUint16: two calls and two comparisons, on the single hottest path
++        // of the emulator (10 % of the profile across its two sites). Code runs
++        // from XIP flash, so that case is inlined here and everything else —
++        // RAM, bootrom, a negative PC — falls back to the original path with
++        // identical semantics (same window as rp2040.readUint16: the first flash
++        // image, not the mirrors).
++        const rp = this.rp2040;
++        const flashOffset = opcodePC - 0x10000000;
++        const inFlash = flashOffset >= 0 && flashOffset < rp.flash.length;
++        const opcode = inFlash ? rp.flashView.getUint16(flashOffset, true) : this.readUint16(opcodePC);
+         const wideInstruction = opcode >> 12 === 0b1111 || opcode >> 11 === 0b11101;
+-        const opcode2 = wideInstruction ? this.readUint16(opcodePC + 2) : 0;
++        const opcode2 = wideInstruction
++            ? (inFlash && flashOffset + 2 < rp.flash.length
++                ? rp.flashView.getUint16(flashOffset + 2, true)
++                : this.readUint16(opcodePC + 2))
++            : 0;
+         this.PC += 2;
+         let deltaCycles = 1;
+         // ADCS
 diff --git a/node_modules/rp2040js/dist/esm/peripherals/pio.d.ts b/node_modules/rp2040js/dist/esm/peripherals/pio.d.ts
 index 2aea8c1..ecd36dc 100644
 --- a/node_modules/rp2040js/dist/esm/peripherals/pio.d.ts
@@ -119,3 +150,53 @@ index f87e56c..85a7f48 100644
      run() {
          for (let i = 0; i < 1000 && !this.stopped; i++) {
              this.step();
+diff --git a/node_modules/rp2040js/dist/esm/rp2040.js b/node_modules/rp2040js/dist/esm/rp2040.js
+index 2a29f91..98ea905 100644
+--- a/node_modules/rp2040js/dist/esm/rp2040.js
++++ b/node_modules/rp2040js/dist/esm/rp2040.js
+@@ -182,6 +182,14 @@ export class RP2040 {
+             this.logger.error(LOG_NAME, `read from address ${address.toString(16)}, which is not 32 bit aligned`);
+         }
+         const { bootrom } = this;
++        // KABLIX PATCH: SRAM first. The four ranges below are disjoint, so the
++        // order is a pure performance choice — and MicroPython reads SRAM far
++        // more often than the bootrom, which upstream tests first. The upstream
++        // SRAM branch further down is now unreachable; it is left in place so
++        // this patch stays a pure insertion, easy to rebase.
++        if (address >= RAM_START_ADDRESS && address < RAM_START_ADDRESS + this.sram.length) {
++            return this.sramView.getUint32(address - RAM_START_ADDRESS, true);
++        }
+         if (address < bootrom.length * 4) {
+             return bootrom[address / 4];
+         }
+@@ -215,6 +223,15 @@ export class RP2040 {
+         return 0xffffffff;
+     }
+     findPeripheral(address) {
++        // KABLIX PATCH: range test before the dictionary lookup. `peripherals` is
++        // a plain object keyed by large, sparse integers, so V8 stores it in
++        // dictionary mode and every lookup hashes. Every RAM write used to pay
++        // for one missed hash (writeUint32 asks here first). Peripherals only
++        // live at 0x18000000 (XIP_SSI) and 0x40000000..0x50400000, so a single
++        // comparison rules out bootrom, flash and SRAM.
++        if (address < 0x40000000) {
++            return address >>> 14 === 0x6000 ? this.peripherals[0x18000] : undefined;
++        }
+         return this.peripherals[(address >>> 14) << 2];
+     }
+     /** We assume the address is 16-bit aligned */
+@@ -241,6 +258,14 @@ export class RP2040 {
+     writeUint32(address, value) {
+         address = address >>> 0;
+         const { bootrom } = this;
++        // KABLIX PATCH: SRAM first, before asking findPeripheral. No peripheral
++        // key maps into the SRAM window (they sit at 0x18000000 and
++        // 0x40000000+), so this only reorders disjoint ranges — but it takes the
++        // most frequent write in the whole emulator off the peripheral path.
++        if (address >= RAM_START_ADDRESS && address < RAM_START_ADDRESS + this.sram.length) {
++            this.sramView.setUint32(address - RAM_START_ADDRESS, value, true);
++            return;
++        }
+         const peripheral = this.findPeripheral(address);
+         if (peripheral) {
+             const atomicType = (address & 0x3000) >> 12;

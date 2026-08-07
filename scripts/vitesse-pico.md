@@ -6,7 +6,7 @@ et Chromium 140. Sketch de référence : `testkablix/Horloge.py`, firmware
 
 Outils : `_mesure-regime-pico.mjs`, `_mesure-pico-chromium.mjs`,
 `_mesure-firmware-pico.mjs`, `_mesure-instr-firmware.mjs`, `_diag-alarmes-pico.mjs`,
-`_ab-boucle-pico.mjs`, `_ab-rattrapage-pico.mjs`.
+`_ab-boucle-pico.mjs`, `_ab-rattrapage-pico.mjs`, `_mesure-debit-pico.mjs`.
 
 > **Piège de mesure.** Un moteur `stop()` continue de faire tourner ses
 > périphériques : mesurer plusieurs variantes dans un même processus divise par
@@ -143,8 +143,8 @@ Vu la marge de 6-18 %, ces quatre points peuvent suffire sur cette machine.
 | --- | --- | --- | --- |
 | 11 | **Cache de décodage** indexé par PC : rp2040js redécode l'opcode à chaque exécution ; MicroPython repasse des millions de fois dans les mêmes boucles | 20-40 % | moyen |
 | 12 | **Table de dispatch** (tableau de fonctions indexé sur les bits de poids fort) à la place de la cascade de `if` | 10-25 % | moyen |
-| 13 | Cache de page dans `findPeripheral` (dernier périphérique trouvé + table indexée sur `adresse >> 14`) | ~5 % | petit |
-| 14 | Accès mémoire par `DataView`/TypedArray alignés au lieu de recomposer octet par octet (`readUint16`/`32` = 13 % du profil) | 5-10 % | moyen |
+| 13 | Cache de page dans `findPeripheral` — ✅ **fait (v2026.8.18)**, cf. §8 | ~5 % | petit |
+| 14 | Accès mémoire directs (SRAM d'abord, opcode lu dans `flashView`) — ✅ **fait (v2026.8.18)**, cf. §8 | 5-10 % | moyen |
 | 15 | **Flags paresseux** : ne calculer N/Z/C/V qu'au moment où un branchement les lit | 2-5 % | moyen |
 
 Cumul réaliste : **×1,5 à ×2**, soit un budget programme de 15-18 % au lieu de 9 %.
@@ -191,8 +191,8 @@ compris.
 
 | # | Travail | Jours | Survit à #16 ? |
 | --- | --- | --- | --- |
-| 13 | cache de page dans `findPeripheral` | 0,5 | **oui** (les périphériques restent en JS) |
-| 14 | accès mémoire par TypedArray/DataView | 1-2 | partiellement (la RAM passe en WASM, le bus périphériques reste) |
+| 13 | cache de page dans `findPeripheral` — ✅ fait | 0,5 | **oui** (les périphériques restent en JS) |
+| 14 | accès mémoire par TypedArray/DataView — ✅ fait | 1-2 | partiellement (la RAM passe en WASM, le bus périphériques reste) |
 | 11 + 12 | cache de décodage + table de dispatch (à faire ensemble : décoder une fois, mémoriser l'index du gestionnaire) | 4-6 | **non** — jeté |
 | 15 | flags N/Z/C/V paresseux | 2-4 | **non** — jeté |
 | — | bancs, `verify:all`, `testkablix`, chasse aux régressions de timing | 1-2 | **oui**, réutilisés tels quels |
@@ -292,13 +292,66 @@ consommée par le bruit de fond ordinaire.
    supérieur à la dette maximale d'un seul coup n'est pas un manque de puissance
    mais un gel de page (onglet caché, veille) : rien à rattraper.
 
-## 8. Recommandation
+## 8. Niveau 3, lot 1 — #13 et #14 livrés (v2026.8.18)
+
+### La mesure : Minstr/s, pas le régime
+
+Le régime ne convient **pas** pour juger l'interpréteur : le cadencement le
+plafonne à 1,00, donc une accélération de 30 % s'y lit… 1,00. Le banc
+`_mesure-debit-pico.mjs` mesure le **débit brut** : `setSpeed(100)` une fois le
+script parti (le moteur ne dort plus), `executeInstruction` compté sur 5 s,
+divisé par `busyMs()`. Un processus par répétition.
+
+> **On compare le MEILLEUR run, pas la médiane.** Le bruit de cette machine
+> (turbo qui retombe, OneDrive, antivirus) ne peut que *ralentir* une répétition,
+> jamais l'accélérer : la médiane mesure autant l'humeur de la machine que le
+> code. Dispersion typique ici : 12-14 % — assez pour noyer un gain de 5 % si on
+> lit la mauvaise statistique.
+
+| | meilleur | médiane |
+| --- | --- | --- |
+| avant | 12,76 Minstr/s | 11,53 |
+| après | **14,34** Minstr/s | **13,27** |
+| gain | **+12 %** | +15 % |
+
+Confirmé sur deux campagnes (5 puis 10 répétitions).
+
+### Ce qui a changé, quatre insertions dans le patch
+
+1. **`findPeripheral` : un test d'intervalle avant le dictionnaire.**
+   `peripherals` est un objet ordinaire indexé par de grands entiers épars, donc
+   V8 le range en *mode dictionnaire* et chaque accès hache. Or `writeUint32`
+   interrogeait `findPeripheral` **en premier** : chaque écriture en RAM payait un
+   hachage pour rien. Une comparaison (`address < 0x40000000`) écarte bootrom,
+   flash et SRAM d'un coup.
+2. **`readUint32` : la SRAM testée avant le bootrom.** Les quatre plages sont
+   disjointes, l'ordre est donc un pur choix de performance — et MicroPython lit
+   la SRAM bien plus souvent que le bootrom, que l'amont teste en premier.
+3. **`writeUint32` : la SRAM avant `findPeripheral`.** Aucune clé de périphérique
+   ne tombe dans la fenêtre SRAM ; on sort l'écriture la plus fréquente de tout
+   l'émulateur du chemin périphérique.
+4. **L'opcode lu directement dans `flashView`.** `executeInstruction` passait par
+   `readUint16` → cascade de comparaisons, deux fois par instruction large. Le
+   code exécuté est en flash dans 99,9 % des cas : un `getUint16` direct, avec
+   repli sur `readUint16` pour la RAM, le bootrom et un PC négatif.
+
+Rien n'est une réécriture : quatre insertions, ordre des branches et raccourcis,
+sur des plages disjointes. Le patch reste rebasable sur l'amont (la branche SRAM
+d'origine de `readUint32`, devenue morte, est laissée en place exprès).
+
+### Ce que ça change pour l'élève
+
+Budget CPU du programme Pico avant rupture du temps réel : **~9 % → ~10 %** sur
+la machine de référence. Autrement dit : pas encore le sujet. Le gros morceau du
+niveau 3 reste **#11 + #12** (cache de décodage + table de dispatch, 20-40 %).
+
+## 9. Recommandation
 
 1. Niveau 0 chez Frank — vérifier d'abord le sélecteur de vitesse et le chiffre
    de l'infobulle du badge (*Moteur % · Rendu % · Navigateur % · fps*).
 2. ✅ #5 (rattrapage borné) — fait. Reste #8 dans le même esprit (3 % mesuré).
-3. Puis le niveau 3 (#13, #11, #12, #14) : ×1,5 à ×2 pour un travail contenu au
-   fork de rp2040js. **C'est là qu'est le vrai sujet** : #5 supprime la dérive
-   accidentelle, il ne crée pas de marge.
+3. Niveau 3 : ✅ #13 et #14 faits (+12 %). Reste **#11 + #12** — c'est là que se
+   trouve l'essentiel du ×1,5-×2 — puis #15. **C'est là qu'est le vrai sujet** :
+   #5 supprime la dérive accidentelle, il ne crée pas de marge.
 4. Cap long terme : #16 (cœur WASM). #18 seulement si un mode « rapide, moins
    fidèle » devient un objectif produit.
