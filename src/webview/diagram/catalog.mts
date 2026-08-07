@@ -787,8 +787,9 @@ export const CATALOG: readonly PartDef[] = [
     ],
   },
   // Patte de robot articulée (dessin PLACEHOLDER, pas de Frank — cf.
-  // patte-element.mts). 1 pièce, 2 servos internes (hanche + genou),
-  // indépendants électriquement mais imbriqués mécaniquement à l'affichage.
+  // patte-element.mts ; en VOLUME depuis la v2026.8.22). 1 pièce, 2 servos
+  // internes (hanche = balayage au sol, genou = lever/baisser), indépendants
+  // électriquement mais imbriqués mécaniquement à l'affichage.
   // Mêmes impulsions/vitesse que <kablix-servo> (même formule PWM→angle).
   {
     type: 'patte', label: 'Spider leg', tag: 'kablix-patte', kind: 'patte',
@@ -800,7 +801,8 @@ export const CATALOG: readonly PartDef[] = [
     ],
   },
   // Robot araignée quadrupède complet (dessin PLACEHOLDER, pas de Frank — cf.
-  // araignee-element.mts) : châssis + 4 pattes (8 articulations), avec son
+  // araignee-element.mts ; en VOLUME depuis la v2026.8.22) : châssis + 4 pattes
+  // (8 articulations, mêmes angles que la patte seule), avec son
   // PCA9685 et sa batterie EMBARQUÉS. Le seul câblage extérieur est le bus I²C
   // (SCL/SDA/V+/GND) : la simulation instancie un Pca9685Device à l'adresse
   // réglée, ses canaux 0..7 pilotant les articulations dans l'ordre

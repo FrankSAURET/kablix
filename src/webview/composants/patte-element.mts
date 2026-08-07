@@ -1,17 +1,25 @@
 // Composant <kablix-patte> : patte de robot à 2 articulations (hanche, genou),
-// PLACEHOLDER dessiné par Claude (pas par Frank — dessin ./externe/patte.svg à
-// refaire une fois le robot araignée PMMA visible). Chaque articulation est un
-// servo interne (0-180°, même formule que <kablix-servo>) : la hanche tourne le
-// segment "cuisse", le genou tourne le segment "tibia" EMBOÎTÉ dans la cuisse
-// (rotation SVG imbriquée : le pivot genou suit la cuisse automatiquement).
-import { css, html, LitElement } from 'lit';
-import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
+// dessinée EN VOLUME (vue isométrique, moteur ./iso3d.mts) depuis la v2026.8.22.
+// Chaque articulation est un servo interne (0-180°, même formule que
+// <kablix-servo>) :
+//   • la HANCHE tourne la patte dans le plan du sol (balayage avant/arrière),
+//     90° = direction de repos ;
+//   • le GENOU lève ou baisse le tibia dans le plan vertical de la patte :
+//     90° = tibia VERTICAL (robot debout), 180° = tendu à l'horizontale (ventre
+//     au sol), 0° = replié sous le corps.
+// C'est la mécanique réelle d'un quadrupède à 8 servos, celle du robot araignée.
+// Le dessin plat d'avant (./externe/patte.svg) ne montrait aucun relief : les
+// deux rotations se faisaient dans la feuille, donc « lever la patte » et « la
+// tourner » donnaient la même image.
+import { css, html, LitElement, type TemplateResult } from 'lit';
 import { ElementPin } from './pin.mjs';
-import drawing from './externe/patte.svg';
+import {
+  add, boxFaces, groundShadow, renderFaces, scale,
+  type Face, type Vec3,
+} from './iso3d.mjs';
 
-const cleanDrawing = drawing.replace(/<!--[\s\S]*?-->/g, '');
-
-/** Extrait le groupe `<g id="ID" …> … </g>` complet (gère l'imbrication). */
+/** Extrait le groupe `<g id="ID" …> … </g>` complet (gère l'imbrication).
+ *  Gardé ici : d'autres forks s'en servent pour découper un SVG retouché. */
 export function extractGroup(svgText: string, id: string): string {
   const open = new RegExp(`<g\\s+id="${id}"[^>]*>`);
   const m = open.exec(svgText);
@@ -32,15 +40,64 @@ export function extractGroup(svgText: string, id: string): string {
   return '';
 }
 
-// Segments et pivots exportés : <kablix-araignee> réutilise EXACTEMENT la même
-// mécanique de patte (4 fois, tournée de 45° par coin du châssis) au lieu d'en
-// redessiner une — une seule patte à maintenir.
-export const SEGMENT1 = extractGroup(cleanDrawing, 'segment1');
-export const SEGMENT2 = extractGroup(cleanDrawing, 'segment2');
-// Pivots mécaniques (grille du dessin, viewBox 0 0 140 90) — fixes, PAS relus
-// dynamiquement : dessin hardcodé par Claude, pas retouché par Frank.
-export const HIP = { x: 40, y: 45 };
-export const KNEE = { x: 85, y: 45 };
+/** Couleurs de la mécanique — reprises du dessin plat pour ne pas dépayser :
+ *  châssis PMMA bleuté, os d'aluminium clair, servos noirs, visserie dorée. */
+export const COLORS = {
+  chassis: '#bcdff0',
+  bone: '#c9d6de',
+  servo: '#2f3640',
+  brass: '#c8ad63',
+};
+
+/** Cotes d'une patte, en unités de la feuille du composant. La patte seule est
+ *  un peu plus courte que celles du robot : elle doit tenir dans une vignette
+ *  de 140×90, pattes tendues comme repliées. */
+export type LegSize = { coxa: number; tibia: number; bone: number };
+export const LEG_ALONE: LegSize = { coxa: 16, tibia: 28, bone: 6 };
+export const LEG_SPIDER: LegSize = { coxa: 30, tibia: 45, bone: 8 };
+
+/** Géométrie d'une patte : les points qui comptent, pour dessiner ET pour
+ *  mesurer (les bancs lisent la position du pied, pas des pixels). */
+export type LegGeometry = { hip: Vec3; knee: Vec3; foot: Vec3 };
+
+/**
+ * Cinématique d'UNE patte. `dirDeg` est la direction de repos dans le plan du
+ * sol (0 = vers +X). `mirror` : patte montée en MIROIR (flanc droit du robot,
+ * servo retourné) — la même consigne de hanche la fait alors tourner dans
+ * l'autre sens, exactement comme sur le vrai châssis.
+ */
+export function legGeometry(
+  hip: Vec3, dirDeg: number, hipAngle: number, kneeAngle: number, size: LegSize, mirror = false,
+): LegGeometry {
+  const swing = (hipAngle - 90) * (mirror ? -1 : 1);
+  const dir = ((dirDeg + swing) * Math.PI) / 180;
+  const u: Vec3 = { x: Math.cos(dir), y: Math.sin(dir), z: 0 };
+  const knee = add(hip, scale(u, size.coxa));
+  // Élévation du tibia mesurée depuis la verticale descendante : 90° = tibia
+  // vertical (le robot est debout sur ses quatre pattes).
+  const e = ((kneeAngle - 90) * Math.PI) / 180;
+  const foot = add(knee, {
+    x: u.x * Math.sin(e) * size.tibia,
+    y: u.y * Math.sin(e) * size.tibia,
+    z: -Math.cos(e) * size.tibia,
+  });
+  return { hip, knee, foot };
+}
+
+/** Faces d'une patte : équerre de hanche, fémur, bloc de genou, tibia, pied. */
+export function legFaces(g: LegGeometry, size: LegSize): Face[] {
+  const b = size.bone;
+  return [
+    // Servo de hanche : un bloc posé à l'aplomb de l'articulation.
+    ...boxFaces(add(g.hip, { x: 0, y: 0, z: -b * 0.9 }), add(g.hip, { x: 0, y: 0, z: b * 0.9 }), b * 1.4, b * 1.4, COLORS.servo),
+    ...boxFaces(g.hip, g.knee, b, b, COLORS.bone),
+    // Servo de genou, aligné sur le fémur.
+    ...boxFaces(add(g.knee, { x: 0, y: 0, z: -b * 0.8 }), add(g.knee, { x: 0, y: 0, z: b * 0.8 }), b * 1.4, b * 1.4, COLORS.servo),
+    ...boxFaces(g.knee, g.foot, b * 0.8, b * 0.8, COLORS.bone),
+    // Embout caoutchouc : un petit cube au bout du tibia.
+    ...boxFaces(add(g.foot, { x: 0, y: 0, z: -b * 0.35 }), add(g.foot, { x: 0, y: 0, z: b * 0.35 }), b * 0.9, b * 0.9, COLORS.servo),
+  ];
+}
 
 /** Anime UN angle vers sa consigne à vitesse limitée (rattrapage image par
  *  image) — même mécanique que <kablix-servo>, factorisée car la patte a DEUX
@@ -102,6 +159,16 @@ export class JointAnimator {
   };
 }
 
+/** Feuille de la patte seule et centre de sa scène 3D. La hanche est PERCHÉE à
+ *  z = tibia : genou à 90° (patte droite), le pied tombe alors pile sur le sol
+ *  (z = 0) et son ombre se colle dessous — c'est la patte qui porte le robot.
+ *  Le centre est décalé à droite pour laisser la colonne des broches (x = 10)
+ *  hors du dessin, et la feuille couvre TOUTES les poses (hanche 0..180 ×
+ *  genou 0..180, ombre au sol comprise) : rien n'est jamais rogné, verify:araignee
+ *  le repasse en revue pose par pose. */
+const ALONE_SHEET = { w: 130, h: 95 };
+const ALONE_ORIGIN = { x: 70, y: 58 };
+
 export class PatteElement extends LitElement {
   // Sans ceci, `:host` reste `display: inline` : la boîte du composant fait la
   // hauteur d'une ligne de texte (17 px) au lieu des 90 px du dessin, l'éditeur
@@ -113,7 +180,7 @@ export class PatteElement extends LitElement {
     `;
   }
 
-  /** Consigne d'angle (0-180°, 90° = patte tendue) de chaque articulation. */
+  /** Consigne d'angle (0-180°) de chaque articulation. */
   declare hipAngle: number;
   declare kneeAngle: number;
   /** Temps d'un tour complet (360°) à pleine vitesse, en secondes. 0 = instantané. */
@@ -165,6 +232,13 @@ export class PatteElement extends LitElement {
     return 360 / s;
   }
 
+  /** Géométrie 3D affichée — lue telle quelle par les bancs de test : mesurer
+   *  la position du pied vaut mieux que d'inspecter des polygones. */
+  get geometry(): LegGeometry {
+    const hip: Vec3 = { x: 0, y: 0, z: LEG_ALONE.tibia };
+    return legGeometry(hip, 0, this.hipShown ?? 90, this.kneeShown ?? 90, LEG_ALONE);
+  }
+
   // Broches : 2 connecteurs 3 fils (hanche, genou), calés en dehors de la zone
   // mécanique (colonne x=10, grille 10 px). Non dessinées dans le SVG (comme la
   // diode) : la pastille est posée génériquement par l'éditeur.
@@ -177,17 +251,15 @@ export class PatteElement extends LitElement {
     { name: 'genou.PWM', x: 10, y: 75, signals: [{ type: 'pwm' }] },
   ];
 
-  render() {
-    // 90° = patte tendue (les deux segments alignés) : la commande est décalée
-    // de -90° pour que 90° donne une rotation visuelle nulle.
+  render(): TemplateResult {
+    // Racine en `html` (elle commence par <svg>, donc pas de piège de
+    // namespace), contenu en `svg` : les polygones viennent de `renderFaces`.
+    const g = this.geometry;
     return html`
-      <svg width="140" height="90" viewBox="0 0 140 90" xmlns="http://www.w3.org/2000/svg">
-        <g transform=${`rotate(${(this.hipShown ?? 90) - 90} ${HIP.x} ${HIP.y})`}>
-          ${unsafeSVG(SEGMENT1)}
-          <g transform=${`rotate(${(this.kneeShown ?? 90) - 90} ${KNEE.x} ${KNEE.y})`}>
-            ${unsafeSVG(SEGMENT2)}
-          </g>
-        </g>
+      <svg width=${ALONE_SHEET.w} height=${ALONE_SHEET.h}
+        viewBox="0 0 ${ALONE_SHEET.w} ${ALONE_SHEET.h}" xmlns="http://www.w3.org/2000/svg">
+        <g class="leg__shadow">${groundShadow(g.foot, 3.5, ALONE_ORIGIN.x, ALONE_ORIGIN.y)}</g>
+        <g class="leg__solid">${renderFaces(legFaces(g, LEG_ALONE), ALONE_ORIGIN.x, ALONE_ORIGIN.y)}</g>
       </svg>
     `;
   }

@@ -39,7 +39,12 @@ const PARTS = {
   pnp: { module: 'transistor-element.mjs', tag: 'kablix-transistor', width: 200, attrs: { symbol: 'pnp', text: 'PNP' } },
   relais: { module: 'relais-element.mjs', tag: 'kablix-relais' },
   powerbank: { module: 'powerbank-element.mjs', tag: 'kablix-powerbank' },
-  patte: { module: 'patte-element.mjs', tag: 'kablix-patte', width: 250 },
+  // Patte seule : illustrée genou PLIÉ (une patte bien droite se lit comme un
+  // simple tube — la pose montre les deux articulations).
+  patte: {
+    module: 'patte-element.mjs', tag: 'kablix-patte', width: 250,
+    attrs: { speed: '0', hipAngle: '75', kneeAngle: '125' },
+  },
   // Araignée : illustrée AVEC son électronique embarquée et les genoux pliés
   // (`speed: 0` = pas d'animation, la pose est atteinte avant la mesure).
   araignee: {

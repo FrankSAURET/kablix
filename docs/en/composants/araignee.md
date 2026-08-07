@@ -6,7 +6,9 @@ A complete **quadruped robot**: a chassis and **4 legs with 2 joints each** (hip
 
 On the sheet the spider therefore has only **4 wires**: the I²C bus. Every movement goes through it.
 
-> **Placeholder drawing.** This component illustrates a simplified spider (top view) until the physical robot — a laser-cut PMMA spider, assembled by Frank in SketchUp — is visible. The drawing will likely be redone once the result is seen.
+The robot is drawn **in 3D** (isometric view): the hips sweep the ground, the knees lift the legs, and the **drop shadow** under each foot tells which ones are down. A rear leg passes behind the chassis, a front one in front of it.
+
+> **Placeholder drawing.** This component illustrates a simplified spider until the physical robot — a laser-cut PMMA spider, assembled by Frank in SketchUp — is visible. The drawing will likely be redone once the result is seen.
 
 Palette category: **Systems**.
 
@@ -29,7 +31,7 @@ The servos are powered by the **on-board battery**: `V+`/`GND` only feed the log
 | `speed` | Time for a full 360° turn at full speed (s), 0 = instant movement | `2` |
 | `boards` | Show the on-board electronics (Pico, PCA9685, battery) | unchecked |
 
-90° = leg fully extended (both segments aligned), as on the [single leg](patte.md).
+All eight joints follow the same angles as the [single leg](patte.md): hip 90° = rest, knee 90° = shin vertical (robot standing), 180° = leg stretched horizontally, 0° = leg folded.
 
 ## PWM channels
 

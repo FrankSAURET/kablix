@@ -2,9 +2,11 @@
 
 ![Spider leg](../../img/composants/patte.webp)
 
-Articulated robot leg with **2 independent internal servo motors**: the **hip** (vertical rotation axis) and the **knee** (horizontal rotation axis), mechanically nested — on screen, the knee follows the hip's rotation, like a real leg. Meant to build a hexapod or spider robot with several legs, wired to the channels of a [PCA9685 PWM driver](pca9685.md).
+Articulated robot leg with **2 independent internal servo motors**: the **hip**, which sweeps the leg **on the ground** (forward/backward), and the **knee**, which **raises and lowers** it. Both are mechanically nested — the knee follows the hip's rotation, like a real leg. Meant to build a hexapod or spider robot with several legs, wired to the channels of a [PCA9685 PWM driver](pca9685.md).
 
-> **Placeholder drawing.** This component illustrates a simplified leg (top view) until the physical robot — a laser-cut PMMA spider, assembled by Frank in SketchUp — is visible. The drawing will likely be redone once the result is seen.
+The leg is drawn **in 3D** (isometric view): that is the only way to show both movements, one in the ground plane and the other in the vertical plane. The **drop shadow** under the foot shows its height at a glance.
+
+> **Placeholder drawing.** This component illustrates a simplified leg until the physical robot — a laser-cut PMMA spider, assembled by Frank in SketchUp — is visible. The drawing will likely be redone once the result is seen.
 
 Palette category: **Systems**.
 
@@ -31,7 +33,13 @@ The two joints are electrically **independent**: nothing prevents driving the hi
 | `pulsemax` | Pulse width at 180° (µs), shared by both joints | `2500` |
 | `speed` | Time for a full 360° turn at full speed (s), 0 = instant movement | `2` |
 
-90° = leg fully extended (both segments aligned).
+### What each angle draws
+
+| Angle | Hip (ground sweep) | Knee (foot height) |
+|-------|--------------------|--------------------|
+| **0°** | A quarter turn one way | Leg **folded**, foot tucked up under the body |
+| **90°** | Rest position | Shin **vertical**: the foot touches the ground, the robot stands |
+| **180°** | A quarter turn the other way | Leg **stretched horizontally**, belly on the ground |
 
 ## Usage
 

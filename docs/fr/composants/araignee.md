@@ -6,7 +6,9 @@ Robot **quadrupède complet** : un châssis et **4 pattes à 2 articulations** (
 
 Sur la planche, l'araignée n'a donc que **4 fils** : le bus I²C. Tout le mouvement passe par lui.
 
-> **Dessin provisoire.** Ce composant illustre une araignée simplifiée (vue de dessus) le temps que le robot physique — une araignée en PMMA découpée au laser, assemblée par Frank dans SketchUp — soit visible. Le dessin sera probablement refait une fois le résultat observé.
+Le robot est dessiné **en volume** (vue isométrique) : les hanches balaient le sol, les genoux lèvent les pattes, et l'**ombre portée** sous chaque pied dit lesquelles touchent terre. Une patte arrière passe bien derrière le châssis, une patte avant devant.
+
+> **Dessin provisoire.** Ce composant illustre une araignée simplifiée le temps que le robot physique — une araignée en PMMA découpée au laser, assemblée par Frank dans SketchUp — soit visible. Le dessin sera probablement refait une fois le résultat observé.
 
 Catégorie de la palette : **Système**.
 
@@ -29,7 +31,7 @@ Les servos sont alimentés par la **batterie embarquée** : `V+`/`GND` ne serven
 | `speed` | Temps d'un tour complet (360°) à pleine vitesse (s), 0 = mouvement instantané | `2` |
 | `boards` | Montrer l'électronique embarquée (Pico, PCA9685, batterie) | décoché |
 
-90° = patte tendue (les deux segments alignés), comme sur la [patte seule](patte.md).
+Les huit articulations obéissent aux mêmes angles que la [patte seule](patte.md) : hanche 90° = repos, genou 90° = tibia vertical (robot debout), 180° = patte tendue à l'horizontale, 0° = patte repliée.
 
 ## Canaux PWM
 

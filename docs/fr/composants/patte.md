@@ -2,9 +2,11 @@
 
 ![Patte de robot araignée](../../img/composants/patte.webp)
 
-Patte de robot articulée à **2 servomoteurs internes indépendants** : la **hanche** (axe de rotation vertical) et le **genou** (axe de rotation horizontal), imbriqués mécaniquement — à l'affichage, le genou suit la rotation de la hanche, comme sur une vraie patte. Pensée pour composer un robot hexapode ou araignée à plusieurs pattes, câblées sur les canaux d'un [pilote PWM PCA9685](pca9685.md).
+Patte de robot articulée à **2 servomoteurs internes indépendants** : la **hanche**, qui balaie la patte **au sol** (avant/arrière), et le **genou**, qui la **lève et la baisse**. Les deux sont imbriqués mécaniquement — le genou suit la rotation de la hanche, comme sur une vraie patte. Pensée pour composer un robot hexapode ou araignée à plusieurs pattes, câblées sur les canaux d'un [pilote PWM PCA9685](pca9685.md).
 
-> **Dessin provisoire.** Ce composant illustre une patte simplifiée (vue de dessus) le temps que le robot physique — une araignée en PMMA découpée au laser, assemblée par Frank dans SketchUp — soit visible. Le dessin sera probablement refait une fois le résultat observé.
+La patte est dessinée **en volume** (vue isométrique) : c'est le seul moyen de montrer les deux mouvements, l'un dans le plan du sol et l'autre dans le plan vertical. L'**ombre portée** sous le pied donne la hauteur d'un coup d'œil.
+
+> **Dessin provisoire.** Ce composant illustre une patte simplifiée le temps que le robot physique — une araignée en PMMA découpée au laser, assemblée par Frank dans SketchUp — soit visible. Le dessin sera probablement refait une fois le résultat observé.
 
 Catégorie de la palette : **Système**.
 
@@ -31,7 +33,13 @@ Les deux articulations sont électriquement **indépendantes** : rien n'empêche
 | `pulsemax` | Impulsion correspondant à 180° (µs), pour les deux articulations | `2500` |
 | `speed` | Temps d'un tour complet (360°) à pleine vitesse (s), 0 = mouvement instantané | `2` |
 
-90° = patte tendue (les deux segments alignés).
+### Que dessine chaque angle
+
+| Angle | Hanche (balayage au sol) | Genou (hauteur du pied) |
+|-------|--------------------------|-------------------------|
+| **0°** | Un quart de tour d'un côté | Patte **repliée**, pied relevé sous le corps |
+| **90°** | Position de repos | Tibia **vertical** : le pied touche le sol, le robot est debout |
+| **180°** | Un quart de tour de l'autre côté | Patte **tendue à l'horizontale**, ventre au sol |
 
 ## Utilisation
 
