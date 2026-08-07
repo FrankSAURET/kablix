@@ -3,10 +3,17 @@
 1. Quand je clique sur repl la version de micropython est toujours celle du pico pi w, indépendament de la carte choisis. C'est intentionnel ?
 1. Le barré de l'onglet est plus un souligné il faut un "vrai" barré
 1. J'ai mis à jour l'aide fr, fait de même pour en.
-1. Araignée 3D : on était partis sur un aspect 3d, tu m'avais proposé 2 solutions du vrai 3 d ou du 2d qui ressemble à de la 3d. Retrouve la conversation; et dit moi si c'est ce que tu as fait. 
+1. Araignée 3D : on était partis sur un aspect 3d, tu m'avais proposé 2 solutions du vrai 3 d ou du 2d qui ressemble à de la 3d. Retrouve la conversation; et dit moi si c'est ce que tu as fait 5LA. 
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# >>>>  v2026.8.13 — l'aide ne décrit plus le nom barré (choix de Frank)
+
+1. ✅ **Le nom barré d'un projet supprimé n'est plus documenté**, ni en FR ni en EN. Frank avait retiré la phrase de `docs/fr/USAGE.md` ; l'aide anglaise la gardait encore, et `verify:help-bars` signalait la divergence. La phrase « its name is **struck through**… » est retirée de `docs/en/USAGE.md` : les deux aides disent maintenant la même chose, « the current **project name**. ».
+2. ✅ **Les deux contrôles correspondants sont retirés de `scripts/verify-help-bars.mjs`** — ils exigeaient que l'aide décrive la fonctionnalité. `npm run verify:help-bars` : **64 contrôles OK**, plus aucun échec.
+3. ℹ️ **La fonctionnalité, elle, existe toujours** dans Kablix (nom barré dans la barre et dans l'onglet quand le `.projix` disparaît du disque) : seule sa description dans l'aide a sauté. L'item « le barré de l'onglet est un souligné » reste en tête du fichier.
+4. ℹ️ **L'aide EN reste désynchronisée sur 4 autres points** issus de la réécriture FR de Frank (item « J'ai mis à jour l'aide fr, fait de même pour en » toujours ouvert) : le bouton **Charger un fichier Binaire** qui remplace la ligne « Kablix v… », l'**id (le repère)** ajouté au bouton **Noms**, la phrase « le fichier de code n'est jamais ouvert en double » retirée de **réarranger**, et le 📄 retiré du **fichier de code**.
 
 # >>>>  v2026.8.12 — le Pico tourne à 1,00 : le débogueur ne se charge que si on débogue
 

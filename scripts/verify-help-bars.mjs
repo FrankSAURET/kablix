@@ -123,10 +123,6 @@ check("l'aide FR dit que ⟲ et la gomme sont masqués par défaut",
 check("l'aide EN dit que ⟲ et la gomme sont masqués par défaut",
   (en?.match(/Hidden by default/g) ?? []).length >= 2);
 
-// Le nom barré du projet supprimé (nouveauté du même lot) fait partie de la barre.
-check("l'aide FR décrit le nom barré d'un projet supprimé", /barré/.test(fr ?? ''));
-check("l'aide EN décrit le nom barré d'un projet supprimé", /struck through/.test(en ?? ''));
-
 // Anciennes descriptions à ne pas laisser traîner.
 check("l'aide ne décrit plus le sélecteur de vitesse à 3 crans",
   !/🐇\/🐢\/🐌/.test(readFileSync(join(ROOT, 'docs/fr/USAGE.md'), 'utf8'))

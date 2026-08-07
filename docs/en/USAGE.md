@@ -59,7 +59,7 @@
     - **rearrange**: restores the Kablix layout (code on one side, Kablix on the other, panels closed). You can swap the two zones and set their width with the mouse, then use **Save this layout as the default** (hamburger menu): both the side of Kablix **and** the width are remembered, and “rearrange” restores them — including moving Kablix back to the chosen side if it has changed since. The code file is never opened twice: if it is already open (even on the wrong side), Kablix reuses its tab and moves it back to the code side.
     - the **hamburger menu** for less frequent functions: import / export a **Wokwi** diagram, export the **part list (CSV)**, update the **Pico firmware**, check for **library updates**, save the default layout,
     - access to this **help**,
-    - the current **project name**. If the `.projix` is **deleted from disk** while it is open, its name is **struck through** — in the bar as well as in the VS Code tab; it is restored if the file comes back (recycle bin, undo).
+    - the current **project name**.
     - the project's **code file** 📄, right next to the name: **click = change**, **double-click = open** (it opens on the code side),
     - the **status** area (“Ready”, build messages…) and, only when the page can no longer keep up, the **“Slowed down: 0.45× real time”** badge.
 - **Simulation bar** (on the left, over the canvas)
