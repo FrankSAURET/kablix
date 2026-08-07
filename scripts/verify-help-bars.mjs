@@ -62,9 +62,12 @@ const BARRES = [
 // commande volontairement absente de l'aide (masquée en permanence, hors sujet).
 const ATTENDU = {
   // Barre Kablix
-  brand: [/Kablix v/, /Kablix v/],
+  // Le logo « Kablix v… » (lien vers le dépôt) n'est plus décrit : Frank a retiré
+  // sa ligne de l'aide FR au profit du bouton « Charger binaire ». Attention, le
+  // regex d'avant (/Kablix v/) restait vert PAR ACCIDENT sur « Ce que Kablix voit ».
+  brand: null,
   board: null, // sélecteur de carte masqué : la carte se choisit en la posant
-  'load-workspace': null, // chargement d'un binaire brut, masqué
+  'load-workspace': [/Charger un fichier Binaire/i, /Load binary/i],
   'new-project': [/nouveau projet/i, /new project/i],
   'open-project': [/\bouvrir\b/i, /\bopen\b/i],
   'save-project': [/enregistrer/i, /\bsave\b/i],
@@ -116,12 +119,13 @@ for (const { nom, ouverture, fermeture } of BARRES) {
   }
 }
 
-// Deux boutons sont masqués par défaut (réglages) : l'aide DOIT le dire, sinon on
-// envoie le lecteur chercher un bouton qu'il n'a pas.
-check("l'aide FR dit que ⟲ et la gomme sont masqués par défaut",
-  (fr?.match(/Masqué par défaut/g) ?? []).length >= 2);
-check("l'aide EN dit que ⟲ et la gomme sont masqués par défaut",
-  (en?.match(/Hidden by default/g) ?? []).length >= 2);
+// Trois boutons sont masqués par défaut (réglages) : ⟲, la gomme et « Charger
+// binaire ». L'aide DOIT le dire, sinon on envoie le lecteur chercher un bouton
+// qu'il n'a pas.
+check("l'aide FR dit que ⟲, la gomme et le binaire sont masqués par défaut",
+  (fr?.match(/Masqué par défaut/g) ?? []).length >= 3);
+check("l'aide EN dit que ⟲, la gomme et le binaire sont masqués par défaut",
+  (en?.match(/Hidden by default/g) ?? []).length >= 3);
 
 // Anciennes descriptions à ne pas laisser traîner.
 check("l'aide ne décrit plus le sélecteur de vitesse à 3 crans",

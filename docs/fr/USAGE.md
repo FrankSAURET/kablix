@@ -53,14 +53,14 @@
 - **Palette** : cliquer un composant le pose sur le canvas. Deux tris au choix (boutons en haut) ![alt text](<../../media/boutons trie.webp>): alphabétique ou  par catégories Une zone **« Derniers utilisés »** (10 max) peut rester en tête (troisième bouton). Le dernier bouton permet de changer le mode de réaction de la bibliothèque.
 - **Barre d'outil Kablix** (en haut de la fenêtre)
 ![alt text](<../../media/barre kablix.webp>)
-    - **Kablix v…** : le nom et le numéro de version ; un clic ouvre le dépôt GitHub.
+    - **Charger un fichier Binaire** : charge un .hex/.uf2 déjà compilé du workspace, sans recompiler. **Masqué par défaut** — la case Afficher le bouton « Charger binaire » des paramètres de Kablix le ramène.
     - les fonctions habituelles de gestion de fichier : **nouveau projet**, **ouvrir**, **enregistrer**, **enregistrer sous**, **exporter le schéma en SVG**.
-    - le bouton **Noms** qui fait apparaitre le nom sur le composant **sélectionné** ou tous les composants
-    - **réarranger** : rétablit l'organisation Kablix (code d'un côté, Kablix de l'autre, panneaux fermés). Vous pouvez inverser les deux zones et régler leur largeur à la souris, puis **Sauvegarder cette organisation par défaut** (menu hamburger) : le côté de Kablix **et** la largeur sont mémorisés, et « réarranger » les rétablit — y compris en remettant Kablix du côté choisi s'il en a changé depuis. Le fichier de code, lui, n'est jamais ouvert en double : s'il est déjà ouvert (même du mauvais côté), Kablix réutilise son onglet et le replace du côté du code.
+    - le bouton **Noms** qui fait apparaitre le nom sur le composant **sélectionné** ou tous les composants ou l'id (le repère) des composants.
+    - **réarranger** : rétablit l'organisation Kablix (code d'un côté, Kablix de l'autre, panneaux fermés). Vous pouvez inverser les deux zones et régler leur largeur à la souris, puis **Sauvegarder cette organisation par défaut** (menu hamburger) : le côté de Kablix **et** la largeur sont mémorisés, et « réarranger » les rétablit — y compris en remettant Kablix du côté choisi s'il en a changé depuis. 
     - le **menu hamburger** pour les fonctions moins fréquentes : importer / exporter un schéma **Wokwi**, exporter la **liste des composants (CSV)**, mettre à jour le **firmware Pico**, vérifier les **mises à jour des bibliothèques**, sauvegarder l'organisation par défaut.
     - accés à cette **aide**.
-    - le **nom du projet** courant. Si le `.projix` est **supprimé du disque** pendant qu'il est ouvert, son nom est **barré** — dans la barre comme dans l'onglet de VS Code ; il se rétablit si le fichier revient (corbeille, annulation).
-    - le **fichier de code** 📄 du projet, juste à droite du nom : **clic = changer**, **double-clic = ouvrir** (il s'ouvre du côté du code).
+    - le **nom du projet** courant.
+    - le **fichier de code** du projet, juste à droite du nom : **clic = changer**, **double-clic = ouvrir** (il s'ouvre du côté du code).
     - la zone d'**état** (« Prêt », messages de compilation…) et, seulement quand la page ne suit plus, le badge **« Ralentie : 0,45× le temps réel »**.
 - **Barre de simulation** (à gauche, par-dessus le canvas)
 ![Barre de simulation](../../media/BarreSimulation.webp)

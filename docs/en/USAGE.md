@@ -53,14 +53,14 @@
 - **Palette**: clicking a part places it on the canvas. Two sort modes to choose from (buttons at the top) ![sort buttons](<../../media/boutons trie.webp>): alphabetical or by categories. A **“Recently used”** zone (10 max) can stay at the top (third button). The last button changes the palette's reaction mode.
 - **Kablix toolbar** (at the top of the window)
 ![Kablix bar](<../../media/barre kablix.webp>)
-    - **Kablix v…**: the name and version number; clicking it opens the GitHub repository.
+    - **Load binary**: loads an already-compiled .hex/.uf2 from the workspace, without recompiling. **Hidden by default** — the *Show the “Load binary” button* checkbox in Kablix's settings brings it back.
     - the usual file-management functions: **new project**, **open**, **save**, **save as**, **export the diagram as SVG**,
-    - the **Names** button, which shows the name on the **selected** part or on all parts,
-    - **rearrange**: restores the Kablix layout (code on one side, Kablix on the other, panels closed). You can swap the two zones and set their width with the mouse, then use **Save this layout as the default** (hamburger menu): both the side of Kablix **and** the width are remembered, and “rearrange” restores them — including moving Kablix back to the chosen side if it has changed since. The code file is never opened twice: if it is already open (even on the wrong side), Kablix reuses its tab and moves it back to the code side.
+    - the **Names** button, which shows the name on the **selected** part or on all parts, or the parts' id (the reference).
+    - **rearrange**: restores the Kablix layout (code on one side, Kablix on the other, panels closed). You can swap the two zones and set their width with the mouse, then use **Save this layout as the default** (hamburger menu): both the side of Kablix **and** the width are remembered, and “rearrange” restores them — including moving Kablix back to the chosen side if it has changed since.
     - the **hamburger menu** for less frequent functions: import / export a **Wokwi** diagram, export the **part list (CSV)**, update the **Pico firmware**, check for **library updates**, save the default layout,
     - access to this **help**,
     - the current **project name**.
-    - the project's **code file** 📄, right next to the name: **click = change**, **double-click = open** (it opens on the code side),
+    - the project's **code file**, right next to the name: **click = change**, **double-click = open** (it opens on the code side),
     - the **status** area (“Ready”, build messages…) and, only when the page can no longer keep up, the **“Slowed down: 0.45× real time”** badge.
 - **Simulation bar** (on the left, over the canvas)
 ![Simulation bar](../../media/BarreSimulation.webp)

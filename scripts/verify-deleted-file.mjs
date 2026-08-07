@@ -228,14 +228,25 @@ const veille = (nom) => globalThis.__fsw.find((w) => w.glob === nom);
 
 // --- 6. Le nom barré DANS L'ONGLET DE VS CODE --------------------------------
 // Frank : « je veux que ce soit dans l'onglet vscode ». Un titre d'onglet est du
-// texte brut : le seul barré possible est typographique (U+0336 après chaque
-// caractère). VS Code barre nativement l'onglet d'un fichier de TEXTE disparu,
-// mais pas celui d'un éditeur personnalisé — c'est donc au .projix qu'il manquait.
+// texte brut : le seul barré possible est typographique (une combinante après
+// chaque caractère). VS Code barre nativement l'onglet d'un fichier de TEXTE
+// disparu, mais pas celui d'un éditeur personnalisé — c'est donc au .projix
+// qu'il manquait.
+//
+// La marque doit être U+0335 (short stroke overlay) : U+0336 (le long) n'existe
+// dans aucune police d'interface Windows, le repli le pose SOUS la ligne de base
+// et le résultat se lit comme un SOULIGNÉ — le défaut signalé par Frank. Les
+// contrôles ci-dessous interdisent le retour d'une marque basse.
 {
-  check('U+0336 posé sur chaque caractère, les espaces laissés tranquilles',
-    strikeThroughText('ab c') === 'a̶b̶ c̶',
+  check('U+0335 posé sur chaque caractère, les espaces laissés tranquilles',
+    strikeThroughText('ab c') === 'a\u0335b\u0335 c\u0335',
     JSON.stringify(strikeThroughText('ab c')));
   check('un nom vide ne produit rien', strikeThroughText('') === '');
+  // Garde permanente : ni U+0336 (long stroke, rendu sous la ligne de base faute
+  // de glyphe), ni U+0332 (low line, un souligné pour de bon).
+  check('aucune marque BASSE : ni U+0336 ni U+0332 (elles se lisent souligné)',
+    !/[\u0336\u0332\u0333]/.test(strikeThroughText('demo')),
+    JSON.stringify(strikeThroughText('demo')));
 
   // Le titre construit par panel.ts, avec un hôte qui relève ce qu'on lui donne.
   const titre = (gone) => {
@@ -253,14 +264,14 @@ const veille = (nom) => globalThis.__fsw.find((w) => w.glob === nom);
   };
   const normal = titre(false);
   check('tant que le projet est là, le titre est intact',
-    !normal.base.includes('̶') && normal.base.includes('demo.Projix'), normal.base);
+    !normal.base.includes('\u0335') && normal.base.includes('demo.Projix'), normal.base);
   check('projet présent : l\'hôte est prévenu que rien n\'est barré', normal.deleted === false);
 
   const efface = titre(true);
   check('projet supprimé : le nom du projet est barré dans le titre',
-    /d̶e̶m̶o̶/.test(efface.base), efface.base);
+    /d\u0335e\u0335m\u0335o\u0335/.test(efface.base), efface.base);
   check('seul le nom du projet est barré, pas « Kablix — Simulator »',
-    !/K̶/.test(efface.base), efface.base);
+    !/K\u0335/.test(efface.base), efface.base);
   check('projet supprimé : l\'hôte est prévenu (onglet de l\'éditeur personnalisé)',
     efface.deleted === true);
 

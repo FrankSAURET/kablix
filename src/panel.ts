@@ -293,13 +293,18 @@ export interface SimulatorHost {
 
 /**
  * Texte BARRÉ dans un titre d'onglet. Un titre d'onglet est du texte brut : ni
- * balise, ni style. Le seul barré possible est typographique — un « combining
- * long stroke overlay » (U+0336) posé après chaque caractère, qui trace le trait
- * dans la police elle-même. Les espaces sont laissés tranquilles (le trait
- * flotterait tout seul entre deux mots).
+ * balise, ni style. Le seul barré possible est typographique — une combinante
+ * posée après chaque caractère, qui trace le trait dans la police elle-même.
+ * Les espaces sont laissés tranquilles (le trait flotterait tout seul entre
+ * deux mots).
+ *
+ * La marque est le « combining SHORT stroke overlay » (U+0335), et surtout PAS
+ * le long (U+0336) : aucune police d'interface Windows n'a le glyphe U+0336,
+ * le repli le pose SOUS la ligne de base et le barré se lit comme un souligné
+ * (constaté par Frank sur l'onglet). U+0335, lui, tombe à mi-hauteur.
  */
 export function strikeThroughText(text: string): string {
-  const STROKE = '̶';
+  const STROKE = '̵';
   return [...text].map((ch) => (ch === ' ' ? ch : ch + STROKE)).join('');
 }
 
