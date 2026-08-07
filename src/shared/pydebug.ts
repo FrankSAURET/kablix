@@ -3,6 +3,14 @@
 // __kx(n) appelée AVANT chaque ligne « pas-à-pasable » du source original
 // (n = numéro de ligne 1-based du source ORIGINAL, le préambule ne compte pas).
 //
+// L'appel est gardé : la ligne insérée est `__kx_on and __kx(n)`. Tant que
+// personne ne débogue, __kx_on est faux et la ligne ne coûte qu'une lecture de
+// variable globale. C'est ce qui rend l'instrumentation permanente supportable :
+// appeler __kx à chaque ligne faisait tomber le régime de simulation à 0,30 (le
+// Pico émulé tournait 3 fois moins vite que le temps réel) alors qu'un script
+// non instrumenté tient 1,00. La garde est armée par la sonde périodique
+// __kx_tick (demande de pause ou points d'arrêt reçus sur stdin).
+//
 // Protocole sur l'USB-CDC (stdin du script) :
 //   \x05 (ENQ) : demande de pause — le mode pas à pas s'active au prochain __kx ;
 //   \x06 (ACK) : exécuter un pas (rester en mode pas à pas) ;
@@ -39,6 +47,14 @@
 // remontés (invisibles depuis une lambda) ; en cas de doute une variable
 // n'est PAS remontée.
 
+/**
+ * Période (ms) du sondage de stdin tant que le débogage dort. C'est la latence
+ * maximale d'une demande de pause ou d'un envoi de points d'arrêt : 50 ms est
+ * instantané pour l'utilisateur, et ~20 sondages par seconde ne se voient pas
+ * dans le régime de simulation (contre un par ligne exécutée auparavant).
+ */
+const PERIODE_SONDE_MS = 50;
+
 /** Préambule injecté en tête du script (noms en __kx* : filtrés du panneau). */
 const PREAMBLE: string[] = [
   '# --- Kablix : preambule de debogage pas a pas (injecte automatiquement) ---',
@@ -53,6 +69,15 @@ const PREAMBLE: string[] = [
   '__kx_step = False',
   '__kx_bps = {}',             // points d'arrêt : { ligne(int) : condition(str|None) }
   '__kx_bpbuf = None',         // tampon de lecture d'une commande \x10{json}\n (None = inactif)
+  // Garde d'armement : chaque ligne du script est préfixée de `__kx_on and …`,
+  // donc tant qu'aucune pause ni aucun point d'arrêt n'est demandé, une ligne ne
+  // coûte qu'une lecture de global — pas d'appel de fonction, pas de lambda
+  // allouée, pas de sondage stdin. Appeler __kx à chaque ligne divisait le
+  // régime de simulation par 3,3 (mesuré sur testkablix/Horloge.py).
+  '__kx_on = False',
+  'def __kx_arm():',           // (re)calcule la garde d'après l'état du débogage
+  '    global __kx_on',
+  '    __kx_on = __kx_step or len(__kx_bps) > 0',
   'def __kx_set_bps(__s):',    // __s = objet JSON { "ligne": condition|null }
   '    global __kx_bps',
   '    __b = {}',
@@ -66,6 +91,7 @@ const PREAMBLE: string[] = [
   '    except Exception:',
   '        pass',
   '    __kx_bps = __b',
+  '    __kx_arm()',
   'def __kx_poll_in():',        // draine stdin : commandes step/resume/bps ; renvoie l'octet "step/run" éventuel
   '    global __kx_step, __kx_bpbuf',
   '    while __kx_poll.poll(0):',
@@ -83,6 +109,7 @@ const PREAMBLE: string[] = [
   '            __kx_step = True',
   "        elif __c == '\\x07':",
   '            __kx_step = False',
+  '    __kx_arm()',
   // Noms injectés par le démarrage de MicroPython (boot.py/_boot.py du RP2040)
   // ou son interpréteur : ce ne sont PAS des variables de l'élève → on les masque
   // (sinon « bdev : <Flash> », « vfs »… apparaissent dans le panneau Variables).
@@ -141,6 +168,9 @@ const PREAMBLE: string[] = [
   // __loc : lambda sans argument renvoyant des paires (nom, thunk) pour les
   // locales de la fonction en cours — évaluée SEULEMENT en pause. Un thunk qui
   // lève (NameError : variable pas encore affectée à cette ligne) est ignoré.
+  // __kx n'est appelée que si la garde __kx_on est vraie : pas à pas en cours ou
+  // au moins un point d'arrêt posé. Le chemin « rien à faire » du programme qui
+  // tourne à pleine vitesse ne passe donc jamais par ici.
   'def __kx(__n, __loc=None):',
   '    global __kx_step, __kx_bpbuf',
   '    __kx_poll_in()',
@@ -174,7 +204,21 @@ const PREAMBLE: string[] = [
   '            return',
   "        elif __c == '\\x07':",
   '            __kx_step = False',
+  '            __kx_arm()',
   '            return',
+  // Sonde périodique : c'est elle qui arme la garde quand le débogueur parle
+  // (demande de pause \x05, liste de points d'arrêt \x10) pendant que le script
+  // tourne à pleine vitesse. Elle se tait dès que la garde est armée : à partir
+  // de là c'est __kx, ligne à ligne, qui draine stdin — deux lecteurs
+  // concurrents se voleraient des octets.
+  'def __kx_tick(__t):',
+  '    if not __kx_on:',
+  '        __kx_poll_in()',
+  'try:',
+  '    import machine as __kx_machine',
+  `    __kx_timer = __kx_machine.Timer(period=${PERIODE_SONDE_MS}, mode=__kx_machine.Timer.PERIODIC, callback=__kx_tick)`,
+  'except Exception:',
+  '    __kx_on = True',   // pas de timer : repli sur le sondage à chaque ligne
   '# --- fin du preambule Kablix ---',
 ];
 
@@ -438,9 +482,9 @@ function collectScopes(lines: string[]): Map<number, DefScope> {
 }
 
 /**
- * Retourne le script instrumenté : préambule + une ligne `__kx(N)` (même
- * indentation) insérée avant chaque ligne pas-à-pasable du source original.
- * N est le numéro de ligne du source ORIGINAL (1-based).
+ * Retourne le script instrumenté : préambule + une ligne `__kx_on and __kx(N)`
+ * (même indentation) insérée avant chaque ligne pas-à-pasable du source
+ * original. N est le numéro de ligne du source ORIGINAL (1-based).
  */
 export function instrumentPython(source: string): string {
   const lines = source.split(/\r?\n/);
@@ -467,11 +511,14 @@ export function instrumentPython(source: string): string {
           const names = scope
             ? scope.locals.filter((n) => !scope.excluded.has(n)).slice(0, MAX_LOCALS)
             : [];
+          // `__kx_on and …` : hors débogage la ligne se réduit à la lecture d'un
+          // global faux — l'appel n'a pas lieu et la lambda des locales n'est
+          // même pas construite (court-circuit du `and`).
           if (names.length > 0) {
             const pairs = names.map((n) => `('${n}',lambda:${n})`).join(',');
-            out.push(`${indent}__kx(${i + 1}, lambda: [${pairs}])`);
+            out.push(`${indent}__kx_on and __kx(${i + 1}, lambda: [${pairs}])`);
           } else {
-            out.push(`${indent}__kx(${i + 1})`);
+            out.push(`${indent}__kx_on and __kx(${i + 1})`);
           }
         }
         afterDecorator = false;

@@ -1,3 +1,6 @@
-1. Un fichier supprimé sous le nez de l'atelier voit son nom BARRÉ en rouge. Alors pas forcemment en rouge mais dans la couleur du theme. Mais je veux que ce soit dans l'onglet vscode
-1. Les boutons « réinitialiser les composants » et « effacer le schéma » sont MASQUÉS par défaut. Ils le sont dans les paramètres de kablix (décochés) mais les boutons restent présents
-1. Je ne vois rien pour la patte d'araignée. Juste un carré de sélection 10 x 10 
+1. Rajoute les tag Simulation, Arduino, Raspberry, Pico Pi à l'extension
+1. Quand je clique sur repl la version de micropython est toujours celle du pico pi w, indépendament de la carte choisis. C'est intentionnel ?
+1. Le message "Aucun fichier" (de simulation) doit devenir "Pas de code associé"
+1. Le barré de l'onglet est plus un souligné il faut un barré
+1. Araignée 3D : on était partis sur un aspect 3d, tu m'avais proposé 2 solutions du vrai 3 d ou du 2d qui ressemble à de la 3d. Retrouve la conversation; et dit moi si c'est ce que tu as fait. 
+- 

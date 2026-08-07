@@ -63,35 +63,37 @@ const allLines = instrumented.split('\n');
 const endIdx = allLines.indexOf('# --- fin du preambule Kablix ---');
 check('préambule présent (def __kx)', endIdx > 0 && instrumented.includes('def __kx('));
 
-// Corps attendu : __kx(N) avant chaque ligne pas-à-pasable, N = ligne d'origine.
+// Corps attendu : `__kx_on and __kx(N)` avant chaque ligne pas-à-pasable, N =
+// ligne d'origine. La garde `__kx_on and` évite l'appel (et l'allocation des
+// lambdas de locales) tant que personne ne débogue.
 const expectedBody = [
-  '__kx(1)',
+  '__kx_on and __kx(1)',
   'x = 1',
-  '__kx(2)',
+  '__kx_on and __kx(2)',
   'if x > 0:',
-  '    __kx(3)',
+  '    __kx_on and __kx(3)',
   '    y = 2',
   'else:', //                          mot-clé de suite de bloc : non instrumenté
-  '    __kx(5)',
+  '    __kx_on and __kx(5)',
   '    y = 3',
-  '__kx(6)',
+  '__kx_on and __kx(6)',
   'for i in range(3):',
-  '    __kx(7)',
+  '    __kx_on and __kx(7)',
   '    total = (x +',
   '             y)', //                continuation (parenthèse ouverte)
-  '__kx(9)',
+  '__kx_on and __kx(9)',
   's = """abc',
   'def"""', //                        intérieur de chaîne triple-quotée
-  '__kx(11)',
+  '__kx_on and __kx(11)',
   'z = x + \\',
   '    y', //                         continuation par backslash
   '# commentaire',
   '',
-  '__kx(15)',
+  '__kx_on and __kx(15)',
   'if x: y = 1', //                   une seule instrumentation pour la ligne entière
   '@decorateur', //                   décorateur : non instrumenté
   'def f():', //                      rien ne doit s'insérer entre @deco et def
-  '    __kx(18)',
+  '    __kx_on and __kx(18)',
   '    return x',
 ];
 const body = allLines.slice(endIdx + 1);
@@ -121,7 +123,7 @@ const sampleLoc = [
   'x = 1', //                            15 : module → pas de lambda
 ].join('\n');
 const instLoc = instrumentPython(sampleLoc).split('\n');
-const lineFor = (n) => instLoc.find((l) => l.trim().startsWith(`__kx(${n}`)) ?? '';
+const lineFor = (n) => instLoc.find((l) => l.includes(`__kx(${n})`) || l.includes(`__kx(${n},`)) ?? '';
 check(
   'locales : params + affectations + for + as capturés (ligne 2)',
   lineFor(2).includes("('r',lambda:r)") &&
@@ -134,7 +136,11 @@ check(
   lineFor(2)
 );
 check('locales : nom global exclu (seuil)', !lineFor(2).includes("'seuil'"), lineFor(2));
-check('locales : corps de classe sans lambda', lineFor(11) === '    __kx(11)', lineFor(11));
+check(
+  'locales : corps de classe sans lambda',
+  lineFor(11) === '    __kx_on and __kx(11)',
+  lineFor(11)
+);
 check(
   'locales : méthode = n/total, sans self',
   lineFor(13).includes("('n',lambda:n)") &&
@@ -142,7 +148,7 @@ check(
     !lineFor(13).includes("'self'"),
   lineFor(13)
 );
-check('locales : niveau module sans lambda', lineFor(15) === '__kx(15)', lineFor(15));
+check('locales : niveau module sans lambda', lineFor(15) === '__kx_on and __kx(15)', lineFor(15));
 
 // Si un Python local est disponible, vérifie que le résultat compile (syntaxe).
 let pyChecked = false;
