@@ -10,6 +10,7 @@ import {
   CATEGORY_ORDER,
   PALETTE_CATALOG,
   capacitorDefOf,
+  hasPca9685Pads,
   listCustomParts,
   migratePartAttrs,
   partCategory,
@@ -1854,6 +1855,12 @@ export class Editor {
       this.renderPart(np);
     }
     for (const w of data.wires ?? []) {
+      // Composant devenu SANS broches (le robot araignée, v2026.8.24 : il porte
+      // sa propre carte) : les fils qu'un vieux schéma lui avait câblés ne
+      // mènent plus nulle part. On les écarte à l'ouverture plutôt que de les
+      // garder invisibles dans le fichier — un fil qu'on ne voit pas mais qui
+      // pèse dans la netlist est pire qu'un fil absent.
+      if ([w.a, w.b].some((e) => this.isPinless(idMap.get(e.partId) ?? e.partId))) continue;
       const nw: Wire = {
         ...w,
         id: uid('w-'),
@@ -2110,6 +2117,19 @@ export class Editor {
   /** Liste des broches d'un composant, telles que publiées par son `pinInfo`. */
   private partPins(el: WokwiElement): WokwiPin[] {
     return (el.pinInfo ?? []) as WokwiPin[];
+  }
+
+  /** Ce composant du schéma n'a AUCUNE broche (drapeau `pinless` du catalogue) :
+   *  rien ne peut lui être câblé. Lu sur la définition, pas sur l'élément, dont
+   *  le `pinInfo` peut n'arriver qu'après le rendu. */
+  private isPinless(partId: string): boolean {
+    const type = this.diagram.parts.find((p) => p.id === partId)?.type;
+    if (!type) return false;
+    try {
+      return partDef(type).pinless === true;
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -4805,8 +4825,9 @@ export class Editor {
     // PCA9685 : l'adresse ne se choisit pas dans une liste, elle DÉCOULE des six
     // pads AD0..AD5 de la carte (cases à cocher). On la recalcule ici — c'est
     // `address` que lit la simulation — puis on redessine l'inspecteur pour que
-    // l'adresse affichée suive le pad qu'on vient de (dé)cocher.
-    if (/^ad[0-5]$/.test(attr) && partDef(r.part.type).kind === 'i2c-pwm') {
+    // l'adresse affichée suive le pad qu'on vient de (dé)cocher. Vaut aussi pour
+    // le robot araignée, qui embarque un PCA9685 adressé de la même façon.
+    if (/^ad[0-5]$/.test(attr) && hasPca9685Pads(partDef(r.part.type))) {
       r.part.attrs = { ...r.part.attrs, address: pca9685AddressText(r.part.attrs) };
       r.el.setAttribute('address', r.part.attrs.address);
       queueMicrotask(() => this.renderInspector());
@@ -5142,9 +5163,10 @@ export class Editor {
     // Prototypes génériques (types npn / pnp) : tout est réglable, donc tout est
     // enregistrable — même bouton que sur le modèle personnalisé du sélecteur.
     if (def.type === 'npn' || def.type === 'pnp') this.appendSaveTransistorButton(partId, r.part);
-    // PCA9685 : l'adresse résultant des six pads AD0..AD5, écrite comme sur la
-    // fiche du module (0x40..0x7F) — c'est elle qu'attend le programme.
-    if (def.kind === 'i2c-pwm') {
+    // PCA9685 (nu ou embarqué dans l'araignée) : l'adresse résultant des six
+    // pads AD0..AD5, écrite comme sur la fiche du module (0x40..0x7F) — c'est
+    // elle qu'attend le programme.
+    if (hasPca9685Pads(def)) {
       const addr = document.createElement('p');
       addr.className = 'inspector__hint inspector__address';
       addr.textContent = `${t('I²C address')} : ${pca9685AddressText(r.part.attrs)}`;

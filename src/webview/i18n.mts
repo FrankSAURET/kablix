@@ -322,6 +322,18 @@ const FR: Record<string, string> = {
   'Pulse at 0° (µs)': 'Impulsion à 0° (µs)',
   'Pulse at 180° (µs)': 'Impulsion à 180° (µs)',
   'Rotation time (s/turn)': 'Temps de rotation (s/tour)',
+  // Sens de montage des servos : un servo vissé à l'envers part dans l'autre
+  // sens pour la même consigne (le programme, lui, ne change pas).
+  'Reverse the hip servo': 'Inverser le servo de hanche',
+  'Reverse the knee servo': 'Inverser le servo de genou',
+  'Reverse the front-left hip': 'Inverser la hanche avant-gauche',
+  'Reverse the front-left knee': 'Inverser le genou avant-gauche',
+  'Reverse the front-right hip': 'Inverser la hanche avant-droite',
+  'Reverse the front-right knee': 'Inverser le genou avant-droit',
+  'Reverse the rear-left hip': 'Inverser la hanche arrière-gauche',
+  'Reverse the rear-left knee': 'Inverser le genou arrière-gauche',
+  'Reverse the rear-right hip': 'Inverser la hanche arrière-droite',
+  'Reverse the rear-right knee': 'Inverser le genou arrière-droit',
   // PCA9685 : adresse réglée par les six pads AD0..AD5 de la carte.
   'I²C address': 'Adresse I²C',
   'AD0 (bit 0)': 'AD0 (bit 0)',

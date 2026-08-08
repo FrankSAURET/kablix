@@ -2,9 +2,9 @@
 
 ![Robot araignée](../../img/composants/araignee.webp)
 
-Robot **quadrupède complet** : un châssis et **4 pattes à 2 articulations** (hanche et genou), soit **8 servomoteurs**. Toute l'électronique est **embarquée dans le corps** — un [pilote PWM PCA9685](pca9685.md), la carte microcontrôleur et la batterie : les 8 servos sont câblés à l'intérieur, ils n'apparaissent pas sur la planche.
+Robot **quadrupède complet** : un châssis et **4 pattes à 2 articulations** (hanche et genou), soit **8 servomoteurs**. Toute l'électronique est **embarquée dans le corps** — une carte **Pico W**, un [pilote PWM PCA9685](pca9685.md) et la batterie : les 8 servos sont câblés à l'intérieur, ils n'apparaissent pas sur la planche.
 
-Sur la planche, l'araignée n'a donc que **4 fils** : le bus I²C. Tout le mouvement passe par lui.
+**Le robot n'a aucune broche : rien ne se câble.** Il *est* la carte. Le déposer sur la planche choisit la **Pico W** comme carte cible, et le programme que vous écrivez tourne dedans, exactement comme sur une Pico W posée seule. La carte est dessinée sur le dos du châssis — c'est le repère qui dit où va le code.
 
 Le robot est dessiné **en volume** (vue isométrique) : les hanches balaient le sol, les genoux lèvent les pattes, et l'**ombre portée** sous chaque pied dit lesquelles touchent terre. Une patte arrière passe bien derrière le châssis, une patte avant devant.
 
@@ -14,24 +14,26 @@ Catégorie de la palette : **Système**.
 
 ## Broches
 
-| Broche | Rôle |
-|--------|------|
-| **SCL** | Horloge du bus I²C |
-| **SDA** | Données du bus I²C |
-| **V+** | Alimentation (+) de l'électronique de commande |
-| **GND** | Masse commune |
-
-Les servos sont alimentés par la **batterie embarquée** : `V+`/`GND` ne servent qu'à la logique et à la masse commune du bus.
+**Aucune.** Le bus I²C, l'alimentation et les 8 servos sont internes au robot : il n'y a rien à relier à l'extérieur. Un schéma plus ancien qui câblait son ancien bornier I²C perd ces fils à l'ouverture — ils ne mènent plus nulle part.
 
 ## Propriétés
 
 | Propriété | Rôle | Défaut |
 |-----------|------|--------|
-| `address` | Adresse I²C du PCA9685 embarqué (`0x40` … `0x47`) | `0x40` |
+| `ad0` … `ad5` | État des six pads d'adresse du PCA9685 embarqué (coché = pad **haut**) | tous cochés |
 | `speed` | Temps d'un tour complet (360°) à pleine vitesse (s), 0 = mouvement instantané | `2` |
-| `boards` | Montrer l'électronique embarquée (Pico, PCA9685, batterie) | décoché |
+| `boards` | Montrer l'électronique embarquée (PCA9685, batterie) | décoché |
+| `revhip0` … `revknee3` | Servo monté **à l'envers** : la même consigne le fait tourner de l'autre côté | décoché |
+
+L'adresse du PCA9685 embarqué se règle **comme sur la vraie carte**, en cochant les six pads **AD0 à AD5** ; elle s'affiche sous les cases. Tous cochés — le réglage d'usine du module Grove — donnent **0x7F**, l'adresse par défaut du robot. Le détail du calcul est dans la [fiche du PCA9685](pca9685.md).
 
 Les huit articulations obéissent aux mêmes angles que la [patte seule](patte.md) : hanche 90° = repos, genou 90° = tibia vertical (robot debout), 180° = patte tendue à l'horizontale, 0° = patte repliée.
+
+### Servos montés à l'envers
+
+Sur le châssis réel, les huit servos ne sont pas tous vissés du même côté : à consigne égale, certains partent dans l'autre sens. Cochez la case de l'articulation concernée (`revhip0` = hanche avant-gauche, `revknee3` = genou arrière-droite…) et la simulation applique **180 − angle** à ce servo-là.
+
+C'est un réglage de **montage**, pas de programme : le code continue d'envoyer « 30° », c'est la mécanique qui décide de quel côté ça part. Utile pour retrouver dans la simulation le comportement d'un robot déjà assemblé, sans réécrire son programme.
 
 ## Canaux PWM
 
@@ -48,12 +50,13 @@ Les pattes de droite sont montées **en miroir** de celles de gauche, comme sur 
 
 ## Utilisation
 
-- Câblez `SDA`/`SCL` sur le bus I²C de la carte (A4/A5 sur Uno, GP0/GP1 sur Pico), plus `V+` et `GND`.
+- Déposez le robot **seul** sur la planche : la carte passe automatiquement en **Pico W**, il n'y a rien à câbler.
+- Ouvrez un bus I²C dans votre programme (`I2C(0, sda=Pin(0), scl=Pin(1))`) : c'est le bus **interne** du robot, il rejoint le PCA9685 embarqué quels que soient les numéros de broches choisis.
 - Pilotez les canaux comme ceux d'un PCA9685 posé sur la planche : réglez le prescaler à 50 Hz, puis écrivez l'impulsion voulue (500 µs = 0°, 1500 µs = 90°, 2500 µs = 180°).
 - Pour n'animer qu'une patte, il suffit d'écrire ses deux canaux : un canal jamais écrit laisse son articulation immobile.
-- Cochez **Montrer l'électronique embarquée** pour voir les cartes dans le corps (utile pour expliquer le montage, inutile pour la simulation).
+- Cochez **Montrer l'électronique embarquée** pour voir le PCA9685 et la batterie dans le corps (utile pour expliquer le montage, inutile pour la simulation).
 
-Tests d'exemple : `araignee-uno` et `araignee-pico` (dossier `testkablix`).
+Test d'exemple : `araignee-pico` (dossier `testkablix`). Pas de test Arduino : le robot est une Pico W, il ne se programme pas depuis une Uno.
 
 ---
 

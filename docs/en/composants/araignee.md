@@ -2,9 +2,9 @@
 
 ![Spider robot](../../img/composants/araignee.webp)
 
-A complete **quadruped robot**: a chassis and **4 legs with 2 joints each** (hip and knee), i.e. **8 servo motors**. All the electronics are **on board, inside the body** — a [PCA9685 PWM driver](pca9685.md), the microcontroller board and the battery: the 8 servos are wired internally, they never appear on the sheet.
+A complete **quadruped robot**: a chassis and **4 legs with 2 joints each** (hip and knee), i.e. **8 servo motors**. All the electronics are **on board, inside the body** — a **Pico W**, a [PCA9685 PWM driver](pca9685.md) and the battery: the 8 servos are wired internally, they never appear on the sheet.
 
-On the sheet the spider therefore has only **4 wires**: the I²C bus. Every movement goes through it.
+**The robot has no pins at all: there is nothing to wire.** It *is* the board. Dropping it on the sheet selects the **Pico W** as the target board, and the program you write runs inside it, exactly as on a bare Pico W. The board is drawn on the chassis's back — the landmark telling where the code goes.
 
 The robot is drawn **in 3D** (isometric view): the hips sweep the ground, the knees lift the legs, and the **drop shadow** under each foot tells which ones are down. A rear leg passes behind the chassis, a front one in front of it.
 
@@ -14,24 +14,26 @@ Palette category: **Systems**.
 
 ## Pins
 
-| Pin | Role |
-|--------|------|
-| **SCL** | I²C bus clock |
-| **SDA** | I²C bus data |
-| **V+** | Supply (+) for the control electronics |
-| **GND** | Common ground |
-
-The servos are powered by the **on-board battery**: `V+`/`GND` only feed the logic and provide the bus's common ground.
+**None.** The I²C bus, the power supply and the 8 servos are internal to the robot: there is nothing to connect outside. An older sheet that wired its former I²C terminal loses those wires when opened — they no longer lead anywhere.
 
 ## Properties
 
 | Property | Role | Default |
 |-----------|------|--------|
-| `address` | I²C address of the on-board PCA9685 (`0x40` … `0x47`) | `0x40` |
+| `ad0` … `ad5` | State of the six address pads of the on-board PCA9685 (ticked = pad **high**) | all ticked |
 | `speed` | Time for a full 360° turn at full speed (s), 0 = instant movement | `2` |
-| `boards` | Show the on-board electronics (Pico, PCA9685, battery) | unchecked |
+| `boards` | Show the on-board electronics (PCA9685, battery) | unchecked |
+| `revhip0` … `revknee3` | Servo mounted **the other way round**: the same setpoint turns it the other way | unchecked |
+
+The on-board PCA9685's address is set **as on the real board**, by ticking the six **AD0 to AD5** pads; it is displayed below the boxes. All ticked — the factory setting of the Grove module — give **0x7F**, the robot's default address. The full computation is in the [PCA9685 page](pca9685.md).
 
 All eight joints follow the same angles as the [single leg](patte.md): hip 90° = rest, knee 90° = shin vertical (robot standing), 180° = leg stretched horizontally, 0° = leg folded.
+
+### Servos mounted the other way round
+
+On the real chassis the eight servos are not all screwed on the same side: given the same setpoint, some turn the other way. Tick the box of the joint concerned (`revhip0` = front-left hip, `revknee3` = rear-right knee…) and the simulation applies **180 − angle** to that servo.
+
+This is a **mounting** setting, not a program one: the code keeps sending "30°", the mechanics decide which way it goes. Handy to reproduce the behaviour of an already assembled robot in the simulation, without rewriting its program.
 
 ## PWM channels
 
@@ -48,12 +50,13 @@ The right-hand legs are **mirrored** with respect to the left-hand ones, as on t
 
 ## Usage
 
-- Wire `SDA`/`SCL` to the board's I²C bus (A4/A5 on Uno, GP0/GP1 on Pico), plus `V+` and `GND`.
+- Drop the robot **alone** on the sheet: the board switches to **Pico W** automatically, there is nothing to wire.
+- Open an I²C bus in your program (`I2C(0, sda=Pin(0), scl=Pin(1))`): this is the robot's **internal** bus, it reaches the on-board PCA9685 whatever pin numbers you pick.
 - Drive the channels exactly like those of a PCA9685 sitting on the sheet: set the prescaler to 50 Hz, then write the wanted pulse width (500 µs = 0°, 1500 µs = 90°, 2500 µs = 180°).
 - To animate a single leg, just write its two channels: a channel that is never written leaves its joint still.
-- Tick **Show on-board electronics** to reveal the boards inside the body (handy to explain the build, pointless for the simulation).
+- Tick **Show on-board electronics** to reveal the PCA9685 and the battery inside the body (handy to explain the build, pointless for the simulation).
 
-Example tests: `araignee-uno` and `araignee-pico` (`testkablix` folder).
+Example test: `araignee-pico` (`testkablix` folder). No Arduino test: the robot is a Pico W, it cannot be programmed from an Uno.
 
 ---
 

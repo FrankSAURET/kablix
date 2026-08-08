@@ -81,8 +81,11 @@ Les noms que le code cherche déjà — les dessiner suffit, il n'y a rien à br
 | Nom du groupe | Pièce | Mise en scène | Repli sans dessin |
 | --- | --- | --- | --- |
 | `araignee-chassis` | plaque du robot araignée | plaque | octogone à 8 pans |
+| `araignee-picow` | carte Pico W posée sur le dos du robot | plaque | pavé 46 × 18 |
 | `patte-femur` | os hanche → genou | pièce | pavé |
 | `patte-tibia` | os genou → pied | pièce | pavé |
+
+> `araignee-picow` se dessine **vue de dessus, USB à gauche** : le contour est mis à l'échelle sur sa **longueur** (46 unités de scène), le blindage radio et la prise USB restent posés dessus par le code.
 
 ---
 

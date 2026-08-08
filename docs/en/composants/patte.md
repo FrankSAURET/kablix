@@ -32,6 +32,10 @@ The two joints are electrically **independent**: nothing prevents driving the hi
 | `pulsemin` | Pulse width at 0° (µs), shared by both joints | `500` |
 | `pulsemax` | Pulse width at 180° (µs), shared by both joints | `2500` |
 | `speed` | Time for a full 360° turn at full speed (s), 0 = instant movement | `2` |
+| `revhip` | Hip servo mounted **the other way round**: the same setpoint turns it the other way | unchecked |
+| `revknee` | Knee servo mounted **the other way round** | unchecked |
+
+Both reverse boxes are a **mounting** setting, not a program one: depending on the side the servo is screwed on, the same setpoint goes the other way. Tick the box and the simulation applies **180 − angle** to that joint — the code keeps sending "30°".
 
 ### What each angle draws
 

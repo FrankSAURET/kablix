@@ -13,10 +13,13 @@
 // (`legGeometry` + `legFaces`) réutilisée quatre fois, une par coin. Chaque
 // patte garde donc exactement le comportement d'une patte posée seule.
 //
-// Électriquement, l'araignée n'expose que son bus I²C (SCL, SDA, V+, GND) : le
-// PCA9685 embarqué est simulé comme une vraie carte PCA9685 (sim.mts), ses
-// canaux 0..7 pilotant les 8 articulations dans l'ordre
-// avant-gauche, avant-droite, arrière-gauche, arrière-droite (hanche puis genou).
+// Électriquement, l'araignée n'expose RIEN depuis la v2026.8.24 (Frank) : elle
+// porte sa propre Pico W, dessinée sur le dos du châssis, et c'est ELLE qu'on
+// programme — la déposer dans l'atelier choisit la Pico W comme cible
+// (catalog.mts, `board: 'picow'`). Son PCA9685 embarqué reste simulé comme une
+// vraie carte PCA9685 (sim.mts) et répond sur le bus I²C interne, ses canaux
+// 0..7 pilotant les 8 articulations dans l'ordre avant-gauche, avant-droite,
+// arrière-gauche, arrière-droite (hanche puis genou).
 import { css, html, svg, LitElement, type TemplateResult } from 'lit';
 import { ElementPin } from './pin.mjs';
 import {
@@ -25,7 +28,7 @@ import {
 } from './iso3d.mjs';
 import { hasProfile, profile } from './profils.mjs';
 import {
-  COLORS, JointAnimator, LEG_SPIDER, legFaces, legGeometry, type LegGeometry,
+  COLORS, JointAnimator, LEG_SPIDER, jointTarget, legFaces, legGeometry, type LegGeometry,
 } from './patte-element.mjs';
 
 /** Feuille 400×400 : centre de la scène 3D (le châssis flotte au-dessus du
@@ -54,6 +57,12 @@ const LEGS: readonly { dir: number; mirror: boolean }[] = [
   { dir: 45, mirror: true }, // arrière-droite
 ];
 
+/** Nom de la propriété d'une articulation (0..7) : `hip0`, `knee0`, `hip1`…
+ *  Préfixé de `rev`, c'est celui de son sens de montage (`revhip0`). */
+function jointKey(i: number): string {
+  return (i % 2 === 0 ? 'hip' : 'knee') + Math.floor(i / 2);
+}
+
 /** Hanche d'une patte dans le repère monde (z = milieu de la plaque), lacet
  *  de présentation compris. */
 function hipPoint(dirDeg: number): Vec3 {
@@ -75,22 +84,70 @@ function hipPoint(dirDeg: number): Vec3 {
  */
 function chassisOutline(phase: number, name = 'araignee-chassis'): { poly: Vec2[]; holes: Vec2[][] } {
   if (!hasProfile(name)) return { poly: regularPoly(8, CHASSIS.radius, phase), holes: [] };
-  const p = profile(name);
-  const k = 2 * CHASSIS.radius / Math.max(p.w, p.h);
+  return flatOutline(profile(name), 2 * CHASSIS.radius, 0);
+}
+
+/**
+ * Un contour dessiné (profils.mts) posé à plat sur la plaque : ramené à `size`
+ * dans sa plus grande dimension, décalé de `cy` vers l'arrière, puis tourné du
+ * lacet de présentation — comme tout le reste de la scène, sinon la pièce
+ * resterait de face pendant que le robot est de biais.
+ */
+function flatOutline(
+  p: { poly: Vec2[]; holes: Vec2[][]; w: number; h: number }, size: number, cy: number,
+): { poly: Vec2[]; holes: Vec2[][] } {
+  const k = size / Math.max(p.w, p.h);
   const turn = (r: Vec2[]): Vec2[] => r.map((q) => {
-    const t = rotZ({ x: q.x * k, y: q.y * k, z: 0 }, YAW);
+    const t = rotZ({ x: q.x * k, y: q.y * k + cy, z: 0 }, YAW);
     return { x: t.x, y: t.y };
   });
   return { poly: turn(p.poly), holes: p.holes.map(turn) };
 }
 
 /** Cartes embarquées, posées à plat sur la plaque : longueur (le long de X),
- *  largeur, épaisseur, décalage en Y, couleur. */
+ *  largeur, épaisseur, décalage en Y, couleur. La Pico W n'est PAS dans la
+ *  liste : elle est toujours dessinée (picowFaces), les autres seulement quand
+ *  la case « électronique embarquée » est cochée. */
 const BOARDS: readonly { len: number; w: number; h: number; y: number; color: string }[] = [
-  { len: 46, w: 18, h: 4, y: -22, color: '#1f6b3a' }, // Raspberry Pi Pico
   { len: 40, w: 24, h: 4, y: 4, color: '#2b6cb0' }, // PCA9685 16 servos
   { len: 34, w: 18, h: 10, y: 30, color: '#2f3640' }, // batterie
 ];
+
+/** Cotes de la carte Pico W posée sur la plaque (la vraie fait 51 × 21 mm) et
+ *  couleurs de ses trois repères visibles : circuit vert, blindage du module
+ *  radio, prise USB. */
+const PICOW = { len: 46, w: 18, h: 4, y: -22 };
+const PICOW_COLORS = { board: '#1f6b3a', shield: '#b9c1c7', usb: '#d7dcdf' };
+
+/**
+ * La carte Pico W du robot, TOUJOURS dessinée : depuis la v2026.8.24 le robot
+ * n'a plus aucune connectique, c'est cette carte qu'on programme — la voir sur
+ * le dos de la bête est ce qui l'explique. Vue volontairement simpliste : le
+ * circuit vert, le blindage carré du module radio et la prise USB suffisent à la
+ * reconnaître à cette taille.
+ * Si le contour est dessiné dans `Composants.svg` sous le nom `araignee-picow`,
+ * c'est LUI qui donne la silhouette (mode d'emploi : docs/fr/Drawing-systems.md) ;
+ * le blindage et la prise restent posés dessus, aux mêmes places.
+ */
+function picowFaces(top: number, name = 'araignee-picow'): Face[] {
+  const z = top + PICOW.h / 2;
+  const at = (x: number, y: number, zz: number): Vec3 => rotZ({ x, y: y + PICOW.y, z: zz }, YAW);
+  const body = hasProfile(name)
+    ? prismFaces(flatOutline(profile(name), PICOW.len, PICOW.y).poly,
+      top, top + PICOW.h, PICOW_COLORS.board)
+    : boxFaces(at(-PICOW.len / 2, 0, z), at(PICOW.len / 2, 0, z),
+      PICOW.w, PICOW.h, PICOW_COLORS.board);
+  const deck = top + PICOW.h;
+  return [
+    ...body,
+    // Blindage du module radio (côté arrière de la carte) : un carré posé à plat.
+    ...boxFaces(at(6, 0, deck + 0.8), at(15, 0, deck + 0.8), 13, 1.6, PICOW_COLORS.shield),
+    // Prise USB, en bout de carte et débordant un peu — c'est par là qu'on
+    // téléverse, le détail parle de lui-même.
+    ...boxFaces(at(-PICOW.len / 2 - 1, 0, deck + 1), at(-PICOW.len / 2 + 5, 0, deck + 1),
+      8, 2.4, PICOW_COLORS.usb),
+  ];
+}
 
 export class AraigneeElement extends LitElement {
   // Comme <kablix-patte> : sans ceci `:host` reste `display: inline` (boîte
@@ -112,14 +169,29 @@ export class AraigneeElement extends LitElement {
   declare knee3: number;
   /** Temps d'un tour complet (360°) à pleine vitesse, en secondes. 0 = instantané. */
   declare speed: number;
-  /** Non vide : l'électronique embarquée est dessinée sur la plaque. */
+  /** Non vide : le PCA9685 et la batterie sont dessinés sur la plaque (la carte
+   *  Pico W, elle, est TOUJOURS visible : c'est le cerveau du robot). */
   declare boards: string;
+  /** Non vide : ce servo est monté à l'envers (180 − consigne). Un par
+   *  articulation — sur le vrai châssis, tous ne sont pas vissés du même côté. */
+  declare revhip0: string;
+  declare revknee0: string;
+  declare revhip1: string;
+  declare revknee1: string;
+  declare revhip2: string;
+  declare revknee2: string;
+  declare revhip3: string;
+  declare revknee3: string;
 
   static properties = {
     hip0: {}, knee0: {},
     hip1: {}, knee1: {},
     hip2: {}, knee2: {},
     hip3: {}, knee3: {},
+    revhip0: { type: String }, revknee0: { type: String },
+    revhip1: { type: String }, revknee1: { type: String },
+    revhip2: { type: String }, revknee2: { type: String },
+    revhip3: { type: String }, revknee3: { type: String },
     speed: { type: Number },
     boards: { type: String },
     shown: { state: true },
@@ -137,6 +209,7 @@ export class AraigneeElement extends LitElement {
     this.boards = '';
     this.shown = new Array(8).fill(90);
     for (let i = 0; i < 8; i++) {
+      (this as unknown as Record<string, string>)[`rev${jointKey(i)}`] = '';
       this.hipOrKnee(i, 90);
       // Chaque articulation recopie son angle courant dans le tableau affiché
       // (un nouveau tableau : Lit ne détecte pas la mutation d'un array).
@@ -148,17 +221,13 @@ export class AraigneeElement extends LitElement {
 
   /** Écrit la consigne d'une articulation : i pair = hanche, impair = genou. */
   private hipOrKnee(i: number, v: number): void {
-    const leg = Math.floor(i / 2);
-    const key = (i % 2 === 0 ? 'hip' : 'knee') + leg;
-    (this as unknown as Record<string, number>)[key] = v;
+    (this as unknown as Record<string, number>)[jointKey(i)] = v;
   }
 
-  /** Consigne courante d'une articulation (0..7). */
+  /** Consigne courante d'une articulation (0..7), sens de montage compris. */
   private target(i: number): number {
-    const leg = Math.floor(i / 2);
-    const key = (i % 2 === 0 ? 'hip' : 'knee') + leg;
-    const n = Number((this as unknown as Record<string, unknown>)[key]);
-    return Number.isFinite(n) ? Math.max(0, Math.min(180, n)) : 90;
+    const self = this as unknown as Record<string, unknown>;
+    return jointTarget(self[jointKey(i)], self[`rev${jointKey(i)}`]);
   }
 
   disconnectedCallback(): void {
@@ -167,7 +236,7 @@ export class AraigneeElement extends LitElement {
   }
 
   willUpdate(changed: Map<string, unknown>): void {
-    if (![...changed.keys()].some((k) => k.startsWith('hip') || k.startsWith('knee') || k === 'speed')) return;
+    if (![...changed.keys()].some((k) => /^(rev)?(hip|knee)\d$/.test(k) || k === 'speed')) return;
     const degPerSec = this.degPerSec();
     this.joints.forEach((j, i) => j.sync(this.target(i), degPerSec));
   }
@@ -188,33 +257,12 @@ export class AraigneeElement extends LitElement {
     ));
   }
 
-  // Broches : le seul câblage extérieur est le bus I²C (le reste est embarqué).
-  // Connecteur 4 points sur le bord gauche du châssis, grille 10 px. Ces
-  // coordonnées sont FIGÉES : les schémas déjà câblés en dépendent.
-  readonly pinInfo: ElementPin[] = [
-    { name: 'SCL', x: 110, y: 170, signals: [{ type: 'i2c', signal: 'SCL', bus: 0 }] },
-    { name: 'SDA', x: 110, y: 190, signals: [{ type: 'i2c', signal: 'SDA', bus: 0 }] },
-    { name: 'V+', x: 110, y: 210, signals: [{ type: 'power', signal: 'VCC' }] },
-    { name: 'GND', x: 110, y: 230, signals: [{ type: 'power', signal: 'GND' }] },
-  ];
-
-  /** Le bornier I²C reste dessiné À PLAT, vu de face : ses quatre pastilles
-   *  doivent tomber exactement sur `pinInfo` (colonne x=110, pas de 20 px) pour
-   *  que les fils s'y accrochent — une barrette projetée en isométrie n'aurait
-   *  jamais aligné ses points sur une colonne verticale. Une nappe le relie au
-   *  coin gauche de la plaque : c'est aussi ce qu'on voit sur le robot. */
-  private connector(): TemplateResult {
-    return svg`
-      <g class="araignee__connector">
-        <path d="M126 176 C 140 172, 146 168, 152 163" fill="none" stroke="#9aa5ad" stroke-width="2" />
-        <path d="M126 224 C 142 220, 150 210, 156 196" fill="none" stroke="#9aa5ad" stroke-width="2" />
-        <rect x="104" y="160" width="22" height="82" rx="4" fill="#2f3640" stroke="#1b1f24" stroke-width="1" />
-        ${[170, 190, 210, 230].map((y) => svg`
-          <rect x="106" y=${y - 4} width="18" height="8" rx="2" fill=${COLORS.brass} stroke="#8a7433" stroke-width="1" />
-        `)}
-      </g>
-    `;
-  }
+  // AUCUNE BROCHE (Frank, v2026.8.24) : le robot porte sa propre Pico W, il n'y
+  // a donc rien à câbler — ni bus I²C, ni alimentation. Le bornier à quatre
+  // points et sa nappe ont disparu avec elles ; les schémas d'avant qui les
+  // câblaient perdent ces fils au chargement (l'éditeur écarte un fil dont la
+  // broche n'existe plus), le robot, lui, se programme directement.
+  readonly pinInfo: ElementPin[] = [];
 
   render(): TemplateResult {
     const legs = this.geometry;
@@ -234,6 +282,8 @@ export class AraigneeElement extends LitElement {
       ...outline.holes.flatMap((h) =>
         decalFaces(h, CHASSIS.height + CHASSIS.thickness, '#8fb3c4', plate)),
       ...legs.flatMap((g) => legFaces(g, LEG_SPIDER)),
+      // Le cerveau, toujours visible : c'est la carte qu'on programme.
+      ...picowFaces(CHASSIS.height + CHASSIS.thickness),
     ];
     if (this.boards) {
       const top = CHASSIS.height + CHASSIS.thickness;
@@ -255,7 +305,6 @@ export class AraigneeElement extends LitElement {
             ${legs.map((g) => groundShadow(g.foot, 4, ORIGIN.x, ORIGIN.y))}
           </g>`}
         <g class="araignee__solid">${renderFaces(faces, ORIGIN.x, ORIGIN.y)}</g>
-        ${this.connector()}
       </svg>
     `;
   }

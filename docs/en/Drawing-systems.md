@@ -81,8 +81,11 @@ The names the code already looks for — drawing them is enough, there is nothin
 | Group name | Part | Staging | Fallback without a drawing |
 | --- | --- | --- | --- |
 | `araignee-chassis` | spider robot plate | plate | eight-sided octagon |
+| `araignee-picow` | Pico W board sitting on the robot's back | plate | 46 × 18 box |
 | `patte-femur` | hip → knee bone | part | box |
 | `patte-tibia` | knee → foot bone | part | box |
+
+> Draw `araignee-picow` **seen from above, USB to the left**: the outline is scaled on its **length** (46 scene units), the radio shield and the USB socket are laid on top by the code.
 
 ---
 

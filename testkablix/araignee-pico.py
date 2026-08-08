@@ -1,11 +1,13 @@
 # Test robot araignee : les 8 articulations (4 pattes) sont pilotees par le
-# PCA9685 embarque a l'adresse 0x40. Canaux 0/1 = hanche/genou avant-gauche,
-# 2/3 avant-droite, 4/5 arriere-gauche, 6/7 arriere-droite.
+# PCA9685 embarque a l'adresse 0x7F (pads AD0..AD5 tous ponte'es, reglage par
+# defaut du robot). Canaux 0/1 = hanche/genou avant-gauche, 2/3 avant-droite,
+# 4/5 arriere-gauche, 6/7 arriere-droite. Le bus est INTERNE au robot : la Pico W
+# du chassis y parle par I2C0, il n'y a rien a cabler dehors.
 from machine import Pin, I2C
 import time
 
 i2c = I2C(0, sda=Pin(0), scl=Pin(1), freq=400000)
-PCA = 0x40
+PCA = 0x7F
 
 def pca_ecrit(reg, val):
     i2c.writeto_mem(PCA, reg, bytes([val]))

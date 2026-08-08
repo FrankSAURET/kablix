@@ -85,9 +85,10 @@ export const PART_PINS = {
   // Patte de robot à 2 articulations : chacune a son propre bornier 3 fils
   // (comme un servo), électriquement indépendant de l'autre.
   patte: ['hanche.GND', 'hanche.V+', 'hanche.PWM', 'genou.GND', 'genou.V+', 'genou.PWM'],
-  // Robot araignée complet : PCA9685 et batterie EMBARQUÉS, seul le bus I²C
-  // sort du châssis (les 8 articulations sont câblées à l'intérieur).
-  araignee: ['SCL', 'SDA', 'V+', 'GND'],
+  // Robot araignée complet : PCA9685, batterie ET Pico W EMBARQUÉS. Depuis la
+  // v2026.8.24 il n'a plus AUCUNE broche — rien ne sort du châssis, le robot se
+  // programme directement (c'est lui, la carte).
+  araignee: [],
 };
 
 // --- Helpers -------------------------------------------------------------------
@@ -1026,77 +1027,6 @@ void loop() {
   pcaImpulsion(0, 500);  pcaImpulsion(1, 500);  Serial.println("0 degres");   delay(1000);
   pcaImpulsion(0, 1500); pcaImpulsion(1, 1500); Serial.println("90 degres");  delay(1000);
   pcaImpulsion(0, 2500); pcaImpulsion(1, 2500); Serial.println("180 degres"); delay(1000);
-}
-`,
-  }),
-
-  test({
-    // Robot araignée complet (placeholder, cf. araignee-element.mts) : châssis,
-    // 4 pattes (8 articulations), PCA9685 et batterie EMBARQUÉS — le seul
-    // câblage est le bus I²C. Canaux 0..7 = hanche puis genou des pattes
-    // avant-gauche, avant-droite, arrière-gauche, arrière-droite.
-    name: 'araignee-uno', board: 'uno', ext: 'ino',
-    parts: [
-      MCU('uno'),
-      { id: 'Act1', type: 'araignee', x: 620, y: 40, attrs: { address: '0x40', speed: '2', boards: '' } },
-    ],
-    wires: () => [
-      w('Act1', 'GND', 'U1', 'GND.1', 'black'),
-      w('Act1', 'V+', 'U1', '5V', 'red'),
-      w('Act1', 'SDA', 'U1', 'A4', 'blue'),
-      w('Act1', 'SCL', 'U1', 'A5', 'yellow'),
-    ],
-    expect: { kind: 'i2c-part', partId: 'Act1' },
-    code: `// Test robot araignée : les 8 articulations (4 pattes) sont pilotées par le
-// PCA9685 embarqué à l'adresse 0x40. Canaux 0/1 = hanche/genou avant-gauche,
-// 2/3 avant-droite, 4/5 arrière-gauche, 6/7 arrière-droite.
-#include <Wire.h>
-
-const uint8_t PCA = 0x40;
-
-void pcaEcrit(uint8_t reg, uint8_t val) {
-  Wire.beginTransmission(PCA);
-  Wire.write(reg);
-  Wire.write(val);
-  Wire.endTransmission();
-}
-
-// Impulsion du canal : créneau démarré à 0, coupé à durée/20 ms × 4096 pas.
-void pcaImpulsion(uint8_t canal, uint16_t microsecondes) {
-  uint16_t off = (uint32_t)microsecondes * 4096UL / 20000UL;
-  Wire.beginTransmission(PCA);
-  Wire.write(0x06 + 4 * canal); // LED0_ON_L (auto-incrément)
-  Wire.write(0x00); Wire.write(0x00);
-  Wire.write(off & 0xFF); Wire.write(off >> 8);
-  Wire.endTransmission();
-}
-
-// 500 µs = 0°, 1500 µs = 90° (patte tendue), 2500 µs = 180°.
-uint16_t impulsion(uint8_t degres) {
-  return 500 + (uint16_t)degres * 2000U / 180U;
-}
-
-// Pose complète : le même angle de hanche et de genou pour les 4 pattes.
-void pose(uint8_t hanche, uint8_t genou) {
-  for (uint8_t patte = 0; patte < 4; patte++) {
-    pcaImpulsion(2 * patte, impulsion(hanche));
-    pcaImpulsion(2 * patte + 1, impulsion(genou));
-  }
-}
-
-void setup() {
-  Serial.begin(115200);
-  Wire.begin();
-  pcaEcrit(0x00, 0x10);  // MODE1 : sleep pour régler le prescaler
-  pcaEcrit(0xFE, 121);   // prescale 50 Hz (25 MHz / (4096 x 50) - 1)
-  pcaEcrit(0x00, 0x20);  // MODE1 : réveil + auto-incrément
-}
-
-void loop() {
-  pose(90, 90);   Serial.println("pattes tendues");  delay(1000);
-  pose(90, 130);  Serial.println("genoux pliés");    delay(1000);
-  pose(60, 130);  Serial.println("hanches en avant"); delay(1000);
-  pose(120, 130); Serial.println("hanches en arriere"); delay(1000);
 }
 `,
   }),
@@ -2951,30 +2881,28 @@ while True:
   }),
 
   test({
-    // Robot araignée complet (placeholder, cf. araignee-element.mts) : châssis,
-    // 4 pattes (8 articulations), PCA9685 et batterie EMBARQUÉS — le seul
-    // câblage est le bus I²C. Canaux 0..7 = hanche puis genou des pattes
-    // avant-gauche, avant-droite, arrière-gauche, arrière-droite.
-    name: 'araignee-pico', board: 'pico', ext: 'py',
+    // Robot araignée complet (cf. araignee-element.mts) : châssis, 4 pattes
+    // (8 articulations), PCA9685, batterie ET Pico W EMBARQUÉS. Depuis la
+    // v2026.8.24 il n'a plus aucune broche : le schéma est le robot SEUL, il
+    // EST la carte (board picow) et son bus I²C interne relie sa Pico W à son
+    // PCA9685. Canaux 0..7 = hanche puis genou des pattes avant-gauche,
+    // avant-droite, arrière-gauche, arrière-droite.
+    name: 'araignee-pico', board: 'picow', ext: 'py',
     parts: [
-      MCU('pico'),
-      { id: 'Act1', type: 'araignee', x: 620, y: 40, attrs: { address: '0x40', speed: '2', boards: '' } },
+      { id: 'Act1', type: 'araignee', x: 620, y: 40, attrs: { address: '0x7F', speed: '2', boards: '' } },
     ],
-    wires: () => [
-      w('Act1', 'GND', 'U1', 'GND.1', 'black'),
-      w('Act1', 'V+', 'U1', 'VBUS', 'red'),
-      w('Act1', 'SDA', 'U1', 'GP0', 'blue'),
-      w('Act1', 'SCL', 'U1', 'GP1', 'yellow'),
-    ],
+    wires: () => [],
     expect: { kind: 'i2c-part', partId: 'Act1' },
     code: `# Test robot araignee : les 8 articulations (4 pattes) sont pilotees par le
-# PCA9685 embarque a l'adresse 0x40. Canaux 0/1 = hanche/genou avant-gauche,
-# 2/3 avant-droite, 4/5 arriere-gauche, 6/7 arriere-droite.
+# PCA9685 embarque a l'adresse 0x7F (pads AD0..AD5 tous ponte'es, reglage par
+# defaut du robot). Canaux 0/1 = hanche/genou avant-gauche, 2/3 avant-droite,
+# 4/5 arriere-gauche, 6/7 arriere-droite. Le bus est INTERNE au robot : la Pico W
+# du chassis y parle par I2C0, il n'y a rien a cabler dehors.
 from machine import Pin, I2C
 import time
 
 i2c = I2C(0, sda=Pin(0), scl=Pin(1), freq=400000)
-PCA = 0x40
+PCA = 0x7F
 
 def pca_ecrit(reg, val):
     i2c.writeto_mem(PCA, reg, bytes([val]))

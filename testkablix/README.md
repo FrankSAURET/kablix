@@ -46,7 +46,7 @@ poussoir standard, lui couvert sur les deux cartes).
 | Relais OMRON G5V | `relais-uno` | `relais-pico` | seul le relais bien câblé colle |
 | Batterie externe (Power bank) | `powerbank-uno` | `powerbank-pico` | alimente un PCA9685 + servo, LED de jauge allumées en simulation |
 | Patte d'araignée (placeholder) | `patte-uno` | `patte-pico` | 2 articulations (hanche, genou) sur 2 canaux PCA9685 indépendants |
-| Robot araignée (placeholder) | `araignee-uno` | `araignee-pico` | 8 articulations sur le PCA9685 embarqué — 4 fils I²C en tout |
+| Robot araignée | — | `araignee-pico` | Robot SEUL, sans un fil : il porte sa Pico W (carte `picow`) et son PCA9685 à 0x7F pilote ses 8 articulations. Pas de test Arduino — le robot EST la carte |
 | Buzzer | `buzzer-uno` | `buzzer-pico` | halo actif + tone/PWM |
 | Potentiomètre | `pot-uno` | `pot-pico` | valeur suit le curseur |
 | Potentiomètre à glissière | `slide-pot-uno` | `slide-pot-pico` | idem |

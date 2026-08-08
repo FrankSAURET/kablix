@@ -32,6 +32,10 @@ Les deux articulations sont électriquement **indépendantes** : rien n'empêche
 | `pulsemin` | Impulsion correspondant à 0° (µs), pour les deux articulations | `500` |
 | `pulsemax` | Impulsion correspondant à 180° (µs), pour les deux articulations | `2500` |
 | `speed` | Temps d'un tour complet (360°) à pleine vitesse (s), 0 = mouvement instantané | `2` |
+| `revhip` | Servo de hanche monté **à l'envers** : la même consigne le fait tourner de l'autre côté | décoché |
+| `revknee` | Servo de genou monté **à l'envers** | décoché |
+
+Les deux cases d'inversion sont un réglage de **montage**, pas de programme : selon le côté où le servo est vissé, la même consigne part dans l'autre sens. Cochez la case et la simulation applique **180 − angle** à cette articulation — le code, lui, continue d'envoyer « 30° ».
 
 ### Que dessine chaque angle
 

@@ -61,7 +61,7 @@ import './composants/custom-part.mjs';
 import { initLocale, t } from './i18n.mjs';
 import { Plotter } from './plotter.mjs';
 import { Editor, KABLIX_BADGE, type PaletteState } from './diagram/editor.mjs';
-import { partDef, boardFamily, isBoardId, mcuPinRole, PARAM_ATTR_PREFIX, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
+import { partDef, boardFamily, isBoardId, mcuPinRole, pca9685Address, PARAM_ATTR_PREFIX, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
 import { compileExpr } from './diagram/expr.mjs';
 import { toWokwiDiagram, fromWokwiDiagram } from './diagram/wokwi.mjs';
 import { partsCsv } from './diagram/bom.mjs';
@@ -2370,7 +2370,13 @@ function buildI2cDevices(): void {
     } else if (kind === 'i2c-pwm' || kind === 'araignee') {
       // L'araignée embarque son PCA9685 : même périphérique I²C, adresse réglée
       // dans ses propriétés (ses canaux 0..7 vont à ses 8 articulations).
-      const addr = Number(part.attrs?.address ?? 0x40) || 0x40;
+      // Ce sont les six pads AD0..AD5 qui font foi dès qu'ils sont là (v2026.8.24) :
+      // `address` n'est qu'un reflet, tenu à jour par l'inspecteur. Un schéma
+      // d'avant, ouvert sans passer par la migration, garde son `address`.
+      const pads = [0, 1, 2, 3, 4, 5].some((b) => `ad${b}` in (part.attrs ?? {}));
+      const addr = pads
+        ? pca9685Address(part.attrs)
+        : Number(part.attrs?.address ?? 0x40) || 0x40;
       i2cDevices.set(part.id, new Pca9685Device(addr));
     } else if (kind === 'i2c-oled' && (part.attrs?.pins ?? 'i2c') === 'i2c') {
       // pins=spi : câblé en SPI 4 fils, pas sur le bus I²C (traité plus bas, spiDeviceBindings).
@@ -3538,11 +3544,13 @@ editor.onClipboardRead = () =>
   });
 // Le dépôt d'une carte à microcontrôleur choisit l'outil de simulation (carte) :
 // le menu déroulant de la barre d'outils n'est donc plus nécessaire (masqué).
+// C'est le champ `board` qui décide, PAS le kind : le robot araignée porte sa
+// propre Pico W (v2026.8.24), le déposer choisit donc la Pico W comme cible
+// alors qu'il n'est pas une carte nue.
 editor.onPartAdded = (part) => {
   let target: BoardId | undefined;
   try {
-    const def = partDef(part.type);
-    if (def.kind === 'mcu') target = def.board;
+    target = partDef(part.type).board;
   } catch {
     return;
   }

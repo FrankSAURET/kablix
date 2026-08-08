@@ -112,6 +112,18 @@ export function legFaces(g: LegGeometry, size: LegSize): Face[] {
   ];
 }
 
+/**
+ * Consigne d'un servo, sens de montage compris : `rev` non vide = servo vissé à
+ * l'envers, la même consigne le fait tourner dans l'autre sens (180 − angle).
+ * C'est un réglage de MONTAGE, pas de programme : le code continue d'envoyer
+ * « 30° » et c'est la mécanique qui décide de quel côté ça part.
+ */
+export function jointTarget(v: unknown, rev: unknown): number {
+  const n = Number(v);
+  const a = Number.isFinite(n) ? Math.max(0, Math.min(180, n)) : 90;
+  return rev ? 180 - a : a;
+}
+
 /** Anime UN angle vers sa consigne à vitesse limitée (rattrapage image par
  *  image) — même mécanique que <kablix-servo>, factorisée car la patte a DEUX
  *  articulations indépendantes (hanche, genou) tournant chacune à son rythme
@@ -198,11 +210,16 @@ export class PatteElement extends LitElement {
   declare kneeAngle: number;
   /** Temps d'un tour complet (360°) à pleine vitesse, en secondes. 0 = instantané. */
   declare speed: number;
+  /** Non vide : servo monté à l'envers, il part dans l'AUTRE sens (180 − consigne). */
+  declare revhip: string;
+  declare revknee: string;
 
   static properties = {
     hipAngle: {},
     kneeAngle: {},
     speed: { type: Number },
+    revhip: { type: String },
+    revknee: { type: String },
     hipShown: { state: true },
     kneeShown: { state: true },
   };
@@ -217,6 +234,8 @@ export class PatteElement extends LitElement {
     this.hipAngle = 90;
     this.kneeAngle = 90;
     this.speed = 2;
+    this.revhip = '';
+    this.revknee = '';
     this.hipShown = 90;
     this.kneeShown = 90;
   }
@@ -228,15 +247,11 @@ export class PatteElement extends LitElement {
   }
 
   willUpdate(changed: Map<string, unknown>): void {
-    if (!changed.has('hipAngle') && !changed.has('kneeAngle') && !changed.has('speed')) return;
+    const watched = ['hipAngle', 'kneeAngle', 'speed', 'revhip', 'revknee'];
+    if (!watched.some((k) => changed.has(k))) return;
     const degPerSec = this.degPerSec();
-    this.hip.sync(this.clampAngle(this.hipAngle), degPerSec);
-    this.knee.sync(this.clampAngle(this.kneeAngle), degPerSec);
-  }
-
-  private clampAngle(v: unknown): number {
-    const n = Number(v);
-    return Number.isFinite(n) ? Math.max(0, Math.min(180, n)) : 90;
+    this.hip.sync(jointTarget(this.hipAngle, this.revhip), degPerSec);
+    this.knee.sync(jointTarget(this.kneeAngle, this.revknee), degPerSec);
   }
 
   private degPerSec(): number {

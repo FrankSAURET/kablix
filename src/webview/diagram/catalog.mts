@@ -166,7 +166,11 @@ export interface PartDef {
   /** Tag de l'élément web. */
   tag: string;
   kind: PartKind;
-  /** Pour kind 'mcu' : carte correspondante. */
+  /**
+   * Carte de simulation que ce composant EST : les cartes nues (kind 'mcu'),
+   * mais aussi un ensemble qui embarque la sienne — le robot araignée porte une
+   * Pico W. Poser le composant choisit cette carte comme cible de simulation.
+   */
   board?: BoardId;
   /** Attributs par défaut posés sur l'élément. */
   attrs?: Record<string, string>;
@@ -174,6 +178,14 @@ export interface PartDef {
   props?: readonly PropDef[];
   /** Composant interactif (bouton, potentiomètre…) : déplacé par son bandeau uniquement. */
   interactive?: boolean;
+  /**
+   * Composant SANS aucune broche : rien à lui câbler. Le robot araignée est le
+   * premier (v2026.8.24) — il porte sa propre carte. Le drapeau sert à écarter,
+   * au chargement d'un vieux schéma, les fils qui visaient des broches
+   * disparues ; il se lit sur la DÉFINITION et non sur l'élément, dont le
+   * `pinInfo` peut n'arriver qu'après le rendu.
+   */
+  pinless?: boolean;
   /**
    * Le composant affiche des contrôles de simulation (curseur/bouton) DANS son
    * rendu, visibles seulement pendant la simulation. L'éditeur pose alors
@@ -346,6 +358,33 @@ const IC_CATALOG: readonly PartDef[] = IC_REFS.map((r) => ({
   attrs: icAttrs(r.ref, DEFAULT_IC74_FAMILY),
   props: IC_PROPS,
 }));
+
+/**
+ * Adresse I²C réglée COMME SUR LA CARTE : six pads soudables AD0..AD5 (cases à
+ * cocher de l'inspecteur, cochée = pad HAUT = 1). Servent au PCA9685 nu comme au
+ * robot araignée, qui en embarque un — même puce, même façon de l'adresser.
+ * D'usine, la carte Grove sort tous pads hauts : 0x7F.
+ */
+const PCA9685_PAD_ATTRS: Record<string, string> = {
+  ad0: '1', ad1: '1', ad2: '1', ad3: '1', ad4: '1', ad5: '1',
+};
+const PCA9685_PAD_PROPS: readonly PropDef[] = [
+  { attr: 'ad0', label: 'AD0 (bit 0)', kind: 'checkbox' },
+  { attr: 'ad1', label: 'AD1 (bit 1)', kind: 'checkbox' },
+  { attr: 'ad2', label: 'AD2 (bit 2)', kind: 'checkbox' },
+  { attr: 'ad3', label: 'AD3 (bit 3)', kind: 'checkbox' },
+  { attr: 'ad4', label: 'AD4 (bit 4)', kind: 'checkbox' },
+  { attr: 'ad5', label: 'AD5 (bit 5)', kind: 'checkbox' },
+];
+
+/**
+ * Sens de rotation inversé, une case par servo. Sur un vrai montage, un servo
+ * vissé « tête en bas » part dans l'autre sens pour la même consigne : plutôt
+ * que de retourner le code, on le déclare ici et le composant recalcule l'angle
+ * affiché en 180 − consigne. Le miroir gauche/droite du châssis, lui, est déjà
+ * câblé dans la mécanique (LEGS.mirror) : ces cases sont EN PLUS.
+ */
+const REVERSE_PROP = (attr: string, label: string): PropDef => ({ attr, label, kind: 'checkbox' });
 
 export const CATALOG: readonly PartDef[] = [
   // Cartes AVR : éléments forkés, mis à l'échelle 10/9,6 px pour que
@@ -753,15 +792,8 @@ export const CATALOG: readonly PartDef[] = [
   // simulation.
   {
     type: 'pca9685', label: '16-channel PWM driver (PCA9685)', tag: 'kablix-pca9685', kind: 'i2c-pwm',
-    attrs: { address: '0x7F', ad0: '1', ad1: '1', ad2: '1', ad3: '1', ad4: '1', ad5: '1' },
-    props: [
-      { attr: 'ad0', label: 'AD0 (bit 0)', kind: 'checkbox' },
-      { attr: 'ad1', label: 'AD1 (bit 1)', kind: 'checkbox' },
-      { attr: 'ad2', label: 'AD2 (bit 2)', kind: 'checkbox' },
-      { attr: 'ad3', label: 'AD3 (bit 3)', kind: 'checkbox' },
-      { attr: 'ad4', label: 'AD4 (bit 4)', kind: 'checkbox' },
-      { attr: 'ad5', label: 'AD5 (bit 5)', kind: 'checkbox' },
-    ],
+    attrs: { address: '0x7F', ...PCA9685_PAD_ATTRS },
+    props: PCA9685_PAD_PROPS,
   },
   // Alimentation de laboratoire (dessin de Frank) : source V+/GND réglable.
   // `voltage` = tension de DÉMARRAGE ; en simulation le bouton du dessin la fait
@@ -793,30 +825,48 @@ export const CATALOG: readonly PartDef[] = [
   // Mêmes impulsions/vitesse que <kablix-servo> (même formule PWM→angle).
   {
     type: 'patte', label: 'Spider leg', tag: 'kablix-patte', kind: 'patte',
-    attrs: { pulsemin: '500', pulsemax: '2500', speed: '2' },
+    attrs: {
+      pulsemin: '500', pulsemax: '2500', speed: '2', revhip: '', revknee: '',
+    },
     props: [
       { attr: 'pulsemin', label: 'Pulse at 0° (µs)', kind: 'number', min: 100, max: 3000, step: 1 },
       { attr: 'pulsemax', label: 'Pulse at 180° (µs)', kind: 'number', min: 100, max: 3000, step: 1 },
       { attr: 'speed', label: 'Rotation time (s/turn)', kind: 'number', min: 0, max: 30, step: 0.1 },
+      REVERSE_PROP('revhip', 'Reverse the hip servo'),
+      REVERSE_PROP('revknee', 'Reverse the knee servo'),
     ],
   },
   // Robot araignée quadrupède complet (dessin PLACEHOLDER, pas de Frank — cf.
   // araignee-element.mts ; en VOLUME depuis la v2026.8.22) : châssis + 4 pattes
-  // (8 articulations, mêmes angles que la patte seule), avec son
-  // PCA9685 et sa batterie EMBARQUÉS. Le seul câblage extérieur est le bus I²C
-  // (SCL/SDA/V+/GND) : la simulation instancie un Pca9685Device à l'adresse
-  // réglée, ses canaux 0..7 pilotant les articulations dans l'ordre
-  // avant-gauche, avant-droite, arrière-gauche, arrière-droite (hanche, genou).
+  // (8 articulations, mêmes angles que la patte seule), avec sa Pico W, son
+  // PCA9685 et sa batterie EMBARQUÉS.
+  // AUCUNE CONNECTIQUE depuis la v2026.8.24 (Frank) : le robot porte sa propre
+  // carte, c'est LUI qu'on programme. `board: 'picow'` le dit à l'atelier —
+  // le déposer choisit la Pico W comme cible, exactement comme on poserait la
+  // carte nue. Son PCA9685 embarqué répond sur le bus I²C interne (le moteur le
+  // relie aux deux contrôleurs du RP2040 sans dépendre d'un fil), ses canaux
+  // 0..7 pilotant les articulations dans l'ordre avant-gauche, avant-droite,
+  // arrière-gauche, arrière-droite (hanche, genou).
   {
     type: 'araignee', label: 'Spider robot', tag: 'kablix-araignee', kind: 'araignee',
-    attrs: { address: '0x40', speed: '2', boards: '' },
+    board: 'picow', pinless: true,
+    attrs: {
+      address: '0x7F', ...PCA9685_PAD_ATTRS, speed: '2', boards: '',
+      revhip0: '', revknee0: '', revhip1: '', revknee1: '',
+      revhip2: '', revknee2: '', revhip3: '', revknee3: '',
+    },
     props: [
-      {
-        attr: 'address', label: 'I²C address', kind: 'select',
-        options: ['0x40', '0x41', '0x42', '0x43', '0x44', '0x45', '0x46', '0x47'],
-      },
+      ...PCA9685_PAD_PROPS,
       { attr: 'speed', label: 'Rotation time (s/turn)', kind: 'number', min: 0, max: 30, step: 0.1 },
       { attr: 'boards', label: 'Show on-board electronics', kind: 'checkbox' },
+      REVERSE_PROP('revhip0', 'Reverse the front-left hip'),
+      REVERSE_PROP('revknee0', 'Reverse the front-left knee'),
+      REVERSE_PROP('revhip1', 'Reverse the front-right hip'),
+      REVERSE_PROP('revknee1', 'Reverse the front-right knee'),
+      REVERSE_PROP('revhip2', 'Reverse the rear-left hip'),
+      REVERSE_PROP('revknee2', 'Reverse the rear-left knee'),
+      REVERSE_PROP('revhip3', 'Reverse the rear-right hip'),
+      REVERSE_PROP('revknee3', 'Reverse the rear-right knee'),
     ],
   },
   // Clavier matriciel à membrane (3 ou 4 colonnes). Interactif : une touche
@@ -1050,6 +1100,15 @@ export function capacitorDefOf(ctype: string): PartDef | undefined {
 }
 
 /**
+ * Composants dont l'adresse I²C se règle par les six pads AD0..AD5 : le PCA9685
+ * nu, et le robot araignée qui en embarque un — même puce, même façon de
+ * l'adresser (Frank, v2026.8.24).
+ */
+export function hasPca9685Pads(def: PartDef): boolean {
+  return def.kind === 'i2c-pwm' || def.kind === 'araignee';
+}
+
+/**
  * Adresse I²C d'un PCA9685 d'après l'état de ses six pads AD0..AD5 (attrs
  * `ad0`..`ad5`, non vide = pad HAUT). Adresse 7 bits = 1 A5 A4 A3 A2 A1 A0 :
  * le bit 6 est câblé HAUT sur la carte et le bit 7 n'existe pas — la valeur va
@@ -1070,10 +1129,10 @@ export function pca9685AddressText(attrs: Record<string, string> | undefined): s
 
 /**
  * Attributs d'un composant chargé depuis un schéma, remis à jour quand le
- * réglage a changé de forme. Aujourd'hui : le PCA9685, dont l'adresse était
- * choisie dans une liste (`address`) et se règle maintenant par ses six pads
- * AD0..AD5 — les schémas d'avant n'ont pas les `ad*`, on les DÉDUIT de
- * l'adresse enregistrée (0x7F → tous cochés) pour que le montage garde
+ * réglage a changé de forme. Aujourd'hui : le PCA9685 et le robot araignée,
+ * dont l'adresse était choisie dans une liste (`address`) et se règle maintenant
+ * par les six pads AD0..AD5 — les schémas d'avant n'ont pas les `ad*`, on les
+ * DÉDUIT de l'adresse enregistrée (0x7F → tous cochés) pour que le montage garde
  * exactement la même adresse sur le bus.
  */
 export function migratePartAttrs(part: { type: string; attrs?: Record<string, string> }): Record<string, string> | undefined {
@@ -1084,7 +1143,7 @@ export function migratePartAttrs(part: { type: string; attrs?: Record<string, st
   } catch {
     return attrs; // type inconnu (composant perso non encore enregistré)
   }
-  if (def.kind !== 'i2c-pwm') return attrs;
+  if (!hasPca9685Pads(def)) return attrs;
   if (attrs && [0, 1, 2, 3, 4, 5].some((b) => `ad${b}` in attrs)) return attrs; // déjà au nouveau format
   const addr = Number(attrs?.address ?? 0x40) || 0x40;
   const pads: Record<string, string> = {};
