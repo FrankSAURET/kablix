@@ -39,7 +39,10 @@ export const PART_PINS = {
   buzzer: ['1', '2'],
   pot: ['GND', 'SIG', 'VCC'],
   'slide-pot': ['GND', 'SIG', 'VCC'],
-  '7seg': ['COM.1', 'COM.2', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'DP'],
+  // Afficheur 7 segments : les communs dépendent du nombre de chiffres. À un
+  // chiffre, COM.1/COM.2 (la même patte des deux côtés du boîtier) ; à 2 ou 4
+  // chiffres, un commun par chiffre (DIG1..DIG4) — c'est le multiplexage.
+  '7seg': ['COM.1', 'COM.2', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'DP', 'DIG1', 'DIG2', 'DIG3', 'DIG4'],
   'led-bar': [
     'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'A10',
     'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9', 'C10',
@@ -422,17 +425,29 @@ void loop() {
   }),
 
   test({
+    // Une résistance de 220 Ω par canal : les trois LED d'un boîtier RGB ne se
+    // partagent PAS une résistance commune, sinon leur luminosité dépendrait
+    // des couleurs allumées à côté.
     name: 'rgb-led-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'L1', type: 'rgb-led', x: 620, y: 80, attrs: { common: 'cathode' } }],
-    wires: () => [
-      w('L1', 'R', 'U1', '9', 'orange'),
-      w('L1', 'G', 'U1', '10', 'green'),
-      w('L1', 'B', 'U1', '11', 'blue'),
-      w('L1', 'COM', 'U1', 'GND.1', 'black'),
+    parts: [
+      MCU('uno', 70, 150),
+      { id: 'L1', type: 'rgb-led', x: 210, y: 0, attrs: { common: 'cathode' } },
+      { id: 'R1', type: 'resistor', x: 180, y: 80, rotation: 90, attrs: { value: '220' } },
+      { id: 'R2', type: 'resistor', x: 200, y: 80, rotation: 90, attrs: { value: '220' } },
+      { id: 'R3', type: 'resistor', x: 210, y: 80, rotation: 90, attrs: { value: '220' } },
     ],
-    expect: { kind: 'rgb-led', partId: 'L1', r: '9', g: '10', b: '11' },
+    wires: () => [
+      w('L1', 'R', 'R1', '1', 'red'),
+      w('L1', 'COM', 'U1', 'GND.1', 'black'),
+      w('L1', 'G', 'R2', '1', 'green'),
+      w('L1', 'B', 'R3', '1', 'blue'),
+      w('R1', '2', 'U1', '12', 'red'),
+      w('R2', '2', 'U1', '10', 'green'),
+      w('R3', '2', 'U1', '9', 'blue'),
+    ],
+    expect: { kind: 'rgb-led', partId: 'L1', r: '12', g: '10', b: '9' },
     code: `// Test LED RGB (cathode commune) : fondu sur chaque canal PWM.
-const int R = 9, G = 10, B = 11;
+const int R = 12, G = 10, B = 9;
 
 void setup() {
   Serial.begin(115200);
@@ -478,47 +493,11 @@ void loop() {
 `,
   }),
 
-  test({
-    name: 'button-6mm-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'BP1', type: 'button-6mm', x: 620, y: 100, attrs: { color: 'red' } }],
-    wires: () => [w('BP1', '1.l', 'U1', '3', 'yellow'), w('BP1', '2.l', 'U1', 'GND.1', 'black')],
-    expect: { kind: 'button', partId: 'BP1', mcuPin: '3' },
-    code: `// Test bouton 6 mm : identique au bouton standard, sur D3.
-void setup() {
-  pinMode(3, INPUT_PULLUP);
-  pinMode(13, OUTPUT);
-  Serial.begin(115200);
-}
-
-void loop() {
-  bool appuye = (digitalRead(3) == LOW);
-  digitalWrite(13, appuye ? HIGH : LOW);
-  Serial.println(appuye ? "APPUYE" : "relache");
-  delay(200);
-}
-`,
-  }),
-
-  test({
-    name: 'resistor-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'R1', type: 'resistor', x: 480, y: 90, attrs: { value: '220' } }, { id: 'L1', type: 'led', x: 620, y: 60, attrs: { color: 'yellow' } }],
-    wires: () => [w('R1', '1', 'U1', '8', 'green'), w('L1', 'A', 'R1', '2', 'green'), w('L1', 'C', 'U1', 'GND.2', 'black')],
-    expect: { kind: 'led', partId: 'L1', mcuPin: '8' },
-    code: `// Test résistance : en série avec une LED sur D8 (continuité du courant).
-void setup() {
-  pinMode(8, OUTPUT);
-  Serial.begin(115200);
-}
-
-void loop() {
-  digitalWrite(8, HIGH);
-  Serial.println("LED allumee a travers la resistance");
-  delay(700);
-  digitalWrite(8, LOW);
-  delay(300);
-}
-`,
-  }),
+  // Les tests `button-6mm-uno` et `resistor-uno` ont été retirés de la spec en
+  // v2026.8.25, à la demande de Frank, après qu'il ait supprimé leurs fichiers
+  // en v2026.8.3. Le bouton 6 mm reste éprouvé par `verify:button-latch` (les
+  // DEUX poussoirs : souris, clavier, capuchon enfoncé, maintien Ctrl) ; la
+  // résistance, elle, est en série dans la moitié des autres montages.
 
   test({
     name: 'buzzer-uno', board: 'uno', ext: 'ino',
@@ -632,13 +611,26 @@ void loop() {
   }),
 
   test({
+    // Une résistance de 220 Ω par LED, et les broches prises À L'ENVERS : D2 en
+    // bas de la carte va sur A10 en bas de la barre, D11 sur A1. Les dix fils
+    // montent donc en parallèle sans se croiser. Les cathodes sont chaînées
+    // entre elles et rejoignent la masse par un seul fil.
     name: 'led-bar-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'Aff1', type: 'led-bar', x: 620, y: 80, attrs: { color: 'GYR' } }],
-    wires: () => [
-      ...Array.from({ length: 10 }, (_, i) => w('Aff1', `A${i + 1}`, 'U1', String(i + 2), 'green')),
-      ...Array.from({ length: 10 }, (_, i) => w('Aff1', `C${i + 1}`, 'U1', `GND.${(i % 3) + 1}`, 'black')),
+    parts: [
+      MCU('uno', 90, 190),
+      { id: 'Aff1', type: 'led-bar', x: 500, y: 70, attrs: { color: 'GYR' } },
+      ...Array.from({ length: 10 }, (_, i) => (
+        { id: `R${i + 1}`, type: 'resistor', x: 420, y: 70 + i * 10, attrs: { value: '220' } }
+      )),
     ],
-    expect: { kind: 'led-bar', partId: 'Aff1', firstPin: '2' },
+    wires: () => [
+      w('U1', 'GND.1', 'Aff1', 'C1', 'black'),
+      ...Array.from({ length: 9 }, (_, i) => w('Aff1', `C${i + 1}`, 'Aff1', `C${i + 2}`, 'black')),
+      ...Array.from({ length: 10 }, (_, i) => w('Aff1', `A${i + 1}`, `R${i + 1}`, '2', 'green')),
+      ...Array.from({ length: 10 }, (_, i) => w(`R${i + 1}`, '1', 'U1', String(11 - i), 'purple')),
+    ],
+    // D11 pilote A1 : c'est LUI qui allume la première LED de la barre.
+    expect: { kind: 'led-bar', partId: 'Aff1', firstPin: '11' },
     code: `// Test barre de 10 LED : vumètre qui monte puis descend (anodes sur D2..D11).
 void setup() {
   for (int i = 2; i <= 11; i++) pinMode(i, OUTPUT);
@@ -1287,67 +1279,11 @@ void loop() {
 `,
   }),
 
-  // Les trois résistances variables nues d'un coup : elles se lisent toutes de
-  // la même façon (pont diviseur avec une résistance fixe), et c'est le montage
-  // que Frank a câblé à la main dans `rv/rv.projix`. Chaque résistance fixe vaut
-  // la valeur de repos de sa variable : au repos les trois ponts sont donc
-  // lisibles d'un coup d'œil (moitié de l'échelle pour les thermistances).
-  test({
-    name: 'rv-uno', board: 'uno', ext: 'ino',
-    parts: [
-      MCU('uno'),
-      { id: 'Rv1', type: 'ldr', x: 620, y: 90, attrs: { lux: '500', r1lx: '50000', gamma: '0.7' } },
-      { id: 'Rv2', type: 'ntc', x: 720, y: 90, attrs: { temperature: '25', r25: '10000', beta: '3950', tmin: '-55', tmax: '125' } },
-      { id: 'Rv3', type: 'ptc', x: 820, y: 90, attrs: { temperature: '25', r25: '2000', tc: '0.79', tmin: '-55', tmax: '125' } },
-      { id: 'R1', type: 'resistor', x: 620, y: 200, attrs: { value: '50000' } },
-      { id: 'R2', type: 'resistor', x: 720, y: 200, attrs: { value: '10000' } },
-      { id: 'R3', type: 'resistor', x: 820, y: 200, attrs: { value: '2000' } },
-    ],
-    wires: () => [
-      w('Rv1', '1', 'U1', '5V', 'red'),
-      w('Rv2', '1', 'Rv1', '1', 'red'),
-      w('Rv3', '1', 'Rv2', '1', 'red'),
-      w('Rv1', '2', 'U1', 'A0', 'green'),
-      w('Rv2', '2', 'U1', 'A1', 'green'),
-      w('Rv3', '2', 'U1', 'A2', 'green'),
-      w('R1', '1', 'Rv1', '2', 'blue'),
-      w('R2', '1', 'Rv2', '2', 'blue'),
-      w('R3', '1', 'Rv3', '2', 'blue'),
-      w('R1', '2', 'U1', 'GND.1', 'black'),
-      w('R2', '2', 'R1', '2', 'black'),
-      w('R3', '2', 'R2', '2', 'black'),
-    ],
-    // Niveaux du pont au repos, puis à 5000 lx et 80 °C : c'est la LOI de chaque
-    // composant qui est contrôlée (la LDR et la CTN descendent en résistance
-    // quand on les éclaire/chauffe, la CTP monte).
-    expect: {
-      kind: 'variable-resistor',
-      repos: { A0: 0.98725, A1: 0.5, A2: 0.5 },
-      pousse: { lux: 5000, celsius: 80 },
-      pousses: { A0: 0.99743, A1: 0.88732, A2: 0.41076 },
-    },
-    code: `// Test des trois résistances variables nues : chacune forme un pont
-// diviseur avec une résistance fixe de sa valeur de repos.
-//   A0 : LDR 50 kΩ à 1 lx + 50 kΩ   (curseur = éclairement)
-//   A1 : CTN 10 kΩ à 25 °C + 10 kΩ  (curseur = température)
-//   A2 : CTP 2 kΩ à 25 °C + 2 kΩ    (curseur = température)
-// En simulation : éclairer la LDR et chauffer la CTN FAIT MONTER la lecture,
-// chauffer la CTP la fait descendre.
-void setup() {
-  Serial.begin(115200);
-}
-
-void loop() {
-  Serial.print("LDR A0 = ");
-  Serial.print(analogRead(A0));
-  Serial.print(" | CTN A1 = ");
-  Serial.print(analogRead(A1));
-  Serial.print(" | CTP A2 = ");
-  Serial.println(analogRead(A2));
-  delay(300);
-}
-`,
-  }),
+  // Le test `rv-uno` a été retiré de la spec en v2026.8.25, à la demande de
+  // Frank, après qu'il ait supprimé ses fichiers en v2026.8.3. Les trois
+  // résistances variables nues (LDR, CTN, CTP) restent éprouvées côté Pico par
+  // `rv-pico` — même montage, mêmes lois — et le montage câblé à la main par
+  // Frank est toujours là, intact, dans `Arduino/rv/rv.projix`.
 
   test({
     name: 'gas-sensor-uno', board: 'uno', ext: 'ino',
@@ -2332,10 +2268,20 @@ void loop() {
   }),
 
   test({
+    // La Mega porte une LED EXTERNE en parallèle de sa LED embarquée : D13 est
+    // la seule broche que le sketch pilote, on voit donc clignoter les deux.
     name: 'blink-mega', board: 'mega', ext: 'ino',
-    parts: [MCU('mega', 160, 60)],
-    wires: () => [],
-    expect: { kind: 'board-only' },
+    parts: [
+      MCU('mega', 150, 90),
+      { id: 'L1', type: 'led', x: 270, y: 10, attrs: { color: 'red' } },
+      { id: 'R1', type: 'resistor', x: 290, y: 40, attrs: { value: '220' } },
+    ],
+    wires: () => [
+      w('L1', 'A', 'R1', '1', 'orange'),
+      w('L1', 'C', 'U1', 'GND.1', 'black'),
+      w('R1', '2', 'U1', '13', 'yellow'),
+    ],
+    expect: { kind: 'led', partId: 'L1', mcuPin: '13' },
     code: `// Test carte Arduino Mega 2560 : la LED embarquée (D13) clignote.
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
@@ -2473,9 +2419,10 @@ while True:
   }),
 
   // Le test `button-6mm-pico` a été retiré de la spec en v2026.8.10, à la
-  // demande de Frank, après qu'il ait supprimé ses fichiers : le bouton 6 mm
-  // n'est plus éprouvé que côté Arduino (`button-6mm-uno`), son comportement
-  // étant identique à celui du poussoir standard, couvert lui sur les deux.
+  // demande de Frank, après qu'il ait supprimé ses fichiers ; `button-6mm-uno`
+  // l'a suivi en v2026.8.25. Le bouton 6 mm n'a donc plus de test testkablix :
+  // son comportement est identique à celui du poussoir standard (couvert sur
+  // les deux cartes) et `verify:button-latch` éprouve les DEUX poussoirs.
 
   test({
     name: 'buzzer-pico', board: 'pico', ext: 'py',
@@ -2527,7 +2474,10 @@ while True:
 
   test({
     name: 'slide-pot-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'Pot1', type: 'slide-pot', x: 660, y: 100, attrs: { min: '0', max: '100', value: '50' } }],
+    parts: [
+      MCU('pico', 296.75, 203.6),
+      { id: 'Pot1', type: 'slide-pot', x: 380, y: 161.25, attrs: { min: '0', max: '100', value: '50', ohms: '10000' } },
+    ],
     wires: () => [
       w('Pot1', 'VCC', 'U1', '3V3', 'red'),
       w('Pot1', 'SIG', 'U1', 'GP27', 'green'),
@@ -2546,46 +2496,142 @@ while True:
   }),
 
   test({
+    // Afficheur à QUATRE chiffres, donc MULTIPLEXÉ : aucun commun à la masse,
+    // ce sont les broches DIG1..DIG4 qui allument un chiffre à la fois. Les huit
+    // segments passent chacun par une résistance de 100 Ω ; les quatre communs
+    // vont directement sur GP10..GP13 (le programme les bat à ~2 ms).
+    // Retouché à la main par Frank après génération : le script .py est celui du
+    // dépôt, pas celui d'ici — `verify:7seg-mux` l'éprouve en simulation.
     name: '7seg-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'Aff1', type: '7seg', x: 680, y: 80, attrs: { color: 'red', common: 'cathode', digits: '1' } }],
-    wires: () => [
-      w('Aff1', 'A', 'U1', 'GP2', 'green'),
-      w('Aff1', 'B', 'U1', 'GP3', 'green'),
-      w('Aff1', 'C', 'U1', 'GP4', 'green'),
-      w('Aff1', 'D', 'U1', 'GP5', 'green'),
-      w('Aff1', 'E', 'U1', 'GP6', 'green'),
-      w('Aff1', 'F', 'U1', 'GP7', 'green'),
-      w('Aff1', 'G', 'U1', 'GP8', 'green'),
-      w('Aff1', 'DP', 'U1', 'GP9', 'green'),
-      w('Aff1', 'COM.1', 'U1', 'GND.3', 'black'),
+    parts: [
+      MCU('pico', 106.75, 113.6),
+      { id: 'Aff1', type: '7seg', x: 110, y: 330, attrs: { color: 'red', common: 'cathode', digits: '4' } },
+      { id: 'R1', type: 'resistor', x: 220, y: 240, attrs: { value: '100' } },
+      { id: 'R2', type: 'resistor', x: 210, y: 250, attrs: { value: '100' } },
+      { id: 'R3', type: 'resistor', x: 200, y: 260, attrs: { value: '100' } },
+      { id: 'R4', type: 'resistor', x: 190, y: 270, attrs: { value: '100' } },
+      { id: 'R5', type: 'resistor', x: 80, y: 240, attrs: { value: '100' } },
+      { id: 'R6', type: 'resistor', x: 90, y: 250, attrs: { value: '100' } },
+      { id: 'R7', type: 'resistor', x: 100, y: 260, attrs: { value: '100' } },
+      { id: 'R8', type: 'resistor', x: 110, y: 270, attrs: { value: '100' } },
     ],
-    expect: { kind: '7seg', partId: 'Aff1', segments: { A: 'GP2', B: 'GP3', C: 'GP4', D: 'GP5', E: 'GP6', F: 'GP7', G: 'GP8', DP: 'GP9' } },
-    code: `# Test afficheur 7 segments (cathode commune) : compte de 0 à 9.
-# Segments A..G,DP sur GP2..GP9 ; commun COM sur GND.
+    wires: () => [
+      w('R1', '1', 'U1', 'GP9', 'orange'),
+      w('R2', '1', 'U1', 'GP8', 'yellow'),
+      w('R3', '1', 'U1', 'GP7', 'green'),
+      w('R4', '1', 'U1', 'GP6', 'blue'),
+      w('R8', '2', 'U1', 'GP5', 'purple'),
+      w('R5', '2', 'U1', 'GP2', 'gray'),
+      w('R7', '2', 'U1', 'GP4', 'fuchsia'),
+      w('R6', '2', 'U1', 'GP3', 'brown'),
+      w('Aff1', 'A', 'R5', '1', 'orange'),
+      w('Aff1', 'B', 'R6', '1', 'yellow'),
+      w('Aff1', 'C', 'R7', '1', 'green'),
+      w('Aff1', 'D', 'R8', '1', 'blue'),
+      w('Aff1', 'E', 'R4', '2', 'purple'),
+      w('Aff1', 'F', 'R3', '2', 'gray'),
+      w('Aff1', 'G', 'R2', '2', 'fuchsia'),
+      w('Aff1', 'DP', 'R1', '2', 'brown'),
+      w('U1', 'GP10', 'Aff1', 'DIG1', 'orange'),
+      w('U1', 'GP11', 'Aff1', 'DIG2', 'yellow'),
+      w('U1', 'GP12', 'Aff1', 'DIG3', 'green'),
+      w('U1', 'GP13', 'Aff1', 'DIG4', 'blue'),
+    ],
+    expect: {
+      kind: '7seg-mux', partId: 'Aff1', digits: 4,
+      segments: { A: 'GP2', B: 'GP3', C: 'GP4', D: 'GP5', E: 'GP6', F: 'GP7', G: 'GP8', DP: 'GP9' },
+      digitPins: ['GP10', 'GP11', 'GP12', 'GP13'],
+    },
+    code: `# Test afficheur 7 segments multiplexe.
+# Segments A..G sur GP2..GP8.
+# Digits 1..4 sur GP10..GP13.
 from machine import Pin
 import time
 
-segs = [Pin(n, Pin.OUT) for n in range(2, 10)]
-chiffres = [0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F]
+K = 1  # Cathode commune : segment allumé à 1.
+A = 0  # Anode commune : segment allumé à 0.
+COMMUNE = K  # Remplacer par A pour un afficheur à anode commune.
+
+NB_DIGITS = 1 # Mettre 1, 2 ou 4 selon l'afficheur câblé.
+
+SEGS = [Pin(n, Pin.OUT) for n in range(2, 9)]
+DIGITS = [Pin(n, Pin.OUT) for n in range(10, 14)]
+# Bits A..G : bit 0 = A, ..., bit 6 = G.
+CHIFFRES = (0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F)
+
+SEG_ON = COMMUNE
+SEG_OFF = 1 - COMMUNE
+DIGIT_ON = 1 - COMMUNE
+DIGIT_OFF = COMMUNE
+DELAIS=100
+
+
+
+def eteindre_tous_les_digits():
+    for digit in DIGITS:
+        digit.value(DIGIT_OFF)
+
+
+def afficher_segments(motif):
+    for segment in range(7):
+        SEGS[segment].value(((motif >> segment) & 1) == SEG_ON)
+
+
+def afficher_un_digit(index_digit, valeur):
+    eteindre_tous_les_digits()
+    if valeur is None:
+        afficher_segments(0)
+    else:
+        afficher_segments(CHIFFRES[valeur])
+    DIGITS[index_digit].value(DIGIT_ON)
+    time.sleep(0.002)
+    DIGITS[index_digit].value(DIGIT_OFF)
+
+
+def afficher_nombre(nombre):
+    limite = 10 ** NB_DIGITS
+    valeur = nombre % limite
+    chiffres = [None] * NB_DIGITS
+
+    for index in range(NB_DIGITS - 1, -1, -1):
+        chiffres[index] = valeur % 10
+        valeur //= 10
+
+    for index_digit, chiffre in enumerate(chiffres):
+        afficher_un_digit(index_digit, chiffre)
+
+
+eteindre_tous_les_digits()
 
 while True:
-    for n in range(10):
-        for s in range(7):
-            segs[s].value((chiffres[n] >> s) & 1)
-        segs[7].value(n % 2)   # point décimal sur les impairs
-        print(n)
-        time.sleep(0.5)
+    for nombre in range(10 ** NB_DIGITS):
+        debut = time.ticks_ms()
+        while time.ticks_diff(time.ticks_ms(), debut) < DELAIS:
+            afficher_nombre(nombre)
+        print(nombre)
 `,
   }),
 
   test({
+    // Barre couchée (tournée d'un quart de tour) et broches prises à l'envers,
+    // comme côté Arduino : GP2 va sur A10, GP11 sur A1. Une résistance de 100 Ω
+    // par LED (3,3 V au lieu de 5 V), cathodes chaînées jusqu'à la masse.
     name: 'led-bar-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'Aff1', type: 'led-bar', x: 680, y: 80, attrs: { color: 'GYR' } }],
-    wires: () => [
-      ...Array.from({ length: 10 }, (_, i) => w('Aff1', `A${i + 1}`, 'U1', `GP${i + 2}`, 'green')),
-      ...Array.from({ length: 10 }, (_, i) => w('Aff1', `C${i + 1}`, 'U1', `GND.${(i % 4) + 1}`, 'black')),
+    parts: [
+      MCU('pico'),
+      { id: 'Aff1', type: 'led-bar', x: 118.5, y: 228.5, rotation: 90, attrs: { color: 'GYR' } },
+      ...Array.from({ length: 10 }, (_, i) => (
+        { id: `R${i + 1}`, type: 'resistor', x: 60 + i * 10, y: 220, rotation: 90, attrs: { value: '100' } }
+      )),
     ],
-    expect: { kind: 'led-bar', partId: 'Aff1', firstPin: 'GP2' },
+    wires: () => [
+      ...Array.from({ length: 10 }, (_, i) => w(`R${i + 1}`, '2', 'Aff1', `A${10 - i}`, 'orange')),
+      w('U1', 'GND.8', 'Aff1', 'C1', 'black'),
+      ...Array.from({ length: 9 }, (_, i) => w('Aff1', `C${i + 1}`, 'Aff1', `C${i + 2}`, 'black')),
+      ...Array.from({ length: 10 }, (_, i) => w('U1', `GP${i + 2}`, `R${i + 1}`, '1', 'green')),
+    ],
+    // GP11 pilote A1 : c'est LUI qui allume la première LED de la barre.
+    expect: { kind: 'led-bar', partId: 'Aff1', firstPin: 'GP11' },
     code: `# Test barre de 10 LED : vumètre qui monte puis descend (anodes sur GP2..GP11).
 from machine import Pin
 import time
@@ -2655,22 +2701,25 @@ while True:
 
   test({
     name: 'joystick-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'Pot1', type: 'joystick', x: 680, y: 80 }],
+    parts: [
+      MCU('pico', 226.75, 283.6),
+      { id: 'Pot1', type: 'joystick', x: 270, y: 100 },
+    ],
     wires: () => [
       w('Pot1', 'VCC', 'U1', '3V3', 'red'),
-      w('Pot1', 'VERT', 'U1', 'GP26', 'green'),
-      w('Pot1', 'HORZ', 'U1', 'GP27', 'blue'),
-      w('Pot1', 'SEL', 'U1', 'GP14', 'yellow'),
-      w('Pot1', 'GND', 'U1', 'GND.7', 'black'),
+      w('Pot1', 'HORZ', 'U1', 'GP26', 'fuchsia'),
+      w('Pot1', 'SEL', 'U1', 'GP22', 'yellow'),
+      w('Pot1', 'GND', 'U1', 'GND.3', 'black'),
+      w('Pot1', 'VERT', 'U1', 'GP27', 'orange'),
     ],
-    expect: { kind: 'joystick', partId: 'Pot1', vert: 'GP26', horz: 'GP27', sel: 'GP14' },
+    expect: { kind: 'joystick', partId: 'Pot1', vert: 'GP27', horz: 'GP26', sel: 'GP22' },
     code: `# Test joystick analogique : X/Y sur les ADC, bouton SEL en pull-up.
 from machine import ADC, Pin
 import time
 
-axe_y = ADC(26)
-axe_x = ADC(27)
-bouton = Pin(14, Pin.IN, Pin.PULL_UP)
+axe_y = ADC(27)
+axe_x = ADC(26)
+bouton = Pin(22, Pin.IN, Pin.PULL_UP)
 while True:
     b = "APPUYE" if bouton.value() == 0 else "relache"
     print("Y =", axe_y.read_u16(), " X =", axe_x.read_u16(), " bouton =", b)
@@ -2726,55 +2775,32 @@ while True:
 
   test({
     name: 'tilt-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'Capt1', type: 'tilt', x: 680, y: 90 }],
+    parts: [
+      MCU('pico', 356.75, 213.6),
+      { id: 'Capt1', type: 'tilt', x: 290, y: 140 },
+    ],
     wires: () => [
       w('Capt1', 'VCC', 'U1', '3V3', 'red'),
-      w('Capt1', 'OUT', 'U1', 'GP14', 'yellow'),
-      w('Capt1', 'GND', 'U1', 'GND.5', 'black'),
+      w('Capt1', 'GND', 'U1', 'GND.4', 'black'),
+      w('Capt1', 'OUT', 'U1', 'GP26', 'orange'),
     ],
-    expect: { kind: 'digital-source', partId: 'Capt1', mcuPin: 'GP14' },
+    expect: { kind: 'digital-source', partId: 'Capt1', mcuPin: 'GP26' },
     code: `# Test capteur d'inclinaison : maintenir le clic incline le capteur.
 from machine import Pin
 import time
 
-tilt = Pin(14, Pin.IN)
+tilt = Pin(26, Pin.IN)
 while True:
     print("INCLINE" if tilt.value() == 1 else "droit")
     time.sleep(0.3)
 `,
   }),
 
-  test({
-    name: 'servo-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'Act1', type: 'servo', x: 680, y: 80, attrs: { horn: 'single', pulsemin: '500', pulsemax: '2500' } }],
-    wires: () => [
-      w('Act1', 'V+', 'U1', 'VBUS', 'red'),
-      w('Act1', 'GND', 'U1', 'GND.5', 'black'),
-      w('Act1', 'PWM', 'U1', 'GP15', 'orange'),
-    ],
-    expect: { kind: 'servo', partId: 'Act1', mcuPin: 'GP15' },
-    code: `# Test servomoteur : PWM 50 Hz, impulsions 500/1500/2500 µs = 0/90/180°.
-from machine import Pin, PWM
-import time
-
-servo = PWM(Pin(15))
-servo.freq(50)
-
-def angle(micros):
-    servo.duty_u16(int(micros * 65535 / 20000))
-
-while True:
-    angle(500)
-    print("0 degres")
-    time.sleep(1)
-    angle(1500)
-    print("90 degres")
-    time.sleep(1)
-    angle(2500)
-    print("180 degres")
-    time.sleep(1)
-`,
-  }),
+  // Le test `servo-pico` a été retiré de la spec en v2026.8.25, à la demande de
+  // Frank, après qu'il ait supprimé ses fichiers en v2026.8.2. Le servomoteur
+  // reste éprouvé côté Arduino (`servo-uno`), et côté Pico par les montages qui
+  // s'en servent : `powerbank-pico`, `patte-pico` et le schéma « 16 servo +
+  // alim » — tous pilotés par PCA9685, ce qui est l'usage réel sur Pico.
 
   test({
     // Batterie externe (Power bank) : même rôle électrique que l'alim de
@@ -3189,19 +3215,22 @@ print("Matrice remplie")
 
   test({
     name: 'led-ring-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'L1', type: 'led-ring', x: 680, y: 60, attrs: { pixels: '16' } }],
+    parts: [
+      MCU('pico', 136.75, 213.6),
+      { id: 'L1', type: 'led-ring', x: 90, y: 30, attrs: { pixels: '16' } },
+    ],
     wires: () => [
       w('L1', 'VCC', 'U1', 'VBUS', 'red'),
       w('L1', 'GND', 'U1', 'GND.1', 'black'),
-      w('L1', 'DIN', 'U1', 'GP0', 'green'),
+      w('L1', 'DIN', 'U1', 'GP28', 'green'),
     ],
-    expect: { kind: 'neopixel', partId: 'L1', mcuPin: 'GP0', count: 16 },
+    expect: { kind: 'neopixel', partId: 'L1', mcuPin: 'GP28', count: 16 },
     code: `# Test anneau NeoPixel (16 pixels) : chenillard bleu.
 from machine import Pin
 import neopixel
 import time
 
-anneau = neopixel.NeoPixel(Pin(0), 16)
+anneau = neopixel.NeoPixel(Pin(28), 16)
 while True:
     for i in range(16):
         anneau.fill((0, 0, 0))
@@ -3330,20 +3359,23 @@ while True:
 
   test({
     name: 'flame-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'Capt1', type: 'flame', x: 680, y: 90, attrs: { sensitivity: '50' } }],
+    parts: [
+      MCU('pico', 296.75, 123.6),
+      { id: 'Capt1', type: 'flame', x: 112.75, y: 64.8, attrs: { sensitivity: '50' } },
+    ],
     wires: () => [
       w('Capt1', 'VCC', 'U1', '3V3', 'red'),
-      w('Capt1', 'GND', 'U1', 'GND.7', 'black'),
+      w('Capt1', 'GND', 'U1', 'GND.3', 'black'),
       w('Capt1', 'AOUT', 'U1', 'GP26', 'green'),
-      w('Capt1', 'DOUT', 'U1', 'GP14', 'yellow'),
+      w('Capt1', 'DOUT', 'U1', 'GP21', 'yellow'),
     ],
-    expect: { kind: 'ao-do', partId: 'Capt1', analog: 'GP26', digital: 'GP14' },
+    expect: { kind: 'ao-do', partId: 'Capt1', analog: 'GP26', digital: 'GP21' },
     code: `# Test capteur de flamme : AOUT baisse quand la flamme approche, DOUT actif bas.
 from machine import ADC, Pin
 import time
 
 aout = ADC(26)
-dout = Pin(14, Pin.IN)
+dout = Pin(21, Pin.IN)
 while True:
     etat = "FLAMME !" if dout.value() == 0 else "rien"
     print("AOUT =", aout.read_u16(), " DOUT =", etat)
@@ -3517,20 +3549,23 @@ while True:
 
   test({
     name: 'dht11-pico', board: 'pico', ext: 'py',
-    parts: [MCU('pico'), { id: 'Capt1', type: 'dht11', x: 680, y: 90, attrs: { temperature: '22', humidity: '50' } }],
+    parts: [
+      MCU('pico', 66.75, 143.6),
+      { id: 'Capt1', type: 'dht11', x: 160, y: 30, attrs: { temperature: '22', humidity: '50' } },
+    ],
     wires: () => [
       w('Capt1', 'VCC', 'U1', '3V3', 'red'),
-      w('Capt1', 'DATA', 'U1', 'GP14', 'green'),
-      w('Capt1', 'GND', 'U1', 'GND.5', 'black'),
+      w('Capt1', 'DATA', 'U1', 'GP22', 'green'),
+      w('Capt1', 'GND', 'U1', 'GND.3', 'black'),
     ],
-    expect: { kind: 'dht22', partId: 'Capt1', mcuPin: 'GP14', model: 'dht11' },
+    expect: { kind: 'dht22', partId: 'Capt1', mcuPin: 'GP22', model: 'dht11' },
     code: `# Test DHT11 : meme module MicroPython que le DHT22, mais des valeurs
 # ENTIERES (pas de dixieme), 20 a 90 % HR et 0 a 50 degres C.
 from machine import Pin
 import dht
 import time
 
-capteur = dht.DHT11(Pin(14))
+capteur = dht.DHT11(Pin(22))
 while True:
     time.sleep(1.1)   # le DHT11 ne repond qu'une fois par seconde
     try:

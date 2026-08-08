@@ -174,6 +174,22 @@ for (const t of TESTS) {
         check(`${t.name} : 8 segments câblés`, !!ok, JSON.stringify(b?.segments));
         break;
       }
+      case '7seg-mux': {
+        // Afficheur multiplexé : ce n'est PAS le même binding qu'à un chiffre
+        // (`sevenSegmentBindings` écarte d'ailleurs les afficheurs à plusieurs
+        // chiffres). Un commun par chiffre remplace le COM à la masse, et c'est
+        // ce couple segments + communs que la simulation échantillonne.
+        const SEGS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'DP'];
+        const b = model.sevenSegmentMuxBindings(diagram).find((x) => x.partId === e.partId);
+        check(`${t.name} : afficheur multiplexé reconnu`, b?.digits === e.digits, JSON.stringify(b));
+        if (!b) break;
+        const segs = Object.fromEntries(SEGS.map((s, i) => [s, b.segPins[i]]));
+        const okSeg = Object.entries(e.segments).every(([seg, pin]) => segs[seg] === pin);
+        check(`${t.name} : 8 segments câblés`, okSeg, JSON.stringify(segs));
+        const okDig = e.digitPins.every((pin, i) => b.digitPins[i] === pin);
+        check(`${t.name} : ${e.digits} communs de chiffre câblés`, okDig, JSON.stringify(b.digitPins));
+        break;
+      }
       case 'led-bar': {
         const state = model.ledBarState(diagram, e.partId, (n) => n === e.firstPin);
         check(`${t.name} : LED1 s'allume via ${e.firstPin}`,

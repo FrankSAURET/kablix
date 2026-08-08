@@ -27,16 +27,18 @@ Chaque carte de dev a son projix : `blink-uno`, `blink-nano`, `blink-mega`,
 
 Chaque composant du catalogue a deux tests : `<composant>-uno` (Arduino, C) et
 `<composant>-pico` (MicroPython) — sauf le HC-SR04, simulé sur AVR uniquement, et
-le bouton 6 mm, dont le test Pico a été retiré (comportement identique au
-poussoir standard, lui couvert sur les deux cartes).
+les quelques doublons marqués « (retiré) » dans le tableau, dont le montage
+n'apprenait rien de plus qu'un autre déjà présent : bouton 6 mm (les deux
+cartes), résistance seule, servomoteur côté Pico, résistances variables côté
+Uno. La colonne « Observable » dit par quoi chacun reste couvert.
 
 | Composant | Test Uno | Test Pico | Observable |
 |---|---|---|---|
 | LED (+ résistance) | `led-uno` | `led-pico` | clignote 1 Hz |
 | LED RGB | `rgb-led-uno` | `rgb-led-pico` | fondu R, V, B puis blanc |
 | Bouton poussoir | `button-uno` | `button-pico` | appui → « APPUYE » + LED |
-| Bouton 6 mm | `button-6mm-uno` | — (retiré) | idem |
-| Résistance | `resistor-uno` | — | LED allumée (continuité) |
+| Bouton 6 mm | — (retiré) | — (retiré) | couvert par `npm run verify:button-latch`, qui éprouve les DEUX poussoirs (souris, clavier, capuchon enfoncé, maintien Ctrl) |
+| Résistance | — (retiré) | — | en série dans la moitié des autres montages |
 | Diode | `diode-uno` | `diode-pico` | passante / à l'envers = bloquée |
 | Condensateurs | `condo-uno` | `condo-pico` | 3 branches RC en parallèle (film 0,1 s, tantale 0,33 s, chimique 1 s) lues sur 3 ADC |
 | Transistor (sélecteur) | `transistor-uno` | `transistor-pico` | Une branche par famille — BC547 vs 2N3904 (à montage égal, le gain décide), BC557 (PNP) côté haut, BC517 (darlington) sur 100 kΩ, BS170 (MOSFET) grille directe |
@@ -58,7 +60,7 @@ poussoir standard, lui couvert sur les deux cartes).
 | Capteur de lumière (LDR) | `photoresistor-uno` | `photoresistor-pico` | AO + DO (actif bas) |
 | Capteur PIR | `pir-uno` | `pir-pico` | survol = mouvement |
 | Capteur d'inclinaison | `tilt-uno` | `tilt-pico` | clic maintenu = incliné |
-| Servomoteur | `servo-uno` | `servo-pico` | 0° / 90° / 180° |
+| Servomoteur | `servo-uno` | — (retiré) | 0° / 90° / 180° ; côté Pico, 16 servos et leur alim sont éprouvés par `powerbank-pico` et `patte-pico` |
 | LCD 16×2 I²C | `lcd-uno` | `lcd-pico` | texte + compteur |
 | OLED SSD1306 I²C | `oled-ssd1306-uno` | `oled-ssd1306-pico` | cadre + dessin |
 | TFT ILI9341 SPI | `ili9341-uno` | `ili9341-pico` | aplats de couleur |
@@ -67,7 +69,7 @@ poussoir standard, lui couvert sur les deux cartes).
 | Matrice NeoPixel 8×8 | `neopixel-matrix-uno` | `neopixel-matrix-pico` | diagonale + dégradé |
 | Anneau NeoPixel 16 | `led-ring-uno` | `led-ring-pico` | chenillard bleu |
 | Température NTC | `ntc-temp-uno` | `ntc-temp-pico` | valeur suit le curseur |
-| Résistances variables LDR + CTN + CTP | `rv-uno` | `rv-pico` | trois ponts diviseurs lus d'un coup ; éclairer la LDR ou chauffer la CTN fait monter la lecture, chauffer la CTP la fait descendre |
+| Résistances variables LDR + CTN + CTP | — (retiré) | `rv-pico` | trois ponts diviseurs lus d'un coup ; éclairer la LDR ou chauffer la CTN fait monter la lecture, chauffer la CTP la fait descendre |
 | Capteur de gaz (MQ) | `gas-sensor-uno` | `gas-sensor-pico` | AOUT + DOUT |
 | Capteur de pouls | `heartbeat-uno` | `heartbeat-pico` | signal qui bat |
 | Capteur de flamme | `flame-uno` | `flame-pico` | AOUT + DOUT |
