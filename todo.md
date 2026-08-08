@@ -1,6 +1,9 @@
 # À faire
-*(rien en attente)*
-
+1. Fais apparaitre la carte pico w sur le dessus du corps et donc aucune connectique elle se comporte comme si elle était une pico w. Pas la patte ne doit présenter que la connectique des 2 servo moteurs embarqués
+1. Corps plus épais (ou puis-je faire )
+1. des propriété doivent pouvoir inversé le sens des servo
+1. Pour l'adresse I2C, tu fais la mêm chose que pour la PCA9685 et adresse par défaut =0x7F
+1. 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
 
