@@ -14,9 +14,10 @@
 import { css, html, LitElement, type TemplateResult } from 'lit';
 import { ElementPin } from './pin.mjs';
 import {
-  add, boxFaces, groundShadow, renderFaces, scale,
+  add, boxFaces, extrudeProfile, groundShadow, renderFaces, scale,
   type Face, type Vec3,
 } from './iso3d.mjs';
+import { hasProfile, profile } from './profils.mjs';
 
 /** Extrait le groupe `<g id="ID" …> … </g>` complet (gère l'imbrication).
  *  Gardé ici : d'autres forks s'en servent pour découper un SVG retouché. */
@@ -84,16 +85,28 @@ export function legGeometry(
   return { hip, knee, foot };
 }
 
+/**
+ * Un OS de la patte, de `a` à `b`, épaisseur `t`. Le contour dessiné dans
+ * `Composants.svg` (`patte-femur`, `patte-tibia`) est utilisé s'il a été extrait
+ * — mode d'emploi : docs/fr/Drawing-systems.md. Sans dessin, on garde le pavé :
+ * le composant reste complet tant que la pièce n'est pas tracée.
+ */
+function bone(name: string, a: Vec3, b: Vec3, t: number): Face[] {
+  if (!hasProfile(name)) return boxFaces(a, b, t, t, COLORS.bone);
+  const p = profile(name);
+  return extrudeProfile(p, a, b, t, COLORS.bone, p.holes);
+}
+
 /** Faces d'une patte : équerre de hanche, fémur, bloc de genou, tibia, pied. */
 export function legFaces(g: LegGeometry, size: LegSize): Face[] {
   const b = size.bone;
   return [
     // Servo de hanche : un bloc posé à l'aplomb de l'articulation.
     ...boxFaces(add(g.hip, { x: 0, y: 0, z: -b * 0.9 }), add(g.hip, { x: 0, y: 0, z: b * 0.9 }), b * 1.4, b * 1.4, COLORS.servo),
-    ...boxFaces(g.hip, g.knee, b, b, COLORS.bone),
+    ...bone('patte-femur', g.hip, g.knee, b),
     // Servo de genou, aligné sur le fémur.
     ...boxFaces(add(g.knee, { x: 0, y: 0, z: -b * 0.8 }), add(g.knee, { x: 0, y: 0, z: b * 0.8 }), b * 1.4, b * 1.4, COLORS.servo),
-    ...boxFaces(g.knee, g.foot, b * 0.8, b * 0.8, COLORS.bone),
+    ...bone('patte-tibia', g.knee, g.foot, b * 0.8),
     // Embout caoutchouc : un petit cube au bout du tibia.
     ...boxFaces(add(g.foot, { x: 0, y: 0, z: -b * 0.35 }), add(g.foot, { x: 0, y: 0, z: b * 0.35 }), b * 0.9, b * 0.9, COLORS.servo),
   ];

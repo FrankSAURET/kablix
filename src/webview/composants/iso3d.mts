@@ -82,11 +82,24 @@ export function norm(a: Vec3): Vec3 {
 /** Une face prête à sortir : ses sommets projetés, sa profondeur, sa couleur. */
 export type Face = { pts: Vec2[]; z: number; fill: string };
 
-/** Couleur `#rrggbb` éclaircie (k > 1) ou assombrie (k < 1), bornée. */
-export function shade(hex: string, k: number): string {
-  const n = parseInt(hex.slice(1), 16);
-  const c = (dec: number): number => Math.max(0, Math.min(255, Math.round(((n >> dec) & 255) * k)));
-  return `rgb(${c(16)},${c(8)},${c(0)})`;
+/** Couleur éclaircie (k > 1) ou assombrie (k < 1), bornée. Accepte `#rrggbb`
+ *  comme le `rgb(r,g,b)` qu'elle produit : une teinte déjà assombrie (le fond
+ *  d'un perçage) repasse ensuite par l'éclairage de sa face. */
+export function shade(color: string, k: number): string {
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  if (color[0] === '#') {
+    const n = parseInt(color.slice(1), 16);
+    r = (n >> 16) & 255;
+    g = (n >> 8) & 255;
+    b = n & 255;
+  } else {
+    const m = color.match(/\d+/g);
+    if (m) [r, g, b] = m.slice(0, 3).map(Number);
+  }
+  const c = (v: number): number => Math.max(0, Math.min(255, Math.round(v * k)));
+  return `rgb(${c(r)},${c(g)},${c(b)})`;
 }
 
 /** Luminosité d'une face : ambiante + diffus, du plein soleil au clair-obscur. */
@@ -137,23 +150,111 @@ export function boxFaces(from: Vec3, to: Vec3, w: number, h: number, color: stri
   return quads.map((q) => face(q, color)).filter((f): f is Face => f !== null);
 }
 
+/** Aire signée d'un polygone plan (positive = sens trigonométrique). */
+export function signedArea(poly: Vec2[]): number {
+  let a = 0;
+  for (let i = 0; i < poly.length; i++) {
+    const p = poly[i];
+    const q = poly[(i + 1) % poly.length];
+    a += p.x * q.y - q.x * p.y;
+  }
+  return a / 2;
+}
+
+/** Double de l'aire signée du triangle abc : > 0 = sommet convexe (sens trigo). */
+function cross2(a: Vec2, b: Vec2, c: Vec2): number {
+  return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+}
+
+function inTriangle(p: Vec2, a: Vec2, b: Vec2, c: Vec2): boolean {
+  return cross2(a, b, p) >= 0 && cross2(b, c, p) >= 0 && cross2(c, a, p) >= 0;
+}
+
 /**
- * Dessus (ou dessous) d'un prisme, découpé en ÉVENTAIL de triangles autour de
- * son centre. Une grande face plate rangée à sa profondeur MOYENNE passerait
- * devant (ou derrière) tout ce qu'elle porte : l'algorithme du peintre veut des
- * faces de taille comparable, sinon une carte posée au bord de la plaque
- * disparaît sous la plaque elle-même. Les triangles partagent la normale de la
- * face, donc la même teinte : le découpage ne se voit pas.
+ * Triangule un polygone SIMPLE quelconque par découpage d'oreilles. Un éventail
+ * autour du centre suffisait tant que les formes étaient convexes (octogone
+ * codé en dur) ; dès que Frank dessine un châssis découpé au laser — encoches,
+ * pattes de fixation, découpes en U — l'éventail sort de la forme et bave dans
+ * les creux. Le découpage d'oreilles, lui, ne produit que des triangles
+ * intérieurs. Sortie toujours en sens trigonométrique.
+ */
+export function triangulate(poly: Vec2[]): Vec2[][] {
+  if (poly.length < 3) return [];
+  const pts = signedArea(poly) < 0 ? [...poly].reverse() : [...poly];
+  const idx = pts.map((_, i) => i);
+  const out: Vec2[][] = [];
+  // Un polygone à n sommets donne n-2 triangles : la boucle ne peut pas tourner
+  // plus de n fois de plus sans progresser (garde-fou contre un tracé dégénéré).
+  let guard = pts.length * 2;
+  while (idx.length > 3 && guard-- > 0) {
+    let cut = -1;
+    for (let i = 0; i < idx.length; i++) {
+      const a = pts[idx[(i + idx.length - 1) % idx.length]];
+      const b = pts[idx[i]];
+      const c = pts[idx[(i + 1) % idx.length]];
+      if (cross2(a, b, c) <= 1e-9) continue; // sommet rentrant : pas une oreille
+      let clean = true;
+      for (const j of idx) {
+        const p = pts[j];
+        if (p === a || p === b || p === c) continue;
+        if (inTriangle(p, a, b, c)) { clean = false; break; }
+      }
+      if (!clean) continue;
+      out.push([a, b, c]);
+      cut = i;
+      break;
+    }
+    if (cut < 0) break; // plus d'oreille trouvable : on rend ce qui est fait
+    idx.splice(cut, 1);
+  }
+  if (idx.length === 3) out.push(idx.map((i) => pts[i]));
+  return out;
+}
+
+/** Taille visée d'un triangle de face plate, en unités de la feuille. Au-delà,
+ *  le triangle est recoupé : l'algorithme du peintre range chaque face à sa
+ *  profondeur MOYENNE, donc une grande face passe devant (ou derrière) tout ce
+ *  qu'elle porte — le Pico posé au bord de la plaque disparaissait SOUS la
+ *  plaque. Des faces de taille comparable rangent juste. */
+const MAX_EDGE = 26;
+
+/** Recoupe un triangle par le milieu de sa plus longue arête tant qu'il dépasse
+ *  `MAX_EDGE`. Les morceaux partagent la normale du triangle d'origine, donc sa
+ *  teinte : le découpage reste invisible. */
+function subdivide(tri: Vec2[], out: Vec2[][]): void {
+  const [a, b, c] = tri;
+  const e = [
+    { d: Math.hypot(b.x - a.x, b.y - a.y), i: 0 },
+    { d: Math.hypot(c.x - b.x, c.y - b.y), i: 1 },
+    { d: Math.hypot(a.x - c.x, a.y - c.y), i: 2 },
+  ].sort((p, q) => q.d - p.d)[0];
+  if (e.d <= MAX_EDGE) { out.push(tri); return; }
+  const v = [a, b, c];
+  const p = v[e.i];
+  const q = v[(e.i + 1) % 3];
+  const r = v[(e.i + 2) % 3];
+  const m: Vec2 = { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 };
+  subdivide([p, m, r], out);
+  subdivide([m, q, r], out);
+}
+
+/**
+ * Dessus (ou dessous) d'un prisme : le polygone est triangulé, puis recoupé en
+ * morceaux de taille comparable pour que le tri en profondeur reste juste.
  */
 function cap(pts: Vec3[], color: string): Face[] {
-  const c: Vec3 = {
-    x: pts.reduce((s, p) => s + p.x, 0) / pts.length,
-    y: pts.reduce((s, p) => s + p.y, 0) / pts.length,
-    z: pts.reduce((s, p) => s + p.z, 0) / pts.length,
-  };
+  const z = pts[0].z;
+  const flat = pts.map((p) => ({ x: p.x, y: p.y }));
+  // Sens de parcours reçu : il dit si l'on regarde le dessus ou le dessous, et
+  // `triangulate` le normalise — il faut donc le RENDRE après coup, sans quoi
+  // toutes les faces plates regarderaient vers le haut.
+  const flip = signedArea(flat) < 0;
+  const tris: Vec2[][] = [];
+  for (const t of triangulate(flat)) subdivide(t, tris);
   const out: Face[] = [];
-  for (let i = 0; i < pts.length; i++) {
-    const f = face([c, pts[i], pts[(i + 1) % pts.length]], color);
+  for (const t of tris) {
+    const ordered = flip ? [...t].reverse() : t;
+    const f = face(ordered.map((p) => ({ x: p.x, y: p.y, z })), color);
     if (f) out.push(f);
   }
   return out;
@@ -164,6 +265,10 @@ function cap(pts: Vec3[], color: string): Face[] {
  * extrudé de `z0` à `z1`. C'est le châssis découpé au laser, et toute plaque.
  */
 export function prismFaces(poly: Vec2[], z0: number, z1: number, color: string): Face[] {
+  // Sens de tracé normalisé : un contour DESSINÉ arrive dans le sens du crayon,
+  // et à l'envers ce sont le dessus et le dessous qui échangent leur normale —
+  // la plaque se retrouve alors éclairée par en dessous, son dessus effacé.
+  if (signedArea(poly) < 0) poly = [...poly].reverse();
   const top = poly.map((p) => ({ x: p.x, y: p.y, z: z1 }));
   const bottom = poly.map((p) => ({ x: p.x, y: p.y, z: z0 }));
   const out: Face[] = [...cap(top, color), ...cap([...bottom].reverse(), color)];
@@ -171,6 +276,115 @@ export function prismFaces(poly: Vec2[], z0: number, z1: number, color: string):
     const j = (i + 1) % poly.length;
     const f = face([bottom[i], bottom[j], top[j], top[i]], color);
     if (f) out.push(f);
+  }
+  return out;
+}
+
+/**
+ * Un PROFIL dessiné à la main : le contour d'une pièce, à plat, tel que Frank
+ * le trace dans `Composants.svg` et que `scripts/_extract-profils.mjs` le sort
+ * en polygone (voir `docs/fr/Drawing-systems.md`). Le tracé est centré
+ * sur le milieu de sa boîte englobante ; `w` et `h` la mesurent.
+ */
+export type Profile = { poly: Vec2[]; w: number; h: number };
+
+/**
+ * Extrude un profil DESSINÉ le long du segment `from` → `to`, sur l'épaisseur
+ * `thickness`. C'est la version « dessinée » de `boxFaces` : là où la boîte ne
+ * sait faire qu'un pavé, celle-ci suit le contour du fémur, du servo ou de
+ * l'équerre tel qu'il a été tracé.
+ *
+ * Le profil est vu DE CÔTÉ, pièce couchée à l'horizontale : son bord gauche
+ * tombe sur `from`, son bord droit sur `to`, le haut du dessin reste en haut.
+ * Il est mis à l'échelle en BLOC (largeur ET hauteur par le même facteur) :
+ * la même pièce sert à la patte seule et à celles du robot, plus longues, sans
+ * s'y déformer.
+ */
+export function extrudeProfile(
+  profile: Profile, from: Vec3, to: Vec3, thickness: number, color: string,
+  holes: Vec2[][] = [],
+): Face[] {
+  const span = sub(to, from);
+  const axis = norm(span);
+  const ref: Vec3 = Math.abs(axis.z) > 0.98 ? { x: 1, y: 0, z: 0 } : { x: 0, y: 0, z: 1 };
+  const side = norm(cross(axis, ref));
+  const up = norm(cross(side, axis));
+  const k = profile.w > 1e-6 ? len(span) / profile.w : 1;
+  // Repère local (u le long de la pièce depuis `from`, v vers le haut), déjà en
+  // unités de la feuille : le recoupage des faces peut s'y appliquer tel quel.
+  // Le y du dessin descend (convention SVG), le v du monde monte : d'où le signe.
+  let local = profile.poly.map((p) => ({ x: (p.x + profile.w / 2) * k, y: -p.y * k }));
+  if (signedArea(local) < 0) local = local.reverse();
+  const at = (p: Vec2, s: number): Vec3 =>
+    add(add(add(from, scale(axis, p.x)), scale(up, p.y)), scale(side, s));
+  const t = thickness / 2;
+  const out: Face[] = [];
+  // Les deux flancs, triangulés et recoupés comme un dessus de prisme. Ils sont
+  // gardés séparés : c'est devant le flanc VU que se rangent ses perçages.
+  const tris: Vec2[][] = [];
+  for (const tri of triangulate(local)) subdivide(tri, tris);
+  const sides: Face[][] = [[], []];
+  for (const tri of tris) {
+    const a = face(tri.map((p) => at(p, t)), color);
+    if (a) sides[0].push(a);
+    const b = face([...tri].reverse().map((p) => at(p, -t)), color);
+    if (b) sides[1].push(b);
+  }
+  out.push(...sides[0], ...sides[1]);
+  // Les perçages, sur le flanc que l'on voit. Même mise à l'échelle que le
+  // contour : un trou dessiné à 3 px de rayon reste à 3 px du bord.
+  const dark = shade(color, 0.45);
+  for (const hole of holes) {
+    const h = hole.map((p) => ({ x: (p.x + profile.w / 2) * k, y: -p.y * k }));
+    for (const [i, s] of [t + 0.05, -t - 0.05].entries()) {
+      if (!sides[i].length) continue;
+      const front = Math.max(...sides[i].map((f) => f.z));
+      const htris: Vec2[][] = [];
+      for (const tri of triangulate(h)) subdivide(tri, htris);
+      for (const tri of htris) {
+        const ordered = i === 0 ? tri : [...tri].reverse();
+        const f = face(ordered.map((p) => at(p, s)), dark);
+        if (!f) continue;
+        f.z = front + 0.01;
+        out.push(f);
+      }
+    }
+  }
+  // La tranche : un quadrilatère par arête du contour.
+  for (let i = 0; i < local.length; i++) {
+    const p = local[i];
+    const q = local[(i + 1) % local.length];
+    const f = face([at(p, -t), at(q, -t), at(q, t), at(p, t)], color);
+    if (f) out.push(f);
+  }
+  return out;
+}
+
+/**
+ * DÉCALQUE : un polygone plat posé à l'altitude `z` sur la face qui le porte.
+ * Sert aux perçages du châssis et aux marquages — les dessiner en creux
+ * demanderait de trianguler un polygone à trous, alors qu'une tache sombre à la
+ * bonne place fait la même image.
+ *
+ * `over` : les faces de la pièce porteuse. Le décalque est rangé JUSTE DEVANT
+ * la plus proche d'entre elles, et non simplement soulevé de quelques dixièmes :
+ * la plaque est découpée en dizaines de triangles, chacun rangé à SA profondeur,
+ * et ceux du bord arrière passent devant tout ce qui se trouve au centre — un
+ * perçage soulevé de 0,4 disparaissait sous sa propre plaque. Rien d'autre n'est
+ * masqué pour autant : une patte qui survole la plaque est bien plus près de
+ * l'œil que n'importe quel morceau de celle-ci.
+ */
+export function decalFaces(poly: Vec2[], z: number, color: string, over: Face[] = []): Face[] {
+  const tris: Vec2[][] = [];
+  for (const tri of triangulate(poly)) subdivide(tri, tris);
+  let front = -Infinity;
+  for (const f of over) front = Math.max(front, f.z);
+  const out: Face[] = [];
+  for (const tri of tris) {
+    const f = face(tri.map((p) => ({ x: p.x, y: p.y, z: z + 0.05 })), color);
+    if (!f) continue;
+    if (front > -Infinity) f.z = front + 0.01;
+    out.push(f);
   }
   return out;
 }

@@ -20,9 +20,10 @@
 import { css, html, svg, LitElement, type TemplateResult } from 'lit';
 import { ElementPin } from './pin.mjs';
 import {
-  boxFaces, groundShadow, prismFaces, regularPoly, renderFaces, rotZ,
-  type Face, type Vec3,
+  boxFaces, decalFaces, groundShadow, prismFaces, regularPoly, renderFaces, rotZ,
+  type Face, type Vec2, type Vec3,
 } from './iso3d.mjs';
+import { hasProfile, profile } from './profils.mjs';
 import {
   COLORS, JointAnimator, LEG_SPIDER, legFaces, legGeometry, type LegGeometry,
 } from './patte-element.mjs';
@@ -62,6 +63,25 @@ function hipPoint(dirDeg: number): Vec3 {
     y: HIP_RADIUS * Math.sin(a),
     z: CHASSIS.height + CHASSIS.thickness / 2,
   };
+}
+
+/**
+ * Contour de la plaque, vu de dessus : le dessin de `Composants.svg` s'il a été
+ * extrait sous le nom `araignee-chassis` (mode d'emploi : docs/fr/Drawing-systems.md),
+ * sinon l'octogone d'origine. Le dessin décide de la SILHOUETTE, pas des cotes :
+ * il est ramené au diamètre `CHASSIS.radius` et tourné du lacet de présentation,
+ * pour que hanches, pattes, cartes et bornier restent où le reste du composant
+ * les attend. Le haut du dessin est l'AVANT du robot.
+ */
+function chassisOutline(phase: number, name = 'araignee-chassis'): { poly: Vec2[]; holes: Vec2[][] } {
+  if (!hasProfile(name)) return { poly: regularPoly(8, CHASSIS.radius, phase), holes: [] };
+  const p = profile(name);
+  const k = 2 * CHASSIS.radius / Math.max(p.w, p.h);
+  const turn = (r: Vec2[]): Vec2[] => r.map((q) => {
+    const t = rotZ({ x: q.x * k, y: q.y * k, z: 0 }, YAW);
+    return { x: t.x, y: t.y };
+  });
+  return { poly: turn(p.poly), holes: p.holes.map(turn) };
 }
 
 /** Cartes embarquées, posées à plat sur la plaque : longueur (le long de X),
@@ -204,9 +224,15 @@ export class AraigneeElement extends LitElement {
     // Même lacet que les hanches, sinon la plaque et les cartes resteraient de
     // face pendant que les pattes, elles, seraient tournées.
     const phase = Math.PI / 8 + (YAW * Math.PI) / 180;
+    const outline = chassisOutline(phase);
+    const plate = prismFaces(outline.poly,
+      CHASSIS.height, CHASSIS.height + CHASSIS.thickness, COLORS.chassis);
     const faces: Face[] = [
-      ...prismFaces(regularPoly(8, CHASSIS.radius, phase),
-        CHASSIS.height, CHASSIS.height + CHASSIS.thickness, COLORS.chassis),
+      ...plate,
+      // Perçages et allègements du dessin : des décalques rangés devant la
+      // plaque (les creuser vraiment ne changerait rien à l'image vue d'ici).
+      ...outline.holes.flatMap((h) =>
+        decalFaces(h, CHASSIS.height + CHASSIS.thickness, '#8fb3c4', plate)),
       ...legs.flatMap((g) => legFaces(g, LEG_SPIDER)),
     ];
     if (this.boards) {

@@ -63,6 +63,11 @@ My test library is available here: [TestKablix](https://github.com/FrankSAURET/k
 > from the drawing in `Composants.svg` to a simulated, tested and documented part,
 > by hand or with an AI.
 >
+> **Drawing systems in 3D** (spider, legs — contributors, on GitHub only):
+> [docs/en/Drawing-systems.md](docs/en/Drawing-systems.md) (English) /
+> [docs/fr/Drawing-systems.md](docs/fr/Drawing-systems.md) (français) —
+> you draw the outline of a part, the isometric engine turns it into a volume.
+>
 > 🌍 **Bilingual interface**: French when VS Code runs in French, English otherwise.
 > The mechanism extends to other languages — see [Internationalisation](#internationalisation).
 

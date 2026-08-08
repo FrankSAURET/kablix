@@ -187,7 +187,7 @@ const excluded = (path) => {
 // Guides destinés aux CONTRIBUTEURS (recompilation de l'extension) : distribués
 // via GitHub, volontairement hors du vsix (Frank, v2026.7.260). Ils ne doivent
 // donc jamais être liés depuis l'aide embarquée — le contrôle suivant s'en assure.
-const GITHUB_ONLY = new Set(['Creating-components']);
+const GITHUB_ONLY = new Set(['Creating-components', 'Drawing-systems']);
 const mustShip = [
   ...fr.map((n) => `docs/fr/composants/${n}.md`),
   ...en.map((n) => `docs/en/composants/${n}.md`),
@@ -228,6 +228,10 @@ const HEAVY = /\.gif$/i;
 const guideAssets = new Set();
 for (const lang of ['fr', 'en']) {
   for (const name of guidesOf(lang)) {
+    // Guides « GitHub seulement » : leurs illustrations sont hors paquet AVEC
+    // eux (elles n'ont personne à illustrer dans l'aide embarquée). Leur
+    // existence sur le disque reste vérifiée par le contrôle des liens.
+    if (GITHUB_ONLY.has(name)) continue;
     const p = join(root, 'docs', lang, `${name}.md`);
     const text = readFileSync(p, 'utf8');
     for (const m of text.matchAll(/!\[[^\]]*\]\((<[^>]+>|[^)\s]+)\)/g)) {

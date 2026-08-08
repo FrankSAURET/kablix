@@ -97,3 +97,10 @@ firmware/**/*.c
 # distribué via GitHub uniquement (Frank, v2026.7.260) — donc hors aide embarquée,
 # et jamais lié depuis USAGE.md, qui doit rester ouvrable hors-ligne.
 docs/*/Creating-components.md
+# Idem pour le tuto de dessin des systèmes en volume (araignée, pattes) : il
+# s'adresse à qui dessine dans Composants.svg et relance les scripts. Ses
+# illustrations (docs/img/systemes/) et ses dessins d'exemple (docs/exemples/)
+# le suivent hors du paquet — rien de tout cela n'est lu à l'exécution.
+docs/*/Drawing-systems.md
+docs/img/systemes/**
+docs/exemples/**

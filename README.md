@@ -63,6 +63,11 @@ Ma bilothèque de test est disponible : [TestKablix](https://github.com/FrankSAU
 > du dessin dans `Composants.svg` au composant simulé, testé et documenté,
 > à la main ou avec une IA.
 >
+> **Dessiner les systèmes en volume** (araignée, pattes — contributeurs, sur GitHub uniquement) :
+> [docs/fr/Drawing-systems.md](docs/fr/Drawing-systems.md) (français) /
+> [docs/en/Drawing-systems.md](docs/en/Drawing-systems.md) (English) —
+> vous tracez le contour d’une pièce, le moteur isométrique la met en volume.
+>
 > 🌍 **Interface bilingue** : français si VS Code est en français, anglais sinon.
 > Le mécanisme est extensible à d’autres langues — voir [Internationalisation](#internationalisation).
 
