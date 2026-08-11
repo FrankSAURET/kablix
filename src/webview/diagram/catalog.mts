@@ -520,6 +520,14 @@ export const CATALOG: readonly PartDef[] = [
     props: POT_PROPS,
   },
   {
+    // Ajustable (trimmer) : même modèle électrique que le potentiomètre, mais
+    // il se règle au tournevis et porte sa valeur en CODE à trois chiffres —
+    // celui-ci est écrit sur le boîtier d'après `ohms` (dessin de Frank).
+    type: 'pot-rot2', label: 'Trimmer potentiometer', tag: 'kablix-pot-rot2', kind: 'potentiometer',
+    attrs: { min: '0', max: '100', value: '50', ohms: '10000' }, interactive: true,
+    props: POT_PROPS,
+  },
+  {
     type: '7seg', label: '7-segment display', tag: 'kablix-7segment', kind: '7segment',
     attrs: { color: 'red', common: 'cathode', digits: '1' },
     props: [

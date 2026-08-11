@@ -41,6 +41,9 @@ const PARTS = {
   // Capteur à effet Hall : boîtier partagé TO92S (dessin étroit et haut comme le
   // TO-92 du transistor) — illustré hors simulation, donc sans son aimant.
   hall: { module: 'hall-element.mjs', tag: 'kablix-hall', width: 160 },
+  // Potentiomètre ajustable : illustré avec le code le plus parlant (104 =
+  // 100 kΩ), vis à mi-course.
+  'pot-rot2': { module: 'pot-rot2-element.mjs', tag: 'kablix-pot-rot2', width: 200, attrs: { ohms: '100000', value: '50' } },
   powerbank: { module: 'powerbank-element.mjs', tag: 'kablix-powerbank' },
   // Patte seule : illustrée genou PLIÉ (une patte bien droite se lit comme un
   // simple tube — la pose montre les deux articulations).

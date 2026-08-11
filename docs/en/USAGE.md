@@ -138,7 +138,7 @@ Some special parts (only the RGB LED for now) have preset initial colors (I'll l
 | DIP switch ×8 | 8 independent channels (na ↔ MCU, nb ↔ GND) |
 | Resistor | Joins its two legs (editable value/angle) |
 | Buzzer | Animated note when a voltage exists across its pins |
-| Potentiometer (rotary / slide) | Interactive analog input (A0–A5 Uno, GP26–GP28 Pico) |
+| Potentiometer (rotary / slide / trimmer) | Interactive analog input (A0–A5 Uno, GP26–GP28 Pico); the trimmer prints its value as a 3-digit code |
 | Analog joystick | 2 analog axes (VERT/HORZ) + SEL button |
 | Photoresistor (LDR) | Analog output AO, brightness set in Properties |
 | PIR sensor, tilt sensor | Digital output OUT, state set in Properties |

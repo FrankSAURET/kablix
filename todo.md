@@ -1,6 +1,5 @@
 # À faire
 ## Composants
-1. J'ai fais un nouveau potentiometre rotatif pot-rot2 avec pot-rot2-interne. dedans il y a du texte qui doit varier en fonction de la valeur nominale par exemple 104 donne 100kΩ et 472 4,7kΩ
 1. lorsqu'on apport un nouveau composant sur une platine (glisser déposer depuis la bibliothèque) les bornes de la platine qui seront connectées ne s'illumine pas en jaune il faut le poser et le reprendre
 1. Le corp du bouton poussoir est semi transparent. rend le opaque.
 
@@ -18,6 +17,18 @@
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# >>>>  v2026.8.28 — le potentiomètre ajustable : une vis qu'on tourne, une valeur qui s'écrit toute seule
+
+1. ✅ **Nouveau composant `pot-rot2` (potentiomètre ajustable)**, dessin de Frank (`Composants.svg` → `externe/pot-rot2.svg`, symbole **`pot-rot2-interne`**). Balise `kablix-pot-rot2`, rangé dans les **commandes** de la bibliothèque, repère `Pot1` comme ses deux cousins.
+2. ✅ **La valeur nominale s'écrit sur le boîtier**, en code à trois chiffres : `ohms` → `104` pour 100 kΩ, `472` pour 4,7 kΩ, `221` pour 220 Ω, `105` pour 1 MΩ. Les trois chiffres du dessin sont écrits **en arc de cercle**, chacun avec son inclinaison : ils sont remplis dans l'ordre du document, sans toucher aux matrices de Frank.
+3. ✅ **La vis tourne** de −135° à +135° avec `value` (0 → 100 %), glissée à la souris comme le bouton du potentiomètre rotatif. Le dessin n'a **pas** eu à porter un groupe « rotor » : les cinq pièces qui tournent (disque, index et les quatre facettes de l'empreinte cruciforme) sont regroupées à l'exécution sous un `<g id="rotating">`. Pièce manquante (dessin remanié) → la vis reste immobile plutôt que de se disloquer.
+4. ✅ **Regroupement refait à chaque rendu** : réécrire le code imprimé reconstruit tout le dessin (`unsafeSVG` réanalyse la chaîne). Sans ce rappel, changer la valeur nominale dans l'inspecteur aurait figé la vis — vérifié en Chrome headless (`ohms` 10 k → 4,7 k, puis `value` 0 → 100 : 5 pièces toujours groupées, angle à 135°).
+5. ✅ **Aucun nouveau modèle de simulation** : c'est le `kind` **potentiometer**, donc `potBindings`, la détection du câblage inversé, l'étiquette de lecture (position + les deux bras du pont) et la nomenclature marchent d'emblée. Les pattes gardent les noms du modèle (GND/SIG/VCC) et l'éditeur les affiche **1**, **V**, **2** — exactement ce qui est gravé sur le boîtier.
+6. ✅ **Schéma interne** : celui dessiné par Frank, calé sur le cadre de son dessin externe (le symbole procédural ne sert plus qu'à la glissière).
+7. ✅ **Tests `testkablix` : `pot-rot2-uno` ET `pot-rot2-pico`** (générés depuis `_spec.mjs`, sans toucher au reste du banc) — rail entre l'alimentation et la masse, curseur sur A0 puis GP28 (ADC2), boîtier de 100 kΩ. 18 contrôles de câblage, compilation `arduino-cli` et `.py` verts.
+8. ✅ **Fiches d'aide FR et EN** (`docs/{fr,en}/composants/pot-rot2.md`), avec le **tableau de lecture du code** et l'illustration produite par `_capture-part.mjs` ; ligne ajoutée au tableau des composants simulés des deux guides.
+9. ✅ `npm run typecheck`, `npm run build`, `npm run verify:all` et `npm run verify:docs` verts.
 
 # >>>>  v2026.8.27 — le capteur à effet Hall : un aimant qu'on fait glisser, et un rappel qu'on ne peut plus oublier
 

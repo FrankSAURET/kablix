@@ -17,6 +17,7 @@ import './composants/rgb-led-element.mjs';
 import './composants/buzzer-element.mjs';
 import './composants/potentiometer-element.mjs';
 import './composants/slide-potentiometer-element.mjs';
+import './composants/pot-rot2-element.mjs';
 import './composants/7segment-element.mjs';
 import './composants/led-bar-graph-element.mjs';
 import './composants/slide-switch-element.mjs';

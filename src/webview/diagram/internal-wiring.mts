@@ -51,6 +51,9 @@ import pnp1Schema from '../composants/interne/pnp1-interne.svg';
 // Il est trois fois plus large que le boîtier et DÉBORDE volontairement de son
 // cadre — l'overlay le laisse passer (`overflow: visible`, styles.css).
 import hallSchema from '../composants/interne/hall-interne.svg';
+// Potentiomètre ajustable (trimmer) : symbole dessiné dans Composants.svg, même
+// viewBox que le dessin externe → simple mise à l'échelle de la boîte.
+import potRot2Schema from '../composants/interne/pot-rot2-interne.svg';
 // Symboles GÉNÉRIQUES (Composants.svg) : les électrodes y sont écrites (e/b/c,
 // g/d/s) mais jamais reliées aux pattes — le brochage change d'une référence à
 // l'autre, seul le nom écrit sur chaque pastille dit la vérité. Ils resservent
@@ -320,6 +323,7 @@ const CAPACITOR_SCHEMA: Record<'np' | 'p', Schema> = {
 const RELAIS_SCHEMA = parseSchema(relaisSchema);
 const BATTERY_SCHEMA = parseSchema(batterySchema);
 const HALL_SCHEMA = parseSchema(hallSchema);
+const POT_ROT2_SCHEMA = parseSchema(potRot2Schema);
 // Symboles internes choisis NOMMÉMENT par l'attribut `schema` : le dessin d'une
 // référence ne se déduit pas de sa famille (deux NPN peuvent porter NPN1 ou
 // NPN-Générique), c'est sa fiche qui le dit.
@@ -466,6 +470,8 @@ export function internalWiringSvg(
   if (type === 'keypad') return keypad(attrs, box);
   // Rotatif : schéma dessiné à la main ; la glissière garde le symbole procédural.
   if (type === 'pot') return rotaryPot(pins);
+  // Ajustable : symbole de Frank, calé sur le cadre de son dessin externe.
+  if (type === 'pot-rot2') return scaledSchema(POT_ROT2_SCHEMA, box);
   // Résistances variables nues : symbole dessiné à la main (avant le cas
   // générique `resistor`, qui ne tracerait qu'une boîte).
   if (type === 'ldr' || type === 'ntc' || type === 'ptc') return scaledSchema(VARISTOR_SCHEMA[type], box);

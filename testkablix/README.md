@@ -52,6 +52,7 @@ Uno. La colonne « Observable » dit par quoi chacun reste couvert.
 | Buzzer | `buzzer-uno` | `buzzer-pico` | halo actif + tone/PWM |
 | Potentiomètre | `pot-uno` | `pot-pico` | valeur suit le curseur |
 | Potentiomètre à glissière | `slide-pot-uno` | `slide-pot-pico` | idem |
+| Potentiomètre ajustable | `pot-rot2-uno` | `pot-rot2-pico` | vis tournée à la souris ; boîtier de 100 kΩ, donc « 104 » écrit dessus |
 | Afficheur 7 segments | `7seg-uno` | `7seg-pico` | compte 0→9 |
 | Barre de 10 LED | `led-bar-uno` | `led-bar-pico` | vumètre monte/descend |
 | Interrupteur à glissière | `slide-switch-uno` | `slide-switch-pico` | position 1/3 |

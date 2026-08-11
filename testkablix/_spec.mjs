@@ -39,6 +39,9 @@ export const PART_PINS = {
   buzzer: ['1', '2'],
   pot: ['GND', 'SIG', 'VCC'],
   'slide-pot': ['GND', 'SIG', 'VCC'],
+  // Ajustable : le boîtier porte « 1 », « V » et « 2 », mais la netlist garde
+  // les noms du modèle (comme les deux autres potentiomètres).
+  'pot-rot2': ['GND', 'SIG', 'VCC'],
   // Afficheur 7 segments : les communs dépendent du nombre de chiffres. À un
   // chiffre, COM.1/COM.2 (la même patte des deux côtés du boîtier) ; à 2 ou 4
   // chiffres, un commun par chiffre (DIG1..DIG4) — c'est le multiplexage.
@@ -561,6 +564,35 @@ void loop() {
     ],
     expect: { kind: 'pot', partId: 'Pot1', mcuPin: 'A0' },
     code: `// Test potentiomètre à glissière : lecture analogique 0-1023 sur A0.
+void setup() {
+  Serial.begin(115200);
+}
+
+void loop() {
+  int valeur = analogRead(A0);
+  Serial.print("A0 = ");
+  Serial.println(valeur);
+  delay(250);
+}
+`,
+  }),
+
+  test({
+    // Potentiomètre AJUSTABLE : même câblage que le rotatif (rail entre 5 V et
+    // masse, curseur sur A0), mais sa valeur nominale s'écrit en code à trois
+    // chiffres sur le boîtier — 104 pour les 100 kΩ demandés ici.
+    name: 'pot-rot2-uno', board: 'uno', ext: 'ino',
+    parts: [
+      MCU('uno'),
+      { id: 'Pot1', type: 'pot-rot2', x: 620, y: 90, attrs: { min: '0', max: '100', value: '50', ohms: '100000' } },
+    ],
+    wires: () => [
+      w('Pot1', 'VCC', 'U1', '5V', 'red'),
+      w('Pot1', 'SIG', 'U1', 'A0', 'green'),
+      w('Pot1', 'GND', 'U1', 'GND.1', 'black'),
+    ],
+    expect: { kind: 'pot', partId: 'Pot1', mcuPin: 'A0' },
+    code: `// Test potentiomètre ajustable (trimmer 100 kΩ) : lecture 0-1023 sur A0.
 void setup() {
   Serial.begin(115200);
 }
@@ -2533,6 +2565,31 @@ import time
 pot = ADC(27)
 while True:
     print("ADC1 =", pot.read_u16())
+    time.sleep(0.25)
+`,
+  }),
+
+  test({
+    // Ajustable réglé au tournevis : rail entre 3V3 et masse, curseur sur GP28
+    // (ADC2). Boîtier de 100 kΩ, donc « 104 » écrit dessus.
+    name: 'pot-rot2-pico', board: 'pico', ext: 'py',
+    parts: [
+      MCU('pico'),
+      { id: 'Pot1', type: 'pot-rot2', x: 680, y: 90, attrs: { min: '0', max: '100', value: '50', ohms: '100000' } },
+    ],
+    wires: () => [
+      w('Pot1', 'VCC', 'U1', '3V3', 'red'),
+      w('Pot1', 'SIG', 'U1', 'GP28', 'green'),
+      w('Pot1', 'GND', 'U1', 'GND.7', 'black'),
+    ],
+    expect: { kind: 'pot', partId: 'Pot1', mcuPin: 'GP28' },
+    code: `# Test potentiomètre ajustable (trimmer 100 kΩ) : lecture sur GP28 (ADC2).
+from machine import ADC
+import time
+
+pot = ADC(28)
+while True:
+    print("ADC2 =", pot.read_u16())
     time.sleep(0.25)
 `,
   }),

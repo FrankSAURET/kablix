@@ -138,7 +138,7 @@ Certains composant spéciaux (seulement LED RVB pour l'instant) ont des couleurs
 | DIP switch ×8 | 8 canaux indépendants (na ↔ MCU, nb ↔ GND) |
 | Résistance | Relie ses deux pattes (valeur/angle éditables) |
 | Buzzer | Note animée quand une tension existe entre ses broches |
-| Potentiomètre (rotatif / glissière) | Entrée analogique interactive (A0–A5 Uno, GP26–GP28 Pico) |
+| Potentiomètre (rotatif / glissière / ajustable) | Entrée analogique interactive (A0–A5 Uno, GP26–GP28 Pico) ; l'ajustable écrit sa valeur en code à 3 chiffres |
 | Joystick analogique | 2 axes analogiques (VERT/HORZ) + bouton SEL |
 | Photorésistance (LDR) | Sortie analogique AO, luminosité réglée dans Propriétés |
 | Détecteur PIR, capteur d'inclinaison | Sortie numérique OUT, état réglé dans Propriétés |

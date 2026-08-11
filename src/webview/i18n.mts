@@ -318,6 +318,7 @@ const FR: Record<string, string> = {
   'Nominal value (Ω)': 'Valeur nominale (Ω)',
   'Potentiometer': 'Potentiomètre',
   'Slide potentiometer': 'Potentiomètre glissière',
+  'Trimmer potentiometer': 'Potentiomètre ajustable',
   '7-segment display': 'Afficheur 7 segments',
   'LED bar graph': 'Barre de LED',
   'Slide switch': 'Interrupteur glissière',
