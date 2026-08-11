@@ -50,6 +50,7 @@ writeFileSync(entryPath, `
 import { html, svg, render } from 'lit';
 import {
   assemblyFaces, renderFaces, rotZ, project, MATIERES, planeNormal, scale as vscale,
+  rotationAxes,
 } from '../../src/webview/composants/iso3d.mjs';
 import { assemblage, hasAssemblage } from '../../src/webview/composants/assemblages.mjs';
 
@@ -76,6 +77,20 @@ function scene() {
   const faces = assemblyFaces(visibles, { scale: k, xf, eclate: etat.eclate * k });
   const marques = [];
   if (etat.axes) {
+    // Les DROITES d'abord, les pastilles par-dessus : deux pastilles de même
+    // préfixe (« hanche-g-h », « hanche-g-b ») sont les deux bouts d'un axe de
+    // rotation, et c'est la droite qui dit autour de quoi la patte tourne.
+    for (const r of rotationAxes(A, k)) {
+      const p1 = project(xf(r.a));
+      const p2 = project(xf(r.b));
+      const mx = (p1.x + p2.x) / 2 + W / 2;
+      const my = (p1.y + p2.y) / 2 + H / 2;
+      marques.push(svg\`<line x1=\${(p1.x + W / 2).toFixed(1)} y1=\${(p1.y + H / 2).toFixed(1)}
+          x2=\${(p2.x + W / 2).toFixed(1)} y2=\${(p2.y + H / 2).toFixed(1)}
+          stroke="#ee0000" stroke-width="2" stroke-dasharray="6 4" stroke-linecap="round" />
+        <text x=\${mx.toFixed(1)} y=\${(my - 8).toFixed(1)} text-anchor="middle"
+          font-size="12" font-family="sans-serif" font-weight="600" fill="#900">\${r.name}</text>\`);
+    }
     for (const [nom, v] of Object.entries(A.axes)) {
       const q = project(xf(vscale(v, k)));
       marques.push(svg\`<circle cx=\${(q.x + W / 2).toFixed(1)} cy=\${(q.y + H / 2).toFixed(1)} r="4"
@@ -122,8 +137,11 @@ function dessine() {
         @change=\${(e) => { etat.axes = e.target.checked; dessine(); }} /> axes dessinés</label>
       <h2>pièces</h2>
       \${A.pieces.map(pieceLigne)}
-      \${Object.keys(A.axes).length ? html\`<h2>axes</h2>\${Object.entries(A.axes).map(([n, v]) =>
+      \${Object.keys(A.axes).length ? html\`<h2>pastilles</h2>\${Object.entries(A.axes).map(([n, v]) =>
         html\`<div class="ligne gris"><b>\${n}</b> (\${v.x}, \${v.y}, \${v.z})</div>\`)}\` : ''}
+      \${rotationAxes(A).length ? html\`<h2>axes de rotation</h2>\${rotationAxes(A).map((r) =>
+        html\`<div class="ligne gris"><b>\${r.name}</b>
+          <span>\${r.len.toFixed(1)} mm d'écart</span></div>\`)}\` : ''}
     </div>
     <div class="vue"><svg width=\${W} height=\${H} viewBox="0 0 \${W} \${H}"
       xmlns="http://www.w3.org/2000/svg">\${scene()}</svg></div>\`, document.body);

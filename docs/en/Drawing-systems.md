@@ -95,7 +95,7 @@ In `Composants.svg`, the A3 sheet where all original drawings live:
 - **The outline must not cross itself.** A figure-of-eight silhouette, an edge folded back on itself: triangulating that is meaningless, and `verify:profils` rejects it.
 - **Curves are welcome**: Béziers, arcs, circles, rectangles, polygons. Everything is flattened then simplified — a sampled circle ends up with about thirty points, not two hundred.
 - **The winding direction does not matter** (clockwise or counter-clockwise): it is normalised on read.
-- **Red pads and text are ignored**: they are the usual sheet markers, they are not part of the piece.
+- **Red pads are not part of the outline** — but a **named** pad is stored with the piece: it is a joint (`hanche`, `genou`), and two pads sharing a prefix make a **rotation axis**. See [Axes](#axes): the convention is exactly the one used by assemblies. An unnamed pad and any text stay plain sheet markers, and are ignored.
 
 > The classic trap is the **outline that walks backwards**. On the example chassis, the front notch was first drawn wider than the shoulders framing it: the path went back on itself and folded over. The edges of a notch sit **on** the body circle, never beyond it.
 
@@ -228,7 +228,7 @@ In `Composants.svg` (or a separate sheet, see `--source=`):
 - **The sheet must be in millimetres.** `Composants.svg` already is (`width="…mm"` with a `viewBox` of the same number: 1 unit = 1 mm). A sheet in CSS pixels is converted, but you no longer know what you are dimensioning.
 - **A text inside the group gives the pose**: `flanc pos=28,0,0 ep=12 mat=servo miroir=x`. It is a plain `<text>`, placed wherever you like in the group — under the part reads well.
 - **Outline, holes and curves** follow exactly the rules of a profile (closed outline, holes contained inside, no self-crossing path).
-- **A named red pad = an axis.** Same convention as component pins: the text **above** the pad names it, and its centre becomes a 3D point of the assembly.
+- **A named red pad = an axis.** Its **Inkscape id** names it, failing that the text **above** it, and its centre becomes a 3D point of the assembly. Two pads sharing a prefix make a **rotation axis** ([details](#axes)).
 
 ### The pose label
 
@@ -289,9 +289,36 @@ The word gives the colour, and nothing else: no simulation, no mass.
 
 ### Axes
 
-A **red pad** in a part's group marks a notable point: a hip axis, a knee, a pivot. The nearest text **above** it names it (`hanche-g`), exactly like a pin name on the component sheet. Its coordinates are computed **in the assembly frame**, pose included.
+A **red pad** in a part's group marks a notable point: a hip axis, a knee, a pivot. Its coordinates are computed **in the assembly frame**, pose included.
+
+Two ways to name it, in this order:
+
+1. its **Inkscape id** — select the dot, `Object → Object Properties`, type `hanche-g-int`;
+2. failing that, the **nearest free text**, the one above being preferred — exactly like a pin name on the component sheet.
+
+The id comes first because it **sticks to the dot**: it survives a move, a text added next to it, and it does not clutter the sheet with four labels when the part carries four pads. An id Inkscape made up on its own (`circle91`, `path102`) names nothing: the pad is then **ignored**, with a warning on read.
 
 That is the key point of the protocol: **the drawing says where the hip is**, not a constant in the code. Move the hole in Inkscape and the axis follows.
+
+#### Two pads sharing a prefix = a rotation axis
+
+A point does not say what you turn **around**. Two points do: **two pads whose names differ only by their last segment are the two ends of one axis.**
+
+```text
+hanche-g-ext  ─┐
+                ├─ axis "hanche-g"
+hanche-g-int  ─┘
+```
+
+The prefix (`hanche-g`) names the axis; the last segment (`-ext`, `-int`, `-h`, `-b`…) only tells the two ends apart. The engine derives the **line** from it: its midpoint, its direction, the distance between the two pads. When more than two pads share a prefix, the **two furthest apart** carry the axis.
+
+Worth knowing: `hanche-g` and `hanche-d` share the prefix `hanche` and would therefore make **one** axis, running from one to the other. Two distinct joints need distinct prefixes — or single-segment names (`genou`), which are their own prefix and stay plain points.
+
+These axes are how **two sub-assemblies join up**: the femur turns around the body's hip, the tibia around the femur's knee. Both drawings name the same axis, and there is nothing left to measure.
+
+#### Profiles too
+
+A part drawn on its own (a profile) follows the **same convention**: its named pads are stored with its outline, in the same centred frame. When the component lays it between two joints, `profileAxes` carries them along — to scale, in place. A knee drawn on the femur stays the femur's knee, whether you lengthen the leg or not.
 
 ### Watching it turn
 
@@ -307,7 +334,7 @@ The command re-reads the drawing, stores it, and opens a Chrome window on the sc
 | **éclaté** slider | pull the parts apart along their thickness — the only way to see what sits between two sides 3 mm apart |
 | **zoom** slider | inspect a detail |
 | **pièces** checkboxes | hide one side to see inside |
-| **axes dessinés** checkbox | show the named pads, at their 3D place |
+| **axes dessinés** checkbox | show the named pads at their 3D place, and the **rotation axes** as a dashed red line |
 
 The panel shows the **overall size in millimetres** (`100 × 80 × 31 mm`): the figure you read on an assembly drawing, and the first sign that a part is laid the wrong way.
 
@@ -344,14 +371,16 @@ Output of the read:
   ✓ entretoise : 5 points, 40×25 mm, face ép.3 #bcdff08c
   ✓ plaque : 10 points, 100×80 mm, dessus ép.3 #bcdff08c miroir=z, 3 trou(s)
   ✓ servo : 5 points, 23×23 mm, flanc ép.12 #3f4750ff miroir=x, 1 trou(s)
-  → corps-demo : 3 pièce(s), 2 axe(s), 100×80×31 mm
+  → corps-demo : 3 pièce(s), 4 axe(s), 100×80×31 mm
 ```
+
+Four pads, two by two: `hanche-g-ext` / `hanche-g-int` and `hanche-d-int` / `hanche-d-ext`, that is the **two rotation axes** of the hips. An unnamed pad is reported on that very line (`! …-supports : pastille sans nom (id « circle91 »), ignorée`): time to give it an id in Inkscape.
 
 The colour shown is the one **read from the drawing** (`#rrggbbaa`, transparency included) — the trailing `8c` is PMMA at 55 %. An unpainted part shows the word of its `mat=` instead.
 
 `src/webview/composants/assemblages.mts` is **generated**, and it is **its own archive**: the tool reads it back before rewriting it, so extracting one assembly does not make the others disappear. Like `profils.mts`, it reads well in a `git diff` but is not edited by hand.
 
-The `verify:assemblage` bench is pure computation, like the profile one. It exercises **label parsing** (a negative position must survive whole — `pos=0,-9,0` has already been read as three words), the **planes** (a 100 mm plate lying flat is 100 × 80 × 3, never 103 × 83 × 35), the **mirror**, the **exploded view** (each part moves to the side it already sits on, a central part does not move), then **every stored assembly**: known plane and material, centred outline, dimensions consistent, overall size consistent with the computation, axes inside the box. It also exercises the **colours read from the drawing** — the drawn shade wins over `mat=`, transparency survives the lighting, and a translucent face comes out without a seam stroke.
+The `verify:assemblage` bench is pure computation, like the profile one. It exercises **label parsing** (a negative position must survive whole — `pos=0,-9,0` has already been read as three words), the **planes** (a 100 mm plate lying flat is 100 × 80 × 3, never 103 × 83 × 35), the **mirror**, the **exploded view** (each part moves to the side it already sits on, a central part does not move), then **every stored assembly**: known plane and material, centred outline, dimensions consistent, overall size consistent with the computation, axes inside the box. It also exercises the **colours read from the drawing** — the drawn shade wins over `mat=`, transparency survives the lighting, and a translucent face comes out without a seam stroke — and the **rotation axes**: the prefix rule, the two furthest pads when there are three, two coincident pads that make no line, and a profile's pads following the part when it is scaled up.
 
 ---
 
@@ -364,6 +393,7 @@ The `verify:assemblage` bench is pure computation, like the profile one. It exer
 - **Proportions** matter, dimensions do not: everything is rescaled.
 - A hole must be **entirely contained** in the part, otherwise it is ignored (with a warning).
 - The outline must **never cross itself**: it is the only path the engine cannot turn into a volume.
+- A **named red pad** is stored with the part: it is a joint, and it follows the part when it is scaled.
 - `profils.mts` is **generated**: read it, don't edit it.
 - Extracting one profile does not lose the others.
 - Look at the `:plat` mode **before** suspecting the engine.
@@ -375,7 +405,8 @@ The `verify:assemblage` bench is pure computation, like the profile one. It exer
 - The label **always** starts with the plane: `dessus`, `flanc` or `face`.
 - `pos` is the **centre** of the part, not its corner.
 - `miroir` lays the part **twice**: one side drawing gives both sides.
-- A **named red pad** becomes an axis — the drawing says where the hip is.
+- A **named red pad** becomes an axis — the drawing says where the hip is. Name it by its **Inkscape id**; the text above still works.
+- **Two pads sharing a prefix** (`hanche-g-ext`, `hanche-g-int`) make a **rotation axis**. Two distinct joints = two distinct prefixes.
 - The **colour of the part is the colour of the drawing**, transparency included; `mat=` is only the fallback for an unpainted part.
 - `npm run montre <name>` reads, stores and opens: that is the working loop.
 - The **éclaté** slider is the only way to see what sits between two sides.

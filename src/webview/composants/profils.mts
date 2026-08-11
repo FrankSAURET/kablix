@@ -6,6 +6,8 @@
 //
 // Coordonnées en pixels de la grille 10 px, centrées sur le milieu de la boîte
 // englobante de la pièce. `holes` : les perçages, dans le même repère.
+// `axes` : les pastilles rouges nommées — genoux, hanches, points de pivot. Deux
+// pastilles de même préfixe (`genou-h`, `genou-b`) font un axe de rotation.
 import type { Profile } from './iso3d.mjs';
 
 const DATA = {
@@ -75,7 +77,11 @@ const DATA = {
       { "x": 32.45, "y": 0.35 }, { "x": 32.09, "y": -1.29 }, { "x": 30.41, "y": -2.37 }, { "x": 28.77, "y": -2.01 },
       { "x": 27.69, "y": -0.33 }
     ]
-    ]
+    ],
+    "axes": {
+      "hanche": { "x": -29.93, "y": 0.01 },
+      "genou": { "x": 30.07, "y": 0.01 }
+    }
   }
 } as const;
 
@@ -87,14 +93,19 @@ export type ProfileName = keyof typeof DATA;
 export const PROFIL_NAMES = Object.keys(DATA) as ProfileName[];
 
 /** Profil dessiné, prêt pour `prismFaces` (plaque) ou `extrudeProfile` (pièce). */
-export function profile(name: ProfileName): Profile & { holes: { x: number; y: number }[][] } {
+export function profile(name: ProfileName): Profile & {
+  holes: { x: number; y: number }[][];
+  axes: Record<string, { x: number; y: number }>;
+} {
   const p = DATA[name] as { poly: readonly { x: number; y: number }[]; w: number; h: number;
-    holes?: readonly (readonly { x: number; y: number }[])[] };
+    holes?: readonly (readonly { x: number; y: number }[])[];
+    axes?: Readonly<Record<string, { readonly x: number; readonly y: number }>> };
   return {
     poly: p.poly.map((q) => ({ x: q.x, y: q.y })),
     w: p.w,
     h: p.h,
     holes: (p.holes ?? []).map((h) => h.map((q) => ({ x: q.x, y: q.y }))),
+    axes: Object.fromEntries(Object.entries(p.axes ?? {}).map(([k, v]) => [k, { x: v.x, y: v.y }])),
   };
 }
 

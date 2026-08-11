@@ -1,5 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-45 -20 90 40" width="90" height="40">
   <g id="femur-demo-profil">
     <path d="M -30,-7 L -27.5,-6.47 L -25,-6.01 L -22.5,-5.6 L -20,-5.26 L -17.5,-4.97 L -15,-4.73 L -12.5,-4.54 L -10,-4.4 L -7.5,-4.3 L -5,-4.24 L -2.5,-4.21 L 0,-4.2 L 2.5,-4.21 L 5,-4.24 L 7.5,-4.3 L 10,-4.4 L 12.5,-4.54 L 15,-4.73 L 17.5,-4.97 L 20,-5.26 L 22.5,-5.6 L 25,-6.01 L 27.5,-6.47 L 30,-7 L 30,-7 L 31.56,-6.82 L 33.04,-6.31 L 34.36,-5.47 L 35.47,-4.36 L 36.31,-3.04 L 36.82,-1.56 L 37,0 L 36.82,1.56 L 36.31,3.04 L 35.47,4.36 L 34.36,5.47 L 33.04,6.31 L 31.56,6.82 L 30,7 L 30,7 L 27.5,6.47 L 25,6.01 L 22.5,5.6 L 20,5.26 L 17.5,4.97 L 15,4.73 L 12.5,4.54 L 10,4.4 L 7.5,4.3 L 5,4.24 L 2.5,4.21 L 0,4.2 L -2.5,4.21 L -5,4.24 L -7.5,4.3 L -10,4.4 L -12.5,4.54 L -15,4.73 L -17.5,4.97 L -20,5.26 L -22.5,5.6 L -25,6.01 L -27.5,6.47 L -30,7 L -30,7 L -31.56,6.82 L -33.04,6.31 L -34.36,5.47 L -35.47,4.36 L -36.31,3.04 L -36.82,1.56 L -37,0 L -36.82,-1.56 L -36.31,-3.04 L -35.47,-4.36 L -34.36,-5.47 L -33.04,-6.31 L -31.56,-6.82 L -30,-7 Z M -32.4,0 a 2.4,2.4 0 1,0 4.8,0 a 2.4,2.4 0 1,0 -4.8,0 Z M 27.6,0 a 2.4,2.4 0 1,0 4.8,0 a 2.4,2.4 0 1,0 -4.8,0 Z" fill="#c9d6de" fill-rule="evenodd" stroke="#7d8c95" stroke-width="0.6"/>
+    <!-- Les deux articulations de l'os : une pastille rouge, NOMMÉE par son id
+         Inkscape (Objet → Propriétés de l'objet). Le tibia s'accostera sur le
+         genou du fémur au lieu d'être calé sur une cote reportée à la main.
+         Deux pastilles de même préfixe (« genou-g » et « genou-d ») feraient un
+         AXE de rotation ; ici ce sont deux articulations différentes. -->
+    <circle id="hanche" cx="-30" cy="0" r="1.2" fill="#ee0000"/>
+    <circle id="genou" cx="30" cy="0" r="1.2" fill="#ee0000"/>
   </g>
 </svg>

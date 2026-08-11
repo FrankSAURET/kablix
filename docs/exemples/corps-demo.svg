@@ -22,10 +22,15 @@
       M 50,50 a 10,10 0 1,0 20,0 a 10,10 0 1,0 -20,0 Z
       M 29,50 a 3,3 0 1,0 6,0 a 3,3 0 1,0 -6,0 Z
       M 85,50 a 3,3 0 1,0 6,0 a 3,3 0 1,0 -6,0 Z" />
-    <text x="32" y="45">hanche-g</text>
-    <circle cx="32" cy="50" r="1.2" fill="#ee0000" />
-    <text x="88" y="45">hanche-d</text>
-    <circle cx="88" cy="50" r="1.2" fill="#ee0000" />
+    <!-- Deux pastilles de MÊME PRÉFIXE font un AXE de rotation : « hanche-g-ext »
+         et « hanche-g-int » sont les deux bouts de l'axe de la hanche gauche,
+         celui qui traverse le servo. Chacune est nommée par son ID Inkscape
+         (Objet → Propriétés de l'objet) : le nom colle au rond, il survit à un
+         déplacement et n'encombre pas la planche de quatre étiquettes. -->
+    <circle id="hanche-g-ext" cx="26" cy="50" r="1.2" fill="#ee0000" />
+    <circle id="hanche-g-int" cx="38" cy="50" r="1.2" fill="#ee0000" />
+    <circle id="hanche-d-int" cx="82" cy="50" r="1.2" fill="#ee0000" />
+    <circle id="hanche-d-ext" cx="94" cy="50" r="1.2" fill="#ee0000" />
     <text x="60" y="100">dessus pos=0,0,14 ep=3 miroir=z</text>
   </g>
 

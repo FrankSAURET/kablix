@@ -95,7 +95,7 @@ Dans `Composants.svg`, la planche A3 où vivent tous les dessins d'origine :
 - **Le contour ne doit pas se croiser.** Une silhouette en 8, un bord replié sur lui-même : le découpage n'a alors pas de sens et `verify:profils` le refuse.
 - **Les courbes sont admises** : Bézier, arcs, cercles, rectangles, polygones. Tout est aplati puis simplifié — un cercle échantillonné finit à une trentaine de points, pas deux cents.
 - **Le sens de tracé est indifférent** (horaire ou trigonométrique) : il est normalisé à la lecture.
-- **Pastilles rouges et textes sont ignorés** : ce sont les repères habituels de la planche, ils ne font pas partie de la pièce.
+- **Les pastilles rouges ne font pas partie du contour** — mais une pastille **nommée** est rangée avec la pièce : c'est une articulation (`hanche`, `genou`), et deux pastilles de même préfixe font un **axe de rotation**. Voir [Les axes](#les-axes) : la convention est celle des assemblages, à l'identique. Une pastille anonyme et les textes restent de simples repères de planche, ignorés.
 
 > Le piège classique est le **contour qui recule**. Sur le châssis d'exemple, l'encoche avant a d'abord été tracée plus large que les épaules qui l'encadrent : le tracé repartait en arrière et se repliait sur lui-même. Les bords d'une encoche se posent **sur** le cercle du corps, jamais au-delà.
 
@@ -228,7 +228,7 @@ Dans `Composants.svg` (ou une planche à part, voir `--source=`) :
 - **La planche doit être en millimètres.** `Composants.svg` l'est déjà (`width="…mm"` et un `viewBox` du même nombre : 1 unité = 1 mm). Une planche en pixels CSS est convertie, mais vous ne saurez plus ce que vous cotez.
 - **Un texte dans le groupe donne la pose** : `flanc pos=28,0,0 ep=12 mat=servo miroir=x`. C'est un simple `<text>`, posé où vous voulez dans le groupe — sous la pièce se lit bien.
 - **Le contour, les trous et les courbes** suivent exactement les règles d'un profil (contour fermé, trous contenus dedans, pas de tracé qui se croise).
-- **Une pastille rouge nommée = un axe.** Comme pour les broches d'un composant : le texte **au-dessus** de la pastille la nomme, et son centre devient un point 3D de l'assemblage.
+- **Une pastille rouge nommée = un axe.** Son **id Inkscape** la nomme, à défaut le texte **au-dessus** d'elle, et son centre devient un point 3D de l'assemblage. Deux pastilles de même préfixe font un **axe de rotation** ([détail](#les-axes)).
 
 ### L'étiquette de pose
 
@@ -287,9 +287,36 @@ Le mot dit la couleur, et rien d'autre : aucune simulation, aucune masse.
 
 ### Les axes
 
-Une **pastille rouge** dans le groupe d'une pièce marque un point remarquable : un axe de hanche, un genou, un pivot. Le texte le plus proche **au-dessus** d'elle la nomme (`hanche-g`), exactement comme le nom d'une broche sur la planche des composants. Ses coordonnées sont calculées **dans le repère de l'assemblage**, pose comprise.
+Une **pastille rouge** dans le groupe d'une pièce marque un point remarquable : un axe de hanche, un genou, un pivot. Ses coordonnées sont calculées **dans le repère de l'assemblage**, pose comprise.
+
+Deux façons de la nommer, dans cet ordre :
+
+1. son **ID Inkscape** — sélectionnez le rond, `Objet → Propriétés de l'objet`, écrivez `hanche-g-int` ;
+2. à défaut, le **texte libre le plus proche**, celui du dessus étant préféré — exactement comme le nom d'une broche sur la planche des composants.
+
+L'ID passe devant parce qu'il **colle au rond** : il survit à un déplacement, à un texte ajouté à côté, et il n'encombre pas la planche de quatre étiquettes quand la pièce porte quatre pastilles. Un id qu'Inkscape a fabriqué tout seul (`circle91`, `path102`) ne nomme rien : la pastille est alors **ignorée**, avec un avertissement à la lecture.
 
 C'est le point important du protocole : **c'est le dessin qui dit où est la hanche**, plus une constante du code. Déplacez le trou dans Inkscape, l'axe suit.
+
+#### Deux pastilles de même préfixe = un axe de rotation
+
+Un point ne dit pas autour de **quoi** on tourne. Deux points, si : **deux pastilles dont le nom ne diffère que par le dernier segment sont les deux bouts d'un même axe.**
+
+```text
+hanche-g-ext  ─┐
+                ├─ axe « hanche-g »
+hanche-g-int  ─┘
+```
+
+Le préfixe (`hanche-g`) nomme l'axe, le dernier segment (`-ext`, `-int`, `-h`, `-b`…) ne sert qu'à distinguer les deux bouts. Le moteur en tire la **droite** : son milieu, sa direction, la distance entre les deux pastilles. Si plus de deux pastilles partagent un préfixe, ce sont les **deux plus éloignées** qui portent l'axe.
+
+Conséquence à connaître : `hanche-g` et `hanche-d` partagent le préfixe `hanche` et feraient donc **un** axe, de l'une à l'autre. Deux articulations distinctes doivent porter des préfixes distincts — ou des noms d'un seul segment (`genou`), qui sont alors leur propre préfixe et restent de simples points.
+
+C'est par ces axes que **deux sous-ensembles s'assemblent** : le fémur tourne autour de la hanche du corps, le tibia autour du genou du fémur. Les deux dessins nomment le même axe, et il n'y a plus rien à mesurer.
+
+#### Un profil aussi
+
+Une pièce dessinée seule (un profil) suit la **même convention** : ses pastilles nommées sont rangées avec son contour, dans le même repère centré. Quand le composant la pose entre deux articulations, `profileAxes` les emporte avec elle — à l'échelle, à sa place. Un genou dessiné sur le fémur reste le genou du fémur, qu'on allonge la patte ou non.
 
 ### Le regarder tourner
 
@@ -305,7 +332,7 @@ La commande relit le dessin, le range, et ouvre une fenêtre Chrome sur la scèn
 | Curseur **éclaté** | écarter les pièces le long de leur épaisseur — le seul moyen de voir ce qu'il y a entre deux flancs serrés à 3 mm |
 | Curseur **zoom** | regarder un détail de près |
 | Cases **pièces** | cacher un flanc pour voir dedans |
-| Case **axes dessinés** | montrer les pastilles nommées, à leur place en 3D |
+| Case **axes dessinés** | montrer les pastilles nommées à leur place en 3D, et les **axes de rotation** en trait rouge tireté |
 
 Le panneau affiche l'**encombrement en millimètres** (`100 × 80 × 31 mm`) : c'est la cote qu'on lit sur un plan de montage, et le premier signe qu'une pièce est posée de travers.
 
@@ -342,14 +369,16 @@ Sortie de la lecture :
   ✓ entretoise : 5 points, 40×25 mm, face ép.3 #bcdff08c
   ✓ plaque : 10 points, 100×80 mm, dessus ép.3 #bcdff08c miroir=z, 3 trou(s)
   ✓ servo : 5 points, 23×23 mm, flanc ép.12 #3f4750ff miroir=x, 1 trou(s)
-  → corps-demo : 3 pièce(s), 2 axe(s), 100×80×31 mm
+  → corps-demo : 3 pièce(s), 4 axe(s), 100×80×31 mm
 ```
+
+Quatre pastilles, deux par deux : `hanche-g-ext` / `hanche-g-int` et `hanche-d-int` / `hanche-d-ext`, soit les **deux axes de rotation** des hanches. Une pastille anonyme se signale à cette ligne-là (`! …-supports : pastille sans nom (id « circle91 »), ignorée`) : c'est le moment de lui donner un id dans Inkscape.
 
 La couleur affichée est celle qui a été **lue sur le dessin** (`#rrggbbaa`, transparence comprise) — `8c` en fin de ligne, c'est le PMMA à 55 %. Une pièce non peinte affiche à la place le mot de son `mat=`.
 
 `src/webview/composants/assemblages.mts` est **généré**, et il est **sa propre archive** : l'outil le relit avant de le réécrire, extraire un assemblage ne fait pas disparaître les autres. Comme `profils.mts`, il se lit dans un `git diff` mais ne se modifie pas à la main.
 
-Le banc `verify:assemblage` est du calcul pur, comme celui des profils. Il éprouve la **lecture de l'étiquette** (une position négative doit rester entière — `pos=0,-9,0` a déjà été lu comme trois mots), les **plans** (une plaque de 100 mm posée à plat encombre 100 × 80 × 3, jamais 103 × 83 × 35), le **miroir**, l'**éclaté** (chaque pièce s'écarte du côté où elle est déjà, une pièce centrale ne bouge pas), puis **chaque assemblage rangé** : plan et matière connus, contour centré, cotes conformes, encombrement conforme au calcul, axes dans la boîte. Il éprouve aussi les **couleurs lues sur le dessin** — la teinte du dessin passe devant `mat=`, la transparence traverse l'éclairage sans s'y perdre, et une face translucide sort sans liseré.
+Le banc `verify:assemblage` est du calcul pur, comme celui des profils. Il éprouve la **lecture de l'étiquette** (une position négative doit rester entière — `pos=0,-9,0` a déjà été lu comme trois mots), les **plans** (une plaque de 100 mm posée à plat encombre 100 × 80 × 3, jamais 103 × 83 × 35), le **miroir**, l'**éclaté** (chaque pièce s'écarte du côté où elle est déjà, une pièce centrale ne bouge pas), puis **chaque assemblage rangé** : plan et matière connus, contour centré, cotes conformes, encombrement conforme au calcul, axes dans la boîte. Il éprouve aussi les **couleurs lues sur le dessin** — la teinte du dessin passe devant `mat=`, la transparence traverse l'éclairage sans s'y perdre, et une face translucide sort sans liseré — et les **axes de rotation** : la règle du préfixe, les deux pastilles les plus éloignées quand il y en a trois, deux pastilles superposées qui ne font pas une droite, et les pastilles d'un profil qui suivent la pièce quand on l'allonge.
 
 ---
 
@@ -362,6 +391,7 @@ Le banc `verify:assemblage` est du calcul pur, comme celui des profils. Il épro
 - Les **proportions** comptent, pas les cotes : tout est remis à l'échelle.
 - Un trou doit être **entièrement contenu** dans la pièce, sinon il est ignoré (avec un avertissement).
 - Le contour ne doit **jamais se croiser** : c'est le seul tracé que le moteur ne sait pas mettre en volume.
+- Une **pastille rouge nommée** est rangée avec la pièce : c'est une articulation, et elle suit la pièce à l'échelle.
 - `profils.mts` est **généré** : on le relit, on ne l'édite pas.
 - Extraire un profil ne perd pas les autres.
 - Regardez le mode `:plat` **avant** de suspecter le moteur.
@@ -373,7 +403,8 @@ Le banc `verify:assemblage` est du calcul pur, comme celui des profils. Il épro
 - L'étiquette commence **toujours** par le plan : `dessus`, `flanc` ou `face`.
 - `pos` est le **centre** de la pièce, pas son coin.
 - `miroir` pose la pièce **deux fois** : un dessin de flanc donne les deux flancs.
-- Une **pastille rouge nommée** devient un axe — c'est le dessin qui dit où est la hanche.
+- Une **pastille rouge nommée** devient un axe — c'est le dessin qui dit où est la hanche. Nommez-la par son **id Inkscape** ; le texte au-dessus fonctionne encore.
+- **Deux pastilles de même préfixe** (`hanche-g-ext`, `hanche-g-int`) font un **axe de rotation**. Deux articulations distinctes = deux préfixes distincts.
 - La **couleur de la pièce est celle du dessin**, transparence comprise ; `mat=` n'est que le repli d'une pièce non peinte.
 - `npm run montre <nom>` relit, range et ouvre : c'est la boucle de travail.
 - Le curseur **éclaté** est le seul moyen de voir ce qu'il y a entre deux flancs.

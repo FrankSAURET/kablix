@@ -29,7 +29,7 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { ROOT, MM2PX, lireDessin, ringsToPiece, R2 } from './_lire-contours.mjs';
+import { ROOT, MM2PX, lireDessin, ringsToPiece, R2, nomDePastille } from './_lire-contours.mjs';
 
 const OUT_FILE = join(ROOT, 'src/webview/composants/assemblages.mts');
 
@@ -121,18 +121,6 @@ export function encombrement(pieces) {
   return { x: R2(lim.x1 - lim.x0), y: R2(lim.y1 - lim.y0), z: R2(lim.z1 - lim.z0) };
 }
 
-/** Le nom d'une pastille : le texte libre le plus proche, l'AU-DESSUS étant
- *  préféré (convention de la planche : le nom est écrit au-dessus du point). */
-function nomDePastille(p, libres) {
-  let best = null;
-  let bestD = Infinity;
-  for (const t of libres) {
-    const d = Math.hypot(t.x - p.x, t.y - p.y) + (t.y < p.y ? 0 : 6);
-    if (d < bestD) { bestD = d; best = t.s; }
-  }
-  return bestD > 20 ? null : best;
-}
-
 /** Lit un assemblage du dessin : une pièce par groupe préfixé, la pose lue dans
  *  son étiquette, les pastilles rouges en axes. Rend `null` si rien n'a été lu. */
 export function lireAssemblage(nom, { source = 'Composants.svg', step = 0.2, tol = 0.08 } = {}) {
@@ -181,16 +169,18 @@ export function lireAssemblage(nom, { source = 'Composants.svg', step = 0.2, tol
     if (pose.miroir) entry.miroir = pose.miroir;
     if (holes.length) entry.holes = holes.map(move);
     pieces.push(entry);
-    // Les axes : une pastille rouge, nommée par le texte au-dessus d'elle. Ses
-    // coordonnées sont celles de la pièce qui la porte, pose comprise — c'est le
-    // dessin qui dit où est la hanche, plus une constante du code.
+    // Les axes : une pastille rouge, nommée par son id ou par le texte au-dessus
+    // d'elle. Ses coordonnées sont celles de la pièce qui la porte, pose
+    // comprise — c'est le dessin qui dit où est la hanche, plus une constante du
+    // code. Deux pastilles de même PRÉFIXE (`hanche-g-h` et `hanche-g-b`) font
+    // un axe de ROTATION : deux points, donc une droite.
     const libres = g.texts.filter((t) => !parsePose(t.s))
       .map((t) => ({ s: t.s, x: t.x * k - cx, y: t.y * k - cy }));
     for (const pad of g.pads) {
       const p = { x: R2(pad.x * k - cx), y: R2(pad.y * k - cy) };
-      const nomPad = nomDePastille(p, libres);
+      const nomPad = nomDePastille(p, libres, pad.id);
       if (!nomPad) {
-        console.log(`  ! ${g.name} : une pastille sans nom lisible a été ignorée`);
+        console.log(`  ! ${g.name} : pastille sans nom (id « ${pad.id || '?'} »), ignorée`);
         continue;
       }
       axes[nomPad.trim()] = place(pose.plan, p, pose.pos);

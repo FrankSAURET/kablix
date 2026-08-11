@@ -4,10 +4,17 @@
 // du calcul pur.
 export {
   slabFaces, assemblyFaces, planeNormal, project, signedArea, shade, renderFaces,
+  assemblyAxis, axisPrefix, rotationAxes, profileAxes, extrudeProfile,
   PLANES, MATIERES,
 } from '../src/webview/composants/iso3d.mjs';
 export { assemblage, hasAssemblage } from '../src/webview/composants/assemblages.mjs';
+export { profile, hasProfile } from '../src/webview/composants/profils.mjs';
 import { ASSEMBLAGE_NAMES } from '../src/webview/composants/assemblages.mjs';
+import { PROFIL_NAMES } from '../src/webview/composants/profils.mjs';
 
 /** Les noms rangés : le banc passe chaque assemblage dessiné en revue. */
 export const ASSEMBLAGES = ASSEMBLAGE_NAMES;
+
+/** Les profils rangés : leurs pastilles suivent la MÊME règle que celles d'un
+ *  assemblage — un dessin de pièce isolée n'a pas de convention à part. */
+export const PROFILS = PROFIL_NAMES;

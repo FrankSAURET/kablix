@@ -45,11 +45,18 @@ const PREFIXES = ${JSON.stringify(prefixes)};
 const root = document.querySelector('#board svg');
 const out = [];
 const SHAPES = 'path,rect,circle,ellipse,polygon,polyline,line';
-/** Pastille repère : un petit rond rouge. Elle marque un point remarquable —
- *  broche d'un composant plat, AXE d'articulation dans un assemblage. */
+/** Pastille repère : un petit rond ROUGE. Elle marque un point remarquable —
+ *  broche d'un composant plat, AXE d'articulation dans un assemblage.
+ *  La teinte est jugée sur la couleur CALCULÉE, pas sur le texte de l'attribut :
+ *  la planche mêle le rouge historique (#ee0000) et celui de la palette Inkscape
+ *  (#ff0000), et une liste de codes en laissait forcément un dehors — les
+ *  pastilles de l'araignée n'étaient tout simplement pas vues. */
 const isPad = (el) => {
-  const f = ((el.getAttribute('fill') || '') + ';' + (el.getAttribute('style') || '')).toLowerCase();
-  return el.tagName === 'circle' && /#ee0000|#e00\\b|rgb\\(238/.test(f);
+  if (el.tagName !== 'circle') return false;
+  const c = fillOf(el);
+  if (!c) return false;
+  const v = (i) => parseInt(c.slice(i, i + 2), 16);
+  return v(1) >= 200 && v(3) <= 90 && v(5) <= 90;
 };
 function findGroup(id) {
   const hit = root.getElementById(id);
@@ -158,7 +165,10 @@ function readGroup(name, g) {
     const ctm = rootInv.multiply(el.getScreenCTM());
     if (isPad(el)) {
       const c = at(el, Number(el.getAttribute('cx') || 0), Number(el.getAttribute('cy') || 0));
-      pads.push({ x: c.x, y: c.y });
+      // L'ID du rond est remonté tel quel : c'est la façon la plus sûre de
+      // nommer une pastille dans Inkscape (Objet → Propriétés de l'objet), et
+      // elle ne dépend pas d'un texte posé à côté.
+      pads.push({ x: c.x, y: c.y, id: el.getAttribute('id') || '' });
       continue;
     }
     const d = toPathData(el);
@@ -232,6 +242,33 @@ export function lireDessin({ source = 'Composants.svg', ids = [], prefixes = [],
     .replace(/&#39;/g, "'").replace(/&amp;/g, '&');
   if (raw.startsWith('ERR')) { console.error(raw.slice(0, 2000)); process.exit(1); }
   return { unitScale, groupes: JSON.parse(raw) };
+}
+
+// --- pastilles ----------------------------------------------------------------
+/** Ids qu'Inkscape fabrique tout seul (`circle91`, `path102`, `g123-1`…) : ils
+ *  ne nomment rien. Un id qui commence par un mot de balise suivi d'un chiffre
+ *  est automatique ; tout le reste a été écrit à la main. */
+export const idAuto = (id) => !id
+  || /^(circle|ellipse|path|rect|polygon|polyline|line|g|use|text|tspan|svg|defs)[-_]?\d*$/i.test(id);
+
+/**
+ * Le nom d'une pastille : son ID d'abord (Inkscape, Objet → Propriétés de
+ * l'objet), le texte libre le plus proche ensuite — l'AU-DESSUS étant préféré,
+ * comme le nom d'une broche sur la planche des composants.
+ *
+ * L'id passe devant parce qu'il colle au rond : il survit à un déplacement, à un
+ * texte ajouté à côté, et à une pastille posée hors de la pièce qu'elle repère.
+ * Rend `null` si rien ne la nomme — une pastille anonyme n'est pas un axe.
+ */
+export function nomDePastille(p, libres, id = '') {
+  if (!idAuto(id)) return id;
+  let best = null;
+  let bestD = Infinity;
+  for (const t of libres) {
+    const d = Math.hypot(t.x - p.x, t.y - p.y) + (t.y < p.y ? 0 : 6);
+    if (d < bestD) { bestD = d; best = t.s; }
+  }
+  return bestD > 20 ? null : best;
 }
 
 // --- géométrie ----------------------------------------------------------------

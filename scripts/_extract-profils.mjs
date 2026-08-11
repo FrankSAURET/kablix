@@ -20,7 +20,10 @@
 //   • plaque (châssis, platine) : dessinée VUE DE DESSUS, le haut du dessin est
 //     l'AVANT du robot. Os et blocs : dessinés VUS DE CÔTÉ, pièce couchée, le
 //     bord gauche est la première articulation, le bord droit la seconde ;
-//   • pastilles rouges et textes sont ignorés (ce sont les repères habituels).
+//   • une pastille rouge NOMMÉE est un point d'articulation : son id Inkscape,
+//     ou le texte au-dessus d'elle. Deux pastilles de même préfixe (« genou-h »
+//     et « genou-b ») font un AXE de rotation — deux points, donc une droite.
+//     Une pastille anonyme reste un repère de tracé et est ignorée.
 //
 // Sortie : src/webview/composants/profils.mts — un objet figé, relu et FUSIONNÉ à
 // chaque exécution, donc extraire un seul profil ne perd pas les autres.
@@ -30,7 +33,7 @@
 //         node scripts/_extract-profils.mjs --list          (ce qui est déjà rangé)
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { ROOT, lireDessin, ringsToPiece, R2 } from './_lire-contours.mjs';
+import { ROOT, lireDessin, ringsToPiece, R2, nomDePastille } from './_lire-contours.mjs';
 
 const OUT_FILE = join(ROOT, 'src/webview/composants/profils.mts');
 
@@ -110,10 +113,25 @@ for (const it of groupes) {
     h: R2(bb.y1 - bb.y0),
   };
   if (holes.length) entry.holes = holes.map(move);
+  // Les axes : les pastilles rouges nommées, dans le MÊME repère que `poly`
+  // (px de grille, centrés sur la boîte). Un fémur dessiné seul dit ainsi où
+  // sont son genou et sa hanche ; le sous-ensemble s'accoste dessus au lieu
+  // d'être calé sur des constantes du code.
+  const libres = (it.texts ?? []).map((t) => ({ s: t.s, x: t.x * unitScale - cx, y: t.y * unitScale - cy }));
+  const axes = {};
+  for (const pad of it.pads ?? []) {
+    const p = { x: R2(pad.x * unitScale - cx), y: R2(pad.y * unitScale - cy) };
+    const nom = nomDePastille(p, libres, pad.id);
+    if (!nom) continue;
+    axes[nom.trim()] = p;
+  }
+  if (Object.keys(axes).length) entry.axes = axes;
   entry.source = `${SOURCE}#${it.id}`;
   data[it.name] = entry;
   changed++;
-  console.log(`  ✓ ${it.name} : ${entry.poly.length} points, ${entry.w}×${entry.h} px${holes.length ? `, ${holes.length} trou(s)` : ''}`);
+  console.log(`  ✓ ${it.name} : ${entry.poly.length} points, ${entry.w}×${entry.h} px`
+    + `${holes.length ? `, ${holes.length} trou(s)` : ''}`
+    + `${entry.axes ? `, axes : ${Object.keys(axes).join(', ')}` : ''}`);
 }
 
 if (!changed) {
@@ -143,6 +161,11 @@ function dump(obj) {
     if (p.holes?.length) {
       fields.push(`    "holes": [\n${p.holes.map((h) => '    ' + ring(h)).join(',\n')}\n    ]`);
     }
+    if (p.axes && Object.keys(p.axes).length) {
+      const axes = Object.entries(p.axes)
+        .map(([k, v]) => `      ${JSON.stringify(k)}: { "x": ${v.x}, "y": ${v.y} }`);
+      fields.push(`    "axes": {\n${axes.join(',\n')}\n    }`);
+    }
     parts.push(`  ${JSON.stringify(name)}: {\n${fields.join(',\n')}\n  }`);
   }
   return '{\n' + parts.join(',\n') + '\n}';
@@ -156,6 +179,8 @@ const header = `// FICHIER GÉNÉRÉ — ne pas modifier à la main.
 //
 // Coordonnées en pixels de la grille 10 px, centrées sur le milieu de la boîte
 // englobante de la pièce. \`holes\` : les perçages, dans le même repère.
+// \`axes\` : les pastilles rouges nommées — genoux, hanches, points de pivot. Deux
+// pastilles de même préfixe (\`genou-h\`, \`genou-b\`) font un axe de rotation.
 import type { Profile } from './iso3d.mjs';
 
 const DATA = ${dump(data)} as const;
@@ -168,14 +193,19 @@ export type ProfileName = keyof typeof DATA;
 export const PROFIL_NAMES = Object.keys(DATA) as ProfileName[];
 
 /** Profil dessiné, prêt pour \`prismFaces\` (plaque) ou \`extrudeProfile\` (pièce). */
-export function profile(name: ProfileName): Profile & { holes: { x: number; y: number }[][] } {
+export function profile(name: ProfileName): Profile & {
+  holes: { x: number; y: number }[][];
+  axes: Record<string, { x: number; y: number }>;
+} {
   const p = DATA[name] as { poly: readonly { x: number; y: number }[]; w: number; h: number;
-    holes?: readonly (readonly { x: number; y: number }[])[] };
+    holes?: readonly (readonly { x: number; y: number }[])[];
+    axes?: Readonly<Record<string, { readonly x: number; readonly y: number }>> };
   return {
     poly: p.poly.map((q) => ({ x: q.x, y: q.y })),
     w: p.w,
     h: p.h,
     holes: (p.holes ?? []).map((h) => h.map((q) => ({ x: q.x, y: q.y }))),
+    axes: Object.fromEntries(Object.entries(p.axes ?? {}).map(([k, v]) => [k, { x: v.x, y: v.y }])),
   };
 }
 

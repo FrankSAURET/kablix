@@ -18,7 +18,11 @@ const DATA = {
   "araignee-corps": {
     "source": "Composants.svg",
     "box": { "x": 65.86, "y": 129.92, "z": 50.5 },
-    "axes": {},
+    "axes": {
+      "hanche-g-h": { "x": -16.9, "y": -26, "z": -12.75 },
+      "hanche-d-h": { "x": 16.9, "y": -26, "z": -12.75 },
+      "hanche-g-b": { "x": -18.9, "y": 45, "z": -12.75 }
+    },
     "pieces": [
       {
         "name": "batterie",
@@ -123,7 +127,6 @@ const DATA = {
         "name": "supports",
         "plan": "dessus",
         "mat": "pmma",
-        "fill": "#ff0000ff",
         "ep": 3,
         "pos": { "x": 0, "y": 0, "z": -12.75 },
         "w": 65.85,
@@ -293,8 +296,10 @@ const DATA = {
     "source": "docs/exemples/corps-demo.svg",
     "box": { "x": 100, "y": 80, "z": 31 },
     "axes": {
-      "hanche-g": { "x": -28, "y": 0, "z": 14 },
-      "hanche-d": { "x": 28, "y": 0, "z": 14 }
+      "hanche-g-ext": { "x": -34, "y": 0, "z": 14 },
+      "hanche-g-int": { "x": -22, "y": 0, "z": 14 },
+      "hanche-d-int": { "x": 22, "y": 0, "z": 14 },
+      "hanche-d-ext": { "x": 34, "y": 0, "z": 14 }
     },
     "pieces": [
       {

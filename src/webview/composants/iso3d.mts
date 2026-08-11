@@ -297,7 +297,42 @@ export function prismFaces(poly: Vec2[], z0: number, z1: number, color: string):
  * en polygone (voir `docs/fr/Drawing-systems.md`). Le tracé est centré
  * sur le milieu de sa boîte englobante ; `w` et `h` la mesurent.
  */
-export type Profile = { poly: Vec2[]; w: number; h: number };
+export type Profile = { poly: Vec2[]; w: number; h: number; axes?: Record<string, Vec2> };
+
+/** Repère d'un profil posé entre deux articulations : `u` le long de la pièce
+ *  depuis `from`, `v` vers le haut, `side` en travers. `flat` porte un point du
+ *  dessin (repère centré, y qui descend) dans ce repère, `at` l'envoie dans le
+ *  monde à la distance `s` du plan moyen. Partagé par l'extrusion et la lecture
+ *  des pastilles : la pièce et ses axes ne peuvent donc pas se désaccorder. */
+function profileFrame(profile: Profile, from: Vec3, to: Vec3) {
+  const span = sub(to, from);
+  const axis = norm(span);
+  const ref: Vec3 = Math.abs(axis.z) > 0.98 ? { x: 1, y: 0, z: 0 } : { x: 0, y: 0, z: 1 };
+  const side = norm(cross(axis, ref));
+  const up = norm(cross(side, axis));
+  const k = profile.w > 1e-6 ? len(span) / profile.w : 1;
+  // Le y du dessin descend (convention SVG), le v du monde monte : d'où le signe.
+  const flat = (p: Vec2): Vec2 => ({ x: (p.x + profile.w / 2) * k, y: -p.y * k });
+  const at = (p: Vec2, s: number): Vec3 =>
+    add(add(add(from, scale(axis, p.x)), scale(up, p.y)), scale(side, s));
+  return { flat, at };
+}
+
+/**
+ * Les pastilles nommées d'un profil, une fois la pièce POSÉE entre `from` et
+ * `to` : le genou dessiné sur le fémur devient un point du monde, à l'échelle de
+ * la patte, au milieu de son épaisseur. C'est ainsi qu'un sous-ensemble s'accoste
+ * sur un autre — le tibia tourne autour du genou que le fémur a dessiné, plus
+ * autour d'une cote reportée à la main.
+ *
+ * Passer le résultat à `rotationAxes` pour en tirer les axes de rotation.
+ */
+export function profileAxes(profile: Profile, from: Vec3, to: Vec3): Record<string, Vec3> {
+  const { flat, at } = profileFrame(profile, from, to);
+  const out: Record<string, Vec3> = {};
+  for (const [name, p] of Object.entries(profile.axes ?? {})) out[name] = at(flat(p), 0);
+  return out;
+}
 
 /**
  * Extrude un profil DESSINÉ le long du segment `from` → `to`, sur l'épaisseur
@@ -315,18 +350,9 @@ export function extrudeProfile(
   profile: Profile, from: Vec3, to: Vec3, thickness: number, color: string,
   holes: Vec2[][] = [],
 ): Face[] {
-  const span = sub(to, from);
-  const axis = norm(span);
-  const ref: Vec3 = Math.abs(axis.z) > 0.98 ? { x: 1, y: 0, z: 0 } : { x: 0, y: 0, z: 1 };
-  const side = norm(cross(axis, ref));
-  const up = norm(cross(side, axis));
-  const k = profile.w > 1e-6 ? len(span) / profile.w : 1;
   // Repère local (u le long de la pièce depuis `from`, v vers le haut), déjà en
   // unités de la feuille : le recoupage des faces peut s'y appliquer tel quel.
-  // Le y du dessin descend (convention SVG), le v du monde monte : d'où le signe.
-  const flat = (p: Vec2): Vec2 => ({ x: (p.x + profile.w / 2) * k, y: -p.y * k });
-  const at = (p: Vec2, s: number): Vec3 =>
-    add(add(add(from, scale(axis, p.x)), scale(up, p.y)), scale(side, s));
+  const { flat, at } = profileFrame(profile, from, to);
   return slabCore(profile.poly.map(flat), holes.map((h) => h.map(flat)), at, thickness, color);
 }
 
@@ -470,6 +496,71 @@ export function assemblyAxis(
 ): Vec3 | null {
   const v = a.axes[name];
   return v ? xf(scale(v, scaleK)) : null;
+}
+
+/** Un AXE DE ROTATION lu sur le dessin : `at` son milieu, `dir` sa direction
+ *  unitaire, `a` et `b` les deux pastilles qui le portent, `len` leur écart en
+ *  millimètres. C'est autour de cette droite qu'une patte tourne, et c'est par
+ *  elle que deux sous-ensembles s'emboîtent. */
+export type RotationAxis = { name: string; at: Vec3; dir: Vec3; a: Vec3; b: Vec3; len: number };
+
+/** Le préfixe d'une pastille : son nom privé de son dernier segment —
+ *  `hanche-g-h` → `hanche-g`. C'est la règle du dessin : **deux pastilles de
+ *  même préfixe sont les deux bouts d'un même axe** (`-h` en haut, `-b` en bas,
+ *  ou tout autre suffixe qui les distingue). Un nom d'un seul segment est son
+ *  propre préfixe : il désigne un point, pas un axe. */
+export function axisPrefix(name: string): string {
+  const i = name.lastIndexOf('-');
+  return i > 0 ? name.slice(0, i) : name;
+}
+
+/**
+ * Les axes de ROTATION d'un assemblage : les pastilles regroupées par préfixe,
+ * celles qui vont par deux au moins. Une pastille seule n'en fait pas partie —
+ * un point ne dit pas autour de QUOI on tourne (elle reste lisible par
+ * `assemblyAxis`). Quand plus de deux pastilles partagent un préfixe, les deux
+ * plus ÉLOIGNÉES portent l'axe : c'est le segment le mieux défini, et les autres
+ * sont dessus.
+ *
+ * C'est par ces axes que deux sous-ensembles s'assemblent : le fémur tourne
+ * autour de la hanche du corps, le tibia autour du genou du fémur. Les deux
+ * dessins nomment le MÊME axe du même préfixe, et il n'y a plus rien à mesurer.
+ *
+ * Prend un assemblage, ou directement des pastilles déjà placées — celles d'un
+ * PROFIL posé, rendues par `profileAxes` : la règle du préfixe est la même des
+ * deux côtés, le dessin d'une pièce isolée n'a pas de convention à part.
+ */
+export function rotationAxes(src: Assembly | Record<string, Vec3>, scaleK = 1): RotationAxis[] {
+  const axes = (src as Assembly).axes ?? (src as Record<string, Vec3>);
+  const groupes = new Map<string, { name: string; p: Vec3 }[]>();
+  for (const [name, v] of Object.entries(axes)) {
+    const k = axisPrefix(name);
+    if (!groupes.has(k)) groupes.set(k, []);
+    groupes.get(k)!.push({ name, p: scale(v, scaleK) });
+  }
+  const out: RotationAxis[] = [];
+  for (const [name, pts] of [...groupes].sort(([x], [y]) => x.localeCompare(y))) {
+    if (pts.length < 2) continue;
+    let best = { d: -1, a: pts[0].p, b: pts[1].p };
+    for (let i = 0; i < pts.length; i++) {
+      for (let j = i + 1; j < pts.length; j++) {
+        const d = len(sub(pts[j].p, pts[i].p));
+        if (d > best.d) best = { d, a: pts[i].p, b: pts[j].p };
+      }
+    }
+    // Deux pastilles superposées ne font pas une droite : c'est un doublon du
+    // dessin, pas un axe — mieux vaut ne rien affirmer qu'orienter au hasard.
+    if (best.d < 1e-6) continue;
+    out.push({
+      name,
+      a: best.a,
+      b: best.b,
+      at: scale(add(best.a, best.b), 0.5),
+      dir: scale(sub(best.b, best.a), 1 / best.d),
+      len: best.d,
+    });
+  }
+  return out;
 }
 
 /**

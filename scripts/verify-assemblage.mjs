@@ -226,6 +226,90 @@ ok('renderFaces : une face opaque garde son liseré de même couleur',
 ok('renderFaces : une face translucide n\'a PAS de liseré',
   attributs('rgba(188,223,240,0.55)').includes('"none"'), attributs('rgba(188,223,240,0.55)'));
 
+// --- les pastilles rouges font les AXES DE ROTATION ---------------------------
+// Règle du dessin (v2026.8.34) : deux pastilles de même PRÉFIXE (« hanche-g-h »
+// et « hanche-g-b ») sont les deux bouts d'un même axe. C'est par ces axes que
+// deux sous-ensembles s'assemblent — le fémur tourne autour de la hanche du
+// corps — et rien de tout ça ne se voit sur une image.
+ok('axisPrefix : le dernier segment distingue les deux bouts',
+  M.axisPrefix('hanche-g-h') === 'hanche-g' && M.axisPrefix('hanche-g-b') === 'hanche-g',
+  M.axisPrefix('hanche-g-h'));
+ok('axisPrefix : un nom d\'un seul segment est son propre préfixe (un point, pas un axe)',
+  M.axisPrefix('genou') === 'genou');
+const AX = {
+  'hanche-g-h': { x: 20, y: -10, z: 8 },
+  'hanche-g-b': { x: 20, y: -10, z: -8 },
+  'genou': { x: 0, y: 0, z: 0 },
+};
+const rots = M.rotationAxes(AX);
+ok('rotationAxes : deux pastilles de même préfixe font UN axe', rots.length === 1,
+  rots.map((r) => r.name).join(', '));
+ok('rotationAxes : l\'axe porte le préfixe, pas le nom d\'une pastille',
+  rots[0]?.name === 'hanche-g', rots[0]?.name);
+ok('rotationAxes : `at` est au milieu des deux pastilles',
+  near(rots[0].at.x, 20, 1e-6) && near(rots[0].at.y, -10, 1e-6) && near(rots[0].at.z, 0, 1e-6),
+  JSON.stringify(rots[0].at));
+ok('rotationAxes : `dir` est unitaire et `len` est l\'écart réel',
+  near(Math.hypot(rots[0].dir.x, rots[0].dir.y, rots[0].dir.z), 1, 1e-9) && near(rots[0].len, 16, 1e-6),
+  `${rots[0].len} mm`);
+// Une pastille seule reste un POINT d'accostage (assemblyAxis la rend), mais elle
+// ne dit pas autour de quoi on tourne.
+ok('rotationAxes : une pastille seule n\'est pas un axe',
+  !rots.some((r) => r.name === 'genou'));
+ok('rotationAxes : `scale` s\'applique aux deux bouts',
+  near(M.rotationAxes(AX, 2)[0].len, 32, 1e-6), `${M.rotationAxes(AX, 2)[0].len}`);
+// Trois pastilles alignées : ce sont les deux plus ÉLOIGNÉES qui portent l'axe,
+// les autres sont dessus et ne le définissent pas mieux.
+const trois = M.rotationAxes({
+  'a-1': { x: 0, y: 0, z: 0 }, 'a-2': { x: 0, y: 0, z: 5 }, 'a-3': { x: 0, y: 0, z: 20 },
+});
+ok('rotationAxes : à trois pastilles, les deux plus éloignées portent l\'axe',
+  trois.length === 1 && near(trois[0].len, 20, 1e-6), `${trois[0]?.len}`);
+ok('rotationAxes : deux pastilles superposées ne font pas une droite',
+  M.rotationAxes({ 'b-1': { x: 1, y: 2, z: 3 }, 'b-2': { x: 1, y: 2, z: 3 } }).length === 0);
+ok('rotationAxes : un ASSEMBLAGE se lit directement (ses pastilles sont dans .axes)',
+  M.rotationAxes({ ...DEMO, axes: AX }).length === 1);
+ok('assemblyAxis : une pastille absente ne fabrique pas de point',
+  M.assemblyAxis(DEMO, 'jamais-dessine') === null
+  && M.assemblyAxis(DEMO, 'hanche')?.x === 28);
+
+// --- les pastilles d'un PROFIL : même règle, pièce isolée ----------------------
+// Un profil est dessiné SEUL puis posé entre deux articulations, à l'échelle. Ses
+// pastilles doivent suivre la pièce : sinon le tibia s'accoste sur un genou resté
+// aux cotes du dessin, et la patte se disloque à la première mise à l'échelle.
+const OS = { poly: carre(80, 10), w: 80, h: 10, axes: { hanche: { x: -30, y: 0 }, genou: { x: 30, y: 0 } } };
+const posA = M.profileAxes(OS, { x: 0, y: 0, z: 0 }, { x: 80, y: 0, z: 0 });
+ok('profileAxes : la pastille est posée dans le monde, bord gauche sur `from`',
+  near(posA.hanche.x, 10, 1e-6) && near(posA.genou.x, 70, 1e-6),
+  `${posA.hanche.x} → ${posA.genou.x}`);
+const posB = M.profileAxes(OS, { x: 0, y: 0, z: 0 }, { x: 160, y: 0, z: 0 });
+ok('profileAxes : les pastilles suivent la MISE À L\'ÉCHELLE de la pièce',
+  near(posB.genou.x - posB.hanche.x, 2 * (posA.genou.x - posA.hanche.x), 1e-6),
+  `${(posA.genou.x - posA.hanche.x).toFixed(1)} → ${(posB.genou.x - posB.hanche.x).toFixed(1)}`);
+const posC = M.profileAxes(OS, { x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: -80 });
+ok('profileAxes : une pièce posée debout emporte ses pastilles',
+  near(posC.hanche.z, -10, 1e-6) && near(posC.genou.z, -70, 1e-6),
+  `${posC.hanche.z} → ${posC.genou.z}`);
+ok('profileAxes : un profil sans pastille ne rend rien (et ne casse pas)',
+  Object.keys(M.profileAxes({ poly: carre(10, 10), w: 10, h: 10 },
+    { x: 0, y: 0, z: 0 }, { x: 10, y: 0, z: 0 })).length === 0);
+// Un point du dessin doit tomber sur la pièce : la pastille du genou est dans la
+// matière, pas à côté. C'est le contrôle qui attrape un repère de dessin oublié.
+const osFaces = M.extrudeProfile(OS, { x: 0, y: 0, z: 0 }, { x: 80, y: 0, z: 0 }, 4, '#888888');
+const xsOs = osFaces.flatMap((f) => f.pts.map((q) => q.x));
+ok('profileAxes : les pastilles tombent DANS la pièce mise en volume',
+  Object.values(posA).every((v) => v.x >= -1e-6 && v.x <= 80 + 1e-6) && xsOs.length > 0);
+// Les profils rangés : les pastilles de Frank, telles que l'extracteur les a lues.
+for (const nom of M.PROFILS) {
+  const p = M.profile(nom);
+  for (const [axe, v] of Object.entries(p.axes)) {
+    ok(`profil ${nom} : pastille « ${axe} » lisible et dans la boîte`,
+      Number.isFinite(v.x) && Number.isFinite(v.y)
+      && Math.abs(v.x) <= p.w / 2 + 1 && Math.abs(v.y) <= p.h / 2 + 1,
+      `(${v.x}, ${v.y}) dans ${p.w}×${p.h}`);
+  }
+}
+
 // --- ce que le lecteur a rangé ------------------------------------------------
 const noms = M.ASSEMBLAGES;
 ok('assemblages.mts : au moins un assemblage rangé', noms.length > 0, noms.join(', '));
@@ -269,6 +353,15 @@ for (const nom of noms) {
       [v.x, v.y, v.z].every(Number.isFinite)
       && Math.abs(v.x) <= a.box.x && Math.abs(v.y) <= a.box.y && Math.abs(v.z) <= a.box.z,
       `(${v.x}, ${v.y}, ${v.z})`);
+  }
+  // Les axes de rotation lus sur le dessin de Frank : une droite qui sort de
+  // l'encombrement, c'est une pastille mal nommée — deux articulations qui se
+  // sont retrouvées sous le même préfixe.
+  for (const r of M.rotationAxes(a)) {
+    const diag = Math.hypot(a.box.x, a.box.y, a.box.z);
+    ok(`${nom} : axe de rotation « ${r.name} » plausible`,
+      r.len > 0.5 && r.len <= diag + 0.05 && near(Math.hypot(r.dir.x, r.dir.y, r.dir.z), 1, 1e-9),
+      `${r.len.toFixed(1)} mm sur ${diag.toFixed(1)} de diagonale`);
   }
   ok(`${nom} : mis en volume sans faute`, M.assemblyFaces(a, { scale: 1 }).length > 0);
   ok(`${nom} : aucun point projeté aberrant`,
