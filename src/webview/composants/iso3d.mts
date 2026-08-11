@@ -82,24 +82,35 @@ export function norm(a: Vec3): Vec3 {
 /** Une face prête à sortir : ses sommets projetés, sa profondeur, sa couleur. */
 export type Face = { pts: Vec2[]; z: number; fill: string };
 
-/** Couleur éclaircie (k > 1) ou assombrie (k < 1), bornée. Accepte `#rrggbb`
- *  comme le `rgb(r,g,b)` qu'elle produit : une teinte déjà assombrie (le fond
- *  d'un perçage) repasse ensuite par l'éclairage de sa face. */
+/** Couleur éclaircie (k > 1) ou assombrie (k < 1), bornée. Accepte `#rrggbb`,
+ *  `#rrggbbaa` (la couleur de remplissage lue sur le dessin, transparence
+ *  comprise) et le `rgb()` / `rgba()` qu'elle produit : une teinte déjà
+ *  assombrie (le fond d'un perçage) repasse ensuite par l'éclairage de sa face.
+ *  **L'éclairage ne touche pas l'alpha** : un flanc translucide le reste, à
+ *  l'ombre comme au soleil. */
 export function shade(color: string, k: number): string {
   let r = 0;
   let g = 0;
   let b = 0;
+  let a = 1;
   if (color[0] === '#') {
-    const n = parseInt(color.slice(1), 16);
+    const h = color.slice(1);
+    const n = parseInt(h.slice(0, 6), 16);
     r = (n >> 16) & 255;
     g = (n >> 8) & 255;
     b = n & 255;
+    if (h.length >= 8) a = parseInt(h.slice(6, 8), 16) / 255;
   } else {
-    const m = color.match(/\d+/g);
-    if (m) [r, g, b] = m.slice(0, 3).map(Number);
+    const m = color.match(/[\d.]+/g);
+    if (m) {
+      [r, g, b] = m.slice(0, 3).map(Number);
+      if (m.length > 3) a = Number(m[3]);
+    }
   }
   const c = (v: number): number => Math.max(0, Math.min(255, Math.round(v * k)));
-  return `rgb(${c(r)},${c(g)},${c(b)})`;
+  return a >= 1
+    ? `rgb(${c(r)},${c(g)},${c(b)})`
+    : `rgba(${c(r)},${c(g)},${c(b)},${Math.round(a * 1000) / 1000})`;
 }
 
 /** Luminosité d'une face : ambiante + diffus, du plein soleil au clair-obscur. */
@@ -366,6 +377,10 @@ export type AssemblyPiece = {
   name: string;
   plan: Plane;
   mat: string;
+  /** Couleur de remplissage LUE SUR LE DESSIN, `#rrggbbaa` (transparence
+   *  comprise). Elle prime sur `mat`, qui n'est plus que le repli d'une pièce
+   *  laissée sans couleur — ou l'ordre écrit dans l'étiquette de pose. */
+  fill?: string;
   ep: number;
   pos: Vec3;
   w: number;
@@ -424,7 +439,7 @@ export function assemblyFaces(a: Assembly, opts: {
   const eclate = opts.eclate ?? 0;
   const out: Face[] = [];
   for (const p of a.pieces) {
-    const color = opts.color?.(p) ?? MATIERES[p.mat] ?? MATIERES.pmma;
+    const color = opts.color?.(p) ?? p.fill ?? MATIERES[p.mat] ?? MATIERES.pmma;
     const n = planeNormal(p.plan);
     const poly = p.poly.map((q) => ({ x: q.x * k, y: q.y * k }));
     const holes = (p.holes ?? []).map((h) => h.map((q) => ({ x: q.x * k, y: q.y * k })));
@@ -553,13 +568,21 @@ export function regularPoly(n: number, r: number, phase = 0): Vec2[] {
  * translatées au centre voulu de la feuille. Le liseré de même couleur que le
  * remplissage bouche les coutures blanches que l'anticrénelage laisse entre
  * deux polygones adjacents.
+ *
+ * **Une face TRANSLUCIDE n'a pas de liseré** : une plaque est découpée en
+ * dizaines de triangles, et sur chaque arête intérieure le liseré de l'un
+ * recouvre celui de l'autre — quatre couches de couleur au lieu d'une. Opaque,
+ * cela ne se voit pas ; translucide, cela dessine une toile d'araignée sur toute
+ * la pièce. Sans liseré, il ne reste que la couture d'anticrénelage, invisible
+ * sur une matière qu'on traverse du regard.
  */
 export function renderFaces(faces: Face[], cx: number, cy: number): SVGTemplateResult[] {
   return [...faces]
     .sort((a, b) => a.z - b.z)
     .map((f) => {
       const pts = f.pts.map((p) => `${(p.x + cx).toFixed(2)},${(p.y + cy).toFixed(2)}`).join(' ');
-      return svg`<polygon points=${pts} fill=${f.fill} stroke=${f.fill} stroke-width="0.6" stroke-linejoin="round" />`;
+      const stroke = f.fill.startsWith('rgba(') ? 'none' : f.fill;
+      return svg`<polygon points=${pts} fill=${f.fill} stroke=${stroke} stroke-width="0.6" stroke-linejoin="round" />`;
     });
 }
 

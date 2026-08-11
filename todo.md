@@ -4,7 +4,6 @@
 1. ⬜ **À décider (Frank) : supprimer `onStartupFinished`** de `package.json`. L'extension s'active aujourd'hui à CHAQUE fenêtre VS Code, même sans projet Kablix. Les points d'activation implicites (commandes, vue `kablix.home`, éditeur `.projix`) suffiraient — l'activation ne coûterait plus rien quand Kablix ne sert pas. Piège identifié : la vue devient visible AVANT que `activate()` ne pose `onDidChangeVisibility`, donc le clic sur l'icône n'ouvrirait plus l'atelier tant que le cas « déjà visible à l'activation » n'est pas traité — et le distinguer d'une restauration de session est exactement ce que le garde-fou des 1,2 s combat. À faire seulement avec un essai F5 sous la main.
 
 ## Dessin de l'arraignée 
-1. On passe les couleurs de remplissage sous la forme rgba #rrggbbaa
 1. Les pastilles rouges servent à l'assemblage des sous ensembles (assemblage ou profil : araignee - femur- tibia) ce sont les axes de rotation - même prefix.
  
 1. ⬜ **Pour Frank : dessiner les contours des systèmes** dans `Composants.svg` (groupes `<nom>-profil`, mode d'emploi `docs/fr/Drawing-systems.md`, puis `npm run profil <noms>`). Noms attendus, déjà branchés côté code : `araignee-chassis` (plaque, vue de dessus), **`araignee-picow`**, **`araignee-pca9685`** et **`araignee-batterie`** (cartes du dos, vues de dessus, connecteur à gauche), `patte-femur` et `patte-tibia` (os, vus de côté, gauche → droite entre les deux articulations). Tant qu'un dessin manque, la forme codée en dur tient.
@@ -13,6 +12,18 @@
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# >>>>  v2026.8.33 — la pièce a la couleur qu'elle a sur la planche, transparence comprise
+
+1. ✅ **La couleur de remplissage du DESSIN est celle de la pièce en volume**, en `#rrggbbaa`. Plus de nuancier de six mots : un flanc de PMMA rempli en bleu à 55 % se voit bleu ET translucide, une carte peinte en vert foncé est vert foncé. C'est le remplissage **effectif** qui est lu (celui que le navigateur calcule) : `fill`, `fill-opacity`, et l'opacité de **tous les groupes** qui portent la forme — Inkscape pose souvent la transparence sur le calque, jamais sur la pièce.
+2. ✅ **La teinte retenue est celle de la plus GRANDE forme remplie** du groupe, c'est-à-dire le contour de la pièce : un perçage, un repère ou un texte ne décide pas de la couleur du tout. Une pièce sans remplissage (un contour de découpe, tracé au trait seul) n'a rien à dire : `mat=` répond alors, comme avant.
+3. ✅ **C'est le dessin qui décide, `mat=` n'est plus qu'un repli.** La priorité inverse avait été essayée d'abord : toutes les pièces de Frank portent un `mat=`, aucune couleur lue n'aurait jamais servi.
+4. ✅ **L'éclairage ne touche pas l'alpha** (`shade`) : un flanc translucide le reste, à l'ombre comme au soleil. La fonction accepte maintenant `#rrggbb`, `#rrggbbaa`, `rgb()` et `rgba()` — le fond d'un perçage, déjà assombri, repasse par l'éclairage de sa face.
+5. ✅ **Une face translucide n'a PAS de liseré.** Une plaque est découpée en dizaines de triangles ; sur chaque arête intérieure, le liseré qui bouche les coutures d'anticrénelage se recouvre lui-même — quatre couches de couleur au lieu d'une. Opaque, cela ne se voit pas ; translucide, cela dessinait une **toile d'araignée** sur toute la pièce (vu à la première capture).
+6. ✅ **Le corps de démonstration montre la règle** : `docs/exemples/corps-demo.svg` a son PMMA rempli à 55 % et ses servos peints en gris sombre — les servos se voient **au travers** des plaques, sans même éclater le corps. Les deux images du guide sont refaites par le vrai moteur.
+7. ✅ **Guides FR et EN à jour** (`docs/{fr,en}/Drawing-systems.md`) : « Les couleurs : c'est le dessin qui décide » remplace « Les matières » (qui reste, comme repli), sortie de lecture, aide-mémoire.
+8. ✅ **Banc `verify:assemblage` étendu** (154 contrôles) : alpha conservé par l'éclairage, `rgba()` relu par `shade`, couleur lue prioritaire sur `mat=`, pièce translucide sur toutes ses faces, liseré présent en opaque et **absent** en translucide, couleur rangée bien formée pour chaque pièce de chaque assemblage.
+9. ✅ `npm run typecheck`, `npm run build` et `npm run verify:all` verts.
 
 # >>>>  v2026.8.32 — l'extension démarre deux fois plus vite : le zip attend qu'on lui demande un projet
 

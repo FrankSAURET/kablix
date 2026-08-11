@@ -243,7 +243,7 @@ flanc pos=28,0,0 ep=12 mat=servo miroir=x
 | `dessus` / `flanc` / `face` | **obligatoire, en premier** : comment le dessin se pose | — |
 | `pos=x,y,z` | centre de la pièce dans le repère de l'assemblage, en mm | `0,0,0` |
 | `ep=3` | épaisseur de la pièce, en mm | `3` |
-| `mat=pmma` | matière, c'est-à-dire la couleur | `pmma` |
+| `mat=pmma` | matière — **seulement pour une pièce sans remplissage** : la couleur du dessin prime | `pmma` |
 | `miroir=x` | la pièce est posée **deux fois**, symétriquement | pas de miroir |
 
 `miroir` seul (sans `=`) vaut `miroir=y`. Une valeur inconnue (`mat=titane`, `pos=3,4`) est ignorée et la valeur par défaut s'applique : la pièce apparaît alors visiblement fausse, plutôt que muette.
@@ -260,9 +260,17 @@ Le repère du monde est celui du moteur : **X à droite, Y vers l'arrière, Z ve
 
 **Une pièce est posée par son CENTRE** (le milieu de sa boîte englobante) : `pos` est donc le centre de la pièce, pas son coin. C'est ce qui rend le miroir immédiat — un flanc à `pos=0,-9,0` avec `miroir=y` donne les deux flancs, écartés de 18 mm.
 
-### Les matières
+### Les couleurs : c'est le dessin qui décide
 
-Le mot dit la couleur, et rien d'autre : aucune simulation, aucune masse.
+**La pièce a en volume la couleur qu'elle a sur la planche**, transparence comprise. Vous remplissez un flanc de PMMA en bleu à 55 %, vous le voyez bleu et vous voyez au travers ; vous peignez une carte en vert foncé, elle est vert foncé. Rien à écrire dans l'étiquette : la couleur est déjà dans le dessin, c'est la seule chose que le moteur relit.
+
+Quelques détails qui évitent les surprises :
+
+- C'est le remplissage **effectif**, celui que le navigateur calcule : `fill`, `fill-opacity`, et l'opacité de tous les groupes qui portent la forme — Inkscape pose souvent la transparence sur le calque, pas sur la pièce.
+- La couleur retenue est celle de la **plus grande forme remplie** du groupe : c'est le contour de la pièce. Un perçage, un repère ou un texte ne décide pas de la teinte du tout.
+- Une pièce **sans remplissage** (un contour de découpe, tracé au trait seul) n'a pas de couleur à donner : c'est alors `mat=` qui répond, ou le PMMA par défaut.
+
+`mat=` reste donc utile pour une pièce qui n'est pas peinte, ou pour forcer une teinte sans toucher au plan de découpe :
 
 | `mat=` | Couleur | Pour |
 | --- | --- | --- |
@@ -272,6 +280,10 @@ Le mot dit la couleur, et rien d'autre : aucune simulation, aucune masse.
 | `carte` | vert | un circuit imprimé |
 | `laiton` | doré | visserie, entretoises filetées |
 | `pile` | gris ardoise | accus, pack de batteries |
+
+Le mot dit la couleur, et rien d'autre : aucune simulation, aucune masse.
+
+**Une matière translucide n'a pas de liseré.** Une plaque est découpée en dizaines de triangles ; sur chaque arête intérieure, le liseré qui bouche les coutures se recouvre lui-même. Opaque, cela ne se voit pas ; translucide, cela dessinerait une toile d'araignée sur toute la pièce. Le liseré est donc retiré dès que la couleur est transparente.
 
 ### Les axes
 
@@ -308,6 +320,8 @@ L'exemple complet est dans [`docs/exemples/corps-demo.svg`](../exemples/corps-de
 | ![Le plan de découpe du corps de démonstration](../exemples/corps-demo.svg) | ![Le corps assemblé](../img/systemes/corps-demo.webp) | ![Le même corps, éclaté](../img/systemes/corps-demo-eclate.webp) |
 | Trois groupes posés côte à côte, comme un plan de découpe : la plaque (`dessus pos=0,0,14 ep=3 miroir=z`), le servo (`flanc pos=28,0,0 ep=12 mat=servo miroir=x`), l'entretoise (`face pos=0,-36,0 ep=3`). | Les deux plaques à 14 mm de part et d'autre du plan médian : 25 mm d'air entre elles, juste ce qu'il faut pour un servo couché. Encombrement : 100 × 80 × 31 mm. | Chaque pièce écartée le long de son épaisseur. Les servos apparaissent : c'est cette vue qui répond à « est-ce que ça rentre ? ». |
 
+Le PMMA du plan est rempli **à 55 %** : les plaques sont translucides en volume, et les servos se voient au travers sans même avoir à éclater le corps. Le servo, lui, est peint en gris sombre sur la planche — son `mat=servo` ne sert plus à rien, et c'est bien ainsi : le plan de découpe se suffit.
+
 Les deux images de droite sont produites par le vrai moteur :
 
 ```bash
@@ -325,15 +339,17 @@ npm run verify:assemblage              # le banc
 Sortie de la lecture :
 
 ```text
-  ✓ entretoise : 5 points, 40×25 mm, face ép.3 pmma
-  ✓ plaque : 10 points, 100×80 mm, dessus ép.3 pmma miroir=z, 3 trou(s)
-  ✓ servo : 5 points, 23×23 mm, flanc ép.12 servo miroir=x, 1 trou(s)
+  ✓ entretoise : 5 points, 40×25 mm, face ép.3 #bcdff08c
+  ✓ plaque : 10 points, 100×80 mm, dessus ép.3 #bcdff08c miroir=z, 3 trou(s)
+  ✓ servo : 5 points, 23×23 mm, flanc ép.12 #3f4750ff miroir=x, 1 trou(s)
   → corps-demo : 3 pièce(s), 2 axe(s), 100×80×31 mm
 ```
 
+La couleur affichée est celle qui a été **lue sur le dessin** (`#rrggbbaa`, transparence comprise) — `8c` en fin de ligne, c'est le PMMA à 55 %. Une pièce non peinte affiche à la place le mot de son `mat=`.
+
 `src/webview/composants/assemblages.mts` est **généré**, et il est **sa propre archive** : l'outil le relit avant de le réécrire, extraire un assemblage ne fait pas disparaître les autres. Comme `profils.mts`, il se lit dans un `git diff` mais ne se modifie pas à la main.
 
-Le banc `verify:assemblage` est du calcul pur, comme celui des profils. Il éprouve la **lecture de l'étiquette** (une position négative doit rester entière — `pos=0,-9,0` a déjà été lu comme trois mots), les **plans** (une plaque de 100 mm posée à plat encombre 100 × 80 × 3, jamais 103 × 83 × 35), le **miroir**, l'**éclaté** (chaque pièce s'écarte du côté où elle est déjà, une pièce centrale ne bouge pas), puis **chaque assemblage rangé** : plan et matière connus, contour centré, cotes conformes, encombrement conforme au calcul, axes dans la boîte.
+Le banc `verify:assemblage` est du calcul pur, comme celui des profils. Il éprouve la **lecture de l'étiquette** (une position négative doit rester entière — `pos=0,-9,0` a déjà été lu comme trois mots), les **plans** (une plaque de 100 mm posée à plat encombre 100 × 80 × 3, jamais 103 × 83 × 35), le **miroir**, l'**éclaté** (chaque pièce s'écarte du côté où elle est déjà, une pièce centrale ne bouge pas), puis **chaque assemblage rangé** : plan et matière connus, contour centré, cotes conformes, encombrement conforme au calcul, axes dans la boîte. Il éprouve aussi les **couleurs lues sur le dessin** — la teinte du dessin passe devant `mat=`, la transparence traverse l'éclairage sans s'y perdre, et une face translucide sort sans liseré.
 
 ---
 
@@ -358,6 +374,7 @@ Le banc `verify:assemblage` est du calcul pur, comme celui des profils. Il épro
 - `pos` est le **centre** de la pièce, pas son coin.
 - `miroir` pose la pièce **deux fois** : un dessin de flanc donne les deux flancs.
 - Une **pastille rouge nommée** devient un axe — c'est le dessin qui dit où est la hanche.
+- La **couleur de la pièce est celle du dessin**, transparence comprise ; `mat=` n'est que le repli d'une pièce non peinte.
 - `npm run montre <nom>` relit, range et ouvre : c'est la boucle de travail.
 - Le curseur **éclaté** est le seul moyen de voir ce qu'il y a entre deux flancs.
 - `assemblages.mts` est **généré**, et il est sa propre archive.

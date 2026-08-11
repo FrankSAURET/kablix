@@ -166,6 +166,12 @@ export function lireAssemblage(nom, { source = 'Composants.svg', step = 0.2, tol
       name: court,
       plan: pose.plan,
       mat: pose.mat,
+      // Couleur de la pièce telle qu'elle est PEINTE sur la planche, transparence
+      // comprise (`#rrggbbaa`) : un flanc de PMMA bleuté à 60 % se voit en 3D
+      // comme sur le dessin, et le nuancier n'est plus limité à six mots. C'est le
+      // DESSIN qui décide ; `mat=` ne sert plus que de repli pour une pièce sans
+      // remplissage (un contour de découpe, tracé au trait seul).
+      ...(g.fill ? { fill: g.fill } : {}),
       ep: pose.ep,
       pos: pose.pos,
       w: R2(bb.x1 - bb.x0),
@@ -190,7 +196,7 @@ export function lireAssemblage(nom, { source = 'Composants.svg', step = 0.2, tol
       axes[nomPad.trim()] = place(pose.plan, p, pose.pos);
     }
     console.log(`  ✓ ${court} : ${entry.poly.length} points, ${entry.w}×${entry.h} mm,`
-      + ` ${pose.plan} ép.${pose.ep} ${pose.mat}${pose.miroir ? ` miroir=${pose.miroir}` : ''}`
+      + ` ${pose.plan} ép.${pose.ep} ${entry.fill ?? pose.mat}${pose.miroir ? ` miroir=${pose.miroir}` : ''}`
       + `${holes.length ? `, ${holes.length} trou(s)` : ''}`);
   }
   if (!pieces.length) return null;
@@ -215,6 +221,7 @@ function dump(obj) {
         `        "name": ${JSON.stringify(p.name)}`,
         `        "plan": ${JSON.stringify(p.plan)}`,
         `        "mat": ${JSON.stringify(p.mat)}`,
+        ...(p.fill ? [`        "fill": ${JSON.stringify(p.fill)}`] : []),
         `        "ep": ${p.ep}`,
         `        "pos": { "x": ${p.pos.x}, "y": ${p.pos.y}, "z": ${p.pos.z} }`,
         `        "w": ${p.w}`,

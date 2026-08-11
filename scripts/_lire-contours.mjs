@@ -129,10 +129,31 @@ function at(el, x, y) {
   pt.y = y;
   return pt.matrixTransform(rootInv.multiply(el.getScreenCTM()));
 }
+/** Couleur de remplissage EFFECTIVE d'une forme, en « #rrggbbaa » : la teinte
+ *  calculée par le navigateur, son opacité de remplissage, et les opacités de
+ *  tous les groupes qui la portent (Inkscape pose souvent la transparence sur le
+ *  calque ou le groupe, pas sur la forme). Rend null si la forme n'est pas
+ *  remplie — un trait seul ne colore rien. */
+function fillOf(el) {
+  const cs = getComputedStyle(el);
+  const m = (cs.fill || '').match(/[\\d.]+/g);
+  if (!m || m.length < 3 || cs.fill === 'none') return null;
+  let a = Number(cs.fillOpacity || 1) * (m.length > 3 ? Number(m[3]) : 1);
+  for (let n = el; n && n !== root.parentNode; n = n.parentNode) {
+    const o = Number(getComputedStyle(n).opacity);
+    if (Number.isFinite(o)) a *= o;
+  }
+  const h = (v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
+  return '#' + h(Number(m[0])) + h(Number(m[1])) + h(Number(m[2])) + h(a * 255);
+}
 function readGroup(name, g) {
   const shapes = g.matches(SHAPES) ? [g] : [...g.querySelectorAll(SHAPES)];
   const rings = [];
   const pads = [];
+  // Couleur de la pièce : celle de la plus GRANDE forme remplie, c'est-à-dire
+  // son contour — un perçage ou un décor ne décide pas de la teinte du tout.
+  let fill = null;
+  let fillAire = 0;
   for (const el of shapes) {
     const ctm = rootInv.multiply(el.getScreenCTM());
     if (isPad(el)) {
@@ -142,6 +163,9 @@ function readGroup(name, g) {
     }
     const d = toPathData(el);
     if (!d) continue;
+    const bb = el.getBBox();
+    const c = fillOf(el);
+    if (c && bb.width * bb.height > fillAire) { fillAire = bb.width * bb.height; fill = c; }
     for (const sub of (el.tagName === 'path' ? subPaths(d) : [d])) {
       const pts = samplePath(sub, ctm);
       if (pts.length >= 3) rings.push(pts);
@@ -155,7 +179,7 @@ function readGroup(name, g) {
     const c = at(t, bb.x + bb.width / 2, bb.y + bb.height / 2);
     texts.push({ s, x: c.x, y: c.y });
   }
-  out.push({ name, id: g.getAttribute('id'), rings, pads, texts });
+  out.push({ name, id: g.getAttribute('id'), rings, pads, texts, fill });
 }
 for (const id of IDS) {
   const g = findGroup(id + '-profil') || findGroup(id);

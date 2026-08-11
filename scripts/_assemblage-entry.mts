@@ -3,7 +3,8 @@
 // copie. Bundlé par esbuild, importé tel quel par node — aucun navigateur, c'est
 // du calcul pur.
 export {
-  slabFaces, assemblyFaces, planeNormal, project, signedArea, PLANES, MATIERES,
+  slabFaces, assemblyFaces, planeNormal, project, signedArea, shade, renderFaces,
+  PLANES, MATIERES,
 } from '../src/webview/composants/iso3d.mjs';
 export { assemblage, hasAssemblage } from '../src/webview/composants/assemblages.mjs';
 import { ASSEMBLAGE_NAMES } from '../src/webview/composants/assemblages.mjs';

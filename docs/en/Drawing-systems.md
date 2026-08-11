@@ -243,7 +243,7 @@ flanc pos=28,0,0 ep=12 mat=servo miroir=x
 | `dessus` / `flanc` / `face` | **mandatory, first**: how the drawing lies (top / side / front) | — |
 | `pos=x,y,z` | centre of the part in the assembly frame, in mm | `0,0,0` |
 | `ep=3` | thickness of the part, in mm | `3` |
-| `mat=pmma` | material, that is to say the colour | `pmma` |
+| `mat=pmma` | material — **only for a part with no fill**: the colour of the drawing wins | `pmma` |
 | `miroir=x` | the part is laid **twice**, mirrored | no mirror |
 
 `miroir` alone (no `=`) means `miroir=y`. An unknown value (`mat=titane`, `pos=3,4`) is ignored and the default applies: the part then shows up visibly wrong, rather than silently.
@@ -262,9 +262,17 @@ The world frame is the engine's: **X to the right, Y towards the back, Z up**. A
 
 **A part is placed by its CENTRE** (the middle of its bounding box): `pos` is the centre of the part, not its corner. That is what makes mirroring immediate — a side at `pos=0,-9,0` with `miroir=y` gives both sides, 18 mm apart.
 
-### Materials
+### Colours: the drawing decides
 
-The word gives the colour, and nothing else: no simulation, no mass.
+**A part has, in 3D, the colour it has on the sheet** — transparency included. Fill a PMMA side with blue at 55 % and you see it blue and you see through it; paint a board dark green and it is dark green. Nothing to write in the label: the colour is already in the drawing, and that is the only thing the engine reads back.
+
+A few details that avoid surprises:
+
+- It is the **effective** fill, the one the browser computes: `fill`, `fill-opacity`, and the opacity of every group carrying the shape — Inkscape often puts transparency on the layer, not on the part.
+- The colour kept is that of the **largest filled shape** in the group: the outline of the part. A hole, a marker or a text does not decide the colour of the whole.
+- A part with **no fill** (a cutting outline, drawn as a stroke only) has no colour to give: `mat=` then answers, or PMMA by default.
+
+`mat=` therefore remains useful for an unpainted part, or to force a shade without touching the cutting plan:
 
 | `mat=` | Colour | For |
 | --- | --- | --- |
@@ -274,6 +282,10 @@ The word gives the colour, and nothing else: no simulation, no mass.
 | `carte` | green | a printed circuit board |
 | `laiton` | gold | screws, threaded standoffs |
 | `pile` | slate grey | cells, battery packs |
+
+The word gives the colour, and nothing else: no simulation, no mass.
+
+**A translucent material gets no seam stroke.** A plate is cut into dozens of triangles; on every inner edge the stroke that fills the seams overlaps itself. Opaque, that never shows; translucent, it would draw a cobweb over the whole part. The stroke is therefore dropped as soon as the colour is transparent.
 
 ### Axes
 
@@ -310,6 +322,8 @@ The complete example is in [`docs/exemples/corps-demo.svg`](../exemples/corps-de
 | ![Cutting plan of the demo body](../exemples/corps-demo.svg) | ![The body assembled](../img/systemes/corps-demo.webp) | ![The same body, exploded](../img/systemes/corps-demo-eclate.webp) |
 | Three groups side by side, like a cutting plan: the plate (`dessus pos=0,0,14 ep=3 miroir=z`), the servo (`flanc pos=28,0,0 ep=12 mat=servo miroir=x`), the spacer (`face pos=0,-36,0 ep=3`). | The two plates 14 mm either side of the mid-plane: 25 mm of air between them, just what a lying servo needs. Overall size: 100 × 80 × 31 mm. | Every part pulled apart along its thickness. The servos appear: this is the view that answers "does it fit?". |
 
+The PMMA on the plan is filled **at 55 %**: the plates are translucent in 3D, and the servos show through without even exploding the body. The servo itself is painted dark grey on the sheet — its `mat=servo` is now useless, and rightly so: the cutting plan speaks for itself.
+
 Both pictures on the right are produced by the real engine:
 
 ```bash
@@ -327,15 +341,17 @@ npm run verify:assemblage              # the bench
 Output of the read:
 
 ```text
-  ✓ entretoise : 5 points, 40×25 mm, face ép.3 pmma
-  ✓ plaque : 10 points, 100×80 mm, dessus ép.3 pmma miroir=z, 3 trou(s)
-  ✓ servo : 5 points, 23×23 mm, flanc ép.12 servo miroir=x, 1 trou(s)
+  ✓ entretoise : 5 points, 40×25 mm, face ép.3 #bcdff08c
+  ✓ plaque : 10 points, 100×80 mm, dessus ép.3 #bcdff08c miroir=z, 3 trou(s)
+  ✓ servo : 5 points, 23×23 mm, flanc ép.12 #3f4750ff miroir=x, 1 trou(s)
   → corps-demo : 3 pièce(s), 2 axe(s), 100×80×31 mm
 ```
 
+The colour shown is the one **read from the drawing** (`#rrggbbaa`, transparency included) — the trailing `8c` is PMMA at 55 %. An unpainted part shows the word of its `mat=` instead.
+
 `src/webview/composants/assemblages.mts` is **generated**, and it is **its own archive**: the tool reads it back before rewriting it, so extracting one assembly does not make the others disappear. Like `profils.mts`, it reads well in a `git diff` but is not edited by hand.
 
-The `verify:assemblage` bench is pure computation, like the profile one. It exercises **label parsing** (a negative position must survive whole — `pos=0,-9,0` has already been read as three words), the **planes** (a 100 mm plate lying flat is 100 × 80 × 3, never 103 × 83 × 35), the **mirror**, the **exploded view** (each part moves to the side it already sits on, a central part does not move), then **every stored assembly**: known plane and material, centred outline, dimensions consistent, overall size consistent with the computation, axes inside the box.
+The `verify:assemblage` bench is pure computation, like the profile one. It exercises **label parsing** (a negative position must survive whole — `pos=0,-9,0` has already been read as three words), the **planes** (a 100 mm plate lying flat is 100 × 80 × 3, never 103 × 83 × 35), the **mirror**, the **exploded view** (each part moves to the side it already sits on, a central part does not move), then **every stored assembly**: known plane and material, centred outline, dimensions consistent, overall size consistent with the computation, axes inside the box. It also exercises the **colours read from the drawing** — the drawn shade wins over `mat=`, transparency survives the lighting, and a translucent face comes out without a seam stroke.
 
 ---
 
@@ -360,6 +376,7 @@ The `verify:assemblage` bench is pure computation, like the profile one. It exer
 - `pos` is the **centre** of the part, not its corner.
 - `miroir` lays the part **twice**: one side drawing gives both sides.
 - A **named red pad** becomes an axis — the drawing says where the hip is.
+- The **colour of the part is the colour of the drawing**, transparency included; `mat=` is only the fallback for an unpainted part.
 - `npm run montre <name>` reads, stores and opens: that is the working loop.
 - The **éclaté** slider is the only way to see what sits between two sides.
 - `assemblages.mts` is **generated**, and it is its own archive.

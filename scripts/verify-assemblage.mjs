@@ -182,6 +182,50 @@ ok('assemblyFaces : la matière donne la couleur', teintes('alu') !== teintes('s
 ok('assemblyFaces : une matière inconnue est dessinée en PMMA',
   teintes('titane') === teintes('pmma'));
 
+// --- la couleur vient du DESSIN, transparence comprise -------------------------
+// Depuis v2026.8.33, une pièce a en volume la couleur qu'elle a sur la planche.
+// Le piège est l'alpha : il traverse l'éclairage, les perçages et la mise en
+// volume sans jamais être multiplié par la lumière, sinon un flanc translucide
+// deviendrait opaque à l'ombre.
+const alpha = (c) => (c.startsWith('rgba(') ? Number(c.match(/[\d.]+/g)[3]) : 1);
+ok('shade : une couleur opaque sort en rgb(), sans alpha',
+  M.shade('#bcdff0', 1) === 'rgb(188,223,240)', M.shade('#bcdff0', 1));
+ok('shade : `#rrggbbaa` garde sa transparence',
+  alpha(M.shade('#bcdff08c', 1)) > 0.54 && alpha(M.shade('#bcdff08c', 1)) < 0.56,
+  M.shade('#bcdff08c', 1));
+ok('shade : l\'éclairage ne touche pas l\'alpha',
+  alpha(M.shade('#bcdff08c', 0.45)) === alpha(M.shade('#bcdff08c', 1.2)),
+  `${M.shade('#bcdff08c', 0.45)} contre ${M.shade('#bcdff08c', 1.2)}`);
+ok('shade : assombrir assombrit vraiment les canaux',
+  Number(M.shade('#bcdff08c', 0.45).match(/[\d.]+/g)[0]) < 188, M.shade('#bcdff08c', 0.45));
+// Le fond d'un perçage est déjà assombri quand sa face l'éclaire à son tour :
+// shade doit savoir relire ce qu'il a écrit.
+ok('shade : relit son propre rgba() (le fond d\'un perçage repasse par l\'éclairage)',
+  alpha(M.shade(M.shade('#bcdff08c', 0.45), 0.8)) === alpha(M.shade('#bcdff08c', 1)),
+  M.shade(M.shade('#bcdff08c', 0.45), 0.8));
+/** Les teintes d'une pièce à laquelle on greffe ce qu'on veut (couleur lue,
+ *  matière écrite), dans l'ordre des faces. */
+const teintesDe = (extra) => M.assemblyFaces({ ...DEMO, pieces: [{ ...DEMO.pieces[1], ...extra }] })
+  .map((f) => f.fill).join('|');
+ok('assemblyFaces : la couleur LUE passe devant `mat=`',
+  teintesDe({ mat: 'servo', fill: '#bcdff0ff' }) === teintesDe({ mat: 'pmma' }),
+  `${teintesDe({ mat: 'servo', fill: '#bcdff0ff' }).slice(0, 24)}…`);
+ok('assemblyFaces : sans couleur lue, `mat=` répond encore',
+  teintesDe({ mat: 'alu' }) === teintes('alu'));
+ok('assemblyFaces : une pièce translucide l\'est sur TOUTES ses faces',
+  teintesDe({ fill: '#bcdff08c' }).split('|').every((c) => alpha(c) < 0.6),
+  teintesDe({ fill: '#bcdff08c' }).slice(0, 40));
+// Le liseré bouche les coutures d'anticrénelage entre triangles voisins. Sur une
+// face translucide il se recouvre lui-même — quatre couches de couleur sur chaque
+// arête intérieure, soit une toile d'araignée sur toute la pièce.
+const attributs = (fill) => JSON.stringify(
+  M.renderFaces([{ pts: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }], z: 0, fill }], 0, 0)[0].values);
+ok('renderFaces : une face opaque garde son liseré de même couleur',
+  attributs('rgb(188,223,240)').split('rgb(188,223,240)').length === 3,
+  attributs('rgb(188,223,240)'));
+ok('renderFaces : une face translucide n\'a PAS de liseré',
+  attributs('rgba(188,223,240,0.55)').includes('"none"'), attributs('rgba(188,223,240,0.55)'));
+
 // --- ce que le lecteur a rangé ------------------------------------------------
 const noms = M.ASSEMBLAGES;
 ok('assemblages.mts : au moins un assemblage rangé', noms.length > 0, noms.join(', '));
@@ -192,6 +236,11 @@ for (const nom of noms) {
   for (const p of a.pieces) {
     ok(`${nom}/${p.name} : plan connu`, PLANS.includes(p.plan), p.plan);
     ok(`${nom}/${p.name} : matière connue`, !!M.MATIERES[p.mat], p.mat);
+    // La couleur lue est rangée telle quelle, en `#rrggbbaa` : une pièce sans
+    // remplissage n'en a pas, et retombe sur sa matière.
+    if (p.fill !== undefined) {
+      ok(`${nom}/${p.name} : couleur lue bien formée`, /^#[0-9a-f]{8}$/i.test(p.fill), p.fill);
+    }
     ok(`${nom}/${p.name} : épaisseur réelle`, p.ep > 0 && p.ep < 200, `${p.ep} mm`);
     ok(`${nom}/${p.name} : contour fermé exploitable`, p.poly.length >= 3, `${p.poly.length} points`);
     ok(`${nom}/${p.name} : aucune coordonnée aberrante`,

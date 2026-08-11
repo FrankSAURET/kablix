@@ -7,8 +7,11 @@
        Planche en millimètres (width="200mm", viewBox de 200) : 1 unité = 1 mm. -->
   <style>
     text { font: 4px sans-serif; fill: #33566a; text-anchor: middle; }
-    .piece { fill: #bcdff0; stroke: #5a7d8c; stroke-width: 0.6; }
-    .bloc { fill: #b6bcc2; stroke: #5a6067; stroke-width: 0.6; }
+    /* La COULEUR DU DESSIN est celle de la pièce en volume, transparence
+       comprise : le PMMA est bleuté et laisse voir au travers (fill-opacity),
+       le servo est un bloc gris sombre. Rien à écrire dans l'étiquette. */
+    .piece { fill: #bcdff0; fill-opacity: 0.55; stroke: #5a7d8c; stroke-width: 0.6; }
+    .bloc { fill: #3f4750; stroke: #5a6067; stroke-width: 0.6; }
   </style>
 
   <!-- Plaque du corps : vue de dessus, l'avant du robot en haut du dessin.
