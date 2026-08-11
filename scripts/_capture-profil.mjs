@@ -5,6 +5,7 @@
 // jamais une capture d'écran à la main.
 //
 // Usage : node scripts/_capture-profil.mjs chassis-demo:plaque femur-demo:piece
+//         node scripts/_capture-profil.mjs corps-demo:assemblage corps-demo:eclate
 import { writeFileSync, mkdirSync, existsSync, readFileSync, renameSync, unlinkSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
@@ -61,7 +62,17 @@ const body = svg\`
   // Deux mises en scène, exactement celles des deux usages documentés : une
   // PLAQUE est extrudée vers le haut (châssis), une PIÈCE est posée le long
   // d'un segment (os de patte, bloc de servo).
-  const scene = mode === 'plat' ? flat : mode === 'piece'
+  // Un ASSEMBLAGE : plusieurs pièces posées les unes par rapport aux autres, en
+  // millimètres. `:eclate` les écarte le long de leur normale — c'est la vue de
+  // notice de montage, et le seul moyen de voir ce qu'il y a entre deux flancs.
+  const assemble = (eclate) => `
+const A = assemblage(${JSON.stringify(name)});
+const k = 300 / Math.max(A.box.x, A.box.y, A.box.z, 1);
+const faces = assemblyFaces(A, { scale: k, xf: (p) => rotZ(p, 22), eclate: ${eclate} * k });
+const body = svg\`<g>\${renderFaces(faces, 220, 170)}</g>\`;
+const W = 440, H = 340;`;
+  const scene = mode === 'assemblage' ? assemble(0) : mode === 'eclate' ? assemble(18)
+    : mode === 'plat' ? flat : mode === 'piece'
     ? `
 const p = profile(${JSON.stringify(name)});
 const from = { x: -34, y: 0, z: 0 };
@@ -82,8 +93,11 @@ const W = 260, H = 180;`;
 
   const entry = `
 import { html, svg, render } from 'lit';
-import { prismFaces, extrudeProfile, decalFaces, renderFaces } from '../../src/webview/composants/iso3d.mjs';
+import {
+  prismFaces, extrudeProfile, decalFaces, renderFaces, assemblyFaces, rotZ,
+} from '../../src/webview/composants/iso3d.mjs';
 import { profile } from '../../src/webview/composants/profils.mjs';
+import { assemblage } from '../../src/webview/composants/assemblages.mjs';
 ${scene}
 render(html\`<svg id="art" width=\${W} height=\${H} viewBox="0 0 \${W} \${H}" xmlns="http://www.w3.org/2000/svg">\${body}</svg>\`, document.body);
 setTimeout(() => {
@@ -118,7 +132,7 @@ setTimeout(() => {
 
   // Le contour à plat et son volume sont deux images de la même pièce : elles
   // se répondent dans la doc, elles ne doivent pas s'écraser.
-  const outName = mode === 'plat' ? `${name}-plat` : name;
+  const outName = mode === 'plat' || mode === 'eclate' ? `${name}-${mode}` : name;
   const shot = join(SCRATCH, `${outName}.png`);
   if (existsSync(shot)) unlinkSync(shot);
   execFileSync(chrome, [

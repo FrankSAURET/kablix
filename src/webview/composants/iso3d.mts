@@ -313,10 +313,162 @@ export function extrudeProfile(
   // Repère local (u le long de la pièce depuis `from`, v vers le haut), déjà en
   // unités de la feuille : le recoupage des faces peut s'y appliquer tel quel.
   // Le y du dessin descend (convention SVG), le v du monde monte : d'où le signe.
-  let local = profile.poly.map((p) => ({ x: (p.x + profile.w / 2) * k, y: -p.y * k }));
-  if (signedArea(local) < 0) local = local.reverse();
+  const flat = (p: Vec2): Vec2 => ({ x: (p.x + profile.w / 2) * k, y: -p.y * k });
   const at = (p: Vec2, s: number): Vec3 =>
     add(add(add(from, scale(axis, p.x)), scale(up, p.y)), scale(side, s));
+  return slabCore(profile.poly.map(flat), holes.map((h) => h.map(flat)), at, thickness, color);
+}
+
+/**
+ * Une PLAQUE de matière posée dans le volume : le contour dessiné est étalé dans
+ * le plan `plane`, épaissi de `thickness` de part et d'autre, et posé centre sur
+ * `center`. C'est la brique des ASSEMBLAGES — deux flancs de PMMA de 3 mm et les
+ * servos pris en sandwich entre eux (docs/fr/Drawing-systems.md).
+ *
+ * Là où `extrudeProfile` met la pièce À L'ÉCHELLE entre deux articulations, ici
+ * les cotes du dessin sont gardées TELLES QUELLES : dans un assemblage, 3 mm
+ * d'épaisseur et 18 mm d'entrefer sont l'information même, pas une proportion.
+ *
+ * `xf` transforme chaque point dans le monde (lacet de présentation, éclaté des
+ * pièces) : la pose reste ainsi décrite dans le repère simple de l'assemblage.
+ */
+export function slabFaces(
+  poly: Vec2[], plane: Plane, center: Vec3, thickness: number, color: string,
+  holes: Vec2[][] = [], xf: (p: Vec3) => Vec3 = (p) => p,
+): Face[] {
+  const { u, v } = PLANES[plane];
+  const n = cross(u, v);
+  const at = (p: Vec2, s: number): Vec3 => xf(add(center,
+    add(add(scale(u, p.x), scale(v, p.y)), scale(n, s))));
+  return slabCore(poly, holes, at, thickness, color);
+}
+
+/** Comment le dessin à plat d'une pièce se pose dans le repère de l'assemblage.
+ *  `u` suit le x du dessin, `v` son y (qui DESCEND, convention SVG). L'épaisseur
+ *  part le long de u × v. Repère monde : X à droite, Y à l'arrière, Z en haut. */
+export type Plane = 'dessus' | 'flanc' | 'face';
+export const PLANES: Record<Plane, { u: Vec3; v: Vec3 }> = {
+  // Vue de dessus, avant du robot en haut du dessin : le y qui descend va vers
+  // l'arrière. Épaisseur verticale — châssis, platine, pont.
+  dessus: { u: { x: 1, y: 0, z: 0 }, v: { x: 0, y: 1, z: 0 } },
+  // Vue de côté, avant à gauche : le x va vers l'arrière, le y vers le bas.
+  // Épaisseur en travers du robot — les deux flancs du corps.
+  flanc: { u: { x: 0, y: 1, z: 0 }, v: { x: 0, y: 0, z: -1 } },
+  // Vue de face : le x va vers la droite du robot, le y vers le bas. Épaisseur
+  // d'avant en arrière — une cloison, un capot avant.
+  face: { u: { x: 1, y: 0, z: 0 }, v: { x: 0, y: 0, z: -1 } },
+};
+
+/** Une pièce d'assemblage, telle que `_extract-assemblage.mjs` la range : un
+ *  contour à plat (centré sur sa boîte), son plan, sa pose et son épaisseur —
+ *  le tout en MILLIMÈTRES, cotes du dessin comprises. */
+export type AssemblyPiece = {
+  name: string;
+  plan: Plane;
+  mat: string;
+  ep: number;
+  pos: Vec3;
+  w: number;
+  h: number;
+  /** Axe de symétrie : la pièce est posée DEUX fois (les deux flancs du corps). */
+  miroir?: string;
+  poly: Vec2[];
+  holes?: Vec2[][];
+};
+
+/** Un assemblage complet : ses pièces, ses axes d'articulation (les pastilles
+ *  rouges nommées) et son encombrement, en millimètres. */
+export type Assembly = {
+  source: string;
+  box: Vec3;
+  axes: Record<string, Vec3>;
+  pieces: AssemblyPiece[];
+};
+
+/** Matières d'un assemblage : le mot du dessin dit la couleur, et rien d'autre.
+ *  PMMA bleuté (le châssis découpé au laser), aluminium clair (les os), servos
+ *  noirs, circuit imprimé vert, visserie dorée, batterie gris ardoise. */
+export const MATIERES: Record<string, string> = {
+  pmma: '#bcdff0',
+  alu: '#c9d6de',
+  servo: '#2f3640',
+  carte: '#1f6b3a',
+  laiton: '#c8ad63',
+  pile: '#37474f',
+};
+
+/** Normale du plan d'une pièce : l'axe le long duquel part son épaisseur. */
+export function planeNormal(plan: Plane): Vec3 {
+  const { u, v } = PLANES[plan];
+  return cross(u, v);
+}
+
+/**
+ * Toutes les faces d'un ASSEMBLAGE, prêtes à être triées avec le reste de la
+ * scène. Une pièce marquée `miroir` est posée deux fois, symétriquement : c'est
+ * ainsi qu'UN dessin de flanc donne les DEUX flancs du corps.
+ *
+ * `scale` convertit les millimètres du plan en unités de la feuille, `xf` place
+ * l'assemblage dans la scène (lacet de présentation), et `eclate` écarte chaque
+ * pièce le long de sa normale — la vue éclatée d'une notice de montage, qui est
+ * le seul moyen de voir ce qu'il y a entre deux flancs serrés à 3 mm.
+ */
+export function assemblyFaces(a: Assembly, opts: {
+  scale?: number;
+  xf?: (p: Vec3) => Vec3;
+  eclate?: number;
+  color?: (p: AssemblyPiece) => string;
+} = {}): Face[] {
+  const k = opts.scale ?? 1;
+  const xf = opts.xf ?? ((p: Vec3): Vec3 => p);
+  const eclate = opts.eclate ?? 0;
+  const out: Face[] = [];
+  for (const p of a.pieces) {
+    const color = opts.color?.(p) ?? MATIERES[p.mat] ?? MATIERES.pmma;
+    const n = planeNormal(p.plan);
+    const poly = p.poly.map((q) => ({ x: q.x * k, y: q.y * k }));
+    const holes = (p.holes ?? []).map((h) => h.map((q) => ({ x: q.x * k, y: q.y * k })));
+    for (const pos of mirrored(p)) {
+      // Sens de l'éclaté : du côté où la pièce se trouve déjà. Une pièce pile au
+      // milieu (une entretoise centrale) ne bouge pas, il n'y a rien à dégager.
+      const along = dot(pos, n);
+      const off = scale(n, eclate * Math.sign(along));
+      const center = add(scale(pos, k), off);
+      out.push(...slabFaces(poly, p.plan, center, p.ep * k, color, holes, xf));
+    }
+  }
+  return out;
+}
+
+/** Les deux poses d'une pièce en miroir, ou son unique pose. */
+function mirrored(p: AssemblyPiece): Vec3[] {
+  if (!p.miroir) return [p.pos];
+  const axis = p.miroir as 'x' | 'y' | 'z';
+  return [p.pos, { ...p.pos, [axis]: -p.pos[axis] }];
+}
+
+/** Position d'un AXE d'articulation dans la scène : la pastille rouge nommée du
+ *  dessin, mise à l'échelle et placée. C'est le dessin qui dit où est la hanche,
+ *  plus une constante du code. Rend `null` si l'axe n'est pas dessiné. */
+export function assemblyAxis(
+  a: Assembly, name: string, scaleK = 1, xf: (p: Vec3) => Vec3 = (p) => p,
+): Vec3 | null {
+  const v = a.axes[name];
+  return v ? xf(scale(v, scaleK)) : null;
+}
+
+/**
+ * Cœur commun d'une pièce épaissie : deux flancs triangulés, leurs perçages, et
+ * la tranche. `at(p, s)` place un point du dessin (`p`) à la distance `s` du
+ * plan moyen — c'est lui seul qui distingue une pièce couchée entre deux
+ * articulations d'une plaque posée dans un assemblage.
+ */
+function slabCore(
+  poly: Vec2[], holes: Vec2[][], at: (p: Vec2, s: number) => Vec3,
+  thickness: number, color: string,
+): Face[] {
+  let local = poly;
+  if (signedArea(local) < 0) local = [...local].reverse();
   const t = thickness / 2;
   const out: Face[] = [];
   // Les deux flancs, triangulés et recoupés comme un dessus de prisme. Ils sont
@@ -331,16 +483,15 @@ export function extrudeProfile(
     if (b) sides[1].push(b);
   }
   out.push(...sides[0], ...sides[1]);
-  // Les perçages, sur le flanc que l'on voit. Même mise à l'échelle que le
-  // contour : un trou dessiné à 3 px de rayon reste à 3 px du bord.
+  // Les perçages, sur le flanc que l'on voit. Même repère que le contour : un
+  // trou dessiné à 3 px du bord y reste.
   const dark = shade(color, 0.45);
   for (const hole of holes) {
-    const h = hole.map((p) => ({ x: (p.x + profile.w / 2) * k, y: -p.y * k }));
     for (const [i, s] of [t + 0.05, -t - 0.05].entries()) {
       if (!sides[i].length) continue;
       const front = Math.max(...sides[i].map((f) => f.z));
       const htris: Vec2[][] = [];
-      for (const tri of triangulate(h)) subdivide(tri, htris);
+      for (const tri of triangulate(hole)) subdivide(tri, htris);
       for (const tri of htris) {
         const ordered = i === 0 ? tri : [...tri].reverse();
         const f = face(ordered.map((p) => at(p, s)), dark);

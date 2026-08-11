@@ -23,7 +23,7 @@
 import { css, html, svg, LitElement, type TemplateResult } from 'lit';
 import { ElementPin } from './pin.mjs';
 import {
-  boxFaces, decalFaces, groundShadow, prismFaces, regularPoly, renderFaces, rotZ,
+  boxFaces, decalFaces, groundShadow, prismFaces, regularPoly, renderFaces, rotZ, shade,
   type Face, type Vec2, type Vec3,
 } from './iso3d.mjs';
 import { hasProfile, profile } from './profils.mjs';
@@ -104,42 +104,70 @@ function flatOutline(
   return { poly: turn(p.poly), holes: p.holes.map(turn) };
 }
 
-/** Cartes embarquées, posées à plat sur la plaque : longueur (le long de X),
- *  largeur, épaisseur, décalage en Y, couleur. La Pico W n'est PAS dans la
- *  liste : elle est toujours dessinée (picowFaces), les autres seulement quand
- *  la case « électronique embarquée » est cochée. */
-const BOARDS: readonly { len: number; w: number; h: number; y: number; color: string }[] = [
-  { len: 40, w: 24, h: 4, y: 4, color: '#2b6cb0' }, // PCA9685 16 servos
-  { len: 34, w: 18, h: 10, y: 30, color: '#2f3640' }, // batterie
+/** Une pièce d'électronique posée à plat sur la plaque : son nom de profil
+ *  dessiné, sa longueur (le long de X), sa largeur, son épaisseur, son décalage
+ *  en Y et sa couleur. Le dessin, s'il existe, décide de la SILHOUETTE ; les
+ *  cotes, elles, restent ici — c'est ce qui garde chaque carte à sa place sur
+ *  la plaque quel que soit le contour retouché. */
+type Board = {
+  profil: string; len: number; w: number; h: number; y: number; color: string;
+};
+
+/** Cartes embarquées, dessinées seulement quand la case « électronique
+ *  embarquée » est cochée. La Pico W n'est PAS dans la liste : elle est
+ *  TOUJOURS dessinée (picowFaces), c'est le cerveau du robot. */
+const BOARDS: readonly Board[] = [
+  { profil: 'araignee-pca9685', len: 40, w: 24, h: 4, y: 4, color: '#2b6cb0' }, // PCA9685 16 servos
+  { profil: 'araignee-batterie', len: 34, w: 18, h: 10, y: 30, color: '#2f3640' }, // batterie
 ];
 
 /** Cotes de la carte Pico W posée sur la plaque (la vraie fait 51 × 21 mm) et
  *  couleurs de ses trois repères visibles : circuit vert, blindage du module
  *  radio, prise USB. */
-const PICOW = { len: 46, w: 18, h: 4, y: -22 };
-const PICOW_COLORS = { board: '#1f6b3a', shield: '#b9c1c7', usb: '#d7dcdf' };
+const PICOW: Board = { profil: 'araignee-picow', len: 46, w: 18, h: 4, y: -22, color: '#1f6b3a' };
+const PICOW_COLORS = { shield: '#b9c1c7', usb: '#d7dcdf' };
+
+/**
+ * Le corps d'une pièce d'électronique posée sur la plaque. Si son contour est
+ * dessiné dans `Composants.svg` sous son nom de profil (`araignee-pca9685`,
+ * `araignee-batterie`, `araignee-picow` — mode d'emploi :
+ * docs/fr/Drawing-systems.md), c'est LUI qui donne la silhouette, perçages
+ * compris ; sinon c'est le pavé de repli, aux mêmes cotes.
+ * Retoucher une carte ne demande donc rien d'autre que de la dessiner.
+ */
+function boardFaces(b: Board, top: number): Face[] {
+  if (!hasProfile(b.profil)) {
+    const z = top + b.h / 2;
+    return boxFaces(
+      rotZ({ x: -b.len / 2, y: b.y, z }, YAW), rotZ({ x: b.len / 2, y: b.y, z }, YAW),
+      b.w, b.h, b.color,
+    );
+  }
+  const outline = flatOutline(profile(b.profil), b.len, b.y);
+  const body = prismFaces(outline.poly, top, top + b.h, b.color);
+  return [
+    ...body,
+    // Perçages et découpes du dessin : des décalques posés sur le dessus, comme
+    // pour la plaque — les creuser ne changerait rien vu d'ici. Teinte : la
+    // couleur de la carte assombrie, pour qu'un trou dans un circuit vert ne
+    // soit pas de la même encre qu'un trou dans une pile.
+    ...outline.holes.flatMap((h) => decalFaces(h, top + b.h, shade(b.color, 0.55), body)),
+  ];
+}
 
 /**
  * La carte Pico W du robot, TOUJOURS dessinée : depuis la v2026.8.24 le robot
  * n'a plus aucune connectique, c'est cette carte qu'on programme — la voir sur
  * le dos de la bête est ce qui l'explique. Vue volontairement simpliste : le
  * circuit vert, le blindage carré du module radio et la prise USB suffisent à la
- * reconnaître à cette taille.
- * Si le contour est dessiné dans `Composants.svg` sous le nom `araignee-picow`,
- * c'est LUI qui donne la silhouette (mode d'emploi : docs/fr/Drawing-systems.md) ;
- * le blindage et la prise restent posés dessus, aux mêmes places.
+ * reconnaître à cette taille. Le contour vient du dessin s'il existe ; le
+ * blindage et la prise restent posés dessus, aux mêmes places.
  */
-function picowFaces(top: number, name = 'araignee-picow'): Face[] {
-  const z = top + PICOW.h / 2;
+function picowFaces(top: number): Face[] {
   const at = (x: number, y: number, zz: number): Vec3 => rotZ({ x, y: y + PICOW.y, z: zz }, YAW);
-  const body = hasProfile(name)
-    ? prismFaces(flatOutline(profile(name), PICOW.len, PICOW.y).poly,
-      top, top + PICOW.h, PICOW_COLORS.board)
-    : boxFaces(at(-PICOW.len / 2, 0, z), at(PICOW.len / 2, 0, z),
-      PICOW.w, PICOW.h, PICOW_COLORS.board);
   const deck = top + PICOW.h;
   return [
-    ...body,
+    ...boardFaces(PICOW, top),
     // Blindage du module radio (côté arrière de la carte) : un carré posé à plat.
     ...boxFaces(at(6, 0, deck + 0.8), at(15, 0, deck + 0.8), 13, 1.6, PICOW_COLORS.shield),
     // Prise USB, en bout de carte et débordant un peu — c'est par là qu'on
@@ -286,14 +314,7 @@ export class AraigneeElement extends LitElement {
       ...picowFaces(CHASSIS.height + CHASSIS.thickness),
     ];
     if (this.boards) {
-      const top = CHASSIS.height + CHASSIS.thickness;
-      for (const b of BOARDS) {
-        faces.push(...boxFaces(
-          rotZ({ x: -b.len / 2, y: b.y, z: top + b.h / 2 }, YAW),
-          rotZ({ x: b.len / 2, y: b.y, z: top + b.h / 2 }, YAW),
-          b.w, b.h, b.color,
-        ));
-      }
+      for (const b of BOARDS) faces.push(...boardFaces(b, CHASSIS.height + CHASSIS.thickness));
     }
     return html`
       <svg width="400" height="400" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">

@@ -4,9 +4,18 @@ The spider robot and its leg are not SVG files pasted on screen: they are **volu
 
 The price was that shapes were **hard-coded**: the chassis was `regularPoly(8, 55)`, an octagon; the bones were boxes. Not a single pencil stroke in there. This guide describes the path opened in v2026.8.23: **you draw the outline of a part, the engine turns it into a volume**. The drawing stays yours; the kinematics, the shading and the depth sorting stay with the engine.
 
+There are **two ways** to draw, and the guide covers them in order:
+
+| | What you draw | What comes out | For |
+| --- | --- | --- | --- |
+| **Profile** | **one** flat part, at any scale | the part, scaled by the component | a silhouette: the robot chassis, a leg bone, a board |
+| **Assembly** | **several** flat parts, **in millimetres**, each with its pose | the complete build, dimensions kept | a sandwich body: two 3 mm sides with the servos between them |
+
+The difference fits in one sentence: in a profile only the **proportions** matter; in an assembly **the dimensions are the information** — between two sides, 3 mm of material and 25 mm of gap are not recomputed, they are measured.
+
 This guide is for people working on **the repository**. For a regular flat component (a diode, a sensor), the chain is different and described in [Creating a Kablix component](Creating-components.md).
 
-In a hurry? Jump to [original drawing, and what comes out](#original-drawing-and-what-comes-out): three pictures are worth the page.
+In a hurry? Jump to [original drawing, and what comes out](#original-drawing-and-what-comes-out): three pictures are worth the page. Here for the sandwich body? That is [Assembling several parts](#assembling-several-parts).
 
 ---
 
@@ -20,15 +29,29 @@ In a hurry? Jump to [original drawing, and what comes out](#original-drawing-and
 
 ## The chain at a glance
 
+**A profile** — one part, at any scale:
+
 | # | Step | Command / file |
 | --- | --- | --- |
 | 1 | Draw the outline of the part | `Composants.svg`, group `<name>-profil` |
-| 2 | Read it | `node scripts/_extract-profils.mjs <name>` → `src/webview/composants/profils.mts` |
+| 2 | Read it | `npm run profil <name>` → `src/webview/composants/profils.mts` |
 | 3 | Look at it | `node scripts/_capture-profil.mjs <name>:plat` then `<name>:plaque` or `<name>:piece` |
 | 4 | Turn it into a volume | nothing to do if the name is already expected (table below), otherwise the element |
 | 5 | Check | `npm run verify:profils` |
 
-Step 4 is empty in the common case: components **already look for** their profiles by name and fall back to the hard-coded shape as long as the drawing does not exist. Drawing `araignee-chassis` and extracting it is enough to change the robot's silhouette, without touching a line of TypeScript.
+**An assembly** — several parts, in millimetres:
+
+| # | Step | Command / file |
+| --- | --- | --- |
+| 1 | Draw the parts, each with its **pose label** | `Composants.svg`, groups `<assembly>-<part>` |
+| 2 | Read it and **watch it turn** | `npm run montre <assembly>` |
+| 3 | Store it only (no window) | `npm run assemblage <assembly>` → `src/webview/composants/assemblages.mts` |
+| 4 | Produce the doc pictures | `node scripts/_capture-profil.mjs <assembly>:assemblage` and `:eclate` |
+| 5 | Check | `npm run verify:assemblage` |
+
+Step 4 of the profile chain is empty in the common case: components **already look for** their profiles by name and fall back to the hard-coded shape as long as the drawing does not exist. Drawing `araignee-chassis` and extracting it is enough to change the robot's silhouette, without touching a line of TypeScript.
+
+On the assembly side, `npm run montre` does steps 1 to 3 in one go: it re-reads the drawing, stores it, and opens the scene in a window where you can turn it. That is **the** working loop — redraw in Inkscape, run it again, look.
 
 ---
 
@@ -82,17 +105,19 @@ The names the code already looks for — drawing them is enough, there is nothin
 | --- | --- | --- | --- |
 | `araignee-chassis` | spider robot plate | plate | eight-sided octagon |
 | `araignee-picow` | Pico W board sitting on the robot's back | plate | 46 × 18 box |
+| `araignee-pca9685` | 16-servo board, on the plate | plate | 40 × 24 box |
+| `araignee-batterie` | battery pack, on the plate | plate | 34 × 18 box |
 | `patte-femur` | hip → knee bone | part | box |
 | `patte-tibia` | knee → foot bone | part | box |
 
-> Draw `araignee-picow` **seen from above, USB to the left**: the outline is scaled on its **length** (46 scene units), the radio shield and the USB socket are laid on top by the code.
+> **The on-board electronics is redrawable like everything else** (v2026.8.26). Draw each board **seen from above, connector to the left**: the outline is scaled on its **length** (46, 40 or 34 scene units), its holes are laid as decals in a darkened shade of the board, and **its place on the plate does not change** — the code holds that, so nothing overlaps. On the Pico W, the radio shield and the USB socket are still laid on top by the code.
 
 ---
 
 ## Reading it
 
 ```bash
-node scripts/_extract-profils.mjs araignee-chassis patte-femur
+npm run profil araignee-chassis patte-femur     # = node scripts/_extract-profils.mjs
 ```
 
 Output:
@@ -189,7 +214,134 @@ It is **pure computation** — no browser, under a second. It checks the engine 
 
 ---
 
+## Assembling several parts
+
+A profile says one thing only: a silhouette. It cannot say **where** a part sits relative to another, and that is exactly what a **sandwich body** needs: two 3 mm PMMA sides, the hip servos clamped between them, a spacer at the front. None of that shows on the flat sheet — and a still picture will not tell you whether the servos fit.
+
+An **assembly** answers that. It is a set of flat parts, **in millimetres**, each carrying its **pose** written in plain words inside the drawing. The drawing stays what it must stay: a **laser-cutting plan**, with the parts laid side by side on the sheet. Where a part sits on the sheet does not matter; its label does.
+
+### The drawing
+
+In `Composants.svg` (or a separate sheet, see `--source=`):
+
+- **One part = one group whose `id` starts with the assembly name**, followed by the part name: `araignee-corps-flanc`, `araignee-corps-servo`. The `-profil` suffix is still tolerated (`araignee-corps-flanc-profil`); the name kept is whatever follows the assembly name.
+- **The sheet must be in millimetres.** `Composants.svg` already is (`width="…mm"` with a `viewBox` of the same number: 1 unit = 1 mm). A sheet in CSS pixels is converted, but you no longer know what you are dimensioning.
+- **A text inside the group gives the pose**: `flanc pos=28,0,0 ep=12 mat=servo miroir=x`. It is a plain `<text>`, placed wherever you like in the group — under the part reads well.
+- **Outline, holes and curves** follow exactly the rules of a profile (closed outline, holes contained inside, no self-crossing path).
+- **A named red pad = an axis.** Same convention as component pins: the text **above** the pad names it, and its centre becomes a 3D point of the assembly.
+
+### The pose label
+
+One plane word, then `key=value` pairs in any order:
+
+```text
+flanc pos=28,0,0 ep=12 mat=servo miroir=x
+```
+
+| Word | Role | Default |
+| --- | --- | --- |
+| `dessus` / `flanc` / `face` | **mandatory, first**: how the drawing lies (top / side / front) | — |
+| `pos=x,y,z` | centre of the part in the assembly frame, in mm | `0,0,0` |
+| `ep=3` | thickness of the part, in mm | `3` |
+| `mat=pmma` | material, that is to say the colour | `pmma` |
+| `miroir=x` | the part is laid **twice**, mirrored | no mirror |
+
+`miroir` alone (no `=`) means `miroir=y`. An unknown value (`mat=titane`, `pos=3,4`) is ignored and the default applies: the part then shows up visibly wrong, rather than silently.
+
+The keywords stay in French, like the ids of the drawing: they are written in Inkscape next to `plaque` and `flanc`, and one language per sheet is one confusion less.
+
+### The three planes
+
+The world frame is the engine's: **X to the right, Y towards the back, Z up**. An SVG `y` goes **down** — which explains the middle column.
+
+| Plane | The drawing is seen | drawing `x` | drawing `y` | Thickness runs | Examples |
+| --- | --- | --- | --- | --- | --- |
+| `dessus` | from above, **front at the top** | to the right | towards the **back** | vertically | plates, decks, bridges |
+| `flanc` | from the side, **front to the left** | towards the **back** | **downwards** | across the robot | the two sides, a servo lying down |
+| `face` | from the front | to the right | **downwards** | front to back | bulkhead, spacer, front cover |
+
+**A part is placed by its CENTRE** (the middle of its bounding box): `pos` is the centre of the part, not its corner. That is what makes mirroring immediate — a side at `pos=0,-9,0` with `miroir=y` gives both sides, 18 mm apart.
+
+### Materials
+
+The word gives the colour, and nothing else: no simulation, no mass.
+
+| `mat=` | Colour | For |
+| --- | --- | --- |
+| `pmma` | light blue | laser-cut PMMA — the default |
+| `alu` | light grey | brackets, metal spacers |
+| `servo` | black | a servo, a motor, a solid block |
+| `carte` | green | a printed circuit board |
+| `laiton` | gold | screws, threaded standoffs |
+| `pile` | slate grey | cells, battery packs |
+
+### Axes
+
+A **red pad** in a part's group marks a notable point: a hip axis, a knee, a pivot. The nearest text **above** it names it (`hanche-g`), exactly like a pin name on the component sheet. Its coordinates are computed **in the assembly frame**, pose included.
+
+That is the key point of the protocol: **the drawing says where the hip is**, not a constant in the code. Move the hole in Inkscape and the axis follows.
+
+### Watching it turn
+
+```bash
+npm run montre araignee-corps
+```
+
+The command re-reads the drawing, stores it, and opens a Chrome window on the scene — **the real engine**, the component's own, not an approximate preview.
+
+| In the window | What it is for |
+| --- | --- |
+| **Drag in the view** (or the *lacet* slider) | turn around it: the angle where things clash is never the first one |
+| **éclaté** slider | pull the parts apart along their thickness — the only way to see what sits between two sides 3 mm apart |
+| **zoom** slider | inspect a detail |
+| **pièces** checkboxes | hide one side to see inside |
+| **axes dessinés** checkbox | show the named pads, at their 3D place |
+
+The panel shows the **overall size in millimetres** (`100 × 80 × 31 mm`): the figure you read on an assembly drawing, and the first sign that a part is laid the wrong way.
+
+Two handy options: `--source=docs/exemples/corps-demo.svg` to read another sheet, `--sans-lire` to reopen without re-reading the drawing (when only the engine changed).
+
+### Original drawing, and what comes out
+
+The complete example is in [`docs/exemples/corps-demo.svg`](../exemples/corps-demo.svg): a sandwich robot body, **three drawn parts** that become **five** once laid out.
+
+| The drawing | Assembled | Exploded |
+| --- | --- | --- |
+| ![Cutting plan of the demo body](../exemples/corps-demo.svg) | ![The body assembled](../img/systemes/corps-demo.webp) | ![The same body, exploded](../img/systemes/corps-demo-eclate.webp) |
+| Three groups side by side, like a cutting plan: the plate (`dessus pos=0,0,14 ep=3 miroir=z`), the servo (`flanc pos=28,0,0 ep=12 mat=servo miroir=x`), the spacer (`face pos=0,-36,0 ep=3`). | The two plates 14 mm either side of the mid-plane: 25 mm of air between them, just what a lying servo needs. Overall size: 100 × 80 × 31 mm. | Every part pulled apart along its thickness. The servos appear: this is the view that answers "does it fit?". |
+
+Both pictures on the right are produced by the real engine:
+
+```bash
+node scripts/_capture-profil.mjs corps-demo:assemblage corps-demo:eclate
+```
+
+### Storing and checking it
+
+```bash
+npm run assemblage araignee-corps      # reads and stores, no window
+npm run assemblage -- --list           # what is already stored
+npm run verify:assemblage              # the bench
+```
+
+Output of the read:
+
+```text
+  ✓ entretoise : 5 points, 40×25 mm, face ép.3 pmma
+  ✓ plaque : 10 points, 100×80 mm, dessus ép.3 pmma miroir=z, 3 trou(s)
+  ✓ servo : 5 points, 23×23 mm, flanc ép.12 servo miroir=x, 1 trou(s)
+  → corps-demo : 3 pièce(s), 2 axe(s), 100×80×31 mm
+```
+
+`src/webview/composants/assemblages.mts` is **generated**, and it is **its own archive**: the tool reads it back before rewriting it, so extracting one assembly does not make the others disappear. Like `profils.mts`, it reads well in a `git diff` but is not edited by hand.
+
+The `verify:assemblage` bench is pure computation, like the profile one. It exercises **label parsing** (a negative position must survive whole — `pos=0,-9,0` has already been read as three words), the **planes** (a 100 mm plate lying flat is 100 × 80 × 3, never 103 × 83 × 35), the **mirror**, the **exploded view** (each part moves to the side it already sits on, a central part does not move), then **every stored assembly**: known plane and material, centred outline, dimensions consistent, overall size consistent with the computation, axes inside the box.
+
+---
+
 ## Cheat sheet
+
+**Profiles** (one part):
 
 - A profile is **one closed outline** plus its holes, in a group named `<name>-profil`.
 - Plate = seen from **above**, top of drawing = front. Part = seen from the **side**, left → right = first → second joint.
@@ -199,3 +351,15 @@ It is **pure computation** — no browser, under a second. It checks the engine 
 - `profils.mts` is **generated**: read it, don't edit it.
 - Extracting one profile does not lose the others.
 - Look at the `:plat` mode **before** suspecting the engine.
+
+**Assemblies** (several parts):
+
+- One part = one group `<assembly>-<part>` plus **a pose label** in plain words.
+- Everything is in **millimetres**, and dimensions are kept: it is a cutting plan, not a proportion.
+- The label **always** starts with the plane: `dessus`, `flanc` or `face`.
+- `pos` is the **centre** of the part, not its corner.
+- `miroir` lays the part **twice**: one side drawing gives both sides.
+- A **named red pad** becomes an axis — the drawing says where the hip is.
+- `npm run montre <name>` reads, stores and opens: that is the working loop.
+- The **éclaté** slider is the only way to see what sits between two sides.
+- `assemblages.mts` is **generated**, and it is its own archive.

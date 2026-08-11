@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200mm" height="140mm" viewBox="0 0 200 140">
+  <!-- Assemblage de démonstration du guide « Dessiner les systèmes en volume ».
+       Un corps de robot en sandwich : deux plaques de PMMA de 3 mm, les servos
+       de hanche pris entre elles, une entretoise à l'avant.
+       Les pièces sont posées CÔTE À CÔTE, comme un plan de découpe laser : ce
+       n'est pas leur place sur la planche qui compte, c'est leur étiquette.
+       Planche en millimètres (width="200mm", viewBox de 200) : 1 unité = 1 mm. -->
+  <style>
+    text { font: 4px sans-serif; fill: #33566a; text-anchor: middle; }
+    .piece { fill: #bcdff0; stroke: #5a7d8c; stroke-width: 0.6; }
+    .bloc { fill: #b6bcc2; stroke: #5a6067; stroke-width: 0.6; }
+  </style>
+
+  <!-- Plaque du corps : vue de dessus, l'avant du robot en haut du dessin.
+       Posée deux fois (miroir=z), à 14 mm de part et d'autre du plan médian :
+       25 mm d'air entre les deux, juste ce qu'il faut pour un servo couché. -->
+  <g id="corps-demo-plaque-profil">
+    <path class="piece" fill-rule="evenodd" d="M 22,10 H 98 L 110,22 V 78 L 98,90 H 22 L 10,78 V 22 Z
+      M 50,50 a 10,10 0 1,0 20,0 a 10,10 0 1,0 -20,0 Z
+      M 29,50 a 3,3 0 1,0 6,0 a 3,3 0 1,0 -6,0 Z
+      M 85,50 a 3,3 0 1,0 6,0 a 3,3 0 1,0 -6,0 Z" />
+    <text x="32" y="45">hanche-g</text>
+    <circle cx="32" cy="50" r="1.2" fill="#ee0000" />
+    <text x="88" y="45">hanche-d</text>
+    <circle cx="88" cy="50" r="1.2" fill="#ee0000" />
+    <text x="60" y="100">dessus pos=0,0,14 ep=3 miroir=z</text>
+  </g>
+
+  <!-- Servo de hanche : un bloc, pas une plaque de PMMA. Vu de côté, il est
+       posé à ±28 mm de l'axe du robot — donc deux exemplaires (miroir=x),
+       chacun serré entre les deux plaques. -->
+  <g id="corps-demo-servo-profil">
+    <path class="bloc" fill-rule="evenodd" d="M 140,20 H 163 V 43 H 140 Z
+      M 148,26 a 3.5,3.5 0 1,0 7,0 a 3.5,3.5 0 1,0 -7,0 Z" />
+    <text x="151.5" y="50">flanc pos=28,0,0 ep=12 mat=servo miroir=x</text>
+  </g>
+
+  <!-- Entretoise avant : une cloison verticale en travers du corps, qui tient
+       l'écartement des deux plaques. Une seule, pas de miroir. -->
+  <g id="corps-demo-entretoise-profil">
+    <path class="piece" d="M 135,75 H 175 V 100 H 135 Z" />
+    <text x="155" y="107">face pos=0,-36,0 ep=3</text>
+  </g>
+</svg>
