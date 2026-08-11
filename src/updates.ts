@@ -4,10 +4,12 @@ import * as vscode from 'vscode';
 // embarquées. Kablix est hors-ligne par défaut : ce module n'est sollicité
 // que sur action explicite (commande) ou réglage opt-in.
 
-// Versions actuelles lues à l'exécution dans package.json (champ dependencies).
-// Le bundle est CommonJS : require est disponible.
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const pkg = require('../package.json') as { dependencies?: Record<string, string> };
+// Versions actuelles des bibliothèques, figées AU BUILD par esbuild (`define`)
+// depuis le champ `dependencies` de package.json. Un `require('../package.json')`
+// aurait fondu le manifeste entier — 10,7 Ko — dans le bundle de l'extension,
+// lus et analysés à chaque démarrage de VS Code pour trois numéros de version.
+declare const __DEPENDENCIES__: Record<string, string>;
+const DEPENDENCIES: Record<string, string> = __DEPENDENCIES__;
 
 // Bibliothèques de simulation surveillées.
 const WATCHED_PACKAGES = ['avr8js', 'rp2040js', 'lit'] as const;
@@ -60,7 +62,7 @@ async function fetchLatestVersion(pkgName: string): Promise<string | null> {
 // Vérifie chaque bibliothèque surveillée et ne renvoie que celles dont une
 // version plus récente existe. Un échec par paquet n'interrompt pas le reste.
 export async function checkLibraryUpdates(): Promise<LibraryUpdate[]> {
-  const deps = pkg.dependencies ?? {};
+  const deps = DEPENDENCIES;
   const results = await Promise.all(
     WATCHED_PACKAGES.map(async (name): Promise<LibraryUpdate | null> => {
       const current = deps[name];

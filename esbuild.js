@@ -1,6 +1,7 @@
 // Build de l'extension Kablix.
-// Produit deux bundles :
+// Produit trois bundles :
 //   - dist/extension.js : code de l'extension (hôte Node, externe : vscode)
+//   - dist/zip.js       : JSZip seul, chargé au premier .projix (cf. src/zip.ts)
 //   - dist/webview.js   : code du simulateur exécuté dans la webview (navigateur)
 const esbuild = require('esbuild');
 const fs = require('fs');
@@ -14,6 +15,12 @@ const watch = process.argv.includes('--watch');
 // le nom Kablix pour confirmer, pendant les tests F5, qu'on exécute bien le
 // dernier build (cf. habitude de codage). Figée à la compilation.
 const BUILD_TIME = new Date().toLocaleTimeString('fr-FR', { hour12: false });
+
+// Versions des bibliothèques de simulation (avr8js, rp2040js, lit…) injectées
+// dans l'extension : updates.ts les compare au registre npm. Injectées une par
+// une plutôt que par require du manifeste — 10,7 Ko de package.json en moins
+// dans dist/extension.js, donc autant de moins à lire au démarrage.
+const DEPENDENCIES = require('./package.json').dependencies ?? {};
 
 // Posters de brochage (bouton ☢) : ~3,7 Mo de SVG à eux cinq. Ils ne sont PAS
 // inlinés dans webview.js — la webview les chargerait à chaque ouverture de
@@ -63,6 +70,25 @@ const extensionConfig = {
   platform: 'node',
   format: 'cjs',
   target: 'node18',
+  // `./zip` reste un require différé vers dist/zip.js, voisin de dist/extension.js :
+  // les 115 Ko de JSZip ne sont ni lus ni analysés au démarrage de VS Code.
+  external: ['vscode', './zip.js'],
+  // Versions des bibliothèques surveillées (updates.ts) : figées ici plutôt que
+  // via `require('../package.json')`, qui aurait inliné tout le manifeste.
+  define: { __DEPENDENCIES__: JSON.stringify(DEPENDENCIES) },
+  sourcemap: !production,
+  minify: production,
+  logLevel: 'info',
+};
+
+/** @type {import('esbuild').BuildOptions} */
+const zipConfig = {
+  entryPoints: ['src/zip.ts'],
+  bundle: true,
+  outfile: 'dist/zip.js',
+  platform: 'node',
+  format: 'cjs',
+  target: 'node18',
   external: ['vscode'],
   sourcemap: !production,
   minify: production,
@@ -93,12 +119,14 @@ async function main() {
   copyPinouts();
   if (watch) {
     const ctxExt = await esbuild.context(extensionConfig);
+    const ctxZip = await esbuild.context(zipConfig);
     const ctxWeb = await esbuild.context(webviewConfig);
-    await Promise.all([ctxExt.watch(), ctxWeb.watch()]);
+    await Promise.all([ctxExt.watch(), ctxZip.watch(), ctxWeb.watch()]);
     console.log('[watch] build initial terminé, surveillance des fichiers…');
   } else {
     await Promise.all([
       esbuild.build(extensionConfig),
+      esbuild.build(zipConfig),
       esbuild.build(webviewConfig),
     ]);
   }

@@ -1,7 +1,7 @@
 # À faire
 ## Composants
 1. 
-1. Raccourcir le temps d'activation de l'extension 
+1. ⬜ **À décider (Frank) : supprimer `onStartupFinished`** de `package.json`. L'extension s'active aujourd'hui à CHAQUE fenêtre VS Code, même sans projet Kablix. Les points d'activation implicites (commandes, vue `kablix.home`, éditeur `.projix`) suffiraient — l'activation ne coûterait plus rien quand Kablix ne sert pas. Piège identifié : la vue devient visible AVANT que `activate()` ne pose `onDidChangeVisibility`, donc le clic sur l'icône n'ouvrirait plus l'atelier tant que le cas « déjà visible à l'activation » n'est pas traité — et le distinguer d'une restauration de session est exactement ce que le garde-fou des 1,2 s combat. À faire seulement avec un essai F5 sous la main.
 
 ## Dessin de l'arraignée 
 1. On passe les couleurs de remplissage sous la forme rgba #rrggbbaa
@@ -13,6 +13,15 @@
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# >>>>  v2026.8.32 — l'extension démarre deux fois plus vite : le zip attend qu'on lui demande un projet
+
+1. ✅ **Mesure d'abord, pas d'intuition.** Un banc hors VS Code (faux module `vscode`) sépare les deux temps : le CHARGEMENT du bundle et l'appel à `activate()`. Verdict : `activate()` ne coûte rien (0,6 ms — il ne fait qu'enregistrer 17 commandes et une vue), tout le temps partait dans la lecture et l'analyse de `dist/extension.js`. Le poids par module (metafile esbuild) désignait le coupable : **JSZip et son moteur de compression pako = 115 Ko sur 248**, soit la MOITIÉ du bundle, chargés à chaque démarrage de VS Code alors qu'ils ne servent qu'à ouvrir ou enregistrer un `.projix`.
+2. ✅ **JSZip a son propre bundle** (`src/zip.ts` → `dist/zip.js`), requis à la demande par `projix.ts` au premier zip touché — plus rien à lire ni à analyser au démarrage. `dist/extension.js` : **248 Ko → 114 Ko**. Un simple `await import('jszip')` n'aurait différé que l'exécution, pas la lecture : le code serait resté dans le fichier.
+3. ✅ **Le manifeste n'est plus fondu dans le bundle.** `updates.ts` faisait `require('../package.json')` pour trois numéros de version : 10,7 Ko de manifeste inlinés et évalués à chaque démarrage. Les versions surveillées sont désormais figées au build par esbuild (`define: __DEPENDENCIES__`).
+4. ✅ **Résultat mesuré : 29,5 ms → 12,5 ms** de chargement (−58 %), `activate()` inchangé à 0,6 ms.
+5. ✅ **Aller-retour `.projix` rejoué** avec le zip différé (archive écrite puis relue, manifeste et schéma intacts) ; `dist/zip.js` ajouté aux exceptions de `.vscodeignore` — sans lui, plus aucun projet ne s'ouvrirait dans le paquet publié.
+6. ✅ `npm run typecheck`, `npm run build` et `npm run verify:all` verts (banc `verify:updates` réaccordé au nouveau `define`).
 
 # >>>>  v2026.8.31 — le bouton ferme enfin le circuit : le condensateur d'antirebond se vide dedans
 

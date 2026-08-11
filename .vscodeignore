@@ -21,13 +21,16 @@ PROGRESSION.md
 # --- Journaux ---
 **/*.log
 
-# --- dist : les deux bundles esbuild + les posters de brochage ---
+# --- dist : les trois bundles esbuild + les posters de brochage ---
+# dist/zip.js : JSZip seul, requis à la demande par dist/extension.js (premier
+# .projix ouvert ou enregistré). Sans lui, plus aucun projet ne s'ouvre.
 # dist/pinout/*.svg : posters du bouton ☢, volontairement HORS du bundle
 # (chargés à chaque ouverture sinon) et récupérés par fetch à la demande.
 # Sans cette exception le vsix les perdrait et le bouton ☢ resterait sans effet.
 # Ils sont passés à SVGO au build (esbuild.js) : 3,6 Mo → 1,8 Mo.
 dist/**
 !dist/extension.js
+!dist/zip.js
 !dist/webview.js
 !dist/pinout/**
 

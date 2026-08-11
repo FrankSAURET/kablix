@@ -1,5 +1,15 @@
 import * as vscode from 'vscode';
-import JSZip from 'jszip';
+// JSZip (et son moteur de compression pako) pèsent 115 Ko — la moitié du bundle
+// de l'extension — alors qu'ils ne servent qu'à ouvrir ou enregistrer un projet.
+// Import de TYPE seulement ici : la bibliothèque vit dans son propre bundle
+// (`src/zip.ts` → `dist/zip.js`) et n'est lue qu'au premier zip touché, si bien
+// que le démarrage de VS Code ne la paie plus du tout.
+import type JSZip from 'jszip';
+
+/** Charge JSZip à la demande (une seule fois : le require est mis en cache). */
+async function jszip(): Promise<JSZip> {
+  return (await import('./zip.js')).JSZip;
+}
 
 /**
  * Format de projet Kablix « .projix » : une archive ZIP autonome contenant le
@@ -64,7 +74,7 @@ export async function packProject(opts: {
   diagramJson: string;
   codeRoot?: vscode.Uri;
 }): Promise<Uint8Array> {
-  const zip = new JSZip();
+  const zip = new (await jszip())();
   zip.file('kablix.json', JSON.stringify(opts.manifest, null, 2));
   zip.file('diagram.json', opts.diagramJson);
 
@@ -84,7 +94,7 @@ export async function packProject(opts: {
 
 /** Ouvre une archive .projix et en extrait le manifeste, le schéma et le code. */
 export async function unpackProject(bytes: Uint8Array): Promise<UnpackedProject> {
-  const zip = await JSZip.loadAsync(bytes);
+  const zip = await (await jszip()).loadAsync(bytes);
 
   const manifestEntry = zip.file('kablix.json');
   if (!manifestEntry) {

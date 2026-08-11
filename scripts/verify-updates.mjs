@@ -59,6 +59,12 @@ export default { Uri, l10n, window, env, workspace, ExtensionMode };
 `;
 writeFileSync(join(tmp, 'vscode-stub.mjs'), STUB);
 
+// Versions installées, lues dans le vrai package.json : le build les injecte
+// dans le module (`define`), et ce banc doit faire pareil.
+const { dependencies } = JSON.parse(
+	await import('node:fs/promises').then((fs) => fs.readFile(join(ROOT, 'package.json'), 'utf8'))
+);
+
 const out = join(tmp, 'updates.mjs');
 await esbuild.build({
 	entryPoints: [join(ROOT, 'src/updates.ts')],
@@ -67,14 +73,11 @@ await esbuild.build({
 	platform: 'node',
 	format: 'esm',
 	logLevel: 'silent',
+	define: { __DEPENDENCIES__: JSON.stringify(dependencies ?? {}) },
 	alias: { vscode: join(tmp, 'vscode-stub.mjs') },
 });
 const { promptLibraryUpdates } = await import(pathToFileURL(out).href);
 
-// Versions installées, lues dans le vrai package.json (le module fait pareil).
-const { dependencies } = JSON.parse(
-	await import('node:fs/promises').then((fs) => fs.readFile(join(ROOT, 'package.json'), 'utf8'))
-);
 const RP_ACTUEL = dependencies.rp2040js.replace(/^[^\d]*/, '');
 const [maj, min, patch] = RP_ACTUEL.split('.').map(Number);
 const RP_NEUF = `${maj}.${min}.${patch + 1}`;
