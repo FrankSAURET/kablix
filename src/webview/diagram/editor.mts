@@ -190,6 +190,25 @@ function customTransistorName(type: string): string {
   return t('Custom {0}', t(TYPE_LABELS[type as TransistorType] ?? type));
 }
 
+/** Minuscules SANS accents : « Résistance » se trouve en tapant « resistance ». */
+function foldText(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, ''); // signes diacritiques décomposés par NFD
+}
+
+/**
+ * Clé de recherche d'un composant : son libellé AFFICHÉ, mais aussi son libellé
+ * d'origine (anglais), son `type` et sa catégorie. Frank cherche indifféremment
+ * « bouton » ou « button », « pot-rot2 » ou « ajustable » — un seul champ, une
+ * seule frappe, quelle que soit la langue de l'interface.
+ */
+function partSearchKey(def: PartDef, label: string): string {
+  const cat = partCategory(def);
+  return foldText([label, def.label, def.type, cat, t(cat)].filter(Boolean).join(' '));
+}
+
 export class Editor {
   readonly diagram: Diagram = { parts: [], wires: [] };
   onChange: (() => void) | null = null;
@@ -245,6 +264,8 @@ export class Editor {
 
   private paletteSort: PaletteSort = 'category';
   private paletteFilter = '';
+  /** Message « aucun résultat », posé sous la barre de recherche. */
+  private paletteEmpty: HTMLElement | null = null;
   private recentTypes: string[] = [];
   private showRecents = true;
   /** Clés des sections de palette repliées (persisté). */
@@ -625,9 +646,15 @@ export class Editor {
   private pinReachablePart: string | null = null;
   private pinReachablePin: string | null = null;
   private onPointerHover = (e: PointerEvent): void => {
-    // Inerte en simulation, pendant un câblage, ou quand un bouton est enfoncé
+    // Inerte en simulation, ou quand un bouton est enfoncé hors câblage
     // (déplacement/pan/marquee en cours) : le hissage ne doit pas perturber un geste.
-    if (this.locked || this.pending || e.buttons !== 0) {
+    //
+    // PENDANT un câblage, au contraire, c'est là qu'il sert le plus : Frank ne
+    // pouvait pas TERMINER un fil sur un trou de platine dès qu'un composant
+    // était posé à côté (son dessin plein vole le clic), alors que la même
+    // broche s'attrapait très bien sans fil en cours. Le halo cliquable
+    // (`pin-hoist-dot`, au-dessus de tout) rattrape le clic pour elle.
+    if (this.locked || (e.buttons !== 0 && !this.pending)) {
       this.clearPinReachable();
       return;
     }
@@ -689,10 +716,46 @@ export class Editor {
     if (!this.pinHoistDot) {
       this.pinHoistDot = document.createElement('div');
       this.pinHoistDot.className = 'pin-hoist-dot';
+      // Le halo n'est pas qu'un repère : il CÂBLE. Une broche recouverte par le
+      // dessin plein d'un voisin restait inaccessible malgré le hissage — celui
+      // d'une PLATINE ne peut d'ailleurs pas jouer (elle passerait devant les
+      // composants enfichés dessus, z figé à 1). Comme le halo est déjà posé
+      // au-dessus de tout, à l'aplomb exact de la broche visée, il relaie le
+      // clic à celle-ci : le trou de platine redevient câblable, composant
+      // voisin ou pas, en câblage comme au repos.
+      this.pinHoistDot.addEventListener('pointerdown', (ev) => {
+        const target = this.pinHoistTarget();
+        if (!target) return;
+        ev.stopPropagation();
+        this.onPinDown(target, ev);
+      });
+      this.pinHoistDot.addEventListener('pointerup', (ev) => {
+        const target = this.pinHoistTarget();
+        if (!target) return;
+        ev.stopPropagation();
+        this.onPinUp(target, ev);
+      });
       this.pinHoistLayer.appendChild(this.pinHoistDot);
     }
     this.pinHoistDot.style.left = `${center.x}px`;
     this.pinHoistDot.style.top = `${center.y}px`;
+    this.pinHoistDot.title = this.pinHoistTitle();
+  }
+
+  /** Broche actuellement sous le halo (celle que le clic doit atteindre). */
+  private pinHoistTarget(): Endpoint | null {
+    const partId = this.pinReachablePart;
+    const pin = this.pinReachablePin;
+    return partId && pin ? { partId, pin } : null;
+  }
+
+  /** Nom affiché de la broche sous le halo (le halo masque le `title` de la pastille). */
+  private pinHoistTitle(): string {
+    const target = this.pinHoistTarget();
+    if (!target) return '';
+    const part = this.diagram.parts.find((p) => p.id === target.partId);
+    if (!part) return '';
+    return pinDisplayName(partDef(part.type).kind, target.pin, part.type, part.attrs);
   }
 
   /**
@@ -1090,7 +1153,7 @@ export class Editor {
     btn.className = 'palette__item';
     const label = custom ? `★ ${def.label}` : t(def.label);
     btn.title = label;
-    btn.dataset.search = label.toLowerCase();
+    btn.dataset.search = partSearchKey(def, label);
     const thumb = this.thumbnail(def);
     const text = document.createElement('span');
     text.className = 'palette__item-label';
@@ -1176,7 +1239,7 @@ export class Editor {
     const data = this.customData.get(def.type);
     const row = document.createElement('div');
     row.className = 'palette__custom';
-    row.dataset.search = `★ ${def.label}`.toLowerCase();
+    row.dataset.search = partSearchKey(def, `★ ${def.label}`);
     const btn = this.paletteButton(def, true);
     btn.title = t('Click: place on canvas — double-click: edit the model');
     btn.addEventListener('dblclick', () => {
@@ -1270,7 +1333,22 @@ export class Editor {
       this.paletteFilter = search.value;
       this.filterPalette();
     });
+    // Échap vide la recherche SANS quitter le champ : on peut retaper aussitôt.
+    search.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape' || search.value === '') return;
+      e.stopPropagation(); // sinon l'éditeur comprend « annuler le geste en cours »
+      search.value = '';
+      this.paletteFilter = '';
+      this.filterPalette();
+    });
     this.palette.appendChild(search);
+
+    // Recherche sans réponse : la palette resterait VIDE sans un mot d'explication.
+    this.paletteEmpty = document.createElement('p');
+    this.paletteEmpty.className = 'palette__empty';
+    this.paletteEmpty.textContent = t('No component matches this search.');
+    this.paletteEmpty.style.display = 'none';
+    this.palette.appendChild(this.paletteEmpty);
 
     const customs = listCustomParts();
     const byLabel = (a: PartDef, b: PartDef): number =>
@@ -1367,10 +1445,14 @@ export class Editor {
    * d'une section repliée restent visibles).
    */
   private filterPalette(): void {
-    const q = this.paletteFilter.trim().toLowerCase();
+    // Recherche par MOTS (ordre libre, accents indifférents) : « pot ajust »
+    // trouve le potentiomètre ajustable, « rgb led » comme « led rgb ».
+    const words = foldText(this.paletteFilter).split(/\s+/).filter(Boolean);
+    const q = words.length > 0 ? words.join(' ') : '';
     let header: HTMLElement | null = null;
     let headerHasVisible = false;
     let collapsed = false;
+    let found = 0;
     const flush = (): void => {
       if (header) header.style.display = !q || headerHasVisible ? '' : 'none';
     };
@@ -1386,13 +1468,17 @@ export class Editor {
         (child.classList.contains('palette__item') && !child.classList.contains('palette__item--create')) ||
         child.classList.contains('palette__custom');
       if (!isItem) continue;
-      const label = child.dataset.search ?? child.textContent?.toLowerCase() ?? '';
-      const match = !q || label.includes(q);
+      const label = child.dataset.search ?? foldText(child.textContent ?? '');
+      const match = words.every((w) => label.includes(w));
       // Hors recherche, une section repliée masque ses items (l'en-tête reste).
       child.style.display = match && (q !== '' || !collapsed) ? '' : 'none';
-      if (match) headerHasVisible = true;
+      if (match) {
+        headerHasVisible = true;
+        found++;
+      }
     }
     flush();
+    if (this.paletteEmpty) this.paletteEmpty.style.display = q && found === 0 ? '' : 'none';
   }
 
   /** Valide puis enregistre un composant importé (fichier .json). */
@@ -1543,9 +1629,22 @@ export class Editor {
     // un clic sec y reste ; le premier déplacement réel bascule le suivi au curseur.
     let at = this.visibleWorldCenter();
     this.centerPartOn(part.id, at);
+    // Aperçu d'enfichage PENDANT le geste (comme un déplacement ordinaire) : sans
+    // lui, les bandes de la platine ne s'allumaient qu'après avoir posé puis
+    // repris le composant. Mêmes règles d'éligibilité que `startDrag` ; les trous
+    // ne bougent pas pendant le geste, une seule collecte suffit.
+    const def = partDef(type);
+    const kind = def.kind;
+    const picoLike = kind === 'mcu' && (def.board === 'pico' || def.board === 'picow');
+    const pluggable = kind !== 'breadboard' && kind !== 'grove-shield' && (kind !== 'mcu' || picoLike);
+    const holes = pluggable ? this.collectBreadboardHoles(part.id, picoLike) : [];
+    const preview = (): void => {
+      if (holes.length > 0) this.previewBreadboardSnap(part, holes);
+    };
     const follow = (): void => {
       if (this.placingFromPalette !== part.id) return;
       this.centerPartOn(part.id, at);
+      preview(); // les broches n'existent qu'après le rendu : on ré-essaie à chaque passage
     };
     // Le dessin peut grossir après coup : on recentre sur quelques frames, avec
     // repli par minuterie (hors écran, rAF n'est jamais appelé).
@@ -1561,10 +1660,12 @@ export class Editor {
       at = this.canvasPoint(ev.clientX, ev.clientY);
       this.centerPartOn(part.id, at);
       this.redrawWires();
+      preview();
     };
     const end = (ev: PointerEvent): void => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', end);
+      this.clearBreadboardHighlights();
       // Clic sec (jamais déplacé) : pose au centre de la vue. Sinon : sous le curseur.
       at = dragged ? this.canvasPoint(ev.clientX, ev.clientY) : this.visibleWorldCenter();
       this.centerPartOn(part.id, at);

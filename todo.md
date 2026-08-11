@@ -1,11 +1,5 @@
 # À faire
 ## Composants
-1. lorsqu'on apport un nouveau composant sur une platine (glisser déposer depuis la bibliothèque) les bornes de la platine qui seront connectées ne s'illumine pas en jaune il faut le poser et le reprendre
-1. Le corp du bouton poussoir est semi transparent. rend le opaque.
-
-1. Rajoute une barre de recherche à la bibliothèque
-
-1. Impossible de connecter un fil sur une platine d'essais si un composant est proche. Pourtant si pas de fil en  cours, les broches sont accessibles
 1. Le routage auto merde sur la platine d'essais. Il passe sur les trous et fait aussi des détours pour sortir de la carte. Le routage auto sur la platin ed'essais doit être particulier, il a le droit depasser partout sur la platine mais doit éviter de recouvrir les trous autant que possible. il devrai aussi mettres des carrés de la couleur du fil sur les pastilles aux point de connection. Du reste ça peut être général (les carrés aux bout des fils). Coté légèrement supérieur à la largeur du fil.
 1. Sur le schéma (H:\Nuage\2I2D SIN\Frank 2026\Séquence N° 03 (TP) - Commande LED\Code Arduino\ComLedRGB\ComLedRGB.projix) l'état des BP n'est pas pris en compte. Le condensateur maintient la tension en permanence à 5v sur 7, 6 et 5
 1. 
@@ -17,6 +11,15 @@
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# >>>>  v2026.8.29 — l'atelier se laisse manœuvrer : les trous s'allument avant la pose, la bibliothèque se cherche, le fil trouve son trou
+
+1. ✅ **Les trous s'allument PENDANT la pose depuis la bibliothèque.** Le jaune n'apparaissait qu'après avoir lâché le composant puis l'avoir repris : l'aperçu d'enfichage n'était câblé que sur le déplacement d'un composant déjà posé. Il l'est maintenant aussi sur la pose (`startPlaceFromPalette`), et **réessayé à chaque passage** de la souris — les broches n'existent qu'une fois le composant rendu, un seul essai serait tombé trop tôt. Extinction garantie au lâcher. Ni platine, ni shield, ni carte à µC (sauf Pico) ne s'enfichent : eux n'allument rien.
+2. ✅ **Le corps du bouton poussoir est opaque** — les deux modèles (`button.svg`, `button-6mm.svg`) portaient un `opacity: 0.85` hérité du dessin d'origine ; on voyait la platine au travers. Illustrations d'aide régénérées ; les deux types manquaient d'ailleurs à `_capture-part.mjs`, ils y sont.
+3. ✅ **La barre de recherche de la bibliothèque cherche vraiment.** Elle existait mais ne comparait que le libellé affiché. Elle accepte désormais le **libellé traduit**, le **libellé anglais**, le **type** (`pot-rot2`), la **catégorie**, les **accents en moins** (« resistance » trouve « Résistance ») et les **mots dans le désordre**. Recherche sans réponse : un message le dit au lieu d'une colonne vide. **Échap** vide le champ sans annuler le geste en cours dans l'atelier.
+4. ✅ **Un fil se termine (et se commence) sur un trou de platine, composant voisin ou pas.** Le dessin plein d'un composant enfiché couvre les trous voisins et vole leur clic ; le hissage habituel ne pouvait pas jouer ici, celui d'une platine étant volontairement bridé (elle passerait devant ce qui est enfiché dessus). C'est le **halo jaune** — déjà posé à l'aplomb exact de la broche visée, au-dessus de tout — qui **relaie le clic** vers elle. Et le repérage de broche, jusqu'ici coupé dès qu'un bouton était enfoncé, **reste actif pendant un câblage** : c'est précisément le moment où il sert.
+5. ✅ **Banc `verify:selection` étendu** : le cas « trou de platine recouvert » (LED enfichée, 20 trous masqués) est rejoué en entier — défaut reproduit, halo visé sur le bon trou, halo cliquable sous le curseur, fil **démarré** puis **terminé** sur un trou recouvert. Le contrôle historique accepte maintenant la pastille **ou** le halo comme cible du clic.
+6. ✅ `npm run typecheck`, `npm run build` et `npm run verify:all` verts.
 
 # >>>>  v2026.8.28 — le potentiomètre ajustable : une vis qu'on tourne, une valeur qui s'écrit toute seule
 

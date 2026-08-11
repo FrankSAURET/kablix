@@ -1,6 +1,2 @@
-
-1. Je souhaiterais régler ce problème de vitesse :
-    1. Pourquoi quand on avait réglé le pb de vitesse, l'horloge marchait bien 1min = 1 min (mesuré au chrono ) et surtout pourquoi ça ne marche plus- Mon PC pourrrait il avoir ralenti ?
-    1. Indique moi précisemment ou sont les consommations de temps
-    1. Un PC plus rapide a-t-il le même problème ?
-    1. Propose un catalogue de solution détaillées Explore tout azimut y compris délégation des calcul à la carte graphique ou réécriture de l'émulateur
+Pour le dessin de l'arraignée je voudrais faire un corps à 2 flancs chacun avec une épaisseur de 3 mm (plaque pmma). Les servo sont pris en sandwiche entre les 2 plaques. Pareil pour l'articulation des pattes. Difficile de faire ce genre de dessin actuellement. Je propose 2 solutions possibles : Je fais le dessin directement en perspective (et tu gère les ombrages) ou je fais le dessin en 3 vues 2d et tu gère la perspective. Pour se rendre compte de ce que ça donne je voudrais une commande cli directement du type "Montre araignee-corps" et la il ferait une visu à partir de l'ensemble des dessin de composants.svg préfixés araignee-corps. De plus actuellement l'électronique embarquée n'est pas retouchable. Je voudrais quel le soit suir le même principe.
+Fait un protocole et retouche le tuto

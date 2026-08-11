@@ -317,6 +317,14 @@ textarea {
   border-radius: 4px;
 }
 
+/* Recherche sans réponse : la palette ne reste pas muette. */
+.palette__empty {
+  margin: 0.2rem 0.1rem;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  opacity: 0.7;
+}
+
 .palette__sort-btn {
   font: inherit;
   font-size: 0.65rem;
@@ -1539,8 +1547,8 @@ body.vscode-light .inspector__ref--nouveau {
 }
 
 /* Couche du rond de sélection + bulle de la broche survolée, AU-DESSUS des fils.
-   Ne contient qu'un halo décoratif (pointer-events:none) : le clic va toujours à
-   la vraie pastille, dont le container est juste hissé au-dessus des corps voisins. */
+   La couche elle-même est transparente aux pointeurs ; seul le halo (ci-dessous)
+   les reçoit, et il relaie le clic à la broche qu'il désigne. */
 .pin-hoist-layer {
   position: absolute;
   inset: 0;
@@ -1548,7 +1556,11 @@ body.vscode-light .inspector__ref--nouveau {
   z-index: 46;
 }
 
-/* Rond de sélection de la broche atteignable (jaune, comme le halo de survol). */
+/* Rond de sélection de la broche atteignable (jaune, comme le halo de survol).
+   CLIQUABLE : c'est lui qui reçoit le clic quand le dessin plein d'un voisin
+   recouvre la broche (trou de platine sous une LED, par exemple) — il le relaie
+   à la vraie pastille. La zone reste petite (14 px) et n'apparaît que lorsque le
+   curseur est déjà à moins de 9 px du centre d'une broche. */
 .pin-hoist-dot {
   position: absolute;
   width: 14px;
@@ -1557,7 +1569,13 @@ body.vscode-light .inspector__ref--nouveau {
   border-radius: 50%;
   background: #ffd633;
   box-shadow: 0 0 6px 2px rgba(255, 214, 51, 0.7);
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: crosshair;
+  /* Taille constante À L'ÉCRAN (comme la bulle de broche) : posé dans le monde,
+     le halo aurait grossi avec le zoom et serait allé recouvrir les trous
+     voisins d'une platine (pas de 10 px). */
+  transform-origin: 50% 50%;
+  transform: scale(calc(1 / var(--kablix-zoom, 1)));
 }
 
 /* Le rectangle de sélection est porté par le corps (qui tourne) : il pivote

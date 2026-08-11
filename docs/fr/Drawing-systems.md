@@ -2,7 +2,7 @@
 
 Le robot araignée et sa patte ne sont pas des SVG posés à l'écran : ce sont des **volumes calculés à chaque image** par le moteur isométrique [`iso3d.mts`](../../src/webview/composants/iso3d.mts). C'est ce qui permet à une patte de se lever pour de bon — un dessin plat, lui, donnait la même image qu'on tourne la hanche ou qu'on plie le genou.
 
-Le prix à payer était que les formes étaient **codées en dur** : le châssis, c'était `regularPoly(8, 55)`, un octogone ; les os, des pavés. Aucun coup de crayon là-dedans. Ce guide décrit la voie ouverte depuis la v2026.8.23 : **vous dessinez le contour d'une pièce, le moteur le met en volume**. Le dessin reste de votre main, la cinématique, l'ombrage et le tri en profondeur restent au moteur.
+Ce guide décrit : **vous dessinez le contour d'une pièce, le moteur le met en volume**. Le dessin reste de votre main, la cinématique, l'ombrage et le tri en profondeur restent au moteur.
 
 Il y a **deux façons** de dessiner, et le guide les traite dans l'ordre :
 
@@ -110,7 +110,7 @@ Les noms que le code cherche déjà — les dessiner suffit, il n'y a rien à br
 | `patte-femur` | os hanche → genou | pièce | pavé |
 | `patte-tibia` | os genou → pied | pièce | pavé |
 
-> **L'électronique embarquée est retouchable comme le reste** (v2026.8.26). Chaque carte se dessine **vue de dessus, connecteur à gauche** : le contour est mis à l'échelle sur sa **longueur** (46, 40 ou 34 unités de scène), ses perçages sont posés en décalques d'une teinte assombrie de la carte, et sa **place sur la plaque ne change pas** — c'est le code qui la tient, pour que rien ne se chevauche. Sur la Pico W, le blindage radio et la prise USB restent posés dessus par le code.
+> **L'électronique embarquée est retouchable comme le reste** . Chaque carte se dessine **vue de dessus, connecteur à gauche** : le contour est mis à l'échelle sur sa **longueur** (46, 40 ou 34 unités de scène), ses perçages sont posés en décalques d'une teinte assombrie de la carte, et sa **place sur la plaque ne change pas** — c'est le code qui la tient, pour que rien ne se chevauche. Sur la Pico W, le blindage radio et la prise USB restent posés dessus par le code.
 
 ---
 

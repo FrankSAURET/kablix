@@ -93,6 +93,7 @@ const FR: Record<string, string> = {
   // Palette
   'Components': 'Composants',
   'Search a component…': 'Rechercher un composant…',
+  'No component matches this search.': 'Aucun composant ne correspond à cette recherche.',
   'Recently used': 'Derniers utilisés',
   'Show recently used': 'Afficher les derniers utilisés',
   'Hide recently used': 'Masquer les derniers utilisés',

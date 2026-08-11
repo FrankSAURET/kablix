@@ -38,6 +38,10 @@ const PARTS = {
   npn: { module: 'transistor-element.mjs', tag: 'kablix-transistor', width: 200, attrs: { text: 'NPN' } },
   pnp: { module: 'transistor-element.mjs', tag: 'kablix-transistor', width: 200, attrs: { symbol: 'pnp', text: 'PNP' } },
   relais: { module: 'relais-element.mjs', tag: 'kablix-relais' },
+  // Boutons poussoirs : capuchon au REPOS, couleur du catalogue pour le grand
+  // modèle (le 6 mm n'a que son capuchon rouge).
+  button: { module: 'pushbutton-element.mjs', tag: 'kablix-pushbutton', attrs: { color: 'green' } },
+  'button-6mm': { module: 'pushbutton-6mm-element.mjs', tag: 'kablix-pushbutton-6mm' },
   // Capteur à effet Hall : boîtier partagé TO92S (dessin étroit et haut comme le
   // TO-92 du transistor) — illustré hors simulation, donc sans son aimant.
   hall: { module: 'hall-element.mjs', tag: 'kablix-hall', width: 160 },

@@ -24,6 +24,7 @@ import '../../src/webview/composants/servo-element.mjs';
 import '../../src/webview/composants/buzzer-element.mjs';
 import '../../src/webview/composants/membrane-keypad-element.mjs';
 import '../../src/webview/composants/7segment-element.mjs';
+import '../../src/webview/composants/breadboard.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const checks = [];
 const ok = (name, cond, detail = '') => checks.push({ name, ok: !!cond, detail: String(detail) });
@@ -774,8 +775,12 @@ async function run() {
 	ok('broche recouverte : au survol, son composant est hissé (.part--pin-reachable)',
 		covLedCont.classList.contains('part--pin-reachable'), covLedCont.className);
 	const hitAfter = document.elementFromPoint(ccx, ccy);
-	ok('broche recouverte : redevient CLIQUABLE au survol (elementFromPoint = .pin)',
-		hitAfter && hitAfter.classList && hitAfter.classList.contains('pin'),
+	// La cible du clic est soit la vraie pastille (hissée), soit le halo posé à son
+	// aplomb : depuis v2026.8.29 le halo est cliquable et RELAIE le clic vers elle
+	// (seule issue quand le hissage ne peut pas jouer, cf. trous de platine).
+	ok('broche recouverte : redevient CLIQUABLE au survol (pastille ou halo)',
+		hitAfter && hitAfter.classList
+			&& (hitAfter.classList.contains('pin') || hitAfter.classList.contains('pin-hoist-dot')),
 		hitAfter ? (hitAfter.className || hitAfter.tagName) : 'null');
 	// Re-survol pour les contrôles « corps sous les fils » + rond de sélection.
 	covCanvas.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: ccx, clientY: ccy, buttons: 0 }));
@@ -798,6 +803,83 @@ async function run() {
 		!covLedCont.classList.contains('part--pin-reachable'), covLedCont.className);
 	ok('broche recouverte : rond de sélection retiré quand on s’éloigne',
 		!(hoistLayer?.querySelector('.pin-hoist-dot')), 'reste=' + !!(hoistLayer?.querySelector('.pin-hoist-dot')));
+
+	// --- Trou de platine recouvert : le halo CÂBLE (item v2026.8.29) -----------
+	// Un composant enfiché couvre de son dessin les trous voisins et vole leur clic.
+	// Le hissage ne peut rien ici : celui d'une platine est bridé (elle passerait
+	// devant ce qui est enfiché dessus). C'est le halo, posé à l'aplomb du trou,
+	// qui relaie le clic — en câblage comme au repos.
+	for (const p of [...editor.diagram.parts]) editor.removePart?.(p.id);
+	await wait(30);
+	const bb = editor.addPart('breadboard', 100, 100);
+	await wait(200);
+	const bbPins = [...editor.rendered.get(bb.id).hotspots.keys()];
+	const bbCible = bbPins.find((n) => /^[a-e]1[0-9]$/i.test(n)) ?? bbPins[Math.floor(bbPins.length / 2)];
+	const plugLed = editor.addPart('led', 600, 600);
+	await wait(200);
+	editor.select(null);
+	editor.centerPartOn(plugLed.id, editor.hotspotCenter({ partId: bb.id, pin: bbCible }));
+	await wait(60);
+	editor.plugPlacedPart(plugLed);
+	await wait(150);
+	editor.zoom = 1; editor.panX = 0; editor.panY = 0; editor.applyTransform();
+	await wait(60);
+	const holeCenter = (pin) => {
+		const r = editor.rendered.get(bb.id).hotspots.get(pin).getBoundingClientRect();
+		return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+	};
+	// Souris fidèle : l'événement part de l'élément réellement sous le curseur.
+	const hover = (x, y) => {
+		const el = document.elementFromPoint(x, y) ?? document.getElementById('canvas');
+		el.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: x, clientY: y, buttons: 0 }));
+	};
+	const ledBody = editor.rendered.get(plugLed.id).container.querySelector('.part__body').getBoundingClientRect();
+	const hidden = bbPins.filter((p) => {
+		const c = holeCenter(p);
+		return c.x >= ledBody.left && c.x <= ledBody.right && c.y >= ledBody.top && c.y <= ledBody.bottom;
+	});
+	ok('trou de platine : des trous sont bien recouverts par la LED enfichée (repro)',
+		hidden.length > 0, hidden.length + ' trous');
+	const hole = hidden[0];
+	const hc = holeCenter(hole);
+	ok('trou de platine : DÉFAUT reproduit (le dessin de la LED vole le clic)',
+		document.elementFromPoint(hc.x, hc.y) !== editor.rendered.get(bb.id).hotspots.get(hole),
+		(document.elementFromPoint(hc.x, hc.y) || {}).tagName);
+	hover(hc.x, hc.y);
+	await wait(40);
+	const holeDot = document.querySelector('.pin-hoist-dot');
+	ok('trou de platine : le halo vise bien ce trou', editor.pinReachablePin === hole,
+		editor.pinReachablePart + '/' + editor.pinReachablePin);
+	ok('trou de platine : le halo est cliquable et sous le curseur',
+		!!holeDot && getComputedStyle(holeDot).pointerEvents === 'auto'
+			&& document.elementFromPoint(hc.x, hc.y) === holeDot,
+		holeDot ? getComputedStyle(holeDot).pointerEvents : 'pas de halo');
+	pdown(holeDot, { clientX: hc.x, clientY: hc.y });
+	await wait(40);
+	ok('trou de platine : le clic sur le halo DÉMARRE un fil depuis le trou',
+		!!editor.pending && editor.pending.from.partId === bb.id && editor.pending.from.pin === hole,
+		editor.pending ? JSON.stringify(editor.pending.from) : 'aucun fil en cours');
+	pup();
+	await wait(30);
+	// Fil EN COURS : le repérage doit continuer (c'est là qu'il servait le moins avant).
+	const hole2 = hidden[1] ?? hidden[0];
+	const hc2 = holeCenter(hole2);
+	hover(hc2.x, hc2.y);
+	await wait(40);
+	ok('trou de platine : le halo suit encore le curseur PENDANT le câblage',
+		editor.pinReachablePin === hole2, editor.pinReachablePart + '/' + editor.pinReachablePin);
+	const wiresBefore = editor.diagram.wires.filter((w) => !w.auto).length;
+	const holeDot2 = document.querySelector('.pin-hoist-dot');
+	if (holeDot2) pdown(holeDot2, { clientX: hc2.x, clientY: hc2.y });
+	await wait(60);
+	const wiresAfter = editor.diagram.wires.filter((w) => !w.auto);
+	const lastWire = wiresAfter[wiresAfter.length - 1];
+	ok('trou de platine : le clic sur le halo TERMINE le fil sur le trou',
+		wiresAfter.length === wiresBefore + 1 && lastWire
+			&& lastWire.b.partId === bb.id && lastWire.b.pin === hole2,
+		lastWire ? lastWire.a.pin + ' → ' + lastWire.b.partId + '/' + lastWire.b.pin : 'aucun fil');
+	ok('trou de platine : plus de fil en cours après le clic', !editor.pending, '');
+	editor.select(null);
 
 	// --- Afficheur 7 seg : 2-points d'horloge (colon) sur le 4 chiffres --------
 	// (item v2026.7.145) : la propriété n'existe QUE pour le 4 chiffres ; active,
