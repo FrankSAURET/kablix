@@ -1202,6 +1202,11 @@ export function capacitorNodes(
     for (const src of sources) {
       const others = new Set(sourceNets);
       others.delete(src.net);
+      // Le nœud analysé n'est jamais un obstacle, même quand une broche du MCU
+      // le pilote : sinon le parcours restait bloqué au départ et la pull-up
+      // interne devenait la SEULE source vue — le condensateur d'antirebond
+      // gardait 5 V, bouton appuyé ou non (Frank, ComLedRGB).
+      others.delete(hot);
       let path: number | null;
       if (src.net === hot) path = 0;
       else path = minOhmsPath(hot, new Set([src.net]), adj, others, undefined, src.volts > 0 ? 'source' : 'sink');
@@ -1839,6 +1844,46 @@ export function commandedBridges(
     const part = diagram.parts.find((p) => p.id === st.partId)!;
     const pins = relayPins(part);
     out.push({ partId: st.partId, a: pins.com, b: st.closed ? pins.no : pins.nf });
+  }
+  return out;
+}
+
+/** État des contacts MANUELS, lu sur les composants à l'écran. */
+export interface ManualContactState {
+  /** Bouton-poussoir enfoncé. */
+  pressed?(partId: string): boolean;
+  /** Interrupteur à glissière : côté (1 ou 3) relié au commun. */
+  slideSide?(partId: string): 1 | 3;
+  /** DIP switch : canal (1..8) fermé. */
+  dipOn?(partId: string, channel: number): boolean;
+}
+
+/**
+ * Contacts fermés à la main : bouton enfoncé, interrupteur basculé. Ce sont des
+ * ponts comme ceux des relais — sans eux le modèle ne voyait PAS le circuit se
+ * fermer, et un condensateur d'antirebond restait chargé par la pull-up alors
+ * que le bouton le mettait à la masse (Frank, ComLedRGB).
+ *
+ * Ils rejoignent la liste des ponts commandés (setActiveBridges) : même point
+ * fixe, mêmes caches invalidés.
+ */
+export function manualContacts(diagram: Diagram, state: ManualContactState): ActiveBridge[] {
+  const out: ActiveBridge[] = [];
+  for (const part of diagram.parts) {
+    const kind = partDef(part.type).kind;
+    if (kind === 'pushbutton') {
+      // Les pastilles jumelles (.r) sont déjà reliées aux .l par la netlist.
+      if (state.pressed?.(part.id)) {
+        out.push({ partId: part.id, a: rolePin(part.type, '1.l'), b: rolePin(part.type, '2.l') });
+      }
+    } else if (kind === 'slide-switch') {
+      const side = state.slideSide?.(part.id);
+      if (side) out.push({ partId: part.id, a: '2', b: String(side) });
+    } else if (kind === 'dip-switch') {
+      for (let ch = 1; ch <= 8; ch++) {
+        if (state.dipOn?.(part.id, ch)) out.push({ partId: part.id, a: `${ch}a`, b: `${ch}b` });
+      }
+    }
   }
   return out;
 }

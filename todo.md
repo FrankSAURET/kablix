@@ -1,8 +1,11 @@
 # À faire
 ## Composants
-1. Sur le schéma (H:\Nuage\2I2D SIN\Frank 2026\Séquence N° 03 (TP) - Commande LED\Code Arduino\ComLedRGB\ComLedRGB.projix) l'état des BP n'est pas pris en compte. Le condensateur maintient la tension en permanence à 5v sur 7, 6 et 5
 1. 
 1. Raccourcir le temps d'activation de l'extension 
+
+## Dessin de l'arraignée 
+1. On passe les couleurs de remplissage sous la forme rgba #rrggbbaa
+1. Les pastilles rouges servent à l'assemblage des sous ensembles (assemblage ou profil : araignee - femur- tibia) ce sont les axes de rotation - même prefix.
  
 1. ⬜ **Pour Frank : dessiner les contours des systèmes** dans `Composants.svg` (groupes `<nom>-profil`, mode d'emploi `docs/fr/Drawing-systems.md`, puis `npm run profil <noms>`). Noms attendus, déjà branchés côté code : `araignee-chassis` (plaque, vue de dessus), **`araignee-picow`**, **`araignee-pca9685`** et **`araignee-batterie`** (cartes du dos, vues de dessus, connecteur à gauche), `patte-femur` et `patte-tibia` (os, vus de côté, gauche → droite entre les deux articulations). Tant qu'un dessin manque, la forme codée en dur tient.
 1. ⬜ **Pour Frank : dessiner le corps en sandwich** — groupes `araignee-corps-<pièce>` dans `Composants.svg`, **en millimètres**, chacun avec son étiquette de pose (`flanc pos=0,-9,0 ep=3 miroir=y`), puis `npm run montre araignee-corps` pour le tourner et l'éclater. Protocole complet : `docs/fr/Drawing-systems.md` → « Assembler plusieurs pièces ». Exemple de départ à copier : `docs/exemples/corps-demo.svg`. **Reste à faire ensuite (code)** : brancher l'assemblage lu sur `araignee-element.mts` (le corps remplace la plaque octogonale, les hanches viennent des pastilles nommées) — l'outillage est prêt, le dessin décidera des cotes.
@@ -10,6 +13,14 @@
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# >>>>  v2026.8.31 — le bouton ferme enfin le circuit : le condensateur d'antirebond se vide dedans
+
+1. ✅ **Un bouton enfoncé est un CONTACT, pas seulement un événement d'interface.** Jusqu'ici l'appui se contentait de forcer la broche du µC à LOW ; le modèle électrique, lui, ne voyait RIEN se fermer. Sur le TP `ComLedRGB` (3 BP + 3 condensateurs de 100 nF sur D7/D6/D5), le condensateur restait donc chargé à 5 V par la pull-up interne, écrasait le niveau du bouton à chaque frame… et l'appui n'était jamais pris en compte. Les contacts fermés à la main (`manualContacts`, model.mts) rejoignent maintenant les **ponts commandés** des transistors et des relais : mêmes arêtes de 0 Ω dans le graphe résistif, même point fixe, mêmes caches invalidés.
+2. ✅ **Le nœud analysé n'est plus son PROPRE obstacle.** Pour chaque source, le modèle interdit le passage par les autres (un rail est une équipotentielle, pas un conducteur de passage) — mais quand une broche du µC pilotait le nœud du condensateur, le nœud lui-même devenait infranchissable : le parcours restait bloqué au départ, et la pull-up interne devenait la SEULE source vue. La masse est de nouveau atteignable, donc l'appui écroule bien la tension (0 V, RC de 0,1 µs) et le relâchement la fait remonter à son rythme (5 V, RC de 6,5 ms — l'antirebond fait exactement son travail).
+3. ✅ **Tous les boutons sont suivis, plus seulement ceux câblés sur une broche.** Un bouton entre une pile et une LED ferme désormais son circuit lui aussi. L'état retenu par le modèle est celui du µC, prolongation comprise (`MIN_PRESS_MS`) : sans ça, un clic bref aurait rechargé le condensateur pendant que le firmware voyait encore l'appui. Les interrupteurs à glissière et les DIP switch passent par le même chemin.
+4. ✅ **Banc `verify:capacitor` étendu** : le montage de Frank en miniature (bouton + 100 nF sur D7, pull-up interne) — relâché 5 V / 6,5 ms, appuyé 0 V / 0,1 µs, contact ouvert quand le bouton l'est. Le schéma `ComLedRGB` complet a été rejoué : au repos les trois nœuds sont à 5 V, et chaque bouton ne vide QUE son condensateur.
+5. ✅ `npm run typecheck`, `npm run build` et `npm run verify:all` verts.
 
 # >>>>  v2026.8.30 — le fil passe SUR la platine, entre les trous, et se termine par un carré
 

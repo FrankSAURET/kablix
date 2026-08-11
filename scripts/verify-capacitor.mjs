@@ -83,6 +83,43 @@ console.log('Modèle RC :');
     Math.abs(node.tau - 0.1) / 0.1 < 0.05 && Math.abs(node.target - 5) < 0.1);
 }
 
+// --- 1 bis. Antirebond RC : le bouton doit décharger le condensateur ---------
+// Montage du TP ComLedRGB (Frank) : bouton entre D7 et la masse, 100 nF en
+// parallèle. La broche restait à 5 V en permanence — l'appui n'était pas vu.
+console.log('Bouton + condensateur d’antirebond :');
+{
+  const wire = (id, a, ap, b, bp) => ({ id, a: { partId: a, pin: ap }, b: { partId: b, pin: bp }, points: [] });
+  const bp = {
+    parts: [
+      { id: 'mcu1', type: 'uno', x: 0, y: 0 },
+      { id: 'b1', type: 'button-6mm', x: 200, y: 0, attrs: { color: 'red' } },
+      { id: 'c1', type: 'condo-np', x: 300, y: 0, attrs: { ctype: 'np', value: '1e-7', vmax: '400' } },
+    ],
+    wires: [
+      wire('w1', 'b1', '1.l', 'mcu1', '7'),
+      wire('w2', 'b1', '2.l', 'mcu1', 'GND.1'),
+      wire('w3', 'c1', '1', 'mcu1', '7'),
+      wire('w4', 'c1', '2', 'mcu1', 'GND.1'),
+    ],
+  };
+  const drive = (p) => (p === '7' ? 'pullup' : 'hiz');
+  model.setActiveBridges([]);
+  const relache = model.capacitorNodes(bp, 5, drive)[0];
+  check(`relâché : la pull-up charge à 5 V, RC = 6,5 ms (${relache.target.toFixed(2)} V, ${(relache.tau * 1000).toFixed(1)} ms)`,
+    Math.abs(relache.target - 5) < 0.01 && Math.abs(relache.tau - 0.0065) < 0.0005);
+  check('la broche 7 observe le nœud', relache.mcuPins.includes('7'), JSON.stringify(relache.mcuPins));
+
+  const contacts = model.manualContacts(bp, { pressed: (id) => id === 'b1' });
+  check(`appui : le contact du bouton est fermé (${contacts.length})`,
+    contacts.length === 1 && contacts[0].a === '1.l' && contacts[0].b === '2.l');
+  model.setActiveBridges(contacts);
+  const appuye = model.capacitorNodes(bp, 5, drive)[0];
+  check(`appuyé : le condensateur se vide dans le bouton (${appuye.target.toFixed(3)} V, ${(appuye.tau * 1e6).toFixed(1)} µs)`,
+    appuye.target < 0.1 && appuye.tau < 0.001);
+  check('relâché : aucun contact fermé', model.manualContacts(bp, { pressed: () => false }).length === 0);
+  model.setActiveBridges([]);
+}
+
 // --- 2. Échantillonnage à l'instant de la conversion (AVR) -------------------
 console.log('Charge lue par l’ADC (Mega, analogRead en boucle) :');
 {

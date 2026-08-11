@@ -113,6 +113,7 @@ import {
   beginModelFrame,
   endModelFrame,
   commandedBridges,
+  manualContacts,
   setActiveBridges,
   bridgeSignature,
   logicIcStates,
@@ -130,6 +131,7 @@ import {
   type MotorState,
   type IcFault,
   type LogicIcState,
+  type ManualContactState,
   type Pca9685Binding,
   type SevenSegmentMuxBinding,
 } from './diagram/model.mjs';
@@ -1101,6 +1103,21 @@ function psuLiveVolts(psuId: string): number | null {
  * lève ne doit pas laisser le cache ouvert (netlist périmée à la frame suivante).
  */
 /**
+ * Boutons tenus pour enfoncés par le modèle. Ce n'est pas exactement l'état
+ * visuel : un clic bref est prolongé à MIN_PRESS_MS, comme le niveau envoyé au
+ * moteur — sinon le condensateur d'antirebond se rechargerait pendant que le
+ * firmware voit encore l'appui.
+ */
+const heldButtons = new Set<string>();
+
+/** État des contacts manuels, lu sur les composants de l'éditeur. */
+const contactState: ManualContactState = {
+  pressed: (partId) => heldButtons.has(partId),
+  slideSide: (partId) => (Number(editor.elementOf(partId)?.value ?? 0) === 0 ? 1 : 3),
+  dipOn: (partId, channel) => !!((editor.elementOf(partId)?.values as number[] | undefined) ?? [])[channel - 1],
+};
+
+/**
  * Ponts commandés de la frame : un transistor saturé et un contact de relais
  * collé sont des interrupteurs FERMÉS dont dépend tout l'aval… alors que leur
  * propre commande dépend des niveaux, donc des mêmes interrupteurs. On tourne
@@ -1115,12 +1132,15 @@ function resolveBridges(): void {
   if (!engine) return;
   const read = (name: string): boolean => engine!.readDigital(name);
   const vcc = boardFamily(board) === 'rp2040' ? 3.3 : 5;
-  setActiveBridges([]);
+  // Contacts fermés à la main : ils ne dépendent d'aucun niveau, donc ils sont
+  // posés une fois pour toute la résolution et s'ajoutent aux ponts commandés.
+  const contacts = manualContacts(editor.diagram, contactState);
+  setActiveBridges(contacts);
   setGateDrives([]);
   icFrame = [];
-  let signature = `${bridgeSignature([])}#${gateDriveSignature([])}`;
+  let signature = `${bridgeSignature(contacts)}#${gateDriveSignature([])}`;
   for (let pass = 0; pass < 3; pass++) {
-    const list = commandedBridges(editor.diagram, read, vcc, psuLiveVolts, liveVariableOhms);
+    const list = [...contacts, ...commandedBridges(editor.diagram, read, vcc, psuLiveVolts, liveVariableOhms)];
     // Les circuits intégrés entrent dans le MÊME point fixe : la sortie d'une
     // porte peut commander un transistor, et le contact d'un relais alimenter
     // le boîtier. Trois tours suffisent aux cascades habituelles.
@@ -2159,23 +2179,38 @@ function bindInputs(): void {
     }))
   );
 
-  for (const binding of buttonBindings(editor.diagram)) {
-    const el = editor.elementOf(binding.partId);
+  // TOUS les boutons sont suivis, pas seulement ceux câblés sur une broche :
+  // l'appui FERME un contact que le modèle prend en compte (courant, réseaux RC).
+  heldButtons.clear();
+  const buttonPin = new Map(buttonBindings(editor.diagram).map((b) => [b.partId, b.mcuPin]));
+  for (const part of editor.diagram.parts) {
+    if (partDef(part.type).kind !== 'pushbutton') continue;
+    const el = editor.elementOf(part.id);
     if (!el) continue;
     // L'entrée suit directement l'état enfoncé du bouton : appui = LOW, relâché
     // = HIGH (pull-up). Un clic simple est transitoire ; Ctrl+clic maintient le
     // bouton enfoncé (mode « sticky » natif de l'élément : aucun relâchement
     // n'est émis), ce qui permet de le laisser dans cet état pour déboguer.
-    engine.setInput(binding.mcuPin, true); // au repos = pull-up (haut)
+    const mcuPin = buttonPin.get(part.id);
+    if (mcuPin) engine.setInput(mcuPin, true); // au repos = pull-up (haut)
     // Appui prolongé d'au moins MIN_PRESS_MS : un clic bref reste vu par le firmware.
     const { press, release, cancel } = minHoldPress(
-      () => engine?.setInput(binding.mcuPin, false),
-      () => engine?.setInput(binding.mcuPin, true)
+      () => {
+        heldButtons.add(part.id);
+        if (mcuPin) engine?.setInput(mcuPin, false);
+        queueRefresh(); // le contact fermé change le circuit dès maintenant
+      },
+      () => {
+        heldButtons.delete(part.id);
+        if (mcuPin) engine?.setInput(mcuPin, true);
+        queueRefresh();
+      }
     );
     el.addEventListener('button-press', press);
     el.addEventListener('button-release', release);
     inputRemovers.push(() => {
       cancel();
+      heldButtons.delete(part.id);
       el.removeEventListener('button-press', press);
       el.removeEventListener('button-release', release);
     });
