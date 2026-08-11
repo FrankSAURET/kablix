@@ -1,6 +1,5 @@
 # À faire
 ## Composants
-1. Le routage auto merde sur la platine d'essais. Il passe sur les trous et fait aussi des détours pour sortir de la carte. Le routage auto sur la platin ed'essais doit être particulier, il a le droit depasser partout sur la platine mais doit éviter de recouvrir les trous autant que possible. il devrai aussi mettres des carrés de la couleur du fil sur les pastilles aux point de connection. Du reste ça peut être général (les carrés aux bout des fils). Coté légèrement supérieur à la largeur du fil.
 1. Sur le schéma (H:\Nuage\2I2D SIN\Frank 2026\Séquence N° 03 (TP) - Commande LED\Code Arduino\ComLedRGB\ComLedRGB.projix) l'état des BP n'est pas pris en compte. Le condensateur maintient la tension en permanence à 5v sur 7, 6 et 5
 1. 
 1. Raccourcir le temps d'activation de l'extension 
@@ -11,6 +10,16 @@
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# >>>>  v2026.8.30 — le fil passe SUR la platine, entre les trous, et se termine par un carré
+
+1. ✅ **La platine d'essais n'est plus un obstacle, c'est le plan de travail.** Le routeur la voyait comme un composant plein : chaque fil payait un détour pour *sortir de la carte* avant d'y revenir. Elle est désormais retirée de tous les calculs de survol de composant (`PartRect.board`) — le fil la traverse de part en part, comme on le fait à la main. Ce qui est enfiché DESSUS (LED, résistance, bouton…) reste, lui, un obstacle plein.
+2. ✅ **Les trous ne sont plus interdits, ils sont TAXÉS — et c'est pour ça qu'ils sont enfin évités.** Déclarés « broches étrangères » comme celles d'un composant, les 830 trous d'une platine noyaient le graphe de l'A\* (deux voies de contournement chacune) : il rendait les armes, et l'éditeur retombait sur un coude en L qui, lui, passait allègrement sur les trous. Ils deviennent un **coût** (3 pas de grille par trou recouvert), calculé sans balayer la carte grâce à un **index par cellule de grille**. « Autant que possible » et non « à tout prix » : couper une rangée en travers reste permis, longer une rangée entière non.
+3. ✅ **Une sortie de trou d'un DEMI-PAS**, au lieu de la sortie perpendiculaire hors du corps réservée aux composants pleins (c'est elle qui envoyait le fil faire le tour du pâté de maisons). De là, le fil est dans le couloir entre deux rangées ; l'A\* reçoit en plus les **voies au demi-pas**, sinon toutes ses lignes tombaient PILE sur les rangées de trous.
+4. ✅ **Le coût des trous est appliqué partout où un tracé se juge** : préservation d'un « bon fil » (un fil couché sur vingt trous n'en est pas un), ligne droite prioritaire (deux trous d'une colonne sont alignés — la « droite » les enfilait tous), départage des candidats et garde-fou anti-dégradation.
+5. ✅ **Un carré de la couleur du fil à chaque point de connexion** (demande de Frank, valable pour TOUS les fils, platine ou pas) : côté 5 px contre 3 px de trait, la goutte de soudure d'un vrai montage. Il suit le fil quand on le déplace, change de couleur avec lui, et laisse passer le pointeur (le fil reste sélectionnable dessous).
+6. ✅ **Banc `verify:route` étendu (61 contrôles)** : fil câblé de `a5` à `j20` sur une platine — aucun trou étranger recouvert, aucun point hors de la carte, 4 coudes au plus, une LED enfichée toujours contournée ; puis les carrés (deux par fil, centrés au pixel sur les bornes, plus larges que le trait, couleur suivie).
+7. ✅ `npm run typecheck`, `npm run build` et `npm run verify:all` verts.
 
 # >>>>  v2026.8.29 — l'atelier se laisse manœuvrer : les trous s'allument avant la pose, la bibliothèque se cherche, le fil trouve son trou
 

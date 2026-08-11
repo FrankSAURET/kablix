@@ -119,6 +119,9 @@ const ZOOM_MIN = 0.2;
 const ZOOM_MAX = 10; // 1000 %
 /** Pas de la grille magnétique d'alignement (px) = écartement des broches. */
 const GRID = 10;
+/** Côté du carré posé au bout d'un fil, sur sa pastille de connexion : un poil
+ *  plus large que le trait (3 px) pour se voir sans manger la broche voisine. */
+const WIRE_CAP = 5;
 /** Décalage d'un collage par rapport à la copie : 2 pas de grille — la copie
  *  reste visible sous l'original ET ses broches restent enfichables (un décalage
  *  hors grille les aurait toutes désalignées). */
@@ -289,6 +292,8 @@ export class Editor {
   private wirePaths = new Map<string, SVGPathElement>();
   /** Surbrillance « fourmis » des fils sélectionnés (groupe de 2 tracés pointillés). */
   private wireAnts = new Map<string, SVGGElement>();
+  /** Carrés de connexion posés aux DEUX bouts de chaque fil (couleur du fil). */
+  private wireCaps = new Map<string, SVGGElement>();
   /** Points d'embranchement (jonctions en T des fils d'une même équipotentielle). */
   private junctionsG: SVGGElement | null = null;
   private junctionsQueued = false;
@@ -1889,6 +1894,8 @@ export class Editor {
     this.wirePaths.clear();
     for (const g of this.wireAnts.values()) g.remove();
     this.wireAnts.clear();
+    for (const g of this.wireCaps.values()) g.remove();
+    this.wireCaps.clear();
     for (const r of this.rendered.values()) r.container.remove();
     this.rendered.clear();
     this.internalShown.clear();
@@ -2975,7 +2982,29 @@ export class Editor {
     });
     this.svg.appendChild(path);
     this.wirePaths.set(wire.id, path);
+    // Carrés de connexion : ils marquent le point d'accrochage du fil, comme la
+    // goutte de soudure d'un vrai montage. Dessinés APRÈS le tracé (donc
+    // au-dessus) et inertes au pointeur — le fil reste sélectionnable dessous.
+    const caps = document.createElementNS(SVG_NS, 'g');
+    caps.setAttribute('class', 'wire-caps');
+    for (let i = 0; i < 2; i++) {
+      const r = document.createElementNS(SVG_NS, 'rect');
+      r.setAttribute('width', String(WIRE_CAP));
+      r.setAttribute('height', String(WIRE_CAP));
+      caps.appendChild(r);
+    }
+    this.svg.appendChild(caps);
+    this.wireCaps.set(wire.id, caps);
+    this.setCapsColor(wire);
     this.positionWire(wire);
+  }
+
+  /** Couleur des deux carrés d'un fil (suit `wire.color`). */
+  private setCapsColor(wire: Wire): void {
+    const caps = this.wireCaps.get(wire.id);
+    if (!caps) return;
+    const hex = dupontHex(wire.color ?? 'green');
+    for (const r of caps.children) (r as SVGRectElement).style.fill = hex;
   }
 
   /** Insère un point de retouche dans le segment le plus proche du clic. */
@@ -3249,7 +3278,15 @@ export class Editor {
       } catch {
         // Largeur svg en % sans viewport résolu : repli sur la boîte DOM.
       }
-      rects.push({ id: r.part.id, x, y, w: w || body?.offsetWidth || 40, h: h || body?.offsetHeight || 40, outer });
+      rects.push({
+        id: r.part.id,
+        x,
+        y,
+        w: w || body?.offsetWidth || 40,
+        h: h || body?.offsetHeight || 40,
+        outer,
+        board: partDef(r.part.type).kind === 'breadboard',
+      });
     }
     return rects;
   }
@@ -3287,6 +3324,22 @@ export class Editor {
     if (!r) return [];
     const box = rects.get(end.partId);
     if (!box) return [];
+    // PLATINE : surtout ne pas sortir de la carte. La sortie perpendiculaire au
+    // bord est faite pour les composants pleins (le fil ne doit pas traverser le
+    // dessin) ; sur une platine elle envoyait le fil faire le tour du pâté de
+    // maisons alors qu'on câble AU-DESSUS d'elle. Le trou n'a besoin que d'un
+    // DEMI-PAS pour rejoindre le couloir entre deux rangées : de là, toutes les
+    // voies de l'A\* (espacées d'un pas entier) restent à mi-chemin des trous et
+    // n'en recouvrent aucun.
+    if (box.board) {
+      const h = GRID / 2;
+      return [
+        [{ x: center.x, y: center.y - h }],
+        [{ x: center.x, y: center.y + h }],
+        [{ x: center.x - h, y: center.y }],
+        [{ x: center.x + h, y: center.y }],
+      ];
+    }
     const dTop = center.y - box.y;
     const dBot = box.y + box.h - center.y;
     const dLeft = center.x - box.x;
@@ -3440,6 +3493,12 @@ export class Editor {
     const all = sel.size === 0;
     const obstacles = this.partObstacles();
     const rectOf = new Map(obstacles.map((o) => [o.id, o]));
+    // Une platine n'est pas un obstacle mais le plan de travail : le fil la
+    // traverse comme on le fait à la main. Elle est donc retirée de TOUS les
+    // calculs de survol de composant — sinon le routeur payait un détour pour
+    // sortir de la carte, exactement ce que Frank voyait.
+    const solidObs = obstacles.filter((o) => !o.board);
+    const boardIds = new Set(obstacles.filter((o) => o.board).map((o) => o.id));
     const STUB = GRID; // sortie perpendiculaire = 1 pas de grille hors du corps
     // Écart mini entre deux fils parallèles d'équipotentielles DIFFÉRENTES : 5 px
     // (2 px en v2026.7.120, 3 px en v2026.7.124 — toujours trop serré à l'œil,
@@ -3481,13 +3540,60 @@ export class Editor {
     // Centres des pastilles de broche (repère monde) : un fil ne doit JAMAIS
     // passer sur une broche à laquelle il n'est pas connecté (demande de Frank).
     // On exclut, pour chaque fil routé, ses deux propres broches.
+    // Les TROUS d'une platine sont mis à part : ils se comptent par centaines.
+    // Les déclarer « interdits » comme les broches d'un composant noyait le
+    // graphe de l'A\* (une paire de voies de contournement par trou) — il rendait
+    // les armes et l'appelant retombait sur un coude en L qui, lui, passe
+    // allègrement sur les trous. Ils deviennent donc un COÛT, calculable sans
+    // balayer la platine grâce à un index par cellule de grille.
     const pinCenters: Array<{ partId: string; pin: string; c: XY }> = [];
+    const holeGrid = new Map<string, Array<{ id: string; c: XY }>>();
+    const cellKey = (x: number, y: number): string => `${Math.floor(x / GRID)},${Math.floor(y / GRID)}`;
     for (const [id, r] of this.rendered) {
       for (const pin of r.hotspots.keys()) {
         const c = this.hotspotCenter({ partId: id, pin });
-        if (c) pinCenters.push({ partId: id, pin, c });
+        if (!c) continue;
+        if (boardIds.has(id)) {
+          const k = cellKey(c.x, c.y);
+          const cell = holeGrid.get(k);
+          const hole = { id: `${id}|${pin}`, c };
+          if (cell) cell.push(hole);
+          else holeGrid.set(k, [hole]);
+        } else {
+          pinCenters.push({ partId: id, pin, c });
+        }
       }
     }
+    // Trous recouverts par un segment : on ne visite que les cellules qu'il
+    // traverse (plus leurs voisines : une pastille déborde de sa cellule).
+    const PIN_CLR = 4; // pastille de 9 px : au-delà de 4 px du centre, on ne la couvre plus
+    const holesOnSeg = (p: XY, q: XY, hit: Set<string>): void => {
+      if (holeGrid.size === 0) return;
+      const i0 = Math.floor((Math.min(p.x, q.x) - PIN_CLR) / GRID);
+      const i1 = Math.floor((Math.max(p.x, q.x) + PIN_CLR) / GRID);
+      const j0 = Math.floor((Math.min(p.y, q.y) - PIN_CLR) / GRID);
+      const j1 = Math.floor((Math.max(p.y, q.y) + PIN_CLR) / GRID);
+      // Garde-fou : un segment en diagonale sur toute la feuille balaierait une
+      // surface, pas une ligne. Le routage ne produit que du H/V, mais un fil
+      // ORIGINAL peut être diagonal (fil neuf) — on ne s'y attarde pas.
+      if ((i1 - i0 + 1) * (j1 - j0 + 1) > 4000) return;
+      for (let i = i0; i <= i1; i++) {
+        for (let j = j0; j <= j1; j++) {
+          const cell = holeGrid.get(`${i},${j}`);
+          if (!cell) continue;
+          for (const h of cell) if (pointOnSegment(h.c, p, q, PIN_CLR)) hit.add(h.id);
+        }
+      }
+    };
+    /** Nombre de trous de platine recouverts par une polyligne (hors `own` : les
+     *  deux trous où le fil est branché, forcément touchés). */
+    const holesOnPoly = (poly: XY[], own?: Set<string>): number => {
+      if (holeGrid.size === 0) return 0;
+      const hit = new Set<string>();
+      for (let i = 0; i < poly.length - 1; i++) holesOnSeg(poly[i], poly[i + 1], hit);
+      if (own) for (const k of own) hit.delete(k);
+      return hit.size;
+    };
     let changed = false;
     // Liste arrêtée d'avance : elle donne le total de la barre d'avancement, et
     // le routage progressif ne doit pas courir après un schéma qui bouge.
@@ -3504,6 +3610,19 @@ export class Editor {
       const a = this.hotspotCenter(wire.a);
       const b = this.hotspotCenter(wire.b);
       if (!a || !b) continue;
+      // Les deux trous où CE fil est branché : il les recouvre par définition.
+      const ownHoles = new Set([`${wire.a.partId}|${wire.a.pin}`, `${wire.b.partId}|${wire.b.pin}`]);
+      const holesOf = (poly: XY[]): number => holesOnPoly(poly, ownHoles);
+      // Même mesure, arête par arête, pour l'A\* : appelée des milliers de fois,
+      // elle réutilise un seul Set au lieu d'en allouer un par arête.
+      const holeHit = new Set<string>();
+      const holeCost = (p: XY, q: XY): number => {
+        holeHit.clear();
+        holesOnSeg(p, q, holeHit);
+        let n = 0;
+        for (const k of holeHit) if (!ownHoles.has(k)) n++;
+        return n;
+      };
       // Tolérance de traversée d'un corps d'EXTRÉMITÉ : la patte doit pouvoir aller
       // de la broche jusqu'au bord, donc au moins la PROFONDEUR de la broche dans le
       // corps — les 16 connecteurs servo du PCA sont à 34 px du bord — plus la marge
@@ -3547,7 +3666,7 @@ export class Editor {
           // corps d'extrémité gardent la tolérance de ras historique (ENDCAP).
           const DEEP = 4; // marge sur chaque bord : cœur du composant
           let overComp = false;
-          for (const o of obstacles) {
+          for (const o of solidObs) {
             const isEnd = o.id === wire.a.partId || o.id === wire.b.partId;
             let ov = 0;
             for (let i = 0; i < full.length - 1; i++) {
@@ -3568,7 +3687,9 @@ export class Editor {
               !(p.partId === wire.b.partId && p.pin === wire.b.pin) &&
               full.some((_, i) => i < full.length - 1 && pointOnSegment(p.c, full[i], full[i + 1], 4))
           );
-          if (!overComp && !overWire && !onForeignPin) {
+          // Trous de platine recouverts : un fil qui longe une rangée en masque
+          // vingt. Ce n'est pas un « bon fil » — il repasse par le routeur.
+          if (!overComp && !overWire && !onForeignPin && holesOf(full) === 0) {
             // Fil propre : on le garde intact (seule l'optimisation colinéaire
             // s'applique, elle ne déplace rien).
             const kept = collapseColinear(full, 1).slice(1, -1);
@@ -3591,7 +3712,7 @@ export class Editor {
         const ENDCAP = 1.5 * GRID; // chevauchement toléré dans un corps d'extrémité
         const DEEP = 4; // marge : seule une traversée du cœur d'un tiers bloque
         let blocked = false;
-        for (const o of obstacles) {
+        for (const o of solidObs) {
           const isEnd = o.id === wire.a.partId || o.id === wire.b.partId;
           const ov = isEnd ? segRectOverlap(a, b, o) : segRectDeepCross(a, b, o, DEEP);
           if (ov > (isEnd ? ENDCAP : TOL)) {
@@ -3614,7 +3735,14 @@ export class Editor {
             !(p.partId === wire.b.partId && p.pin === wire.b.pin) &&
             pointOnSegment(p.c, a, b, 4)
         );
-        if (!blocked && !crossesForeignPin && polylineWireCost([a, b], others, GAP).overlap <= TOL) {
+        // … ni sur une rangée de trous : deux trous d'une même colonne de platine
+        // sont alignés, la « ligne droite » les enfilerait tous.
+        if (
+          !blocked &&
+          !crossesForeignPin &&
+          holesOf([a, b]) === 0 &&
+          polylineWireCost([a, b], others, GAP).overlap <= TOL
+        ) {
           if ((wire.points?.length ?? 0) > 0) changed = true;
           wire.points = undefined;
           wireSegs.set(wire.id, toSegs([a, b]));
@@ -3664,7 +3792,7 @@ export class Editor {
       // survol de composant est mesuré (les pattes d'extrémité ont le droit de
       // toucher leur propre corps ; on les exclut). Utilisé pour départager les
       // tracés candidats ET pour comparer le tracé ORIGINAL au meilleur rerouté.
-      const scorePoly = (poly: XY[], innerForComp: XY[], compObstacles: PartRect[] = obstacles): number => {
+      const scorePoly = (poly: XY[], innerForComp: XY[], compObstacles: PartRect[] = solidObs): number => {
         const comp = polylineRectOverlap(innerForComp, compObstacles);
         const { overlap, near } = polylineWireCost(poly, otherSegs, GAP);
         const { len, bends } = polyLenBends(poly);
@@ -3685,7 +3813,14 @@ export class Editor {
             if (pointOnSegment(fp.c, poly[i], poly[i + 1], 4)) { onPin++; break; }
           }
         }
-        return onPin * 2000 + comp * 1000 + (overlap + selfOv) * 100 + cross * BEND * 1.5 + near * 0.6 + len + bends * BEND - sameOv * RIDE;
+        // Trou de platine masqué : cher, mais moins qu'une broche de composant
+        // écrasée — « autant que possible » et non « à tout prix » (demande de
+        // Frank). Un fil aura toujours le droit de couper une rangée en travers
+        // (1 trou) plutôt que de faire trois fois le tour de la carte.
+        return (
+          onPin * 2000 + holesOf(poly) * 250 + comp * 1000 + (overlap + selfOv) * 100 +
+          cross * BEND * 1.5 + near * 0.6 + len + bends * BEND - sameOv * RIDE
+        );
       };
       // Une patte se lit de la broche vers l'extérieur : celle de `b` est donc
       // parcourue à l'envers dans le tracé final (… → pb → … → b).
@@ -3701,8 +3836,9 @@ export class Editor {
       // Routeur A* (contourne les obstacles et les fils), essayé pour CHAQUE
       // combinaison de sorties candidates (≤ 2 par extrémité) : pour une broche
       // d'angle, le bord le plus proche n'est pas forcément la bonne sortie — on
-      // garde le tracé complet le moins coûteux. On passe à l'A\* **tous** les
-      // composants, y compris les deux d'extrémité : la broche est déjà sortie du
+      // garde le tracé complet le moins coûteux. On passe à l'A\* tous les
+      // composants PLEINS (`solidObs` : la platine d'essais n'en est pas un, on
+      // câble AU-DESSUS d'elle), y compris les deux d'extrémité : la broche est déjà sortie du
       // corps par `pinStubs`, donc l'A\* ne doit plus jamais retraverser un corps —
       // ni celui d'où part le fil, ni celui d'arrivée. (Le filtre `solid` interne à
       // `astarRoute` exclut malgré tout le bloc qui contient encore le point de
@@ -3721,7 +3857,7 @@ export class Editor {
       const prev = (leg: XY[] | null, pin: XY): XY => (leg && leg.length > 1 ? leg[leg.length - 2] : pin);
       for (const ca of saCands) {
         for (const cb of sbCands) {
-          const path = astarRoute(tip(ca, a), tip(cb, b), obstacles, otherSegs, {
+          const path = astarRoute(tip(ca, a), tip(cb, b), solidObs, otherSegs, {
             clr: GRID / 2,
             bend: BEND,
             gap: GAP,
@@ -3729,6 +3865,10 @@ export class Editor {
             endDir: cb ? dirOf(tip(cb, b), prev(cb, b)) : undefined,
             same: sameSegs,
             pins: foreignPins.map((p) => p.c),
+            // Les trous ne barrent pas la route, ils la taxent : l'A\* préfère
+            // le couloir entre deux rangées, mais peut couper en travers si le
+            // détour coûte plus cher.
+            holes: holeGrid.size > 0 ? holeCost : undefined,
           });
           if (!path || path.length < 2) continue;
           const c = path.slice(1, -1);
@@ -3799,7 +3939,7 @@ export class Editor {
       pts = collapseColinear([a, ...pts, b], 1).slice(1, -1);
       // Survol de composant mesuré contre les corps TIERS (hors les deux d'extrémité,
       // dont le ras est toléré). Même règle appliquée à tous les tracés comparés.
-      const thirdParty = obstacles.filter((o) => o.id !== wire.a.partId && o.id !== wire.b.partId);
+      const thirdParty = solidObs.filter((o) => o.id !== wire.a.partId && o.id !== wire.b.partId);
       // Perforation PROFONDE des corps d'EXTRÉMITÉ (au-delà du ras toléré) : un fil
       // droit dont la broche est sous son propre corps peut le trancher de part en
       // part (ex. 2 LED superposées). Le survol tiers étant déjà couvert par
@@ -3811,7 +3951,7 @@ export class Editor {
       // une perforation. (Un inset fixe ne marchait pas : sur un corps étroit — la
       // LED fait 17 px de large — son « cœur » devient si mince que la broche du
       // bord tombe en dehors, et la traversée mesurée retombait à zéro.)
-      const endBodies = obstacles.filter((o) => o.id === wire.a.partId || o.id === wire.b.partId);
+      const endBodies = solidObs.filter((o) => o.id === wire.a.partId || o.id === wire.b.partId);
       const deepEnds = (poly: XY[]): number => {
         let ov = 0;
         for (const o of endBodies) {
@@ -3869,7 +4009,11 @@ export class Editor {
           polylineRectOverlap(poly, thirdParty) +
           deepEnds(poly) +
           polylineWireCost(poly, otherSegs, GAP).overlap +
-          onPin
+          onPin +
+          // Recouvrir un trou de platine est un défaut comme un autre : sans ça,
+          // le sauvetage anti-coudes pouvait remplacer un fil propre par un tracé
+          // couché sur une rangée entière.
+          holesOf(poly)
         );
       };
       const origBends = polyLenBends(origPoly).bends;
@@ -4009,6 +4153,8 @@ export class Editor {
     this.wirePaths.delete(id);
     this.wireAnts.get(id)?.remove();
     this.wireAnts.delete(id);
+    this.wireCaps.get(id)?.remove();
+    this.wireCaps.delete(id);
     this.scheduleJunctions();
   }
 
@@ -4046,6 +4192,7 @@ export class Editor {
     wire.color = color;
     const path = this.wirePaths.get(id);
     if (path) path.style.stroke = dupontHex(color);
+    this.setCapsColor(wire);
     this.scheduleJunctions(); // les points d'embranchement suivent la couleur
   }
 
@@ -4060,6 +4207,16 @@ export class Editor {
     // La surbrillance de sélection (fourmis) suit le même tracé.
     const ants = this.wireAnts.get(wire.id);
     if (ants) for (const p of ants.children) p.setAttribute('d', d);
+    // Les carrés se recentrent sur les deux pastilles.
+    const caps = this.wireCaps.get(wire.id);
+    if (caps) {
+      const ends = [a, b];
+      caps.childNodes.forEach((node, i) => {
+        const r = node as SVGRectElement;
+        r.setAttribute('x', String(ends[i].x - WIRE_CAP / 2));
+        r.setAttribute('y', String(ends[i].y - WIRE_CAP / 2));
+      });
+    }
     this.scheduleJunctions();
   }
 
@@ -6516,6 +6673,13 @@ interface PartRect {
    * la broche « franchement en dehors » et ne sortirait plus perpendiculairement.
    */
   outer?: { x: number; y: number; w: number; h: number };
+  /**
+   * Platine d'essais : ce n'est PAS un obstacle, c'est le plan de travail. Un
+   * fil a le droit de la traverser de part en part (c'est même ce qu'on fait à
+   * la main) ; ce qu'il doit éviter, ce sont les TROUS, et cela se règle par le
+   * coût, pas en contournant la carte.
+   */
+  board?: boolean;
 }
 
 /**
@@ -6735,6 +6899,12 @@ function astarRoute(
   // ×2000 du coût d'appel ne faisait que départager des tracés déjà produits :
   // si toutes les sorties candidates passaient sur une borne, l'A\* en posait
   // une quand même.
+  // `holes` : trous d'une platine d'essais recouverts par une arête. Eux ne sont
+  // PAS interdits (ils se comptent par centaines : autant de voies de
+  // contournement noieraient le graphe, l'A\* rendrait les armes et l'appelant
+  // retomberait sur un coude en L qui, lui, les recouvre tous). Ils sont TAXÉS :
+  // le tracé préfère le couloir entre deux rangées, mais coupe en travers quand
+  // le détour coûterait plus cher.
   o: {
     clr: number;
     bend: number;
@@ -6743,6 +6913,7 @@ function astarRoute(
     endDir?: number;
     same?: Array<[XY, XY]>;
     pins?: XY[];
+    holes?: (p: XY, q: XY) => number;
   },
 ): XY[] | null {
   const { clr, bend, gap } = o;
@@ -6803,6 +6974,16 @@ function astarRoute(
     xsSet.add(c.x - GRID / 2);
     ysSet.add(c.y + GRID / 2);
     ysSet.add(c.y - GRID / 2);
+  }
+  // Couloirs ENTRE les rangées de trous (platine d'essais) : les trous étant sur
+  // la grille, toutes les voies ci-dessus tombent PILE dessus dès qu'une borne y
+  // est alignée. Le demi-pas donne au tracé une ligne qui passe à 5 px de chaque
+  // trou — assez pour ne plus les recouvrir.
+  if (o.holes) {
+    for (let k = -8; k <= 8; k++) {
+      for (const v of [pa.x, pb.x]) xsSet.add(v + k * GRID + GRID / 2);
+      for (const v of [pa.y, pb.y]) ysSet.add(v + k * GRID + GRID / 2);
+    }
   }
   const xs = [...xsSet].sort((m, n) => m - n);
   const ys = [...ysSet].sort((m, n) => m - n);
@@ -6977,7 +7158,13 @@ function astarRoute(
         for (const [s, t] of same) ride += collinearOverlap(p, q, s, t);
         if (ride > len) ride = len;
       }
-      const g = cur.g + len - ride * RIDE + wireCost(p, q) + crossCost(p, q) + softCost(p, q) + turn;
+      // Taxe des trous de platine : 3 pas de grille par trou recouvert. Assez
+      // cher pour qu'un décalage d'un demi-pas (2 coudes) soit préféré à une
+      // rangée entière longée, assez doux pour ne pas envoyer le fil au bout de
+      // la carte.
+      const holeTax = o.holes ? o.holes(p, q) * GRID * 3 : 0;
+      const g =
+        cur.g + len - ride * RIDE + wireCost(p, q) + crossCost(p, q) + softCost(p, q) + holeTax + turn;
       const nk = keyOf(ni, nj, dir);
       const prev = bestG.get(nk);
       if (prev !== undefined && prev <= g + 0.01) continue;

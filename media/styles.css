@@ -1036,6 +1036,15 @@ textarea {
     drop-shadow(0 0 3px var(--kx-select, #e973e9));
 }
 
+/* Carrés de connexion aux deux bouts d'un fil : ils disent où le fil est
+   RACCORDÉ, comme la goutte de soudure d'un vrai montage — indispensable sur
+   une platine d'essais, où le tracé passe au-dessus de dizaines de trous sans
+   s'y connecter. Couleur du fil, posés par l'éditeur ; inertes au pointeur pour
+   que le fil reste attrapable dessous. */
+.wire-caps {
+  pointer-events: none;
+}
+
 /* « Fourmis en marche » superposées au fil sélectionné : deux tracés pointillés
    alternés (sombre + clair, le clair décalé d'une demi-période par le délai
    négatif) — lisibles sur toute couleur de fil et sur les deux thèmes. */

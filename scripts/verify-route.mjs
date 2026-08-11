@@ -28,6 +28,7 @@ import '../../src/webview/composants/resistor-element.mjs';
 import '../../src/webview/composants/pca9685-element.mjs';
 import '../../src/webview/composants/servo-element.mjs';
 import '../../src/webview/composants/7segment-element.mjs';
+import '../../src/webview/composants/breadboard.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const checks = [];
 const ok = (name, cond, detail = '') => checks.push({ name, ok: !!cond, detail: String(detail) });
@@ -729,6 +730,102 @@ async function run() {
 	const routes = editor.diagram.wires.filter((w) => (w.points ?? []).length > 0).length;
 	ok('progressif : annulé, les fils déjà routés sont conservés',
 		routes >= 1 && routes <= r2.done, 'fils avec coudes = ' + routes + ' pour ' + r2.done + ' traités');
+
+	// --- Routage SUR une platine d'essais (v2026.8.30) -------------------------
+	// La platine n'est pas un obstacle mais le plan de travail : le fil la traverse
+	// (aucun détour pour sortir de la carte) tout en évitant de RECOUVRIR ses trous
+	// — ses centaines de trous sont un COÛT, pas une interdiction (les déclarer
+	// interdits noyait le graphe de l'A\*, qui rendait les armes ; l'appelant
+	// retombait alors sur un coude en L couché sur les trous).
+	for (const p of [...editor.diagram.parts]) editor.removePart?.(p.id);
+	await wait(30);
+	const bbd = editor.addPart('breadboard', 100, 100);
+	await wait(250);
+	const bbPins = [...(editor.rendered.get(bbd.id)?.hotspots.keys() ?? [])];
+	const trouA = bbPins.find((n) => /^a5$/i.test(n)) ?? bbPins[0];
+	const trouB = bbPins.find((n) => /^j20$/i.test(n)) ?? bbPins[bbPins.length - 1];
+	editor.addWire({ partId: bbd.id, pin: trouA }, { partId: bbd.id, pin: trouB }, { color: 'green' });
+	await wait(50);
+	const wBB = editor.diagram.wires[editor.diagram.wires.length - 1];
+	editor.select(null); editor.autoRoute();
+	await wait(80);
+	const cTrou = (pin) => editor.hotspotCenter({ partId: bbd.id, pin });
+	const polyBB = [cTrou(trouA), ...(wBB.points ?? []), cTrou(trouB)];
+	// Trou recouvert : pastille de 9 px, son centre à moins de 4 px du trait.
+	const surSeg = (c, p, q) => {
+		if (c.x < Math.min(p.x, q.x) - 4 || c.x > Math.max(p.x, q.x) + 4) return false;
+		if (c.y < Math.min(p.y, q.y) - 4 || c.y > Math.max(p.y, q.y) + 4) return false;
+		if (Math.abs(p.y - q.y) < 1.5) return Math.abs(c.y - p.y) <= 4;
+		if (Math.abs(p.x - q.x) < 1.5) return Math.abs(c.x - p.x) <= 4;
+		return Math.hypot(c.x - p.x, c.y - p.y) <= 4;
+	};
+	const masques = [];
+	for (const pin of bbPins) {
+		if (pin === trouA || pin === trouB) continue;
+		const c = cTrou(pin);
+		if (!c) continue;
+		for (let i = 0; i < polyBB.length - 1; i++) {
+			if (surSeg(c, polyBB[i], polyBB[i + 1])) { masques.push(pin); break; }
+		}
+	}
+	ok('platine : le fil ne RECOUVRE aucun trou étranger', masques.length === 0,
+		masques.slice(0, 12).join(' ') + ' | ' + S(polyBB));
+	const boiteBB = editor.partObstacles().find((o) => o.id === bbd.id);
+	const dehors = polyBB.filter((p) =>
+		p.x < boiteBB.x - 10 || p.x > boiteBB.x + boiteBB.w + 10 ||
+		p.y < boiteBB.y - 10 || p.y > boiteBB.y + boiteBB.h + 10);
+	ok('platine : aucun détour pour SORTIR de la carte', dehors.length === 0, S(polyBB));
+	ok('platine : bon fil (4 coudes au plus)', lenBends(polyBB).bends <= 4, S(polyBB));
+	// Un composant enfiché, lui, reste un obstacle plein.
+	const ledBB = editor.addPart('led', 400, 400);
+	await wait(150);
+	editor.centerPartOn(ledBB.id, cTrou(bbPins.find((n) => /^e10$/i.test(n)) ?? bbPins[10]));
+	await wait(60);
+	editor.plugPlacedPart(ledBB);
+	await wait(100);
+	editor.select(null); editor.autoRoute();
+	await wait(80);
+	const polyBB2 = [cTrou(trouA), ...(wBB.points ?? []), cTrou(trouB)];
+	const corpsLed = editor.partObstacles().find((o) => o.id === ledBB.id);
+	let dansLed = 0;
+	for (let i = 0; i < polyBB2.length - 1; i++) {
+		const p = polyBB2[i], q = polyBB2[i + 1];
+		const n = Math.max(2, Math.round((Math.abs(q.x - p.x) + Math.abs(q.y - p.y)) / 2));
+		for (let k = 0; k <= n; k++) {
+			const x = p.x + ((q.x - p.x) * k) / n, y = p.y + ((q.y - p.y) * k) / n;
+			if (x > corpsLed.x + 4 && x < corpsLed.x + corpsLed.w - 4 &&
+				y > corpsLed.y + 4 && y < corpsLed.y + corpsLed.h - 4) dansLed++;
+		}
+	}
+	ok('platine : un composant ENFICHÉ reste un obstacle', dansLed === 0,
+		dansLed + ' points dans le corps | ' + S(polyBB2));
+
+	// --- Carrés de connexion au bout des fils (v2026.8.30) ---------------------
+	// Demande de Frank : un carré de la couleur du fil sur chaque pastille de
+	// connexion, un poil plus large que le trait (3 px).
+	const caps = editor.wireCaps.get(wBB.id);
+	ok('carrés : un à chaque bout du fil', !!caps && caps.children.length === 2,
+		caps ? caps.children.length : 'aucun groupe');
+	if (caps) {
+		const r0 = caps.children[0], r1 = caps.children[1];
+		const cx = (r) => Number(r.getAttribute('x')) + Number(r.getAttribute('width')) / 2;
+		const cy = (r) => Number(r.getAttribute('y')) + Number(r.getAttribute('height')) / 2;
+		const bA = cTrou(trouA), bB2 = cTrou(trouB);
+		ok('carrés : centrés sur les deux points de connexion',
+			Math.abs(cx(r0) - bA.x) < 0.6 && Math.abs(cy(r0) - bA.y) < 0.6 &&
+			Math.abs(cx(r1) - bB2.x) < 0.6 && Math.abs(cy(r1) - bB2.y) < 0.6,
+			S([{ x: cx(r0), y: cy(r0) }, { x: cx(r1), y: cy(r1) }]) + ' pour ' + S([bA, bB2]));
+		ok('carrés : côté supérieur à la largeur du trait (3 px)',
+			Number(r0.getAttribute('width')) > 3 && Number(r0.getAttribute('width')) <= 7,
+			r0.getAttribute('width'));
+		const avantFill = r0.style.fill;
+		editor.setWireColor(wBB.id, 'red');
+		await wait(40);
+		ok('carrés : la couleur suit celle du fil',
+			caps.children[0].style.fill !== avantFill &&
+			caps.children[0].style.fill === editor.wirePaths.get(wBB.id).style.stroke,
+			caps.children[0].style.fill);
+	}
 
 	const out = document.createElement('pre');
 	out.id = 'measures';
