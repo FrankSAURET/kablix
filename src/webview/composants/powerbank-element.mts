@@ -1,6 +1,6 @@
 // Élément visuel maison <kablix-powerbank> : batterie externe USB (dessin de
 // Frank, Composants.svg groupe « Powerbank » → ./externe/Powerbank.svg ;
-// schéma interne générique « bat-interne », ./interne/bat-interne-interne.svg,
+// schéma interne générique « bat-interne », ./interne/bat-interne.svg,
 // resservira à d'autres composants « pile »). 430×250 px. Deux pastilles V+ /
 // GND : sortie régulée, traitée comme une alim de laboratoire (kind 'psu',
 // model.mts) mais tension FIXE — pas de bouton, pas de simControl.

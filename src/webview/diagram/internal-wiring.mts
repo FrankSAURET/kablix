@@ -38,7 +38,7 @@ import condoPSchema from '../composants/interne/condo-p-interne.svg';
 import relaisSchema from '../composants/interne/relais-interne.svg';
 // Symbole générique de pile (groupe « bat-interne », Composants.svg), calé sur
 // le cadre du dessin externe Powerbank : resservira à d'autres composants pile.
-import batterySchema from '../composants/interne/bat-interne-interne.svg';
+import batterySchema from '../composants/interne/bat-interne.svg';
 // Symboles de BOÎTIER PARTAGÉ : dessinés dans un groupe indépendant (« NPN1 »,
 // « PNP1 ») et extraits au cadre du boîtier qui les porte (to92). Ils relient
 // les pattes aux électrodes par des fils colorés dans l'ordre E-B-C : seule une
@@ -46,6 +46,11 @@ import batterySchema from '../composants/interne/bat-interne-interne.svg';
 // (`A Examiner/transistor.csv`) qui le dit, modèle par modèle.
 import npn1Schema from '../composants/interne/npn1-interne.svg';
 import pnp1Schema from '../composants/interne/pnp1-interne.svg';
+// Capteur à effet Hall : symbole extrait au cadre du boîtier TO92S (élément de
+// Hall, ampli, comparateur à hystérésis, régulateur et sortie à drain ouvert).
+// Il est trois fois plus large que le boîtier et DÉBORDE volontairement de son
+// cadre — l'overlay le laisse passer (`overflow: visible`, styles.css).
+import hallSchema from '../composants/interne/hall-interne.svg';
 // Symboles GÉNÉRIQUES (Composants.svg) : les électrodes y sont écrites (e/b/c,
 // g/d/s) mais jamais reliées aux pattes — le brochage change d'une référence à
 // l'autre, seul le nom écrit sur chaque pastille dit la vérité. Ils resservent
@@ -314,6 +319,7 @@ const CAPACITOR_SCHEMA: Record<'np' | 'p', Schema> = {
 };
 const RELAIS_SCHEMA = parseSchema(relaisSchema);
 const BATTERY_SCHEMA = parseSchema(batterySchema);
+const HALL_SCHEMA = parseSchema(hallSchema);
 // Symboles internes choisis NOMMÉMENT par l'attribut `schema` : le dessin d'une
 // référence ne se déduit pas de sa famille (deux NPN peuvent porter NPN1 ou
 // NPN-Générique), c'est sa fiche qui le dit.
@@ -495,6 +501,10 @@ export function internalWiringSvg(
     }
     case 'relay':
       return scaledSchema(RELAIS_SCHEMA, box);
+    case 'hall':
+      // Extrait au cadre du boîtier : superposable tel quel (le débord latéral
+      // ne doit surtout pas être mis à l'échelle du corps, il serait écrasé).
+      return HALL_SCHEMA.inner;
     case 'pushbutton':
       return pushbutton(pins);
     case 'led':

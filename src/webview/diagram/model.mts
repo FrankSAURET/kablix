@@ -2218,6 +2218,48 @@ export function aoDoSensorBindings(diagram: Diagram): AoDoSensorBinding[] {
   return bindings;
 }
 
+/** Broches d'un capteur à effet Hall : les noms ne bougent pas, seuls leurs
+ *  numéros de patte changent d'une référence à l'autre (attrs vplus/gnd/s). */
+const HALL_PINS = { vplus: 'V+', gnd: 'GND', out: 'S' } as const;
+
+export interface HallBinding {
+  partId: string;
+  /** Entrée numérique MCU reliée à la sortie S (null si non câblée). */
+  mcuPin: string | null;
+  /** V+ atteint un rail haut ET GND une masse : le capteur est alimenté. */
+  powered: boolean;
+  /**
+   * Résistance de rappel au plus câblée entre S et un rail haut (Ω), null si
+   * la sortie ne rejoint aucun rail. 0 Ω = sortie soudée EN DIRECT au rail :
+   * pas un rappel, un court-circuit dès que le capteur tire à la masse.
+   */
+  pullupOhms: number | null;
+}
+
+/**
+ * Capteurs à effet Hall : broche MCU de la sortie, alimentation, et rappel au
+ * plus CÂBLÉ. La sortie est à drain ouvert — sans rappel (externe ici, ou le
+ * rappel interne du µC que seul le moteur connaît) elle ne monte jamais.
+ */
+export function hallBindings(diagram: Diagram): HallBinding[] {
+  const nets = buildNets(diagram);
+  const graph = resistiveGraph(diagram);
+  const out: HallBinding[] = [];
+  for (const part of diagram.parts) {
+    if (partDef(part.type).kind !== 'hall') continue;
+    const net = (pin: string) => graph.nets.netOf({ partId: part.id, pin });
+    const up = minOhmsPath(net(HALL_PINS.vplus), graph.vccNets, graph.adj, undefined, undefined, 'source');
+    const down = minOhmsPath(net(HALL_PINS.gnd), graph.gndNets, graph.adj, undefined, undefined, 'sink');
+    out.push({
+      partId: part.id,
+      mcuPin: mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin: HALL_PINS.out })) ?? null,
+      powered: up !== null && down !== null,
+      pullupOhms: minOhmsPath(net(HALL_PINS.out), graph.vccNets, graph.adj, undefined, undefined, 'source'),
+    });
+  }
+  return out;
+}
+
 /** Servomoteurs dont l'entrée PWM est reliée à une broche MCU. */
 export function servoBindings(diagram: Diagram): SourceBinding[] {
   const nets = buildNets(diagram);

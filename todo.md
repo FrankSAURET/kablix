@@ -1,6 +1,5 @@
 # À faire
 ## Composants
-1. J'ai ajouté un capteur à effet hall. Schéma externe TO92S, schéma interne hall-interne. Propriété texte par défaut Hall. C'est le texte qui s'affiche au centre. propriété V+, GND et S qui sont 1, 2 ou 3 les numéros des broches. Il lui faut impérativement une résistance de pull up en sortie soit internes à un µC soit résistance + alim ou vcc du la carte. En simulation, un aimant apparait à coté (rectangle rouge et bleu avec N/S dessus), on peut l'éloigner ou le rapprocher pour activer le capteur.
 1. J'ai fais un nouveau potentiometre rotatif pot-rot2 avec pot-rot2-interne. dedans il y a du texte qui doit varier en fonction de la valeur nominale par exemple 104 donne 100kΩ et 472 4,7kΩ
 1. lorsqu'on apport un nouveau composant sur une platine (glisser déposer depuis la bibliothèque) les bornes de la platine qui seront connectées ne s'illumine pas en jaune il faut le poser et le reprendre
 1. Le corp du bouton poussoir est semi transparent. rend le opaque.
@@ -11,7 +10,7 @@
 1. Le routage auto merde sur la platine d'essais. Il passe sur les trous et fait aussi des détours pour sortir de la carte. Le routage auto sur la platin ed'essais doit être particulier, il a le droit depasser partout sur la platine mais doit éviter de recouvrir les trous autant que possible. il devrai aussi mettres des carrés de la couleur du fil sur les pastilles aux point de connection. Du reste ça peut être général (les carrés aux bout des fils). Coté légèrement supérieur à la largeur du fil.
 1. Sur le schéma (H:\Nuage\2I2D SIN\Frank 2026\Séquence N° 03 (TP) - Commande LED\Code Arduino\ComLedRGB\ComLedRGB.projix) l'état des BP n'est pas pris en compte. Le condensateur maintient la tension en permanence à 5v sur 7, 6 et 5
 1. 
-1. Raccourcir le temps d'activation
+1. Raccourcir le temps d'activation de l'extension 
  
 1. ⬜ **Pour Frank : dessiner les contours des systèmes** dans `Composants.svg` (groupes `<nom>-profil`, mode d'emploi `docs/fr/Drawing-systems.md`, puis `npm run profil <noms>`). Noms attendus, déjà branchés côté code : `araignee-chassis` (plaque, vue de dessus), **`araignee-picow`**, **`araignee-pca9685`** et **`araignee-batterie`** (cartes du dos, vues de dessus, connecteur à gauche), `patte-femur` et `patte-tibia` (os, vus de côté, gauche → droite entre les deux articulations). Tant qu'un dessin manque, la forme codée en dur tient.
 1. ⬜ **Pour Frank : dessiner le corps en sandwich** — groupes `araignee-corps-<pièce>` dans `Composants.svg`, **en millimètres**, chacun avec son étiquette de pose (`flanc pos=0,-9,0 ep=3 miroir=y`), puis `npm run montre araignee-corps` pour le tourner et l'éclater. Protocole complet : `docs/fr/Drawing-systems.md` → « Assembler plusieurs pièces ». Exemple de départ à copier : `docs/exemples/corps-demo.svg`. **Reste à faire ensuite (code)** : brancher l'assemblage lu sur `araignee-element.mts` (le corps remplace la plaque octogonale, les hanches viennent des pastilles nommées) — l'outillage est prêt, le dessin décidera des cotes.
@@ -19,6 +18,19 @@
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# >>>>  v2026.8.27 — le capteur à effet Hall : un aimant qu'on fait glisser, et un rappel qu'on ne peut plus oublier
+
+1. ✅ **Nouveau composant `hall` (capteur à effet Hall)**, dessin de Frank : boîtier partagé **TO92S** (`externe/TO92S.svg`) habillé par l'élément, schéma interne **`hall-interne`** (ampli + comparateur + étage de sortie). Balise `kablix-hall`, rangé dans les **capteurs** de la bibliothèque.
+2. ✅ **Inscription et brochage sont des propriétés** : `text` (défaut « Hall », une ligne par saut de ligne, écrite au centre du boîtier) et **`V+` / `GND` / `S` = numéros de patte 1, 2 ou 3**. Les NOMS des électrodes ne bougent jamais — changer de brochage n'orpheline aucun fil. Tout est traduit FR + EN.
+3. ✅ **L'inscription de boîtier est mutualisée** (`composants/utils/package-text.mts`) : le transistor et le capteur écrivaient le même code de centrage/rétrécissement de texte. Une seule façon de graver un boîtier, donc un seul endroit où se tromper.
+4. ✅ **Un aimant apparaît à côté du capteur EN SIMULATION** (rectangle **N rouge / S bleu**), qu'on **glisse à la souris** pour l'approcher ou l'éloigner. Il est dessiné **dans le SVG du composant** : il suit donc le zoom et la rotation, sans changer la boîte du composant ni le calage de ses pattes. La cote au-dessus donne la distance en mm et **passe au vert** quand le capteur commute (`trigger`, réglable, 10 mm par défaut).
+5. ✅ **Sortie à DRAIN OUVERT, active à l'état bas — et le rappel n'est plus facultatif.** `hallBindings` (model.mts) résout l'alimentation (V+ vers un rail haut, GND vers une masse) et le **rappel externe câblé** ; le rappel **interne** du µC est relu à chaque frame (`readPinDrive`), puisque c'est le programme qui l'arme (`INPUT_PULLUP` / `Pin.PULL_UP`). Trois défauts signalés par **cadre rouge + explication** : non alimenté, **aucun rappel**, et sortie **soudée en direct au +** (court-circuit).
+6. ✅ **Le schéma interne a le droit de déborder de son boîtier** : celui du capteur est trois fois plus large qu'un TO-92, le viewBox de l'overlay le coupait net. `overflow: visible` sur `.part__internal svg` — règle générale, aucune constante magique, et surtout **pas** de mise à l'échelle qui l'aurait écrasé.
+7. ✅ **Tests `testkablix` : `hall-uno` ET `hall-pico`**, générés depuis `_spec.mjs` — les deux façons de rappeler la sortie : résistance de **10 kΩ vers 5 V** côté Arduino, **rappel interne** côté Pico. Nouveau cas `hall` dans `_verify.mjs` : il ne contrôle pas que le câblage de la sortie mais aussi **l'alimentation et le rappel**, sans quoi le montage ne marcherait pas. 26 contrôles, 0 échec.
+8. ✅ **Fiches d'aide FR et EN** (`docs/{fr,en}/composants/hall.md`) avec illustration produite par `_capture-part.mjs`, et le capteur ajouté au tableau des composants simulés des deux guides d'utilisation.
+9. ℹ️ Coquille corrigée au passage : `interne/bat-interne-interne.svg` → **`bat-interne.svg`** (`git mv`, extracteur réparé).
+10. ✅ `npm run typecheck`, `npm run build`, `npm run verify:all` et `npm run verify:docs` verts.
 
 # >>>>  v2026.8.26 — le corps en sandwich se dessine : des pièces cotées en mm, une fenêtre pour tourner autour
 

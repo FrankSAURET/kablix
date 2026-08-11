@@ -71,6 +71,7 @@ const BY_KIND: Record<string, RefFamily> = {
   ultrasonic: 'sensor',
   'digital-source': 'sensor',
   'analog-source': 'sensor',
+  hall: 'sensor',
   buzzer: 'actuator',
   servo: 'actuator',
   // Patte de robot et araignée complète : des actionneurs (servos), même si

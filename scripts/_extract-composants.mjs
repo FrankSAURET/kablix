@@ -299,8 +299,10 @@ for (const it of items) {
   // boîtier partagé (NPN1@to92 → npn1-libre-interne.svg).
   // (le suffixe ne vise que les variantes de schéma interne : un boîtier cité
   // comme hôte est extrait tel quel, sans doublon suffixé)
+  // Le suffixe « -interne » n'est JAMAIS doublé : un groupe déjà nommé
+  // « hall-interne » sort en hall-interne.svg, pas hall-interne-interne.svg.
   const outName = isInt
-    ? (it.host ? it.name.toLowerCase() : it.name.replace(/-interne$/, '')) + SUFFIX + '-interne'
+    ? (it.host ? it.name.toLowerCase() : it.name).replace(/-interne$/, '') + SUFFIX + '-interne'
     : it.name;
   mkdirSync(dir, { recursive: true });
   const file = join(dir, `${outName}.svg`);

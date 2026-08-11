@@ -65,6 +65,18 @@ const FR: Record<string, string> = {
     'Ce transistor a été détruit : un moteur est une bobine, et couper son courant renvoie une surtension. Une diode de roue libre aux bornes du moteur l\'absorbe — elle n\'est pas facultative.',
   'The supply cannot deliver the current this motor draws: a board pin is far too weak for a motor. Use a power supply and a transistor.':
     'L\'alimentation ne fournit pas le courant que demande ce moteur : une broche de carte est très loin du compte. Passez par une alimentation et un transistor.',
+  // Capteur à effet Hall : sortie à drain ouvert, inutilisable sans rappel au plus.
+  'Hall sensor is not powered': 'Le capteur à effet Hall n\'est pas alimenté',
+  'This sensor is not powered: V+ must reach a supply rail (5 V / 3V3 / V+ of a supply) and GND a ground.':
+    'Ce capteur n\'est pas alimenté : V+ doit rejoindre un rail d\'alimentation (5 V / 3V3 / V+ d\'une alim) et GND une masse.',
+  'Hall sensor output is shorted to the supply':
+    'Sortie du capteur à effet Hall en court-circuit sur l\'alimentation',
+  'The output is wired straight to the supply rail: when the sensor switches it would short the supply. Put a pull-up resistor (10 kΩ) in between.':
+    'La sortie est reliée directement au rail d\'alimentation : à la commutation, le capteur mettrait l\'alimentation en court-circuit. Intercalez une résistance de rappel (10 kΩ).',
+  'The Hall sensor output needs a pull-up':
+    'La sortie du capteur à effet Hall demande une résistance de rappel',
+  'The output is open drain: it can only pull down to ground, never up. Add a pull-up resistor to VCC, or turn on the internal pull-up of the board pin (INPUT_PULLUP / Pin.PULL_UP).':
+    'La sortie est à drain ouvert : elle sait seulement tirer à la masse, jamais vers le haut. Ajoutez une résistance de rappel vers VCC, ou activez le rappel interne de la broche de la carte (INPUT_PULLUP / Pin.PULL_UP).',
   // Circuit intégré logique : la famille (LS, HC…) fixe la plage d'alimentation.
   // Sous le minimum le boîtier reste muet, au-dessus il est détruit — même
   // message dans les deux cas, la tension mesurée départage.
@@ -314,6 +326,12 @@ const FR: Record<string, string> = {
   'Sensitivity (%)': 'Sensibilité (%)',
   'PIR motion sensor': 'Détecteur de mouvement (PIR)',
   'Tilt sensor': "Capteur d'inclinaison",
+  // Capteur à effet Hall : boîtier partagé TO92S, brochage réglable patte par patte.
+  'Hall effect sensor': 'Capteur à effet Hall',
+  'V+ pin': 'Patte V+',
+  'GND pin': 'Patte GND',
+  'S (output) pin': 'Patte S (sortie)',
+  'Trigger distance (mm)': 'Distance de déclenchement (mm)',
   'Servo motor': 'Servomoteur',
   'Spider leg': "Patte d'araignée",
   // Robot araignée complet : châssis + 4 pattes, PCA9685 et batterie embarqués.

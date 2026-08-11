@@ -28,6 +28,7 @@ export type PartKind =
   | 'analog-source'
   | 'digital-source'
   | 'ao-do-sensor'
+  | 'hall'
   | 'servo'
   | 'patte'
   | 'araignee'
@@ -563,6 +564,23 @@ export const CATALOG: readonly PartDef[] = [
     type: 'tilt', label: 'Tilt sensor', tag: 'kablix-tilt-switch', kind: 'digital-source',
     digitalPin: 'OUT', simControl: true,
   },
+  // Capteur à effet Hall (dessin de Frank) : BOÎTIER PARTAGÉ TO92S. Sortie à
+  // drain ouvert, donc INUTILISABLE sans rappel au plus (résistance vers VCC ou
+  // rappel interne du µC) — le moteur le vérifie et l'explique (hallStates).
+  // En simulation, un aimant glissant à droite du boîtier fait commuter la
+  // sortie sous la distance de déclenchement (simControl : `el.near`).
+  {
+    type: 'hall', label: 'Hall effect sensor', tag: 'kablix-hall', kind: 'hall',
+    digitalPin: 'S', simControl: true,
+    attrs: { text: 'Hall', vplus: '1', gnd: '2', s: '3', trigger: '10', distance: '20' },
+    props: [
+      { attr: 'text', label: 'Marking', kind: 'text', rows: 2 },
+      { attr: 'vplus', label: 'V+ pin', kind: 'select', options: ['1', '2', '3'] },
+      { attr: 'gnd', label: 'GND pin', kind: 'select', options: ['1', '2', '3'] },
+      { attr: 's', label: 'S (output) pin', kind: 'select', options: ['1', '2', '3'] },
+      { attr: 'trigger', label: 'Trigger distance (mm)', kind: 'number', min: 1, max: 25, step: 1 },
+    ],
+  },
   {
     type: 'servo', label: 'Servo motor', tag: 'kablix-servo', kind: 'servo',
     // Impulsions 0°/180° réglables : SG90 (datasheet) = 500-2500 µs ; lib
@@ -937,6 +955,7 @@ export function partCategory(def: PartDef): string {
     case 'analog-source':
     case 'digital-source':
     case 'ao-do-sensor':
+    case 'hall':
     case 'ultrasonic':
       return 'Sensors';
     case 'buzzer':

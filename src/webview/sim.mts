@@ -25,6 +25,7 @@ import './composants/analog-joystick-element.mjs';
 import './composants/photoresistor-sensor-element.mjs';
 import './composants/pir-motion-sensor-element.mjs';
 import './composants/tilt-switch-element.mjs';
+import './composants/hall-element.mjs';
 import './composants/servo-element.mjs';
 import './composants/lcd1602-element.mjs';
 import './composants/ssd1306-element.mjs';
@@ -88,6 +89,7 @@ import {
   digitalSourceBindings,
   analogSourceBindings,
   aoDoSensorBindings,
+  hallBindings,
   servoBindings,
   patteBindings,
   buzzerBindings,
@@ -121,6 +123,7 @@ import {
   motorStates,
   motorMcuPin,
   type Part,
+  type HallBinding,
   type RelayFault,
   type MotorFault,
   type MotorState,
@@ -307,6 +310,13 @@ let pulseTargets: Array<{ pin: string; el: SimElement }> = [];
 // Capteurs PIR : broche MCU + élément. La sortie suit `el.motion` (survol souris
 // / Ctrl+clic), relue à chaque frame car le survol n'émet pas d'événement.
 let motionTargets: Array<{ pin: string; el: SimElement; last: boolean }> = [];
+// Capteurs à effet Hall : câblage résolu au lancement + élément (position de
+// l'aimant). Relus à chaque frame comme le PIR, pour deux raisons : l'aimant se
+// glisse à la souris, et le RAPPEL INTERNE du µC n'existe qu'une fois le
+// `pinMode(pin, INPUT_PULLUP)` exécuté — donc après le démarrage.
+let hallTargets: Array<{ binding: HallBinding; el: SimElement }> = [];
+/** Défaut de câblage courant de chaque capteur Hall (pour ne le dire qu'au changement). */
+const hallFaults = new Map<string, string>();
 // LED RGB : partId → broches MCU des canaux R/G/B (rapport cyclique PWM).
 let rgbLedTargets = new Map<string, { r: string | null; g: string | null; b: string | null }>();
 // Afficheur 7 segments 1 chiffre : partId → broche MCU de chaque segment
@@ -771,6 +781,7 @@ function renderTick(): void {
   }
   updatePulses();
   updateMotion();
+  updateHall();
   refreshVisuals();
   updateSpeedBadge();
   updateSimGauge();
@@ -942,6 +953,61 @@ function updateSimGauge(): void {
   simRateEl.textContent = `${Math.round(gaugeRate * 100)} %`;
 }
 
+/**
+ * Capteurs à effet Hall : sortie à DRAIN OUVERT, donc actif-bas. Au repos elle
+ * est tenue en haut par un rappel — la résistance câblée vers VCC, ou le rappel
+ * interne du µC ; l'aimant approché la tire à la masse. Sans rappel, elle ne
+ * monte jamais : le capteur paraît « toujours détecter ». C'est l'erreur de
+ * câblage classique, on la nomme au lieu de laisser deviner.
+ */
+function updateHall(): void {
+  if (!engine || hallTargets.length === 0) return;
+  for (const { binding, el } of hallTargets) {
+    const pin = binding.mcuPin;
+    // Rappel interne : armé par le programme (pinMode(INPUT_PULLUP) côté Arduino,
+    // Pin.PULL_UP côté MicroPython) — donc à relire, pas à figer au lancement.
+    const internal = pin ? (engine.readPinDrive?.(pin) ?? 'hiz') === 'pullup' : false;
+    const external = binding.pullupOhms !== null && binding.pullupOhms > 0;
+    let fault = '';
+    if (!binding.powered) fault = 'unpowered';
+    else if (binding.pullupOhms === 0) fault = 'shorted';
+    else if (!external && !internal) fault = 'no-pullup';
+    // En défaut la sortie reste basse (le capteur ne tient rien en haut).
+    if (pin) engine.setInput(pin, fault ? false : !el.near);
+    reportHallFault(binding.partId, fault);
+  }
+}
+
+/** Cadre rouge + explication du défaut de câblage d'un capteur Hall (au changement). */
+function reportHallFault(partId: string, fault: string): void {
+  if ((hallFaults.get(partId) ?? '') === fault) return;
+  hallFaults.set(partId, fault);
+  if (!fault) {
+    editor.setFaulty(partId, false);
+    return;
+  }
+  const say = (msg: string, note: string): void => {
+    setStatus(`${t(msg)} (${partId})`);
+    editor.setFaulty(partId, true, t(note));
+  };
+  if (fault === 'unpowered') {
+    say(
+      'Hall sensor is not powered',
+      'This sensor is not powered: V+ must reach a supply rail (5 V / 3V3 / V+ of a supply) and GND a ground.'
+    );
+  } else if (fault === 'shorted') {
+    say(
+      'Hall sensor output is shorted to the supply',
+      'The output is wired straight to the supply rail: when the sensor switches it would short the supply. Put a pull-up resistor (10 kΩ) in between.'
+    );
+  } else {
+    say(
+      'The Hall sensor output needs a pull-up',
+      'The output is open drain: it can only pull down to ground, never up. Add a pull-up resistor to VCC, or turn on the internal pull-up of the board pin (INPUT_PULLUP / Pin.PULL_UP).'
+    );
+  }
+}
+
 /** Met à jour la sortie des capteurs PIR selon le survol souris (au changement). */
 function updateMotion(): void {
   if (!engine || motionTargets.length === 0) return;
@@ -1093,6 +1159,8 @@ function clearRelayFaults(): void {
   motorFrame = new Map();
   icFaults.clear();
   icFrame = [];
+  hallTargets = [];
+  hallFaults.clear();
   burnNotes.clear();
   editor.clearFaults();
 }
@@ -2227,6 +2295,17 @@ function bindInputs(): void {
       engine.setInput(binding.mcuPin, part?.attrs?.state === '1');
     }
   }
+  // Capteurs à effet Hall : le câblage (alimentation, rappel au plus) est résolu
+  // ici une fois pour toutes — le schéma est figé pendant la simulation — mais
+  // l'état (aimant, rappel interne) est relu à chaque frame (updateHall).
+  hallTargets = [];
+  hallFaults.clear();
+  for (const binding of hallBindings(editor.diagram)) {
+    const el = editor.elementOf(binding.partId);
+    if (el) hallTargets.push({ binding, el });
+  }
+  updateHall();
+
   pulseTargets = [];
   for (const binding of analogSourceBindings(editor.diagram)) {
     const part = editor.diagram.parts.find((p) => p.id === binding.partId);

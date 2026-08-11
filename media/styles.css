@@ -1890,8 +1890,13 @@ body.vscode-light .inspector__ref--nouveau {
   z-index: 4;
 }
 
+/* `overflow: visible` : un symbole interne peut DÉBORDER du cadre de son boîtier
+   — celui du capteur à effet Hall (ampli + comparateur + étage de sortie) est
+   trois fois plus large qu'un TO-92. Sans cela, le viewBox de l'overlay le
+   coupait net à ras du boîtier (Frank, v2026.8.27). */
 .part__internal svg {
   display: block;
+  overflow: visible;
 }
 
 /* Les LETTRES d'un symbole (e/b/c d'un transistor, g/d/s d'un MOSFET, segments

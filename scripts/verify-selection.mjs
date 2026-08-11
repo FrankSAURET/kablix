@@ -1335,7 +1335,10 @@ rows.push({
 rows.push({
 	name: 'défaut : lancement et arrêt de simulation effacent les cadres',
 	ok: (sim.match(/clearRelayFaults\(\);/g) ?? []).length >= 2 &&
-		/function clearRelayFaults\(\): void \{[\s\S]{0,200}?editor\.clearFaults\(\);/.test(sim),
+		// Fenêtre large : la fonction remet à zéro l'état de CHAQUE famille de
+		// composants qui signale un défaut (relais, moteurs, CI, Hall…) — elle
+		// s'allonge d'un composant à l'autre, ce qui n'est pas une régression.
+		/function clearRelayFaults\(\): void \{[\s\S]{0,600}?editor\.clearFaults\(\);/.test(sim),
 	detail: 'clearRelayFaults absent du lancement ou de l arrêt',
 });
 const ed = readFileSync(join(ROOT, 'src', 'webview', 'diagram', 'editor.mts'), 'utf8');

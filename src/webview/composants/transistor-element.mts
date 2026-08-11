@@ -15,10 +15,11 @@
 //
 // Simulation : voir transistorState (model.mts) — on vise la SATURATION, le
 // courant de collecteur étant plafonné à Gain × Ib.
-import { css, html, svg, LitElement } from 'lit';
+import { css, html, LitElement } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
 import { boumOverlay } from './utils/boum.mjs';
+import { packageText } from './utils/package-text.mjs';
 import to92 from './externe/to92.svg';
 import to220 from './externe/to220.svg';
 
@@ -149,26 +150,10 @@ export class TransistorElement extends LitElement {
 
   render() {
     const s = this.skin;
-    // Inscription centrée sur la face plate : une ligne par saut de ligne, le
-    // bloc reste centré quel que soit leur nombre. Une ligne trop longue pour
-    // la face fait rétrécir TOUTE l'inscription (monospace : ~0,62 em/caractère)
-    // — une référence à rallonge ne déborde donc jamais du boîtier.
-    const lines = String(this.text ?? '').split('\n').filter((l) => l.length > 0);
-    const longest = Math.max(1, ...lines.map((l) => l.length));
-    const font = Math.min(s.font, s.tw / (0.62 * longest));
-    const step = font * 1.2;
-    // Le centre du bloc est une LIGNE DE BASE : décalé d'un tiers de la hauteur
-    // de capitale sous le centre géométrique de la face.
-    const top = s.cy + 0.36 * font - ((lines.length - 1) * step) / 2;
     return html`
       <svg width=${s.w} height=${s.h} viewBox="0 0 ${s.w} ${s.h}" xmlns="http://www.w3.org/2000/svg">
         ${unsafeSVG(s.svg)}
-        ${lines.map(
-          // Balise `svg` OBLIGATOIRE ici : un fragment enfant écrit avec `html`
-          // serait analysé hors du contexte SVG — le <text> naîtrait dans le
-          // namespace HTML et resterait invisible (inscription disparue).
-          (line, i) => svg`<text x=${s.tx} y=${top + i * step} font-size=${font} fill=${s.fill}>${line}</text>`
-        )}
+        ${packageText(this.text, s)}
       </svg>
       ${this.burned ? boumOverlay(40) : null}
     `;

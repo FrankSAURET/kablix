@@ -53,6 +53,10 @@ export const PART_PINS = {
   photoresistor: ['VCC', 'GND', 'DO', 'AO'],
   pir: ['VCC', 'OUT', 'GND'],
   tilt: ['GND', 'VCC', 'OUT'],
+  // Capteur à effet Hall : les NOMS des électrodes ne bougent pas, seuls leurs
+  // numéros de patte changent d'une référence à l'autre (propriétés vplus/gnd/s)
+  // — changer de brochage ne doit donc orphéliner aucun fil.
+  hall: ['V+', 'GND', 'S'],
   servo: ['GND', 'V+', 'PWM'],
   lcd: ['GND', 'VCC', 'SDA', 'SCL'],
   'oled-ssd1306': ['SDA', 'SCL', 'SA0', 'RST', 'CS', 'VDD', 'VIN', 'GND'],
@@ -797,6 +801,44 @@ void setup() {
 
 void loop() {
   Serial.println(digitalRead(2) == HIGH ? "INCLINE" : "droit");
+  delay(300);
+}
+`,
+  }),
+
+  test({
+    // Capteur à effet Hall : sortie à DRAIN OUVERT, donc rappel obligatoire.
+    // Côté Arduino, on le câble en externe (10 kΩ vers 5 V) — c'est le montage
+    // du A3144 dans toutes ses fiches. Sans lui, la sortie ne monte jamais et
+    // le moteur signale la faute.
+    name: 'hall-uno', board: 'uno', ext: 'ino',
+    parts: [
+      MCU('uno'),
+      { id: 'Capt1', type: 'hall', x: 620, y: 90, attrs: { text: 'A3144', vplus: '1', gnd: '2', s: '3' } },
+      { id: 'R1', type: 'resistor', x: 500, y: 60, attrs: { value: '10000' } },
+    ],
+    wires: () => [
+      w('Capt1', 'V+', 'U1', '5V', 'red'),
+      w('Capt1', 'GND', 'U1', 'GND.1', 'black'),
+      w('Capt1', 'S', 'U1', '2', 'yellow'),
+      w('R1', '1', 'Capt1', 'S', 'orange'),
+      w('R1', '2', 'U1', '5V', 'red'),
+    ],
+    expect: { kind: 'hall', partId: 'Capt1', mcuPin: '2', powered: true, pullupOhms: 10000 },
+    code: `// Test capteur à effet Hall : en simulation, glisser l'aimant vers le capteur.
+// Sortie à drain ouvert, ACTIVE BASSE : rappel de 10 kohms vers 5 V.
+const int HALL = 2;
+
+void setup() {
+  pinMode(HALL, INPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
+  Serial.begin(115200);
+}
+
+void loop() {
+  bool aimant = digitalRead(HALL) == LOW;
+  digitalWrite(LED_BUILTIN, aimant ? HIGH : LOW);
+  Serial.println(aimant ? "AIMANT" : "rien");
   delay(300);
 }
 `,
@@ -2792,6 +2834,36 @@ import time
 tilt = Pin(26, Pin.IN)
 while True:
     print("INCLINE" if tilt.value() == 1 else "droit")
+    time.sleep(0.3)
+`,
+  }),
+
+  test({
+    // Même capteur, l'autre façon de le rappeler : PAS de résistance externe,
+    // c'est le rappel INTERNE du Pico (`Pin.PULL_UP`) qui tient la sortie
+    // haute. Le moteur le relit à chaque frame — c'est le programme qui l'arme.
+    name: 'hall-pico', board: 'pico', ext: 'py',
+    parts: [
+      MCU('pico', 356.75, 213.6),
+      { id: 'Capt1', type: 'hall', x: 290, y: 140, attrs: { text: 'A3144', vplus: '1', gnd: '2', s: '3' } },
+    ],
+    wires: () => [
+      w('Capt1', 'V+', 'U1', '3V3', 'red'),
+      w('Capt1', 'GND', 'U1', 'GND.4', 'black'),
+      w('Capt1', 'S', 'U1', 'GP16', 'yellow'),
+    ],
+    expect: { kind: 'hall', partId: 'Capt1', mcuPin: 'GP16', powered: true, pullupOhms: null },
+    code: `# Test capteur à effet Hall : en simulation, glisser l'aimant vers le capteur.
+# Sortie à drain ouvert, ACTIVE BASSE : ici c'est le rappel interne du Pico.
+from machine import Pin
+import time
+
+hall = Pin(16, Pin.IN, Pin.PULL_UP)
+led = Pin(25, Pin.OUT)
+while True:
+    aimant = hall.value() == 0
+    led.value(1 if aimant else 0)
+    print("AIMANT" if aimant else "rien")
     time.sleep(0.3)
 `,
   }),

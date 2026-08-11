@@ -142,6 +142,7 @@ Certains composant spéciaux (seulement LED RVB pour l'instant) ont des couleurs
 | Joystick analogique | 2 axes analogiques (VERT/HORZ) + bouton SEL |
 | Photorésistance (LDR) | Sortie analogique AO, luminosité réglée dans Propriétés |
 | Détecteur PIR, capteur d'inclinaison | Sortie numérique OUT, état réglé dans Propriétés |
+| Capteur à effet Hall | Sortie S à drain ouvert (active basse), aimant glissé à la souris pendant la simulation |
 | Servomoteur | Bras à 90° quand la broche PWM est haute (simplifié) |
 
 ## Simuler

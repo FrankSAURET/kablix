@@ -142,6 +142,7 @@ Some special parts (only the RGB LED for now) have preset initial colors (I'll l
 | Analog joystick | 2 analog axes (VERT/HORZ) + SEL button |
 | Photoresistor (LDR) | Analog output AO, brightness set in Properties |
 | PIR sensor, tilt sensor | Digital output OUT, state set in Properties |
+| Hall effect sensor | Open-drain output S (active low), magnet dragged with the mouse during simulation |
 | Servo motor | Horn at 90° when the PWM pin is high (simplified) |
 
 ## Simulating

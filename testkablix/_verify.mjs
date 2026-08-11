@@ -224,6 +224,17 @@ for (const t of TESTS) {
         check(`${t.name} : sortie → ${e.mcuPin}`, b?.mcuPin === e.mcuPin, JSON.stringify(b));
         break;
       }
+      case 'hall': {
+        // Capteur à effet Hall : au-delà du câblage de la sortie, ce qui compte
+        // est son ALIMENTATION et son rappel — la sortie est à drain ouvert,
+        // sans rappel elle ne monte jamais (le montage ne marcherait pas).
+        const b = model.hallBindings(diagram).find((x) => x.partId === e.partId);
+        check(`${t.name} : sortie → ${e.mcuPin}`, b?.mcuPin === e.mcuPin, JSON.stringify(b));
+        check(`${t.name} : alimenté (V+ et GND)`, b?.powered === e.powered, JSON.stringify(b));
+        check(`${t.name} : rappel externe ${e.pullupOhms === null ? 'absent (rappel interne)' : `${e.pullupOhms} Ω`}`,
+          b?.pullupOhms === e.pullupOhms, JSON.stringify(b));
+        break;
+      }
       case 'analog-source': {
         const b = model.analogSourceBindings(diagram).find((x) => x.partId === e.partId);
         check(`${t.name} : sortie → ${e.mcuPin}`, b?.mcuPin === e.mcuPin, JSON.stringify(b));

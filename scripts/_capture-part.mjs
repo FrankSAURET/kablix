@@ -38,6 +38,9 @@ const PARTS = {
   npn: { module: 'transistor-element.mjs', tag: 'kablix-transistor', width: 200, attrs: { text: 'NPN' } },
   pnp: { module: 'transistor-element.mjs', tag: 'kablix-transistor', width: 200, attrs: { symbol: 'pnp', text: 'PNP' } },
   relais: { module: 'relais-element.mjs', tag: 'kablix-relais' },
+  // Capteur à effet Hall : boîtier partagé TO92S (dessin étroit et haut comme le
+  // TO-92 du transistor) — illustré hors simulation, donc sans son aimant.
+  hall: { module: 'hall-element.mjs', tag: 'kablix-hall', width: 160 },
   powerbank: { module: 'powerbank-element.mjs', tag: 'kablix-powerbank' },
   // Patte seule : illustrée genou PLIÉ (une patte bien droite se lit comme un
   // simple tube — la pose montre les deux articulations).

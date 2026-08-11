@@ -60,6 +60,7 @@ Uno. La colonne « Observable » dit par quoi chacun reste couvert.
 | Capteur de lumière (LDR) | `photoresistor-uno` | `photoresistor-pico` | AO + DO (actif bas) |
 | Capteur PIR | `pir-uno` | `pir-pico` | survol = mouvement |
 | Capteur d'inclinaison | `tilt-uno` | `tilt-pico` | clic maintenu = incliné |
+| Capteur à effet Hall | `hall-uno` | `hall-pico` | aimant glissé = sortie basse ; rappel externe 10 kΩ (Uno) ou interne (Pico) |
 | Servomoteur | `servo-uno` | — (retiré) | 0° / 90° / 180° ; côté Pico, 16 servos et leur alim sont éprouvés par `powerbank-pico` et `patte-pico` |
 | LCD 16×2 I²C | `lcd-uno` | `lcd-pico` | texte + compteur |
 | OLED SSD1306 I²C | `oled-ssd1306-uno` | `oled-ssd1306-pico` | cadre + dessin |
