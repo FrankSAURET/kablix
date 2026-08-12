@@ -16,6 +16,13 @@
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
 
+# >>>>  v2026.8.40 — la molette zoome le DESSIN, plus la fenêtre
+
+1. ✅ **Ctrl+molette est confisqué dans toute la fenêtre de `npm run montre`.** C'était le vrai symptôme : Ctrl+molette est le zoom du **navigateur**, il grossit le panneau EN MÊME TEMPS que le dessin — exactement l'inverse de ce qu'on cherche en regardant une pièce de près. Le geste pilote maintenant le zoom de la **scène** (le même que le curseur, bornes 0,4× à 2,5×, arrondi au pas de 0,05 pour que le curseur se replace dessus).
+2. ✅ **Molette simple dans la vue = zoom aussi**, sans Ctrl. Au-dessus du panneau, la molette garde son rôle normal : faire défiler la liste des pièces.
+3. ℹ️ **Le zoom clavier du navigateur (Ctrl +, Ctrl −, Ctrl 0) reste hors de portée** : aucune page ne peut l'intercepter. Il grossit toujours tout, panneau compris — utiliser la molette ou le curseur.
+4. ✅ Vérifié sur la vraie fenêtre (`node scripts/montre.mjs araignee-corps`) : le bundle passe et la page servie porte bien le nouveau gestionnaire.
+
 # >>>>  v2026.8.39 — la barre latérale du viewer ne se laisse plus écraser
 
 1. ✅ **Le panneau de `npm run montre` garde ses 330 px** quelle que soit la place. Il était posé en `width: 330px` sans `flex-shrink: 0` : la scène (SVG de largeur fixe, 900 px) lui volait des pixels dès que la fenêtre manquait de largeur — et un zoom du navigateur, qui réduit la fenêtre **en pixels CSS**, suffisait à le comprimer.

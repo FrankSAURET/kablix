@@ -507,6 +507,22 @@ addEventListener('pointermove', (ev) => {
   glisse = ev.clientX;
   dessine();
 });
+
+// La molette zoome la SCÈNE, jamais la page. Ctrl+molette est confisqué partout
+// dans la fenêtre : c'est le zoom du navigateur, et lui fait grossir le panneau
+// EN MÊME TEMPS que le dessin — l'inverse de ce qu'on cherche en regardant une
+// pièce de près. Sans Ctrl, seule la vue réagit (le panneau garde son défilement).
+addEventListener('wheel', (ev) => {
+  const dansLaVue = ev.target instanceof Element && ev.target.closest('.vue');
+  if (!ev.ctrlKey && !dansLaVue) return;
+  ev.preventDefault();
+  const z = etat.zoom * Math.exp(-ev.deltaY / 400);
+  // Arrondi au pas du curseur (0,05) : la valeur affichée reste lisible et le
+  // curseur se replace exactement dessus.
+  etat.zoom = Math.min(2.5, Math.max(0.4, Math.round(z * 20) / 20));
+  dessine();
+}, { passive: false });
+
 dessine();
 recharge(false);
 `);
