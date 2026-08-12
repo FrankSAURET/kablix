@@ -44,14 +44,14 @@ Pressé ? Sautez à [dessin d'origine, ce que ça donne](#dessin-dorigine-ce-que
 | # | Étape | Commande / fichier |
 | --- | --- | --- |
 | 1 | Dessiner les pièces, chacune avec son **étiquette de pose** | `Composants.svg`, groupes `<assemblage>-<pièce>` |
-| 2 | Le lire et **le regarder tourner** | `npm run montre <assemblage>` |
+| 2 | Le lire et **le regarder tourner** | `npm run montre <préfixe>` |
 | 3 | Le ranger seul (sans ouvrir de fenêtre) | `npm run assemblage <assemblage>` → `src/webview/composants/assemblages.mts` |
 | 4 | En tirer les images de la doc | `node scripts/_capture-profil.mjs <assemblage>:assemblage` et `:eclate` |
 | 5 | Contrôler | `npm run verify:assemblage` |
 
 L'étape 4 des profils est vide dans le cas courant : les composants **cherchent déjà** leurs profils par leur nom et retombent sur la forme codée en dur tant que le dessin n'existe pas. Dessiner `araignee-chassis` puis l'extraire suffit à changer la silhouette du robot, sans toucher une ligne de TypeScript.
 
-Côté assemblage, `npm run montre` fait les étapes 1 à 3 d'un coup : il relit le dessin, le range, et ouvre la scène dans une fenêtre où vous la tournez. C'est **la** boucle de travail — on redessine dans Inkscape, on relance, on regarde.
+Côté assemblage, `npm run montre` fait les étapes 1 à 3 d'un coup : il relit le dessin, le range, et ouvre la scène dans une fenêtre où vous la tournez. C'est **la** boucle de travail — on redessine dans Inkscape, on clique **↻ recharger**, on regarde. Donnez-lui un préfixe et c'est le robot entier qui monte d'un coup.
 
 ---
 
@@ -321,22 +321,30 @@ Une pièce dessinée seule (un profil) suit la **même convention** : ses pastil
 ### Le regarder tourner
 
 ```bash
-npm run montre araignee-corps
+npm run montre araignee            # TOUT ce qui commence par « araignee »
+npm run montre araignee-corps      # un seul assemblage
 ```
 
-La commande relit le dessin, le range, et ouvre une fenêtre Chrome sur la scène — **le vrai moteur**, celui du composant, pas un aperçu approchant.
+L'argument est un **préfixe**, pas un nom exact : l'outil ramasse dans la planche **tous les assemblages et tous les profils** qui commencent par là, et les montre **ensemble, à la même échelle**. `araignee` sort ainsi le corps, le fémur et le tibia côte à côte — trois dessins séparés sur la planche, une seule scène. La planche n'est lue qu'**une fois** pour tout le préfixe (la lecture passe par Chrome : c'est le temps d'attente, autant ne le payer qu'une fois).
+
+Un profil, dessiné seul et sans cotes, est traité comme un assemblage d'une pièce : sa grille de 10 px devient des millimètres et il se pose à plat, 3 mm d'épaisseur, à côté des vrais assemblages.
+
+Ce qui est lu est aussi **rangé** : `assemblages.mts` et `profils.mts` sont réécrits, exactement comme le feraient `npm run assemblage` et `npm run profils`.
 
 | Dans la fenêtre | Ce que ça sert |
 | --- | --- |
+| Bouton **↻ recharger** | relire `Composants.svg` **sans quitter la fenêtre** : on retouche dans Inkscape, on clique, on regarde. L'angle, le zoom et les cases cochées sont conservés |
 | **Glisser dans la vue** (ou le curseur *lacet*) | tourner autour : l'angle où ça coince n'est jamais celui de la première image |
 | Curseur **éclaté** | écarter les pièces le long de leur épaisseur — le seul moyen de voir ce qu'il y a entre deux flancs serrés à 3 mm |
 | Curseur **zoom** | regarder un détail de près |
+| Case de titre **d'un ensemble** | masquer tout un assemblage — regarder le fémur seul sans relancer la commande |
 | Cases **pièces** | cacher un flanc pour voir dedans |
 | Case **axes dessinés** | montrer les pastilles nommées à leur place en 3D, et les **axes de rotation** en trait rouge tireté |
+| Case **côte à côte** | décochée, chaque ensemble reprend sa **vraie place** : c'est ainsi qu'on vérifie qu'un fémur vient bien se poser sur la hanche du corps |
 
 Le panneau affiche l'**encombrement en millimètres** (`100 × 80 × 31 mm`) : c'est la cote qu'on lit sur un plan de montage, et le premier signe qu'une pièce est posée de travers.
 
-Deux options utiles : `--source=docs/exemples/corps-demo.svg` pour lire une autre planche, `--sans-lire` pour rouvrir sans relire le dessin (quand seul le moteur a changé).
+Les options : `--source=docs/exemples/corps-demo.svg` pour lire une autre planche, `--sans-lire` pour rouvrir sur ce qui est déjà rangé (quand seul le moteur a changé), `--sans-ranger` pour regarder sans réécrire les modules générés, `--sans-ouvrir` pour servir la page sans lancer de fenêtre, `--port=8731` pour choisir le port.
 
 ### Dessin d'origine, ce que ça donne
 
@@ -406,6 +414,6 @@ Le banc `verify:assemblage` est du calcul pur, comme celui des profils. Il épro
 - Une **pastille rouge nommée** devient un axe — c'est le dessin qui dit où est la hanche. Nommez-la par son **id Inkscape** ; le texte au-dessus fonctionne encore.
 - **Deux pastilles de même préfixe** (`hanche-g-ext`, `hanche-g-int`) font un **axe de rotation**. Deux articulations distinctes = deux préfixes distincts.
 - La **couleur de la pièce est celle du dessin**, transparence comprise ; `mat=` n'est que le repli d'une pièce non peinte.
-- `npm run montre <nom>` relit, range et ouvre : c'est la boucle de travail.
+- `npm run montre <préfixe>` relit, range et ouvre **tout ce qui commence par là**, à la même échelle : c'est la boucle de travail. On retouche dans Inkscape, on clique **↻ recharger**.
 - Le curseur **éclaté** est le seul moyen de voir ce qu'il y a entre deux flancs.
 - `assemblages.mts` est **généré**, et il est sa propre archive.

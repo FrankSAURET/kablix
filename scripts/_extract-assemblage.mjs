@@ -42,7 +42,7 @@ export const MATIERES = ['pmma', 'alu', 'servo', 'carte', 'laiton', 'pile'];
  *  VISIBLE au mauvais endroit, donc corrigible, plutôt que muette. */
 const POSE_DEFAUT = { plan: 'dessus', pos: { x: 0, y: 0, z: 0 }, ep: 3, mat: 'pmma', miroir: '' };
 
-function readExisting() {
+export function readExisting() {
   if (!existsSync(OUT_FILE)) return {};
   const txt = readFileSync(OUT_FILE, 'utf8');
   const a = txt.indexOf('const DATA = ');
@@ -104,6 +104,14 @@ export function poses(p) {
  * de 100 mm posée à plat encombre 100 mm en large et 3 mm en haut, pas 103.
  */
 export function encombrement(pieces) {
+  const lim = limites(pieces);
+  return { x: R2(lim.x1 - lim.x0), y: R2(lim.y1 - lim.y0), z: R2(lim.z1 - lim.z0) };
+}
+
+/** Les six bornes de l'assemblage, en mm. `encombrement` n'en garde que les
+ *  tailles ; `montre` a besoin des bornes elles-mêmes pour poser plusieurs
+ *  assemblages côte à côte sans les faire se chevaucher. */
+export function limites(pieces) {
   const lim = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity, z0: Infinity, z1: -Infinity };
   for (const p of pieces) {
     const e = { dessus: { z: p.ep / 2 }, flanc: { x: p.ep / 2 }, face: { y: p.ep / 2 } }[p.plan];
@@ -118,20 +126,27 @@ export function encombrement(pieces) {
       }
     }
   }
-  return { x: R2(lim.x1 - lim.x0), y: R2(lim.y1 - lim.y0), z: R2(lim.z1 - lim.z0) };
+  return lim;
 }
 
-/** Lit un assemblage du dessin : une pièce par groupe préfixé, la pose lue dans
- *  son étiquette, les pastilles rouges en axes. Rend `null` si rien n'a été lu. */
-export function lireAssemblage(nom, { source = 'Composants.svg', step = 0.2, tol = 0.08 } = {}) {
-  const { unitScale, groupes } = lireDessin({ source, prefixes: [`${nom}-`], step });
-  // Unités du dessin → millimètres. Une planche Inkscape en mm a déjà les
-  // bonnes ; une planche en pixels CSS se convertit une fois pour toutes.
-  const k = unitScale === 1 ? 1 / MM2PX : 1;
+/** Unités du dessin → MILLIMÈTRES. Une planche Inkscape en mm a déjà les bonnes ;
+ *  une planche en pixels CSS se convertit une fois pour toutes. */
+export const mmParUnite = (unitScale) => (unitScale === 1 ? 1 / MM2PX : 1);
+
+/**
+ * Cœur du lecteur : des groupes DÉJÀ LUS → un assemblage. Séparé de la lecture du
+ * dessin parce que `montre` lit la planche UNE fois et en tire plusieurs
+ * assemblages d'un coup — relancer un Chrome sans interface par assemblage
+ * coûterait plusieurs secondes à chaque « recharger ».
+ * Rend `null` si aucune pièce n'a pu être lue.
+ */
+export function assembleGroupes(nom, groupes, { source = 'Composants.svg', k = 1, tol = 0.08 } = {}) {
   const pieces = [];
   const axes = {};
-  for (const g of groupes.sort((a, b) => a.name.localeCompare(b.name))) {
-    const court = g.name.slice(nom.length + 1);
+  for (const g of [...groupes].sort((a, b) => a.name.localeCompare(b.name))) {
+    // Le nom court d'une pièce est ce qui suit le nom de l'assemblage. Un profil
+    // montré seul est son propre assemblage d'une pièce : il garde son nom.
+    const court = g.name.startsWith(`${nom}-`) ? g.name.slice(nom.length + 1) : g.name;
     if (!g.rings.length) {
       console.log(`  ! ${g.name} : aucun contour fermé, pièce ignorée`);
       continue;
@@ -193,6 +208,13 @@ export function lireAssemblage(nom, { source = 'Composants.svg', step = 0.2, tol
   return { source, box: encombrement(pieces), axes, pieces };
 }
 
+/** Lit un assemblage du dessin : une pièce par groupe préfixé, la pose lue dans
+ *  son étiquette, les pastilles rouges en axes. Rend `null` si rien n'a été lu. */
+export function lireAssemblage(nom, { source = 'Composants.svg', step = 0.2, tol = 0.08 } = {}) {
+  const { unitScale, groupes } = lireDessin({ source, prefixes: [`${nom}-`], step });
+  return assembleGroupes(nom, groupes, { source, k: mmParUnite(unitScale), tol });
+}
+
 // --- écriture du module -------------------------------------------------------
 /** JSON lisible : une pièce par bloc, les points quatre par ligne — un diff git
  *  doit rester consultable, c'est du dessin versionné. */
@@ -235,7 +257,7 @@ function dump(obj) {
   return '{\n' + parts.join(',\n') + '\n}';
 }
 
-function ecrire(data) {
+export function ecrire(data) {
   const header = `// FICHIER GÉNÉRÉ — ne pas modifier à la main.
 // Produit par \`node scripts/_extract-assemblage.mjs <nom>\` à partir des pièces
 // dessinées dans Composants.svg (mode d'emploi : docs/fr/Drawing-systems.md).

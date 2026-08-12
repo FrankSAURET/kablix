@@ -44,14 +44,14 @@ In a hurry? Jump to [original drawing, and what comes out](#original-drawing-and
 | # | Step | Command / file |
 | --- | --- | --- |
 | 1 | Draw the parts, each with its **pose label** | `Composants.svg`, groups `<assembly>-<part>` |
-| 2 | Read it and **watch it turn** | `npm run montre <assembly>` |
+| 2 | Read it and **watch it turn** | `npm run montre <prefix>` |
 | 3 | Store it only (no window) | `npm run assemblage <assembly>` → `src/webview/composants/assemblages.mts` |
 | 4 | Produce the doc pictures | `node scripts/_capture-profil.mjs <assembly>:assemblage` and `:eclate` |
 | 5 | Check | `npm run verify:assemblage` |
 
 Step 4 of the profile chain is empty in the common case: components **already look for** their profiles by name and fall back to the hard-coded shape as long as the drawing does not exist. Drawing `araignee-chassis` and extracting it is enough to change the robot's silhouette, without touching a line of TypeScript.
 
-On the assembly side, `npm run montre` does steps 1 to 3 in one go: it re-reads the drawing, stores it, and opens the scene in a window where you can turn it. That is **the** working loop — redraw in Inkscape, run it again, look.
+On the assembly side, `npm run montre` does steps 1 to 3 in one go: it re-reads the drawing, stores it, and opens the scene in a window where you can turn it. That is **the** working loop — redraw in Inkscape, click **↻ recharger**, look. Give it a prefix and the whole robot comes up at once.
 
 ---
 
@@ -323,22 +323,30 @@ A part drawn on its own (a profile) follows the **same convention**: its named p
 ### Watching it turn
 
 ```bash
-npm run montre araignee-corps
+npm run montre araignee            # EVERYTHING starting with “araignee”
+npm run montre araignee-corps      # a single assembly
 ```
 
-The command re-reads the drawing, stores it, and opens a Chrome window on the scene — **the real engine**, the component's own, not an approximate preview.
+The argument is a **prefix**, not an exact name: the tool picks up **every assembly and every profile** on the sheet that starts with it, and shows them **together, at the same scale**. `araignee` therefore brings out the body, the femur and the tibia side by side — three separate drawings on the sheet, one single scene. The sheet is read **once** for the whole prefix (reading goes through Chrome: that is the wait, so pay it once).
+
+A profile, drawn on its own and without dimensions, is treated as a one-part assembly: its 10 px grid becomes millimetres and it is laid flat, 3 mm thick, next to the real assemblies.
+
+What is read is also **stored**: `assemblages.mts` and `profils.mts` are rewritten, exactly as `npm run assemblage` and `npm run profils` would.
 
 | In the window | What it is for |
 | --- | --- |
+| **↻ recharger** button | re-read `Composants.svg` **without leaving the window**: touch up in Inkscape, click, look. Angle, zoom and ticked boxes are kept |
 | **Drag in the view** (or the *lacet* slider) | turn around it: the angle where things clash is never the first one |
 | **éclaté** slider | pull the parts apart along their thickness — the only way to see what sits between two sides 3 mm apart |
 | **zoom** slider | inspect a detail |
+| An ensemble's **title checkbox** | hide a whole assembly — look at the femur alone without relaunching the command |
 | **pièces** checkboxes | hide one side to see inside |
 | **axes dessinés** checkbox | show the named pads at their 3D place, and the **rotation axes** as a dashed red line |
+| **côte à côte** checkbox | unticked, each ensemble goes back to its **real place**: that is how you check that a femur really sits on the body's hip |
 
 The panel shows the **overall size in millimetres** (`100 × 80 × 31 mm`): the figure you read on an assembly drawing, and the first sign that a part is laid the wrong way.
 
-Two handy options: `--source=docs/exemples/corps-demo.svg` to read another sheet, `--sans-lire` to reopen without re-reading the drawing (when only the engine changed).
+The options: `--source=docs/exemples/corps-demo.svg` to read another sheet, `--sans-lire` to reopen on what is already stored (when only the engine changed), `--sans-ranger` to look without rewriting the generated modules, `--sans-ouvrir` to serve the page without opening a window, `--port=8731` to pick the port.
 
 ### Original drawing, and what comes out
 
@@ -408,6 +416,6 @@ The `verify:assemblage` bench is pure computation, like the profile one. It exer
 - A **named red pad** becomes an axis — the drawing says where the hip is. Name it by its **Inkscape id**; the text above still works.
 - **Two pads sharing a prefix** (`hanche-g-ext`, `hanche-g-int`) make a **rotation axis**. Two distinct joints = two distinct prefixes.
 - The **colour of the part is the colour of the drawing**, transparency included; `mat=` is only the fallback for an unpainted part.
-- `npm run montre <name>` reads, stores and opens: that is the working loop.
+- `npm run montre <prefix>` reads, stores and opens **everything starting with it**, at the same scale: that is the working loop. Touch up in Inkscape, click **↻ recharger**.
 - The **éclaté** slider is the only way to see what sits between two sides.
 - `assemblages.mts` is **generated**, and it is its own archive.

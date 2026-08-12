@@ -1,2 +1,3 @@
-Pour le dessin de l'arraignée je voudrais faire un corps à 2 flancs chacun avec une épaisseur de 3 mm (plaque pmma). Les servo sont pris en sandwiche entre les 2 plaques. Pareil pour l'articulation des pattes. Difficile de faire ce genre de dessin actuellement. Je propose 2 solutions possibles : Je fais le dessin directement en perspective (et tu gère les ombrages) ou je fais le dessin en 3 vues 2d et tu gère la perspective. Pour se rendre compte de ce que ça donne je voudrais une commande cli directement du type "Montre araignee-corps" et la il ferait une visu à partir de l'ensemble des dessin de composants.svg préfixés araignee-corps. De plus actuellement l'électronique embarquée n'est pas retouchable. Je voudrais quel le soit suir le même principe.
-Fait un protocole et retouche le tuto
+## Dessin de l'arraignée 
+1. On passe les couleurs de remplissage sous la forme rgba #rrggbbaa
+1. Les pastilles rouges servent à l'assemblage des sous ensembles (assemblage ou profil : araignee - femur- tibia) ce sont les axes de rotation - même prefix.

@@ -28,29 +28,31 @@
 // Sortie : src/webview/composants/profils.mts — un objet figé, relu et FUSIONNÉ à
 // chaque exécution, donc extraire un seul profil ne perd pas les autres.
 //
+// Le module est aussi IMPORTÉ par le visualiseur `montre.mjs` : il lit la planche
+// une seule fois pour tout un préfixe, puis range profils et assemblages avec les
+// mêmes fonctions que la ligne de commande. D'où le garde d'exécution en bas.
+//
 // Usage : node scripts/_extract-profils.mjs araignee-chassis patte-femur
 //         node scripts/_extract-profils.mjs --source=docs/exemples/chassis.svg chassis-demo
 //         node scripts/_extract-profils.mjs --list          (ce qui est déjà rangé)
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { ROOT, lireDessin, ringsToPiece, R2, nomDePastille } from './_lire-contours.mjs';
 
 const OUT_FILE = join(ROOT, 'src/webview/composants/profils.mts');
 
-const args = process.argv.slice(2);
-const SOURCE = args.find((a) => a.startsWith('--source='))?.slice(9) ?? 'Composants.svg';
 /** Pas d'échantillonnage des courbes, en unités du dessin. Plus fin que l'œil
  *  (la simplification qui suit efface tout ce qui ne se voit pas). */
-const STEP = Number(args.find((a) => a.startsWith('--step='))?.slice(7) ?? 0.35);
+const STEP_DEFAUT = 0.35;
 /** Tolérance de simplification, en px de grille : en dessous, un point ne
  *  change plus rien à la silhouette et ne fait qu'alourdir le rendu. */
-const TOL = Number(args.find((a) => a.startsWith('--tol='))?.slice(6) ?? 0.25);
-const names = args.filter((a) => !a.startsWith('--'));
+const TOL_DEFAUT = 0.25;
 
 // --- fichier de sortie : relu avant d'être réécrit ----------------------------
 /** Profils déjà rangés, lus dans le module généré (il est sa propre archive :
  *  un fichier de cache à côté finirait par mentir). */
-function readExisting() {
+export function readExisting() {
   if (!existsSync(OUT_FILE)) return {};
   const txt = readFileSync(OUT_FILE, 'utf8');
   const a = txt.indexOf('const DATA = ');
@@ -65,41 +67,25 @@ function readExisting() {
   }
 }
 
-if (args.includes('--list')) {
-  const data = readExisting();
-  const keys = Object.keys(data);
-  if (!keys.length) console.log('  (aucun profil rangé)');
-  for (const k of keys) {
-    const p = data[k];
-    console.log(`  ${k} : ${p.poly.length} points, ${p.w}×${p.h} px${p.holes?.length ? `, ${p.holes.length} trou(s)` : ''}`);
-  }
-  process.exit(0);
-}
-
-if (names.length === 0) {
-  console.error('Usage: node scripts/_extract-profils.mjs [--source=f.svg] [--step=n] [--tol=n] <nom> [...]');
-  console.error('       node scripts/_extract-profils.mjs --list');
-  process.exit(1);
-}
-
-const { unitScale, groupes } = lireDessin({ source: SOURCE, ids: names, step: STEP });
-const data = readExisting();
-let changed = 0;
-
-for (const it of groupes) {
+/**
+ * Un groupe DÉJÀ LU → un profil rangé : contour et trous centrés sur la boîte
+ * englobante, pastilles nommées dans le même repère. `k` met les unités du dessin
+ * à l'échelle voulue (px de grille pour l'archive, mm pour un aperçu).
+ * Rend `null` si le groupe ne donne aucune pièce — la raison est écrite.
+ */
+export function profilDepuisGroupe(it, { k = 1, tol = TOL_DEFAUT, source = 'Composants.svg' } = {}) {
   if (it.missing) {
-    console.log(`  – ${it.name} : ni « ${it.name}-profil » ni « ${it.name} » dans ${SOURCE}`);
-    continue;
+    console.log(`  – ${it.name} : ni « ${it.name}-profil » ni « ${it.name} » dans ${source}`);
+    return null;
   }
   if (!it.rings.length) {
     console.log(`  – ${it.name} : aucun contour fermé trouvé dans le groupe`);
-    continue;
+    return null;
   }
-  // Unités du dessin → pixels de la grille 10 px, puis simplification.
-  const piece = ringsToPiece(it.name, it.rings, { k: unitScale, tol: TOL });
+  const piece = ringsToPiece(it.name, it.rings, { k, tol });
   if (!piece) {
     console.log(`  – ${it.name} : contours trop petits (moins de 1 px² une fois à l'échelle)`);
-    continue;
+    return null;
   }
   // Centrage sur le milieu de la boîte englobante : le composant place ensuite
   // la pièce par son centre, sans avoir à connaître le coin de la planche.
@@ -117,26 +103,20 @@ for (const it of groupes) {
   // (px de grille, centrés sur la boîte). Un fémur dessiné seul dit ainsi où
   // sont son genou et sa hanche ; le sous-ensemble s'accoste dessus au lieu
   // d'être calé sur des constantes du code.
-  const libres = (it.texts ?? []).map((t) => ({ s: t.s, x: t.x * unitScale - cx, y: t.y * unitScale - cy }));
+  const libres = (it.texts ?? []).map((t) => ({ s: t.s, x: t.x * k - cx, y: t.y * k - cy }));
   const axes = {};
   for (const pad of it.pads ?? []) {
-    const p = { x: R2(pad.x * unitScale - cx), y: R2(pad.y * unitScale - cy) };
+    const p = { x: R2(pad.x * k - cx), y: R2(pad.y * k - cy) };
     const nom = nomDePastille(p, libres, pad.id);
     if (!nom) continue;
     axes[nom.trim()] = p;
   }
   if (Object.keys(axes).length) entry.axes = axes;
-  entry.source = `${SOURCE}#${it.id}`;
-  data[it.name] = entry;
-  changed++;
+  entry.source = `${source}#${it.id}`;
   console.log(`  ✓ ${it.name} : ${entry.poly.length} points, ${entry.w}×${entry.h} px`
     + `${holes.length ? `, ${holes.length} trou(s)` : ''}`
     + `${entry.axes ? `, axes : ${Object.keys(axes).join(', ')}` : ''}`);
-}
-
-if (!changed) {
-  console.log('  (rien à écrire)');
-  process.exit(1);
+  return entry;
 }
 
 // --- écriture du module -------------------------------------------------------
@@ -171,7 +151,8 @@ function dump(obj) {
   return '{\n' + parts.join(',\n') + '\n}';
 }
 
-const header = `// FICHIER GÉNÉRÉ — ne pas modifier à la main.
+export function ecrire(data) {
+  const header = `// FICHIER GÉNÉRÉ — ne pas modifier à la main.
 // Produit par \`node scripts/_extract-profils.mjs <nom>…\` à partir des contours
 // dessinés dans Composants.svg (mode d'emploi : docs/fr/Drawing-systems.md).
 // Le module est sa propre archive : l'outil le RELIT avant de le réécrire, donc
@@ -215,5 +196,53 @@ export function hasProfile(name: string): name is ProfileName {
   return Object.prototype.hasOwnProperty.call(DATA, name);
 }
 `;
-writeFileSync(OUT_FILE, header);
-console.log(`\n  → ${OUT_FILE} (${Object.keys(data).length} profil(s))`);
+  writeFileSync(OUT_FILE, header);
+  console.log(`\n  → ${OUT_FILE} (${Object.keys(data).length} profil(s))`);
+}
+
+// --- ligne de commande ---------------------------------------------------------
+function main(args) {
+  const source = args.find((a) => a.startsWith('--source='))?.slice(9) ?? 'Composants.svg';
+  const step = Number(args.find((a) => a.startsWith('--step='))?.slice(7) ?? STEP_DEFAUT);
+  const tol = Number(args.find((a) => a.startsWith('--tol='))?.slice(6) ?? TOL_DEFAUT);
+  const names = args.filter((a) => !a.startsWith('--'));
+
+  if (args.includes('--list')) {
+    const data = readExisting();
+    const keys = Object.keys(data);
+    if (!keys.length) console.log('  (aucun profil rangé)');
+    for (const k of keys) {
+      const p = data[k];
+      console.log(`  ${k} : ${p.poly.length} points, ${p.w}×${p.h} px${p.holes?.length ? `, ${p.holes.length} trou(s)` : ''}`);
+    }
+    return 0;
+  }
+
+  if (names.length === 0) {
+    console.error('Usage: node scripts/_extract-profils.mjs [--source=f.svg] [--step=n] [--tol=n] <nom> [...]');
+    console.error('       node scripts/_extract-profils.mjs --list');
+    return 1;
+  }
+
+  const { unitScale, groupes } = lireDessin({ source, ids: names, step });
+  const data = readExisting();
+  let changed = 0;
+  for (const it of groupes) {
+    // Unités du dessin → pixels de la grille 10 px, puis simplification.
+    const entry = profilDepuisGroupe(it, { k: unitScale, tol, source });
+    if (!entry) continue;
+    data[it.name] = entry;
+    changed++;
+  }
+  if (!changed) {
+    console.log('  (rien à écrire)');
+    return 1;
+  }
+  ecrire(data);
+  return 0;
+}
+
+// Le visualiseur importe ce module : il ne doit alors RIEN exécuter.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  process.exit(main(process.argv.slice(2)));
+}
