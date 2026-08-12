@@ -244,7 +244,7 @@ const visibles = () =>
 
 /** Le MONTAGE courant : chaque ensemble posé sur les articulations du précédent,
  *  articulations superposées — le robot entier, pas trois dessins côte à côte.
- *  Rend `null` si la case est décochée, ou si rien ne s'emboîte (aucune famille
+ *  Rend \`null\` si la case est décochée, ou si rien ne s'emboîte (aucune famille
  *  d'articulation partagée) : on retombe alors sur la rangée, sans rien inventer. */
 function montageCourant() {
   const vis = visibles();
@@ -304,7 +304,7 @@ function pose(mont) {
 }
 
 /** Le placement d'un exemplaire : son lacet propre, sa position, puis le lacet de
- *  présentation de la scène. `k` convertit les millimètres en unités de feuille
+ *  présentation de la scène. \`k\` convertit les millimètres en unités de feuille
  *  (1 quand on travaille en millimètres purs, comme dans le cadrage). */
 const placeur = (pl, k = 1) => {
   const off = vscale(pl.off, k);
@@ -412,7 +412,7 @@ function bascule(jeu, cle) {
   dessine();
 }
 
-/** `n` = le nombre d'exemplaires que le montage lui a donnés : le corps porte
+/** \`n\` = le nombre d'exemplaires que le montage lui a donnés : le corps porte
  *  quatre hanches, il naît quatre fémurs. Au-delà d'un, une case « ×n » permet de
  *  n'en garder qu'UN — quatre pattes cachent le corps qu'on voulait regarder. */
 function ligneEnsemble(e, n) {
@@ -519,9 +519,14 @@ const page = `<!doctype html><meta charset="utf-8"><title>${NOM} — Kablix</tit
   :root { color-scheme: light dark; }
   body { margin: 0; display: flex; gap: 16px; font: 13px/1.5 system-ui, sans-serif;
     background: #f6f9fb; color: #22333d; }
-  .panneau { width: 330px; padding: 16px; background: #fff; box-shadow: 0 0 12px #0001;
+  /* Le panneau ne se laisse JAMAIS écraser : sans flex-shrink:0, la scène (SVG de
+     largeur fixe) lui volait des pixels dès que la place manquait — un zoom du
+     navigateur, qui réduit la fenêtre en pixels CSS, suffisait à le comprimer. */
+  .panneau { flex: 0 0 330px; padding: 16px; background: #fff; box-shadow: 0 0 12px #0001;
     height: 100vh; overflow: auto; box-sizing: border-box; }
-  .vue { flex: 1; display: grid; place-items: center; }
+  .vue { flex: 1 1 auto; min-width: 0; display: grid; place-items: center; }
+  /* C'est la scène qui cède : elle se réduit proportionnellement au lieu de pousser. */
+  .vue svg { max-width: 100%; height: auto; }
   h1 { font-size: 17px; margin: 0 0 2px; }
   h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: #789;
     margin: 18px 0 6px; }

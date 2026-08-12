@@ -16,6 +16,12 @@
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
 
+# >>>>  v2026.8.39 — la barre latérale du viewer ne se laisse plus écraser
+
+1. ✅ **Le panneau de `npm run montre` garde ses 330 px** quelle que soit la place. Il était posé en `width: 330px` sans `flex-shrink: 0` : la scène (SVG de largeur fixe, 900 px) lui volait des pixels dès que la fenêtre manquait de largeur — et un zoom du navigateur, qui réduit la fenêtre **en pixels CSS**, suffisait à le comprimer.
+2. ✅ **C'est la scène qui cède maintenant** : `.vue` reçoit `min-width: 0` et le SVG `max-width: 100% / height: auto` — il se réduit proportionnellement au lieu de pousser le panneau ou de sortir du cadre.
+3. ✅ Mesuré en Chrome headless, largeur de fenêtre 1400 / 1000 / 800 px : **avant** panneau 330 → **37** → **32** px ; **après** 330 / 330 / 330 px (le SVG passe à 622 puis 422).
+
 # >>>>  v2026.8.38 — la résistance se pose aussi DEBOUT
 
 1. ⏳ **Schéma interne du capteur à effet Hall : rien à intégrer, la retouche n'est pas sur le disque.** `hall-interne` a bien été réextrait de `Composants2D.svg` au cadre du boîtier `TO92S` (`node scripts/_extract-composants.mjs TO92S hall-interne@TO92S`), mais le fichier produit est **identique octet pour octet** à celui de la v2026.8.27 : le groupe de la planche n'a pas changé. Dessin sans doute pas enregistré dans Inkscape (la planche du disque est celle du commit d0c5459). **Frank : enregistrer la planche, puis relancer cette commande** — le dessin externe du boîtier, que l'extraction réécrit au passage, est à restaurer ensuite (`git checkout src/webview/composants/externe/TO92S.svg`).
