@@ -1,5 +1,5 @@
 // Outil — LECTEUR DE PROFILS. Transforme un contour dessiné à la main (Inkscape,
-// planche « Composants.svg ») en polygone prêt à être mis EN VOLUME par le moteur
+// planche « Composants3D.svg ») en polygone prêt à être mis EN VOLUME par le moteur
 // isométrique `src/webview/composants/iso3d.mts` : le châssis du robot araignée,
 // les os des pattes, les blocs de servo.
 //
@@ -38,7 +38,7 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { ROOT, lireDessin, ringsToPiece, R2, nomDePastille } from './_lire-contours.mjs';
+import { ROOT, lireDessin, ringsToPiece, R2, nomDePastille, planche } from './_lire-contours.mjs';
 
 const OUT_FILE = join(ROOT, 'src/webview/composants/profils.mts');
 
@@ -73,7 +73,7 @@ export function readExisting() {
  * à l'échelle voulue (px de grille pour l'archive, mm pour un aperçu).
  * Rend `null` si le groupe ne donne aucune pièce — la raison est écrite.
  */
-export function profilDepuisGroupe(it, { k = 1, tol = TOL_DEFAUT, source = 'Composants.svg' } = {}) {
+export function profilDepuisGroupe(it, { k = 1, tol = TOL_DEFAUT, source = planche('3D') } = {}) {
   if (it.missing) {
     console.log(`  – ${it.name} : ni « ${it.name}-profil » ni « ${it.name} » dans ${source}`);
     return null;
@@ -154,7 +154,7 @@ function dump(obj) {
 export function ecrire(data) {
   const header = `// FICHIER GÉNÉRÉ — ne pas modifier à la main.
 // Produit par \`node scripts/_extract-profils.mjs <nom>…\` à partir des contours
-// dessinés dans Composants.svg (mode d'emploi : docs/fr/Drawing-systems.md).
+// dessinés dans Composants3D.svg (mode d'emploi : docs/fr/Drawing-systems.md).
 // Le module est sa propre archive : l'outil le RELIT avant de le réécrire, donc
 // extraire un seul profil ne fait pas disparaître les autres.
 //
@@ -202,7 +202,7 @@ export function hasProfile(name: string): name is ProfileName {
 
 // --- ligne de commande ---------------------------------------------------------
 function main(args) {
-  const source = args.find((a) => a.startsWith('--source='))?.slice(9) ?? 'Composants.svg';
+  const source = args.find((a) => a.startsWith('--source='))?.slice(9) ?? planche('3D');
   const step = Number(args.find((a) => a.startsWith('--step='))?.slice(7) ?? STEP_DEFAUT);
   const tol = Number(args.find((a) => a.startsWith('--tol='))?.slice(6) ?? TOL_DEFAUT);
   const names = args.filter((a) => !a.startsWith('--'));

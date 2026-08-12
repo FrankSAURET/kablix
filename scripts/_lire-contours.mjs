@@ -12,7 +12,7 @@
 // Ce module ne décide de RIEN : il rend des contours bruts, les pastilles rouges
 // et les textes, dans les unités du dessin. C'est à l'appelant de dire ce qu'est
 // une pièce, un trou, un axe ou une étiquette.
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -21,6 +21,26 @@ export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SCRATCH = join(ROOT, 'node_modules', '.cache-composants');
 /** Planche Inkscape en millimètres → pixels de la grille 10 px du canevas. */
 export const MM2PX = 1 / 0.26458333;
+
+/**
+ * Quelle planche Inkscape lire. Depuis la v2026.8.36, les dessins sont sur DEUX
+ * planches : `Composants2D.svg` pour les composants plats de la bibliothèque
+ * (dessin externe + schéma interne), `Composants3D.svg` pour les pièces à mettre
+ * en volume (profils, assemblages). Repli sur l'ancienne planche unique
+ * `Composants.svg` tant que la nouvelle n'existe pas : rien ne casse le jour où
+ * un seul des deux fichiers a été créé.
+ */
+export function planche(dim) {
+  // La casse du nom vient du DISQUE : Windows ne la distingue pas, git et Linux
+  // si. Chercher « composants3d.svg » à la main donnerait un chemin qui marche
+  // ici et casse ailleurs.
+  const veut = `composants${dim}.svg`.toLowerCase();
+  const trouve = readdirSync(ROOT).find((f) => f.toLowerCase() === veut);
+  if (trouve) return trouve;
+  // Ni l'une ni l'autre : rendre le nom ATTENDU, pas celui du repli — sinon
+  // l'erreur désignerait un fichier que personne ne cherchait.
+  return existsSync(join(ROOT, 'Composants.svg')) ? 'Composants.svg' : `Composants${dim}.svg`;
+}
 
 export function findChrome() {
   const cand = [
@@ -219,7 +239,7 @@ document.getElementById('result').textContent = JSON.stringify(out);
  * `prefixes` : tous les groupes dont l'id commence ainsi (assemblage).
  * Rend aussi `unitScale`, le facteur unités du dessin → pixels de grille.
  */
-export function lireDessin({ source = 'Composants.svg', ids = [], prefixes = [], step = 0.35 }) {
+export function lireDessin({ source = planche('3D'), ids = [], prefixes = [], step = 0.35 }) {
   const srcPath = join(ROOT, source);
   if (!existsSync(srcPath)) throw new Error(`source introuvable : ${srcPath}`);
   const svg = readFileSync(srcPath, 'utf8').replace(/<\?xml[^>]*\?>/, '');

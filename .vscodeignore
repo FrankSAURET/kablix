@@ -45,10 +45,14 @@ A Examiner/**
 svg/**
 svg retouche/**
 **/*.edit.svg
-# Composants.svg (614 ko) : planche A3 Inkscape des dessins d'origine. Source de
-# l'extracteur (scripts/, hors paquet), rien ne la lit à l'exécution — les SVG
-# publiés sont déjà extraits dans le bundle. Distribuée via GitHub seulement.
+# Planches A3 Inkscape des dessins d'origine : Composants2D.svg (les composants
+# plats de la bibliothèque) et Composants3D.svg (les pièces mises en volume),
+# plus l'ancienne planche unique Composants.svg. Source des extracteurs
+# (scripts/, hors paquet), rien ne les lit à l'exécution — les SVG publiés sont
+# déjà extraits dans le bundle. Distribuées via GitHub seulement.
 Composants.svg
+Composants2D.svg
+Composants3D.svg
 # Copies de travail de l'explorateur Windows (« Composants - Copie.svg », 1 Mo) :
 # jamais publiées — elles doublent une source déjà présente.
 **/* - Copie.*

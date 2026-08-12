@@ -13,12 +13,16 @@
 - `src/webview/engines/` : `avr.mts` (uno/mega), MicroPython.
 - `svg retouche/` : SVG retouchés à la main par Frank (Inkscape) ; `svg retouche/Validé/` = archive des intégrés.
 
-## Source des dessins : `Composants.svg` (depuis v2026.7.229)
-Frank dessine TOUS les nouveaux composants dans `Composants.svg` (Inkscape, planche A3). Règles :
+## Source des dessins : deux planches Inkscape (depuis v2026.8.36)
+Frank dessine TOUT dans deux planches A3 à la racine :
+- **`Composants2D.svg`** : les composants PLATS de la bibliothèque (dessin externe + schéma interne). Lu par `_extract-composants.mjs`.
+- **`Composants3D.svg`** : les pièces à mettre EN VOLUME (profils, assemblages, robot araignée). Lu par `_extract-profils.mjs`, `_extract-assemblage.mjs`, `montre.mjs`.
+
+`Composants.svg` = l'ancienne planche unique (avant v2026.8.36), gardée en repli automatique : `planche('2D'|'3D')` dans `scripts/_lire-contours.mjs` prend la nouvelle planche si elle existe, l'ancienne sinon. `--source=` force un autre fichier. Règles (planche 2D) :
 - Un composant = un groupe dont l'**id est le nom du composant** (`diode`). Son schéma interne = groupe `<nom>-interne` (`diode-interne`). Groupe interne absent = pas de vue interne.
 - **Mêmes pattes** pour le dessin externe et le schéma interne (mêmes noms, même ordre).
 - Les **pastilles rouges** portent le **nom de la patte** (texte au-dessus) et leur CENTRE est le point de connexion des fils. `nc` = non connecté.
-- **Ne créer QUE les composants que Frank nomme** : le fichier contient aussi ses dessins en cours (`ic14`, `to92`…), à ignorer.
+- **Ne créer QUE les composants que Frank nomme** : les planches contiennent aussi ses dessins en cours (`ic14`, `to92`…), à ignorer.
 - **Simulation précisée au cas par cas** par Frank — ne rien inventer.
 - Noms de pattes, propriétés et outils de simulation (curseurs, aide…) sont **traduisibles** et effectivement traduits EN + FR.
 - Tout nouveau composant : **tests `testkablix`** obligatoires — un test Arduino (`<type>-uno`) ET un test Pico (`<type>-pico`), via `_spec.mjs` + `node testkablix/_generate.mjs` (jamais à la main), plus la ligne dans `testkablix/README.md`.

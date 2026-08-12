@@ -1,6 +1,6 @@
 # Creating a Kablix part (drawing, internal schematic, simulation)
 
-This guide describes the full chain followed by every part added since v2026.7.229: **a drawing in `Composants.svg` → a part you can drop, wire, simulate, test and document**. It is aimed at people working on **the repository** (built-in part, recompilation) — for a part you keep to yourself, without touching the code, the quick route is still the `.kablix-part.json` file described in [Editing part SVGs](Editing-svg-components.md).
+This guide describes the full chain followed by every part added since v2026.7.229: **a drawing in `Composants2D.svg` → a part you can drop, wire, simulate, test and document**. It is aimed at people working on **the repository** (built-in part, recompilation) — for a part you keep to yourself, without touching the code, the quick route is still the `.kablix-part.json` file described in [Editing part SVGs](Editing-svg-components.md).
 
 Two ways to follow it: [by hand](#by-hand-the-full-chain), step by step, or [handing it to an AI](#with-an-ai) that you supply with the drawing and the rules of the game. Both go through the same files — the AI section is only a shortcut along the same road.
 
@@ -9,7 +9,7 @@ Two ways to follow it: [by hand](#by-hand-the-full-chain), step by step, or [han
 ## What you need
 
 - The repository cloned, `npm install` done, Node 20+.
-- **Inkscape** (or any SVG editor) to draw in `Composants.svg`.
+- **Inkscape** (or any SVG editor) to draw in `Composants2D.svg`.
 - **Chrome / Chromium** installed: extraction and illustration captures go through a headless browser (SVG geometry — CTM, `getBBox`, `defs` — cannot be resolved with regular expressions).
 
 ---
@@ -18,7 +18,7 @@ Two ways to follow it: [by hand](#by-hand-the-full-chain), step by step, or [han
 
 | # | Step | File(s) touched |
 | --- | --- | --- |
-| 1 | Draw the part and its internal schematic | `Composants.svg` |
+| 1 | Draw the part and its internal schematic | `Composants2D.svg` |
 | 2 | Extract the SVGs | `src/webview/composants/externe/<type>.svg`, `.../interne/<type>-interne.svg` |
 | 3 | Write the element | `src/webview/composants/<type>-element.mts` + one import in `src/webview/sim.mts` |
 | 4 | Register it in the catalog | `src/webview/diagram/catalog.mts`, `src/webview/diagram/refnames.mts` |
@@ -35,9 +35,9 @@ A purely decorative part stops at step 5. A part that must *do* something during
 
 ## By hand, the full chain
 
-### 1. Draw in `Composants.svg`
+### 1. Draw in `Composants2D.svg`
 
-`Composants.svg` is an A3 Inkscape sheet (units in **mm**) holding every original drawing. Its rules are not decorative: the extractor relies on them.
+`Composants2D.svg` is an A3 Inkscape sheet (units in **mm**) holding the drawings of the **flat** parts of the library. Parts turned into volume (profiles, assemblies, the spider robot) have their own sheet, `Composants3D.svg` — see [Drawing systems](Drawing-systems.md). The former single sheet `Composants.svg` is still read as a fallback while it is there. The rules are not decorative: the extractor relies on them.
 
 - **One part = one group whose `id` is the part name** (`diode`, `relais`, `moteur-dc`). That name becomes the part `type` everywhere else in the chain.
 - **Its internal schematic = a group named `<name>-interne`** (`diode-interne`). No internal group simply means no **K** button on the part.
@@ -232,13 +232,13 @@ An agentic AI (Claude Code, for instance) handles steps 2 to 9 very well: they a
 
 ### What it already knows
 
-The `CLAUDE.md` file at the root of the repository describes the conventions (the `Composants.svg` sheet, shared packages, mandatory tests, mandatory help sheet, code style). An AI reading the repository therefore starts with the rules in hand: no need to repeat them in your request.
+The `CLAUDE.md` file at the root of the repository describes the conventions (the `Composants2D.svg` sheet, shared packages, mandatory tests, mandatory help sheet, code style). An AI reading the repository therefore starts with the rules in hand: no need to repeat them in your request.
 
 ### What you have to tell it
 
 These five points are written nowhere in the code:
 
-1. **The exact group name** you have just drawn in `Composants.svg` — the file also holds works in progress, which must not be picked up.
+1. **The exact group name** you have just drawn in `Composants2D.svg` — the file also holds works in progress, which must not be picked up.
 2. **The simulation behaviour**, in plain words: "the diode only conducts from A to K, losing `vf`", "above 1.5 times its rated voltage the motor burns out", "without a flyback diode the transistor blows up". Without that sentence, the AI will invent a plausible and wrong model.
 3. **The properties** shown in the inspector, with their units, their bounds and their default value.
 4. For a shared package: **what is written on it** (one line per line break) and **which internal schematic** it carries.
@@ -248,7 +248,7 @@ These five points are written nowhere in the code:
 
 ```text
 Add the part <name> to Kablix. The drawing and its internal schematic
-<name>-interne are in Composants.svg.
+<name>-interne are in Composants2D.svg.
 
 Pins: <list and role of every pin>.
 Properties: <name, unit, bounds, default value>.

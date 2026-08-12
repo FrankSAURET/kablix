@@ -1,5 +1,5 @@
 // « Montre-moi ce que ça donne » — visu interactive de TOUT ce qui porte un nom.
-// On donne un préfixe (« araignee ») : l'outil ramasse dans Composants.svg tous
+// On donne un préfixe (« araignee ») : l'outil ramasse dans Composants3D.svg tous
 // les profils et tous les assemblages qui commencent par là, les met en volume
 // avec le VRAI moteur (`iso3d.mts`) et ouvre la scène dans Chrome — de quoi la
 // tourner, l'éclater, cacher ce qui gêne, et RECHARGER le dessin sans quitter
@@ -27,7 +27,7 @@ import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
 import { join } from 'node:path';
 import { build as esbuild } from 'esbuild';
-import { ROOT, findChrome, lireDessin, MM2PX, R2 } from './_lire-contours.mjs';
+import { ROOT, findChrome, lireDessin, MM2PX, R2, planche } from './_lire-contours.mjs';
 import {
   assembleGroupes, limites, mmParUnite,
   readExisting as assemblagesRanges, ecrire as ecrireAssemblages,
@@ -49,7 +49,7 @@ const TOL_PX = 0.25;
 const EP_PROFIL = 3;
 
 const args = process.argv.slice(2);
-const SOURCE = args.find((a) => a.startsWith('--source='))?.slice(9) ?? 'Composants.svg';
+const SOURCE = args.find((a) => a.startsWith('--source='))?.slice(9) ?? planche('3D');
 const SANS_RANGER = args.includes('--sans-ranger');
 const PORT = Number(args.find((a) => a.startsWith('--port='))?.slice(7) ?? 0);
 const NOM = args.find((a) => !a.startsWith('-'));
@@ -585,7 +585,7 @@ serveur.listen(PORT, '127.0.0.1', () => {
     // Une fenêtre à part, pas un onglet perdu dans la session de Frank.
     spawn(findChrome(), [`--app=${url}`, '--window-size=1260,700'], { detached: true, stdio: 'ignore' }).unref();
     console.log(`\n  → fenêtre ouverte sur « ${NOM} » — ${url}`);
-    console.log('    « ↻ recharger » relit Composants.svg sans quitter la fenêtre. Ctrl+C pour fermer.');
+    console.log(`    « ↻ recharger » relit ${SOURCE} sans quitter la fenêtre. Ctrl+C pour fermer.`);
   }
 });
 

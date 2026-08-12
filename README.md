@@ -60,7 +60,7 @@ Ma bilothèque de test est disponible : [TestKablix](https://github.com/FrankSAU
 > **Ajouter un composant à Kablix** (contributeurs, sur GitHub uniquement) :
 > [docs/fr/Creating-components.md](docs/fr/Creating-components.md) (français) /
 > [docs/en/Creating-components.md](docs/en/Creating-components.md) (English) —
-> du dessin dans `Composants.svg` au composant simulé, testé et documenté,
+> du dessin dans `Composants2D.svg` au composant simulé, testé et documenté,
 > à la main ou avec une IA.
 >
 > **Dessiner les systèmes en volume** (araignée, pattes — contributeurs, sur GitHub uniquement) :

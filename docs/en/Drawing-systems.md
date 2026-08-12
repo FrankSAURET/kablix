@@ -22,8 +22,19 @@ In a hurry? Jump to [original drawing, and what comes out](#original-drawing-and
 ## What you need
 
 - The repository cloned, `npm install` done, Node 20+.
-- **Inkscape** (or any SVG editor) to draw in `Composants.svg`.
+- **Inkscape** (or any SVG editor) to draw in `Composants3D.svg`.
 - **Chrome / Chromium** installed: outlines are read through a headless browser. Flattening Bézier curves and elliptical arcs by hand in Node would mean writing wrong code twice — `getPointAtLength` does it right, and for free.
+
+### Two sheets, not one
+
+Original drawings live on **two** A3 sheets at the root of the repository:
+
+| Sheet | What you draw there | What reads it |
+| --- | --- | --- |
+| `Composants2D.svg` | the **flat** parts of the library: outside drawing and internal schematic of a diode, a relay, a transistor | `node scripts/_extract-composants.mjs` |
+| `Composants3D.svg` | the parts turned into **volume**: profiles, assemblies, the spider robot | `npm run profil`, `npm run assemblage`, `npm run montre` |
+
+This guide only covers the **second** one. The tools pick it on their own; `--source=` reads a separate sheet (the examples in this guide come from `docs/exemples/`). The former single sheet `Composants.svg` is still read as a fallback while it is there: nothing breaks during the split.
 
 ---
 
@@ -33,7 +44,7 @@ In a hurry? Jump to [original drawing, and what comes out](#original-drawing-and
 
 | # | Step | Command / file |
 | --- | --- | --- |
-| 1 | Draw the outline of the part | `Composants.svg`, group `<name>-profil` |
+| 1 | Draw the outline of the part | `Composants3D.svg`, group `<name>-profil` |
 | 2 | Read it | `npm run profil <name>` → `src/webview/composants/profils.mts` |
 | 3 | Look at it | `node scripts/_capture-profil.mjs <name>:plat` then `<name>:plaque` or `<name>:piece` |
 | 4 | Turn it into a volume | nothing to do if the name is already expected (table below), otherwise the element |
@@ -43,7 +54,7 @@ In a hurry? Jump to [original drawing, and what comes out](#original-drawing-and
 
 | # | Step | Command / file |
 | --- | --- | --- |
-| 1 | Draw the parts, each with its **pose label** | `Composants.svg`, groups `<assembly>-<part>` |
+| 1 | Draw the parts, each with its **pose label** | `Composants3D.svg`, groups `<assembly>-<part>` |
 | 2 | Read it and **watch it turn** | `npm run montre <prefix>` |
 | 3 | Store it only (no window) | `npm run assemblage <assembly>` → `src/webview/composants/assemblages.mts` |
 | 4 | Produce the doc pictures | `node scripts/_capture-profil.mjs <assembly>:assemblage` and `:eclate` |
@@ -105,13 +116,13 @@ Two consequences that save a lot of surprises:
 1. **The dimensions of the drawing do not matter, its proportions do.** A plate is scaled to the chassis diameter; a part is scaled **as a block** (length *and* height by the same factor) to reach from one joint to the other. The same femur therefore serves the standalone leg and the robot's longer legs without distorting. Draw at a comfortable size, not an "exact" one.
 2. **Centring is automatic**, on the middle of the bounding box. No need to align your drawing on the origin of the sheet.
 
-Stored coordinates are in **pixels of the 10 px grid** of the canvas. If your Inkscape sheet is in millimetres — which `Composants.svg` is — the conversion happens on the way in.
+Stored coordinates are in **pixels of the 10 px grid** of the canvas. If your Inkscape sheet is in millimetres — which `Composants3D.svg` is — the conversion happens on the way in.
 
 ---
 
 ## Drawing the profile
 
-In `Composants.svg`, the A3 sheet where all original drawings live:
+In `Composants3D.svg`, the A3 sheet of the parts to be turned into volume:
 
 - **A profile is a group (or a plain path) whose `id` is `<name>-profil`.** The bare name is accepted as a fallback, but the suffix avoids confusing a profile with the flat drawing of a component of the same name.
 - **One closed outline for the part.** Outlines **entirely contained** in it are its **holes** (mounting holes, lightening cut-outs). An outline that is neither the part nor contained in it is reported and ignored — two parts in one group is a drawing to fix, not a guess to make.
@@ -155,7 +166,7 @@ Output:
 | Option | Effect |
 | --- | --- |
 | `--list` | Shows what is already stored, without reading or writing anything. |
-| `--source=file.svg` | Reads a file other than `Composants.svg` (the examples in this guide come from `docs/exemples/`). |
+| `--source=file.svg` | Reads a file other than `Composants3D.svg` (the examples in this guide come from `docs/exemples/`). |
 | `--step=0.35` | Curve sampling step, in drawing units. Finer than the eye by default. |
 | `--tol=0.25` | Simplification tolerance, in grid pixels. Below that, a point no longer changes the silhouette and only weighs the render down. |
 
@@ -245,10 +256,10 @@ An **assembly** answers that. It is a set of flat parts, **in millimetres**, eac
 
 ### The drawing
 
-In `Composants.svg` (or a separate sheet, see `--source=`):
+In `Composants3D.svg` (or a separate sheet, see `--source=`):
 
 - **One part = one group whose `id` starts with the assembly name**, followed by the part name: `araignee-corps-flanc`, `araignee-corps-servo`. The `-profil` suffix is still tolerated (`araignee-corps-flanc-profil`); the name kept is whatever follows the assembly name.
-- **The sheet must be in millimetres.** `Composants.svg` already is (`width="…mm"` with a `viewBox` of the same number: 1 unit = 1 mm). A sheet in CSS pixels is converted, but you no longer know what you are dimensioning.
+- **The sheet must be in millimetres.** `Composants3D.svg` already is (`width="…mm"` with a `viewBox` of the same number: 1 unit = 1 mm). A sheet in CSS pixels is converted, but you no longer know what you are dimensioning.
 - **A text inside the group gives the pose**: `flanc pos=28,0,0 ep=12 mat=servo miroir=x`. It is a plain `<text>`, placed wherever you like in the group — under the part reads well.
 - **Outline, holes and curves** follow exactly the rules of a profile (closed outline, holes contained inside, no self-crossing path).
 - **A named red pad = an axis.** Its **Inkscape id** names it, failing that the text **above** it, and its centre becomes a 3D point of the assembly. Two pads sharing a prefix make a **rotation axis** ([details](#axes)).
@@ -437,7 +448,7 @@ What is read is also **stored**: `assemblages.mts` and `profils.mts` are rewritt
 
 | In the window | What it is for |
 | --- | --- |
-| **↻ recharger** button | re-read `Composants.svg` **without leaving the window**: touch up in Inkscape, click, look. Angle, zoom and ticked boxes are kept |
+| **↻ recharger** button | re-read `Composants3D.svg` **without leaving the window**: touch up in Inkscape, click, look. Angle, zoom and ticked boxes are kept |
 | **Drag in the view** (or the *lacet* slider) | turn around it: the angle where things clash is never the first one |
 | **éclaté** slider | pull the parts apart along their thickness — the only way to see what sits between two sides 3 mm apart |
 | **zoom** slider | inspect a detail |

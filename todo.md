@@ -4,7 +4,7 @@
 1. ⬜ **À décider (Frank) : supprimer `onStartupFinished`** de `package.json`. L'extension s'active aujourd'hui à CHAQUE fenêtre VS Code, même sans projet Kablix. Les points d'activation implicites (commandes, vue `kablix.home`, éditeur `.projix`) suffiraient — l'activation ne coûterait plus rien quand Kablix ne sert pas. Piège identifié : la vue devient visible AVANT que `activate()` ne pose `onDidChangeVisibility`, donc le clic sur l'icône n'ouvrirait plus l'atelier tant que le cas « déjà visible à l'activation » n'est pas traité — et le distinguer d'une restauration de session est exactement ce que le garde-fou des 1,2 s combat. À faire seulement avec un essai F5 sous la main.
 
 ## Dessin de l'arraignée 
-1. ⬜ **Pour Frank : quatre corrections dans `Composants.svg`** et le fémur suivra le corps (détail complet : `docs/fr/Drawing-systems.md` → « Dessiner une patte, de la hanche au pied »).
+1. ⬜ **Pour Frank : quatre corrections dans `Composants3D.svg`** et le fémur suivra le corps (détail complet : `docs/fr/Drawing-systems.md` → « Dessiner une patte, de la hanche au pied »).
    1. **Quatre hanches = quatre préfixes = huit pastilles.** `araignee-corps` porte aujourd'hui `hanche-g-h`, `hanche-g-b`, `hanche-d-h`, `hanche-d-b` : ça ne fait que **2** axes, un à gauche et un à droite, chacun traversant tout le corps de l'avant à l'arrière. Il faut `hanche-ag-h`+`hanche-ag-b`, `hanche-ad-h`+`hanche-ad-b`, `hanche-rg-h`+`hanche-rg-b`, `hanche-rd-h`+`hanche-rd-b` (avant/arrière × gauche/droite).
    2. **Le fémur n'a pas de genou.** `araignee-patte-femur` ne porte que `hanche` : le tibia (`genou-t`) n'a rien où s'accrocher et reste tout seul. Ajouter `genou-h` et `genou-b` à l'autre bout du fémur.
    3. **Pastille anonyme** : `circle97` dans `araignee-patte-femur-cotes` (Inkscape : sélectionner le rond, `Objet → Propriétés de l'objet`, écrire le nom dans `id`). Un id fabriqué par Inkscape ne nomme rien : la pastille est ignorée.
@@ -15,6 +15,17 @@
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# >>>>  v2026.8.37 — deux planches Inkscape : les composants plats d'un côté, les pièces en volume de l'autre
+
+1. ✅ **`Composants2D.svg` et `Composants3D.svg` remplacent la planche unique.** Les composants **plats** de la bibliothèque (dessin externe + schéma interne) vivent dans la 2D, les pièces à mettre **en volume** (profils, assemblages, robot araignée) dans la 3D. Chaque outil prend la sienne tout seul, `--source=` force un autre fichier.
+2. ✅ **Une seule fonction décide** : `planche('2D'|'3D')` dans `scripts/_lire-contours.mjs`. Elle lit le nom **tel qu'il est sur le disque** (`readdirSync` + comparaison en minuscules) : Windows ne distingue pas la casse, git et Linux si — un `composants3d.svg` écrit à la main aurait marché ici et cassé ailleurs. Repli sur l'ancienne `Composants.svg` tant qu'elle est là, et à défaut c'est le nom **attendu** qui est rendu, pour que l'erreur désigne le fichier qu'on cherchait.
+3. ✅ **Les cinq outils sont branchés** : `_extract-composants.mjs` sur la 2D (et il accepte enfin `--source=`), `_extract-profils.mjs`, `_extract-assemblage.mjs` et `montre.mjs` sur la 3D. Les en-têtes des fichiers générés (`assemblages.mts`, `profils.mts`) citent la bonne planche.
+4. ✅ **Les deux nouvelles planches sont hors `.vsix`** comme l'ancienne : rien ne les lit à l'exécution, les dessins publiés sont déjà extraits dans le bundle. Distribuées via GitHub.
+5. ✅ **Guides FR et EN** : nouvelle section « Deux planches, pas une » avec le tableau qui-lit-quoi dans `Drawing-systems.md`, et le renvoi croisé depuis `Creating-components.md`. `CLAUDE.md` et les deux README suivent.
+6. ✅ **Relecture des trois assemblages de l'araignée sur la nouvelle planche** : géométrie identique au millimètre. Les avertissements de la v2026.8.36 sortent au passage — `circle97` anonyme, et l'étiquette à virgules du servo de tibia.
+7. ℹ️ **`Composants.svg` a été supprimé par Frank** après la scission (la suppression est enregistrée dans ce commit ; le fichier reste dans l'historique git).
+8. ✅ `npm run typecheck`, `npm run build`, `verify:assemblage` (212/212), `verify:profils` (49/49) et `verify:docs` (24) verts.
 
 # >>>>  v2026.8.36 — les axes X Y Z sur les dessins, et le robot se monte tout seul sur ses hanches
 

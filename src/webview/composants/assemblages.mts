@@ -1,6 +1,6 @@
 // FICHIER GÉNÉRÉ — ne pas modifier à la main.
 // Produit par `node scripts/_extract-assemblage.mjs <nom>` à partir des pièces
-// dessinées dans Composants.svg (mode d'emploi : docs/fr/Drawing-systems.md).
+// dessinées dans Composants3D.svg (mode d'emploi : docs/fr/Drawing-systems.md).
 // Le module est sa propre archive : l'outil le RELIT avant de le réécrire.
 //
 // Un ASSEMBLAGE, ce sont plusieurs pièces plates posées les unes par rapport aux
@@ -16,7 +16,7 @@ import type { Assembly } from './iso3d.mjs';
 
 const DATA = {
   "araignee-corps": {
-    "source": "Composants.svg",
+    "source": "Composants3D.svg",
     "box": { "x": 65.86, "y": 129.92, "z": 43 },
     "axes": {
       "hanche-g-h": { "x": -16.9, "y": -26, "z": -10.75 },
@@ -194,7 +194,7 @@ const DATA = {
     ]
   },
   "araignee-patte-femur": {
-    "source": "Composants.svg",
+    "source": "Composants3D.svg",
     "box": { "x": 24.5, "y": 94.04, "z": 43 },
     "axes": {
       "hanche": { "x": 7.1, "y": 30.76, "z": 10.01 }
@@ -265,7 +265,7 @@ const DATA = {
     ]
   },
   "araignee-patte-tibia": {
-    "source": "Composants.svg",
+    "source": "Composants3D.svg",
     "box": { "x": 23.98, "y": 76.62, "z": 102.34 },
     "axes": {
       "genou-t": { "x": 5.3, "y": -4.72, "z": 0 }

@@ -1,4 +1,4 @@
-// Outil — extrait un composant dessiné par Frank dans « Composants.svg » (planche
+// Outil — extrait un composant dessiné par Frank dans « Composants2D.svg » (planche
 // Inkscape A3, unités mm) vers un SVG autonome en PIXELS de la grille 10 px :
 // src/webview/composants/externe/<nom>.svg (dessin externe) et
 // src/webview/composants/interne/<nom>-interne.svg (schéma interne, si le groupe
@@ -28,6 +28,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { planche } from './_lire-contours.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SCRATCH = join(ROOT, 'node_modules', '.cache-composants');
@@ -49,7 +50,7 @@ const names = args
     return { id, host: host || null };
   });
 if (names.length === 0) {
-  console.error('Usage: node scripts/_extract-composants.mjs [--png] [--drop=id,…] [--suffix=x] <nom>[@boîtier] [...]');
+  console.error('Usage: node scripts/_extract-composants.mjs [--png] [--source=f.svg] [--drop=id,…] [--suffix=x] <nom>[@boîtier] [...]');
   process.exit(1);
 }
 // Un boîtier cité en hôte doit être extrait avant (son cadre sert de référence).
@@ -61,7 +62,10 @@ for (const n of names) {
 }
 names.sort((a, b) => Number(!!a.host) - Number(!!b.host));
 
-const source = readFileSync(join(ROOT, 'Composants.svg'), 'utf8').replace(/<\?xml[^>]*\?>/, '');
+// Planche des composants PLATS (`Composants2D.svg` ; l'ancienne planche unique
+// `Composants.svg` sert de repli tant qu'elle n'a pas été scindée).
+const SRC_FILE = args.find((a) => a.startsWith('--source='))?.slice(9) ?? planche('2D');
+const source = readFileSync(join(ROOT, SRC_FILE), 'utf8').replace(/<\?xml[^>]*\?>/, '');
 
 // Le navigateur fait tout le travail géométrique (CTM, getBBox, résolution des
 // defs) : impossible à faire correctement en regex côté node.
@@ -261,7 +265,7 @@ const extFrames = new Map();
 const done = new Set();
 
 for (const it of items) {
-  if (it.missing) { console.log(`  – ${it.missing} : absent de Composants.svg`); continue; }
+  if (it.missing) { console.log(`  – ${it.missing} : absent de ${SRC_FILE}`); continue; }
   if (done.has(it.name)) { console.log(`  = ${it.name}.svg déjà extrait`); continue; }
   done.add(it.name);
   let f = frame(it.pads, it.box);

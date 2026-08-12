@@ -1,6 +1,6 @@
 # Créer un composant Kablix (dessin, schéma interne, simulation)
 
-Ce guide décrit la chaîne complète suivie pour tous les composants ajoutés depuis la v2026.7.229 : **un dessin dans `Composants.svg` → un composant posable, câblable, simulé, testé et documenté**. Il s'adresse à qui travaille sur **le dépôt** (composant intégré, recompilation) — pour un composant que l'on garde chez soi, sans toucher au code, la voie rapide reste le fichier `.kablix-part.json` décrit dans [Modifier les SVG des composants](Editing-svg-components.md).
+Ce guide décrit la chaîne complète suivie pour tous les composants ajoutés depuis la v2026.7.229 : **un dessin dans `Composants2D.svg` → un composant posable, câblable, simulé, testé et documenté**. Il s'adresse à qui travaille sur **le dépôt** (composant intégré, recompilation) — pour un composant que l'on garde chez soi, sans toucher au code, la voie rapide reste le fichier `.kablix-part.json` décrit dans [Modifier les SVG des composants](Editing-svg-components.md).
 
 Deux façons de le suivre : [à la main](#à-la-main-la-chaîne-complète), étape par étape, ou [en le faisant faire par une IA](#avec-une-ia) à qui l'on fournit le dessin et les règles du jeu. Les deux passent par les mêmes fichiers — la section IA n'est qu'un raccourci sur la même route.
 
@@ -9,7 +9,7 @@ Deux façons de le suivre : [à la main](#à-la-main-la-chaîne-complète), éta
 ## Ce qu'il faut avoir
 
 - Le dépôt cloné, `npm install` passé, Node 20+.
-- **Inkscape** (ou tout éditeur SVG) pour dessiner dans `Composants.svg`.
+- **Inkscape** (ou tout éditeur SVG) pour dessiner dans `Composants2D.svg`.
 - **Chrome / Chromium** installé : l'extraction et les captures d'illustration passent par un navigateur sans interface (le calcul de géométrie SVG — CTM, `getBBox`, `defs` — n'est pas faisable en expressions régulières).
 
 ---
@@ -18,7 +18,7 @@ Deux façons de le suivre : [à la main](#à-la-main-la-chaîne-complète), éta
 
 | # | Étape | Fichier(s) touché(s) |
 | --- | --- | --- |
-| 1 | Dessiner le composant et son schéma interne | `Composants.svg` |
+| 1 | Dessiner le composant et son schéma interne | `Composants2D.svg` |
 | 2 | Extraire les SVG | `src/webview/composants/externe/<type>.svg`, `.../interne/<type>-interne.svg` |
 | 3 | Écrire l'élément | `src/webview/composants/<type>-element.mts` + un import dans `src/webview/sim.mts` |
 | 4 | L'inscrire au catalogue | `src/webview/diagram/catalog.mts`, `src/webview/diagram/refnames.mts` |
@@ -35,9 +35,9 @@ Un composant purement décoratif s'arrête à l'étape 5. Un composant qui doit 
 
 ## À la main, la chaîne complète
 
-### 1. Dessiner dans `Composants.svg`
+### 1. Dessiner dans `Composants2D.svg`
 
-`Composants.svg` est une planche A3 Inkscape (unités **mm**) où vivent tous les dessins d'origine. Les règles ne sont pas décoratives : l'extracteur s'appuie dessus.
+`Composants2D.svg` est une planche A3 Inkscape (unités **mm**) où vivent les dessins des composants **plats** de la bibliothèque. Les pièces à mettre en volume (profils, assemblages, robot araignée) ont leur propre planche, `Composants3D.svg` — voir [Dessiner les systèmes](Drawing-systems.md). L'ancienne planche unique `Composants.svg` reste lue en repli tant qu'elle est là. Les règles ne sont pas décoratives : l'extracteur s'appuie dessus.
 
 - **Un composant = un groupe dont l'`id` est le nom du composant** (`diode`, `relais`, `moteur-dc`). Ce nom deviendra le `type` du composant dans tout le reste de la chaîne.
 - **Son schéma interne = un groupe `<nom>-interne`** (`diode-interne`). Pas de groupe interne = pas de bouton **K** sur le composant, c'est tout.
@@ -232,13 +232,13 @@ Une IA agentique (Claude Code, par exemple) fait très bien les étapes 2 à 9 :
 
 ### Ce qu'elle sait déjà
 
-Le fichier `CLAUDE.md` à la racine du dépôt décrit les conventions (planche `Composants.svg`, boîtiers partagés, tests obligatoires, fiche d'aide obligatoire, style de code). Une IA qui lit le dépôt part donc avec les règles en main : inutile de les recopier dans la demande.
+Le fichier `CLAUDE.md` à la racine du dépôt décrit les conventions (planche `Composants2D.svg`, boîtiers partagés, tests obligatoires, fiche d'aide obligatoire, style de code). Une IA qui lit le dépôt part donc avec les règles en main : inutile de les recopier dans la demande.
 
 ### Ce qu'il faut lui dire
 
 Ces cinq points-là ne sont écrits nulle part dans le code :
 
-1. **Le nom exact du groupe** que vous venez de dessiner dans `Composants.svg` — le fichier contient aussi des dessins en cours, qu'il ne faut pas embarquer.
+1. **Le nom exact du groupe** que vous venez de dessiner dans `Composants2D.svg` — le fichier contient aussi des dessins en cours, qu'il ne faut pas embarquer.
 2. **Le comportement en simulation**, en clair : « la diode ne passe que de A vers K en perdant `vf` », « si la tension dépasse 1,5 fois la tension nominale, le moteur grille », « sans diode de roue libre, le transistor explose ». Sans cette phrase, l'IA inventera un modèle plausible et faux.
 3. **Les propriétés** visibles dans l'inspecteur, avec leurs unités, leurs bornes et leur valeur par défaut.
 4. Pour un boîtier partagé : **ce qui est écrit dessus** (une ligne par saut de ligne) et **quel schéma interne** il porte.
@@ -248,7 +248,7 @@ Ces cinq points-là ne sont écrits nulle part dans le code :
 
 ```text
 Ajoute le composant <nom> à Kablix. Le dessin et son schéma interne
-<nom>-interne sont dans Composants.svg.
+<nom>-interne sont dans Composants2D.svg.
 
 Pattes : <liste et rôle de chaque patte>.
 Propriétés : <nom, unité, bornes, valeur par défaut>.

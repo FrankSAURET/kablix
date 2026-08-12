@@ -1,6 +1,6 @@
 // FICHIER GÉNÉRÉ — ne pas modifier à la main.
 // Produit par `node scripts/_extract-profils.mjs <nom>…` à partir des contours
-// dessinés dans Composants.svg (mode d'emploi : docs/fr/Drawing-systems.md).
+// dessinés dans Composants3D.svg (mode d'emploi : docs/fr/Drawing-systems.md).
 // Le module est sa propre archive : l'outil le RELIT avant de le réécrire, donc
 // extraire un seul profil ne fait pas disparaître les autres.
 //

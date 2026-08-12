@@ -60,7 +60,7 @@ My test library is available here: [TestKablix](https://github.com/FrankSAURET/k
 > **Adding a part to Kablix** (contributors, on GitHub only):
 > [docs/en/Creating-components.md](docs/en/Creating-components.md) (English) /
 > [docs/fr/Creating-components.md](docs/fr/Creating-components.md) (français) —
-> from the drawing in `Composants.svg` to a simulated, tested and documented part,
+> from the drawing in `Composants2D.svg` to a simulated, tested and documented part,
 > by hand or with an AI.
 >
 > **Drawing systems in 3D** (spider, legs — contributors, on GitHub only):

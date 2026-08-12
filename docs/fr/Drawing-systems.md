@@ -22,8 +22,19 @@ Pressé ? Sautez à [dessin d'origine, ce que ça donne](#dessin-dorigine-ce-que
 ## Ce qu'il faut avoir
 
 - Le dépôt cloné, `npm install` passé, Node 20+.
-- **Inkscape** (ou tout éditeur SVG) pour dessiner dans `Composants.svg`.
+- **Inkscape** (ou tout éditeur SVG) pour dessiner dans `Composants3D.svg`.
 - **Chrome / Chromium** installé : la lecture des contours passe par un navigateur sans interface. Aplatir à la main des courbes de Bézier et des arcs elliptiques en Node serait du code faux à écrire deux fois — `getPointAtLength` le fait juste, et gratuitement.
+
+### Deux planches, pas une
+
+Les dessins d'origine vivent sur **deux** planches A3 à la racine du dépôt :
+
+| Planche | Ce qu'on y dessine | Qui la lit |
+| --- | --- | --- |
+| `Composants2D.svg` | les composants **plats** de la bibliothèque : dessin externe et schéma interne d'une diode, d'un relais, d'un transistor | `node scripts/_extract-composants.mjs` |
+| `Composants3D.svg` | les pièces à mettre **en volume** : profils, assemblages, le robot araignée | `npm run profil`, `npm run assemblage`, `npm run montre` |
+
+Ce guide ne parle que de la **seconde**. Les outils la choisissent tout seuls ; `--source=` sert à lire une planche à part (les exemples de ce guide viennent de `docs/exemples/`). L'ancienne planche unique `Composants.svg` reste lue en repli tant qu'elle est là : rien ne casse pendant la scission.
 
 ---
 
@@ -33,7 +44,7 @@ Pressé ? Sautez à [dessin d'origine, ce que ça donne](#dessin-dorigine-ce-que
 
 | # | Étape | Commande / fichier |
 | --- | --- | --- |
-| 1 | Dessiner le contour de la pièce | `Composants.svg`, groupe `<nom>-profil` |
+| 1 | Dessiner le contour de la pièce | `Composants3D.svg`, groupe `<nom>-profil` |
 | 2 | Le lire | `npm run profil <nom>` → `src/webview/composants/profils.mts` |
 | 3 | Le regarder | `node scripts/_capture-profil.mjs <nom>:plat` puis `<nom>:plaque` ou `<nom>:piece` |
 | 4 | Le mettre en volume | rien à faire si le nom est déjà attendu (tableau plus bas), sinon l'élément |
@@ -43,7 +54,7 @@ Pressé ? Sautez à [dessin d'origine, ce que ça donne](#dessin-dorigine-ce-que
 
 | # | Étape | Commande / fichier |
 | --- | --- | --- |
-| 1 | Dessiner les pièces, chacune avec son **étiquette de pose** | `Composants.svg`, groupes `<assemblage>-<pièce>` |
+| 1 | Dessiner les pièces, chacune avec son **étiquette de pose** | `Composants3D.svg`, groupes `<assemblage>-<pièce>` |
 | 2 | Le lire et **le regarder tourner** | `npm run montre <préfixe>` |
 | 3 | Le ranger seul (sans ouvrir de fenêtre) | `npm run assemblage <assemblage>` → `src/webview/composants/assemblages.mts` |
 | 4 | En tirer les images de la doc | `node scripts/_capture-profil.mjs <assemblage>:assemblage` et `:eclate` |
@@ -105,13 +116,13 @@ Deux conséquences qui évitent bien des surprises :
 1. **Les cotes du dessin ne comptent pas, ses proportions si.** Une plaque est ramenée au diamètre du châssis ; une pièce est mise à l'échelle **en bloc** (longueur *et* hauteur par le même facteur) pour aller d'une articulation à l'autre. Le même fémur sert donc à la patte seule et aux pattes du robot, plus longues, sans s'y déformer. Dessinez à une taille confortable, pas à une taille « juste ».
 2. **Le centrage est automatique**, sur le milieu de la boîte englobante. Inutile de caler votre dessin sur l'origine de la planche.
 
-Les coordonnées rangées sont en **pixels de la grille 10 px** du canevas. Si votre planche Inkscape est en millimètres — c'est le cas de `Composants.svg` — la conversion est faite au passage.
+Les coordonnées rangées sont en **pixels de la grille 10 px** du canevas. Si votre planche Inkscape est en millimètres — c'est le cas de `Composants3D.svg` — la conversion est faite au passage.
 
 ---
 
 ## Dessiner le profil
 
-Dans `Composants.svg`, la planche A3 où vivent tous les dessins d'origine :
+Dans `Composants3D.svg`, la planche A3 des pièces à mettre en volume :
 
 - **Un profil = un groupe (ou un simple chemin) dont l'`id` est `<nom>-profil`.** Le nom sans suffixe est accepté en repli, mais le suffixe évite de confondre un profil avec le dessin plat d'un composant du même nom.
 - **Un contour fermé pour la pièce.** Les contours **entièrement contenus** dedans sont ses **trous** (perçages, allègements). Un contour qui n'est ni la pièce ni contenu dedans est signalé et ignoré — deux pièces dans le même groupe, c'est un dessin à corriger, pas une devinette à trancher.
@@ -155,7 +166,7 @@ Sortie :
 | Option | Effet |
 | --- | --- |
 | `--list` | Affiche ce qui est déjà rangé, sans rien lire ni écrire. |
-| `--source=chemin.svg` | Lit un autre fichier que `Composants.svg` (les exemples de ce guide viennent de `docs/exemples/`). |
+| `--source=chemin.svg` | Lit un autre fichier que `Composants3D.svg` (les exemples de ce guide viennent de `docs/exemples/`). |
 | `--step=0.35` | Pas d'échantillonnage des courbes, en unités du dessin. Plus fin que l'œil par défaut. |
 | `--tol=0.25` | Tolérance de simplification, en pixels de grille. En dessous, un point ne change plus la silhouette et ne fait qu'alourdir le rendu. |
 
@@ -245,10 +256,10 @@ Un **assemblage** répond à ça. C'est un jeu de pièces plates, **en millimèt
 
 ### Le dessin
 
-Dans `Composants.svg` (ou une planche à part, voir `--source=`) :
+Dans `Composants3D.svg` (ou une planche à part, voir `--source=`) :
 
 - **Une pièce = un groupe dont l'`id` commence par le nom de l'assemblage**, suivi du nom de la pièce : `araignee-corps-flanc`, `araignee-corps-servo`. Le suffixe `-profil` reste toléré (`araignee-corps-flanc-profil`) ; le nom retenu est ce qui suit le nom de l'assemblage.
-- **La planche doit être en millimètres.** `Composants.svg` l'est déjà (`width="…mm"` et un `viewBox` du même nombre : 1 unité = 1 mm). Une planche en pixels CSS est convertie, mais vous ne saurez plus ce que vous cotez.
+- **La planche doit être en millimètres.** `Composants3D.svg` l'est déjà (`width="…mm"` et un `viewBox` du même nombre : 1 unité = 1 mm). Une planche en pixels CSS est convertie, mais vous ne saurez plus ce que vous cotez.
 - **Un texte dans le groupe donne la pose** : `flanc pos=28,0,0 ep=12 mat=servo miroir=x`. C'est un simple `<text>`, posé où vous voulez dans le groupe — sous la pièce se lit bien.
 - **Le contour, les trous et les courbes** suivent exactement les règles d'un profil (contour fermé, trous contenus dedans, pas de tracé qui se croise).
 - **Une pastille rouge nommée = un axe.** Son **id Inkscape** la nomme, à défaut le texte **au-dessus** d'elle, et son centre devient un point 3D de l'assemblage. Deux pastilles de même préfixe font un **axe de rotation** ([détail](#les-axes)).
@@ -435,7 +446,7 @@ Ce qui est lu est aussi **rangé** : `assemblages.mts` et `profils.mts` sont ré
 
 | Dans la fenêtre | Ce que ça sert |
 | --- | --- |
-| Bouton **↻ recharger** | relire `Composants.svg` **sans quitter la fenêtre** : on retouche dans Inkscape, on clique, on regarde. L'angle, le zoom et les cases cochées sont conservés |
+| Bouton **↻ recharger** | relire `Composants3D.svg` **sans quitter la fenêtre** : on retouche dans Inkscape, on clique, on regarde. L'angle, le zoom et les cases cochées sont conservés |
 | **Glisser dans la vue** (ou le curseur *lacet*) | tourner autour : l'angle où ça coince n'est jamais celui de la première image |
 | Curseur **éclaté** | écarter les pièces le long de leur épaisseur — le seul moyen de voir ce qu'il y a entre deux flancs serrés à 3 mm |
 | Curseur **zoom** | regarder un détail de près |

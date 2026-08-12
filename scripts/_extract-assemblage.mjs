@@ -29,7 +29,7 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { ROOT, MM2PX, lireDessin, ringsToPiece, R2, nomDePastille } from './_lire-contours.mjs';
+import { ROOT, MM2PX, lireDessin, ringsToPiece, R2, nomDePastille, planche } from './_lire-contours.mjs';
 
 const OUT_FILE = join(ROOT, 'src/webview/composants/assemblages.mts');
 
@@ -140,7 +140,7 @@ export const mmParUnite = (unitScale) => (unitScale === 1 ? 1 / MM2PX : 1);
  * coûterait plusieurs secondes à chaque « recharger ».
  * Rend `null` si aucune pièce n'a pu être lue.
  */
-export function assembleGroupes(nom, groupes, { source = 'Composants.svg', k = 1, tol = 0.08 } = {}) {
+export function assembleGroupes(nom, groupes, { source = planche('3D'), k = 1, tol = 0.08 } = {}) {
   const pieces = [];
   const axes = {};
   for (const g of [...groupes].sort((a, b) => a.name.localeCompare(b.name))) {
@@ -263,7 +263,7 @@ function previentEtiquette(nom, s) {
 
 /** Lit un assemblage du dessin : une pièce par groupe préfixé, la pose lue dans
  *  son étiquette, les pastilles rouges en axes. Rend `null` si rien n'a été lu. */
-export function lireAssemblage(nom, { source = 'Composants.svg', step = 0.2, tol = 0.08 } = {}) {
+export function lireAssemblage(nom, { source = planche('3D'), step = 0.2, tol = 0.08 } = {}) {
   const { unitScale, groupes } = lireDessin({ source, prefixes: [`${nom}-`], step });
   return assembleGroupes(nom, groupes, { source, k: mmParUnite(unitScale), tol });
 }
@@ -313,7 +313,7 @@ function dump(obj) {
 export function ecrire(data) {
   const header = `// FICHIER GÉNÉRÉ — ne pas modifier à la main.
 // Produit par \`node scripts/_extract-assemblage.mjs <nom>\` à partir des pièces
-// dessinées dans Composants.svg (mode d'emploi : docs/fr/Drawing-systems.md).
+// dessinées dans Composants3D.svg (mode d'emploi : docs/fr/Drawing-systems.md).
 // Le module est sa propre archive : l'outil le RELIT avant de le réécrire.
 //
 // Un ASSEMBLAGE, ce sont plusieurs pièces plates posées les unes par rapport aux
@@ -351,7 +351,7 @@ export function hasAssemblage(name: string): name is AssemblyName {
 
 // --- ligne de commande ---------------------------------------------------------
 function main(args) {
-  const source = args.find((a) => a.startsWith('--source='))?.slice(9) ?? 'Composants.svg';
+  const source = args.find((a) => a.startsWith('--source='))?.slice(9) ?? planche('3D');
   const step = Number(args.find((a) => a.startsWith('--step='))?.slice(7) ?? 0.2);
   // Tolérance de simplification, en MILLIMÈTRES : en dessous, un point ne change
   // plus la silhouette et ne fait qu'alourdir le rendu.
