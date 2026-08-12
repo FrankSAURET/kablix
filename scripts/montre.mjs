@@ -205,7 +205,10 @@ import {
   scale as vscale, rotationAxes, montage, axisGizmo,
 } from '../../src/webview/composants/iso3d.mjs';
 
-const W = 900, H = 620;
+/** Taille de la feuille de dessin, en pixels : ce n'est PAS un format fixe, c'est
+ *  toute la place que le panneau laisse dans la fenêtre. Mesurée à chaque rendu et
+ *  à chaque redimensionnement — une pièce se regarde en grand. */
+let W = 900, H = 620;
 /** Écart entre deux ensembles posés côte à côte, en millimètres — de quoi les
  *  lire comme deux pièces d'un plan de montage, pas comme un tas. */
 const ECART = 15;
@@ -455,7 +458,19 @@ function caseSimple(cle, libelle) {
     @change=\${(ev) => { etat[cle] = ev.target.checked; dessine(); }} /> \${libelle}</label>\`;
 }
 
-function dessine() {
+/** Reprend la taille de la feuille sur la place réellement disponible. Rend vrai
+ *  si elle a changé — il faut alors redessiner, le cadrage en dépend. */
+function mesureVue() {
+  const v = document.querySelector('.vue');
+  if (!v) return false;
+  const w = Math.max(200, Math.round(v.clientWidth));
+  const h = Math.max(200, Math.round(v.clientHeight));
+  if (w === W && h === H) return false;
+  W = w; H = h;
+  return true;
+}
+
+function rendu() {
   const d = etat.donnees;
   const liste = d ? d.ensembles : [];
   const axes = liste.flatMap((e) => Object.entries(e.A.axes).map(([n, v]) => [e.nom, n, v]));
@@ -477,7 +492,7 @@ function dessine() {
       \${etat.erreur ? html\`<p class="err">\${etat.erreur}</p>\` : ''}
       \${curseur('lacet', 'lacet', 0, 360, 1, '°')}
       \${curseur('eclate', 'éclaté', 0, 60, 1, ' mm')}
-      \${curseur('zoom', 'zoom', 0.4, 2.5, 0.05, '×')}
+      \${curseur('zoom', 'zoom', 0.1, 10, 0.05, '×')}
       \${caseSimple('axes', 'axes dessinés')}
       \${caseSimple('repere', 'repère X Y Z')}
       \${caseSimple('monte', 'monté sur ses articulations')}
@@ -495,6 +510,16 @@ function dessine() {
     <div class="vue"><svg width=\${W} height=\${H} viewBox="0 0 \${W} \${H}"
       xmlns="http://www.w3.org/2000/svg">\${scene(mont)}</svg></div>\`, document.body);
 }
+
+/** Deux passages au plus : le premier crée (ou met à jour) la vue, le second la
+ *  redessine à la taille qu'elle vient de prendre. \`mesureVue\` rend faux dès que
+ *  la taille est stable, donc ça s'arrête tout seul. */
+function dessine() {
+  rendu();
+  if (mesureVue()) rendu();
+}
+
+addEventListener('resize', dessine);
 
 // Glisser dans la vue = tourner : plus direct qu'un curseur pour chercher
 // l'angle où l'on voit ce qui coince.
@@ -518,8 +543,10 @@ addEventListener('wheel', (ev) => {
   ev.preventDefault();
   const z = etat.zoom * Math.exp(-ev.deltaY / 800);
   // Arrondi au pas du curseur (0,05) : la valeur affichée reste lisible et le
-  // curseur se replace exactement dessus.
-  etat.zoom = Math.min(2.5, Math.max(0.4, Math.round(z * 20) / 20));
+  // curseur se replace dessus. Pas de butée pratique — seulement un garde-fou
+  // numérique : on entre dans une pièce autant qu'on veut, le curseur du panneau
+  // sature à sa graduation (10×) mais la valeur affichée reste la vraie.
+  etat.zoom = Math.min(500, Math.max(0.02, Math.round(z * 20) / 20));
   dessine();
 }, { passive: false });
 
@@ -533,16 +560,16 @@ const bundle = await esbuild({
 const page = `<!doctype html><meta charset="utf-8"><title>${NOM} — Kablix</title>
 <style>
   :root { color-scheme: light dark; }
-  body { margin: 0; display: flex; gap: 16px; font: 13px/1.5 system-ui, sans-serif;
-    background: #f6f9fb; color: #22333d; }
-  /* Le panneau ne se laisse JAMAIS écraser : sans flex-shrink:0, la scène (SVG de
-     largeur fixe) lui volait des pixels dès que la place manquait — un zoom du
-     navigateur, qui réduit la fenêtre en pixels CSS, suffisait à le comprimer. */
+  body { margin: 0; display: flex; font: 13px/1.5 system-ui, sans-serif;
+    background: #f6f9fb; color: #22333d; overflow: hidden; }
+  /* Le panneau ne se laisse JAMAIS écraser : sans flex-shrink:0, la feuille lui
+     volait des pixels dès que la place manquait. */
   .panneau { flex: 0 0 330px; padding: 16px; background: #fff; box-shadow: 0 0 12px #0001;
     height: 100vh; overflow: auto; box-sizing: border-box; }
-  .vue { flex: 1 1 auto; min-width: 0; display: grid; place-items: center; }
-  /* C'est la scène qui cède : elle se réduit proportionnellement au lieu de pousser. */
-  .vue svg { max-width: 100%; height: auto; }
+  /* Tout ce qui reste de la fenêtre est la feuille de dessin : le SVG est taillé
+     en JS à la taille de cette boîte (W et H mesurés), pas à un format fixe. */
+  .vue { flex: 1 1 auto; min-width: 0; height: 100vh; overflow: hidden; }
+  .vue svg { display: block; }
   h1 { font-size: 17px; margin: 0 0 2px; }
   h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: #789;
     margin: 18px 0 6px; }
@@ -569,7 +596,8 @@ const page = `<!doctype html><meta charset="utf-8"><title>${NOM} — Kablix</tit
   .curseur { display: grid; grid-template-columns: 54px 1fr 58px; align-items: center; gap: 6px;
     padding: 3px 0; }
   .curseur b { text-align: right; font-variant-numeric: tabular-nums; }
-  svg { background: #fff; border-radius: 8px; box-shadow: 0 2px 14px #0001; }
+  /* Plus de coins arrondis ni d'ombre : la feuille touche les bords de la fenêtre. */
+  svg { background: #fff; }
 </style><body><script>${bundle.outputFiles[0].text}</script></body>`;
 writeFileSync(join(CACHE, `${NOM}.html`), page);
 

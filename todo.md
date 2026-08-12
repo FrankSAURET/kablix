@@ -16,6 +16,14 @@
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
 
+# >>>>  v2026.8.41 — la feuille prend toute la fenêtre, et le zoom n'a plus de butée
+
+1. ✅ **La feuille de dessin occupe tout ce que le panneau laisse.** Elle était figée à 900×620 px, posée au centre d'une zone plus grande : sur un écran large, on regardait une vignette entourée de vide. `W` et `H` sont maintenant **mesurés** sur la boîte `.vue` (hauteur pleine fenêtre, largeur = fenêtre − 330 px) et le cadrage de la scène suit.
+2. ✅ **Le rendu se fait en deux passages** : le premier crée la vue, le second la redessine à la taille qu'elle vient de prendre. `mesureVue()` rend faux dès que la taille est stable — pas de boucle. Un **redimensionnement** de la fenêtre redessine aussi.
+3. ✅ **Plus de butée de zoom** : la molette n'est bornée que par un garde-fou numérique (0,02× à 500×). Le curseur du panneau garde une graduation lisible (0,1× à 10×) et **sature** au-delà, mais la valeur affichée reste la vraie.
+4. ✅ **Coins arrondis et ombre de la feuille supprimés** : elle touche les bords de la fenêtre, l'ombre n'avait plus rien à border.
+5. ✅ Mesuré en Chrome headless : fenêtre 1244×605 → svg **914×605** (panneau 330, reste 914) ; fenêtre 1784×905 → svg **1454×905**. 20 crans de molette montent à **19,75×**, 40 crans redescendent à **0,15×**.
+
 # >>>>  v2026.8.40 — la molette zoome le DESSIN, plus la fenêtre
 
 1. ✅ **Ctrl+molette est confisqué dans toute la fenêtre de `npm run montre`.** C'était le vrai symptôme : Ctrl+molette est le zoom du **navigateur**, il grossit le panneau EN MÊME TEMPS que le dessin — exactement l'inverse de ce qu'on cherche en regardant une pièce de près. Le geste pilote maintenant le zoom de la **scène** (le même que le curseur, bornes 0,4× à 2,5×, arrondi au pas de 0,05 pour que le curseur se replace dessus).
