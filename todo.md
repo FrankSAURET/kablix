@@ -16,6 +16,18 @@
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
 
+# >>>>  v2026.8.38 — la résistance se pose aussi DEBOUT
+
+1. ⏳ **Schéma interne du capteur à effet Hall : rien à intégrer, la retouche n'est pas sur le disque.** `hall-interne` a bien été réextrait de `Composants2D.svg` au cadre du boîtier `TO92S` (`node scripts/_extract-composants.mjs TO92S hall-interne@TO92S`), mais le fichier produit est **identique octet pour octet** à celui de la v2026.8.27 : le groupe de la planche n'a pas changé. Dessin sans doute pas enregistré dans Inkscape (la planche du disque est celle du commit d0c5459). **Frank : enregistrer la planche, puis relancer cette commande** — le dessin externe du boîtier, que l'extraction réécrit au passage, est à restaurer ensuite (`git checkout src/webview/composants/externe/TO92S.svg`).
+2. ✅ **La résistance a une POSE** (`orientation`) : `h` couchée (dessin d'origine, 80×20, pattes à 60 px d'écart) ou `v` **debout** — corps vertical et une patte repliée par-dessus, les deux bornes sortant côte à côte à 30 px (dessin `res-vert` de Frank, 50×70). Un seul élément, deux habillages, comme le condensateur et son `ctype`.
+3. ✅ **Les broches gardent leurs noms** (`1` et `2`) dans les deux poses : changer la pose dans l'inspecteur ne casse aucun fil. Le re-rendu est déclenché comme pour `ctype` (la boîte et la position des pattes changent, sinon les pastilles resteraient à l'ancien endroit).
+4. ✅ **Les anneaux de couleur suivent la valeur dans les deux dessins.** Ils n'ont pas les mêmes ids d'un dessin à l'autre (`#path19` couchée, `#path19-0` debout) : les ids sont rangés dans l'habillage plutôt qu'écrits en dur dans `updated()`. Vérifié en rendu Chrome headless : 220 Ω → rouge-rouge-brun, 4,7 kΩ → jaune-violet-rouge, sur les deux poses.
+5. ✅ **Schéma interne de la résistance debout** : le symbole dessiné (`res-vert-interne`, corps vertical + patte repliée) remplace la boîte tracée entre les deux pattes, que la pose verticale rendait fausse. La pose couchée garde le tracé procédural.
+6. ✅ **Libellé « Pose » et non « Orientation »** dans l'inspecteur : la barre de rotation/retournement porte déjà ce mot-là. Traduit EN/FR (`Mounting` → « Pose », `Horizontal`/`Vertical` → « Horizontale »/« Verticale », accordés avec « résistance »).
+7. ✅ Fiches d'aide FR et EN de la résistance complétées (propriété `orientation` + ce que change la pose verticale).
+8. ⏳ **Pas de test `testkablix` pour la pose verticale** : ce n'est pas un nouveau composant mais une propriété de la résistance, et ajouter la variante à un schéma existant en redisposerait la planche. À demander si Frank veut un test dédié.
+9. ✅ `npm run typecheck`, `npm run build` et `npm run verify:all` verts.
+
 # >>>>  v2026.8.37 — deux planches Inkscape : les composants plats d'un côté, les pièces en volume de l'autre
 
 1. ✅ **`Composants2D.svg` et `Composants3D.svg` remplacent la planche unique.** Les composants **plats** de la bibliothèque (dessin externe + schéma interne) vivent dans la 2D, les pièces à mettre **en volume** (profils, assemblages, robot araignée) dans la 3D. Chaque outil prend la sienne tout seul, `--source=` force un autre fichier.

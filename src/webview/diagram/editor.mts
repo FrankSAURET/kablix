@@ -5150,7 +5150,9 @@ export class Editor {
     // Circuit intégré : la référence rebaptise les pattes, la famille réécrit
     // l'inscription du boîtier — les deux se voient sur le dessin.
     const rebuildsIc = (attr === 'ref' || attr === 'family') && partDef(r.part.type).kind === 'logic-ic';
-    if (movesElectrode || rebuildsTransistor || rebuildsIc || attr === 'ctype' || attr === 'angle' || attr === 'flip' || attr === 'size' || attr === 'pins' || attr === 'lcdSize' || attr === 'columns' || attr === 'digits') {
+    // Résistance : `orientation` change de DESSIN (80×20 couchée, 50×70 debout),
+    // donc de boîte et de position des pattes — même raison que `ctype`.
+    if (movesElectrode || rebuildsTransistor || rebuildsIc || attr === 'ctype' || attr === 'orientation' || attr === 'angle' || attr === 'flip' || attr === 'size' || attr === 'pins' || attr === 'lcdSize' || attr === 'columns' || attr === 'digits') {
       this.rerenderPart(partId); // renderPart restaure le câblage interne s'il était affiché
       if (this.selection?.kind === 'part' && this.selection.id === partId) {
         const again = this.rendered.get(partId);

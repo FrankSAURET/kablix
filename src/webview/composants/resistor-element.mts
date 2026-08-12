@@ -4,11 +4,19 @@
 // imports relatifs .mjs ; DESSIN remplacé par la version retouchée (./externe/resistor.svg,
 // broches recalées sur la grille de 10 px) ; anneaux de couleur mis à jour par updated()
 // (le dessin importé est statique, l'ancien template liait ${bandColor} directement).
+//
+// DEUX POSES, un seul élément (attribut `orientation`) :
+//   h → couchée, corps horizontal, pattes de part et d'autre (80×20) ;
+//   v → DEBOUT, corps vertical et une patte repliée par-dessus (50×70, dessin de
+//       Frank « res-vert » ; schéma interne « res-vert-interne »).
+// Les broches gardent leurs noms ('1' et '2') dans les deux cas : changer la pose
+// ne casse aucun fil.
 import { css, html, LitElement } from 'lit';
 import type { PropertyValues } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
 import drawing from './externe/resistor.svg';
+import drawingVert from './externe/res-vert.svg';
 
 const bandColors: { [key: number]: string } = {
   [-2]: '#C3C7C0', // Silver
@@ -25,25 +33,56 @@ const bandColors: { [key: number]: string } = {
   9: '#FCFCFC', // White
 };
 
+/**
+ * Habillage par pose : dessin, boîte, position des pattes et ids des trois
+ * anneaux à recolorer (le 4e, doré, est fixe = tolérance). Les deux dessins ont
+ * été nettoyés séparément, d'où des ids d'anneaux différents.
+ */
+const SKINS = {
+  h: {
+    svg: drawing,
+    w: 80.164619,
+    h: 20,
+    pins: [{ x: 10, y: 10 }, { x: 70, y: 10 }],
+    bands: ['#rect19', '#path19', '#path20'],
+  },
+  v: {
+    svg: drawingVert,
+    w: 50,
+    h: 70,
+    pins: [{ x: 10, y: 60 }, { x: 40, y: 60 }],
+    bands: ['#rect19', '#path19-0', '#path20-1'],
+  },
+} as const;
+
+export type ResistorOrientation = keyof typeof SKINS;
+
 export class ResistorElement extends LitElement {
   declare value: string;
+  /** Pose du composant : 'h' couchée (défaut), 'v' debout. */
+  declare orientation: ResistorOrientation;
 
   /** Propriétés réactives lit (remplace les décorateurs @property du code d'origine). */
   static properties = {
     value: {},
+    orientation: { type: String },
   };
 
   constructor() {
     super();
     this.value = '1000';
+    this.orientation = 'h';
+  }
+
+  private get skin() {
+    return SKINS[this.orientation] ?? SKINS.h;
   }
 
   // Broches : centre de chaque patte, recalé sur la grille de 10 px (repère du
   // dessin retouché, tel quel — pas de pinScale, cf. catalog.mts).
-  readonly pinInfo: ElementPin[] = [
-    { name: '1', x: 10, y: 10, signals: [] },
-    { name: '2', x: 70, y: 10, signals: [] },
-  ];
+  get pinInfo(): ElementPin[] {
+    return this.skin.pins.map((p, i) => ({ name: String(i + 1), x: p.x, y: p.y, signals: [] }));
+  }
 
   static get styles() {
     return css`
@@ -94,18 +133,18 @@ export class ResistorElement extends LitElement {
 
   updated(changed: PropertyValues): void {
     super.updated(changed);
-    const [c1, c2, c3] = this.bandColorsFor(this.value);
-    // id du dessin nettoyé (externe/resistor.svg) : rect19 = anneau 1, path19 =
-    // anneau 2, path20 = anneau 3 (le 4e, doré, est fixe = tolérance).
-    this.renderRoot.querySelector('#rect19')?.setAttribute('fill', c1);
-    this.renderRoot.querySelector('#path19')?.setAttribute('fill', c2);
-    this.renderRoot.querySelector('#path20')?.setAttribute('fill', c3);
+    const colors = this.bandColorsFor(this.value);
+    // ids du dessin nettoyé (cf. SKINS) : anneaux 1, 2 et 3 dans cet ordre.
+    this.skin.bands.forEach((sel, i) => {
+      this.renderRoot.querySelector(sel)?.setAttribute('fill', colors[i]);
+    });
   }
 
   render() {
+    const s = this.skin;
     return html`
-      <svg width="80.164619" height="20" viewBox="0 0 80.164619 20" xmlns="http://www.w3.org/2000/svg">
-        ${unsafeSVG(drawing)}
+      <svg width=${s.w} height=${s.h} viewBox="0 0 ${s.w} ${s.h}" xmlns="http://www.w3.org/2000/svg">
+        ${unsafeSVG(s.svg)}
       </svg>
     `;
   }

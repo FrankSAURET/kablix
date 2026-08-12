@@ -298,6 +298,10 @@ const FR: Record<string, string> = {
   'RGB LED': 'LED RGB',
   'Pushbutton': 'Bouton',
   'Resistor': 'Résistance',
+  // Pose de la résistance (couchée / debout) : l'accord suit « résistance ».
+  'Mounting': 'Pose',
+  'Horizontal': 'Horizontale',
+  'Vertical': 'Verticale',
   'Diode': 'Diode',
   'Threshold voltage (V)': 'Tension de seuil (V)',
   // Les trois condensateurs se suivent dans la palette : leur libellé commence

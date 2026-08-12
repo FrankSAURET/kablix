@@ -54,6 +54,10 @@ import hallSchema from '../composants/interne/hall-interne.svg';
 // Potentiomètre ajustable (trimmer) : symbole dessiné dans Composants.svg, même
 // viewBox que le dessin externe → simple mise à l'échelle de la boîte.
 import potRot2Schema from '../composants/interne/pot-rot2-interne.svg';
+// Résistance DEBOUT : le symbole suit le corps vertical et la patte repliée, ce
+// que le tracé procédural (boîte entre deux pattes) ne saurait dessiner. Même
+// viewBox que `externe/res-vert.svg`, donc superposable tel quel.
+import resVertSchema from '../composants/interne/res-vert-interne.svg';
 // Symboles GÉNÉRIQUES (Composants.svg) : les électrodes y sont écrites (e/b/c,
 // g/d/s) mais jamais reliées aux pattes — le brochage change d'une référence à
 // l'autre, seul le nom écrit sur chaque pastille dit la vérité. Ils resservent
@@ -324,6 +328,7 @@ const RELAIS_SCHEMA = parseSchema(relaisSchema);
 const BATTERY_SCHEMA = parseSchema(batterySchema);
 const HALL_SCHEMA = parseSchema(hallSchema);
 const POT_ROT2_SCHEMA = parseSchema(potRot2Schema);
+const RES_VERT_SCHEMA = parseSchema(resVertSchema);
 // Symboles internes choisis NOMMÉMENT par l'attribut `schema` : le dessin d'une
 // référence ne se déduit pas de sa famille (deux NPN peuvent porter NPN1 ou
 // NPN-Générique), c'est sa fiche qui le dit.
@@ -516,7 +521,9 @@ export function internalWiringSvg(
     case 'led':
       return led(pins);
     case 'resistor':
-      return resistor(pins);
+      // Debout : symbole dessiné (corps vertical + patte repliée), calé sur le
+      // cadre de son dessin externe. Couchée : boîte tracée entre les pattes.
+      return attrs?.orientation === 'v' ? scaledSchema(RES_VERT_SCHEMA, box) : resistor(pins);
     case 'led-bar':
       return ledBar(pins);
     case '7segment':

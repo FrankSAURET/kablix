@@ -443,9 +443,19 @@ export const CATALOG: readonly PartDef[] = [
     ],
   },
   {
-    type: 'resistor', label: 'Resistor', tag: 'kablix-resistor', kind: 'resistor', attrs: { value: '220' },
+    type: 'resistor', label: 'Resistor', tag: 'kablix-resistor', kind: 'resistor',
+    attrs: { value: '220', orientation: 'h' },
     props: [
       { attr: 'value', label: 'Value (Ω)', kind: 'number', min: 1, max: 10_000_000, step: 1, suffixes: true },
+      // Pose du composant : couchée (deux pattes écartées de 60 px) ou DEBOUT
+      // (corps vertical, une patte repliée par-dessus, pattes à 30 px). Change
+      // le dessin, la boîte, la position des broches et le schéma interne.
+      {
+        // Libellé « Mounting » et pas « Orientation » : la barre de rotation de
+        // l'inspecteur porte déjà ce mot-là.
+        attr: 'orientation', label: 'Mounting', kind: 'select', options: ['h', 'v'],
+        optionLabels: { h: 'Horizontal', v: 'Vertical' },
+      },
     ],
   },
   // Diode de redressement (dessin de Frank, Composants.svg) : elle ne laisse
