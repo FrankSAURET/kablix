@@ -4,7 +4,8 @@
 // du calcul pur.
 export {
   slabFaces, assemblyFaces, planeNormal, project, signedArea, shade, renderFaces,
-  assemblyAxis, axisPrefix, rotationAxes, profileAxes, extrudeProfile,
+  assemblyAxis, axisPrefix, axisFamily, articulations, rotationAxes, montage,
+  profileAxes, extrudeProfile, rotZ, add, sub, len,
   PLANES, MATIERES,
 } from '../src/webview/composants/iso3d.mjs';
 export { assemblage, hasAssemblage } from '../src/webview/composants/assemblages.mjs';

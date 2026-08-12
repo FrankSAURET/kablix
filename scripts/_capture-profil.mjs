@@ -71,7 +71,41 @@ const k = 300 / Math.max(A.box.x, A.box.y, A.box.z, 1);
 const faces = assemblyFaces(A, { scale: k, xf: (p) => rotZ(p, 22), eclate: ${eclate} * k });
 const body = svg\`<g>\${renderFaces(faces, 220, 170)}</g>\`;
 const W = 440, H = 340;`;
-  const scene = mode === 'assemblage' ? assemble(0) : mode === 'eclate' ? assemble(18)
+  // Mode « plans » : la figure du REPÈRE, celle qui manque toujours quand un
+  // dessin ne donne pas ce qu'on attendait. La MÊME pièce en L posée dans les
+  // trois plans, chacune avec le x et le y de sa feuille, et le repère du monde
+  // à part. Une pièce en L parce qu'un rectangle ne dit pas s'il est retourné.
+  const plans = `
+// Une pièce en L : un rectangle ne dirait pas s'il est retourné.
+const L = [
+  { x: -17, y: -13 }, { x: 17, y: -13 }, { x: 17, y: -3 },
+  { x: -5, y: -3 }, { x: -5, y: 13 }, { x: -17, y: 13 },
+];
+const POSES = ['dessus', 'flanc', 'face'];
+const xf = (p) => rotZ(p, 22);
+const O = { x: 0, y: 0, z: 0 };
+const CY = 120;
+// Trois vignettes CÔTE À CÔTE en coordonnées d'écran : décaler les pièces dans
+// le monde les ferait descendre en cascade (l'isométrie envoie +x en bas à
+// droite) et le lecteur croirait à trois positions, pas à trois orientations.
+const parts = [svg\`<g>\${axisGizmo(O, 42, 76, CY, xf)}</g>
+  <text x="76" y=\${CY + 74} text-anchor="middle" font-size="12" font-family="sans-serif"
+    fill="#5b6b75">le monde</text>\`];
+POSES.forEach((plan, i) => {
+  const cx = 210 + i * 150;
+  const { u, v } = PLANES[plan];
+  parts.push(svg\`<g>\${renderFaces(slabFaces(L, plan, O, 3, '#bcdff0', [], xf), cx, CY)}</g>
+    <g>\${axisGizmo(O, 30, cx, CY, xf, {
+      labels: ['x', 'y', 'ép.'], dirs: [u, v, planeNormal(plan)],
+      colors: ['#7a4dd6', '#c2600a', '#8a9ba7'],
+    })}</g>
+    <text x=\${cx} y=\${CY + 74} text-anchor="middle" font-size="14" font-family="sans-serif"
+      font-weight="700" fill="#22333d">\${plan}</text>\`);
+});
+const body = svg\`\${parts}\`;
+const W = 640, H = 220;`;
+  const scene = mode === 'plans' ? plans
+    : mode === 'assemblage' ? assemble(0) : mode === 'eclate' ? assemble(18)
     : mode === 'plat' ? flat : mode === 'piece'
     ? `
 const p = profile(${JSON.stringify(name)});
@@ -91,15 +125,28 @@ const faces = [
 const body = svg\`<g>\${renderFaces(faces, 130, 90)}</g>\`;
 const W = 260, H = 180;`;
 
+  // Le repère X/Y/Z dans un coin de toute image EN VOLUME : sans lui, une
+  // illustration ne dit pas dans quel sens la pièce est partie — exactement la
+  // question qu'on se pose devant un dessin qui n'a pas donné ce qu'on attendait.
+  // La figure des plans a déjà les siens, le contour à plat n'a pas de volume.
+  // Taille proportionnée à la vignette, et coin bas-gauche assez rentré pour que
+  // les étiquettes ne se fassent pas rogner par le viewBox (le SVG écrête).
+  const gizmo = mode === 'plat' || mode === 'plans'
+    ? 'const gizmo = [];'
+    : `
+const gz = Math.max(16, Math.min(W, H) * 0.16);
+const gizmo = axisGizmo({ x: 0, y: 0, z: 0 }, gz, gz * 1.2 + 24, H - gz * 0.6 - 22, (p) => rotZ(p, 22));`;
   const entry = `
 import { html, svg, render } from 'lit';
 import {
   prismFaces, extrudeProfile, decalFaces, renderFaces, assemblyFaces, rotZ,
+  slabFaces, axisGizmo, project, planeNormal, PLANES,
 } from '../../src/webview/composants/iso3d.mjs';
 import { profile } from '../../src/webview/composants/profils.mjs';
 import { assemblage } from '../../src/webview/composants/assemblages.mjs';
 ${scene}
-render(html\`<svg id="art" width=\${W} height=\${H} viewBox="0 0 \${W} \${H}" xmlns="http://www.w3.org/2000/svg">\${body}</svg>\`, document.body);
+${gizmo}
+render(html\`<svg id="art" width=\${W} height=\${H} viewBox="0 0 \${W} \${H}" xmlns="http://www.w3.org/2000/svg">\${body}<g>\${gizmo}</g></svg>\`, document.body);
 setTimeout(() => {
   const s = document.getElementById('art');
   const bb = s.getBBox();

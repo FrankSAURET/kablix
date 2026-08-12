@@ -202,7 +202,7 @@ writeFileSync(entryPath, `
 import { html, svg, render } from 'lit';
 import {
   assemblyFaces, renderFaces, rotZ, add, dot, project, MATIERES, PLANES, planeNormal,
-  scale as vscale, rotationAxes,
+  scale as vscale, rotationAxes, montage, axisGizmo,
 } from '../../src/webview/composants/iso3d.mjs';
 
 const W = 900, H = 620;
@@ -211,11 +211,14 @@ const W = 900, H = 620;
 const ECART = 15;
 
 const etat = {
-  lacet: 22, eclate: 0, zoom: 1, axes: true, rangee: true,
+  lacet: 22, eclate: 0, zoom: 1, axes: true, repere: true, monte: true, rangee: true,
   // Ce qu'on ne veut plus voir : par ENSEMBLE (« araignee-corps ») et par PIÈCE
   // (« araignee-corps/flanc »). Des NOMS, donc un rechargement du dessin ne perd
   // pas ce qui était masqué.
   ensCaches: new Set(), cachees: new Set(),
+  // Les ensembles réduits à UN exemplaire : monté, le corps fait naître autant de
+  // fémurs qu'il a de hanches, et on ne veut pas toujours les quatre.
+  unSeul: new Set(),
   donnees: null, occupe: false, erreur: '',
 };
 
@@ -236,19 +239,77 @@ async function recharge(relire) {
 }
 
 // --- disposition ---------------------------------------------------------------
-/** Les ensembles visibles, posés côte à côte le long de X (ou tous à leur vraie
- *  place, case « côte à côte » décochée — c'est ainsi qu'on vérifie qu'un fémur
- *  vient bien se poser sur la hanche du corps). */
-function pose() {
-  const vis = (etat.donnees ? etat.donnees.ensembles : []).filter((e) => !etat.ensCaches.has(e.nom));
+const visibles = () =>
+  (etat.donnees ? etat.donnees.ensembles : []).filter((e) => !etat.ensCaches.has(e.nom));
+
+/** Le MONTAGE courant : chaque ensemble posé sur les articulations du précédent,
+ *  articulations superposées — le robot entier, pas trois dessins côte à côte.
+ *  Rend `null` si la case est décochée, ou si rien ne s'emboîte (aucune famille
+ *  d'articulation partagée) : on retombe alors sur la rangée, sans rien inventer. */
+function montageCourant() {
+  const vis = visibles();
+  if (!etat.monte || vis.length < 2) return null;
+  const insts = montage(vis.map((e) => ({ nom: e.nom, A: e.A })));
+  return insts.some((i) => i.parent) ? insts : null;
+}
+
+/** Les ensembles réduits à UN exemplaire : ceux dont la case ×N est décochée, et
+ *  tous ceux qu'ils portent — un seul fémur ne peut pas tenir quatre tibias. */
+function reduits(mont) {
+  const parent = new Map();
+  for (const i of mont) if (!parent.has(i.nom)) parent.set(i.nom, i.parent);
+  const out = new Set();
+  for (const nom of parent.keys()) {
+    for (let n = nom, garde = 0; n && garde < 16; n = parent.get(n), garde++) {
+      if (!etat.unSeul.has(n)) continue;
+      out.add(nom);
+      break;
+    }
+  }
+  return out;
+}
+
+/**
+ * Ce que la scène pose : un exemplaire par entrée, avec son lacet propre et sa
+ * position en millimètres. Trois dispositions, dans cet ordre :
+ *   • MONTÉ — chacun sur les articulations du précédent (le robot assemblé) ;
+ *   • côte à côte — le long de X, pour les lire un par un ;
+ *   • à sa place — chacun à sa propre origine.
+ */
+function pose(mont) {
+  const vis = visibles();
+  if (mont) {
+    const parNom = new Map(vis.map((e) => [e.nom, e]));
+    const un = reduits(mont);
+    const vus = new Map();
+    const out = [];
+    for (const i of mont) {
+      const n = vus.get(i.nom) ?? 0;
+      vus.set(i.nom, n + 1);
+      if (n > 0 && un.has(i.nom)) continue;
+      out.push({ e: parNom.get(i.nom), lacet: i.lacet, off: i.pos, etiquette: n === 0 });
+    }
+    return out;
+  }
   const out = [];
   let x = 0;
   for (const e of vis) {
-    out.push({ e, dx: etat.rangee ? x - e.lim.x0 : 0 });
+    out.push({
+      e, lacet: 0, etiquette: true,
+      off: { x: etat.rangee ? x - e.lim.x0 : 0, y: 0, z: 0 },
+    });
     x += (e.lim.x1 - e.lim.x0) + ECART;
   }
   return out;
 }
+
+/** Le placement d'un exemplaire : son lacet propre, sa position, puis le lacet de
+ *  présentation de la scène. `k` convertit les millimètres en unités de feuille
+ *  (1 quand on travaille en millimètres purs, comme dans le cadrage). */
+const placeur = (pl, k = 1) => {
+  const off = vscale(pl.off, k);
+  return (p) => rotZ(add(rotZ(p, pl.lacet), off), etat.lacet);
+};
 
 /** Les deux poses d'une pièce en miroir, ou son unique pose (même règle que
  *  assemblyFaces : un dessin de flanc donne les DEUX flancs). */
@@ -266,9 +327,10 @@ function poses(p) {
  */
 function vue(disp) {
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
-  for (const { e, dx } of disp) {
-    for (const p of e.A.pieces) {
-      if (etat.cachees.has(e.nom + '/' + p.name)) continue;
+  for (const pl of disp) {
+    const xf = placeur(pl);
+    for (const p of pl.e.A.pieces) {
+      if (etat.cachees.has(pl.e.nom + '/' + p.name)) continue;
       const { u, v } = PLANES[p.plan];
       const n = planeNormal(p.plan);
       for (const pos of poses(p)) {
@@ -277,11 +339,11 @@ function vue(disp) {
         for (const s of [-p.ep / 2, p.ep / 2]) {
           for (const q of p.poly) {
             const w = {
-              x: pos.x + dx + u.x * q.x + v.x * q.y + n.x * (s + ecart),
+              x: pos.x + u.x * q.x + v.x * q.y + n.x * (s + ecart),
               y: pos.y + u.y * q.x + v.y * q.y + n.y * (s + ecart),
               z: pos.z + u.z * q.x + v.z * q.y + n.z * (s + ecart),
             };
-            const r = project(rotZ(w, etat.lacet));
+            const r = project(xf(w));
             x0 = Math.min(x0, r.x); x1 = Math.max(x1, r.x);
             y0 = Math.min(y0, r.y); y1 = Math.max(y1, r.y);
           }
@@ -294,19 +356,18 @@ function vue(disp) {
   return { k, cx: W / 2 - ((x0 + x1) / 2) * k, cy: H / 2 - ((y0 + y1) / 2) * k };
 }
 
-function scene() {
-  const disp = pose();
+function scene(mont) {
+  const disp = pose(mont);
   if (!disp.length) return svg\`\`;
   const { k, cx, cy } = vue(disp);
   const faces = [];
   const marques = [];
-  for (const { e, dx } of disp) {
-    // Décalage de l'ensemble dans la rangée, en unités de la feuille.
-    const off = { x: dx * k, y: 0, z: 0 };
-    const xf = (p) => rotZ(add(p, off), etat.lacet);
+  for (const pl of disp) {
+    const e = pl.e;
+    const xf = placeur(pl, k);
     const A = { ...e.A, pieces: e.A.pieces.filter((p) => !etat.cachees.has(e.nom + '/' + p.name)) };
     faces.push(...assemblyFaces(A, { scale: k, xf, eclate: etat.eclate * k }));
-    if (disp.length > 1) {
+    if (disp.length > 1 && pl.etiquette) {
       // Le nom sous chaque bloc : sans lui, une rangée de trois assemblages est
       // une devinette dès qu'on l'a tournée.
       const c = project(xf({ x: (e.lim.x0 + e.lim.x1) / 2 * k, y: (e.lim.y0 + e.lim.y1) / 2 * k, z: e.lim.z0 * k }));
@@ -336,7 +397,13 @@ function scene() {
           font-size="12" font-family="sans-serif" fill="#c00">\${nom}</text>\`);
     }
   }
-  return svg\`<g>\${renderFaces(faces, cx, cy)}</g><g>\${marques}</g>\`;
+  // Le repère X/Y/Z, dans un coin et TOURNÉ AVEC LA SCÈNE : c'est lui qui dit si
+  // une pièce est partie vers l'arrière ou vers la droite — la question même
+  // qu'on se pose quand un dessin ne donne pas ce qu'on attendait.
+  const repere = etat.repere
+    ? axisGizmo({ x: 0, y: 0, z: 0 }, 34, 62, H - 52, (p) => rotZ(p, etat.lacet))
+    : [];
+  return svg\`<g>\${renderFaces(faces, cx, cy)}</g><g>\${marques}</g><g>\${repere}</g>\`;
 }
 
 // --- panneau -------------------------------------------------------------------
@@ -345,14 +412,22 @@ function bascule(jeu, cle) {
   dessine();
 }
 
-function ligneEnsemble(e) {
+/** `n` = le nombre d'exemplaires que le montage lui a donnés : le corps porte
+ *  quatre hanches, il naît quatre fémurs. Au-delà d'un, une case « ×n » permet de
+ *  n'en garder qu'UN — quatre pattes cachent le corps qu'on voulait regarder. */
+function ligneEnsemble(e, n) {
   const montre = !etat.ensCaches.has(e.nom);
-  return html\`<label class="ligne titre">
-    <input type="checkbox" .checked=\${montre} @change=\${() => bascule(etat.ensCaches, e.nom)} />
-    <b>\${e.nom}</b>
+  const tous = !etat.unSeul.has(e.nom);
+  return html\`<div class="ligne titre">
+    <label class="nom">
+      <input type="checkbox" .checked=\${montre} @change=\${() => bascule(etat.ensCaches, e.nom)} />
+      <b>\${e.nom}</b></label>
+    \${n > 1 ? html\`<label class="fois" title="décoché : un seul exemplaire">
+      <input type="checkbox" .checked=\${tous}
+        @change=\${() => bascule(etat.unSeul, e.nom)} />×\${n}</label>\` : ''}
     <span class="gris">\${e.type === 'profil' ? 'profil' : e.A.pieces.length + ' pièce(s)'}
       · \${e.A.box.x}×\${e.A.box.y}×\${e.A.box.z} mm</span>
-  </label>\`;
+  </div>\`;
 }
 
 function lignePiece(e, p) {
@@ -384,6 +459,11 @@ function dessine() {
   const d = etat.donnees;
   const liste = d ? d.ensembles : [];
   const axes = liste.flatMap((e) => Object.entries(e.A.axes).map(([n, v]) => [e.nom, n, v]));
+  // Le montage sert deux fois : à la scène, et au panneau qui dit combien
+  // d'exemplaires chaque ensemble a reçus (« ×4 » = quatre hanches, quatre pattes).
+  const mont = montageCourant();
+  const combien = new Map();
+  for (const i of mont ?? []) combien.set(i.nom, (combien.get(i.nom) ?? 0) + 1);
   render(html\`
     <div class="panneau">
       <h1>\${d ? d.prefixe : '…'}</h1>
@@ -399,16 +479,21 @@ function dessine() {
       \${curseur('eclate', 'éclaté', 0, 60, 1, ' mm')}
       \${curseur('zoom', 'zoom', 0.4, 2.5, 0.05, '×')}
       \${caseSimple('axes', 'axes dessinés')}
-      \${caseSimple('rangee', 'côte à côte')}
+      \${caseSimple('repere', 'repère X Y Z')}
+      \${caseSimple('monte', 'monté sur ses articulations')}
+      \${etat.monte ? '' : caseSimple('rangee', 'côte à côte')}
+      \${etat.monte && !mont && liste.length > 1 ? html\`<p class="note">rien à monter :
+        aucun ensemble ne partage une famille d'articulation (deux dessins doivent nommer
+        la même — « hanche », « genou »…). Affichage côte à côte.</p>\` : ''}
       \${liste.map((e) => html\`<div class="bloc">
-        \${ligneEnsemble(e)}
+        \${ligneEnsemble(e, combien.get(e.nom) ?? 1)}
         \${e.A.pieces.map((p) => lignePiece(e, p))}
       </div>\`)}
       \${axes.length ? html\`<h2>pastilles</h2>\${axes.map(([e, n, v]) =>
         html\`<div class="ligne gris"><b>\${n}</b> <span>\${e} · (\${v.x}, \${v.y}, \${v.z})</span></div>\`)}\` : ''}
     </div>
     <div class="vue"><svg width=\${W} height=\${H} viewBox="0 0 \${W} \${H}"
-      xmlns="http://www.w3.org/2000/svg">\${scene()}</svg></div>\`, document.body);
+      xmlns="http://www.w3.org/2000/svg">\${scene(mont)}</svg></div>\`, document.body);
 }
 
 // Glisser dans la vue = tourner : plus direct qu'un curseur pour chercher
@@ -452,6 +537,12 @@ const page = `<!doctype html><meta charset="utf-8"><title>${NOM} — Kablix</tit
   .ligne { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
   .ligne .gris { margin-left: auto; font-size: 11px; }
   .titre b { font-size: 13px; }
+  .titre .nom { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .fois { display: flex; align-items: center; gap: 2px; font-size: 11px; color: #567;
+    border: 1px solid #dbe5eb; border-radius: 4px; padding: 0 4px; cursor: pointer; }
+  .fois input { margin: 0; }
+  .note { color: #7a5b16; background: #fff7e6; border-radius: 6px; padding: 6px 8px;
+    font-size: 12px; margin: 8px 0 0; }
   .piece { padding-left: 14px; }
   .pastille { width: 11px; height: 11px; border-radius: 3px; border: 1px solid #0002; }
   .curseur { display: grid; grid-template-columns: 54px 1fr 58px; align-items: center; gap: 6px;

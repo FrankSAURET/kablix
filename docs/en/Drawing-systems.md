@@ -15,7 +15,7 @@ The difference fits in one sentence: in a profile only the **proportions** matte
 
 This guide is for people working on **the repository**. For a regular flat component (a diode, a sensor), the chain is different and described in [Creating a Kablix component](Creating-components.md).
 
-In a hurry? Jump to [original drawing, and what comes out](#original-drawing-and-what-comes-out): three pictures are worth the page. Here for the sandwich body? That is [Assembling several parts](#assembling-several-parts).
+In a hurry? Jump to [original drawing, and what comes out](#original-drawing-and-what-comes-out): three pictures are worth the page. Here for the sandwich body? That is [Assembling several parts](#assembling-several-parts). Stuck on a leg that will not mount the way you wanted? That is [Drawing a leg, from hip to foot](#drawing-a-leg-from-hip-to-foot), and its table of symptoms.
 
 ---
 
@@ -72,7 +72,30 @@ Holes are not actually carved into the material: they are laid as **dark decals*
 
 ## Orientation: where the top of the drawing goes
 
-This is the one thing that cannot be guessed for you.
+This is the one thing that cannot be guessed for you, and the first thing to look at when a drawing does not give what you expected.
+
+### The world frame
+
+**X to the right, Y towards the back, Z up.** That is the engine's frame, and it is the one drawn in a corner of **every** 3D picture in this guide, as well as in the viewer (**repère X Y Z** checkbox). It turns with the scene: when you swing the robot around, the frame swings too, and it says where the front is at all times.
+
+![The world frame, and the x / y of each of the three planes](../img/systemes/repere.webp)
+
+The same L-shaped part, laid in the three planes. The **purple** and **orange** arrows are the `x` and `y` **of your drawing sheet**; the grey one is the direction of the thickness.
+
+| Plane | The drawing is seen | drawing `x` runs | drawing `y` runs | Thickness runs | Examples |
+| --- | --- | --- | --- | --- | --- |
+| `dessus` | from above, **front at the top** | to the right | towards the **back** | vertically | plates, decks, bridges |
+| `flanc` | from the side, **front to the left** | towards the **back** | **downwards** | across the robot | the two sides, a servo lying down |
+| `face` | from the front | to the right | **downwards** | front to back | bulkhead, spacer, front cover |
+
+Two ways to remember it, and they are enough:
+
+- **The top view keeps the sense of a plan view**: the top of the sheet is the front of the robot, as on any drawing seen from above.
+- **The other two stand up as drawn**: the drawing is raised **exactly as you traced it**, top of the sheet upwards. What you draw at the top is at the top; what you draw on the left points forwards (`flanc`) or to the left (`face`).
+
+An SVG `y` goes **down** — which explains the "downwards" column, and why a part drawn towards the bottom of the sheet ends up at the bottom of the robot.
+
+### Top of the drawing, for a profile
 
 - **Plate**: drawn **seen from above**, the **top of the drawing is the front** of the robot.
 - **Part**: drawn **from the side, lying horizontally**. The **left edge** lands on the first joint, the **right edge** on the second. The top of the drawing stays up.
@@ -248,17 +271,31 @@ flanc pos=28,0,0 ep=12 mat=servo miroir=x
 
 `miroir` alone (no `=`) means `miroir=y`. An unknown value (`mat=titane`, `pos=3,4`) is ignored and the default applies: the part then shows up visibly wrong, rather than silently.
 
+#### The decimal separator is the DOT
+
+This is the label's number-one trap, because it does not show on the picture: a French numeric keypad types a comma, and the comma already separates the three coordinates.
+
+```text
+dessus pos=24,501,-38,083,0 ep=21,5     ← five numbers instead of three: unreadable
+dessus pos=24.501,-38.083,0 ep=21.5     ← right
+```
+
+An unreadable label is not an error: the part **falls back to the centre, 3 mm thick**. It is there all right, just not where you think. The read now says so in plain words:
+
+```text
+  ! araignee-patte-tibia-servo : « pos=24,501,-38,083,0 » illisible, pièce remise au centre
+    — le séparateur décimal est le POINT : pos=24.501,-38.083,0
+```
+
+Same for an unknown word or an unknown material: each is reported on read. **Read the output of `npm run montre` before suspecting the drawing.**
+
 The keywords stay in French, like the ids of the drawing: they are written in Inkscape next to `plaque` and `flanc`, and one language per sheet is one confusion less.
 
 ### The three planes
 
-The world frame is the engine's: **X to the right, Y towards the back, Z up**. An SVG `y` goes **down** — which explains the middle column.
+The table and the figure are further up, under [The world frame](#the-world-frame): these are exactly the same three planes, and the figure shows the sheet's `x` and `y` for each of them.
 
-| Plane | The drawing is seen | drawing `x` | drawing `y` | Thickness runs | Examples |
-| --- | --- | --- | --- | --- | --- |
-| `dessus` | from above, **front at the top** | to the right | towards the **back** | vertically | plates, decks, bridges |
-| `flanc` | from the side, **front to the left** | towards the **back** | **downwards** | across the robot | the two sides, a servo lying down |
-| `face` | from the front | to the right | **downwards** | front to back | bulkhead, spacer, front cover |
+In two sentences: **`dessus` keeps the sense of a plan view** (top of the sheet = front of the robot); **`flanc` and `face` raise the drawing as traced** (top of the sheet = top of the robot).
 
 **A part is placed by its CENTRE** (the middle of its bounding box): `pos` is the centre of the part, not its corner. That is what makes mirroring immediate — a side at `pos=0,-9,0` with `miroir=y` gives both sides, 18 mm apart.
 
@@ -300,21 +337,84 @@ The id comes first because it **sticks to the dot**: it survives a move, a text 
 
 That is the key point of the protocol: **the drawing says where the hip is**, not a constant in the code. Move the hole in Inkscape and the axis follows.
 
+#### A pad name reads in two parts
+
+It all fits in one sentence, and the rest of this section is only the detail:
+
+> **`family - joint - end`** — the **first** segment is the **family** (it says *what it snaps onto*), everything but the **last** is the **prefix** (it says *which* joint), the last one only tells the **two ends** of the axis apart.
+
+| Pad name | Prefix = the joint | Family = what it snaps onto |
+| --- | --- | --- |
+| `hanche-ag-h` | `hanche-ag` | `hanche` |
+| `hanche-ag-b` | `hanche-ag` | `hanche` |
+| `hanche-rd-h` | `hanche-rd` | `hanche` |
+| `genou-h` | `genou` | `genou` |
+| `pied` | `pied` | `pied` |
+
 #### Two pads sharing a prefix = a rotation axis
 
 A point does not say what you turn **around**. Two points do: **two pads whose names differ only by their last segment are the two ends of one axis.**
 
 ```text
-hanche-g-ext  ─┐
-                ├─ axis "hanche-g"
-hanche-g-int  ─┘
+hanche-ag-h  ─┐
+               ├─ axis "hanche-ag"  (family "hanche")
+hanche-ag-b  ─┘
 ```
 
-The prefix (`hanche-g`) names the axis; the last segment (`-ext`, `-int`, `-h`, `-b`…) only tells the two ends apart. The engine derives the **line** from it: its midpoint, its direction, the distance between the two pads. When more than two pads share a prefix, the **two furthest apart** carry the axis.
+The prefix (`hanche-ag`) names the axis; the last segment (`-h`, `-b`, `-ext`, `-int`…) only tells the two ends apart. The engine derives the **line** from it: its midpoint, its direction, the distance between the two pads. When more than two pads share a prefix, the **two furthest apart** carry the axis — and the read warns you, because that is almost always a naming mistake.
 
-Worth knowing: `hanche-g` and `hanche-d` share the prefix `hanche` and would therefore make **one** axis, running from one to the other. Two distinct joints need distinct prefixes — or single-segment names (`genou`), which are their own prefix and stay plain points.
+A **lone** pad stays a plain point: it marks a place (`pied`), it does not say what to turn around.
 
-These axes are how **two sub-assemblies join up**: the femur turns around the body's hip, the tibia around the femur's knee. Both drawings name the same axis, and there is nothing left to measure.
+#### Four hips = four prefixes = eight pads
+
+This is **the** trap, and it does not show on the picture: four legs end up stacked on each other at the middle of the body.
+
+```text
+hanche-ag   ─┐
+hanche-ad    │
+hanche-rg    ├─ SAME prefix "hanche": ONE joint, ONE leg
+hanche-rd   ─┘
+```
+
+The four names differ **only by their last segment**: the rule therefore reads them as the four ends of a **single** axis. The robot has one hip, at the centre.
+
+Four distinct hips want **four distinct prefixes**, hence **three**-segment names — and since each hip deserves an axis, that means **two pads each, eight in all**:
+
+```text
+hanche-ag-h / hanche-ag-b     front left
+hanche-ad-h / hanche-ad-b     front right
+hanche-rg-h / hanche-rg-b     rear left
+hanche-rd-h / hanche-rd-b     rear right
+```
+
+All eight share the family `hanche`: that is what makes a femur naming `hanche` sit on them — **four times**, one per hip.
+
+> The same trap exists in a quieter form. Four pads named `hanche-g-h`, `hanche-g-b`, `hanche-d-h`, `hanche-d-b` complain about nothing: they cleanly make **two** axes, `hanche-g` and `hanche-d`, each running through the body from front to back. Two axes, two legs. It only shows if you tick **axes dessinés** in the viewer: the two dashed red lines run the whole length of the body instead of being four short vertical segments.
+
+#### A shared family = two drawings that snap together
+
+Joints do not only make things turn: **they are how drawings mount onto each other**, without a single dimension to carry over.
+
+The rule is short:
+
+1. Two ensembles naming the **same family** snap together: the body has `hanche-…`, the femur too → the femur sits on the body.
+2. **The one offering the most joints carries the other.** The body has four, the femur two: the body carries, and **four femurs** are born.
+3. **Joints are superposed**, pad on pad. The position is not computed, it is read from the drawing.
+4. When the family holds **several** joints (the four hips), each copy is **turned towards its own**: the legs splay out by themselves. When it holds only **one** (the femur's knee), the child keeps its parent's heading: the tibia carries on from the femur.
+
+A complete chain therefore takes three drawings and six names:
+
+```text
+araignee-corps          hanche-ag-h/-b  hanche-ad-h/-b  hanche-rg-h/-b  hanche-rd-h/-b
+araignee-patte-femur    hanche-h/-b     ← snaps onto the body (family "hanche")
+                        genou-h/-b      ← offers a knee
+araignee-patte-tibia    genou-h/-b      ← snaps onto the femur (family "genou")
+                        pied
+```
+
+On screen: **one body, four femurs, four tibias**, each in its place, without a line of code. That is what `npm run montre araignee` does.
+
+An ensemble sharing no family stays at **its own origin**: it is not guessed, it is simply laid out. And if no ensemble shares one with another, the viewer says so and falls back to the side-by-side display.
 
 #### Profiles too
 
@@ -327,7 +427,9 @@ npm run montre araignee            # EVERYTHING starting with “araignee”
 npm run montre araignee-corps      # a single assembly
 ```
 
-The argument is a **prefix**, not an exact name: the tool picks up **every assembly and every profile** on the sheet that starts with it, and shows them **together, at the same scale**. `araignee` therefore brings out the body, the femur and the tibia side by side — three separate drawings on the sheet, one single scene. The sheet is read **once** for the whole prefix (reading goes through Chrome: that is the wait, so pay it once).
+The argument is a **prefix**, not an exact name: the tool picks up **every assembly and every profile** on the sheet that starts with it, and shows them **together, at the same scale**. The sheet is read **once** for the whole prefix (reading goes through Chrome: that is the wait, so pay it once).
+
+**Asking for the global prefix is asking for the whole robot.** `npm run montre araignee` does not lay three drawings side by side: it **mounts** them, each on the previous one's joints, joints superposed — one body, four femurs, four tibias. Three drawings on the sheet, one robot on screen. That is the **monté sur ses articulations** checkbox, ticked by default; untick it to get the separate drawings back.
 
 A profile, drawn on its own and without dimensions, is treated as a one-part assembly: its 10 px grid becomes millimetres and it is laid flat, 3 mm thick, next to the real assemblies.
 
@@ -340,9 +442,12 @@ What is read is also **stored**: `assemblages.mts` and `profils.mts` are rewritt
 | **éclaté** slider | pull the parts apart along their thickness — the only way to see what sits between two sides 3 mm apart |
 | **zoom** slider | inspect a detail |
 | An ensemble's **title checkbox** | hide a whole assembly — look at the femur alone without relaunching the command |
+| **×4** box next to the title | the ensemble was given four copies (four hips, four legs). Untick it to keep just **one**: four legs hide the body you wanted to see. Whatever it carries follows — one femur only holds one tibia |
 | **pièces** checkboxes | hide one side to see inside |
 | **axes dessinés** checkbox | show the named pads at their 3D place, and the **rotation axes** as a dashed red line |
-| **côte à côte** checkbox | unticked, each ensemble goes back to its **real place**: that is how you check that a femur really sits on the body's hip |
+| **repère X Y Z** checkbox | the world frame in a corner, turning with the scene: it says where the front is at all times |
+| **monté sur ses articulations** checkbox | **the assembled robot**: each ensemble laid on the previous one's joints, joints superposed, one copy per joint. Unticked, you fall back to the separate drawings |
+| **côte à côte** checkbox (unmounted only) | unticked, each ensemble goes back to its **own origin** — its own place, as drawn |
 
 The panel shows the **overall size in millimetres** (`100 × 80 × 31 mm`): the figure you read on an assembly drawing, and the first sign that a part is laid the wrong way.
 
@@ -390,6 +495,85 @@ The colour shown is the one **read from the drawing** (`#rrggbbaa`, transparency
 
 The `verify:assemblage` bench is pure computation, like the profile one. It exercises **label parsing** (a negative position must survive whole — `pos=0,-9,0` has already been read as three words), the **planes** (a 100 mm plate lying flat is 100 × 80 × 3, never 103 × 83 × 35), the **mirror**, the **exploded view** (each part moves to the side it already sits on, a central part does not move), then **every stored assembly**: known plane and material, centred outline, dimensions consistent, overall size consistent with the computation, axes inside the box. It also exercises the **colours read from the drawing** — the drawn shade wins over `mat=`, transparency survives the lighting, and a translucent face comes out without a seam stroke — and the **rotation axes**: the prefix rule, the two furthest pads when there are three, two coincident pads that make no line, and a profile's pads following the part when it is scaled up.
 
+Finally it exercises the **mounting** on a test robot — a body with four hips, a femur, a tibia: the body carries (it offers the most joints), four femurs and four tibias are born, each on a different hip, hips and knees **superposed to the millimetre**, the four legs turned to four distinct headings, the tibia keeping its femur's heading. An ensemble sharing no family stays where it is, and two drawings with nothing in common mount nothing at all rather than inventing.
+
+---
+
+## Drawing a leg, from hip to foot
+
+The complete case, the one that puts everything above end to end: a body, a femur, a tibia, and **four legs** at the end. Three drawings only — the four copies are not drawn, they are born from the four hips.
+
+### 1. Three groups, three assemblies
+
+```text
+araignee-corps-…          the body: plates, boards, battery
+araignee-patte-femur-…    the hip → knee bone, and the knee servo it carries
+araignee-patte-tibia-…    the knee → foot bone
+```
+
+Each is drawn **wherever you like on the sheet**, side by side like a cutting plan. Where they sit on the sheet does not matter: their pose label and their pads do.
+
+### 2. The body: eight pads, four hips
+
+On the part that actually carries the hip servos (the sides, not the top plate), four pairs of red pads:
+
+```text
+hanche-ag-h  hanche-ag-b        front left
+hanche-ad-h  hanche-ad-b        front right
+hanche-rg-h  hanche-rg-b        rear left
+hanche-rd-h  hanche-rd-b        rear right
+```
+
+The two pads of a pair are **the two ends of the servo's axis**: if the hip yaws (servo standing up), one sits above the other; if it rolls, they sit one behind the other. **Put them where the axis really runs** — that line is what the leg will follow.
+
+Name them by their **Inkscape id** (`Object → Object Properties`): eight texts on the sheet would be unreadable.
+
+### 3. The femur: two joints, not one
+
+This is where it goes wrong most often. The femur carries **two** joints, and it needs both:
+
+| Pads | What they are for |
+| --- | --- |
+| `hanche-h`, `hanche-b` | **where the femur hooks onto the body.** Family `hanche`: that is the word the body uses too, and it is all it takes for them to snap together |
+| `genou-h`, `genou-b` | **the axis the femur offers the tibia.** Family `genou` |
+
+A femur with only its hip does sit on the body — but the tibia has nothing left to hook onto, and it stays alone in its corner. **The knee is drawn on the femur**, not only on the tibia.
+
+The femur is a `flanc`: drawn from the side, it stands up **as traced**. What you draw at the top ends up at the top of the robot. If the leg comes out upside down, it is the drawing that is flipped, not the engine — tick **repère X Y Z** and look at where Z points.
+
+### 4. The tibia: the knee, and the foot
+
+```text
+genou-h  genou-b        same family "genou" as the femur: they superpose
+pied                    a lone pad — a point, not an axis
+```
+
+The tibia's two `genou-…` pads must sit **at the same spot on the tibia** as the femur's do on the femur: that is the contact point, and that is what gets superposed.
+
+The femur offers only **one** joint of family `genou`: the tibia therefore inherits the femur's heading and carries on from it, instead of splaying out the way the legs do around the body.
+
+### 5. Look
+
+```bash
+npm run montre araignee
+```
+
+Tick **axes dessinés**, **repère X Y Z** and **monté sur ses articulations**. You should see one body, four femurs, four tibias. The **×4** boxes appear next to the femur and the tibia: untick one to keep a single leg and see the body.
+
+Then touch up in Inkscape, click **↻ recharger**, look. Angle and checkboxes are kept.
+
+### It does not come out like that — why
+
+| What you see | The cause, almost always |
+| --- | --- |
+| **One leg only**, at the middle of the body | four hips under the **same prefix** (`hanche-ag`, `hanche-ad`… on their own). Four distinct ones are needed, hence three-segment names |
+| **Two legs**, and two long red lines running through the body | `hanche-g-…` and `hanche-d-…`: two axes, not four. Rename to `hanche-ag`, `hanche-ad`, `hanche-rg`, `hanche-rd` |
+| **The tibia stays on its own** | the femur has no `genou-…` pad. The knee is drawn on **both** parts |
+| **Nothing mounts**, the viewer says so in yellow | no shared family: the two drawings do not use the same first word (`hanche` on one side, `epaule` on the other) |
+| **The leg points the wrong way**, or askew | the hip axis is not where you think: tick **axes dessinés**, the dashed red line shows the real line |
+| **A part sits at the centre of the body**, 3 mm thick | its label is unreadable — a decimal comma, almost always. Read the command's output, it says so |
+| **A pad does not show up** | it has no name: its Inkscape id is still `circle97`. The read reports it |
+
 ---
 
 ## Cheat sheet
@@ -413,8 +597,13 @@ The `verify:assemblage` bench is pure computation, like the profile one. It exer
 - The label **always** starts with the plane: `dessus`, `flanc` or `face`.
 - `pos` is the **centre** of the part, not its corner.
 - `miroir` lays the part **twice**: one side drawing gives both sides.
+- The decimal separator is the **dot**: `pos=24.501,-38.083,0 ep=21.5`. A comma makes the label unreadable and the part falls back to the centre — the read says so.
 - A **named red pad** becomes an axis — the drawing says where the hip is. Name it by its **Inkscape id**; the text above still works.
-- **Two pads sharing a prefix** (`hanche-g-ext`, `hanche-g-int`) make a **rotation axis**. Two distinct joints = two distinct prefixes.
+- A pad name reads as **`family-joint-end`**: the **first** segment is the family (what it snaps onto), everything but the **last** is the prefix (which joint), the last one tells the two ends apart.
+- **Two pads sharing a prefix** (`hanche-ag-h`, `hanche-ag-b`) make a **rotation axis**. Two distinct joints = two distinct prefixes.
+- **Four hips = four prefixes = eight pads.** `hanche-ag`, `hanche-ad`, `hanche-rg`, `hanche-rd` **on their own** make one single joint, at the centre of the body.
+- **Same family = the drawings snap together**, joints superposed: the one offering the most joints carries the other, and one copy is born per joint (four hips → four legs).
+- The femur carries **two** families: `hanche-…` to hook onto the body, `genou-…` to carry the tibia.
 - The **colour of the part is the colour of the drawing**, transparency included; `mat=` is only the fallback for an unpainted part.
 - `npm run montre <prefix>` reads, stores and opens **everything starting with it**, at the same scale: that is the working loop. Touch up in Inkscape, click **↻ recharger**.
 - The **éclaté** slider is the only way to see what sits between two sides.

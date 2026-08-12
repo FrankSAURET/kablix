@@ -273,6 +273,98 @@ ok('assemblyAxis : une pastille absente ne fabrique pas de point',
   M.assemblyAxis(DEMO, 'jamais-dessine') === null
   && M.assemblyAxis(DEMO, 'hanche')?.x === 28);
 
+// --- les ARTICULATIONS et le MONTAGE du robot entier ---------------------------
+// Règle du dessin (v2026.8.36) : le PRÉFIXE fait l'articulation (« hanche-ag-h »
+// + « hanche-ag-b » → l'articulation « hanche-ag »), le PREMIER SEGMENT fait la
+// famille (« hanche »). Deux ensembles qui portent la même famille s'emboîtent, et
+// celui qui en offre le plus porte l'autre : quatre hanches, quatre pattes.
+// Rien de tout ça ne se voit sur une image — quatre pattes empilées au même
+// endroit ressemblent à une patte.
+ok('axisFamily : la famille est le PREMIER segment',
+  M.axisFamily('hanche-ag') === 'hanche' && M.axisFamily('hanche-ag-h') === 'hanche',
+  M.axisFamily('hanche-ag-h'));
+ok('axisFamily : un nom d\'un seul segment est sa propre famille',
+  M.axisFamily('genou') === 'genou');
+const arts = M.articulations(AX);
+ok('articulations : une pastille SEULE est une articulation (un point de pivot)',
+  arts.length === 2 && arts.some((j) => j.name === 'genou' && j.dir === null),
+  arts.map((j) => j.name).join(', '));
+ok('articulations : deux pastilles de même préfixe n\'en font qu\'UNE, avec sa direction',
+  arts.find((j) => j.name === 'hanche-g')?.dir !== null
+  && near(arts.find((j) => j.name === 'hanche-g').len, 16, 1e-6));
+ok('articulations : la famille accompagne l\'articulation',
+  arts.find((j) => j.name === 'hanche-g')?.famille === 'hanche');
+
+/** Un ensemble d'essai : ses pastilles et le centre de ses pièces suffisent au
+ *  monteur — c'est tout ce qu'il regarde. */
+const ens = (nom, axes, pos) => ({
+  nom,
+  A: { source: 't', box: { x: 1, y: 1, z: 1 }, axes, pieces: [{ name: 'p', plan: 'dessus', mat: 'pmma', ep: 3, pos, w: 1, h: 1, poly: carre(1, 1) }] },
+});
+// Quatre hanches = quatre PRÉFIXES distincts, donc quatre paires de pastilles.
+// C'est le piège du dessin : `hanche-ag` et `hanche-ad` en pastilles seules
+// partagent le préfixe « hanche » et ne feraient qu'UNE articulation, au milieu
+// du corps.
+const ROBOT = [
+  ens('corps', {
+    'hanche-ag-h': { x: -20, y: -20, z: 10 }, 'hanche-ag-b': { x: -20, y: -20, z: -10 },
+    'hanche-ad-h': { x: 20, y: -20, z: 10 }, 'hanche-ad-b': { x: 20, y: -20, z: -10 },
+    'hanche-rg-h': { x: -20, y: 20, z: 10 }, 'hanche-rg-b': { x: -20, y: 20, z: -10 },
+    'hanche-rd-h': { x: 20, y: 20, z: 10 }, 'hanche-rd-b': { x: 20, y: 20, z: -10 },
+  }, { x: 0, y: 0, z: 0 }),
+  ens('femur', {
+    'hanche-h': { x: 0, y: 0, z: 10 }, 'hanche-b': { x: 0, y: 0, z: -10 },
+    'genou-g': { x: -10, y: 30, z: 0 }, 'genou-d': { x: 10, y: 30, z: 0 },
+  }, { x: 0, y: 15, z: 0 }),
+  ens('tibia', {
+    'genou-g': { x: -10, y: 0, z: 0 }, 'genou-d': { x: 10, y: 0, z: 0 },
+    pied: { x: 0, y: 25, z: -30 },
+  }, { x: 0, y: 12, z: -15 }),
+];
+/** Le point d'une articulation dans le repère de son ensemble. */
+const artAt = (A, nom) => M.articulations(A).find((j) => j.name === nom).at;
+const MO = M.montage(ROBOT);
+const combien = (n) => MO.filter((i) => i.nom === n).length;
+ok('montage : la BASE est celle qui offre le plus d\'articulations',
+  MO[0]?.nom === 'corps' && !MO[0].parent, `${MO[0]?.nom}`);
+ok('montage : quatre hanches donnent quatre fémurs', combien('femur') === 4, `${combien('femur')}`);
+ok('montage : chaque fémur porte son tibia — quatre aussi', combien('tibia') === 4, `${combien('tibia')}`);
+ok('montage : chaque exemplaire dit sur QUELLE articulation il s\'est posé',
+  new Set(MO.filter((i) => i.nom === 'femur').map((i) => i.via)).size === 4,
+  MO.filter((i) => i.nom === 'femur').map((i) => i.via).join(', '));
+/** Un point d'un ensemble, placé dans le monde par son exemplaire. */
+const monde = (inst, p) => M.add(M.rotZ(p, inst.lacet), inst.pos);
+const corpsI = MO.find((i) => i.nom === 'corps');
+let ecartMax = 0;
+for (const f of MO.filter((i) => i.nom === 'femur')) {
+  const surLeCorps = monde(corpsI, artAt(ROBOT[0].A, f.via));
+  ecartMax = Math.max(ecartMax, M.len(M.sub(monde(f, artAt(ROBOT[1].A, 'hanche')), surLeCorps)));
+}
+ok('montage : les articulations sont SUPERPOSÉES — la hanche du fémur tombe sur celle du corps',
+  ecartMax < 1e-9, `${ecartMax.toFixed(9)} mm`);
+let ecartGenou = 0;
+const fems = MO.filter((i) => i.nom === 'femur');
+for (const [n, t] of MO.filter((i) => i.nom === 'tibia').entries()) {
+  ecartGenou = Math.max(ecartGenou,
+    M.len(M.sub(monde(t, artAt(ROBOT[2].A, 'genou')), monde(fems[n], artAt(ROBOT[1].A, 'genou')))));
+}
+ok('montage : le tibia se pose sur le genou de SON fémur', ecartGenou < 1e-9,
+  `${ecartGenou.toFixed(9)} mm`);
+// Quatre pattes empilées au même endroit, c'est le défaut qu'on ne voit pas sur
+// une image : chacune doit partir du côté où sa hanche se trouve déjà.
+ok('montage : les quatre pattes sont ÉCARTÉES, pas empilées',
+  new Set(fems.map((i) => Math.round(i.lacet))).size === 4,
+  fems.map((i) => Math.round(i.lacet)).join('°, ') + '°');
+ok('montage : un tibia suit le lacet de son fémur (une famille à une articulation ne tourne rien)',
+  MO.filter((i) => i.nom === 'tibia').every((t, n) => near(t.lacet, fems[n].lacet, 1e-9)));
+const SEUL = M.montage([...ROBOT, ens('carte', { trou: { x: 0, y: 0, z: 0 } }, { x: 0, y: 0, z: 0 })]);
+ok('montage : un ensemble sans famille commune reste à sa place, sans parent',
+  SEUL.filter((i) => i.nom === 'carte').length === 1
+  && !SEUL.find((i) => i.nom === 'carte').parent);
+ok('montage : sans aucune articulation partagée, rien n\'est monté (la rangée reprend la main)',
+  M.montage([ens('a', {}, { x: 0, y: 0, z: 0 }), ens('b', {}, { x: 0, y: 0, z: 0 })])
+    .every((i) => !i.parent));
+
 // --- les pastilles d'un PROFIL : même règle, pièce isolée ----------------------
 // Un profil est dessiné SEUL puis posé entre deux articulations, à l'échelle. Ses
 // pastilles doivent suivre la pièce : sinon le tibia s'accoste sur un genou resté

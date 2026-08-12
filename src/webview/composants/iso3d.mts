@@ -514,51 +514,216 @@ export function axisPrefix(name: string): string {
   return i > 0 ? name.slice(0, i) : name;
 }
 
+/** La FAMILLE d'une articulation : son PREMIER segment — `hanche-ag` → `hanche`,
+ *  `genou` → `genou`. Deux ensembles qui portent la même famille sont faits pour
+ *  s'emboîter : le corps offre quatre `hanche…`, le fémur en demande une. C'est
+ *  le nombre d'articulations de la famille qui dit combien de pattes il faut. */
+export function axisFamily(name: string): string {
+  const i = name.indexOf('-');
+  return i > 0 ? name.slice(0, i) : name;
+}
+
 /**
- * Les axes de ROTATION d'un assemblage : les pastilles regroupées par préfixe,
- * celles qui vont par deux au moins. Une pastille seule n'en fait pas partie —
- * un point ne dit pas autour de QUOI on tourne (elle reste lisible par
- * `assemblyAxis`). Quand plus de deux pastilles partagent un préfixe, les deux
- * plus ÉLOIGNÉES portent l'axe : c'est le segment le mieux défini, et les autres
- * sont dessus.
+ * Une ARTICULATION : un préfixe et le point où elle se trouve. Une pastille seule
+ * en est une (un point de pivot) ; deux pastilles de même préfixe en font une
+ * aussi, et donnent en plus sa DIRECTION — l'axe autour duquel on tourne.
  *
- * C'est par ces axes que deux sous-ensembles s'assemblent : le fémur tourne
- * autour de la hanche du corps, le tibia autour du genou du fémur. Les deux
- * dessins nomment le MÊME axe du même préfixe, et il n'y a plus rien à mesurer.
+ * `name` est le préfixe (`hanche-ag`), `famille` son premier segment (`hanche`),
+ * `at` son point (le milieu des deux bouts), `dir` sa direction unitaire ou
+ * `null` si un seul point la porte.
+ */
+export type Articulation = {
+  name: string; famille: string; at: Vec3; dir: Vec3 | null;
+  a: Vec3; b: Vec3; len: number;
+};
+
+/**
+ * Les ARTICULATIONS d'un assemblage : les pastilles regroupées par préfixe. Quand
+ * plus de deux pastilles partagent un préfixe, les deux plus ÉLOIGNÉES la portent
+ * — c'est le segment le mieux défini, et les autres sont dessus.
+ *
+ * C'est par ces articulations que deux sous-ensembles s'assemblent : le fémur
+ * tourne autour de la hanche du corps, le tibia autour du genou du fémur. Les
+ * deux dessins nomment la MÊME famille, et il n'y a plus rien à mesurer.
  *
  * Prend un assemblage, ou directement des pastilles déjà placées — celles d'un
  * PROFIL posé, rendues par `profileAxes` : la règle du préfixe est la même des
  * deux côtés, le dessin d'une pièce isolée n'a pas de convention à part.
  */
-export function rotationAxes(src: Assembly | Record<string, Vec3>, scaleK = 1): RotationAxis[] {
+export function articulations(src: Assembly | Record<string, Vec3>, scaleK = 1): Articulation[] {
   const axes = (src as Assembly).axes ?? (src as Record<string, Vec3>);
-  const groupes = new Map<string, { name: string; p: Vec3 }[]>();
+  const groupes = new Map<string, Vec3[]>();
   for (const [name, v] of Object.entries(axes)) {
     const k = axisPrefix(name);
     if (!groupes.has(k)) groupes.set(k, []);
-    groupes.get(k)!.push({ name, p: scale(v, scaleK) });
+    groupes.get(k)!.push(scale(v, scaleK));
   }
-  const out: RotationAxis[] = [];
+  const out: Articulation[] = [];
   for (const [name, pts] of [...groupes].sort(([x], [y]) => x.localeCompare(y))) {
-    if (pts.length < 2) continue;
-    let best = { d: -1, a: pts[0].p, b: pts[1].p };
+    let best = { d: 0, a: pts[0], b: pts[0] };
     for (let i = 0; i < pts.length; i++) {
       for (let j = i + 1; j < pts.length; j++) {
-        const d = len(sub(pts[j].p, pts[i].p));
-        if (d > best.d) best = { d, a: pts[i].p, b: pts[j].p };
+        const d = len(sub(pts[j], pts[i]));
+        if (d > best.d) best = { d, a: pts[i], b: pts[j] };
       }
     }
     // Deux pastilles superposées ne font pas une droite : c'est un doublon du
     // dessin, pas un axe — mieux vaut ne rien affirmer qu'orienter au hasard.
-    if (best.d < 1e-6) continue;
+    // L'articulation reste, comme point : le fémur a bien où se poser.
+    const droite = best.d >= 1e-6;
     out.push({
       name,
+      famille: axisFamily(name),
       a: best.a,
       b: best.b,
       at: scale(add(best.a, best.b), 0.5),
-      dir: scale(sub(best.b, best.a), 1 / best.d),
-      len: best.d,
+      dir: droite ? scale(sub(best.b, best.a), 1 / best.d) : null,
+      len: droite ? best.d : 0,
     });
+  }
+  return out;
+}
+
+/**
+ * Les axes de ROTATION : les articulations que DEUX pastilles portent. Une
+ * pastille seule n'en fait pas partie — un point ne dit pas autour de QUOI on
+ * tourne (elle reste lisible par `assemblyAxis` et par `articulations`).
+ */
+export function rotationAxes(src: Assembly | Record<string, Vec3>, scaleK = 1): RotationAxis[] {
+  return articulations(src, scaleK)
+    .filter((j) => j.dir)
+    .map(({ name, at, dir, a, b, len: l }) => ({ name, at, dir: dir as Vec3, a, b, len: l }));
+}
+
+/** Un ensemble nommé — un assemblage ou un profil vu comme tel — tel que le
+ *  monteur le reçoit. */
+export type Ensemble = { nom: string; A: Assembly };
+
+/**
+ * Un exemplaire posé dans la scène : `pos` sa translation en millimètres,
+ * `lacet` sa rotation autour de Z, appliquée AVANT la translation. Un point `q`
+ * de l'ensemble tombe donc en `rotZ(q, lacet) + pos`.
+ *
+ * `via` nomme l'articulation du parent sur laquelle il s'est posé ; la base du
+ * montage a `parent` et `via` vides.
+ */
+export type Instance = { nom: string; pos: Vec3; lacet: number; parent: string; via: string };
+
+/** Centre des pièces d'un assemblage dans le plan X/Y : la moyenne de leurs
+ *  poses. Sert à savoir de quel côté « dehors » se trouve — c'est ce qui écarte
+ *  les quatre pattes au lieu de les empiler. */
+function centreXY(a: Assembly): Vec2 {
+  let x = 0;
+  let y = 0;
+  for (const p of a.pieces) {
+    x += p.pos.x;
+    y += p.pos.y;
+  }
+  const n = Math.max(a.pieces.length, 1);
+  return { x: x / n, y: y / n };
+}
+
+/** Le SENS d'un ensemble vu depuis une de ses articulations : vers l'articulation
+ *  suivante si elle existe (un fémur va de la hanche au genou), sinon vers le
+ *  centre de ses pièces. Rendu dans le plan X/Y, non normalisé. */
+function sensDepuis(a: Assembly, joints: Articulation[], depuis: Articulation): Vec2 {
+  for (const j of joints) {
+    if (j.famille === depuis.famille) continue;
+    const d = { x: j.at.x - depuis.at.x, y: j.at.y - depuis.at.y };
+    if (Math.hypot(d.x, d.y) > 1e-3) return d;
+  }
+  const c = centreXY(a);
+  return { x: c.x - depuis.at.x, y: c.y - depuis.at.y };
+}
+
+const degXY = (v: Vec2): number => (Math.atan2(v.y, v.x) * 180) / Math.PI;
+
+/**
+ * MONTAGE : chaque ensemble posé sur les articulations du précédent, jusqu'à ce
+ * que le robot soit entier. C'est la réponse à « montre-moi l'araignée », pas
+ * trois dessins côte à côte.
+ *
+ * La règle tient en une phrase : **deux ensembles qui portent la même FAMILLE
+ * d'articulation s'emboîtent, et celui qui en offre le plus porte l'autre.** Le
+ * corps a quatre `hanche-…`, le fémur une seule `hanche` : le corps est la base
+ * et il naît quatre fémurs. Chaque fémur a un `genou`, le tibia aussi : un tibia
+ * par fémur, soit quatre. Les articulations se retrouvent SUPERPOSÉES — c'est le
+ * dessin qui a dit où elles sont, il n'y a rien à coter.
+ *
+ * Le LACET d'un exemplaire est celui de son parent, plus l'écart qu'il faut pour
+ * que la pièce parte vers l'extérieur quand la famille compte plusieurs
+ * articulations (les quatre pattes s'écartent) ; une famille à une seule
+ * articulation ne tourne rien, l'enfant suit son parent (le tibia prolonge le
+ * fémur).
+ *
+ * Un ensemble qui ne partage aucune famille reste à sa propre place, sans
+ * parent : rien n'est inventé, et son absence de montage se voit.
+ */
+export function montage(ensembles: Ensemble[]): Instance[] {
+  const joints = new Map<string, Articulation[]>();
+  for (const e of ensembles) joints.set(e.nom, articulations(e.A));
+  // La BASE : celle qui offre le plus d'articulations — c'est le corps qui porte
+  // les hanches, jamais la patte qui n'en demande qu'une.
+  const ordre = [...ensembles].sort((x, y) =>
+    (joints.get(y.nom)!.length - joints.get(x.nom)!.length) || x.nom.localeCompare(y.nom));
+  const par = new Map(ensembles.map((e) => [e.nom, e.A]));
+  const reste = new Set(ordre.map((e) => e.nom));
+  const posees = new Map<string, Instance[]>();
+  const out: Instance[] = [];
+  const file: string[] = [];
+
+  const poser = (nom: string, insts: Instance[]): void => {
+    posees.set(nom, insts);
+    out.push(...insts);
+    reste.delete(nom);
+    file.push(nom);
+  };
+
+  while (reste.size) {
+    // Une racine à la fois : la première de l'ordre encore libre. Un second robot
+    // sur la planche fonde ainsi son propre montage au lieu de se coller au premier.
+    const racine = ordre.find((e) => reste.has(e.nom))!;
+    poser(racine.nom, [{ nom: racine.nom, pos: { x: 0, y: 0, z: 0 }, lacet: 0, parent: '', via: '' }]);
+    while (file.length) {
+      const pnom = file.shift()!;
+      const P = par.get(pnom)!;
+      const pj = joints.get(pnom)!;
+      const familles = new Map<string, Articulation[]>();
+      for (const j of pj) {
+        if (!familles.has(j.famille)) familles.set(j.famille, []);
+        familles.get(j.famille)!.push(j);
+      }
+      for (const enfant of ordre) {
+        if (!reste.has(enfant.nom)) continue;
+        const ej = joints.get(enfant.nom)!;
+        const commune = ej.map((j) => j.famille).sort().find((f) => familles.has(f));
+        if (!commune) continue;
+        const accroche = ej.find((j) => j.famille === commune)!;
+        const points = familles.get(commune)!;
+        const cp = centreXY(P);
+        const insts: Instance[] = [];
+        for (const pi of posees.get(pnom)!) {
+          for (const pt of points) {
+            // Une famille à plusieurs articulations écarte ses enfants : chacun
+            // part du côté où sa hanche se trouve déjà sur le corps.
+            const delta = points.length > 1
+              ? degXY({ x: pt.at.x - cp.x, y: pt.at.y - cp.y })
+                - degXY(sensDepuis(enfant.A, ej, accroche))
+              : 0;
+            const lacet = pi.lacet + delta;
+            const monde = add(rotZ(pt.at, pi.lacet), pi.pos);
+            insts.push({
+              nom: enfant.nom,
+              pos: sub(monde, rotZ(accroche.at, lacet)),
+              lacet,
+              parent: pnom,
+              via: pt.name,
+            });
+          }
+        }
+        poser(enfant.nom, insts);
+      }
+    }
   }
   return out;
 }
@@ -675,6 +840,66 @@ export function renderFaces(faces: Face[], cx: number, cy: number): SVGTemplateR
       const stroke = f.fill.startsWith('rgba(') ? 'none' : f.fill;
       return svg`<polygon points=${pts} fill=${f.fill} stroke=${stroke} stroke-width="0.6" stroke-linejoin="round" />`;
     });
+}
+
+/** Les trois couleurs du repère, dans l'ordre X, Y, Z. Rouge / vert / bleu :
+ *  c'est la convention de tous les logiciels de volume, autant ne pas en
+ *  inventer une. */
+export const AXIS_COLORS = ['#d8443c', '#2f9e44', '#1c6fd0'] as const;
+
+/**
+ * Le REPÈRE X/Y/Z dessiné dans la scène : trois flèches parties de `origin`,
+ * longues de `size`, chacune étiquetée. Sans lui, une image en volume ne dit
+ * pas dans quel sens la pièce est partie — et c'est justement la question quand
+ * un dessin ne donne pas ce qu'on attendait.
+ *
+ * `xf` place le repère comme le reste de la scène (le lacet de présentation) :
+ * les flèches tournent avec elle, ce qui est tout l'intérêt. `cx`/`cy` sont le
+ * centre de feuille, comme pour `renderFaces`.
+ */
+export function axisGizmo(
+  origin: Vec3, size: number, cx: number, cy: number,
+  xf: (p: Vec3) => Vec3 = (p) => p,
+  opts: {
+    /** Ce qu'on écrit au bout des trois flèches. */
+    labels?: readonly [string, string, string];
+    /** Les trois directions, si ce ne sont pas celles du monde : le `u`, le `v`
+     *  et la normale d'un PLAN de dessin, pour montrer où part le x d'une feuille. */
+    dirs?: readonly [Vec3, Vec3, Vec3];
+    colors?: readonly [string, string, string];
+  } = {},
+): SVGTemplateResult[] {
+  const labels = opts.labels ?? ['X', 'Y', 'Z'];
+  const cols = opts.colors ?? AXIS_COLORS;
+  const dirs: readonly Vec3[] = opts.dirs
+    ?? [{ x: 1, y: 0, z: 0 }, { x: 0, y: 1, z: 0 }, { x: 0, y: 0, z: 1 }];
+  const o = project(xf(origin));
+  const out: SVGTemplateResult[] = [];
+  for (let i = 0; i < 3; i++) {
+    const t = project(xf(add(origin, scale(dirs[i], size))));
+    const dx = t.x - o.x;
+    const dy = t.y - o.y;
+    const l = Math.hypot(dx, dy) || 1;
+    const ux = dx / l;
+    const uy = dy / l;
+    // Pointe de flèche : un triangle posé sur le bout, jamais plus long que le
+    // tiers de la flèche (Y se projette court quand la scène est tournée).
+    const h = Math.min(8, l * 0.34);
+    const bx = t.x - ux * h;
+    const by = t.y - uy * h;
+    const px = -uy * h * 0.45;
+    const py = ux * h * 0.45;
+    const pt = (x: number, y: number): string => `${(x + cx).toFixed(2)},${(y + cy).toFixed(2)}`;
+    out.push(svg`<line x1=${(o.x + cx).toFixed(2)} y1=${(o.y + cy).toFixed(2)}
+        x2=${(bx + cx).toFixed(2)} y2=${(by + cy).toFixed(2)}
+        stroke=${cols[i]} stroke-width="1.7" stroke-linecap="round" />
+      <polygon points=${`${pt(t.x, t.y)} ${pt(bx + px, by + py)} ${pt(bx - px, by - py)}`}
+        fill=${cols[i]} />
+      <text x=${(t.x + ux * 9 + cx).toFixed(2)} y=${(t.y + uy * 9 + cy + 4).toFixed(2)}
+        text-anchor="middle" font-size="11" font-family="sans-serif" font-weight="700"
+        fill=${cols[i]}>${labels[i]}</text>`);
+  }
+  return out;
 }
 
 /** Ombre portée au sol (z = 0) d'un point : elle donne la HAUTEUR, qu'aucune

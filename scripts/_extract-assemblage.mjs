@@ -157,10 +157,11 @@ export function assembleGroupes(nom, groupes, { source = 'Composants.svg', k = 1
       continue;
     }
     const etiquettes = g.texts.map((t) => ({ t, pose: parsePose(t.s) }));
-    const pose = etiquettes.find((e) => e.pose)?.pose ?? { ...POSE_DEFAUT };
-    if (!etiquettes.some((e) => e.pose)) {
+    const brute = etiquettes.find((e) => e.pose);
+    const pose = brute?.pose ?? { ...POSE_DEFAUT };
+    if (!brute) {
       console.log(`  ! ${g.name} : pas d'étiquette de pose, posée à plat au centre`);
-    }
+    } else previentEtiquette(g.name, brute.t.s);
     const { outer, holes, bb } = piece;
     const cx = (bb.x0 + bb.x1) / 2;
     const cy = (bb.y0 + bb.y1) / 2;
@@ -205,7 +206,59 @@ export function assembleGroupes(nom, groupes, { source = 'Composants.svg', k = 1
       + `${holes.length ? `, ${holes.length} trou(s)` : ''}`);
   }
   if (!pieces.length) return null;
+  previentPrefixes(nom, axes);
   return { source, box: encombrement(pieces), axes, pieces };
+}
+
+/** Le préfixe d'une pastille : son nom privé de son DERNIER segment. Même règle
+ *  que `axisPrefix` d'iso3d.mts — deux pastilles de même préfixe font une
+ *  articulation, et sa direction. */
+const prefixeDe = (n) => (n.lastIndexOf('-') > 0 ? n.slice(0, n.lastIndexOf('-')) : n);
+
+/**
+ * Le piège du dessin, dit à la lecture plutôt que deviné devant l'image : quatre
+ * hanches nommées `hanche-ag`, `hanche-ad`, `hanche-rg`, `hanche-rd` en pastilles
+ * SEULES partagent toutes le préfixe `hanche` — elles ne feront qu'UNE
+ * articulation, au milieu du corps, et le robot n'aura qu'une patte. Trois
+ * pastilles ou plus sous un même préfixe, c'est presque toujours ça.
+ */
+function previentPrefixes(nom, axes) {
+  const par = {};
+  for (const n of Object.keys(axes)) (par[prefixeDe(n)] ??= []).push(n);
+  for (const [p, noms] of Object.entries(par)) {
+    if (noms.length <= 2) continue;
+    console.log(`  ! ${nom} : ${noms.length} pastilles sous le préfixe « ${p} » `
+      + `(${noms.join(', ')}) — elles ne feront qu'UNE articulation. `
+      + `Une articulation = DEUX pastilles sous un préfixe qui lui est propre `
+      + `(« ${p}-ag-h » et « ${p}-ag-b » pour la hanche avant gauche).`);
+  }
+}
+
+/**
+ * L'autre piège du dessin : la VIRGULE DÉCIMALE. Inkscape et le pavé numérique
+ * français écrivent `pos=24,501,-38,083,0 ep=21,5` — la virgule sépare déjà les
+ * trois coordonnées, la valeur devient illisible, et la pièce retombe
+ * silencieusement au centre à 3 mm. C'est invisible sur l'image (la pièce est
+ * bien là, juste au mauvais endroit), donc c'est dit ici, à la lecture.
+ */
+function previentEtiquette(nom, s) {
+  const dit = (m) => console.log(`  ! ${nom} : ${m}`);
+  for (const mot of s.toLowerCase().trim().split(/\s+/).slice(1).filter(Boolean)) {
+    const [cle, val = ''] = mot.split('=');
+    if (cle === 'pos') {
+      const n = val.split(',');
+      if (n.length !== 3 || !n.map(Number).every(Number.isFinite)) {
+        dit(`« ${mot} » illisible, pièce remise au centre — le séparateur décimal`
+          + ` est le POINT : pos=24.501,-38.083,0 (et non 24,501,-38,083,0).`);
+      }
+    } else if (cle === 'ep') {
+      if (!(Number(val) > 0)) dit(`« ${mot} » illisible, épaisseur remise à 3 mm — écrivez ep=21.5, avec un point.`);
+    } else if (cle === 'mat') {
+      if (!MATIERES.includes(val)) dit(`matière « ${val} » inconnue, PMMA par défaut (${MATIERES.join(', ')}).`);
+    } else if (cle !== 'miroir') {
+      dit(`« ${mot} » n'est pas un mot d'étiquette connu (pos, ep, mat, miroir), ignoré.`);
+    }
+  }
 }
 
 /** Lit un assemblage du dessin : une pièce par groupe préfixé, la pose lue dans
