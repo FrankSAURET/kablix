@@ -516,7 +516,7 @@ addEventListener('wheel', (ev) => {
   const dansLaVue = ev.target instanceof Element && ev.target.closest('.vue');
   if (!ev.ctrlKey && !dansLaVue) return;
   ev.preventDefault();
-  const z = etat.zoom * Math.exp(-ev.deltaY / 400);
+  const z = etat.zoom * Math.exp(-ev.deltaY / 800);
   // Arrondi au pas du curseur (0,05) : la valeur affichée reste lisible et le
   // curseur se replace exactement dessus.
   etat.zoom = Math.min(2.5, Math.max(0.4, Math.round(z * 20) / 20));

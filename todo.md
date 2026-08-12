@@ -22,6 +22,9 @@
 2. ✅ **Molette simple dans la vue = zoom aussi**, sans Ctrl. Au-dessus du panneau, la molette garde son rôle normal : faire défiler la liste des pièces.
 3. ℹ️ **Le zoom clavier du navigateur (Ctrl +, Ctrl −, Ctrl 0) reste hors de portée** : aucune page ne peut l'intercepter. Il grossit toujours tout, panneau compris — utiliser la molette ou le curseur.
 4. ✅ Vérifié sur la vraie fenêtre (`node scripts/montre.mjs araignee-corps`) : le bundle passe et la page servie porte bien le nouveau gestionnaire.
+5. ✅ **Mesuré en Chrome headless sur la page servie** (WheelEvent rejoué) : `defaultPrevented=true` avec Ctrl, et le zoom de la scène suit — le geste ne va donc plus au navigateur.
+6. ✅ **Un cran de molette = +16 %** (et non +35 % : trois crans allaient d'un coup de 1× à la butée de 2,5×).
+7. ⚠️ **« ↻ recharger » ne recharge QUE le dessin, pas le code de la page** : une fenêtre ouverte avant une retouche de `montre.mjs` garde l'ancien comportement. Relancer la commande (ou Ctrl+R dans la fenêtre) pour prendre le nouveau code.
 
 # >>>>  v2026.8.39 — la barre latérale du viewer ne se laisse plus écraser
 
