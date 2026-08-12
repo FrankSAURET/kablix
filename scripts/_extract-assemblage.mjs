@@ -188,8 +188,8 @@ export function assembleGroupes(nom, groupes, { source = planche('3D'), k = 1, t
     // Les axes : une pastille rouge, nommée par son id ou par le texte au-dessus
     // d'elle. Ses coordonnées sont celles de la pièce qui la porte, pose
     // comprise — c'est le dessin qui dit où est la hanche, plus une constante du
-    // code. Deux pastilles de même PRÉFIXE (`hanche-g-h` et `hanche-g-b`) font
-    // un axe de ROTATION : deux points, donc une droite.
+    // code. Le PREMIER MOT du nom dit sur quoi elle s'emboîte (`hanche-gh` et
+    // `hanche-db` sont deux hanches de la famille `hanche`, donc deux pattes).
     const libres = g.texts.filter((t) => !parsePose(t.s))
       .map((t) => ({ s: t.s, x: t.x * k - cx, y: t.y * k - cy }));
     for (const pad of g.pads) {
@@ -206,31 +206,38 @@ export function assembleGroupes(nom, groupes, { source = planche('3D'), k = 1, t
       + `${holes.length ? `, ${holes.length} trou(s)` : ''}`);
   }
   if (!pieces.length) return null;
-  previentPrefixes(nom, axes);
+  previentFamilles(nom, axes);
   return { source, box: encombrement(pieces), axes, pieces };
 }
 
-/** Le préfixe d'une pastille : son nom privé de son DERNIER segment. Même règle
- *  que `axisPrefix` d'iso3d.mts — deux pastilles de même préfixe font une
- *  articulation, et sa direction. */
-const prefixeDe = (n) => (n.lastIndexOf('-') > 0 ? n.slice(0, n.lastIndexOf('-')) : n);
+/** La famille d'une pastille : son PREMIER mot. Même règle que `axisFamily`
+ *  d'iso3d.mts — c'est par ce mot que deux dessins s'emboîtent, et le nombre de
+ *  pastilles d'une famille dit combien d'exemplaires il naîtra. */
+const familleDe = (n) => (n.indexOf('-') > 0 ? n.slice(0, n.indexOf('-')) : n);
 
 /**
- * Le piège du dessin, dit à la lecture plutôt que deviné devant l'image : quatre
- * hanches nommées `hanche-ag`, `hanche-ad`, `hanche-rg`, `hanche-rd` en pastilles
- * SEULES partagent toutes le préfixe `hanche` — elles ne feront qu'UNE
- * articulation, au milieu du corps, et le robot n'aura qu'une patte. Trois
- * pastilles ou plus sous un même préfixe, c'est presque toujours ça.
+ * Ce que le dessin vient de dire du montage, énoncé plutôt que deviné devant
+ * l'image : quatre pastilles `hanche…` sur le corps, ce sont quatre pattes. Une
+ * seule, ce serait une patte au milieu — et sur une image, quatre pattes empilées
+ * au même endroit ressemblent à une patte.
+ *
+ * Le piège suivant est le COPIER-COLLER : Inkscape refuse deux ids identiques et
+ * suffixe le second (`hanche` collée dans le tibia devient `hanche-2`). La
+ * pastille garde alors la famille de la pièce d'où elle vient, et le tibia va se
+ * poser sur le corps au lieu du genou. C'est invisible sur la planche, donc c'est
+ * dit ici.
  */
-function previentPrefixes(nom, axes) {
+function previentFamilles(nom, axes) {
   const par = {};
-  for (const n of Object.keys(axes)) (par[prefixeDe(n)] ??= []).push(n);
-  for (const [p, noms] of Object.entries(par)) {
-    if (noms.length <= 2) continue;
-    console.log(`  ! ${nom} : ${noms.length} pastilles sous le préfixe « ${p} » `
-      + `(${noms.join(', ')}) — elles ne feront qu'UNE articulation. `
-      + `Une articulation = DEUX pastilles sous un préfixe qui lui est propre `
-      + `(« ${p}-ag-h » et « ${p}-ag-b » pour la hanche avant gauche).`);
+  for (const n of Object.keys(axes)) (par[familleDe(n)] ??= []).push(n);
+  for (const [f, noms] of Object.entries(par)) {
+    console.log(`    famille « ${f} » : ${noms.length} pastille(s) — ${noms.join(', ')}`);
+    for (const n of noms) {
+      if (!/-\d+$/.test(n)) continue;
+      console.log(`  ! ${nom} : « ${n} » finit par un numéro — c'est le suffixe qu'Inkscape ajoute`
+        + ` à un id déjà pris, après un copier-coller. La pastille reste dans la famille « ${f} » :`
+        + ` renommez-la (« genou-t » face au « genou-f » du fémur) sinon elle s'emboîtera au mauvais endroit.`);
+    }
   }
 }
 

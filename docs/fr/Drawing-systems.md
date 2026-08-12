@@ -129,7 +129,7 @@ Dans `Composants3D.svg`, la planche A3 des pièces à mettre en volume :
 - **Le contour ne doit pas se croiser.** Une silhouette en 8, un bord replié sur lui-même : le découpage n'a alors pas de sens et `verify:profils` le refuse.
 - **Les courbes sont admises** : Bézier, arcs, cercles, rectangles, polygones. Tout est aplati puis simplifié — un cercle échantillonné finit à une trentaine de points, pas deux cents.
 - **Le sens de tracé est indifférent** (horaire ou trigonométrique) : il est normalisé à la lecture.
-- **Les pastilles rouges ne font pas partie du contour** — mais une pastille **nommée** est rangée avec la pièce : c'est une articulation (`hanche`, `genou`), et deux pastilles de même préfixe font un **axe de rotation**. Voir [Les axes](#les-axes) : la convention est celle des assemblages, à l'identique. Une pastille anonyme et les textes restent de simples repères de planche, ignorés.
+- **Les pastilles rouges ne font pas partie du contour** — mais une pastille **nommée** est rangée avec la pièce : c'est une articulation (`hanche`, `genou`), et son **premier mot** dit à quoi elle s'emboîte. Voir [Les axes](#les-axes) : la convention est celle des assemblages, à l'identique. Une pastille anonyme et les textes restent de simples repères de planche, ignorés.
 
 > Le piège classique est le **contour qui recule**. Sur le châssis d'exemple, l'encoche avant a d'abord été tracée plus large que les épaules qui l'encadrent : le tracé repartait en arrière et se repliait sur lui-même. Les bords d'une encoche se posent **sur** le cercle du corps, jamais au-delà.
 
@@ -262,7 +262,7 @@ Dans `Composants3D.svg` (ou une planche à part, voir `--source=`) :
 - **La planche doit être en millimètres.** `Composants3D.svg` l'est déjà (`width="…mm"` et un `viewBox` du même nombre : 1 unité = 1 mm). Une planche en pixels CSS est convertie, mais vous ne saurez plus ce que vous cotez.
 - **Un texte dans le groupe donne la pose** : `flanc pos=28,0,0 ep=12 mat=servo miroir=x`. C'est un simple `<text>`, posé où vous voulez dans le groupe — sous la pièce se lit bien.
 - **Le contour, les trous et les courbes** suivent exactement les règles d'un profil (contour fermé, trous contenus dedans, pas de tracé qui se croise).
-- **Une pastille rouge nommée = un axe.** Son **id Inkscape** la nomme, à défaut le texte **au-dessus** d'elle, et son centre devient un point 3D de l'assemblage. Deux pastilles de même préfixe font un **axe de rotation** ([détail](#les-axes)).
+- **Une pastille rouge nommée = une articulation.** Son **id Inkscape** la nomme, à défaut le texte **au-dessus** d'elle, et son centre devient un point 3D de l'assemblage. Son **premier mot** est la famille : c'est lui qui dit à quel autre dessin elle s'emboîte ([détail](#les-axes)).
 
 ### L'étiquette de pose
 
@@ -306,7 +306,12 @@ Le tableau et la figure sont plus haut, dans [Le repère du monde](#le-repère-d
 
 En deux phrases : **`dessus` garde le sens d'un plan vu de dessus** (haut de la feuille = avant du robot) ; **`flanc` et `face` relèvent le dessin tel qu'il est tracé** (haut de la feuille = haut du robot).
 
-**Une pièce est posée par son CENTRE** (le milieu de sa boîte englobante) : `pos` est donc le centre de la pièce, pas son coin. C'est ce qui rend le miroir immédiat — un flanc à `pos=0,-9,0` avec `miroir=y` donne les deux flancs, écartés de 18 mm.
+**Une pièce est posée par son CENTRE** (le milieu de sa boîte englobante) : `pos` est donc le centre de la pièce, pas son coin. C'est ce qui rend le miroir immédiat — un flanc à `pos=-9,0,0` avec `miroir=x` donne les deux flancs, **centres écartés de 18 mm**.
+
+Deux pièges dans cette seule ligne, et ce sont les deux qui coûtent une découpe :
+
+- **`miroir` se met sur la NORMALE du plan**, pas sur un axe au hasard : `flanc` a son épaisseur sur **x**, `dessus` sur **z**, `face` sur **y** (le tableau des trois plans, plus haut). Un `flanc` avec `miroir=y` ne sépare pas les deux flancs — il en pose un devant et un derrière, dans le même plan.
+- **18 mm, c'est de CENTRE à CENTRE**, l'épaisseur non comprise. Deux flancs de 3 mm à `pos=±9` laissent **15 mm** entre eux et **21 mm** d'encombrement. Ce qu'il faut coter, c'est l'entrefer voulu : pour 18 mm de passage entre deux flancs de 3 mm, `pos=-10.5,0,0` — soit `(entrefer + ep) / 2`.
 
 ### Les couleurs : c'est le dessin qui décide
 
@@ -339,66 +344,47 @@ Une **pastille rouge** dans le groupe d'une pièce marque un point remarquable :
 
 Deux façons de la nommer, dans cet ordre :
 
-1. son **ID Inkscape** — sélectionnez le rond, `Objet → Propriétés de l'objet`, écrivez `hanche-g-int` ;
+1. son **ID Inkscape** — sélectionnez le rond, `Objet → Propriétés de l'objet`, écrivez `hanche-gh` ;
 2. à défaut, le **texte libre le plus proche**, celui du dessus étant préféré — exactement comme le nom d'une broche sur la planche des composants.
 
-L'ID passe devant parce qu'il **colle au rond** : il survit à un déplacement, à un texte ajouté à côté, et il n'encombre pas la planche de quatre étiquettes quand la pièce porte quatre pastilles. Un id qu'Inkscape a fabriqué tout seul (`circle91`, `path102`) ne nomme rien : la pastille est alors **ignorée**, avec un avertissement à la lecture.
+L'ID passe devant parce qu'il **colle au rond** : il survit à un déplacement, à un texte ajouté à côté, et il n'encombre pas la planche de quatre étiquettes quand la pièce porte quatre pastilles. Si le rond est **groupé** (Inkscape groupe dès qu'on déplace un repère), le nom du **groupe** fait aussi bien l'affaire : la lecture remonte au premier parent nommé à la main. Un id qu'Inkscape a fabriqué tout seul (`circle91`, `path102`, `g1-1`) ne nomme rien : la pastille est alors **ignorée**, avec un avertissement à la lecture.
 
 C'est le point important du protocole : **c'est le dessin qui dit où est la hanche**, plus une constante du code. Déplacez le trou dans Inkscape, l'axe suit.
 
-#### Le nom d'une pastille se lit en deux morceaux
+#### Une pastille = une articulation, son premier mot dit à quoi elle s'emboîte
 
 Tout tient dans une seule phrase, et le reste de cette section n'en est que le détail :
 
-> **`famille - articulation - bout`** — le **premier** segment est la **famille** (elle dit *à quoi ça s'emboîte*), tout sauf le **dernier** est le **préfixe** (il dit *quelle* articulation), le dernier ne sert qu'à distinguer les **deux bouts** de l'axe.
+> **Une pastille rouge est une articulation à elle seule.** Son **premier mot** est la **famille** — il dit *à quoi ça s'emboîte* ; ce qui suit ne sert qu'à donner des **ids distincts** à deux pastilles voisines, comme Inkscape l'exige.
 
-| Nom de la pastille | Préfixe = l'articulation | Famille = ce à quoi ça s'emboîte |
+| Nom de la pastille | Famille = ce à quoi ça s'emboîte | Ce que fait le reste du nom |
 | --- | --- | --- |
-| `hanche-ag-h` | `hanche-ag` | `hanche` |
-| `hanche-ag-b` | `hanche-ag` | `hanche` |
-| `hanche-rd-h` | `hanche-rd` | `hanche` |
-| `genou-h` | `genou` | `genou` |
-| `pied` | `pied` | `pied` |
+| `hanche-gh` | `hanche` | distingue les quatre hanches du corps |
+| `hanche-db` | `hanche` | idem |
+| `hanche` | `hanche` | seule de sa famille : rien à distinguer |
+| `genou-f` | `genou` | le genou **côté fémur** |
+| `genou-t` | `genou` | le même point, **côté tibia** |
+| `pied` | `pied` | un simple repère, sans vis-à-vis |
 
-#### Deux pastilles de même préfixe = un axe de rotation
+Il n'y a rien à regrouper, rien à apparier : **autant de pastilles, autant d'articulations**.
 
-Un point ne dit pas autour de **quoi** on tourne. Deux points, si : **deux pastilles dont le nom ne diffère que par le dernier segment sont les deux bouts d'un même axe.**
+#### Quatre pastilles « hanche… » = quatre pattes
 
-```text
-hanche-ag-h  ─┐
-               ├─ axe « hanche-ag »  (famille « hanche »)
-hanche-ag-b  ─┘
-```
-
-Le préfixe (`hanche-ag`) nomme l'axe, le dernier segment (`-h`, `-b`, `-ext`, `-int`…) ne sert qu'à distinguer les deux bouts. Le moteur en tire la **droite** : son milieu, sa direction, la distance entre les deux pastilles. Si plus de deux pastilles partagent un préfixe, ce sont les **deux plus éloignées** qui portent l'axe — et la lecture vous prévient, parce que c'est presque toujours une erreur de nommage.
-
-Une pastille **seule** reste un simple point : elle marque un endroit (`pied`), elle ne dit pas autour de quoi tourner.
-
-#### Quatre hanches = quatre préfixes = huit pastilles
-
-C'est **le** piège, et il ne se voit pas sur l'image : quatre pattes se retrouvent l'une sur l'autre au milieu du corps.
+C'est de là que sort le nombre d'exemplaires, et cela ne se voit pas sur l'image :
 
 ```text
-hanche-ag   ─┐
-hanche-ad    │
-hanche-rg    ├─ MÊME préfixe « hanche » : UNE articulation, UNE patte
-hanche-rd   ─┘
+corps :  hanche-gh ─┐
+         hanche-dh  ├─ QUATRE pastilles de la famille « hanche »
+         hanche-gb  │
+         hanche-db ─┘
+
+fémur :  hanche     ─── UNE pastille de la même famille
+                        → le fémur est dupliqué QUATRE fois
 ```
 
-Les quatre noms ne diffèrent **que par leur dernier segment** : la règle les lit donc comme les quatre bouts d'un **seul** axe. Le robot n'a qu'une hanche, au centre.
+Le fémur porte à son autre bout un `genou-f` ; le tibia porte un `genou-t`. **Même premier mot, donc même point de contact** — le `-f` et le `-t` ne sont là que parce qu'Inkscape refuse deux ids identiques. Quatre fémurs offrent donc quatre genoux, et il naît **quatre tibias**.
 
-Quatre hanches distinctes veulent **quatre préfixes distincts**, donc des noms à **trois** segments — et comme chaque hanche mérite un axe, cela fait **deux pastilles chacune, huit en tout** :
-
-```text
-hanche-ag-h / hanche-ag-b     avant gauche
-hanche-ad-h / hanche-ad-b     avant droite
-hanche-rg-h / hanche-rg-b     arrière gauche
-hanche-rd-h / hanche-rd-b     arrière droite
-```
-
-Les huit partagent la famille `hanche` : c'est ce qui fait qu'un fémur nommant `hanche` vient s'y poser — **quatre fois**, une par hanche.
-
-> Le même piège existe en plus discret. Quatre pastilles nommées `hanche-g-h`, `hanche-g-b`, `hanche-d-h`, `hanche-d-b` ne se plaignent de rien : elles font proprement **deux** axes, `hanche-g` et `hanche-d`, chacun traversant le corps de l'avant à l'arrière. Deux axes, deux pattes. Ce n'est visible qu'en cochant **axes dessinés** dans le visualiseur : les deux traits rouges tiretés vont d'un bout à l'autre du corps au lieu d'être quatre petits segments verticaux.
+> Une seule patte au milieu du corps ? Les quatre hanches ont été dessinées avec le **même nom** (une seule pastille lue), ou trois d'entre elles n'ont pas de nom du tout — la lecture liste les familles et leurs pastilles, c'est là qu'on le voit.
 
 #### Une famille partagée = deux dessins qui s'emboîtent
 
@@ -406,19 +392,18 @@ Les articulations ne servent pas qu'à faire tourner : **c'est par elles que les
 
 La règle est courte :
 
-1. Deux ensembles qui nomment la **même famille** s'emboîtent : le corps a des `hanche-…`, le fémur aussi → le fémur se pose sur le corps.
+1. Deux ensembles dont une pastille porte le **même premier mot** s'emboîtent : le corps a des `hanche…`, le fémur aussi → le fémur se pose sur le corps.
 2. **Celui qui offre le plus d'articulations porte l'autre.** Le corps en a quatre, le fémur deux : c'est le corps qui porte, et il naît **quatre fémurs**.
-3. **Les articulations sont superposées**, pastille sur pastille. La position ne se calcule pas, elle se lit dans le dessin.
-4. Quand la famille compte **plusieurs** articulations (les quatre hanches), chaque exemplaire est **tourné vers la sienne** : les pattes s'écartent d'elles-mêmes. Quand elle n'en compte qu'**une** (le genou du fémur), l'enfant garde le cap de son parent : le tibia prolonge le fémur.
+3. **Les pastilles sont superposées**, l'une sur l'autre. La position ne se calcule pas, elle se lit dans le dessin.
+4. Quand la famille compte **plusieurs** pastilles chez le parent (les quatre hanches), chaque exemplaire est **tourné vers la sienne** : les pattes s'écartent d'elles-mêmes. Quand elle n'en compte qu'**une** (le genou du fémur), l'enfant garde le cap de son parent : le tibia prolonge le fémur.
 
 Une chaîne complète tient donc en trois dessins et six noms :
 
 ```text
-araignee-corps          hanche-ag-h/-b  hanche-ad-h/-b  hanche-rg-h/-b  hanche-rd-h/-b
-araignee-patte-femur    hanche-h/-b     ← s'emboîte sur le corps (famille « hanche »)
-                        genou-h/-b      ← offre un genou
-araignee-patte-tibia    genou-h/-b      ← s'emboîte sur le fémur (famille « genou »)
-                        pied
+araignee-corps          hanche-gh  hanche-dh  hanche-gb  hanche-db
+araignee-patte-femur    hanche          ← s'emboîte sur le corps (famille « hanche »)
+                        genou-f         ← offre un genou
+araignee-patte-tibia    genou-t         ← s'emboîte sur le fémur (famille « genou »)
 ```
 
 Résultat à l'écran : **un corps, quatre fémurs, quatre tibias**, chacun à sa place, sans une ligne de code. C'est ce que fait `npm run montre araignee`.
@@ -453,7 +438,7 @@ Ce qui est lu est aussi **rangé** : `assemblages.mts` et `profils.mts` sont ré
 | Case de titre **d'un ensemble** | masquer tout un assemblage — regarder le fémur seul sans relancer la commande |
 | Case **×4** à droite du titre | l'ensemble a reçu quatre exemplaires (quatre hanches, quatre pattes). Décochez-la pour n'en garder qu'**un** : quatre pattes cachent le corps qu'on voulait voir. Ce qu'elle porte suit — un seul fémur ne tient qu'un tibia |
 | Cases **pièces** | cacher un flanc pour voir dedans |
-| Case **axes dessinés** | montrer les pastilles nommées à leur place en 3D, et les **axes de rotation** en trait rouge tireté |
+| Case **axes dessinés** | montrer les pastilles nommées à leur place en 3D, chacune avec son nom — c'est la vérification qu'elles sont bien où vous croyez |
 | Case **repère X Y Z** | le repère du monde dans un coin, tourné avec la scène : il dit à tout moment où est l'avant |
 | Case **monté sur ses articulations** | **le robot assemblé** : chaque ensemble posé sur les articulations du précédent, articulations superposées, un exemplaire par articulation. Décochée, on retombe sur les dessins séparés |
 | Case **côte à côte** (démontée seulement) | décochée, chaque ensemble reprend sa **propre origine** — sa place à lui, telle qu'il est dessiné |
@@ -493,16 +478,17 @@ Sortie de la lecture :
   ✓ entretoise : 5 points, 40×25 mm, face ép.3 #bcdff08c
   ✓ plaque : 10 points, 100×80 mm, dessus ép.3 #bcdff08c miroir=z, 3 trou(s)
   ✓ servo : 5 points, 23×23 mm, flanc ép.12 #3f4750ff miroir=x, 1 trou(s)
-  → corps-demo : 3 pièce(s), 4 axe(s), 100×80×31 mm
+    famille « hanche » : 2 pastille(s) — hanche-g, hanche-d
+  → corps-demo : 3 pièce(s), 2 axe(s), 100×80×31 mm
 ```
 
-Quatre pastilles, deux par deux : `hanche-g-ext` / `hanche-g-int` et `hanche-d-int` / `hanche-d-ext`, soit les **deux axes de rotation** des hanches. Une pastille anonyme se signale à cette ligne-là (`! …-supports : pastille sans nom (id « circle91 »), ignorée`) : c'est le moment de lui donner un id dans Inkscape.
+La ligne `famille « hanche »` est celle qu'il faut lire : **deux pastilles, donc deux hanches**, et deux pattes à venir. C'est le nombre de pattes, visible avant même d'ouvrir la fenêtre — un corps d'araignée doit y afficher `4 pastille(s)`. Une pastille anonyme se signale à cette ligne-là (`! …-supports : pastille sans nom (id « circle91 »), ignorée`) : c'est le moment de lui donner un id dans Inkscape.
 
 La couleur affichée est celle qui a été **lue sur le dessin** (`#rrggbbaa`, transparence comprise) — `8c` en fin de ligne, c'est le PMMA à 55 %. Une pièce non peinte affiche à la place le mot de son `mat=`.
 
 `src/webview/composants/assemblages.mts` est **généré**, et il est **sa propre archive** : l'outil le relit avant de le réécrire, extraire un assemblage ne fait pas disparaître les autres. Comme `profils.mts`, il se lit dans un `git diff` mais ne se modifie pas à la main.
 
-Le banc `verify:assemblage` est du calcul pur, comme celui des profils. Il éprouve la **lecture de l'étiquette** (une position négative doit rester entière — `pos=0,-9,0` a déjà été lu comme trois mots), les **plans** (une plaque de 100 mm posée à plat encombre 100 × 80 × 3, jamais 103 × 83 × 35), le **miroir**, l'**éclaté** (chaque pièce s'écarte du côté où elle est déjà, une pièce centrale ne bouge pas), puis **chaque assemblage rangé** : plan et matière connus, contour centré, cotes conformes, encombrement conforme au calcul, axes dans la boîte. Il éprouve aussi les **couleurs lues sur le dessin** — la teinte du dessin passe devant `mat=`, la transparence traverse l'éclairage sans s'y perdre, et une face translucide sort sans liseré — et les **axes de rotation** : la règle du préfixe, les deux pastilles les plus éloignées quand il y en a trois, deux pastilles superposées qui ne font pas une droite, et les pastilles d'un profil qui suivent la pièce quand on l'allonge.
+Le banc `verify:assemblage` est du calcul pur, comme celui des profils. Il éprouve la **lecture de l'étiquette** (une position négative doit rester entière — `pos=0,-9,0` a déjà été lu comme trois mots), les **plans** (une plaque de 100 mm posée à plat encombre 100 × 80 × 3, jamais 103 × 83 × 35), le **miroir**, l'**éclaté** (chaque pièce s'écarte du côté où elle est déjà, une pièce centrale ne bouge pas), puis **chaque assemblage rangé** : plan et matière connus, contour centré, cotes conformes, encombrement conforme au calcul, axes dans la boîte. Il éprouve aussi les **couleurs lues sur le dessin** — la teinte du dessin passe devant `mat=`, la transparence traverse l'éclairage sans s'y perdre, et une face translucide sort sans liseré — et les **articulations** : chaque pastille en est une, son premier mot fait sa famille, aucune pastille rangée ne porte un numéro de duplication Inkscape, et les pastilles d'un profil suivent la pièce quand on l'allonge.
 
 Il éprouve enfin le **montage** sur un robot d'essai — un corps à quatre hanches, un fémur, un tibia : c'est le corps qui porte (il offre le plus d'articulations), il naît quatre fémurs et quatre tibias, chacun sur une hanche différente, hanches et genoux **superposés au millimètre**, les quatre pattes tournées vers quatre caps distincts, le tibia gardant le cap de son fémur. Un ensemble qui ne partage aucune famille reste à sa place, et deux dessins sans rien en commun ne montent rien du tout plutôt que d'inventer.
 
@@ -522,44 +508,43 @@ araignee-patte-tibia-…    l'os genou → pied
 
 Chacun se dessine **où vous voulez sur la planche**, côte à côte comme un plan de découpe. Ce n'est pas leur place sur la planche qui compte : c'est leur étiquette de pose, et leurs pastilles.
 
-### 2. Le corps : huit pastilles, quatre hanches
+### 2. Le corps : quatre pastilles, quatre hanches
 
-Sur la pièce qui porte réellement les servos de hanche (les flancs, pas la plaque du dessus), quatre paires de pastilles rouges :
+Sur la pièce qui porte réellement les servos de hanche (les flancs, pas la plaque du dessus), **une** pastille rouge par hanche :
 
 ```text
-hanche-ag-h  hanche-ag-b        avant gauche
-hanche-ad-h  hanche-ad-b        avant droite
-hanche-rg-h  hanche-rg-b        arrière gauche
-hanche-rd-h  hanche-rd-b        arrière droite
+hanche-gh        gauche avant
+hanche-dh        droite avant
+hanche-gb        gauche arrière
+hanche-db        droite arrière
 ```
 
-Les deux pastilles d'une paire sont **les deux bouts de l'axe** du servo : si la hanche tourne en lacet (le servo est debout), l'une est au-dessus de l'autre ; si elle tourne en roulis, elles sont l'une derrière l'autre. **Posez-les où l'axe passe vraiment** — c'est cette droite que la patte suivra.
+Les quatre commencent par `hanche` : c'est ce mot, et lui seul, qui fait venir le fémur. Ce qui suit ne sert qu'à leur donner **quatre ids distincts** — Inkscape refuse deux fois le même. **Posez chaque pastille où l'axe du servo passe vraiment** : c'est là que la patte tournera.
 
-Nommez-les par leur **id Inkscape** (`Objet → Propriétés de l'objet`) : huit textes sur la planche seraient illisibles.
+Nommez-les par leur **id Inkscape** (`Objet → Propriétés de l'objet`) : quatre textes sur la planche encombreraient le dessin.
 
 ### 3. Le fémur : deux articulations, pas une
 
 C'est ici que ça coince le plus souvent. Le fémur porte **deux** articulations, et il lui faut les deux :
 
-| Pastilles | À quoi elles servent |
+| Pastille | À quoi elle sert |
 | --- | --- |
-| `hanche-h`, `hanche-b` | **là où le fémur s'accroche au corps.** Famille `hanche` : c'est le mot que le corps emploie aussi, et c'est tout ce qu'il faut pour qu'ils s'emboîtent |
-| `genou-h`, `genou-b` | **l'axe que le fémur offre au tibia.** Famille `genou` |
+| `hanche` | **là où le fémur s'accroche au corps.** Famille `hanche` : c'est le mot que le corps emploie aussi, et c'est tout ce qu'il faut pour qu'ils s'emboîtent |
+| `genou-f` | **le point que le fémur offre au tibia.** Famille `genou` |
 
 Un fémur qui n'a que sa hanche se pose bien sur le corps — mais le tibia n'a plus rien à quoi s'accrocher, et il reste tout seul dans son coin. **Le genou se dessine sur le fémur**, pas seulement sur le tibia.
 
 Le fémur est un `flanc` : dessiné de côté, il se relève **tel qu'il est tracé**. Ce que vous dessinez en haut sera en haut du robot. Si la patte part à l'envers, c'est le dessin qui est retourné, pas le moteur — cochez **repère X Y Z** et regardez où pointe le Z.
 
-### 4. Le tibia : le genou, et le pied
+### 4. Le tibia : le genou
 
 ```text
-genou-h  genou-b        même famille « genou » que le fémur : ils se superposent
-pied                    une pastille seule — un point, pas un axe
+genou-t         même premier mot que le « genou-f » du fémur : les deux se superposent
 ```
 
-Les deux pastilles `genou-…` du tibia doivent être **au même endroit sur le tibia** que celles du fémur le sont sur le fémur : c'est le point de contact, et c'est lui qu'on superpose.
+La pastille `genou-t` doit être **au même endroit sur le tibia** que `genou-f` l'est sur le fémur : c'est le point de contact, et c'est lui qu'on superpose. Le `-f` et le `-t` ne veulent rien dire de plus que « côté fémur » et « côté tibia » — il faut bien deux ids différents.
 
-Le fémur n'offre qu'**une** articulation de la famille `genou` : le tibia hérite donc du cap du fémur et le prolonge, au lieu de s'écarter comme les pattes le font autour du corps.
+Le fémur n'offre qu'**une** pastille de la famille `genou` : le tibia hérite donc du cap du fémur et le prolonge, au lieu de s'écarter comme les pattes le font autour du corps.
 
 ### 5. Regarder
 
@@ -575,11 +560,12 @@ Puis retouchez dans Inkscape, cliquez **↻ recharger**, regardez. L'angle et le
 
 | Ce que vous voyez | La cause, presque toujours |
 | --- | --- |
-| **Une seule patte**, au milieu du corps | quatre hanches sous le **même préfixe** (`hanche-ag`, `hanche-ad`… seules). Il en faut quatre distincts, donc des noms à trois segments |
-| **Deux pattes**, et deux longs traits rouges qui traversent le corps | `hanche-g-…` et `hanche-d-…` : deux axes, pas quatre. Renommez en `hanche-ag`, `hanche-ad`, `hanche-rg`, `hanche-rd` |
-| **Le tibia reste tout seul** | le fémur n'a pas de pastille `genou-…`. Le genou se dessine **sur les deux** pièces |
+| **Une seule patte**, au milieu du corps | le corps n'a qu'**une** pastille `hanche…`. Il en faut quatre — une par hanche, à leur vraie place |
+| **Deux pattes** au lieu de quatre | deux pastilles `hanche…` seulement. Le nombre de pattes est le nombre de pastilles de la famille, rien d'autre |
+| **Cinq pattes**, dont une en trop au même endroit | une pastille dupliquée dans Inkscape : elle s'appelle `hanche-gh-3`. Renommez-la, ou effacez-la si c'est un doublon (la lecture le signale) |
+| **Le tibia reste tout seul** | le fémur n'a pas de pastille `genou…`. Le genou se dessine **sur les deux** pièces |
 | **Rien ne monte**, le visualiseur le dit en jaune | aucune famille partagée : les deux dessins n'emploient pas le même premier mot (`hanche` d'un côté, `epaule` de l'autre) |
-| **La patte part à l'envers**, ou de travers | l'axe de hanche n'est pas là où vous croyez : cochez **axes dessinés**, le trait rouge tireté montre la droite réelle |
+| **La patte part à l'envers**, ou de travers | la hanche n'est pas là où vous croyez : cochez **axes dessinés**, le nom s'affiche à la place réelle de la pastille |
 | **Une pièce est au centre du corps**, à 3 mm d'épaisseur | son étiquette est illisible — virgule décimale, presque toujours. Relisez la sortie de la commande, elle le dit |
 | **Une pastille n'apparaît pas** | elle n'a pas de nom : son id Inkscape est encore `circle97`. La lecture le signale |
 
@@ -605,14 +591,14 @@ Puis retouchez dans Inkscape, cliquez **↻ recharger**, regardez. L'angle et le
 - Tout est en **millimètres**, et les cotes sont conservées : c'est un plan de découpe, pas une proportion.
 - L'étiquette commence **toujours** par le plan : `dessus`, `flanc` ou `face`.
 - `pos` est le **centre** de la pièce, pas son coin.
-- `miroir` pose la pièce **deux fois** : un dessin de flanc donne les deux flancs.
+- `miroir` pose la pièce **deux fois** : un dessin de flanc donne les deux flancs. Il se met sur la **normale du plan** (`flanc`→`x`, `dessus`→`z`, `face`→`y`), et l'écart obtenu est de **centre à centre** : `pos=(entrefer + ep) / 2`.
 - Le séparateur décimal est le **point** : `pos=24.501,-38.083,0 ep=21.5`. Une virgule rend l'étiquette illisible et la pièce retombe au centre — la lecture le dit.
-- Une **pastille rouge nommée** devient un axe — c'est le dessin qui dit où est la hanche. Nommez-la par son **id Inkscape** ; le texte au-dessus fonctionne encore.
-- Un nom de pastille se lit **`famille-articulation-bout`** : le **premier** segment est la famille (ce à quoi ça s'emboîte), tout sauf le **dernier** est le préfixe (quelle articulation), le dernier distingue les deux bouts.
-- **Deux pastilles de même préfixe** (`hanche-ag-h`, `hanche-ag-b`) font un **axe de rotation**. Deux articulations distinctes = deux préfixes distincts.
-- **Quatre hanches = quatre préfixes = huit pastilles.** `hanche-ag`, `hanche-ad`, `hanche-rg`, `hanche-rd` **seules** ne font qu'une articulation, au centre du corps.
-- **Même famille = les dessins s'emboîtent**, articulations superposées : celui qui offre le plus d'articulations porte l'autre, et il naît un exemplaire par articulation (quatre hanches → quatre pattes).
-- Le fémur porte **deux** familles : `hanche-…` pour s'accrocher au corps, `genou-…` pour porter le tibia.
+- Une **pastille rouge nommée = une articulation** — c'est le dessin qui dit où est la hanche. Nommez-la par son **id Inkscape** ; le texte au-dessus fonctionne encore.
+- Le **premier mot** du nom est la **famille** : il dit à quoi ça s'emboîte. Ce qui suit ne sert qu'à donner des **ids distincts** (`hanche-gh`, `genou-f` / `genou-t`).
+- **Une pastille = une articulation.** Quatre pastilles `hanche…` sur le corps = **quatre hanches**, donc quatre pattes. Deux pastilles ne se regroupent jamais.
+- **Même famille = les dessins s'emboîtent**, pastilles superposées : celui qui en offre le plus porte l'autre, et il naît **un exemplaire par pastille** (quatre hanches → quatre fémurs → quatre genoux → quatre tibias).
+- Le fémur porte **deux** familles : `hanche` pour s'accrocher au corps, `genou-f` pour porter le tibia.
+- Un nom qui finit par **`-3`, `-1`…** est presque toujours le suffixe qu'Inkscape colle à un copier-coller : la lecture le signale, renommez-le.
 - La **couleur de la pièce est celle du dessin**, transparence comprise ; `mat=` n'est que le repli d'une pièce non peinte.
 - `npm run montre <préfixe>` relit, range et ouvre **tout ce qui commence par là**, à la même échelle : c'est la boucle de travail. On retouche dans Inkscape, on clique **↻ recharger**.
 - Le curseur **éclaté** est le seul moyen de voir ce qu'il y a entre deux flancs.

@@ -15,6 +15,12 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const checks = [];
 const ok = (name, cond, detail = '') => { checks.push({ name, ok: !!cond, detail: String(detail) }); };
+// Une traduction en retard n'est PAS un échec : les langues autres que la langue
+// de base s'écrivent en un seul lot, juste avant une publication. Le banc le dit
+// en jaune — le manque reste visible, le lot n'est pas bloqué.
+const attention = (name, cond, detail = '') => {
+  checks.push({ name, ok: !!cond, detail: String(detail), warn: true });
+};
 const rel = (p) => relative(root, p).replace(/\\/g, '/');
 
 const tmp = mkdtempSync(join(tmpdir(), 'kablix-docs-'));
@@ -146,8 +152,12 @@ ok('aide : plus de copie HTML figée (src/help.ts supprimé)', !existsSync(join(
 // --- 3. Parité FR/EN ----------------------------------------------------------
 const missingEn = fr.filter((n) => !en.includes(n));
 const orphanEn = en.filter((n) => !fr.includes(n));
-ok(`fiches : parité FR/EN (${fr.length}/${en.length})`, missingEn.length === 0 && orphanEn.length === 0,
-  `EN manquantes: ${missingEn.join(',')} · FR manquantes: ${orphanEn.join(',')}`);
+// Une fiche EN sans FR reste une faute : la FR est la langue de base, elle a donc
+// été perdue ou mal nommée.
+ok(`fiches : chaque fiche EN a bien sa FR (${fr.length}/${en.length})`, orphanEn.length === 0,
+  `FR manquantes: ${orphanEn.join(',')}`);
+attention(`fiches : parité FR/EN (${fr.length}/${en.length})`, missingEn.length === 0,
+  `EN à écrire avant publication: ${missingEn.join(',')}`);
 
 // --- 4. Une fiche par type du catalogue ---------------------------------------
 // partHelp.ts ouvre `docs/<lang>/composants/<def.type>.md` : un type sans fiche
@@ -379,9 +389,13 @@ ok('vsix : matcher .vscodeignore cohérent (src/ exclu, dist/webview.js ré-incl
   `src=${excluded('src/panel.ts')} webview=${excluded('dist/webview.js')}`);
 
 let fail = 0;
+let warn = 0;
 for (const r of checks) {
-  if (!r.ok) fail++;
-  console.log(`${r.ok ? '✅' : '❌'} ${r.name}${!r.ok && r.detail ? ` — ${r.detail}` : ''}`);
+  if (!r.ok) (r.warn ? warn++ : fail++);
+  console.log(`${r.ok ? '✅' : (r.warn ? '⚠️' : '❌')} ${r.name}${!r.ok && r.detail ? ` — ${r.detail}` : ''}`);
 }
-console.log(fail ? `docs : ${fail} échec(s).` : `docs : ${checks.length} contrôles OK — aide locale complète, illustrée et embarquée.`);
+const rappel = warn ? ` (${warn} traduction(s) en attente de publication)` : '';
+console.log(fail
+  ? `docs : ${fail} échec(s)${rappel}.`
+  : `docs : ${checks.length} contrôles OK${rappel} — aide locale complète, illustrée et embarquée.`);
 process.exit(fail ? 1 : 0);

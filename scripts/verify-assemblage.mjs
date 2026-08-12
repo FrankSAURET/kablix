@@ -226,74 +226,46 @@ ok('renderFaces : une face opaque garde son liseré de même couleur',
 ok('renderFaces : une face translucide n\'a PAS de liseré',
   attributs('rgba(188,223,240,0.55)').includes('"none"'), attributs('rgba(188,223,240,0.55)'));
 
-// --- les pastilles rouges font les AXES DE ROTATION ---------------------------
-// Règle du dessin (v2026.8.34) : deux pastilles de même PRÉFIXE (« hanche-g-h »
-// et « hanche-g-b ») sont les deux bouts d'un même axe. C'est par ces axes que
-// deux sous-ensembles s'assemblent — le fémur tourne autour de la hanche du
-// corps — et rien de tout ça ne se voit sur une image.
-ok('axisPrefix : le dernier segment distingue les deux bouts',
-  M.axisPrefix('hanche-g-h') === 'hanche-g' && M.axisPrefix('hanche-g-b') === 'hanche-g',
-  M.axisPrefix('hanche-g-h'));
-ok('axisPrefix : un nom d\'un seul segment est son propre préfixe (un point, pas un axe)',
-  M.axisPrefix('genou') === 'genou');
+// --- les pastilles rouges font les ARTICULATIONS -------------------------------
+// Règle du dessin (v2026.8.42) : UNE pastille rouge = UNE articulation, et son
+// PREMIER MOT dit à quoi elle s'emboîte. Ce qui suit ne sert qu'à distinguer deux
+// pastilles voisines — Inkscape exige des ids uniques, d'où « genou-f » sur le
+// fémur face à « genou-t » sur le tibia. Rien de tout ça ne se voit sur une
+// image : quatre pattes empilées au même endroit ressemblent à une patte.
+ok('axisFamily : la famille est le PREMIER mot',
+  M.axisFamily('hanche-gh') === 'hanche' && M.axisFamily('genou-t') === 'genou',
+  M.axisFamily('hanche-gh'));
+ok('axisFamily : un nom d\'un seul mot est sa propre famille',
+  M.axisFamily('genou') === 'genou');
 const AX = {
-  'hanche-g-h': { x: 20, y: -10, z: 8 },
-  'hanche-g-b': { x: 20, y: -10, z: -8 },
+  'hanche-gh': { x: 20, y: -10, z: 8 },
+  'hanche-gb': { x: 20, y: -10, z: -8 },
   'genou': { x: 0, y: 0, z: 0 },
 };
-const rots = M.rotationAxes(AX);
-ok('rotationAxes : deux pastilles de même préfixe font UN axe', rots.length === 1,
-  rots.map((r) => r.name).join(', '));
-ok('rotationAxes : l\'axe porte le préfixe, pas le nom d\'une pastille',
-  rots[0]?.name === 'hanche-g', rots[0]?.name);
-ok('rotationAxes : `at` est au milieu des deux pastilles',
-  near(rots[0].at.x, 20, 1e-6) && near(rots[0].at.y, -10, 1e-6) && near(rots[0].at.z, 0, 1e-6),
-  JSON.stringify(rots[0].at));
-ok('rotationAxes : `dir` est unitaire et `len` est l\'écart réel',
-  near(Math.hypot(rots[0].dir.x, rots[0].dir.y, rots[0].dir.z), 1, 1e-9) && near(rots[0].len, 16, 1e-6),
-  `${rots[0].len} mm`);
-// Une pastille seule reste un POINT d'accostage (assemblyAxis la rend), mais elle
-// ne dit pas autour de quoi on tourne.
-ok('rotationAxes : une pastille seule n\'est pas un axe',
-  !rots.some((r) => r.name === 'genou'));
-ok('rotationAxes : `scale` s\'applique aux deux bouts',
-  near(M.rotationAxes(AX, 2)[0].len, 32, 1e-6), `${M.rotationAxes(AX, 2)[0].len}`);
-// Trois pastilles alignées : ce sont les deux plus ÉLOIGNÉES qui portent l'axe,
-// les autres sont dessus et ne le définissent pas mieux.
-const trois = M.rotationAxes({
-  'a-1': { x: 0, y: 0, z: 0 }, 'a-2': { x: 0, y: 0, z: 5 }, 'a-3': { x: 0, y: 0, z: 20 },
-});
-ok('rotationAxes : à trois pastilles, les deux plus éloignées portent l\'axe',
-  trois.length === 1 && near(trois[0].len, 20, 1e-6), `${trois[0]?.len}`);
-ok('rotationAxes : deux pastilles superposées ne font pas une droite',
-  M.rotationAxes({ 'b-1': { x: 1, y: 2, z: 3 }, 'b-2': { x: 1, y: 2, z: 3 } }).length === 0);
-ok('rotationAxes : un ASSEMBLAGE se lit directement (ses pastilles sont dans .axes)',
-  M.rotationAxes({ ...DEMO, axes: AX }).length === 1);
+const arts = M.articulations(AX);
+ok('articulations : CHAQUE pastille en est une — rien n\'est regroupé',
+  arts.length === 3, arts.map((j) => j.name).join(', '));
+ok('articulations : l\'articulation porte le nom ENTIER de sa pastille',
+  arts.some((j) => j.name === 'hanche-gh') && arts.some((j) => j.name === 'hanche-gb'),
+  arts.map((j) => j.name).join(', '));
+ok('articulations : la famille est le premier mot, deux pastilles voisines la partagent',
+  arts.filter((j) => j.famille === 'hanche').length === 2
+  && arts.find((j) => j.name === 'genou')?.famille === 'genou');
+ok('articulations : `at` est le point de la pastille, tel quel',
+  near(arts.find((j) => j.name === 'hanche-gh').at.z, 8, 1e-9)
+  && near(arts.find((j) => j.name === 'hanche-gb').at.z, -8, 1e-9));
+ok('articulations : `scale` s\'applique au point',
+  near(M.articulations(AX, 2).find((j) => j.name === 'hanche-gh').at.x, 40, 1e-9));
+ok('articulations : un ASSEMBLAGE se lit directement (ses pastilles sont dans .axes)',
+  M.articulations({ ...DEMO, axes: AX }).length === 3);
 ok('assemblyAxis : une pastille absente ne fabrique pas de point',
   M.assemblyAxis(DEMO, 'jamais-dessine') === null
   && M.assemblyAxis(DEMO, 'hanche')?.x === 28);
 
-// --- les ARTICULATIONS et le MONTAGE du robot entier ---------------------------
-// Règle du dessin (v2026.8.36) : le PRÉFIXE fait l'articulation (« hanche-ag-h »
-// + « hanche-ag-b » → l'articulation « hanche-ag »), le PREMIER SEGMENT fait la
-// famille (« hanche »). Deux ensembles qui portent la même famille s'emboîtent, et
-// celui qui en offre le plus porte l'autre : quatre hanches, quatre pattes.
-// Rien de tout ça ne se voit sur une image — quatre pattes empilées au même
-// endroit ressemblent à une patte.
-ok('axisFamily : la famille est le PREMIER segment',
-  M.axisFamily('hanche-ag') === 'hanche' && M.axisFamily('hanche-ag-h') === 'hanche',
-  M.axisFamily('hanche-ag-h'));
-ok('axisFamily : un nom d\'un seul segment est sa propre famille',
-  M.axisFamily('genou') === 'genou');
-const arts = M.articulations(AX);
-ok('articulations : une pastille SEULE est une articulation (un point de pivot)',
-  arts.length === 2 && arts.some((j) => j.name === 'genou' && j.dir === null),
-  arts.map((j) => j.name).join(', '));
-ok('articulations : deux pastilles de même préfixe n\'en font qu\'UNE, avec sa direction',
-  arts.find((j) => j.name === 'hanche-g')?.dir !== null
-  && near(arts.find((j) => j.name === 'hanche-g').len, 16, 1e-6));
-ok('articulations : la famille accompagne l\'articulation',
-  arts.find((j) => j.name === 'hanche-g')?.famille === 'hanche');
+// --- le MONTAGE du robot entier ------------------------------------------------
+// Deux ensembles dont une pastille porte le même premier mot s'emboîtent, et celui
+// qui en offre le plus porte l'autre : quatre pastilles « hanche… » sur le corps,
+// une sur le fémur → quatre fémurs, donc quatre genoux, donc quatre tibias.
 
 /** Un ensemble d'essai : ses pastilles et le centre de ses pièces suffisent au
  *  monteur — c'est tout ce qu'il regarde. */
@@ -301,23 +273,21 @@ const ens = (nom, axes, pos) => ({
   nom,
   A: { source: 't', box: { x: 1, y: 1, z: 1 }, axes, pieces: [{ name: 'p', plan: 'dessus', mat: 'pmma', ep: 3, pos, w: 1, h: 1, poly: carre(1, 1) }] },
 });
-// Quatre hanches = quatre PRÉFIXES distincts, donc quatre paires de pastilles.
-// C'est le piège du dessin : `hanche-ag` et `hanche-ad` en pastilles seules
-// partagent le préfixe « hanche » et ne feraient qu'UNE articulation, au milieu
-// du corps.
+// Quatre hanches = quatre pastilles, une par patte. Toutes commencent par
+// « hanche » : c'est ce mot-là, et lui seul, qui les relie au fémur.
 const ROBOT = [
   ens('corps', {
-    'hanche-ag-h': { x: -20, y: -20, z: 10 }, 'hanche-ag-b': { x: -20, y: -20, z: -10 },
-    'hanche-ad-h': { x: 20, y: -20, z: 10 }, 'hanche-ad-b': { x: 20, y: -20, z: -10 },
-    'hanche-rg-h': { x: -20, y: 20, z: 10 }, 'hanche-rg-b': { x: -20, y: 20, z: -10 },
-    'hanche-rd-h': { x: 20, y: 20, z: 10 }, 'hanche-rd-b': { x: 20, y: 20, z: -10 },
+    'hanche-ag': { x: -20, y: -20, z: 0 },
+    'hanche-ad': { x: 20, y: -20, z: 0 },
+    'hanche-rg': { x: -20, y: 20, z: 0 },
+    'hanche-rd': { x: 20, y: 20, z: 0 },
   }, { x: 0, y: 0, z: 0 }),
   ens('femur', {
-    'hanche-h': { x: 0, y: 0, z: 10 }, 'hanche-b': { x: 0, y: 0, z: -10 },
-    'genou-g': { x: -10, y: 30, z: 0 }, 'genou-d': { x: 10, y: 30, z: 0 },
+    hanche: { x: 0, y: 0, z: 0 },
+    'genou-f': { x: 0, y: 30, z: 0 },
   }, { x: 0, y: 15, z: 0 }),
   ens('tibia', {
-    'genou-g': { x: -10, y: 0, z: 0 }, 'genou-d': { x: 10, y: 0, z: 0 },
+    'genou-t': { x: 0, y: 0, z: 0 },
     pied: { x: 0, y: 25, z: -30 },
   }, { x: 0, y: 12, z: -15 }),
 ];
@@ -346,8 +316,10 @@ let ecartGenou = 0;
 const fems = MO.filter((i) => i.nom === 'femur');
 for (const [n, t] of MO.filter((i) => i.nom === 'tibia').entries()) {
   ecartGenou = Math.max(ecartGenou,
-    M.len(M.sub(monde(t, artAt(ROBOT[2].A, 'genou')), monde(fems[n], artAt(ROBOT[1].A, 'genou')))));
+    M.len(M.sub(monde(t, artAt(ROBOT[2].A, 'genou-t')), monde(fems[n], artAt(ROBOT[1].A, 'genou-f')))));
 }
+// « genou-f » et « genou-t » : deux noms, un seul point de contact. C'est le
+// premier mot qui les apparie, le suffixe n'est là que pour Inkscape.
 ok('montage : le tibia se pose sur le genou de SON fémur', ecartGenou < 1e-9,
   `${ecartGenou.toFixed(9)} mm`);
 // Quatre pattes empilées au même endroit, c'est le défaut qu'on ne voit pas sur
@@ -446,14 +418,13 @@ for (const nom of noms) {
       && Math.abs(v.x) <= a.box.x && Math.abs(v.y) <= a.box.y && Math.abs(v.z) <= a.box.z,
       `(${v.x}, ${v.y}, ${v.z})`);
   }
-  // Les axes de rotation lus sur le dessin de Frank : une droite qui sort de
-  // l'encombrement, c'est une pastille mal nommée — deux articulations qui se
-  // sont retrouvées sous le même préfixe.
-  for (const r of M.rotationAxes(a)) {
-    const diag = Math.hypot(a.box.x, a.box.y, a.box.z);
-    ok(`${nom} : axe de rotation « ${r.name} » plausible`,
-      r.len > 0.5 && r.len <= diag + 0.05 && near(Math.hypot(r.dir.x, r.dir.y, r.dir.z), 1, 1e-9),
-      `${r.len.toFixed(1)} mm sur ${diag.toFixed(1)} de diagonale`);
+  // Les familles lues sur le dessin de Frank : une pastille dont le nom finit par
+  // un numéro, c'est le suffixe qu'Inkscape ajoute à un id déjà pris après un
+  // copier-coller — elle est restée dans la famille de la pièce d'où elle vient,
+  // et son ensemble ira s'emboîter au mauvais endroit.
+  for (const j of M.articulations(a)) {
+    ok(`${nom} : pastille « ${j.name} » nommée, pas dupliquée par Inkscape`,
+      !/-\d+$/.test(j.name), `famille « ${j.famille} »`);
   }
   ok(`${nom} : mis en volume sans faute`, M.assemblyFaces(a, { scale: 1 }).length > 0);
   ok(`${nom} : aucun point projeté aberrant`,

@@ -78,6 +78,23 @@ const isPad = (el) => {
   const v = (i) => parseInt(c.slice(i, i + 2), 16);
   return v(1) >= 200 && v(3) <= 90 && v(5) <= 90;
 };
+/** Ids qu'Inkscape fabrique tout seul (« circle97 », « path102 », « g1-1 ») :
+ *  ils ne nomment rien. Même règle que \`idAuto\`, côté page. */
+const idAutoPage = (id) => !id
+  || /^(circle|ellipse|path|rect|polygon|polyline|line|g|use|text|tspan|svg|defs)[-_]?\\d*(-\\d+)*$/i.test(id);
+/** Le nom d'une pastille : l'id du ROND, ou — s'il est automatique — celui du
+ *  GROUPE qui l'enveloppe. Inkscape groupe dès qu'on déplace un repère, et c'est
+ *  alors le groupe qui reçoit le nom saisi dans Objet → Propriétés de l'objet :
+ *  sans ce repli, la pastille « genou-f » du fémur n'était qu'un « circle97 »
+ *  anonyme, ignorée à la lecture. La remontée s'arrête AVANT le groupe de la
+ *  pièce, qui nomme la pièce et pas la pastille. */
+function padId(el, g) {
+  for (let n = el; n && n !== g; n = n.parentElement) {
+    const id = n.getAttribute('id') || '';
+    if (!idAutoPage(id)) return id;
+  }
+  return el.getAttribute('id') || '';
+}
 function findGroup(id) {
   const hit = root.getElementById(id);
   if (hit) return hit;
@@ -188,7 +205,7 @@ function readGroup(name, g) {
       // L'ID du rond est remonté tel quel : c'est la façon la plus sûre de
       // nommer une pastille dans Inkscape (Objet → Propriétés de l'objet), et
       // elle ne dépend pas d'un texte posé à côté.
-      pads.push({ x: c.x, y: c.y, id: el.getAttribute('id') || '' });
+      pads.push({ x: c.x, y: c.y, id: padId(el, g) });
       continue;
     }
     const d = toPathData(el);
@@ -269,7 +286,7 @@ export function lireDessin({ source = planche('3D'), ids = [], prefixes = [], st
  *  ne nomment rien. Un id qui commence par un mot de balise suivi d'un chiffre
  *  est automatique ; tout le reste a été écrit à la main. */
 export const idAuto = (id) => !id
-  || /^(circle|ellipse|path|rect|polygon|polyline|line|g|use|text|tspan|svg|defs)[-_]?\d*$/i.test(id);
+  || /^(circle|ellipse|path|rect|polygon|polyline|line|g|use|text|tspan|svg|defs)[-_]?\d*(-\d+)*$/i.test(id);
 
 /**
  * Le nom d'une pastille : son ID d'abord (Inkscape, Objet → Propriétés de

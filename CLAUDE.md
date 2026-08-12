@@ -24,10 +24,10 @@ Frank dessine TOUT dans deux planches A3 à la racine :
 - Les **pastilles rouges** portent le **nom de la patte** (texte au-dessus) et leur CENTRE est le point de connexion des fils. `nc` = non connecté.
 - **Ne créer QUE les composants que Frank nomme** : les planches contiennent aussi ses dessins en cours (`ic14`, `to92`…), à ignorer.
 - **Simulation précisée au cas par cas** par Frank — ne rien inventer.
-- Noms de pattes, propriétés et outils de simulation (curseurs, aide…) sont **traduisibles** et effectivement traduits EN + FR.
+- Noms de pattes, propriétés et outils de simulation (curseurs, aide…) sont **traduisibles** : la chaîne de base (EN, dans le code) est écrite au fil de l'eau, `l10n/bundle.l10n.fr.json` **attend la publication** (voir Traductions).
 - Tout nouveau composant : **tests `testkablix`** obligatoires — un test Arduino (`<type>-uno`) ET un test Pico (`<type>-pico`), via `_spec.mjs` + `node testkablix/_generate.mjs` (jamais à la main), plus la ligne dans `testkablix/README.md`.
 - **Schéma de test déjà retouché par Frank : garder les emplacements des composants** (`x`/`y` de `_spec.mjs`). Retoucher ou refaire un test ne doit pas redisposer la planche — sauf à la refaire entièrement et différemment. `_generate.mjs` écrase tout : relire la spec avant, et ne régénérer que les fichiers du lot.
-- Tout nouveau composant : **fiche d'aide obligatoire** en FR **et** en EN (`docs/fr/composants/<type>.md` + `docs/en/…`), avec son illustration `docs/img/composants/<type>.webp` produite par `node scripts/_capture-part.mjs <type>` (jamais une capture d'écran à la main). `npm run verify:docs` compte les fiches.
+- Tout nouveau composant : **fiche d'aide obligatoire** en **FR** (`docs/fr/composants/<type>.md`), avec son illustration `docs/img/composants/<type>.webp` produite par `node scripts/_capture-part.mjs <type>` (jamais une capture d'écran à la main). La version EN (`docs/en/…`) **attend la publication** (voir Traductions) ; `npm run verify:docs` compte les fiches et signalera le manque — c'est normal.
 
 ### Boîtiers partagés (TO-92 et suivants)
 Un **boîtier** (`to92`…) sert à des dizaines de composants : c'est un DESSIN, pas un composant.
@@ -40,6 +40,9 @@ Un **boîtier** (`to92`…) sert à des dizaines de composants : c'est un DESSIN
 - Convention : CENTRE de pastille = croisement de la grille 10 px ; repère = coin haut-gauche du viewBox « tel quel » ; power = rond rouge, gnd = rond noir.
 - Pièges Inkscape : `id="board"` perdu, ids dupliqués suffixés (`pin-VSS-1`).
 - Vérification géométrie/alignement : rendu Chrome headless (/preview) — ne jamais demander à Frank de coller des logs console.
+
+## Traductions — jamais au fil de l'eau
+Règle globale : **rien de traduit pendant le travail courant**. Langue de base seulement (FR pour `docs/`, EN pour les chaînes du code), les autres langues en un seul lot **avant publication**, sur demande de Frank. Concerne `docs/en/`, `l10n/bundle.l10n.fr.json`, README localisés. Le manque se note ⏳ dans `todo.md` et ne bloque pas un lot.
 
 ## Versions et livraison (détail : /livre)
 - Version = ANNÉE.MOIS.incrément ; l'incrément repart à 0 chaque mois (juillet 2026 → 2026.7.x).

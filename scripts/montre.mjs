@@ -202,7 +202,7 @@ writeFileSync(entryPath, `
 import { html, svg, render } from 'lit';
 import {
   assemblyFaces, renderFaces, rotZ, add, dot, project, MATIERES, PLANES, planeNormal,
-  scale as vscale, rotationAxes, montage, axisGizmo,
+  scale as vscale, montage, axisGizmo,
 } from '../../src/webview/composants/iso3d.mjs';
 
 /** Taille de la feuille de dessin, en pixels : ce n'est PAS un format fixe, c'est
@@ -378,20 +378,9 @@ function scene(mont) {
         text-anchor="middle" font-size="12" font-family="sans-serif" fill="#5a7183">\${e.nom}</text>\`);
     }
     if (!etat.axes) continue;
-    // Les DROITES d'abord, les pastilles par-dessus : deux pastilles de même
-    // préfixe (« hanche-g-h », « hanche-g-b ») sont les deux bouts d'un axe de
-    // rotation, et c'est la droite qui dit autour de quoi la patte tourne.
-    for (const r of rotationAxes(e.A, k)) {
-      const p1 = project(xf(r.a));
-      const p2 = project(xf(r.b));
-      const mx = (p1.x + p2.x) / 2 + cx;
-      const my = (p1.y + p2.y) / 2 + cy;
-      marques.push(svg\`<line x1=\${(p1.x + cx).toFixed(1)} y1=\${(p1.y + cy).toFixed(1)}
-          x2=\${(p2.x + cx).toFixed(1)} y2=\${(p2.y + cy).toFixed(1)}
-          stroke="#ee0000" stroke-width="2" stroke-dasharray="6 4" stroke-linecap="round" />
-        <text x=\${mx.toFixed(1)} y=\${(my - 8).toFixed(1)} text-anchor="middle"
-          font-size="12" font-family="sans-serif" font-weight="600" fill="#900">\${r.name}</text>\`);
-    }
+    // Les pastilles, une par une : chacune est une articulation à elle seule, et
+    // son premier mot dit sur quoi elle s'emboîte (« hanche-gb » → famille
+    // « hanche »). Il n'y a pas de droite à tracer, juste des points nommés.
     for (const [nom, v] of Object.entries(e.A.axes)) {
       const q = project(xf(vscale(v, k)));
       marques.push(svg\`<circle cx=\${(q.x + cx).toFixed(1)} cy=\${(q.y + cy).toFixed(1)} r="4"

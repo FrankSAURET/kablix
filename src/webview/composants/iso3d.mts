@@ -325,7 +325,7 @@ function profileFrame(profile: Profile, from: Vec3, to: Vec3) {
  * sur un autre — le tibia tourne autour du genou que le fémur a dessiné, plus
  * autour d'une cote reportée à la main.
  *
- * Passer le résultat à `rotationAxes` pour en tirer les axes de rotation.
+ * Passer le résultat à `articulations` pour les lire par famille.
  */
 export function profileAxes(profile: Profile, from: Vec3, to: Vec3): Record<string, Vec3> {
   const { flat, at } = profileFrame(profile, from, to);
@@ -498,101 +498,45 @@ export function assemblyAxis(
   return v ? xf(scale(v, scaleK)) : null;
 }
 
-/** Un AXE DE ROTATION lu sur le dessin : `at` son milieu, `dir` sa direction
- *  unitaire, `a` et `b` les deux pastilles qui le portent, `len` leur écart en
- *  millimètres. C'est autour de cette droite qu'une patte tourne, et c'est par
- *  elle que deux sous-ensembles s'emboîtent. */
-export type RotationAxis = { name: string; at: Vec3; dir: Vec3; a: Vec3; b: Vec3; len: number };
-
-/** Le préfixe d'une pastille : son nom privé de son dernier segment —
- *  `hanche-g-h` → `hanche-g`. C'est la règle du dessin : **deux pastilles de
- *  même préfixe sont les deux bouts d'un même axe** (`-h` en haut, `-b` en bas,
- *  ou tout autre suffixe qui les distingue). Un nom d'un seul segment est son
- *  propre préfixe : il désigne un point, pas un axe. */
-export function axisPrefix(name: string): string {
-  const i = name.lastIndexOf('-');
-  return i > 0 ? name.slice(0, i) : name;
-}
-
-/** La FAMILLE d'une articulation : son PREMIER segment — `hanche-ag` → `hanche`,
- *  `genou` → `genou`. Deux ensembles qui portent la même famille sont faits pour
- *  s'emboîter : le corps offre quatre `hanche…`, le fémur en demande une. C'est
- *  le nombre d'articulations de la famille qui dit combien de pattes il faut. */
+/** La FAMILLE d'une pastille : son PREMIER mot — `hanche-gh` → `hanche`,
+ *  `genou-t` → `genou`, `genou` → `genou`. C'est TOUTE la règle du dessin : le
+ *  premier mot dit à quoi la pastille s'emboîte, ce qui vient après ne sert qu'à
+ *  distinguer deux pastilles voisines (`-gh`/`-db` sur le corps, `-f`/`-t` de
+ *  part et d'autre du genou — Inkscape exige des ids uniques).
+ *
+ *  Deux ensembles qui nomment la même famille sont faits pour s'emboîter, et
+ *  c'est le NOMBRE de pastilles de cette famille qui dit combien d'exemplaires il
+ *  faut : quatre `hanche…` sur le corps, une `hanche` sur le fémur → quatre
+ *  fémurs. */
 export function axisFamily(name: string): string {
   const i = name.indexOf('-');
   return i > 0 ? name.slice(0, i) : name;
 }
 
 /**
- * Une ARTICULATION : un préfixe et le point où elle se trouve. Une pastille seule
- * en est une (un point de pivot) ; deux pastilles de même préfixe en font une
- * aussi, et donnent en plus sa DIRECTION — l'axe autour duquel on tourne.
+ * Une ARTICULATION : UNE pastille rouge et le point où elle se trouve. Il n'y a
+ * rien à regrouper — chaque pastille est un point de pivot à elle seule.
  *
- * `name` est le préfixe (`hanche-ag`), `famille` son premier segment (`hanche`),
- * `at` son point (le milieu des deux bouts), `dir` sa direction unitaire ou
- * `null` si un seul point la porte.
+ * `name` est le nom entier de la pastille (`hanche-gh`), `famille` son premier
+ * mot (`hanche`), `at` son point dans le repère de l'ensemble.
  */
-export type Articulation = {
-  name: string; famille: string; at: Vec3; dir: Vec3 | null;
-  a: Vec3; b: Vec3; len: number;
-};
+export type Articulation = { name: string; famille: string; at: Vec3 };
 
 /**
- * Les ARTICULATIONS d'un assemblage : les pastilles regroupées par préfixe. Quand
- * plus de deux pastilles partagent un préfixe, les deux plus ÉLOIGNÉES la portent
- * — c'est le segment le mieux défini, et les autres sont dessus.
- *
- * C'est par ces articulations que deux sous-ensembles s'assemblent : le fémur
- * tourne autour de la hanche du corps, le tibia autour du genou du fémur. Les
- * deux dessins nomment la MÊME famille, et il n'y a plus rien à mesurer.
+ * Les ARTICULATIONS d'un assemblage : ses pastilles, une par une, dans l'ordre
+ * des noms. C'est par elles que deux sous-ensembles s'assemblent — le fémur se
+ * pose sur une hanche du corps, le tibia sur le genou du fémur. Les deux dessins
+ * nomment la MÊME famille, et il n'y a plus rien à mesurer.
  *
  * Prend un assemblage, ou directement des pastilles déjà placées — celles d'un
- * PROFIL posé, rendues par `profileAxes` : la règle du préfixe est la même des
- * deux côtés, le dessin d'une pièce isolée n'a pas de convention à part.
+ * PROFIL posé, rendues par `profileAxes` : la règle est la même des deux côtés,
+ * le dessin d'une pièce isolée n'a pas de convention à part.
  */
 export function articulations(src: Assembly | Record<string, Vec3>, scaleK = 1): Articulation[] {
   const axes = (src as Assembly).axes ?? (src as Record<string, Vec3>);
-  const groupes = new Map<string, Vec3[]>();
-  for (const [name, v] of Object.entries(axes)) {
-    const k = axisPrefix(name);
-    if (!groupes.has(k)) groupes.set(k, []);
-    groupes.get(k)!.push(scale(v, scaleK));
-  }
-  const out: Articulation[] = [];
-  for (const [name, pts] of [...groupes].sort(([x], [y]) => x.localeCompare(y))) {
-    let best = { d: 0, a: pts[0], b: pts[0] };
-    for (let i = 0; i < pts.length; i++) {
-      for (let j = i + 1; j < pts.length; j++) {
-        const d = len(sub(pts[j], pts[i]));
-        if (d > best.d) best = { d, a: pts[i], b: pts[j] };
-      }
-    }
-    // Deux pastilles superposées ne font pas une droite : c'est un doublon du
-    // dessin, pas un axe — mieux vaut ne rien affirmer qu'orienter au hasard.
-    // L'articulation reste, comme point : le fémur a bien où se poser.
-    const droite = best.d >= 1e-6;
-    out.push({
-      name,
-      famille: axisFamily(name),
-      a: best.a,
-      b: best.b,
-      at: scale(add(best.a, best.b), 0.5),
-      dir: droite ? scale(sub(best.b, best.a), 1 / best.d) : null,
-      len: droite ? best.d : 0,
-    });
-  }
-  return out;
-}
-
-/**
- * Les axes de ROTATION : les articulations que DEUX pastilles portent. Une
- * pastille seule n'en fait pas partie — un point ne dit pas autour de QUOI on
- * tourne (elle reste lisible par `assemblyAxis` et par `articulations`).
- */
-export function rotationAxes(src: Assembly | Record<string, Vec3>, scaleK = 1): RotationAxis[] {
-  return articulations(src, scaleK)
-    .filter((j) => j.dir)
-    .map(({ name, at, dir, a, b, len: l }) => ({ name, at, dir: dir as Vec3, a, b, len: l }));
+  return Object.entries(axes)
+    .sort(([x], [y]) => x.localeCompare(y))
+    .map(([name, v]) => ({ name, famille: axisFamily(name), at: scale(v, scaleK) }));
 }
 
 /** Un ensemble nommé — un assemblage ou un profil vu comme tel — tel que le
@@ -643,12 +587,12 @@ const degXY = (v: Vec2): number => (Math.atan2(v.y, v.x) * 180) / Math.PI;
  * que le robot soit entier. C'est la réponse à « montre-moi l'araignée », pas
  * trois dessins côte à côte.
  *
- * La règle tient en une phrase : **deux ensembles qui portent la même FAMILLE
- * d'articulation s'emboîtent, et celui qui en offre le plus porte l'autre.** Le
- * corps a quatre `hanche-…`, le fémur une seule `hanche` : le corps est la base
- * et il naît quatre fémurs. Chaque fémur a un `genou`, le tibia aussi : un tibia
- * par fémur, soit quatre. Les articulations se retrouvent SUPERPOSÉES — c'est le
- * dessin qui a dit où elles sont, il n'y a rien à coter.
+ * La règle tient en une phrase : **deux ensembles dont une pastille porte le même
+ * PREMIER MOT s'emboîtent, et celui qui en offre le plus porte l'autre.** Le
+ * corps a quatre pastilles `hanche…`, le fémur une seule `hanche` : le corps est
+ * la base et il naît quatre fémurs. Chaque fémur a un `genou-f`, le tibia un
+ * `genou-t` : un tibia par fémur, soit quatre. Les pastilles se retrouvent
+ * SUPERPOSÉES — c'est le dessin qui a dit où elles sont, il n'y a rien à coter.
  *
  * Le LACET d'un exemplaire est celui de son parent, plus l'écart qu'il faut pour
  * que la pièce parte vers l'extérieur quand la famille compte plusieurs

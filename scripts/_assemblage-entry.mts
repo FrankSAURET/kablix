@@ -4,7 +4,7 @@
 // du calcul pur.
 export {
   slabFaces, assemblyFaces, planeNormal, project, signedArea, shade, renderFaces,
-  assemblyAxis, axisPrefix, axisFamily, articulations, rotationAxes, montage,
+  assemblyAxis, axisFamily, articulations, montage,
   profileAxes, extrudeProfile, rotZ, add, sub, len,
   PLANES, MATIERES,
 } from '../src/webview/composants/iso3d.mjs';

@@ -308,7 +308,12 @@ The table and the figure are further up, under [The world frame](#the-world-fram
 
 In two sentences: **`dessus` keeps the sense of a plan view** (top of the sheet = front of the robot); **`flanc` and `face` raise the drawing as traced** (top of the sheet = top of the robot).
 
-**A part is placed by its CENTRE** (the middle of its bounding box): `pos` is the centre of the part, not its corner. That is what makes mirroring immediate — a side at `pos=0,-9,0` with `miroir=y` gives both sides, 18 mm apart.
+**A part is placed by its CENTRE** (the middle of its bounding box): `pos` is the centre of the part, not its corner. That is what makes mirroring immediate — a side at `pos=-9,0,0` with `miroir=x` gives both sides, **centres 18 mm apart**.
+
+Two traps in that single line, and they are the two that cost you a cut:
+
+- **`miroir` goes on the plane's NORMAL**, not on any axis you fancy: `flanc` carries its thickness along **x**, `dessus` along **z**, `face` along **y** (the table of the three planes, further up). A `flanc` with `miroir=y` does not part the two sides — it lays one in front and one behind, in the same plane.
+- **18 mm is CENTRE to CENTRE**, thickness not included. Two 3 mm sides at `pos=±9` leave **15 mm** between them and **21 mm** overall. What you must dimension is the gap you want: for 18 mm of clearance between two 3 mm sides, `pos=-10.5,0,0` — that is `(gap + ep) / 2`.
 
 ### Colours: the drawing decides
 
@@ -607,7 +612,7 @@ Then touch up in Inkscape, click **↻ recharger**, look. Angle and checkboxes a
 - Everything is in **millimetres**, and dimensions are kept: it is a cutting plan, not a proportion.
 - The label **always** starts with the plane: `dessus`, `flanc` or `face`.
 - `pos` is the **centre** of the part, not its corner.
-- `miroir` lays the part **twice**: one side drawing gives both sides.
+- `miroir` lays the part **twice**: one side drawing gives both sides. It goes on the **plane's normal** (`flanc`→`x`, `dessus`→`z`, `face`→`y`), and the spacing you get is **centre to centre**: `pos=(gap + ep) / 2`.
 - The decimal separator is the **dot**: `pos=24.501,-38.083,0 ep=21.5`. A comma makes the label unreadable and the part falls back to the centre — the read says so.
 - A **named red pad** becomes an axis — the drawing says where the hip is. Name it by its **Inkscape id**; the text above still works.
 - A pad name reads as **`family-joint-end`**: the **first** segment is the family (what it snaps onto), everything but the **last** is the prefix (which joint), the last one tells the two ends apart.
