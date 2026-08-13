@@ -13,6 +13,7 @@
  */
 
 import { AvrEngine } from './avr.mjs';
+import { PicoEngine, type PicoProgram } from './pico.mjs';
 import { evalAnalogWave, type AnalogWave } from './analog-waves.mjs';
 import { createBusDevices, type BusDevices } from './i2c-devices.mjs';
 import type { AvrDebugInfo, SimEngine } from './types.mjs';
@@ -214,15 +215,23 @@ function stopPublishing(): void {
 function init(msg: Extract<ToWorker, { t: 'init' }>): void {
   pins = msg.pins;
   snap = emptySnapshot(pins.length);
-  // Lot 1 : seul l'AVR passe par le worker. Le Pico suivra (son firmware
-  // MicroPython et ses périphériques partagent des états par référence avec l'UI,
-  // qui doivent d'abord devenir des messages).
-  const family = msg.board === 'mega' ? 'avr2560' : 'avr328';
-  engine = new AvrEngine(
-    msg.program as Uint16Array,
-    (msg.debugInfo as AvrDebugInfo | null) ?? null,
-    family
-  );
+  if (msg.board === 'pico') {
+    // `pico.mts` ne lit ni `document` ni `window` : il tourne tel quel ici. Ses
+    // trois rappels propres au MicroPython deviennent des messages — la page en
+    // fait le texte du bandeau et le pont réseau, tous deux hors du worker.
+    const pico = new PicoEngine(msg.program as PicoProgram);
+    pico.onRunning = () => send({ t: 'scriptStarted' });
+    pico.onDebugRestart = (phase) => send({ t: 'debugRestart', phase });
+    pico.onNetRequest = (req) => send({ t: 'netRequest', req });
+    engine = pico;
+  } else {
+    const family = msg.board === 'mega' ? 'avr2560' : 'avr328';
+    engine = new AvrEngine(
+      msg.program as Uint16Array,
+      (msg.debugInfo as AvrDebugInfo | null) ?? null,
+      family
+    );
+  }
   // `onUpdate` reste local au worker : la page n'en a pas besoin, elle lit
   // l'instantané. Le brancher à un postMessage coûterait un message par front.
   engine.onUpdate = null;
@@ -330,6 +339,9 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
         if (publishTimer !== null) startScreens(); // périphériques posés en pleine simulation
         return;
       }
+      case 'netResponse':
+        engine?.sendNetResponse?.(msg.response as never);
+        return;
       case 'dispose':
         stopPublishing();
         stopScreens();

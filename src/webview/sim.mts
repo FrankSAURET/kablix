@@ -3100,19 +3100,23 @@ function startRun(): void {
   stopRun();
   resetDebugVars(); // nouveau run : l'historique des changements (rouge) repart à zéro
   try {
-    // Fil de simulation : le moteur AVR peut tourner dans un Web Worker, ce qui
-    // rend la page fluide (il tient à lui seul ~92 % du fil principal). Réglage
-    // `kablix.simulationWorker`, et repli silencieux sur le moteur du fil principal
-    // si le bundle du worker n'est pas prêt ou pour un Pico — le seul cas encore à
-    // porter (les périphériques de bus, eux, ont déménagé).
+    // Fil de simulation : le moteur peut tourner dans un Web Worker, ce qui rend
+    // la page fluide (il tient à lui seul ~92 % du fil principal). AVR comme
+    // RP2040 : tous deux ignorent le DOM. Réglage `kablix.simulationWorker`, et
+    // repli silencieux sur le moteur du fil principal si le bundle n'est pas prêt.
     const workerFit = simWorkerEnabled() && workerReady();
+    const rp2040 = boardFamily(board) === 'rp2040';
     engine =
-      boardFamily(board) === 'rp2040'
+      (workerFit
+        ? WorkerEngine.create(
+            rp2040 ? 'pico' : board === 'mega' ? 'mega' : 'uno',
+            rp2040 ? picoProgram : unoProgram,
+            rp2040 ? null : unoDebugInfo
+          )
+        : null) ??
+      (rp2040
         ? new PicoEngine(picoProgram)
-        : (workerFit
-            ? WorkerEngine.create(board === 'mega' ? 'mega' : 'uno', unoProgram, unoDebugInfo)
-            : null) ??
-          new AvrEngine(unoProgram, unoDebugInfo, board === 'mega' ? 'avr2560' : 'avr328');
+        : new AvrEngine(unoProgram, unoDebugInfo, board === 'mega' ? 'avr2560' : 'avr328'));
   } catch (err) {
     setStatus(t('Error: {0}', err instanceof Error ? err.message : String(err)));
     return;

@@ -15,12 +15,15 @@
 
 import type { AnalogWave } from './analog-waves.mjs';
 import type { BusDeviceSpec, BusDevices, I2cDevice, SpiDevice } from './i2c-devices.mjs';
+import type { PicoProgram } from './pico.mjs';
 import type {
   Breakpoint,
   DebugPauseState,
   Dht22Sensor,
   KeypadConfig,
   LcdParallelConfig,
+  NetRequest,
+  NetResponse,
   SimEngine,
   UltrasonicSensor,
 } from './types.mjs';
@@ -42,12 +45,42 @@ import {
  * publication.
  */
 function boardPins(board: WorkerBoard): string[] {
+  // RP2040 : GP0..GP29 (les entrées analogiques GP26..GP28 en font partie, et la
+  // LED embarquée d'un Pico W est redirigée sur GP25 par la rustine `machine`).
+  if (board === 'pico') {
+    const pins: string[] = [];
+    for (let i = 0; i < 30; i++) pins.push(`GP${i}`);
+    return pins;
+  }
   const digital = board === 'mega' ? 54 : 14;
   const analog = board === 'mega' ? 16 : 6;
   const pins: string[] = [];
   for (let i = 0; i < digital; i++) pins.push(String(i));
   for (let i = 0; i < analog; i++) pins.push(`A${i}`);
   return pins;
+}
+
+/**
+ * Clone le programme pour l'envoi : l'ORIGINAL reste à la page (relancer la
+ * simulation le relit), et la copie part par transfert — un firmware MicroPython
+ * pèse près d'un mégaoctet, le recopier à chaque lancement se verrait.
+ */
+function cloneProgram(
+  program: Uint16Array | PicoProgram
+): { program: Uint16Array | PicoProgram; transfer: Transferable[] } {
+  if (program instanceof Uint16Array) {
+    const copy = program.slice();
+    return { program: copy, transfer: [copy.buffer] };
+  }
+  if (program.kind === 'ram') {
+    const image = program.image.slice();
+    return { program: { ...program, image }, transfer: [image.buffer] };
+  }
+  const segments = program.segments.map((s) => ({ addr: s.addr, data: s.data.slice() }));
+  return {
+    program: { ...program, segments },
+    transfer: segments.map((s) => s.data.buffer),
+  };
 }
 
 /**
@@ -83,6 +116,19 @@ export class WorkerEngine implements SimEngine {
   onUpdate: (() => void) | null = null;
   onSerial: ((chunk: string) => void) | null = null;
   onDebugPause: ((state: DebugPauseState) => void) | null = null;
+  /** MicroPython : le script de l'élève démarre pour de bon. */
+  onRunning: (() => void) | null = null;
+  /** MicroPython : bascule vers le script instrumenté ('start' puis 'end'). */
+  onDebugRestart: ((phase: 'start' | 'end') => void) | null = null;
+  /** Pico W : requête HTTP à faire faire par l'hôte. */
+  onNetRequest: ((req: NetRequest) => void) | null = null;
+  /**
+   * Pas à pas. Posé à la CRÉATION et non à la réception du premier instantané :
+   * `sim.mts` grise son bouton (`!engine.step`) dès le lancement. Un Pico sans
+   * script MicroPython n'en a pas — comme `pico.mts`, qui ne définit `step` que
+   * dans ce cas.
+   */
+  step?: () => void;
 
   private worker: Worker;
   private pins: string[];
@@ -110,11 +156,12 @@ export class WorkerEngine implements SimEngine {
   private lastPressed = '';
   private pumpTimer: ReturnType<typeof setInterval> | null = null;
 
-  private constructor(worker: Worker, board: WorkerBoard) {
+  private constructor(worker: Worker, board: WorkerBoard, stepable: boolean) {
     this.worker = worker;
     this.pins = boardPins(board);
     this.pins.forEach((p, i) => this.index.set(p, i));
     this.snap = emptySnapshot(this.pins.length);
+    if (stepable) this.step = () => this.post({ t: 'step' });
     worker.onmessage = (e: MessageEvent<FromWorker>) => this.receive(e.data);
   }
 
@@ -125,7 +172,7 @@ export class WorkerEngine implements SimEngine {
    */
   static create(
     board: WorkerBoard,
-    program: Uint16Array,
+    program: Uint16Array | PicoProgram,
     debugInfo: unknown
   ): WorkerEngine | null {
     if (!blobUrl) return null;
@@ -135,11 +182,13 @@ export class WorkerEngine implements SimEngine {
     } catch {
       return null;
     }
-    const engine = new WorkerEngine(worker, board);
-    // Copie TRANSFÉRÉE : le flash change de fil sans être dupliqué en mémoire, et
-    // l'original reste à la page (une recompilation le relit).
-    const copy = program.slice();
-    engine.post({ t: 'init', board, program: copy, debugInfo, pins: engine.pins }, [copy.buffer]);
+    // Le pas à pas AVR est toujours là ; côté Pico il n'existe qu'en mode script
+    // MicroPython (une image bare-metal n'a pas de lignes à suivre).
+    const stepable =
+      program instanceof Uint16Array || (program.kind === 'flash' && !!program.script);
+    const engine = new WorkerEngine(worker, board, stepable);
+    const { program: copy, transfer } = cloneProgram(program);
+    engine.post({ t: 'init', board, program: copy, debugInfo, pins: engine.pins }, transfer);
     return engine;
   }
 
@@ -167,6 +216,15 @@ export class WorkerEngine implements SimEngine {
       case 'debugPause':
         this.pausedMirror = true;
         this.onDebugPause?.(msg.state as DebugPauseState);
+        return;
+      case 'scriptStarted':
+        this.onRunning?.();
+        return;
+      case 'debugRestart':
+        this.onDebugRestart?.(msg.phase);
+        return;
+      case 'netRequest':
+        this.onNetRequest?.(msg.req as NetRequest);
         return;
       case 'error':
         console.error('[kablix] moteur worker :', msg.message);
@@ -258,10 +316,6 @@ export class WorkerEngine implements SimEngine {
     this.post({ t: 'resume' });
   }
 
-  step(): void {
-    this.post({ t: 'step' });
-  }
-
   setSpeed(fraction: number): void {
     this.post({ t: 'setSpeed', fraction });
   }
@@ -276,8 +330,16 @@ export class WorkerEngine implements SimEngine {
 
   // --- Lectures (depuis le dernier instantané) --------------------------------
 
+  /**
+   * Position d'une broche dans l'instantané. Le RP2040 se nomme des deux façons
+   * dans le reste du code (`GP12` côté schéma, `12` côté moteur, cf. `gpioIndex`
+   * de `pico.mts`) : les deux écritures désignent ici la même broche.
+   */
   private slot(name: string): number {
-    return this.index.get(name) ?? -1;
+    const i = this.index.get(name);
+    if (i !== undefined) return i;
+    const alt = name.startsWith('GP') ? name.slice(2) : `GP${name}`;
+    return this.index.get(alt) ?? -1;
   }
 
   readDigital(name: string): boolean {
@@ -376,6 +438,11 @@ export class WorkerEngine implements SimEngine {
 
   writeSerial(text: string): void {
     this.post({ t: 'writeSerial', text });
+  }
+
+  /** Réponse du pont réseau (Pico W) : l'hôte a fait le fetch, le script attend. */
+  sendNetResponse(response: NetResponse): void {
+    this.post({ t: 'netResponse', response });
   }
 
   setPulseMonitors(names: string[]): void {

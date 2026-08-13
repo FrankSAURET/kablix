@@ -23,9 +23,19 @@
 4. ⏳ **Le test `araignee-uno` est déplacé dans `A Examiner/testkablix/Arduino/araignee-uno/`** (sketch + .projix, 2 fichiers, non supprimés). Le robot EST une Pico W depuis la v2026.8.24 : il n'a plus de broches, on ne peut plus le piloter depuis une Uno. Frank tranche : à jeter, ou à garder en archive.
 
 # En réserve
-1. ⬜ Lot **4** : `pico.mts` dans le worker. Repoussé APRÈS les périphériques, et non l'inverse : presque tous les schémas Pico portent un OLED, un LCD ou une carte 16 servos, un Pico déporté sans eux ne servirait à personne. Reste ensuite à faire passer en messages `onRunning`, `onDebugRestart` et le pont réseau `onNetRequest`/`sendNetResponse`.
-2. ⬜ Lot **5** : `sampleSevenSegLatches` (appelé sur chaque front GPIO) dans le worker, mesure du gain réel, décision du défaut de `kablix.simulationWorker`.
-Lots 1, 2 et 3 livrés en v2026.8.51, v2026.8.52 et v2026.8.53.
+1. ⬜ Lot **5** : `sampleSevenSegLatches` (appelé sur chaque front GPIO) dans le worker, mesure du gain réel, décision du défaut de `kablix.simulationWorker`.
+Lots 1 à 4 livrés en v2026.8.51, v2026.8.52, v2026.8.53 et v2026.8.54.
+
+# >>>>  v2026.8.54 — le Pico simule aussi sur son propre fil (lot 4)
+
+1. ✅ **`pico.mts` tourne dans le worker, tel quel** : le moteur RP2040 ne lit ni `document` ni `window` (seulement `performance.now`, `setTimeout`, `MessageChannel`, `TextDecoder`), il a donc déménagé sans une ligne de modification. `sim.mts` demande le worker pour la famille `rp2040` comme pour l'AVR, et retombe sur `new PicoEngine(picoProgram)` si le worker n'est pas disponible.
+2. ✅ **Le firmware est CLONÉ avant d'être transféré** (`cloneProgram`) : transférer les segments détacherait les tampons de la page, et le lancement suivant chargerait un flash vide. La copie part en transfert (aucune sérialisation d'un firmware de plusieurs mégaoctets), l'original reste intact côté page.
+3. ✅ **Les trois rappels propres au MicroPython deviennent des messages** : `onRunning` → `scriptStarted` (le bandeau passe de « Démarrage MicroPython… » à « En cours », et la mesure de vitesse s'arme), `onDebugRestart` → `debugRestart` (phases `start`/`end` du rejeu instrumenté, console vidée en silence), `onNetRequest` → `netRequest`. `sim.mts` ne change pas : il les branche déjà par `!== undefined`.
+4. ✅ **Pont réseau du Pico W en aller-retour complet** : le worker n'a ni `vscode.postMessage` ni le droit de sortir. La requête remonte à la page, l'hôte fait le vrai `fetch`, et la réponse redescend par `netResponse` → `sendNetResponse` jusqu'au script.
+5. ✅ **Le bouton « pas à pas » est décidé à la CRÉATION du moteur**, pas au premier instantané : `sim.mts` grise le bouton avec `!engine.step`, ce test est synchrone alors que le worker répond « prêt » plus tard. `WorkerEngine.create` reproduit donc la condition de `pico.mts` (`kind === 'flash'` **et** script présent) et ne pose `step` que dans ce cas — un firmware brut n'a pas de pas à pas, exactement comme sur le fil principal.
+6. ✅ **Les noms de broches RP2040 sont normalisés dans le proxy** (`slot`) : `pico.mts` accepte indifféremment `GP12` et `12`, l'instantané n'en publie qu'un. Une lecture faite sous l'autre nom trouve quand même sa broche — sinon la moitié des composants d'un schéma Pico serait restée éteinte.
+7. ✅ **Banc `verify:worker` : 110 contrôles** (93 avant). Le worker est exécuté dans Node avec un moteur RP2040 bouchon : une carte `pico` monte bien le moteur Pico et pas l'AVR, aucun message n'est émis par front GPIO, les trois rappels ressortent en `scriptStarted` / `debugRestart` (deux phases) / `netRequest`, la réponse de l'hôte est réinjectée au script, et `dispose` libère le moteur.
+8. ℹ️ **Reste le lot 5** : `sampleSevenSegLatches` est appelé sur chaque front GPIO ; avec un moteur déporté, `onUpdate` ne tombe qu'à chaque instantané (4 ms) et un chiffre multiplexé bref peut être manqué. C'est la dernière pièce avant de mesurer le gain réel et de décider du défaut de `kablix.simulationWorker`.
 
 # >>>>  v2026.8.53 — les écrans et les servos décodent leur bus dans le worker (lot 3)
 

@@ -54,8 +54,8 @@ ok(
 // Le repli est le garde-fou principal : bundle absent, CSP fermée ou réglage
 // éteint, la simulation doit démarrer exactement comme avant.
 ok(
-  'sim.mts : repli sur AvrEngine si le worker n’est pas disponible',
-  /workerReady\(\)[\s\S]{0,300}\?\?\s*\n?\s*new AvrEngine/.test(sim)
+  'sim.mts : repli sur le moteur du fil principal si le worker n’est pas disponible',
+  /workerReady\(\)[\s\S]{0,400}\?\?\s*\n?\s*\(rp2040[\s\S]{0,200}new AvrEngine/.test(sim)
 );
 // Les périphériques de bus sont des OBJETS à méthodes, appelés au milieu d'une
 // trame : ils ne traversent pas. Ils sont donc DÉCRITS, le worker fabrique les
@@ -98,9 +98,13 @@ ok(
   'sim.mts : pas de double calcul — un moteur à ondes ne reçoit pas la fonction',
   /if \(!engine\.setAnalogWaves\) engine\.setAnalogSampler\?\.\(pin, sampler\)/.test(sim)
 );
+// Le RP2040 passe par le worker depuis le lot 4 : `pico.mts` ne lit ni `document`
+// ni `window`. Le repli reste un `new PicoEngine` sur le fil principal.
 ok(
-  'sim.mts : le Pico ne passe pas encore par le worker',
-  /boardFamily\(board\) === 'rp2040'\s*\n?\s*\? new PicoEngine/.test(sim)
+  'sim.mts : le Pico passe par le worker, avec son programme et son repli',
+  /rp2040 \? 'pico' :/.test(sim) &&
+    /rp2040 \? picoProgram : unoProgram/.test(sim) &&
+    /rp2040\s*\n?\s*\? new PicoEngine\(picoProgram\)/.test(sim)
 );
 ok(
   'sim.mts : le bundle est préchargé (startRun est synchrone, il ne peut pas attendre)',
@@ -316,6 +320,66 @@ ok(
 engine.dispose();
 ok('dispose() arrête le worker', posted.some((m) => m.t === 'dispose'));
 
+// --- 2 ter. Le proxy côté Pico (lot 4) ---------------------------------------
+posted.length = 0;
+const picoFlash = {
+  kind: 'flash',
+  segments: [{ addr: 0x10000000, data: new Uint8Array([1, 2, 3, 4]) }],
+  script: 'print(1)',
+};
+const pico = WorkerEngine.create('pico', picoFlash, null);
+const picoWorker = workers.at(-1);
+const picoInit = posted.find((m) => m.t === 'init');
+ok(
+  'Pico : les 30 GPIO du RP2040 sont publiées',
+  picoInit?.pins?.length === 30 && picoInit.pins[25] === 'GP25'
+);
+// Le firmware est TRANSFÉRÉ : sans copie préalable, l'original de la page serait
+// détaché et le lancement suivant chargerait un flash vide.
+ok(
+  'Pico : le firmware est cloné avant l’envoi (l’original reste à la page)',
+  picoFlash.segments[0].data.length === 4 &&
+    picoInit.program.segments[0].data !== picoFlash.segments[0].data &&
+    picoInit.program.segments[0].data[3] === 4
+);
+ok('Pico : le script MicroPython suit le firmware', picoInit.program.script === 'print(1)');
+ok('Pico : un script MicroPython a le pas à pas', typeof pico.step === 'function');
+const picoRam = WorkerEngine.create('pico', { kind: 'ram', image: new Uint8Array(8) }, null);
+ok('Pico : une image bare-metal n’a PAS de pas à pas (bouton grisé)', picoRam.step === undefined);
+
+const psnap = emptySnapshot(30);
+psnap.seq = 1;
+psnap.digital[25] = 1;
+deliver(picoWorker, { t: 'snapshot', snap: psnap });
+// Le schéma dit « GP25 », le moteur « 25 » : les deux écritures se croisent dans
+// le code (cf. `gpioIndex` de pico.mts), une seule table de broches les couvre.
+ok(
+  'Pico : GP25 et 25 désignent la même broche',
+  pico.readDigital('GP25') === true && pico.readDigital('25') === true
+);
+
+let running = 0;
+const restarts = [];
+let netReq = null;
+pico.onRunning = () => running++;
+pico.onDebugRestart = (p) => restarts.push(p);
+pico.onNetRequest = (r) => (netReq = r);
+deliver(picoWorker, { t: 'scriptStarted' });
+deliver(picoWorker, { t: 'debugRestart', phase: 'start' });
+deliver(picoWorker, { t: 'debugRestart', phase: 'end' });
+deliver(picoWorker, { t: 'netRequest', req: { url: 'http://exemple' } });
+ok('Pico : « le script démarre » remonte à la page (bandeau « En marche »)', running === 1);
+ok('Pico : les deux phases du redémarrage en débogage remontent', restarts.join(',') === 'start,end');
+ok('Pico : la requête réseau remonte à la page (elle seule peut sortir)', netReq?.url === 'http://exemple');
+posted.length = 0;
+pico.sendNetResponse({ status: 200 });
+ok(
+  'Pico : la réponse de l’hôte repart au worker',
+  posted.find((m) => m.t === 'netResponse')?.response?.status === 200
+);
+pico.dispose();
+picoRam.dispose();
+
 // --- 3. Les formes d'onde, la SEULE physique partagée par les deux fils --------
 // Le worker les rejoue à l'instant de la conversion, la page les pose par frame :
 // une divergence entre les deux ferait une courbe différente selon un réglage.
@@ -385,6 +449,28 @@ writeFileSync(
 }
 `
 );
+// Même bouchon côté Pico : `pico.mts` embarque rp2040js et un firmware complet,
+// ce que `verify:micropython` couvre déjà. Ici on vérifie le TRI DES MESSAGES.
+writeFileSync(
+  join(CACHE, 'faux-pico.mjs'),
+  `export class PicoEngine {
+  constructor(program) {
+    globalThis.__pico = this;
+    this.program = program; this.paused = false;
+    this.onUpdate = null; this.onSerial = null; this.onDebugPause = null;
+    this.onRunning = null; this.onDebugRestart = null; this.onNetRequest = null;
+  }
+  start() { this.started = true; } stop() {} pause() { this.paused = true; }
+  resume() { this.paused = false; } setSpeed() {} setInput() {} setAnalog() {}
+  writeSerial() {} dispose() { this.disposed = true; }
+  readDigital() { return false; } readPinDrive() { return 'hiz'; }
+  readPulseUs() { return 0; } readPwmDuty() { return 0; } pulseActive() { return false; }
+  simulatedMs() { return 0; } busyMs() { return 0; } lagMs() { return 0; }
+  sendNetResponse(r) { this.net = r; }
+  setI2cDevices(d) { this.i2c = d; } setSpiDevices(d) { this.spi = d; }
+}
+`
+);
 const workerBundle = await esbuild({
   entryPoints: [join(ROOT, 'src', 'webview', 'engines', 'sim-worker.mts')],
   bundle: true,
@@ -395,9 +481,10 @@ const workerBundle = await esbuild({
   // résolution.
   plugins: [
     {
-      name: 'faux-avr',
+      name: 'faux-moteurs',
       setup(b) {
         b.onResolve({ filter: /^\.\/avr\.mjs$/ }, () => ({ path: join(CACHE, 'faux-avr.mjs') }));
+        b.onResolve({ filter: /^\.\/pico\.mjs$/ }, () => ({ path: join(CACHE, 'faux-pico.mjs') }));
       },
     },
   ],
@@ -577,6 +664,48 @@ ok('worker : une exception du moteur est annoncée à la page', fromWorker.some(
 
 toWorker({ t: 'dispose' });
 ok('worker : dispose libère le moteur', avr.disposed === true);
+
+// --- 4 ter. Le Pico dans le worker --------------------------------------------
+// `picoMoteur.mts` ne touche ni `document` ni `window` : il tourne tel quel ici. Restent
+// ses trois rappels propres au MicroPython, qui n'existent pas côté AVR et qui
+// doivent devenir des messages — la page en fait le bandeau et le pont réseau.
+fromWorker.length = 0;
+toWorker({
+  t: 'init',
+  board: 'pico',
+  program: { kind: 'flash', segments: [], script: 'print(1)' },
+  pins: ['GP25'],
+});
+const picoMoteur = globalThis.__pico;
+ok(
+  'worker : une carte pico monte le moteur RP2040, pas l’AVR',
+  Boolean(picoMoteur) && picoMoteur.program?.script === 'print(1)' && fromWorker.some((m) => m.t === 'ready')
+);
+ok('worker : aucun message par front GPIO côté Pico non plus', picoMoteur.onUpdate === null);
+
+picoMoteur.onRunning();
+ok(
+  'worker : « le script démarre » devient un message',
+  fromWorker.some((m) => m.t === 'scriptStarted')
+);
+picoMoteur.onDebugRestart('start');
+picoMoteur.onDebugRestart('end');
+ok(
+  'worker : les deux phases du rejeu instrumenté remontent',
+  fromWorker.filter((m) => m.t === 'debugRestart').map((m) => m.phase).join() === 'start,end'
+);
+// Le worker n'a ni `vscode.postMessage` ni le droit de sortir : la requête part à
+// la page, qui la fait faire à l'hôte, et la réponse redescend au script.
+picoMoteur.onNetRequest({ url: 'http://exemple' });
+ok(
+  'worker : une requête réseau du script est déléguée à la page',
+  fromWorker.find((m) => m.t === 'netRequest')?.req?.url === 'http://exemple'
+);
+toWorker({ t: 'netResponse', response: { status: 204 } });
+ok('worker : la réponse de l’hôte est réinjectée au script', picoMoteur.net?.status === 204);
+
+toWorker({ t: 'dispose' });
+ok('worker : dispose libère aussi le moteur Pico', picoMoteur.disposed === true);
 
 // --- Rapport ------------------------------------------------------------------
 let failed = 0;

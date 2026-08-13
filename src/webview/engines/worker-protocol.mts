@@ -127,6 +127,12 @@ export type ToWorker =
    * appelées au milieu d'une trame, à la cadence du bus.
    */
   | { t: 'setBusDevices'; specs: BusDeviceSpec[] }
+  /**
+   * Pont réseau du Pico W : la requête est partie du worker (`netRequest`), c'est
+   * l'HÔTE qui a fait le vrai fetch (le worker n'a ni `vscode.postMessage` ni le
+   * droit de sortir), et la réponse revient ici pour être réinjectée au script.
+   */
+  | { t: 'netResponse'; response: unknown }
   | { t: 'dispose' };
 
 /**
@@ -152,7 +158,12 @@ export type FromWorker =
   | { t: 'screens'; screens: ScreenUpdate }
   | { t: 'serial'; chunk: string }
   | { t: 'debugPause'; state: unknown }
+  /** MicroPython : le script de l'utilisateur commence VRAIMENT (cf. `onRunning`). */
   | { t: 'scriptStarted' }
+  /** MicroPython : bascule vers le script instrumenté (cf. `onDebugRestart`). */
+  | { t: 'debugRestart'; phase: 'start' | 'end' }
+  /** Pico W : le script demande une requête HTTP, que seul l'hôte peut faire. */
+  | { t: 'netRequest'; req: unknown }
   /** Le moteur a levé une exception : la page repasse en mode dégradé. */
   | { t: 'error'; message: string };
 
