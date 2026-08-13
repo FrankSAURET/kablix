@@ -49,17 +49,17 @@ const PARTS = {
   // 100 kΩ), vis à mi-course.
   'pot-rot2': { module: 'pot-rot2-element.mjs', tag: 'kablix-pot-rot2', width: 200, attrs: { ohms: '100000', value: '50' } },
   powerbank: { module: 'powerbank-element.mjs', tag: 'kablix-powerbank' },
-  // Patte seule : illustrée genou PLIÉ (une patte bien droite se lit comme un
+  // Patte seule : illustrée patella PLIÉ (une patte bien droite se lit comme un
   // simple tube — la pose montre les deux articulations).
   patte: {
     module: 'patte-element.mjs', tag: 'kablix-patte', width: 250,
-    attrs: { speed: '0', hipAngle: '75', kneeAngle: '125' },
+    attrs: { speed: '0', coxaAngle: '75', patellaAngle: '125' },
   },
-  // Araignée : illustrée AVEC son électronique embarquée et les genoux pliés
+  // Araignée : illustrée AVEC son électronique embarquée et les patellas pliées
   // (`speed: 0` = pas d'animation, la pose est atteinte avant la mesure).
   araignee: {
     module: 'araignee-element.mjs', tag: 'kablix-araignee',
-    attrs: { boards: '1', speed: '0', knee0: '120', knee1: '120', knee2: '120', knee3: '120' },
+    attrs: { boards: '1', speed: '0', patella0: '120', patella1: '120', patella2: '120', patella3: '120' },
   },
 };
 

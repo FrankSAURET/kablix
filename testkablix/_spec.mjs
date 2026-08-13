@@ -94,7 +94,7 @@ export const PART_PINS = {
   powerbank: ['V+', 'GND'],
   // Patte de robot à 2 articulations : chacune a son propre bornier 3 fils
   // (comme un servo), électriquement indépendant de l'autre.
-  patte: ['hanche.GND', 'hanche.V+', 'hanche.PWM', 'genou.GND', 'genou.V+', 'genou.PWM'],
+  patte: ['coxa.GND', 'coxa.V+', 'coxa.PWM', 'patella.GND', 'patella.V+', 'patella.PWM'],
   // Robot araignée complet : PCA9685, batterie ET Pico W EMBARQUÉS. Depuis la
   // v2026.8.24 il n'a plus AUCUNE broche — rien ne sort du châssis, le robot se
   // programme directement (c'est lui, la carte).
@@ -1035,7 +1035,7 @@ void loop() {
   test({
     // Patte de robot araignée (placeholder, cf. patte-element.mts) : 1 pièce,
     // 2 articulations indépendantes câblées chacune sur un canal du PCA9685
-    // (hanche → canal 0, genou → canal 1), alimentées par la powerbank.
+    // (coxa → canal 0, patella → canal 1), alimentées par la powerbank.
     name: 'patte-uno', board: 'uno', ext: 'ino',
     parts: [
       MCU('uno'),
@@ -1048,17 +1048,17 @@ void loop() {
       w('Mod1', 'VCC', 'U1', '5V', 'red'),
       w('Mod1', 'SDA', 'U1', 'A4', 'blue'),
       w('Mod1', 'SCL', 'U1', 'A5', 'yellow'),
-      w('Act1', 'hanche.PWM', 'Mod1', 'PWM0', 'orange'),
-      w('Act1', 'hanche.V+', 'Mod1', 'P1.5V', 'red'),
-      w('Act1', 'hanche.GND', 'Mod1', 'P1.GND', 'black'),
-      w('Act1', 'genou.PWM', 'Mod1', 'PWM1', 'orange'),
-      w('Act1', 'genou.V+', 'Mod1', 'P2.5V', 'red'),
-      w('Act1', 'genou.GND', 'Mod1', 'P2.GND', 'black'),
+      w('Act1', 'coxa.PWM', 'Mod1', 'PWM0', 'orange'),
+      w('Act1', 'coxa.V+', 'Mod1', 'P1.5V', 'red'),
+      w('Act1', 'coxa.GND', 'Mod1', 'P1.GND', 'black'),
+      w('Act1', 'patella.PWM', 'Mod1', 'PWM1', 'orange'),
+      w('Act1', 'patella.V+', 'Mod1', 'P2.5V', 'red'),
+      w('Act1', 'patella.GND', 'Mod1', 'P2.GND', 'black'),
       w('Bat1', 'V+', 'Mod1', 'V+', 'red'),
       w('Bat1', 'GND', 'Mod1', 'GND.2', 'black'),
     ],
-    expect: { kind: 'pca9685', partId: 'Mod1', channel: 0, targetId: 'Act1', targetPin: 'hanche.PWM', powered: true },
-    code: `// Test patte d'araignée : hanche (canal 0) et genou (canal 1) du PCA9685
+    expect: { kind: 'pca9685', partId: 'Mod1', channel: 0, targetId: 'Act1', targetPin: 'coxa.PWM', powered: true },
+    code: `// Test patte d'araignée : coxa (canal 0) et patella (canal 1) du PCA9685
 // balaient chacun 0°, 90° puis 180°, alimentés par la powerbank (V+/GND.2).
 #include <Wire.h>
 
@@ -2985,7 +2985,7 @@ while True:
   test({
     // Patte de robot araignée (placeholder, cf. patte-element.mts) : 1 pièce,
     // 2 articulations indépendantes câblées chacune sur un canal du PCA9685
-    // (hanche → canal 0, genou → canal 1), alimentées par la powerbank.
+    // (coxa → canal 0, patella → canal 1), alimentées par la powerbank.
     name: 'patte-pico', board: 'pico', ext: 'py',
     parts: [
       MCU('pico'),
@@ -2998,17 +2998,17 @@ while True:
       w('Mod1', 'VCC', 'U1', 'VBUS', 'red'),
       w('Mod1', 'SDA', 'U1', 'GP0', 'blue'),
       w('Mod1', 'SCL', 'U1', 'GP1', 'yellow'),
-      w('Act1', 'hanche.PWM', 'Mod1', 'PWM0', 'orange'),
-      w('Act1', 'hanche.V+', 'Mod1', 'P1.5V', 'red'),
-      w('Act1', 'hanche.GND', 'Mod1', 'P1.GND', 'black'),
-      w('Act1', 'genou.PWM', 'Mod1', 'PWM1', 'orange'),
-      w('Act1', 'genou.V+', 'Mod1', 'P2.5V', 'red'),
-      w('Act1', 'genou.GND', 'Mod1', 'P2.GND', 'black'),
+      w('Act1', 'coxa.PWM', 'Mod1', 'PWM0', 'orange'),
+      w('Act1', 'coxa.V+', 'Mod1', 'P1.5V', 'red'),
+      w('Act1', 'coxa.GND', 'Mod1', 'P1.GND', 'black'),
+      w('Act1', 'patella.PWM', 'Mod1', 'PWM1', 'orange'),
+      w('Act1', 'patella.V+', 'Mod1', 'P2.5V', 'red'),
+      w('Act1', 'patella.GND', 'Mod1', 'P2.GND', 'black'),
       w('Bat1', 'V+', 'Mod1', 'V+', 'red'),
       w('Bat1', 'GND', 'Mod1', 'GND.2', 'black'),
     ],
-    expect: { kind: 'pca9685', partId: 'Mod1', channel: 0, targetId: 'Act1', targetPin: 'hanche.PWM', powered: true },
-    code: `# Test patte d'araignee : hanche (canal 0) et genou (canal 1) du PCA9685
+    expect: { kind: 'pca9685', partId: 'Mod1', channel: 0, targetId: 'Act1', targetPin: 'coxa.PWM', powered: true },
+    code: `# Test patte d'araignee : coxa (canal 0) et patella (canal 1) du PCA9685
 # balaient chacun 0, 90 puis 180 degres, alimentes par la powerbank (V+/GND.2).
 from machine import Pin, I2C
 import time
@@ -3040,17 +3040,17 @@ while True:
     // (8 articulations), PCA9685, batterie ET Pico W EMBARQUÉS. Depuis la
     // v2026.8.24 il n'a plus aucune broche : le schéma est le robot SEUL, il
     // EST la carte (board picow) et son bus I²C interne relie sa Pico W à son
-    // PCA9685. Canaux 0..7 = hanche puis genou des pattes avant-gauche,
+    // PCA9685. Canaux 0..7 = coxa puis patella des pattes avant-gauche,
     // avant-droite, arrière-gauche, arrière-droite.
     name: 'araignee-pico', board: 'picow', ext: 'py',
     parts: [
-      { id: 'Act1', type: 'araignee', x: 620, y: 40, attrs: { address: '0x7F', speed: '2', boards: '' } },
+      { id: 'Act1', type: 'araignee', x: 570, y: 50, attrs: { address: '0x7F', speed: '2', boards: '1' } },
     ],
     wires: () => [],
     expect: { kind: 'i2c-part', partId: 'Act1' },
     code: `# Test robot araignee : les 8 articulations (4 pattes) sont pilotees par le
 # PCA9685 embarque a l'adresse 0x7F (pads AD0..AD5 tous ponte'es, reglage par
-# defaut du robot). Canaux 0/1 = hanche/genou avant-gauche, 2/3 avant-droite,
+# defaut du robot). Canaux 0/1 = coxa/patella avant-gauche, 2/3 avant-droite,
 # 4/5 arriere-gauche, 6/7 arriere-droite. Le bus est INTERNE au robot : la Pico W
 # du chassis y parle par I2C0, il n'y a rien a cabler dehors.
 from machine import Pin, I2C
@@ -3071,11 +3071,11 @@ def pca_impulsion(canal, microsecondes):
 def impulsion(degres):
     return 500 + degres * 2000 // 180
 
-# Pose complete : le meme angle de hanche et de genou pour les 4 pattes.
-def pose(hanche, genou):
+# Pose complete : le meme angle de coxa et de patella pour les 4 pattes.
+def pose(coxa, patella):
     for patte in range(4):
-        pca_impulsion(2 * patte, impulsion(hanche))
-        pca_impulsion(2 * patte + 1, impulsion(genou))
+        pca_impulsion(2 * patte, impulsion(coxa))
+        pca_impulsion(2 * patte + 1, impulsion(patella))
 
 pca_ecrit(0x00, 0x10)  # MODE1 : sleep pour regler le prescaler
 pca_ecrit(0xFE, 121)   # prescale 50 Hz (25 MHz / (4096 x 50) - 1)
@@ -3083,9 +3083,9 @@ pca_ecrit(0x00, 0x20)  # MODE1 : reveil + auto-increment
 
 while True:
     pose(90, 90);   print("pattes tendues");     time.sleep(1)
-    pose(90, 130);  print("genoux plies");       time.sleep(1)
-    pose(60, 130);  print("hanches en avant");   time.sleep(1)
-    pose(120, 130); print("hanches en arriere"); time.sleep(1)
+    pose(90, 130);  print("patellas pliees");   time.sleep(1)
+    pose(60, 130);  print("coxas en avant");    time.sleep(1)
+    pose(120, 130); print("coxas en arriere");  time.sleep(1)
 `,
   }),
 

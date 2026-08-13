@@ -1,5 +1,5 @@
 // Composant <kablix-araignee> : robot araignée quadrupède complet — corps en
-// sandwich + 4 pattes à 2 articulations (hanche, genou), électronique embarquée
+// sandwich + 4 pattes à 2 articulations (coxa, patella), électronique embarquée
 // (Pico W, PCA9685, batterie) prise dans le corps.
 //
 // Dessiné EN VOLUME depuis la v2026.8.22 (vue isométrique, moteur ./iso3d.mts),
@@ -8,10 +8,10 @@
 // `Composants3D.svg` (`araignee-corps`, `araignee-patte-femur`,
 // `araignee-patte-tibia`, rangés dans ./assemblages.mts), et ce sont leurs
 // PASTILLES ROUGES qui donnent les articulations :
-//   • les quatre `hanche…` du corps → quatre pattes, chacune tournant autour de
-//     l'axe VERTICAL de sa pastille (c'est le servo de hanche) ;
-//   • `genou-f` sur le fémur et `genou-t` sur le tibia → le tibia pivote autour
-//     de l'axe HORIZONTAL du genou, dans le plan vertical de la patte.
+//   • les quatre `coxa…` du corps → quatre pattes, chacune tournant autour de
+//     l'axe VERTICAL de sa pastille (c'est le servo de coxa) ;
+//   • `patella-f` sur le fémur et `patella-t` sur le tibia → le tibia pivote autour
+//     de l'axe HORIZONTAL de la patella, dans le plan vertical de la patte.
 // Redessiner une pièce dans Inkscape puis `npm run assemblage araignee-…` suffit
 // donc à changer le robot : ni cote, ni contour, ni point de pivot ici.
 //
@@ -21,7 +21,7 @@
 // `board: 'picow'`). Son PCA9685 embarqué reste simulé comme une vraie carte
 // PCA9685 (sim.mts) et répond sur le bus I²C interne, ses canaux 0..7 pilotant
 // les 8 articulations dans l'ordre avant-gauche, avant-droite, arrière-gauche,
-// arrière-droite (hanche puis genou).
+// arrière-droite (coxa puis patella).
 import { css, html, svg, LitElement, type TemplateResult } from 'lit';
 import { ElementPin } from './pin.mjs';
 import {
@@ -32,8 +32,8 @@ import {
 import { assemblage, hasAssemblage } from './assemblages.mjs';
 import { JointAnimator, jointTarget, type LegGeometry } from './patte-element.mjs';
 
-/** Les trois dessins qui font le robot. Le corps porte les hanches, le fémur
- *  porte le genou, le tibia porte le pied. */
+/** Les trois dessins qui font le robot. Le corps porte les coxas, le fémur
+ *  porte la patella, le tibia porte le pied. */
 const CORPS = 'araignee-corps';
 const FEMUR = 'araignee-patte-femur';
 const TIBIA = 'araignee-patte-tibia';
@@ -86,16 +86,16 @@ function opaque(fill: string | undefined): string | undefined {
   return m ? m[1] : fill;
 }
 
-/** Consigne de genou qui rend la pose DESSINÉE : le milieu de course du servo.
- *  Frank dessine son robot monté et debout (le tibia descend déjà du genou), donc
+/** Consigne de patella qui rend la pose DESSINÉE : le milieu de course du servo.
+ *  Frank dessine son robot monté et debout (le tibia descend déjà de la patella), donc
  *  90° ne plie rien — c'est le repos. Au-delà le tibia se replie vers le corps et
  *  le pied se lève, en deçà il se tend vers l'extérieur. */
-const KNEE_REST = 90;
+const PATELLA_REST = 90;
 
-/** Nom de la propriété d'une articulation (0..7) : `hip0`, `knee0`, `hip1`…
- *  Préfixé de `rev`, c'est celui de son sens de montage (`revhip0`). */
+/** Nom de la propriété d'une articulation (0..7) : `coxa0`, `patella0`, `coxa1`…
+ *  Préfixé de `rev`, c'est celui de son sens de montage (`revcoxa0`). */
 function jointKey(i: number): string {
-  return (i % 2 === 0 ? 'hip' : 'knee') + Math.floor(i / 2);
+  return (i % 2 === 0 ? 'coxa' : 'patella') + Math.floor(i / 2);
 }
 
 /** Le robot lu sur la planche : les trois dessins, les articulations qu'ils
@@ -105,20 +105,20 @@ type Robot = {
   corps: Assembly;
   femur: Assembly;
   tibia: Assembly;
-  /** Les quatre hanches du corps, rangées avant-gauche, avant-droite,
+  /** Les quatre coxas du corps, rangées avant-gauche, avant-droite,
    *  arrière-gauche, arrière-droite — l'ordre des canaux PWM. */
-  hips: Vec3[];
+  coxas: Vec3[];
   /** Lacet de repos de chaque patte : elle part vers l'extérieur, du côté où sa
-   *  hanche se trouve déjà sur le corps. */
+   *  coxa se trouve déjà sur le corps. */
   yaw: number[];
-  /** Patte montée en MIROIR (flanc droit) : la même consigne de hanche la fait
+  /** Patte montée en MIROIR (flanc droit) : la même consigne de coxa la fait
    *  tourner dans l'autre sens, comme sur le vrai châssis. */
   mirror: boolean[];
-  /** Les pastilles qui s'emboîtent : hanche du fémur, genou côté fémur, genou
+  /** Les pastilles qui s'emboîtent : coxa du fémur, patella côté fémur, patella
    *  côté tibia, et le bout du tibia (le pied). */
-  hipF: Vec3;
-  kneeF: Vec3;
-  kneeT: Vec3;
+  coxaF: Vec3;
+  patellaF: Vec3;
+  patellaT: Vec3;
   footT: Vec3;
   k: number;
   origin: Vec2;
@@ -146,7 +146,7 @@ function centerXY(a: Assembly): Vec2 {
   return { x: x / n, y: y / n };
 }
 
-/** Le pied : le point du tibia le plus LOIN de son genou. Le dessin n'a pas de
+/** Le pied : le point du tibia le plus LOIN de sa patella. Le dessin n'a pas de
  *  pastille au bout de la patte (il n'y a rien à y emboîter) — c'est donc sa
  *  géométrie qui le dit, et un tibia rallongé suivra tout seul. */
 function farthest(a: Assembly, from: Vec3): Vec3 {
@@ -160,30 +160,30 @@ function farthest(a: Assembly, from: Vec3): Vec3 {
 }
 
 /** Les deux transformations d'une patte pour une pose donnée, en unités de la
- *  feuille : où tombent les points du fémur, où tombent ceux du tibia. La hanche
- *  tourne la patte entière autour de l'axe vertical de sa pastille ; le genou ne
- *  tourne que le tibia, autour de l'axe horizontal du genou — dans le repère du
- *  fémur, donc la rotation du genou s'applique AVANT celle de la hanche. */
-function legXf(r: Robot, i: number, hipDeg: number, kneeDeg: number): {
+ *  feuille : où tombent les points du fémur, où tombent ceux du tibia. La coxa
+ *  tourne la patte entière autour de l'axe vertical de sa pastille ; la patella ne
+ *  tourne que le tibia, autour de l'axe horizontal de la patella — dans le repère du
+ *  fémur, donc la rotation de la patella s'applique AVANT celle de la coxa. */
+function legXf(r: Robot, i: number, coxaDeg: number, patellaDeg: number): {
   femur: (p: Vec3) => Vec3; tibia: (p: Vec3) => Vec3;
 } {
   const k = r.k;
-  const swing = (hipDeg - 90) * (r.mirror[i] ? -1 : 1);
+  const swing = (coxaDeg - 90) * (r.mirror[i] ? -1 : 1);
   const lacet = r.yaw[i] + swing;
-  const hipW = scale(r.hips[i], k);
-  const hipF = scale(r.hipF, k);
-  const kneeF = scale(r.kneeF, k);
-  const kneeT = scale(r.kneeT, k);
+  const coxaW = scale(r.coxas[i], k);
+  const coxaF = scale(r.coxaF, k);
+  const patellaF = scale(r.patellaF, k);
+  const patellaT = scale(r.patellaT, k);
   const present = (p: Vec3): Vec3 => rotZ({ x: p.x, y: p.y, z: p.z + r.ground }, YAW);
-  const femur = (p: Vec3): Vec3 => present(add(rotZ(sub(p, hipF), lacet), hipW));
-  // Axe du genou : le X du repère du fémur (`dir: 'x'` de la pastille) — il
+  const femur = (p: Vec3): Vec3 => present(add(rotZ(sub(p, coxaF), lacet), coxaW));
+  // Axe de la patella : le X du repère du fémur (`dir: 'x'` de la pastille) — il
   // tourne avec la patte, c'est tout l'intérêt de l'appliquer ici.
   const axis: Vec3 = { x: 1, y: 0, z: 0 };
-  // Consigne croissante = genou qui SE PLIE, donc pied qui SE LÈVE : le tibia se
+  // Consigne croissante = patella qui SE PLIE, donc pied qui SE LÈVE : le tibia se
   // rapproche du fémur, tous deux dessinés partant vers l'extérieur (−y) et vers
   // le bas — c'est la rotation NÉGATIVE autour du X du fémur qui les referme.
-  const bend = KNEE_REST - kneeDeg;
-  const tibia = (p: Vec3): Vec3 => femur(add(rotAxis(sub(p, kneeT), axis, bend), kneeF));
+  const bend = PATELLA_REST - patellaDeg;
+  const tibia = (p: Vec3): Vec3 => femur(add(rotAxis(sub(p, patellaT), axis, bend), patellaF));
   return { femur, tibia };
 }
 
@@ -202,34 +202,34 @@ function build(): Robot | null {
   const corps = assemblage(CORPS);
   const femur = assemblage(FEMUR);
   const tibia = assemblage(TIBIA);
-  // Les hanches : les pastilles de famille « hanche » du corps, rangées avant →
+  // Les coxas : les pastilles de famille « coxa » du corps, rangées avant →
   // arrière puis gauche → droite (y croissant = vers l'arrière, x croissant =
   // vers la droite). C'est l'ordre des canaux du PCA9685.
-  const hips = articulations(corps).filter((j) => j.famille === 'hanche')
+  const coxas = articulations(corps).filter((j) => j.famille === 'coxa')
     .sort((a, b) => (a.at.y - b.at.y) || (a.at.x - b.at.x))
     .slice(0, 4)
     .map((j) => j.at);
-  const hipF = articulations(femur).find((j) => j.famille === 'hanche')?.at;
-  const kneeF = articulations(femur).find((j) => j.famille === 'genou')?.at;
-  const kneeT = articulations(tibia).find((j) => j.famille === 'genou')?.at;
-  if (!hips.length || !hipF || !kneeF || !kneeT) return null;
+  const coxaF = articulations(femur).find((j) => j.famille === 'coxa')?.at;
+  const patellaF = articulations(femur).find((j) => j.famille === 'patella')?.at;
+  const patellaT = articulations(tibia).find((j) => j.famille === 'patella')?.at;
+  if (!coxas.length || !coxaF || !patellaF || !patellaT) return null;
 
-  // Lacet de repos : la patte part du centre du corps vers sa hanche, et le
-  // fémur est dessiné dans le sens hanche → genou. La même règle que le monteur
+  // Lacet de repos : la patte part du centre du corps vers sa coxa, et le
+  // fémur est dessiné dans le sens coxa → patella. La même règle que le monteur
   // de `montage()`, appliquée aux quatre pastilles.
   const c = centerXY(corps);
-  const cap = degXY({ x: kneeF.x - hipF.x, y: kneeF.y - hipF.y });
+  const cap = degXY({ x: patellaF.x - coxaF.x, y: patellaF.y - coxaF.y });
   const r: Robot = {
     corps,
     femur,
     tibia,
-    hips,
-    yaw: hips.map((h) => degXY({ x: h.x - c.x, y: h.y - c.y }) - cap),
-    mirror: hips.map((h) => h.x > 0),
-    hipF,
-    kneeF,
-    kneeT,
-    footT: farthest(tibia, kneeT),
+    coxas,
+    yaw: coxas.map((h) => degXY({ x: h.x - c.x, y: h.y - c.y }) - cap),
+    mirror: coxas.map((h) => h.x > 0),
+    coxaF,
+    patellaF,
+    patellaT,
+    footT: farthest(tibia, patellaT),
     k: 1,
     origin: { x: SHEET / 2, y: SHEET / 2 },
     ground: 0,
@@ -238,7 +238,7 @@ function build(): Robot | null {
   // Le SOL : la hauteur des pieds en pose de repos (90/90). Le robot est remonté
   // d'autant, ses ombres se collent alors sous ses pieds — et lever une patte la
   // décolle vraiment.
-  const rest = r.hips.map((_, i) => legXf(r, i, 90, 90).tibia(r.footT).z);
+  const rest = r.coxas.map((_, i) => legXf(r, i, 90, 90).tibia(r.footT).z);
   r.ground = -Math.min(...rest);
   // Le CADRAGE : la boîte projetée du corps et de chaque patte sur tout son
   // débattement. Les pattes sont indépendantes, il suffit donc de balayer une
@@ -267,13 +267,13 @@ function build(): Robot | null {
   const vf = assemblyVertices(femur, true);
   const vt = assemblyVertices(tibia, true);
   const poses = [0, 45, 90, 135, 180];
-  for (let i = 0; i < r.hips.length; i++) {
-    for (const hip of poses) {
-      for (const knee of poses) {
+  for (let i = 0; i < r.coxas.length; i++) {
+    for (const coxa of poses) {
+      for (const patella of poses) {
         // `legXf` travaille en unités de feuille : à k = 1 ce sont les
         // millimètres, et `present` y ajoute déjà le sol et le lacet — d'où la
         // projection directe, sans repasser par `eat`.
-        const xf = legXf(r, i, hip, knee);
+        const xf = legXf(r, i, coxa, patella);
         for (const q of vf) grow(bb, project(xf.femur(q)));
         for (const q of vt) grow(bb, project(xf.tibia(q)));
         // Et l'ombre du pied, qui tombe plus bas que le pied lui-même.
@@ -318,14 +318,14 @@ export class AraigneeElement extends LitElement {
   }
 
   /** Consigne d'angle (0-180°) des 8 articulations. 90/90 = robot debout. */
-  declare hip0: number;
-  declare knee0: number;
-  declare hip1: number;
-  declare knee1: number;
-  declare hip2: number;
-  declare knee2: number;
-  declare hip3: number;
-  declare knee3: number;
+  declare coxa0: number;
+  declare patella0: number;
+  declare coxa1: number;
+  declare patella1: number;
+  declare coxa2: number;
+  declare patella2: number;
+  declare coxa3: number;
+  declare patella3: number;
   /** Temps d'un tour complet (360°) à pleine vitesse, en secondes. 0 = instantané. */
   declare speed: number;
   /** Non vide : le PCA9685 et la batterie sont dessinés dans le corps (la carte
@@ -333,31 +333,31 @@ export class AraigneeElement extends LitElement {
   declare boards: string;
   /** Non vide : ce servo est monté à l'envers (180 − consigne). Un par
    *  articulation — sur le vrai châssis, tous ne sont pas vissés du même côté. */
-  declare revhip0: string;
-  declare revknee0: string;
-  declare revhip1: string;
-  declare revknee1: string;
-  declare revhip2: string;
-  declare revknee2: string;
-  declare revhip3: string;
-  declare revknee3: string;
+  declare revcoxa0: string;
+  declare revpatella0: string;
+  declare revcoxa1: string;
+  declare revpatella1: string;
+  declare revcoxa2: string;
+  declare revpatella2: string;
+  declare revcoxa3: string;
+  declare revpatella3: string;
 
   static properties = {
-    hip0: {}, knee0: {},
-    hip1: {}, knee1: {},
-    hip2: {}, knee2: {},
-    hip3: {}, knee3: {},
-    revhip0: { type: String }, revknee0: { type: String },
-    revhip1: { type: String }, revknee1: { type: String },
-    revhip2: { type: String }, revknee2: { type: String },
-    revhip3: { type: String }, revknee3: { type: String },
+    coxa0: {}, patella0: {},
+    coxa1: {}, patella1: {},
+    coxa2: {}, patella2: {},
+    coxa3: {}, patella3: {},
+    revcoxa0: { type: String }, revpatella0: { type: String },
+    revcoxa1: { type: String }, revpatella1: { type: String },
+    revcoxa2: { type: String }, revpatella2: { type: String },
+    revcoxa3: { type: String }, revpatella3: { type: String },
     speed: { type: Number },
     boards: { type: String },
     shown: { state: true },
   };
 
   /** Angles réellement affichés (rattrapage à vitesse limitée), 8 valeurs :
-   *  [hanche0, genou0, hanche1, genou1, …] — un seul état pour un seul rendu. */
+   *  [coxa0, patella0, coxa1, patella1, …] — un seul état pour un seul rendu. */
   declare shown: number[];
 
   private joints: JointAnimator[] = [];
@@ -369,7 +369,7 @@ export class AraigneeElement extends LitElement {
     this.shown = new Array(8).fill(90);
     for (let i = 0; i < 8; i++) {
       (this as unknown as Record<string, string>)[`rev${jointKey(i)}`] = '';
-      this.hipOrKnee(i, 90);
+      this.coxaOrPatella(i, 90);
       // Chaque articulation recopie son angle courant dans le tableau affiché
       // (un nouveau tableau : Lit ne détecte pas la mutation d'un array).
       this.joints.push(new JointAnimator(() => {
@@ -378,8 +378,8 @@ export class AraigneeElement extends LitElement {
     }
   }
 
-  /** Écrit la consigne d'une articulation : i pair = hanche, impair = genou. */
-  private hipOrKnee(i: number, v: number): void {
+  /** Écrit la consigne d'une articulation : i pair = coxa, impair = patella. */
+  private coxaOrPatella(i: number, v: number): void {
     (this as unknown as Record<string, number>)[jointKey(i)] = v;
   }
 
@@ -395,7 +395,7 @@ export class AraigneeElement extends LitElement {
   }
 
   willUpdate(changed: Map<string, unknown>): void {
-    if (![...changed.keys()].some((k) => /^(rev)?(hip|knee)\d$/.test(k) || k === 'speed')) return;
+    if (![...changed.keys()].some((k) => /^(rev)?(coxa|patella)\d$/.test(k) || k === 'speed')) return;
     const degPerSec = this.degPerSec();
     this.joints.forEach((j, i) => j.sync(this.target(i), degPerSec));
   }
@@ -411,7 +411,7 @@ export class AraigneeElement extends LitElement {
     const r = robot();
     if (!r) return [];
     const a = this.shown ?? new Array(8).fill(90);
-    return r.hips.map((_, i) => legXf(r, i, a[i * 2] ?? 90, a[i * 2 + 1] ?? 90));
+    return r.coxas.map((_, i) => legXf(r, i, a[i * 2] ?? 90, a[i * 2 + 1] ?? 90));
   }
 
   /** Géométrie 3D des quatre pattes telle qu'elle est DESSINÉE — c'est ce que
@@ -421,8 +421,8 @@ export class AraigneeElement extends LitElement {
     const r = robot();
     if (!r) return [];
     return this.legs().map((xf) => ({
-      hip: xf.femur(scale(r.hipF, r.k)),
-      knee: xf.femur(scale(r.kneeF, r.k)),
+      coxa: xf.femur(scale(r.coxaF, r.k)),
+      patella: xf.femur(scale(r.patellaF, r.k)),
       foot: xf.tibia(scale(r.footT, r.k)),
     }));
   }

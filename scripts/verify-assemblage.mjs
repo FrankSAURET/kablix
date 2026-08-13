@@ -62,7 +62,7 @@ ok('parsePose : pose incomplète = valeurs par défaut',
     { plan: 'face', pos: { x: 0, y: 0, z: 0 }, ep: 3, mat: 'pmma', miroir: '' }),
   JSON.stringify(parsePose('face')));
 // Un texte quelconque du groupe n'est PAS une étiquette : c'est un nom d'axe.
-ok('parsePose : un nom d\'axe n\'est pas une étiquette', parsePose('hanche-g') === null);
+ok('parsePose : un nom d\'axe n\'est pas une étiquette', parsePose('coxa-g') === null);
 ok('parsePose : un texte vide n\'est pas une étiquette', parsePose('   ') === null);
 ok('parsePose : une position mal écrite est ignorée (pièce au centre, visible)',
   parsePose('dessus pos=3,4').pos.x === 0, JSON.stringify(parsePose('dessus pos=3,4').pos));
@@ -146,7 +146,7 @@ ok('planeNormal : l\'épaisseur d\'une pièce de flanc part en travers du robot'
 const DEMO = {
   source: 'test',
   box: { x: 100, y: 80, z: 31 },
-  axes: { hanche: { x: 28, y: 0, z: 14 } },
+  axes: { coxa: { x: 28, y: 0, z: 14 } },
   pieces: [
     { name: 'flanc', plan: 'flanc', mat: 'pmma', ep: 3, pos: { x: 20, y: 0, z: 0 },
       w: 40, h: 20, poly: carre(40, 20), miroir: 'x' },
@@ -231,38 +231,38 @@ ok('renderFaces : une face translucide n\'a PAS de liseré',
 // --- les pastilles rouges font les ARTICULATIONS -------------------------------
 // Règle du dessin (v2026.8.42) : UNE pastille rouge = UNE articulation, et son
 // PREMIER MOT dit à quoi elle s'emboîte. Ce qui suit ne sert qu'à distinguer deux
-// pastilles voisines — Inkscape exige des ids uniques, d'où « genou-f » sur le
-// fémur face à « genou-t » sur le tibia. Rien de tout ça ne se voit sur une
+// pastilles voisines — Inkscape exige des ids uniques, d'où « patella-f » sur le
+// fémur face à « patella-t » sur le tibia. Rien de tout ça ne se voit sur une
 // image : quatre pattes empilées au même endroit ressemblent à une patte.
 ok('axisFamily : la famille est le PREMIER mot',
-  M.axisFamily('hanche-gh') === 'hanche' && M.axisFamily('genou-t') === 'genou',
-  M.axisFamily('hanche-gh'));
+  M.axisFamily('coxa-gh') === 'coxa' && M.axisFamily('patella-t') === 'patella',
+  M.axisFamily('coxa-gh'));
 ok('axisFamily : un nom d\'un seul mot est sa propre famille',
-  M.axisFamily('genou') === 'genou');
+  M.axisFamily('patella') === 'patella');
 const AX = {
-  'hanche-gh': { x: 20, y: -10, z: 8 },
-  'hanche-gb': { x: 20, y: -10, z: -8 },
-  'genou': { x: 0, y: 0, z: 0 },
+  'coxa-gh': { x: 20, y: -10, z: 8 },
+  'coxa-gb': { x: 20, y: -10, z: -8 },
+  'patella': { x: 0, y: 0, z: 0 },
 };
 const arts = M.articulations(AX);
 ok('articulations : CHAQUE pastille en est une — rien n\'est regroupé',
   arts.length === 3, arts.map((j) => j.name).join(', '));
 ok('articulations : l\'articulation porte le nom ENTIER de sa pastille',
-  arts.some((j) => j.name === 'hanche-gh') && arts.some((j) => j.name === 'hanche-gb'),
+  arts.some((j) => j.name === 'coxa-gh') && arts.some((j) => j.name === 'coxa-gb'),
   arts.map((j) => j.name).join(', '));
 ok('articulations : la famille est le premier mot, deux pastilles voisines la partagent',
-  arts.filter((j) => j.famille === 'hanche').length === 2
-  && arts.find((j) => j.name === 'genou')?.famille === 'genou');
+  arts.filter((j) => j.famille === 'coxa').length === 2
+  && arts.find((j) => j.name === 'patella')?.famille === 'patella');
 ok('articulations : `at` est le point de la pastille, tel quel',
-  near(arts.find((j) => j.name === 'hanche-gh').at.z, 8, 1e-9)
-  && near(arts.find((j) => j.name === 'hanche-gb').at.z, -8, 1e-9));
+  near(arts.find((j) => j.name === 'coxa-gh').at.z, 8, 1e-9)
+  && near(arts.find((j) => j.name === 'coxa-gb').at.z, -8, 1e-9));
 ok('articulations : `scale` s\'applique au point',
-  near(M.articulations(AX, 2).find((j) => j.name === 'hanche-gh').at.x, 40, 1e-9));
+  near(M.articulations(AX, 2).find((j) => j.name === 'coxa-gh').at.x, 40, 1e-9));
 ok('articulations : un ASSEMBLAGE se lit directement (ses pastilles sont dans .axes)',
   M.articulations({ ...DEMO, axes: AX }).length === 3);
 ok('assemblyAxis : une pastille absente ne fabrique pas de point',
   M.assemblyAxis(DEMO, 'jamais-dessine') === null
-  && M.assemblyAxis(DEMO, 'hanche')?.x === 28);
+  && M.assemblyAxis(DEMO, 'coxa')?.x === 28);
 
 // --- une pastille porte un AXE, pas un point ----------------------------------
 // Règle du dessin (v2026.8.43) : deux pièces en MIROIR créent entre elles un axe
@@ -306,8 +306,8 @@ ok('articulations : la DIRECTION de l\'axe suit la pastille',
 
 // --- le MONTAGE du robot entier ------------------------------------------------
 // Deux ensembles dont une pastille porte le même premier mot s'emboîtent, et celui
-// qui en offre le plus porte l'autre : quatre pastilles « hanche… » sur le corps,
-// une sur le fémur → quatre fémurs, donc quatre genoux, donc quatre tibias.
+// qui en offre le plus porte l'autre : quatre pastilles « coxa… » sur le corps,
+// une sur le fémur → quatre fémurs, donc quatre patellas, donc quatre tibias.
 
 /** Un ensemble d'essai : ses pastilles et le centre de ses pièces suffisent au
  *  monteur — c'est tout ce qu'il regarde. */
@@ -315,24 +315,24 @@ const ens = (nom, axes, pos) => ({
   nom,
   A: { source: 't', box: { x: 1, y: 1, z: 1 }, axes, pieces: [{ name: 'p', plan: 'dessus', mat: 'pmma', ep: 3, pos, w: 1, h: 1, poly: carre(1, 1) }] },
 });
-// Quatre hanches = quatre pastilles, une par patte. Toutes commencent par
-// « hanche » : c'est ce mot-là, et lui seul, qui les relie au fémur. Chacune porte
-// un AXE : les hanches sont verticales (les plaques du corps sont posées à plat),
-// les genoux en travers (les côtés du fémur sont des flancs) — la patte balaye
+// Quatre coxas = quatre pastilles, une par patte. Toutes commencent par
+// « coxa » : c'est ce mot-là, et lui seul, qui les relie au fémur. Chacune porte
+// un AXE : les coxas sont verticales (les plaques du corps sont posées à plat),
+// les patellas en travers (les côtés du fémur sont des flancs) — la patte balaye
 // autour de z et plie autour de x, comme une vraie.
 const ROBOT = [
   ens('corps', {
-    'hanche-ag': { x: -20, y: -20, z: 0, dir: 'z' },
-    'hanche-ad': { x: 20, y: -20, z: 0, dir: 'z' },
-    'hanche-rg': { x: -20, y: 20, z: 0, dir: 'z' },
-    'hanche-rd': { x: 20, y: 20, z: 0, dir: 'z' },
+    'coxa-ag': { x: -20, y: -20, z: 0, dir: 'z' },
+    'coxa-ad': { x: 20, y: -20, z: 0, dir: 'z' },
+    'coxa-rg': { x: -20, y: 20, z: 0, dir: 'z' },
+    'coxa-rd': { x: 20, y: 20, z: 0, dir: 'z' },
   }, { x: 0, y: 0, z: 0 }),
   ens('femur', {
-    hanche: { x: 0, y: 0, z: 0, dir: 'z' },
-    'genou-f': { x: 0, y: 30, z: 0, dir: 'x' },
+    coxa: { x: 0, y: 0, z: 0, dir: 'z' },
+    'patella-f': { x: 0, y: 30, z: 0, dir: 'x' },
   }, { x: 0, y: 15, z: 0 }),
   ens('tibia', {
-    'genou-t': { x: 0, y: 0, z: 0, dir: 'x' },
+    'patella-t': { x: 0, y: 0, z: 0, dir: 'x' },
     pied: { x: 0, y: 25, z: -30 },
   }, { x: 0, y: 12, z: -15 }),
 ];
@@ -342,7 +342,7 @@ const MO = M.montage(ROBOT);
 const combien = (n) => MO.filter((i) => i.nom === n).length;
 ok('montage : la BASE est celle qui offre le plus d\'articulations',
   MO[0]?.nom === 'corps' && !MO[0].parent, `${MO[0]?.nom}`);
-ok('montage : quatre hanches donnent quatre fémurs', combien('femur') === 4, `${combien('femur')}`);
+ok('montage : quatre coxas donnent quatre fémurs', combien('femur') === 4, `${combien('femur')}`);
 ok('montage : chaque fémur porte son tibia — quatre aussi', combien('tibia') === 4, `${combien('tibia')}`);
 ok('montage : chaque exemplaire dit sur QUELLE articulation il s\'est posé',
   new Set(MO.filter((i) => i.nom === 'femur').map((i) => i.via)).size === 4,
@@ -353,22 +353,22 @@ const corpsI = MO.find((i) => i.nom === 'corps');
 let ecartMax = 0;
 for (const f of MO.filter((i) => i.nom === 'femur')) {
   const surLeCorps = monde(corpsI, artAt(ROBOT[0].A, f.via));
-  ecartMax = Math.max(ecartMax, M.len(M.sub(monde(f, artAt(ROBOT[1].A, 'hanche')), surLeCorps)));
+  ecartMax = Math.max(ecartMax, M.len(M.sub(monde(f, artAt(ROBOT[1].A, 'coxa')), surLeCorps)));
 }
-ok('montage : les articulations sont SUPERPOSÉES — la hanche du fémur tombe sur celle du corps',
+ok('montage : les articulations sont SUPERPOSÉES — la coxa du fémur tombe sur celle du corps',
   ecartMax < 1e-9, `${ecartMax.toFixed(9)} mm`);
-let ecartGenou = 0;
+let ecartPatella = 0;
 const fems = MO.filter((i) => i.nom === 'femur');
 for (const [n, t] of MO.filter((i) => i.nom === 'tibia').entries()) {
-  ecartGenou = Math.max(ecartGenou,
-    M.len(M.sub(monde(t, artAt(ROBOT[2].A, 'genou-t')), monde(fems[n], artAt(ROBOT[1].A, 'genou-f')))));
+  ecartPatella = Math.max(ecartPatella,
+    M.len(M.sub(monde(t, artAt(ROBOT[2].A, 'patella-t')), monde(fems[n], artAt(ROBOT[1].A, 'patella-f')))));
 }
-// « genou-f » et « genou-t » : deux noms, un seul point de contact. C'est le
+// « patella-f » et « patella-t » : deux noms, un seul point de contact. C'est le
 // premier mot qui les apparie, le suffixe n'est là que pour Inkscape.
-ok('montage : le tibia se pose sur le genou de SON fémur', ecartGenou < 1e-9,
-  `${ecartGenou.toFixed(9)} mm`);
+ok('montage : le tibia se pose sur la patella de SON fémur', ecartPatella < 1e-9,
+  `${ecartPatella.toFixed(9)} mm`);
 // Quatre pattes empilées au même endroit, c'est le défaut qu'on ne voit pas sur
-// une image : chacune doit partir du côté où sa hanche se trouve déjà.
+// une image : chacune doit partir du côté où sa coxa se trouve déjà.
 ok('montage : les quatre pattes sont ÉCARTÉES, pas empilées',
   new Set(fems.map((i) => Math.round(i.lacet))).size === 4,
   fems.map((i) => Math.round(i.lacet)).join('°, ') + '°');
@@ -408,25 +408,25 @@ ok('montage : sans aucune articulation partagée, rien n\'est monté (la rangée
 
 // --- les pastilles d'un PROFIL : même règle, pièce isolée ----------------------
 // Un profil est dessiné SEUL puis posé entre deux articulations, à l'échelle. Ses
-// pastilles doivent suivre la pièce : sinon le tibia s'accoste sur un genou resté
+// pastilles doivent suivre la pièce : sinon le tibia s'accoste sur une patella resté
 // aux cotes du dessin, et la patte se disloque à la première mise à l'échelle.
-const OS = { poly: carre(80, 10), w: 80, h: 10, axes: { hanche: { x: -30, y: 0 }, genou: { x: 30, y: 0 } } };
+const OS = { poly: carre(80, 10), w: 80, h: 10, axes: { coxa: { x: -30, y: 0 }, patella: { x: 30, y: 0 } } };
 const posA = M.profileAxes(OS, { x: 0, y: 0, z: 0 }, { x: 80, y: 0, z: 0 });
 ok('profileAxes : la pastille est posée dans le monde, bord gauche sur `from`',
-  near(posA.hanche.x, 10, 1e-6) && near(posA.genou.x, 70, 1e-6),
-  `${posA.hanche.x} → ${posA.genou.x}`);
+  near(posA.coxa.x, 10, 1e-6) && near(posA.patella.x, 70, 1e-6),
+  `${posA.coxa.x} → ${posA.patella.x}`);
 const posB = M.profileAxes(OS, { x: 0, y: 0, z: 0 }, { x: 160, y: 0, z: 0 });
 ok('profileAxes : les pastilles suivent la MISE À L\'ÉCHELLE de la pièce',
-  near(posB.genou.x - posB.hanche.x, 2 * (posA.genou.x - posA.hanche.x), 1e-6),
-  `${(posA.genou.x - posA.hanche.x).toFixed(1)} → ${(posB.genou.x - posB.hanche.x).toFixed(1)}`);
+  near(posB.patella.x - posB.coxa.x, 2 * (posA.patella.x - posA.coxa.x), 1e-6),
+  `${(posA.patella.x - posA.coxa.x).toFixed(1)} → ${(posB.patella.x - posB.coxa.x).toFixed(1)}`);
 const posC = M.profileAxes(OS, { x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: -80 });
 ok('profileAxes : une pièce posée debout emporte ses pastilles',
-  near(posC.hanche.z, -10, 1e-6) && near(posC.genou.z, -70, 1e-6),
-  `${posC.hanche.z} → ${posC.genou.z}`);
+  near(posC.coxa.z, -10, 1e-6) && near(posC.patella.z, -70, 1e-6),
+  `${posC.coxa.z} → ${posC.patella.z}`);
 ok('profileAxes : un profil sans pastille ne rend rien (et ne casse pas)',
   Object.keys(M.profileAxes({ poly: carre(10, 10), w: 10, h: 10 },
     { x: 0, y: 0, z: 0 }, { x: 10, y: 0, z: 0 })).length === 0);
-// Un point du dessin doit tomber sur la pièce : la pastille du genou est dans la
+// Un point du dessin doit tomber sur la pièce : la pastille de la patella est dans la
 // matière, pas à côté. C'est le contrôle qui attrape un repère de dessin oublié.
 const osFaces = M.extrudeProfile(OS, { x: 0, y: 0, z: 0 }, { x: 80, y: 0, z: 0 }, 4, '#888888');
 const xsOs = osFaces.flatMap((f) => f.pts.map((q) => q.x));

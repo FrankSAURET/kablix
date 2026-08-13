@@ -1,4 +1,4 @@
-// Test patte d'araignée : hanche (canal 0) et genou (canal 1) du PCA9685
+// Test patte d'araignée : coxa (canal 0) et patella (canal 1) du PCA9685
 // balaient chacun 0°, 90° puis 180°, alimentés par la powerbank (V+/GND.2).
 #include <Wire.h>
 

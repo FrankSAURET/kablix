@@ -2335,11 +2335,11 @@ export function buzzerBindings(diagram: Diagram): SourceBinding[] {
 export interface PatteBinding {
   partId: string;
   /** Broche MCU de chaque articulation (null si non câblée au MCU). */
-  hanche: string | null;
-  genou: string | null;
+  coxa: string | null;
+  patella: string | null;
 }
 
-/** Pattes de robot : broche MCU de chaque articulation (hanche, genou),
+/** Pattes de robot : broche MCU de chaque articulation (coxa, patella),
  *  résolues indépendamment — même principe qu'une LED RGB à 2 canaux. */
 export function patteBindings(diagram: Diagram): PatteBinding[] {
   const nets = buildNets(diagram);
@@ -2348,9 +2348,9 @@ export function patteBindings(diagram: Diagram): PatteBinding[] {
     if (partDef(part.type).kind !== 'patte') continue;
     const pinOf = (pin: string): string | null =>
       mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin }));
-    const hanche = pinOf('hanche.PWM');
-    const genou = pinOf('genou.PWM');
-    if (hanche || genou) bindings.push({ partId: part.id, hanche, genou });
+    const coxa = pinOf('coxa.PWM');
+    const patella = pinOf('patella.PWM');
+    if (coxa || patella) bindings.push({ partId: part.id, coxa, patella });
   }
   return bindings;
 }
@@ -2466,7 +2466,7 @@ export interface Pca9685Binding {
   /** Identifiant du PCA9685. */
   partId: string;
   /** Canaux reliés à un composant pilotable (servo, LED, buzzer, patte).
-   *  `targetPin` = broche exacte touchée par le fil (ex. 'hanche.PWM' pour une
+   *  `targetPin` = broche exacte touchée par le fil (ex. 'coxa.PWM' pour une
    *  patte à 2 articulations ; sans intérêt pour les cibles à 1 seule broche PWM). */
   channels: Array<{ ch: number; targetId: string; targetKind: PartKind; targetPin: string }>;
 }

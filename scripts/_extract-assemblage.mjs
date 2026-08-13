@@ -14,7 +14,7 @@
 //     découpe laser — ce n'est pas leur place sur la planche qui compte ;
 //   • un texte dans le groupe donne la POSE : « flanc pos=0,-9,0 ep=3 miroir=y » ;
 //   • une pastille rouge marque un AXE d'articulation, le texte au-dessus le
-//     nomme (« hanche-av ») — même convention que les broches d'un composant.
+//     nomme (« coxa-av ») — même convention que les broches d'un composant.
 //     Cet axe est une DROITE, dirigée selon l'ÉPAISSEUR de la pièce qui la porte
 //     (une plaque `dessus` donne un axe vertical), et rangée par son ZÉRO : le
 //     milieu des deux exemplaires quand la pièce est en miroir.
@@ -206,9 +206,9 @@ export function assembleGroupes(nom, groupes, { source = planche('3D'), k = 1, t
     pieces.push(entry);
     // Les axes : une pastille rouge, nommée par son id ou par le texte au-dessus
     // d'elle. Ses coordonnées sont celles de la pièce qui la porte, pose
-    // comprise — c'est le dessin qui dit où passe la hanche, plus une constante du
-    // code. Le PREMIER MOT du nom dit sur quoi elle s'emboîte (`hanche-gh` et
-    // `hanche-db` sont deux hanches de la famille `hanche`, donc deux pattes).
+    // comprise — c'est le dessin qui dit où passe la coxa, plus une constante du
+    // code. Le PREMIER MOT du nom dit sur quoi elle s'emboîte (`coxa-gh` et
+    // `coxa-db` sont deux coxas de la famille `coxa`, donc deux pattes).
     //
     // Ce n'est pas un point mais une DROITE : la pièce en miroir est posée deux
     // fois, et l'axe de rotation passe entre les deux exemplaires, dans le sens de
@@ -242,14 +242,14 @@ const familleDe = (n) => (n.indexOf('-') > 0 ? n.slice(0, n.indexOf('-')) : n);
 
 /**
  * Ce que le dessin vient de dire du montage, énoncé plutôt que deviné devant
- * l'image : quatre pastilles `hanche…` sur le corps, ce sont quatre pattes. Une
+ * l'image : quatre pastilles `coxa…` sur le corps, ce sont quatre pattes. Une
  * seule, ce serait une patte au milieu — et sur une image, quatre pattes empilées
  * au même endroit ressemblent à une patte.
  *
  * Le piège suivant est le COPIER-COLLER : Inkscape refuse deux ids identiques et
- * suffixe le second (`hanche` collée dans le tibia devient `hanche-2`). La
+ * suffixe le second (`coxa` collée dans le tibia devient `coxa-2`). La
  * pastille garde alors la famille de la pièce d'où elle vient, et le tibia va se
- * poser sur le corps au lieu du genou. C'est invisible sur la planche, donc c'est
+ * poser sur le corps au lieu de la patella. C'est invisible sur la planche, donc c'est
  * dit ici.
  */
 function previentFamilles(nom, axes) {
@@ -258,8 +258,8 @@ function previentFamilles(nom, axes) {
   for (const [f, noms] of Object.entries(par)) {
     // La DIRECTION de l'axe se lit ici et nulle part ailleurs : elle vient du plan
     // de la pièce qui porte la pastille, et deux dessins ne s'emboîtent que si
-    // leurs axes pointent dans le même sens (une hanche verticale sur une plaque
-    // posée à plat, un genou en travers sur un flanc).
+    // leurs axes pointent dans le même sens (une coxa verticale sur une plaque
+    // posée à plat, une patella en travers sur un flanc).
     const dirs = [...new Set(noms.map((n) => axes[n].dir).filter(Boolean))];
     console.log(`    famille « ${f} » : ${noms.length} pastille(s), axe ${dirs.join('/').toUpperCase()}`
       + ` — ${noms.join(', ')}`);
@@ -272,7 +272,7 @@ function previentFamilles(nom, axes) {
       if (!/-\d+$/.test(n)) continue;
       console.log(`  ! ${nom} : « ${n} » finit par un numéro — c'est le suffixe qu'Inkscape ajoute`
         + ` à un id déjà pris, après un copier-coller. La pastille reste dans la famille « ${f} » :`
-        + ` renommez-la (« genou-t » face au « genou-f » du fémur) sinon elle s'emboîtera au mauvais endroit.`);
+        + ` renommez-la (« patella-t » face au « patella-f » du fémur) sinon elle s'emboîtera au mauvais endroit.`);
     }
   }
 }
@@ -368,7 +368,7 @@ export function ecrire(data) {
 //   • \`plan\`   : comment le dessin se pose (dessus / flanc / face) ;
 //   • \`pos\`    : le centre de la pièce dans le repère de l'assemblage ;
 //   • \`miroir\` : la pièce est posée DEUX fois, symétriquement (les deux flancs) ;
-//   • \`axes\`   : les pastilles rouges nommées — hanches, genoux, points de pivot.
+//   • \`axes\`   : les pastilles rouges nommées — coxas, patellas, points de pivot.
 //               Chacune est une DROITE : \`dir\` dit son sens (l'épaisseur de la
 //               pièce qui la porte), et le point rangé est son ZÉRO — le milieu
 //               des deux exemplaires en miroir. Deux dessins s'emboîtent axes

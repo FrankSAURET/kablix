@@ -85,7 +85,7 @@ const idAutoPage = (id) => !id
 /** Le nom d'une pastille : l'id du ROND, ou — s'il est automatique — celui du
  *  GROUPE qui l'enveloppe. Inkscape groupe dès qu'on déplace un repère, et c'est
  *  alors le groupe qui reçoit le nom saisi dans Objet → Propriétés de l'objet :
- *  sans ce repli, la pastille « genou-f » du fémur n'était qu'un « circle97 »
+ *  sans ce repli, la pastille « patella-f » du fémur n'était qu'un « circle97 »
  *  anonyme, ignorée à la lecture. La remontée s'arrête AVANT le groupe de la
  *  pièce, qui nomme la pièce et pas la pastille. */
 function padId(el, g) {

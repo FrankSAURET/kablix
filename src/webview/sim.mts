@@ -1763,7 +1763,7 @@ function refreshVisualsInner(): void {
         break;
       }
       case 'patte': {
-        // 2 articulations indépendantes (hanche, genou) : même mesure d'impulsion
+        // 2 articulations indépendantes (coxa, patella) : même mesure d'impulsion
         // que le servo simple, appliquée séparément à chacune.
         const bind = patteTargets.get(part.id);
         if (!bind) break;
@@ -1776,10 +1776,10 @@ function refreshVisualsInner(): void {
           if (us > 0) return Math.max(0, Math.min(180, ((us - pmin) / span) * 180));
           return engine!.readDigital(pin) ? 90 : 0;
         };
-        const hip = angleFor(bind.hanche);
-        const knee = angleFor(bind.genou);
-        if (hip !== undefined) el.hipAngle = hip;
-        if (knee !== undefined) el.kneeAngle = knee;
+        const coxa = angleFor(bind.coxa);
+        const patella = angleFor(bind.patella);
+        if (coxa !== undefined) el.coxaAngle = coxa;
+        if (patella !== undefined) el.patellaAngle = patella;
         break;
       }
       case 'fan': {
@@ -1982,7 +1982,7 @@ function bindInputs(): void {
     .filter((p): p is string => !!p);
   engine.setPulseMonitors?.([
     ...servoBindings(editor.diagram).map((b) => b.mcuPin),
-    ...patteBindings(editor.diagram).flatMap((b) => [b.hanche, b.genou].filter((p): p is string => p !== null)),
+    ...patteBindings(editor.diagram).flatMap((b) => [b.coxa, b.patella].filter((p): p is string => p !== null)),
     ...buzzers.map((b) => b.mcuPin),
     ...fanPins,
     ...motorPins,
@@ -2628,11 +2628,11 @@ function applyPca9685(): void {
         if (powered) el.angle = Math.max(0, Math.min(180, (duty * 20000 - 1000) / 1000 * 180));
       } else if (c.targetKind === 'patte') {
         // Même formule que servo, appliquée à l'articulation exacte visée par
-        // ce canal (targetPin distingue hanche.PWM de genou.PWM).
+        // ce canal (targetPin distingue coxa.PWM de patella.PWM).
         if (powered) {
           const angle = Math.max(0, Math.min(180, (duty * 20000 - 1000) / 1000 * 180));
-          if (c.targetPin === 'hanche.PWM') el.hipAngle = angle;
-          else if (c.targetPin === 'genou.PWM') el.kneeAngle = angle;
+          if (c.targetPin === 'coxa.PWM') el.coxaAngle = angle;
+          else if (c.targetPin === 'patella.PWM') el.patellaAngle = angle;
         }
       } else if (c.targetKind === 'led') {
         el.brightness = duty;
@@ -2647,7 +2647,7 @@ function applyPca9685(): void {
 /**
  * Propage les sorties du PCA9685 EMBARQUÉ dans une araignée vers ses 8
  * articulations. Rien à router par les fils, contrairement au PCA9685 posé sur
- * la planche : le câblage interne est fixe — canaux 0..7 = hanche puis genou des
+ * la planche : le câblage interne est fixe — canaux 0..7 = coxa puis patella des
  * pattes avant-gauche, avant-droite, arrière-gauche, arrière-droite.
  * La batterie est embarquée elle aussi : les servos sont toujours alimentés (le
  * bus I²C n'apporte que la logique).
@@ -2664,7 +2664,7 @@ function applyAraignee(): void {
       const duty = dev.channelDuty(ch);
       if (duty <= 0) continue; // canal pas encore piloté : l'articulation ne bouge pas
       const angle = Math.max(0, Math.min(180, ((duty * 20000 - 1000) / 1000) * 180));
-      el[`${ch % 2 === 0 ? 'hip' : 'knee'}${Math.floor(ch / 2)}`] = angle;
+      el[`${ch % 2 === 0 ? 'coxa' : 'patella'}${Math.floor(ch / 2)}`] = angle;
     }
   }
 }

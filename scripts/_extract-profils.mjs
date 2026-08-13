@@ -21,8 +21,8 @@
 //     l'AVANT du robot. Os et blocs : dessinés VUS DE CÔTÉ, pièce couchée, le
 //     bord gauche est la première articulation, le bord droit la seconde ;
 //   • une pastille rouge NOMMÉE est un point d'articulation : son id Inkscape,
-//     ou le texte au-dessus d'elle. Deux pastilles de même préfixe (« genou-h »
-//     et « genou-b ») font un AXE de rotation — deux points, donc une droite.
+//     ou le texte au-dessus d'elle. Deux pastilles de même préfixe (« patella-h »
+//     et « patella-b ») font un AXE de rotation — deux points, donc une droite.
 //     Une pastille anonyme reste un repère de tracé et est ignorée.
 //
 // Sortie : src/webview/composants/profils.mts — un objet figé, relu et FUSIONNÉ à
@@ -101,7 +101,7 @@ export function profilDepuisGroupe(it, { k = 1, tol = TOL_DEFAUT, source = planc
   if (holes.length) entry.holes = holes.map(move);
   // Les axes : les pastilles rouges nommées, dans le MÊME repère que `poly`
   // (px de grille, centrés sur la boîte). Un fémur dessiné seul dit ainsi où
-  // sont son genou et sa hanche ; le sous-ensemble s'accoste dessus au lieu
+  // sont sa patella et sa coxa ; le sous-ensemble s'accoste dessus au lieu
   // d'être calé sur des constantes du code.
   const libres = (it.texts ?? []).map((t) => ({ s: t.s, x: t.x * k - cx, y: t.y * k - cy }));
   const axes = {};
@@ -160,8 +160,8 @@ export function ecrire(data) {
 //
 // Coordonnées en pixels de la grille 10 px, centrées sur le milieu de la boîte
 // englobante de la pièce. \`holes\` : les perçages, dans le même repère.
-// \`axes\` : les pastilles rouges nommées — genoux, hanches, points de pivot. Deux
-// pastilles de même préfixe (\`genou-h\`, \`genou-b\`) font un axe de rotation.
+// \`axes\` : les pastilles rouges nommées — patellas, coxas, points de pivot. Deux
+// pastilles de même préfixe (\`patella-h\`, \`patella-b\`) font un axe de rotation.
 import type { Profile } from './iso3d.mjs';
 
 const DATA = ${dump(data)} as const;

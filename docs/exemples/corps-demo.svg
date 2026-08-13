@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="200mm" height="140mm" viewBox="0 0 200 140">
   <!-- Assemblage de démonstration du guide « Dessiner les systèmes en volume ».
        Un corps de robot en sandwich : deux plaques de PMMA de 3 mm, les servos
-       de hanche pris entre elles, une entretoise à l'avant.
+       de coxa pris entre elles, une entretoise à l'avant.
        Les pièces sont posées CÔTE À CÔTE, comme un plan de découpe laser : ce
        n'est pas leur place sur la planche qui compte, c'est leur étiquette.
        Planche en millimètres (width="200mm", viewBox de 200) : 1 unité = 1 mm. -->
@@ -23,19 +23,19 @@
       M 29,50 a 3,3 0 1,0 6,0 a 3,3 0 1,0 -6,0 Z
       M 85,50 a 3,3 0 1,0 6,0 a 3,3 0 1,0 -6,0 Z" />
     <!-- UNE pastille = UNE articulation, posée là où l'axe du servo passe
-         vraiment. Le PREMIER MOT du nom est la famille : « hanche » est ce que
+         vraiment. Le PREMIER MOT du nom est la famille : « coxa » est ce que
          la patte cherchera pour s'emboîter, le « -g » / « -d » ne sert qu'à
          donner deux ids distincts (Inkscape refuse deux fois le même).
-         Deux pastilles « hanche… » ici, donc DEUX pattes.
+         Deux pastilles « coxa… » ici, donc DEUX pattes.
          Chacune est nommée par son ID Inkscape (Objet → Propriétés de l'objet) :
          le nom colle au rond, il survit à un déplacement et n'encombre pas la
          planche d'étiquettes. -->
-    <circle id="hanche-g" cx="32" cy="50" r="1.2" fill="#ee0000" />
-    <circle id="hanche-d" cx="88" cy="50" r="1.2" fill="#ee0000" />
+    <circle id="coxa-g" cx="32" cy="50" r="1.2" fill="#ee0000" />
+    <circle id="coxa-d" cx="88" cy="50" r="1.2" fill="#ee0000" />
     <text x="60" y="100">dessus pos=0,0,14 ep=3 miroir=z</text>
   </g>
 
-  <!-- Servo de hanche : un bloc, pas une plaque de PMMA. Vu de côté, il est
+  <!-- Servo de coxa : un bloc, pas une plaque de PMMA. Vu de côté, il est
        posé à ±28 mm de l'axe du robot — donc deux exemplaires (miroir=x),
        chacun serré entre les deux plaques. -->
   <g id="corps-demo-servo-profil">

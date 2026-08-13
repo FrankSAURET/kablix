@@ -856,20 +856,20 @@ export const CATALOG: readonly PartDef[] = [
   },
   // Patte de robot articulée (dessin PLACEHOLDER, pas de Frank — cf.
   // patte-element.mts ; en VOLUME depuis la v2026.8.22). 1 pièce, 2 servos
-  // internes (hanche = balayage au sol, genou = lever/baisser), indépendants
+  // internes (coxa = balayage au sol, patella = lever/baisser), indépendants
   // électriquement mais imbriqués mécaniquement à l'affichage.
   // Mêmes impulsions/vitesse que <kablix-servo> (même formule PWM→angle).
   {
     type: 'patte', label: 'Spider leg', tag: 'kablix-patte', kind: 'patte',
     attrs: {
-      pulsemin: '500', pulsemax: '2500', speed: '2', revhip: '', revknee: '',
+      pulsemin: '500', pulsemax: '2500', speed: '2', revcoxa: '', revpatella: '',
     },
     props: [
       { attr: 'pulsemin', label: 'Pulse at 0° (µs)', kind: 'number', min: 100, max: 3000, step: 1 },
       { attr: 'pulsemax', label: 'Pulse at 180° (µs)', kind: 'number', min: 100, max: 3000, step: 1 },
       { attr: 'speed', label: 'Rotation time (s/turn)', kind: 'number', min: 0, max: 30, step: 0.1 },
-      REVERSE_PROP('revhip', 'Reverse the hip servo'),
-      REVERSE_PROP('revknee', 'Reverse the knee servo'),
+      REVERSE_PROP('revcoxa', 'Reverse the coxa servo'),
+      REVERSE_PROP('revpatella', 'Reverse the patella servo'),
     ],
   },
   // Robot araignée quadrupède complet (dessin PLACEHOLDER, pas de Frank — cf.
@@ -882,27 +882,27 @@ export const CATALOG: readonly PartDef[] = [
   // carte nue. Son PCA9685 embarqué répond sur le bus I²C interne (le moteur le
   // relie aux deux contrôleurs du RP2040 sans dépendre d'un fil), ses canaux
   // 0..7 pilotant les articulations dans l'ordre avant-gauche, avant-droite,
-  // arrière-gauche, arrière-droite (hanche, genou).
+  // arrière-gauche, arrière-droite (coxa, patella).
   {
     type: 'araignee', label: 'Spider robot', tag: 'kablix-araignee', kind: 'araignee',
     board: 'picow', pinless: true,
     attrs: {
       address: '0x7F', ...PCA9685_PAD_ATTRS, speed: '2', boards: '',
-      revhip0: '', revknee0: '', revhip1: '', revknee1: '',
-      revhip2: '', revknee2: '', revhip3: '', revknee3: '',
+      revcoxa0: '', revpatella0: '', revcoxa1: '', revpatella1: '',
+      revcoxa2: '', revpatella2: '', revcoxa3: '', revpatella3: '',
     },
     props: [
       ...PCA9685_PAD_PROPS,
       { attr: 'speed', label: 'Rotation time (s/turn)', kind: 'number', min: 0, max: 30, step: 0.1 },
       { attr: 'boards', label: 'Show on-board electronics', kind: 'checkbox' },
-      REVERSE_PROP('revhip0', 'Reverse the front-left hip'),
-      REVERSE_PROP('revknee0', 'Reverse the front-left knee'),
-      REVERSE_PROP('revhip1', 'Reverse the front-right hip'),
-      REVERSE_PROP('revknee1', 'Reverse the front-right knee'),
-      REVERSE_PROP('revhip2', 'Reverse the rear-left hip'),
-      REVERSE_PROP('revknee2', 'Reverse the rear-left knee'),
-      REVERSE_PROP('revhip3', 'Reverse the rear-right hip'),
-      REVERSE_PROP('revknee3', 'Reverse the rear-right knee'),
+      REVERSE_PROP('revcoxa0', 'Reverse the front-left coxa'),
+      REVERSE_PROP('revpatella0', 'Reverse the front-left patella'),
+      REVERSE_PROP('revcoxa1', 'Reverse the front-right coxa'),
+      REVERSE_PROP('revpatella1', 'Reverse the front-right patella'),
+      REVERSE_PROP('revcoxa2', 'Reverse the rear-left coxa'),
+      REVERSE_PROP('revpatella2', 'Reverse the rear-left patella'),
+      REVERSE_PROP('revcoxa3', 'Reverse the rear-right coxa'),
+      REVERSE_PROP('revpatella3', 'Reverse the rear-right patella'),
     ],
   },
   // Clavier matriciel à membrane (3 ou 4 colonnes). Interactif : une touche

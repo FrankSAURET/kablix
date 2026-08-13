@@ -222,7 +222,7 @@ const etat = {
   // pas ce qui était masqué.
   ensCaches: new Set(), cachees: new Set(),
   // Les ensembles réduits à UN exemplaire : monté, le corps fait naître autant de
-  // fémurs qu'il a de hanches, et on ne veut pas toujours les quatre.
+  // fémurs qu'il a de coxas, et on ne veut pas toujours les quatre.
   unSeul: new Set(),
   donnees: null, occupe: false, erreur: '',
 };
@@ -381,8 +381,8 @@ function scene(mont) {
     }
     if (!etat.axes) continue;
     // Les pastilles, une par une : chacune est une articulation à elle seule, et
-    // son premier mot dit sur quoi elle s'emboîte (« hanche-gb » → famille
-    // « hanche »). Chacune porte une DROITE — la pièce en miroir est posée deux
+    // son premier mot dit sur quoi elle s'emboîte (« coxa-gb » → famille
+    // « coxa »). Chacune porte une DROITE — la pièce en miroir est posée deux
     // fois et l'axe de rotation passe entre les deux exemplaires, dans le sens de
     // l'épaisseur. Le trait la montre en entier : c'est lui qui dit si deux
     // dessins tournent bien autour de la même chose, ce qu'un point tait.
@@ -422,7 +422,7 @@ function bascule(jeu, cle) {
 }
 
 /** \`n\` = le nombre d'exemplaires que le montage lui a donnés : le corps porte
- *  quatre hanches, il naît quatre fémurs. Au-delà d'un, une case « ×n » permet de
+ *  quatre coxas, il naît quatre fémurs. Au-delà d'un, une case « ×n » permet de
  *  n'en garder qu'UN — quatre pattes cachent le corps qu'on voulait regarder. */
 function ligneEnsemble(e, n) {
   const montre = !etat.ensCaches.has(e.nom);
@@ -481,7 +481,7 @@ function rendu() {
   const liste = d ? d.ensembles : [];
   const axes = liste.flatMap((e) => Object.entries(e.A.axes).map(([n, v]) => [e.nom, n, v]));
   // Le montage sert deux fois : à la scène, et au panneau qui dit combien
-  // d'exemplaires chaque ensemble a reçus (« ×4 » = quatre hanches, quatre pattes).
+  // d'exemplaires chaque ensemble a reçus (« ×4 » = quatre coxas, quatre pattes).
   const mont = montageCourant();
   const combien = new Map();
   for (const i of mont ?? []) combien.set(i.nom, (combien.get(i.nom) ?? 0) + 1);
@@ -505,7 +505,7 @@ function rendu() {
       \${etat.monte ? '' : caseSimple('rangee', 'côte à côte')}
       \${etat.monte && !mont && liste.length > 1 ? html\`<p class="note">rien à monter :
         aucun ensemble ne partage une famille d'articulation (deux dessins doivent nommer
-        la même — « hanche », « genou »…). Affichage côte à côte.</p>\` : ''}
+        la même — « coxa », « patella »…). Affichage côte à côte.</p>\` : ''}
       \${liste.map((e) => html\`<div class="bloc">
         \${ligneEnsemble(e, combien.get(e.nom) ?? 1)}
         \${e.A.pieces.map((p) => lignePiece(e, p))}

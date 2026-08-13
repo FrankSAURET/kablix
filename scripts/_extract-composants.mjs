@@ -8,7 +8,8 @@
 //   - un composant = un groupe dont l'id est le nom du composant ;
 //   - les PASTILLES ROUGES (cercles fill #ee0000) marquent les points de
 //     connexion ; le texte juste au-dessus donne le NOM de la patte (nc = non
-//     connecté). Pastilles et libellés sont des repères : retirés du dessin livré ;
+//     connecté). Pastilles et libellés sont des repères : retirés du dessin livré
+//     (--garde-libelles laisse les noms, pour un bornier où ils sont dessinés) ;
 //   - 1 px de grille = 0,26458333 mm → facteur mm→px = 3,7795276.
 //
 // Le cadre livré est choisi pour que chaque pastille tombe sur un multiple de
@@ -23,6 +24,7 @@
 // Usage : node scripts/_extract-composants.mjs diode condo-np ...
 //         node scripts/_extract-composants.mjs --png diode   (aperçu PNG seulement)
 //         node scripts/_extract-composants.mjs to92 NPN1@to92 --drop=txt-TO92
+//         node scripts/_extract-composants.mjs connecteur-servo-patte --garde-libelles
 //         node scripts/_extract-composants.mjs NPN1@to92 --drop=path409 --suffix=-libre
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -42,6 +44,10 @@ const args = process.argv.slice(2);
 const pngOnly = args.includes('--png');
 const DROP = (args.find((a) => a.startsWith('--drop='))?.slice(7) ?? '').split(',').filter(Boolean);
 const SUFFIX = args.find((a) => a.startsWith('--suffix='))?.slice(9) ?? '';
+// Les noms de pattes sont normalement des REPÈRES, retirés du dessin livré.
+// Sur un connecteur (bornier servo…), ils font partie du dessin : Frank écrit
+// GND / V+ / PWM sur le boîtier pour qu'on sache où brancher quoi.
+const KEEP_LABELS = args.includes('--garde-libelles');
 // « NPN1@to92 » → schéma interne NPN1 calé sur le boîtier to92 déjà extrait.
 const names = args
   .filter((a) => !a.startsWith('--'))
@@ -74,6 +80,7 @@ try {
 const MM2PX = ${MM2PX};
 const NAMES = ${JSON.stringify(names)};
 const DROP = ${JSON.stringify(DROP)};
+const KEEP_LABELS = ${KEEP_LABELS};
 const root = document.querySelector('#board svg');
 const out = [];
 const isPad = (el) => {
@@ -127,7 +134,7 @@ function collect(name, ids, parent, host) {
   // Clone nettoyé : pastilles, libellés et ids explicitement écartés (--drop).
   const clone = g.cloneNode(true);
   const kill = new Set(DROP);
-  for (const p of pads) { kill.add(p.el.getAttribute('id')); if (p.label) kill.add(p.label.el.getAttribute('id')); }
+  for (const p of pads) { kill.add(p.el.getAttribute('id')); if (p.label && !KEEP_LABELS) kill.add(p.label.el.getAttribute('id')); }
   for (const el of [...clone.querySelectorAll('*')]) {
     if (kill.has(el.getAttribute('id'))) el.remove();
   }

@@ -61,7 +61,7 @@ export function rotZ(p: Vec3, deg: number): Vec3 {
 /**
  * Rotation autour d'un axe QUELCONQUE (Rodrigues), `u` unitaire et passant par
  * l'origine, angle en degrés. `rotZ` ne sait tourner qu'autour de la verticale :
- * c'est le lacet d'une hanche, mais surtout pas un GENOU, dont l'axe est
+ * c'est le lacet d'une coxa, mais surtout pas une PATELLA, dont l'axe est
  * horizontal et tourne lui-même avec la patte. Composer une translation, cette
  * rotation et la translation inverse fait pivoter une pièce autour de l'axe
  * dessiné, où qu'il soit.
@@ -384,9 +384,9 @@ function profileFrame(profile: Profile, from: Vec3, to: Vec3) {
 
 /**
  * Les pastilles nommées d'un profil, une fois la pièce POSÉE entre `from` et
- * `to` : le genou dessiné sur le fémur devient un point du monde, à l'échelle de
+ * `to` : la patella dessiné sur le fémur devient un point du monde, à l'échelle de
  * la patte, au milieu de son épaisseur. C'est ainsi qu'un sous-ensemble s'accoste
- * sur un autre — le tibia tourne autour du genou que le fémur a dessiné, plus
+ * sur un autre — le tibia tourne autour de la patella que le fémur a dessiné, plus
  * autour d'une cote reportée à la main.
  *
  * Passer le résultat à `articulations` pour les lire par famille.
@@ -705,7 +705,7 @@ export function assemblyVertices(a: Assembly, withEp = false): Vec3[] {
 }
 
 /** Position d'un AXE d'articulation dans la scène : la pastille rouge nommée du
- *  dessin, mise à l'échelle et placée. C'est le dessin qui dit où est la hanche,
+ *  dessin, mise à l'échelle et placée. C'est le dessin qui dit où est la coxa,
  *  plus une constante du code. Rend `null` si l'axe n'est pas dessiné. */
 export function assemblyAxis(
   a: Assembly, name: string, scaleK = 1, xf: (p: Vec3) => Vec3 = (p) => p,
@@ -714,15 +714,15 @@ export function assemblyAxis(
   return v ? xf(scale(v, scaleK)) : null;
 }
 
-/** La FAMILLE d'une pastille : son PREMIER mot — `hanche-gh` → `hanche`,
- *  `genou-t` → `genou`, `genou` → `genou`. C'est TOUTE la règle du dessin : le
+/** La FAMILLE d'une pastille : son PREMIER mot — `coxa-gh` → `coxa`,
+ *  `patella-t` → `patella`, `patella` → `patella`. C'est TOUTE la règle du dessin : le
  *  premier mot dit à quoi la pastille s'emboîte, ce qui vient après ne sert qu'à
  *  distinguer deux pastilles voisines (`-gh`/`-db` sur le corps, `-f`/`-t` de
- *  part et d'autre du genou — Inkscape exige des ids uniques).
+ *  part et d'autre de la patella — Inkscape exige des ids uniques).
  *
  *  Deux ensembles qui nomment la même famille sont faits pour s'emboîter, et
  *  c'est le NOMBRE de pastilles de cette famille qui dit combien d'exemplaires il
- *  faut : quatre `hanche…` sur le corps, une `hanche` sur le fémur → quatre
+ *  faut : quatre `coxa…` sur le corps, une `coxa` sur le fémur → quatre
  *  fémurs. */
 export function axisFamily(name: string): string {
   const i = name.indexOf('-');
@@ -733,8 +733,8 @@ export function axisFamily(name: string): string {
  * Une ARTICULATION : UNE pastille rouge et l'AXE qu'elle porte. Il n'y a rien à
  * regrouper — chaque pastille est un pivot à elle seule.
  *
- * `name` est le nom entier de la pastille (`hanche-gh`), `famille` son premier
- * mot (`hanche`), `at` le ZÉRO de son axe dans le repère de l'ensemble, et `dir`
+ * `name` est le nom entier de la pastille (`coxa-gh`), `famille` son premier
+ * mot (`coxa`), `at` le ZÉRO de son axe dans le repère de l'ensemble, et `dir`
  * la direction de cet axe (l'épaisseur de la pièce qui la porte : `z` pour une
  * plaque posée à plat, `x` pour un flanc).
  */
@@ -743,7 +743,7 @@ export type Articulation = { name: string; famille: string; at: Vec3; dir?: Axis
 /**
  * Les ARTICULATIONS d'un assemblage : ses pastilles, une par une, dans l'ordre
  * des noms. C'est par elles que deux sous-ensembles s'assemblent — le fémur se
- * pose sur une hanche du corps, le tibia sur le genou du fémur. Les deux dessins
+ * pose sur une coxa du corps, le tibia sur la patella du fémur. Les deux dessins
  * nomment la MÊME famille, et il n'y a plus rien à mesurer.
  *
  * Prend un assemblage, ou directement des pastilles déjà placées — celles d'un
@@ -791,7 +791,7 @@ function centreXY(a: Assembly): Vec2 {
 }
 
 /** Le SENS d'un ensemble vu depuis une de ses articulations : vers l'articulation
- *  suivante si elle existe (un fémur va de la hanche au genou), sinon vers le
+ *  suivante si elle existe (un fémur va de la coxa à la patella), sinon vers le
  *  centre de ses pièces. Rendu dans le plan X/Y, non normalisé. */
 function sensDepuis(a: Assembly, joints: Articulation[], depuis: Articulation): Vec2 {
   for (const j of joints) {
@@ -812,9 +812,9 @@ const degXY = (v: Vec2): number => (Math.atan2(v.y, v.x) * 180) / Math.PI;
  *
  * La règle tient en une phrase : **deux ensembles dont une pastille porte le même
  * PREMIER MOT s'emboîtent, et celui qui en offre le plus porte l'autre.** Le
- * corps a quatre pastilles `hanche…`, le fémur une seule `hanche` : le corps est
- * la base et il naît quatre fémurs. Chaque fémur a un `genou-f`, le tibia un
- * `genou-t` : un tibia par fémur, soit quatre.
+ * corps a quatre pastilles `coxa…`, le fémur une seule `coxa` : le corps est
+ * la base et il naît quatre fémurs. Chaque fémur a un `patella-f`, le tibia un
+ * `patella-t` : un tibia par fémur, soit quatre.
  *
  * Ce qui se superpose, ce sont les AXES : deux droites de même direction, mises
  * l'une sur l'autre et CENTRÉES SUR LEUR ZÉRO — le milieu des deux pièces en
@@ -835,7 +835,7 @@ export function montage(ensembles: Ensemble[]): Instance[] {
   const joints = new Map<string, Articulation[]>();
   for (const e of ensembles) joints.set(e.nom, articulations(e.A));
   // La BASE : celle qui offre le plus d'articulations — c'est le corps qui porte
-  // les hanches, jamais la patte qui n'en demande qu'une.
+  // les coxas, jamais la patte qui n'en demande qu'une.
   const ordre = [...ensembles].sort((x, y) =>
     (joints.get(y.nom)!.length - joints.get(x.nom)!.length) || x.nom.localeCompare(y.nom));
   const par = new Map(ensembles.map((e) => [e.nom, e.A]));
@@ -887,7 +887,7 @@ export function montage(ensembles: Ensemble[]): Instance[] {
         for (const pi of posees.get(pnom)!) {
           for (const pt of points) {
             // Une famille à plusieurs articulations écarte ses enfants : chacun
-            // part du côté où sa hanche se trouve déjà sur le corps.
+            // part du côté où sa coxa se trouve déjà sur le corps.
             const delta = points.length > 1
               ? degXY({ x: pt.at.x - cp.x, y: pt.at.y - cp.y })
                 - degXY(sensDepuis(enfant.A, ej, accroche))

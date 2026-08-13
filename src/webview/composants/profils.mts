@@ -6,8 +6,8 @@
 //
 // Coordonnées en pixels de la grille 10 px, centrées sur le milieu de la boîte
 // englobante de la pièce. `holes` : les perçages, dans le même repère.
-// `axes` : les pastilles rouges nommées — genoux, hanches, points de pivot. Deux
-// pastilles de même préfixe (`genou-h`, `genou-b`) font un axe de rotation.
+// `axes` : les pastilles rouges nommées — patellas, coxas, points de pivot. Deux
+// pastilles de même préfixe (`patella-h`, `patella-b`) font un axe de rotation.
 import type { Profile } from './iso3d.mjs';
 
 const DATA = {
@@ -79,8 +79,8 @@ const DATA = {
     ]
     ],
     "axes": {
-      "hanche": { "x": -29.93, "y": 0.01 },
-      "genou": { "x": 30.07, "y": 0.01 }
+      "coxa": { "x": -29.93, "y": 0.01 },
+      "patella": { "x": 30.07, "y": 0.01 }
     }
   }
 } as const;

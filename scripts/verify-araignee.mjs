@@ -46,8 +46,8 @@ async function run() {
 		return el;
 	};
 	// La cinématique se lit dans la géométrie 3D dessinée, pas dans le DOM :
-	// cap de la patte au sol (direction hanche → genou) et hauteur du pied.
-	const cap = (g) => deg(Math.atan2(g.knee.y - g.hip.y, g.knee.x - g.hip.x));
+	// cap de la patte au sol (direction coxa → patella) et hauteur du pied.
+	const cap = (g) => deg(Math.atan2(g.patella.y - g.coxa.y, g.patella.x - g.coxa.x));
 	const polys = (el) => el.shadowRoot.querySelectorAll('polygon').length;
 	const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
 
@@ -72,9 +72,9 @@ async function run() {
 	ok('catalogue : le robot EST une carte Pico W', def?.board === 'picow', def?.board);
 	ok('catalogue : robot déclaré SANS broches (pinless)', def?.pinless === true, String(def?.pinless));
 	ok('catalogue : 8 cases d\\'inversion de servo (une par articulation)',
-		[0, 1, 2, 3].every((i) => def?.props?.some((p) => p.attr === \`revhip\${i}\`) && def?.props?.some((p) => p.attr === \`revknee\${i}\`)));
+		[0, 1, 2, 3].every((i) => def?.props?.some((p) => p.attr === \`revcoxa\${i}\`) && def?.props?.some((p) => p.attr === \`revpatella\${i}\`)));
 	ok('catalogue : la patte a ses 2 cases d\\'inversion',
-		patteDef?.props?.some((p) => p.attr === 'revhip') && patteDef?.props?.some((p) => p.attr === 'revknee'));
+		patteDef?.props?.some((p) => p.attr === 'revcoxa') && patteDef?.props?.some((p) => p.attr === 'revpatella'));
 
 	// --- 2. Broches : le robot n'en a plus AUCUNE (v2026.8.24) ------------------
 	const el = await mk();
@@ -83,16 +83,16 @@ async function run() {
 
 	// --- 3. Le robot vient du DESSIN, et il est VRAIMENT dessiné ---------------
 	// Rien n'est codé en dur : les trois assemblages doivent être là, et les
-	// quatre hanches sortir des pastilles rouges du corps.
+	// quatre coxas sortir des pastilles rouges du corps.
 	const R = robot();
 	ok('dessin : les trois assemblages sont lus (corps, fémur, tibia)',
 		!!R && !!R.corps && !!R.femur && !!R.tibia);
-	ok('dessin : 4 hanches lues sur les pastilles du corps', R?.hips?.length === 4, R?.hips?.length);
-	ok('dessin : le genou vient des deux pastilles « genou » (fémur et tibia)',
-		!!R?.kneeF && !!R?.kneeT && !!R?.hipF);
+	ok('dessin : 4 coxas lues sur les pastilles du corps', R?.coxas?.length === 4, R?.coxas?.length);
+	ok('dessin : la patella vient des deux pastilles « patella » (fémur et tibia)',
+		!!R?.patellaF && !!R?.patellaT && !!R?.coxaF);
 	// Deux pattes à gauche (x < 0), deux à droite : c'est ce qui donne les deux
 	// sens de balayage. Une planche redessinée de travers se verrait ici.
-	ok('dessin : deux hanches à gauche, deux à droite (montage en miroir)',
+	ok('dessin : deux coxas à gauche, deux à droite (montage en miroir)',
 		R?.mirror?.filter(Boolean).length === 2, R?.mirror?.join(','));
 	const svg = el.shadowRoot.querySelector('svg');
 	ok('dessin : 4 pattes dans la géométrie', el.geometry.length === 4, el.geometry.length);
@@ -130,18 +130,18 @@ async function run() {
 
 	// --- 4. Debout : les 4 pieds portent le robot -------------------------------
 	const g0 = el.geometry;
-	const solHip = g0[0].hip.z;
+	const solHip = g0[0].coxa.z;
 	ok('debout (90°/90°) : les 4 pieds à la MÊME hauteur',
 		g0.every((g) => Math.abs(g.foot.z - g0[0].foot.z) < 0.01), g0.map((g) => g.foot.z.toFixed(1)).join(' '));
 	// Le SOL est z = 0 : c'est là que se collent les ombres, et c'est le dessin
 	// qui décide de la hauteur du robot — pas une constante.
 	ok('debout : les pieds touchent le sol (z = 0, sous les ombres)',
 		Math.abs(g0[0].foot.z) < 0.01, g0[0].foot.z.toFixed(3));
-	ok('debout : les 4 hanches à la même hauteur (le corps est de niveau)',
-		g0.every((g) => Math.abs(g.hip.z - solHip) < 0.01), g0.map((g) => g.hip.z.toFixed(1)).join(' '));
-	ok('debout : les pieds sont PLUS ÉCARTÉS que les hanches (pattes vers dehors)',
+	ok('debout : les 4 coxas à la même hauteur (le corps est de niveau)',
+		g0.every((g) => Math.abs(g.coxa.z - solHip) < 0.01), g0.map((g) => g.coxa.z.toFixed(1)).join(' '));
+	ok('debout : les pieds sont PLUS ÉCARTÉS que les coxas (pattes vers dehors)',
 		Math.max(...g0.map((g, i) => dist(g.foot, g0[(i + 2) % 4].foot)))
-		> Math.max(...g0.map((g, i) => dist(g.hip, g0[(i + 2) % 4].hip))));
+		> Math.max(...g0.map((g, i) => dist(g.coxa, g0[(i + 2) % 4].coxa))));
 	ok('debout : le corps est au-dessus du sol', solHip > 20, solHip.toFixed(1));
 
 	// --- 5. Électronique embarquée : masquée par défaut, montrée sur demande ----
@@ -154,32 +154,32 @@ async function run() {
 	// --- 6. Les 8 articulations sont indépendantes ------------------------------
 	// speed=0 : la consigne doit être atteinte IMMÉDIATEMENT (le rappel manquait).
 	const inst = await mk({ speed: '0' });
-	const tibia0 = dist(g0[2].knee, g0[2].foot);
-	inst.knee2 = 150;
+	const tibia0 = dist(g0[2].patella, g0[2].foot);
+	inst.patella2 = 150;
 	await inst.updateComplete;
 	const gi = inst.geometry;
 	// Le tibia est une PIÈCE : sa longueur ne change pas avec la pose. C'est le
 	// contrôle qui attrape un pivot pris au mauvais endroit (le pied se mettait à
-	// glisser le long de la patte au lieu de tourner autour du genou).
-	ok('speed=0 : le tibia reste RIGIDE en pliant le genou',
-		Math.abs(dist(gi[2].knee, gi[2].foot) - tibia0) < 0.01,
-		\`\${dist(gi[2].knee, gi[2].foot).toFixed(2)} vs \${tibia0.toFixed(2)}\`);
+	// glisser le long de la patte au lieu de tourner autour de la patella).
+	ok('speed=0 : le tibia reste RIGIDE en pliant la patella',
+		Math.abs(dist(gi[2].patella, gi[2].foot) - tibia0) < 0.01,
+		\`\${dist(gi[2].patella, gi[2].foot).toFixed(2)} vs \${tibia0.toFixed(2)}\`);
 	ok('speed=0 : le pied est bien LEVÉ (la 2D à plat ne le montrait pas)',
 		gi[2].foot.z > gi[0].foot.z + 15, \`\${gi[2].foot.z.toFixed(1)} vs \${gi[0].foot.z.toFixed(1)}\`);
-	ok('speed=0 : le genou, lui, n\\'a pas bougé (il est porté par la hanche)',
-		dist(gi[2].knee, g0[2].knee) < 0.01, dist(gi[2].knee, g0[2].knee).toFixed(3));
+	ok('speed=0 : la patella, lui, n\\'a pas bougé (il est porté par la coxa)',
+		dist(gi[2].patella, g0[2].patella) < 0.01, dist(gi[2].patella, g0[2].patella).toFixed(3));
 	ok('speed=0 : les autres articulations n\\'ont pas bougé',
 		[0, 1, 3].every((i) => Math.abs(gi[i].foot.z - g0[i].foot.z) < 0.01 && Math.abs(ecart(cap(gi[i]), cap(g0[i]))) < 0.01));
-	inst.hip0 = 0; inst.hip1 = 0;
+	inst.coxa0 = 0; inst.coxa1 = 0;
 	await inst.updateComplete;
 	const gh = inst.geometry;
 	// Patte GAUCHE et patte DROITE reçoivent la MÊME consigne : montées en
 	// miroir, elles doivent balayer en sens OPPOSÉ (comme sur le vrai châssis).
-	ok('hanche : consigne 0° = 90° de balayage', Math.abs(Math.abs(ecart(cap(gh[0]), cap(g0[0]))) - 90) < 0.01, ecart(cap(gh[0]), cap(g0[0])));
-	ok('hanches : la patte de droite est montée en MIROIR (balayage opposé)',
+	ok('coxa : consigne 0° = 90° de balayage', Math.abs(Math.abs(ecart(cap(gh[0]), cap(g0[0]))) - 90) < 0.01, ecart(cap(gh[0]), cap(g0[0])));
+	ok('coxas : la patte de droite est montée en MIROIR (balayage opposé)',
 		ecart(cap(gh[0]), cap(g0[0])) * ecart(cap(gh[1]), cap(g0[1])) < 0,
 		\`\${ecart(cap(gh[0]), cap(g0[0])).toFixed(0)} / \${ecart(cap(gh[1]), cap(g0[1])).toFixed(0)}\`);
-	inst.hip3 = 900; // consigne aberrante
+	inst.coxa3 = 900; // consigne aberrante
 	await inst.updateComplete;
 	ok('consigne hors bornes écrêtée à 180°',
 		Math.abs(Math.abs(ecart(cap(inst.geometry[3]), cap(g0[3]))) - 90) < 0.01, ecart(cap(inst.geometry[3]), cap(g0[3])));
@@ -188,35 +188,35 @@ async function run() {
 	// C'est un réglage MÉCANIQUE : le programme envoie toujours la même consigne,
 	// seule la pièce tourne dans l'autre sens (180 − angle).
 	const dir = await mk({ speed: '0' });
-	dir.hip0 = 30;
+	dir.coxa0 = 30;
 	await dir.updateComplete;
 	const capDroit = cap(dir.geometry[0]);
-	dir.hip0 = 150;
+	dir.coxa0 = 150;
 	await dir.updateComplete;
 	const capMiroir = cap(dir.geometry[0]);
-	const inv = await mk({ speed: '0', revhip0: '1' });
-	inv.hip0 = 30;
+	const inv = await mk({ speed: '0', revcoxa0: '1' });
+	inv.coxa0 = 30;
 	await inv.updateComplete;
-	ok('inversion : revhip0 = la consigne 30° donne le cap de 150°',
+	ok('inversion : revcoxa0 = la consigne 30° donne le cap de 150°',
 		Math.abs(ecart(cap(inv.geometry[0]), capMiroir)) < 0.01 && Math.abs(ecart(capDroit, capMiroir)) > 1,
 		\`\${cap(inv.geometry[0]).toFixed(1)} vs \${capMiroir.toFixed(1)} (droit \${capDroit.toFixed(1)})\`);
 	ok('inversion : elle ne touche QUE son articulation',
 		[1, 2, 3].every((i) => Math.abs(ecart(cap(inv.geometry[i]), cap(g0[i]))) < 0.01
 			&& Math.abs(inv.geometry[i].foot.z - g0[i].foot.z) < 0.01));
-	// Genou : 30° et 150° lèvent le pied de la MÊME hauteur (cos ±60°), c'est le
+	// Patella : 30° et 150° lèvent le pied de la MÊME hauteur (cos ±60°), c'est le
 	// côté qui change — on compare donc le pied dans l'espace, pas sa hauteur.
 	const kn = await mk({ speed: '0' });
-	kn.knee2 = 150;
+	kn.patella2 = 150;
 	await kn.updateComplete;
 	const p150 = { ...kn.geometry[2].foot };
-	kn.knee2 = 30;
+	kn.patella2 = 30;
 	await kn.updateComplete;
 	const p30 = { ...kn.geometry[2].foot };
 	const ecartPied = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
-	const invk = await mk({ speed: '0', revknee2: '1' });
-	invk.knee2 = 30; // inversé → 150 : le pied doit se poser là où 150 le met
+	const invk = await mk({ speed: '0', revpatella2: '1' });
+	invk.patella2 = 30; // inversé → 150 : le pied doit se poser là où 150 le met
 	await invk.updateComplete;
-	ok('inversion : revknee2 = la consigne 30° pose le pied comme 150°',
+	ok('inversion : revpatella2 = la consigne 30° pose le pied comme 150°',
 		ecartPied(invk.geometry[2].foot, p150) < 0.01 && ecartPied(p150, p30) > 5,
 		\`\${ecartPied(invk.geometry[2].foot, p150).toFixed(2)} / \${ecartPied(p150, p30).toFixed(1)}\`);
 
@@ -224,14 +224,14 @@ async function run() {
 	// La cible est mesurée sur une instance instantanée (speed = 0) : le dessin
 	// décide où tombe le pied, le test ne fait que vérifier qu'on y arrive.
 	const cible = await mk({ speed: '0' });
-	cible.knee0 = 180;
+	cible.patella0 = 180;
 	await cible.updateComplete;
 	const but = { ...cible.geometry[0].foot };
 	const slow = await mk({ speed: '2' }); // 180°/s
-	slow.knee0 = 180;
+	slow.patella0 = 180;
 	await slow.updateComplete;
 	const z0 = slow.geometry[0].foot.z;
-	ok('animation : le genou NE SAUTE PAS à la consigne', z0 < g0[0].foot.z + 8, z0);
+	ok('animation : la patella NE SAUTE PAS à la consigne', z0 < g0[0].foot.z + 8, z0);
 	await wait(300);
 	const z1 = slow.geometry[0].foot.z;
 	ok('animation : après ~0,3 s le pied est monté', z1 > z0 + 5, \`\${z0.toFixed(1)} → \${z1.toFixed(1)}\`);
@@ -250,7 +250,7 @@ async function run() {
 	const sortis = [];
 	for (const h of [0, 45, 90, 135, 180]) {
 		for (const k of [0, 45, 90, 135, 180]) {
-			for (let i = 0; i < 4; i++) { pose['hip' + i] = h; pose['knee' + i] = k; }
+			for (let i = 0; i < 4; i++) { pose['coxa' + i] = h; pose['patella' + i] = k; }
 			await pose.updateComplete;
 			const b = psheet.getBBox();
 			if (b.x < pvb.x || b.y < pvb.y || b.x + b.width > pvb.x + pvb.width || b.y + b.height > pvb.y + pvb.height) sortis.push(h + '/' + k);
@@ -267,7 +267,7 @@ async function run() {
 	const dehors = [];
 	for (const h of [0, 45, 90, 135, 180]) {
 		for (const k of [0, 45, 90, 135, 180]) {
-			p.hipAngle = h; p.kneeAngle = k;
+			p.coxaAngle = h; p.patellaAngle = k;
 			await p.updateComplete;
 			const b = psvg.getBBox();
 			if (b.x < vb.x || b.y < vb.y || b.x + b.width > vb.x + vb.width || b.y + b.height > vb.y + vb.height) {
@@ -276,31 +276,31 @@ async function run() {
 		}
 	}
 	ok('patte seule : AUCUNE pose ne déborde de la feuille (25 poses)', dehors.length === 0, dehors.join(' '));
-	p.hipAngle = 90; p.kneeAngle = 90;
+	p.coxaAngle = 90; p.patellaAngle = 90;
 	await p.updateComplete;
 	ok('patte seule : les broches restent hors du dessin (colonne x = 10)',
 		psvg.getBBox().x > 20 && p.pinInfo.every((q) => q.x === 10), Math.round(psvg.getBBox().x));
 	// La patte SEULE garde sa mécanique codée (elle n'est le membre de personne) :
 	// elle doit rester plus courte que celles du robot, qui viennent du dessin.
 	ok('patte seule : plus courte que celles du robot (elle tient dans sa vignette)',
-		dist(p.geometry.knee, p.geometry.foot) < dist(g0[0].knee, g0[0].foot)
-		&& dist(p.geometry.hip, p.geometry.knee) < dist(g0[0].hip, g0[0].knee),
-		\`\${dist(p.geometry.knee, p.geometry.foot).toFixed(0)} vs \${dist(g0[0].knee, g0[0].foot).toFixed(0)}\`);
+		dist(p.geometry.patella, p.geometry.foot) < dist(g0[0].patella, g0[0].foot)
+		&& dist(p.geometry.coxa, p.geometry.patella) < dist(g0[0].coxa, g0[0].patella),
+		\`\${dist(p.geometry.patella, p.geometry.foot).toFixed(0)} vs \${dist(g0[0].patella, g0[0].foot).toFixed(0)}\`);
 	// La patte a AUSSI ses deux cases d'inversion : servo à l'envers = même
 	// consigne, pose miroir. Le repère est le pied EN PLAN (x) et non sa hauteur :
 	// 30° et 150° lèvent le pied pareil (cos ±60°), c'est le côté qui change.
 	const pied = (q) => \`\${q.geometry.foot.x.toFixed(2)},\${q.geometry.foot.z.toFixed(2)}\`;
-	const pRev = await mk({ speed: '0', revknee: '1' }, 'kablix-patte');
-	pRev.kneeAngle = 150;
+	const pRev = await mk({ speed: '0', revpatella: '1' }, 'kablix-patte');
+	pRev.patellaAngle = 150;
 	await pRev.updateComplete;
 	const pDroit = await mk({ speed: '0' }, 'kablix-patte');
-	pDroit.kneeAngle = 30;
+	pDroit.patellaAngle = 30;
 	await pDroit.updateComplete;
-	ok('patte seule : revknee inverse le genou (150 inversé = 30 droit)',
+	ok('patte seule : revpatella inverse la patella (150 inversé = 30 droit)',
 		Math.abs(pRev.geometry.foot.x - pDroit.geometry.foot.x) < 0.01
 		&& Math.abs(pRev.geometry.foot.z - pDroit.geometry.foot.z) < 0.01,
 		\`\${pied(pRev)} vs \${pied(pDroit)}\`);
-	pDroit.kneeAngle = 150;
+	pDroit.patellaAngle = 150;
 	await pDroit.updateComplete;
 	ok('patte seule : sans la case, 150 et 30 donnent bien DEUX poses',
 		Math.abs(pDroit.geometry.foot.x - pRev.geometry.foot.x) > 5, \`\${pied(pDroit)} vs \${pied(pRev)}\`);
@@ -330,7 +330,7 @@ const source = [
   ['sim : un PCA9685 est instancié pour l\'araignée', /kind === 'araignee'[\s\S]{0,900}new Pca9685Device/.test(sim)],
   ['sim : son adresse vient des pads AD0..AD5', /pca9685Address\(part\.attrs\)/.test(sim)],
   ['sim : applyAraignee() appelée à chaque rafraîchissement', /\n\s*applyAraignee\(\);/.test(sim)],
-  ['sim : canaux pairs → hanche, impairs → genou', /ch % 2 === 0 \? 'hip' : 'knee'/.test(sim)],
+  ['sim : canaux pairs → coxa, impairs → patella', /ch % 2 === 0 \? 'coxa' : 'patella'/.test(sim)],
   ['sim : les 8 canaux sont lus', /ch < 8/.test(sim)],
   // Déposer le robot bascule la carte cible sur la Pico W : c'est `board` de la
   // DÉFINITION qui décide, pas le kind (le robot n'est pas une carte nue).

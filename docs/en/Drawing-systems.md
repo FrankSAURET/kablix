@@ -1,6 +1,6 @@
 # Drawing systems in 3D (spider, legs, plates)
 
-The spider robot and its leg are not SVG files pasted on screen: they are **volumes computed on every frame** by the isometric engine [`iso3d.mts`](../../src/webview/composants/iso3d.mts). That is what lets a leg actually lift — a flat drawing produced the same picture whether you turned the hip or bent the knee.
+The spider robot and its leg are not SVG files pasted on screen: they are **volumes computed on every frame** by the isometric engine [`iso3d.mts`](../../src/webview/composants/iso3d.mts). That is what lets a leg actually lift — a flat drawing produced the same picture whether you turned the coxa or bent the patella.
 
 The price was that shapes were **hard-coded**: the chassis was `regularPoly(8, 55)`, an octagon; the bones were boxes. Not a single pencil stroke in there. This guide describes the path opened in v2026.8.23: **you draw the outline of a part, the engine turns it into a volume**. The drawing stays yours; the kinematics, the shading and the depth sorting stay with the engine.
 
@@ -15,7 +15,7 @@ The difference fits in one sentence: in a profile only the **proportions** matte
 
 This guide is for people working on **the repository**. For a regular flat component (a diode, a sensor), the chain is different and described in [Creating a Kablix component](Creating-components.md).
 
-In a hurry? Jump to [original drawing, and what comes out](#original-drawing-and-what-comes-out): three pictures are worth the page. Here for the sandwich body? That is [Assembling several parts](#assembling-several-parts). Stuck on a leg that will not mount the way you wanted? That is [Drawing a leg, from hip to foot](#drawing-a-leg-from-hip-to-foot), and its table of symptoms.
+In a hurry? Jump to [original drawing, and what comes out](#original-drawing-and-what-comes-out): three pictures are worth the page. Here for the sandwich body? That is [Assembling several parts](#assembling-several-parts). Stuck on a leg that will not mount the way you wanted? That is [Drawing a leg, from coxa to foot](#drawing-a-leg-from-coxa-to-foot), and its table of symptoms.
 
 ---
 
@@ -129,7 +129,7 @@ In `Composants3D.svg`, the A3 sheet of the parts to be turned into volume:
 - **The outline must not cross itself.** A figure-of-eight silhouette, an edge folded back on itself: triangulating that is meaningless, and `verify:profils` rejects it.
 - **Curves are welcome**: Béziers, arcs, circles, rectangles, polygons. Everything is flattened then simplified — a sampled circle ends up with about thirty points, not two hundred.
 - **The winding direction does not matter** (clockwise or counter-clockwise): it is normalised on read.
-- **Red pads are not part of the outline** — but a **named** pad is stored with the piece: it is a joint (`hanche`, `genou`), and two pads sharing a prefix make a **rotation axis**. See [Axes](#axes): the convention is exactly the one used by assemblies. An unnamed pad and any text stay plain sheet markers, and are ignored.
+- **Red pads are not part of the outline** — but a **named** pad is stored with the piece: it is a joint (`coxa`, `patella`), and two pads sharing a prefix make a **rotation axis**. See [Axes](#axes): the convention is exactly the one used by assemblies. An unnamed pad and any text stay plain sheet markers, and are ignored.
 
 > The classic trap is the **outline that walks backwards**. On the example chassis, the front notch was first drawn wider than the shoulders framing it: the path went back on itself and folded over. The edges of a notch sit **on** the body circle, never beyond it.
 
@@ -141,8 +141,8 @@ The names the code already looks for — drawing them is enough, there is nothin
 | `araignee-picow` | Pico W board sitting on the robot's back | plate | 46 × 18 box |
 | `araignee-pca9685` | 16-servo board, on the plate | plate | 40 × 24 box |
 | `araignee-batterie` | battery pack, on the plate | plate | 34 × 18 box |
-| `patte-femur` | hip → knee bone | part | box |
-| `patte-tibia` | knee → foot bone | part | box |
+| `patte-femur` | coxa → patella bone | part | box |
+| `patte-tibia` | patella → foot bone | part | box |
 
 > **The on-board electronics is redrawable like everything else** (v2026.8.26). Draw each board **seen from above, connector to the left**: the outline is scaled on its **length** (46, 40 or 34 scene units), its holes are laid as decals in a darkened shade of the board, and **its place on the plate does not change** — the code holds that, so nothing overlaps. On the Pico W, the radio shield and the USB socket are still laid on top by the code.
 
@@ -186,7 +186,7 @@ function bone(name: string, a: Vec3, b: Vec3, t: number): Face[] {
 }
 ```
 
-For a plate ([`araignee-element.mts`](../../src/webview/composants/araignee-element.mts)), the outline is additionally scaled to the expected diameter and rotated by the presentation yaw, **so that the drawing decides the silhouette and not the dimensions**: hips, legs, boards and terminal block stay where the rest of the component expects them.
+For a plate ([`araignee-element.mts`](../../src/webview/composants/araignee-element.mts)), the outline is additionally scaled to the expected diameter and rotated by the presentation yaw, **so that the drawing decides the silhouette and not the dimensions**: coxas, legs, boards and terminal block stay where the rest of the component expects them.
 
 ```ts
 const plate = prismFaces(outline.poly, CHASSIS.height, CHASSIS.height + CHASSIS.thickness, COLORS.chassis);
@@ -250,7 +250,7 @@ It is **pure computation** — no browser, under a second. It checks the engine 
 
 ## Assembling several parts
 
-A profile says one thing only: a silhouette. It cannot say **where** a part sits relative to another, and that is exactly what a **sandwich body** needs: two 3 mm PMMA sides, the hip servos clamped between them, a spacer at the front. None of that shows on the flat sheet — and a still picture will not tell you whether the servos fit.
+A profile says one thing only: a silhouette. It cannot say **where** a part sits relative to another, and that is exactly what a **sandwich body** needs: two 3 mm PMMA sides, the coxa servos clamped between them, a spacer at the front. None of that shows on the flat sheet — and a still picture will not tell you whether the servos fit.
 
 An **assembly** answers that. It is a set of flat parts, **in millimetres**, each carrying its **pose** written in plain words inside the drawing. The drawing stays what it must stay: a **laser-cutting plan**, with the parts laid side by side on the sheet. Where a part sits on the sheet does not matter; its label does.
 
@@ -342,16 +342,16 @@ The word gives the colour, and nothing else: no simulation, no mass.
 
 ### Axes
 
-A **red pad** in a part's group marks a notable point: a hip axis, a knee, a pivot. Its coordinates are computed **in the assembly frame**, pose included.
+A **red pad** in a part's group marks a notable point: a coxa axis, a patella, a pivot. Its coordinates are computed **in the assembly frame**, pose included.
 
 Two ways to name it, in this order:
 
-1. its **Inkscape id** — select the dot, `Object → Object Properties`, type `hanche-g-int`;
+1. its **Inkscape id** — select the dot, `Object → Object Properties`, type `coxa-g-int`;
 2. failing that, the **nearest free text**, the one above being preferred — exactly like a pin name on the component sheet.
 
 The id comes first because it **sticks to the dot**: it survives a move, a text added next to it, and it does not clutter the sheet with four labels when the part carries four pads. An id Inkscape made up on its own (`circle91`, `path102`) names nothing: the pad is then **ignored**, with a warning on read.
 
-That is the key point of the protocol: **the drawing says where the hip is**, not a constant in the code. Move the hole in Inkscape and the axis follows.
+That is the key point of the protocol: **the drawing says where the coxa is**, not a constant in the code. Move the hole in Inkscape and the axis follows.
 
 #### A pad name reads in two parts
 
@@ -361,10 +361,10 @@ It all fits in one sentence, and the rest of this section is only the detail:
 
 | Pad name | Prefix = the joint | Family = what it snaps onto |
 | --- | --- | --- |
-| `hanche-ag-h` | `hanche-ag` | `hanche` |
-| `hanche-ag-b` | `hanche-ag` | `hanche` |
-| `hanche-rd-h` | `hanche-rd` | `hanche` |
-| `genou-h` | `genou` | `genou` |
+| `coxa-ag-h` | `coxa-ag` | `coxa` |
+| `coxa-ag-b` | `coxa-ag` | `coxa` |
+| `coxa-rd-h` | `coxa-rd` | `coxa` |
+| `patella-h` | `patella` | `patella` |
 | `pied` | `pied` | `pied` |
 
 #### Two pads sharing a prefix = a rotation axis
@@ -372,40 +372,40 @@ It all fits in one sentence, and the rest of this section is only the detail:
 A point does not say what you turn **around**. Two points do: **two pads whose names differ only by their last segment are the two ends of one axis.**
 
 ```text
-hanche-ag-h  ─┐
-               ├─ axis "hanche-ag"  (family "hanche")
-hanche-ag-b  ─┘
+coxa-ag-h  ─┐
+               ├─ axis "coxa-ag"  (family "coxa")
+coxa-ag-b  ─┘
 ```
 
-The prefix (`hanche-ag`) names the axis; the last segment (`-h`, `-b`, `-ext`, `-int`…) only tells the two ends apart. The engine derives the **line** from it: its midpoint, its direction, the distance between the two pads. When more than two pads share a prefix, the **two furthest apart** carry the axis — and the read warns you, because that is almost always a naming mistake.
+The prefix (`coxa-ag`) names the axis; the last segment (`-h`, `-b`, `-ext`, `-int`…) only tells the two ends apart. The engine derives the **line** from it: its midpoint, its direction, the distance between the two pads. When more than two pads share a prefix, the **two furthest apart** carry the axis — and the read warns you, because that is almost always a naming mistake.
 
 A **lone** pad stays a plain point: it marks a place (`pied`), it does not say what to turn around.
 
-#### Four hips = four prefixes = eight pads
+#### Four coxas = four prefixes = eight pads
 
 This is **the** trap, and it does not show on the picture: four legs end up stacked on each other at the middle of the body.
 
 ```text
-hanche-ag   ─┐
-hanche-ad    │
-hanche-rg    ├─ SAME prefix "hanche": ONE joint, ONE leg
-hanche-rd   ─┘
+coxa-ag   ─┐
+coxa-ad    │
+coxa-rg    ├─ SAME prefix "coxa": ONE joint, ONE leg
+coxa-rd   ─┘
 ```
 
-The four names differ **only by their last segment**: the rule therefore reads them as the four ends of a **single** axis. The robot has one hip, at the centre.
+The four names differ **only by their last segment**: the rule therefore reads them as the four ends of a **single** axis. The robot has one coxa, at the centre.
 
-Four distinct hips want **four distinct prefixes**, hence **three**-segment names — and since each hip deserves an axis, that means **two pads each, eight in all**:
+Four distinct coxas want **four distinct prefixes**, hence **three**-segment names — and since each coxa deserves an axis, that means **two pads each, eight in all**:
 
 ```text
-hanche-ag-h / hanche-ag-b     front left
-hanche-ad-h / hanche-ad-b     front right
-hanche-rg-h / hanche-rg-b     rear left
-hanche-rd-h / hanche-rd-b     rear right
+coxa-ag-h / coxa-ag-b     front left
+coxa-ad-h / coxa-ad-b     front right
+coxa-rg-h / coxa-rg-b     rear left
+coxa-rd-h / coxa-rd-b     rear right
 ```
 
-All eight share the family `hanche`: that is what makes a femur naming `hanche` sit on them — **four times**, one per hip.
+All eight share the family `coxa`: that is what makes a femur naming `coxa` sit on them — **four times**, one per coxa.
 
-> The same trap exists in a quieter form. Four pads named `hanche-g-h`, `hanche-g-b`, `hanche-d-h`, `hanche-d-b` complain about nothing: they cleanly make **two** axes, `hanche-g` and `hanche-d`, each running through the body from front to back. Two axes, two legs. It only shows if you tick **axes dessinés** in the viewer: the two dashed red lines run the whole length of the body instead of being four short vertical segments.
+> The same trap exists in a quieter form. Four pads named `coxa-g-h`, `coxa-g-b`, `coxa-d-h`, `coxa-d-b` complain about nothing: they cleanly make **two** axes, `coxa-g` and `coxa-d`, each running through the body from front to back. Two axes, two legs. It only shows if you tick **axes dessinés** in the viewer: the two dashed red lines run the whole length of the body instead of being four short vertical segments.
 
 #### A shared family = two drawings that snap together
 
@@ -413,18 +413,18 @@ Joints do not only make things turn: **they are how drawings mount onto each oth
 
 The rule is short:
 
-1. Two ensembles naming the **same family** snap together: the body has `hanche-…`, the femur too → the femur sits on the body.
+1. Two ensembles naming the **same family** snap together: the body has `coxa-…`, the femur too → the femur sits on the body.
 2. **The one offering the most joints carries the other.** The body has four, the femur two: the body carries, and **four femurs** are born.
 3. **Joints are superposed**, pad on pad. The position is not computed, it is read from the drawing.
-4. When the family holds **several** joints (the four hips), each copy is **turned towards its own**: the legs splay out by themselves. When it holds only **one** (the femur's knee), the child keeps its parent's heading: the tibia carries on from the femur.
+4. When the family holds **several** joints (the four coxas), each copy is **turned towards its own**: the legs splay out by themselves. When it holds only **one** (the femur's patella), the child keeps its parent's heading: the tibia carries on from the femur.
 
 A complete chain therefore takes three drawings and six names:
 
 ```text
-araignee-corps          hanche-ag-h/-b  hanche-ad-h/-b  hanche-rg-h/-b  hanche-rd-h/-b
-araignee-patte-femur    hanche-h/-b     ← snaps onto the body (family "hanche")
-                        genou-h/-b      ← offers a knee
-araignee-patte-tibia    genou-h/-b      ← snaps onto the femur (family "genou")
+araignee-corps          coxa-ag-h/-b  coxa-ad-h/-b  coxa-rg-h/-b  coxa-rd-h/-b
+araignee-patte-femur    coxa-h/-b     ← snaps onto the body (family "coxa")
+                        patella-h/-b      ← offers a patella
+araignee-patte-tibia    patella-h/-b      ← snaps onto the femur (family "patella")
                         pied
 ```
 
@@ -434,7 +434,7 @@ An ensemble sharing no family stays at **its own origin**: it is not guessed, it
 
 #### Profiles too
 
-A part drawn on its own (a profile) follows the **same convention**: its named pads are stored with its outline, in the same centred frame. When the component lays it between two joints, `profileAxes` carries them along — to scale, in place. A knee drawn on the femur stays the femur's knee, whether you lengthen the leg or not.
+A part drawn on its own (a profile) follows the **same convention**: its named pads are stored with its outline, in the same centred frame. When the component lays it between two joints, `profileAxes` carries them along — to scale, in place. A patella drawn on the femur stays the femur's patella, whether you lengthen the leg or not.
 
 ### Watching it turn
 
@@ -458,7 +458,7 @@ What is read is also **stored**: `assemblages.mts` and `profils.mts` are rewritt
 | **éclaté** slider | pull the parts apart along their thickness — the only way to see what sits between two sides 3 mm apart |
 | **zoom** slider | inspect a detail |
 | An ensemble's **title checkbox** | hide a whole assembly — look at the femur alone without relaunching the command |
-| **×4** box next to the title | the ensemble was given four copies (four hips, four legs). Untick it to keep just **one**: four legs hide the body you wanted to see. Whatever it carries follows — one femur only holds one tibia |
+| **×4** box next to the title | the ensemble was given four copies (four coxas, four legs). Untick it to keep just **one**: four legs hide the body you wanted to see. Whatever it carries follows — one femur only holds one tibia |
 | **pièces** checkboxes | hide one side to see inside |
 | **axes dessinés** checkbox | show the named pads at their 3D place, and the **rotation axes** as a dashed red line |
 | **repère X Y Z** checkbox | the world frame in a corner, turning with the scene: it says where the front is at all times |
@@ -503,7 +503,7 @@ Output of the read:
   → corps-demo : 3 pièce(s), 4 axe(s), 100×80×31 mm
 ```
 
-Four pads, two by two: `hanche-g-ext` / `hanche-g-int` and `hanche-d-int` / `hanche-d-ext`, that is the **two rotation axes** of the hips. An unnamed pad is reported on that very line (`! …-supports : pastille sans nom (id « circle91 »), ignorée`): time to give it an id in Inkscape.
+Four pads, two by two: `coxa-g-ext` / `coxa-g-int` and `coxa-d-int` / `coxa-d-ext`, that is the **two rotation axes** of the coxas. An unnamed pad is reported on that very line (`! …-supports : pastille sans nom (id « circle91 »), ignorée`): time to give it an id in Inkscape.
 
 The colour shown is the one **read from the drawing** (`#rrggbbaa`, transparency included) — the trailing `8c` is PMMA at 55 %. An unpainted part shows the word of its `mat=` instead.
 
@@ -511,36 +511,36 @@ The colour shown is the one **read from the drawing** (`#rrggbbaa`, transparency
 
 The `verify:assemblage` bench is pure computation, like the profile one. It exercises **label parsing** (a negative position must survive whole — `pos=0,-9,0` has already been read as three words), the **planes** (a 100 mm plate lying flat is 100 × 80 × 3, never 103 × 83 × 35), the **mirror**, the **exploded view** (each part moves to the side it already sits on, a central part does not move), then **every stored assembly**: known plane and material, centred outline, dimensions consistent, overall size consistent with the computation, axes inside the box. It also exercises the **colours read from the drawing** — the drawn shade wins over `mat=`, transparency survives the lighting, and a translucent face comes out without a seam stroke — and the **rotation axes**: the prefix rule, the two furthest pads when there are three, two coincident pads that make no line, and a profile's pads following the part when it is scaled up.
 
-Finally it exercises the **mounting** on a test robot — a body with four hips, a femur, a tibia: the body carries (it offers the most joints), four femurs and four tibias are born, each on a different hip, hips and knees **superposed to the millimetre**, the four legs turned to four distinct headings, the tibia keeping its femur's heading. An ensemble sharing no family stays where it is, and two drawings with nothing in common mount nothing at all rather than inventing.
+Finally it exercises the **mounting** on a test robot — a body with four coxas, a femur, a tibia: the body carries (it offers the most joints), four femurs and four tibias are born, each on a different coxa, coxas and patellas **superposed to the millimetre**, the four legs turned to four distinct headings, the tibia keeping its femur's heading. An ensemble sharing no family stays where it is, and two drawings with nothing in common mount nothing at all rather than inventing.
 
 ---
 
-## Drawing a leg, from hip to foot
+## Drawing a leg, from coxa to foot
 
-The complete case, the one that puts everything above end to end: a body, a femur, a tibia, and **four legs** at the end. Three drawings only — the four copies are not drawn, they are born from the four hips.
+The complete case, the one that puts everything above end to end: a body, a femur, a tibia, and **four legs** at the end. Three drawings only — the four copies are not drawn, they are born from the four coxas.
 
 ### 1. Three groups, three assemblies
 
 ```text
 araignee-corps-…          the body: plates, boards, battery
-araignee-patte-femur-…    the hip → knee bone, and the knee servo it carries
-araignee-patte-tibia-…    the knee → foot bone
+araignee-patte-femur-…    the coxa → patella bone, and the patella servo it carries
+araignee-patte-tibia-…    the patella → foot bone
 ```
 
 Each is drawn **wherever you like on the sheet**, side by side like a cutting plan. Where they sit on the sheet does not matter: their pose label and their pads do.
 
-### 2. The body: eight pads, four hips
+### 2. The body: eight pads, four coxas
 
-On the part that actually carries the hip servos (the sides, not the top plate), four pairs of red pads:
+On the part that actually carries the coxa servos (the sides, not the top plate), four pairs of red pads:
 
 ```text
-hanche-ag-h  hanche-ag-b        front left
-hanche-ad-h  hanche-ad-b        front right
-hanche-rg-h  hanche-rg-b        rear left
-hanche-rd-h  hanche-rd-b        rear right
+coxa-ag-h  coxa-ag-b        front left
+coxa-ad-h  coxa-ad-b        front right
+coxa-rg-h  coxa-rg-b        rear left
+coxa-rd-h  coxa-rd-b        rear right
 ```
 
-The two pads of a pair are **the two ends of the servo's axis**: if the hip yaws (servo standing up), one sits above the other; if it rolls, they sit one behind the other. **Put them where the axis really runs** — that line is what the leg will follow.
+The two pads of a pair are **the two ends of the servo's axis**: if the coxa yaws (servo standing up), one sits above the other; if it rolls, they sit one behind the other. **Put them where the axis really runs** — that line is what the leg will follow.
 
 Name them by their **Inkscape id** (`Object → Object Properties`): eight texts on the sheet would be unreadable.
 
@@ -550,23 +550,23 @@ This is where it goes wrong most often. The femur carries **two** joints, and it
 
 | Pads | What they are for |
 | --- | --- |
-| `hanche-h`, `hanche-b` | **where the femur hooks onto the body.** Family `hanche`: that is the word the body uses too, and it is all it takes for them to snap together |
-| `genou-h`, `genou-b` | **the axis the femur offers the tibia.** Family `genou` |
+| `coxa-h`, `coxa-b` | **where the femur hooks onto the body.** Family `coxa`: that is the word the body uses too, and it is all it takes for them to snap together |
+| `patella-h`, `patella-b` | **the axis the femur offers the tibia.** Family `patella` |
 
-A femur with only its hip does sit on the body — but the tibia has nothing left to hook onto, and it stays alone in its corner. **The knee is drawn on the femur**, not only on the tibia.
+A femur with only its coxa does sit on the body — but the tibia has nothing left to hook onto, and it stays alone in its corner. **The patella is drawn on the femur**, not only on the tibia.
 
 The femur is a `flanc`: drawn from the side, it stands up **as traced**. What you draw at the top ends up at the top of the robot. If the leg comes out upside down, it is the drawing that is flipped, not the engine — tick **repère X Y Z** and look at where Z points.
 
-### 4. The tibia: the knee, and the foot
+### 4. The tibia: the patella, and the foot
 
 ```text
-genou-h  genou-b        same family "genou" as the femur: they superpose
+patella-h  patella-b        same family "patella" as the femur: they superpose
 pied                    a lone pad — a point, not an axis
 ```
 
-The tibia's two `genou-…` pads must sit **at the same spot on the tibia** as the femur's do on the femur: that is the contact point, and that is what gets superposed.
+The tibia's two `patella-…` pads must sit **at the same spot on the tibia** as the femur's do on the femur: that is the contact point, and that is what gets superposed.
 
-The femur offers only **one** joint of family `genou`: the tibia therefore inherits the femur's heading and carries on from it, instead of splaying out the way the legs do around the body.
+The femur offers only **one** joint of family `patella`: the tibia therefore inherits the femur's heading and carries on from it, instead of splaying out the way the legs do around the body.
 
 ### 5. Look
 
@@ -582,11 +582,11 @@ Then touch up in Inkscape, click **↻ recharger**, look. Angle and checkboxes a
 
 | What you see | The cause, almost always |
 | --- | --- |
-| **One leg only**, at the middle of the body | four hips under the **same prefix** (`hanche-ag`, `hanche-ad`… on their own). Four distinct ones are needed, hence three-segment names |
-| **Two legs**, and two long red lines running through the body | `hanche-g-…` and `hanche-d-…`: two axes, not four. Rename to `hanche-ag`, `hanche-ad`, `hanche-rg`, `hanche-rd` |
-| **The tibia stays on its own** | the femur has no `genou-…` pad. The knee is drawn on **both** parts |
-| **Nothing mounts**, the viewer says so in yellow | no shared family: the two drawings do not use the same first word (`hanche` on one side, `epaule` on the other) |
-| **The leg points the wrong way**, or askew | the hip axis is not where you think: tick **axes dessinés**, the dashed red line shows the real line |
+| **One leg only**, at the middle of the body | four coxas under the **same prefix** (`coxa-ag`, `coxa-ad`… on their own). Four distinct ones are needed, hence three-segment names |
+| **Two legs**, and two long red lines running through the body | `coxa-g-…` and `coxa-d-…`: two axes, not four. Rename to `coxa-ag`, `coxa-ad`, `coxa-rg`, `coxa-rd` |
+| **The tibia stays on its own** | the femur has no `patella-…` pad. The patella is drawn on **both** parts |
+| **Nothing mounts**, the viewer says so in yellow | no shared family: the two drawings do not use the same first word (`coxa` on one side, `epaule` on the other) |
+| **The leg points the wrong way**, or askew | the coxa axis is not where you think: tick **axes dessinés**, the dashed red line shows the real line |
 | **A part sits at the centre of the body**, 3 mm thick | its label is unreadable — a decimal comma, almost always. Read the command's output, it says so |
 | **A pad does not show up** | it has no name: its Inkscape id is still `circle97`. The read reports it |
 
@@ -614,12 +614,12 @@ Then touch up in Inkscape, click **↻ recharger**, look. Angle and checkboxes a
 - `pos` is the **centre** of the part, not its corner.
 - `miroir` lays the part **twice**: one side drawing gives both sides. It goes on the **plane's normal** (`flanc`→`x`, `dessus`→`z`, `face`→`y`), and the spacing you get is **centre to centre**: `pos=(gap + ep) / 2`.
 - The decimal separator is the **dot**: `pos=24.501,-38.083,0 ep=21.5`. A comma makes the label unreadable and the part falls back to the centre — the read says so.
-- A **named red pad** becomes an axis — the drawing says where the hip is. Name it by its **Inkscape id**; the text above still works.
+- A **named red pad** becomes an axis — the drawing says where the coxa is. Name it by its **Inkscape id**; the text above still works.
 - A pad name reads as **`family-joint-end`**: the **first** segment is the family (what it snaps onto), everything but the **last** is the prefix (which joint), the last one tells the two ends apart.
-- **Two pads sharing a prefix** (`hanche-ag-h`, `hanche-ag-b`) make a **rotation axis**. Two distinct joints = two distinct prefixes.
-- **Four hips = four prefixes = eight pads.** `hanche-ag`, `hanche-ad`, `hanche-rg`, `hanche-rd` **on their own** make one single joint, at the centre of the body.
-- **Same family = the drawings snap together**, joints superposed: the one offering the most joints carries the other, and one copy is born per joint (four hips → four legs).
-- The femur carries **two** families: `hanche-…` to hook onto the body, `genou-…` to carry the tibia.
+- **Two pads sharing a prefix** (`coxa-ag-h`, `coxa-ag-b`) make a **rotation axis**. Two distinct joints = two distinct prefixes.
+- **Four coxas = four prefixes = eight pads.** `coxa-ag`, `coxa-ad`, `coxa-rg`, `coxa-rd` **on their own** make one single joint, at the centre of the body.
+- **Same family = the drawings snap together**, joints superposed: the one offering the most joints carries the other, and one copy is born per joint (four coxas → four legs).
+- The femur carries **two** families: `coxa-…` to hook onto the body, `patella-…` to carry the tibia.
 - The **colour of the part is the colour of the drawing**, transparency included; `mat=` is only the fallback for an unpainted part.
 - `npm run montre <prefix>` reads, stores and opens **everything starting with it**, at the same scale: that is the working loop. Touch up in Inkscape, click **↻ recharger**.
 - The **éclaté** slider is the only way to see what sits between two sides.

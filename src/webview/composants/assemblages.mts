@@ -11,7 +11,7 @@
 //   • `plan`   : comment le dessin se pose (dessus / flanc / face) ;
 //   • `pos`    : le centre de la pièce dans le repère de l'assemblage ;
 //   • `miroir` : la pièce est posée DEUX fois, symétriquement (les deux flancs) ;
-//   • `axes`   : les pastilles rouges nommées — hanches, genoux, points de pivot.
+//   • `axes`   : les pastilles rouges nommées — coxas, patellas, points de pivot.
 //               Chacune est une DROITE : `dir` dit son sens (l'épaisseur de la
 //               pièce qui la porte), et le point rangé est son ZÉRO — le milieu
 //               des deux exemplaires en miroir. Deux dessins s'emboîtent axes
@@ -23,10 +23,10 @@ const DATA = {
     "source": "Composants3D.svg",
     "box": { "x": 65.86, "y": 129.92, "z": 42.4 },
     "axes": {
-      "hanche-gh": { "x": -16.9, "y": -26, "z": 0, "dir": "z" },
-      "hanche-dh": { "x": 16.9, "y": -26, "z": 0, "dir": "z" },
-      "hanche-gb": { "x": -18.9, "y": 45, "z": 0, "dir": "z" },
-      "hanche-db": { "x": 18.89, "y": 45, "z": 0, "dir": "z" }
+      "coxa-gh": { "x": -16.9, "y": -26, "z": 0, "dir": "z" },
+      "coxa-dh": { "x": 16.9, "y": -26, "z": 0, "dir": "z" },
+      "coxa-gb": { "x": -18.9, "y": 45, "z": 0, "dir": "z" },
+      "coxa-db": { "x": 18.89, "y": 45, "z": 0, "dir": "z" }
     },
     "pieces": [
       {
@@ -201,8 +201,8 @@ const DATA = {
     "source": "Composants3D.svg",
     "box": { "x": 27.5, "y": 93.92, "z": 43.96 },
     "axes": {
-      "genou-f": { "x": 0, "y": -36.1, "z": -21.01, "dir": "x" },
-      "hanche": { "x": 0, "y": 25.26, "z": 0, "dir": "z" }
+      "patella-f": { "x": 0, "y": -36.1, "z": -21.01, "dir": "x" },
+      "coxa": { "x": 0, "y": 25.26, "z": 0, "dir": "z" }
     },
     "pieces": [
       {
@@ -279,7 +279,7 @@ const DATA = {
     "source": "Composants3D.svg",
     "box": { "x": 24.5, "y": 70.56, "z": 106.2 },
     "axes": {
-      "genou-t": { "x": 0, "y": 27.03, "z": 45.15, "dir": "x" }
+      "patella-t": { "x": 0, "y": 27.03, "z": 45.15, "dir": "x" }
     },
     "pieces": [
       {
@@ -336,8 +336,8 @@ const DATA = {
     "source": "docs/exemples/corps-demo.svg",
     "box": { "x": 100, "y": 80, "z": 31 },
     "axes": {
-      "hanche-g": { "x": -28, "y": 0, "z": 0, "dir": "z" },
-      "hanche-d": { "x": 28, "y": 0, "z": 0, "dir": "z" }
+      "coxa-g": { "x": -28, "y": 0, "z": 0, "dir": "z" },
+      "coxa-d": { "x": 28, "y": 0, "z": 0, "dir": "z" }
     },
     "pieces": [
       {

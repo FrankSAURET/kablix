@@ -12954,22 +12954,22 @@
            x="218.47946"
            y="177.33992">dessus pos=0,0,-13.75 ep=3 miroir=z</tspan></text><circle
          style="fill:#ff0000;stroke-width:0;stroke-dasharray:none"
-         id="hanche-gh"
+         id="coxa-gh"
          cx="240.11746"
          cy="81.24749"
          r="0.5" /><circle
          style="fill:#ff0000;stroke-width:0;stroke-dasharray:none"
-         id="hanche-dh"
+         id="coxa-dh"
          cx="273.91745"
          cy="81.24749"
          r="0.5" /><circle
          style="fill:#ff0000;stroke-width:0;stroke-dasharray:none"
-         id="hanche-gb"
+         id="coxa-gb"
          cx="238.11746"
          cy="152.2475"
          r="0.5" /><circle
          style="fill:#ff0000;stroke-width:0;stroke-dasharray:none"
-         id="hanche-db"
+         id="coxa-db"
          cx="275.90546"
          cy="152.2475"
          r="0.5" /></g><text
@@ -12979,7 +12979,7 @@
        style="font-weight:bold;font-size:5.33333px;line-height:1;font-family:Arial;-inkscape-font-specification:'Arial Bold';writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect132);display:inline;fill:#0000ff;stroke:none;stroke-width:0.377953;stroke-dasharray:none" /><g
        id="araignee-patte-femur-cotes"
        transform="rotate(-0.91256522,-2788.2007,4726.5428)"><g
-         id="genou-f"
+         id="patella-f"
          transform="translate(34.272668,-179.72349)"><circle
            style="fill:#ff0000;stroke-width:0;stroke-dasharray:none"
            id="circle97"
@@ -13022,7 +13022,7 @@
            y="177.34377"
            transform="rotate(-90)" /><circle
            style="fill:#ff0000;fill-opacity:0.8;stroke-width:0;stroke-dasharray:none"
-           id="hanche"
+           id="coxa"
            cx="-62.054733"
            cy="183.27762"
            r="0.5"
@@ -13065,7 +13065,7 @@
            y="177.34377"
            transform="rotate(-90)" /><circle
            style="fill:#ff0000;fill-opacity:0.8;stroke-width:0;stroke-dasharray:none"
-           id="genou-t"
+           id="patella-t"
            cx="-62.054733"
            cy="183.27762"
            r="0.5"

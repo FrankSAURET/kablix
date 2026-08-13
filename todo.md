@@ -5,7 +5,7 @@
 1. il faudrait pouvoir définir le 0 de chaque servo (0 à 360 ° positif ou négatif)
 1. ✅ Fait des ombres diffuses *(v2026.8.46)*
 1. La patte n'a pas été remodélisée. Se plus il faut que les broches des servo soient identifiés. Tu mets donc un rectangle à coin arrondis autours de l'ensemble des 3 broches de connection de chaque servo avec écrit Coxa et Patella. Les trois broches apparaisent grace à un carré plein doré (de taille supérieurs à celui de masse). Reprends "connecteur-servo-patte" dans Composants2D.svg et respecte mes couleurs .
-1. Tu renomeras partout hanche=coxa et genou = patella
+1. ✅ Tu renomeras partout hanche=coxa et genou = patella *(v2026.8.47)*
 ## Composants
 1. 
 1. ⬜ **À décider (Frank) : supprimer `onStartupFinished`** de `package.json`. L'extension s'active aujourd'hui à CHAQUE fenêtre VS Code, même sans projet Kablix. Les points d'activation implicites (commandes, vue `kablix.home`, éditeur `.projix`) suffiraient — l'activation ne coûterait plus rien quand Kablix ne sert pas. Piège identifié : la vue devient visible AVANT que `activate()` ne pose `onDidChangeVisibility`, donc le clic sur l'icône n'ouvrirait plus l'atelier tant que le cas « déjà visible à l'activation » n'est pas traité — et le distinguer d'une restauration de session est exactement ce que le garde-fou des 1,2 s combat. À faire seulement avec un essai F5 sous la main.
@@ -18,6 +18,16 @@
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# >>>>  v2026.8.47 — hanche = coxa, genou = patella, partout
+
+1. ✅ **Renommage complet** sur 33 fichiers versionnés : la planche `Composants3D.svg` (pastilles `coxa-gh`…, `patella-f`, `patella-t`), les composants (`patte-element.mts`, `araignee-element.mts`, `assemblages.mts`, `profils.mts`, `iso3d.mts`), le catalogue et ses libellés, `i18n.mts`, `sim.mts`, `model.mts`, les scripts (`_extract-*`, `_lire-contours`, `montre`, `_capture-part`, `verify-araignee`, `verify-assemblage`), les tests `testkablix` (specs, sketch Uno, programmes Pico, `.projix`, README) et les fiches d'aide FR **et** EN.
+2. ✅ **Attributs renommés** : `revhanche`→`revcoxa`, `revgenou`→`revpatella` (patte seule) et `revcoxa0..3` / `revpatella0..3` (araignée). Les broches de la patte passent de `hanche.PWM` / `genou.PWM` à **`coxa.PWM` / `patella.PWM`** — un ancien schéma garde ses fils sur les positions, mais les noms de broches changent.
+3. ✅ **Deux passes de remplacement, en casse exacte et avec lookbehind** (`(?<![A-Za-z])hip`), pour ne pas casser `chip`, `ship` ni `hiPin` : d'abord les tournures françaises avec leurs articles (`du genou`→`de la patella`), ensuite les identifiants anglais, enfin les formes collées (`revhip`, `Knee`, `KNEE_`). Accords français relus à la main (« **la** patella », « les patellas pliées »).
+4. ✅ **Collision de noms réglée** : le champ `coxa` de `LegSize` (une LONGUEUR de segment) devient **`femur`** — sans quoi il se confondait avec l'articulation coxa.
+5. ✅ **`_extract-composants.mjs` : option `--garde-libelles`.** Les noms de pattes sont d'ordinaire des repères, retirés du dessin livré ; sur un connecteur ils FONT partie du dessin (Frank écrit GND / V+ / PWM sur le boîtier). Premier usage : `externe/connecteur-servo-patte.svg`, extrait de `Composants2D.svg`.
+6. ℹ️ **`testkablix/araignee-pico.projix` régénéré** : ses `x`/`y` et ses propriétés retouchés par Frank ont été **repris dans `_spec.mjs`** (Act1 en 570,50, `boards: '1'`), mais le **zoom et le déplacement de la vue** enregistrés dans le fichier sont perdus — `_generate.mjs` ne gère pas la caméra.
+7. ✅ `npm run typecheck`, `build`, `verify:araignee` **59/59**, `verify:assemblage` **240/240**, `verify:docs` 25 fiches, `npm run verify:all` vert.
 
 # >>>>  v2026.8.46 — le robot se tient debout, les cartes sortent du dos et les pieds ont une ombre douce
 
