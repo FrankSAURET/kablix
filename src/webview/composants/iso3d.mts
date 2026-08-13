@@ -566,6 +566,7 @@ export function assemblyFaces(a: Assembly, opts: {
   const eclate = opts.eclate ?? 0;
   const tol = opts.simplify ?? 0;
   const out: Face[] = [];
+  const empiles: Empile[] = [];
   for (const p of a.pieces) {
     const color = opts.color?.(p) ?? p.fill ?? MATIERES[p.mat] ?? MATIERES.pmma;
     const n = planeNormal(p.plan);
@@ -578,10 +579,91 @@ export function assemblyFaces(a: Assembly, opts: {
       const along = dot(pos, n);
       const off = scale(n, eclate * Math.sign(along));
       const center = add(scale(pos, k), off);
-      out.push(...slabFaces(poly, p.plan, center, p.ep * k, color, holes, xf));
+      const faces = slabFaces(poly, p.plan, center, p.ep * k, color, holes, xf);
+      empiles.push({ ...boiteMonde(poly, p.plan, center, p.ep * k), faces });
+      out.push(...faces);
     }
   }
+  empilement(empiles);
   return out;
+}
+
+/** Une pièce POSÉE dans l'assemblage : ses faces et le pavé qu'elle occupe (avant
+ *  le lacet de présentation, qui ne tourne qu'autour de Z et ne change donc rien
+ *  aux hauteurs). */
+type Empile = { z0: number; z1: number; bb: { x0: number; x1: number; y0: number; y1: number }; faces: Face[] };
+
+/** Le pavé englobant d'une pièce posée : son contour porté dans son plan, épaisseur
+ *  comprise. */
+function boiteMonde(poly: Vec2[], plan: Plane, center: Vec3, thickness: number): Omit<Empile, 'faces'> {
+  const { u, v } = PLANES[plan];
+  const n = planeNormal(plan);
+  const t = thickness / 2;
+  const b = { z0: Infinity, z1: -Infinity, bb: { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity } };
+  for (const q of poly) {
+    for (const s of [-t, t]) {
+      const x = center.x + u.x * q.x + v.x * q.y + n.x * s;
+      const y = center.y + u.y * q.x + v.y * q.y + n.y * s;
+      const z = center.z + u.z * q.x + v.z * q.y + n.z * s;
+      b.z0 = Math.min(b.z0, z);
+      b.z1 = Math.max(b.z1, z);
+      b.bb.x0 = Math.min(b.bb.x0, x);
+      b.bb.x1 = Math.max(b.bb.x1, x);
+      b.bb.y0 = Math.min(b.bb.y0, y);
+      b.bb.y1 = Math.max(b.bb.y1, y);
+    }
+  }
+  return b;
+}
+
+/**
+ * EMPILEMENT : une pièce entièrement au-dessus d'une autre passe DEVANT elle,
+ * quoi qu'en dise la profondeur moyenne de ses faces.
+ *
+ * C'est un fait de la projection isométrique, pas une préférence : deux points qui
+ * se projettent au même pixel avec z₂ > z₁ vérifient toujours depth₂ > depth₁ —
+ * le plus haut est le plus près de l'œil. L'algorithme du peintre, lui, range
+ * chaque face à sa profondeur MOYENNE : un triangle de plaque long de 20 mm se
+ * retrouve rangé 10 mm trop en avant, et passe devant la carte posée dessus. Le
+ * Pico W et le PCA9685 du robot en sortaient déchiquetés en morceaux blancs.
+ *
+ * Chaque pièce est donc remontée juste devant celles qu'elle surplombe (comme un
+ * décalque devant sa plaque), les plus basses d'abord pour que l'empilement se
+ * propage — batterie, plaque du dessous, plaque du dessus, cartes.
+ */
+function empilement(pieces: Empile[]): void {
+  const n = pieces.length;
+  if (n < 2) return;
+  const chevauche = (a: Empile, b: Empile): boolean =>
+    a.bb.x0 < b.bb.x1 && b.bb.x0 < a.bb.x1 && a.bb.y0 < b.bb.y1 && b.bb.y0 < a.bb.y1;
+  // Qui est SOUS qui : dessous de l'un au niveau (ou au-dessus) du dessus de
+  // l'autre, et empreintes qui se recouvrent — sans quoi l'ordre est sans effet.
+  const sous: number[][] = pieces.map(() => []);
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      if (i !== j && pieces[i].z0 >= pieces[j].z1 - 1e-6 && pieces[i].z1 > pieces[j].z1
+        && chevauche(pieces[i], pieces[j])) sous[i].push(j);
+    }
+  }
+  // Étage de chaque pièce (rang topologique) : on traite les plus basses d'abord.
+  const rang = pieces.map(() => 0);
+  for (let pass = 0; pass < n; pass++) {
+    let bouge = false;
+    for (let i = 0; i < n; i++) {
+      const r = sous[i].reduce((m, j) => Math.max(m, rang[j] + 1), 0);
+      if (r > rang[i]) { rang[i] = r; bouge = true; }
+    }
+    if (!bouge) break;
+  }
+  for (const i of pieces.map((_, q) => q).sort((x, y) => rang[x] - rang[y])) {
+    if (!sous[i].length || !pieces[i].faces.length) continue;
+    let devant = -Infinity;
+    for (const j of sous[i]) for (const f of pieces[j].faces) devant = Math.max(devant, f.z);
+    if (devant === -Infinity) continue;
+    const bas = Math.min(...pieces[i].faces.map((f) => f.z));
+    const d = devant + 0.01 - bas;
+    if (d > 0) for (const f of pieces[i].faces) f.z += d;
+  }
 }
 
 /** Les deux poses d'une pièce en miroir, ou son unique pose. */
@@ -1002,10 +1084,44 @@ export function axisGizmo(
   return out;
 }
 
-/** Ombre portée au sol (z = 0) d'un point : elle donne la HAUTEUR, qu'aucune
- *  projection isométrique ne sait rendre à elle seule. */
-export function groundShadow(p: Vec3, r: number, cx: number, cy: number): SVGTemplateResult {
+/**
+ * Le DÉGRADÉ des ombres portées : noir au centre, éteint sur le bord. À déclarer
+ * une fois dans les `<defs>` du composant, puis à nommer dans `groundShadow`.
+ *
+ * Une ombre à bord net est un décalque de dessin animé : sous une lumière de
+ * pièce, rien ne projette de contour franc. Le dégradé coûte un élément de plus
+ * et rien à l'affichage — là où un `feGaussianBlur` ferait passer toute la scène
+ * par un filtre, à chaque image d'animation.
+ */
+export function shadowGradient(id: string): SVGTemplateResult {
+  return svg`<radialGradient id=${id}>
+    <stop offset="0%" stop-color="#000" stop-opacity="0.26" />
+    <stop offset="45%" stop-color="#000" stop-opacity="0.19" />
+    <stop offset="78%" stop-color="#000" stop-opacity="0.07" />
+    <stop offset="100%" stop-color="#000" stop-opacity="0" />
+  </radialGradient>`;
+}
+
+/**
+ * Ombre portée au sol (z = 0) d'un point : elle donne la HAUTEUR, qu'aucune
+ * projection isométrique ne sait rendre à elle seule.
+ *
+ * `fondu` nomme le dégradé de `shadowGradient` : l'ombre est alors DIFFUSE. Elle
+ * s'étale et pâlit en montant, comme une vraie — `ref` est la hauteur à laquelle
+ * elle a doublé de rayon, `max` son étalement maximal. C'est ce qui fait lire
+ * « ce pied-là est levé » d'un coup d'œil, là où une tache de taille fixe ne
+ * disait que « le pied est ici ».
+ */
+export function groundShadow(
+  p: Vec3, r: number, cx: number, cy: number,
+  opts: { fondu?: string; ref?: number; max?: number } = {},
+): SVGTemplateResult {
   const c = project({ x: p.x, y: p.y, z: 0 });
-  return svg`<ellipse cx=${(c.x + cx).toFixed(2)} cy=${(c.y + cy).toFixed(2)} rx=${(r * COS30 * 2).toFixed(2)}
-    ry=${r.toFixed(2)} fill="rgba(0,0,0,0.16)" />`;
+  const k = opts.ref
+    ? Math.min(opts.max ?? 2, 1 + Math.max(0, p.z) / opts.ref)
+    : 1;
+  const fill = opts.fondu ? `url(#${opts.fondu})` : 'rgba(0,0,0,0.16)';
+  return svg`<ellipse cx=${(c.x + cx).toFixed(2)} cy=${(c.y + cy).toFixed(2)}
+    rx=${(r * COS30 * 2 * k).toFixed(2)} ry=${(r * k).toFixed(2)}
+    fill=${fill} opacity=${(1 / k).toFixed(3)} />`;
 }

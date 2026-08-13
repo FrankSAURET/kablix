@@ -14,7 +14,7 @@
 import { css, html, LitElement, type TemplateResult } from 'lit';
 import { ElementPin } from './pin.mjs';
 import {
-  add, boxFaces, extrudeProfile, groundShadow, renderFaces, scale,
+  add, boxFaces, extrudeProfile, groundShadow, renderFaces, scale, shadowGradient,
   type Face, type Vec3,
 } from './iso3d.mjs';
 import { hasProfile, profile } from './profils.mjs';
@@ -286,7 +286,9 @@ export class PatteElement extends LitElement {
     return html`
       <svg width=${ALONE_SHEET.w} height=${ALONE_SHEET.h}
         viewBox="0 0 ${ALONE_SHEET.w} ${ALONE_SHEET.h}" xmlns="http://www.w3.org/2000/svg">
-        <g class="leg__shadow">${groundShadow(g.foot, 3.5, ALONE_ORIGIN.x, ALONE_ORIGIN.y)}</g>
+        <defs>${shadowGradient('patte-ombre')}</defs>
+        <g class="leg__shadow">${groundShadow(g.foot, 3.5, ALONE_ORIGIN.x, ALONE_ORIGIN.y,
+          { fondu: 'patte-ombre' })}</g>
         <g class="leg__solid">${renderFaces(legFaces(g, LEG_ALONE), ALONE_ORIGIN.x, ALONE_ORIGIN.y)}</g>
       </svg>
     `;

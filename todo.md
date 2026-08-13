@@ -1,10 +1,10 @@
 # À faire
 ##L'arraignée :
-1. J'ai retouché le modèle
-1. il y a des défaut de visualisation . Les cartes électroniques sont un peut recouvertes par le corps.
+1. ✅ J'ai retouché le modèle *(v2026.8.46 — cinématique du genou refaite sur le nouveau dessin)*
+1. ✅ il y a des défaut de visualisation . Les cartes électroniques sont un peut recouvertes par le corps. *(v2026.8.46)*
 1. il faudrait pouvoir définir le 0 de chaque servo (0 à 360 ° positif ou négatif)
-1. Fait des ombres diffuses
-1. La patte n'a pas été remodélisée. Se plus il faut que les broches des servo soient identifiés. Tu et donc un rectangle à coin arrondis (gris foncé) autours de l'ensemble des 3 broches de connection de chaque servo avec écrit Hanche et Genou. Les trois broches apparaisent grace à un carré plein doré (de taille supérieurs à celui de masse). Reprends "connecteur-servo-patte" dans Composants2D.svg et respecte mes couleurs .
+1. ✅ Fait des ombres diffuses *(v2026.8.46)*
+1. La patte n'a pas été remodélisée. Se plus il faut que les broches des servo soient identifiés. Tu mets donc un rectangle à coin arrondis autours de l'ensemble des 3 broches de connection de chaque servo avec écrit Coxa et Patella. Les trois broches apparaisent grace à un carré plein doré (de taille supérieurs à celui de masse). Reprends "connecteur-servo-patte" dans Composants2D.svg et respecte mes couleurs .
 1. Tu renomeras partout hanche=coxa et genou = patella
 ## Composants
 1. 
@@ -18,6 +18,14 @@
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# >>>>  v2026.8.46 — le robot se tient debout, les cartes sortent du dos et les pieds ont une ombre douce
+
+1. ✅ **Le genou avait le sens inversé depuis la retouche du modèle** : Frank dessine désormais son robot **monté et debout** (le tibia descend déjà du genou), alors que le code croyait encore à la pose « patte à plat », tibia dans le prolongement du fémur. D'où quatre échecs au banc — 1969 polygones, pieds moins écartés que les hanches, pied qui DESCEND quand la consigne monte. `KNEE_FLAT = 180` devient **`KNEE_REST = 90`** (le milieu de course du servo rend la pose dessinée) et le pli vaut `KNEE_REST - kneeDeg` : consigne qui monte = genou qui se plie = pied qui se lève. Vecteur genou→pied mesuré sur le vrai dessin : {0, −61.14, −97.08}, 114,7 mm.
+2. ✅ **Les cartes n'étaient plus recouvertes par le corps** : le tri du peintre comparait des faces triangle par triangle, donc la plaque de PMMA passait par endroits **devant** le PCA9685 et le Pico W posés dessus. Nouvelle passe `empilement()` dans `iso3d.mts` : une pièce entièrement au-dessus d'une autre (et qui la survole) passe DEVANT elle, quoi qu'en disent ses triangles. Rang topologique par pièce, puis décalage de profondeur — les contours restent intacts, `verify:assemblage` toujours 240/240.
+3. ✅ **Ombres diffuses** : `shadowGradient()` + `groundShadow()` dans `iso3d.mts`. Un dégradé radial (26 % au centre → 0 au bord) remplace l'ovale gris uni, et l'ombre **s'étale en pâlissant** avec la hauteur du pied (jusqu'à ×2 à 130 mm) — un pied levé fait une tache large et claire, un pied posé une tache nette. Choisi plutôt qu'un `feGaussianBlur`, trop coûteux à chaque image d'animation. La patte seule a la sienne aussi.
+4. ✅ **Vignette recapturée** (`node scripts/_capture-part.mjs araignee`) et gros plan en rendu Chrome headless : cartes nettes sur la plaque, robot debout, ombres douces sous les pieds.
+5. ✅ `verify:araignee` **59/59**, `verify:assemblage` **240/240**, `npm run verify:all` vert.
 
 # >>>>  v2026.8.45 — la résistance debout est vue de biais, et le capteur Hall nomme ses bornes
 

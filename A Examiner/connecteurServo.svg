@@ -1,0 +1,283 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="420mm"
+   height="297mm"
+   viewBox="0 0 419.99999 297"
+   version="1.1"
+   id="svg8"
+   sodipodi:docname="connecteurServo.svg"
+   inkscape:version="1.4.4 (dcaf3e7, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview43"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="px"
+     inkscape:zoom="3.7017753"
+     inkscape:cx="127.10118"
+     inkscape:cy="103.73401"
+     inkscape:window-width="1920"
+     inkscape:window-height="1057"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg8"
+     showgrid="true">
+    <inkscape:grid
+       id="grid1"
+       units="px"
+       originx="0"
+       originy="0"
+       spacingx="0.26458333"
+       spacingy="0.26458333"
+       empcolor="#3f3fff"
+       empopacity="0.25098039"
+       color="#3f3fff"
+       opacity="0.1254902"
+       empspacing="10"
+       enabled="true"
+       visible="true" />
+  </sodipodi:namedview>
+  <defs
+     id="defs2">
+    <linearGradient
+       id="metalBody"
+       x1="273.27457"
+       y1="69.895981"
+       x2="279.17538"
+       y2="75.796814"
+       gradientUnits="userSpaceOnUse">
+      <stop
+         offset="0%"
+         stop-color="#f8f8f8"
+         id="stop1" />
+      <stop
+         offset="20%"
+         stop-color="#d8dadd"
+         id="stop2" />
+      <stop
+         offset="45%"
+         stop-color="#ffffff"
+         id="stop3" />
+      <stop
+         offset="70%"
+         stop-color="#b7bcc0"
+         id="stop4" />
+      <stop
+         offset="100%"
+         stop-color="#e9ecef"
+         id="stop5" />
+    </linearGradient>
+    <radialGradient
+       id="metalFace"
+       cx="273.27399"
+       cy="68.911728"
+       r="15.738667"
+       fx="273.27399"
+       fy="68.911728"
+       gradientUnits="userSpaceOnUse">
+      <stop
+         offset="0%"
+         stop-color="#ffffff"
+         id="stop6" />
+      <stop
+         offset="40%"
+         stop-color="#d5d8da"
+         id="stop7" />
+      <stop
+         offset="75%"
+         stop-color="#a8adb3"
+         id="stop8" />
+      <stop
+         offset="100%"
+         stop-color="#73787d"
+         id="stop9" />
+    </radialGradient>
+    <radialGradient
+       id="shaftMetal"
+       cx="275.46341"
+       cy="71.830978"
+       r="3.5539584"
+       fx="275.46341"
+       fy="71.830978"
+       gradientUnits="userSpaceOnUse">
+      <stop
+         offset="0%"
+         stop-color="#f1e7bb"
+         id="stop10" />
+      <stop
+         offset="50%"
+         stop-color="#cdbf8f"
+         id="stop11" />
+      <stop
+         offset="100%"
+         stop-color="#8b7d55"
+         id="stop12" />
+    </radialGradient>
+    <radialGradient
+       id="darkVent">
+      <stop
+         offset="0%"
+         stop-color="#2f2f2f"
+         id="stop13" />
+      <stop
+         offset="100%"
+         stop-color="#080808"
+         id="stop14" />
+    </radialGradient>
+    <filter
+       id="innerShadow"
+       x="-0.2"
+       y="-0.2"
+       width="1.4"
+       height="1.4">
+      <feOffset
+         dx="0.15"
+         dy="0.15"
+         id="feOffset14" />
+      <feGaussianBlur
+         stdDeviation="0.15"
+         result="offset-blur"
+         id="feGaussianBlur14" />
+      <feComposite
+         operator="out"
+         in="offset-blur"
+         in2="SourceGraphic"
+         result="inverse"
+         id="feComposite14" />
+      <feColorMatrix
+         in="inverse"
+         type="matrix"
+         values="0 0 0 0 0                   0 0 0 0 0                   0 0 0 0 0                   0 0 0 0.6 0"
+         id="feColorMatrix14" />
+      <feComposite
+         operator="over"
+         in2="SourceGraphic"
+         id="feComposite15" />
+    </filter>
+    <radialGradient
+       id="ventHole">
+      <stop
+         offset="0%"
+         stop-color="#404040"
+         id="stop15" />
+      <stop
+         offset="60%"
+         stop-color="#191919"
+         id="stop16" />
+      <stop
+         offset="100%"
+         stop-color="#000000"
+         id="stop17" />
+    </radialGradient>
+    <filter
+       id="ventShadow">
+      <feDropShadow
+         dx="0.05"
+         dy="0.05"
+         stdDeviation="0.08"
+         flood-color="#000000"
+         flood-opacity="0.7" />
+    </filter>
+    <radialGradient
+       id="bearingOuter">
+      <stop
+         offset="0%"
+         stop-color="#ffffff"
+         id="stop18" />
+      <stop
+         offset="60%"
+         stop-color="#d1d4d8"
+         id="stop19" />
+      <stop
+         offset="100%"
+         stop-color="#8b9197"
+         id="stop20" />
+    </radialGradient>
+    <radialGradient
+       id="gearGold"
+       gradientTransform="scale(1.018346,0.98198448)"
+       cx="271.24863"
+       cy="74.182838"
+       fx="271.24863"
+       fy="74.182838"
+       r="2.3384562"
+       gradientUnits="userSpaceOnUse">
+      <stop
+         offset="0%"
+         stop-color="#fff3a0"
+         id="stop21" />
+      <stop
+         offset="50%"
+         stop-color="#d9b100"
+         id="stop22" />
+      <stop
+         offset="100%"
+         stop-color="#886f00"
+         id="stop23" />
+    </radialGradient>
+    <linearGradient
+       id="wireYellow">
+      <stop
+         offset="0%"
+         stop-color="#fff7a8"
+         id="stop24" />
+      <stop
+         offset="20%"
+         stop-color="#ffe84a"
+         id="stop25" />
+      <stop
+         offset="50%"
+         stop-color="#f5d100"
+         id="stop26" />
+      <stop
+         offset="80%"
+         stop-color="#c7a400"
+         id="stop27" />
+      <stop
+         offset="100%"
+         stop-color="#8c7300"
+         id="stop28" />
+    </linearGradient>
+    <linearGradient
+       id="wireGreen">
+      <stop
+         offset="0%"
+         stop-color="#a8f5c2"
+         id="stop29" />
+      <stop
+         offset="20%"
+         stop-color="#53d986"
+         id="stop30" />
+      <stop
+         offset="50%"
+         stop-color="#26a269"
+         id="stop31" />
+      <stop
+         offset="80%"
+         stop-color="#1b794d"
+         id="stop32" />
+      <stop
+         offset="100%"
+         stop-color="#12583a"
+         id="stop33" />
+    </linearGradient>
+    <filter
+       id="wireShadow">
+      <feDropShadow
+         dx="0.03"
+         dy="0.03"
+         stdDeviation="0.04"
+         flood-color="#000000"
+         flood-opacity="0.4" />
+    </filter>
+  </defs>
+</svg>

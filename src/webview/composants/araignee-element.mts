@@ -26,7 +26,7 @@ import { css, html, svg, LitElement, type TemplateResult } from 'lit';
 import { ElementPin } from './pin.mjs';
 import {
   MATIERES, add, articulations, assemblyFaces, assemblyVertices, groundShadow, project,
-  renderFaces, rotAxis, rotZ, scale, sub,
+  renderFaces, rotAxis, rotZ, scale, shadowGradient, sub,
   type Assembly, type AssemblyPiece, type Face, type Vec2, type Vec3,
 } from './iso3d.mjs';
 import { assemblage, hasAssemblage } from './assemblages.mjs';
@@ -43,12 +43,16 @@ const TIBIA = 'araignee-patte-tibia';
 const SHEET = 400;
 const MARGIN = 8;
 
-/** Rayon de l'ombre d'un pied, et la place qu'elle prend une fois écrasée par
- *  l'isométrie (`groundShadow` étire le rayon en x). Le cadrage doit la réserver :
- *  l'ombre d'un pied tendu tombait hors de la feuille alors que le pied, lui,
- *  tenait dedans. */
-const FOOT_SHADOW = 5;
-const SHADOW_PAD = FOOT_SHADOW * Math.cos(Math.PI / 6) * 2;
+/** Les ombres portées, DIFFUSES : rayon au sol, étalement maximal quand le pied
+ *  est levé, hauteur à laquelle l'ombre a doublé, et le nom du dégradé qui lui
+ *  ôte son contour. Le cadrage doit réserver la place qu'elles prennent une fois
+ *  écrasées par l'isométrie (`groundShadow` étire le rayon en x) : l'ombre d'un
+ *  pied tendu tombait hors de la feuille alors que le pied, lui, tenait dedans. */
+const FOOT_SHADOW = 6;
+const SHADOW_GROW = 2;
+const SHADOW_REF = 130;
+const OMBRE = 'araignee-ombre';
+const SHADOW_PAD = FOOT_SHADOW * Math.cos(Math.PI / 6) * 2 * SHADOW_GROW;
 
 /** Le robot est présenté DE BIAIS : ses pattes partent à ±45°, or c'est
  *  exactement la direction que l'isométrie écrase sur l'axe vertical de
@@ -82,10 +86,11 @@ function opaque(fill: string | undefined): string | undefined {
   return m ? m[1] : fill;
 }
 
-/** Angle de genou où le tibia est dans le PROLONGEMENT du fémur — la pose
- *  dessinée à plat, celle de la découpe laser. 90° plie donc le genou d'un quart
- *  de tour et met le tibia à la verticale : le robot est debout. */
-const KNEE_FLAT = 180;
+/** Consigne de genou qui rend la pose DESSINÉE : le milieu de course du servo.
+ *  Frank dessine son robot monté et debout (le tibia descend déjà du genou), donc
+ *  90° ne plie rien — c'est le repos. Au-delà le tibia se replie vers le corps et
+ *  le pied se lève, en deçà il se tend vers l'extérieur. */
+const KNEE_REST = 90;
 
 /** Nom de la propriété d'une articulation (0..7) : `hip0`, `knee0`, `hip1`…
  *  Préfixé de `rev`, c'est celui de son sens de montage (`revhip0`). */
@@ -174,7 +179,10 @@ function legXf(r: Robot, i: number, hipDeg: number, kneeDeg: number): {
   // Axe du genou : le X du repère du fémur (`dir: 'x'` de la pastille) — il
   // tourne avec la patte, c'est tout l'intérêt de l'appliquer ici.
   const axis: Vec3 = { x: 1, y: 0, z: 0 };
-  const bend = KNEE_FLAT - kneeDeg;
+  // Consigne croissante = genou qui SE PLIE, donc pied qui SE LÈVE : le tibia se
+  // rapproche du fémur, tous deux dessinés partant vers l'extérieur (−y) et vers
+  // le bas — c'est la rotation NÉGATIVE autour du X du fémur qui les referme.
+  const bend = KNEE_REST - kneeDeg;
   const tibia = (p: Vec3): Vec3 => femur(add(rotAxis(sub(p, kneeT), axis, bend), kneeF));
   return { femur, tibia };
 }
@@ -458,12 +466,14 @@ export class AraigneeElement extends LitElement {
         ${/* Sous-templates en `svg` et NON en `html` : un fragment commençant
              par <g> passé à `html` est parsé en XHTML (namespace HTML), les
              pattes existent alors dans le DOM mais ne sont JAMAIS dessinées. */
-          svg`<g class="araignee__shadows">
+          svg`<defs>${shadowGradient(OMBRE)}</defs>
+          <g class="araignee__shadows">
             <ellipse cx=${(o.x + (r?.shadow.c.x ?? 0)).toFixed(2)}
               cy=${(o.y + (r?.shadow.c.y ?? 0)).toFixed(2)}
               rx=${(r?.shadow.rx ?? 0).toFixed(2)} ry=${(r?.shadow.ry ?? 0).toFixed(2)}
-              fill="rgba(0,0,0,0.10)" />
-            ${feet.map((f) => groundShadow(f, FOOT_SHADOW, o.x, o.y))}
+              fill=${`url(#${OMBRE})`} opacity="0.5" />
+            ${feet.map((f) => groundShadow(f, FOOT_SHADOW, o.x, o.y,
+              { fondu: OMBRE, ref: SHADOW_REF, max: SHADOW_GROW }))}
           </g>`}
         <g class="araignee__solid">${renderFaces(faces, o.x, o.y)}</g>
       </svg>
