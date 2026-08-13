@@ -24,8 +24,10 @@ Résistance fixe. Limite le courant (LED) ou forme un pont diviseur / pull-up / 
 - Non polarisée : les deux bornes sont équivalentes.
 - LED : 220 Ω–1 kΩ. Pull-up/pull-down : 10 kΩ typique.
 - Pose verticale : le corps est debout et une patte est repliée par-dessus, les
-  deux bornes sortant côte à côte (30 px d'écart au lieu de 60). Pratique pour
-  loger une résistance dans peu de place sur la platine.
+  deux bornes sortant côte à côte (20 px d'écart au lieu de 60). Pratique pour
+  loger une résistance dans peu de place sur la platine. Debout, la résistance
+  est vue de biais : ses anneaux sont dessinés en ellipses, l'anneau doré
+  (tolérance) en bas, le premier anneau de valeur en haut.
 
 ---
 

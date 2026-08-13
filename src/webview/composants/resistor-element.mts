@@ -7,8 +7,10 @@
 //
 // DEUX POSES, un seul élément (attribut `orientation`) :
 //   h → couchée, corps horizontal, pattes de part et d'autre (80×20) ;
-//   v → DEBOUT, corps vertical et une patte repliée par-dessus (50×70, dessin de
-//       Frank « res-vert » ; schéma interne « res-vert-interne »).
+//   v → DEBOUT, corps vertical et une patte repliée par-dessus (40×70, dessin de
+//       Frank « res-vert » ; schéma interne « res-vert-interne »). Les anneaux y
+//       sont courbés : debout, la résistance est vue de biais, ses bandes sont
+//       des ellipses (déformation portée par la planche, pas par le code).
 // Les broches gardent leurs noms ('1' et '2') dans les deux cas : changer la pose
 // ne casse aucun fil.
 import { css, html, LitElement } from 'lit';
@@ -48,9 +50,9 @@ const SKINS = {
   },
   v: {
     svg: drawingVert,
-    w: 50,
+    w: 40,
     h: 70,
-    pins: [{ x: 10, y: 60 }, { x: 40, y: 60 }],
+    pins: [{ x: 10, y: 60 }, { x: 30, y: 60 }],
     bands: ['#rect19', '#path19-0', '#path20-1'],
   },
 } as const;

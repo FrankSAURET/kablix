@@ -448,7 +448,7 @@ export const CATALOG: readonly PartDef[] = [
     props: [
       { attr: 'value', label: 'Value (Ω)', kind: 'number', min: 1, max: 10_000_000, step: 1, suffixes: true },
       // Pose du composant : couchée (deux pattes écartées de 60 px) ou DEBOUT
-      // (corps vertical, une patte repliée par-dessus, pattes à 30 px). Change
+      // (corps vertical, une patte repliée par-dessus, pattes à 20 px). Change
       // le dessin, la boîte, la position des broches et le schéma interne.
       {
         // Libellé « Mounting » et pas « Orientation » : la barre de rotation de

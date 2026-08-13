@@ -1,4 +1,11 @@
 # À faire
+##L'arraignée :
+1. J'ai retouché le modèle
+1. il y a des défaut de visualisation . Les cartes électroniques sont un peut recouvertes par le corps.
+1. il faudrait pouvoir définir le 0 de chaque servo (0 à 360 ° positif ou négatif)
+1. Fait des ombres diffuses
+1. La patte n'a pas été remodélisée. Se plus il faut que les broches des servo soient identifiés. Tu et donc un rectangle à coin arrondis (gris foncé) autours de l'ensemble des 3 broches de connection de chaque servo avec écrit Hanche et Genou. Les trois broches apparaisent grace à un carré plein doré (de taille supérieurs à celui de masse). Reprends "connecteur-servo-patte" dans Composants2D.svg et respecte mes couleurs .
+1. Tu renomeras partout hanche=coxa et genou = patella
 ## Composants
 1. 
 1. ⬜ **À décider (Frank) : supprimer `onStartupFinished`** de `package.json`. L'extension s'active aujourd'hui à CHAQUE fenêtre VS Code, même sans projet Kablix. Les points d'activation implicites (commandes, vue `kablix.home`, éditeur `.projix`) suffiraient — l'activation ne coûterait plus rien quand Kablix ne sert pas. Piège identifié : la vue devient visible AVANT que `activate()` ne pose `onDidChangeVisibility`, donc le clic sur l'icône n'ouvrirait plus l'atelier tant que le cas « déjà visible à l'activation » n'est pas traité — et le distinguer d'une restauration de session est exactement ce que le garde-fou des 1,2 s combat. À faire seulement avec un essai F5 sous la main.
@@ -11,6 +18,16 @@
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# >>>>  v2026.8.45 — la résistance debout est vue de biais, et le capteur Hall nomme ses bornes
+
+1. ✅ **Le groupe `res-vert` avait perdu son id ET ses deux pastilles** dans `Composants2D.svg` : le dégroupage Inkscape avait laissé un `g2` anonyme, les pastilles `1` et `2` sorties à côté, au premier niveau de la planche. Groupe reformé (id + les deux pastilles dedans) — sans quoi l'extraction ne trouvait plus rien.
+2. ✅ **Les anneaux de la résistance debout sont courbés** : debout, une résistance est vue de biais, ses bandes sont des ELLIPSES et pas des rectangles. Chaque bord suit `x = x0 + 0,45·sin(π·y/3)` dans le repère du corps (flèche de 0,45 pour un diamètre de 3 → vue à ~17° au-dessus de l'horizon), approché par une cubique dont le milieu tombe pile sur la flèche. La déformation est dans la PLANCHE, pas dans le code : Frank la retouche dans Inkscape comme le reste.
+3. ✅ **Le dessus du cylindre se voit** : une lunule claire (blanc 38 %) entre le bord du corps et l'ellipse du haut, dessinée sur le contour exact du chapeau pour ne pas agrandir la boîte — la première version, un rectangle clippé, ajoutait 10 px de vide au-dessus du dessin.
+4. ✅ **Nouveau gabarit de la pose verticale : 40×70 et pattes à 20 px** (au lieu de 50×70 et 30 px) — Frank a resserré le U du dessin. `SKINS.v`, le commentaire du catalogue et la fiche d'aide FR suivent ; les broches gardent leurs noms `1`/`2`, aucun fil ne casse.
+5. ✅ **Schéma interne du capteur à effet Hall intégré** (`node scripts/_extract-composants.mjs TO92S hall-interne@TO92S`, puis `git checkout` du TO92S externe que l'extraction réécrit au passage) : cette fois la retouche était bien enregistrée. Frank a **nommé les trois bornes** — `V+`, `S` et `GND` — le reste du symbole (régulateur, élément Hall, ampli, trigger de Schmitt, sortie à drain ouvert) est inchangé. Broches toujours 1/2/3 aux mêmes places.
+6. ✅ Contrôlé en rendu Chrome headless : résistance debout externe + interne superposés (pattes sur les pastilles), et vue interne du Hall avec son débord latéral lisible. `typecheck`, `build`, `verify:components`, `verify:docs` et `verify:layout` verts.
+7. ⏳ `docs/en/composants/resistor.md` **pas traduit** : les traductions attendent une publication.
 
 # >>>>  v2026.8.44 — l'araignée de l'atelier est le DESSIN de Frank
 
