@@ -4,24 +4,24 @@
 
 Patte de robot articulée à **2 servomoteurs internes indépendants** : la **coxa**, qui balaie la patte **au sol** (avant/arrière), et la **patella**, qui la **lève et la baisse**. Les deux sont imbriqués mécaniquement — la patella suit la rotation de la coxa, comme sur une vraie patte. Pensée pour composer un robot hexapode ou araignée à plusieurs pattes, câblées sur les canaux d'un [pilote PWM PCA9685](pca9685.md).
 
-La patte est dessinée **en volume** (vue isométrique) : c'est le seul moyen de montrer les deux mouvements, l'un dans le plan du sol et l'autre dans le plan vertical. L'**ombre portée** sous le pied donne la hauteur d'un coup d'œil.
-
-> **Dessin provisoire.** Ce composant illustre une patte simplifiée le temps que le robot physique — une araignée en PMMA découpée au laser, assemblée par Frank dans SketchUp — soit visible. Le dessin sera probablement refait une fois le résultat observé.
+C'est **exactement la patte du [robot araignée](araignee.md)** : le fémur et le tibia sont les mêmes pièces, montées seules et vues **en volume** (vue isométrique) — le seul moyen de montrer les deux mouvements, l'un dans le plan du sol et l'autre dans le plan vertical. L'**ombre portée** sous le pied donne la hauteur d'un coup d'œil.
 
 Catégorie de la palette : **Système**.
 
 ## Broches
 
-Chaque articulation a son propre bornier 3 fils, comme un servomoteur simple :
+À gauche du dessin, le **connecteur** porte deux borniers 3 fils, un par articulation — **Coxa** (violet) et **Patella** (vert) — comme sur un servomoteur simple. Les trois **carrés dorés** de chaque bornier sont les points de connexion :
 
 | Broche | Rôle |
 |--------|------|
-| **coxa.PWM** | Signal de commande de la coxa |
-| **coxa.V+** | Alimentation (+) de la coxa |
 | **coxa.GND** | Masse de la coxa |
-| **patella.PWM** | Signal de commande de la patella |
-| **patella.V+** | Alimentation (+) de la patella |
+| **coxa.V+** | Alimentation (+) de la coxa |
+| **coxa.PWM** | Signal de commande de la coxa |
 | **patella.GND** | Masse de la patella |
+| **patella.V+** | Alimentation (+) de la patella |
+| **patella.PWM** | Signal de commande de la patella |
+
+(dans l'ordre du dessin, de haut en bas)
 
 Les deux articulations sont électriquement **indépendantes** : rien n'empêche de piloter la coxa depuis une broche du microcontrôleur et la patella depuis un canal du PCA9685, par exemple.
 
@@ -49,8 +49,10 @@ Les deux cases d'inversion sont un réglage de **montage**, pas de programme : s
 
 - Câblez `coxa.PWM` et `patella.PWM` chacune sur une broche PWM du microcontrôleur, ou sur un canal du PCA9685 (`coxa.V+`/`coxa.GND` et `patella.V+`/`patella.GND` sur le bornier servo correspondant).
 - Bibliothèque `Servo` (Arduino) : un objet par articulation, `attach()` puis `write(angle)`.
-- Pour une araignée à 4 pattes : placez 4 exemplaires du composant et câblez chacun sur 2 canaux du (ou des) PCA9685.
+- Pour une araignée à 4 pattes : placez 4 exemplaires du composant et câblez chacun sur 2 canaux du (ou des) PCA9685. Le robot complet existe aussi tout monté : voir [robot araignée](araignee.md).
+
+Tests d'exemple : `patte-uno` et `patte-pico` (dossier `testkablix`).
 
 ---
 
-*Dessin PLACEHOLDER réalisé par Claude pour Kablix, en attendant le dessin définitif de Frank.*
+*Patte et connecteur dessinés par Frank (planches `Composants3D.svg` et `Composants2D.svg`), mis en volume par Kablix.*

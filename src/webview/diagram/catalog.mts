@@ -854,10 +854,12 @@ export const CATALOG: readonly PartDef[] = [
       { attr: 'maxcurrent', label: 'Max current supplied (A)', kind: 'number', min: 0.1, max: 10, step: 0.1 },
     ],
   },
-  // Patte de robot articulée (dessin PLACEHOLDER, pas de Frank — cf.
-  // patte-element.mts ; en VOLUME depuis la v2026.8.22). 1 pièce, 2 servos
+  // Patte de robot articulée : le fémur et le tibia DESSINÉS par Frank
+  // (assemblages `araignee-patte-*` de Composants3D.svg), montés tout nus et vus
+  // en volume — la même patte que celles du robot (v2026.8.48). 2 servos
   // internes (coxa = balayage au sol, patella = lever/baisser), indépendants
-  // électriquement mais imbriqués mécaniquement à l'affichage.
+  // électriquement mais imbriqués mécaniquement à l'affichage, et un connecteur
+  // à deux borniers 3 fils qui dit quel servo se câble où.
   // Mêmes impulsions/vitesse que <kablix-servo> (même formule PWM→angle).
   {
     type: 'patte', label: 'Spider leg', tag: 'kablix-patte', kind: 'patte',
@@ -872,8 +874,8 @@ export const CATALOG: readonly PartDef[] = [
       REVERSE_PROP('revpatella', 'Reverse the patella servo'),
     ],
   },
-  // Robot araignée quadrupède complet (dessin PLACEHOLDER, pas de Frank — cf.
-  // araignee-element.mts ; en VOLUME depuis la v2026.8.22) : châssis + 4 pattes
+  // Robot araignée quadrupède complet, DESSINÉ par Frank (les trois assemblages
+  // de Composants3D.svg, cf. araignee-element.mts) : corps + 4 pattes
   // (8 articulations, mêmes angles que la patte seule), avec sa Pico W, son
   // PCA9685 et sa batterie EMBARQUÉS.
   // AUCUNE CONNECTIQUE depuis la v2026.8.24 (Frank) : le robot porte sa propre

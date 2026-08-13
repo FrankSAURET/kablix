@@ -4,7 +4,7 @@
 1. ✅ il y a des défaut de visualisation . Les cartes électroniques sont un peut recouvertes par le corps. *(v2026.8.46)*
 1. il faudrait pouvoir définir le 0 de chaque servo (0 à 360 ° positif ou négatif)
 1. ✅ Fait des ombres diffuses *(v2026.8.46)*
-1. La patte n'a pas été remodélisée. Se plus il faut que les broches des servo soient identifiés. Tu mets donc un rectangle à coin arrondis autours de l'ensemble des 3 broches de connection de chaque servo avec écrit Coxa et Patella. Les trois broches apparaisent grace à un carré plein doré (de taille supérieurs à celui de masse). Reprends "connecteur-servo-patte" dans Composants2D.svg et respecte mes couleurs .
+1. ✅ La patte n'a pas été remodélisée. Se plus il faut que les broches des servo soient identifiés. Tu mets donc un rectangle à coin arrondis autours de l'ensemble des 3 broches de connection de chaque servo avec écrit Coxa et Patella. Les trois broches apparaisent grace à un carré plein doré (de taille supérieurs à celui de masse). Reprends "connecteur-servo-patte" dans Composants2D.svg et respecte mes couleurs . *(v2026.8.48)*
 1. ✅ Tu renomeras partout hanche=coxa et genou = patella *(v2026.8.47)*
 ## Composants
 1. 
@@ -12,12 +12,24 @@
 
 ## Dessin de l'arraignée 
 1. ✅ **Les quatre corrections de `Composants3D.svg` sont faites** (v2026.8.42) : quatre pastilles `hanche…` sur le corps, `genou-f` sur le fémur, `genou-t` sur le tibia, étiquette du servo de tibia au point décimal. Le robot monte : 1 corps, 4 fémurs, 4 tibias.
-2. ⬜ **Pour Frank : dessiner les contours de la PATTE SEULE** dans `Composants2D.svg` (groupes `patte-femur-profil` et `patte-tibia-profil`, os vus de côté, gauche → droite entre les deux articulations ; mode d'emploi `docs/fr/Drawing-systems.md`, puis `npm run profil patte-femur patte-tibia`). Les profils `araignee-*` ne sont **plus attendus** : le robot est monté depuis les assemblages de `Composants3D.svg` (v2026.8.44). Seule la patte seule garde ses cotes codées — tant que le dessin manque, la forme en dur tient.
+2. ✅ **Plus rien à dessiner : la patte seule EST celle du robot** (v2026.8.48). Les profils `patte-femur-profil` / `patte-tibia-profil` ne sont plus attendus — `patte-element.mts` monte les assemblages `araignee-patte-femur` et `araignee-patte-tibia` de `Composants3D.svg`, comme les quatre pattes du robot, et n'importe plus `profils.mts` du tout. Plus une cote codée dans le composant.
 3. ✅ **Le corps en sandwich est dessiné ET branché** (v2026.8.44) : `araignee-corps`, `araignee-patte-femur` et `araignee-patte-tibia` de `Composants3D.svg` font le robot à l'écran, articulations comprises. Plus une cote dans le code.
 4. ⏳ **Le test `araignee-uno` est déplacé dans `A Examiner/testkablix/Arduino/araignee-uno/`** (sketch + .projix, 2 fichiers, non supprimés). Le robot EST une Pico W depuis la v2026.8.24 : il n'a plus de broches, on ne peut plus le piloter depuis une Uno. Frank tranche : à jeter, ou à garder en archive.
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# >>>>  v2026.8.48 — la patte seule est la VRAIE patte, et ses six broches sont sur le connecteur de Frank
+
+1. ✅ **La patte seule n'est plus un dessin à part** : `patte-element.mts` est réécrit autour des deux assemblages de `Composants3D.svg` (`araignee-patte-femur`, `araignee-patte-tibia`) — les MÊMES pièces que les quatre pattes du robot, mêmes proportions, même cinématique. Les cotes codées en dur (`LegSize`, `LEG_ALONE`, `LEG_SPIDER`, `legGeometry`, `legFaces`, `bone()`, la palette `COLORS`) ont disparu, ainsi que l'import de `profils.mts` — plus aucun composant ne lit les profils.
+2. ✅ **Cinématique factorisée** : `legRig()` (lecture des assemblages + articulations, en cache) et `legPose(rig, place, coxaDeg, patellaDeg)` vivent dans `patte-element.mts` ; `araignee-element.mts` les appelle pour ses quatre pattes au lieu de garder sa propre copie. Une correction de la mécanique se fait désormais à UN seul endroit.
+3. ✅ **Le connecteur de Frank est incrusté** (`externe/connecteur-servo-patte.svg`, extrait de `Composants2D.svg` avec `--garde-libelles`) : deux borniers à coins arrondis, **Coxa** en violet et **Patella** en vert, trois carrés dorés chacun, libellés GND / V+ / PWM. Les couleurs sont celles de la planche, rien n'est recolorié.
+4. ✅ **Les six broches tombent PILE sur les carrés dorés** (x = 10 ; coxa en y 50/60/70, patella en y 90/100/110) : un fil se branche visiblement sur le carré, pas dans le vide. La mécanique est décalée à droite du connecteur (`ZONE`), elle ne le recouvre jamais.
+5. ✅ **Feuille resserrée à 210×170** (contre 260×170) : le cadrage couvre les 25 poses du débattement complet — mesuré en Chrome headless, 53 px de vide à droite supprimés.
+6. ✅ **Orientation corrigée** : la patte partait dans l'axe de la vue isométrique et se lisait comme un tube (fémur et tibia confondus). `LEG_DIR = -45 - YAW` — l'isométrie rend HORIZONTALE la direction −45° du monde — et les deux segments se distinguent.
+7. ✅ **Banc `verify:araignee` : 63 contrôles** (59 avant). Les contrôles « broches hors du dessin » et « patte plus courte que celles du robot », devenus faux, cèdent la place à : mécanique dessinée (> 40 polygones), **mêmes proportions que le robot** (rapport coxa→patella / patella→pied, écart < 1 %), connecteur incrusté (6 carrés `#f6d32d`), borniers **nommés**, chaque broche sur son carré (tolérance 1,5 px), mécanique hors du connecteur.
+8. ✅ Vignette recapturée (`node scripts/_capture-part.mjs patte`), fiche d'aide FR remise à jour (ce n'est plus un dessin provisoire, le connecteur est décrit), tests `patte-uno` et `patte-pico` régénérés (les broches ont changé de place, les fils sont reroutés).
+9. ⏳ `docs/en/composants/patte.md` **pas traduit** : les traductions attendent une publication.
 
 # >>>>  v2026.8.47 — hanche = coxa, genou = patella, partout
 

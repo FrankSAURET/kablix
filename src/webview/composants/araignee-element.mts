@@ -25,18 +25,19 @@
 import { css, html, svg, LitElement, type TemplateResult } from 'lit';
 import { ElementPin } from './pin.mjs';
 import {
-  MATIERES, add, articulations, assemblyFaces, assemblyVertices, groundShadow, project,
-  renderFaces, rotAxis, rotZ, scale, shadowGradient, sub,
+  MATIERES, articulations, assemblyFaces, assemblyVertices, groundShadow, project,
+  renderFaces, rotZ, scale, shadowGradient,
   type Assembly, type AssemblyPiece, type Face, type Vec2, type Vec3,
 } from './iso3d.mjs';
 import { assemblage, hasAssemblage } from './assemblages.mjs';
-import { JointAnimator, jointTarget, type LegGeometry } from './patte-element.mjs';
+import {
+  JointAnimator, SIMPLIFY, jointTarget, legPose, legRig, opaque,
+  type LegGeometry, type LegPose, type LegRig,
+} from './patte-element.mjs';
 
-/** Les trois dessins qui font le robot. Le corps porte les coxas, le fémur
- *  porte la patella, le tibia porte le pied. */
+/** Le dessin du CORPS ; le fémur et le tibia sont ceux de <kablix-patte>, lus
+ *  par `legRig()` — le robot en monte quatre exemplaires. */
 const CORPS = 'araignee-corps';
-const FEMUR = 'araignee-patte-femur';
-const TIBIA = 'araignee-patte-tibia';
 
 /** Feuille carrée du composant, et marge gardée sur ses quatre bords : le robot
  *  y tient dans TOUTES ses poses, pattes tendues comme repliées. */
@@ -60,37 +61,10 @@ const SHADOW_PAD = FOOT_SHADOW * Math.cos(Math.PI / 6) * 2 * SHADOW_GROW;
  *  sortir. Un quart de tour de 22° les dégage toutes les quatre. */
 const YAW = 22;
 
-/** Allègement des contours, en unités de la feuille (voir `simplifyPoly`). Le
- *  tracé Inkscape porte ses courbes en dizaines de points d'un dixième de
- *  millimètre : gardés tels quels, le robot sort à 2 900 polygones et 26 ms par
- *  image — injouable pour un composant redessiné à chaque pas de la marche. À
- *  0,7 unité près (un demi-pixel à l'écran) la silhouette est la même, et il en
- *  reste 900 pour 7 ms. */
-const SIMPLIFY = 0.7;
-
 /** Pièces du dessin que la case « électronique embarquée » montre ou cache. Ce
  *  sont les noms des groupes de la planche ; le `picow`, lui, est TOUJOURS
  *  dessiné : c'est la carte qu'on programme, la voir explique le robot. */
 const EMBARQUE = ['pca9685', 'batterie'];
-
-/** La couleur du dessin, rendue OPAQUE. Frank dessine son PMMA translucide, et
- *  c'est juste : dans la fenêtre de montage on veut voir le servo à travers le
- *  flanc. Mais une pièce translucide est dessinée SANS liseré (sinon la
- *  triangulation se voit en toile d'araignée), et sur une patte découpée en
- *  dizaines de triangles il reste alors une couture blanche à chaque arête — sur
- *  la vignette de l'atelier, longue de 3 cm, le robot en devient grillagé.
- *  Opaque, le liseré revient et la silhouette est nette. */
-function opaque(fill: string | undefined): string | undefined {
-  if (!fill) return fill;
-  const m = /^(#[0-9a-f]{6})[0-9a-f]{2}$/i.exec(fill);
-  return m ? m[1] : fill;
-}
-
-/** Consigne de patella qui rend la pose DESSINÉE : le milieu de course du servo.
- *  Frank dessine son robot monté et debout (le tibia descend déjà de la patella), donc
- *  90° ne plie rien — c'est le repos. Au-delà le tibia se replie vers le corps et
- *  le pied se lève, en deçà il se tend vers l'extérieur. */
-const PATELLA_REST = 90;
 
 /** Nom de la propriété d'une articulation (0..7) : `coxa0`, `patella0`, `coxa1`…
  *  Préfixé de `rev`, c'est celui de son sens de montage (`revcoxa0`). */
@@ -103,8 +77,9 @@ function jointKey(i: number): string {
  *  (millimètres → unités de la feuille), `ground` et `origin`. */
 type Robot = {
   corps: Assembly;
-  femur: Assembly;
-  tibia: Assembly;
+  /** Le fémur, le tibia et leurs articulations : la patte de <kablix-patte>,
+   *  montée ici quatre fois. */
+  leg: LegRig;
   /** Les quatre coxas du corps, rangées avant-gauche, avant-droite,
    *  arrière-gauche, arrière-droite — l'ordre des canaux PWM. */
   coxas: Vec3[];
@@ -114,12 +89,6 @@ type Robot = {
   /** Patte montée en MIROIR (flanc droit) : la même consigne de coxa la fait
    *  tourner dans l'autre sens, comme sur le vrai châssis. */
   mirror: boolean[];
-  /** Les pastilles qui s'emboîtent : coxa du fémur, patella côté fémur, patella
-   *  côté tibia, et le bout du tibia (le pied). */
-  coxaF: Vec3;
-  patellaF: Vec3;
-  patellaT: Vec3;
-  footT: Vec3;
   k: number;
   origin: Vec2;
   /** Hauteur dont le robot est remonté pour que ses pieds touchent le sol
@@ -146,45 +115,17 @@ function centerXY(a: Assembly): Vec2 {
   return { x: x / n, y: y / n };
 }
 
-/** Le pied : le point du tibia le plus LOIN de sa patella. Le dessin n'a pas de
- *  pastille au bout de la patte (il n'y a rien à y emboîter) — c'est donc sa
- *  géométrie qui le dit, et un tibia rallongé suivra tout seul. */
-function farthest(a: Assembly, from: Vec3): Vec3 {
-  let best = from;
-  let far = -1;
-  for (const q of assemblyVertices(a)) {
-    const d = Math.hypot(q.x - from.x, q.y - from.y, q.z - from.z);
-    if (d > far) { far = d; best = q; }
-  }
-  return best;
-}
-
-/** Les deux transformations d'une patte pour une pose donnée, en unités de la
- *  feuille : où tombent les points du fémur, où tombent ceux du tibia. La coxa
- *  tourne la patte entière autour de l'axe vertical de sa pastille ; la patella ne
- *  tourne que le tibia, autour de l'axe horizontal de la patella — dans le repère du
- *  fémur, donc la rotation de la patella s'applique AVANT celle de la coxa. */
-function legXf(r: Robot, i: number, coxaDeg: number, patellaDeg: number): {
-  femur: (p: Vec3) => Vec3; tibia: (p: Vec3) => Vec3;
-} {
-  const k = r.k;
-  const swing = (coxaDeg - 90) * (r.mirror[i] ? -1 : 1);
-  const lacet = r.yaw[i] + swing;
-  const coxaW = scale(r.coxas[i], k);
-  const coxaF = scale(r.coxaF, k);
-  const patellaF = scale(r.patellaF, k);
-  const patellaT = scale(r.patellaT, k);
-  const present = (p: Vec3): Vec3 => rotZ({ x: p.x, y: p.y, z: p.z + r.ground }, YAW);
-  const femur = (p: Vec3): Vec3 => present(add(rotZ(sub(p, coxaF), lacet), coxaW));
-  // Axe de la patella : le X du repère du fémur (`dir: 'x'` de la pastille) — il
-  // tourne avec la patte, c'est tout l'intérêt de l'appliquer ici.
-  const axis: Vec3 = { x: 1, y: 0, z: 0 };
-  // Consigne croissante = patella qui SE PLIE, donc pied qui SE LÈVE : le tibia se
-  // rapproche du fémur, tous deux dessinés partant vers l'extérieur (−y) et vers
-  // le bas — c'est la rotation NÉGATIVE autour du X du fémur qui les referme.
-  const bend = PATELLA_REST - patellaDeg;
-  const tibia = (p: Vec3): Vec3 => femur(add(rotAxis(sub(p, patellaT), axis, bend), patellaF));
-  return { femur, tibia };
+/** Les deux transformations d'une patte du robot pour une pose donnée : la
+ *  cinématique est celle de <kablix-patte> (`legPose`), plantée sur la coxa `i`
+ *  du corps et présentée avec le lacet de la vue. */
+function legXf(r: Robot, i: number, coxaDeg: number, patellaDeg: number): LegPose {
+  return legPose(r.leg, {
+    k: r.k,
+    at: scale(r.coxas[i], r.k),
+    yaw: r.yaw[i],
+    mirror: r.mirror[i],
+    present: (p: Vec3): Vec3 => rotZ({ x: p.x, y: p.y, z: p.z + r.ground }, YAW),
+  }, coxaDeg, patellaDeg);
 }
 
 /** Le robot lu et cadré, construit une seule fois (le calcul balaie les poses
@@ -198,10 +139,9 @@ export function robot(): Robot | null {
 }
 
 function build(): Robot | null {
-  if (!hasAssemblage(CORPS) || !hasAssemblage(FEMUR) || !hasAssemblage(TIBIA)) return null;
+  const leg = legRig();
+  if (!hasAssemblage(CORPS) || !leg) return null;
   const corps = assemblage(CORPS);
-  const femur = assemblage(FEMUR);
-  const tibia = assemblage(TIBIA);
   // Les coxas : les pastilles de famille « coxa » du corps, rangées avant →
   // arrière puis gauche → droite (y croissant = vers l'arrière, x croissant =
   // vers la droite). C'est l'ordre des canaux du PCA9685.
@@ -209,27 +149,18 @@ function build(): Robot | null {
     .sort((a, b) => (a.at.y - b.at.y) || (a.at.x - b.at.x))
     .slice(0, 4)
     .map((j) => j.at);
-  const coxaF = articulations(femur).find((j) => j.famille === 'coxa')?.at;
-  const patellaF = articulations(femur).find((j) => j.famille === 'patella')?.at;
-  const patellaT = articulations(tibia).find((j) => j.famille === 'patella')?.at;
-  if (!coxas.length || !coxaF || !patellaF || !patellaT) return null;
+  if (!coxas.length) return null;
 
   // Lacet de repos : la patte part du centre du corps vers sa coxa, et le
   // fémur est dessiné dans le sens coxa → patella. La même règle que le monteur
   // de `montage()`, appliquée aux quatre pastilles.
   const c = centerXY(corps);
-  const cap = degXY({ x: patellaF.x - coxaF.x, y: patellaF.y - coxaF.y });
   const r: Robot = {
     corps,
-    femur,
-    tibia,
+    leg,
     coxas,
-    yaw: coxas.map((h) => degXY({ x: h.x - c.x, y: h.y - c.y }) - cap),
+    yaw: coxas.map((h) => degXY({ x: h.x - c.x, y: h.y - c.y }) - leg.cap),
     mirror: coxas.map((h) => h.x > 0),
-    coxaF,
-    patellaF,
-    patellaT,
-    footT: farthest(tibia, patellaT),
     k: 1,
     origin: { x: SHEET / 2, y: SHEET / 2 },
     ground: 0,
@@ -238,7 +169,7 @@ function build(): Robot | null {
   // Le SOL : la hauteur des pieds en pose de repos (90/90). Le robot est remonté
   // d'autant, ses ombres se collent alors sous ses pieds — et lever une patte la
   // décolle vraiment.
-  const rest = r.coxas.map((_, i) => legXf(r, i, 90, 90).tibia(r.footT).z);
+  const rest = r.coxas.map((_, i) => legXf(r, i, 90, 90).tibia(leg.footT).z);
   r.ground = -Math.min(...rest);
   // Le CADRAGE : la boîte projetée du corps et de chaque patte sur tout son
   // débattement. Les pattes sont indépendantes, il suffit donc de balayer une
@@ -264,8 +195,8 @@ function build(): Robot | null {
   }
   grow(bb, { x: sb.x0, y: sb.y0 });
   grow(bb, { x: sb.x1, y: sb.y1 });
-  const vf = assemblyVertices(femur, true);
-  const vt = assemblyVertices(tibia, true);
+  const vf = assemblyVertices(leg.femur, true);
+  const vt = assemblyVertices(leg.tibia, true);
   const poses = [0, 45, 90, 135, 180];
   for (let i = 0; i < r.coxas.length; i++) {
     for (const coxa of poses) {
@@ -277,7 +208,7 @@ function build(): Robot | null {
         for (const q of vf) grow(bb, project(xf.femur(q)));
         for (const q of vt) grow(bb, project(xf.tibia(q)));
         // Et l'ombre du pied, qui tombe plus bas que le pied lui-même.
-        const f = xf.tibia(r.footT);
+        const f = xf.tibia(leg.footT);
         grow(bb, project({ x: f.x, y: f.y, z: 0 }));
       }
     }
@@ -421,9 +352,9 @@ export class AraigneeElement extends LitElement {
     const r = robot();
     if (!r) return [];
     return this.legs().map((xf) => ({
-      coxa: xf.femur(scale(r.coxaF, r.k)),
-      patella: xf.femur(scale(r.patellaF, r.k)),
-      foot: xf.tibia(scale(r.footT, r.k)),
+      coxa: xf.femur(scale(r.leg.coxaF, r.k)),
+      patella: xf.femur(scale(r.leg.patellaF, r.k)),
+      foot: xf.tibia(scale(r.leg.footT, r.k)),
     }));
   }
 
@@ -454,8 +385,8 @@ export class AraigneeElement extends LitElement {
         xf: (p: Vec3) => rotZ({ x: p.x, y: p.y, z: p.z + r.ground }, YAW),
       }));
       for (const xf of legs) {
-        faces.push(...assemblyFaces(r.femur, { ...opts, xf: xf.femur }));
-        faces.push(...assemblyFaces(r.tibia, { ...opts, xf: xf.tibia }));
+        faces.push(...assemblyFaces(r.leg.femur, { ...opts, xf: xf.femur }));
+        faces.push(...assemblyFaces(r.leg.tibia, { ...opts, xf: xf.tibia }));
       }
     }
     const o = r?.origin ?? { x: SHEET / 2, y: SHEET / 2 };

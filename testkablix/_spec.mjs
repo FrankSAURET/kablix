@@ -1033,9 +1033,10 @@ void loop() {
   }),
 
   test({
-    // Patte de robot araignée (placeholder, cf. patte-element.mts) : 1 pièce,
-    // 2 articulations indépendantes câblées chacune sur un canal du PCA9685
-    // (coxa → canal 0, patella → canal 1), alimentées par la powerbank.
+    // Patte de robot araignée (cf. patte-element.mts) : le fémur et le tibia
+    // dessinés par Frank, vus en volume, avec un connecteur à deux borniers
+    // 3 fils. 2 articulations indépendantes câblées chacune sur un canal du
+    // PCA9685 (coxa → canal 0, patella → canal 1), alimentées par la powerbank.
     name: 'patte-uno', board: 'uno', ext: 'ino',
     parts: [
       MCU('uno'),
@@ -2983,9 +2984,10 @@ while True:
   }),
 
   test({
-    // Patte de robot araignée (placeholder, cf. patte-element.mts) : 1 pièce,
-    // 2 articulations indépendantes câblées chacune sur un canal du PCA9685
-    // (coxa → canal 0, patella → canal 1), alimentées par la powerbank.
+    // Patte de robot araignée (cf. patte-element.mts) : le fémur et le tibia
+    // dessinés par Frank, vus en volume, avec un connecteur à deux borniers
+    // 3 fils. 2 articulations indépendantes câblées chacune sur un canal du
+    // PCA9685 (coxa → canal 0, patella → canal 1), alimentées par la powerbank.
     name: 'patte-pico', board: 'pico', ext: 'py',
     parts: [
       MCU('pico'),

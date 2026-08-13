@@ -86,10 +86,10 @@ async function run() {
 	// quatre coxas sortir des pastilles rouges du corps.
 	const R = robot();
 	ok('dessin : les trois assemblages sont lus (corps, fémur, tibia)',
-		!!R && !!R.corps && !!R.femur && !!R.tibia);
+		!!R && !!R.corps && !!R.leg?.femur && !!R.leg?.tibia);
 	ok('dessin : 4 coxas lues sur les pastilles du corps', R?.coxas?.length === 4, R?.coxas?.length);
 	ok('dessin : la patella vient des deux pastilles « patella » (fémur et tibia)',
-		!!R?.patellaF && !!R?.patellaT && !!R?.coxaF);
+		!!R?.leg?.patellaF && !!R?.leg?.patellaT && !!R?.leg?.coxaF);
 	// Deux pattes à gauche (x < 0), deux à droite : c'est ce qui donne les deux
 	// sens de balayage. Une planche redessinée de travers se verrait ici.
 	ok('dessin : deux coxas à gauche, deux à droite (montage en miroir)',
@@ -278,14 +278,37 @@ async function run() {
 	ok('patte seule : AUCUNE pose ne déborde de la feuille (25 poses)', dehors.length === 0, dehors.join(' '));
 	p.coxaAngle = 90; p.patellaAngle = 90;
 	await p.updateComplete;
-	ok('patte seule : les broches restent hors du dessin (colonne x = 10)',
-		psvg.getBBox().x > 20 && p.pinInfo.every((q) => q.x === 10), Math.round(psvg.getBBox().x));
-	// La patte SEULE garde sa mécanique codée (elle n'est le membre de personne) :
-	// elle doit rester plus courte que celles du robot, qui viennent du dessin.
-	ok('patte seule : plus courte que celles du robot (elle tient dans sa vignette)',
-		dist(p.geometry.patella, p.geometry.foot) < dist(g0[0].patella, g0[0].foot)
-		&& dist(p.geometry.coxa, p.geometry.patella) < dist(g0[0].coxa, g0[0].patella),
-		\`\${dist(p.geometry.patella, p.geometry.foot).toFixed(0)} vs \${dist(g0[0].patella, g0[0].foot).toFixed(0)}\`);
+	ok('patte seule : la mécanique est VRAIMENT dessinée (fémur + tibia)', polys(p) > 40, polys(p));
+	// Depuis la v2026.8.48 la patte seule est le MÊME dessin que celles du robot,
+	// montée toute nue : les proportions doivent coller au millième près, seule
+	// l'échelle de la vignette change.
+	const rapport = (g) => dist(g.coxa, g.patella) / dist(g.patella, g.foot);
+	ok('patte seule : c\\'est la MÊME patte que celles du robot (mêmes proportions)',
+		Math.abs(rapport(p.geometry) - rapport(g0[0])) < 0.01,
+		\`\${rapport(p.geometry).toFixed(3)} vs \${rapport(g0[0]).toFixed(3)}\`);
+	// Le CONNECTEUR (dessin de Frank) : deux borniers nommés, trois carrés dorés
+	// chacun, et les six broches posées PILE dessus — six points nus alignés ne
+	// disaient pas quel fil allait où.
+	const plug = p.shadowRoot.querySelector('.leg__plug');
+	const golds = [...p.shadowRoot.querySelectorAll('.leg__plug rect')]
+		.filter((r) => ((r.getAttribute('style') ?? '') + (r.getAttribute('fill') ?? '')).toLowerCase().includes('#f6d32d'));
+	const textes = [...p.shadowRoot.querySelectorAll('.leg__plug text')].map((t) => t.textContent.trim());
+	// La feuille est en unités = pixels (width = viewBox) : un rectangle mesuré à
+	// l'écran se compare donc directement aux coordonnées des broches.
+	const sr = psvg.getBoundingClientRect();
+	const centres = golds.map((r) => {
+		const b = r.getBoundingClientRect();
+		return { x: b.x - sr.x + b.width / 2, y: b.y - sr.y + b.height / 2 };
+	});
+	ok('patte seule : le connecteur de Frank est incrusté', !!plug && golds.length === 6, golds.length);
+	ok('patte seule : les deux borniers sont NOMMÉS (Coxa, Patella)',
+		textes.includes('Coxa') && textes.includes('Patella'), textes.join(' '));
+	ok('patte seule : chaque broche tombe sur son carré doré',
+		p.pinInfo.length === 6 && p.pinInfo.every((q) => centres.some((c) => Math.abs(c.x - q.x) < 1.5 && Math.abs(c.y - q.y) < 1.5)),
+		centres.map((c) => \`\${c.x.toFixed(1)},\${c.y.toFixed(1)}\`).join(' '));
+	ok('patte seule : la mécanique ne recouvre pas le connecteur',
+		p.shadowRoot.querySelector('.leg__solid').getBBox().x > 40,
+		Math.round(p.shadowRoot.querySelector('.leg__solid').getBBox().x));
 	// La patte a AUSSI ses deux cases d'inversion : servo à l'envers = même
 	// consigne, pose miroir. Le repère est le pied EN PLAN (x) et non sa hauteur :
 	// 30° et 150° lèvent le pied pareil (cos ±60°), c'est le côté qui change.

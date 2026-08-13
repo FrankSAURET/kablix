@@ -1,23 +1,34 @@
-// Composant <kablix-patte> : patte de robot à 2 articulations (coxa, patella),
-// dessinée EN VOLUME (vue isométrique, moteur ./iso3d.mts) depuis la v2026.8.22.
-// Chaque articulation est un servo interne (0-180°, même formule que
-// <kablix-servo>) :
+// Composant <kablix-patte> : UNE patte de robot à 2 articulations (coxa,
+// patella), dessinée EN VOLUME (vue isométrique, moteur ./iso3d.mts).
+//
+// Depuis la v2026.8.48 c'est la MÊME patte que celles du robot : le fémur et le
+// tibia sont les assemblages `araignee-patte-femur` et `araignee-patte-tibia` de
+// la planche `Composants3D.svg`, montés tout nus. Plus une cote, plus un pavé
+// codé en dur — redessiner la pièce dans Inkscape change la patte seule ET le
+// robot. C'est ce module qui porte la cinématique commune (`legRig`, `legPose`),
+// et <kablix-araignee> l'appelle quatre fois.
+//
+// Chaque articulation est un servo (0-180°, même formule que <kablix-servo>) :
 //   • la COXA tourne la patte dans le plan du sol (balayage avant/arrière),
 //     90° = direction de repos ;
-//   • la PATELLA lève ou baisse le tibia dans le plan vertical de la patte :
-//     90° = tibia VERTICAL (robot debout), 180° = tendu à l'horizontale (ventre
-//     au sol), 0° = replié sous le corps.
-// C'est la mécanique réelle d'un quadrupède à 8 servos, celle du robot araignée.
-// Le dessin plat d'avant (./externe/patte.svg) ne montrait aucun relief : les
-// deux rotations se faisaient dans la feuille, donc « lever la patte » et « la
-// tourner » donnaient la même image.
-import { css, html, LitElement, type TemplateResult } from 'lit';
+//   • la PATELLA plie le tibia dans le plan vertical de la patte : 90° = la pose
+//     DESSINÉE (Frank dessine son robot monté et debout), au-delà le tibia se
+//     replie et le pied se lève, en deçà il se tend.
+//
+// À gauche de la feuille, le CONNECTEUR (./externe/connecteur-servo-patte.svg,
+// dessin de Frank) : deux borniers à trois broches — violet « Coxa », vert
+// « Patella » — dont les carrés dorés portent les six pastilles. Sans lui, six
+// points nus alignés ne disaient pas quel fil allait où.
+import { css, html, svg, LitElement, type TemplateResult } from 'lit';
+import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
 import {
-  add, boxFaces, extrudeProfile, groundShadow, renderFaces, scale, shadowGradient,
-  type Face, type Vec3,
+  MATIERES, add, articulations, assemblyFaces, assemblyVertices, groundShadow, project,
+  renderFaces, rotAxis, rotZ, scale, shadowGradient, sub,
+  type Assembly, type AssemblyPiece, type Face, type Vec2, type Vec3,
 } from './iso3d.mjs';
-import { hasProfile, profile } from './profils.mjs';
+import { assemblage, hasAssemblage } from './assemblages.mjs';
+import drawing from './externe/connecteur-servo-patte.svg';
 
 /** Extrait le groupe `<g id="ID" …> … </g>` complet (gère l'imbrication).
  *  Gardé ici : d'autres forks s'en servent pour découper un SVG retouché. */
@@ -41,75 +52,131 @@ export function extractGroup(svgText: string, id: string): string {
   return '';
 }
 
-/** Couleurs de la mécanique — reprises du dessin plat pour ne pas dépayser :
- *  châssis PMMA bleuté, os d'aluminium clair, servos noirs, visserie dorée. */
-export const COLORS = {
-  chassis: '#bcdff0',
-  bone: '#c9d6de',
-  servo: '#2f3640',
-  brass: '#c8ad63',
-};
+/** Les deux dessins qui font une patte. Frank n'en dessine qu'un exemplaire :
+ *  celui du robot. */
+export const LEG_FEMUR = 'araignee-patte-femur';
+export const LEG_TIBIA = 'araignee-patte-tibia';
 
-/** Cotes d'une patte, en unités de la feuille du composant. La patte seule est
- *  un peu plus courte que celles du robot : elle doit tenir dans une vignette
- *  de 140×90, pattes tendues comme repliées. */
-export type LegSize = { femur: number; tibia: number; bone: number };
-export const LEG_ALONE: LegSize = { femur: 16, tibia: 28, bone: 6 };
-export const LEG_SPIDER: LegSize = { femur: 30, tibia: 45, bone: 8 };
+/** Consigne de patella qui rend la pose DESSINÉE : le milieu de course du servo.
+ *  Le tibia descend déjà de la patella sur la planche, donc 90° ne plie rien. */
+export const PATELLA_REST = 90;
+
+/** Allègement des contours, en unités de feuille (voir `simplifyPoly`) : les
+ *  tracés Inkscape portent leurs courbes en dizaines de points d'un dixième de
+ *  millimètre. À 0,7 près (un demi-pixel) la silhouette est la même pour trois
+ *  fois moins de polygones. */
+export const SIMPLIFY = 0.7;
 
 /** Géométrie d'une patte : les points qui comptent, pour dessiner ET pour
  *  mesurer (les bancs lisent la position du pied, pas des pixels). */
 export type LegGeometry = { coxa: Vec3; patella: Vec3; foot: Vec3 };
 
-/**
- * Cinématique d'UNE patte. `dirDeg` est la direction de repos dans le plan du
- * sol (0 = vers +X). `mirror` : patte montée en MIROIR (flanc droit du robot,
- * servo retourné) — la même consigne de coxa la fait alors tourner dans
- * l'autre sens, exactement comme sur le vrai châssis.
- */
-export function legGeometry(
-  coxa: Vec3, dirDeg: number, coxaAngle: number, patellaAngle: number, size: LegSize, mirror = false,
-): LegGeometry {
-  const swing = (coxaAngle - 90) * (mirror ? -1 : 1);
-  const dir = ((dirDeg + swing) * Math.PI) / 180;
-  const u: Vec3 = { x: Math.cos(dir), y: Math.sin(dir), z: 0 };
-  const patella = add(coxa, scale(u, size.femur));
-  // Élévation du tibia mesurée depuis la verticale descendante : 90° = tibia
-  // vertical (le robot est debout sur ses quatre pattes).
-  const e = ((patellaAngle - 90) * Math.PI) / 180;
-  const foot = add(patella, {
-    x: u.x * Math.sin(e) * size.tibia,
-    y: u.y * Math.sin(e) * size.tibia,
-    z: -Math.cos(e) * size.tibia,
-  });
-  return { coxa, patella, foot };
+/** Les deux pièces d'une patte et leurs points d'articulation, lus sur les
+ *  pastilles rouges de la planche. Tout est en millimètres. */
+export type LegRig = {
+  femur: Assembly;
+  tibia: Assembly;
+  /** Pastilles qui s'emboîtent : coxa du fémur, patella côté fémur, patella côté
+   *  tibia, et le bout du tibia (le pied, mesuré et non dessiné). */
+  coxaF: Vec3;
+  patellaF: Vec3;
+  patellaT: Vec3;
+  footT: Vec3;
+  /** Cap DESSINÉ du fémur (coxa → patella) dans le plan du sol, en degrés : il
+   *  dit de combien tourner la patte pour la faire partir où on veut. */
+  cap: number;
+};
+
+/** Où une patte est plantée, et comment elle est présentée. `at` et `k` sont en
+ *  unités de la feuille ; `present` ajoute le sol et le lacet de la vue. */
+export type LegPlace = {
+  k: number;
+  at: Vec3;
+  yaw: number;
+  mirror: boolean;
+  present: (p: Vec3) => Vec3;
+};
+
+/** Les deux transformations d'une patte pour une pose donnée : où tombent les
+ *  points du fémur, où tombent ceux du tibia. */
+export type LegPose = { femur: (p: Vec3) => Vec3; tibia: (p: Vec3) => Vec3 };
+
+/** Le pied : le point du tibia le plus LOIN de sa patella. Le dessin n'a pas de
+ *  pastille au bout de la patte (il n'y a rien à y emboîter) — c'est donc sa
+ *  géométrie qui le dit, et un tibia rallongé suivra tout seul. */
+function farthest(a: Assembly, from: Vec3): Vec3 {
+  let best = from;
+  let far = -1;
+  for (const q of assemblyVertices(a)) {
+    const d = Math.hypot(q.x - from.x, q.y - from.y, q.z - from.z);
+    if (d > far) { far = d; best = q; }
+  }
+  return best;
+}
+
+let rigCache: LegRig | null | undefined;
+
+/** La patte lue sur la planche, une seule fois. `null` si l'un des deux dessins
+ *  manque (planche pas encore extraite) : le composant se dessine alors vide
+ *  plutôt que faux. */
+export function legRig(): LegRig | null {
+  if (rigCache !== undefined) return rigCache;
+  rigCache = buildRig();
+  return rigCache;
+}
+
+function buildRig(): LegRig | null {
+  if (!hasAssemblage(LEG_FEMUR) || !hasAssemblage(LEG_TIBIA)) return null;
+  const femur = assemblage(LEG_FEMUR);
+  const tibia = assemblage(LEG_TIBIA);
+  const coxaF = articulations(femur).find((j) => j.famille === 'coxa')?.at;
+  const patellaF = articulations(femur).find((j) => j.famille === 'patella')?.at;
+  const patellaT = articulations(tibia).find((j) => j.famille === 'patella')?.at;
+  if (!coxaF || !patellaF || !patellaT) return null;
+  return {
+    femur,
+    tibia,
+    coxaF,
+    patellaF,
+    patellaT,
+    footT: farthest(tibia, patellaT),
+    cap: (Math.atan2(patellaF.y - coxaF.y, patellaF.x - coxaF.x) * 180) / Math.PI,
+  };
 }
 
 /**
- * Un OS de la patte, de `a` à `b`, épaisseur `t`. Le contour dessiné dans
- * `Composants.svg` (`patte-femur`, `patte-tibia`) est utilisé s'il a été extrait
- * — mode d'emploi : docs/fr/Drawing-systems.md. Sans dessin, on garde le pavé :
- * le composant reste complet tant que la pièce n'est pas tracée.
+ * Cinématique d'UNE patte. La coxa tourne la patte entière autour de l'axe
+ * VERTICAL de sa pastille ; la patella ne tourne que le tibia, autour de l'axe
+ * HORIZONTAL de la patella — dans le repère du fémur, donc la rotation de la
+ * patella s'applique AVANT celle de la coxa (l'axe tourne avec la patte).
+ * `mirror` : patte montée en miroir (flanc droit du robot, servo retourné) — la
+ * même consigne la fait alors balayer dans l'autre sens.
  */
-function bone(name: string, a: Vec3, b: Vec3, t: number): Face[] {
-  if (!hasProfile(name)) return boxFaces(a, b, t, t, COLORS.bone);
-  const p = profile(name);
-  return extrudeProfile(p, a, b, t, COLORS.bone, p.holes);
+export function legPose(rig: LegRig, place: LegPlace, coxaDeg: number, patellaDeg: number): LegPose {
+  const k = place.k;
+  const swing = (coxaDeg - 90) * (place.mirror ? -1 : 1);
+  const lacet = place.yaw + swing;
+  const coxaF = scale(rig.coxaF, k);
+  const patellaF = scale(rig.patellaF, k);
+  const patellaT = scale(rig.patellaT, k);
+  const femur = (p: Vec3): Vec3 => place.present(add(rotZ(sub(p, coxaF), lacet), place.at));
+  // Axe de la patella : le X du repère du fémur (`dir: 'x'` de la pastille).
+  // Consigne croissante = patella qui SE PLIE, donc pied qui SE LÈVE.
+  const bend = PATELLA_REST - patellaDeg;
+  const tibia = (p: Vec3): Vec3 =>
+    femur(add(rotAxis(sub(p, patellaT), { x: 1, y: 0, z: 0 }, bend), patellaF));
+  return { femur, tibia };
 }
 
-/** Faces d'une patte : équerre de coxa, fémur, bloc de patella, tibia, pied. */
-export function legFaces(g: LegGeometry, size: LegSize): Face[] {
-  const b = size.bone;
-  return [
-    // Servo de coxa : un bloc posé à l'aplomb de l'articulation.
-    ...boxFaces(add(g.coxa, { x: 0, y: 0, z: -b * 0.9 }), add(g.coxa, { x: 0, y: 0, z: b * 0.9 }), b * 1.4, b * 1.4, COLORS.servo),
-    ...bone('patte-femur', g.coxa, g.patella, b),
-    // Servo de patella, aligné sur le fémur.
-    ...boxFaces(add(g.patella, { x: 0, y: 0, z: -b * 0.8 }), add(g.patella, { x: 0, y: 0, z: b * 0.8 }), b * 1.4, b * 1.4, COLORS.servo),
-    ...bone('patte-tibia', g.patella, g.foot, b * 0.8),
-    // Embout caoutchouc : un petit cube au bout du tibia.
-    ...boxFaces(add(g.foot, { x: 0, y: 0, z: -b * 0.35 }), add(g.foot, { x: 0, y: 0, z: b * 0.35 }), b * 0.9, b * 0.9, COLORS.servo),
-  ];
+/** La couleur du dessin, rendue OPAQUE. Frank dessine son PMMA translucide, et
+ *  c'est juste dans la fenêtre de montage. Mais une pièce translucide est
+ *  dessinée SANS liseré (sinon la triangulation se voit en toile d'araignée), et
+ *  il reste alors une couture blanche à chaque arête — sur une vignette de 3 cm,
+ *  la pièce en devient grillagée. */
+export function opaque(fill: string | undefined): string | undefined {
+  if (!fill) return fill;
+  const m = /^(#[0-9a-f]{6})[0-9a-f]{2}$/i.exec(fill);
+  return m ? m[1] : fill;
 }
 
 /**
@@ -184,19 +251,114 @@ export class JointAnimator {
   };
 }
 
-/** Feuille de la patte seule et centre de sa scène 3D. La coxa est PERCHÉE à
- *  z = tibia : patella à 90° (patte droite), le pied tombe alors pile sur le sol
- *  (z = 0) et son ombre se colle dessous — c'est la patte qui porte le robot.
- *  Le centre est décalé à droite pour laisser la colonne des broches (x = 10)
- *  hors du dessin, et la feuille couvre TOUTES les poses (coxa 0..180 ×
- *  patella 0..180, ombre au sol comprise) : rien n'est jamais rogné, verify:araignee
- *  le repasse en revue pose par pose. */
-const ALONE_SHEET = { w: 130, h: 95 };
-const ALONE_ORIGIN = { x: 70, y: 58 };
+/** Feuille de la patte seule : le connecteur occupe la colonne de gauche, la
+ *  mécanique tout le reste. */
+const SHEET = { w: 210, h: 170 };
+/** Le connecteur, posé en (0, 40) : ses six carrés dorés tombent alors sur la
+ *  grille de 10 px (y = 50, 60, 70 puis 90, 100, 110) et le bornier est centré
+ *  sur la hauteur de la feuille. */
+const PLUG = { x: 0, y: 40, w: 40, h: 80 };
+/** Zone laissée à la mécanique : à droite du connecteur, marge sur les bords. */
+const MARGIN = 6;
+const ZONE = { x0: PLUG.w + 8, y0: MARGIN, x1: SHEET.w - MARGIN, y1: SHEET.h - MARGIN };
+/** Présentation. La patte est seule : on la veut DE PROFIL, fémur et tibia bien
+ *  séparés — vue dans son axe, les deux os se confondent en un simple tube. Or
+ *  l'isométrie rend HORIZONTALE la direction −45° du monde (x − y maximal,
+ *  x + y nul) : c'est là que la patte se montre en entier. `YAW` est le lacet de
+ *  la vue (celui du robot), `LEG_DIR` l'oriente pour compenser. */
+const YAW = 22;
+const LEG_DIR = -45 - YAW;
+/** Ombre portée du pied : rayon au sol, étalement maximal quand le pied est
+ *  levé, hauteur à laquelle elle a doublé, et le dégradé qui lui ôte son
+ *  contour. */
+const FOOT_SHADOW = 5;
+const SHADOW_GROW = 2;
+const SHADOW_REF = 130;
+const OMBRE = 'patte-ombre';
+const SHADOW_PAD = FOOT_SHADOW * Math.cos(Math.PI / 6) * 2 * SHADOW_GROW;
+
+/** Le connecteur, contenu du SVG SEUL : posé dans un `<g>` translaté. Un `<svg>`
+ *  imbriqué sans width/height s'étirerait à toute la feuille. */
+const PLUG_INNER = drawing
+  .slice(drawing.indexOf('>', drawing.indexOf('<svg')) + 1)
+  .replace(/<\/svg>\s*$/, '');
+
+/** La patte cadrée pour sa vignette : échelle, origine et hauteur du sol. Le
+ *  calcul balaie tout le débattement (25 poses), ombre du pied comprise — rien
+ *  n'est jamais rogné, quel que soit le dessin de Frank. */
+type LegView = { rig: LegRig; k: number; origin: Vec2; yaw: number; ground: number };
+
+let viewCache: LegView | null | undefined;
+
+function legView(): LegView | null {
+  if (viewCache !== undefined) return viewCache;
+  viewCache = buildView();
+  return viewCache;
+}
+
+/** L'emplacement de la patte seule : plantée à l'origine, présentée de biais. */
+function placeOf(v: LegView): LegPlace {
+  return {
+    k: v.k,
+    at: { x: 0, y: 0, z: 0 },
+    yaw: v.yaw,
+    mirror: false,
+    present: (p: Vec3): Vec3 => rotZ({ x: p.x, y: p.y, z: p.z + v.ground }, YAW),
+  };
+}
+
+function buildView(): LegView | null {
+  const rig = legRig();
+  if (!rig) return null;
+  const v: LegView = { rig, k: 1, origin: { x: 0, y: 0 }, yaw: LEG_DIR - rig.cap, ground: 0 };
+  // Le SOL : la hauteur du pied en pose de repos (90/90). La patte est remontée
+  // d'autant, son ombre se colle alors dessous — et plier la patella la décolle.
+  v.ground = -legPose(rig, placeOf(v), 90, 90).tibia(rig.footT).z;
+  // Le CADRAGE : la boîte projetée de la patte sur tout son débattement,
+  // épaisseurs comprises (`true`) — un servo posé à plat déborde de son contour.
+  const bb = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity };
+  const vf = assemblyVertices(rig.femur, true);
+  const vt = assemblyVertices(rig.tibia, true);
+  const poses = [0, 45, 90, 135, 180];
+  for (const coxa of poses) {
+    for (const patella of poses) {
+      const xf = legPose(rig, placeOf(v), coxa, patella);
+      for (const q of vf) grow(bb, project(xf.femur(q)));
+      for (const q of vt) grow(bb, project(xf.tibia(q)));
+      // Et l'ombre du pied, qui tombe plus bas que le pied lui-même.
+      const f = xf.tibia(rig.footT);
+      grow(bb, project({ x: f.x, y: f.y, z: 0 }));
+    }
+  }
+  const w = Math.max(bb.x1 - bb.x0, 1);
+  const h = Math.max(bb.y1 - bb.y0, 1);
+  const usableW = ZONE.x1 - ZONE.x0 - 2 * SHADOW_PAD;
+  const usableH = ZONE.y1 - ZONE.y0 - 2 * SHADOW_PAD;
+  v.k = Math.min(usableW / w, usableH / h);
+  v.ground *= v.k;
+  v.origin = {
+    x: (ZONE.x0 + ZONE.x1) / 2 - ((bb.x0 + bb.x1) / 2) * v.k,
+    y: (ZONE.y0 + ZONE.y1) / 2 - ((bb.y0 + bb.y1) / 2) * v.k,
+  };
+  return v;
+}
+
+function grow(bb: { x0: number; x1: number; y0: number; y1: number }, q: Vec2): void {
+  bb.x0 = Math.min(bb.x0, q.x);
+  bb.x1 = Math.max(bb.x1, q.x);
+  bb.y0 = Math.min(bb.y0, q.y);
+  bb.y1 = Math.max(bb.y1, q.y);
+}
+
+/** Une broche du bornier : colonne des carrés dorés, ligne donnée par le
+ *  dessin. */
+function plugPin(name: string, row: number, signals: unknown[]): ElementPin {
+  return { name, x: PLUG.x + 10, y: PLUG.y + row, signals } as ElementPin;
+}
 
 export class PatteElement extends LitElement {
   // Sans ceci, `:host` reste `display: inline` : la boîte du composant fait la
-  // hauteur d'une ligne de texte (17 px) au lieu des 90 px du dessin, l'éditeur
+  // hauteur d'une ligne de texte (17 px) au lieu de celle du dessin, l'éditeur
   // ne mesure donc qu'un carré minuscule et un `transform` posé sur l'hôte (la
   // capture des fiches d'aide) est purement ignoré par le navigateur.
   static get styles() {
@@ -260,36 +422,71 @@ export class PatteElement extends LitElement {
     return 360 / s;
   }
 
-  /** Géométrie 3D affichée — lue telle quelle par les bancs de test : mesurer
-   *  la position du pied vaut mieux que d'inspecter des polygones. */
-  get geometry(): LegGeometry {
-    const coxa: Vec3 = { x: 0, y: 0, z: LEG_ALONE.tibia };
-    return legGeometry(coxa, 0, this.coxaShown ?? 90, this.patellaShown ?? 90, LEG_ALONE);
+  /** La pose affichée, transformations comprises. */
+  private pose(): { view: LegView; xf: LegPose } | null {
+    const view = legView();
+    if (!view) return null;
+    return {
+      view,
+      xf: legPose(view.rig, placeOf(view), this.coxaShown ?? 90, this.patellaShown ?? 90),
+    };
   }
 
-  // Broches : 2 connecteurs 3 fils (coxa, patella), calés en dehors de la zone
-  // mécanique (colonne x=10, grille 10 px). Non dessinées dans le SVG (comme la
-  // diode) : la pastille est posée génériquement par l'éditeur.
+  /** Géométrie 3D affichée — lue telle quelle par les bancs de test : mesurer
+   *  la position du pied vaut mieux que d'inspecter des polygones. Unités de la
+   *  feuille, sol en z = 0. */
+  get geometry(): LegGeometry {
+    const p = this.pose();
+    const zero: Vec3 = { x: 0, y: 0, z: 0 };
+    if (!p) return { coxa: zero, patella: zero, foot: zero };
+    const { rig, k } = p.view;
+    return {
+      coxa: p.xf.femur(scale(rig.coxaF, k)),
+      patella: p.xf.femur(scale(rig.patellaF, k)),
+      foot: p.xf.tibia(scale(rig.footT, k)),
+    };
+  }
+
+  // Broches : les deux borniers 3 fils du dessin (coxa, patella). Leurs centres
+  // tombent sur les carrés dorés du connecteur — la pastille de l'éditeur s'y
+  // pose pile, et le boîtier dit à quel servo elle appartient.
   readonly pinInfo: ElementPin[] = [
-    { name: 'coxa.GND', x: 10, y: 10, signals: [{ type: 'power', signal: 'GND' }] },
-    { name: 'coxa.V+', x: 10, y: 20, signals: [{ type: 'power', signal: 'VCC' }] },
-    { name: 'coxa.PWM', x: 10, y: 30, signals: [{ type: 'pwm' }] },
-    { name: 'patella.GND', x: 10, y: 55, signals: [{ type: 'power', signal: 'GND' }] },
-    { name: 'patella.V+', x: 10, y: 65, signals: [{ type: 'power', signal: 'VCC' }] },
-    { name: 'patella.PWM', x: 10, y: 75, signals: [{ type: 'pwm' }] },
+    plugPin('coxa.GND', 10, [{ type: 'power', signal: 'GND' }]),
+    plugPin('coxa.V+', 20, [{ type: 'power', signal: 'VCC' }]),
+    plugPin('coxa.PWM', 30, [{ type: 'pwm' }]),
+    plugPin('patella.GND', 50, [{ type: 'power', signal: 'GND' }]),
+    plugPin('patella.V+', 60, [{ type: 'power', signal: 'VCC' }]),
+    plugPin('patella.PWM', 70, [{ type: 'pwm' }]),
   ];
 
   render(): TemplateResult {
+    const p = this.pose();
+    const faces: Face[] = [];
+    if (p) {
+      const { rig, k } = p.view;
+      const opts = {
+        scale: k,
+        simplify: SIMPLIFY,
+        color: (q: AssemblyPiece): string => opaque(q.fill) ?? MATIERES[q.mat] ?? MATIERES.pmma,
+      };
+      // Un seul tas de faces pour fémur ET tibia : c'est le tri en profondeur
+      // commun qui fait passer le tibia devant ou derrière selon la pose.
+      faces.push(...assemblyFaces(rig.femur, { ...opts, xf: p.xf.femur }));
+      faces.push(...assemblyFaces(rig.tibia, { ...opts, xf: p.xf.tibia }));
+    }
+    const o = p?.view.origin ?? { x: (ZONE.x0 + ZONE.x1) / 2, y: (ZONE.y0 + ZONE.y1) / 2 };
+    const foot = this.geometry.foot;
     // Racine en `html` (elle commence par <svg>, donc pas de piège de
-    // namespace), contenu en `svg` : les polygones viennent de `renderFaces`.
-    const g = this.geometry;
+    // namespace), contenu en `svg` : un fragment commençant par <g> passé à
+    // `html` serait parsé en namespace HTML et jamais dessiné.
     return html`
-      <svg width=${ALONE_SHEET.w} height=${ALONE_SHEET.h}
-        viewBox="0 0 ${ALONE_SHEET.w} ${ALONE_SHEET.h}" xmlns="http://www.w3.org/2000/svg">
-        <defs>${shadowGradient('patte-ombre')}</defs>
-        <g class="leg__shadow">${groundShadow(g.foot, 3.5, ALONE_ORIGIN.x, ALONE_ORIGIN.y,
-          { fondu: 'patte-ombre' })}</g>
-        <g class="leg__solid">${renderFaces(legFaces(g, LEG_ALONE), ALONE_ORIGIN.x, ALONE_ORIGIN.y)}</g>
+      <svg width=${SHEET.w} height=${SHEET.h} viewBox="0 0 ${SHEET.w} ${SHEET.h}"
+        xmlns="http://www.w3.org/2000/svg">
+        ${svg`<defs>${shadowGradient(OMBRE)}</defs>
+        <g class="leg__plug" transform=${`translate(${PLUG.x} ${PLUG.y})`}>${unsafeSVG(PLUG_INNER)}</g>
+        <g class="leg__shadow">${groundShadow(foot, FOOT_SHADOW, o.x, o.y,
+          { fondu: OMBRE, ref: SHADOW_REF, max: SHADOW_GROW })}</g>
+        <g class="leg__solid">${renderFaces(faces, o.x, o.y)}</g>`}
       </svg>
     `;
   }
