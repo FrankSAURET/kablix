@@ -254,10 +254,12 @@ ok(
 
 // 9. Garde-fous de source : le câblage réel de l'icône Kablix.
 const extSrc = readFileSync(join(ROOT, 'src', 'extension.ts'), 'utf8');
-// Corps du gestionnaire de visibilité de la vue Kablix (l'icône de la barre
-// d'activité), isolé du reste du fichier : `registerProjixEditor` le suit.
+// Ce que fait l'icône de la barre d'activité, isolé du reste du fichier :
+// `openWorkshop` l'ouvre, `registerProjixEditor` le suit. La tranche couvre les
+// DEUX chemins qui y mènent — l'événement de visibilité et, depuis l'activation
+// paresseuse, le rattrapage « volet déjà visible quand `activate()` tourne ».
 const handler = extSrc.slice(
-  extSrc.indexOf('onDidChangeVisibility'),
+  extSrc.indexOf('const openWorkshop'),
   extSrc.indexOf('registerProjixEditor(context)')
 );
 ok(
@@ -286,6 +288,37 @@ ok(
   'package.json : l’éditeur personnalisé déclaré porte bien ce viewType',
   (manifest.contributes?.customEditors ?? []).some((e) => e.viewType === O.PROJIX_VIEW_TYPE),
   O.PROJIX_VIEW_TYPE
+);
+
+// 11. Activation paresseuse : l'extension ne doit plus s'allumer dans les fenêtres
+//     qui ne s'en servent pas, et le clic sur l'icône doit quand même ouvrir
+//     l'atelier DU PREMIER COUP.
+ok(
+  'package.json : plus d’onStartupFinished (l’extension ne s’allume plus à chaque fenêtre)',
+  !(manifest.activationEvents ?? []).includes('onStartupFinished'),
+  JSON.stringify(manifest.activationEvents ?? [])
+);
+// Les trois portes qui doivent rester déclarées, sans quoi plus RIEN n'active
+// l'extension : les commandes, la vue de la barre d'activité, l'éditeur .projix.
+ok(
+  'package.json : les trois points d’activation implicites sont déclarés',
+  (manifest.contributes?.commands ?? []).length > 0 &&
+    (manifest.contributes?.views?.kablix ?? []).some((v) => v.id === 'kablix.home') &&
+    (manifest.contributes?.customEditors ?? []).length > 0
+);
+ok(
+  'extension.ts : le volet déjà visible à l’activation ouvre l’atelier (1er clic sur l’icône)',
+  /homeView\.visible[\s\S]{0,80}?openWorkshop\(\)/.test(extSrc)
+);
+// Le garde-fou anti-parasite ne peut plus se caler sur `activate()` : en activation
+// paresseuse, il tomberait sur le clic au lieu de la restauration de session.
+ok(
+  'extension.ts : le garde-fou de démarrage se cale sur l’âge du processus, pas sur activate()',
+  /process\.uptime\(\)/.test(extSrc) && /STARTUP_GRACE_MS/.test(extSrc)
+);
+ok(
+  'extension.ts : une seule ouverture si les deux chemins tombent ensemble',
+  /lastOpen/.test(handler)
 );
 
 // --- Rapport -----------------------------------------------------------------

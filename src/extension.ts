@@ -12,6 +12,11 @@ import { openNewProjix, openOrRevealProjix } from './openproject';
 
 const l10n = vscode.l10n;
 
+/** Fenêtre de démarrage pendant laquelle un volet Kablix visible est mis sur le
+ *  compte de la restauration de session, pas d'un clic de l'utilisateur. Mesurée
+ *  depuis le lancement du processus hôte, pas depuis `activate()`. */
+const STARTUP_GRACE_MS = 3000;
+
 export function activate(context: vscode.ExtensionContext): void {
   // Filet du choix de l'éditeur SVG : VS Code n'inscrit les réglages d'une
   // extension qu'au chargement de la fenêtre, si bien qu'un `.vsix` installé et
@@ -27,44 +32,64 @@ export function activate(context: vscode.ExtensionContext): void {
       getTreeItem: (item: vscode.TreeItem) => item,
     },
   });
-  // Garde-fou de démarrage : on ignore les changements de visibilité des
-  // premières ~1,2 s (la restauration de session peut faire transiter le volet
-  // hidden→visible sans action de l'utilisateur, ce qui rouvrait le simulateur
-  // au lancement).
-  let startupSettled = false;
-  const startupTimer = setTimeout(() => {
-    startupSettled = true;
-  }, 1200);
+  // Garde-fou de démarrage : la restauration de session peut faire transiter le
+  // volet hidden→visible sans action de l'utilisateur, ce qui rouvrirait le
+  // simulateur au lancement. L'extension s'activant PARESSEUSEMENT (plus
+  // d'`onStartupFinished`), `activate()` ne tourne plus forcément au démarrage :
+  // le repère n'est donc pas l'instant d'activation mais l'âge du processus hôte
+  // (`process.uptime()`), qui, lui, démarre bien avec la fenêtre.
+  const sinceWindowStart = process.uptime() * 1000;
+  let startupSettled = sinceWindowStart >= STARTUP_GRACE_MS;
+  const startupTimer = startupSettled
+    ? undefined
+    : setTimeout(() => {
+        startupSettled = true;
+      }, STARTUP_GRACE_MS - sinceWindowStart);
+  // Anti-doublon : le cas « déjà visible à l'activation » (ci-dessous) et
+  // l'événement de visibilité peuvent tomber ensemble sur un même clic.
+  let lastOpen = 0;
+  const openWorkshop = (): void => {
+    if (!startupSettled || Date.now() - lastOpen < 500) return;
+    lastOpen = Date.now();
+    // Icône Kablix : révèle l'atelier .projix actif s'il y en a un, sinon en
+    // ouvre un nouveau (document untitled). On NE rebascule PAS sur
+    // l'Explorateur (ça volait le focus au .projix → applyDefaultLayout, qui
+    // attend `panel.active`, ne se posait jamais quand un dossier était ouvert,
+    // et rouvrait la sidebar que le layout veut fermer). On se contente de
+    // fermer la sidebar Kablix : le layout du .projix (explorateur fermé +
+    // grille 1/3-2/3) fait le reste. reveal() ferme aussi la sidebar.
+    const active = SimulatorPanel.active();
+    if (active) {
+      // reveal() rend le groupe du .projix actif → applyDefaultLayout peut
+      // reposer la grille sur le BON groupe. `force` : un clic sur l'icône est
+      // une action explicite, on rétablit la disposition Kablix même si elle a
+      // déjà été posée cette session (ex. explorateur rouvert entre-temps).
+      active.reveal();
+      setTimeout(() => void applyDefaultLayout(context, true), 80);
+    } else {
+      // Atelier existant révélé, ou nouveau projet à défaut. On force en plus le
+      // layout (clic icône = action explicite) au cas où la disposition aurait
+      // déjà été consommée cette session.
+      void openOrRevealProjix(context).then(() =>
+        setTimeout(() => void applyDefaultLayout(context, true), 120)
+      );
+    }
+  };
   context.subscriptions.push(
     homeView,
     new vscode.Disposable(() => clearTimeout(startupTimer)),
     homeView.onDidChangeVisibility((e) => {
-      if (!e.visible || !startupSettled) return;
-      // Icône Kablix : révèle l'atelier .projix actif s'il y en a un, sinon en
-      // ouvre un nouveau (document untitled). On NE rebascule PAS sur
-      // l'Explorateur (ça volait le focus au .projix → applyDefaultLayout, qui
-      // attend `panel.active`, ne se posait jamais quand un dossier était ouvert,
-      // et rouvrait la sidebar que le layout veut fermer). On se contente de
-      // fermer la sidebar Kablix : le layout du .projix (explorateur fermé +
-      // grille 1/3-2/3) fait le reste. reveal() ferme aussi la sidebar.
-      const active = SimulatorPanel.active();
-      if (active) {
-        // reveal() rend le groupe du .projix actif → applyDefaultLayout peut
-        // reposer la grille sur le BON groupe. `force` : un clic sur l'icône est
-        // une action explicite, on rétablit la disposition Kablix même si elle a
-        // déjà été posée cette session (ex. explorateur rouvert entre-temps).
-        active.reveal();
-        setTimeout(() => void applyDefaultLayout(context, true), 80);
-      } else {
-        // Atelier existant révélé, ou nouveau projet à défaut. On force en plus le
-        // layout (clic icône = action explicite) au cas où la disposition aurait
-        // déjà été consommée cette session.
-        void openOrRevealProjix(context).then(() =>
-          setTimeout(() => void applyDefaultLayout(context, true), 120)
-        );
-      }
+      if (e.visible) openWorkshop();
     })
   );
+  // Activation paresseuse : c'est le clic sur l'icône qui allume l'extension, et
+  // VS Code rend le volet visible AVANT d'appeler `activate()`. La transition
+  // hidden→visible est donc déjà passée quand le listener ci-dessus se pose : sans
+  // ce rattrapage, le premier clic n'ouvrirait rien. Le tick laisse VS Code
+  // renseigner `homeView.visible`, tout juste créée.
+  setTimeout(() => {
+    if (homeView.visible) openWorkshop();
+  }, 50);
 
   // Éditeur personnalisé des projets .projix : l'onglet EST le document, d'où le
   // point ● « non enregistré » NATIF, Ctrl+S natif et le prompt de fermeture natif.

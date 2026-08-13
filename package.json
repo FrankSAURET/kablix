@@ -1,7 +1,7 @@
 {
   "name": "kablix",
   "displayName": "Kablix",
-  "version": "2026.8.49",
+  "version": "2026.8.50",
   "description": "%kablix.description%",
   "publisher": "electropol-fr",
   "author": {
@@ -37,9 +37,7 @@
     "offline"
   ],
   "main": "./dist/extension.js",
-  "activationEvents": [
-    "onStartupFinished"
-  ],
+  "activationEvents": [],
   "contributes": {
     "commands": [
       {

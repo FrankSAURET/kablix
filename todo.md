@@ -1,4 +1,10 @@
 # À faire
+1. Rapprocher la patte des connecteur (décaler de 40 pixels vers la gauche pour être à  40 pixels des pastille des connecteurs ddes servo)  et la grossir (doubler). Les texte GND, V+ et PWM ne doivent apparaitre que sur le bulles d'aide
+1. Monter l'électreonique embarqué affiche une carte 16 servo TROP déformée et un deuxieme falns de corps inférieur
+1. La transparence n'est pas gérée
+1. on dirais que la plaque du bas du corps n'est pas au dessus de celle du haut mais décalée vers le fond. Ou plutôt le haut décalé vers L'avant.
+
+
 ##L'arraignée :
 1. ✅ J'ai retouché le modèle *(v2026.8.46 — cinématique du genou refaite sur le nouveau dessin)*
 1. ✅ il y a des défaut de visualisation . Les cartes électroniques sont un peut recouvertes par le corps. *(v2026.8.46)*
@@ -8,7 +14,7 @@
 1. ✅ Tu renomeras partout hanche=coxa et genou = patella *(v2026.8.47)*
 ## Composants
 1. 
-1. ⬜ **À décider (Frank) : supprimer `onStartupFinished`** de `package.json`. L'extension s'active aujourd'hui à CHAQUE fenêtre VS Code, même sans projet Kablix. Les points d'activation implicites (commandes, vue `kablix.home`, éditeur `.projix`) suffiraient — l'activation ne coûterait plus rien quand Kablix ne sert pas. Piège identifié : la vue devient visible AVANT que `activate()` ne pose `onDidChangeVisibility`, donc le clic sur l'icône n'ouvrirait plus l'atelier tant que le cas « déjà visible à l'activation » n'est pas traité — et le distinguer d'une restauration de session est exactement ce que le garde-fou des 1,2 s combat. À faire seulement avec un essai F5 sous la main.
+1. ✅ **`onStartupFinished` supprimé, activation paresseuse** *(v2026.8.50 — validé au F5 par Frank)*
 
 ## Dessin de l'arraignée 
 1. ✅ **Les quatre corrections de `Composants3D.svg` sont faites** (v2026.8.42) : quatre pastilles `hanche…` sur le corps, `genou-f` sur le fémur, `genou-t` sur le tibia, étiquette du servo de tibia au point décimal. Le robot monte : 1 corps, 4 fémurs, 4 tibias.
@@ -18,6 +24,14 @@
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# >>>>  v2026.8.50 — Kablix ne s'allume plus dans les fenêtres qui l'ignorent
+
+1. ✅ **`activationEvents` est vide** : l'extension ne s'active plus au démarrage de CHAQUE fenêtre VS Code. Les trois points d'activation implicites suffisent — les 17 commandes de `contributes.commands`, la vue `kablix.home` de `contributes.views`, l'éditeur `.projix` de `contributes.customEditors`. Une fenêtre sans projet Kablix ne charge plus `dist/extension.js`, n'enregistre plus rien, et ne déclenche plus les invites de première activation (association `.projix`, extensions conseillées, contrôle des bibliothèques et du firmware) : celles-ci partent désormais à la première UTILISATION de Kablix, ce qui est leur place.
+2. ✅ **Cas « volet déjà visible à l'activation » traité** : c'est le clic sur l'icône qui allume l'extension, et VS Code rend le volet visible AVANT d'appeler `activate()`. La transition `hidden→visible` est donc déjà passée quand `onDidChangeVisibility` se pose — sans rattrapage, le premier clic sur l'icône n'ouvrait plus rien. Un test de `homeView.visible` un tick après la création de la vue (50 ms, le temps que VS Code la renseigne) ouvre l'atelier, avec anti-doublon de 500 ms au cas où l'événement tomberait quand même.
+3. ✅ **Garde-fou de démarrage recalé sur `process.uptime()`** : il empêchait déjà la restauration de session (volet Kablix rouvert tout seul) d'ouvrir le simulateur au lancement. Son `setTimeout` de 1,2 s était calé sur `activate()`, ce qui n'a plus de sens en activation paresseuse — `activate()` peut désormais tomber dix minutes après le démarrage, et le garde-fou aurait avalé le clic au lieu du parasite. Le repère devient l'âge du processus hôte, qui démarre bien avec la fenêtre : volet visible avant `STARTUP_GRACE_MS` (3 s) = restauration, on ignore ; après = clic, on ouvre.
+4. ℹ️ **Cas limite connu** : un clic sur l'icône dans les 3 premières secondes de la fenêtre reste ignoré. C'était déjà le cas avant, avec une fenêtre de 1,2 s. Le compromis se règle avec `STARTUP_GRACE_MS` dans `extension.ts`.
+5. ✅ **Validé au F5 par Frank** : extension absente de `Developer: Show Running Extensions` au démarrage, atelier ouvert au PREMIER clic sur l'icône, aucune ouverture parasite quand la session restaure le volet Kablix, onglet `.projix` restauré nativement, et ouverture à froid par l'explorateur comme par la palette.
 
 # >>>>  v2026.8.49 — le zéro de chaque servo se règle
 
