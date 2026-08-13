@@ -417,12 +417,26 @@ export type AssemblyPiece = {
   holes?: Vec2[][];
 };
 
+/**
+ * L'AXE d'une articulation : une DROITE, pas un point. Deux pièces en MIROIR (les
+ * deux plaques du corps, les deux côtés du fémur) créent entre elles un axe de
+ * rotation dirigé selon leur ÉPAISSEUR — la flèche « ép » du dessin. Une pièce
+ * `dessus` donne donc un axe VERTICAL (z), un `flanc` un axe en travers (x).
+ *
+ * `dir` nomme cette direction, et le point rangé est le ZÉRO de l'axe : le milieu
+ * des deux exemplaires en miroir, l'origine de l'assemblage sinon. C'est par ce
+ * zéro que deux dessins se centrent l'un sur l'autre — leurs axes superposés,
+ * leurs zéros confondus, sans une cote à reporter.
+ */
+export type Axis = Vec3 & { dir?: AxisDir };
+export type AxisDir = 'x' | 'y' | 'z';
+
 /** Un assemblage complet : ses pièces, ses axes d'articulation (les pastilles
  *  rouges nommées) et son encombrement, en millimètres. */
 export type Assembly = {
   source: string;
   box: Vec3;
-  axes: Record<string, Vec3>;
+  axes: Record<string, Axis>;
   pieces: AssemblyPiece[];
 };
 
@@ -442,6 +456,22 @@ export const MATIERES: Record<string, string> = {
 export function planeNormal(plan: Plane): Vec3 {
   const { u, v } = PLANES[plan];
   return cross(u, v);
+}
+
+/** Le nom de cette normale — `dessus` → `z`, `flanc` → `x`, `face` → `y`. C'est
+ *  la DIRECTION de l'axe d'articulation d'une pastille posée sur cette pièce :
+ *  une plaque à plat pivote autour d'un axe vertical, un flanc autour d'un axe en
+ *  travers du robot. */
+export function planeAxisDir(plan: Plane): AxisDir {
+  const n = planeNormal(plan);
+  return Math.abs(n.z) > 0.5 ? 'z' : Math.abs(n.x) > 0.5 ? 'x' : 'y';
+}
+
+/** Le vecteur unité d'une direction d'axe, ou `null` si l'axe n'est pas orienté
+ *  (une pastille de profil, dessinée hors assemblage). */
+export function axisVector(dir?: AxisDir): Vec3 | null {
+  if (!dir) return null;
+  return { x: dir === 'x' ? 1 : 0, y: dir === 'y' ? 1 : 0, z: dir === 'z' ? 1 : 0 };
 }
 
 /**
@@ -514,13 +544,15 @@ export function axisFamily(name: string): string {
 }
 
 /**
- * Une ARTICULATION : UNE pastille rouge et le point où elle se trouve. Il n'y a
- * rien à regrouper — chaque pastille est un point de pivot à elle seule.
+ * Une ARTICULATION : UNE pastille rouge et l'AXE qu'elle porte. Il n'y a rien à
+ * regrouper — chaque pastille est un pivot à elle seule.
  *
  * `name` est le nom entier de la pastille (`hanche-gh`), `famille` son premier
- * mot (`hanche`), `at` son point dans le repère de l'ensemble.
+ * mot (`hanche`), `at` le ZÉRO de son axe dans le repère de l'ensemble, et `dir`
+ * la direction de cet axe (l'épaisseur de la pièce qui la porte : `z` pour une
+ * plaque posée à plat, `x` pour un flanc).
  */
-export type Articulation = { name: string; famille: string; at: Vec3 };
+export type Articulation = { name: string; famille: string; at: Vec3; dir?: AxisDir };
 
 /**
  * Les ARTICULATIONS d'un assemblage : ses pastilles, une par une, dans l'ordre
@@ -532,11 +564,16 @@ export type Articulation = { name: string; famille: string; at: Vec3 };
  * PROFIL posé, rendues par `profileAxes` : la règle est la même des deux côtés,
  * le dessin d'une pièce isolée n'a pas de convention à part.
  */
-export function articulations(src: Assembly | Record<string, Vec3>, scaleK = 1): Articulation[] {
-  const axes = (src as Assembly).axes ?? (src as Record<string, Vec3>);
+export function articulations(src: Assembly | Record<string, Axis>, scaleK = 1): Articulation[] {
+  const axes = (src as Assembly).axes ?? (src as Record<string, Axis>);
   return Object.entries(axes)
     .sort(([x], [y]) => x.localeCompare(y))
-    .map(([name, v]) => ({ name, famille: axisFamily(name), at: scale(v, scaleK) }));
+    .map(([name, v]) => ({
+      name,
+      famille: axisFamily(name),
+      at: scale(v, scaleK),
+      ...(v.dir ? { dir: v.dir } : {}),
+    }));
 }
 
 /** Un ensemble nommé — un assemblage ou un profil vu comme tel — tel que le
@@ -591,8 +628,13 @@ const degXY = (v: Vec2): number => (Math.atan2(v.y, v.x) * 180) / Math.PI;
  * PREMIER MOT s'emboîtent, et celui qui en offre le plus porte l'autre.** Le
  * corps a quatre pastilles `hanche…`, le fémur une seule `hanche` : le corps est
  * la base et il naît quatre fémurs. Chaque fémur a un `genou-f`, le tibia un
- * `genou-t` : un tibia par fémur, soit quatre. Les pastilles se retrouvent
- * SUPERPOSÉES — c'est le dessin qui a dit où elles sont, il n'y a rien à coter.
+ * `genou-t` : un tibia par fémur, soit quatre.
+ *
+ * Ce qui se superpose, ce sont les AXES : deux droites de même direction, mises
+ * l'une sur l'autre et CENTRÉES SUR LEUR ZÉRO — le milieu des deux pièces en
+ * miroir de chaque côté. C'est le dessin qui a dit où elles passent, il n'y a
+ * rien à coter. (Les zéros étant rangés à l'extraction, la superposition des
+ * points `at` suffit ici : elle place les deux droites l'une sur l'autre.)
  *
  * Le LACET d'un exemplaire est celui de son parent, plus l'écart qu'il faut pour
  * que la pièce parte vers l'extérieur quand la famille compte plusieurs
@@ -640,7 +682,17 @@ export function montage(ensembles: Ensemble[]): Instance[] {
       for (const enfant of ordre) {
         if (!reste.has(enfant.nom)) continue;
         const ej = joints.get(enfant.nom)!;
-        const commune = ej.map((j) => j.famille).sort().find((f) => familles.has(f));
+        // Une famille partagée dont les deux axes pointent dans le MÊME sens passe
+        // devant : deux droites de directions différentes ne se superposent pas,
+        // et le monteur ne sait tourner qu'autour de Z. À défaut, la famille
+        // partagée est prise telle quelle — mieux vaut un montage visiblement de
+        // travers qu'un ensemble laissé seul dans son coin sans qu'on sache pourquoi.
+        const partagees = ej.map((j) => j.famille).sort().filter((f) => familles.has(f));
+        const commune = partagees.find((f) => {
+          const a = ej.find((j) => j.famille === f)!;
+          const b = familles.get(f)![0];
+          return !a.dir || !b.dir || a.dir === b.dir;
+        }) ?? partagees[0];
         if (!commune) continue;
         const accroche = ej.find((j) => j.famille === commune)!;
         const points = familles.get(commune)!;

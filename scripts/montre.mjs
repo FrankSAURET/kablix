@@ -29,7 +29,7 @@ import { join } from 'node:path';
 import { build as esbuild } from 'esbuild';
 import { ROOT, findChrome, lireDessin, MM2PX, R2, planche } from './_lire-contours.mjs';
 import {
-  assembleGroupes, limites, mmParUnite,
+  assembleGroupes, limites, mmParUnite, NORMALE,
   readExisting as assemblagesRanges, ecrire as ecrireAssemblages,
 } from './_extract-assemblage.mjs';
 import {
@@ -112,8 +112,10 @@ function profilEnEnsemble(nom, p) {
     poly: mm(p.poly),
     ...(p.holes?.length ? { holes: p.holes.map(mm) } : {}),
   };
+  // Le profil est posé à plat comme une plaque : ses pastilles portent donc, comme
+  // celles d'une pièce `dessus`, un axe VERTICAL passant par leur zéro.
   const axes = Object.fromEntries(Object.entries(p.axes ?? {})
-    .map(([n, v]) => [n, { x: R2(v.x * k), y: R2(v.y * k), z: 0 }]));
+    .map(([n, v]) => [n, { x: R2(v.x * k), y: R2(v.y * k), z: 0, dir: NORMALE.dessus }]));
   const lim = limites([piece]);
   return {
     source: p.source ?? SOURCE,
@@ -202,7 +204,7 @@ writeFileSync(entryPath, `
 import { html, svg, render } from 'lit';
 import {
   assemblyFaces, renderFaces, rotZ, add, dot, project, MATIERES, PLANES, planeNormal,
-  scale as vscale, montage, axisGizmo,
+  scale as vscale, montage, axisGizmo, axisVector,
 } from '../../src/webview/composants/iso3d.mjs';
 
 /** Taille de la feuille de dessin, en pixels : ce n'est PAS un format fixe, c'est
@@ -380,9 +382,24 @@ function scene(mont) {
     if (!etat.axes) continue;
     // Les pastilles, une par une : chacune est une articulation à elle seule, et
     // son premier mot dit sur quoi elle s'emboîte (« hanche-gb » → famille
-    // « hanche »). Il n'y a pas de droite à tracer, juste des points nommés.
+    // « hanche »). Chacune porte une DROITE — la pièce en miroir est posée deux
+    // fois et l'axe de rotation passe entre les deux exemplaires, dans le sens de
+    // l'épaisseur. Le trait la montre en entier : c'est lui qui dit si deux
+    // dessins tournent bien autour de la même chose, ce qu'un point tait.
     for (const [nom, v] of Object.entries(e.A.axes)) {
       const q = project(xf(vscale(v, k)));
+      const d = axisVector(v.dir);
+      if (d) {
+        // Assez long pour traverser l'ensemble de part en part, et pour dépasser
+        // un peu : un axe qui s'arrête dans la matière ne se voit pas.
+        const demi = Math.max((e.lim[v.dir + '1'] - e.lim[v.dir + '0']) / 2 + 5, 12);
+        const bout = (s) => {
+          const w = project(xf(vscale(add(v, vscale(d, s * demi)), k)));
+          return \`\${(w.x + cx).toFixed(1)},\${(w.y + cy).toFixed(1)}\`;
+        };
+        marques.push(svg\`<polyline points=\${bout(-1) + ' ' + bout(1)} fill="none"
+          stroke="#ee0000" stroke-width="1.4" stroke-dasharray="6 4" opacity="0.75" />\`);
+      }
       marques.push(svg\`<circle cx=\${(q.x + cx).toFixed(1)} cy=\${(q.y + cy).toFixed(1)} r="4"
           fill="#ee0000" fill-opacity="0.85" />
         <text x=\${(q.x + cx + 7).toFixed(1)} y=\${(q.y + cy - 6).toFixed(1)}
@@ -494,7 +511,8 @@ function rendu() {
         \${e.A.pieces.map((p) => lignePiece(e, p))}
       </div>\`)}
       \${axes.length ? html\`<h2>pastilles</h2>\${axes.map(([e, n, v]) =>
-        html\`<div class="ligne gris"><b>\${n}</b> <span>\${e} · (\${v.x}, \${v.y}, \${v.z})</span></div>\`)}\` : ''}
+        html\`<div class="ligne gris"><b>\${n}</b> <span>\${e} · (\${v.x}, \${v.y}, \${v.z})\${v.dir
+          ? ' · axe ' + v.dir.toUpperCase() : ''}</span></div>\`)}\` : ''}
     </div>
     <div class="vue"><svg width=\${W} height=\${H} viewBox="0 0 \${W} \${H}"
       xmlns="http://www.w3.org/2000/svg">\${scene(mont)}</svg></div>\`, document.body);

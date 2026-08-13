@@ -15,6 +15,9 @@
 //   • un texte dans le groupe donne la POSE : « flanc pos=0,-9,0 ep=3 miroir=y » ;
 //   • une pastille rouge marque un AXE d'articulation, le texte au-dessus le
 //     nomme (« hanche-av ») — même convention que les broches d'un composant.
+//     Cet axe est une DROITE, dirigée selon l'ÉPAISSEUR de la pièce qui la porte
+//     (une plaque `dessus` donne un axe vertical), et rangée par son ZÉRO : le
+//     milieu des deux exemplaires quand la pièce est en miroir.
 //
 // Sortie : src/webview/composants/assemblages.mts, sa propre archive (relu avant
 // d'être réécrit, donc extraire un assemblage ne perd pas les autres).
@@ -76,6 +79,22 @@ export function parsePose(s) {
     else if (cle === 'miroir') pose.miroir = val && 'xyz'.includes(val) ? val : 'y';
   }
   return pose;
+}
+
+/** Direction de l'ÉPAISSEUR d'une pièce, par plan — la flèche « ép » du dessin.
+ *  C'est aussi la direction de l'AXE de toute pastille posée sur cette pièce :
+ *  une plaque à plat (`dessus`) pivote autour d'un axe VERTICAL, un flanc autour
+ *  d'un axe en travers du robot. Même table que `planeAxisDir` d'iso3d.mts. */
+export const NORMALE = { dessus: 'z', flanc: 'x', face: 'y' };
+
+/** L'AXE que porte une pastille : une DROITE, pas un point. Deux pièces en miroir
+ *  créent entre elles un axe de rotation dirigé selon leur épaisseur ; le point
+ *  rangé est le ZÉRO de cet axe — le milieu des deux exemplaires en miroir, et
+ *  l'origine de l'assemblage sinon. C'est par ce zéro que deux dessins se centrent
+ *  l'un sur l'autre au montage, sans une cote à reporter. */
+export function axeDePastille(plan, p, pos) {
+  const dir = NORMALE[plan];
+  return { ...place(plan, p, pos), [dir]: 0, dir };
 }
 
 /** Point du dessin (centré sur la pièce) → repère 3D de l'assemblage, en mm.
@@ -187,9 +206,15 @@ export function assembleGroupes(nom, groupes, { source = planche('3D'), k = 1, t
     pieces.push(entry);
     // Les axes : une pastille rouge, nommée par son id ou par le texte au-dessus
     // d'elle. Ses coordonnées sont celles de la pièce qui la porte, pose
-    // comprise — c'est le dessin qui dit où est la hanche, plus une constante du
+    // comprise — c'est le dessin qui dit où passe la hanche, plus une constante du
     // code. Le PREMIER MOT du nom dit sur quoi elle s'emboîte (`hanche-gh` et
     // `hanche-db` sont deux hanches de la famille `hanche`, donc deux pattes).
+    //
+    // Ce n'est pas un point mais une DROITE : la pièce en miroir est posée deux
+    // fois, et l'axe de rotation passe entre les deux exemplaires, dans le sens de
+    // l'épaisseur. D'où le zéro le long de cette direction — deux plaques à
+    // ±13.75 mm donnent un axe à 0, et c'est ce zéro que l'autre dessin viendra
+    // rejoindre.
     const libres = g.texts.filter((t) => !parsePose(t.s))
       .map((t) => ({ s: t.s, x: t.x * k - cx, y: t.y * k - cy }));
     for (const pad of g.pads) {
@@ -199,7 +224,7 @@ export function assembleGroupes(nom, groupes, { source = planche('3D'), k = 1, t
         console.log(`  ! ${g.name} : pastille sans nom (id « ${pad.id || '?'} »), ignorée`);
         continue;
       }
-      axes[nomPad.trim()] = place(pose.plan, p, pose.pos);
+      axes[nomPad.trim()] = axeDePastille(pose.plan, p, pose.pos);
     }
     console.log(`  ✓ ${court} : ${entry.poly.length} points, ${entry.w}×${entry.h} mm,`
       + ` ${pose.plan} ép.${pose.ep} ${entry.fill ?? pose.mat}${pose.miroir ? ` miroir=${pose.miroir}` : ''}`
@@ -231,7 +256,18 @@ function previentFamilles(nom, axes) {
   const par = {};
   for (const n of Object.keys(axes)) (par[familleDe(n)] ??= []).push(n);
   for (const [f, noms] of Object.entries(par)) {
-    console.log(`    famille « ${f} » : ${noms.length} pastille(s) — ${noms.join(', ')}`);
+    // La DIRECTION de l'axe se lit ici et nulle part ailleurs : elle vient du plan
+    // de la pièce qui porte la pastille, et deux dessins ne s'emboîtent que si
+    // leurs axes pointent dans le même sens (une hanche verticale sur une plaque
+    // posée à plat, un genou en travers sur un flanc).
+    const dirs = [...new Set(noms.map((n) => axes[n].dir).filter(Boolean))];
+    console.log(`    famille « ${f} » : ${noms.length} pastille(s), axe ${dirs.join('/').toUpperCase()}`
+      + ` — ${noms.join(', ')}`);
+    if (dirs.length > 1) {
+      console.log(`  ! ${nom} : la famille « ${f} » mélange des axes ${dirs.join(' et ').toUpperCase()}`
+        + ` — ses pastilles sont posées sur des pièces de plans différents. Une même famille`
+        + ` doit tourner autour d'une seule droite.`);
+    }
     for (const n of noms) {
       if (!/-\d+$/.test(n)) continue;
       console.log(`  ! ${nom} : « ${n} » finit par un numéro — c'est le suffixe qu'Inkscape ajoute`
@@ -307,7 +343,8 @@ function dump(obj) {
       return `      {\n${f.join(',\n')}\n      }`;
     });
     const axes = Object.entries(a.axes ?? {})
-      .map(([k, v]) => `      ${JSON.stringify(k)}: { "x": ${v.x}, "y": ${v.y}, "z": ${v.z} }`);
+      .map(([k, v]) => `      ${JSON.stringify(k)}: { "x": ${v.x}, "y": ${v.y}, "z": ${v.z}`
+        + `${v.dir ? `, "dir": ${JSON.stringify(v.dir)}` : ''} }`);
     parts.push(`  ${JSON.stringify(nom)}: {\n`
       + `    "source": ${JSON.stringify(a.source)},\n`
       + `    "box": { "x": ${a.box.x}, "y": ${a.box.y}, "z": ${a.box.z} },\n`
@@ -332,6 +369,10 @@ export function ecrire(data) {
 //   • \`pos\`    : le centre de la pièce dans le repère de l'assemblage ;
 //   • \`miroir\` : la pièce est posée DEUX fois, symétriquement (les deux flancs) ;
 //   • \`axes\`   : les pastilles rouges nommées — hanches, genoux, points de pivot.
+//               Chacune est une DROITE : \`dir\` dit son sens (l'épaisseur de la
+//               pièce qui la porte), et le point rangé est son ZÉRO — le milieu
+//               des deux exemplaires en miroir. Deux dessins s'emboîtent axes
+//               superposés, zéros confondus.
 import type { Assembly } from './iso3d.mjs';
 
 const DATA = ${dump(data)} as const;

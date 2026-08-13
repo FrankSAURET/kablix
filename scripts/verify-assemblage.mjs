@@ -18,7 +18,9 @@ import { mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { build as esbuild } from 'esbuild';
-import { parsePose, place, poses, encombrement, PLANS, MATIERES } from './_extract-assemblage.mjs';
+import {
+  parsePose, place, poses, encombrement, axeDePastille, NORMALE, PLANS, MATIERES,
+} from './_extract-assemblage.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CACHE = join(ROOT, 'node_modules', '.cache-assemblage');
@@ -262,6 +264,46 @@ ok('assemblyAxis : une pastille absente ne fabrique pas de point',
   M.assemblyAxis(DEMO, 'jamais-dessine') === null
   && M.assemblyAxis(DEMO, 'hanche')?.x === 28);
 
+// --- une pastille porte un AXE, pas un point ----------------------------------
+// Règle du dessin (v2026.8.43) : deux pièces en MIROIR créent entre elles un axe
+// de rotation dirigé selon leur ÉPAISSEUR — la flèche « ép ». Une plaque posée à
+// plat donne donc un axe VERTICAL, un flanc un axe en travers du robot. L'axe est
+// rangé par son ZÉRO, le milieu des deux exemplaires, et c'est ce zéro qui centre
+// deux dessins l'un sur l'autre au montage : sans lui, le fémur se colle contre UN
+// flanc au lieu de tenir entre les deux — et sur une image, ça ne se voit pas.
+ok('planeAxisDir : une plaque `dessus` pivote autour d\'un axe VERTICAL',
+  M.planeAxisDir('dessus') === 'z', M.planeAxisDir('dessus'));
+ok('planeAxisDir : un `flanc` tourne autour de x, une `face` autour de y',
+  M.planeAxisDir('flanc') === 'x' && M.planeAxisDir('face') === 'y',
+  `${M.planeAxisDir('flanc')} / ${M.planeAxisDir('face')}`);
+ok('NORMALE : le lecteur et le moteur nomment la MÊME direction',
+  PLANS.every((p) => NORMALE[p] === M.planeAxisDir(p)),
+  PLANS.map((p) => `${p}→${NORMALE[p]}/${M.planeAxisDir(p)}`).join(' '));
+const axPlaque = axeDePastille('dessus', { x: 20, y: -10 }, { x: 0, y: 0, z: -13.75 });
+ok('axeDePastille : l\'axe d\'une plaque à plat est VERTICAL', axPlaque.dir === 'z', axPlaque.dir);
+ok('axeDePastille : le point rangé est le ZÉRO de l\'axe, pas la pastille dessinée',
+  axPlaque.z === 0 && axPlaque.x === 20 && axPlaque.y === -10, JSON.stringify(axPlaque));
+// Deux plaques à ±13.75 : l'axe passe pile entre elles. C'est l'épreuve qui dit
+// que « centré sur le zéro » vaut bien « au milieu des deux pièces en miroir ».
+const deuxPlaques = poses({ pos: { x: 0, y: 0, z: -13.75 }, miroir: 'z' })
+  .map((q) => place('dessus', { x: 20, y: -10 }, q));
+ok('axeDePastille : l\'axe passe au MILIEU des deux pièces en miroir',
+  near(axPlaque.z, (deuxPlaques[0].z + deuxPlaques[1].z) / 2, 1e-9)
+  && near(axPlaque.x, deuxPlaques[0].x, 1e-9),
+  `${deuxPlaques[0].z} / ${deuxPlaques[1].z} → ${axPlaque.z}`);
+const posFlanc = { x: -12.25, y: 0, z: 0 };
+const axFlanc = axeDePastille('flanc', { x: 5, y: -8 }, posFlanc);
+const ptFlanc = place('flanc', { x: 5, y: -8 }, posFlanc);
+ok('axeDePastille : l\'axe d\'un flanc est en TRAVERS, et son zéro tombe sur x',
+  axFlanc.dir === 'x' && axFlanc.x === 0, JSON.stringify(axFlanc));
+ok('axeDePastille : les deux autres coordonnées gardent la pose du dessin',
+  near(axFlanc.y, ptFlanc.y, 1e-9) && near(axFlanc.z, ptFlanc.z, 1e-9),
+  `(${axFlanc.y}, ${axFlanc.z}) contre (${ptFlanc.y}, ${ptFlanc.z})`);
+ok('axisVector : la direction devient un vecteur unité, et rien sans direction',
+  M.axisVector('z')?.z === 1 && M.axisVector('x')?.x === 1 && M.axisVector() === null);
+ok('articulations : la DIRECTION de l\'axe suit la pastille',
+  M.articulations({ h: { x: 0, y: 0, z: 0, dir: 'z' } })[0].dir === 'z');
+
 // --- le MONTAGE du robot entier ------------------------------------------------
 // Deux ensembles dont une pastille porte le même premier mot s'emboîtent, et celui
 // qui en offre le plus porte l'autre : quatre pastilles « hanche… » sur le corps,
@@ -274,20 +316,23 @@ const ens = (nom, axes, pos) => ({
   A: { source: 't', box: { x: 1, y: 1, z: 1 }, axes, pieces: [{ name: 'p', plan: 'dessus', mat: 'pmma', ep: 3, pos, w: 1, h: 1, poly: carre(1, 1) }] },
 });
 // Quatre hanches = quatre pastilles, une par patte. Toutes commencent par
-// « hanche » : c'est ce mot-là, et lui seul, qui les relie au fémur.
+// « hanche » : c'est ce mot-là, et lui seul, qui les relie au fémur. Chacune porte
+// un AXE : les hanches sont verticales (les plaques du corps sont posées à plat),
+// les genoux en travers (les côtés du fémur sont des flancs) — la patte balaye
+// autour de z et plie autour de x, comme une vraie.
 const ROBOT = [
   ens('corps', {
-    'hanche-ag': { x: -20, y: -20, z: 0 },
-    'hanche-ad': { x: 20, y: -20, z: 0 },
-    'hanche-rg': { x: -20, y: 20, z: 0 },
-    'hanche-rd': { x: 20, y: 20, z: 0 },
+    'hanche-ag': { x: -20, y: -20, z: 0, dir: 'z' },
+    'hanche-ad': { x: 20, y: -20, z: 0, dir: 'z' },
+    'hanche-rg': { x: -20, y: 20, z: 0, dir: 'z' },
+    'hanche-rd': { x: 20, y: 20, z: 0, dir: 'z' },
   }, { x: 0, y: 0, z: 0 }),
   ens('femur', {
-    hanche: { x: 0, y: 0, z: 0 },
-    'genou-f': { x: 0, y: 30, z: 0 },
+    hanche: { x: 0, y: 0, z: 0, dir: 'z' },
+    'genou-f': { x: 0, y: 30, z: 0, dir: 'x' },
   }, { x: 0, y: 15, z: 0 }),
   ens('tibia', {
-    'genou-t': { x: 0, y: 0, z: 0 },
+    'genou-t': { x: 0, y: 0, z: 0, dir: 'x' },
     pied: { x: 0, y: 25, z: -30 },
   }, { x: 0, y: 12, z: -15 }),
 ];
@@ -329,6 +374,30 @@ ok('montage : les quatre pattes sont ÉCARTÉES, pas empilées',
   fems.map((i) => Math.round(i.lacet)).join('°, ') + '°');
 ok('montage : un tibia suit le lacet de son fémur (une famille à une articulation ne tourne rien)',
   MO.filter((i) => i.nom === 'tibia').every((t, n) => near(t.lacet, fems[n].lacet, 1e-9)));
+// Ce qui se superpose, ce sont deux DROITES : même direction des deux côtés,
+// zéros confondus. Deux axes croisés ne peuvent pas se monter — le monteur ne sait
+// tourner qu'autour de Z — donc la famille commune retenue est celle dont les deux
+// axes pointent dans le même sens.
+const dirDe = (A, nom) => M.articulations(A).find((j) => j.name === nom).dir;
+ok('montage : chaque exemplaire s\'accroche par un axe de MÊME direction que le parent',
+  MO.filter((i) => i.parent).every((i) => {
+    const parent = ROBOT.find((e) => e.nom === i.parent).A;
+    const enfant = ROBOT.find((e) => e.nom === i.nom).A;
+    const chez = M.articulations(enfant).find((j) => j.famille === M.axisFamily(i.via));
+    return dirDe(parent, i.via) === chez.dir;
+  }),
+  MO.filter((i) => i.parent).map((i) => `${i.nom}/${i.via}`).join(', '));
+// Deux familles partagées, l'une croisée et l'autre alignée : c'est l'alignée qui
+// emporte le montage, sinon la pièce se poserait de travers sans rien dire.
+const CROISE = M.montage([
+  ens('socle', { pivot: { x: 0, y: 0, z: 0, dir: 'z' }, charniere: { x: 20, y: 0, z: 0, dir: 'x' } },
+    { x: 0, y: 0, z: 0 }),
+  ens('volet', { pivot: { x: 0, y: 0, z: 0, dir: 'x' }, charniere: { x: 0, y: 0, z: 0, dir: 'x' } },
+    { x: 0, y: 10, z: 0 }),
+]);
+ok('montage : entre deux familles partagées, celle dont les axes s\'alignent l\'emporte',
+  CROISE.find((i) => i.nom === 'volet')?.via === 'charniere',
+  `${CROISE.find((i) => i.nom === 'volet')?.via}`);
 const SEUL = M.montage([...ROBOT, ens('carte', { trou: { x: 0, y: 0, z: 0 } }, { x: 0, y: 0, z: 0 })]);
 ok('montage : un ensemble sans famille commune reste à sa place, sans parent',
   SEUL.filter((i) => i.nom === 'carte').length === 1
@@ -417,6 +486,14 @@ for (const nom of noms) {
       [v.x, v.y, v.z].every(Number.isFinite)
       && Math.abs(v.x) <= a.box.x && Math.abs(v.y) <= a.box.y && Math.abs(v.z) <= a.box.z,
       `(${v.x}, ${v.y}, ${v.z})`);
+    // Une pastille rangée porte une DROITE : sa direction est celle de l'épaisseur
+    // de la pièce qui la porte, et son zéro tombe pile dessus. Un axe dont le zéro
+    // aurait dérivé collerait l'autre dessin contre un seul flanc.
+    ok(`${nom} : axe « ${axe} » orienté (${v.dir ?? '—'})`,
+      v.dir === 'x' || v.dir === 'y' || v.dir === 'z', v.dir ?? 'aucune direction');
+    if (v.dir) {
+      ok(`${nom} : axe « ${axe} » centré sur son ZÉRO`, v[v.dir] === 0, `${v.dir}=${v[v.dir]}`);
+    }
   }
   // Les familles lues sur le dessin de Frank : une pastille dont le nom finit par
   // un numéro, c'est le suffixe qu'Inkscape ajoute à un id déjà pris après un
@@ -433,6 +510,37 @@ for (const nom of noms) {
 }
 ok('hasAssemblage : un assemblage jamais dessiné est reconnu absent',
   !M.hasAssemblage('rien-du-tout') && (!noms.length || M.hasAssemblage(noms[0])));
+
+// --- le montage sur le VRAI dessin ---------------------------------------------
+// Le robot d'essai plus haut éprouve la règle ; celui-ci éprouve le DESSIN de
+// Frank, tel qu'il est rangé. C'est là que se verrait un axe dont le zéro aurait
+// dérivé : le fémur se collerait contre une seule plaque au lieu de tenir entre
+// les deux, et sur une image de 360 px ça ne se voit pas.
+const DESSINES = noms.filter((n) => n.startsWith('araignee')).map((n) => ({ nom: n, A: M.assemblage(n) }));
+if (DESSINES.length > 1) {
+  const MR = M.montage(DESSINES);
+  const monteR = (inst, p) => M.add(M.rotZ(p, inst.lacet), inst.pos);
+  ok('araignée dessinée : les ensembles se montent les uns sur les autres',
+    MR.some((i) => i.parent), MR.map((i) => `${i.nom}${i.parent ? `←${i.via}` : ''}`).join(', '));
+  let ecart = 0;
+  const exemplaires = (n) => MR.filter((x) => x.nom === n);
+  for (const nomE of new Set(MR.filter((x) => x.parent).map((x) => x.nom))) {
+    const enf = exemplaires(nomE);
+    const par = exemplaires(enf[0].parent);
+    const P = DESSINES.find((e) => e.nom === enf[0].parent).A;
+    const E = DESSINES.find((e) => e.nom === nomE).A;
+    // Les exemplaires naissent dans l'ordre : un bloc de points par parent. C'est
+    // ainsi qu'on retrouve QUEL fémur porte quel tibia.
+    enf.forEach((i, k) => {
+      const chez = M.articulations(E).find((j) => j.famille === M.axisFamily(i.via));
+      const surLeParent = par[Math.floor((k * par.length) / enf.length)];
+      ecart = Math.max(ecart, M.len(M.sub(monteR(i, chez.at),
+        monteR(surLeParent, M.articulations(P).find((j) => j.name === i.via).at))));
+    });
+  }
+  ok('araignée dessinée : les axes montés sont SUPERPOSÉS, zéros confondus',
+    ecart < 1e-6, `${ecart.toFixed(6)} mm`);
+}
 
 const fail = checks.filter((c) => !c.ok);
 for (const c of checks) console.log(`  ${c.ok ? '✓' : '✗'} ${c.name}${c.detail ? ` — ${c.detail}` : ''}`);

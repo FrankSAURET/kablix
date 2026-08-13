@@ -3,7 +3,8 @@
 // copie. Bundlé par esbuild, importé tel quel par node — aucun navigateur, c'est
 // du calcul pur.
 export {
-  slabFaces, assemblyFaces, planeNormal, project, signedArea, shade, renderFaces,
+  slabFaces, assemblyFaces, planeNormal, planeAxisDir, axisVector,
+  project, signedArea, shade, renderFaces,
   assemblyAxis, axisFamily, articulations, montage,
   profileAxes, extrudeProfile, rotZ, add, sub, len,
   PLANES, MATIERES,

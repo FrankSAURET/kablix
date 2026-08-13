@@ -12,6 +12,10 @@
 //   • `pos`    : le centre de la pièce dans le repère de l'assemblage ;
 //   • `miroir` : la pièce est posée DEUX fois, symétriquement (les deux flancs) ;
 //   • `axes`   : les pastilles rouges nommées — hanches, genoux, points de pivot.
+//               Chacune est une DROITE : `dir` dit son sens (l'épaisseur de la
+//               pièce qui la porte), et le point rangé est son ZÉRO — le milieu
+//               des deux exemplaires en miroir. Deux dessins s'emboîtent axes
+//               superposés, zéros confondus.
 import type { Assembly } from './iso3d.mjs';
 
 const DATA = {
@@ -19,10 +23,10 @@ const DATA = {
     "source": "Composants3D.svg",
     "box": { "x": 65.86, "y": 129.92, "z": 42.4 },
     "axes": {
-      "hanche-gh": { "x": -16.9, "y": -26, "z": -13.75 },
-      "hanche-dh": { "x": 16.9, "y": -26, "z": -13.75 },
-      "hanche-gb": { "x": -18.9, "y": 45, "z": -13.75 },
-      "hanche-db": { "x": 18.89, "y": 45, "z": -13.75 }
+      "hanche-gh": { "x": -16.9, "y": -26, "z": 0, "dir": "z" },
+      "hanche-dh": { "x": 16.9, "y": -26, "z": 0, "dir": "z" },
+      "hanche-gb": { "x": -18.9, "y": 45, "z": 0, "dir": "z" },
+      "hanche-db": { "x": 18.89, "y": 45, "z": 0, "dir": "z" }
     },
     "pieces": [
       {
@@ -197,8 +201,8 @@ const DATA = {
     "source": "Composants3D.svg",
     "box": { "x": 27.5, "y": 93.92, "z": 44.03 },
     "axes": {
-      "genou-f": { "x": -12.25, "y": -36.1, "z": -10.49 },
-      "hanche": { "x": 0, "y": 25.26, "z": 10.59 }
+      "genou-f": { "x": 0, "y": -36.1, "z": -10.49, "dir": "x" },
+      "hanche": { "x": 0, "y": 25.26, "z": 0, "dir": "z" }
     },
     "pieces": [
       {
@@ -275,7 +279,7 @@ const DATA = {
     "source": "Composants3D.svg",
     "box": { "x": 24.5, "y": 119.24, "z": 40.68 },
     "axes": {
-      "genou-t": { "x": 0, "y": 52.58, "z": 8.74 }
+      "genou-t": { "x": 0, "y": 52.58, "z": 8.74, "dir": "x" }
     },
     "pieces": [
       {
@@ -290,7 +294,7 @@ const DATA = {
         "poly": [
           { "x": 55.72, "y": -16.85 }, { "x": 54.42, "y": -17.77 }, { "x": 53.17, "y": -18.41 }, { "x": 51.85, "y": -18.88 },
           { "x": 50.49, "y": -19.17 }, { "x": 40.33, "y": -20.03 }, { "x": 31.14, "y": -20.34 }, { "x": 22.75, "y": -20.16 },
-          { "x": 14.98, "y": -19.55 }, { "x": 9.06, "y": -18.66 }, { "x": 3.03, "y": -17.2 }, { "x": -3.06, "y": -15.25 },
+          { "x": 14.98, "y": -19.55 }, { "x": 9.05, "y": -18.66 }, { "x": 3.03, "y": -17.2 }, { "x": -3.06, "y": -15.25 },
           { "x": -9.4, "y": -12.81 }, { "x": -15.97, "y": -9.89 }, { "x": -23.12, "y": -6.31 }, { "x": -29.94, "y": -2.53 },
           { "x": -36.94, "y": 1.73 }, { "x": -43.43, "y": 6.04 }, { "x": -51.08, "y": 11.49 }, { "x": -53.49, "y": 12.46 },
           { "x": -57.81, "y": 13.27 }, { "x": -58.93, "y": 13.67 }, { "x": -59.38, "y": 14.06 }, { "x": -59.55, "y": 14.42 },
@@ -332,8 +336,8 @@ const DATA = {
     "source": "docs/exemples/corps-demo.svg",
     "box": { "x": 100, "y": 80, "z": 31 },
     "axes": {
-      "hanche-g": { "x": -28, "y": 0, "z": 14 },
-      "hanche-d": { "x": 28, "y": 0, "z": 14 }
+      "hanche-g": { "x": -28, "y": 0, "z": 0, "dir": "z" },
+      "hanche-d": { "x": 28, "y": 0, "z": 0, "dir": "z" }
     },
     "pieces": [
       {
