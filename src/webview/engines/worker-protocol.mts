@@ -14,6 +14,8 @@
  * publication (~4 ms) — invisible à l'écran, qui ne se rafraîchit qu'à 16 ms.
  */
 
+import type { AnalogWave } from './analog-waves.mjs';
+
 /** Broches publiées dans l'instantané, dans l'ordre fixé à l'initialisation. */
 export interface PinTable {
   /** Noms MCU ('13', 'A0', 'GP25'…) ; l'index dans ce tableau indexe l'instantané. */
@@ -97,6 +99,14 @@ export type ToWorker =
   | { t: 'setBreakpoints'; breakpoints: unknown[] }
   | { t: 'setInput'; pin: string; high: boolean }
   | { t: 'setAnalog'; pin: string; fraction: number }
+  /**
+   * Formes d'onde analogiques, DÉCRITES et non calculées : le worker les évalue
+   * lui-même à l'instant exact de la conversion ADC. C'est ce qui remplace le
+   * `setAnalogSampler` de la page — une fonction ne traverse pas la frontière, et
+   * la relever à cadence fixe depuis la page rendrait la courbe en escalier.
+   * La liste est complète à chaque envoi.
+   */
+  | { t: 'setAnalogWaves'; waves: AnalogWave[] }
   | { t: 'writeSerial'; text: string }
   | { t: 'setPulseMonitors'; pins: string[] }
   | { t: 'setUltrasonic'; sensors: unknown[] }

@@ -13,6 +13,8 @@
  * au worker — cf. les commentaires de `pump()`.
  */
 
+import type { AnalogWave } from './analog-waves.mjs';
+import type { I2cDevice, SpiDevice } from './i2c-devices.mjs';
 import type {
   Breakpoint,
   DebugPauseState,
@@ -165,14 +167,14 @@ export class WorkerEngine implements SimEngine {
   }
 
   /**
-   * Relève, à la cadence de l'instantané, les deux états que le worker ne peut pas
-   * lire lui-même :
-   *  - les ÉCHANTILLONNEURS analogiques, des fonctions de la page (forme d'onde du
-   *    pouls, charge d'un condensateur). Le moteur les appelait au moment exact de
-   *    la lecture ADC, en temps simulé ; ici ils sont relevés toutes les 4 ms de
-   *    temps réel, soit quatre fois plus finement que l'affichage mais moins bien
-   *    qu'avant. La forme d'onde déménagera dans le worker au lot suivant.
-   *  - les TOUCHES enfoncées, jusqu'ici un `Set` partagé par référence avec l'UI.
+   * Relève, à la cadence de l'instantané, les états que le worker ne peut pas lire
+   * lui-même :
+   *  - les TOUCHES enfoncées, jusqu'ici un `Set` partagé par référence avec l'UI ;
+   *  - un éventuel ÉCHANTILLONNEUR analogique posé en fonction. Les deux sources
+   *    calculées du simulateur (charge d'un condensateur, capteur de pouls) passent
+   *    désormais par `setAnalogWaves` et sont évaluées DANS le worker à l'instant
+   *    exact de la conversion ; ce relevé périodique ne reste que comme repli pour
+   *    une fonction qu'on ne saurait pas décrire.
    */
   private pump(): void {
     for (const [pin, sample] of this.samplers) {
@@ -313,6 +315,26 @@ export class WorkerEngine implements SimEngine {
   setAnalogSampler(name: string, sample: (() => number) | null): void {
     if (sample) this.samplers.set(name, sample);
     else this.samplers.delete(name);
+  }
+
+  setAnalogWaves(waves: AnalogWave[]): void {
+    this.post({ t: 'setAnalogWaves', waves });
+  }
+
+  /**
+   * Périphériques de bus : NON PORTÉS dans le worker (lot 3). Ce sont des objets à
+   * méthodes que le moteur appelle en plein milieu d'une trame I²C/SPI, et dont la
+   * page relit l'écran à chaque frame — ni les méthodes ni l'image ne traversent la
+   * frontière. `sim.mts` refuse donc le worker dès qu'un tel composant est au
+   * schéma (`usesBusPeripherals`) ; ces deux garde-fous ne servent qu'à ne pas
+   * simuler EN SILENCE si un nouveau type de périphérique échappait à ce test.
+   */
+  setI2cDevices(devices: I2cDevice[]): void {
+    if (devices.length > 0) console.error('[kablix] worker : périphériques I²C non simulés');
+  }
+
+  setSpiDevices(devices: SpiDevice[]): void {
+    if (devices.length > 0) console.error('[kablix] worker : périphériques SPI non simulés');
   }
 
   writeSerial(text: string): void {

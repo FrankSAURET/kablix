@@ -148,6 +148,7 @@ import {
   type I2cDevice,
   type SpiDevice,
 } from './engines/i2c-devices.mjs';
+import { evalAnalogWave, type AnalogWave } from './engines/analog-waves.mjs';
 import type {
   AvrDebugInfo,
   Breakpoint,
@@ -429,6 +430,11 @@ let capLastMs: number | null = null;
 const capPinState = new Map<string, { v0: number; target: number; tau: number; t0: number; vcc: number }>();
 // Échantillonneurs posés sur le moteur, par broche (pour les retirer au besoin).
 const capSamplers = new Map<string, () => number>();
+// Formes d'onde analogiques de la frame (charge RC, pouls), par broche. Décrites
+// et non calculées, elles peuvent être confiées à un moteur qui tourne sur un
+// autre fil, qui les rejoue à l'instant exact de la conversion (cf.
+// flushAnalogWaves et engines/analog-waves.mts).
+const analogWaves = new Map<string, AnalogWave>();
 // Condensateurs claqués pendant ce run (tension de service dépassée).
 const burnedCaps = new Set<string>();
 let breakpoints: Breakpoint[] = []; // points d'arrêt envoyés par l'extension (ligne + condition)
@@ -800,6 +806,7 @@ function renderTick(): void {
   updateMotion();
   updateHall();
   refreshVisuals();
+  flushAnalogWaves(); // après stepCapacitors (dans refreshVisuals) : la liste est complète
   updateSpeedBadge();
   updateSimGauge();
   renderRaf = requestAnimationFrame(renderTick);
@@ -1038,38 +1045,34 @@ function updateMotion(): void {
 }
 
 /**
- * Forme d'onde de pouls (PPG) normalisée 0..1 sur une phase t∈[0,1) : montée
- * systolique rapide (pic vers t≈0.16), redescente, petite onde dicrotique
- * (t≈0.42), puis ligne de base. Approximation par deux gaussiennes.
+ * Met à jour la sortie analogique de chaque capteur de pouls selon son BPM.
  *
- * Ligne de base haute (0.6) + amplitude modérée (0.15) : un vrai capteur KY-039
- * varie peu en valeur absolue (bruit + faible modulation), il ne bascule pas
- * entre presque 0 et presque plein échelle à chaque battement. Avec une ligne de
- * base quasi nulle, les algos de détection par seuil relatif (ex. tuto KY-039
- * classique : max_value -= 1000 // delay_msec) perdent le pic en 1-2 échantillons
- * à 60 ms et redéclenchent sur la même descente → BPM mesuré ~2× trop élevé.
+ * La valeur posée ici est celle de la FRAME : elle alimente les sondes du traceur
+ * (qui écoutent `setAnalog`) et sert de repli. Le battement lui-même est décrit à
+ * `flushAnalogWaves`, qui le confie au moteur — lequel le rejoue à l'instant exact
+ * de la conversion, sinon un sketch qui échantillonne à 5 ms verrait la courbe en
+ * escalier de 16 ms.
  */
-function pulseWaveform(t: number): number {
-  const g = (c: number, w: number) => Math.exp(-((t - c) * (t - c)) / (2 * w * w));
-  const systolic = g(0.16, 0.1);
-  const dicrotic = 0.35 * g(0.42, 0.1);
-  return Math.max(0, Math.min(1, 0.6 + 0.15 * Math.max(systolic, dicrotic)));
-}
-
-/** Met à jour la sortie analogique de chaque capteur de pouls selon son BPM. */
 function updatePulses(): void {
   if (!engine || pulseTargets.length === 0) return;
   const now = performance.now();
   for (const { pin, el } of pulseTargets) {
-    const bpm = Math.max(0, Math.min(200, Number(el.bpm ?? 72)));
-    if (bpm <= 0) {
-      engine.setAnalog(pin, 0.08); // pas de pouls : ligne de base
-      continue;
-    }
-    const periodMs = 60000 / bpm;
-    const t = (now % periodMs) / periodMs; // phase 0..1 du battement courant
-    engine.setAnalog(pin, pulseWaveform(t));
+    const wave: AnalogWave = { kind: 'pulse', pin, bpm: Number(el.bpm ?? 72) };
+    analogWaves.set(pin, wave);
+    engine.setAnalog(pin, evalAnalogWave(wave, engine.simulatedMs?.() ?? now, now));
   }
+}
+
+/**
+ * Confie au moteur toutes les formes d'onde analogiques de la frame.
+ *
+ * Un moteur qui sait les recevoir (`setAnalogWaves` — le moteur déporté dans un
+ * worker) les évalue lui-même au moment de la conversion ADC. Les autres ont déjà
+ * reçu la même chose sous forme de fonction (`setAnalogSampler`), qu'ils peuvent
+ * appeler directement : rien à envoyer.
+ */
+function flushAnalogWaves(): void {
+  engine?.setAnalogWaves?.([...analogWaves.values()]);
 }
 function startRenderLoop(): void {
   if (!renderRaf) renderRaf = requestAnimationFrame(renderTick);
@@ -1414,10 +1417,14 @@ function stepCapacitors(): void {
       observed.add(pin);
       // Point de départ de l'exponentielle, relu par l'échantillonneur ADC.
       capPinState.set(pin, { v0: v, target: node.target, tau: node.tau, t0: now, vcc });
+      analogWaves.set(pin, { kind: 'rc', pin, v0: v, target: node.target, tau: node.tau, t0: now, vcc });
       if (!capSamplers.has(pin)) {
         const sampler = (): number => capVoltsAt(pin) / vcc;
         capSamplers.set(pin, sampler);
-        engine.setAnalogSampler?.(pin, sampler);
+        // Un moteur qui sait recevoir la forme d'onde la rejoue lui-même : lui
+        // poser en plus la fonction ferait calculer deux fois la même chose, et
+        // depuis le mauvais fil.
+        if (!engine.setAnalogWaves) engine.setAnalogSampler?.(pin, sampler);
       }
       // Valeur de la frame : sert aux moteurs sans échantillonneur et alimente
       // les sondes du traceur (elles écoutent setAnalog).
@@ -1434,6 +1441,7 @@ function stepCapacitors(): void {
     if (!observed.has(pin)) {
       capSamplers.delete(pin);
       capPinState.delete(pin);
+      analogWaves.delete(pin);
       engine.setAnalogSampler?.(pin, null);
     }
   }
@@ -1448,17 +1456,16 @@ function stepCapacitors(): void {
 function capVoltsAt(pin: string): number {
   const st = capPinState.get(pin);
   if (!st) return 0;
-  if (st.tau === 0) return st.target;
-  if (!Number.isFinite(st.tau)) return st.v0; // nœud flottant : charge figée
   const now = engine?.simulatedMs?.() ?? st.t0;
-  const dt = Math.max(0, (now - st.t0) / 1000);
-  const v = st.target + (st.v0 - st.target) * Math.exp(-dt / st.tau);
-  return Math.max(0, Math.min(st.vcc, v));
+  return evalAnalogWave({ kind: 'rc', pin, ...st }, now, now) * st.vcc;
 }
 
 /** Retire tous les échantillonneurs RC posés sur le moteur. */
 function clearCapSamplers(): void {
-  for (const pin of capSamplers.keys()) engine?.setAnalogSampler?.(pin, null);
+  for (const pin of capSamplers.keys()) {
+    engine?.setAnalogSampler?.(pin, null);
+    analogWaves.delete(pin);
+  }
   capSamplers.clear();
   capPinState.clear();
 }
@@ -3066,6 +3073,26 @@ speedSelect.addEventListener('change', () => {
   resetSpeedBadge(); // le régime change : la mesure repart d'une fenêtre neuve
 });
 
+/**
+ * Vrai si le schéma comporte un périphérique de bus SIMULÉ (I²C ou SPI).
+ *
+ * Ces périphériques — afficheur LCD I²C, OLED, carte 16 servos, TFT, carte SD —
+ * sont des OBJETS À MÉTHODES que le moteur appelle en plein milieu d'une trame, et
+ * dont la page relit l'écran à chaque frame. Ni les méthodes ni l'image ne
+ * traversent la frontière d'un worker : tant qu'ils n'y auront pas déménagé, un
+ * schéma qui en contient est simulé sur le fil principal. Sans ce test, la
+ * simulation partirait quand même — et l'afficheur resterait muet SANS RIEN DIRE.
+ */
+function usesBusPeripherals(): boolean {
+  const onI2c = editor.diagram.parts.some((part) => {
+    const kind = partDef(part.type).kind;
+    // Un afficheur câblé en parallèle (pins=full) ou en SPI n'est pas sur le bus.
+    if (kind === 'i2c-lcd' || kind === 'i2c-oled') return (part.attrs?.pins ?? 'i2c') === 'i2c';
+    return kind === 'i2c-pwm' || kind === 'araignee';
+  });
+  return onI2c || spiDeviceBindings(editor.diagram).length > 0;
+}
+
 // --- Cycle de vie de la simulation -------------------------------------------
 function startRun(): void {
   stopRun();
@@ -3074,11 +3101,13 @@ function startRun(): void {
     // Fil de simulation : le moteur AVR peut tourner dans un Web Worker, ce qui
     // rend la page fluide (il tient à lui seul ~92 % du fil principal). Réglage
     // `kablix.simulationWorker`, et repli silencieux sur le moteur du fil principal
-    // si le bundle du worker n'est pas prêt. Le Pico n'y passe pas encore.
+    // si le bundle du worker n'est pas prêt, si le schéma comporte un périphérique
+    // de bus, ou pour un Pico — deux cas encore à porter.
+    const workerFit = simWorkerEnabled() && workerReady() && !usesBusPeripherals();
     engine =
       boardFamily(board) === 'rp2040'
         ? new PicoEngine(picoProgram)
-        : (simWorkerEnabled() && workerReady()
+        : (workerFit
             ? WorkerEngine.create(board === 'mega' ? 'mega' : 'uno', unoProgram, unoDebugInfo)
             : null) ??
           new AvrEngine(unoProgram, unoDebugInfo, board === 'mega' ? 'avr2560' : 'avr328');
@@ -3162,6 +3191,7 @@ function startRun(): void {
   capVolts.clear(); // condensateurs déchargés au début de chaque simulation
   capLastMs = null;
   clearCapSamplers(); // (le moteur est neuf : on repart sans échantillonneur)
+  analogWaves.clear(); // et sans forme d'onde héritée du run précédent
   clearRelayFaults(); // défauts de câblage des relais re-signalés au 1er enclenchement
   buildI2cDevices();
   rebind();

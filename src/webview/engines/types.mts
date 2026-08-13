@@ -1,5 +1,8 @@
 // Interface commune des moteurs de simulation (AVR, RP2040).
 import type { I2cDevice, SpiDevice } from './i2c-devices.mjs';
+import type { AnalogWave } from './analog-waves.mjs';
+
+export type { AnalogWave };
 
 /** Variable affichée dans le panneau de débogage. */
 export interface DebugVariable {
@@ -216,6 +219,16 @@ export interface SimEngine {
    * `setAnalog`.
    */
   setAnalogSampler?(name: string, sample: (() => number) | null): void;
+  /**
+   * Même chose que `setAnalogSampler`, mais la forme d'onde est DÉCRITE au lieu
+   * d'être fermée dans une fonction : le moteur l'évalue lui-même à l'instant de
+   * la conversion. Une description traverse la frontière d'un Web Worker, une
+   * fonction non — c'est donc la variante qu'implémentent les moteurs déportés.
+   * La liste est complète à chaque appel : une broche absente redevient une
+   * simple entrée `setAnalog`. Un moteur qui expose `setAnalogWaves` n'a pas
+   * besoin qu'on lui pose aussi un `setAnalogSampler`.
+   */
+  setAnalogWaves?(waves: AnalogWave[]): void;
   /** Envoie du texte au microcontrôleur sur la liaison série. */
   writeSerial(text: string): void;
   /** Appelé à chaque changement d'état des broches (pour rafraîchir l'affichage). */

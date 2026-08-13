@@ -13,6 +13,7 @@
  */
 
 import { AvrEngine } from './avr.mjs';
+import { evalAnalogWave, type AnalogWave } from './analog-waves.mjs';
 import type { AvrDebugInfo, SimEngine } from './types.mjs';
 import {
   DRIVE_NAMES,
@@ -52,6 +53,32 @@ let lcdIds: string[] = [];
  * le moteur détient.
  */
 let keypads: Array<{ rows: Array<string | null>; cols: Array<string | null>; pressed: Set<string> }> = [];
+/**
+ * Formes d'onde analogiques par broche. L'échantillonneur posé sur le moteur lit
+ * cette table PAR NOM plutôt que de capturer l'onde : le message suivant la
+ * remplace sans qu'il faille reposer un échantillonneur.
+ */
+const waves = new Map<string, AnalogWave>();
+
+/** Fraction de VREF d'une broche à onde, à l'instant exact de la conversion. */
+function sampleWave(pin: string): number {
+  const w = waves.get(pin);
+  if (!w) return 0;
+  return evalAnalogWave(w, engine?.simulatedMs?.() ?? 0, performance.now());
+}
+
+/** Installe / retire les échantillonneurs pour que la liste reçue fasse foi. */
+function applyWaves(list: AnalogWave[]): void {
+  const next = new Set(list.map((w) => w.pin));
+  for (const pin of waves.keys()) {
+    if (!next.has(pin)) engine?.setAnalogSampler?.(pin, null);
+  }
+  for (const w of list) {
+    if (!waves.has(w.pin)) engine?.setAnalogSampler?.(w.pin, () => sampleWave(w.pin));
+    waves.set(w.pin, w);
+  }
+  for (const pin of [...waves.keys()]) if (!next.has(pin)) waves.delete(pin);
+}
 
 function send(msg: FromWorker, transfer?: Transferable[]): void {
   ctx.postMessage(msg, transfer ?? []);
@@ -175,6 +202,9 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
         return;
       case 'setAnalog':
         engine?.setAnalog(msg.pin, msg.fraction);
+        return;
+      case 'setAnalogWaves':
+        applyWaves(msg.waves);
         return;
       case 'writeSerial':
         engine?.writeSerial(msg.text);

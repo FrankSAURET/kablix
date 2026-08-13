@@ -253,9 +253,12 @@ check(
   /function queueRefresh\(\): void \{[\s\S]{0,400}if \(renderRaf\) return;/.test(sim),
   'queueRefresh replanifie un refreshVisuals alors que renderTick le fait déjà',
 );
+// Lu dans le CORPS de renderTick, pas par adjacence des deux appels : d'autres
+// relevés de fin de frame viennent s'intercaler (formes d'onde analogiques…).
+const renderTickBody = sim.slice(sim.indexOf('function renderTick'), sim.indexOf('function renderTick') + 500);
 check(
   'la boucle de rendu met à jour la vitesse affichée',
-  /refreshVisuals\(\);\s*updateSpeedBadge\(\);/.test(sim),
+  /refreshVisuals\(\);/.test(renderTickBody) && /updateSpeedBadge\(\);/.test(renderTickBody),
 );
 check(
   'le badge compare au ralenti VOLONTAIRE (menu 🐢), pas à 1×',
