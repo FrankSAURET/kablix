@@ -34,8 +34,12 @@ Les deux articulations sont électriquement **indépendantes** : rien n'empêche
 | `speed` | Temps d'un tour complet (360°) à pleine vitesse (s), 0 = mouvement instantané | `2` |
 | `revcoxa` | Servo de coxa monté **à l'envers** : la même consigne le fait tourner de l'autre côté | décoché |
 | `revpatella` | Servo de patella monté **à l'envers** | décoché |
+| `zerocoxa` | Angle **dessiné** quand le programme envoie 0° à la coxa (−360 à +360°) | `0` |
+| `zeropatella` | Idem pour la patella | `0` |
 
 Les deux cases d'inversion sont un réglage de **montage**, pas de programme : selon le côté où le servo est vissé, la même consigne part dans l'autre sens. Cochez la case et la simulation applique **180 − angle** à cette articulation — le code, lui, continue d'envoyer « 30° ».
+
+Les deux **zéros** sont l'autre moitié du même réglage : le palonnier se remonte sur des cannelures, il tombe rarement pile où on voudrait. `zerocoxa = 20` veut dire « quand le programme envoie 0°, la patte pointe déjà à 20° ». Le décalage s'ajoute **après** l'inversion : les deux se cumulent, l'un donne le sens, l'autre l'origine.
 
 ### Que dessine chaque angle
 

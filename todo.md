@@ -2,7 +2,7 @@
 ##L'arraignée :
 1. ✅ J'ai retouché le modèle *(v2026.8.46 — cinématique du genou refaite sur le nouveau dessin)*
 1. ✅ il y a des défaut de visualisation . Les cartes électroniques sont un peut recouvertes par le corps. *(v2026.8.46)*
-1. il faudrait pouvoir définir le 0 de chaque servo (0 à 360 ° positif ou négatif)
+1. ✅ il faudrait pouvoir définir le 0 de chaque servo (0 à 360 ° positif ou négatif) *(v2026.8.49)*
 1. ✅ Fait des ombres diffuses *(v2026.8.46)*
 1. ✅ La patte n'a pas été remodélisée. Se plus il faut que les broches des servo soient identifiés. Tu mets donc un rectangle à coin arrondis autours de l'ensemble des 3 broches de connection de chaque servo avec écrit Coxa et Patella. Les trois broches apparaisent grace à un carré plein doré (de taille supérieurs à celui de masse). Reprends "connecteur-servo-patte" dans Composants2D.svg et respecte mes couleurs . *(v2026.8.48)*
 1. ✅ Tu renomeras partout hanche=coxa et genou = patella *(v2026.8.47)*
@@ -18,6 +18,15 @@
 
 # En réserve
 1. ⏳ Moteur de simulation dans un **Web Worker** (rendu et calcul sur deux fils). Chiffré : ~3 lots. Points durs relevés : `sampleSevenSegLatches` tourne sur chaque front GPIO et devrait déménager dans le worker ; états partagés par référence (`pressed` du clavier, capteurs ultrason) à convertir en messages ; pas de `SharedArrayBuffer` (webview non *cross-origin isolated*) donc lecture par instantané de broches ; CSP à ouvrir (`worker-src`). **Rendement chiffré : +7 % seulement** (v2026.7.223 — le moteur détient déjà 92 % du fil, le rendu 1 % et le navigateur 7 %). À ne rouvrir que si le rendu redevient gourmand sur un schéma chargé.
+
+# >>>>  v2026.8.49 — le zéro de chaque servo se règle
+
+1. ✅ **Calage du palonnier, un réglage par articulation** : `zerocoxa` / `zeropatella` sur la patte seule, `zerocoxa0..3` / `zeropatella0..3` sur le robot. La valeur dit l'angle que la pièce **dessine** quand le programme envoie 0° — un tour complet de chaque côté (**−360 à +360°**, au degré), comme demandé. Le bras se remonte cannelure par cannelure : sur huit servos, aucun n'est calé comme son voisin.
+2. ✅ **`jointTarget(v, rev, zero)`** applique l'écrêtage 0..180, puis l'inversion de montage, **puis** le décalage : les deux réglages se cumulent, l'un donne le sens, l'autre l'origine. Le décalage lui-même est écrêté à ±360 (`ZERO_RANGE`). Rien ne change côté simulation électrique : c'est la MÉCANIQUE qu'on décrit, le programme continue d'envoyer « 30° ».
+3. ✅ **`ZERO_PROP` dans le catalogue** (jumeau de `REVERSE_PROP`) : dix nouvelles propriétés numériques, deux pour la patte et huit pour le robot, avec leurs valeurs par défaut à `0`.
+4. ✅ **`verify:araignee` : 72 contrôles** (63 avant) — le décalage déplace la bonne articulation et elle seule, il s'ajoute bien APRÈS l'inversion, il pose le pied exactement là où la consigne équivalente le met, une valeur aberrante (5000) est écrêtée, et le catalogue déclare bien ses bornes −360/+360 au degré.
+5. ✅ Fiches d'aide FR de la patte et du robot complétées (tableau des propriétés + section « Le zéro de chaque servo »).
+6. ⏳ `l10n/bundle.l10n.fr.json` et `docs/en/…` **pas traduits** : les traductions attendent une publication. **`npm run verify:i18n` est donc ROUGE** (« inspecteur : tous les libellés de propriété sont traduits » — les 10 nouveaux `zero…`), et c'est normal : la chaîne de base EN est écrite, le FR se fera en un seul lot avant publication. Tous les autres bancs sont verts, `verify:araignee` **72/72**, `verify:assemblage` 240/240, `verify:docs` 25.
 
 # >>>>  v2026.8.48 — la patte seule est la VRAIE patte, et ses six broches sont sur le connecteur de Frank
 

@@ -272,6 +272,17 @@ export class AraigneeElement extends LitElement {
   declare revpatella2: string;
   declare revcoxa3: string;
   declare revpatella3: string;
+  /** Calage du palonnier de ce servo : l'angle DESSINÉ quand le programme envoie
+   *  0° (±360°). Un par articulation — le bras se remonte cannelure par
+   *  cannelure, jamais pile au degré voulu. */
+  declare zerocoxa0: number;
+  declare zeropatella0: number;
+  declare zerocoxa1: number;
+  declare zeropatella1: number;
+  declare zerocoxa2: number;
+  declare zeropatella2: number;
+  declare zerocoxa3: number;
+  declare zeropatella3: number;
 
   static properties = {
     coxa0: {}, patella0: {},
@@ -282,6 +293,10 @@ export class AraigneeElement extends LitElement {
     revcoxa1: { type: String }, revpatella1: { type: String },
     revcoxa2: { type: String }, revpatella2: { type: String },
     revcoxa3: { type: String }, revpatella3: { type: String },
+    zerocoxa0: { type: Number }, zeropatella0: { type: Number },
+    zerocoxa1: { type: Number }, zeropatella1: { type: Number },
+    zerocoxa2: { type: Number }, zeropatella2: { type: Number },
+    zerocoxa3: { type: Number }, zeropatella3: { type: Number },
     speed: { type: Number },
     boards: { type: String },
     shown: { state: true },
@@ -300,6 +315,7 @@ export class AraigneeElement extends LitElement {
     this.shown = new Array(8).fill(90);
     for (let i = 0; i < 8; i++) {
       (this as unknown as Record<string, string>)[`rev${jointKey(i)}`] = '';
+      (this as unknown as Record<string, number>)[`zero${jointKey(i)}`] = 0;
       this.coxaOrPatella(i, 90);
       // Chaque articulation recopie son angle courant dans le tableau affiché
       // (un nouveau tableau : Lit ne détecte pas la mutation d'un array).
@@ -314,10 +330,11 @@ export class AraigneeElement extends LitElement {
     (this as unknown as Record<string, number>)[jointKey(i)] = v;
   }
 
-  /** Consigne courante d'une articulation (0..7), sens de montage compris. */
+  /** Consigne courante d'une articulation (0..7), montage compris (sens du servo
+   *  et calage du palonnier). */
   private target(i: number): number {
     const self = this as unknown as Record<string, unknown>;
-    return jointTarget(self[jointKey(i)], self[`rev${jointKey(i)}`]);
+    return jointTarget(self[jointKey(i)], self[`rev${jointKey(i)}`], self[`zero${jointKey(i)}`]);
   }
 
   disconnectedCallback(): void {
@@ -326,7 +343,7 @@ export class AraigneeElement extends LitElement {
   }
 
   willUpdate(changed: Map<string, unknown>): void {
-    if (![...changed.keys()].some((k) => /^(rev)?(coxa|patella)\d$/.test(k) || k === 'speed')) return;
+    if (![...changed.keys()].some((k) => /^(rev|zero)?(coxa|patella)\d$/.test(k) || k === 'speed')) return;
     const degPerSec = this.degPerSec();
     this.joints.forEach((j, i) => j.sync(this.target(i), degPerSec));
   }

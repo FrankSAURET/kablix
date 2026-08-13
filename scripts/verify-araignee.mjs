@@ -75,6 +75,16 @@ async function run() {
 		[0, 1, 2, 3].every((i) => def?.props?.some((p) => p.attr === \`revcoxa\${i}\`) && def?.props?.some((p) => p.attr === \`revpatella\${i}\`)));
 	ok('catalogue : la patte a ses 2 cases d\\'inversion',
 		patteDef?.props?.some((p) => p.attr === 'revcoxa') && patteDef?.props?.some((p) => p.attr === 'revpatella'));
+	// Calage du palonnier : un tour complet de chaque côté, réglable au degré.
+	const zeroDef = (d, a) => d?.props?.find((p) => p.attr === a);
+	ok('catalogue : 8 réglages de zéro de servo (un par articulation)',
+		[0, 1, 2, 3].every((i) => zeroDef(def, \`zerocoxa\${i}\`) && zeroDef(def, \`zeropatella\${i}\`)));
+	ok('catalogue : le zéro va de −360 à +360°, au degré',
+		[def, patteDef].every((d) => (d === def ? ['zerocoxa0', 'zeropatella3'] : ['zerocoxa', 'zeropatella'])
+			.every((a) => zeroDef(d, a)?.kind === 'number' && zeroDef(d, a)?.min === -360
+				&& zeroDef(d, a)?.max === 360 && zeroDef(d, a)?.step === 1)));
+	ok('catalogue : la patte a ses 2 réglages de zéro',
+		!!zeroDef(patteDef, 'zerocoxa') && !!zeroDef(patteDef, 'zeropatella'));
 
 	// --- 2. Broches : le robot n'en a plus AUCUNE (v2026.8.24) ------------------
 	const el = await mk();
@@ -220,6 +230,40 @@ async function run() {
 		ecartPied(invk.geometry[2].foot, p150) < 0.01 && ecartPied(p150, p30) > 5,
 		\`\${ecartPied(invk.geometry[2].foot, p150).toFixed(2)} / \${ecartPied(p150, p30).toFixed(1)}\`);
 
+	// --- 6 ter. Calage du palonnier : le zéro de CHAQUE servo (v2026.8.49) -----
+	// Le bras se remonte cannelure par cannelure : le décalage dit quel angle la
+	// pièce dessine quand le programme envoie 0°. Il s'ajoute APRÈS l'inversion.
+	const zc = await mk({ speed: '0', zerocoxa0: '30' });
+	zc.coxa0 = 60;
+	await zc.updateComplete;
+	ok('zéro : zerocoxa0 = 30 décale la consigne 60° sur le cap de 90°',
+		Math.abs(ecart(cap(zc.geometry[0]), cap(g0[0]))) < 0.01,
+		\`\${cap(zc.geometry[0]).toFixed(1)} vs \${cap(g0[0]).toFixed(1)}\`);
+	ok('zéro : il ne touche QUE son articulation',
+		[1, 2, 3].every((i) => Math.abs(ecart(cap(zc.geometry[i]), cap(g0[i]))) < 0.01
+			&& Math.abs(zc.geometry[i].foot.z - g0[i].foot.z) < 0.01));
+	// Cumul : inversé (180 − 30 = 150) puis décalé de −60 → 90, la pose de repos.
+	const zr = await mk({ speed: '0', revcoxa0: '1', zerocoxa0: '-60' });
+	zr.coxa0 = 30;
+	await zr.updateComplete;
+	ok('zéro : il s\\'ajoute APRÈS l\\'inversion (rev puis décalage)',
+		Math.abs(ecart(cap(zr.geometry[0]), cap(g0[0]))) < 0.01,
+		\`\${cap(zr.geometry[0]).toFixed(1)} vs \${cap(g0[0]).toFixed(1)}\`);
+	// Patella : la consigne 30 décalée de +120 doit poser le pied comme 150.
+	const zk = await mk({ speed: '0', zeropatella2: '120' });
+	zk.patella2 = 30;
+	await zk.updateComplete;
+	ok('zéro : zeropatella2 = 120 pose le pied comme la consigne 150°',
+		ecartPied(zk.geometry[2].foot, p150) < 0.01,
+		ecartPied(zk.geometry[2].foot, p150).toFixed(2));
+	// Un décalage aberrant est écrêté au tour complet, pas propagé tel quel.
+	const zx = await mk({ speed: '0', zerocoxa1: '5000' });
+	zx.coxa1 = 90;
+	await zx.updateComplete;
+	ok('zéro : un décalage aberrant est écrêté à ±360°',
+		Math.abs(ecart(cap(zx.geometry[1]), cap(g0[1]))) < 0.01,
+		ecart(cap(zx.geometry[1]), cap(g0[1])).toFixed(2));
+
 	// --- 7. Animation : la patte POURSUIT sa consigne à la vitesse réglée -------
 	// La cible est mesurée sur une instance instantanée (speed = 0) : le dessin
 	// décide où tombe le pied, le test ne fait que vérifier qu'on y arrive.
@@ -323,6 +367,14 @@ async function run() {
 		Math.abs(pRev.geometry.foot.x - pDroit.geometry.foot.x) < 0.01
 		&& Math.abs(pRev.geometry.foot.z - pDroit.geometry.foot.z) < 0.01,
 		\`\${pied(pRev)} vs \${pied(pDroit)}\`);
+	// Et son calage de palonnier : consigne 10 décalée de +20 = consigne 30 nue.
+	const pZero = await mk({ speed: '0', zeropatella: '20' }, 'kablix-patte');
+	pZero.patellaAngle = 10;
+	await pZero.updateComplete;
+	ok('patte seule : zeropatella décale le zéro du servo (10 + 20 = 30)',
+		Math.abs(pZero.geometry.foot.x - pDroit.geometry.foot.x) < 0.01
+		&& Math.abs(pZero.geometry.foot.z - pDroit.geometry.foot.z) < 0.01,
+		\`\${pied(pZero)} vs \${pied(pDroit)}\`);
 	pDroit.patellaAngle = 150;
 	await pDroit.updateComplete;
 	ok('patte seule : sans la case, 150 et 30 donnent bien DEUX poses',

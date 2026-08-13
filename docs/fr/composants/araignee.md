@@ -24,6 +24,7 @@ Catégorie de la palette : **Système**.
 | `speed` | Temps d'un tour complet (360°) à pleine vitesse (s), 0 = mouvement instantané | `2` |
 | `boards` | Montrer l'électronique embarquée (PCA9685, batterie) | décoché |
 | `revcoxa0` … `revpatella3` | Servo monté **à l'envers** : la même consigne le fait tourner de l'autre côté | décoché |
+| `zerocoxa0` … `zeropatella3` | Angle **dessiné** quand le programme envoie 0° à ce servo (−360 à +360°) | `0` |
 
 L'adresse du PCA9685 embarqué se règle **comme sur la vraie carte**, en cochant les six pads **AD0 à AD5** ; elle s'affiche sous les cases. Tous cochés — le réglage d'usine du module Grove — donnent **0x7F**, l'adresse par défaut du robot. Le détail du calcul est dans la [fiche du PCA9685](pca9685.md).
 
@@ -34,6 +35,12 @@ Les huit articulations obéissent aux mêmes angles que la [patte seule](patte.m
 Sur le châssis réel, les huit servos ne sont pas tous vissés du même côté : à consigne égale, certains partent dans l'autre sens. Cochez la case de l'articulation concernée (`revcoxa0` = coxa avant-gauche, `revpatella3` = patella arrière-droite…) et la simulation applique **180 − angle** à ce servo-là.
 
 C'est un réglage de **montage**, pas de programme : le code continue d'envoyer « 30° », c'est la mécanique qui décide de quel côté ça part. Utile pour retrouver dans la simulation le comportement d'un robot déjà assemblé, sans réécrire son programme.
+
+### Le zéro de chaque servo
+
+Même histoire pour l'**origine**. Le palonnier se remonte cannelure par cannelure : sur huit servos, aucun n'est calé exactement comme son voisin, et le robot se retrouve de travers alors que le programme envoie les mêmes angles partout. `zerocoxa0 = 20` dit « quand le programme envoie 0° à la coxa avant-gauche, elle pointe déjà à 20° ».
+
+Un tour complet est admis de chaque côté (**−360 à +360°**, au degré). Le décalage s'applique **après** l'inversion : la case donne le sens, le zéro donne l'origine, et les deux se cumulent sur la même articulation. Là encore, rien ne change dans le programme — c'est le châssis qu'on décrit.
 
 ## Canaux PWM
 

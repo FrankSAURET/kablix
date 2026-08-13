@@ -179,16 +179,26 @@ export function opaque(fill: string | undefined): string | undefined {
   return m ? m[1] : fill;
 }
 
+/** Décalage de zéro maximal, en degrés : un tour complet de chaque côté. */
+export const ZERO_RANGE = 360;
+
 /**
- * Consigne d'un servo, sens de montage compris : `rev` non vide = servo vissé à
- * l'envers, la même consigne le fait tourner dans l'autre sens (180 − angle).
+ * Consigne d'un servo, MONTAGE compris. Deux réglages, dans cet ordre :
+ *   • `rev` non vide = servo vissé à l'envers, la même consigne le fait tourner
+ *     dans l'autre sens (180 − angle) ;
+ *   • `zero` = l'angle que dessine la pièce quand le programme envoie 0° —
+ *     autrement dit le calage du palonnier sur l'axe (−360..+360°). Sur un vrai
+ *     montage, le bras se remet en place d'un cran de cannelure à la fois : ce
+ *     décalage rattrape ce que la mécanique ne sait pas faire au degré près.
  * C'est un réglage de MONTAGE, pas de programme : le code continue d'envoyer
- * « 30° » et c'est la mécanique qui décide de quel côté ça part.
+ * « 30° » et c'est la mécanique qui décide où ça pointe.
  */
-export function jointTarget(v: unknown, rev: unknown): number {
+export function jointTarget(v: unknown, rev: unknown, zero?: unknown): number {
   const n = Number(v);
   const a = Number.isFinite(n) ? Math.max(0, Math.min(180, n)) : 90;
-  return rev ? 180 - a : a;
+  const z = Number(zero);
+  const off = Number.isFinite(z) ? Math.max(-ZERO_RANGE, Math.min(ZERO_RANGE, z)) : 0;
+  return (rev ? 180 - a : a) + off;
 }
 
 /** Anime UN angle vers sa consigne à vitesse limitée (rattrapage image par
@@ -375,6 +385,9 @@ export class PatteElement extends LitElement {
   /** Non vide : servo monté à l'envers, il part dans l'AUTRE sens (180 − consigne). */
   declare revcoxa: string;
   declare revpatella: string;
+  /** Calage du palonnier : l'angle DESSINÉ quand le programme envoie 0° (±360°). */
+  declare zerocoxa: number;
+  declare zeropatella: number;
 
   static properties = {
     coxaAngle: {},
@@ -382,6 +395,8 @@ export class PatteElement extends LitElement {
     speed: { type: Number },
     revcoxa: { type: String },
     revpatella: { type: String },
+    zerocoxa: { type: Number },
+    zeropatella: { type: Number },
     coxaShown: { state: true },
     patellaShown: { state: true },
   };
@@ -398,6 +413,8 @@ export class PatteElement extends LitElement {
     this.speed = 2;
     this.revcoxa = '';
     this.revpatella = '';
+    this.zerocoxa = 0;
+    this.zeropatella = 0;
     this.coxaShown = 90;
     this.patellaShown = 90;
   }
@@ -409,11 +426,12 @@ export class PatteElement extends LitElement {
   }
 
   willUpdate(changed: Map<string, unknown>): void {
-    const watched = ['coxaAngle', 'patellaAngle', 'speed', 'revcoxa', 'revpatella'];
+    const watched = ['coxaAngle', 'patellaAngle', 'speed', 'revcoxa', 'revpatella',
+      'zerocoxa', 'zeropatella'];
     if (!watched.some((k) => changed.has(k))) return;
     const degPerSec = this.degPerSec();
-    this.coxa.sync(jointTarget(this.coxaAngle, this.revcoxa), degPerSec);
-    this.patella.sync(jointTarget(this.patellaAngle, this.revpatella), degPerSec);
+    this.coxa.sync(jointTarget(this.coxaAngle, this.revcoxa, this.zerocoxa), degPerSec);
+    this.patella.sync(jointTarget(this.patellaAngle, this.revpatella, this.zeropatella), degPerSec);
   }
 
   private degPerSec(): number {

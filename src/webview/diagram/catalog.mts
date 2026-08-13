@@ -387,6 +387,17 @@ const PCA9685_PAD_PROPS: readonly PropDef[] = [
  */
 const REVERSE_PROP = (attr: string, label: string): PropDef => ({ attr, label, kind: 'checkbox' });
 
+/**
+ * Calage du palonnier, un réglage par servo. Le bras se remonte sur des
+ * cannelures : il tombe rarement pile où on voudrait, et sur un châssis les huit
+ * servos ne sont pas calés pareil. Ce décalage dit quel angle la pièce DESSINE
+ * quand le programme envoie 0° — un tour complet de chaque côté (±360°), comme
+ * demandé. Il s'ajoute APRÈS l'inversion (`revXXX`) : les deux réglages se
+ * cumulent, l'un donne le sens, l'autre l'origine.
+ */
+const ZERO_PROP = (attr: string, label: string): PropDef =>
+  ({ attr, label, kind: 'number', min: -360, max: 360, step: 1 });
+
 export const CATALOG: readonly PartDef[] = [
   // Cartes AVR : éléments forkés, mis à l'échelle 10/9,6 px pour que
   // leurs broches tombent sur la grille de 10 px (= pas de la platine d'essai).
@@ -865,6 +876,7 @@ export const CATALOG: readonly PartDef[] = [
     type: 'patte', label: 'Spider leg', tag: 'kablix-patte', kind: 'patte',
     attrs: {
       pulsemin: '500', pulsemax: '2500', speed: '2', revcoxa: '', revpatella: '',
+      zerocoxa: '0', zeropatella: '0',
     },
     props: [
       { attr: 'pulsemin', label: 'Pulse at 0° (µs)', kind: 'number', min: 100, max: 3000, step: 1 },
@@ -872,6 +884,8 @@ export const CATALOG: readonly PartDef[] = [
       { attr: 'speed', label: 'Rotation time (s/turn)', kind: 'number', min: 0, max: 30, step: 0.1 },
       REVERSE_PROP('revcoxa', 'Reverse the coxa servo'),
       REVERSE_PROP('revpatella', 'Reverse the patella servo'),
+      ZERO_PROP('zerocoxa', 'Coxa angle at 0° (horn offset)'),
+      ZERO_PROP('zeropatella', 'Patella angle at 0° (horn offset)'),
     ],
   },
   // Robot araignée quadrupède complet, DESSINÉ par Frank (les trois assemblages
@@ -892,6 +906,8 @@ export const CATALOG: readonly PartDef[] = [
       address: '0x7F', ...PCA9685_PAD_ATTRS, speed: '2', boards: '',
       revcoxa0: '', revpatella0: '', revcoxa1: '', revpatella1: '',
       revcoxa2: '', revpatella2: '', revcoxa3: '', revpatella3: '',
+      zerocoxa0: '0', zeropatella0: '0', zerocoxa1: '0', zeropatella1: '0',
+      zerocoxa2: '0', zeropatella2: '0', zerocoxa3: '0', zeropatella3: '0',
     },
     props: [
       ...PCA9685_PAD_PROPS,
@@ -905,6 +921,14 @@ export const CATALOG: readonly PartDef[] = [
       REVERSE_PROP('revpatella2', 'Reverse the rear-left patella'),
       REVERSE_PROP('revcoxa3', 'Reverse the rear-right coxa'),
       REVERSE_PROP('revpatella3', 'Reverse the rear-right patella'),
+      ZERO_PROP('zerocoxa0', 'Front-left coxa angle at 0°'),
+      ZERO_PROP('zeropatella0', 'Front-left patella angle at 0°'),
+      ZERO_PROP('zerocoxa1', 'Front-right coxa angle at 0°'),
+      ZERO_PROP('zeropatella1', 'Front-right patella angle at 0°'),
+      ZERO_PROP('zerocoxa2', 'Rear-left coxa angle at 0°'),
+      ZERO_PROP('zeropatella2', 'Rear-left patella angle at 0°'),
+      ZERO_PROP('zerocoxa3', 'Rear-right coxa angle at 0°'),
+      ZERO_PROP('zeropatella3', 'Rear-right patella angle at 0°'),
     ],
   },
   // Clavier matriciel à membrane (3 ou 4 colonnes). Interactif : une touche
