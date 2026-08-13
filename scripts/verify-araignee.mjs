@@ -10,7 +10,12 @@
 //      fil : il vit dans sim.mts, on vérifie donc qu'il y est branché ;
 //   4. depuis la 3D, la cinématique se lit dans `geometry` (position des pieds)
 //      et non plus dans des `rotate(…)` : mesurer un pied dit si la patte se
-//      lève VRAIMENT, ce qu'un angle de rotation à plat ne disait pas.
+//      lève VRAIMENT, ce qu'un angle de rotation à plat ne disait pas ;
+//   5. depuis la v2026.8.44 le robot est le DESSIN de Frank (trois assemblages
+//      de `Composants3D.svg`) : plus une cote n'est écrite dans le code, donc
+//      plus une cote n'est écrite ICI. Les contrôles portent sur ce qui doit
+//      rester vrai quel que soit le dessin — pieds au sol, tibia rigide, patte
+//      droite en miroir de la gauche, rien hors de la feuille.
 import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
@@ -23,7 +28,7 @@ const CACHE = join(ROOT, 'node_modules', '.cache-araignee');
 const entry = `
 import '../../src/webview/composants/araignee-element.mjs';
 import '../../src/webview/composants/patte-element.mjs';
-import { LEG_ALONE, LEG_SPIDER } from '../../src/webview/composants/patte-element.mjs';
+import { robot } from '../../src/webview/composants/araignee-element.mjs';
 import { CATALOG, partCategory, partDef } from '../../src/webview/diagram/catalog.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const checks = [];
@@ -44,6 +49,7 @@ async function run() {
 	// cap de la patte au sol (direction hanche → genou) et hauteur du pied.
 	const cap = (g) => deg(Math.atan2(g.knee.y - g.hip.y, g.knee.x - g.hip.x));
 	const polys = (el) => el.shadowRoot.querySelectorAll('polygon').length;
+	const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
 
 	// --- 1. Catalogue -----------------------------------------------------------
 	const def = CATALOG.find((p) => p.type === 'araignee');
@@ -75,18 +81,33 @@ async function run() {
 	ok('broches : aucune — rien ne se câble au robot', el.pinInfo.length === 0,
 		el.pinInfo.map((p) => p.name).join(','));
 
-	// --- 3. Les 4 pattes sont VRAIMENT dessinées (piège du namespace) -----------
+	// --- 3. Le robot vient du DESSIN, et il est VRAIMENT dessiné ---------------
+	// Rien n'est codé en dur : les trois assemblages doivent être là, et les
+	// quatre hanches sortir des pastilles rouges du corps.
+	const R = robot();
+	ok('dessin : les trois assemblages sont lus (corps, fémur, tibia)',
+		!!R && !!R.corps && !!R.femur && !!R.tibia);
+	ok('dessin : 4 hanches lues sur les pastilles du corps', R?.hips?.length === 4, R?.hips?.length);
+	ok('dessin : le genou vient des deux pastilles « genou » (fémur et tibia)',
+		!!R?.kneeF && !!R?.kneeT && !!R?.hipF);
+	// Deux pattes à gauche (x < 0), deux à droite : c'est ce qui donne les deux
+	// sens de balayage. Une planche redessinée de travers se verrait ici.
+	ok('dessin : deux hanches à gauche, deux à droite (montage en miroir)',
+		R?.mirror?.filter(Boolean).length === 2, R?.mirror?.join(','));
 	const svg = el.shadowRoot.querySelector('svg');
 	ok('dessin : 4 pattes dans la géométrie', el.geometry.length === 4, el.geometry.length);
 	ok('dessin : tout est en namespace SVG (pas XHTML)',
 		[...el.shadowRoot.querySelectorAll('polygon')].every((p) => p.namespaceURI === 'http://www.w3.org/2000/svg'));
-	// Une patte = 5 boîtes ≈ 3 faces visibles chacune ; moins de 60 polygones en
-	// tout = des pattes absentes du rendu, exactement le bug du namespace.
-	ok('dessin : les faces des 4 pattes sont sorties (> 60 polygones)', polys(el) > 60, polys(el));
+	// Le corps seul sort ~250 polygones : moins de 400 en tout = des pattes
+	// absentes du rendu, exactement le bug du namespace.
+	ok('dessin : les faces des 4 pattes sont sorties (> 400 polygones)', polys(el) > 400, polys(el));
+	// … et pas dix fois trop : les contours Inkscape non allégés donnaient 2 900
+	// polygones et 26 ms par image, une marche en diaporama.
+	ok('dessin : contours allégés (< 1 500 polygones, sinon l\\'animation rame)', polys(el) < 1500, polys(el));
 	const bb = svg.getBBox();
-	// Châssis + bornier seuls projettent ~134x100 ; avec les pattes, 192x166.
-	// Une bbox trop petite = pattes absentes du rendu (le bug du namespace).
-	ok('dessin : les pattes DÉBORDENT du châssis (bbox > 170×130)',
+	// Corps seul ~100x80 ; avec les pattes, 193x164. Une bbox trop petite =
+	// pattes absentes du rendu (le bug du namespace).
+	ok('dessin : les pattes DÉBORDENT du corps (bbox > 170×130)',
 		bb.width > 170 && bb.height > 130, \`\${Math.round(bb.width)}x\${Math.round(bb.height)}\`);
 	ok('dessin : tout le robot tient dans sa feuille 400×400',
 		bb.x >= 0 && bb.y >= 0 && bb.x + bb.width <= 400 && bb.y + bb.height <= 400,
@@ -107,18 +128,21 @@ async function run() {
 	ok('dessin : la carte Pico W est posée sur le dos, toujours visible (circuit vert)',
 		verts.length >= 3, verts.length);
 
-	// --- 4. Debout : les 4 pieds portent le robot, hanches en croix -------------
+	// --- 4. Debout : les 4 pieds portent le robot -------------------------------
 	const g0 = el.geometry;
 	const solHip = g0[0].hip.z;
 	ok('debout (90°/90°) : les 4 pieds à la MÊME hauteur',
 		g0.every((g) => Math.abs(g.foot.z - g0[0].foot.z) < 0.01), g0.map((g) => g.foot.z.toFixed(1)).join(' '));
-	ok('debout : tibia VERTICAL (le pied tombe d\\'une longueur de tibia)',
-		Math.abs(g0[0].foot.z - (solHip - LEG_SPIDER.tibia)) < 0.01, g0[0].foot.z);
-	ok('debout : les 4 hanches réparties en croix (90° d\\'écart)',
-		[1, 2, 3].every((i) => {
-			const e = Math.abs(ecart(deg(Math.atan2(g0[i].hip.y, g0[i].hip.x)), deg(Math.atan2(g0[0].hip.y, g0[0].hip.x))));
-			return Math.abs(e - 90) < 0.5 || Math.abs(e - 180) < 0.5;
-		}), g0.map((g) => deg(Math.atan2(g.hip.y, g.hip.x)).toFixed(0)).join(' '));
+	// Le SOL est z = 0 : c'est là que se collent les ombres, et c'est le dessin
+	// qui décide de la hauteur du robot — pas une constante.
+	ok('debout : les pieds touchent le sol (z = 0, sous les ombres)',
+		Math.abs(g0[0].foot.z) < 0.01, g0[0].foot.z.toFixed(3));
+	ok('debout : les 4 hanches à la même hauteur (le corps est de niveau)',
+		g0.every((g) => Math.abs(g.hip.z - solHip) < 0.01), g0.map((g) => g.hip.z.toFixed(1)).join(' '));
+	ok('debout : les pieds sont PLUS ÉCARTÉS que les hanches (pattes vers dehors)',
+		Math.max(...g0.map((g, i) => dist(g.foot, g0[(i + 2) % 4].foot)))
+		> Math.max(...g0.map((g, i) => dist(g.hip, g0[(i + 2) % 4].hip))));
+	ok('debout : le corps est au-dessus du sol', solHip > 20, solHip.toFixed(1));
 
 	// --- 5. Électronique embarquée : masquée par défaut, montrée sur demande ----
 	// Deux boîtes seulement depuis la v2026.8.24 (PCA9685 + batterie) : la Pico W
@@ -130,14 +154,20 @@ async function run() {
 	// --- 6. Les 8 articulations sont indépendantes ------------------------------
 	// speed=0 : la consigne doit être atteinte IMMÉDIATEMENT (le rappel manquait).
 	const inst = await mk({ speed: '0' });
+	const tibia0 = dist(g0[2].knee, g0[2].foot);
 	inst.knee2 = 150;
 	await inst.updateComplete;
 	const gi = inst.geometry;
-	// Genou 150° = tibia relevé de 60° : le pied remonte de tibia·(1 − cos60°).
-	ok('speed=0 : genou arrière-gauche à sa consigne tout de suite',
-		Math.abs(gi[2].foot.z - (solHip - LEG_SPIDER.tibia * Math.cos(Math.PI / 3))) < 0.01, gi[2].foot.z);
+	// Le tibia est une PIÈCE : sa longueur ne change pas avec la pose. C'est le
+	// contrôle qui attrape un pivot pris au mauvais endroit (le pied se mettait à
+	// glisser le long de la patte au lieu de tourner autour du genou).
+	ok('speed=0 : le tibia reste RIGIDE en pliant le genou',
+		Math.abs(dist(gi[2].knee, gi[2].foot) - tibia0) < 0.01,
+		\`\${dist(gi[2].knee, gi[2].foot).toFixed(2)} vs \${tibia0.toFixed(2)}\`);
 	ok('speed=0 : le pied est bien LEVÉ (la 2D à plat ne le montrait pas)',
 		gi[2].foot.z > gi[0].foot.z + 15, \`\${gi[2].foot.z.toFixed(1)} vs \${gi[0].foot.z.toFixed(1)}\`);
+	ok('speed=0 : le genou, lui, n\\'a pas bougé (il est porté par la hanche)',
+		dist(gi[2].knee, g0[2].knee) < 0.01, dist(gi[2].knee, g0[2].knee).toFixed(3));
 	ok('speed=0 : les autres articulations n\\'ont pas bougé',
 		[0, 1, 3].every((i) => Math.abs(gi[i].foot.z - g0[i].foot.z) < 0.01 && Math.abs(ecart(cap(gi[i]), cap(g0[i]))) < 0.01));
 	inst.hip0 = 0; inst.hip1 = 0;
@@ -191,6 +221,12 @@ async function run() {
 		\`\${ecartPied(invk.geometry[2].foot, p150).toFixed(2)} / \${ecartPied(p150, p30).toFixed(1)}\`);
 
 	// --- 7. Animation : la patte POURSUIT sa consigne à la vitesse réglée -------
+	// La cible est mesurée sur une instance instantanée (speed = 0) : le dessin
+	// décide où tombe le pied, le test ne fait que vérifier qu'on y arrive.
+	const cible = await mk({ speed: '0' });
+	cible.knee0 = 180;
+	await cible.updateComplete;
+	const but = { ...cible.geometry[0].foot };
 	const slow = await mk({ speed: '2' }); // 180°/s
 	slow.knee0 = 180;
 	await slow.updateComplete;
@@ -200,8 +236,27 @@ async function run() {
 	const z1 = slow.geometry[0].foot.z;
 	ok('animation : après ~0,3 s le pied est monté', z1 > z0 + 5, \`\${z0.toFixed(1)} → \${z1.toFixed(1)}\`);
 	await wait(1200);
-	// Genou 180° = tibia tendu à l'horizontale : le pied est à la hauteur du genou.
-	ok('animation : consigne atteinte après ~1,5 s', Math.abs(slow.geometry[0].foot.z - solHip) < 0.5, slow.geometry[0].foot.z);
+	ok('animation : consigne atteinte après ~1,5 s', dist(slow.geometry[0].foot, but) < 0.5,
+		dist(slow.geometry[0].foot, but).toFixed(2));
+
+	// --- 7 bis. Aucune pose ne sort de la feuille (25 poses, ombres comprises) --
+	// Le cadrage est calculé sur le débattement complet des quatre pattes : c'est
+	// ce qui remplace l'échelle codée en dur. Un dessin plus long rentre tout
+	// seul — mais s'il rentrait mal, le robot serait rogné dans l'atelier sans
+	// que rien d'autre ne le dise.
+	const pose = await mk({ speed: '0' });
+	const psheet = pose.shadowRoot.querySelector('svg');
+	const pvb = psheet.viewBox.baseVal;
+	const sortis = [];
+	for (const h of [0, 45, 90, 135, 180]) {
+		for (const k of [0, 45, 90, 135, 180]) {
+			for (let i = 0; i < 4; i++) { pose['hip' + i] = h; pose['knee' + i] = k; }
+			await pose.updateComplete;
+			const b = psheet.getBBox();
+			if (b.x < pvb.x || b.y < pvb.y || b.x + b.width > pvb.x + pvb.width || b.y + b.height > pvb.y + pvb.height) sortis.push(h + '/' + k);
+		}
+	}
+	ok('cadrage : AUCUNE des 25 poses ne déborde de la feuille 400×400', sortis.length === 0, sortis.join(' '));
 
 	// --- 8. La patte SEULE : même mécanique, et rien ne dépasse de sa feuille ---
 	const p = await mk({ speed: '0' }, 'kablix-patte');
@@ -225,8 +280,12 @@ async function run() {
 	await p.updateComplete;
 	ok('patte seule : les broches restent hors du dessin (colonne x = 10)',
 		psvg.getBBox().x > 20 && p.pinInfo.every((q) => q.x === 10), Math.round(psvg.getBBox().x));
+	// La patte SEULE garde sa mécanique codée (elle n'est le membre de personne) :
+	// elle doit rester plus courte que celles du robot, qui viennent du dessin.
 	ok('patte seule : plus courte que celles du robot (elle tient dans sa vignette)',
-		LEG_ALONE.coxa < LEG_SPIDER.coxa && LEG_ALONE.tibia < LEG_SPIDER.tibia);
+		dist(p.geometry.knee, p.geometry.foot) < dist(g0[0].knee, g0[0].foot)
+		&& dist(p.geometry.hip, p.geometry.knee) < dist(g0[0].hip, g0[0].knee),
+		\`\${dist(p.geometry.knee, p.geometry.foot).toFixed(0)} vs \${dist(g0[0].knee, g0[0].foot).toFixed(0)}\`);
 	// La patte a AUSSI ses deux cases d'inversion : servo à l'envers = même
 	// consigne, pose miroir. Le repère est le pied EN PLAN (x) et non sa hauteur :
 	// 30° et 150° lèvent le pied pareil (cos ±60°), c'est le côté qui change.

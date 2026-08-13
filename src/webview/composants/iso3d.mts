@@ -58,6 +58,27 @@ export function rotZ(p: Vec3, deg: number): Vec3 {
   return { x: p.x * c - p.y * s, y: p.x * s + p.y * c, z: p.z };
 }
 
+/**
+ * Rotation autour d'un axe QUELCONQUE (Rodrigues), `u` unitaire et passant par
+ * l'origine, angle en degrés. `rotZ` ne sait tourner qu'autour de la verticale :
+ * c'est le lacet d'une hanche, mais surtout pas un GENOU, dont l'axe est
+ * horizontal et tourne lui-même avec la patte. Composer une translation, cette
+ * rotation et la translation inverse fait pivoter une pièce autour de l'axe
+ * dessiné, où qu'il soit.
+ */
+export function rotAxis(p: Vec3, u: Vec3, deg: number): Vec3 {
+  const a = (deg * Math.PI) / 180;
+  const c = Math.cos(a);
+  const s = Math.sin(a);
+  const d = dot(u, p) * (1 - c);
+  const w = cross(u, p);
+  return {
+    x: p.x * c + w.x * s + u.x * d,
+    y: p.y * c + w.y * s + u.y * d,
+    z: p.z * c + w.z * s + u.z * d,
+  };
+}
+
 export function cross(a: Vec3, b: Vec3): Vec3 {
   return {
     x: a.y * b.z - a.z * b.y,
@@ -170,6 +191,49 @@ export function signedArea(poly: Vec2[]): number {
     a += p.x * q.y - q.x * p.y;
   }
   return a / 2;
+}
+
+/**
+ * ALLÈGE un contour dessiné : les points qui ne s'écartent pas de plus de `tol`
+ * de la ligne qu'ils prolongent sont retirés (Douglas-Peucker, contour fermé).
+ *
+ * Un tracé sorti d'Inkscape porte ses courbes en dizaines de points espacés d'un
+ * dixième de millimètre : parfait pour découper au laser, ruineux à l'écran —
+ * chaque point ajoute un triangle, et chaque triangle une face à trier, à
+ * projeter et à écrire dans le DOM. Sur le robot entier, 96 points de plaque
+ * coûtaient 1800 faces là où 25 en donnent 250, pour la même silhouette à un
+ * demi-pixel près. La tolérance s'exprime dans l'unité du contour reçu.
+ */
+export function simplifyPoly(poly: Vec2[], tol: number): Vec2[] {
+  if (tol <= 0 || poly.length < 5) return poly;
+  // Distance d'un point au SEGMENT ab (et non à la droite : sur un contour fermé
+  // très replié, la droite passe loin de la vraie corde).
+  const dist = (p: Vec2, a: Vec2, b: Vec2): number => {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const l2 = dx * dx + dy * dy;
+    const t = l2 < 1e-12 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2));
+    return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+  };
+  const keep = (from: number, to: number, out: Vec2[]): void => {
+    let worst = 0;
+    let at = -1;
+    for (let i = from + 1; i < to; i++) {
+      const d = dist(poly[i], poly[from], poly[to]);
+      if (d > worst) { worst = d; at = i; }
+    }
+    if (worst <= tol || at < 0) { out.push(poly[to]); return; }
+    keep(from, at, out);
+    keep(at, to, out);
+  };
+  // Le contour est fermé : on le coupe en DEUX arcs (le point 0 et son opposé
+  // restent), sans quoi le premier point serait le seul point d'ancrage et la
+  // moitié du tracé pourrait s'effondrer sur une corde.
+  const half = Math.floor(poly.length / 2);
+  const out: Vec2[] = [poly[0]];
+  keep(0, half, out);
+  keep(half, poly.length - 1, out);
+  return out.length >= 4 ? out : poly;
 }
 
 /** Double de l'aire signée du triangle abc : > 0 = sommet convexe (sens trigo). */
@@ -483,22 +547,31 @@ export function axisVector(dir?: AxisDir): Vec3 | null {
  * l'assemblage dans la scène (lacet de présentation), et `eclate` écarte chaque
  * pièce le long de sa normale — la vue éclatée d'une notice de montage, qui est
  * le seul moyen de voir ce qu'il y a entre deux flancs serrés à 3 mm.
+ *
+ * `simplify` allège les contours (en unités de la FEUILLE, après échelle) : un
+ * composant de l'atelier, redessiné à chaque image d'animation, ne peut pas
+ * porter les milliers de faces qu'un tracé Inkscape brut produit — alors qu'un
+ * demi-pixel d'écart ne se voit pas. La fenêtre `npm run montre`, elle, garde le
+ * tracé entier : c'est là qu'on vérifie un dessin.
  */
 export function assemblyFaces(a: Assembly, opts: {
   scale?: number;
   xf?: (p: Vec3) => Vec3;
   eclate?: number;
   color?: (p: AssemblyPiece) => string;
+  simplify?: number;
 } = {}): Face[] {
   const k = opts.scale ?? 1;
   const xf = opts.xf ?? ((p: Vec3): Vec3 => p);
   const eclate = opts.eclate ?? 0;
+  const tol = opts.simplify ?? 0;
   const out: Face[] = [];
   for (const p of a.pieces) {
     const color = opts.color?.(p) ?? p.fill ?? MATIERES[p.mat] ?? MATIERES.pmma;
     const n = planeNormal(p.plan);
-    const poly = p.poly.map((q) => ({ x: q.x * k, y: q.y * k }));
-    const holes = (p.holes ?? []).map((h) => h.map((q) => ({ x: q.x * k, y: q.y * k })));
+    const poly = simplifyPoly(p.poly.map((q) => ({ x: q.x * k, y: q.y * k })), tol);
+    const holes = (p.holes ?? [])
+      .map((h) => simplifyPoly(h.map((q) => ({ x: q.x * k, y: q.y * k })), tol));
     for (const pos of mirrored(p)) {
       // Sens de l'éclaté : du côté où la pièce se trouve déjà. Une pièce pile au
       // milieu (une entretoise centrale) ne bouge pas, il n'y a rien à dégager.
@@ -512,10 +585,41 @@ export function assemblyFaces(a: Assembly, opts: {
 }
 
 /** Les deux poses d'une pièce en miroir, ou son unique pose. */
-function mirrored(p: AssemblyPiece): Vec3[] {
+export function mirrored(p: AssemblyPiece): Vec3[] {
   if (!p.miroir) return [p.pos];
   const axis = p.miroir as 'x' | 'y' | 'z';
   return [p.pos, { ...p.pos, [axis]: -p.pos[axis] }];
+}
+
+/** Tous les sommets d'un assemblage en 3D, en millimètres : le contour de chaque
+ *  pièce porté dans son plan, les deux exemplaires d'une pièce en miroir
+ *  compris. C'est de quoi CADRER un dessin et le mesurer (où tombe le bout d'une
+ *  patte, quelle place tient le robot bras tendus) sans rien recopier de ses
+ *  cotes.
+ *
+ *  `withEp` porte en plus les deux peaux de chaque pièce, écartées de son
+ *  épaisseur : indispensable pour cadrer (un servo de 24,5 mm posé à plat
+ *  dépasse de 12 mm du contour, et c'est ce qui sortait de la feuille), inutile
+ *  pour repérer un point du dessin — on veut alors le contour, pas ses coins. */
+export function assemblyVertices(a: Assembly, withEp = false): Vec3[] {
+  const out: Vec3[] = [];
+  for (const p of a.pieces) {
+    const { u, v } = PLANES[p.plan];
+    const n = planeNormal(p.plan);
+    const skins = withEp ? [-p.ep / 2, p.ep / 2] : [0];
+    for (const pos of mirrored(p)) {
+      for (const q of p.poly) {
+        for (const s of skins) {
+          out.push({
+            x: pos.x + u.x * q.x + v.x * q.y + n.x * s,
+            y: pos.y + u.y * q.x + v.y * q.y + n.y * s,
+            z: pos.z + u.z * q.x + v.z * q.y + n.z * s,
+          });
+        }
+      }
+    }
+  }
+  return out;
 }
 
 /** Position d'un AXE d'articulation dans la scène : la pastille rouge nommée du

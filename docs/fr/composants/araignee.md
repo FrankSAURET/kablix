@@ -8,7 +8,7 @@ Robot **quadrupède complet** : un châssis et **4 pattes à 2 articulations** (
 
 Le robot est dessiné **en volume** (vue isométrique) : les hanches balaient le sol, les genoux lèvent les pattes, et l'**ombre portée** sous chaque pied dit lesquelles touchent terre. Une patte arrière passe bien derrière le châssis, une patte avant devant.
 
-> **Dessin provisoire.** Ce composant illustre une araignée simplifiée le temps que le robot physique — une araignée en PMMA découpée au laser, assemblée par Frank dans SketchUp — soit visible. Le dessin sera probablement refait une fois le résultat observé.
+C'est le **vrai robot** qui est représenté : ses pièces sont celles du PMMA découpé au laser — corps en sandwich, fémur et tibia de chaque patte, servos et cartes à leur place. Longueurs, écartement des hanches, hauteur du corps et débattement viennent tous du dessin ; le composant n'en fixe aucun. Redessiner une pièce change donc le robot à l'écran, sans toucher au code.
 
 Catégorie de la palette : **Système**.
 
@@ -27,7 +27,7 @@ Catégorie de la palette : **Système**.
 
 L'adresse du PCA9685 embarqué se règle **comme sur la vraie carte**, en cochant les six pads **AD0 à AD5** ; elle s'affiche sous les cases. Tous cochés — le réglage d'usine du module Grove — donnent **0x7F**, l'adresse par défaut du robot. Le détail du calcul est dans la [fiche du PCA9685](pca9685.md).
 
-Les huit articulations obéissent aux mêmes angles que la [patte seule](patte.md) : hanche 90° = repos, genou 90° = tibia vertical (robot debout), 180° = patte tendue à l'horizontale, 0° = patte repliée.
+Les huit articulations obéissent aux mêmes angles que la [patte seule](patte.md) : hanche 90° = repos (la patte part vers l'extérieur, dans l'axe de son coin de châssis), genou 90° = **tibia vertical, robot debout, les quatre pieds au sol**. 180° tend la patte dans le prolongement du fémur, 0° la replie de l'autre côté.
 
 ### Servos montés à l'envers
 
@@ -60,4 +60,4 @@ Test d'exemple : `araignee-pico` (dossier `testkablix`). Pas de test Arduino : l
 
 ---
 
-*Dessin PLACEHOLDER réalisé par Claude pour Kablix, en attendant le dessin définitif de Frank.*
+*Robot dessiné par Frank (planche `Composants3D.svg`) et mis en volume par Kablix.*
