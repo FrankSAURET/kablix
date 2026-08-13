@@ -140,13 +140,12 @@ import { PicoEngine, type PicoProgram } from './engines/pico.mjs';
 import { WorkerEngine, preloadWorker, workerReady } from './engines/worker-engine.mjs';
 import { SerialConsole } from './serialbuffer.mjs';
 import {
+  createBusDevices,
   Lcd1602Device,
   Pca9685Device,
   Ssd1306Device,
   Ili9341Device,
-  SdCardSpiDevice,
-  type I2cDevice,
-  type SpiDevice,
+  type BusDeviceSpec,
 } from './engines/i2c-devices.mjs';
 import { evalAnalogWave, type AnalogWave } from './engines/analog-waves.mjs';
 import type {
@@ -2491,18 +2490,22 @@ function rebind(): void {
   queueRefresh();
 }
 
-/** Crée les périphériques I²C présents dans le schéma et les relie au moteur. */
-function buildI2cDevices(): void {
-  i2cDevices = new Map();
+/** DÉCRIT les périphériques de bus du schéma — I²C d'abord, SPI ensuite. */
+function busDeviceSpecs(): BusDeviceSpec[] {
+  const specs: BusDeviceSpec[] = [];
   for (const part of editor.diagram.parts) {
     const kind = partDef(part.type).kind;
     if (kind === 'i2c-lcd' && (part.attrs?.pins ?? 'i2c') === 'i2c') {
       // En mode parallèle (pins=full) l'afficheur n'est pas sur le bus I²C : pas
       // de périphérique simulé (il reste visuel).
-      const addr = Number(part.attrs?.address ?? 0x27) || 0x27;
-      const cols = Number(part.attrs?.cols ?? 16) || 16;
-      const rows = Number(part.attrs?.rows ?? 2) || 2;
-      i2cDevices.set(part.id, new Lcd1602Device(addr, cols, rows));
+      specs.push({
+        bus: 'i2c',
+        id: part.id,
+        kind: 'lcd',
+        address: Number(part.attrs?.address ?? 0x27) || 0x27,
+        cols: Number(part.attrs?.cols ?? 16) || 16,
+        rows: Number(part.attrs?.rows ?? 2) || 2,
+      });
     } else if (kind === 'i2c-pwm' || kind === 'araignee') {
       // L'araignée embarque son PCA9685 : même périphérique I²C, adresse réglée
       // dans ses propriétés (ses canaux 0..7 vont à ses 8 articulations).
@@ -2510,43 +2513,62 @@ function buildI2cDevices(): void {
       // `address` n'est qu'un reflet, tenu à jour par l'inspecteur. Un schéma
       // d'avant, ouvert sans passer par la migration, garde son `address`.
       const pads = [0, 1, 2, 3, 4, 5].some((b) => `ad${b}` in (part.attrs ?? {}));
-      const addr = pads
+      const address = pads
         ? pca9685Address(part.attrs)
         : Number(part.attrs?.address ?? 0x40) || 0x40;
-      i2cDevices.set(part.id, new Pca9685Device(addr));
+      specs.push({ bus: 'i2c', id: part.id, kind: 'pca', address });
     } else if (kind === 'i2c-oled' && (part.attrs?.pins ?? 'i2c') === 'i2c') {
-      // pins=spi : câblé en SPI 4 fils, pas sur le bus I²C (traité plus bas, spiDeviceBindings).
-      const addr = Number(part.attrs?.address ?? 0x3c) || 0x3c;
-      i2cDevices.set(part.id, new Ssd1306Device(addr, 128, 64));
+      // pins=spi : câblé en SPI 4 fils, pas sur le bus I²C (traité juste après).
+      specs.push({
+        bus: 'i2c',
+        id: part.id,
+        kind: 'oled',
+        address: Number(part.attrs?.address ?? 0x3c) || 0x3c,
+      });
     }
   }
-  const list: I2cDevice[] = [...i2cDevices.values()];
-  engine?.setI2cDevices?.(list);
-  pcaBindings = pca9685Bindings(editor.diagram);
-
   // Périphériques SPI : OLED (SSD1306), TFT (ILI9341), carte SD. Broches D/C et
   // CS résolues côté MCU (le CS permet plusieurs périphériques sur le même bus).
-  spiOledDevices = new Map();
-  spiTftDevices = new Map();
-  const spiList: SpiDevice[] = [];
   for (const b of spiDeviceBindings(editor.diagram)) {
-    let dev: SpiDevice;
-    if (b.kind === 'spi-tft') {
-      const tft = new Ili9341Device();
-      spiTftDevices.set(b.partId, tft);
-      dev = tft;
-    } else if (b.kind === 'spi-sd') {
-      dev = new SdCardSpiDevice();
-    } else {
-      const oled = new Ssd1306Device(0x3c, 128, 64);
-      spiOledDevices.set(b.partId, oled);
-      dev = oled;
-    }
-    if (b.dcPin) dev.dcPin = b.dcPin;
-    if (b.csPin) dev.csPin = b.csPin;
-    spiList.push(dev);
+    const kind = b.kind === 'spi-tft' ? 'tft' : b.kind === 'spi-sd' ? 'sd' : 'oled';
+    // Une broche non câblée vaut `null` ici et `undefined` dans la description :
+    // `structuredClone` porterait bien le null, mais « pas de CS » se dit par
+    // l'absence du champ (`selectSpiDevice` teste `!d.csPin`).
+    specs.push({
+      bus: 'spi',
+      id: b.partId,
+      kind,
+      dcPin: b.dcPin ?? undefined,
+      csPin: b.csPin ?? undefined,
+    });
   }
-  engine?.setSpiDevices?.(spiList);
+  return specs;
+}
+
+/**
+ * Crée les périphériques de bus du schéma et les relie au moteur.
+ *
+ * Le moteur peut tourner ICI (`AvrEngine`, `PicoEngine`) ou sur un autre fil
+ * (`WorkerEngine`). Dans les deux cas la page fabrique le même jeu d'objets, et
+ * l'affichage y lit le texte du LCD, l'image de l'OLED ou les rapports cycliques
+ * de la carte 16 servos sans savoir où le bus a été décodé :
+ *  - moteur local : ce sont EUX qui décodent les trames, on les lui branche ;
+ *  - moteur déporté : il fabrique les siens d'après la description, et publie leur
+ *    état dans ceux-ci (`setBusDevices`).
+ */
+function buildI2cDevices(): void {
+  const specs = busDeviceSpecs();
+  const built = createBusDevices(specs);
+  i2cDevices = built.i2cById;
+  spiOledDevices = built.spiOled;
+  spiTftDevices = built.spiTft;
+  if (engine?.setBusDevices) {
+    engine.setBusDevices(specs, built);
+  } else {
+    engine?.setI2cDevices?.(built.i2c);
+    engine?.setSpiDevices?.(built.spi);
+  }
+  pcaBindings = pca9685Bindings(editor.diagram);
 }
 
 /** Recopie l'image RGBA d'un TFT ILI9341 dans le canvas de l'élément Wokwi. */
@@ -3073,26 +3095,6 @@ speedSelect.addEventListener('change', () => {
   resetSpeedBadge(); // le régime change : la mesure repart d'une fenêtre neuve
 });
 
-/**
- * Vrai si le schéma comporte un périphérique de bus SIMULÉ (I²C ou SPI).
- *
- * Ces périphériques — afficheur LCD I²C, OLED, carte 16 servos, TFT, carte SD —
- * sont des OBJETS À MÉTHODES que le moteur appelle en plein milieu d'une trame, et
- * dont la page relit l'écran à chaque frame. Ni les méthodes ni l'image ne
- * traversent la frontière d'un worker : tant qu'ils n'y auront pas déménagé, un
- * schéma qui en contient est simulé sur le fil principal. Sans ce test, la
- * simulation partirait quand même — et l'afficheur resterait muet SANS RIEN DIRE.
- */
-function usesBusPeripherals(): boolean {
-  const onI2c = editor.diagram.parts.some((part) => {
-    const kind = partDef(part.type).kind;
-    // Un afficheur câblé en parallèle (pins=full) ou en SPI n'est pas sur le bus.
-    if (kind === 'i2c-lcd' || kind === 'i2c-oled') return (part.attrs?.pins ?? 'i2c') === 'i2c';
-    return kind === 'i2c-pwm' || kind === 'araignee';
-  });
-  return onI2c || spiDeviceBindings(editor.diagram).length > 0;
-}
-
 // --- Cycle de vie de la simulation -------------------------------------------
 function startRun(): void {
   stopRun();
@@ -3101,9 +3103,9 @@ function startRun(): void {
     // Fil de simulation : le moteur AVR peut tourner dans un Web Worker, ce qui
     // rend la page fluide (il tient à lui seul ~92 % du fil principal). Réglage
     // `kablix.simulationWorker`, et repli silencieux sur le moteur du fil principal
-    // si le bundle du worker n'est pas prêt, si le schéma comporte un périphérique
-    // de bus, ou pour un Pico — deux cas encore à porter.
-    const workerFit = simWorkerEnabled() && workerReady() && !usesBusPeripherals();
+    // si le bundle du worker n'est pas prêt ou pour un Pico — le seul cas encore à
+    // porter (les périphériques de bus, eux, ont déménagé).
+    const workerFit = simWorkerEnabled() && workerReady();
     engine =
       boardFamily(board) === 'rp2040'
         ? new PicoEngine(picoProgram)

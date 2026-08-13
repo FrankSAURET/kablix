@@ -14,7 +14,7 @@
  */
 
 import type { AnalogWave } from './analog-waves.mjs';
-import type { I2cDevice, SpiDevice } from './i2c-devices.mjs';
+import type { BusDeviceSpec, BusDevices, I2cDevice, SpiDevice } from './i2c-devices.mjs';
 import type {
   Breakpoint,
   DebugPauseState,
@@ -30,6 +30,7 @@ import {
   emptySnapshot,
   type FromWorker,
   type PinSnapshot,
+  type ScreenUpdate,
   type ToWorker,
   type WorkerBoard,
 } from './worker-protocol.mjs';
@@ -99,6 +100,12 @@ export class WorkerEngine implements SimEngine {
   private samplers = new Map<string, () => number>();
   /** Claviers déclarés : leurs `Set` sont relus ici, la référence ne traverse pas. */
   private keypads: KeypadConfig[] = [];
+  /**
+   * Jumeaux des périphériques de bus, côté page. Ce sont les objets que
+   * l'affichage lit (texte du LCD, image de l'OLED…) ; ils ne décodent rien, on y
+   * recopie l'état publié par le worker.
+   */
+  private mirrors: BusDevices | null = null;
   /** Dernière liste de touches envoyée, pour n'écrire que sur changement. */
   private lastPressed = '';
   private pumpTimer: ReturnType<typeof setInterval> | null = null;
@@ -151,6 +158,9 @@ export class WorkerEngine implements SimEngine {
         this.pausedMirror = msg.snap.paused;
         this.onUpdate?.();
         return;
+      case 'screens':
+        this.applyScreens(msg.screens);
+        return;
       case 'serial':
         this.onSerial?.(msg.chunk);
         return;
@@ -163,6 +173,23 @@ export class WorkerEngine implements SimEngine {
         return;
       default:
         return;
+    }
+  }
+
+  /**
+   * Recopie l'état publié des écrans dans les jumeaux de la page. Le message ne
+   * porte que ce qui a changé : ce qui n'y figure pas garde sa valeur, sans être
+   * réécrit. L'affichage relit ces objets à chaque frame, comme si le moteur
+   * tournait ici.
+   */
+  private applyScreens(up: ScreenUpdate): void {
+    const m = this.mirrors;
+    if (!m) return;
+    for (const [id, lines] of Object.entries(up.lcd)) m.lcd.get(id)?.applyText(lines);
+    for (const [id, duties] of Object.entries(up.pca)) m.pca.get(id)?.applyDuties(duties);
+    for (const [id, buf] of Object.entries(up.oled)) m.oled.get(id)?.applyBuffer(buf);
+    for (const [id, r] of Object.entries(up.tft)) {
+      m.tft.get(id)?.applyRegion(r.x, r.y, r.w, r.h, r.data);
     }
   }
 
@@ -322,19 +349,29 @@ export class WorkerEngine implements SimEngine {
   }
 
   /**
-   * Périphériques de bus : NON PORTÉS dans le worker (lot 3). Ce sont des objets à
-   * méthodes que le moteur appelle en plein milieu d'une trame I²C/SPI, et dont la
-   * page relit l'écran à chaque frame — ni les méthodes ni l'image ne traversent la
-   * frontière. `sim.mts` refuse donc le worker dès qu'un tel composant est au
-   * schéma (`usesBusPeripherals`) ; ces deux garde-fous ne servent qu'à ne pas
-   * simuler EN SILENCE si un nouveau type de périphérique échappait à ce test.
+   * Périphériques de bus : la DESCRIPTION part au worker, qui fabrique les vrais et
+   * les branche au moteur ; les objets reçus ici restent à la page et servent de
+   * jumeaux pour l'affichage (cf. `applyScreens`). L'objet lui-même ne peut pas
+   * traverser — ses méthodes sont appelées au milieu d'une trame, à la cadence du
+   * bus, ce qu'aucun message n'égalerait.
+   */
+  setBusDevices(specs: BusDeviceSpec[], mirrors: BusDevices): void {
+    this.mirrors = mirrors;
+    this.post({ t: 'setBusDevices', specs });
+  }
+
+  /**
+   * Ancien chemin, non emprunté : `sim.mts` passe par `setBusDevices` dès que le
+   * moteur l'expose. Ces deux méthodes restent comme garde-fous — un objet posé ici
+   * ne verrait jamais le bus, autant que ça se voie dans la console plutôt que de
+   * simuler EN SILENCE avec un écran mort.
    */
   setI2cDevices(devices: I2cDevice[]): void {
-    if (devices.length > 0) console.error('[kablix] worker : périphériques I²C non simulés');
+    if (devices.length > 0) console.error('[kablix] worker : périphériques I²C non décrits');
   }
 
   setSpiDevices(devices: SpiDevice[]): void {
-    if (devices.length > 0) console.error('[kablix] worker : périphériques SPI non simulés');
+    if (devices.length > 0) console.error('[kablix] worker : périphériques SPI non décrits');
   }
 
   writeSerial(text: string): void {

@@ -15,6 +15,7 @@
  */
 
 import type { AnalogWave } from './analog-waves.mjs';
+import type { BusDeviceSpec } from './i2c-devices.mjs';
 
 /** Broches publiées dans l'instantané, dans l'ordre fixé à l'initialisation. */
 export interface PinTable {
@@ -120,12 +121,35 @@ export type ToWorker =
   | { t: 'setDht22'; sensors: unknown[] }
   | { t: 'setNeopixels'; strips: unknown[] }
   | { t: 'setLcdParallel'; screens: unknown[] }
+  /**
+   * Périphériques de bus (I²C et SPI) DÉCRITS : le worker fabrique les siens et
+   * les branche au moteur. L'objet lui-même ne traverse pas — ses méthodes sont
+   * appelées au milieu d'une trame, à la cadence du bus.
+   */
+  | { t: 'setBusDevices'; specs: BusDeviceSpec[] }
   | { t: 'dispose' };
+
+/**
+ * État visible des périphériques de bus, publié à la cadence de l'écran. Seul ce
+ * qui a CHANGÉ depuis la publication précédente y figure : un OLED immobile ne
+ * coûte rien, et un TFT ne publie que la zone repeinte.
+ */
+export interface ScreenUpdate {
+  /** Lignes de texte des afficheurs LCD, par identifiant de composant. */
+  lcd: Record<string, string[]>;
+  /** Les 16 rapports cycliques des cartes 16 servos. */
+  pca: Record<string, Float32Array>;
+  /** Tampon GDDRAM des OLED (pages × largeur, 8 pixels verticaux par octet). */
+  oled: Record<string, Uint8Array>;
+  /** Zone repeinte des écrans TFT, en RGBA. */
+  tft: Record<string, { x: number; y: number; w: number; h: number; data: Uint8ClampedArray }>;
+}
 
 /** Nouvelles du fil de simulation vers la page. */
 export type FromWorker =
   | { t: 'ready' }
   | { t: 'snapshot'; snap: PinSnapshot }
+  | { t: 'screens'; screens: ScreenUpdate }
   | { t: 'serial'; chunk: string }
   | { t: 'debugPause'; state: unknown }
   | { t: 'scriptStarted' }
@@ -139,6 +163,15 @@ export type FromWorker =
  * reste au quart de ce qu'un envoi par front GPIO coûterait.
  */
 export const SNAPSHOT_PERIOD_MS = 4;
+
+/**
+ * Période de publication des ÉCRANS, en ms de temps réel. Quatre fois plus lâche
+ * que l'instantané de broches : ces états ne sont relus qu'au rendu (~16 ms), et
+ * un OLED pèse 1 024 octets là où toutes les broches d'une Uno en pèsent 200.
+ * Publier une image par instantané ne rendrait pas l'écran plus juste, seulement
+ * la liaison plus chargée.
+ */
+export const SCREEN_PERIOD_MS = 16;
 
 /** Alloue un instantané vide pour `count` broches. */
 export function emptySnapshot(count: number): PinSnapshot {

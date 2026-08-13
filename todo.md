@@ -23,10 +23,21 @@
 4. ⏳ **Le test `araignee-uno` est déplacé dans `A Examiner/testkablix/Arduino/araignee-uno/`** (sketch + .projix, 2 fichiers, non supprimés). Le robot EST une Pico W depuis la v2026.8.24 : il n'a plus de broches, on ne peut plus le piloter depuis une Uno. Frank tranche : à jeter, ou à garder en archive.
 
 # En réserve
-1. ⬜ Moteur de simulation dans un **Web Worker**, lot **3** : faire déménager les **périphériques de bus** dans le worker (`Lcd1602Device`, `Pca9685Device`, `Ssd1306Device`, `Ili9341Device`, `SdCardSpiDevice`). C'est le vrai gros morceau : ce sont des objets à méthodes appelés au milieu d'une trame I²C/SPI, et la page relit leur ÉCRAN à chaque frame — il faut donc ajouter au protocole le texte du LCD, les rapports cycliques du PCA9685, la trame de l'OLED (128×64 bits) et l'image du TFT (320×240, à publier par zones sales, pas en entier).
-2. ⬜ Lot **4** : `pico.mts` dans le worker. Repoussé APRÈS les périphériques, et non l'inverse : presque tous les schémas Pico portent un OLED, un LCD ou une carte 16 servos, un Pico déporté sans eux ne servirait à personne. Reste ensuite à faire passer en messages `onRunning`, `onDebugRestart` et le pont réseau `onNetRequest`/`sendNetResponse`.
-3. ⬜ Lot **5** : `sampleSevenSegLatches` (appelé sur chaque front GPIO) dans le worker, mesure du gain réel, décision du défaut de `kablix.simulationWorker`.
-Lots 1 et 2 livrés en v2026.8.51 et v2026.8.52.
+1. ⬜ Lot **4** : `pico.mts` dans le worker. Repoussé APRÈS les périphériques, et non l'inverse : presque tous les schémas Pico portent un OLED, un LCD ou une carte 16 servos, un Pico déporté sans eux ne servirait à personne. Reste ensuite à faire passer en messages `onRunning`, `onDebugRestart` et le pont réseau `onNetRequest`/`sendNetResponse`.
+2. ⬜ Lot **5** : `sampleSevenSegLatches` (appelé sur chaque front GPIO) dans le worker, mesure du gain réel, décision du défaut de `kablix.simulationWorker`.
+Lots 1, 2 et 3 livrés en v2026.8.51, v2026.8.52 et v2026.8.53.
+
+# >>>>  v2026.8.53 — les écrans et les servos décodent leur bus dans le worker (lot 3)
+
+1. ✅ **Les périphériques de bus vivent dans le worker** (`Lcd1602Device`, `Pca9685Device`, `Ssd1306Device`, `Ili9341Device`, `SdCardSpiDevice`) : ce sont des objets à méthodes, appelés au milieu d'une trame I²C/SPI, à la cadence du bus — aucun message n'égalerait ça. Ils sont donc **DÉCRITS** (`BusDeviceSpec` : bus, type, adresse, colonnes, broches D/C et CS), le worker fabrique les siens avec la **même fabrique** que la page (`createBusDevices`, `i2c-devices.mts`), et le refus du lot 2 (`usesBusPeripherals`) disparaît.
+2. ✅ **La page garde des JUMEAUX, l'affichage ne change pas d'une ligne** : `refreshVisuals`, `renderOled`, `renderTft`, `applyPca9685` et `applyAraignee` relisent les mêmes objets qu'avant. Ces jumeaux-là ne décodent rien : `WorkerEngine.applyScreens` y recopie l'état publié (`applyText`, `applyDuties`, `applyBuffer`, `applyRegion`). Un seul point d'appel a bougé, `buildI2cDevices`.
+3. ✅ **Deuxième cadence de publication, 16 ms** (`SCREEN_PERIOD_MS`, contre 4 ms pour les broches) : ces états ne sont relus qu'au rendu. Et seul ce qui a **changé** part — texte du LCD comparé, rapports cycliques comparés, OLED muni d'un compteur de révision (`rev`, incrémenté au seul octet qui change vraiment), TFT à boîte englobante. Un écran immobile ne coûte aucun message.
+4. ✅ **Le TFT ne publie que sa zone repeinte** (`takeDirty`) : une image ILI9341 pèse **307 200 octets**, la publier entière toutes les 16 ms saturerait la liaison alors qu'un sketch ne repeint le plus souvent qu'un cadran. La zone part en RGBA transférée, et `applyRegion` la repose au bon endroit dans l'image de la page.
+5. ✅ **Le PCA9685 miroir prime sur ses registres** : un jumeau ne voit jamais le bus, ses registres resteraient à zéro et **tous les servos à l'arrêt** — y compris les huit articulations de l'araignée. `applyDuties` pose les 16 rapports, `channelDuty` les rend.
+6. ✅ **La carte SD est déportée aussi**, sans rien publier : c'est un répondeur de protocole, elle n'a pas d'écran. Elle est fabriquée et branchée au bus SPI du worker, point.
+7. ✅ **Une broche SPI non câblée reste absente de la description** (`?? undefined` et non `null`) : `selectSpiDevice` teste `!d.csPin`, un `null` sérialisé aurait fait croire à un CS câblé.
+8. ✅ **Banc `verify:worker` : 93 contrôles** (72 avant). Les nouveaux exercent le trajet complet dans Node — le worker fabrique les périphériques depuis leur description, on écrit pour de vrai sur les bus (quartets PCF8574 du HD44780, registres LEDn du PCA9685, octet de contrôle 0x40 de l'OLED, CASET/RASET/RAMWR de l'ILI9341), l'état publié est vérifié, puis **réinjecté dans les jumeaux d'un vrai `WorkerEngine`** : texte, rapport cyclique à 50 %, tampon d'OLED, pixel rouge replacé en (5, 3).
+9. ℹ️ **Reste le Pico** (lot 4) : `boardFamily(board) === 'rp2040'` monte toujours son moteur sur le fil principal. Le worker convient désormais à **tous** les schémas AVR, écrans compris.
 
 # >>>>  v2026.8.52 — le fil de simulation ne ment plus, et il calcule ses courbes (lot 2)
 

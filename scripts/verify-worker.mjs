@@ -57,24 +57,38 @@ ok(
   'sim.mts : repli sur AvrEngine si le worker n’est pas disponible',
   /workerReady\(\)[\s\S]{0,300}\?\?\s*\n?\s*new AvrEngine/.test(sim)
 );
-// Les périphériques de bus sont des OBJETS à méthodes, lus en direct par la page :
-// sans ce refus, un schéma à afficheur I²C simulerait dans le vide, l'écran muet.
+// Les périphériques de bus sont des OBJETS à méthodes, appelés au milieu d'une
+// trame : ils ne traversent pas. Ils sont donc DÉCRITS, le worker fabrique les
+// siens, et la page garde des jumeaux que l'affichage relit.
 ok(
-  'sim.mts : le worker est refusé si le schéma a un périphérique I²C ou SPI',
-  /usesBusPeripherals\(\)/.test(sim) &&
-    /workerReady\(\) && !usesBusPeripherals\(\)/.test(sim)
+  'sim.mts : les périphériques de bus sont décrits, pas refusés',
+  /const specs = busDeviceSpecs\(\)/.test(sim) &&
+    /createBusDevices\(specs\)/.test(sim) &&
+    !/usesBusPeripherals/.test(sim)
 );
 ok(
-  'sim.mts : le test couvre LCD I²C, OLED, PCA9685, araignée et le bus SPI',
-  /'i2c-lcd' \|\| kind === 'i2c-oled'/.test(sim) &&
+  'sim.mts : la description part au worker, les objets restent à la page',
+  /engine\.setBusDevices\(specs, built\)/.test(sim) &&
+    /engine\?\.setI2cDevices\?\.\(built\.i2c\)/.test(sim)
+);
+ok(
+  'sim.mts : la description couvre LCD I²C, OLED, PCA9685, araignée et le bus SPI',
+  /kind === 'i2c-lcd' &&/.test(sim) &&
     /kind === 'i2c-pwm' \|\| kind === 'araignee'/.test(sim) &&
-    /spiDeviceBindings\(editor\.diagram\)\.length > 0/.test(sim)
+    /kind === 'i2c-oled' &&/.test(sim) &&
+    /for \(const b of spiDeviceBindings\(editor\.diagram\)\)/.test(sim)
 );
-// Le mode parallèle (pins=full) et le câblage SPI sortent l'afficheur du bus I²C :
-// le refuser dans ces cas priverait le worker de schémas qu'il sait très bien faire.
+// Le mode parallèle (pins=full) sort l'afficheur du bus I²C : lui poser un
+// périphérique I²C le ferait répondre à une adresse que rien ne lui câble.
 ok(
-  'sim.mts : un afficheur hors bus I²C (pins=full / spi) ne bloque pas le worker',
+  'sim.mts : un afficheur hors bus I²C (pins=full / spi) n’est pas décrit en I²C',
   /\(part\.attrs\?\.pins \?\? 'i2c'\) === 'i2c'/.test(sim)
+);
+// Une broche non câblée vaut `null` côté liaison et « absente » côté description :
+// un `csPin: null` ferait croire à un CS câblé (`selectSpiDevice` teste `!d.csPin`).
+ok(
+  'sim.mts : une broche SPI non câblée est absente de la description (pas null)',
+  /dcPin: b\.dcPin \?\? undefined/.test(sim) && /csPin: b\.csPin \?\? undefined/.test(sim)
 );
 ok(
   'sim.mts : les formes d’onde sont publiées après stepCapacitors',
@@ -96,6 +110,7 @@ ok(
 // --- 2. Comportement du proxy, exécuté pour de vrai ---------------------------
 const entry = `export * from '../../src/webview/engines/worker-engine.mjs';
 export * from '../../src/webview/engines/analog-waves.mjs';
+export { createBusDevices } from '../../src/webview/engines/i2c-devices.mjs';
 export { emptySnapshot } from '../../src/webview/engines/worker-protocol.mjs';
 `;
 mkdirSync(CACHE, { recursive: true });
@@ -141,7 +156,15 @@ globalThis.URL = { createObjectURL: () => 'blob:faux', revokeObjectURL: () => {}
 globalThis.fetch = async () => ({ text: async () => '/* faux bundle */' });
 
 const mod = await import(moduleUrl);
-const { WorkerEngine, preloadWorker, workerReady, emptySnapshot, evalAnalogWave, pulseWaveform } = mod;
+const {
+  WorkerEngine,
+  preloadWorker,
+  workerReady,
+  emptySnapshot,
+  evalAnalogWave,
+  pulseWaveform,
+  createBusDevices,
+} = mod;
 
 // Sans préchargement, aucun moteur : l'appelant doit pouvoir retomber sur l'AvrEngine.
 ok('sans préchargement, create() rend null (repli possible)', WorkerEngine.create('uno', new Uint16Array(4), null) === null);
@@ -256,6 +279,40 @@ engine.setAnalogWaves([{ kind: 'rc', pin: 'A0', v0: 0, target: 5, tau: 0.1, t0: 
 const wave = posted.find((m) => m.t === 'setAnalogWaves');
 ok('setAnalogWaves : la description part au worker', wave?.waves?.[0]?.kind === 'rc' && wave.waves[0].tau === 0.1);
 
+// Les périphériques de bus sont eux aussi DÉCRITS : l'objet ne traverse pas, mais
+// la page en garde un jumeau que l'affichage relit à chaque frame.
+const busSpecs = [
+  { bus: 'i2c', id: 'lcd1', kind: 'lcd', address: 0x27, cols: 16, rows: 2 },
+  { bus: 'i2c', id: 'pca1', kind: 'pca', address: 0x40 },
+  { bus: 'i2c', id: 'oled1', kind: 'oled', address: 0x3c },
+  { bus: 'spi', id: 'tft1', kind: 'tft', dcPin: '9', csPin: '10' },
+  { bus: 'spi', id: 'sd1', kind: 'sd', csPin: '4' },
+];
+const pageBus = createBusDevices(busSpecs);
+ok(
+  'fabrique partagée : chaque description donne son périphérique',
+  pageBus.i2c.length === 3 && pageBus.spi.length === 2 && pageBus.lcd.get('lcd1')?.cols === 16
+);
+ok(
+  'fabrique : la carte SD n’a pas d’écran à publier (aucune carte de rendu)',
+  pageBus.tft.size === 1 && pageBus.oled.size === 1 && pageBus.i2cById.size === 3
+);
+ok(
+  'fabrique : les broches D/C et CS suivent la description',
+  pageBus.tft.get('tft1')?.dcPin === '9' && pageBus.tft.get('tft1')?.csPin === '10'
+);
+posted.length = 0;
+engine.setBusDevices(busSpecs, pageBus);
+const busMsg = posted.find((m) => m.t === 'setBusDevices');
+ok(
+  'setBusDevices : la description part au worker (et rien d’autre)',
+  busMsg?.specs?.length === 5 && typeof busMsg.specs[0].kind === 'string'
+);
+ok(
+  'setBusDevices : aucun objet à méthodes dans le message',
+  busMsg.specs.every((s) => Object.values(s).every((v) => typeof v !== 'function'))
+);
+
 engine.dispose();
 ok('dispose() arrête le worker', posted.some((m) => m.t === 'dispose'));
 
@@ -324,6 +381,7 @@ writeFileSync(
   simulatedMs() { return this.now ?? 0; } busyMs() { return 0; } lagMs() { return 0; }
   setAnalogSampler(pin, s) { if (s) this.samplers.set(pin, s); else this.samplers.delete(pin); }
   setKeypads(k) { this.keypads = k; } syncKeypads() { this.syncs++; }
+  setI2cDevices(d) { this.i2c = d; } setSpiDevices(d) { this.spi = d; }
 }
 `
 );
@@ -390,6 +448,124 @@ toWorker({ t: 'pause' });
 const snapMsg = [...fromWorker].reverse().find((m) => m.t === 'snapshot');
 ok('worker : la pause publie l’état des broches dans la foulée', snapMsg?.snap?.paused === true);
 ok('worker : l’instantané couvre les broches annoncées', snapMsg?.snap?.digital?.length === 2);
+
+// --- 4 bis. Les périphériques de bus, décodés dans le worker ------------------
+// C'est le morceau du lot 3 : ces objets sont appelés au milieu d'une trame I²C
+// ou SPI, à la cadence du bus. Ils vivent donc DANS le worker, et seul leur état
+// visible (texte, rapports cycliques, image) remonte à la page.
+
+/** Un octet HD44780 via le backpack PCF8574 : deux quartets, verrouillés sur E. */
+const lcdWrite = (dev, rs, value) => {
+  for (const nib of [(value >> 4) & 0x0f, value & 0x0f]) {
+    const base = (nib << 4) | (rs ? 1 : 0) | 0x08; // 0x08 = rétroéclairage
+    dev.write(base | 0x04); // E haut : le quartet est présenté
+    dev.write(base); // front descendant : il est figé
+  }
+};
+/** Écrit ON=0 / OFF=`off` sur un canal du PCA9685 (duty = off/4096). */
+const pcaWrite = (dev, ch, off) => {
+  dev.onStart();
+  dev.setGeneralCall(false);
+  dev.write(0x06 + 4 * ch); // pointeur LEDn_ON_L, auto-incrémenté
+  dev.write(0);
+  dev.write(0);
+  dev.write(off & 0xff);
+  dev.write((off >> 8) & 0xff);
+};
+/** Un pixel RGB565 en (x, y) sur l'ILI9341 : CASET, RASET puis RAMWR. */
+const tftPixel = (dev, x, y, rgb565) => {
+  dev.transfer(0x2a, false);
+  for (const b of [x >> 8, x & 0xff, x >> 8, x & 0xff]) dev.transfer(b, true);
+  dev.transfer(0x2b, false);
+  for (const b of [y >> 8, y & 0xff, y >> 8, y & 0xff]) dev.transfer(b, true);
+  dev.transfer(0x2c, false);
+  dev.transfer(rgb565 >> 8, true);
+  dev.transfer(rgb565 & 0xff, true);
+};
+
+toWorker({ t: 'setBusDevices', specs: busSpecs });
+ok(
+  'worker : les périphériques décrits sont fabriqués et branchés au moteur',
+  avr.i2c?.length === 3 && avr.spi?.length === 2
+);
+ok(
+  'worker : la carte SD est branchée au bus (elle répond, sans écran à publier)',
+  typeof avr.spi?.[1]?.transfer === 'function'
+);
+
+fromWorker.length = 0;
+toWorker({ t: 'start' });
+lcdWrite(avr.i2c[0], true, 0x48); // 'H'
+lcdWrite(avr.i2c[0], true, 0x69); // 'i'
+pcaWrite(avr.i2c[1], 0, 2048); // canal 0 à 50 %
+avr.i2c[2].onStart();
+avr.i2c[2].write(0x40); // octet de contrôle : données GDDRAM
+avr.i2c[2].write(0xff);
+tftPixel(avr.spi[0], 5, 3, 0xf800); // un pixel rouge
+toWorker({ t: 'stop' }); // l'arrêt publie l'état final des écrans
+
+const screens = [...fromWorker].reverse().find((m) => m.t === 'screens')?.screens;
+ok('worker : l’état des écrans est publié', Boolean(screens));
+ok(
+  'worker : le texte décodé du LCD remonte',
+  screens?.lcd?.lcd1?.[0]?.startsWith('Hi'),
+  JSON.stringify(screens?.lcd?.lcd1?.[0])
+);
+ok(
+  'worker : les 16 rapports cycliques du PCA9685 remontent',
+  screens?.pca?.pca1?.length === 16 && Math.abs(screens.pca.pca1[0] - 0.5) < 1e-6
+);
+ok(
+  'worker : le tampon de l’OLED remonte en entier (128×64 → 1 024 octets)',
+  screens?.oled?.oled1?.length === 1024 && screens.oled.oled1[0] === 0xff
+);
+// Une image de TFT pèse 307 200 octets : la publier entière toutes les 16 ms
+// saturerait la liaison alors qu'un sketch ne repeint le plus souvent qu'un cadran.
+ok(
+  'worker : le TFT ne publie que la zone repeinte',
+  screens?.tft?.tft1?.x === 5 &&
+    screens.tft.tft1.y === 3 &&
+    screens.tft.tft1.w === 1 &&
+    screens.tft.tft1.h === 1 &&
+    screens.tft.tft1.data[0] === 255
+);
+ok('worker : la carte SD ne publie aucun écran', !('sd1' in (screens?.oled ?? {})));
+
+fromWorker.length = 0;
+toWorker({ t: 'start' });
+toWorker({ t: 'stop' });
+ok(
+  'worker : un écran immobile ne coûte aucun message',
+  !fromWorker.some((m) => m.t === 'screens')
+);
+
+// Bout en bout : le message publié par le worker est recopié dans les jumeaux que
+// l'affichage de la page relit — même code de dessin qu'avec un moteur local.
+const mirrorBus = createBusDevices(busSpecs);
+const proxy = WorkerEngine.create('uno', new Uint16Array(2), null);
+const proxyWorker = workers.at(-1);
+proxy.setBusDevices(busSpecs, mirrorBus);
+ok(
+  'jumeau : sans publication, un PCA miroir ne fait bouger aucun servo',
+  mirrorBus.pca.get('pca1').channelDuty(0) === 0
+);
+deliver(proxyWorker, { t: 'screens', screens });
+ok(
+  'jumeau : le LCD de la page affiche le texte décodé dans le worker',
+  mirrorBus.lcd.get('lcd1').text[0].startsWith('Hi') &&
+    mirrorBus.lcd.get('lcd1').text[0].length === 16
+);
+ok(
+  'jumeau : le PCA de la page rend le rapport cyclique publié',
+  Math.abs(mirrorBus.pca.get('pca1').channelDuty(0) - 0.5) < 1e-6
+);
+ok('jumeau : l’image de l’OLED est recopiée', mirrorBus.oled.get('oled1').buffer[0] === 0xff);
+ok(
+  'jumeau : la zone repeinte du TFT est replacée au bon endroit',
+  mirrorBus.tft.get('tft1').data[(3 * 240 + 5) * 4] === 255 &&
+    mirrorBus.tft.get('tft1').data[0] === 0
+);
+proxy.dispose();
 
 // Une exception du moteur ne doit pas laisser la page attendre un instantané qui
 // ne viendra plus : elle est annoncée.

@@ -164,6 +164,18 @@ export class Lcd1602Device implements I2cDevice {
     return this.core.text;
   }
 
+  /**
+   * Pose un texte venu d'ailleurs (moteur déporté dans un worker). Le décodage a
+   * eu lieu sur l'autre fil : cet objet-ci ne sert plus qu'à porter l'état, à
+   * l'identique de celui qui a vraiment lu le bus. Chaque ligne est ramenée à la
+   * largeur de l'afficheur — une trame tronquée ne doit pas déformer le rendu.
+   */
+  applyText(lines: string[]): void {
+    for (let r = 0; r < this.core.rows; r++) {
+      this.core.text[r] = (lines[r] ?? '').padEnd(this.core.cols, ' ').slice(0, this.core.cols);
+    }
+  }
+
   write(byte: number): boolean {
     const prevE = this.lastByte & Lcd1602Device.E;
     const curE = byte & Lcd1602Device.E;
@@ -196,6 +208,12 @@ export class Pca9685Device implements I2cDevice {
   private first = true;
   /** Transaction en cours adressée au General Call (0x00) et non au device. */
   private inGeneralCall = false;
+  /**
+   * Rapports cycliques posés par `applyDuties` (miroir d'un moteur déporté). Non
+   * nul, ils PRIMENT sur les registres : cet objet-ci ne voit jamais le bus, ses
+   * registres resteraient à zéro et tous les servos à l'arrêt.
+   */
+  private mirror: Float32Array | null = null;
 
   constructor(address = 0x40) {
     this.address = address;
@@ -234,8 +252,22 @@ export class Pca9685Device implements I2cDevice {
     return v;
   }
 
+  /** Les 16 rapports cycliques d'un coup : ce qu'un moteur déporté publie. */
+  duties(): Float32Array {
+    const out = new Float32Array(16);
+    for (let ch = 0; ch < 16; ch++) out[ch] = this.channelDuty(ch);
+    return out;
+  }
+
+  /** Recopie les 16 rapports cycliques relevés sur l'autre fil. */
+  applyDuties(values: ArrayLike<number>): void {
+    if (!this.mirror) this.mirror = new Float32Array(16);
+    for (let ch = 0; ch < 16; ch++) this.mirror[ch] = values[ch] ?? 0;
+  }
+
   /** Rapport cyclique (0..1) du canal `ch` (0..15). */
   channelDuty(ch: number): number {
+    if (this.mirror) return this.mirror[ch] ?? 0;
     const base = 0x06 + 4 * ch;
     if (base + 3 > 0xff) return 0;
     if (this.regs[base + 1] & 0x10) return 1; // full ON
@@ -263,6 +295,12 @@ export class Ssd1306Device implements I2cDevice, SpiDevice {
   dcPin?: string;
   /** Tampon GDDRAM : pages × largeur (buffer[page*width + col] = 8 px verticaux). */
   buffer: Uint8Array;
+  /**
+   * Numéro de révision du tampon, incrémenté à chaque octet écrit. Un moteur
+   * déporté n'a ainsi pas à comparer 1 024 octets pour savoir si l'écran a bougé
+   * depuis la publication précédente.
+   */
+  rev = 0;
 
   private gotControl = false;
   private dataMode = false;
@@ -340,12 +378,22 @@ export class Ssd1306Device implements I2cDevice, SpiDevice {
 
   private writeData(b: number): void {
     const idx = this.page * this.width + this.col;
-    if (idx >= 0 && idx < this.buffer.length) this.buffer[idx] = b;
+    if (idx >= 0 && idx < this.buffer.length && this.buffer[idx] !== b) {
+      this.buffer[idx] = b;
+      this.rev++;
+    }
     this.col++;
     if (this.col > this.colEnd) {
       this.col = this.colStart;
       this.page = this.page >= this.pageEnd ? this.pageStart : this.page + 1;
     }
+  }
+
+  /** Recopie un tampon relevé sur l'autre fil (moteur déporté). */
+  applyBuffer(buf: Uint8Array): void {
+    if (buf.length !== this.buffer.length) return;
+    this.buffer.set(buf);
+    this.rev++;
   }
 
   /** Vrai si le pixel (x,y) est allumé. */
@@ -378,10 +426,49 @@ export class Ili9341Device implements SpiDevice {
   private x = 0;
   private y = 0;
   private pixHi = -1;
+  // Boîte englobante des pixels écrits depuis le dernier relevé (vide = x0 > x1).
+  // Une image entière fait 307 200 octets : la publier toutes les 16 ms saturerait
+  // la liaison alors qu'un sketch ne repeint le plus souvent qu'un cadran.
+  private dx0 = 240;
+  private dy0 = 320;
+  private dx1 = -1;
+  private dy1 = -1;
 
   constructor() {
     this.data = new Uint8ClampedArray(this.width * this.height * 4);
     for (let i = 3; i < this.data.length; i += 4) this.data[i] = 255; // alpha opaque
+  }
+
+  /**
+   * Zone repeinte depuis l'appel précédent, avec ses pixels RGBA — et remise à
+   * zéro. `null` si rien n'a bougé : c'est le cas ordinaire, un écran repeint bien
+   * moins souvent qu'il n'est publié.
+   */
+  takeDirty(): { x: number; y: number; w: number; h: number; data: Uint8ClampedArray } | null {
+    if (this.dx1 < this.dx0 || this.dy1 < this.dy0) return null;
+    const x = this.dx0;
+    const y = this.dy0;
+    const w = this.dx1 - x + 1;
+    const h = this.dy1 - y + 1;
+    const out = new Uint8ClampedArray(w * h * 4);
+    for (let row = 0; row < h; row++) {
+      const src = ((y + row) * this.width + x) * 4;
+      out.set(this.data.subarray(src, src + w * 4), row * w * 4);
+    }
+    this.dx0 = this.width;
+    this.dy0 = this.height;
+    this.dx1 = -1;
+    this.dy1 = -1;
+    return { x, y, w, h, data: out };
+  }
+
+  /** Recopie une zone relevée sur l'autre fil, à sa place dans l'image. */
+  applyRegion(x: number, y: number, w: number, h: number, data: Uint8ClampedArray): void {
+    if (w <= 0 || h <= 0 || data.length < w * h * 4) return;
+    for (let row = 0; row < h; row++) {
+      const dst = ((y + row) * this.width + x) * 4;
+      this.data.set(data.subarray(row * w * 4, (row + 1) * w * 4), dst);
+    }
   }
 
   transfer(mosi: number, dc: boolean): number {
@@ -441,6 +528,10 @@ export class Ili9341Device implements SpiDevice {
       this.data[i] = (r5 << 3) | (r5 >> 2);
       this.data[i + 1] = (g6 << 2) | (g6 >> 4);
       this.data[i + 2] = (b5 << 3) | (b5 >> 2);
+      if (this.x < this.dx0) this.dx0 = this.x;
+      if (this.x > this.dx1) this.dx1 = this.x;
+      if (this.y < this.dy0) this.dy0 = this.y;
+      if (this.y > this.dy1) this.dy1 = this.y;
     }
     if (++this.x > this.x1) {
       this.x = this.x0;
@@ -759,4 +850,97 @@ export class SdCardSpiDevice implements SpiDevice {
       else this.writeBlock = -1;
     }
   }
+}
+
+// --- Description et fabrique des périphériques de bus --------------------------
+//
+// Un périphérique est un OBJET À MÉTHODES que le moteur appelle au milieu d'une
+// trame : il ne traverse pas la frontière d'un Web Worker. Sa DESCRIPTION, elle,
+// n'est que des nombres et des noms de broches. La page décrit, les deux fils
+// fabriquent — le fil de simulation les vrais périphériques (branchés au bus), la
+// page des jumeaux qui ne décodent rien et portent l'état reçu (`applyText`,
+// `applyDuties`, `applyBuffer`, `applyRegion`). Ainsi l'affichage lit toujours le
+// même objet, qu'il y ait un worker ou non.
+
+/** Description d'un périphérique de bus, telle que la page la publie. */
+export type BusDeviceSpec =
+  | { bus: 'i2c'; id: string; kind: 'lcd'; address: number; cols: number; rows: number }
+  | { bus: 'i2c'; id: string; kind: 'pca'; address: number }
+  | { bus: 'i2c'; id: string; kind: 'oled'; address: number }
+  | { bus: 'spi'; id: string; kind: 'oled' | 'tft' | 'sd'; dcPin?: string; csPin?: string };
+
+/** Périphériques fabriqués : les listes pour le moteur, les écrans par composant. */
+export interface BusDevices {
+  /** Esclaves I²C, dans l'ordre des descriptions (`setI2cDevices`). */
+  i2c: I2cDevice[];
+  /** Esclaves SPI, dans l'ordre des descriptions (`setSpiDevices`). */
+  spi: SpiDevice[];
+  /** Périphériques I²C par identifiant de composant. */
+  i2cById: Map<string, Lcd1602Device | Pca9685Device | Ssd1306Device>;
+  /** Écrans OLED câblés en SPI, par identifiant. */
+  spiOled: Map<string, Ssd1306Device>;
+  /** Écrans TFT, par identifiant. */
+  spiTft: Map<string, Ili9341Device>;
+  /** Afficheurs LCD, tous transports confondus — ce que le worker publie. */
+  lcd: Map<string, Lcd1602Device>;
+  /** Cartes 16 servos. */
+  pca: Map<string, Pca9685Device>;
+  /** Écrans OLED, I²C ET SPI : même puce, même image. */
+  oled: Map<string, Ssd1306Device>;
+  /** Écrans TFT couleur. */
+  tft: Map<string, Ili9341Device>;
+}
+
+/** Fabrique les périphériques décrits. Même code des deux côtés de la frontière. */
+export function createBusDevices(specs: BusDeviceSpec[]): BusDevices {
+  const out: BusDevices = {
+    i2c: [],
+    spi: [],
+    i2cById: new Map(),
+    spiOled: new Map(),
+    spiTft: new Map(),
+    lcd: new Map(),
+    pca: new Map(),
+    oled: new Map(),
+    tft: new Map(),
+  };
+  for (const s of specs) {
+    if (s.bus === 'i2c') {
+      if (s.kind === 'lcd') {
+        const dev = new Lcd1602Device(s.address, s.cols, s.rows);
+        out.lcd.set(s.id, dev);
+        out.i2cById.set(s.id, dev);
+        out.i2c.push(dev);
+      } else if (s.kind === 'pca') {
+        const dev = new Pca9685Device(s.address);
+        out.pca.set(s.id, dev);
+        out.i2cById.set(s.id, dev);
+        out.i2c.push(dev);
+      } else {
+        const dev = new Ssd1306Device(s.address, 128, 64);
+        out.oled.set(s.id, dev);
+        out.i2cById.set(s.id, dev);
+        out.i2c.push(dev);
+      }
+      continue;
+    }
+    let dev: SpiDevice;
+    if (s.kind === 'tft') {
+      const tft = new Ili9341Device();
+      out.tft.set(s.id, tft);
+      out.spiTft.set(s.id, tft);
+      dev = tft;
+    } else if (s.kind === 'sd') {
+      dev = new SdCardSpiDevice(); // aucun écran à publier : un répondeur de protocole
+    } else {
+      const oled = new Ssd1306Device(0x3c, 128, 64);
+      out.oled.set(s.id, oled);
+      out.spiOled.set(s.id, oled);
+      dev = oled;
+    }
+    if (s.dcPin) dev.dcPin = s.dcPin;
+    if (s.csPin) dev.csPin = s.csPin;
+    out.spi.push(dev);
+  }
+  return out;
 }

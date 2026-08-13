@@ -1,5 +1,5 @@
 // Interface commune des moteurs de simulation (AVR, RP2040).
-import type { I2cDevice, SpiDevice } from './i2c-devices.mjs';
+import type { BusDeviceSpec, BusDevices, I2cDevice, SpiDevice } from './i2c-devices.mjs';
 import type { AnalogWave } from './analog-waves.mjs';
 
 export type { AnalogWave };
@@ -192,6 +192,17 @@ export interface SimEngine {
   setI2cDevices?(devices: I2cDevice[]): void;
   /** Relie des périphériques SPI (esclaves) au bus du MCU (OLED SPI…). */
   setSpiDevices?(devices: SpiDevice[]): void;
+  /**
+   * Variante des deux précédentes qu'implémentent les moteurs DÉPORTÉS : ils
+   * reçoivent la DESCRIPTION des périphériques (des nombres et des noms de
+   * broches, qui traversent la frontière d'un worker) et fabriquent les leurs.
+   * `mirrors` est le jeu de jumeaux resté à la page, celui que l'affichage lit :
+   * le moteur y recopie l'état qu'il publie.
+   *
+   * Un moteur qui expose `setBusDevices` n'a pas besoin qu'on lui pose aussi les
+   * objets par `setI2cDevices` / `setSpiDevices`.
+   */
+  setBusDevices?(specs: BusDeviceSpec[], mirrors: BusDevices): void;
   /** Déclare les chaînes NeoPixel (WS2812) : broche DIN + nombre de LED. */
   setNeopixels?(strips: Array<{ pin: string; count: number }>): void;
   /** Couleurs décodées de la chaîne NeoPixel sur `pin` (composantes 0..1). */

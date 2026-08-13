@@ -402,7 +402,9 @@ const sim = readFileSync(join(ROOT, 'src/webview/sim.mts'), 'utf8');
 const ed = readFileSync(join(ROOT, 'src/webview/diagram/editor.mts'), 'utf8');
 const source = [
   ["sim : le fork est importé (sinon la balise n'existe pas)", /import '\.\/composants\/araignee-element\.mjs';/.test(sim)],
-  ['sim : un PCA9685 est instancié pour l\'araignée', /kind === 'araignee'[\s\S]{0,900}new Pca9685Device/.test(sim)],
+  // Depuis la v2026.8.53 le périphérique n'est plus instancié sur place : il est
+  // DÉCRIT, et la fabrique partagée le monte (côté page ou dans le worker).
+  ['sim : un PCA9685 est décrit pour l\'araignée', /kind === 'araignee'[\s\S]{0,900}kind: 'pca'/.test(sim)],
   ['sim : son adresse vient des pads AD0..AD5', /pca9685Address\(part\.attrs\)/.test(sim)],
   ['sim : applyAraignee() appelée à chaque rafraîchissement', /\n\s*applyAraignee\(\);/.test(sim)],
   ['sim : canaux pairs → coxa, impairs → patella', /ch % 2 === 0 \? 'coxa' : 'patella'/.test(sim)],

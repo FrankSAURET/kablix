@@ -14,13 +14,16 @@
 
 import { AvrEngine } from './avr.mjs';
 import { evalAnalogWave, type AnalogWave } from './analog-waves.mjs';
+import { createBusDevices, type BusDevices } from './i2c-devices.mjs';
 import type { AvrDebugInfo, SimEngine } from './types.mjs';
 import {
   DRIVE_NAMES,
+  SCREEN_PERIOD_MS,
   SNAPSHOT_PERIOD_MS,
   emptySnapshot,
   type FromWorker,
   type PinSnapshot,
+  type ScreenUpdate,
   type ToWorker,
 } from './worker-protocol.mjs';
 
@@ -80,8 +83,73 @@ function applyWaves(list: AnalogWave[]): void {
   for (const pin of [...waves.keys()]) if (!next.has(pin)) waves.delete(pin);
 }
 
+/** Périphériques de bus fabriqués ici et branchés au moteur (cf. `setBusDevices`). */
+let bus: BusDevices | null = null;
+/** Dernier état publié de chaque écran : sert à ne publier que ce qui a bougé. */
+const lastLcd = new Map<string, string>();
+const lastPca = new Map<string, string>();
+const lastOledRev = new Map<string, number>();
+let screenTimer: ReturnType<typeof setInterval> | null = null;
+
 function send(msg: FromWorker, transfer?: Transferable[]): void {
   ctx.postMessage(msg, transfer ?? []);
+}
+
+/**
+ * Publie l'état visible des périphériques de bus, et lui seul : un afficheur dont
+ * le texte n'a pas changé, un OLED dont la révision est la même et un TFT sans
+ * zone repeinte ne coûtent rien. Le message n'est envoyé que s'il porte quelque
+ * chose — le cas ordinaire est qu'il ne porte rien.
+ */
+function publishScreens(): void {
+  if (!bus) return;
+  const up: ScreenUpdate = { lcd: {}, pca: {}, oled: {}, tft: {} };
+  const transfer: Transferable[] = [];
+  let any = false;
+  for (const [id, dev] of bus.lcd) {
+    const flat = dev.text.join('\n');
+    if (flat === lastLcd.get(id)) continue;
+    lastLcd.set(id, flat);
+    up.lcd[id] = [...dev.text];
+    any = true;
+  }
+  for (const [id, dev] of bus.pca) {
+    const d = dev.duties();
+    const flat = d.join(',');
+    if (flat === lastPca.get(id)) continue;
+    lastPca.set(id, flat);
+    up.pca[id] = d;
+    transfer.push(d.buffer);
+    any = true;
+  }
+  for (const [id, dev] of bus.oled) {
+    if (dev.rev === lastOledRev.get(id)) continue;
+    lastOledRev.set(id, dev.rev);
+    const copy = dev.buffer.slice(); // le tampon reste au moteur : on transfère la copie
+    up.oled[id] = copy;
+    transfer.push(copy.buffer);
+    any = true;
+  }
+  for (const [id, dev] of bus.tft) {
+    const region = dev.takeDirty();
+    if (!region) continue;
+    up.tft[id] = region;
+    transfer.push(region.data.buffer);
+    any = true;
+  }
+  if (any) send({ t: 'screens', screens: up }, transfer);
+}
+
+function startScreens(): void {
+  if (screenTimer !== null || !bus) return;
+  screenTimer = setInterval(publishScreens, SCREEN_PERIOD_MS);
+}
+
+function stopScreens(): void {
+  if (screenTimer === null) return;
+  clearInterval(screenTimer);
+  screenTimer = null;
+  publishScreens(); // dernier état : l'écran doit rester tel qu'à l'arrêt
 }
 
 /** Code d'instantané pour ce que le MCU impose sur une broche. */
@@ -176,10 +244,12 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
       case 'start':
         engine?.start();
         startPublishing();
+        startScreens();
         return;
       case 'stop':
         engine?.stop();
         stopPublishing();
+        stopScreens();
         return;
       case 'pause':
         engine?.pause();
@@ -248,8 +318,22 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
         engine?.setLcdParallel?.(screens as never);
         return;
       }
+      case 'setBusDevices': {
+        // Les périphériques sont FABRIQUÉS ici à partir de leur description : ce
+        // sont eux qui décodent les trames, au rythme du bus, sans un message.
+        bus = createBusDevices(msg.specs);
+        lastLcd.clear();
+        lastPca.clear();
+        lastOledRev.clear();
+        engine?.setI2cDevices?.(bus.i2c);
+        engine?.setSpiDevices?.(bus.spi);
+        if (publishTimer !== null) startScreens(); // périphériques posés en pleine simulation
+        return;
+      }
       case 'dispose':
         stopPublishing();
+        stopScreens();
+        bus = null;
         engine?.dispose();
         engine = null;
         return;
@@ -260,6 +344,7 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
     // Une exception du moteur ne doit pas laisser la page attendre un instantané
     // qui ne viendra plus : elle repasse en mode dégradé (moteur sur son fil).
     stopPublishing();
+    stopScreens();
     send({ t: 'error', message: err instanceof Error ? err.message : String(err) });
   }
 };
