@@ -137,6 +137,7 @@ import {
 } from './diagram/model.mjs';
 import { AvrEngine } from './engines/avr.mjs';
 import { PicoEngine, type PicoProgram } from './engines/pico.mjs';
+import { WorkerEngine, preloadWorker, workerReady } from './engines/worker-engine.mjs';
 import { SerialConsole } from './serialbuffer.mjs';
 import {
   Lcd1602Device,
@@ -294,6 +295,19 @@ simBanner.addEventListener('animationend', () => simBanner.classList.remove('sim
 
 let board: BoardId = 'uno';
 let engine: SimEngine | null = null;
+/**
+ * Fil de simulation dans un Web Worker : réglage `kablix.simulationWorker`, injecté
+ * par l'extension à la construction de la page. Le bundle du worker est récupéré
+ * TOUT DE SUITE — `startRun()` est synchrone et ne peut pas attendre un `fetch`,
+ * qui de toute façon aura eu tout le temps d'aboutir avant le premier « Compiler ».
+ */
+function simWorkerEnabled(): boolean {
+  return (globalThis as { KABLIX_SIM_WORKER?: boolean }).KABLIX_SIM_WORKER === true;
+}
+{
+  const url = (globalThis as { KABLIX_WORKER_URL?: string }).KABLIX_WORKER_URL;
+  if (url && simWorkerEnabled()) void preloadWorker(url);
+}
 let unoProgram: Uint16Array = UNO_DEMO;
 let unoDebugInfo: AvrDebugInfo | null = null;
 let picoProgram: PicoProgram = { kind: 'ram', image: PICO_BLINK };
@@ -3057,10 +3071,17 @@ function startRun(): void {
   stopRun();
   resetDebugVars(); // nouveau run : l'historique des changements (rouge) repart à zéro
   try {
+    // Fil de simulation : le moteur AVR peut tourner dans un Web Worker, ce qui
+    // rend la page fluide (il tient à lui seul ~92 % du fil principal). Réglage
+    // `kablix.simulationWorker`, et repli silencieux sur le moteur du fil principal
+    // si le bundle du worker n'est pas prêt. Le Pico n'y passe pas encore.
     engine =
       boardFamily(board) === 'rp2040'
         ? new PicoEngine(picoProgram)
-        : new AvrEngine(unoProgram, unoDebugInfo, board === 'mega' ? 'avr2560' : 'avr328');
+        : (simWorkerEnabled() && workerReady()
+            ? WorkerEngine.create(board === 'mega' ? 'mega' : 'uno', unoProgram, unoDebugInfo)
+            : null) ??
+          new AvrEngine(unoProgram, unoDebugInfo, board === 'mega' ? 'avr2560' : 'avr328');
   } catch (err) {
     setStatus(t('Error: {0}', err instanceof Error ? err.message : String(err)));
     return;

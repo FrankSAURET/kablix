@@ -48,6 +48,10 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
   const pinoutBase = webview.asWebviewUri(
     vscode.Uri.joinPath(extensionUri, 'dist', 'pinout')
   );
+  // Bundle du fil de simulation : récupéré par fetch puis instancié depuis un blob.
+  const workerUri = webview.asWebviewUri(
+    vscode.Uri.joinPath(extensionUri, 'dist', 'webview-worker.js')
+  );
   const nonce = getNonce();
   const version =
     vscode.extensions.getExtension('electropol-fr.kablix')?.packageJSON?.version ?? '';
@@ -56,6 +60,12 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
     .getConfiguration('kablix')
     .get<string>('selectionColor', '#e973e9');
   const selColor = /^#[0-9a-fA-F]{6}$/.test(rawSelColor ?? '') ? rawSelColor : '#e973e9';
+  // Fil de simulation : le moteur AVR dans un Web Worker (page fluide). Encore
+  // expérimental, donc désactivé par défaut — la simulation retombe alors sur le
+  // moteur du fil principal, exactement comme avant.
+  const simWorker = vscode.workspace
+    .getConfiguration('kablix')
+    .get<boolean>('simulationWorker', false);
   const csp = [
     `default-src 'none'`,
     // Les composants Lit injectent des styles dans leur shadow DOM ; on autorise
@@ -63,8 +73,12 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
     `style-src ${webview.cspSource} 'unsafe-inline'`,
     `script-src 'nonce-${nonce}'`,
     `img-src ${webview.cspSource} data:`,
-    // fetch des posters de brochage (dist/pinout/*.svg), chargés à la demande.
+    // fetch des posters de brochage (dist/pinout/*.svg) et du bundle du fil de
+    // simulation (dist/webview-worker.js), chargés à la demande.
     `connect-src ${webview.cspSource}`,
+    // Fil de simulation : le worker est instancié depuis un blob, pas depuis son
+    // URI de webview — `new Worker()` refuse une origine différente de la page.
+    `worker-src blob:`,
     // Police LED des écrans LCD (media/font/led_board-7.ttf, @font-face).
     `font-src ${webview.cspSource}`,
   ].join('; ');
@@ -264,7 +278,9 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
   </main>
 
   <script nonce="${nonce}">window.KABLIX_LANG = ${JSON.stringify(vscode.env.language)};
-window.KABLIX_PINOUT_BASE = ${JSON.stringify(pinoutBase.toString())};</script>
+window.KABLIX_PINOUT_BASE = ${JSON.stringify(pinoutBase.toString())};
+window.KABLIX_WORKER_URL = ${JSON.stringify(workerUri.toString())};
+window.KABLIX_SIM_WORKER = ${JSON.stringify(simWorker)};</script>
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;

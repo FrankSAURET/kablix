@@ -115,19 +115,40 @@ const webviewConfig = {
   logLevel: 'info',
 };
 
+/**
+ * Fil de simulation (Web Worker) : le moteur avr8js/rp2040js hors du fil principal.
+ * Bundle à part — un worker ne partage pas le contexte de la page, il lui faut son
+ * propre code. Il ne contient QUE le moteur : ni Lit, ni dessins de composants,
+ * ni éditeur, d'où un bundle sans rapport avec les 3,2 Mo de webview.js.
+ * @type {import('esbuild').BuildOptions}
+ */
+const workerConfig = {
+  entryPoints: ['src/webview/engines/sim-worker.mts'],
+  bundle: true,
+  outfile: 'dist/webview-worker.js',
+  platform: 'browser',
+  format: 'iife',
+  target: 'es2020',
+  sourcemap: !production,
+  minify: production,
+  logLevel: 'info',
+};
+
 async function main() {
   copyPinouts();
   if (watch) {
     const ctxExt = await esbuild.context(extensionConfig);
     const ctxZip = await esbuild.context(zipConfig);
     const ctxWeb = await esbuild.context(webviewConfig);
-    await Promise.all([ctxExt.watch(), ctxZip.watch(), ctxWeb.watch()]);
+    const ctxWorker = await esbuild.context(workerConfig);
+    await Promise.all([ctxExt.watch(), ctxZip.watch(), ctxWeb.watch(), ctxWorker.watch()]);
     console.log('[watch] build initial terminé, surveillance des fichiers…');
   } else {
     await Promise.all([
       esbuild.build(extensionConfig),
       esbuild.build(zipConfig),
       esbuild.build(webviewConfig),
+      esbuild.build(workerConfig),
     ]);
   }
 }
