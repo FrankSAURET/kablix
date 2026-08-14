@@ -218,15 +218,59 @@ ok('assemblyFaces : une pièce translucide l\'est sur TOUTES ses faces',
   teintesDe({ fill: '#bcdff08c' }).split('|').every((c) => alpha(c) < 0.6),
   teintesDe({ fill: '#bcdff08c' }).slice(0, 40));
 // Le liseré bouche les coutures d'anticrénelage entre triangles voisins. Sur une
-// face translucide il se recouvre lui-même — quatre couches de couleur sur chaque
-// arête intérieure, soit une toile d'araignée sur toute la pièce.
-const attributs = (fill) => JSON.stringify(
-  M.renderFaces([{ pts: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }], z: 0, fill }], 0, 0)[0].values);
+// face translucide il se recouvrirait lui-même — quatre couches de couleur sur
+// chaque arête intérieure, soit une toile d'araignée sur toute la pièce. D'où la
+// règle de la v2026.8.56 : la TRANSPARENCE est portée par la pièce (un
+// `<g opacity>`), ses faces s'y peignent pleines, liseré compris.
+const tri = (fill, g) => ({ pts: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }], z: 0, fill, g });
+const attributs = (fill, g) => JSON.stringify(M.renderFaces([tri(fill, g)], 0, 0)[0].values);
 ok('renderFaces : une face opaque garde son liseré de même couleur',
   attributs('rgb(188,223,240)').split('rgb(188,223,240)').length === 3,
   attributs('rgb(188,223,240)'));
-ok('renderFaces : une face translucide n\'a PAS de liseré',
-  attributs('rgba(188,223,240,0.55)').includes('"none"'), attributs('rgba(188,223,240,0.55)'));
+ok('renderFaces : une face translucide sort dans un groupe qui porte son alpha',
+  attributs('rgba(188,223,240,0.55)').startsWith('[0.55,'), attributs('rgba(188,223,240,0.55)'));
+ok('renderFaces : dans ce groupe, la face est PLEINE et garde son liseré',
+  attributs('rgba(188,223,240,0.55)').split('rgb(188,223,240)').length === 3
+  && !attributs('rgba(188,223,240,0.55)').includes('rgba('),
+  attributs('rgba(188,223,240,0.55)'));
+// Deux triangles de la MÊME pièce ne font qu'un groupe : c'est ce qui supprime la
+// double couche sur leur arête commune.
+const groupes = M.renderFaces([tri('rgba(188,223,240,0.55)', 7), tri('rgba(188,223,240,0.55)', 7)], 0, 0);
+ok('renderFaces : les faces d\'une même pièce translucide tiennent dans UN groupe',
+  groupes.length === 1 && groupes[0].values[1].length === 2, `${groupes.length} groupe(s)`);
+ok('renderFaces : deux pièces translucides restent deux groupes',
+  M.renderFaces([tri('rgba(188,223,240,0.55)', 7), tri('rgba(188,223,240,0.55)', 8)], 0, 0).length === 2);
+
+// --- l'allègement des contours garde les COINS (v2026.8.56) --------------------
+// Douglas-Peucker ne connaît que l'écart à la corde : sur le PCA9685 du robot,
+// large de 26 px à l'écran, ses détrompeurs d'un millimètre passaient sous la
+// tolérance — et les points de coin partaient avec eux, si bien que les bords
+// droits se mettaient à onduler. La carte sortait chiffonnée.
+const rect = (w, h, pas) => {
+  const p = [];
+  for (let x = 0; x < w; x += pas) p.push({ x, y: 0 });
+  for (let y = 0; y < h; y += pas) p.push({ x: w, y });
+  for (let x = w; x > 0; x -= pas) p.push({ x, y: h });
+  for (let y = h; y > 0; y -= pas) p.push({ x: 0, y });
+  return p;
+};
+const carte = rect(26, 19, 1);
+const allege = M.simplifyPoly(carte, 0.7);
+const ecart = (poly) => Math.max(...poly.map((q) => Math.min(q.x, 26 - q.x, q.y, 19 - q.y)));
+ok('simplifyPoly : un rectangle allégé RESTE un rectangle (4 coins, rien qui ondule)',
+  allege.length === 4 && ecart(allege) < 1e-9, `${allege.length} points`);
+ok('simplifyPoly : un rectangle allégé garde son aire',
+  Math.abs(Math.abs(M.signedArea(allege)) - 26 * 19) < 1e-6, Math.abs(M.signedArea(allege)));
+// Un détrompeur de 1 mm sur un bord : c'est un coin, il survit.
+const encoche = [...carte.slice(0, 10), { x: 10, y: 1.2 }, { x: 12, y: 1.2 }, ...carte.slice(12)];
+ok('simplifyPoly : un détrompeur d\'un millimètre survit à la tolérance',
+  M.simplifyPoly(encoche, 0.7).some((q) => Math.abs(q.y - 1.2) < 1e-9),
+  M.simplifyPoly(encoche, 0.7).length);
+// Et l'allègement doit rester un allègement : un cercle Inkscape tourne de
+// quelques degrés par point, aucun de ses sommets n'est un coin.
+const cercle = M.regularPoly(72, 20);
+ok('simplifyPoly : un cercle dense est toujours ALLÉGÉ (pas de coin à garder)',
+  M.simplifyPoly(cercle, 0.7).length < cercle.length / 2, M.simplifyPoly(cercle, 0.7).length);
 
 // --- les pastilles rouges font les ARTICULATIONS -------------------------------
 // Règle du dessin (v2026.8.42) : UNE pastille rouge = UNE articulation, et son

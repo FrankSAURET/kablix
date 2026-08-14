@@ -25,13 +25,13 @@
 import { css, html, svg, LitElement, type TemplateResult } from 'lit';
 import { ElementPin } from './pin.mjs';
 import {
-  MATIERES, articulations, assemblyFaces, assemblyVertices, groundShadow, project,
+  articulations, assemblyFaces, assemblyVertices, groundShadow, project,
   renderFaces, rotZ, scale, shadowGradient,
-  type Assembly, type AssemblyPiece, type Face, type Vec2, type Vec3,
+  type Assembly, type Face, type Vec2, type Vec3,
 } from './iso3d.mjs';
 import { assemblage, hasAssemblage } from './assemblages.mjs';
 import {
-  JointAnimator, SIMPLIFY, jointTarget, legPose, legRig, opaque,
+  JointAnimator, SIMPLIFY, jointTarget, legPose, legRig,
   type LegGeometry, type LegPose, type LegRig,
 } from './patte-element.mjs';
 
@@ -392,11 +392,10 @@ export class AraigneeElement extends LitElement {
       // avant devant. Trier chaque pièce séparément casserait l'illusion.
       const corps: Assembly = this.boards ? r.corps
         : { ...r.corps, pieces: r.corps.pieces.filter((p) => !EMBARQUE.includes(p.name)) };
-      const opts = {
-        scale: r.k,
-        simplify: SIMPLIFY,
-        color: (p: AssemblyPiece): string => opaque(p.fill) ?? MATIERES[p.mat] ?? MATIERES.pmma,
-      };
+      // Pas de `color` : la couleur du DESSIN passe telle quelle, transparence
+      // comprise — on voit la plaque du dessous à travers celle du dessus, ce
+      // qui est le seul moyen de comprendre qu'elles sont EMPILÉES (v2026.8.56).
+      const opts = { scale: r.k, simplify: SIMPLIFY };
       faces.push(...assemblyFaces(corps, {
         ...opts,
         xf: (p: Vec3) => rotZ({ x: p.x, y: p.y, z: p.z + r.ground }, YAW),

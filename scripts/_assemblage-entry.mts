@@ -4,7 +4,7 @@
 // du calcul pur.
 export {
   slabFaces, assemblyFaces, planeNormal, planeAxisDir, axisVector,
-  project, signedArea, shade, renderFaces,
+  project, signedArea, shade, renderFaces, simplifyPoly, regularPoly,
   assemblyAxis, axisFamily, articulations, montage,
   profileAxes, extrudeProfile, rotZ, add, sub, len,
   PLANES, MATIERES,

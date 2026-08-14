@@ -1,8 +1,6 @@
 # À faire
-1. Rapprocher la patte des connecteur (décaler de 40 pixels vers la gauche pour être à  40 pixels des pastille des connecteurs ddes servo)  et la grossir (doubler). Les texte GND, V+ et PWM ne doivent apparaitre que sur le bulles d'aide
-1. Monter l'électreonique embarqué affiche une carte 16 servo TROP déformée et un deuxieme falns de corps inférieur
-1. La transparence n'est pas gérée
-1. on dirais que la plaque du bas du corps n'est pas au dessus de celle du haut mais décalée vers le fond. Ou plutôt le haut décalé vers L'avant.
+1. v2026.8.55 : Horloge pico ne fonctionne plus du tout. Pas de simulation. Temps bloqué à 0. Même chose sur blink, 16 servo. Et pareil  avec les uno.  en décochant simulationworker puis fermeture et relance du projix ça marche. J'ai même l'horloge en temps réel pour la pico.
+1. vsix
 
 
 ##L'arraignée :
@@ -25,6 +23,18 @@
 # En réserve
 1. ⏳ Traduction FR du réglage `kablix.simulationWorker` (`package.nls.fr.json`) : sa description a changé avec le défaut activé — au lot de traductions d'avant publication.
 Les cinq lots du worker sont livrés (v2026.8.51 → v2026.8.55).
+
+# >>>>  v2026.8.56 — la patte grossit, le PMMA se traverse enfin
+
+1. ✅ **La patte est calée à 40 px des pastilles et a DOUBLÉ** (`patte-element.mts`) : la feuille passe de 210 × 170 à **250 × 300**, le connecteur descend en (0, 110) — ses six carrés dorés retombent sur la grille de 10 px (y = 120/130/140 puis 160/170/180) — et la mécanique est **calée à gauche** de sa zone, à exactement `PIN_GAP = 40` px des pastilles au lieu de flotter au centre. Mesuré : `x 50,1..215,9`, soit 40,1 px de marge. Le facteur d'échelle passe de 123 à 253 px utiles, **×2,05**.
+2. ✅ **Les textes `GND` / `V+` / `PWM` sont retirés du dessin** : ils ne servaient qu'à encombrer une vignette de 3 cm, et le nom de la broche est déjà dans la **bulle d'aide** au survol. Les étiquettes **Coxa** et **Patella** restent, elles disent l'articulation. Retrait fait au chargement du SVG (`PLUG_INNER`), le dessin de Frank n'est pas touché.
+3. ✅ **La carte 16 servos n'est plus déformée** (`simplifyPoly`, `iso3d.mts`) : au `k` du robot (0,657) le PCA9685 ne fait que **26 × 19 px** à l'écran, et l'allègement Douglas-Peucker (tolérance 0,7 px) rabotait ses **coins** — encoches effacées, rectangle tordu, et un bord parasite qui se lisait comme « un deuxième flanc de corps inférieur ». Le contour est maintenant **ancré sur ses coins** (tout sommet où le tracé tourne de plus de 20°), et seuls les arcs entre deux coins sont allégés. Un cercle, qui n'a aucun coin, est coupé en deux arcs comme avant.
+4. ✅ **La transparence est gérée** (`renderFaces`, `iso3d.mts`) : le PMMA de Frank redevient translucide. Elle était **volontairement écrasée** (`opaque()`) parce qu'une face translucide peinte triangle par triangle donnait au choix des coutures blanches (sans liseré) ou une toile d'araignée (avec) — chaque triangle se voyant à travers son voisin. La transparence est donc portée par la **PIÈCE** : ses faces sont marquées d'un numéro de groupe (`grouper`, posé par `boxFaces` et `slabCore`), peintes **pleines** dans un `<g opacity>` unique. Une matière translucide ne se traverse qu'une fois. `opaque()` est supprimé, plus un composant ne force l'opacité.
+5. ✅ **L'empilement des deux plaques du corps se lit enfin** : la géométrie était juste (mesuré : les deux copies de `supports` occupent le MÊME `x` à l'écran, −75,2..74,9, et ne diffèrent que de 27,5 px en `y`), c'est l'opacité forcée qui les rendait indiscernables — la plaque du bas, cachée, se lisait comme « décalée vers le fond ». On voit maintenant à travers celle du haut.
+6. ℹ️ **Compromis assumé** : une pièce translucide est triée à **une seule profondeur** (la moyenne de ses faces) au lieu d'une par triangle — même compromis que `empilement()` fait déjà pour les pièces entières. Les pièces opaques gardent leur tri par triangle, rien ne change pour elles.
+7. ✅ **Bancs** : `verify:assemblage` **247** contrôles (240 avant — 5 sur le regroupement translucide de `renderFaces`, 4 sur les coins de `simplifyPoly`), `verify:araignee` 72/72, `typecheck` vert. Illustrations recapturées (`_capture-part.mjs patte` et `araignee`), fiche `docs/fr/composants/patte.md` mise à jour (le nom des pastilles est dans la bulle d'aide).
+8. ℹ️ Schémas de test **inchangés** : les fils d'un `.projix` désignent les broches par leur nom, pas par leurs coordonnées — la patte peut grandir et son connecteur descendre sans qu'un seul câblage bouge.
+9. ⏳ `verify:i18n` reste **ROUGE** sur les dix `zero…` de la v2026.8.49 : les traductions attendent la publication.
 
 # >>>>  v2026.8.55 — le worker est allumé par défaut (lot 5)
 

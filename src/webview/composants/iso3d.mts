@@ -100,8 +100,22 @@ export function norm(a: Vec3): Vec3 {
   return l < 1e-9 ? { x: 0, y: 0, z: 1 } : scale(a, 1 / l);
 }
 
-/** Une face prête à sortir : ses sommets projetés, sa profondeur, sa couleur. */
-export type Face = { pts: Vec2[]; z: number; fill: string };
+/** Une face prête à sortir : ses sommets projetés, sa profondeur, sa couleur, et
+ *  le GROUPE dont elle fait partie — une pièce. Une matière translucide ne se
+ *  traverse qu'une fois : c'est le groupe entier qui porte la transparence, pas
+ *  chacun de ses triangles (voir `renderFaces`). */
+export type Face = { pts: Vec2[]; z: number; fill: string; g?: number };
+
+/** Numéro du prochain groupe de rendu. Un compteur suffit : deux pièces ne sont
+ *  jamais fusionnées, même dessinées à partir du même contour. */
+let groupeSeq = 0;
+
+/** Marque toutes ces faces comme UNE pièce, et les rend. */
+function grouper(faces: Face[]): Face[] {
+  const g = ++groupeSeq;
+  for (const f of faces) f.g = g;
+  return faces;
+}
 
 /** Couleur éclaircie (k > 1) ou assombrie (k < 1), bornée. Accepte `#rrggbb`,
  *  `#rrggbbaa` (la couleur de remplissage lue sur le dessin, transparence
@@ -179,7 +193,7 @@ export function boxFaces(from: Vec3, to: Vec3, w: number, h: number, color: stri
     [b[1], b[2], a[2], a[1]], // flanc
     [b[3], b[0], a[0], a[3]], // flanc opposé
   ];
-  return quads.map((q) => face(q, color)).filter((f): f is Face => f !== null);
+  return grouper(quads.map((q) => face(q, color)).filter((f): f is Face => f !== null));
 }
 
 /** Aire signée d'un polygone plan (positive = sens trigonométrique). */
@@ -203,9 +217,22 @@ export function signedArea(poly: Vec2[]): number {
  * projeter et à écrire dans le DOM. Sur le robot entier, 96 points de plaque
  * coûtaient 1800 faces là où 25 en donnent 250, pour la même silhouette à un
  * demi-pixel près. La tolérance s'exprime dans l'unité du contour reçu.
+ *
+ * Les COINS sont gardés quoi qu'il arrive. Douglas-Peucker seul ne connaît que
+ * l'écart à la corde : sur une carte PCA9685 large de 26 px, ses détrompeurs de
+ * 1 mm rentraient sous la tolérance, disparaissaient — et les points de coin
+ * partis avec eux, les bords droits se mettaient à onduler. Un sommet qui fait
+ * tourner le tracé de plus de `COIN` est une ancre ; entre deux ancres, la
+ * courbe est allégée normalement. Un cercle Inkscape tourne de 5° par point : il
+ * s'allège toujours autant.
  */
+const COIN = (20 * Math.PI) / 180;
+
 export function simplifyPoly(poly: Vec2[], tol: number): Vec2[] {
   if (tol <= 0 || poly.length < 5) return poly;
+  const n = poly.length;
+  // Le contour est FERMÉ : les index tournent, un arc peut passer par le point 0.
+  const at = (i: number): Vec2 => poly[((i % n) + n) % n];
   // Distance d'un point au SEGMENT ab (et non à la droite : sur un contour fermé
   // très replié, la droite passe loin de la vraie corde).
   const dist = (p: Vec2, a: Vec2, b: Vec2): number => {
@@ -215,24 +242,46 @@ export function simplifyPoly(poly: Vec2[], tol: number): Vec2[] {
     const t = l2 < 1e-12 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2));
     return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
   };
+  /** Allège l'arc `from` → `to` et pousse ses points, `to` compris. */
   const keep = (from: number, to: number, out: Vec2[]): void => {
     let worst = 0;
-    let at = -1;
+    let pire = -1;
     for (let i = from + 1; i < to; i++) {
-      const d = dist(poly[i], poly[from], poly[to]);
-      if (d > worst) { worst = d; at = i; }
+      const d = dist(at(i), at(from), at(to));
+      if (d > worst) { worst = d; pire = i; }
     }
-    if (worst <= tol || at < 0) { out.push(poly[to]); return; }
-    keep(from, at, out);
-    keep(at, to, out);
+    if (worst <= tol || pire < 0) { out.push(at(to)); return; }
+    keep(from, pire, out);
+    keep(pire, to, out);
   };
-  // Le contour est fermé : on le coupe en DEUX arcs (le point 0 et son opposé
-  // restent), sans quoi le premier point serait le seul point d'ancrage et la
-  // moitié du tracé pourrait s'effondrer sur une corde.
-  const half = Math.floor(poly.length / 2);
-  const out: Vec2[] = [poly[0]];
-  keep(0, half, out);
-  keep(half, poly.length - 1, out);
+  // Les ancres : les sommets où le tracé tourne franchement.
+  const coins: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = at(i - 1);
+    const b = at(i);
+    const c = at(i + 1);
+    const dot2 = (b.x - a.x) * (c.x - b.x) + (b.y - a.y) * (c.y - b.y);
+    if (Math.abs(Math.atan2(cross2(a, b, c), dot2)) > COIN) coins.push(i);
+  }
+  const out: Vec2[] = [];
+  if (coins.length >= 2) {
+    for (let j = 0; j < coins.length; j++) {
+      const from = coins[j];
+      const to = j + 1 < coins.length ? coins[j + 1] : coins[0] + n;
+      out.push(at(from));
+      const arc: Vec2[] = [];
+      keep(from, to, arc);
+      arc.pop(); // le point d'arrivée est l'ancre suivante : elle se pousse seule.
+      out.push(...arc);
+    }
+  } else {
+    // Aucun coin (un cercle) : on coupe en DEUX arcs, sans quoi le premier point
+    // serait le seul ancrage et la moitié du tracé s'effondrerait sur une corde.
+    const half = Math.floor(n / 2);
+    out.push(poly[0]);
+    keep(0, half, out);
+    keep(half, n - 1, out);
+  }
   return out.length >= 4 ? out : poly;
 }
 
@@ -961,7 +1010,7 @@ function slabCore(
     const f = face([at(p, -t), at(q, -t), at(q, t), at(p, t)], color);
     if (f) out.push(f);
   }
-  return out;
+  return grouper(out);
 }
 
 /**
@@ -1001,27 +1050,68 @@ export function regularPoly(n: number, r: number, phase = 0): Vec2[] {
   });
 }
 
+/** L'alpha d'une couleur sortie de `shade` : `rgb(…)` est opaque, `rgba(…)` dit
+ *  le sien. */
+function alphaDe(fill: string): number {
+  if (!fill.startsWith('rgba(')) return 1;
+  const m = fill.match(/[\d.]+/g);
+  return m && m.length > 3 ? Number(m[3]) : 1;
+}
+
+/** La même couleur, OPAQUE : dans un groupe translucide, c'est le groupe qui
+ *  porte la transparence — ses faces s'y peignent pleines. */
+function sansAlpha(fill: string): string {
+  if (!fill.startsWith('rgba(')) return fill;
+  const m = fill.match(/[\d.]+/g);
+  return m ? `rgb(${m[0]},${m[1]},${m[2]})` : fill;
+}
+
 /**
  * Sort les faces triées du plus LOIN au plus près (algorithme du peintre) et
  * translatées au centre voulu de la feuille. Le liseré de même couleur que le
  * remplissage bouche les coutures blanches que l'anticrénelage laisse entre
  * deux polygones adjacents.
  *
- * **Une face TRANSLUCIDE n'a pas de liseré** : une plaque est découpée en
- * dizaines de triangles, et sur chaque arête intérieure le liseré de l'un
- * recouvre celui de l'autre — quatre couches de couleur au lieu d'une. Opaque,
- * cela ne se voit pas ; translucide, cela dessine une toile d'araignée sur toute
- * la pièce. Sans liseré, il ne reste que la couture d'anticrénelage, invisible
- * sur une matière qu'on traverse du regard.
+ * **La TRANSPARENCE est portée par la pièce, pas par ses triangles.** Une plaque
+ * de PMMA est découpée en dizaines de triangles : peints translucides un par un,
+ * chaque arête intérieure reçoit deux couches de couleur (quatre avec les
+ * liserés) et la triangulation apparaît en toile d'araignée. Les faces d'une
+ * même pièce (`Face.g`) sont donc peintes PLEINES dans un `<g opacity>` unique :
+ * le groupe est aplati avant d'être composé, la matière ne se traverse qu'une
+ * fois, et les liserés peuvent rester — plus de couture, plus de toile.
+ *
+ * Le prix est que la pièce est alors rangée à UNE profondeur (la moyenne des
+ * siennes) au lieu d'une par triangle. C'est le même compromis que celui
+ * qu'`empilement` fait déjà pièce par pièce, et il ne concerne que les pièces
+ * translucides : les opaques gardent leur tri au triangle près.
  */
 export function renderFaces(faces: Face[], cx: number, cy: number): SVGTemplateResult[] {
-  return [...faces]
+  type Paquet = { z: number; faces: Face[]; alpha: number };
+  const paquets: Paquet[] = [];
+  const parGroupe = new Map<number, Paquet>();
+  for (const f of faces) {
+    const a = alphaDe(f.fill);
+    if (a >= 1) { paquets.push({ z: f.z, faces: [f], alpha: 1 }); continue; }
+    // Une face translucide isolée (un décalque) forme un groupe à elle seule :
+    // elle est aplatie pareil, sans jamais se recouvrir elle-même.
+    const cle = f.g ?? -(++groupeSeq);
+    let p = parGroupe.get(cle);
+    if (!p) { p = { z: 0, faces: [], alpha: a }; parGroupe.set(cle, p); paquets.push(p); }
+    p.faces.push(f);
+  }
+  for (const p of parGroupe.values()) {
+    p.z = p.faces.reduce((s, f) => s + f.z, 0) / p.faces.length;
+  }
+  const polygone = (f: Face): SVGTemplateResult => {
+    const pts = f.pts.map((p) => `${(p.x + cx).toFixed(2)},${(p.y + cy).toFixed(2)}`).join(' ');
+    const fill = sansAlpha(f.fill);
+    return svg`<polygon points=${pts} fill=${fill} stroke=${fill} stroke-width="0.6" stroke-linejoin="round" />`;
+  };
+  return paquets
     .sort((a, b) => a.z - b.z)
-    .map((f) => {
-      const pts = f.pts.map((p) => `${(p.x + cx).toFixed(2)},${(p.y + cy).toFixed(2)}`).join(' ');
-      const stroke = f.fill.startsWith('rgba(') ? 'none' : f.fill;
-      return svg`<polygon points=${pts} fill=${f.fill} stroke=${stroke} stroke-width="0.6" stroke-linejoin="round" />`;
-    });
+    .map((p) => (p.alpha >= 1
+      ? polygone(p.faces[0])
+      : svg`<g opacity=${p.alpha}>${[...p.faces].sort((a, b) => a.z - b.z).map(polygone)}</g>`));
 }
 
 /** Les trois couleurs du repère, dans l'ordre X, Y, Z. Rouge / vert / bleu :

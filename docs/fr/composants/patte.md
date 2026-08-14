@@ -10,7 +10,7 @@ Catégorie de la palette : **Système**.
 
 ## Broches
 
-À gauche du dessin, le **connecteur** porte deux borniers 3 fils, un par articulation — **Coxa** (violet) et **Patella** (vert) — comme sur un servomoteur simple. Les trois **carrés dorés** de chaque bornier sont les points de connexion :
+À gauche du dessin, le **connecteur** porte deux borniers 3 fils, un par articulation — **Coxa** (violet) et **Patella** (vert) — comme sur un servomoteur simple. Les trois **carrés dorés** de chaque bornier sont les points de connexion ; leur nom n'est pas écrit sur le dessin, il apparaît dans la **bulle d'aide** au survol :
 
 | Broche | Rôle |
 |--------|------|

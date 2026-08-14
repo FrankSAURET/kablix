@@ -23,9 +23,9 @@ import { css, html, svg, LitElement, type TemplateResult } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
 import {
-  MATIERES, add, articulations, assemblyFaces, assemblyVertices, groundShadow, project,
+  add, articulations, assemblyFaces, assemblyVertices, groundShadow, project,
   renderFaces, rotAxis, rotZ, scale, shadowGradient, sub,
-  type Assembly, type AssemblyPiece, type Face, type Vec2, type Vec3,
+  type Assembly, type Face, type Vec2, type Vec3,
 } from './iso3d.mjs';
 import { assemblage, hasAssemblage } from './assemblages.mjs';
 import drawing from './externe/connecteur-servo-patte.svg';
@@ -168,17 +168,6 @@ export function legPose(rig: LegRig, place: LegPlace, coxaDeg: number, patellaDe
   return { femur, tibia };
 }
 
-/** La couleur du dessin, rendue OPAQUE. Frank dessine son PMMA translucide, et
- *  c'est juste dans la fenêtre de montage. Mais une pièce translucide est
- *  dessinée SANS liseré (sinon la triangulation se voit en toile d'araignée), et
- *  il reste alors une couture blanche à chaque arête — sur une vignette de 3 cm,
- *  la pièce en devient grillagée. */
-export function opaque(fill: string | undefined): string | undefined {
-  if (!fill) return fill;
-  const m = /^(#[0-9a-f]{6})[0-9a-f]{2}$/i.exec(fill);
-  return m ? m[1] : fill;
-}
-
 /** Décalage de zéro maximal, en degrés : un tour complet de chaque côté. */
 export const ZERO_RANGE = 360;
 
@@ -262,15 +251,20 @@ export class JointAnimator {
 }
 
 /** Feuille de la patte seule : le connecteur occupe la colonne de gauche, la
- *  mécanique tout le reste. */
-const SHEET = { w: 210, h: 170 };
-/** Le connecteur, posé en (0, 40) : ses six carrés dorés tombent alors sur la
- *  grille de 10 px (y = 50, 60, 70 puis 90, 100, 110) et le bornier est centré
- *  sur la hauteur de la feuille. */
-const PLUG = { x: 0, y: 40, w: 40, h: 80 };
+ *  mécanique tout le reste. Elle a DOUBLÉ en v2026.8.56 — à 210 × 170 la patte
+ *  était un gribouillis de 3 cm, on n'y lisait ni le fémur ni le tibia. */
+const SHEET = { w: 250, h: 300 };
+/** Le connecteur, posé en (0, 110) : ses six carrés dorés tombent alors sur la
+ *  grille de 10 px (y = 120, 130, 140 puis 160, 170, 180) et le bornier est
+ *  centré sur la hauteur de la feuille. */
+const PLUG = { x: 0, y: 110, w: 40, h: 80 };
+/** Écart voulu entre les PASTILLES du bornier et le bord gauche de la mécanique
+ *  (v2026.8.56) : centrée dans ce qui restait de la feuille, la patte partait
+ *  loin du connecteur auquel elle se câble. Elle y est maintenant CALÉE. */
+const PIN_GAP = 40;
 /** Zone laissée à la mécanique : à droite du connecteur, marge sur les bords. */
 const MARGIN = 6;
-const ZONE = { x0: PLUG.w + 8, y0: MARGIN, x1: SHEET.w - MARGIN, y1: SHEET.h - MARGIN };
+const ZONE = { x0: PLUG.x + 10 + PIN_GAP, y0: MARGIN, x1: SHEET.w - MARGIN, y1: SHEET.h - MARGIN };
 /** Présentation. La patte est seule : on la veut DE PROFIL, fémur et tibia bien
  *  séparés — vue dans son axe, les deux os se confondent en un simple tube. Or
  *  l'isométrie rend HORIZONTALE la direction −45° du monde (x − y maximal,
@@ -288,10 +282,17 @@ const OMBRE = 'patte-ombre';
 const SHADOW_PAD = FOOT_SHADOW * Math.cos(Math.PI / 6) * 2 * SHADOW_GROW;
 
 /** Le connecteur, contenu du SVG SEUL : posé dans un `<g>` translaté. Un `<svg>`
- *  imbriqué sans width/height s'étirerait à toute la feuille. */
+ *  imbriqué sans width/height s'étirerait à toute la feuille.
+ *
+ *  Les libellés GND / V+ / PWM sont ÔTÉS : imprimés en 1,3 pt le long des
+ *  carrés, ils ne se lisaient pas et brouillaient le bornier. Les noms de broches
+ *  les disent déjà dans la bulle d'aide de l'éditeur, en toutes lettres et
+ *  traduits. « Coxa » et « Patella », eux, restent : c'est ce qui distingue les
+ *  deux borniers. */
 const PLUG_INNER = drawing
   .slice(drawing.indexOf('>', drawing.indexOf('<svg')) + 1)
-  .replace(/<\/svg>\s*$/, '');
+  .replace(/<\/svg>\s*$/, '')
+  .replace(/<text\b[^>]*>(?:GND|V\+|PWM)<\/text>/g, '');
 
 /** La patte cadrée pour sa vignette : échelle, origine et hauteur du sol. Le
  *  calcul balaie tout le débattement (25 poses), ombre du pied comprise — rien
@@ -342,12 +343,14 @@ function buildView(): LegView | null {
   }
   const w = Math.max(bb.x1 - bb.x0, 1);
   const h = Math.max(bb.y1 - bb.y0, 1);
-  const usableW = ZONE.x1 - ZONE.x0 - 2 * SHADOW_PAD;
+  // La patte est CALÉE À GAUCHE de sa zone (à `PIN_GAP` des pastilles) : l'ombre
+  // ne déborde donc que du côté droit, une seule marge à réserver.
+  const usableW = ZONE.x1 - ZONE.x0 - SHADOW_PAD;
   const usableH = ZONE.y1 - ZONE.y0 - 2 * SHADOW_PAD;
   v.k = Math.min(usableW / w, usableH / h);
   v.ground *= v.k;
   v.origin = {
-    x: (ZONE.x0 + ZONE.x1) / 2 - ((bb.x0 + bb.x1) / 2) * v.k,
+    x: ZONE.x0 - bb.x0 * v.k,
     y: (ZONE.y0 + ZONE.y1) / 2 - ((bb.y0 + bb.y1) / 2) * v.k,
   };
   return v;
@@ -482,11 +485,9 @@ export class PatteElement extends LitElement {
     const faces: Face[] = [];
     if (p) {
       const { rig, k } = p.view;
-      const opts = {
-        scale: k,
-        simplify: SIMPLIFY,
-        color: (q: AssemblyPiece): string => opaque(q.fill) ?? MATIERES[q.mat] ?? MATIERES.pmma,
-      };
+      // Pas de `color` : la couleur du DESSIN passe telle quelle, transparence
+      // comprise — le PMMA de Frank se traverse du regard (v2026.8.56).
+      const opts = { scale: k, simplify: SIMPLIFY };
       // Un seul tas de faces pour fémur ET tibia : c'est le tri en profondeur
       // commun qui fait passer le tibia devant ou derrière selon la pose.
       faces.push(...assemblyFaces(rig.femur, { ...opts, xf: p.xf.femur }));
