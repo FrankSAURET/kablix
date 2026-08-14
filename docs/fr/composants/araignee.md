@@ -61,6 +61,7 @@ Les pattes de droite sont montées **en miroir** de celles de gauche, comme sur 
 - Pilotez les canaux comme ceux d'un PCA9685 posé sur la planche : réglez le prescaler à 50 Hz, puis écrivez l'impulsion voulue (500 µs = 0°, 1500 µs = 90°, 2500 µs = 180°).
 - Pour n'animer qu'une patte, il suffit d'écrire ses deux canaux : un canal jamais écrit laisse son articulation immobile.
 - L'électronique embarquée (Pico W, PCA9685, batterie) est **toujours dessinée** : le châssis de PMMA translucide la laisse voir, comme sur le vrai robot.
+- Deux **yeux rouges** sont posés sur le nez : c'est le repère qui dit d'un coup d'œil **où est l'avant** du robot — utile dès qu'une patte se lève et qu'on cherche laquelle est l'avant-gauche.
 
 Test d'exemple : `araignee-pico` (dossier `testkablix`). Pas de test Arduino : le robot est une Pico W, il ne se programme pas depuis une Uno.
 

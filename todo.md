@@ -1,6 +1,5 @@
 # À faire
 ## Arraignée : 
-1. Fais lui des yeux rouges
 1. Elle est trop petite, double sa taille (pareil pour la patte)et ajoute un paramètre pour les dessins qui donne la largeur souhaitée du systeme finis en pixels (une seule fois pour tout le système)
 1. Si on bloque sur la dernière position  telle que j'ai réglé les paramètres de araignne-pico, on peut voir que les pointes des tibias ne sont pas à la même hauteur et pourtant l'angle est le même. J'ai mois un sleep(10) pour matérialiser l'endroit
 1. Tu va mettre des menu déroulant dans ces propriétées (sur le modèle des composants mais par défaut tous repliés):
@@ -19,6 +18,15 @@
 # En réserve
 1. ⏳ Traduction FR du réglage `kablix.simulationWorker` (`package.nls.fr.json`) : sa description a changé avec le défaut activé — au lot de traductions d'avant publication.
 Les cinq lots du worker sont livrés (v2026.8.51 → v2026.8.55).
+
+# >>>>  v2026.8.61 — l'araignée a des yeux rouges
+
+1. ✅ **Deux pastilles rouges posées sur le nez du robot** (`araignee-element.mts`, `eyes()` + `eyeFaces()`). Elles ne viennent pas de la planche — ce n'est pas une pièce à découper — mais elles suivent la règle du composant : **aucune cote écrite**. Rayon = 1/18 de la largeur du corps, altitude = face supérieure du **pont** (la plus grande pièce posée à plat, `miroir=z` compris), et le **recul** se lit sur le contour : en remontant depuis la pointe avant, la première rangée assez large pour porter les deux yeux côte à côte. Un corps redessiné plus pointu ou plus large les replace tout seul.
+2. ✅ **Elles ne sont pas éteintes par le PMMA** : la plaque du pont est translucide, donc peinte **d'un bloc à sa profondeur moyenne** — elle repassait par-dessus le nez. Les yeux sont rangés juste devant le corps, ce qui est toujours juste : rien du corps ne peut s'intercaler entre le nez et le regard (le nez est le point le plus éloigné).
+3. ✅ **Elles disent où est l'AVANT** — c'était le vrai manque : à quatre pattes identiques, rien ne distinguait l'avant-gauche de l'arrière-droite d'un coup d'œil.
+4. ✅ **Banc `verify:araignee` : 81 contrôles** (75 avant). Les nouveaux vérifient qu'il y en a **deux**, symétriques, dans le **quart avant** du pont, **entièrement posées dessus** (le disque entier testé contre le contour — le nez est arrondi, deux yeux trop avancés dépasseraient dans le vide), sur la face du **dessus** de la plaque du haut, **peintes devant le corps**, et **rouges dans le DOM**.
+5. ✅ Illustration recapturée (`node scripts/_capture-part.mjs araignee`, 368×207) et fiche `docs/fr/composants/araignee.md` complétée.
+6. ⏳ Fiche EN `docs/en/composants/araignee.md` : au lot de traductions d'avant publication.
 
 # >>>>  v2026.8.60 — les propriétés de l'araignée sont en français
 

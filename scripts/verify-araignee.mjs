@@ -28,7 +28,7 @@ const CACHE = join(ROOT, 'node_modules', '.cache-araignee');
 const entry = `
 import '../../src/webview/composants/araignee-element.mjs';
 import '../../src/webview/composants/patte-element.mjs';
-import { robot, legXf, YAW } from '../../src/webview/composants/araignee-element.mjs';
+import { robot, legXf, eyes, eyeFaces, YAW } from '../../src/webview/composants/araignee-element.mjs';
 import { SIMPLIFY } from '../../src/webview/composants/patte-element.mjs';
 import { assemblyFaces, rotZ } from '../../src/webview/composants/iso3d.mjs';
 import { CATALOG, partCategory, partDef } from '../../src/webview/diagram/catalog.mjs';
@@ -212,6 +212,65 @@ async function run() {
 	ok('empilement : les plaques du corps ne recouvrent plus les servos des pattes',
 		Math.max(...servos) > Math.max(...plaques.map(moy)),
 		\`plaques \${plaques.map((fs) => moy(fs).toFixed(1)).join('/')} vs servos \${servos.map((v) => v.toFixed(1)).join('/')}\`);
+
+	// --- 5 bis. Les yeux : deux pastilles rouges sur le nez (v2026.8.61) --------
+	// Elles ne viennent pas de la planche, mais elles obéissent à la même règle
+	// que tout le reste : AUCUNE cote ici, tout se lit sur le contour du pont.
+	// Un corps redessiné plus pointu ou plus large doit les replacer tout seul.
+	const yx = eyes(R.corps);
+	ok('yeux : deux, et symétriques par rapport à l\\'axe du robot',
+		yx.length === 2 && Math.abs(yx[0].c.x + yx[1].c.x) < 0.01
+		&& Math.abs(yx[0].c.y - yx[1].c.y) < 0.01 && Math.abs(yx[0].c.z - yx[1].c.z) < 0.01,
+		JSON.stringify(yx));
+	const pont = R.corps.pieces.filter((p) => p.plan === 'dessus')
+		.sort((a, b) => b.w * b.h - a.w * a.h)[0];
+	const ysPont = pont.poly.map((q) => q.y + pont.pos.y);
+	const yAvant = Math.min(...ysPont);
+	const yArriere = Math.max(...ysPont);
+	// L'AVANT, c'est le y le plus petit (y croissant = vers l'arrière).
+	ok('yeux : sur le NEZ, dans le quart avant du pont',
+		yx.every((e) => e.c.y < yAvant + (yArriere - yAvant) / 4),
+		yx.map((e) => e.c.y.toFixed(1)).join(' ') + ' dans ' + yAvant.toFixed(1) + '..' + yArriere.toFixed(1));
+	// … et POSÉS dessus : le nez est arrondi, deux yeux trop avancés dépasseraient
+	// dans le vide. On teste le disque entier, pas son centre.
+	const dedans = (poly, p) => {
+		let c = false;
+		for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+			const a = poly[i], b = poly[j];
+			if ((a.y > p.y) !== (b.y > p.y)
+				&& p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) c = !c;
+		}
+		return c;
+	};
+	ok('yeux : entièrement posés sur le pont (rien ne dépasse dans le vide)',
+		yx.every((e) => Array.from({ length: 12 }, (_, i) => (i * Math.PI) / 6).every((t) =>
+			dedans(pont.poly, {
+				x: e.c.x - pont.pos.x + e.r * Math.cos(t),
+				y: e.c.y - pont.pos.y + e.r * Math.sin(t),
+			}))));
+	// Sur la face SUPÉRIEURE de la plaque du haut (miroir=z en pose deux) : un œil
+	// calé sur la plaque du bas serait noyé dans le corps.
+	const zPont = (pont.miroir && pont.miroir.includes('z') ? Math.abs(pont.pos.z) : pont.pos.z)
+		+ pont.ep / 2;
+	ok('yeux : posés SUR la face du dessus du pont, pas dedans',
+		yx.every((e) => e.c.z > zPont && e.c.z < zPont + e.r),
+		yx.map((e) => e.c.z.toFixed(2)).join(' ') + ' vs ' + zPont.toFixed(2));
+	// Le piège : le PMMA du pont est TRANSLUCIDE, donc peint d'un bloc à sa
+	// profondeur MOYENNE — il repasse par-dessus le nez et éteint les yeux.
+	const yf = eyeFaces(R, (p) => rotZ({ x: p.x, y: p.y, z: p.z + R.ground }, YAW), corpsF);
+	ok('yeux : peints DEVANT le corps (le PMMA translucide ne les éteint pas)',
+		yf.length > 0 && Math.min(...yf.map((f) => f.z)) > Math.max(...corpsF.map((f) => f.z)),
+		yf.length + ' faces');
+	// Et rouges pour de vrai, dans le DOM : c'est la seule couleur rouge de la
+	// scène (PMMA clair, cartes verte et bleue, servos noirs, os gris).
+	const rouges = [...el.shadowRoot.querySelectorAll('polygon')].filter((q) => {
+		const m = (q.getAttribute('fill') ?? '').match(/[\\d.]+/g);
+		if (!m) return false;
+		const [r, g, b] = m.map(Number);
+		return r > 100 && r > g * 2.5 && r > b * 2.5;
+	});
+	ok('yeux : deux pastilles rouges dessinées (faces rouges dans le DOM)',
+		rouges.length >= 4, rouges.length);
 
 	// --- 6. Les 8 articulations sont indépendantes ------------------------------
 	// speed=0 : la consigne doit être atteinte IMMÉDIATEMENT (le rappel manquait).
