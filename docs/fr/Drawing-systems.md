@@ -338,6 +338,29 @@ Le mot dit la couleur, et rien d'autre : aucune simulation, aucune masse.
 
 **Une matière translucide n'a pas de liseré.** Une plaque est découpée en dizaines de triangles ; sur chaque arête intérieure, le liseré qui bouche les coutures se recouvre lui-même. Opaque, cela ne se voit pas ; translucide, cela dessinerait une toile d'araignée sur toute la pièce. Le liseré est donc retiré dès que la couleur est transparente.
 
+### Une image plaquée sur la pièce
+
+Une couleur suffit pour du PMMA, pas pour une carte électronique : un Pico ou un PCA9685 ne se reconnaît qu'à sa sérigraphie. **Posez la photo sur le contour, dans le groupe de la pièce** — elle sera plaquée dessus en volume, à sa place et à sa taille.
+
+```svg
+<g id="corps-demo-entretoise-profil">
+  <path class="piece" d="M 135,75 H 175 V 100 H 135 Z" />
+  <image x="140" y="79" width="30" height="18" opacity="0.85" href="pico.webp" />
+  <text x="155" y="107">face pos=0,-36,0 ep=3</text>
+</g>
+```
+
+Ce qu'il faut savoir, et rien de plus :
+
+- **Là où vous la posez sur la planche, là elle sera sur la pièce** : mêmes millimètres, même repère que le contour. Une photo qui déborde du contour est **découpée au contour** — sur une plaque échancrée, elle s'arrête au bord de la plaque. Une photo plus petite reste plus petite : elle se pose, elle ne remplit pas.
+- **La transparence est celle du dessin** (`opacity` de l'image, ou du calque qui la porte), donc réglable au curseur dans Inkscape : à 100 % la photo cache la matière, à 40 % on voit la plaque au travers.
+- **Elle se plaque sur le côté que l'on VOIT.** Pas sur un côté choisi d'avance : les deux flancs de la pièce sont projetés et c'est le plus proche de l'œil qui la prend. Un demi-tour de présentation la fait changer de côté toute seule.
+- **Tournez-la, elle suit** : Inkscape écrit une matrice, l'image la garde. Une carte posée de travers reste de travers en volume.
+- **Une seule image par pièce** : c'est un habillage, pas un collage. La deuxième est ignorée.
+- **Formats acceptés : `.webp`, `.png`, `.jpg`.** Une image liée est retrouvée **à côté de la planche** et **embarquée** dans le module rangé — la webview ne va jamais lire un fichier sur le disque. Préférez donc le WebP : un JPEG de 4 Mo sur une plaque de 30 mm ne se verra pas mieux, mais il pèsera 4 Mo dans l'extension. Lien introuvable ou format non géré : l'image est ignorée, avec un message à l'extraction.
+
+L'entretoise de [`corps-demo.svg`](../exemples/corps-demo.svg) en porte une — c'est la petite carte verte qu'on voit sur son flanc dans les images plus bas.
+
 ### Les axes
 
 Une **pastille rouge** dans le groupe d'une pièce marque une articulation : un axe de coxa, une patella, un pivot. Ses coordonnées sont calculées **dans le repère de l'assemblage**, pose comprise.
@@ -631,6 +654,7 @@ Puis retouchez dans Inkscape, cliquez **↻ recharger**, regardez. L'angle et le
 - Le fémur porte **deux** familles : `coxa` pour s'accrocher au corps, `patella-f` pour porter le tibia.
 - Un nom qui finit par **`-3`, `-1`…** est presque toujours le suffixe qu'Inkscape colle à un copier-coller : la lecture le signale, renommez-le.
 - La **couleur de la pièce est celle du dessin**, transparence comprise ; `mat=` n'est que le repli d'une pièce non peinte.
+- Une **image posée sur le contour** (`.webp`, `.png`, `.jpg`) est plaquée sur la pièce, **du côté que l'on voit**, **découpée au contour** et avec **la transparence du dessin**. Une seule par pièce ; un fichier lié est embarqué à l'extraction.
 - `npm run montre <préfixe>` relit, range et ouvre **tout ce qui commence par là**, à la même échelle : c'est la boucle de travail. On retouche dans Inkscape, on clique **↻ recharger**.
 - Le curseur **éclaté** est le seul moyen de voir ce qu'il y a entre deux flancs.
 - `assemblages.mts` est **généré**, et il est sa propre archive.

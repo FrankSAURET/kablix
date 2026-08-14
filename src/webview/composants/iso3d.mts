@@ -104,7 +104,16 @@ export function norm(a: Vec3): Vec3 {
  *  le GROUPE dont elle fait partie — une pièce. Une matière translucide ne se
  *  traverse qu'une fois : c'est le groupe entier qui porte la transparence, pas
  *  chacun de ses triangles (voir `renderFaces`). */
-export type Face = { pts: Vec2[]; z: number; fill: string; g?: number };
+export type Face = { pts: Vec2[]; z: number; fill: string; g?: number; img?: FaceImage };
+
+/** Une IMAGE plaquée sur la face vue d'une pièce (v2026.8.59) : la photo d'une
+ *  carte électronique collée sur son rectangle de PMMA, comme un décalque. Les
+ *  trois points sont déjà PROJETÉS à l'écran — origine du bitmap, bout de son
+ *  côté large, bout de son côté haut : ils portent à eux seuls la perspective
+ *  isométrique (une image reste un parallélogramme dans cette projection). La
+ *  face qui porte l'image donne le DÉCOUPAGE (`pts`, le contour de la pièce) :
+ *  une photo rectangulaire posée sur une plaque échancrée s'arrête au bord. */
+export type FaceImage = { href: string; o: Vec2; u: Vec2; v: Vec2; alpha: number };
 
 /** Numéro du prochain groupe de rendu. Un compteur suffit : deux pièces ne sont
  *  jamais fusionnées, même dessinées à partir du même contour. */
@@ -528,6 +537,13 @@ export type AssemblyPiece = {
   miroir?: string;
   poly: Vec2[];
   holes?: Vec2[][];
+  /** Image PLAQUÉE sur la pièce, lue sur le dessin (v2026.8.59) : la photo d'une
+   *  carte électronique posée sur son contour dans Inkscape. `o`, `u` et `v` sont
+   *  en MILLIMÈTRES dans le repère du contour (même centrage que `poly`) : le
+   *  coin de l'image, son côté large, son côté haut — trois points suffisent, y
+   *  compris si Frank l'a tournée. `alpha` est son opacité, réglée dans Inkscape.
+   *  L'image est plaquée sur la face VUE de la pièce et découpée à son contour. */
+  img?: { href: string; o: Vec2; u: Vec2; v: Vec2; alpha: number };
 };
 
 /**
@@ -629,12 +645,66 @@ export function assemblyFaces(a: Assembly, opts: {
       const off = scale(n, eclate * Math.sign(along));
       const center = add(scale(pos, k), off);
       const faces = slabFaces(poly, p.plan, center, p.ep * k, color, holes, xf);
+      const decalque = p.img && imageFace(p, poly, k, center, xf, faces);
+      if (decalque) faces.push(decalque);
       empiles.push({ ...boiteMonde(poly, p.plan, center, p.ep * k), faces, alpha: alphaColor(color) });
       out.push(...faces);
     }
   }
   empilement(empiles);
   return out;
+}
+
+/**
+ * L'IMAGE d'une pièce, plaquée sur celui de ses deux flancs que l'on VOIT.
+ *
+ * Le côté vu ne se devine pas au plan de la pièce : le lacet de présentation
+ * (`xf`) tourne toute la scène, et un flanc gauche devient un flanc droit. Les
+ * deux candidats sont donc projetés et c'est le plus PROCHE de l'œil qui prend
+ * l'image — mesuré, pas supposé.
+ *
+ * Le découpage est le contour de la pièce (`pts`), pas le rectangle du bitmap :
+ * une photo posée sur une plaque échancrée s'arrête au bord de la plaque. Et la
+ * profondeur est celle de la face la plus avancée de la pièce, comme un décalque
+ * (`decalFaces`) — une plaque est découpée en dizaines de triangles rangés
+ * chacun à SA profondeur, une image simplement soulevée passerait dessous.
+ */
+function imageFace(
+  p: AssemblyPiece, poly: Vec2[], k: number, center: Vec3,
+  xf: (q: Vec3) => Vec3, faces: Face[],
+): Face | null {
+  const img = p.img;
+  if (!img || !img.href) return null;
+  const { u, v } = PLANES[p.plan];
+  const n = planeNormal(p.plan);
+  const t = (p.ep * k) / 2;
+  // `poly` arrive DÉJÀ à l'échelle de la feuille, l'image en millimètres : elle
+  // passe donc par `k` ici, une fois, comme le contour l'a fait avant.
+  const monde = (q: Vec2, s: number): Vec3 => xf(add(center,
+    add(add(scale(u, q.x), scale(v, q.y)), scale(n, s))));
+  // Le côté vu : celui dont le contour ressort le plus près de l'œil.
+  const profondeur = (s: number): number => poly.reduce((m, q) => m + depth(monde(q, s)), 0);
+  const s = profondeur(t) >= profondeur(-t) ? t + 0.02 : -t - 0.02;
+  const ecran = (q: Vec2): Vec2 => project(monde(q, s));
+  const mm = (q: Vec2): Vec2 => ({ x: q.x * k, y: q.y * k });
+  let front = -Infinity;
+  for (const f of faces) front = Math.max(front, f.z);
+  return {
+    pts: poly.map(ecran),
+    z: front + 0.01,
+    fill: 'none',
+    // Même numéro de groupe que la pièce : c'est lui qui nomme le découpage dans
+    // le SVG, et un id qui changerait à chaque image d'animation ferait repatcher
+    // le `clip-path` de tout le robot soixante fois par seconde.
+    g: faces[0]?.g,
+    img: {
+      href: img.href,
+      o: ecran(mm(img.o)),
+      u: ecran(mm({ x: img.o.x + img.u.x, y: img.o.y + img.u.y })),
+      v: ecran(mm({ x: img.o.x + img.v.x, y: img.o.y + img.v.y })),
+      alpha: img.alpha,
+    },
+  };
 }
 
 /** Une pièce POSÉE dans l'assemblage : ses faces, sa transparence et le pavé
@@ -1129,6 +1199,10 @@ export function renderFaces(faces: Face[], cx: number, cy: number): SVGTemplateR
   const paquets: Paquet[] = [];
   const parGroupe = new Map<number, Paquet>();
   for (const f of faces) {
+    // Une image plaquée est peinte SEULE, à sa profondeur : elle porte sa propre
+    // opacité et son propre découpage, elle n'a rien à mettre en commun avec les
+    // triangles de la pièce.
+    if (f.img) { paquets.push({ z: f.z, faces: [f], alpha: 1 }); continue; }
     const a = alphaColor(f.fill);
     if (a >= 1) { paquets.push({ z: f.z, faces: [f], alpha: 1 }); continue; }
     // Une face translucide isolée (un décalque) forme un groupe à elle seule :
@@ -1141,10 +1215,29 @@ export function renderFaces(faces: Face[], cx: number, cy: number): SVGTemplateR
   for (const p of parGroupe.values()) {
     p.z = p.faces.reduce((s, f) => s + f.z, 0) / p.faces.length;
   }
+  const points = (f: Face): string =>
+    f.pts.map((p) => `${(p.x + cx).toFixed(2)},${(p.y + cy).toFixed(2)}`).join(' ');
+  // Une image plaquée : le bitmap est dessiné dans un carré unité et c'est la
+  // MATRICE qui l'amène sur la face — les trois points projetés (coin, côté
+  // large, côté haut) sont exactement ses deux vecteurs et son origine. Aucun
+  // besoin de connaître la taille en pixels du fichier, ni de gérer une rotation
+  // à part : la projection isométrique d'un rectangle est un parallélogramme, et
+  // un parallélogramme EST une matrice affine.
+  const image = (f: Face): SVGTemplateResult => {
+    const g = f.img as FaceImage;
+    const id = `kx-img-${f.g ?? ++groupeSeq}`;
+    const m = [g.u.x - g.o.x, g.u.y - g.o.y, g.v.x - g.o.x, g.v.y - g.o.y, g.o.x + cx, g.o.y + cy]
+      .map((n) => n.toFixed(3)).join(' ');
+    return svg`<clipPath id=${id}><polygon points=${points(f)} /></clipPath>
+      <g clip-path=${`url(#${id})`} opacity=${g.alpha}>
+        <image href=${g.href} width="1" height="1" preserveAspectRatio="none"
+          transform=${`matrix(${m})`} />
+      </g>`;
+  };
   const polygone = (f: Face): SVGTemplateResult => {
-    const pts = f.pts.map((p) => `${(p.x + cx).toFixed(2)},${(p.y + cy).toFixed(2)}`).join(' ');
+    if (f.img) return image(f);
     const fill = sansAlpha(f.fill);
-    return svg`<polygon points=${pts} fill=${fill} stroke=${fill} stroke-width="0.6" stroke-linejoin="round" />`;
+    return svg`<polygon points=${points(f)} fill=${fill} stroke=${fill} stroke-width="0.6" stroke-linejoin="round" />`;
   };
   return paquets
     .sort((a, b) => a.z - b.z)

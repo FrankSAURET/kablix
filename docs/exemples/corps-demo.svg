@@ -45,9 +45,15 @@
   </g>
 
   <!-- Entretoise avant : une cloison verticale en travers du corps, qui tient
-       l'écartement des deux plaques. Une seule, pas de miroir. -->
+       l'écartement des deux plaques. Une seule, pas de miroir.
+       Elle porte aussi une IMAGE : posez la photo d'une carte sur le contour et
+       elle se retrouve plaquée sur la pièce en volume, du côté que l'on voit,
+       découpée au contour. Sa transparence est celle du dessin (opacity), donc
+       réglable au curseur dans Inkscape. Une seule image par pièce. -->
   <g id="corps-demo-entretoise-profil">
     <path class="piece" d="M 135,75 H 175 V 100 H 135 Z" />
+    <image x="140" y="79" width="30" height="18" opacity="0.85" image-rendering="pixelated"
+      href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAUCAIAAABj86gYAAAAMElEQVR42mMQybOhKWKgqwVX1ptTl0F3H4xaQIYFkpIyBNGoBaMWjGa00eJ68AcRAJ3PzUjYr38/AAAAAElFTkSuQmCC" />
     <text x="155" y="107">face pos=0,-36,0 ep=3</text>
   </g>
 </svg>

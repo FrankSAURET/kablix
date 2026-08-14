@@ -241,6 +241,80 @@ ok('renderFaces : les faces d\'une même pièce translucide tiennent dans UN gro
 ok('renderFaces : deux pièces translucides restent deux groupes',
   M.renderFaces([tri('rgba(188,223,240,0.55)', 7), tri('rgba(188,223,240,0.55)', 8)], 0, 0).length === 2);
 
+// --- IMAGE PLAQUÉE sur une pièce (v2026.8.59) ---------------------------------
+// Frank pose la photo d'une carte sur son contour dans Inkscape : elle doit se
+// retrouver plaquée sur la pièce en volume, découpée à son contour et avec la
+// transparence qu'il lui a donnée. Trois pièges, tous muets :
+//   1. l'image est en MILLIMÈTRES comme le contour : oublier l'échelle la
+//      laisserait grande comme un timbre au milieu de la plaque ;
+//   2. elle va sur le côté VU de la pièce, qui dépend du lacet de présentation
+//      et pas seulement du plan (un flanc gauche devient un flanc droit) ;
+//   3. elle doit être rangée DEVANT la pièce, sinon elle disparaît sous les
+//      triangles de sa propre plaque (le piège des perçages, v2026.8.31).
+const PIXEL = 'data:image/webp;base64,AAAA';
+const avecImage = (extra = {}) => ({
+  ...DEMO,
+  pieces: [{ ...DEMO.pieces[1], fill: '#bcdff0ff',
+    img: { href: PIXEL, o: { x: -20, y: -10 }, u: { x: 40, y: 0 }, v: { x: 0, y: 20 }, alpha: 0.8, ...extra } }],
+});
+const faceImage = (a, opts = {}) => M.assemblyFaces(a, opts).find((f) => f.img);
+const fi = faceImage(avecImage());
+ok('image : une pièce qui en porte une sort UNE face d\'image en plus',
+  !!fi && M.assemblyFaces(avecImage()).filter((f) => f.img).length === 1);
+ok('image : le bitmap est repris tel quel (data: embarqué)', fi?.img?.href === PIXEL);
+ok('image : son opacité est celle du dessin', fi?.img?.alpha === 0.8, String(fi?.img?.alpha));
+// Le calage : le bitmap couvre ici EXACTEMENT le contour (40×20 mm centrés), donc
+// ses trois points projetés doivent tomber pile sur trois coins de la pièce. Une
+// échelle oubliée le laisserait grand comme un timbre au milieu de la plaque.
+const lg = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
+const meme = (a, b) => a && b && near(a.x, b.x, 0.01) && near(a.y, b.y, 0.01);
+ok('image : ses trois points tombent sur les coins de la pièce (mêmes millimètres)',
+  fi && meme(fi.img.o, fi.pts[0]) && meme(fi.img.u, fi.pts[1]) && meme(fi.img.v, fi.pts[3]),
+  fi && `${JSON.stringify(fi.img.o)} contre ${JSON.stringify(fi.pts[0])}`);
+const fi2 = faceImage(avecImage(), { scale: 2 });
+ok('image : `scale` la met à l\'échelle comme le contour',
+  fi && fi2 && near(lg(fi2.img.o, fi2.img.u), 2 * lg(fi.img.o, fi.img.u), 0.01),
+  `${lg(fi.img.o, fi.img.u).toFixed(2)} → ${lg(fi2.img.o, fi2.img.u).toFixed(2)}`);
+// Un bitmap plus petit que la pièce reste plus petit : il se pose, il ne remplit
+// pas (le piège du <pattern>, qui aurait carrelé la plaque).
+const petit = faceImage(avecImage({ u: { x: 20, y: 0 }, v: { x: 0, y: 10 } }));
+ok('image : un bitmap plus petit que la pièce ne s\'étire pas pour la remplir',
+  fi && petit && near(lg(petit.img.o, petit.img.u), lg(fi.img.o, fi.img.u) / 2, 0.01)
+  && petit.pts.length === fi.pts.length,
+  `${lg(fi.img.o, fi.img.u).toFixed(2)} → ${lg(petit.img.o, petit.img.u).toFixed(2)}`);
+ok('image : elle est découpée au CONTOUR de la pièce, pas au rectangle du bitmap',
+  fi && fi.pts.length === DEMO.pieces[1].poly.length, fi && fi.pts.length);
+ok('image : elle est rangée DEVANT toutes les faces de sa pièce',
+  fi && M.assemblyFaces(avecImage()).filter((f) => !f.img).every((f) => f.z < fi.z));
+// Le côté vu : un flanc retourné d'un demi-tour montre son AUTRE face. L'image
+// doit changer de côté avec lui — donc rester décalée du même côté à l'écran,
+// vers l'œil. Si elle suivait bêtement le plan, le demi-tour l'enverrait derrière
+// la matière et elle disparaîtrait.
+const flanc = { ...DEMO, pieces: [{ ...DEMO.pieces[0], miroir: '',
+  img: { href: PIXEL, o: { x: -20, y: -10 }, u: { x: 40, y: 0 }, v: { x: 0, y: 20 }, alpha: 1 } }] };
+const moyenne = (pts) => pts.reduce((a, p) => ({ x: a.x + p.x / pts.length, y: a.y + p.y / pts.length }),
+  { x: 0, y: 0 });
+/** De combien l'image est soulevée au-dessus du milieu de sa pièce, à l'écran. */
+const souleve = (yaw) => {
+  const fs = M.assemblyFaces(flanc, { xf: (p) => M.rotZ(p, yaw) });
+  const im = fs.find((f) => f.img);
+  const c = moyenne(im.pts);
+  const m = moyenne(fs.filter((f) => !f.img).flatMap((f) => f.pts));
+  return { x: c.x - m.x, y: c.y - m.y };
+};
+ok('image : elle se plaque sur le côté VU, lacet compris',
+  meme(souleve(0), souleve(180)) && lg({ x: 0, y: 0 }, souleve(0)) > 0.5,
+  `${JSON.stringify(souleve(0))} contre ${JSON.stringify(souleve(180))}`);
+// Sortie SVG : un découpage nommé, un groupe qui porte l'opacité, et la matrice
+// qui amène le carré unité sur le parallélogramme de la face.
+const svgImage = JSON.stringify(M.renderFaces([fi], 0, 0)[0].values);
+ok('renderFaces : l\'image sort avec son découpage, son opacité et sa matrice',
+  svgImage.includes('kx-img-') && svgImage.includes('url(#kx-img-')
+  && svgImage.includes('matrix(') && svgImage.includes(PIXEL) && svgImage.includes('0.8'),
+  svgImage.slice(0, 120));
+ok('renderFaces : une pièce SANS image ne sort ni image ni découpage',
+  !JSON.stringify(M.renderFaces([tri('rgb(1,2,3)')], 0, 0)[0].values).includes('kx-img-'));
+
 // --- l'allègement des contours garde les COINS (v2026.8.56) --------------------
 // Douglas-Peucker ne connaît que l'écart à la corde : sur le PCA9685 du robot,
 // large de 26 px à l'écran, ses détrompeurs d'un millimètre passaient sous la
@@ -518,6 +592,22 @@ for (const nom of noms) {
       near(Math.max(...xs) - Math.min(...xs), p.w, 0.05)
       && near(Math.max(...ys) - Math.min(...ys), p.h, 0.05), `${p.w}×${p.h}`);
     if (p.miroir) ok(`${nom}/${p.name} : axe de miroir valide`, 'xyz'.includes(p.miroir), p.miroir);
+    // L'image plaquée, si la pièce en porte une. Le bitmap DOIT être embarqué :
+    // la webview tourne sous une CSP fermée et n'ira jamais chercher un fichier
+    // à côté de la planche — un href resté relatif ne se verrait qu'à l'exécution,
+    // par un carré vide. Ses deux vecteurs sont des millimètres, comme le contour.
+    if (p.img) {
+      ok(`${nom}/${p.name} : bitmap EMBARQUÉ (data:), pas un lien vers la planche`,
+        p.img.href.startsWith('data:image/'), p.img.href.slice(0, 22));
+      ok(`${nom}/${p.name} : image posée à plat sur la pièce (deux côtés non nuls)`,
+        Math.hypot(p.img.u.x, p.img.u.y) > 0.5 && Math.hypot(p.img.v.x, p.img.v.y) > 0.5,
+        `${p.img.u.x}×${p.img.v.y} mm`);
+      ok(`${nom}/${p.name} : image à la taille de la pièce, en millimètres`,
+        Math.hypot(p.img.u.x, p.img.u.y) <= p.w + 0.05 && Math.hypot(p.img.v.x, p.img.v.y) <= p.h + 0.05,
+        `${p.w}×${p.h} mm de pièce`);
+      ok(`${nom}/${p.name} : transparence lue sur le dessin`,
+        p.img.alpha > 0 && p.img.alpha <= 1, String(p.img.alpha));
+    }
   }
   // L'encombrement rangé doit être celui que le calcul redonne : c'est la cote
   // affichée par `montre`, et le premier signe qu'une pièce est posée de travers.
@@ -552,6 +642,17 @@ for (const nom of noms) {
     M.assemblyFaces(a, { scale: 1 }).every((f) =>
       f.pts.every((q) => Number.isFinite(q.x) && Number.isFinite(q.y))));
 }
+// Le dessin de démonstration porte une image sur son entretoise : c'est la seule
+// preuve que la chaîne complète tient — Inkscape lu par Chrome, rangé en
+// millimètres, embarqué en data:, plaqué en volume. Elle disparaîtrait sans bruit.
+const demo = M.assemblage('corps-demo');
+ok('corps-demo : l\'entretoise porte bien son image (chaîne complète)',
+  demo.pieces.filter((p) => p.img).length === 1
+  && demo.pieces.find((p) => p.img)?.name === 'entretoise',
+  demo.pieces.filter((p) => p.img).map((p) => p.name).join(', ') || 'aucune');
+ok('corps-demo : son image ressort en volume, découpée au contour de la pièce',
+  M.assemblyFaces(demo, { scale: 1 }).filter((f) => f.img).length === 1);
+
 ok('hasAssemblage : un assemblage jamais dessiné est reconnu absent',
   !M.hasAssemblage('rien-du-tout') && (!noms.length || M.hasAssemblage(noms[0])));
 

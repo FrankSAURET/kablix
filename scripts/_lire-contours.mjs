@@ -226,7 +226,32 @@ function readGroup(name, g) {
     const c = at(t, bb.x + bb.width / 2, bb.y + bb.height / 2);
     texts.push({ s, x: c.x, y: c.y });
   }
-  out.push({ name, id: g.getAttribute('id'), rings, pads, texts, fill });
+  // IMAGE PLAQUÉE sur la pièce (v2026.8.59) : la photo d'une carte posée sur son
+  // contour dans Inkscape. Trois coins suffisent à la placer, rotation comprise —
+  // le repère de la planche est le même que celui des contours, l'image se cale
+  // donc sur la pièce sans une cote à reporter. Le lien est remonté TEL QUEL : un
+  // fichier lié est résolu et embarqué côté Node, Chrome ne lit pas le disque.
+  let image = null;
+  for (const im of (g.matches('image') ? [g] : [...g.querySelectorAll('image')])) {
+    const href = im.getAttribute('href') || im.getAttribute('xlink:href') || '';
+    if (!href) continue;
+    const x = Number(im.getAttribute('x') || 0);
+    const y = Number(im.getAttribute('y') || 0);
+    const w = Number(im.getAttribute('width') || 0);
+    const h = Number(im.getAttribute('height') || 0);
+    if (!(w > 0 && h > 0)) continue;
+    let a = 1;
+    for (let n = im; n && n !== root.parentNode; n = n.parentNode) {
+      const o = Number(getComputedStyle(n).opacity);
+      if (Number.isFinite(o)) a *= o;
+    }
+    const o = at(im, x, y);
+    const u = at(im, x + w, y);
+    const v = at(im, x, y + h);
+    image = { href, o: [o.x, o.y], u: [u.x, u.y], v: [v.x, v.y], alpha: a };
+    break; // une seule image par pièce : c'est un habillage, pas un collage
+  }
+  out.push({ name, id: g.getAttribute('id'), rings, pads, texts, fill, image });
 }
 for (const id of IDS) {
   const g = findGroup(id + '-profil') || findGroup(id);

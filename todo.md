@@ -1,6 +1,5 @@
 # À faire
 ## Arraignée : 
-1. Si je veux rendre les cartes (pico et 16 servo) plus réaliste est ce que je te redonne le fichier svg de chaque carte ou est ce que je mappe une vue webp dessus ? Du reste prévois de pouvoir mapper une image sur les pièces (avec transparence ajustable)
 1. Les propriétés de l'araignée doivent être en français.
 1. Fais lui des yeux rouges
 1. Elle est trop petite, double sa taille (pareil pour la patte)et ajoute un paramètre pour les dessins qui donne la largeur souhaitée du systeme finis en pixels (une seule fois pour tout le système)
@@ -21,6 +20,19 @@
 # En réserve
 1. ⏳ Traduction FR du réglage `kablix.simulationWorker` (`package.nls.fr.json`) : sa description a changé avec le défaut activé — au lot de traductions d'avant publication.
 Les cinq lots du worker sont livrés (v2026.8.51 → v2026.8.55).
+
+# >>>>  v2026.8.59 — une image se plaque sur une pièce, depuis le dessin
+
+1. ✅ **Réponse à la question : la WebP, pas le SVG.** Une pièce en volume est un **contour extrudé** — le moteur ne sait poser qu'une couleur par pièce. Redonner le SVG du Pico ne servirait qu'à récupérer son contour et sa couleur de fond : toute la sérigraphie (puces, connecteurs, écritures) serait aplatie ou perdue, et un SVG détaillé mis en volume coûterait des centaines de faces pour 26 px à l'écran. **Poser une WebP sur le contour** donne l'inverse : un seul `<image>`, tout le détail, et le poids d'une vignette. À faire pour le Pico W et le PCA9685 : garder leur contour dans `Composants3D.svg` et y poser la photo de leur face vue.
+2. ✅ **`<image>` dans le groupe d'une pièce = image plaquée en volume** (`_lire-contours.mjs`) : le lecteur remonte, pour chaque groupe, **trois coins projetés** de l'image (origine, côté large, côté haut) plus son **opacité effective** (celle de l'image ET de tous les groupes qui la portent — Inkscape pose souvent la transparence sur le calque). Trois coins suffisent : une rotation Inkscape est déjà dedans. Une seule image par pièce.
+3. ✅ **Rangée en millimètres, bitmap embarqué** (`_extract-assemblage.mjs`, `imageDePiece`) : mêmes millimètres et même centrage que le contour, donc l'image suit la pièce partout — pose, miroir, échelle. Un fichier **lié** (le défaut d'Inkscape, « Incorporer » n'est qu'une option) est résolu **à côté de la planche** et encodé en `data:` une fois pour toutes : la webview tourne sous une CSP fermée et n'ira jamais lire le disque. Formats acceptés : `.webp`, `.png`, `.jpg` ; autre chose ou lien mort → image ignorée, avec un message.
+4. ✅ **Plaquée sur le côté que l'on VOIT** (`imageFace`, `iso3d.mts`) : le côté ne se devine pas au plan de la pièce — le lacet de présentation tourne toute la scène et un flanc gauche devient un flanc droit. Les **deux** candidats sont projetés, le plus proche de l'œil prend l'image. Le découpage est le **contour** de la pièce, pas le rectangle du bitmap : une photo posée sur une plaque échancrée s'arrête au bord. Et elle est rangée **devant la face la plus avancée** de sa pièce, comme un décalque — une plaque est découpée en dizaines de triangles rangés chacun à SA profondeur, une image simplement soulevée passerait dessous.
+5. ✅ **Sortie SVG : un `<clipPath>` + une `matrix()`** (`renderFaces`) : le bitmap est dessiné dans un **carré unité** et c'est la matrice qui l'amène sur la face — la projection isométrique d'un rectangle est un parallélogramme, et un parallélogramme EST une matrice affine. Aucun besoin de connaître la taille en pixels du fichier. Le `<pattern>` a été écarté : il aurait **carrelé** la plaque dès que l'image est plus petite qu'elle. L'image est peinte **seule**, à sa profondeur, avec sa propre opacité — elle ne rejoint pas le groupe translucide de la pièce.
+6. ✅ **Transparence ajustable comme demandé** : c'est l'`opacity` du dessin, réglée au curseur dans Inkscape, relue telle quelle. Rien à écrire dans l'étiquette de pose.
+7. ✅ **Démonstration et couverture de bout en bout** : l'entretoise de `docs/exemples/corps-demo.svg` porte maintenant une petite carte verte (PNG de 105 octets, embarqué) — c'est la seule preuve que la chaîne complète tient, d'Inkscape au rendu. Illustrations `corps-demo.webp` / `corps-demo-eclate.webp` recapturées.
+8. ✅ **Banc `verify:assemblage` : 264 contrôles** (247 avant). Les nouveaux vérifient le calage au millimètre (les trois points tombent sur les coins de la pièce), la mise à l'échelle, qu'un bitmap plus petit **ne s'étire pas**, le découpage au contour, le rangement devant la pièce, le **côté vu** (une pièce retournée d'un demi-tour garde son image face à l'œil), la sortie SVG (découpage + opacité + matrice), et côté planche que tout bitmap rangé est bien **embarqué** et **coté en millimètres**.
+9. ✅ Guide `docs/fr/Drawing-systems.md` : nouvelle section « Une image plaquée sur la pièce » + ligne d'aide-mémoire.
+10. ⏳ Version EN du guide (`docs/en/Drawing-systems.md`) : au lot de traductions d'avant publication.
 
 # >>>>  v2026.8.58 — l'électronique embarquée est toujours là, et les plaques restent derrière
 

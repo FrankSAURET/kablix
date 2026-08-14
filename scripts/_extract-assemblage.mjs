@@ -203,6 +203,10 @@ export function assembleGroupes(nom, groupes, { source = planche('3D'), k = 1, t
     };
     if (pose.miroir) entry.miroir = pose.miroir;
     if (holes.length) entry.holes = holes.map(move);
+    // Image plaquée sur la pièce : mêmes millimètres et même centrage que le
+    // contour, donc elle suit la pièce partout — pose, miroir, échelle.
+    const img = imageDePiece(g.image, { k, cx, cy, source });
+    if (img) entry.img = img;
     pieces.push(entry);
     // Les axes : une pastille rouge, nommée par son id ou par le texte au-dessus
     // d'elle. Ses coordonnées sont celles de la pièce qui la porte, pose
@@ -233,6 +237,44 @@ export function assembleGroupes(nom, groupes, { source = planche('3D'), k = 1, t
   if (!pieces.length) return null;
   previentFamilles(nom, axes);
   return { source, box: encombrement(pieces), axes, pieces };
+}
+
+/** Types de bitmap acceptés dans une planche, avec leur type MIME. Rien d'autre :
+ *  une image embarquée grossit le bundle de la webview, et un JPEG de 4 Mo posé
+ *  sur une plaque de 30 mm ne se verrait pas mieux qu'une WebP de 40 Ko. */
+const MIMES = { webp: 'image/webp', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg' };
+
+/**
+ * L'image d'une pièce, prête à ranger : millimètres, centrée comme le contour, et
+ * son bitmap EMBARQUÉ en data: URI.
+ *
+ * Embarquer n'est pas un luxe : la webview tourne sous une CSP fermée et n'ira
+ * jamais chercher un fichier à côté de la planche. Inkscape, lui, lie l'image par
+ * défaut (« Incorporer » n'est qu'une option) — un href relatif est donc résolu
+ * ici, à côté du SVG, et encodé une fois pour toutes.
+ */
+function imageDePiece(image, { k, cx, cy, source }) {
+  if (!image || !image.href) return null;
+  const pt = ([x, y]) => ({ x: R2(x * k - cx), y: R2(y * k - cy) });
+  const o = pt(image.o);
+  const u = pt(image.u);
+  const v = pt(image.v);
+  let href = image.href;
+  if (!href.startsWith('data:')) {
+    const chemin = join(join(ROOT, source, '..'), decodeURIComponent(href));
+    const ext = (href.split('.').pop() || '').toLowerCase();
+    if (!MIMES[ext] || !existsSync(chemin)) {
+      console.log(`  ! image « ${href} » introuvable ou de type non géré (webp/png/jpg), ignorée`);
+      return null;
+    }
+    href = `data:${MIMES[ext]};base64,${readFileSync(chemin).toString('base64')}`;
+    console.log(`    image incorporée : ${href.length} caractères de data:`);
+  }
+  return {
+    href,
+    o, u: { x: R2(u.x - o.x), y: R2(u.y - o.y) }, v: { x: R2(v.x - o.x), y: R2(v.y - o.y) },
+    alpha: R2(image.alpha ?? 1),
+  };
 }
 
 /** La famille d'une pastille : son PREMIER mot. Même règle que `axisFamily`
@@ -336,6 +378,18 @@ function dump(obj) {
         `        "h": ${p.h}`,
       ];
       if (p.miroir) f.push(`        "miroir": ${JSON.stringify(p.miroir)}`);
+      // L'image plaquée : trois points, son opacité, et son bitmap en data: — une
+      // seule ligne, si longue soit-elle. La couper pour « faire joli » la
+      // rendrait illisible au diff sans rien gagner : c'est du base64.
+      if (p.img) {
+        f.push(`        "img": {\n`
+          + `          "o": { "x": ${p.img.o.x}, "y": ${p.img.o.y} },\n`
+          + `          "u": { "x": ${p.img.u.x}, "y": ${p.img.u.y} },\n`
+          + `          "v": { "x": ${p.img.v.x}, "y": ${p.img.v.y} },\n`
+          + `          "alpha": ${p.img.alpha},\n`
+          + `          "href": ${JSON.stringify(p.img.href)}\n`
+          + `        }`);
+      }
       f.push(`        "poly": ${ring(p.poly, '        ')}`);
       if (p.holes?.length) {
         f.push(`        "holes": [\n${p.holes.map((h) => '          ' + ring(h, '          ')).join(',\n')}\n        ]`);

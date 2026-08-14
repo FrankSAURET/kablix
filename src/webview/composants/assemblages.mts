@@ -349,6 +349,13 @@ const DATA = {
         "pos": { "x": 0, "y": -36, "z": 0 },
         "w": 40,
         "h": 25,
+        "img": {
+          "o": { "x": -15, "y": -8.5 },
+          "u": { "x": 30, "y": 0 },
+          "v": { "x": 0, "y": 18 },
+          "alpha": 0.85,
+          "href": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAUCAIAAABj86gYAAAAMElEQVR42mMQybOhKWKgqwVX1ptTl0F3H4xaQIYFkpIyBNGoBaMWjGa00eJ68AcRAJ3PzUjYr38/AAAAAElFTkSuQmCC"
+        },
         "poly": [
           { "x": -20, "y": -12.5 }, { "x": 20, "y": -12.5 }, { "x": 20, "y": 12.5 }, { "x": -20, "y": 12.5 },
           { "x": -20, "y": -12.3 }
