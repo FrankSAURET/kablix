@@ -510,3 +510,80 @@ demande un changement de nature, pas une optimisation : **#16**.
 4. Cap : **#16** (cœur Cortex-M0+ en WASM) — la seule piste qui reste à la
    hauteur de l'écart. #18 seulement si un mode « rapide, moins fidèle » devient
    un objectif produit.
+
+## 12. État au 15 août 2026
+
+### Ce qui a bougé depuis le §11 : #19, le fil de simulation
+
+Le moteur ne tourne plus dans le fil de l'interface. Cinq lots (v2026.8.51 →
+v2026.8.55, worker **allumé par défaut** depuis) l'ont déplacé dans un Web
+Worker. Ça ne rend pas l'émulateur plus rapide — le facteur ×11 est intact — mais
+ça change ce que l'élève ressent : **déplacer un composant, ouvrir la palette ou
+redimensionner la fenêtre ne vole plus de temps simulé**. Avant, toute l'animation
+de l'éditeur se payait sur le dos du firmware.
+
+C'est le dernier gain « gratuit » disponible. Tout ce qui reste demande d'écrire
+un cœur.
+
+### « Faire comme Wokwi » : il n'y a rien à rattraper
+
+Point à mettre au clair avant de chiffrer quoi que ce soit : **le moteur est déjà
+celui de Wokwi**. `rp2040js` 1.3.3 est publié par `github.com/wokwi/rp2040js`,
+auteur `uri@wokwi.com` — comme `avr8js` pour les cartes AVR. Kablix ne court pas
+après une implémentation qu'il n'aurait pas : il fait tourner la leur, **patchée
+plus loin** (`patches/rp2040js+1.3.3.patch`, +30 % au niveau 3, §8-§10).
+
+Donc « refaire rp2040js pour atteindre les performances de Wokwi » n'a pas de
+sens tel quel. La formulation juste est : **écrire le cœur M0+ en WASM**, ce que
+le paquet public de Wokwi ne fait pas. C'est #16, et ce serait une avance sur
+eux, pas un rattrapage. (Leur ESP32, lui, tourne sur QEMU compilé en WASM :
+l'approche existe chez eux, sur une autre puce.)
+
+### Point dur n°1 levé : la CSP, mesurée
+
+Le §6 annonçait le blocage sans le vérifier. C'est fait, en Chrome headless, un
+module WASM minimal (`(module (func (export "f") (result i32) (i32.const 42)))`),
+une page par CSP, testé **dans la page ET dans un worker `blob:`** :
+
+| CSP | Page | Worker |
+| --- | --- | --- |
+| `script-src 'nonce-KX'` (celle de la webview aujourd'hui) | **refusé** | **refusé** |
+| `script-src 'nonce-KX' 'wasm-unsafe-eval'` | ok (42) | ok (42) |
+
+Deux enseignements. D'abord le message de Chrome est explicite —
+*« Compiling or instantiating WebAssembly module violates the following Content
+Security policy directive »* — donc l'échec sera lisible, pas mystérieux.
+Ensuite, et c'est le point qui n'allait pas de soi : **le worker hérite de la CSP
+du document**. Déplacer le moteur dans le worker (#19, livré) ne contourne rien.
+
+Le correctif est bien **une seule ligne**, `script-src 'nonce-${nonce}'` dans
+[webview-html.ts](../src/webview-html.ts) (ligne 74 aujourd'hui, 64 quand le §6 a
+été écrit). Rien à négocier avec VS Code : la directive est dans notre propre
+`<meta>`.
+
+Le point dur n°2 (l'horloge par instruction) reste entier, et reste **le** vrai
+risque de #16 : c'est lui qui décide si le cœur WASM tient ses ×2-×4 ou se fait
+manger par les allers-retours.
+
+### Si #16 se lance : quatre jalons, chacun avec sa sortie
+
+Le §6 chiffre 25-38 jours d'un bloc. Un bloc de cinq semaines qui ne prouve rien
+avant la fin est intenable. Découpage proposé, chaque jalon donnant un chiffre
+qui autorise ou interdit le suivant :
+
+1. **Maquette de vitesse (2-3 j).** Pas d'émulateur : une boucle WASM qui décode
+   et exécute une poignée d'instructions Thumb sur une RAM en mémoire linéaire,
+   plus une variante qui remonte en JS à chaque instruction. Le rapport entre les
+   deux mesure directement le prix du pont. *Si le gain brut n'atteint pas ×3,
+   #16 est morte* — inutile d'écrire le NVIC.
+2. **Cœur nu + conformité (8-12 j).** Thumb-1 complet, exceptions, horloge dans
+   le WASM. Sortie : le banc de conformité (rejouer un firmware et comparer
+   registre par registre avec le moteur JS) passe.
+3. **Pont périphériques (5-8 j).** Trappes vers JS pour `0x40000000+` et le SIO,
+   remontée sur événement seulement. Sortie : `blink-pico` tourne, Minstr/s
+   mesuré sur le banc habituel.
+4. **Second cœur, intégration, régressions (8-15 j).** Sortie : les 40+ schémas
+   `testkablix` verts, wasm inline en base64 dans le bundle.
+
+Le jalon 1 coûte deux jours et tue ou valide une piste à cinq semaines. C'est
+par là qu'on commence, jamais autrement.

@@ -7,6 +7,13 @@
 1. ⏳ Traduction FR du réglage `kablix.simulationWorker` (`package.nls.fr.json`) : sa description a changé avec le défaut activé — au lot de traductions d'avant publication.
 Les cinq lots du worker sont livrés (v2026.8.51 → v2026.8.55).
 
+## Pistes d'amélioration — topo du 15 août 2026 (détail : `scripts/vitesse-pico.md` §12)
+1. ⏳ **Maquette de vitesse WASM (2-3 j)** — le seul travail à faire AVANT de décider #16 (cœur Cortex-M0+ en WASM, 25-38 j) : une boucle WASM qui exécute quelques instructions Thumb, contre la même qui remonte en JS à chaque instruction. Le rapport des deux dit si le pont mange le gain. En dessous de ×3, #16 est morte et on arrête d'y penser.
+2. ⏳ **CSP : `'wasm-unsafe-eval'`** ([webview-html.ts:74](src/webview-html.ts#L74)) — vérifié en headless le 15/08 : sans lui, `WebAssembly.instantiate` est refusé DANS LA PAGE **et dans le worker** (il hérite de la CSP du document). Une ligne, à faire au jour 1 de la piste 1, pas après.
+3. ⏳ **Suite `verify:all` en parallèle** — 83 bancs en série, **14 min** sur une machine à 12 cœurs. Les bancs qui MESURENT du temps (vitesse Pico, 7 segments multiplexé) doivent rester seuls ; tout le reste peut tourner par paquets. Vise 3-4 min, soit une vraie boucle de retour à chaque lot.
+4. ⏳ **Poids du bundle webview** — `dist/webview.js` = **3,4 Mo**, l'essentiel étant les SVG des composants inlinés (`src/webview/composants/externe` = 3,7 Mo de source). N'affecte que l'ouverture de la webview, pas la simulation : à mesurer avant d'y toucher.
+5. ℹ️ **« Faire comme Wokwi » n'a pas d'objet** : `rp2040js` **est** la bibliothèque de Wokwi (dépôt `wokwi/rp2040js`, auteur `uri@wokwi.com`), comme `avr8js`. Kablix fait tourner la leur, patchée plus loin (+30 %). Le cœur WASM serait une avance sur eux, pas un rattrapage.
+
 # >>>>  v2026.8.64 — les réglages du robot rentrent dans quatre tiroirs
 
 1. ✅ **Quatre sections repliables dans l'inspecteur du robot**, dans l'ordre demandé : *Paramétrer la carte 16 servomoteurs* (les six pads d'adresse), *Inverser les servomoteurs* (8 cases), *Régler le 0 des servomoteurs* (8 calages), *Paramètres des servomoteurs* (impulsions 0°/180°, temps de rotation). **Toutes fermées à la sélection**, comme demandé : le panneau fait **moins de la moitié** de sa hauteur ouverte.
