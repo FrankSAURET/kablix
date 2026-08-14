@@ -1756,10 +1756,7 @@ function refreshVisualsInner(): void {
         if (!pin) break;
         const us = engine.readPulseUs?.(pin) ?? 0;
         if (us > 0) {
-          const pmin = Number(part.attrs?.pulsemin) || 500;
-          const pmax = Number(part.attrs?.pulsemax) || 2500;
-          const span = pmax > pmin ? pmax - pmin : 2000;
-          el.angle = Math.max(0, Math.min(180, ((us - pmin) / span) * 180));
+          el.angle = servoAngleUs(us, part.attrs);
         } else {
           el.angle = engine.readDigital(pin) ? 90 : 0;
         }
@@ -1770,13 +1767,10 @@ function refreshVisualsInner(): void {
         // que le servo simple, appliquée séparément à chacune.
         const bind = patteTargets.get(part.id);
         if (!bind) break;
-        const pmin = Number(part.attrs?.pulsemin) || 500;
-        const pmax = Number(part.attrs?.pulsemax) || 2500;
-        const span = pmax > pmin ? pmax - pmin : 2000;
         const angleFor = (pin: string | null): number | undefined => {
           if (!pin) return undefined;
           const us = engine!.readPulseUs?.(pin) ?? 0;
-          if (us > 0) return Math.max(0, Math.min(180, ((us - pmin) / span) * 180));
+          if (us > 0) return servoAngleUs(us, part.attrs);
           return engine!.readDigital(pin) ? 90 : 0;
         };
         const coxa = angleFor(bind.coxa);
@@ -2623,6 +2617,31 @@ function renderNeopixel(
   }
 }
 
+/**
+ * Angle d'un servo d'après la largeur d'impulsion REÇUE (µs) et les deux
+ * réglages du composant : l'impulsion qui vaut 0° et celle qui vaut 180°
+ * (défaut 500-2500 µs, datasheet SG90 ; la lib Servo d'Arduino dit 544-2400).
+ *
+ * Une seule formule pour TOUS les chemins (v2026.8.63). Elle n'existait que sur
+ * le chemin GPIO : branché sur un PCA9685, le même servo était lu sur une
+ * échelle 1000-2000 µs écrite en dur, donc un programme qui commande 130°
+ * (1944 µs sur l'échelle du composant) faisait tourner la pièce jusqu'à 169,9°.
+ * Seuls les angles ronds tombaient juste — 1500 µs = 90° dans les deux échelles,
+ * 500 et 2500 µs rattrapés par les butées — d'où un défaut invisible aux tests
+ * qui ne balaient que 0/90/180.
+ */
+/** Attributs du composant `id` dans le schéma courant (réglages de l'inspecteur). */
+function attrsOf(id: string): Record<string, string> | undefined {
+  return editor.diagram.parts.find((p) => p.id === id)?.attrs;
+}
+
+function servoAngleUs(us: number, attrs?: Record<string, string>): number {
+  const pmin = Number(attrs?.pulsemin) || 500;
+  const pmax = Number(attrs?.pulsemax) || 2500;
+  const span = pmax > pmin ? pmax - pmin : 2000;
+  return Math.max(0, Math.min(180, ((us - pmin) / span) * 180));
+}
+
 /** Propage les rapports cycliques des PCA9685 vers les composants pilotés. */
 function applyPca9685(): void {
   // Aucune carte PCA9685 dans le schéma : rien à faire (évite un buildNets par
@@ -2653,14 +2672,14 @@ function applyPca9685(): void {
       if (!el) continue;
       const duty = powered ? dev.channelDuty(c.ch) : 0;
       if (c.targetKind === 'servo') {
-        // 50 Hz : impulsion = duty × 20 ms ; 1–2 ms → 0–180°.
+        // 50 Hz : impulsion = duty × 20 ms, lue sur l'échelle DU COMPOSANT.
         // Sans alimentation servo : pas d'impulsion → le bras ne bouge pas.
-        if (powered) el.angle = Math.max(0, Math.min(180, (duty * 20000 - 1000) / 1000 * 180));
+        if (powered) el.angle = servoAngleUs(duty * 20000, attrsOf(c.targetId));
       } else if (c.targetKind === 'patte') {
         // Même formule que servo, appliquée à l'articulation exacte visée par
         // ce canal (targetPin distingue coxa.PWM de patella.PWM).
         if (powered) {
-          const angle = Math.max(0, Math.min(180, (duty * 20000 - 1000) / 1000 * 180));
+          const angle = servoAngleUs(duty * 20000, attrsOf(c.targetId));
           if (c.targetPin === 'coxa.PWM') el.coxaAngle = angle;
           else if (c.targetPin === 'patella.PWM') el.patellaAngle = angle;
         }
@@ -2690,10 +2709,11 @@ function applyAraignee(): void {
     const el = editor.elementOf(part.id);
     if (!el) continue;
     for (let ch = 0; ch < 8; ch++) {
-      // 50 Hz : impulsion = duty × 20 ms ; 1–2 ms → 0–180° (formule du servo).
+      // 50 Hz : impulsion = duty × 20 ms, lue sur l'échelle DES SERVOS DU ROBOT
+      // (`pulsemin`/`pulsemax`, 500-2500 µs par défaut — ceux de Frank).
       const duty = dev.channelDuty(ch);
       if (duty <= 0) continue; // canal pas encore piloté : l'articulation ne bouge pas
-      const angle = Math.max(0, Math.min(180, ((duty * 20000 - 1000) / 1000) * 180));
+      const angle = servoAngleUs(duty * 20000, part.attrs);
       el[`${ch % 2 === 0 ? 'coxa' : 'patella'}${Math.floor(ch / 2)}`] = angle;
     }
   }

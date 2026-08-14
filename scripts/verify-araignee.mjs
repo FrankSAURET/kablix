@@ -30,7 +30,7 @@ import '../../src/webview/composants/araignee-element.mjs';
 import '../../src/webview/composants/patte-element.mjs';
 import { robot, legXf, eyes, eyeFaces, YAW } from '../../src/webview/composants/araignee-element.mjs';
 import { SIMPLIFY, SYSTEME_PX } from '../../src/webview/composants/patte-element.mjs';
-import { assemblyFaces, rotZ } from '../../src/webview/composants/iso3d.mjs';
+import { assemblyFaces, project, rotZ } from '../../src/webview/composants/iso3d.mjs';
 import { CATALOG, partCategory, partDef } from '../../src/webview/diagram/catalog.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const checks = [];
@@ -384,6 +384,64 @@ async function run() {
 		Math.abs(ecart(cap(zx.geometry[1]), cap(g0[1]))) < 0.01,
 		ecart(cap(zx.geometry[1]), cap(g0[1])).toFixed(2));
 
+	// --- 6 quater. La pose de Frank : mêmes angles = même hauteur (v2026.8.63) --
+	// Question posée sur la dernière pose de araignee-pico.py (coxa 115,
+	// patella 130 sur les quatre pattes, avec ses réglages de montage) : les
+	// pointes de tibia n'ont pas l'air à la même hauteur. Mesure : elles y sont
+	// AU MILLIÈME. Ce qui trompe l'œil est la vue de biais — un pied plus loin
+	// monte à l'écran sans monter d'un millimètre. On vérifie donc les deux : la
+	// hauteur vraie (égale) et la hauteur d'écran (différente, et c'est normal).
+	const FRANK = { speed: '0', revcoxa2: '1', revcoxa3: '1',
+		zerocoxa0: '-14', zerocoxa1: '-14', zerocoxa2: '14', zerocoxa3: '14' };
+	const fr = await mk(FRANK);
+	for (let i = 0; i < 4; i++) { fr['coxa' + i] = 115; fr['patella' + i] = 130; }
+	await fr.updateComplete;
+	const gf = fr.geometry;
+	ok('pose de Frank : les 4 pointes de tibia sont à la MÊME hauteur',
+		gf.every((g) => Math.abs(g.foot.z - gf[0].foot.z) < 0.001),
+		gf.map((g) => g.foot.z.toFixed(3)).join(' '));
+	ok('pose de Frank : les pieds sont LEVÉS (la patella pliée les décolle)',
+		gf[0].foot.z > 20, gf[0].foot.z.toFixed(1));
+	// Symétrie gauche/droite, mesurée dans le monde : il faut défaire le lacet de
+	// présentation (YAW), sinon deux points symétriques n'ont ni le même x ni le
+	// même y à l'écran — et c'est exactement ce qui donne l'illusion.
+	const sansLacet = (p) => rotZ(p, -YAW);
+	const paire = (a, b) => {
+		const u = sansLacet(gf[a].foot);
+		const v = sansLacet(gf[b].foot);
+		return Math.hypot(u.x + v.x, u.y - v.y, u.z - v.z);
+	};
+	// Tolérance d'un dixième d'unité : les coxas arrière du DESSIN ne sont pas
+	// symétriques au centième de millimètre (18,9 à gauche, 18,89 à droite), et
+	// un dixième de degré de lacet se voit au bout d'un tibia. La hauteur, elle,
+	// reste juste au millième — c'est elle qui est en cause ici.
+	ok('pose de Frank : patte gauche et patte droite sont en miroir (avant)',
+		paire(0, 1) < 0.2, paire(0, 1).toFixed(3));
+	ok('pose de Frank : idem à l\\'arrière', paire(2, 3) < 0.2, paire(2, 3).toFixed(3));
+	// L'écran, lui, les étale : c'est la profondeur, pas la hauteur. La preuve
+	// visible à l'écran est l'OMBRE, posée à la verticale sous le pied — l'écart
+	// pied-ombre vaut exactement la hauteur du pied dans cette projection.
+	const ecran = gf.map((g) => project(g.foot).y);
+	ok('pose de Frank : à l\\'écran elles sont à des hauteurs DIFFÉRENTES (vue de biais)',
+		Math.max(...ecran) - Math.min(...ecran) > 50,
+		ecran.map((v) => v.toFixed(0)).join(' '));
+	ok('pose de Frank : l\\'ombre de chaque pied tombe pile à sa hauteur sous lui',
+		gf.every((g) => {
+			const sol = project({ x: g.foot.x, y: g.foot.y, z: 0 });
+			const pied = project(g.foot);
+			return Math.abs(sol.x - pied.x) < 0.01 && Math.abs(sol.y - pied.y - g.foot.z) < 0.01;
+		}));
+	// Et le vrai défaut trouvé en cherchant : l'échelle d'impulsion. Le PCA9685
+	// lisait 1000-2000 µs quand le composant est réglé sur 500-2500 : la consigne
+	// 130° (1944 µs) faisait tourner l'articulation jusqu'à 169,9°.
+	const echelle = (us, min = 500, max = 2500) =>
+		Math.max(0, Math.min(180, ((us - min) / (max - min)) * 180));
+	const us130 = 500 + Math.floor((130 * 2000) / 180);
+	ok('impulsion : 130° commandés donnent bien 130° dessinés (500-2500 µs)',
+		Math.abs(echelle(us130) - 130) < 0.6, echelle(us130).toFixed(1));
+	ok('impulsion : l\\'ancienne échelle 1000-2000 donnait 169,9° pour 130°',
+		Math.abs(echelle(us130, 1000, 2000) - 169.9) < 0.6, echelle(us130, 1000, 2000).toFixed(1));
+
 	// --- 7. Animation : la patte POURSUIT sa consigne à la vitesse réglée -------
 	// La cible est mesurée sur une instance instantanée (speed = 0) : le dessin
 	// décide où tombe le pied, le test ne fait que vérifier qu'on y arrive.
@@ -529,6 +587,19 @@ const source = [
   ['sim : applyAraignee() appelée à chaque rafraîchissement', /\n\s*applyAraignee\(\);/.test(sim)],
   ['sim : canaux pairs → coxa, impairs → patella', /ch % 2 === 0 \? 'coxa' : 'patella'/.test(sim)],
   ['sim : les 8 canaux sont lus', /ch < 8/.test(sim)],
+  // v2026.8.63 : UNE seule échelle d'impulsion pour tous les chemins. Le PCA9685
+  // avait la sienne, écrite en dur (1000-2000 µs), qui ignorait les réglages du
+  // composant — le robot ne prenait donc pas la pose commandée.
+  ['sim : une seule formule impulsion → angle (servoAngleUs)',
+    /function servoAngleUs\(us: number, attrs\?: Record<string, string>\): number/.test(sim)],
+  ['sim : elle lit les réglages du composant (pulsemin/pulsemax)',
+    /Number\(attrs\?\.pulsemin\) \|\| 500/.test(sim) && /Number\(attrs\?\.pulsemax\) \|\| 2500/.test(sim)],
+  ["sim : plus aucune échelle 1000-2000 µs écrite en dur", !/20000 - 1000\) \/ 1000/.test(sim)],
+  ['sim : le robot passe SES réglages d\'impulsion', /servoAngleUs\(duty \* 20000, part\.attrs\)/.test(sim)],
+  ['sim : un servo ou une patte sur PCA9685 aussi', /servoAngleUs\(duty \* 20000, attrsOf\(c\.targetId\)\)/.test(sim)],
+  ['catalogue : le robot a ses deux réglages d\'impulsion (500-2500 µs)',
+    /type: 'araignee'[\s\S]{0,400}pulsemin: '500', pulsemax: '2500'/.test(
+      readFileSync(join(ROOT, 'src/webview/diagram/catalog.mts'), 'utf8'))],
   // Déposer le robot bascule la carte cible sur la Pico W : c'est `board` de la
   // DÉFINITION qui décide, pas le kind (le robot n'est pas une carte nue).
   ['sim : déposer le robot choisit sa carte (def.board, pas def.kind)',

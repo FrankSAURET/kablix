@@ -1,6 +1,5 @@
 # À faire
 ## Arraignée : 
-1. Si on bloque sur la dernière position  telle que j'ai réglé les paramètres de araignne-pico, on peut voir que les pointes des tibias ne sont pas à la même hauteur et pourtant l'angle est le même. J'ai mois un sleep(10) pour matérialiser l'endroit
 1. Tu va mettre des menu déroulant dans ces propriétées (sur le modèle des composants mais par défaut tous repliés):
     1. Rappel de l'adresse I²C tout en haut
     1. Paramétrer carte 16 servomoteurs
@@ -17,6 +16,16 @@
 # En réserve
 1. ⏳ Traduction FR du réglage `kablix.simulationWorker` (`package.nls.fr.json`) : sa description a changé avec le défaut activé — au lot de traductions d'avant publication.
 Les cinq lots du worker sont livrés (v2026.8.51 → v2026.8.55).
+
+# >>>>  v2026.8.63 — mêmes angles = même hauteur, et l'impulsion est celle du vrai servo
+
+1. ✅ **Les quatre pieds SONT à la même hauteur** — mesuré, pas supposé. Dans la pose finale de `araignee-pico.py` (coxa 115°, patella 130°, avec tes inversions et tes zéros), les quatre pointes de tibia sont à **z = 81,492** au millième près, et chaque **ombre** tombe exactement à la verticale sous son pied. Structurellement c'est obligé : le balayage de coxa est une rotation autour de l'axe **vertical** (`rotZ` ne touche jamais à z) et les quatre pastilles de coxa sont à z = 0 — seule la patella fait la hauteur, et elle est la même sur les quatre pattes.
+2. ✅ **Ce qui se voit à l'écran, c'est la profondeur.** Le robot est dessiné **de biais** (projection isométrique) : à hauteur réelle égale, la patte la plus lointaine est dessinée **plus haut** — ici jusqu'à **250 px** d'écart. C'est le principe même de la vue en volume, pas un défaut de pose. Le repère qui ne ment pas est l'ombre : l'écart pied ↔ ombre EST la hauteur.
+3. ✅ **Le vrai défaut trouvé en creusant : l'échelle d'impulsion était fausse.** La conversion µs → angle du **PCA9685** (donc de TOUT le robot, ses huit servos passant par lui) était écrite en dur sur **1000–2000 µs**, alors que le composant déclare **500–2500 µs** (datasheet SG90). Conséquence invisible aux extrêmes — 1500 µs vaut 90° dans les deux échelles, et les butées rattrapent les bouts — mais `pose(115, 130)` était **dessinée 139,9° / 169,9°**. D'où la sensation de pose fausse.
+4. ✅ **Une seule fonction pour les cinq conversions** (`servoAngleUs`, `sim.mts`) : servo sur broche, patte sur broche, servo sur canal PCA, patte sur canal PCA, robot araignée. Chacune lit désormais `pulsemin`/`pulsemax` **du composant visé** (`attrsOf(id)` pour les canaux du PCA, qui pilotent un autre composant que celui qui reçoit l'I²C).
+5. ✅ **L'araignée gagne les deux propriétés qui lui manquaient** (`pulsemin` / `pulsemax`, défauts 500 et 2500) : la patte seule les avait déjà, le robot non — il était donc impossible de décrire d'autres servos que ceux d'origine.
+6. ✅ **Banc `verify:araignee` : 96 contrôles** (82 avant). Nouvelle section « la pose de Frank » qui **rejoue tes réglages** : même z aux quatre pieds, pieds décollés du sol, symétrie miroir avant/arrière une fois le lacet de présentation annulé, hauteurs **à l'écran** bien différentes (la preuve du biais), ombre exactement sous chaque pied, et l'échelle d'impulsion (130° → 1944 µs → 130° en 500–2500, mais 169,9° en 1000–2000).
+7. ✅ Fiche `docs/fr/composants/araignee.md` : deux sections neuves — « L'impulsion des servos » et « Lire la hauteur d'un pied ».
 
 # >>>>  v2026.8.62 — la taille du système fini tient dans UN nombre
 

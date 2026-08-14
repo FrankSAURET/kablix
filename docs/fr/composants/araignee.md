@@ -21,6 +21,8 @@ Catégorie de la palette : **Système**.
 | Propriété | Rôle | Défaut |
 |-----------|------|--------|
 | `ad0` … `ad5` | État des six pads d'adresse du PCA9685 embarqué (coché = pad **haut**) | tous cochés |
+| `pulsemin` | Impulsion correspondant à 0° (µs), pour les huit servos | `500` |
+| `pulsemax` | Impulsion correspondant à 180° (µs), pour les huit servos | `2500` |
 | `speed` | Temps d'un tour complet (360°) à pleine vitesse (s), 0 = mouvement instantané | `2` |
 | `revcoxa0` … `revpatella3` | Servo monté **à l'envers** : la même consigne le fait tourner de l'autre côté | décoché |
 | `zerocoxa0` … `zeropatella3` | Angle **dessiné** quand le programme envoie 0° à ce servo (−360 à +360°) | `0` |
@@ -28,6 +30,18 @@ Catégorie de la palette : **Système**.
 L'adresse du PCA9685 embarqué se règle **comme sur la vraie carte**, en cochant les six pads **AD0 à AD5** ; elle s'affiche sous les cases. Tous cochés — le réglage d'usine du module Grove — donnent **0x7F**, l'adresse par défaut du robot. Le détail du calcul est dans la [fiche du PCA9685](pca9685.md).
 
 Les huit articulations obéissent aux mêmes angles que la [patte seule](patte.md) : coxa 90° = repos (la patte part vers l'extérieur, dans l'axe de son coin de châssis), patella 90° = **tibia vertical, robot debout, les quatre pieds au sol**. 180° tend la patte dans le prolongement du fémur, 0° la replie de l'autre côté.
+
+### L'impulsion des servos
+
+Les huit servos sont les mêmes, donc **une seule échelle** pour les huit : `pulsemin` est l'impulsion qui vaut 0°, `pulsemax` celle qui vaut 180°, et tout ce qui est entre les deux s'interpole. Les valeurs par défaut sont celles des servos du robot (**500 – 2500 µs**, datasheet SG90) ; la bibliothèque `Servo` d'Arduino, elle, part de 544 – 2400 µs.
+
+C'est ce réglage qui fait tomber juste les angles **intermédiaires**. Une échelle fausse ne se voit pas aux extrêmes — 1500 µs vaut 90° dans à peu près toutes les échelles, et les butées rattrapent les bouts — mais une consigne de 130° arrive alors 40° plus loin, et le robot ne prend pas la pose que le programme demande.
+
+### Lire la hauteur d'un pied
+
+Le robot est vu **de biais**. Deux pieds à la même hauteur réelle n'apparaissent donc **pas** à la même hauteur à l'écran : celui qui est plus loin est dessiné plus haut, c'est ce qui donne la profondeur. À angles de patella égaux, les quatre pointes sont pourtant rigoureusement au même niveau.
+
+Le repère qui ne trompe pas est l'**ombre** : elle tombe à la verticale sous le pied, et l'écart entre le pied et son ombre est exactement sa hauteur. Pieds au sol, l'ombre les touche ; pattes levées, elle s'écarte et pâlit d'autant.
 
 ### Servos montés à l'envers
 

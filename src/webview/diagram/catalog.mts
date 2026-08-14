@@ -905,7 +905,7 @@ export const CATALOG: readonly PartDef[] = [
     type: 'araignee', label: 'Spider robot', tag: 'kablix-araignee', kind: 'araignee',
     board: 'picow', pinless: true,
     attrs: {
-      address: '0x7F', ...PCA9685_PAD_ATTRS, speed: '2',
+      address: '0x7F', ...PCA9685_PAD_ATTRS, pulsemin: '500', pulsemax: '2500', speed: '2',
       revcoxa0: '', revpatella0: '', revcoxa1: '', revpatella1: '',
       revcoxa2: '', revpatella2: '', revcoxa3: '', revpatella3: '',
       zerocoxa0: '0', zeropatella0: '0', zerocoxa1: '0', zeropatella1: '0',
@@ -913,6 +913,10 @@ export const CATALOG: readonly PartDef[] = [
     },
     props: [
       ...PCA9685_PAD_PROPS,
+      // Les huit servos du robot sont les mêmes : une seule échelle d'impulsion
+      // pour les huit, comme sur la patte seule.
+      { attr: 'pulsemin', label: 'Pulse at 0° (µs)', kind: 'number', min: 100, max: 3000, step: 1 },
+      { attr: 'pulsemax', label: 'Pulse at 180° (µs)', kind: 'number', min: 100, max: 3000, step: 1 },
       { attr: 'speed', label: 'Rotation time (s/turn)', kind: 'number', min: 0, max: 30, step: 0.1 },
       REVERSE_PROP('revcoxa0', 'Reverse the front-left coxa'),
       REVERSE_PROP('revpatella0', 'Reverse the front-left patella'),
