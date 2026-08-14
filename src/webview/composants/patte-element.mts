@@ -61,11 +61,36 @@ export const LEG_TIBIA = 'araignee-patte-tibia';
  *  Le tibia descend déjà de la patella sur la planche, donc 90° ne plie rien. */
 export const PATELLA_REST = 90;
 
+/** LARGEUR VOULUE DU SYSTÈME FINI, en pixels de la planche (Frank, v2026.8.62) :
+ *  le SEUL réglage de taille des dessins en volume, écrit UNE FOIS pour tout le
+ *  système. Le robot entier est cadré pour l'occuper, et la patte seule — qui
+ *  est un morceau du même système — s'en déduit : feuille, allègement des
+ *  contours et ombres suivent. Un seul nombre à changer pour tout agrandir ou
+ *  tout réduire. 400 px avant : le robot tenait dans 4 cm à l'écran, on n'y
+ *  distinguait ni les cartes embarquées ni le pli d'une articulation. */
+export const SYSTEME_PX = 800;
+
+/** Le rapport à la feuille d'ORIGINE (400 px) : tout ce qui est écrit en pixels
+ *  — allègement des contours, rayon des ombres, marges — le suit, sinon
+ *  agrandir le système ne fait grandir que le robot et laisse ses ombres et son
+ *  niveau de détail à l'ancienne taille. */
+export const PX = SYSTEME_PX / 400;
+
 /** Allègement des contours, en unités de feuille (voir `simplifyPoly`) : les
  *  tracés Inkscape portent leurs courbes en dizaines de points d'un dixième de
  *  millimètre. À 0,7 près (un demi-pixel) la silhouette est la même pour trois
- *  fois moins de polygones. */
-export const SIMPLIFY = 0.7;
+ *  fois moins de polygones.
+ *  La tolérance SUIT la taille du système (v2026.8.62) : elle est donnée pour la
+ *  feuille de 400 px d'origine et mise à l'échelle, sinon un dessin deux fois
+ *  plus grand garde deux fois plus de points pour exactement le même rendu —
+ *  3 505 polygones mesurés au lieu de 1 300, et l'animation redevient saccadée. */
+export const SIMPLIFY = 0.7 * PX;
+
+/** Taille visée d'un triangle de face plate (voir `assemblyFaces`), elle aussi
+ *  à l'échelle du système : c'est une taille RELATIVE à la scène. Laissée fixe,
+ *  doubler le dessin quadruplait le nombre de faces (2 555 polygones mesurés
+ *  pour 1 300) sans rien changer à l'image. */
+export const GRAIN = 26 * PX;
 
 /** Géométrie d'une patte : les points qui comptent, pour dessiner ET pour
  *  mesurer (les bancs lisent la position du pied, pas des pixels). */
@@ -250,20 +275,27 @@ export class JointAnimator {
   };
 }
 
-/** Feuille de la patte seule : le connecteur occupe la colonne de gauche, la
- *  mécanique tout le reste. Elle a DOUBLÉ en v2026.8.56 — à 210 × 170 la patte
- *  était un gribouillis de 3 cm, on n'y lisait ni le fémur ni le tibia. */
-const SHEET = { w: 250, h: 300 };
-/** Le connecteur, posé en (0, 110) : ses six carrés dorés tombent alors sur la
- *  grille de 10 px (y = 120, 130, 140 puis 160, 170, 180) et le bornier est
- *  centré sur la hauteur de la feuille. */
-const PLUG = { x: 0, y: 110, w: 40, h: 80 };
 /** Écart voulu entre les PASTILLES du bornier et le bord gauche de la mécanique
  *  (v2026.8.56) : centrée dans ce qui restait de la feuille, la patte partait
  *  loin du connecteur auquel elle se câble. Elle y est maintenant CALÉE. */
 const PIN_GAP = 40;
-/** Zone laissée à la mécanique : à droite du connecteur, marge sur les bords. */
+/** Marge gardée sur les bords de la feuille. */
 const MARGIN = 6;
+/** Place laissée à la MÉCANIQUE, déduite de la largeur du système : une patte
+ *  tendue mesure à peu près la moitié du robot, et une fois pliée elle occupe
+ *  une case une fois et demie plus haute que large. Arrondi à la grille de
+ *  10 px, sinon les carrés dorés du bornier tombent entre deux lignes. */
+const ZONE_W = Math.round(SYSTEME_PX / 20) * 10;
+const ZONE_H = Math.round((ZONE_W * 1.5) / 10) * 10;
+/** Feuille de la patte seule : le connecteur occupe la colonne de gauche, la
+ *  mécanique tout le reste. Le bornier, lui, garde sa taille RÉELLE — c'est un
+ *  vrai connecteur, il ne grandit pas avec le dessin. */
+const SHEET = { w: 10 + PIN_GAP + ZONE_W + MARGIN, h: ZONE_H + 2 * MARGIN };
+/** Le connecteur, calé à gauche et centré sur la hauteur : ses six carrés dorés
+ *  doivent tomber sur la grille de 10 px (d'où l'arrondi), sinon aucun fil ne
+ *  s'y accroche proprement. */
+const PLUG = { x: 0, y: Math.round((SHEET.h - 80) / 20) * 10, w: 40, h: 80 };
+/** Zone laissée à la mécanique : à droite du connecteur, marge sur les bords. */
 const ZONE = { x0: PLUG.x + 10 + PIN_GAP, y0: MARGIN, x1: SHEET.w - MARGIN, y1: SHEET.h - MARGIN };
 /** Présentation. La patte est seule : on la veut DE PROFIL, fémur et tibia bien
  *  séparés — vue dans son axe, les deux os se confondent en un simple tube. Or
@@ -275,9 +307,9 @@ const LEG_DIR = -45 - YAW;
 /** Ombre portée du pied : rayon au sol, étalement maximal quand le pied est
  *  levé, hauteur à laquelle elle a doublé, et le dégradé qui lui ôte son
  *  contour. */
-const FOOT_SHADOW = 5;
+const FOOT_SHADOW = 5 * PX;
 const SHADOW_GROW = 2;
-const SHADOW_REF = 130;
+const SHADOW_REF = 130 * PX;
 const OMBRE = 'patte-ombre';
 const SHADOW_PAD = FOOT_SHADOW * Math.cos(Math.PI / 6) * 2 * SHADOW_GROW;
 
@@ -487,7 +519,7 @@ export class PatteElement extends LitElement {
       const { rig, k } = p.view;
       // Pas de `color` : la couleur du DESSIN passe telle quelle, transparence
       // comprise — le PMMA de Frank se traverse du regard (v2026.8.56).
-      const opts = { scale: k, simplify: SIMPLIFY };
+      const opts = { scale: k, simplify: SIMPLIFY, grain: GRAIN };
       // Un seul tas de faces pour fémur ET tibia : c'est le tri en profondeur
       // commun qui fait passer le tibia devant ou derrière selon la pose.
       faces.push(...assemblyFaces(rig.femur, { ...opts, xf: p.xf.femur }));

@@ -1,6 +1,5 @@
 # À faire
 ## Arraignée : 
-1. Elle est trop petite, double sa taille (pareil pour la patte)et ajoute un paramètre pour les dessins qui donne la largeur souhaitée du systeme finis en pixels (une seule fois pour tout le système)
 1. Si on bloque sur la dernière position  telle que j'ai réglé les paramètres de araignne-pico, on peut voir que les pointes des tibias ne sont pas à la même hauteur et pourtant l'angle est le même. J'ai mois un sleep(10) pour matérialiser l'endroit
 1. Tu va mettre des menu déroulant dans ces propriétées (sur le modèle des composants mais par défaut tous repliés):
     1. Rappel de l'adresse I²C tout en haut
@@ -18,6 +17,15 @@
 # En réserve
 1. ⏳ Traduction FR du réglage `kablix.simulationWorker` (`package.nls.fr.json`) : sa description a changé avec le défaut activé — au lot de traductions d'avant publication.
 Les cinq lots du worker sont livrés (v2026.8.51 → v2026.8.55).
+
+# >>>>  v2026.8.62 — la taille du système fini tient dans UN nombre
+
+1. ✅ **`SYSTEME_PX` (dans `patte-element.mts`) = largeur voulue du système fini, en pixels.** Réglé une seule fois, il commande le robot ET la patte : passé de 400 à **800**, les deux dessins ont doublé. Tout le reste en découle d'un facteur `PX = SYSTEME_PX / 400` — feuille, marges, ombres au sol, portée du dégradé d'ombre. La feuille du robot fait `SYSTEME_PX` au carré ; celle de la patte se calcule (`456 × 612`) au lieu d'être écrite en dur.
+2. ✅ **Le connecteur de la patte garde sa taille réelle** : ses pastilles dorées doivent rester sur la grille de 10 px de l'éditeur, sinon les fils ne s'accrochent plus. Seule la ZONE de dessin grandit ; l'origine du connecteur (`PLUG.y`) se recale sur la grille (270).
+3. ✅ **Deux réglages qui ne suivaient PAS l'échelle, trouvés au banc.** La simplification de contour (`SIMPLIFY`, Douglas-Peucker) s'applique APRÈS la mise à l'échelle : à 0,7 px fixe, un dessin deux fois plus grand gardait deux fois plus de points → **3505 polygones** (plafond 1500). Et le grain de découpe des triangles (`MAX_EDGE = 26` dans `subdivide`) est une taille d'ÉCRAN : deux fois plus grand = quatre fois plus de faces → encore **2555**. Les deux sont maintenant relatifs (`SIMPLIFY = 0.7 * PX`, `GRAIN = 26 * PX`) et le compte de polygones est le même qu'avant le doublement.
+4. ✅ **`assemblyFaces` / `slabFaces` acceptent une option `grain`** (`iso3d.mts`), par défaut 26 : aucun autre appelant ne bouge, et un dessin qui change d'échelle passe SA valeur. C'est la seule façon propre — le moteur ne connaît pas l'échelle finale de la scène.
+5. ✅ **Banc `verify:araignee` : 82 contrôles.** Le cadrage ne se vérifie plus contre des nombres écrits (« bbox > 170×130 », faux dès qu'on change la taille) mais contre la feuille elle-même : elle fait exactement `SYSTEME_PX`, le robot en remplit plus de 60 % en large et 40 % en haut, et rien ne dépasse. Suite complète `verify:all` **verte**.
+6. ✅ Illustrations recapturées (`node scripts/_capture-part.mjs araignee patte`) et ligne d'aide-mémoire ajoutée à `docs/fr/Drawing-systems.md`.
 
 # >>>>  v2026.8.61 — l'araignée a des yeux rouges
 

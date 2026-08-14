@@ -31,7 +31,7 @@ import {
 } from './iso3d.mjs';
 import { assemblage, hasAssemblage } from './assemblages.mjs';
 import {
-  JointAnimator, SIMPLIFY, jointTarget, legPose, legRig,
+  JointAnimator, GRAIN, PX, SIMPLIFY, SYSTEME_PX, jointTarget, legPose, legRig,
   type LegGeometry, type LegPose, type LegRig,
 } from './patte-element.mjs';
 
@@ -40,18 +40,21 @@ import {
 const CORPS = 'araignee-corps';
 
 /** Feuille carrée du composant, et marge gardée sur ses quatre bords : le robot
- *  y tient dans TOUTES ses poses, pattes tendues comme repliées. */
-const SHEET = 400;
-const MARGIN = 8;
+ *  y tient dans TOUTES ses poses, pattes tendues comme repliées. Sa taille est
+ *  celle du système fini (`SYSTEME_PX`, réglée une seule fois pour le robot ET
+ *  la patte) : le cadrage remplit la feuille, donc la feuille EST la taille du
+ *  robot à l'écran. */
+const SHEET = SYSTEME_PX;
+const MARGIN = 8 * PX;
 
 /** Les ombres portées, DIFFUSES : rayon au sol, étalement maximal quand le pied
  *  est levé, hauteur à laquelle l'ombre a doublé, et le nom du dégradé qui lui
  *  ôte son contour. Le cadrage doit réserver la place qu'elles prennent une fois
  *  écrasées par l'isométrie (`groundShadow` étire le rayon en x) : l'ombre d'un
  *  pied tendu tombait hors de la feuille alors que le pied, lui, tenait dedans. */
-const FOOT_SHADOW = 6;
+const FOOT_SHADOW = 6 * PX;
 const SHADOW_GROW = 2;
-const SHADOW_REF = 130;
+const SHADOW_REF = 130 * PX;
 const OMBRE = 'araignee-ombre';
 const SHADOW_PAD = FOOT_SHADOW * Math.cos(Math.PI / 6) * 2 * SHADOW_GROW;
 
@@ -439,7 +442,7 @@ export class AraigneeElement extends LitElement {
       // Pas de `color` : la couleur du DESSIN passe telle quelle, transparence
       // comprise — on voit la plaque du dessous à travers celle du dessus, ce
       // qui est le seul moyen de comprendre qu'elles sont EMPILÉES (v2026.8.56).
-      const opts = { scale: r.k, simplify: SIMPLIFY };
+      const opts = { scale: r.k, simplify: SIMPLIFY, grain: GRAIN };
       const pose = (p: Vec3): Vec3 => rotZ({ x: p.x, y: p.y, z: p.z + r.ground }, YAW);
       const corps = assemblyFaces(r.corps, { ...opts, xf: pose });
       faces.push(...corps, ...eyeFaces(r, pose, corps));

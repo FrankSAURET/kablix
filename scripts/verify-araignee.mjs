@@ -29,7 +29,7 @@ const entry = `
 import '../../src/webview/composants/araignee-element.mjs';
 import '../../src/webview/composants/patte-element.mjs';
 import { robot, legXf, eyes, eyeFaces, YAW } from '../../src/webview/composants/araignee-element.mjs';
-import { SIMPLIFY } from '../../src/webview/composants/patte-element.mjs';
+import { SIMPLIFY, SYSTEME_PX } from '../../src/webview/composants/patte-element.mjs';
 import { assemblyFaces, rotZ } from '../../src/webview/composants/iso3d.mjs';
 import { CATALOG, partCategory, partDef } from '../../src/webview/diagram/catalog.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -121,12 +121,21 @@ async function run() {
 	// polygones et 26 ms par image, une marche en diaporama.
 	ok('dessin : contours allégés (< 1 500 polygones, sinon l\\'animation rame)', polys(el) < 1500, polys(el));
 	const bb = svg.getBBox();
-	// Corps seul ~100x80 ; avec les pattes, 193x164. Une bbox trop petite =
+	// La feuille est réglée UNE FOIS pour tout le système (SYSTEME_PX, v2026.8.62) :
+	// le banc la LIT sur le dessin au lieu de la recopier, et tout ce qui suit se
+	// mesure en fraction d'elle — la doubler ne doit rien casser.
+	const feuille = svg.viewBox.baseVal;
+	ok('dessin : la feuille fait la taille voulue du système, une seule fois réglée',
+		feuille.width === SYSTEME_PX && feuille.height === SYSTEME_PX,
+		feuille.width + 'x' + feuille.height + ' pour ' + SYSTEME_PX);
+	// Le robot doit REMPLIR sa feuille (marges et ombres mises à part) : c'est ce
+	// qui fait qu'agrandir la feuille agrandit le robot. Une bbox trop petite =
 	// pattes absentes du rendu (le bug du namespace).
-	ok('dessin : les pattes DÉBORDENT du corps (bbox > 170×130)',
-		bb.width > 170 && bb.height > 130, \`\${Math.round(bb.width)}x\${Math.round(bb.height)}\`);
-	ok('dessin : tout le robot tient dans sa feuille 400×400',
-		bb.x >= 0 && bb.y >= 0 && bb.x + bb.width <= 400 && bb.y + bb.height <= 400,
+	ok('dessin : le robot remplit sa feuille (le cadrage suit la taille voulue)',
+		bb.width > feuille.width * 0.6 && bb.height > feuille.height * 0.4,
+		\`\${Math.round(bb.width)}x\${Math.round(bb.height)} dans \${feuille.width}\`);
+	ok('dessin : tout le robot tient dans sa feuille',
+		bb.x >= 0 && bb.y >= 0 && bb.x + bb.width <= feuille.width && bb.y + bb.height <= feuille.height,
 		\`\${Math.round(bb.x)},\${Math.round(bb.y)} \${Math.round(bb.width)}x\${Math.round(bb.height)}\`);
 	ok('dessin : une ombre au sol par pied (la hauteur ne se voit pas autrement)',
 		el.shadowRoot.querySelectorAll('.araignee__shadows ellipse').length === 5, // 4 pieds + le corps
@@ -411,7 +420,7 @@ async function run() {
 			if (b.x < pvb.x || b.y < pvb.y || b.x + b.width > pvb.x + pvb.width || b.y + b.height > pvb.y + pvb.height) sortis.push(h + '/' + k);
 		}
 	}
-	ok('cadrage : AUCUNE des 25 poses ne déborde de la feuille 400×400', sortis.length === 0, sortis.join(' '));
+	ok('cadrage : AUCUNE des 25 poses ne déborde de la feuille', sortis.length === 0, sortis.join(' '));
 
 	// --- 8. La patte SEULE : même mécanique, et rien ne dépasse de sa feuille ---
 	const p = await mk({ speed: '0' }, 'kablix-patte');

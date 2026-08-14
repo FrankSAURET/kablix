@@ -352,23 +352,26 @@ export function triangulate(poly: Vec2[]): Vec2[][] {
 const MAX_EDGE = 26;
 
 /** Recoupe un triangle par le milieu de sa plus longue arête tant qu'il dépasse
- *  `MAX_EDGE`. Les morceaux partagent la normale du triangle d'origine, donc sa
- *  teinte : le découpage reste invisible. */
-function subdivide(tri: Vec2[], out: Vec2[][]): void {
+ *  `max`. Les morceaux partagent la normale du triangle d'origine, donc sa
+ *  teinte : le découpage reste invisible.
+ *  `max` SUIT la taille du dessin (v2026.8.62) : c'est une taille relative à la
+ *  scène, pas un absolu. Laissé fixe, un dessin deux fois plus grand quadruple
+ *  son nombre de faces pour exactement la même image. */
+function subdivide(tri: Vec2[], out: Vec2[][], max = MAX_EDGE): void {
   const [a, b, c] = tri;
   const e = [
     { d: Math.hypot(b.x - a.x, b.y - a.y), i: 0 },
     { d: Math.hypot(c.x - b.x, c.y - b.y), i: 1 },
     { d: Math.hypot(a.x - c.x, a.y - c.y), i: 2 },
   ].sort((p, q) => q.d - p.d)[0];
-  if (e.d <= MAX_EDGE) { out.push(tri); return; }
+  if (e.d <= max) { out.push(tri); return; }
   const v = [a, b, c];
   const p = v[e.i];
   const q = v[(e.i + 1) % 3];
   const r = v[(e.i + 2) % 3];
   const m: Vec2 = { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 };
-  subdivide([p, m, r], out);
-  subdivide([m, q, r], out);
+  subdivide([p, m, r], out, max);
+  subdivide([m, q, r], out, max);
 }
 
 /**
@@ -493,13 +496,13 @@ export function extrudeProfile(
  */
 export function slabFaces(
   poly: Vec2[], plane: Plane, center: Vec3, thickness: number, color: string,
-  holes: Vec2[][] = [], xf: (p: Vec3) => Vec3 = (p) => p,
+  holes: Vec2[][] = [], xf: (p: Vec3) => Vec3 = (p) => p, grain = MAX_EDGE,
 ): Face[] {
   const { u, v } = PLANES[plane];
   const n = cross(u, v);
   const at = (p: Vec2, s: number): Vec3 => xf(add(center,
     add(add(scale(u, p.x), scale(v, p.y)), scale(n, s))));
-  return slabCore(poly, holes, at, thickness, color);
+  return slabCore(poly, holes, at, thickness, color, grain);
 }
 
 /** Comment le dessin à plat d'une pièce se pose dans le repère de l'assemblage.
@@ -613,6 +616,11 @@ export function axisVector(dir?: AxisDir): Vec3 | null {
  * pièce le long de sa normale — la vue éclatée d'une notice de montage, qui est
  * le seul moyen de voir ce qu'il y a entre deux flancs serrés à 3 mm.
  *
+ * `grain` est la taille visée d'un triangle, dans les mêmes unités de feuille :
+ * c'est une taille RELATIVE à la scène, donc elle suit l'échelle du dessin —
+ * laissée fixe, un dessin deux fois plus grand quadruple son nombre de faces
+ * pour exactement la même image.
+ *
  * `simplify` allège les contours (en unités de la FEUILLE, après échelle) : un
  * composant de l'atelier, redessiné à chaque image d'animation, ne peut pas
  * porter les milliers de faces qu'un tracé Inkscape brut produit — alors qu'un
@@ -625,11 +633,13 @@ export function assemblyFaces(a: Assembly, opts: {
   eclate?: number;
   color?: (p: AssemblyPiece) => string;
   simplify?: number;
+  grain?: number;
 } = {}): Face[] {
   const k = opts.scale ?? 1;
   const xf = opts.xf ?? ((p: Vec3): Vec3 => p);
   const eclate = opts.eclate ?? 0;
   const tol = opts.simplify ?? 0;
+  const grain = opts.grain ?? MAX_EDGE;
   const out: Face[] = [];
   const empiles: Empile[] = [];
   for (const p of a.pieces) {
@@ -644,7 +654,7 @@ export function assemblyFaces(a: Assembly, opts: {
       const along = dot(pos, n);
       const off = scale(n, eclate * Math.sign(along));
       const center = add(scale(pos, k), off);
-      const faces = slabFaces(poly, p.plan, center, p.ep * k, color, holes, xf);
+      const faces = slabFaces(poly, p.plan, center, p.ep * k, color, holes, xf, grain);
       const decalque = p.img && imageFace(p, poly, k, center, xf, faces);
       if (decalque) faces.push(decalque);
       empiles.push({ ...boiteMonde(poly, p.plan, center, p.ep * k), faces, alpha: alphaColor(color) });
@@ -1072,7 +1082,7 @@ export function montage(ensembles: Ensemble[]): Instance[] {
  */
 function slabCore(
   poly: Vec2[], holes: Vec2[][], at: (p: Vec2, s: number) => Vec3,
-  thickness: number, color: string,
+  thickness: number, color: string, grain = MAX_EDGE,
 ): Face[] {
   let local = poly;
   if (signedArea(local) < 0) local = [...local].reverse();
@@ -1081,7 +1091,7 @@ function slabCore(
   // Les deux flancs, triangulés et recoupés comme un dessus de prisme. Ils sont
   // gardés séparés : c'est devant le flanc VU que se rangent ses perçages.
   const tris: Vec2[][] = [];
-  for (const tri of triangulate(local)) subdivide(tri, tris);
+  for (const tri of triangulate(local)) subdivide(tri, tris, grain);
   const sides: Face[][] = [[], []];
   for (const tri of tris) {
     const a = face(tri.map((p) => at(p, t)), color);
@@ -1098,7 +1108,7 @@ function slabCore(
       if (!sides[i].length) continue;
       const front = Math.max(...sides[i].map((f) => f.z));
       const htris: Vec2[][] = [];
-      for (const tri of triangulate(hole)) subdivide(tri, htris);
+      for (const tri of triangulate(hole)) subdivide(tri, htris, grain);
       for (const tri of htris) {
         const ordered = i === 0 ? tri : [...tri].reverse();
         const f = face(ordered.map((p) => at(p, s)), dark);

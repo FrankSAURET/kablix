@@ -658,3 +658,4 @@ Puis retouchez dans Inkscape, cliquez **↻ recharger**, regardez. L'angle et le
 - `npm run montre <préfixe>` relit, range et ouvre **tout ce qui commence par là**, à la même échelle : c'est la boucle de travail. On retouche dans Inkscape, on clique **↻ recharger**.
 - Le curseur **éclaté** est le seul moyen de voir ce qu'il y a entre deux flancs.
 - `assemblages.mts` est **généré**, et il est sa propre archive.
+- La **taille du système fini** à l'écran est un seul nombre, `SYSTEME_PX` (dans `patte-element.mts`) : la largeur voulue en pixels. Le robot est cadré pour l'occuper, la patte seule s'en déduit, et tout ce qui est en pixels (allègement des contours, grain des faces, ombres, marges) suit. Rien d'autre à toucher pour agrandir ou réduire.
