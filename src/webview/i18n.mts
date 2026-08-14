@@ -342,7 +342,6 @@ const FR: Record<string, string> = {
   'Spider leg': "Patte d'araignée",
   // Robot araignée complet : châssis + 4 pattes, PCA9685 et batterie embarqués.
   'Spider robot': 'Robot araignée',
-  'Show on-board electronics': "Montrer l'électronique embarquée",
   'Pulse at 0° (µs)': 'Impulsion à 0° (µs)',
   'Pulse at 180° (µs)': 'Impulsion à 180° (µs)',
   'Rotation time (s/turn)': 'Temps de rotation (s/tour)',
@@ -353,11 +352,23 @@ const FR: Record<string, string> = {
   'Reverse the front-left coxa': 'Inverser la coxa avant-gauche',
   'Reverse the front-left patella': 'Inverser la patella avant-gauche',
   'Reverse the front-right coxa': 'Inverser la coxa avant-droite',
-  'Reverse the front-right patella': 'Inverser la patella avant-droit',
+  'Reverse the front-right patella': 'Inverser la patella avant-droite',
   'Reverse the rear-left coxa': 'Inverser la coxa arrière-gauche',
   'Reverse the rear-left patella': 'Inverser la patella arrière-gauche',
   'Reverse the rear-right coxa': 'Inverser la coxa arrière-droite',
-  'Reverse the rear-right patella': 'Inverser la patella arrière-droit',
+  'Reverse the rear-right patella': 'Inverser la patella arrière-droite',
+  // Calage du palonnier (« horn » = le bras du servo, déjà traduit « Bras ») :
+  // l'angle que la pièce DESSINE quand le programme envoie 0°.
+  'Coxa angle at 0° (horn offset)': 'Angle de la coxa à 0° (calage du bras)',
+  'Patella angle at 0° (horn offset)': 'Angle de la patella à 0° (calage du bras)',
+  'Front-left coxa angle at 0°': 'Angle à 0° de la coxa avant-gauche',
+  'Front-left patella angle at 0°': 'Angle à 0° de la patella avant-gauche',
+  'Front-right coxa angle at 0°': 'Angle à 0° de la coxa avant-droite',
+  'Front-right patella angle at 0°': 'Angle à 0° de la patella avant-droite',
+  'Rear-left coxa angle at 0°': 'Angle à 0° de la coxa arrière-gauche',
+  'Rear-left patella angle at 0°': 'Angle à 0° de la patella arrière-gauche',
+  'Rear-right coxa angle at 0°': 'Angle à 0° de la coxa arrière-droite',
+  'Rear-right patella angle at 0°': 'Angle à 0° de la patella arrière-droite',
   // PCA9685 : adresse réglée par les six pads AD0..AD5 de la carte.
   'I²C address': 'Adresse I²C',
   'AD0 (bit 0)': 'AD0 (bit 0)',

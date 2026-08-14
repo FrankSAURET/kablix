@@ -1,6 +1,5 @@
 # À faire
 ## Arraignée : 
-1. Les propriétés de l'araignée doivent être en français.
 1. Fais lui des yeux rouges
 1. Elle est trop petite, double sa taille (pareil pour la patte)et ajoute un paramètre pour les dessins qui donne la largeur souhaitée du systeme finis en pixels (une seule fois pour tout le système)
 1. Si on bloque sur la dernière position  telle que j'ai réglé les paramètres de araignne-pico, on peut voir que les pointes des tibias ne sont pas à la même hauteur et pourtant l'angle est le même. J'ai mois un sleep(10) pour matérialiser l'endroit
@@ -20,6 +19,13 @@
 # En réserve
 1. ⏳ Traduction FR du réglage `kablix.simulationWorker` (`package.nls.fr.json`) : sa description a changé avec le défaut activé — au lot de traductions d'avant publication.
 Les cinq lots du worker sont livrés (v2026.8.51 → v2026.8.55).
+
+# >>>>  v2026.8.60 — les propriétés de l'araignée sont en français
+
+1. ✅ **Les dix réglages de zéro sortaient en anglais** : « Front-left coxa angle at 0° », « Coxa angle at 0° (horn offset) »… Ils sont arrivés avec la v2026.8.49 et `verify:i18n` était **rouge depuis** — traduits maintenant, robot ET patte seule. Le « horn » du servo devient le **bras** (le mot déjà employé par la propriété `Horn` du servomoteur), le libellé se lit « Angle à 0° de la coxa avant-gauche ».
+2. ✅ **Deux accords faux corrigés** au passage : « Inverser la patella avant-**droit** » et « arrière-**droit** » — la patella est féminine partout ailleurs.
+3. ✅ **Entrée morte retirée** : « Show on-board electronics », dont la case a disparu en v2026.8.58.
+4. ✅ **`verify:i18n` repasse au VERT** (5 contrôles, 506 entrées) : plus un libellé de composant, de propriété ou de liste en anglais. C'était le dernier banc rouge.
 
 # >>>>  v2026.8.59 — une image se plaque sur une pièce, depuis le dessin
 
