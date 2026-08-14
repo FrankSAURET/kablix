@@ -286,6 +286,11 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
   const msg = e.data;
   try {
     switch (msg.t) {
+      // Contrôle de vie, posé par la page à un worker jetable AVANT toute
+      // simulation : répondre suffit à prouver que le bundle a démarré.
+      case 'ping':
+        send({ t: 'pong' });
+        return;
       case 'init':
         init(msg);
         return;

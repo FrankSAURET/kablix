@@ -3108,6 +3108,15 @@ function startRun(): void {
     setStatus(t('Error: {0}', err instanceof Error ? err.message : String(err)));
     return;
   }
+  // Le fil de simulation est mort en cours de route (il ne peut plus l'être en
+  // silence) : on relance TOUT DE SUITE sur le fil principal. `workerReady()` est
+  // devenu faux, le relancement monte donc le moteur local — pas de boucle.
+  if (engine instanceof WorkerEngine) {
+    engine.onFailure = () => {
+      setStatus(t('Simulation thread stopped — restarting on the main thread…'));
+      startRun();
+    };
+  }
   // À chaque front GPIO : échantillonner le latch des 7 segments multiplexés
   // (haute fréquence, indispensable pour capter chaque chiffre bref) PUIS
   // demander un rendu (coalescé au rAF).

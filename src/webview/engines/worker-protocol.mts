@@ -147,6 +147,13 @@ export type ToWorker =
    * droit de sortir), et la réponse revient ici pour être réinjectée au script.
    */
   | { t: 'netResponse'; response: unknown }
+  /**
+   * Appel de contrôle, envoyé à un worker JETABLE au chargement de la page : il
+   * ne prouve pas seulement que le bundle a été récupéré, mais qu'il DÉMARRE.
+   * Sans lui, un bundle absent (404 rendu en page d'erreur, cf. `preloadWorker`)
+   * passait pour valide et la simulation restait muette, figée à 0 ms.
+   */
+  | { t: 'ping' }
   | { t: 'dispose' };
 
 /**
@@ -168,6 +175,8 @@ export interface ScreenUpdate {
 /** Nouvelles du fil de simulation vers la page. */
 export type FromWorker =
   | { t: 'ready' }
+  /** Réponse à `ping` : le bundle a démarré, un moteur peut y être monté. */
+  | { t: 'pong' }
   | { t: 'snapshot'; snap: PinSnapshot }
   | { t: 'screens'; screens: ScreenUpdate }
   | { t: 'serial'; chunk: string }

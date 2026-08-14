@@ -1,5 +1,4 @@
 # À faire
-1. v2026.8.55 : Horloge pico ne fonctionne plus du tout. Pas de simulation. Temps bloqué à 0. Même chose sur blink, 16 servo. Et pareil  avec les uno.  en décochant simulationworker puis fermeture et relance du projix ça marche. J'ai même l'horloge en temps réel pour la pico.
 1. vsix
 
 
@@ -23,6 +22,15 @@
 # En réserve
 1. ⏳ Traduction FR du réglage `kablix.simulationWorker` (`package.nls.fr.json`) : sa description a changé avec le défaut activé — au lot de traductions d'avant publication.
 Les cinq lots du worker sont livrés (v2026.8.51 → v2026.8.55).
+
+# >>>>  v2026.8.57 — le fil de simulation ne peut plus mourir en silence
+
+1. ✅ **La simulation figée à 0 ms est réparée, cause trouvée : le bundle du worker n'était pas dans le paquet.** `.vscodeignore` exclut `dist/**` et ne réautorisait que `extension.js`, `zip.js`, `webview.js` et `pinout/` — `dist/webview-worker.js` **manquait à la liste**. Tant que le réglage était décoché (jusqu'à la v2026.8.54) personne ne s'en apercevait ; allumé par défaut en v2026.8.55, il a emporté **toute** simulation, Uno comme Pico. `npx vsce ls` le montre maintenant embarqué.
+2. ✅ **Pourquoi c'était SILENCIEUX** : `fetch` ne rejette pas sur un 404 — il rend le corps de la page d'erreur. Ce texte devenait un blob, le blob un `new Worker`, et le worker mourait à sa première ligne. Personne n'écoutait `onerror` : la page croyait tenir un moteur, `workerReady()` disait oui, et plus une seule broche ne bougeait. **Reproduit en Chromium** (`node_modules/.atelier/worker-csp.mjs`, outil d'atelier, même CSP que la webview) : bundle présent → 488 instantanés en 2 s et 1 982 ms simulées ; bundle absent → `Uncaught ReferenceError`, zéro instantané, temps à 0. Exactement ce que Frank voyait.
+3. ✅ **Trois verrous, pas un** (`worker-engine.mts`) : la réponse HTTP doit être **`ok`** ; le corps doit **ressembler à du JavaScript** (ni trop court, ni commençant par `<` — une page d'erreur rendue en 200 ne passe pas) ; et surtout le bundle doit **DÉMARRER**. Un worker **jetable** reçoit un `ping` au chargement de la page et doit répondre `pong` sous 3 s (nouveaux messages `ping`/`pong` du protocole). Sans pong, `workerReady()` reste faux et la simulation part sur le fil principal — comme si le réglage était décoché.
+4. ✅ **Un worker qui meurt en cours de route le dit maintenant** : `onerror` est écouté, il marque le fil de simulation inutilisable pour de bon et prévient la page (`onFailure`). `sim.mts` relance alors la simulation **sur le fil principal** sans rien demander à l'utilisateur — `workerReady()` étant devenu faux, il n'y a pas de boucle possible.
+5. ✅ **Banc `verify:worker` : 132 contrôles** (122 avant). Les nouveaux rejouent les trois échecs (404, page d'erreur en 200, bundle muet), vérifient que le worker jetable est bien arrêté, que le ping a lieu, que la mort d'un worker remonte à la page et coupe le worker pour les lancements suivants, que `sim.mts` câble ce repli, et que **`.vscodeignore` embarque le bundle**.
+6. ⏳ Chaîne de base (EN) du message « le fil de simulation s'est arrêté, on relance sur le fil principal » écrite ; sa traduction FR attend le lot d'avant publication.
 
 # >>>>  v2026.8.56 — la patte grossit, le PMMA se traverse enfin
 

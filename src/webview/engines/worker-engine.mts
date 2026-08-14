@@ -93,24 +93,81 @@ function cloneProgram(
 let blobUrl: string | null = null;
 
 /**
- * Récupère le bundle du worker. Appelé au chargement de la page, PAS au démarrage
- * de la simulation : `startRun()` est synchrone et le reste du code compte sur un
- * moteur disponible dans la foulée. Un `fetch` de fichier local prend quelques
- * millisecondes, bien avant le premier clic sur « Compiler ».
+ * Le bundle a été récupéré ET a répondu au ping. Tant que ce n'est pas prouvé, la
+ * simulation reste sur le fil principal : mieux vaut une page moins fluide qu'une
+ * simulation muette.
+ */
+let workerProven = false;
+
+/** Délai laissé au worker jetable pour répondre au ping, au chargement. */
+const PROBE_TIMEOUT_MS = 3000;
+
+/**
+ * Monte un worker JETABLE et attend son `pong`. Récupérer le bundle ne suffit
+ * pas : `fetch` ne rejette PAS sur un 404 — il rend le corps de la page d'erreur,
+ * dont on faisait un blob, dont on faisait un worker qui mourait à la première
+ * ligne. Sans `onerror` (absent jusqu'ici) la page n'en savait rien, croyait tenir
+ * un moteur, et la simulation restait figée à 0 ms (v2026.8.55, bundle absent du
+ * .vsix). Le ping ferme cette porte : on ne se fie qu'à un worker qui a répondu.
+ */
+function probeWorker(url: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    let worker: Worker;
+    try {
+      worker = new Worker(url);
+    } catch {
+      resolve(false);
+      return;
+    }
+    let fini = false;
+    const finir = (ok: boolean): void => {
+      if (fini) return;
+      fini = true;
+      clearTimeout(minuteur);
+      worker.terminate();
+      resolve(ok);
+    };
+    const minuteur = setTimeout(() => finir(false), PROBE_TIMEOUT_MS);
+    worker.onmessage = (e: MessageEvent<FromWorker>) => finir(e.data?.t === 'pong');
+    worker.onerror = () => finir(false);
+    worker.postMessage({ t: 'ping' } satisfies ToWorker);
+  });
+}
+
+/**
+ * Récupère le bundle du worker et vérifie qu'il DÉMARRE. Appelé au chargement de
+ * la page, PAS au démarrage de la simulation : `startRun()` est synchrone et le
+ * reste du code compte sur un moteur disponible dans la foulée. Un `fetch` de
+ * fichier local plus un aller-retour de message prennent quelques millisecondes,
+ * bien avant le premier clic sur « Compiler ».
  */
 export async function preloadWorker(url: string): Promise<void> {
   if (blobUrl) return;
   try {
-    const source = await fetch(url).then((r) => r.text());
+    const reponse = await fetch(url);
+    // Un bundle absent ne fait pas rejeter `fetch` : il rend un 404 (et parfois
+    // une page d'erreur en 200). Du HTML pris pour du JavaScript donne un worker
+    // mort-né — on refuse tout ce qui ne ressemble pas à un script.
+    if (!reponse.ok) throw new Error(`HTTP ${reponse.status}`);
+    const source = await reponse.text();
+    if (source.length < 1024 || /^\s*</.test(source)) throw new Error('ce n’est pas un bundle');
     blobUrl = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
-  } catch {
-    blobUrl = null; // bundle absent : la simulation retombera sur le fil principal
+    workerProven = await probeWorker(blobUrl);
+    if (!workerProven) throw new Error('le worker ne démarre pas');
+  } catch (err) {
+    // Bundle absent ou inutilisable : la simulation retombe sur le fil principal,
+    // exactement comme si le réglage était décoché. Dit une fois, dans la console
+    // de la webview — c'est un repli, pas une erreur pour l'utilisateur.
+    console.warn('[kablix] fil de simulation indisponible, repli sur le fil principal :', err);
+    if (blobUrl) URL.revokeObjectURL(blobUrl);
+    blobUrl = null;
+    workerProven = false;
   }
 }
 
 /** Vrai si un moteur peut être monté dans un worker tout de suite. */
 export function workerReady(): boolean {
-  return blobUrl !== null;
+  return blobUrl !== null && workerProven;
 }
 
 export class WorkerEngine implements SimEngine {
@@ -123,6 +180,11 @@ export class WorkerEngine implements SimEngine {
   onDebugRestart: ((phase: 'start' | 'end') => void) | null = null;
   /** Pico W : requête HTTP à faire faire par l'hôte. */
   onNetRequest: ((req: NetRequest) => void) | null = null;
+  /**
+   * Le fil de simulation est mort en cours de route. La page doit relancer sur le
+   * fil principal : une simulation muette est pire qu'une page moins fluide.
+   */
+  onFailure: (() => void) | null = null;
   /**
    * Pas à pas. Posé à la CRÉATION et non à la réception du premier instantané :
    * `sim.mts` grise son bouton (`!engine.step`) dès le lancement. Un Pico sans
@@ -170,6 +232,17 @@ export class WorkerEngine implements SimEngine {
     this.snap = emptySnapshot(this.pins.length);
     if (stepable) this.step = () => this.post({ t: 'step' });
     worker.onmessage = (e: MessageEvent<FromWorker>) => this.receive(e.data);
+    // Un worker qui meurt le fait EN SILENCE si personne n'écoute : c'est ce qui
+    // laissait la simulation figée à 0 ms. On coupe le fil pour de bon (les
+    // lancements suivants repartent sur le fil principal) et on prévient la page.
+    worker.onerror = (e: ErrorEvent | Event) => {
+      workerProven = false;
+      console.error(
+        '[kablix] fil de simulation interrompu :',
+        (e as ErrorEvent).message ?? e.type
+      );
+      this.onFailure?.();
+    };
   }
 
   /**

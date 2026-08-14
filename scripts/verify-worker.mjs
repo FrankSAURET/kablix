@@ -112,6 +112,17 @@ ok(
   'sim.mts : le bundle est préchargé (startRun est synchrone, il ne peut pas attendre)',
   /void preloadWorker\(url\)/.test(sim)
 );
+// Le worker meurt : la page ne doit pas rester avec une simulation muette.
+ok(
+  'sim.mts : un fil de simulation mort relance la simulation sur le fil principal',
+  /engine instanceof WorkerEngine/.test(sim) && /engine\.onFailure = \(\) => \{/.test(sim)
+);
+// Le bundle du worker était exclu du paquet : le vsix ne le contenait pas, le
+// fetch rendait une page d'erreur, et plus rien ne simulait (v2026.8.55).
+ok(
+  '.vscodeignore : le bundle du worker est bien EMBARQUÉ dans le vsix',
+  /^!dist\/webview-worker\.js$/m.test(readFileSync(join(ROOT, '.vscodeignore'), 'utf8'))
+);
 
 // --- 2. Comportement du proxy, exécuté pour de vrai ---------------------------
 const entry = `export * from '../../src/webview/engines/worker-engine.mjs';
@@ -139,10 +150,16 @@ class FakeWorker {
   constructor() {
     this.terminated = false;
     this.handler = null;
+    this.errorHandler = null;
     workers.push(this);
   }
   postMessage(msg) {
     posted.push(msg);
+    // Contrôle de vie : un vrai bundle répond, un bundle mort-né se tait. Le banc
+    // rejoue les deux (cf. `muet`).
+    if (msg?.t === 'ping' && !FakeWorker.muet) {
+      queueMicrotask(() => this.handler?.({ data: { t: 'pong' } }));
+    }
   }
   terminate() {
     this.terminated = true;
@@ -150,7 +167,12 @@ class FakeWorker {
   set onmessage(fn) {
     this.handler = fn;
   }
+  set onerror(fn) {
+    this.errorHandler = fn;
+  }
 }
+/** Vrai : le worker jetable ne répond pas au ping (bundle qui ne démarre pas). */
+FakeWorker.muet = false;
 /** Fait remonter un message du worker `w` vers la page. */
 const deliver = (w, msg) => w.handler({ data: msg });
 // L'URL du module est calculée AVANT d'installer le faux `URL` : l'import
@@ -159,7 +181,9 @@ const moduleUrl = pathToFileURL(join(CACHE, 'e.mjs')).href;
 globalThis.Worker = FakeWorker;
 globalThis.Blob = class {};
 globalThis.URL = { createObjectURL: () => 'blob:faux', revokeObjectURL: () => {} };
-globalThis.fetch = async () => ({ text: async () => '/* faux bundle */' });
+/** Un vrai bundle : `preloadWorker` refuse ce qui est trop court ou ressemble à du HTML. */
+const FAUX_BUNDLE = `/* faux bundle */${'\n// '.padEnd(1200, 'x')}`;
+globalThis.fetch = async () => ({ ok: true, status: 200, text: async () => FAUX_BUNDLE });
 
 const mod = await import(moduleUrl);
 const {
@@ -176,8 +200,29 @@ const {
 ok('sans préchargement, create() rend null (repli possible)', WorkerEngine.create('uno', new Uint16Array(4), null) === null);
 ok('workerReady() est faux tant que le bundle n’est pas là', workerReady() === false);
 
+// --- Le bundle absent ou mort-né ne doit JAMAIS passer pour valide -------------
+// `fetch` ne rejette pas sur un 404 : il rend le corps de la page d'erreur. Pris
+// pour du JavaScript, il donnait un worker qui mourait à la première ligne — et
+// la simulation restait figée à 0 ms (v2026.8.55, bundle oublié dans le .vsix).
+globalThis.fetch = async () => ({ ok: false, status: 404, text: async () => 'Not found' });
+await preloadWorker('http://faux/webview-worker.js');
+ok('bundle en 404 : le worker est refusé, la page reste sur le fil principal', workerReady() === false);
+
+globalThis.fetch = async () => ({ ok: true, status: 200, text: async () => `<!DOCTYPE html>${'<p>x</p>'.padEnd(2000, ' ')}` });
+await preloadWorker('http://faux/webview-worker.js');
+ok('page d’erreur rendue en 200 : ce n’est pas du JavaScript, elle est refusée', workerReady() === false);
+
+globalThis.fetch = async () => ({ ok: true, status: 200, text: async () => FAUX_BUNDLE });
+FakeWorker.muet = true; // le bundle est là mais ne démarre pas : pas de pong
+await preloadWorker('http://faux/webview-worker.js');
+ok('bundle qui ne répond pas au ping : refusé lui aussi (délai de garde)', workerReady() === false);
+ok('le worker jetable du contrôle est bien arrêté', workers.at(-1)?.terminated === true);
+FakeWorker.muet = false;
+
 await preloadWorker('http://faux/webview-worker.js');
 ok('après préchargement, workerReady() est vrai', workerReady() === true);
+ok('le contrôle de vie est passé par un ping', posted.some((m) => m?.t === 'ping'));
+posted.length = 0; // le ping ne doit pas polluer les vérifications d'init
 
 const engine = WorkerEngine.create('uno', new Uint16Array([1, 2, 3, 4]), null);
 const engineWorker = workers.at(-1);
@@ -807,6 +852,23 @@ ok(
   'sim.mts : sans worker, c’est le même sampleSevenSeg qui sert sur le fil principal',
   /sampleSevenSeg\(sevenSegMux, sevenSegLatch/.test(sim)
 );
+
+// --- Un worker qui meurt le dit ------------------------------------------------
+// Personne n'écoutait `onerror` : le worker mourait en silence, la page croyait
+// tenir un moteur, et la simulation restait figée à 0 ms.
+{
+  const mourant = WorkerEngine.create('uno', new Uint16Array(4), null);
+  const w = workers.at(-1);
+  let prevenu = false;
+  mourant.onFailure = () => (prevenu = true);
+  ok('un worker mort prévient la page (onerror est écouté)', typeof w.errorHandler === 'function');
+  w.errorHandler?.({ type: 'error', message: 'faux plantage' });
+  ok('le moteur relaie la mort du worker à la page', prevenu === true);
+  ok(
+    'après une mort, le worker n’est plus proposé aux lancements suivants',
+    workerReady() === false
+  );
+}
 
 // --- Rapport ------------------------------------------------------------------
 let failed = 0;

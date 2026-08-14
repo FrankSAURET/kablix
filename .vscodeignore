@@ -21,7 +21,11 @@ PROGRESSION.md
 # --- Journaux ---
 **/*.log
 
-# --- dist : les trois bundles esbuild + les posters de brochage ---
+# --- dist : les quatre bundles esbuild + les posters de brochage ---
+# dist/webview-worker.js : le fil de simulation, récupéré par fetch puis instancié
+# depuis un blob. Oublié ici jusqu'à la v2026.8.56 : le vsix ne le contenait pas,
+# le fetch rendait une page d'erreur, et le worker mourait sans un mot — plus
+# aucune simulation dès que le réglage est passé à « activé » (v2026.8.55).
 # dist/zip.js : JSZip seul, requis à la demande par dist/extension.js (premier
 # .projix ouvert ou enregistré). Sans lui, plus aucun projet ne s'ouvre.
 # dist/pinout/*.svg : posters du bouton ☢, volontairement HORS du bundle
@@ -32,6 +36,7 @@ dist/**
 !dist/extension.js
 !dist/zip.js
 !dist/webview.js
+!dist/webview-worker.js
 !dist/pinout/**
 
 # --- Fichiers de travail / captures / archives ---
