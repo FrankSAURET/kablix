@@ -7,8 +7,9 @@
      Vue de dessus, feuille 400x400, grille 10 px. Châssis octogonal 120..280,
      coxas sur les quatre pans coupés (135,135) (265,135) (135,265) (265,265).
      Groupe "corps"  : châssis + connecteur 4 broches à gauche (SCL/SDA/V+/GND).
-     Groupe "cartes" : électronique embarquée (Pico, PCA9685, batterie), masquée
-     par défaut (propriété `boards` du composant). -->
+     Groupe "cartes" : électronique embarquée (Pico, PCA9685, batterie).
+     PLUS UTILISÉ depuis la v2026.8.44 : le robot est l'assemblage 3D lu dans
+     Composants3D.svg, et son électronique est toujours dessinée (v2026.8.58). -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
   <g id="corps">
     <!-- Picots du connecteur (dépassent à gauche du châssis, grille 10 px). -->

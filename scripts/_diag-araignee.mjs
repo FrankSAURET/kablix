@@ -14,7 +14,6 @@ writeFileSync(entry, `
 import { SEGMENT1, SEGMENT2 } from '${ROOT}/src/webview/composants/patte-element.mjs';
 import '${ROOT}/src/webview/composants/araignee-element.mjs';
 const el = document.createElement('kablix-araignee');
-el.setAttribute('boards', '1');
 document.body.appendChild(el);
 setTimeout(() => {
   const svg = el.shadowRoot && el.shadowRoot.querySelector('svg');

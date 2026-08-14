@@ -1,27 +1,35 @@
 # À faire
-1. *(rien en attente)*
+## Arraignée : 
+1. Si je veux rendre les cartes (pico et 16 servo) plus réaliste est ce que je te redonne le fichier svg de chaque carte ou est ce que je mappe une vue webp dessus ? Du reste prévois de pouvoir mapper une image sur les pièces (avec transparence ajustable)
+1. Les propriétés de l'araignée doivent être en français.
+1. Fais lui des yeux rouges
+1. Elle est trop petite, double sa taille (pareil pour la patte)et ajoute un paramètre pour les dessins qui donne la largeur souhaitée du systeme finis en pixels (une seule fois pour tout le système)
+1. Si on bloque sur la dernière position  telle que j'ai réglé les paramètres de araignne-pico, on peut voir que les pointes des tibias ne sont pas à la même hauteur et pourtant l'angle est le même. J'ai mois un sleep(10) pour matérialiser l'endroit
+1. Tu va mettre des menu déroulant dans ces propriétées (sur le modèle des composants mais par défaut tous repliés):
+    1. Rappel de l'adresse I²C tout en haut
+    1. Paramétrer carte 16 servomoteurs
+        1. Les 5 bit de réglage de l'adresse
+    1. Inverser les servomoteurs
+    1. Régler le 0 des servomoteurs
+    1. Paramètre des servomoteurs
+        1. impulsion à 0° (µs)
+        1. impulsion à 180° (µs)
+        1. Temps de rotation (s/tours)
 
-
-##L'arraignée :
-1. ✅ J'ai retouché le modèle *(v2026.8.46 — cinématique du genou refaite sur le nouveau dessin)*
-1. ✅ il y a des défaut de visualisation . Les cartes électroniques sont un peut recouvertes par le corps. *(v2026.8.46)*
-1. ✅ il faudrait pouvoir définir le 0 de chaque servo (0 à 360 ° positif ou négatif) *(v2026.8.49)*
-1. ✅ Fait des ombres diffuses *(v2026.8.46)*
-1. ✅ La patte n'a pas été remodélisée. Se plus il faut que les broches des servo soient identifiés. Tu mets donc un rectangle à coin arrondis autours de l'ensemble des 3 broches de connection de chaque servo avec écrit Coxa et Patella. Les trois broches apparaisent grace à un carré plein doré (de taille supérieurs à celui de masse). Reprends "connecteur-servo-patte" dans Composants2D.svg et respecte mes couleurs . *(v2026.8.48)*
-1. ✅ Tu renomeras partout hanche=coxa et genou = patella *(v2026.8.47)*
 ## Composants
-1. 
-1. ✅ **`onStartupFinished` supprimé, activation paresseuse** *(v2026.8.50 — validé au F5 par Frank)*
-
-## Dessin de l'arraignée 
-1. ✅ **Les quatre corrections de `Composants3D.svg` sont faites** (v2026.8.42) : quatre pastilles `hanche…` sur le corps, `genou-f` sur le fémur, `genou-t` sur le tibia, étiquette du servo de tibia au point décimal. Le robot monte : 1 corps, 4 fémurs, 4 tibias.
-2. ✅ **Plus rien à dessiner : la patte seule EST celle du robot** (v2026.8.48). Les profils `patte-femur-profil` / `patte-tibia-profil` ne sont plus attendus — `patte-element.mts` monte les assemblages `araignee-patte-femur` et `araignee-patte-tibia` de `Composants3D.svg`, comme les quatre pattes du robot, et n'importe plus `profils.mts` du tout. Plus une cote codée dans le composant.
-3. ✅ **Le corps en sandwich est dessiné ET branché** (v2026.8.44) : `araignee-corps`, `araignee-patte-femur` et `araignee-patte-tibia` de `Composants3D.svg` font le robot à l'écran, articulations comprises. Plus une cote dans le code.
-4. ⏳ **Le test `araignee-uno` est déplacé dans `A Examiner/testkablix/Arduino/araignee-uno/`** (sketch + .projix, 2 fichiers, non supprimés). Le robot EST une Pico W depuis la v2026.8.24 : il n'a plus de broches, on ne peut plus le piloter depuis une Uno. Frank tranche : à jeter, ou à garder en archive.
 
 # En réserve
 1. ⏳ Traduction FR du réglage `kablix.simulationWorker` (`package.nls.fr.json`) : sa description a changé avec le défaut activé — au lot de traductions d'avant publication.
 Les cinq lots du worker sont livrés (v2026.8.51 → v2026.8.55).
+
+# >>>>  v2026.8.58 — l'électronique embarquée est toujours là, et les plaques restent derrière
+
+1. ✅ **La case « montrer l'électronique embarquée » est SUPPRIMÉE** (Frank) : le corps est toujours dessiné ENTIER — batterie, PCA9685, Pico W. C'est le PMMA translucide qui les laisse voir, et un robot dont on cache la carte 16 servos n'explique plus rien. Attribut `boards` retiré partout : `araignee-element.mts` (constante `EMBARQUE`, propriété, constructeur, rendu), `catalog.mts`, `_capture-part.mjs`, `_diag-araignee.mjs`, `testkablix/_spec.mjs` (emplacements de Frank gardés), fiche `docs/fr/composants/araignee.md`.
+2. ✅ **Le vrai bug était dans `empilement()` (`iso3d.mts`), mesuré et corrigé** : le décalage vers l'avant se calculait entre les EXTRÊMES — la face la plus proche des pièces du dessous, la plus lointaine de la pièce à remonter — c'est-à-dire la **DIAGONALE** de la pièce, ~27 unités pour une plaque du corps. La batterie poussait la plaque du bas de +26,9, celle-ci poussait la plaque du haut d'autant, et les deux plaques finissaient **devant les servos des pattes**. Mesuré en Chrome (outil d'atelier `node_modules/.atelier/diag-profondeur.mjs`) : plaques à **72,65 et 111,09**, servos de fémur à 38,6 / 48,4 / 51,3 / **65,1**.
+3. ✅ **Le décalage se calcule maintenant sur la profondeur qui DÉCIDE du dessin** : une pièce translucide est peinte d'un bloc, donc un seul point (la moyenne de ses faces, comme `renderFaces` la range) ; une pièce opaque est peinte triangle par triangle, donc l'intervalle [min, max] de ses faces. Après correction : plaques à **49,8 et 56,1**, servos inchangés — le servo de la patte avant repasse devant. `alphaColor()` remplace l'ancien `alphaDe` privé et lit aussi bien `#rrggbbaa` (le dessin) que `rgba(…)` (ce que rend `shade`) ; `Empile` porte l'opacité de sa matière.
+4. ✅ **Banc `verify:araignee` : 75 contrôles** (72 avant). Les nouveaux vérifient qu'il n'y a plus de case dans le catalogue, que batterie et PCA9685 font partie du corps dessiné, que le circuit bleu de la carte 16 servos est bien dans le DOM sans rien cocher, et surtout — régression du bug — que **les plaques du corps ne recouvrent plus les servos des pattes** (profondeurs de rendu mesurées pièce par pièce). `YAW`, `legXf` et le type `Robot` sont exportés pour que le banc rejoue la vraie scène.
+5. ✅ Illustration recapturée (`node scripts/_capture-part.mjs araignee`, 368×207).
+6. ⏳ Fiche EN `docs/en/composants/araignee.md` : la ligne `boards` y est encore, retrait au lot de traductions d'avant publication.
 
 # >>>>  v2026.8.57 — le fil de simulation ne peut plus mourir en silence
 

@@ -59,12 +59,7 @@ const SHADOW_PAD = FOOT_SHADOW * Math.cos(Math.PI / 6) * 2 * SHADOW_GROW;
  *  exactement la direction que l'isométrie écrase sur l'axe vertical de
  *  l'écran — les pattes avant et arrière se superposaient au corps au lieu d'en
  *  sortir. Un quart de tour de 22° les dégage toutes les quatre. */
-const YAW = 22;
-
-/** Pièces du dessin que la case « électronique embarquée » montre ou cache. Ce
- *  sont les noms des groupes de la planche ; le `picow`, lui, est TOUJOURS
- *  dessiné : c'est la carte qu'on programme, la voir explique le robot. */
-const EMBARQUE = ['pca9685', 'batterie'];
+export const YAW = 22;
 
 /** Nom de la propriété d'une articulation (0..7) : `coxa0`, `patella0`, `coxa1`…
  *  Préfixé de `rev`, c'est celui de son sens de montage (`revcoxa0`). */
@@ -75,7 +70,7 @@ function jointKey(i: number): string {
 /** Le robot lu sur la planche : les trois dessins, les articulations qu'ils
  *  portent, et le cadrage qui en découle. Tout est en millimètres sauf `k`
  *  (millimètres → unités de la feuille), `ground` et `origin`. */
-type Robot = {
+export type Robot = {
   corps: Assembly;
   /** Le fémur, le tibia et leurs articulations : la patte de <kablix-patte>,
    *  montée ici quatre fois. */
@@ -118,7 +113,7 @@ function centerXY(a: Assembly): Vec2 {
 /** Les deux transformations d'une patte du robot pour une pose donnée : la
  *  cinématique est celle de <kablix-patte> (`legPose`), plantée sur la coxa `i`
  *  du corps et présentée avec le lacet de la vue. */
-function legXf(r: Robot, i: number, coxaDeg: number, patellaDeg: number): LegPose {
+export function legXf(r: Robot, i: number, coxaDeg: number, patellaDeg: number): LegPose {
   return legPose(r.leg, {
     k: r.k,
     at: scale(r.coxas[i], r.k),
@@ -259,9 +254,6 @@ export class AraigneeElement extends LitElement {
   declare patella3: number;
   /** Temps d'un tour complet (360°) à pleine vitesse, en secondes. 0 = instantané. */
   declare speed: number;
-  /** Non vide : le PCA9685 et la batterie sont dessinés dans le corps (la carte
-   *  Pico W, elle, est TOUJOURS visible : c'est le cerveau du robot). */
-  declare boards: string;
   /** Non vide : ce servo est monté à l'envers (180 − consigne). Un par
    *  articulation — sur le vrai châssis, tous ne sont pas vissés du même côté. */
   declare revcoxa0: string;
@@ -298,7 +290,6 @@ export class AraigneeElement extends LitElement {
     zerocoxa2: { type: Number }, zeropatella2: { type: Number },
     zerocoxa3: { type: Number }, zeropatella3: { type: Number },
     speed: { type: Number },
-    boards: { type: String },
     shown: { state: true },
   };
 
@@ -311,7 +302,6 @@ export class AraigneeElement extends LitElement {
   constructor() {
     super();
     this.speed = 2;
-    this.boards = '';
     this.shown = new Array(8).fill(90);
     for (let i = 0; i < 8; i++) {
       (this as unknown as Record<string, string>)[`rev${jointKey(i)}`] = '';
@@ -390,13 +380,16 @@ export class AraigneeElement extends LitElement {
       // Un seul tas de faces pour TOUTE la scène : c'est le tri en profondeur
       // commun qui fait passer une patte arrière derrière le corps et la patte
       // avant devant. Trier chaque pièce séparément casserait l'illusion.
-      const corps: Assembly = this.boards ? r.corps
-        : { ...r.corps, pieces: r.corps.pieces.filter((p) => !EMBARQUE.includes(p.name)) };
+      //
+      // Le corps est dessiné ENTIER, électronique embarquée comprise (Frank,
+      // v2026.8.58) : la case « montrer l'électronique embarquée » ne servait à
+      // rien — c'est le PMMA translucide qui la laisse voir, et un robot dont on
+      // cache la carte 16 servos n'explique plus rien.
       // Pas de `color` : la couleur du DESSIN passe telle quelle, transparence
       // comprise — on voit la plaque du dessous à travers celle du dessus, ce
       // qui est le seul moyen de comprendre qu'elles sont EMPILÉES (v2026.8.56).
       const opts = { scale: r.k, simplify: SIMPLIFY };
-      faces.push(...assemblyFaces(corps, {
+      faces.push(...assemblyFaces(r.corps, {
         ...opts,
         xf: (p: Vec3) => rotZ({ x: p.x, y: p.y, z: p.z + r.ground }, YAW),
       }));

@@ -3046,7 +3046,7 @@ while True:
     // avant-droite, arrière-gauche, arrière-droite.
     name: 'araignee-pico', board: 'picow', ext: 'py',
     parts: [
-      { id: 'Act1', type: 'araignee', x: 570, y: 50, attrs: { address: '0x7F', speed: '2', boards: '1' } },
+      { id: 'Act1', type: 'araignee', x: 570, y: 50, attrs: { address: '0x7F', speed: '2' } },
     ],
     wires: () => [],
     expect: { kind: 'i2c-part', partId: 'Act1' },

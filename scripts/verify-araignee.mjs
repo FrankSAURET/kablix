@@ -28,7 +28,9 @@ const CACHE = join(ROOT, 'node_modules', '.cache-araignee');
 const entry = `
 import '../../src/webview/composants/araignee-element.mjs';
 import '../../src/webview/composants/patte-element.mjs';
-import { robot } from '../../src/webview/composants/araignee-element.mjs';
+import { robot, legXf, YAW } from '../../src/webview/composants/araignee-element.mjs';
+import { SIMPLIFY } from '../../src/webview/composants/patte-element.mjs';
+import { assemblyFaces, rotZ } from '../../src/webview/composants/iso3d.mjs';
 import { CATALOG, partCategory, partDef } from '../../src/webview/diagram/catalog.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const checks = [];
@@ -64,8 +66,12 @@ async function run() {
 		def?.attrs?.address === '0x7F'
 		&& [0, 1, 2, 3, 4, 5].every((b) => def?.attrs?.[\`ad\${b}\`] === '1' && def?.props?.some((p) => p.attr === \`ad\${b}\`))
 		&& !def?.props?.some((p) => p.attr === 'address'), def?.attrs?.address);
-	ok('catalogue : électronique embarquée MASQUÉE par défaut',
-		def?.attrs?.boards === '' && def?.props?.some((p) => p.attr === 'boards'), JSON.stringify(def?.attrs?.boards));
+	// v2026.8.58 : la case « montrer l'électronique embarquée » est SUPPRIMÉE
+	// (Frank) — le corps est toujours dessiné entier, le PMMA translucide laisse
+	// voir ce qu'il y a dedans.
+	ok('catalogue : plus de case « électronique embarquée »',
+		def?.attrs?.boards === undefined && !def?.props?.some((p) => p.attr === 'boards'),
+		JSON.stringify(def?.attrs?.boards));
 	ok('catalogue : vitesse réglable au dixième', def?.props?.find((p) => p.attr === 'speed')?.step === 0.1);
 	// Le robot EST une Pico W : le déposer choisit cette carte comme cible, et
 	// le drapeau « pinless » dit à l'éditeur qu'aucun fil ne peut s'y raccrocher.
@@ -154,12 +160,58 @@ async function run() {
 		> Math.max(...g0.map((g, i) => dist(g.coxa, g0[(i + 2) % 4].coxa))));
 	ok('debout : le corps est au-dessus du sol', solHip > 20, solHip.toFixed(1));
 
-	// --- 5. Électronique embarquée : masquée par défaut, montrée sur demande ----
-	// Deux boîtes seulement depuis la v2026.8.24 (PCA9685 + batterie) : la Pico W
-	// a quitté la liste, elle est toujours dessinée.
-	const shown = await mk({ boards: '1' });
-	ok('cartes : dessinées quand « boards » est coché (2 boîtes de plus)',
-		polys(shown) >= polys(el) + 6, \`\${polys(el)} → \${polys(shown)}\`);
+	// --- 5. Électronique embarquée : TOUJOURS dessinée, jamais devant les pattes -
+	// v2026.8.58 : plus de case à cocher (Frank) — la batterie, le PCA9685 et la
+	// Pico W font partie du dessin, le PMMA translucide les laisse voir.
+	ok('cartes : batterie et PCA9685 font partie du corps dessiné',
+		['batterie', 'pca9685'].every((n) => R?.corps?.pieces?.some((p) => p.name === n)),
+		R?.corps?.pieces?.map((p) => p.name).join(','));
+	// Le PCA9685 est la seule pièce BLEUE de la scène : la voir dans le DOM dit
+	// qu'elle est dessinée sans avoir à cocher quoi que ce soit.
+	const bleus = [...el.shadowRoot.querySelectorAll('polygon')].filter((q) => {
+		const m = (q.getAttribute('fill') ?? '').match(/\\d+/g);
+		if (!m) return false;
+		const [r, g, b] = m.map(Number);
+		return b > 40 && b > r * 2 && b > g * 1.2;
+	});
+	ok('cartes : la carte 16 servos est visible sans rien cocher (circuit bleu)', bleus.length >= 3, bleus.length);
+	// Le piège corrigé en v2026.8.58 : empilement() décalait une pièce de sa
+	// DIAGONALE (arrière → avant) au lieu de la profondeur à laquelle elle sera
+	// peinte. Les deux plaques de PMMA du corps partaient 27 unités en avant et
+	// recouvraient les servos des pattes. On mesure donc les profondeurs de rendu.
+	const moy = (fs) => fs.reduce((s, f) => s + f.z, 0) / Math.max(fs.length, 1);
+	const parPiece = (faces) => {
+		const m = new Map();
+		for (const f of faces) {
+			if (!m.has(f.g)) m.set(f.g, []);
+			m.get(f.g).push(f);
+		}
+		return [...m.values()];
+	};
+	const teinte = (fs) => (fs[0].fill.match(/[\\d.]+/g) ?? []).map(Number);
+	const isoOpts = { scale: R.k, simplify: SIMPLIFY };
+	const corpsF = assemblyFaces(R.corps, { ...isoOpts,
+		xf: (p) => rotZ({ x: p.x, y: p.y, z: p.z + R.ground }, YAW) });
+	// Plaques du corps : le PMMA blanc translucide (r ≈ g ≈ b, clair).
+	const plaques = parPiece(corpsF).filter((fs) => {
+		const [r, g, b] = teinte(fs);
+		return r > 90 && Math.abs(r - g) < 12 && Math.abs(g - b) < 12;
+	});
+	// Servos de fémur : les seules pièces VIOLETTES (r et b > g).
+	const servos = [];
+	for (let i = 0; i < 4; i++) {
+		for (const fs of parPiece(assemblyFaces(R.leg.femur, { ...isoOpts, xf: legXf(R, i, 90, 120).femur }))) {
+			const [r, g, b] = teinte(fs);
+			if (r > g * 1.3 && b > g * 1.3) servos.push(moy(fs));
+		}
+	}
+	ok('empilement : les plaques du corps et les servos des pattes sont mesurés',
+		plaques.length >= 2 && servos.length >= 4, \`\${plaques.length} plaques, \${servos.length} servos\`);
+	// La patte avant est DEVANT le corps : son servo doit être peint après les
+	// plaques. Avant le correctif : plaques à 111, servo le plus avancé à 65.
+	ok('empilement : les plaques du corps ne recouvrent plus les servos des pattes',
+		Math.max(...servos) > Math.max(...plaques.map(moy)),
+		\`plaques \${plaques.map((fs) => moy(fs).toFixed(1)).join('/')} vs servos \${servos.map((v) => v.toFixed(1)).join('/')}\`);
 
 	// --- 6. Les 8 articulations sont indépendantes ------------------------------
 	// speed=0 : la consigne doit être atteinte IMMÉDIATEMENT (le rappel manquait).

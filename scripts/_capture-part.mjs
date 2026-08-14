@@ -55,11 +55,11 @@ const PARTS = {
     module: 'patte-element.mjs', tag: 'kablix-patte', width: 250,
     attrs: { speed: '0', coxaAngle: '75', patellaAngle: '125' },
   },
-  // Araignée : illustrée AVEC son électronique embarquée et les patellas pliées
-  // (`speed: 0` = pas d'animation, la pose est atteinte avant la mesure).
+  // Araignée : électronique embarquée toujours dessinée (v2026.8.58), patellas
+  // pliées (`speed: 0` = pas d'animation, la pose est atteinte avant la mesure).
   araignee: {
     module: 'araignee-element.mjs', tag: 'kablix-araignee',
-    attrs: { boards: '1', speed: '0', patella0: '120', patella1: '120', patella2: '120', patella3: '120' },
+    attrs: { speed: '0', patella0: '120', patella1: '120', patella2: '120', patella3: '120' },
   },
 };
 

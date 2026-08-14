@@ -892,6 +892,8 @@ export const CATALOG: readonly PartDef[] = [
   // de Composants3D.svg, cf. araignee-element.mts) : corps + 4 pattes
   // (8 articulations, mêmes angles que la patte seule), avec sa Pico W, son
   // PCA9685 et sa batterie EMBARQUÉS.
+  // L'électronique embarquée est TOUJOURS dessinée (v2026.8.58) : la case qui la
+  // montrait ou la cachait ne servait à rien — le PMMA translucide la laisse voir.
   // AUCUNE CONNECTIQUE depuis la v2026.8.24 (Frank) : le robot porte sa propre
   // carte, c'est LUI qu'on programme. `board: 'picow'` le dit à l'atelier —
   // le déposer choisit la Pico W comme cible, exactement comme on poserait la
@@ -903,7 +905,7 @@ export const CATALOG: readonly PartDef[] = [
     type: 'araignee', label: 'Spider robot', tag: 'kablix-araignee', kind: 'araignee',
     board: 'picow', pinless: true,
     attrs: {
-      address: '0x7F', ...PCA9685_PAD_ATTRS, speed: '2', boards: '',
+      address: '0x7F', ...PCA9685_PAD_ATTRS, speed: '2',
       revcoxa0: '', revpatella0: '', revcoxa1: '', revpatella1: '',
       revcoxa2: '', revpatella2: '', revcoxa3: '', revpatella3: '',
       zerocoxa0: '0', zeropatella0: '0', zerocoxa1: '0', zeropatella1: '0',
@@ -912,7 +914,6 @@ export const CATALOG: readonly PartDef[] = [
     props: [
       ...PCA9685_PAD_PROPS,
       { attr: 'speed', label: 'Rotation time (s/turn)', kind: 'number', min: 0, max: 30, step: 0.1 },
-      { attr: 'boards', label: 'Show on-board electronics', kind: 'checkbox' },
       REVERSE_PROP('revcoxa0', 'Reverse the front-left coxa'),
       REVERSE_PROP('revpatella0', 'Reverse the front-left patella'),
       REVERSE_PROP('revcoxa1', 'Reverse the front-right coxa'),

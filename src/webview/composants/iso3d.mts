@@ -629,7 +629,7 @@ export function assemblyFaces(a: Assembly, opts: {
       const off = scale(n, eclate * Math.sign(along));
       const center = add(scale(pos, k), off);
       const faces = slabFaces(poly, p.plan, center, p.ep * k, color, holes, xf);
-      empiles.push({ ...boiteMonde(poly, p.plan, center, p.ep * k), faces });
+      empiles.push({ ...boiteMonde(poly, p.plan, center, p.ep * k), faces, alpha: alphaColor(color) });
       out.push(...faces);
     }
   }
@@ -637,14 +637,21 @@ export function assemblyFaces(a: Assembly, opts: {
   return out;
 }
 
-/** Une pièce POSÉE dans l'assemblage : ses faces et le pavé qu'elle occupe (avant
- *  le lacet de présentation, qui ne tourne qu'autour de Z et ne change donc rien
- *  aux hauteurs). */
-type Empile = { z0: number; z1: number; bb: { x0: number; x1: number; y0: number; y1: number }; faces: Face[] };
+/** Une pièce POSÉE dans l'assemblage : ses faces, sa transparence et le pavé
+ *  qu'elle occupe (avant le lacet de présentation, qui ne tourne qu'autour de Z
+ *  et ne change donc rien aux hauteurs). */
+type Empile = {
+  z0: number; z1: number;
+  bb: { x0: number; x1: number; y0: number; y1: number };
+  faces: Face[];
+  /** Opacité de la matière : elle dit comment la pièce sera PEINTE, donc quelle
+   *  profondeur décide de son ordre de dessin (voir `empilement`). */
+  alpha: number;
+};
 
 /** Le pavé englobant d'une pièce posée : son contour porté dans son plan, épaisseur
  *  comprise. */
-function boiteMonde(poly: Vec2[], plan: Plane, center: Vec3, thickness: number): Omit<Empile, 'faces'> {
+function boiteMonde(poly: Vec2[], plan: Plane, center: Vec3, thickness: number): Omit<Empile, 'faces' | 'alpha'> {
   const { u, v } = PLANES[plan];
   const n = planeNormal(plan);
   const t = thickness / 2;
@@ -679,6 +686,14 @@ function boiteMonde(poly: Vec2[], plan: Plane, center: Vec3, thickness: number):
  * Chaque pièce est donc remontée juste devant celles qu'elle surplombe (comme un
  * décalque devant sa plaque), les plus basses d'abord pour que l'empilement se
  * propage — batterie, plaque du dessous, plaque du dessus, cartes.
+ *
+ * Le décalage se calcule sur la profondeur qui DÉCIDE VRAIMENT du dessin, et
+ * elle n'est pas la même selon la matière (v2026.8.58) : une pièce translucide
+ * est peinte d'un bloc, à sa profondeur MOYENNE (`renderFaces`), une pièce opaque
+ * triangle par triangle, donc entre son plus loin et son plus près. Calculé sur
+ * les extrêmes des deux côtés, comme jusqu'ici, le décalage valait la DIAGONALE
+ * de la pièce : les deux plaques du corps du robot partaient 27 unités en avant
+ * et venaient recouvrir les servos des pattes, pourtant bien plus près de l'œil.
  */
 function empilement(pieces: Empile[]): void {
   const n = pieces.length;
@@ -704,14 +719,34 @@ function empilement(pieces: Empile[]): void {
     }
     if (!bouge) break;
   }
+  // La plage de profondeur que chaque pièce OCCUPERA une fois peinte : un point
+  // (la moyenne) si elle est translucide, l'intervalle de ses faces si elle est
+  // opaque. C'est là-dessus, et non sur les sommets du pavé, que se règle
+  // l'empilement.
+  const repere = pieces.map((p) => {
+    if (!p.faces.length) return { arriere: 0, avant: 0 };
+    if (p.alpha < 1) {
+      const moy = p.faces.reduce((s, f) => s + f.z, 0) / p.faces.length;
+      return { arriere: moy, avant: moy };
+    }
+    let arriere = Infinity;
+    let avant = -Infinity;
+    for (const f of p.faces) {
+      arriere = Math.min(arriere, f.z);
+      avant = Math.max(avant, f.z);
+    }
+    return { arriere, avant };
+  });
   for (const i of pieces.map((_, q) => q).sort((x, y) => rang[x] - rang[y])) {
     if (!sous[i].length || !pieces[i].faces.length) continue;
     let devant = -Infinity;
-    for (const j of sous[i]) for (const f of pieces[j].faces) devant = Math.max(devant, f.z);
+    for (const j of sous[i]) devant = Math.max(devant, repere[j].avant);
     if (devant === -Infinity) continue;
-    const bas = Math.min(...pieces[i].faces.map((f) => f.z));
-    const d = devant + 0.01 - bas;
-    if (d > 0) for (const f of pieces[i].faces) f.z += d;
+    const d = devant + 0.01 - repere[i].arriere;
+    if (d <= 0) continue;
+    for (const f of pieces[i].faces) f.z += d;
+    repere[i].arriere += d;
+    repere[i].avant += d;
   }
 }
 
@@ -1050,11 +1085,15 @@ export function regularPoly(n: number, r: number, phase = 0): Vec2[] {
   });
 }
 
-/** L'alpha d'une couleur sortie de `shade` : `rgb(…)` est opaque, `rgba(…)` dit
- *  le sien. */
-function alphaDe(fill: string): number {
-  if (!fill.startsWith('rgba(')) return 1;
-  const m = fill.match(/[\d.]+/g);
+/** L'alpha d'une couleur, quelle que soit son écriture : `#rrggbbaa` (celle du
+ *  dessin), `rgba(…)` (celle que rend `shade`), et 1 pour tout le reste. */
+export function alphaColor(color: string): number {
+  if (color[0] === '#') {
+    const h = color.slice(1);
+    return h.length >= 8 ? parseInt(h.slice(6, 8), 16) / 255 : 1;
+  }
+  if (!color.startsWith('rgba(')) return 1;
+  const m = color.match(/[\d.]+/g);
   return m && m.length > 3 ? Number(m[3]) : 1;
 }
 
@@ -1090,7 +1129,7 @@ export function renderFaces(faces: Face[], cx: number, cy: number): SVGTemplateR
   const paquets: Paquet[] = [];
   const parGroupe = new Map<number, Paquet>();
   for (const f of faces) {
-    const a = alphaDe(f.fill);
+    const a = alphaColor(f.fill);
     if (a >= 1) { paquets.push({ z: f.z, faces: [f], alpha: 1 }); continue; }
     // Une face translucide isolée (un décalque) forme un groupe à elle seule :
     // elle est aplatie pareil, sans jamais se recouvrir elle-même.

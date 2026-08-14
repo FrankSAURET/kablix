@@ -22,7 +22,6 @@ Catégorie de la palette : **Système**.
 |-----------|------|--------|
 | `ad0` … `ad5` | État des six pads d'adresse du PCA9685 embarqué (coché = pad **haut**) | tous cochés |
 | `speed` | Temps d'un tour complet (360°) à pleine vitesse (s), 0 = mouvement instantané | `2` |
-| `boards` | Montrer l'électronique embarquée (PCA9685, batterie) | décoché |
 | `revcoxa0` … `revpatella3` | Servo monté **à l'envers** : la même consigne le fait tourner de l'autre côté | décoché |
 | `zerocoxa0` … `zeropatella3` | Angle **dessiné** quand le programme envoie 0° à ce servo (−360 à +360°) | `0` |
 
@@ -61,7 +60,7 @@ Les pattes de droite sont montées **en miroir** de celles de gauche, comme sur 
 - Ouvrez un bus I²C dans votre programme (`I2C(0, sda=Pin(0), scl=Pin(1))`) : c'est le bus **interne** du robot, il rejoint le PCA9685 embarqué quels que soient les numéros de broches choisis.
 - Pilotez les canaux comme ceux d'un PCA9685 posé sur la planche : réglez le prescaler à 50 Hz, puis écrivez l'impulsion voulue (500 µs = 0°, 1500 µs = 90°, 2500 µs = 180°).
 - Pour n'animer qu'une patte, il suffit d'écrire ses deux canaux : un canal jamais écrit laisse son articulation immobile.
-- Cochez **Montrer l'électronique embarquée** pour voir le PCA9685 et la batterie dans le corps (utile pour expliquer le montage, inutile pour la simulation).
+- L'électronique embarquée (Pico W, PCA9685, batterie) est **toujours dessinée** : le châssis de PMMA translucide la laisse voir, comme sur le vrai robot.
 
 Test d'exemple : `araignee-pico` (dossier `testkablix`). Pas de test Arduino : le robot est une Pico W, il ne se programme pas depuis une Uno.
 

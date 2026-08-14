@@ -35,4 +35,4 @@ while True:
     pose(90, 90);   print("pattes tendues");     time.sleep(1)
     pose(90, 130);  print("patellas pliees");   time.sleep(1)
     pose(60, 130);  print("coxas en avant");    time.sleep(1)
-    pose(120, 130); print("coxas en arriere");  time.sleep(1)
+    pose(115, 130); print("coxas en arriere");  time.sleep(10)
