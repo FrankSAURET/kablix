@@ -1,6 +1,7 @@
 // Interface commune des moteurs de simulation (AVR, RP2040).
 import type { BusDeviceSpec, BusDevices, I2cDevice, SpiDevice } from './i2c-devices.mjs';
 import type { AnalogWave } from './analog-waves.mjs';
+import type { SevenSegMuxSpec } from './sevenseg.mjs';
 
 export type { AnalogWave };
 
@@ -216,6 +217,15 @@ export interface SimEngine {
   setLcdParallel?(displays: Array<LcdParallelConfig>): void;
   /** Texte décodé de l'afficheur parallèle `id` (une chaîne par ligne). */
   readLcdParallel?(id: string): string[];
+  /**
+   * Afficheurs 7 segments MULTIPLEXÉS, pour les moteurs DÉPORTÉS seulement : leur
+   * latch doit être relevé à chaque front GPIO, donc là où sont les broches. Un
+   * moteur qui tourne sur le fil principal ne l'expose pas — la page échantillonne
+   * elle-même dans son `onUpdate`, qui tombe alors à chaque front.
+   */
+  setSevenSeg?(displays: SevenSegMuxSpec[]): void;
+  /** Latch relevé par le moteur : `digits × 8` valeurs 0/1, vide si inconnu. */
+  readSevenSegLatch?(partId: string): number[];
   /** Force la valeur externe d'une broche d'entrée (bouton, capteur…). */
   setInput(name: string, value: boolean): void;
   /** Tension externe d'une broche analogique, en fraction 0..1 de VREF. */

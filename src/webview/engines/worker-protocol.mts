@@ -16,6 +16,7 @@
 
 import type { AnalogWave } from './analog-waves.mjs';
 import type { BusDeviceSpec } from './i2c-devices.mjs';
+import type { SevenSegMuxSpec } from './sevenseg.mjs';
 
 /** Broches publiées dans l'instantané, dans l'ordre fixé à l'initialisation. */
 export interface PinTable {
@@ -70,6 +71,13 @@ export interface PinSnapshot {
   neopixel: Record<string, number[]>;
   /** Écrans LCD en parallèle : lignes de texte par identifiant de composant. */
   lcd: Record<string, string[]>;
+  /**
+   * Latch des afficheurs 7 segments multiplexés : `digits × 8` valeurs 0/1 par
+   * composant. Échantillonné dans le worker à chaque front GPIO — depuis la page
+   * on ne verrait qu'un instantané sur quatre, et les chiffres brefs seraient
+   * manqués. Publié seulement s'il a changé (le tableau est absent sinon).
+   */
+  sevenSeg: Record<string, Uint8Array>;
 }
 
 /** Carte à simuler, telle que la page la choisit. */
@@ -121,6 +129,12 @@ export type ToWorker =
   | { t: 'setDht22'; sensors: unknown[] }
   | { t: 'setNeopixels'; strips: unknown[] }
   | { t: 'setLcdParallel'; screens: unknown[] }
+  /**
+   * Afficheurs 7 segments multiplexés, DÉCRITS : le worker échantillonne leur
+   * latch à chaque front GPIO et publie le résultat dans l'instantané. C'est le
+   * seul état visible qui exige la cadence du MCU, pas celle de l'écran.
+   */
+  | { t: 'setSevenSeg'; displays: SevenSegMuxSpec[] }
   /**
    * Périphériques de bus (I²C et SPI) DÉCRITS : le worker fabrique les siens et
    * les branche au moteur. L'objet lui-même ne traverse pas — ses méthodes sont
@@ -199,5 +213,6 @@ export function emptySnapshot(count: number): PinSnapshot {
     paused: false,
     neopixel: {},
     lcd: {},
+    sevenSeg: {},
   };
 }

@@ -43,8 +43,10 @@ ok(
   /KABLIX_WORKER_URL/.test(html) && /KABLIX_SIM_WORKER/.test(html)
 );
 ok(
-  'package.json : le réglage kablix.simulationWorker existe, désactivé par défaut',
-  manifest.contributes?.configuration?.properties?.['kablix.simulationWorker']?.default === false
+  // Activé depuis v2026.8.55 : mesuré en Chromium, un Pico dont le moteur reste sur
+  // le fil principal ne tient plus que 76 % de l'heure sous une page chargée.
+  'package.json : le réglage kablix.simulationWorker existe, activé par défaut',
+  manifest.contributes?.configuration?.properties?.['kablix.simulationWorker']?.default === true
 );
 ok(
   'package.nls.json : le réglage est décrit (langue de base)',
@@ -316,6 +318,39 @@ ok(
   'setBusDevices : aucun objet à méthodes dans le message',
   busMsg.specs.every((s) => Object.values(s).every((v) => typeof v !== 'function'))
 );
+
+// Le latch 7 segments est relevé DANS le worker, front par front, et publié
+// seulement quand il change : la page doit donc le MÉMORISER — une clé absente de
+// l'instantané veut dire « inchangé », pas « éteint ».
+posted.length = 0;
+engine.setSevenSeg([
+  {
+    partId: 'd1',
+    digits: 1,
+    commonAnode: false,
+    segPins: ['2', '3', null, null, null, null, null, null],
+    digitPins: ['4'],
+    segFixed: [null, null, null, null, null, null, null, null],
+    digitFixed: [null],
+  },
+]);
+ok(
+  'setSevenSeg : la description de l’afficheur part au worker',
+  posted.find((m) => m.t === 'setSevenSeg')?.displays?.[0]?.partId === 'd1'
+);
+const seg1 = emptySnapshot(20);
+seg1.seq = 2;
+seg1.sevenSeg['d1'] = Uint8Array.from([1, 0, 1, 0, 0, 0, 0, 0]);
+deliver(engineWorker, { t: 'snapshot', snap: seg1 });
+ok('readSevenSegLatch rend le latch publié par le worker', engine.readSevenSegLatch('d1').join('') === '10100000');
+const seg2 = emptySnapshot(20);
+seg2.seq = 3;
+deliver(engineWorker, { t: 'snapshot', snap: seg2 });
+ok(
+  'un latch absent de l’instantané reste affiché (publication différentielle)',
+  engine.readSevenSegLatch('d1').join('') === '10100000'
+);
+ok('un afficheur inconnu rend un latch vide (le rendu retombe sur l’instant)', engine.readSevenSegLatch('zz').length === 0);
 
 engine.dispose();
 ok('dispose() arrête le worker', posted.some((m) => m.t === 'dispose'));
@@ -706,6 +741,72 @@ ok('worker : la réponse de l’hôte est réinjectée au script', picoMoteur.ne
 
 toWorker({ t: 'dispose' });
 ok('worker : dispose libère aussi le moteur Pico', picoMoteur.disposed === true);
+
+// --- 4 quater. Le latch 7 segments relevé dans le worker (lot 5) --------------
+// Un chiffre multiplexé n'est éclairé que ~2 ms : lu à la cadence des instantanés
+// (4 ms), il est manqué une fois sur deux. La lecture doit donc se faire là où
+// sont les broches — sur CHAQUE front GPIO, dans le worker.
+fromWorker.length = 0;
+toWorker({ t: 'init', board: 'uno', program: new Uint16Array(2), debugInfo: null, pins: ['2', '3', '10', '11'] });
+const mux = globalThis.__avr;
+ok('worker : sans afficheur multiplexé, aucun échantillonnage par front', mux.onUpdate === null);
+const niveaux = { 2: true, 3: true, 10: false, 11: true }; // chiffre 1 actif (cathode commune)
+mux.readDigital = (p) => niveaux[p] === true;
+toWorker({
+  t: 'setSevenSeg',
+  displays: [
+    {
+      partId: 'd1',
+      digits: 2,
+      commonAnode: false,
+      segPins: ['2', '3', null, null, null, null, null, null],
+      digitPins: ['10', '11'],
+      segFixed: [null, null, null, null, null, null, null, null],
+      digitFixed: [null, null],
+    },
+  ],
+});
+ok('worker : un afficheur multiplexé rebranche onUpdate (une lecture par front)', typeof mux.onUpdate === 'function');
+mux.onUpdate();
+fromWorker.length = 0;
+toWorker({ t: 'pause' }); // la pause publie dans la foulée
+const latch1 = [...fromWorker].reverse().find((m) => m.t === 'snapshot')?.snap?.sevenSeg?.d1;
+ok(
+  'worker : les segments du chiffre actif sont publiés',
+  latch1?.length === 16 && latch1[0] === 1 && latch1[1] === 1 && latch1[8] === 0
+);
+fromWorker.length = 0;
+mux.onUpdate();
+toWorker({ t: 'pause' });
+ok(
+  'worker : un latch inchangé n’est pas republié (l’instantané ne porte que ce qui bouge)',
+  [...fromWorker].reverse().find((m) => m.t === 'snapshot')?.snap?.sevenSeg?.d1 === undefined
+);
+niveaux[10] = true; // le chiffre 1 s'éteint…
+niveaux[11] = false; // …et le chiffre 2 s'allume, segment b seul
+niveaux[2] = false;
+fromWorker.length = 0;
+mux.onUpdate();
+toWorker({ t: 'pause' });
+const latch2 = [...fromWorker].reverse().find((m) => m.t === 'snapshot')?.snap?.sevenSeg?.d1;
+ok(
+  'worker : le chiffre éteint garde sa valeur, c’est un latch',
+  latch2?.[0] === 1 && latch2?.[1] === 1 && latch2?.[8] === 0 && latch2?.[9] === 1
+);
+toWorker({ t: 'setSevenSeg', displays: [] });
+ok('worker : plus d’afficheur multiplexé, plus d’échantillonnage par front', mux.onUpdate === null);
+toWorker({ t: 'dispose' });
+
+// Et côté page : le fil principal ne réechantillonne plus quand le worker l'a
+// fait, mais garde le MÊME échantillonneur partagé pour le repli.
+ok(
+  'sim.mts : le latch publié par le worker est recopié, pas relevé une seconde fois',
+  /engine\.setSevenSeg\?\.\(/.test(sim) && /engine\.readSevenSegLatch\(b\.partId\)/.test(sim)
+);
+ok(
+  'sim.mts : sans worker, c’est le même sampleSevenSeg qui sert sur le fil principal',
+  /sampleSevenSeg\(sevenSegMux, sevenSegLatch/.test(sim)
+);
 
 // --- Rapport ------------------------------------------------------------------
 let failed = 0;

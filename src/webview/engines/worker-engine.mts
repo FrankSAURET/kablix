@@ -16,6 +16,7 @@
 import type { AnalogWave } from './analog-waves.mjs';
 import type { BusDeviceSpec, BusDevices, I2cDevice, SpiDevice } from './i2c-devices.mjs';
 import type { PicoProgram } from './pico.mjs';
+import type { SevenSegMuxSpec } from './sevenseg.mjs';
 import type {
   Breakpoint,
   DebugPauseState,
@@ -152,6 +153,12 @@ export class WorkerEngine implements SimEngine {
    * recopie l'état publié par le worker.
    */
   private mirrors: BusDevices | null = null;
+  /**
+   * Latch des afficheurs 7 segments, tenu à jour d'instantané en instantané. Le
+   * worker ne publie que ce qui change : sans mémoire ici, un afficheur immobile
+   * s'éteindrait dès l'instantané suivant.
+   */
+  private latches = new Map<string, number[]>();
   /** Dernière liste de touches envoyée, pour n'écrire que sur changement. */
   private lastPressed = '';
   private pumpTimer: ReturnType<typeof setInterval> | null = null;
@@ -204,6 +211,11 @@ export class WorkerEngine implements SimEngine {
         // sous charge) ferait reculer l'affichage : on le jette.
         if (msg.snap.seq < this.snap.seq) return;
         this.snap = msg.snap;
+        // Le latch n'est publié que lorsqu'il CHANGE : ce qui n'est pas dans
+        // l'instantané garde sa valeur, sinon un afficheur figé s'éteindrait.
+        for (const [id, v] of Object.entries(msg.snap.sevenSeg)) {
+          this.latches.set(id, Array.from(v));
+        }
         this.pausedMirror = msg.snap.paused;
         this.onUpdate?.();
         return;
@@ -479,5 +491,20 @@ export class WorkerEngine implements SimEngine {
 
   setLcdParallel(displays: LcdParallelConfig[]): void {
     this.post({ t: 'setLcdParallel', screens: displays });
+  }
+
+  /**
+   * Afficheurs 7 segments multiplexés : la description part au worker, qui relève
+   * leur latch à CHAQUE front GPIO. Vu d'ici, `onUpdate` ne tombe qu'à chaque
+   * instantané (4 ms) alors qu'un chiffre n'est éclairé que ~2 ms — échantillonner
+   * depuis la page raterait la moitié des chiffres.
+   */
+  setSevenSeg(displays: SevenSegMuxSpec[]): void {
+    this.post({ t: 'setSevenSeg', displays });
+  }
+
+  /** Latch publié par le worker (tableau vide tant qu'il n'a rien envoyé). */
+  readSevenSegLatch(partId: string): number[] {
+    return this.latches.get(partId) ?? [];
   }
 }

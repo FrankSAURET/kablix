@@ -46,30 +46,16 @@ const bilan = () => {
   process.exit(fail ? 1 : 0);
 };
 
-/**
- * Reproduit FIDÈLEMENT `sampleSevenSegLatches` (sim.mts) — la fonction n'est pas
- * exportée ; une garde statique plus bas vérifie que le code du produit lit bien
- * `segFixed`/`digitFixed`. `read(pin)` joue le moteur.
- */
+// Depuis v2026.8.55, le latch du produit est UNE seule fonction, partagée par le
+// fil principal et le worker : le banc l'appelle telle quelle au lieu d'en garder
+// une copie qui dérive.
+const { sampleSevenSeg } = await load('src/webview/engines/sevenseg.mts', 'sevenseg.mjs');
+
+/** Le latch du produit sur un seul relevé. `read(pin)` joue le moteur. */
 function latchOf(binding, read) {
-  const latch = new Array(binding.digits * 8).fill(0);
-  for (let d = 0; d < binding.digits; d++) {
-    const digPin = binding.digitPins[d];
-    const digFixed = binding.digitFixed[d];
-    if (!digPin && digFixed === null) continue;
-    const common = digPin ? (read(digPin) ? 1 : 0) : digFixed;
-    const active = binding.commonAnode ? common === 1 : common === 0;
-    if (!active) continue;
-    for (let s = 0; s < 8; s++) {
-      const segPin = binding.segPins[s];
-      const fixed = binding.segFixed[s];
-      const seg = segPin ? (read(segPin) ? 1 : 0) : (fixed ?? (binding.commonAnode ? 1 : 0));
-      latch[d * 8 + s] = binding.commonAnode
-        ? (seg === 0 && common === 1 ? 1 : 0)
-        : (seg === 1 && common === 0 ? 1 : 0);
-    }
-  }
-  return latch;
+  const latches = new Map();
+  sampleSevenSeg([binding], latches, read);
+  return latches.get(binding.partId);
 }
 
 /** Ancienne logique (avant v2026.7.216) : sert de contre-épreuve. */
@@ -137,11 +123,15 @@ async function colonSection() {
   }
 
   // Le latch du produit doit vraiment se servir de ces niveaux figés.
+  const seg = readFileSync(join(root, 'src/webview/engines/sevenseg.mts'), 'utf8');
+  ok('sevenseg.mts : le latch retombe sur le niveau du rail quand la broche manque',
+    /fixed\s*\?\?\s*\(b\.commonAnode \? 1 : 0\)/.test(seg), 'segFixed non utilisé dans sampleSevenSeg');
+  ok('sevenseg.mts : un commun câblé en dur à un rail sélectionne quand même son chiffre',
+    /digitFixed\[d\]/.test(seg) && /!digPin && digFixed === null/.test(seg), 'digitFixed non utilisé');
+  // La page ne doit plus échantillonner elle-même quand le worker l'a déjà fait.
   const sim = readFileSync(join(root, 'src/webview/sim.mts'), 'utf8');
-  ok('sim.mts : le latch retombe sur le niveau du rail quand la broche manque',
-    /fixed\s*\?\?\s*\(b\.commonAnode \? 1 : 0\)/.test(sim), 'segFixed non utilisé dans sampleSevenSegLatches');
-  ok('sim.mts : un commun câblé en dur à un rail sélectionne quand même son chiffre',
-    /digitFixed\[d\]/.test(sim) && /!digPin && digFixed === null/.test(sim), 'digitFixed non utilisé');
+  ok('sim.mts : le latch relevé dans le worker est recopié, pas refait à 4 ms près',
+    /engine\.readSevenSegLatch\(b\.partId\)/.test(sim), 'recopie du latch publié introuvable');
   // Et le fork doit reporter le dp sur les 2 points centraux.
   const el = readFileSync(join(root, 'src/webview/composants/7segment-element.mts'), 'utf8');
   ok('7segment-element : les 2 points suivent le dp le plus fort de l afficheur',

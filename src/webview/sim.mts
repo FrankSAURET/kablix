@@ -148,6 +148,7 @@ import {
   type BusDeviceSpec,
 } from './engines/i2c-devices.mjs';
 import { evalAnalogWave, type AnalogWave } from './engines/analog-waves.mjs';
+import { sampleSevenSeg } from './engines/sevenseg.mjs';
 import type {
   AvrDebugInfo,
   Breakpoint,
@@ -757,35 +758,17 @@ function queueRefresh(): void {
  */
 function sampleSevenSegLatches(): void {
   if (!engine || sevenSegMux.length === 0) return;
-  for (const b of sevenSegMux) {
-    let latch = sevenSegLatch.get(b.partId);
-    if (!latch || latch.length !== b.digits * 8) {
-      latch = new Array(b.digits * 8).fill(0);
-      sevenSegLatch.set(b.partId, latch);
+  // Moteur déporté : le latch a DÉJÀ été relevé front par front dans le worker,
+  // on ne fait que recopier ce qu'il publie. Échantillonner ici serait à la fois
+  // faux (4 ms entre deux instantanés) et deux fois payé.
+  if (engine.readSevenSegLatch) {
+    for (const b of sevenSegMux) {
+      const latch = engine.readSevenSegLatch(b.partId);
+      if (latch.length === b.digits * 8) sevenSegLatch.set(b.partId, latch);
     }
-    for (let d = 0; d < b.digits; d++) {
-      const digPin = b.digitPins[d];
-      // Un commun sans broche MCU peut être câblé en dur à un rail : il vaut
-      // alors ce rail. Sans rail NI broche, le chiffre n'est pas alimenté.
-      const digFixed = b.digitFixed[d];
-      if (!digPin && digFixed === null) continue;
-      const common = digPin ? (engine.readDigital(digPin) ? 1 : 0) : digFixed!; // niveau du commun
-      const active = b.commonAnode ? common === 1 : common === 0;
-      if (!active) continue; // chiffre éteint : on garde sa dernière valeur (latch)
-      for (let s = 0; s < 8; s++) {
-        const segPin = b.segPins[s];
-        // Segment sans broche MCU : niveau du rail auquel il est soudé (les deux
-        // points d'une horloge sont tirés au 3,3 V), sinon éteint.
-        const fixed = b.segFixed[s];
-        const seg = segPin
-          ? (engine.readDigital(segPin) ? 1 : 0)
-          : (fixed ?? (b.commonAnode ? 1 : 0));
-        latch[d * 8 + s] = b.commonAnode
-          ? (seg === 0 && common === 1 ? 1 : 0)
-          : (seg === 1 && common === 0 ? 1 : 0);
-      }
-    }
+    return;
   }
+  sampleSevenSeg(sevenSegMux, sevenSegLatch, (pin) => engine!.readDigital(pin));
 }
 
 // Boucle de rendu continue (découplée du moteur) pendant toute la simulation.
@@ -1989,6 +1972,10 @@ function bindInputs(): void {
   // haute fréquence du latch (cf. sampleSevenSegLatches).
   sevenSegMux = sevenSegmentMuxBindings(editor.diagram);
   sevenSegLatch = new Map();
+  // Moteur déporté : l'échantillonnage part AVEC les broches. Vu de la page,
+  // `onUpdate` ne tombe qu'à chaque instantané (4 ms) alors qu'un chiffre n'est
+  // éclairé que ~2 ms — la moitié des chiffres serait manquée.
+  engine.setSevenSeg?.(sevenSegMux);
   // Ventilateurs : leur broche de commande est mesurée en rapport cyclique (PWM).
   const fanPins = editor.diagram.parts
     .filter((p) => partDef(p.type).kind === 'fan')

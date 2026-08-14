@@ -16,6 +16,7 @@ import { AvrEngine } from './avr.mjs';
 import { PicoEngine, type PicoProgram } from './pico.mjs';
 import { evalAnalogWave, type AnalogWave } from './analog-waves.mjs';
 import { createBusDevices, type BusDevices } from './i2c-devices.mjs';
+import { sampleSevenSeg, type SevenSegMuxSpec } from './sevenseg.mjs';
 import type { AvrDebugInfo, SimEngine } from './types.mjs';
 import {
   DRIVE_NAMES,
@@ -82,6 +83,34 @@ function applyWaves(list: AnalogWave[]): void {
     waves.set(w.pin, w);
   }
   for (const pin of [...waves.keys()]) if (!next.has(pin)) waves.delete(pin);
+}
+
+/**
+ * Afficheurs 7 segments multiplexés décrits par la page. Leur latch est le seul
+ * état visible qui exige la cadence du MCU : chaque chiffre n'est éclairé que
+ * ~2 ms, donc échantillonné à 4 ms depuis la page on en raterait la plupart.
+ */
+let sevenSeg: SevenSegMuxSpec[] = [];
+const sevenSegLatch = new Map<string, number[]>();
+/** Dernier latch publié, à plat : un affichage figé ne repart pas à chaque instantané. */
+const lastSevenSeg = new Map<string, string>();
+
+/** Relève le latch des afficheurs multiplexés — appelée à CHAQUE front GPIO. */
+function sampleLatches(): void {
+  if (!engine) return;
+  sampleSevenSeg(sevenSeg, sevenSegLatch, (pin) => engine!.readDigital(pin));
+}
+
+/**
+ * Branche (ou débranche) l'échantillonnage haute fréquence. Sans afficheur
+ * multiplexé au schéma, `onUpdate` reste nul : le moteur n'appelle alors rien du
+ * tout à chaque front, ce qui est le cas de la quasi-totalité des schémas.
+ */
+function applySevenSeg(list: SevenSegMuxSpec[]): void {
+  sevenSeg = list;
+  sevenSegLatch.clear();
+  lastSevenSeg.clear();
+  if (engine) engine.onUpdate = list.length > 0 ? sampleLatches : null;
 }
 
 /** Périphériques de bus fabriqués ici et branchés au moteur (cf. `setBusDevices`). */
@@ -186,6 +215,14 @@ function publish(): void {
     );
   }
   for (const id of lcdIds) out.lcd[id] = engine.readLcdParallel?.(id) ?? [];
+  // Le latch a déjà été relevé front par front : ici on ne fait que publier ce qui
+  // a bougé. Un afficheur qui montre le même nombre ne coûte aucun octet.
+  for (const [id, latch] of sevenSegLatch) {
+    const flat = latch.join('');
+    if (flat === lastSevenSeg.get(id)) continue;
+    lastSevenSeg.set(id, flat);
+    out.sevenSeg[id] = Uint8Array.from(latch);
+  }
   out.simulatedMs = engine.simulatedMs?.() ?? 0;
   out.busyMs = engine.busyMs?.() ?? 0;
   out.lagMs = engine.lagMs?.() ?? 0;
@@ -197,6 +234,7 @@ function publish(): void {
     out.pulseUs.buffer,
     out.pwmDuty.buffer,
     out.pulseActive.buffer,
+    ...Object.values(out.sevenSeg).map((v) => v.buffer),
   ]);
 }
 
@@ -234,7 +272,8 @@ function init(msg: Extract<ToWorker, { t: 'init' }>): void {
   }
   // `onUpdate` reste local au worker : la page n'en a pas besoin, elle lit
   // l'instantané. Le brancher à un postMessage coûterait un message par front.
-  engine.onUpdate = null;
+  // Seul le latch des 7 segments s'y accroche, et seulement si le schéma en porte.
+  engine.onUpdate = sevenSeg.length > 0 ? sampleLatches : null;
   engine.onSerial = (chunk) => send({ t: 'serial', chunk });
   engine.onDebugPause = (state) => {
     publish(); // l'écran doit montrer les broches DE L'ARRÊT, pas de la frame d'avant
@@ -327,6 +366,9 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
         engine?.setLcdParallel?.(screens as never);
         return;
       }
+      case 'setSevenSeg':
+        applySevenSeg(msg.displays);
+        return;
       case 'setBusDevices': {
         // Les périphériques sont FABRIQUÉS ici à partir de leur description : ce
         // sont eux qui décodent les trames, au rythme du bus, sans un message.

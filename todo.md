@@ -23,8 +23,18 @@
 4. ⏳ **Le test `araignee-uno` est déplacé dans `A Examiner/testkablix/Arduino/araignee-uno/`** (sketch + .projix, 2 fichiers, non supprimés). Le robot EST une Pico W depuis la v2026.8.24 : il n'a plus de broches, on ne peut plus le piloter depuis une Uno. Frank tranche : à jeter, ou à garder en archive.
 
 # En réserve
-1. ⬜ Lot **5** : `sampleSevenSegLatches` (appelé sur chaque front GPIO) dans le worker, mesure du gain réel, décision du défaut de `kablix.simulationWorker`.
-Lots 1 à 4 livrés en v2026.8.51, v2026.8.52, v2026.8.53 et v2026.8.54.
+1. ⏳ Traduction FR du réglage `kablix.simulationWorker` (`package.nls.fr.json`) : sa description a changé avec le défaut activé — au lot de traductions d'avant publication.
+Les cinq lots du worker sont livrés (v2026.8.51 → v2026.8.55).
+
+# >>>>  v2026.8.55 — le worker est allumé par défaut (lot 5)
+
+1. ✅ **Le latch des 7 segments multiplexés est relevé DANS le worker** (`src/webview/engines/sevenseg.mts`, `sampleSevenSeg`) : un chiffre n'est éclairé que ~2 ms, l'instantané tombe toutes les 4 ms — lu depuis la page, un chiffre sur deux était manqué. La lecture se fait maintenant là où sont les broches, sur **chaque front GPIO**, et la page ne fait plus que recopier le latch publié.
+2. ✅ **Une seule fonction pour les deux fils** : `sampleSevenSeg` sert au worker comme au moteur du fil principal (repli), et `verify:7seg-mux` l'appelle **telle quelle** au lieu de garder sa propre copie — plus de logique en double qui dérive.
+3. ✅ **Publication différentielle** : le latch ne part que lorsqu'il change (comparé à plat), donc un afficheur figé ne coûte aucun message. Le proxy le **mémorise** en conséquence : une clé absente de l'instantané veut dire « inchangé », pas « éteint ».
+4. ✅ **Mesure du gain réel, en Chromium, avec un vrai `Worker`** (`scripts/_mesure-worker.mjs`, outil d'atelier) : même sketch des deux côtés, une boucle de frames qui imite la charge d'interface (4, 8 puis 14 ms par frame), 6 s par variante. Uno (`avr8js`, sketch multiplexé) : **−4 %** de frames sur un schéma léger, **+12 %** puis **+30 %** dès que la page travaille. RP2040 (`rp2040js`, `Horloge.py`) : **+31 %**, **+227 %**, **+152 %** de frames.
+5. ✅ **Le vrai argument n'est pas la fluidité, c'est l'heure** : sur le fil principal, un Pico chargé ne tient plus que **84 % puis 76 % du temps simulé** — l'horloge du programme retarde pour de bon. Dans le worker : **100 % dans les six mesures**, attente médiane de rendu 33 ms → 4,5 ms, pire cas 40 ms → 6 ms.
+6. ✅ **`kablix.simulationWorker` est activé par défaut.** Le −4 % d'un schéma léger (le coût des 250 instantanés/s) ne pèse rien face à une simulation Pico qui perd le quart de son heure. Le réglage reste là pour revenir en arrière, le repli automatique aussi (bundle absent, CSP fermée, worker qui ne démarre pas). Description du réglage réécrite (langue de base, EN).
+7. ✅ **Banc `verify:worker` : 122 contrôles** (110 avant) — le worker rebranche `onUpdate` quand un afficheur multiplexé arrive et le débranche quand il repart, publie les segments du chiffre actif, ne republie pas un latch inchangé, garde la valeur d'un chiffre éteint (c'est un latch), et la page recopie au lieu de rééchantillonner.
 
 # >>>>  v2026.8.54 — le Pico simule aussi sur son propre fil (lot 4)
 
