@@ -47,15 +47,20 @@ ok(`catalogue : les ${CATALOG.length} libellés de composant sont traduits`,
 // --- Libellés de propriétés et de valeurs de liste ----------------------------
 const props = new Set();
 const options = new Set();
+const groupes = new Set();
 for (const def of CATALOG) {
   for (const p of def.props ?? []) {
     if (missing(p.label)) props.add(`${def.type}/${p.attr}: ${p.label}`);
+    // Titre de section repliable : affiché tel quel en tête du groupe.
+    if (missing(p.group)) groupes.add(`${def.type}: ${p.group}`);
     for (const v of Object.values(p.optionLabels ?? {})) {
       if (missing(v)) options.add(`${def.type}/${p.attr}: ${v}`);
     }
   }
 }
 ok('inspecteur : tous les libellés de propriété sont traduits', props.size === 0, [...props].join(' · '));
+ok('inspecteur : tous les titres de section repliable sont traduits',
+  groupes.size === 0, [...groupes].join(' · '));
 ok('inspecteur : tous les libellés de valeur (listes) sont traduits', options.size === 0, [...options].join(' · '));
 
 // --- Ce que la palette montre vraiment ----------------------------------------

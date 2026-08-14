@@ -1266,6 +1266,48 @@ textarea {
   margin-top: 0.3rem;
 }
 
+/* Section repliable de propriétés (robot araignée : 27 réglages en 4 sections).
+   Même présentation que les catégories de la palette : en-tête cliquable et
+   chevron qui pivote. Repliées à l'ouverture. */
+.inspector__group {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0.4rem 0 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  opacity: 0.9;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.inspector__group:hover {
+  opacity: 0.75;
+}
+
+.inspector__group-chevron {
+  display: inline-block;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1;
+  transition: transform 0.12s ease;
+}
+
+.inspector__group--collapsed .inspector__group-chevron {
+  transform: rotate(-90deg);
+}
+
+/* Le corps reprend la mise en colonne de l'inspecteur (les contrôles sont posés
+   dedans, pas directement dans le panneau). */
+.inspector__group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-left: 0.5rem;
+  border-left: 1px solid var(--vscode-panel-border, #444);
+}
+
 /* Sélecteur de transistor : la liste des modèles retenus par les critères, puis
    le bouton pour rouvrir le choix une fois le modèle posé. */
 .inspector__reflist {

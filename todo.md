@@ -1,21 +1,21 @@
 # À faire
 ## Arraignée : 
-1. Tu va mettre des menu déroulant dans ces propriétées (sur le modèle des composants mais par défaut tous repliés):
-    1. Rappel de l'adresse I²C tout en haut
-    1. Paramétrer carte 16 servomoteurs
-        1. Les 5 bit de réglage de l'adresse
-    1. Inverser les servomoteurs
-    1. Régler le 0 des servomoteurs
-    1. Paramètre des servomoteurs
-        1. impulsion à 0° (µs)
-        1. impulsion à 180° (µs)
-        1. Temps de rotation (s/tours)
 
 ## Composants
 
 # En réserve
 1. ⏳ Traduction FR du réglage `kablix.simulationWorker` (`package.nls.fr.json`) : sa description a changé avec le défaut activé — au lot de traductions d'avant publication.
 Les cinq lots du worker sont livrés (v2026.8.51 → v2026.8.55).
+
+# >>>>  v2026.8.64 — les réglages du robot rentrent dans quatre tiroirs
+
+1. ✅ **Quatre sections repliables dans l'inspecteur du robot**, dans l'ordre demandé : *Paramétrer la carte 16 servomoteurs* (les six pads d'adresse), *Inverser les servomoteurs* (8 cases), *Régler le 0 des servomoteurs* (8 calages), *Paramètres des servomoteurs* (impulsions 0°/180°, temps de rotation). **Toutes fermées à la sélection**, comme demandé : le panneau fait **moins de la moitié** de sa hauteur ouverte.
+2. ✅ **Le rappel de l'adresse I²C passe TOUT EN HAUT**, hors section, juste sous le bouton d'aide — c'est ce qu'on vient chercher, il n'a rien à faire sous 25 réglages. Vaut aussi pour le PCA9685 posé nu.
+3. ✅ **Une propriété de catalogue peut désormais porter un `group`** (`PropDef`, `catalog.mts`) : le libellé du tiroir où l'inspecteur la range. Sans groupe, elle reste au fil, à sa place — rien ne change pour les 70 autres composants, et le PCA9685 nu garde ses six cases visibles d'emblée (les cacher aurait été pire : c'est tout son réglage).
+4. ✅ **Le repli survit à la modification d'un réglage.** L'inspecteur est reconstruit à CHAQUE attribut changé : sans mémoire, la section se refermait sous les doigts à la première case cochée. L'état est gardé par « type de composant : tiroir », le temps de la session — il ne part pas dans le `.projix`, c'est du confort d'affichage.
+5. ✅ **Même présentation que les catégories de la palette** (en-tête cliquable, chevron qui pivote, trait de rappel à gauche du contenu) : c'est le modèle que tu as cité.
+6. ✅ **Nouveau banc `verify:proprietes` : 29 contrôles** (vrai éditeur, vrai CSS, Chrome headless). Il vérifie l'ordre des sections, le repli d'origine, qu'un clic n'ouvre QUE sa section, que cocher une case ne la referme pas, le contenu exact de chaque tiroir, le gain de hauteur mesuré, et qu'un composant sans groupe n'a pas de section. `verify:i18n` gagne un contrôle : les titres de tiroir sont traduits comme le reste.
+7. ✅ Fiche `docs/fr/composants/araignee.md` : section « Vingt-cinq réglages en quatre tiroirs ».
 
 # >>>>  v2026.8.63 — mêmes angles = même hauteur, et l'impulsion est celle du vrai servo
 

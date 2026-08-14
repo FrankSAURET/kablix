@@ -87,6 +87,13 @@ export interface PropDef {
   /** Pour kind 'text' : nombre de lignes de la zone de saisie (défaut 2). */
   rows?: number;
   /**
+   * Range cette propriété dans une SECTION REPLIABLE de l'inspecteur, titrée par
+   * ce libellé (traduisible). Sans groupe, la propriété reste au fil, à sa place.
+   * Utile dès qu'un composant en aligne des dizaines (le robot araignée en a 27) :
+   * les sections sont repliées à l'ouverture, comme les catégories de la palette.
+   */
+  group?: string;
+  /**
    * C'est LA valeur du composant, celle qui a sa colonne dans la nomenclature.
    * Sans ce drapeau, la valeur est reconnue à son attribut `value` — mais un
    * potentiomètre l'utilise déjà pour la POSITION de son curseur, sa valeur
@@ -397,6 +404,10 @@ const REVERSE_PROP = (attr: string, label: string): PropDef => ({ attr, label, k
  */
 const ZERO_PROP = (attr: string, label: string): PropDef =>
   ({ attr, label, kind: 'number', min: -360, max: 360, step: 1 });
+
+/** Range une liste de propriétés dans la même section repliable de l'inspecteur. */
+const grouped = (group: string, props: readonly PropDef[]): readonly PropDef[] =>
+  props.map((p) => ({ ...p, group }));
 
 export const CATALOG: readonly PartDef[] = [
   // Cartes AVR : éléments forkés, mis à l'échelle 10/9,6 px pour que
@@ -911,29 +922,39 @@ export const CATALOG: readonly PartDef[] = [
       zerocoxa0: '0', zeropatella0: '0', zerocoxa1: '0', zeropatella1: '0',
       zerocoxa2: '0', zeropatella2: '0', zerocoxa3: '0', zeropatella3: '0',
     },
+    // 27 réglages : rangés en QUATRE sections repliables (repliées à l'ouverture,
+    // v2026.8.64), dans l'ordre où on les touche — l'adresse de la carte d'abord,
+    // le montage ensuite, les servos eux-mêmes en dernier. L'adresse I²C calculée,
+    // elle, s'affiche tout en haut, hors section : c'est un rappel, pas un réglage.
     props: [
-      ...PCA9685_PAD_PROPS,
+      ...grouped('Configure the 16-servo board', PCA9685_PAD_PROPS),
+      ...grouped('Reverse the servos', [
+        REVERSE_PROP('revcoxa0', 'Reverse the front-left coxa'),
+        REVERSE_PROP('revpatella0', 'Reverse the front-left patella'),
+        REVERSE_PROP('revcoxa1', 'Reverse the front-right coxa'),
+        REVERSE_PROP('revpatella1', 'Reverse the front-right patella'),
+        REVERSE_PROP('revcoxa2', 'Reverse the rear-left coxa'),
+        REVERSE_PROP('revpatella2', 'Reverse the rear-left patella'),
+        REVERSE_PROP('revcoxa3', 'Reverse the rear-right coxa'),
+        REVERSE_PROP('revpatella3', 'Reverse the rear-right patella'),
+      ]),
+      ...grouped('Set the servo zeros', [
+        ZERO_PROP('zerocoxa0', 'Front-left coxa angle at 0°'),
+        ZERO_PROP('zeropatella0', 'Front-left patella angle at 0°'),
+        ZERO_PROP('zerocoxa1', 'Front-right coxa angle at 0°'),
+        ZERO_PROP('zeropatella1', 'Front-right patella angle at 0°'),
+        ZERO_PROP('zerocoxa2', 'Rear-left coxa angle at 0°'),
+        ZERO_PROP('zeropatella2', 'Rear-left patella angle at 0°'),
+        ZERO_PROP('zerocoxa3', 'Rear-right coxa angle at 0°'),
+        ZERO_PROP('zeropatella3', 'Rear-right patella angle at 0°'),
+      ]),
       // Les huit servos du robot sont les mêmes : une seule échelle d'impulsion
       // pour les huit, comme sur la patte seule.
-      { attr: 'pulsemin', label: 'Pulse at 0° (µs)', kind: 'number', min: 100, max: 3000, step: 1 },
-      { attr: 'pulsemax', label: 'Pulse at 180° (µs)', kind: 'number', min: 100, max: 3000, step: 1 },
-      { attr: 'speed', label: 'Rotation time (s/turn)', kind: 'number', min: 0, max: 30, step: 0.1 },
-      REVERSE_PROP('revcoxa0', 'Reverse the front-left coxa'),
-      REVERSE_PROP('revpatella0', 'Reverse the front-left patella'),
-      REVERSE_PROP('revcoxa1', 'Reverse the front-right coxa'),
-      REVERSE_PROP('revpatella1', 'Reverse the front-right patella'),
-      REVERSE_PROP('revcoxa2', 'Reverse the rear-left coxa'),
-      REVERSE_PROP('revpatella2', 'Reverse the rear-left patella'),
-      REVERSE_PROP('revcoxa3', 'Reverse the rear-right coxa'),
-      REVERSE_PROP('revpatella3', 'Reverse the rear-right patella'),
-      ZERO_PROP('zerocoxa0', 'Front-left coxa angle at 0°'),
-      ZERO_PROP('zeropatella0', 'Front-left patella angle at 0°'),
-      ZERO_PROP('zerocoxa1', 'Front-right coxa angle at 0°'),
-      ZERO_PROP('zeropatella1', 'Front-right patella angle at 0°'),
-      ZERO_PROP('zerocoxa2', 'Rear-left coxa angle at 0°'),
-      ZERO_PROP('zeropatella2', 'Rear-left patella angle at 0°'),
-      ZERO_PROP('zerocoxa3', 'Rear-right coxa angle at 0°'),
-      ZERO_PROP('zeropatella3', 'Rear-right patella angle at 0°'),
+      ...grouped('Servo parameters', [
+        { attr: 'pulsemin', label: 'Pulse at 0° (µs)', kind: 'number', min: 100, max: 3000, step: 1 },
+        { attr: 'pulsemax', label: 'Pulse at 180° (µs)', kind: 'number', min: 100, max: 3000, step: 1 },
+        { attr: 'speed', label: 'Rotation time (s/turn)', kind: 'number', min: 0, max: 30, step: 0.1 },
+      ]),
     ],
   },
   // Clavier matriciel à membrane (3 ou 4 colonnes). Interactif : une touche

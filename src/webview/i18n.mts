@@ -345,6 +345,11 @@ const FR: Record<string, string> = {
   'Pulse at 0° (µs)': 'Impulsion à 0° (µs)',
   'Pulse at 180° (µs)': 'Impulsion à 180° (µs)',
   'Rotation time (s/turn)': 'Temps de rotation (s/tour)',
+  // Titres des sections repliables de l'inspecteur du robot (27 réglages).
+  'Configure the 16-servo board': 'Paramétrer la carte 16 servomoteurs',
+  'Reverse the servos': 'Inverser les servomoteurs',
+  'Set the servo zeros': 'Régler le 0 des servomoteurs',
+  'Servo parameters': 'Paramètres des servomoteurs',
   // Sens de montage des servos : un servo vissé à l'envers part dans l'autre
   // sens pour la même consigne (le programme, lui, ne change pas).
   'Reverse the coxa servo': 'Inverser le servo de coxa',

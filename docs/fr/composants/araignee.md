@@ -27,7 +27,20 @@ Catégorie de la palette : **Système**.
 | `revcoxa0` … `revpatella3` | Servo monté **à l'envers** : la même consigne le fait tourner de l'autre côté | décoché |
 | `zerocoxa0` … `zeropatella3` | Angle **dessiné** quand le programme envoie 0° à ce servo (−360 à +360°) | `0` |
 
-L'adresse du PCA9685 embarqué se règle **comme sur la vraie carte**, en cochant les six pads **AD0 à AD5** ; elle s'affiche sous les cases. Tous cochés — le réglage d'usine du module Grove — donnent **0x7F**, l'adresse par défaut du robot. Le détail du calcul est dans la [fiche du PCA9685](pca9685.md).
+### Vingt-cinq réglages en quatre tiroirs
+
+Le robot en a plus qu'aucun autre composant : ils sont donc rangés en **quatre sections repliables**, **toutes fermées** à la sélection — on ouvre celle qu'on vient régler, le reste ne prend pas la place. Un clic sur le titre ouvre, un deuxième referme ; ce qui est ouvert le reste tant que la session dure, y compris en passant d'un composant à l'autre.
+
+| Section | Ce qu'on y règle |
+|---------|------------------|
+| **Paramétrer la carte 16 servomoteurs** | Les six pads d'adresse du PCA9685 embarqué |
+| **Inverser les servomoteurs** | Les huit cases de sens de montage |
+| **Régler le 0 des servomoteurs** | Les huit calages de palonnier |
+| **Paramètres des servomoteurs** | Impulsions à 0° et 180°, temps de rotation |
+
+Au-dessus des sections, hors tiroir, l'**adresse I²C** calculée : c'est le rappel qu'on vient chercher le plus souvent, il ne se mérite pas.
+
+L'adresse du PCA9685 embarqué se règle **comme sur la vraie carte**, en cochant les six pads **AD0 à AD5**. Tous cochés — le réglage d'usine du module Grove — donnent **0x7F**, l'adresse par défaut du robot. Le détail du calcul est dans la [fiche du PCA9685](pca9685.md).
 
 Les huit articulations obéissent aux mêmes angles que la [patte seule](patte.md) : coxa 90° = repos (la patte part vers l'extérieur, dans l'axe de son coin de châssis), patella 90° = **tibia vertical, robot debout, les quatre pieds au sol**. 180° tend la patte dans le prolongement du fémur, 0° la replie de l'autre côté.
 

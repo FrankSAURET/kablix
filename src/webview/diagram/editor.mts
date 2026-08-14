@@ -5205,6 +5205,7 @@ export class Editor {
 
   private renderInspector(): void {
     this.inspector.replaceChildren();
+    this.propGroup = null; // le corps de section du rendu précédent est détaché
     const title = document.createElement('h3');
     title.textContent = t('Properties');
     this.inspector.appendChild(title);
@@ -5415,23 +5416,26 @@ export class Editor {
       return;
     }
 
-    for (const prop of def.props ?? []) {
-      if (!this.propVisible(def, r.part, prop)) continue;
-      this.appendPropControl(partId, r.part, prop);
-    }
-    if (def.type === 'transistor') this.appendTransistorSummary(partId, r.part);
-    // Prototypes génériques (types npn / pnp) : tout est réglable, donc tout est
-    // enregistrable — même bouton que sur le modèle personnalisé du sélecteur.
-    if (def.type === 'npn' || def.type === 'pnp') this.appendSaveTransistorButton(partId, r.part);
     // PCA9685 (nu ou embarqué dans l'araignée) : l'adresse résultant des six
     // pads AD0..AD5, écrite comme sur la fiche du module (0x40..0x7F) — c'est
-    // elle qu'attend le programme.
+    // elle qu'attend le programme. TOUT EN HAUT (v2026.8.64) : c'est le rappel
+    // qu'on vient chercher, il ne doit pas être à chercher sous 27 réglages.
     if (hasPca9685Pads(def)) {
       const addr = document.createElement('p');
       addr.className = 'inspector__hint inspector__address';
       addr.textContent = `${t('I²C address')} : ${pca9685AddressText(r.part.attrs)}`;
       this.inspector.appendChild(addr);
     }
+
+    for (const prop of def.props ?? []) {
+      if (!this.propVisible(def, r.part, prop)) continue;
+      this.appendPropControl(partId, r.part, prop);
+    }
+    this.propGroup = null; // fin des propriétés : la suite retourne au fil
+    if (def.type === 'transistor') this.appendTransistorSummary(partId, r.part);
+    // Prototypes génériques (types npn / pnp) : tout est réglable, donc tout est
+    // enregistrable — même bouton que sur le modèle personnalisé du sélecteur.
+    if (def.type === 'npn' || def.type === 'pnp') this.appendSaveTransistorButton(partId, r.part);
     if ((def.props ?? []).length === 0) {
       const hint = document.createElement('p');
       hint.className = 'inspector__hint';
@@ -5749,16 +5753,71 @@ export class Editor {
     return conds.every((c) => c.equals.includes(this.effectiveAttr(def, part, c.attr)));
   }
 
+  /** Section repliable de propriétés en cours de remplissage (son titre, son corps). */
+  private propGroup: string | null = null;
+  private propGroupBody: HTMLElement | null = null;
+  /**
+   * Sections de propriétés DÉPLIÉES, par « type:groupe ». Repliées à l'ouverture
+   * (demande de Frank) : un robot araignée aligne 27 réglages, sa fiche tient
+   * autrement sur trois écrans. L'état vit ici et non dans le schéma — c'est du
+   * confort d'affichage, il ne part pas dans le .projix.
+   */
+  private readonly openPropGroups = new Set<string>();
+
+  /**
+   * Où poser la propriété suivante : le corps de sa section repliable, créé à la
+   * volée au premier réglage du groupe, ou l'inspecteur lui-même si elle n'est pas
+   * groupée. Les propriétés d'un même groupe se suivent dans le catalogue.
+   */
+  private propHost(type: string, group?: string): HTMLElement {
+    if (!group) {
+      this.propGroup = null;
+      return this.inspector;
+    }
+    if (this.propGroup === group && this.propGroupBody) return this.propGroupBody;
+
+    const key = `${type}:${group}`;
+    const head = document.createElement('h4');
+    head.className = 'inspector__group';
+    const chevron = document.createElement('span');
+    chevron.className = 'inspector__group-chevron';
+    chevron.textContent = '▾';
+    const text = document.createElement('span');
+    text.textContent = t(group);
+    head.append(chevron, text);
+
+    const body = document.createElement('div');
+    body.className = 'inspector__group-body';
+    const show = (open: boolean): void => {
+      head.classList.toggle('inspector__group--collapsed', !open);
+      body.style.display = open ? '' : 'none';
+    };
+    show(this.openPropGroups.has(key));
+    head.addEventListener('click', () => {
+      const open = !this.openPropGroups.has(key);
+      if (open) this.openPropGroups.add(key);
+      else this.openPropGroups.delete(key);
+      show(open);
+    });
+
+    this.inspector.append(head, body);
+    this.propGroup = group;
+    this.propGroupBody = body;
+    return body;
+  }
+
   private appendPropControl(partId: string | string[], part: Part | Part[], prop: PropDef): void {
     const ids = Array.isArray(partId) ? partId : [partId];
     const first = Array.isArray(part) ? part[0] : part;
     const setAttr = (attr: string, value: string): void => {
       for (const id of ids) this.updatePartAttr(id, attr, value);
     };
+    // Propriété groupée : tout part dans le corps de sa section repliable.
+    const host = this.propHost(first.type, prop.group);
     const label = document.createElement('label');
     label.className = 'inspector__label';
     label.textContent = t(prop.label);
-    this.inspector.appendChild(label);
+    host.appendChild(label);
 
     const current = first.attrs?.[prop.attr] ?? '';
     if (prop.kind === 'checkbox') {
@@ -5790,7 +5849,7 @@ export class Editor {
         });
         swatches.appendChild(sw);
       }
-      this.inspector.appendChild(swatches);
+      host.appendChild(swatches);
     } else if (prop.kind === 'select') {
       const select = document.createElement('select');
       select.className = 'inspector__control';
@@ -5803,7 +5862,7 @@ export class Editor {
         select.appendChild(o);
       }
       select.addEventListener('change', () => setAttr(prop.attr, select.value));
-      this.inspector.appendChild(select);
+      host.appendChild(select);
     } else if (prop.kind === 'text') {
       // Texte libre sur PLUSIEURS lignes (inscription d'un boîtier partagé) :
       // les sauts de ligne sont gardés tels quels dans l'attribut, le composant
@@ -5813,7 +5872,7 @@ export class Editor {
       area.rows = prop.rows ?? 2;
       area.value = current;
       area.addEventListener('change', () => setAttr(prop.attr, area.value));
-      this.inspector.appendChild(area);
+      host.appendChild(area);
     } else if (prop.suffixes) {
       // Champ texte acceptant les suffixes SI (p n µ m k M G), ex. « 2.2k ».
       const input = document.createElement('input');
@@ -5830,7 +5889,7 @@ export class Editor {
         setAttr(prop.attr, String(parsed));
         input.value = formatSiValue(parsed);
       });
-      this.inspector.appendChild(input);
+      host.appendChild(input);
     } else {
       const step = prop.step ?? 1;
       const clamp = (v: number): number => {
@@ -5872,7 +5931,7 @@ export class Editor {
       inc.textContent = '+';
       inc.addEventListener('click', () => commit(Number(input.value) + step));
       row.append(dec, input, inc);
-      this.inspector.appendChild(row);
+      host.appendChild(row);
     }
   }
 
