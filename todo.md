@@ -1,5 +1,5 @@
 # À faire
-1. vsix
+1. *(rien en attente)*
 
 
 ##L'arraignée :
@@ -31,6 +31,7 @@ Les cinq lots du worker sont livrés (v2026.8.51 → v2026.8.55).
 4. ✅ **Un worker qui meurt en cours de route le dit maintenant** : `onerror` est écouté, il marque le fil de simulation inutilisable pour de bon et prévient la page (`onFailure`). `sim.mts` relance alors la simulation **sur le fil principal** sans rien demander à l'utilisateur — `workerReady()` étant devenu faux, il n'y a pas de boucle possible.
 5. ✅ **Banc `verify:worker` : 132 contrôles** (122 avant). Les nouveaux rejouent les trois échecs (404, page d'erreur en 200, bundle muet), vérifient que le worker jetable est bien arrêté, que le ping a lieu, que la mort d'un worker remonte à la page et coupe le worker pour les lancements suivants, que `sim.mts` câble ce repli, et que **`.vscodeignore` embarque le bundle**.
 6. ⏳ Chaîne de base (EN) du message « le fil de simulation s'est arrêté, on relance sur le fil principal » écrite ; sa traduction FR attend le lot d'avant publication.
+7. ✅ **Paquet demandé par Frank construit** : `kablix-2026.8.57.vsix` (282 fichiers, 2,97 Mo) à la racine. Contrôlé de l'intérieur : `extension/dist/webview-worker.js`, 257 161 octets — le paquet précédent ne l'avait pas. **Rien n'est publié**, le vsix attend Frank.
 
 # >>>>  v2026.8.56 — la patte grossit, le PMMA se traverse enfin
 
