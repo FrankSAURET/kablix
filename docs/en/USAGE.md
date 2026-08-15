@@ -84,6 +84,7 @@
 - **Properties/Variables** (inspector):
     - While drawing, edits the selected part (color, value, angle…) or wire (Dupont color, deletion, node [equipotential])
     - during the simulation, shows the variables.
+    - Parts with a lot of settings (the spider robot and its 33 of them) file their properties into **collapsible drawers**, all closed when the part is selected. They work as an **accordion**: opening one closes the one that was open.
 
 ## Building a circuit
 
@@ -92,7 +93,7 @@
 - **Place**: click a part in the palette (placed at the center), or **drag and drop** it from the palette to wherever you want on the canvas.
 - **Move**: drag the part (anywhere on its body), or **drag with the right click** — essential for interactive parts (button, potentiometer, switches, joystick) whose left click operates the control.
 - **Rotate**: select the part then press **`+`** (45° clockwise) or **`-`** (45° counter-clockwise). Pins and wires follow; a reminder appears in the inspector help area.
-- **Zoom**: **mouse wheel** over the canvas (centered on the cursor). The **⟳ %** badge at the bottom right gives the factor; clicking it resets the view.
+- **Zoom**: **mouse wheel** over the canvas (centered on the cursor). The **⟳ %** badge at the bottom right gives the factor; clicking it resets the view. The **fit view** button frames the **drawing** of the circuit — not the invisible frames of the parts, which are bigger than what they show: a spider robot on its own now fills the screen instead of floating in the middle of a margin.
 - **Delete**: 🗑 button in the inspector, or `Del` key.
 
 ### Breadboard

@@ -138,6 +138,9 @@ const FR: Record<string, string> = {
   '⚠ Simulation running: editing is disabled.': '⚠ Simulation en cours : édition désactivée',
   '⚠ Simulation running (speed {0} %): editing is disabled.':
     '⚠ Simulation en cours (vitesse à {0} %) : édition désactivée',
+  // Le moteur tournait dans un worker et il est tombé : on repart sur le fil principal.
+  'Simulation thread stopped — restarting on the main thread…':
+    'Le fil de simulation s’est arrêté — reprise sur le fil principal…',
   'Drag to move — Ctrl: H/V alignment': 'Glisser pour déplacer — Ctrl : alignement H/V',
   '+ or − to rotate the part': '+ ou − pour faire tourner le composant',
   '+ or − to rotate the parts': '+ ou − pour faire tourner les composants',
@@ -345,11 +348,30 @@ const FR: Record<string, string> = {
   'Pulse at 0° (µs)': 'Impulsion à 0° (µs)',
   'Pulse at 180° (µs)': 'Impulsion à 180° (µs)',
   'Rotation time (s/turn)': 'Temps de rotation (s/tour)',
-  // Titres des sections repliables de l'inspecteur du robot (27 réglages).
+  // Titres des sections repliables de l'inspecteur du robot (33 réglages).
   'Configure the 16-servo board': 'Paramétrer la carte 16 servomoteurs',
+  'Wire the servos': 'Câbler les servomoteurs',
   'Reverse the servos': 'Inverser les servomoteurs',
   'Set the servo zeros': 'Régler le 0 des servomoteurs',
   'Servo parameters': 'Paramètres des servomoteurs',
+  // Note affichée sous le titre de la section « Câbler les servomoteurs ».
+  'Type the output each servo is plugged into: 0 to 15, marked 1 to 16 on the board. The same channel cannot be used twice, and a servo left empty does not move.':
+    'Indiquez la sortie où chaque servo est branché : 0 à 15, marquées 1 à 16 sur la carte. Un même canal ne peut pas servir deux fois, et un servo laissé vide ne bouge pas.',
+  // Petite case de canal : infobulle, refus d'un doublon, bilan au lancement.
+  'Channel {0} to {1} (marked {2} to {3} on the board).': 'Canal {0} à {1} (marqués {2} à {3} sur la carte).',
+  'Channel {0} is already used by another servo.': 'Le canal {0} est déjà pris par un autre servomoteur.',
+  '{0} servo(s) have no channel: fill in the "Wire the servos" drawer — 0 to 15, marked 1 to 16 on the board. Without it, these joints do not move.':
+    '{0} servomoteur(s) sans canal : remplissez la section « Câbler les servomoteurs » — 0 à 15, marqués 1 à 16 sur la carte. Sans ça, ces articulations ne bougent pas.',
+  'Channel {0} is wired to two servos at once.': 'Le canal {0} est branché sur deux servomoteurs à la fois.',
+  // Canal PCA9685 de chaque articulation (une case de deux caractères, 0..15).
+  'Front-left coxa channel': 'Canal de la coxa avant-gauche',
+  'Front-left patella channel': 'Canal de la patella avant-gauche',
+  'Front-right coxa channel': 'Canal de la coxa avant-droite',
+  'Front-right patella channel': 'Canal de la patella avant-droite',
+  'Rear-left coxa channel': 'Canal de la coxa arrière-gauche',
+  'Rear-left patella channel': 'Canal de la patella arrière-gauche',
+  'Rear-right coxa channel': 'Canal de la coxa arrière-droite',
+  'Rear-right patella channel': 'Canal de la patella arrière-droite',
   // Sens de montage des servos : un servo vissé à l'envers part dans l'autre
   // sens pour la même consigne (le programme, lui, ne change pas).
   'Reverse the coxa servo': 'Inverser le servo de coxa',

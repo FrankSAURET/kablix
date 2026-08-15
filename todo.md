@@ -1,10 +1,9 @@
 # À faire
-1. Préparer la publication : lot de traductions (l10n FR, `package.nls.fr.json`, docs EN), recherche de bugs, ménage de `A Examiner/`.
+1. Ménage de `A Examiner/` : 28 fichiers, ~7 Mo — la liste est dans le lot v2026.8.69, **Frank tranche fichier par fichier** (rien n'a été déplacé ni effacé).
 1. 
 
 
 # En réserve
-1. ⏳ Traduction FR du réglage `kablix.simulationWorker` (`package.nls.fr.json`) : sa description a changé avec le défaut activé — au lot de traductions d'avant publication.
 Les cinq lots du worker sont livrés (v2026.8.51 → v2026.8.55).
 
 ## Pistes d'amélioration — topo du 15 août 2026 (détail : `scripts/vitesse-pico.md` §12)
@@ -32,6 +31,18 @@ Deux mondes derrière le mot « ESP32 » : les puces **Xtensa** (ESP32 classique
 4. 🚫 **ESP32 classique (Xtensa) : bloqué par la licence, pas par la technique.** Les seuls émulateurs Xtensa sérieux sont des forks de **QEMU** (celui d'Espressif, celui de Velxio), donc **GPL v2** — incompatible avec la distribution d'une extension **MIT** comme Kablix. Wokwi fait tourner l'ESP32 sur QEMU-WASM, mais eux ne distribuent pas un paquet installable. À ne pas engager sans avis clair sur la licence.
 5. ⏳ **Chiffrage** : évaluation **3-5 j** (lire `BROWSER.md`, charger MicroPython C3 dans leur WASM, faire clignoter une GPIO et la récupérer côté JS). Si les crochets existent, l'intégration reste une **nouvelle famille de cartes** — brochage, dessin, catalogue, moteur, tests `testkablix`, fiches d'aide : **20-40 j**. Ce n'est pas une variante du Pico, c'est un troisième moteur à côté de l'AVR et du RP2040.
 6. ℹ️ **ESP8266 : rien de sérieux à émuler.** Ne pas le promettre.
+
+# >>>>  v2026.8.69 — tout est traduit, et le banc i18n ne regarde plus ailleurs
+
+1. ✅ **Cinq chaînes sortaient en anglais, personne ne le voyait.** Le banc `verify:i18n` ne relisait que le CATALOGUE (libellés, sections, listes) : les messages de la simulation et les infobulles, eux, passaient par `t()` sans que rien ne les compte. Il relit désormais **les 273 appels `t('…')` de la webview** ([verify-i18n.mjs](scripts/verify-i18n.mjs)) — c'est ce contrôle qui a trouvé les cinq.
+2. ✅ **Traductions FR du robot araignée** ([i18n.mts](src/webview/i18n.mts)) : la section « Câbler les servomoteurs » et sa consigne, les huit libellés de canal, l'infobulle de plage, le refus d'un canal déjà pris, le bilan de câblage au lancement.
+3. ✅ **Le fil de simulation parle français** : « Le fil de simulation s'est arrêté — reprise sur le fil principal… », jamais traduite depuis la v2026.8.55.
+4. ✅ **Notes de section vérifiées aussi** (`groupNote`) : la phrase grise sous le titre d'un tiroir est une chaîne comme une autre, elle était hors contrôle.
+5. ✅ **`kablix.simulationWorker` traduit** ([package.nls.fr.json](package.nls.fr.json)) — le dernier réglage sans description française. 34 clés EN, 34 clés FR, aucune identique.
+6. ✅ **Docs EN remises au niveau des FR** : fiches [araignee](docs/en/composants/araignee.md) et [patte](docs/en/composants/patte.md), guide [USAGE](docs/en/USAGE.md) (tiroirs en accordéon, zoom auto qui cadre le dessin) et surtout [Drawing-systems](docs/en/Drawing-systems.md), qui décrivait encore l'ANCIEN protocole d'articulations (deux pastilles par axe, noms `famille-articulation-bout`) : axes, montage, corps/fémur/tibia, tableau des pannes et aide-mémoire réécrits sur « une pastille = une articulation ».
+7. ℹ️ **Parité FR/EN mesurée, pas supposée** : 77 fiches de chaque côté, mêmes titres, mêmes tableaux, mêmes blocs de code, mêmes images — aucun écart de structure.
+8. ✅ **Recherche de bugs : `verify:all` complet, 83 bancs, 291/291 contrôles**, plus `typecheck` et `build` propres. Rien à corriger.
+9. ⏳ **Ménage de `A Examiner/` : rien déplacé, rien effacé** — 28 fichiers, ~7 Mo, dont les deux `.vsix` (6,9 Mo à eux seuls), `Composants - Copie.svg` (1,1 Mo), quatre posters de brochage (2,2 Mo), `Boum.svg`, les tests `CI-*` et `araignee-uno`, `to92-libre.svg`, `rp2040js+1.3.2.patch`. La liste complète est passée à Frank : c'est lui qui tranche.
 
 # >>>>  v2026.8.68 — le câblage des servos s'écrit, et le zoom auto vise juste
 

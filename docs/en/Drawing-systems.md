@@ -129,7 +129,7 @@ In `Composants3D.svg`, the A3 sheet of the parts to be turned into volume:
 - **The outline must not cross itself.** A figure-of-eight silhouette, an edge folded back on itself: triangulating that is meaningless, and `verify:profils` rejects it.
 - **Curves are welcome**: Béziers, arcs, circles, rectangles, polygons. Everything is flattened then simplified — a sampled circle ends up with about thirty points, not two hundred.
 - **The winding direction does not matter** (clockwise or counter-clockwise): it is normalised on read.
-- **Red pads are not part of the outline** — but a **named** pad is stored with the piece: it is a joint (`coxa`, `patella`), and two pads sharing a prefix make a **rotation axis**. See [Axes](#axes): the convention is exactly the one used by assemblies. An unnamed pad and any text stay plain sheet markers, and are ignored.
+- **Red pads are not part of the outline** — but a **named** pad is stored with the piece: it is a joint (`coxa`, `patella`), it carries an **axis** (a line, not a point), and its **first word** says what it snaps onto. See [Axes](#axes): the convention is exactly the one used by assemblies — a profile is read as a flat part, so its axes are vertical. An unnamed pad and any text stay plain sheet markers, and are ignored.
 
 > The classic trap is the **outline that walks backwards**. On the example chassis, the front notch was first drawn wider than the shoulders framing it: the path went back on itself and folded over. The edges of a notch sit **on** the body circle, never beyond it.
 
@@ -262,7 +262,7 @@ In `Composants3D.svg` (or a separate sheet, see `--source=`):
 - **The sheet must be in millimetres.** `Composants3D.svg` already is (`width="…mm"` with a `viewBox` of the same number: 1 unit = 1 mm). A sheet in CSS pixels is converted, but you no longer know what you are dimensioning.
 - **A text inside the group gives the pose**: `flanc pos=28,0,0 ep=12 mat=servo miroir=x`. It is a plain `<text>`, placed wherever you like in the group — under the part reads well.
 - **Outline, holes and curves** follow exactly the rules of a profile (closed outline, holes contained inside, no self-crossing path).
-- **A named red pad = an axis.** Its **Inkscape id** names it, failing that the text **above** it, and its centre becomes a 3D point of the assembly. Two pads sharing a prefix make a **rotation axis** ([details](#axes)).
+- **A named red pad = a joint.** Its **Inkscape id** names it, failing that the text **above** it, and its centre becomes a 3D **axis** of the assembly — a line directed like its part's thickness, centred on its zero. Its **first word** is the family: that is what says which other drawing it snaps onto ([details](#axes)).
 
 ### The pose label
 
@@ -302,11 +302,35 @@ Same for an unknown word or an unknown material: each is reported on read. **Rea
 
 The keywords stay in French, like the ids of the drawing: they are written in Inkscape next to `plaque` and `flanc`, and one language per sheet is one confusion less.
 
+### The system size label
+
+The build is dimensioned in millimetres, but the finished drawing is laid in a **component sheet**, in pixels of the 10 px grid. How many pixels wide? It is **written on the sheet**, next to the parts:
+
+```text
+système : araignee largeur : 800
+système : patte largeur : 456
+```
+
+A plain `<text>`, **outside any part group** (it belongs to no part, it speaks of the whole system). The name is the component's — `araignee`, `patte` —, the width is the **total width of its sheet**, connector and margins included. Accents, capitals, `=` instead of `:` and reversed order are all accepted: `Largeur=456 Systeme=patte` reads just as well.
+
+| What is written                     | What it does                                            |
+| ----------------------------------- | ------------------------------------------------------- |
+| `système : araignee largeur : 800`  | the robot's sheet is 800 px wide                         |
+| `système : patte largeur : 456`     | the single leg's, 456 px                                 |
+| no label                            | the component keeps its **fallback size**, written in the code |
+| `système : araignee` (no width)     | ignored, with a message on read                          |
+
+The sizes are stored in `assemblages.mts` and read back by `systemeLargeur('araignee')`. **Making the robot bigger is therefore done in Inkscape**, no longer in the code: everything measured in pixels — outline thinning, face grain, shadows, margins — follows that single number.
+
 ### The three planes
 
-The table and the figure are further up, under [The world frame](#the-world-frame): these are exactly the same three planes, and the figure shows the sheet's `x` and `y` for each of them.
+These are exactly the same three planes as for profiles, and the figure shows the sheet's `x` and `y` for each of them.
 
-In two sentences: **`dessus` keeps the sense of a plan view** (top of the sheet = front of the robot); **`flanc` and `face` raise the drawing as traced** (top of the sheet = top of the robot).
+**X to the right, Y to the back, Z up.** That is the engine's frame, and it is the one drawn in a corner of **every** 3D picture in this guide, as well as in the viewer (**repère X Y Z** box). It turns with the scene: when you rotate the robot, the frame rotates too, and it says at all times where the front is.
+
+![The world frame, and the x / y of each of the three planes](../img/systemes/repere.webp)
+
+The same L-shaped part, laid in the three planes. The **purple** and **orange** arrows are the `x` and `y` **of your drawing sheet**; the grey one is the direction of the thickness.
 
 **A part is placed by its CENTRE** (the middle of its bounding box): `pos` is the centre of the part, not its corner. That is what makes mirroring immediate — a side at `pos=-9,0,0` with `miroir=x` gives both sides, **centres 18 mm apart**.
 
@@ -340,72 +364,118 @@ The word gives the colour, and nothing else: no simulation, no mass.
 
 **A translucent material gets no seam stroke.** A plate is cut into dozens of triangles; on every inner edge the stroke that fills the seams overlaps itself. Opaque, that never shows; translucent, it would draw a cobweb over the whole part. The stroke is therefore dropped as soon as the colour is transparent.
 
+### An image laid onto the part
+
+A colour is enough for PMMA, not for an electronic board. **Lay the photo onto the outline, inside the part's group** — it will be laid onto it in 3D, in place and to size.
+
+```svg
+<g id="corps-demo-entretoise-profil">
+  <path class="piece" d="M 135,75 H 175 V 100 H 135 Z" />
+  <image x="140" y="79" width="30" height="18" opacity="0.85" href="pico.webp" />
+  <text x="155" y="107">face pos=0,-36,0 ep=3</text>
+</g>
+```
+
+What you need to know, and nothing more:
+
+- **Where you lay it on the sheet is where it will be on the part**: same millimetres, same frame as the outline. A photo overflowing the outline is **clipped to the outline** — on a notched plate, it stops at the plate's edge. A smaller photo stays smaller: it is laid on, it does not fill.
+- **Transparency is the drawing's** (`opacity` of the image, or of the layer carrying it), so it is a slider away in Inkscape: at 100 % the photo hides the material, at 40 % you see the plate through it.
+- **It is laid on the side you SEE.** Not on a side chosen in advance: both faces of the part are projected and the one nearest the eye takes it. Half a turn of the view moves it to the other side on its own.
+- **Rotate it and it follows**: Inkscape writes a matrix, the image keeps it. A board laid askew stays askew in 3D.
+- **One image per part**: it is a skin, not a collage. The second one is ignored.
+- **Accepted formats: `.webp`, `.png`, `.jpg`.** A linked image is found **next to the sheet** and **embedded** into the stored module — the webview never reads a file from disk. So prefer WebP: a 4 MB JPEG on a 30 mm plate will not look any better, but it will weigh 4 MB inside the extension. Missing link or unsupported format: the image is ignored, with a message on extraction. Inkscape will not import WebP? Lay the **PNG** on the sheet, the result is the same.
+
+The spacer of [`corps-demo.svg`](../exemples/corps-demo.svg) carries one — it is the small green board seen on its side in the pictures below.
+
+#### An image ALONE makes the part, and its clip gives the outline
+
+An image is a skin: with no part underneath it has nothing to cover, and the group vanishes from the build. Rather than letting a board evaporate without a word, **an image on its own counts as an outline**:
+
+| What the group holds                  | The part's outline                                       |
+| ------------------------------------- | -------------------------------------------------------- |
+| a closed path (with or without image) | the **path**, as always — the image is only a decal      |
+| a **clipped** image (Inkscape clip)   | the **clip**: the real silhouette, notches and holes      |
+| a bare image                          | the **rectangle** of the bitmap                           |
+
+Clipping is `Object → Clip → Set`: lay a path over the photo, select both, clip. The photo keeps its silhouette **and** gives it to the part — the robot's 16-servo board comes out that way with its cut corners and its five screw holes, without a path to redraw. The read announces it like any other part:
+
+```text
+  ✓ pca9685 : 100 points, 40×29.18 mm, dessus ép.1 carte, 5 trou(s)
+```
+
+A cutting path stays preferable when the part **is** laser-cut: it is the plan. Clipping is for the parts you do not cut — a board you bought, a battery pack, a photo laid on the robot's back.
+
 ### Axes
 
-A **red pad** in a part's group marks a notable point: a coxa axis, a patella, a pivot. Its coordinates are computed **in the assembly frame**, pose included.
+A **red pad** in a part's group marks a joint: a coxa axis, a patella, a pivot. Its coordinates are computed **in the assembly frame**, pose included.
 
-Two ways to name it, in this order:
+#### A pad carries a LINE, not a point
 
-1. its **Inkscape id** — select the dot, `Object → Object Properties`, type `coxa-g-int`;
+This is what the cutting plan says without saying it, and it is what nests the parts into each other:
+
+> **A mirrored part is laid twice, and between its two copies runs a rotation axis, directed like the `ep` arrow — the direction of its thickness.** The pad says *where* that line runs; the **part's plane** says *which way*.
+
+| The part is a… | Its thickness runs   | The axis of its pads is | What it does                                 |
+| -------------- | -------------------- | ----------------------- | -------------------------------------------- |
+| `dessus`       | vertically           | **vertical — Z**        | a coxa: the leg sweeps left and right        |
+| `flanc`        | across the robot     | **across — X**          | a patella: the leg bends up and down         |
+| `face`         | front to back        | **front to back — Y**   | a lid hinge                                  |
+
+The body's two support plates (`dessus pos=0,0,-13.75 ep=3 miroir=z`) sit at ∓13.75 mm: the coxa servo is held between them, and its axis is the vertical running **midway**. It is that middle — the **zero of the axis** — that is stored, never the pad as it is drawn on one of the two plates. A part without a mirror follows the same rule: its axis is stored at the assembly's zero.
+
+So there is **nothing more to do**: draw the pad on the part, direction and midpoint follow from the plane and the mirror. The read announces it family by family, and that is the line to re-read when a build comes out crooked:
+
+```text
+    famille « coxa » : 4 pastille(s), axe Z — coxa-gh, coxa-dh, coxa-gb, coxa-db
+```
+
+In the viewer, the **axes dessinés** box draws the whole line, as a red dashed one, on top of the point and its name.
+
+Two ways to name a pad, in this order:
+
+1. its **Inkscape id** — select the dot, `Object → Object Properties`, type `coxa-gh`;
 2. failing that, the **nearest free text**, the one above being preferred — exactly like a pin name on the component sheet.
 
-The id comes first because it **sticks to the dot**: it survives a move, a text added next to it, and it does not clutter the sheet with four labels when the part carries four pads. An id Inkscape made up on its own (`circle91`, `path102`) names nothing: the pad is then **ignored**, with a warning on read.
+The id comes first because it **sticks to the dot**: it survives a move, a text added next to it, and it does not clutter the sheet with four labels when the part carries four pads. If the dot is **grouped** (Inkscape groups as soon as you move a guide), the **group's** name does just as well: the read walks up to the first hand-named parent. An id Inkscape made up on its own (`circle91`, `path102`, `g1-1`) names nothing: the pad is then **ignored**, with a warning on read.
 
 That is the key point of the protocol: **the drawing says where the coxa is**, not a constant in the code. Move the hole in Inkscape and the axis follows.
 
-#### A pad name reads in two parts
+> **A round red part is drawn as a PATH, never as a circle.** A pad is a red `<circle>`: a robot eye drawn with the circle tool would be one, and the part would turn into a joint instead of being cut out. Draw the disc with the path tool (`Path → Object to Path` converts an existing circle) and it goes back to being what it is — a part.
+
+#### A pad = a joint, and its first word says what it snaps onto
 
 It all fits in one sentence, and the rest of this section is only the detail:
 
-> **`family - joint - end`** — the **first** segment is the **family** (it says *what it snaps onto*), everything but the **last** is the **prefix** (it says *which* joint), the last one only tells the **two ends** of the axis apart.
+> **A red pad is a joint all by itself.** Its **first word** is the **family** — it says *what it snaps onto*; whatever follows only gives **distinct ids** to two neighbouring pads, as Inkscape demands.
 
-| Pad name | Prefix = the joint | Family = what it snaps onto |
-| --- | --- | --- |
-| `coxa-ag-h` | `coxa-ag` | `coxa` |
-| `coxa-ag-b` | `coxa-ag` | `coxa` |
-| `coxa-rd-h` | `coxa-rd` | `coxa` |
-| `patella-h` | `patella` | `patella` |
-| `pied` | `pied` | `pied` |
+| Pad name    | Family = what it snaps onto | What the rest of the name does        |
+| ----------- | --------------------------- | ------------------------------------- |
+| `coxa-gh`   | `coxa`                      | tells the body's four coxas apart     |
+| `coxa-db`   | `coxa`                      | same                                  |
+| `coxa`      | `coxa`                      | alone in its family: nothing to tell apart |
+| `patella-f` | `patella`                   | the patella **on the femur side**     |
+| `patella-t` | `patella`                   | the same point, **on the tibia side** |
+| `pied`      | `pied`                      | a plain landmark, with no counterpart |
 
-#### Two pads sharing a prefix = a rotation axis
+There is nothing to group, nothing to pair up: **as many pads, as many joints**.
 
-A point does not say what you turn **around**. Two points do: **two pads whose names differ only by their last segment are the two ends of one axis.**
+#### Four `coxa…` pads = four legs
 
-```text
-coxa-ag-h  ─┐
-               ├─ axis "coxa-ag"  (family "coxa")
-coxa-ag-b  ─┘
-```
-
-The prefix (`coxa-ag`) names the axis; the last segment (`-h`, `-b`, `-ext`, `-int`…) only tells the two ends apart. The engine derives the **line** from it: its midpoint, its direction, the distance between the two pads. When more than two pads share a prefix, the **two furthest apart** carry the axis — and the read warns you, because that is almost always a naming mistake.
-
-A **lone** pad stays a plain point: it marks a place (`pied`), it does not say what to turn around.
-
-#### Four coxas = four prefixes = eight pads
-
-This is **the** trap, and it does not show on the picture: four legs end up stacked on each other at the middle of the body.
+This is where the number of copies comes from, and it does not show on the picture:
 
 ```text
-coxa-ag   ─┐
-coxa-ad    │
-coxa-rg    ├─ SAME prefix "coxa": ONE joint, ONE leg
-coxa-rd   ─┘
+body :   coxa-gh ─┐
+         coxa-dh  ├─ FOUR pads of family “coxa”
+         coxa-gb  │
+         coxa-db ─┘
+
+femur :  coxa     ─── ONE pad of the same family
+                        → the femur is duplicated FOUR times
 ```
 
-The four names differ **only by their last segment**: the rule therefore reads them as the four ends of a **single** axis. The robot has one coxa, at the centre.
+The femur carries a `patella-f` at its other end; the tibia carries a `patella-t`. **Same first word, therefore same contact axis** — the `-f` and the `-t` are only there because Inkscape refuses two identical ids. Four femurs therefore offer four patellas, and **four tibias** are born.
 
-Four distinct coxas want **four distinct prefixes**, hence **three**-segment names — and since each coxa deserves an axis, that means **two pads each, eight in all**:
-
-```text
-coxa-ag-h / coxa-ag-b     front left
-coxa-ad-h / coxa-ad-b     front right
-coxa-rg-h / coxa-rg-b     rear left
-coxa-rd-h / coxa-rd-b     rear right
-```
-
-All eight share the family `coxa`: that is what makes a femur naming `coxa` sit on them — **four times**, one per coxa.
-
-> The same trap exists in a quieter form. Four pads named `coxa-g-h`, `coxa-g-b`, `coxa-d-h`, `coxa-d-b` complain about nothing: they cleanly make **two** axes, `coxa-g` and `coxa-d`, each running through the body from front to back. Two axes, two legs. It only shows if you tick **axes dessinés** in the viewer: the two dashed red lines run the whole length of the body instead of being four short vertical segments.
+> A single leg at the middle of the body? The four coxas were drawn with the **same name** (one pad read), or three of them have no name at all — the read lists the families and their pads, that is where you see it.
 
 #### A shared family = two drawings that snap together
 
@@ -413,19 +483,18 @@ Joints do not only make things turn: **they are how drawings mount onto each oth
 
 The rule is short:
 
-1. Two ensembles naming the **same family** snap together: the body has `coxa-…`, the femur too → the femur sits on the body.
+1. Two ensembles whose pads share the **same first word** snap together: the body has `coxa…`, the femur too → the femur sits on the body. At equal names, the family whose **two axes point the same way** wins: a vertical coxa looks for a vertical coxa.
 2. **The one offering the most joints carries the other.** The body has four, the femur two: the body carries, and **four femurs** are born.
-3. **Joints are superposed**, pad on pad. The position is not computed, it is read from the drawing.
-4. When the family holds **several** joints (the four coxas), each copy is **turned towards its own**: the legs splay out by themselves. When it holds only **one** (the femur's patella), the child keeps its parent's heading: the tibia carries on from the femur.
+3. **Both axes are superposed — same line — and centred on their zero**, each drawing's own. So the femur does not come and stick against one side: it **centres itself between the two**, because its own zero is the middle of its two sides. The position is not computed, it is read from the drawing.
+4. When the family holds **several** pads on the parent (the four coxas), each copy is **turned towards its own**: the legs splay out by themselves. When it holds only **one** (the femur's patella), the child keeps its parent's heading: the tibia carries on from the femur.
 
 A complete chain therefore takes three drawings and six names:
 
 ```text
-araignee-corps          coxa-ag-h/-b  coxa-ad-h/-b  coxa-rg-h/-b  coxa-rd-h/-b
-araignee-patte-femur    coxa-h/-b     ← snaps onto the body (family "coxa")
-                        patella-h/-b      ← offers a patella
-araignee-patte-tibia    patella-h/-b      ← snaps onto the femur (family "patella")
-                        pied
+araignee-corps          coxa-gh  coxa-dh  coxa-gb  coxa-db
+araignee-patte-femur    coxa          ← snaps onto the body (family “coxa”)
+                        patella-f         ← offers a patella
+araignee-patte-tibia    patella-t         ← snaps onto the femur (family “patella”)
 ```
 
 On screen: **one body, four femurs, four tibias**, each in its place, without a line of code. That is what `npm run montre araignee` does.
@@ -445,7 +514,7 @@ npm run montre araignee-corps      # a single assembly
 
 The argument is a **prefix**, not an exact name: the tool picks up **every assembly and every profile** on the sheet that starts with it, and shows them **together, at the same scale**. The sheet is read **once** for the whole prefix (reading goes through Chrome: that is the wait, so pay it once).
 
-**Asking for the global prefix is asking for the whole robot.** `npm run montre araignee` does not lay three drawings side by side: it **mounts** them, each on the previous one's joints, joints superposed — one body, four femurs, four tibias. Three drawings on the sheet, one robot on screen. That is the **monté sur ses articulations** checkbox, ticked by default; untick it to get the separate drawings back.
+**Asking for the global prefix is asking for the whole robot.** `npm run montre araignee` does not lay three drawings side by side: it **mounts** them, each on the previous one's joints, axes superposed — one body, four femurs, four tibias. Three drawings on the sheet, one robot on screen. That is the **monté sur ses articulations** checkbox, ticked by default; untick it to get the separate drawings back.
 
 A profile, drawn on its own and without dimensions, is treated as a one-part assembly: its 10 px grid becomes millimetres and it is laid flat, 3 mm thick, next to the real assemblies.
 
@@ -460,9 +529,9 @@ What is read is also **stored**: `assemblages.mts` and `profils.mts` are rewritt
 | An ensemble's **title checkbox** | hide a whole assembly — look at the femur alone without relaunching the command |
 | **×4** box next to the title | the ensemble was given four copies (four coxas, four legs). Untick it to keep just **one**: four legs hide the body you wanted to see. Whatever it carries follows — one femur only holds one tibia |
 | **pièces** checkboxes | hide one side to see inside |
-| **axes dessinés** checkbox | show the named pads at their 3D place, and the **rotation axes** as a dashed red line |
+| **axes dessinés** checkbox | show the named joints at their 3D place: the point, its name, and the **axis line as a red dashed one**. This is how you check they are where you think — and that they point the right way |
 | **repère X Y Z** checkbox | the world frame in a corner, turning with the scene: it says where the front is at all times |
-| **monté sur ses articulations** checkbox | **the assembled robot**: each ensemble laid on the previous one's joints, joints superposed, one copy per joint. Unticked, you fall back to the separate drawings |
+| **monté sur ses articulations** checkbox | **the assembled robot**: each ensemble laid on the previous one's joints, axes superposed and zeros coincident, one copy per joint. Unticked, you fall back to the separate drawings |
 | **côte à côte** checkbox (unmounted only) | unticked, each ensemble goes back to its **own origin** — its own place, as drawn |
 
 The panel shows the **overall size in millimetres** (`100 × 80 × 31 mm`): the figure you read on an assembly drawing, and the first sign that a part is laid the wrong way.
@@ -500,18 +569,21 @@ Output of the read:
   ✓ entretoise : 5 points, 40×25 mm, face ép.3 #bcdff08c
   ✓ plaque : 10 points, 100×80 mm, dessus ép.3 #bcdff08c miroir=z, 3 trou(s)
   ✓ servo : 5 points, 23×23 mm, flanc ép.12 #3f4750ff miroir=x, 1 trou(s)
-  → corps-demo : 3 pièce(s), 4 axe(s), 100×80×31 mm
+    famille « coxa » : 2 pastille(s), axe Z — coxa-g, coxa-d
+  → corps-demo : 3 pièce(s), 2 axe(s), 100×80×31 mm
 ```
 
-Four pads, two by two: `coxa-g-ext` / `coxa-g-int` and `coxa-d-int` / `coxa-d-ext`, that is the **two rotation axes** of the coxas. An unnamed pad is reported on that very line (`! …-supports : pastille sans nom (id « circle91 »), ignorée`): time to give it an id in Inkscape.
+The `famille « coxa »` line is the one to read: **two pads, therefore two coxas**, and two legs to come. That is the number of legs, visible before even opening the window — a spider body must show `4 pastille(s)` there. `axe Z` says which way the joint will turn; a family whose pads are spread over different planes shows `axe X/Z` and a warning — it was drawn on the wrong part. An unnamed pad is reported on that very line (`! …-supports : pastille sans nom (id « circle91 »), ignorée`): time to give it an id in Inkscape.
 
 The colour shown is the one **read from the drawing** (`#rrggbbaa`, transparency included) — the trailing `8c` is PMMA at 55 %. An unpainted part shows the word of its `mat=` instead.
 
 `src/webview/composants/assemblages.mts` is **generated**, and it is **its own archive**: the tool reads it back before rewriting it, so extracting one assembly does not make the others disappear. Like `profils.mts`, it reads well in a `git diff` but is not edited by hand.
 
-The `verify:assemblage` bench is pure computation, like the profile one. It exercises **label parsing** (a negative position must survive whole — `pos=0,-9,0` has already been read as three words), the **planes** (a 100 mm plate lying flat is 100 × 80 × 3, never 103 × 83 × 35), the **mirror**, the **exploded view** (each part moves to the side it already sits on, a central part does not move), then **every stored assembly**: known plane and material, centred outline, dimensions consistent, overall size consistent with the computation, axes inside the box. It also exercises the **colours read from the drawing** — the drawn shade wins over `mat=`, transparency survives the lighting, and a translucent face comes out without a seam stroke — and the **rotation axes**: the prefix rule, the two furthest pads when there are three, two coincident pads that make no line, and a profile's pads following the part when it is scaled up.
+The `verify:assemblage` bench is pure computation, like the profile one. It exercises **label parsing** (a negative position must survive whole — `pos=0,-9,0` has already been read as three words), the **planes** (a 100 mm plate lying flat is 100 × 80 × 3, never 103 × 83 × 35), the **mirror**, the **exploded view** (each part moves to the side it already sits on, a central part does not move), then **every stored assembly**: known plane and material, centred outline, dimensions consistent, overall size consistent with the computation, axes inside the box. It also exercises the **colours read from the drawing** — the drawn shade wins over `mat=`, transparency survives the lighting, and a translucent face comes out without a seam stroke — and the **joints**: every pad is one, its first word makes its family, no stored pad carries an Inkscape duplication number, and a profile's pads follow the part when it is scaled up.
 
-Finally it exercises the **mounting** on a test robot — a body with four coxas, a femur, a tibia: the body carries (it offers the most joints), four femurs and four tibias are born, each on a different coxa, coxas and patellas **superposed to the millimetre**, the four legs turned to four distinct headings, the tibia keeping its femur's heading. An ensemble sharing no family stays where it is, and two drawings with nothing in common mount nothing at all rather than inventing.
+It exercises the **axis** rule on its own: a pad carries a line directed by its part's normal (`dessus`→Z, `flanc`→X, `face`→Y), stored at its **zero** — midway between the two copies of a mirrored part — and every stored assembly is run past that check.
+
+Finally it exercises the **mounting**, on a test robot and then **on the spider as actually drawn** — a body with four coxas, a femur, a tibia: the body carries (it offers the most joints), four femurs and four tibias are born, each on a different coxa, axes **superposed to the millimetre, zeros coincident**, each copy hooked by an axis pointing the **same way** as the one carrying it, the four legs turned to four distinct headings, the tibia keeping its femur's heading. An ensemble sharing no family stays where it is, and two drawings with nothing in common mount nothing at all rather than inventing.
 
 ---
 
@@ -529,44 +601,45 @@ araignee-patte-tibia-…    the patella → foot bone
 
 Each is drawn **wherever you like on the sheet**, side by side like a cutting plan. Where they sit on the sheet does not matter: their pose label and their pads do.
 
-### 2. The body: eight pads, four coxas
+### 2. The body: four pads, four coxas
 
-On the part that actually carries the coxa servos (the sides, not the top plate), four pairs of red pads:
+A coxa turns about a **vertical**: it is therefore drawn on a **`dessus`** part, whose thickness runs upwards ([why](#a-pad-carries-a-line-not-a-point)). On the supports that actually hold the coxa servos — two flat mirrored plates, the servo clamped between them — **one** red pad per coxa:
 
 ```text
-coxa-ag-h  coxa-ag-b        front left
-coxa-ad-h  coxa-ad-b        front right
-coxa-rg-h  coxa-rg-b        rear left
-coxa-rd-h  coxa-rd-b        rear right
+coxa-gh        front left
+coxa-dh        front right
+coxa-gb        rear left
+coxa-db        rear right
 ```
 
-The two pads of a pair are **the two ends of the servo's axis**: if the coxa yaws (servo standing up), one sits above the other; if it rolls, they sit one behind the other. **Put them where the axis really runs** — that line is what the leg will follow.
+All four start with `coxa`: that word, and that word alone, is what brings the femur. What follows only gives them **four distinct ids** — Inkscape refuses the same one twice. **Put each pad where the servo axis really runs**: that is where the leg will turn. The plate is `miroir=z`? Draw the pad **once only**, on the drawing: the axis places itself midway between the two plates.
 
-Name them by their **Inkscape id** (`Object → Object Properties`): eight texts on the sheet would be unreadable.
+The read must announce `famille « coxa » : 4 pastille(s), axe Z`. If it announces `axe X`, the pads were drawn on a side: the coxa would bend up and down instead of sweeping.
+
+Name them by their **Inkscape id** (`Object → Object Properties`): four texts on the sheet would clutter the drawing.
 
 ### 3. The femur: two joints, not one
 
 This is where it goes wrong most often. The femur carries **two** joints, and it needs both:
 
-| Pads | What they are for |
-| --- | --- |
-| `coxa-h`, `coxa-b` | **where the femur hooks onto the body.** Family `coxa`: that is the word the body uses too, and it is all it takes for them to snap together |
-| `patella-h`, `patella-b` | **the axis the femur offers the tibia.** Family `patella` |
+| Pad         | What it is for                                                                                                                                                                                                              |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `coxa`      | **where the femur hooks onto the body.** Family `coxa`: that is the word the body uses too, and it is all it takes for them to snap together. Draw it on a flat part, like the body's: both axes must be **vertical**       |
+| `patella-f` | **the axis the femur offers the tibia.** Family `patella`. On a `flanc`, therefore **across (X)**: the tibia bends up and down                                                                                              |
 
 A femur with only its coxa does sit on the body — but the tibia has nothing left to hook onto, and it stays alone in its corner. **The patella is drawn on the femur**, not only on the tibia.
 
 The femur is a `flanc`: drawn from the side, it stands up **as traced**. What you draw at the top ends up at the top of the robot. If the leg comes out upside down, it is the drawing that is flipped, not the engine — tick **repère X Y Z** and look at where Z points.
 
-### 4. The tibia: the patella, and the foot
+### 4. The tibia: the patella
 
 ```text
-patella-h  patella-b        same family "patella" as the femur: they superpose
-pied                    a lone pad — a point, not an axis
+patella-t         same first word as the femur's “patella-f”: the two axes superpose
 ```
 
-The tibia's two `patella-…` pads must sit **at the same spot on the tibia** as the femur's do on the femur: that is the contact point, and that is what gets superposed.
+The `patella-t` pad must sit **at the same spot on the tibia** as `patella-f` does on the femur: that is the contact axis, and that is what gets superposed. Draw it on a `flanc` like the femur — two axes that do not point the same way do not snap together. The `-f` and the `-t` mean nothing more than "femur side" and "tibia side" — two different ids are simply needed.
 
-The femur offers only **one** joint of family `patella`: the tibia therefore inherits the femur's heading and carries on from it, instead of splaying out the way the legs do around the body.
+The femur offers only **one** pad of family `patella`: the tibia therefore inherits the femur's heading and carries on from it, instead of splaying out the way the legs do around the body.
 
 ### 5. Look
 
@@ -580,15 +653,22 @@ Then touch up in Inkscape, click **↻ recharger**, look. Angle and checkboxes a
 
 ### It does not come out like that — why
 
-| What you see | The cause, almost always |
-| --- | --- |
-| **One leg only**, at the middle of the body | four coxas under the **same prefix** (`coxa-ag`, `coxa-ad`… on their own). Four distinct ones are needed, hence three-segment names |
-| **Two legs**, and two long red lines running through the body | `coxa-g-…` and `coxa-d-…`: two axes, not four. Rename to `coxa-ag`, `coxa-ad`, `coxa-rg`, `coxa-rd` |
-| **The tibia stays on its own** | the femur has no `patella-…` pad. The patella is drawn on **both** parts |
-| **Nothing mounts**, the viewer says so in yellow | no shared family: the two drawings do not use the same first word (`coxa` on one side, `epaule` on the other) |
-| **The leg points the wrong way**, or askew | the coxa axis is not where you think: tick **axes dessinés**, the dashed red line shows the real line |
-| **A part sits at the centre of the body**, 3 mm thick | its label is unreadable — a decimal comma, almost always. Read the command's output, it says so |
-| **A pad does not show up** | it has no name: its Inkscape id is still `circle97`. The read reports it |
+| What you see                                                          | The cause, almost always                                                                                                                                                                              |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **One leg only**, at the middle of the body                           | the body has only **one** `coxa…` pad. It needs four — one per coxa, at their real place                                                                                                              |
+| **Two legs** instead of four                                          | only two `coxa…` pads. The number of legs is the number of pads in the family, nothing else                                                                                                           |
+| **Five legs**, one of them doubled up at the same place               | a pad duplicated in Inkscape: it is called `coxa-gh-3`. Rename it, or delete it if it is a duplicate (the read reports it)                                                                            |
+| **The tibia stays on its own**                                        | the femur has no `patella…` pad. The patella is drawn on **both** parts                                                                                                                               |
+| **Nothing mounts**, the viewer says so in yellow                      | no shared family: the two drawings do not use the same first word (`coxa` on one side, `epaule` on the other)                                                                                         |
+| **The leg points the wrong way**, or askew                            | the coxa is not where you think: tick **axes dessinés**, the name shows at the pad's real place                                                                                                       |
+| **The leg pivots the wrong way** (it bends instead of sweeping)       | the axis is directed by the **part's plane**: a vertical coxa is drawn on a `dessus`, a crosswise patella on a `flanc`. Tick **axes dessinés**: the red dashed line shows the line                     |
+| **The leg is stuck against one plate** instead of centred between two | the pad was drawn twice by hand, one per plate, instead of once on a `miroir` part. The axis zero is then wrong, and two joints are born instead of one                                                |
+| **Two drawings do not snap together**, same family though             | their axes do not point the same way: the read shows `axe X/Z` and a warning. One of the two is drawn on the wrong part                                                                                |
+| **A part sits at the centre of the body**, 3 mm thick                 | its label is unreadable — a decimal comma, almost always. Read the command's output, it says so                                                                                                       |
+| **A pad does not show up**                                            | it has no name: its Inkscape id is still `circle97`. The read reports it                                                                                                                              |
+| **A board has vanished** from the assembly                            | its group holds nothing but the photo, and it is not clipped: clip it (`Object → Clip → Set`) or draw an outline again                                                                                |
+| **A round part has become a joint**                                   | it is traced as a red `<circle>`: `Path → Object to Path`                                                                                                                                             |
+| **The drawing keeps its size** after changing the label               | the system name does not match the component (`araignee`, `patte`), or the label is **inside** a part group: it then lands next to the parts                                                          |
 
 ---
 
@@ -601,7 +681,7 @@ Then touch up in Inkscape, click **↻ recharger**, look. Angle and checkboxes a
 - **Proportions** matter, dimensions do not: everything is rescaled.
 - A hole must be **entirely contained** in the part, otherwise it is ignored (with a warning).
 - The outline must **never cross itself**: it is the only path the engine cannot turn into a volume.
-- A **named red pad** is stored with the part: it is a joint, and it follows the part when it is scaled.
+- A **named red pad** is stored with the part: it is a joint — an **axis**, vertical for a profile — and it follows the part when it is scaled.
 - `profils.mts` is **generated**: read it, don't edit it.
 - Extracting one profile does not lose the others.
 - Look at the `:plat` mode **before** suspecting the engine.
@@ -614,13 +694,19 @@ Then touch up in Inkscape, click **↻ recharger**, look. Angle and checkboxes a
 - `pos` is the **centre** of the part, not its corner.
 - `miroir` lays the part **twice**: one side drawing gives both sides. It goes on the **plane's normal** (`flanc`→`x`, `dessus`→`z`, `face`→`y`), and the spacing you get is **centre to centre**: `pos=(gap + ep) / 2`.
 - The decimal separator is the **dot**: `pos=24.501,-38.083,0 ep=21.5`. A comma makes the label unreadable and the part falls back to the centre — the read says so.
-- A **named red pad** becomes an axis — the drawing says where the coxa is. Name it by its **Inkscape id**; the text above still works.
-- A pad name reads as **`family-joint-end`**: the **first** segment is the family (what it snaps onto), everything but the **last** is the prefix (which joint), the last one tells the two ends apart.
-- **Two pads sharing a prefix** (`coxa-ag-h`, `coxa-ag-b`) make a **rotation axis**. Two distinct joints = two distinct prefixes.
-- **Four coxas = four prefixes = eight pads.** `coxa-ag`, `coxa-ad`, `coxa-rg`, `coxa-rd` **on their own** make one single joint, at the centre of the body.
-- **Same family = the drawings snap together**, joints superposed: the one offering the most joints carries the other, and one copy is born per joint (four coxas → four legs).
-- The femur carries **two** families: `coxa-…` to hook onto the body, `patella-…` to carry the tibia.
+- A **named red pad = a joint** — the drawing says where the coxa is. Name it by its **Inkscape id**; the text above still works.
+- The **first word** of the name is the **family**: it says what it snaps onto. What follows only gives **distinct ids** (`coxa-gh`, `patella-f` / `patella-t`).
+- **One pad = one joint.** Four `coxa…` pads on the body = **four coxas**, therefore four legs. Two pads never group together.
+- **A pad carries an AXIS, not a point**: a line directed like its part's thickness — `dessus`→**Z** (a sweeping coxa), `flanc`→**X** (a bending patella), `face`→**Y**. A `miroir` part lays it twice: the axis runs **between** the two copies.
+- The axis is stored at its **zero**: midway between the two mirrored copies. Nothing to compute, nothing to draw twice.
+- **Same family = the drawings snap together**, **axes superposed and zeros coincident**: the one offering the most carries the other, and one copy is born **per pad** (four coxas → four femurs → four patellas → four tibias). Two axes pointing different ways do not snap — the read shows `axe X/Z` and warns.
+- The femur carries **two** families: `coxa` to hook onto the body, `patella-f` to carry the tibia.
+- A name ending in **`-3`, `-1`…** is almost always the suffix Inkscape sticks onto a copy-paste: the read reports it, rename it.
 - The **colour of the part is the colour of the drawing**, transparency included; `mat=` is only the fallback for an unpainted part.
+- An **image laid on the outline** (`.webp`, `.png`, `.jpg`) is applied to the part, **on the side you see**, **clipped to the outline** and with **the drawing's transparency**. One per part; a linked file is embedded on extraction.
+- **An image ALONE makes the part**: its **clip** (Inkscape's) gives the outline — silhouette, notches and holes —, failing that the bitmap's rectangle. Deleting a board's path therefore no longer makes it disappear.
+- A **round red part is traced as a PATH**: a red `<circle>` is read as a **pad** (a joint), not as a part.
 - `npm run montre <prefix>` reads, stores and opens **everything starting with it**, at the same scale: that is the working loop. Touch up in Inkscape, click **↻ recharger**.
 - The **éclaté** slider is the only way to see what sits between two sides.
 - `assemblages.mts` is **generated**, and it is its own archive.
+- The **finished system's size** is written **on the sheet**, outside the groups: `système : araignee largeur : 800`. The robot is framed to fill it, the leg has its own (`système : patte largeur : 456`, the whole sheet), and everything measured in pixels (outline simplification, face grain, shadows, margins) follows. Growing or shrinking is therefore done in Inkscape; without a label, the component keeps its fallback size.

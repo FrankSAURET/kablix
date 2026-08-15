@@ -7,10 +7,15 @@
 // palette (v2026.7.232), il y est resté en anglais — les trois anciens libellés
 // « Capacitor (film) »… étaient bien traduits, mais plus personne ne les
 // demandait. Ce banc relit le catalogue et exige une traduction pour chaque
-// libellé de composant, de propriété et de valeur de liste.
+// libellé de composant, de propriété, de note de section et de valeur de liste.
+//
+// Il relit AUSSI tous les appels `t('…')` de la webview (v2026.8.69) : les
+// messages de la simulation et les infobulles n'ont pas de définition dans le
+// catalogue, personne ne les regardait — cinq chaînes du robot araignée sont
+// sorties en anglais sans que rien ne le signale.
 import esbuild from 'esbuild';
-import { readFileSync, mkdtempSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, readdirSync, mkdtempSync } from 'node:fs';
+import { join, relative } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -48,11 +53,14 @@ ok(`catalogue : les ${CATALOG.length} libellés de composant sont traduits`,
 const props = new Set();
 const options = new Set();
 const groupes = new Set();
+const notes = new Set();
 for (const def of CATALOG) {
   for (const p of def.props ?? []) {
     if (missing(p.label)) props.add(`${def.type}/${p.attr}: ${p.label}`);
     // Titre de section repliable : affiché tel quel en tête du groupe.
     if (missing(p.group)) groupes.add(`${def.type}: ${p.group}`);
+    // Note de section : la phrase affichée sous le titre, en gris.
+    if (missing(p.groupNote)) notes.add(`${def.type}: ${p.groupNote}`);
     for (const v of Object.values(p.optionLabels ?? {})) {
       if (missing(v)) options.add(`${def.type}/${p.attr}: ${v}`);
     }
@@ -61,6 +69,7 @@ for (const def of CATALOG) {
 ok('inspecteur : tous les libellés de propriété sont traduits', props.size === 0, [...props].join(' · '));
 ok('inspecteur : tous les titres de section repliable sont traduits',
   groupes.size === 0, [...groupes].join(' · '));
+ok('inspecteur : toutes les notes de section sont traduites', notes.size === 0, [...notes].join(' · '));
 ok('inspecteur : tous les libellés de valeur (listes) sont traduits', options.size === 0, [...options].join(' · '));
 
 // --- Ce que la palette montre vraiment ----------------------------------------
@@ -69,6 +78,35 @@ ok('inspecteur : tous les libellés de valeur (listes) sont traduits', options.s
 const palette = PALETTE_CATALOG.map((d) => d.label).filter(missing);
 ok(`palette : les ${PALETTE_CATALOG.length} entrées visibles sont traduites`,
   palette.length === 0, palette.join(' · '));
+
+// --- Tout le reste de la webview ----------------------------------------------
+// Messages de simulation, infobulles, boutons : ils passent par `t()` sans jamais
+// apparaître dans le catalogue. On relit donc les sources, littérales seulement
+// (une clé construite à l'exécution n'est de toute façon pas traduisible).
+const sources = [];
+const marche = (d) => {
+  for (const e of readdirSync(d, { withFileTypes: true })) {
+    const p = join(d, e.name);
+    if (e.isDirectory()) marche(p);
+    else if (e.name.endsWith('.mts') && e.name !== 'i18n.mts') sources.push(p);
+  }
+};
+marche(join(root, 'src/webview'));
+const appels = new Map();
+let nbAppels = 0;
+for (const f of sources) {
+  const txt = readFileSync(f, 'utf8');
+  // `t('…')` seul : le garde-fou écarte `format(`, `part(`, `.t(`…
+  for (const m of txt.matchAll(/(?<![\w.$])t\(\s*'((?:[^'\\]|\\.)*)'/g)) {
+    const s = m[1].replace(/\\'/g, "'");
+    nbAppels++;
+    if (!missing(s)) continue;
+    if (!appels.has(s)) appels.set(s, new Set());
+    appels.get(s).add(relative(root, f).replace(/\\/g, '/'));
+  }
+}
+ok(`webview : les ${nbAppels} appels t('…') ont tous leur traduction`, appels.size === 0,
+  [...appels].map(([s, fs]) => `${JSON.stringify(s)} (${[...fs].join(', ')})`).join(' · '));
 
 let fail = 0;
 for (const r of checks) {
