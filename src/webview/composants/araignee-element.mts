@@ -26,7 +26,7 @@ import { css, html, svg, LitElement, type TemplateResult } from 'lit';
 import { ElementPin } from './pin.mjs';
 import {
   articulations, assemblyFaces, assemblyVertices, groundShadow, project,
-  regularPoly, renderFaces, rotZ, scale, shadowGradient, slabFaces,
+  renderFaces, rotZ, scale, shadowGradient,
   type Assembly, type Face, type Vec2, type Vec3,
 } from './iso3d.mjs';
 import { assemblage, hasAssemblage } from './assemblages.mjs';
@@ -100,67 +100,26 @@ export type Robot = {
 
 const degXY = (v: Vec2): number => (Math.atan2(v.y, v.x) * 180) / Math.PI;
 
-/** Les YEUX (Frank, v2026.8.61) : deux pastilles rouges posées sur le nez du
- *  robot. Elles ne sont pas sur la planche — c'est un ajout du dessin, pas une
- *  pièce à découper — mais elles suivent la même règle que tout le reste ici :
- *  AUCUNE cote. Rayon, écartement et recul se lisent sur le contour du pont.
- *  Rouge vif : c'est la couleur qu'on attend d'un œil de robot, et la seule de
- *  la scène (PMMA clair, cartes verte et bleue, servos noirs). */
-const EYE_COLOR = '#e01b24';
-/** Rayon d'un œil, en fraction de la LARGEUR du corps ; puis sa hauteur, en
- *  fraction de son rayon — une pastille, pas une bille. */
-const EYE_R = 1 / 18;
-const EYE_H = 0.45;
+/** Les YEUX sont une PIÈCE de la planche depuis la v2026.8.65 : un disque rouge
+ *  `araignee-corps-yeux`, posé sur le pont comme n'importe quelle autre pièce et
+ *  doublé par `miroir=x`. Ils étaient calculés ici (rayon en fraction du corps,
+ *  recul cherché sur le contour) et remontés à la main devant le PMMA
+ *  translucide ; c'est maintenant `empilement()` qui les fait passer devant, et
+ *  Frank qui décide de leur taille dans Inkscape. Rien à faire ici. */
 
-/** Où sont les deux yeux, en millimètres dans le repère du corps : sur la face
- *  supérieure du PONT (la plus grande pièce posée à plat), en remontant depuis
- *  la pointe avant jusqu'à la première rangée du contour assez large pour les
- *  porter côte à côte. Un corps redessiné plus pointu recule ses yeux tout seul. */
-export function eyes(a: Assembly): { c: Vec3; r: number }[] {
-  const pont = a.pieces.filter((p) => p.plan === 'dessus')
-    .sort((x, y) => y.w * y.h - x.w * x.h)[0];
-  if (!pont) return [];
-  // `miroir=z` pose la plaque en haut ET en bas : c'est la copie du HAUT qu'on
-  // voit, donc l'altitude absolue de sa pose, plus la demi-épaisseur.
-  const zTop = (pont.miroir?.includes('z') ? Math.abs(pont.pos.z) : pont.pos.z) + pont.ep / 2;
-  const r = pont.w * EYE_R;
-  const nez = [...pont.poly].sort((p, q) => p.y - q.y).find((q) => Math.abs(q.x) >= 3 * r);
-  if (!nez) return [];
-  const y = pont.pos.y + nez.y + r;
-  const z = zTop + (r * EYE_H) / 2;
-  return [-1, 1].map((s) => ({ c: { x: pont.pos.x + (s * Math.abs(nez.x)) / 2, y, z }, r }));
-}
-
-/** Les faces des deux yeux, prêtes à rejoindre le tas commun. `over` est le
- *  corps déjà calculé : le PMMA du pont est TRANSLUCIDE, donc peint d'un bloc à
- *  sa profondeur moyenne — il repasserait par-dessus les yeux et les éteindrait.
- *  On les remonte juste devant lui, ce qui est toujours juste : rien du corps ne
- *  peut s'intercaler entre le nez et le regard. */
-export function eyeFaces(r: Robot, xf: (p: Vec3) => Vec3, over: Face[]): Face[] {
-  const faces: Face[] = [];
-  for (const e of eyes(r.corps)) {
-    const ep = e.r * EYE_H * r.k;
-    faces.push(...slabFaces(regularPoly(16, e.r * r.k), 'dessus', scale(e.c, r.k), ep,
-      EYE_COLOR, [], xf));
-  }
-  if (!faces.length) return faces;
-  const devant = over.reduce((m, f) => Math.max(m, f.z), -Infinity);
-  const bas = faces.reduce((m, f) => Math.min(m, f.z), Infinity);
-  const d = devant + 0.01 - bas;
-  if (d > 0) for (const f of faces) f.z += d;
-  return faces;
-}
-
-/** Centre des pièces d'un assemblage dans le plan X/Y : il dit où est « dehors »,
- *  donc de quel côté chaque patte s'écarte. */
-function centerXY(a: Assembly): Vec2 {
+/** Centre du robot dans le plan X/Y : il dit où est « dehors », donc de quel côté
+ *  chaque patte s'écarte. C'est le milieu des QUATRE COXAS — pas la moyenne des
+ *  pièces, qui suivait le décor : depuis que les yeux sont une pièce (v2026.8.65),
+ *  une pastille de 7 mm posée sur le nez tirait le centre de 12 mm vers l'avant
+ *  et désalignait les pattes gauche/droite. Les coxas, elles, sont la mécanique. */
+function centerXY(coxas: Vec3[]): Vec2 {
   let x = 0;
   let y = 0;
-  for (const p of a.pieces) {
-    x += p.pos.x;
-    y += p.pos.y;
+  for (const h of coxas) {
+    x += h.x;
+    y += h.y;
   }
-  const n = Math.max(a.pieces.length, 1);
+  const n = Math.max(coxas.length, 1);
   return { x: x / n, y: y / n };
 }
 
@@ -203,7 +162,7 @@ function build(): Robot | null {
   // Lacet de repos : la patte part du centre du corps vers sa coxa, et le
   // fémur est dessiné dans le sens coxa → patella. La même règle que le monteur
   // de `montage()`, appliquée aux quatre pastilles.
-  const c = centerXY(corps);
+  const c = centerXY(coxas);
   const r: Robot = {
     corps,
     leg,
@@ -444,8 +403,7 @@ export class AraigneeElement extends LitElement {
       // qui est le seul moyen de comprendre qu'elles sont EMPILÉES (v2026.8.56).
       const opts = { scale: r.k, simplify: SIMPLIFY, grain: GRAIN };
       const pose = (p: Vec3): Vec3 => rotZ({ x: p.x, y: p.y, z: p.z + r.ground }, YAW);
-      const corps = assemblyFaces(r.corps, { ...opts, xf: pose });
-      faces.push(...corps, ...eyeFaces(r, pose, corps));
+      faces.push(...assemblyFaces(r.corps, { ...opts, xf: pose }));
       for (const xf of legs) {
         faces.push(...assemblyFaces(r.leg.femur, { ...opts, xf: xf.femur }));
         faces.push(...assemblyFaces(r.leg.tibia, { ...opts, xf: xf.tibia }));

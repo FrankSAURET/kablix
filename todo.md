@@ -1,5 +1,6 @@
 # À faire
-
+1. La patte de l'arraignée a une contrainte de possitionnement, je ne peux pas la déplacer vers le haut de la feuille. Par contre je sort de la feuille sur la droite et le bas ce n'est pas souhaitable (avec les autres composants aussi)
+1. Rajoute la possibilité d'affecte des N° de port servo différents dans les propriétées. Rubrique "câbler les servomoteurs".
 # En réserve
 1. ⏳ Traduction FR du réglage `kablix.simulationWorker` (`package.nls.fr.json`) : sa description a changé avec le défaut activé — au lot de traductions d'avant publication.
 Les cinq lots du worker sont livrés (v2026.8.51 → v2026.8.55).
@@ -29,6 +30,20 @@ Deux mondes derrière le mot « ESP32 » : les puces **Xtensa** (ESP32 classique
 4. 🚫 **ESP32 classique (Xtensa) : bloqué par la licence, pas par la technique.** Les seuls émulateurs Xtensa sérieux sont des forks de **QEMU** (celui d'Espressif, celui de Velxio), donc **GPL v2** — incompatible avec la distribution d'une extension **MIT** comme Kablix. Wokwi fait tourner l'ESP32 sur QEMU-WASM, mais eux ne distribuent pas un paquet installable. À ne pas engager sans avis clair sur la licence.
 5. ⏳ **Chiffrage** : évaluation **3-5 j** (lire `BROWSER.md`, charger MicroPython C3 dans leur WASM, faire clignoter une GPIO et la récupérer côté JS). Si les crochets existent, l'intégration reste une **nouvelle famille de cartes** — brochage, dessin, catalogue, moteur, tests `testkablix`, fiches d'aide : **20-40 j**. Ce n'est pas une variante du Pico, c'est un troisième moteur à côté de l'AVR et du RP2040.
 6. ℹ️ **ESP8266 : rien de sérieux à émuler.** Ne pas le promettre.
+
+# >>>>  v2026.8.65 — une image détourée SUFFIT à faire une pièce
+
+1. ✅ **Les photos des deux cartes s'affichent enfin** (`media/16servo.png`, `media/picow.png`). Elles ne « marchaient pas » parce qu'il n'y avait plus de contour dessous : une image est un HABILLAGE, il lui faut une pièce. Deux réponses, et tu n'as plus à dessiner le rectangle à la main.
+2. ✅ **Une image SEULE fait la pièce** : posée dans un groupe de plan (`dessus`…) sans aucun tracé, son rectangle devient le contour. Rien à cocher, rien à empiler.
+3. ✅ **Et surtout : ton DÉTOURAGE Inkscape devient le contour** (`Objet → Découpe → Découper`). Le PCA9685 sort en **100 points, 40 × 29,18 mm, 5 trous** — les vis et le trou central compris ; le Pico W en 29,79 × 12,92 mm. Le contour épouse la carte, il ne l'encadre plus.
+4. ℹ️ **Le PNG est la bonne réponse à Inkscape** : il n'importe pas le WebP, c'est un manque de lui, pas de Kablix. L'extraction embarque le bitmap tel quel (`data:`) — PNG ou WebP lui sont égaux.
+5. ✅ **Les yeux rouges sont une PIÈCE de la planche** (`araignee-corps-yeux`, `miroir=x` : un dessin, deux yeux), plus une exception écrite en dur dans le code. `eyes()` / `eyeFaces()` et leurs six constantes disparaissent d'`araignee-element.mts` — c'est l'empilement normal qui les fait passer devant le PMMA translucide, sans rien de spécial.
+6. ⚠️ **Piège trouvé en les dessinant, noté dans la doc : une pièce ronde et rouge se trace en CHEMIN, jamais en `<circle>`** — un cercle rouge, c'est une articulation, et la pièce disparaît. Le disque de l'œil est fait de quatre arcs.
+7. ✅ **La taille finie du système se lit sur la planche** : une étiquette `système : araignee largeur : 800` posée hors de tout groupe. Fini le nombre caché dans le code — tu changes le dessin, tu changes l'étiquette. Rangée dans `assemblages.mts` (bloc `SYSTEMES`), lue par `systemeLargeur('araignee')`, avec repli sur l'ancienne valeur si l'étiquette manque. Araignée 800, patte 456.
+8. ✅ **Effet de bord réparé au passage : une pièce décorative pouvait DÉSALIGNER les pattes.** Le centre du robot était la moyenne des pièces ; la pastille d'œil, à 57 mm sur le nez, tirait ce centre de 12 mm et cassait la symétrie gauche/droite. Le centre est désormais celui des **quatre coxas** — la mécanique, pas le décor.
+9. ✅ **Bancs : `verify:araignee` 98 contrôles** (96 avant : les yeux vus comme une pièce doublée par miroir, peints devant le PMMA, et les deux photos plaquées en volume), **`verify:assemblage` 291** (l'étiquette de taille, l'image seule, le détourage à 100 points, la photo à la taille de la pièce).
+10. ✅ **`docs/fr/Drawing-systems.md`** — repart de ta version simplifiée : nouvelle section « Une image SEULE fait la pièce », nouvelle section « L'étiquette de taille du système », l'encart du piège du cercle rouge, trois symptômes de plus dans le tableau « ça ne donne pas ça » et l'aide-mémoire remis à jour.
+11. ⏳ Traduction EN de ces sections : au lot d'avant publication.
 
 # >>>>  v2026.8.64 — les réglages du robot rentrent dans quatre tiroirs
 

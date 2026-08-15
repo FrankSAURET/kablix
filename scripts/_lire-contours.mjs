@@ -248,10 +248,42 @@ function readGroup(name, g) {
     const o = at(im, x, y);
     const u = at(im, x + w, y);
     const v = at(im, x, y + h);
-    image = { href, o: [o.x, o.y], u: [u.x, u.y], v: [v.x, v.y], alpha: a };
+    // Le DÉTOURAGE de l'image (clip-path Inkscape) : la silhouette réelle de la
+    // carte, encoches et trous de fixation compris. Une pièce qui n'est QU'UNE
+    // image y trouve son contour, bien plus juste que le rectangle du bitmap.
+    // Le clip est écrit dans le repère de l'image (userSpaceOnUse), celui-là
+    // même où sont ses x/y : la matrice de l'image suffit à le ramener sur la
+    // planche.
+    const clip = [];
+    const ref = (im.getAttribute('clip-path') || '').match(/url\\(#([^)]+)\\)/);
+    const cp = ref ? root.getElementById(ref[1]) : null;
+    if (cp && (cp.getAttribute('clipPathUnits') || 'userSpaceOnUse') === 'userSpaceOnUse') {
+      const base = rootInv.multiply(im.getScreenCTM());
+      for (const el of cp.querySelectorAll(SHAPES)) {
+        const own = el.transform.baseVal.consolidate();
+        const ctm = own ? base.multiply(own.matrix) : base;
+        const dd = toPathData(el);
+        if (!dd) continue;
+        for (const sub of (el.tagName === 'path' ? subPaths(dd) : [dd])) {
+          const pts = samplePath(sub, ctm);
+          if (pts.length >= 3) clip.push(pts);
+        }
+      }
+    }
+    image = { href, o: [o.x, o.y], u: [u.x, u.y], v: [v.x, v.y], alpha: a, clip };
     break; // une seule image par pièce : c'est un habillage, pas un collage
   }
   out.push({ name, id: g.getAttribute('id'), rings, pads, texts, fill, image });
+}
+// ÉTIQUETTES DE SYSTÈME (« système : araignee Largeur : 800 ») : elles ne
+// parlent d'aucune pièce, mais du dessin FINI — sa largeur à l'écran. Elles se
+// posent donc n'importe où sur la planche, hors des groupes, et sont ramassées
+// ici en un seul balayage. Le tri se fait côté Node, où la tolérance aux
+// accents et aux deux-points est écrite une fois.
+const systemes = [];
+for (const t of root.querySelectorAll('text')) {
+  const s = (t.textContent || '').replace(/\\s+/g, ' ').trim();
+  if (s && /syst/i.test(s.normalize('NFD').replace(/[\\u0300-\\u036f]/g, ''))) systemes.push(s);
 }
 for (const id of IDS) {
   const g = findGroup(id + '-profil') || findGroup(id);
@@ -270,16 +302,36 @@ for (const p of PREFIXES) {
   }
   for (const el of seen) readGroup(el.getAttribute('id').replace(/-profil$/, ''), el);
 }
-document.getElementById('result').textContent = JSON.stringify(out);
+document.getElementById('result').textContent = JSON.stringify({ groupes: out, systemes });
 } catch (e) { document.getElementById('result').textContent = 'ERR:' + (e && e.stack || e); }
 `;
+}
+
+/**
+ * Étiquette de TAILLE d'un système : « système : araignee Largeur : 800 ».
+ *
+ * C'est le seul réglage du dessin fini — la largeur qu'occupera le composant à
+ * l'écran, en pixels de la grille — et il appartient à la planche, pas au code :
+ * Frank agrandit son robot dans Inkscape, pas dans un `.mts`.
+ *
+ * Écrite à la main, l'étiquette arrive avec des accents, des majuscules et des
+ * deux-points ; tout est aplati avant lecture, et l'ordre des deux mots est
+ * libre. Rend `null` si le texte n'en est pas une.
+ */
+export function parseSysteme(s) {
+  const plat = String(s).toLowerCase().replace(/\s*[:=]\s*/g, '=').replace(/\s+/g, ' ').trim();
+  const nom = plat.match(/syst[eèé]mes?=([a-z0-9][a-z0-9_-]*)/);
+  if (!nom) return null;
+  const px = plat.match(/largeurs?=(\d+(?:[.,]\d+)?)/);
+  return { nom: nom[1], largeur: px ? Math.round(Number(px[1].replace(',', '.'))) : null };
 }
 
 /**
  * Lit une planche SVG et rend les groupes demandés, en unités du DESSIN.
  * `ids` : noms exacts (le suffixe `-profil` est essayé d'abord).
  * `prefixes` : tous les groupes dont l'id commence ainsi (assemblage).
- * Rend aussi `unitScale`, le facteur unités du dessin → pixels de grille.
+ * Rend aussi `unitScale`, le facteur unités du dessin → pixels de grille, et
+ * `systemes`, les tailles de dessin fini lues sur la planche.
  */
 export function lireDessin({ source = planche('3D'), ids = [], prefixes = [], step = 0.35 }) {
   const srcPath = join(ROOT, source);
@@ -303,7 +355,19 @@ export function lireDessin({ source = planche('3D'), ids = [], prefixes = [], st
     .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'").replace(/&amp;/g, '&');
   if (raw.startsWith('ERR')) { console.error(raw.slice(0, 2000)); process.exit(1); }
-  return { unitScale, groupes: JSON.parse(raw) };
+  const lu = JSON.parse(raw);
+  const systemes = {};
+  for (const s of lu.systemes ?? []) {
+    const e = parseSysteme(s);
+    if (!e) continue;
+    if (!(e.largeur > 0)) {
+      console.log(`  ! étiquette « ${s} » : pas de largeur lisible, ignorée`
+        + ` — écrivez « système : ${e.nom} largeur : 800 » (un nombre de pixels).`);
+      continue;
+    }
+    systemes[e.nom] = e.largeur;
+  }
+  return { unitScale, groupes: lu.groupes, systemes };
 }
 
 // --- pastilles ----------------------------------------------------------------

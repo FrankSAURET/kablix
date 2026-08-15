@@ -28,7 +28,7 @@ const CACHE = join(ROOT, 'node_modules', '.cache-araignee');
 const entry = `
 import '../../src/webview/composants/araignee-element.mjs';
 import '../../src/webview/composants/patte-element.mjs';
-import { robot, legXf, eyes, eyeFaces, YAW } from '../../src/webview/composants/araignee-element.mjs';
+import { robot, legXf, YAW } from '../../src/webview/composants/araignee-element.mjs';
 import { SIMPLIFY, SYSTEME_PX } from '../../src/webview/composants/patte-element.mjs';
 import { assemblyFaces, project, rotZ } from '../../src/webview/composants/iso3d.mjs';
 import { CATALOG, partCategory, partDef } from '../../src/webview/diagram/catalog.mjs';
@@ -175,15 +175,19 @@ async function run() {
 	ok('cartes : batterie et PCA9685 font partie du corps dessiné',
 		['batterie', 'pca9685'].every((n) => R?.corps?.pieces?.some((p) => p.name === n)),
 		R?.corps?.pieces?.map((p) => p.name).join(','));
-	// Le PCA9685 est la seule pièce BLEUE de la scène : la voir dans le DOM dit
-	// qu'elle est dessinée sans avoir à cocher quoi que ce soit.
-	const bleus = [...el.shadowRoot.querySelectorAll('polygon')].filter((q) => {
-		const m = (q.getAttribute('fill') ?? '').match(/\\d+/g);
-		if (!m) return false;
-		const [r, g, b] = m.map(Number);
-		return b > 40 && b > r * 2 && b > g * 1.2;
-	});
-	ok('cartes : la carte 16 servos est visible sans rien cocher (circuit bleu)', bleus.length >= 3, bleus.length);
+	// Depuis la v2026.8.65 les deux cartes portent leur PHOTO, détourée par le
+	// clip-path du dessin : elles ne sont plus une couleur mais une image plaquée.
+	// La voir dans le DOM dit qu'elles sont dessinées sans avoir à cocher quoi que
+	// ce soit — et que le bitmap est bien EMBARQUÉ (la webview interdit le réseau).
+	const photos = [...el.shadowRoot.querySelectorAll('image')]
+		.filter((q) => (q.getAttribute('href') ?? '').startsWith('data:image/'));
+	ok('cartes : les deux photos de cartes sont plaquées, sans rien cocher (bitmap embarqué)',
+		photos.length >= 2, photos.length);
+	// Et elles sont plaquées PAR UNE MATRICE sur un carré unité : c'est ce qui les
+	// pose de biais sur la face, au lieu d'un rectangle collé à l'écran.
+	ok('cartes : la photo suit la face en volume (matrice, pas un collage droit)',
+		photos.every((q) => q.getAttribute('width') === '1'
+			&& /matrix\\(/.test(q.getAttribute('transform') ?? '')));
 	// Le piège corrigé en v2026.8.58 : empilement() décalait une pièce de sa
 	// DIAGONALE (arrière → avant) au lieu de la profondeur à laquelle elle sera
 	// peinte. Les deux plaques de PMMA du corps partaient 27 unités en avant et
@@ -222,16 +226,23 @@ async function run() {
 		Math.max(...servos) > Math.max(...plaques.map(moy)),
 		\`plaques \${plaques.map((fs) => moy(fs).toFixed(1)).join('/')} vs servos \${servos.map((v) => v.toFixed(1)).join('/')}\`);
 
-	// --- 5 bis. Les yeux : deux pastilles rouges sur le nez (v2026.8.61) --------
-	// Elles ne viennent pas de la planche, mais elles obéissent à la même règle
-	// que tout le reste : AUCUNE cote ici, tout se lit sur le contour du pont.
-	// Un corps redessiné plus pointu ou plus large doit les replacer tout seul.
-	const yx = eyes(R.corps);
+	// --- 5 bis. Les yeux : une PIÈCE de la planche (v2026.8.65) -----------------
+	// Un disque rouge « araignee-corps-yeux », posé sur le pont et doublé par
+	// miroir=x. Plus une seule cote dans le code : c'est le dessin qui les met
+	// là, et l'empilement qui les fait passer devant le PMMA translucide.
+	const oeil = R.corps.pieces.find((p) => p.name === 'yeux');
+	ok('yeux : la pièce « yeux » est dans le corps, doublée par miroir=x',
+		!!oeil && oeil.miroir === 'x' && Math.abs(oeil.pos.x) > 0.1,
+		oeil ? JSON.stringify(oeil.pos) + ' miroir=' + oeil.miroir : 'pièce absente');
+	const rOeil = oeil ? Math.max(oeil.w, oeil.h) / 2 : 0;
+	const yx = oeil
+		? [-1, 1].map((s) => ({ c: { x: s * Math.abs(oeil.pos.x), y: oeil.pos.y, z: oeil.pos.z }, r: rOeil }))
+		: [];
 	ok('yeux : deux, et symétriques par rapport à l\\'axe du robot',
 		yx.length === 2 && Math.abs(yx[0].c.x + yx[1].c.x) < 0.01
 		&& Math.abs(yx[0].c.y - yx[1].c.y) < 0.01 && Math.abs(yx[0].c.z - yx[1].c.z) < 0.01,
 		JSON.stringify(yx));
-	const pont = R.corps.pieces.filter((p) => p.plan === 'dessus')
+	const pont = R.corps.pieces.filter((p) => p.plan === 'dessus' && p.name !== 'yeux')
 		.sort((a, b) => b.w * b.h - a.w * a.h)[0];
 	const ysPont = pont.poly.map((q) => q.y + pont.pos.y);
 	const yAvant = Math.min(...ysPont);
@@ -266,10 +277,15 @@ async function run() {
 		yx.map((e) => e.c.z.toFixed(2)).join(' ') + ' vs ' + zPont.toFixed(2));
 	// Le piège : le PMMA du pont est TRANSLUCIDE, donc peint d'un bloc à sa
 	// profondeur MOYENNE — il repasse par-dessus le nez et éteint les yeux.
-	const yf = eyeFaces(R, (p) => rotZ({ x: p.x, y: p.y, z: p.z + R.ground }, YAW), corpsF);
+	// C'est empilement() qui les remonte, on le mesure sur les faces rendues.
+	// Une plaque translucide est peinte d'un bloc, à sa profondeur MOYENNE : c'est
+	// donc elle qu'il faut battre, et la face rouge la plus en arrière qui décide.
+	const estRouge = (fs) => { const [r, g, b] = teinte(fs); return r > 100 && r > g * 2.5 && r > b * 2.5; };
+	const yf = parPiece(corpsF).filter(estRouge);
 	ok('yeux : peints DEVANT le corps (le PMMA translucide ne les éteint pas)',
-		yf.length > 0 && Math.min(...yf.map((f) => f.z)) > Math.max(...corpsF.map((f) => f.z)),
-		yf.length + ' faces');
+		yf.length === 2 && Math.min(...yf.flat().map((f) => f.z)) > Math.max(...plaques.map(moy)),
+		'yeux ' + Math.min(...yf.flat().map((f) => f.z)).toFixed(1)
+		+ ' vs PMMA ' + plaques.map((fs) => moy(fs).toFixed(1)).join('/'));
 	// Et rouges pour de vrai, dans le DOM : c'est la seule couleur rouge de la
 	// scène (PMMA clair, cartes verte et bleue, servos noirs, os gris).
 	const rouges = [...el.shadowRoot.querySelectorAll('polygon')].filter((q) => {

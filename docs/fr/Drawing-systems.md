@@ -1,17 +1,15 @@
 # Dessiner les systèmes en volume (araignée, pattes, plaques)
 
-Le robot araignée et sa patte ne sont pas des SVG posés à l'écran : ce sont des **volumes calculés à chaque image** par le moteur isométrique [`iso3d.mts`](../../src/webview/composants/iso3d.mts). C'est ce qui permet à une patte de se lever pour de bon — un dessin plat, lui, donnait la même image qu'on tourne la coxa ou qu'on plie la patella.
+Le robot araignée et sa patte ne sont pas des SVG posés à l'écran : ce sont des **volumes calculés à chaque image** par le moteur isométrique [`iso3d.mts`](../../src/webview/composants/iso3d.mts).
 
 Ce guide décrit : **vous dessinez le contour d'une pièce, le moteur le met en volume**. Le dessin reste de votre main, la cinématique, l'ombrage et le tri en profondeur restent au moteur.
 
 Il y a **deux façons** de dessiner, et le guide les traite dans l'ordre :
 
-| | Ce que vous dessinez | Ce que ça donne | Pour |
-| --- | --- | --- | --- |
-| **Profil** | **une** pièce à plat, à l'échelle libre | la pièce, mise aux cotes par le composant | une silhouette : le châssis du robot, un os de patte, une carte |
-| **Assemblage** | **plusieurs** pièces à plat, **en millimètres**, chacune avec sa pose | le montage complet, cotes conservées | un corps en sandwich : deux flancs de 3 mm, les servos entre eux |
-
-La différence tient en une phrase : dans un profil, seules les **proportions** comptent ; dans un assemblage, **les cotes sont l'information même** — entre deux flancs, 3 mm d'épaisseur et 25 mm d'entrefer ne se recalculent pas, ils se mesurent.
+|                | Ce que vous dessinez                                                  | Ce que ça donne                           | Pour                                                             |
+| -------------- | --------------------------------------------------------------------- | ----------------------------------------- | ---------------------------------------------------------------- |
+| **Profil**     | **une** pièce à plat, à l'échelle libre                               | la pièce, mise aux cotes par le composant | une silhouette : le châssis du robot, un os de patte, une carte  |
+| **Assemblage** | **plusieurs** pièces à plat, **en millimètres**, chacune avec sa pose | le montage complet, cotes conservées      | un corps en sandwich : deux flancs de 3 mm, les servos entre eux |
 
 Ce guide s'adresse à qui travaille sur **le dépôt**. Pour un composant plat classique (une diode, un capteur), la chaîne est différente et décrite dans [Créer un composant Kablix](Creating-components.md).
 
@@ -29,12 +27,12 @@ Pressé ? Sautez à [dessin d'origine, ce que ça donne](#dessin-dorigine-ce-que
 
 Les dessins d'origine vivent sur **deux** planches A3 à la racine du dépôt :
 
-| Planche | Ce qu'on y dessine | Qui la lit |
-| --- | --- | --- |
-| `Composants2D.svg` | les composants **plats** de la bibliothèque : dessin externe et schéma interne d'une diode, d'un relais, d'un transistor | `node scripts/_extract-composants.mjs` |
-| `Composants3D.svg` | les pièces à mettre **en volume** : profils, assemblages, le robot araignée | `npm run profil`, `npm run assemblage`, `npm run montre` |
+| Planche            | Ce qu'on y dessine                                                                                                       | Qui la lit                                               |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------- |
+| `Composants2D.svg` | les composants **plats** de la bibliothèque : dessin externe et schéma interne d'une diode, d'un relais, d'un transistor | `node scripts/_extract-composants.mjs`                   |
+| `Composants3D.svg` | les pièces à mettre **en volume** : profils, assemblages, le robot araignée                                              | `npm run profil`, `npm run assemblage`, `npm run montre` |
 
-Ce guide ne parle que de la **seconde**. Les outils la choisissent tout seuls ; `--source=` sert à lire une planche à part (les exemples de ce guide viennent de `docs/exemples/`). L'ancienne planche unique `Composants.svg` reste lue en repli tant qu'elle est là : rien ne casse pendant la scission.
+Ce guide ne parle que de la **seconde**. Les outils la choisissent tout seuls ; `--source=` sert à lire une planche à part (les exemples de ce guide viennent de `docs/exemples/`).
 
 ---
 
@@ -42,27 +40,27 @@ Ce guide ne parle que de la **seconde**. Les outils la choisissent tout seuls ; 
 
 **Un profil** — une pièce, à l'échelle libre :
 
-| # | Étape | Commande / fichier |
-| --- | --- | --- |
-| 1 | Dessiner le contour de la pièce | `Composants3D.svg`, groupe `<nom>-profil` |
-| 2 | Le lire | `npm run profil <nom>` → `src/webview/composants/profils.mts` |
-| 3 | Le regarder | `node scripts/_capture-profil.mjs <nom>:plat` puis `<nom>:plaque` ou `<nom>:piece` |
-| 4 | Le mettre en volume | rien à faire si le nom est déjà attendu (tableau plus bas), sinon l'élément |
-| 5 | Contrôler | `npm run verify:profils` |
+| #   | Étape                           | Commande / fichier                                                                 |
+| --- | ------------------------------- | ---------------------------------------------------------------------------------- |
+| 1   | Dessiner le contour de la pièce | `Composants3D.svg`, groupe `<nom>-profil`                                          |
+| 2   | Le lire                         | `npm run profil <nom>` → `src/webview/composants/profils.mts`                      |
+| 3   | Le regarder                     | `node scripts/_capture-profil.mjs <nom>:plat` puis `<nom>:plaque` ou `<nom>:piece` |
+| 4   | Le mettre en volume             | rien à faire si le nom est déjà attendu (tableau plus bas), sinon l'élément        |
+| 5   | Contrôler                       | `npm run verify:profils`                                                           |
 
 **Un assemblage** — plusieurs pièces, en millimètres :
 
-| # | Étape | Commande / fichier |
-| --- | --- | --- |
-| 1 | Dessiner les pièces, chacune avec son **étiquette de pose** | `Composants3D.svg`, groupes `<assemblage>-<pièce>` |
-| 2 | Le lire et **le regarder tourner** | `npm run montre <préfixe>` |
-| 3 | Le ranger seul (sans ouvrir de fenêtre) | `npm run assemblage <assemblage>` → `src/webview/composants/assemblages.mts` |
-| 4 | En tirer les images de la doc | `node scripts/_capture-profil.mjs <assemblage>:assemblage` et `:eclate` |
-| 5 | Contrôler | `npm run verify:assemblage` |
+| #   | Étape                                                       | Commande / fichier                                                           |
+| --- | ----------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| 1   | Dessiner les pièces, chacune avec son **étiquette de pose** | `Composants3D.svg`, groupes `<assemblage>-<pièce>`                           |
+| 2   | Le lire et **le regarder tourner**                          | `npm run montre <préfixe>`                                                   |
+| 3   | Le ranger seul (sans ouvrir de fenêtre)                     | `npm run assemblage <assemblage>` → `src/webview/composants/assemblages.mts` |
+| 4   | En tirer les images de la doc                               | `node scripts/_capture-profil.mjs <assemblage>:assemblage` et `:eclate`      |
+| 5   | Contrôler                                                   | `npm run verify:assemblage`                                                  |
 
 L'étape 4 des profils est vide dans le cas courant : les composants **cherchent déjà** leurs profils par leur nom et retombent sur la forme codée en dur tant que le dessin n'existe pas. Dessiner `araignee-chassis` puis l'extraire suffit à changer la silhouette du robot, sans toucher une ligne de TypeScript.
 
-Côté assemblage, `npm run montre` fait les étapes 1 à 3 d'un coup : il relit le dessin, le range, et ouvre la scène dans une fenêtre où vous la tournez. C'est **la** boucle de travail — on redessine dans Inkscape, on clique **↻ recharger**, on regarde. Donnez-lui un préfixe et c'est le robot entier qui monte d'un coup.
+Côté assemblage,** **`npm run montre`** fait les étapes 1 à 3 d'un coup **: il relit le dessin, le range, et ouvre la scène dans une fenêtre où vous la tournez. C'est **la** boucle de travail — on redessine dans Inkscape, on clique **↻ recharger**, on regarde. Donnez-lui un préfixe et c'est le robot entier qui se monte d'un coup.
 
 ---
 
@@ -70,10 +68,10 @@ Côté assemblage, `npm run montre` fait les étapes 1 à 3 d'un coup : il relit
 
 Un **profil**, c'est le contour d'une pièce **à plat**, comme sur un plan de découpe laser : la silhouette, plus les perçages. Le moteur en tire un volume de deux façons, et deux seulement.
 
-| Mise en scène | Le dessin est vu | Le volume obtenu | Fonction |
-| --- | --- | --- | --- |
-| **Plaque** | de **dessus** | contour extrudé **vers le haut**, sur son épaisseur | `prismFaces` |
-| **Pièce** | de **côté**, couchée | contour posé **entre deux points**, sur son épaisseur | `extrudeProfile` |
+| Mise en scène | Le dessin est vu     | Le volume obtenu                                      | Fonction         |
+| ------------- | -------------------- | ----------------------------------------------------- | ---------------- |
+| **Plaque**    | de **dessus**        | contour extrudé **vers le haut**, sur son épaisseur   | `prismFaces`     |
+| **Pièce**     | de **côté**, couchée | contour posé **entre deux points**, sur son épaisseur | `extrudeProfile` |
 
 Une plaque, c'est le châssis du robot, une platine, une équerre posée à plat. Une pièce, c'est un os de patte, un bloc de servo, une bielle : quelque chose qui va **d'une articulation à l'autre** et qui suit le mouvement.
 
@@ -93,18 +91,14 @@ C'est la seule chose qu'on ne peut pas deviner à votre place, et c'est la premi
 
 La même pièce en L, posée dans les trois plans. Les flèches **violette** et **orange** sont le `x` et le `y` **de votre feuille de dessin** ; la grise est le sens de l'épaisseur.
 
-| Plan | Le dessin est vu | `x` du dessin part | `y` du dessin part | L'épaisseur part | Exemples |
-| --- | --- | --- | --- | --- | --- |
-| `dessus` | de dessus, **avant en haut** | vers la droite | vers l'**arrière** | verticalement | plaques, platines, ponts |
-| `flanc` | de côté, **avant à gauche** | vers l'**arrière** | vers le **bas** | en travers du robot | les deux flancs, un servo couché |
-| `face` | de face | vers la droite | vers le **bas** | d'avant en arrière | cloison, entretoise, capot avant |
+| Plan     | Le dessin est vu             | `x` du dessin part | `y` du dessin part | L'épaisseur part    | Exemples                         |
+| -------- | ---------------------------- | ------------------ | ------------------ | ------------------- | -------------------------------- |
+| `dessus` | de dessus, **avant en haut** | vers la droite     | vers l'**arrière** | verticalement       | plaques, platines, ponts         |
+| `flanc`  | de côté, **avant à gauche**  | vers l'**arrière** | vers le **bas**    | en travers du robot | les deux flancs, un servo couché |
+| `face`   | de face                      | vers la droite     | vers le **bas**    | d'avant en arrière  | cloison, entretoise, capot avant |
 
-Deux façons de le retenir, et elles suffisent :
-
-- **La vue de dessus garde son sens de plan** : le haut de la feuille est l'avant du robot, comme sur n'importe quel plan vu de dessus.
+- **La vue de dessus garde son sens de plan** : *le haut de la feuille est l'avant du robot*.
 - **Les deux autres se relèvent telles quelles** : le dessin est mis debout **exactement comme il est tracé**, le haut de la feuille vers le haut. Ce que vous dessinez en haut est en haut, ce que vous dessinez à gauche est vers l'avant (`flanc`) ou vers la gauche (`face`).
-
-Le `y` d'un dessin SVG **descend** — c'est ce qui explique la colonne « vers le bas » du tableau, et pourquoi une pièce dessinée vers le bas de la feuille finit en bas du robot.
 
 ### Le haut du dessin, pour un profil
 
@@ -135,14 +129,14 @@ Dans `Composants3D.svg`, la planche A3 des pièces à mettre en volume :
 
 Les noms que le code cherche déjà — les dessiner suffit, il n'y a rien à brancher :
 
-| Nom du groupe | Pièce | Mise en scène | Repli sans dessin |
-| --- | --- | --- | --- |
-| `araignee-chassis` | plaque du robot araignée | plaque | octogone à 8 pans |
-| `araignee-picow` | carte Pico W posée sur le dos du robot | plaque | pavé 46 × 18 |
-| `araignee-pca9685` | carte 16 servos, sur la plaque | plaque | pavé 40 × 24 |
-| `araignee-batterie` | pack d'accus, sur la plaque | plaque | pavé 34 × 18 |
-| `patte-femur` | os coxa → patella | pièce | pavé |
-| `patte-tibia` | os patella → pied | pièce | pavé |
+| Nom du groupe       | Pièce                                  | Mise en scène | Repli sans dessin |
+| ------------------- | -------------------------------------- | ------------- | ----------------- |
+| `araignee-chassis`  | plaque du robot araignée               | plaque        | octogone à 8 pans |
+| `araignee-picow`    | carte Pico W posée sur le dos du robot | plaque        | pavé 46 × 18      |
+| `araignee-pca9685`  | carte 16 servos, sur la plaque         | plaque        | pavé 40 × 24      |
+| `araignee-batterie` | pack d'accus, sur la plaque            | plaque        | pavé 34 × 18      |
+| `patte-femur`       | os coxa → patella                      | pièce         | pavé              |
+| `patte-tibia`       | os patella → pied                      | pièce         | pavé              |
 
 > **L'électronique embarquée est retouchable comme le reste** . Chaque carte se dessine **vue de dessus, connecteur à gauche** : le contour est mis à l'échelle sur sa **longueur** (46, 40 ou 34 unités de scène), ses perçages sont posés en décalques d'une teinte assombrie de la carte, et sa **place sur la plaque ne change pas** — c'est le code qui la tient, pour que rien ne se chevauche. Sur la Pico W, le blindage radio et la prise USB restent posés dessus par le code.
 
@@ -163,12 +157,12 @@ Sortie :
   → src/webview/composants/profils.mts (3 profil(s))
 ```
 
-| Option | Effet |
-| --- | --- |
-| `--list` | Affiche ce qui est déjà rangé, sans rien lire ni écrire. |
-| `--source=chemin.svg` | Lit un autre fichier que `Composants3D.svg` (les exemples de ce guide viennent de `docs/exemples/`). |
-| `--step=0.35` | Pas d'échantillonnage des courbes, en unités du dessin. Plus fin que l'œil par défaut. |
-| `--tol=0.25` | Tolérance de simplification, en pixels de grille. En dessous, un point ne change plus la silhouette et ne fait qu'alourdir le rendu. |
+| Option                | Effet                                                                                                                                |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `--list`              | Affiche ce qui est déjà rangé, sans rien lire ni écrire.                                                                             |
+| `--source=chemin.svg` | Lit un autre fichier que `Composants3D.svg` (les exemples de ce guide viennent de `docs/exemples/`).                                 |
+| `--step=0.35`         | Pas d'échantillonnage des courbes, en unités du dessin. Plus fin que l'œil par défaut.                                               |
+| `--tol=0.25`          | Tolérance de simplification, en pixels de grille. En dessous, un point ne change plus la silhouette et ne fait qu'alourdir le rendu. |
 
 Le module produit, `src/webview/composants/profils.mts`, **est sa propre archive** : l'outil le relit avant de le réécrire, donc extraire un seul profil ne fait pas disparaître les autres. Il se lit et se relit dans un `git diff` — c'est du dessin versionné — mais **ne se modifie pas à la main** : la prochaine extraction écraserait la retouche.
 
@@ -210,16 +204,16 @@ Deux exemples complets, l'un de chaque sorte. Les dessins sont dans [`docs/exemp
 
 ### Une plaque : `chassis-demo`
 
-| Le dessin | Ce que le lecteur en a compris | Ce que le moteur en fait |
-| --- | --- | --- |
-| ![Dessin d'origine du châssis](../exemples/chassis-demo.svg) | ![Contour relu, sur la grille de 10 px](../img/systemes/chassis-demo-plat.webp) | ![Le châssis en volume](../img/systemes/chassis-demo.webp) |
+| Le dessin                                                                                                                       | Ce que le lecteur en a compris                                                                                                                                                             | Ce que le moteur en fait                                                                                                                                   |
+| ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ![Dessin d'origine du châssis](../exemples/chassis-demo.svg)                                                                    | ![Contour relu, sur la grille de 10 px](../img/systemes/chassis-demo-plat.webp)                                                                                                            | ![Le châssis en volume](../img/systemes/chassis-demo.webp)                                                                                                 |
 | Vue de dessus : quatre bras à ±45°, une encoche en V à l'avant, cinq perçages. Tracé dans un éditeur SVG, `fill-rule: evenodd`. | 20 points (les pastilles rouges), 106×106 px. Les courbes ont été aplaties puis simplifiées ; les cinq perçages ont été reconnus comme trous parce qu'ils sont **contenus** dans la pièce. | `prismFaces` extrude le contour sur 8 px d'épaisseur, `decalFaces` pose les perçages sur le dessus. L'encoche est bien creuse : on voit le fond à travers. |
 
 ### Une pièce : `femur-demo`
 
-| Le dessin | Ce que le lecteur en a compris | Ce que le moteur en fait |
-| --- | --- | --- |
-| ![Dessin d'origine du fémur](../exemples/femur-demo.svg) | ![Contour relu, sur la grille de 10 px](../img/systemes/femur-demo-plat.webp) | ![Le fémur en volume](../img/systemes/femur-demo.webp) |
+| Le dessin                                                                                                                                                         | Ce que le lecteur en a compris                                                                                | Ce que le moteur en fait                                                                                                                                                           |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ![Dessin d'origine du fémur](../exemples/femur-demo.svg)                                                                                                          | ![Contour relu, sur la grille de 10 px](../img/systemes/femur-demo-plat.webp)                                 | ![Le fémur en volume](../img/systemes/femur-demo.webp)                                                                                                                             |
 | Vue de côté, pièce couchée : deux têtes rondes, un corps aminci, deux trous d'axe. Le bord gauche ira sur la première articulation, le bord droit sur la seconde. | 30 points, 73,83×13,98 px. Le corps aminci tient en quelques points, les têtes rondes en une dizaine chacune. | `extrudeProfile` couche la pièce entre les deux articulations et l'épaissit de 10 px. Les trous d'axe sont posés **sur les deux flancs** : la pièce se lit percée de part en part. |
 
 Le rendu du milieu — le mode `:plat` — est le **premier endroit où regarder** quand un tracé donne un volume inattendu. Il montre exactement ce que le lecteur a retenu : le contour, ses trous, et un point rouge par sommet gardé. Un contour qui se replie s'y voit tout de suite.
@@ -250,7 +244,7 @@ C'est du **calcul pur** — pas de navigateur, moins d'une seconde. Il contrôle
 
 ## Assembler plusieurs pièces
 
-Un profil ne dit qu'une chose : une silhouette. Il ne sait pas dire **où** est la pièce par rapport à une autre, et c'est exactement ce qu'il faut pour un **corps en sandwich** : deux flancs de PMMA de 3 mm, les servos de coxa serrés entre eux, une entretoise à l'avant. Sur la planche à plat, rien de tout cela ne se voit — et une image fixe ne dit pas si les servos passent.
+Un profil ne dit qu'une chose : une silhouette. Il ne sait pas dire **où** est la pièce par rapport à une autre, et c'est pourtant ce qu'il faut pour un **corps en sandwich** : deux flancs de PMMA de 3 mm, les servos de coxa serrés entre eux, une entretoise à l'avant. Sur la planche à plat, rien de tout cela ne se voit — et une image fixe ne dit pas si les servos passent.
 
 Un **assemblage** répond à ça. C'est un jeu de pièces plates, **en millimètres**, chacune portant sa **pose** écrite en clair dans le dessin. Le dessin reste ce qu'il doit rester : un **plan de découpe laser**, avec les pièces posées côte à côte sur la planche. Ce n'est pas leur place sur la planche qui compte, c'est leur étiquette.
 
@@ -272,13 +266,13 @@ Un mot de plan, puis des `clé=valeur` dans n'importe quel ordre :
 flanc pos=28,0,0 ep=12 mat=servo miroir=x
 ```
 
-| Mot | Rôle | Défaut |
-| --- | --- | --- |
-| `dessus` / `flanc` / `face` | **obligatoire, en premier** : comment le dessin se pose | — |
-| `pos=x,y,z` | centre de la pièce dans le repère de l'assemblage, en mm | `0,0,0` |
-| `ep=3` | épaisseur de la pièce, en mm | `3` |
-| `mat=pmma` | matière — **seulement pour une pièce sans remplissage** : la couleur du dessin prime | `pmma` |
-| `miroir=x` | la pièce est posée **deux fois**, symétriquement | pas de miroir |
+| Mot                         | Rôle                                                                                 | Défaut        |
+| --------------------------- | ------------------------------------------------------------------------------------ | ------------- |
+| `dessus` / `flanc` / `face` | **obligatoire, en premier** : comment le dessin se pose                              | —             |
+| `pos=x,y,z`                 | centre de la pièce dans le repère de l'assemblage, en mm                             | `0,0,0`       |
+| `ep=3`                      | épaisseur de la pièce, en mm                                                         | `3`           |
+| `mat=pmma`                  | matière — **seulement pour une pièce sans remplissage** : la couleur du dessin prime | `pmma`        |
+| `miroir=x`                  | la pièce est posée **deux fois**, symétriquement                                     | pas de miroir |
 
 `miroir` seul (sans `=`) vaut `miroir=y`. Une valeur inconnue (`mat=titane`, `pos=3,4`) est ignorée et la valeur par défaut s'applique : la pièce apparaît alors visiblement fausse, plutôt que muette.
 
@@ -300,15 +294,39 @@ Une étiquette illisible ne fait pas d'erreur : la pièce **retombe au centre, �
 
 Même chose pour un mot inconnu ou une matière inconnue : chacun se signale à la lecture. **Lisez la sortie de `npm run montre` avant de suspecter le dessin.**
 
+### L'étiquette de taille du système
+
+Les cotes du montage sont en millimètres, mais le dessin fini est posé dans une **feuille de composant**, en pixels de la grille 10 px. Combien de pixels de large ? C'est **écrit sur la planche**, à côté des pièces :
+
+```text
+système : araignee largeur : 800
+système : patte largeur : 456
+```
+
+Un simple `<text>`, **hors de tout groupe de pièce** (il n'appartient à aucune pièce, il parle du système entier). Le nom est celui du composant — `araignee`, `patte` —, la largeur est la **largeur totale de sa feuille**, connecteur et marges compris. Accents, majuscules, `=` au lieu de `:` et ordre inversé sont admis : `Largeur=456 Systeme=patte` se lit aussi bien.
+
+| Ce qui est écrit                            | Ce que ça fait                                             |
+| --------------------------------------------- | ------------------------------------------------------------ |
+| `système : araignee largeur : 800`          | la feuille du robot fait 800 px de large                    |
+| `système : patte largeur : 456`             | celle de la patte seule, 456 px                             |
+| étiquette absente                            | le composant garde sa **taille de repli**, écrite dans le code |
+| `système : araignee` (sans largeur)          | ignorée, avec un message à la lecture                       |
+
+Les tailles sont rangées dans `assemblages.mts` et relues par `systemeLargeur('araignee')`. **Agrandir le robot se fait donc dans Inkscape**, plus dans le code : tout ce qui est en pixels — allègement des contours, grain des faces, ombres, marges — suit ce seul nombre.
+
 ### Les trois plans
 
-Le tableau et la figure sont plus haut, dans [Le repère du monde](#le-repère-du-monde) : ce sont exactement les mêmes trois plans, et la figure montre le `x` et le `y` de la feuille pour chacun.
+Ce sont exactement les mêmes trois plans que pour les profils, et la figure montre le `x` et le `y` de la feuille pour chacun.
 
-En deux phrases : **`dessus` garde le sens d'un plan vu de dessus** (haut de la feuille = avant du robot) ; **`flanc` et `face` relèvent le dessin tel qu'il est tracé** (haut de la feuille = haut du robot).
+**X vers la droite, Y vers l'arrière, Z vers le haut.** C'est le repère du moteur, et c'est celui que vous voyez dessiné dans un coin de **toutes** les images en volume de ce guide, ainsi que dans le visualiseur (case **repère X Y Z**). Il tourne avec la scène : quand vous faites pivoter le robot, le repère pivote aussi, et il dit à tout moment où est l'avant.
 
-**Une pièce est posée par son CENTRE** (le milieu de sa boîte englobante) : `pos` est donc le centre de la pièce, pas son coin. C'est ce qui rend le miroir immédiat — un flanc à `pos=-9,0,0` avec `miroir=x` donne les deux flancs, **centres écartés de 18 mm**.
+![Le repère du monde, et le x / y de chacun des trois plans](../img/systemes/repere.webp)
 
-Deux pièges dans cette seule ligne, et ce sont les deux qui coûtent une découpe :
+La même pièce en L, posée dans les trois plans. Les flèches **violette** et **orange** sont le `x` et le `y` **de votre feuille de dessin** ; la grise est le sens de l'épaisseur.
+
+**Une pièce est posée par son CENTRE** (le milieu de sa boîte englobante) : `pos` est donc le centre de la pièce, pas son coin. C'est ce qui rend le miroir immédiat — un flanc à `pos=-9,0,0` avec `miroir=x` donne les deux flancs, **centres écartés de 18 mm** .
+
+Deux pièges :
 
 - **`miroir` se met sur la NORMALE du plan**, pas sur un axe au hasard : `flanc` a son épaisseur sur **x**, `dessus` sur **z**, `face` sur **y** (le tableau des trois plans, plus haut). Un `flanc` avec `miroir=y` ne sépare pas les deux flancs — il en pose un devant et un derrière, dans le même plan.
 - **18 mm, c'est de CENTRE à CENTRE**, l'épaisseur non comprise. Deux flancs de 3 mm à `pos=±9` laissent **15 mm** entre eux et **21 mm** d'encombrement. Ce qu'il faut coter, c'est l'entrefer voulu : pour 18 mm de passage entre deux flancs de 3 mm, `pos=-10.5,0,0` — soit `(entrefer + ep) / 2`.
@@ -323,24 +341,24 @@ Quelques détails qui évitent les surprises :
 - La couleur retenue est celle de la **plus grande forme remplie** du groupe : c'est le contour de la pièce. Un perçage, un repère ou un texte ne décide pas de la teinte du tout.
 - Une pièce **sans remplissage** (un contour de découpe, tracé au trait seul) n'a pas de couleur à donner : c'est alors `mat=` qui répond, ou le PMMA par défaut.
 
-`mat=` reste donc utile pour une pièce qui n'est pas peinte, ou pour forcer une teinte sans toucher au plan de découpe :
+`mat=` est donc utile pour une pièce qui n'est pas peinte, ou pour forcer une teinte sans toucher au plan de découpe :
 
-| `mat=` | Couleur | Pour |
-| --- | --- | --- |
-| `pmma` | bleu clair | le PMMA découpé au laser — c'est le défaut |
-| `alu` | gris clair | équerres, entretoises métalliques |
-| `servo` | noir | un servo, un moteur, un bloc plein |
-| `carte` | vert | un circuit imprimé |
-| `laiton` | doré | visserie, entretoises filetées |
-| `pile` | gris ardoise | accus, pack de batteries |
+| `mat=`   | Couleur      | Pour                                       |
+| -------- | ------------ | ------------------------------------------ |
+| `pmma`   | bleu clair   | le PMMA découpé au laser — c'est le défaut |
+| `alu`    | gris clair   | équerres, entretoises métalliques          |
+| `servo`  | noir         | un servo, un moteur, un bloc plein         |
+| `carte`  | vert         | un circuit imprimé                         |
+| `laiton` | doré         | visserie, entretoises filetées             |
+| `pile`   | gris ardoise | accus, pack de batteries                   |
 
-Le mot dit la couleur, et rien d'autre : aucune simulation, aucune masse.
+Le mot dit la couleur, et rien d'autre.
 
 **Une matière translucide n'a pas de liseré.** Une plaque est découpée en dizaines de triangles ; sur chaque arête intérieure, le liseré qui bouche les coutures se recouvre lui-même. Opaque, cela ne se voit pas ; translucide, cela dessinerait une toile d'araignée sur toute la pièce. Le liseré est donc retiré dès que la couleur est transparente.
 
 ### Une image plaquée sur la pièce
 
-Une couleur suffit pour du PMMA, pas pour une carte électronique : un Pico ou un PCA9685 ne se reconnaît qu'à sa sérigraphie. **Posez la photo sur le contour, dans le groupe de la pièce** — elle sera plaquée dessus en volume, à sa place et à sa taille.
+Une couleur suffit pour du PMMA, pas pour une carte électronique. **Posez la photo sur le contour, dans le groupe de la pièce** — elle sera plaquée dessus en volume, à sa place et à sa taille.
 
 ```svg
 <g id="corps-demo-entretoise-profil">
@@ -357,9 +375,27 @@ Ce qu'il faut savoir, et rien de plus :
 - **Elle se plaque sur le côté que l'on VOIT.** Pas sur un côté choisi d'avance : les deux flancs de la pièce sont projetés et c'est le plus proche de l'œil qui la prend. Un demi-tour de présentation la fait changer de côté toute seule.
 - **Tournez-la, elle suit** : Inkscape écrit une matrice, l'image la garde. Une carte posée de travers reste de travers en volume.
 - **Une seule image par pièce** : c'est un habillage, pas un collage. La deuxième est ignorée.
-- **Formats acceptés : `.webp`, `.png`, `.jpg`.** Une image liée est retrouvée **à côté de la planche** et **embarquée** dans le module rangé — la webview ne va jamais lire un fichier sur le disque. Préférez donc le WebP : un JPEG de 4 Mo sur une plaque de 30 mm ne se verra pas mieux, mais il pèsera 4 Mo dans l'extension. Lien introuvable ou format non géré : l'image est ignorée, avec un message à l'extraction.
+- **Formats acceptés : `.webp`, `.png`, `.jpg`.** Une image liée est retrouvée **à côté de la planche** et **embarquée** dans le module rangé — la webview ne va jamais lire un fichier sur le disque. Préférez donc le WebP : un JPEG de 4 Mo sur une plaque de 30 mm ne se verra pas mieux, mais il pèsera 4 Mo dans l'extension. Lien introuvable ou format non géré : l'image est ignorée, avec un message à l'extraction. Inkscape n'importe pas le WebP ? Posez le **PNG** dans la planche, c'est le même résultat.
 
 L'entretoise de [`corps-demo.svg`](../exemples/corps-demo.svg) en porte une — c'est la petite carte verte qu'on voit sur son flanc dans les images plus bas.
+
+#### Une image SEULE fait la pièce, et son détourage donne le contour
+
+Une image est un habillage : sans pièce dessous, elle n'a rien à habiller et le groupe disparaît du montage. Plutôt que de laisser une carte s'évaporer sans un mot, **une image seule vaut contour** :
+
+| Ce qu'il y a dans le groupe               | Le contour de la pièce                                     |
+| ------------------------------------------- | ------------------------------------------------------------ |
+| un tracé fermé (avec ou sans image)       | le **tracé**, comme toujours — l'image n'est qu'un décalque |
+| une image **détourée** (clip d'Inkscape)   | le **détourage** : la silhouette réelle, encoches et trous  |
+| une image nue                              | le **rectangle** du bitmap                                  |
+
+Le détourage, c'est `Objet → Découpe → Découper` : posez un tracé sur la photo, sélectionnez les deux, découpez. La photo garde sa silhouette **et** la donne à la pièce — la carte 16 servos du robot arrive ainsi avec ses coins coupés et ses cinq trous de vis, sans un tracé à redessiner. La lecture l'annonce comme n'importe quelle pièce :
+
+```text
+  ✓ pca9685 : 100 points, 40×29.18 mm, dessus ép.1 carte, 5 trou(s)
+```
+
+Un tracé de découpe reste préférable quand la pièce **est** découpée au laser : c'est lui le plan. Le détourage sert aux pièces qu'on ne découpe pas — une carte achetée, un pack d'accus, une photo posée sur le dos du robot.
 
 ### Les axes
 
@@ -371,11 +407,11 @@ C'est ce que le plan de découpe dit sans le dire, et c'est ce qui emboîte les 
 
 > **Une pièce en miroir est posée deux fois, et entre ses deux exemplaires passe un axe de rotation, dirigé comme la flèche `ép` — le sens de son épaisseur.** La pastille dit *où* cette droite passe ; le **plan de la pièce** dit *dans quel sens*.
 
-| La pièce est un… | Son épaisseur part | L'axe de ses pastilles est | Ce que ça fait |
-| --- | --- | --- | --- |
-| `dessus` | verticalement | **vertical — Z** | une coxa : la patte balaye à droite et à gauche |
-| `flanc` | en travers du robot | **en travers — X** | une patella : la patte plie de haut en bas |
-| `face` | d'avant en arrière | **d'avant en arrière — Y** | une charnière de capot |
+| La pièce est un… | Son épaisseur part  | L'axe de ses pastilles est | Ce que ça fait                                  |
+| ---------------- | ------------------- | -------------------------- | ----------------------------------------------- |
+| `dessus`         | verticalement       | **vertical — Z**           | une coxa : la patte balaye à droite et à gauche |
+| `flanc`          | en travers du robot | **en travers — X**         | une patella : la patte plie de haut en bas      |
+| `face`           | d'avant en arrière  | **d'avant en arrière — Y** | une charnière de capot                          |
 
 Les deux plaques de support du corps (`dessus pos=0,0,-13.75 ep=3 miroir=z`) sont posées à ∓13,75 mm : le servo de coxa tient entre elles, et son axe est la verticale qui passe **au milieu**. C'est ce milieu — le **zéro de l'axe** — qui est rangé, jamais la pastille telle qu'elle est dessinée sur l'une des deux plaques. Une pièce sans miroir suit la même règle : son axe est rangé au zéro de l'assemblage.
 
@@ -396,20 +432,22 @@ L'ID passe devant parce qu'il **colle au rond** : il survit à un déplacement, 
 
 C'est le point important du protocole : **c'est le dessin qui dit où est la coxa**, plus une constante du code. Déplacez le trou dans Inkscape, l'axe suit.
 
+> **Une pièce ronde et rouge se trace en CHEMIN, jamais en cercle.** Une pastille, c'est un `<circle>` rouge : un œil de robot dessiné au cercle en serait un, et la pièce partirait en articulation au lieu d'être découpée. Dessinez le disque à l'outil chemin (`Chemin → Objet en chemin` convertit un cercle existant) et il redevient ce qu'il est — une pièce.
+
 #### Une pastille = une articulation, son premier mot dit à quoi elle s'emboîte
 
 Tout tient dans une seule phrase, et le reste de cette section n'en est que le détail :
 
 > **Une pastille rouge est une articulation à elle seule.** Son **premier mot** est la **famille** — il dit *à quoi ça s'emboîte* ; ce qui suit ne sert qu'à donner des **ids distincts** à deux pastilles voisines, comme Inkscape l'exige.
 
-| Nom de la pastille | Famille = ce à quoi ça s'emboîte | Ce que fait le reste du nom |
-| --- | --- | --- |
-| `coxa-gh` | `coxa` | distingue les quatre coxas du corps |
-| `coxa-db` | `coxa` | idem |
-| `coxa` | `coxa` | seule de sa famille : rien à distinguer |
-| `patella-f` | `patella` | la patella **côté fémur** |
-| `patella-t` | `patella` | le même point, **côté tibia** |
-| `pied` | `pied` | un simple repère, sans vis-à-vis |
+| Nom de la pastille | Famille = ce à quoi ça s'emboîte | Ce que fait le reste du nom             |
+| ------------------ | -------------------------------- | --------------------------------------- |
+| `coxa-gh`          | `coxa`                           | distingue les quatre coxas du corps     |
+| `coxa-db`          | `coxa`                           | idem                                    |
+| `coxa`             | `coxa`                           | seule de sa famille : rien à distinguer |
+| `patella-f`        | `patella`                        | la patella **côté fémur**               |
+| `patella-t`        | `patella`                        | le même point, **côté tibia**           |
+| `pied`             | `pied`                           | un simple repère, sans vis-à-vis        |
 
 Il n'y a rien à regrouper, rien à apparier : **autant de pastilles, autant d'articulations**.
 
@@ -474,19 +512,19 @@ Un profil, dessiné seul et sans cotes, est traité comme un assemblage d'une pi
 
 Ce qui est lu est aussi **rangé** : `assemblages.mts` et `profils.mts` sont réécrits, exactement comme le feraient `npm run assemblage` et `npm run profils`.
 
-| Dans la fenêtre | Ce que ça sert |
-| --- | --- |
-| Bouton **↻ recharger** | relire `Composants3D.svg` **sans quitter la fenêtre** : on retouche dans Inkscape, on clique, on regarde. L'angle, le zoom et les cases cochées sont conservés |
-| **Glisser dans la vue** (ou le curseur *lacet*) | tourner autour : l'angle où ça coince n'est jamais celui de la première image |
-| Curseur **éclaté** | écarter les pièces le long de leur épaisseur — le seul moyen de voir ce qu'il y a entre deux flancs serrés à 3 mm |
-| Curseur **zoom** | regarder un détail de près |
-| Case de titre **d'un ensemble** | masquer tout un assemblage — regarder le fémur seul sans relancer la commande |
-| Case **×4** à droite du titre | l'ensemble a reçu quatre exemplaires (quatre coxas, quatre pattes). Décochez-la pour n'en garder qu'**un** : quatre pattes cachent le corps qu'on voulait voir. Ce qu'elle porte suit — un seul fémur ne tient qu'un tibia |
-| Cases **pièces** | cacher un flanc pour voir dedans |
-| Case **axes dessinés** | montrer les articulations nommées à leur place en 3D : le point, son nom, et la **droite de l'axe en pointillé rouge**. C'est la vérification qu'elles sont bien où vous croyez — et qu'elles pointent dans le bon sens |
-| Case **repère X Y Z** | le repère du monde dans un coin, tourné avec la scène : il dit à tout moment où est l'avant |
-| Case **monté sur ses articulations** | **le robot assemblé** : chaque ensemble posé sur les articulations du précédent, axes superposés et zéros confondus, un exemplaire par articulation. Décochée, on retombe sur les dessins séparés |
-| Case **côte à côte** (démontée seulement) | décochée, chaque ensemble reprend sa **propre origine** — sa place à lui, telle qu'il est dessiné |
+| Dans la fenêtre                                 | À quoi ça sert                                                                                                                                                                                                             |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Bouton **↻ recharger**                          | relire `Composants3D.svg` **sans quitter la fenêtre** : on retouche dans Inkscape, on clique, on regarde. L'angle, le zoom et les cases cochées sont conservés                                                             |
+| **Glisser dans la vue** (ou le curseur *lacet*) | tourner autour : l'angle où ça coince n'est jamais celui de la première image                                                                                                                                              |
+| Curseur **éclaté**                              | écarter les pièces le long de leur épaisseur — le seul moyen de voir ce qu'il y a entre deux flancs serrés à 3 mm                                                                                                          |
+| Curseur **zoom**                                | regarder un détail de près                                                                                                                                                                                                 |
+| Case de titre **d'un ensemble**                 | masquer tout un assemblage — regarder le fémur seul sans relancer la commande                                                                                                                                              |
+| Case **×4** à droite du titre                   | l'ensemble a reçu quatre exemplaires (quatre coxas, quatre pattes). Décochez-la pour n'en garder qu'**un** : quatre pattes cachent le corps qu'on voulait voir. Ce qu'elle porte suit — un seul fémur ne tient qu'un tibia |
+| Cases **pièces**                                | cacher un flanc pour voir dedans                                                                                                                                                                                           |
+| Case **axes dessinés**                          | montrer les articulations nommées à leur place en 3D : le point, son nom, et la **droite de l'axe en pointillé rouge**. C'est la vérification qu'elles sont bien où vous croyez — et qu'elles pointent dans le bon sens    |
+| Case **repère X Y Z**                           | le repère du monde dans un coin, tourné avec la scène : il dit à tout moment où est l'avant                                                                                                                                |
+| Case **monté sur ses articulations**            | **le robot assemblé** : chaque ensemble posé sur les articulations du précédent, axes superposés et zéros confondus, un exemplaire par articulation. Décochée, on retombe sur les dessins séparés                          |
+| Case **côte à côte** (démontée seulement)       | décochée, chaque ensemble reprend sa **propre origine** — sa place à lui, telle qu'il est dessiné                                                                                                                          |
 
 Le panneau affiche l'**encombrement en millimètres** (`100 × 80 × 31 mm`) : c'est la cote qu'on lit sur un plan de montage, et le premier signe qu'une pièce est posée de travers.
 
@@ -496,9 +534,9 @@ Les options : `--source=docs/exemples/corps-demo.svg` pour lire une autre planch
 
 L'exemple complet est dans [`docs/exemples/corps-demo.svg`](../exemples/corps-demo.svg) : un corps de robot en sandwich, **trois pièces dessinées** qui en font **cinq** une fois posées.
 
-| Le dessin | Assemblé | Éclaté |
-| --- | --- | --- |
-| ![Le plan de découpe du corps de démonstration](../exemples/corps-demo.svg) | ![Le corps assemblé](../img/systemes/corps-demo.webp) | ![Le même corps, éclaté](../img/systemes/corps-demo-eclate.webp) |
+| Le dessin                                                                                                                                                                                                  | Assemblé                                                                                                                                                         | Éclaté                                                                                                                            |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| ![Le plan de découpe du corps de démonstration](../exemples/corps-demo.svg)                                                                                                                                | ![Le corps assemblé](../img/systemes/corps-demo.webp)                                                                                                            | ![Le même corps, éclaté](../img/systemes/corps-demo-eclate.webp)                                                                  |
 | Trois groupes posés côte à côte, comme un plan de découpe : la plaque (`dessus pos=0,0,14 ep=3 miroir=z`), le servo (`flanc pos=28,0,0 ep=12 mat=servo miroir=x`), l'entretoise (`face pos=0,-36,0 ep=3`). | Les deux plaques à 14 mm de part et d'autre du plan médian : 25 mm d'air entre elles, juste ce qu'il faut pour un servo couché. Encombrement : 100 × 80 × 31 mm. | Chaque pièce écartée le long de son épaisseur. Les servos apparaissent : c'est cette vue qui répond à « est-ce que ça rentre ? ». |
 
 Le PMMA du plan est rempli **à 55 %** : les plaques sont translucides en volume, et les servos se voient au travers sans même avoir à éclater le corps. Le servo, lui, est peint en gris sombre sur la planche — son `mat=servo` ne sert plus à rien, et c'est bien ainsi : le plan de découpe se suffit.
@@ -576,10 +614,10 @@ Nommez-les par leur **id Inkscape** (`Objet → Propriétés de l'objet`) : quat
 
 C'est ici que ça coince le plus souvent. Le fémur porte **deux** articulations, et il lui faut les deux :
 
-| Pastille | À quoi elle sert |
-| --- | --- |
-| `coxa` | **là où le fémur s'accroche au corps.** Famille `coxa` : c'est le mot que le corps emploie aussi, et c'est tout ce qu'il faut pour qu'ils s'emboîtent. À dessiner sur une pièce à plat, comme celle du corps : les deux axes doivent être **verticaux** tous les deux |
-| `patella-f` | **l'axe que le fémur offre au tibia.** Famille `patella`. Sur un `flanc`, donc **en travers (X)** : le tibia plie de haut en bas |
+| Pastille    | À quoi elle sert                                                                                                                                                                                                                                                      |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `coxa`      | **là où le fémur s'accroche au corps.** Famille `coxa` : c'est le mot que le corps emploie aussi, et c'est tout ce qu'il faut pour qu'ils s'emboîtent. À dessiner sur une pièce à plat, comme celle du corps : les deux axes doivent être **verticaux** tous les deux |
+| `patella-f` | **l'axe que le fémur offre au tibia.** Famille `patella`. Sur un `flanc`, donc **en travers (X)** : le tibia plie de haut en bas                                                                                                                                      |
 
 Un fémur qui n'a que sa coxa se pose bien sur le corps — mais le tibia n'a plus rien à quoi s'accrocher, et il reste tout seul dans son coin. **La patella se dessine sur le fémur**, pas seulement sur le tibia.
 
@@ -607,19 +645,22 @@ Puis retouchez dans Inkscape, cliquez **↻ recharger**, regardez. L'angle et le
 
 ### Ça ne donne pas ça — pourquoi
 
-| Ce que vous voyez | La cause, presque toujours |
-| --- | --- |
-| **Une seule patte**, au milieu du corps | le corps n'a qu'**une** pastille `coxa…`. Il en faut quatre — une par coxa, à leur vraie place |
-| **Deux pattes** au lieu de quatre | deux pastilles `coxa…` seulement. Le nombre de pattes est le nombre de pastilles de la famille, rien d'autre |
-| **Cinq pattes**, dont une en trop au même endroit | une pastille dupliquée dans Inkscape : elle s'appelle `coxa-gh-3`. Renommez-la, ou effacez-la si c'est un doublon (la lecture le signale) |
-| **Le tibia reste tout seul** | le fémur n'a pas de pastille `patella…`. La patella se dessine **sur les deux** pièces |
-| **Rien ne monte**, le visualiseur le dit en jaune | aucune famille partagée : les deux dessins n'emploient pas le même premier mot (`coxa` d'un côté, `epaule` de l'autre) |
-| **La patte part à l'envers**, ou de travers | la coxa n'est pas là où vous croyez : cochez **axes dessinés**, le nom s'affiche à la place réelle de la pastille |
-| **La patte pivote dans le mauvais sens** (elle plie au lieu de balayer) | l'axe est dirigé par le **plan de la pièce** : une coxa verticale se dessine sur un `dessus`, une patella en travers sur un `flanc`. Cochez **axes dessinés** : le pointillé rouge montre la droite |
-| **La patte est collée contre une plaque** au lieu d'être centrée entre les deux | la pastille a été dessinée deux fois à la main, une par plaque, au lieu d'une fois sur une pièce en `miroir`. Le zéro de l'axe est alors faux, et deux articulations naissent au lieu d'une |
-| **Deux dessins ne s'emboîtent pas**, même famille pourtant | leurs axes ne pointent pas dans le même sens : la lecture affiche `axe X/Z` et un avertissement. L'un des deux est dessiné sur la mauvaise pièce |
-| **Une pièce est au centre du corps**, à 3 mm d'épaisseur | son étiquette est illisible — virgule décimale, presque toujours. Relisez la sortie de la commande, elle le dit |
-| **Une pastille n'apparaît pas** | elle n'a pas de nom : son id Inkscape est encore `circle97`. La lecture le signale |
+| Ce que vous voyez                                                               | La cause, presque toujours                                                                                                                                                                          |
+| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Une seule patte**, au milieu du corps                                         | le corps n'a qu'**une** pastille `coxa…`. Il en faut quatre — une par coxa, à leur vraie place                                                                                                      |
+| **Deux pattes** au lieu de quatre                                               | deux pastilles `coxa…` seulement. Le nombre de pattes est le nombre de pastilles de la famille, rien d'autre                                                                                        |
+| **Cinq pattes**, dont une en trop au même endroit                               | une pastille dupliquée dans Inkscape : elle s'appelle `coxa-gh-3`. Renommez-la, ou effacez-la si c'est un doublon (la lecture le signale)                                                           |
+| **Le tibia reste tout seul**                                                    | le fémur n'a pas de pastille `patella…`. La patella se dessine **sur les deux** pièces                                                                                                              |
+| **Rien ne monte**, le visualiseur le dit en jaune                               | aucune famille partagée : les deux dessins n'emploient pas le même premier mot (`coxa` d'un côté, `epaule` de l'autre)                                                                              |
+| **La patte part à l'envers**, ou de travers                                     | la coxa n'est pas là où vous croyez : cochez **axes dessinés**, le nom s'affiche à la place réelle de la pastille                                                                                   |
+| **La patte pivote dans le mauvais sens** (elle plie au lieu de balayer)         | l'axe est dirigé par le **plan de la pièce** : une coxa verticale se dessine sur un `dessus`, une patella en travers sur un `flanc`. Cochez **axes dessinés** : le pointillé rouge montre la droite |
+| **La patte est collée contre une plaque** au lieu d'être centrée entre les deux | la pastille a été dessinée deux fois à la main, une par plaque, au lieu d'une fois sur une pièce en `miroir`. Le zéro de l'axe est alors faux, et deux articulations naissent au lieu d'une         |
+| **Deux dessins ne s'emboîtent pas**, même famille pourtant                      | leurs axes ne pointent pas dans le même sens : la lecture affiche `axe X/Z` et un avertissement. L'un des deux est dessiné sur la mauvaise pièce                                                    |
+| **Une pièce est au centre du corps**, à 3 mm d'épaisseur                        | son étiquette est illisible — virgule décimale, presque toujours. Relisez la sortie de la commande, elle le dit                                                                                     |
+| **Une pastille n'apparaît pas**                                                 | elle n'a pas de nom : son id Inkscape est encore `circle97`. La lecture le signale                                                                                                                  |
+| **Une carte a disparu** du montage                                              | son groupe n'a plus que la photo, et elle n'est pas détourée : détourez-la (`Objet → Découpe → Découper`) ou redessinez un contour                                                                |
+| **Une pièce ronde est devenue une articulation**                                | elle est tracée en `<circle>` rouge : `Chemin → Objet en chemin`                                                                                                                                    |
+| **Le dessin garde sa taille** après avoir changé l'étiquette                     | le nom du système ne colle pas au composant (`araignee`, `patte`), ou l'étiquette est **dans** un groupe de pièce : elle se pose à côté des pièces                                                 |
 
 ---
 
@@ -655,7 +696,9 @@ Puis retouchez dans Inkscape, cliquez **↻ recharger**, regardez. L'angle et le
 - Un nom qui finit par **`-3`, `-1`…** est presque toujours le suffixe qu'Inkscape colle à un copier-coller : la lecture le signale, renommez-le.
 - La **couleur de la pièce est celle du dessin**, transparence comprise ; `mat=` n'est que le repli d'une pièce non peinte.
 - Une **image posée sur le contour** (`.webp`, `.png`, `.jpg`) est plaquée sur la pièce, **du côté que l'on voit**, **découpée au contour** et avec **la transparence du dessin**. Une seule par pièce ; un fichier lié est embarqué à l'extraction.
+- **Une image SEULE fait la pièce** : son **détourage** (clip d'Inkscape) donne le contour — silhouette, encoches et trous —, à défaut le rectangle du bitmap. Effacer le tracé d'une carte ne la fait donc plus disparaître.
+- Une **pièce ronde rouge se trace en CHEMIN** : un `<circle>` rouge est lu comme une **pastille** (une articulation), pas comme une pièce.
 - `npm run montre <préfixe>` relit, range et ouvre **tout ce qui commence par là**, à la même échelle : c'est la boucle de travail. On retouche dans Inkscape, on clique **↻ recharger**.
 - Le curseur **éclaté** est le seul moyen de voir ce qu'il y a entre deux flancs.
 - `assemblages.mts` est **généré**, et il est sa propre archive.
-- La **taille du système fini** à l'écran est un seul nombre, `SYSTEME_PX` (dans `patte-element.mts`) : la largeur voulue en pixels. Le robot est cadré pour l'occuper, la patte seule s'en déduit, et tout ce qui est en pixels (allègement des contours, grain des faces, ombres, marges) suit. Rien d'autre à toucher pour agrandir ou réduire.
+- La **taille du système fini** est écrite **sur la planche**, hors des groupes : `système : araignee largeur : 800`. Le robot est cadré pour l'occuper, la patte a la sienne (`système : patte largeur : 456`, feuille entière), et tout ce qui est en pixels (allègement des contours, grain des faces, ombres, marges) suit. Agrandir ou réduire se fait donc dans Inkscape ; sans étiquette, le composant garde sa taille de repli.

@@ -1,9 +1,3 @@
-1. J'ai retouché Res-vert. Si tu peus aussi la déformer pour donner l'impression qu'elle et vu en perspective (bande jaune en bas et rouge an haut)
-1. J'ai retouché hall-interne
-##L'arraignée :
-1. J'ai retouché le modèle
-1. il y a des défaut de visualisation . Les cartes électroniques sont un peut recouvertes par le corps.
-1. il faudrait pouvoir définir le 0 de chaque servo (0 à 360 ° positif ou négatif)
-1. Fait des ombres diffuses
-1. La patte n'a pas été remodélisée. Se plus il faut que les broches des servo soient identifiés. Tu et donc un rectangle à coin arrondis (gris foncé) autours de l'ensemble des 3 broches de connection de chaque servo avec écrit Hanche et Genou. Les trois broches apparaisent grace à un carré plein doré (de taille supérieurs à celui de masse). Reprends "connecteur-servo-patte" dans Composants2D.svg et respecte mes couleurs .
-1. Tu renomeras partout hanche=coxa et genou = patella
+1. j'ai mis les images au format png (impossible de mettre le webp dans inkscape) mais ça n'a pas l'air de marcher. Fait le les images (webp et png sont dans media "16servo" et "picow").
+1. Je n'ai pas comris ou indiquer la taille du dessin fini (arraigné et patte) dans composant3d mets une étiquette du genre "système : araignee Largeur : 800" en indiquant ce que c'est dans la doc.
+1. Dans le svg composants3d.svg, rajoute les yeux rouges et retouche comme il faut pour avoir les images des cartes. Rajoute aussi l'étiquette de taille pour la patte et l'araignée.

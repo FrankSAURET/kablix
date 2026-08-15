@@ -9,7 +9,7 @@ export {
   profileAxes, extrudeProfile, rotZ, add, sub, len,
   PLANES, MATIERES,
 } from '../src/webview/composants/iso3d.mjs';
-export { assemblage, hasAssemblage } from '../src/webview/composants/assemblages.mjs';
+export { assemblage, hasAssemblage, systemeLargeur } from '../src/webview/composants/assemblages.mjs';
 export { profile, hasProfile } from '../src/webview/composants/profils.mjs';
 import { ASSEMBLAGE_NAMES } from '../src/webview/composants/assemblages.mjs';
 import { PROFIL_NAMES } from '../src/webview/composants/profils.mjs';

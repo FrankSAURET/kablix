@@ -32,7 +32,9 @@ pca_ecrit(0xFE, 121)   # prescale 50 Hz (25 MHz / (4096 x 50) - 1)
 pca_ecrit(0x00, 0x20)  # MODE1 : reveil + auto-increment
 
 while True:
-    pose(90, 90);   print("pattes tendues");     time.sleep(1)
-    pose(90, 130);  print("patellas pliees");   time.sleep(1)
-    pose(60, 130);  print("coxas en avant");    time.sleep(1)
-    pose(115, 130); print("coxas en arriere");  time.sleep(10)
+    pose(90, 90);   print("Debout");     
+    time.sleep(1)
+    pose(90, 130);  print("pattes levées");   
+    time.sleep(1)
+    pose(16, 130);  print("pattes sur le côté");    time.sleep(1)
+    pose(125, 130); print("pattes avant arrière");  time.sleep(5)

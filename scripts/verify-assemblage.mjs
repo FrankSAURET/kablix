@@ -21,6 +21,7 @@ import { build as esbuild } from 'esbuild';
 import {
   parsePose, place, poses, encombrement, axeDePastille, NORMALE, PLANS, MATIERES,
 } from './_extract-assemblage.mjs';
+import { parseSysteme } from './_lire-contours.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CACHE = join(ROOT, 'node_modules', '.cache-assemblage');
@@ -66,6 +67,21 @@ ok('parsePose : un nom d\'axe n\'est pas une étiquette', parsePose('coxa-g') ==
 ok('parsePose : un texte vide n\'est pas une étiquette', parsePose('   ') === null);
 ok('parsePose : une position mal écrite est ignorée (pièce au centre, visible)',
   parsePose('dessus pos=3,4').pos.x === 0, JSON.stringify(parsePose('dessus pos=3,4').pos));
+// --- l'étiquette de TAILLE du système (v2026.8.65) ----------------------------
+// « système : araignee largeur : 800 », posée à côté des pièces (hors groupe) :
+// c'est Frank qui décide dans Inkscape de la taille du dessin fini, en pixels de
+// la grille, au lieu d'un nombre écrit dans le code.
+const sys1 = parseSysteme('système : araignee largeur : 800');
+ok('parseSysteme : nom et largeur lus', sys1?.nom === 'araignee' && sys1?.largeur === 800, JSON.stringify(sys1));
+ok('parseSysteme : accents, casse, « = » et ordre libre',
+  JSON.stringify(parseSysteme('Largeur=456 Systeme=patte')) === JSON.stringify({ nom: 'patte', largeur: 456 }),
+  JSON.stringify(parseSysteme('Largeur=456 Systeme=patte')));
+ok('parseSysteme : une largeur à virgule est arrondie au pixel',
+  parseSysteme('système: araignee largeur: 799,6')?.largeur === 800);
+ok('parseSysteme : sans largeur, le nom sort quand même (le lecteur préviendra)',
+  parseSysteme('système : araignee')?.largeur === null);
+ok('parseSysteme : un texte quelconque n\'est pas une étiquette de système',
+  parseSysteme('dessus pos=0,0,15.75 ep=1') === null && parseSysteme('coxa-g') === null);
 ok('lecteur et moteur parlent des mêmes plans',
   PLANS.every((p) => M.PLANES[p]) && PLANS.length === Object.keys(M.PLANES).length, PLANS.join(', '));
 ok('lecteur et moteur parlent des mêmes matières',
@@ -602,8 +618,12 @@ for (const nom of noms) {
       ok(`${nom}/${p.name} : image posée à plat sur la pièce (deux côtés non nuls)`,
         Math.hypot(p.img.u.x, p.img.u.y) > 0.5 && Math.hypot(p.img.v.x, p.img.v.y) > 0.5,
         `${p.img.u.x}×${p.img.v.y} mm`);
+      // Une image DÉTOURÉE déborde forcément un peu de la pièce : c'est le clip
+      // qui a donné le contour, et il est plus petit que le bitmap. Ce qu'on
+      // cherche ici, c'est une image restée en PIXELS — elle serait quatre fois
+      // trop grande, pas plus large d'un dixième de millimètre.
       ok(`${nom}/${p.name} : image à la taille de la pièce, en millimètres`,
-        Math.hypot(p.img.u.x, p.img.u.y) <= p.w + 0.05 && Math.hypot(p.img.v.x, p.img.v.y) <= p.h + 0.05,
+        Math.hypot(p.img.u.x, p.img.u.y) <= p.w * 1.1 && Math.hypot(p.img.v.x, p.img.v.y) <= p.h * 1.1,
         `${p.w}×${p.h} mm de pièce`);
       ok(`${nom}/${p.name} : transparence lue sur le dessin`,
         p.img.alpha > 0 && p.img.alpha <= 1, String(p.img.alpha));
@@ -655,6 +675,46 @@ ok('corps-demo : son image ressort en volume, découpée au contour de la pièce
 
 ok('hasAssemblage : un assemblage jamais dessiné est reconnu absent',
   !M.hasAssemblage('rien-du-tout') && (!noms.length || M.hasAssemblage(noms[0])));
+
+// --- une image SEULE fait la pièce, et son détourage donne le contour ---------
+// v2026.8.65 : Frank avait effacé le contour des deux cartes du robot, ne laissant
+// que leur photo — elles ont disparu du dessin sans un mot. Une image est un
+// habillage, il lui faut une pièce : à défaut de tracé, c'est le DÉTOURAGE de la
+// photo (le clip-path d'Inkscape) qui la donne, sinon le rectangle du bitmap.
+const corpsR = M.hasAssemblage('araignee-corps') ? M.assemblage('araignee-corps') : null;
+if (corpsR) {
+  const cartes = corpsR.pieces.filter((p) => p.img);
+  ok('araignée : les deux cartes sont là, chacune habillée de sa photo',
+    cartes.length === 2, cartes.map((p) => p.name).join(', ') || 'aucune');
+  const pca = corpsR.pieces.find((p) => p.name === 'pca9685');
+  // La silhouette détourée, ce sont ses coins coupés et ses trous de vis : un
+  // rectangle du bitmap n'en aurait ni l'un ni l'autre.
+  ok('araignée : le PCA9685 tient sa silhouette du DÉTOURAGE, pas du rectangle du bitmap',
+    pca && pca.poly.length > 8 && (pca.holes?.length ?? 0) > 0,
+    pca && `${pca.poly.length} points, ${pca.holes?.length ?? 0} trous`);
+  // La photo couvre sa pièce à quelques pour cent près : le détourage rogne les
+  // bords transparents du bitmap, il ne le redimensionne pas.
+  for (const p of cartes) {
+    const iw = Math.abs(p.img.u.x || p.img.u.y);
+    const ih = Math.abs(p.img.v.y || p.img.v.x);
+    ok(`araignée/${p.name} : la photo est plaquée à la taille de la pièce`,
+      near(iw / p.w, 1, 0.06) && near(ih / p.h, 1, 0.06),
+      `pièce ${p.w}×${p.h} contre photo ${iw}×${ih}`);
+  }
+}
+
+// --- la TAILLE du système, écrite sur la planche (v2026.8.65) -----------------
+// « système : araignee largeur : 800 » : agrandir le robot se fait dans Inkscape,
+// plus dans le code. L'accesseur rend undefined si la planche n'en dit rien, et
+// le composant garde alors sa taille de repli.
+ok('systemeLargeur : la taille écrite sur la planche est rangée',
+  typeof M.systemeLargeur('araignee') === 'number' && M.systemeLargeur('araignee') > 100
+  && M.systemeLargeur('araignee') < 4000, String(M.systemeLargeur('araignee')));
+ok('systemeLargeur : la patte a la sienne, et elle est plus petite que le robot',
+  M.systemeLargeur('patte') > 100 && M.systemeLargeur('patte') < M.systemeLargeur('araignee'),
+  `${M.systemeLargeur('patte')} contre ${M.systemeLargeur('araignee')}`);
+ok('systemeLargeur : un système sans étiquette ne rend rien (repli du composant)',
+  M.systemeLargeur('rien-du-tout') === undefined);
 
 // --- le montage sur le VRAI dessin ---------------------------------------------
 // Le robot d'essai plus haut éprouve la règle ; celui-ci éprouve le DESSIN de

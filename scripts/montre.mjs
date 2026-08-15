@@ -150,7 +150,7 @@ function charger(relire) {
   let prof;
   if (relire) {
     console.log(`\n  Lecture de ${SOURCE} — tout ce qui commence par « ${NOM} »…`);
-    const { unitScale, groupes } = lireDessin({ source: SOURCE, prefixes: [NOM], step: STEP });
+    const { unitScale, groupes, systemes } = lireDessin({ source: SOURCE, prefixes: [NOM], step: STEP });
     const connus = Object.keys(commencePar(dejaRanges, NOM));
     const { profils, asm: parAsm } = classer(groupes, NOM, connus);
     const k = mmParUnite(unitScale);
@@ -168,7 +168,7 @@ function charger(relire) {
     // Rangé exactement comme le feraient les deux extracteurs : ils relisent leur
     // module avant de le réécrire, montrer un assemblage n'efface pas les autres.
     if (!SANS_RANGER) {
-      if (Object.keys(asm).length) ecrireAssemblages({ ...dejaRanges, ...asm });
+      if (Object.keys(asm).length) ecrireAssemblages({ ...dejaRanges, ...asm }, systemes);
       if (Object.keys(prof).length) ecrireProfils({ ...profilsRanges(), ...prof });
     }
   } else {

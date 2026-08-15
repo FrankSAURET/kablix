@@ -32,7 +32,7 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { ROOT, MM2PX, lireDessin, ringsToPiece, R2, nomDePastille, planche } from './_lire-contours.mjs';
+import { ROOT, MM2PX, lireDessin, ringsToPiece, R2, nomDePastille, planche, parseSysteme } from './_lire-contours.mjs';
 
 const OUT_FILE = join(ROOT, 'src/webview/composants/assemblages.mts');
 
@@ -45,19 +45,31 @@ export const MATIERES = ['pmma', 'alu', 'servo', 'carte', 'laiton', 'pile'];
  *  VISIBLE au mauvais endroit, donc corrigible, plutôt que muette. */
 const POSE_DEFAUT = { plan: 'dessus', pos: { x: 0, y: 0, z: 0 }, ep: 3, mat: 'pmma', miroir: '' };
 
-export function readExisting() {
+/** Un bloc `const <nom> = {…} as const;` du module généré, relu tel quel. Le
+ *  module est sa propre archive : extraire UN assemblage ne doit effacer ni les
+ *  autres, ni les tailles de système. */
+function readBloc(nom, quoi) {
   if (!existsSync(OUT_FILE)) return {};
   const txt = readFileSync(OUT_FILE, 'utf8');
-  const a = txt.indexOf('const DATA = ');
+  const a = txt.indexOf(`const ${nom} = `);
   if (a < 0) return {};
   const b = txt.indexOf('\n} as const;', a);
   if (b < 0) return {};
   try {
-    return JSON.parse(txt.slice(a + 13, b + 2));
+    return JSON.parse(txt.slice(a + nom.length + 9, b + 2));
   } catch {
-    console.error('  ! assemblages.mts illisible : il sera reconstruit à partir du seul assemblage extrait maintenant.');
+    console.error(`  ! assemblages.mts illisible (${quoi}) : ce bloc sera reconstruit à partir de la seule lecture d'aujourd'hui.`);
     return {};
   }
+}
+
+export function readExisting() {
+  return readBloc('DATA', 'assemblages');
+}
+
+/** Les tailles de système déjà rangées : `{ araignee: 800 }`. */
+export function readSystemes() {
+  return readBloc('SYSTEMES', 'tailles de système');
 }
 
 /**
@@ -166,11 +178,16 @@ export function assembleGroupes(nom, groupes, { source = planche('3D'), k = 1, t
     // Le nom court d'une pièce est ce qui suit le nom de l'assemblage. Un profil
     // montré seul est son propre assemblage d'une pièce : il garde son nom.
     const court = g.name.startsWith(`${nom}-`) ? g.name.slice(nom.length + 1) : g.name;
-    if (!g.rings.length) {
-      console.log(`  ! ${g.name} : aucun contour fermé, pièce ignorée`);
+    // Une pièce peut n'être QU'UNE IMAGE : la photo d'une carte électronique
+    // collée sur la planche, sans contour tracé autour. Le rectangle de l'image
+    // fait alors la pièce — redessiner à la main le pourtour d'un Pico dont on a
+    // déjà la photo ne dirait rien de plus.
+    const rings = g.rings.length ? g.rings : ringsDImage(g.image);
+    if (!rings.length) {
+      console.log(`  ! ${g.name} : ni contour fermé ni image, pièce ignorée`);
       continue;
     }
-    const piece = ringsToPiece(g.name, g.rings, { k, tol });
+    const piece = ringsToPiece(g.name, rings, { k, tol });
     if (!piece) {
       console.log(`  ! ${g.name} : contours trop petits, pièce ignorée`);
       continue;
@@ -219,7 +236,10 @@ export function assembleGroupes(nom, groupes, { source = planche('3D'), k = 1, t
     // l'épaisseur. D'où le zéro le long de cette direction — deux plaques à
     // ±13.75 mm donnent un axe à 0, et c'est ce zéro que l'autre dessin viendra
     // rejoindre.
-    const libres = g.texts.filter((t) => !parsePose(t.s))
+    // Une étiquette de système tombée DANS un groupe de pièce ne nomme pas une
+    // pastille : elle parle du dessin fini. Elle est écartée ici plutôt que de
+    // baptiser un axe « système : araignee largeur : 800 ».
+    const libres = g.texts.filter((t) => !parsePose(t.s) && !parseSysteme(t.s))
       .map((t) => ({ s: t.s, x: t.x * k - cx, y: t.y * k - cy }));
     for (const pad of g.pads) {
       const p = { x: R2(pad.x * k - cx), y: R2(pad.y * k - cy) };
@@ -243,6 +263,21 @@ export function assembleGroupes(nom, groupes, { source = planche('3D'), k = 1, t
  *  une image embarquée grossit le bundle de la webview, et un JPEG de 4 Mo posé
  *  sur une plaque de 30 mm ne se verrait pas mieux qu'une WebP de 40 Ko. */
 const MIMES = { webp: 'image/webp', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg' };
+
+/**
+ * Le contour d'une pièce qui n'est qu'une IMAGE, dans les unités du dessin.
+ * Le DÉTOURAGE passe devant : une carte détourée dans Inkscape a la silhouette
+ * de la vraie, encoches comprises. Sans détourage, c'est le rectangle du bitmap
+ * — ses trois coins lus portent déjà la rotation, le quatrième s'en déduit.
+ */
+function ringsDImage(image) {
+  if (!image) return [];
+  if (image.clip?.length) return image.clip;
+  const [ox, oy] = image.o;
+  const [ux, uy] = image.u;
+  const [vx, vy] = image.v;
+  return [[[ox, oy], [ux, uy], [ux + vx - ox, uy + vy - oy], [vx, vy]]];
+}
 
 /**
  * L'image d'une pièce, prête à ranger : millimètres, centrée comme le contour, et
@@ -347,10 +382,12 @@ function previentEtiquette(nom, s) {
 }
 
 /** Lit un assemblage du dessin : une pièce par groupe préfixé, la pose lue dans
- *  son étiquette, les pastilles rouges en axes. Rend `null` si rien n'a été lu. */
+ *  son étiquette, les pastilles rouges en axes. Rend aussi les tailles de système
+ *  écrites sur la planche — elles ne dépendent d'aucun assemblage, mais la
+ *  planche n'est ouverte qu'une fois. `a` est `null` si rien n'a été lu. */
 export function lireAssemblage(nom, { source = planche('3D'), step = 0.2, tol = 0.08 } = {}) {
-  const { unitScale, groupes } = lireDessin({ source, prefixes: [`${nom}-`], step });
-  return assembleGroupes(nom, groupes, { source, k: mmParUnite(unitScale), tol });
+  const { unitScale, groupes, systemes } = lireDessin({ source, prefixes: [`${nom}-`], step });
+  return { a: assembleGroupes(nom, groupes, { source, k: mmParUnite(unitScale), tol }), systemes };
 }
 
 // --- écriture du module -------------------------------------------------------
@@ -408,7 +445,10 @@ function dump(obj) {
   return '{\n' + parts.join(',\n') + '\n}';
 }
 
-export function ecrire(data) {
+export function ecrire(data, systemes = null) {
+  // Les tailles de système survivent à l'extraction d'un seul assemblage : elles
+  // décrivent la planche entière, pas la pièce qu'on vient de relire.
+  const sys = { ...readSystemes(), ...(systemes ?? {}) };
   const header = `// FICHIER GÉNÉRÉ — ne pas modifier à la main.
 // Produit par \`node scripts/_extract-assemblage.mjs <nom>\` à partir des pièces
 // dessinées dans Composants3D.svg (mode d'emploi : docs/fr/Drawing-systems.md).
@@ -446,9 +486,22 @@ export function assemblage(name: AssemblyName): Assembly {
 export function hasAssemblage(name: string): name is AssemblyName {
   return Object.prototype.hasOwnProperty.call(DATA, name);
 }
+
+/** Taille du DESSIN FINI, en pixels de la grille, telle qu'elle est écrite sur
+ *  la planche : une étiquette « système : araignee largeur : 800 » posée à côté
+ *  des pièces. C'est le seul réglage d'échelle du composant, et il appartient au
+ *  dessinateur — agrandir le robot se fait dans Inkscape, pas dans le code. */
+const SYSTEMES = ${JSON.stringify(sys, null, 2)} as const;
+
+/** La largeur voulue d'un système, ou \`undefined\` si la planche n'en dit rien
+ *  (le composant garde alors sa taille de repli). */
+export function systemeLargeur(nom: string): number | undefined {
+  return (SYSTEMES as Record<string, number>)[nom];
+}
 `;
   writeFileSync(OUT_FILE, header);
-  console.log(`\n  → ${OUT_FILE} (${Object.keys(data).length} assemblage(s))`);
+  console.log(`\n  → ${OUT_FILE} (${Object.keys(data).length} assemblage(s),`
+    + ` ${Object.keys(sys).length} taille(s) de système)`);
 }
 
 // --- ligne de commande ---------------------------------------------------------
@@ -482,9 +535,11 @@ function main(args) {
   }
 
   const data = readExisting();
+  let systemes = {};
   let changed = 0;
   for (const nom of names) {
-    const a = lireAssemblage(nom, { source, step, tol });
+    const { a, systemes: sys } = lireAssemblage(nom, { source, step, tol });
+    systemes = { ...systemes, ...sys };
     if (!a) {
       console.log(`  – ${nom} : aucun groupe « ${nom}-… » dans ${source}`);
       continue;
@@ -494,11 +549,12 @@ function main(args) {
     console.log(`  → ${nom} : ${a.pieces.length} pièce(s), ${Object.keys(a.axes).length} axe(s),`
       + ` ${a.box.x}×${a.box.y}×${a.box.z} mm`);
   }
+  for (const [n, px] of Object.entries(systemes)) console.log(`  → système « ${n} » : ${px} px de large`);
   if (!changed) {
     console.log('  (rien à écrire)');
     return 1;
   }
-  ecrire(data);
+  ecrire(data, systemes);
   return 0;
 }
 

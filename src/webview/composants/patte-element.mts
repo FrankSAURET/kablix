@@ -27,7 +27,7 @@ import {
   renderFaces, rotAxis, rotZ, scale, shadowGradient, sub,
   type Assembly, type Face, type Vec2, type Vec3,
 } from './iso3d.mjs';
-import { assemblage, hasAssemblage } from './assemblages.mjs';
+import { assemblage, hasAssemblage, systemeLargeur } from './assemblages.mjs';
 import drawing from './externe/connecteur-servo-patte.svg';
 
 /** Extrait le groupe `<g id="ID" …> … </g>` complet (gère l'imbrication).
@@ -61,14 +61,17 @@ export const LEG_TIBIA = 'araignee-patte-tibia';
  *  Le tibia descend déjà de la patella sur la planche, donc 90° ne plie rien. */
 export const PATELLA_REST = 90;
 
-/** LARGEUR VOULUE DU SYSTÈME FINI, en pixels de la planche (Frank, v2026.8.62) :
- *  le SEUL réglage de taille des dessins en volume, écrit UNE FOIS pour tout le
- *  système. Le robot entier est cadré pour l'occuper, et la patte seule — qui
- *  est un morceau du même système — s'en déduit : feuille, allègement des
- *  contours et ombres suivent. Un seul nombre à changer pour tout agrandir ou
- *  tout réduire. 400 px avant : le robot tenait dans 4 cm à l'écran, on n'y
- *  distinguait ni les cartes embarquées ni le pli d'une articulation. */
-export const SYSTEME_PX = 800;
+/** LARGEUR VOULUE DU SYSTÈME FINI, en pixels de la planche : le SEUL réglage de
+ *  taille des dessins en volume. Le robot entier est cadré pour l'occuper, et
+ *  tout ce qui est écrit en pixels — allègement des contours, ombres, marges —
+ *  la suit. 400 px avant : le robot tenait dans 4 cm à l'écran, on n'y
+ *  distinguait ni les cartes embarquées ni le pli d'une articulation.
+ *
+ *  Le nombre vient de la PLANCHE depuis la v2026.8.65 : une étiquette
+ *  « système : araignee largeur : 800 » posée à côté des pièces dans Inkscape.
+ *  Agrandir le robot est une décision de dessinateur, elle se prend là où il
+ *  dessine. La valeur ci-dessous n'est qu'un repli, si la planche n'en dit rien. */
+export const SYSTEME_PX = systemeLargeur('araignee') ?? 800;
 
 /** Le rapport à la feuille d'ORIGINE (400 px) : tout ce qui est écrit en pixels
  *  — allègement des contours, rayon des ombres, marges — le suit, sinon
@@ -281,11 +284,14 @@ export class JointAnimator {
 const PIN_GAP = 40;
 /** Marge gardée sur les bords de la feuille. */
 const MARGIN = 6;
-/** Place laissée à la MÉCANIQUE, déduite de la largeur du système : une patte
- *  tendue mesure à peu près la moitié du robot, et une fois pliée elle occupe
- *  une case une fois et demie plus haute que large. Arrondi à la grille de
- *  10 px, sinon les carrés dorés du bornier tombent entre deux lignes. */
-const ZONE_W = Math.round(SYSTEME_PX / 20) * 10;
+/** Largeur voulue de la patte finie, connecteur compris — l'autre étiquette de
+ *  la planche (« système : patte largeur : 456 »). À défaut, la moitié du robot :
+ *  une patte tendue mesure à peu près cela. */
+const PATTE_PX = systemeLargeur('patte') ?? (10 + PIN_GAP + Math.round(SYSTEME_PX / 20) * 10 + MARGIN);
+/** Place laissée à la MÉCANIQUE : ce qui reste de la feuille une fois le
+ *  connecteur et les marges retirés. Arrondi à la grille de 10 px, sinon les
+ *  carrés dorés du bornier tombent entre deux lignes. */
+const ZONE_W = Math.round((PATTE_PX - (10 + PIN_GAP + MARGIN)) / 10) * 10;
 const ZONE_H = Math.round((ZONE_W * 1.5) / 10) * 10;
 /** Feuille de la patte seule : le connecteur occupe la colonne de gauche, la
  *  mécanique tout le reste. Le bornier, lui, garde sa taille RÉELLE — c'est un
