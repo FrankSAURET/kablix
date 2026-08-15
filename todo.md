@@ -1,7 +1,4 @@
 # À faire
-## Arraignée : 
-
-## Composants
 
 # En réserve
 1. ⏳ Traduction FR du réglage `kablix.simulationWorker` (`package.nls.fr.json`) : sa description a changé avec le défaut activé — au lot de traductions d'avant publication.
@@ -22,6 +19,16 @@ Le RP2350 n'est pas un RP2040 plus rapide : **double Cortex-M33** (Thumb-2 compl
 3. ⏳ **`cts2c`, leur transpileur TypeScript → C : c'est #16 déjà écrit.** Il monomorphise le noyau émulateur (`src/`) en **un seul fichier C**, annoncé **2-4× la version Node/TS** — exactement le facteur visé par le cœur WASM. Leur cible est un binaire natif gcc, mais un fichier C unique se compile en WASM (emscripten) : c'est le raccourci qui remplacerait cinq semaines de Rust. À sonder juste après le banc de vitesse (piste 1).
 4. ⏳ **Coût d'intégration, si les trois points ci-dessus passent** : le fork **n'est pas drop-in** (API modifiée) et n'est pas publié sur npm — il faut le vendoriser (MIT, attribution à conserver) et écrire un adaptateur pour `src/webview/engines/`. Notre `patches/rp2040js+1.3.3.patch` (+30 %) tombe : leurs 686 commits ont leurs propres optimisations, à re-mesurer et non à re-appliquer. Ajouter ensuite les cartes `pico2` / `pico2w` (brochage identique au Pico 1, dessin à faire) et les `.uf2` correspondants dans `src/firmware.ts`. Ordre de grandeur : 10-20 j.
 5. ⚠️ **Ce qu'il ne faut PAS faire** : dessiner un « Pico 2 » dans la palette qui serait en réalité simulé par le cœur RP2040. L'élève écrirait pour une carte et exécuterait sur une autre — un mensonge qui se paie au premier programme qui ne tourne pas pareil sur le vrai matériel.
+
+## Cartes ESP32 — faisable sur UNE famille seulement, et le vrai obstacle n'est pas le cœur
+Deux mondes derrière le mot « ESP32 » : les puces **Xtensa** (ESP32 classique, S2, S3) et les puces **RISC-V** (C3, C6, H2, P4). Ce n'est pas le même jeu d'instructions, donc jamais le même émulateur. Et le chemin d'entrée est tout trouvé : comme pour le Pico, **MicroPython existe en binaire prêt** pour l'ESP32-C3 — rien à compiler, on charge un firmware officiel, exactement le modèle de `src/firmware.ts`.
+
+1. ⏳ **Cible réaliste : ESP32-C3 (RISC-V) en MicroPython, via [`espressif/esp-emulator`](https://github.com/espressif/esp-emulator)** — émulateur **officiel Espressif**, **Apache-2.0** (compatible avec notre MIT), build **WASM pour navigateur** documenté (`BROWSER.md`). Couvre C3, C6, H2, P4. CPU RV32IMAC, UART, GPIO, SPI flash, timers, et même Wi-Fi soft AP / BLE / crypto.
+2. ⚠️ **L'obstacle n°1 est l'API, pas le processeur.** Leur émulateur est pensé comme un outil autonome : les périphériques extérieurs se branchent par **ponts TCP** (`--uart1-tcp`…). Kablix a besoin de l'inverse — des **rappels JS fins sur GPIO/I²C/SPI**, puisque nos composants sont des éléments Lit dans la webview. Sans crochets de ce genre dans le build WASM, aucune LED Kablix ne s'allume, quelle que soit la qualité du cœur. **C'est la première chose à vérifier**, avant tout le reste.
+3. ⚠️ **Maturité** : annoncé **beta**, dépôt très jeune (7 commits). À sonder avec méfiance, et à re-sonder plus tard s'il n'est pas prêt — le projet est officiel, il va probablement grossir.
+4. 🚫 **ESP32 classique (Xtensa) : bloqué par la licence, pas par la technique.** Les seuls émulateurs Xtensa sérieux sont des forks de **QEMU** (celui d'Espressif, celui de Velxio), donc **GPL v2** — incompatible avec la distribution d'une extension **MIT** comme Kablix. Wokwi fait tourner l'ESP32 sur QEMU-WASM, mais eux ne distribuent pas un paquet installable. À ne pas engager sans avis clair sur la licence.
+5. ⏳ **Chiffrage** : évaluation **3-5 j** (lire `BROWSER.md`, charger MicroPython C3 dans leur WASM, faire clignoter une GPIO et la récupérer côté JS). Si les crochets existent, l'intégration reste une **nouvelle famille de cartes** — brochage, dessin, catalogue, moteur, tests `testkablix`, fiches d'aide : **20-40 j**. Ce n'est pas une variante du Pico, c'est un troisième moteur à côté de l'AVR et du RP2040.
+6. ℹ️ **ESP8266 : rien de sérieux à émuler.** Ne pas le promettre.
 
 # >>>>  v2026.8.64 — les réglages du robot rentrent dans quatre tiroirs
 
