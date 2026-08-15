@@ -138,6 +138,26 @@ const SHEET_H = 3000;
 /** Aligne une coordonnée sur la grille magnétique. */
 const snapToGrid = (v: number): number => Math.round(v / GRID) * GRID;
 /**
+ * Cale l'origine d'un composant sur UN axe pour que son DESSIN reste sur la
+ * feuille. `v` = origine (`part.x` ou `part.y`), `d` = ce que le dessin dépasse
+ * de cette origine vers le haut/la gauche, `size` = son encombrement, `sheet` =
+ * la dimension de la feuille.
+ *
+ * L'ancien `Math.max(0, …)` ne bornait que le haut et la gauche, et le faisait
+ * sur l'ORIGINE et non sur le dessin : un composant sortait librement à droite
+ * et en bas (constaté par Frank avec la patte de l'araignée), et sa marge de
+ * dessin l'arrêtait trop tôt en haut. Les quatre bords sont désormais traités
+ * pareil, sur le dessin.
+ *
+ * Un dessin plus grand que la feuille ne peut pas y tenir : il est alors collé
+ * au bord haut/gauche plutôt que renvoyé n'importe où.
+ */
+const clampAxis = (v: number, d: number, size: number, sheet: number): number => {
+  const min = -d; // le dessin touche le bord haut / gauche
+  const max = sheet - size - d; // il touche le bord bas / droite
+  return max < min ? min : Math.min(Math.max(v, min), max);
+};
+/**
  * Vrai si le type est au catalogue de CE poste (composants standard ou
  * personnalisés enregistrés). Un schéma collé depuis un autre atelier peut citer
  * un composant personnalisé absent d'ici : `partDef` lèverait, on l'ignore.
@@ -1713,11 +1733,59 @@ export class Editor {
     const r = this.rendered.get(partId);
     const body = r?.container.querySelector('.part__body') as HTMLElement | null;
     if (!r || !body) return;
-    r.part.x = Math.max(0, center.x - (body.offsetWidth || 40) / 2);
-    r.part.y = Math.max(0, center.y - (body.offsetHeight || 40) / 2);
+    const p = this.clampToSheet(partId, center.x - (body.offsetWidth || 40) / 2,
+      center.y - (body.offsetHeight || 40) / 2);
+    r.part.x = p.x;
+    r.part.y = p.y;
     r.container.style.left = `${r.part.x}px`;
     r.container.style.top = `${r.part.y}px`;
   }
+
+  /**
+   * Encombrement RÉEL du dessin d'un composant, exprimé autour de son origine
+   * (`part.x` / `part.y`) et en px monde : `dx` / `dy` = ce que le dessin dépasse
+   * vers la gauche et le haut, `w` / `h` = sa taille visible. C'est le rectangle
+   * de sélection qui est mesuré — donc rotation et miroir compris, et sans le
+   * vide du viewBox (51 px sous un servomoteur, par exemple).
+   *
+   * Repli sur la boîte DOM quand le SVG n'est pas mesurable (largeur en %,
+   * viewport non résolu, composant pas encore rendu).
+   */
+  private drawExtent(partId: string): { dx: number; dy: number; w: number; h: number } {
+    const r = this.rendered.get(partId);
+    const body = r?.container.querySelector('.part__body') as HTMLElement | null;
+    const repli = { dx: 0, dy: 0, w: body?.offsetWidth || 40, h: body?.offsetHeight || 40 };
+    if (!r) return repli;
+    try {
+      this.fitSelectionBox(partId);
+      const sel = r.container.querySelector('.part__selbox') as HTMLElement | null;
+      const svg = (r.el.shadowRoot ?? r.el).querySelector('svg');
+      const b = (sel ?? svg)?.getBoundingClientRect();
+      if (b && b.width > 0 && b.height > 0) {
+        const tl = this.canvasPoint(b.left, b.top);
+        const br = this.canvasPoint(b.right, b.bottom);
+        return {
+          dx: Math.min(tl.x, br.x) - r.part.x,
+          dy: Math.min(tl.y, br.y) - r.part.y,
+          w: Math.abs(br.x - tl.x),
+          h: Math.abs(br.y - tl.y),
+        };
+      }
+    } catch {
+      // SVG non mesurable : repli sur la boîte DOM.
+    }
+    return repli;
+  }
+
+  /** Position d'origine ramenée dans la feuille, dessin compris (cf. `clampAxis`). */
+  private clampToSheet(partId: string, x: number, y: number): XY {
+    const e = this.drawExtent(partId);
+    return {
+      x: clampAxis(x, e.dx, e.w, SHEET_W),
+      y: clampAxis(y, e.dy, e.h, SHEET_H),
+    };
+  }
+
 
   addPart(type: string, x = 40 + this.diagram.parts.length * 30, y = 60, silent = false): Part {
     const def = partDef(type);
@@ -1762,8 +1830,10 @@ export class Editor {
     const r = this.rendered.get(partId);
     if (!off || !r) return;
     if (onlyRotated && !(r.part.rotation ?? 0)) return;
-    r.part.x = Math.max(0, snapToGrid(r.part.x + off.x) - off.x);
-    r.part.y = Math.max(0, snapToGrid(r.part.y + off.y) - off.y);
+    const cale = this.clampToSheet(partId, snapToGrid(r.part.x + off.x) - off.x,
+      snapToGrid(r.part.y + off.y) - off.y);
+    r.part.x = cale.x;
+    r.part.y = cale.y;
     r.container.style.left = `${r.part.x}px`;
     r.container.style.top = `${r.part.y}px`;
     this.redrawWires();
@@ -2593,6 +2663,25 @@ export class Editor {
     // aligne CETTE broche sur la grille (et donc toutes les autres, espacées de
     // multiples du pas), pas le coin du composant.
     const pinOff = this.gridOffset(part.id) ?? { x: 0, y: 0 };
+    // Bornes du geste : elles portent sur le DÉCALAGE COMMUN, pas sur chaque
+    // composant pris à part. Un lot borné membre par membre se déformerait au
+    // premier qui touche un bord (les autres continueraient d'avancer) — le lot
+    // s'arrête donc ensemble, dès que l'un d'eux atteint la marge.
+    // Mesuré une seule fois à l'appui : la taille du dessin ne change pas pendant
+    // le glissé, et mesurer à chaque `pointermove` coûterait un reflow par image.
+    const bornes = members.map((m) => {
+      const e = this.drawExtent(m.rr.part.id);
+      return {
+        minDx: -(m.ox + e.dx),
+        maxDx: SHEET_W - e.w - e.dx - m.ox,
+        minDy: -(m.oy + e.dy),
+        maxDy: SHEET_H - e.h - e.dy - m.oy,
+      };
+    });
+    const minDx = Math.max(...bornes.map((b) => b.minDx));
+    const maxDx = Math.min(...bornes.map((b) => b.maxDx));
+    const minDy = Math.max(...bornes.map((b) => b.minDy));
+    const maxDy = Math.min(...bornes.map((b) => b.maxDy));
     // Caméra à l'appui : le suivi se fait par DELTA d'écran, il faut donc
     // retrancher ce que la vue a défilé toute seule depuis (cf. autopan.mts),
     // sinon le composant s'échapperait du curseur d'autant.
@@ -2613,9 +2702,13 @@ export class Editor {
         wdx = snapToGrid(primary.ox + wdx + pinOff.x) - pinOff.x - primary.ox;
         wdy = snapToGrid(primary.oy + wdy + pinOff.y) - pinOff.y - primary.oy;
       }
+      // Le bornage vient APRÈS l'accrochage à la grille : au bord de la feuille
+      // c'est le bord qui gagne, comme le faisait déjà l'ancienne butée à zéro.
+      wdx = maxDx < minDx ? minDx : Math.min(Math.max(wdx, minDx), maxDx);
+      wdy = maxDy < minDy ? minDy : Math.min(Math.max(wdy, minDy), maxDy);
       for (const m of members) {
-        m.rr.part.x = Math.max(0, m.ox + wdx);
-        m.rr.part.y = Math.max(0, m.oy + wdy);
+        m.rr.part.x = m.ox + wdx;
+        m.rr.part.y = m.oy + wdy;
         m.rr.container.style.left = `${m.rr.part.x}px`;
         m.rr.container.style.top = `${m.rr.part.y}px`;
       }
@@ -4766,7 +4859,19 @@ export class Editor {
     // plus (20 px = 2 pas de grille), sinon les copies s'empilent au même point.
     const key = `${parts.length}:${parts.map((p) => `${p.type}@${p.x},${p.y}`).join('|')}`;
     this.pasteRun = this.pasteRun?.key === key ? { key, n: this.pasteRun.n + 1 } : { key, n: 1 };
-    const offset = PASTE_OFFSET * this.pasteRun.n;
+    // Le décalage est BORNÉ pour que les copies restent sur la feuille : sans
+    // cela, coller douze fois de suite finissait par les poser dehors. Une copie
+    // a exactement l'encombrement de son original (même type, mêmes attributs,
+    // même rotation) : on le mesure donc sur l'original, avant de poser quoi que
+    // ce soit — la copie, elle, n'est pas encore dessinée. Collage venu d'un
+    // autre atelier (aucun original ici) : rien à mesurer, décalage inchangé.
+    const offset = parts.reduce((off, p) => {
+      if (!this.rendered.has(p.id)) return off;
+      const e = this.drawExtent(p.id);
+      // Le décalage est positif : seuls les bords droite et bas peuvent être
+      // franchis.
+      return Math.max(0, Math.min(off, SHEET_W - e.w - e.dx - p.x, SHEET_H - e.h - e.dy - p.y));
+    }, PASTE_OFFSET * this.pasteRun.n);
     const idMap = new Map<string, string>();
     const newIds = new Set<string>();
     for (const p of parts) {

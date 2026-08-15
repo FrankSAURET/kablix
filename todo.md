@@ -1,5 +1,4 @@
 # À faire
-1. La patte de l'arraignée a une contrainte de possitionnement, je ne peux pas la déplacer vers le haut de la feuille. Par contre je sort de la feuille sur la droite et le bas ce n'est pas souhaitable (avec les autres composants aussi)
 1. Rajoute la possibilité d'affecte des N° de port servo différents dans les propriétées. Rubrique "câbler les servomoteurs".
 # En réserve
 1. ⏳ Traduction FR du réglage `kablix.simulationWorker` (`package.nls.fr.json`) : sa description a changé avec le défaut activé — au lot de traductions d'avant publication.
@@ -30,6 +29,16 @@ Deux mondes derrière le mot « ESP32 » : les puces **Xtensa** (ESP32 classique
 4. 🚫 **ESP32 classique (Xtensa) : bloqué par la licence, pas par la technique.** Les seuls émulateurs Xtensa sérieux sont des forks de **QEMU** (celui d'Espressif, celui de Velxio), donc **GPL v2** — incompatible avec la distribution d'une extension **MIT** comme Kablix. Wokwi fait tourner l'ESP32 sur QEMU-WASM, mais eux ne distribuent pas un paquet installable. À ne pas engager sans avis clair sur la licence.
 5. ⏳ **Chiffrage** : évaluation **3-5 j** (lire `BROWSER.md`, charger MicroPython C3 dans leur WASM, faire clignoter une GPIO et la récupérer côté JS). Si les crochets existent, l'intégration reste une **nouvelle famille de cartes** — brochage, dessin, catalogue, moteur, tests `testkablix`, fiches d'aide : **20-40 j**. Ce n'est pas une variante du Pico, c'est un troisième moteur à côté de l'AVR et du RP2040.
 6. ℹ️ **ESP8266 : rien de sérieux à émuler.** Ne pas le promettre.
+
+# >>>>  v2026.8.66 — la feuille a des bords, des quatre côtés
+
+1. ✅ **Plus rien ne sort de la feuille à droite ni en bas.** Il n'y avait de butée qu'en haut et à gauche (`Math.max(0, …)`) : les deux autres bords étaient grands ouverts, sur tous les composants. Les quatre sont désormais traités pareil.
+2. ✅ **Et la butée porte sur le DESSIN, plus sur le coin invisible du composant.** C'est ce qui t'empêchait de monter la patte : son cadre commence bien au-dessus de son dessin (mesuré — cadre 460 × 640, dessin 327 × 197), donc elle butait alors qu'il restait 100 px de vide au-dessus. Elle monte maintenant jusqu'à toucher vraiment le bord.
+3. ✅ **Un lot sélectionné s'arrête d'un bloc.** Le bornage porte sur le DÉPLACEMENT COMMUN, pas sur chaque composant : borner composant par composant aurait écrasé le montage contre le bord (le premier arrêté, les autres continuant). Le lot s'immobilise dès que l'un d'eux touche, écarts conservés au dixième de pixel.
+4. ✅ **Le collage en série s'arrête aussi.** Chaque `Ctrl+D` décale de 20 px ; au bout de six, les copies se posaient dehors. Le décalage est borné en mesurant l'ORIGINAL (une copie a le même encombrement que lui) — la copie, elle, n'est pas encore dessinée au moment où il faut décider.
+5. ✅ Même bornage à la **pose au centre de la vue** et au **recollage sur la grille** (rotation, miroir), qui pouvaient eux aussi déposer un composant hors feuille.
+6. ✅ **Nouveau banc `verify:feuille` : 24 contrôles** (vrai éditeur, vrai CSS, Chrome headless, feuille entière à l'écran). Il pousse LED, résistance, servomoteur et patte vers les quatre bords, vérifie que le dessin touche le bord sans le franchir, que le lot garde ses écarts, et que douze collages successifs restent dedans. **Sans le correctif : 16 échecs.**
+7. ✅ `docs/fr/USAGE.md`, « Poser et déplacer » : le paragraphe sur les bords de la feuille.
 
 # >>>>  v2026.8.65 — une image détourée SUFFIT à faire une pièce
 

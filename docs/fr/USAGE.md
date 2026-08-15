@@ -95,6 +95,8 @@
 - **Zoomer** : **molette** dans le canvas (centré sur le curseur). Le badge **⟳ %** en bas à droite donne le facteur ; un clic dessus réinitialise la vue.
 - **Supprimer** : bouton 🗑 de l'inspecteur, ou touche `Suppr`.
 
+**La feuille a des bords, des quatre côtés.** Elle mesure 4000 × 3000 px et un composant ne peut pas en sortir : il s'arrête au bord, à droite et en bas comme en haut et à gauche. C'est son **dessin** qui butte, pas son cadre invisible — un composant dont le dessin ne remplit pas son cadre (la patte du robot, par exemple) monte donc jusqu'à toucher vraiment le haut. Un lot sélectionné s'arrête **d'un bloc**, dès que l'un de ses composants atteint un bord : les positions relatives sont conservées. Les collages en série (`Ctrl+D`) s'arrêtent au même endroit plutôt que de poser les copies dehors.
+
 ### Platine d'essai
 
 Le composant **Platine d'essai** (catégorie Cartes & platines) existe en trois tailles — *mini* (17 colonnes, sans rails), *moyenne* (30 colonnes) et *grande* (63 colonnes) — réglables dans **Propriétés**. Les connexions internes réelles sont simulées : colonnes **a–e** et **f–j** reliées par bande, **rails +/−** sur toute la longueur.
