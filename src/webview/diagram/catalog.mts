@@ -87,6 +87,25 @@ export interface PropDef {
   /** Pour kind 'text' : nombre de lignes de la zone de saisie (défaut 2). */
   rows?: number;
   /**
+   * Nombre qu'on TAPE, pas qu'on ajuste : petite case de deux caractères, SANS
+   * la toupie du navigateur ni les boutons +/− (v2026.8.68). Un numéro de canal
+   * se lit sur la carte et se recopie — les deux façons de l'incrémenter ne
+   * servaient qu'à parcourir 16 valeurs une par une.
+   */
+  compact?: boolean;
+  /**
+   * Valeur UNIQUE parmi les propriétés du composant portant la même clé : deux
+   * servos ne peuvent pas être branchés sur la même sortie du PCA9685. La saisie
+   * d'un doublon est refusée par l'inspecteur (le champ revient à sa valeur).
+   */
+  unique?: string;
+  /**
+   * Note explicative affichée EN TÊTE de la section repliable (une par groupe,
+   * portée par ses propriétés). Sert à dire ce qu'un libellé ne peut pas dire :
+   * la plage attendue, la correspondance avec le marquage de la carte…
+   */
+  groupNote?: string;
+  /**
    * Range cette propriété dans une SECTION REPLIABLE de l'inspecteur, titrée par
    * ce libellé (traduisible). Sans groupe, la propriété reste au fil, à sa place.
    * Utile dès qu'un composant en aligne des dizaines (le robot araignée en a 27) :
@@ -410,13 +429,21 @@ const ZERO_PROP = (attr: string, label: string): PropDef =>
  * la main : rien n'oblige la coxa avant-gauche à finir sur le canal 0. Ce réglage
  * dit où chaque servo est BRANCHÉ, sans toucher au programme. La carte a 16
  * sorties (0..15), les huit autres restent libres pour un ajout.
+ *
+ * Case de deux caractères (`compact`) : on RECOPIE le numéro lu sur la carte.
+ * Et le même canal ne se saisit pas deux fois (`unique`) — sur un vrai montage,
+ * deux servos sur une sortie bougeraient ensemble, ce n'est jamais ce qu'on veut
+ * ici. Aucune valeur par défaut : un câblage se déclare, il ne se devine pas.
  */
 const CHANNEL_PROP = (attr: string, label: string): PropDef =>
-  ({ attr, label, kind: 'number', min: 0, max: 15, step: 1 });
+  ({ attr, label, kind: 'number', min: 0, max: 15, step: 1, compact: true, unique: 'pca-channel' });
 
-/** Range une liste de propriétés dans la même section repliable de l'inspecteur. */
-const grouped = (group: string, props: readonly PropDef[]): readonly PropDef[] =>
-  props.map((p) => ({ ...p, group }));
+/**
+ * Range une liste de propriétés dans la même section repliable de l'inspecteur.
+ * `note` : phrase d'explication posée en tête de la section (facultative).
+ */
+const grouped = (group: string, props: readonly PropDef[], note?: string): readonly PropDef[] =>
+  props.map((p) => ({ ...p, group, ...(note ? { groupNote: note } : {}) }));
 
 export const CATALOG: readonly PartDef[] = [
   // Cartes AVR : éléments forkés, mis à l'échelle 10/9,6 px pour que
@@ -919,16 +946,17 @@ export const CATALOG: readonly PartDef[] = [
   // le déposer choisit la Pico W comme cible, exactement comme on poserait la
   // carte nue. Son PCA9685 embarqué répond sur le bus I²C interne (le moteur le
   // relie aux deux contrôleurs du RP2040 sans dépendre d'un fil), ses canaux
-  // pilotant les huit articulations — 0..7 par défaut dans l'ordre avant-gauche,
-  // avant-droite, arrière-gauche, arrière-droite (coxa, patella), chacun
-  // déplaçable sur n'importe quelle sortie 0..15 (`chcoxaN`/`chpatellaN`).
+  // pilotant les huit articulations — chacune sur n'importe quelle sortie 0..15
+  // (`chcoxaN`/`chpatellaN`), SANS valeur par défaut (v2026.8.68) : un câblage
+  // se déclare. Un canal laissé vide est signalé au lancement de la simulation,
+  // et son articulation ne bouge pas.
   {
     type: 'araignee', label: 'Spider robot', tag: 'kablix-araignee', kind: 'araignee',
     board: 'picow', pinless: true,
     attrs: {
       address: '0x7F', ...PCA9685_PAD_ATTRS, pulsemin: '500', pulsemax: '2500', speed: '2',
-      chcoxa0: '0', chpatella0: '1', chcoxa1: '2', chpatella1: '3',
-      chcoxa2: '4', chpatella2: '5', chcoxa3: '6', chpatella3: '7',
+      chcoxa0: '', chpatella0: '', chcoxa1: '', chpatella1: '',
+      chcoxa2: '', chpatella2: '', chcoxa3: '', chpatella3: '',
       revcoxa0: '', revpatella0: '', revcoxa1: '', revpatella1: '',
       revcoxa2: '', revpatella2: '', revcoxa3: '', revpatella3: '',
       zerocoxa0: '0', zeropatella0: '0', zerocoxa1: '0', zeropatella1: '0',
@@ -950,7 +978,7 @@ export const CATALOG: readonly PartDef[] = [
         CHANNEL_PROP('chpatella2', 'Rear-left patella channel'),
         CHANNEL_PROP('chcoxa3', 'Rear-right coxa channel'),
         CHANNEL_PROP('chpatella3', 'Rear-right patella channel'),
-      ]),
+      ], 'Type the output each servo is plugged into: 0 to 15, marked 1 to 16 on the board. The same channel cannot be used twice, and a servo left empty does not move.'),
       ...grouped('Reverse the servos', [
         REVERSE_PROP('revcoxa0', 'Reverse the front-left coxa'),
         REVERSE_PROP('revpatella0', 'Reverse the front-left patella'),

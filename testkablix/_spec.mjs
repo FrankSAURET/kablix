@@ -3042,11 +3042,23 @@ while True:
     // (8 articulations), PCA9685, batterie ET Pico W EMBARQUÉS. Depuis la
     // v2026.8.24 il n'a plus aucune broche : le schéma est le robot SEUL, il
     // EST la carte (board picow) et son bus I²C interne relie sa Pico W à son
-    // PCA9685. Canaux 0..7 = coxa puis patella des pattes avant-gauche,
-    // avant-droite, arrière-gauche, arrière-droite.
+    // PCA9685. Depuis la v2026.8.68 le câblage des servos n'a PLUS de valeur par
+    // défaut : le schéma déclare les huit canaux (0..7, coxa puis patella des
+    // pattes avant-gauche, avant-droite, arrière-gauche, arrière-droite), ceux
+    // que le programme pilote. Les inversions et le placement sont ceux de
+    // Frank, relevés sur son schéma retouché — ne pas les redisposer.
     name: 'araignee-pico', board: 'picow', ext: 'py',
     parts: [
-      { id: 'Act1', type: 'araignee', x: 570, y: 50, attrs: { address: '0x7F', speed: '2' } },
+      {
+        id: 'Act1', type: 'araignee', x: 1620, y: 720,
+        attrs: {
+          address: '0x7F', speed: '2',
+          ad0: '1', ad1: '1', ad2: '1', ad3: '1', ad4: '1', ad5: '1',
+          chcoxa0: '0', chpatella0: '1', chcoxa1: '2', chpatella1: '3',
+          chcoxa2: '4', chpatella2: '5', chcoxa3: '6', chpatella3: '7',
+          revcoxa2: '1', revcoxa3: '1',
+        },
+      },
     ],
     wires: () => [],
     expect: { kind: 'i2c-part', partId: 'Act1' },
@@ -3084,10 +3096,12 @@ pca_ecrit(0xFE, 121)   # prescale 50 Hz (25 MHz / (4096 x 50) - 1)
 pca_ecrit(0x00, 0x20)  # MODE1 : reveil + auto-increment
 
 while True:
-    pose(90, 90);   print("pattes tendues");     time.sleep(1)
-    pose(90, 130);  print("patellas pliees");   time.sleep(1)
-    pose(60, 130);  print("coxas en avant");    time.sleep(1)
-    pose(120, 130); print("coxas en arriere");  time.sleep(1)
+    pose(90, 90);   print("Debout");
+    time.sleep(1)
+    pose(90, 130);  print("pattes levées");
+    time.sleep(1)
+    pose(16, 130);  print("pattes sur le côté");    time.sleep(1)
+    pose(125, 130); print("pattes avant arrière");  time.sleep(5)
 `,
   }),
 

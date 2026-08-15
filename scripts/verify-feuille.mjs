@@ -9,6 +9,8 @@
 // Contrôles : les quatre bords au glissé (petits composants et grande patte), le
 // dessin qui touche VRAIMENT le bord, un lot qui reste solidaire au bord, le
 // recollage sur la grille, et les collages en série.
+// Depuis v2026.8.68, même racine côté caméra : le zoom auto cadre le DESSIN et
+// non le cadre du composant (section 7).
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
@@ -24,6 +26,7 @@ import '../../src/webview/composants/led-element.mjs';
 import '../../src/webview/composants/resistor-element.mjs';
 import '../../src/webview/composants/servo-element.mjs';
 import '../../src/webview/composants/patte-element.mjs';
+import '../../src/webview/composants/araignee-element.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const checks = [];
 const ok = (name, cond, detail = '') => checks.push({ name, ok: !!cond, detail: String(detail) });
@@ -196,6 +199,45 @@ async function run() {
 		toutes.length > 3 && dehors.length === 0,
 		toutes.map((p) => p.id + ' origine ' + p.x.toFixed(0) + ',' + p.y.toFixed(0)
 			+ ' dessin ' + fmt(boite(p.id))).join(' ; '));
+
+	// --- 7. Zoom auto : il cadre le DESSIN, pas le cadre du composant (v2026.8.68)
+	// Repro Frank : « le zoom auto ne se fait pas exactement sur l'araignée mais
+	// sur une zone plus grande ». Le recentrage mesurait le CORPS — toujours plus
+	// grand que ce qu'il montre — donc il ajustait le zoom sur du vide.
+	for (const p of [...editor.diagram.parts]) editor.removePart(p.id);
+	await wait(40);
+	const robot = editor.addPart('araignee', 1000, 800);
+	await wait(500); // dessin en volume : il grandit encore après le premier rendu
+	editor.fitView();
+	await wait(120);
+	const cb = canvas.getBoundingClientRect();
+	const cadre = contOf(robot.id).querySelector('.part__body').getBoundingClientRect();
+	editor.fitSelectionBox(robot.id);
+	const dessin = contOf(robot.id).querySelector('.part__selbox').getBoundingClientRect();
+	// Marges du recentrage : 40 px de chaque côté, plus 56 px réservés en haut
+	// pour les barres flottantes.
+	const utileW = cb.width - 80;
+	const utileH = cb.height - 56 - 80;
+	ok('zoom auto : le cadre du robot est bien plus grand que son dessin (le piège)',
+		cadre.width - dessin.width > 60 || cadre.height - dessin.height > 60,
+		'cadre ' + cadre.width.toFixed(0) + '×' + cadre.height.toFixed(0)
+		+ ' pour un dessin ' + dessin.width.toFixed(0) + '×' + dessin.height.toFixed(0));
+	ok('zoom auto : le DESSIN remplit la zone utile (à 4 px près sur l axe limitant)',
+		Math.abs(dessin.width - utileW) < 4 || Math.abs(dessin.height - utileH) < 4,
+		'dessin ' + dessin.width.toFixed(1) + '×' + dessin.height.toFixed(1)
+		+ ' pour une zone utile ' + utileW.toFixed(0) + '×' + utileH.toFixed(0));
+	ok('zoom auto : et rien ne dépasse de la vue',
+		dessin.left >= cb.left - 2 && dessin.right <= cb.right + 2
+		&& dessin.top >= cb.top - 2 && dessin.bottom <= cb.bottom + 2,
+		'dessin ' + dessin.left.toFixed(0) + '..' + dessin.right.toFixed(0)
+		+ ' / vue ' + cb.left.toFixed(0) + '..' + cb.right.toFixed(0));
+	// Le robot doit aussi être CENTRÉ dans la zone utile (sous les barres).
+	const cx = (dessin.left + dessin.right) / 2 - cb.left;
+	const cy = (dessin.top + dessin.bottom) / 2 - cb.top;
+	ok('zoom auto : le robot est centré dans la zone utile',
+		Math.abs(cx - cb.width / 2) < 3 && Math.abs(cy - (cb.height + 56) / 2) < 3,
+		'centre ' + cx.toFixed(0) + ',' + cy.toFixed(0)
+		+ ' attendu ' + (cb.width / 2).toFixed(0) + ',' + ((cb.height + 56) / 2).toFixed(0));
 
 	const out = document.createElement('pre');
 	out.id = 'measures';

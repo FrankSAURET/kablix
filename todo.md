@@ -1,5 +1,8 @@
 # À faire
-(rien en attente)
+1. Préparer la publication : lot de traductions (l10n FR, `package.nls.fr.json`, docs EN), recherche de bugs, ménage de `A Examiner/`.
+1. 
+
+
 # En réserve
 1. ⏳ Traduction FR du réglage `kablix.simulationWorker` (`package.nls.fr.json`) : sa description a changé avec le défaut activé — au lot de traductions d'avant publication.
 Les cinq lots du worker sont livrés (v2026.8.51 → v2026.8.55).
@@ -29,6 +32,19 @@ Deux mondes derrière le mot « ESP32 » : les puces **Xtensa** (ESP32 classique
 4. 🚫 **ESP32 classique (Xtensa) : bloqué par la licence, pas par la technique.** Les seuls émulateurs Xtensa sérieux sont des forks de **QEMU** (celui d'Espressif, celui de Velxio), donc **GPL v2** — incompatible avec la distribution d'une extension **MIT** comme Kablix. Wokwi fait tourner l'ESP32 sur QEMU-WASM, mais eux ne distribuent pas un paquet installable. À ne pas engager sans avis clair sur la licence.
 5. ⏳ **Chiffrage** : évaluation **3-5 j** (lire `BROWSER.md`, charger MicroPython C3 dans leur WASM, faire clignoter une GPIO et la récupérer côté JS). Si les crochets existent, l'intégration reste une **nouvelle famille de cartes** — brochage, dessin, catalogue, moteur, tests `testkablix`, fiches d'aide : **20-40 j**. Ce n'est pas une variante du Pico, c'est un troisième moteur à côté de l'AVR et du RP2040.
 6. ℹ️ **ESP8266 : rien de sérieux à émuler.** Ne pas le promettre.
+
+# >>>>  v2026.8.68 — le câblage des servos s'écrit, et le zoom auto vise juste
+
+1. ✅ **Une petite case de deux caractères par servo** — la molette et les boutons **+** / **−** disparaissent des huit canaux. Un numéro de sortie se lit sur la carte et s'écrit, il ne se cherche pas en tâtonnant. Nouveau `compact` dans `PropDef` ([catalog.mts](src/webview/diagram/catalog.mts)) : champ texte filtré aux chiffres, deux caractères maxi, clavier numérique sur tablette.
+2. ✅ **Plus aucun canal par défaut.** Les huit cases sont **vides à la pose** : Kablix ne suppose plus un câblage d'usine 0..7 que personne n'a promis. Le tiroir porte la consigne en tête — **0 à 15, marqué 1 à 16 sur la carte**.
+3. ✅ **Un canal ne peut plus servir deux fois** (`unique: 'pca-channel'`) : la saisie d'un numéro déjà pris est refusée, la case **clignote en rouge** et revient à sa valeur précédente. Idem au-dessus de 15. Vider une case reste permis — c'est ainsi qu'on libère un canal pour le donner à une autre articulation.
+4. ✅ **Le défaut se dit au lancement de la simulation**, pas avant : barre d'état + cadre rouge sur le robot (`reportAraigneeWiring`, [sim.mts](src/webview/sim.mts)), en **dernier** dans `startRun()` pour que le message survive au « Démarrage… ». Cases vides et doublons sont listés nommément. **La simulation démarre quand même** : les articulations câblées bougent, les autres restent immobiles.
+5. ✅ **Les tiroirs de l'inspecteur fonctionnent en accordéon** : ouvrir l'un ferme celui qui l'était. Les panneaux sont désormais recensés (`propPanels`), la liste étant remise à zéro à chaque reconstruction de l'inspecteur — sans ça, un panneau disparu aurait continué de répondre.
+6. ✅ **Le zoom auto cadre le DESSIN, plus le cadre du composant.** `contentBounds()` sommait les cadres — toujours plus grands que ce qu'ils montrent, celui du robot de plus de 200 px — donc « ajuster la vue » ajustait le zoom sur du vide. Il mesure maintenant `drawExtent()` (rectangle de sélection, rotation et miroir compris), même racine que les bords de feuille de la v2026.8.66.
+7. ✅ **L'exemple `araignee-pico` porte les canaux du programme** (0 à 7) : `_spec.mjs` mis à jour et `.projix` régénéré, emplacements et programme retouchés par Frank conservés.
+8. ✅ **Bancs : `verify:araignee` 112 contrôles**, **`verify:proprietes` 47** (les huit petites cases, l'absence de boutons +/−, le doublon refusé qui clignote, le >15 refusé, le vidage permis, les lettres filtrées, l'accordéon), **`verify:feuille` 28** (le cadre du robot bien plus grand que son dessin, le dessin qui remplit la zone utile à 4 px près, rien qui dépasse, robot centré).
+9. ✅ **Doc FR** : [araignee.md](docs/fr/composants/araignee.md) — rubrique « Canaux PWM » refaite (cases vides, 0-15 pour 1-16, unicité, message au lancement) ; [USAGE.md](docs/fr/USAGE.md) — l'accordéon des tiroirs et le zoom auto sur le dessin.
+10. ⏳ Traductions (libellés de canal, note du tiroir, fiches EN) : au lot d'avant publication, comme le reste.
 
 # >>>>  v2026.8.67 — chaque servo du robot dit où il est branché
 

@@ -87,11 +87,13 @@ async function run() {
 		const haut = kids[0].getBoundingClientRect().top;
 		return Math.round(kids[kids.length - 1].getBoundingClientRect().bottom - haut);
 	};
+	// (Un seul tiroir s'ouvre à la fois depuis la v2026.8.68 : on mesure donc la
+	// hauteur avec LE plus gros tiroir ouvert, pas les cinq.)
 	const hautReplie = hauteurContenu();
-	for (const h of entetes()) h.click();
+	entetes()[3].click(); // « Régler le 0 des servomoteurs » : huit champs
 	await wait(80);
 	const hautDeplie = hauteurContenu();
-	for (const h of entetes()) h.click();
+	entetes()[3].click();
 	await wait(80);
 	ok('robot : replié, le panneau fait moins de la moitié de sa hauteur ouverte',
 		hautReplie * 2 < hautDeplie, hautReplie + ' px replié pour ' + hautDeplie + ' px ouvert');
@@ -164,6 +166,77 @@ async function run() {
 	ok('section « paramètres » : impulsions 0°/180° et temps de rotation',
 		params.length === 3 && /0°/.test(params[0]) && /180°/.test(params[1]) && /rotation|Rotation/.test(params[2]),
 		JSON.stringify(params));
+
+	// --- 7 bis. Accordéon : ouvrir un tiroir referme le précédent (v2026.8.68) ---
+	const ouverts = () => entetes().filter((h) => !h.classList.contains('inspector__group--collapsed'));
+	entetes()[0].click();
+	await wait(60);
+	ok('accordéon : le premier tiroir est ouvert', ouverts().length === 1 && ouverts()[0] === entetes()[0]);
+	entetes()[2].click();
+	await wait(60);
+	ok('accordéon : ouvrir le troisième referme le premier',
+		ouverts().length === 1 && ouverts()[0] === entetes()[2],
+		ouverts().length + ' tiroir(s) ouvert(s)');
+	ok('accordéon : et seuls SES réglages sont visibles (8 cases d inversion)',
+		controlesVisibles() === 8, controlesVisibles());
+	entetes()[4].click();
+	await wait(60);
+	ok('accordéon : ouvrir le cinquième referme le troisième',
+		ouverts().length === 1 && ouverts()[0] === entetes()[4], ouverts().length);
+	entetes()[4].click();
+	await wait(60);
+	ok('accordéon : refermer le dernier laisse tout fermé', ouverts().length === 0 && controlesVisibles() === 0);
+
+	// --- 7 ter. Câbler les servos : petites cases, pas de toupie (v2026.8.68) ----
+	entetes()[1].click();
+	await wait(60);
+	const corpsCablage = entetes()[1].nextElementSibling;
+	const cases2 = [...corpsCablage.querySelectorAll('.inspector__compact')];
+	ok('câblage : huit petites cases de saisie', cases2.length === 8, cases2.length);
+	ok('câblage : deux caractères, saisie numérique, sans toupie du navigateur',
+		cases2.every((i) => i.maxLength === 2 && i.type === 'text' && i.inputMode === 'numeric'),
+		cases2[0] && (cases2[0].type + '/' + cases2[0].maxLength + '/' + cases2[0].inputMode));
+	ok('câblage : plus aucun bouton + / − dans ce tiroir',
+		corpsCablage.querySelectorAll('.inspector__stepper-btn').length === 0,
+		corpsCablage.querySelectorAll('.inspector__stepper-btn').length);
+	const note = corpsCablage.querySelector('.inspector__group-note');
+	ok('câblage : la note dit la plage 0-15 et le marquage 1-16 de la carte',
+		!!note && /0/.test(note.textContent) && /15/.test(note.textContent) && /16/.test(note.textContent),
+		note && note.textContent);
+	// Le robot est posé SANS canal : les huit cases sont vides (un câblage se
+	// déclare, il ne se devine pas).
+	ok('câblage : les huit cases sont vides à la pose (aucune valeur par défaut)',
+		cases2.every((i) => i.value === ''), cases2.map((i) => i.value).join(','));
+
+	/** Saisit une valeur dans une case et valide (comme un utilisateur). */
+	const saisir = async (input, valeur) => {
+		input.value = valeur;
+		input.dispatchEvent(new Event('input', { bubbles: true }));
+		input.dispatchEvent(new Event('change', { bubbles: true }));
+		await wait(40);
+	};
+	const attrs = () => editor.diagram.parts.find((p) => p.id === robot.id).attrs;
+	await saisir(cases2[0], '5');
+	ok('câblage : une valeur valide est enregistrée', attrs().chcoxa0 === '5', attrs().chcoxa0);
+	await saisir(cases2[1], '5');
+	ok('câblage : le MÊME canal est refusé sur un deuxième servo',
+		(attrs().chpatella0 || '') === '' && cases2[1].value === '',
+		JSON.stringify(attrs().chpatella0) + ' / champ « ' + cases2[1].value + ' »');
+	ok('câblage : la case refusée clignote en rouge',
+		cases2[1].classList.contains('inspector__compact--bad'));
+	await saisir(cases2[1], '16');
+	ok('câblage : au-dessus de 15, refusé aussi (la carte s arrête à 15)',
+		(attrs().chpatella0 || '') === '', JSON.stringify(attrs().chpatella0));
+	await saisir(cases2[1], '6');
+	ok('câblage : un canal libre passe', attrs().chpatella0 === '6', attrs().chpatella0);
+	await saisir(cases2[0], '');
+	ok('câblage : vider une case est permis (le manque est dit au lancement)',
+		attrs().chcoxa0 === '', JSON.stringify(attrs().chcoxa0));
+	await saisir(cases2[1], 'a2');
+	ok('câblage : les lettres sont filtrées à la frappe (« a2 » → 2)',
+		attrs().chpatella0 === '2', attrs().chpatella0);
+	entetes()[1].click();
+	await wait(40);
 
 	// --- 8. Un composant sans groupe garde ses propriétés au fil -----------------
 	const pca = editor.addPart('pca9685', 500, 200);

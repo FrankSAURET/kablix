@@ -100,10 +100,19 @@ async function run() {
 	ok('catalogue : un canal va de 0 à 15, à l\\'unité',
 		['chcoxa0', 'chpatella3'].every((a) => canal(a)?.kind === 'number' && canal(a)?.min === 0
 			&& canal(a)?.max === 15 && canal(a)?.step === 1));
-	ok('catalogue : câblage d\\'usine 0..7 (coxa puis patella, avant-gauche → arrière-droite)',
-		[0, 1, 2, 3].every((i) => def?.attrs?.[\`chcoxa\${i}\`] === String(i * 2)
-			&& def?.attrs?.[\`chpatella\${i}\`] === String(i * 2 + 1)),
+	// v2026.8.68 : petite case à taper (pas de toupie ni de +/−), valeur unique,
+	// et AUCUN canal par défaut — un câblage se déclare, il ne se devine pas.
+	ok('catalogue : les canaux sont des petites cases (compact, sans toupie ni +/−)',
+		[0, 1, 2, 3].every((i) => canal(\`chcoxa\${i}\`)?.compact === true && canal(\`chpatella\${i}\`)?.compact === true));
+	ok('catalogue : un canal ne se saisit pas deux fois (unique)',
+		[0, 1, 2, 3].every((i) => canal(\`chcoxa\${i}\`)?.unique === 'pca-channel'
+			&& canal(\`chpatella\${i}\`)?.unique === 'pca-channel'));
+	ok('catalogue : AUCUN canal par défaut (les huit cases sont vides à la pose)',
+		[0, 1, 2, 3].every((i) => def?.attrs?.[\`chcoxa\${i}\`] === '' && def?.attrs?.[\`chpatella\${i}\`] === ''),
 		[0, 1, 2, 3].map((i) => \`\${def?.attrs?.[\`chcoxa\${i}\`]}/\${def?.attrs?.[\`chpatella\${i}\`]}\`).join(' '));
+	ok('catalogue : le tiroir de câblage porte sa note (0 à 15, marqués 1 à 16)',
+		/0 to 15/.test(canal('chcoxa0')?.groupNote || '') && /1 to 16/.test(canal('chcoxa0')?.groupNote || ''),
+		canal('chcoxa0')?.groupNote);
 	ok('catalogue : les canaux ont leur propre tiroir « Wire the servos »',
 		[0, 1, 2, 3].every((i) => canal(\`chcoxa\${i}\`)?.group === 'Wire the servos'
 			&& canal(\`chpatella\${i}\`)?.group === 'Wire the servos'),
@@ -628,10 +637,20 @@ const source = [
     /leg < 4/.test(sim) && /\['coxa', 'patella'\] as const/.test(sim)],
   ['sim : le canal de chaque articulation vient des propriétés',
     /araigneeChannel\(part\.attrs, art, leg\)/.test(sim) && /attrs\?\.\[`ch\$\{art\}\$\{leg\}`\]/.test(sim)],
-  ['sim : câblage d\'usine en repli (coxa = 2×patte, patella = +1)',
-    /const defaut = leg \* 2 \+ \(art === 'patella' \? 1 : 0\)/.test(sim)],
-  ['sim : canal vide ou hors 0..15 → repli, pas de canal 0 par accident',
-    /if \(txt === ''\) return defaut;/.test(sim) && /brut >= 0 && brut <= 15/.test(sim)],
+  // v2026.8.68 : plus de câblage d'usine en repli. Un canal vide veut dire « pas
+  // branché » — l'articulation ne bouge pas, et le lancement le dit.
+  ['sim : canal vide ou hors 0..15 → servo non câblé (−1), pas de canal 0 par accident',
+    /if \(txt === ''\) return -1;/.test(sim) && /brut >= 0 && brut <= 15 \? Math\.round\(brut\) : -1/.test(sim)],
+  ['sim : plus aucun câblage d\'usine deviné', !/const defaut = leg \* 2/.test(sim)],
+  ['sim : une articulation non câblée ne bouge pas',
+    /if \(ch < 0\) continue;/.test(sim)],
+  ['sim : le câblage est contrôlé AU LANCEMENT (message + cadre rouge)',
+    /function reportAraigneeWiring\(\): void/.test(sim)
+    && /editor\.setFaulty\(part\.id, true, note\)/.test(sim)],
+  ['sim : ce contrôle est appelé par startRun, en DERNIER (message lisible)',
+    /reportAraigneeWiring\(\);\r?\n\}/.test(sim)],
+  ['sim : un canal saisi deux fois est signalé aussi',
+    /canaux\.filter\(\(c, i\) => canaux\.indexOf\(c\) !== i\)/.test(sim)],
   // v2026.8.63 : UNE seule échelle d'impulsion pour tous les chemins. Le PCA9685
   // avait la sienne, écrite en dur (1000-2000 µs), qui ignorait les réglages du
   // composant — le robot ne prenait donc pas la pose commandée.

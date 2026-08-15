@@ -84,6 +84,7 @@
 - **Propriétés/Variables** (inspecteur) :
     - Pendant le dessin, édite le composant sélectionné (couleur, valeur, angle…) ou fil (couleur Dupont, suppression, noeud [équipotielle])
     - pendant la simulation, affiche les variables.
+    - Les composants très réglables (le robot araignée et ses 33 réglages) rangent leurs propriétés en **tiroirs repliables**, tous fermés à la sélection. Ils fonctionnent **en accordéon** : ouvrir un tiroir ferme celui qui l'était.
 
 ## Construire un montage
 
@@ -92,7 +93,7 @@
 - **Poser** : clic sur un composant de la palette (posé au centre), ou **glisser-déposer** depuis la palette vers l'endroit voulu du canvas.
 - **Déplacer** : glisser le composant (n'importe où sur son corps), ou **glisser avec le clic droit** — indispensable pour les composants interactifs (bouton, potentiomètre, interrupteurs, joystick) dont le clic gauche actionne le contrôle.
 - **Tourner** : sélectionner le composant puis touches **`+`** (45° horaire) ou **`-`** (45° antihoraire). Les broches et les fils suivent ; un rappel apparaît dans la zone d'aide de l'inspecteur.
-- **Zoomer** : **molette** dans le canvas (centré sur le curseur). Le badge **⟳ %** en bas à droite donne le facteur ; un clic dessus réinitialise la vue.
+- **Zoomer** : **molette** dans le canvas (centré sur le curseur). Le badge **⟳ %** en bas à droite donne le facteur ; un clic dessus réinitialise la vue. Le bouton **ajuster la vue** cadre le **dessin** du montage — pas les cadres invisibles des composants, qui sont plus grands que ce qu'ils montrent : un robot araignée seul remplit désormais l'écran au lieu de flotter au milieu d'une marge.
 - **Supprimer** : bouton 🗑 de l'inspecteur, ou touche `Suppr`.
 
 **La feuille a des bords, des quatre côtés.** Elle mesure 4000 × 3000 px et un composant ne peut pas en sortir : il s'arrête au bord, à droite et en bas comme en haut et à gauche. C'est son **dessin** qui butte, pas son cadre invisible — un composant dont le dessin ne remplit pas son cadre (la patte du robot, par exemple) monte donc jusqu'à toucher vraiment le haut. Un lot sélectionné s'arrête **d'un bloc**, dès que l'un de ses composants atteint un bord : les positions relatives sont conservées. Les collages en série (`Ctrl+D`) s'arrêtent au même endroit plutôt que de poser les copies dehors.

@@ -1308,6 +1308,40 @@ textarea {
   border-left: 1px solid var(--vscode-panel-border, #444);
 }
 
+/* Note d'un tiroir : ce que les libellés ne disent pas (plage attendue, marquage
+   de la carte…). Repliée avec lui, en tête de son contenu. */
+.inspector__group-note {
+  margin: 0.1rem 0 0.1rem;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  opacity: 0.8;
+}
+
+/* Petite case de saisie d'un numéro (canal d'un servo) : deux caractères, sans
+   toupie du navigateur ni boutons +/−. */
+.inspector__compact {
+  width: 3.2rem;
+  text-align: center;
+  letter-spacing: 0.05em;
+}
+
+/* Saisie refusée (hors plage, ou canal déjà pris) : la case revient à sa valeur
+   et clignote en rouge — l'explication est dans son infobulle. */
+.inspector__compact--bad {
+  animation: inspector-bad 0.6s ease 2;
+}
+
+@keyframes inspector-bad {
+  0%,
+  100% {
+    border-color: var(--vscode-input-border, #555);
+  }
+  50% {
+    border-color: #e05252;
+    background: rgba(224, 82, 82, 0.18);
+  }
+}
+
 /* Sélecteur de transistor : la liste des modèles retenus par les critères, puis
    le bouton pour rouvrir le choix une fois le modèle posé. */
 .inspector__reflist {

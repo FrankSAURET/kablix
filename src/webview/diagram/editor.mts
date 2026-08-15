@@ -798,12 +798,14 @@ export class Editor {
       maxX = Math.max(maxX, x);
       maxY = Math.max(maxY, y);
     };
+    // Le DESSIN, pas le cadre du composant (v2026.8.68) : un cadre est toujours
+    // plus grand que ce qu'il montre — celui du robot araignée déborde de plus
+    // de 200 px, et le recentrage ajustait donc le zoom sur du vide. `drawExtent`
+    // mesure le rectangle de sélection, rotation et miroir compris.
     for (const r of this.rendered.values()) {
-      const body = r.container.querySelector('.part__body') as HTMLElement | null;
-      const w = body?.offsetWidth || 40;
-      const h = body?.offsetHeight || 40;
-      grow(r.part.x, r.part.y);
-      grow(r.part.x + w, r.part.y + h);
+      const e = this.drawExtent(r.part.id);
+      grow(r.part.x + e.dx, r.part.y + e.dy);
+      grow(r.part.x + e.dx + e.w, r.part.y + e.dy + e.h);
     }
     for (const wire of this.diagram.wires) {
       for (const p of wire.points ?? []) grow(p.x, p.y);
@@ -5311,6 +5313,7 @@ export class Editor {
   private renderInspector(): void {
     this.inspector.replaceChildren();
     this.propGroup = null; // le corps de section du rendu précédent est détaché
+    this.propPanels.length = 0; // ses tiroirs aussi (l'accordéon repart sur les neufs)
     const title = document.createElement('h3');
     title.textContent = t('Properties');
     this.inspector.appendChild(title);
@@ -5868,13 +5871,19 @@ export class Editor {
    * confort d'affichage, il ne part pas dans le .projix.
    */
   private readonly openPropGroups = new Set<string>();
+  /**
+   * Tiroirs du rendu EN COURS (clé + bascule d'affichage). Sert à l'accordéon :
+   * ouvrir un tiroir referme celui d'avant, il faut donc pouvoir agir sur les
+   * autres panneaux sans reconstruire l'inspecteur.
+   */
+  private readonly propPanels: { key: string; show: (open: boolean) => void }[] = [];
 
   /**
    * Où poser la propriété suivante : le corps de sa section repliable, créé à la
    * volée au premier réglage du groupe, ou l'inspecteur lui-même si elle n'est pas
    * groupée. Les propriétés d'un même groupe se suivent dans le catalogue.
    */
-  private propHost(type: string, group?: string): HTMLElement {
+  private propHost(type: string, group?: string, note?: string): HTMLElement {
     if (!group) {
       this.propGroup = null;
       return this.inspector;
@@ -5893,6 +5902,15 @@ export class Editor {
 
     const body = document.createElement('div');
     body.className = 'inspector__group-body';
+    // Note du tiroir : ce que les libellés ne peuvent pas dire (la plage
+    // attendue, le marquage de la carte…). Posée en tête du corps, elle se
+    // replie avec lui.
+    if (note) {
+      const p = document.createElement('p');
+      p.className = 'inspector__group-note';
+      p.textContent = t(note);
+      body.appendChild(p);
+    }
     const show = (open: boolean): void => {
       head.classList.toggle('inspector__group--collapsed', !open);
       body.style.display = open ? '' : 'none';
@@ -5900,15 +5918,37 @@ export class Editor {
     show(this.openPropGroups.has(key));
     head.addEventListener('click', () => {
       const open = !this.openPropGroups.has(key);
-      if (open) this.openPropGroups.add(key);
-      else this.openPropGroups.delete(key);
+      // Accordéon (v2026.8.68, demande de Frank) : un seul tiroir ouvert à la
+      // fois. Sans ça, cinq tiroirs dépliés rendent le panneau aussi long
+      // qu'avant qu'on les range.
+      if (open) {
+        for (const panel of this.propPanels) {
+          if (panel.key === key || !this.openPropGroups.delete(panel.key)) continue;
+          panel.show(false);
+        }
+        this.openPropGroups.add(key);
+      } else this.openPropGroups.delete(key);
       show(open);
     });
+    this.propPanels.push({ key, show });
 
     this.inspector.append(head, body);
     this.propGroup = group;
     this.propGroupBody = body;
     return body;
+  }
+
+  /**
+   * Le libellé de la propriété qui porte DÉJÀ cette valeur, parmi celles du même
+   * groupe d'unicité (`unique`) — vide si la valeur est libre. Sert à refuser un
+   * canal de servo saisi deux fois.
+   */
+  private uniqueTakenBy(part: Part, prop: PropDef, value: string): string {
+    const def = partDef(part.type);
+    const jumelle = (def.props ?? []).find(
+      (p) => p.unique === prop.unique && p.attr !== prop.attr && (part.attrs?.[p.attr] ?? '') === value
+    );
+    return jumelle ? t(jumelle.label) : '';
   }
 
   private appendPropControl(partId: string | string[], part: Part | Part[], prop: PropDef): void {
@@ -5918,7 +5958,7 @@ export class Editor {
       for (const id of ids) this.updatePartAttr(id, attr, value);
     };
     // Propriété groupée : tout part dans le corps de sa section repliable.
-    const host = this.propHost(first.type, prop.group);
+    const host = this.propHost(first.type, prop.group, prop.groupNote);
     const label = document.createElement('label');
     label.className = 'inspector__label';
     label.textContent = t(prop.label);
@@ -5993,6 +6033,63 @@ export class Editor {
         }
         setAttr(prop.attr, String(parsed));
         input.value = formatSiValue(parsed);
+      });
+      host.appendChild(input);
+    } else if (prop.compact) {
+      // Numéro qu'on RECOPIE de la carte (canal d'un servo), pas qu'on ajuste :
+      // petite case de deux caractères, SANS la toupie du navigateur ni les
+      // boutons +/− (v2026.8.68 — Frank : les deux façons d'incrémenter ne
+      // servaient qu'à parcourir 16 valeurs une par une). Un `type=number`
+      // ramènerait la toupie : c'est donc un champ texte filtré aux chiffres.
+      const input = document.createElement('input');
+      input.className = 'inspector__control inspector__compact';
+      input.type = 'text';
+      input.inputMode = 'numeric';
+      input.maxLength = 2;
+      input.value = current;
+      const plage = t('Channel {0} to {1} (marked {2} to {3} on the board).',
+        String(prop.min ?? 0), String(prop.max ?? 15), String((prop.min ?? 0) + 1), String((prop.max ?? 15) + 1));
+      input.title = plage;
+      // Saisie refusée (hors plage, ou canal déjà pris) : le champ revient à sa
+      // valeur et clignote en rouge. Rien n'est enregistré — c'est le sens de
+      // « empêcher la saisie », plutôt qu'accepter puis se plaindre plus tard.
+      const refuse = (why: string): void => {
+        input.value = first.attrs?.[prop.attr] ?? '';
+        input.classList.remove('inspector__compact--bad');
+        void input.offsetWidth; // relance l'animation même sur deux refus de suite
+        input.classList.add('inspector__compact--bad');
+        input.title = why;
+        setTimeout(() => {
+          input.classList.remove('inspector__compact--bad');
+          input.title = plage;
+        }, 1200);
+      };
+      input.addEventListener('input', () => {
+        const chiffres = input.value.replace(/\D/g, '').slice(0, 2);
+        if (chiffres !== input.value) input.value = chiffres;
+      });
+      input.addEventListener('change', () => {
+        const txt = input.value.trim();
+        if (txt === '') {
+          setAttr(prop.attr, ''); // vide autorisé : signalé au lancement de la simulation
+          return;
+        }
+        const v = Number(txt);
+        if (
+          !Number.isFinite(v) ||
+          (prop.min !== undefined && v < prop.min) ||
+          (prop.max !== undefined && v > prop.max)
+        ) {
+          refuse(plage);
+          return;
+        }
+        // Unicité : deux servos ne se branchent pas sur la même sortie.
+        if (prop.unique && this.uniqueTakenBy(first, prop, String(v))) {
+          refuse(t('Channel {0} is already used by another servo.', String(v)));
+          return;
+        }
+        input.value = String(v);
+        setAttr(prop.attr, String(v));
       });
       host.appendChild(input);
     } else {

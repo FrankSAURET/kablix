@@ -22,9 +22,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="1.5147336"
-     inkscape:cx="978.05977"
-     inkscape:cy="289.15976"
+     inkscape:zoom="0.7573668"
+     inkscape:cx="744.02522"
+     inkscape:cy="418.55545"
      inkscape:document-units="mm"
      showgrid="true"
      inkscape:window-width="1920"
@@ -39,7 +39,7 @@
      inkscape:document-rotation="0"
      inkscape:showpageshadow="2"
      inkscape:deskcolor="#d1d1d1"
-     inkscape:current-layer="layer3"
+     inkscape:current-layer="svg8"
      showguides="true"><inkscape:page
        x="0"
        y="0"
@@ -12774,7 +12774,39 @@
      id="layer1" /><g
      inkscape:groupmode="layer"
      id="layer3"
-     inkscape:label="Découpes"><text xml:space="preserve" style="font-size:4px;line-height:1;font-family:Arial;-inkscape-font-specification:Arial;writing-mode:lr-tb;direction:ltr;fill:#0000ff;fill-opacity:1;stroke:none" x="270" y="12" id="text-systeme-araignee"><tspan sodipodi:role="line" id="tspan-systeme-araignee" x="270" y="12">système : araignee largeur : 800</tspan></text><text xml:space="preserve" style="font-size:4px;line-height:1;font-family:Arial;-inkscape-font-specification:Arial;writing-mode:lr-tb;direction:ltr;fill:#0000ff;fill-opacity:1;stroke:none" x="270" y="20" id="text-systeme-patte"><tspan sodipodi:role="line" id="tspan-systeme-patte" x="270" y="20">système : patte largeur : 456</tspan></text><g id="araignee-corps-yeux"><path id="oeil-rouge" style="fill:#e01b24;fill-opacity:1;stroke:none" d="M 275,36.34 A 3.66,3.66 0 0 1 278.66,40 A 3.66,3.66 0 0 1 275,43.66 A 3.66,3.66 0 0 1 271.34,40 A 3.66,3.66 0 0 1 275,36.34 Z" /><text xml:space="preserve" style="font-size:2.5px;line-height:1;font-family:Arial;-inkscape-font-specification:Arial;writing-mode:lr-tb;direction:ltr;fill:#0000ff;fill-opacity:1;stroke:none" x="262" y="49" id="text-pose-yeux"><tspan sodipodi:role="line" id="tspan-pose-yeux" x="262" y="49">dessus pos=5.84,-56.8,16.08 ep=1.65 miroir=x</tspan></text></g><g
+     inkscape:label="Découpes"><text
+       xml:space="preserve"
+       style="font-size:4px;line-height:1;font-family:Arial;-inkscape-font-specification:Arial;writing-mode:lr-tb;direction:ltr;fill:#0000ff;fill-opacity:1;stroke:none"
+       x="270"
+       y="12"
+       id="text-systeme-araignee"><tspan
+         sodipodi:role="line"
+         id="tspan-systeme-araignee"
+         x="270"
+         y="12">système : araignee largeur : 800</tspan></text><text
+       xml:space="preserve"
+       style="font-size:4px;line-height:1;font-family:Arial;-inkscape-font-specification:Arial;writing-mode:lr-tb;direction:ltr;fill:#0000ff;fill-opacity:1;stroke:none"
+       x="270"
+       y="20"
+       id="text-systeme-patte"><tspan
+         sodipodi:role="line"
+         id="tspan-systeme-patte"
+         x="270"
+         y="20">système : patte largeur : 456</tspan></text><g
+       id="araignee-corps-yeux"
+       transform="translate(-51.628262,93.375518)"><path
+         id="oeil-rouge"
+         style="fill:#e01b24;fill-opacity:1;stroke:none"
+         d="M 275,36.34 A 3.66,3.66 0 0 1 278.66,40 3.66,3.66 0 0 1 275,43.66 3.66,3.66 0 0 1 271.34,40 3.66,3.66 0 0 1 275,36.34 Z" /><text
+         xml:space="preserve"
+         style="font-size:2.5px;line-height:1;font-family:Arial;-inkscape-font-specification:Arial;writing-mode:lr-tb;direction:ltr;fill:#0000ff;fill-opacity:1;stroke:none"
+         x="262"
+         y="49"
+         id="text-pose-yeux"><tspan
+           sodipodi:role="line"
+           id="tspan-pose-yeux"
+           x="262"
+           y="49">dessus pos=5.84,-56.8,16.08 ep=1.65 miroir=x</tspan></text></g><g
        transform="matrix(0.27944696,0,0,0.27940558,85.124502,-267.98352)"
        id="layer1-0"
        style="display:inline;stroke-width:0.946881" /><g
@@ -13113,17 +13145,7 @@
            id="tspan7"
            style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:4.23333px;font-family:Arial;-inkscape-font-specification:Arial;fill:#000000;stroke:none;stroke-width:0.132292"
            x="293.41504"
-           y="118.84226">dessus pos=0,25,15.75 ep=1 mat=carte</tspan></text></g></g><text
-     xml:space="preserve"
-     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.52778px;line-height:1;font-family:Arial;-inkscape-font-specification:Arial;writing-mode:lr-tb;direction:ltr;fill:#000000;stroke:none;stroke-width:0.3;stroke-linecap:round"
-     x="240.91034"
-     y="-7.5349121"
-     id="text1052"><tspan
-       sodipodi:role="line"
-       id="tspan1052"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.52778px;font-family:Arial;-inkscape-font-specification:Arial;fill:#000000;stroke:none;stroke-width:0.3"
-       x="240.91034"
-       y="-7.5349121">Extensions → Générer depuis un chemin → Distribuer le long du chemin. | Le dégradé doit être au premier plan</tspan></text><style
+           y="118.84226">dessus pos=0,25,15.75 ep=1 mat=carte</tspan></text></g></g><style
      id="style1-9"
      type="text/css">
 	.st0{fill:#066938;}

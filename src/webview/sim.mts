@@ -2713,6 +2713,7 @@ function applyAraignee(): void {
     for (let leg = 0; leg < 4; leg++) {
       for (const art of ['coxa', 'patella'] as const) {
         const ch = araigneeChannel(part.attrs, art, leg);
+        if (ch < 0) continue; // servo non câblé : l'articulation ne bouge pas
         // 50 Hz : impulsion = duty × 20 ms, lue sur l'échelle DES SERVOS DU ROBOT
         // (`pulsemin`/`pulsemax`, 500-2500 µs par défaut — ceux de Frank).
         const duty = dev.channelDuty(ch);
@@ -2724,20 +2725,51 @@ function applyAraignee(): void {
 }
 
 /**
- * Canal PCA9685 d'une articulation de l'araignée. Réglage libre 0..15 : hors
- * plage, vide ou illisible, on retombe sur le câblage d'usine (coxa = 2×patte,
- * patella = 2×patte + 1) plutôt que de laisser l'articulation muette.
+ * Canal PCA9685 d'une articulation de l'araignée, ou −1 si elle n'est pas
+ * câblée. Réglage libre 0..15 et SANS valeur par défaut (v2026.8.68) : un champ
+ * vide, hors plage ou illisible veut dire « ce servo n'est branché nulle part ».
+ * L'articulation ne bouge alors pas, et le lancement de la simulation le dit
+ * (`reportAraigneeWiring`) — deviner un câblage ferait bouger un robot que
+ * personne n'a câblé.
  */
 export function araigneeChannel(
   attrs: Record<string, string> | undefined,
   art: 'coxa' | 'patella',
   leg: number,
 ): number {
-  const defaut = leg * 2 + (art === 'patella' ? 1 : 0);
   const txt = (attrs?.[`ch${art}${leg}`] ?? '').trim();
-  if (txt === '') return defaut; // champ vidé : câblage d'usine (Number('') vaut 0 !)
+  if (txt === '') return -1; // champ vide : servo non câblé (Number('') vaut 0 !)
   const brut = Number(txt);
-  return Number.isFinite(brut) && brut >= 0 && brut <= 15 ? Math.round(brut) : defaut;
+  return Number.isFinite(brut) && brut >= 0 && brut <= 15 ? Math.round(brut) : -1;
+}
+
+/** Les huit articulations du robot, dans l'ordre du catalogue. */
+const ARAIGNEE_JOINTS: readonly { art: 'coxa' | 'patella'; leg: number }[] = [0, 1, 2, 3].flatMap(
+  (leg) => [{ art: 'coxa' as const, leg }, { art: 'patella' as const, leg }]
+);
+
+/**
+ * Câblage des servos du robot vérifié AU LANCEMENT : un canal laissé vide (ou
+ * saisi deux fois dans un fichier retouché à la main) est signalé — barre d'état
+ * + cadre rouge sur le robot, comme tout défaut de montage. La simulation part
+ * quand même : les articulations câblées bougent, les autres restent en place.
+ */
+function reportAraigneeWiring(): void {
+  for (const part of editor.diagram.parts) {
+    if (partDef(part.type).kind !== 'araignee') continue;
+    const vides = ARAIGNEE_JOINTS.filter(({ art, leg }) => araigneeChannel(part.attrs, art, leg) < 0);
+    const canaux = ARAIGNEE_JOINTS.map(({ art, leg }) => araigneeChannel(part.attrs, art, leg)).filter((c) => c >= 0);
+    const doubles = canaux.filter((c, i) => canaux.indexOf(c) !== i);
+    if (vides.length === 0 && doubles.length === 0) {
+      editor.setFaulty(part.id, false);
+      continue;
+    }
+    const note = vides.length > 0
+      ? t('{0} servo(s) have no channel: fill in the "Wire the servos" drawer — 0 to 15, marked 1 to 16 on the board. Without it, these joints do not move.', String(vides.length))
+      : t('Channel {0} is wired to two servos at once.', String(doubles[0]));
+    setStatus(`${note} (${part.id})`);
+    editor.setFaulty(part.id, true, note);
+  }
 }
 
 /** Dimensions px intrinsèques du dessin d'un composant personnalisé (depuis son SVG). */
@@ -3265,6 +3297,9 @@ function startRun(): void {
         ? t('REPL ready — type your commands in the console')
         : t('Running…')
   );
+  // EN DERNIER : un défaut de câblage du robot doit rester lisible dans la barre
+  // d'état, il ne serait pas vu s'il partait avant le « Démarrage… ».
+  reportAraigneeWiring();
 }
 
 function stopRun(): void {
