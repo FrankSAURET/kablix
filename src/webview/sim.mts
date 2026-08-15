@@ -2696,8 +2696,10 @@ function applyPca9685(): void {
 /**
  * Propage les sorties du PCA9685 EMBARQUÉ dans une araignée vers ses 8
  * articulations. Rien à router par les fils, contrairement au PCA9685 posé sur
- * la planche : le câblage interne est fixe — canaux 0..7 = coxa puis patella des
- * pattes avant-gauche, avant-droite, arrière-gauche, arrière-droite.
+ * la planche : le câblage est INTERNE, mais plus figé (v2026.8.67) — chaque
+ * articulation dit sur quelle sortie elle est branchée (`chcoxaN`/`chpatellaN`,
+ * 0..7 par défaut : coxa puis patella des pattes avant-gauche, avant-droite,
+ * arrière-gauche, arrière-droite).
  * La batterie est embarquée elle aussi : les servos sont toujours alimentés (le
  * bus I²C n'apporte que la logique).
  */
@@ -2708,15 +2710,34 @@ function applyAraignee(): void {
     if (!(dev instanceof Pca9685Device)) continue;
     const el = editor.elementOf(part.id);
     if (!el) continue;
-    for (let ch = 0; ch < 8; ch++) {
-      // 50 Hz : impulsion = duty × 20 ms, lue sur l'échelle DES SERVOS DU ROBOT
-      // (`pulsemin`/`pulsemax`, 500-2500 µs par défaut — ceux de Frank).
-      const duty = dev.channelDuty(ch);
-      if (duty <= 0) continue; // canal pas encore piloté : l'articulation ne bouge pas
-      const angle = servoAngleUs(duty * 20000, part.attrs);
-      el[`${ch % 2 === 0 ? 'coxa' : 'patella'}${Math.floor(ch / 2)}`] = angle;
+    for (let leg = 0; leg < 4; leg++) {
+      for (const art of ['coxa', 'patella'] as const) {
+        const ch = araigneeChannel(part.attrs, art, leg);
+        // 50 Hz : impulsion = duty × 20 ms, lue sur l'échelle DES SERVOS DU ROBOT
+        // (`pulsemin`/`pulsemax`, 500-2500 µs par défaut — ceux de Frank).
+        const duty = dev.channelDuty(ch);
+        if (duty <= 0) continue; // canal pas encore piloté : l'articulation ne bouge pas
+        el[`${art}${leg}`] = servoAngleUs(duty * 20000, part.attrs);
+      }
     }
   }
+}
+
+/**
+ * Canal PCA9685 d'une articulation de l'araignée. Réglage libre 0..15 : hors
+ * plage, vide ou illisible, on retombe sur le câblage d'usine (coxa = 2×patte,
+ * patella = 2×patte + 1) plutôt que de laisser l'articulation muette.
+ */
+export function araigneeChannel(
+  attrs: Record<string, string> | undefined,
+  art: 'coxa' | 'patella',
+  leg: number,
+): number {
+  const defaut = leg * 2 + (art === 'patella' ? 1 : 0);
+  const txt = (attrs?.[`ch${art}${leg}`] ?? '').trim();
+  if (txt === '') return defaut; // champ vidé : câblage d'usine (Number('') vaut 0 !)
+  const brut = Number(txt);
+  return Number.isFinite(brut) && brut >= 0 && brut <= 15 ? Math.round(brut) : defaut;
 }
 
 /** Dimensions px intrinsèques du dessin d'un composant personnalisé (depuis son SVG). */

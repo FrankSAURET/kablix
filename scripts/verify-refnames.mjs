@@ -131,8 +131,11 @@ ok('numérotation : Pot et BP ne se confondent pas (préfixes de longueurs ≠)'
 const editor = read('src/webview/diagram/editor.mts');
 ok('editor : la pose d’un composant demande un repère libre',
   /addPart\([\s\S]{0,300}id: this\.freeRef\(type\)/.test(editor));
+// Fenêtre large : `insertPayload` s'est allongée en v2026.8.66 (bornage du
+// décalage de collage) et le repère neuf s'est retrouvé hors des 900 caractères
+// d'origine — le contrôle criait alors qu'il n'y avait rien de cassé.
 ok('editor : le collage renomme aussi par repère',
-  /insertPayload[\s\S]{0,900}id: this\.freeRef\(p\.type\)/.test(editor));
+  /insertPayload[\s\S]{0,2000}id: this\.freeRef\(p\.type\)/.test(editor));
 ok('editor : l’ouverture d’un fichier CONSERVE les repères enregistrés',
   /const free = !p\.id \|\| this\.diagram\.parts\.some\(\(q\) => q\.id === p\.id\);/.test(editor) &&
   /id: free \? this\.freeRef\(p\.type\) : p\.id/.test(editor));

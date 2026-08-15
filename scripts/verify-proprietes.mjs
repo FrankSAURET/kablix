@@ -1,7 +1,7 @@
 // Inspecteur : les propriétés rangées en SECTIONS REPLIABLES (v2026.8.64).
 // Vrai Editor en Chrome headless, vrai CSS. Ce qui est vérifié :
-//  - le robot araignée n'aligne plus ses 27 réglages : quatre sections, dans
-//    l'ordre demandé (carte 16 servos, inversions, zéros, paramètres) ;
+//  - le robot araignée n'aligne plus ses 33 réglages : cinq sections, dans
+//    l'ordre demandé (carte 16 servos, câblage, inversions, zéros, paramètres) ;
 //  - elles sont REPLIÉES à l'ouverture — aucun contrôle visible au départ ;
 //  - un clic sur l'en-tête déplie SA section et elle seule, un deuxième replie ;
 //  - le rappel de l'adresse I²C est TOUT EN HAUT, avant les sections ;
@@ -52,29 +52,29 @@ async function run() {
 	await wait(120);
 
 	const def = partDef('araignee');
-	ok('robot : 25 réglages au catalogue (il y a bien de quoi ranger)',
-		(def.props || []).length === 25, (def.props || []).length);
+	ok('robot : 33 réglages au catalogue (il y a bien de quoi ranger)',
+		(def.props || []).length === 33, (def.props || []).length);
 	ok('robot : chaque réglage porte un groupe (aucun ne traîne au fil)',
 		(def.props || []).every((p) => !!p.group),
 		(def.props || []).filter((p) => !p.group).map((p) => p.attr).join(' '));
-	ok('robot : quatre sections dans l inspecteur', entetes().length === 4, titres().join(' | '));
-	// Ordre demandé par Frank : la carte d abord, le montage ensuite, les servos
-	// eux-mêmes en dernier. Les titres sont traduits (le banc tourne en anglais) :
-	// on compare aux clés du catalogue, pas à leur affichage.
+	ok('robot : cinq sections dans l inspecteur', entetes().length === 5, titres().join(' | '));
+	// Ordre demandé par Frank : la carte d abord, le câblage puis le montage
+	// ensuite, les servos eux-mêmes en dernier. Les titres sont traduits (le banc
+	// tourne en anglais) : on compare aux clés du catalogue, pas à leur affichage.
 	const groupes = [...new Set((def.props || []).map((p) => p.group))];
-	ok('robot : sections dans l ordre demandé (carte, inversions, zéros, paramètres)',
+	ok('robot : sections dans l ordre demandé (carte, câblage, inversions, zéros, paramètres)',
 		groupes.join('|') === [
-			'Configure the 16-servo board', 'Reverse the servos',
+			'Configure the 16-servo board', 'Wire the servos', 'Reverse the servos',
 			'Set the servo zeros', 'Servo parameters',
 		].join('|'), groupes.join(' | '));
-	ok('robot : les en-têtes affichent ces quatre titres, dans le même ordre',
-		titres().length === 4 && titres().every((tt, i) => tt !== '' && (tt === groupes[i] || tt.length > 3)),
+	ok('robot : les en-têtes affichent ces cinq titres, dans le même ordre',
+		titres().length === 5 && titres().every((tt, i) => tt !== '' && (tt === groupes[i] || tt.length > 3)),
 		titres().join(' | '));
 
 	// --- 2. Repliées à l'ouverture ---------------------------------------------
 	ok('robot : tout est REPLIÉ à l ouverture (aucun réglage visible)',
 		controlesVisibles() === 0, controlesVisibles() + ' contrôles visibles');
-	ok('robot : les quatre chevrons sont couchés',
+	ok('robot : les cinq chevrons sont couchés',
 		entetes().every((h) => h.classList.contains('inspector__group--collapsed')),
 		titres().join(' | '));
 	// Le gain de place, c'est TOUT l'intérêt du repli : replié, le panneau doit
@@ -104,17 +104,17 @@ async function run() {
 	ok('robot : le rappel d adresse I²C est affiché', !!adresse, adresse && adresse.textContent);
 	ok('robot : il donne bien 0x7F (pads tous hauts, réglage d usine)',
 		adresse && /0x7F/.test(adresse.textContent || ''), adresse && adresse.textContent);
-	ok('robot : il est AVANT la première section (tout en haut, pas sous 27 réglages)',
+	ok('robot : il est AVANT la première section (tout en haut, pas sous 33 réglages)',
 		adresse && entetes()[0]
 		&& (adresse.compareDocumentPosition(entetes()[0]) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0);
 
 	// --- 4. Un clic déplie SA section, et elle seule -----------------------------
-	entetes()[1].click();   // « Inverser les servomoteurs »
+	entetes()[2].click();   // « Inverser les servomoteurs »
 	await wait(60);
 	const cases = [...inspector.querySelectorAll('.inspector__checkbox')].filter(visible);
 	ok('un clic déplie la section : ses huit cases d inversion apparaissent',
 		cases.length === 8, cases.length + ' cases visibles');
-	ok('les trois autres sections restent repliées',
+	ok('les quatre autres sections restent repliées',
 		entetes().filter((h) => !h.classList.contains('inspector__group--collapsed')).length === 1,
 		titres().filter((_, i) => !entetes()[i].classList.contains('inspector__group--collapsed')).join(' | '));
 	ok('déplier ne fait pas déborder les autres réglages',
@@ -135,7 +135,7 @@ async function run() {
 		entetes().filter((h) => !h.classList.contains('inspector__group--collapsed')).length === 1);
 
 	// --- 6. Deuxième clic : on referme ------------------------------------------
-	entetes()[1].click();
+	entetes()[2].click();
 	await wait(60);
 	ok('deuxième clic sur l en-tête : la section se referme',
 		controlesVisibles() === 0, controlesVisibles());
@@ -153,10 +153,14 @@ async function run() {
 	const carte = await contenu(0);
 	ok('section « carte » : les six pads d adresse, et rien d autre',
 		carte.length === 6 && carte.every((l) => /^AD\\d/.test(l)), JSON.stringify(carte));
-	const zeros = await contenu(2);
+	// v2026.8.67 : le tiroir « câbler les servomoteurs », huit numéros de canal.
+	const cablage = await contenu(1);
+	ok('section « câblage » : les huit numéros de canal, et rien d autre',
+		cablage.length === 8 && cablage.every((l) => /channel|canal/i.test(l)), JSON.stringify(cablage));
+	const zeros = await contenu(3);
 	ok('section « zéros » : les huit calages de palonnier',
 		zeros.length === 8 && zeros.every((l) => /0°/.test(l)), JSON.stringify(zeros));
-	const params = await contenu(3);
+	const params = await contenu(4);
 	ok('section « paramètres » : impulsions 0°/180° et temps de rotation',
 		params.length === 3 && /0°/.test(params[0]) && /180°/.test(params[1]) && /rotation|Rotation/.test(params[2]),
 		JSON.stringify(params));
@@ -188,11 +192,11 @@ async function run() {
 	// laissé (ici tout refermé — la dernière section ouverte a été refermée).
 	editor.select({ kind: 'part', id: robot.id });
 	await wait(80);
-	ok('retour sur le robot : on retrouve ses quatre sections',
-		entetes().length === 4, titres().join(' | '));
+	ok('retour sur le robot : on retrouve ses cinq sections',
+		entetes().length === 5, titres().join(' | '));
 	ok('retour sur le robot : elles sont dans l état où on les a laissées',
 		controlesVisibles() === 0, controlesVisibles());
-	entetes()[3].click();
+	entetes()[4].click();
 	await wait(60);
 	editor.select({ kind: 'part', id: r.id });
 	await wait(60);

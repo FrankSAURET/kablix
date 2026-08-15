@@ -1,5 +1,5 @@
 # À faire
-1. Rajoute la possibilité d'affecte des N° de port servo différents dans les propriétées. Rubrique "câbler les servomoteurs".
+(rien en attente)
 # En réserve
 1. ⏳ Traduction FR du réglage `kablix.simulationWorker` (`package.nls.fr.json`) : sa description a changé avec le défaut activé — au lot de traductions d'avant publication.
 Les cinq lots du worker sont livrés (v2026.8.51 → v2026.8.55).
@@ -29,6 +29,17 @@ Deux mondes derrière le mot « ESP32 » : les puces **Xtensa** (ESP32 classique
 4. 🚫 **ESP32 classique (Xtensa) : bloqué par la licence, pas par la technique.** Les seuls émulateurs Xtensa sérieux sont des forks de **QEMU** (celui d'Espressif, celui de Velxio), donc **GPL v2** — incompatible avec la distribution d'une extension **MIT** comme Kablix. Wokwi fait tourner l'ESP32 sur QEMU-WASM, mais eux ne distribuent pas un paquet installable. À ne pas engager sans avis clair sur la licence.
 5. ⏳ **Chiffrage** : évaluation **3-5 j** (lire `BROWSER.md`, charger MicroPython C3 dans leur WASM, faire clignoter une GPIO et la récupérer côté JS). Si les crochets existent, l'intégration reste une **nouvelle famille de cartes** — brochage, dessin, catalogue, moteur, tests `testkablix`, fiches d'aide : **20-40 j**. Ce n'est pas une variante du Pico, c'est un troisième moteur à côté de l'AVR et du RP2040.
 6. ℹ️ **ESP8266 : rien de sérieux à émuler.** Ne pas le promettre.
+
+# >>>>  v2026.8.67 — chaque servo du robot dit où il est branché
+
+1. ✅ **Huit numéros de canal dans les propriétés du robot** (`chcoxa0` … `chpatella3`) : chaque articulation choisit **sa sortie du PCA9685**, de 0 à 15. Le câblage d'usine (0..7, coxa puis patella d'avant-gauche à arrière-droite) reste le réglage par défaut — un schéma existant ne bouge pas d'un degré.
+2. ✅ **Nouveau tiroir « Câbler les servomoteurs »**, en deuxième position : la carte d'abord, le câblage ensuite, puis le montage (inversions, zéros) et les servos. Cinq sections, 33 réglages, toujours toutes repliées à la sélection.
+3. ✅ **La simulation lit ces canaux au lieu de les déduire.** `applyAraignee()` parcourait les canaux 0 à 7 et devinait l'articulation (`ch % 2`) ; il parcourt maintenant les huit articulations et va chercher le duty du canal que chacune déclare. Deux articulations peuvent partager un canal : elles bougent ensemble, comme deux servos sur la même sortie.
+4. ✅ **Un champ vidé ne rend pas l'articulation muette** : vide ou hors 0-15 → retour au canal d'usine de cette articulation. Sans ce garde-fou, `Number('')` valant 0, tout le robot serait retombé sur le canal 0.
+5. ✅ **Bancs : `verify:araignee` 105 contrôles** (98 avant — le tiroir, les bornes 0..15, les défauts 0..7, le repli, et les 5 tiroirs qui ne laissent aucun réglage au fil), **`verify:proprietes` 30** (33 réglages, cinq sections dans l'ordre, contenu du tiroir de câblage).
+6. ✅ **Fiche d'aide FR** ([araignee.md](docs/fr/composants/araignee.md)) : la rubrique « Canaux PWM » ne parle plus d'un câblage figé — tableau avec les propriétés en regard, section « Câbler les servomoteurs autrement », et le mot sur le repli.
+7. ⏳ Traduction FR des huit libellés et du titre de tiroir (`i18n.mts`), et report de la rubrique dans la fiche EN (`docs/en/composants/araignee.md`) : au lot d'avant publication. **`verify:i18n` signale donc 2 manques** (les huit libellés + le titre de tiroir) — attendu, et il faudra le vider avant de publier.
+8. ✅ **Faux échec de banc réparé** (`verify:refnames`) : son contrôle du collage lisait `insertPayload` sur 900 caractères, or la méthode s'est allongée en v2026.8.66 (bornage du décalage) et le repère neuf est passé hors fenêtre. Le code n'avait rien de cassé ; la fenêtre passe à 2000. **Cet échec arrêtait `verify:all`** avant ses neuf derniers bancs.
 
 # >>>>  v2026.8.66 — la feuille a des bords, des quatre côtés
 

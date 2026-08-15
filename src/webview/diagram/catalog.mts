@@ -405,6 +405,15 @@ const REVERSE_PROP = (attr: string, label: string): PropDef => ({ attr, label, k
 const ZERO_PROP = (attr: string, label: string): PropDef =>
   ({ attr, label, kind: 'number', min: -360, max: 360, step: 1 });
 
+/**
+ * Canal du PCA9685 sur lequel une articulation est câblée. Le robot est monté à
+ * la main : rien n'oblige la coxa avant-gauche à finir sur le canal 0. Ce réglage
+ * dit où chaque servo est BRANCHÉ, sans toucher au programme. La carte a 16
+ * sorties (0..15), les huit autres restent libres pour un ajout.
+ */
+const CHANNEL_PROP = (attr: string, label: string): PropDef =>
+  ({ attr, label, kind: 'number', min: 0, max: 15, step: 1 });
+
 /** Range une liste de propriétés dans la même section repliable de l'inspecteur. */
 const grouped = (group: string, props: readonly PropDef[]): readonly PropDef[] =>
   props.map((p) => ({ ...p, group }));
@@ -910,24 +919,38 @@ export const CATALOG: readonly PartDef[] = [
   // le déposer choisit la Pico W comme cible, exactement comme on poserait la
   // carte nue. Son PCA9685 embarqué répond sur le bus I²C interne (le moteur le
   // relie aux deux contrôleurs du RP2040 sans dépendre d'un fil), ses canaux
-  // 0..7 pilotant les articulations dans l'ordre avant-gauche, avant-droite,
-  // arrière-gauche, arrière-droite (coxa, patella).
+  // pilotant les huit articulations — 0..7 par défaut dans l'ordre avant-gauche,
+  // avant-droite, arrière-gauche, arrière-droite (coxa, patella), chacun
+  // déplaçable sur n'importe quelle sortie 0..15 (`chcoxaN`/`chpatellaN`).
   {
     type: 'araignee', label: 'Spider robot', tag: 'kablix-araignee', kind: 'araignee',
     board: 'picow', pinless: true,
     attrs: {
       address: '0x7F', ...PCA9685_PAD_ATTRS, pulsemin: '500', pulsemax: '2500', speed: '2',
+      chcoxa0: '0', chpatella0: '1', chcoxa1: '2', chpatella1: '3',
+      chcoxa2: '4', chpatella2: '5', chcoxa3: '6', chpatella3: '7',
       revcoxa0: '', revpatella0: '', revcoxa1: '', revpatella1: '',
       revcoxa2: '', revpatella2: '', revcoxa3: '', revpatella3: '',
       zerocoxa0: '0', zeropatella0: '0', zerocoxa1: '0', zeropatella1: '0',
       zerocoxa2: '0', zeropatella2: '0', zerocoxa3: '0', zeropatella3: '0',
     },
-    // 27 réglages : rangés en QUATRE sections repliables (repliées à l'ouverture,
+    // 33 réglages : rangés en CINQ sections repliables (repliées à l'ouverture,
     // v2026.8.64), dans l'ordre où on les touche — l'adresse de la carte d'abord,
-    // le montage ensuite, les servos eux-mêmes en dernier. L'adresse I²C calculée,
-    // elle, s'affiche tout en haut, hors section : c'est un rappel, pas un réglage.
+    // le câblage puis le montage ensuite, les servos eux-mêmes en dernier.
+    // L'adresse I²C calculée, elle, s'affiche tout en haut, hors section : c'est
+    // un rappel, pas un réglage.
     props: [
       ...grouped('Configure the 16-servo board', PCA9685_PAD_PROPS),
+      ...grouped('Wire the servos', [
+        CHANNEL_PROP('chcoxa0', 'Front-left coxa channel'),
+        CHANNEL_PROP('chpatella0', 'Front-left patella channel'),
+        CHANNEL_PROP('chcoxa1', 'Front-right coxa channel'),
+        CHANNEL_PROP('chpatella1', 'Front-right patella channel'),
+        CHANNEL_PROP('chcoxa2', 'Rear-left coxa channel'),
+        CHANNEL_PROP('chpatella2', 'Rear-left patella channel'),
+        CHANNEL_PROP('chcoxa3', 'Rear-right coxa channel'),
+        CHANNEL_PROP('chpatella3', 'Rear-right patella channel'),
+      ]),
       ...grouped('Reverse the servos', [
         REVERSE_PROP('revcoxa0', 'Reverse the front-left coxa'),
         REVERSE_PROP('revpatella0', 'Reverse the front-left patella'),

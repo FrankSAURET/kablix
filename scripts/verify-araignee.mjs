@@ -6,8 +6,9 @@
 //      fiche d'aide sortait avec le seul châssis) ;
 //   2. `speed = 0` (rotation instantanée) : l'angle affiché n'était recopié que
 //      par les images d'animation, l'araignée restait donc figée à 90° ;
-//   3. le câblage INTERNE (canaux 0..7 → 8 articulations) n'est routé par aucun
-//      fil : il vit dans sim.mts, on vérifie donc qu'il y est branché ;
+//   3. le câblage INTERNE (canaux PCA9685 → 8 articulations, 0..7 d'usine mais
+//      réglables depuis la v2026.8.67) n'est routé par aucun fil : il vit dans
+//      sim.mts, on vérifie donc qu'il y est branché ;
 //   4. depuis la 3D, la cinématique se lit dans `geometry` (position des pieds)
 //      et non plus dans des `rotate(…)` : mesurer un pied dit si la patte se
 //      lève VRAIMENT, ce qu'un angle de rotation à plat ne disait pas ;
@@ -91,6 +92,26 @@ async function run() {
 				&& zeroDef(d, a)?.max === 360 && zeroDef(d, a)?.step === 1)));
 	ok('catalogue : la patte a ses 2 réglages de zéro',
 		!!zeroDef(patteDef, 'zerocoxa') && !!zeroDef(patteDef, 'zeropatella'));
+	// v2026.8.67 : le câblage des servos se règle. Un robot monté à la main n'a
+	// aucune raison d'avoir la coxa avant-gauche sur le canal 0.
+	const canal = (a) => def?.props?.find((p) => p.attr === a);
+	ok('catalogue : 8 numéros de canal (un par articulation)',
+		[0, 1, 2, 3].every((i) => !!canal(\`chcoxa\${i}\`) && !!canal(\`chpatella\${i}\`)));
+	ok('catalogue : un canal va de 0 à 15, à l\\'unité',
+		['chcoxa0', 'chpatella3'].every((a) => canal(a)?.kind === 'number' && canal(a)?.min === 0
+			&& canal(a)?.max === 15 && canal(a)?.step === 1));
+	ok('catalogue : câblage d\\'usine 0..7 (coxa puis patella, avant-gauche → arrière-droite)',
+		[0, 1, 2, 3].every((i) => def?.attrs?.[\`chcoxa\${i}\`] === String(i * 2)
+			&& def?.attrs?.[\`chpatella\${i}\`] === String(i * 2 + 1)),
+		[0, 1, 2, 3].map((i) => \`\${def?.attrs?.[\`chcoxa\${i}\`]}/\${def?.attrs?.[\`chpatella\${i}\`]}\`).join(' '));
+	ok('catalogue : les canaux ont leur propre tiroir « Wire the servos »',
+		[0, 1, 2, 3].every((i) => canal(\`chcoxa\${i}\`)?.group === 'Wire the servos'
+			&& canal(\`chpatella\${i}\`)?.group === 'Wire the servos'),
+		canal('chcoxa0')?.group);
+	// Cinq tiroirs depuis la v2026.8.67 : aucun réglage ne doit traîner hors section.
+	ok('catalogue : les 5 tiroirs de l\\'inspecteur, tous les réglages rangés',
+		new Set(def?.props?.map((p) => p.group)).size === 5 && def?.props?.every((p) => !!p.group),
+		[...new Set(def?.props?.map((p) => p.group))].join(' | '));
 
 	// --- 2. Broches : le robot n'en a plus AUCUNE (v2026.8.24) ------------------
 	const el = await mk();
@@ -601,8 +622,16 @@ const source = [
   ['sim : un PCA9685 est décrit pour l\'araignée', /kind === 'araignee'[\s\S]{0,900}kind: 'pca'/.test(sim)],
   ['sim : son adresse vient des pads AD0..AD5', /pca9685Address\(part\.attrs\)/.test(sim)],
   ['sim : applyAraignee() appelée à chaque rafraîchissement', /\n\s*applyAraignee\(\);/.test(sim)],
-  ['sim : canaux pairs → coxa, impairs → patella', /ch % 2 === 0 \? 'coxa' : 'patella'/.test(sim)],
-  ['sim : les 8 canaux sont lus', /ch < 8/.test(sim)],
+  // v2026.8.67 : le câblage interne n'est plus figé. Chaque articulation lit SON
+  // canal (`chcoxaN`/`chpatellaN`) au lieu de le déduire de sa position.
+  ['sim : les 8 articulations sont parcourues (4 pattes × coxa/patella)',
+    /leg < 4/.test(sim) && /\['coxa', 'patella'\] as const/.test(sim)],
+  ['sim : le canal de chaque articulation vient des propriétés',
+    /araigneeChannel\(part\.attrs, art, leg\)/.test(sim) && /attrs\?\.\[`ch\$\{art\}\$\{leg\}`\]/.test(sim)],
+  ['sim : câblage d\'usine en repli (coxa = 2×patte, patella = +1)',
+    /const defaut = leg \* 2 \+ \(art === 'patella' \? 1 : 0\)/.test(sim)],
+  ['sim : canal vide ou hors 0..15 → repli, pas de canal 0 par accident',
+    /if \(txt === ''\) return defaut;/.test(sim) && /brut >= 0 && brut <= 15/.test(sim)],
   // v2026.8.63 : UNE seule échelle d'impulsion pour tous les chemins. Le PCA9685
   // avait la sienne, écrite en dur (1000-2000 µs), qui ignorait les réglages du
   // composant — le robot ne prenait donc pas la pose commandée.

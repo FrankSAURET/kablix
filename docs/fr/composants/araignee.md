@@ -24,16 +24,18 @@ Catégorie de la palette : **Système**.
 | `pulsemin`                   | Impulsion correspondant à 0° (µs), pour les huit servos                       | `500`       |
 | `pulsemax`                   | Impulsion correspondant à 180° (µs), pour les huit servos                     | `2500`      |
 | `speed`                      | Temps d'un tour complet (360°) à pleine vitesse (s), 0 = mouvement instantané | `2`         |
+| `chcoxa0` … `chpatella3`     | Canal du PCA9685 sur lequel ce servo est **branché** (0 à 15)                 | `0` … `7`   |
 | `revcoxa0` … `revpatella3`   | Servo monté **à l'envers** : la même consigne le fait tourner de l'autre côté | décoché     |
 | `zerocoxa0` … `zeropatella3` | Angle **dessiné** quand le programme envoie 0° à ce servo (−360 à +360°)      | `0`         |
 
-### Vingt-cinq réglages en quatre tiroirs
+### Trente-trois réglages en cinq tiroirs
 
-Le robot en a plus qu'aucun autre composant : ils sont donc rangés en **quatre sections repliables**, **toutes fermées** à la sélection.
+Le robot en a plus qu'aucun autre composant : ils sont donc rangés en **cinq sections repliables**, **toutes fermées** à la sélection.
 
 | Section                                 | Ce qu'on y règle                                                                                                                                     |
 | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Paramétrer la carte 16 servomoteurs** | Les six pads d'adresse du PCA9685 embarqué                                                                                                           |
+| **Câbler les servomoteurs**             | Le canal du PCA9685 de chacune des huit articulations                                                                                                |
 | **Inverser les servomoteurs**           | Les huit cases de sens de montage. Il est important que le sens de déplacement soit le même que sur la maquette réels pour que le code soit portable |
 | **Régler le 0 des servomoteurs**        | Les huit calages de palonnier. Idem.                                                                                                                 |
 | **Paramètres des servomoteurs**         | Impulsions à 0° et 180°, temps de rotation                                                                                                           |
@@ -66,14 +68,24 @@ Un tour complet est admis de chaque côté (**−360 à +360°**, au degré). Le
 
 ## Canaux PWM
 
-Le câblage interne est fixe : chaque articulation a son canal sur le PCA9685 embarqué.
+Chaque articulation dit sur **quel canal du PCA9685 embarqué** son servo est branché. Le câblage d'usine occupe les canaux 0 à 7, dans cet ordre :
 
-| Canal | Articulation                      |
-| ----- | --------------------------------- |
-| 0 / 1 | Coxa / patella **avant-gauche**   |
-| 2 / 3 | Coxa / patella **avant-droite**   |
-| 4 / 5 | Coxa / patella **arrière-gauche** |
-| 6 / 7 | Coxa / patella **arrière-droite** |
+| Canal | Articulation                      | Propriétés                 |
+| ----- | --------------------------------- | -------------------------- |
+| 0 / 1 | Coxa / patella **avant-gauche**   | `chcoxa0` / `chpatella0`   |
+| 2 / 3 | Coxa / patella **avant-droite**   | `chcoxa1` / `chpatella1`   |
+| 4 / 5 | Coxa / patella **arrière-gauche** | `chcoxa2` / `chpatella2`   |
+| 6 / 7 | Coxa / patella **arrière-droite** | `chcoxa3` / `chpatella3`   |
+
+### Câbler les servomoteurs autrement
+
+Un robot monté à la main a rarement le câblage du plan : un fil part sur la mauvaise sortie, un canal claque et on rebranche le servo à côté. Le tiroir **Câbler les servomoteurs** dit à la simulation **où chaque servo est réellement branché** — les seize sorties (0 à 15) sont acceptées, les huit inutilisées restent libres.
+
+C'est le troisième réglage de **montage**, avec le sens et le zéro : le programme, lui, ne change pas. Écrivez le canal 0 dans votre code, et c'est l'articulation qui a `0` dans ses propriétés qui bouge, quelle qu'elle soit.
+
+> Un champ vidé, ou un numéro hors 0-15, retombe sur le câblage d'usine de cette articulation : rien ne devient muet par accident.
+
+Rien n'interdit de mettre **deux articulations sur le même canal** : elles bougent alors ensemble, exactement comme deux servos branchés sur la même sortie.
 
 Les pattes de droite sont montées **en miroir** de celles de gauche, comme sur le robot : le même angle de patella plie les deux côtés symétriquement.
 
