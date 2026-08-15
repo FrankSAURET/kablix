@@ -1,7 +1,17 @@
 # À faire
-1. Ménage de `A Examiner/` : 28 fichiers, ~7 Mo — la liste est dans le lot v2026.8.69, **Frank tranche fichier par fichier** (rien n'a été déplacé ni effacé).
-1. 
+1. Tu ne retouche plus changelog que j'ai modifié pour cette version. Juste le n° de version et la date quand je déciderais de publier.
 
+
+# >>>>  v2026.8.70 — la touche Suppr ne se perd plus dans un champ de saisie
+
+1. ✅ **Trouvé pourquoi Suppr restait parfois sans effet** : l'appui sur un composant est `preventDefault()` (sans lui, le glissé sélectionnerait du texte) — or c'est **ce preventDefault qui empêche le navigateur de déplacer le focus**. Après une frappe dans la recherche de la palette ou dans un champ de l'inspecteur, le focus RESTAIT dans le champ : cliquer un composant puis `Suppr` n'effaçait rien, la touche s'adressait au texte.
+2. ✅ **Toucher la feuille rend le clavier à l'éditeur** ([editor.mts](src/webview/diagram/editor.mts)) : le canvas devient focusable (`tabindex="-1"`) et prend le focus à l'appui, le champ quitté au passage (son `change` part normalement, la saisie n'est pas perdue). Un champ posé DANS un composant (curseur de simulation) garde le focus, lui.
+3. ✅ **Un lot MIXTE part d'un bloc** : un rectangle de sélection attrape composants **et** câbles, mais `Suppr` ne traitait que les composants — un câble du lot branché ailleurs restait à l'écran. Les deux sont désormais supprimés ensemble (les câbles d'abord, pour ne pas courir après ceux que la suppression d'un composant emporte déjà).
+4. ✅ **La détection de « saisie en cours » ne se laisse plus tromper** : elle lit la cible RÉELLE (`composedPath`, sinon un champ dans le shadow d'un composant remonte sous la forme de son hôte) **et** l'élément qui a le focus, et elle reconnaît les zones éditables (`contentEditable`) — le terminal série en est une.
+5. ✅ **`Suppr`/`Retour arrière` sont consommées** (`preventDefault`) : plus de « page précédente » possible côté navigateur.
+6. ✅ **Nouveau banc `verify:suppression` : 13 contrôles** (vrai éditeur, vrai CSS, Chrome headless) — composant seul, fil seul, lot de composants, lot de fils, lot mixte, `Ctrl+A`, coude de fil, `Retour arrière`, saisie épargnée, focus rendu après une recherche, simulation verrouillée, focus hors canvas. **Sans le correctif : 3 échecs.** Branché dans `verify:all`.
+7. ✅ `docs/fr/USAGE.md` : « Supprimer » et le tableau des raccourcis disent le lot mixte et le clavier rendu au clic.
+8. ✅ **`verify:all` repart jusqu'au bout — il s'arrêtait à `verify:transistor`.** Ton ménage de la v2026.8.69 a emporté `A Examiner/transistor.csv`, or ce fichier n'était pas un brouillon : le banc le lit comme **liste de référence** (limites, boîtier, symbole interne, brochage des 11 transistors). Il est rangé en donnée de banc dans [testkablix/transistor.csv](testkablix/transistor.csv), l'ancien emplacement restant lu s'il existe. `verify:transistor` : 164 contrôles OK. **Rien n'a été supprimé** — le fichier est repris de ton commit, ta copie reste jetée comme tu l'as décidé.
 
 # En réserve
 Les cinq lots du worker sont livrés (v2026.8.51 → v2026.8.55).

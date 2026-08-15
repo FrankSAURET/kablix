@@ -1,0 +1,15 @@
+﻿Ref;Type;Boitier;Vcemax (V);Icmax (A);Gainmin;schéma interne;e;b;c
+BC516;PNP;TO92;30;0,4;30000;Darlington-PNP;3;2;1
+BC517;NPN;TO92;30;0,4;30000;Darlington-NPN;3;2;1
+BC639;NPN;TO92;80;1;63;NPN-Generique;1;3;2
+BC640;PNP;TO92;50;1;100;PNP-Generique;1;3;2
+MPSA42;NPN;TO92;300;0,5;25;NPN1;1;2;3
+MPSA92;PNP;TO92;300;0,5;25;PNP-Generique;1;2;3
+BD911;NPN;TO220;100;15;5;NPN-Generique;3;1;2
+BD912;PNP;TO220;100;15;5;PNP-Generique;3;1;2
+;;;;;;;;;
+;;;;;;;;;
+;;;;;;;;;
+Ref;Type;boitier;VDSmax(v);Igmax;Rdsontyp(Ohm);schéma interne;g;d;s
+BS170;NMOS;TO92;60;0,5;2,5;NMOS-D;2;1;3
+IRF530;NMOS;TO220;100;14;0,16;NMOS-D;1;2;3

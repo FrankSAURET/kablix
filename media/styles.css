@@ -518,6 +518,13 @@ textarea {
   overflow: hidden;
 }
 
+/* La feuille prend le focus au clic (tabindex -1) pour recevoir les touches
+   d'édition — Suppr en tête. C'est un focus technique : aucun liseré. */
+.canvas:focus,
+.canvas:focus-visible {
+  outline: none;
+}
+
 /* Calque transformable (zoom molette + translation) : le canvas le rogne. */
 .canvas__world {
   position: absolute;

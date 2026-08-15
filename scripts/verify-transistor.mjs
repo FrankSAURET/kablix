@@ -668,7 +668,14 @@ const rows = JSON.parse(unesc(m[1]));
 // NUMÉRO DE PATTE de chaque électrode — c'est le brochage qui piège en pratique.
 const mr = dom.match(/<pre id="refs"[^>]*>([\s\S]*?)<\/pre>/);
 const base = mr ? JSON.parse(unesc(mr[1])) : [];
-const csv = readFileSync(join(ROOT, 'A Examiner', 'transistor.csv'), 'utf8').replace(/^﻿/, '');
+// La liste vit dans `testkablix/` : c'est une DONNÉE DE BANC, elle ne peut pas
+// dépendre de « A Examiner/ », dossier de tri que Frank vide quand il tranche —
+// sa disparition (ménage de la v2026.8.69) faisait tomber tout `verify:all` ici.
+// L'ancien emplacement reste lu s'il existe encore.
+const CSV = [join(ROOT, 'testkablix', 'transistor.csv'), join(ROOT, 'A Examiner', 'transistor.csv')]
+	.find(existsSync);
+if (!CSV) { console.log('transistor.csv introuvable — liste de Frank non vérifiée'); process.exit(1); }
+const csv = readFileSync(CSV, 'utf8').replace(/^﻿/, '');
 const nombre = (s) => Number(String(s).replace(',', '.'));
 const dansLeCsv = new Set();
 for (const ligne of csv.split(/\r?\n/)) {

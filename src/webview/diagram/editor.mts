@@ -158,6 +158,19 @@ const clampAxis = (v: number, d: number, size: number, sheet: number): number =>
   return max < min ? min : Math.min(Math.max(v, min), max);
 };
 /**
+ * Vrai si l'élément est une SAISIE DE TEXTE en cours : champ de l'inspecteur,
+ * recherche de la palette, liste déroulante, ou zone éditable (le terminal
+ * série est un `contentEditable`). Sert deux fois : les raccourcis d'édition
+ * (Suppr, Ctrl+…) laissent la frappe au texte, et un clic sur la feuille quitte
+ * le champ pour rendre le clavier à l'éditeur.
+ */
+const isTextEntry = (el: Element | null | undefined): boolean => {
+  if (!el) return false;
+  const tag = el.tagName;
+  if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return true;
+  return (el as HTMLElement).isContentEditable === true;
+};
+/**
  * Vrai si le type est au catalogue de CE poste (composants standard ou
  * personnalisés enregistrés). Un schéma collé depuis un autre atelier peut citer
  * un composant personnalisé absent d'ici : `partDef` lèverait, on l'ignore.
@@ -440,6 +453,27 @@ export class Editor {
     window.addEventListener('keydown', this.onKeyDown);
     // Le clic droit sert au déplacement des composants : pas de menu contextuel.
     this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    // Toucher la feuille REND LE CLAVIER à l'éditeur (v2026.8.70). L'appui sur
+    // un composant est `preventDefault()` (startDrag, pour ne pas sélectionner
+    // de texte pendant le glissé) — or c'est justement ce preventDefault qui
+    // empêche le navigateur de déplacer le focus. Après une saisie dans
+    // l'inspecteur ou dans la recherche de la palette, le focus RESTAIT dans le
+    // champ : la touche Suppr allait au texte, jamais au composant sélectionné.
+    // Le champ est donc quitté (son `change` part au passage) et le canvas,
+    // focusable par `tabindex="-1"`, prend le relais.
+    this.canvas.tabIndex = -1;
+    this.canvas.addEventListener(
+      'pointerdown',
+      (e) => {
+        // Champ posé DANS la feuille (curseur de simulation, saisie d'un
+        // composant) : on le laisse prendre le focus normalement.
+        if (isTextEntry(e.composedPath()[0] as Element | null)) return;
+        const active = document.activeElement as HTMLElement | null;
+        if (isTextEntry(active)) active?.blur();
+        if (document.activeElement !== this.canvas) this.canvas.focus({ preventScroll: true });
+      },
+      true
+    );
     // Clic sur le fond : pose un point de fil, ou désélectionne.
     this.canvas.addEventListener('pointerdown', (e) => {
       if (e.target !== this.canvas && e.target !== this.world && e.target !== this.svg) return;
@@ -2980,8 +3014,12 @@ export class Editor {
   }
 
   private onKeyDown = (e: KeyboardEvent): void => {
-    const target = e.target as HTMLElement | null;
-    const typing = target && (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA');
+    // Saisie en cours : la frappe appartient au texte, pas au schéma. On regarde
+    // la CIBLE RÉELLE (`composedPath`, sinon un champ dans le shadow d'un
+    // composant remonte sous la forme de son hôte) et, à défaut, l'élément qui a
+    // le focus — les deux diffèrent quand un handler a redirigé l'événement.
+    const target = (e.composedPath()[0] ?? e.target) as Element | null;
+    const typing = isTextEntry(target) || isTextEntry(document.activeElement);
     // Raccourcis Ctrl : annuler/refaire, copier (toujours), coller/dupliquer.
     if (e.ctrlKey && !typing) {
       const k = e.key.toLowerCase();
@@ -3032,8 +3070,17 @@ export class Editor {
       this.cancelPending();
       this.select(null);
     } else if ((e.key === 'Delete' || e.key === 'Backspace') && !typing) {
+      // Retour arrière : sans ça, la webview pourrait encore l'entendre comme un
+      // « page précédente » de navigateur.
+      e.preventDefault();
       if (this.selectedParts.size > 0) {
+        // Lot MIXTE (rectangle de sélection) : les câbles pris dans la boîte
+        // partent avec les composants. Les traiter d'abord évite de courir après
+        // ceux que `removePart` a déjà emportés (fils branchés sur le composant).
+        const wires = [...this.selectedWires];
         const ids = [...this.selectedParts];
+        this.selectedWires.clear();
+        for (const id of wires) this.removeWire(id);
         for (const id of ids) this.removePart(id);
         this.select(null);
       } else if (this.selectedWires.size > 0) {

@@ -98,6 +98,9 @@ DHT sensor library, Keypad.
   `Arduino/` s'il est en `.ino`, à la racine s'il est en `.py`).
 - `_generate.mjs` — régénère tous les fichiers : `node testkablix/_generate.mjs`.
   Ne pas retoucher les `.ino`/`.py`/`.projix` à la main : modifier la spec puis régénérer.
+- `transistor.csv` — la liste de références de Frank (limites, boîtier, symbole
+  interne, brochage), lue par `npm run verify:transistor` pour contrôler la base
+  des modèles. Donnée de banc : elle vit ici, pas dans un dossier de tri.
 - `_verify.mjs` — vérifie tout : `node testkablix/_verify.mjs` (ou `--quick`
   pour sauter compilations et exécutions) :
   1. chaque `.projix` (archive, manifeste, composants, broches, bindings du moteur) ;
