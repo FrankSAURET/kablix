@@ -2,6 +2,18 @@
 1. Tu ne retouche plus changelog que j'ai modifié pour cette version. Juste le n° de version et la date quand je déciderais de publier.
 
 
+# >>>>  v2026.8.71 — la résistance debout tient dans un carreau de 30
+
+1. ✅ **Elle est deux fois moins haute** : le dessin debout occupait **30 × 60 px** — deux fois l'encombrement de la même pièce couchée, alors que la mettre debout sert justement à gagner de la place. Il occupe désormais **30 × 30** (mesuré : 25,7 × 26,5 contre 25,7 × 53 avant).
+2. ✅ **Et c'est bien l'effet « debout » qui la raccourcit, pas un rétrécissement** : le dessin est **écrasé en hauteur seule**, exactement ce que fait la perspective quand on regarde la pièce de plus haut. Les anneaux elliptiques s'aplatissent, la patte repliée se raccourcit, et le **diamètre du corps ne bouge pas d'un dixième de pixel** (11,34 px debout comme couchée) — c'est la même résistance, vue autrement.
+3. ✅ **Rien à redessiner dans la planche** : le repère du dessin (`vb`) est découplé de la boîte réelle (`w`/`h`) dans [resistor-element.mts](src/webview/composants/resistor-element.mts), le SVG étant étiré par `preserveAspectRatio="none"`. Le dessin de Frank reste intact (40 × 70) et une ré-extraction ne l'écrasera pas.
+4. ✅ **Le facteur 1/2 n'est pas choisi au hasard** : c'est le seul qui garde les **pastilles sur la grille de 10 px** (y = 60 → **30**). Une résistance debout continue donc de se câbler carreau par carreau, et les fils existants d'un schéma ne se retrouvent pas entre deux lignes.
+5. ✅ **Le schéma interne suit tout seul** : il est mis à l'échelle de la boîte du composant (`scaledSchema`), donc l'écrasement de la boîte l'écrase avec elle — symbole et dessin restent superposés, le trait descend pile sur les pastilles (mesuré à 30,01).
+6. ✅ **Nouveau banc `verify:resistance` : 14 contrôles** (vrai éditeur, vrai CSS, Chrome headless). Il compare la pose posée au **dessin source rendu dans son propre viewBox** — pas à des nombres écrits à la main : moitié de hauteur, largeur inchangée, diamètre du corps conservé, pastilles sur la grille, encombrement ≤ 30 × 30, vue interne calée, retour à la pose couchée sans reste, anneaux de couleur justes. **Sans le correctif : 8 échecs.** Branché dans `verify:all`.
+7. ✅ Outil de mesure rangé avec les autres diagnostics : [`scripts/_mesure-res.mjs`](scripts/_mesure-res.mjs) sort les deux poses (boîte, encombrement du tracé, pastilles) et une capture PNG des deux côte à côte.
+8. ✅ Fiche `docs/fr/composants/resistor.md` : le 30 × 30 et la raison du raccourci.
+9. ✅ Bancs voisins repassés (rien de cassé) : `diagram`, `route` 61, `align` 27, `feuille` 28, `divider`, `led`, `psu`, `clipboard` 46, `export` 30, `bom` 54, `refnames` 36, `netcache`, `proprietes` 47.
+
 # >>>>  v2026.8.70 — la touche Suppr ne se perd plus dans un champ de saisie
 
 1. ✅ **Trouvé pourquoi Suppr restait parfois sans effet** : l'appui sur un composant est `preventDefault()` (sans lui, le glissé sélectionnerait du texte) — or c'est **ce preventDefault qui empêche le navigateur de déplacer le focus**. Après une frappe dans la recherche de la palette ou dans un champ de l'inspecteur, le focus RESTAIT dans le champ : cliquer un composant puis `Suppr` n'effaçait rien, la touche s'adressait au texte.
@@ -12,9 +24,6 @@
 6. ✅ **Nouveau banc `verify:suppression` : 13 contrôles** (vrai éditeur, vrai CSS, Chrome headless) — composant seul, fil seul, lot de composants, lot de fils, lot mixte, `Ctrl+A`, coude de fil, `Retour arrière`, saisie épargnée, focus rendu après une recherche, simulation verrouillée, focus hors canvas. **Sans le correctif : 3 échecs.** Branché dans `verify:all`.
 7. ✅ `docs/fr/USAGE.md` : « Supprimer » et le tableau des raccourcis disent le lot mixte et le clavier rendu au clic.
 8. ✅ **`verify:all` repart jusqu'au bout — il s'arrêtait à `verify:transistor`.** Ton ménage de la v2026.8.69 a emporté `A Examiner/transistor.csv`, or ce fichier n'était pas un brouillon : le banc le lit comme **liste de référence** (limites, boîtier, symbole interne, brochage des 11 transistors). Il est rangé en donnée de banc dans [testkablix/transistor.csv](testkablix/transistor.csv), l'ancien emplacement restant lu s'il existe. `verify:transistor` : 164 contrôles OK. **Rien n'a été supprimé** — le fichier est repris de ton commit, ta copie reste jetée comme tu l'as décidé.
-
-# En réserve
-Les cinq lots du worker sont livrés (v2026.8.51 → v2026.8.55).
 
 ## Pistes d'amélioration — topo du 15 août 2026 (détail : `scripts/vitesse-pico.md` §12)
 1. ⏳ **BANC DE VITESSE WASM — 2-3 j, à faire AVANT de décider quoi que ce soit.** C'est le test qui tue ou valide les cinq semaines de #16 (cœur Cortex-M0+ en WASM, 25-38 j). Protocole : une boucle WASM qui exécute en rafale une poignée d'instructions Thumb sur une RAM en mémoire linéaire, et **la même** qui repasse en JS à chaque instruction (comme le fera l'horloge, `clock.tick()` étant appelé par instruction). Le rapport des deux EST le prix du pont. Mesure sur le banc habituel, moteur seul dans son processus, meilleur run et non médiane (la machine dérive de 5 % par session). **Verdict : sous ×3 de gain brut, #16 est morte** — on ne code ni le NVIC ni les exceptions. Faire la ligne CSP (piste 2) au jour 1 du banc, pas après.

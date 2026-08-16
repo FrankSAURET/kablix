@@ -7,12 +7,21 @@
 //
 // DEUX POSES, un seul élément (attribut `orientation`) :
 //   h → couchée, corps horizontal, pattes de part et d'autre (80×20) ;
-//   v → DEBOUT, corps vertical et une patte repliée par-dessus (40×70, dessin de
-//       Frank « res-vert » ; schéma interne « res-vert-interne »). Les anneaux y
+//   v → DEBOUT, corps vertical et une patte repliée par-dessus (dessin de Frank
+//       « res-vert » ; schéma interne « res-vert-interne »). Les anneaux y
 //       sont courbés : debout, la résistance est vue de biais, ses bandes sont
 //       des ellipses (déformation portée par la planche, pas par le code).
 // Les broches gardent leurs noms ('1' et '2') dans les deux cas : changer la pose
 // ne casse aucun fil.
+//
+// RACCOURCI de la pose debout : le dessin source mesure 40×70 (53 px de haut à
+// l'écran), soit deux fois l'encombrement d'une résistance couchée pour la même
+// pièce. Il est ÉCRASÉ DE MOITIÉ en hauteur — `vb` (repère du dessin) découplé
+// de `w`/`h` (boîte réelle), le svg étant étiré par `preserveAspectRatio="none"`.
+// C'est exactement ce que fait la perspective quand on regarde une résistance
+// debout de plus haut : les anneaux elliptiques s'aplatissent, la patte repliée
+// se raccourcit, la largeur ne bouge pas. Le facteur 1/2 est choisi pour que les
+// broches restent sur la grille de 10 px (y = 60 → 30).
 import { css, html, LitElement } from 'lit';
 import type { PropertyValues } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
@@ -36,13 +45,18 @@ const bandColors: { [key: number]: string } = {
 };
 
 /**
- * Habillage par pose : dessin, boîte, position des pattes et ids des trois
- * anneaux à recolorer (le 4e, doré, est fixe = tolérance). Les deux dessins ont
- * été nettoyés séparément, d'où des ids d'anneaux différents.
+ * Habillage par pose : dessin, repère du dessin (`vb` = son viewBox), boîte
+ * réelle (`w`/`h`), position des pattes et ids des trois anneaux à recolorer
+ * (le 4e, doré, est fixe = tolérance). Les deux dessins ont été nettoyés
+ * séparément, d'où des ids d'anneaux différents.
+ *
+ * `vb` ≠ `w`/`h` = le dessin est ÉTIRÉ dans la boîte (cf. en-tête) : c'est le cas
+ * de la pose debout, écrasée de moitié en hauteur.
  */
 const SKINS = {
   h: {
     svg: drawing,
+    vb: { w: 80.164619, h: 20 },
     w: 80.164619,
     h: 20,
     pins: [{ x: 10, y: 10 }, { x: 70, y: 10 }],
@@ -50,9 +64,10 @@ const SKINS = {
   },
   v: {
     svg: drawingVert,
+    vb: { w: 40, h: 70 },
     w: 40,
-    h: 70,
-    pins: [{ x: 10, y: 60 }, { x: 30, y: 60 }],
+    h: 35,
+    pins: [{ x: 10, y: 30 }, { x: 30, y: 30 }],
     bands: ['#rect19', '#path19-0', '#path20-1'],
   },
 } as const;
@@ -144,8 +159,18 @@ export class ResistorElement extends LitElement {
 
   render() {
     const s = this.skin;
+    // `preserveAspectRatio="none"` : le dessin remplit la boîte sans garder son
+    // ratio — sans lui, la pose debout serait rétrécie des DEUX côtés (et centrée
+    // sur du vide) au lieu d'être écrasée en hauteur seule. Sans effet sur la
+    // pose couchée, dont la boîte est celle du dessin.
     return html`
-      <svg width=${s.w} height=${s.h} viewBox="0 0 ${s.w} ${s.h}" xmlns="http://www.w3.org/2000/svg">
+      <svg
+        width=${s.w}
+        height=${s.h}
+        viewBox="0 0 ${s.vb.w} ${s.vb.h}"
+        preserveAspectRatio="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
         ${unsafeSVG(s.svg)}
       </svg>
     `;

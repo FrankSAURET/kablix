@@ -28,6 +28,11 @@ Résistance fixe. Limite le courant (LED) ou forme un pont diviseur / pull-up / 
   loger une résistance dans peu de place sur la platine. Debout, la résistance
   est vue de biais : ses anneaux sont dessinés en ellipses, l'anneau doré
   (tolérance) en bas, le premier anneau de valeur en haut.
+- Debout, elle tient dans **30 × 30 px** au lieu de 30 × 60 : le dessin est
+  raccourci de moitié en hauteur, comme la perspective le fait quand on regarde
+  la pièce de plus haut — les anneaux s'aplatissent, le diamètre du corps ne
+  change pas. C'est bien la même résistance, vue autrement, et l'encombrement
+  gagné est celui qu'on cherchait en la mettant debout.
 
 ---
 
