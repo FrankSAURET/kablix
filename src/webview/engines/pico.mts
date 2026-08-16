@@ -324,14 +324,16 @@ export class PicoEngine implements SimEngine {
   private breakpoints: Breakpoint[] = [];
   // Mesure de largeur d'impulsion (servo) : broches GPIO surveillées + état d'arête.
   private pulsePins: Array<{ name: string; index: number }> = [];
-  // winStart/winHigh/winEdges : fenêtre d'intégration du rapport cyclique
-  // (readPwmDuty) ; lastDuty = dernière mesure, conservée tant que la fenêtre
-  // ne couvre pas une période PWM complète.
+  // Rapport cyclique (readPwmDuty) : intégré sur des PÉRIODES COMPLÈTES, d'un
+  // front montant au suivant — cf. le même mécanisme dans avr.mts. Mesurer sur
+  // une fenêtre quelconque laissait une période tronquée à chaque bout, et la
+  // luminosité affichée oscillait de quelques pour cent d'une image à l'autre.
   private pulseState = new Map<
     string,
     {
       high: boolean; rise: number; lastUs: number; lastEdge: number;
-      winStart: number; winHigh: number; winEdges: number; lastDuty: number;
+      perStart: number; curHigh: number; accHigh: number; accTotal: number;
+      lastPeriod: number; lastRead: number; lastDuty: number;
     }
   >();
   // Chaînes NeoPixel : décodeur WS2812 par broche DIN.
@@ -647,7 +649,8 @@ export class PicoEngine implements SimEngine {
       if (!this.pulseState.has(name)) {
         this.pulseState.set(name, {
           high: false, rise: 0, lastUs: 0, lastEdge: 0,
-          winStart: this.mcu.core.cycles, winHigh: 0, winEdges: 0, lastDuty: 0,
+          perStart: -1, curHigh: 0, accHigh: 0, accTotal: 0,
+          lastPeriod: 0, lastRead: this.mcu.core.cycles, lastDuty: 0,
         });
       }
     }
@@ -726,7 +729,8 @@ export class PicoEngine implements SimEngine {
       if (!this.pulseState.has(s.trig)) {
         this.pulseState.set(s.trig, {
           high: false, rise: 0, lastUs: 0, lastEdge: 0,
-          winStart: this.mcu.core.cycles, winHigh: 0, winEdges: 0, lastDuty: 0,
+          perStart: -1, curHigh: 0, accHigh: 0, accTotal: 0,
+          lastPeriod: 0, lastRead: this.mcu.core.cycles, lastDuty: 0,
         });
       }
     }
@@ -876,31 +880,50 @@ export class PicoEngine implements SimEngine {
     return this.pulseState.get(name)?.lastUs ?? 0;
   }
 
-  /** Vrai si la broche a basculé récemment (< 60 ms simulées) = signal carré actif (tone/PWM). */
+  /**
+   * Vrai si la broche OSCILLE : au moins une période complète mesurée, et un
+   * front il y a moins de 60 ms simulées (cf. avr.mts). Un front isolé —
+   * `digitalWrite` — ne fait pas un signal carré.
+   */
   pulseActive(name: string): boolean {
     const st = this.pulseState.get(name);
-    if (!st) return false;
+    if (!st || st.lastPeriod === 0) return false;
     const cyclesPerUs = (this.mcu.clkSys || 125_000_000) / 1_000_000;
     return this.mcu.core.cycles - st.lastEdge < 60_000 * cyclesPerUs;
   }
 
-  /** Rapport cyclique (0..1) mesuré sur la fenêtre écoulée depuis la dernière mesure. */
+  /**
+   * Rapport cyclique (0..1) des périodes PWM COMPLÈTES écoulées depuis la
+   * dernière lecture (cf. avr.mts). Sortie figée — plus de front pendant deux
+   * périodes, ou 100 ms sans qu'aucune période n'ait été mesurée : on retombe
+   * sur le niveau de la broche.
+   */
   readPwmDuty(name: string): number {
     const st = this.pulseState.get(name);
     if (!st) return this.readDigital(name) ? 1 : 0;
     const cyclesPerUs = (this.mcu.clkSys || 125_000_000) / 1_000_000;
     const now = this.mcu.core.cycles;
-    const total = now - st.winStart;
-    // Fenêtre trop courte (pas une période PWM complète) : mesurer donnerait 0
-    // ou 1 selon la phase → on garde la dernière valeur et on laisse la fenêtre
-    // s'allonger (plafond 100 ms simulées pour ne pas rester figé).
-    if (st.winEdges < 2 && total < 100_000 * cyclesPerUs) return st.lastDuty;
-    let high = st.winHigh;
-    if (st.high) high += now - Math.max(st.rise, st.winStart);
-    st.winStart = now;
-    st.winHigh = 0;
-    st.winEdges = 0;
-    st.lastDuty = total > 0 ? Math.max(0, Math.min(1, high / total)) : (st.high ? 1 : 0);
+    // Sortie figée : l'état présent prime sur le cumul du régime précédent (cf. avr.mts).
+    const fige =
+      st.lastPeriod > 0
+        ? now - st.lastEdge > 2 * st.lastPeriod
+        : now - st.lastRead > 100_000 * cyclesPerUs;
+    if (fige) {
+      st.accHigh = 0;
+      st.accTotal = 0;
+      st.perStart = -1;
+      st.curHigh = 0;
+      st.lastPeriod = 0;
+      st.lastRead = now;
+      st.lastDuty = st.high ? 1 : 0;
+      return st.lastDuty;
+    }
+    if (st.accTotal > 0) {
+      st.lastDuty = Math.max(0, Math.min(1, st.accHigh / st.accTotal));
+      st.accHigh = 0;
+      st.accTotal = 0;
+      st.lastRead = now;
+    }
     return st.lastDuty;
   }
 
@@ -917,13 +940,24 @@ export class PicoEngine implements SimEngine {
         st.high = true;
         st.rise = now;
         st.lastEdge = now; // front montant : activité
-        st.winEdges++; // fronts montants de la fenêtre (readPwmDuty)
+        // Front montant = période PWM close (readPwmDuty) et début de la suivante.
+        if (st.perStart >= 0) {
+          // Période dont la durée n'a rien à voir avec la précédente = changement
+          // de régime (cf. avr.mts) : elle est sautée, pas moyennée.
+          const per = now - st.perStart;
+          if (st.lastPeriod === 0 || (per <= 2 * st.lastPeriod && per * 2 >= st.lastPeriod)) {
+            st.accTotal += per;
+            st.accHigh += st.curHigh;
+          }
+          st.lastPeriod = per;
+        }
+        st.perStart = now;
+        st.curHigh = 0;
       } else if (!high && st.high) {
         st.high = false;
         st.lastEdge = now; // front descendant
         st.lastUs = (now - st.rise) / cyclesPerUs;
-        // Cumul du temps haut dans la fenêtre courante (rapport cyclique PWM).
-        st.winHigh += now - Math.max(st.rise, st.winStart);
+        st.curHigh += now - st.rise; // temps haut de la période en cours
         if (this.ultrasonic.length > 0) this.maybeFireEcho(pp.name, st.lastUs); // impulsion TRIG -> ECHO
       }
     }

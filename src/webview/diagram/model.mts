@@ -2399,6 +2399,36 @@ export function sevenSegmentBindings(diagram: Diagram): SevenSegmentBinding[] {
   return bindings;
 }
 
+/**
+ * Toutes les broches MCU à mesurer en RAPPORT CYCLIQUE (`setPulseMonitors`).
+ *
+ * Une broche pilotée en PWM (`analogWrite`, `tone`, bit-banging) passe son temps
+ * à basculer : le niveau lu à l'instant du rafraîchissement vaut 0 ou 1 au
+ * hasard de la phase, et le composant CLIGNOTE au lieu de montrer sa valeur
+ * moyenne. Seules les broches listées ici sont échantillonnée front par front
+ * par le moteur — un oubli dans cette liste EST le clignotement (LED sur une
+ * broche PWM, retour Frank).
+ *
+ * `vcc` sert aux charges à deux bornes (ventilateur, moteur), dont la broche de
+ * commande se déduit du circuit d'alimentation.
+ */
+export function pulseMonitorPins(diagram: Diagram, vcc: number): string[] {
+  const pins: Array<string | null | undefined> = [];
+  for (const b of servoBindings(diagram)) pins.push(b.mcuPin);
+  for (const b of patteBindings(diagram)) pins.push(b.coxa, b.patella);
+  for (const b of buzzerBindings(diagram)) pins.push(b.mcuPin);
+  for (const b of rgbLedBindings(diagram)) pins.push(b.r, b.g, b.b);
+  for (const b of sevenSegmentBindings(diagram)) pins.push(...Object.values(b.segments));
+  for (const part of diagram.parts) {
+    const kind = partDef(part.type).kind;
+    // LED simple : c'est le montage du variateur de luminosité le plus courant.
+    if (kind === 'led') pins.push(ledMcuPin(diagram, part.id));
+    else if (kind === 'fan') pins.push(fanCircuit(diagram, part.id, vcc)?.mcuPin);
+    else if (kind === 'motor') pins.push(motorMcuPin(diagram, part.id, vcc));
+  }
+  return [...new Set(pins.filter((p): p is string => !!p))];
+}
+
 export interface SevenSegmentMuxBinding {
   partId: string;
   digits: number;

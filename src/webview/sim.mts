@@ -101,6 +101,7 @@ import {
   rgbLedBindings,
   sevenSegmentBindings,
   sevenSegmentMuxBindings,
+  pulseMonitorPins,
   neopixelBindings,
   lcdParallelBindings,
   spiDeviceBindings,
@@ -123,7 +124,6 @@ import {
   gateDriveSignature,
   relayStates,
   motorStates,
-  motorMcuPin,
   type Part,
   type HallBinding,
   type RelayFault,
@@ -1970,26 +1970,13 @@ function bindInputs(): void {
   // `onUpdate` ne tombe qu'à chaque instantané (4 ms) alors qu'un chiffre n'est
   // éclairé que ~2 ms — la moitié des chiffres serait manquée.
   engine.setSevenSeg?.(sevenSegMux);
-  // Ventilateurs : leur broche de commande est mesurée en rapport cyclique (PWM).
-  const fanPins = editor.diagram.parts
-    .filter((p) => partDef(p.type).kind === 'fan')
-    .map((p) => fanCircuit(editor.diagram, p.id, boardFamily(board) === 'rp2040' ? 3.3 : 5)?.mcuPin)
-    .filter((p): p is string => !!p);
-  // Moteurs : leur broche de commande est mesurée en rapport cyclique (PWM) —
-  // c'est ainsi qu'on fait varier leur vitesse.
-  const motorPins = editor.diagram.parts
-    .filter((p) => partDef(p.type).kind === 'motor')
-    .map((p) => motorMcuPin(editor.diagram, p.id, boardFamily(board) === 'rp2040' ? 3.3 : 5))
-    .filter((p): p is string => !!p);
-  engine.setPulseMonitors?.([
-    ...servoBindings(editor.diagram).map((b) => b.mcuPin),
-    ...patteBindings(editor.diagram).flatMap((b) => [b.coxa, b.patella].filter((p): p is string => p !== null)),
-    ...buzzers.map((b) => b.mcuPin),
-    ...fanPins,
-    ...motorPins,
-    ...rgbLeds.flatMap((b) => [b.r, b.g, b.b].filter((p): p is string => p !== null)),
-    ...sevenSegs.flatMap((b) => Object.values(b.segments).filter((p): p is string => p !== null)),
-  ]);
+  // Broches mesurées en rapport cyclique : servo, buzzer, ventilateur, moteur,
+  // LED (simple et RGB), 7 segments. La liste est bâtie par le modèle — un
+  // composant absent de cette liste clignote au lieu de varier (cf.
+  // pulseMonitorPins).
+  engine.setPulseMonitors?.(
+    pulseMonitorPins(editor.diagram, boardFamily(board) === 'rp2040' ? 3.3 : 5)
+  );
 
   // Capteurs ultrason : distance ET température de l'air choisies EN SIMULATION
   // par les deux curseurs du composant (distance bornée par distancemin/distancemax

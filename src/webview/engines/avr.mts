@@ -290,14 +290,19 @@ export class AvrEngine implements SimEngine {
 
   // Mesure de largeur d'impulsion (servo) : broches surveillées + état d'arête.
   private pulsePins: Array<{ name: string; port: PortKey; bit: number }> = [];
-  // winStart/winHigh/winEdges : fenêtre d'intégration du rapport cyclique
-  // (readPwmDuty) ; lastDuty = dernière mesure, conservée tant que la fenêtre
-  // ne couvre pas une période PWM complète.
+  // Rapport cyclique (readPwmDuty) : intégré sur des PÉRIODES COMPLÈTES, d'un
+  // front montant au suivant. `accHigh`/`accTotal` cumulent les périodes closes
+  // depuis la dernière lecture, `curHigh` le temps haut de la période en cours,
+  // `perStart` son début. Mesurer sur une fenêtre quelconque (l'ancien procédé)
+  // laissait une période tronquée à chaque bout : la luminosité affichée
+  // oscillait de quelques pour cent d'une image à l'autre. `lastDuty` est
+  // conservée tant qu'aucune période complète n'est écoulée.
   private pulseState = new Map<
     string,
     {
       high: boolean; rise: number; lastUs: number; lastEdge: number;
-      winStart: number; winHigh: number; winEdges: number; lastDuty: number;
+      perStart: number; curHigh: number; accHigh: number; accTotal: number;
+      lastPeriod: number; lastRead: number; lastDuty: number;
     }
   >();
 
@@ -488,7 +493,8 @@ export class AvrEngine implements SimEngine {
       if (!this.pulseState.has(name)) {
         this.pulseState.set(name, {
           high: false, rise: 0, lastUs: 0, lastEdge: 0,
-          winStart: this.cpu.cycles, winHigh: 0, winEdges: 0, lastDuty: 0,
+          perStart: -1, curHigh: 0, accHigh: 0, accTotal: 0,
+          lastPeriod: 0, lastRead: this.cpu.cycles, lastDuty: 0,
         });
       }
     }
@@ -498,29 +504,58 @@ export class AvrEngine implements SimEngine {
     return this.pulseState.get(name)?.lastUs ?? 0;
   }
 
-  /** Vrai si la broche a basculé récemment (< 60 ms simulées) = signal carré actif (tone/PWM). */
+  /**
+   * Vrai si la broche OSCILLE : au moins une période complète mesurée, et un
+   * front il y a moins de 60 ms simulées. Un front isolé ne suffit pas — un
+   * simple `digitalWrite` en produit un, et le prendre pour un signal carré
+   * faisait lire un rapport cyclique là où il n'y a qu'un niveau.
+   */
   pulseActive(name: string): boolean {
     const st = this.pulseState.get(name);
-    if (!st) return false;
+    if (!st || st.lastPeriod === 0) return false;
     return this.cpu.cycles - st.lastEdge < 60_000 * CYCLES_PER_US;
   }
 
-  /** Rapport cyclique (0..1) mesuré sur la fenêtre écoulée depuis la dernière mesure. */
+  /**
+   * Rapport cyclique (0..1) des périodes PWM COMPLÈTES écoulées depuis la
+   * dernière lecture. Une période tronquée fausserait la moyenne selon la phase :
+   * seules les périodes closes (front montant → front montant) sont comptées, et
+   * la dernière valeur est conservée tant qu'il n'y en a aucune.
+   *
+   * Sortie FIGÉE (le programme est passé à `digitalWrite`, ou à un rapport
+   * cyclique extrême) : plus aucun front n'arrive. On le reconnaît à un silence
+   * de plus de deux périodes — la mesure retombe alors sur le niveau de la
+   * broche, sans quoi une LED passée à fond resterait affichée à son ancienne
+   * luminosité. Le plafond de 100 ms couvre le cas où aucune période n'a encore
+   * été mesurée.
+   */
   readPwmDuty(name: string): number {
     const st = this.pulseState.get(name);
     if (!st) return this.readDigital(name) ? 1 : 0;
     const now = this.cpu.cycles;
-    const total = now - st.winStart;
-    // Fenêtre trop courte (pas une période PWM complète) : mesurer donnerait 0
-    // ou 1 selon la phase → on garde la dernière valeur et on laisse la fenêtre
-    // s'allonger (plafond 100 ms simulées pour ne pas rester figé).
-    if (st.winEdges < 2 && total < 100_000 * CYCLES_PER_US) return st.lastDuty;
-    let high = st.winHigh;
-    if (st.high) high += now - Math.max(st.rise, st.winStart);
-    st.winStart = now;
-    st.winHigh = 0;
-    st.winEdges = 0;
-    st.lastDuty = total > 0 ? Math.max(0, Math.min(1, high / total)) : (st.high ? 1 : 0);
+    // Sortie figée : l'état présent prime sur ce qui reste en cumul (périodes du
+    // régime précédent). Sinon `analogWrite(pin, 255)` juste après un 128
+    // afficherait encore l'ancien rapport cyclique.
+    const fige =
+      st.lastPeriod > 0
+        ? now - st.lastEdge > 2 * st.lastPeriod
+        : now - st.lastRead > 100_000 * CYCLES_PER_US;
+    if (fige) {
+      st.accHigh = 0;
+      st.accTotal = 0;
+      st.perStart = -1;
+      st.curHigh = 0;
+      st.lastPeriod = 0;
+      st.lastRead = now;
+      st.lastDuty = st.high ? 1 : 0;
+      return st.lastDuty;
+    }
+    if (st.accTotal > 0) {
+      st.lastDuty = Math.max(0, Math.min(1, st.accHigh / st.accTotal));
+      st.accHigh = 0;
+      st.accTotal = 0;
+      st.lastRead = now;
+    }
     return st.lastDuty;
   }
 
@@ -686,7 +721,8 @@ export class AvrEngine implements SimEngine {
       if (!this.pulseState.has(s.trig)) {
         this.pulseState.set(s.trig, {
           high: false, rise: 0, lastUs: 0, lastEdge: 0,
-          winStart: this.cpu.cycles, winHigh: 0, winEdges: 0, lastDuty: 0,
+          perStart: -1, curHigh: 0, accHigh: 0, accTotal: 0,
+          lastPeriod: 0, lastRead: this.cpu.cycles, lastDuty: 0,
         });
       }
     }
@@ -833,14 +869,29 @@ export class AvrEngine implements SimEngine {
         st.high = true;
         st.rise = now;
         st.lastEdge = now; // front montant : la broche bascule (activité)
-        st.winEdges++; // fronts montants de la fenêtre (readPwmDuty)
+        // Front montant = fin d'une période PWM et début de la suivante. La
+        // période close est ajoutée telle quelle au cumul (readPwmDuty).
+        if (st.perStart >= 0) {
+          const per = now - st.perStart;
+          // Une période dont la durée n'a rien à voir avec la précédente n'est
+          // pas une période du même signal : c'est le moment où le programme a
+          // changé de régime (nouvel analogWrite, PWM coupé, note suivante).
+          // La compter fausserait la moyenne — on la saute, et la suivante,
+          // mesurée sur le nouveau régime, sera prise.
+          if (st.lastPeriod === 0 || (per <= 2 * st.lastPeriod && per * 2 >= st.lastPeriod)) {
+            st.accTotal += per;
+            st.accHigh += st.curHigh;
+          }
+          st.lastPeriod = per;
+        }
+        st.perStart = now;
+        st.curHigh = 0;
       } else if (!high && st.high) {
         st.high = false;
         st.lastEdge = now; // front descendant
         const widthUs = (now - st.rise) / CYCLES_PER_US;
         st.lastUs = widthUs; // dernière largeur d'impulsion haute (servo, fréquence buzzer)
-        // Cumul du temps haut dans la fenêtre courante (rapport cyclique PWM).
-        st.winHigh += now - Math.max(st.rise, st.winStart);
+        st.curHigh += now - st.rise; // temps haut de la période en cours
         this.maybeFireEcho(pp.name, widthUs); // une impulsion TRIG déclenche ECHO
       }
     }
