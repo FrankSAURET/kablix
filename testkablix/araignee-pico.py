@@ -37,4 +37,4 @@ while True:
     pose(90, 130);  print("pattes levées");   
     time.sleep(1)
     pose(16, 130);  print("pattes sur le côté");    time.sleep(1)
-    pose(125, 130); print("pattes avant arrière");  time.sleep(5)
+    pose(125, 130); print("pattes avant arrière");  time.sleep(1)
