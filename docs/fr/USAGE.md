@@ -495,6 +495,20 @@ Kablix **simule** ; ces deux extensions s'occupent du reste de la chaîne et se 
 
 Kablix les propose **une seule fois** à sa première activation. Pour y revenir : palette de commandes (`Ctrl+Shift+P`) → **« Kablix : Extensions conseillées »**.
 
+### La carte choisie dans Kablix devient celle du projet Arduino
+
+Si **`electropol-fr.arduino-vscode-ide`** est installée, choisir **Uno**, **Nano** ou **Mega** dans le sélecteur de carte de Kablix la choisit **aussi de son côté** : votre sketch `.ino` est reconnu du même coup (langage, IntelliSense, compilation, téléversement), sans aller re-choisir la carte dans l'autre extension. Cela vaut aussi à l'ouverture d'un projet `.projix` — la carte enregistrée dedans est reportée.
+
+Le réglage de l'autre extension est un fichier : **`.vscode/arduino.yaml`**, où Kablix écrit deux lignes, `board` (l'identifiant complet de la carte, par exemple `arduino:avr:mega`) et `configuration` (l'option de processeur, `cpu=atmega2560`). Tout le reste du fichier — sketch, port, dossier de sortie — est laissé intact.
+
+Trois garde-fous :
+
+- **Pico et Pico W ne touchent à rien** : ce sont des cartes MicroPython, la carte Arduino déjà choisie n'est pas effacée.
+- **Aucun fichier n'est semé** dans un dossier qui n'a rien d'Arduino : Kablix n'écrit que si `.vscode/arduino.yaml` existe déjà ou si le dossier contient un sketch `.ino`.
+- **Rien n'est réécrit** quand la carte y est déjà.
+
+Pour couper la synchronisation : réglage **`kablix.syncArduinoIdeBoard`** (actif par défaut).
+
 ## Raccourcis clavier
 
 | Touche | Action |

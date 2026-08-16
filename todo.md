@@ -1,6 +1,20 @@
 # À faire
-1. Tu ne retouche plus changelog que j'ai modifié pour cette version. Juste le n° de version et la date quand je déciderais de publier.
+1. Les pastilles jaunes d'une platine d'essai passent par dessus le corps des composants, le rendant difficile à sélectionner. Fais en sorte que si on fais un clic droit pour sélectionner le composant ça le sélectionne même si la pastille jaune est apparu.
 
+# >>>>  v2026.8.72 — la carte choisie dans Kablix devient celle du projet Arduino
+
+1. ✅ **Choisir Uno, Nano ou Mega dans Kablix la choisit AUSSI dans « Arduino VS Code IDE »** : ton sketch `.ino` est reconnu du même coup (langage, IntelliSense, compilation, téléversement), sans aller re-choisir la carte de l'autre côté. Vaut pour le sélecteur de carte comme pour l'ouverture d'un `.projix` (la carte enregistrée dedans est reportée).
+2. ✅ **Trouvé comment lui parler : elle n'a AUCUNE API.** `activate()` ne retourne rien et `arduino.changeBoardType` ouvre une liste déroulante, sans argument. Son vrai réglage de projet est un FICHIER — `.vscode/arduino.yaml` — qu'elle **surveille** (`FileSystemWatcher`) et relit à chaque écriture. Écrire dedans suffit donc à changer sa carte, et même si elle n'est pas encore réveillée : elle lit le fichier à son démarrage.
+3. ✅ **Deux lignes écrites, pas une de plus** ([arduinoIde.ts](src/arduinoIde.ts)) : `board` (l'identifiant complet — `arduino:avr:mega`) et `configuration` (l'option de processeur — `cpu=atmega2560`, faute de quoi la Mega serait compilée pour la mauvaise puce). Sketch, port, dossier de sortie et jusqu'aux `buildPreferences` sur plusieurs lignes restent **intacts** : le fichier appartient à l'autre extension. Les identifiants sont ceux avec lesquels Kablix compile déjà (`compiler.ts`) — une seule vérité.
+4. ✅ **Pico et Pico W ne touchent à rien.** Ce sont des cartes MicroPython : passer au Pico n'efface pas la carte Arduino déjà choisie, elle est simplement laissée où elle est.
+5. ✅ **Aucun fichier semé dans un dossier qui n'a rien d'Arduino** : Kablix n'écrit que si `.vscode/arduino.yaml` existe déjà, ou si le dossier contient un sketch `.ino`. Sans ça, ouvrir un schéma Uno dans n'importe quel dossier y aurait déposé un fichier de réglage inutile.
+6. ✅ **Rien n'est réécrit quand c'est déjà bon** : le contenu voulu est comparé au contenu présent. Chaque écriture réveille le watcher d'en face — on ne le réveille pas pour rien.
+7. ✅ **Un seul endroit décide de la carte** ([panel.ts](src/panel.ts)) : les six chemins qui la posaient (choix dans la webview, compilation, REPL, chargement d'artefact, ouverture d'un projet, onglet rouvert après une fermeture non enregistrée) passent maintenant par `setCurrentBoard`. Une affectation directe qui reviendrait sauterait la synchro — le banc la refuse.
+8. ✅ **Le dossier visé est celui du programme**, pas « le premier ouvert » : en multi-dossiers, le fichier de code (sinon le `.projix`) désigne son dossier de travail, avec le même repli que l'extension d'en face (celui qui porte déjà un `arduino.yaml`).
+9. ✅ **Nouveau banc `verify:arduinoide` : 45 contrôles** — `arduinoIde.ts` ET `panel.ts` exécutés pour de vrai, bundlés avec un faux `vscode` (extensions installées, réglages, système de fichiers en mémoire) : on lit ce qui est réellement écrit. Cartes et options, clés voisines préservées, CRLF conservés, Pico épargné, extension absente, réglage coupé, dossier sans sketch, double écriture évitée, multi-dossiers, et le chemin complet « la webview annonce sa carte → le fichier change ». **Quatre pannes rejouées exprès, les quatre sont attrapées** (Pico traité comme un Arduino, YAML réécrit de zéro, setter contourné, garde-fou retiré). Branché dans `verify:all`.
+10. ✅ **Réglage `kablix.syncArduinoIdeBoard`** (actif par défaut) pour couper la synchro, et `docs/fr/USAGE.md` : nouvelle rubrique sous « Extensions conseillées ».
+11. ℹ️ **Rien à faire pour l'activation** : l'extension d'en face s'active toute seule dès qu'un `.ino` traîne dans le dossier (`workspaceContains:**/*.ino`) — c'est exactement le cas où Kablix écrit.
+12. ⏳ Traduction FR de la description du réglage (`package.nls.fr.json`) et report de la rubrique dans `docs/en/USAGE.md` : au lot d'avant publication, comme le reste.
 
 # >>>>  v2026.8.71 — la résistance debout tient dans un carreau de 30
 

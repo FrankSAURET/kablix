@@ -24,6 +24,7 @@ import { resolveMicropythonFirmware, FirmwareCancelled } from './firmware';
 import { PartHelpPanel } from './partHelp';
 import { codeColumn, moveEditorToColumn, textTabColumn } from './layout';
 import { defaultAppsDirPath, detectSvgEditor, svgEditorLaunch } from './svgEditorDetect';
+import { syncArduinoIdeBoard } from './arduinoIde';
 
 const ARTIFACT_EXTS = ['.hex', '.uf2', '.elf', '.bin'];
 
@@ -356,6 +357,17 @@ export class SimulatorPanel {
     this.updateTitle();
     this.post({ type: 'setDirty', dirty: true });
     this.panel.onDocEdit?.();
+  }
+
+  /**
+   * Carte courante. Passe par ici pour TOUS les chemins (choix dans la webview,
+   * ouverture d'un projet, restauration d'un onglet) : une carte Arduino est
+   * aussitôt reportée dans l'extension « Arduino VS Code IDE » si elle est
+   * installée, pour que le sketch .ino soit reconnu sans la re-choisir là-bas.
+   */
+  private setCurrentBoard(board: Board): void {
+    this.currentBoard = board;
+    void syncArduinoIdeBoard(board, this.codeFileUri ?? this.projectUri ?? this.documentUri);
   }
 
 
@@ -1387,18 +1399,18 @@ export class SimulatorPanel {
         if (msg.dirty === true) this.markProjectDirty();
         break;
       case 'board':
-        if (msg.board) this.currentBoard = msg.board;
+        if (msg.board) this.setCurrentBoard(msg.board);
         break;
       case 'compile':
-        if (msg.board) this.currentBoard = msg.board;
+        if (msg.board) this.setCurrentBoard(msg.board);
         void this.compileActiveFile(msg.onlyIfChanged === true);
         break;
       case 'startRepl':
-        if (msg.board) this.currentBoard = msg.board;
+        if (msg.board) this.setCurrentBoard(msg.board);
         void this.startReplMode();
         break;
       case 'loadWorkspace':
-        if (msg.board) this.currentBoard = msg.board;
+        if (msg.board) this.setCurrentBoard(msg.board);
         void this.loadWorkspaceArtifact();
         break;
       case 'exportSvg':
@@ -1905,7 +1917,7 @@ export class SimulatorPanel {
     if (customParts) {
       await this.context.globalState.update(CUSTOM_PARTS_KEY, customParts);
     }
-    this.currentBoard = project.manifest.board ?? this.currentBoard;
+    this.setCurrentBoard(project.manifest.board ?? this.currentBoard);
     // Réglages du panneau de débogage du projet (masquages + bases). Envoyés
     // AVANT restoreCodeFile : celui-ci repostera le repli hérité si le projet
     // n'en porte aucun.
@@ -2099,7 +2111,7 @@ export class SimulatorPanel {
   }): Promise<void> {
     this.projectUri = state.projectUri;
     this.projectBaseName = state.projectBaseName;
-    if (state.board) this.currentBoard = state.board;
+    if (state.board) this.setCurrentBoard(state.board);
     this.pendingDiagram = state.diagram;
     this.pendingBoard = state.board;
     this.projectDirty = true;
