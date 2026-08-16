@@ -783,12 +783,21 @@ export class Editor {
       // clic à celle-ci : le trou de platine redevient câblable, composant
       // voisin ou pas, en câblage comme au repos.
       this.pinHoistDot.addEventListener('pointerdown', (ev) => {
+        // …sauf au CLIC DROIT, qui n'a jamais servi à câbler : il attrape le
+        // composant. Le halo posé au-dessus de tout l'avalait, et un composant
+        // enfiché sur une platine devenait impossible à saisir dès qu'une
+        // pastille jaune s'allumait dessus (signalé par Frank).
+        if (this.pinRightClick(ev)) {
+          this.grabPartUnder(ev, this.pinReachablePart);
+          return;
+        }
         const target = this.pinHoistTarget();
         if (!target) return;
         ev.stopPropagation();
         this.onPinDown(target, ev);
       });
       this.pinHoistDot.addEventListener('pointerup', (ev) => {
+        if (this.pinRightClick(ev)) return; // relâché du clic droit : c'est le composant qui l'a
         const target = this.pinHoistTarget();
         if (!target) return;
         ev.stopPropagation();
@@ -815,6 +824,54 @@ export class Editor {
     const part = this.diagram.parts.find((p) => p.id === target.partId);
     if (!part) return '';
     return pinDisplayName(partDef(part.type).kind, target.pin, part.type, part.attrs);
+  }
+
+  /**
+   * Clic DROIT sur une pastille (halo jaune de survol d'une broche, ou rond de
+   * hissage) : à réserver au composant. Le clic droit ne câble pas — il
+   * sélectionne et déplace —, or les pastilles avalaient tout bouton confondu.
+   * Les trous d'une platine d'essai en couvrent le corps des composants
+   * enfichés dessus : la LED ou la résistance devenait impossible à attraper
+   * dès qu'une pastille jaune s'allumait. Sans effet en simulation ni pendant
+   * un câblage, où le comportement d'origine des pastilles est conservé.
+   */
+  private pinRightClick(ev: PointerEvent): boolean {
+    return ev.button === 2 && !this.locked && !this.pending;
+  }
+
+  /**
+   * Composant réellement DESSINÉ sous un point de l'écran, pastilles et halo
+   * mis de côté : celui que l'utilisateur voit et croit attraper. On relit
+   * l'empilement au point visé (`elementsFromPoint`, du dessus vers le dessous)
+   * et on retient le premier qui appartient à un composant — le vide d'un
+   * dessin creux laisse donc passer vers celui du dessous, exactement comme un
+   * clic ordinaire (cf. `makeDrawingHitPainted`).
+   */
+  private partUnderPoint(x: number, y: number): Part | null {
+    for (const el of document.elementsFromPoint(x, y)) {
+      if (el.classList.contains('pin') || el.classList.contains('pin-hoist-dot')) continue;
+      const container = el.closest('.part');
+      if (!container) continue;
+      for (const [id, r] of this.rendered) {
+        if (r.container === container) return this.diagram.parts.find((p) => p.id === id) ?? null;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Attrape au clic droit le composant sous la pastille cliquée. À défaut de
+   * dessin sous le curseur (pastille posée dans le vide), c'est le composant
+   * propriétaire de la pastille qui est pris — le comportement d'un clic droit
+   * sur son corps.
+   */
+  private grabPartUnder(ev: PointerEvent, ownerId: string | null): void {
+    const part =
+      this.partUnderPoint(ev.clientX, ev.clientY) ??
+      (ownerId ? this.diagram.parts.find((p) => p.id === ownerId) ?? null : null);
+    if (!part) return;
+    ev.stopPropagation();
+    this.startDrag(ev, part);
   }
 
   /**
@@ -2412,10 +2469,18 @@ export class Editor {
     dot.style.top = `${pos.y}px`;
     dot.title = pinDisplayName(kind, pin.name, type, attrs);
     dot.addEventListener('pointerdown', (e) => {
+      // Clic droit : la pastille s'efface devant le composant qu'elle recouvre
+      // (cf. pinRightClick) — sinon un trou de platine volait la saisie de la
+      // LED enfichée dessus.
+      if (this.pinRightClick(e)) {
+        this.grabPartUnder(e, partId);
+        return;
+      }
       e.stopPropagation();
       this.onPinDown({ partId, pin: pin.name }, e);
     });
     dot.addEventListener('pointerup', (e) => {
+      if (this.pinRightClick(e)) return;
       e.stopPropagation();
       this.onPinUp({ partId, pin: pin.name }, e);
     });

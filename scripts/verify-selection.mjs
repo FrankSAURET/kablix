@@ -881,6 +881,74 @@ async function run() {
 	ok('trou de platine : plus de fil en cours après le clic', !editor.pending, '');
 	editor.select(null);
 
+	// --- Clic DROIT à travers la pastille jaune (item v2026.8.73) --------------
+	// Les trous d'une platine recouvrent le corps des composants enfichés dessus,
+	// et leur pastille jaune (survol) comme le halo de hissage avalaient TOUS les
+	// boutons : la LED enfichée devenait impossible à attraper. Le clic droit — qui
+	// ne câble jamais, il sélectionne et déplace — doit aller au composant
+	// réellement DESSINÉ sous le curseur, pastille ou pas.
+	await wait(20);
+	hover(hc.x, hc.y);
+	await wait(40);
+	const droitHalo = document.querySelector('.pin-hoist-dot');
+	ok('clic droit : le halo jaune est bien posé sur le trou (repro du gêneur)',
+		!!droitHalo && document.elementFromPoint(hc.x, hc.y) === droitHalo,
+		droitHalo ? 'halo posé' : 'pas de halo');
+	const filsAvantDroit = editor.diagram.wires.length;
+	if (droitHalo) pdown(droitHalo, { button: 2, clientX: hc.x, clientY: hc.y });
+	await wait(40);
+	ok('clic droit sur le halo : la LED enfichée est sélectionnée',
+		!!editor.selection && editor.selection.kind === 'part' && editor.selection.id === plugLed.id,
+		JSON.stringify(editor.selection));
+	ok('clic droit sur le halo : la LED porte le cadre de sélection',
+		editor.rendered.get(plugLed.id).container.classList.contains('part--selected'),
+		editor.rendered.get(plugLed.id).container.className);
+	ok('clic droit sur le halo : aucun fil entamé ni ajouté',
+		!editor.pending && editor.diagram.wires.length === filsAvantDroit,
+		'pending=' + !!editor.pending + ' fils=' + editor.diagram.wires.length + '/' + filsAvantDroit);
+	pup();
+	await wait(20);
+
+	// Même geste sur la VRAIE pastille du trou (sans passer par le halo).
+	editor.select(null);
+	await wait(20);
+	pdown(editor.rendered.get(bb.id).hotspots.get(hole), { button: 2, clientX: hc.x, clientY: hc.y });
+	await wait(40);
+	ok('clic droit sur la pastille du trou recouvert : la LED est sélectionnée',
+		!!editor.selection && editor.selection.kind === 'part' && editor.selection.id === plugLed.id,
+		JSON.stringify(editor.selection));
+	pup();
+	await wait(20);
+
+	// Contre-épreuve 1 : un trou LIBRE (rien de dessiné dessus) garde la platine.
+	editor.select(null);
+	await wait(20);
+	const trouLibre = bbPins.find((p) => !hidden.includes(p));
+	const lc = holeCenter(trouLibre);
+	pdown(editor.rendered.get(bb.id).hotspots.get(trouLibre), { button: 2, clientX: lc.x, clientY: lc.y });
+	await wait(40);
+	ok('clic droit sur un trou libre : la platine reste la cible',
+		!!editor.selection && editor.selection.kind === 'part' && editor.selection.id === bb.id,
+		JSON.stringify(editor.selection));
+	pup();
+	await wait(20);
+
+	// Contre-épreuve 2 : le clic GAUCHE câble toujours depuis le trou recouvert.
+	editor.select(null);
+	await wait(20);
+	hover(hc.x, hc.y);
+	await wait(40);
+	const haloGauche = document.querySelector('.pin-hoist-dot');
+	if (haloGauche) pdown(haloGauche, { clientX: hc.x, clientY: hc.y });
+	await wait(40);
+	ok('clic gauche sur le halo : le câblage depuis le trou marche toujours',
+		!!editor.pending && editor.pending.from.partId === bb.id && editor.pending.from.pin === hole,
+		editor.pending ? JSON.stringify(editor.pending.from) : 'aucun fil en cours');
+	editor.cancelPending();
+	pup();
+	await wait(20);
+	editor.select(null);
+
 	// --- Afficheur 7 seg : 2-points d'horloge (colon) sur le 4 chiffres --------
 	// (item v2026.7.145) : la propriété n'existe QUE pour le 4 chiffres ; active,
 	// elle masque les 4 DP et affiche 2 points centraux qui s'allument avec un dp.

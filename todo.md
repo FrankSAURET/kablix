@@ -1,5 +1,14 @@
 # À faire
-1. Les pastilles jaunes d'une platine d'essai passent par dessus le corps des composants, le rendant difficile à sélectionner. Fais en sorte que si on fais un clic droit pour sélectionner le composant ça le sélectionne même si la pastille jaune est apparu.
+
+# >>>>  v2026.8.73 — le clic droit passe à travers les pastilles jaunes
+
+1. ✅ **Une LED piquée dans une platine s'attrape de nouveau au clic droit**, même quand un trou s'allume en jaune sous le curseur. Les trous d'une platine sont au pas de 10 px : ils couvrent tout le corps des petits composants enfichés dessus, et la pastille jaune finissait toujours par se glisser entre la souris et le composant.
+2. ✅ **Trouvé les DEUX gêneurs, pas un** ([editor.mts](src/webview/diagram/editor.mts)) : la pastille de broche elle-même (`.pin`, jaune au survol) et le **halo de hissage** (`.pin-hoist-dot`, posé au-dessus de TOUT pour rattraper le clic d'un trou recouvert). Les deux arrêtaient l'événement (`stopPropagation`) **tous boutons confondus** — le clic droit compris, alors qu'il ne câble jamais.
+3. ✅ **Le clic droit va au composant réellement DESSINÉ sous le curseur**, pas au propriétaire de la pastille : c'est la LED qu'on voit, pas la platine qui porte le trou. L'empilement est relu au point visé (`elementsFromPoint`), pastilles et halo mis de côté — le vide d'un dessin creux laisse donc passer vers celui du dessous, exactement comme un clic ordinaire.
+4. ✅ **Rien d'autre ne bouge** : le clic gauche câble toujours depuis le trou recouvert (c'est tout l'intérêt du halo), un trou libre reste la platine, et en simulation comme pendant un câblage en cours les pastilles gardent leur comportement d'origine.
+5. ✅ **Banc `verify:selection` étoffé : 199 contrôles** (vrai éditeur, vrai CSS, Chrome headless), dont 8 neufs sur une LED réellement enfichée dans une platine — clic droit sur le halo, clic droit sur la pastille du trou recouvert, cadre de sélection posé, aucun fil entamé, trou libre, et le câblage au clic gauche en contre-épreuve. **Trois pannes rejouées exprès, les trois sont attrapées** (halo qui ravale le clic droit : 4 échecs ; pastille qui le ravale : 2 ; composant sous le curseur ignoré : 3).
+6. ✅ `docs/fr/USAGE.md` : la ligne « Déplacer » dit le passage à travers les pastilles jaunes.
+7. ⏳ Report de la phrase dans `docs/en/USAGE.md` : au lot d'avant publication, comme le reste.
 
 # >>>>  v2026.8.72 — la carte choisie dans Kablix devient celle du projet Arduino
 
