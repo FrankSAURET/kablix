@@ -493,6 +493,8 @@ function rendu() {
       <div class="barre">
         <button @click=\${() => recharge(true)} ?disabled=\${etat.occupe}>
           \${etat.occupe ? 'lecture du dessin…' : '↻ recharger'}</button>
+        <button @click=\${() => integrer()} ?disabled=\${etat.occupe || !liste.length}>
+          Intégrer</button>
         <span class="gris">\${d && d.range ? 'rangé' : ''}</span>
       </div>
       \${etat.erreur ? html\`<p class="err">\${etat.erreur}</p>\` : ''}
@@ -557,6 +559,59 @@ addEventListener('wheel', (ev) => {
   dessine();
 }, { passive: false });
 
+/** Intégrer l'assemblage courant à la bibliothèque système. */
+async function integrer() {
+  if (!etat.donnees?.ensembles.length) {
+    etat.erreur = 'Aucun ensemble à intégrer.';
+    dessine();
+    return;
+  }
+
+  // Dialog simple pour carte + nom.
+  const cartes = ['uno', 'nano', 'mega', 'pico', 'picow'];
+  let carte = prompt(\`Carte de développement (\${cartes.join('/')})\`, 'uno');
+  if (!carte) return;
+  carte = carte.toLowerCase();
+  if (!cartes.includes(carte)) {
+    alert(\`Carte inconnue : \${carte}\`);
+    return;
+  }
+
+  let nom = prompt('Nom du composant', etat.donnees.prefixe);
+  if (!nom) return;
+  nom = nom.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+  if (!nom) {
+    alert('Nom vide.');
+    return;
+  }
+
+  // POST vers /integrer.
+  etat.erreur = '';
+  etat.occupe = true;
+  dessine();
+  try {
+    const r = await fetch('/integrer', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        carte, nom,
+        prefixe: etat.donnees.prefixe,
+        ensembles: etat.donnees.ensembles,
+      }),
+    });
+    const j = await r.json();
+    if (r.ok) {
+      etat.erreur = j.message || 'Composant intégré.';
+    } else {
+      etat.erreur = j.erreur || 'Erreur lors de l\'intégration.';
+    }
+  } catch (e) {
+    etat.erreur = 'Erreur : ' + String((e && e.message) || e);
+  }
+  etat.occupe = false;
+  dessine();
+}
+
 dessine();
 recharge(false);
 `);
@@ -617,7 +672,7 @@ const envoie = (res, code, type, corps) => {
   res.end(corps);
 };
 
-const serveur = createServer((req, res) => {
+const serveur = createServer(async (req, res) => {
   const url = (req.url || '/').split('?')[0];
   try {
     if (url === '/') return envoie(res, 200, 'text/html; charset=utf-8', page);
@@ -625,6 +680,85 @@ const serveur = createServer((req, res) => {
     if (url === '/recharger' && req.method === 'POST') {
       donnees = charger(true);
       return envoie(res, 200, 'application/json', JSON.stringify(donnees));
+    }
+    if (url === '/integrer' && req.method === 'POST') {
+      let body = '';
+      for await (const chunk of req) body += chunk;
+      const { carte, nom, prefixe, ensembles } = JSON.parse(body);
+
+      // Valider les entrées.
+      if (!['uno', 'nano', 'mega', 'pico', 'picow'].includes(carte)) {
+        throw new Error(`Carte invalide : ${carte}`);
+      }
+      if (!nom || !/^[a-z0-9-]+$/.test(nom)) {
+        throw new Error(`Nom invalide : ${nom}`);
+      }
+
+      // Générer la définition du composant.
+      const compixDir = join(ROOT, 'kablix_components', nom);
+      mkdirSync(compixDir, { recursive: true });
+
+      // Fichier de définition JSON.
+      const definition = {
+        type: nom,
+        label: nom.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' '),
+        tag: `kablix-${nom}`,
+        kind: 'passive',
+        board: carte === 'picow' ? 'picow' : carte === 'pico' ? 'pico' : 'uno',
+        description: `Assemblage ${prefixe} (intégré le ${new Date().toLocaleDateString('fr-FR')})`,
+        assemblies: ensembles.map(e => e.nom),
+      };
+      writeFileSync(join(compixDir, 'definition.json'), JSON.stringify(definition, null, 2));
+
+      // SVG placeholder (Frank devra le retoucher).
+      const svgPlaceholder = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <rect width="100" height="100" fill="#f0f0f0" stroke="#999" stroke-width="1"/>
+  <text x="50" y="50" text-anchor="middle" dy=".3em" font-size="12" fill="#666">${nom}</text>
+  <!-- Pastilles à ajouter (red circles avec names) -->
+</svg>`;
+      writeFileSync(join(compixDir, 'externe.svg'), svgPlaceholder);
+
+      // Entrée TypeScript pour catalog.mts.
+      const boardMap = { uno: 'uno', nano: 'nano', mega: 'mega', pico: 'pico', picow: 'picow' };
+      const catalogEntry = `  // ${definition.label} — intégré le ${new Date().toLocaleDateString('fr-FR')}
+  {
+    type: '${nom}', label: '${definition.label}', tag: 'kablix-${nom}', kind: '${definition.kind}',
+    board: '${boardMap[carte]}',
+    attrs: {},
+    props: [
+      // À ajouter selon les contrôles du composant
+    ],
+  },`;
+      writeFileSync(join(compixDir, 'catalog-entry.ts'), catalogEntry);
+
+      // README.
+      const readme = `# ${definition.label}
+
+Assemblage intégré depuis montre.mjs le ${new Date().toLocaleString('fr-FR')}.
+
+## Fichiers
+- \`definition.json\` : métadonnées du composant
+- \`externe.svg\` : dessin 2D (à retoucher)
+- \`catalog-entry.ts\` : entrée TypeScript pour catalog.mts (copier-coller)
+
+## À faire
+1. Retoucher \`externe.svg\` avec le vrai dessin
+2. Ajouter les pastilles de brochage (cercles rouges avec \`<text>\` au-dessus)
+3. Copier le contenu de \`catalog-entry.ts\` dans \`src/webview/diagram/catalog.mts\`
+4. Importer l'élément Lit (créer \`src/webview/composants/${nom}-element.mts\` ou copier araignee-element.mts)
+5. Tester dans l'éditeur
+
+## Liens
+- Drawing systems : docs/fr/Drawing-systems.md
+- Modèle araignée : src/webview/composants/araignee-element.mts
+`;
+      writeFileSync(join(compixDir, 'README.md'), readme);
+
+      console.log(`\n  ✓ Composant intégré : ${nom} (carte ${carte})`);
+      console.log(`  → ${compixDir}`);
+      return envoie(res, 200, 'application/json', JSON.stringify({
+        message: `Composant intégré. Dossier : kablix_components/${nom}/`,
+      }));
     }
   } catch (e) {
     console.error(`  ! ${e && e.stack ? e.stack : e}`);

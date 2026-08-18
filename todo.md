@@ -1,4 +1,13 @@
 # À faire
+- ⏳ Composants extérieurs : suite du loader. Packing en zip `.compix`, loader depuis adresses externes (kablix.library), intégration au catalog.
+
+# >>>>  v2026.8.75 — bouton Intégrer du composant dans montre.mjs
+
+1. ✅ **Bouton « Intégrer » dans le viewer 3D (montre.mjs)** : choisir une carte de dev (uno/nano/mega/pico/picow), donner un nom, et créer les fichiers de base du composant.
+2. ✅ **Les fichiers générés dans `kablix_components/{nom}/`** : definition.json (métadonnées), externe.svg (placeholder à retoucher), catalog-entry.ts (entrée TypeScript prête à copier-coller dans catalog.mts), README.md (guide d'intégration).
+3. ✅ **Endpoint POST `/integrer` dans le serveur montre** : reçoit carte/nom/assemblies, génère les fichiers, retourne message de succès.
+4. ✅ **Dialog simple** (prompt natif du navigateur) : demande carte et nom du composant, valide la saisie, appelle l'endpoint.
+5. ✅ Workflow complet : dessiner assemblage → montre → Intégrer → dossier prêt → retoucher et importer.
 
 # >>>>  v2026.8.74 — une LED en analogWrite() brille à mi-puissance au lieu de clignoter
 
