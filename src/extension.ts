@@ -9,6 +9,7 @@ import { associateProjix, promptProjixAssociationOnFirstRun } from './associate'
 import { promptRecommendedExtensions } from './recommend';
 import { PartHelpPanel, SHOW_PART_HELP } from './partHelp';
 import { openNewProjix, openOrRevealProjix } from './openproject';
+import { KompixLibrary } from './kompixLibrary';
 
 const l10n = vscode.l10n;
 
@@ -23,6 +24,14 @@ export function activate(context: vscode.ExtensionContext): void {
   // utilisé dans la foulée refuse l'écriture de `kablix.svgEditorPath`. La
   // mémoire de l'extension, elle, accepte toujours.
   useSvgEditorMemory(context.globalState);
+
+  // Bibliothèque de composants .kompix (global, partagée).
+  const kompixLibrary = new KompixLibrary(context);
+  SimulatorPanel.library = kompixLibrary;
+  // Lance le scan asynchrone en arrière-plan (pas de blocage).
+  void kompixLibrary.start().catch((err) => {
+    console.error('Erreur initialisation bibliothèque kompix:', err);
+  });
   // Vue de la barre d'activité : cliquer l'icône Kablix ouvre DIRECTEMENT le
   // simulateur (panneau éditeur) et rend la main au volet Explorateur, pour que
   // le volet Kablix (quasi vide) n'occupe pas la barre latérale.
@@ -164,6 +173,14 @@ export function activate(context: vscode.ExtensionContext): void {
     // première retouche, changeable ensuite par cette commande.
     vscode.commands.registerCommand('kablix.chooseSvgEditor', () => {
       void chooseSvgEditor();
+    }),
+    vscode.commands.registerCommand('kablix.openComponentsFolder', () => {
+      const folder = vscode.Uri.file(kompixLibrary.getLibraryPath?.() ?? context.globalStorageUri.fsPath);
+      void vscode.env.openExternal(folder);
+    }),
+    vscode.commands.registerCommand('kablix.openComponentManager', () => {
+      // TODO Lot 3 : ouvrir le gestionnaire de composants (webview).
+      void vscode.window.showInformationMessage('Gestionnaire de composants — prochainement.');
     }),
     vscode.commands.registerCommand('kablix.recommendedExtensions', () => {
       void promptRecommendedExtensions(context, true);

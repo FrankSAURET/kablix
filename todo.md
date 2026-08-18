@@ -15,9 +15,11 @@
 3. ✅ **Configuration `kablix.componentRepositories`** (défaut : `franksauret/kablix`) : liste des dépôts distants pour le gestionnaire (Lot 3).
 4. ✅ **Commandes déclarées** : `kablix.openComponentsFolder`, `kablix.openComponentManager`.
 5. ✅ **Traduction EN/FR** : package.nls.json + package.nls.fr.json.
-6. ⏳ **Module hôte `kompixLibrary.ts`** : pack/unpack via jszip, scan du dossier, validation manifeste, production CustomPartData.
-7. ⏳ **FileSystemWatcher** : rescans sur `.kompix` trouvé dans workspace OU modifié dans bibliothèque.
-8. ⏳ **Index de confiance** : hash behavior.mjs, origin (local|remote), persistance JSON auprès des fichiers.
+6. ✅ **Module hôte `kompixLibrary.ts`** : pack/unpack via jszip, scan du dossier, validation manifeste, production CustomPartData.
+7. ✅ **FileSystemWatcher** : rescans sur `.kompix` trouvé dans workspace OU modifié dans bibliothèque.
+8. ✅ **Index de confiance** : hash behavior.mjs, origin (local|remote), persistance JSON auprès des fichiers.
+9. ✅ **Intégration webview** : SimulatorPanel.library, panel.ts envoie components depuis bibli au lieu de globalState.
+10. ✅ **Commandes** : openComponentsFolder ouvre le dossier dans l'explorateur système.
 
 # >>>>  v2026.8.76 — composants externes pour 2D et 3D
 

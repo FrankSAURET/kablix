@@ -315,6 +315,8 @@ export class SimulatorPanel {
   /** Dernière session ayant interagi (onglet .projix actif) : cible des
    *  commandes globales (Enregistrer, Import/Export Wokwi…) en mode CustomEditor. */
   private static lastActive: SimulatorPanel | undefined;
+  /** Bibliothèque de composants .kompix (injectée par extension.ts). */
+  public static library: any; // Type KompixLibrary, mais import circulaire à éviter
 
   /** Session de l'atelier actuellement au premier plan (CustomEditor), sinon le
    *  panneau singleton historique s'il existe. undefined si rien n'est ouvert. */
@@ -1352,9 +1354,11 @@ export class SimulatorPanel {
           type: 'simModels',
           models: this.context.globalState.get<unknown[]>(SIM_MODELS_KEY, []),
         });
+        // Composants .kompix depuis la bibliothèque locale, sinon fallback globalState
+        const parts = SimulatorPanel.library?.getComponents?.() ?? this.context.globalState.get<unknown[]>(CUSTOM_PARTS_KEY, []);
         this.post({
           type: 'customParts',
-          parts: this.context.globalState.get<unknown[]>(CUSTOM_PARTS_KEY, []),
+          parts,
         });
         this.post({
           type: 'uiState',
