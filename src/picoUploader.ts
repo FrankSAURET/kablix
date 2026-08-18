@@ -102,40 +102,42 @@ export class PicoUploader {
 
   /** Permet à l'utilisateur de choisir un port. */
   async choosePort(): Promise<string | undefined> {
-    if (this.detectedPorts.length === 0) {
-      await this.detectPorts();
-    }
+    await this.detectPorts();
 
     if (this.detectedPorts.length === 0) {
-      vscode.window.showErrorMessage(
-        'Aucun port sériel détecté. Vérifiez que votre Pico est connecté.'
+      const action = await vscode.window.showErrorMessage(
+        'Aucun port sériel détecté. Vérifiez que votre Pico est connecté.',
+        'Réessayer'
       );
+      if (action === 'Réessayer') {
+        return this.choosePort();
+      }
       return undefined;
     }
 
-    const selected = await vscode.window.showQuickPick(
-      this.detectedPorts,
-      {
-        placeHolder: 'Choisir le port Pico',
-        title: 'Sélectionner le port sériel',
-      }
-    );
+    // Afficher le port précédent en premier si disponible
+    const items = this.detectedPorts.map((port) => ({
+      label: port,
+      description: port === this.selectedPort ? '(précédent)' : '',
+    }));
+
+    const selected = await vscode.window.showQuickPick(items, {
+      placeHolder: 'Choisir le port Pico',
+      title: `Sélectionner le port sériel (${this.detectedPorts.length} trouvé${this.detectedPorts.length > 1 ? 's' : ''})`,
+    });
 
     if (selected) {
-      this.selectedPort = selected;
+      this.selectedPort = selected.label;
     }
 
-    return selected;
+    return selected?.label;
   }
 
   /** Upload un fichier ou un dossier vers le Pico via REPL. */
   async uploadFiles(fileOrFolder: string): Promise<void> {
-    let port = this.selectedPort;
-
-    if (!port) {
-      port = await this.choosePort();
-      if (!port) return;
-    }
+    // Toujours permettre le choix du port (re-détection à chaque fois)
+    const port = await this.choosePort();
+    if (!port) return;
 
     const stats = fs.statSync(fileOrFolder);
     const filesToUpload: { path: string; name: string }[] = [];

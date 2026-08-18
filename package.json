@@ -139,7 +139,7 @@
         "command": "kablix.uploadToPico",
         "title": "%kablix.cmd.uploadToPico%",
         "category": "Kablix",
-        "icon": "$(arrow-up)"
+        "icon": "media/upload.svg"
       }
     ],
     "keybindings": [
@@ -156,7 +156,8 @@
           "command": "kablix.uploadToPico",
           "group": "1_run",
           "when": "resourceLangId == 'python' && resourceExtname == '.py'",
-          "title": "Upload to Pico"
+          "title": "Upload to Pico",
+          "group": "navigation@-3"
         }
       ]
     },
