@@ -124,6 +124,16 @@
         "command": "kablix.chooseSvgEditor",
         "title": "%kablix.cmd.chooseSvgEditor%",
         "category": "Kablix"
+      },
+      {
+        "command": "kablix.openComponentsFolder",
+        "title": "%kablix.cmd.openComponentsFolder%",
+        "category": "Kablix"
+      },
+      {
+        "command": "kablix.openComponentManager",
+        "title": "%kablix.cmd.openComponentManager%",
+        "category": "Kablix"
       }
     ],
     "keybindings": [
@@ -242,6 +252,19 @@
           "type": "boolean",
           "default": true,
           "description": "%kablix.config.syncArduinoIdeBoard%"
+        },
+        "kablix.componentsFolder": {
+          "type": "string",
+          "default": "",
+          "description": "%kablix.config.componentsFolder%"
+        },
+        "kablix.componentRepositories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": ["https://raw.githubusercontent.com/franksauret/kablix/main/kablix_components/"],
+          "description": "%kablix.config.componentRepositories%"
         }
       }
     }

@@ -17,6 +17,8 @@
   "kablix.cmd.associateProjix": "Kablix: Associate .projix files with Kablix",
   "kablix.cmd.recommendedExtensions": "Kablix: Recommended extensions",
   "kablix.cmd.chooseSvgEditor": "Kablix: Choose the SVG editor…",
+  "kablix.cmd.openComponentsFolder": "Kablix: Open the components library",
+  "kablix.cmd.openComponentManager": "Kablix: Download components",
   "kablix.view.home": "Simulator",
   "kablix.welcome": "[▶ Open the simulator](command:kablix.openSimulator)",
   "kablix.config.micropythonUf2": "Path (absolute or workspace-relative) of the MicroPython .uf2 firmware used to run .py files on the simulated Pico. Leave empty: Kablix auto-detects a firmware in the workspace, and otherwise offers to download the official firmware on first run.",
@@ -33,5 +35,7 @@
   "kablix.editor.projix": "Kablix simulator",
   "kablix.config.selectionColor": "Selection color (parts, wires, bends). Any #rrggbb hex color. Kept vivid by default so it stays visible on all themes.",
   "kablix.config.svgEditorPath": "Full path of the SVG editor (Inkscape, Illustrator…) used by \"Open in the SVG editor\" in the part creator. Empty: Kablix looks up the application your system associates with .svg files, writes it here, and asks you nothing. It only opens the picker when it finds no editor at all.",
-  "kablix.config.syncArduinoIdeBoard": "Selecting an Arduino board in Kablix also selects it in the \"Arduino VS Code IDE\" extension, so your .ino sketch is recognized (IntelliSense, compilation, upload) without picking the board twice. Writes the board into .vscode/arduino.yaml, and only when that file or an .ino sketch already exists in the folder. Pico boards never touch it. On by default."
+  "kablix.config.syncArduinoIdeBoard": "Selecting an Arduino board in Kablix also selects it in the \"Arduino VS Code IDE\" extension, so your .ino sketch is recognized (IntelliSense, compilation, upload) without picking the board twice. Writes the board into .vscode/arduino.yaml, and only when that file or an .ino sketch already exists in the folder. Pico boards never touch it. On by default.",
+  "kablix.config.componentsFolder": "Folder where your custom components (.kompix) are stored. Shared by all Kablix projects on this machine. Empty: uses a subfolder of VS Code's global storage. Change this if you prefer a custom location.",
+  "kablix.config.componentRepositories": "List of remote repositories (URLs) where .kompix components can be downloaded from. By default, points to the official Kablix library on GitHub."
 }

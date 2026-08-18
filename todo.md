@@ -1,5 +1,23 @@
 # À faire
-- ⏳ Composants extérieurs : suite du loader. Packing en zip `.compix`, loader depuis adresses externes (kablix.library), intégration au catalog.
+- ⏳ Lot 1 — Bibliothèque locale (.kompix) : module hôte, FileSystemWatcher, trust index.
+- ⏳ Lot 2 — Exécution du comportement embarqué : injection nonce, API behavior.mjs, avertissement remote.
+- ⏳ Lot 3 — Gestionnaire de composants : UI webview, téléchargement, index.json distant.
+- ⏳ Lot 4 — Créateur intégré → export .kompix : creator.mts modifié, export bouton.
+- ⏳ Lot 5 — `montre.mjs` + pipeline planches → .kompix : réécrire /integrer, adapter extracteurs.
+- ⏳ Lot 6 — Dépôt public kablix_components/ : build-components-index.mjs, .vscodeignore.
+- ⏳ Lot 7 — Documentation : kompix_specification.md USAGE.md, aide intégrée.
+- ⏳ Lot 8 — Tests : verify:kompix + repassage bancs existants.
+
+# >>>>  v2026.8.77 — refonte système composants : format .kompix et bibliothèque globale
+
+1. ✅ **Spécification `.kompix` complète** (docs/kompix_specification.md) : format ZIP, manifest.json, schema.svg (externe+interne), thumbnail.webp, behavior.mjs optionnel, API comportement (à détailler Lot 2).
+2. ✅ **Configuration `kablix.componentsFolder`** (défaut : `globalStorageUri/kablix_components/`) : dossier unique partagé entre tous les projets, configurable par l'utilisateur.
+3. ✅ **Configuration `kablix.componentRepositories`** (défaut : `franksauret/kablix`) : liste des dépôts distants pour le gestionnaire (Lot 3).
+4. ✅ **Commandes déclarées** : `kablix.openComponentsFolder`, `kablix.openComponentManager`.
+5. ✅ **Traduction EN/FR** : package.nls.json + package.nls.fr.json.
+6. ⏳ **Module hôte `kompixLibrary.ts`** : pack/unpack via jszip, scan du dossier, validation manifeste, production CustomPartData.
+7. ⏳ **FileSystemWatcher** : rescans sur `.kompix` trouvé dans workspace OU modifié dans bibliothèque.
+8. ⏳ **Index de confiance** : hash behavior.mjs, origin (local|remote), persistance JSON auprès des fichiers.
 
 # >>>>  v2026.8.76 — composants externes pour 2D et 3D
 
