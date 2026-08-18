@@ -1,6 +1,6 @@
 # PROGRESSION — Refonte système composants `.kompix`
 
-**État au 2026-08-18, Lot 1 complet ✅ / Lot 2 COMPLET ✅**
+**État au 2026-08-18, Lot 1 complet ✅ / Lot 2 COMPLET ✅ / Lot 3 COMPLET ✅**
 
 ## Lots livrés
 
@@ -24,6 +24,28 @@
   - Changé ligne 1357-1359 : customParts envoyés depuis `library.getComponents()` au lieu de globalState
 - Compilation : 0 erreurs TypeScript ✅
 - Build : tous les bundles générés ✅
+
+## Lots livrés (suite)
+
+### Lot 3 — Gestionnaire de composants (COMPLET ✅)
+- Commit `065cfba` (v2026.8.80)
+- ComponentManagerPanel : nouveau panneau webview pour télécharger depuis repos distants
+  - UI grille avec miniatures, label, version, auteur, description
+  - Filtrage « nouveaux seulement » (case à cocher, filtre défaut)
+  - Sélection multiple par clic, bouton « Télécharger »
+  - Message de statut et rafraîchissement après installation
+- Téléchargement depuis repos
+  - Récupère `index.json` de chaque dépôt configuré dans `kablix.componentRepositories`
+  - Construit URLs complètes du `.kompix` pour chaque composant
+  - Fetch les fichiers en mémoire (buffer Uint8Array)
+  - Installe via nouvelle méthode `KompixLibrary.saveKompixFromBuffer()`
+- Bouton palette remplacé : « ⇪ Import (.json) » → « ⇩ Import components »
+- Intégration
+  - `extension.ts` : commande `openComponentManager` appelle `ComponentManagerPanel.show()`
+  - `panel.ts` : listener `openComponentManager` + handler `downloadComponents`
+  - `editor.mts` : postMessage au lieu de file picker
+- Traduction : « ⇩ Import components » / « ⇩ Importer des composants » dans i18n.mts
+- TypeScript, build ✅
 
 ## Lots en cours
 
