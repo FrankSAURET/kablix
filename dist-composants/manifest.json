@@ -1,0 +1,33 @@
+{
+  "version": "2026.8.75",
+  "timestamp": "2026-08-18T12:00:00Z",
+  "description": "Composants Kablix natifs - deux planches Inkscape (2D plats + 3D volumes)",
+  "planches": {
+    "2D": {
+      "file": "Composants2D.svg",
+      "description": "Composants plats (vue de dessus), brochages, repères de simulation",
+      "composants_count": "70+",
+      "examples": ["diode", "resistor", "LED", "servo", "LCD", "PCA9685", "Pico", "Arduino Uno/Nano/Mega"]
+    },
+    "3D": {
+      "file": "Composants3D.svg",
+      "description": "Pièces en volume (profils + assemblages), robot araignée, pattes articulées",
+      "assemblages": ["araignee-corps", "araignee-patte-femur", "araignee-patte-tibia"],
+      "profils_count": "2+ (demos + extensible)"
+    }
+  },
+  "extraction": {
+    "composants_2d": "npm run build:parts ou node scripts/_extract-composants.mjs <nom>",
+    "profils_3d": "npm run profil ou node scripts/_extract-profils.mjs <nom>",
+    "assemblages_3d": "npm run assemblage ou node scripts/_extract-assemblage.mjs <nom>",
+    "visualiseur": "npm run montre <prefix>"
+  },
+  "status": "ready",
+  "notes": [
+    "Les deux planches sont la source de vérité pour tous les composants natifs",
+    "Les extractions créent les fichiers TypeScript/SVG dans src/webview/composants/",
+    "Chaque composant du catalog.mts a un élément .mts correspondant dans src/webview/composants/",
+    "Les SVG externes sont dans src/webview/composants/externe/",
+    "Les profils et assemblages 3D sont rangés dans profils.mts et assemblages.mts"
+  ]
+}

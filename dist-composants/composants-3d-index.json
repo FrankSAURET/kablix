@@ -1,0 +1,22 @@
+{
+  "version": "2026.8.75",
+  "timestamp": "2026-08-18T10:56:17.266Z",
+  "description": "Index des pièces 3D extraites depuis Composants3D.svg",
+  "assemblages": {
+    "count": 4,
+    "list": [
+      "araignee-corps",
+      "araignee-patte-femur",
+      "araignee-patte-tibia",
+      "corps-demo"
+    ]
+  },
+  "profils": {
+    "count": 2,
+    "list": [
+      "chassis-demo",
+      "femur-demo"
+    ]
+  },
+  "total": 6
+}

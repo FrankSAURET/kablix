@@ -603,7 +603,7 @@ async function integrer() {
     if (r.ok) {
       etat.erreur = j.message || 'Composant intégré.';
     } else {
-      etat.erreur = j.erreur || 'Erreur lors de l\'intégration.';
+      etat.erreur = j.erreur || 'Erreur lors de l\\'intégration.';
     }
   } catch (e) {
     etat.erreur = 'Erreur : ' + String((e && e.message) || e);

@@ -1,6 +1,15 @@
 # À faire
 - ⏳ Composants extérieurs : suite du loader. Packing en zip `.compix`, loader depuis adresses externes (kablix.library), intégration au catalog.
 
+# >>>>  v2026.8.76 — composants externes pour 2D et 3D
+
+1. ✅ **Structure `dist-composants/` créée** : manifest.json + deux planches SVG (source de vérité).
+2. ✅ **Index JSON des composants 2D** : 69 SVG externes listés dans composants-2d-index.json.
+3. ✅ **Index JSON des composants 3D** : 4 assemblages (araignee-*) + 2 profils (demo) listés dans composants-3d-index.json.
+4. ✅ **Bug montre.mjs réparé** : apostrophe manquante échappée dans le message d'erreur français (`l'intégration`).
+5. ⏳ Package `.compix` : ZIP structure prête, à compresser une fois archiver disponible.
+6. ⏳ Loader externe : implémenter le chargement depuis kablix.library (suite du todo).
+
 # >>>>  v2026.8.75 — bouton Intégrer du composant dans montre.mjs
 
 1. ✅ **Bouton « Intégrer » dans le viewer 3D (montre.mjs)** : choisir une carte de dev (uno/nano/mega/pico/picow), donner un nom, et créer les fichiers de base du composant.
