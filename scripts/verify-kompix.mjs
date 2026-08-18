@@ -2,26 +2,33 @@
 //
 // Utilisation : npm run verify:kompix
 import { mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import JSZip from 'jszip';
 
-const ROOT = join(fileURLToPath(import.meta.url), '..');
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const WORK_DIR = join(ROOT, 'node_modules', '.cache-verify-kompix');
 mkdirSync(WORK_DIR, { recursive: true });
 
 let passed = 0;
 let failed = 0;
+const tests = [];
 
 function test(name, fn) {
-  try {
-    fn();
-    console.log(`  ✓ ${name}`);
-    passed++;
-  } catch (err) {
-    console.error(`  ✗ ${name}`);
-    console.error(`    ${err instanceof Error ? err.message : String(err)}`);
-    failed++;
+  tests.push({ name, fn });
+}
+
+async function runTests() {
+  for (const { name, fn } of tests) {
+    try {
+      await fn();
+      console.log(`  ✓ ${name}`);
+      passed++;
+    } catch (err) {
+      console.error(`  ✗ ${name}`);
+      console.error(`    ${err instanceof Error ? err.message : String(err)}`);
+      failed++;
+    }
   }
 }
 
@@ -146,6 +153,9 @@ test('SVG avec deux groupes', async () => {
   if (!text.includes('id="test-dual"')) throw new Error('Groupe externe absent');
   if (!text.includes('id="test-dual-interne"')) throw new Error('Groupe interne absent');
 });
+
+// Run all tests
+await runTests();
 
 // Cleanup
 rmSync(WORK_DIR, { recursive: true, force: true });
