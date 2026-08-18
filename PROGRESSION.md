@@ -1,6 +1,6 @@
 # PROGRESSION — Refonte système composants `.kompix`
 
-**État au 2026-08-18, Lot 1 complet ✅**
+**État au 2026-08-18, Lot 1 complet ✅ / Lot 2 EN COURS (50%)**
 
 ## Lots livrés
 
@@ -25,9 +25,19 @@
 - Compilation : 0 erreurs TypeScript ✅
 - Build : tous les bundles générés ✅
 
+## Lots en cours
+
+### Lot 2 — Exécution comportement embarqué (EN COURS 50%)
+- Commit `52945ab` (v2026.8.78)
+- ✅ CompiluxLibrary.ts : exposer origin + behaviorHash dans CustomPartData.kompixMeta
+- ✅ panel.ts : handler 'verifyRemoteBehavior' + vscode.window.showWarningMessage
+- ⏳ custom-part.mts : API behavior (init, tick, destroy)
+- ⏳ Injection script via nonce depuis webview
+- ⏳ Stockage confirmation hash dans kompixLibrary.saveIndex()
+
 ## Prochains lots
 
-### Lot 2 — Exécution comportement embarqué (⏳)
+### Lot 2 (suite) — À terminer (⏳)
 À faire :
 1. Étendre `custom-part.mts` ou créer nouvel élément pour injections scripts
 2. Injection nonce : webview reçoit texte script (postMessage), construit `<script>` avec nonce
