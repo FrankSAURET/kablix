@@ -1,6 +1,6 @@
-# PROGRESSION — Refonte système composants `.kompix`
+# PROGRESSION — Upload Pico Python + refonte système composants `.kompix`
 
-**État au 2026-08-18, Lot 1 complet ✅ / Lot 2 COMPLET ✅ / Lot 3 COMPLET ✅**
+**État au 2026-08-18, Lot 1 complet ✅ / Lot 2 COMPLET ✅ / Lot 3 COMPLET ✅ / Lot 9 EN COURS ⏳**
 
 ## Lots livrés
 
@@ -48,6 +48,33 @@
 - TypeScript, build ✅
 
 ## Lots en cours
+
+### Lot 9 — Upload Pico Python (EN COURS ⏳)
+- Commit `3ad0260` (v2026.8.82)
+- Module [src/picoUploader.ts](src/picoUploader.ts) : détection ports sériel + transfert REPL
+  - Détection multiplateforme (Windows COM*, Linux /dev/ttyUSB*, macOS /dev/tty.*)
+  - Intégration ExtensionContext
+- Commande `kablix.uploadToPico` :
+  - Menu `editor/title` pour fichiers Python (.py)
+  - Bouton upload sur barre d'onglets
+  - Récupère fichier actif ou cible via fileUri
+- Dialog de sélection des fichiers .py du dossier
+  - Récursion sur les fichiers
+  - MultiSelect (cocher/décocher)
+- Script [scripts/pico-upload.py](scripts/pico-upload.py) :
+  - Utilise `pyserial` (pip install pyserial)
+  - Protocole REPL basique (à compléter)
+  - Gestion d'erreurs si pyserial absent
+- Traductions :
+  - `kablix.cmd.uploadToPico` EN/FR
+- `.vscodeignore` : inclusion du script
+- Package ✅, build ✅, typecheck ✅
+
+**À compléter** :
+1. Protocole REPL complet (actuellement basique)
+2. Écrasement conditionnel (si plus récent)
+3. États du bouton (inactif/survolé)
+4. Tests F5 avec vrai Pico
 
 ### Lot 2 — Exécution comportement embarqué (COMPLET ✅)
 - Commit v2026.8.79 (en cours)
