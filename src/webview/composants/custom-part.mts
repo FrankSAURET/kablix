@@ -17,6 +17,23 @@ export interface PinInfo {
   signals: unknown[];
 }
 
+/** Contexte exposé au script behavior.mjs : lire/écrire les broches, accéder aux contrôles. */
+export interface BehaviorContext {
+  pinInfo: PinInfo[];
+  readPin(name: string): 0 | 1;
+  writePin(name: string, value: 0 | 1): void;
+  active: boolean;
+  controlValue: number;
+  switchOn: boolean;
+}
+
+/** Module behavior.mjs : optionnel, embarqué dans le .kompix. */
+export interface BehaviorModule {
+  init?(context: BehaviorContext): void;
+  tick(context: BehaviorContext): void;
+  destroy?(context: BehaviorContext): void;
+}
+
 export class CustomPartElement extends HTMLElement {
   pinInfo: PinInfo[] = [];
 
@@ -32,6 +49,11 @@ export class CustomPartElement extends HTMLElement {
   /** Contrôle de simulation défini dans le créateur (curseur/interrupteur). */
   private control: CustomControl | null = null;
   private controlBox: HTMLDivElement | null = null;
+
+  /** Module behavior.mjs optionnel : init/tick/destroy pour simulation embarquée. */
+  private behavior: BehaviorModule | null = null;
+  /** Fonctions de lecture/écriture des broches : injectées par sim.mts. */
+  private behaviorContext: BehaviorContext | null = null;
 
   static get observedAttributes(): string[] {
     return ['simulating'];
@@ -167,6 +189,56 @@ export class CustomPartElement extends HTMLElement {
 
   get active(): boolean {
     return this.activeValue;
+  }
+
+  /**
+   * Injecte un module behavior.mjs préalablement compilé (reçu du .kompix).
+   * Crée le contexte et appelle init() si présent.
+   */
+  injectBehavior(
+    module: BehaviorModule,
+    readPin: (name: string) => 0 | 1,
+    writePin: (name: string, value: 0 | 1) => void,
+  ): void {
+    this.behavior = module;
+    const self = this;
+    const ctx: any = {
+      pinInfo: this.pinInfo,
+      readPin,
+      writePin,
+    };
+    Object.defineProperty(ctx, 'active', {
+      get: () => self.activeValue,
+      enumerable: true,
+    });
+    Object.defineProperty(ctx, 'controlValue', {
+      get: () => self.controlValue,
+      enumerable: true,
+    });
+    Object.defineProperty(ctx, 'switchOn', {
+      get: () => self.switchOn,
+      enumerable: true,
+    });
+    this.behaviorContext = ctx;
+    if (this.behavior.init) {
+      this.behavior.init(ctx);
+    }
+  }
+
+  /** Appelle tick() du behavior à chaque frame de simulation. */
+  tickBehavior(): void {
+    if (this.behavior?.tick && this.behaviorContext) {
+      this.behavior.tick(this.behaviorContext as any);
+    }
+  }
+
+  /** Nettoie le behavior à l'arrêt de la simulation. */
+  destroyBehavior(): void {
+    if (this.behavior?.destroy && this.behaviorContext) {
+      this.behavior.destroy(this.behaviorContext as any);
+    }
+    this.behavior = null;
+    this.behaviorContext = null;
   }
 }
 

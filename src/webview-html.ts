@@ -278,6 +278,7 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
   </main>
 
   <script nonce="${nonce}">window.KABLIX_LANG = ${JSON.stringify(vscode.env.language)};
+window.KABLIX_NONCE = ${JSON.stringify(nonce)};
 window.KABLIX_PINOUT_BASE = ${JSON.stringify(pinoutBase.toString())};
 window.KABLIX_WORKER_URL = ${JSON.stringify(workerUri.toString())};
 window.KABLIX_SIM_WORKER = ${JSON.stringify(simWorker)};</script>

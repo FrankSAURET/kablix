@@ -1,6 +1,6 @@
 # PROGRESSION — Refonte système composants `.kompix`
 
-**État au 2026-08-18, Lot 1 complet ✅ / Lot 2 EN COURS (50%)**
+**État au 2026-08-18, Lot 1 complet ✅ / Lot 2 COMPLET ✅**
 
 ## Lots livrés
 
@@ -27,13 +27,27 @@
 
 ## Lots en cours
 
-### Lot 2 — Exécution comportement embarqué (EN COURS 50%)
-- Commit `52945ab` (v2026.8.78)
-- ✅ CompiluxLibrary.ts : exposer origin + behaviorHash dans CustomPartData.kompixMeta
-- ✅ panel.ts : handler 'verifyRemoteBehavior' + vscode.window.showWarningMessage
-- ⏳ custom-part.mts : API behavior (init, tick, destroy)
-- ⏳ Injection script via nonce depuis webview
-- ⏳ Stockage confirmation hash dans kompixLibrary.saveIndex()
+### Lot 2 — Exécution comportement embarqué (COMPLET ✅)
+- Commit v2026.8.79 (en cours)
+- ✅ Custom Part API : init/tick/destroy pour comportements embarqués
+  - `custom-part.mts` : interface BehaviorContext, BehaviorModule ; méthodes injectBehavior/tickBehavior/destroyBehavior
+  - Contexte expose : pinInfo[], readPin(), writePin(), active, controlValue, switchOn
+- ✅ Injection du script via nonce CSP
+  - `webview-html.ts` : passage du nonce dans window.KABLIX_NONCE
+  - `sim.mts` : injectBehaviorScript() crée `<script nonce="...">` dynamique
+  - Compilation du script dans un IIFE stockant le module dans window.__kx_behaviors
+- ✅ Branchement aux éléments pendant simulation
+  - refreshVisualsInner() : détecte components custom avec module + injecte via el.injectBehavior()
+  - renderTick() : appelle tickBehavior() sur tous les éléments tracés
+  - stopRun() : nettoyage destroyBehavior() et elementsWithBehavior
+- ✅ Modèle de confiance (remote/local)
+  - panel.ts : handler 'verifyRemoteBehavior' affiche warning dialog modal
+  - sim.mts : verrouille injection si remote non approuvé, attend 'verifyRemoteBehaviorResult'
+  - kompixLibrary.ts : acceptBehaviorHash() mémorise la confirmation dans l'index (acceptedAt)
+  - Persistence : hash + acceptedAt sauvegardé dans index JSON
+- ✅ catalog.mts + kompixLibrary.ts : champ behaviorScript? + kompixMeta dans CustomPartData
+- ✅ panel.ts : filtre script avant envoi (nettoyage partsCleaned) + postMessage 'injectBehavior'
+- TypeScript 0 erreurs, build ✅
 
 ## Prochains lots
 

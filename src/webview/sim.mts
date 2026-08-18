@@ -189,6 +189,7 @@ declare function acquireVsCodeApi(): VsCodeApi;
 declare global {
   interface Window {
     KABLIX_LANG?: string;
+    KABLIX_NONCE?: string;
   }
 }
 initLocale(window.KABLIX_LANG);
@@ -771,7 +772,51 @@ function sampleSevenSegLatches(): void {
   sampleSevenSeg(sevenSegMux, sevenSegLatch, (pin) => engine!.readDigital(pin));
 }
 
-// Boucle de rendu continue (découplée du moteur) pendant toute la simulation.
+// --- Comportements embarqués (behavior.mjs) ------------------------------------
+// Cache des modules behavior compilés et index des approbations pour les comportements
+// distants (accepté = pas de confirmation demandée à chaque session pour ce hash).
+const behaviorModules = new Map<string, unknown>(); // componentType -> module
+const behaviorApprovals = new Map<string, boolean>(); // 'componentType@hash' -> true
+const pendingBehaviors = new Map<string, { componentType: string; script: string; origin?: string; label?: string }>();
+// Éléments custom-part pour lesquels on doit appeler tickBehavior() à chaque frame.
+const elementsWithBehavior = new Set<any>();
+
+/**
+ * Injecte et exécute un script behavior.mjs dans le contexte de la webview.
+ * Le script est exécuté avec le nonce CSP pour contourner la restriction script-src.
+ */
+function injectBehaviorScript(componentType: string, script: string): void {
+  try {
+    const nonce = window.KABLIX_NONCE;
+    if (!nonce) {
+      console.warn(`Behavior injection : nonce CSP manquant`);
+      return;
+    }
+    // Crée un <script> avec le nonce et l'exécute
+    const scriptEl = document.createElement('script');
+    scriptEl.nonce = nonce;
+    scriptEl.textContent = `
+      (function() {
+        const __kx_module = {};
+        ${script}
+        window.__kx_behaviors = window.__kx_behaviors || {};
+        window.__kx_behaviors['${componentType}'] = __kx_module;
+      })();
+    `;
+    document.head.appendChild(scriptEl);
+    // Rétrécit le script exécuté du DOM (nettoie)
+    scriptEl.remove();
+    // Stocke le module pour utilisation future
+    const module = (window as any).__kx_behaviors?.[componentType];
+    if (module) {
+      behaviorModules.set(componentType, module);
+    }
+  } catch (err) {
+    console.error(`Erreur injection behavior ${componentType}:`, err);
+  }
+}
+
+// --- Boucle de rendu continue (découplée du moteur) pendant toute la simulation.
 // Nécessaire car une mise à jour PONCTUELLE du calque transformé du canvas (LCD
 // écrit une fois puis inactif) n'est pas toujours repeinte par le navigateur : la
 // repeinture ne « prend » que sous flux d'invalidations continu. Un composant qui
@@ -788,6 +833,10 @@ function renderTick(): void {
   updateMotion();
   updateHall();
   refreshVisuals();
+  // Tick des comportements embarqués (après refreshVisuals pour que l'état soit à jour).
+  for (const el of elementsWithBehavior) {
+    el.tickBehavior?.();
+  }
   flushAnalogWaves(); // après stepCapacitors (dans refreshVisuals) : la liste est complète
   updateSpeedBadge();
   updateSimGauge();
@@ -1895,6 +1944,16 @@ function refreshVisualsInner(): void {
     }
     } catch (err) {
       console.error('refreshVisuals', part.type, err);
+    }
+    // Branchement du behavior embarqué (si présent et pas encore attaché).
+    if (def.custom && el && !elementsWithBehavior.has(el)) {
+      const module = behaviorModules.get(part.type);
+      if (module && 'injectBehavior' in el) {
+        const readPin = (name: string): 0 | 1 => engine!.readDigital(name) ? 1 : 0;
+        const writePin = (name: string, value: 0 | 1): void => engine!.setInput(name, value === 1);
+        (el as any).injectBehavior(module, readPin, writePin);
+        elementsWithBehavior.add(el);
+      }
     }
   }
   // Seconde passe : les sorties PCA9685 priment sur l'état « hors-net » des cibles.
@@ -3308,6 +3367,11 @@ function stopRun(): void {
   // état propre — console vidée et composants réinitialisés (LED éteintes,
   // afficheurs vides…). Idem au (re)chargement d'un programme Python.
   clearSerial();
+  // Nettoyage des comportements embarqués.
+  for (const el of elementsWithBehavior) {
+    el.destroyBehavior?.();
+  }
+  elementsWithBehavior.clear();
   editor.resetVisuals();
   useDebugAsInspector(false); // Propriétés de nouveau dans la colonne de droite
   runBtn.disabled = false;
@@ -3937,8 +4001,51 @@ window.addEventListener('message', (event: MessageEvent) => {
       }
       restoredState = undefined;
       break;
+    case 'injectBehavior': {
+      // Injecte un script behavior.mjs pour un composant personnalisé avec code embarqué.
+      // componentType: type du composant; script: texte du behavior.mjs;
+      // origin, label, behaviorHash pour logging/UI.
+      const { componentType, script, origin, label, behaviorHash } = msg as any;
+      if (typeof script === 'string' && typeof componentType === 'string') {
+        // Si remote et pas approuvé (pas behaviorAccepted en meta), demander au host
+        if (origin === 'remote' && behaviorHash && !behaviorApprovals.has(`${componentType}@${behaviorHash}`)) {
+          vscode.postMessage({
+            type: 'verifyRemoteBehavior',
+            componentType,
+            label,
+            behaviorHash,
+          });
+          // La webview va recevoir 'verifyRemoteBehaviorResult' avec accepted: true/false
+          // et relancera 'injectBehavior' si accepté. Pour l'instant, stocker le pending.
+          pendingBehaviors.set(`${componentType}@${behaviorHash}`, { componentType, script, origin, label });
+        } else {
+          injectBehaviorScript(componentType, script);
+        }
+      }
+      break;
+    }
+    case 'verifyRemoteBehaviorResult': {
+      // Réponse du host à la demande de confirmation behavior remote.
+      const { componentType, behaviorHash, accepted } = msg as any;
+      if (typeof componentType === 'string' && typeof behaviorHash === 'string') {
+        const key = `${componentType}@${behaviorHash}`;
+        if (accepted) {
+          behaviorApprovals.set(key, true);
+          // Injecter le comportement en attente
+          const pending = pendingBehaviors.get(key);
+          if (pending) {
+            injectBehaviorScript(pending.componentType, pending.script);
+            pendingBehaviors.delete(key);
+          }
+        } else {
+          // Rejeté : ignorer le comportement
+          pendingBehaviors.delete(key);
+        }
+      }
+      break;
+    }
     case 'clipboardText': {
-      // Réponse de l'hôte à une demande de lecture du presse-papier système.
+      // Réponse de l'hôte à une demande de lecture du presse-papiers système.
       const waiter = clipboardWaiters.get(msg.id as number);
       if (waiter) {
         clipboardWaiters.delete(msg.id as number);

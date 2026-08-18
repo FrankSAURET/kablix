@@ -54,6 +54,8 @@ interface CustomPartData {
   params?: Array<{ name: string; label: string; value: number }>;
   control?: any;
   category?: string;
+  /** Script behavior.mjs embarqué (optionnel) : comportement de simulation. */
+  behaviorScript?: string;
   /** Métadonnées de confiance du comportement embarqué. */
   kompixMeta?: {
     origin: 'local' | 'remote';
@@ -215,6 +217,7 @@ export class KompixLibrary {
         params: manifest.params,
         control: manifest.control,
         category: manifest.category,
+        behaviorScript: behaviorScript,
         kompixMeta: indexEntry ? {
           origin: indexEntry.origin,
           sourceUrl: indexEntry.sourceUrl,
@@ -334,6 +337,17 @@ export class KompixLibrary {
     return new vscode.Disposable(() => {
       this.onComponentsChanged = undefined;
     });
+  }
+
+  /**
+   * Marque un comportement distant comme accepté (mémorisation de la confirmation).
+   */
+  acceptBehaviorHash(componentType: string, behaviorHash: string): void {
+    const entry = this.index.get(componentType);
+    if (entry && entry.behaviorHash === behaviorHash) {
+      entry.acceptedAt = new Date().toISOString();
+      this.saveIndex();
+    }
   }
 
   /**

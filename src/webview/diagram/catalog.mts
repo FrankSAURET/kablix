@@ -281,6 +281,15 @@ export interface CustomPartData {
   /** Catégorie de palette assignée (clé de CATEGORY_ORDER) ; absente = section
    *  « Composants personnalisés ». */
   category?: string;
+  /** Script behavior.mjs embarqué (optionnel) : comportement de simulation. */
+  behaviorScript?: string;
+  /** Métadonnées provenance + confiance (kompix uniquement, Lot 2). */
+  kompixMeta?: {
+    origin: 'local' | 'remote';
+    sourceUrl?: string;
+    behaviorHash?: string;
+    behaviorAccepted?: boolean;
+  };
 }
 
 const STATE_PROP: PropDef = { attr: 'state', label: 'State (0/1)', kind: 'select', options: ['0', '1'] };

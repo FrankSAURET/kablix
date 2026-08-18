@@ -1356,10 +1356,52 @@ export class SimulatorPanel {
         });
         // Composants .kompix depuis la bibliothèque locale, sinon fallback globalState
         const parts = SimulatorPanel.library?.getComponents?.() ?? this.context.globalState.get<unknown[]>(CUSTOM_PARTS_KEY, []);
+        // Sépare les scripts behavior pour l'envoi (trop gros dans customParts)
+        const behaviorScripts: Array<{ type: string; script: string; origin?: string; label?: string; behaviorHash?: string }> = [];
+        const partsCleaned = (parts as any[]).map((p) => {
+          const cleaned = { ...p };
+          if (p.behaviorScript) {
+            const origin = p.kompixMeta?.origin;
+            const label = p.label;
+            const behaviorHash = p.kompixMeta?.behaviorHash;
+            behaviorScripts.push({
+              type: p.type,
+              script: p.behaviorScript,
+              origin,
+              label,
+              behaviorHash,
+            });
+            delete cleaned.behaviorScript;
+          }
+          return cleaned;
+        });
         this.post({
           type: 'customParts',
-          parts,
+          parts: partsCleaned,
         });
+        // Envoie les scripts behavior séparément (pas de risque de fuite XSS : nonce CSP)
+        for (const { type: componentType, script, origin, label, behaviorHash } of behaviorScripts) {
+          // Si remote et pas accepté, demander confirmation à la webview
+          if (origin === 'remote' && behaviorHash) {
+            // La webview demandera au host avant d'exécuter
+            this.post({
+              type: 'injectBehavior',
+              componentType,
+              script,
+              origin,
+              label,
+              behaviorHash,
+            });
+          } else {
+            // Local ou déjà accepté : injecter directement
+            this.post({
+              type: 'injectBehavior',
+              componentType,
+              script,
+              origin,
+            });
+          }
+        }
         this.post({
           type: 'uiState',
           state: this.context.globalState.get<unknown>(UI_STATE_KEY, {}),
@@ -1435,20 +1477,27 @@ export class SimulatorPanel {
       case 'verifyRemoteBehavior':
         // Webview demande confirmation avant exécuter un behavior remote (Lot 2).
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        if (typeof (msg as any).type === 'string' && typeof (msg as any).behaviorHash === 'string') {
+        if (typeof (msg as any).componentType === 'string' && typeof (msg as any).behaviorHash === 'string') {
+          const componentType = (msg as any).componentType as string;
+          const behaviorHash = (msg as any).behaviorHash as string;
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
           (async () => {
             const accepted = await vscode.window.showWarningMessage(
-              l10n.t('Component "{0}" runs custom code from a remote source.', (msg as any).label || (msg as any).type),
+              l10n.t('Component "{0}" runs custom code from a remote source.', (msg as any).label || componentType),
               { modal: true },
               l10n.t('Trust this component'),
               l10n.t('Run without code'),
             ) === l10n.t('Trust this component');
 
+            // Mémoriser l'acceptation dans l'index de la bibliothèque
+            if (accepted) {
+              SimulatorPanel.library?.acceptBehaviorHash?.(componentType, behaviorHash);
+            }
+
             this.post({
               type: 'verifyRemoteBehaviorResult',
-              componentType: (msg as any).type,
-              behaviorHash: (msg as any).behaviorHash,
+              componentType,
+              behaviorHash,
               accepted,
             });
           })();
