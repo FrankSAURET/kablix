@@ -54,6 +54,13 @@ interface CustomPartData {
   params?: Array<{ name: string; label: string; value: number }>;
   control?: any;
   category?: string;
+  /** Métadonnées de confiance du comportement embarqué. */
+  kompixMeta?: {
+    origin: 'local' | 'remote';
+    sourceUrl?: string;
+    behaviorHash?: string;
+    behaviorAccepted?: boolean; // true si accepté par l'user
+  };
 }
 
 /**
@@ -180,6 +187,18 @@ export class KompixLibrary {
       const externalSvg = this.extractSvgGroup(svg, manifest.type);
       const internalSvg = this.extractSvgGroup(svg, `${manifest.type}-interne`);
 
+      // Lire le comportement embarqué s'il existe
+      let behaviorScript: string | undefined;
+      if (manifest.behavior) {
+        const behaviorFile = zip.file(manifest.behavior);
+        if (behaviorFile) {
+          behaviorScript = await behaviorFile.async('string');
+        }
+      }
+
+      // Récupérer les métadonnées de confiance
+      const indexEntry = this.index.get(manifest.type);
+
       // Construire CustomPartData
       const result: CustomPartData = {
         type: manifest.type,
@@ -196,6 +215,12 @@ export class KompixLibrary {
         params: manifest.params,
         control: manifest.control,
         category: manifest.category,
+        kompixMeta: indexEntry ? {
+          origin: indexEntry.origin,
+          sourceUrl: indexEntry.sourceUrl,
+          behaviorHash: indexEntry.behaviorHash,
+          behaviorAccepted: !!indexEntry.acceptedAt,
+        } : { origin: 'local' },
       };
 
       return result;

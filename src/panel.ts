@@ -1432,6 +1432,28 @@ export class SimulatorPanel {
         // Repli d'écriture (navigator.clipboard refusé côté webview).
         if (typeof msg.text === 'string') void vscode.env.clipboard.writeText(msg.text);
         break;
+      case 'verifyRemoteBehavior':
+        // Webview demande confirmation avant exécuter un behavior remote (Lot 2).
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        if (typeof (msg as any).type === 'string' && typeof (msg as any).behaviorHash === 'string') {
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          (async () => {
+            const accepted = await vscode.window.showWarningMessage(
+              l10n.t('Component "{0}" runs custom code from a remote source.', (msg as any).label || (msg as any).type),
+              { modal: true },
+              l10n.t('Trust this component'),
+              l10n.t('Run without code'),
+            ) === l10n.t('Trust this component');
+
+            this.post({
+              type: 'verifyRemoteBehaviorResult',
+              componentType: (msg as any).type,
+              behaviorHash: (msg as any).behaviorHash,
+              accepted,
+            });
+          })();
+        }
+        break;
       case 'exportCsv':
         if (typeof msg.csv === 'string') void this.saveCsv(msg.csv);
         break;
