@@ -210,36 +210,32 @@ export function activate(context: vscode.ExtensionContext): void {
         void GuidePanel.show(context.extensionUri, name);
       }
     }),
-    // Upload de fichiers Python vers une carte Pico connectée.
+    // Bouton ⇧ de l'onglet d'un fichier Python : envoie le programme sur la carte
+    // Pico branchée. Le fichier ouvert y devient `main.py` (c'est ce que
+    // MicroPython exécute au démarrage) et seuls les modules qu'il importe
+    // l'accompagnent — pas tous les .py du dossier.
     vscode.commands.registerCommand('kablix.uploadToPico', async (fileUri?: vscode.Uri) => {
-      let targetPath: string | undefined;
-
-      if (fileUri) {
-        // Commande appelée via le menu contextuel d'un fichier/dossier
-        targetPath = fileUri.fsPath;
-      } else {
-        // Commande appelée depuis la palette ou le bouton editorTitle
-        const editor = vscode.window.activeTextEditor;
-        if (!editor) {
-          vscode.window.showErrorMessage('Aucun fichier Python ouvert.');
-          return;
-        }
-
-        const fileName = editor.document.fileName;
-        if (!fileName.endsWith('.py')) {
-          vscode.window.showErrorMessage('Sélectionnez un fichier Python (.py)');
-          return;
-        }
-
-        targetPath = fileName;
-      }
-
-      if (!targetPath) {
-        vscode.window.showErrorMessage('Impossible de déterminer le chemin du fichier.');
+      // Le clic sur le bouton ne passe pas d'URI : c'est le fichier de l'onglet.
+      const target = fileUri?.fsPath ?? vscode.window.activeTextEditor?.document.uri.fsPath;
+      if (!target || !/\.py$/i.test(target)) {
+        void vscode.window.showErrorMessage(l10n.t('Open a Python file (.py) first.'));
         return;
       }
-
-      void picoUploader.uploadFiles(targetPath);
+      // Le fichier doit exister sur le disque : un onglet jamais enregistré n'a
+      // rien à envoyer, et ses modules importés ne sont pas résolvables.
+      if (vscode.window.activeTextEditor?.document.isDirty) {
+        await vscode.window.activeTextEditor.document.save();
+      }
+      await picoUploader.upload(target);
+    }),
+    // Même bouton, mais grisé : aucune carte n'est branchée. Il ne fait que le
+    // dire — sans lui, le clic sur l'icône éteinte ne donnerait aucun signe.
+    vscode.commands.registerCommand('kablix.uploadToPicoOffline', () => {
+      void vscode.window.showWarningMessage(
+        l10n.t(
+          'No Pico board detected. Plug one in over USB — the button lights up on its own.'
+        )
+      );
     })
   );
 

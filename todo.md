@@ -1,13 +1,22 @@
 # À faire
+- reprend tout ce qui a été fait depuis la v2026.8.74. Vérifie optimise, corrige.
+# >>>>  v2026.8.83 — Lot 9 (envoi du programme sur une vraie carte Pico)
 
-# >>>>  v2026.8.82 — Lot 9 (upload Pico Python)
-
-1. ⏳ **Lot 9 — Upload Pico via Python** ([picoUploader.ts](src/picoUploader.ts)) :
-   - Bouton upload sur barre onglets pour fichiers Python
-   - Détection ports sériel (Windows/Linux/macOS)
-   - Dialog sélection fichiers .py du dossier
-   - Script [pico-upload.py](scripts/pico-upload.py) pour transfert REPL
-   - **TODO complet** : protocole REPL MicroPython, écrasement smartconditional, états bouton inactif/survolé
+1. ✅ **Bouton dans la barre de l'onglet** ([package.json](package.json)) : `group: "navigation@-3"` (barre elle-même, plus le menu `…`), visible seulement sur `resourceLangId == python`.
+2. ✅ **État actif / inactif** : deux commandes exclusives pilotées par le contexte `kablix.picoConnected` — `kablix.uploadToPico` ([upload.svg](media/upload.svg)) et `kablix.uploadToPicoOffline` ([upload-inactive.svg](media/upload-inactive.svg), masquée de la palette). VS Code n'offre aucun état « grisé » pour une commande unique : il FAUT deux commandes.
+3. ✅ **Détection de la carte par identifiant fabricant** ([picoUploader.ts](src/picoUploader.ts)) : VID Raspberry Pi `2E8A` — Windows `Get-CimInstance Win32_PnPEntity`, Linux `/dev/serial/by-id/`, macOS `ioreg`. Corrige le bug qui prenait le COM1 de la carte mère. Scrutation `execFile` async toutes les 4 s (l'`execSync` précédent bloquait l'hôte d'extension).
+4. ✅ **Renommage en `main.py`** : `planUpload()` marque le fichier ouvert `remotePath: 'main.py'` — la carte l'exécute donc au démarrage.
+5. ✅ **Seuls les modules importés partent** : réemploi de `collectPythonLibs()` ([compiler.ts](src/compiler.ts)), le résolveur transitif déjà utilisé par le simulateur. Un dossier de cinquante `.py` n'en envoie que les nécessaires ; `lib/` garde son chemin.
+6. ✅ **Aucune question s'il n'y a rien à choisir** : liste à cocher seulement au-delà d'un fichier, sélecteur de port seulement au-delà d'une carte. Le programme principal est toujours réinjecté même s'il est décoché.
+7. ✅ **Transfert par raw REPL** ([pico-upload.py](scripts/pico-upload.py)) : Ctrl-A/Ctrl-D/Ctrl-B comme mpremote. Le REPL normal renvoyait l'écho et réindentait les blocs — les fichiers arrivaient tronqués. Contenu en base64 par blocs de 512 o, `mkdir -p` sur la carte.
+8. ✅ **Écrasement seulement si le contenu diffère** : empreinte SHA-256 comparée, pas les dates (l'horloge du Pico repart en 2021 à chaque mise sous tension).
+9. ✅ **Sortie 100 % ASCII** : le `✓` plantait la console Windows en cp1252 (`UnicodeEncodeError`) et perdait le transfert.
+10. ✅ **Bug corrigé dans `read_until()`** : la fonction rendait tout le tampon, donc l'accusé de réception `OK` était confondu avec la sortie du programme dès que la carte répondait en un seul paquet USB. Elle coupe désormais juste après le jeton et garde le reste.
+11. ✅ **Banc de test** ([verify-picoupload.mjs](scripts/verify-picoupload.mjs)) : 14 contrôles, dont un **faux Pico** qui rejoue le raw REPL et exécute réellement les commandes reçues — on relit ensuite ce que la « carte » a reçu. Inscrit dans `verify:all`.
+12. ✅ **Documentation FR** ([USAGE.md](docs/fr/USAGE.md)) : section « Envoyer le programme sur une vraie carte Pico ».
+13. ✅ **`.vscodeignore`** : `!scripts/pico-upload.py` pour que le script parte dans le `.vsix`.
+14. ⏳ **Traductions** : chaînes EN écrites, `l10n/bundle.l10n.fr.json` et `docs/en/` attendent le lot d'avant publication. `verify:i18n` signale aussi « Export this part (.kompix) » (héritage du lot 4).
+15. ⏳ **Test F5 sur la vraie carte** : Frank branche son Pico (COM3), ouvre un `.py`, vérifie l'allumage du bouton puis l'envoi.
 
 # >>>>  v2026.8.81 — Lots 4-8 (créateur, montre, dépôt, docs, tests)
 

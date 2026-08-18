@@ -367,10 +367,14 @@ export function loadArtifact(filePath: string): CompileResult {
 }
 
 /** Un module utilisateur à rendre importable sur le Pico simulé. */
-interface PyLibModule {
+export interface PyLibModule {
   /** Nom d'import (ex. « lcd_api », « pico_i2c_lcd », « pkg.sub »). */
   name: string;
   data: Uint8Array;
+  /** Chemin absolu du fichier source. */
+  file: string;
+  /** Chemin relatif au dossier du script principal (`lib/pkg/sub.py`). */
+  rel: string;
 }
 
 // Taille totale max des librairies injectées (garde-fou : l'injection passe par
@@ -483,14 +487,14 @@ function parsePyImports(source: string): string[] {
  * dossier (ils seraient lancés à tort). Les modules retenus sont ensuite injectés
  * dans `sys.modules` (le Pico simulé n'a pas de système de fichiers accessible).
  */
-function collectPythonLibs(scriptPath: string, mainSource: string): PyLibModule[] {
+export function collectPythonLibs(scriptPath: string, mainSource: string): PyLibModule[] {
   const dir = dirname(scriptPath);
   const main = basename(scriptPath);
   // 1) Indexe les modules locaux candidats (nom d'import → fichier), sans les lire.
-  const index = new Map<string, string>(); // nom de module → chemin absolu
+  const index = new Map<string, { full: string; rel: string }>(); // nom de module → fichier
   const indexFile = (full: string, rel: string): void => {
     const name = moduleNameOf(rel);
-    if (!index.has(name)) index.set(name, full);
+    if (!index.has(name)) index.set(name, { full, rel: rel.replace(/\\/g, '/') });
   };
   const walk = (abs: string, rel: string): void => {
     for (const name of readdirSync(abs)) {
@@ -520,18 +524,18 @@ function collectPythonLibs(scriptPath: string, mainSource: string): PyLibModule[
   while (queue.length > 0) {
     const name = queue.shift()!;
     if (needed.has(name)) continue;
-    const full = index.get(name);
-    if (!full) continue; // module standard / externe / inexistant : ignoré
+    const entry = index.get(name);
+    if (!entry) continue; // module standard / externe / inexistant : ignoré
     needed.add(name);
     let data: Uint8Array;
     try {
-      data = new Uint8Array(readFileSync(full));
+      data = new Uint8Array(readFileSync(entry.full));
     } catch {
       continue;
     }
     total += data.length;
     if (total > MAX_LIB_BYTES) break;
-    out.push({ name, data });
+    out.push({ name, data, file: entry.full, rel: entry.rel });
     for (const dep of parsePyImports(new TextDecoder().decode(data))) queue.push(dep);
     const dot = name.lastIndexOf('.');
     if (dot > 0) queue.push(name.slice(0, dot)); // paquet parent (a.b → a)

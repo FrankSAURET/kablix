@@ -10,6 +10,7 @@
 1. [Simuler](#simuler)
     1. [Exécuter du code](#exécuter-du-code)
     2. [MicroPython sur le Pico](#micropython-sur-le-pico)
+    1. [Envoyer le programme sur une vraie carte Pico](#envoyer-le-programme-sur-une-vraie-carte-pico)
     1. [Déboguer](#déboguer)
     1. [Moniteur série](#moniteur-série)
     1. [Traceur de courbes](#traceur-de-courbes)
@@ -201,6 +202,17 @@ Pour fournir votre propre firmware (hors ligne, version précise…) : placez un
 > ⚠ **Fonctionnement entièrement hors-ligne.** Pour qu'un poste sans Internet n'ait jamais à télécharger le firmware, **placez le `.uf2` dans le dossier du projet** : il sera versionné et distribué avec le projet. Kablix cherche le firmware **d'abord dans le workspace**, puis dans le firmware téléchargé/mémorisé, et ne propose le téléchargement qu'en dernier recours. Un projet qui embarque son firmware est ainsi reproductible et autonome.
 
 Le firmware démarre dans le simulateur (bootrom + flash + USB), puis le script est injecté via le **raw REPL**. Les `print()` apparaissent dans le moniteur série ; à la fin du script, le **REPL interactif** reste disponible via le champ d'envoi ou en cliquant sur le bouton REPL.
+
+### Envoyer le programme sur une vraie carte Pico
+
+Quand un fichier `.py` est ouvert, un bouton **⬆** apparaît dans la barre de son onglet. Un clic envoie le programme sur la carte branchée en USB, **renommé `main.py`** : la carte l'exécutera donc toute seule à chaque mise sous tension.
+
+- **Le bouton s'allume tout seul.** Grisé, aucune carte n'est vue ; Kablix regarde toutes les 4 s les ports USB dont le fabricant est Raspberry Pi (identifiant `2E8A`), ce qui évite de confondre la carte avec le port COM1 de la carte mère. Branchez la carte, le bouton s'allume sans rien faire de plus.
+- **Seuls les modules utilisés partent avec lui.** Kablix lit les `import` du programme, puis les `import` de ces modules, et ainsi de suite : un dossier qui contient cinquante `.py` n'en envoie que les quelques-uns dont le programme a réellement besoin. Un module rangé dans `lib/` garde son emplacement sur la carte. C'est exactement la liste utilisée par le simulateur : **ce qui tourne dans Kablix tourne sur la carte**.
+- **Rien n'est demandé s'il n'y a qu'un fichier.** Dès qu'il y en a plusieurs, une liste s'ouvre et vous pouvez décocher ce que vous ne voulez pas envoyer (le programme principal, lui, part toujours).
+- **Un fichier inchangé n'est pas réécrit.** La comparaison se fait sur le contenu (empreinte SHA-256), pas sur la date : l'horloge du Pico n'est pas sauvegardée hors tension et repart en 2021 à chaque démarrage.
+
+> Le transfert utilise Python 3 et **pyserial** (`pip install pyserial`). Fermez tout moniteur série (Thonny, terminal…) qui tiendrait le port, sinon la carte est inaccessible. Le détail de l'envoi s'affiche dans la sortie **Kablix — Pico upload**.
 
 ### Déboguer
 
