@@ -94,7 +94,10 @@ export function activate(context: vscode.ExtensionContext): void {
   };
   context.subscriptions.push(
     homeView,
-    new vscode.Disposable(() => clearTimeout(startupTimer)),
+    new vscode.Disposable(() => {
+      clearTimeout(startupTimer);
+      picoUploader.dispose();
+    }),
     homeView.onDidChangeVisibility((e) => {
       if (e.visible) openWorkshop();
     })

@@ -8,6 +8,7 @@ export class PicoUploader {
   private detectedPorts: string[] = [];
   private selectedPort: string | undefined;
   private scriptPath: string;
+  private detectionTimer: NodeJS.Timeout | undefined;
 
   constructor(private context: vscode.ExtensionContext) {
     // Chemin du script Python de transfert REPL
@@ -17,6 +18,21 @@ export class PicoUploader {
   /** Démarre la détection des ports Pico disponibles. */
   async start(): Promise<void> {
     await this.detectPorts();
+    // Vérifier régulièrement la disponibilité des ports (toutes les 3 secondes)
+    this.startAutoDetection();
+  }
+
+  /** Démarre un polling automatique pour mettre à jour l'état de connexion. */
+  private startAutoDetection(): void {
+    this.detectionTimer = setInterval(() => {
+      void this.detectPorts();
+    }, 3000);
+  }
+
+  dispose(): void {
+    if (this.detectionTimer) {
+      clearInterval(this.detectionTimer);
+    }
   }
 
   /** Cherche les ports sériel disponibles sur le système. */
