@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { randomBytes } from 'node:crypto';
 import { KompixLibrary } from './kompixLibrary';
+import { SimulatorPanel } from './panel';
 
 const l10n = vscode.l10n;
 
@@ -39,7 +40,7 @@ export class ComponentManagerPanel {
     if (!ComponentManagerPanel.current) {
       const panel = vscode.window.createWebviewPanel(
         ComponentManagerPanel.viewType,
-        l10n.t('Composants (kompix)'),
+        l10n.t('Components (.kompix)'),
         { viewColumn: vscode.ViewColumn.One, preserveFocus: false },
         {
           enableScripts: true,
@@ -107,7 +108,7 @@ export class ComponentManagerPanel {
 
       this.render();
     } catch (err) {
-      vscode.window.showErrorMessage(l10n.t('Erreur lors du chargement des composants'));
+      void vscode.window.showErrorMessage(l10n.t('Could not load the component list.'));
       console.error(err);
     }
   }
@@ -127,7 +128,6 @@ export class ComponentManagerPanel {
   }
 
   private render(): void {
-    const webview = this.panel.webview;
     this.panel.webview.html = this.generateHtml(this.allComponents);
   }
 
@@ -138,18 +138,21 @@ export class ComponentManagerPanel {
     );
 
     const componentsJson = JSON.stringify(components);
-    const newOnlyLabelText = l10n.t('Nouveaux seulement');
-    const downloadButtonText = l10n.t('Télécharger');
-    const selectingText = l10n.t('Sélection…');
-    const noComponentsText = l10n.t('Aucun composant disponible');
+    const newOnlyLabelText = l10n.t('New ones only');
+    const downloadButtonText = l10n.t('Download');
+    const selectingText = l10n.t('Selecting…');
+    const noComponentsText = l10n.t('No component available');
+    const doneText = l10n.t('Done');
+    const errorText = l10n.t('Error');
+    const installedText = l10n.t('Installed');
 
     return /* html */ `<!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy" content="${csp}" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Gestionnaire de composants</title>
+  <title>Component manager</title>
   <style nonce="${nonce}">
     :root {
       color-scheme: light dark;
@@ -233,7 +236,7 @@ export class ComponentManagerPanel {
       border-color: var(--vscode-focusBorder);
     }
     .component-card.local::after {
-      content: '✓ Installé';
+      content: ${JSON.stringify(`✓ ${installedText}`)};
       display: block;
       font-size: 0.85rem;
       color: var(--vscode-notificationCenterHeader-foreground, #00cc00);
@@ -315,8 +318,8 @@ export class ComponentManagerPanel {
             \${comp.description ? \`<div class="component-description">\${escapeHtml(comp.description)}</div>\` : ''}
             <div class="component-meta">
               v\${escapeHtml(comp.version)}
-              \${comp.author ? \` - \${escapeHtml(comp.author)}\" : ''}
-              \${comp.reference ? \` (\${escapeHtml(comp.reference)})\" : ''}
+              \${comp.author ? \` - \${escapeHtml(comp.author)}\` : ''}
+              \${comp.reference ? \` (\${escapeHtml(comp.reference)})\` : ''}
             </div>
           \`;
 
@@ -377,7 +380,7 @@ export class ComponentManagerPanel {
       const status = document.getElementById('status');
       if (message.command === 'downloadComplete') {
         if (message.success) {
-          status.textContent = message.message || 'Terminé';
+          status.textContent = message.message || ${JSON.stringify(doneText)};
           status.style.color = 'var(--vscode-notificationCenterHeader-foreground, #00cc00)';
           selectedTypes.clear();
           setTimeout(() => {
@@ -385,7 +388,7 @@ export class ComponentManagerPanel {
             vscode.postMessage({ command: 'reload' });
           }, 1500);
         } else {
-          status.textContent = message.error || 'Erreur';
+          status.textContent = message.error || ${JSON.stringify(errorText)};
           status.style.color = 'var(--vscode-errorForeground, #ff0000)';
         }
       }
@@ -406,7 +409,7 @@ export class ComponentManagerPanel {
   private async downloadComponents(types: string[]): Promise<void> {
     try {
       if (!this.library) {
-        throw new Error(l10n.t('Bibliothèque de composants non disponible'));
+        throw new Error(l10n.t('The component library is not available.'));
       }
 
       const toDownload = this.allComponents.filter((c) => types.includes(c.type) && c.sourceUrl);
@@ -432,16 +435,20 @@ export class ComponentManagerPanel {
       }
 
       if (downloaded.length > 0) {
+        // La palette d'un atelier déjà ouvert ne se rafraîchit pas toute seule :
+        // sans ça, le composant fraîchement installé n'apparaît qu'à la
+        // réouverture de l'onglet.
+        SimulatorPanel.refreshCustomParts();
         this.panel.webview.postMessage({
           command: 'downloadComplete',
           success: true,
-          message: l10n.t('{0} composant(s) installé(s)', downloaded.length),
+          message: l10n.t('{0} component(s) installed', downloaded.length),
         });
       } else {
         this.panel.webview.postMessage({
           command: 'downloadComplete',
           success: false,
-          error: l10n.t('Aucun composant téléchargé'),
+          error: l10n.t('Nothing was downloaded.'),
         });
       }
     } catch (err) {

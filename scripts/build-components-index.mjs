@@ -2,15 +2,19 @@
 // À lancer après avoir ajouté/modifié des .kompix dans kablix_components/.
 //
 // Utilisation : node scripts/build-components-index.mjs
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import JSZip from 'jszip';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const KOMPONIX_DIR = join(ROOT, 'kablix_components');
+// Version de l'extension : `require` n'existe pas dans un .mjs.
+const VERSION = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
 
 async function generateIndex() {
+  // Le dossier n'existe pas encore tant qu'aucun composant n'a été publié.
+  mkdirSync(KOMPONIX_DIR, { recursive: true });
   const kompixFiles = readdirSync(KOMPONIX_DIR).filter((f) => f.endsWith('.kompix'));
   const index = { components: [], generated: new Date().toISOString() };
   const entries = [];
@@ -30,6 +34,10 @@ async function generateIndex() {
 
       const manifestText = await manifestFile.async('string');
       const manifest = JSON.parse(manifestText);
+      if (!manifest.type) {
+        console.warn(`  ⚠ ${file} : manifest sans « type »`);
+        continue;
+      }
 
       // Extrait miniature optionnelle en base64.
       let thumbnail = undefined;
@@ -47,7 +55,9 @@ async function generateIndex() {
         description: manifest.description || '',
         category: manifest.category || 'custom',
         kind: manifest.kind || 'passive',
-        filename: file,
+        // « file » et pas « filename » : c'est le nom que lit le gestionnaire de
+        // composants pour reconstruire l'URL du .kompix à télécharger.
+        file,
         thumbnail,
       };
 
@@ -85,7 +95,7 @@ Voir [kompix_specification.md](../docs/kompix_specification.md) pour les détail
 |------|-------|---------|-----------|-------------|
 `;
 
-  for (const entry of entries.sort((a, b) => a.type.localeCompare(b.type))) {
+  for (const entry of entries.sort((a, b) => String(a.type).localeCompare(String(b.type)))) {
     const desc = (entry.description || '').replace(/[|\n]/g, ' ').slice(0, 50);
     readme += `| \`${entry.type}\` | ${entry.label} | ${entry.version} | ${entry.category} | ${desc} |\n`;
   }
@@ -106,7 +116,7 @@ Pour proposer un composant :
 
 ---
 
-Généré le ${new Date().toLocaleString('fr-FR')} — Kablix v${require(join(ROOT, 'package.json')).version}
+Généré le ${new Date().toLocaleString('fr-FR')} — Kablix v${VERSION}
 `;
 
   const readmePath = join(KOMPONIX_DIR, 'README.md');

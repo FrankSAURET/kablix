@@ -251,8 +251,10 @@ export class Editor {
 
   /** Appelé quand la liste des composants personnalisés change (persistance). */
   onCustomPartsChange: ((parts: CustomPartData[]) => void) | null = null;
-  /** Appelé pour exporter un composant personnalisé en fichier .json. */
+  /** Appelé pour exporter un composant personnalisé en fichier .kompix. */
   onExportCustomPart: ((part: CustomPartData) => void) | null = null;
+  /** Appelé pour ouvrir le gestionnaire de composants (téléchargement depuis les dépôts). */
+  onOpenComponentManager: ((() => void)) | null = null;
   /** Appelé quand les préréglages de modèles de simulation changent (persistance). */
   onSimModelsChange: ((models: SimModelPreset[]) => void) | null = null;
   /** Appelé quand le tri de la palette ou les derniers utilisés changent. */
@@ -1534,8 +1536,10 @@ export class Editor {
     const importBtn = document.createElement('button');
     importBtn.className = 'palette__item palette__item--create';
     importBtn.textContent = t('⇩ Import components');
+    // window.postMessage ne sort pas de la webview : c'est l'hôte qui ouvre le
+    // gestionnaire, donc il faut passer par le rappel branché sur vscode.postMessage.
     importBtn.addEventListener('click', () => {
-      window.postMessage({ type: 'openComponentManager' }, '*');
+      this.onOpenComponentManager?.();
     });
     this.palette.appendChild(importBtn);
 

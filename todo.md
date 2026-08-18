@@ -1,5 +1,27 @@
 # À faire
-- reprend tout ce qui a été fait depuis la v2026.8.74. Vérifie optimise, corrige.
+1. ⬜ **« Intégrer » de montre.mjs** : le bouton écrit un `.kompix` **bidon** — carré gris avec le nom écrit dessus, aucune patte — et le pose dans `kablix_components/`, qui est le dossier de **publication** du dépôt, pas la bibliothèque locale. À refaire ou à retirer : dis-moi lequel.
+2. ⬜ **Dépôt public vide** : `kablix_components/` n'existe pas encore, donc « ⇩ Importer des composants » ne trouvera rien tant qu'aucun `.kompix` n'y est publié et poussé sur GitHub.
+
+# >>>>  v2026.8.84 — Audit de tout ce qui a été livré depuis la v2026.8.74
+
+1. ✅ **`behavior.mjs` ne pouvait PAS s'exécuter** ([behavior-wrapper.mts](src/webview/behavior-wrapper.mts), [sim.mts](src/webview/sim.mts)) : la spécification demande un vrai module ES (`export function tick`), mais le script partait dans un `<script>` **classique** enroulé dans une IIFE — `export` y est une erreur de syntaxe. Aucun comportement embarqué ne tournait. Le script part maintenant en `<script type="module">`, avec une queue qui republie `init`/`tick`/`destroy` sur `window.__kx_behaviors`. Un module s'exécutant en différé, `getBehaviorModule()` relit le registre à chaque image (le branchement se fait de lui-même).
+2. ✅ **Nom de type injecté brut dans du code** : `__kx_behaviors['${componentType}']` venait d'un manifeste téléchargé. Passé par `JSON.stringify`, et le banc essaie une vraie tentative d'évasion.
+3. ✅ **Le bouton « ⇩ Importer des composants » ne faisait rien** ([editor.mts](src/webview/diagram/editor.mts)) : `window.postMessage` ne sort pas de la webview. Remplacé par un rappel `onOpenComponentManager` branché sur `vscode.postMessage`.
+4. ✅ **Le comportement embarqué était effacé à la première retouche de palette** ([panel.ts](src/panel.ts)) : `behaviorScript` ne voyage pas dans `customParts`, et le renvoi réécrivait le `.kompix` sans son `behavior.mjs`. Le script est désormais remis depuis la bibliothèque avant réenregistrement.
+5. ✅ **Un composant téléchargé redevenait « local », donc approuvé d'office** : le repasser par `savePartDataAsKompix()` réécrivait son origine. Les composants distants ne sont plus jamais réécrits par ce chemin.
+6. ✅ **Supprimer un composant ne le supprimait pas** : le `.kompix` restait sur le disque et revenait au rechargement. Réconciliation ajoutée — et limitée aux types que CET atelier avait reçus, pour qu'une palette périmée n'emporte pas un composant installé entre-temps ailleurs.
+7. ✅ **Réécriture de toute la bibliothèque à chaque retouche** : chaque `.kompix` était réenregistré (et relançait un scan complet) même inchangé. Comparaison par empreinte de contenu, seul ce qui bouge est réécrit.
+8. ✅ **La palette ignorait les composants fraîchement téléchargés** : rien ne rafraîchissait un atelier déjà ouvert (`onDidChangeComponents` n'avait aucun abonné). `SimulatorPanel.refreshCustomParts()` appelé après une installation.
+9. ✅ **`build-components-index.mjs` était cassé** : `require()` dans un `.mjs` (plantage à la génération du README), champ `filename` alors que le gestionnaire lit `file` (donc **aucun téléchargement possible**), et plantage si le dossier n'existe pas encore.
+10. ✅ **URL du dépôt par défaut** ([package.json](package.json)) : `franksauret` → `FrankSAURET` (raw.githubusercontent.com respecte la casse).
+11. ✅ **« Ouvrir la bibliothèque de composants »** ([extension.ts](src/extension.ts)) : `openExternal` sur une URI `file:` passe par le navigateur — remplacé par `revealFileInOS`.
+12. ✅ **Spécification corrigée** ([kompix_specification.md](docs/kompix_specification.md)) : mot allemand resté dans une phrase, `writePin(name, voltage)` alors que l'API est un niveau logique `0`/`1`, et `async` alors que `tick` est appelée de façon synchrone à chaque image.
+13. ✅ **Liens morts de l'aide** ([USAGE.md](docs/fr/USAGE.md)) : renvoi vers `kompix_specification.md` sans remonter d'un dossier, deux ancres de sommaire pointant l'ancienne section `.json`, et un paragraphe « Partage » décrivant encore l'import `.json` disparu. `verify:docs` repasse au vert (25 contrôles).
+14. ✅ **Banc [verify-kompix.mjs](scripts/verify-kompix.mjs)** : 14 contrôles (13 + l'emballage `behavior.mjs` évalué comme un vrai module ES).
+15. ✅ **[gen-all-composants.mjs](A%20Examiner/scripts/gen-all-composants.mjs) déplacé dans `A Examiner/`** : le script n'extrayait rien, il se contentait d'afficher des listes ; personne ne l'appelait.
+16. ✅ **Boucle de rendu resserrée** ([sim.mts](src/webview/sim.mts)) : le tick des comportements est passé dans `tickBehaviors()`, appelé APRÈS `flushAnalogWaves()`. Inséré au milieu de `renderTick`, il repoussait `updateSpeedBadge()` hors de la fenêtre lue par les bancs (`verify:worker`, `verify:simspeed`) — deux faux échecs. `verify:all` au vert, hormis l'i18n ci-dessous.
+17. ⏳ **Traductions** : inchangé — `l10n/bundle.l10n.fr.json` et `docs/en/` attendent le lot d'avant publication. `verify:i18n` signale « Export this part (.kompix) » (héritage du lot 4).
+
 # >>>>  v2026.8.83 — Lot 9 (envoi du programme sur une vraie carte Pico)
 
 1. ✅ **Bouton dans la barre de l'onglet** ([package.json](package.json)) : `group: "navigation@-3"` (barre elle-même, plus le menu `…`), visible seulement sur `resourceLangId == python`.

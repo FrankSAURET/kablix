@@ -1,9 +1,24 @@
 import * as vscode from 'vscode';
-import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from 'node:fs';
-import { join, extname, resolve } from 'node:path';
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync, unlinkSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { join, extname } from 'node:path';
 import JSZip from 'jszip';
 
 type PartKind = string; // Réutilise la même enum que catalog.mts
+
+/** Échappe une chaîne pour l'insérer littéralement dans une expression régulière. */
+function escapeRe(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** viewBox d'un document SVG, déduite de width/height si elle manque. */
+function viewBoxOf(svg: string): string {
+  const vb = /<svg\b[^>]*\bviewBox=["']([^"']+)["']/i.exec(svg);
+  if (vb) return vb[1].trim();
+  const w = /<svg\b[^>]*\bwidth=["']([\d.]+)/i.exec(svg);
+  const h = /<svg\b[^>]*\bheight=["']([\d.]+)/i.exec(svg);
+  return w && h ? `0 0 ${w[1]} ${h[1]}` : '0 0 100 100';
+}
 
 /** Métadonnées d'un composant .kompix sauvegardées en index JSON. */
 interface KompixIndexEntry {
@@ -236,19 +251,46 @@ export class KompixLibrary {
   /**
    * Extrait un groupe SVG du document par son id.
    * Convention : id="<type>" pour externe, id="<type>-interne" pour interne.
+   *
+   * Le SVG rendu garde la viewBox du document source : c'est elle qui donne
+   * l'échelle du composant sur la feuille. Une viewBox forfaitaire déformait
+   * tout composant qui ne faisait pas 100 × 100.
    */
   private extractSvgGroup(svg: string, groupId: string): string {
-    try {
-      // Regex naive pour trouver <g id="..."> ... </g>
-      const pattern = new RegExp(`<g[^>]*id="?${groupId}"?[^>]*>([\\s\\S]*?)</g>`, 'i');
-      const match = svg.match(pattern);
-      if (match && match[1]) {
-        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">${match[1]}</svg>`;
+    const content = this.groupContent(svg, groupId);
+    if (content === null) return '';
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBoxOf(svg)}">${content}</svg>`;
+  }
+
+  /**
+   * Contenu du groupe `groupId`, ou null s'il est absent.
+   *
+   * Compte les `<g>` ouverts pour trouver le `</g>` qui ferme VRAIMENT le
+   * groupe : Inkscape imbrique les groupes, et s'arrêter au premier `</g>`
+   * coupait le dessin en deux et rendait un XML non fermé.
+   */
+  private groupContent(svg: string, groupId: string): string | null {
+    // L'id doit correspondre en ENTIER, guillemet fermant compris : sans lui,
+    // demander « diode » ramenait le groupe « diode-interne ».
+    const id = escapeRe(groupId);
+    const opener = new RegExp(`<g\\b[^>]*\\bid=(?:"${id}"|'${id}')[^>]*?(/?)>`, 'i');
+    const open = opener.exec(svg);
+    if (!open) return null;
+    if (open[1] === '/') return ''; // <g id="x"/> : groupe vide, pas d'erreur
+
+    const start = open.index + open[0].length;
+    const tags = /<g\b[^>]*?(\/?)>|<\/g\s*>/gi;
+    tags.lastIndex = start;
+    let depth = 1;
+    let tag: RegExpExecArray | null;
+    while ((tag = tags.exec(svg)) !== null) {
+      if (tag[0].startsWith('</')) {
+        if (--depth === 0) return svg.slice(start, tag.index);
+      } else if (tag[1] !== '/') {
+        depth++;
       }
-    } catch {
-      // Fallback
     }
-    return '';
+    return null; // </g> manquant : le SVG est cassé, mieux vaut ne rien rendre
   }
 
   /**
@@ -377,7 +419,10 @@ export class KompixLibrary {
         origin,
         sourceUrl,
         behaviorHash,
-        acceptedAt: new Date().toISOString(),
+        // Un composant venu d'ailleurs n'est PAS approuvé du seul fait d'avoir
+        // été installé : c'est acceptBehaviorHash() qui le marquera, après le
+        // « Faire confiance » de l'utilisateur. Le sien, en revanche, l'est.
+        acceptedAt: origin === 'local' ? new Date().toISOString() : undefined,
         version: manifest.version,
       });
       this.saveIndex();
@@ -419,7 +464,8 @@ export class KompixLibrary {
         origin,
         sourceUrl,
         behaviorHash,
-        acceptedAt: new Date().toISOString(),
+        // Voir saveKompix() : l'installation n'approuve pas un code distant.
+        acceptedAt: origin === 'local' ? new Date().toISOString() : undefined,
         version: manifest.version,
       });
       this.saveIndex();
@@ -440,11 +486,7 @@ export class KompixLibrary {
       const behaviorFile = zip.file('behavior.mjs');
       if (!behaviorFile) return undefined;
       const content = await behaviorFile.async('uint8array');
-      // Node crypto disponible côté extension
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-var-requires
-      const crypto = require('crypto') as typeof import('crypto');
-      const buf = Buffer.isBuffer(content) ? content : Buffer.from(content);
-      return crypto.createHash('sha256').update(buf as any).digest('hex');
+      return createHash('sha256').update(content).digest('hex');
     } catch {
       return undefined;
     }
@@ -463,7 +505,6 @@ export class KompixLibrary {
   async removeKompix(type: string): Promise<void> {
     try {
       const targetPath = join(this.libraryFolder, `${type}.kompix`);
-      const { unlinkSync } = await import('node:fs');
       unlinkSync(targetPath);
       this.index.delete(type);
       this.saveIndex();
@@ -480,24 +521,19 @@ export class KompixLibrary {
    * - <g id="type-interne"> contenant le SVG interne (s'il existe)
    */
   private mergeSvgsForKompix(type: string, extSvg: string, intSvg?: string): string {
-    const parseViewBox = (svg: string): { w: string; h: string } => {
-      const match = svg.match(/viewBox=["']([^"']*)\s+([^"']*)\s+([^"']*)\s+([^"']*)["']/);
-      if (match) return { w: match[3], h: match[4] };
-      const wMatch = svg.match(/width=["']([^"']*)["']/);
-      const hMatch = svg.match(/height=["']([^"']*)["']/);
-      return { w: wMatch?.[1] || '100', h: hMatch?.[1] || '100' };
-    };
-
     const extractContent = (svg: string): string => {
       const match = svg.match(/<svg[^>]*>([\s\S]*)<\/svg>/);
       return match?.[1] || '';
     };
 
-    const { w, h } = parseViewBox(extSvg);
+    // La viewBox part telle quelle : recomposer « 0 0 w h » depuis ses deux
+    // dernières valeurs décalait tout dessin dont l'origine n'était pas (0, 0).
+    const viewBox = viewBoxOf(extSvg);
+    const [, , w = '100', h = '100'] = viewBox.split(/\s+/);
     const extContent = extractContent(extSvg);
     const intContent = intSvg ? extractContent(intSvg) : '';
 
-    let result = `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">`;
+    let result = `<svg width="${w}" height="${h}" viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg">`;
     result += `<g id="${type}">${extContent}</g>`;
     if (intContent) result += `<g id="${type}-interne">${intContent}</g>`;
     result += '</svg>';

@@ -187,7 +187,9 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.commands.registerCommand('kablix.openComponentsFolder', () => {
       const folder = vscode.Uri.file(kompixLibrary.getLibraryPath?.() ?? context.globalStorageUri.fsPath);
-      void vscode.env.openExternal(folder);
+      // revealFileInOS et pas openExternal : openExternal sur une URI « file: »
+      // passe par le navigateur et n'ouvre pas l'explorateur de fichiers.
+      void vscode.commands.executeCommand('revealFileInOS', folder);
     }),
     vscode.commands.registerCommand('kablix.openComponentManager', () => {
       void ComponentManagerPanel.show(context.extensionUri, kompixLibrary);

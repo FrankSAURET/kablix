@@ -16,7 +16,7 @@
     1. [Traceur de courbes](#traceur-de-courbes)
 1. [Exporter le schéma en SVG](#exporter-le-schéma-en-svg)
 1. [Créer ses propres composants](#créer-ses-propres-composants)
-1. [Format de fichier des composants (.kablix-part.json)](#format-de-fichier-des-composants-kablix-partjson)
+1. [Format des composants (.kompix)](#format-des-composants-kompix)
 1. [Où trouver des composants existants](#où-trouver-des-composants-existants)
 1. [Enregistrer / ouvrir un projet (.projix)](#enregistrer--ouvrir-un-projet-projix)
 1. [Interopérabilité Wokwi (diagram.json)](#interopérabilité-wokwi-diagramjson)
@@ -374,7 +374,7 @@ Un composant Kablix est stocké au format **`.kompix`** — une archive ZIP auto
 - Dessin externe (`schema.svg`)
 - Optionnel : schéma interne, miniature, code de simulation
 
-Consulter [kompix_specification.md](kompix_specification.md) pour les détails complets.
+Consulter [kompix_specification.md](../kompix_specification.md) pour les détails complets.
 
 ### Créer ses propres composants
 
@@ -468,7 +468,7 @@ Contraintes :
 - Échappe correctement les guillemets dans la valeur "svg".
 ```
 
-L'aide correspondante (rôles, champs, contraintes) est dans la section [Format de fichier](#format-de-fichier-des-composants-kablix-partjson) — le prompt en reprend l'essentiel pour que l'IA n'ait besoin d'aucun autre contexte.
+L'aide correspondante (rôles, champs, contraintes) est dans la section [Format des composants](#format-des-composants-kompix) — le prompt en reprend l'essentiel pour que l'IA n'ait besoin d'aucun autre contexte.
 
 ## Où trouver des composants existants
 
@@ -478,7 +478,7 @@ L'aide correspondante (rôles, champs, contraintes) est dans la section [Format 
   - [SVG Repo](https://www.svgrepo.com) et [Openclipart](https://openclipart.org) (dessins libres) ;
   - les sources de [wokwi-elements](https://github.com/wokwi/wokwi-elements/tree/master/src) contiennent le SVG de chaque composant (MIT — réutilisable dans un composant personnalisé) ;
   - [Fritzing](https://github.com/fritzing/fritzing-parts) (vues « breadboard » en SVG, licence CC-BY-SA).
-- **Partage** : un composant exporté (`.kablix-part.json`) s'importe sur n'importe quel autre poste via **⇪ Importer (.json)** — pratique pour distribuer une bibliothèque.
+- **Partage** : un composant exporté (`.kompix`) se dépose dans le dossier de la bibliothèque d'un autre poste (**Kablix : Ouvrir la bibliothèque de composants**), ou se publie sur un dépôt pour que **⇩ Importer des composants** le propose au téléchargement.
 
 ## Enregistrer / ouvrir un projet (.projix)
 

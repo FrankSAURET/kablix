@@ -17,7 +17,7 @@ C'est le seul format utilisé par :
 
 #### `manifest.json`
 
-Métadonnées du composant (JSON structuré). Reprend le schéma `CustomPartData` avec champs zusätzlich :
+Métadonnées du composant (JSON structuré). Reprend le schéma `CustomPartData`, avec en plus :
 - `kompixVersion` : version du format (1)
 - `type`, `label`, `description`, `version`, `author` : identité du composant
 - `kind`, `category`, `board` : classification
@@ -43,17 +43,21 @@ Script de simulation embarqué pour l'animation du composant.
 
 ## API Behavior (behavior.mjs)
 
-Module JavaScript exportant trois fonctions :
+Vrai **module ES** (il est chargé dans un `<script type="module">`), exportant une
+fonction obligatoire, `tick`, et deux facultatives :
 
 ```javascript
-export async function init(context) { }
-export async function tick(context) { }
-export async function destroy(context) { }
+export function init(context) { }     // une fois, au branchement du composant
+export function tick(context) { }     // à chaque image de la simulation
+export function destroy(context) { }  // à l'arrêt de la simulation
 ```
+
+Les trois sont appelées de façon **synchrone** : `tick` tourne à chaque image, une
+promesse renvoyée ne serait jamais attendue. Pas d'`async`.
 
 Objet `context` expose :
 - `pinInfo[]` : brochage
-- `readPin(name)`, `writePin(name, voltage)` : lecture/écriture tensions
+- `readPin(name)` → `0` | `1`, `writePin(name, 0 | 1)` : niveaux logiques, pas des tensions
 - `active` : alimentation
 - `controlValue`, `switchOn` : contrôles
 

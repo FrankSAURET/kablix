@@ -160,6 +160,7 @@ import { clampAirTemp, DEFAULT_AIR_TEMP_C } from './engines/ultrasonic.mjs';
 import { UNO_DEMO } from './programs/uno-demo.mjs';
 import { PICO_BLINK } from './programs/pico-blink.mjs';
 import { formatVarValue, type VarBase } from './varbase.mjs';
+import { wrapBehaviorModule, BEHAVIOR_REGISTRY } from './behavior-wrapper.mjs';
 
 interface VsCodeApi {
   postMessage(message: unknown): void;
@@ -792,28 +793,35 @@ function injectBehaviorScript(componentType: string, script: string): void {
       console.warn(`Behavior injection : nonce CSP manquant`);
       return;
     }
-    // Crée un <script> avec le nonce et l'exécute
     const scriptEl = document.createElement('script');
     scriptEl.nonce = nonce;
-    scriptEl.textContent = `
-      (function() {
-        const __kx_module = {};
-        ${script}
-        window.__kx_behaviors = window.__kx_behaviors || {};
-        window.__kx_behaviors['${componentType}'] = __kx_module;
-      })();
-    `;
+    // type="module" obligatoire : behavior.mjs exporte ses fonctions, et
+    // « export » est une erreur de syntaxe dans un script classique.
+    scriptEl.type = 'module';
+    scriptEl.textContent = wrapBehaviorModule(componentType, script);
     document.head.appendChild(scriptEl);
-    // Rétrécit le script exécuté du DOM (nettoie)
-    scriptEl.remove();
-    // Stocke le module pour utilisation future
-    const module = (window as any).__kx_behaviors?.[componentType];
-    if (module) {
-      behaviorModules.set(componentType, module);
-    }
+    // Un module s'exécute en DIFFÉRÉ : ses fonctions n'existent pas encore ici.
+    // C'est getBehaviorModule() qui les récupérera, à la frame où elles arrivent.
   } catch (err) {
     console.error(`Erreur injection behavior ${componentType}:`, err);
   }
+}
+
+/**
+ * Module de comportement d'un type de composant, ou undefined tant qu'il n'a pas
+ * fini de s'exécuter. Relu à chaque frame par refreshVisuals : le branchement se
+ * fait donc de lui-même dès que le module est prêt.
+ */
+function getBehaviorModule(componentType: string): unknown {
+  const known = behaviorModules.get(componentType);
+  if (known) return known;
+  const registry = (window as unknown as Record<string, Record<string, { tick?: unknown }>>)[BEHAVIOR_REGISTRY];
+  const module = registry?.[componentType];
+  if (module && typeof module.tick === 'function') {
+    behaviorModules.set(componentType, module);
+    return module;
+  }
+  return undefined;
 }
 
 // --- Boucle de rendu continue (découplée du moteur) pendant toute la simulation.
@@ -823,6 +831,19 @@ function injectBehaviorScript(componentType: string, script: string): void {
 // bouge sans cesse (7 segments multiplexé) suffisait à faire réapparaître le LCD ;
 // on garantit ce flux nous-mêmes en redessinant à chaque frame tant que le moteur
 // tourne. Léger (refreshVisuals ~1 ms) et le moteur cède la main (setTimeout).
+// Tick des comportements embarqués (.kompix), en fin de frame : l'état électrique
+// est à jour. Ce code vient éventuellement d'un composant téléchargé : s'il lève,
+// il ne doit pas emporter la boucle de rendu avec lui.
+function tickBehaviors(): void {
+  for (const el of elementsWithBehavior) {
+    try {
+      el.tickBehavior?.();
+    } catch (err) {
+      console.error('behavior tick', err);
+    }
+  }
+}
+
 let renderRaf = 0;
 function renderTick(): void {
   if (!engine) {
@@ -833,11 +854,8 @@ function renderTick(): void {
   updateMotion();
   updateHall();
   refreshVisuals();
-  // Tick des comportements embarqués (après refreshVisuals pour que l'état soit à jour).
-  for (const el of elementsWithBehavior) {
-    el.tickBehavior?.();
-  }
   flushAnalogWaves(); // après stepCapacitors (dans refreshVisuals) : la liste est complète
+  tickBehaviors();
   updateSpeedBadge();
   updateSimGauge();
   renderRaf = requestAnimationFrame(renderTick);
@@ -1947,12 +1965,18 @@ function refreshVisualsInner(): void {
     }
     // Branchement du behavior embarqué (si présent et pas encore attaché).
     if (def.custom && el && !elementsWithBehavior.has(el)) {
-      const module = behaviorModules.get(part.type);
+      const module = getBehaviorModule(part.type);
       if (module && 'injectBehavior' in el) {
         const readPin = (name: string): 0 | 1 => engine!.readDigital(name) ? 1 : 0;
         const writePin = (name: string, value: 0 | 1): void => engine!.setInput(name, value === 1);
-        (el as any).injectBehavior(module, readPin, writePin);
+        // init() est du code tiers : marquer l'élément AVANT de l'appeler, sinon
+        // un init fautif serait retenté à chaque image.
         elementsWithBehavior.add(el);
+        try {
+          (el as any).injectBehavior(module, readPin, writePin);
+        } catch (err) {
+          console.error('behavior init', part.type, err);
+        }
       }
     }
   }
@@ -3367,9 +3391,14 @@ function stopRun(): void {
   // état propre — console vidée et composants réinitialisés (LED éteintes,
   // afficheurs vides…). Idem au (re)chargement d'un programme Python.
   clearSerial();
-  // Nettoyage des comportements embarqués.
+  // Nettoyage des comportements embarqués (code tiers : une exception ne doit
+  // pas laisser la simulation à moitié arrêtée).
   for (const el of elementsWithBehavior) {
-    el.destroyBehavior?.();
+    try {
+      el.destroyBehavior?.();
+    } catch (err) {
+      console.error('behavior destroy', err);
+    }
   }
   elementsWithBehavior.clear();
   editor.resetVisuals();
@@ -3809,6 +3838,9 @@ editor.onComponentHelp = (part: string) => {
 };
 editor.onExportCustomPart = (part: CustomPartData) => {
   vscode.postMessage({ type: 'exportCustomPart', part });
+};
+editor.onOpenComponentManager = () => {
+  vscode.postMessage({ type: 'openComponentManager' });
 };
 // --- Presse-papier système par l'hôte ----------------------------------------
 // Copier/coller d'un schéma d'un atelier à l'autre : chaque webview a son propre

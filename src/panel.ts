@@ -309,14 +309,31 @@ export function strikeThroughText(text: string): string {
   return [...text].map((ch) => (ch === ' ' ? ch : ch + STROKE)).join('');
 }
 
+/**
+ * Empreinte du contenu d'un composant tel qu'il partira dans le .kompix.
+ * Un tableau ORDONNÉ, pas un objet : l'ordre des clés d'un objet varie selon
+ * d'où vient la pièce, et deux copies identiques passeraient pour différentes.
+ */
+function kompixSignature(p: any): string {
+  return JSON.stringify([
+    p.type, p.label, p.kind, p.category, p.pins, p.pinRoles, p.attrs, p.params,
+    p.control ?? null, p.innerOffset ?? null, p.extAnchor ?? null, p.intAnchor ?? null,
+    p.svg, p.innerSvg ?? null, p.behaviorScript ?? null,
+  ]);
+}
+
 export class SimulatorPanel {
   public static readonly viewType = 'kablix.simulator';
   private static current: SimulatorPanel | undefined;
+  /** Tous les ateliers ouverts : cible d'un rafraîchissement de palette. */
+  private static panels = new Set<SimulatorPanel>();
   /** Dernière session ayant interagi (onglet .projix actif) : cible des
    *  commandes globales (Enregistrer, Import/Export Wokwi…) en mode CustomEditor. */
   private static lastActive: SimulatorPanel | undefined;
   /** Bibliothèque de composants .kompix (injectée par extension.ts). */
   public static library: any; // Type KompixLibrary, mais import circulaire à éviter
+  /** Types de composants réellement envoyés à CETTE webview (voir saveCustomPartsAsKompix). */
+  private sentCustomPartTypes = new Set<string>();
 
   /** Session de l'atelier actuellement au premier plan (CustomEditor), sinon le
    *  panneau singleton historique s'il existe. undefined si rien n'est ouvert. */
@@ -1223,6 +1240,7 @@ export class SimulatorPanel {
     this.context = context;
     this.extensionUri = context.extensionUri;
     this.panel.webview.html = this.getHtml(this.panel.webview);
+    SimulatorPanel.panels.add(this);
     this.panel.onDidDispose(() => this.onDispose(), null, this.disposables);
     // Mémorise la colonne courante pour rouvrir au même endroit la prochaine fois.
     this.panel.onDidChangeViewState(
@@ -1354,54 +1372,7 @@ export class SimulatorPanel {
           type: 'simModels',
           models: this.context.globalState.get<unknown[]>(SIM_MODELS_KEY, []),
         });
-        // Composants .kompix depuis la bibliothèque locale, sinon fallback globalState
-        const parts = SimulatorPanel.library?.getComponents?.() ?? this.context.globalState.get<unknown[]>(CUSTOM_PARTS_KEY, []);
-        // Sépare les scripts behavior pour l'envoi (trop gros dans customParts)
-        const behaviorScripts: Array<{ type: string; script: string; origin?: string; label?: string; behaviorHash?: string }> = [];
-        const partsCleaned = (parts as any[]).map((p) => {
-          const cleaned = { ...p };
-          if (p.behaviorScript) {
-            const origin = p.kompixMeta?.origin;
-            const label = p.label;
-            const behaviorHash = p.kompixMeta?.behaviorHash;
-            behaviorScripts.push({
-              type: p.type,
-              script: p.behaviorScript,
-              origin,
-              label,
-              behaviorHash,
-            });
-            delete cleaned.behaviorScript;
-          }
-          return cleaned;
-        });
-        this.post({
-          type: 'customParts',
-          parts: partsCleaned,
-        });
-        // Envoie les scripts behavior séparément (pas de risque de fuite XSS : nonce CSP)
-        for (const { type: componentType, script, origin, label, behaviorHash } of behaviorScripts) {
-          // Si remote et pas accepté, demander confirmation à la webview
-          if (origin === 'remote' && behaviorHash) {
-            // La webview demandera au host avant d'exécuter
-            this.post({
-              type: 'injectBehavior',
-              componentType,
-              script,
-              origin,
-              label,
-              behaviorHash,
-            });
-          } else {
-            // Local ou déjà accepté : injecter directement
-            this.post({
-              type: 'injectBehavior',
-              componentType,
-              script,
-              origin,
-            });
-          }
-        }
+        this.sendCustomParts();
         this.post({
           type: 'uiState',
           state: this.context.globalState.get<unknown>(UI_STATE_KEY, {}),
@@ -2025,17 +1996,95 @@ export class SimulatorPanel {
     );
   }
 
-  /** Sauvegarde des composants personnalisés comme .kompix dans la bibliothèque. */
+  /**
+   * Envoie à la webview les composants .kompix de la bibliothèque, puis leurs
+   * scripts de comportement séparément (ils sont trop gros pour voyager dans
+   * `customParts`, et un code distant doit d'abord être approuvé).
+   * Retient au passage les types envoyés : c'est la référence qui permettra de
+   * distinguer une VRAIE suppression d'une liste simplement périmée.
+   */
+  private sendCustomParts(): void {
+    // Composants .kompix depuis la bibliothèque locale, sinon repli globalState.
+    const parts = SimulatorPanel.library?.getComponents?.()
+      ?? this.context.globalState.get<unknown[]>(CUSTOM_PARTS_KEY, []);
+    const behaviorScripts: Array<{ type: string; script: string; origin?: string; label?: string; behaviorHash?: string; accepted?: boolean }> = [];
+    this.sentCustomPartTypes = new Set<string>();
+    const partsCleaned = (parts as any[]).map((p) => {
+      this.sentCustomPartTypes.add(p.type as string);
+      const cleaned = { ...p };
+      if (p.behaviorScript) {
+        behaviorScripts.push({
+          type: p.type,
+          script: p.behaviorScript,
+          origin: p.kompixMeta?.origin,
+          label: p.label,
+          behaviorHash: p.kompixMeta?.behaviorHash,
+          accepted: p.kompixMeta?.behaviorAccepted === true,
+        });
+        delete cleaned.behaviorScript;
+      }
+      return cleaned;
+    });
+    this.post({ type: 'customParts', parts: partsCleaned });
+    for (const { type: componentType, script, origin, label, behaviorHash, accepted } of behaviorScripts) {
+      // Si distant et pas accepté, demander confirmation à la webview.
+      // `accepted` vient de l'index de la bibliothèque : un « Faire confiance »
+      // déjà donné pour CE hash évite de reposer la question à chaque
+      // ouverture — c'est tout l'objet de acceptBehaviorHash().
+      if (origin === 'remote' && behaviorHash && !accepted) {
+        this.post({ type: 'injectBehavior', componentType, script, origin, label, behaviorHash });
+      } else {
+        this.post({ type: 'injectBehavior', componentType, script, origin });
+      }
+    }
+  }
+
+  /** Rafraîchit la palette de tous les ateliers ouverts (après un téléchargement). */
+  public static refreshCustomParts(): void {
+    for (const panel of SimulatorPanel.panels) panel.sendCustomParts();
+  }
+
+  /**
+   * Reflète dans la bibliothèque la liste de composants renvoyée par la webview.
+   *
+   * Trois pièges, tous corrigés ici :
+   * - le script embarqué ne voyage PAS dans `customParts` : il faut le remettre,
+   *   sinon le réenregistrement viderait `behavior.mjs` du .kompix ;
+   * - un composant téléchargé ne doit jamais repasser par `savePartDataAsKompix`,
+   *   qui le réécrirait « local » — donc approuvé d'office ;
+   * - un composant retiré de la palette doit disparaître du disque, sinon il
+   *   revient au rechargement suivant. On ne supprime que ce que CET atelier
+   *   avait reçu : une palette périmée (téléchargement fait ailleurs entre-temps)
+   *   n'emporte pas les nouveautés qu'elle ignore.
+   */
   private async saveCustomPartsAsKompix(parts: any[]): Promise<void> {
     const lib = SimulatorPanel.library;
     if (!lib) return;
+    const known = new Map<string, any>(
+      ((lib.getComponents?.() ?? []) as any[]).map((p) => [p.type as string, p])
+    );
+    const sent = new Set<string>(parts.map((p) => p.type as string));
+
     for (const part of parts) {
+      const before = known.get(part.type as string);
+      if (lib.getIndexEntry?.(part.type)?.origin === 'remote') continue;
+      const complete = before?.behaviorScript && !part.behaviorScript
+        ? { ...part, behaviorScript: before.behaviorScript }
+        : part;
+      // Chaque écriture relance un scan complet de la bibliothèque : ne réécrire
+      // que ce qui a réellement bougé.
+      if (before && kompixSignature(before) === kompixSignature(complete)) continue;
       try {
-        await lib.savePartDataAsKompix(part, '0.1.0');
+        await lib.savePartDataAsKompix(complete, '0.1.0');
       } catch (err) {
         console.error('Erreur sauvegarde .kompix :', err);
       }
     }
+
+    for (const type of this.sentCustomPartTypes) {
+      if (!sent.has(type) && known.has(type)) await lib.removeKompix?.(type);
+    }
+    this.sentCustomPartTypes = sent;
   }
 
   /** Exporte un composant personnalisé en fichier .kompix (save-as). */
@@ -2262,6 +2311,7 @@ export class SimulatorPanel {
       };
     }
 
+    SimulatorPanel.panels.delete(this);
     if (SimulatorPanel.lastActive === this) SimulatorPanel.lastActive = undefined;
     if (SimulatorPanel.current === this) SimulatorPanel.current = undefined;
     this.clearDebugLine();
