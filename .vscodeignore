@@ -45,8 +45,12 @@ dist/**
 # « Archives/ » : sources écartées du produit mais conservées sur GitHub.
 # « A Examiner/ » : ménage en attente de tri par Frank. Versionnés tous les deux,
 # jamais publiés dans le vsix.
+# « kablix_components/ » : bibliothèque publique de composants .kompix — source
+# distribuée via GitHub, pas dans le paquet (le client télécharge les .kompix
+# via le gestionnaire de composants).
 Archives/**
 A Examiner/**
+kablix_components/**
 svg/**
 svg retouche/**
 **/*.edit.svg

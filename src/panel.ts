@@ -1507,7 +1507,8 @@ export class SimulatorPanel {
         if (typeof msg.csv === 'string') void this.saveCsv(msg.csv);
         break;
       case 'saveCustomParts':
-        void this.context.globalState.update(CUSTOM_PARTS_KEY, msg.parts ?? []);
+        // Enregistre les composants personnalisés comme des .kompix dans la bibliothèque
+        void this.saveCustomPartsAsKompix(msg.parts ?? []);
         break;
       case 'saveSimModels':
         void this.context.globalState.update(SIM_MODELS_KEY, msg.models ?? []);
@@ -2024,24 +2025,41 @@ export class SimulatorPanel {
     );
   }
 
-  /** Exporte un composant personnalisé en fichier .json (format documenté). */
-  private async saveCustomPartFile(part: { label?: string }): Promise<void> {
+  /** Sauvegarde des composants personnalisés comme .kompix dans la bibliothèque. */
+  private async saveCustomPartsAsKompix(parts: any[]): Promise<void> {
+    const lib = SimulatorPanel.library;
+    if (!lib) return;
+    for (const part of parts) {
+      try {
+        await lib.savePartDataAsKompix(part, '0.1.0');
+      } catch (err) {
+        console.error('Erreur sauvegarde .kompix :', err);
+      }
+    }
+  }
+
+  /** Exporte un composant personnalisé en fichier .kompix (save-as). */
+  private async saveCustomPartFile(part: any): Promise<void> {
+    const lib = SimulatorPanel.library;
+    if (!lib) return;
     const safeName = (part.label ?? 'composant').replace(/[^\p{L}\p{N}_-]+/gu, '-').toLowerCase();
     const folders = vscode.workspace.workspaceFolders;
     const defaultUri = folders?.length
-      ? vscode.Uri.joinPath(folders[0].uri, `${safeName}.kablix-part.json`)
-      : vscode.Uri.file(`${safeName}.kablix-part.json`);
+      ? vscode.Uri.joinPath(folders[0].uri, `${safeName}.kompix`)
+      : vscode.Uri.file(`${safeName}.kompix`);
     const target = await vscode.window.showSaveDialog({
       defaultUri,
-      filters: { [l10n.t('Kablix part')]: ['json'] },
+      filters: { [l10n.t('Kablix part')]: ['kompix'] },
       title: l10n.t('Export the part'),
     });
     if (!target) return;
-    await vscode.workspace.fs.writeFile(
-      target,
-      new TextEncoder().encode(JSON.stringify(part, null, 2))
-    );
-    vscode.window.showInformationMessage(l10n.t('Kablix: part exported to {0}', target.fsPath));
+    try {
+      const buffer = await lib.createKompixBufferFromPartData(part, '0.1.0');
+      await vscode.workspace.fs.writeFile(target, new Uint8Array(buffer));
+      vscode.window.showInformationMessage(l10n.t('Kablix: part exported to {0}', target.fsPath));
+    } catch (err) {
+      vscode.window.showErrorMessage(l10n.t('Kablix: export failed: {0}', err instanceof Error ? err.message : String(err)));
+    }
   }
 
   /**

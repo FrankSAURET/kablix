@@ -353,11 +353,33 @@ Sans marqueur rouge, **cliquez l'aperçu** pour poser chaque broche à la main.
 
 **8. Enregistrer.** Le composant apparaît dans la palette (★) et est **persisté entre les sessions**. Le bouton **« Soumettre à Kablix… »** explique comment partager le composant (issue GitHub « Submit new component » ou pull request).
 
-Gestion depuis la palette : **clic** = poser sur le canvas, **double-clic** = rouvrir le créateur pour modifier, **⇩** = exporter en `.json`, **✕** = supprimer, **⇪ Importer (.json)** = charger un composant partagé.
+Gestion depuis la palette : **clic** = poser sur le canvas, **double-clic** = rouvrir le créateur pour modifier, **⇩** = exporter en `.kompix`, **✕** = supprimer, **⇩ Importer des composants** = télécharger depuis un dépôt.
 
-## Format de fichier des composants (.kablix-part.json)
+## Format des composants (.kompix)
 
-Un composant exporté est un fichier **JSON** autonome :
+Un composant Kablix est stocké au format **`.kompix`** — une archive ZIP autonome contenant :
+- Métadonnées (`manifest.json`)
+- Dessin externe (`schema.svg`)
+- Optionnel : schéma interne, miniature, code de simulation
+
+Consulter [kompix_specification.md](kompix_specification.md) pour les détails complets.
+
+### Créer ses propres composants
+
+1. **Créateur intégré** (palette → **+ Créer un composant**) :
+   - Importer un SVG (dessin externe + optionnel schéma interne)
+   - Placer les broches au clic
+   - Configurer le modèle de simulation (kind, rôles, attributs)
+   - **Enregistrer** crée un `.kompix` dans la bibliothèque locale
+   - **⇩** exporte en fichier `.kompix` (save-as)
+
+2. **Depuis un prompt IA** :
+   - Copier le prompt ci-dessous
+   - Demander un JSON de base à Claude, ChatGPT, etc.
+   - **Importer** le JSON dans le créateur
+   - Finaliser et **Enregistrer**
+
+Prompt pour générer un composant (copier et complèter la première ligne) :
 
 ```json
 {

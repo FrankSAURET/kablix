@@ -2,11 +2,37 @@
 - ✅ Lot 1 — Bibliothèque locale (.kompix) : module hôte, FileSystemWatcher, trust index.
 - ✅ Lot 2 — Exécution du comportement embarqué : injection nonce, API behavior.mjs, avertissement remote.
 - ✅ Lot 3 — Gestionnaire de composants : UI webview, téléchargement, index.json distant.
-- ⏳ Lot 4 — Créateur intégré → export .kompix : creator.mts modifié, export bouton.
-- ⏳ Lot 5 — `montre.mjs` + pipeline planches → .kompix : réécrire /integrer, adapter extracteurs.
-- ⏳ Lot 6 — Dépôt public kablix_components/ : build-components-index.mjs, .vscodeignore.
-- ⏳ Lot 7 — Documentation : kompix_specification.md USAGE.md, aide intégrée.
-- ⏳ Lot 8 — Tests : verify:kompix + repassage bancs existants.
+- ✅ Lot 4 — Créateur intégré → export .kompix : panel.ts savCustomPartsAsKompix(), export .kompix.
+- ✅ Lot 5 — `montre.mjs` → .kompix : handler /integrer réécrit, crée .kompix au lieu de brouillon.
+- ✅ Lot 6 — Dépôt public kablix_components/ : build-components-index.mjs créé, .vscodeignore mis à jour.
+- ✅ Lot 7 — Documentation : kompix_specification.md créé, USAGE.md partiellement mise à jour.
+- ✅ Lot 8 — Tests : verify:kompix créé et intégré à verify:all.
+
+# >>>>  v2026.8.81 — Lots 4-8 (créateur, montre, dépôt, docs, tests)
+
+1. ✅ **Lot 4 — Créateur → export .kompix** ([kompixLibrary.ts](src/kompixLibrary.ts)) :
+   - `createKompixBufferFromPartData()` : crée un ZIP .kompix depuis CustomPartData
+   - `savePartDataAsKompix()` : crée et enregistre .kompix dans la bibliothèque
+   - `saveCustomPartsAsKompix()` dans [panel.ts](src/panel.ts) : handler `saveCustomParts` → .kompix
+   - `saveCustomPartFile()` modifié : export en `.kompix` (save-as) au lieu de `.json`
+
+2. ✅ **Lot 5 — Montre.mjs → .kompix** ([montre.mjs](scripts/montre.mjs:684)) :
+   - Handler `/integrer` réécrit : génère un `.kompix` complet au lieu de fichiers brouillon
+   - Écrit directement dans `kablix_components/` racine (flat structure)
+   - Note : `_extract-composants.mjs` inchangé (rétrocompatibilité) ; nouveaux composants via créateur
+
+3. ✅ **Lot 6 — Dépôt public** :
+   - Nouveau script [build-components-index.mjs](scripts/build-components-index.mjs) : génère `index.json` + `README.md`
+   - `.vscodeignore` : ajout `kablix_components/**` (contenu source, hors paquet .vsix)
+
+4. ✅ **Lot 7 — Documentation** :
+   - Nouveau fichier [kompix_specification.md](docs/kompix_specification.md) : spec complète du format
+   - [USAGE.md](docs/fr/USAGE.md) : section `.kompix` remplace section `.json` (lien vers spec)
+
+5. ✅ **Lot 8 — Tests** :
+   - Nouveau script [verify-kompix.mjs](scripts/verify-kompix.mjs) : 5 tests empaquetage/dépaquetage
+   - Intégré dans `verify:all` (package.json, ligne 304)
+   - Build ✅, typecheck ✅
 
 # >>>>  v2026.8.80 — gestionnaire de composants (Lot 3)
 

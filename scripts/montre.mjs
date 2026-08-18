@@ -694,70 +694,49 @@ const serveur = createServer(async (req, res) => {
         throw new Error(`Nom invalide : ${nom}`);
       }
 
-      // Générer la définition du composant.
-      const compixDir = join(ROOT, 'kablix_components', nom);
-      mkdirSync(compixDir, { recursive: true });
+      // Générer un .kompix avec jszip (importer en haut de fichier si absent).
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
 
-      // Fichier de définition JSON.
-      const definition = {
+      // Métadonnées du composant (manifest.json).
+      const boardMap = { uno: 'uno', nano: 'nano', mega: 'mega', pico: 'pico', picow: 'picow' };
+      const manifest = {
+        kompixVersion: 1,
         type: nom,
         label: nom.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' '),
-        tag: `kablix-${nom}`,
+        description: `Assemblage ${prefixe}`,
+        version: '0.1.0',
+        author: 'User',
         kind: 'passive',
-        board: carte === 'picow' ? 'picow' : carte === 'pico' ? 'pico' : 'uno',
-        description: `Assemblage ${prefixe} (intégré le ${new Date().toLocaleDateString('fr-FR')})`,
-        assemblies: ensembles.map(e => e.nom),
+        board: boardMap[carte],
+        category: 'custom',
+        pins: [],
+        // À compléter : ajouter les broches quand Frank retouche le SVG
       };
-      writeFileSync(join(compixDir, 'definition.json'), JSON.stringify(definition, null, 2));
+      zip.file('manifest.json', JSON.stringify(manifest, null, 2));
 
-      // SVG placeholder (Frank devra le retoucher).
-      const svgPlaceholder = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      // SVG schema (placeholder pour l'instant) — external only (no internal).
+      const svgPlaceholder = `<svg id="${nom}" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
   <rect width="100" height="100" fill="#f0f0f0" stroke="#999" stroke-width="1"/>
   <text x="50" y="50" text-anchor="middle" dy=".3em" font-size="12" fill="#666">${nom}</text>
   <!-- Pastilles à ajouter (red circles avec names) -->
 </svg>`;
-      writeFileSync(join(compixDir, 'externe.svg'), svgPlaceholder);
+      zip.file('schema.svg', svgPlaceholder);
 
-      // Entrée TypeScript pour catalog.mts.
-      const boardMap = { uno: 'uno', nano: 'nano', mega: 'mega', pico: 'pico', picow: 'picow' };
-      const catalogEntry = `  // ${definition.label} — intégré le ${new Date().toLocaleDateString('fr-FR')}
-  {
-    type: '${nom}', label: '${definition.label}', tag: 'kablix-${nom}', kind: '${definition.kind}',
-    board: '${boardMap[carte]}',
-    attrs: {},
-    props: [
-      // À ajouter selon les contrôles du composant
-    ],
-  },`;
-      writeFileSync(join(compixDir, 'catalog-entry.ts'), catalogEntry);
+      // Génère le buffer .kompix.
+      const kompixBuffer = await zip.generateAsync({ type: 'uint8array' });
 
-      // README.
-      const readme = `# ${definition.label}
-
-Assemblage intégré depuis montre.mjs le ${new Date().toLocaleString('fr-FR')}.
-
-## Fichiers
-- \`definition.json\` : métadonnées du composant
-- \`externe.svg\` : dessin 2D (à retoucher)
-- \`catalog-entry.ts\` : entrée TypeScript pour catalog.mts (copier-coller)
-
-## À faire
-1. Retoucher \`externe.svg\` avec le vrai dessin
-2. Ajouter les pastilles de brochage (cercles rouges avec \`<text>\` au-dessus)
-3. Copier le contenu de \`catalog-entry.ts\` dans \`src/webview/diagram/catalog.mts\`
-4. Importer l'élément Lit (créer \`src/webview/composants/${nom}-element.mts\` ou copier araignee-element.mts)
-5. Tester dans l'éditeur
-
-## Liens
-- Drawing systems : docs/fr/Drawing-systems.md
-- Modèle araignée : src/webview/composants/araignee-element.mts
-`;
-      writeFileSync(join(compixDir, 'README.md'), readme);
+      // Écrit le .kompix dans kablix_components/ racine.
+      const kompixDir = join(ROOT, 'kablix_components');
+      mkdirSync(kompixDir, { recursive: true });
+      const kompixPath = join(kompixDir, `${nom}.kompix`);
+      writeFileSync(kompixPath, Buffer.from(kompixBuffer));
 
       console.log(`\n  ✓ Composant intégré : ${nom} (carte ${carte})`);
-      console.log(`  → ${compixDir}`);
+      console.log(`  → ${kompixPath}`);
       return envoie(res, 200, 'application/json', JSON.stringify({
-        message: `Composant intégré. Dossier : kablix_components/${nom}/`,
+        message: `Composant intégré comme .kompix. Fichier : kablix_components/${nom}.kompix`,
+        kompix: `${nom}.kompix`,
       }));
     }
   } catch (e) {

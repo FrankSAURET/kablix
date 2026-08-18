@@ -1367,7 +1367,7 @@ export class Editor {
     exp.className = 'palette__custom-del';
     exp.style.color = 'inherit';
     exp.textContent = '⇩';
-    exp.title = t('Export this part (.json)');
+    exp.title = t('Export this part (.kompix)');
     exp.addEventListener('click', () => {
       if (data) this.onExportCustomPart?.(data);
     });

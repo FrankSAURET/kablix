@@ -474,6 +474,89 @@ export class KompixLibrary {
   }
 
   /**
+   * Fusionne les SVG externes et internes en un seul SVG avec deux groupes.
+   * Retourne le contenu XML d'un SVG avec :
+   * - <g id="type"> contenant le SVG externe
+   * - <g id="type-interne"> contenant le SVG interne (s'il existe)
+   */
+  private mergeSvgsForKompix(type: string, extSvg: string, intSvg?: string): string {
+    const parseViewBox = (svg: string): { w: string; h: string } => {
+      const match = svg.match(/viewBox=["']([^"']*)\s+([^"']*)\s+([^"']*)\s+([^"']*)["']/);
+      if (match) return { w: match[3], h: match[4] };
+      const wMatch = svg.match(/width=["']([^"']*)["']/);
+      const hMatch = svg.match(/height=["']([^"']*)["']/);
+      return { w: wMatch?.[1] || '100', h: hMatch?.[1] || '100' };
+    };
+
+    const extractContent = (svg: string): string => {
+      const match = svg.match(/<svg[^>]*>([\s\S]*)<\/svg>/);
+      return match?.[1] || '';
+    };
+
+    const { w, h } = parseViewBox(extSvg);
+    const extContent = extractContent(extSvg);
+    const intContent = intSvg ? extractContent(intSvg) : '';
+
+    let result = `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">`;
+    result += `<g id="${type}">${extContent}</g>`;
+    if (intContent) result += `<g id="${type}-interne">${intContent}</g>`;
+    result += '</svg>';
+    return result;
+  }
+
+  /**
+   * Crée un .kompix (ZIP en Uint8Array) depuis une CustomPartData.
+   * N'ajoute pas de miniature (to-do : générée au moment du save).
+   */
+  async createKompixBufferFromPartData(data: CustomPartData, partVersion: string = '0.1.0'): Promise<Uint8Array> {
+    const zip = new JSZip();
+
+    const manifest: KompixManifest = {
+      kompixVersion: 1,
+      type: data.type,
+      label: data.label,
+      description: data.category ? `[${data.category}]` : '',
+      version: partVersion,
+      author: 'User',
+      kind: data.kind,
+      category: data.category,
+      pins: data.pins,
+      pinRoles: data.pinRoles,
+      attrs: data.attrs,
+      params: data.params,
+      control: data.control ?? null,
+      innerOffset: data.innerOffset ?? null,
+      extAnchor: data.extAnchor ?? null,
+      intAnchor: data.intAnchor ?? null,
+      behavior: data.behaviorScript ? 'behavior.mjs' : null,
+    };
+
+    zip.file('manifest.json', JSON.stringify(manifest, null, 2));
+
+    const schema = this.mergeSvgsForKompix(data.type, data.svg, data.innerSvg);
+    zip.file('schema.svg', schema);
+
+    if (data.behaviorScript) {
+      zip.file('behavior.mjs', data.behaviorScript);
+    }
+
+    return await zip.generateAsync({ type: 'uint8array' });
+  }
+
+  /**
+   * Crée un .kompix depuis une CustomPartData et l'enregistre dans la bibliothèque.
+   */
+  async savePartDataAsKompix(data: CustomPartData, partVersion: string = '0.1.0'): Promise<void> {
+    try {
+      const buffer = await this.createKompixBufferFromPartData(data, partVersion);
+      await this.saveKompixFromBuffer(buffer, 'local');
+    } catch (err) {
+      console.error('Erreur savePartDataAsKompix:', err);
+      throw err;
+    }
+  }
+
+  /**
    * Dispose les watchers.
    */
   dispose(): void {
