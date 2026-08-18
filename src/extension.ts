@@ -11,6 +11,7 @@ import { PartHelpPanel, SHOW_PART_HELP } from './partHelp';
 import { ComponentManagerPanel } from './componentManager';
 import { openNewProjix, openOrRevealProjix } from './openproject';
 import { KompixLibrary } from './kompixLibrary';
+import { PicoUploader } from './picoUploader';
 
 const l10n = vscode.l10n;
 
@@ -32,6 +33,12 @@ export function activate(context: vscode.ExtensionContext): void {
   // Lance le scan asynchrone en arrière-plan (pas de blocage).
   void kompixLibrary.start().catch((err) => {
     console.error('Erreur initialisation bibliothèque kompix:', err);
+  });
+
+  // Gestionnaire d'upload Pico (détection des ports, transfert REPL).
+  const picoUploader = new PicoUploader(context);
+  void picoUploader.start().catch((err) => {
+    console.error('Erreur initialisation PicoUploader:', err);
   });
   // Vue de la barre d'activité : cliquer l'icône Kablix ouvre DIRECTEMENT le
   // simulateur (panneau éditeur) et rend la main au volet Explorateur, pour que
@@ -199,6 +206,37 @@ export function activate(context: vscode.ExtensionContext): void {
       if (typeof name === 'string' && /^[a-z0-9_-]+$/i.test(name)) {
         void GuidePanel.show(context.extensionUri, name);
       }
+    }),
+    // Upload de fichiers Python vers une carte Pico connectée.
+    vscode.commands.registerCommand('kablix.uploadToPico', async (fileUri?: vscode.Uri) => {
+      let targetPath: string | undefined;
+
+      if (fileUri) {
+        // Commande appelée via le menu contextuel d'un fichier/dossier
+        targetPath = fileUri.fsPath;
+      } else {
+        // Commande appelée depuis la palette ou le bouton editorTitle
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+          vscode.window.showErrorMessage('Aucun fichier Python ouvert.');
+          return;
+        }
+
+        const fileName = editor.document.fileName;
+        if (!fileName.endsWith('.py')) {
+          vscode.window.showErrorMessage('Sélectionnez un fichier Python (.py)');
+          return;
+        }
+
+        targetPath = fileName;
+      }
+
+      if (!targetPath) {
+        vscode.window.showErrorMessage('Impossible de déterminer le chemin du fichier.');
+        return;
+      }
+
+      void picoUploader.uploadFiles(targetPath);
     })
   );
 

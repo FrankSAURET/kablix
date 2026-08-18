@@ -4,6 +4,7 @@
 .claude/**
 src/**
 scripts/**
+!scripts/pico-upload.py
 outils/**
 !outils/associer-projix-windows.ps1
 patches/**

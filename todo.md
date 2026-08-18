@@ -1,12 +1,13 @@
 # À faire
-- ✅ Lot 1 — Bibliothèque locale (.kompix) : module hôte, FileSystemWatcher, trust index.
-- ✅ Lot 2 — Exécution du comportement embarqué : injection nonce, API behavior.mjs, avertissement remote.
-- ✅ Lot 3 — Gestionnaire de composants : UI webview, téléchargement, index.json distant.
-- ✅ Lot 4 — Créateur intégré → export .kompix : panel.ts savCustomPartsAsKompix(), export .kompix.
-- ✅ Lot 5 — `montre.mjs` → .kompix : handler /integrer réécrit, crée .kompix au lieu de brouillon.
-- ✅ Lot 6 — Dépôt public kablix_components/ : build-components-index.mjs créé, .vscodeignore mis à jour.
-- ✅ Lot 7 — Documentation : kompix_specification.md créé, USAGE.md partiellement mise à jour.
-- ✅ Lot 8 — Tests : verify:kompix créé et intégré à verify:all.
+
+# >>>>  v2026.8.82 — Lot 9 (upload Pico Python)
+
+1. ⏳ **Lot 9 — Upload Pico via Python** ([picoUploader.ts](src/picoUploader.ts)) :
+   - Bouton upload sur barre onglets pour fichiers Python
+   - Détection ports sériel (Windows/Linux/macOS)
+   - Dialog sélection fichiers .py du dossier
+   - Script [pico-upload.py](scripts/pico-upload.py) pour transfert REPL
+   - **TODO complet** : protocole REPL MicroPython, écrasement smartconditional, états bouton inactif/survolé
 
 # >>>>  v2026.8.81 — Lots 4-8 (créateur, montre, dépôt, docs, tests)
 

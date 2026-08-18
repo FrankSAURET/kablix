@@ -1,7 +1,7 @@
 {
   "name": "kablix",
   "displayName": "Kablix",
-  "version": "2026.8.81",
+  "version": "2026.8.82",
   "description": "%kablix.description%",
   "publisher": "electropol-fr",
   "author": {
@@ -134,6 +134,12 @@
         "command": "kablix.openComponentManager",
         "title": "%kablix.cmd.openComponentManager%",
         "category": "Kablix"
+      },
+      {
+        "command": "kablix.uploadToPico",
+        "title": "%kablix.cmd.uploadToPico%",
+        "category": "Kablix",
+        "icon": "$(arrow-up)"
       }
     ],
     "keybindings": [
@@ -144,6 +150,16 @@
         "when": "activeCustomEditorId == 'kablix.projix'"
       }
     ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "kablix.uploadToPico",
+          "group": "1_run",
+          "when": "resourceLangId == 'python' && resourceExtname == '.py'",
+          "title": "Upload to Pico"
+        }
+      ]
+    },
     "viewsContainers": {
       "activitybar": [
         {
@@ -263,7 +279,9 @@
           "items": {
             "type": "string"
           },
-          "default": ["https://raw.githubusercontent.com/franksauret/kablix/main/kablix_components/"],
+          "default": [
+            "https://raw.githubusercontent.com/franksauret/kablix/main/kablix_components/"
+          ],
           "description": "%kablix.config.componentRepositories%"
         }
       }
