@@ -8,6 +8,7 @@ import { registerProjixEditor, ProjixEditorProvider } from './projix-editor';
 import { associateProjix, promptProjixAssociationOnFirstRun } from './associate';
 import { promptRecommendedExtensions } from './recommend';
 import { PartHelpPanel, SHOW_PART_HELP } from './partHelp';
+import { ComponentManagerPanel } from './componentManager';
 import { openNewProjix, openOrRevealProjix } from './openproject';
 import { KompixLibrary } from './kompixLibrary';
 
@@ -179,8 +180,7 @@ export function activate(context: vscode.ExtensionContext): void {
       void vscode.env.openExternal(folder);
     }),
     vscode.commands.registerCommand('kablix.openComponentManager', () => {
-      // TODO Lot 3 : ouvrir le gestionnaire de composants (webview).
-      void vscode.window.showInformationMessage('Gestionnaire de composants — prochainement.');
+      void ComponentManagerPanel.show(context.extensionUri, kompixLibrary);
     }),
     vscode.commands.registerCommand('kablix.recommendedExtensions', () => {
       void promptRecommendedExtensions(context, true);

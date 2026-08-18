@@ -1530,28 +1530,14 @@ export class Editor {
     create.addEventListener('click', () => this.creator.open());
     this.palette.appendChild(create);
 
-    // Import d'un composant depuis un fichier .json (format documenté).
+    // Ouverture du gestionnaire de composants pour télécharger depuis les dépôts.
     const importBtn = document.createElement('button');
     importBtn.className = 'palette__item palette__item--create';
-    importBtn.textContent = t('⇪ Import (.json)');
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = '.json,application/json';
-    fileInput.style.display = 'none';
-    fileInput.addEventListener('change', () => {
-      const file = fileInput.files?.[0];
-      if (!file) return;
-      void file.text().then((text) => {
-        try {
-          this.importCustomPart(JSON.parse(text));
-        } catch (err) {
-          this.showPaletteError(t('Import failed: {0}', err instanceof Error ? err.message : String(err)));
-        }
-        fileInput.value = '';
-      });
+    importBtn.textContent = t('⇩ Import components');
+    importBtn.addEventListener('click', () => {
+      window.postMessage({ type: 'openComponentManager' }, '*');
     });
-    importBtn.addEventListener('click', () => fileInput.click());
-    this.palette.append(importBtn, fileInput);
+    this.palette.appendChild(importBtn);
 
     this.filterPalette();
   }

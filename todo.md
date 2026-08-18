@@ -1,12 +1,28 @@
 # À faire
-- ⏳ Lot 1 — Bibliothèque locale (.kompix) : module hôte, FileSystemWatcher, trust index.
-- ⏳ Lot 2 — Exécution du comportement embarqué : injection nonce, API behavior.mjs, avertissement remote.
-- ⏳ Lot 3 — Gestionnaire de composants : UI webview, téléchargement, index.json distant.
+- ✅ Lot 1 — Bibliothèque locale (.kompix) : module hôte, FileSystemWatcher, trust index.
+- ✅ Lot 2 — Exécution du comportement embarqué : injection nonce, API behavior.mjs, avertissement remote.
+- ✅ Lot 3 — Gestionnaire de composants : UI webview, téléchargement, index.json distant.
 - ⏳ Lot 4 — Créateur intégré → export .kompix : creator.mts modifié, export bouton.
 - ⏳ Lot 5 — `montre.mjs` + pipeline planches → .kompix : réécrire /integrer, adapter extracteurs.
 - ⏳ Lot 6 — Dépôt public kablix_components/ : build-components-index.mjs, .vscodeignore.
 - ⏳ Lot 7 — Documentation : kompix_specification.md USAGE.md, aide intégrée.
 - ⏳ Lot 8 — Tests : verify:kompix + repassage bancs existants.
+
+# >>>>  v2026.8.80 — gestionnaire de composants (Lot 3)
+
+1. ✅ **Bouton « ⇩ Importer des composants »** ([editor.mts](src/webview/diagram/editor.mts:1533)) : remplace le bouton JSON, envoie message 'openComponentManager' à l'hôte.
+2. ✅ **Panneau webview ComponentManagerPanel** ([componentManager.ts](src/componentManager.ts)) : nouvelle classe sur le modèle de PartHelpPanel/GuidePanel.
+3. ✅ **Grille de composants** : affiche miniature + label + description + version + auteur, sélection multiple par clic.
+4. ✅ **Filtrage « Nouveaux seulement »** : case à cocher cochée par défaut, filtre par type absent localement OU version plus récente.
+5. ✅ **Lecture des dépôts distants** : fetch `index.json` de chaque repo dans `kablix.componentRepositories`, bâtit l'URL complète de chaque .kompix.
+6. ✅ **Téléchargement sélectionné** : fetch les .kompix sélectionnés depuis les repos via fetch, stocke les données en mémoire.
+7. ✅ **Installation locale** : appel `library.saveKompixFromBuffer()` (nouvelle méthode) pour chaque .kompix téléchargé (origin: 'remote').
+8. ✅ **Rafraîchissement après installation** : webview envoie message 'reload', ComponentManagerPanel rappelle load() pour rescanner les locaux.
+9. ✅ **Intégration extension.ts** : commande 'kablix.openComponentManager' appelle ComponentManagerPanel.show(context.extensionUri, kompixLibrary).
+10. ✅ **Intégration panel.ts** : case 'openComponentManager' dans onMessage relaye vers vscode.commands.executeCommand().
+11. ✅ **Méthode KompixLibrary.saveKompixFromBuffer()** : nouvelle méthode publique, accepte Uint8Array + origin + sourceUrl, valide + enregistre.
+12. ⏳ **Tests F5** : déposer un .kompix à la racine de la bibli, vérifier apparition palette ; gestionnaire affiche repos ; télécharger composant depuis repo.
+13. ⏳ **Traduction du bouton** : « ⇩ Importer des composants » — à ajouter à i18n si absent.
 
 # >>>>  v2026.8.77 — refonte système composants : format .kompix et bibliothèque globale
 

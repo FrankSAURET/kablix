@@ -390,6 +390,49 @@ export class KompixLibrary {
   }
 
   /**
+   * Enregistre un .kompix depuis un buffer (ex. téléchargé via HTTP).
+   * Similaire à saveKompix mais accepte les données en mémoire.
+   */
+  async saveKompixFromBuffer(
+    data: Uint8Array,
+    origin: 'local' | 'remote' = 'local',
+    sourceUrl?: string
+  ): Promise<void> {
+    try {
+      const zip = new JSZip();
+      await zip.loadAsync(data);
+      const manifestFile = zip.file('manifest.json');
+      if (!manifestFile) return;
+      const manifestText = await manifestFile.async('string');
+      const manifest: KompixManifest = JSON.parse(manifestText);
+
+      // Copie dans la bibliothèque
+      const targetPath = join(this.libraryFolder, `${manifest.type}.kompix`);
+      mkdirSync(this.libraryFolder, { recursive: true });
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      writeFileSync(targetPath, Buffer.from(data) as any);
+
+      // Met à jour l'index
+      const behaviorHash = await this.computeBehaviorHash(zip);
+      this.index.set(manifest.type, {
+        type: manifest.type,
+        origin,
+        sourceUrl,
+        behaviorHash,
+        acceptedAt: new Date().toISOString(),
+        version: manifest.version,
+      });
+      this.saveIndex();
+
+      // Rescanne
+      await this.scanLibrary();
+    } catch (err) {
+      console.error('Erreur saveKompixFromBuffer:', err);
+      throw err;
+    }
+  }
+
+  /**
    * Calcule le hash SHA256 du fichier behavior.mjs si présent.
    */
   private async computeBehaviorHash(zip: JSZip): Promise<string | undefined> {

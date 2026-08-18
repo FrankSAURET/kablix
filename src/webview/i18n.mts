@@ -655,6 +655,9 @@ const FR: Record<string, string> = {
   'Resume the display (data keeps being collected)':
     "Reprendre l'affichage (les mesures continuent d'être collectées)",
 
+  // Palette de composants
+  '⇩ Import components': '⇩ Importer des composants',
+
   // Barre d'outils du canvas
   'Auto-route the wires (right angles)': 'Autoroutage des fils (angles droits)',
   'Auto-routing the wires…': 'Autoroutage des fils…',

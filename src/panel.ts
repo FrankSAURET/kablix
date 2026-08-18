@@ -1648,6 +1648,10 @@ export class SimulatorPanel {
         // Pont réseau Pico W : requête HTTP émise par le script simulé.
         void this.handleNetRequest(msg.request as NetBridgeRequest);
         break;
+      case 'openComponentManager':
+        // Ouvre le gestionnaire de composants pour télécharger depuis les dépôts.
+        void vscode.commands.executeCommand('kablix.openComponentManager');
+        break;
     }
   }
 
