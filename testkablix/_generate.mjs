@@ -15,6 +15,7 @@
 import JSZip from 'jszip';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { lireKompixes } from '../scripts/_lire-kompix.mjs';
 import { HERE, testCode, testCodeRef, testDir, testProjix } from './_paths.mjs';
 import { TESTS } from './_spec.mjs';
 
@@ -31,7 +32,12 @@ async function buildProjix(test, codeFileRef) {
     createdAt: new Date().toISOString(),
     codeFile: codeFileRef,
   };
-  const diagram = { parts: test.parts, wires: test.wires, customParts: [] };
+  // Composants de bibliothèque (.kompix) utilisés par le test : ils voyagent
+  // DANS le projet, comme le fait « Enregistrer le projet » de l'extension.
+  // Sans eux, ouvrir le .projix sur une machine où le composant n'est pas
+  // téléchargé donnerait un schéma troué.
+  const customParts = test.kompix ? await lireKompixes(test.kompix) : [];
+  const diagram = { parts: test.parts, wires: test.wires, customParts };
   const zip = new JSZip();
   zip.file('kablix.json', JSON.stringify(manifest, null, 2));
   zip.file('diagram.json', JSON.stringify(diagram, null, 2));

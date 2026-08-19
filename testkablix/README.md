@@ -85,6 +85,7 @@ Uno. La colonne « Observable » dit par quoi chacun reste couvert.
 | CI logiques : ET et OU | `CI1-uno` | `CI1-pico` | CD4081/74HC08 et CD4071/74HC32, deux entrées communes, table de vérité comparée porte par porte |
 | CI logiques : OU EXCLUSIF et NON-ET | `CI2-uno` | `CI2-pico` | CD4070/74HC86 et CD4011/74HC00, même principe |
 | CI logiques : NON-OU et NON | `CI3-uno` | `CI3-pico` | CD4001/74HC02 et CD40106/74HC14 (inverseurs six portes) |
+| DMX512 : carte Grove + projecteur PAR 38 | `dmx-uno` | `dmx-pico` | les deux composants de la bibliothèque (`.kompix`, embarqués dans le projet) ; continuité du câblage UART → XLR contrôlée, pas de modèle de simulation |
 
 Libs Arduino requises (installées via `arduino-cli lib install`) : Servo,
 LiquidCrystal I2C, Adafruit SSD1306, Adafruit ILI9341, Adafruit NeoPixel, SD,

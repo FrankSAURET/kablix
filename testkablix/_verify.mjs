@@ -46,8 +46,27 @@ async function bundle(entry, name) {
 
 const TESTS = ONLY.size > 0 ? ALL_TESTS.filter((t) => ONLY.has(t.name)) : ALL_TESTS;
 
-const model = await bundle('src/webview/diagram/model.mts', 'model.mjs');
-const catalog = await bundle('src/webview/diagram/catalog.mjs', 'catalog.mjs');
+/**
+ * Modèle ET catalogue dans le MÊME bundle. Deux bundles séparés emportaient
+ * chacun leur copie du catalogue : un composant de bibliothèque enregistré dans
+ * l'un restait inconnu de l'autre, et `buildNets` (qui appelle `partDef`) levait
+ * « type inconnu » sur un schéma pourtant valide.
+ */
+async function bundleDiagram() {
+  const out = join(tmp, 'diagram.mjs');
+  await esbuild.build({
+    stdin: {
+      contents: "export * as model from './src/webview/diagram/model.mts';\n"
+        + "export * as catalog from './src/webview/diagram/catalog.mjs';\n",
+      resolveDir: ROOT,
+      loader: 'ts',
+    },
+    outfile: out, bundle: true, platform: 'node', format: 'esm', logLevel: 'silent',
+  });
+  return import(pathToFileURL(out).href);
+}
+
+const { model, catalog } = await bundleDiagram();
 
 /**
  * Point fixe des ponts commandés (transistor saturé, contact de relais fermé) :
@@ -105,6 +124,17 @@ for (const t of TESTS) {
   } catch (err) {
     check(`${t.name} : archive lisible`, false, String(err));
     continue;
+  }
+
+  // Composants de bibliothèque embarqués dans le projet : les enregistrer au
+  // catalogue AVANT les contrôles, comme le fait la webview à l'ouverture —
+  // sinon un composant .kompix parfaitement valide passerait pour inconnu.
+  for (const cp of diagram.customParts ?? []) {
+    try {
+      catalog.registerCustomPart(cp);
+    } catch (err) {
+      check(`${t.name} : composant embarqué ${cp?.type}`, false, String(err));
+    }
   }
 
   // Composants connus du catalogue.
@@ -480,6 +510,26 @@ for (const t of TESTS) {
         const p = model.pca9685PowerState(diagram).find((x) => x.partId === e.partId);
         check(`${t.name} : alim servo ${e.powered ? 'OK' : 'absente'} (bornier V+/GND.2)`,
           p?.ok === e.powered, JSON.stringify(p));
+        break;
+      }
+      case 'nets': {
+        // Continuité pure : aucun modèle de simulation derrière le composant
+        // (liaison DMX512, câblage passif). Chaque groupe de `nets` doit former
+        // UNE équipotentielle, et deux groupes différents ne doivent jamais se
+        // rejoindre — c'est exactement ce qu'un court-circuit de dessin ferait.
+        const netDe = (ep) => {
+          const [partId, pin] = ep.split('/');
+          return model.buildNets(diagram).netOf({ partId, pin });
+        };
+        const vus = new Map();
+        for (const groupe of e.nets) {
+          const nets = groupe.map(netDe);
+          check(`${t.name} : ${groupe.join(' = ')}`, nets.every((n) => n === nets[0]),
+            JSON.stringify(nets));
+          const autre = vus.get(nets[0]);
+          check(`${t.name} : ${groupe[0]} séparé de ${autre ?? ''}`, autre === undefined, 'nets confondus');
+          vus.set(nets[0], groupe[0]);
+        }
         break;
       }
       default:

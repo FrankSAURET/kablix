@@ -1,0 +1,27 @@
+{
+  "_comment": "Composants de la bibliothèque publique dessinés dans Composants2D.svg. « group » est l'id du groupe Inkscape, « type » l'identifiant du composant. Régénérer : node scripts/build-kompix.mjs puis node scripts/build-components-index.mjs.",
+  "components": [
+    {
+      "group": "DMX-Grove",
+      "type": "dmx-grove",
+      "label": "Grove DMX512",
+      "description": "Grove DMX512 shield (SP3485 line driver): turns the board UART into a DMX512 output on a 3-pin XLR socket.",
+      "version": "1.0.0",
+      "author": "Frank Sauret",
+      "reference": "https://wiki.seeedstudio.com/Grove-DMX512/",
+      "kind": "passive",
+      "category": "Misc"
+    },
+    {
+      "group": "Spot",
+      "type": "spot",
+      "label": "DMX PAR 38 spotlight",
+      "description": "PAR 38 LED spotlight driven over DMX512 (Contest): the LED array takes the colour sent on its channels.",
+      "version": "1.0.0",
+      "author": "Frank Sauret",
+      "reference": "https://www.contest-lighting.com/",
+      "kind": "passive",
+      "category": "Systems"
+    }
+  ]
+}

@@ -99,6 +99,14 @@ export const PART_PINS = {
   // v2026.8.24 il n'a plus AUCUNE broche — rien ne sort du châssis, le robot se
   // programme directement (c'est lui, la carte).
   araignee: [],
+  // --- Composants de bibliothèque (.kompix de kablix_components/) -------------
+  // Ils ne sont pas au catalogue natif : le test les embarque dans son .projix
+  // (champ `kompix`) et le vérificateur les enregistre avant de contrôler.
+  // Carte Grove DMX512 : bornier Grove d'un côté (masse, alim, NC, signal),
+  // embase XLR 3 points de l'autre (masse de blindage, Data−, Data+). Les deux
+  // masses portent le même nom sur le dessin — la netlist les numérote.
+  'dmx-grove': ['GND.1', 'VCC', 'NC', 'SIG', '+', '-', 'GND.2'],
+  spot: ['GND', '-', '+'],
 };
 
 // --- Helpers -------------------------------------------------------------------
@@ -2294,6 +2302,82 @@ void loop() {
   icTest('CI1', 'uno'),
   icTest('CI2', 'uno'),
   icTest('CI3', 'uno'),
+
+  // Liaison DMX512 : les deux composants de bibliothèque à la suite. La carte
+  // Grove-DMX512 convertit l'UART de la carte en ligne différentielle, le
+  // projecteur PAR 38 est branché au bout du câble XLR. Aucun modèle de
+  // simulation derrière : ce que le test contrôle est la CONTINUITÉ du câblage
+  // (`expect.kind = 'nets'`) et la compilation du programme.
+  test({
+    name: 'dmx-uno', board: 'uno', ext: 'ino',
+    kompix: ['dmx-grove', 'spot'],
+    parts: [
+      MCU('uno'),
+      { id: 'DMX1', type: 'dmx-grove', x: 420, y: 90 },
+      { id: 'Spot1', type: 'spot', x: 850, y: 60 },
+    ],
+    wires: () => [
+      w('DMX1', 'VCC', 'U1', '5V', 'red'),
+      w('DMX1', 'GND.1', 'U1', 'GND.1', 'black'),
+      w('DMX1', 'SIG', 'U1', '1', 'green'),      // TX de l'UART matériel
+      w('Spot1', '+', 'DMX1', '+', 'blue'),      // XLR 3 = Data+
+      w('Spot1', '-', 'DMX1', '-', 'purple'),    // XLR 2 = Data−
+      w('Spot1', 'GND', 'DMX1', 'GND.2', 'black'), // XLR 1 = blindage
+    ],
+    expect: {
+      kind: 'nets',
+      nets: [
+        ['DMX1/VCC', 'U1/5V'],
+        ['DMX1/GND.1', 'U1/GND.1'],
+        ['DMX1/SIG', 'U1/1'],
+        ['Spot1/+', 'DMX1/+'],
+        ['Spot1/-', 'DMX1/-'],
+        ['Spot1/GND', 'DMX1/GND.2'],
+      ],
+    },
+    code: `// Test DMX512 : la carte Grove-DMX512 transforme l'UART matériel en ligne
+// DMX, le projecteur PAR 38 prend la couleur envoyée sur ses trois canaux.
+// Adresse du projecteur : 1 → canal 1 = rouge, 2 = vert, 3 = bleu.
+#define ADRESSE 1
+#define CANAUX 512
+#define BROCHE_TX 1
+
+// Octet de départ (0 = éclairage) puis les 512 canaux.
+uint8_t trame[CANAUX + 1];
+
+// Une trame DMX ne commence pas par un octet : le récepteur attend d'abord un
+// BREAK (ligne au repos bas, au moins 88 us) puis un MAB (marque, au moins
+// 8 us). L'UART ne sait pas les produire — on le coupe le temps de tenir la
+// broche TX à la main, puis on le relance pour envoyer la trame.
+void envoyer() {
+  Serial.flush();
+  Serial.end();
+  pinMode(BROCHE_TX, OUTPUT);
+  digitalWrite(BROCHE_TX, LOW);
+  delayMicroseconds(120);   // BREAK
+  digitalWrite(BROCHE_TX, HIGH);
+  delayMicroseconds(12);    // MAB
+  Serial.begin(250000, SERIAL_8N2);   // 250 kbauds, 8 bits, 2 stops : DMX512
+  Serial.write(trame, sizeof(trame));
+}
+
+void setup() {
+  Serial.begin(250000, SERIAL_8N2);
+  memset(trame, 0, sizeof(trame));
+}
+
+void loop() {
+  static const uint8_t COULEURS[3][3] = {{255, 0, 0}, {0, 255, 0}, {0, 0, 255}};
+  for (uint8_t i = 0; i < 3; i++) {
+    trame[ADRESSE] = COULEURS[i][0];
+    trame[ADRESSE + 1] = COULEURS[i][1];
+    trame[ADRESSE + 2] = COULEURS[i][2];
+    envoyer();
+    delay(1000);
+  }
+}
+`,
+  }),
 ];
 
 // ================================================================================
@@ -4274,6 +4358,70 @@ while True:
   icTest('CI1', 'pico'),
   icTest('CI2', 'pico'),
   icTest('CI3', 'pico'),
+
+  // Même liaison DMX512 que `dmx-uno`, côté Pico : UART0 sur GP0, et la carte
+  // Grove-DMX512 alimentée en 3,3 V (son SP3485 l'accepte).
+  test({
+    name: 'dmx-pico', board: 'pico', ext: 'py',
+    kompix: ['dmx-grove', 'spot'],
+    parts: [
+      MCU('pico'),
+      { id: 'DMX1', type: 'dmx-grove', x: 420, y: 90 },
+      { id: 'Spot1', type: 'spot', x: 850, y: 60 },
+    ],
+    wires: () => [
+      w('DMX1', 'VCC', 'U1', '3V3', 'red'),
+      w('DMX1', 'GND.1', 'U1', 'GND.3', 'black'),
+      w('DMX1', 'SIG', 'U1', 'GP0', 'green'),    // UART0 TX
+      w('Spot1', '+', 'DMX1', '+', 'blue'),
+      w('Spot1', '-', 'DMX1', '-', 'purple'),
+      w('Spot1', 'GND', 'DMX1', 'GND.2', 'black'),
+    ],
+    expect: {
+      kind: 'nets',
+      nets: [
+        ['DMX1/VCC', 'U1/3V3'],
+        ['DMX1/GND.1', 'U1/GND.3'],
+        ['DMX1/SIG', 'U1/GP0'],
+        ['Spot1/+', 'DMX1/+'],
+        ['Spot1/-', 'DMX1/-'],
+        ['Spot1/GND', 'DMX1/GND.2'],
+      ],
+    },
+    code: `# Test DMX512 : la carte Grove-DMX512 transforme l'UART0 (GP0) en ligne DMX,
+# le projecteur PAR 38 prend la couleur envoyée sur ses trois canaux.
+# Adresse du projecteur : 1 -> canal 1 = rouge, 2 = vert, 3 = bleu.
+from machine import UART, Pin
+import time
+
+ADRESSE = 1
+CANAUX = 512
+
+# 250 kbauds, 8 bits, sans parité, 2 bits de stop : c'est la trame DMX512.
+uart = UART(0, baudrate=250000, bits=8, parity=None, stop=2, tx=Pin(0))
+trame = bytearray(CANAUX + 1)   # trame[0] = octet de départ, 0 pour l'éclairage
+
+
+def envoyer():
+    # Une trame DMX s'ouvre par un BREAK (ligne basse >= 88 us) puis un MAB
+    # (marque >= 8 us) : ce n'est pas un octet, l'UART ne le produit qu'avec
+    # sendbreak().
+    uart.sendbreak()
+    time.sleep_us(12)
+    uart.write(trame)
+
+
+COULEURS = ((255, 0, 0), (0, 255, 0), (0, 0, 255))
+while True:
+    for rouge, vert, bleu in COULEURS:
+        trame[ADRESSE] = rouge
+        trame[ADRESSE + 1] = vert
+        trame[ADRESSE + 2] = bleu
+        envoyer()
+        print("Couleur envoyée :", rouge, vert, bleu)
+        time.sleep(1)
+`,
+  }),
 ];
 
 export const TESTS = [...BOARD_TESTS, ...AVR_TESTS, ...PICO_TESTS];
