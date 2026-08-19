@@ -1,7 +1,7 @@
 {
   "name": "kablix",
   "displayName": "Kablix",
-  "version": "2026.8.85",
+  "version": "2026.8.86",
   "description": "%kablix.description%",
   "publisher": "electropol-fr",
   "author": {
@@ -288,7 +288,7 @@
         "kablix.componentsFolder": {
           "type": "string",
           "default": "",
-          "description": "%kablix.config.componentsFolder%"
+          "markdownDescription": "%kablix.config.componentsFolder%"
         },
         "kablix.componentRepositories": {
           "type": "array",

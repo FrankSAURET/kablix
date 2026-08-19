@@ -3,6 +3,12 @@
 1. 
 1. ⬜ **Dépôt public vide** : `kablix_components/` n'existe pas encore, donc « ⇩ Importer des composants » ne trouvera rien tant qu'aucun `.kompix` n'y est publié et poussé sur GitHub.
 
+# >>>>  v2026.8.86 — Le réglage « dossier des composants » dit où est le dossier par défaut
+
+1. ✅ **Chemin par défaut écrit dans la description** ([package.nls.json](package.nls.json)) : « un sous-dossier du stockage global de VS Code » n'apprenait rien — le chemin des trois systèmes est maintenant donné en clair (Windows `%APPDATA%CodeUserglobalStorageelectropol-fr.kablixkablix_components`, macOS et Linux à l'avenant), plus le rappel que la commande **Kablix : Ouvrir la bibliothèque de composants** ouvre le dossier réellement utilisé, réglage renseigné ou non.
+2. ✅ **`description` → `markdownDescription`** ([package.json](package.json)) : sans ça, l'interface des réglages affiche les accents graves et les astérisques tels quels ; les chemins sont désormais en code et la liste à puces se rend.
+3. ℹ️ **`verify:i18n`** : toujours le seul échec connu (« Export this part (.kompix) », héritage du lot 4) — la traduction FR de ce réglage, elle, est à jour puisqu'elle existait déjà.
+
 # >>>>  v2026.8.85 — Retrait du composant bidon de montre.mjs
 
 1. ✅ **Bouton « Intégrer » retiré** ([montre.mjs](scripts/montre.mjs)) : il écrivait un `.kompix` factice — carré gris 100×100 portant le nom, `pins: []`, aucun dessin réel — directement dans `kablix_components/`, le dossier de **publication** du dépôt. Un composant sans patte ne se câble pas et n'a rien à faire dans la bibliothèque publique. Supprimés : le bouton de la barre, la fonction `integrer()` (deux `prompt()` carte + nom) et le gestionnaire `POST /integrer` du serveur (génération JSZip, SVG bouchon, écriture disque). `montre.mjs` redevient ce qu'il est : une visionneuse 3D.
