@@ -228,6 +228,37 @@ async function run() {
 	ok('clavier : Suppr entendue même quand le focus est hors du canvas',
 		nbParts() === 0, nbParts() + ' composant(s)');
 
+	// --- 11. Composant désinstallé depuis le gestionnaire -----------------------
+	// La palette n'enlevait jamais ce qu'elle avait reçu : un composant supprimé
+	// de la bibliothèque y restait, et la première retouche du schéma le
+	// réécrivait sur le disque.
+	await vide();
+	editor.loadCustomParts([{
+		type: 'perso-jetable',
+		label: 'Jetable',
+		kind: 'passive',
+		pins: [{ name: 'A', x: 0, y: 10 }, { name: 'B', x: 20, y: 10 }],
+		svg: '<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><rect width="20" height="20"/></svg>',
+	}]);
+	await wait(60);
+	const dansPalette = () => [...document.querySelectorAll('.palette__custom')]
+		.some((r) => (r.textContent || '').includes('Jetable'));
+	ok('gestionnaire : le composant reçu est bien dans la palette', dansPalette());
+	editor.addPart('perso-jetable', 300, 300);
+	await wait(80);
+	ok('gestionnaire : et posable sur la feuille', nbParts() === 1, nbParts());
+
+	let renvoye = false;
+	editor.onCustomPartsChange = () => { renvoye = true; };
+	editor.dropCustomParts(['perso-jetable']);
+	await wait(80);
+	ok('gestionnaire : désinstallé, il quitte la palette', !dansPalette());
+	ok('gestionnaire : et la feuille', nbParts() === 0, nbParts() + ' restant(s)');
+	// Renvoyer la liste ferait réécrire par l'extension le .kompix qu'elle vient
+	// d'effacer : le composant reviendrait au rechargement suivant.
+	ok('gestionnaire : rien n est renvoyé à l extension', !renvoye);
+	editor.onCustomPartsChange = null;
+
 	const out = document.createElement('pre');
 	out.id = 'measures';
 	out.textContent = JSON.stringify(checks);

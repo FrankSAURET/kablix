@@ -2045,6 +2045,21 @@ export class SimulatorPanel {
   }
 
   /**
+   * Retire de tous les ateliers ouverts des composants supprimés de la
+   * bibliothèque. Un simple renvoi de la liste ne suffirait pas : la webview
+   * ajoute ce qu'elle reçoit sans jamais retirer ce qui a disparu — le composant
+   * resterait dans la palette, et la première retouche du schéma le
+   * réenregistrerait sur le disque.
+   */
+  public static notifyCustomPartsRemoved(types: string[]): void {
+    if (!types.length) return;
+    for (const panel of SimulatorPanel.panels) {
+      for (const type of types) panel.sentCustomPartTypes.delete(type);
+      panel.post({ type: 'customPartsRemoved', types });
+    }
+  }
+
+  /**
    * Reflète dans la bibliothèque la liste de composants renvoyée par la webview.
    *
    * Trois pièges, tous corrigés ici :

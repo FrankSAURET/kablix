@@ -80,6 +80,20 @@ interface CustomPartData {
   };
 }
 
+/** Fiche d'un composant réellement installé, telle que la voit le gestionnaire. */
+export interface InstalledComponent {
+  type: string;
+  label: string;
+  description?: string;
+  version: string;
+  author?: string;
+  reference?: string;
+  origin: 'local' | 'remote';
+  sourceUrl?: string;
+  /** Vignette data: URI construite depuis le dessin externe. */
+  thumbnail?: string;
+}
+
 /**
  * Bibliothèque de composants .kompix : gère un dossier partagé, scanne les fichiers,
  * valide les manifestes, expose les composants à la webview, gère les FileSystemWatchers
@@ -92,6 +106,8 @@ export class KompixLibrary {
   private watcher: vscode.FileSystemWatcher | undefined;
   private workspaceWatcher: vscode.FileSystemWatcher | undefined;
   private components: Map<string, CustomPartData> = new Map();
+  /** Métadonnées du manifeste (description, auteur, référence) que CustomPartData ne porte pas. */
+  private manifestMeta: Map<string, { description?: string; version?: string; author?: string; reference?: string }> = new Map();
   private onComponentsChanged: ((parts: CustomPartData[]) => void) | undefined;
 
   constructor(private context: vscode.ExtensionContext) {
@@ -158,6 +174,7 @@ export class KompixLibrary {
    */
   private async scanLibrary(): Promise<void> {
     this.components.clear();
+    this.manifestMeta.clear();
     try {
       const files = readdirSync(this.libraryFolder);
       for (const file of files) {
@@ -215,6 +232,16 @@ export class KompixLibrary {
 
       // Récupérer les métadonnées de confiance
       const indexEntry = this.index.get(manifest.type);
+
+      // Description, auteur et référence ne voyagent pas dans CustomPartData :
+      // le gestionnaire de composants en a besoin pour ses fiches, on les garde
+      // de côté le temps du scan.
+      this.manifestMeta.set(manifest.type, {
+        description: manifest.description,
+        version: manifest.version,
+        author: manifest.author,
+        reference: manifest.reference,
+      });
 
       // Construire CustomPartData
       const result: CustomPartData = {
@@ -500,18 +527,53 @@ export class KompixLibrary {
   }
 
   /**
-   * Supprime un composant de la bibliothèque.
+   * Liste les composants réellement installés, avec ce qu'il faut pour les
+   * afficher : métadonnées du manifeste, origine (créé ici ou téléchargé) et
+   * vignette tirée du dessin externe.
    */
-  async removeKompix(type: string): Promise<void> {
+  listInstalled(): InstalledComponent[] {
+    return Array.from(this.components.values()).map((part) => {
+      const meta = this.manifestMeta.get(part.type) ?? {};
+      const entry = this.index.get(part.type);
+      return {
+        type: part.type,
+        label: part.label,
+        description: meta.description || undefined,
+        version: meta.version || entry?.version || '?',
+        author: meta.author || undefined,
+        reference: meta.reference || undefined,
+        origin: entry?.origin ?? 'local',
+        sourceUrl: entry?.sourceUrl,
+        thumbnail: part.svg
+          ? `data:image/svg+xml;base64,${Buffer.from(part.svg, 'utf8').toString('base64')}`
+          : undefined,
+      };
+    });
+  }
+
+  /**
+   * Supprime un composant de la bibliothèque : le fichier .kompix ET son entrée
+   * d'index. Un fichier déjà absent n'est pas une erreur — l'index est purgé
+   * quand même, sinon le composant resterait « installé » sans exister.
+   * Retourne false seulement si la suppression a vraiment échoué (droits, verrou).
+   */
+  async removeKompix(type: string): Promise<boolean> {
+    const targetPath = join(this.libraryFolder, `${type}.kompix`);
+    let ok = true;
     try {
-      const targetPath = join(this.libraryFolder, `${type}.kompix`);
       unlinkSync(targetPath);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+        console.error('Erreur suppression kompix:', err);
+        ok = false;
+      }
+    }
+    if (ok) {
       this.index.delete(type);
       this.saveIndex();
       await this.scanLibrary();
-    } catch (err) {
-      console.error('Erreur suppression kompix:', err);
     }
+    return ok;
   }
 
   /**

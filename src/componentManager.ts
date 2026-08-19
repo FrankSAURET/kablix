@@ -13,7 +13,8 @@ interface ComponentInfo {
   thumbnail?: string; // base64 ou URL
   version: string;
   author?: string;
-  local: boolean; // true = déjà dans la bibli locale
+  local: boolean; // true = déjà dans la bibli locale (donc supprimable)
+  origin?: 'local' | 'remote'; // pour un installé : créé ici ou téléchargé
   file?: string; // nom du fichier .kompix dans le repo (ex. "led.kompix")
   sourceUrl?: string; // URL complète du fichier .kompix
 }
@@ -73,10 +74,8 @@ export class ComponentManagerPanel {
   private async load(): Promise<void> {
     try {
       // Récupère la liste des composants locaux
-      if (this.library) {
-        const localComponents = this.library.getComponents();
-        this.localTypes = new Set(localComponents.map((c) => c.type));
-      }
+      const installed = this.library?.listInstalled?.() ?? [];
+      this.localTypes = new Set(installed.map((c) => c.type));
 
       // Récupère les repos distants depuis la config
       const repos =
@@ -91,6 +90,7 @@ export class ComponentManagerPanel {
             ...components.map((c) => ({
               ...c,
               local: this.localTypes.has(c.type),
+              origin: this.library?.getIndexEntry?.(c.type)?.origin,
             }))
           );
         } catch (err) {
@@ -105,6 +105,26 @@ export class ComponentManagerPanel {
         seen.add(c.type);
         return true;
       });
+
+      // Les composants installés qu'AUCUN dépôt ne propose (créés ici, glissés
+      // depuis un fichier) n'apparaissaient nulle part : sans eux, impossible
+      // de les supprimer depuis ce panneau.
+      for (const part of installed) {
+        if (seen.has(part.type)) continue;
+        seen.add(part.type);
+        this.allComponents.push({
+          type: part.type,
+          label: part.label,
+          description: part.description,
+          reference: part.reference,
+          thumbnail: part.thumbnail,
+          version: part.version,
+          author: part.author,
+          local: true,
+          origin: part.origin,
+          sourceUrl: part.sourceUrl,
+        });
+      }
 
       this.render();
     } catch (err) {
@@ -133,18 +153,30 @@ export class ComponentManagerPanel {
 
   private generateHtml(components: ComponentInfo[]): string {
     const nonce = randomBytes(24).toString('base64');
-    const csp = [`default-src 'none'`, `style-src 'nonce-${nonce}'`, `script-src 'nonce-${nonce}'`].join(
-      '; '
-    );
+    // Les vignettes sont soit une data: URI (composant installé, dessin extrait
+    // du .kompix), soit une image du dépôt : sans img-src, aucune ne s'affiche.
+    const csp = [
+      `default-src 'none'`,
+      `img-src data: https:`,
+      `style-src 'nonce-${nonce}'`,
+      `script-src 'nonce-${nonce}'`,
+    ].join('; ');
 
     const componentsJson = JSON.stringify(components);
-    const newOnlyLabelText = l10n.t('New ones only');
+    const titleText = l10n.t('Components');
+    const filterNewText = l10n.t('New');
+    const filterInstalledText = l10n.t('Installed');
+    const filterAllText = l10n.t('All');
     const downloadButtonText = l10n.t('Download');
+    const deleteButtonText = l10n.t('Delete');
     const selectingText = l10n.t('Selecting…');
+    const deletingText = l10n.t('Deleting…');
     const noComponentsText = l10n.t('No component available');
     const doneText = l10n.t('Done');
     const errorText = l10n.t('Error');
     const installedText = l10n.t('Installed');
+    const downloadedText = l10n.t('downloaded');
+    const madeHereText = l10n.t('created here');
 
     return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -183,15 +215,24 @@ export class ComponentManagerPanel {
       margin-bottom: 1.5rem;
       align-items: center;
     }
-    .checkbox-group {
+    .filter {
       display: flex;
-      align-items: center;
-      gap: 0.5rem;
+      border: 1px solid var(--vscode-panel-border, rgba(128,128,128,.4));
+      border-radius: 4px;
+      overflow: hidden;
     }
-    #newOnlyCheckbox {
+    .filter button {
+      background: transparent;
+      color: var(--vscode-foreground);
+      border: none;
+      padding: 0.4rem 0.9rem;
       cursor: pointer;
-      width: 1.2rem;
-      height: 1.2rem;
+      font-family: var(--vscode-font-family);
+      font-size: 0.95rem;
+    }
+    .filter button.active {
+      background: var(--vscode-button-background);
+      color: var(--vscode-button-foreground);
     }
     label {
       cursor: pointer;
@@ -213,6 +254,14 @@ export class ComponentManagerPanel {
     .download-btn:disabled {
       opacity: 0.5;
       cursor: not-allowed;
+    }
+    .danger-btn {
+      background: transparent;
+      color: var(--vscode-errorForeground, #f14c4c);
+      border: 1px solid var(--vscode-errorForeground, #f14c4c);
+    }
+    .danger-btn:hover:not(:disabled) {
+      background: var(--vscode-inputValidation-errorBackground, rgba(241,76,76,.15));
     }
     .grid {
       display: grid;
@@ -276,14 +325,16 @@ export class ComponentManagerPanel {
 </head>
 <body>
   <div class="container">
-    <h1>Importer des composants</h1>
+    <h1>${titleText}</h1>
 
     <div class="controls">
-      <div class="checkbox-group">
-        <input type="checkbox" id="newOnlyCheckbox" checked />
-        <label for="newOnlyCheckbox">${newOnlyLabelText}</label>
+      <div class="filter" id="filter">
+        <button data-filter="new" class="active">${filterNewText}</button>
+        <button data-filter="installed">${filterInstalledText}</button>
+        <button data-filter="all">${filterAllText}</button>
       </div>
       <button class="download-btn" id="downloadBtn" disabled>${downloadButtonText}</button>
+      <button class="download-btn danger-btn" id="deleteBtn" disabled>${deleteButtonText}</button>
       <span id="status" style="margin-left: auto; color: var(--vscode-descriptionForeground, rgba(255,255,255,.6));"></span>
     </div>
 
@@ -293,15 +344,22 @@ export class ComponentManagerPanel {
   </div>
 
   <script nonce="${nonce}">
+    // Sans ça, « vscode » n'existe pas et TOUT bouton lève une ReferenceError :
+    // la page se contentait d'afficher la grille.
+    const vscode = acquireVsCodeApi();
     const components = ${componentsJson};
     const selectedTypes = new Set();
+    // Le rechargement de la liste réécrit toute la page : sans état retenu, on
+    // repartirait sur « Nouveaux » juste après avoir supprimé un installé.
+    let mode = (vscode.getState() || {}).mode || 'new';
     let filteredComponents = [...components];
 
     function updateGrid() {
-      const newOnly = document.getElementById('newOnlyCheckbox').checked;
       const grid = document.getElementById('grid');
 
-      filteredComponents = components.filter(c => !newOnly || !c.local);
+      filteredComponents = components.filter(c =>
+        mode === 'all' ? true : mode === 'installed' ? c.local : !c.local
+      );
       grid.innerHTML = '';
 
       if (filteredComponents.length === 0) {
@@ -320,6 +378,7 @@ export class ComponentManagerPanel {
               v\${escapeHtml(comp.version)}
               \${comp.author ? \` - \${escapeHtml(comp.author)}\` : ''}
               \${comp.reference ? \` (\${escapeHtml(comp.reference)})\` : ''}
+              \${comp.local ? \` - \${comp.origin === 'remote' ? ${JSON.stringify(downloadedText)} : ${JSON.stringify(madeHereText)}}\` : ''}
             </div>
           \`;
 
@@ -328,7 +387,7 @@ export class ComponentManagerPanel {
               ? selectedTypes.delete(comp.type)
               : selectedTypes.add(comp.type);
             updateGrid();
-            updateDownloadBtn();
+            updateButtons();
           });
 
           grid.appendChild(card);
@@ -336,27 +395,58 @@ export class ComponentManagerPanel {
       }
     }
 
-    function updateDownloadBtn() {
-      const btn = document.getElementById('downloadBtn');
-      btn.disabled = selectedTypes.size === 0;
+    /**
+     * Types sélectionnés qui sont téléchargeables / installés. Un composant déjà
+     * installé qu'un dépôt propose reste téléchargeable : c'est ainsi qu'on le
+     * met à jour.
+     */
+    function selection() {
+      const chosen = components.filter(c => selectedTypes.has(c.type));
+      return {
+        toDownload: chosen.filter(c => c.sourceUrl).map(c => c.type),
+        toDelete: chosen.filter(c => c.local).map(c => c.type),
+      };
     }
 
-    document.getElementById('newOnlyCheckbox').addEventListener('change', () => {
-      selectedTypes.clear();
-      updateGrid();
-      updateDownloadBtn();
-    });
+    function updateButtons() {
+      const { toDownload, toDelete } = selection();
+      document.getElementById('downloadBtn').disabled = toDownload.length === 0;
+      document.getElementById('deleteBtn').disabled = toDelete.length === 0;
+    }
+
+    function setStatus(text) {
+      const status = document.getElementById('status');
+      status.textContent = text;
+      status.style.color = 'var(--vscode-descriptionForeground, rgba(255,255,255,.6))';
+    }
+
+    for (const btn of document.querySelectorAll('#filter button')) {
+      btn.addEventListener('click', () => {
+        mode = btn.dataset.filter;
+        vscode.setState({ mode });
+        markFilter();
+        selectedTypes.clear();
+        updateGrid();
+        updateButtons();
+      });
+    }
+
+    function markFilter() {
+      for (const btn of document.querySelectorAll('#filter button')) {
+        btn.classList.toggle('active', btn.dataset.filter === mode);
+      }
+    }
 
     document.getElementById('downloadBtn').addEventListener('click', () => {
-      const selected = filteredComponents.filter(c => selectedTypes.has(c.type));
-      const status = document.getElementById('status');
-      status.textContent = '${selectingText}';
-      status.style.color = 'var(--vscode-descriptionForeground, rgba(255,255,255,.6))';
+      setStatus(${JSON.stringify(selectingText)});
+      vscode.postMessage({ command: 'download', types: selection().toDownload });
+    });
 
-      vscode.postMessage({
-        command: 'download',
-        types: Array.from(selectedTypes),
-      });
+    document.getElementById('deleteBtn').addEventListener('click', () => {
+      setStatus(${JSON.stringify(deletingText)});
+      // La confirmation est demandée côté extension (fenêtre modale de VS Code) :
+      // un confirm() de webview est bloqué.
+      vscode.postMessage({ command: 'delete', types: selection().toDelete });
     });
 
     function escapeHtml(text) {
@@ -371,14 +461,15 @@ export class ComponentManagerPanel {
     }
 
     // Initialisation
+    markFilter();
     updateGrid();
-    updateDownloadBtn();
+    updateButtons();
 
     // Écouter les messages du host
     window.addEventListener('message', event => {
       const message = event.data;
       const status = document.getElementById('status');
-      if (message.command === 'downloadComplete') {
+      if (message.command === 'downloadComplete' || message.command === 'deleteComplete') {
         if (message.success) {
           status.textContent = message.message || ${JSON.stringify(doneText)};
           status.style.color = 'var(--vscode-notificationCenterHeader-foreground, #00cc00)';
@@ -387,6 +478,9 @@ export class ComponentManagerPanel {
             // Recharge les composants locaux
             vscode.postMessage({ command: 'reload' });
           }, 1500);
+        } else if (message.cancelled) {
+          // Suppression annulée dans la modale : rien à signaler.
+          setStatus('');
         } else {
           status.textContent = message.error || ${JSON.stringify(errorText)};
           status.style.color = 'var(--vscode-errorForeground, #ff0000)';
@@ -401,8 +495,64 @@ export class ComponentManagerPanel {
   private async handleMessage(message: any): Promise<void> {
     if (message.command === 'download') {
       await this.downloadComponents(message.types);
+    } else if (message.command === 'delete') {
+      await this.deleteComponents(message.types);
     } else if (message.command === 'reload') {
       await this.load();
+    }
+  }
+
+  /**
+   * Désinstalle des composants : confirmation modale, effacement du .kompix, puis
+   * retrait de la palette des ateliers ouverts (sinon le composant y resterait,
+   * et la première retouche du schéma le réécrirait sur le disque).
+   */
+  private async deleteComponents(types: string[]): Promise<void> {
+    const asked = (types ?? []).filter((t) => this.localTypes.has(t));
+    if (asked.length === 0) {
+      this.panel.webview.postMessage({ command: 'deleteComplete', success: false, cancelled: true });
+      return;
+    }
+
+    const labels = asked.map((t) => this.allComponents.find((c) => c.type === t)?.label ?? t);
+    const confirm = l10n.t('Delete');
+    const answer = await vscode.window.showWarningMessage(
+      asked.length === 1
+        ? l10n.t('Delete the component "{0}" from the library?', labels[0])
+        : l10n.t('Delete {0} components from the library?', asked.length),
+      {
+        modal: true,
+        detail:
+          labels.join(', ') +
+          '\n\n' +
+          l10n.t('The .kompix file is erased. Any instance placed in an open workshop is removed too.'),
+      },
+      confirm
+    );
+    if (answer !== confirm) {
+      this.panel.webview.postMessage({ command: 'deleteComplete', success: false, cancelled: true });
+      return;
+    }
+
+    const removed: string[] = [];
+    for (const type of asked) {
+      if (!this.library) break;
+      if (await this.library.removeKompix(type)) removed.push(type);
+    }
+
+    if (removed.length > 0) {
+      SimulatorPanel.notifyCustomPartsRemoved(removed);
+      this.panel.webview.postMessage({
+        command: 'deleteComplete',
+        success: true,
+        message: l10n.t('{0} component(s) deleted', removed.length),
+      });
+    } else {
+      this.panel.webview.postMessage({
+        command: 'deleteComplete',
+        success: false,
+        error: l10n.t('Nothing was deleted.'),
+      });
     }
   }
 

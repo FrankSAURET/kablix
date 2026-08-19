@@ -1,7 +1,20 @@
 # À faire
-1. Ajoute  une fonctionnalité permettant de supprimer des composants ajoutés.
-1. 
 1. ⬜ **Dépôt public vide** : `kablix_components/` n'existe pas encore, donc « ⇩ Importer des composants » ne trouvera rien tant qu'aucun `.kompix` n'y est publié et poussé sur GitHub.
+
+# >>>>  v2026.8.87 — Désinstaller un composant depuis le gestionnaire
+
+1. ✅ **Filtre à trois positions** ([componentManager.ts](src/componentManager.ts)) : « Nouveaux » (l'ancienne case à cocher), « Installés », « Tous ». La page ne montrait QUE ce que les dépôts proposent : un composant créé ici, ou dont le dépôt a disparu, n'y apparaissait nulle part — donc impossible à désinstaller de là.
+2. ✅ **Bouton « Supprimer »** : actif dès qu'un composant installé est sélectionné, avec confirmation modale (titre, liste des libellés, et l'avertissement que les instances posées partent aussi). Annuler ne touche à rien.
+3. ✅ **La bibliothèque liste ce qu'elle a vraiment** ([kompixLibrary.ts](src/kompixLibrary.ts)) : `listInstalled()` rend libellé, description, version, auteur, référence, origine (créé ici / téléchargé) et une vignette `data:` tirée du dessin. `CustomPartData` ne portait ni description, ni auteur, ni version — les métadonnées du manifeste sont maintenant retenues au scan.
+4. ✅ **`removeKompix()` rend compte** : elle avalait toutes les erreurs. Elle retourne désormais un booléen, et un fichier déjà absent purge quand même l'index (sinon le composant restait « installé » sans exister).
+5. ✅ **Le bouton « Télécharger » ne pouvait PAS fonctionner** : la page n'appelait jamais `acquireVsCodeApi()` — `vscode.postMessage` levait une `ReferenceError` silencieuse. C'est corrigé ; le banc le vérifie maintenant dans un vrai navigateur, pas seulement à la compilation.
+6. ✅ **Aucune vignette ne s'affichait** : la CSP de la page était `default-src 'none'` sans `img-src`. Ajouté (`data:` pour les installés, `https:` pour les dépôts).
+7. ✅ **Le composant désinstallé quitte les ateliers ouverts** ([panel.ts](src/panel.ts), [sim.mts](src/webview/sim.mts), [editor.mts](src/webview/diagram/editor.mts)) : nouveau message `customPartsRemoved` → `editor.dropCustomParts()`. Sans lui il restait dans la palette, et la première retouche du schéma le réécrivait sur le disque — le composant supprimé revenait.
+8. ✅ **Le filtre choisi survit au rechargement** de la liste (`getState`/`setState`) : après une suppression, la page repartait sur « Nouveaux ».
+9. ✅ **Banc [verify-kompix.mjs](scripts/verify-kompix.mjs)** : 22 contrôles (8 de plus) — `listInstalled()`, suppression fichier + index, fichier déjà absent, installé hors dépôt visible dans la grille, modale refusée / acceptée, et un **scénario complet dans Chrome headless** (clics sur les filtres et les cartes, état des deux boutons, message réellement posté).
+10. ✅ **Banc [verify-suppression.mjs](scripts/verify-suppression.mjs)** : 18 contrôles (5 de plus) — le composant désinstallé quitte la palette et la feuille, et RIEN n'est renvoyé à l'extension.
+11. ✅ **Documentation FR** ([USAGE.md](docs/fr/USAGE.md)) : section « Gestionnaire de composants (installer et désinstaller) ».
+12. ⏳ **Traductions** : titre de commande EN passé à « Kablix: Manage components » ; `package.nls.fr.json`, `l10n/bundle.l10n.fr.json` et `docs/en/` attendent le lot d'avant publication. Le panneau du gestionnaire était déjà entièrement en anglais, sauf son titre codé en dur en français — il passe par `l10n.t` comme le reste.
 
 # >>>>  v2026.8.86 — Le réglage « dossier des composants » dit où est le dossier par défaut
 

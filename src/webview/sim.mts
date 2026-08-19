@@ -4011,6 +4011,12 @@ window.addEventListener('message', (event: MessageEvent) => {
         editor.applyEditedSvg(msg.which, msg.svg);
       }
       break;
+    case 'customPartsRemoved':
+      // Composants désinstallés depuis le gestionnaire : les retirer de la
+      // palette et du schéma, sans renvoyer la liste (l'extension a déjà
+      // effacé les fichiers).
+      editor.dropCustomParts((msg.types as string[]) ?? []);
+      break;
     case 'customParts':
       editor.loadCustomParts((msg.parts as CustomPartData[]) ?? []);
       // Restaure l'atelier d'avant un déplacement d'onglet (une seule fois,

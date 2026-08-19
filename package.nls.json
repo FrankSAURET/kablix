@@ -18,7 +18,7 @@
   "kablix.cmd.recommendedExtensions": "Kablix: Recommended extensions",
   "kablix.cmd.chooseSvgEditor": "Kablix: Choose the SVG editor…",
   "kablix.cmd.openComponentsFolder": "Kablix: Open the components library",
-  "kablix.cmd.openComponentManager": "Kablix: Download components",
+  "kablix.cmd.openComponentManager": "Kablix: Manage components",
   "kablix.cmd.uploadToPico": "Kablix: Send the program to the Pico board",
   "kablix.cmd.uploadToPicoOffline": "Kablix: Send the program to the Pico board (no board detected)",
   "kablix.view.home": "Simulator",

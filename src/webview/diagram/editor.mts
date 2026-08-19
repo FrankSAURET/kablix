@@ -1665,14 +1665,34 @@ export class Editor {
   }
 
   private removeCustomPart(type: string): void {
+    this.forgetCustomPart(type);
+    this.buildPalette();
+    this.onCustomPartsChange?.([...this.customData.values()]);
+  }
+
+  /** Oublie un modèle personnalisé : instances posées, registre, données. */
+  private forgetCustomPart(type: string): void {
     // Retire d'abord les instances posées sur le canvas.
     for (const part of [...this.diagram.parts]) {
       if (part.type === type) this.removePart(part.id);
     }
     this.customData.delete(type);
     unregisterCustomPart(type);
-    this.buildPalette();
-    this.onCustomPartsChange?.([...this.customData.values()]);
+  }
+
+  /**
+   * Retire des modèles supprimés AILLEURS (gestionnaire de composants) : le
+   * fichier .kompix est déjà effacé, il ne faut donc surtout pas renvoyer la
+   * liste à l'extension — elle réécrirait ce qu'on vient d'enlever.
+   */
+  dropCustomParts(types: string[]): void {
+    let touched = false;
+    for (const type of types) {
+      if (!this.customData.has(type)) continue;
+      this.forgetCustomPart(type);
+      touched = true;
+    }
+    if (touched) this.buildPalette();
   }
 
   // --- Ajout / suppression de composants -------------------------------------

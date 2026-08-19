@@ -365,7 +365,17 @@ Sans marqueur rouge, **cliquez l'aperçu** pour poser chaque broche à la main.
 
 **8. Enregistrer.** Le composant apparaît dans la palette (★) et est **persisté entre les sessions**. Le bouton **« Soumettre à Kablix… »** explique comment partager le composant (issue GitHub « Submit new component » ou pull request).
 
-Gestion depuis la palette : **clic** = poser sur le canvas, **double-clic** = rouvrir le créateur pour modifier, **⇩** = exporter en `.kompix`, **✕** = supprimer, **⇩ Importer des composants** = télécharger depuis un dépôt.
+Gestion depuis la palette : **clic** = poser sur le canvas, **double-clic** = rouvrir le créateur pour modifier, **⇩** = exporter en `.kompix`, **✕** = supprimer, **⇩ Importer des composants** = ouvrir le gestionnaire.
+
+### Gestionnaire de composants (installer et désinstaller)
+
+Le bouton **⇩ Importer des composants** de la palette (ou la commande **Kablix : Télécharger des composants**) ouvre la liste des composants, filtrable :
+
+- **Nouveaux** : ce que les dépôts proposent et qui n'est pas encore installé ;
+- **Installés** : tout ce que contient la bibliothèque locale, y compris les composants créés ici et ceux qu'aucun dépôt ne propose ;
+- **Tous** : les deux.
+
+On sélectionne les cartes au clic, puis **Télécharger** installe, **Supprimer** désinstalle. La suppression demande confirmation, efface le fichier `.kompix` de la bibliothèque et retire le composant de la palette **et** des schémas ouverts. Elle est définitive : réinstaller passe par le dépôt d'origine, ou par un `.kompix` exporté au préalable (**⇩**).
 
 ## Format des composants (.kompix)
 

@@ -8,7 +8,8 @@
 // tronquait les dessins.
 //
 // Utilisation : npm run verify:kompix
-import { mkdirSync, rmSync, existsSync } from 'node:fs';
+import { mkdirSync, rmSync, existsSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
@@ -63,7 +64,12 @@ export const workspace = {
 export class RelativePattern { constructor(base, pattern) { this.base = base; this.pattern = pattern; } }
 export class Disposable { constructor(fn) { this.dispose = fn || (() => {}); } }
 export const Uri = { file: (p) => ({ fsPath: p }) };
-export const window = { showWarningMessage: async () => undefined, showErrorMessage: async () => undefined };
+export const window = {
+  // Réponse de la modale pilotée par le banc : globalThis.__reponseModale.
+  showWarningMessage: async () => globalThis.__reponseModale,
+  showErrorMessage: async () => undefined,
+  createWebviewPanel: () => ({ webview: { html: '', postMessage: () => {} }, reveal(){}, onDidDispose(){}, dispose(){} }),
+};
 export const ViewColumn = { One: 1 };
 export const commands = { executeCommand: async () => undefined };
 export const l10n = { t: (s) => s };
@@ -94,6 +100,47 @@ const { KompixLibrary } = await import(`file://${bundle.replace(/\\/g, '/')}`);
 
 const contexteBidon = { globalStorageUri: { fsPath: WORK_DIR } };
 const lib = new KompixLibrary(contexteBidon);
+
+// Le gestionnaire de composants : même traitement, il sert à plusieurs tests
+// (page rendue, désinstallation).
+const gestionnaire = join(WORK_DIR, 'component-manager.mjs');
+await build({
+  entryPoints: [join(ROOT, 'src', 'componentManager.ts')],
+  bundle: true,
+  format: 'esm',
+  platform: 'node',
+  outfile: gestionnaire,
+  external: ['jszip'],
+  // Le gestionnaire tire panel.ts, qui touche des dizaines d'API VS Code
+  // absentes du bouchon : ces avertissements noieraient le compte rendu.
+  // Une vraie erreur de compilation fait toujours échouer build().
+  logLevel: 'silent',
+  plugins: [
+    {
+      name: 'stub-vscode',
+      setup(b) {
+        b.onResolve({ filter: /^vscode$/ }, () => ({ path: 'vscode', namespace: 'stub' }));
+        b.onLoad({ filter: /.*/, namespace: 'stub' }, () => ({
+          contents: `const DOSSIER = ${JSON.stringify(WORK_DIR)};\n${STUB_VSCODE}`,
+          loader: 'js',
+        }));
+      },
+    },
+  ],
+});
+const { ComponentManagerPanel } = await import(`file://${gestionnaire.replace(/\\/g, '/')}`);
+
+/** Un gestionnaire posé sur la vraie bibliothèque, avec un panneau bouchon. */
+function gestionnaireNu() {
+  const envoyes = [];
+  const nu = Object.create(ComponentManagerPanel.prototype);
+  nu.library = lib;
+  nu.allComponents = [];
+  nu.localTypes = new Set();
+  nu.panel = { webview: { html: '', postMessage: (m) => envoyes.push(m) } };
+  nu.envoyes = envoyes;
+  return nu;
+}
 
 /** Empaquette une pièce, l'installe, et rend ce que la bibliothèque en relit. */
 async function allerRetour(part, origin = 'local') {
@@ -286,6 +333,10 @@ test('un .kompix sans manifeste valide est écarté, pas planté', async () => {
   if (!lib.getComponents().some((c) => c.type === 'test-meta')) {
     throw new Error('le fichier cassé a interrompu le scan des autres');
   }
+  // Retiré du dossier : laissé en place, il ferait râler la console à CHAQUE
+  // scan des tests suivants et noierait le compte rendu.
+  const { unlinkSync } = await import('node:fs');
+  unlinkSync(join(WORK_DIR, 'casse.kompix'));
 });
 
 test('le fichier .kompix atterrit bien dans la bibliothèque', () => {
@@ -303,33 +354,6 @@ test('le fichier .kompix atterrit bien dans la bibliothèque', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test('le script de la page du gestionnaire se compile', async () => {
-  const gestionnaire = join(WORK_DIR, 'component-manager.mjs');
-  await build({
-    entryPoints: [join(ROOT, 'src', 'componentManager.ts')],
-    bundle: true,
-    format: 'esm',
-    platform: 'node',
-    outfile: gestionnaire,
-    external: ['jszip'],
-    // Le gestionnaire tire panel.ts, qui touche des dizaines d'API VS Code
-    // absentes du bouchon : ces avertissements noieraient le compte rendu.
-    // Une vraie erreur de compilation fait toujours échouer build().
-    logLevel: 'silent',
-    plugins: [
-      {
-        name: 'stub-vscode',
-        setup(b) {
-          b.onResolve({ filter: /^vscode$/ }, () => ({ path: 'vscode', namespace: 'stub' }));
-          b.onLoad({ filter: /.*/, namespace: 'stub' }, () => ({
-            contents: `const DOSSIER = ${JSON.stringify(WORK_DIR)};\n${STUB_VSCODE}`,
-            loader: 'js',
-          }));
-        },
-      },
-    ],
-  });
-  const { ComponentManagerPanel } = await import(`file://${gestionnaire.replace(/\\/g, '/')}`);
-
   // generateHtml n'a besoin ni du panneau ni de la bibliothèque : un objet nu
   // portant le prototype suffit à obtenir la page.
   const nu = Object.create(ComponentManagerPanel.prototype);
@@ -346,6 +370,186 @@ test('le script de la page du gestionnaire se compile', async () => {
     new Script(script[1]);
   } catch (err) {
     throw new Error(`le script rendu ne compile pas : ${err.message}`);
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Désinstallation d'un composant depuis le gestionnaire.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Installe une pièce jetable et rend son type. */
+async function installeJetable(type, origin = 'local') {
+  await allerRetour({
+    type,
+    label: `Jetable ${type}`,
+    kind: 'passive',
+    pins: [],
+    svg: '<svg viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg"><rect width="10" height="10"/></svg>',
+  }, origin);
+  return type;
+}
+
+test('listInstalled() décrit ce qui est réellement installé', async () => {
+  await installeJetable('test-liste', 'remote');
+  const fiche = lib.listInstalled().find((c) => c.type === 'test-liste');
+  if (!fiche) throw new Error('le composant installé n’est pas listé');
+  eq(fiche.label, 'Jetable test-liste', 'libellé');
+  eq(fiche.version, '1.2.3', 'version du manifeste');
+  eq(fiche.origin, 'remote', 'origine');
+  if (!fiche.thumbnail?.startsWith('data:image/svg+xml;base64,')) {
+    throw new Error(`vignette absente ou mal formée : ${fiche.thumbnail}`);
+  }
+  const dessin = Buffer.from(fiche.thumbnail.split(',')[1], 'base64').toString('utf8');
+  if (!dessin.includes('<rect width="10" height="10"/>')) throw new Error('vignette vide');
+});
+
+test('supprimer un composant efface le fichier ET son entrée d’index', async () => {
+  await installeJetable('test-a-supprimer');
+  eq(existsSync(join(WORK_DIR, 'test-a-supprimer.kompix')), true, 'fichier avant suppression');
+
+  eq(await lib.removeKompix('test-a-supprimer'), true, 'suppression réussie');
+  eq(existsSync(join(WORK_DIR, 'test-a-supprimer.kompix')), false, 'fichier après suppression');
+  eq(lib.getIndexEntry('test-a-supprimer'), undefined, 'entrée d’index');
+  // Le composant ne doit pas revenir au scan suivant.
+  eq(lib.getComponents().some((c) => c.type === 'test-a-supprimer'), false, 'présence après suppression');
+});
+
+test('supprimer un fichier déjà absent purge quand même l’index', async () => {
+  await installeJetable('test-fantome');
+  const { unlinkSync } = await import('node:fs');
+  unlinkSync(join(WORK_DIR, 'test-fantome.kompix')); // effacé dans le dos de la bibliothèque
+  eq(await lib.removeKompix('test-fantome'), true, 'suppression d’un fichier absent');
+  eq(lib.getIndexEntry('test-fantome'), undefined, 'entrée d’index purgée');
+});
+
+test('un installé qu’aucun dépôt ne propose apparaît quand même dans la grille', async () => {
+  await installeJetable('test-hors-depot');
+  const nu = gestionnaireNu();
+  await nu.load();
+  const fiche = nu.allComponents.find((c) => c.type === 'test-hors-depot');
+  if (!fiche) throw new Error('le composant local est invisible : impossible de le supprimer');
+  eq(fiche.local, true, 'marqué installé');
+});
+
+test('la modale refusée ne supprime rien', async () => {
+  const type = await installeJetable('test-annule');
+  const nu = gestionnaireNu();
+  await nu.load();
+  globalThis.__reponseModale = undefined; // « Annuler »
+  await nu.deleteComponents([type]);
+  eq(existsSync(join(WORK_DIR, `${type}.kompix`)), true, 'fichier après annulation');
+  eq(nu.envoyes.at(-1).cancelled, true, 'annulation signalée à la page');
+});
+
+test('la modale acceptée supprime, et seulement ce qui est installé', async () => {
+  const type = await installeJetable('test-confirme');
+  const nu = gestionnaireNu();
+  await nu.load();
+  globalThis.__reponseModale = 'Delete'; // libellé rendu par le bouchon l10n
+  await nu.deleteComponents([type, 'type-jamais-installe']);
+  eq(existsSync(join(WORK_DIR, `${type}.kompix`)), false, 'fichier après confirmation');
+  eq(nu.envoyes.at(-1).success, true, 'succès signalé à la page');
+  eq(lib.getComponents().some((c) => c.type === type), false, 'composant encore en bibliothèque');
+});
+
+test('la page du gestionnaire sait vraiment parler à l’extension', () => {
+  const nu = Object.create(ComponentManagerPanel.prototype);
+  const html = nu.generateHtml([
+    { type: 'led', label: 'LED', version: '1.0.0', local: true, origin: 'local' },
+  ]);
+  // Sans acquireVsCodeApi(), « vscode » n'existe pas : tout bouton lève une
+  // ReferenceError silencieuse — c'est ce qui rendait « Télécharger » mort.
+  if (!html.includes('acquireVsCodeApi()')) throw new Error('API webview jamais acquise');
+  if (!/id="deleteBtn"/.test(html)) throw new Error('pas de bouton de suppression');
+  if (!/command: 'delete'/.test(html)) throw new Error('le bouton n’envoie pas la demande');
+  // Les vignettes sont des data: URI : sans img-src, la CSP les bloque toutes.
+  const csp = /Content-Security-Policy" content="([^"]+)"/.exec(html);
+  if (!csp || !csp[1].includes('img-src data:')) throw new Error(`CSP sans img-src : ${csp && csp[1]}`);
+});
+
+test('la page, ouverte dans un vrai navigateur, sélectionne et demande la suppression', () => {
+  const chrome = [
+    'C:/Program Files/Google/Chrome/Application/chrome.exe',
+    'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
+  ].find(existsSync);
+  if (!chrome) {
+    console.log('    (Chrome introuvable — contrôle sauté)');
+    return;
+  }
+
+  const nu = Object.create(ComponentManagerPanel.prototype);
+  const html = nu.generateHtml([
+    { type: 'led', label: 'LED', version: '1.0.0', local: true, origin: 'remote', sourceUrl: 'https://x/led.kompix' },
+    { type: 'r220', label: 'Résistance', version: '2.0.0', local: false, sourceUrl: 'https://x/r220.kompix' },
+    { type: 'perso', label: 'Le mien', version: '0.1.0', local: true, origin: 'local' },
+  ]);
+  const nonce = /<script nonce="([^"]+)">/.exec(html)[1];
+
+  // L'API webview n'existe pas hors de VS Code : on la bouchonne, avec le même
+  // nonce (la CSP de la page refuse tout script qui n'en porte pas).
+  const avant = `<script nonce="${nonce}">
+    window.__envois = [];
+    window.acquireVsCodeApi = () => ({
+      postMessage: (m) => window.__envois.push(m),
+      getState: () => null,
+      setState: () => {},
+    });
+  </script>`;
+
+  const scenario = `<script nonce="${nonce}">
+    const res = [];
+    const ok = (name, cond, detail = '') => res.push({ name, ok: !!cond, detail: String(detail) });
+    const cartes = () => [...document.querySelectorAll('.component-card')];
+    const filtre = (n) => document.querySelectorAll('#filter button')[n];
+    const dl = () => document.getElementById('downloadBtn');
+    const del = () => document.getElementById('deleteBtn');
+
+    ok('au départ, seuls les nouveaux sont montrés', cartes().length === 1, cartes().length);
+    cartes()[0].click();
+    ok('un nouveau active Télécharger', !dl().disabled);
+    ok('un nouveau n active pas Supprimer', del().disabled);
+
+    filtre(1).click(); // « Installés »
+    ok('le filtre Installés montre les deux installés', cartes().length === 2, cartes().length);
+    ok('changer de filtre remet les boutons au repos', dl().disabled && del().disabled);
+
+    cartes()[1].click(); // « Le mien » : installé, proposé par aucun dépôt
+    ok('un installé active Supprimer', !del().disabled);
+    ok('un installé sans dépôt n active pas Télécharger', dl().disabled);
+    cartes()[0].click(); // « LED » : installée ET proposée par un dépôt
+    ok('un installé que le dépôt propose reste téléchargeable (mise à jour)', !dl().disabled);
+    cartes()[0].click(); // désélectionnée : reste « Le mien »
+    del().click();
+    const envoi = window.__envois.at(-1);
+    ok('le clic envoie la demande de suppression', envoi && envoi.command === 'delete', JSON.stringify(envoi));
+    ok('avec le bon type', envoi && envoi.types.length === 1 && envoi.types[0] === 'perso', JSON.stringify(envoi));
+
+    filtre(2).click(); // « Tous »
+    ok('le filtre Tous montre tout', cartes().length === 3, cartes().length);
+
+    const out = document.createElement('pre');
+    out.id = 'mesures';
+    out.textContent = JSON.stringify(res);
+    document.body.appendChild(out);
+  </script>`;
+
+  const page = join(WORK_DIR, 'gestionnaire.html');
+  writeFileSync(page, html.replace('</head>', `${avant}</head>`).replace('</body>', `${scenario}</body>`), 'utf8');
+
+  const dom = execFileSync(
+    chrome,
+    ['--headless=new', '--disable-gpu', '--no-sandbox', '--virtual-time-budget=8000', '--dump-dom',
+      `file:///${page.replace(/\\/g, '/')}`],
+    { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 }
+  );
+  const m = /<pre id="mesures"[^>]*>([\s\S]*?)<\/pre>/.exec(dom);
+  if (!m) throw new Error('la page n’a rien mesuré : son script ne s’est pas exécuté');
+  const rows = JSON.parse(
+    m[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+  );
+  const rates = rows.filter((r) => !r.ok);
+  if (rates.length > 0) {
+    throw new Error(rates.map((r) => `${r.name} (${r.detail})`).join(' ; '));
   }
 });
 
