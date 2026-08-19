@@ -1,6 +1,13 @@
 # À faire
-1. ⬜ **« Intégrer » de montre.mjs** : le bouton écrit un `.kompix` **bidon** — carré gris avec le nom écrit dessus, aucune patte — et le pose dans `kablix_components/`, qui est le dossier de **publication** du dépôt, pas la bibliothèque locale. À refaire ou à retirer : dis-moi lequel.
-2. ⬜ **Dépôt public vide** : `kablix_components/` n'existe pas encore, donc « ⇩ Importer des composants » ne trouvera rien tant qu'aucun `.kompix` n'y est publié et poussé sur GitHub.
+1. Ajoute  une fonctionnalité permettant de supprimer des composants ajoutés.
+1. 
+1. ⬜ **Dépôt public vide** : `kablix_components/` n'existe pas encore, donc « ⇩ Importer des composants » ne trouvera rien tant qu'aucun `.kompix` n'y est publié et poussé sur GitHub.
+
+# >>>>  v2026.8.85 — Retrait du composant bidon de montre.mjs
+
+1. ✅ **Bouton « Intégrer » retiré** ([montre.mjs](scripts/montre.mjs)) : il écrivait un `.kompix` factice — carré gris 100×100 portant le nom, `pins: []`, aucun dessin réel — directement dans `kablix_components/`, le dossier de **publication** du dépôt. Un composant sans patte ne se câble pas et n'a rien à faire dans la bibliothèque publique. Supprimés : le bouton de la barre, la fonction `integrer()` (deux `prompt()` carte + nom) et le gestionnaire `POST /integrer` du serveur (génération JSZip, SVG bouchon, écriture disque). `montre.mjs` redevient ce qu'il est : une visionneuse 3D.
+2. ℹ️ **Rien à effacer sur le disque** : `kablix_components/` n'existe pas, aucun `.kompix` bidon n'a été produit.
+3. ℹ️ **Intégrer un assemblage reste à faire** : le vrai chemin passera par le créateur de composants (`.kompix` avec ses pattes), pas par la visionneuse.
 
 # >>>>  v2026.8.84 — Audit de tout ce qui a été livré depuis la v2026.8.74
 

@@ -493,8 +493,6 @@ function rendu() {
       <div class="barre">
         <button @click=\${() => recharge(true)} ?disabled=\${etat.occupe}>
           \${etat.occupe ? 'lecture du dessin…' : '↻ recharger'}</button>
-        <button @click=\${() => integrer()} ?disabled=\${etat.occupe || !liste.length}>
-          Intégrer</button>
         <span class="gris">\${d && d.range ? 'rangé' : ''}</span>
       </div>
       \${etat.erreur ? html\`<p class="err">\${etat.erreur}</p>\` : ''}
@@ -558,59 +556,6 @@ addEventListener('wheel', (ev) => {
   etat.zoom = Math.min(500, Math.max(0.02, Math.round(z * 20) / 20));
   dessine();
 }, { passive: false });
-
-/** Intégrer l'assemblage courant à la bibliothèque système. */
-async function integrer() {
-  if (!etat.donnees?.ensembles.length) {
-    etat.erreur = 'Aucun ensemble à intégrer.';
-    dessine();
-    return;
-  }
-
-  // Dialog simple pour carte + nom.
-  const cartes = ['uno', 'nano', 'mega', 'pico', 'picow'];
-  let carte = prompt(\`Carte de développement (\${cartes.join('/')})\`, 'uno');
-  if (!carte) return;
-  carte = carte.toLowerCase();
-  if (!cartes.includes(carte)) {
-    alert(\`Carte inconnue : \${carte}\`);
-    return;
-  }
-
-  let nom = prompt('Nom du composant', etat.donnees.prefixe);
-  if (!nom) return;
-  nom = nom.toLowerCase().replace(/[^a-z0-9-]/g, '-');
-  if (!nom) {
-    alert('Nom vide.');
-    return;
-  }
-
-  // POST vers /integrer.
-  etat.erreur = '';
-  etat.occupe = true;
-  dessine();
-  try {
-    const r = await fetch('/integrer', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        carte, nom,
-        prefixe: etat.donnees.prefixe,
-        ensembles: etat.donnees.ensembles,
-      }),
-    });
-    const j = await r.json();
-    if (r.ok) {
-      etat.erreur = j.message || 'Composant intégré.';
-    } else {
-      etat.erreur = j.erreur || 'Erreur lors de l\\'intégration.';
-    }
-  } catch (e) {
-    etat.erreur = 'Erreur : ' + String((e && e.message) || e);
-  }
-  etat.occupe = false;
-  dessine();
-}
 
 dessine();
 recharge(false);
@@ -680,64 +625,6 @@ const serveur = createServer(async (req, res) => {
     if (url === '/recharger' && req.method === 'POST') {
       donnees = charger(true);
       return envoie(res, 200, 'application/json', JSON.stringify(donnees));
-    }
-    if (url === '/integrer' && req.method === 'POST') {
-      let body = '';
-      for await (const chunk of req) body += chunk;
-      const { carte, nom, prefixe, ensembles } = JSON.parse(body);
-
-      // Valider les entrées.
-      if (!['uno', 'nano', 'mega', 'pico', 'picow'].includes(carte)) {
-        throw new Error(`Carte invalide : ${carte}`);
-      }
-      if (!nom || !/^[a-z0-9-]+$/.test(nom)) {
-        throw new Error(`Nom invalide : ${nom}`);
-      }
-
-      // Générer un .kompix avec jszip (importer en haut de fichier si absent).
-      const JSZip = (await import('jszip')).default;
-      const zip = new JSZip();
-
-      // Métadonnées du composant (manifest.json).
-      const boardMap = { uno: 'uno', nano: 'nano', mega: 'mega', pico: 'pico', picow: 'picow' };
-      const manifest = {
-        kompixVersion: 1,
-        type: nom,
-        label: nom.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' '),
-        description: `Assemblage ${prefixe}`,
-        version: '0.1.0',
-        author: 'User',
-        kind: 'passive',
-        board: boardMap[carte],
-        category: 'custom',
-        pins: [],
-        // À compléter : ajouter les broches quand Frank retouche le SVG
-      };
-      zip.file('manifest.json', JSON.stringify(manifest, null, 2));
-
-      // SVG schema (placeholder pour l'instant) — external only (no internal).
-      const svgPlaceholder = `<svg id="${nom}" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <rect width="100" height="100" fill="#f0f0f0" stroke="#999" stroke-width="1"/>
-  <text x="50" y="50" text-anchor="middle" dy=".3em" font-size="12" fill="#666">${nom}</text>
-  <!-- Pastilles à ajouter (red circles avec names) -->
-</svg>`;
-      zip.file('schema.svg', svgPlaceholder);
-
-      // Génère le buffer .kompix.
-      const kompixBuffer = await zip.generateAsync({ type: 'uint8array' });
-
-      // Écrit le .kompix dans kablix_components/ racine.
-      const kompixDir = join(ROOT, 'kablix_components');
-      mkdirSync(kompixDir, { recursive: true });
-      const kompixPath = join(kompixDir, `${nom}.kompix`);
-      writeFileSync(kompixPath, Buffer.from(kompixBuffer));
-
-      console.log(`\n  ✓ Composant intégré : ${nom} (carte ${carte})`);
-      console.log(`  → ${kompixPath}`);
-      return envoie(res, 200, 'application/json', JSON.stringify({
-        message: `Composant intégré comme .kompix. Fichier : kablix_components/${nom}.kompix`,
-        kompix: `${nom}.kompix`,
-      }));
     }
   } catch (e) {
     console.error(`  ! ${e && e.stack ? e.stack : e}`);
