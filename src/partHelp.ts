@@ -17,8 +17,45 @@ import { renderMarkdown, markdownTitle } from './markdown';
 export const SHOW_PART_HELP = 'kablix.showPartHelp';
 
 /** Langue des fiches selon VS Code (repli français : toutes les fiches existent en FR). */
-function docLang(): 'fr' | 'en' {
+export function docLang(): 'fr' | 'en' {
   return (vscode.env.language ?? 'fr').toLowerCase().startsWith('en') ? 'en' : 'fr';
+}
+
+/**
+ * Fiche embarquée dans un .kompix : le Markdown vient du paquet, et ses
+ * illustrations avec lui, en data: URI (aucun fichier sur le disque à autoriser).
+ */
+export interface EmbeddedSheet {
+  lang: string;
+  text: string;
+  /** Nom du fichier tel qu'écrit dans le Markdown → data: URI. */
+  assets: Map<string, string>;
+}
+
+/**
+ * Ce qu'il faut d'une bibliothèque .kompix pour en tirer une fiche — juste ces
+ * deux méthodes, pour que l'aide ne dépende pas du module de bibliothèque
+ * (`SimulatorPanel.library`, non typé, la fournit telle quelle).
+ */
+export interface EmbeddedHelpSource {
+  readHelp?(type: string, lang: string): Promise<EmbeddedSheet | undefined>;
+}
+
+/**
+ * Ouvre l'aide d'un composant, quelle que soit sa provenance : fiche livrée
+ * dans `docs/` pour un composant intégré, fiche embarquée dans le .kompix pour
+ * un composant de bibliothèque. Retourne false si aucune des deux n'existe.
+ */
+export async function showPartHelp(
+  extensionUri: vscode.Uri,
+  type: string,
+  library?: EmbeddedHelpSource
+): Promise<boolean> {
+  if (await PartHelpPanel.show(extensionUri, type)) return true;
+  const sheet = await library?.readHelp?.(type, docLang());
+  if (!sheet) return false;
+  PartHelpPanel.showEmbedded(extensionUri, type, sheet);
+  return true;
 }
 
 export class PartHelpPanel {
@@ -36,6 +73,26 @@ export class PartHelpPanel {
   public static async show(extensionUri: vscode.Uri, type: string): Promise<boolean> {
     const found = await readSheet(extensionUri, type);
     if (!found) return false;
+    PartHelpPanel.open(extensionUri, found);
+    return true;
+  }
+
+  /**
+   * Ouvre le panneau sur la fiche EMBARQUÉE d'un composant de bibliothèque.
+   * Même panneau, même rendu que les fiches livrées dans `docs/` : seule change
+   * la provenance des images (data: URI du paquet au lieu d'URI de webview).
+   */
+  public static showEmbedded(extensionUri: vscode.Uri, type: string, sheet: EmbeddedSheet): void {
+    PartHelpPanel.open(extensionUri, {
+      lang: sheet.lang === 'en' ? 'en' : 'fr',
+      title: markdownTitle(sheet.text) ?? type,
+      text: sheet.text,
+      assets: sheet.assets,
+    });
+  }
+
+  /** Crée (ou réutilise) le panneau et y rend la fiche. */
+  private static open(extensionUri: vscode.Uri, found: Sheet): void {
 
     if (!PartHelpPanel.current) {
       const panel = vscode.window.createWebviewPanel(
@@ -54,7 +111,6 @@ export class PartHelpPanel {
     }
     PartHelpPanel.current.render(found);
     PartHelpPanel.current.panel.reveal(undefined, true);
-    return true;
   }
 
   private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
@@ -68,8 +124,11 @@ export class PartHelpPanel {
     const docsDir = vscode.Uri.joinPath(this.extensionUri, 'docs', sheet.lang, 'composants');
     const body = renderMarkdown(sheet.text, {
       // Chemin relatif à la fiche → URI de webview (les images vivent dans
-      // docs/img/composants/, deux niveaux au-dessus de la fiche).
-      resolveAsset: (rel) => webview.asWebviewUri(vscode.Uri.joinPath(docsDir, rel)).toString(),
+      // docs/img/composants/, deux niveaux au-dessus de la fiche). Fiche
+      // embarquée : l'image est DANS le paquet, déjà en data: URI.
+      resolveAsset: (rel) =>
+        sheet.assets?.get(rel.replace(/^\.\//, '')) ??
+        (sheet.assets ? '' : webview.asWebviewUri(vscode.Uri.joinPath(docsDir, rel)).toString()),
       // Lien vers une autre fiche : on rouvre le panneau sur ce composant.
       resolveDocLink: (rel) => {
         const m = rel.match(/([^/\\]+)\.md$/i);
@@ -91,6 +150,8 @@ interface Sheet {
   lang: 'fr' | 'en';
   title: string;
   text: string;
+  /** Fiche embarquée dans un .kompix : ses images voyagent avec elle. */
+  assets?: Map<string, string>;
 }
 
 /** Fiche du composant dans la langue de VS Code, sinon en français. */
@@ -111,11 +172,13 @@ async function readSheet(extensionUri: vscode.Uri, type: string): Promise<Sheet 
 function pageHtml(webview: vscode.Webview, lang: string, title: string, body: string): string {
   const nonce = randomBytes(24).toString('base64');
   // `media-src` : une fiche peut illustrer un composant par une démo WebM.
+  // `data:` y est admis aussi — la fiche d'un composant de bibliothèque porte
+  // ses illustrations DANS son paquet, il n'y a pas de fichier sur le disque.
   const csp = [
     `default-src 'none'`,
     `style-src 'nonce-${nonce}'`,
     `img-src ${webview.cspSource} data:`,
-    `media-src ${webview.cspSource}`,
+    `media-src ${webview.cspSource} data:`,
   ].join('; ');
 
   return /* html */ `<!DOCTYPE html>

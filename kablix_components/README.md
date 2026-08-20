@@ -9,6 +9,8 @@ Fichier ZIP contenant :
 - `schema.svg` : dessin externe et optionnel schéma interne
 - `thumbnail.webp` : miniature optionnelle
 - `behavior.mjs` : code de simulation optionnel
+- `help/<lang>.md` : fiche d'aide du composant, ouverte par le bouton **Aide du
+  composant** du volet des propriétés (ses illustrations sont posées à côté)
 
 Voir [kompix_specification.md](../docs/kompix_specification.md) pour les détails.
 
@@ -35,4 +37,4 @@ Pour proposer un composant :
 
 ---
 
-Généré le 20/08/2026 09:16:00 — Kablix v2026.8.88
+Généré le 20/08/2026 18:30:12 — Kablix v2026.8.93

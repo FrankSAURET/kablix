@@ -24,6 +24,7 @@ Métadonnées du composant (JSON structuré). Reprend le schéma `CustomPartData
 - `pins` : liste des pattes avec positions
 - `pinRoles`, `attrs`, `params`, `control` : paramétrage
 - `behavior` : nom du fichier script optionnel
+- `help` : langues des fiches d'aide embarquées, ex. `["fr"]`
 
 #### `schema.svg`
 
@@ -33,6 +34,43 @@ Un seul SVG avec groupes optionnels :
 
 Pastilles rouges (`fill="#ee0000"`) marquent les broches ; texte au-dessus porte le nom.
 
+### Propriétés et contrôle de simulation
+
+Les deux vivent dans le manifeste — un composant de bibliothèque est donc
+**réglable** et **pilotable** sans une ligne de code.
+
+`params` : les propriétés du composant, affichées comme champs numériques du
+volet des propriétés et rangées dans l'instance sous `prm_<nom>` (le projecteur
+DMX y met son adresse). Chaque entrée porte `name` (utilisable dans les
+expressions), `label` (affiché) et `value` (valeur par défaut).
+
+```json
+"params": [ { "name": "address", "label": "DMX address", "value": 1 } ]
+```
+
+`control` : le contrôle affiché **sur le composant pendant la simulation**,
+comme pour les capteurs intégrés. `null` ou absent = pas de contrôle.
+
+| Champ | Rôle |
+|-------|------|
+| `type` | `slider` (source analogique) ou `switch` (source numérique 0/1) |
+| `label`, `unit` | Libellé et unité affichés à côté du contrôle |
+| `min`, `max`, `step` | Course du curseur |
+| `expr` | Tension de sortie en volts, `f(x, paramètres)` ; à défaut, rampe linéaire min→max vers 0→Vref |
+
+```json
+"control": { "type": "slider", "label": "Illuminance", "unit": "Lx",
+             "min": 1, "max": 10000, "expr": "5 * r1 / (r1 + x)" }
+```
+
+Un `control` remplace le champ statique de l'inspecteur qui pilotait la même
+sortie (« Position (%) » d'une source analogique, « State » d'une source
+numérique) : il n'y a jamais deux réglages pour une seule sortie.
+
+Les libellés (`label`, `unit`) sont écrits dans la langue de base du paquet ; ils
+ne passent pas par le catalogue de traduction de Kablix, qui ne connaît que ses
+composants intégrés.
+
 ### Fichiers optionnels
 
 #### `thumbnail.webp`
@@ -40,6 +78,29 @@ Miniature 200×150 px (WebP).
 
 #### `behavior.mjs`
 Script de simulation embarqué pour l'animation du composant.
+
+#### `help/<lang>.md` — la fiche d'aide
+
+La documentation du composant, **une par langue** (`help/fr.md`, `help/en.md`) :
+c'est elle qu'ouvre le bouton *Aide du composant* du volet des propriétés. Un
+composant de bibliothèque n'a rien dans `docs/` — sa fiche voyage dans son paquet.
+
+- Même Markdown que les fiches livrées avec Kablix : titre `#`, tableau des
+  pattes, tableau des propriétés, utilisation. Le **titre** donne son nom à
+  l'onglet du panneau d'aide.
+- Les **illustrations** se posent à côté (`help/montage.webp`) et se citent en
+  chemin relatif : `![Montage](montage.webp)`. Elles sont rendues en `data:` URI,
+  rien n'est lu sur le disque.
+- Un lien `[LED](led.md)` ouvre la fiche de l'autre composant, qu'elle vienne de
+  Kablix ou d'un autre `.kompix` installé.
+- Ce sont les **fichiers présents** qui font foi, pas la liste `help` du
+  manifeste : une langue annoncée mais absente n'allume pas le bouton. La langue
+  de VS Code est servie si elle est là, sinon la première disponible.
+
+`scripts/build-kompix.mjs` prend ces fiches dans
+`kablix_components/help/<type>/<lang>.md` et ajoute d'office l'illustration
+`help/<type>.webp` (le dessin du composant en 600 × 450, rendu par Chrome —
+jamais une capture d'écran à la main).
 
 ## API Behavior (behavior.mjs)
 
@@ -76,4 +137,4 @@ Objet `context` expose :
 
 ---
 
-**Date** : 2026-08-18
+**Date** : 2026-08-20

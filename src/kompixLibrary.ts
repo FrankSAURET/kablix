@@ -20,6 +20,47 @@ function viewBoxOf(svg: string): string {
   return w && h ? `0 0 ${w[1]} ${h[1]}` : '0 0 100 100';
 }
 
+/**
+ * Fiches d'aide d'un paquet : `help/<lang>.md`, une par langue (`help/fr.md`).
+ * Les fichiers voisins (`help/montage.webp`…) sont les illustrations de la fiche,
+ * référencées en chemin RELATIF depuis le Markdown.
+ */
+const HELP_SHEET = /^help\/([a-z]{2})\.md$/i;
+
+/** Langues des fiches réellement présentes dans le paquet, triées. */
+function helpLangsOf(zip: JSZip): string[] {
+  const langs = new Set<string>();
+  for (const name of Object.keys(zip.files)) {
+    const m = HELP_SHEET.exec(name);
+    if (m && !zip.files[name].dir) langs.add(m[1].toLowerCase());
+  }
+  return [...langs].sort();
+}
+
+/** Type MIME d'une illustration de fiche, d'après son extension. */
+function mimeOf(name: string): string {
+  switch (extname(name).toLowerCase()) {
+    case '.webp': return 'image/webp';
+    case '.png': return 'image/png';
+    case '.jpg':
+    case '.jpeg': return 'image/jpeg';
+    case '.gif': return 'image/gif';
+    case '.svg': return 'image/svg+xml';
+    case '.mp4': return 'video/mp4';
+    case '.webm': return 'video/webm';
+    default: return 'application/octet-stream';
+  }
+}
+
+/** Fiche d'aide dépliée : son texte et ses illustrations en data: URI. */
+export interface KompixHelp {
+  type: string;
+  lang: string;
+  text: string;
+  /** Nom du fichier tel qu'écrit dans le Markdown → data: URI. */
+  assets: Map<string, string>;
+}
+
 /** Métadonnées d'un composant .kompix sauvegardées en index JSON. */
 interface KompixIndexEntry {
   type: string;
@@ -51,6 +92,8 @@ interface KompixManifest {
   extAnchor?: { x: number; y: number } | null;
   intAnchor?: { x: number; y: number } | null;
   behavior?: string | null; // Nom du fichier .mjs, ex. "behavior.mjs"
+  /** Langues des fiches d'aide embarquées (`help/<lang>.md`), ex. ["fr", "en"]. */
+  help?: string[];
 }
 
 /** Contenu du CustomPartData, cible de la webview. */
@@ -69,6 +112,10 @@ interface CustomPartData {
   params?: Array<{ name: string; label: string; value: number }>;
   control?: any;
   category?: string;
+  /** Le .kompix embarque une fiche d'aide : l'inspecteur montre alors son
+   *  bouton « Aide du composant ». Le texte, lui, reste dans le paquet — il est
+   *  relu à l'ouverture (voir readHelp) plutôt que promené dans la webview. */
+  hasHelp?: boolean;
   /** Script behavior.mjs embarqué (optionnel) : comportement de simulation. */
   behaviorScript?: string;
   /** Métadonnées de confiance du comportement embarqué. */
@@ -108,6 +155,12 @@ export class KompixLibrary {
   private components: Map<string, CustomPartData> = new Map();
   /** Métadonnées du manifeste (description, auteur, référence) que CustomPartData ne porte pas. */
   private manifestMeta: Map<string, { description?: string; version?: string; author?: string; reference?: string }> = new Map();
+  /** Fichier .kompix d'où vient chaque composant : c'est là qu'on relira sa fiche
+   *  d'aide. Le nom du paquet ne fait PAS foi (un fichier posé à la main peut
+   *  s'appeler autrement que son type), on retient donc le chemin lu au scan. */
+  private sources: Map<string, string> = new Map();
+  /** Langues des fiches d'aide trouvées dans chaque paquet (`help/<lang>.md`). */
+  private helpLangs: Map<string, string[]> = new Map();
   private onComponentsChanged: ((parts: CustomPartData[]) => void) | undefined;
   /** Promesse du premier scan (voir start / whenReady). */
   private started: Promise<void> | undefined;
@@ -191,6 +244,8 @@ export class KompixLibrary {
   private async scanLibrary(): Promise<void> {
     this.components.clear();
     this.manifestMeta.clear();
+    this.sources.clear();
+    this.helpLangs.clear();
     try {
       const files = readdirSync(this.libraryFolder);
       for (const file of files) {
@@ -246,6 +301,14 @@ export class KompixLibrary {
         }
       }
 
+      // Fiches d'aide embarquées : on ne retient QUE les langues présentes.
+      // Le manifeste peut les annoncer, mais ce sont les fichiers réellement
+      // dans le paquet qui font foi — un manifeste qui promet une fiche absente
+      // allumerait un bouton d'aide qui n'ouvrirait rien.
+      const langs = helpLangsOf(zip);
+      if (langs.length) this.helpLangs.set(manifest.type, langs);
+      this.sources.set(manifest.type, path);
+
       // Récupérer les métadonnées de confiance
       const indexEntry = this.index.get(manifest.type);
 
@@ -275,6 +338,7 @@ export class KompixLibrary {
         params: manifest.params,
         control: manifest.control,
         category: manifest.category,
+        hasHelp: langs.length > 0 || undefined,
         behaviorScript: behaviorScript,
         kompixMeta: indexEntry ? {
           origin: indexEntry.origin,
@@ -542,6 +606,51 @@ export class KompixLibrary {
     }
   }
 
+  /** Langues de la fiche d'aide embarquée, vide si le paquet n'en a pas. */
+  helpLanguages(type: string): string[] {
+    return this.helpLangs.get(type) ?? [];
+  }
+
+  /**
+   * Fiche d'aide d'un composant de bibliothèque, dans la langue demandée sinon
+   * dans la première disponible (les fiches sont écrites en français, langue de
+   * base des documents du projet ; la version anglaise arrive avec le lot de
+   * traduction). Le paquet est RELU ici : garder en mémoire le texte et les
+   * images de chaque composant installé coûterait cher pour un panneau qui
+   * s'ouvre une fois de temps en temps.
+   */
+  async readHelp(type: string, lang: string): Promise<KompixHelp | undefined> {
+    const langs = this.helpLangs.get(type);
+    const source = this.sources.get(type);
+    if (!langs?.length || !source) return undefined;
+    const chosen = langs.includes(lang) ? lang : langs[0];
+    try {
+      const data = readFileSync(source);
+      const zip = new JSZip();
+      await zip.loadAsync(new Uint8Array(data.buffer, data.byteOffset, data.length));
+      const sheet = zip.file(`help/${chosen}.md`);
+      if (!sheet) return undefined;
+      const text = await sheet.async('string');
+
+      // Illustrations : tout ce qui accompagne les fiches dans `help/`, plus la
+      // vignette du gestionnaire (une fiche peut la reprendre en tête).
+      const assets = new Map<string, string>();
+      for (const name of Object.keys(zip.files)) {
+        const file = zip.files[name];
+        if (file.dir || HELP_SHEET.test(name)) continue;
+        if (!name.startsWith('help/') && name !== 'thumbnail.webp') continue;
+        const bytes = await file.async('uint8array');
+        const uri = `data:${mimeOf(name)};base64,${Buffer.from(bytes).toString('base64')}`;
+        assets.set(name, uri);
+        assets.set(name.replace(/^help\//, ''), uri); // référence relative à la fiche
+      }
+      return { type, lang: chosen, text, assets };
+    } catch (err) {
+      console.error(`Erreur lecture de l'aide ${type}:`, err);
+      return undefined;
+    }
+  }
+
   /**
    * Retourne l'entry d'index pour un composant (origin + hash).
    */
@@ -652,6 +761,17 @@ export class KompixLibrary {
       behavior: data.behaviorScript ? 'behavior.mjs' : null,
     };
 
+    // Fiche d'aide déjà présente dans le paquet installé : elle est RECOPIÉE
+    // telle quelle. Elle ne voyage pas dans CustomPartData (seul `hasHelp` en
+    // vient), un réenregistrement l'effacerait donc en silence.
+    const helpFiles = await this.helpFilesOf(data.type);
+    if (helpFiles.size) {
+      manifest.help = [...helpFiles.keys()]
+        .map((name) => HELP_SHEET.exec(name)?.[1]?.toLowerCase())
+        .filter((lang): lang is string => !!lang)
+        .sort();
+    }
+
     zip.file('manifest.json', JSON.stringify(manifest, null, 2));
 
     const schema = this.mergeSvgsForKompix(data.type, data.svg, data.innerSvg);
@@ -660,8 +780,29 @@ export class KompixLibrary {
     if (data.behaviorScript) {
       zip.file('behavior.mjs', data.behaviorScript);
     }
+    for (const [name, bytes] of helpFiles) zip.file(name, bytes);
 
     return await zip.generateAsync({ type: 'uint8array' });
+  }
+
+  /** Fichiers de `help/` du paquet installé (fiches et illustrations), tels quels. */
+  private async helpFilesOf(type: string): Promise<Map<string, Uint8Array>> {
+    const out = new Map<string, Uint8Array>();
+    const source = this.sources.get(type);
+    if (!source || !this.helpLangs.get(type)?.length) return out;
+    try {
+      const data = readFileSync(source);
+      const zip = new JSZip();
+      await zip.loadAsync(new Uint8Array(data.buffer, data.byteOffset, data.length));
+      for (const name of Object.keys(zip.files)) {
+        const file = zip.files[name];
+        if (file.dir || !name.startsWith('help/')) continue;
+        out.set(name, await file.async('uint8array'));
+      }
+    } catch (err) {
+      console.error(`Erreur relecture de l'aide ${type}:`, err);
+    }
+    return out;
   }
 
   /**

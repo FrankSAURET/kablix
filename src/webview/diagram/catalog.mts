@@ -239,6 +239,8 @@ export interface PartDef {
     control?: CustomControl;
     /** Catégorie de palette assignée (clé de CATEGORY_ORDER). */
     category?: string;
+    /** Fiche d'aide embarquée dans le .kompix (bouton « Aide du composant »). */
+    hasHelp?: boolean;
   };
   /**
    * Variante d'un composant déjà listé : le type reste parfaitement valide
@@ -281,6 +283,9 @@ export interface CustomPartData {
   /** Catégorie de palette assignée (clé de CATEGORY_ORDER) ; absente = section
    *  « Composants personnalisés ». */
   category?: string;
+  /** Le paquet .kompix embarque une fiche d'aide : l'inspecteur montre alors son
+   *  bouton « Aide du composant ». Le texte reste côté extension. */
+  hasHelp?: boolean;
   /** Script behavior.mjs embarqué (optionnel) : comportement de simulation. */
   behaviorScript?: string;
   /** Métadonnées provenance + confiance (kompix uniquement, Lot 2). */
@@ -1256,6 +1261,7 @@ export function registerCustomPart(data: CustomPartData): PartDef {
       params: data.params,
       control: data.control,
       category: data.category,
+      hasHelp: data.hasHelp,
     },
     analogPin: data.kind === 'analog-source' ? data.pinRoles?.['AO'] ?? 'AO' : undefined,
     digitalPin: data.kind === 'digital-source' ? data.pinRoles?.['OUT'] ?? 'OUT' : undefined,

@@ -22,7 +22,7 @@ import {
   type ProjixDebugVars,
 } from './projix';
 import { resolveMicropythonFirmware, FirmwareCancelled } from './firmware';
-import { PartHelpPanel } from './partHelp';
+import { showPartHelp } from './partHelp';
 import { codeColumn, moveEditorToColumn, textTabColumn } from './layout';
 import { defaultAppsDirPath, detectSvgEditor, svgEditorLaunch } from './svgEditorDetect';
 import { syncArduinoIdeBoard } from './arduinoIde';
@@ -1620,7 +1620,9 @@ export class SimulatorPanel {
         // convient pas : il bloque les images atteintes par « ../.. » quand la
         // fiche n'est pas dans le workspace (cas du .vsix installé) — cf. partHelp.ts.
         if (typeof msg.part === 'string' && /^[a-z0-9-]+$/i.test(msg.part)) {
-          void PartHelpPanel.show(this.extensionUri, msg.part).then((found) => {
+          // Composant de bibliothèque : sa fiche voyage DANS son .kompix, il
+          // n'y en a pas dans docs/ — la bibliothèque prend alors le relais.
+          void showPartHelp(this.extensionUri, msg.part, SimulatorPanel.library).then((found) => {
             if (!found) void vscode.window.showInformationMessage(vscode.l10n.t('No help available for this part yet.'));
           });
         }
@@ -1800,14 +1802,18 @@ export class SimulatorPanel {
    * installée, sinon l'ancien état global. Le script de comportement est retiré
    * — un .projix venu d'ailleurs ne doit pas transporter de code exécutable, et
    * le composant, lui, s'installe par son .kompix.
+   *
+   * `hasHelp` part avec lui : la fiche vit dans le paquet, pas dans le projet.
+   * Le garder allumerait, chez qui n'a pas installé le composant, un bouton
+   * d'aide qui n'ouvrirait rien.
    */
   private customPartsForProjix(): unknown[] {
     const parts =
       SimulatorPanel.library?.getComponents?.() ??
       this.context.globalState.get<unknown[]>(CUSTOM_PARTS_KEY, []);
     return (parts as any[]).map((p) => {
-      if (!p?.behaviorScript) return p;
-      const { behaviorScript: _drop, ...rest } = p;
+      if (!p?.behaviorScript && !p?.hasHelp) return p;
+      const { behaviorScript: _drop, hasHelp: _drop2, ...rest } = p;
       return rest;
     });
   }

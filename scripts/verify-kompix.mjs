@@ -256,6 +256,46 @@ test('les métadonnées du manifeste reviennent intactes', async () => {
   eq(relu.innerOffset.y, 6, 'décalage interne');
 });
 
+test('les propriétés et le contrôle de simulation reviennent intacts', async () => {
+  // Ce que le format doit porter pour qu'un composant de bibliothèque soit
+  // RÉGLABLE (champs de l'inspecteur, `prm_<nom>`) et PILOTABLE en simulation
+  // (curseur ou interrupteur posé sur le composant) — sans quoi il ne serait
+  // qu'un dessin câblable.
+  const relu = await allerRetour({
+    type: 'test-reglages',
+    label: 'Réglable',
+    kind: 'analog-source',
+    pins: [{ name: 'AO', x: 0, y: 10 }, { name: 'GND', x: 20, y: 10 }],
+    pinRoles: { AO: 'AO' },
+    params: [
+      { name: 'r1', label: 'Résistance à 1 Lx (Ω)', value: 12000 },
+      { name: 'gamma', label: 'Gamma', value: 0.7 },
+    ],
+    control: { type: 'slider', label: 'Éclairement', unit: 'Lx', min: 1, max: 10000, step: 1, expr: '5 * r1 / (r1 + x)' },
+    svg: '<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><rect width="20" height="20"/></svg>',
+  });
+  eq(relu.params.length, 2, 'nombre de paramètres');
+  eq(relu.params[1].name, 'gamma', 'nom du second paramètre');
+  eq(relu.params[1].value, 0.7, 'valeur décimale de paramètre');
+  eq(relu.control.type, 'slider', 'type de contrôle');
+  eq(relu.control.unit, 'Lx', 'unité du contrôle');
+  eq(relu.control.max, 10000, 'borne haute du contrôle');
+  eq(relu.control.expr, '5 * r1 / (r1 + x)', 'caractéristique du contrôle');
+});
+
+test('un composant sans contrôle de simulation n’en invente pas', async () => {
+  const relu = await allerRetour({
+    type: 'test-sans-controle',
+    label: 'Sans contrôle',
+    kind: 'passive',
+    pins: [],
+    svg: '<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><rect width="20" height="20"/></svg>',
+  });
+  // `null` au manifeste, rien du tout côté composant : c'est `!!control` qui
+  // décide de poser un curseur, un objet vide en ferait apparaître un.
+  if (relu.control) throw new Error(`contrôle inventé : ${JSON.stringify(relu.control)}`);
+});
+
 test('un composant sans schéma interne n’en invente pas', async () => {
   const relu = await allerRetour({
     type: 'test-sans-interne',

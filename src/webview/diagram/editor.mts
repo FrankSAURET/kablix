@@ -5668,8 +5668,10 @@ export class Editor {
     this.inspector.appendChild(subtitle);
 
     // Bouton d'aide locale sur le composant (fiche hors-ligne, docs/<lang>/composants).
-    // Affiché pour les composants intégrés (les composants perso n'ont pas de fiche).
-    if (def.tag !== 'kablix-custom-part') {
+    // Un composant intégré a toujours la sienne ; un composant de bibliothèque
+    // n'en a que si son .kompix en embarque une (`hasHelp`) — le fait maison
+    // dessiné ici, lui, n'a rien à ouvrir.
+    if (def.tag !== 'kablix-custom-part' || def.custom?.hasHelp) {
       const help = document.createElement('button');
       help.className = 'inspector__doc';
       help.textContent = t('Component help'); // l'icône vient du CSS (--kx-help-icon)

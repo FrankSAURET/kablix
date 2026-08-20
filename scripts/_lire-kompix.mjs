@@ -76,6 +76,13 @@ export async function lireKompix(ref) {
   if (!schemaFile) throw new Error(`${path} : schema.svg absent`);
   const svg = await schemaFile.async('string');
 
+  // Fiches d'aide embarquées : `help/<lang>.md`. Ce sont les fichiers présents
+  // qui font foi, pas la liste annoncée par le manifeste.
+  const helpLangs = Object.keys(zip.files)
+    .map((n) => (zip.files[n].dir ? null : /^help\/([a-z]{2})\.md$/i.exec(n)?.[1]?.toLowerCase()))
+    .filter(Boolean)
+    .sort();
+
   let behaviorScript;
   if (manifest.behavior) {
     const f = zip.file(manifest.behavior);
@@ -97,10 +104,37 @@ export async function lireKompix(ref) {
     params: manifest.params,
     control: manifest.control,
     category: manifest.category,
+    hasHelp: helpLangs.length > 0 || undefined,
     behaviorScript,
   };
   for (const k of Object.keys(part)) if (part[k] === undefined) delete part[k];
   return part;
+}
+
+/** Fiche d'aide d'un .kompix : son Markdown et ses illustrations en data: URI. */
+export async function lireAideKompix(ref, lang = 'fr') {
+  const path = ref.endsWith('.kompix') ? ref : join(KOMPIX_DIR, `${ref}.kompix`);
+  const zip = await JSZip.loadAsync(readFileSync(path));
+  const langs = Object.keys(zip.files)
+    .map((n) => (zip.files[n].dir ? null : /^help\/([a-z]{2})\.md$/i.exec(n)?.[1]?.toLowerCase()))
+    .filter(Boolean)
+    .sort();
+  if (!langs.length) return null;
+  const chosen = langs.includes(lang) ? lang : langs[0];
+  const text = await zip.file(`help/${chosen}.md`).async('string');
+
+  const assets = new Map();
+  for (const name of Object.keys(zip.files)) {
+    const f = zip.files[name];
+    if (f.dir || /^help\/[a-z]{2}\.md$/i.test(name)) continue;
+    if (!name.startsWith('help/') && name !== 'thumbnail.webp') continue;
+    const b64 = Buffer.from(await f.async('uint8array')).toString('base64');
+    const mime = name.endsWith('.png') ? 'image/png' : name.endsWith('.svg') ? 'image/svg+xml' : 'image/webp';
+    assets.set(name, `data:${mime};base64,${b64}`);
+    assets.set(name.replace(/^help\//, ''), `data:${mime};base64,${b64}`);
+  }
+  const manifest = JSON.parse(await zip.file('manifest.json').async('string'));
+  return { type: manifest.type, lang: chosen, langs, text, assets };
 }
 
 /** Les composants .kompix d'une liste de types, dans l'ordre demandé. */

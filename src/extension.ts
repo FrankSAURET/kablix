@@ -8,7 +8,7 @@ import { registerProjixEditor, ProjixEditorProvider } from './projix-editor';
 import { associateProjix, promptProjixAssociationOnFirstRun } from './associate';
 import { promptRecommendedExtensions } from './recommend';
 import { announceComponentLibrary } from './announce';
-import { PartHelpPanel, SHOW_PART_HELP } from './partHelp';
+import { showPartHelp, SHOW_PART_HELP } from './partHelp';
 import { ComponentManagerPanel } from './componentManager';
 import { openNewProjix, openOrRevealProjix } from './openproject';
 import { KompixLibrary } from './kompixLibrary';
@@ -203,7 +203,9 @@ export function activate(context: vscode.ExtensionContext): void {
     // absente de la palette ; seule la webview d'aide l'appelle (command URI).
     vscode.commands.registerCommand(SHOW_PART_HELP, (type: unknown) => {
       if (typeof type === 'string' && /^[a-z0-9-]+$/i.test(type)) {
-        void PartHelpPanel.show(context.extensionUri, type);
+        // La bibliothèque est passée : un lien peut mener à la fiche d'un
+        // composant .kompix aussi bien qu'à celle d'un composant intégré.
+        void showPartHelp(context.extensionUri, type, kompixLibrary);
       }
     }),
     // Navigation d'un guide à l'autre (liens entre USAGE.md et les guides

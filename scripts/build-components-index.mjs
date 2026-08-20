@@ -86,6 +86,8 @@ Fichier ZIP contenant :
 - \`schema.svg\` : dessin externe et optionnel schéma interne
 - \`thumbnail.webp\` : miniature optionnelle
 - \`behavior.mjs\` : code de simulation optionnel
+- \`help/<lang>.md\` : fiche d'aide du composant, ouverte par le bouton **Aide du
+  composant** du volet des propriétés (ses illustrations sont posées à côté)
 
 Voir [kompix_specification.md](../docs/kompix_specification.md) pour les détails.
 

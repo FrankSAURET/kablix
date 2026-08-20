@@ -1,9 +1,21 @@
 # À faire
-## suite en attente ne pas faire pour l'instant
+## Pour plus tard
 1. Traduit tout ce qui manque
-1. mets à jour changelog et readme
+1. mets à jour changelog, usage et readme
 1. je vais publier.
 1. **`verify:i18n`** : toujours le même unique échec connu — « Export this part (.kompix) » ([editor.mts](src/webview/diagram/editor.mts)) attend le lot de traduction d'avant publication.
+
+# >>>>  v2026.8.94 — Un composant de bibliothèque emporte sa fiche d'aide dans son paquet
+
+1. ✅ **L'aide voyage DANS le `.kompix`** ([kompixLibrary.ts](src/kompixLibrary.ts), [kompix_specification.md](docs/kompix_specification.md)) : un composant de bibliothèque n'a rien dans `docs/` — sa fiche devait donc tenir dans son paquet. Nouvelle entrée `help/<lang>.md` (+ ses images posées à côté) et champ `help: ["fr", …]` au manifeste. Ce sont les **fichiers présents** qui font foi, jamais la liste du manifeste : un manifeste menteur n'allume pas le bouton. La fiche est **relue à la demande** dans le zip — rien n'est gardé en mémoire ni promené dans la webview, seul un booléen `hasHelp` transite.
+2. ✅ **Bouton « Aide du composant » dans le volet des propriétés** ([editor.mts](src/webview/diagram/editor.mts), [catalog.mts](src/webview/diagram/catalog.mts)) : il était réservé aux composants natifs (`def.tag !== 'kablix-custom-part'`). Il apparaît maintenant aussi pour un composant de bibliothèque **qui a une fiche**, et reste absent pour les autres — pas de bouton qui ouvre le vide.
+3. ✅ **Panneau d'aide généralisé** ([partHelp.ts](src/partHelp.ts), [extension.ts](src/extension.ts), [panel.ts](src/panel.ts)) : nouvelle porte d'entrée `showPartHelp()` — fiche du dépôt d'abord, fiche embarquée ensuite, repli sur la première langue disponible si la langue de VS Code manque. Les illustrations embarquées sont servies en **data: URI** (CSP `media-src … data:`), donc sans écrire un seul fichier temporaire.
+4. ✅ **Un `.projix` n'emporte pas `hasHelp`** ([panel.ts](src/panel.ts)) : gravé dans le projet, il allumerait un bouton inopérant chez quelqu'un qui n'a pas installé le composant. Retiré à l'enregistrement, comme l'est déjà le script de comportement.
+5. ✅ **Réenregistrer un composant ne perd plus sa fiche** ([kompixLibrary.ts](src/kompixLibrary.ts)) : le paquet reconstruit depuis les données du catalogue recopie les fichiers `help/` du paquet d'origine et rebâtit `manifest.help`.
+6. ✅ **Deux fiches FR écrites** : [spot](kablix_components/help/spot/fr.md) (PAR 38 DMX — broches, adresse, UART matériel *et* DmxSimple bit-bang) et [dmx-grove](kablix_components/help/dmx-grove/fr.md) (les 7 broches du Grove DMX512 et le câblage), qui se citent l'une l'autre. Leur illustration 600 × 450 est produite par Chrome à la construction du paquet ([build-kompix.mjs](scripts/build-kompix.mjs)) — jamais une capture d'écran à la main.
+7. ✅ **Nouveau banc [verify-kompix-help.mjs](scripts/verify-kompix-help.mjs) : 38 contrôles** (`verify:kompixhelp`, branché dans `verify:all`) — quatre étages : le contenu réel des paquets (fiche, manifeste, illustration, images citées présentes, liens entre fiches valides) ; la **VRAIE** `KompixLibrary` bundlée avec un stub `vscode`, lâchée sur un dossier temporaire avec un paquet témoin **sans** aide ; le **VRAI** rendu Markdown (data: URI, tableaux) ; et le **VRAI** éditeur dans Chrome — bouton présent pour `spot`, absent pour le témoin, clic sur le bon type. Contre-épreuve faite : l'ancienne condition rallume l'échec.
+8. ✅ **Propriétés et contrôle de simulation : oui, c'était déjà prévu — c'est maintenant prouvé** ([verify-kompix.mjs](scripts/verify-kompix.mjs), 24 contrôles) : les `params` du manifeste deviennent des propriétés `prm_<nom>` du composant et `control` devient son outil de simulation (curseur, bouton). Deux tests de plus verrouillent l'aller-retour complet — plusieurs paramètres, valeur décimale, curseur avec unité/bornes/expression — et vérifient qu'un composant **sans** contrôle n'en invente pas. Le tout décrit dans [kompix_specification.md](docs/kompix_specification.md).
+9. ⏳ **`help/en.md`** : les deux fiches sont en FR seulement — la version EN attend le lot de traduction d'avant publication (le repli sur la première langue disponible fait que l'aide s'ouvre quand même).
 
 # >>>>  v2026.8.93 — Les LED du projecteur DMX sont bombées, plus découpées dans du papier
 

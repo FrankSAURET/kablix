@@ -13,13 +13,20 @@
 //                      que le contenu du groupe, un dégradé laissé dehors serait
 //                      perdu et le composant s'afficherait en noir ;
 //   - manifest.json  : identité, brochage, classement ;
-//   - thumbnail.webp : vignette 200 × 150 du gestionnaire (rendue par Chrome).
+//   - thumbnail.webp : vignette 200 × 150 du gestionnaire (rendue par Chrome) ;
+//   - help/<lang>.md : la fiche d'aide du composant, prise dans
+//                      `kablix_components/help/<type>/<lang>.md`, avec les images
+//                      posées à côté d'elle. C'est ELLE qu'ouvre le bouton
+//                      « Aide du composant » de l'inspecteur : un composant de
+//                      bibliothèque n'a rien dans `docs/`, son aide voyage dans
+//                      son paquet. `help/<type>.webp` (illustration du dessin,
+//                      600 × 450) est ajoutée d'office, comme la vignette.
 //
 // Usage : node scripts/build-kompix.mjs            (tous les composants décrits)
 //         node scripts/build-kompix.mjs spot       (celui-là seulement)
 import JSZip from 'jszip';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { extraireDessins, findChrome } from './_extract-composants.mjs';
@@ -28,9 +35,12 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_DIR = join(ROOT, 'kablix_components');
 const SCRATCH = join(ROOT, 'node_modules', '.cache-composants');
 const SOURCES = join(OUT_DIR, '_sources.json');
+const HELP_DIR = join(OUT_DIR, 'help');
 
 /** Vignette du gestionnaire de composants. */
 const VIGNETTE = { w: 200, h: 150 };
+/** Illustration de tête de fiche (le dessin, en grand). */
+const ILLUSTRATION = { w: 600, h: 450 };
 
 /**
  * Noms de pattes uniques. Deux pastilles peuvent porter le MÊME nom sur la
@@ -74,26 +84,34 @@ function contenu(item) {
   return (item.defs.length ? `<defs>${item.defs.join('')}</defs>` : '') + item.body;
 }
 
-/** Vignettes WebP : un seul passage de Chrome pour tout le lot. */
+/**
+ * Images WebP du lot, en un seul passage de Chrome : la vignette du gestionnaire
+ * ET l'illustration de tête de fiche, qui est le même dessin en plus grand —
+ * jamais une capture d'écran à la main.
+ */
 function vignettes(dessins) {
   mkdirSync(SCRATCH, { recursive: true });
   const page = join(SCRATCH, 'kompix-thumbs.html');
   const svgs = dessins.map((d) => Buffer.from(d.svg, 'utf8').toString('base64'));
   writeFileSync(page, `<!doctype html><meta charset="utf-8"><body><pre id="out"></pre><script>
 const SVGS = ${JSON.stringify(svgs)};
-const W = ${VIGNETTE.w}, H = ${VIGNETTE.h};
+const TAILLES = ${JSON.stringify([VIGNETTE, ILLUSTRATION])};
 (async () => {
   const parts = [];
   for (const b64 of SVGS) {
     const img = new Image();
     await new Promise((ok, ko) => { img.onload = ok; img.onerror = ko; img.src = 'data:image/svg+xml;base64,' + b64; });
-    // Dessin CONTENU dans la vignette, proportions gardées, fond transparent.
-    const c = document.createElement('canvas');
-    c.width = W; c.height = H;
-    const k = Math.min(W / img.width, H / img.height);
-    const w = img.width * k, h = img.height * k;
-    c.getContext('2d').drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
-    parts.push(c.toDataURL('image/webp', 0.92).split(',')[1]);
+    const rendus = [];
+    for (const { w: W, h: H } of TAILLES) {
+      // Dessin CONTENU dans le cadre, proportions gardées, fond transparent.
+      const c = document.createElement('canvas');
+      c.width = W; c.height = H;
+      const k = Math.min(W / img.width, H / img.height);
+      const w = img.width * k, h = img.height * k;
+      c.getContext('2d').drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
+      rendus.push(c.toDataURL('image/webp', 0.92).split(',')[1]);
+    }
+    parts.push(rendus);
   }
   document.getElementById('out').textContent = JSON.stringify(parts);
 })();
@@ -105,7 +123,33 @@ const W = ${VIGNETTE.w}, H = ${VIGNETTE.h};
   const b = dom.indexOf('</pre>', a);
   const raw = dom.slice(a, b).replace(/&quot;/g, '"').replace(/&amp;/g, '&');
   if (!raw.trim().startsWith('[')) throw new Error(`vignettes : réponse inattendue de Chrome (${raw.slice(0, 200)})`);
-  return JSON.parse(raw).map((b64) => Buffer.from(b64, 'base64'));
+  return JSON.parse(raw).map(([thumb, illu]) => ({
+    thumb: Buffer.from(thumb, 'base64'),
+    illustration: Buffer.from(illu, 'base64'),
+  }));
+}
+
+/**
+ * Fiches d'aide et images à embarquer, prises dans `kablix_components/help/<type>/`.
+ * Convention : un fichier `<lang>.md` par langue (`fr.md`, la langue de base des
+ * documents du projet), les illustrations posées à CÔTÉ et référencées en chemin
+ * relatif depuis le Markdown (`![…](montage.webp)`).
+ */
+function aide(type) {
+  const dir = join(HELP_DIR, type);
+  if (!existsSync(dir)) return { langs: [], files: new Map() };
+  const langs = [];
+  const files = new Map();
+  for (const name of readdirSync(dir)) {
+    const lang = /^([a-z]{2})\.md$/i.exec(name)?.[1]?.toLowerCase();
+    if (lang) {
+      langs.push(lang);
+      files.set(`${lang}.md`, readFileSync(join(dir, name)));
+    } else if (/\.(webp|png|jpe?g|gif|svg|mp4|webm)$/i.test(name)) {
+      files.set(name, readFileSync(join(dir, name)));
+    }
+  }
+  return { langs: langs.sort(), files };
 }
 
 async function main() {
@@ -162,16 +206,25 @@ async function main() {
       params: comp.params,
       control: comp.control ?? null,
     };
+    const fiche = aide(comp.type);
+    if (fiche.langs.length) manifest.help = fiche.langs;
     for (const k of Object.keys(manifest)) if (manifest[k] === undefined) delete manifest[k];
 
     const zip = new JSZip();
     zip.file('manifest.json', JSON.stringify(manifest, null, 2));
     zip.file('schema.svg', schema);
-    zip.file('thumbnail.webp', thumbs[i]);
+    zip.file('thumbnail.webp', thumbs[i].thumb);
+    if (fiche.langs.length) {
+      // L'illustration de tête est refaite à chaque construction : elle suit le
+      // dessin de la planche, la fiche n'a qu'à la nommer `<type>.webp`.
+      zip.file(`help/${comp.type}.webp`, thumbs[i].illustration);
+      for (const [name, bytes] of fiche.files) zip.file(`help/${name}`, bytes);
+    }
     const buf = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 9 } });
     const file = join(OUT_DIR, `${comp.type}.kompix`);
     writeFileSync(file, buf);
-    console.log(`  ✓ ${comp.type}.kompix  (${(buf.length / 1024).toFixed(1)} Ko, viewBox ${ext.viewBox}${int ? ', schéma interne' : ''})`);
+    const mentionAide = fiche.langs.length ? `, aide ${fiche.langs.join('/')}` : ', SANS aide';
+    console.log(`  ✓ ${comp.type}.kompix  (${(buf.length / 1024).toFixed(1)} Ko, viewBox ${ext.viewBox}${int ? ', schéma interne' : ''}${mentionAide})`);
     console.log(`    pins : ${pins.map((p) => `${p.name}(${p.x},${p.y})`).join(' ')}`);
   }
   console.log(`\n→ ${dessins.length} paquet(s) dans kablix_components/ — lancer « node scripts/build-components-index.mjs » pour l'index.`);
