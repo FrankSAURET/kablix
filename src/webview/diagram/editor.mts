@@ -1549,7 +1549,7 @@ export class Editor {
     }
 
     const create = document.createElement('button');
-    create.className = 'palette__item palette__item--create';
+    create.className = 'palette__item palette__item--action palette__item--create';
     create.textContent = t('+ Create a part');
     create.addEventListener('click', () => this.creator.open());
     this.palette.appendChild(create);
@@ -1558,7 +1558,7 @@ export class Editor {
     // Mis en évidence aux couleurs du bouton principal du thème (demande de
     // Frank, v2026.8.91) : c'est de là qu'on peuple la palette.
     const importBtn = document.createElement('button');
-    importBtn.className = 'palette__item palette__item--manage';
+    importBtn.className = 'palette__item palette__item--action palette__item--manage';
     importBtn.textContent = t('⚙ Manage components');
     // window.postMessage ne sort pas de la webview : c'est l'hôte qui ouvre le
     // gestionnaire, donc il faut passer par le rappel branché sur vscode.postMessage.
@@ -1596,8 +1596,12 @@ export class Editor {
         collapsed = !!child.dataset.section && this.paletteCollapsed.has(child.dataset.section);
         continue;
       }
+      // Les boutons d'ACTION (« + Créer », « ⚙ Gérer ») ne sont pas des composants :
+      // ni la recherche ni le repli de la dernière section ne doivent les masquer.
+      // Ils sont posés après la dernière section, donc `collapsed` vaut encore celui
+      // de cette section — sans cette exclusion, replier la dernière les fait disparaître.
       const isItem =
-        (child.classList.contains('palette__item') && !child.classList.contains('palette__item--create')) ||
+        (child.classList.contains('palette__item') && !child.classList.contains('palette__item--action')) ||
         child.classList.contains('palette__custom');
       if (!isItem) continue;
       const label = child.dataset.search ?? foldText(child.textContent ?? '');

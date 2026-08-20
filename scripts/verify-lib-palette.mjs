@@ -114,6 +114,51 @@ async function run() {
 	ok('palette : plus de bouton « Import components »',
 		!lignes().some((r) => (r.textContent || '').includes('Import components')), 'ancien libellé encore présent');
 
+	// --- Repro Frank : « du coup il a disparu » (v2026.8.92) -------------------
+	// Le bouton ⚙ est posé APRÈS la dernière section ; filterPalette() le prenait
+	// pour un composant, donc le repli de cette dernière section (et toute
+	// recherche sans réponse) le masquait. « + Create a part » y échappait déjà.
+	const creer = lignes().find((r) => (r.textContent || '').includes('Create a part'));
+	const visible = (el) => !!el && el.style.display !== 'none';
+	const entetes = () => [...document.querySelectorAll('.palette__section--collapsible')];
+
+	const derniere = entetes()[entetes().length - 1];
+	ok('palette : au moins une section repliable', !!derniere, entetes().length + ' en-tête(s)');
+	derniere?.click();
+	await wait(30);
+	ok('repli de la DERNIÈRE section : le bouton ⚙ reste visible', visible(gerer),
+		gerer ? 'display=' + gerer.style.display : 'bouton absent');
+	ok('repli de la DERNIÈRE section : « + Create a part » reste visible', visible(creer),
+		creer ? 'display=' + creer.style.display : 'bouton absent');
+
+	// Toutes les sections repliées : même exigence.
+	for (const h of entetes()) if (!h.classList.contains('palette__section--collapsed')) h.click();
+	await wait(30);
+	ok('toutes sections repliées : le bouton ⚙ reste visible', visible(gerer),
+		gerer ? 'display=' + gerer.style.display : 'bouton absent');
+	for (const h of entetes()) if (h.classList.contains('palette__section--collapsed')) h.click();
+	await wait(30);
+
+	// Recherche sans réponse : les boutons d'action ne sont pas des composants.
+	const champ = document.querySelector('.palette__search');
+	ok('palette : champ de recherche présent', !!champ, champ ? '' : 'absent');
+	if (champ) {
+		champ.value = 'zzzzz-aucun-composant';
+		champ.dispatchEvent(new Event('input'));
+		await wait(30);
+		ok('recherche sans réponse : le bouton ⚙ reste visible', visible(gerer),
+			gerer ? 'display=' + gerer.style.display : 'bouton absent');
+		ok('recherche sans réponse : « + Create a part » reste visible', visible(creer),
+			creer ? 'display=' + creer.style.display : 'bouton absent');
+		ok('recherche sans réponse : les composants, eux, sont masqués',
+			!visible(trouve('Fait maison')), 'le témoin est resté affiché');
+		champ.value = '';
+		champ.dispatchEvent(new Event('input'));
+		await wait(30);
+		ok('recherche vidée : les composants reviennent', visible(trouve('Fait maison')),
+			'le témoin ne revient pas');
+	}
+
 	const out = document.createElement('pre');
 	out.id = 'measures';
 	out.textContent = JSON.stringify(checks);

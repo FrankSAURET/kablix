@@ -502,6 +502,10 @@ textarea {
   padding: 0 0.4rem;
 }
 
+/* Marqueur des boutons d'ACTION de la palette (créer, gérer) : ils ne sont pas
+   des composants, la recherche et le repli des sections les laissent tranquilles
+   (voir filterPalette dans editor.mts). Pas de style propre : seul le nom compte. */
+
 .palette__item--create {
   border-style: dashed;
   opacity: 0.85;
