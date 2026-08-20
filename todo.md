@@ -3,7 +3,7 @@
    - exclusions Defender sur les dossiers de compilation (`%LOCALAPPDATA%\Arduino15`, `%TEMP%\arduino`, le dépôt) — commande prête dans la section v2026.8.90 ;
    - la fenêtre VS Code qui fait tourner les 8 `cpptools-srv2` (le réglage de dépôt les bride ici, pas ailleurs) ;
    - `dist/` et `node_modules/` synchronisés par OneDrive : chaque build renvoie 3,4 Mo dans le nuage.
-2. **Sortir les dessins du bundle de la webview** : 2,55 Mo de SVG sur 3,39 Mo (**75 %**) sont inlinés dans `dist/webview.js`, alors qu'un projet en affiche cinq ou six. Les charger à la demande depuis `dist/parts/`, comme les posters de brochage (`dist/pinout/`, déjà en place). Chantier à part : 70 composants, et le SVG arriverait après le premier rendu.
+2. ⏳ **Sortir les dessins du bundle de la webview — mesuré, et ça ne vaut pas le prix.** Les 2,55 Mo de SVG sur 3,39 Mo (75 % de `dist/webview.js`) coûtent, chronomètre en main dans un vrai Chrome, **117 à 310 ms** au chargement contre **32 à 40 ms** sans eux. Une centaine de millisecondes gagnées contre 70 composants à rendre asynchrones (le dessin arriverait après le premier rendu, et tous les bancs qui mesurent des positions de pattes seraient à revoir). À rouvrir seulement si le chargement redevient un problème une fois la machine dégagée.
 
 3. **`verify:i18n`** : toujours le même unique échec connu — « Export this part (.kompix) » ([editor.mts](src/webview/diagram/editor.mts)) attend le lot de traduction d'avant publication.
 
@@ -20,6 +20,7 @@
 8. ℹ️ **Le cache de build d'arduino-cli fonctionne** (« Using precompiled core »), et un `--build-path` fixe ne change rien (23-29 s dans les deux cas) : la lenteur n'est pas une invalidation de cache, c'est le débit de la machine.
 9. ℹ️ **L'horloge à 45 % / 35 % est de la contention processeur, pas une régression.** Même banc `verify:simspeed`, même code, même instant : **0,57 ×** en priorité normale, **0,86 ×** en priorité haute (le banc passe alors au vert). Aucun processus arrêté pour l'obtenir — la seule différence est la part de processeur obtenue. `src/` n'a pas bougé entre 0,42 × (avant-hier) et aujourd'hui.
 10. ℹ️ **`verify:realtime` et `verify:simspeed` échouent toujours** tant que la machine est à 100 % : ils mesurent du temps mur contre un seuil de 0,75. Ce sont des **sentinelles**, pas des bancs à assouplir.
+11. ℹ️ **Le bundle de la webview n'est PAS le coupable** : 3,31 Mo, dont 2,55 Mo de dessins inlinés (`pca9685.svg` à lui seul 468 Ko, 1 370 chemins — de vrais dessins, aucun bitmap caché, rien à récupérer par optimisation). Chargé dans un vrai Chrome : **117 à 310 ms**, contre 32 à 40 ms une fois les dessins retirés. V8 compile paresseusement, les grandes chaînes ne lui coûtent presque rien. Le chantier est donc déclassé (voir « À faire » n° 2).
 
 # >>>>  v2026.8.89 — Les composants téléchargés s'affichent enfin, et le DMX512 se simule
 
