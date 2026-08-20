@@ -1731,6 +1731,37 @@ index f87e56c..85a7f48 100644
      run() {
          for (let i = 0; i < 1000 && !this.stopped; i++) {
              this.step();
+diff --git a/node_modules/rp2040js/dist/esm/peripherals/uart.js b/node_modules/rp2040js/dist/esm/peripherals/uart.js
+index 61f14b7..3fbe362 100644
+--- a/node_modules/rp2040js/dist/esm/peripherals/uart.js
++++ b/node_modules/rp2040js/dist/esm/peripherals/uart.js
+@@ -81,8 +81,13 @@ export class RPUART extends BasePeripheral {
+         return (this.rxFIFO.full ? RXFF : 0) | (this.rxFIFO.empty ? RXFE : 0) | TXFE;
+     }
+     checkInterrupts() {
+-        // TODO We should actually implement a proper FIFO for TX
+-        this.interruptStatus |= UARTTXINTR;
++        // Kablix : NE PAS poser TXRIS ici. En reposant le drapeau à chaque appel,
++        // l'IRQ TX se relevait aussitôt après le UARTICR du gestionnaire : dès que
++        // MicroPython crée un UART (il arme TXIM à l'init), le cœur repartait dans
++        // l'ISR sans fin — plus une ligne de console, régime tombé à ~10 %.
++        // Le PL011 lève TXRIS quand la FIFO d'émission passe sous son seuil :
++        // ici la transmission est immédiate, c'est donc l'écriture de UARTDR qui
++        // le fait, une seule fois (cf. writeUint32).
+         this.rp2040.setInterrupt(this.irq, !!(this.interruptStatus & this.interruptMask));
+     }
+     feedByte(value) {
+@@ -144,6 +149,10 @@ export class RPUART extends BasePeripheral {
+         switch (offset) {
+             case UARTDR:
+                 (_a = this.onByte) === null || _a === void 0 ? void 0 : _a.call(this, value & 0xff);
++                // Kablix : l'octet part tout de suite, la FIFO d'émission retombe
++                // sous son seuil — c'est ce passage-là qui lève TXRIS.
++                this.interruptStatus |= UARTTXINTR;
++                this.checkInterrupts();
+                 break;
+             case UARTIBRD:
+                 this.intDivisor = value & 0xffff;
 diff --git a/node_modules/rp2040js/dist/esm/rp2040.js b/node_modules/rp2040js/dist/esm/rp2040.js
 index 2a29f91..98ea905 100644
 --- a/node_modules/rp2040js/dist/esm/rp2040.js

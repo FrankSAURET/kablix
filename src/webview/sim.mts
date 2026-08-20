@@ -103,6 +103,7 @@ import {
   sevenSegmentMuxBindings,
   pulseMonitorPins,
   neopixelBindings,
+  dmxBindings,
   lcdParallelBindings,
   spiDeviceBindings,
   adcDividerLevels,
@@ -321,6 +322,8 @@ let i2cDevices = new Map<string, Lcd1602Device | Pca9685Device | Ssd1306Device>(
 let pcaBindings: Pca9685Binding[] = [];
 // Chaînes NeoPixel : partId → broche MCU DIN (pour lire les couleurs décodées).
 let neopixelTargets = new Map<string, { pin: string; offset: number; count: number }>();
+// Projecteurs DMX512 : partId → broche TX décodée + adresse et nombre de canaux.
+let dmxTargets = new Map<string, { pin: string; address: number; channels: number }>();
 // Buzzers : partId → broche MCU pilotant le buzzer (pour la fréquence du son).
 let buzzerTargets = new Map<string, string>();
 // Capteurs de pouls : broche analogique MCU + élément (BPM réglé par le curseur).
@@ -1963,6 +1966,20 @@ function refreshVisualsInner(): void {
     } catch (err) {
       console.error('refreshVisuals', part.type, err);
     }
+    // Projecteur DMX512 : ses trois canaux (rouge, vert, bleu) à partir de son
+    // adresse colorent le groupe « LED » du dessin. Le composant vient de la
+    // bibliothèque (.kompix) : c'est le montage, pas l'élément, qui lui donne un
+    // sens — d'où le pilotage ici plutôt que dans un fork.
+    const dmx = dmxTargets.get(part.id);
+    if (dmx && el && 'setGroupColor' in el) {
+      const u = engine.readDmx?.(dmx.pin) ?? null;
+      const r = u?.[dmx.address] ?? 0;
+      const g = u?.[dmx.address + 1] ?? 0;
+      const b = u?.[dmx.address + 2] ?? 0;
+      const glow = Math.max(r, g, b) / 255;
+      (el as unknown as { setGroupColor(id: string, color: string | null, glow?: number): void })
+        .setGroupColor('LED', glow > 0 ? `rgb(${r},${g},${b})` : null, glow);
+    }
     // Branchement du behavior embarqué (si présent et pas encore attaché).
     if (def.custom && el && !elementsWithBehavior.has(el)) {
       const module = getBehaviorModule(part.type);
@@ -2237,6 +2254,14 @@ function bindInputs(): void {
   const perPin = new Map<string, number>();
   for (const b of nps) perPin.set(b.mcuPin, Math.max(perPin.get(b.mcuPin) ?? 0, b.offset + b.count));
   engine.setNeopixels?.([...perPin].map(([pin, count]) => ({ pin, count })));
+
+  // Lignes DMX512 : le moteur décode les trames émises par l'UART matériel — la
+  // couleur d'un projecteur se lit dans les canaux, jamais dans le niveau du fil
+  // (250 kbauds = 4 µs par bit). Une seule broche TX peut alimenter plusieurs
+  // projecteurs, chacun à son adresse.
+  const dmxLinks = dmxBindings(editor.diagram);
+  dmxTargets = new Map(dmxLinks.map((b) => [b.partId, { pin: b.mcuPin, address: b.address, channels: b.channels }]));
+  engine.setDmx?.([...new Set(dmxLinks.map((b) => b.mcuPin))]);
 
   // Afficheurs LCD HD44780 en bus parallèle : RS/E/données décodés par le moteur.
   engine.setLcdParallel?.(
@@ -3401,6 +3426,13 @@ function stopRun(): void {
     }
   }
   elementsWithBehavior.clear();
+  // Projecteurs DMX : le dessin reprend ses couleurs d'origine (resetVisuals ne
+  // sait rien de ces groupes recolorés à la volée).
+  for (const partId of dmxTargets.keys()) {
+    const el = editor.elementOf(partId) as unknown as { setGroupColor?(id: string, color: string | null): void } | null;
+    el?.setGroupColor?.('LED', null);
+  }
+  dmxTargets.clear();
   editor.resetVisuals();
   useDebugAsInspector(false); // Propriétés de nouveau dans la colonne de droite
   runBtn.disabled = false;

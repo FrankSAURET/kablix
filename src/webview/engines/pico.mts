@@ -21,6 +21,7 @@ import type {
 } from './types.mjs';
 import { selectSpiDevice, Hd44780, type I2cDevice, type SpiDevice } from './i2c-devices.mjs';
 import { Ws2812Decoder } from './ws2812.mjs';
+import { DmxDecoder } from './dmx.mjs';
 import { buildDht22Schedule, DHT22_START_LOW_US, type DhtModel, type DhtTransition } from './dht22.mjs';
 import { DEFAULT_AIR_TEMP_C, echoUsPerCm } from './ultrasonic.mjs';
 
@@ -284,6 +285,10 @@ export class PicoEngine implements SimEngine {
   private disposed = false;
   private sim: KablixSimulator;
   private mcu: RP2040;
+  /** Décodeurs DMX512 par broche TX déclarée (cf. setDmx) — vide en temps normal. */
+  private dmxByPin = new Map<string, DmxDecoder>();
+  /** Décodeur DMX de chaque UART matériel, indexé 0/1. */
+  private dmxByUart: Array<DmxDecoder | null> = [];
   /** Canaux ADC dont la tension est CALCULÉE à la conversion (cf. setAnalogSampler). */
   private analogSamplers = new Map<number, () => number>();
   private cdc: USBCDC | null = null;
@@ -472,9 +477,57 @@ export class PicoEngine implements SimEngine {
     // Décodage UTF-8 incrémental (caractères accentués émis octet par octet).
     const uartDecoder = new TextDecoder('utf-8');
     this.mcu.uart[0].onByte = (value) => {
+      // Ligne DMX512 sur GP0 (cf. setDmx) : l'octet part au décodeur et S'ARRÊTE
+      // LÀ. Une trame DMX, ce sont 513 octets binaires : les relayer noierait le
+      // moniteur série sous des caractères de contrôle. `dmxByUart` est vide en
+      // temps normal, le moniteur reprend son cours.
+      if (this.dmxByUart[0]) {
+        this.dmxByUart[0].feed(value, this.simulatedMs() * 1000);
+        return;
+      }
       const text = uartDecoder.decode(Uint8Array.of(value), { stream: true });
       if (text) this.onSerial?.(text);
     };
+    // UART1 : pas de moniteur (le REPL n'y passe pas), branché seulement si une
+    // ligne DMX y est déclarée.
+    if (this.mcu.uart[1]) {
+      this.mcu.uart[1].onByte = (value) => {
+        this.dmxByUart[1]?.feed(value, this.simulatedMs() * 1000);
+      };
+    }
+  }
+
+  /**
+   * Broches TX qui portent une ligne DMX512 (cf. SimEngine.setDmx). GP0 et GP4
+   * sont les TX des deux UART matériels tels que le shield Grove les câble.
+   */
+  setDmx(pins: string[]): void {
+    const TX: Record<string, number | undefined> = { GP0: 0, GP12: 0, GP16: 0, GP4: 1, GP8: 1, GP20: 1 };
+    const garde = new Map<string, DmxDecoder>();
+    this.dmxByUart = [];
+    for (const pin of pins) {
+      const uart = TX[pin];
+      if (uart === undefined) continue; // broche sans UART matériel : rien à décoder
+      const dec = this.dmxByPin.get(pin) ?? new DmxDecoder();
+      garde.set(pin, dec);
+      this.dmxByUart[uart] = dec;
+    }
+    this.dmxByPin = garde;
+  }
+
+  /** Univers DMX512 décodé sur une broche TX (cf. SimEngine.readDmx). */
+  readDmx(pin: string): Uint8Array | null {
+    return this.dmxByPin.get(pin)?.universe ?? null;
+  }
+
+  /** Univers DMX qui ont changé depuis le dernier relevé (publication worker). */
+  takeDmxChanges(): Array<{ pin: string; data: Uint8Array }> {
+    const out: Array<{ pin: string; data: Uint8Array }> = [];
+    for (const [pin, dec] of this.dmxByPin) {
+      const data = dec.takeChanged();
+      if (data) out.push({ pin, data });
+    }
+    return out;
   }
 
   /** Temps simulé depuis le démarrage (ms) : cycles du cœur ÷ horloge système. */

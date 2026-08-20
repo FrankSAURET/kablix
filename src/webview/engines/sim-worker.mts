@@ -170,6 +170,19 @@ function publishScreens(): void {
   if (any) send({ t: 'screens', screens: up }, transfer);
 }
 
+/**
+ * Univers DMX512 : publiés hors instantané, et seulement quand un canal a bougé.
+ * 513 octets toutes les 4 ms pour une lampe qui ne change qu'à la trame seraient
+ * du gaspillage ; le moteur tient le drapeau, on ne fait que le relever.
+ */
+function publishDmx(): void {
+  const source = engine as unknown as { takeDmxChanges?: () => Array<{ pin: string; data: Uint8Array }> };
+  for (const { pin, data } of source?.takeDmxChanges?.() ?? []) {
+    const copy = data.slice(); // l'univers reste au moteur : on transfère la copie
+    send({ t: 'dmx', pin, data: copy }, [copy.buffer]);
+  }
+}
+
 function startScreens(): void {
   if (screenTimer !== null || !bus) return;
   screenTimer = setInterval(publishScreens, SCREEN_PERIOD_MS);
@@ -236,6 +249,7 @@ function publish(): void {
     out.pulseActive.buffer,
     ...Object.values(out.sevenSeg).map((v) => v.buffer),
   ]);
+  publishDmx();
 }
 
 function startPublishing(): void {
@@ -373,6 +387,9 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
       }
       case 'setSevenSeg':
         applySevenSeg(msg.displays);
+        return;
+      case 'setDmx':
+        engine?.setDmx?.(msg.pins);
         return;
       case 'setBusDevices': {
         // Les périphériques sont FABRIQUÉS ici à partir de leur description : ce

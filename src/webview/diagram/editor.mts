@@ -1264,14 +1264,28 @@ export class Editor {
   }
 
   /**
+   * Composant venu d'ailleurs que de la bibliothèque : créé ici (créateur) ou
+   * importé à la main. C'est LUI qui porte l'étoile ★ — un composant téléchargé
+   * depuis un dépôt est un composant comme les autres, l'étoile n'apprendrait
+   * rien (Frank, v2026.8.89). Elle sert aussi de garde aux boutons d'export :
+   * on n'exporte que ce qu'on a fabriqué soi-même.
+   */
+  private isHomeMade(def: PartDef): boolean {
+    if (!def.custom) return false;
+    return this.customData.get(def.type)?.kompixMeta?.origin !== 'remote';
+  }
+
+  /**
    * Bouton de la palette : miniature du composant + libellé (liste d'items).
    * Clic = pose au centre ; glisser = pose au lâcher, avec la miniature comme
    * image de glissement (on voit le composant suivre le curseur).
    */
-  private paletteButton(def: PartDef, custom: boolean): HTMLButtonElement {
+  private paletteButton(def: PartDef, star: boolean): HTMLButtonElement {
     const btn = document.createElement('button');
     btn.className = 'palette__item';
-    const label = custom ? `★ ${def.label}` : t(def.label);
+    // Un composant personnalisé garde son libellé tel quel (il vient du
+    // manifeste, pas du catalogue traduit).
+    const label = star ? `★ ${def.label}` : def.custom ? def.label : t(def.label);
     btn.title = label;
     btn.dataset.search = partSearchKey(def, label);
     const thumb = this.thumbnail(def);
@@ -1355,30 +1369,38 @@ export class Editor {
   }
 
   /** Ligne d'un composant personnalisé : pose, édition, export, suppression. */
+  /**
+   * Ligne de palette d'un composant personnalisé.
+   *
+   * Deux boutons ont disparu en v2026.8.89, à la demande de Frank :
+   * - l'export ⇩ n'a de sens que pour un composant fabriqué ICI — un composant
+   *   téléchargé, son .kompix existe déjà chez celui qui l'a publié ;
+   * - la suppression ✕ vit maintenant dans le GESTIONNAIRE de composants, qui
+   *   demande confirmation et liste ce qui est réellement installé.
+   */
   private appendCustomRow(def: PartDef): void {
     const data = this.customData.get(def.type);
+    const homeMade = this.isHomeMade(def);
     const row = document.createElement('div');
     row.className = 'palette__custom';
-    row.dataset.search = partSearchKey(def, `★ ${def.label}`);
-    const btn = this.paletteButton(def, true);
+    row.dataset.search = partSearchKey(def, homeMade ? `★ ${def.label}` : def.label);
+    const btn = this.paletteButton(def, homeMade);
     btn.title = t('Click: place on canvas — double-click: edit the model');
     btn.addEventListener('dblclick', () => {
       if (data) this.creator.open(data);
     });
-    const exp = document.createElement('button');
-    exp.className = 'palette__custom-del';
-    exp.style.color = 'inherit';
-    exp.textContent = '⇩';
-    exp.title = t('Export this part (.kompix)');
-    exp.addEventListener('click', () => {
-      if (data) this.onExportCustomPart?.(data);
-    });
-    const del = document.createElement('button');
-    del.className = 'palette__custom-del';
-    del.textContent = '✕';
-    del.title = t('Delete this part model');
-    del.addEventListener('click', () => this.removeCustomPart(def.type));
-    row.append(btn, exp, del);
+    row.append(btn);
+    if (homeMade) {
+      const exp = document.createElement('button');
+      exp.className = 'palette__custom-del';
+      exp.style.color = 'inherit';
+      exp.textContent = '⇩';
+      exp.title = t('Export this part (.kompix)');
+      exp.addEventListener('click', () => {
+        if (data) this.onExportCustomPart?.(data);
+      });
+      row.append(exp);
+    }
     this.palette.appendChild(row);
   }
 
@@ -1496,7 +1518,7 @@ export class Editor {
 
     if (this.showRecents && recentDefs.length > 0) {
       this.paletteSection(t('Recently used'), 'recent');
-      for (const def of recentDefs) this.palette.appendChild(this.paletteButton(def, !!def.custom));
+      for (const def of recentDefs) this.palette.appendChild(this.paletteButton(def, this.isHomeMade(def)));
     }
 
     if (this.paletteSort === 'alpha') {
@@ -1660,12 +1682,6 @@ export class Editor {
   private saveCustomPart(data: CustomPartData): void {
     this.customData.set(data.type, data);
     registerCustomPart(data);
-    this.buildPalette();
-    this.onCustomPartsChange?.([...this.customData.values()]);
-  }
-
-  private removeCustomPart(type: string): void {
-    this.forgetCustomPart(type);
     this.buildPalette();
     this.onCustomPartsChange?.([...this.customData.values()]);
   }

@@ -226,6 +226,16 @@ export interface SimEngine {
   setSevenSeg?(displays: SevenSegMuxSpec[]): void;
   /** Latch relevé par le moteur : `digits × 8` valeurs 0/1, vide si inconnu. */
   readSevenSegLatch?(partId: string): number[];
+  /**
+   * Déclare les broches TX qui portent une ligne DMX512 (sortie d'une carte
+   * Grove-DMX512 ou autre driver RS-485). Le moteur y décode les trames émises
+   * par l'UART matériel : la couleur d'un projecteur se lit dans les canaux, pas
+   * dans le niveau logique du fil — 250 kbauds font 4 µs par bit, hors de portée
+   * d'un échantillonnage par image. Liste complète à chaque appel.
+   */
+  setDmx?(pins: string[]): void;
+  /** Univers DMX512 décodé sur `pin` : 513 octets (index 0 = start code). */
+  readDmx?(pin: string): Uint8Array | null;
   /** Force la valeur externe d'une broche d'entrée (bouton, capteur…). */
   setInput(name: string, value: boolean): void;
   /** Tension externe d'une broche analogique, en fraction 0..1 de VREF. */

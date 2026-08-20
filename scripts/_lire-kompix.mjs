@@ -47,11 +47,17 @@ function groupContent(svg, groupId) {
   return null;
 }
 
-/** Groupe `groupId` réenveloppé dans un SVG autonome, '' s'il n'existe pas. */
+/**
+ * Groupe `groupId` réenveloppé dans un SVG autonome, '' s'il n'existe pas.
+ * `width`/`height` sont indispensables : sans eux le dessin s'étale à la taille
+ * de son parent, qui vaut 0 dans le composant (cf. kompixLibrary.ts).
+ */
 function extraireGroupe(svg, groupId) {
   const content = groupContent(svg, groupId);
   if (content === null) return '';
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBoxOf(svg)}">${content}</svg>`;
+  const viewBox = viewBoxOf(svg);
+  const [, , w = '100', h = '100'] = viewBox.split(/\s+/);
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="${viewBox}">${content}</svg>`;
 }
 
 /** Lit un .kompix (chemin complet ou simple type de la bibliothèque du dépôt). */

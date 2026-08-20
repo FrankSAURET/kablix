@@ -2305,9 +2305,9 @@ void loop() {
 
   // Liaison DMX512 : les deux composants de bibliothèque à la suite. La carte
   // Grove-DMX512 convertit l'UART de la carte en ligne différentielle, le
-  // projecteur PAR 38 est branché au bout du câble XLR. Aucun modèle de
-  // simulation derrière : ce que le test contrôle est la CONTINUITÉ du câblage
-  // (`expect.kind = 'nets'`) et la compilation du programme.
+  // projecteur PAR 38 est branché au bout du câble XLR. Le test contrôle la
+  // liaison simulée (quel projecteur écoute quelle broche, à quelle adresse),
+  // la CONTINUITÉ du câblage et la compilation du programme.
   test({
     name: 'dmx-uno', board: 'uno', ext: 'ino',
     kompix: ['dmx-grove', 'spot'],
@@ -2325,7 +2325,7 @@ void loop() {
       w('Spot1', 'GND', 'DMX1', 'GND.2', 'black'), // XLR 1 = blindage
     ],
     expect: {
-      kind: 'nets',
+      kind: 'dmx', partId: 'Spot1', mcuPin: '1', address: 1, channels: 3,
       nets: [
         ['DMX1/VCC', 'U1/5V'],
         ['DMX1/GND.1', 'U1/GND.1'],
@@ -4378,7 +4378,7 @@ while True:
       w('Spot1', 'GND', 'DMX1', 'GND.2', 'black'),
     ],
     expect: {
-      kind: 'nets',
+      kind: 'dmx', partId: 'Spot1', mcuPin: 'GP0', address: 1, channels: 3,
       nets: [
         ['DMX1/VCC', 'U1/3V3'],
         ['DMX1/GND.1', 'U1/GND.3'],

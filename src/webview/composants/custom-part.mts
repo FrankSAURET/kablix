@@ -180,6 +180,41 @@ export class CustomPartElement extends HTMLElement {
     this.screen.textContent = lines.join('\n');
   }
 
+  /**
+   * Colore un groupe nommé du dessin (projecteur DMX : le groupe « LED »).
+   *
+   * Les formes du dessin portent leur remplissage en style INLINE, souvent un
+   * dégradé (`fill:url(#…)`) : poser un `fill` sur le groupe ne se verrait pas.
+   * On écrase donc la propriété sur chaque descendant, en `!important`, après
+   * avoir mis de côté le style d'origine — `color = null` le restitue tel quel.
+   */
+  setGroupColor(groupId: string, color: string | null, glow = 0): void {
+    const group = this.wrapper.querySelector(`#${CSS.escape(groupId)}`);
+    if (!(group instanceof SVGElement)) return;
+    const cibles = [group, ...group.querySelectorAll('*')] as SVGElement[];
+    if (color === null) {
+      for (const el of cibles) {
+        const orig = this.savedStyles.get(el);
+        if (orig === undefined) continue;
+        if (orig === null) el.removeAttribute('style');
+        else el.setAttribute('style', orig);
+      }
+      this.savedStyles.clear();
+      group.style.removeProperty('filter');
+      return;
+    }
+    for (const el of cibles) {
+      if (!this.savedStyles.has(el)) this.savedStyles.set(el, el.getAttribute('style'));
+      el.style.setProperty('fill', color, 'important');
+      el.style.setProperty('opacity', '1', 'important');
+    }
+    // Halo : c'est ce qui distingue un projecteur ALLUMÉ d'un projecteur peint.
+    group.style.setProperty('filter', glow > 0 ? `drop-shadow(0 0 ${(6 * glow).toFixed(1)}px ${color})` : 'none');
+  }
+
+  /** Styles d'origine des formes recolorées (`null` = pas d'attribut style). */
+  private savedStyles = new Map<SVGElement, string | null>();
+
   /** Retour visuel (LED/buzzer actif) : halo lumineux autour du dessin. */
   set active(value: boolean) {
     if (value === this.activeValue) return;

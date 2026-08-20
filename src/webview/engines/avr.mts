@@ -61,6 +61,7 @@ import {
 import { DEFAULT_AIR_TEMP_C, echoUsPerCm } from './ultrasonic.mjs';
 import { selectSpiDevice, Hd44780, type I2cDevice, type SpiDevice } from './i2c-devices.mjs';
 import { Ws2812Decoder } from './ws2812.mjs';
+import { DmxDecoder } from './dmx.mjs';
 
 export type AvrFamily = 'avr328' | 'avr2560';
 
@@ -284,6 +285,10 @@ export class AvrEngine implements SimEngine {
   // (ex. « é » = 2 octets) est émis octet par octet par l'USART ; le décodeur
   // en flux tampon les séquences incomplètes pour restituer le bon caractère.
   private serialDecoder = new TextDecoder('utf-8');
+  /** Décodeurs DMX512 par broche TX déclarée (cf. setDmx) — vide en temps normal. */
+  private dmxByPin = new Map<string, DmxDecoder>();
+  /** Décodeur DMX de chaque USART, indexé comme `usarts` (0 = Serial). */
+  private dmxByUsart: Array<DmxDecoder | null> = [];
 
   // Famille AVR ciblée : 'avr328' (Uno / Nano / Pro Mini) ou 'avr2560' (Mega).
   private readonly family: AvrFamily;
@@ -425,6 +430,14 @@ export class AvrEngine implements SimEngine {
       });
     }
     this.usart.onByteTransmit = (b: number) => {
+      // Ligne DMX512 branchée sur cette sortie : l'octet part au décodeur et
+      // S'ARRÊTE LÀ (voir setDmx). Une trame, ce sont 513 octets binaires : les
+      // relayer noierait le moniteur série sous des caractères de contrôle.
+      // `dmxByUsart` est vide en temps normal, le test tient en une comparaison.
+      if (this.dmxByUsart[0]) {
+        this.dmxByUsart[0].feed(b, this.cpu.cycles / CYCLES_PER_US);
+        return;
+      }
       const text = this.serialDecoder.decode(Uint8Array.of(b), { stream: true });
       if (text) this.onSerial?.(text);
     };
@@ -432,16 +445,57 @@ export class AvrEngine implements SimEngine {
     // le même moniteur série. Sans instanciation, un sketch qui utilise Serial1
     // resterait bloqué (registres absents, ISR au mauvais vecteur).
     if (isMega) {
-      for (const cfg of [MEGA_USART1, MEGA_USART2, MEGA_USART3]) {
+      for (const [i, cfg] of [MEGA_USART1, MEGA_USART2, MEGA_USART3].entries()) {
         const u = new AVRUSART(this.cpu, cfg, CLOCK_HZ);
         const decoder = new TextDecoder('utf-8');
         u.onByteTransmit = (b: number) => {
+          const dmx = this.dmxByUsart[i + 1];
+          if (dmx) {
+            dmx.feed(b, this.cpu.cycles / CYCLES_PER_US);
+            return; // ligne DMX : rien de lisible à envoyer au moniteur
+          }
           const text = decoder.decode(Uint8Array.of(b), { stream: true });
           if (text) this.onSerial?.(text);
         };
         this.usarts.push(u);
       }
     }
+  }
+
+  /**
+   * Broches TX qui portent une ligne DMX512 (cf. SimEngine.setDmx). Le numéro
+   * d'USART est déduit du nom de la broche : sur le 328P il n'y en a qu'un
+   * (broche 1 = TX de Serial), le Mega en a quatre (1, 18, 16, 14).
+   */
+  setDmx(pins: string[]): void {
+    const TX = this.family === 'avr2560'
+      ? { '1': 0, '18': 1, '16': 2, '14': 3 }
+      : { '1': 0 };
+    const garde = new Map<string, DmxDecoder>();
+    this.dmxByUsart = [];
+    for (const pin of pins) {
+      const usart = (TX as Record<string, number | undefined>)[pin];
+      if (usart === undefined) continue; // broche sans UART matériel : rien à décoder
+      const dec = this.dmxByPin.get(pin) ?? new DmxDecoder();
+      garde.set(pin, dec);
+      this.dmxByUsart[usart] = dec;
+    }
+    this.dmxByPin = garde;
+  }
+
+  /** Univers DMX512 décodé sur une broche TX (cf. SimEngine.readDmx). */
+  readDmx(pin: string): Uint8Array | null {
+    return this.dmxByPin.get(pin)?.universe ?? null;
+  }
+
+  /** Univers DMX qui ont changé depuis le dernier relevé (publication worker). */
+  takeDmxChanges(): Array<{ pin: string; data: Uint8Array }> {
+    const out: Array<{ pin: string; data: Uint8Array }> = [];
+    for (const [pin, dec] of this.dmxByPin) {
+      const data = dec.takeChanged();
+      if (data) out.push({ pin, data });
+    }
+    return out;
   }
 
   /** Temps simulé depuis le démarrage (ms) : cycles CPU ÷ horloge de la carte. */

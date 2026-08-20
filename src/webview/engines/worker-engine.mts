@@ -221,6 +221,8 @@ export class WorkerEngine implements SimEngine {
    * s'éteindrait dès l'instantané suivant.
    */
   private latches = new Map<string, number[]>();
+  /** Univers DMX512 par broche TX, publiés hors instantané (cf. `dmx`). */
+  private dmx = new Map<string, Uint8Array>();
   /** Dernière liste de touches envoyée, pour n'écrire que sur changement. */
   private lastPressed = '';
   private pumpTimer: ReturnType<typeof setInterval> | null = null;
@@ -297,6 +299,11 @@ export class WorkerEngine implements SimEngine {
         return;
       case 'serial':
         this.onSerial?.(msg.chunk);
+        return;
+      case 'dmx':
+        // Publié seulement quand un canal change : ce qui n'arrive pas garde sa
+        // valeur (une lampe immobile ne doit pas s'éteindre entre deux trames).
+        this.dmx.set(msg.pin, msg.data);
         return;
       case 'debugPause':
         this.pausedMirror = true;
@@ -579,5 +586,17 @@ export class WorkerEngine implements SimEngine {
   /** Latch publié par le worker (tableau vide tant qu'il n'a rien envoyé). */
   readSevenSegLatch(partId: string): number[] {
     return this.latches.get(partId) ?? [];
+  }
+
+  /** Lignes DMX512 à décoder dans le worker (cf. SimEngine.setDmx). */
+  setDmx(pins: string[]): void {
+    if (pins.length === 0 && this.dmx.size === 0) return;
+    if (pins.length === 0) this.dmx.clear();
+    this.post({ t: 'setDmx', pins });
+  }
+
+  /** Dernier univers DMX512 publié par le worker pour cette broche. */
+  readDmx(pin: string): Uint8Array | null {
+    return this.dmx.get(pin) ?? null;
   }
 }

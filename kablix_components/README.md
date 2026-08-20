@@ -17,7 +17,7 @@ Voir [kompix_specification.md](../docs/kompix_specification.md) pour les détail
 | Type | Label | Version | Catégorie | Description |
 |------|-------|---------|-----------|-------------|
 | `dmx-grove` | Grove DMX512 | 1.0.0 | Misc | Grove DMX512 shield (SP3485 line driver): turns th |
-| `spot` | DMX PAR 38 spotlight | 1.0.0 | Systems | PAR 38 LED spotlight driven over DMX512 (Contest): |
+| `spot` | DMX PAR 38 spotlight | 1.1.0 | Systems | PAR 38 LED spotlight driven over DMX512 (Contest): |
 
 ## Utilisation
 
@@ -35,4 +35,4 @@ Pour proposer un composant :
 
 ---
 
-Généré le 19/08/2026 17:39:02 — Kablix v2026.8.87
+Généré le 20/08/2026 09:16:00 — Kablix v2026.8.88

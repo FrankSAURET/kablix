@@ -109,6 +109,8 @@ export class KompixLibrary {
   /** Métadonnées du manifeste (description, auteur, référence) que CustomPartData ne porte pas. */
   private manifestMeta: Map<string, { description?: string; version?: string; author?: string; reference?: string }> = new Map();
   private onComponentsChanged: ((parts: CustomPartData[]) => void) | undefined;
+  /** Promesse du premier scan (voir start / whenReady). */
+  private started: Promise<void> | undefined;
 
   constructor(private context: vscode.ExtensionContext) {
     this.libraryFolder = this.resolveLibraryFolder();
@@ -161,12 +163,26 @@ export class KompixLibrary {
   }
 
   /**
-   * Lance le scan initial et les watchers.
+   * Lance le scan initial et les watchers. Idempotent : rappeler start() rend la
+   * même promesse, sans relancer un scan.
    */
-  async start(): Promise<void> {
-    mkdirSync(this.libraryFolder, { recursive: true });
-    await this.scanLibrary();
-    this.startWatchers();
+  start(): Promise<void> {
+    this.started ??= (async () => {
+      mkdirSync(this.libraryFolder, { recursive: true });
+      await this.scanLibrary();
+      this.startWatchers();
+    })();
+    return this.started;
+  }
+
+  /**
+   * Attend la fin du premier scan. Il tourne en tâche de fond au démarrage (pour
+   * ne pas retarder l'activation) : un atelier ouvert dans la foulée demandait
+   * ses composants AVANT que le dossier ait été lu, et recevait une liste vide —
+   * la palette restait alors sans les composants pourtant installés.
+   */
+  whenReady(): Promise<void> {
+    return this.started ?? Promise.resolve();
   }
 
   /**
@@ -282,11 +298,18 @@ export class KompixLibrary {
    * Le SVG rendu garde la viewBox du document source : c'est elle qui donne
    * l'échelle du composant sur la feuille. Une viewBox forfaitaire déformait
    * tout composant qui ne faisait pas 100 × 100.
+   *
+   * `width` et `height` sont OBLIGATOIRES : un SVG qui n'a que sa viewBox
+   * s'étale à la taille de son parent, et le parent est ici un `inline-block`
+   * en `line-height: 0` — le dessin sortait donc en 0 × 0, c'est-à-dire
+   * invisible, palette comprise (Frank, v2026.8.89).
    */
   private extractSvgGroup(svg: string, groupId: string): string {
     const content = this.groupContent(svg, groupId);
     if (content === null) return '';
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBoxOf(svg)}">${content}</svg>`;
+    const viewBox = viewBoxOf(svg);
+    const [, , w = '100', h = '100'] = viewBox.split(/\s+/);
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="${viewBox}">${content}</svg>`;
   }
 
   /**

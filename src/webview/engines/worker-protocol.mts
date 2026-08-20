@@ -130,6 +130,12 @@ export type ToWorker =
   | { t: 'setNeopixels'; strips: unknown[] }
   | { t: 'setLcdParallel'; screens: unknown[] }
   /**
+   * Lignes DMX512 : broches TX dont le worker doit décoder les trames. Le retour
+   * n'est PAS dans l'instantané — un univers pèse 513 octets et ne change qu'à la
+   * trame (44 Hz au plus), là où l'instantané part toutes les 4 ms.
+   */
+  | { t: 'setDmx'; pins: string[] }
+  /**
    * Afficheurs 7 segments multiplexés, DÉCRITS : le worker échantillonne leur
    * latch à chaque front GPIO et publie le résultat dans l'instantané. C'est le
    * seul état visible qui exige la cadence du MCU, pas celle de l'écran.
@@ -180,6 +186,8 @@ export type FromWorker =
   | { t: 'snapshot'; snap: PinSnapshot }
   | { t: 'screens'; screens: ScreenUpdate }
   | { t: 'serial'; chunk: string }
+  /** Univers DMX512 décodé sur une broche TX, publié quand un canal a changé. */
+  | { t: 'dmx'; pin: string; data: Uint8Array }
   | { t: 'debugPause'; state: unknown }
   /** MicroPython : le script de l'utilisateur commence VRAIMENT (cf. `onRunning`). */
   | { t: 'scriptStarted' }

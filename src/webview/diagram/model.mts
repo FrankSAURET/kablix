@@ -1,6 +1,6 @@
 // Modèle de schéma (pur, sans DOM) : composants, fils, calcul de la netlist et
 // résolution logique des composants. Entièrement testable hors navigateur.
-import { mcuInternalStrips, mcuPinRole, mcuPins, partDef, rolePin, type BoardId, type PartKind } from './catalog.mjs';
+import { mcuInternalStrips, mcuPinRole, mcuPins, partDef, rolePin, PARAM_ATTR_PREFIX, type BoardId, type PartKind } from './catalog.mjs';
 import { breadboardStrips, normalizeSize } from './breadboard.mjs';
 import { groveShieldStrips, normalizePower } from './grove-shield.mjs';
 import { gateOutput, icMarking, icRef, icSupplyRange, type SupplyRange } from './ics.mjs';
@@ -2745,6 +2745,63 @@ export function neopixelBindings(diagram: Diagram): NeopixelBinding[] {
     }
   }
   return bindings;
+}
+
+/**
+ * Interfaces DMX512 : composants qui transforment l'UART d'une carte en ligne
+ * différentielle RS-485. `in` est la patte qui reçoit le TX, `a`/`b` les deux
+ * fils de la paire côté XLR. Table plutôt que rôles déclarés dans le manifeste :
+ * ces composants viennent de la bibliothèque publique (.kompix), qui ne décrit
+ * pas de modèle de simulation — c'est ici que le montage prend son sens.
+ */
+const DMX_INTERFACES: Record<string, { in: string; a: string; b: string }> = {
+  'dmx-grove': { in: 'SIG', a: '+', b: '-' },
+};
+
+/** Projecteurs DMX512 : pattes de la paire et nombre de canaux consommés. */
+const DMX_FIXTURES: Record<string, { a: string; b: string; channels: number }> = {
+  spot: { a: '+', b: '-', channels: 3 },
+};
+
+export interface DmxBinding {
+  /** Projecteur piloté. */
+  partId: string;
+  /** Broche TX du MCU d'où part la trame (celle que le moteur décode). */
+  mcuPin: string;
+  /** Adresse DMX du projecteur, 1..512 (paramètre `address` de l'inspecteur). */
+  address: number;
+  /** Canaux consommés à partir de l'adresse (3 = rouge/vert/bleu). */
+  channels: number;
+}
+
+/**
+ * Projecteurs DMX512 reliés, par leur paire différentielle, à une interface dont
+ * l'entrée est câblée sur une broche du MCU. Plusieurs projecteurs peuvent
+ * partager la même ligne — c'est le principe du DMX, chacun écoute son adresse.
+ */
+export function dmxBindings(diagram: Diagram): DmxBinding[] {
+  const nets = buildNets(diagram);
+  const out: DmxBinding[] = [];
+  for (const iface of diagram.parts) {
+    const spec = DMX_INTERFACES[iface.type];
+    if (!spec) continue;
+    const mcuPin = mcuPinForPart(diagram, nets, iface.id, spec.in);
+    if (!mcuPin) continue; // interface non reliée à la carte : rien à décoder
+    const netA = nets.netOf({ partId: iface.id, pin: spec.a });
+    const netB = nets.netOf({ partId: iface.id, pin: spec.b });
+    for (const part of diagram.parts) {
+      const fixture = DMX_FIXTURES[part.type];
+      if (!fixture) continue;
+      // Les deux fils de la paire doivent suivre : un projecteur relié par le
+      // seul Data+ n'est pas câblé, il est à moitié câblé.
+      if (nets.netOf({ partId: part.id, pin: fixture.a }) !== netA) continue;
+      if (nets.netOf({ partId: part.id, pin: fixture.b }) !== netB) continue;
+      const raw = Number(part.attrs?.[`${PARAM_ATTR_PREFIX}address`] ?? 1);
+      const address = Number.isFinite(raw) ? Math.min(512, Math.max(1, Math.round(raw))) : 1;
+      out.push({ partId: part.id, mcuPin, address, channels: fixture.channels });
+    }
+  }
+  return out;
 }
 
 export interface PotBinding {

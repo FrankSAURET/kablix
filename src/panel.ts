@@ -1372,7 +1372,7 @@ export class SimulatorPanel {
           type: 'simModels',
           models: this.context.globalState.get<unknown[]>(SIM_MODELS_KEY, []),
         });
-        this.sendCustomParts();
+        void this.sendCustomParts();
         this.post({
           type: 'uiState',
           state: this.context.globalState.get<unknown>(UI_STATE_KEY, {}),
@@ -2002,8 +2002,13 @@ export class SimulatorPanel {
    * `customParts`, et un code distant doit d'abord être approuvé).
    * Retient au passage les types envoyés : c'est la référence qui permettra de
    * distinguer une VRAIE suppression d'une liste simplement périmée.
+   *
+   * Le premier scan de la bibliothèque tourne en tâche de fond : sans l'attendre,
+   * un atelier ouvert au démarrage recevait une liste VIDE et sa palette restait
+   * sans les composants installés (Frank, v2026.8.89).
    */
-  private sendCustomParts(): void {
+  private async sendCustomParts(): Promise<void> {
+    await SimulatorPanel.library?.whenReady?.();
     // Composants .kompix depuis la bibliothèque locale, sinon repli globalState.
     const parts = SimulatorPanel.library?.getComponents?.()
       ?? this.context.globalState.get<unknown[]>(CUSTOM_PARTS_KEY, []);
@@ -2041,7 +2046,7 @@ export class SimulatorPanel {
 
   /** Rafraîchit la palette de tous les ateliers ouverts (après un téléchargement). */
   public static refreshCustomParts(): void {
-    for (const panel of SimulatorPanel.panels) panel.sendCustomParts();
+    for (const panel of SimulatorPanel.panels) void panel.sendCustomParts();
   }
 
   /**

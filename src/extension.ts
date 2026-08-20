@@ -7,6 +7,7 @@ import { saveDefaultLayout, applyDefaultLayout, kablixColumn } from './layout';
 import { registerProjixEditor, ProjixEditorProvider } from './projix-editor';
 import { associateProjix, promptProjixAssociationOnFirstRun } from './associate';
 import { promptRecommendedExtensions } from './recommend';
+import { announceComponentLibrary } from './announce';
 import { PartHelpPanel, SHOW_PART_HELP } from './partHelp';
 import { ComponentManagerPanel } from './componentManager';
 import { openNewProjix, openOrRevealProjix } from './openproject';
@@ -248,6 +249,11 @@ export function activate(context: vscode.ExtensionContext): void {
   // (téléversement sur la vraie carte, gestion des cartes et bibliothèques).
   // Ensuite, seule la commande « Extensions conseillées » les rappelle.
   void promptRecommendedExtensions(context);
+
+  // Nouveauté de cette version : des composants à télécharger. Annonce faite une
+  // seule fois par machine (le bouton d'import est en bas de la palette, donc
+  // invisible pour qui ne le cherche pas).
+  void announceComponentLibrary(context);
 
   // Vérification au démarrage, opt-in et non bloquante (silence si à jour).
   const checkOnStartup = vscode.workspace

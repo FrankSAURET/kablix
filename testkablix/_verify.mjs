@@ -512,6 +512,18 @@ for (const t of TESTS) {
           p?.ok === e.powered, JSON.stringify(p));
         break;
       }
+      case 'dmx': {
+        // Ligne DMX512 : le projecteur écoute la broche TX du micro (à travers
+        // la carte Grove) et prend ses canaux à partir de son adresse. La
+        // continuité du câblage est vérifiée ensuite (chute dans `nets`).
+        const b = model.dmxBindings(diagram).find((x) => x.partId === e.partId);
+        check(`${t.name} : ${e.partId} écoute ${e.mcuPin}`, b?.mcuPin === e.mcuPin,
+          JSON.stringify(model.dmxBindings(diagram)));
+        check(`${t.name} : adresse ${e.address}, ${e.channels} canaux`,
+          b?.address === e.address && b?.channels === e.channels, JSON.stringify(b));
+        // pas de break : la continuité du câblage se contrôle juste en dessous
+      }
+      // eslint-disable-next-line no-fallthrough
       case 'nets': {
         // Continuité pure : aucun modèle de simulation derrière le composant
         // (liaison DMX512, câblage passif). Chaque groupe de `nets` doit former
