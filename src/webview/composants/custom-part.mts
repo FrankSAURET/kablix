@@ -10,6 +10,13 @@
 import type { CustomControl, PartDef } from '../diagram/catalog.mjs';
 import { simControlStyles } from './utils/sim-control-styles.mjs';
 
+const SVG_NS = 'http://www.w3.org/2000/svg';
+/** Marqueurs des LED sorties d'un chemin groupé, et du chemin qu'elles remplacent. */
+const LED_CLONE = 'data-kx-led';
+const LED_SOURCE = 'data-kx-led-src';
+/** Id du dégradé des LED allumées (un par shadow root, donc sans collision). */
+const LED_GRAD_ID = 'kx-led-glow';
+
 export interface PinInfo {
   name: string;
   x: number;
@@ -187,33 +194,126 @@ export class CustomPartElement extends HTMLElement {
    * dégradé (`fill:url(#…)`) : poser un `fill` sur le groupe ne se verrait pas.
    * On écrase donc la propriété sur chaque descendant, en `!important`, après
    * avoir mis de côté le style d'origine — `color = null` le restitue tel quel.
+   *
+   * La peinture n'est pas un aplat : chaque LED reçoit un DÉGRADÉ RADIAL en
+   * `objectBoundingBox` (cœur clair décalé vers le haut-gauche, bord assombri)
+   * qui la fait paraître bombée plutôt que découpée dans du papier.
    */
   setGroupColor(groupId: string, color: string | null, glow = 0): void {
     const group = this.wrapper.querySelector(`#${CSS.escape(groupId)}`);
     if (!(group instanceof SVGElement)) return;
-    const cibles = [group, ...group.querySelectorAll('*')] as SVGElement[];
+    // Appelé à CHAQUE image de simulation : ne retoucher le DOM que si l'état
+    // demandé a changé — ou si le dessin a été re-rendu sous nos pieds.
+    const etat = color === null ? '' : `${groupId}|${color}|${glow.toFixed(2)}`;
+    if (etat === this.ledState && (color === null || this.ledGrad?.isConnected)) return;
+    this.ledState = etat;
     if (color === null) {
-      for (const el of cibles) {
+      for (const clone of group.querySelectorAll(`[${LED_CLONE}]`)) clone.remove();
+      for (const source of group.querySelectorAll(`[${LED_SOURCE}]`)) source.removeAttribute(LED_SOURCE);
+      this.ledDefs?.remove();
+      this.ledDefs = null;
+      this.ledGrad = null;
+      for (const el of this.savedStyles.keys()) {
         const orig = this.savedStyles.get(el);
-        if (orig === undefined) continue;
-        if (orig === null) el.removeAttribute('style');
+        if (orig === null || orig === undefined) el.removeAttribute('style');
         else el.setAttribute('style', orig);
       }
       this.savedStyles.clear();
       group.style.removeProperty('filter');
       return;
     }
-    for (const el of cibles) {
-      if (!this.savedStyles.has(el)) this.savedStyles.set(el, el.getAttribute('style'));
-      el.style.setProperty('fill', color, 'important');
+    this.splitLeds(group);
+    const paint = this.ledGradient(group, color, glow);
+    for (const el of [group, ...group.querySelectorAll('*')] as SVGElement[]) {
+      if (el.hasAttribute(LED_SOURCE)) continue; // chemin groupé, remplacé par ses LED
+      if (!el.hasAttribute(LED_CLONE) && !this.savedStyles.has(el)) {
+        this.savedStyles.set(el, el.getAttribute('style'));
+      }
+      el.style.setProperty('fill', paint, 'important');
+      // Le dessin peint ses LED éteintes en translucide (fill-opacity 0,8 sur
+      // opacity 0,62) : allumées, elles doivent être franches.
+      el.style.setProperty('fill-opacity', '1', 'important');
       el.style.setProperty('opacity', '1', 'important');
     }
     // Halo : c'est ce qui distingue un projecteur ALLUMÉ d'un projecteur peint.
     group.style.setProperty('filter', glow > 0 ? `drop-shadow(0 0 ${(6 * glow).toFixed(1)}px ${color})` : 'none');
   }
 
+  /**
+   * Sort chaque LED dans son propre `<path>`.
+   *
+   * Une couronne de LED est dessinée comme UN chemin de 13, 20 puis 26
+   * sous-chemins : un dégradé en `objectBoundingBox` posé là s'étalerait sur la
+   * couronne entière au lieu de bomber chaque LED. Les sous-chemins repartant
+   * d'un `M` absolu, chacun tient debout seul — un `m` relatif, lui, se
+   * déplacerait : ces chemins-là sont laissés tels quels.
+   */
+  private splitLeds(group: SVGElement): void {
+    if (group.querySelector(`[${LED_CLONE}]`)) return; // déjà éclaté
+    for (const el of Array.from(group.querySelectorAll('path'))) {
+      const d = el.getAttribute('d') ?? '';
+      if (d.includes('m')) continue;
+      const leds = d.split(/(?=M)/).filter((s) => s.trim());
+      if (leds.length < 2) continue;
+      if (!this.savedStyles.has(el)) this.savedStyles.set(el, el.getAttribute('style'));
+      for (const led of leds) {
+        const forme = el.cloneNode(false) as SVGElement;
+        forme.removeAttribute('id');
+        forme.setAttribute('d', led);
+        forme.setAttribute(LED_CLONE, '');
+        el.parentNode?.insertBefore(forme, el);
+      }
+      el.setAttribute(LED_SOURCE, '');
+      el.style.setProperty('display', 'none', 'important');
+    }
+  }
+
+  /**
+   * Dégradé radial d'une LED allumée : cœur clair (d'autant plus blanc que la
+   * LED brille fort), couleur demandée à mi-course, bord assombri. Il vit dans
+   * un `<defs>` ajouté au SVG — donc dans le shadow root du composant, où son
+   * id ne peut se cogner à celui d'une autre instance.
+   */
+  private ledGradient(group: SVGElement, color: string, glow: number): string {
+    const svg = group.ownerSVGElement;
+    if (!svg) return color;
+    const rgb = (color.match(/\d+/g) ?? ['255', '255', '255']).map(Number);
+    const vers = (cible: number, k: number): string =>
+      `rgb(${rgb.map((v) => Math.round(v + (cible - v) * k)).join(',')})`;
+    const coeur = 0.35 + 0.5 * Math.min(1, Math.max(0, glow));
+    const stops: [number, string][] = [
+      [0, vers(255, coeur)],
+      [0.3, vers(255, coeur * 0.4)],
+      [0.65, color],
+      [1, vers(0, 0.45)],
+    ];
+    if (!this.ledGrad?.isConnected) {
+      this.ledDefs = document.createElementNS(SVG_NS, 'defs');
+      this.ledGrad = document.createElementNS(SVG_NS, 'radialGradient');
+      this.ledGrad.setAttribute('id', LED_GRAD_ID);
+      this.ledGrad.setAttribute('cx', '0.36');
+      this.ledGrad.setAttribute('cy', '0.3');
+      this.ledGrad.setAttribute('r', '0.75');
+      this.ledDefs.appendChild(this.ledGrad);
+      svg.appendChild(this.ledDefs);
+    }
+    this.ledGrad.textContent = '';
+    for (const [offset, teinte] of stops) {
+      const stop = document.createElementNS(SVG_NS, 'stop');
+      stop.setAttribute('offset', String(offset));
+      stop.setAttribute('stop-color', teinte);
+      this.ledGrad.appendChild(stop);
+    }
+    return `url(#${LED_GRAD_ID})`;
+  }
+
   /** Styles d'origine des formes recolorées (`null` = pas d'attribut style). */
   private savedStyles = new Map<SVGElement, string | null>();
+  /** Dégradé des LED allumées, et le `<defs>` qui le porte. */
+  private ledGrad: SVGElement | null = null;
+  private ledDefs: SVGElement | null = null;
+  /** Dernier état peint (`groupe|couleur|intensité`) : évite un DOM retouché par image. */
+  private ledState = '';
 
   /** Retour visuel (LED/buzzer actif) : halo lumineux autour du dessin. */
   set active(value: boolean) {

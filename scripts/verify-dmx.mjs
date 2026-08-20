@@ -283,27 +283,88 @@ async function run() {
 
 	const forme = groupe.querySelector('ellipse, path');
 	const avant = getComputedStyle(forme).fill;
+	const empreinte = groupe.innerHTML;
+	const pathsAvant = groupe.querySelectorAll('path').length;
+	// Les couronnes de LED sont dessinées comme UN chemin chacune (13, 20 puis
+	// 26 sous-chemins « M ») : c'est ce que l'éclatement doit sortir.
+	const groupes = [...groupe.querySelectorAll('path')]
+		.map((p) => (p.getAttribute('d') || '').split(/(?=M)/).filter((s) => s.trim()).length)
+		.filter((n) => n > 1);
+	const attendues = groupes.reduce((a, b) => a + b, 0);
 	ok('la forme est peinte d un dégradé (style inline)', avant.indexOf('url(') === 0, avant);
+	ok('le dessin groupe ses LED en peu de chemins', groupes.length === 3 && attendues === 59,
+		JSON.stringify(groupes));
+
+	const stops = () => [...groupe.ownerSVGElement.querySelectorAll('#kx-led-glow stop')]
+		.map((s) => s.getAttribute('stop-color'));
 
 	el.setGroupColor('LED', 'rgb(255, 0, 0)', 1);
 	await wait(30);
-	ok('allumé : la forme passe au rouge', getComputedStyle(forme).fill === 'rgb(255, 0, 0)',
-		getComputedStyle(forme).fill);
+	const peint = getComputedStyle(forme).fill;
+	ok('allumé : la forme prend le dégradé des LED', peint.indexOf('url(') === 0 && peint.includes('kx-led-glow'), peint);
+	ok('allumé : le dégradé porte la couleur demandée', stops()[2] === 'rgb(255, 0, 0)', JSON.stringify(stops()));
+	ok('allumé : le cœur du dégradé est plus clair que la couleur', stops()[0] === 'rgb(255,217,217)', JSON.stringify(stops()));
+	ok('allumé : le bord du dégradé est plus sombre', stops()[3] === 'rgb(140,0,0)', JSON.stringify(stops()));
+	ok('allumé : chaque LED est sortie dans son propre chemin',
+		groupe.querySelectorAll('[data-kx-led]').length === attendues,
+		groupe.querySelectorAll('[data-kx-led]').length);
+	ok('allumé : les chemins groupés sont masqués',
+		[...groupe.querySelectorAll('[data-kx-led-src]')].every((p) => getComputedStyle(p).display === 'none'),
+		groupe.querySelectorAll('[data-kx-led-src]').length);
+	ok('allumé : une LED sortie ne contient qu un sous-chemin',
+		[...groupe.querySelectorAll('[data-kx-led]')]
+			.every((p) => (p.getAttribute('d') || '').split(/(?=M)/).filter((s) => s.trim()).length === 1),
+		'plusieurs M dans un clone');
 	ok('allumé : l opacité d origine (0,62) est écrasée', getComputedStyle(forme).opacity === '1',
 		getComputedStyle(forme).opacity);
+	ok('allumé : le translucide d origine (fill-opacity 0,8) est écrasé',
+		getComputedStyle(forme).fillOpacity === '1', getComputedStyle(forme).fillOpacity);
 	ok('allumé : halo posé sur le groupe', (groupe.style.filter || '').indexOf('drop-shadow') === 0,
 		groupe.style.filter);
 
+	// Rappelé à chaque image de simulation : le DOM ne doit pas enfler.
+	const apresAllumage = groupe.querySelectorAll('path').length;
+	for (let i = 0; i < 5; i++) { el.setGroupColor('LED', 'rgb(255, 0, 0)', 1); }
+	await wait(30);
+	ok('même couleur redemandée : aucun chemin de plus',
+		groupe.querySelectorAll('path').length === apresAllumage,
+		groupe.querySelectorAll('path').length + ' au lieu de ' + apresAllumage);
+
 	el.setGroupColor('LED', 'rgb(0, 0, 255)', 0.2);
 	await wait(30);
-	ok('couleur suivante : la forme passe au bleu', getComputedStyle(forme).fill === 'rgb(0, 0, 255)',
-		getComputedStyle(forme).fill);
+	ok('couleur suivante : le dégradé passe au bleu', stops()[2] === 'rgb(0, 0, 255)', JSON.stringify(stops()));
+	ok('couleur suivante : aucun chemin de plus',
+		groupe.querySelectorAll('path').length === apresAllumage,
+		groupe.querySelectorAll('path').length + ' au lieu de ' + apresAllumage);
+	// L'intensité règle la clarté du cœur : à 20 %, il est moins blanc qu'à 100 %.
+	const coeurFaible = Number((stops()[0].match(/[0-9]+/g) || [])[0]);
+	el.setGroupColor('LED', 'rgb(0, 0, 255)', 1);
+	await wait(30);
+	const coeurFort = Number((stops()[0].match(/[0-9]+/g) || [])[0]);
+	ok('intensité faible : cœur moins clair qu à pleine puissance', coeurFaible < coeurFort,
+		coeurFaible + ' vs ' + coeurFort);
 
 	el.setGroupColor('LED', null);
 	await wait(30);
 	ok('éteint : le dégradé d origine est restitué', getComputedStyle(forme).fill === avant,
 		getComputedStyle(forme).fill);
+	ok('éteint : les LED sorties sont retirées', groupe.querySelectorAll('[data-kx-led]').length === 0,
+		groupe.querySelectorAll('[data-kx-led]').length);
+	ok('éteint : le dégradé des LED est retiré du dessin',
+		!groupe.ownerSVGElement.querySelector('#kx-led-glow'), 'dégradé encore là');
+	ok('éteint : les chemins groupés sont réaffichés',
+		groupe.querySelectorAll('path').length === pathsAvant, groupe.querySelectorAll('path').length);
+	ok('éteint : le dessin est rendu tel quel', groupe.innerHTML === empreinte, 'dessin modifié');
 	ok('éteint : plus de halo', !(groupe.style.filter || '').includes('drop-shadow'), groupe.style.filter);
+
+	// Rallumage après extinction : l'éclatement doit repartir de zéro.
+	el.setGroupColor('LED', 'rgb(0, 255, 0)', 1);
+	await wait(30);
+	ok('rallumé : les LED sont de nouveau sorties',
+		groupe.querySelectorAll('[data-kx-led]').length === attendues,
+		groupe.querySelectorAll('[data-kx-led]').length);
+	el.setGroupColor('LED', null);
+	await wait(30);
 
 	// Groupe inconnu : ne doit rien casser (composant sans zone lumineuse).
 	let jete = null;
