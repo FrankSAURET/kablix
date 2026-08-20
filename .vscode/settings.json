@@ -6,7 +6,8 @@
     // lançait pourtant huit « cpptools-srv2 -i TagParser » qui indexaient tout le
     // dépôt — la moitié du processeur, mesurée. Priorité basse pour l'indexation
     // et dossiers sans code C/C++ écartés. Repasser en "highest" si l'IntelliSense
-    // C++ redevient nécessaire sur les croquis.
+    // C++ redevient nécessaire sur les croquis. firmware/ (demo.c, blink.c,
+    // rp2040_ram.ld) reste indexé : c'est du vrai code C.
     "C_Cpp.workspaceParsingPriority": "low",
     "C_Cpp.files.exclude": {
         "**/node_modules": true,
@@ -15,7 +16,6 @@
         "**/media": true,
         "**/docs": true,
         "**/Archives": true,
-        "**/A Examiner": true,
-        "**/firmware": true
+        "**/A Examiner": true
     }
 }
