@@ -3,9 +3,8 @@
 // correspondant. Les tests sont sautés proprement si la toolchain n'est pas
 // installée localement.
 import esbuild from 'esbuild';
-import { execFile } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
@@ -31,7 +30,7 @@ await esbuild.build({
   format: 'esm',
   logLevel: 'silent',
 });
-const { compile, detectToolchain, findArduinoCli, isSourceError, firstErrorLine, CompileFailed } =
+const { compile, detectToolchain, isSourceError, firstErrorLine, CompileFailed } =
   await import(pathToFileURL(out).href);
 
 let failures = 0;
@@ -43,11 +42,38 @@ const check = (label, ok) => {
 const tools = detectToolchain();
 const b64ToBytes = (b64) => Uint8Array.from(Buffer.from(b64, 'base64'));
 
+/**
+ * avr-gcc n'est PAS dans le PATH quand seul l'IDE Arduino est installé : la
+ * toolchain vit dans le dossier des paquets (Arduino15). On la fournit à
+ * compile() par `searchDir`, exactement comme le réglage « kablix.toolchainPath ».
+ */
+function avrToolchainDir() {
+  const home = homedir();
+  const roots = [
+    join(process.env.LOCALAPPDATA ?? join(home, 'AppData', 'Local'), 'Arduino15'),
+    join(home, '.arduino15'),
+    join(home, 'Library', 'Arduino15'),
+  ];
+  const exe = process.platform === 'win32' ? 'avr-gcc.exe' : 'avr-gcc';
+  for (const r of roots) {
+    const base = join(r, 'packages', 'arduino', 'tools', 'avr-gcc');
+    if (!existsSync(base)) continue;
+    for (const version of readdirSync(base)) {
+      const bin = join(base, version, 'bin');
+      if (existsSync(join(bin, exe))) return bin;
+    }
+  }
+  return undefined;
+}
+const avrDir = avrToolchainDir();
+const avrPaths = avrDir ? { searchDir: avrDir } : {};
+const hasAvrGcc = tools.avrGcc || !!avrDir;
+
 // testkablix/blink_uno.c est du C bare-metal : seul avr-gcc le compile
 // (arduino-cli attend un sketch .ino dans un dossier de même nom).
-if (tools.avrGcc) {
+if (hasAvrGcc) {
   console.log('Compilation de testkablix/blink_uno.c (Arduino Uno) :');
-  const res = await compile('uno', tk('blink_uno.c'), root);
+  const res = await compile('uno', tk('blink_uno.c'), root, avrPaths);
   const p = res.payload;
   check(`format avr-progmem, ${p.bytes.length} mots`, p.format === 'avr-progmem' && p.bytes.length > 0);
   const cpu = new CPU(Uint16Array.from(p.bytes));
@@ -123,20 +149,7 @@ if (tools.arduinoCli) {
     'void setup() {\n  pinMode(13, OUTPUT);\n}\nvoid loop() { digitalWrit(13, HIGH); }\n'
   );
 
-  // Référence : une SEULE invocation d'arduino-cli qui échoue.
-  const cliPath = findArduinoCli();
-  const refStart = Date.now();
-  await new Promise((resolve) => {
-    execFile(
-      cliPath,
-      ['compile', '--fqbn', 'arduino:avr:uno', badIno],
-      { maxBuffer: 32 * 1024 * 1024 },
-      () => resolve()
-    );
-  });
-  const refMs = Date.now() - refStart;
-
-  console.log(`\nSketch cassé compilé par compile() (référence 1 passe : ${refMs} ms) :`);
+  console.log('\nSketch cassé compilé par compile() :');
   // L'hôte de l'extension doit rester vivant PENDANT la compilation : un timer
   // qui bat prouve que la boucle d'événements n'est pas bloquée (c'était un
   // execFileSync, VS Code entier gelait le temps de la compilation).
@@ -165,18 +178,83 @@ if (tools.arduinoCli) {
     `l'hôte reste vivant pendant la compilation (${ticks} battements)`,
     ticks > 3
   );
-  // Une seule passe : les 3 jeux d'options en cascade coûtaient ~3,4× ce temps.
-  check(
-    `une SEULE passe de compilation (${ms} ms contre ${refMs} ms de référence)`,
-    ms < refMs * 2 + 1500
-  );
+  // Une seule passe : les 3 jeux d'options en cascade triplaient l'attente pour
+  // aboutir au même refus. Le nombre de passes est COMPTÉ, pas déduit d'un
+  // chronomètre : la même compilation varie de 9 à 53 s sur une machine chargée,
+  // un seuil de temps ne prouverait rien.
+  check(`une SEULE passe de compilation (${err?.attempts} — ${ms} ms)`, err?.attempts === 1);
 } else {
   console.log('\nSKIP sketch cassé : arduino-cli absent.');
+}
+
+// --- Cache disque : un croquis inchangé ne se recompile pas ------------------
+// Sans lui, chaque ▶ après un rechargement de fenêtre repayait la compilation
+// entière (3 à 25 s selon la machine et l'antivirus).
+if (hasAvrGcc) {
+  const dir = join(tmp, 'kx-cache');
+  mkdirSync(dir, { recursive: true });
+  const srcFile = join(dir, 'blink.c');
+  writeFileSync(srcFile, readFileSync(tk('blink_uno.c')));
+  const cacheDir = join(tmp, 'cache-compilation');
+
+  console.log('\nCache disque des compilations :');
+  const t1 = Date.now();
+  const froid = await compile('uno', srcFile, root, avrPaths, cacheDir);
+  const ms1 = Date.now() - t1;
+  const t2 = Date.now();
+  const chaud = await compile('uno', srcFile, root, avrPaths, cacheDir);
+  const ms2 = Date.now() - t2;
+
+  check(
+    `2e appel repris du cache (${ms2} ms contre ${ms1} ms à froid)`,
+    /cache/i.test(chaud.log) && ms2 < Math.max(400, ms1 / 2)
+  );
+  check(
+    `programme identique (${chaud.payload.bytes.length} mots)`,
+    chaud.payload.bytes.length === froid.payload.bytes.length &&
+      chaud.payload.bytes.every((w, i) => w === froid.payload.bytes[i])
+  );
+  check(
+    'infos de débogage conservées dans le cache',
+    !froid.payload.debug ||
+      (chaud.payload.debug?.lines?.length === froid.payload.debug.lines.length &&
+        chaud.payload.debug?.globals?.length === froid.payload.debug.globals.length)
+  );
+  check('une seule entrée écrite pour un source inchangé', readdirSync(cacheDir).length === 1);
+
+  // Source modifié : le cache DOIT être ignoré, sinon l'élève exécute son
+  // ancien programme sans comprendre pourquoi rien ne change.
+  writeFileSync(srcFile, `${readFileSync(srcFile, 'utf8')}\n// retouche\n`);
+  const apres = await compile('uno', srcFile, root, avrPaths, cacheDir);
+  check('source modifié → recompilation (pas de reprise)', !/cache/i.test(apres.log));
+  check('deuxième entrée rangée dans le cache', readdirSync(cacheDir).length === 2);
+
+  // Sans dossier de cache (bancs, mesures) : la chaîne d'outils est sollicitée.
+  const sansCache = await compile('uno', srcFile, root, avrPaths);
+  check('sans dossier de cache : compilation réelle', !/cache/i.test(sansCache.log));
+} else {
+  console.log('\nSKIP cache disque : avr-gcc absent.');
 }
 
 // --- Le chemin jusqu'au moniteur série est bien branché ----------------------
 const src = (p) => readFileSync(join(root, p), 'utf8');
 const panel = src('src/panel.ts');
+const compilerSrc = src('src/compiler.ts');
+
+console.log('\nBranchement du cache et des relevés DWARF :');
+check(
+  'panel.ts passe un dossier de cache à compile()',
+  /cache-compilation/.test(panel) && /compile\(board, filePath, this\.extensionUri\.fsPath, toolPaths, cacheDir\)/.test(panel)
+);
+check(
+  'le cache vit dans le stockage global (survit au rechargement)',
+  /globalStorageUri\.fsPath, 'cache-compilation'/.test(panel)
+);
+check(
+  'les deux relevés avr-objdump partent en parallèle',
+  /await Promise\.all\(\[[\s\S]{0,240}--dwarf=decodedline[\s\S]{0,240}--dwarf=info/.test(compilerSrc)
+);
+
 const sim = src('src/webview/sim.mts');
 const fr = JSON.parse(src('l10n/bundle.l10n.fr.json'));
 

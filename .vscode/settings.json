@@ -1,3 +1,21 @@
 {
-    "workbench.colorTheme": "Colored Theme (Yellow)"
+    "workbench.colorTheme": "Colored Theme (Yellow)",
+
+    // Kablix est un projet TypeScript ; le C/C++ n'y est présent que sous forme
+    // de croquis de test (testkablix/*.ino, *.c). L'extension ms-vscode.cpptools
+    // lançait pourtant huit « cpptools-srv2 -i TagParser » qui indexaient tout le
+    // dépôt — la moitié du processeur, mesurée. Priorité basse pour l'indexation
+    // et dossiers sans code C/C++ écartés. Repasser en "highest" si l'IntelliSense
+    // C++ redevient nécessaire sur les croquis.
+    "C_Cpp.workspaceParsingPriority": "low",
+    "C_Cpp.files.exclude": {
+        "**/node_modules": true,
+        "**/dist": true,
+        "**/.git": true,
+        "**/media": true,
+        "**/docs": true,
+        "**/Archives": true,
+        "**/A Examiner": true,
+        "**/firmware": true
+    }
 }

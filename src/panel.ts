@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 const l10n = vscode.l10n;
 import { buildWebviewHtml } from './webview-html';
 import {
@@ -728,9 +729,12 @@ export class SimulatorPanel {
       } else {
         const board = this.currentBoard;
         const toolPaths = this.toolPaths();
+        // Cache disque : un croquis inchangé n'est pas recompilé, même après un
+        // rechargement de la fenêtre (le mémo `lastCompiled`, lui, est perdu).
+        const cacheDir = join(this.context.globalStorageUri.fsPath, 'cache-compilation');
         result = await vscode.window.withProgress(
           { location: vscode.ProgressLocation.Notification, title: l10n.t('Kablix: compiling ({0})…', board) },
-          () => compile(board, filePath, this.extensionUri.fsPath, toolPaths)
+          () => compile(board, filePath, this.extensionUri.fsPath, toolPaths, cacheDir)
         );
       }
       // Compilation/chargement réussi : mémorise la signature pour que ▶ puisse

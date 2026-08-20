@@ -1,8 +1,25 @@
 # À faire
-1. Kablix devenu super lent au lancement et au chargement d'un fichier. Compilation uno aussi désésperemment lente. (peut être dues à defender en tache de fond)
-2. L'horloge pico marchait bien (quasiment tjs à 100% ) et est à nouveau ralentie à 45% / uno à 35%
+1. **Décision de Frank : la machine, pas Kablix** (mesures dans la v2026.8.90 ci-dessous). Trois leviers, aucun ne peut être pris sans lui :
+   - exclusions Defender sur les dossiers de compilation (`%LOCALAPPDATA%\Arduino15`, `%TEMP%\arduino`, le dépôt) — commande prête dans la section v2026.8.90 ;
+   - la fenêtre VS Code qui fait tourner les 8 `cpptools-srv2` (le réglage de dépôt les bride ici, pas ailleurs) ;
+   - `dist/` et `node_modules/` synchronisés par OneDrive : chaque build renvoie 3,4 Mo dans le nuage.
+2. **Sortir les dessins du bundle de la webview** : 2,55 Mo de SVG sur 3,39 Mo (**75 %**) sont inlinés dans `dist/webview.js`, alors qu'un projet en affiche cinq ou six. Les charger à la demande depuis `dist/parts/`, comme les posters de brochage (`dist/pinout/`, déjà en place). Chantier à part : 70 composants, et le SVG arriverait après le premier rendu.
 
 3. **`verify:i18n`** : toujours le même unique échec connu — « Export this part (.kompix) » ([editor.mts](src/webview/diagram/editor.mts)) attend le lot de traduction d'avant publication.
+
+# >>>>  v2026.8.90 — Un croquis inchangé ne se recompile plus, et la lenteur est chiffrée
+
+1. ✅ **Cache disque des compilations** ([compiler.ts](src/compiler.ts), [panel.ts](src/panel.ts)) : le résultat est rangé sous la **somme du CONTENU** des sources (dossier du croquis + son `src/`, plus la carte et la version de Kablix). Un croquis inchangé n'est plus recompilé — **2 417 ms → 23 ms** au banc, et de 12 à 25 s gagnées sur cette machine. Le mémo qui existait déjà (`lastCompiled`, chemin + date) vit en mémoire et meurt au rechargement de la fenêtre ; celui-ci est dans le stockage global. Une source touchée invalide l'entrée, 60 entrées gardées, les plus vieilles recyclées. Les bancs, eux, ne passent pas de dossier de cache : ils sollicitent toujours la vraie chaîne d'outils.
+2. ✅ **Les deux relevés DWARF en parallèle** ([compiler.ts](src/compiler.ts)) : `avr-objdump --dwarf=decodedline` et `--dwarf=info` sont indépendants et partaient l'un après l'autre. `Promise.all` → **5,1 s à 2,7 s** ; l'essentiel du coût est le démarrage de l'outil, inspecté par l'antivirus.
+3. ✅ **Le banc ne se fie plus à un chronomètre** ([verify-compiler.mjs](scripts/verify-compiler.mjs)) : « une SEULE passe de compilation » comparait deux durées. La MÊME commande `arduino-cli` mesurée cinq fois de suite donne ici **9,4 / 11,1 / 17,2 / 40,1 / 53,3 s** — un seuil de temps ne prouve rien. `CompileFailed` porte maintenant `attempts` : la passe est **comptée**. La compilation de référence (10 à 50 s) disparaît du banc au passage.
+4. ✅ **avr-gcc enfin trouvé par le banc** : il n'est PAS dans le PATH quand seul l'IDE Arduino est installé (il vit sous `Arduino15/packages/arduino/tools/avr-gcc/…/bin`). Le banc le cherche là et le passe par `searchDir`, comme le ferait le réglage « kablix.toolchainPath » : `blink_uno.c` et le nouveau cache sont testés au lieu d'être sautés. **35 contrôles, 0 échec.**
+5. ✅ **Indexation C/C++ bridée sur ce dépôt** ([.vscode/settings.json](.vscode/settings.json)) : huit `cpptools-srv2 -i TagParser` indexaient tout le dépôt pour quelques croquis de test. `C_Cpp.workspaceParsingPriority: low` et exclusion de `node_modules`, `dist`, `media`, `docs`, `firmware`, `Archives`, `A Examiner`. Réversible d'une ligne.
+6. ℹ️ **« Super lent » : la machine, mesures à l'appui.** Le processeur est à **100 %** avant même de lancer quoi que ce soit. Les 12 cœurs sont pris à ~75 % par des tiers : 8 × `cpptools-srv2` (≈ 46 %), `TextInputHost` (~1 cœur), `OneDrive` (~1 cœur). Rien n'a été arrêté — c'est la décision de Frank.
+7. ℹ️ **Defender coûte ~1 s par lancement d'outil** : `avr-g++ -c` sur un fichier VIDE met ~1 s au lieu de ~0,05 s, et un fichier fraîchement écrit se relit en 380 à 850 ms contre 19 ms une fois inspecté. Une compilation Arduino lance des **dizaines** d'outils et écrit autant de `.o` : c'est là que passent les 18 à 25 s d'un simple `blink`. Exclusions à poser (PowerShell **administrateur**, à faire par Frank) :
+   `Add-MpPreference -ExclusionPath "$env:LOCALAPPDATA\Arduino15", "$env:TEMP\arduino", "H:\OneDrive\4 Programation\- VS Code\Extensions\Kablix"`
+8. ℹ️ **Le cache de build d'arduino-cli fonctionne** (« Using precompiled core »), et un `--build-path` fixe ne change rien (23-29 s dans les deux cas) : la lenteur n'est pas une invalidation de cache, c'est le débit de la machine.
+9. ℹ️ **L'horloge à 45 % / 35 % est de la contention processeur, pas une régression.** Même banc `verify:simspeed`, même code, même instant : **0,57 ×** en priorité normale, **0,86 ×** en priorité haute (le banc passe alors au vert). Aucun processus arrêté pour l'obtenir — la seule différence est la part de processeur obtenue. `src/` n'a pas bougé entre 0,42 × (avant-hier) et aujourd'hui.
+10. ℹ️ **`verify:realtime` et `verify:simspeed` échouent toujours** tant que la machine est à 100 % : ils mesurent du temps mur contre un seuil de 0,75. Ce sont des **sentinelles**, pas des bancs à assouplir.
 
 # >>>>  v2026.8.89 — Les composants téléchargés s'affichent enfin, et le DMX512 se simule
 
