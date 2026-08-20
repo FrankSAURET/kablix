@@ -1,8 +1,14 @@
 # À faire
 
 1. ~~Traduit tout ce qui manque~~ — **fait** : chaînes (v2026.8.95), documentation anglaise (v2026.8.97). Il ne reste plus une ligne en retard.
-1. mets à jour changelog, usage et readme — **guide FR et README faits (v2026.8.96), guide EN et README.en faits (v2026.8.97)** ; reste le **CHANGELOG**, écrit au dernier lot pour porter le numéro que tu publieras.
-1. je vais publier.
+1. ~~mets à jour changelog, usage et readme~~ — **fait** : guide FR et README (v2026.8.96), guide EN et README.en (v2026.8.97), CHANGELOG (v2026.8.98).
+1. je vais publier. — **rien n'est publié ni empaqueté sans ton feu vert** : dis-le et je lance `npm run package` puis `vsce publish` sur `electropol-fr`.
+
+# >>>>  v2026.8.98 — Le CHANGELOG raconte les 24 versions depuis la dernière publication
+
+1. ✅ **Entrée `2026.8.98 (2026-08-20)`** ([CHANGELOG.md](CHANGELOG.md)) : la dernière datait de la **2026.8.74** (16 août). Onze points côté utilisateur, pas côté dépôt — gestionnaire de composants et format `.kompix` (fiche d'aide embarquée comprise), **éclairage DMX512** (Grove + PAR 38, UART matériel ou broche bit-bangée), **envoi du programme sur une vraie carte Pico**, **cache disque des compilations**, « enregistrer sous » qui ne perd plus ni composants ni programme, correctif `machine.UART` du Pico, mise en confiance d'un comportement distant, interface entièrement traduite, documentation à jour dans les deux langues, et la liste des corrections visibles (bouton ⚙ qui disparaissait, palette vide au démarrage, ⇩ réservé au fait maison, vidéos du guide).
+2. ℹ️ **Le numéro de l'entrée est celui de ce lot** : c'est la règle que tu m'as donnée — le CHANGELOG s'écrit en dernier pour porter la version réellement publiée. Si tu bumpes encore avant de publier, il faudra renuméroter l'entrée.
+3. ⏳ **Rien n'est empaqueté ni publié** : `npm run package` et `vsce publish` attendent ta demande expresse.
 
 # >>>>  v2026.8.97 — La documentation anglaise rattrape ses 22 versions de retard
 
