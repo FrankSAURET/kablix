@@ -108,6 +108,60 @@ for (const f of sources) {
 ok(`webview : les ${nbAppels} appels t('…') ont tous leur traduction`, appels.size === 0,
   [...appels].map(([s, fs]) => `${JSON.stringify(s)} (${[...fs].join(', ')})`).join(' · '));
 
+// --- L'autre moitié de l'extension : l'hôte ----------------------------------
+// La webview n'est pas seule à parler : commandes, notifications, boîtes de
+// dialogue et gestionnaire de composants passent par `vscode.l10n.t()`, dont le
+// dictionnaire est `l10n/bundle.l10n.fr.json`. Personne ne le relisait — d'où
+// 43 chaînes sorties en anglais (gestionnaire de composants, envoi vers un vrai
+// Pico) sans le moindre avertissement. Même principe que ci-dessus : la clé EST
+// la chaîne anglaise, une clé absente sort telle quelle.
+const FR_HOTE = JSON.parse(readFileSync(join(root, 'l10n/bundle.l10n.fr.json'), 'utf8'));
+const hoteSources = [];
+const marcheHote = (d) => {
+  for (const e of readdirSync(d, { withFileTypes: true })) {
+    if (e.name === 'webview') continue; // l'autre registre, déjà contrôlé
+    const p = join(d, e.name);
+    if (e.isDirectory()) marcheHote(p);
+    else if (e.name.endsWith('.ts')) hoteSources.push(p);
+  }
+};
+marcheHote(join(root, 'src'));
+// Les trois formes de littéral sont acceptées ; une clé construite à l'exécution
+// (backticks avec `${…}`) n'est de toute façon pas traduisible et sera ignorée.
+const RE_HOTE = /l10n\.t\(\s*(['"`])((?:\\.|(?!\1)[\s\S])*?)\1/g;
+const desechappe = (s) => s.replace(/\\(.)/g, (_, c) => (c === 'n' ? '\n' : c === 't' ? '\t' : c));
+const hoteManquants = new Map();
+let nbHote = 0;
+for (const f of hoteSources) {
+  for (const m of readFileSync(f, 'utf8').matchAll(RE_HOTE)) {
+    if (m[1] === '`' && m[2].includes('${')) continue;
+    const s = desechappe(m[2]);
+    nbHote++;
+    if (s.trim() === '' || s in FR_HOTE) continue;
+    if (!hoteManquants.has(s)) hoteManquants.set(s, new Set());
+    hoteManquants.get(s).add(relative(root, f).replace(/\\/g, '/'));
+  }
+}
+ok(`extension : les ${nbHote} appels vscode.l10n.t('…') ont tous leur traduction`,
+  hoteManquants.size === 0,
+  [...hoteManquants].map(([s, fs]) => `${JSON.stringify(s)} (${[...fs].join(', ')})`).join(' · '));
+
+// --- Le manifeste : `%clé%` dans package.json --------------------------------
+// Titres de commandes et descriptions de réglages vivent dans package.nls.json
+// (anglais) et package.nls.fr.json. Une clé citée par le manifeste mais absente
+// du fichier anglais s'affiche crûment comme « %kablix.machin% ».
+const manifeste = readFileSync(join(root, 'package.json'), 'utf8');
+const NLS_EN = JSON.parse(readFileSync(join(root, 'package.nls.json'), 'utf8'));
+const NLS_FR = JSON.parse(readFileSync(join(root, 'package.nls.fr.json'), 'utf8'));
+const citees = new Set();
+for (const m of manifeste.matchAll(/"%([^%"]+)%"/g)) citees.add(m[1]);
+const nlsAbsentes = [...citees].filter((k) => !(k in NLS_EN));
+ok(`manifeste : les ${citees.size} clés %…% existent en anglais`,
+  nlsAbsentes.length === 0, nlsAbsentes.join(' · '));
+const nlsSansFr = Object.keys(NLS_EN).filter((k) => !(k in NLS_FR));
+ok(`manifeste : les ${Object.keys(NLS_EN).length} clés %…% sont traduites en français`,
+  nlsSansFr.length === 0, nlsSansFr.join(' · '));
+
 let fail = 0;
 for (const r of checks) {
   if (!r.ok) fail++;

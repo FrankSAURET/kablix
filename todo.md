@@ -1,9 +1,15 @@
 # À faire
-## Pour plus tard
-1. Traduit tout ce qui manque
+
+1. Traduit tout ce qui manque — **chaînes faites (v2026.8.95)** ; reste la documentation anglaise : `docs/en/USAGE.md` (22 versions de retard), trois fiches (`cd4011`, `nano`, `resistor`), `README.en.md`, et les deux fiches embarquées `kablix_components/help/{spot,dmx-grove}/en.md`.
 1. mets à jour changelog, usage et readme
 1. je vais publier.
-1. **`verify:i18n`** : toujours le même unique échec connu — « Export this part (.kompix) » ([editor.mts](src/webview/diagram/editor.mts)) attend le lot de traduction d'avant publication.
+
+# >>>>  v2026.8.95 — Plus rien ne sort en anglais, et le banc surveille enfin les DEUX moitiés de l'extension
+
+1. ✅ **43 chaînes de l'extension traduites** ([bundle.l10n.fr.json](l10n/bundle.l10n.fr.json), 163 → 206 entrées) : tout le **gestionnaire de composants** (filtres, boutons, badges, confirmations de suppression, comptes rendus), l'**annonce de nouveaux composants**, l'**envoi vers une vraie carte Pico** (choix du port, cases à cocher, avancement, erreurs, Python 3 absent) et la **mise en confiance d'un composant à comportement distant** sortaient crûment en anglais chez un utilisateur francophone.
+2. ✅ **« Exporter ce composant (.kompix) »** ([i18n.mts](src/webview/i18n.mts)) : la dernière infobulle non traduite de la webview — l'échec connu de `verify:i18n` est fermé.
+3. ✅ **Le banc regardait la webview et RIEN d'autre** ([verify-i18n.mjs](scripts/verify-i18n.mjs), 8 → 11 contrôles) : il relisait les 271 appels `t('…')` de la webview, mais pas un seul des 231 `vscode.l10n.t('…')` de l'hôte — c'est exactement là que dormaient les 43 chaînes. Nouvel étage « extension » (les trois formes de littéral, les clés construites à l'exécution écartées), plus deux contrôles sur le manifeste : les 41 clés `%…%` citées par `package.json` existent en anglais et sont traduites en français — une clé absente s'afficherait crûment comme `%kablix.machin%`. Contre-épreuve faite : une entrée retirée du dictionnaire rallume l'échec, en nommant la chaîne ET son fichier.
+4. ℹ️ **19 entrées inutilisées** repérées dans le dictionnaire de l'hôte (anciens messages d'extraction de code, boutons de la console d'avant) : gardées, elles ne coûtent rien et ne trompent personne.
 
 # >>>>  v2026.8.94 — Un composant de bibliothèque emporte sa fiche d'aide dans son paquet
 

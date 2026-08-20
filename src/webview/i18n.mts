@@ -123,6 +123,7 @@ const FR: Record<string, string> = {
   'Click: place on canvas — double-click: edit the model':
     'Clic : poser sur le canvas — double-clic : modifier le modèle',
   'Export this part (.json)': 'Exporter ce composant (.json)',
+  'Export this part (.kompix)': 'Exporter ce composant (.kompix)',
   'Delete this part model': 'Supprimer ce modèle de composant',
   'Import failed: {0}': 'Import impossible : {0}',
   'invalid JSON.': 'JSON invalide.',
