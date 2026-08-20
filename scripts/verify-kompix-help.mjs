@@ -119,7 +119,7 @@ ok('bibliothèque : hasHelp allumé sur « spot »', composants.get('spot')?.has
 	JSON.stringify(composants.get('spot')?.hasHelp));
 ok('bibliothèque : hasHelp éteint sur un paquet sans fiche', !composants.get('sans-aide')?.hasHelp,
 	JSON.stringify(composants.get('sans-aide')?.hasHelp));
-ok('bibliothèque : langues annoncées pour « spot »', library.helpLanguages('spot').join(',') === 'fr',
+ok('bibliothèque : langues annoncées pour « spot »', library.helpLanguages('spot').join(',') === 'en,fr',
 	library.helpLanguages('spot').join(','));
 ok('bibliothèque : aucune langue pour un paquet sans fiche', library.helpLanguages('sans-aide').length === 0,
 	library.helpLanguages('sans-aide').join(','));
@@ -132,10 +132,13 @@ ok('lecture : les illustrations sortent en data: URI',
 	[...(aide?.assets?.keys() ?? [])].join(' '));
 ok("lecture : l'image est atteignable par son nom RELATIF (comme dans le Markdown)",
 	!!aide?.assets?.get('spot.webp')?.startsWith('data:image/webp'), [...(aide?.assets?.keys() ?? [])].join(' '));
-// Langue absente : repli sur la première disponible plutôt que rien du tout —
-// la version anglaise arrive avec le lot de traduction d'avant publication.
 const aideEn = await library.readHelp('spot', 'en');
-ok('lecture : langue absente → repli sur la fiche existante', aideEn?.lang === 'fr', aideEn?.lang);
+ok('lecture : la fiche EN sort aussi du paquet', aideEn?.lang === 'en' && /^#\s+\S/m.test(aideEn.text), aideEn?.lang);
+// Langue jamais traduite : repli sur l'anglais, langue de repli de tout Kablix,
+// plutôt que rien du tout — un allemand ne doit pas se retrouver devant un
+// bouton d'aide muet.
+const aideDe = await library.readHelp('spot', 'de');
+ok("lecture : langue absente → repli sur l'anglais", aideDe?.lang === 'en', aideDe?.lang);
 ok("lecture : rien à ouvrir pour un paquet sans fiche", (await library.readHelp('sans-aide', 'fr')) === undefined);
 ok("lecture : rien à ouvrir pour un composant inconnu", (await library.readHelp('inexistant', 'fr')) === undefined);
 

@@ -3,6 +3,8 @@
 *[Version française](README.md)*
 
 >Extension under development. And if you feel I write like an AI, it is probably because there is some truth in it.
+
+> Heads-up, new: extra parts are downloadable through the “Manage components” button.
 # Kablix
 A **Gaulish** application to simulate microcontrollers (**Arduino Uno / Raspberry Pi Pico**) straight inside VS Code,
 - **100 % Offline**
@@ -40,7 +42,9 @@ My test library is available here: [TestKablix](https://github.com/FrankSAURET/k
 - ✅ **Visual workshop**: automatic routing. 
 - ✅ **Part creator**: you can build your own “custom” parts with this creator or, better still, fork the repository, follow the [guide](docs/en/Creating-components.md) to add the part and open a PR (publication request) — it will then ship with the next release for everyone, and please provide the test circuits as well (Pico + Arduino).
 - ✅ **SVG export**.
-- ✅ **A library of 63 parts** in 9 categories, each with its illustrated help sheet (❔ button) and two ready-to-run test circuits, Arduino and Pico — [full list](#part-library).
+- ✅ **A library of 68 parts** filed by families, each with its illustrated help sheet (❔ button) and its two test circuits, Arduino and Pico — [full list](#part-library).
+- ✅ **Component manager** (⚙ button at the bottom of the palette): a part fits in a single `.kompix` file — drawing, pinout, simulation and help sheet included. Install it from a repository with one click, or drop the file into the project folder.
+- ✅ **DMX512 lighting**: universe decoded from the hardware UART **or** from a bit-banged pin (DmxSimple), fixtures driven live.
 - ✅ **Supported development boards**: Arduino Uno, Nano, Mega 2560 and Raspberry Pi Pico/Pico W, all pluggable onto a breadboard.
 - ✅ **Real RP2040 flashing**.
 - ✅ **Direct artifact loading**: `.hex`, `.uf2`, `.elf`, `.bin` compiled elsewhere, loaded without recompiling
@@ -54,8 +58,8 @@ My test library is available here: [TestKablix](https://github.com/FrankSAURET/k
 
 > 📖 **Full guide**: [docs/en/USAGE.md](docs/en/USAGE.md) (English) /
 > [docs/fr/USAGE.md](docs/fr/USAGE.md) (français) — interface, wiring, building
-> custom parts (with an AI prompt), the `.kablix-part.json` format,
-> where to find existing parts.
+> custom parts (with an AI prompt), the `.kompix` format,
+> the component manager, where to find existing parts.
 >
 > **Adding a part to Kablix** (contributors, on GitHub only):
 > [docs/en/Creating-components.md](docs/en/Creating-components.md) (English) /
@@ -73,21 +77,20 @@ My test library is available here: [TestKablix](https://github.com/FrankSAURET/k
 
 ## Part library
 
-**63 parts** you can drop with the mouse, listed in palette order. Each one comes with its **illustrated help sheet** (❔ button in the inspector, offline, English and French) and **two test circuits** ready to simulate in [testkablix](https://github.com/FrankSAURET/kablix/tree/main/testkablix) — one in C on Arduino, one in MicroPython on the Pico.
+**68 parts** you can drop with the mouse, filed in palette order (plus their variants: polarized capacitor, PN2222A/NPN/PNP transistors, 3×4 and 4×4 keypads, mini/half/full breadboards…). Each one comes with its **illustrated help sheet** (❔ button in the inspector, offline, English and French) and **two test circuits** ready to simulate in [testkablix](https://github.com/FrankSAURET/kablix/tree/main/testkablix) — one in C on Arduino, one in MicroPython on the Pico.
 
 | Category | Parts |
 | --- | --- |
-| **Boards & breadboards** (7) | Arduino Uno · Arduino Nano · Arduino Mega 2560 · Raspberry Pi Pico · Raspberry Pi Pico W · Grove Shield (Pico) · Breadboard |
-| **Discrete** (9) | LED · RGB LED · Resistor · Diode · Capacitor (film, tantalum, electrolytic) · LDR (photoresistor) · NTC thermistor · PTC thermistor · Transistor (NPN, PNP, darlington, MOSFET — PN2222A and generic models) |
-| **Displays** (8) | 7-segment display (1 to 4 digits) · 10-LED bar graph · Text LCD 16×2 / 20×4 (I²C or parallel) · SSD1306 OLED display (I²C) · ILI9341 TFT display (SPI) · NeoPixel · NeoPixel matrix · NeoPixel ring |
-| **Controls** (9) | Pushbutton · 6 mm pushbutton · Potentiometer · Slide potentiometer · Slide switch · DIP switch ×8 · Analog joystick · OMRON G5V relay · Membrane keypad 3×4 / 4×4 |
-| **Sensors** (11) | Light sensor · PIR motion sensor · Tilt sensor · NTC temperature sensor · Gas sensor (MQ) · Heart-beat sensor · Flame sensor · Sound sensor · Ultrasonic sensor (HC-SR04) · DHT22 temperature/humidity · DHT11 temperature/humidity |
-| **Actuators** (4) | Buzzer · Servo motor · Fan · DC motor |
-| **Instruments** (1) | Bench power supply |
-| **Misc** (2) | microSD card (SPI) · 16-channel PWM driver (PCA9685) |
-| **Integrated circuits** (12) | **CMOS 4000**: CD4081 (quad AND) · CD4071 (quad OR) · CD4070 (quad XOR) · CD4011 (quad NAND) · CD4001 (quad NOR) · CD40106 (hex Schmitt-trigger inverter)<br>**TTL/HC 74**: 74xx08 · 74xx32 · 74xx86 · 74xx00 · 74xx02 · 74xx14 (same functions; the chosen family sets the supply range) |
+| **Boards and supports** (9) | Arduino Uno · Arduino Nano · Arduino Mega 2560 · Raspberry Pi Pico · Raspberry Pi Pico W · Grove Shield (Pico) · Breadboard · Bench power supply · Power bank |
+| **Passives and semiconductors** (8) | Resistor · Capacitor (polarized or not) · Diode · Transistor (PN2222A, NPN, PNP — TO-92 package) · NTC thermistor · PTC thermistor · NTC temperature sensor · Photoresistor (LDR) |
+| **Indicators and displays** (10) | LED · RGB LED · 10-LED bar graph · 7-segment display (1 to 4 digits) · NeoPixel · NeoPixel matrix · NeoPixel ring · Text LCD 16×2 / 20×4 (I²C or parallel) · SSD1306 OLED display · ILI9341 TFT display (SPI) |
+| **Inputs** (9) | Pushbutton · 6 mm pushbutton · Slide switch · DIP switch ×8 · Membrane keypad 3×4 / 4×4 · Potentiometer · Slide potentiometer · Trimmer potentiometer · Analog joystick |
+| **Sensors** (11) | Light sensor · Gas sensor (MQ) · Flame sensor · Sound sensor · PIR motion sensor · Tilt sensor · Hall effect sensor · Heart-beat sensor · Ultrasonic sensor (HC-SR04) · DHT22 temperature/humidity · DHT11 temperature/humidity |
+| **Actuators and power** (7) | Buzzer · Servo motor · Fan · DC motor · OMRON G5V relay · 16-channel PWM driver (PCA9685) · microSD card (SPI) |
+| **Logic (DIP packages)** (12) | **CMOS 4000**: CD4081 (4 × AND) · CD4071 (4 × OR) · CD4070 (4 × XOR) · CD4011 (4 × NAND) · CD4001 (4 × NOR) · CD40106 (6 × NOT, Schmitt trigger) — **TTL/HC 74**: 74xx08 · 74xx32 · 74xx86 · 74xx00 · 74xx02 · 74xx14 (same functions; the chosen family sets the supply range) |
+| **Mechanics** (2) | Spider robot · Spider leg |
 
-On top of these come **custom parts**: drawn in the built-in creator, or imported as `.kablix-part.json`.
+On top of these come the **library parts** (`.kompix`), installed by the manager or dropped into the project folder, and the **custom parts** drawn in the built-in creator.
 
 ## Internationalisation
 

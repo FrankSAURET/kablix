@@ -24,8 +24,15 @@ Fixed resistor. Limits current (LED) or forms a divider / pull-up / pull-down.
 - Non-polarized: the two terminals are equivalent.
 - LED: 220 Ω–1 kΩ. Pull-up/pull-down: 10 kΩ typical.
 - Vertical mounting: the body stands upright with one lead folded over the top,
-  so both terminals come out side by side (30 px apart instead of 60). Handy to
-  fit a resistor into a tight spot on the board.
+  so both terminals come out side by side (20 px apart instead of 60). Handy to
+  fit a resistor into a tight spot on the breadboard. Standing, the resistor is
+  seen at an angle: its bands are drawn as ellipses, the golden band (tolerance)
+  at the bottom, the first value band at the top.
+- Standing, it fits in **30 × 30 px** instead of 30 × 60: the drawing is halved
+  in height, the way perspective does it when you look at the part from higher
+  up — the bands flatten, the diameter of the body does not change. It really is
+  the same resistor, seen differently, and the room gained is the one you were
+  after when you stood it up.
 
 ---
 

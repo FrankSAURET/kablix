@@ -613,9 +613,9 @@ export class KompixLibrary {
 
   /**
    * Fiche d'aide d'un composant de bibliothèque, dans la langue demandée sinon
-   * dans la première disponible (les fiches sont écrites en français, langue de
-   * base des documents du projet ; la version anglaise arrive avec le lot de
-   * traduction). Le paquet est RELU ici : garder en mémoire le texte et les
+   * en anglais, langue de repli de tout Kablix, sinon dans la première fiche
+   * disponible : mieux vaut une fiche dans une autre langue qu'un bouton d'aide
+   * qui n'ouvre rien. Le paquet est RELU ici : garder en mémoire le texte et les
    * images de chaque composant installé coûterait cher pour un panneau qui
    * s'ouvre une fois de temps en temps.
    */
@@ -623,7 +623,7 @@ export class KompixLibrary {
     const langs = this.helpLangs.get(type);
     const source = this.sources.get(type);
     if (!langs?.length || !source) return undefined;
-    const chosen = langs.includes(lang) ? lang : langs[0];
+    const chosen = langs.includes(lang) ? lang : langs.includes('en') ? 'en' : langs[0];
     try {
       const data = readFileSync(source);
       const zip = new JSZip();
