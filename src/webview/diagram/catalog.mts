@@ -1178,6 +1178,51 @@ export function addSimModelPresets(raw: unknown): SimModelPreset[] {
   return simModelPresets;
 }
 
+/**
+ * Rend un dessin de composant personnalisé MESURABLE : un `<svg>` qui n'a que sa
+ * `viewBox` s'étale à la taille de son parent — ici un `inline-block` en
+ * `line-height: 0`, donc **0 × 0** : le composant est chargé, posé et câblable,
+ * mais invisible (Frank, v2026.8.91 — un projet « enregistré sous » perdait ses
+ * composants de bibliothèque à l'écran, ses fils restant en place).
+ *
+ * La bibliothèque .kompix reconstruit déjà `width`/`height` (v2026.8.89), mais
+ * les projets DÉJÀ enregistrés embarquent le dessin tel qu'il était : la
+ * réparation doit donc vivre ici, au point de passage de TOUS les composants
+ * personnalisés (bibliothèque, .projix, créateur, import).
+ *
+ * Une dimension explicite en pixels est respectée telle quelle (l'utilisateur a
+ * pu vouloir cette échelle) ; seules l'absence et les pourcentages — qui valent
+ * 0 dans un parent sans taille — sont corrigés depuis la viewBox.
+ */
+export function withSvgSize(svg: string | undefined): string | undefined {
+  if (!svg) return svg;
+  const open = /<svg\b[^>]*>/i.exec(svg);
+  if (!open) return svg;
+  const tag = open[0];
+  const vb = /\bviewBox=["']\s*([-\d.eE]+)[,\s]+([-\d.eE]+)[,\s]+([-\d.eE]+)[,\s]+([-\d.eE]+)\s*["']/i.exec(tag);
+  if (!vb) return svg;
+  const vbW = Number(vb[3]);
+  const vbH = Number(vb[4]);
+  if (!(vbW > 0) || !(vbH > 0)) return svg;
+  // Une dimension n'est utilisable que si elle est un nombre de pixels (les
+  // unités d'Inkscape — mm, cm… — décrivent une feuille, pas le composant).
+  const px = (attr: string): number | undefined => {
+    const m = new RegExp(`\\b${attr}=["']\\s*([\\d.]+)(px)?\\s*["']`, 'i').exec(tag);
+    return m ? Number(m[1]) : undefined;
+  };
+  const w = px('width');
+  const h = px('height');
+  if (w !== undefined && h !== undefined) return svg;
+  // Une seule dimension connue : l'autre suit le rapport de la viewBox.
+  const width = w ?? (h !== undefined ? (h * vbW) / vbH : vbW);
+  const height = h ?? (w !== undefined ? (w * vbH) / vbW : vbH);
+  const fixed = tag
+    .replace(/\s+width=["'][^"']*["']/i, '')
+    .replace(/\s+height=["'][^"']*["']/i, '')
+    .replace(/^<svg\b/i, `<svg width="${width}" height="${height}"`);
+  return svg.replace(tag, fixed);
+}
+
 export function registerCustomPart(data: CustomPartData): PartDef {
   // Paramètres de définition → champs numériques de l'inspecteur (attr
   // « prm_<name> », valeur par défaut incluse dans def.attrs pour les
@@ -1203,10 +1248,10 @@ export function registerCustomPart(data: CustomPartData): PartDef {
     kind: data.kind,
     attrs: Object.keys(paramAttrs).length > 0 ? { ...data.attrs, ...paramAttrs } : data.attrs,
     custom: {
-      svg: data.svg,
+      svg: withSvgSize(data.svg) ?? data.svg,
       pins: data.pins,
       pinRoles: data.pinRoles,
-      innerSvg: data.innerSvg,
+      innerSvg: withSvgSize(data.innerSvg),
       innerOffset: data.innerOffset,
       params: data.params,
       control: data.control,

@@ -101,6 +101,19 @@ async function run() {
 		}
 	}
 
+	// Bouton du gestionnaire de composants : renommé et MIS EN ÉVIDENCE aux
+	// couleurs du bouton principal du thème (demande de Frank, v2026.8.91).
+	const gerer = lignes().find((r) => (r.textContent || '').includes('Manage components'));
+	ok('palette : le bouton « Manage components » est là', !!gerer,
+		'derniers boutons : ' + lignes().map((r) => r.textContent).slice(-3).join(' | '));
+	ok('palette : ce bouton porte la classe de mise en évidence',
+		!!gerer && gerer.classList.contains('palette__item--manage'), gerer ? gerer.className : 'absent');
+	const fond = gerer ? getComputedStyle(gerer).backgroundColor : '';
+	ok('palette : il a un fond plein (pas le bouton discret d avant)',
+		fond.indexOf('rgb') === 0 && fond !== 'rgba(0, 0, 0, 0)', 'fond = ' + fond);
+	ok('palette : plus de bouton « Import components »',
+		!lignes().some((r) => (r.textContent || '').includes('Import components')), 'ancien libellé encore présent');
+
 	const out = document.createElement('pre');
 	out.id = 'measures';
 	out.textContent = JSON.stringify(checks);

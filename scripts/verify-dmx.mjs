@@ -50,7 +50,7 @@ async function bundle(contents, name) {
 
 // --- 1. Décodeur --------------------------------------------------------------
 console.log('--- 1. Décodeur DMX512 (trame, start code, resynchronisation) ---');
-const { DmxDecoder, DMX_SLOTS } = await bundle(
+const { DmxDecoder, DmxWire, DMX_SLOTS } = await bundle(
 	"export * from './src/webview/engines/dmx.mts';\n", 'dmx.mjs');
 
 const OCTET_US = 44; // 11 bits à 250 kbauds
@@ -110,6 +110,84 @@ envoyer(d2, 500, [0, 33]);
 check('breakDetected() redémarre la trame',
 	d2.universe[1] === 33 && d2.universe[2] === 22, [...d2.universe.slice(0, 4)].join(','));
 
+// --- 1bis. Ligne bit-bangée (DmxSimple : broche ordinaire, pas d'UART) -------
+// Frank, v2026.8.91 : « mon test dmx-uno-lib.ino ne marche pas ». DmxSimple ne
+// se sert PAS de l'UART matériel — il produit la trame à la main sur la broche 3
+// à coups d'écritures de port. Rien ne passe alors par onByteTransmit : le seul
+// signal est le NIVEAU du fil, que DmxWire décode front par front.
+console.log('\n--- 1bis. Ligne bit-bangée : le fil décodé front par front ---');
+
+/** Un octet 8N2 sorti bit à bit, comme le fait dmxSendByte() en assembleur. */
+function octetFil(w, us, b) {
+	w.sample(false, us); us += 4;                                   // start
+	for (let k = 0; k < 8; k++) { w.sample(!!(b & (1 << k)), us); us += 4; }
+	w.sample(true, us); return us + 8;                              // 2 stop bits
+}
+
+/**
+ * Trame complète : BREAK 88 µs, MAB 12 µs, puis les octets. `souffle` insère un
+ * trou (ms) après le n-ième octet — c'est ce que fait l'ISR de DmxSimple quand
+ * son budget de temps est épuisé, et c'est exactement ce qui interdit de
+ * délimiter les trames par le silence sur ce genre de ligne.
+ */
+function trameFil(w, us, octets, souffle = 0, apres = -1) {
+	w.sample(false, us); us += 88;   // BREAK
+	w.sample(true, us); us += 12;    // MAB
+	let i = 0;
+	for (const b of octets) {
+		if (apres >= 0 && i === apres) us += souffle;
+		us = octetFil(w, us, b);
+		i++;
+	}
+	return us;
+}
+
+/** Le dernier octet n'est complet qu'au front suivant : le BREAK d'après. */
+function clore(w, us) {
+	w.sample(false, us);
+	w.sample(true, us + 100);
+	return us + 100;
+}
+
+const fil = new DmxWire();
+fil.sample(true, 0); // ligne au repos
+let uf = trameFil(fil, 1_000, [0, 255, 0, 0]);
+uf = clore(fil, uf);
+check('fil : trame bit-bangée décodée (canaux 1-2-3 = 255,0,0)',
+	fil.decoder.universe[1] === 255 && fil.decoder.universe[2] === 0 && fil.decoder.universe[3] === 0,
+	[...fil.decoder.universe.slice(0, 5)].join(','));
+
+// Trou de 2 ms au milieu de la trame : le décodeur d'UART matériel y verrait une
+// nouvelle trame (silence ≥ 88 µs) et prendrait « 77 » pour un start code.
+uf = trameFil(fil, uf + 5_000, [0, 11, 77, 88], 2_000, 2);
+uf = clore(fil, uf);
+check('fil : un souffle de 2 ms au milieu ne coupe pas la trame',
+	fil.decoder.universe[1] === 11 && fil.decoder.universe[2] === 77 && fil.decoder.universe[3] === 88,
+	[...fil.decoder.universe.slice(0, 5)].join(','));
+
+// Start code non nul (RDM…) : la trame ne doit rien écraser.
+uf = trameFil(fil, uf + 5_000, [0xcc, 1, 2, 3]);
+uf = clore(fil, uf);
+check('fil : start code non nul ignoré (l\'univers ne bouge pas)',
+	fil.decoder.universe[1] === 11 && fil.decoder.universe[2] === 77,
+	[...fil.decoder.universe.slice(0, 5)].join(','));
+
+// Sans BREAK, pas de trame : une ligne qui babille (autre protocole sur la même
+// broche) ne doit pas allumer un projecteur.
+const fil2 = new DmxWire();
+fil2.sample(true, 0);
+let u2 = 1_000;
+for (const b of [0, 200, 200, 200]) u2 = octetFil(fil2, u2, b);
+clore(fil2, u2);
+check('fil : sans BREAK d\'ouverture, rien n\'est retenu',
+	fil2.decoder.universe.every((v) => v === 0), [...fil2.decoder.universe.slice(0, 5)].join(','));
+
+// Le BREAK fait 88 µs : un start bit ordinaire (4 µs) ne doit pas passer pour
+// un BREAK, sinon chaque octet rouvrirait une trame.
+check('fil : takeChanged() signale bien le changement',
+	fil.decoder.takeChanged() instanceof Uint8Array);
+check('fil : consommé une seule fois', fil.decoder.takeChanged() === null);
+
 // --- 2. Liaison (projix de testkablix) ---------------------------------------
 console.log('\n--- 2. Liaison : quel projecteur sur quelle broche, à quelle adresse ---');
 // Modèle ET catalogue dans le MÊME bundle : deux bundles séparés emportent
@@ -130,8 +208,11 @@ for (const p of PROJIX) {
 	const diagram = JSON.parse(await zip.file('diagram.json').async('string'));
 	for (const cp of diagram.customParts ?? []) catalog.registerCustomPart(cp);
 
+	// Le projecteur est repéré par son TYPE : les identifiants (Spot1, Mod1…)
+	// changent dès que Frank refait la disposition dans l'éditeur.
+	const spot = diagram.parts.find((x) => x.type === 'spot');
 	const liens = model.dmxBindings(diagram);
-	const b = liens.find((x) => x.partId === 'Spot1');
+	const b = liens.find((x) => x.partId === spot?.id);
 	check(`${p.nom} : le projecteur écoute ${p.mcuPin}`, b?.mcuPin === p.mcuPin, JSON.stringify(liens));
 	check(`${p.nom} : adresse 1, 3 canaux (rouge, vert, bleu)`,
 		b?.address === 1 && b?.channels === 3, JSON.stringify(b));
@@ -139,14 +220,13 @@ for (const p of PROJIX) {
 
 	// Adresse posée dans l'inspecteur (attribut prm_address) : elle décale les
 	// canaux lus. C'est le seul réglage du composant.
-	const spot = diagram.parts.find((x) => x.id === 'Spot1');
 	spot.attrs = { ...(spot.attrs ?? {}), prm_address: 100 };
 	check(`${p.nom} : adresse 100 prise dans l'inspecteur`,
-		model.dmxBindings(diagram).find((x) => x.partId === 'Spot1')?.address === 100,
+		model.dmxBindings(diagram).find((x) => x.partId === spot.id)?.address === 100,
 		JSON.stringify(model.dmxBindings(diagram)));
 	spot.attrs.prm_address = 9999;
 	check(`${p.nom} : adresse hors bornes ramenée à 512`,
-		model.dmxBindings(diagram).find((x) => x.partId === 'Spot1')?.address === 512);
+		model.dmxBindings(diagram).find((x) => x.partId === spot.id)?.address === 512);
 	delete spot.attrs.prm_address;
 
 	// Câble XLR débranché : plus de projecteur sur la ligne (le fil Data+ seul
@@ -357,6 +437,80 @@ if (QUICK) {
 		await boutEnBout('uno', engine, '1', 120_000);
 		check('uno : le moniteur série ne reçoit pas la trame binaire',
 			serial === '', JSON.stringify(serial.slice(0, 60)));
+	}
+}
+
+console.log('\n--- 6. Bout en bout uno : DmxSimple (broche 3, bit-bang) → univers ---');
+// Le test de Frank : une bibliothèque du commerce, qui ne se sert pas de l'UART.
+// Le sketch fait monter le canal 1 de 0 à 255 par pas de 10 ms.
+const inoLib = join(ROOT, 'testkablix', 'Arduino', 'dmx-uno-lib', 'dmx-uno-lib.ino');
+if (QUICK) {
+	console.log('--quick : étape sautée.');
+} else if (!existsSync(inoLib)) {
+	console.log('Sketch absent — étape sautée.');
+} else {
+	const { compile, detectToolchain } = await bundle("export * from './src/compiler.ts';\n", 'compilerlib.mjs');
+	if (!detectToolchain().arduinoCli) {
+		console.log('arduino-cli absent — étape sautée.');
+	} else {
+		const CACHE = join(ROOT, 'node_modules', '.cache-dmx');
+		mkdirSync(CACHE, { recursive: true });
+		const cle = createHash('sha1').update(readFileSync(inoLib)).digest('hex').slice(0, 12);
+		const hexFile = join(CACHE, `dmx-uno-lib-${cle}.json`);
+		let mots = null;
+		if (existsSync(hexFile)) {
+			mots = JSON.parse(readFileSync(hexFile, 'utf8'));
+		} else {
+			console.log('  compilation du sketch (une minute environ)…');
+			try {
+				const res = await compile('uno', inoLib, ROOT);
+				mots = Array.from(res.payload.bytes);
+				writeFileSync(hexFile, JSON.stringify(mots));
+			} catch (e) {
+				// DmxSimple est une bibliothèque tierce : absente, le sketch ne
+				// compile pas et l'étape n'a rien à prouver sur cette machine.
+				console.log(`  compilation impossible (${String(e).slice(0, 120)}) — étape sautée.`);
+			}
+		}
+		if (mots) {
+			const { AvrEngine } = await bundle("export * from './src/webview/engines/avr.mts';\n", 'avrlib.mjs');
+			const engine = new AvrEngine(Uint16Array.from(mots), null, 'avr328');
+			engine.setDmx(['3']); // la broche par défaut de DmxSimple, pas TX
+			const vues = [];
+			const releve = () => {
+				const u = engine.readDmx('3');
+				if (!u) return;
+				const v = u[1];
+				if (vues[vues.length - 1] !== v) vues.push(v);
+			};
+			const suivant = engine.onUpdate;
+			engine.onUpdate = () => { releve(); suivant?.(); };
+			const t0 = Date.now();
+			engine.start();
+			await new Promise((resolve) => {
+				const timer = setInterval(() => {
+					releve();
+					if (vues.length >= 12 || Date.now() - t0 > 60_000) {
+						clearInterval(timer);
+						engine.dispose();
+						resolve();
+					}
+				}, 20);
+			});
+			const debut = vues.slice(0, 12).join(' → ');
+			console.log(`  canal 1 vu : ${debut} … (${vues.length} valeurs en ${((Date.now() - t0) / 1000).toFixed(1)} s)`);
+			check('uno/DmxSimple : la trame bit-bangée sur la broche 3 est décodée',
+				vues.length >= 3, `valeurs vues : ${vues.slice(0, 20).join(',')}`);
+			// La rampe monte de 1 en 1 et retombe à 0 après 255 : aucune valeur
+			// sautée, donc aucun octet perdu ni mal cadré sur toute la course.
+			const rampe = vues.every((v, i) => i === 0 || v === vues[i - 1] + 1 || (vues[i - 1] === 255 && v === 0));
+			check('uno/DmxSimple : le canal 1 suit la rampe du programme, pas à pas',
+				vues.length >= 3 && rampe,
+				vues.slice(0, 20).join(',') + (vues.length > 20 ? ' …' : ''));
+			check('uno/DmxSimple : les canaux voisins restent éteints',
+				(engine.readDmx('3') ?? [0, 0, 0, 0])[2] === 0,
+				String((engine.readDmx('3') ?? [])[2]));
+		}
 	}
 }
 

@@ -61,7 +61,7 @@ import {
 import { DEFAULT_AIR_TEMP_C, echoUsPerCm } from './ultrasonic.mjs';
 import { selectSpiDevice, Hd44780, type I2cDevice, type SpiDevice } from './i2c-devices.mjs';
 import { Ws2812Decoder } from './ws2812.mjs';
-import { DmxDecoder } from './dmx.mjs';
+import { DmxDecoder, DmxWire } from './dmx.mjs';
 
 export type AvrFamily = 'avr328' | 'avr2560';
 
@@ -289,6 +289,14 @@ export class AvrEngine implements SimEngine {
   private dmxByPin = new Map<string, DmxDecoder>();
   /** Décodeur DMX de chaque USART, indexé comme `usarts` (0 = Serial). */
   private dmxByUsart: Array<DmxDecoder | null> = [];
+  /**
+   * Lignes DMX512 bit-bangées : broches SANS UART matériel (DmxSimple sort sur
+   * la broche 3 par défaut). Vide en temps normal — c'est ce qui rend
+   * `sampleDmxWire` gratuit sur les autres montages.
+   */
+  private dmxWires: Array<{ port: PortKey; bit: number; wire: DmxWire }> = [];
+  /** Ces mêmes lignes, par nom de broche : un recâblage réutilise le décodeur. */
+  private dmxWiresByPin = new Map<string, DmxWire>();
 
   // Famille AVR ciblée : 'avr328' (Uno / Nano / Pro Mini) ou 'avr2560' (Mega).
   private readonly family: AvrFamily;
@@ -420,6 +428,7 @@ export class AvrEngine implements SimEngine {
       // À chaque changement de port : échantillonne les impulsions (servo) puis
       // rafraîchit l'affichage.
       port?.addListener(() => {
+        if (this.dmxWires.length) this.sampleDmxWire();
         this.samplePulses();
         this.sampleNeopixels();
         this.sampleLcdParallel();
@@ -472,15 +481,41 @@ export class AvrEngine implements SimEngine {
       ? { '1': 0, '18': 1, '16': 2, '14': 3 }
       : { '1': 0 };
     const garde = new Map<string, DmxDecoder>();
+    const fils: Array<{ port: PortKey; bit: number; wire: DmxWire }> = [];
+    const gardeFils = new Map<string, DmxWire>();
     this.dmxByUsart = [];
     for (const pin of pins) {
       const usart = (TX as Record<string, number | undefined>)[pin];
-      if (usart === undefined) continue; // broche sans UART matériel : rien à décoder
-      const dec = this.dmxByPin.get(pin) ?? new DmxDecoder();
-      garde.set(pin, dec);
-      this.dmxByUsart[usart] = dec;
+      if (usart !== undefined) {
+        const dec = this.dmxByPin.get(pin) ?? new DmxDecoder();
+        garde.set(pin, dec);
+        this.dmxByUsart[usart] = dec;
+        continue;
+      }
+      // Broche ordinaire : la trame est produite à la main (DmxSimple), rien ne
+      // passe par l'UART. On décode alors le FIL, front par front.
+      const map = this.pinMap[pin];
+      if (!map) continue;
+      const wire = this.dmxWiresByPin.get(pin) ?? new DmxWire();
+      gardeFils.set(pin, wire);
+      garde.set(pin, wire.decoder);
+      fils.push({ port: map[0], bit: map[1], wire });
     }
+    this.dmxWiresByPin = gardeFils;
+    this.dmxWires = fils;
     this.dmxByPin = garde;
+  }
+
+  /**
+   * Niveau des broches DMX bit-bangées, daté au cycle près. Appelé à CHAQUE
+   * écriture de port : la boucle est vide tant qu'aucune ligne de ce genre n'est
+   * câblée (cf. le test dans le listener).
+   */
+  private sampleDmxWire(): void {
+    const us = this.cpu.cycles / CYCLES_PER_US;
+    for (const f of this.dmxWires) {
+      f.wire.sample(this.ports[f.port]?.pinState(f.bit) === PinState.High, us);
+    }
   }
 
   /** Univers DMX512 décodé sur une broche TX (cf. SimEngine.readDmx). */

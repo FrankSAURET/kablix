@@ -103,7 +103,7 @@ Voir [kompix_specification.md](../docs/kompix_specification.md) pour les détail
   readme += `\n## Utilisation
 
 1. Ouvrir un schéma dans Kablix
-2. Clic sur **⇩ Importer des composants** dans la palette
+2. Clic sur **⚙ Gérer les composants** dans la palette
 3. Sélectionner les composants et clic sur **Télécharger**
 
 ## Contribution

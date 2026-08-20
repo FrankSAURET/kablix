@@ -1110,11 +1110,18 @@ export class SimulatorPanel {
    * (le code vit généralement à côté du projet), puis chaque dossier du
    * workspace, puis le nom seul dans le dossier du .projix, puis le chemin
    * ABSOLU mémorisé à l'enregistrement (même poste, workspace différent).
+   *
+   * Entre le nom seul et le chemin absolu vient le programme HOMONYME DU PROJET
+   * (`mon-projet.ino` à côté de `mon-projet.projix`). Sans lui, un « enregistrer
+   * sous » dans un nouveau dossier gardait le programme de l'ancien projet :
+   * l'atelier compilait un sketch invisible pendant que Frank en éditait un
+   * autre — « pas d'erreur de compilation, et rien ne marche » (v2026.8.91).
    */
   private async restoreCodeFile(
     ref: string | undefined,
     projectDir?: vscode.Uri,
-    abs?: string
+    abs?: string,
+    projectName?: string
   ): Promise<void> {
     this.setCodeFile(undefined);
     this.pendingCodeReveal = undefined; // jamais le programme du projet PRÉCÉDENT
@@ -1133,6 +1140,12 @@ export class SimulatorPanel {
     const base = (ref ?? abs)?.split(/[\\/]/).pop();
     if (projectDir && base && base !== ref) {
       candidates.push(vscode.Uri.joinPath(projectDir, base));
+    }
+    // Programme portant le nom du projet, à côté de lui (cf. « enregistrer sous »).
+    if (projectDir && projectName) {
+      for (const ext of ['.ino', '.py']) {
+        candidates.push(vscode.Uri.joinPath(projectDir, projectName + ext));
+      }
     }
     // Dernier recours : là où était le fichier quand le .projix a été enregistré.
     if (abs) candidates.push(vscode.Uri.file(abs));
@@ -1782,11 +1795,33 @@ export class SimulatorPanel {
    * personnalisés. Le code n'est plus inclus (le .projix ne contient que le
    * schéma).
    */
+  /**
+   * Composants personnalisés à graver dans un .projix : ceux de la bibliothèque
+   * installée, sinon l'ancien état global. Le script de comportement est retiré
+   * — un .projix venu d'ailleurs ne doit pas transporter de code exécutable, et
+   * le composant, lui, s'installe par son .kompix.
+   */
+  private customPartsForProjix(): unknown[] {
+    const parts =
+      SimulatorPanel.library?.getComponents?.() ??
+      this.context.globalState.get<unknown[]>(CUSTOM_PARTS_KEY, []);
+    return (parts as any[]).map((p) => {
+      if (!p?.behaviorScript) return p;
+      const { behaviorScript: _drop, ...rest } = p;
+      return rest;
+    });
+  }
+
   /** Sérialise le projet .projix (manifeste + schéma + composants perso). */
   private async buildProjixBytes(diagram: unknown, board?: Board): Promise<Uint8Array> {
-    // Le schéma est enrichi des composants personnalisés utilisés (stockés côté
-    // hôte) pour rester autonome à la réouverture sur un autre poste.
-    const customParts = this.context.globalState.get<unknown[]>(CUSTOM_PARTS_KEY, []);
+    // Le schéma est enrichi des composants personnalisés utilisés pour rester
+    // autonome à la réouverture sur un autre poste. La source est la
+    // BIBLIOTHÈQUE .kompix — comme pour sendCustomParts : `globalState` n'est
+    // plus qu'un vestige, rempli à l'ouverture d'un projet, donc porteur de la
+    // version telle qu'elle était enregistrée AILLEURS (dessin sans dimensions
+    // des projets d'avant v2026.8.89, métadonnées perdues). Repli sur lui quand
+    // la bibliothèque n'est pas là (tests, hôte réduit).
+    const customParts = this.customPartsForProjix();
     const diagramPayload = { ...(diagram as object), customParts };
     const manifest: ProjixManifest = {
       format: 'projix',
@@ -1989,7 +2024,8 @@ export class SimulatorPanel {
     await this.restoreCodeFile(
       project.manifest.codeFile,
       vscode.Uri.joinPath(uri, '..'),
-      project.manifest.codeFileAbs
+      project.manifest.codeFileAbs,
+      this.projectBaseName
     );
   }
 

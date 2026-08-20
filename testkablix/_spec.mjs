@@ -2311,28 +2311,31 @@ void loop() {
   test({
     name: 'dmx-uno', board: 'uno', ext: 'ino',
     kompix: ['dmx-grove', 'spot'],
+    // Schéma retouché par Frank (v2026.8.91) : la spec suit SON montage —
+    // identifiants (Mod1 = projecteur, Mod2 = carte Grove), emplacements et
+    // masse prise sur GND.3 de la Uno.
     parts: [
       MCU('uno'),
-      { id: 'DMX1', type: 'dmx-grove', x: 420, y: 90 },
-      { id: 'Spot1', type: 'spot', x: 850, y: 60 },
+      { id: 'Mod1', type: 'spot', x: 650, y: 140 },
+      { id: 'Mod2', type: 'dmx-grove', x: 260, y: 280 },
     ],
     wires: () => [
-      w('DMX1', 'VCC', 'U1', '5V', 'red'),
-      w('DMX1', 'GND.1', 'U1', 'GND.1', 'black'),
-      w('DMX1', 'SIG', 'U1', '1', 'green'),      // TX de l'UART matériel
-      w('Spot1', '+', 'DMX1', '+', 'blue'),      // XLR 3 = Data+
-      w('Spot1', '-', 'DMX1', '-', 'purple'),    // XLR 2 = Data−
-      w('Spot1', 'GND', 'DMX1', 'GND.2', 'black'), // XLR 1 = blindage
+      w('Mod2', 'VCC', 'U1', '5V', 'red'),
+      w('Mod2', 'GND.1', 'U1', 'GND.3', 'black'),
+      w('Mod2', 'SIG', 'U1', '1', 'green'),        // TX de l'UART matériel
+      w('Mod1', '+', 'Mod2', '+', 'purple'),       // XLR 3 = Data+
+      w('Mod1', '-', 'Mod2', '-', 'blue'),         // XLR 2 = Data−
+      w('Mod1', 'GND', 'Mod2', 'GND.2', 'black'),  // XLR 1 = blindage
     ],
     expect: {
-      kind: 'dmx', partId: 'Spot1', mcuPin: '1', address: 1, channels: 3,
+      kind: 'dmx', partId: 'Mod1', mcuPin: '1', address: 1, channels: 3,
       nets: [
-        ['DMX1/VCC', 'U1/5V'],
-        ['DMX1/GND.1', 'U1/GND.1'],
-        ['DMX1/SIG', 'U1/1'],
-        ['Spot1/+', 'DMX1/+'],
-        ['Spot1/-', 'DMX1/-'],
-        ['Spot1/GND', 'DMX1/GND.2'],
+        ['Mod2/VCC', 'U1/5V'],
+        ['Mod2/GND.1', 'U1/GND.3'],
+        ['Mod2/SIG', 'U1/1'],
+        ['Mod1/+', 'Mod2/+'],
+        ['Mod1/-', 'Mod2/-'],
+        ['Mod1/GND', 'Mod2/GND.2'],
       ],
     },
     code: `// Test DMX512 : la carte Grove-DMX512 transforme l'UART matériel en ligne
@@ -4364,28 +4367,30 @@ while True:
   test({
     name: 'dmx-pico', board: 'pico', ext: 'py',
     kompix: ['dmx-grove', 'spot'],
+    // Schéma retouché par Frank (v2026.8.91) : Mod1 = carte Grove, Mod2 =
+    // projecteur, aux emplacements de SON montage.
     parts: [
       MCU('pico'),
-      { id: 'DMX1', type: 'dmx-grove', x: 420, y: 90 },
-      { id: 'Spot1', type: 'spot', x: 850, y: 60 },
+      { id: 'Mod1', type: 'dmx-grove', x: 180, y: 160 },
+      { id: 'Mod2', type: 'spot', x: 620, y: 20 },
     ],
     wires: () => [
-      w('DMX1', 'VCC', 'U1', '3V3', 'red'),
-      w('DMX1', 'GND.1', 'U1', 'GND.3', 'black'),
-      w('DMX1', 'SIG', 'U1', 'GP0', 'green'),    // UART0 TX
-      w('Spot1', '+', 'DMX1', '+', 'blue'),
-      w('Spot1', '-', 'DMX1', '-', 'purple'),
-      w('Spot1', 'GND', 'DMX1', 'GND.2', 'black'),
+      w('Mod1', 'VCC', 'U1', '3V3', 'red'),
+      w('Mod1', 'GND.1', 'U1', 'GND.3', 'black'),
+      w('Mod1', 'SIG', 'U1', 'GP0', 'green'),    // UART0 TX
+      w('Mod2', '+', 'Mod1', '+', 'green'),
+      w('Mod2', '-', 'Mod1', '-', 'blue'),
+      w('Mod2', 'GND', 'Mod1', 'GND.2', 'black'),
     ],
     expect: {
-      kind: 'dmx', partId: 'Spot1', mcuPin: 'GP0', address: 1, channels: 3,
+      kind: 'dmx', partId: 'Mod2', mcuPin: 'GP0', address: 1, channels: 3,
       nets: [
-        ['DMX1/VCC', 'U1/3V3'],
-        ['DMX1/GND.1', 'U1/GND.3'],
-        ['DMX1/SIG', 'U1/GP0'],
-        ['Spot1/+', 'DMX1/+'],
-        ['Spot1/-', 'DMX1/-'],
-        ['Spot1/GND', 'DMX1/GND.2'],
+        ['Mod1/VCC', 'U1/3V3'],
+        ['Mod1/GND.1', 'U1/GND.3'],
+        ['Mod1/SIG', 'U1/GP0'],
+        ['Mod2/+', 'Mod1/+'],
+        ['Mod2/-', 'Mod1/-'],
+        ['Mod2/GND', 'Mod1/GND.2'],
       ],
     },
     code: `# Test DMX512 : la carte Grove-DMX512 transforme l'UART0 (GP0) en ligne DMX,

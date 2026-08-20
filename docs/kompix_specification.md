@@ -8,7 +8,7 @@ Un fichier `.kompix` est une **archive ZIP** contenant tous les éléments d'un 
 
 C'est le seul format utilisé par :
 - Le **créateur intégré** de Kablix (bouton *+ Créer un composant*) → exporte en `.kompix`
-- Le **gestionnaire de composants** (bouton *⇩ Importer des composants*) → télécharge `.kompix`
+- Le **gestionnaire de composants** (bouton *⚙ Gérer les composants*) → télécharge `.kompix`
 - La **bibliothèque locale** (`kablix_components/`) → stocke les `.kompix`
 
 ## Structure

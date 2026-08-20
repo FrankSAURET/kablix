@@ -656,7 +656,7 @@ const FR: Record<string, string> = {
     "Reprendre l'affichage (les mesures continuent d'être collectées)",
 
   // Palette de composants
-  '⇩ Import components': '⇩ Importer des composants',
+  '⚙ Manage components': '⚙ Gérer les composants',
 
   // Barre d'outils du canvas
   'Auto-route the wires (right angles)': 'Autoroutage des fils (angles droits)',

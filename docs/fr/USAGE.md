@@ -14,6 +14,7 @@
     1. [Déboguer](#déboguer)
     1. [Moniteur série](#moniteur-série)
     1. [Traceur de courbes](#traceur-de-courbes)
+    1. [Éclairage DMX512](#éclairage-dmx512)
 1. [Exporter le schéma en SVG](#exporter-le-schéma-en-svg)
 1. [Créer ses propres composants](#créer-ses-propres-composants)
 1. [Format des composants (.kompix)](#format-des-composants-kompix)
@@ -131,23 +132,87 @@ Certains composant spéciaux (seulement LED RVB pour l'instant) ont des couleurs
 
 ### Composants disponibles
 
+La palette compte **68 composants intégrés** (plus leurs variantes : condensateur polarisé, transistors PN2222A/NPN/PNP, claviers 3×4 et 4×4…). Chacun a sa **fiche d'aide** — dessin, brochage, propriétés, ce qui est simulé et ce qui ne l'est pas — ouverte par le bouton **Aide du composant** de l'inspecteur quand le composant est sélectionné. D'autres composants s'ajoutent par la **bibliothèque** (voir [Gestionnaire de composants](#gestionnaire-de-composants-installer-et-désinstaller)).
+
+**Cartes et supports**
+
 | Composant | Comportement simulé |
 | --- | --- |
-| Arduino Uno / Raspberry Pi Pico | Cartes (processeur simulé) |
-| Platine d'essai (mini/half/full) | Bandes a–e / f–j et rails +/− conducteurs, enfichage automatique |
-| LED, LED RGB, barre de 10 LED | Allumées selon les niveaux des nets (anode haute, cathode basse) |
-| Afficheur 7 segments | Segments A–G + point, cathode commune DIG1 |
-| Bouton poussoir | Tire la broche MCU à LOW à l'appui (câblé broche ↔ GND) |
+| Arduino Uno, Nano, Mega 2560 | Processeur AVR simulé (avr8js) : Uno et Nano en ATmega328P, Mega en ATmega2560 |
+| Raspberry Pi Pico, Pico W | Processeur RP2040 simulé (rp2040js) exécutant MicroPython |
+| Grove Shield (Pico) | Shield d'extension : connecteurs Grove reliés aux broches du Pico |
+| Platine d'essai (mini / half / full) | Bandes a–e / f–j et rails +/− conducteurs, enfichage automatique |
+| Alimentation de laboratoire, batterie externe | Sources de tension continues (tension réglable dans Propriétés) |
+
+**Passifs et semi-conducteurs**
+
+| Composant | Comportement simulé |
+| --- | --- |
+| Résistance | Relie ses deux pattes (valeur et angle éditables, code couleur dessiné) |
+| Condensateur (non polarisé, polarisé) | Relie ses deux pattes ; la valeur est portée par le dessin |
+| Diode | Passante dans un sens (dessin et repère de cathode) |
+| Transistor (PN2222A, NPN, PNP) | Boîtier TO-92 habillé : inscription et schéma interne selon le modèle |
+| Thermistances NTC / PTC, capteur de température NTC | Entrée analogique : la température se règle dans Propriétés (ou au curseur pendant la simulation) |
+| LDR / photorésistance | Entrée analogique : luminosité réglée dans Propriétés |
+
+**Voyants et afficheurs**
+
+| Composant | Comportement simulé |
+| --- | --- |
+| LED, LED RGB, barre de 10 LED | Allumées selon les niveaux des nets (anode haute, cathode basse), luminosité tenant compte de la résistance série |
+| Afficheur 7 segments | Segments A–G + point, cathode commune DIG1 (multiplexage suivi) |
+| NeoPixel, anneau, matrice | Protocole WS2812 décodé bit à bit : couleur réelle de chaque pixel |
+| LCD texte (HD44780) | Contrôleur émulé : 4 ou 8 bits, curseur, caractères personnalisés |
+| Écran OLED SSD1306 | Mémoire d'affichage décodée et dessinée (SPI + DC + CS) |
+| Écran TFT ILI9341 (SPI) | Rendu SPI, orientation et fenêtre d'écriture suivies |
+
+**Entrées**
+
+| Composant | Comportement simulé |
+| --- | --- |
+| Bouton poussoir (standard, 6 mm) | Tire la broche MCU à LOW à l'appui (câblé broche ↔ GND) |
 | Interrupteur à glissière | Connecte le commun (2) au côté 1 ou 3 |
 | DIP switch ×8 | 8 canaux indépendants (na ↔ MCU, nb ↔ GND) |
-| Résistance | Relie ses deux pattes (valeur/angle éditables) |
-| Buzzer | Note animée quand une tension existe entre ses broches |
-| Potentiomètre (rotatif / glissière / ajustable) | Entrée analogique interactive (A0–A5 Uno, GP26–GP28 Pico) ; l'ajustable écrit sa valeur en code à 3 chiffres |
-| Joystick analogique | 2 axes analogiques (VERT/HORZ) + bouton SEL |
-| Photorésistance (LDR) | Sortie analogique AO, luminosité réglée dans Propriétés |
-| Détecteur PIR, capteur d'inclinaison | Sortie numérique OUT, état réglé dans Propriétés |
+| Clavier matriciel (3×4, 4×4) | Matrice lignes/colonnes : la touche cliquée relie sa ligne à sa colonne |
+| Potentiomètre (rotatif, glissière, ajustable) | Entrée analogique interactive (A0–A5 sur Uno, GP26–GP28 sur Pico) ; l'ajustable écrit sa valeur en code à 3 chiffres |
+| Joystick analogique | 2 axes analogiques (VERT / HORZ) + bouton SEL |
+
+**Capteurs**
+
+| Composant | Comportement simulé |
+| --- | --- |
+| Capteur de lumière, de gaz (MQ), de flamme, de son | Sortie analogique AO et sortie numérique DOUT (active basse) ; niveau réglé au curseur pendant la simulation |
+| Détecteur PIR, capteur d'inclinaison | Sortie numérique OUT ; le PIR se déclenche au survol de la souris |
 | Capteur à effet Hall | Sortie S à drain ouvert (active basse), aimant glissé à la souris pendant la simulation |
-| Servomoteur | Bras à 90° quand la broche PWM est haute (simplifié) |
+| Capteur de pouls | Sortie analogique : pulsation réglée dans Propriétés |
+| Capteur à ultrason (HC-SR04) | Durée d'écho calculée depuis la distance ET la vitesse du son ; deux curseurs en simulation (distance, température de l'air) |
+| Température / humidité (DHT11, DHT22) | Protocole une-broche complet (trame, parité) ; valeurs réglées dans Propriétés |
+
+**Actionneurs et puissance**
+
+| Composant | Comportement simulé |
+| --- | --- |
+| Buzzer | Note animée quand une tension existe entre ses broches |
+| Servomoteur | Bras positionné par la largeur d'impulsion (PWM) |
+| Ventilateur, moteur à courant continu | Vitesse suivant la tension réellement appliquée ; sous-tension, courant insuffisant et surtension signalés sur le schéma |
+| Relais OMRON G5V | Bobine collant à 80 % de sa tension nominale, contact travail/repos ; diode de roue libre obligatoire |
+| Pilote PWM 16 canaux (PCA9685) | Registres I²C émulés : 16 sorties PWM, à condition d'alimenter le bornier V+ |
+| Carte microSD (SPI) | Carte FAT16 d'environ 2 Mo en mémoire : lecture et écriture de fichiers, contenu perdu à l'arrêt |
+
+**Logique (boîtiers DIP)**
+
+| Composant | Comportement simulé |
+| --- | --- |
+| CD4001, CD4011, CD4070, CD4071, CD4081 | Quadruples portes CMOS NOR, NAND, XOR, OR, AND |
+| CD40106 | 6 inverseurs à trigger de Schmitt |
+| 74xx00, 74xx02, 74xx08, 74xx32, 74xx86 | Quadruples portes TTL NAND, NOR, AND, OR, XOR |
+| 74xx14 | 6 inverseurs à trigger de Schmitt |
+
+**Mécanique**
+
+| Composant | Comportement simulé |
+| --- | --- |
+| Robot araignée, patte d'araignée | Cinématique complète (33 réglages, tiroirs repliables dans l'inspecteur) pilotée par les servos |
 
 ## Simuler
 
@@ -161,6 +226,12 @@ Bouton **Compiler & exécuter le fichier actif** (ou la commande homonyme) — l
 | `.py` | MicroPython sur le Pico simulé | firmware `.uf2` (voir ci-dessous) |
 | `.hex` | Chargé directement (Uno) | — |
 | `.uf2`, `.elf`, `.bin` | Chargé directement (Pico) | — |
+
+#### Un croquis inchangé n'est plus recompilé
+
+Le résultat d'une compilation est gardé **sur le disque**, rangé sous la somme du **contenu** des sources (le dossier du croquis et son `src/`, plus la carte visée et la version de Kablix). Relancer un croquis auquel on n'a pas touché repart du binaire déjà produit : quelques dizaines de millisecondes au lieu de dizaines de secondes. Modifier une seule source suffit à invalider l'entrée, et les 60 dernières compilations sont conservées.
+
+> Une compilation Arduino lance des dizaines d'outils et écrit autant de fichiers objets : si elle traîne chez vous, c'est le plus souvent l'antivirus qui inspecte chacun d'eux. Exclure `%LOCALAPPDATA%\Arduino15`, `%TEMP%\arduino` et le dossier du projet change tout.
 
 #### LED embarquées des cartes
 
@@ -292,6 +363,24 @@ Commandes du panneau :
 
 À l'arrêt de la simulation, les courbes restent affichées pour analyse.
 
+### Éclairage DMX512
+
+Kablix simule une **ligne DMX512** de bout en bout : le programme envoie la trame, le décodeur la lit, et le **projecteur s'allume vraiment** à la couleur demandée.
+
+Le montage se fait avec deux composants de la **bibliothèque** (à installer via **⚙ Gérer les composants**) :
+
+- **Grove DMX512** — l'interface : son entrée **SIG** se câble sur une broche de la carte, sa sortie est la paire différentielle **+** / **−** ;
+- **projecteur PAR 38** — le luminaire : ses pattes **+** / **−** rejoignent celles de l'interface et **GND** ferme le blindage. **Les deux fils de la paire doivent suivre** : un projecteur relié par le seul Data+ n'est pas reconnu, il est à moitié câblé.
+
+L'**adresse DMX** du projecteur se règle dans l'inspecteur (**Propriétés → DMX address**, 1 à 512). Trois canaux sont consommés à partir de là : rouge, vert, bleu. Plusieurs projecteurs peuvent écouter la même ligne, chacun à son adresse — c'est tout le principe du DMX.
+
+Les deux manières d'émettre sont reconnues :
+
+- **UART matériel** — `Serial.begin(250000, SERIAL_8N2)` sur Arduino (broche 1 ; sur Mega aussi 18, 16 et 14), `machine.UART(0, …, stop=2)` sur Pico (GP0). Le BREAK d'ouverture de trame se tient à la main, comme sur une vraie carte. Les 513 octets de la trame **ne remontent pas au moniteur série** : la console resterait illisible.
+- **Bibliothèque bit-bang** — **DmxSimple** et consorts, qui produisent la trame à la main sur une **broche ordinaire** (la 3 par défaut). Kablix décode alors le **fil** lui-même, front par front : le programme du commerce fonctionne sans être modifié.
+
+> Seul le start code 0 (éclairage) est retenu : un `Serial.println` sur la même broche n'allume donc aucun projecteur.
+
 ## Exporter la liste des composants (nomenclature CSV)
 
 Menu hamburger → **« Exporter la liste des composants (CSV) »**. Une ligne par composant, cinq colonnes :
@@ -365,17 +454,19 @@ Sans marqueur rouge, **cliquez l'aperçu** pour poser chaque broche à la main.
 
 **8. Enregistrer.** Le composant apparaît dans la palette (★) et est **persisté entre les sessions**. Le bouton **« Soumettre à Kablix… »** explique comment partager le composant (issue GitHub « Submit new component » ou pull request).
 
-Gestion depuis la palette : **clic** = poser sur le canvas, **double-clic** = rouvrir le créateur pour modifier, **⇩** = exporter en `.kompix`, **✕** = supprimer, **⇩ Importer des composants** = ouvrir le gestionnaire.
+Gestion depuis la palette : **clic** = poser sur le canvas, **double-clic** = rouvrir le créateur pour modifier, **⇩** = exporter en `.kompix`. Le ⇩ n'apparaît que sur un composant **fabriqué ici** (repéré par ★) : celui qui vient de la bibliothèque, son `.kompix` existe déjà chez celui qui l'a publié. La **suppression** n'est plus dans la palette — elle vit dans le **⚙ Gérer les composants** (bouton en évidence en bas de la palette), qui liste ce qui est réellement installé et demande confirmation.
 
 ### Gestionnaire de composants (installer et désinstaller)
 
-Le bouton **⇩ Importer des composants** de la palette (ou la commande **Kablix : Télécharger des composants**) ouvre la liste des composants, filtrable :
+Le bouton **⚙ Gérer les composants**, en bas de la palette (ou la commande **Kablix : Télécharger des composants**), ouvre la liste des composants, filtrable :
 
 - **Nouveaux** : ce que les dépôts proposent et qui n'est pas encore installé ;
 - **Installés** : tout ce que contient la bibliothèque locale, y compris les composants créés ici et ceux qu'aucun dépôt ne propose ;
 - **Tous** : les deux.
 
 On sélectionne les cartes au clic, puis **Télécharger** installe, **Supprimer** désinstalle. La suppression demande confirmation, efface le fichier `.kompix` de la bibliothèque et retire le composant de la palette **et** des schémas ouverts. Elle est définitive : réinstaller passe par le dépôt d'origine, ou par un `.kompix` exporté au préalable (**⇩**).
+
+Où vivent les composants installés : dans un dossier **partagé par tous les projets Kablix** de la machine — par défaut `%APPDATA%\Code\User\globalStorage\electropol-fr.kablix\kablix_components` sous Windows (`~/Library/Application Support/Code/User/globalStorage/...` sur macOS, `~/.config/Code/User/globalStorage/...` sous Linux). Le réglage **Kablix › Components Folder** en désigne un autre, et la commande **Kablix : Ouvrir la bibliothèque de composants** ouvre celui qui sert vraiment, réglage renseigné ou non. Les dépôts consultés par le gestionnaire se règlent de même (**Kablix › Component Repositories**).
 
 ## Format des composants (.kompix)
 
@@ -488,7 +579,7 @@ L'aide correspondante (rôles, champs, contraintes) est dans la section [Format 
   - [SVG Repo](https://www.svgrepo.com) et [Openclipart](https://openclipart.org) (dessins libres) ;
   - les sources de [wokwi-elements](https://github.com/wokwi/wokwi-elements/tree/master/src) contiennent le SVG de chaque composant (MIT — réutilisable dans un composant personnalisé) ;
   - [Fritzing](https://github.com/fritzing/fritzing-parts) (vues « breadboard » en SVG, licence CC-BY-SA).
-- **Partage** : un composant exporté (`.kompix`) se dépose dans le dossier de la bibliothèque d'un autre poste (**Kablix : Ouvrir la bibliothèque de composants**), ou se publie sur un dépôt pour que **⇩ Importer des composants** le propose au téléchargement.
+- **Partage** : un composant exporté (`.kompix`) se dépose dans le dossier de la bibliothèque d'un autre poste (**Kablix : Ouvrir la bibliothèque de composants**), ou se publie sur un dépôt pour que **⚙ Gérer les composants** le propose au téléchargement.
 
 ## Enregistrer / ouvrir un projet (.projix)
 
@@ -496,14 +587,15 @@ Un **projet Kablix** réunit dans un seul fichier `.projix` (une archive ZIP) **
 
 - **💾 Enregistrer le projet** (bouton de la barre d'outils ou commande **« Kablix : Enregistrer le projet (.projix) »**) : choisissez l'emplacement du fichier `.projix`. Kablix y place le schéma courant, les composants personnalisés utilisés et la carte. Le fichier de code associé (s'il y en a un) est mémorisé sous forme de **référence** dans le manifeste ; son contenu n'est pas copié dans l'archive.
 - **`Ctrl+S`** fait exactement la même chose que le bouton 💾 : sur un projet **jamais enregistré** qui a déjà un fichier de code, le nom proposé est celui du **code** (`mon-programme.py` → `mon-programme.projix`), et non un « Nouveau projet ». Sur un projet déjà nommé, il réécrit le fichier sans rien demander.
-- **📂 Ouvrir un projet** (bouton ou commande **« Kablix : Ouvrir un projet (.projix) »**) : sélectionnez un `.projix`. Le schéma et la carte sont rechargés dans le simulateur. Si un fichier de code était référencé, Kablix tente de le retrouver sur le poste (chemin relatif au workspace, puis chemin  absolu de secours).
+- **📂 Ouvrir un projet** (bouton ou commande **« Kablix : Ouvrir un projet (.projix) »**) : sélectionnez un `.projix`. Le schéma et la carte sont rechargés dans le simulateur. Si un fichier de code était référencé, Kablix tente de le retrouver sur le poste, dans cet ordre : le chemin relatif à côté du `.projix`, puis dans chaque dossier du workspace, puis le **programme portant le nom du projet** posé à côté de lui (`mon-projet.ino` ou `mon-projet.py`), et enfin le chemin absolu mémorisé à l'enregistrement.
+- **Enregistrer sous** dans un autre dossier : les **composants de la bibliothèque** utilisés par le schéma sont regravés dans la nouvelle archive (le montage s'ouvre donc entier même sur un poste où ils ne sont pas installés), et le programme adopté est celui qui **porte le nom du projet** s'il existe à côté — sans quoi l'atelier compilerait toujours le sketch du projet d'origine.
 
 Contenu d'une archive `.projix` :
 
 | Entrée | Rôle |
 | --- | --- |
 | `kablix.json` | Manifeste : format, version, version de l'app, carte, date, **référence** du fichier de code |
-| `diagram.json` | Schéma (composants + fils) et composants personnalisés |
+| `diagram.json` | Schéma (composants + fils), composants personnalisés **et dessins des composants de bibliothèque** utilisés |
 
 > ⚠ Le code **n'est pas inclus** dans le `.projix` : seul le schéma est archivé. Pour partager aussi le code, transmettez le fichier source à côté du `.projix`.
 

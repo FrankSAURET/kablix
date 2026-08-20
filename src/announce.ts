@@ -45,7 +45,7 @@ export async function announceComponentLibrary(
   const later = l10n.t('Not now');
   const choice = await vscode.window.showInformationMessage(
     l10n.t(
-      'Kablix: new components are now available for download — open the component manager (button “⇩ Import components”, at the bottom of the palette) to install them.'
+      'Kablix: new components are now available for download — open the component manager (button “⚙ Manage components”, at the bottom of the palette) to install them.'
     ),
     open,
     later

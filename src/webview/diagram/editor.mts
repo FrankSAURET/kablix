@@ -1554,10 +1554,12 @@ export class Editor {
     create.addEventListener('click', () => this.creator.open());
     this.palette.appendChild(create);
 
-    // Ouverture du gestionnaire de composants pour télécharger depuis les dépôts.
+    // Ouverture du gestionnaire de composants (installer, télécharger, retirer).
+    // Mis en évidence aux couleurs du bouton principal du thème (demande de
+    // Frank, v2026.8.91) : c'est de là qu'on peuple la palette.
     const importBtn = document.createElement('button');
-    importBtn.className = 'palette__item palette__item--create';
-    importBtn.textContent = t('⇩ Import components');
+    importBtn.className = 'palette__item palette__item--manage';
+    importBtn.textContent = t('⚙ Manage components');
     // window.postMessage ne sort pas de la webview : c'est l'hôte qui ouvre le
     // gestionnaire, donc il faut passer par le rappel branché sur vscode.postMessage.
     importBtn.addEventListener('click', () => {
@@ -1665,11 +1667,32 @@ export class Editor {
   }
 
   // --- Composants personnalisés ------------------------------------------------
-  /** Recharge les composants personnalisés persistés (envoyés par l'extension). */
+  /**
+   * Recharge les composants personnalisés persistés (envoyés par l'extension).
+   *
+   * Les instances DÉJÀ posées sont re-rendues : la définition de la
+   * bibliothèque arrive après le schéma d'un .projix, qui embarque, lui, le
+   * dessin tel qu'il était à l'enregistrement. Sans ce re-rendu, le registre et
+   * la palette étaient à jour mais les composants du schéma gardaient leur
+   * ancien corps (Frank, v2026.8.91).
+   */
   loadCustomParts(parts: CustomPartData[]): void {
+    const types = new Set<string>();
     for (const data of parts) {
       this.customData.set(data.type, data);
       registerCustomPart(data);
+      types.add(data.type);
+    }
+    let touched = false;
+    for (const [id, r] of [...this.rendered]) {
+      if (!types.has(r.part.type)) continue;
+      this.rerenderPart(id);
+      touched = true;
+    }
+    // Un corps re-rendu déplace ses pattes : les fils doivent suivre.
+    if (touched) {
+      this.redrawWires();
+      this.scheduleSettle();
     }
     this.buildPalette();
   }

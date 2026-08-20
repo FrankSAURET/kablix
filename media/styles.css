@@ -507,6 +507,22 @@ textarea {
   opacity: 0.85;
 }
 
+/* Gestionnaire de composants : c'est par lui qu'on installe ce que la palette
+   propose — il porte donc les couleurs du bouton PRINCIPAL du thème (contraste
+   garanti en clair comme en sombre, contrairement à un ton choisi à la main). */
+.palette__item--manage {
+  background: var(--vscode-button-background, #0e639c);
+  color: var(--vscode-button-foreground, #fff);
+  border: 1px solid var(--vscode-button-border, transparent);
+  font-weight: 600;
+  opacity: 1;
+}
+
+.palette__item--manage:hover {
+  background: var(--vscode-button-hoverBackground, #1177bb);
+  color: var(--vscode-button-foreground, #fff);
+}
+
 .canvas {
   position: relative;
   flex: 1 1 auto;
