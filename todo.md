@@ -1,8 +1,17 @@
 # À faire
 
 1. Traduit tout ce qui manque — **chaînes faites (v2026.8.95)** ; reste la documentation anglaise : `docs/en/USAGE.md` (22 versions de retard), trois fiches (`cd4011`, `nano`, `resistor`), `README.en.md`, et les deux fiches embarquées `kablix_components/help/{spot,dmx-grove}/en.md`.
-1. mets à jour changelog, usage et readme
+1. mets à jour changelog, usage et readme — **guide FR et README faits (v2026.8.96)** ; le CHANGELOG s'écrit au dernier lot, sur le numéro que tu publieras.
 1. je vais publier.
+
+# >>>>  v2026.8.96 — Le guide FR redevient vert, et le README dit enfin ce que Kablix sait faire
+
+1. ✅ **Les trois vidéos de démonstration étaient tombées du guide** ([docs/fr/USAGE.md](docs/fr/USAGE.md)) : la remise en forme du Markdown avait emporté les balises `<video>` de « démarrer », « dessiner » et « simuler ». Ce ne sont pas des illustrations d'appoint — ce sont les seules animations embarquées dans le paquet (les GIF et les WebM ne se démuxent pas dans l'Electron de VS Code), et l'aide hors-ligne s'ouvrait sans elles. Remises à leur place.
+2. ✅ **Un gras cassé mangeait la fin d'une phrase** : `**renommé \`main.py**\`` — l'astérisque tombait à l'intérieur du code, le rendu maison laissait les `**` en clair au beau milieu de la section « Envoyer le programme sur une vraie carte Pico ».
+3. ✅ **Le banc prenait des exemples de syntaxe pour des liens morts** ([verify-docs.mjs](scripts/verify-docs.mjs)) : la spécification `.kompix` montre une image citée en chemin relatif (`montage.webp`) et un lien vers la fiche d'un autre composant (`led.md`) pour expliquer à un auteur ce qu'il doit écrire dans SA fiche. Ces fichiers n'existent évidemment pas dans le dépôt — un lien **cité entre accents graves** est du code, pas un lien. Les blocs de code et les codes en ligne sont maintenant retirés avant l'inspection. **25 contrôles, 0 échec** (l'aide était en 3 échecs).
+4. ✅ **README : la bibliothèque annonçait 63 composants** ([README.md](README.md)) alors que la palette en compte **68**. Le tableau est refait sur les **familles du guide** — cartes et supports (9), passifs et semi-conducteurs (8), voyants et afficheurs (10), entrées (9), capteurs (11), actionneurs et puissance (7), logique DIP (12), mécanique (2) — et cite ce qui manquait : potentiomètre ajustable, capteur à effet Hall, batterie externe, robot araignée et sa patte.
+5. ✅ **Deux nouveautés absentes du README** : le **gestionnaire de composants** (un composant tient dans un seul fichier `.kompix`, fiche d'aide comprise) et l'**éclairage DMX512** (UART matériel ou broche bit-bangée). Le renvoi au guide parlait encore du format `.kablix-part.json`, remplacé depuis par `.kompix`.
+6. ℹ️ **Trois copies de `gerercomposants.webp`** traînent dans l'arbre (`docs/fr/images/`, `images/`, `media/`) : seule celle de `docs/fr/images/` est citée par le guide. Rien n'a été effacé — à toi de trancher.
 
 # >>>>  v2026.8.95 — Plus rien ne sort en anglais, et le banc surveille enfin les DEUX moitiés de l'extension
 

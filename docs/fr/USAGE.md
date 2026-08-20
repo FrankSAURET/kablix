@@ -1,5 +1,7 @@
 # Kablix — Guide d'utilisation
+
 ![Kablix](../../Kablix.webp)
+
 > English version: [USAGE.md](../en/USAGE.md)
 
 ## Sommaire
@@ -7,86 +9,88 @@
 1. [Démarrage](#démarrage)
 2. [L'interface](#linterface)
 3. [Construire un montage](#construire-un-montage)
-1. [Simuler](#simuler)
-    1. [Exécuter du code](#exécuter-du-code)
-    2. [MicroPython sur le Pico](#micropython-sur-le-pico)
-    1. [Envoyer le programme sur une vraie carte Pico](#envoyer-le-programme-sur-une-vraie-carte-pico)
-    1. [Déboguer](#déboguer)
-    1. [Moniteur série](#moniteur-série)
-    1. [Traceur de courbes](#traceur-de-courbes)
-    1. [Éclairage DMX512](#éclairage-dmx512)
-1. [Exporter le schéma en SVG](#exporter-le-schéma-en-svg)
-1. [Créer ses propres composants](#créer-ses-propres-composants)
-1. [Format des composants (.kompix)](#format-des-composants-kompix)
-1. [Où trouver des composants existants](#où-trouver-des-composants-existants)
-1. [Enregistrer / ouvrir un projet (.projix)](#enregistrer--ouvrir-un-projet-projix)
-1. [Interopérabilité Wokwi (diagram.json)](#interopérabilité-wokwi-diagramjson)
-1. [Mises à jour des bibliothèques](#mises-à-jour-des-bibliothèques)
-1. [Raccourcis clavier](#raccourcis-clavier)
+4. [Simuler](#simuler)
+  1. [Exécuter du code](#exécuter-du-code)
+  2. [MicroPython sur le Pico](#micropython-sur-le-pico)
+  3. [Envoyer le programme sur une vraie carte Pico](#envoyer-le-programme-sur-une-vraie-carte-pico)
+  4. [Déboguer](#déboguer)
+  5. [Moniteur série](#moniteur-série)
+  6. [Traceur de courbes](#traceur-de-courbes)
+  7. [Éclairage DMX512](#éclairage-dmx512)
+5. [Exporter le schéma en SVG](#exporter-le-schéma-en-svg)
+6. [Créer ses propres composants](#créer-ses-propres-composants)
+7. [Format des composants (.kompix)](#format-des-composants-kompix)
+8. [Où trouver des composants existants](#où-trouver-des-composants-existants)
+9. [Enregistrer / ouvrir un projet (.projix)](#enregistrer--ouvrir-un-projet-projix)
+10. [Interopérabilité Wokwi (diagram.json)](#interopérabilité-wokwi-diagramjson)
+11. [Mises à jour des bibliothèques](#mises-à-jour-des-bibliothèques)
+12. [Raccourcis clavier](#raccourcis-clavier)
 
 ---
 
 ## Démarrage
 
-1. Pour démarrer, cliquer sur l'icône <img src="../../media/KNB.webp" alt="Kablix" width="30" /> dans la barre d'activité à gauche ;
+1. Pour démarrer, cliquer sur l'icône ![Kablix](../../media/KNB.webp) dans la barre d'activité à gauche ;
   - Ou dans un dossier de projet, double cliquer sur un fichier projix ;
   - Ou si vous avez fait l'association, dans l'explorateur Windows double cliquer sur un fichier projix.
+
+L'icône **ne crée un nouveau projet que s'il n'y en a aucun d'ouvert** : si un montage est déjà là — y compris rouvert tout seul après un changement de dossier — elle revient dessus au lieu d'ouvrir un deuxième atelier.
+
 <video src="../../media/demarrer.mp4" title="Démarrer Kablix" controls autoplay loop muted playsinline></video>
 
-  L'icône **ne crée un nouveau projet que s'il n'y en a aucun d'ouvert** : si un montage est déjà là — y compris rouvert tout seul après un changement de dossier — elle revient dessus au lieu d'ouvrir un deuxième atelier.
+1. **Construire son montage** : Glisser/poser un composant à partir de la bibliothèque à gauche. Relier les broches en direct et cliquer sur le bouton autoroutage (route les composants sélectionnés ou tout le montage si aucun n'est sélectionné).
 
-2. **Construire son montage** : Glisser/poser un composant à partir de la bibliothèque à gauche. Relier les broches en direct et cliquer sur le bouton autoroutage (route les composants sélectionnés ou tout le montage si aucun n'est sélectionné).
 <video src="../../media/dessiner.mp4" title="Construire un montage" controls autoplay loop muted playsinline></video>
 
-3. **Exécuter son code** : Associer un fichier de code (attention les codes ino doivent être dans un dossier de même nom) puis **▶ « démarrer »** :
+1. **Exécuter son code** : Associer un fichier de code (attention les codes ino doivent être dans un dossier de même nom) puis **▶ « démarrer »** :
   - `.ino`/`.c`/`.cpp` -> compilation via la toolchain locale ;
   - `.py` -> MicroPython sur le Pico simulé (firmware `.uf2` requis, voir ci-dessous) ;
   - `.hex` / `.uf2`/`.elf` / `.bin` -> chargé directement sans compilation.
-
   Le **▶ enregistre d'abord** le schéma et le fichier de code : ce qui tourne dans le simulateur est toujours ce qui est sur le disque. Un projet jamais enregistré (sans nom) est laissé tel quel — aucune boîte de dialogue ne vient couper le lancement.
+2. **Enregistrer son montage** : « Kablix : Enregistrer le projet (.projix) » ; un `.projix` se rouvre ensuite d'un double-clic dans l'explorateur. À la réouverture, le programme associé au projet s'ouvre **aussi**, dans le volet de code à côté du montage — le curseur, lui, reste dans Kablix. Import/export au format Wokwi (`diagram.json`) également disponibles.
 
-4. **Enregistrer son montage** : « Kablix : Enregistrer le projet (.projix) » ; un `.projix` se rouvre ensuite d'un double-clic dans l'explorateur. À la réouverture, le programme associé au projet s'ouvre **aussi**, dans le volet de code à côté du montage — le curseur, lui, reste dans Kablix. Import/export au format Wokwi (`diagram.json`) également disponibles.
 <video src="../../media/simuler.mp4" title="Simuler dans Kablix" controls autoplay loop muted playsinline></video>
 
 ## L'interface
-![alt text](../../media/interface.webp)
+
+![alt text](../../media/interface.webp)  
 *Interface de Kablix : **①** la **palette** des composants à gauche, **②** le **canvas** de montage au centre, **③** l'**inspecteur** (Propriétés/variables) à droite, **④** le **moniteur série/Console/REPL**, **⑤** le **Traceur** en bas et **⑥** les **barres d'outils** — celle de Kablix tout en haut, celle de **simulation** à gauche du canvas et celle de **dessin** à droite.*
 
 - **Palette** : cliquer un composant le pose sur le canvas. Deux tris au choix (boutons en haut) ![alt text](<../../media/boutons trie.webp>): alphabétique ou  par catégories Une zone **« Derniers utilisés »** (10 max) peut rester en tête (troisième bouton). Le dernier bouton permet de changer le mode de réaction de la bibliothèque.
-- **Barre d'outil Kablix** (en haut de la fenêtre)
+- **Barre d'outil Kablix** (en haut de la fenêtre)  
 ![alt text](<../../media/barre kablix.webp>)
-    - **Charger un fichier Binaire** : charge un .hex/.uf2 déjà compilé du workspace, sans recompiler. **Masqué par défaut** — la case Afficher le bouton « Charger binaire » des paramètres de Kablix le ramène.
-    - les fonctions habituelles de gestion de fichier : **nouveau projet**, **ouvrir**, **enregistrer**, **enregistrer sous**, **exporter le schéma en SVG**.
-    - le bouton **Noms** qui fait apparaitre le nom sur le composant **sélectionné** ou tous les composants ou l'id (le repère) des composants.
-    - **réarranger** : rétablit l'organisation Kablix (code d'un côté, Kablix de l'autre, panneaux fermés). Vous pouvez inverser les deux zones et régler leur largeur à la souris, puis **Sauvegarder cette organisation par défaut** (menu hamburger) : le côté de Kablix **et** la largeur sont mémorisés, et « réarranger » les rétablit — y compris en remettant Kablix du côté choisi s'il en a changé depuis. 
-    - le **menu hamburger** pour les fonctions moins fréquentes : importer / exporter un schéma **Wokwi**, exporter la **liste des composants (CSV)**, mettre à jour le **firmware Pico**, vérifier les **mises à jour des bibliothèques**, sauvegarder l'organisation par défaut.
-    - accés à cette **aide**.
-    - le **nom du projet** courant.
-    - le **fichier de code** du projet, juste à droite du nom : **clic = changer**, **double-clic = ouvrir** (il s'ouvre du côté du code).
-    - la zone d'**état** (« Prêt », messages de compilation…) et, seulement quand la page ne suit plus, le badge **« Ralentie : 0,45× le temps réel »**.
-- **Barre de simulation** (à gauche, par-dessus le canvas)
+  - **Charger un fichier Binaire** : charge un .hex/.uf2 déjà compilé du workspace, sans recompiler. **Masqué par défaut** — la case Afficher le bouton « Charger binaire » des paramètres de Kablix le ramène.
+  - les fonctions habituelles de gestion de fichier : **nouveau projet**, **ouvrir**, **enregistrer**, **enregistrer sous**, **exporter le schéma en SVG**.
+  - le bouton **Noms** qui fait apparaitre le nom sur le composant **sélectionné** ou tous les composants ou l'id (le repère) des composants.
+  - **réarranger** : rétablit l'organisation Kablix (code d'un côté, Kablix de l'autre, panneaux fermés). Vous pouvez inverser les deux zones et régler leur largeur à la souris, puis **Sauvegarder cette organisation par défaut** (menu hamburger) : le côté de Kablix **et** la largeur sont mémorisés, et « réarranger » les rétablit — y compris en remettant Kablix du côté choisi s'il en a changé depuis. 
+  - le **menu hamburger** pour les fonctions moins fréquentes : importer / exporter un schéma **Wokwi**, exporter la **liste des composants (CSV)**, mettre à jour le **firmware Pico**, vérifier les **mises à jour des bibliothèques**, sauvegarder l'organisation par défaut.
+  - accés à cette **aide**.
+  - le **nom du projet** courant.
+  - le **fichier de code** du projet, juste à droite du nom : **clic = changer**, **double-clic = ouvrir** (il s'ouvre du côté du code).
+  - la zone d'**état** (« Prêt », messages de compilation…) et, seulement quand la page ne suit plus, le badge **« Ralentie : 0,45× le temps réel »**.
+- **Barre de simulation** (à gauche, par-dessus le canvas)  
 ![Barre de simulation](../../media/BarreSimulation.webp)
-    - **▶ démarrer** (enregistre d'abord le schéma et le code)
-    - **■ arrêter**
-    - **⏸ pause/reprendre**
-    - **pas à pas**
-    - le sélecteur de **vitesse**, un animal par réglage : 🦅 500 %, 🐆 200 %, 🐇 100 % (temps réel), 🐢 10 %, 🐌 1 %. L'accéléré est un **souhait** : la simulation va aussi vite qu'elle peut, jamais plus.
-    - **REPL** : pour Pico uniquement, affiche la console python traditionnelle (n'apparaît que si la carte posée est un Pico)
-    - **moniteur série / console**
-    - **Traceur** de courbes
-    - **explications de défaut** : le cadre rouge et l'étiquette jaune posés sur un composant en défaut. Actif par défaut ; le bouton les masque quand ils gênent la lecture du schéma.
-- **Barre de dessin** (à droite, par-dessus le canvas)
+  - **▶ démarrer** (enregistre d'abord le schéma et le code)
+  - **■ arrêter**
+  - **⏸ pause/reprendre**
+  - **pas à pas**
+  - le sélecteur de **vitesse**, un animal par réglage : 🦅 500 %, 🐆 200 %, 🐇 100 % (temps réel), 🐢 10 %, 🐌 1 %. L'accéléré est un **souhait** : la simulation va aussi vite qu'elle peut, jamais plus.
+  - **REPL** : pour Pico uniquement, affiche la console python traditionnelle (n'apparaît que si la carte posée est un Pico)
+  - **moniteur série / console**
+  - **Traceur** de courbes
+  - **explications de défaut** : le cadre rouge et l'étiquette jaune posés sur un composant en défaut. Actif par défaut ; le bouton les masque quand ils gênent la lecture du schéma.
+- **Barre de dessin** (à droite, par-dessus le canvas)  
 ![Barre de dessin](../../media/BarreDessin.webp)
-    - **bouton du composant** : affiche le **schéma interne** du composant sélectionné, ou le **brochage complet** de la carte. N'apparaît que si le composant sélectionné en propose un.
-    - **autoroutage** route la sélection ou tout le montage
-    - **grille** (afficher/masquer)
-    - **recentrer/ajuster la vue**
-    - **⟲ réinitialiser les composants** : remet chaque composant au repos (interrupteurs relâchés, curseurs au repos) sans toucher au câblage. **Masqué par défaut** — la case *Afficher le bouton « Réinitialiser les composants »* des paramètres de Kablix le ramène.
-    - **gomme** : efface le schéma entier, composants et fils (Ctrl+Z annule). **Masqué par défaut** lui aussi — case *Afficher le bouton « Effacer le schéma »*.
+  - **bouton du composant** : affiche le **schéma interne** du composant sélectionné, ou le **brochage complet** de la carte. N'apparaît que si le composant sélectionné en propose un.
+  - **autoroutage** route la sélection ou tout le montage
+  - **grille** (afficher/masquer)
+  - **recentrer/ajuster la vue**
+  - **⟲ réinitialiser les composants** : remet chaque composant au repos (interrupteurs relâchés, curseurs au repos) sans toucher au câblage. **Masqué par défaut** — la case *Afficher le bouton « Réinitialiser les composants »* des paramètres de Kablix le ramène.
+  - **gomme** : efface le schéma entier, composants et fils (Ctrl+Z annule). **Masqué par défaut** lui aussi — case *Afficher le bouton « Effacer le schéma »*.
 - **Propriétés/Variables** (inspecteur) :
-    - Pendant le dessin, édite le composant sélectionné (couleur, valeur, angle…) ou fil (couleur Dupont, suppression, noeud [équipotielle])
-    - pendant la simulation, affiche les variables.
-    - Les composants très réglables (le robot araignée et ses 33 réglages) rangent leurs propriétés en **tiroirs repliables**, tous fermés à la sélection. Ils fonctionnent **en accordéon** : ouvrir un tiroir ferme celui qui l'était.
+  - Pendant le dessin, édite le composant sélectionné (couleur, valeur, angle…) ou fil (couleur Dupont, suppression, noeud [équipotielle])
+  - pendant la simulation, affiche les variables.
+  - Les composants très réglables (le robot araignée et ses 33 réglages) rangent leurs propriétés en **tiroirs repliables**, tous fermés à la sélection. Ils fonctionnent **en accordéon** : ouvrir un tiroir ferme celui qui l'était.
 
 ## Construire un montage
 
@@ -136,96 +140,107 @@ La palette compte **68 composants intégrés** (plus leurs variantes : condensat
 
 **Cartes et supports**
 
-| Composant | Comportement simulé |
-| --- | --- |
-| Arduino Uno, Nano, Mega 2560 | Processeur AVR simulé (avr8js) : Uno et Nano en ATmega328P, Mega en ATmega2560 |
-| Raspberry Pi Pico, Pico W | Processeur RP2040 simulé (rp2040js) exécutant MicroPython |
-| Grove Shield (Pico) | Shield d'extension : connecteurs Grove reliés aux broches du Pico |
-| Platine d'essai (mini / half / full) | Bandes a–e / f–j et rails +/− conducteurs, enfichage automatique |
-| Alimentation de laboratoire, batterie externe | Sources de tension continues (tension réglable dans Propriétés) |
+| Composant                                     | Comportement simulé                                                            |
+| --------------------------------------------- | ------------------------------------------------------------------------------ |
+| Arduino Uno, Nano, Mega 2560                  | Processeur AVR simulé (avr8js) : Uno et Nano en ATmega328P, Mega en ATmega2560 |
+| Raspberry Pi Pico, Pico W                     | Processeur RP2040 simulé (rp2040js) exécutant MicroPython                      |
+| Grove Shield (Pico)                           | Shield d'extension : connecteurs Grove reliés aux broches du Pico              |
+| Platine d'essai (mini / half / full)          | Bandes a–e / f–j et rails +/− conducteurs, enfichage automatique               |
+| Alimentation de laboratoire, batterie externe | Sources de tension continues (tension réglable dans Propriétés)                |
 
 **Passifs et semi-conducteurs**
 
-| Composant | Comportement simulé |
-| --- | --- |
-| Résistance | Relie ses deux pattes (valeur et angle éditables, code couleur dessiné) |
-| Condensateur (non polarisé, polarisé) | Relie ses deux pattes ; la valeur est portée par le dessin |
-| Diode | Passante dans un sens (dessin et repère de cathode) |
-| Transistor (PN2222A, NPN, PNP) | Boîtier TO-92 habillé : inscription et schéma interne selon le modèle |
+| Composant                                           | Comportement simulé                                                                               |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Résistance                                          | Relie ses deux pattes (valeur et angle éditables, code couleur dessiné)                           |
+| Condensateur (non polarisé, polarisé)               | Relie ses deux pattes ; la valeur est portée par le dessin                                        |
+| Diode                                               | Passante dans un sens (dessin et repère de cathode)                                               |
+| Transistor (PN2222A, NPN, PNP)                      | Boîtier TO-92 habillé : inscription et schéma interne selon le modèle                             |
 | Thermistances NTC / PTC, capteur de température NTC | Entrée analogique : la température se règle dans Propriétés (ou au curseur pendant la simulation) |
-| LDR / photorésistance | Entrée analogique : luminosité réglée dans Propriétés |
+| LDR / photorésistance                               | Entrée analogique : luminosité réglée dans Propriétés                                             |
 
 **Voyants et afficheurs**
 
-| Composant | Comportement simulé |
-| --- | --- |
+| Composant                     | Comportement simulé                                                                                               |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | LED, LED RGB, barre de 10 LED | Allumées selon les niveaux des nets (anode haute, cathode basse), luminosité tenant compte de la résistance série |
-| Afficheur 7 segments | Segments A–G + point, cathode commune DIG1 (multiplexage suivi) |
-| NeoPixel, anneau, matrice | Protocole WS2812 décodé bit à bit : couleur réelle de chaque pixel |
-| LCD texte (HD44780) | Contrôleur émulé : 4 ou 8 bits, curseur, caractères personnalisés |
-| Écran OLED SSD1306 | Mémoire d'affichage décodée et dessinée (SPI + DC + CS) |
-| Écran TFT ILI9341 (SPI) | Rendu SPI, orientation et fenêtre d'écriture suivies |
+| Afficheur 7 segments          | Segments A–G + point, cathode commune DIG1 (multiplexage suivi)                                                   |
+| NeoPixel, anneau, matrice     | Protocole WS2812 décodé bit à bit : couleur réelle de chaque pixel                                                |
+| LCD texte (HD44780)           | Contrôleur émulé : 4 ou 8 bits, curseur, caractères personnalisés                                                 |
+| Écran OLED SSD1306            | Mémoire d'affichage décodée et dessinée (SPI + DC + CS)                                                           |
+| Écran TFT ILI9341 (SPI)       | Rendu SPI, orientation et fenêtre d'écriture suivies                                                              |
 
 **Entrées**
 
-| Composant | Comportement simulé |
-| --- | --- |
-| Bouton poussoir (standard, 6 mm) | Tire la broche MCU à LOW à l'appui (câblé broche ↔ GND) |
-| Interrupteur à glissière | Connecte le commun (2) au côté 1 ou 3 |
-| DIP switch ×8 | 8 canaux indépendants (na ↔ MCU, nb ↔ GND) |
-| Clavier matriciel (3×4, 4×4) | Matrice lignes/colonnes : la touche cliquée relie sa ligne à sa colonne |
+| Composant                                     | Comportement simulé                                                                                                  |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Bouton poussoir (standard, 6 mm)              | Tire la broche MCU à LOW à l'appui (câblé broche ↔ GND)                                                              |
+| Interrupteur à glissière                      | Connecte le commun (2) au côté 1 ou 3                                                                                |
+| DIP switch ×8                                 | 8 canaux indépendants (na ↔ MCU, nb ↔ GND)                                                                           |
+| Clavier matriciel (3×4, 4×4)                  | Matrice lignes/colonnes : la touche cliquée relie sa ligne à sa colonne                                              |
 | Potentiomètre (rotatif, glissière, ajustable) | Entrée analogique interactive (A0–A5 sur Uno, GP26–GP28 sur Pico) ; l'ajustable écrit sa valeur en code à 3 chiffres |
-| Joystick analogique | 2 axes analogiques (VERT / HORZ) + bouton SEL |
+| Joystick analogique                           | 2 axes analogiques (VERT / HORZ) + bouton SEL                                                                        |
 
 **Capteurs**
 
-| Composant | Comportement simulé |
-| --- | --- |
-| Capteur de lumière, de gaz (MQ), de flamme, de son | Sortie analogique AO et sortie numérique DOUT (active basse) ; niveau réglé au curseur pendant la simulation |
-| Détecteur PIR, capteur d'inclinaison | Sortie numérique OUT ; le PIR se déclenche au survol de la souris |
-| Capteur à effet Hall | Sortie S à drain ouvert (active basse), aimant glissé à la souris pendant la simulation |
-| Capteur de pouls | Sortie analogique : pulsation réglée dans Propriétés |
-| Capteur à ultrason (HC-SR04) | Durée d'écho calculée depuis la distance ET la vitesse du son ; deux curseurs en simulation (distance, température de l'air) |
-| Température / humidité (DHT11, DHT22) | Protocole une-broche complet (trame, parité) ; valeurs réglées dans Propriétés |
+| Composant                                          | Comportement simulé                                                                                                          |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Capteur de lumière, de gaz (MQ), de flamme, de son | Sortie analogique AO et sortie numérique DOUT (active basse) ; niveau réglé au curseur pendant la simulation                 |
+| Détecteur PIR, capteur d'inclinaison               | Sortie numérique OUT ; le PIR se déclenche au survol de la souris                                                            |
+| Capteur à effet Hall                               | Sortie S à drain ouvert (active basse), aimant glissé à la souris pendant la simulation                                      |
+| Capteur de pouls                                   | Sortie analogique : pulsation réglée dans Propriétés                                                                         |
+| Capteur à ultrason (HC-SR04)                       | Durée d'écho calculée depuis la distance ET la vitesse du son ; deux curseurs en simulation (distance, température de l'air) |
+| Température / humidité (DHT11, DHT22)              | Protocole une-broche complet (trame, parité) ; valeurs réglées dans Propriétés                                               |
 
 **Actionneurs et puissance**
 
-| Composant | Comportement simulé |
-| --- | --- |
-| Buzzer | Note animée quand une tension existe entre ses broches |
-| Servomoteur | Bras positionné par la largeur d'impulsion (PWM) |
+| Composant                             | Comportement simulé                                                                                                      |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Buzzer                                | Note animée quand une tension existe entre ses broches                                                                   |
+| Servomoteur                           | Bras positionné par la largeur d'impulsion (PWM)                                                                         |
 | Ventilateur, moteur à courant continu | Vitesse suivant la tension réellement appliquée ; sous-tension, courant insuffisant et surtension signalés sur le schéma |
-| Relais OMRON G5V | Bobine collant à 80 % de sa tension nominale, contact travail/repos ; diode de roue libre obligatoire |
-| Pilote PWM 16 canaux (PCA9685) | Registres I²C émulés : 16 sorties PWM, à condition d'alimenter le bornier V+ |
-| Carte microSD (SPI) | Carte FAT16 d'environ 2 Mo en mémoire : lecture et écriture de fichiers, contenu perdu à l'arrêt |
+| Relais OMRON G5V                      | Bobine collant à 80 % de sa tension nominale, contact travail/repos ; diode de roue libre obligatoire                    |
+| Pilote PWM 16 canaux (PCA9685)        | Registres I²C émulés : 16 sorties PWM, à condition d'alimenter le bornier V+                                             |
+| Carte microSD (SPI)                   | Carte FAT16 d'environ 2 Mo en mémoire : lecture et écriture de fichiers, contenu perdu à l'arrêt                         |
 
 **Logique (boîtiers DIP)**
 
-| Composant | Comportement simulé |
-| --- | --- |
+| Composant                              | Comportement simulé                            |
+| -------------------------------------- | ---------------------------------------------- |
 | CD4001, CD4011, CD4070, CD4071, CD4081 | Quadruples portes CMOS NOR, NAND, XOR, OR, AND |
-| CD40106 | 6 inverseurs à trigger de Schmitt |
-| 74xx00, 74xx02, 74xx08, 74xx32, 74xx86 | Quadruples portes TTL NAND, NOR, AND, OR, XOR |
-| 74xx14 | 6 inverseurs à trigger de Schmitt |
+| CD40106                                | 6 inverseurs à trigger de Schmitt              |
+| 74xx00, 74xx02, 74xx08, 74xx32, 74xx86 | Quadruples portes TTL NAND, NOR, AND, OR, XOR  |
+| 74xx14                                 | 6 inverseurs à trigger de Schmitt              |
 
 **Mécanique**
 
-| Composant | Comportement simulé |
-| --- | --- |
+| Composant                        | Comportement simulé                                                                             |
+| -------------------------------- | ----------------------------------------------------------------------------------------------- |
 | Robot araignée, patte d'araignée | Cinématique complète (33 réglages, tiroirs repliables dans l'inspecteur) pilotée par les servos |
+
+### Nouveaux composants
+
+Ils sont téléchargeables via le bouton gérer les composants. On peut donc les ajouter et les enlever selon besoin. Les composants distribués avec l'extension ne peuvent pas être enlevés. Le partage devient aussi plus facile puisque c'est un simple fichier (.kompix) qui contient tout le composant. Il suffit soit de le télécharger via l'outil de gestion soit de le déposer dans le dossier du projet. Il sera alors automatiquement ajouté aux composants disponible.
+
+Vous pouvez aussi ajouter des sources de composants externes.
+
+> Atention : Les composants simulables contiennent du code. Vérifiez vos sources.
+
+![gerercomposants](./images/gerercomposants.webp)
 
 ## Simuler
 
 ### Exécuter du code
+
 Bouton **Compiler & exécuter le fichier actif** (ou la commande homonyme) — le traitement dépend de l'extension du fichier actif :
 
-| Fichier | Traitement | Prérequis |
-| --- | --- | --- |
-| `.ino`, `.c`, `.cpp` (carte Uno) | Compilation locale puis exécution | `arduino-cli` **ou** `avr-gcc` |
-| `.c`, `.cpp` (carte Pico) | Compilation directe RAM (sans OS) | `arm-none-eabi-gcc` |
-| `.py` | MicroPython sur le Pico simulé | firmware `.uf2` (voir ci-dessous) |
-| `.hex` | Chargé directement (Uno) | — |
-| `.uf2`, `.elf`, `.bin` | Chargé directement (Pico) | — |
+| Fichier                          | Traitement                        | Prérequis                         |
+| -------------------------------- | --------------------------------- | --------------------------------- |
+| `.ino`, `.c`, `.cpp` (carte Uno) | Compilation locale puis exécution | `arduino-cli` **ou** `avr-gcc`    |
+| `.c`, `.cpp` (carte Pico)        | Compilation directe RAM (sans OS) | `arm-none-eabi-gcc`               |
+| `.py`                            | MicroPython sur le Pico simulé    | firmware `.uf2` (voir ci-dessous) |
+| `.hex`                           | Chargé directement (Uno)          | —                                 |
+| `.uf2`, `.elf`, `.bin`           | Chargé directement (Pico)         | —                                 |
 
 #### Un croquis inchangé n'est plus recompilé
 
@@ -249,22 +264,23 @@ Si malgré tout la carte n'arrive plus à suivre, un badge **« Ralentie : 0,45�
 
 Quand la simulation détecte une erreur de câblage ou un composant détruit, elle **entoure le coupable d'un cadre rouge** sur le schéma et affiche **à côté de lui une étiquette jaune sur fond rouge** qui explique le problème et ce qu'il faut corriger. La barre d'état, elle, ne garde que la dernière phrase : l'étiquette reste, sous les yeux, au bon endroit.
 
-| Ce que Kablix voit | Ce que dit l'étiquette |
-| --- | --- |
-| Diode de roue libre montée à l'envers | Diode à l'envers |
-| Relais sans diode de roue libre | La bobine renvoie une surtension à la coupure ; elle détruit le transistor de commande, la diode l'absorbe |
-| Bobine sous-alimentée | Le relais ne colle pas : alimenter la bobine sous sa tension nominale |
-| Alimentation trop faible pour la bobine | Augmenter le courant maximal, ou mettre moins de bobines sur la même source |
-| Moteur sans diode de roue libre (💥) | Un moteur est une bobine : la surtension de coupure détruit le transistor de commande, la diode l'absorbe |
-| Alimentation trop faible pour le moteur | Une broche de carte est très loin du compte : passer par une alimentation et un transistor |
-| Moteur survolté (💥) | Plus de 1,5 fois sa tension nominale : ses bobinages ne le supportent pas |
-| LED grillée (💥) | Sans résistance série (ou avec une trop faible), le courant dépasse ce que la jonction supporte |
-| Condensateur claqué (💥) | Tension de service dépassée : en prendre un de tension nominale supérieure |
-| Carte 16 servos grillée (💥) | Le bornier V+ accepte 5 V, pas plus |
+| Ce que Kablix voit                      | Ce que dit l'étiquette                                                                                     |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Diode de roue libre montée à l'envers   | Diode à l'envers                                                                                           |
+| Relais sans diode de roue libre         | La bobine renvoie une surtension à la coupure ; elle détruit le transistor de commande, la diode l'absorbe |
+| Bobine sous-alimentée                   | Le relais ne colle pas : alimenter la bobine sous sa tension nominale                                      |
+| Alimentation trop faible pour la bobine | Augmenter le courant maximal, ou mettre moins de bobines sur la même source                                |
+| Moteur sans diode de roue libre (💥)    | Un moteur est une bobine : la surtension de coupure détruit le transistor de commande, la diode l'absorbe  |
+| Alimentation trop faible pour le moteur | Une broche de carte est très loin du compte : passer par une alimentation et un transistor                 |
+| Moteur survolté (💥)                    | Plus de 1,5 fois sa tension nominale : ses bobinages ne le supportent pas                                  |
+| LED grillée (💥)                        | Sans résistance série (ou avec une trop faible), le courant dépasse ce que la jonction supporte            |
+| Condensateur claqué (💥)                | Tension de service dépassée : en prendre un de tension nominale supérieure                                 |
+| Carte 16 servos grillée (💥)            | Le bornier V+ accepte 5 V, pas plus                                                                        |
 
 Le cadre et l'étiquette n'apparaissent que **pendant la simulation** ; ils disparaissent dès que le défaut est corrigé, et à l'arrêt.
 
 ### MicroPython sur le Pico
+
 1. Ouvrir un fichier `.py` → **Compiler & exécuter le fichier actif**.
 2. Au premier lancement, si aucun firmware n'est trouvé, Kablix **propose de le télécharger automatiquement** (choix **Pico / Pico W**) depuis [micropython.org](https://micropython.org/download/RPI_PICO/). Le firmware est mémorisé dans le stockage de l'extension et **réutilisé dans tous vos projets** — la question n'est posée qu'une fois.
 
@@ -293,10 +309,10 @@ Quand un fichier `.py` est ouvert, un bouton **⬆** apparaît dans la barre de 
 
 Prérequis et limites :
 
-| Langage | Comment | Limites |
-| --- | --- | --- |
-| C / Arduino (Uno) | Données de débogage extraites à la compilation (`avr-objdump`, fourni avec arduino-cli ou avr-gcc) | variables **globales** simples (int, float, bool…) ; un `delay()` long avance par tranches de 0,25 s simulée |
-| MicroPython (Pico) | le script est instrumenté automatiquement avant injection | variables **globales** uniquement ; la pause prend effet à la ligne suivante ; pas de ralenti |
+| Langage            | Comment                                                                                            | Limites                                                                                                      |
+| ------------------ | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| C / Arduino (Uno)  | Données de débogage extraites à la compilation (`avr-objdump`, fourni avec arduino-cli ou avr-gcc) | variables **globales** simples (int, float, bool…) ; un `delay()` long avance par tranches de 0,25 s simulée |
+| MicroPython (Pico) | le script est instrumenté automatiquement avant injection                                          | variables **globales** uniquement ; la pause prend effet à la ligne suivante ; pas de ralenti                |
 
 Les artefacts chargés directement (`.hex`, `.uf2`, `.elf`, `.bin`) s'exécutent sans infos de débogage : pause et ralenti restent disponibles, pas le pas à pas.
 
@@ -316,12 +332,12 @@ Un masque de bits ou un registre se lit mieux en binaire qu'en décimal. Le nom 
 
 La valeur porte alors le **préfixe** de sa base — le même qu'en C ou en Python, donc directement retapable dans le programme — et ses chiffres sont groupés pour être lisibles :
 
-| Base | `160` affiché | Groupement |
-| --- | --- | --- |
-| Binaire | `0b 1010 0000` | 4 bits |
-| Hexadécimal | `0x A0` | 4 chiffres |
-| Décimal | `160` | 3 chiffres |
-| Caractère | `' '` | — |
+| Base        | `160` affiché  | Groupement |
+| ----------- | -------------- | ---------- |
+| Binaire     | `0b 1010 0000` | 4 bits     |
+| Hexadécimal | `0x A0`        | 4 chiffres |
+| Décimal     | `160`          | 3 chiffres |
+| Caractère   | `' '`          | —          |
 
 Le séparateur des groupes, comme celui qui détache le préfixe, est une **espace fine insécable** : les groupes se distinguent d'un coup d'œil et le nombre ne se coupe jamais en fin de ligne, même dans un panneau étroit.
 
@@ -346,11 +362,11 @@ Deux sources tracées automatiquement :
 
 Exemples d'émission :
 
-| Langage | Ligne |
-| --- | --- |
-| C / Arduino | `Serial.print(">temp:"); Serial.println(t);` |
+| Langage             | Ligne                                                               |
+| ------------------- | ------------------------------------------------------------------- |
+| C / Arduino         | `Serial.print(">temp:"); Serial.println(t);`                        |
 | C / Arduino (unité) | `Serial.print(">tension:"); Serial.print(v); Serial.println("§V");` |
-| MicroPython | `print(">temp:{}".format(t))` |
+| MicroPython         | `print(">temp:{}".format(t))`                                       |
 
 Commandes du panneau :
 
@@ -385,11 +401,11 @@ Les deux manières d'émettre sont reconnues :
 
 Menu hamburger → **« Exporter la liste des composants (CSV) »**. Une ligne par composant, cinq colonnes :
 
-| Repère | Composant | Type | Valeur | Commentaire |
-| --- | --- | --- | --- | --- |
-| `C2` | Condensateur chimique | `condo-p-1` | `10 µF` | `Tension max : 400 V` |
-| `R1` | Résistance | `resistor` | `10 kΩ` | `Puissance : 0,25 W` |
-| `T1` | Transistor | `transistor` | | `Vce max : 40 V · Gain en courant (β) : 100 · …` |
+| Repère | Composant             | Type         | Valeur  | Commentaire                                      |
+| ------ | --------------------- | ------------ | ------- | ------------------------------------------------ |
+| `C2`   | Condensateur chimique | `condo-p-1`  | `10 µF` | `Tension max : 400 V`                            |
+| `R1`   | Résistance            | `resistor`   | `10 kΩ` | `Puissance : 0,25 W`                             |
+| `T1`   | Transistor            | `transistor` |         | `Vce max : 40 V · Gain en courant (β) : 100 · …` |
 
 - **Valeur** : celle qu'on lit sur le composant, avec son unité et son préfixe (`10 µF`, `100 kΩ`, `4,7 mH`). Un composant qui n'en a pas — un transistor, un afficheur — laisse la case vide.
 - **Commentaire** : toutes les autres caractéristiques de l'inspecteur, séparées par `·`, sous la forme `Tension max : 400 V`.
@@ -405,6 +421,7 @@ Bouton **Disquette SVG** : le schéma complet (composants avec leurs rotations, 
 > Note : quelques composants stylés par CSS interne peuvent perdre des détails cosmétiques à l'export ; la géométrie et les couleurs principales sont conservées.
 
 ## Créer ses propres composants
+
 > ⚠ Expérimentale ⚠
 
 > Guide détaillé : [Modifier les SVG des composants et leurs schémas internes](Editing-svg-components.md) — retoucher le dessin SVG, la grille de 10 px, et modifier les schémas internes (vue K).
@@ -415,20 +432,20 @@ Bouton **« + Créer un composant »** en bas de la palette : une fenêtre plein
 
 **2. Modèle de simulation.** Définit le comportement électrique :
 
-| Modèle | Rôles de broches | Comportement |
-| --- | --- | --- |
-| LED | `A` (anode), `C` (cathode) | Halo lumineux si A=haut et C=bas |
-| Bouton poussoir | `1.l`, `2.l` | Clic sur le dessin = appui (broche tirée à GND) |
-| Résistance | `1`, `2` | Relie électriquement ses deux broches |
-| Buzzer | `1`, `2` | Halo si tension entre les deux broches |
-| Source numérique | `OUT` | État 0/1 réglé dans Propriétés |
-| Source analogique | `AO` | Valeur 0–100 % réglée dans Propriétés |
-| Capteur ultrason HC-SR04 | `TRIG`, `ECHO` | Écho de distance (réglable) |
-| Afficheur LCD I²C (HD44780) | — (bus I²C) | Écran piloté par le bus I²C |
-| Driver PWM I²C (PCA9685) | — (bus I²C) | 16 sorties PWM sur le bus I²C |
-| Afficheur OLED I²C (SSD1306) | — (bus I²C) | Écran graphique I²C |
-| Afficheur OLED SPI (SSD1306) | `DC` | Écran graphique SPI |
-| Décoratif | — | Aucun comportement (annotation, habillage) |
+| Modèle                       | Rôles de broches           | Comportement                                    |
+| ---------------------------- | -------------------------- | ----------------------------------------------- |
+| LED                          | `A` (anode), `C` (cathode) | Halo lumineux si A=haut et C=bas                |
+| Bouton poussoir              | `1.l`, `2.l`               | Clic sur le dessin = appui (broche tirée à GND) |
+| Résistance                   | `1`, `2`                   | Relie électriquement ses deux broches           |
+| Buzzer                       | `1`, `2`                   | Halo si tension entre les deux broches          |
+| Source numérique             | `OUT`                      | État 0/1 réglé dans Propriétés                  |
+| Source analogique            | `AO`                       | Valeur 0–100 % réglée dans Propriétés           |
+| Capteur ultrason HC-SR04     | `TRIG`, `ECHO`             | Écho de distance (réglable)                     |
+| Afficheur LCD I²C (HD44780)  | — (bus I²C)                | Écran piloté par le bus I²C                     |
+| Driver PWM I²C (PCA9685)     | — (bus I²C)                | 16 sorties PWM sur le bus I²C                   |
+| Afficheur OLED I²C (SSD1306) | — (bus I²C)                | Écran graphique I²C                             |
+| Afficheur OLED SPI (SSD1306) | `DC`                       | Écran graphique SPI                             |
+| Décoratif                    | —                          | Aucun comportement (annotation, habillage)      |
 
 Le bouton **⇪** à côté de la liste importe des **modèles de simulation** supplémentaires depuis un `.json` (rôles et attributs pré-affectés) ; ils s'ajoutent sous « Modèles importés » et sont persistés.
 
@@ -439,6 +456,7 @@ Le bouton **⇪** à côté de la liste importe des **modèles de simulation** s
 - **cercle vert** (opacité 0,5) = ancre d'alignement de la vue interne (voir 5).
 
 Sans marqueur rouge, **cliquez l'aperçu** pour poser chaque broche à la main.
+
 > ⚠ Les pattes doivent impérativement être sur une grille de 10 px.
 
 **4. Points de connexion.** La liste sous « Points de connexion » permet de **renommer** chaque broche, d'ajuster ses coordonnées **x / y** au pixel, ou de la retirer (✕). Un clic sur l'aperçu externe ajoute toujours un point.
@@ -471,6 +489,7 @@ Où vivent les composants installés : dans un dossier **partagé par tous les p
 ## Format des composants (.kompix)
 
 Un composant Kablix est stocké au format **`.kompix`** — une archive ZIP autonome contenant :
+
 - Métadonnées (`manifest.json`)
 - Dessin externe (`schema.svg`)
 - Optionnel : schéma interne, miniature, code de simulation
@@ -480,17 +499,16 @@ Consulter [kompix_specification.md](../kompix_specification.md) pour les détail
 ### Créer ses propres composants
 
 1. **Créateur intégré** (palette → **+ Créer un composant**) :
-   - Importer un SVG (dessin externe + optionnel schéma interne)
-   - Placer les broches au clic
-   - Configurer le modèle de simulation (kind, rôles, attributs)
-   - **Enregistrer** crée un `.kompix` dans la bibliothèque locale
-   - **⇩** exporte en fichier `.kompix` (save-as)
-
+  - Importer un SVG (dessin externe + optionnel schéma interne)
+  - Placer les broches au clic
+  - Configurer le modèle de simulation (kind, rôles, attributs)
+  - **Enregistrer** crée un `.kompix` dans la bibliothèque locale
+  - **⇩** exporte en fichier `.kompix` (save-as)
 2. **Depuis un prompt IA** :
-   - Copier le prompt ci-dessous
-   - Demander un JSON de base à Claude, ChatGPT, etc.
-   - **Importer** le JSON dans le créateur
-   - Finaliser et **Enregistrer**
+  - Copier le prompt ci-dessous
+  - Demander un JSON de base à Claude, ChatGPT, etc.
+  - **Importer** le JSON dans le créateur
+  - Finaliser et **Enregistrer**
 
 Prompt pour générer un composant (copier et complèter la première ligne) :
 
@@ -509,21 +527,21 @@ Prompt pour générer un composant (copier et complèter la première ligne) :
 }
 ```
 
-| Champ | Type | Description |
-| --- | --- | --- |
-| `type` | chaîne | Identifiant unique. Généré automatiquement si absent à l'import. |
-| `label` | chaîne | **Obligatoire.** Nom affiché dans la palette. |
-| `kind` | chaîne | Modèle de simulation : `led`, `pushbutton`, `resistor`, `buzzer`, `digital-source`, `analog-source` ou `passive` (défaut). |
-| `svg` | chaîne | **Obligatoire.** Code SVG complet du dessin (balise `<svg>` avec `width`/`height` en pixels). |
-| `pins` | tableau | **Obligatoire.** Points de connexion : `name` (unique), `x`, `y` en pixels **relatifs au coin haut-gauche du dessin**. |
-| `pinRoles` | objet | Correspondance *rôle du modèle* → *nom de broche* (voir tableau des modèles). Si absent, les broches doivent porter directement le nom du rôle. |
-| `attrs` | objet | Attributs initiaux. Pour `digital-source` : `{ "state": "0" }` ; pour `analog-source` : `{ "value": "50" }`. |
-| `category` | chaîne | Section de palette (`Boards`, `Passive`, `Displays & LEDs`, `Controls`, `Sensors`, `Actuators`, `Systems`, `Instruments`, `Misc`, `Integrated circuits`). Absente = « Composants personnalisés ». |
-| `params` | tableau | Paramètres de définition : `name` (identifiant), `label`, `value` (nombre). Champs de l'inspecteur, réutilisables dans `control.expr`. |
-| `control` | objet | Contrôle de simulation : `{ "type": "slider", "label", "unit", "min", "max", "step", "expr" }` (tension en volts, `expr` en fonction de `x` et des `params`) **ou** `{ "type": "switch", "label" }`. |
-| `innerSvg` | chaîne | Vue interne facultative (schéma affiché à l'ouverture du composant). |
-| `innerOffset` | objet | Décalage `{ x, y }` de la vue interne dans le repère du dessin externe (calage). |
-| `extAnchor` / `intAnchor` | objet | Ancres vertes `{ x, y }` mesurées à l'import ; recalculent le calage si un seul SVG est réimporté. |
+| Champ                     | Type    | Description                                                                                                                                                                                          |
+| ------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `type`                    | chaîne  | Identifiant unique. Généré automatiquement si absent à l'import.                                                                                                                                     |
+| `label`                   | chaîne  | **Obligatoire.** Nom affiché dans la palette.                                                                                                                                                        |
+| `kind`                    | chaîne  | Modèle de simulation : `led`, `pushbutton`, `resistor`, `buzzer`, `digital-source`, `analog-source` ou `passive` (défaut).                                                                           |
+| `svg`                     | chaîne  | **Obligatoire.** Code SVG complet du dessin (balise `<svg>` avec `width`/`height` en pixels).                                                                                                        |
+| `pins`                    | tableau | **Obligatoire.** Points de connexion : `name` (unique), `x`, `y` en pixels **relatifs au coin haut-gauche du dessin**.                                                                               |
+| `pinRoles`                | objet   | Correspondance *rôle du modèle* → *nom de broche* (voir tableau des modèles). Si absent, les broches doivent porter directement le nom du rôle.                                                      |
+| `attrs`                   | objet   | Attributs initiaux. Pour `digital-source` : `{ "state": "0" }` ; pour `analog-source` : `{ "value": "50" }`.                                                                                         |
+| `category`                | chaîne  | Section de palette (`Boards`, `Passive`, `Displays & LEDs`, `Controls`, `Sensors`, `Actuators`, `Systems`, `Instruments`, `Misc`, `Integrated circuits`). Absente = « Composants personnalisés ».    |
+| `params`                  | tableau | Paramètres de définition : `name` (identifiant), `label`, `value` (nombre). Champs de l'inspecteur, réutilisables dans `control.expr`.                                                               |
+| `control`                 | objet   | Contrôle de simulation : `{ "type": "slider", "label", "unit", "min", "max", "step", "expr" }` (tension en volts, `expr` en fonction de `x` et des `params`) **ou** `{ "type": "switch", "label" }`. |
+| `innerSvg`                | chaîne  | Vue interne facultative (schéma affiché à l'ouverture du composant).                                                                                                                                 |
+| `innerOffset`             | objet   | Décalage `{ x, y }` de la vue interne dans le repère du dessin externe (calage).                                                                                                                     |
+| `extAnchor` / `intAnchor` | objet   | Ancres vertes `{ x, y }` mesurées à l'import ; recalculent le calage si un seul SVG est réimporté.                                                                                                   |
 
 Les valeurs de `kind` disponibles pour les modules I²C/SPI complets sont aussi : `ultrasonic` (HC-SR04, rôles `TRIG`/`ECHO`), `i2c-lcd`, `i2c-pwm`, `i2c-oled` (bus I²C, sans rôle), `spi-oled` (rôle `DC`).
 
@@ -592,9 +610,9 @@ Un **projet Kablix** réunit dans un seul fichier `.projix` (une archive ZIP) **
 
 Contenu d'une archive `.projix` :
 
-| Entrée | Rôle |
-| --- | --- |
-| `kablix.json` | Manifeste : format, version, version de l'app, carte, date, **référence** du fichier de code |
+| Entrée         | Rôle                                                                                                        |
+| -------------- | ----------------------------------------------------------------------------------------------------------- |
+| `kablix.json`  | Manifeste : format, version, version de l'app, carte, date, **référence** du fichier de code                |
 | `diagram.json` | Schéma (composants + fils), composants personnalisés **et dessins des composants de bibliothèque** utilisés |
 
 > ⚠ Le code **n'est pas inclus** dans le `.projix` : seul le schéma est archivé. Pour partager aussi le code, transmettez le fichier source à côté du `.projix`.
@@ -607,7 +625,6 @@ Les composants intégrés de Kablix sont les éléments **@wokwi/elements** (mê
 - **Importer** (Bouton hamburger ou **« Kablix : Importer un schéma Wokwi (diagram.json) »**) : charge un `diagram.json` ; les types Wokwi non pris en charge par Kablix sont ignorés (leur nombre est indiqué dans la barre d'état).
 
 > ⚠ Le **retournement** (flipH/flipV) et les **coudes des fils** n'ont pas  d'équivalent standard dans `diagram.json` : Kablix les conserve dans un bloc d'extension `kablix` (clé ignorée par Wokwi), si bien qu'un aller-retour Kablix → diagram.json → Kablix les restitue à l'identique. Ouvert dans Wokwi, le schéma reste valide (composants et liaisons standard), simplement sans le retournement ni les coudes.
->
 > Limite restante : les **composants personnalisés** Kablix (`kablix-custom-part`) et les types Wokwi inconnus ne sont pas convertis (ignorés, comptés dans la barre d'état).
 
 ## Mises à jour des bibliothèques
@@ -624,10 +641,10 @@ Kablix embarque trois bibliothèques de simulation (`avr8js`, `rp2040js`, `@wokw
 
 Kablix **simule** ; ces deux extensions s'occupent du reste de la chaîne et se marient bien avec elle. Elles sont **facultatives** — Kablix fonctionne seul.
 
-| Extension | À quoi elle sert |
-| --- | --- |
+| Extension                                                                                                                  | À quoi elle sert                                                                                         |
+| -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | [`electropol-fr.arduino-vscode-ide`](https://marketplace.visualstudio.com/items?itemName=electropol-fr.arduino-vscode-ide) | Chaîne Arduino dans VS Code : cartes, bibliothèques, compilation et **téléversement sur la vraie carte** |
-| [`raspberry-pi.raspberry-pi-pico`](https://marketplace.visualstudio.com/items?itemName=raspberry-pi.raspberry-pi-pico) | Raspberry Pi Pico en MicroPython : envoi des fichiers sur la carte, REPL matériel |
+| [`raspberry-pi.raspberry-pi-pico`](https://marketplace.visualstudio.com/items?itemName=raspberry-pi.raspberry-pi-pico)     | Raspberry Pi Pico en MicroPython : envoi des fichiers sur la carte, REPL matériel                        |
 
 Kablix les propose **une seule fois** à sa première activation. Pour y revenir : palette de commandes (`Ctrl+Shift+P`) → **« Kablix : Extensions conseillées »**.
 
@@ -647,19 +664,19 @@ Pour couper la synchronisation : réglage **`kablix.syncArduinoIdeBoard`** (acti
 
 ## Raccourcis clavier
 
-| Touche | Action |
-| --- | --- |
-| `+` / `=` | Tourner le composant sélectionné de +45° |
-| `-` | Tourner de −45° |
-| `Suppr` / `Retour arrière` | Supprimer la sélection : un composant, un fil, ou un lot entier (composants **et** câbles) |
-| `Échap` | Annuler le câblage en cours / désélectionner |
-| `Ctrl` (pendant le glissement d'une poignée) | Réticule + alignement H/V du coude |
-| `Ctrl+A` | Sélectionner tous les composants |
-| `Ctrl+C` | Copier la sélection (composants + fils) — autorisé même en simulation |
-| `Ctrl+V` | Coller la sélection, **y compris dans un autre projet Kablix** |
-| `Ctrl+D` | Dupliquer la sélection sur place |
-| `Ctrl+S` | Enregistrer le projet — identique au bouton **Enregistrer** (nom proposé = celui du fichier de code) |
-| `Entrée` (champ série) | Envoyer la ligne au microcontrôleur |
+| Touche                                       | Action                                                                                               |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `+` / `=`                                    | Tourner le composant sélectionné de +45°                                                             |
+| `-`                                          | Tourner de −45°                                                                                      |
+| `Suppr` / `Retour arrière`                   | Supprimer la sélection : un composant, un fil, ou un lot entier (composants **et** câbles)           |
+| `Échap`                                      | Annuler le câblage en cours / désélectionner                                                         |
+| `Ctrl` (pendant le glissement d'une poignée) | Réticule + alignement H/V du coude                                                                   |
+| `Ctrl+A`                                     | Sélectionner tous les composants                                                                     |
+| `Ctrl+C`                                     | Copier la sélection (composants + fils) — autorisé même en simulation                                |
+| `Ctrl+V`                                     | Coller la sélection, **y compris dans un autre projet Kablix**                                       |
+| `Ctrl+D`                                     | Dupliquer la sélection sur place                                                                     |
+| `Ctrl+S`                                     | Enregistrer le projet — identique au bouton **Enregistrer** (nom proposé = celui du fichier de code) |
+| `Entrée` (champ série)                       | Envoyer la ligne au microcontrôleur                                                                  |
 
 ### Copier-coller d'un projet à l'autre
 

@@ -52,8 +52,13 @@ const en = sheetsOf('en');
 // --- 1. Tous les liens relatifs résolvent -------------------------------------
 const broken = [];
 let links = 0;
+// Un lien CITÉ (entre accents graves ou dans un bloc de code) est un exemple de
+// syntaxe, pas un lien : la spécification `.kompix` montre `![Montage](montage.webp)`
+// et `[LED](led.md)` pour expliquer ce qu'un auteur de composant doit écrire dans
+// SA fiche — ces fichiers-là n'existent évidemment pas dans le dépôt.
+const sansCode = (t) => t.replace(/```[\s\S]*?```/g, '').replace(/`[^`\n]*`/g, '');
 for (const md of mds) {
-  for (const m of readFileSync(md, 'utf8').matchAll(/\]\((<[^>]+>|[^)\s]+)\)/g)) {
+  for (const m of sansCode(readFileSync(md, 'utf8')).matchAll(/\]\((<[^>]+>|[^)\s]+)\)/g)) {
     let target = m[1].replace(/^<|>$/g, '');
     if (/^(https?:|mailto:|#)/.test(target)) continue;
     target = decodeURIComponent(target.split('#')[0]);
