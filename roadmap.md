@@ -1,6 +1,6 @@
 # Roadmap Kablix — pistes d'amélioration
 
-Au 15 août 2026. Chaque piste : ce que c'est, pourquoi ça compte, ce que ça coûte.  
+Au 15 août 2026, pistes 1 et 2 closes le 21 août. Chaque piste : ce que c'est, pourquoi ça compte, ce que ça coûte.  
 
 Détail technique : `scripts/vitesse-pico.md` §12 et `todo.md`.
 
@@ -8,21 +8,17 @@ Détail technique : `scripts/vitesse-pico.md` §12 et `todo.md`.
 
 ## Confort de développement
 
-### 1. **Faire tourner les tests en parallèle**
+### 1. ✅ **Faire tourner les tests en parallèle** — *fait le 21 août 2026 (v2026.8.102.3)*
 
-La suite complète (`verify:all`) enchaîne 83 bancs **l'un après l'autre** : 14 minutes sur une machine à 12 cœurs. Les bancs qui **mesurent du temps** (vitesse Pico, 7 segments multiplexé) doivent rester seuls pour ne pas fausser leurs chiffres, mais tout le reste peut tourner par paquets.
+La suite complète (`verify:all`) enchaînait 93 bancs **l'un après l'autre** : 14 minutes sur une machine à 12 cœurs. Les bancs qui **mesurent du temps** (vitesse Pico, 7 segments multiplexé) devaient rester seuls pour ne pas fausser leurs chiffres, mais tout le reste pouvait tourner par paquets.
 
-Objectif 3-4 minutes, c'est-à-dire une vraie boucle de retour à chaque lot au lieu d'une pause café.
+Résultat : **5 min 20**, 8 bancs en parallèle, les trois sentinelles de temps jouées seules à la fin. Un échec n'arrête plus la suite. Les 3-4 minutes visées ne sont pas atteintes et ne le seront pas ainsi : le plancher est le temps cumulé divisé par les cœurs, soit 3 min 20, et une bonne moitié des bancs pilote un Chrome headless qui consomme déjà plus d'un cœur. Détail dans `todo.md`.
 
-Coût : à chiffrer. Priorité : 1
+### 2. ✅ **Alléger le bundle de la webview** — *mesuré, et clos : rien à faire (v2026.8.90)*
 
-### 2. **Alléger le bundle de la webview**
+`dist/webview.js` pèse **3,31 Mo**, dont 2,55 Mo de dessins SVG inlinés (`pca9685.svg` à lui seul 468 Ko, 1 370 chemins — de vrais dessins, aucun bitmap caché, rien à récupérer par optimisation).
 
-`dist/webview.js` pèse **3,4 Mo**, l'essentiel étant les dessins SVG des composants inclus directement dedans (3,7 Mo de source). Ça ne ralentit **pas** la simulation, seulement l'ouverture de l'éditeur.
-
-À **mesurer avant d'y toucher** : si l'ouverture est déjà instantanée, il n'y a pas de problème à résoudre.
-
-Coût : mesure d'abord. Priorité : 2
+La mesure a été faite avant d'y toucher, dans un vrai Chrome : **117 à 310 ms** de chargement, contre 32 à 40 ms une fois les dessins retirés. V8 compile paresseusement, les grandes chaînes ne lui coûtent presque rien. Il n'y a pas de problème à résoudre — **chantier déclassé**.
 
 ---
 
