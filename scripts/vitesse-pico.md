@@ -895,3 +895,95 @@ simulation : trois suspects écartés avec un chiffre. Il ne reste plus de gros 
 **Ce qu'il laisse ouvert.** La piste 7 (`rp2350js`) reste la seule à promettre un
 facteur : leurs 686 modifications portent leurs propres optimisations, sur le même
 interpréteur, et il faudra les mesurer avec ce banc-ci.
+
+---
+
+## 15. `rp2350js` évalué — les manques ne sont pas le problème, la vitesse si (21 août 2026)
+
+Pistes 7 et 8 de [`roadmap.md`](../roadmap.md). Évaluation faite **hors de
+Kablix**, contre un clone de [`c1570/rp2350js`](https://github.com/c1570/rp2350js)
+(MIT, dernier commit du 13/08/2026, 50 commits sur six mois, 25 737 lignes de TS
+hors tests). Bancs, correctifs et mode d'emploi :
+[`scripts/rp2350js-eval/`](rp2350js-eval/README.md).
+
+### La méthode : piloter un vrai MicroPython, pas lire un README
+
+Trois firmwares **officiels** MicroPython v1.28.0 (`RPI_PICO2`, `RPI_PICO2-RISCV`,
+`RPI_PICO`), un REPL piloté par USB CDC, et dix tests qui sont exactement les
+dépendances de Kablix : `sleep_ms` (alarme TIMER), fronts GPIO vus **côté JS** via
+`gpio[n].addListener` (le chemin de nos composants), `machine.Timer` périodique,
+`Pin.irq`, PWM, ADC, NeoPixel (PIO), scan I²C. Puis la même charge de calcul pur
+des §13-14 pour la vitesse. Miroir obligatoire côté Kablix — notre `rp2040js`
+patché, même firmware, même charge, même machine, un moteur par processus :
+[`_banc-rp2040js-nu.mjs`](_banc-rp2040js-nu.mjs).
+
+### Piste 8 : les manques annoncés ne sont pas ceux qu'on craignait
+
+Le README du fork liste « Timer and System Interrupts » et « Exceptions » — les
+deux choses sur lesquelles Kablix repose entièrement. **Mesuré : elles marchent.**
+`time.sleep_ms(500)` rend 500, un `machine.Timer(period=100, PERIODIC)` compte
+10 ticks en 1050 ms, sur le M33 **et** sur le RISC-V. La liste vise Hazard3 et des
+registres de détail ; le M33, lui, a NVIC, SysTick, entrée en exception, faults et
+TrustZone. **La question du jour 1 est donc négative : ce n'est pas là que ça
+casse.**
+
+Trois vrais défauts trouvés, deux corrigés sur place (patch archivé) :
+
+| Défaut | Portée | Cause | État |
+|---|---|---|---|
+| `Pin.irq` ne se déclenche jamais | RP2350, **les deux cœurs** | décodage de registre faux dans `io_rp2350.ts` (`% 0x18` qui ne retombe jamais sur `INTR0`/`INTE0`) | **corrigé, 2 lignes** |
+| `NeoPixel.write()` fige | RISC-V | `mcycle` (CSR 0xB00) tombait dans « CSR inconnu » et rendait 0 — **14,3 M lectures** en boucle | **corrigé, ~15 lignes** |
+| `i2c.scan()` fige | RISC-V | boucle d'attente dans le pilote MicroPython, `mcause` = IRQ externe machine | ouvert |
+
+Le RP2040 du fork, lui, passe les dix tests sans retouche.
+
+### Piste 7 : la vitesse, et c'est elle qui tranche
+
+Même charge (`bench(400000)` en MicroPython), même machine (Ryzen 5 2600), un
+moteur par processus :
+
+| Moteur | Minstr/s | Mcycles/s | Régime | Rapport à Kablix |
+|---|---|---|---|---|
+| **Kablix — `rp2040js` patché** (M0+, 125 MHz) | **18,86** | 30,1 | ×0,241 | référence |
+| `rp2350js` — RP2040 (M0+, 125 MHz) | 15,07 | 24,7 | ×0,198 | **−20 %** |
+| `rp2350js` — RISC-V Hazard3 (150 MHz) | 14,62 | 17,8 | ×0,143 | −22 % |
+| `rp2350js` — **Cortex-M33** (150 MHz) | **1,33** | 2,25 | ×0,018 | **÷14** |
+
+Trois lectures, dans l'ordre d'importance :
+
+**Le M33 est inutilisable en l'état.** 1,33 Minstr/s, soit un régime de ×0,018 :
+55 fois plus lent que la puce réelle. C'est 14 fois plus lent que notre moteur
+actuel — et 11 fois plus lent que le **M0+ du même dépôt**, ce qui montre que le
+plafond n'est pas celui du JS. Le profil le confirme : ~85 % du temps dans
+`execute-thumb32.ts`, moins de 1 % dans le chemin mémoire. La raison est visible
+dans leur code : leur cache de décodage (`src/riscv/decode-cache.ts`, entrées
+packées indexées par adresse) est **réservé au RISC-V** ; le M33 redécode chaque
+instruction Thumb-2 à chaque passage, en fonctions de dispatch externes de
+2 500 lignes.
+
+**Leur RP2040 ne remplace pas le nôtre.** 15,07 contre 18,86 : vendoriser leur
+bibliothèque pour le Pico 1 coûterait 20 % de vitesse. Nos +30 % maison (§9, §10)
+valent plus que leurs optimisations sur ce cœur-là.
+
+**Les « ~70 M cycles/s » annoncés ne se retrouvent pas.** Chez nous, sur cette
+machine : 17,8 Mcycles/s en RISC-V, 2,25 en M33. L'écart s'explique sans doute par
+une machine récente et une charge favorable (leur chiffre vient probablement du
+RISC-V avec cache chaud), mais il n'y a aucun facteur caché à espérer.
+
+### Verdict
+
+**Piste 8 : passée.** Les manques annoncés ne sont pas rédhibitoires, et les deux
+qui gênaient vraiment se corrigent en une vingtaine de lignes.
+
+**Piste 7 : non, pour l'usage visé.** Un Pico 2 dans Kablix, c'est le M33 — c'est
+la variante que Raspberry Pi vend et pour laquelle le MicroPython officiel est
+compilé. À ×0,018 de régime, un élève verrait sa LED clignoter une fois par minute
+au lieu d'une fois par seconde. La piste 9 (intégration, 10-20 j) reste **bloquée**.
+
+**Ce qui rouvrirait le dossier** : un cache de décodage pour le M33, chez eux ou
+proposé par nous — c'est le seul travail qui débloque tout le reste, et leur RISC-V
+prouve que le motif marche dans leur architecture. Ordre de grandeur : plus gros
+que les 36 lignes du cache RISC-V (Thumb-2 mélange 16 et 32 bits, et les blocs IT
+rendent l'exécution dépendante de l'état), sans garantie chiffrée d'avance. À
+re-sonder de toute façon : le fork est vivant, et `cts2c` (leur transpileur TS → C,
+piste todo) reste à part — il s'applique à leur base entière, M33 compris.

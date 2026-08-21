@@ -1,0 +1,62 @@
+diff --git a/src/peripherals/io_rp2350.ts b/src/peripherals/io_rp2350.ts
+index c57e9e4..78439d6 100644
+--- a/src/peripherals/io_rp2350.ts
++++ b/src/peripherals/io_rp2350.ts
+@@ -6,7 +6,7 @@ const INTR0 = 0x230;
+ const PROC0_INTE0 = 0x248;
+ const PROC0_INTF0 = 0x260;
+ const PROC0_INTS0 = 0x278;
+-const PROC0_INTS5 = 0x280;
++const PROC0_INTS5 = 0x28c;
+ 
+ export class RP2350IO<ChipType extends IRPChip = IRPChip>
+   extends BasePeripheral<ChipType>
+@@ -25,8 +25,8 @@ export class RP2350IO<ChipType extends IRPChip = IRPChip>
+       return isCtrl ? gpio.ctrl : gpio.status;
+     }
+     if (offset >= INTR0 && offset <= PROC0_INTS5) {
+-      const startIndex = ((offset - INTR0) % 0x18) * 8;
+-      const register = (offset % 0x18) * 0x18;
++      const startIndex = ((offset - INTR0) % 0x18) * 2;
++      const register = offset - ((offset - INTR0) % 0x18);
+       const { gpio } = this.rpchip;
+       let result = 0;
+       for (let index = 7; index >= 0; index--) {
+@@ -66,8 +66,8 @@ export class RP2350IO<ChipType extends IRPChip = IRPChip>
+       return;
+     }
+     if (offset >= INTR0 && offset <= PROC0_INTS5) {
+-      const startIndex = ((offset - INTR0) % 0x18) * 8;
+-      const register = (offset % 0x18) * 0x18;
++      const startIndex = ((offset - INTR0) % 0x18) * 2;
++      const register = offset - ((offset - INTR0) % 0x18);
+       const { gpio } = this.rpchip;
+       for (let index = 0; index < 8; index++) {
+         const pin = gpio[index + startIndex];
+diff --git a/src/riscv/cpu.ts b/src/riscv/cpu.ts
+index c9b422d..0362964 100644
+--- a/src/riscv/cpu.ts
++++ b/src/riscv/cpu.ts
+@@ -1380,6 +1380,22 @@ export class CPU implements ICpuCore {
+     switch (csr) {
+       case 0xf14:
+         return this.mhartid;
++      // Compteurs de cycles/instructions (mcycle, mcycleh, minstret, minstreth,
++      // et leurs miroirs utilisateur cycle/instret). Absents du fork : getCSR
++      // rendait 0 en boucle et toute attente calibree dessus (bitstream NeoPixel)
++      // tournait a l'infini.
++      case 0xb00: // mcycle
++      case 0xc00: // cycle
++        return this.cycles >>> 0;
++      case 0xb80: // mcycleh
++      case 0xc80: // cycleh
++        return Math.floor(this.cycles / 4294967296) >>> 0;
++      case 0xb02: // minstret
++      case 0xc02: // instret
++        return this.cycles >>> 0;
++      case 0xb82: // minstreth
++      case 0xc82: // instreth
++        return Math.floor(this.cycles / 4294967296) >>> 0;
+       case 0x300: // MSTATUS
+       case 0x301:
+       case 0x302:
