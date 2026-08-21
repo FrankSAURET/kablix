@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { randomBytes } from 'node:crypto';
+import { versionAffichee } from './version';
 
 const l10n = vscode.l10n;
 
@@ -53,8 +54,8 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
     vscode.Uri.joinPath(extensionUri, 'dist', 'webview-worker.js')
   );
   const nonce = getNonce();
-  const version =
-    vscode.extensions.getExtension('electropol-fr.kablix')?.packageJSON?.version ?? '';
+  // Public en production, public + numéro de build en développement (voir version.ts).
+  const version = versionAffichee();
   // Couleur de sélection réglable (composants/fils/coudes) : variable CSS --kx-select.
   const rawSelColor = vscode.workspace
     .getConfiguration('kablix')

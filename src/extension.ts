@@ -13,6 +13,7 @@ import { ComponentManagerPanel } from './componentManager';
 import { openNewProjix, openOrRevealProjix } from './openproject';
 import { KompixLibrary } from './kompixLibrary';
 import { PicoUploader } from './picoUploader';
+import { memoriserModeExtension } from './version';
 
 const l10n = vscode.l10n;
 
@@ -22,6 +23,9 @@ const l10n = vscode.l10n;
 const STARTUP_GRACE_MS = 3000;
 
 export function activate(context: vscode.ExtensionContext): void {
+  // Numéro de build interne visible seulement hors production (voir version.ts).
+  memoriserModeExtension(context.extensionMode);
+
   // Filet du choix de l'éditeur SVG : VS Code n'inscrit les réglages d'une
   // extension qu'au chargement de la fenêtre, si bien qu'un `.vsix` installé et
   // utilisé dans la foulée refuse l'écriture de `kablix.svgEditorPath`. La

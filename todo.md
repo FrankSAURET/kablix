@@ -1,6 +1,14 @@
 # À faire
 
 
+# >>>>  v2026.8.102.1 — Deux numéros de version : un pour le public, un pour nous
+
+1. ✅ **Nouvelle règle, tous projets** : le numéro **public** reste le calver `ANNÉE.MOIS.incrément` et vaut toujours celui de la **prochaine publication** — il n'avance qu'au moment de publier. Le numéro **interne** lui ajoute un 4e segment (`2026.8.102.1`), démarre à 1 et **ne repart jamais à 0**, ni au changement de mois, ni au bump du public. C'est lui qu'on incrémente **à chaque lot**.
+2. ✅ **Stocké dans un champ `buildNumber`** ([package.json](package.json)) et pas dans `version` : npm et vsce refusent un `version` à quatre segments. Le dépôt démarre à `2026.8.102` + `buildNumber: 1`.
+3. ✅ **Un seul endroit décide de l'affichage** ([src/version.ts](src/version.ts)) : `versionAffichee()` rend les 4 segments **hors production seulement** (`context.extensionMode`, mémorisé par [extension.ts](src/extension.ts)) et le numéro public une fois publié — le numéro interne ne peut pas fuir chez l'utilisateur. `versionPublique()` sert aux fichiers qui partent chez lui.
+4. ✅ **Badge de l'atelier branché dessus** ([webview-html.ts](src/webview-html.ts)) : `v2026.8.102.1` pendant le développement, `v2026.8.102` pour l'utilisateur. Le champ `app` du manifeste `.projix` ([panel.ts](src/panel.ts)), lui, garde le **public** — c'est un fichier qui circule.
+5. ✅ **Règle écrite là où elle sert** : section dédiée dans le CLAUDE.md global (au-dessus du calver) et dans le [CLAUDE.md](CLAUDE.md) du dépôt, avec les deux fonctions à utiliser.
+
 # >>>>  v2026.8.101 — Un composant de bibliothèque parle enfin français
 
 1. ✅ **Les cartes du gestionnaire sortaient en anglais** : « Grove DMX512 shield (SP3485 line driver)… », « PAR 38 LED spotlight… ». Ce ne sont pas des oublis de traduction — les libellés d'un composant de bibliothèque ne sont **pas** dans [bundle.l10n.fr.json](l10n/bundle.l10n.fr.json), qui ne connaît que les composants natifs de Kablix. Un paquet `.kompix` emporte donc désormais **ses** traductions, dans un bloc `l10n` de son manifeste ([kompixI18n.ts](src/kompixI18n.ts), [kompix_specification.md](docs/kompix_specification.md)).

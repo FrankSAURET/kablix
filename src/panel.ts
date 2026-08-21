@@ -26,6 +26,7 @@ import { showPartHelp } from './partHelp';
 import { codeColumn, moveEditorToColumn, textTabColumn } from './layout';
 import { defaultAppsDirPath, detectSvgEditor, svgEditorLaunch } from './svgEditorDetect';
 import { syncArduinoIdeBoard } from './arduinoIde';
+import { versionPublique } from './version';
 
 const ARTIFACT_EXTS = ['.hex', '.uf2', '.elf', '.bin'];
 
@@ -2035,11 +2036,10 @@ export class SimulatorPanel {
     );
   }
 
-  /** Version de l'extension (depuis package.json), « ? » si introuvable. */
+  /** Version PUBLIQUE de l'extension enregistrée dans le .projix (jamais le
+   *  numéro de build interne : le fichier part chez l'utilisateur). */
   private appVersion(): string {
-    return (
-      vscode.extensions.getExtension('electropol-fr.kablix')?.packageJSON?.version ?? '?'
-    );
+    return versionPublique() || '?';
   }
 
   /**
