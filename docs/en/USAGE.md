@@ -635,7 +635,7 @@ Kablix embeds three simulation libraries (`avr8js`, `rp2040js`, `@wokwi/elements
 - **Check at startup** (optional): turn on the **`kablix.checkUpdatesOnStartup`** setting (off by default). A notification then only appears when an update is available, silently otherwise.
 - **The notification offers three answers**: **Install** (opens the npm page; inside the extension repository, it runs `npm install` directly), **Later** (it comes back at the next start) and **Not this version** (that one is never offered again; an even newer one will be). The manual check always answers — even on a refused version.
 
-> **Warning**: updating those libraries may **break the extension** (API changes). If anything goes wrong, open an issue on the GitHub repository: [github.com/franksauret/kablix/issues](https://github.com/franksauret/kablix/issues). A missing or failed network check stays silent and does not affect offline operation.
+> **Warning**: updating those libraries may **break the extension** (API changes). If anything goes wrong, open an issue on the GitHub repository: [github.com/FrankSAURET/kablix/issues](https://github.com/FrankSAURET/kablix/issues). A missing or failed network check stays silent and does not affect offline operation.
 
 ## Recommended extensions
 

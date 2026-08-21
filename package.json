@@ -2,7 +2,7 @@
   "name": "kablix",
   "displayName": "Kablix",
   "version": "2026.8.102",
-  "buildNumber": 1,
+  "buildNumber": 2,
   "description": "%kablix.description%",
   "publisher": "electropol-fr",
   "author": {
@@ -13,12 +13,12 @@
   "icon": "media/icon.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/franksauret/kablix"
+    "url": "https://github.com/FrankSAURET/kablix"
   },
   "bugs": {
-    "url": "https://github.com/franksauret/kablix/issues"
+    "url": "https://github.com/FrankSAURET/kablix/issues"
   },
-  "homepage": "https://github.com/franksauret/kablix#readme",
+  "homepage": "https://github.com/FrankSAURET/kablix#readme",
   "engines": {
     "vscode": "^1.85.0"
   },

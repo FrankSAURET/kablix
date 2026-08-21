@@ -1,6 +1,12 @@
 # À faire
 
 
+# >>>>  v2026.8.102.2 — Le dépôt retrouve son vrai nom
+
+1. ✅ **`git push` avertissait « This repository moved »** à chaque envoi : le remote pointait sur `github.com/franksauret/kablix` alors que le compte s'appelle **`FrankSAURET`**. GitHub redirigeait, l'envoi passait — mais une redirection n'est pas éternelle, et un futur compte homonyme en minuscules détournerait l'URL. Remote recorrigé (`git remote set-url`).
+2. ✅ **Trois URL publiques étaient dans la même casse** ([package.json](package.json)) : `repository`, `bugs` et `homepage` — celles qui s'affichent sur la page du Marketplace. Plus les liens « ouvrez une demande » du guide, dans les deux langues ([docs/fr/USAGE.md](docs/fr/USAGE.md), [docs/en/USAGE.md](docs/en/USAGE.md)). Le reste du dépôt (README, dépôt de composants par défaut, liens testkablix) était déjà en `FrankSAURET`.
+3. ℹ️ **Banc non relancé** : aucun code touché, seulement des URL et le manifeste. Le banc complet était vert au lot précédent.
+
 # >>>>  v2026.8.102.1 — Deux numéros de version : un pour le public, un pour nous
 
 1. ✅ **Nouvelle règle, tous projets** : le numéro **public** reste le calver `ANNÉE.MOIS.incrément` et vaut toujours celui de la **prochaine publication** — il n'avance qu'au moment de publier. Le numéro **interne** lui ajoute un 4e segment (`2026.8.102.1`), démarre à 1 et **ne repart jamais à 0**, ni au changement de mois, ni au bump du public. C'est lui qu'on incrémente **à chaque lot**.

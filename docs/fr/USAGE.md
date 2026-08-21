@@ -635,7 +635,7 @@ Kablix embarque trois bibliothèques de simulation (`avr8js`, `rp2040js`, `@wokw
 - **Vérification au démarrage** (optionnelle) : activez le réglage **`kablix.checkUpdatesOnStartup`** (désactivé par défaut). Une notification n'apparaît alors qu'en cas de mise à jour disponible, en silence sinon.
 - **La notification propose trois réponses** : **Installer** (ouvre la page npm ; dans le dépôt de l'extension, lance directement le `npm install`), **Plus tard** (elle revient à l'ouverture suivante) et **Pas cette version** (celle-ci n'est plus jamais proposée ; une version encore plus récente le sera). La vérification manuelle, elle, répond toujours — même sur une version refusée.
 
-> **Avertissement** : mettre à jour ces bibliothèques peut **casser l'extension** (changements d'API). En cas de problème, ouvrez une demande sur le dépôt GitHub : [github.com/franksauret/kablix/issues](https://github.com/franksauret/kablix/issues). Une vérification réseau absente ou échouée reste silencieuse et n'affecte pas le fonctionnement hors-ligne.
+> **Avertissement** : mettre à jour ces bibliothèques peut **casser l'extension** (changements d'API). En cas de problème, ouvrez une demande sur le dépôt GitHub : [github.com/FrankSAURET/kablix/issues](https://github.com/FrankSAURET/kablix/issues). Une vérification réseau absente ou échouée reste silencieuse et n'affecte pas le fonctionnement hors-ligne.
 
 ## Extensions conseillées
 
