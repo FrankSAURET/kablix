@@ -46,5 +46,6 @@ Règle globale : **rien de traduit pendant le travail courant**. Langue de base 
 
 ## Versions et livraison (détail : /livre)
 - Version = ANNÉE.MOIS.incrément ; l'incrément repart à 0 chaque mois (juillet 2026 → 2026.7.x).
+- Calver AUSSI pour les composants de la bibliothèque publique (`kablix_components/_sources.json`) : jamais de semver `1.2.0`. Après bump d'un composant : `node scripts/build-kompix.mjs` puis `node scripts/build-components-index.mjs`.
 - Chaque lot : todo.md (✅/⏳/⬜, numéro de version AU-DESSUS de ses items) + bump package.json + build + commit + push.
 - `.vsix` : jamais automatique — `npm run package` seulement sur demande explicite de Frank.

@@ -1,8 +1,11 @@
 # À faire
 
-1. ~~Traduit tout ce qui manque~~ — **fait** : chaînes (v2026.8.95), documentation anglaise (v2026.8.97). Il reste **une** chaîne née depuis : « Update available » (v2026.8.99) — à reprendre au lot de traduction d'avant publication.
-1. ~~mets à jour changelog, usage et readme~~ — **fait** : guide FR et README (v2026.8.96), guide EN et README.en (v2026.8.97), CHANGELOG (v2026.8.98).
-1. je vais publier. — **rien n'est publié ni empaqueté sans ton feu vert** : dis-le et je lance `npm run package` puis `vsce publish` sur `electropol-fr`.
+
+# >>>>  v2026.8.100 — Les composants de la bibliothèque passent au calver, comme tout le reste
+
+1. ✅ **Deux systèmes de numérotation cohabitaient** : l'extension en calver (`2026.8.99`), les composants publiés en semver (`dmx-grove` 1.1.0, `spot` 1.2.0). Décision : **calver partout**, tous projets, tout ce qui porte un numéro de version. Les deux composants passent à **`2026.8.0`** dans [_sources.json](kablix_components/_sources.json), paquets et index reconstruits ([build-kompix.mjs](scripts/build-kompix.mjs), [build-components-index.mjs](scripts/build-components-index.mjs)) — 2 octets de différence par `.kompix`, seul le manifeste avance, dessins et vignettes intacts.
+2. ✅ **La règle est écrite là où elle sert** : section calver du CLAUDE.md global (tout numéro de version, pas seulement le manifeste du projet) et [CLAUDE.md](CLAUDE.md) du dépôt (les composants de `kablix_components/_sources.json`, avec les deux scripts à relancer après un bump).
+3. ℹ️ **Rien à changer côté gestionnaire** : `compareVersions` ([componentManager.ts](src/componentManager.ts)) compare les segments en nombres — `2026.8.0` est bien postérieur à `1.2.0`, une installation en 1.x se signalera comme à mettre à jour.
 
 # >>>>  v2026.8.99 — Une fiche d'aide ajoutée à un composant se voit enfin dans le gestionnaire
 
