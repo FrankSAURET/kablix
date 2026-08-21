@@ -477,7 +477,9 @@ check('répertoire racine vide au départ', rootBlock?.[0] === 0x00);
   check(
     'la réponse est décalée d\'un octet (latence Ncr)',
     /const out = this\.resp\.length \? this\.resp\.shift\(\)! : 0xff;/.test(dev) &&
-      /\n    return out;\n  \}/.test(dev),
+      // `\r?\n` : le fichier est passé en CRLF, un motif en LF pur ne trouvait
+      // plus rien alors que le code, lui, n'avait pas bougé.
+      /\r?\n    return out;\r?\n  \}/.test(dev),
   );
   check('OCR avec le bit CCS : carte SDHC', /this\.resp\.push\(this\.r1\(\), 0xc0,/.test(dev));
   check('stockage par blocs, sans repli modulo', !/% this\.store\.length/.test(dev));

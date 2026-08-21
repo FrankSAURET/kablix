@@ -179,6 +179,7 @@
   "Error": "Erreur",
   "downloaded": "téléchargé",
   "created here": "créé ici",
+  "Update available": "Mise à jour disponible",
   "Delete the component \"{0}\" from the library?": "Supprimer le composant « {0} » de la bibliothèque ?",
   "Delete {0} components from the library?": "Supprimer {0} composants de la bibliothèque ?",
   "The .kompix file is erased. Any instance placed in an open workshop is removed too.": "Le fichier .kompix est effacé. Toute instance posée dans un atelier ouvert est retirée elle aussi.",

@@ -25,6 +25,7 @@ Métadonnées du composant (JSON structuré). Reprend le schéma `CustomPartData
 - `pinRoles`, `attrs`, `params`, `control` : paramétrage
 - `behavior` : nom du fichier script optionnel
 - `help` : langues des fiches d'aide embarquées, ex. `["fr"]`
+- `l10n` : traductions des libellés du composant (voir plus bas)
 
 #### `schema.svg`
 
@@ -67,9 +68,43 @@ Un `control` remplace le champ statique de l'inspecteur qui pilotait la même
 sortie (« Position (%) » d'une source analogique, « State » d'une source
 numérique) : il n'y a jamais deux réglages pour une seule sortie.
 
-Les libellés (`label`, `unit`) sont écrits dans la langue de base du paquet ; ils
-ne passent pas par le catalogue de traduction de Kablix, qui ne connaît que ses
-composants intégrés.
+### `l10n` — les libellés traduits
+
+Les champs de premier niveau (`label`, `description`, les `label` de `params` et
+de `control`) sont écrits dans la **langue de base** du paquet. Ils ne passent
+pas par le catalogue de traduction de Kablix, qui ne connaît que ses composants
+intégrés : un composant de bibliothèque emporte donc **ses** traductions dans
+son manifeste.
+
+```json
+"l10n": {
+  "fr": {
+    "label": "Projecteur DMX PAR 38",
+    "description": "Projecteur à LED PAR 38 piloté en DMX512…",
+    "params": { "address": "Adresse DMX (canaux : rouge, vert, bleu)" },
+    "control": { "label": "Niveau", "unit": "lux" }
+  }
+}
+```
+
+- Une clé par langue, celle de VS Code (`vscode.env.language`). `fr-CA` cherche
+  d'abord `fr-ca`, puis **`fr`** — jamais un retour surprise à l'anglais.
+- La langue de base sert de repli **champ par champ** : une traduction partielle
+  ne troue pas la fiche, un composant sans bloc `l10n` s'affiche tel qu'il est
+  écrit.
+- Les `params` se traduisent **par `name`**, pas par position : renommer un
+  libellé ne déplace pas les traductions.
+- La traduction touche l'affichage, jamais le fond : `name` d'une propriété,
+  `expr` d'un contrôle et brochage restent identiques dans toutes les langues.
+- **Réenregistrer** un composant (créateur, export) rend au manifeste sa langue
+  de base et recopie le bloc `l10n` : la webview ne voit que du traduit, sans
+  cette précaution le français serait gravé en langue de base et les autres
+  langues perdues. Un libellé **retouché à la main**, lui, est gardé tel quel.
+
+Le gestionnaire de composants lit ce bloc **depuis `index.json`** : la carte d'un
+composant pas encore installé est dessinée avant tout téléchargement.
+`scripts/build-kompix.mjs` reporte le bloc de `_sources.json` dans le manifeste,
+`scripts/build-components-index.mjs` le reporte du manifeste dans l'index.
 
 ### Fichiers optionnels
 
@@ -137,4 +172,4 @@ Objet `context` expose :
 
 ---
 
-**Date** : 2026-08-20
+**Date** : 2026-08-21

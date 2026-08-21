@@ -60,6 +60,10 @@ async function generateIndex() {
         file,
         thumbnail,
       };
+      // Traductions des libellés : la carte du gestionnaire est dessinée depuis
+      // l'index, AVANT tout téléchargement — sans ce report, un composant non
+      // installé s'annoncerait en anglais chez un francophone.
+      if (manifest.l10n && Object.keys(manifest.l10n).length) entry.l10n = manifest.l10n;
 
       index.components.push(entry);
       entries.push(entry);

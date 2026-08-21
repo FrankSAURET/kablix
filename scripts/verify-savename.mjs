@@ -179,7 +179,9 @@ const usageEn = readFileSync(join(ROOT, 'docs/en/USAGE.md'), 'utf8');
 check(/\|\s*`Ctrl\+S`\s*\|/.test(usageFr), 'aide FR : Ctrl+S dans le tableau des raccourcis');
 check(/\|\s*`Ctrl\+S`\s*\|/.test(usageEn), 'aide EN : Ctrl+S dans le tableau des raccourcis');
 check(/`Ctrl\+S`.{0,200}nom proposé est celui du \*\*code\*\*/s.test(usageFr), 'aide FR : nom proposé = celui du code');
-check(/`Ctrl\+S`.{0,200}suggested name is the \*\*code\*\*/s.test(usageEn), 'aide EN : nom proposé = celui du code');
+// « the suggested name is the one of the **code** » : la tournure anglaise
+// naturelle passe par « the one of », que l'ancien motif refusait.
+check(/`Ctrl\+S`.{0,200}suggested name is [^.]{0,30}\*\*code\*\*/s.test(usageEn), 'aide EN : nom proposé = celui du code');
 
 if (fails.length) {
   console.log(`\nsavename : ${fails.length} ÉCHEC(S) sur ${ok + fails.length} contrôles.`);

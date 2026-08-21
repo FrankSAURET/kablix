@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { randomBytes } from 'node:crypto';
 import { KompixLibrary } from './kompixLibrary';
+import { KompixL10nEntry, traduireKompix } from './kompixI18n';
 import { SimulatorPanel } from './panel';
 
 const l10n = vscode.l10n;
@@ -19,6 +20,8 @@ interface ComponentInfo {
   sourceUrl?: string; // URL complète du fichier .kompix
   installedVersion?: string; // version présente sur la machine (si installé)
   update?: boolean; // installé, mais le dépôt en propose une version plus récente
+  /** Traductions des libellés portées par le paquet (voir kompixI18n). */
+  l10n?: Record<string, KompixL10nEntry>;
 }
 
 interface RepositoryIndex {
@@ -174,9 +177,12 @@ export class ComponentManagerPanel {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     const components: ComponentInfo[] = data.components ?? [];
-    // Construit l'URL complète du .kompix pour chaque composant
+    // Construit l'URL complète du .kompix pour chaque composant, et sert ses
+    // libellés dans la langue de VS Code : la carte d'un composant PAS ENCORE
+    // installé est dessinée depuis l'index, il n'y a pas de paquet local à
+    // relire — sans ça, elle sortait en anglais.
     return components.map((c) => ({
-      ...c,
+      ...traduireKompix(c),
       sourceUrl: c.file ? baseUrl + '/' + c.file : undefined,
     }));
   }

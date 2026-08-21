@@ -79,6 +79,9 @@ export const window = {
 export const ViewColumn = { One: 1 };
 export const commands = { executeCommand: async () => undefined };
 export const l10n = { t: (s) => s };
+// Langue de l'éditeur, pilotée par le banc (globalThis.__langue) : c'est elle
+// qui choisit la traduction des libellés d'un composant de bibliothèque.
+export const env = { get language() { return globalThis.__langue ?? 'en'; } };
 `;
 
 const bundle = join(WORK_DIR, 'kompix-library.mjs');
@@ -727,6 +730,151 @@ test('le filtre « Nouveaux » montre les mises à jour, pas les composants à j
   }
   if (!html.includes('from-version')) throw new Error('l’ancienne version n’est plus affichée');
   if (!/\.component-card\.update::after/.test(html)) throw new Error('pas de badge de mise à jour');
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Traduction des libellés d'un composant de bibliothèque : ils ne sont PAS dans
+// le catalogue de Kablix (qui ne connaît que les composants natifs), le paquet
+// emporte donc les siennes dans un bloc « l10n » de son manifeste.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Pose un paquet traduit dans la bibliothèque et la fait rescanner. */
+async function poseTraduit(type, langue) {
+  globalThis.__langue = langue;
+  const { default: JSZip } = await import('jszip');
+  const zip = new JSZip();
+  zip.file('manifest.json', JSON.stringify({
+    kompixVersion: 1,
+    type,
+    label: 'Base label',
+    description: 'Base description',
+    version: '2026.8.1',
+    author: 'Banc',
+    kind: 'passive',
+    category: 'Misc',
+    pins: [{ name: 'A', x: 0, y: 0 }],
+    params: [{ name: 'address', label: 'DMX address', value: 1 }],
+    control: { type: 'slider', label: 'Level', unit: 'lx', min: 0, max: 10 },
+    l10n: {
+      fr: {
+        label: 'Libellé traduit',
+        description: 'Description traduite',
+        params: { address: 'Adresse DMX' },
+        control: { label: 'Niveau', unit: 'lux' },
+      },
+    },
+  }));
+  zip.file('schema.svg', `<svg viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg"><g id="${type}"><rect width="10" height="10"/></g></svg>`);
+  writeFileSync(join(WORK_DIR, `${type}.kompix`), Buffer.from(await zip.generateAsync({ type: 'uint8array' })));
+  await lib.scanLibrary();
+  return lib.getComponents().find((c) => c.type === type);
+}
+
+/** Manifeste relu d'un tampon .kompix. */
+async function manifesteDe(buffer) {
+  const { default: JSZip } = await import('jszip');
+  const zip = await new JSZip().loadAsync(buffer);
+  return JSON.parse(await zip.file('manifest.json').async('string'));
+}
+
+test('un composant de bibliothèque sort dans la langue de VS Code', async () => {
+  const part = await poseTraduit('test-l10n', 'fr');
+  eq(part.label, 'Libellé traduit', 'libellé de la palette');
+  eq(part.params[0].label, 'Adresse DMX', 'libellé de propriété');
+  eq(part.params[0].value, 1, 'valeur de propriété inchangée');
+  eq(part.control.label, 'Niveau', 'libellé du contrôle');
+  eq(part.control.unit, 'lux', 'unité du contrôle');
+  eq(part.control.max, 10, 'course du contrôle inchangée');
+  const fiche = lib.listInstalled().find((c) => c.type === 'test-l10n');
+  eq(fiche.description, 'Description traduite', 'description de la carte du gestionnaire');
+});
+
+test('une langue sans traduction garde la langue de base du paquet', async () => {
+  const part = await poseTraduit('test-l10n', 'de');
+  eq(part.label, 'Base label', 'libellé non traduit');
+  eq(part.params[0].label, 'DMX address', 'propriété non traduite');
+  eq(part.control.label, 'Level', 'contrôle non traduit');
+});
+
+test('« fr-CA » retombe sur « fr », pas sur l’anglais', async () => {
+  const part = await poseTraduit('test-l10n', 'fr-CA');
+  eq(part.label, 'Libellé traduit', 'la variante régionale sert la langue');
+});
+
+test('réenregistrer un composant traduit ne grave pas la traduction', async () => {
+  // La webview ne connaît QUE les libellés traduits : sans précaution, un
+  // réenregistrement figerait le français en langue de base et perdrait le bloc.
+  const part = await poseTraduit('test-l10n', 'fr');
+  const manifest = await manifesteDe(await lib.createKompixBufferFromPartData(part, '2026.8.2'));
+  eq(manifest.label, 'Base label', 'libellé rendu à sa langue de base');
+  eq(manifest.description, 'Base description', 'description rendue à sa langue de base');
+  eq(manifest.params[0].label, 'DMX address', 'propriété rendue à sa langue de base');
+  eq(manifest.control.label, 'Level', 'contrôle rendu à sa langue de base');
+  eq(manifest.control.unit, 'lx', 'unité rendue à sa langue de base');
+  eq(manifest.l10n?.fr?.label, 'Libellé traduit', 'le bloc de traduction a survécu');
+  eq(manifest.l10n?.fr?.params?.address, 'Adresse DMX', 'traduction des propriétés gardée');
+  // Le composant vivant, lui, garde ses libellés traduits sous les yeux.
+  eq(part.control.unit, 'lux', 'le contrôle affiché n’a pas été retourné en langue de base');
+});
+
+test('un libellé changé à la main est gardé tel quel', async () => {
+  const part = await poseTraduit('test-l10n', 'fr');
+  const modifie = { ...part, label: 'Mon nom à moi', params: [{ name: 'address', label: 'Mon réglage', value: 7 }] };
+  const manifest = await manifesteDe(await lib.createKompixBufferFromPartData(modifie, '2026.8.2'));
+  eq(manifest.label, 'Mon nom à moi', 'le libellé retouché est conservé');
+  eq(manifest.params[0].label, 'Mon réglage', 'la propriété retouchée est conservée');
+});
+
+test('la vraie lecture d’un dépôt traduit les cartes du gestionnaire', async () => {
+  const index = {
+    components: [{
+      type: 'depot-l10n',
+      label: 'Repo label',
+      description: 'Repo description',
+      version: '2026.8.1',
+      file: 'depot-l10n.kompix',
+      l10n: { fr: { label: 'Libellé du dépôt', description: 'Description du dépôt' } },
+    }],
+  };
+  const vraiFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: true, json: async () => index });
+  try {
+    const nu = gestionnaireNu();
+    globalThis.__langue = 'fr';
+    const [enFr] = await nu.fetchRepositoryComponents('https://exemple/depot/');
+    eq(enFr.label, 'Libellé du dépôt', 'carte en français');
+    eq(enFr.description, 'Description du dépôt', 'description en français');
+    eq(enFr.sourceUrl, 'https://exemple/depot/depot-l10n.kompix', 'URL du paquet toujours construite');
+
+    globalThis.__langue = 'en';
+    const [enEn] = await nu.fetchRepositoryComponents('https://exemple/depot/');
+    eq(enEn.label, 'Repo label', 'carte en langue de base');
+    eq(enEn.description, 'Repo description', 'description en langue de base');
+  } finally {
+    globalThis.fetch = vraiFetch;
+    globalThis.__langue = 'en';
+  }
+});
+
+test('les paquets publiés emportent bien leur traduction française', async () => {
+  const { readFileSync } = await import('node:fs');
+  const index = JSON.parse(readFileSync(join(ROOT, 'kablix_components', 'index.json'), 'utf8'));
+  for (const type of ['dmx-grove', 'spot']) {
+    const entree = index.components.find((c) => c.type === type);
+    if (!entree) throw new Error(`« ${type} » absent de l’index publié`);
+    if (!entree.l10n?.fr?.label) throw new Error(`« ${type} » : pas de libellé français dans l’index`);
+    if (!entree.l10n.fr.description) throw new Error(`« ${type} » : pas de description française dans l’index`);
+    if (!/^\d{4}\.\d{1,2}\.\d+$/.test(entree.version)) {
+      throw new Error(`« ${type} » : version « ${entree.version} » hors calver`);
+    }
+    const manifest = await manifesteDe(readFileSync(join(ROOT, 'kablix_components', `${type}.kompix`)));
+    eq(manifest.l10n?.fr?.label, entree.l10n.fr.label, `${type} : le paquet et l’index disent la même chose`);
+    eq(manifest.version, entree.version, `${type} : même version dans le paquet et l’index`);
+  }
+  // La propriété du projecteur est traduite, elle aussi : c'est elle qu'on lit
+  // dans le volet des propriétés une fois le composant posé.
+  const spot = index.components.find((c) => c.type === 'spot');
+  if (!spot.l10n.fr.params?.address) throw new Error('l’adresse DMX du projecteur n’est pas traduite');
 });
 
 await runTests();

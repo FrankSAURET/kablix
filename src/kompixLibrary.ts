@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync, unlinkSy
 import { createHash } from 'node:crypto';
 import { join, extname } from 'node:path';
 import JSZip from 'jszip';
+import { KompixL10nEntry, traduireKompix } from './kompixI18n';
 
 type PartKind = string; // Réutilise la même enum que catalog.mts
 
@@ -94,6 +95,8 @@ interface KompixManifest {
   behavior?: string | null; // Nom du fichier .mjs, ex. "behavior.mjs"
   /** Langues des fiches d'aide embarquées (`help/<lang>.md`), ex. ["fr", "en"]. */
   help?: string[];
+  /** Traductions des libellés du composant (voir kompixI18n). */
+  l10n?: Record<string, KompixL10nEntry>;
 }
 
 /** Contenu du CustomPartData, cible de la webview. */
@@ -161,6 +164,12 @@ export class KompixLibrary {
   private sources: Map<string, string> = new Map();
   /** Langues des fiches d'aide trouvées dans chaque paquet (`help/<lang>.md`). */
   private helpLangs: Map<string, string[]> = new Map();
+  /** Libellés en LANGUE DE BASE + bloc `l10n` du manifeste : ce que la webview
+   *  reçoit est traduit, un réenregistrement figerait sinon la traduction en
+   *  langue de base et perdrait les autres langues. */
+  private baseMeta: Map<string, { label: string; description?: string;
+    params?: KompixManifest['params']; control?: KompixManifest['control'];
+    l10n?: Record<string, KompixL10nEntry> }> = new Map();
   private onComponentsChanged: ((parts: CustomPartData[]) => void) | undefined;
   /** Promesse du premier scan (voir start / whenReady). */
   private started: Promise<void> | undefined;
@@ -246,6 +255,7 @@ export class KompixLibrary {
     this.manifestMeta.clear();
     this.sources.clear();
     this.helpLangs.clear();
+    this.baseMeta.clear();
     try {
       const files = readdirSync(this.libraryFolder);
       for (const file of files) {
@@ -288,6 +298,12 @@ export class KompixLibrary {
       if (!schemaFile) throw new Error('schema.svg absent');
       const svg = await schemaFile.async('string');
 
+      // Libellés dans la langue de VS Code : un composant de bibliothèque n'est
+      // pas dans le catalogue de Kablix (qui ne connaît que les composants
+      // natifs), ses traductions voyagent donc dans son propre manifeste. La
+      // langue de base du paquet sert de repli, champ par champ.
+      const traduit = traduireKompix(manifest);
+
       // Extraire SVG externe et interne depuis le même fichier
       const externalSvg = this.extractSvgGroup(svg, manifest.type);
       const internalSvg = this.extractSvgGroup(svg, `${manifest.type}-interne`);
@@ -312,11 +328,20 @@ export class KompixLibrary {
       // Récupérer les métadonnées de confiance
       const indexEntry = this.index.get(manifest.type);
 
+      // Libellés en langue de base, gardés pour un futur réenregistrement.
+      this.baseMeta.set(manifest.type, {
+        label: manifest.label,
+        description: manifest.description,
+        params: manifest.params,
+        control: manifest.control,
+        l10n: manifest.l10n,
+      });
+
       // Description, auteur et référence ne voyagent pas dans CustomPartData :
       // le gestionnaire de composants en a besoin pour ses fiches, on les garde
       // de côté le temps du scan.
       this.manifestMeta.set(manifest.type, {
-        description: manifest.description,
+        description: traduit.description,
         version: manifest.version,
         author: manifest.author,
         reference: manifest.reference,
@@ -325,7 +350,7 @@ export class KompixLibrary {
       // Construire CustomPartData
       const result: CustomPartData = {
         type: manifest.type,
-        label: manifest.label,
+        label: traduit.label,
         kind: manifest.kind,
         svg: externalSvg,
         pins: manifest.pins,
@@ -335,8 +360,8 @@ export class KompixLibrary {
         innerOffset: manifest.innerOffset || undefined,
         extAnchor: manifest.extAnchor || undefined,
         intAnchor: manifest.intAnchor || undefined,
-        params: manifest.params,
-        control: manifest.control,
+        params: traduit.params,
+        control: traduit.control,
         category: manifest.category,
         hasHelp: langs.length > 0 || undefined,
         behaviorScript: behaviorScript,
@@ -760,6 +785,34 @@ export class KompixLibrary {
       intAnchor: data.intAnchor ?? null,
       behavior: data.behaviorScript ? 'behavior.mjs' : null,
     };
+
+    // Traductions du paquet d'origine : la webview travaille sur des libellés
+    // DÉJÀ traduits (voir unpackKompix). Réenregistrer tel quel graverait le
+    // français en langue de base et effacerait le bloc `l10n`. Un libellé resté
+    // égal à sa traduction n'a pas été retouché : il reprend sa langue de base ;
+    // un libellé changé à la main, lui, est gardé tel que l'utilisateur l'a écrit.
+    const base = this.baseMeta.get(data.type);
+    if (base?.l10n) {
+      manifest.l10n = base.l10n;
+      const traduit = traduireKompix({ ...base });
+      if (data.label === traduit.label) manifest.label = base.label;
+      if (base.description) manifest.description = base.description;
+      if (Array.isArray(manifest.params)) {
+        manifest.params = manifest.params.map((p) => {
+          const enBase = base.params?.find((q) => q.name === p.name);
+          const enLangue = traduit.params?.find((q) => q.name === p.name);
+          return enBase && enLangue && p.label === enLangue.label ? { ...p, label: enBase.label } : p;
+        });
+      }
+      if (manifest.control && base.control && traduit.control) {
+        // Copie : `data.control` appartient à l'appelant, le paquet ne doit pas
+        // retourner le contrôle du composant vivant en langue de base.
+        const ctrl = { ...manifest.control };
+        if (ctrl.label === traduit.control.label) ctrl.label = base.control.label;
+        if (ctrl.unit === traduit.control.unit) ctrl.unit = base.control.unit;
+        manifest.control = ctrl;
+      }
+    }
 
     // Fiche d'aide déjà présente dans le paquet installé : elle est RECOPIÉE
     // telle quelle. Elle ne voyage pas dans CustomPartData (seul `hasHelp` en

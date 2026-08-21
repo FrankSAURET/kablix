@@ -205,6 +205,10 @@ async function main() {
       attrs: comp.attrs,
       params: comp.params,
       control: comp.control ?? null,
+      // Traductions des libellés du composant : le catalogue de Kablix ne
+      // connaît que ses composants natifs, un composant de bibliothèque emporte
+      // donc les siennes dans son paquet (voir kompix_specification.md).
+      l10n: comp.l10n,
     };
     const fiche = aide(comp.type);
     if (fiche.langs.length) manifest.help = fiche.langs;

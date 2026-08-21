@@ -42,7 +42,7 @@ Un **boîtier** (`to92`…) sert à des dizaines de composants : c'est un DESSIN
 - Vérification géométrie/alignement : rendu Chrome headless (/preview) — ne jamais demander à Frank de coller des logs console.
 
 ## Traductions — jamais au fil de l'eau
-Règle globale : **rien de traduit pendant le travail courant**. Langue de base seulement (FR pour `docs/`, EN pour les chaînes du code), les autres langues en un seul lot **avant publication**, sur demande de Frank. Concerne `docs/en/`, `l10n/bundle.l10n.fr.json`, README localisés. Le manque se note ⏳ dans `todo.md` et ne bloque pas un lot.
+Règle globale : **rien de traduit pendant le travail courant**. Langue de base seulement (FR pour `docs/`, EN pour les chaînes du code), les autres langues en un seul lot **avant publication**, sur demande de Frank. Concerne `docs/en/`, `l10n/bundle.l10n.fr.json`, README localisés et le bloc `l10n` des composants de bibliothèque (`kablix_components/_sources.json`, langue de base = EN). Le manque se note ⏳ dans `todo.md` et ne bloque pas un lot.
 
 ## Versions et livraison (détail : /livre)
 - Version = ANNÉE.MOIS.incrément ; l'incrément repart à 0 chaque mois (juillet 2026 → 2026.7.x).
