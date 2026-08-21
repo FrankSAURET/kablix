@@ -1,9 +1,25 @@
-# Évaluation de `c1570/rp2350js` — bancs et correctifs (21 août 2026)
+# Évaluation de `c1570/rp2350js` — bancs et correctifs (21-22 août 2026)
 
 Matériel de la piste 7/8 de [`roadmap.md`](../../roadmap.md). Verdict détaillé :
 [`vitesse-pico.md`](../vitesse-pico.md) §15. Rien ici n'est branché dans
 `verify:all` — ce sont des bancs à rejouer **hors de Kablix**, contre un clone du
 fork, le jour où l'on re-sonde le projet.
+
+## ⚠️ Ne JAMAIS mesurer la vitesse sous `tsx`
+
+`tsx` transpile module par module et garde les noms de fonctions : sur le
+Cortex-M33, dont l'exécution est éclatée en fichiers importés, V8 renonce à
+l'inlining et le cœur perd **un facteur 8** (0,8-1,2 Minstr/s au lieu de 8,3).
+Le M0+, tenu dans un seul fichier, n'est pas touché — le piège est invisible si
+l'on ne compare pas. Le premier verdict de la piste 7 est tombé dedans.
+
+Pour la vitesse, passer par `banc-compile.mjs` / `mesure-finale.mjs`, qui
+bundlent avec esbuild (`keepNames: false`) comme le fait la webview Kablix.
+`tsx` reste bon pour les tests fonctionnels de `kablix-eval.ts`.
+
+La machine dérive aussi de ±40 % d'une fenêtre à l'autre : **toujours plusieurs
+passes, garder la meilleure, et ne comparer que des moteurs mesurés dans la même
+fenêtre** — au besoin en les entrelaçant (`croise.mjs`).
 
 ## Rejouer
 
@@ -16,7 +32,17 @@ cp chemin/vers/*.ts .                                 # les trois bancs
 npx tsx kablix-eval.ts --target=arm|riscv|rp2040     # 10 tests fonctionnels + vitesse
 npx tsx vitesse.ts arm|riscv|rp2040 [--n=400000]     # vitesse seule (REPL non pollué)
 npx tsx diag2.ts i2c|neopixel                        # pourquoi un bloc fige (CSR, PC, mcause)
+
+cp chemin/vers/*.mjs .                                # les bancs de vitesse
+node mesure-finale.mjs        # les 3 cœurs + le miroir Kablix, 3 passes, meilleure retenue
+node banc-compile.mjs arm rp2040 riscv   # une passe par cœur, JS compilé
+node mesure-cache.mjs         # RISC-V cache de décodage coupé : combien il rapporte
+node croise.mjs               # Kablix vs M33 entrelacés (dérive machine neutralisée)
+node profil.mjs arm 40000     # profil self-time, sans tsx
 ```
+
+`mesure-finale.mjs` et `croise.mjs` lancent aussi le banc Kablix : ils contiennent
+le chemin du projet en dur (`const KABLIX = …`), à ajuster.
 
 Le miroir côté Kablix — **même charge, même méthode, notre `rp2040js` patché** —
 est [`_banc-rp2040js-nu.mjs`](../_banc-rp2040js-nu.mjs), à lancer depuis la racine
@@ -48,3 +74,17 @@ Deux bugs du fork, trouvés et corrigés pendant l'évaluation (non proposés en
 Reste ouvert : le **scan I²C fige sur RISC-V** (boucle d'attente dans le pilote
 MicroPython, `mcause` = interruption externe machine ; le M33 et leur RP2040 s'en
 sortent). Non élucidé — ce n'était plus nécessaire au verdict.
+
+## Chiffres de référence (22/08/2026, Ryzen 5 2600, JS compilé, meilleure de 3)
+
+| Moteur | Minstr/s | Régime |
+|---|---|---|
+| Kablix — `rp2040js` patché | 12,24 | ×0,156 |
+| `rp2350js` RP2040 (M0+) | 11,34 | ×0,149 |
+| `rp2350js` RISC-V | 10,96 | ×0,107 |
+| `rp2350js` Cortex-M33 | 8,04 | ×0,109 |
+| `rp2350js` RISC-V, cache de décodage coupé | 5,69 | ×0,056 |
+
+Les régimes absolus dépendent de la fenêtre de mesure (la même machine a rendu
+×0,204 pour Kablix une heure plus tard) ; les **rapports** entre lignes, eux,
+tiennent.

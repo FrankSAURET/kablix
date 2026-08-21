@@ -71,7 +71,7 @@ Le banc [`_banc-profil-pico.mjs`](scripts/_banc-profil-pico.mjs) profile le vrai
 
 **Un seul candidat dépasse le bruit** : inliner l'accès SRAM dans le cœur, comme le patch l'a déjà fait pour la lecture d'instruction — **+5 à +6 %** mesurés. Non fait : c'est une modification du patch `rp2040js`, à décider et à re-valider à part.
 
-**Ce que ça règle** : l'écart ×1,7 avec le miroir JS du §13 ne vient pas de la boucle mais de l'intérieur de `executeInstruction`, déjà retourné deux fois pour +30 % cumulés (§9, §10). La marge restante est en points, pas en facteurs. La piste 7 (`rp2350js`) reste la seule à promettre un facteur — et se mesurera avec ce banc.
+**Ce que ça règle** : l'écart ×1,7 avec le miroir JS du §13 ne vient pas de la boucle mais de l'intérieur de `executeInstruction`, déjà retourné deux fois pour +30 % cumulés (§9, §10). La marge restante est en points, pas en facteurs. La piste 7 (`rp2350js`) a été mesurée avec ce banc : leur Pico 2 tourne, à 70 % de notre vitesse (§15).
 
 ---
 
@@ -79,17 +79,19 @@ Le banc [`_banc-profil-pico.mjs`](scripts/_banc-profil-pico.mjs) profile le vrai
 
 Le Pico 2 n'est pas un Pico plus rapide : c'est un **autre processeur** (Cortex-M33, ou RISC-V au choix). La bibliothèque qu'utilise Kablix n'en simule rien, et le MicroPython du Pico 2 ne tournera jamais sur notre cœur actuel. Écrire ça de zéro serait plus gros que la piste 6. **Mais quelqu'un l'a déjà écrit.**
 
-### 7. ✅ **Évaluer `rp2350js`, la bibliothèque qui simule déjà le Pico 2** — *mesuré le 21 août 2026 (v2026.8.102.6) — leur Pico 2 marche, mais il rame*
+### 7. ✅ **Évaluer `rp2350js`, la bibliothèque qui simule déjà le Pico 2** — *mesuré le 21 août, **corrigé le 22** (v2026.8.102.7) — leur Pico 2 marche, à 70 % de la vitesse du nôtre*
 
 Évaluation faite comme prévu, hors de Kablix, avec les **vrais** MicroPython officiels des trois cartes, un REPL piloté au clavier virtuel et dix tests qui sont exactement ce dont Kablix a besoin : temporisations, LED qui bascule, minuterie, bouton, PWM, capteur analogique, NeoPixel, I²C. Détail complet : [`vitesse-pico.md`](scripts/vitesse-pico.md) §15 ; bancs rejouables : [`scripts/rp2350js-eval/`](scripts/rp2350js-eval/README.md).
 
-**Leur Pico 2 fonctionne pour de bon** — MicroPython démarre, la LED clignote, tout répond. Le problème est ailleurs : **il est 14 fois plus lent que notre moteur actuel**. Sur la même machine et le même programme, notre Pico fait 18,9 millions d'instructions par seconde, leur Pico 2 en fait 1,33 — un régime de ×0,018, c'est-à-dire 55 fois plus lent que la vraie carte. Un élève verrait sa LED clignoter une fois par minute au lieu d'une fois par seconde.
+**Leur Pico 2 fonctionne pour de bon** — MicroPython démarre, la LED clignote, tout répond. Et il est **utilisable** : sur la même machine et le même programme, il tourne à **70 % de la vitesse de notre Pico actuel**. Une LED qui doit clignoter une fois par seconde clignote sept fois en dix secondes. C'est neuf fois plus lent que la vraie carte — exactement le même ordre que ce que Kablix fait déjà avaler au Pico 1.
 
-Ce n'est pas une limite du langage : le **vieux Pico du même dépôt** tourne à 15,1 Minstr/s, onze fois plus vite que leur Pico 2. La cause est identifiée dans leur code — ils ont écrit une mémoire de décodage (qui évite de relire chaque instruction) **uniquement pour la variante RISC-V** ; le processeur du Pico 2 vendu en magasin, lui, redécode tout à chaque passage.
+> ⚠️ **Le verdict du 21 août disait l'inverse et il était faux.** Il annonçait « quatorze fois plus lent, inutilisable ». Les bancs tournaient sous `tsx`, un lanceur TypeScript qui, à lui seul, divise ce processeur-là par huit (et ne touche pas les autres — d'où le piège). Rejoués sur du JavaScript compilé, comme l'est le code livré dans Kablix, tous les chiffres changent. Leçon retenue : **un banc de vitesse se mesure sur le code tel qu'il sera livré.**
 
-Deux effets de bord utiles au passage : leur ancien Pico est **20 % plus lent que le nôtre** (nos optimisations maison valent mieux que les leurs sur ce cœur-là — rien à récupérer de ce côté), et les « ~70 millions de cycles/s » qu'ils annoncent ne se retrouvent pas chez nous (17,8 en RISC-V, 2,25 sur le Pico 2).
+Deux effets de bord, eux aussi corrigés au passage : leur ancien Pico n'est **pas** 20 % plus lent que le nôtre, l'écart réel est de 5 % — dans le bruit. Nos optimisations maison (+30 %) ne sont donc plus une raison de garder notre moteur : leur bibliothèque pourrait porter les deux cartes.
 
-**Verdict : non pour l'instant.** À re-sonder : le projet est vivant, et il suffirait qu'ils écrivent cette mémoire de décodage pour le Pico 2 — ou qu'on la leur propose — pour que tout rouvre.
+Reste une marge identifiée et chiffrée : ils ont écrit une **mémoire de décodage** (qui évite de réanalyser chaque instruction à chaque passage) uniquement pour la variante RISC-V. Mesuré en la débranchant : elle vaut **presque le double de vitesse**. L'écrire aussi pour le processeur du Pico 2 le ferait passer *au-dessus* de notre Pico actuel. Compter 2-3 jours pour une version partielle (les instructions les plus fréquentes, l'essentiel du gain), 5-10 jours pour la version complète.
+
+**Verdict : oui.** À faire chez eux ou chez nous, et à proposer en retour au projet.
 
 ### 8. ✅ **Vérifier leurs manques AVANT de s'emballer** — *21 août 2026 — fausse alerte : ce n'est pas là que ça casse*
 
@@ -103,11 +105,11 @@ Trois vrais défauts trouvés en revanche, dont **deux corrigés sur place** pen
 
 Les correctifs sont archivés dans [`scripts/rp2350js-eval/`](scripts/rp2350js-eval/README.md) — ils ne leur ont pas été proposés à ce jour.
 
-### 9. ⛔ **Intégrer le Pico 2 et le Pico 2 W dans Kablix** — *bloqué par la vitesse (piste 7), pas par les manques (piste 8)*
+### 9. **Intégrer le Pico 2 et le Pico 2 W dans Kablix** — *débloqué le 22 août 2026 : ni les manques (piste 8) ni la vitesse (piste 7) ne s'y opposent*
 
-Bloqué tant que leur Pico 2 reste 14 fois plus lent que notre Pico. Tout le reste ci-dessous tient toujours, le jour où ça se débloque. Leur bibliothèque n'est pas remplaçable telle quelle (leur façon de l'appeler a changé) et n'est pas publiée sur npm : il faut la copier dans le projet et écrire une couche d'adaptation. Notre optimisation maison (+30 %) tombe, et le remplacement n'est pas un gain : **mesuré, leur ancien Pico est 20 % plus lent que le nôtre** — il faudrait donc garder deux moteurs, le nôtre pour le Pico 1, le leur pour le Pico 2.  
-Ensuite : dessiner les deux nouvelles cartes, ajouter leurs firmwares, leurs tests, leurs fiches d'aide.  
-Coût : 10-20 jours. Bloqué par les pistes 7 et 8. Priorité : 3
+Leur bibliothèque n'est pas remplaçable telle quelle (leur façon de l'appeler a changé) et n'est pas publiée sur npm : il faut la copier dans le projet et écrire une couche d'adaptation. Deux questions à trancher au moment de le faire : garder notre moteur pour le Pico 1 (et donc deux bibliothèques à maintenir) ou tout basculer chez eux, maintenant qu'on sait que leur Pico 1 vaut le nôtre à 5 % près — et embarquer ou non leurs deux correctifs (bouton, NeoPixel) en attendant qu'ils les acceptent.
+Ensuite : dessiner les deux nouvelles cartes, ajouter leurs firmwares, leurs tests, leurs fiches d'aide.
+Coût : 10-20 jours. Priorité : 3
 
 ---
 

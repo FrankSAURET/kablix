@@ -898,13 +898,17 @@ interpréteur, et il faudra les mesurer avec ce banc-ci.
 
 ---
 
-## 15. `rp2350js` évalué — les manques ne sont pas le problème, la vitesse si (21 août 2026)
+## 15. `rp2350js` évalué — leur Pico 2 tourne à 70 % de notre Pico 1 (21-22 août 2026)
 
 Pistes 7 et 8 de [`roadmap.md`](../roadmap.md). Évaluation faite **hors de
 Kablix**, contre un clone de [`c1570/rp2350js`](https://github.com/c1570/rp2350js)
 (MIT, dernier commit du 13/08/2026, 50 commits sur six mois, 25 737 lignes de TS
 hors tests). Bancs, correctifs et mode d'emploi :
 [`scripts/rp2350js-eval/`](rp2350js-eval/README.md).
+
+> **Corrigé le 22/08/2026.** La première rédaction concluait « M33 quatorze fois
+> trop lent ». Elle mesurait sous `tsx`, qui à lui seul divise ce cœur-là par
+> huit. Tout le volet vitesse a été refait en JS compilé — voir plus bas.
 
 ### La méthode : piloter un vrai MicroPython, pas lire un README
 
@@ -937,53 +941,88 @@ Trois vrais défauts trouvés, deux corrigés sur place (patch archivé) :
 
 Le RP2040 du fork, lui, passe les dix tests sans retouche.
 
-### Piste 7 : la vitesse, et c'est elle qui tranche
+### Le piège qui a faussé le premier verdict : `tsx`
 
-Même charge (`bench(400000)` en MicroPython), même machine (Ryzen 5 2600), un
-moteur par processus :
+Les bancs se lançaient avec `npx tsx`. **`tsx` transpile module par module et
+garde les noms de fonctions (`keepNames`) : sur le M33, dont l'exécution est
+éclatée en fonctions importées d'autres fichiers, V8 renonce à l'inlining et le
+cœur perd un facteur 8.** Mesuré, même charge, même machine :
+
+| Cœur | sous `tsx` | en JS compilé (bundle esbuild) |
+|---|---|---|
+| `rp2350js` — RP2040 (M0+, un seul fichier) | 12,28 Minstr/s | 12,35 Minstr/s — **identique** |
+| `rp2350js` — Cortex-M33 (fichiers séparés) | 0,76-1,15 Minstr/s | **8,3 Minstr/s** |
+
+Kablix bundle sa webview avec esbuild : **c'est la colonne de droite qui décrit
+la réalité**. La première version de ce §15 (21/08) annonçait « M33 ÷14 » sur la
+foi de la colonne de gauche — chiffre mort, remplacé ci-dessous. Règle qui en
+sort : **un banc de vitesse se mesure sur le JS tel qu'il sera livré**, jamais
+sous un lanceur TypeScript.
+
+### Piste 7 : la vitesse — l'écart est de 30 %, pas d'un facteur 14
+
+Même charge (`bench(400000)` en MicroPython), même machine (Ryzen 5 2600), tout
+en JS compilé, un moteur par processus, **meilleure de trois passes** (la machine
+dérive de ±40 % d'une fenêtre à l'autre : seuls les rapports mesurés dans la même
+fenêtre valent quelque chose) :
 
 | Moteur | Minstr/s | Mcycles/s | Régime | Rapport à Kablix |
 |---|---|---|---|---|
-| **Kablix — `rp2040js` patché** (M0+, 125 MHz) | **18,86** | 30,1 | ×0,241 | référence |
-| `rp2350js` — RP2040 (M0+, 125 MHz) | 15,07 | 24,7 | ×0,198 | **−20 %** |
-| `rp2350js` — RISC-V Hazard3 (150 MHz) | 14,62 | 17,8 | ×0,143 | −22 % |
-| `rp2350js` — **Cortex-M33** (150 MHz) | **1,33** | 2,25 | ×0,018 | **÷14** |
+| **Kablix — `rp2040js` patché** (M0+, 125 MHz) | **12,24** | 19,5 | ×0,156 | référence |
+| `rp2350js` — RP2040 (M0+, 125 MHz) | 11,34 | 18,6 | ×0,149 | −5 % |
+| `rp2350js` — RISC-V Hazard3 (150 MHz) | 10,96 | 13,4 | ×0,107 | −31 % |
+| `rp2350js` — **Cortex-M33** (150 MHz) | **8,04** | 13,6 | ×0,109 | **−30 %** |
+| `rp2350js` — RISC-V, cache de décodage coupé | 5,69 | 6,9 | ×0,056 | −64 % |
 
-Trois lectures, dans l'ordre d'importance :
+Trois lectures :
 
-**Le M33 est inutilisable en l'état.** 1,33 Minstr/s, soit un régime de ×0,018 :
-55 fois plus lent que la puce réelle. C'est 14 fois plus lent que notre moteur
-actuel — et 11 fois plus lent que le **M0+ du même dépôt**, ce qui montre que le
-plafond n'est pas celui du JS. Le profil le confirme : ~85 % du temps dans
-`execute-thumb32.ts`, moins de 1 % dans le chemin mémoire. La raison est visible
-dans leur code : leur cache de décodage (`src/riscv/decode-cache.ts`, entrées
-packées indexées par adresse) est **réservé au RISC-V** ; le M33 redécode chaque
-instruction Thumb-2 à chaque passage, en fonctions de dispatch externes de
-2 500 lignes.
+Contre-vérification, parce qu'un rapport de 70 % vaut mieux mesuré deux fois :
+les deux moteurs relancés **en alternance** (`croise.mjs`, 3 passes chacun, pour
+que la dérive machine les frappe également) donnent Kablix ×0,204 contre M33
+×0,138, soit **68 %** — même conclusion, dans une fenêtre où la machine tournait
+30 % plus vite dans l'absolu.
 
-**Leur RP2040 ne remplace pas le nôtre.** 15,07 contre 18,86 : vendoriser leur
-bibliothèque pour le Pico 1 coûterait 20 % de vitesse. Nos +30 % maison (§9, §10)
-valent plus que leurs optimisations sur ce cœur-là.
+**Le M33 est utilisable.** Régime ×0,109 : neuf fois plus lent que la puce réelle,
+mais seulement 30 % en dessous du Pico 1 que Kablix fait déjà tourner. Une LED
+qui doit clignoter à 1 Hz clignote à 0,7 Hz — pas à 1/min comme le disait la
+version fausse. Le M33 est même à égalité de régime avec leur RISC-V.
 
-**Les « ~70 M cycles/s » annoncés ne se retrouvent pas.** Chez nous, sur cette
-machine : 17,8 Mcycles/s en RISC-V, 2,25 en M33. L'écart s'explique sans doute par
-une machine récente et une charge favorable (leur chiffre vient probablement du
-RISC-V avec cache chaud), mais il n'y a aucun facteur caché à espérer.
+**Leur M0+ vaut le nôtre.** 11,34 contre 12,24 : l'écart est de 5 %, dans le bruit
+de la machine. Nos +30 % maison (§9, §10) ne sont donc pas un avantage décisif à
+protéger — vendoriser leur bibliothèque pour les deux cartes reste envisageable,
+au lieu de maintenir deux moteurs.
+
+**Le cache de décodage vaut ×1,93, mesuré.** En court-circuitant `getDecodeEntry`
+de `src/riscv/decode-cache.ts` (36 lignes), leur RISC-V tombe de 10,96 à
+5,69 Minstr/s. Ce mécanisme n'existe **que** pour le RISC-V ; le M33 redécode
+chaque instruction Thumb-2 à chaque passage. Le profil du M33 en JS compilé le
+situe : `executeInstruction` 25 % (fetch, état IT, choix 16/32 bits),
+`executeThumb16` 14 %, `executeThumb32` 8 %, les `dispatch*` 8 % — le chemin
+mémoire, lui, ne pèse que 5 %.
 
 ### Verdict
 
 **Piste 8 : passée.** Les manques annoncés ne sont pas rédhibitoires, et les deux
 qui gênaient vraiment se corrigent en une vingtaine de lignes.
 
-**Piste 7 : non, pour l'usage visé.** Un Pico 2 dans Kablix, c'est le M33 — c'est
-la variante que Raspberry Pi vend et pour laquelle le MicroPython officiel est
-compilé. À ×0,018 de régime, un élève verrait sa LED clignoter une fois par minute
-au lieu d'une fois par seconde. La piste 9 (intégration, 10-20 j) reste **bloquée**.
+**Piste 7 : oui, sous réserve d'accepter −30 %.** Un Pico 2 dans Kablix, c'est le
+M33 — la variante que Raspberry Pi vend et pour laquelle le MicroPython officiel
+est compilé. Il tourne, il répond, et il est 30 % plus lent que notre Pico 1
+actuel. La piste 9 (intégration, 10-20 j) n'est plus bloquée par la vitesse.
 
-**Ce qui rouvrirait le dossier** : un cache de décodage pour le M33, chez eux ou
-proposé par nous — c'est le seul travail qui débloque tout le reste, et leur RISC-V
-prouve que le motif marche dans leur architecture. Ordre de grandeur : plus gros
-que les 36 lignes du cache RISC-V (Thumb-2 mélange 16 et 32 bits, et les blocs IT
-rendent l'exécution dépendante de l'état), sans garantie chiffrée d'avance. À
-re-sonder de toute façon : le fork est vivant, et `cts2c` (leur transpileur TS → C,
-piste todo) reste à part — il s'applique à leur base entière, M33 compris.
+**La marge à aller chercher** : un cache de décodage pour le M33, sur le modèle du
+leur. Gain attendu ×1,5 à ×1,9 (leur RISC-V mesure ×1,93, le décodage Thumb-2
+coûte plus cher à faire donc plus à cacher, mais Amdahl mord : ~40 % du temps M33
+seulement est du décodage). Le M33 passerait de ×0,109 à ×0,17-0,20 de régime,
+c'est-à-dire **au-dessus** de notre Pico 1 d'aujourd'hui. Coût : le mécanisme
+d'indexation par demi-mot existe déjà chez eux (le RISC-V compressé mélange lui
+aussi 16 et 32 bits) et l'invalidation sur écriture SRAM est en place ; ce qui
+manque est la séparation classification/exécution dans les 2 500 lignes de
+`execute-thumb16.ts` + `execute-thumb32.ts`, avec les blocs IT à laisser hors du
+tag (la condition s'applique à l'exécution, pas au décodage). **Compter 2-3 jours
+pour un cache partiel** (les opcodes chauds seulement, chemin lent conservé pour
+le reste — c'est là que se prend l'essentiel du gain), **5-10 jours pour un cache
+complet**, leurs 1 700 lignes de tests `*.spec.ts` servant de garde-fou.
+
+À re-sonder de toute façon : le fork est vivant, et `cts2c` (leur transpileur
+TS → C, piste todo) reste à part — il s'applique à leur base entière, M33 compris.
