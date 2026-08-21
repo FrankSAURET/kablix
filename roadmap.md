@@ -61,13 +61,17 @@ La règle était posée d'avance (`scripts/vitesse-pico.md` §12) : **sous ×3 d
 
 Ce qui reste vrai : le WASM *fonctionne* dans la webview (piste 3), et le pont JS↔WASM n'est pas un obstacle. Si un jour un cœur ARM en WASM tombe du ciel tout écrit, rien n'empêche de le brancher. Mais on ne l'écrira pas.
 
-### 12. **Où chercher la vitesse maintenant**
+### 12. ✅ **Où chercher la vitesse maintenant** — *mesuré le 21 août 2026 (v2026.8.102.5) — il n'y a plus de gros gain dans notre JS*
 
-Le banc ferme la voie du langage compilé et en désigne une autre. Le miroir JavaScript, avec ses 25 opérations, va ×1,7 plus vite que `rp2040js` : une part de cet écart vient de ce qu'il ne fait pas (interruptions, périphériques), mais une part vient de **comment** il le fait. C'est là qu'il faut mesurer avant de coder.
+Le banc [`_banc-profil-pico.mjs`](scripts/_banc-profil-pico.mjs) profile le vrai moteur sur le vrai firmware, en quatre phases (où tombe le temps · combien d'appels par instruction · ce que coûte un service de la boucle · ce qu'un patch rapporterait), sur trois charges. Détail complet : [`vitesse-pico.md`](scripts/vitesse-pico.md) §14.
 
-À instruire : profiler `rp2040js` patché sur le vrai firmware pour savoir où part le temps, plutôt que de le deviner. Et surtout, la piste 7 — `rp2350js` — est peut-être déjà la réponse, puisque leurs 686 modifications incluent leurs propres optimisations.
+**Où part le temps** : interpréteur **59-61 %**, boucle de simulation **23-27 %**, mémoire **11-13 %**, périphériques ≤ 1 %, ramasse-miettes **0,1 %**. Deux fonctions font 85 % du travail.
 
-Coût : 1-2 jours de mesure avant toute décision. Priorité : après les pistes 7 et 8.
+**Trois suspects écartés avec un chiffre** : le ramasse-miettes (l'émulateur n'alloue pas dans sa boucle chaude), les périphériques (même en basculant une broche en continu), et la boucle elle-même — la **vider entièrement** (plus de `pio.advance`, plus d'horloge par instruction) ne rend que **+11 à +22 %**, et ni l'un ni l'autre n'est gratuit : sauter le PIO demande de savoir qu'aucune machine ne tourne, grouper l'horloge décale les alarmes (déjà refusé en v86, SysTick et NeoPixel décrochent).
+
+**Un seul candidat dépasse le bruit** : inliner l'accès SRAM dans le cœur, comme le patch l'a déjà fait pour la lecture d'instruction — **+5 à +6 %** mesurés. Non fait : c'est une modification du patch `rp2040js`, à décider et à re-valider à part.
+
+**Ce que ça règle** : l'écart ×1,7 avec le miroir JS du §13 ne vient pas de la boucle mais de l'intérieur de `executeInstruction`, déjà retourné deux fois pour +30 % cumulés (§9, §10). La marge restante est en points, pas en facteurs. La piste 7 (`rp2350js`) reste la seule à promettre un facteur — et se mesurera avec ce banc.
 
 ---
 

@@ -725,3 +725,173 @@ le JS** avant d'aller chercher un autre langage.
 - Piste 5 (`cts2c`, traduction TypeScript → C) : elle promettait ×2-×4 par le
   même mécanisme, c'est-à-dire par le même langage compilé. Le banc vient de
   mesurer que ce mécanisme vaut ×1,9 ici. **À déclasser sauf argument nouveau.**
+
+---
+
+## 14. Où part le temps, mesuré sur le vrai moteur (piste 12, 21 août 2026)
+
+Le §13 a fermé la voie du langage compilé et laissé une question ouverte : le
+miroir JS de 25 opérations va ×1,7 plus vite que `rp2040js`, et personne ne sait
+dire **pourquoi**. La piste 12 demandait de mesurer avant de coder. C'est fait.
+
+Outil : [`_banc-profil-pico.mjs`](_banc-profil-pico.mjs). Rejouer :
+`node scripts/_banc-profil-pico.mjs` (~15 min). Mesures brutes dans
+`banc-profil-pico.json`. Node 24.11.1, meilleur de 4, fenêtre de 2,5 s.
+
+### Quatre phases, parce qu'aucune ne suffit seule
+
+| phase | question | méthode |
+| --- | --- | --- |
+| PROFIL | où tombe le temps ? | échantillonnage V8 à 250 µs, **pendant la fenêtre seulement** |
+| COMPTEURS | combien de fois y passe-t-on ? | enrobage de comptage, appels pour 1000 instructions |
+| ABLATIONS | que coûte un service de la boucle ? | on le retire, on relit le débit |
+| CANDIDATS | que rapporterait un patch ? | on le pose, on relit le débit |
+
+Le profil seul ne suffit pas : il dit qu'une fonction pèse 4 %, pas si elle est
+chère ou seulement fréquente — les compteurs répondent à ça. Et ni l'un ni l'autre
+ne dit ce qu'on gagnerait à y toucher : d'où les deux dernières.
+
+Trois charges, parce qu'un seul sketch ment : `calcul` (MicroPython qui travaille,
+aucun sommeil), `gpio` (bascule de broche : SIO, fronts, écouteurs) et `horloge`
+(`Horloge.py`, le sketch réel avec ses `sleep`).
+
+### Où part le temps
+
+Part du temps mesuré, par famille (les trois charges, en %) :
+
+| famille | calcul | gpio | horloge |
+| --- | ---: | ---: | ---: |
+| **interpréteur** (`executeInstruction`) | **59,4** | **58,6** | **60,9** |
+| **boucle de simulation** (`KablixSimulator.execute`) | **26,9** | **26,2** | **23,4** |
+| mémoire, côté bus (`RP2040.read/writeUintN`) | 7,6 | 8,9 | 8,0 |
+| mémoire, côté cœur (`CortexM0Core.read/writeUintN`) | 3,1 | 3,2 | 3,9 |
+| périphériques (SIO, GPIO, RTC…) | 0,2 | 0,6 | 1,0 |
+| ramasse-miettes | 0,1 | 0,1 | 0,1 |
+| hôte au repos | 0,1 | 0,1 | 0,1 |
+
+Trois choses se lisent tout de suite :
+
+- **Le ramasse-miettes n'existe pas** (0,1 %). L'émulateur n'alloue pas dans sa
+  boucle chaude — une hypothèse de moins.
+- **Les périphériques ne coûtent rien** (≤ 1 %), même sur la charge GPIO qui
+  bascule une broche en continu. Ce n'était pas gagné d'avance.
+- **Tout est dans deux fonctions** : l'interpréteur et la boucle. À elles deux,
+  85 % du temps.
+
+Les compteurs disent pourquoi (charge `calcul`, appels pour 1000 instructions
+émulées) :
+
+```
+ 1000  horloge.tick            251  bus.readUint32      79  cœur.substractUpdateFlags
+ 1000  pio0.advance            249  cœur.readUint32     67  cœur.readUint16
+ 1000  pio1.advance            238  cœur.cyclesIO       51  cœur.addUpdateFlags
+                               167  cœur.writeUint32    42  cœur.readUint8
+                               167  bus.writeUint32     12  bus.findPeripheral
+```
+
+Deux enseignements. D'abord **trois appels par instruction** sont versés à la
+boucle : deux `pio.advance` et un `clock.tick`, quoi qu'il arrive, y compris quand
+aucune machine PIO ne tourne (`pio.machine[n].advance` reste sous la barre des 0,5
+pour 1000). Ensuite **chaque accès mémoire est payé deux fois** : le cœur appelle
+sa propre `readUint32`, qui ne fait que rappeler celle du bus. 250 allers-retours
+pour 1000 instructions.
+
+### Ce que coûte chaque service de la boucle
+
+On retire, on relit le débit. Écart à la boucle de référence — celle qui reproduit
+exactement `pico.mts`, instruction par instruction :
+
+| ce qu'on retire | calcul | gpio | horloge |
+| --- | ---: | ---: | ---: |
+| les deux `pio.advance` | +5,5 % | +8,2 % | +7,6 % |
+| l'horloge versée tous les 256 pas au lieu de chaque pas | +7,4 % | +11,6 % | +13,5 % |
+| **les deux à la fois** (interpréteur nu) | **+16,7 %** | **+11,1 %** | **+22,2 %** |
+
+### Ce qu'un patch rapporterait
+
+L'inverse de l'ablation : on pose le candidat au lieu de retirer un service.
+Écart au témoin, meilleur de 6, fenêtres de 4 s :
+
+| candidat | calcul | gpio | horloge |
+| --- | ---: | ---: | ---: |
+| **SRAM inlinée dans le cœur** (un saut cœur → bus en moins) | **+8,2 %** | **+5,1 %** | **+6,1 %** |
+| `cyclesIO` court-circuité | +3,4 % | +2,2 % | +3,4 % |
+| *ÉTALON : un appel de méthode **de plus** par instruction* | *−7,4 %* | *−1,2 %* | *+2,4 %* |
+
+L'étalon n'est pas un candidat : il ne peut que ralentir, et il sert à lire les
+deux autres lignes. Il donne **la barre de bruit du banc (±2 à 3 points)** et, au
+passage, le prix d'un appel de méthode par instruction — quelques points, pas
+quelques dizaines. Un cœur qui exécuterait en **rafales** pour économiser cet
+appel (ce que fait le miroir JS du §13) n'y gagnerait donc pas son ×1,7.
+
+Un seul candidat dépasse franchement le bruit : **la SRAM inlinée dans le cœur,
++6 %**. C'est le même geste que le patch a déjà fait pour la lecture d'instruction
+— supprimer le saut `CortexM0Core.readUint32` → `RP2040.readUint32`, avec son test
+d'alignement et son `>>> 0`, pour les 250 accès par millier d'instructions qui
+tombent en SRAM. À tempérer d'un point : le témoin porte lui-même l'enrobage de
+mesure (un appel de délégation par accès), que le candidat économise en plus.
+**Compter +5 %, pas +8.**
+
+### Comment on chiffre un candidat sans se mentir
+
+Deux méthodes ont été essayées et jetées, la troisième tient. Elles sont notées
+ici parce que les deux premières **rendent des chiffres crédibles et faux** :
+
+1. **Patch posé sur l'instance, retiré après la mesure** : la forme de l'objet
+   change, V8 désoptimise le cœur, et *tous* les candidats sortent entre −30 % et
+   −45 %. On mesure la désoptimisation, pas le candidat.
+2. **Un processus patché contre un processus témoin** : d'un lancement à l'autre
+   le firmware n'est pas au même point, et le débit varie de ±10 %. L'étalon —
+   qui ne peut que ralentir — est sorti à **+10,9 %**. Inexploitable.
+3. **Un seul processus, un booléen** : le patch est écrit une fois, posé pour de
+   bon sur le prototype, activé par un drapeau. Les deux branches sont chauffées
+   avant la première mesure, les variantes tournent en rond, on garde la meilleure
+   de chacune. L'étalon retrouve alors le bon signe et la bonne taille.
+
+Trois autres pièges, et ce qu'ils ont coûté :
+
+**Le profileur ne doit pas voir le démarrage.** Le firmware met autant de temps à
+booter que la mesure entière ; un `--cpu-prof` aurait profilé le boot. Le banc
+pilote donc le profileur par `node:inspector`, autour de la seule fenêtre utile.
+
+**La fenêtre ne se borne pas de l'extérieur.** La boucle du moteur se relance par
+`MessageChannel` et affame le reste : un `setTimeout(2500)` a rendu la main après
+**18 s**, un second `MessagePort` après 7 s. C'est la boucle elle-même qui borne
+la fenêtre — le banc enrobe `execute` et coupe à l'heure. Le profil affiche sa
+durée mur pour que toute dérive future se voie.
+
+**Un compteur fausse ce qu'il compte.** Un `n++` par instruction coûtait 15 % au
+moteur — plus que tout ce qu'on cherchait à mesurer. Le débit du moteur est donc
+lu sur son compteur de **cycles**, converti avec le rapport cycles/instruction
+relevé sur la boucle de référence.
+
+
+### Le verdict
+
+**La boucle, en la vidant complètement, vaut moins de 20 %.** C'est le chiffre qui
+tranche : `KablixSimulator.execute` pèse 26 % du profil, mais l'essentiel de ces
+26 % est la boucle elle-même — le test du WFE, l'appel à l'interpréteur, le
+comptage de la tranche — pas les services qu'on pourrait lui enlever. Et les
+services qu'on peut lui enlever, on ne le peut pas gratuitement : sauter
+`pio.advance` demande de savoir qu'aucune machine ne tourne, verser l'horloge par
+paquets décale les alarmes. Le §12 avait déjà écarté le regroupement de tick pour
+cette raison (v86 : `clock.tick` par instruction, sinon SysTick et NeoPixel
+décrochent) — le banc confirme que le prix payé achète peu.
+
+**L'écart ×1,7 avec le miroir JS ne vient pas de la boucle.** Il vient de
+l'intérieur de `executeInstruction`, qui pèse 60 % à lui seul, et du chemin mémoire
+à deux étages. Or l'interpréteur a déjà été retourné deux fois (§9, table de
+décodage ; §10, fin du niveau 3) pour +30 % cumulés, et le §10 concluait que la
+suite était en dessous du seuil de rentabilité. Le banc ne dit rien qui change ce
+verdict : il dit que la cible restante est **la même** que celle qu'on a déjà
+exploitée, et qu'entre le miroir (25 opérations, pas d'interruptions, pas de
+périphériques, pas de carte mémoire) et `rp2040js` (78 opérations, tout le reste),
+une part de l'écart est du travail que le vrai moteur doit vraiment faire.
+
+**Ce que le banc ferme.** Le ramasse-miettes, les périphériques, la boucle de
+simulation : trois suspects écartés avec un chiffre. Il ne reste plus de gros gain
+à trouver dans le JS de Kablix — la marge est en points, pas en facteurs.
+
+**Ce qu'il laisse ouvert.** La piste 7 (`rp2350js`) reste la seule à promettre un
+facteur : leurs 686 modifications portent leurs propres optimisations, sur le même
+interpréteur, et il faudra les mesurer avec ce banc-ci.

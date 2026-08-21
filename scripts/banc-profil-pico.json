@@ -1,0 +1,136 @@
+{
+  "date": "2026-08-21T19:45:31.594Z",
+  "charges": {
+    "calcul": {
+      "titre": "calcul pur (aucun sommeil)",
+      "ablations": [
+        [
+          "référence (boucle maison)",
+          17.474909344689614
+        ],
+        [
+          "sans les 2 pio.advance",
+          19.32345170843187
+        ],
+        [
+          "horloge versée tous les 256",
+          18.840345135525155
+        ],
+        [
+          "interpréteur nu (ni PIO ni horloge)",
+          20.211536247975484
+        ],
+        [
+          "boucle du moteur",
+          16.93750540849292
+        ]
+      ],
+      "candidats": [
+        [
+          "TÉMOIN : rien de posé",
+          18.83572473294397
+        ],
+        [
+          "SRAM inlinée dans le cœur",
+          20.37671040247193
+        ],
+        [
+          "cyclesIO court-circuité",
+          19.466760263110007
+        ],
+        [
+          "ÉTALON : un appel de méthode DE PLUS",
+          17.44304855894247
+        ]
+      ]
+    },
+    "gpio": {
+      "titre": "bascule de broche (SIO + fronts)",
+      "ablations": [
+        [
+          "référence (boucle maison)",
+          17.846565286143132
+        ],
+        [
+          "sans les 2 pio.advance",
+          19.041433679713943
+        ],
+        [
+          "horloge versée tous les 256",
+          20.416688436634626
+        ],
+        [
+          "interpréteur nu (ni PIO ni horloge)",
+          20.68254136289552
+        ],
+        [
+          "boucle du moteur",
+          17.30326086546114
+        ]
+      ],
+      "candidats": [
+        [
+          "TÉMOIN : rien de posé",
+          17.628488357123405
+        ],
+        [
+          "SRAM inlinée dans le cœur",
+          18.52405758857019
+        ],
+        [
+          "cyclesIO court-circuité",
+          18.01290374832625
+        ],
+        [
+          "ÉTALON : un appel de méthode DE PLUS",
+          17.41438396616724
+        ]
+      ]
+    },
+    "horloge": {
+      "titre": "Horloge.py (sketch réel, avec sleep)",
+      "ablations": [
+        [
+          "référence (boucle maison)",
+          16.581725895938284
+        ],
+        [
+          "sans les 2 pio.advance",
+          17.67221912937312
+        ],
+        [
+          "horloge versée tous les 256",
+          17.616639825617547
+        ],
+        [
+          "interpréteur nu (ni PIO ni horloge)",
+          19.60085134847669
+        ],
+        [
+          "boucle du moteur",
+          16.66313123119622
+        ]
+      ],
+      "candidats": [
+        [
+          "TÉMOIN : rien de posé",
+          15.865105340752061
+        ],
+        [
+          "SRAM inlinée dans le cœur",
+          16.826429818066508
+        ],
+        [
+          "cyclesIO court-circuité",
+          16.40699389519657
+        ],
+        [
+          "ÉTALON : un appel de méthode DE PLUS",
+          16.241794476869455
+        ]
+      ]
+    }
+  },
+  "fenetreMs": 4000,
+  "repets": 6
+}
