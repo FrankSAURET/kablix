@@ -72,7 +72,11 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
     // Les composants Lit injectent des styles dans leur shadow DOM ; on autorise
     // les styles inline pour la webview locale.
     `style-src ${webview.cspSource} 'unsafe-inline'`,
-    `script-src 'nonce-${nonce}'`,
+    // `wasm-unsafe-eval` autorise la COMPILATION WebAssembly, et elle seule :
+    // pas `eval`, pas de script sans nonce. Sans elle, `WebAssembly.instantiate`
+    // est refusé dans la page ET dans les workers (qui héritent de cette CSP),
+    // ce qui fermerait la porte à tout cœur de simulation compilé.
+    `script-src 'nonce-${nonce}' 'wasm-unsafe-eval'`,
     `img-src ${webview.cspSource} data:`,
     // fetch des posters de brochage (dist/pinout/*.svg) et du bundle du fil de
     // simulation (dist/webview-worker.js), chargés à la demande.

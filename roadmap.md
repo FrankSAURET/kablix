@@ -1,8 +1,8 @@
 # Roadmap Kablix — pistes d'amélioration
 
-Au 15 août 2026, pistes 1 et 2 closes le 21 août. Chaque piste : ce que c'est, pourquoi ça compte, ce que ça coûte.  
+Au 21 août 2026 : pistes 1, 2, 3 et 4 closes ; pistes 5 et 6 déclassées par le banc WASM. Chaque piste : ce que c'est, pourquoi ça compte, ce que ça coûte.  
 
-Détail technique : `scripts/vitesse-pico.md` §12 et `todo.md`.
+Détail technique : `scripts/vitesse-pico.md` §12 et §13, et `todo.md`.
 
 ---
 
@@ -24,30 +24,50 @@ La mesure a été faite avant d'y toucher, dans un vrai Chrome : **117 à 310 ms
 
 ## Vitesse de simulation
 
-### 3. **Autoriser le WASM dans la webview (une ligne)**
+### 3. ✅ **Autoriser le WASM dans la webview (une ligne)** — *fait le 21 août 2026 (v2026.8.102.4)*
 
-La webview de Kablix tourne sous une règle de sécurité stricte (CSP) qui interdit d'exécuter du code compilé. Vérifié le 15/08 : sans le mot-clé `'wasm-unsafe-eval'`, le navigateur refuse tout WASM — dans la page **et** dans le worker de simulation, qui hérite de la même règle.  
-Une ligne dans [webview-html.ts:74](src/webview-html.ts#L74). À faire au **jour 1** de la piste 4, sinon le banc ne démarre même pas.  
-Coût : 10 minutes. Priorité : 1
+La webview tournait sous une règle de sécurité stricte (CSP) qui interdisait d'exécuter du code compilé — dans la page **et** dans le worker de simulation, qui hérite de la même règle. Un mot-clé ajouté dans [webview-html.ts:74](src/webview-html.ts#L74) : `'wasm-unsafe-eval'`, qui autorise la compilation WebAssembly **et elle seule** (pas `eval`, pas de script sans nonce).
 
-### 4. **Banc de vitesse WASM — le test qui décide de tout le reste**
+Vérifié par le banc de la piste 4, dans un vrai Chrome, sous la CSP réelle relue depuis le code source : WASM instancié ✅ dans la page, ✅ dans un worker `blob:`. La porte est ouverte, quel que soit le sort des pistes suivantes.
 
-Aujourd'hui le cœur du Pico est simulé en JavaScript, et c'est ~11 fois plus lent que la vraie puce. L'idée depuis des mois : réécrire ce cœur en **WASM** (du code compilé qui tourne dans le navigateur, beaucoup plus rapide que JavaScript). Problème : à chaque instruction simulée, le WASM doit repasser la main au JavaScript pour faire avancer l'horloge et les périphériques — et **ce passage de relais coûte cher**. Si le relais mange tout le gain, la réécriture ne sert à rien.  
-Le banc mesure exactement ça : la même poignée d'instructions, une fois en rafale dans le WASM, une fois avec retour au JavaScript à chaque instruction. Le rapport des deux, c'est le prix du pont.  
-**Verdict attendu : sous ×3 de gain brut, la piste 6 est morte** et on arrête d'y penser.  
-Coût : 2-3 jours. À faire **avant** toute décision. Priorité : 2
+### 4. ✅ **Banc de vitesse WASM** — *fait le 21 août 2026 (v2026.8.102.4) — verdict : ×1,9, la piste 6 est morte*
 
-### 5. **Regarder `cts2c` : le cœur WASM peut-être déjà écrit par quelqu'un d'autre**
+Le test qui devait décider de tout le reste. Il a décidé.
 
-Une équipe extérieure a écrit un outil qui **traduit automatiquement** le code de l'émulateur (TypeScript) en langage C, annoncé 2 à 4 fois plus rapide — exactement le gain visé par la piste 6. Leur but à eux est un programme classique, mais un fichier C se compile aussi en WASM.  
-Si ça marche, c'est **cinq semaines de travail remplacées par quelques jours**. À sonder juste après le banc.  
-Coût : sondage 2-3 jours. Priorité : 3
+Trois interpréteurs exécutent **le même code Thumb, octet pour octet** : `rp2040js` (le moteur d'aujourd'hui), un **miroir JavaScript** écrit exprès (même jeu de 25 opérations, même table de décodage, même mémoire que le C) et un **cœur WASM**. Le miroir est le point de comparaison honnête : mesurer contre `rp2040js` aurait mélangé le gain du langage avec le gain de « faire moins de choses ». Le code exécuté n'est pas inventé non plus — il rejoue à 0,61 % près le mélange d'instructions relevé sur le **vrai firmware MicroPython** du Pico. Et avant tout chiffre, les trois moteurs sont vérifiés identiques : registres, drapeaux, cycles et empreinte de la SRAM après 254 161 instructions.
 
-### 6. **Réécrire le cœur du Pico en WASM**
+Résultat, Node comme Chrome : **gain brut ×1,86 à ×1,98**. Avec les périphériques, ×2,1 à ×2,2.
 
-Le gros chantier. Réécrire le processeur Cortex-M0+ (celui du Pico) dans un langage compilé vers WASM, avec sa mémoire et ses interruptions. Gain espéré : ×2 à ×4 sur la vitesse de simulation Pico.  
-C'est cinq semaines de travail sur un morceau très délicat (les interruptions et les exceptions du processeur), et **la piste 4 peut la tuer en 2 jours**. À ne lancer qu'après le banc, et seulement si le banc est bon.  
-Coût : 25-38 jours. Bloqué par la piste 4. Priorité : 4
+**Deux surprises**, et ce sont elles qui comptent :
+
+- **Le pont n'est pas le coupable.** C'était la peur de départ. Dès **64 instructions** entre deux retours en JavaScript, on est à 93 % du plafond — un émulateur rend la main bien plus souvent que ça sans y perdre. Le relais ne coûte cher que si on repasse en JS à *chaque* instruction, ce qu'aucun portage sérieux ne ferait.
+- **C'est le plafond du langage qui est bas.** V8 compile déjà très bien un interpréteur. Le même interpréteur en C ne rapporte que ×1,9 — pas les ×3 exigés, pas les ×2 à ×4 espérés.
+
+Troisième chiffre, non demandé mais parlant : le **miroir JavaScript** va **×1,7 plus vite que `rp2040js`** — sans WASM. Il est incomplet (ni interruptions, ni périphériques, ni carte mémoire), donc l'écart n'est pas gratuit ; mais il invite à gratter dans le JS avant de changer de langage.
+
+Détail complet, tables de mesures et méthode : `scripts/vitesse-pico.md` §13. Rejouer : `node scripts/_banc-wasm.mjs` (2 min).
+
+### 5. ⛔ **Regarder `cts2c`** — *déclassée le 21 août 2026 par le banc*
+
+Un outil extérieur qui **traduit automatiquement** l'émulateur TypeScript en C, annoncé 2 à 4 fois plus rapide. L'annonce reposait sur le même mécanisme que la piste 6 : passer du JavaScript à un langage compilé. Le banc vient de mesurer ce mécanisme, ici, sur ce code : **×1,9**, pas ×2-×4.
+
+Une traduction automatique fera au mieux aussi bien qu'un cœur écrit à la main — et le cœur écrit à la main a été mesuré. **À ne rouvrir que sur argument nouveau** (par exemple une mesure publiée sur un émulateur ARM, pas sur du calcul pur).
+
+### 6. ⛔ **Réécrire le cœur du Pico en WASM** — *morte le 21 août 2026*
+
+Le gros chantier : réécrire le Cortex-M0+ dans un langage compilé vers WASM, avec sa mémoire et ses interruptions. Gain espéré ×2 à ×4, coût 25 à 38 jours.
+
+La règle était posée d'avance (`scripts/vitesse-pico.md` §12) : **sous ×3 de gain brut, on arrête d'y penser.** Mesuré : **×1,86**. Deux jours de banc ont économisé cinq semaines de travail sur le morceau le plus délicat du projet — c'est exactement ce qu'on lui demandait.
+
+Ce qui reste vrai : le WASM *fonctionne* dans la webview (piste 3), et le pont JS↔WASM n'est pas un obstacle. Si un jour un cœur ARM en WASM tombe du ciel tout écrit, rien n'empêche de le brancher. Mais on ne l'écrira pas.
+
+### 12. **Où chercher la vitesse maintenant**
+
+Le banc ferme la voie du langage compilé et en désigne une autre. Le miroir JavaScript, avec ses 25 opérations, va ×1,7 plus vite que `rp2040js` : une part de cet écart vient de ce qu'il ne fait pas (interruptions, périphériques), mais une part vient de **comment** il le fait. C'est là qu'il faut mesurer avant de coder.
+
+À instruire : profiler `rp2040js` patché sur le vrai firmware pour savoir où part le temps, plutôt que de le deviner. Et surtout, la piste 7 — `rp2350js` — est peut-être déjà la réponse, puisque leurs 686 modifications incluent leurs propres optimisations.
+
+Coût : 1-2 jours de mesure avant toute décision. Priorité : après les pistes 7 et 8.
 
 ---
 

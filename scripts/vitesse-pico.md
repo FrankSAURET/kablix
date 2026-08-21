@@ -587,3 +587,141 @@ qui autorise ou interdit le suivant :
 
 Le jalon 1 coûte deux jours et tue ou valide une piste à cinq semaines. C'est
 par là qu'on commence, jamais autrement.
+
+---
+
+## 13. Le banc WASM — jalon 1 joué, #16 tombe (21 août 2026)
+
+Le §12 posait la règle : *« une boucle WASM qui décode et exécute une poignée
+d'instructions Thumb… Si le gain brut n'atteint pas ×3, #16 est morte »*. Le banc
+est écrit, il tourne, et il répond. **Gain brut : ×1,86 à ×2,3. #16 est morte.**
+
+Outillage : [`_banc-wasm.mjs`](_banc-wasm.mjs) (pilote), [`wasm/noyau.mjs`](wasm/noyau.mjs)
+(fabrique du code Thumb), [`wasm/thumb-js.mjs`](wasm/thumb-js.mjs) (miroir JS),
+[`wasm/thumb-banc.c`](wasm/thumb-banc.c) → `thumb-banc.wasm`,
+[`wasm/banc-navigateur.js`](wasm/banc-navigateur.js) (tour Chrome). Résultats
+bruts dans `banc-wasm.json`. Rejouer : `node scripts/_banc-wasm.mjs` (2 min).
+
+### Ce qui a été mesuré, et contre quoi
+
+Trois interpréteurs exécutent **le même code Thumb, octet pour octet** :
+
+| moteur | ce que c'est | rôle |
+| --- | --- | --- |
+| `rp2040js` patché | le moteur de Kablix aujourd'hui, 78 opérations | contrôle de réalité |
+| **miroir JS** | même switch à 25 branches, même table de décodage, même mémoire que le C | **le dénominateur** |
+| cœur WASM | `thumb-banc.c` compilé `clang --target=wasm32 -O3` | le candidat |
+
+Le point qui décide de la valeur du chiffre : **le dénominateur est le miroir JS,
+pas `rp2040js`**. Mesurer le WASM contre `rp2040js` aurait répondu à côté — une
+partie de l'écart serait venue de la taille du switch et du reste de l'émulateur,
+pas du langage. Ce que la piste 6 achèterait, c'est le langage seul.
+
+### Le code exécuté n'est pas inventé
+
+Un banc bâti sur un mélange d'instructions arbitraire mesure une puce imaginaire.
+[`_mesure-mix-thumb.mjs`](_mesure-mix-thumb.mjs) fait tourner le **vrai firmware
+MicroPython** (`blink-pico.py`, 6 s, 7,5 M d'instructions) et compte ce qui passe
+dans `executeInstruction` :
+
+```
+ 1  LSLS (immediate)   13,19 %      9  LDR (literal)       4,57 %
+ 2  B (with cond)       9,92 %     10  CMP (register)      3,84 %
+ 3  BL                  7,12 %     11  UXTH                2,72 %
+ 4  LDR (immediate)     6,10 %     12  B                   2,52 %
+ 5  MOVS                5,44 %     13  LDRB (immediate)    2,50 %
+ 6  CMP immediate       4,91 %     …
+ 7  POP                 4,69 %     cumul des 25 premières : 91,3 %
+ 8  PUSH                4,69 %
+```
+
+`noyau.mjs` fabrique une boucle qui **rejoue ces proportions** : appels et retours
+issus de vraies paires `BL`/`BX` et `BL`/`POP {pc}`, réserves de constantes pour
+les `LDR` littéraux, branchements visant l'instruction suivante pour que rien ne
+soit jamais sauté. Écart au mélange visé, mesuré instruction par instruction sur
+le banc : **0,61 %**.
+
+Deuxième chiffre tiré du vrai firmware, et il compte autant : **1,35 accès mémoire
+par instruction, dont 4 % vers un périphérique**, soit **une sortie vers JS toutes
+les 18 instructions**. Mais 78 % de ce trafic va au TIMER et au SIO — deux blocs
+triviaux, qui vivraient *dans* le WASM. En les internalisant il reste l'USB seul :
+**une sortie toutes les 85 instructions**. Les deux régimes sont mesurés.
+
+### L'égalité avant la vitesse
+
+Un banc dont les moteurs ne font pas la même chose ne mesure rien. Avant tout
+chiffre, le pilote compare **registre par registre, drapeau par drapeau, cycle par
+cycle, plus une empreinte de la SRAM**, à six points de contrôle jusqu'à 254 161
+instructions — et les trois moteurs sont d'accord, y compris sur les cycles.
+(Y compris sur les bizarreries : `addUpdateFlags` de `rp2040js` calcule en
+flottants, son second opérande peut valoir 2³² sur `ADCS` et le drapeau C s'en
+ressent ; le C reproduit le comportement au lieu de le corriger.) Les deux mondes
+« avec périphériques » sont vérifiés de même entre JS et WASM.
+
+Une seule table de décodage existe : les 64 Ko sont construits en JS puis
+**écrits dans la mémoire linéaire du WASM**. Le C et le JS ne peuvent pas diverger.
+
+### Les chiffres
+
+Node 24.11.1, meilleur de 3, 1 024 instructions par tour de boucle :
+
+| | Minstr/s | rapport au miroir JS |
+| --- | ---: | ---: |
+| `rp2040js` patché (78 op.) | 19,6 | ×0,59 |
+| **miroir JS (25 op.)** | **33,3** | ×1,00 |
+| WASM, rafale pure | 62,0 | **×1,86** |
+| WASM, 1 appel JS sortant par instruction | 32,5 | ×0,97 |
+| WASM, 1 appel JS entrant par instruction | 35,3 | ×1,06 |
+
+Par tranches de K instructions entre deux retours en JS :
+
+| K | 1 | 4 | 16 | 64 | 256 | 1 024 | 8 192 | 65 536 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| ×miroir JS | 0,98 | 1,28 | 1,60 | 1,73 | 1,81 | 1,87 | 1,84 | 1,81 |
+
+Avec les périphériques (chaque accès MMIO repasse réellement en JS) :
+
+| régime | miroir JS | WASM | gain |
+| --- | ---: | ---: | ---: |
+| 1 sortie / 18 instructions | 28,6 | 59,8 | ×2,09 |
+| 1 sortie / 85 instructions | 26,2 | 58,8 | ×2,24 |
+
+Chrome 151, sous la CSP réelle de la webview : miroir JS 30,6 — WASM 60,6 —
+**×1,98**. Le moteur est le même V8, le chiffre aussi.
+
+### Ce que ça dit, et ce que ça ne dit pas
+
+**Le pont n'est pas le coupable.** C'était le point dur n°2 annoncé au §12, et il
+se lève : dès **K = 64**, on est à 93 % du plafond. Un cœur WASM ne serait pas
+tué par ses allers-retours — il suffirait de rendre la main toutes les quelques
+dizaines d'instructions, ce qu'un émulateur fait naturellement. Le prix du pont
+n'est cher que dans le cas absurde d'un retour à *chaque* instruction (×1,9 de
+perte), qu'aucun portage sérieux ne choisirait.
+
+**C'est le plafond du langage qui est bas.** V8 compile bien un interpréteur : un
+gros `switch` sur des entiers denses, des `Uint32Array`, des `DataView`, il en
+fait du code machine correct. Le même interpréteur en C ne gagne que ×1,9 — pas
+les ×3 qui justifiaient cinq semaines, et pas non plus les ×2-×4 annoncés au §6.
+
+**Vérifié plutôt que supposé** : la variante à compteur de cycles entier 64 bits
+(au lieu du flottant qui reproduit `rp2040js`) donne 73 contre 72 Minstr/s — dans
+le bruit. Le compteur n'est pas le frein.
+
+**Le chiffre qui pique** : le miroir JS, 25 opérations, va **×1,7 plus vite que
+`rp2040js`** — en JavaScript, sans WASM. Attention à ne pas en tirer plus qu'il
+n'y a : le miroir ne gère ni interruptions, ni périphériques, ni carte mémoire
+complète, et une partie de cet écart est du travail que `rp2040js` doit vraiment
+faire. Mais l'ordre de grandeur invite à regarder ce qui reste à gratter **dans
+le JS** avant d'aller chercher un autre langage.
+
+### Conséquence sur la roadmap
+
+- Piste 3 (`'wasm-unsafe-eval'`) : **faite**, et le banc le prouve dans un vrai
+  Chrome, page **et** worker `blob:`. La ligne reste utile quoi qu'il arrive.
+- Piste 4 : **close**, verdict rendu.
+- Piste 6 (cœur M0+ en WASM, 25-38 jours) : **morte** par la règle du §12. Deux
+  jours de banc ont tué cinq semaines de chantier — c'est exactement ce qu'on lui
+  demandait.
+- Piste 5 (`cts2c`, traduction TypeScript → C) : elle promettait ×2-×4 par le
+  même mécanisme, c'est-à-dire par le même langage compilé. Le banc vient de
+  mesurer que ce mécanisme vaut ×1,9 ici. **À déclasser sauf argument nouveau.**
