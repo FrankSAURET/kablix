@@ -1,8 +1,17 @@
 # À faire
 
-1. ~~Traduit tout ce qui manque~~ — **fait** : chaînes (v2026.8.95), documentation anglaise (v2026.8.97). Il ne reste plus une ligne en retard.
+1. ~~Traduit tout ce qui manque~~ — **fait** : chaînes (v2026.8.95), documentation anglaise (v2026.8.97). Il reste **une** chaîne née depuis : « Update available » (v2026.8.99) — à reprendre au lot de traduction d'avant publication.
 1. ~~mets à jour changelog, usage et readme~~ — **fait** : guide FR et README (v2026.8.96), guide EN et README.en (v2026.8.97), CHANGELOG (v2026.8.98).
 1. je vais publier. — **rien n'est publié ni empaqueté sans ton feu vert** : dis-le et je lance `npm run package` puis `vsce publish` sur `electropol-fr`.
+
+# >>>>  v2026.8.99 — Une fiche d'aide ajoutée à un composant se voit enfin dans le gestionnaire
+
+1. ✅ **`spot` et `dmx-grove` n'avaient pas changé de version** alors que leur fiche d'aide venait d'entrer dans le paquet (v2026.8.94/97) : [_sources.json](kablix_components/_sources.json) passe `dmx-grove` en **1.1.0** et `spot` en **1.2.0**, paquets et index reconstruits ([build-kompix.mjs](scripts/build-kompix.mjs), [build-components-index.mjs](scripts/build-components-index.mjs)). Dessins et vignettes n'ont pas bougé d'un octet — seul le manifeste avance.
+2. ✅ **Le gestionnaire ignorait les mises à jour** ([componentManager.ts](src/componentManager.ts)) : le filtre « Nouveaux » ne comparait que le **type** (`!c.local`), jamais la version. Un composant déjà installé et corrigé au dépôt disparaissait de la liste — il fallait le **supprimer pour le réinstaller**, ce que Frank a dû faire à la main. Le gestionnaire relève maintenant la version installée, la compare à celle du dépôt et marque `update`.
+3. ✅ **« Nouveaux » = jamais installés + mises à jour** : la carte concernée prend un liseré orange, le badge **« ⇩ Update available »** à la place de « ✓ Installed », et sa ligne de méta montre le saut (`v1.1.0` barré `→ v1.2.0`). Télécharger écrase le `.kompix` en place, comme avant.
+4. ✅ **Comparaison de versions en nombres, pas en chaînes** (`compareVersions`, exportée pour le banc) : `1.2.10` est postérieur à `1.2.9`, un segment absent vaut 0 (`1.2` = `1.2.0`), un suffixe non numérique est ignoré.
+5. ✅ **Quatre contrôles de plus au banc** ([verify-kompix.mjs](scripts/verify-kompix.mjs), 24 → **28**) : comparaison de versions, installé que le dépôt fait avancer, installé déjà à jour (et dépôt en retard), et le filtre de la page **réellement exécuté** sur les trois modes. Le bouchon `vscode` sait désormais servir `componentRepositories`.
+6. ⏳ **« Update available » n'est pas encore traduite** ([bundle.l10n.fr.json](l10n/bundle.l10n.fr.json)) : `verify:i18n` la signale (1 échec) — les traductions se font en un lot avant publication.
 
 # >>>>  v2026.8.98 — Le CHANGELOG raconte les 24 versions depuis la dernière publication
 

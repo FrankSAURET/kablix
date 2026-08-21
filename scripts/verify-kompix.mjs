@@ -55,7 +55,13 @@ function eq(actual, expected, what) {
 const STUB_VSCODE = `
 const nul = { dispose(){} };
 export const workspace = {
-  getConfiguration: () => ({ get: (key, def) => (key === 'componentsFolder' ? DOSSIER : def) }),
+  // Les dépôts sont pilotés par le banc (globalThis.__depots) : sans eux, le
+  // gestionnaire ne voit aucun composant distant à comparer.
+  getConfiguration: () => ({ get: (key, def) => (
+    key === 'componentsFolder' ? DOSSIER
+    : key === 'componentRepositories' ? (globalThis.__depots ?? def)
+    : def
+  ) }),
   createFileSystemWatcher: () => ({
     onDidCreate: () => nul, onDidChange: () => nul, onDidDelete: () => nul, dispose(){},
   }),
@@ -128,7 +134,7 @@ await build({
     },
   ],
 });
-const { ComponentManagerPanel } = await import(`file://${gestionnaire.replace(/\\/g, '/')}`);
+const { ComponentManagerPanel, compareVersions } = await import(`file://${gestionnaire.replace(/\\/g, '/')}`);
 
 /** Un gestionnaire posé sur la vraie bibliothèque, avec un panneau bouchon. */
 function gestionnaireNu() {
@@ -633,6 +639,94 @@ test('un behavior.mjs emballé s’exécute et republie ses fonctions', async ()
   const piege = wrapBehaviorModule("x'];globalThis.PIRATE=1;//", 'export function tick() {}\n');
   await import(`data:text/javascript;base64,${Buffer.from(piege, 'utf8').toString('base64')}`);
   eq(globalThis.PIRATE, undefined, 'injection par le nom du type');
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mise à jour d'un composant déjà installé.
+//
+// Le filtre « Nouveaux » ne regardait que le TYPE : un composant corrigé dans le
+// dépôt (fiche d'aide ajoutée, dessin repris) n'y apparaissait plus, et il
+// fallait le supprimer pour le réinstaller. Il se signale maintenant tant que la
+// version du dépôt dépasse celle de la machine.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test('comparer deux versions se fait en nombres, pas en chaînes', () => {
+  if (!(compareVersions('1.2.10', '1.2.9') > 0)) throw new Error('« 1.2.10 » doit dépasser « 1.2.9 »');
+  if (!(compareVersions('1.1.0', '1.0.0') > 0)) throw new Error('mineure plus récente');
+  if (!(compareVersions('2.0.0', '10.0.0') < 0)) throw new Error('majeure plus ancienne');
+  eq(compareVersions('1.2.0', '1.2'), 0, 'segment absent = 0');
+  eq(compareVersions('1.0.0', '1.0.0'), 0, 'versions identiques');
+  eq(compareVersions(undefined, undefined), 0, 'versions inconnues');
+  if (!(compareVersions('1.0.0', undefined) > 0)) throw new Error('une version connue dépasse l’inconnue');
+});
+
+/** Un gestionnaire dont le « dépôt » rend ce que le banc lui donne. */
+function gestionnaireAvecDepot(composantsDistants) {
+  const nu = gestionnaireNu();
+  globalThis.__depots = ['https://exemple/depot'];
+  nu.fetchRepositoryComponents = async () =>
+    composantsDistants.map((c) => ({ ...c, sourceUrl: `https://exemple/depot/${c.type}.kompix` }));
+  return nu;
+}
+
+test('un installé que le dépôt a fait avancer est marqué « à mettre à jour »', async () => {
+  await installeJetable('test-maj', 'remote'); // installé en 1.2.3 (allerRetour)
+  const nu = gestionnaireAvecDepot([
+    { type: 'test-maj', label: 'À mettre à jour', version: '1.3.0', file: 'test-maj.kompix' },
+  ]);
+  await nu.load();
+  const fiche = nu.allComponents.find((c) => c.type === 'test-maj');
+  eq(fiche.local, true, 'toujours marqué installé');
+  eq(fiche.update, true, 'mise à jour repérée');
+  eq(fiche.installedVersion, '1.2.3', 'version de la machine retenue');
+  eq(fiche.version, '1.3.0', 'version du dépôt affichée');
+  globalThis.__depots = undefined;
+});
+
+test('un installé à jour (ou plus récent) ne réclame rien', async () => {
+  await installeJetable('test-a-jour', 'remote');
+  const nu = gestionnaireAvecDepot([
+    { type: 'test-a-jour', label: 'Déjà à jour', version: '1.2.3', file: 'test-a-jour.kompix' },
+  ]);
+  await nu.load();
+  eq(nu.allComponents.find((c) => c.type === 'test-a-jour').update, false, 'même version');
+
+  const enRetard = gestionnaireAvecDepot([
+    { type: 'test-a-jour', label: 'Dépôt en retard', version: '1.0.0', file: 'test-a-jour.kompix' },
+  ]);
+  await enRetard.load();
+  eq(enRetard.allComponents.find((c) => c.type === 'test-a-jour').update, false, 'dépôt plus ancien');
+  globalThis.__depots = undefined;
+});
+
+test('le filtre « Nouveaux » montre les mises à jour, pas les composants à jour', () => {
+  const nu = Object.create(ComponentManagerPanel.prototype);
+  const html = nu.generateHtml([
+    { type: 'neuf', label: 'Jamais installé', version: '1.0.0', local: false },
+    { type: 'maj', label: 'À mettre à jour', version: '2.0.0', installedVersion: '1.0.0', local: true, update: true },
+    { type: 'ok', label: 'Déjà à jour', version: '1.0.0', installedVersion: '1.0.0', local: true, update: false },
+  ]);
+
+  // Le filtre vit dans le script de la page : on l'exécute sur les mêmes données.
+  const filtre = /filteredComponents = components\.filter\(c =>([\s\S]*?)\);/.exec(html);
+  if (!filtre) throw new Error('le filtre a disparu de la page');
+  const composants = [
+    { type: 'neuf', local: false, update: false },
+    { type: 'maj', local: true, update: true },
+    { type: 'ok', local: true, update: false },
+  ];
+  const predicat = new Function('c', 'mode', `return (${filtre[1].trim()});`);
+  const garde = (mode) => composants.filter((c) => predicat(c, mode)).map((c) => c.type);
+  eq(garde('new').join(','), 'neuf,maj', 'filtre « Nouveaux »');
+  eq(garde('installed').join(','), 'maj,ok', 'filtre « Installés »');
+  eq(garde('all').join(','), 'neuf,maj,ok', 'filtre « Tous »');
+
+  // Et la carte le dit à l'œil : classe, badge, ancienne version barrée.
+  if (!/component-card' \+ \(comp\.local \? ' local' : ''\) \+ \(comp\.update \? ' update' : ''\)/.test(html)) {
+    throw new Error('la carte ne porte plus la classe « update »');
+  }
+  if (!html.includes('from-version')) throw new Error('l’ancienne version n’est plus affichée');
+  if (!/\.component-card\.update::after/.test(html)) throw new Error('pas de badge de mise à jour');
 });
 
 await runTests();

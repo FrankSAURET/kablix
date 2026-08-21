@@ -17,10 +17,31 @@ interface ComponentInfo {
   origin?: 'local' | 'remote'; // pour un installé : créé ici ou téléchargé
   file?: string; // nom du fichier .kompix dans le repo (ex. "led.kompix")
   sourceUrl?: string; // URL complète du fichier .kompix
+  installedVersion?: string; // version présente sur la machine (si installé)
+  update?: boolean; // installé, mais le dépôt en propose une version plus récente
 }
 
 interface RepositoryIndex {
   components: ComponentInfo[];
+}
+
+/**
+ * Compare deux numéros de version « 1.2.10 » façon semver simplifié : rend un
+ * nombre > 0 si `a` est plus récent que `b`. Les segments sont comparés en
+ * NOMBRES — « 1.2.10 » est postérieur à « 1.2.9 », ce qu'une comparaison de
+ * chaînes rendait faux. Un segment absent vaut 0 (« 1.2 » = « 1.2.0 »), et tout
+ * ce qui n'est pas un nombre (suffixe « -beta ») est ignoré.
+ */
+export function compareVersions(a: string | undefined, b: string | undefined): number {
+  const decoupe = (v: string | undefined): number[] =>
+    String(v ?? '').split('.').map((n) => parseInt(n, 10) || 0);
+  const ga = decoupe(a);
+  const gb = decoupe(b);
+  for (let i = 0; i < Math.max(ga.length, gb.length); i++) {
+    const diff = (ga[i] ?? 0) - (gb[i] ?? 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
 }
 
 export class ComponentManagerPanel {
@@ -76,6 +97,11 @@ export class ComponentManagerPanel {
       // Récupère la liste des composants locaux
       const installed = this.library?.listInstalled?.() ?? [];
       this.localTypes = new Set(installed.map((c) => c.type));
+      // Version présente sur la machine, pour repérer celles que le dépôt a
+      // fait avancer depuis : sans ça, un composant corrigé restait invisible
+      // (il n'était plus « nouveau ») et il fallait le supprimer pour le
+      // réinstaller.
+      const versionsLocales = new Map(installed.map((c) => [c.type, c.version]));
 
       // Récupère les repos distants depuis la config
       const repos =
@@ -87,11 +113,17 @@ export class ComponentManagerPanel {
         try {
           const components = await this.fetchRepositoryComponents(repoUrl);
           this.allComponents.push(
-            ...components.map((c) => ({
-              ...c,
-              local: this.localTypes.has(c.type),
-              origin: this.library?.getIndexEntry?.(c.type)?.origin,
-            }))
+            ...components.map((c) => {
+              const local = this.localTypes.has(c.type);
+              const installedVersion = versionsLocales.get(c.type);
+              return {
+                ...c,
+                local,
+                installedVersion,
+                update: local && compareVersions(c.version, installedVersion) > 0,
+                origin: this.library?.getIndexEntry?.(c.type)?.origin,
+              };
+            })
           );
         } catch (err) {
           console.error(`Failed to fetch from ${repoUrl}:`, err);
@@ -119,6 +151,8 @@ export class ComponentManagerPanel {
           reference: part.reference,
           thumbnail: part.thumbnail,
           version: part.version,
+          installedVersion: part.version,
+          update: false,
           author: part.author,
           local: true,
           origin: part.origin,
@@ -177,6 +211,7 @@ export class ComponentManagerPanel {
     const installedText = l10n.t('Installed');
     const downloadedText = l10n.t('downloaded');
     const madeHereText = l10n.t('created here');
+    const updateText = l10n.t('Update available');
 
     return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -292,6 +327,19 @@ export class ComponentManagerPanel {
       margin-top: 0.5rem;
       font-weight: bold;
     }
+    /* Installé, mais le dépôt a une version plus récente : la carte se signale
+       d'elle-même, sinon rien ne distingue « à jour » de « en retard ». */
+    .component-card.update {
+      border-color: var(--vscode-charts-orange, #d18616);
+    }
+    .component-card.update::after {
+      content: ${JSON.stringify(`⇩ ${updateText}`)};
+      color: var(--vscode-charts-orange, #d18616);
+    }
+    .component-meta .from-version {
+      text-decoration: line-through;
+      opacity: 0.7;
+    }
     .thumbnail {
       width: 100%;
       height: 150px;
@@ -357,8 +405,10 @@ export class ComponentManagerPanel {
     function updateGrid() {
       const grid = document.getElementById('grid');
 
+      // « Nouveaux » = jamais installés ET installés que le dépôt a fait
+      // avancer : c'est le seul endroit où une mise à jour se remarque.
       filteredComponents = components.filter(c =>
-        mode === 'all' ? true : mode === 'installed' ? c.local : !c.local
+        mode === 'all' ? true : mode === 'installed' ? c.local : (!c.local || c.update)
       );
       grid.innerHTML = '';
 
@@ -367,7 +417,7 @@ export class ComponentManagerPanel {
       } else {
         filteredComponents.forEach(comp => {
           const card = document.createElement('div');
-          card.className = 'component-card' + (comp.local ? ' local' : '');
+          card.className = 'component-card' + (comp.local ? ' local' : '') + (comp.update ? ' update' : '');
           if (selectedTypes.has(comp.type)) card.classList.add('selected');
 
           card.innerHTML = \`
@@ -375,7 +425,7 @@ export class ComponentManagerPanel {
             <div class="component-label">\${escapeHtml(comp.label)}</div>
             \${comp.description ? \`<div class="component-description">\${escapeHtml(comp.description)}</div>\` : ''}
             <div class="component-meta">
-              v\${escapeHtml(comp.version)}
+              \${comp.update ? \`<span class="from-version">v\${escapeHtml(comp.installedVersion || '?')}</span> → \` : ''}v\${escapeHtml(comp.version)}
               \${comp.author ? \` - \${escapeHtml(comp.author)}\` : ''}
               \${comp.reference ? \` (\${escapeHtml(comp.reference)})\` : ''}
               \${comp.local ? \` - \${comp.origin === 'remote' ? ${JSON.stringify(downloadedText)} : ${JSON.stringify(madeHereText)}}\` : ''}
