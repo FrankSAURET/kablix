@@ -17,9 +17,19 @@ Pour la vitesse, passer par `banc-compile.mjs` / `mesure-finale.mjs`, qui
 bundlent avec esbuild (`keepNames: false`) comme le fait la webview Kablix.
 `tsx` reste bon pour les tests fonctionnels de `kablix-eval.ts`.
 
-La machine dérive aussi de ±40 % d'une fenêtre à l'autre : **toujours plusieurs
-passes, garder la meilleure, et ne comparer que des moteurs mesurés dans la même
-fenêtre** — au besoin en les entrelaçant (`croise.mjs`).
+## ⚠️ Un rapport ne se mesure qu'en ENTRELACÉ
+
+La machine dérive de **±40 % d'une fenêtre à l'autre** (le même banc Kablix a rendu
+×0,156, ×0,204 puis ×0,256 dans la même soirée). Comparer deux bundles mesurés à
+dix minutes d'écart ne mesure que la machine : deux chiffres publiés ont dû être
+corrigés pour ça (cache RISC-V ×1,93 → **×1,44**, table Thumb-16 ×1,43 → **×1,03**).
+**Toujours `ab.mjs`** : deux bundles figés, relancés en alternance, 3 passes
+chacun, meilleure de chaque côté.
+
+```sh
+node ab.mjs ./bench-avant.cjs ./bench-apres.cjs avant apres [arm|riscv|rp2040]
+node croise.mjs        # même principe, contre le banc Kablix
+```
 
 ## Rejouer
 
@@ -57,6 +67,16 @@ identité/fréquence, `sleep_ms` (alarme TIMER), fronts GPIO vus **côté JS**
 Tout est synchrone : `mcu.step()` rappelle CDC et GPIO dans la foulée, donc une
 simple boucle suffit et la mesure n'est pas polluée par une boucle d'événements.
 
+## `optim-thumb16-table.patch` — le cache de décodage M33, essayé
+
+Produit par [`transforme-thumb16.py`](transforme-thumb16.py), qui réécrit
+mécaniquement `execute-thumb16.ts` : cascade de 74 `else if` → classification pure
++ table `Uint8Array(65536)` bâtie au chargement + `switch` dense (saut de table
+V8). Correct (898 tests verts, banc fonctionnel identique), **et il ne rapporte que
+×1,03** : décoder du Thumb est bon marché par nature, contrairement au RISC-V dont
+les immédiats éclatés justifient leur cache. Gardé comme acquis sans risque, pas
+comme une piste.
+
 ## `correctifs-rp2350js.patch`
 
 Deux bugs du fork, trouvés et corrigés pendant l'évaluation (non proposés en amont
@@ -85,6 +105,13 @@ sortent). Non élucidé — ce n'était plus nécessaire au verdict.
 | `rp2350js` Cortex-M33 | 8,04 | ×0,109 |
 | `rp2350js` RISC-V, cache de décodage coupé | 5,69 | ×0,056 |
 
-Les régimes absolus dépendent de la fenêtre de mesure (la même machine a rendu
-×0,204 pour Kablix une heure plus tard) ; les **rapports** entre lignes, eux,
-tiennent.
+**Ces régimes absolus ne valent que pour leur fenêtre de mesure** (la même machine
+a rendu ×0,204 puis ×0,256 pour Kablix dans la même soirée), et le tableau n'est
+pas entrelacé : ne pas en tirer de rapports. Les seuls rapports fiables, mesurés
+en alternance :
+
+| Comparaison entrelacée | Rapport |
+|---|---|
+| M33 contre le moteur Kablix | **60-70 %** (deux fenêtres) |
+| cache de décodage RISC-V, branché contre coupé | **×1,44** |
+| table de décodage Thumb-16 sur le M33 | **×1,03** |

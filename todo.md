@@ -1,6 +1,22 @@
 # À faire
 
+# >>>>  v2026.8.102.8 — Le cache de décodage M33 : écrit, mesuré, +3 %
+
+1. ✅ **Le cache annoncé a été écrit, pas estimé.** [transforme-thumb16.py](scripts/rp2350js-eval/transforme-thumb16.py) réécrit mécaniquement `execute-thumb16.ts` du fork : la cascade de **74 `else if`** devient une fonction de classification pure, une table `Uint8Array(65536)` bâtie une fois au chargement, et un `switch` dense que V8 compile en saut de table. Le décodage Thumb-16 ne dépendant **que** des 16 bits de l'opcode, la table couvre tout l'espace : ni cache d'adresse, ni invalidation. Patch : [optim-thumb16-table.patch](scripts/rp2350js-eval/optim-thumb16-table.patch).
+2. ✅ **C'est correct** : leurs **898 tests** passent (même compte qu'avant), les 313 tests du cœur M33 aussi, et le banc fonctionnel des dix tests rend exactement les mêmes résultats.
+3. ⛔ **Et ça ne rapporte que ×1,03.** L'estimation « ×1,5 à ×1,9, 2-3 jours » du lot précédent est **fausse**. Raison structurelle : **décoder du Thumb est bon marché** (opcode 16 bits, champs contigus, quelques comparaisons entières que V8 traite très bien), alors que décoder du RISC-V est cher (immédiats éclatés à recoller et à étendre en signe) — c'est ce travail-là que leur cache économise. Le motif ne se transpose pas. Le Thumb-32, dont le dispatch est déjà hiérarchique (5 groupes), ne peut pas faire mieux que les 74 tests qu'on vient de supprimer pour 3 %.
+4. ✅ **Deuxième correction du lot précédent : le cache RISC-V vaut ×1,44, pas ×1,93.** Même charge, mais moteurs **entrelacés** : 12,18 contre 8,43 Minstr/s.
+5. ⚠️ **La règle de mesure qui manquait, et qui a piégé deux chiffres** : cette machine dérive de **±40 % d'une fenêtre à l'autre** — le même banc Kablix a rendu ×0,156, ×0,204 puis ×0,256 dans la même soirée. **Un rapport entre deux moteurs ne vaut que s'ils ont été relancés en alternance**, 3 passes chacun, meilleure retenue de chaque côté ([ab.mjs](scripts/rp2350js-eval/ab.mjs)). Sans ça, la table Thumb-16 s'annonçait à ×1,43 (c'était la machine qui avait accéléré de 42 % entre les deux mesures).
+6. ℹ️ **Le rapport M33/Kablix, lui, tient** : mesuré deux fois en entrelacé, **60-70 %** selon la fenêtre. La conclusion de la piste 7 ne bouge pas — leur Pico 2 est utilisable.
+7. ℹ️ **Où part vraiment le temps du M33** (profil en JS compilé) : `executeInstruction` **27 %**, boucle d'appel **20 %**, `executeThumb16` 13 %, `executeThumb32` + `dispatch*` 15 %, drapeaux 6 %, mémoire **5 %**. C'est **le même profil que notre propre moteur** (§14 : interpréteur 59-61 %, boucle 23-27 %) : pas de défaut ponctuel à corriger, juste plus de travail par instruction — normal pour Thumb-2.
+8. ✅ **[vitesse-pico.md](scripts/vitesse-pico.md) §15 complété** (encadré méthode « comparer ne se fait qu'en entrelacé », section « le cache M33 : écrit, mesuré, décevant », verdict revu) et **[roadmap.md](roadmap.md) piste 7** mise à jour : verdict « oui, en acceptant 30 à 40 % de moins », marge du décodage **fermée**.
+9. ℹ️ **Aucune ligne de `src/` touchée** — le travail est dans le clone du fork (scratchpad), archivé ici en patch + scripts. `scripts/**` est hors paquet ([.vscodeignore](.vscodeignore) ligne 6).
+
+---
+
 # >>>>  v2026.8.102.7 — Le verdict d'hier était faux : `tsx` divisait le M33 par 8
+
+> ⚠️ **Deux chiffres de ce lot corrigés en v2026.8.102.8** : le cache de décodage RISC-V vaut ×1,44 (pas ×1,93) et le cache M33, écrit pour de bon, rapporte 3 % (pas ×1,5-1,9). Les deux estimations reposaient sur des passes non entrelacées.
 
 1. ✅ **Piste 7 rouverte et retournée : leur Pico 2 tourne à 70 % de notre Pico 1, pas 14 fois moins vite.** Régimes mesurés en JS **compilé** (bundle esbuild, comme la webview), même charge, même machine, **meilleure de 3 passes** : Kablix `rp2040js` patché **×0,156** · leur RP2040 ×0,149 · leur RISC-V ×0,107 · **leur Cortex-M33 ×0,109**. Le M33 est **utilisable** : une LED réglée sur 1 Hz clignote à 0,7 Hz, pas une fois par minute.
 2. ✅ **La cause de l'erreur, isolée et mesurée** : `tsx` transpile module par module et garde les noms de fonctions (`keepNames`) — sur le M33, dont l'exécution est éclatée en fichiers importés, V8 renonce à l'inlining et le cœur **perd un facteur 8** (0,76-1,15 Minstr/s sous `tsx` contre **8,3** compilé). Le M0+, tenu dans un seul fichier, ne bouge pas (12,28 contre 12,35) : le piège est **invisible si l'on ne compare pas deux cœurs**. Règle qui en sort, écrite dans les deux docs : **un banc de vitesse se mesure sur le JS tel qu'il sera livré.**

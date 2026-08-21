@@ -992,37 +992,74 @@ de la machine. Nos +30 % maison (§9, §10) ne sont donc pas un avantage décisi
 protéger — vendoriser leur bibliothèque pour les deux cartes reste envisageable,
 au lieu de maintenir deux moteurs.
 
-**Le cache de décodage vaut ×1,93, mesuré.** En court-circuitant `getDecodeEntry`
-de `src/riscv/decode-cache.ts` (36 lignes), leur RISC-V tombe de 10,96 à
-5,69 Minstr/s. Ce mécanisme n'existe **que** pour le RISC-V ; le M33 redécode
-chaque instruction Thumb-2 à chaque passage. Le profil du M33 en JS compilé le
-situe : `executeInstruction` 25 % (fetch, état IT, choix 16/32 bits),
-`executeThumb16` 14 %, `executeThumb32` 8 %, les `dispatch*` 8 % — le chemin
-mémoire, lui, ne pèse que 5 %.
+**Le cache de décodage vaut ×1,44, mesuré.** En court-circuitant `getDecodeEntry`
+de `src/riscv/decode-cache.ts` (36 lignes), leur RISC-V tombe de 12,18 à
+8,43 Minstr/s — moteurs **entrelacés**, seule façon d'obtenir ce rapport (mesuré
+en passes séparées, la dérive machine le gonflait à ×1,93 ; voir l'encadré
+méthode ci-dessous). Ce mécanisme n'existe **que** pour le RISC-V ; le M33
+redécode chaque instruction Thumb-2 à chaque passage. Le profil du M33 en JS
+compilé situe le travail : `executeInstruction` 27 % (fetch, état IT, choix
+16/32 bits), boucle d'appel 20 %, `executeThumb16` 13 %, `executeThumb32` et ses
+`dispatch*` 15 %, les drapeaux ~6 %, le chemin mémoire 5 % seulement.
+
+### La règle qui manquait : comparer ne se fait qu'en entrelacé
+
+Cette machine dérive de **±40 % d'une fenêtre à l'autre** (même binaire, même
+charge : le banc Kablix a rendu ×0,156, puis ×0,204, puis ×0,256 dans la même
+soirée). Conséquence, apprise deux fois à ses dépens dans ce §15 : **un rapport
+entre deux moteurs ne vaut que si les deux ont été relancés en alternance**, trois
+passes chacun, meilleure retenue de chaque côté ([`ab.mjs`](rp2350js-eval/ab.mjs),
+[`croise.mjs`](rp2350js-eval/croise.mjs)). Deux chiffres publiés ici ont dû être
+corrigés pour l'avoir oublié : le gain du cache RISC-V (×1,93 → **×1,44**) et le
+gain de la table Thumb-16 ci-dessous (×1,43 → **×1,03**). Les régimes absolus du
+tableau plus haut restent donc indicatifs ; les **rapports** entrelacés, eux,
+tiennent : le M33 est à **60-70 %** du régime de notre moteur selon la fenêtre.
+
+### Le cache de décodage pour le M33 : écrit, mesuré, décevant
+
+La marge annoncée a été **essayée pour de bon**, pas estimée. Un script de
+transformation ([`transforme-thumb16.py`](rp2350js-eval/transforme-thumb16.py))
+réécrit mécaniquement `execute-thumb16.ts` : la cascade de **74 `else if`** sur
+`opcode` devient une fonction de classification pure, une table
+`Uint8Array(65536)` bâtie une fois au chargement (le décodage Thumb-16 ne dépend
+que des 16 bits de l'opcode : la table couvre **tout** l'espace, aucun cache
+d'adresse ni invalidation nécessaires), et un `switch` dense que V8 compile en
+saut de table. Patch : [`optim-thumb16-table.patch`](rp2350js-eval/optim-thumb16-table.patch).
+
+C'est correct — leurs 898 tests passent, le banc fonctionnel donne les mêmes
+résultats. **Et ça ne rapporte que ×1,03**, mesuré en A/B entrelacé contre le
+bundle d'avant.
+
+La leçon est structurelle, et elle vaut pour la suite : **le décodage Thumb est
+bon marché par nature.** L'opcode tient sur 16 bits, les champs sont contigus
+(`(opcode >> 3) & 0x7`), la classification est une poignée de comparaisons
+entières que V8 traite très bien. Le décodage RISC-V, lui, est cher — immédiats
+éclatés en plusieurs morceaux à recoller et à étendre en signe — et c'est ce
+travail-là que leur cache économise, d'où son ×1,44. **Le motif ne se transpose
+pas.** Un cache d'adresse pour le Thumb-32 ne peut pas faire mieux : son dispatch
+est déjà hiérarchique (5 groupes, puis sous-dispatch), donc bien plus court que
+les 74 tests qu'on vient de supprimer pour 3 %.
+
+Ce qui reste ouvert, et où le temps part vraiment d'après le profil : les 27 %
+d'`executeInstruction` (fetch + IT + comptabilité) et les 20 % de la boucle
+d'appel. C'est le même profil que notre propre moteur (§14 : interpréteur 59-61 %,
+boucle 23-27 %) — autrement dit **le M33 n'a pas de défaut ponctuel à corriger**,
+il fait simplement plus de travail par instruction qu'un M0+, ce qui est normal
+pour Thumb-2. Les 30-40 % d'écart avec notre Pico 1 se paieront en points
+grignotés partout, pas en un coup.
 
 ### Verdict
 
 **Piste 8 : passée.** Les manques annoncés ne sont pas rédhibitoires, et les deux
 qui gênaient vraiment se corrigent en une vingtaine de lignes.
 
-**Piste 7 : oui, sous réserve d'accepter −30 %.** Un Pico 2 dans Kablix, c'est le
-M33 — la variante que Raspberry Pi vend et pour laquelle le MicroPython officiel
-est compilé. Il tourne, il répond, et il est 30 % plus lent que notre Pico 1
-actuel. La piste 9 (intégration, 10-20 j) n'est plus bloquée par la vitesse.
+**Piste 7 : oui, en acceptant −30 à −40 %.** Un Pico 2 dans Kablix, c'est le M33 —
+la variante que Raspberry Pi vend et pour laquelle le MicroPython officiel est
+compilé. Il tourne, il répond, il est à 60-70 % du régime de notre Pico 1. La
+piste 9 (intégration, 10-20 j) n'est plus bloquée par la vitesse.
 
-**La marge à aller chercher** : un cache de décodage pour le M33, sur le modèle du
-leur. Gain attendu ×1,5 à ×1,9 (leur RISC-V mesure ×1,93, le décodage Thumb-2
-coûte plus cher à faire donc plus à cacher, mais Amdahl mord : ~40 % du temps M33
-seulement est du décodage). Le M33 passerait de ×0,109 à ×0,17-0,20 de régime,
-c'est-à-dire **au-dessus** de notre Pico 1 d'aujourd'hui. Coût : le mécanisme
-d'indexation par demi-mot existe déjà chez eux (le RISC-V compressé mélange lui
-aussi 16 et 32 bits) et l'invalidation sur écriture SRAM est en place ; ce qui
-manque est la séparation classification/exécution dans les 2 500 lignes de
-`execute-thumb16.ts` + `execute-thumb32.ts`, avec les blocs IT à laisser hors du
-tag (la condition s'applique à l'exécution, pas au décodage). **Compter 2-3 jours
-pour un cache partiel** (les opcodes chauds seulement, chemin lent conservé pour
-le reste — c'est là que se prend l'essentiel du gain), **5-10 jours pour un cache
-complet**, leurs 1 700 lignes de tests `*.spec.ts` servant de garde-fou.
-
-À re-sonder de toute façon : le fork est vivant, et `cts2c` (leur transpileur
-TS → C, piste todo) reste à part — il s'applique à leur base entière, M33 compris.
+**La marge par le décodage est fermée** (×1,03 mesuré, chantier fait). Ce qui
+reste, si un jour ça vaut la peine : la table Thumb-16 est acquise et sans risque,
+et le reste demanderait de grignoter `executeInstruction` — pas un facteur, des
+points, exactement comme chez nous. `cts2c` (leur transpileur TS → C, piste todo)
+reste à part : il s'applique à leur base entière, M33 compris.
