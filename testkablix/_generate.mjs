@@ -1,7 +1,9 @@
 // Génère tous les fichiers de test de testkablix/ à partir de _spec.mjs :
 //   - tests .ino  → Arduino/<nom>/<nom>.ino ET Arduino/<nom>/<nom>.projix
 //                   (un dossier par sketch, exigence arduino-cli) ;
-//   - tests .py   → PicoPi/<nom>.py et PicoPi/<nom>.projix côte à côte.
+//   - tests .py   → PicoPi/<nom>.py et PicoPi/<nom>.projix côte à côte ;
+//   - jumeaux Pico 2 → pico2/<nom>.projix SEUL : leur programme est celui de
+//                   l'aîné Pico (`codeFrom`), partagé et non recopié.
 // Les .projix sont des archives ZIP (kablix.json + diagram.json), comme
 // celles produites par « Enregistrer le projet » de l'extension.
 //   node testkablix/_generate.mjs                  (depuis la racine du dépôt)
@@ -60,14 +62,23 @@ if (only.size > 0) {
 
 let nIno = 0;
 let nPy = 0;
+let nPartage = 0;
 for (const test of TESTS) {
   if (only.size > 0 && !only.has(test.name)) continue;
   // Banc Arduino (un dossier par sketch) ou banc PicoPi (fichiers côte à côte).
   mkdirSync(testDir(test), { recursive: true });
-  writeFileSync(testCode(test), test.code, 'utf8');
+  // `codeFrom` : le test rejoue le programme d'un autre (jumeaux Pico 2). Le
+  // fichier appartient à l'aîné — l'écraser ici le dupliquerait, et les deux
+  // copies divergeraient dès la première retouche.
+  if (test.codeFrom) nPartage++;
+  else {
+    writeFileSync(testCode(test), test.code, 'utf8');
+    if (test.ext === 'ino') nIno++;
+    else nPy++;
+  }
   writeFileSync(testProjix(test), await buildProjix(test, testCodeRef(test)));
-  if (test.ext === 'ino') nIno++;
-  else nPy++;
 }
 
-console.log(`OK : ${nIno} sketchs .ino (dossiers) + ${nPy} scripts .py générés, ${nIno + nPy} .projix.`);
+const nProjix = nIno + nPy + nPartage;
+console.log(`OK : ${nIno} sketchs .ino (dossiers) + ${nPy} scripts .py générés`
+  + `${nPartage ? ` (+ ${nPartage} programmes partagés)` : ''}, ${nProjix} .projix.`);

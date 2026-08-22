@@ -5,6 +5,10 @@
 // Convention : la carte est toujours le composant `mcu1` ; les fils vont du
 // composant vers la carte. Les couleurs suivent l'éditeur (rouge = VCC,
 // noir = GND, autres couleurs libres).
+import JSZip from 'jszip';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { HERE, testProjix } from './_paths.mjs';
 
 // --- Broches connues de chaque type de composant (contrôle de validité) -------
 export const PART_PINS = {
@@ -4472,4 +4476,88 @@ while True:
   }),
 ];
 
-export const TESTS = [...BOARD_TESTS, ...AVR_TESTS, ...PICO_TESTS];
+// ================================================================================
+// Partie RP2350 — chaque banc Pico a son jumeau Pico 2
+// ================================================================================
+// Frank veut « un projix pico2 ou 2w pour chaque projix pico existant », avec le
+// MÊME programme de test. Deux choix en découlent, et ils ne sont pas neutres :
+//
+// 1. Le montage est repris du `.projix` DU DÉPÔT, pas des `parts`/`wires`
+//    ci-dessus. Frank a redisposé et recâblé la plupart des bancs à la main
+//    (deux boutons au lieu d'un, trois NeoPixel en chaîne, l'inverseur DIP
+//    entièrement retourné…) : dériver de la spec donnerait un jumeau qui n'est
+//    plus le banc qu'il ouvre.
+// 2. Le programme n'est pas recopié, il est PARTAGÉ (`codeFrom`). Le jumeau
+//    pointe le `.py` de son aîné : c'est le même fichier, il ne peut donc pas
+//    s'en écarter au premier correctif — et treize de ces programmes ont déjà
+//    été retouchés à la main (le pilote ILI9341 fait 7 ko, la spec 1).
+//
+// Le reste — attentes de vérification, composants de bibliothèque embarqués —
+// est repris tel quel de l'aîné : c'est le même montage, sur l'autre puce.
+
+/** Carte RP2350 correspondant à une carte RP2040. */
+const JUMEAU_RP2350 = { pico: 'pico2', picow: 'pico2w' };
+
+// Tracés des fils, calculés par l'autoroutage du VRAI éditeur (Chrome headless)
+// et rangés là pour être versionnés :
+//     node scripts/_router-jumeaux-pico2.mjs
+// Sans ce fichier, les fils repartent en diagonale — les points de passage de
+// l'aîné, tracés autour d'une carte PAYSAGE, traverseraient la carte portrait.
+const FICHIER_ROUTAGE = join(HERE, 'pico2', '_routage.json');
+const ROUTAGE = existsSync(FICHIER_ROUTAGE)
+  ? JSON.parse(readFileSync(FICHIER_ROUTAGE, 'utf8'))
+  : {};
+
+// La Pico 2 est dessinée en PORTRAIT (90 × 220) là où la Pico est en paysage
+// (208 × 83) : posée au même endroit, elle passerait SOUS les composants que
+// Frank a serrés contre elle. On garde donc le montage tel qu'il est — c'est lui
+// qui a un sens — et on le translate en bloc à droite de la carte. Une
+// translation ne change ni les distances, ni les alignements, ni les angles.
+const CARTE_2 = { x: 40, y: 60 };    // coin de la carte, comme la plupart des bancs
+const MONTAGE_2 = { x: 200, y: 60 }; // coin du montage, dégagé des 90 px de carte
+
+/** Construit le jumeau Pico 2 d'un banc Pico, à partir de son `.projix`. */
+async function jumeauPico2(t) {
+  const fichier = testProjix(t);
+  const zip = await JSZip.loadAsync(readFileSync(fichier));
+  const diagram = JSON.parse(await zip.file('diagram.json').async('string'));
+  const carte = diagram.parts.find((p) => p.id === 'U1');
+  if (!carte) throw new Error(`${t.name} : pas de carte U1 dans ${fichier}`);
+  const autres = diagram.parts.filter((p) => p !== carte);
+  // Pas de 10 px pour la translation : les composants gardent leur place sur la
+  // grille (et donc leurs pastilles alignées entre elles).
+  const pas = (v) => Math.round(v / 10) * 10;
+  const dx = autres.length ? pas(MONTAGE_2.x - Math.min(...autres.map((p) => p.x))) : 0;
+  const dy = autres.length ? pas(MONTAGE_2.y - Math.min(...autres.map((p) => p.y))) : 0;
+  const { code, ...reste } = t; // le programme est partagé, pas recopié
+  const name = `${t.name.replace(/-picow?$/, '')}-${JUMEAU_RP2350[t.board]}`;
+  // Les points de passage de l'aîné ont été tracés autour d'une carte PAYSAGE :
+  // les garder ferait entrer les fils DANS la carte portrait. On leur substitue
+  // le tracé calculé par l'autoroutage (_routage.json), retrouvé par ses
+  // EXTRÉMITÉS — les repères de fils, eux, changent à chaque ouverture.
+  const traces = new Map((ROUTAGE[name] ?? []).map((w) => [w.cle, w.points]));
+  return {
+    ...reste,
+    name,
+    board: JUMEAU_RP2350[t.board],
+    codeFrom: t.name,
+    parts: [
+      { ...carte, type: JUMEAU_RP2350[t.board], x: CARTE_2.x, y: CARTE_2.y },
+      ...autres.map((p) => ({ ...p, x: p.x + dx, y: p.y + dy })),
+    ],
+    wires: diagram.wires.map(({ points, ...w }) => ({
+      ...w,
+      points: traces.get(`${w.a.partId}/${w.a.pin}—${w.b.partId}/${w.b.pin}`) ?? [],
+    })),
+  };
+}
+
+const PICO2_TESTS = [];
+for (const t of PICO_TESTS) {
+  // L'araignée n'a pas de carte à remplacer : sa Pico W est DANS le châssis,
+  // et Frank n'a pas dessiné de robot à Pico 2 W. Rien à dériver ici.
+  if (!JUMEAU_RP2350[t.board] || !t.parts.some((p) => p.id === 'U1')) continue;
+  PICO2_TESTS.push(await jumeauPico2(t));
+}
+
+export const TESTS = [...BOARD_TESTS, ...AVR_TESTS, ...PICO_TESTS, ...PICO2_TESTS];

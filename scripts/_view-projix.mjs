@@ -2,13 +2,16 @@
 // le schéma tel qu'il s'ouvre pour Frank, pour juger d'un montage sans lui
 // demander une copie d'écran.
 //   node scripts/_view-projix.mjs testkablix/transistor-uno/transistor-uno.projix [sortie.png]
-import { mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import JSZip from 'jszip';
 import { build as esbuild } from 'esbuild';
 
-const ROOT = 'h:/OneDrive/4 Programation/- VS Code/Extensions/Kablix';
+// Racine déduite de l'emplacement du script : le dépôt a déménagé de H: vers C:
+// en août 2026, un chemin écrit en dur ne survit pas au déménagement suivant.
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CACHE = join(ROOT, 'node_modules', '.cache-view-projix');
 const cible = process.argv[2] ?? 'testkablix/transistor-uno/transistor-uno.projix';
 const sortie = process.argv[3] ?? join(CACHE, 'vue.png');
@@ -16,16 +19,13 @@ const sortie = process.argv[3] ?? join(CACHE, 'vue.png');
 const zip = await JSZip.loadAsync(readFileSync(join(ROOT, cible)));
 const diagram = JSON.parse(await zip.file('diagram.json').async('string'));
 
-// Les composants ne sont pas auto-chargés : on importe le fork de chaque type présent.
-const dispo = readdirSync(join(ROOT, 'src/webview/composants')).filter((f) => f.endsWith('.mts'));
-const fichiers = new Set();
-for (const p of diagram.parts) {
-	const base = dispo.map((f) => [f, f.replace(/\.mts$/, '').replace(/-(element|board)$/, '')]);
-	const hit = base.find(([, b]) => b === p.type) ?? base.find(([, b]) => b.endsWith(p.type));
-	if (hit) fichiers.add(hit[0].replace(/\.mts$/, '.mjs'));
-	else console.log('!! composant introuvable pour le type', p.type);
-}
-const imports = [...fichiers].map((f) => `import '../../src/webview/composants/${f}';`).join('\n');
+// Les composants ne sont pas auto-chargés : on enregistre les mêmes forks que la
+// webview (`sim.mts`). Deviner le fichier d'après le nom du type ratait la
+// moitié du catalogue (`pot` → potentiometer-element, les quatre Pico →
+// pico-board), et un composant manquant ne se dessine pas du tout.
+const imports = [...readFileSync(join(ROOT, 'src/webview/sim.mts'), 'utf8')
+	.matchAll(/^import '\.\/composants\/(.+?)\.mjs';/gm)]
+	.map((m) => `import '../../src/webview/composants/${m[1]}.mjs';`).join('\n');
 
 const entry = `
 import { Editor } from '../../src/webview/diagram/editor.mjs';

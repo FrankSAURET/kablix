@@ -49,8 +49,12 @@ function relOf(test) {
   return test.ext === 'ino' ? join(test.name, `${test.name}.${test.ext}`) : `${test.name}.${test.ext}`;
 }
 
-/** Chemin absolu du fichier de code d'un test (.ino ou .py), où qu'il soit rangé. */
-export function testCode(test) {
+/**
+ * Chemin absolu du fichier de code que le test PORTE (celui qui vit dans son
+ * dossier). C'est lui qui fixe l'emplacement du test — même quand le programme
+ * exécuté est celui d'un autre test (`codeFrom`).
+ */
+function ownCode(test) {
   const found = tk(relOf(test));
   if (existsSync(found)) return found;
   // Test nouveau : il naît dans son banc.
@@ -58,14 +62,24 @@ export function testCode(test) {
   return banc ? join(HERE, banc, relOf(test)) : found;
 }
 
-/** Chemin absolu du .projix d'un test : toujours à côté de son code. */
+/**
+ * Chemin absolu du programme d'un test (.ino ou .py), où qu'il soit rangé.
+ * `codeFrom` = le test rejoue le programme d'un autre (les bancs Pico 2 rejouent
+ * ceux de leur aîné Pico) : c'est le MÊME fichier, pas une copie — une copie
+ * finirait par diverger au premier correctif apporté à l'un des deux.
+ */
+export function testCode(test) {
+  return ownCode(test.codeFrom ? { ...test, name: test.codeFrom, codeFrom: undefined } : test);
+}
+
+/** Chemin absolu du .projix d'un test : dans SON dossier. */
 export function testProjix(test) {
-  return join(dirname(testCode(test)), `${test.name}.projix`);
+  return join(dirname(ownCode(test)), `${test.name}.projix`);
 }
 
 /** Dossier d'accueil du test (à créer avant écriture). */
 export function testDir(test) {
-  return dirname(testCode(test));
+  return dirname(ownCode(test));
 }
 
 /** Référence `codeFile` du manifeste : chemin réel, relatif à la racine du dépôt. */

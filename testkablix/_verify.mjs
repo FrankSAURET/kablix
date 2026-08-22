@@ -352,7 +352,7 @@ for (const t of TESTS) {
         break;
       }
       case 'fan': {
-        const vcc = t.board === 'pico' || t.board === 'picow' ? 3.3 : 5;
+        const vcc = catalog.isPicoBoard(t.board) ? 3.3 : 5;
         const tourne = model.fanSpeed(model.fanCircuit(diagram, e.spins, vcc), 5, 0.85, 1);
         check(`${t.name} : ventilateur sur l'alim tourne`,
           tourne.speed > 0.9 && !tourne.starved, JSON.stringify(tourne));
@@ -365,7 +365,7 @@ for (const t of TESTS) {
         // Moteur à courant continu : l'état dépend des transistors de commande,
         // donc des ponts — on les résout comme la simulation avant chaque frame.
         // `spins: true` = au moins 90 % du régime nominal.
-        const vcc = t.board === 'pico' || t.board === 'picow' ? 3.3 : 5;
+        const vcc = catalog.isPicoBoard(t.board) ? 3.3 : 5;
         for (const s of e.steps) {
           const hauts = s.high ?? [];
           const read = (p) => hauts.includes(p);
@@ -383,7 +383,7 @@ for (const t of TESTS) {
         break;
       }
       case 'transistor': {
-        const vcc = t.board === 'pico' || t.board === 'picow' ? 3.3 : 5;
+        const vcc = catalog.isPicoBoard(t.board) ? 3.3 : 5;
         for (const s of e.steps) {
           const hauts = s.high ?? [];
           const read = (p) => hauts.includes(p);
@@ -425,7 +425,7 @@ for (const t of TESTS) {
         break;
       }
       case 'relay': {
-        const vcc = t.board === 'pico' || t.board === 'picow' ? 3.3 : 5;
+        const vcc = catalog.isPicoBoard(t.board) ? 3.3 : 5;
         for (const s of e.steps) {
           const hauts = s.high ?? [];
           const read = (p) => hauts.includes(p);
@@ -451,7 +451,7 @@ for (const t of TESTS) {
         // Onze boîtiers alimentés par la carte, deux entrées communes. Chaque
         // sortie doit valoir ce que dit la table de vérité, et ce niveau doit
         // remonter jusqu'à la broche de lecture du microcontrôleur.
-        const vcc = t.board === 'pico' || t.board === 'picow' ? 3.3 : 5;
+        const vcc = catalog.isPicoBoard(t.board) ? 3.3 : 5;
         for (const s of e.steps) {
           const hauts = s.high ?? [];
           const read = (p) => hauts.includes(p);
@@ -595,8 +595,13 @@ try {
   console.log('SKIP : python introuvable.');
 }
 if (pythonOk) {
+  // Les jumeaux Pico 2 partagent le programme de leur aîné : un seul contrôle
+  // par FICHIER, sinon la moitié du banc analyse deux fois les mêmes lignes.
+  const vus = new Set();
   for (const t of TESTS.filter((x) => x.ext === 'py')) {
     const file = testCode(t);
+    if (vus.has(file)) continue;
+    vus.add(file);
     try {
       execFileSync('python', ['-c', PY_CHECK, file], { stdio: ['ignore', 'pipe', 'pipe'] });
       console.log(`  ✓ ${t.name}.py`);
