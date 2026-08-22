@@ -18,6 +18,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { HERE, testCode, testProjix, tk } from './_paths.mjs';
 import { TESTS as ALL_TESTS, PART_PINS } from './_spec.mjs';
+import { firmwarePico } from '../scripts/_firmware.mjs';
 
 const ROOT = join(HERE, '..');
 const QUICK = process.argv.includes('--quick');
@@ -651,8 +652,8 @@ if (compiled.has('blink-mega')) {
 }
 
 // Pico : vrai firmware MicroPython + script led-pico.py, LED externe sur GP15.
-const fw = join(ROOT, 'test-assets', 'RPI_PICO-20230426-v1.20.0.uf2');
-if (!existsSync(fw)) {
+const fw = firmwarePico();
+if (!fw) {
   console.log('SKIP e2e Pico : firmware MicroPython absent (test-assets).');
 } else {
   const { parseUf2 } = await bundle('src/shared/uf2.ts', 'uf2.mjs');

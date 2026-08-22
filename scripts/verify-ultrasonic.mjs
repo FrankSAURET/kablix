@@ -16,6 +16,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build as esbuild } from 'esbuild';
+import { firmwarePico } from './_firmware.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = (ROOT + '/src/webview').replace(/\\/g, '/');
@@ -181,8 +182,8 @@ if (!CHROME) {
 }
 
 // --------------------------------- D. bout en bout sur le vrai moteur Pico
-const fw = join(ROOT, 'test-assets', 'RPI_PICO-20230426-v1.20.0.uf2');
-if (!existsSync(fw)) {
+const fw = firmwarePico();
+if (!fw) {
   console.log('  SKIP moteur : firmware MicroPython absent (test-assets/RPI_PICO-*.uf2).');
 } else {
   const tmp = mkdtempSync(join(tmpdir(), 'kablix-us-'));

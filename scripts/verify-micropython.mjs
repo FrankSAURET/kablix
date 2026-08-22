@@ -1,17 +1,18 @@
 // Test de bout en bout du mode MicroPython : charge le firmware UF2 réel dans
 // le moteur PicoEngine (bootrom B1 + flash + USB-CDC), injecte un script via le
 // raw REPL et vérifie la sortie série ainsi que le clignotement de GP25.
-// Nécessite test-assets/RPI_PICO-20230426-v1.20.0.uf2 (test sauté sinon).
+// Nécessite RPI_PICO-*.uf2 (test-assets/ ou cache VS Code) (test sauté sinon).
 import esbuild from 'esbuild';
 import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { firmwarePico } from './_firmware.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const fw = join(root, 'test-assets', 'RPI_PICO-20230426-v1.20.0.uf2');
-if (!existsSync(fw)) {
-  console.log('SKIP : firmware MicroPython absent (test-assets/RPI_PICO-20230426-v1.20.0.uf2).');
+const fw = firmwarePico();
+if (!fw) {
+  console.log('SKIP : firmware MicroPython absent (RPI_PICO-*.uf2 (test-assets/ ou cache VS Code)).');
   process.exit(0);
 }
 

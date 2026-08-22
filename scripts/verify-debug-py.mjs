@@ -2,13 +2,14 @@
 //  1. tests unitaires de instrumentPython (toujours exécutés, sans firmware) ;
 //  2. test de bout en bout : pause / pas à pas / variables / reprise dans le
 //     simulateur PicoEngine avec le firmware MicroPython réel.
-// Nécessite test-assets/RPI_PICO-20230426-v1.20.0.uf2 pour la partie 2 (sautée sinon).
+// Nécessite RPI_PICO-*.uf2 (test-assets/ ou cache VS Code) pour la partie 2 (sautée sinon).
 import esbuild from 'esbuild';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { firmwarePico } from './_firmware.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const tmp = mkdtempSync(join(tmpdir(), 'kablix-dbgpy-'));
@@ -171,9 +172,9 @@ for (const py of ['python', 'python3', 'py']) {
 if (!pyChecked) console.log('  - syntaxe Python : non vérifiée (aucun interpréteur local).');
 
 // --- 2. Test de bout en bout avec le firmware MicroPython --------------------
-const fw = join(root, 'test-assets', 'RPI_PICO-20230426-v1.20.0.uf2');
-if (!existsSync(fw)) {
-  console.log('\nSKIP bout en bout : firmware absent (test-assets/RPI_PICO-20230426-v1.20.0.uf2).');
+const fw = firmwarePico();
+if (!fw) {
+  console.log('\nSKIP bout en bout : firmware absent (RPI_PICO-*.uf2 (test-assets/ ou cache VS Code)).');
   console.log(failures === 0 ? '\nRESULTAT: OK' : '\nRESULTAT: ECHEC');
   process.exit(failures === 0 ? 0 : 1);
 }

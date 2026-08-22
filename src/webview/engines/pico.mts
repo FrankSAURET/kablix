@@ -368,7 +368,13 @@ export class PicoEngine implements SimEngine {
   // (résolution des timers Node/navigateur) — l'ECHO arrivait après la fenêtre
   // d'attente du firmware (pulseIn/boucle bornée).
   private ultrasonic: UltrasonicSensor[] = [];
-  private scheduled: Array<{ nanos: number; name: string; value: boolean }> = [];
+  // `suite` : les fronts qui suivent celui-ci, dates en RELATIF (ns apres son
+  // application reelle). Cf. fireScheduled — les dater en absolu amputait
+  // l'impulsion du retard du premier front.
+  private scheduled: Array<{
+    nanos: number; name: string; value: boolean;
+    suite?: Array<{ apres: number; value: boolean }>;
+  }> = [];
   // Capteurs DHT22 : même principe que l'ECHO ultrason (signal de départ détecté
   // en broche, réponse programmée en temps simulé). La broche est au repos HAUT
   // (pull-up) ; le MCU la tire BAS ≥ 500 µs pour démarrer une mesure.
@@ -710,8 +716,17 @@ export class PicoEngine implements SimEngine {
           const startNanos = nowNanos + 30_000; // ~30 µs après le relâchement
           const startCycles = Math.round(startNanos / nanosPerCycle);
           const sched: DhtTransition[] = buildDht22Schedule(d.tempC, d.humidity, startCycles, cyclesPerUs, d.model);
-          for (const ev of sched) {
-            this.scheduled.push({ nanos: ev.cycle * nanosPerCycle, name: d.pin, value: ev.value });
+          // Tout le train de bits pend au PREMIER front : ses durees sont ce que
+          // le firmware decode, et elles ne doivent pas dependre du retard
+          // avec lequel la reponse demarre.
+          const [tete, ...reste] = sched;
+          if (tete) {
+            this.scheduled.push({
+              nanos: tete.cycle * nanosPerCycle,
+              name: d.pin,
+              value: tete.value,
+              suite: reste.map((ev) => ({ apres: (ev.cycle - tete.cycle) * nanosPerCycle, value: ev.value })),
+            });
           }
           const last = sched[sched.length - 1];
           d.busyUntilNanos = last ? last.cycle * nanosPerCycle : nowNanos;
@@ -755,8 +770,12 @@ export class PicoEngine implements SimEngine {
       // (vitesse du son). 20 °C → 58,24 µs/cm, la constante des exemples Arduino.
       const usPerCm = echoUsPerCm(s.temperatureC ?? DEFAULT_AIR_TEMP_C);
       const widthNanos = cm * usPerCm * cyclesPerUs * nanosPerCycle;
-      this.scheduled.push({ nanos: startNanos, name: s.echo, value: true });
-      this.scheduled.push({ nanos: startNanos + widthNanos, name: s.echo, value: false });
+      // Le front descendant est date depuis le montant REEL, pas depuis
+      // `startNanos` : c'est la LARGEUR qui porte la distance.
+      this.scheduled.push({
+        nanos: startNanos, name: s.echo, value: true,
+        suite: [{ apres: widthNanos, value: false }],
+      });
     }
     this.updateNextScheduled();
   }
@@ -770,6 +789,16 @@ export class PicoEngine implements SimEngine {
         const a = this.scheduled[i];
         this.setInput(a.name, a.value);
         this.scheduled.splice(i, 1);
+        // Un lot d'instructions ne s'interrompt pas au milieu : quand une
+        // echeance est posee PENDANT un lot (fin d'impulsion TRIG detectee par
+        // un ecouteur GPIO), la borne `nextScheduledNanos` n'est prise en compte
+        // qu'au lot suivant et le front part avec jusqu'a ~1 ms de retard.
+        // Les fronts suivants, eux, tombaient pile : l'impulsion perdait ce
+        // retard sur sa largeur (echo HC-SR04 lu 5,2 ms au lieu de 5,8, et
+        // sautant de 300 us d'un tir a l'autre). D'ou le report en relatif.
+        for (const suivant of a.suite ?? []) {
+          this.scheduled.push({ nanos: now + suivant.apres, name: a.name, value: suivant.value });
+        }
       }
     }
     this.updateNextScheduled();

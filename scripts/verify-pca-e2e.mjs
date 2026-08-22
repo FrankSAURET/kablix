@@ -4,18 +4,19 @@
 // 0x7F et vérifie qu'AUCUN RuntimeError « PCA9685 non trouvé » n'est levé et
 // qu'un canal reçoit bien un rapport cyclique (servo 90°).
 // Régression du bug de Frank : la carte Grove 108020102 est à 0x7F, pas 0x40.
-// Nécessite test-assets/RPI_PICO-20230426-v1.20.0.uf2 (test sauté sinon).
+// Nécessite RPI_PICO-*.uf2 (test-assets/ ou cache VS Code) (test sauté sinon).
 import esbuild from 'esbuild';
 import { existsSync, mkdtempSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { tk } from '../testkablix/_paths.mjs';
+import { firmwarePico } from './_firmware.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const fw = join(root, 'test-assets', 'RPI_PICO-20230426-v1.20.0.uf2');
-if (!existsSync(fw)) {
-  console.log('SKIP : firmware MicroPython absent (test-assets/RPI_PICO-20230426-v1.20.0.uf2).');
+const fw = firmwarePico();
+if (!fw) {
+  console.log('SKIP : firmware MicroPython absent (RPI_PICO-*.uf2 (test-assets/ ou cache VS Code)).');
   process.exit(0);
 }
 const lib = tk('grove_16_channels_pwm.py');

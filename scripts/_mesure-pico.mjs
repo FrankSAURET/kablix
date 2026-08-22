@@ -6,6 +6,7 @@ import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { firmwarePico } from './_firmware.mjs';
 
 const ROOT = process.env.KABLIX_ROOT ?? 'h:/OneDrive/4 Programation/- VS Code/Extensions/Kablix';
 const tmp = mkdtempSync(join(tmpdir(), 'kablix-mes-'));
@@ -26,7 +27,7 @@ async function load(entry, name) {
 const { parseUf2 } = await load('src/shared/uf2.ts', 'uf2.mjs');
 const { PicoEngine } = await load('src/webview/engines/pico.mts', 'pico.mjs');
 
-const fw = join(ROOT, 'test-assets', 'RPI_PICO-20230426-v1.20.0.uf2');
+const fw = firmwarePico();
 const segments = parseUf2(new Uint8Array(readFileSync(fw))).map((s) => ({ addr: s.addr, data: s.data }));
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

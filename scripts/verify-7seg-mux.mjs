@@ -25,6 +25,7 @@ import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import JSZip from 'jszip';
 import { tk } from '../testkablix/_paths.mjs';
+import { firmwarePico } from './_firmware.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const tmp = mkdtempSync(join(tmpdir(), 'kablix-7seg-'));
@@ -143,9 +144,9 @@ async function colonSection() {
 
 await colonSection();
 
-const fw = join(root, 'test-assets', 'RPI_PICO-20230426-v1.20.0.uf2');
-if (!existsSync(fw)) {
-  console.log('ℹ️ firmware MicroPython absent (test-assets/RPI_PICO-20230426-v1.20.0.uf2) — section multiplexage sautée.');
+const fw = firmwarePico();
+if (!fw) {
+  console.log('ℹ️ firmware MicroPython absent (RPI_PICO-*.uf2 (test-assets/ ou cache VS Code)) — section multiplexage sautée.');
   bilan();
 }
 const { parseUf2 } = await load('src/shared/uf2.ts', 'uf2.mjs');

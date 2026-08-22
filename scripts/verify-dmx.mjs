@@ -26,6 +26,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { lireKompix } from './_lire-kompix.mjs';
+import { firmwarePico } from './_firmware.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const QUICK = process.argv.includes('--quick');
@@ -443,10 +444,10 @@ async function boutEnBout(nom, engine, pin, limiteMs) {
 }
 
 console.log('\n--- 4. Bout en bout Pico : dmx-pico.py → UART0 → univers ---');
-const fw = join(ROOT, 'test-assets', 'RPI_PICO-20230426-v1.20.0.uf2');
+const fw = firmwarePico();
 if (QUICK) {
 	console.log('--quick : étape sautée.');
-} else if (!existsSync(fw)) {
+} else if (!fw) {
 	console.log('Firmware absent — étape sautée.');
 } else {
 	const { parseUf2 } = await bundle("export * from './src/shared/uf2.ts';\n", 'uf2.mjs');

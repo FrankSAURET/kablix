@@ -10,6 +10,7 @@ import { mkdtempSync, readFileSync, writeSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { firmwarePico } from './_firmware.mjs';
 
 const MAIN = 'h:/OneDrive/4 Programation/- VS Code/Extensions/Kablix';
 const ROOT = process.env.KABLIX_ROOT ?? MAIN;
@@ -31,7 +32,7 @@ async function load(entry, name) {
 const { loadPythonProgram } = await load('src/compiler.ts', 'compiler.mjs');
 const { PicoEngine } = await load('src/webview/engines/pico.mts', 'pico.mjs');
 
-const fw = join(MAIN, 'test-assets', 'RPI_PICO-20230426-v1.20.0.uf2');
+const fw = firmwarePico();
 const source = readFileSync(join(MAIN, 'testkablix', NOM), 'utf8');
 const program = loadPythonProgram(fw, source, false);
 const engine = new PicoEngine({

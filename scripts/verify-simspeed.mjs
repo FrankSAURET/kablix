@@ -13,6 +13,7 @@ import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { firmwarePico } from './_firmware.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const tmp = mkdtempSync(join(tmpdir(), 'kablix-spd-'));
@@ -160,9 +161,7 @@ const bloque = (ms) => {
   const SPEED_WARN = Number(
     /const SPEED_WARN = ([\d.]+)/.exec(readFileSync(join(root, 'src/webview/sim.mts'), 'utf8'))?.[1] ?? 0.8,
   );
-  const fw = ['RPI_PICO-20230426-v1.20.0.uf2']
-    .map((n) => join(root, 'test-assets', n))
-    .find(existsSync);
+  const fw = firmwarePico();
   if (!fw) {
     console.log('  (firmware absent : mesure du démarrage sautée)');
   } else {
