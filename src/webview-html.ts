@@ -117,6 +117,10 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
         <option value="pico">Raspberry Pi Pico</option>
         <option value="picow">Raspberry Pi Pico W</option>
       </optgroup>
+      <optgroup label="Raspberry Pi (RP2350)">
+        <option value="pico2">Raspberry Pi Pico 2</option>
+        <option value="pico2w">Raspberry Pi Pico 2 W</option>
+      </optgroup>
     </select>
     <button id="load-workspace" hidden title="${l10n.t('Load a compiled .uf2 (Pico) or .hex (Arduino) from the workspace')}">↑ ${l10n.t('Load binary')}</button>
     <button id="new-project" class="toolbar__icon-btn" title="${l10n.t('New project')}"><img src="${newIconUri}" alt="${l10n.t('New project')}" /></button>

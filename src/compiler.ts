@@ -23,7 +23,7 @@ import { parseElf32 } from './shared/elf';
 import { instrumentPython } from './shared/pydebug';
 import { NET_PREAMBLE } from './shared/pynet';
 
-export type Board = 'uno' | 'nano' | 'mega' | 'pico' | 'picow';
+export type Board = 'uno' | 'nano' | 'mega' | 'pico' | 'picow' | 'pico2' | 'pico2w';
 
 /** Vrai pour une carte de la famille AVR (Arduino : Uno / Nano / Mega). */
 function isAvrBoard(board: Board): boolean {
@@ -1156,6 +1156,18 @@ async function compileFresh(
       "Aucune toolchain AVR trouvée pour ce fichier. Pour un sketch Arduino, ouvrez/sélectionnez un fichier .ino " +
         "et installez « arduino-cli » (réglage « kablix.arduinoCliPath » si déjà installé mais introuvable). " +
         "Pour du C bare-metal, installez « avr-gcc » (ou indiquez « kablix.toolchainPath »). Redémarrez VS Code après."
+    );
+  }
+
+  // Pico 2 / Pico 2 W : MicroPython seulement pour l'instant. Le bare-metal
+  // RP2350 demande un autre cœur (-mcpu=cortex-m33), un autre script d'édition
+  // de liens et le démarrage vectorisé du bootrom — rien de tout ça n'est écrit
+  // ni testé, mieux vaut le dire que produire un binaire qui ne démarre pas.
+  if (board === 'pico2' || board === 'pico2w') {
+    throw new Error(
+      "Le C bare-metal n'est pas encore pris en charge sur Pico 2 / Pico 2 W. " +
+        'Utilisez un fichier MicroPython (.py), ou choisissez une carte Pico / Pico W ' +
+        'pour compiler du C.'
     );
   }
 

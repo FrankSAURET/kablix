@@ -1,12 +1,23 @@
-// Moteur de simulation Raspberry Pi Pico (RP2040) basé sur rp2040js.
+// Moteur de simulation Raspberry Pi Pico : RP2040 (Pico, Pico W) ou RP2350
+// (Pico 2, Pico 2 W). La puce elle-même vient de `rp-chip.mts`, qui masque les
+// différences entre les deux bibliothèques d'émulation — tout ce qui suit est
+// commun aux deux familles.
 // Deux modes de chargement :
 //   - 'ram'   : image bare-metal copiée en SRAM (sortie du compilateur intégré) ;
 //   - 'flash' : firmware UF2/ELF programmé en flash + bootrom B1 (pico-sdk,
 //               MicroPython…), avec USB-CDC et UART0 reliés au moniteur série.
 // En mode flash, un script MicroPython optionnel est injecté via le raw REPL
 // (Ctrl-A … Ctrl-D) dès que l'USB est énuméré.
-import { RP2040, Simulator, USBCDC, GPIOPinState, ConsoleLogger, LogLevel } from 'rp2040js';
-import { bootromB1 } from './bootrom-b1.mjs';
+import { ConsoleLogger, LogLevel } from 'rp2040js';
+import {
+  creerChip,
+  GPIOPinState,
+  type PicoCdc,
+  type PicoChip,
+  type PicoClock,
+  type PicoFamily,
+  type PicoMcu,
+} from './rp-chip.mjs';
 import type {
   Breakpoint,
   DebugPauseState,
@@ -24,9 +35,6 @@ import { Ws2812Decoder } from './ws2812.mjs';
 import { DmxDecoder } from './dmx.mjs';
 import { buildDht22Schedule, DHT22_START_LOW_US, type DhtModel, type DhtTransition } from './dht22.mjs';
 import { DEFAULT_AIR_TEMP_C, echoUsPerCm } from './ultrasonic.mjs';
-
-const RAM_START = 0x20000000;
-const FLASH_START = 0x10000000;
 
 export type PicoProgram =
   | { kind: 'ram'; image: Uint8Array }
@@ -57,9 +65,6 @@ function adcChannel(name: string): number | null {
   return i !== null && i >= 26 && i <= 29 ? i - 26 : null;
 }
 
-// Durée d'un cycle à 125 MHz (nanosecondes simulées).
-const CYCLE_NANOS = 1e9 / 125_000_000;
-
 // Rejeu silencieux (bascule vers le script instrumenté, cf. switchToDebug).
 const REPLAY_TICK_MS = 1500; //     période de surveillance (relance du Ctrl-C)
 const REPLAY_KICKS = 4; //          nombre de Ctrl-C avant d'abandonner l'interruption douce
@@ -84,16 +89,25 @@ const MAX_DEBT_MS = 2000;
 const CATCHUP = 1.25;
 
 /**
- * Simulator rp2040js au cadencement optimisé. La boucle d'origine appelle
+ * Boucle de simulation au cadencement optimisé. Celle de rp2040js appelle
  * `clock.tick()` et re-teste l'arrêt à CHAQUE instruction, puis rend la main
  * par `setTimeout(0)` (clampé à ~4 ms par Chrome sur les timers imbriqués).
  * Ici : lots d'instructions bornés par la prochaine alarme (les échéances
- * restent exactes — le lot s'arrête pile dessus), `tick` groupé par lot, et
- * yield par MessageChannel (macrotâche sans clampage). Mesuré : ≈ +16 % de
- * débit en node, davantage en webview. Le profil restant est ~50 % dans
- * `executeInstruction` (interpréteur ARM) — plafond de rp2040js.
+ * restent exactes — le lot s'arrête pile dessus) et yield par MessageChannel
+ * (macrotâche sans clampage). Mesuré : ≈ +16 % de débit en node, davantage en
+ * webview. Le profil restant est ~50 % dans `executeInstruction` (interpréteur
+ * ARM) — plafond de l'émulation.
+ *
+ * L'exécution proprement dite est déléguée à la puce (cf. rp-chip.mts) : un
+ * appel par LOT, pas un par instruction.
  */
-class KablixSimulator extends Simulator {
+class KablixSimulator {
+  /** La puce simulée — RP2040 ou RP2350 selon la carte. */
+  readonly chip: PicoChip;
+  readonly clock: PicoClock;
+  /** Vrai tant que la boucle ne tourne pas (lu par la puce pendant un lot). */
+  stopped = true;
+  executeTimer: ReturnType<typeof setTimeout> | null = null;
   /** Génération de planification : invalide les yields MessageChannel en vol. */
   private gen = 0;
   private readonly port: MessagePort;
@@ -128,8 +142,10 @@ class KablixSimulator extends Simulator {
   /** Temps réel cumulé passé DANS la boucle (ms) — diagnostic, cf. SimEngine.busyMs. */
   busyAccum = 0;
 
-  constructor() {
-    super();
+  constructor(famille: PicoFamily) {
+    this.chip = creerChip(famille, this);
+    this.clock = this.chip.clock;
+    this.chip.surBreak(() => this.stop()); // BKPT : arrêt du simulateur
     const ch = new MessageChannel();
     this.port = ch.port1;
     ch.port2.onmessage = (e: MessageEvent) => {
@@ -137,8 +153,16 @@ class KablixSimulator extends Simulator {
     };
   }
 
-  override stop(): void {
-    super.stop();
+  get executing(): boolean {
+    return !this.stopped;
+  }
+
+  stop(): void {
+    this.stopped = true;
+    if (this.executeTimer != null) {
+      clearTimeout(this.executeTimer);
+      this.executeTimer = null;
+    }
     this.gen++; // un yield déjà posté ne relancera pas la boucle
   }
 
@@ -154,8 +178,8 @@ class KablixSimulator extends Simulator {
     return this.debtMs;
   }
 
-  override execute(): void {
-    const { rp2040, clock } = this;
+  execute(): void {
+    const { chip, clock } = this;
     this.executeTimer = null;
     this.stopped = false;
     const busyStart = performance.now();
@@ -191,7 +215,7 @@ class KablixSimulator extends Simulator {
         this.paceWall = now;
         this.paceSim = clock.nanos;
       }
-      if (rp2040.core.waiting) {
+      if (chip.dort()) {
         let n = clock.nanosToNextAlarm;
         if (this.nextScheduledNanos !== null) {
           const toScheduled = Math.max(0, this.nextScheduledNanos - clock.nanos);
@@ -208,37 +232,14 @@ class KablixSimulator extends Simulator {
           idle = true;
           break;
         }
-        // Le compteur de cycles suit le saut (AVANT le tick : les fronts GPIO
-        // déclenchés par les alarmes — PWM servo… — sont horodatés en cycles).
-        const jumpCycles = n / CYCLE_NANOS;
-        rp2040.core.cycles += jumpCycles;
-        // PIO patché (KABLIX) : plus de setTimeout auto-cadencé, avancer
-        // manuellement pendant les sauts WFE sinon un state machine actif
-        // (ex. machine.bitstream d'un NeoPixel) se figerait pendant tout
-        // time.sleep() — le firmware attend justement la fin du bitstream.
-        rp2040.pio[0].advance(jumpCycles);
-        rp2040.pio[1].advance(jumpCycles);
-        clock.tick(n);
+        chip.sauter(n);
         this.onTick?.();
       } else {
         // Lot d'instructions ≤ 1 ms simulée, borné par la prochaine échéance
-        // programmée (ECHO ultrason…). L'horloge avance À CHAQUE instruction
-        // (clock.tick) et non plus une fois par lot : SYST_CVR (SysTick, dérivé
-        // de clock.nanos) restait sinon GELÉ pendant tout le lot, et toute
-        // routine firmware busy-waitant dessus à quelques centaines de ns près
-        // — machine.bitstream d'un NeoPixel : 0,4-0,9 µs par phase — voyait
-        // ses durées quantifiées à la taille du lot (~1 ms), toutes identiques.
-        // Les alarmes dues en cours de lot (DMA, USB…) tombent aussi pile au
-        // lieu d'attendre la fin du lot.
-        const batchStart = clock.nanos;
-        while (!rp2040.core.waiting && !this.stopped) {
-          if (clock.nanos - batchStart >= 1e6) break;
-          if (this.nextScheduledNanos !== null && clock.nanos >= this.nextScheduledNanos) break;
-          const instrCycles = rp2040.core.executeInstruction();
-          rp2040.pio[0].advance(instrCycles);
-          rp2040.pio[1].advance(instrCycles);
-          clock.tick(instrCycles * CYCLE_NANOS);
-        }
+        // programmée (ECHO ultrason…) : au-delà, le pacing et les actions
+        // programmées ont besoin de reprendre la main.
+        const fin = Math.min(clock.nanos + 1e6, this.nextScheduledNanos ?? Infinity);
+        chip.executerLot(fin);
         this.onTick?.();
       }
     }
@@ -284,14 +285,14 @@ export class PicoEngine implements SimEngine {
   private isPaused = false;
   private disposed = false;
   private sim: KablixSimulator;
-  private mcu: RP2040;
+  private mcu: PicoMcu;
   /** Décodeurs DMX512 par broche TX déclarée (cf. setDmx) — vide en temps normal. */
   private dmxByPin = new Map<string, DmxDecoder>();
   /** Décodeur DMX de chaque UART matériel, indexé 0/1. */
   private dmxByUart: Array<DmxDecoder | null> = [];
   /** Canaux ADC dont la tension est CALCULÉE à la conversion (cf. setAnalogSampler). */
   private analogSamplers = new Map<number, () => number>();
-  private cdc: USBCDC | null = null;
+  private cdc: PicoCdc | null = null;
   /** Script actuellement injecté (brut au départ, instrumenté après bascule). */
   private script: string | null = null;
   /** Variante instrumentée, gardée sous le coude jusqu'au premier point d'arrêt. */
@@ -376,34 +377,12 @@ export class PicoEngine implements SimEngine {
     wasLow: boolean; lowStartNanos: number; busyUntilNanos: number;
   }> = [];
 
-  constructor(program: PicoProgram) {
-    this.sim = new KablixSimulator();
+  constructor(program: PicoProgram, famille: PicoFamily = 'rp2040') {
+    this.sim = new KablixSimulator(famille);
     this.sim.onTick = () => this.fireScheduled();
-    this.mcu = this.sim.rp2040;
+    this.mcu = this.sim.chip.mcu;
     this.mcu.logger = new ConsoleLogger(LogLevel.Error);
-    // GPIO_IN doit RELIRE ce que la broche pilote elle-même (KABLIX).
-    // Sur silicium, le tampon d'entrée est branché sur le PAD : une broche en
-    // sortie se relit donc à son propre niveau, et c'est là-dessus que repose le
-    // `Pin.value()` de MicroPython (il lit SIO.GPIO_IN, jamais le registre de
-    // sortie). rp2040js, lui, ne remplit `rawInputValue` que depuis l'EXTÉRIEUR :
-    // une broche jamais pilotée du dehors relisait 0 pour toujours — d'où
-    // `blink-pico` qui imprimait « LED OFF » à chaque tour alors que la LED
-    // clignotait bel et bien (retour Frank). Correction au seul point de lecture
-    // (SIO.GPIO_IN et l'entrée PIO) : les interruptions de broche gardent leur
-    // source d'origine, donc une sortie ne peut pas se réveiller elle-même.
-    {
-      const gpio = this.mcu.gpio;
-      Object.defineProperty(this.mcu, 'gpioValues', {
-        get(): number {
-          let result = 0;
-          for (let i = 0; i < gpio.length; i++) {
-            const pin = gpio[i];
-            if (pin.outputEnable ? pin.outputValue : pin.inputValue) result |= 1 << i;
-          }
-          return result;
-        },
-      });
-    }
+    this.sim.chip.patcherRelectureSortie();
     // Échantillonnage à l'instant EXACT de la conversion (cf. setAnalogSampler) :
     // la tension du canal est recalculée juste avant la lecture par défaut.
     {
@@ -416,18 +395,9 @@ export class PicoEngine implements SimEngine {
     }
 
     if (program.kind === 'ram') {
-      this.mcu.sram.set(program.image, 0); // image chargée à 0x20000000
-      this.mcu.core.VTOR = RAM_START;
-      this.mcu.core.reset();
+      this.sim.chip.chargerRam(program.image);
     } else {
-      // Bootrom B1 requis : les firmwares pico-sdk/MicroPython appellent ses
-      // fonctions ROM (boot2, routines flottantes, memcpy…).
-      this.mcu.loadBootrom(bootromB1);
-      for (const seg of program.segments) {
-        const offset = seg.addr - FLASH_START;
-        if (offset < 0 || offset + seg.data.length > this.mcu.flash.length) continue;
-        this.mcu.flash.set(seg.data, offset);
-      }
+      this.sim.chip.chargerFlash(program.segments);
       this.script = program.script ?? null;
       this.debugSource = program.scriptDebug ?? null;
       // Sans variante instrumentée fournie, le script reçu EST la version de
@@ -436,30 +406,12 @@ export class PicoEngine implements SimEngine {
       // Le pas à pas n'existe qu'en mode script MicroPython.
       if (this.script) this.step = () => this.doStep();
 
-      this.cdc = new USBCDC(this.mcu.usbCtrl);
-      this.cdc.onSerialData = (buffer) => this.onCdcData(buffer);
-      this.cdc.onDeviceConnected = () => this.onCdcConnected();
+      this.cdc = this.sim.chip.creerCdc({
+        onData: (buffer) => this.onCdcData(buffer),
+        onConnected: () => this.onCdcConnected(),
+      });
 
-      // Anti-tempête USB : quand le firmware arme le endpoint OUT du CDC sans
-      // qu'aucun octet n'attende côté hôte, rp2040js répond « transfert vide »
-      // au bout de 10 µs et TinyUSB réarme aussitôt — une IRQ toutes les
-      // ~25 µs simulées qui avorte chaque WFE. time.sleep() devenait une
-      // boucle chaude (~4× le temps réel). On répond à la cadence d'un vrai
-      // hôte full-speed (trame de 1 ms) : le firmware dort vraiment entre deux.
-      const usb = this.mcu.usbCtrl;
-      const cdcEndpointRead = usb.onEndpointRead;
-      const cdcInternals = this.cdc as unknown as { outEndpoint: number };
-      const emptyOut = new Uint8Array(0);
-      usb.onEndpointRead = (endpoint, byteCount) => {
-        if (endpoint === cdcInternals.outEndpoint && this.cdc!.txFIFO.itemCount === 0) {
-          usb.endpointReadDone(endpoint, emptyOut, 1000);
-        } else {
-          cdcEndpointRead?.(endpoint, byteCount);
-        }
-      };
-
-      // Démarrage identique au bootrom réel : exécution de boot2 en début de flash.
-      this.mcu.core.PC = FLASH_START;
+      this.sim.chip.demarrer();
     }
 
     for (const pin of this.mcu.gpio) {

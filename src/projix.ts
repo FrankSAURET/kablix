@@ -33,7 +33,7 @@ export interface ProjixManifest {
   format: 'projix';
   version: number;
   app: string;
-  board: 'uno' | 'nano' | 'mega' | 'pico' | 'picow';
+  board: 'uno' | 'nano' | 'mega' | 'pico' | 'picow' | 'pico2' | 'pico2w';
   createdAt: string;
   /** Fichier de code à exécuter/déboguer (chemin relatif au workspace ou nom). */
   codeFile?: string;

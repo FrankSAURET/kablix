@@ -6,8 +6,8 @@
     "lib": ["ES2022", "DOM"],
     "types": ["node"],
     "outDir": "dist",
-    "rootDir": "src",
     "strict": true,
+    "useDefineForClassFields": false,
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
@@ -15,6 +15,6 @@
     "sourceMap": true,
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "src/**/*.mts"],
+  "include": ["src/**/*.ts", "src/**/*.mts", "vendor/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

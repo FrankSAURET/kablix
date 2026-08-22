@@ -57,7 +57,7 @@ ok(
 // éteint, la simulation doit démarrer exactement comme avant.
 ok(
   'sim.mts : repli sur le moteur du fil principal si le worker n’est pas disponible',
-  /workerReady\(\)[\s\S]{0,400}\?\?\s*\n?\s*\(rp2040[\s\S]{0,200}new AvrEngine/.test(sim)
+  /workerReady\(\)[\s\S]{0,600}\?\?\s*\n?\s*\(pico[\s\S]{0,200}new AvrEngine/.test(sim)
 );
 // Les périphériques de bus sont des OBJETS à méthodes, appelés au milieu d'une
 // trame : ils ne traversent pas. Ils sont donc DÉCRITS, le worker fabrique les
@@ -100,13 +100,15 @@ ok(
   'sim.mts : pas de double calcul — un moteur à ondes ne reçoit pas la fonction',
   /if \(!engine\.setAnalogWaves\) engine\.setAnalogSampler\?\.\(pin, sampler\)/.test(sim)
 );
-// Le RP2040 passe par le worker depuis le lot 4 : `pico.mts` ne lit ni `document`
-// ni `window`. Le repli reste un `new PicoEngine` sur le fil principal.
+// Les Pico passent par le worker depuis le lot 4 : `pico.mts` ne lit ni `document`
+// ni `window`. Le repli reste un `new PicoEngine` sur le fil principal. La famille
+// de puce (rp2040 / rp2350) doit suivre des DEUX côtés, sinon le Pico 2 tournerait
+// sur un cœur Cortex-M0+ avec un firmware Cortex-M33.
 ok(
-  'sim.mts : le Pico passe par le worker, avec son programme et son repli',
-  /rp2040 \? 'pico' :/.test(sim) &&
-    /rp2040 \? picoProgram : unoProgram/.test(sim) &&
-    /rp2040\s*\n?\s*\? new PicoEngine\(picoProgram\)/.test(sim)
+  'sim.mts : les Pico passent par le worker, avec leur programme et leur repli',
+  /picoFamille === 'rp2350'\s*\n?\s*\? 'pico2'/.test(sim) &&
+    /pico \? picoProgram : unoProgram/.test(sim) &&
+    /pico\s*\n?\s*\? new PicoEngine\(picoProgram, picoFamille\)/.test(sim)
 );
 ok(
   'sim.mts : le bundle est préchargé (startRun est synchrone, il ne peut pas attendre)',

@@ -37,7 +37,7 @@ export function arduinoIdeTarget(board: Board): { board: string; configuration: 
     case 'mega':
       return { board: 'arduino:avr:mega', configuration: 'cpu=atmega2560' };
     default:
-      return undefined; // pico / picow : MicroPython
+      return undefined; // pico, picow, pico2, pico2w : MicroPython
   }
 }
 

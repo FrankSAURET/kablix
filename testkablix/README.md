@@ -23,7 +23,9 @@ casse donc ni la génération ni les vérifications.
 ## Couverture
 
 Chaque carte de dev a son projix : `blink-uno`, `blink-nano`, `blink-mega`,
-`blink-pico`, `blink-picow` (LED embarquée).
+`blink-pico`, `blink-picow`, `blink-pico2`, `blink-pico2w` (LED embarquée). Les
+deux derniers portent la puce **RP2350** (Cortex-M33) : le code est le même que
+sur une Pico, seul `machine.freq()` change (150 MHz au lieu de 125).
 
 Chaque composant du catalogue a deux tests : `<composant>-uno` (Arduino, C) et
 `<composant>-pico` (MicroPython) — sauf le HC-SR04, simulé sur AVR uniquement, et

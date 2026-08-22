@@ -2497,6 +2497,49 @@ while True:
     time.sleep(0.5)
 `,
   }),
+
+  test({
+    name: 'blink-pico2', board: 'pico2', ext: 'py',
+    parts: [MCU('pico2', 160, 100)],
+    wires: () => [],
+    expect: { kind: 'board-only' },
+    code: `# Test carte Raspberry Pi Pico 2 : la LED embarquee (GP25) clignote.
+# Meme code que sur la Pico : c'est la PUCE qui change (RP2350, deux coeurs
+# Cortex-M33 a 150 MHz au lieu du RP2040 a 125). machine.freq() le montre.
+from machine import Pin
+import machine
+import time
+
+print("FREQ", machine.freq())
+led = Pin(25, Pin.OUT)
+while True:
+    led.toggle()
+    print("LED", "ON" if led.value() else "OFF")
+    time.sleep(0.5)
+`,
+  }),
+
+  test({
+    name: 'blink-pico2w', board: 'pico2w', ext: 'py',
+    parts: [MCU('pico2w', 160, 100)],
+    wires: () => [],
+    expect: { kind: 'board-only' },
+    code: `# Test carte Raspberry Pi Pico 2 W : la LED embarquee clignote.
+# Comme sur la Pico W, cette LED est cablee sur la puce Wi-Fi de la vraie carte
+# et s'adresse par son nom : Pin("LED"). Kablix la simule sur GP25 (la puce
+# Wi-Fi n'est pas emulee) et accepte les DEUX ecritures.
+from machine import Pin
+import machine
+import time
+
+print("FREQ", machine.freq())
+led = Pin("LED", Pin.OUT)
+while True:
+    led.toggle()
+    print("LED", "ON" if led.value() else "OFF")
+    time.sleep(0.5)
+`,
+  }),
 ];
 
 // ================================================================================

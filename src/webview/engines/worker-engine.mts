@@ -46,9 +46,10 @@ import {
  * publication.
  */
 function boardPins(board: WorkerBoard): string[] {
-  // RP2040 : GP0..GP29 (les entrées analogiques GP26..GP28 en font partie, et la
-  // LED embarquée d'un Pico W est redirigée sur GP25 par la rustine `machine`).
-  if (board === 'pico') {
+  // RP2040 / RP2350 : GP0..GP29 (les entrées analogiques GP26..GP28 en font
+  // partie, et la LED embarquée d'un Pico W est redirigée sur GP25 par la
+  // rustine `machine`).
+  if (board === 'pico' || board === 'pico2') {
     const pins: string[] = [];
     for (let i = 0; i < 30; i++) pins.push(`GP${i}`);
     return pins;

@@ -11,6 +11,7 @@ import {
   PALETTE_CATALOG,
   capacitorDefOf,
   hasPca9685Pads,
+  isPicoBoard,
   listCustomParts,
   migratePartAttrs,
   partCategory,
@@ -20,6 +21,7 @@ import {
   registerCustomPart,
   setSimModelPresets,
   unregisterCustomPart,
+  type BoardId,
   type CustomPartData,
   type PartDef,
   type PropCondition,
@@ -1806,7 +1808,7 @@ export class Editor {
     // ne bougent pas pendant le geste, une seule collecte suffit.
     const def = partDef(type);
     const kind = def.kind;
-    const picoLike = kind === 'mcu' && (def.board === 'pico' || def.board === 'picow');
+    const picoLike = kind === 'mcu' && isPicoBoard(def.board as BoardId);
     const pluggable = kind !== 'breadboard' && kind !== 'grove-shield' && (kind !== 'mcu' || picoLike);
     const holes = pluggable ? this.collectBreadboardHoles(part.id, picoLike) : [];
     const preview = (): void => {
@@ -1862,7 +1864,7 @@ export class Editor {
   private plugPlacedPart(part: Part): void {
     const def = partDef(part.type);
     const kind = def.kind;
-    const picoLike = kind === 'mcu' && (def.board === 'pico' || def.board === 'picow');
+    const picoLike = kind === 'mcu' && isPicoBoard(def.board as BoardId);
     if (kind === 'breadboard' || kind === 'grove-shield' || (kind === 'mcu' && !picoLike)) return;
     const holes = this.collectBreadboardHoles(part.id, picoLike);
     // silent : la pose depuis palette fusionne l'enfichage dans son notify() final.
@@ -2804,7 +2806,7 @@ export class Editor {
     // s'enfiche sur le socle du Grove Shield (et uniquement là).
     const def2 = partDef(part.type);
     const kind = def2.kind;
-    const picoLike = kind === 'mcu' && (def2.board === 'pico' || def2.board === 'picow');
+    const picoLike = kind === 'mcu' && isPicoBoard(def2.board as BoardId);
     const pluggable =
       !isGroup && kind !== 'breadboard' && kind !== 'grove-shield' && (kind !== 'mcu' || picoLike);
     const holes = pluggable ? this.collectBreadboardHoles(part.id, picoLike) : [];

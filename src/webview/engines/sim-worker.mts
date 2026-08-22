@@ -267,11 +267,11 @@ function stopPublishing(): void {
 function init(msg: Extract<ToWorker, { t: 'init' }>): void {
   pins = msg.pins;
   snap = emptySnapshot(pins.length);
-  if (msg.board === 'pico') {
+  if (msg.board === 'pico' || msg.board === 'pico2') {
     // `pico.mts` ne lit ni `document` ni `window` : il tourne tel quel ici. Ses
     // trois rappels propres au MicroPython deviennent des messages — la page en
     // fait le texte du bandeau et le pont réseau, tous deux hors du worker.
-    const pico = new PicoEngine(msg.program as PicoProgram);
+    const pico = new PicoEngine(msg.program as PicoProgram, msg.board === 'pico2' ? 'rp2350' : 'rp2040');
     pico.onRunning = () => send({ t: 'scriptStarted' });
     pico.onDebugRestart = (phase) => send({ t: 'debugRestart', phase });
     pico.onNetRequest = (req) => send({ t: 'netRequest', req });

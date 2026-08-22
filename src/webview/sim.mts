@@ -63,7 +63,7 @@ import './composants/custom-part.mjs';
 import { initLocale, t } from './i18n.mjs';
 import { Plotter } from './plotter.mjs';
 import { Editor, KABLIX_BADGE, type PaletteState } from './diagram/editor.mjs';
-import { partDef, boardFamily, isBoardId, mcuPinRole, pca9685Address, PARAM_ATTR_PREFIX, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
+import { partDef, boardFamily, isPicoBoard, isBoardId, mcuPinRole, pca9685Address, PARAM_ATTR_PREFIX, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
 import { compileExpr } from './diagram/expr.mjs';
 import { toWokwiDiagram, fromWokwiDiagram } from './diagram/wokwi.mjs';
 import { partsCsv } from './diagram/bom.mjs';
@@ -660,8 +660,8 @@ closePlotterBtn.addEventListener('click', () => setPlotterVisible(false));
 /** Titre du panneau série : « Console » pour un Pico, « Moniteur série » sinon. */
 function updateSerialTitle(): void {
   serialTitleEl.textContent =
-    boardFamily(board) === 'rp2040' ? t('Console') : t('Serial monitor');
-  replBtn.hidden = boardFamily(board) !== 'rp2040';
+    isPicoBoard(board) ? t('Console') : t('Serial monitor');
+  replBtn.hidden = !isPicoBoard(board);
 }
 
 function b64ToBytes(b64: string): Uint8Array {
@@ -1200,7 +1200,7 @@ const contactState: ManualContactState = {
 function resolveBridges(): void {
   if (!engine) return;
   const read = (name: string): boolean => engine!.readDigital(name);
-  const vcc = boardFamily(board) === 'rp2040' ? 3.3 : 5;
+  const vcc = isPicoBoard(board) ? 3.3 : 5;
   // Contacts fermés à la main : ils ne dépendent d'aucun niveau, donc ils sont
   // posés une fois pour toute la résolution et s'ajoutent aux ponts commandés.
   const contacts = manualContacts(editor.diagram, contactState);
@@ -1264,7 +1264,7 @@ function clearRelayFaults(): void {
 function reportRelayFaults(): void {
   if (!engine) return;
   const read = (name: string): boolean => engine!.readDigital(name);
-  const vcc = boardFamily(board) === 'rp2040' ? 3.3 : 5;
+  const vcc = isPicoBoard(board) ? 3.3 : 5;
   for (const st of relayStates(editor.diagram, read, vcc, psuLiveVolts, liveVariableOhms)) {
     if ((relayFaults.get(st.partId) ?? 'none') === st.fault) continue;
     relayFaults.set(st.partId, st.fault);
@@ -1310,7 +1310,7 @@ function reportRelayFaults(): void {
  */
 function reportMotorFaults(): void {
   if (!engine) return;
-  const vcc = boardFamily(board) === 'rp2040' ? 3.3 : 5;
+  const vcc = isPicoBoard(board) ? 3.3 : 5;
   // Commande en PWM : c'est le rapport cyclique, pas le niveau instantané, qui
   // fixe la tension moyenne aux bornes du moteur.
   const duty = (mcuPin: string | null): number => {
@@ -1436,7 +1436,7 @@ function refreshVisuals(): void {
  */
 function stepCapacitors(): void {
   if (!engine) return;
-  const vcc = boardFamily(board) === 'rp2040' ? 3.3 : 5;
+  const vcc = isPicoBoard(board) ? 3.3 : 5;
   const nodes = capacitorNodes(
     editor.diagram,
     vcc,
@@ -1564,7 +1564,7 @@ function refreshVisualsInner(): void {
           // de l'anode y aboutit (bouton relu en direct), sinon VCC de la carte.
           const circ = ledPowerCircuit(editor.diagram, part.id, psuLiveVolts);
           // Une diode en série prélève sa tension de seuil avant la LED.
-          const vsrc = circ.supplyVolts ?? (boardFamily(board) === 'rp2040' ? 3.3 : 5);
+          const vsrc = circ.supplyVolts ?? (isPicoBoard(board) ? 3.3 : 5);
           const vs = Math.max(0, vsrc - (circ.diodeDrop ?? 0));
           const elec = ledElectrical(circ.ohms, vs, part.attrs?.color);
           if (elec.overCurrent) burnedLeds.add(part.id);
@@ -1602,7 +1602,7 @@ function refreshVisualsInner(): void {
         // Résistance série PAR CANAL (même physique que la LED simple) : un
         // canal qui conduit en sur-courant grille toute la LED (flamme) ;
         // résistance trop forte → canal assombri voire éteint.
-        const vs = boardFamily(board) === 'rp2040' ? 3.3 : 5;
+        const vs = isPicoBoard(board) ? 3.3 : 5;
         const level = (chanPin: 'R' | 'G' | 'B', color: string, raw: number): number => {
           if (raw <= 0 || burnedLeds.has(part.id)) return raw;
           const elec = ledElectrical(rgbSeriesOhms(editor.diagram, part.id, chanPin), vs, color);
@@ -1738,7 +1738,7 @@ function refreshVisualsInner(): void {
         // résistance trop forte → segment assombri (valeur fractionnaire,
         // rendue par color-mix dans le fork) voire éteint.
         if (!burnedLeds.has(part.id)) {
-          const vs = boardFamily(board) === 'rp2040' ? 3.3 : 5;
+          const vs = isPicoBoard(board) ? 3.3 : 5;
           const lumBySeg = new Map<string, number>();
           // Grillage/luminosité calculés sur l'état CONDUCTEUR INSTANTANÉ (pas
           // sur `vals` lissé) : le sur-courant est électrique et immédiat, donc
@@ -1790,7 +1790,7 @@ function refreshVisualsInner(): void {
         // Même physique que la LED simple, LED par LED de la barre : une seule
         // en sur-courant grille toute la barre.
         if (!burnedLeds.has(part.id)) {
-          const vs = boardFamily(board) === 'rp2040' ? 3.3 : 5;
+          const vs = isPicoBoard(board) ? 3.3 : 5;
           for (let i = 0; i < vals.length; i++) {
             if (!vals[i]) continue;
             const elec = ledElectrical(
@@ -1857,7 +1857,7 @@ function refreshVisualsInner(): void {
         const circ = fanCircuit(
           editor.diagram,
           part.id,
-          boardFamily(board) === 'rp2040' ? 3.3 : 5,
+          isPicoBoard(board) ? 3.3 : 5,
           psuLiveVolts,
           liveVariableOhms
         );
@@ -1951,11 +1951,11 @@ function refreshVisualsInner(): void {
         break;
       }
       case 'mcu':
-        // LED embarquée : GP25 sur le Pico / Pico W, D13 (`LED_BUILTIN`) sur les
+        // LED embarquée : GP25 sur les Pico, D13 (`LED_BUILTIN`) sur les
         // cartes AVR — plus la LED verte « ON », allumée dès que la carte tourne
         // (v203 : les cartes Arduino n'avaient AUCUNE LED animée, un blink sans
         // LED câblée ne montrait donc rien du tout).
-        if (def.board && boardFamily(def.board) === 'rp2040') {
+        if (def.board && isPicoBoard(def.board)) {
           el.ledPower = engine.readDigital('GP25');
         } else {
           el.led13 = engine.readDigital('13');
@@ -2075,7 +2075,7 @@ function bindInputs(): void {
   // composant absent de cette liste clignote au lieu de varier (cf.
   // pulseMonitorPins).
   engine.setPulseMonitors?.(
-    pulseMonitorPins(editor.diagram, boardFamily(board) === 'rp2040' ? 3.3 : 5)
+    pulseMonitorPins(editor.diagram, isPicoBoard(board) ? 3.3 : 5)
   );
 
   // Capteurs ultrason : distance ET température de l'air choisies EN SIMULATION
@@ -2482,7 +2482,7 @@ function bindInputs(): void {
             fn = null; // expression invalide (ancien import) : repli linéaire
           }
         }
-        const vref = boardFamily(board) === 'rp2040' ? 3.3 : 5;
+        const vref = isPicoBoard(board) ? 3.3 : 5;
         const apply = () => {
           const x = Number(el.controlValue ?? 0);
           let level: number;
@@ -3260,17 +3260,22 @@ function startRun(): void {
     // RP2040 : tous deux ignorent le DOM. Réglage `kablix.simulationWorker`, et
     // repli silencieux sur le moteur du fil principal si le bundle n'est pas prêt.
     const workerFit = simWorkerEnabled() && workerReady();
-    const rp2040 = boardFamily(board) === 'rp2040';
+    const pico = isPicoBoard(board);
+    // Pico 2 / Pico 2 W : même moteur, autre puce (RP2350, Cortex-M33 à 150 MHz).
+    const picoFamille = boardFamily(board) === 'rp2350' ? 'rp2350' : 'rp2040';
+    const workerBoard = pico
+      ? picoFamille === 'rp2350'
+        ? 'pico2'
+        : 'pico'
+      : board === 'mega'
+        ? 'mega'
+        : 'uno';
     engine =
       (workerFit
-        ? WorkerEngine.create(
-            rp2040 ? 'pico' : board === 'mega' ? 'mega' : 'uno',
-            rp2040 ? picoProgram : unoProgram,
-            rp2040 ? null : unoDebugInfo
-          )
+        ? WorkerEngine.create(workerBoard, pico ? picoProgram : unoProgram, pico ? null : unoDebugInfo)
         : null) ??
-      (rp2040
-        ? new PicoEngine(picoProgram)
+      (pico
+        ? new PicoEngine(picoProgram, picoFamille)
         : new AvrEngine(unoProgram, unoDebugInfo, board === 'mega' ? 'avr2560' : 'avr328'));
   } catch (err) {
     setStatus(t('Error: {0}', err instanceof Error ? err.message : String(err)));
@@ -3325,7 +3330,7 @@ function startRun(): void {
   // Sondes internes : toute tension posée sur une broche analogique (capteurs,
   // potentiomètres…) est tracée en volts — la Vref dépend de la famille de carte.
   {
-    const vref = boardFamily(board) === 'rp2040' ? 3.3 : 5;
+    const vref = isPicoBoard(board) ? 3.3 : 5;
     const engineSetAnalog = engine.setAnalog.bind(engine);
     engine.setAnalog = (pin, fraction) => {
       engineSetAnalog(pin, fraction);
@@ -3372,7 +3377,7 @@ function startRun(): void {
   // firmware puis injection par le raw REPL) : on ne mesure la vitesse qu'à
   // partir de `onRunning`. Sketch AVR ou REPL interactif : rien à attendre.
   speedArmed = !(
-    boardFamily(board) === 'rp2040' && picoProgram.kind === 'flash' && !!picoProgram.script
+    isPicoBoard(board) && picoProgram.kind === 'flash' && !!picoProgram.script
   );
   startRenderLoop(); // rendu continu tant que le moteur tourne
   editor.setLocked(true); // schéma figé pendant la simulation
@@ -3380,8 +3385,8 @@ function startRun(): void {
   useDebugAsInspector(true); // Variables à la place des Propriétés
   runBtn.disabled = true;
   stopBtn.disabled = false;
-  const isPython = boardFamily(board) === 'rp2040' && picoProgram.kind === 'flash' && !!picoProgram.script;
-  const isRepl = boardFamily(board) === 'rp2040' && picoProgram.kind === 'flash' && !picoProgram.script;
+  const isPython = isPicoBoard(board) && picoProgram.kind === 'flash' && !!picoProgram.script;
+  const isRepl = isPicoBoard(board) && picoProgram.kind === 'flash' && !picoProgram.script;
   runIsPython = isPython;
   setReplMode(isRepl);
   updateDebugButtons();
@@ -4316,14 +4321,13 @@ function switchBoard(target: BoardId): void {
 
 /**
  * Le programme reçu indique seulement sa FAMILLE (payload 'uno' = AVR, 'pico' =
- * RP2040). On ne change la carte affichée que si la famille courante ne
- * correspond pas — ainsi un Nano ou un Pico W choisi par l'utilisateur n'est pas
- * réécrasé par 'uno'/'pico' à chaque exécution.
+ * n'importe quel Pico). On ne change la carte affichée que si la famille
+ * courante ne correspond pas — ainsi un Nano, un Pico W ou un Pico 2 choisi par
+ * l'utilisateur n'est pas réécrasé par 'uno'/'pico' à chaque exécution.
  */
 function ensureFamilyForPayload(payloadBoard: 'uno' | 'pico'): void {
-  const wantsRp2040 = payloadBoard === 'pico';
-  const isRp2040 = boardFamily(board) === 'rp2040';
-  if (wantsRp2040 !== isRp2040) switchBoard(payloadBoard);
+  const veutPico = payloadBoard === 'pico';
+  if (veutPico !== isPicoBoard(board)) switchBoard(payloadBoard);
 }
 
 // Feuille de dessin vide au démarrage : l'utilisateur compose son schéma.

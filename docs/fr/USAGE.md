@@ -279,6 +279,17 @@ Quand la simulation détecte une erreur de câblage ou un composant détruit, el
 
 Le cadre et l'étiquette n'apparaissent que **pendant la simulation** ; ils disparaissent dès que le défaut est corrigé, et à l'arrêt.
 
+### Ajouter des bibliothèques
+Les Raspberry Pi Pico et les Arduino fonctionnent différemment en raison de leur architecture logicielle et de la gestion de la mémoire.
+Arduino compile le code C++ en langage machine avant de l'envoyer. Le Pico (en MicroPython) embarque un interprèteur temps réel qui lit les fichiers de scripts directement.
+
+#### Arduino
+Du fait de la compilation il faut installer la bibliothèqe sur le PC qui va téléverser le programme dans la carte Arduino. Ici c'est très simple vous lancez « Arduino VsCode IDE » en cliquant sur son icône dans la barre d'activité ![alt text](../../media/logo-arduino-ide.webp), le volet de commande s'ouvre. Cliquer sur le gestionnaire de bibliothèque ![alt text](../../media/arduino-bib.webp) rechercher puis installer la bibliothèque. Une fois que ce sera fait elle sera toujours utilisable pour tous vos projets.
+#### Pico pi
+C'est très différent pour les pico pi en micropython. Votre bibliothèque doit être présente dans le même dossier que le programme qui l'appelle (il y a d'autre méthode mais on  va rester simple). Elle devra du reste être aussi présente sur la carte. Le bouton  « envoyer sur la pico » envoie les bibliothèques nécessaires si elles sont dans le dossier.
+Les modules suivants son inclus dans le micropython des pico pi : machine, rp2, framebuf, neopixel, time, math, cmath, os, gc, sys, struct, uctypes, json, network, socket, bluetooth.
+Le pico pi est avant tout un microcontrôleur. Vous pouvez donc aussi le programmer en C et Kablix le permet mais je n'ai pas créé de suite de développement pour ça. Raspberry pi y pourvoit, je vous recommande donc d'installer leur extension.
+
 ### MicroPython sur le Pico
 
 1. Ouvrir un fichier `.py` → **Compiler & exécuter le fichier actif**.

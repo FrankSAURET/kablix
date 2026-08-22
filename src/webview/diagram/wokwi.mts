@@ -60,13 +60,15 @@ export interface WokwiDiagram {
 }
 
 // Types Kablix dont le tag ne suffit pas (composants maison ↔ éléments Wokwi).
-// Pico / Pico W utilisent le dessin maison <kablix-pico-board> : on les mappe
+// Les Pico utilisent le dessin maison <kablix-pico-board> : on les mappe
 // explicitement vers leurs types Wokwi. Wokwi a renommé ces cartes en
 // « board-pi-pico » / « board-pi-pico-w » (anciennement « wokwi-pi-pico… ») :
 // on EXPORTE le nom actuel et on IMPORTE les deux (rétrocompatibilité).
 const KABLIX_TO_WOKWI: Record<string, string> = {
   pico: 'board-pi-pico',
   picow: 'board-pi-pico-w',
+  pico2: 'board-pi-pico2',
+  pico2w: 'board-pi-pico2-w',
   breadboard: 'wokwi-breadboard',
   // dessin maison <kablix-slide-potentiometer> ↔ élément Wokwi standard.
   'slide-pot': 'wokwi-slide-potentiometer',

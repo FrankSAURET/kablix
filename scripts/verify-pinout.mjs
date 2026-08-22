@@ -88,8 +88,8 @@ async function run() {
 	const editor = new Editor(canvas, palette, svg, inspector);
 
 	// --- hasPinout est SYNCHRONE : le bouton ☢ ne dépend pas du réseau --------
-	ok('hasPinout : synchrone et vrai pour les 5 cartes',
-		['pico', 'picow', 'uno', 'mega', 'nano'].every((t) => hasPinout(t) === true));
+	ok('hasPinout : synchrone et vrai pour les 7 cartes',
+		['pico', 'picow', 'pico2', 'pico2w', 'uno', 'mega', 'nano'].every((t) => hasPinout(t) === true));
 	ok('hasPinout : faux pour un composant sans poster', hasPinout('led') === false);
 	ok('pinoutPoster : géométrie disponible sans charger le SVG',
 		pinoutPoster('pico').mode === 'stretch' && pinoutPoster('uno').mode === 'align' &&
@@ -109,6 +109,16 @@ async function run() {
 	ok('loadPinoutSvg : second appel servi par le CACHE (aucune requête de plus)',
 		fetches === 1 && again === svgPico, 'fetches=' + fetches);
 	ok('loadPinoutSvg : null pour un composant sans poster', (await loadPinoutSvg('led')) === null);
+
+	// --- posters partagés : Pico 2 / Pico 2 W lisent le fichier de leur aîné ---
+	// Le brochage des quatre cartes est identique étiquette pour étiquette (seule
+	// la sérigraphie de la carte change, et elle ne fait pas partie du poster) :
+	// le champ file redirige le fetch au lieu de dupliquer 1,2 Mo de SVG.
+	ok('pico2/pico2w : poster redirige vers celui de l’aine (champ file)',
+		pinoutPoster('pico2').file === 'pico' && pinoutPoster('pico2w').file === 'picow');
+	ok('loadPinoutSvg(pico2) : même markup que pico', (await loadPinoutSvg('pico2')) === svgPico);
+	ok('loadPinoutSvg(pico2w) : même markup que picow',
+		(await loadPinoutSvg('pico2w')) === (await loadPinoutSvg('picow')));
 
 	// --- affichage réel du poster : mode 'stretch' (pico) ---------------------
 	const pico = editor.addPart('pico', 100, 100);

@@ -21,7 +21,12 @@ import {
   type ProjixManifest,
   type ProjixDebugVars,
 } from './projix';
-import { resolveMicropythonFirmware, FirmwareCancelled } from './firmware';
+import {
+  resolveMicropythonFirmware,
+  FirmwareCancelled,
+  firmwareVariantOf,
+  isWifiBoard,
+} from './firmware';
 import { showPartHelp } from './partHelp';
 import { codeColumn, moveEditorToColumn, textTabColumn } from './layout';
 import { defaultAppsDirPath, detectSvgEditor, svgEditorLaunch } from './svgEditorDetect';
@@ -714,15 +719,14 @@ export class SimulatorPanel {
     try {
       let result: CompileResult;
       if (ext === '.py') {
-        // Pico W → firmware Wi-Fi (RPI_PICO_W) ; sinon Pico standard.
-        const isPicoW = this.currentBoard === 'picow';
+        // Chaque carte a SON firmware (RP2040/RP2350, Wi-Fi ou non).
         const firmware = await resolveMicropythonFirmware(
           this.context,
-          isPicoW ? 'picow' : 'pico'
+          firmwareVariantOf(this.currentBoard)
         );
-        // Pont réseau réel : activé pour le Pico W si le réglage l'autorise.
+        // Pont réseau réel : activé pour les cartes Wi-Fi si le réglage l'autorise.
         const netBridge =
-          isPicoW &&
+          isWifiBoard(this.currentBoard) &&
           vscode.workspace.getConfiguration('kablix').get<boolean>('picowNetworkBridge', true);
         result = loadPythonProgram(firmware, doc.getText(), netBridge, filePath);
       } else if (ARTIFACT_EXTS.includes(ext)) {
@@ -764,8 +768,10 @@ export class SimulatorPanel {
   public async startReplMode(): Promise<void> {
     await this.saveProjectBeforeRun();
     try {
-      const isPicoW = this.currentBoard === 'picow';
-      const firmware = await resolveMicropythonFirmware(this.context, isPicoW ? 'picow' : 'pico');
+      const firmware = await resolveMicropythonFirmware(
+        this.context,
+        firmwareVariantOf(this.currentBoard)
+      );
       const result = loadMicropythonRepl(firmware);
       this.lastCompiled = undefined; // repli sûr : ▶ recompilera au lieu de relancer ce firmware nu
       this.post({ type: 'runProgram', ...result.payload });

@@ -38,7 +38,9 @@ function findPicoFirmwares() {
   for (const dir of dirs) {
     if (!existsSync(dir)) continue;
     for (const name of readdirSync(dir)) {
-      const m = /^(RPI_PICO_W|RPI_PICO|RPI_PICO2_W|RPI_PICO2)-.*\.uf2$/.exec(name);
+      // Les images « -RISCV- » portent le même préfixe : le moteur émule le
+      // Cortex-M33, pas le Hazard3 — elles sont écartées.
+      const m = /^(RPI_PICO_W|RPI_PICO|RPI_PICO2_W|RPI_PICO2)-(?!RISCV-).*\.uf2$/.exec(name);
       if (m && !found.has(m[1])) found.set(m[1], join(dir, name));
     }
   }
@@ -73,17 +75,25 @@ function ok(label, cond, detail = '') {
   else { failures++; console.log(`  ✗ ${label}${detail ? ` — ${detail}` : ''}`); }
 }
 
+/** Famille de puce d'un firmware : les Pico 2 sont des RP2350 (Cortex-M33). */
+function familleDe(fw) {
+  return /RPI_PICO2/.test(fw.split(/[\/]/).pop()) ? 'rp2350' : 'rp2040';
+}
+
 /** Joue un script et relève le journal série + les bascules de GP25. */
 async function run(fw, source, { maxMs = 120_000, jusqua = () => false } = {}) {
   const program = loadPythonProgram(fw, source, false);
-  const engine = new PicoEngine({
-    kind: 'flash',
-    segments: program.payload.segments.map((s) => ({
-      addr: s.addr,
-      data: new Uint8Array(Buffer.from(s.b64, 'base64')),
-    })),
-    script: program.payload.script,
-  });
+  const engine = new PicoEngine(
+    {
+      kind: 'flash',
+      segments: program.payload.segments.map((s) => ({
+        addr: s.addr,
+        data: new Uint8Array(Buffer.from(s.b64, 'base64')),
+      })),
+      script: program.payload.script,
+    },
+    familleDe(fw)
+  );
   let serial = '';
   let toggles = 0;
   let last = null;

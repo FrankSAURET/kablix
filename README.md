@@ -15,9 +15,10 @@ Une application **Gauloise** de simulation de microcontrôleurs (**Arduino Uno/R
 - **100 % Libre**
 - **100 % Sans télémétrie**
 
-La simulation s’appuie sur deux moteurs open-sources embarqués dans l’extension :  
-[avr8js](https://github.com/wokwi/avr8js) (ATmega328P) et  
-[rp2040js](https://github.com/wokwi/rp2040js) (RP2040), tous deux sous licence MIT.
+La simulation s’appuie sur trois moteurs open-sources embarqués dans l’extension :  
+[avr8js](https://github.com/wokwi/avr8js) (ATmega328P),  
+[rp2040js](https://github.com/wokwi/rp2040js) (RP2040) et  
+[rp2350js](https://github.com/c1570/rp2350js) (RP2350), tous sous licence MIT.
 
 ## Tests
 
@@ -53,7 +54,7 @@ Ma bilothèque de test est disponible : [TestKablix](https://github.com/FrankSAU
 - ✅ **Bibliothèque de 68 composants** rangés par familles, chacun avec sa fiche d’aide illustrée (bouton ❔) et ses deux montages de test, Arduino et Pico — [liste complète](#bibliothèque-de-composants).
 - ✅ **Gestionnaire de composants** (bouton ⚙ en bas de la palette) : un composant tient dans un seul fichier `.kompix` — dessin, brochage, simulation et fiche d’aide comprises. Installez-le d’un clic depuis un dépôt, ou déposez le fichier dans le dossier du projet.
 - ✅ **Éclairage DMX512** : univers décodé depuis l’UART matériel **ou** depuis une broche bit-bangée (DmxSimple), projecteurs pilotés en direct.
-- ✅ **Cartes de développements prises en charge** : Arduino Uno, Nano, Mega 2560 et Raspberry Pi Pico/Pico W, enfichables sur platine d’essai.
+- ✅ **Cartes de développements prises en charge** : Arduino Uno, Nano, Mega 2560 et Raspberry Pi Pico/Pico W/Pico 2/Pico 2 W, enfichables sur platine d’essai.
 - ✅ **Flash RP2040 réel**.
 - ✅ **Chargement direct d’artefacts** : `.hex`, `.uf2`, `.elf`, `.bin` compilés ailleurs, chargés sans recompilation
 - ✅ **Compilation du code réel C/C++**
@@ -85,7 +86,7 @@ Ma bilothèque de test est disponible : [TestKablix](https://github.com/FrankSAU
 
 | Catégorie                              | Composants                                                                                                                                                                                                                                                                                                    |
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Cartes et supports** (9)             | Arduino Uno · Arduino Nano · Arduino Mega 2560 · Raspberry Pi Pico · Raspberry Pi Pico W · Grove Shield (Pico) · Platine d’essai · Alimentation de laboratoire · Batterie externe                                                                                                                              |
+| **Cartes et supports** (11)            | Arduino Uno · Arduino Nano · Arduino Mega 2560 · Raspberry Pi Pico · Raspberry Pi Pico W · Raspberry Pi Pico 2 · Raspberry Pi Pico 2 W · Grove Shield (Pico) · Platine d’essai · Alimentation de laboratoire · Batterie externe                                                                                                                              |
 | **Passifs et semi-conducteurs** (8)    | Résistance · Condensateur (polarisé ou non) · Diode · Transistor (PN2222A, NPN, PNP — boîtier TO-92) · Thermistance CTN · Thermistance CTP · Capteur de température CTN · Photorésistance (LDR)                                                                                                                |
 | **Voyants et afficheurs** (10)         | LED · LED RGB · Barre de 10 LED · Afficheur 7 segments (1 à 4 digits) · NeoPixel · Matrice NeoPixel · Anneau NeoPixel · LCD texte 16×2 / 20×4 (I²C ou parallèle) · Écran OLED SSD1306 · Écran TFT ILI9341 (SPI)                                                                                                |
 | **Entrées** (9)                        | Bouton poussoir · Bouton poussoir 6 mm · Interrupteur à glissière · Interrupteur DIP ×8 · Clavier matriciel 3×4 / 4×4 · Potentiomètre · Potentiomètre à glissière · Potentiomètre ajustable · Joystick analogique                                                                                              |
@@ -145,6 +146,7 @@ Kablix est développé par **[Frank SAURET](https://electropol.fr)** et s’app
 | ----------------------------------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------- |
 | [avr8js](https://github.com/wokwi/avr8js)                                     | Moteur de simulation ATmega328P (Arduino Uno)                         | MIT                                         |
 | [rp2040js](https://github.com/wokwi/rp2040js)                                 | Moteur de simulation RP2040 (Raspberry Pi Pico)                       | MIT                                         |
+| [rp2350js](https://github.com/c1570/rp2350js)                                 | Moteur de simulation RP2350 (Raspberry Pi Pico 2)                     | MIT                                         |
 | [@wokwi/elements](https://github.com/wokwi/wokwi-elements)                    | Composants visuels (cartes, LED, capteurs…)                           | MIT                                         |
 | [JSZip](https://stuk.github.io/jszip/)                                        | Lecture/écriture des archives `.projix`                               | MIT/GPLv3                                   |
 | Bootrom B1 du RP2040                                                          | Démarrage du RP2040 simulé                                            | © Raspberry Pi (Trading) Ltd — BSD-3-Clause |

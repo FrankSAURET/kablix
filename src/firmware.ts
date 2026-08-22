@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import type { Board } from './compiler';
 
 // Localisation du firmware MicroPython (.uf2) pour le Pico simulé, avec
 // téléchargement assisté quand il manque. Objectif : l'extension est
@@ -16,33 +17,76 @@ const l10n = vscode.l10n;
 const FIRMWARES = {
   pico: {
     label: 'Raspberry Pi Pico',
+    prefix: 'RPI_PICO-',
     file: 'RPI_PICO-20260406-v1.28.0.uf2',
     url: 'https://micropython.org/resources/firmware/RPI_PICO-20260406-v1.28.0.uf2',
     page: 'https://micropython.org/download/RPI_PICO/',
   },
   picow: {
     label: 'Raspberry Pi Pico W',
+    prefix: 'RPI_PICO_W-',
     file: 'RPI_PICO_W-20260406-v1.28.0.uf2',
     url: 'https://micropython.org/resources/firmware/RPI_PICO_W-20260406-v1.28.0.uf2',
     page: 'https://micropython.org/download/RPI_PICO_W/',
   },
+  // Pico 2 / Pico 2 W : puce RP2350. Les images « -RISCV- » du même nom ne sont
+  // PAS utilisables — le moteur émule le cœur Cortex-M33, pas le Hazard3 ; le
+  // tiret final du préfixe les écarte (RPI_PICO2-RISCV-…).
+  pico2: {
+    label: 'Raspberry Pi Pico 2',
+    prefix: 'RPI_PICO2-',
+    file: 'RPI_PICO2-20260406-v1.28.0.uf2',
+    url: 'https://micropython.org/resources/firmware/RPI_PICO2-20260406-v1.28.0.uf2',
+    page: 'https://micropython.org/download/RPI_PICO2/',
+  },
+  pico2w: {
+    label: 'Raspberry Pi Pico 2 W',
+    prefix: 'RPI_PICO2_W-',
+    file: 'RPI_PICO2_W-20260406-v1.28.0.uf2',
+    url: 'https://micropython.org/resources/firmware/RPI_PICO2_W-20260406-v1.28.0.uf2',
+    page: 'https://micropython.org/download/RPI_PICO2_W/',
+  },
 } as const;
 
 export type FirmwareVariant = keyof typeof FIRMWARES;
+
+/**
+ * Carte du dessin → firmware à charger. Chaque Pico a le sien (RP2040 ou
+ * RP2350, Wi-Fi ou non) ; les cartes AVR n'exécutent pas de MicroPython et
+ * n'arrivent jamais ici, d'où le repli sur le Pico de base.
+ */
+export function firmwareVariantOf(board: Board): FirmwareVariant {
+  return board === 'picow' || board === 'pico2' || board === 'pico2w' ? board : 'pico';
+}
+
+/** Cartes portant une puce Wi-Fi : seules elles ouvrent le pont réseau réel. */
+export function isWifiBoard(board: Board): boolean {
+  return board === 'picow' || board === 'pico2w';
+}
+
+/**
+ * Reconnaît le .uf2 d'une variante. Les préfixes se chevauchent tous
+ * (`RPI_PICO` ouvre `RPI_PICO_W`, `RPI_PICO2`, `RPI_PICO2_W`) : le tiret final
+ * du préfixe est ce qui les sépare, et il écarte du même coup les images RISC-V.
+ */
+function matchesVariant(name: string, variant: FirmwareVariant): boolean {
+  return name.toUpperCase().startsWith(FIRMWARES[variant].prefix);
+}
 
 const DOWNLOAD_TIMEOUT_MS = 60_000;
 const PAGE_FETCH_TIMEOUT_MS = 15_000;
 
 /** Page de téléchargement micropython.org listant les releases (plus récente en tête). */
 const DOWNLOAD_PAGES: Record<FirmwareVariant, string> = {
-  pico: 'https://micropython.org/download/RPI_PICO/',
-  picow: 'https://micropython.org/download/RPI_PICO_W/',
+  pico: FIRMWARES.pico.page,
+  picow: FIRMWARES.picow.page,
+  pico2: FIRMWARES.pico2.page,
+  pico2w: FIRMWARES.pico2w.page,
 };
 
-/** Préfixe du nom de fichier .uf2 propre à chaque variante (RPI_PICO_W a priorité sur RPI_PICO). */
+/** Nom de fichier .uf2 propre à une variante (le tiret final sépare les préfixes). */
 function fileNamePattern(variant: FirmwareVariant): RegExp {
-  const prefix = variant === 'picow' ? 'RPI_PICO_W' : 'RPI_PICO';
-  return new RegExp(`resources/firmware/${prefix}-\\d{8}-v[\\d.]+\\.uf2`, 'g');
+  return new RegExp(`resources/firmware/${FIRMWARES[variant].prefix}\d{8}-v[\d.]+\.uf2`, 'g');
 }
 
 /**
@@ -60,11 +104,7 @@ async function fetchLatestFirmwareName(variant: FirmwareVariant): Promise<string
     const html = await res.text();
     const matches = html.match(fileNamePattern(variant));
     if (!matches || matches.length === 0) return undefined;
-    // Pico W : exclut les faux positifs "RPI_PICO-" captés par le pattern Pico non-W.
-    const filtered =
-      variant === 'pico' ? matches.filter((m) => !m.includes('RPI_PICO_W')) : matches;
-    if (filtered.length === 0) return undefined;
-    return filtered[0].split('/').pop();
+    return matches[0].split('/').pop();
   } catch {
     return undefined;
   } finally {
@@ -74,16 +114,11 @@ async function fetchLatestFirmwareName(variant: FirmwareVariant): Promise<string
 
 /**
  * Variante déduite du NOM d'un fichier .uf2. `undefined` quand le nom ne dit
- * rien (`micropython.uf2`, `rp2-pico-…`) : ce fichier-là sert les deux cartes,
+ * rien (`micropython.uf2`, `rp2-pico-…`) : ce fichier-là sert toutes les cartes,
  * il a été déposé exprès par l'utilisateur.
- * Piège récurrent : `RPI_PICO` est un préfixe de `RPI_PICO_W`, le W se teste donc
- * EN PREMIER.
  */
 function variantOfFileName(name: string): FirmwareVariant | undefined {
-  const upper = name.toUpperCase();
-  if (upper.startsWith('RPI_PICO_W')) return 'picow';
-  if (upper.startsWith('RPI_PICO')) return 'pico';
-  return undefined;
+  return (Object.keys(FIRMWARES) as FirmwareVariant[]).find((v) => matchesVariant(name, v));
 }
 
 /**
@@ -292,6 +327,8 @@ async function pickVariant(): Promise<FirmwareVariant | undefined> {
   const items: Array<vscode.QuickPickItem & { variant: FirmwareVariant }> = [
     { label: FIRMWARES.pico.label, description: 'RP2040', variant: 'pico' },
     { label: FIRMWARES.picow.label, description: 'RP2040 + Wi-Fi', variant: 'picow' },
+    { label: FIRMWARES.pico2.label, description: 'RP2350', variant: 'pico2' },
+    { label: FIRMWARES.pico2w.label, description: 'RP2350 + Wi-Fi', variant: 'pico2w' },
   ];
   const picked = await vscode.window.showQuickPick(items, {
     title: l10n.t('Which board?'),
@@ -312,13 +349,10 @@ async function cachedFileName(
   } catch {
     return undefined; // pas de cache
   }
-  const prefix = variant === 'picow' ? 'RPI_PICO_W' : 'RPI_PICO-';
   const names = entries
     .filter(([, type]) => type === vscode.FileType.File)
     .map(([name]) => name)
-    .filter((name) => name.startsWith(prefix))
-    // RPI_PICO- ne doit pas capter les fichiers RPI_PICO_W- (préfixe partagé).
-    .filter((name) => variant === 'pico' ? !name.startsWith('RPI_PICO_W') : true);
+    .filter((name) => matchesVariant(name, variant));
   return names.sort().pop(); // nom horodaté (AAAAMMJJ) : tri lexical = tri chronologique
 }
 
@@ -429,16 +463,12 @@ async function removeOtherCachedFiles(
   keepFile: string
 ): Promise<void> {
   const dir = cacheDir(context);
-  const prefix = variant === 'picow' ? 'RPI_PICO_W' : 'RPI_PICO-';
   try {
     const entries = await vscode.workspace.fs.readDirectory(dir);
     for (const [name, type] of entries) {
       if (type !== vscode.FileType.File) continue;
       if (name === keepFile) continue;
-      if (!name.startsWith(prefix)) continue;
-      // RPI_PICO- ne doit pas capter les fichiers RPI_PICO_W- (préfixe partagé) :
-      // le Pico W a son propre préfixe testé en premier ci-dessus.
-      if (variant === 'pico' && name.startsWith('RPI_PICO_W')) continue;
+      if (!matchesVariant(name, variant)) continue;
       await vscode.workspace.fs.delete(vscode.Uri.joinPath(dir, name));
     }
   } catch {

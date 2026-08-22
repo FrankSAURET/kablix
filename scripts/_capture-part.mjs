@@ -22,6 +22,13 @@ const PARTS = {
   ntc: { module: 'ntc-element.mjs', tag: 'kablix-ntc' },
   ptc: { module: 'ptc-element.mjs', tag: 'kablix-ptc' },
   'grove-pico': { module: 'grove-shield-element.mjs', tag: 'kablix-grove-pico', attrs: { pwr: '3v3' } },
+  // Les quatre Pico partagent l'élément <kablix-pico-board> : seul `variant`
+  // change (les Pico 2 reprennent le dessin de leur aîné tant qu'ils n'ont pas
+  // le leur).
+  pico: { module: 'pico-board.mjs', tag: 'kablix-pico-board', attrs: { variant: 'pico' } },
+  picow: { module: 'pico-board.mjs', tag: 'kablix-pico-board', attrs: { variant: 'picow' } },
+  pico2: { module: 'pico-board.mjs', tag: 'kablix-pico-board', attrs: { variant: 'pico2' } },
+  pico2w: { module: 'pico-board.mjs', tag: 'kablix-pico-board', attrs: { variant: 'pico2w' } },
   diode: { module: 'diode-element.mjs', tag: 'kablix-diode' },
   'condo-np': { module: 'capacitor-element.mjs', tag: 'kablix-capacitor', width: 190, attrs: { ctype: 'np', value: '1e-7' } },
   'condo-p-1': { module: 'capacitor-element.mjs', tag: 'kablix-capacitor', width: 165, attrs: { ctype: 'p', value: '1e-5' } },

@@ -288,6 +288,8 @@ const FR: Record<string, string> = {
   'Arduino Mega 2560': 'Arduino Mega 2560',
   'Raspberry Pi Pico': 'Raspberry Pi Pico',
   'Raspberry Pi Pico W': 'Raspberry Pi Pico W',
+  'Raspberry Pi Pico 2': 'Raspberry Pi Pico 2',
+  'Raspberry Pi Pico 2 W': 'Raspberry Pi Pico 2 W',
   'LED': 'LED',
   'Buzzer': 'Buzzer',
   'NeoPixel': 'NeoPixel',

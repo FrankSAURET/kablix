@@ -274,7 +274,7 @@ check('la fenêtre de mesure repart à chaque lancement', /engine\.start\(\);\s*
 // --- La mesure ne s'arme qu'une fois le script DÉMARRÉ (v2026.8.3) ------------
 check(
   'la mesure de vitesse est désarmée tant que le script MicroPython démarre',
-  /speedArmed = !\(\s*boardFamily\(board\) === 'rp2040' && picoProgram\.kind === 'flash' && !!picoProgram\.script/.test(sim),
+  /speedArmed = !\(\s*isPicoBoard\(board\) && picoProgram\.kind === 'flash' && !!picoProgram\.script/.test(sim),
   'le badge remesurerait le boot du firmware et l\'injection du script',
 );
 check(

@@ -1,12 +1,12 @@
-// Élément visuel maison <kablix-pico-board> : Raspberry Pi Pico / Pico W.
+// Élément visuel maison <kablix-pico-board> : Pico, Pico W, Pico 2, Pico 2 W.
 // le catalogue Wokwi ne fournit AUCUN élément Pico → on dessine la carte à partir
-// de deux SVG (paysage, USB à gauche) importés comme texte :
+// de SVG (paysage, USB à gauche) importés comme texte :
 //   - pico.svg  : Pico (dessin schématique, LED verte intégrée = #circle16)
 //   - picow.svg : Pico W (rendu Fritzing ; LED ajoutée en surimpression)
-// La variante est choisie par l'attribut `variant` ("pico" par défaut, "picow").
+// La variante est choisie par l'attribut `variant` ("pico" par défaut).
 //
 // Les 40 broches (deux rangées horizontales au pas de 10 px) sont identiques aux
-// deux cartes (même brochage physique). Aucun nom n'est imprimé sur la carte :
+// quatre cartes (même brochage physique). Aucun nom n'est imprimé sur la carte :
 // le brochage complet s'affiche à la demande via le bouton ☢ de l'éditeur (poster
 // pico-pinout / picow-pinout). La LED embarquée GP25 (`ledPower`) s'allume en vert.
 
@@ -14,6 +14,23 @@ import picoSvg from './externe/pico.svg';
 import picowSvg from './externe/picow.svg';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
+
+export type PicoVariant = 'pico' | 'picow' | 'pico2' | 'pico2w';
+
+// Dessin de chaque variante. Les Pico 2 reprennent PROVISOIREMENT le dessin de
+// leur aîné (même carte, même brochage, seule la sérigraphie change) : dès que
+// pico2.svg / pico2w.svg existent dans externe/, il suffit de les importer et
+// de corriger les deux dernières lignes.
+const SVGS: Record<PicoVariant, string> = {
+  pico: picoSvg,
+  picow: picowSvg,
+  pico2: picoSvg,
+  pico2w: picowSvg,
+};
+
+// Cartes dont le dessin vient du rendu Fritzing : pas de LED dans le SVG, et un
+// point vert foncé en dur à retirer.
+const FRITZING: ReadonlySet<PicoVariant> = new Set<PicoVariant>(['picow', 'pico2w']);
 
 // Boîte de dessin de la carte (px), commune aux deux SVG (rendus à cette taille).
 // L'élément fait exactement la taille de la carte : la boîte de sélection de
@@ -89,8 +106,14 @@ export class PicoBoardElement extends HTMLElement {
     if (name === 'variant' && this.rendered) this.render();
   }
 
-  private get isPicoW(): boolean {
-    return this.getAttribute('variant') === 'picow';
+  private get variante(): PicoVariant {
+    const v = this.getAttribute('variant');
+    return v && v in SVGS ? (v as PicoVariant) : 'pico';
+  }
+
+  /** Dessin issu de Fritzing : LED à ajouter, point vert en dur à retirer. */
+  private get estFritzing(): boolean {
+    return FRITZING.has(this.variante);
   }
 
   /** (Re)construit le dessin : carte imbriquée + noms de broches + LED. */
@@ -114,7 +137,7 @@ export class PicoBoardElement extends HTMLElement {
     // DOMParser (image/svg+xml) → parsing SVG fidèle (viewBox, dégradés, espaces
     // de noms Inkscape/Illustrator) sans les pièges du parseur HTML d'innerHTML.
     const board = document.createElementNS(SVG_NS, 'g');
-    const raw = this.isPicoW ? picowSvg : picoSvg;
+    const raw = SVGS[this.variante];
     const text = raw.slice(raw.indexOf('<svg')); // retire <?xml?> / commentaires
     const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
     let inner: SVGElement | null = null;
@@ -124,11 +147,11 @@ export class PicoBoardElement extends HTMLElement {
       inner.setAttribute('y', '0');
       inner.setAttribute('width', String(BOARD_W));
       inner.setAttribute('height', String(BOARD_H));
-      // Pico W : le rendu Fritzing dessine un point vert foncé en dur au centre
-      // de la LED (#circle178) — il paraît noir à taille réelle et reste visible
-      // LED éteinte. On le retire pour un rendu identique à la Pico (pastille
-      // claire éteinte, vert + halo allumée via la LED en surimpression).
-      if (this.isPicoW) inner.querySelector('#circle178')?.remove();
+      // Rendu Fritzing : un point vert foncé est dessiné en dur au centre de la
+      // LED (#circle178) — il paraît noir à taille réelle et reste visible LED
+      // éteinte. On le retire pour un rendu identique à la Pico (pastille claire
+      // éteinte, vert + halo allumée via la LED en surimpression).
+      if (this.estFritzing) inner.querySelector('#circle178')?.remove();
       board.appendChild(inner);
     }
     svg.appendChild(board);
@@ -144,15 +167,16 @@ export class PicoBoardElement extends HTMLElement {
   }
 
   /**
-   * Localise (Pico) ou crée (Pico W) la LED verte pilotable — même comportement
-   * sur les deux cartes : invisible éteinte, verte avec halo allumée.
-   * - Pico : le dessin contient déjà #circle16 (vert, filtre de halo).
-   * - Pico W : aucune LED dans le rendu Fritzing → même pastille verte ajoutée,
-   *   pilotée en opacité (pas de cercle sombre visible à l'arrêt).
+   * Localise (dessin schématique) ou crée (rendu Fritzing) la LED verte
+   * pilotable — même comportement partout : invisible éteinte, verte avec halo
+   * allumée.
+   * - Pico / Pico 2 : le dessin contient déjà #circle16 (vert, filtre de halo).
+   * - Pico W / Pico 2 W : aucune LED dans le rendu Fritzing → même pastille
+   *   verte ajoutée, pilotée en opacité (pas de cercle sombre à l'arrêt).
    */
   private addLed(svg: SVGSVGElement, inner: SVGElement | null): SVGElement | null {
     const native = inner?.querySelector('#circle16') as SVGElement | null;
-    if (!this.isPicoW && native) return native;
+    if (!this.estFritzing && native) return native;
     const c = document.createElementNS(SVG_NS, 'circle');
     c.setAttribute('id', 'led-gp25');
     c.setAttribute('cx', String(LED.x));

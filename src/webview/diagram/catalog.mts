@@ -46,13 +46,13 @@ export type PartKind =
   | 'display'
   | 'passive';
 
-export type BoardId = 'uno' | 'nano' | 'mega' | 'pico' | 'picow';
+export type BoardId = 'uno' | 'nano' | 'mega' | 'pico' | 'picow' | 'pico2' | 'pico2w';
 
 /** Famille de microcontrôleur (détermine le moteur de simulation et la toolchain). */
-export type McuFamily = 'avr328' | 'avr2560' | 'rp2040';
+export type McuFamily = 'avr328' | 'avr2560' | 'rp2040' | 'rp2350';
 
 /** Toutes les cartes connues, dans l'ordre d'affichage du sélecteur. */
-export const BOARD_IDS: readonly BoardId[] = ['uno', 'nano', 'mega', 'pico', 'picow'];
+export const BOARD_IDS: readonly BoardId[] = ['uno', 'nano', 'mega', 'pico', 'picow', 'pico2', 'pico2w'];
 
 export function isBoardId(value: unknown): value is BoardId {
   return typeof value === 'string' && (BOARD_IDS as readonly string[]).includes(value);
@@ -60,13 +60,26 @@ export function isBoardId(value: unknown): value is BoardId {
 
 /**
  * Famille électrique d'une carte : c'est elle (et non l'identifiant exact) qui
- * décide du moteur (AVR vs RP2040), du jeu de broches et de la toolchain. Uno /
- * Nano partagent l'ATmega328P ; Pico / Pico W partagent le RP2040.
+ * décide du moteur (AVR vs RP2040/RP2350), du jeu de broches et de la toolchain.
+ * Uno / Nano partagent l'ATmega328P ; Pico / Pico W partagent le RP2040 ;
+ * Pico 2 / Pico 2 W partagent le RP2350 (Cortex-M33).
  */
 export function boardFamily(board: BoardId): McuFamily {
   if (board === 'pico' || board === 'picow') return 'rp2040';
+  if (board === 'pico2' || board === 'pico2w') return 'rp2350';
   if (board === 'mega') return 'avr2560';
   return 'avr328';
+}
+
+/**
+ * Carte de la famille Pico (RP2040 ou RP2350), toutes variantes confondues.
+ * À utiliser partout où la question est « MicroPython, 3,3 V, broches GPn ? »
+ * plutôt que « quelle puce exactement ? » — les deux puces partagent le
+ * brochage, la console REPL et le moteur `PicoEngine`.
+ */
+export function isPicoBoard(board: BoardId): boolean {
+  const famille = boardFamily(board);
+  return famille === 'rp2040' || famille === 'rp2350';
 }
 
 /** Propriété éditable d'un composant (affichée dans l'éditeur de composants). */
@@ -471,6 +484,10 @@ export const CATALOG: readonly PartDef[] = [
   // Pico W : même RP2040 et même brochage que le Pico (le Wi-Fi n'est pas simulé
   // par le cœur) → même élément <kablix-pico-board>, dessin Pico W (variant).
   { type: 'picow', label: 'Raspberry Pi Pico W', tag: 'kablix-pico-board', kind: 'mcu', board: 'picow', attrs: { variant: 'picow' } },
+  // Pico 2 / Pico 2 W : même brochage 40 broches et même dessin d'ensemble que
+  // le Pico, puce RP2350 (Cortex-M33) — c'est `board` qui choisit le moteur.
+  { type: 'pico2', label: 'Raspberry Pi Pico 2', tag: 'kablix-pico-board', kind: 'mcu', board: 'pico2', attrs: { variant: 'pico2' } },
+  { type: 'pico2w', label: 'Raspberry Pi Pico 2 W', tag: 'kablix-pico-board', kind: 'mcu', board: 'pico2w', attrs: { variant: 'pico2w' } },
   // Grove Shield for Pi Pico (Seeed v1.0) : la Pico / Pico W s'enfiche sur les
   // deux rangées centrales (fils auto) et ses E/S sont redirigées vers les ports
   // Grove (connexions internes : diagram/grove-shield.mts). L'interrupteur du
@@ -1393,8 +1410,8 @@ export interface PinRole {
 }
 
 export function mcuPinRole(board: BoardId, pin: string): PinRole {
-  if (boardFamily(board) === 'rp2040') {
-    // Raspberry Pi Pico / Pico W : GP26..GP28 = ADC0..ADC2.
+  if (isPicoBoard(board)) {
+    // Raspberry Pi Pico (2) / Pico (2) W : GP26..GP28 = ADC0..ADC2.
     const gp = /^GP(\d+)$/.exec(pin);
     if (gp) {
       const n = Number(gp[1]);
@@ -1447,6 +1464,7 @@ const PICO_PINS: readonly string[] = [
 export function mcuPins(board: BoardId): readonly string[] {
   switch (boardFamily(board)) {
     case 'rp2040':
+    case 'rp2350':
       return PICO_PINS;
     case 'avr2560':
       return MEGA_PINS;

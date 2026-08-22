@@ -116,7 +116,7 @@ check('sim : LED L des cartes AVR pilotée par la broche 13 (LED_BUILTIN)',
 check('sim : LED verte « ON » allumée tant que la carte AVR tourne',
   !!mcu && /ledPower = true/.test(mcu[0]));
 check('sim : le Pico garde sa LED embarquée GP25 (aucune régression)',
-  !!mcu && /rp2040'\) \{[\s\S]{0,120}?ledPower = engine\.readDigital\('GP25'\)/.test(mcu[0]));
+  !!mcu && /isPicoBoard\(def\.board\)\) \{[\s\S]{0,120}?ledPower = engine\.readDigital\('GP25'\)/.test(mcu[0]));
 
 // --- 3. Les broches 13 existent bien dans les deux tables du moteur AVR ------
 const avr = readFileSync(join(ROOT, 'src/webview/engines/avr.mts'), 'utf8');

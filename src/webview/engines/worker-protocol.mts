@@ -81,7 +81,7 @@ export interface PinSnapshot {
 }
 
 /** Carte à simuler, telle que la page la choisit. */
-export type WorkerBoard = 'uno' | 'mega' | 'pico';
+export type WorkerBoard = 'uno' | 'mega' | 'pico' | 'pico2';
 
 /** Ordres de la page vers le fil de simulation. */
 export type ToWorker =

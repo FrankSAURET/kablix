@@ -1,0 +1,6 @@
+{
+  "name": "@vendor/rp2350js",
+  "private": true,
+  "type": "module",
+  "description": "copie vendorisée de https://github.com/c1570/rp2350js (MIT) — voir ORIGINE.md"
+}
