@@ -4474,6 +4474,105 @@ while True:
         time.sleep(1)
 `,
   }),
+
+  // Wi-Fi de bout en bout : point d'accès + serveur web + LED pilotée depuis un
+  // téléphone. La puce CYW43439 n'est pas émulée : c'est l'hôte VS Code qui tient
+  // la vraie prise TCP (cf. src/netserver.ts), sur le réseau de la machine. Le
+  // PROGRAMME, lui, est celui d'une vraie Pico W — rien à changer pour le porter.
+  test({
+    name: 'wifi-picow', board: 'picow', ext: 'py',
+    // Montage repris du banc `led-pico` tel que Frank l'a redisposé (LED sous la
+    // carte, résistance retournée) : c'est le même circuit, seul le programme
+    // change. Les points de passage viennent du même banc — la Pico W a la
+    // géométrie de la Pico, les fils tombent donc au même endroit.
+    parts: [
+      MCU('picow'),
+      { id: 'R1', type: 'resistor', x: 149.84, y: 180.02, attrs: { value: '220' }, rotation: 180 },
+      { id: 'L1', type: 'led', x: 100, y: 150, attrs: { color: 'red' }, rotation: 0 },
+    ],
+    wires: () => [
+      { ...w('R1', '1', 'U1', 'GP15', 'green'), points: [{ x: 243.25, y: 190 }] },
+      w('L1', 'A', 'R1', '2', 'green'),
+      {
+        ...w('L1', 'C', 'U1', 'GND.5', 'black'),
+        points: [{ x: 90, y: 190 }, { x: 73.25, y: 190 }, { x: 73.25, y: 152.68 }],
+      },
+    ],
+    expect: { kind: 'led', partId: 'L1', mcuPin: 'GP15' },
+    code: `# Test Wi-Fi complet : la carte se declare en POINT D'ACCES et sert une page
+# web qui allume et eteint la LED. Un telephone ouvre l'adresse annoncee, appuie
+# sur un bouton, la LED de GP15 obeit.
+#
+# En simulation, la puce Wi-Fi n'est pas emulee : Kablix tient la vraie prise TCP
+# a la place de la carte, sur le reseau du PC. Le telephone reste donc sur le
+# MEME reseau que le PC (au lieu de rejoindre le point d'acces de la carte) et
+# ouvre l'adresse affichee au demarrage. Le programme, lui, est exactement celui
+# qui tourne sur une vraie Pico W.
+import network
+import socket
+import time
+from machine import Pin
+
+SSID = "Kablix-Pico"
+MOT_DE_PASSE = "kablix2026"
+
+led = Pin(15, Pin.OUT)
+led.value(0)
+
+# --- Point d'acces -----------------------------------------------------------
+ap = network.WLAN(network.AP_IF)
+ap.config(essid=SSID, password=MOT_DE_PASSE)
+ap.active(True)
+while not ap.active():
+    time.sleep(0.5)
+print("Point d'acces", SSID, "actif")
+print("Adresse :", ap.ifconfig()[0])
+
+# --- Serveur web -------------------------------------------------------------
+ENTETE = "HTTP/1.1 200 OK\\r\\nContent-Type: text/html; charset=utf-8\\r\\nConnection: close\\r\\n\\r\\n"
+PAGE = """<!DOCTYPE html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LED du Pico W</title><style>
+body{font-family:sans-serif;text-align:center;background:#111;color:#eee}
+h1{font-size:1.4rem}
+a{display:block;margin:1rem auto;padding:1rem;width:12rem;border-radius:1rem;
+text-decoration:none;color:#fff;font-weight:bold}
+.on{background:#2a7}.off{background:#a33}
+</style></head><body><h1>LED : %s</h1>
+<a class="on" href="/on">ALLUMER</a><a class="off" href="/off">ETEINDRE</a>
+</body></html>
+"""
+
+adresse = socket.getaddrinfo("0.0.0.0", 80)[0][-1]
+serveur = socket.socket()
+serveur.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+serveur.bind(adresse)
+serveur.listen(1)
+print("Serveur en ecoute sur le port 80")
+
+while True:
+    client, _adr = serveur.accept()
+    requete = client.recv(1024)
+    if not requete:
+        client.close()
+        continue
+    ligne = requete.split(b"\\r\\n")[0].decode()
+    print("Requete :", ligne)
+    # Le navigateur reclame une icone d'onglet : elle n'a pas a changer la LED.
+    if "/favicon.ico" in ligne:
+        client.send("HTTP/1.1 404 Not Found\\r\\nConnection: close\\r\\n\\r\\n")
+        client.close()
+        continue
+    if "/on" in ligne:
+        led.value(1)
+    elif "/off" in ligne:
+        led.value(0)
+    etat = "ALLUMEE" if led.value() else "ETEINTE"
+    client.send(ENTETE + PAGE % etat)
+    client.close()
+    print("LED", etat)
+`,
+  }),
 ];
 
 // ================================================================================
@@ -4519,8 +4618,12 @@ const MONTAGE_2 = { x: 200, y: 60 }; // coin du montage, dégagé des 90 px de c
 /** Construit le jumeau Pico 2 d'un banc Pico, à partir de son `.projix`. */
 async function jumeauPico2(t) {
   const fichier = testProjix(t);
-  const zip = await JSZip.loadAsync(readFileSync(fichier));
-  const diagram = JSON.parse(await zip.file('diagram.json').async('string'));
+  // Banc tout neuf : son .projix n'existe pas encore (il naîtra du générateur,
+  // à partir de la spec). On dérive alors de la spec elle-même — au lot suivant,
+  // c'est bien le fichier du dépôt qui fera foi, comme pour les 47 autres.
+  const diagram = existsSync(fichier)
+    ? JSON.parse(await (await JSZip.loadAsync(readFileSync(fichier))).file('diagram.json').async('string'))
+    : { parts: t.parts, wires: t.wires };
   const carte = diagram.parts.find((p) => p.id === 'U1');
   if (!carte) throw new Error(`${t.name} : pas de carte U1 dans ${fichier}`);
   const autres = diagram.parts.filter((p) => p !== carte);

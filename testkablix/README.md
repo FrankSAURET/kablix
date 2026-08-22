@@ -119,6 +119,7 @@ a pas de carte à remplacer.
 | CI logiques : OU EXCLUSIF et NON-ET | `CI2-uno` | `CI2-pico` | `CI2-pico2` | CD4070/74HC86 et CD4011/74HC00, même principe |
 | CI logiques : NON-OU et NON | `CI3-uno` | `CI3-pico` | `CI3-pico2` | CD4001/74HC02 et CD40106/74HC14 (inverseurs six portes) |
 | DMX512 : carte Grove + projecteur PAR 38 | `dmx-uno` | `dmx-pico` | `dmx-pico2` | les deux composants de la bibliothèque publique (`.kompix`) ; le projecteur prend rouge, vert puis bleu — liaison simulée (broche, adresse, canaux) et continuité du câblage UART → XLR contrôlées |
+| Wi-Fi : point d'accès + serveur web | — (Pico W seulement) | `wifi-picow` | `wifi-pico2w` | la carte se déclare en point d'accès et sert une page ALLUMER/ÉTEINDRE ; un téléphone du même réseau pilote la LED de GP15. La puce Wi-Fi n'étant pas émulée, c'est l'hôte VS Code qui tient la vraie prise TCP (`src/netserver.ts`) — le programme, lui, est celui d'une vraie Pico W |
 
 Libs Arduino requises (installées via `arduino-cli lib install`) : Servo,
 LiquidCrystal I2C, Adafruit SSD1306, Adafruit ILI9341, Adafruit NeoPixel, SD,

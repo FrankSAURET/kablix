@@ -31,14 +31,34 @@ export interface Breakpoint {
   condition?: string;
 }
 
-/** Requête réseau émise par le script (pont Pico W) à destination de l'hôte. */
+/**
+ * Requête réseau émise par le script (pont Pico W) à destination de l'hôte.
+ *
+ * Deux familles se partagent le même tunnel :
+ *  - SORTANTE (`url` présent, pas d'`op`) : le script appelle `urequests` et
+ *    l'hôte exécute un vrai `fetch` ;
+ *  - ENTRANTE (`op` présent) : le script fait le serveur (`socket`), et c'est
+ *    l'hôte qui tient la vraie prise TCP à sa place — la puce Wi-Fi n'étant pas
+ *    émulée, un téléphone ne peut pas rejoindre le point d'accès du Pico, il
+ *    rejoint celui de la machine.
+ */
 export interface NetRequest {
   id: number;
-  /** Méthode HTTP. */
-  m: string;
-  url: string;
+  /** Méthode HTTP (famille sortante). */
+  m?: string;
+  url?: string;
   headers?: Record<string, string>;
   body?: string;
+  /** Opération de la prise TCP côté hôte (famille entrante). */
+  op?: 'listen' | 'accept' | 'recv' | 'send' | 'close' | 'unlisten' | 'apinfo';
+  /** `listen` : port demandé par le script (80 en général). */
+  port?: number;
+  /** Connexion visée (`recv`, `send`, `close`), telle que rendue par `accept`. */
+  cid?: number;
+  /** `recv` : nombre d'octets demandés. */
+  n?: number;
+  /** `send` : octets à écrire, en hexadécimal (le tunnel série est du texte). */
+  data?: string;
 }
 
 /** Réponse réseau renvoyée par l'hôte au script. */
@@ -49,6 +69,15 @@ export interface NetResponse {
   body?: string;
   /** Message d'erreur (réseau coupé, hôte refusé…) ; lève une OSError côté script. */
   error?: string;
+  /** `accept` : identifiant de la connexion acceptée. */
+  cid?: number;
+  /** `accept`/`recv` : octets reçus, en hexadécimal. */
+  data?: string;
+  /** `accept` : adresse du client. */
+  peer?: string;
+  /** `listen`/`apinfo` : adresse réellement offerte aux clients. */
+  ip?: string;
+  port?: number;
 }
 
 /** Capteur ultrason à simuler : broches TRIG/ECHO (noms MCU) + distance mesurée. */

@@ -44,8 +44,47 @@ Ce qui est vrai, et ce qui ne l'est pas :
 - `network.WLAN` est une **façade** : `connect()` réussit toujours (SSID et mot de passe ignorés), `isconnected()` passe à vrai, `ifconfig()` rend une adresse fixe. Aucun paquet Wi-Fi n'est émis.
 - `urequests` (alias `requests`) fait de **VRAIES requêtes HTTP**, exécutées par VS Code : `get`, `post`, `put`, `patch`, `delete`, `head`, avec `data=`, `json=` et `headers=`. La réponse porte `status_code`, `reason`, `text`, `content` et `.json()`.
 - Seuls **http://** et **https://** sont relayés, 15 s de délai maximum, corps de réponse plafonné à **64 Ko** : le tunnel emprunte la liaison série simulée, il est lent.
-- `socket` brut n'est **pas** relayé (ni MQTT, ni Bluetooth) : passer par `urequests`.
+- `socket` **client** (connexion sortante) n'est pas relayé, ni MQTT, ni Bluetooth : passer par `urequests`. `socket` **serveur**, lui, fonctionne — voir ci-dessous.
 - Pour couper tout accès sortant : décocher **`kablix.picowNetworkBridge`** dans les réglages (activé par défaut). Le script reçoit alors une `OSError`.
+
+
+### Point d'accès et serveur web
+
+Le montage classique — la carte se déclare en **point d'accès**, un téléphone s'y connecte et pilote la LED depuis une page web — fonctionne, à une différence près : c'est **votre machine** qui tient la prise TCP, pas la carte. Aucun réseau Wi-Fi n'est créé : le téléphone reste sur le **même réseau que le PC** et ouvre l'adresse annoncée au démarrage.
+
+```python
+import network, socket
+from machine import Pin
+
+led = Pin(15, Pin.OUT)
+
+ap = network.WLAN(network.AP_IF)
+ap.config(essid="Kablix-Pico", password="kablix2026")
+ap.active(True)
+print("Adresse :", ap.ifconfig()[0])          # l'adresse RÉELLE de la machine
+
+adresse = socket.getaddrinfo("0.0.0.0", 80)[0][-1]
+serveur = socket.socket()
+serveur.bind(adresse)
+serveur.listen(1)
+
+while True:
+    client, _ = serveur.accept()
+    requete = client.recv(1024).split(b"\r\n")[0].decode()
+    if "/on" in requete:
+        led.value(1)
+    elif "/off" in requete:
+        led.value(0)
+    client.send("HTTP/1.1 200 OK\r\n\r\n<a href='/on'>ON</a> <a href='/off'>OFF</a>")
+    client.close()
+```
+
+- `network.WLAN(network.AP_IF)` est une **façade** : `config(essid=…, password=…)` est accepté et retenu, `active(True)` réussit, mais aucun point d'accès n'est diffusé. En revanche `ifconfig()[0]` rend l'**adresse IPv4 réelle** de votre machine — c'est elle qu'il faut ouvrir depuis le téléphone.
+- Le `socket` **serveur** est relayé pour de bon : `getaddrinfo`, `bind`, `listen`, `accept`, `recv`/`read`/`readline`, `send`/`sendall`/`write`, `makefile`, `close`. Les octets vont et viennent tels quels — c'est votre programme qui parle HTTP, exactement comme sur la vraie carte.
+- Le **port demandé n'est pas toujours obtenu** : le 80 est réservé sur la plupart des machines. Kablix se rabat alors sur 8080, puis sur un port libre, et imprime l'adresse ouverte dans la console : `[Kablix] serveur du Pico W : http://…`. C'est **cette** adresse qu'il faut viser, pas le port du programme.
+- Au premier lancement, le **pare-feu** demande l'autorisation : l'accorder pour le réseau privé, sinon le téléphone frappe dans le vide.
+- La prise se ferme à l'arrêt de la simulation ; le réglage **`kablix.picowNetworkBridge`** la coupe aussi (le script reçoit une `OSError`).
+- Banc d'essai tout prêt : `testkablix/wifi-picow.projix` (et son jumeau `pico2/wifi-pico2w.projix`).
 
 ---
 

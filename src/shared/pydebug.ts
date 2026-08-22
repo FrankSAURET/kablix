@@ -75,6 +75,10 @@ const PREAMBLE: string[] = [
   // allouée, pas de sondage stdin. Appeler __kx à chaque ligne divisait le
   // régime de simulation par 3,3 (mesuré sur testkablix/Horloge.py).
   '__kx_on = False',
+  // Pose par _kxn_call (pynet.ts) tant qu'un appel reseau attend sa reponse :
+  // la sonde ci-dessous draine stdin sans discernement et lui volerait ses
+  // octets. Un seul lecteur a la fois.
+  '__kx_net_wait = False',
   'def __kx_arm():',           // (re)calcule la garde d'après l'état du débogage
   '    global __kx_on',
   '    __kx_on = __kx_step or len(__kx_bps) > 0',
@@ -212,7 +216,7 @@ const PREAMBLE: string[] = [
   // de là c'est __kx, ligne à ligne, qui draine stdin — deux lecteurs
   // concurrents se voleraient des octets.
   'def __kx_tick(__t):',
-  '    if not __kx_on:',
+  '    if not __kx_on and not __kx_net_wait:',
   '        __kx_poll_in()',
   'try:',
   '    import machine as __kx_machine',

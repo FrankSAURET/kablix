@@ -1008,6 +1008,10 @@ export class PicoEngine implements SimEngine {
   dispose(): void {
     this.disposed = true;
     this.stop();
+    // Un script serveur (socket.listen) a fait ouvrir un vrai port à l'hôte.
+    // Le script meurt ici sans pouvoir refermer quoi que ce soit : c'est au
+    // moteur de le dire, sinon le port survit à la simulation.
+    this.onNetRequest?.({ id: 0, op: 'unlisten' });
     if (this.replayTimer !== null) {
       clearTimeout(this.replayTimer);
       this.replayTimer = null;

@@ -32,6 +32,7 @@ import { codeColumn, moveEditorToColumn, textTabColumn } from './layout';
 import { defaultAppsDirPath, detectSvgEditor, svgEditorLaunch } from './svgEditorDetect';
 import { syncArduinoIdeBoard } from './arduinoIde';
 import { versionPublique } from './version';
+import { PicoNetServer, lanAddress, enHexa, depuisHexa } from './netserver';
 
 const ARTIFACT_EXTS = ['.hex', '.uf2', '.elf', '.bin'];
 
@@ -247,9 +248,16 @@ async function openInSvgEditor(uri: vscode.Uri): Promise<void> {
 interface NetBridgeRequest {
   id: number;
   m?: string;
-  url: string;
+  url?: string;
   headers?: Record<string, string>;
   body?: string;
+  /** Prise TCP tenue par l'hôte : le script fait le serveur (cf. netserver.ts). */
+  op?: 'listen' | 'accept' | 'recv' | 'send' | 'close' | 'unlisten' | 'apinfo';
+  port?: number;
+  cid?: number;
+  n?: number;
+  /** Octets à écrire, en hexadécimal. */
+  data?: string;
 }
 const CUSTOM_PARTS_KEY = 'kablix.customParts';
 /** Préréglages de modèles de simulation importés dans le créateur (.json). */
@@ -422,6 +430,14 @@ export class SimulatorPanel {
   private readonly extensionUri: vscode.Uri;
   private readonly context: vscode.ExtensionContext;
   private readonly disposables: vscode.Disposable[] = [];
+  /**
+   * Prise TCP tenue pour le compte d'un script Pico W qui fait le serveur.
+   * Créée à la première demande du script, jamais avant : tant qu'aucun
+   * programme n'appelle `socket.listen()`, aucun port n'est ouvert.
+   */
+  private netServer: PicoNetServer | undefined;
+  /** Dernière adresse annoncée, pour ne le dire qu'une fois. */
+  private netServerAnnounced = '';
   private currentBoard: Board = 'uno';
   /** Nom de base du projet (sans extension) : dernier .projix enregistré/ouvert, pour nommer l'export SVG. */
   private projectBaseName: string | undefined;
@@ -1664,7 +1680,7 @@ export class SimulatorPanel {
   private async handleNetRequest(req: NetBridgeRequest): Promise<void> {
     const reply = (r: Record<string, unknown>): void =>
       this.post({ type: 'netResponse', response: { id: req?.id, ...r } });
-    if (!req || typeof req.url !== 'string') {
+    if (!req) {
       reply({ error: 'invalid request' });
       return;
     }
@@ -1673,6 +1689,15 @@ export class SimulatorPanel {
       .get<boolean>('picowNetworkBridge', true);
     if (!allowed) {
       reply({ error: 'network bridge disabled (kablix.picowNetworkBridge)' });
+      return;
+    }
+    // Le script fait le SERVEUR : la prise TCP est tenue par l'hôte.
+    if (req.op) {
+      await this.handleNetSocket(req, reply);
+      return;
+    }
+    if (typeof req.url !== 'string') {
+      reply({ error: 'invalid request' });
       return;
     }
     // Seuls http/https sont relayés (jamais file:, data:, ni autre schéma local).
@@ -1706,6 +1731,83 @@ export class SimulatorPanel {
     } finally {
       clearTimeout(timer);
     }
+  }
+
+  /**
+   * Prise TCP d'écoute pour le compte du script : `socket.listen/accept/recv/
+   * send/close`. La puce Wi-Fi n'est pas émulée, donc aucun téléphone ne peut
+   * rejoindre le point d'accès du Pico simulé — c'est VS Code qui ouvre la
+   * vraie prise, sur le réseau de la machine, et le script reçoit exactement
+   * les octets qu'il recevrait sur le matériel.
+   *
+   * `accept` n'a volontairement PAS de délai : un serveur attend son client. Le
+   * script reste bloqué là, comme sur une vraie carte, jusqu'à la première
+   * requête ou l'arrêt de la simulation (qui envoie `unlisten`).
+   */
+  private async handleNetSocket(
+    req: NetBridgeRequest,
+    reply: (r: Record<string, unknown>) => void
+  ): Promise<void> {
+    const srv = (this.netServer ??= new PicoNetServer());
+    try {
+      switch (req.op) {
+        case 'listen': {
+          const { ip, port } = await srv.listen(req.port ?? 80);
+          this.announceNetServer(ip, port);
+          reply({ ip, port });
+          return;
+        }
+        case 'accept': {
+          const c = await srv.accept();
+          reply({ cid: c.cid, peer: c.peer, data: enHexa(c.data) });
+          return;
+        }
+        case 'recv': {
+          const d = await srv.recv(req.cid ?? 0, Math.max(1, req.n ?? 1024));
+          reply({ cid: req.cid, data: enHexa(d) });
+          return;
+        }
+        case 'send': {
+          const buf = depuisHexa(req.data ?? '');
+          reply({ n: srv.send(req.cid ?? 0, buf) });
+          return;
+        }
+        case 'close':
+          srv.closeConn(req.cid ?? 0);
+          reply({});
+          return;
+        case 'unlisten':
+          srv.stop();
+          this.netServerAnnounced = '';
+          reply({});
+          return;
+        case 'apinfo':
+          reply({ ip: lanAddress(), port: srv.port });
+          return;
+        default:
+          reply({ error: `unsupported op: ${String(req.op)}` });
+      }
+    } catch (err) {
+      reply({ error: err instanceof Error ? err.message : String(err) });
+    }
+  }
+
+  /**
+   * Dit UNE fois où le serveur du script est joignable. Ce n'est pas un détail
+   * cosmétique : le port demandé (80) est rarement celui obtenu, et la page est
+   * faite pour être ouverte depuis un autre appareil — sans l'adresse exacte,
+   * elle est introuvable.
+   */
+  private announceNetServer(ip: string, port: number): void {
+    const url = `http://${ip}:${port}/`;
+    if (this.netServerAnnounced === url) return;
+    this.netServerAnnounced = url;
+    vscode.window.showInformationMessage(
+      l10n.t(
+        'Kablix: the simulated Pico W is serving on {0} — open it from a phone on the same network.',
+        url
+      )
+    );
   }
 
   // --- Interopérabilité Wokwi (diagram.json) -----------------------------------
@@ -2388,6 +2490,11 @@ export class SimulatorPanel {
     if (SimulatorPanel.current === this) SimulatorPanel.current = undefined;
     this.clearDebugLine();
     this.stopSvgWatchers();
+    // Un port resté ouvert après la fermeture du simulateur serait une porte
+    // sur le réseau local que plus personne ne surveille.
+    this.netServer?.stop();
+    this.netServer = undefined;
+    this.netServerAnnounced = '';
     this.debugLineDecoration?.dispose();
     this.debugLineDecoration = undefined;
     while (this.disposables.length) {
