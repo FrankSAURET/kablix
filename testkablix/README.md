@@ -6,6 +6,8 @@ Un test = un programme + un projet `.projix` (schéma câblé prêt à simuler).
   sketch (convention arduino-cli) — `Arduino/<nom>/<nom>.ino` et son `.projix`
   dans le même dossier.
 - **Scripts MicroPython (`.py`)** : à la racine, le `.projix` porte le même nom.
+- **Cartes Pico 2 / Pico 2 W** : rangées à part sous **`pico2/`** (même paire
+  `.py` + `.projix`), le temps que la puce RP2350 fasse ses preuves.
 
 Aucun script ne code ces emplacements en dur : `_paths.mjs` retrouve un fichier
 de test où qu'il soit rangé (racine puis sous-dossiers). Déplacer un test ne

@@ -22,13 +22,15 @@ const BUILD_TIME = new Date().toLocaleTimeString('fr-FR', { hour12: false });
 // dans dist/extension.js, donc autant de moins à lire au démarrage.
 const DEPENDENCIES = require('./package.json').dependencies ?? {};
 
-// Posters de brochage (bouton ☢) : ~3,7 Mo de SVG à eux cinq. Ils ne sont PAS
+// Posters de brochage (bouton ☢) : ~4,8 Mo de SVG à eux sept. Ils ne sont PAS
 // inlinés dans webview.js — la webview les chargerait à chaque ouverture de
 // projet alors qu'ils ne servent qu'à la demande. Copiés tels quels dans
 // dist/pinout/ (déjà une racine de ressources autorisée) et récupérés par fetch.
 const PINOUTS = {
   'pico.svg': 'src/webview/composants/interne/pico-pinout.svg',
   'picow.svg': 'src/webview/composants/interne/picow-pinout.svg',
+  'pico2.svg': 'src/webview/composants/interne/pico2-pinout.svg',
+  'pico2w.svg': 'src/webview/composants/interne/pico2w-pinout.svg',
   'uno.svg': 'src/webview/composants/interne/uno-pinout.svg',
   'mega.svg': 'src/webview/composants/interne/mega pinout.svg',
   'nano.svg': 'src/webview/composants/interne/nano pinout.svg',

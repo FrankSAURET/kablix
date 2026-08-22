@@ -52,7 +52,7 @@ import { embedClipboardInSvg, encodeClipboard, extractClipboard, type ClipboardP
 import { groveSignalGpio, groveSocketPins } from './grove-shield.mjs';
 import { internalWiringSvg, type PinPoint } from './internal-wiring.mjs';
 import { hasPinout, pinoutPoster, loadPinoutSvg } from './pinout.mjs';
-import { BOARD_W, BOARD_H } from '../composants/pico-board.mjs';
+import { boardSize } from '../composants/pico-board.mjs';
 import { buildNets, nameEquipotentials, type Diagram, type Endpoint, type Part, type Wire } from './model.mjs';
 import { DEFAULT_WIRE_COLORS, DUPONT_COLORS, dupontHex, roundedWirePath, snapPoint, type XY } from './geometry.mjs';
 import { startAutoPan, type AutoPan } from './autopan.mjs';
@@ -5197,8 +5197,11 @@ export class Editor {
     // la taille nominale (le poster suit la rotation via le transform du corps).
     let left = 0;
     let top = 0;
-    let width = BOARD_W;
-    let height = BOARD_H;
+    // Taille nominale de CETTE variante : les Pico 2 sont dessinées en portrait,
+    // les Pico 1 en paysage.
+    const nominal = boardSize(r.part.type);
+    let width = nominal.w;
+    let height = nominal.h;
     const rotated = (r.part.rotation ?? 0) % 360 !== 0 || !!r.part.flipH || !!r.part.flipV;
     const boardSvg = (r.el.shadowRoot ?? r.el).querySelector('svg');
     if (!rotated && boardSvg) {

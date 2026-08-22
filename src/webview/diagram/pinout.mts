@@ -55,12 +55,14 @@ export interface PinoutPoster {
 const POSTERS: Record<string, PinoutPoster> = {
   pico: { mode: 'stretch', w: 209.24001, h: 357.76389, rTop: 0.3897, rBot: 0.6075 },
   picow: { mode: 'stretch', w: 208.66299, h: 357.73111, rTop: 0.3897, rBot: 0.6075 },
-  // Pico 2 / Pico 2 W : brochage identique à celui de leur aîné, étiquette pour
-  // étiquette (posters officiels comparés — seule change la sérigraphie de la
-  // carte, qui ne fait pas partie du poster). Le fichier de l'aîné est donc lu
-  // tel quel plutôt que dupliqué : `file` redirige le fetch.
-  pico2: { mode: 'stretch', w: 209.24001, h: 357.76389, rTop: 0.3897, rBot: 0.6075, file: 'pico' },
-  pico2w: { mode: 'stretch', w: 208.66299, h: 357.73111, rTop: 0.3897, rBot: 0.6075, file: 'picow' },
+  // Pico 2 / Pico 2 W : cartes dessinées en PORTRAIT, poster propre (Frank), avec
+  // les mêmes pastilles de calage que la carte — donc mode 'align', s = 1 : la
+  // colonne de gauche du poster (x = 150) tombe sur la rangée de gauche de la
+  // carte (x = 10), d'où tx = -140 ; les deux ont les broches de y = 20 à 210,
+  // d'où ty = 0. Le brochage lui-même est identique à celui de leur aîné
+  // (étiquette pour étiquette), seule la sérigraphie de la carte change.
+  pico2: { mode: 'align', w: 370, h: 220, cardW: 90, s: 1, tx: -140, ty: 0 },
+  pico2w: { mode: 'align', w: 369.9999, h: 220, cardW: 90, s: 1, tx: -140, ty: 0 },
   nano: { mode: 'align', w: 225.8154, h: 384.31277, cardW: 190, s: 1, tx: 9.48, ty: -177.82 },
   uno: { mode: 'align', w: 293.05396, h: 479.98375, cardW: 300, s: 1, tx: 5.97, ty: -139 },
   mega: { mode: 'align', w: 142.70264, h: 130.34598, cardW: 430, s: 3.7795, tx: 4.32, ty: -140.34 },

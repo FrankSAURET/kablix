@@ -27,4 +27,4 @@ Carte microcontrôleur **RP2350** (double cœur ARM Cortex-M33 à 150 MHz), succ
 
 ---
 
-*Composant maison Kablix (dessin de la carte). RP2350 © Raspberry Pi Ltd.*
+*Composant maison Kablix. Dessin de la carte d'après les visuels officiels de Raspberry Pi Ltd. RP2350 © Raspberry Pi Ltd.*

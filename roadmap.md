@@ -107,15 +107,17 @@ Trois vrais défauts trouvés en revanche, dont **deux corrigés sur place** pen
 
 Les correctifs sont archivés dans [`scripts/rp2350js-eval/`](scripts/rp2350js-eval/README.md) — ils ne leur ont pas été proposés à ce jour.
 
-### 9. ✅ **Intégrer le Pico 2 et le Pico 2 W dans Kablix** — *fait le 22 août 2026 (v2026.8.102.9)*
+### 9. ✅ **Intégrer le Pico 2 et le Pico 2 W dans Kablix** — *fait le 22 août 2026 (v2026.8.102.9, dessins et fiches en v2026.8.102.10)*
 
 Les deux cartes sont dans le catalogue, se choisissent dans la barre d'outils, chargent leur firmware MicroPython (`RPI_PICO2`, `RPI_PICO2_W`) et tournent sur le cœur **Cortex-M33** de [`c1570/rp2350js`](https://github.com/c1570/rp2350js), vendorisé dans [`vendor/rp2350js/`](vendor/rp2350js/ORIGINE.md) et régénérable par script. Le Pico 1 garde `rp2040js` : leur RP2040 vaut le nôtre à 5 % près, mais changer de moteur sous une carte qui marche n'achetait rien.
 
 Ce qu'il a fallu écrire en plus de la copie : le **coprocesseur GPIO du RP2350** (`patches/rp2350js/03-gpioc-mcrr.patch`). Le SDK y route `gpio_put`/`gpio_get` par des instructions `MCR`/`MCRR` que leur code ignorait ou décodait à l'envers — sans ça, **aucune broche ne bougeait**. Leurs deux correctifs (bouton, NeoPixel) sont embarqués dans les patchs 01 et 02.
 
+Les **dessins de Frank** ont suivi en v2026.8.102.10 : cartes en portrait extraites de `Composants2D.svg` (90×220, les 40 pattes nommées à partir des deux pastilles de repère), poster de brochage propre à chaque modèle, fiches d'aide FR illustrées et tests dans `testkablix/pico2/`.
+
 Reste ouvert, sans bloquer l'usage :
-- **le dessin des deux cartes** — elles reprennent pour l'instant celui de leur aîné (même carte, même brochage, seule la sérigraphie diffère) ;
-- **le C/C++ bare-metal**, refusé avec un message clair sur ces deux cartes (cortex-m33, éditeur de liens et vecteur de démarrage à porter) : MicroPython seulement.
+- **le C/C++ bare-metal**, refusé avec un message clair sur ces deux cartes (cortex-m33, éditeur de liens et vecteur de démarrage à porter) : MicroPython seulement ;
+- **les versions EN** des deux fiches, comme toute traduction : avant publication.
 
 ---
 

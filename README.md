@@ -150,6 +150,7 @@ Kablix est développé par **[Frank SAURET](https://electropol.fr)** et s’app
 | [@wokwi/elements](https://github.com/wokwi/wokwi-elements)                    | Composants visuels (cartes, LED, capteurs…)                           | MIT                                         |
 | [JSZip](https://stuk.github.io/jszip/)                                        | Lecture/écriture des archives `.projix`                               | MIT/GPLv3                                   |
 | Bootrom B1 du RP2040                                                          | Démarrage du RP2040 simulé                                            | © Raspberry Pi (Trading) Ltd — BSD-3-Clause |
+| Visuels officiels des cartes Raspberry Pi                                     | Dessins des cartes Pico, Pico W, Pico 2 et Pico 2 W                    | © Raspberry Pi Ltd                          |
 | MicroPython                                                                   | Firmware `.uf2` exécuté sur le Pico simulé (fourni par l’utilisateur) | MIT                                         |
 | Police [LED Board-7](http://www.styleseven.com) © Sizenko Alexander (Style-7) | Texte façon afficheur LED des écrans LCD simulés                      | Freeware (usage libre, crédit requis)       |
 

@@ -17,18 +17,20 @@ const OUT = join(ROOT, 'docs', 'img', 'composants');
 // type → module d'élément + balise + attributs de la variante illustrée.
 // `width` : largeur de sortie si 360 px donne une image démesurée (composant
 // étroit et haut, comme les condensateurs — 360 de large = 1000 de haut).
+// `height` : même chose mais l'échelle est calée sur la HAUTEUR — pour les
+// composants dessinés en portrait (Pico 2), où c'est elle qui déborde.
 const PARTS = {
   ldr: { module: 'ldr-element.mjs', tag: 'kablix-ldr' },
   ntc: { module: 'ntc-element.mjs', tag: 'kablix-ntc' },
   ptc: { module: 'ptc-element.mjs', tag: 'kablix-ptc' },
   'grove-pico': { module: 'grove-shield-element.mjs', tag: 'kablix-grove-pico', attrs: { pwr: '3v3' } },
   // Les quatre Pico partagent l'élément <kablix-pico-board> : seul `variant`
-  // change (les Pico 2 reprennent le dessin de leur aîné tant qu'ils n'ont pas
-  // le leur).
+  // change. Pico et Pico W sont dessinées en paysage, les Pico 2 en portrait —
+  // d'où la sortie calée sur la hauteur pour ces deux-là.
   pico: { module: 'pico-board.mjs', tag: 'kablix-pico-board', attrs: { variant: 'pico' } },
   picow: { module: 'pico-board.mjs', tag: 'kablix-pico-board', attrs: { variant: 'picow' } },
-  pico2: { module: 'pico-board.mjs', tag: 'kablix-pico-board', attrs: { variant: 'pico2' } },
-  pico2w: { module: 'pico-board.mjs', tag: 'kablix-pico-board', attrs: { variant: 'pico2w' } },
+  pico2: { module: 'pico-board.mjs', tag: 'kablix-pico-board', height: 360, attrs: { variant: 'pico2' } },
+  pico2w: { module: 'pico-board.mjs', tag: 'kablix-pico-board', height: 360, attrs: { variant: 'pico2w' } },
   diode: { module: 'diode-element.mjs', tag: 'kablix-diode' },
   'condo-np': { module: 'capacitor-element.mjs', tag: 'kablix-capacitor', width: 190, attrs: { ctype: 'np', value: '1e-7' } },
   'condo-p-1': { module: 'capacitor-element.mjs', tag: 'kablix-capacitor', width: 165, attrs: { ctype: 'p', value: '1e-5' } },
@@ -113,6 +115,11 @@ const el = document.createElement('${spec.tag}');
 ${spec.catalog ? `for (const [k, v] of Object.entries(partDef(${JSON.stringify(spec.catalog)}).attrs ?? {})) el.setAttribute(k, v);` : ''}
 ${Object.entries(spec.attrs ?? {}).map(([k, v]) => `el.setAttribute('${k}', ${JSON.stringify(v)});`).join('\n')}
 document.body.appendChild(el);
+// Un custom element sans style :host reste en display inline, et transform
+// n'a AUCUN effet sur une boîte inline : le dessin resterait à sa taille
+// naturelle dans une image dimensionnée pour l'échelle voulue (carte tassée
+// dans le coin, le reste transparent).
+if (getComputedStyle(el).display === 'inline') el.style.display = 'inline-block';
 setTimeout(() => {
   const svg = el.shadowRoot && el.shadowRoot.querySelector('svg');
   if (!svg) return;
@@ -126,7 +133,7 @@ setTimeout(() => {
   const x1 = Math.min(vb.x + vb.width, bb.x + bb.width);
   const y1 = Math.min(vb.y + vb.height, bb.y + bb.height);
   const px = box.width / vb.width; // px CSS par unité de viewBox
-  const scale = ${spec.width ?? WIDTH} / ((x1 - x0) * px);
+  const scale = ${spec.height ? `${spec.height} / ((y1 - y0) * px)` : `${spec.width ?? WIDTH} / ((x1 - x0) * px)`};
   el.style.transformOrigin = '0 0';
   el.style.transform = 'scale(' + scale + ') translate(' + (-x0 * px) + 'px,' + (-y0 * px) + 'px)';
   // La page est recadrée sur le dessin mis à l'échelle (marge de 4 px).

@@ -111,6 +111,19 @@ function collect(name, ids, parent, host) {
   for (const c of [...g.querySelectorAll('circle')].filter(isPad)) {
     const p = toRoot(c, Number(c.getAttribute('cx') || 0), Number(c.getAttribute('cy') || 0));
     let best = null, bestD = 1e9;
+    // Repère COMPLET de Frank : la pastille et son nom sont seuls dans leur
+    // petit groupe. Ce cas passe avant tout, car sur une carte de
+    // développement la sérigraphie du dessin (les numéros de broches, le mot
+    // « LED »…) tombe pile à côté des pastilles et leur volait leur nom.
+    const par = c.parentElement;
+    if (par && par.tagName === 'g') {
+      const kids = [...par.children];
+      const solo = kids.filter((e) => e.tagName === 'text');
+      if (solo.length === 1 && kids.filter((e) => e.tagName === 'circle' && isPad(e)).length === 1) {
+        const t = texts.find((x) => x.el === solo[0] && !pris.has(x));
+        if (t) { best = t; pris.add(t); }
+      }
+    }
     // Libellé posé À CÔTÉ de la pastille (bornier vu de profil) : son CENTRE est
     // à la même hauteur, à gauche ou à droite. Ce cas passe EN PREMIER, car un
     // empilement de pattes serrées (Grove : 2,6 mm de pas) place le libellé de
@@ -120,14 +133,16 @@ function collect(name, ids, parent, host) {
     // Le décalage horizontal MINIMAL est ce qui distingue « à côté » de « au
     // dessus » : un nom posé au-dessus est centré sur sa pastille (dx ≈ 0), et
     // sans ce plancher le « - » d'un ventilateur volait la patte « + ».
-    for (const t of texts) {
-      if (pris.has(t)) continue;
-      const dx = Math.abs(t.cx - p.x), dy = Math.abs(t.cy - p.y);
-      if (dy > 1 || dx < 0.8 || dx > 4) continue;
-      const d = dy * 4 + dx;
-      if (d < bestD) { bestD = d; best = t; }
+    if (!best) {
+      for (const t of texts) {
+        if (pris.has(t)) continue;
+        const dx = Math.abs(t.cx - p.x), dy = Math.abs(t.cy - p.y);
+        if (dy > 1 || dx < 0.8 || dx > 4) continue;
+        const d = dy * 4 + dx;
+        if (d < bestD) { bestD = d; best = t; }
+      }
+      if (best) pris.add(best);
     }
-    if (best) pris.add(best);
     // Cas courant : le nom est écrit juste au-dessus de la pastille.
     if (!best) {
       for (const t of texts) {
@@ -156,6 +171,35 @@ function collect(name, ids, parent, host) {
   }
   // BBox du dessin nettoyé, dans le repère de la planche.
   root.appendChild(clone);
+  // Dessin importé d'Illustrator : ses couleurs viennent de classes CSS
+  // (.cls-3, .st0…) déclarées dans un <style> de la planche, qui ne suit pas le
+  // composant extrait — sorti tel quel, le dessin était tout noir. Tant que le
+  // clone est dans la page, on fige le style calculé en attributs de peinture.
+  // Les dessins de Frank n'ont pas de classe : eux ne bougent pas.
+  const PEINT = { 'opacity': '1', 'fill-opacity': '1', 'stroke-opacity': '1',
+                  'stroke-linecap': 'butt', 'stroke-linejoin': 'miter', 'stroke-dasharray': 'none' };
+  const ECRIT = { 'font-family': '', 'font-size': '', 'font-weight': '400', 'font-style': 'normal',
+                  'letter-spacing': 'normal', 'word-spacing': 'normal', 'text-anchor': 'start' };
+  for (const el of [...clone.querySelectorAll('[class]')]) {
+    const cs = getComputedStyle(el);
+    for (const prop of ['fill', 'stroke', 'stroke-width']) {
+      const v = cs.getPropertyValue(prop);
+      if (v) el.setAttribute(prop, v);
+    }
+    for (const prop of Object.keys(PEINT)) {
+      const v = cs.getPropertyValue(prop);
+      if (v && v !== PEINT[prop]) el.setAttribute(prop, v);
+    }
+    // La sérigraphie porte sa taille de police dans la classe : sans elle, les
+    // mots sortaient au corps 16 par défaut et débordaient de la carte.
+    if (/^(text|tspan)$/.test(el.tagName) || el.querySelector('text, tspan')) {
+      for (const prop of Object.keys(ECRIT)) {
+        const v = cs.getPropertyValue(prop);
+        if (v && v !== ECRIT[prop]) el.setAttribute(prop, v);
+      }
+    }
+    el.removeAttribute('class');
+  }
   const bb = clone.getBBox();
   const c1 = toRoot(clone, bb.x, bb.y), c2 = toRoot(clone, bb.x + bb.width, bb.y + bb.height);
   clone.remove();

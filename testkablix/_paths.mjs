@@ -14,11 +14,17 @@ import { fileURLToPath } from 'node:url';
 export const HERE = dirname(fileURLToPath(import.meta.url));
 
 /** Sous-dossiers de rangement, dans l'ordre de recherche (racine d'abord). */
-export const BANCS = ['Arduino', 'PicoPi'];
+export const BANCS = ['Arduino', 'PicoPi', 'pico2'];
 
-/** Banc d'accueil d'un test NOUVEAU, d'après son extension de code. */
-export function bancOf(ext) {
-  return ext === 'ino' ? 'Arduino' : '';
+/** Cartes rangées dans leur propre dossier (Frank : `testkablix/pico2/`). */
+const BANC_CARTE = { pico2: 'pico2', pico2w: 'pico2' };
+
+/**
+ * Banc d'accueil d'un test NOUVEAU : son dossier de carte s'il en a un, sinon
+ * d'après son extension de code.
+ */
+export function bancOf(ext, board) {
+  return BANC_CARTE[board] ?? (ext === 'ino' ? 'Arduino' : '');
 }
 
 /**
@@ -48,7 +54,7 @@ export function testCode(test) {
   const found = tk(relOf(test));
   if (existsSync(found)) return found;
   // Test nouveau : il naît dans son banc.
-  const banc = bancOf(test.ext);
+  const banc = bancOf(test.ext, test.board);
   return banc ? join(HERE, banc, relOf(test)) : found;
 }
 

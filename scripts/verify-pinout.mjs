@@ -1,10 +1,10 @@
 // Test de régression : posters de brochage chargés À LA DEMANDE (v2026.7.130).
-// Les 5 posters (~3,7 Mo de SVG) ne sont plus inlinés dans webview.js — ils sont
+// Les 7 posters (~4,8 Mo de SVG) ne sont plus inlinés dans webview.js — ils sont
 // copiés dans dist/pinout/ par esbuild.js et récupérés par fetch au premier clic
 // sur ☢, puis gardés en cache. Ce qui est vérifié :
 //  - le bundle webview NE CONTIENT PLUS le markup des posters (la régression que
 //    l'on veut empêcher : un import statique qui les réintroduirait) ;
-//  - dist/pinout/ contient bien les 5 fichiers et esbuild les recopie ;
+//  - dist/pinout/ contient bien les 7 fichiers et esbuild les recopie ;
 //  - hasPinout() reste SYNCHRONE (le bouton ☢ s'affiche sans attendre le réseau) ;
 //  - le poster s'affiche réellement (fetch → .part__pinout non vide) et se pose
 //    aux bonnes dimensions, pour les deux modes ('stretch' pico, 'align' uno) ;
@@ -18,7 +18,7 @@ import { build as esbuild } from 'esbuild';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CACHE = join(ROOT, 'node_modules', '.cache-pinout');
-const BOARDS = ['pico', 'picow', 'uno', 'mega', 'nano'];
+const BOARDS = ['pico', 'picow', 'pico2', 'pico2w', 'uno', 'mega', 'nano'];
 
 const checks = [];
 const ok = (name, cond, detail = '') => checks.push({ name, ok: !!cond, detail: String(detail) });
@@ -110,15 +110,18 @@ async function run() {
 		fetches === 1 && again === svgPico, 'fetches=' + fetches);
 	ok('loadPinoutSvg : null pour un composant sans poster', (await loadPinoutSvg('led')) === null);
 
-	// --- posters partagés : Pico 2 / Pico 2 W lisent le fichier de leur aîné ---
-	// Le brochage des quatre cartes est identique étiquette pour étiquette (seule
-	// la sérigraphie de la carte change, et elle ne fait pas partie du poster) :
-	// le champ file redirige le fetch au lieu de dupliquer 1,2 Mo de SVG.
-	ok('pico2/pico2w : poster redirige vers celui de l’aine (champ file)',
-		pinoutPoster('pico2').file === 'pico' && pinoutPoster('pico2w').file === 'picow');
-	ok('loadPinoutSvg(pico2) : même markup que pico', (await loadPinoutSvg('pico2')) === svgPico);
-	ok('loadPinoutSvg(pico2w) : même markup que picow',
-		(await loadPinoutSvg('pico2w')) === (await loadPinoutSvg('picow')));
+	// --- Pico 2 / Pico 2 W : carte PORTRAIT, poster propre, pose alignee ------
+	// Meme brochage que leur aine, mais dessin portrait : leur poster est
+	// dessine aux memes ordonnees que la carte, donc pose sans deformation
+	// (s = 1) avec la seule translation tx = -140.
+	ok('pico2/pico2w : poster propre, pose alignee sans deformation',
+		pinoutPoster('pico2').mode === 'align' && pinoutPoster('pico2').cardW === 90 &&
+		pinoutPoster('pico2').s === 1 && pinoutPoster('pico2').tx === -140 &&
+		pinoutPoster('pico2w').mode === 'align' && pinoutPoster('pico2w').ty === 0);
+	const svgPico2 = await loadPinoutSvg('pico2');
+	ok('loadPinoutSvg(pico2) : poster distinct de celui de la Pico',
+		typeof svgPico2 === 'string' && svgPico2.startsWith('<svg') && svgPico2 !== svgPico,
+		svgPico2 ? svgPico2.length + ' car.' : 'null');
 
 	// --- affichage réel du poster : mode 'stretch' (pico) ---------------------
 	const pico = editor.addPart('pico', 100, 100);
@@ -154,6 +157,33 @@ async function run() {
 	ok('uno : mode align — posé sans étirement vertical',
 		!!ov2 && parseFloat(ov2.style.width) > 0 && !/scaleY/.test(ov2.style.transform || ''),
 		ov2 ? ov2.style.left + ',' + ov2.style.top + ' w=' + ov2.style.width : '');
+	editor.toggleSelectedSchema();
+	await wait(60);
+
+	// --- affichage réel : Pico 2 (carte portrait, poster aligné) --------------
+	const pico2 = editor.addPart('pico2', 700, 100);
+	await wait(150);
+	selectPart(editor, pico2.id);
+	editor.toggleSelectedSchema();
+	await wait(400);
+	const r2 = editor.rendered.get(pico2.id);
+	const ov3 = r2.container.querySelector('.part__pinout');
+	ok('pico2 : poster posé et non vide', !!ov3 && !!ov3.querySelector('svg'));
+	if (ov3) {
+		// Le vrai contrôle : la colonne gauche du poster (x = 150) doit tomber
+		// PILE sur la rangée gauche de la carte (x = 10), à la même ordonnée.
+		const geo = pinoutPoster('pico2');
+		const board = (r2.el.shadowRoot ?? r2.el).querySelector('svg').getBoundingClientRect();
+		const po = ov3.getBoundingClientRect();
+		const k = po.width / geo.w;   // px écran par unité de poster
+		const kb = board.width / 90;  // px écran par unité de carte
+		const dx = (po.left + 150 * k) - (board.left + 10 * kb);
+		const dy = (po.top + 20 * k) - (board.top + 20 * kb);
+		ok('pico2 : colonne gauche du poster calée sur la broche 1 (GP0)',
+			Math.abs(dx) < 1 && Math.abs(dy) < 1, 'dx=' + dx.toFixed(2) + ' dy=' + dy.toFixed(2));
+		ok('pico2 : posé sans étirement vertical (mode align)',
+			!/scaleY/.test(ov3.style.transform || ''), ov3.style.transform || '(aucun)');
+	}
 	editor.toggleSelectedSchema();
 	await wait(60);
 
