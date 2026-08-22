@@ -6,8 +6,9 @@ import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { build as esbuild } from 'esbuild';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = 'h:/OneDrive/4 Programation/- VS Code/Extensions/Kablix';
+const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/\\/g, '/').replace(/\/$/, '');
 const CACHE = join(ROOT, 'node_modules', '.cache-molette');
 
 const entry = `

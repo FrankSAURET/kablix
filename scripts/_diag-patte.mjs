@@ -1,15 +1,16 @@
 // Diagnostic d'atelier : que rend VRAIMENT <kablix-patte> ? Bundle du seul fork,
 // rendu dans Chrome headless, dump du shadow DOM (le webp de la fiche d'aide
 // sortait blanc alors que l'élément se définissait bien).
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build as esbuild } from 'esbuild';
+import { tmpdir } from 'node:os';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const TMP = process.env.KX_TMP
-  || 'V:/Temp/claude/h--OneDrive-4-Programation---VS-Code-Extensions-Kablix/12a8c4d6-73cd-444a-baa9-bda5de53da53/scratchpad';
+  || join(tmpdir(), 'kablix-vues');
 
 const entry = join(TMP, 'entry-patte.mjs');
 writeFileSync(entry, `

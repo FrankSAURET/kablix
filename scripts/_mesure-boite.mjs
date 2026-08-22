@@ -1,22 +1,30 @@
-// Diagnostic : autoroutage du VRAI schéma 7seg-uno — coudes par fil et
-// traversées de corps mesurées sur les boîtes d'obstacle réelles.
+// Diagnostic : autoroutage d'un VRAI schéma — coudes par fil et traversées de
+// corps mesurées sur les boîtes d'obstacle réelles.
+// Usage : node scripts/_mesure-boite.mjs [testkablix/<banc>.projix]
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import JSZip from 'jszip';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = 'h:/OneDrive/4 Programation/- VS Code/Extensions/Kablix';
+const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/\\/g, '/').replace(/\/$/, '');
 const CACHE = join(ROOT, 'node_modules', '.cache-boite');
 const { build: esbuild } = await import('esbuild');
 
-const zip = await JSZip.loadAsync(readFileSync(join(ROOT, 'testkablix/7seg-uno/7seg-uno.projix')));
+// Le banc 7seg-uno d'origine n'existe plus : le montage se choisit en argument.
+const BANC = process.argv[2] ?? 'testkablix/7seg-pico.projix';
+const zip = await JSZip.loadAsync(readFileSync(join(ROOT, BANC)));
 const diagram = JSON.parse(await zip.file('diagram.json').async('string'));
+
+// Mêmes forks que la webview : un composant absent ne se dessine pas, donc
+// n'est pas un obstacle, et l'autoroutage lui passe au travers.
+const imports = [...readFileSync(join(ROOT, 'src/webview/sim.mts'), 'utf8')
+	.matchAll(/^import '\.\/composants\/(.+?)\.mjs';/gm)]
+	.map((m) => `import '../../src/webview/composants/${m[1]}.mjs';`).join('\n');
 
 const entry = `
 import { Editor } from '../../src/webview/diagram/editor.mjs';
-import '../../src/webview/composants/arduino-uno-element.mjs';
-import '../../src/webview/composants/resistor-element.mjs';
-import '../../src/webview/composants/7segment-element.mjs';
+${imports}
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const DIAGRAM = ${JSON.stringify(diagram)};
 

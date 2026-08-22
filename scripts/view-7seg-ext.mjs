@@ -5,9 +5,12 @@ import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build as esbuild } from 'esbuild';
+import { tmpdir } from 'node:os';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const SP = 'V:/Temp/claude/h--OneDrive-4-Programation---VS-Code-Extensions-Kablix/3a50b9e7-84d9-4776-83f6-f55321d5e6a5/scratchpad';
+// Sortie des captures : le temporaire du système, sauf KABLIX_OUT.
+const SP = process.env.KABLIX_OUT ?? join(tmpdir(), 'kablix-vues');
+mkdirSync(SP, { recursive: true });
 const SCALE = 3;
 
 const entry = `

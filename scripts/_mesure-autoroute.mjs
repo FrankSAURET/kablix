@@ -9,6 +9,7 @@ import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build as esbuild } from 'esbuild';
+import { tmpdir } from 'node:os';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CACHE = join(ROOT, 'node_modules', '.cache-mesure-route');
@@ -161,7 +162,9 @@ writeFileSync(
 );
 const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
 if (!chrome) { console.log('Chrome introuvable'); process.exit(0); }
-const OUT = 'V:/Temp/claude/h--OneDrive-4-Programation---VS-Code-Extensions-Kablix/01082e75-d385-466a-8142-498007024e80/scratchpad';
+// Sortie des captures : le temporaire du système, sauf KABLIX_OUT.
+const OUT = process.env.KABLIX_OUT ?? join(tmpdir(), 'kablix-vues');
+mkdirSync(OUT, { recursive: true });
 const png = process.argv.includes('--png');
 if (png) {
   execFileSync(chrome, ['--headless=new', '--disable-gpu', '--no-sandbox', '--window-size=1400,1000', '--virtual-time-budget=22000', '--screenshot=' + join(OUT, 'route-apres.png'), `file:///${join(CACHE, 'p.html').replace(/\\/g, '/')}`], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });

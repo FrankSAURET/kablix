@@ -6,9 +6,9 @@ import JSZip from 'jszip';
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const ROOT = process.env.KABLIX_ROOT ?? 'h:/OneDrive/4 Programation/- VS Code/Extensions/Kablix';
+const ROOT = process.env.KABLIX_ROOT ?? fileURLToPath(new URL('..', import.meta.url)).replace(/\\/g, '/').replace(/\/$/, '');
 const tmp = mkdtempSync(join(tmpdir(), 'kablix-nets-'));
 const out = join(tmp, 'model.mjs');
 await esbuild.build({

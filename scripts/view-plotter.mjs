@@ -1,12 +1,16 @@
 // Capture visuelle du traceur : sinus + escalier de sonde, thèmes sombre et clair.
 // Usage : node view-plotter.mjs (depuis la racine Kablix pour node_modules)
-import { writeFileSync, existsSync } from 'node:fs';
+import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { buildSync } from 'esbuild';
+import { fileURLToPath } from 'node:url';
+import { tmpdir } from 'node:os';
 
-const ROOT = 'h:/OneDrive/4 Programation/- VS Code/Extensions/Kablix';
-const OUT = 'V:/Temp/claude/h--OneDrive-4-Programation---VS-Code-Extensions-Kablix/056d6e61-34bc-4b56-8aca-a46bee3716f8/scratchpad';
+const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/\\/g, '/').replace(/\/$/, '');
+// Sortie des captures : le temporaire du système, sauf KABLIX_OUT.
+const OUT = process.env.KABLIX_OUT ?? join(tmpdir(), 'kablix-vues');
+mkdirSync(OUT, { recursive: true });
 
 const bundle = buildSync({
   entryPoints: [join(ROOT, 'src', 'webview', 'plotter.mts')],

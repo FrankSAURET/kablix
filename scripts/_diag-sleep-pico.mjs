@@ -9,10 +9,10 @@ import esbuild from 'esbuild';
 import { mkdtempSync, readFileSync, writeSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { firmwarePico } from './_firmware.mjs';
 
-const MAIN = 'h:/OneDrive/4 Programation/- VS Code/Extensions/Kablix';
+const MAIN = fileURLToPath(new URL('..', import.meta.url)).replace(/\\/g, '/').replace(/\/$/, '');
 const ROOT = process.env.KABLIX_ROOT ?? MAIN;
 const NOM = process.argv[2] ?? 'Horloge.py';
 const CHAUFFE_MS = 12_000;

@@ -1,17 +1,21 @@
 // Diagnostic : que rend <kablix-araignee> ? (les pattes n'apparaissent pas sur
 // la capture de la fiche d'aide). Dump du shadow DOM + longueur des segments.
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { tmpdir } from 'node:os';
 
-const ROOT = 'h:/OneDrive/4 Programation/- VS Code/Extensions/Kablix';
-const TMP = 'V:/Temp/claude/h--OneDrive-4-Programation---VS-Code-Extensions-Kablix/12a8c4d6-73cd-444a-baa9-bda5de53da53/scratchpad';
+const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/\\/g, '/').replace(/\/$/, '');
+// Sortie des captures : le temporaire du système, sauf KABLIX_OUT.
+const TMP = process.env.KABLIX_OUT ?? join(tmpdir(), 'kablix-vues');
+mkdirSync(TMP, { recursive: true });
 
 const { build: esbuild } = await import('esbuild');
 
 const entry = join(TMP, 'entry-araignee.mjs');
 writeFileSync(entry, `
-import { SEGMENT1, SEGMENT2 } from '${ROOT}/src/webview/composants/patte-element.mjs';
+import { LEG_FEMUR, LEG_TIBIA } from '${ROOT}/src/webview/composants/patte-element.mjs';
 import '${ROOT}/src/webview/composants/araignee-element.mjs';
 const el = document.createElement('kablix-araignee');
 document.body.appendChild(el);
@@ -22,7 +26,7 @@ setTimeout(() => {
   const rect = (n) => { const r = n.getBoundingClientRect(); return [r.x, r.y, r.width, r.height].join(','); };
   const kids = [...svg.children].map((k) => k.tagName + ' id=' + k.id + ' ns=' + String(k.namespaceURI).slice(-8)
     + ' bbox=' + box(k) + ' rect=' + rect(k));
-  pre.textContent = 'SEG1 len=' + SEGMENT1.length + ' SEG2 len=' + SEGMENT2.length
+  pre.textContent = 'FEMUR=' + LEG_FEMUR + ' TIBIA=' + LEG_TIBIA
     + '\\nSVG bbox ' + box(svg) + '\\nSVG rect ' + rect(svg)
     + '\\nENFANTS:\\n' + kids.join('\\n');
   document.body.appendChild(pre);

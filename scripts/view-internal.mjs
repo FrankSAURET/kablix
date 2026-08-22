@@ -8,7 +8,9 @@ import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const SP = 'V:/Temp/claude/h--OneDrive-4-Programation---VS-Code-Extensions-Kablix/3a50b9e7-84d9-4776-83f6-f55321d5e6a5/scratchpad';
+// Sortie des captures : le temporaire du système, sauf KABLIX_OUT.
+const SP = process.env.KABLIX_OUT ?? join(tmpdir(), 'kablix-vues');
+mkdirSync(SP, { recursive: true });
 const out = join(mkdtempSync(join(tmpdir(), 'kx-iw-')), 'iw.mjs');
 await esbuild.build({ entryPoints: [join(root, 'src/webview/diagram/internal-wiring.mts')], outfile: out, bundle: true, platform: 'node', format: 'esm', logLevel: 'silent', loader: { '.svg': 'text', '.webp': 'dataurl' } });
 const { internalWiringSvg } = await import(pathToFileURL(out).href);

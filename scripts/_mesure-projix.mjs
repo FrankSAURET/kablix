@@ -7,8 +7,9 @@ import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import JSZip from 'jszip';
 import { build as esbuild } from 'esbuild';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = 'h:/OneDrive/4 Programation/- VS Code/Extensions/Kablix';
+const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/\\/g, '/').replace(/\/$/, '');
 const CACHE = join(ROOT, 'node_modules', '.cache-projix');
 const cible = process.argv[2] ?? 'testkablix/button-pico.projix';
 

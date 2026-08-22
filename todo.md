@@ -1,6 +1,18 @@
 # À faire
 1. Traductions **EN** du lot Pico 2, à faire en un seul lot avant publication : `docs/en/composants/pico2.md` et `pico2w.md`, le paragraphe *Communication avec l'extérieur* de `picow.md`, et les deux précisions ajoutées à `USAGE.md`.
 
+# >>>>  v2026.8.102.14 — Dix-huit outils d'atelier qui ne démarraient plus
+
+1. ✅ **Dix scripts portaient la racine du dépôt en dur** (item 10 du lot 11), `h:/OneDrive/4 Programation/…`, héritée du déménagement H: → C: : ils mouraient à la première ligne. La racine se déduit maintenant de l'emplacement du script (`fileURLToPath(new URL('..', import.meta.url))`), rendue en **slashs sans slash final** — elle part dans des chaînes de gabarit (`${ROOT}/src/…`), où un antislash serait un piège.
+2. ✅ **Huit scripts écrivaient dans le scratchpad d'une session finie** (`V:/Temp/claude/<projet>/<session>/scratchpad`) — un dossier qui n'existe plus depuis longtemps. Sortie par défaut dans le temporaire du système (`kablix-vues`), surchargeable par `KABLIX_OUT`, et créée si besoin.
+3. ✅ **Piège d'édition à retenir** : plusieurs de ces scripts portent un PROGRAMME dans une chaîne de gabarit, dont les lignes commencent elles aussi par `import ` — insérer « après le dernier import » les envoyait **dans le gabarit**. Le bloc d'imports s'arrête à la première ligne qui n'est ni import, ni commentaire, ni vide.
+4. ✅ **Deux échouaient pour une autre raison, trouvée en les rallumant.** [_mesure-boite.mjs](scripts/_mesure-boite.mjs) visait `testkablix/7seg-uno/7seg-uno.projix`, banc disparu : le montage se choisit désormais en argument (`7seg-pico` par défaut), et il enregistre **les mêmes forks que la webview** en lisant les imports de `sim.mts` — il en devinait trois à la main, or un composant absent n'est pas dessiné, donc pas un obstacle, et l'autoroutage lui passe au travers (même défaut que celui corrigé au lot 11 sur deux autres scripts).
+5. ✅ **[_diag-araignee.mjs](scripts/_diag-araignee.mjs)** importait `SEGMENT1`/`SEGMENT2` de `patte-element.mts`, renommés depuis en `LEG_FEMUR`/`LEG_TIBIA`.
+6. ✅ **Les dix-huit ont été LANCÉS**, pas seulement relus : `_mesure-projix`, `_mesure-boite`, `_mesure-nets`, `_mesure-pico`, `_mesure-autoroute`, `_balayage-projix`, `_probe-molette`, `_diag-patte`, `_diag-araignee`, `_diag-pca-stub`, `_diag-sleep-pico`, `view-plotter`, `view-internal`, `view-7seg-cale`, `view-7seg-editor`, `view-7seg-ext`. Ils rendent leur mesure ou leur capture.
+7. ℹ️ **Ces outils ne sont dans aucune suite** : rien ne les exécute, donc rien ne signale qu'ils sont morts. C'est la deuxième fois en deux lots qu'un chemin figé éteint du code en silence — après le nom du firmware.
+
+---
+
 # >>>>  v2026.8.102.13 — Onze bancs éteints rallumés, et l'écho retrouve sa largeur
 
 1. ✅ **Onze bancs ne testaient plus rien** (item 2 de la liste) : ils cherchaient `test-assets/RPI_PICO-20230426-v1.20.0.uf2`, disparu quand le dossier est passé à la v1.28 — ils imprimaient `SKIP` puis `RESULTAT: OK`, et `verify:all` les comptait comme réussis. **Le nom du firmware contient sa date** : le figer dans quatorze fichiers, c'était programmer leur extinction silencieuse à la mise à jour suivante.
@@ -44,7 +56,7 @@
 7. ✅ **`_verify.mjs` suit** : les cinq `t.board === 'pico' || t.board === 'picow'` deviennent `catalog.isPicoBoard()` (sinon les jumeaux passaient pour du 5 V), et le contrôle syntaxique Python ne compile plus **qu'une fois par fichier** — programme partagé oblige.
 8. ✅ **[testkablix/README.md](testkablix/README.md)** : colonne **« Test Pico 2 »** dans la table de couverture (47 lignes) et section *Jumeaux Pico 2* — programme partagé, montage translaté, et **quand relancer le routeur** (après tout déplacement de composant dans un banc Pico).
 9. ⏳ **Pas de jumeau pour le robot araignée** : sa Pico W est **dans** le châssis (aucun composant `U1` à remplacer) et Frank n'a pas dessiné de robot à Pico 2 W.
-10. ⬜ **Dix autres scripts portent encore le chemin `h:/OneDrive` en dur** : `_balayage-projix`, `_diag-araignee`, `_diag-pca-stub`, `_diag-sleep-pico`, `_mesure-boite`, `_mesure-nets`, `_mesure-pico`, `_mesure-projix`, `_probe-molette`, `view-plotter`. Ils échouent au démarrage tant qu'on ne les lance pas — à reprendre d'un coup.
+10. ✅ **Dix autres scripts portent encore le chemin `h:/OneDrive` en dur** : `_balayage-projix`, `_diag-araignee`, `_diag-pca-stub`, `_diag-sleep-pico`, `_mesure-boite`, `_mesure-nets`, `_mesure-pico`, `_mesure-projix`, `_probe-molette`, `view-plotter`. Ils échouent au démarrage tant qu'on ne les lance pas — à reprendre d'un coup. → fait en v2026.8.102.14.
 11. ℹ️ **Contrôle visuel** de trois bancs rendus en headless (`led`, `lcd`, `7seg`, `CI3`) : tracés orthogonaux, contournement de la carte et des composants, aucune diagonale.
 
 ---

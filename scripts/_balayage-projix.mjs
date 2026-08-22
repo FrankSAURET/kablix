@@ -2,8 +2,10 @@
 // les fils qui survolent une broche étrangère ou traversent un corps tiers.
 import { readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 
-const ROOT = 'h:/OneDrive/4 Programation/- VS Code/Extensions/Kablix';
+const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/\\/g, '/').replace(/\/$/, '');
 const fichiers = readdirSync(ROOT + '/testkablix').filter((f) => f.endsWith('.projix'));
 const bilan = [];
 for (const f of fichiers) {
