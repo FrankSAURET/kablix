@@ -46,13 +46,16 @@ export interface PicoCore {
 
 /**
  * La puce vue par le moteur. Décrite à partir du type de `rp2040js` — dont
- * Kablix se sert depuis toujours — moins le cœur, remplacé par la vue commune
- * ci-dessus. Les deux implémentations sont rapprochées par des `as unknown as`
- * confinés à ce fichier : c'est ici, et nulle part ailleurs, qu'on affirme
- * l'équivalence des deux bibliothèques, donc le seul endroit à relire si l'une
- * des deux bouge.
+ * Kablix se sert depuis toujours — MOINS LE CŒUR : sur le RP2350 `core` est un
+ * TABLEAU de deux cœurs, et le déclarer ici comme un cœur unique laissait
+ * `mcu.core.cycles` compiler pour rendre `undefined` sur RP2350 (compteur de
+ * temps écoulé à `NaN`, périodes PWM et durées DHT/ultrason faussées). Le cœur 0
+ * s'obtient par `PicoChip.core`, qui dit vrai des deux puces.
+ * Les deux implémentations sont rapprochées par des `as unknown as` confinés à
+ * ce fichier : c'est ici, et nulle part ailleurs, qu'on affirme l'équivalence
+ * des deux bibliothèques, donc le seul endroit à relire si l'une des deux bouge.
  */
-export type PicoMcu = Omit<RP2040, 'core'> & { core: PicoCore };
+export type PicoMcu = Omit<RP2040, 'core'>;
 
 /**
  * L'horloge simulée, réduite à ce dont le moteur se sert. Les deux

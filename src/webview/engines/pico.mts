@@ -16,6 +16,7 @@ import {
   type PicoChip,
   type PicoClock,
   type PicoFamily,
+  type PicoCore,
   type PicoMcu,
 } from './rp-chip.mjs';
 import type {
@@ -286,6 +287,13 @@ export class PicoEngine implements SimEngine {
   private disposed = false;
   private sim: KablixSimulator;
   private mcu: PicoMcu;
+  /**
+   * Le cœur 0 — celui qui exécute le programme de l'utilisateur. Il vient de la
+   * puce (`PicoChip.core`) et non de `mcu.core` : le RP2350 en a DEUX, et son
+   * `core` est un tableau. Le compteur de cycles qu'on lit ici cadence tout ce
+   * qui se mesure en cycles (temps écoulé, périodes PWM, durées DHT/ultrason).
+   */
+  private core: PicoCore;
   /** Décodeurs DMX512 par broche TX déclarée (cf. setDmx) — vide en temps normal. */
   private dmxByPin = new Map<string, DmxDecoder>();
   /** Décodeur DMX de chaque UART matériel, indexé 0/1. */
@@ -387,6 +395,7 @@ export class PicoEngine implements SimEngine {
     this.sim = new KablixSimulator(famille);
     this.sim.onTick = () => this.fireScheduled();
     this.mcu = this.sim.chip.mcu;
+    this.core = this.sim.chip.core;
     this.mcu.logger = new ConsoleLogger(LogLevel.Error);
     this.sim.chip.patcherRelectureSortie();
     // Échantillonnage à l'instant EXACT de la conversion (cf. setAnalogSampler) :
@@ -490,7 +499,7 @@ export class PicoEngine implements SimEngine {
 
   /** Temps simulé depuis le démarrage (ms) : cycles du cœur ÷ horloge système. */
   simulatedMs(): number {
-    return (this.mcu.core.cycles / (this.mcu.clkSys || 125_000_000)) * 1000;
+    return (this.core.cycles / (this.mcu.clkSys || 125_000_000)) * 1000;
   }
 
   /** Temps réel cumulé passé dans la boucle du moteur (ms) — voir SimEngine.busyMs. */
@@ -661,7 +670,7 @@ export class PicoEngine implements SimEngine {
         this.pulseState.set(name, {
           high: false, rise: 0, lastUs: 0, lastEdge: 0,
           perStart: -1, curHigh: 0, accHigh: 0, accTotal: 0,
-          lastPeriod: 0, lastRead: this.mcu.core.cycles, lastDuty: 0,
+          lastPeriod: 0, lastRead: this.core.cycles, lastDuty: 0,
         });
       }
     }
@@ -750,7 +759,7 @@ export class PicoEngine implements SimEngine {
         this.pulseState.set(s.trig, {
           high: false, rise: 0, lastUs: 0, lastEdge: 0,
           perStart: -1, curHigh: 0, accHigh: 0, accTotal: 0,
-          lastPeriod: 0, lastRead: this.mcu.core.cycles, lastDuty: 0,
+          lastPeriod: 0, lastRead: this.core.cycles, lastDuty: 0,
         });
       }
     }
@@ -859,7 +868,7 @@ export class PicoEngine implements SimEngine {
 
   private sampleNeopixels(): void {
     if (this.neopixels.length === 0) return;
-    const now = this.mcu.core.cycles;
+    const now = this.core.cycles;
     for (const n of this.neopixels) {
       const level = this.mcu.gpio[n.index].value === GPIOPinState.High;
       if (level !== n.last) {
@@ -923,7 +932,7 @@ export class PicoEngine implements SimEngine {
     const st = this.pulseState.get(name);
     if (!st || st.lastPeriod === 0) return false;
     const cyclesPerUs = (this.mcu.clkSys || 125_000_000) / 1_000_000;
-    return this.mcu.core.cycles - st.lastEdge < 60_000 * cyclesPerUs;
+    return this.core.cycles - st.lastEdge < 60_000 * cyclesPerUs;
   }
 
   /**
@@ -936,7 +945,7 @@ export class PicoEngine implements SimEngine {
     const st = this.pulseState.get(name);
     if (!st) return this.readDigital(name) ? 1 : 0;
     const cyclesPerUs = (this.mcu.clkSys || 125_000_000) / 1_000_000;
-    const now = this.mcu.core.cycles;
+    const now = this.core.cycles;
     // Sortie figée : l'état présent prime sur le cumul du régime précédent (cf. avr.mts).
     const fige =
       st.lastPeriod > 0
@@ -965,7 +974,7 @@ export class PicoEngine implements SimEngine {
   private samplePulses(): void {
     if (this.pulsePins.length === 0) return;
     const cyclesPerUs = (this.mcu.clkSys || 125_000_000) / 1_000_000;
-    const now = this.mcu.core.cycles;
+    const now = this.core.cycles;
     for (const pp of this.pulsePins) {
       const high = this.mcu.gpio[pp.index].value === GPIOPinState.High;
       const st = this.pulseState.get(pp.name);

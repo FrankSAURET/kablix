@@ -4602,7 +4602,7 @@ const JUMEAU_RP2350 = { pico: 'pico2', picow: 'pico2w' };
 //     node scripts/_router-jumeaux-pico2.mjs
 // Sans ce fichier, les fils repartent en diagonale — les points de passage de
 // l'aîné, tracés autour d'une carte PAYSAGE, traverseraient la carte portrait.
-const FICHIER_ROUTAGE = join(HERE, 'pico2', '_routage.json');
+const FICHIER_ROUTAGE = join(HERE, '_routage.json');
 const ROUTAGE = existsSync(FICHIER_ROUTAGE)
   ? JSON.parse(readFileSync(FICHIER_ROUTAGE, 'utf8'))
   : {};

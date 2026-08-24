@@ -84,7 +84,7 @@ while True:
 - Le **port demandé n'est pas toujours obtenu** : le 80 est réservé sur la plupart des machines. Kablix se rabat alors sur 8080, puis sur un port libre, et imprime l'adresse ouverte dans la console : `[Kablix] serveur du Pico W : http://…`. C'est **cette** adresse qu'il faut viser, pas le port du programme.
 - Au premier lancement, le **pare-feu** demande l'autorisation : l'accorder pour le réseau privé, sinon le téléphone frappe dans le vide.
 - La prise se ferme à l'arrêt de la simulation ; le réglage **`kablix.picowNetworkBridge`** la coupe aussi (le script reçoit une `OSError`).
-- Banc d'essai tout prêt : `testkablix/wifi-picow.projix` (et son jumeau `pico2/wifi-pico2w.projix`).
+- Banc d'essai tout prêt : `testkablix/wifi-picow.projix` (et son jumeau `testkablix/wifi-pico2w.projix`).
 
 ---
 

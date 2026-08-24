@@ -1,5 +1,21 @@
 # À faire
+## pico2
+1. l'avertissement de ralentissement de la barre d'état ne fonctionne pas
+1. elles sont super lentes. Quel moyen de les accélérer ? → cause trouvée (v2026.8.102.15, item 6) : le firmware RP2350 n'endort presque jamais le cœur (19 WFE/s contre ~1000 sur RP2040), donc aucun saut d'alarme. À reprendre.
+1. Projets qui ne marchent pas : 16 servo + alim, condo, dht11, dht22, dmx, ili9341, ledring, microsd, neopixel-matrix, neopixel, us-sensor,
 1. Traductions **EN** du lot Pico 2, à faire en un seul lot avant publication : `docs/en/composants/pico2.md` et `pico2w.md`, le paragraphe *Communication avec l'extérieur* de `picow.md`, et les deux précisions ajoutées à `USAGE.md`.
+
+# >>>>  v2026.8.102.15 — Les Pico 2 rentrent au rang, et le chrono cesse d'afficher NaN
+
+1. ✅ **Les jumeaux Pico 2 vivent à la racine de `testkablix/`** (item 1 de la liste), là où Frank les a déplacés — plus de dossier `pico2/`. Un seul endroit à corriger, comme prévu : [_paths.mjs](testkablix/_paths.mjs) perd sa notion de « banc de carte » (`BANC_CARTE`), et `_routage.json` suit à la racine ([_spec.mjs](testkablix/_spec.mjs), [_router-jumeaux-pico2.mjs](scripts/_router-jumeaux-pico2.mjs)). README de testkablix et les deux fiches Pico W recâblés.
+2. ✅ **Rien n'a été régénéré, et c'était le bon choix** : [_diff-jumeaux-pico2.mjs](scripts/_diff-jumeaux-pico2.mjs) compare chaque jumeau du disque à ce que la spec produirait — **14 divergent**, dont `7seg-pico2` (dix composants déplacés, 20 tracés) et `led-bar-pico2` (douze). Frank les a redisposés à la main ; `_generate.mjs` les aurait écrasés.
+3. ✅ **Le contrôle `codeFile` ne contrôlait rien** : il exigeait une chaîne non vide, jamais que le fichier EXISTE. [_verify.mjs](testkablix/_verify.mjs) le résout maintenant comme l'extension (dossier du .projix, racine du dépôt, nom seul) — c'est la troisième fois en trois lots qu'un chemin figé éteint quelque chose en silence.
+4. ✅ **57 références au programme étaient périmées**, vestiges des rangements successifs (`blink-uno/blink-uno.ino`, `PicoPi/led-bar-pico.py`, `testkablix/pico2/blink-pico2.py`) : elles ne marchaient que par le repli « nom seul » de l'extension. [_reparer-codefile.mjs](scripts/_reparer-codefile.mjs) réécrit **le seul manifeste** de l'archive, sans toucher au schéma — l'outil à employer quand `_generate.mjs` écraserait un banc retouché. `--liste` dit sans écrire. 4151 contrôles, 0 échec.
+5. ✅ **Le temps écoulé affichait `NaN:NaN:NaN` sur Pico 2** (item 2), et la cause dépassait l'affichage : **le type mentait**. `PicoMcu` déclarait `core: PicoCore` alors que le RP2350 a DEUX cœurs et expose un TABLEAU — `mcu.core.cycles` compilait sans broncher et rendait `undefined`. Sept lectures en dépendaient : le chrono, mais aussi les **périodes PWM**, les **durées DHT** et les **fronts d'ultrason**, tous datés en cycles. Le champ disparaît du type ([rp-chip.mts](src/webview/engines/rp-chip.mts)) et le cœur 0 se prend sur la puce (`PicoChip.core`) : la même faute ne peut plus compiler.
+6. ℹ️ **Pourquoi elles sont lentes** (items 3 et 4, pas encore corrigés) — mesuré, pas supposé, avec [_diag-elapsed.mjs](scripts/_diag-elapsed.mjs) et [_diag-pacing-rp2350.mjs](scripts/_diag-pacing-rp2350.mjs) : le RP2350 tourne à **0,13× le temps réel** là où le RP2040 tient 0,88×. Le coupable n'est ni le décodage ni le cœur 1 (qui dort) : **le cœur 0 ne s'endort presque jamais** — 19 WFE en 1,2 s simulée, contre ~1000 sur RP2040. Sans WFE, pas de saut d'alarme (19 contre 979) : chaque `time.sleep_ms()` est brûlé instruction par instruction. Les réveils ne sont pas en cause non plus (19 réveils pour 19 endormissements). Le pacing, lui, fait son travail.
+7. ℹ️ **Piège gardé pour plus tard** : `nanosToNextAlarm` du RP2350 rend **4 294 967 295 ns** (2³²−1) quand aucune alarme n'est armée, là où le RP2040 rend 0 — la boucle croit à une alarme dans 4,3 s. Sans effet aujourd'hui (le cœur ne dort pas), mais à border avant de faire dormir quoi que ce soit.
+
+---
 
 # >>>>  v2026.8.102.14 — Dix-huit outils d'atelier qui ne démarraient plus
 

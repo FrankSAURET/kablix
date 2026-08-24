@@ -6,10 +6,10 @@ Un test = un programme + un projet `.projix` (schéma câblé prêt à simuler).
   sketch (convention arduino-cli) — `Arduino/<nom>/<nom>.ino` et son `.projix`
   dans le même dossier.
 - **Scripts MicroPython (`.py`)** : à la racine, le `.projix` porte le même nom.
-- **Cartes Pico 2 / Pico 2 W** : rangées à part sous **`pico2/`**, le temps que
-  la puce RP2350 fasse ses preuves. Les deux `blink` y ont leur propre `.py` ;
-  les autres n'ont **qu'un `.projix`** — ils rejouent le programme de leur aîné
-  Pico (voir « Jumeaux Pico 2 » plus bas).
+- **Cartes Pico 2 / Pico 2 W** : à la racine elles aussi, à côté de leur aîné
+  Pico. Les deux `blink` ont leur propre `.py` ; les autres n'ont **qu'un
+  `.projix`** — ils rejouent le programme de leur aîné (voir « Jumeaux Pico 2 »
+  plus bas).
 
 Aucun script ne code ces emplacements en dur : `_paths.mjs` retrouve un fichier
 de test où qu'il soit rangé (racine puis sous-dossiers). Déplacer un test ne
@@ -40,8 +40,8 @@ Uno. La colonne « Observable » dit par quoi chacun reste couvert.
 
 ### Jumeaux Pico 2
 
-Chaque test Pico a son jumeau RP2350 sous `pico2/` — même montage, même
-programme, l'autre puce. Trois choses à savoir avant d'y toucher :
+Chaque test Pico a son jumeau RP2350, `<nom>-pico2` à côté de lui — même
+montage, même programme, l'autre puce. Trois choses à savoir avant d'y toucher :
 
 - **Le programme est PARTAGÉ, pas recopié.** Le `.projix` du jumeau référence le
   `.py` de son aîné (champ `codeFrom` de la spec) : corriger le programme corrige
@@ -54,7 +54,7 @@ programme, l'autre puce. Trois choses à savoir avant d'y toucher :
 - **Les fils sont autoroutés une fois pour toutes.** Les points de passage de
   l'aîné contournaient une carte paysage ; ils traverseraient la carte portrait.
   Le tracé de remplacement est calculé par l'autoroutage du vrai éditeur et
-  versionné dans `pico2/_routage.json` :
+  versionné dans `_routage.json` :
 
       node scripts/_router-jumeaux-pico2.mjs            (tous les jumeaux)
       node scripts/_router-jumeaux-pico2.mjs led-pico2  (ceux-là seulement)

@@ -14,17 +14,15 @@ import { fileURLToPath } from 'node:url';
 export const HERE = dirname(fileURLToPath(import.meta.url));
 
 /** Sous-dossiers de rangement, dans l'ordre de recherche (racine d'abord). */
-export const BANCS = ['Arduino', 'PicoPi', 'pico2'];
-
-/** Cartes rangées dans leur propre dossier (Frank : `testkablix/pico2/`). */
-const BANC_CARTE = { pico2: 'pico2', pico2w: 'pico2' };
+export const BANCS = ['Arduino', 'PicoPi'];
 
 /**
- * Banc d'accueil d'un test NOUVEAU : son dossier de carte s'il en a un, sinon
- * d'après son extension de code.
+ * Banc d'accueil d'un test NOUVEAU, d'après son extension de code. Les bancs
+ * Pico 2 ont eu leur propre dossier le temps du lot qui les a créés : Frank les
+ * a remis à la racine, à côté de leur aîné (v2026.8.102.15).
  */
-export function bancOf(ext, board) {
-  return BANC_CARTE[board] ?? (ext === 'ino' ? 'Arduino' : '');
+export function bancOf(ext, _board) {
+  return ext === 'ino' ? 'Arduino' : '';
 }
 
 /**

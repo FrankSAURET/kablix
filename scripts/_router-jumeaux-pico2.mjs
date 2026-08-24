@@ -8,7 +8,7 @@
 // composants rendus pour connaître les obstacles).
 //
 // Ce script charge donc chaque jumeau dans le VRAI éditeur (Chrome headless),
-// appelle `autoRoute()` et range le résultat dans `testkablix/pico2/_routage.json`,
+// appelle `autoRoute()` et range le résultat dans `testkablix/_routage.json`,
 // que `_spec.mjs` réapplique aux fils. Le routage est ainsi versionné, relu à
 // chaque génération, et se refait à la demande :
 //   node scripts/_router-jumeaux-pico2.mjs            (tous les jumeaux)
@@ -23,7 +23,7 @@ import { TESTS } from '../testkablix/_spec.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CACHE = join(ROOT, 'node_modules', '.cache-router-pico2');
-const SORTIE = join(ROOT, 'testkablix', 'pico2', '_routage.json');
+const SORTIE = join(ROOT, 'testkablix', '_routage.json');
 
 const only = new Set(process.argv.slice(2));
 const jumeaux = TESTS.filter((t) => t.codeFrom && (only.size === 0 || only.has(t.name)));

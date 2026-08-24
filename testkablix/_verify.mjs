@@ -14,7 +14,7 @@ import JSZip from 'jszip';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { HERE, testCode, testProjix, tk } from './_paths.mjs';
 import { TESTS as ALL_TESTS, PART_PINS } from './_spec.mjs';
@@ -121,7 +121,17 @@ for (const t of TESTS) {
     diagram = JSON.parse(await zip.file('diagram.json').async('string'));
     check(`${t.name} : manifeste`, manifest.format === 'projix' && manifest.board === t.board,
       `format=${manifest.format} board=${manifest.board}`);
-    check(`${t.name} : codeFile`, typeof manifest.codeFile === 'string' && manifest.codeFile.length > 0);
+    // Le codeFile doit MENER quelque part : un chemin mort ouvre un projet
+    // sans programme, sans que rien ne le signale (deux bancs Pico 2 pointaient
+    // encore `testkablix/pico2/` après le rangement). Résolu comme le fait
+    // l'extension : dossier du .projix, puis racine du dépôt, puis nom seul.
+    const ref = manifest.codeFile;
+    check(`${t.name} : codeFile`, typeof ref === 'string' && ref.length > 0);
+    if (typeof ref === 'string' && ref.length > 0) {
+      const dossier = dirname(file);
+      const candidats = [join(dossier, ref), join(ROOT, ref), join(dossier, ref.split('/').pop())];
+      check(`${t.name} : codeFile existe`, candidats.some(existsSync), ref);
+    }
   } catch (err) {
     check(`${t.name} : archive lisible`, false, String(err));
     continue;

@@ -2,8 +2,8 @@
 //   - tests .ino  → Arduino/<nom>/<nom>.ino ET Arduino/<nom>/<nom>.projix
 //                   (un dossier par sketch, exigence arduino-cli) ;
 //   - tests .py   → PicoPi/<nom>.py et PicoPi/<nom>.projix côte à côte ;
-//   - jumeaux Pico 2 → pico2/<nom>.projix SEUL : leur programme est celui de
-//                   l'aîné Pico (`codeFrom`), partagé et non recopié.
+//   - jumeaux Pico 2 → <nom>.projix SEUL, à côté de leur aîné : leur programme
+//                   est celui du banc Pico (`codeFrom`), partagé et non recopié.
 // Les .projix sont des archives ZIP (kablix.json + diagram.json), comme
 // celles produites par « Enregistrer le projet » de l'extension.
 //   node testkablix/_generate.mjs                  (depuis la racine du dépôt)
