@@ -86,6 +86,8 @@ const BY_KIND: Record<string, RefFamily> = {
   relay: 'relay',
   psu: 'psu',
   meter: 'meter',
+  // Un oscilloscope est un appareil de mesure comme un autre : M1, M2…
+  scope: 'meter',
 };
 
 /** Exceptions par TYPE : un même `kind` peut servir à deux familles. */

@@ -66,6 +66,14 @@ const PARTS = {
   // Multimètre de table : dessin en paysage (270×90), illustré en VOLTMÈTRE
   // (levier en bas) — le mode par défaut du catalogue.
   multimetre: { module: 'multimetre-element.mjs', tag: 'kablix-multimetre', attrs: { mode: 'voltage' } },
+  // Oscilloscope : dessin en portrait (220×270), illustré avec une VRAIE courbe
+  // — un écran vide ne dirait pas ce que fait l'appareil. `js` pousse le signal
+  // comme le ferait la simulation, dix secondes à 60 images par seconde.
+  oscillo: {
+    module: 'oscillo-element.mjs', tag: 'kablix-oscillo', width: 240,
+    attrs: { voltsdiv: '1', sdiv: '1' },
+    js: 'for (let i = 0; i <= 600; i++) el.push(i * 1000 / 60, 2 + 1.6 * Math.sin((i / 60) * Math.PI * 2 / 2.5));',
+  },
   // Patte seule : illustrée patella PLIÉ (une patte bien droite se lit comme un
   // simple tube — la pose montre les deux articulations).
   patte: {
@@ -123,6 +131,7 @@ const el = document.createElement('${spec.tag}');
 ${spec.catalog ? `for (const [k, v] of Object.entries(partDef(${JSON.stringify(spec.catalog)}).attrs ?? {})) el.setAttribute(k, v);` : ''}
 ${Object.entries(spec.attrs ?? {}).map(([k, v]) => `el.setAttribute('${k}', ${JSON.stringify(v)});`).join('\n')}
 document.body.appendChild(el);
+${spec.js ?? ''}
 // Un custom element sans style :host reste en display inline, et transform
 // n'a AUCUN effet sur une boîte inline : le dessin resterait à sa taille
 // naturelle dans une image dimensionnée pour l'échelle voulue (carte tassée

@@ -44,6 +44,7 @@ export type PartKind =
   | 'grove-shield'
   | 'psu'
   | 'meter'
+  | 'scope'
   | 'display'
   | 'passive';
 
@@ -1025,6 +1026,24 @@ export const CATALOG: readonly PartDef[] = [
       },
     ],
   },
+  // Oscilloscope de table (dessin de Frank) : deux prises banane + et GND, et
+  // deux boutons rotatifs. Il ne consomme rien et ne conduit rien — comme un
+  // voltmètre, ses deux prises restent deux nœuds séparés du montage — mais au
+  // lieu d'un chiffre il DESSINE la tension dans le temps.
+  //   voltsdiv : les cinq graduations du dessin (0,1 · 0,5 · 1 · 2 · 5 V par
+  //              carreau), butée aux deux bouts ;
+  //   sdiv     : secondes par carreau, SANS butée — le bouton tourne tant qu'on
+  //              veut, un tour = un facteur 10 (droite = courbe dilatée).
+  // La tension est relue par meterReadings (model.mts) et poussée sur l'écran
+  // par sim.mts à chaque image.
+  {
+    type: 'oscillo', label: 'Oscilloscope', tag: 'kablix-oscillo', kind: 'scope',
+    simControl: true, attrs: { voltsdiv: '1', sdiv: '1' },
+    props: [
+      { attr: 'voltsdiv', label: 'Volts/div', kind: 'select', options: ['0.1', '0.5', '1', '2', '5'] },
+      { attr: 'sdiv', label: 'Seconds/div', kind: 'number', min: 0.000001, max: 10000, step: 0.001 },
+    ],
+  },
   // Patte de robot articulée : le fémur et le tibia DESSINÉS par Frank
   // (assemblages `araignee-patte-*` de Composants3D.svg), montés tout nus et vus
   // en volume — la même patte que celles du robot (v2026.8.48). 2 servos
@@ -1174,6 +1193,7 @@ export function partCategory(def: PartDef): string {
       return 'Integrated circuits';
     case 'psu':
     case 'meter':
+    case 'scope':
       return 'Instruments'; // « Appareils de mesure » : alim de laboratoire, multimètre…
     case 'spi-sd':
     case 'i2c-pwm':

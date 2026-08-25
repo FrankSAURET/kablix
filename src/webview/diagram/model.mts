@@ -1372,7 +1372,13 @@ export function meterReadings(
   psuVolts?: (partId: string) => number | null,
   liveOhms?: (part: Part) => number | null
 ): MeterReading[] {
-  const meters = diagram.parts.filter((p) => partDef(p.type).kind === 'meter');
+  // L'oscilloscope (kind 'scope') se lit EXACTEMENT comme un voltmètre : deux
+  // prises, la différence des tensions de repos, aucune consommation. Seul son
+  // affichage diffère — une courbe au lieu d'un chiffre.
+  const meters = diagram.parts.filter((p) => {
+    const kind = partDef(p.type).kind;
+    return kind === 'meter' || kind === 'scope';
+  });
   if (meters.length === 0) return [];
   const out: MeterReading[] = [];
   for (const meter of meters) {

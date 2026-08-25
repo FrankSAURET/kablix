@@ -59,6 +59,7 @@ import './composants/alim-element.mjs';
 import './composants/pca9685-element.mjs';
 import './composants/powerbank-element.mjs';
 import './composants/multimetre-element.mjs';
+import './composants/oscillo-element.mjs';
 import './composants/patte-element.mjs';
 import './composants/araignee-element.mjs';
 import './composants/custom-part.mjs';
@@ -1781,6 +1782,17 @@ function refreshVisualsInner(): void {
         el.reading = m ? m.value : null;
         break;
       }
+      case 'scope': {
+        // Oscilloscope : un point de plus sur la courbe à chaque image. Le temps
+        // est celui du PROGRAMME (simulatedMs) et non celui de la montre : au
+        // ralenti la courbe se dessine plus lentement mais garde la bonne
+        // échelle de temps, et l'écran reste lisible. Prises en l'air : rien à
+        // tracer, la courbe s'interrompt.
+        const m = meterFrame.get(part.id);
+        const scope = el as unknown as { push(tMs: number, volts: number | null): void };
+        scope.push(engine?.simulatedMs?.() ?? performance.now(), m ? m.value : null);
+        break;
+      }
       case '7segment': {
         const digits = Math.max(1, Number(part.attrs?.digits ?? 1) || 1);
         const commonAnode = part.attrs?.common === 'anode';
@@ -2708,6 +2720,22 @@ function bindInputs(): void {
     };
     el.addEventListener('meter-mode', onMode);
     inputRemovers.push(() => el.removeEventListener('meter-mode', onMode));
+  }
+  // Oscilloscope : ses deux boutons rotatifs sont des CALIBRES, pas un montage —
+  // mais comme le mode du multimètre ils se règlent sur le dessin en pleine
+  // simulation, et le schéma doit s'en souvenir d'une fois sur l'autre.
+  for (const part of editor.diagram.parts) {
+    if (partDef(part.type).kind !== 'scope') continue;
+    const el = editor.elementOf(part.id);
+    if (!el) continue;
+    const onScale = (e: Event): void => {
+      const d = (e as CustomEvent).detail as { voltsdiv?: number; sdiv?: number } | undefined;
+      if (!d) return;
+      editor.updatePartAttr(part.id, 'voltsdiv', String(d.voltsdiv ?? 1));
+      editor.updatePartAttr(part.id, 'sdiv', String(d.sdiv ?? 1));
+    };
+    el.addEventListener('scope-scale', onScale);
+    inputRemovers.push(() => el.removeEventListener('scope-scale', onScale));
   }
   checkPhotoDevices();
 }

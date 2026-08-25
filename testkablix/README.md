@@ -108,6 +108,7 @@ a pas de carte à remplacer.
 | Phototransistor | `phototransistor-uno` | `phototransistor-pico` | `phototransistor-pico2` | pont diviseur avec 1 kΩ en bas, la lecture MONTE avec la lumière (50 % au repos à 1 mW/cm², 83 % curseur à fond) ; la résistance est obligatoire, Kablix signale le montage sans elle |
 | Photodiode | `photodiode-uno` | `photodiode-pico` | `photodiode-pico2` | même pont, mais 100 kΩ en bas : la photodiode laisse passer cent fois moins de courant (50 % au repos à 1 mW/cm², 83 % curseur à fond) ; cathode vers le plus, résistance obligatoire |
 | Multimètre | `multimetre-uno` | `multimetre-pico` | `multimetre-pico2` | les deux emplois du même appareil sur la même planche : M1 VOLTMÈTRE en parallèle sur un pont 1 kΩ / 1 kΩ piloté par une broche, M2 AMPÈREMÈTRE en série dans une branche alim → 1 kΩ → masse (≈ 2,46 V et 4,99 mA sur Uno, ≈ 1,63 V et 3,29 mA sur Pico) |
+| Oscilloscope | `oscillo-uno` | `oscillo-pico` | `oscillo-pico2` | M1 EN PARALLÈLE sur le bas d'un pont 1 kΩ / 1 kΩ piloté par une broche qui bascule toutes les 500 ms : créneau 0 V / ≈ 2,46 V (Uno) ou 0 V / ≈ 1,63 V (Pico), calibres de départ 1 V et 0,5 s par carreau — une période tient en deux carreaux |
 | Capteur de gaz (MQ) | `gas-sensor-uno` | `gas-sensor-pico` | `gas-sensor-pico2` | AOUT + DOUT |
 | Capteur de pouls | `heartbeat-uno` | `heartbeat-pico` | `heartbeat-pico2` | signal qui bat |
 | Capteur de flamme | `flame-uno` | `flame-pico` | `flame-pico2` | AOUT + DOUT |

@@ -2514,9 +2514,9 @@ export class Editor {
     // potentiomètre est exclu : ses extrémités ne sont pas des broches power.
     // L'alim de laboratoire aussi : ses prises banane sont DÉJÀ dessinées
     // rouge/noire (les rôles restent actifs pour la couleur auto des fils), et
-    // le multimètre pour la même raison.
+    // le multimètre et l'oscilloscope pour la même raison.
     const role = kind === 'potentiometer' ? 'other' : pinElectricalRole(type, pin.name);
-    if (type !== 'alim' && type !== 'multimetre') {
+    if (type !== 'alim' && type !== 'multimetre' && type !== 'oscillo') {
       if (role === 'vcc') dot.classList.add('pin--vcc');
       else if (role === 'gnd') dot.classList.add('pin--gnd');
     }

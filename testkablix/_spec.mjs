@@ -104,6 +104,8 @@ export const PART_PINS = {
   powerbank: ['V+', 'GND'],
   // Multimètre : deux prises banane, rouge et noire.
   multimetre: ['+', 'GND'],
+  // Oscilloscope : les mêmes deux prises banane que le multimètre.
+  oscillo: ['+', 'GND'],
   // Patte de robot à 2 articulations : chacune a son propre bornier 3 fils
   // (comme un servo), électriquement indépendant de l'autre.
   patte: ['coxa.GND', 'coxa.V+', 'coxa.PWM', 'patella.GND', 'patella.V+', 'patella.PWM'],
@@ -2536,6 +2538,54 @@ void loop() {
 `,
   }),
 
+  // Oscilloscope : il REGARDE une tension qui bouge, il ne la change pas. O1 est
+  // branché EN PARALLÈLE sur le bas d'un pont 1 kΩ / 1 kΩ piloté par D9, qui
+  // bascule toutes les 500 ms : à l'écran, un créneau 0 V / ~2,46 V. Réglé à
+  // 1 V par carreau et 0,5 s par carreau, une période tient en deux carreaux.
+  // Le modèle le relit comme un VOLTMÈTRE — même mesure, même absence de
+  // court-circuit : ses deux prises restent deux points séparés du montage.
+  test({
+    name: 'oscillo-uno', board: 'uno', ext: 'ino',
+    parts: [
+      MCU('uno'),
+      { id: 'R1', type: 'resistor', x: 620, y: 90, attrs: { value: '1000' } },
+      { id: 'R2', type: 'resistor', x: 620, y: 200, attrs: { value: '1000' } },
+      { id: 'M1', type: 'oscillo', x: 540, y: 300, attrs: { voltsdiv: '1', sdiv: '0.5' } },
+    ],
+    wires: () => [
+      w('R1', '1', 'U1', '9', 'green'),
+      w('R1', '2', 'R2', '1', 'blue'),
+      w('R2', '2', 'U1', 'GND.1', 'black'),
+      w('M1', '+', 'R2', '1', 'red'),
+      w('M1', 'GND', 'U1', 'GND.2', 'black'),
+    ],
+    expect: {
+      kind: 'meter', volts: 5, drive: { 9: 'high' },
+      readings: [{ partId: 'M1', mode: 'voltage', value: 2.463, tol: 0.02 }],
+    },
+    code: `// Test oscilloscope : O1 (repere M1) regarde le milieu d'un pont diviseur
+// D9 -> R1 1 kohm -> point A -> R2 1 kohm -> masse. D9 bascule toutes les
+// 500 ms : l'ecran dessine un creneau entre 0 V et environ 2,5 V.
+// Les deux boutons se tournent A LA SOURIS pendant la simulation :
+//   Volts/Div (gauche) : hauteur d'un carreau, cinq crans avec butee ;
+//   s/Div (droite)     : largeur d'un carreau, sans butee, un tour = x10.
+// Depart : 1 V par carreau, 0,5 s par carreau -> une periode = deux carreaux.
+void setup() {
+  pinMode(9, OUTPUT);
+  Serial.begin(115200);
+}
+
+void loop() {
+  digitalWrite(9, HIGH);
+  Serial.println("D9 haut -> environ 2,5 V a l'ecran");
+  delay(500);
+  digitalWrite(9, LOW);
+  Serial.println("D9 bas  -> retour a 0 V");
+  delay(500);
+}
+`,
+  }),
+
   // Barrière optique infrarouge : sortie à COLLECTEUR OUVERT, donc rappel
   // obligatoire — ici en externe (10 kΩ vers 5 V), le montage des fiches DFRobot.
   // Les DEUX boîtiers sont alimentés : l'émetteur sans courant n'éclaire rien et
@@ -4784,6 +4834,48 @@ while True:
     sortie.value(0)
     print("GP15 bas  -> voltmetre ~0 V")
     time.sleep(1)
+`,
+  }),
+
+  // Le même banc sur Pico : 3,3 V au lieu de 5 V, donc un créneau 0 V / ~1,63 V.
+  // Le calibre de départ (1 V par carreau) le montre encore en entier.
+  test({
+    name: 'oscillo-pico', board: 'pico', ext: 'py',
+    parts: [
+      MCU('pico'),
+      { id: 'R1', type: 'resistor', x: 680, y: 90, attrs: { value: '1000' } },
+      { id: 'R2', type: 'resistor', x: 680, y: 200, attrs: { value: '1000' } },
+      { id: 'M1', type: 'oscillo', x: 600, y: 300, attrs: { voltsdiv: '1', sdiv: '0.5' } },
+    ],
+    wires: () => [
+      w('R1', '1', 'U1', 'GP15', 'green'),
+      w('R1', '2', 'R2', '1', 'blue'),
+      w('R2', '2', 'U1', 'GND.7', 'black'),
+      w('M1', '+', 'R2', '1', 'red'),
+      w('M1', 'GND', 'U1', 'GND.8', 'black'),
+    ],
+    expect: {
+      kind: 'meter', volts: 3.3, drive: { GP15: 'high' },
+      readings: [{ partId: 'M1', mode: 'voltage', value: 1.626, tol: 0.02 }],
+    },
+    code: `# Test oscilloscope : O1 (repere M1) regarde le milieu d'un pont diviseur
+# GP15 -> R1 1 kohm -> point A -> R2 1 kohm -> masse. GP15 bascule toutes les
+# 500 ms : l'ecran dessine un creneau entre 0 V et environ 1,6 V.
+# Les deux boutons se tournent A LA SOURIS pendant la simulation :
+#   Volts/Div (gauche) : hauteur d'un carreau, cinq crans avec butee ;
+#   s/Div (droite)     : largeur d'un carreau, sans butee, un tour = x10.
+# Depart : 1 V par carreau, 0,5 s par carreau -> une periode = deux carreaux.
+from machine import Pin
+import time
+
+sortie = Pin(15, Pin.OUT)
+while True:
+    sortie.value(1)
+    print("GP15 haut -> environ 1,6 V a l'ecran")
+    time.sleep(0.5)
+    sortie.value(0)
+    print("GP15 bas  -> retour a 0 V")
+    time.sleep(0.5)
 `,
   }),
 
