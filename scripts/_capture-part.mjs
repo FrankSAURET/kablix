@@ -63,6 +63,9 @@ const PARTS = {
   // 100 kΩ), vis à mi-course.
   'pot-rot2': { module: 'pot-rot2-element.mjs', tag: 'kablix-pot-rot2', width: 200, attrs: { ohms: '100000', value: '50' } },
   powerbank: { module: 'powerbank-element.mjs', tag: 'kablix-powerbank' },
+  // Multimètre de table : dessin en paysage (270×90), illustré en VOLTMÈTRE
+  // (levier en bas) — le mode par défaut du catalogue.
+  multimetre: { module: 'multimetre-element.mjs', tag: 'kablix-multimetre', attrs: { mode: 'voltage' } },
   // Patte seule : illustrée patella PLIÉ (une patte bien droite se lit comme un
   // simple tube — la pose montre les deux articulations).
   patte: {

@@ -58,6 +58,7 @@ import './composants/grove-shield-element.mjs';
 import './composants/alim-element.mjs';
 import './composants/pca9685-element.mjs';
 import './composants/powerbank-element.mjs';
+import './composants/multimetre-element.mjs';
 import './composants/patte-element.mjs';
 import './composants/araignee-element.mjs';
 import './composants/custom-part.mjs';
@@ -95,6 +96,8 @@ import {
   customOpenDrainBindings,
   hallBindings,
   photoDeviceBindings,
+  meterReadings,
+  type MeterReading,
   servoBindings,
   patteBindings,
   buzzerBindings,
@@ -1312,6 +1315,46 @@ let icFrame: readonly LogicIcState[] = [];
 /** Défauts d'alimentation signalés une seule fois par changement d'état. */
 const icFaults = new Map<string, IcFault>();
 
+/** Mesures des multimètres à cette frame (calculées UNE fois pour tous). */
+let meterFrame = new Map<string, MeterReading>();
+/** Multimètres en défaut, signalés une seule fois par changement d'état. */
+const meterFaults = new Map<string, string>();
+
+/**
+ * Multimètres : une seule passe pour tout le schéma (chaque mesure rebâtit le
+ * graphe résistif, c'est trop cher pour le refaire composant par composant).
+ * Un ampèremètre qui débite plus d'un ampère n'est plus en train de mesurer :
+ * il court-circuite le montage — on le dit, une fois.
+ */
+function refreshMeters(): void {
+  if (!engine) return;
+  const vcc = isPicoBoard(board) ? 3.3 : 5;
+  const lus = meterReadings(
+    editor.diagram,
+    vcc,
+    (pin) => engine!.readPinDrive?.(pin) ?? 'hiz',
+    psuLiveVolts,
+    liveVariableOhms
+  );
+  if (lus.length === 0 && meterFrame.size === 0) return;
+  meterFrame = new Map(lus.map((m) => [m.partId, m]));
+  for (const m of meterFrame.values()) {
+    if ((meterFaults.get(m.partId) ?? '') === m.fault) continue;
+    meterFaults.set(m.partId, m.fault);
+    if (!m.fault) {
+      editor.setFaulty(m.partId, false);
+      continue;
+    }
+    setStatus(`${t('The ammeter is short-circuiting the supply')} (${m.partId})`);
+    editor.setFaulty(
+      m.partId,
+      true,
+      t('In current mode the multimeter is a plain wire: put it IN SERIES, inside the branch whose current you want. Straight across the supply it shorts it out.')
+    );
+  }
+}
+
+
 /** Fin de simulation (ou nouveau lancement) : plus de défaut, plus de cadre. */
 function clearRelayFaults(): void {
   relayFaults.clear();
@@ -1326,6 +1369,8 @@ function clearRelayFaults(): void {
   openDrainTargets = [];
   openDrainFaults.clear();
   photoFaults.clear();
+  meterFaults.clear();
+  meterFrame = new Map();
   burnNotes.clear();
   editor.clearFaults();
 }
@@ -1603,6 +1648,7 @@ function refreshVisualsInner(): void {
   reportRelayFaults();
   reportMotorFaults();
   reportIcFaults();
+  refreshMeters();
   // Sorties de portes câblées sur une broche de carte : le niveau y est injecté
   // à chaque frame, comme le fait un bouton ou un capteur.
   for (const b of logicIcMcuInputs(editor.diagram, icFrame)) engine.setInput(b.mcuPin, b.level === 1);
@@ -1725,6 +1771,14 @@ function refreshVisualsInner(): void {
         const volts = Number(el.volts ?? part.attrs?.voltage ?? 0) || 0;
         const maxAmps = Math.max(0.05, Number(part.attrs?.maxcurrent ?? 1) || 1);
         el.overAmps = psuLoadAmps(editor.diagram, part.id, volts, liveVariableOhms) > maxAmps;
+        break;
+      }
+      case 'meter': {
+        // Multimètre : l'écran affiche ce que le modèle a mesuré à cette frame
+        // (volts en voltmètre, ampères en ampèremètre). Rien de mesurable —
+        // prises en l'air — laisse l'écran à zéro, comme un vrai appareil.
+        const m = meterFrame.get(part.id);
+        el.reading = m ? m.value : null;
         break;
       }
       case '7segment': {
@@ -2640,6 +2694,20 @@ function bindInputs(): void {
       inputRemovers.push(() => el.removeEventListener('input', apply));
     }
     apply();
+  }
+  // Multimètre : l'inter à bascule du dessin choisit la mesure EN SIMULATION.
+  // Ce n'est pas un réglage d'affichage mais un changement de MONTAGE (voltmètre
+  // en parallèle, ampèremètre en série) : il se range donc dans le schéma, par
+  // updatePartAttr — sim.mts n'écrit jamais `part.attrs` de sa main.
+  for (const part of editor.diagram.parts) {
+    if (partDef(part.type).kind !== 'meter') continue;
+    const el = editor.elementOf(part.id);
+    if (!el) continue;
+    const onMode = (e: Event): void => {
+      editor.updatePartAttr(part.id, 'mode', String((e as CustomEvent).detail ?? 'voltage'));
+    };
+    el.addEventListener('meter-mode', onMode);
+    inputRemovers.push(() => el.removeEventListener('meter-mode', onMode));
   }
   checkPhotoDevices();
 }

@@ -43,6 +43,7 @@ export type PartKind =
   | 'breadboard'
   | 'grove-shield'
   | 'psu'
+  | 'meter'
   | 'display'
   | 'passive';
 
@@ -1003,6 +1004,27 @@ export const CATALOG: readonly PartDef[] = [
       { attr: 'maxcurrent', label: 'Max current supplied (A)', kind: 'number', min: 0.1, max: 10, step: 0.1 },
     ],
   },
+  // Multimètre de table (dessin de Frank) : deux prises banane + et GND, et un
+  // INTER À BASCULE qui choisit la mesure — levier EN HAUT = courant continu,
+  // EN BAS = tension continue. Le mode vit dans l'attribut `mode`, parce qu'il
+  // change la NATURE ÉLECTRIQUE de l'appareil, donc le montage :
+  //   voltage : voltmètre, se branche EN PARALLÈLE, ne consomme rien — il
+  //             n'entre pas dans le graphe résistif, le circuit l'ignore ;
+  //   current : ampèremètre, se branche EN SÉRIE, c'est un FIL — ses deux
+  //             pattes sont réunies dans la netlist (computeNets), et le poser
+  //             en travers de l'alimentation la met vraiment en court-circuit.
+  // La mesure est calculée par meterReadings (model.mts) et posée sur l'écran
+  // par sim.mts à chaque frame.
+  {
+    type: 'multimetre', label: 'Multimeter', tag: 'kablix-multimetre', kind: 'meter',
+    simControl: true, attrs: { mode: 'voltage' },
+    props: [
+      {
+        attr: 'mode', label: 'Measurement', kind: 'select', options: ['voltage', 'current'],
+        optionLabels: { voltage: 'DC voltage', current: 'DC current' },
+      },
+    ],
+  },
   // Patte de robot articulée : le fémur et le tibia DESSINÉS par Frank
   // (assemblages `araignee-patte-*` de Composants3D.svg), montés tout nus et vus
   // en volume — la même patte que celles du robot (v2026.8.48). 2 servos
@@ -1151,7 +1173,8 @@ export function partCategory(def: PartDef): string {
     case 'logic-ic':
       return 'Integrated circuits';
     case 'psu':
-      return 'Instruments'; // « Appareils de mesure » : alim de laboratoire…
+    case 'meter':
+      return 'Instruments'; // « Appareils de mesure » : alim de laboratoire, multimètre…
     case 'spi-sd':
     case 'i2c-pwm':
       return 'Misc'; // « Divers » : modules divers (carte SD, pilote PWM…)

@@ -2513,9 +2513,10 @@ export class Editor {
     // Pastilles d'alimentation reconnaissables : rouge (VCC) / noir (GND). Le
     // potentiomètre est exclu : ses extrémités ne sont pas des broches power.
     // L'alim de laboratoire aussi : ses prises banane sont DÉJÀ dessinées
-    // rouge/noire (les rôles restent actifs pour la couleur auto des fils).
+    // rouge/noire (les rôles restent actifs pour la couleur auto des fils), et
+    // le multimètre pour la même raison.
     const role = kind === 'potentiometer' ? 'other' : pinElectricalRole(type, pin.name);
-    if (type !== 'alim') {
+    if (type !== 'alim' && type !== 'multimetre') {
       if (role === 'vcc') dot.classList.add('pin--vcc');
       else if (role === 'gnd') dot.classList.add('pin--gnd');
     }

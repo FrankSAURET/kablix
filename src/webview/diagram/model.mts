@@ -262,6 +262,14 @@ function computeNets(diagram: Diagram, joinResistors: boolean): Nets {
       if (joinResistors) {
         dsu.union(`${part.id}/${rolePin(part.type, '1')}`, `${part.id}/${rolePin(part.type, '2')}`);
       }
+    } else if (kind === 'meter') {
+      // Multimètre en AMPÈREMÈTRE : c'est un FIL, ses deux prises ne font qu'un
+      // seul nœud — exactement ce qui se passe quand on l'insère en série dans
+      // un circuit. En VOLTMÈTRE il ne conduit rien : les prises restent
+      // séparées et l'appareil n'existe pas pour le montage.
+      if (meterMode(part) === 'current') {
+        dsu.union(`${part.id}/+`, `${part.id}/GND`);
+      }
     } else if (kind === 'pushbutton') {
       // Les deux pastilles d'une même borne (gauche/droite) sont reliées en interne.
       dsu.union(`${part.id}/1.l`, `${part.id}/1.r`);
@@ -1177,8 +1185,68 @@ export function capacitorNodes(
   const caps = diagram.parts.filter((p) => partDef(p.type).kind === 'capacitor');
   if (caps.length === 0) return [];
   const { nets, adj, vccNets, gndNets } = resistiveGraph(diagram, liveOhms);
-  // Sources du montage : rails, puis broches MCU selon ce que le firmware impose.
-  const sources: Array<{ net: string; volts: number; ohms: number }> = [];
+  const { sources, pinsOnNet } = circuitSources(diagram, vcc, nets, vccNets, gndNets, drive, psuVolts);
+  const sourceNets = new Set(sources.map((s) => s.net));
+  const out: CapacitorNode[] = [];
+  for (const cap of caps) {
+    const n1 = nets.netOf({ partId: cap.id, pin: '1' });
+    const n2 = nets.netOf({ partId: cap.id, pin: '2' });
+    // L'armature de référence est celle qui est à la masse ; à défaut la seconde.
+    const hot = gndNets.has(n1) && !gndNets.has(n2) ? n2 : n1;
+    const farads = capacitorFarads(cap);
+    const vmaxAttr = Number(cap.attrs?.vmax);
+    const node: CapacitorNode = {
+      partId: cap.id,
+      farads,
+      target: 0,
+      tau: Infinity,
+      vmax: Number.isFinite(vmaxAttr) && vmaxAttr > 0 ? vmaxAttr : 400,
+      mcuPins: pinsOnNet.get(hot) ?? [],
+    };
+    if (gndNets.has(hot)) {
+      // Les deux armatures à la masse : court-circuit, rien à intégrer.
+      node.target = 0;
+      node.tau = 0;
+      out.push(node);
+      continue;
+    }
+    const th = theveninNode(hot, sources, sourceNets, adj);
+    if (th) {
+      node.target = th.volts;
+      node.tau = farads > 0 ? th.ohms * farads : 0;
+    }
+    out.push(node);
+  }
+  return out;
+}
+
+/** Une branche du montage qui impose une tension : rail, sortie ou rappel MCU. */
+interface CircuitSource {
+  net: string;
+  volts: number;
+  ohms: number;
+}
+
+/**
+ * Sources de tension du schéma : les rails d'abord (VCC de la carte, ou tension
+ * de l'alim de laboratoire quand c'est elle qui tient le rail ; masse à 0 V),
+ * puis chaque broche numérique du MCU selon ce que le firmware lui impose —
+ * sortie haute ou basse (25 Ω), rappel interne au plus ou au moins (65 kΩ), et
+ * rien du tout en entrée haute impédance.
+ *
+ * `pinsOnNet` recense au passage, pour chaque net, les broches numériques qui
+ * l'observent (l'appelant s'en sert pour savoir qui LIT une tension).
+ */
+function circuitSources(
+  diagram: Diagram,
+  vcc: number,
+  nets: Nets,
+  vccNets: ReadonlySet<string>,
+  gndNets: ReadonlySet<string>,
+  drive?: (pin: string) => PinDrive,
+  psuVolts?: (partId: string) => number | null
+): { sources: CircuitSource[]; pinsOnNet: Map<string, string[]> } {
+  const sources: CircuitSource[] = [];
   for (const net of vccNets) {
     let volts = vcc;
     for (const psu of psuParts(diagram)) {
@@ -1213,61 +1281,135 @@ export function capacitorNodes(
         case 'pulldown':
           sources.push({ net, volts: 0, ohms: MCU_PULL_OHMS });
           break;
-        default: // entrée haute impédance : ne charge pas le condensateur
+        default: // entrée haute impédance : ne charge pas le nœud
           break;
       }
     }
   }
-  const sourceNets = new Set(sources.map((s) => s.net));
-  const out: CapacitorNode[] = [];
-  for (const cap of caps) {
-    const n1 = nets.netOf({ partId: cap.id, pin: '1' });
-    const n2 = nets.netOf({ partId: cap.id, pin: '2' });
-    // L'armature de référence est celle qui est à la masse ; à défaut la seconde.
-    const hot = gndNets.has(n1) && !gndNets.has(n2) ? n2 : n1;
-    const farads = capacitorFarads(cap);
-    const vmaxAttr = Number(cap.attrs?.vmax);
-    const node: CapacitorNode = {
-      partId: cap.id,
-      farads,
-      target: 0,
-      tau: Infinity,
-      vmax: Number.isFinite(vmaxAttr) && vmaxAttr > 0 ? vmaxAttr : 400,
-      mcuPins: pinsOnNet.get(hot) ?? [],
-    };
-    if (gndNets.has(hot)) {
-      // Les deux armatures à la masse : court-circuit, rien à intégrer.
-      node.target = 0;
-      node.tau = 0;
-      out.push(node);
+  return { sources, pinsOnNet };
+}
+
+/**
+ * Équivalent de Thévenin vu par un nœud : générateur `volts` derrière une
+ * résistance `ohms`, c'est-à-dire tout le reste du montage résumé à une pile et
+ * une résistance.
+ *
+ * Chaque source est une branche : sa résistance est le plus court chemin
+ * résistif du nœud jusqu'à elle (les AUTRES sources étant infranchissables — un
+ * rail est une équipotentielle, pas un conducteur de passage), plus sa
+ * résistance interne. Le théorème de Millman donne alors Rth = 1/ΣGi et
+ * Vth = ΣViGi/ΣGi : c'est exactement le pont diviseur R haute / R basse dans le
+ * cas classique, et la seule pull-up interne dans le montage « entrée +
+ * condensateur » d'Arduino ou du Pico.
+ *
+ * Retourne null quand aucune source n'est atteignable : le nœud est en l'air.
+ */
+function theveninNode(
+  hot: string,
+  sources: readonly CircuitSource[],
+  sourceNets: ReadonlySet<string>,
+  adj: Map<string, ResistiveEdge[]>
+): { volts: number; ohms: number } | null {
+  let cond = 0; // ΣGi
+  let sum = 0; //  ΣViGi
+  for (const src of sources) {
+    const others = new Set(sourceNets);
+    others.delete(src.net);
+    // Le nœud analysé n'est jamais un obstacle, même quand une broche du MCU
+    // le pilote : sinon le parcours restait bloqué au départ et la pull-up
+    // interne devenait la SEULE source vue — le condensateur d'antirebond
+    // gardait 5 V, bouton appuyé ou non (Frank, ComLedRGB).
+    others.delete(hot);
+    let path: number | null;
+    if (src.net === hot) path = 0;
+    else path = minOhmsPath(hot, new Set([src.net]), adj, others, undefined, src.volts > 0 ? 'source' : 'sink');
+    if (path === null) continue;
+    const g = 1 / Math.max(0.1, path + src.ohms);
+    cond += g;
+    sum += src.volts * g;
+  }
+  if (cond <= 0) return null;
+  return { volts: sum / cond, ohms: 1 / cond };
+}
+
+/** Ce qu'un multimètre mesure : 'current' (ampèremètre) ou 'voltage' (voltmètre). */
+export function meterMode(part: Part): 'current' | 'voltage' {
+  return part.attrs?.mode === 'current' ? 'current' : 'voltage';
+}
+
+/** Au-delà de ce courant l'ampèremètre ne mesure plus : il court-circuite. */
+export const METER_SHORT_AMPS = 1;
+
+/** Ce que lit un multimètre du schéma, prêt à écrire sur son écran. */
+export interface MeterReading {
+  partId: string;
+  mode: 'current' | 'voltage';
+  /** Volts (voltmètre) ou ampères (ampèremètre) ; null = rien à mesurer. */
+  value: number | null;
+  /** '' si tout va bien, 'short' si l'ampèremètre met le montage en court-circuit. */
+  fault: '' | 'short';
+}
+
+/**
+ * Mesures des multimètres du schéma.
+ *
+ * VOLTMÈTRE : on ne le voit nulle part dans le circuit (résistance d'entrée
+ * énorme, il ne prend pas de courant). La mesure est simplement la différence
+ * des tensions de repos des deux nœuds où sont plantées ses prises.
+ *
+ * AMPÈREMÈTRE : c'est un fil, donc dans la netlist ses deux prises sont DÉJÀ le
+ * même nœud et la tension à ses bornes vaut zéro par construction — impossible
+ * d'en tirer un courant. On le ROUVRE donc le temps du calcul : les deux nœuds
+ * qu'il relie réapparaissent, chacun avec son générateur équivalent, et le
+ * courant qui le traverse est le courant de court-circuit entre eux,
+ * I = (V1 − V2) / (R1 + R2). Les autres multimètres du schéma, eux, restent
+ * fermés : deux ampèremètres en série se mesurent l'un l'autre correctement.
+ */
+export function meterReadings(
+  diagram: Diagram,
+  vcc: number,
+  drive?: (pin: string) => PinDrive,
+  psuVolts?: (partId: string) => number | null,
+  liveOhms?: (part: Part) => number | null
+): MeterReading[] {
+  const meters = diagram.parts.filter((p) => partDef(p.type).kind === 'meter');
+  if (meters.length === 0) return [];
+  const out: MeterReading[] = [];
+  for (const meter of meters) {
+    const mode = meterMode(meter);
+    const source = mode === 'current' ? openMeter(diagram, meter.id) : diagram;
+    const { nets, adj, vccNets, gndNets } = resistiveGraph(source, liveOhms);
+    const { sources } = circuitSources(source, vcc, nets, vccNets, gndNets, drive, psuVolts);
+    const sourceNets = new Set(sources.map((s) => s.net));
+    const plus = theveninNode(nets.netOf({ partId: meter.id, pin: '+' }), sources, sourceNets, adj);
+    const minus = theveninNode(nets.netOf({ partId: meter.id, pin: 'GND' }), sources, sourceNets, adj);
+    if (!plus || !minus) {
+      // Une prise en l'air (ou les deux) : l'appareil ne mesure rien.
+      out.push({ partId: meter.id, mode, value: null, fault: '' });
       continue;
     }
-    let cond = 0; // ΣGi
-    let sum = 0; //  ΣViGi
-    for (const src of sources) {
-      const others = new Set(sourceNets);
-      others.delete(src.net);
-      // Le nœud analysé n'est jamais un obstacle, même quand une broche du MCU
-      // le pilote : sinon le parcours restait bloqué au départ et la pull-up
-      // interne devenait la SEULE source vue — le condensateur d'antirebond
-      // gardait 5 V, bouton appuyé ou non (Frank, ComLedRGB).
-      others.delete(hot);
-      let path: number | null;
-      if (src.net === hot) path = 0;
-      else path = minOhmsPath(hot, new Set([src.net]), adj, others, undefined, src.volts > 0 ? 'source' : 'sink');
-      if (path === null) continue;
-      const g = 1 / Math.max(0.1, path + src.ohms);
-      cond += g;
-      sum += src.volts * g;
+    if (mode === 'voltage') {
+      out.push({ partId: meter.id, mode, value: plus.volts - minus.volts, fault: '' });
+      continue;
     }
-    if (cond > 0) {
-      const rth = 1 / cond;
-      node.target = sum / cond;
-      node.tau = farads > 0 ? rth * farads : 0;
-    }
-    out.push(node);
+    const amps = (plus.volts - minus.volts) / Math.max(0.1, plus.ohms + minus.ohms);
+    const fault = Math.abs(amps) > METER_SHORT_AMPS ? 'short' : '';
+    out.push({ partId: meter.id, mode, value: amps, fault });
   }
   return out;
+}
+
+/**
+ * Copie du schéma où UN multimètre repasse en voltmètre — donc où ses deux
+ * prises redeviennent deux nœuds distincts. Les autres n'y touchent pas.
+ */
+function openMeter(diagram: Diagram, partId: string): Diagram {
+  return {
+    ...diagram,
+    parts: diagram.parts.map((p) =>
+      p.id === partId ? { ...p, attrs: { ...(p.attrs ?? {}), mode: 'voltage' } } : p
+    ),
+  };
 }
 
 /** Capacité (F) d'un condensateur, depuis son attribut `value` (100 nF par défaut). */

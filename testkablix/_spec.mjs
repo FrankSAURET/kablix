@@ -102,6 +102,8 @@ export const PART_PINS = {
   ],
   alim: ['V+', 'GND'],
   powerbank: ['V+', 'GND'],
+  // Multimètre : deux prises banane, rouge et noire.
+  multimetre: ['+', 'GND'],
   // Patte de robot à 2 articulations : chacune a son propre bornier 3 fils
   // (comme un servo), électriquement indépendant de l'autre.
   patte: ['coxa.GND', 'coxa.V+', 'coxa.PWM', 'patella.GND', 'patella.V+', 'patella.PWM'],
@@ -2478,6 +2480,62 @@ void loop() {
 `,
   }),
 
+  // Multimètre : les DEUX façons de s'en servir sur la même planche.
+  //   M1 VOLTMÈTRE, en parallèle sur un pont diviseur 1 kΩ / 1 kΩ piloté par
+  //     D13 : 5 V coupés en deux → ~2,46 V (les 25 Ω de la sortie du
+  //     microcontrôleur et le 1 Ω du rail rabotent les 2,50 V du papier).
+  //   M2 AMPÈREMÈTRE, en série dans une branche 5 V → 1 kΩ → masse : ~4,99 mA.
+  // Aucune LED dans les branches mesurées : une LED n'est pas une résistance,
+  // le modèle ne saurait pas en tirer un générateur équivalent.
+  test({
+    name: 'multimetre-uno', board: 'uno', ext: 'ino',
+    parts: [
+      MCU('uno'),
+      { id: 'R1', type: 'resistor', x: 620, y: 90, attrs: { value: '1000' } },
+      { id: 'R2', type: 'resistor', x: 620, y: 200, attrs: { value: '1000' } },
+      { id: 'M1', type: 'multimetre', x: 560, y: 300, attrs: { mode: 'voltage' } },
+      { id: 'R3', type: 'resistor', x: 620, y: 440, attrs: { value: '1000' } },
+      { id: 'M2', type: 'multimetre', x: 560, y: 540, attrs: { mode: 'current' } },
+    ],
+    wires: () => [
+      w('R1', '1', 'U1', '13', 'green'),
+      w('R1', '2', 'R2', '1', 'blue'),
+      w('R2', '2', 'U1', 'GND.1', 'black'),
+      w('M1', '+', 'R2', '1', 'red'),
+      w('M1', 'GND', 'U1', 'GND.2', 'black'),
+      w('R3', '1', 'U1', '5V', 'red'),
+      w('R3', '2', 'M2', '+', 'orange'),
+      w('M2', 'GND', 'U1', 'GND.3', 'black'),
+    ],
+    expect: {
+      kind: 'meter', volts: 5, drive: { 13: 'high' },
+      readings: [
+        { partId: 'M1', mode: 'voltage', value: 2.463, tol: 0.02 },
+        { partId: 'M2', mode: 'current', value: 0.004988, tol: 0.0002 },
+      ],
+    },
+    code: `// Test multimetre : les deux appareils de la planche mesurent en meme temps.
+// M1 est un VOLTMETRE, branche EN PARALLELE sur le pont diviseur
+// D13 -> R1 1 kohm -> point A -> R2 1 kohm -> masse : il lit environ 2,5 V
+// quand D13 est haut, 0 V quand D13 est bas.
+// M2 est un AMPEREMETRE, branche EN SERIE dans la branche 5V -> R3 1 kohm ->
+// masse : il lit environ 5 mA en permanence (5 V / 1 kohm).
+void setup() {
+  pinMode(13, OUTPUT);
+  Serial.begin(115200);
+}
+
+void loop() {
+  digitalWrite(13, HIGH);
+  Serial.println("D13 haut -> voltmetre ~2,5 V");
+  delay(1000);
+  digitalWrite(13, LOW);
+  Serial.println("D13 bas  -> voltmetre ~0 V");
+  delay(1000);
+}
+`,
+  }),
+
   // Barrière optique infrarouge : sortie à COLLECTEUR OUVERT, donc rappel
   // obligatoire — ici en externe (10 kΩ vers 5 V), le montage des fiches DFRobot.
   // Les DEUX boîtiers sont alimentés : l'émetteur sans courant n'éclaire rien et
@@ -4677,6 +4735,55 @@ while True:
     brut = photo.read_u16()
     print("ADC0 =", brut, "(bien eclaire)" if brut > 45000 else "(sombre)")
     time.sleep(0.3)
+`,
+  }),
+
+  // Le même banc sur Pico : 3,3 V au lieu de 5 V, donc ~1,63 V au milieu du
+  // pont et ~3,29 mA dans la branche de l'ampèremètre.
+  test({
+    name: 'multimetre-pico', board: 'pico', ext: 'py',
+    parts: [
+      MCU('pico'),
+      { id: 'R1', type: 'resistor', x: 680, y: 90, attrs: { value: '1000' } },
+      { id: 'R2', type: 'resistor', x: 680, y: 200, attrs: { value: '1000' } },
+      { id: 'M1', type: 'multimetre', x: 620, y: 300, attrs: { mode: 'voltage' } },
+      { id: 'R3', type: 'resistor', x: 680, y: 440, attrs: { value: '1000' } },
+      { id: 'M2', type: 'multimetre', x: 620, y: 540, attrs: { mode: 'current' } },
+    ],
+    wires: () => [
+      w('R1', '1', 'U1', 'GP15', 'green'),
+      w('R1', '2', 'R2', '1', 'blue'),
+      w('R2', '2', 'U1', 'GND.7', 'black'),
+      w('M1', '+', 'R2', '1', 'red'),
+      w('M1', 'GND', 'U1', 'GND.8', 'black'),
+      w('R3', '1', 'U1', '3V3', 'red'),
+      w('R3', '2', 'M2', '+', 'orange'),
+      w('M2', 'GND', 'U1', 'GND.3', 'black'),
+    ],
+    expect: {
+      kind: 'meter', volts: 3.3, drive: { GP15: 'high' },
+      readings: [
+        { partId: 'M1', mode: 'voltage', value: 1.626, tol: 0.02 },
+        { partId: 'M2', mode: 'current', value: 0.003292, tol: 0.0002 },
+      ],
+    },
+    code: `# Test multimetre : les deux appareils de la planche mesurent en meme temps.
+# M1 est un VOLTMETRE, branche EN PARALLELE sur le pont diviseur
+# GP15 -> R1 1 kohm -> point A -> R2 1 kohm -> masse : il lit environ 1,6 V
+# quand GP15 est haut, 0 V quand GP15 est bas.
+# M2 est un AMPEREMETRE, branche EN SERIE dans la branche 3V3 -> R3 1 kohm ->
+# masse : il lit environ 3,3 mA en permanence (3,3 V / 1 kohm).
+from machine import Pin
+import time
+
+sortie = Pin(15, Pin.OUT)
+while True:
+    sortie.value(1)
+    print("GP15 haut -> voltmetre ~1,6 V")
+    time.sleep(1)
+    sortie.value(0)
+    print("GP15 bas  -> voltmetre ~0 V")
+    time.sleep(1)
 `,
   }),
 

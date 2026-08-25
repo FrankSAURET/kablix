@@ -381,6 +381,27 @@ for (const t of TESTS) {
         }
         break;
       }
+      case 'meter': {
+        // Multimètres : chaque appareil est relu par le modèle, exactement comme
+        // le fait la simulation à chaque image. `drive` fixe l'état des broches
+        // de commande (les autres restent en l'air), `tol` la marge admise — le
+        // modèle compte la résistance des rails et de la sortie du
+        // microcontrôleur, la mesure n'est donc jamais tout à fait le calcul de
+        // papier.
+        const etats = e.drive ?? {};
+        const lus = model.meterReadings(diagram, e.volts, (p) => etats[p] ?? 'hiz');
+        for (const r of e.readings) {
+          const m = lus.find((x) => x.partId === r.partId);
+          check(`${t.name} : multimètre ${r.partId} trouvé`, !!m, JSON.stringify(lus));
+          if (!m) continue;
+          check(`${t.name} : ${r.partId} en ${r.mode === 'current' ? 'ampèremètre' : 'voltmètre'}`,
+            m.mode === r.mode, m.mode);
+          check(`${t.name} : ${r.partId} lit ${r.value} ${r.mode === 'current' ? 'A' : 'V'}`,
+            m.value !== null && Math.abs(m.value - r.value) < (r.tol ?? 0.05), `lu=${m.value}`);
+          check(`${t.name} : ${r.partId} sans court-circuit`, m.fault === '', m.fault);
+        }
+        break;
+      }
       case 'fan': {
         const vcc = catalog.isPicoBoard(t.board) ? 3.3 : 5;
         const tourne = model.fanSpeed(model.fanCircuit(diagram, e.spins, vcc), 5, 0.85, 1);

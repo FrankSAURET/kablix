@@ -33,6 +33,9 @@ const FAMILIES = {
   // a son propre préfixe, comme sur un schéma d'automatisme.
   relay: { en: 'Rl', fr: 'Rl' },
   psu: { en: 'PSU', fr: 'Alim' },
+  // Appareil de mesure (multimètre, oscilloscope…) : « M » dans les deux
+  // langues. Les moteurs, eux, sont des actionneurs (Act) : la lettre est libre.
+  meter: { en: 'M', fr: 'M' },
 } as const;
 
 export type RefFamily = keyof typeof FAMILIES;
@@ -82,6 +85,7 @@ const BY_KIND: Record<string, RefFamily> = {
   motor: 'actuator',
   relay: 'relay',
   psu: 'psu',
+  meter: 'meter',
 };
 
 /** Exceptions par TYPE : un même `kind` peut servir à deux familles. */
