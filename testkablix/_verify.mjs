@@ -316,8 +316,15 @@ for (const t of TESTS) {
         // résistance (le pont monte), la CTP monte (le pont descend).
         // `null` pour tout ce qui n'est pas variable : les résistances fixes du
         // pont gardent leur valeur (les pousser aussi effacerait la mesure).
+        // Chaque famille a sa grandeur de curseur : lux pour la LDR, degrés
+        // pour les thermistances, mW/cm² pour les composants photosensibles.
+        const grandeur = (type) => {
+          if (type === 'ldr') return e.pousse.lux;
+          if (type === 'phototransistor' || type === 'photodiode') return e.pousse.ee;
+          return e.pousse.celsius;
+        };
         const pousse = (p) => (model.VARIABLE_RESISTOR_TYPES.has(p.type)
-          ? model.variableResistorOhms(p.type, p.type === 'ldr' ? e.pousse.lux : e.pousse.celsius, p.attrs)
+          ? model.variableResistorOhms(p.type, grandeur(p.type), p.attrs)
           : null);
         compare(e.pousses, niveaux(pousse), 'curseur poussé');
         break;

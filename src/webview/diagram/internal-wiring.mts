@@ -29,6 +29,8 @@ import sevenSegA4Clock from '../composants/interne/7seg-4dig-clock-schema.anode.
 import ldrSchema from '../composants/interne/ldr-schema.svg';
 import ntcSchema from '../composants/interne/ntc-schema.svg';
 import ptcSchema from '../composants/interne/ptc-schema.svg';
+import phototransistorSchema from '../composants/interne/phototransistor-interne.svg';
+import photodiodeSchema from '../composants/interne/photodiode-interne.svg';
 // Symboles dessinés dans Composants.svg (groupes « <nom>-interne ») : même
 // viewBox que le dessin externe, donc superposables tels quels. Les deux
 // condensateurs polarisés partagent « condo-p-interne ».
@@ -311,10 +313,14 @@ const SEVEN_SEG_CLOCK_SCHEMA: Record<'cathode' | 'anode', Schema> = {
 };
 // Symboles LDR / CTN / CTP : le SVG de Frank partage le viewBox du dessin
 // externe → simple mise à l'échelle de la boîte du composant (comme le clavier).
-const VARISTOR_SCHEMA: Record<'ldr' | 'ntc' | 'ptc', Schema> = {
+const VARISTOR_SCHEMA: Record<string, Schema> = {
   ldr: parseSchema(ldrSchema),
   ntc: parseSchema(ntcSchema),
   ptc: parseSchema(ptcSchema),
+  // Symboles du phototransistor et de la photodiode : dessins de Frank, même
+  // cadre que leur dessin externe — une simple mise à l'échelle suffit.
+  phototransistor: parseSchema(phototransistorSchema),
+  photodiode: parseSchema(photodiodeSchema),
 };
 
 // Diode et condensateurs (dessins de Frank) : mêmes repères que leur dessin
@@ -479,7 +485,7 @@ export function internalWiringSvg(
   if (type === 'pot-rot2') return scaledSchema(POT_ROT2_SCHEMA, box);
   // Résistances variables nues : symbole dessiné à la main (avant le cas
   // générique `resistor`, qui ne tracerait qu'une boîte).
-  if (type === 'ldr' || type === 'ntc' || type === 'ptc') return scaledSchema(VARISTOR_SCHEMA[type], box);
+  if (type && VARISTOR_SCHEMA[type]) return scaledSchema(VARISTOR_SCHEMA[type], box);
   // Pile générique : dessin de Frank au cadre du Powerbank, simple mise à
   // l'échelle (comme diode/relais) — l'alim de laboratoire (kind 'psu' aussi)
   // n'a pas de schéma dessiné, seul `type === 'powerbank'` en a un.

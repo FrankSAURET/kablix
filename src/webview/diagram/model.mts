@@ -257,7 +257,11 @@ function computeNets(diagram: Diagram, joinResistors: boolean): Nets {
   for (const part of diagram.parts) {
     const kind = partDef(part.type).kind;
     if (kind === 'resistor') {
-      if (joinResistors) dsu.union(`${part.id}/1`, `${part.id}/2`);
+      // Mêmes bornes que le graphe résistif : rolePin traduit « 1 »/« 2 » en
+      // c/e pour les composants dont les pattes portent un autre nom.
+      if (joinResistors) {
+        dsu.union(`${part.id}/${rolePin(part.type, '1')}`, `${part.id}/${rolePin(part.type, '2')}`);
+      }
     } else if (kind === 'pushbutton') {
       // Les deux pastilles d'une même borne (gauche/droite) sont reliées en interne.
       dsu.union(`${part.id}/1.l`, `${part.id}/1.r`);
@@ -604,16 +608,39 @@ function minOhmsPath(
   }
 }
 
-/** Types de résistances variables nues (2 pattes) pilotées par un curseur de
- *  simulation : photorésistance et thermistances CTN/CTP. */
-export const VARIABLE_RESISTOR_TYPES: ReadonlySet<string> = new Set(['ldr', 'ntc', 'ptc']);
+/**
+ * Résistances variables nues (2 pattes) pilotées par un curseur de simulation,
+ * et la grandeur que ce curseur règle : l'attribut de l'inspecteur qui la porte
+ * au repos, sa valeur par défaut et le nom de la propriété de l'élément.
+ * Photorésistance, thermistances CTN/CTP, phototransistor, photodiode.
+ *
+ * Une TABLE plutôt qu'une cascade de `type === 'ldr' ? … : …` : la même question
+ * (« quelle grandeur pilote ce composant ? ») se posait dans trois fichiers, et
+ * chaque nouveau composant y ajoutait un ternaire de plus.
+ */
+export const VARIABLE_RESISTOR_INPUT: Readonly<Record<string, { attr: string; dflt: number }>> = {
+  ldr: { attr: 'lux', dflt: 500 },
+  ntc: { attr: 'temperature', dflt: 25 },
+  ptc: { attr: 'temperature', dflt: 25 },
+  phototransistor: { attr: 'ee', dflt: 1 },
+  photodiode: { attr: 'ee', dflt: 1 },
+};
+
+export const VARIABLE_RESISTOR_TYPES: ReadonlySet<string> = new Set(Object.keys(VARIABLE_RESISTOR_INPUT));
+
+/** Parmi elles, celles qui ne se lisent que dans un pont diviseur : sans
+ *  résistance en série, le montage ne donne rien (photoDeviceBindings). */
+export const PHOTO_DEVICE_TYPES: ReadonlySet<string> = new Set(['phototransistor', 'photodiode']);
 
 /**
  * Caractéristique R(x) d'une résistance variable nue (paramètres de
  * l'inspecteur dans `attrs`) :
  *  - ldr : x = éclairement (lx), R = R1lx · x^(−γ) — obscurité totale ≈ 10 MΩ ;
  *  - ntc : x = température (°C), R = R25 · e^(B·(1/T − 1/T25)) (T en kelvins) ;
- *  - ptc : x = température (°C), R = R25 · (1 + tc/100 · (T − 25)) (type KTY).
+ *  - ptc : x = température (°C), R = R25 · (1 + tc/100 · (T − 25)) (type KTY) ;
+ *  - phototransistor et photodiode : x = éclairement énergétique (mW/cm²),
+ *    R = Ron · Eemax/x — même loi, mais la photodiode n'a pas le gain du
+ *    transistor, donc cent fois moins de courant et cent fois plus de Ron.
  */
 export function variableResistorOhms(
   type: string,
@@ -628,6 +655,21 @@ export function variableResistorOhms(
     if (!(x > 0)) return 1e7;
     const r = num('r1lx', 50_000) * Math.pow(x, -num('gamma', 0.7));
     return Math.min(1e7, Math.max(1, r));
+  }
+  if (type === 'phototransistor' || type === 'photodiode') {
+    // Fiche technique : le courant est PROPORTIONNEL à l'éclairement reçu. Vu
+    // de la netlist comme une résistance, R = V/I varie donc en 1/Ee : `ron`
+    // est sa valeur sous l'éclairement maximal, `rdark` celle dans le noir
+    // complet (courant de fuite). Entre les deux, R = ron · eemax / Ee.
+    // La photodiode suit la MÊME loi sans l'amplification du transistor : à
+    // lumière égale elle laisse passer environ cent fois moins de courant,
+    // d'où des valeurs de repli cent fois plus grandes.
+    const diode = type === 'photodiode';
+    const ron = num('ron', diode ? 20_000 : 200);
+    const rdark = num('rdark', diode ? 1e8 : 1e7);
+    const eemax = num('eemax', 5);
+    if (!(x > 0)) return rdark;
+    return Math.min(rdark, Math.max(ron, (ron * eemax) / x));
   }
   const t = Number.isFinite(x) ? x : 25;
   if (type === 'ntc') {
@@ -644,9 +686,10 @@ export function variableResistorOhms(
  *  une résistance fixe, caractéristique au point des attrs (lux/température de
  *  l'inspecteur) pour une résistance variable. */
 function nominalOhms(part: Part): number {
-  if (VARIABLE_RESISTOR_TYPES.has(part.type)) {
-    const x = Number(part.attrs?.[part.type === 'ldr' ? 'lux' : 'temperature']);
-    return variableResistorOhms(part.type, Number.isFinite(x) ? x : part.type === 'ldr' ? 500 : 25, part.attrs);
+  const entree = VARIABLE_RESISTOR_INPUT[part.type];
+  if (entree) {
+    const x = Number(part.attrs?.[entree.attr]);
+    return variableResistorOhms(part.type, Number.isFinite(x) ? x : entree.dflt, part.attrs);
   }
   return Math.max(0, Number(part.attrs?.value ?? 220) || 0);
 }
@@ -693,8 +736,10 @@ function computeResistiveGraph(
   for (const part of diagram.parts) {
     const kind = partDef(part.type).kind;
     if (kind === 'resistor') {
-      const a = nets.netOf({ partId: part.id, pin: '1' });
-      const b = nets.netOf({ partId: part.id, pin: '2' });
+      // Bornes « 1 » et « 2 » du modèle : le phototransistor les nomme c et e,
+      // d'où le passage par rolePin plutôt que les noms en dur.
+      const a = nets.netOf({ partId: part.id, pin: rolePin(part.type, '1') });
+      const b = nets.netOf({ partId: part.id, pin: rolePin(part.type, '2') });
       const ohms = Math.max(0, liveOhms?.(part) ?? nominalOhms(part));
       link(a, b, { ohms, partId: part.id });
       link(b, a, { ohms, partId: part.id });
@@ -2340,6 +2385,57 @@ function openDrainBinding(
     powered,
     pullupOhms: minOhmsPath(net(outPin), graph.vccNets, graph.adj, undefined, undefined, 'source'),
   };
+}
+
+/**
+ * Composants photosensibles nus — phototransistor, photodiode. Ils ne se lisent QUE dans
+ * un pont diviseur : seuls, ils laissent passer plus ou moins de courant, mais
+ * rien ne transforme ce courant en tension. Il leur faut donc une résistance en
+ * série, entre eux et l'autre rail.
+ *
+ * On regarde le montage réel : y a-t-il une boucle rail haut → composant →
+ * masse, et combien de résistance porte-t-elle EN DEHORS du composant ? Sa
+ * propre arête est retirée du graphe, sans quoi le chemin passerait par lui et
+ * toute boucle paraîtrait résistive.
+ */
+export interface PhotoDeviceBinding {
+  partId: string;
+  /** Le composant a au moins un fil : sinon il n'y a rien à reprocher. */
+  wired: boolean;
+  /** Boucle complète rail haut → composant → masse trouvée. */
+  looped: boolean;
+  /** Résistance en série sur cette boucle (Ω), la sienne exclue ; null sans boucle. */
+  seriesOhms: number | null;
+}
+
+export function photoDeviceBindings(diagram: Diagram): PhotoDeviceBinding[] {
+  const out: PhotoDeviceBinding[] = [];
+  const parts = diagram.parts.filter((p) => PHOTO_DEVICE_TYPES.has(p.type));
+  if (parts.length === 0) return out;
+  const graph = resistiveGraph(diagram);
+  for (const part of parts) {
+    const a = graph.nets.netOf({ partId: part.id, pin: rolePin(part.type, '1') });
+    const b = graph.nets.netOf({ partId: part.id, pin: rolePin(part.type, '2') });
+    // Le graphe SANS le composant : ses deux pattes ne communiquent plus par
+    // lui, donc un chemin trouvé passe forcément par le reste du montage.
+    const adj = new Map<string, ResistiveEdge[]>();
+    for (const [net, edges] of graph.adj) adj.set(net, edges.filter((e) => e.partId !== part.id));
+    let series: number | null = null;
+    for (const [haut, bas] of [[a, b], [b, a]] as const) {
+      const up = minOhmsPath(haut, graph.vccNets, adj, undefined, undefined, 'source');
+      const down = minOhmsPath(bas, graph.gndNets, adj, undefined, undefined, 'sink');
+      if (up === null || down === null) continue;
+      const total = up + down;
+      if (series === null || total < series) series = total;
+    }
+    out.push({
+      partId: part.id,
+      wired: diagram.wires.some((w) => w.a.partId === part.id || w.b.partId === part.id),
+      looped: series !== null,
+      seriesOhms: series,
+    });
+  }
+  return out;
 }
 
 /** Servomoteurs dont l'entrée PWM est reliée à une broche MCU. */

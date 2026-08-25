@@ -11,6 +11,8 @@ import './composants/resistor-element.mjs';
 import './composants/diode-element.mjs';
 import './composants/capacitor-element.mjs';
 import './composants/ldr-element.mjs';
+import './composants/phototransistor-element.mjs';
+import './composants/photodiode-element.mjs';
 import './composants/ntc-element.mjs';
 import './composants/ptc-element.mjs';
 import './composants/rgb-led-element.mjs';
@@ -92,6 +94,7 @@ import {
   aoDoSensorBindings,
   customOpenDrainBindings,
   hallBindings,
+  photoDeviceBindings,
   servoBindings,
   patteBindings,
   buzzerBindings,
@@ -112,6 +115,7 @@ import {
   fanCircuit,
   fanSpeed,
   variableResistorOhms,
+  VARIABLE_RESISTOR_INPUT,
   VARIABLE_RESISTOR_TYPES,
   beginModelFrame,
   endModelFrame,
@@ -347,6 +351,8 @@ const hallFaults = new Map<string, string>();
 let openDrainTargets: Array<{ binding: HallBinding; el: SimElement }> = [];
 /** Défaut de câblage courant de chaque sortie collecteur ouvert de bibliothèque. */
 const openDrainFaults = new Map<string, string>();
+/** Défaut de montage courant de chaque composant photosensible (phototransistor, photodiode). */
+const photoFaults = new Map<string, string>();
 // LED RGB : partId → broches MCU des canaux R/G/B (rapport cyclique PWM).
 let rgbLedTargets = new Map<string, { r: string | null; g: string | null; b: string | null }>();
 // Afficheur 7 segments 1 chiffre : partId → broche MCU de chaque segment
@@ -1214,9 +1220,10 @@ try {
 /** Valeur courante (Ω) d'une résistance variable nue — curseur du composant en
  *  simulation ; null si l'élément est absent (repli : point de repos des attrs). */
 function liveVariableOhms(part: Part): number | null {
-  if (!VARIABLE_RESISTOR_TYPES.has(part.type)) return null;
-  const el = editor.elementOf(part.id);
-  const x = Number((part.type === 'ldr' ? el?.lux : el?.temperature) ?? NaN);
+  const entree = VARIABLE_RESISTOR_INPUT[part.type];
+  if (!entree) return null;
+  const el = editor.elementOf(part.id) as unknown as Record<string, unknown> | null;
+  const x = Number(el?.[entree.attr] ?? NaN);
   if (!Number.isFinite(x)) return null;
   return variableResistorOhms(part.type, x, part.attrs);
 }
@@ -1318,6 +1325,7 @@ function clearRelayFaults(): void {
   hallFaults.clear();
   openDrainTargets = [];
   openDrainFaults.clear();
+  photoFaults.clear();
   burnNotes.clear();
   editor.clearFaults();
 }
@@ -2624,12 +2632,77 @@ function bindInputs(): void {
       const el = editor.elementOf(part.id);
       if (!el) continue;
       // Position de repos du curseur depuis l'inspecteur (comme la CTN capteur).
-      if (part.type === 'ldr') el.lux = Number(part.attrs?.lux ?? 500);
-      else el.temperature = Number(part.attrs?.temperature ?? 25);
+      const entree = VARIABLE_RESISTOR_INPUT[part.type];
+      const brut = Number(part.attrs?.[entree.attr]);
+      (el as unknown as Record<string, unknown>)[entree.attr] =
+        Number.isFinite(brut) ? brut : entree.dflt;
       el.addEventListener('input', apply);
       inputRemovers.push(() => el.removeEventListener('input', apply));
     }
     apply();
+  }
+  checkPhotoDevices();
+}
+
+/**
+ * Phototransistor et photodiode ne se lisent QUE dans un pont diviseur : ils
+ * laissent passer plus ou moins de courant, encore faut-il une résistance pour
+ * en faire une tension. Le montage est jugé une fois au démarrage (le schéma ne
+ * bouge plus ensuite), pas à chaque image.
+ */
+function checkPhotoDevices(): void {
+  for (const b of photoDeviceBindings(editor.diagram)) {
+    const type = editor.diagram.parts.find((p) => p.id === b.partId)?.type ?? '';
+    if (!b.wired) {
+      reportPhotoFault(b.partId, type, '');
+    } else if (!b.looped) {
+      reportPhotoFault(b.partId, type, 'no-resistor');
+    } else if (b.seriesOhms === 0) {
+      reportPhotoFault(b.partId, type, 'shorted');
+    } else {
+      reportPhotoFault(b.partId, type, '');
+    }
+  }
+}
+
+/** Défaut de câblage d'un composant photosensible, dit une seule fois. */
+function reportPhotoFault(partId: string, type: string, fault: string): void {
+  if ((photoFaults.get(partId) ?? '') === fault) return;
+  photoFaults.set(partId, fault);
+  if (!fault) {
+    editor.setFaulty(partId, false);
+    return;
+  }
+  const say = (msg: string, note: string): void => {
+    setStatus(`${t(msg)} (${partId})`);
+    editor.setFaulty(partId, true, t(note));
+  };
+  // La photodiode laisse passer cent fois moins de courant : sa résistance de
+  // charge se compte en centaines de kΩ, pas en kΩ — d'où deux jeux de textes.
+  if (type === 'photodiode') {
+    if (fault === 'shorted') {
+      say(
+        'The photodiode is wired straight across the supply',
+        'Both legs go to the supply rails with nothing in between: there is no divider, so nothing to read. Put a resistor (100 kΩ) in series, and read the voltage between the two.'
+      );
+    } else {
+      say(
+        'The photodiode needs a series resistor',
+        'On its own it only lets more or less current through — nothing turns that into a voltage. Wire it in series with a resistor (100 kΩ) between the supply and ground, and read the middle point with an analog input.'
+      );
+    }
+    return;
+  }
+  if (fault === 'shorted') {
+    say(
+      'The phototransistor is wired straight across the supply',
+      'Both legs go to the supply rails with nothing in between: in full light it would short the supply. Put a resistor (10 kΩ) in series, and read the voltage between the two.'
+    );
+  } else {
+    say(
+      'The phototransistor needs a series resistor',
+      'On its own it only lets more or less current through — nothing turns that into a voltage. Wire it in series with a resistor (10 kΩ) between the supply and ground, and read the middle point with an analog input.'
+    );
   }
 }
 

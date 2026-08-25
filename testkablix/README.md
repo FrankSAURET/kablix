@@ -105,6 +105,8 @@ a pas de carte à remplacer.
 | Anneau NeoPixel 16 | `led-ring-uno` | `led-ring-pico` | `led-ring-pico2` | chenillard bleu |
 | Température NTC | `ntc-temp-uno` | `ntc-temp-pico` | `ntc-temp-pico2` | valeur suit le curseur |
 | Résistances variables LDR + CTN + CTP | — (retiré) | `rv-pico` | `rv-pico2` | trois ponts diviseurs lus d'un coup ; éclairer la LDR ou chauffer la CTN fait monter la lecture, chauffer la CTP la fait descendre |
+| Phototransistor | `phototransistor-uno` | `phototransistor-pico` | `phototransistor-pico2` | pont diviseur avec 1 kΩ en bas, la lecture MONTE avec la lumière (50 % au repos à 1 mW/cm², 83 % curseur à fond) ; la résistance est obligatoire, Kablix signale le montage sans elle |
+| Photodiode | `photodiode-uno` | `photodiode-pico` | `photodiode-pico2` | même pont, mais 100 kΩ en bas : la photodiode laisse passer cent fois moins de courant (50 % au repos à 1 mW/cm², 83 % curseur à fond) ; cathode vers le plus, résistance obligatoire |
 | Capteur de gaz (MQ) | `gas-sensor-uno` | `gas-sensor-pico` | `gas-sensor-pico2` | AOUT + DOUT |
 | Capteur de pouls | `heartbeat-uno` | `heartbeat-pico` | `heartbeat-pico2` | signal qui bat |
 | Capteur de flamme | `flame-uno` | `flame-pico` | `flame-pico2` | AOUT + DOUT |

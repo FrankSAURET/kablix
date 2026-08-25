@@ -255,6 +255,14 @@ export interface PartDef {
    * l'attribut `simulating` sur l'élément (posé/retiré par setLocked).
    */
   simControl?: boolean;
+  /**
+   * Correspondance rôle du modèle → nom réel de la patte, pour un composant
+   * INTÉGRÉ dont les pattes ne portent pas le nom du rôle : le modèle relie une
+   * résistance par ses bornes « 1 » et « 2 », alors que le phototransistor de
+   * Frank a un collecteur « c » et un émetteur « e ». Les composants
+   * personnalisés ont la même table sous `custom.pinRoles`.
+   */
+  pinRoles?: Record<string, string>;
   /** Pour kind 'analog-source' : broche de sortie analogique. */
   analogPin?: string;
   /** Pour kind 'digital-source' : broche de sortie numérique. */
@@ -612,6 +620,31 @@ export const CATALOG: readonly PartDef[] = [
     props: [
       { attr: 'r1lx', label: 'Resistance at 1 lx (Ω)', kind: 'number', min: 1, max: 10_000_000, step: 1, suffixes: true },
       { attr: 'gamma', label: 'Sensitivity coefficient (γ)', kind: 'number', min: 0.1, max: 2, step: 0.01 },
+    ],
+  },
+  {
+    // Photodiode nue : pattes K/A (le dessin de Frank). Même modèle que le
+    // phototransistor, sans son gain — d'où un `ron` cent fois plus grand, et
+    // une résistance de charge de 100 kΩ plutôt que 1 kΩ.
+    type: 'photodiode', label: 'Photodiode', tag: 'kablix-photodiode', kind: 'resistor',
+    simControl: true, pinRoles: { '1': 'K', '2': 'A' },
+    attrs: { ee: '1', eemax: '5', ron: '20000', rdark: '1e8' },
+    props: [
+      { attr: 'eemax', label: 'Max irradiance (mW/cm²)', kind: 'number', min: 0.01, max: 1000, step: 0.1 },
+      { attr: 'ron', label: 'Resistance at max irradiance (Ω)', kind: 'number', min: 1, max: 100_000_000, step: 1, suffixes: true },
+      { attr: 'rdark', label: 'Dark resistance (Ω)', kind: 'number', min: 1000, max: 1_000_000_000, step: 1000, suffixes: true },
+    ],
+  },
+  {
+    // Phototransistor nu : pattes c/e (le dessin de Frank), vues comme les deux
+    // bornes d'une résistance par le modèle — d'où `pinRoles`.
+    type: 'phototransistor', label: 'Phototransistor', tag: 'kablix-phototransistor', kind: 'resistor',
+    simControl: true, pinRoles: { '1': 'c', '2': 'e' },
+    attrs: { ee: '1', eemax: '5', ron: '200', rdark: '1e7' },
+    props: [
+      { attr: 'eemax', label: 'Max irradiance (mW/cm²)', kind: 'number', min: 0.01, max: 1000, step: 0.1 },
+      { attr: 'ron', label: 'Resistance at max irradiance (Ω)', kind: 'number', min: 1, max: 1_000_000, step: 1, suffixes: true },
+      { attr: 'rdark', label: 'Dark resistance (Ω)', kind: 'number', min: 1000, max: 100_000_000, step: 1000, suffixes: true },
     ],
   },
   {
@@ -1403,7 +1436,8 @@ export function migratePartAttrs(part: { type: string; attrs?: Record<string, st
  * fournir leur propre correspondance.
  */
 export function rolePin(type: string, role: string): string {
-  return partDef(type).custom?.pinRoles?.[role] ?? role;
+  const def = partDef(type);
+  return def.pinRoles?.[role] ?? def.custom?.pinRoles?.[role] ?? role;
 }
 
 /**

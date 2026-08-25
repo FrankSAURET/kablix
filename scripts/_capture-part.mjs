@@ -23,6 +23,11 @@ const PARTS = {
   ldr: { module: 'ldr-element.mjs', tag: 'kablix-ldr' },
   ntc: { module: 'ntc-element.mjs', tag: 'kablix-ntc' },
   ptc: { module: 'ptc-element.mjs', tag: 'kablix-ptc' },
+  // Phototransistor : dessin étroit et haut (30×50) — sortie calée sur la
+  // hauteur, sinon 360 px de large donnent une image démesurée.
+  phototransistor: { module: 'phototransistor-element.mjs', tag: 'kablix-phototransistor', height: 250 },
+  // Photodiode : même dessin étroit et haut (30×50) que le phototransistor.
+  photodiode: { module: 'photodiode-element.mjs', tag: 'kablix-photodiode', height: 250 },
   'grove-pico': { module: 'grove-shield-element.mjs', tag: 'kablix-grove-pico', attrs: { pwr: '3v3' } },
   // Les quatre Pico partagent l'élément <kablix-pico-board> : seul `variant`
   // change. Pico et Pico W sont dessinées en paysage, les Pico 2 en portrait —

@@ -79,6 +79,12 @@ export const PART_PINS = {
   ldr: ['1', '2'],
   ntc: ['1', '2'],
   ptc: ['1', '2'],
+  // Phototransistor : même famille, mais POLARISÉ — le collecteur va vers le
+  // plus, l'émetteur vers le moins.
+  phototransistor: ['c', 'e'],
+  // Photodiode : polarisée elle aussi, mais en INVERSE — la cathode va vers le
+  // plus, l'anode vers le moins.
+  photodiode: ['K', 'A'],
   'gas-sensor': ['AOUT', 'DOUT', 'GND', 'VCC'],
   heartbeat: ['GND', 'VCC', 'OUT'],
   flame: ['VCC', 'GND', 'DOUT', 'AOUT'],
@@ -2389,6 +2395,89 @@ void loop() {
 `,
   }),
 
+  // Phototransistor : il ne « sort » rien tout seul, il laisse passer plus ou
+  // moins de courant. Une résistance de 1 kΩ en fait une tension — ici en bas du
+  // pont, donc A0 MONTE quand la lumière monte.
+  //   repos (1 mW/cm²) : Rq = 1 kΩ  → 1000/(1000+1000)   = 50,0 %
+  //   curseur à fond (5 mW/cm²) : Rq = 200 Ω → 1000/(1000+200) = 83,3 %
+  test({
+    name: 'phototransistor-uno', board: 'uno', ext: 'ino',
+    parts: [
+      MCU('uno'),
+      { id: 'Q1', type: 'phototransistor', x: 620, y: 90, attrs: { ee: '1', eemax: '5', ron: '200', rdark: '1e7' } },
+      { id: 'R1', type: 'resistor', x: 620, y: 200, attrs: { value: '1000' } },
+    ],
+    wires: () => [
+      w('Q1', 'c', 'U1', '5V', 'red'),
+      w('Q1', 'e', 'U1', 'A0', 'green'),
+      w('R1', '1', 'Q1', 'e', 'blue'),
+      w('R1', '2', 'U1', 'GND.1', 'black'),
+    ],
+    expect: {
+      kind: 'variable-resistor',
+      repos: { A0: 0.5 },
+      pousse: { ee: 5 },
+      pousses: { A0: 1000 / 1200 },
+    },
+    code: `// Test phototransistor : 5V -> collecteur, émetteur -> A0 -> 1 kohm -> GND.
+// La résistance est OBLIGATOIRE : sans elle, rien ne transforme le courant du
+// phototransistor en tension lisible.
+// En simulation, le curseur de luminosité fait monter la lecture.
+void setup() {
+  Serial.begin(115200);
+}
+
+void loop() {
+  int brut = analogRead(A0);
+  Serial.print("A0 = ");
+  Serial.print(brut);
+  Serial.println(brut > 700 ? "  (bien eclaire)" : "  (sombre)");
+  delay(300);
+}
+`,
+  }),
+
+  // Photodiode : même loi, sans le gain du transistor — cent fois moins de
+  // courant, donc une charge cent fois plus grande (100 kΩ) pour la même lecture.
+  //   repos (1 mW/cm²) : Rpd = 100 kΩ → 100/(100+100) = 50,0 %
+  //   curseur à fond (5 mW/cm²) : Rpd = 20 kΩ → 100/120 = 83,3 %
+  test({
+    name: 'photodiode-uno', board: 'uno', ext: 'ino',
+    parts: [
+      MCU('uno'),
+      { id: 'D1', type: 'photodiode', x: 620, y: 90, attrs: { ee: '1', eemax: '5', ron: '20000', rdark: '1e8' } },
+      { id: 'R1', type: 'resistor', x: 620, y: 200, attrs: { value: '100000' } },
+    ],
+    wires: () => [
+      w('D1', 'K', 'U1', '5V', 'red'),
+      w('D1', 'A', 'U1', 'A0', 'green'),
+      w('R1', '1', 'D1', 'A', 'blue'),
+      w('R1', '2', 'U1', 'GND.1', 'black'),
+    ],
+    expect: {
+      kind: 'variable-resistor',
+      repos: { A0: 0.5 },
+      pousse: { ee: 5 },
+      pousses: { A0: 100 / 120 },
+    },
+    code: `// Test photodiode : 5V -> cathode, anode -> A0 -> 100 kohm -> GND.
+// La photodiode travaille en INVERSE (cathode au plus) et laisse passer cent
+// fois moins de courant qu'un phototransistor : d'ou la grosse resistance.
+// En simulation, le curseur de luminosite fait monter la lecture.
+void setup() {
+  Serial.begin(115200);
+}
+
+void loop() {
+  int brut = analogRead(A0);
+  Serial.print("A0 = ");
+  Serial.print(brut);
+  Serial.println(brut > 700 ? "  (bien eclaire)" : "  (sombre)");
+  delay(300);
+}
+`,
+  }),
+
   // Barrière optique infrarouge : sortie à COLLECTEUR OUVERT, donc rappel
   // obligatoire — ici en externe (10 kΩ vers 5 V), le montage des fiches DFRobot.
   // Les DEUX boîtiers sont alimentés : l'émetteur sans courant n'éclaire rien et
@@ -4518,6 +4607,76 @@ while True:
         envoyer()
         print("Couleur envoyée :", rouge, vert, bleu)
         time.sleep(1)
+`,
+  }),
+
+  // Même montage que `phototransistor-uno`, sur l'entrée ADC0 du Pico.
+  test({
+    name: 'phototransistor-pico', board: 'pico', ext: 'py',
+    parts: [
+      MCU('pico'),
+      { id: 'Q1', type: 'phototransistor', x: 680, y: 90, attrs: { ee: '1', eemax: '5', ron: '200', rdark: '1e7' } },
+      { id: 'R1', type: 'resistor', x: 680, y: 200, attrs: { value: '1000' } },
+    ],
+    wires: () => [
+      w('Q1', 'c', 'U1', '3V3', 'red'),
+      w('Q1', 'e', 'U1', 'GP26', 'green'),
+      w('R1', '1', 'Q1', 'e', 'blue'),
+      w('R1', '2', 'U1', 'GND.7', 'black'),
+    ],
+    expect: {
+      kind: 'variable-resistor',
+      repos: { GP26: 0.5 },
+      pousse: { ee: 5 },
+      pousses: { GP26: 1000 / 1200 },
+    },
+    code: `# Test phototransistor : 3V3 -> collecteur, émetteur -> GP26 -> 1 kΩ -> GND.
+# La résistance est OBLIGATOIRE : sans elle, rien ne transforme le courant du
+# phototransistor en tension lisible.
+# En simulation, le curseur de luminosité fait monter la lecture.
+from machine import ADC
+import time
+
+photo = ADC(26)
+while True:
+    brut = photo.read_u16()
+    print("ADC0 =", brut, "(bien eclaire)" if brut > 45000 else "(sombre)")
+    time.sleep(0.3)
+`,
+  }),
+
+  // Même montage que `photodiode-uno`, sur l'entrée ADC0 du Pico.
+  test({
+    name: 'photodiode-pico', board: 'pico', ext: 'py',
+    parts: [
+      MCU('pico'),
+      { id: 'D1', type: 'photodiode', x: 680, y: 90, attrs: { ee: '1', eemax: '5', ron: '20000', rdark: '1e8' } },
+      { id: 'R1', type: 'resistor', x: 680, y: 200, attrs: { value: '100000' } },
+    ],
+    wires: () => [
+      w('D1', 'K', 'U1', '3V3', 'red'),
+      w('D1', 'A', 'U1', 'GP26', 'green'),
+      w('R1', '1', 'D1', 'A', 'blue'),
+      w('R1', '2', 'U1', 'GND.7', 'black'),
+    ],
+    expect: {
+      kind: 'variable-resistor',
+      repos: { GP26: 0.5 },
+      pousse: { ee: 5 },
+      pousses: { GP26: 100 / 120 },
+    },
+    code: `# Test photodiode : 3V3 -> cathode, anode -> GP26 -> 100 kΩ -> GND.
+# La photodiode travaille en INVERSE (cathode au plus) et laisse passer cent
+# fois moins de courant qu'un phototransistor : d'où la grosse résistance.
+# En simulation, le curseur de luminosité fait monter la lecture.
+from machine import ADC
+import time
+
+photo = ADC(26)
+while True:
+    brut = photo.read_u16()
+    print("ADC0 =", brut, "(bien eclaire)" if brut > 45000 else "(sombre)")
+    time.sleep(0.3)
 `,
   }),
 
