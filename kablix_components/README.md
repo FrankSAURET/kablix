@@ -19,6 +19,7 @@ Voir [kompix_specification.md](../docs/kompix_specification.md) pour les détail
 | Type | Label | Version | Catégorie | Description |
 |------|-------|---------|-----------|-------------|
 | `dmx-grove` | Grove DMX512 | 2026.8.1 | Misc | Grove DMX512 shield (SP3485 line driver): turns th |
+| `ir-barrier` | Through-beam IR barrier | 2026.8.1 | Sensors | Through-beam infrared barrier (emitter + receiver) |
 | `spot` | DMX PAR 38 spotlight | 2026.8.1 | Systems | PAR 38 LED spotlight driven over DMX512 (Contest): |
 
 ## Utilisation
@@ -37,4 +38,4 @@ Pour proposer un composant :
 
 ---
 
-Généré le 21/08/2026 15:30:26 — Kablix v2026.8.101
+Généré le 25/08/2026 15:19:18 — Kablix v2026.8.102

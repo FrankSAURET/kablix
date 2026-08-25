@@ -88,7 +88,14 @@ interface KompixManifest {
   pinRoles?: Record<string, string>;
   attrs?: Record<string, string>;
   params?: Array<{ name: string; label: string; value: number }>;
-  control?: { type: string; label?: string; unit?: string; min?: number; max?: number; step?: number; expr?: string } | null;
+  control?: {
+    type: string; label?: string; unit?: string; min?: number; max?: number; step?: number; expr?: string;
+    /** Pièce du dessin déplacée par le contrôle (obstacle d'une barrière optique). */
+    move?: { group: string; dx?: number; dy?: number };
+  } | null;
+  /** Sortie à collecteur ouvert : elle ne sait que tirer à la masse, un rappel
+   *  au plus est indispensable. `supplies` = paires [V+, GND] à alimenter. */
+  openDrain?: { out: string; supplies: Array<[string, string]> };
   innerOffset?: { x: number; y: number } | null;
   extAnchor?: { x: number; y: number } | null;
   intAnchor?: { x: number; y: number } | null;
@@ -114,6 +121,8 @@ interface CustomPartData {
   intAnchor?: { x: number; y: number };
   params?: Array<{ name: string; label: string; value: number }>;
   control?: any;
+  /** Sortie à collecteur ouvert (voir KompixManifest.openDrain). */
+  openDrain?: { out: string; supplies: Array<[string, string]> };
   category?: string;
   /** Le .kompix embarque une fiche d'aide : l'inspecteur montre alors son
    *  bouton « Aide du composant ». Le texte, lui, reste dans le paquet — il est
@@ -362,6 +371,7 @@ export class KompixLibrary {
         intAnchor: manifest.intAnchor || undefined,
         params: traduit.params,
         control: traduit.control,
+        openDrain: manifest.openDrain,
         category: manifest.category,
         hasHelp: langs.length > 0 || undefined,
         behaviorScript: behaviorScript,
@@ -780,6 +790,7 @@ export class KompixLibrary {
       attrs: data.attrs,
       params: data.params,
       control: data.control ?? null,
+      openDrain: data.openDrain,
       innerOffset: data.innerOffset ?? null,
       extAnchor: data.extAnchor ?? null,
       intAnchor: data.intAnchor ?? null,

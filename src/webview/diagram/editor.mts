@@ -3105,6 +3105,9 @@ export class Editor {
     this.diagram.wires.push(wire);
     this.drawWire(wire);
     this.notify();
+    // Un fil qu'on vient de tracer est le fil sur lequel on travaille : il
+    // devient la sélection (couleur, coudes, Suppr) sans un clic de plus.
+    this.select({ kind: 'wire', id: wire.id });
   }
 
   private cancelPending(): void {

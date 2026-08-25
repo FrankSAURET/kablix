@@ -276,6 +276,18 @@ for (const t of TESTS) {
           b?.pullupOhms === e.pullupOhms, JSON.stringify(b));
         break;
       }
+      case 'open-drain': {
+        // Composant de bibliothèque à sortie collecteur ouvert (barrière optique) :
+        // même contrôle que le capteur Hall, mais le brochage vient du manifeste
+        // du paquet — et il peut demander PLUSIEURS alimentations (un barillet
+        // émetteur, un barillet récepteur).
+        const b = model.customOpenDrainBindings(diagram).find((x) => x.partId === e.partId);
+        check(`${t.name} : sortie → ${e.mcuPin}`, b?.mcuPin === e.mcuPin, JSON.stringify(b));
+        check(`${t.name} : alimenté (V+ et GND des deux boîtiers)`, b?.powered === e.powered, JSON.stringify(b));
+        check(`${t.name} : rappel externe ${e.pullupOhms === null ? 'absent (rappel interne)' : `${e.pullupOhms} Ω`}`,
+          b?.pullupOhms === e.pullupOhms, JSON.stringify(b));
+        break;
+      }
       case 'analog-source': {
         const b = model.analogSourceBindings(diagram).find((x) => x.partId === e.partId);
         check(`${t.name} : sortie → ${e.mcuPin}`, b?.mcuPin === e.mcuPin, JSON.stringify(b));

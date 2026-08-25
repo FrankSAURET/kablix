@@ -23,6 +23,7 @@ Métadonnées du composant (JSON structuré). Reprend le schéma `CustomPartData
 - `kind`, `category`, `board` : classification
 - `pins` : liste des pattes avec positions
 - `pinRoles`, `attrs`, `params`, `control` : paramétrage
+- `openDrain` : sortie à collecteur ouvert (rappel au plus obligatoire, voir plus bas)
 - `behavior` : nom du fichier script optionnel
 - `help` : langues des fiches d'aide embarquées, ex. `["fr"]`
 - `l10n` : traductions des libellés du composant (voir plus bas)
@@ -58,6 +59,7 @@ comme pour les capteurs intégrés. `null` ou absent = pas de contrôle.
 | `label`, `unit` | Libellé et unité affichés à côté du contrôle |
 | `min`, `max`, `step` | Course du curseur |
 | `expr` | Tension de sortie en volts, `f(x, paramètres)` ; à défaut, rampe linéaire min→max vers 0→Vref |
+| `move` | Pièce du DESSIN que le contrôle déplace : `{ "group": "obstacle", "dx": 0, "dy": -40 }` |
 
 ```json
 "control": { "type": "slider", "label": "Illuminance", "unit": "Lx",
@@ -67,6 +69,46 @@ comme pour les capteurs intégrés. `null` ou absent = pas de contrôle.
 Un `control` remplace le champ statique de l'inspecteur qui pilotait la même
 sortie (« Position (%) » d'une source analogique, « State » d'une source
 numérique) : il n'y a jamais deux réglages pour une seule sortie.
+
+#### `control.move` — une pièce du dessin qui bouge
+
+Un composant peut avoir une pièce mobile : l'obstacle d'une barrière optique
+monte quand on coche sa case. `move` la désigne par l'**id de son groupe** dans
+`schema.svg`, et donne le déplacement (`dx`, `dy`) atteint quand l'interrupteur
+est fermé — ou le curseur au maximum, la pièce suivant alors la course.
+
+```json
+"control": { "type": "switch", "label": "Obstacle",
+             "move": { "group": "obstacle", "dy": -40 } }
+```
+
+- Le déplacement est en **pixels du dessin** (repère du `viewBox`) : Kablix
+  divise par l'échelle du groupe parent, donc la distance est la même quelle
+  que soit la planche d'origine.
+- Hors simulation, la pièce revient **exactement** là où elle est dessinée.
+- C'est déclaratif par nécessité : un `behavior.mjs` ne voit que les pattes,
+  jamais le dessin.
+
+### `openDrain` — la sortie ne sait que tirer à la masse
+
+Une sortie à **collecteur ouvert** (ou drain ouvert) ne pousse jamais vers le
+haut : sans résistance de rappel au plus — câblée sur la planche, ou le rappel
+interne du microcontrôleur (`INPUT_PULLUP`, `Pin.PULL_UP`) — elle reste muette.
+Le déclarer laisse Kablix vérifier le montage et prendre la main sur la sortie.
+
+```json
+"openDrain": { "out": "Out", "supplies": [["Vcc.e", "GND.e"], ["Vcc.r", "GND.r"]] }
+```
+
+| Champ | Rôle |
+|-------|------|
+| `out` | Nom de la patte de sortie |
+| `supplies` | Paires `[V+, GND]` qui doivent **toutes** être alimentées |
+
+Une barrière optique en a deux, une par barillet : l'émetteur non alimenté
+n'éclaire rien, même parfaitement rappelé. Kablix signale alors trois pannes
+sur le composant : pas alimenté, sortie soudée en direct au plus
+(court-circuit), aucun rappel.
 
 ### `l10n` — les libellés traduits
 

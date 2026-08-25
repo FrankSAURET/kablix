@@ -2292,17 +2292,54 @@ export function hallBindings(diagram: Diagram): HallBinding[] {
   const out: HallBinding[] = [];
   for (const part of diagram.parts) {
     if (partDef(part.type).kind !== 'hall') continue;
-    const net = (pin: string) => graph.nets.netOf({ partId: part.id, pin });
-    const up = minOhmsPath(net(HALL_PINS.vplus), graph.vccNets, graph.adj, undefined, undefined, 'source');
-    const down = minOhmsPath(net(HALL_PINS.gnd), graph.gndNets, graph.adj, undefined, undefined, 'sink');
-    out.push({
-      partId: part.id,
-      mcuPin: mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin: HALL_PINS.out })) ?? null,
-      powered: up !== null && down !== null,
-      pullupOhms: minOhmsPath(net(HALL_PINS.out), graph.vccNets, graph.adj, undefined, undefined, 'source'),
-    });
+    out.push(openDrainBinding(diagram, nets, graph, part.id, HALL_PINS.out, [[HALL_PINS.vplus, HALL_PINS.gnd]]));
   }
   return out;
+}
+
+/**
+ * Composants de bibliothèque (.kompix) dont le manifeste déclare une sortie à
+ * collecteur ouvert : même lecture que le capteur Hall, mais le brochage vient
+ * du paquet — et il peut demander PLUSIEURS alimentations. La barrière optique
+ * en a deux, une par barillet : émetteur non alimenté, aucune lumière ne part,
+ * et le montage ne peut pas marcher même parfaitement rappelé au plus.
+ */
+export function customOpenDrainBindings(diagram: Diagram): HallBinding[] {
+  const nets = buildNets(diagram);
+  const graph = resistiveGraph(diagram);
+  const out: HallBinding[] = [];
+  for (const part of diagram.parts) {
+    const od = partDef(part.type).custom?.openDrain;
+    if (!od) continue;
+    out.push(openDrainBinding(diagram, nets, graph, part.id, od.out, od.supplies));
+  }
+  return out;
+}
+
+/**
+ * Lecture commune d'une sortie à collecteur/drain ouvert : la broche MCU qui
+ * l'observe, l'alimentation de CHAQUE bloc du composant, et la résistance du
+ * rappel au plus câblé sur la sortie (null = aucun chemin vers un rail haut,
+ * 0 Ω = sortie soudée en direct, donc court-circuit dès qu'elle tire).
+ */
+function openDrainBinding(
+  diagram: Diagram,
+  nets: ReturnType<typeof buildNets>,
+  graph: ReturnType<typeof resistiveGraph>,
+  partId: string,
+  outPin: string,
+  supplies: ReadonlyArray<readonly [string, string]>,
+): HallBinding {
+  const net = (pin: string) => graph.nets.netOf({ partId, pin });
+  const powered = supplies.length > 0 && supplies.every(([vplus, gnd]) =>
+    minOhmsPath(net(vplus), graph.vccNets, graph.adj, undefined, undefined, 'source') !== null &&
+    minOhmsPath(net(gnd), graph.gndNets, graph.adj, undefined, undefined, 'sink') !== null);
+  return {
+    partId,
+    mcuPin: mcuDigitalOnNet(diagram, nets, nets.netOf({ partId, pin: outPin })) ?? null,
+    powered,
+    pullupOhms: minOhmsPath(net(outPin), graph.vccNets, graph.adj, undefined, undefined, 'source'),
+  };
 }
 
 /** Servomoteurs dont l'entrée PWM est reliée à une broche MCU. */

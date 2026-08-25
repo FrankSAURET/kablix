@@ -193,6 +193,29 @@ export interface CustomControl {
   step?: number;
   /** Caractéristique : tension de sortie en volts, f(x, paramètres). */
   expr?: string;
+  /**
+   * Pièce du DESSIN que le contrôle déplace — l'obstacle d'une barrière optique
+   * monte quand on coche sa case. `group` est l'id du groupe (ou de la forme)
+   * dans le SVG du composant, `dx`/`dy` le déplacement en px du repère du dessin,
+   * atteint quand l'interrupteur est fermé (ou le curseur au maximum). Déclaratif :
+   * un composant qui bouge n'a pas besoin d'une ligne de code.
+   */
+  move?: { group: string; dx?: number; dy?: number };
+}
+
+/**
+ * Sortie à collecteur (ou drain) ouvert d'un composant de bibliothèque : elle ne
+ * sait que TIRER À LA MASSE. Sans rappel au plus — résistance câblée vers un rail,
+ * ou rappel interne du µC — elle ne monte jamais et le montage ne marche pas.
+ * `supplies` liste les paires [V+, GND] qui doivent TOUTES être alimentées : une
+ * barrière optique en a deux, une par barillet, et l'émetteur non alimenté
+ * n'éclaire rien.
+ */
+export interface CustomOpenDrain {
+  /** Nom de la patte de sortie. */
+  out: string;
+  /** Paires [V+, GND] à alimenter, une par bloc du composant. */
+  supplies: Array<[string, string]>;
 }
 
 /** Préfixe des attrs stockant la valeur courante d'un paramètre de composant. */
@@ -254,6 +277,8 @@ export interface PartDef {
     category?: string;
     /** Fiche d'aide embarquée dans le .kompix (bouton « Aide du composant »). */
     hasHelp?: boolean;
+    /** Sortie à collecteur ouvert : alimentation et rappel au plus contrôlés. */
+    openDrain?: CustomOpenDrain;
   };
   /**
    * Variante d'un composant déjà listé : le type reste parfaitement valide
@@ -299,6 +324,8 @@ export interface CustomPartData {
   /** Le paquet .kompix embarque une fiche d'aide : l'inspecteur montre alors son
    *  bouton « Aide du composant ». Le texte reste côté extension. */
   hasHelp?: boolean;
+  /** Sortie à collecteur ouvert (voir CustomOpenDrain). */
+  openDrain?: CustomOpenDrain;
   /** Script behavior.mjs embarqué (optionnel) : comportement de simulation. */
   behaviorScript?: string;
   /** Métadonnées provenance + confiance (kompix uniquement, Lot 2). */
@@ -1279,6 +1306,7 @@ export function registerCustomPart(data: CustomPartData): PartDef {
       control: data.control,
       category: data.category,
       hasHelp: data.hasHelp,
+      openDrain: data.openDrain,
     },
     analogPin: data.kind === 'analog-source' ? data.pinRoles?.['AO'] ?? 'AO' : undefined,
     digitalPin: data.kind === 'digital-source' ? data.pinRoles?.['OUT'] ?? 'OUT' : undefined,

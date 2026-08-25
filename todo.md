@@ -1,9 +1,37 @@
 # À faire
+1. ✅ Ajoute de me parler comme à un enfant de 5 ans dans les explications pour tous mes projets et sans utiliser d'anglicisme à part ceux trés répandues y compris hors du cercle des électroniciens et des codeurs.
+1. ✅ Ajouter composant barrière optique (https://www.dfrobot.com/product-2388.html). Dans composants2d.svg : barriereIR et barriereIR-interne. Barriere a un rectangle appelé obstacle qui doit pouvoir translater vers le haut. Dans la position  ou il est dessiné la luimière passe le transistor de sortie est saturée OUT est à 0. Si l'obstacle est en haut, la lumière ne passe plus et le transistor est bloqué OUT est à 1. Nécessite un pull up pour fonctionner. Ils vont dans kablix component.
+1. ✅ si je trace un nouveau fil c'est forcemment lui qui doit être sélectionné
+1. Ajoute le phototransistor avec sa simulation. Propriété irradiance max (par défaut 5 mW/cm²). Pour qu'il fonctionne il doit nécessairement y avoir une résistance. Un curseur permet de faire varier la luminosité de min à max.
+1. Exacement pareil pour la photodiode
+1. Ajoute un multimètre (tension courant sélectionnable par l'inter à bascule [ levier en haut = courant (DC), en bas = tension(DC)]). le dessin est dans composants2d.svg. Le multimetre sera stocké dans kablix pas dans la bibliothèque externe.
 ## pico2
 1. l'avertissement de ralentissement de la barre d'état ne fonctionne pas
 1. elles sont super lentes. Quel moyen de les accélérer ? → cause trouvée (v2026.8.102.15, item 6) : le firmware RP2350 n'endort presque jamais le cœur (19 WFE/s contre ~1000 sur RP2040), donc aucun saut d'alarme. À reprendre.
 1. Projets qui ne marchent pas : 16 servo + alim, condo, dht11, dht22, dmx, ili9341, ledring, microsd, neopixel-matrix, neopixel, us-sensor,
 1. Traductions **EN** du lot Pico 2, à faire en un seul lot avant publication : `docs/en/composants/pico2.md` et `pico2w.md`, le paragraphe *Communication avec l'extérieur* de `picow.md`, et les deux précisions ajoutées à `USAGE.md`.
+## ne pas faire pour l'instant 
+1. Ajouter :
+    1. shield grove uno
+    1. Capteur d'humidité dans le sol grove
+    1. Multimètre
+    1. Oscilloscope
+    1. Grove light sensor
+    1. Lecteur RFID grove
+
+# >>>>  v2026.8.102.16 — La barrière optique, et deux mots nouveaux dans le manifeste des composants
+
+1. ✅ **Barrière optique infrarouge** (item 2 de la liste) : nouveau composant de la bibliothèque publique, [ir-barrier.kompix](kablix_components/ir-barrier.kompix), dessiné par Frank dans [Composants2D.svg](Composants2D.svg) (`BarriereIR` + `BarriereIR-interne`). Émetteur et récepteur ont chacun leur alimentation ; la sortie `Out` est un **collecteur ouvert**. Faisceau qui passe → transistor saturé → `Out` à 0. Obstacle levé → transistor bloqué → le rappel remonte `Out` à 1.
+2. ✅ **Le manifeste sait maintenant dire « sortie à collecteur ouvert »** — bloc `openDrain` : nom de la patte de sortie, et les paires `[V+, GND]` qui doivent **toutes** être alimentées. Le moteur en tire les trois pannes que le montage peut avoir : pas alimenté, sortie soudée en direct au plus (court-circuit), aucun rappel. La mécanique du capteur Hall a été **mise en commun** au lieu d'être recopiée : `hallBindings()` et le nouveau `customOpenDrainBindings()` appellent le même `openDrainBinding()` ([model.mts](src/webview/diagram/model.mts)), et `updateOpenDrain()` écrit la broche à chaque image ([sim.mts](src/webview/sim.mts)) — le rappel INTERNE du µC n'existe qu'après le `pinMode(pin, INPUT_PULLUP)`, donc il faut relire, pas décider au démarrage.
+3. ✅ **Une pièce du dessin peut bouger sans une ligne de code** — bloc `control.move` (`{ group, dx, dy }`) : l'obstacle monte de 40 px quand la case est cochée, revient à sa place dessinée quand la simulation s'arrête. Il le fallait déclaratif : le `behavior.mjs` d'un composant de bibliothèque **n'a aucun accès au dessin**, seulement aux pattes. Piège traité : la pièce vit sous le `matrix(3.78…)` que laisse la planche Inkscape, donc le déplacement est **divisé par l'échelle du parent** — mesuré à 40,00 px, quelle que soit la planche d'origine. Les deux nouveaux blocs sont décrits dans [kompix_specification.md](docs/kompix_specification.md), sans quoi personne d'autre ne saurait s'en servir.
+4. ✅ **Nouveau banc [verify:opendrain](scripts/verify-opendrain.mjs)**, ajouté à `verify:all:serie` (sans quoi la suite ne l'aurait jamais lancé) : le manifeste, six câblages jugés côté Node (rappel 10 kΩ, sans résistance, sortie au plus, émetteur puis récepteur non alimentés, planche vide), et le mouvement vérifié dans un **vrai Chrome** — 40 px vers le haut, sans déformation ni dérive, la barre couvrant bien l'axe du faisceau, et retour au repos.
+5. ✅ **Trois bancs testkablix** : `ir-barrier-uno` (rappel 10 kΩ câblé), `ir-barrier-pico` (rappel interne) et son jumeau `ir-barrier-pico2`, générés par `_generate.mjs`. 4203 contrôles, 0 échec.
+6. ✅ **Un fil qu'on vient de tracer est sélectionné** (item 3 de la liste) : trois lignes dans `completeWire()` ([editor.mts](src/webview/diagram/editor.mts)). On le supprime ou on le recolore sans le rechercher au clic.
+7. ⏳ **Traductions en attente de publication**, comme la règle le veut : la fiche d'aide EN du composant (`kablix_components/help/ir-barrier/en.md` — la FR est écrite) et le bloc `l10n` de son manifeste. `verify:docs` signalera le manque, c'est normal.
+8. ⏳ **`verify:i18n` est rouge, et ce n'est pas ce lot** : le dictionnaire FR n'a pas la phrase du serveur Pico W (`src/panel.ts`, lot v2026.8.102.12). Le français de l'interface est une TRADUCTION : il se fait en un seul lot avant publication, avec le reste. Les 94 autres bancs passent.
+9. ℹ️ **Deux choses à trancher par Frank.** La patte de masse du récepteur s'appelle **`GND.r3`** dans `Composants2D.svg` — probablement `GND.r` avec un doigt qui a glissé. Rien n'a été touché à la planche (elle est ouverte, 42 000 lignes modifiées) : le nom est repris **tel quel** partout, à corriger des deux côtés le jour venu. Et `node_modules/.bin` **n'existe pas** sur le disque : `npm run typecheck` meurt sur « tsc n'est pas reconnu », contourné par `node node_modules/typescript/bin/tsc --noEmit`. Un `npm install` le rétablirait.
+
+---
 
 # >>>>  v2026.8.102.15 — Les Pico 2 rentrent au rang, et le chrono cesse d'afficher NaN
 

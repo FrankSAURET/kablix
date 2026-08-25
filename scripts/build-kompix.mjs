@@ -205,6 +205,10 @@ async function main() {
       attrs: comp.attrs,
       params: comp.params,
       control: comp.control ?? null,
+      // Sortie à collecteur ouvert : nom de la patte de sortie et paires
+      // [V+, GND] à alimenter. Sans ce bloc, Kablix ne saurait pas qu'il faut
+      // un rappel au plus pour que le composant marche.
+      openDrain: comp.openDrain,
       // Traductions des libellés du composant : le catalogue de Kablix ne
       // connaît que ses composants natifs, un composant de bibliothèque emporte
       // donc les siennes dans son paquet (voir kompix_specification.md).

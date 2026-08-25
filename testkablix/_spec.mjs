@@ -111,6 +111,9 @@ export const PART_PINS = {
   // masses portent le même nom sur le dessin — la netlist les numérote.
   'dmx-grove': ['GND.1', 'VCC', 'NC', 'SIG', '+', '-', 'GND.2'],
   spot: ['GND', '-', '+'],
+  // Barrière optique : trois fils au récepteur (alim, masse, sortie) puis deux à
+  // l'émetteur (alim, masse). `GND.r3` est le nom porté par le dessin.
+  'ir-barrier': ['Vcc.r', 'GND.r3', 'Out', 'Vcc.e', 'GND.e'],
 };
 
 // --- Helpers -------------------------------------------------------------------
@@ -2385,6 +2388,49 @@ void loop() {
 }
 `,
   }),
+
+  // Barrière optique infrarouge : sortie à COLLECTEUR OUVERT, donc rappel
+  // obligatoire — ici en externe (10 kΩ vers 5 V), le montage des fiches DFRobot.
+  // Les DEUX boîtiers sont alimentés : l'émetteur sans courant n'éclaire rien et
+  // le récepteur croirait à un obstacle permanent.
+  test({
+    name: 'ir-barrier-uno', board: 'uno', ext: 'ino',
+    kompix: ['ir-barrier'],
+    parts: [
+      MCU('uno'),
+      { id: 'Capt1', type: 'ir-barrier', x: 600, y: 80 },
+      { id: 'R1', type: 'resistor', x: 460, y: 60, attrs: { value: '10000' } },
+    ],
+    wires: () => [
+      w('Capt1', 'Vcc.e', 'U1', '5V', 'red'),
+      w('Capt1', 'GND.e', 'U1', 'GND.1', 'black'),
+      w('Capt1', 'Vcc.r', 'U1', '5V', 'red'),
+      w('Capt1', 'GND.r3', 'U1', 'GND.2', 'black'),
+      w('Capt1', 'Out', 'U1', '2', 'yellow'),
+      w('R1', '1', 'Capt1', 'Out', 'orange'),
+      w('R1', '2', 'U1', '5V', 'red'),
+    ],
+    expect: { kind: 'open-drain', partId: 'Capt1', mcuPin: '2', powered: true, pullupOhms: 10000 },
+    code: `// Test barrière optique : en simulation, cocher « Obstacle » fait monter la
+// barre entre les deux boîtiers et coupe le faisceau.
+// Sortie à collecteur ouvert : rappel de 10 kohms vers 5 V.
+// Faisceau libre -> sortie à 0 ; faisceau coupé -> sortie à 1.
+const int BARRIERE = 2;
+
+void setup() {
+  pinMode(BARRIERE, INPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
+  Serial.begin(115200);
+}
+
+void loop() {
+  bool obstacle = digitalRead(BARRIERE) == HIGH;
+  digitalWrite(LED_BUILTIN, obstacle ? HIGH : LOW);
+  Serial.println(obstacle ? "OBSTACLE" : "libre");
+  delay(300);
+}
+`,
+  }),
 ];
 
 // ================================================================================
@@ -4472,6 +4518,42 @@ while True:
         envoyer()
         print("Couleur envoyée :", rouge, vert, bleu)
         time.sleep(1)
+`,
+  }),
+
+  // Même barrière optique que `ir-barrier-uno`, l'autre façon de la rappeler :
+  // PAS de résistance externe, c'est le rappel INTERNE du Pico (`Pin.PULL_UP`)
+  // qui tient la sortie haute. Le moteur le relit à chaque frame — c'est le
+  // programme qui l'arme, donc après le démarrage.
+  test({
+    name: 'ir-barrier-pico', board: 'pico', ext: 'py',
+    kompix: ['ir-barrier'],
+    parts: [
+      MCU('pico', 356.75, 213.6),
+      { id: 'Capt1', type: 'ir-barrier', x: 270, y: 40 },
+    ],
+    wires: () => [
+      w('Capt1', 'Vcc.e', 'U1', '3V3', 'red'),
+      w('Capt1', 'GND.e', 'U1', 'GND.4', 'black'),
+      w('Capt1', 'Vcc.r', 'U1', '3V3', 'red'),
+      w('Capt1', 'GND.r3', 'U1', 'GND.5', 'black'),
+      w('Capt1', 'Out', 'U1', 'GP16', 'yellow'),
+    ],
+    expect: { kind: 'open-drain', partId: 'Capt1', mcuPin: 'GP16', powered: true, pullupOhms: null },
+    code: `# Test barrière optique : en simulation, cocher « Obstacle » fait monter la
+# barre entre les deux boîtiers et coupe le faisceau.
+# Sortie à collecteur ouvert : ici c'est le rappel interne du Pico.
+# Faisceau libre -> sortie à 0 ; faisceau coupé -> sortie à 1.
+from machine import Pin
+import time
+
+barriere = Pin(16, Pin.IN, Pin.PULL_UP)
+led = Pin(25, Pin.OUT)
+while True:
+    obstacle = barriere.value() == 1
+    led.value(1 if obstacle else 0)
+    print("OBSTACLE" if obstacle else "libre")
+    time.sleep(0.3)
 `,
   }),
 

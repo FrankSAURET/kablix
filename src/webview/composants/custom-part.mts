@@ -44,10 +44,32 @@ export interface BehaviorModule {
 export class CustomPartElement extends HTMLElement {
   pinInfo: PinInfo[] = [];
 
-  /** Valeur courante du curseur de simulation (unités du contrôle, ex. Lx). */
-  controlValue = 0;
-  /** État courant de l'interrupteur de simulation. */
-  switchOn = false;
+  /**
+   * Valeur courante du curseur de simulation (unités du contrôle, ex. Lx) et
+   * état de l'interrupteur. Ce sont des ACCESSEURS : toute écriture — volet des
+   * propriétés, contrôle du composant, moteur — replace du même coup la pièce
+   * mobile du dessin (`control.move`), sans que l'écrivain ait à y penser.
+   */
+  get controlValue(): number {
+    return this.controlValueRaw;
+  }
+
+  set controlValue(v: number) {
+    this.controlValueRaw = v;
+    this.applyMove();
+  }
+
+  get switchOn(): boolean {
+    return this.switchOnRaw;
+  }
+
+  set switchOn(v: boolean) {
+    this.switchOnRaw = v;
+    this.applyMove();
+  }
+
+  private controlValueRaw = 0;
+  private switchOnRaw = false;
 
   private wrapper: HTMLDivElement;
   private activeValue = false;
@@ -101,6 +123,7 @@ export class CustomPartElement extends HTMLElement {
       const max = this.control.max ?? 100;
       this.controlValue = (min + max) / 2;
     }
+    this.applyMove();
     if (def.kind === 'pushbutton') {
       this.wrapper.addEventListener('pointerdown', () => {
         this.dispatchEvent(new Event('button-press'));
@@ -119,6 +142,9 @@ export class CustomPartElement extends HTMLElement {
   private renderControl(): void {
     this.controlBox?.remove();
     this.controlBox = null;
+    // Hors simulation, la pièce mobile revient là où elle est dessinée : le
+    // schéma au repos doit être celui de la planche, pas celui du dernier essai.
+    this.applyMove();
     if (!this.control || !this.hasAttribute('simulating')) return;
     const box = document.createElement('div');
     box.className = 'sim-control';
@@ -314,6 +340,58 @@ export class CustomPartElement extends HTMLElement {
   private ledDefs: SVGElement | null = null;
   /** Dernier état peint (`groupe|couleur|intensité`) : évite un DOM retouché par image. */
   private ledState = '';
+
+  /**
+   * Replace la pièce mobile déclarée par le contrôle (`control.move`) : l'obstacle
+   * d'une barrière optique monte quand sa case est cochée.
+   *
+   * Le déplacement est donné en PIXELS DU DESSIN (repère du viewBox), alors que
+   * la forme visée vit sous le `<g transform="matrix(3.78…)">` que laisse la
+   * planche Inkscape — un `translate` posé tel quel serait donc multiplié par
+   * l'échelle du groupe. On divise par l'échelle réelle du parent, lue dans sa
+   * matrice courante : le composant bouge de la bonne distance quelle que soit
+   * l'origine du dessin.
+   *
+   * Au repos (hors simulation, interrupteur ouvert) l'attribut `transform` est
+   * RETIRÉ plutôt que mis à zéro : le dessin revient exactement à ce qu'il est
+   * dans le fichier.
+   */
+  private applyMove(): void {
+    const mv = this.control?.move;
+    if (!mv) return;
+    const cible = this.wrapper.querySelector(`#${CSS.escape(mv.group)}`);
+    if (!(cible instanceof SVGElement)) return;
+    if (!this.moveBase.has(cible)) this.moveBase.set(cible, cible.getAttribute('transform'));
+    const base = this.moveBase.get(cible) ?? null;
+    const k = this.moveRatio();
+    if (k === 0) {
+      if (base === null) cible.removeAttribute('transform');
+      else cible.setAttribute('transform', base);
+      return;
+    }
+    const parent = cible.parentNode as SVGGraphicsElement | null;
+    const m = parent?.getCTM?.() ?? null;
+    const sx = m ? Math.hypot(m.a, m.b) || 1 : 1;
+    const sy = m ? Math.hypot(m.c, m.d) || 1 : 1;
+    const dx = ((mv.dx ?? 0) * k) / sx;
+    const dy = ((mv.dy ?? 0) * k) / sy;
+    // Le translate vient EN TÊTE : il s'applique dans le repère du parent, celui
+    // où l'échelle vient d'être mesurée.
+    cible.setAttribute('transform', `translate(${dx.toFixed(4)},${dy.toFixed(4)})${base ? ` ${base}` : ''}`);
+  }
+
+  /** Avancement du contrôle : 0 au repos, 1 à fond (interrupteur fermé). */
+  private moveRatio(): number {
+    if (!this.control || !this.hasAttribute('simulating')) return 0;
+    if (this.control.type === 'switch') return this.switchOnRaw ? 1 : 0;
+    const min = this.control.min ?? 0;
+    const max = this.control.max ?? 100;
+    if (max === min) return 0;
+    return Math.min(1, Math.max(0, (this.controlValueRaw - min) / (max - min)));
+  }
+
+  /** Transform d'origine de chaque pièce déplacée (`null` = pas d'attribut). */
+  private moveBase = new Map<SVGElement, string | null>();
 
   /** Retour visuel (LED/buzzer actif) : halo lumineux autour du dessin. */
   set active(value: boolean) {

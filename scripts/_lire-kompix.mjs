@@ -103,6 +103,7 @@ export async function lireKompix(ref) {
     intAnchor: manifest.intAnchor || undefined,
     params: manifest.params,
     control: manifest.control,
+    openDrain: manifest.openDrain,
     category: manifest.category,
     hasHelp: helpLangs.length > 0 || undefined,
     behaviorScript,

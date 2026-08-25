@@ -38,6 +38,20 @@
           "params": { "address": "Adresse DMX (canaux : rouge, vert, bleu)" }
         }
       }
+    },
+    {
+      "group": "BarriereIR",
+      "type": "ir-barrier",
+      "label": "Through-beam IR barrier",
+      "description": "Through-beam infrared barrier (emitter + receiver): while the beam reaches the receiver its output transistor conducts and OUT stays low; an object cutting the beam releases it and the pull-up brings OUT high. Open-collector output: a pull-up is required.",
+      "version": "2026.8.1",
+      "author": "Frank Sauret",
+      "reference": "https://www.dfrobot.com/product-2388.html",
+      "kind": "digital-source",
+      "category": "Sensors",
+      "pinRoles": { "OUT": "Out" },
+      "control": { "type": "switch", "label": "Obstacle", "move": { "group": "obstacle", "dy": -40 } },
+      "openDrain": { "out": "Out", "supplies": [["Vcc.e", "GND.e"], ["Vcc.r", "GND.r3"]] }
     }
   ]
 }

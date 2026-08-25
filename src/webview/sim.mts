@@ -90,6 +90,7 @@ import {
   digitalSourceBindings,
   analogSourceBindings,
   aoDoSensorBindings,
+  customOpenDrainBindings,
   hallBindings,
   servoBindings,
   patteBindings,
@@ -340,6 +341,12 @@ let motionTargets: Array<{ pin: string; el: SimElement; last: boolean }> = [];
 let hallTargets: Array<{ binding: HallBinding; el: SimElement }> = [];
 /** Défaut de câblage courant de chaque capteur Hall (pour ne le dire qu'au changement). */
 const hallFaults = new Map<string, string>();
+// Composants de bibliothèque (.kompix) à sortie collecteur ouvert — la barrière
+// optique. Même relecture par frame que le Hall : le rappel INTERNE du µC n'existe
+// qu'une fois le `pinMode(pin, INPUT_PULLUP)` exécuté, donc après le démarrage.
+let openDrainTargets: Array<{ binding: HallBinding; el: SimElement }> = [];
+/** Défaut de câblage courant de chaque sortie collecteur ouvert de bibliothèque. */
+const openDrainFaults = new Map<string, string>();
 // LED RGB : partId → broches MCU des canaux R/G/B (rapport cyclique PWM).
 let rgbLedTargets = new Map<string, { r: string | null; g: string | null; b: string | null }>();
 // Afficheur 7 segments 1 chiffre : partId → broche MCU de chaque segment
@@ -856,6 +863,7 @@ function renderTick(): void {
   updatePulses();
   updateMotion();
   updateHall();
+  updateOpenDrain();
   refreshVisuals();
   flushAnalogWaves(); // après stepCapacitors (dans refreshVisuals) : la liste est complète
   tickBehaviors();
@@ -1084,6 +1092,63 @@ function reportHallFault(partId: string, fault: string): void {
   }
 }
 
+/**
+ * Sorties à collecteur ouvert des composants de bibliothèque (barrière optique).
+ * Le transistor de sortie ne sait que TIRER À LA MASSE : sans rappel au plus, la
+ * sortie ne monte jamais et le montage paraît bloqué à 0.
+ *
+ * Barrière optique : l'obstacle baissé laisse passer la lumière, le transistor
+ * conduit, OUT = 0. Obstacle levé, plus de lumière, le transistor se bloque et
+ * c'est le rappel qui remonte la sortie : OUT = 1. `el.switchOn` = obstacle levé.
+ */
+function updateOpenDrain(): void {
+  if (!engine || openDrainTargets.length === 0) return;
+  for (const { binding, el } of openDrainTargets) {
+    const pin = binding.mcuPin;
+    const internal = pin ? (engine.readPinDrive?.(pin) ?? 'hiz') === 'pullup' : false;
+    const external = binding.pullupOhms !== null && binding.pullupOhms > 0;
+    let fault = '';
+    if (!binding.powered) fault = 'unpowered';
+    else if (binding.pullupOhms === 0) fault = 'shorted';
+    else if (!external && !internal) fault = 'no-pullup';
+    // Sans rappel la sortie ne peut pas monter : elle reste basse quoi qu'il arrive.
+    // Sans alimentation l'émetteur n'éclaire plus, le transistor est bloqué —
+    // mais rien ne le remonte non plus tant que le défaut est là.
+    if (pin) engine.setInput(pin, fault ? false : Boolean(el.switchOn));
+    reportOpenDrainFault(binding.partId, fault);
+  }
+}
+
+/** Cadre rouge + explication du défaut de câblage d'une sortie collecteur ouvert. */
+function reportOpenDrainFault(partId: string, fault: string): void {
+  if ((openDrainFaults.get(partId) ?? '') === fault) return;
+  openDrainFaults.set(partId, fault);
+  if (!fault) {
+    editor.setFaulty(partId, false);
+    return;
+  }
+  const say = (msg: string, note: string): void => {
+    setStatus(`${t(msg)} (${partId})`);
+    editor.setFaulty(partId, true, t(note));
+  };
+  if (fault === 'unpowered') {
+    say(
+      'This part is not powered',
+      'This part is not powered: V+ must reach a supply rail (5 V / 3V3 / V+ of a supply) and GND a ground.'
+    );
+  } else if (fault === 'shorted') {
+    say(
+      'The output is shorted to the supply',
+      'The output is wired straight to the supply rail: when the part switches it would short the supply. Put a pull-up resistor (10 kΩ) in between.'
+    );
+  } else {
+    say(
+      'This output needs a pull-up',
+      'The output is open collector: it can only pull down to ground, never up. Add a pull-up resistor to VCC, or turn on the internal pull-up of the board pin (INPUT_PULLUP / Pin.PULL_UP).'
+    );
+  }
+}
+
 /** Met à jour la sortie des capteurs PIR selon le survol souris (au changement). */
 function updateMotion(): void {
   if (!engine || motionTargets.length === 0) return;
@@ -1251,6 +1316,8 @@ function clearRelayFaults(): void {
   icFrame = [];
   hallTargets = [];
   hallFaults.clear();
+  openDrainTargets = [];
+  openDrainFaults.clear();
   burnNotes.clear();
   editor.clearFaults();
 }
@@ -2414,14 +2481,19 @@ function bindInputs(): void {
     } else if (part && partDef(part.type).custom?.control?.type === 'switch') {
       // Composant personnalisé à interrupteur de simulation : état initial depuis
       // l'inspecteur, puis piloté en direct par l'interrupteur du composant.
+      // Sortie à collecteur ouvert : on pose seulement l'état de départ, la sortie
+      // elle-même est écrite par updateOpenDrain (alimentation, rappel au plus).
       const el = editor.elementOf(binding.partId);
       const pin = binding.mcuPin;
+      const openDrain = Boolean(partDef(part.type).custom?.openDrain);
       if (el) {
         el.switchOn = part.attrs?.state === '1';
-        const apply = () => engine?.setInput(pin, Boolean(el.switchOn));
-        apply();
-        el.addEventListener('input', apply);
-        inputRemovers.push(() => el.removeEventListener('input', apply));
+        if (!openDrain) {
+          const apply = () => engine?.setInput(pin, Boolean(el.switchOn));
+          apply();
+          el.addEventListener('input', apply);
+          inputRemovers.push(() => el.removeEventListener('input', apply));
+        }
       }
     } else {
       engine.setInput(binding.mcuPin, part?.attrs?.state === '1');
@@ -2437,6 +2509,14 @@ function bindInputs(): void {
     if (el) hallTargets.push({ binding, el });
   }
   updateHall();
+  // Idem pour les sorties à collecteur ouvert venues de la bibliothèque .kompix.
+  openDrainTargets = [];
+  openDrainFaults.clear();
+  for (const binding of customOpenDrainBindings(editor.diagram)) {
+    const el = editor.elementOf(binding.partId);
+    if (el) openDrainTargets.push({ binding, el });
+  }
+  updateOpenDrain();
 
   pulseTargets = [];
   for (const binding of analogSourceBindings(editor.diagram)) {
