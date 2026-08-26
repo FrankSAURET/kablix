@@ -10,16 +10,36 @@
 1. ✅ l'avertissement de ralentissement de la barre d'état ne fonctionne pas
 1. ✅ elles sont super lentes. Quel moyen de les accélérer ? → saut d'attente active en v2026.8.102.21 (`time.sleep_ms(10)` passe de 0,04× à **1,000×**), réglé sur les attentes courtes en v2026.8.102.22 (`time.sleep_us(20)` ne dure plus cinquante fois trop longtemps).
 1. ✅ Projets qui ne marchent pas : 16 servo + alim, condo, dht11, dht22, dmx, ili9341, ledring, microsd, neopixel-matrix, neopixel, us-sensor → les onze remarchent (v2026.8.102.23) : quatre défauts de l'émulateur RP2350 corrigés (patchs 04 à 07) et un de Kablix, commun aux deux cartes.
-1. Tu trouvera le modèle de la carte Grove-Uno. Cette carte se connecte sur la Arduino uno. Je n'ai mis les pastilles rouges que pour les pattes enfichables sur la uno. Le broches de connexion propres à la grove s'appellent Grove-Pin-0 à Grove-Pin-63. Tu leur donnera des noms sur le même modele que le nommage des broches de la grove-pico (Par exemple D4-GND, D4-D5...)
+1. ✅ Tu trouvera le modèle de la carte Grove-Uno. Cette carte se connecte sur la Arduino uno. Je n'ai mis les pastilles rouges que pour les pattes enfichables sur la uno. Le broches de connexion propres à la grove s'appellent Grove-Pin-0 à Grove-Pin-63. Tu leur donnera des noms sur le même modele que le nommage des broches de la grove-pico (Par exemple D4-GND, D4-D5...)
 Comme sur la grove-pico l'interrupteur switch-button doit pouvoir commuter le 3,3 ou 5v. ne gère pas le bouton  reset et la led.
 Attention elles est spéciale. Je n'ais pas réussis à placer toutes les connexions sur la grille de 10px (connecteur A2 et A0). 
-Elle va dans la librairie externe kablix_components et dans la catégorie Cartes & platines avec le nom Grove Shield (Uno).
-1. Ajoute soil-moisture-sensor avec en simulation un curseur de variation  d'humidité en %
-1. Ajoute Grove-Light-Sensor avec en simulation un curseur de variation  de luminosité en lux (de 0 à max). Une propriété qui se retrouvera dans la simulation la valeur **max** en lux. Par défaut 500 lx. 
+Elle va dans la librairie externe kablix_components et dans la catégorie Cartes & platines avec le nom Grove Shield (Uno). → livré en v2026.8.102.24 (pas encore dans l'index public : il attend ta validation, item 7).
+1. Ajoute soil-moisture-sensor avec en simulation un curseur de variation  d'humidité en % dans la librairie externe kablix_components et dans la catégorie "capteur"
+1. Ajoute Grove-Light-Sensor avec en simulation un curseur de variation  de luminosité en lux (de 0 à max). Une propriété qui se retrouvera dans la simulation la valeur **max** en lux. Par défaut 500 lx. dans la librairie externe kablix_components et dans la catégorie "capteur"
+1. Ajoute la carte Grove-RFID. Le cavalier peut bouger de 10 px vers la droite pour changer de mode à gauche **UART** et à droite **Wiegand**. Le tag-RFID bouge lui aussi vers la droite de 100 px quand on clic sur la flèche (verte bleue) le tag se déplace et la flèche se retourne vers la gauche. Un nouveau clic inverse. Quand le tag est dans la boucle (à droite) un code est émis (1 parmis 3 U ou 1 parmi 3 W). Le code s'affiche dans la zone de texte "CodeRFID". dans la librairie externe kablix_components et dans la catégorie "capteur".
+1. Nouvelle règle : Tu ne rends disponible les composants de la librairie externe kablix_components que quand je les ai validés.
 1. Traductions **EN** du lot Pico 2, à faire en un seul lot avant publication : `docs/en/composants/pico2.md` et `pico2w.md`, le paragraphe *Communication avec l'extérieur* de `picow.md`, et les deux précisions ajoutées à `USAGE.md`.
 ## ne pas faire pour l'instant 
-1. Ajouter :
-    1. Lecteur RFID grove
+
+
+# >>>>  v2026.8.102.24 — La carte Grove se pose sur l'Uno
+
+1. ✅ **Le Grove Shield (Uno) existe** (item 3 de la liste). Il vit dans la bibliothèque externe `kablix_components/`, catégorie **Cartes & platines**, sous le nom **Grove Shield (Uno)**. 95 pastilles en tout : les **31 mâles** qui entrent dans les rangées de l'Uno, et les 64 trous des seize prises Grove, renommés comme sur le shield Pico (`D4.GND`, `D4.D5`, `I2C0.SDA`…). Le bouton RESET et la LED de la carte ne sont pas simulés, comme demandé.
+2. ✅ **Une carte fille se décrit maintenant dans SON manifeste, pas dans du code** ([shield.mts](src/webview/diagram/shield.mts)). Le paquet `.kompix` porte un bloc `shield` : `host` (sur quoi elle s'emboîte), `socket` (ses pattes mâles), `strips` (ses pistes internes : quelles pattes ne font qu'un seul fil) et `switch` (l'interrupteur). La prochaine carte fille n'aura besoin d'**aucune ligne de code**.
+3. ✅ **Elle s'emboîte toute seule.** Amenée en face des rangées de l'Uno, elle se cale au pixel et l'éditeur pose **31 fils invisibles** — un par patte, même nom des deux côtés. Elle passe DEVANT l'Uno (comme dans la vraie vie) et le suit quand on le déplace. Une Pico, elle, ne peut pas s'y poser : un socle qui s'emboîte lui-même n'accueille personne.
+4. ✅ **L'interrupteur 3,3 V / 5 V marche comme sur le shield Pico** : un clic, le bouton glisse d'un cran (17,39 px de dessin, mesurés à l'écran) et le rail choisi part dans le fil rouge des **seize** prises. Le réglage est gardé avec le schéma. Départ sur 5 V. L'autre rail reste **à part** : les deux tensions ne se touchent jamais.
+5. ✅ **Les bulles disent la vraie patte de l'Uno, mais seulement quand ce n'est pas déjà écrit.** `I2C0.SDA` devient `I2C0.SDA.A4`, `UART.TX` devient `UART.TX.1` — alors que `D4.D5` et `A0.A0` ne gagnent rien, leur nom dit déjà où ils vont. Dix pastilles étiquetées sur 95, pas une de plus.
+6. ✅ **Un banc pour la carte** : [verify:shield](scripts/verify-shield.mjs). Il lit le manifeste (95 pattes, 31 mâles, pistes valides, interrupteur complet), puis ouvre le **vrai éditeur dans un vrai Chrome** : rendu, clic sur l'interrupteur, netlist, emboîtement (31 trous → 31 fils, aucune prise Grove happée), z-order, bulles. Tout au vert.
+7. ✅ **Le test testkablix de la carte** : `grove-uno` (Arduino). Rien n'y est piqué dans les rangées — LED sur la prise D4, bouton sur la prise D2, afficheur LCD sur une prise I²C — et tout doit se résoudre **comme si** les fils étaient dans les rangées : LED sur la patte 4, bouton sur la 2, I²C sur A4/A5. Nouvelle attente `shield` dans [_verify.mjs](testkablix/_verify.mjs), et la continuité des nets devient une fonction (`checkNets`) au lieu d'une chute d'un cas à l'autre : la chute cassait dès qu'on intercalait un cas.
+8. ✅ **Cinq pattes de l'Uno manquaient à la table des broches** ([catalog.mts](src/webview/diagram/catalog.mts)) : AREF, IOREF, RESET et le 2e jeu SDA/SCL (A4.2/A5.2). L'éditeur les proposait, mais un fil qui y aboutissait passait pour invalide — le Mega les avait déjà, l'Uno pas. Aucun effet sur la simulation : elles ne portent ni entrée-sortie ni masse.
+9. ✅ **Fiche d'aide FR** (`kablix_components/help/grove-uno/fr.md`) : à quoi sert la carte, comment la poser, l'interrupteur, le tableau des seize prises et leurs pattes, les quatre prises I²C en parallèle, et les deux pièges (la prise A3 partage A4 avec l'I²C ; la prise UART occupe les pattes 0 et 1, celles du câble USB).
+10. ⏳ **Pas de jumeau Pico** pour le test : cette carte-là n'entre que sur une Uno.
+11. ⏳ **Traductions EN** : la fiche `en.md` de la carte et les libellés de l'interrupteur attendent le lot d'avant-publication.
+12. ℹ️ **La carte n'est PAS dans l'index public** (`kablix_components/index.json`) : elle attend ta validation, comme le demande l'item 7 de la liste. Une fois validée : `node scripts/build-components-index.mjs`.
+13. ✅ **Deux bancs rattrapés au passage** : la fonction qui ramasse les trous d'accueil prend maintenant la **règle d'enfichage** du composant (qui va sur quoi) au lieu d'un simple oui/non. [verify:wirecolor](scripts/verify-wirecolor.mjs) et le visualiseur `view-grove.mjs` lui passaient encore `true`/`false` — le premier tombait en panne au milieu.
+14. ✅ **La suite complète : 99 bancs verts sur 100** (446 s). Le seul rouge est `verify:i18n`, et il ne vient pas de ce lot : ce sont les libellés du multimètre, de l'oscilloscope, de la photodiode et du phototransistor, déjà notés ⏳ aux lots précédents.
+
+---
 
 # >>>>  v2026.8.102.23 — Les onze projets muets du Pico 2 reparlent
 

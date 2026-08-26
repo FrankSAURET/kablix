@@ -73,10 +73,66 @@ function calerGrille(pins, type) {
     const y = Math.round(p.y / 10) * 10;
     const ecart = Math.max(Math.abs(x - p.x), Math.abs(y - p.y));
     if (ecart > 2) {
-      console.log(`  ! ${type}/${p.name} : ${ecart.toFixed(2)} px hors grille (${p.x},${p.y} → ${x},${y})`);
+      // Trop loin pour être un tremblement de souris : c'est voulu (le shield
+      // Grove a deux connecteurs à mi-pas). On garde la position vraie.
+      const vx = Math.round(p.x * 100) / 100;
+      const vy = Math.round(p.y * 100) / 100;
+      console.log(`  ! ${type}/${p.name} : ${ecart.toFixed(2)} px hors grille — position gardée telle quelle (${vx},${vy})`);
+      return { name: p.name, x: vx, y: vy };
     }
     return { name: p.name, x, y };
   });
+}
+
+/**
+ * Développe le bloc `shield` d'une carte fille (Grove Shield…). La source décrit
+ * les connecteurs UNE fois — nom, colonne, hauteur du premier signal, les quatre
+ * signaux du haut vers le bas ; le manifeste, lui, doit être bête et complet.
+ * On en tire :
+ *   - les pattes supplémentaires (les prises Grove, qui ne sont pas des pastilles
+ *     rouges : elles ne se branchent qu'à l'intérieur de la carte) ;
+ *   - `socket`   : les pastilles qui s'emboîtent sur la carte hôte ;
+ *   - `strips`   : les pistes internes, c'est-à-dire les pattes qui sont un seul
+ *                  et même fil (masse commune, un signal Grove et la broche de la
+ *                  carte hôte où il aboutit) ;
+ *   - `switch.pins` : les VCC des prises, que l'interrupteur bascule d'un rail à
+ *                  l'autre — le rail choisi est ajouté à leur piste à l'exécution.
+ */
+function etendreShield(comp, socket) {
+  const src = comp.shield;
+  if (!src) return null;
+  const connus = new Set(socket.map((p) => p.name));
+  const pins = [];
+  const masses = [...(src.ground ?? [])];
+  const alims = [];
+  const parCible = new Map(); // broche de la carte hôte -> signaux Grove qui y vont
+  for (const port of src.ports) {
+    port.pins.forEach((sig, i) => {
+      const name = `${port.name}.${sig}`;
+      pins.push({ name, x: port.x, y: port.y + i * 10 });
+      if (sig === 'GND') { masses.push(name); return; }
+      if (sig === 'VCC') { alims.push(name); return; }
+      const cible = src.signals?.[sig];
+      if (!cible) throw new Error(`${comp.type} : le signal « ${sig} » du connecteur ${port.name} n'a pas de destination (bloc signals).`);
+      if (!connus.has(cible)) throw new Error(`${comp.type} : ${name} vise « ${cible} », qui n'est pas une pastille du dessin.`);
+      if (!parCible.has(cible)) parCible.set(cible, []);
+      parCible.get(cible).push(name);
+    });
+  }
+  // Pattes doublées sur la carte : deux trous, un seul fil (A4/A4.2…).
+  const jumelles = new Map();
+  for (const groupe of src.ties ?? []) for (const n of groupe) jumelles.set(n, groupe);
+  const strips = [masses];
+  const vus = new Set();
+  for (const cible of parCible.keys()) {
+    if (vus.has(cible)) continue;
+    const groupe = jumelles.get(cible) ?? [cible];
+    for (const n of groupe) vus.add(n);
+    strips.push([...groupe, ...groupe.flatMap((n) => parCible.get(n) ?? [])]);
+  }
+  const shield = { host: src.host ?? 'mcu', socket: socket.map((p) => p.name), strips };
+  if (src.switch) shield.switch = { ...src.switch, pins: alims };
+  return { pins, shield };
 }
 
 /** Corps d'un dessin extrait, defs comprises, prêt à être enveloppé dans un `<g>`. */
@@ -182,7 +238,9 @@ async function main() {
   mkdirSync(OUT_DIR, { recursive: true });
   for (const [i, d] of dessins.entries()) {
     const { comp, ext, int } = d;
-    const pins = calerGrille(nomsUniques(ext.pins), comp.type);
+    const socket = calerGrille(nomsUniques(ext.pins), comp.type);
+    const shield = etendreShield(comp, socket);
+    const pins = shield ? [...socket, ...calerGrille(shield.pins, comp.type)] : socket;
     const groupes =
       `<g id="${comp.type}">${contenu(ext)}</g>` +
       (int ? `<g id="${comp.type}-interne">${contenu(int)}</g>` : '');
@@ -213,6 +271,10 @@ async function main() {
       // connaît que ses composants natifs, un composant de bibliothèque emporte
       // donc les siennes dans son paquet (voir kompix_specification.md).
       l10n: comp.l10n,
+      // Carte fille : ce qui s'emboîte sur la carte hôte et ce qui est relié à
+      // quoi à l'intérieur. Sans ce bloc, les prises Grove ne seraient câblées
+      // sur rien du tout.
+      shield: shield?.shield,
     };
     const fiche = aide(comp.type);
     if (fiche.langs.length) manifest.help = fiche.langs;

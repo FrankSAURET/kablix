@@ -50,6 +50,7 @@ import { colorDisplayName, colorSwatchBackground } from './colors.mjs';
 import { breadboardPins, normalizeSize, stripOfPin } from './breadboard.mjs';
 import { embedClipboardInSvg, encodeClipboard, extractClipboard, type ClipboardPayload } from './clipboard.mjs';
 import { groveSignalGpio, groveSocketPins } from './grove-shield.mjs';
+import { shieldSignalTarget } from './shield.mjs';
 import { internalWiringSvg, type PinPoint } from './internal-wiring.mjs';
 import { hasPinout, pinoutPoster, loadPinoutSvg } from './pinout.mjs';
 import { boardSize } from '../composants/pico-board.mjs';
@@ -1808,9 +1809,7 @@ export class Editor {
     // ne bougent pas pendant le geste, une seule collecte suffit.
     const def = partDef(type);
     const kind = def.kind;
-    const picoLike = kind === 'mcu' && isPicoBoard(def.board as BoardId);
-    const pluggable = kind !== 'breadboard' && kind !== 'grove-shield' && (kind !== 'mcu' || picoLike);
-    const holes = pluggable ? this.collectBreadboardHoles(part.id, picoLike) : [];
+    const holes = this.collectBreadboardHoles(part.id, plugRule(def));
     const preview = (): void => {
       if (holes.length > 0) this.previewBreadboardSnap(part, holes);
     };
@@ -1862,11 +1861,9 @@ export class Editor {
    * ni les platines ni les cartes ne s'enfichent, sauf la Pico sur son socle.
    */
   private plugPlacedPart(part: Part): void {
-    const def = partDef(part.type);
-    const kind = def.kind;
-    const picoLike = kind === 'mcu' && isPicoBoard(def.board as BoardId);
-    if (kind === 'breadboard' || kind === 'grove-shield' || (kind === 'mcu' && !picoLike)) return;
-    const holes = this.collectBreadboardHoles(part.id, picoLike);
+    const rule = plugRule(partDef(part.type));
+    if (!rule) return;
+    const holes = this.collectBreadboardHoles(part.id, rule);
     // silent : la pose depuis palette fusionne l'enfichage dans son notify() final.
     if (holes.length > 0) this.plugIntoBreadboard(part, holes, true);
   }
@@ -2321,9 +2318,12 @@ export class Editor {
     if (def.kind === 'mcu' || def.kind === 'breadboard' || def.kind === 'grove-shield') {
       container.classList.add('part--under-wires');
     }
-    // Le Grove Shield descend d'un cran de plus (z=0) : la Pico (mcu, z=1)
-    // enfichée dessus doit rester visible par-dessus le shield.
-    if (def.kind === 'grove-shield') container.classList.add('part--shield');
+    // Un shield-socle descend d'un cran de plus (z=0) : la Pico (mcu, z=1)
+    // enfichée dessus doit rester visible par-dessus le shield. Une carte fille
+    // posée SUR sa carte hôte fait l'inverse : elle passe devant elle (z=2).
+    if (def.kind === 'grove-shield') {
+      container.classList.add(def.custom?.shield?.host ? 'part--shield-top' : 'part--shield');
+    }
     // Platine d'essai : marquée pour qu'elle NE REMONTE JAMAIS devant les
     // composants enfichés dessus au survol de ses trous (cf. styles.css).
     if (def.kind === 'breadboard') container.classList.add('part--board');
@@ -2409,8 +2409,10 @@ export class Editor {
     // `pwr` de l'élément et émet `pwr-change` → on persiste dans le schéma (la
     // netlist suit le rail VCC) et on resynchronise l'inspecteur s'il est ouvert.
     if (def.kind === 'grove-shield') {
+      const attr = def.custom?.shield?.switch?.attr ?? 'pwr';
+      const defaut = def.attrs?.[attr] ?? '3v3';
       el.addEventListener('pwr-change', () => {
-        part.attrs = { ...part.attrs, pwr: el.getAttribute('pwr') ?? '3v3' };
+        part.attrs = { ...part.attrs, [attr]: el.getAttribute(attr) ?? defaut };
         if (this.selection?.kind === 'part' && this.selection.id === part.id) {
           this.renderPartInspector(part.id);
         }
@@ -2805,12 +2807,8 @@ export class Editor {
     // Enfichage : seulement pour un composant seul (pas un support qui emmène
     // déjà sa grappe), et hors cartes/platines — SAUF la Pico / Pico W, qui
     // s'enfiche sur le socle du Grove Shield (et uniquement là).
-    const def2 = partDef(part.type);
-    const kind = def2.kind;
-    const picoLike = kind === 'mcu' && isPicoBoard(def2.board as BoardId);
-    const pluggable =
-      !isGroup && kind !== 'breadboard' && kind !== 'grove-shield' && (kind !== 'mcu' || picoLike);
-    const holes = pluggable ? this.collectBreadboardHoles(part.id, picoLike) : [];
+    const pluggable = isGroup ? null : plugRule(partDef(part.type));
+    const holes = this.collectBreadboardHoles(part.id, pluggable);
 
     // Grille magnétique pour faciliter l'alignement, sauf pour un composant
     // enfichable au-dessus d'une platine (il s'aligne alors sur les trous).
@@ -2907,18 +2905,21 @@ export class Editor {
 
   // --- Platine d'essai : surbrillance et enfichage -----------------------------
   /**
-   * Trous des supports d'enfichage posés, en coordonnées canvas. Un composant
-   * ordinaire s'enfiche sur les platines d'essai ; une Pico / Pico W
-   * (`picoSocket`) s'enfiche uniquement sur le SOCLE du Grove Shield (les ports
-   * Grove et le connecteur SPI sont des prises femelles : pas d'enfichage).
+   * Trous des supports d'enfichage posés, en coordonnées canvas, selon la règle
+   * du composant déplacé (voir `plugRule`). Sur un shield-socle, seuls les trous
+   * du socle comptent : les prises Grove et le connecteur SPI sont femelles.
    */
-  private collectBreadboardHoles(excludeId: string, picoSocket = false): BreadboardHole[] {
+  private collectBreadboardHoles(excludeId: string, rule: PlugRule | null): BreadboardHole[] {
     const holes: BreadboardHole[] = [];
-    const socket = picoSocket ? groveSocketPins() : null;
+    if (!rule) return holes;
     for (const r of this.rendered.values()) {
-      const kind = partDef(r.part.type).kind;
       if (r.part.id === excludeId) continue;
-      if (picoSocket ? kind !== 'grove-shield' : kind !== 'breadboard') continue;
+      const d = partDef(r.part.type);
+      if (d.kind !== rule.host) continue;
+      const spec = d.custom?.shield;
+      // Une carte fille qui s'emboîte elle-même ailleurs n'est pas un socle.
+      if (rule.onSupport && spec?.host) continue;
+      const socket = rule.onSupport ? new Set(spec ? spec.socket : groveSocketPins()) : null;
       for (const pin of r.hotspots.keys()) {
         if (socket && !socket.has(pin)) continue;
         const c = this.hotspotCenter({ partId: r.part.id, pin });
@@ -2935,8 +2936,11 @@ export class Editor {
   ): Array<{ pin: string; hole: BreadboardHole; dx: number; dy: number }> {
     const r = this.rendered.get(part.id);
     if (!r) return [];
+    // Carte fille : seules ses pastilles mâles entrent dans la carte hôte.
+    const own = plugRule(partDef(part.type))?.own;
     const matches: Array<{ pin: string; hole: BreadboardHole; dx: number; dy: number }> = [];
     for (const pin of r.hotspots.keys()) {
+      if (own && !own.has(pin)) continue;
       const c = this.hotspotCenter({ partId: part.id, pin });
       if (!c) continue;
       let best: BreadboardHole | null = null;
@@ -6384,12 +6388,19 @@ export class Editor {
       maxY = Math.max(maxY, y);
     };
 
-    // Les platines d'essai et le Grove Shield sont dessinés en premier (donc
+    // Les platines d'essai et les shields-socles sont dessinés en premier (donc
     // derrière) : sans cela un support ajouté après un composant passait devant
-    // lui dans le SVG (la Pico enfichée doit rester visible sur son shield).
-    const behind = (k: string): number => (k === 'breadboard' || k === 'grove-shield' ? 0 : 1);
+    // lui dans le SVG (la Pico enfichée doit rester visible sur son shield). Une
+    // carte fille posée sur une carte hôte vient juste après elle, avant les
+    // composants ordinaires.
+    const behind = (d: PartDef): number => {
+      if (d.kind === 'breadboard' || (d.kind === 'grove-shield' && !d.custom?.shield?.host)) return 0;
+      if (d.kind === 'mcu') return 1;
+      if (d.kind === 'grove-shield') return 2;
+      return 3;
+    };
     const order = [...this.rendered.values()].sort(
-      (a, b) => behind(partDef(a.part.type).kind) - behind(partDef(b.part.type).kind)
+      (a, b) => behind(partDef(a.part.type)) - behind(partDef(b.part.type))
     );
     for (const r of order) {
       if (only && !only.has(r.part.id)) continue; // export limité à la sélection
@@ -6617,6 +6628,28 @@ export class Editor {
 
 
 /**
+ * Sur quoi ce composant peut-il s'enficher, et avec quelles broches ? Trois cas :
+ *   - une carte fille (Grove Shield (Uno)…) s'emboîte sur sa carte hôte par ses
+ *     pastilles mâles — ses prises Grove sont femelles, elles ne comptent pas ;
+ *   - une Pico / Pico W s'enfiche sur le SOCLE d'un shield qui, lui, attend une
+ *     carte (`onSupport`) et nulle part ailleurs ;
+ *   - tout le reste va sur les platines d'essai.
+ * Une platine et un shield-socle, eux, ne s'enfichent sur rien : `null`.
+ */
+export type PlugRule = { host: string; own?: Set<string>; onSupport?: boolean };
+
+export function plugRule(def: PartDef): PlugRule | null {
+  const shield = def.custom?.shield;
+  if (shield?.host) return { host: shield.host, own: new Set(shield.socket) };
+  const kind = def.kind;
+  if (kind === 'breadboard' || kind === 'grove-shield') return null;
+  if (kind === 'mcu') {
+    return isPicoBoard(def.board as BoardId) ? { host: 'grove-shield', onSupport: true } : null;
+  }
+  return { host: 'breadboard' };
+}
+
+/**
  * Nom de broche affiché à l'utilisateur. Pour les LED, la cathode (broche 'C'
  * des composants forkés) est montrée « K » selon l'usage électronique (Anode /
  * Katode). Pour un potentiomètre, les broches GND/SIG/VCC ne sont pas de
@@ -6669,12 +6702,14 @@ function pinDisplayName(
   // Relais : le commun sort des deux côtés du boîtier, mais c'est la MÊME lame.
   // Les deux pastilles (Com.1 / Com.2) s'affichent donc simplement « Com ».
   if (kind === 'relay' && /^Com\.\d+$/.test(pinName)) return 'Com';
-  // Grove Shield : un signal de port ne dit pas à quel GPIO de la Pico il mène
-  // (« A1.A0 » est sur GP26, pas GP27). La bulle ajoute donc la broche réelle —
-  // c'est elle qu'il faut écrire dans le programme : « A1.A0.GP26 ».
+  // Carte fille : un signal de prise ne dit pas où il aboutit sur la carte
+  // (« A1.A0 » est sur GP26, pas GP27 ; « UART.TX » sur la patte 1 de la Uno).
+  // La bulle ajoute donc la broche réelle — c'est elle qu'il faut écrire dans
+  // le programme : « A1.A0.GP26 ».
   if (kind === 'grove-shield') {
-    const gp = groveSignalGpio(pinName);
-    if (gp) return `${pinName}.${gp}`;
+    const spec = type ? partDef(type).custom?.shield : undefined;
+    const cible = spec ? shieldSignalTarget(spec, pinName) : groveSignalGpio(pinName);
+    if (cible) return `${pinName}.${cible}`;
   }
   return pinName;
 }

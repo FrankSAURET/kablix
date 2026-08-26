@@ -126,6 +126,29 @@ export const PART_PINS = {
   'ir-barrier': ['Vcc.r', 'GND.r3', 'Out', 'Vcc.e', 'GND.e'],
 };
 
+// --- Grove Shield (Uno) : la carte fille qui se pose sur l'Arduino Uno ---------
+// Deux familles de pattes. Les 31 pastilles MÂLES portent exactement les noms
+// des broches de l'Uno : elles y entrent, une par une. Les 16 prises Grove sont
+// FEMELLES, avec toujours les mêmes quatre fils (masse, alimentation, puis les
+// deux signaux qui donnent son nom à la prise).
+export const GROVE_UNO_SOCKET = [
+  'A5.2', 'A4.2', 'AREF', 'GND.1', '13', '12', '11', '10', '9', '8',
+  '7', '6', '5', '4', '3', '2', '1', '0',
+  'IOREF', 'RESET', '3.3V', '5V', 'GND.2', 'GND.3', 'VIN',
+  'A0', 'A1', 'A2', 'A3', 'A4', 'A5',
+];
+const GROVE_UNO_PORTS = {
+  A3: ['A4', 'A3'], A2: ['A3', 'A2'], A1: ['A2', 'A1'], A0: ['A1', 'A0'],
+  D4: ['D5', 'D4'], D8: ['D9', 'D8'], D3: ['D4', 'D3'], D7: ['D8', 'D7'],
+  D2: ['D3', 'D2'], D6: ['D7', 'D6'], D5: ['D6', 'D5'], UART: ['TX', 'RX'],
+  I2C0: ['SDA', 'SCL'], I2C1: ['SDA', 'SCL'], I2C2: ['SDA', 'SCL'], I2C3: ['SDA', 'SCL'],
+};
+PART_PINS['grove-uno'] = [
+  ...GROVE_UNO_SOCKET,
+  ...Object.entries(GROVE_UNO_PORTS).flatMap(([prise, signaux]) =>
+    ['GND', 'VCC', ...signaux].map((n) => `${prise}.${n}`)),
+];
+
 // --- Helpers -------------------------------------------------------------------
 let wireSeq = 0;
 /** Fil composant(pin) → carte/autre composant. `to` = [partId, pin]. */
@@ -134,6 +157,16 @@ function w(fromId, fromPin, toId, toPin, color) {
   const wire = { id: `w${wireSeq}`, a: { partId: fromId, pin: fromPin }, b: { partId: toId, pin: toPin } };
   if (color) wire.color = color;
   return wire;
+}
+
+/**
+ * Fil d'emboîtement : celui que l'éditeur pose TOUT SEUL quand une carte fille
+ * tombe en face des rangées de son hôte (invisible, marqué `auto`). Les pastilles
+ * mâles portent le nom de la patte qu'elles touchent : même nom des deux côtés.
+ */
+function plug(fromId, fromPin, toId, toPin) {
+  wireSeq++;
+  return { id: `w${wireSeq}`, a: { partId: fromId, pin: fromPin }, b: { partId: toId, pin: toPin }, auto: true };
 }
 
 /** Fabrique un test : remet le compteur de fils à zéro pour des ids stables. */
@@ -2395,6 +2428,102 @@ void loop() {
     envoyer();
     delay(1000);
   }
+}
+`,
+  }),
+
+  // Grove Shield (Uno) : la carte fille de la bibliothèque, POSÉE sur l'Uno.
+  // Elle ne simule rien, elle remplace des fils — le test contrôle donc que ce
+  // qui est branché sur ses prises se résout comme si c'était piqué dans les
+  // rangées de l'Uno (LED sur la patte 4, bouton sur la 2, afficheur sur A4/A5),
+  // et que ses pistes internes ne confondent jamais deux nets.
+  // Les 31 fils d'emboîtement sont ceux que l'éditeur pose tout seul quand la
+  // carte tombe en face des rangées : mesurés dans le VRAI éditeur (banc
+  // `verify:shield`), même nom des deux côtés, carte calée 20 px à droite de
+  // l'Uno. Pas de jumeau Pico : ce shield-là n'entre que sur une Uno.
+  test({
+    name: 'grove-uno', board: 'uno', ext: 'ino',
+    kompix: ['grove-uno'],
+    parts: [
+      MCU('uno'),
+      { id: 'Sh1', type: 'grove-uno', x: 60, y: 60, attrs: { pwr: '5v' } },
+      { id: 'Aff1', type: 'lcd', x: 560, y: 60, attrs: { pins: 'i2c', address: '0x27', cols: '16', rows: '2', lcdSize: '16x2' } },
+      { id: 'R1', type: 'resistor', x: 520, y: 250, attrs: { value: '220' } },
+      { id: 'L1', type: 'led', x: 660, y: 250, attrs: { color: 'red' } },
+      { id: 'BP1', type: 'button', x: 560, y: 360, attrs: { color: 'green' } },
+    ],
+    wires: () => [
+      ...GROVE_UNO_SOCKET.map((pin) => plug('Sh1', pin, 'U1', pin)),
+      // Câble Grove sur la prise I2C0 : quatre fils, toujours dans le même ordre.
+      w('Aff1', 'GND', 'Sh1', 'I2C0.GND', 'black'),
+      w('Aff1', 'VCC', 'Sh1', 'I2C0.VCC', 'red'),
+      w('Aff1', 'SDA', 'Sh1', 'I2C0.SDA', 'blue'),
+      w('Aff1', 'SCL', 'Sh1', 'I2C0.SCL', 'yellow'),
+      // Prise D4 : la LED sur le premier signal de la prise, donc la patte 4.
+      w('R1', '1', 'Sh1', 'D4.D4', 'green'),
+      w('L1', 'A', 'R1', '2', 'green'),
+      w('L1', 'C', 'Sh1', 'D4.GND', 'black'),
+      // Prise D2 : bouton entre le signal (patte 2) et la masse de la prise.
+      w('BP1', '1.l', 'Sh1', 'D2.D2', 'yellow'),
+      w('BP1', '2.l', 'Sh1', 'D2.GND', 'black'),
+    ],
+    expect: {
+      kind: 'shield',
+      led: { partId: 'L1', mcuPin: '4' },
+      button: { partId: 'BP1', mcuPin: '2' },
+      i2c: 'Aff1',
+      nets: [
+        // I²C : les quatre prises en parallèle, et les deux pattes SDA de l'Uno
+        // (A4 et le 2e jeu près d'AREF) sur le même fil.
+        ['Aff1/SDA', 'Sh1/I2C3.SDA', 'Sh1/A3.A4', 'U1/A4', 'U1/A4.2'],
+        ['Aff1/SCL', 'Sh1/I2C1.SCL', 'U1/A5', 'U1/A5.2'],
+        // Alimentation des prises : l'interrupteur est sur 5 V, le 3,3 V reste
+        // à part (sinon les deux rails de la carte seraient en court-circuit).
+        ['Aff1/VCC', 'Sh1/D4.VCC', 'Sh1/UART.VCC', 'U1/5V'],
+        ['Sh1/3.3V', 'U1/3.3V'],
+        // Une seule masse pour toute la planche.
+        ['Aff1/GND', 'L1/C', 'BP1/2.l', 'Sh1/I2C2.GND', 'U1/GND.1', 'U1/GND.3'],
+        // Signaux : deux prises voisines partagent toujours une patte.
+        // (la résistance est un fil pour la continuité : l'anode de la LED est
+        // sur le même net que la patte 4)
+        ['R1/1', 'L1/A', 'Sh1/D4.D4', 'Sh1/D3.D4', 'U1/4'],
+        ['Sh1/D4.D5', 'Sh1/D5.D5', 'U1/5'],
+        ['BP1/1.l', 'Sh1/D2.D2', 'U1/2'],
+        ['Sh1/UART.TX', 'U1/1'],
+      ],
+    },
+    code: `// Test Grove Shield (Uno) : RIEN n'est piqué dans les rangées de la carte, tout
+// passe par les prises de la carte fille. LED sur la prise D4 (patte 4), bouton
+// sur la prise D2 (patte 2), afficheur LCD sur une prise I2C (A4/A5).
+#include <LiquidCrystal_I2C.h>
+
+#define LED 4
+#define BOUTON 2
+
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+int appuis = 0;
+bool avant = false;
+
+void setup() {
+  pinMode(LED, OUTPUT);
+  pinMode(BOUTON, INPUT_PULLUP);
+  Serial.begin(115200);
+  lcd.init();
+  lcd.backlight();
+  lcd.setCursor(0, 0);
+  lcd.print("Grove Shield Uno");
+}
+
+void loop() {
+  bool appuye = (digitalRead(BOUTON) == LOW);
+  digitalWrite(LED, appuye ? HIGH : LOW);   // le bouton allume la LED
+  if (appuye && !avant) appuis++;
+  avant = appuye;
+  lcd.setCursor(0, 1);
+  lcd.print("appuis: ");
+  lcd.print(appuis);
+  Serial.println(appuye ? "APPUYE" : "relache");
+  delay(200);
 }
 `,
   }),

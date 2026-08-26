@@ -4,6 +4,7 @@
 // carte Pico (<kablix-pico-board>) et les composants créés par l'utilisateur
 // (<kablix-custom-part>, enregistrés à l'exécution).
 import { DEFAULT_IC74_FAMILY, IC74_FAMILY_OPTIONS, IC_REFS, IC_REF_OPTIONS, icAttrs, icLabel } from './ics.mjs';
+import type { ShieldSpec } from './shield.mjs';
 
 export type PartKind =
   | 'mcu'
@@ -289,6 +290,8 @@ export interface PartDef {
     hasHelp?: boolean;
     /** Sortie à collecteur ouvert : alimentation et rappel au plus contrôlés. */
     openDrain?: CustomOpenDrain;
+    /** Carte fille : socle, pistes internes et interrupteur (voir shield.mts). */
+    shield?: ShieldSpec;
   };
   /**
    * Variante d'un composant déjà listé : le type reste parfaitement valide
@@ -336,6 +339,8 @@ export interface CustomPartData {
   hasHelp?: boolean;
   /** Sortie à collecteur ouvert (voir CustomOpenDrain). */
   openDrain?: CustomOpenDrain;
+  /** Carte fille : socle, pistes internes et interrupteur (voir shield.mts). */
+  shield?: ShieldSpec;
   /** Script behavior.mjs embarqué (optionnel) : comportement de simulation. */
   behaviorScript?: string;
   /** Métadonnées provenance + confiance (kompix uniquement, Lot 2). */
@@ -1365,7 +1370,17 @@ export function registerCustomPart(data: CustomPartData): PartDef {
     data.kind === 'digital-source' && controlled !== 'switch' ? [STATE_PROP]
     : data.kind === 'analog-source' && controlled !== 'slider' ? [VALUE_PROP]
     : [];
-  const props = [...baseProps, ...paramProps];
+  // Interrupteur d'une carte fille : le même choix que sur le dessin, mais dans
+  // l'inspecteur (le Grove Shield (Pico) natif a déjà le sien, écrit à la main).
+  const sw = data.shield?.switch;
+  const switchProps: PropDef[] = sw ? [{
+    attr: sw.attr,
+    label: sw.title || sw.attr,
+    kind: 'select',
+    options: sw.options.map((o) => o.value),
+    optionLabels: Object.fromEntries(sw.options.map((o) => [o.value, o.label])),
+  }] : [];
+  const props = [...baseProps, ...switchProps, ...paramProps];
   const def: PartDef = {
     type: data.type,
     label: data.label,
@@ -1383,6 +1398,7 @@ export function registerCustomPart(data: CustomPartData): PartDef {
       category: data.category,
       hasHelp: data.hasHelp,
       openDrain: data.openDrain,
+      shield: data.shield,
     },
     analogPin: data.kind === 'analog-source' ? data.pinRoles?.['AO'] ?? 'AO' : undefined,
     digitalPin: data.kind === 'digital-source' ? data.pinRoles?.['OUT'] ?? 'OUT' : undefined,
@@ -1546,6 +1562,11 @@ const AVR328_PINS: readonly string[] = [
   '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13',
   'A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7',
   'GND.1', 'GND.2', 'GND.3', '5V', '3.3V', 'VIN',
+  // Broches supplémentaires du dessin (l'éditeur les propose, mais elles
+  // manquaient ici : un fil qui y aboutit passait pour invalide). AREF, IOREF,
+  // RESET et le 2e jeu SDA/SCL de la rangée numérique (A4.2/A5.2), sur lequel
+  // le Grove Shield (Uno) s'emboîte.
+  'AREF', 'IOREF', 'RESET', 'A4.2', 'A5.2',
 ];
 
 // ATmega2560 (Mega) : 0..53 en numérique, A0..A15 en analogique.

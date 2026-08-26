@@ -110,6 +110,28 @@ function resolveLogic(diagram, read, vcc) {
   return states;
 }
 
+/**
+ * Continuité du câblage : chaque groupe doit former UNE équipotentielle, et deux
+ * groupes différents ne doivent jamais se rejoindre — c'est exactement ce qu'un
+ * court-circuit de dessin ferait. Plusieurs attentes s'en servent après leurs
+ * propres contrôles.
+ */
+function checkNets(t, diagram, groupes) {
+  const netDe = (ep) => {
+    const [partId, pin] = ep.split('/');
+    return model.buildNets(diagram).netOf({ partId, pin });
+  };
+  const vus = new Map();
+  for (const groupe of groupes ?? []) {
+    const nets = groupe.map(netDe);
+    check(`${t.name} : ${groupe.join(' = ')}`, nets.every((n) => n === nets[0]),
+      JSON.stringify(nets));
+    const autre = vus.get(nets[0]);
+    check(`${t.name} : ${groupe[0]} séparé de ${autre ?? ''}`, autre === undefined, 'nets confondus');
+    vus.set(nets[0], groupe[0]);
+  }
+}
+
 // --- 1. Validation des .projix ------------------------------------------------
 console.log(`--- Validation des ${TESTS.length} .projix (structure + câblage) ---`);
 for (const t of TESTS) {
@@ -566,35 +588,36 @@ for (const t of TESTS) {
       case 'dmx': {
         // Ligne DMX512 : le projecteur écoute la broche TX du micro (à travers
         // la carte Grove) et prend ses canaux à partir de son adresse. La
-        // continuité du câblage est vérifiée ensuite (chute dans `nets`).
+        // continuité du câblage est vérifiée juste après (checkNets).
         const b = model.dmxBindings(diagram).find((x) => x.partId === e.partId);
         check(`${t.name} : ${e.partId} écoute ${e.mcuPin}`, b?.mcuPin === e.mcuPin,
           JSON.stringify(model.dmxBindings(diagram)));
         check(`${t.name} : adresse ${e.address}, ${e.channels} canaux`,
           b?.address === e.address && b?.channels === e.channels, JSON.stringify(b));
-        // pas de break : la continuité du câblage se contrôle juste en dessous
-      }
-      // eslint-disable-next-line no-fallthrough
-      case 'nets': {
-        // Continuité pure : aucun modèle de simulation derrière le composant
-        // (liaison DMX512, câblage passif). Chaque groupe de `nets` doit former
-        // UNE équipotentielle, et deux groupes différents ne doivent jamais se
-        // rejoindre — c'est exactement ce qu'un court-circuit de dessin ferait.
-        const netDe = (ep) => {
-          const [partId, pin] = ep.split('/');
-          return model.buildNets(diagram).netOf({ partId, pin });
-        };
-        const vus = new Map();
-        for (const groupe of e.nets) {
-          const nets = groupe.map(netDe);
-          check(`${t.name} : ${groupe.join(' = ')}`, nets.every((n) => n === nets[0]),
-            JSON.stringify(nets));
-          const autre = vus.get(nets[0]);
-          check(`${t.name} : ${groupe[0]} séparé de ${autre ?? ''}`, autre === undefined, 'nets confondus');
-          vus.set(nets[0], groupe[0]);
-        }
+        checkNets(t, diagram, e.nets);
         break;
       }
+      case 'shield': {
+        // Carte fille : elle ne simule rien, elle remplace des fils. Ce qui est
+        // branché sur ses prises doit donc se résoudre EXACTEMENT comme si le
+        // fil était piqué dans les rangées de la carte hôte.
+        const pinLed = model.ledMcuPin(diagram, e.led.partId);
+        check(`${t.name} : LED ${e.led.partId} pilotée par ${e.led.mcuPin} à travers la carte`,
+          pinLed === e.led.mcuPin, `résolu=${pinLed}`);
+        const bp = model.buttonBindings(diagram).find((x) => x.partId === e.button.partId);
+        check(`${t.name} : bouton ${e.button.partId} → ${e.button.mcuPin}`,
+          bp?.mcuPin === e.button.mcuPin, JSON.stringify(bp));
+        const i2c = diagram.parts.find((x) => x.id === e.i2c);
+        check(`${t.name} : ${e.i2c} en I²C sur la prise Grove`,
+          !!i2c && (i2c.attrs?.pins ?? 'i2c') === 'i2c');
+        checkNets(t, diagram, e.nets);
+        break;
+      }
+      case 'nets':
+        // Continuité pure : aucun modèle de simulation derrière le composant
+        // (liaison DMX512, câblage passif).
+        checkNets(t, diagram, e.nets);
+        break;
       default:
         check(`${t.name} : attente inconnue`, false, e.kind);
     }

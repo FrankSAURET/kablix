@@ -15,7 +15,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CACHE = join(ROOT, 'node_modules', '.cache-wirecolor');
 
 const entry = `
-import { Editor } from '../../src/webview/diagram/editor.mjs';
+import { Editor, plugRule } from '../../src/webview/diagram/editor.mjs';
+import { partDef } from '../../src/webview/diagram/catalog.mjs';
 import { normalizeSize, stripOfPin } from '../../src/webview/diagram/breadboard.mjs';
 import '../../src/webview/composants/breadboard.mjs';
 import '../../src/webview/composants/logic-ic-element.mjs';
@@ -60,7 +61,7 @@ async function run() {
 	cont.style.left = ic.x + 'px';
 	cont.style.top = ic.y + 'px';
 	await wait(60);
-	editor.plugIntoBreadboard(ic, editor.collectBreadboardHoles(ic.id, false));
+	editor.plugIntoBreadboard(ic, editor.collectBreadboardHoles(ic.id, plugRule(partDef('74xx00'))));
 	await wait(60);
 
 	const autos = editor.diagram.wires.filter((w) => w.auto);

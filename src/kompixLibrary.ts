@@ -72,6 +72,25 @@ interface KompixIndexEntry {
   version: string;
 }
 
+/**
+ * Carte fille : ce qui s'emboîte sur la carte hôte et ce qui est relié à quoi à
+ * l'intérieur du shield. Détaillé dans src/webview/diagram/shield.mts — ici, le
+ * bloc n'est que transporté tel quel du paquet jusqu'à la webview.
+ */
+interface KompixShield {
+  host?: string;
+  socket: string[];
+  strips: string[][];
+  switch?: {
+    attr: string;
+    knob: string;
+    title?: string;
+    zone: { x: number; y: number; w: number; h: number };
+    pins: string[];
+    options: Array<{ value: string; label: string; rail: string; dx: number }>;
+  };
+}
+
 /** Contenu du manifest.json d'un .kompix. */
 interface KompixManifest {
   kompixVersion: number;
@@ -96,6 +115,8 @@ interface KompixManifest {
   /** Sortie à collecteur ouvert : elle ne sait que tirer à la masse, un rappel
    *  au plus est indispensable. `supplies` = paires [V+, GND] à alimenter. */
   openDrain?: { out: string; supplies: Array<[string, string]> };
+  /** Carte fille (Grove Shield…) : socle, pistes internes, interrupteur. */
+  shield?: KompixShield;
   innerOffset?: { x: number; y: number } | null;
   extAnchor?: { x: number; y: number } | null;
   intAnchor?: { x: number; y: number } | null;
@@ -123,6 +144,8 @@ interface CustomPartData {
   control?: any;
   /** Sortie à collecteur ouvert (voir KompixManifest.openDrain). */
   openDrain?: { out: string; supplies: Array<[string, string]> };
+  /** Carte fille (voir KompixManifest.shield). */
+  shield?: KompixShield;
   category?: string;
   /** Le .kompix embarque une fiche d'aide : l'inspecteur montre alors son
    *  bouton « Aide du composant ». Le texte, lui, reste dans le paquet — il est
@@ -372,6 +395,7 @@ export class KompixLibrary {
         params: traduit.params,
         control: traduit.control,
         openDrain: manifest.openDrain,
+        shield: manifest.shield,
         category: manifest.category,
         hasHelp: langs.length > 0 || undefined,
         behaviorScript: behaviorScript,
@@ -791,6 +815,7 @@ export class KompixLibrary {
       params: data.params,
       control: data.control ?? null,
       openDrain: data.openDrain,
+      shield: data.shield,
       innerOffset: data.innerOffset ?? null,
       extAnchor: data.extAnchor ?? null,
       intAnchor: data.intAnchor ?? null,

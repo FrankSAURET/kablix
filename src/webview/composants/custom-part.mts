@@ -8,6 +8,7 @@
 // / `switchOn` sur l'événement `input` (cf. sim.mts).
 
 import type { CustomControl, PartDef } from '../diagram/catalog.mjs';
+import { shieldOption, type ShieldSwitch } from '../diagram/shield.mjs';
 import { simControlStyles } from './utils/sim-control-styles.mjs';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -79,6 +80,12 @@ export class CustomPartElement extends HTMLElement {
   private control: CustomControl | null = null;
   private controlBox: HTMLDivElement | null = null;
 
+  /** Interrupteur d'une carte fille (Grove Shield…) : décrit par son manifeste. */
+  private shieldSwitch: ShieldSwitch | null = null;
+  /** Surveille l'attribut de l'interrupteur : son nom vient du manifeste, il ne
+   *  peut donc pas figurer dans `observedAttributes`, qui est statique. */
+  private shieldWatcher: MutationObserver | null = null;
+
   /** Module behavior.mjs optionnel : init/tick/destroy pour simulation embarquée. */
   private behavior: BehaviorModule | null = null;
   /** Fonctions de lecture/écriture des broches : injectées par sim.mts. */
@@ -118,6 +125,8 @@ export class CustomPartElement extends HTMLElement {
     this.wrapper.innerHTML = def.custom.svg;
     this.pinInfo = def.custom.pins.map((p) => ({ name: p.name, x: p.x, y: p.y, signals: [] }));
     this.control = def.custom.control ?? null;
+    this.shieldSwitch = def.custom.shield?.switch ?? null;
+    this.setupShieldSwitch();
     if (this.control?.type === 'slider') {
       const min = this.control.min ?? 0;
       const max = this.control.max ?? 100;
@@ -340,6 +349,84 @@ export class CustomPartElement extends HTMLElement {
   private ledDefs: SVGElement | null = null;
   /** Dernier état peint (`groupe|couleur|intensité`) : évite un DOM retouché par image. */
   private ledState = '';
+
+  /**
+   * Interrupteur d'une carte fille : une zone transparente posée par-dessus le
+   * dessin le rend cliquable, et le bouton glisse d'une position à l'autre.
+   *
+   * Tout vient du manifeste (`shield.switch`) : l'attribut qui garde la
+   * position, l'id du bouton, la zone cliquable et la course de chaque position.
+   * Le clic reflète l'attribut PUIS émet `pwr-change`, que l'éditeur persiste
+   * dans le schéma — la netlist relie alors les VCC des prises à l'autre rail.
+   */
+  private setupShieldSwitch(): void {
+    this.shieldWatcher?.disconnect();
+    this.shieldWatcher = null;
+    const sw = this.shieldSwitch;
+    if (!sw) return;
+    const svg = this.wrapper.querySelector('svg');
+    if (!svg) return;
+    const zone = document.createElementNS(SVG_NS, 'rect');
+    zone.setAttribute('x', String(sw.zone.x));
+    zone.setAttribute('y', String(sw.zone.y));
+    zone.setAttribute('width', String(sw.zone.w));
+    zone.setAttribute('height', String(sw.zone.h));
+    zone.setAttribute('fill', 'transparent');
+    zone.style.cursor = 'pointer';
+    if (sw.title) {
+      const title = document.createElementNS(SVG_NS, 'title');
+      title.textContent = sw.title;
+      zone.appendChild(title);
+    }
+    // pointerdown + stopPropagation : le clic bascule l'interrupteur sans
+    // démarrer le déplacement de la carte (écouteur du corps dans l'éditeur).
+    zone.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const i = sw.options.indexOf(shieldOption(sw, this.attrsSnapshot()));
+      const next = sw.options[(i + 1) % sw.options.length];
+      this.setAttribute(sw.attr, next.value);
+      this.dispatchEvent(
+        new CustomEvent('pwr-change', { detail: next.value, bubbles: true, composed: true })
+      );
+    });
+    svg.appendChild(zone);
+    // L'éditeur pose les attributs APRÈS `definition`, et l'inspecteur les
+    // réécrit ensuite : c'est l'attribut lui-même qu'on suit, pas un appel.
+    this.shieldWatcher = new MutationObserver(() => this.applyShieldSwitch());
+    this.shieldWatcher.observe(this, { attributes: true, attributeFilter: [sw.attr] });
+    this.applyShieldSwitch();
+  }
+
+  /** Les attributs de l'élément, sous la forme attendue par `shieldOption`. */
+  private attrsSnapshot(): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const a of this.attributes) out[a.name] = a.value;
+    return out;
+  }
+
+  /** Place le bouton de l'interrupteur sur la position courante de l'attribut. */
+  private applyShieldSwitch(): void {
+    const sw = this.shieldSwitch;
+    if (!sw) return;
+    const knob = this.wrapper.querySelector(`#${CSS.escape(sw.knob)}`);
+    if (!(knob instanceof SVGElement)) return;
+    if (!this.moveBase.has(knob)) this.moveBase.set(knob, knob.getAttribute('transform'));
+    const base = this.moveBase.get(knob) ?? null;
+    const dx = shieldOption(sw, this.attrsSnapshot()).dx;
+    if (!dx) {
+      if (base === null) knob.removeAttribute('transform');
+      else knob.setAttribute('transform', base);
+      return;
+    }
+    // Même piège que `applyMove` : la course est donnée en pixels du dessin, la
+    // forme vit sous le `matrix(3.78…)` d'Inkscape. On divise par l'échelle du
+    // parent pour que le bouton parcoure la bonne distance.
+    const parent = knob.parentNode as SVGGraphicsElement | null;
+    const m = parent?.getCTM?.() ?? null;
+    const sx = m ? Math.hypot(m.a, m.b) || 1 : 1;
+    knob.setAttribute('transform', `translate(${(dx / sx).toFixed(4)},0)${base ? ` ${base}` : ''}`);
+  }
 
   /**
    * Replace la pièce mobile déclarée par le contrôle (`control.move`) : l'obstacle

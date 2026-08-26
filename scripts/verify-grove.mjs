@@ -16,6 +16,8 @@ const entry = `
 import { Editor } from '../../src/webview/diagram/editor.mjs';
 import { buildNets } from '../../src/webview/diagram/model.mjs';
 import { groveShieldPins, groveShieldStrips, groveSocketPins } from '../../src/webview/diagram/grove-shield.mjs';
+import { plugRule } from '../../src/webview/diagram/editor.mjs';
+import { partDef } from '../../src/webview/diagram/catalog.mjs';
 import '../../src/webview/composants/grove-shield-element.mjs';
 import '../../src/webview/composants/pico-board.mjs';
 import '../../src/webview/composants/led-element.mjs';
@@ -119,7 +121,7 @@ async function run() {
 	pr.container.style.left = pr.part.x + 'px';
 	pr.container.style.top = pr.part.y + 'px';
 	await wait(60);
-	const holes = editor.collectBreadboardHoles(pico.id, true);
+	const holes = editor.collectBreadboardHoles(pico.id, plugRule(partDef('pico')));
 	ok('socle seul offert à la Pico (40 trous, ni ports Grove ni SPI)',
 		holes.length === 40 && holes.every((h) => groveSocketPins().has(h.pin)), holes.length);
 	editor.plugIntoBreadboard(pr.part, holes);

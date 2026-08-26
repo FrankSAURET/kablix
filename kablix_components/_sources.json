@@ -29,13 +29,19 @@
       "kind": "passive",
       "category": "Systems",
       "params": [
-        { "name": "address", "label": "DMX address (channels: red, green, blue)", "value": 1 }
+        {
+          "name": "address",
+          "label": "DMX address (channels: red, green, blue)",
+          "value": 1
+        }
       ],
       "l10n": {
         "fr": {
           "label": "Projecteur DMX PAR 38",
           "description": "Projecteur à LED PAR 38 piloté en DMX512 (Contest) : le bloc de LED prend la couleur envoyée sur ses canaux.",
-          "params": { "address": "Adresse DMX (canaux : rouge, vert, bleu)" }
+          "params": {
+            "address": "Adresse DMX (canaux : rouge, vert, bleu)"
+          }
         }
       }
     },
@@ -49,9 +55,290 @@
       "reference": "https://www.dfrobot.com/product-2388.html",
       "kind": "digital-source",
       "category": "Sensors",
-      "pinRoles": { "OUT": "Out" },
-      "control": { "type": "switch", "label": "Obstacle", "move": { "group": "obstacle", "dy": -40 } },
-      "openDrain": { "out": "Out", "supplies": [["Vcc.e", "GND.e"], ["Vcc.r", "GND.r3"]] }
+      "pinRoles": {
+        "OUT": "Out"
+      },
+      "control": {
+        "type": "switch",
+        "label": "Obstacle",
+        "move": {
+          "group": "obstacle",
+          "dy": -40
+        }
+      },
+      "openDrain": {
+        "out": "Out",
+        "supplies": [
+          [
+            "Vcc.e",
+            "GND.e"
+          ],
+          [
+            "Vcc.r",
+            "GND.r3"
+          ]
+        ]
+      }
+    },
+    {
+      "group": "Grove-Uno",
+      "type": "grove-uno",
+      "label": "Grove Shield (Uno)",
+      "description": "Grove Base Shield V2 for Arduino Uno: 16 Grove sockets (4 analog, 7 digital, 4 I2C, 1 UART) wired to the board headers. A slide switch feeds them 3.3 V or 5 V.",
+      "version": "2026.8.1",
+      "author": "Frank Sauret",
+      "reference": "https://wiki.seeedstudio.com/Base_Shield_V2/",
+      "kind": "grove-shield",
+      "category": "Boards",
+      "attrs": {
+        "pwr": "5v"
+      },
+      "shield": {
+        "host": "mcu",
+        "ports": [
+          {
+            "name": "A3",
+            "x": 50,
+            "y": 20,
+            "pins": [
+              "GND",
+              "VCC",
+              "A4",
+              "A3"
+            ]
+          },
+          {
+            "name": "A2",
+            "x": 50,
+            "y": 65,
+            "pins": [
+              "GND",
+              "VCC",
+              "A3",
+              "A2"
+            ]
+          },
+          {
+            "name": "A1",
+            "x": 50,
+            "y": 110,
+            "pins": [
+              "GND",
+              "VCC",
+              "A2",
+              "A1"
+            ]
+          },
+          {
+            "name": "A0",
+            "x": 50,
+            "y": 155,
+            "pins": [
+              "GND",
+              "VCC",
+              "A1",
+              "A0"
+            ]
+          },
+          {
+            "name": "D4",
+            "x": 90,
+            "y": 40,
+            "pins": [
+              "GND",
+              "VCC",
+              "D5",
+              "D4"
+            ]
+          },
+          {
+            "name": "D8",
+            "x": 90,
+            "y": 90,
+            "pins": [
+              "GND",
+              "VCC",
+              "D9",
+              "D8"
+            ]
+          },
+          {
+            "name": "I2C0",
+            "x": 90,
+            "y": 140,
+            "pins": [
+              "GND",
+              "VCC",
+              "SDA",
+              "SCL"
+            ]
+          },
+          {
+            "name": "D3",
+            "x": 140,
+            "y": 40,
+            "pins": [
+              "GND",
+              "VCC",
+              "D4",
+              "D3"
+            ]
+          },
+          {
+            "name": "D7",
+            "x": 140,
+            "y": 90,
+            "pins": [
+              "GND",
+              "VCC",
+              "D8",
+              "D7"
+            ]
+          },
+          {
+            "name": "I2C1",
+            "x": 140,
+            "y": 140,
+            "pins": [
+              "GND",
+              "VCC",
+              "SDA",
+              "SCL"
+            ]
+          },
+          {
+            "name": "D2",
+            "x": 190,
+            "y": 40,
+            "pins": [
+              "GND",
+              "VCC",
+              "D3",
+              "D2"
+            ]
+          },
+          {
+            "name": "D6",
+            "x": 190,
+            "y": 90,
+            "pins": [
+              "GND",
+              "VCC",
+              "D7",
+              "D6"
+            ]
+          },
+          {
+            "name": "I2C2",
+            "x": 190,
+            "y": 140,
+            "pins": [
+              "GND",
+              "VCC",
+              "SDA",
+              "SCL"
+            ]
+          },
+          {
+            "name": "UART",
+            "x": 240,
+            "y": 40,
+            "pins": [
+              "GND",
+              "VCC",
+              "TX",
+              "RX"
+            ]
+          },
+          {
+            "name": "D5",
+            "x": 240,
+            "y": 90,
+            "pins": [
+              "GND",
+              "VCC",
+              "D6",
+              "D5"
+            ]
+          },
+          {
+            "name": "I2C3",
+            "x": 240,
+            "y": 140,
+            "pins": [
+              "GND",
+              "VCC",
+              "SDA",
+              "SCL"
+            ]
+          }
+        ],
+        "signals": {
+          "A0": "A0",
+          "A1": "A1",
+          "A2": "A2",
+          "A3": "A3",
+          "A4": "A4",
+          "D2": "2",
+          "D3": "3",
+          "D4": "4",
+          "D5": "5",
+          "D6": "6",
+          "D7": "7",
+          "D8": "8",
+          "D9": "9",
+          "TX": "1",
+          "RX": "0",
+          "SDA": "A4",
+          "SCL": "A5"
+        },
+        "ties": [
+          [
+            "A4",
+            "A4.2"
+          ],
+          [
+            "A5",
+            "A5.2"
+          ]
+        ],
+        "ground": [
+          "GND.1",
+          "GND.2",
+          "GND.3"
+        ],
+        "switch": {
+          "attr": "pwr",
+          "knob": "switch-button",
+          "title": "Grove VCC rail",
+          "zone": {
+            "x": 12,
+            "y": 197,
+            "w": 38,
+            "h": 26
+          },
+          "options": [
+            {
+              "value": "3v3",
+              "label": "3.3 V",
+              "rail": "3.3V",
+              "dx": 0
+            },
+            {
+              "value": "5v",
+              "label": "5 V",
+              "rail": "5V",
+              "dx": 17.39
+            }
+          ]
+        }
+      },
+      "l10n": {
+        "fr": {
+          "label": "Grove Shield (Uno)",
+          "description": "Carte Grove Base Shield V2 pour Arduino Uno : 16 prises Grove (4 analogiques, 7 numeriques, 4 I2C, 1 UART) cablees sur les connecteurs de la carte. Un interrupteur a glissiere leur donne 3,3 V ou 5 V."
+        }
+      }
     }
   ]
 }

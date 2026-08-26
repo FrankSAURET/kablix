@@ -1582,6 +1582,13 @@ body.vscode-light .inspector__ref--nouveau {
   z-index: 0;
 }
 
+/* Carte fille posée SUR sa carte hôte (Grove Shield (Uno) sur une Uno) : c'est
+   l'inverse du shield Pico — le shield recouvre la carte, il passe donc devant
+   elle (z=1) et reste sous les composants (z=3) et les fils (z=5). */
+.part--shield-top {
+  z-index: 2;
+}
+
 /* Le shield NE remonte JAMAIS devant la Pico enfichée dessus, même quand le
    curseur approche une de ses broches (hissage `.part--pin-reachable`, z=4) :
    sinon le socle du shield passait devant la Pico et la « masquait » au survol

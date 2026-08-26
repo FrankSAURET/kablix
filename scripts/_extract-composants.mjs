@@ -6,7 +6,7 @@
 //
 // Conventions de la planche (cf. CLAUDE.md) :
 //   - un composant = un groupe dont l'id est le nom du composant ;
-//   - les PASTILLES ROUGES (cercles fill #ee0000) marquent les points de
+//   - les PASTILLES ROUGES (<circle> ou <ellipse>, fill #ee0000) marquent les points de
 //     connexion ; le texte juste au-dessus donne le NOM de la patte (nc = non
 //     connecté). Sur un bornier dessiné de profil, Frank écrit le nom À CÔTÉ de
 //     la pastille : à défaut de texte au-dessus, le libellé latéral le plus
@@ -67,9 +67,12 @@ const DROP = ${JSON.stringify(drop)};
 const KEEP_LABELS = ${keepLabels};
 const root = document.querySelector('#board svg');
 const out = [];
+// Un cercle etire reste une pastille : Inkscape rend <ellipse> des qu'un
+// coup de souris a change un rayon (Grove-Uno : SDA, SCL et la patte 0).
 const isPad = (el) => {
   const f = ((el.getAttribute('fill') || '') + ';' + (el.getAttribute('style') || '')).toLowerCase();
-  return el.tagName === 'circle' && /#ee0000|#e00\\b|rgb\\(238/.test(f);
+  return (el.tagName === 'circle' || el.tagName === 'ellipse')
+    && /#ee0000|#e00\\b|rgb\\(238/.test(f);
 };
 function findGroup(id) {
   // Inkscape laisse parfois passer une coquille dans l'id : on accepte le même
@@ -108,7 +111,7 @@ function collect(name, ids, parent, host) {
     return { el: t, x: p.x, y: p.y, cx: c.x, cy: c.y, txt: t.textContent.trim() };
   });
   const pris = new Set();
-  for (const c of [...g.querySelectorAll('circle')].filter(isPad)) {
+  for (const c of [...g.querySelectorAll('circle,ellipse')].filter(isPad)) {
     const p = toRoot(c, Number(c.getAttribute('cx') || 0), Number(c.getAttribute('cy') || 0));
     let best = null, bestD = 1e9;
     // Repère COMPLET de Frank : la pastille et son nom sont seuls dans leur

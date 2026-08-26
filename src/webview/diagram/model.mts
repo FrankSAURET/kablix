@@ -3,6 +3,7 @@
 import { mcuInternalStrips, mcuPinRole, mcuPins, partDef, rolePin, PARAM_ATTR_PREFIX, type BoardId, type PartKind } from './catalog.mjs';
 import { breadboardStrips, normalizeSize } from './breadboard.mjs';
 import { groveShieldStrips, normalizePower } from './grove-shield.mjs';
+import { shieldStrips } from './shield.mjs';
 import { gateOutput, icMarking, icRef, icSupplyRange, type SupplyRange } from './ics.mjs';
 import { isDarlingtonType, isMosType, isPnpType } from './transistors.mjs';
 
@@ -255,7 +256,8 @@ function computeNets(diagram: Diagram, joinResistors: boolean): Nets {
     dsu.union(key(wire.a), key(wire.b));
   }
   for (const part of diagram.parts) {
-    const kind = partDef(part.type).kind;
+    const def = partDef(part.type);
+    const kind = def.kind;
     if (kind === 'resistor') {
       // Mêmes bornes que le graphe résistif : rolePin traduit « 1 »/« 2 » en
       // c/e pour les composants dont les pattes portent un autre nom.
@@ -285,8 +287,14 @@ function computeNets(diagram: Diagram, joinResistors: boolean): Nets {
         }
       }
     } else if (kind === 'grove-shield') {
-      // Grove Shield Pico : socle ↔ ports Grove ↔ rails (VCC selon l'interrupteur).
-      for (const strip of groveShieldStrips(normalizePower(part.attrs?.pwr))) {
+      // Carte fille : socle ↔ prises Grove ↔ rails (VCC selon l'interrupteur).
+      // Le shield Pico est natif (table écrite en dur) ; une carte venue de la
+      // bibliothèque porte ses pistes dans son manifeste.
+      const spec = def.custom?.shield;
+      const pistes = spec
+        ? shieldStrips(spec, part.attrs)
+        : groveShieldStrips(normalizePower(part.attrs?.pwr));
+      for (const strip of pistes) {
         for (let i = 1; i < strip.length; i++) {
           dsu.union(`${part.id}/${strip[0]}`, `${part.id}/${strip[i]}`);
         }

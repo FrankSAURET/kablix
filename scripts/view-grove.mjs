@@ -10,7 +10,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CACHE = join(ROOT, 'node_modules', '.cache-grove');
 
 const entry = `
-import { Editor } from '../../src/webview/diagram/editor.mjs';
+import { Editor, plugRule } from '../../src/webview/diagram/editor.mjs';
+import { partDef } from '../../src/webview/diagram/catalog.mjs';
 import '../../src/webview/composants/grove-shield-element.mjs';
 import '../../src/webview/composants/pico-board.mjs';
 import '../../src/webview/composants/led-element.mjs';
@@ -33,7 +34,7 @@ async function run() {
 	pr.part.x += holeTL.x - pinTL.x; pr.part.y += holeTL.y - pinTL.y;
 	pr.container.style.left = pr.part.x + 'px'; pr.container.style.top = pr.part.y + 'px';
 	await wait(80);
-	editor.plugIntoBreadboard(pr.part, editor.collectBreadboardHoles(pico.id, true));
+	editor.plugIntoBreadboard(pr.part, editor.collectBreadboardHoles(pico.id, plugRule(partDef('picow'))));
 	// LED sur le port D16 du shield 2.
 	const led = editor.addPart('led', 680, 120);
 	await wait(100);
