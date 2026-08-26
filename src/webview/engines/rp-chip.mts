@@ -28,6 +28,41 @@ const FLASH_START = 0x10000000;
 /** Fréquence par défaut de chaque puce (Hz) — celle qu'annonce `machine.freq()`. */
 const CLK_SYS = { rp2040: 125_000_000, rp2350: 150_000_000 } as const;
 
+// --- Saut d'attente active (RP2350 seulement) -------------------------------
+// Le firmware du Pico 2 attend souvent l'heure les yeux ouverts au lieu de
+// s'endormir (voir `Rp2350Chip.dort`). Rien n'avance alors, sinon le compteur
+// de microsecondes qu'il relit en boucle : on reconnaît cette boucle et on
+// avance le temps d'un bloc, comme pour un vrai sommeil.
+/** Adresse (poids forts) du TIMER0 dans la table des périphériques du RP2350. */
+const TIMER0_CLE = 0x400b0;
+/**
+ * Dernier registre « pendule » du TIMER : de TIMEHW (0x00) à TIMERAWL (0x28),
+ * soit l'heure, les quatre rendez-vous et le registre ARMED. Les lire ne change
+ * rien à la puce — c'est ce qu'une attente fait, et rien d'autre. Au-delà
+ * commencent les registres d'interruption, qui eux signalent du travail.
+ */
+const TIMER_PENDULE_MAX = 0x28;
+/** Nombre de lectures d'heure rapprochées avant de conclure à une attente. */
+const ATTENTE_SERIE = 100;
+/** Au-delà de cet écart entre deux lectures d'heure, le cœur travaillait. */
+const ATTENTE_ECART_CYCLES = 20_000;
+/**
+ * Pas d'un saut d'attente active (ns simulées). Un changement d'entrée décidé
+ * par l'éditeur est donc vu au pire une milliseconde plus tard — c'est déjà la
+ * granularité du moteur, qui exécute ses lots par tranches d'une milliseconde
+ * sans regarder les entrées entre deux.
+ */
+const ATTENTE_PAS_NANOS = 1_000_000;
+/**
+ * Plafond d'un saut de sommeil (ns simulées). Sans rien à faire, le firmware
+ * arme son rendez-vous sur « jamais » (0xFFFFFFFF µs) et s'endort : le saut
+ * porterait alors l'horloge 71 minutes plus loin d'un seul bond, et le
+ * programme se réveillerait en croyant avoir dormi tout ce temps. Une seconde
+ * par saut ne coûte rien — le moteur cale de toute façon le temps simulé sur
+ * le temps réel — et garde l'heure du programme crédible.
+ */
+const SOMMEIL_MAX_NANOS = 1_000_000_000;
+
 export type PicoFamily = keyof typeof CLK_SYS;
 
 export { GPIOPinState };
@@ -260,6 +295,14 @@ class Rp2350Chip implements PicoChip {
   readonly clock: PicoClock;
   readonly cycleNanos = 1e9 / CLK_SYS.rp2350;
   private readonly puce: RP2350;
+  /** Lectures d'heure rapprochées vues d'affilée (cf. `ATTENTE_SERIE`). */
+  private serieHeure = 0;
+  /** Compteur de cycles à la dernière lecture d'heure, pour mesurer l'écart. */
+  private cyclesDerniereHeure = 0;
+  /** Le prochain saut est un saut d'attente active, pas un vrai sommeil. */
+  private sautAttente = false;
+  /** Attente reconnue : la boucle chaude doit rendre la main pour qu'on saute. */
+  private attente = false;
 
   constructor(private readonly arret: Arret) {
     // 'arm' : le Pico 2 est vendu en Cortex-M33, c'est l'architecture des
@@ -276,15 +319,92 @@ class Rp2350Chip implements PicoChip {
     this.clock = this.puce.clock as unknown as PicoClock;
     this.mcu = this.puce as unknown as PicoMcu;
     this.core = this.puce.core[0] as unknown as PicoCore;
+    this.compterLecturesHeure();
+  }
+
+  /**
+   * Compte les lectures de l'heure faites coup sur coup. Deux lectures séparées
+   * par un long calcul ne comptent pas : la série repart de zéro. Ce que l'on
+   * cherche est la boucle qui ne fait QUE regarder la pendule — pas celle qui
+   * surveille un composant en même temps, d'où la remise à zéro dès qu'un autre
+   * matériel est touché : un scan I²C interroge son contrôleur entre deux coups
+   * d'œil à la pendule, et sauter par-dessus ferait expirer son attente pour
+   * rien (banc `verify:pico2`).
+   */
+  private compterLecturesHeure(): void {
+    const core0 = this.puce.core[0];
+    const vuHeure = (): void => {
+      const cycles = core0.cycles;
+      this.serieHeure =
+        cycles - this.cyclesDerniereHeure > ATTENTE_ECART_CYCLES ? 0 : this.serieHeure + 1;
+      this.cyclesDerniereHeure = cycles;
+      if (this.serieHeure >= ATTENTE_SERIE) {
+        // Le test ne tombe qu'une fois par série, jamais dans le chemin chaud :
+        // sans rendez-vous à viser, on n'a rien à sauter et il faut laisser le
+        // cœur tourner, sinon la boucle du moteur n'exécuterait plus une seule
+        // instruction.
+        this.attente = this.clock.nanosToNextAlarm > 0;
+        if (!this.attente) this.serieHeure = 0;
+      }
+    };
+    for (const cle of Object.keys(this.puce.peripherals)) {
+      const horloge = Number(cle) === TIMER0_CLE;
+      const perif = this.puce.peripherals[Number(cle)] as unknown as {
+        readUint32(offset: number): number;
+        writeUint32(offset: number, value: number): void;
+      };
+      const lire = perif.readUint32.bind(perif);
+      const ecrire = perif.writeUint32.bind(perif);
+      perif.readUint32 = (offset: number): number => {
+        if (horloge && offset <= TIMER_PENDULE_MAX) vuHeure();
+        else this.serieHeure = 0;
+        return lire(offset);
+      };
+      perif.writeUint32 = (offset: number, value: number): void => {
+        this.serieHeure = 0;
+        ecrire(offset, value);
+      };
+    }
+  }
+
+  /** Le cœur a touché autre chose que la pendule : ce n'est plus une attente. */
+  private reveilMateriel(): void {
+    this.serieHeure = 0;
   }
 
   dort(): boolean {
+    const core0 = this.puce.core[0];
+    const core1 = this.puce.core[1];
     // Les DEUX cœurs, pas seulement le nôtre : sauter à la prochaine alarme
     // pendant que le cœur 1 calcule (_thread) escamoterait son travail.
-    return this.puce.core[0].waiting && this.puce.core[1].waiting;
+    if (core0.waiting && core1.waiting) {
+      this.sautAttente = false;
+      return true;
+    }
+    // Attente active. Le firmware RP2350 ne s'endort presque jamais : sa liste
+    // de réveils se vide (chaque réveil posé avant un WFE y laisse sa case), et
+    // faute de case il retombe sur une boucle qui relit l'heure jusqu'à
+    // l'échéance — un million et demi d'instructions pour dix millisecondes qui
+    // ne servent à rien. Quand la boucle est reconnue, on saute comme pour un
+    // sommeil.
+    if (!this.attente || !core1.waiting) return false;
+    this.sautAttente = true;
+    return true;
   }
 
   sauter(nanos: number): void {
+    if (this.sautAttente) {
+      // Saut d'attente active : le cœur 0 n'est pas endormi, il tourne à vide.
+      // On avance par petits pas plutôt que d'un bond jusqu'à l'échéance, pour
+      // lui rendre la main souvent — un caractère reçu sur l'USB ou une entrée
+      // changée doit encore pouvoir le sortir de sa boucle.
+      nanos = Math.min(nanos, ATTENTE_PAS_NANOS);
+      this.sautAttente = false;
+      this.attente = false;
+      this.serieHeure = 0;
+    } else {
+      nanos = Math.min(nanos, SOMMEIL_MAX_NANOS);
+    }
     const jumpCycles = nanos / this.cycleNanos;
     // Les deux cœurs dorment (cf. dort) : leurs compteurs suivent le saut.
     // Celui du cœur 1 sert de borne au rattrapage, pas seulement d'affichage.
@@ -293,6 +413,8 @@ class Rp2350Chip implements PicoChip {
     // `stepThings` avance les machines PIO actives ET tique l'horloge de
     // cycles × (1e9 / clkSys), soit exactement `nanos`.
     this.puce.stepThings(jumpCycles);
+    // Le bond de compteur ne doit pas passer pour un long calcul au retour.
+    this.cyclesDerniereHeure = this.puce.core[0].cycles;
   }
 
   executerLot(finNanos: number): void {
@@ -302,7 +424,16 @@ class Rp2350Chip implements PicoChip {
     const core1 = puce.core[1];
     // Une instruction du cœur 0, le cœur 1 rattrapé jusqu'au même cycle, puis
     // PIO + horloge : c'est leur `step()`, déplié pour ne pas payer deux appels.
-    while (!(core0.waiting && core1.waiting) && !arret.stopped && clock.nanos < finNanos) {
+    // `this.attente` s'allume dans le compteur de lectures d'heure : il faut
+    // rendre la main tout de suite, sinon le moteur ne reconsulterait `dort`
+    // qu'à la fin du lot — une milliseconde simulée plus loin, soit exactement
+    // ce qu'on voulait sauter.
+    while (
+      !(core0.waiting && core1.waiting) &&
+      !this.attente &&
+      !arret.stopped &&
+      clock.nanos < finNanos
+    ) {
       puce.stepThings(puce.stepCores());
     }
   }
@@ -345,6 +476,9 @@ class Rp2350Chip implements PicoChip {
     // (deux banques de 32 broches : le RP2350 en compte 48).
     const gpio = this.puce.gpio;
     this.puce.gpioValues = (start: number): number => {
+      // Les broches se lisent par le SIO, hors table des périphériques : c'est
+      // ici qu'une surveillance de broche annule le saut d'attente active.
+      this.reveilMateriel();
       let result = 0;
       const end = Math.min(start + 32, gpio.length);
       for (let i = start; i < end; i++) {

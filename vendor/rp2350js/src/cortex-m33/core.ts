@@ -397,6 +397,11 @@ export class CortexM33Core implements ICpuCore {
   exceptionReturn(excReturn: number) {
     const regs = this.regs;
     const st = this.ppb();
+    // Which exception is being left — captured BEFORE the stacked xPSR is
+    // restored below, which overwrites IPSR with the interrupted context's
+    // value (0 for thread mode). Reading it afterwards leaves NVIC_IABR bits
+    // set forever, so the IRQ stays "active" for the rest of the run.
+    const leavingVector = regs.ipsr;
     const returnToPsp = (excReturn & 0x4) !== 0;
     const returnToHandler = (excReturn & 0x8) === 0;
     const hadFpFrame = (excReturn & 0x10) === 0;
@@ -459,7 +464,7 @@ export class CortexM33Core implements ICpuCore {
     }
     regs.syncSpFromBanked();
 
-    const wasActiveVector = regs.ipsr;
+    const wasActiveVector = leavingVector;
     if (wasActiveVector >= EXC_EXTERNAL) {
       const irq = wasActiveVector - EXC_EXTERNAL;
       const bank = irq < 32 ? 0 : 1;

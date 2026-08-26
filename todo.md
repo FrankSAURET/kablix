@@ -8,7 +8,7 @@
 1. ✅ Ajout un oscilloscope (oscillo dans composants2d.svg). Bouton volts/div pour l'echelle verticale. Le bouton s/div pas de limites, tourné vers la droite il dilate la courbe, vers la gauche il la rétracte (pas de 1, 2, 5). Affichage en bas à droite de l'écran (oscillo-ecran) du calibre en tension et en temps par exemple "Vert : 2v/div | Hor : 1 s/div".
 ## pico2
 1. ✅ l'avertissement de ralentissement de la barre d'état ne fonctionne pas
-1. elles sont super lentes. Quel moyen de les accélérer ? → cause trouvée (v2026.8.102.15, item 6) : le firmware RP2350 n'endort presque jamais le cœur (19 WFE/s contre ~1000 sur RP2040), donc aucun saut d'alarme. À reprendre.
+1. ✅ elles sont super lentes. Quel moyen de les accélérer ? → réglé en v2026.8.102.21 : saut d'attente active. `time.sleep_ms(10)` passe de 0,04× à **1,000×**.
 1. Projets qui ne marchent pas : 16 servo + alim, condo, dht11, dht22, dmx, ili9341, ledring, microsd, neopixel-matrix, neopixel, us-sensor,
 1. Traductions **EN** du lot Pico 2, à faire en un seul lot avant publication : `docs/en/composants/pico2.md` et `pico2w.md`, le paragraphe *Communication avec l'extérieur* de `picow.md`, et les deux précisions ajoutées à `USAGE.md`.
 ## ne pas faire pour l'instant 
@@ -17,6 +17,20 @@
     1. Capteur d'humidité dans le sol grove
     1. Grove light sensor
     1. Lecteur RFID grove
+
+# >>>>  v2026.8.102.21 — Le Pico 2 arrête d'attendre les yeux ouverts
+
+1. ✅ **Les cartes Pico 2 tiennent enfin l'heure** (item 2 de `## pico2`). Un programme qui fait `time.sleep_ms(10)` en boucle tournait à **0,04×** — vingt-cinq fois trop lent — et tourne désormais à **1,000×**, la vitesse de la vraie carte. Pareil pour `sleep_ms(1)` et `sleep(1)` : **1,000×**.
+2. ✅ **Ce qui n'allait pas.** Pour attendre, un microcontrôleur a deux façons de faire : **dormir** — il pose un réveil, s'arrête net, et la simulation peut alors sauter d'un bond jusqu'à la sonnerie — ou **attendre les yeux ouverts**, en regardant la pendule des millions de fois d'affilée jusqu'à l'heure dite. Le firmware du Pico 2 fait presque toujours la seconde : sa petite liste de réveils se remplit et ne se vide jamais (chaque réveil posé y laisse sa case), donc à court de cases il se rabat sur la boucle qui regarde la pendule. **Un million et demi d'instructions pour dix millisecondes qui ne servent à rien** — et rien à sauter, puisque le cœur n'est jamais endormi.
+3. ✅ **Ce qui a été fait : on reconnaît la boucle d'attente** ([rp-chip.mts](src/webview/engines/rp-chip.mts)). Cent coups d'œil à la pendule coup sur coup, sans jamais toucher à autre chose : c'est une attente, rien d'autre ne peut se produire. On avance alors le temps d'un bloc, exactement comme pour un vrai sommeil. Le compteur repart à zéro dès que le cœur touche **n'importe quel autre matériel** ou **une broche** — sinon un scan I²C, qui interroge son contrôleur entre deux coups d'œil, se ferait sauter par-dessus son propre délai (le banc `verify:pico2` l'a attrapé).
+4. ✅ **Le calcul, lui, n'est jamais accéléré** : `while True: pass` reste à 0,030× avec **zéro saut**. On ne saute que ce qui ne fait rien. Un saut vaut **une milliseconde au plus** — pas d'un bond jusqu'à l'échéance — pour que le cœur reprenne la main souvent : un caractère reçu sur le câble USB ou une entrée changée dans l'éditeur doit encore pouvoir le sortir de sa boucle. C'est déjà la granularité du moteur, qui exécute par tranches d'une milliseconde.
+5. ✅ **Il fallait aussi rendre la main tout de suite.** Le moteur ne redemande « tu dors ? » qu'à la fin de chaque tranche d'une milliseconde — soit précisément ce qu'on voulait sauter. La première version plafonnait donc à **0,078×** : elle voyait l'attente et ne pouvait rien en faire. La boucle chaude d'`executerLot` s'interrompt maintenant dès que l'attente est reconnue.
+6. ✅ **Un sommeil ne saute plus que d'une seconde à la fois** (`SOMMEIL_MAX_NANOS`). Sans rien à faire, le firmware pose son réveil sur « jamais » (0xFFFFFFFF µs) : le saut portait l'horloge **71 minutes** plus loin d'un seul bond, et le programme se réveillait en croyant avoir dormi tout ce temps. Une seconde par saut ne coûte rien — le moteur cale de toute façon le temps simulé sur le temps réel — et garde l'heure du programme crédible.
+7. ✅ **Un vrai défaut de l'émulateur corrigé au passage** ([core.ts](vendor/rp2350js/src/cortex-m33/core.ts)) : en sortant d'une interruption, `exceptionReturn()` lisait le numéro de l'interruption qu'il quittait **après** avoir restauré l'état sauvegardé — donc il lisait 0, et ne débarrassait jamais le contrôleur d'interruptions de son drapeau « celle-ci est en cours ». Le numéro est maintenant retenu à l'entrée. Sans effet sur la vitesse, mais c'était faux.
+8. ✅ **Toute la suite y gagne** : 97 bancs sur 97 en **460 s** au lieu de **588 s**. Le scan I²C de `verify:pico2` est inchangé et passe.
+9. ℹ️ **Douze outils de diagnostic versionnés** (`scripts/_diag-pico2-*.mjs`, `_diag-dump-fw.mjs`) : ce sont eux qui ont éliminé une à une les fausses pistes — tempête d'interruptions USB, registre d'événement, cœur 1 qui bloquerait le sommeil (il dort 100 % du temps), compte à rebours du TIMER faux (il est juste au microseconde près), `time_us_64` faux. `_diag-pico2-perif.mjs` est celui qui a tout dénoué : **487 853 lectures du registre ALARM3** pour dix millisecondes de sommeil, l'attente les yeux ouverts prise la main dans le sac.
+
+---
 
 # >>>>  v2026.8.102.20 — Le badge de ralentissement ne peut plus se taire
 
