@@ -18,6 +18,10 @@ Ne rien modifier ici à la main : ce dossier est **régénéré** par
 - `patches/rp2350js/01-irq-gpio-et-csr-mcycle.patch`
 - `patches/rp2350js/02-table-decodage-thumb16.patch`
 - `patches/rp2350js/03-gpioc-mcrr.patch`
+- `patches/rp2350js/04-alarmes-fifo.patch`
+- `patches/rp2350js/05-uart-txris.patch`
+- `patches/rp2350js/06-systick-base.patch`
+- `patches/rp2350js/07-fpu-vrint.patch`
 
 ## Écarté de la copie
 

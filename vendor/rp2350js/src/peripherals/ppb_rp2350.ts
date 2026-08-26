@@ -32,7 +32,12 @@ import { SimulationClock } from '../clock/simulation-clock.js';
 // from 0xe0000000, NOT the 12-bit-only offset used by the RP2040 PPB.
 // This keeps DWT (0xe0001000) from aliasing with NVIC (0xe000e100).
 const NVIC_BASE = 0x000e100;
-const SYSTICK_BASE = 0x000e010;
+// KABLIX PATCH: was 0x000e010, i.e. the address of SYST_CSR itself. Since the
+// register offsets below are added to it, the whole SysTick block answered at
+// 0xe000e020-0xe000e02c instead of 0xe000e010-0xe000e01c: every read returned 0.
+// MicroPython's machine.bitstream busy-waits on SYST_CVR, so its NeoPixel HIGH
+// pulses lasted no time at all and every WS2812 pixel came out black on Pico 2.
+const SYSTICK_BASE = 0x000e000;
 const SCB_BASE = 0x000ed00;
 
 // SCB register offsets.

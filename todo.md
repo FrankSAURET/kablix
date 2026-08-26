@@ -9,18 +9,39 @@
 ## pico2
 1. ✅ l'avertissement de ralentissement de la barre d'état ne fonctionne pas
 1. ✅ elles sont super lentes. Quel moyen de les accélérer ? → saut d'attente active en v2026.8.102.21 (`time.sleep_ms(10)` passe de 0,04× à **1,000×**), réglé sur les attentes courtes en v2026.8.102.22 (`time.sleep_us(20)` ne dure plus cinquante fois trop longtemps).
-1. Projets qui ne marchent pas : 16 servo + alim, condo, dht11, dht22, dmx, ili9341, ledring, microsd, neopixel-matrix, neopixel, us-sensor,
+1. ✅ Projets qui ne marchent pas : 16 servo + alim, condo, dht11, dht22, dmx, ili9341, ledring, microsd, neopixel-matrix, neopixel, us-sensor → les onze remarchent (v2026.8.102.23) : quatre défauts de l'émulateur RP2350 corrigés (patchs 04 à 07) et un de Kablix, commun aux deux cartes.
 1. Tu trouvera le modèle de la carte Grove-Uno. Cette carte se connecte sur la Arduino uno. Je n'ai mis les pastilles rouges que pour les pattes enfichables sur la uno. Le broches de connexion propres à la grove s'appellent Grove-Pin-0 à Grove-Pin-63. Tu leur donnera des noms sur le même modele que le nommage des broches de la grove-pico (Par exemple D4-GND, D4-D5...)
 Comme sur la grove-pico l'interrupteur switch-button doit pouvoir commuter le 3,3 ou 5v. ne gère pas le bouton  reset et la led.
 Attention elles est spéciale. Je n'ais pas réussis à placer toutes les connexions sur la grille de 10px (connecteur A2 et A0). 
 Elle va dans la librairie externe kablix_components et dans la catégorie Cartes & platines avec le nom Grove Shield (Uno).
-
+1. Ajoute soil-moisture-sensor avec en simulation un curseur de variation  d'humidité en %
+1. Ajoute Grove-Light-Sensor avec en simulation un curseur de variation  de luminosité en lux (de 0 à max). Une propriété qui se retrouvera dans la simulation la valeur **max** en lux. Par défaut 500 lx. 
 1. Traductions **EN** du lot Pico 2, à faire en un seul lot avant publication : `docs/en/composants/pico2.md` et `pico2w.md`, le paragraphe *Communication avec l'extérieur* de `picow.md`, et les deux précisions ajoutées à `USAGE.md`.
 ## ne pas faire pour l'instant 
 1. Ajouter :
-    1. Capteur d'humidité dans le sol grove
-    1. Grove light sensor
     1. Lecteur RFID grove
+
+# >>>>  v2026.8.102.23 — Les onze projets muets du Pico 2 reparlent
+
+1. ✅ **Les onze projets de l'item 3 tournent, sur les deux cartes.** 16 servo + alim, condo, dht11, dht22, dmx, ili9341, ledring, microsd, neopixel, neopixel-matrix, us-sensor. Cinq défauts étaient dessous, et **aucun banc ne les voyait** : nos bancs de composants ne connaissaient que le Pico 1. Chacun est désormais joué sur les DEUX cartes.
+2. ✅ **Le défaut qui touchait les deux cartes : la réponse d'un capteur partait trop tard** ([pico.mts](src/webview/engines/pico.mts), [rp-chip.mts](src/webview/engines/rp-chip.mts)). Le moteur exécute le programme par **paquets d'une milliseconde** simulée. Quand la carte relâche la ligne du DHT, c'est un écouteur de broche qui prévient le capteur « à toi » — **au milieu du paquet**. Le capteur posait son « je réponds dans 30 microsecondes », mais la fin du paquet était déjà fixée : le premier front sortait **367 microsecondes** plus tard. Or le programme abandonne au bout de **100**. D'où le message `ETIMEDOUT` — sur Pico 1 comme sur Pico 2, depuis toujours.
+3. ✅ **La parade : un paquet peut maintenant être coupé en cours de route** (drapeau `coupeLot`). Une échéance posée pendant le paquet et due **avant sa fin** rend la main tout de suite ; le paquet suivant s'arrête pile à l'heure dite. Coût : un test de plus par instruction, **zéro ralentissement mesurable** (`verify:simspeed` reste à 1,00× sur les deux cartes).
+4. ✅ **Quatre défauts dans l'émulateur RP2350 vendorisé**, chacun avec son correctif dans `patches/rp2350js/` (le dossier `vendor/` est reconstruit à chaque mise à jour : une correction écrite là-bas seulement disparaîtrait) :
+   1. **Les réveils simultanés se servaient à l'envers** (`04-alarmes-fifo.patch`). Deux réveils à la même heure : le dernier posé passait devant. Le canal qui émet a donc affamé celui qui reçoit, et `spi.write(bytes(64))` ne revenait jamais — au-delà de seize octets, MicroPython passe par le convoyeur (DMA). C'est ce qui laissait **ili9341** et **microsd** muets.
+   2. **Une interruption d'émission impossible à effacer** (`05-uart-txris.patch`). Le port série annonçait « j'ai fini d'écrire » sans arrêt, même quand personne n'écrivait : le cœur ne faisait plus que répondre à cette annonce et `UART(0, ...)` ne rendait jamais la main. **dmx** ne démarrait pas.
+   3. **La pendule fine répondait à côté de son adresse** (`06-systick-base.patch`). L'adresse de départ valait `0x000e010` au lieu de `0x000e000` ; comme les numéros de registres s'y ajoutent, tout le bloc répondait seize octets trop loin et **chaque lecture rendait zéro**. Les impulsions des NeoPixel, qui se chronomètrent dessus, ne duraient donc rien : **neopixel**, **ledring** et **neopixel-matrix** restaient noirs.
+   4. **Trois instructions de calcul manquaient** (`07-fpu-vrint.patch`). VRINTR, VRINTZ et VRINTX arrondissent un nombre à virgule sans quitter la virgule. MicroPython les emploie dès qu'un calcul à virgule revient à un entier : le cœur s'arrêtait sur « instruction inconnue » au **premier angle de servomoteur** calculé. C'est **16 servo + alim**.
+5. ✅ **Deux nouveaux bancs de bout en bout**, vrai firmware, vrais composants branchés, joués sur les deux cartes :
+   - [verify-dht-e2e.mjs](scripts/verify-dht-e2e.mjs) — un capteur par moteur (le DHT11 tient la ligne basse 18 ms, le DHT22 seulement 1 : ensemble, ils masquaient lequel ne répondait pas). Quatre cas au vert : `LU 23.4 56.7` et `LU 25 60`.
+   - [verify-condo-e2e.mjs](scripts/verify-condo-e2e.mjs) — les trois circuits RC du projet `condo` relus par `ADC.read_u16()`, avec la tension posée **à l'instant de la conversion**. La commande sur GP15 est lue sur la broche elle-même : c'est le condensateur qui suit l'ordre, pas le banc qui devine.
+6. ✅ **Les bancs existants passent aux deux cartes** : [verify-micropython](scripts/verify-micropython.mjs), [verify-spi](scripts/verify-spi.mjs) et [verify-spi-dma-unit](scripts/verify-spi-dma-unit.mjs), [verify-neopixel](scripts/verify-neopixel.mjs), [verify-pca-e2e](scripts/verify-pca-e2e.mjs), [verify-sdcard-e2e](scripts/verify-sdcard-e2e.mjs), [verify-ultrasonic](scripts/verify-ultrasonic.mjs), [verify-dmx](scripts/verify-dmx.mjs). La liste des deux cartes vit à un seul endroit (`CARTES_PICO` dans [_firmware.mjs](scripts/_firmware.mjs)).
+7. ✅ **Le banc neopixel disait vrai mais donnait à lire des fractions** (0,04 au lieu de 10) face à des attentes en 0–255 : un passage réussi avait l'air faux. Les deux lignes se comparent maintenant à l'œil.
+8. ℹ️ **Un piège de diagnostic à retenir** : [_diag-projix.mjs](scripts/_diag-projix.mjs) rejoue un projet **sans brancher aucun composant**. Ses « 0,00 V », ses « PCA9685 non trouvé » et ses délais dépassés ne prouvent **rien** : il mesure le régime et les erreurs Python, rien d'autre. Deux fausses pistes en sont venues.
+9. ℹ️ **Outils de diagnostic versionnés** : [_diag-dht.mjs](scripts/_diag-dht.mjs) (quatre espions — les fronts poussés par le capteur, l'état complet de la broche, et **ce que le programme lit vraiment** : c'est lui qui a montré zéro lecture après le début de la réponse), [_diag-spi.mjs](scripts/_diag-spi.mjs) et [_diag-uart.mjs](scripts/_diag-uart.mjs) (une lettre par étape, avec un souffle de 200 ms : sans lui, les lignes déjà imprimées dorment dans le tampon USB et on accuse la mauvaise instruction).
+10. ✅ **La suite complète : 98 bancs verts sur 99**, en 444 s. Le seul rouge est `verify:i18n`, et il **ne vient pas de ce lot** : ce sont les libellés du multimètre, de l'oscilloscope, de la photodiode et du phototransistor, déjà notés ⏳ aux lots précédents. Les traductions partent en un seul lot avant publication.
+11. ⏳ Traductions **EN** : rien de nouveau côté interface pour ce lot, tout est dans les bancs et le moteur.
+
+---
 
 # >>>>  v2026.8.102.22 — Le Pico 2 rend les microsecondes qu'il avait avalées
 

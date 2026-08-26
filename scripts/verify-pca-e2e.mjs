@@ -4,21 +4,20 @@
 // 0x7F et vérifie qu'AUCUN RuntimeError « PCA9685 non trouvé » n'est levé et
 // qu'un canal reçoit bien un rapport cyclique (servo 90°).
 // Régression du bug de Frank : la carte Grove 108020102 est à 0x7F, pas 0x40.
-// Nécessite RPI_PICO-*.uf2 (test-assets/ ou cache VS Code) (test sauté sinon).
+// Nécessite RPI_PICO-*.uf2 / RPI_PICO2-*.uf2 (test-assets/ ou cache VS Code) —
+// la carte dont le firmware manque est simplement sautée.
+//
+// Joué sur LES DEUX CARTES : le projet « 16 servo + alim » a sa version Pico 2,
+// et aucun banc de composant ne connaissait cette carte.
 import esbuild from 'esbuild';
-import { existsSync, mkdtempSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
+import { existsSync, mkdtempSync, writeFileSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { tk } from '../testkablix/_paths.mjs';
-import { firmwarePico } from './_firmware.mjs';
+import { CARTES_PICO, firmwareAbsent, firmwarePico } from './_firmware.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const fw = firmwarePico();
-if (!fw) {
-  console.log('SKIP : firmware MicroPython absent (RPI_PICO-*.uf2 (test-assets/ ou cache VS Code)).');
-  process.exit(0);
-}
 const lib = tk('grove_16_channels_pwm.py');
 if (!existsSync(lib)) {
   console.log('SKIP : lib grove_16_channels_pwm.py absente de testkablix/.');
@@ -64,51 +63,67 @@ const sketchSrc = [
 const sketchPath = join(dirname(lib), '_pca_e2e_tmp.py');
 writeFileSync(sketchPath, sketchSrc, 'utf8');
 
-const program = loadPythonProgram(fw, sketchSrc, false, sketchPath);
-const engine = new PicoEngine({
-  kind: 'flash',
-  segments: program.payload.segments.map((s) => ({
-    addr: s.addr,
-    data: new Uint8Array(Buffer.from(s.b64, 'base64')),
-  })),
-  script: program.payload.script,
-});
-
-// La carte Grove est à 0x7F (correctif). Sans alim servo simulée ici, la
-// DÉTECTION I²C doit malgré tout réussir (VCC logique séparé), comme la vraie
-// carte : c'est exactement ce que teste ce banc.
-engine.setI2cDevices([new Pca9685Device(0x7f)]);
-
-let serial = '';
-engine.onSerial = (chunk) => {
-  serial += chunk;
-  process.stdout.write(chunk);
-};
-
-console.log('Démarrage de MicroPython (max 120 s)…');
-const started = Date.now();
-engine.start();
-
-const timer = setInterval(() => {
-  const elapsed = (Date.now() - started) / 1000;
-  const runtimeErr = /PCA9685 non trouv|RuntimeError/.test(serial);
-  const ok = serial.includes('PCA_SERVO_OK') && serial.includes('PCA_PRETE');
-  if (runtimeErr || ok || elapsed > 120) {
-    clearInterval(timer);
-    engine.dispose();
-    try { unlinkSync(sketchPath); } catch {}
-    if (runtimeErr) {
-      console.error('\n  ✗ RuntimeError : la carte n\'est pas détectée à 0x7F.');
-      console.log('\nRESULTAT: ECHEC');
-      process.exit(1);
-    }
-    if (ok) {
-      console.log(`\n  ✓ carte détectée à 0x7F et servo piloté (${elapsed.toFixed(1)} s)`);
-      console.log('\nRESULTAT: OK');
-      process.exit(0);
-    }
-    console.error(`\n  ✗ délai dépassé. Série : ${JSON.stringify(serial.slice(-400))}`);
-    console.log('\nRESULTAT: ECHEC');
-    process.exit(1);
+/** Détecte la carte Grove et pilote un servo sur une carte Pico. */
+async function essai(carte) {
+  console.log(`\n--- ${carte.nom}`);
+  const fw = firmwarePico(carte.prefixe);
+  if (!fw) {
+    console.log(`  SKIP : ${firmwareAbsent(carte.prefixe)}`);
+    return true;
   }
-}, 500);
+  const program = loadPythonProgram(fw, sketchSrc, false, sketchPath);
+  const engine = new PicoEngine({
+    kind: 'flash',
+    segments: program.payload.segments.map((s) => ({
+      addr: s.addr,
+      data: new Uint8Array(Buffer.from(s.b64, 'base64')),
+    })),
+    script: program.payload.script,
+  }, carte.famille);
+
+  // La carte Grove est à 0x7F (correctif). Sans alim servo simulée ici, la
+  // DÉTECTION I²C doit malgré tout réussir (VCC logique séparé), comme la vraie
+  // carte : c'est exactement ce que teste ce banc.
+  engine.setI2cDevices([new Pca9685Device(0x7f)]);
+
+  let serial = '';
+  engine.onSerial = (chunk) => {
+    serial += chunk;
+    process.stdout.write(chunk);
+  };
+
+  console.log('  Démarrage de MicroPython (max 120 s)…');
+  const started = Date.now();
+  engine.start();
+
+  return await new Promise((resolve) => {
+    const timer = setInterval(() => {
+      const elapsed = (Date.now() - started) / 1000;
+      const runtimeErr = /PCA9685 non trouv|RuntimeError/.test(serial);
+      const ok = serial.includes('PCA_SERVO_OK') && serial.includes('PCA_PRETE');
+      if (!runtimeErr && !ok && elapsed <= 120) return;
+      clearInterval(timer);
+      engine.dispose();
+      if (runtimeErr) {
+        console.error("\n  ✗ RuntimeError : la carte n'est pas détectée à 0x7F.");
+        resolve(false);
+        return;
+      }
+      if (ok) {
+        console.log(`\n  ✓ carte détectée à 0x7F et servo piloté (${elapsed.toFixed(1)} s)`);
+        resolve(true);
+        return;
+      }
+      console.error(`\n  ✗ délai dépassé. Série : ${JSON.stringify(serial.slice(-400))}`);
+      resolve(false);
+    }, 500);
+  });
+}
+
+let echecs = 0;
+for (const carte of CARTES_PICO) {
+  if (!(await essai(carte))) echecs++;
+}
+try { unlinkSync(sketchPath); } catch {}
+console.log(echecs ? `\nRESULTAT: ECHEC (${echecs} carte(s))` : '\nRESULTAT: OK');
+process.exit(echecs ? 1 : 0);

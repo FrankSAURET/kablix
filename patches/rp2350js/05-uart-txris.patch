@@ -1,0 +1,32 @@
+diff --git a/src/peripherals/uart.ts b/src/peripherals/uart.ts
+index aba9940..ac34de6 100644
+--- a/src/peripherals/uart.ts
++++ b/src/peripherals/uart.ts
+@@ -112,8 +112,14 @@ export class RPUART<ChipType extends IRPChip = IRPChip>
+   }
+ 
+   checkInterrupts() {
+-    // TODO We should actually implement a proper FIFO for TX
+-    this.interruptStatus |= UARTTXINTR;
++    // KABLIX PATCH: do NOT raise TXRIS here. Re-raising the flag on every call
++    // made the TX interrupt come straight back after the handler's UARTICR: as
++    // soon as MicroPython created a UART (it arms TXIM at init), the core spun
++    // inside the ISR forever - no console output at all, and the DMX project
++    // stayed mute on Pico 2.
++    // The PL011 raises TXRIS when the TX FIFO drops below its threshold; here
++    // the byte leaves immediately, so it is the UARTDR write that raises it,
++    // once (see writeUint32). Same fix as patches/rp2040js+1.3.3.patch.
+     this.rpchip.setInterrupt(this.irq, !!(this.interruptStatus & this.interruptMask));
+   }
+ 
+@@ -176,6 +182,10 @@ export class RPUART<ChipType extends IRPChip = IRPChip>
+     switch (offset) {
+       case UARTDR:
+         this.onByte?.(value & 0xff);
++        // KABLIX PATCH: the byte leaves at once, so the TX FIFO drops back
++        // below its threshold - that transition is what raises TXRIS.
++        this.interruptStatus |= UARTTXINTR;
++        this.checkInterrupts();
+         break;
+ 
+       case UARTIBRD:

@@ -40,14 +40,59 @@ const ATTENTES = {
 	us20: 'time.sleep_us(20)',
 	us5: 'time.sleep_us(5)',
 	rien: 'pass',
+	// Sans attente : c'est le périphérique qui coûte, pas le sommeil.
+	spi10: {
+		init: [
+			'from machine import Pin, SPI',
+			'spi = SPI(0, baudrate=10_000_000, sck=Pin(18), mosi=Pin(19), miso=Pin(16))',
+			'buf = bytes(64)',
+		],
+		corps: 'spi.write(buf)',
+	},
+	spi1: {
+		init: [
+			'from machine import Pin, SPI',
+			'spi = SPI(0, baudrate=1_320_000, sck=Pin(18), mosi=Pin(19), miso=Pin(16))',
+			'buf = bytes(64)',
+		],
+		corps: 'spi.write(buf)',
+	},
+	uart250: {
+		init: [
+			'from machine import Pin, UART',
+			'uart = UART(0, baudrate=250000, bits=8, parity=None, stop=2, tx=Pin(0))',
+			'trame = bytearray(513)',
+		],
+		corps: 'uart.write(trame)',
+	},
+	// Trame puis sommeil : le vrai rythme d'un projet DMX ou d'un afficheur.
+	uartdodo: {
+		init: [
+			'from machine import Pin, UART',
+			'uart = UART(0, baudrate=250000, bits=8, parity=None, stop=2, tx=Pin(0))',
+			'trame = bytearray(513)',
+		],
+		corps: ['uart.write(trame)', 'time.sleep_ms(100)'],
+	},
+	spidodo: {
+		init: [
+			'from machine import Pin, SPI',
+			'spi = SPI(0, baudrate=10_000_000, sck=Pin(18), mosi=Pin(19), miso=Pin(16))',
+			'buf = bytes(64)',
+		],
+		corps: ['spi.write(buf)', 'time.sleep_ms(100)'],
+	},
 };
 const nom = (process.argv.find((a) => a.startsWith('--script=')) ?? '--script=sleep10').slice(9);
+const cas = ATTENTES[nom] ?? ATTENTES.sleep10;
+const { init = [], corps } = typeof cas === 'string' ? { corps: cas } : cas;
 const script = [
 	'import time',
+	...init,
 	"print('PRET')",
 	't0 = time.ticks_us()',
 	`for _ in range(${tours}):`,
-	'    ' + (ATTENTES[nom] ?? ATTENTES.sleep10),
+	...[].concat(corps).map((l) => '    ' + l),
 	"print('FIN', time.ticks_diff(time.ticks_us(), t0) // 1000)",
 	'',
 ].join('\n');
@@ -60,7 +105,9 @@ engine.onSerial = (c) => {
 	if (tPret === 0 && /^PRET$/m.test(sortie)) tPret = performance.now();
 	// La ligne doit être ENTIÈRE : le flux série arrive par bouts, et « FIN 9 »
 	// est le début de « FIN 999 » — sans le saut de ligne on lit un nombre coupé.
-	const m = sortie.match(/^FIN (\d+)\r?\n/m);
+	// Pas d'ancre de début de ligne : un périphérique branché (UART) déverse ses
+	// octets sur la même console et colle du bruit devant « FIN ».
+	const m = sortie.match(/FIN (\d+)\r?\n/);
 	if (m) {
 		const mur = performance.now() - tPret;
 		const simule = Number(m[1]);

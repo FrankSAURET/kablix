@@ -26,7 +26,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { lireKompix } from './_lire-kompix.mjs';
-import { firmwarePico } from './_firmware.mjs';
+import { CARTES_PICO, firmwareAbsent, firmwarePico } from './_firmware.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const QUICK = process.argv.includes('--quick');
@@ -443,28 +443,37 @@ async function boutEnBout(nom, engine, pin, limiteMs) {
 		[...vues].every((c) => c === '0,0,0' || ATTENDUES.includes(c)), [...vues].join(' | '));
 }
 
+// Les DEUX cartes : le projet dmx a sa version Pico 2, et il y restait muet.
+// Le RP2350 vendorisé levait une interruption d'émission UART que rien ne
+// pouvait effacer (patches/rp2350js/05-uart-txris.patch) : `UART(0, ...)` ne
+// rendait jamais la main, et aucun banc ne connaissait cette carte.
 console.log('\n--- 4. Bout en bout Pico : dmx-pico.py → UART0 → univers ---');
-const fw = firmwarePico();
 if (QUICK) {
 	console.log('--quick : étape sautée.');
-} else if (!fw) {
-	console.log('Firmware absent — étape sautée.');
 } else {
 	const { parseUf2 } = await bundle("export * from './src/shared/uf2.ts';\n", 'uf2.mjs');
 	const { PicoEngine } = await bundle("export * from './src/webview/engines/pico.mts';\n", 'pico.mjs');
-	const segments = parseUf2(new Uint8Array(readFileSync(fw))).map((s) => ({ addr: s.addr, data: s.data }));
 	const script = readFileSync(join(ROOT, 'testkablix', 'dmx-pico.py'), 'utf8');
-	const engine = new PicoEngine({ kind: 'flash', segments, script });
-	engine.setDmx(['GP0']);
-	// Les 513 octets de la trame ne doivent PAS remonter au moniteur série : la
-	// console de l'élève afficherait 513 caractères de contrôle par seconde.
-	let serial = '';
-	engine.onSerial = (chunk) => { serial += chunk; };
-	await boutEnBout('pico', engine, 'GP0', 120_000);
-	check('pico : le moniteur série ne reçoit pas la trame binaire',
-		!/[ -�]/.test(serial), JSON.stringify(serial.slice(0, 60)));
-	check('pico : les messages du programme arrivent quand même',
-		serial.includes('Couleur'), JSON.stringify(serial.slice(-60)));
+	for (const carte of CARTES_PICO) {
+		const fw = firmwarePico(carte.prefixe);
+		if (!fw) {
+			console.log(`  ${carte.nom} : ${firmwareAbsent(carte.prefixe)} — étape sautée.`);
+			continue;
+		}
+		const segments = parseUf2(new Uint8Array(readFileSync(fw))).map((s) => ({ addr: s.addr, data: s.data }));
+		const engine = new PicoEngine({ kind: 'flash', segments, script }, carte.famille);
+		engine.setDmx(['GP0']);
+		// Les 513 octets de la trame ne doivent PAS remonter au moniteur série : la
+		// console de l'élève afficherait 513 caractères de contrôle par seconde.
+		let serial = '';
+		engine.onSerial = (chunk) => { serial += chunk; };
+		await boutEnBout(carte.nom, engine, 'GP0', 120_000);
+		check(`${carte.nom} : le moniteur série ne reçoit pas la trame binaire`,
+			!/[ -�]/.test(serial), JSON.stringify(serial.slice(0, 60)));
+		check(`${carte.nom} : les messages du programme arrivent quand même`,
+			serial.includes('Couleur'), JSON.stringify(serial.slice(-60)));
+		engine.dispose?.();
+	}
 }
 
 console.log('\n--- 5. Bout en bout uno : dmx-uno.ino → USART0 → univers ---');

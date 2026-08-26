@@ -35,3 +35,16 @@ export function firmwarePico(prefixe = 'RPI_PICO-') {
 export function firmwareAbsent(prefixe = 'RPI_PICO-') {
   return `firmware MicroPython introuvable (${prefixe}*.uf2 dans test-assets/ ou le cache de l'extension)`;
 }
+
+/**
+ * Les deux cartes que tout banc Pico doit éprouver, dans l'ordre.
+ *
+ * Aucun banc de composant ne testait le Pico 2 : onze projets marchaient sur
+ * Pico 1 et restaient muets sur Pico 2 sans qu'un seul banc ne rougisse. Un
+ * banc qui ne parcourt pas cette liste ne prouve donc rien sur la moitié des
+ * cartes.
+ */
+export const CARTES_PICO = [
+  { nom: 'Pico 1', prefixe: 'RPI_PICO-', famille: 'rp2040' },
+  { nom: 'Pico 2', prefixe: 'RPI_PICO2-', famille: 'rp2350' },
+];

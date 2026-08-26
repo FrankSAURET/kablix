@@ -1,0 +1,20 @@
+diff --git a/src/clock/simulation-clock.ts b/src/clock/simulation-clock.ts
+index bb3873a..3b440e2 100644
+--- a/src/clock/simulation-clock.ts
++++ b/src/clock/simulation-clock.ts
+@@ -51,7 +51,14 @@ export class SimulationClock implements IClock {
+     alarm.nanos = this.nanos + nanos;
+     let alarmListItem = this.nextAlarm;
+     let lastItem = null;
+-    while (alarmListItem && alarmListItem.nanos < alarm.nanos) {
++    // KABLIX PATCH: insert same-deadline alarms in FIFO order (<=) instead
++    // of LIFO (<). With LIFO, a DMA TX channel rescheduling itself at the
++    // current instant kept cutting in front of the pending RX channel alarm,
++    // starving it until the SPI RX FIFO overflowed - the RX channel then
++    // never reached transCount 0 and the firmware hung on
++    // dma_channel_is_busy() (MicroPython machine.SPI writes >= 32 bytes).
++    // FIFO also matches the RP2350's round-robin DMA arbitration.
++    while (alarmListItem && alarmListItem.nanos <= alarm.nanos) {
+       lastItem = alarmListItem;
+       alarmListItem = alarmListItem.next;
+     }

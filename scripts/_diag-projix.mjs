@@ -2,7 +2,7 @@
 // ce que le programme dit sur la console série. Sert à voir POURQUOI un projet
 // « ne marche pas » : erreur Python, blocage, ou simple lenteur.
 //
-//   node scripts/_diag-projix.mjs <nom-du-test> [secondes] [--trace]
+//   node scripts/_diag-projix.mjs <nom-du-test> [secondes] [--trace] [--irq]
 //   node scripts/_diag-projix.mjs condo-pico2 20
 //
 // Le programme, les modules importés et les préambules sont préparés par
@@ -25,6 +25,7 @@ import { firmwarePico } from './_firmware.mjs';
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const args = process.argv.slice(2);
 const TRACE = args.includes('--trace');
+const IRQ = args.includes('--irq');
 const positionnels = args.filter((a) => !a.startsWith('--'));
 const NOM = positionnels[0];
 const SECONDES = Number(positionnels[1] ?? 15);
@@ -92,6 +93,17 @@ engine.onSerial = (chunk) => {
 };
 if (TRACE) engine.onUpdate = () => {};
 
+// --irq : qui réveille le cœur ? Un projet qui avance au ralenti sans rien
+// imprimer tourne généralement en rond dans un gestionnaire d'interruption.
+const irqs = new Map();
+if (IRQ) {
+	const origine = engine.mcu.setInterrupt.bind(engine.mcu);
+	engine.mcu.setInterrupt = (numero, actif) => {
+		if (actif) irqs.set(numero, (irqs.get(numero) ?? 0) + 1);
+		return origine(numero, actif);
+	};
+}
+
 const t0 = Date.now();
 engine.start();
 await new Promise((r) => setTimeout(r, SECONDES * 1000));
@@ -101,7 +113,18 @@ engine.dispose();
 
 console.log(`\n— fin —`);
 console.log(`régime : ${simule.toFixed(2)} s simulées pour ${reel.toFixed(2)} s de montre (${(simule / reel).toFixed(3)}×)`);
+if (IRQ) {
+	console.log('interruptions levées :');
+	for (const [numero, n] of [...irqs].sort((a, b) => b[1] - a[1]).slice(0, 8)) {
+		console.log(`${String(n).padStart(10)}  IRQ ${numero}`);
+	}
+	if (!irqs.size) console.log('         0  (aucune)');
+}
 const traceback = /Traceback \(most recent call last\)[\s\S]*/.exec(serie);
 if (traceback) console.log(`ERREUR PYTHON :\n${traceback[0].trim().split('\n').slice(0, 12).join('\n')}`);
 else if (serie.trim() === '') console.log('AUCUNE SORTIE — le programme n\'a rien imprimé.');
 else console.log(`${serie.split('\n').length} lignes imprimées.`);
+// Sortie FORCÉE : le moteur garde un canal de messages ouvert, et node refuse de
+// s'arrêter tant qu'il existe — le script tournait alors sans fin après avoir
+// tout affiché, et un enchaînement de projets restait bloqué sur le premier.
+process.exit(0);

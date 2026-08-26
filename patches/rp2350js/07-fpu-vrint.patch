@@ -1,0 +1,51 @@
+diff --git a/src/cortex-m33/execute-fpu.ts b/src/cortex-m33/execute-fpu.ts
+index 866a6af..8878bab 100644
+--- a/src/cortex-m33/execute-fpu.ts
++++ b/src/cortex-m33/execute-fpu.ts
+@@ -34,6 +34,25 @@ export function bitsToFloat(bits: number): Float32 {
+   return f32BitsScratch[0];
+ }
+ 
++/**
++ * KABLIX PATCH: rounds a float to an integral value the way the ARM does.
++ * mode 0 = to nearest (ties to even), 1 = toward +inf, 2 = toward -inf,
++ * 3 = toward zero. Used by the VRINT family below.
++ */
++function roundToIntegral(x: number, mode: number): number {
++  if (!Number.isFinite(x)) return x;
++  if (mode === 1) return Math.ceil(x);
++  if (mode === 2) return Math.floor(x);
++  if (mode === 3) return Math.trunc(x);
++  // Nearest, ties to EVEN: Math.round() always leans toward +inf on halves
++  // (round(2.5)=3, round(-2.5)=-2), which is not what the ARM does.
++  const low = Math.floor(x);
++  const frac = x - low;
++  if (frac > 0.5) return low + 1;
++  if (frac < 0.5) return low;
++  return low % 2 === 0 ? low : low + 1;
++}
++
+ export function fpuExecute(core: CortexM33Core, hw0: number, hw1: number): number {
+   const regs = core.regs;
+   let fpscr = regs.fpscr;
+@@ -227,6 +246,20 @@ export function fpuExecute(core: CortexM33Core, hw0: number, hw1: number): numbe
+       // the same convention `regs.s[]` already uses elsewhere in this file
+       // (e.g. VMOV Sn,Rt) — a later `VMOV Rt, Sd` reads it back out.
+       regs.s[sd] = bitsToFloat(intVal >>> 0);
++    } else if (opc3 === 0x6 || (opc3 === 0x7 && nBit === 0)) {
++      // KABLIX PATCH: VRINTR/VRINTZ/VRINTX Sd, Sm - round to an integral value
++      // while staying in floating point. MicroPython emits these as soon as a
++      // float computation goes back to an integer, and the whole core threw
++      // "Unimplemented Thumb-32 instruction (0xeef6 ...)": the Pico 2 run of
++      // the "16 servo + alim" project died on the very first servo angle.
++      // opc2=0b0110: hw1[7]=0 -> VRINTR (FPSCR rounding mode), hw1[7]=1 ->
++      // VRINTZ (toward zero). opc2=0b0111 with hw1[7]=0 -> VRINTX, same
++      // rounding as VRINTR - only the inexact flag differs, not modeled here
++      // (same simplification as the existing VCMP/VCMPE handling). opc2=0b0111
++      // with hw1[7]=1 is VCVT.F64.F32 and stays unimplemented (no doubles).
++      const towardZero = opc3 === 0x6 && nBit === 1;
++      const mode = towardZero ? 3 : (fpscr >>> 22) & 0x3;
++      regs.s[sd] = Math.fround(roundToIntegral(regs.s[sm], mode));
+     } else {
+       return -1;
+     }

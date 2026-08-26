@@ -140,6 +140,10 @@ class KablixSimulator {
   onTick: (() => void) | null = null;
   /** Échéance (temps simulé, ns) de la plus proche action programmée par `onTick`, ou null. */
   nextScheduledNanos: number | null = null;
+  /** Borne du lot en cours (ns simulées) — pour savoir si une échéance posée en plein lot arrive avant sa fin. */
+  finLotNanos = Infinity;
+  /** cf. `Arret.coupeLot` : demande à la boucle chaude de rendre la main sans finir le lot. */
+  coupeLot = false;
   /** Temps réel cumulé passé DANS la boucle (ms) — diagnostic, cf. SimEngine.busyMs. */
   busyAccum = 0;
 
@@ -240,6 +244,7 @@ class KablixSimulator {
         // programmée (ECHO ultrason…) : au-delà, le pacing et les actions
         // programmées ont besoin de reprendre la main.
         const fin = Math.min(clock.nanos + 1e6, this.nextScheduledNanos ?? Infinity);
+        this.finLotNanos = fin;
         chip.executerLot(fin);
         this.onTick?.();
       }
@@ -815,8 +820,14 @@ export class PicoEngine implements SimEngine {
 
   /** Tient `sim.nextScheduledNanos` à jour (borne le lot d'instructions suivant). */
   private updateNextScheduled(): void {
-    this.sim.nextScheduledNanos =
+    const prochaine =
       this.scheduled.length === 0 ? null : Math.min(...this.scheduled.map((a) => a.nanos));
+    this.sim.nextScheduledNanos = prochaine;
+    // Posée en plein lot et due AVANT sa fin : le lot doit s'arrêter là, sinon
+    // le front sortirait avec le retard restant (jusqu'à 1 ms). C'est ce qui
+    // faisait échouer les DHT : le capteur répond 30 µs après le relâchement de
+    // la ligne, et le firmware n'attend l'accusé de réception que 100 µs.
+    if (prochaine !== null && prochaine < this.sim.finLotNanos) this.sim.coupeLot = true;
   }
 
   setSpiDevices(devices: SpiDevice[]): void {

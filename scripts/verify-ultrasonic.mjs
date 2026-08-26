@@ -9,14 +9,16 @@
 //   D. bout en bout SUR LE VRAI MOTEUR Pico + firmware MicroPython : un script
 //      mesure l'écho avec time_pulse_us, le banc change la température entre
 //      deux mesures et vérifie que la durée suit la vitesse du son.
-//      (sauté si test-assets/RPI_PICO-*.uf2 est absent)
+//      Joué sur LES DEUX CARTES : `time_pulse_us` compte des microsecondes, et
+//      le Pico 2 les a longtemps rendues fausses sans qu'aucun banc le voie.
+//      (chaque carte est sautée si son firmware .uf2 est absent)
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build as esbuild } from 'esbuild';
-import { firmwarePico } from './_firmware.mjs';
+import { CARTES_PICO, firmwarePico } from './_firmware.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = (ROOT + '/src/webview').replace(/\\/g, '/');
@@ -182,89 +184,91 @@ if (!CHROME) {
 }
 
 // --------------------------------- D. bout en bout sur le vrai moteur Pico
-const fw = firmwarePico();
-if (!fw) {
-  console.log('  SKIP moteur : firmware MicroPython absent (test-assets/RPI_PICO-*.uf2).');
-} else {
-  const tmp = mkdtempSync(join(tmpdir(), 'kablix-us-'));
-  const load = async (rel, name) => {
-    const out = join(tmp, name);
-    await esbuild({
-      entryPoints: [join(ROOT, rel)],
-      outfile: out,
-      bundle: true,
-      platform: 'node',
-      format: 'esm',
-      logLevel: 'silent',
-    });
-    return import(pathToFileURL(out).href);
-  };
-  const { parseUf2 } = await load('src/shared/uf2.ts', 'uf2.mjs');
-  const { PicoEngine } = await load('src/webview/engines/pico.mts', 'pico.mjs');
-  const segments = parseUf2(new Uint8Array(readFileSync(fw))).map((s) => ({ addr: s.addr, data: s.data }));
-
-  // Le script mesure DEUX fois le même obstacle ; le banc refroidit l'air entre
-  // les deux (mutation de l'objet sensor, la référence est partagée avec le moteur).
-  const script = [
-    'from machine import Pin, time_pulse_us',
-    'import time',
-    'trig = Pin(15, Pin.OUT)',
-    'echo = Pin(14, Pin.IN)',
-    'def mesure():',
-    '    trig.value(0)',
-    '    time.sleep_us(5)',
-    '    trig.value(1)',
-    '    time.sleep_us(10)',
-    '    trig.value(0)',
-    '    return time_pulse_us(echo, 1, 30000)',
-    "print('US1', mesure())",
-    'time.sleep_ms(600)',
-    "print('US2', mesure())",
-    '',
-  ].join('\n');
-
-  const sensor = { trig: 'GP15', echo: 'GP14', distanceCm: 100, temperatureC: 20 };
-  const engine = new PicoEngine({ kind: 'flash', segments, script });
-  engine.setUltrasonic([sensor]);
-  let serial = '';
-  let cooled = false;
-  engine.onSerial = (chunk) => {
-    serial += chunk;
-    // Dès la première mesure imprimée : air refroidi à −20 °C pour la seconde.
-    if (!cooled && /US1 \d+/.test(serial)) {
-      cooled = true;
-      sensor.temperatureC = -20;
-    }
-  };
-  console.log('  … mesure sur le vrai moteur Pico (max 120 s)');
-  engine.start();
-  const started = Date.now();
-  const result = await new Promise((resolve) => {
-    const timer = setInterval(() => {
-      const done = /US1 (\d+)[\s\S]*US2 (\d+)/.exec(serial);
-      if (done) {
-        clearInterval(timer);
-        engine.dispose();
-        resolve({ warm: Number(done[1]), cold: Number(done[2]), secs: (Date.now() - started) / 1000 });
-      } else if ((Date.now() - started) / 1000 > 120) {
-        clearInterval(timer);
-        engine.dispose();
-        resolve(null);
-      }
-    }, 250);
-  });
-  if (!result) {
-    check(false, `moteur : délai dépassé (série reçue : ${JSON.stringify(serial.slice(-200))})`);
+for (const carte of CARTES_PICO) {
+  const fw = firmwarePico(carte.prefixe);
+  if (!fw) {
+    console.log(`  SKIP moteur ${carte.nom} : firmware MicroPython absent (test-assets/${carte.prefixe}*.uf2).`);
   } else {
-    const expWarm = 100 * echoUsPerCm(20); // 5824 µs
-    const expCold = 100 * echoUsPerCm(-20); // 6266 µs
-    console.log(`  … US1 = ${result.warm} µs (attendu ${expWarm.toFixed(0)}), US2 = ${result.cold} µs (attendu ${expCold.toFixed(0)}) en ${result.secs.toFixed(1)} s`);
-    check(near(result.warm, expWarm, 60), `écho à 20 °C ≈ ${expWarm.toFixed(0)} µs (obtenu ${result.warm})`);
-    check(near(result.cold, expCold, 60), `écho à −20 °C ≈ ${expCold.toFixed(0)} µs (obtenu ${result.cold})`);
-    check(result.cold > result.warm + 300, "l'air froid allonge nettement l'écho (obstacle immobile)");
-    // Ce que verra le programme utilisateur qui divise par 58 : une distance FAUSSE.
-    const seen = result.cold / 58;
-    check(seen > 105, `programme non compensé : 100 cm lus ${seen.toFixed(0)} cm à −20 °C (erreur visible)`);
+    const tmp = mkdtempSync(join(tmpdir(), 'kablix-us-'));
+    const load = async (rel, name) => {
+      const out = join(tmp, name);
+      await esbuild({
+        entryPoints: [join(ROOT, rel)],
+        outfile: out,
+        bundle: true,
+        platform: 'node',
+        format: 'esm',
+        logLevel: 'silent',
+      });
+      return import(pathToFileURL(out).href);
+    };
+    const { parseUf2 } = await load('src/shared/uf2.ts', 'uf2.mjs');
+    const { PicoEngine } = await load('src/webview/engines/pico.mts', 'pico.mjs');
+    const segments = parseUf2(new Uint8Array(readFileSync(fw))).map((s) => ({ addr: s.addr, data: s.data }));
+
+    // Le script mesure DEUX fois le même obstacle ; le banc refroidit l'air entre
+    // les deux (mutation de l'objet sensor, la référence est partagée avec le moteur).
+    const script = [
+      'from machine import Pin, time_pulse_us',
+      'import time',
+      'trig = Pin(15, Pin.OUT)',
+      'echo = Pin(14, Pin.IN)',
+      'def mesure():',
+      '    trig.value(0)',
+      '    time.sleep_us(5)',
+      '    trig.value(1)',
+      '    time.sleep_us(10)',
+      '    trig.value(0)',
+      '    return time_pulse_us(echo, 1, 30000)',
+      "print('US1', mesure())",
+      'time.sleep_ms(600)',
+      "print('US2', mesure())",
+      '',
+    ].join('\n');
+
+    const sensor = { trig: 'GP15', echo: 'GP14', distanceCm: 100, temperatureC: 20 };
+    const engine = new PicoEngine({ kind: 'flash', segments, script }, carte.famille);
+    engine.setUltrasonic([sensor]);
+    let serial = '';
+    let cooled = false;
+    engine.onSerial = (chunk) => {
+      serial += chunk;
+      // Dès la première mesure imprimée : air refroidi à −20 °C pour la seconde.
+      if (!cooled && /US1 \d+/.test(serial)) {
+        cooled = true;
+        sensor.temperatureC = -20;
+      }
+    };
+    console.log(`  … mesure sur le vrai moteur ${carte.nom} (max 120 s)`);
+    engine.start();
+    const started = Date.now();
+    const result = await new Promise((resolve) => {
+      const timer = setInterval(() => {
+        const done = /US1 (\d+)[\s\S]*US2 (\d+)/.exec(serial);
+        if (done) {
+          clearInterval(timer);
+          engine.dispose();
+          resolve({ warm: Number(done[1]), cold: Number(done[2]), secs: (Date.now() - started) / 1000 });
+        } else if ((Date.now() - started) / 1000 > 120) {
+          clearInterval(timer);
+          engine.dispose();
+          resolve(null);
+        }
+      }, 250);
+    });
+    if (!result) {
+      check(false, `${carte.nom} : délai dépassé (série reçue : ${JSON.stringify(serial.slice(-200))})`);
+    } else {
+      const expWarm = 100 * echoUsPerCm(20); // 5824 µs
+      const expCold = 100 * echoUsPerCm(-20); // 6266 µs
+      console.log(`  … US1 = ${result.warm} µs (attendu ${expWarm.toFixed(0)}), US2 = ${result.cold} µs (attendu ${expCold.toFixed(0)}) en ${result.secs.toFixed(1)} s`);
+      check(near(result.warm, expWarm, 60), `${carte.nom} : écho à 20 °C ≈ ${expWarm.toFixed(0)} µs (obtenu ${result.warm})`);
+      check(near(result.cold, expCold, 60), `${carte.nom} : écho à −20 °C ≈ ${expCold.toFixed(0)} µs (obtenu ${result.cold})`);
+      check(result.cold > result.warm + 300, `${carte.nom} : l'air froid allonge nettement l'écho (obstacle immobile)`);
+      // Ce que verra le programme utilisateur qui divise par 58 : une distance FAUSSE.
+      const seen = result.cold / 58;
+      check(seen > 105, `${carte.nom} : programme non compensé, 100 cm lus ${seen.toFixed(0)} cm à −20 °C (erreur visible)`);
+    }
   }
 }
 

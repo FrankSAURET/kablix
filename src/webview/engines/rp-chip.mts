@@ -150,6 +150,14 @@ export interface CdcHooks {
 /** Drapeau d'arrêt consulté par les boucles chaudes (le simulateur lui-même). */
 export interface Arret {
   readonly stopped: boolean;
+  /**
+   * Coupe le lot en cours. Une échéance (réponse d'un capteur, fin d'impulsion)
+   * peut être posée PENDANT le lot, par un écouteur GPIO : la borne `finNanos`
+   * est alors déjà figée, jusqu'à 1 ms plus loin, et le front partirait bien
+   * après l'heure — le DHT abandonne au bout de 100 µs. Ce drapeau fait rendre
+   * la main tout de suite ; le lot suivant se borne à la nouvelle échéance.
+   */
+  coupeLot: boolean;
 }
 
 /** Puce prête à tourner : les gestes que le moteur ne peut pas écrire une seule fois. */
@@ -235,6 +243,7 @@ class Rp2040Chip implements PicoChip {
 
   executerLot(finNanos: number): void {
     const { puce, clock, arret, cycleNanos } = this;
+    arret.coupeLot = false;
     const core = puce.core;
     const pio0 = puce.pio[0];
     const pio1 = puce.pio[1];
@@ -245,7 +254,7 @@ class Rp2040Chip implements PicoChip {
     // 0,4-0,9 µs par phase — verrait ses durées quantifiées à la taille du lot
     // (~1 ms), toutes identiques. Les alarmes dues en cours de lot (DMA, USB…)
     // tombent aussi pile au lieu d'attendre la fin du lot.
-    while (!core.waiting && !arret.stopped && clock.nanos < finNanos) {
+    while (!core.waiting && !arret.stopped && !arret.coupeLot && clock.nanos < finNanos) {
       const instrCycles = core.executeInstruction();
       pio0.advance(instrCycles);
       pio1.advance(instrCycles);
@@ -467,6 +476,7 @@ class Rp2350Chip implements PicoChip {
 
   executerLot(finNanos: number): void {
     const { puce, arret } = this;
+    arret.coupeLot = false;
     const clock = puce.clock;
     const core0 = puce.core[0];
     const core1 = puce.core[1];
@@ -480,6 +490,7 @@ class Rp2350Chip implements PicoChip {
       !(core0.waiting && core1.waiting) &&
       !this.attente &&
       !arret.stopped &&
+      !arret.coupeLot &&
       clock.nanos < finNanos
     ) {
       puce.stepThings(puce.stepCores());
