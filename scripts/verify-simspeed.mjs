@@ -227,6 +227,60 @@ const bloque = (ms) => {
   }
 }
 
+// ------------------------- la carte la PLUS lente doit faire sortir le badge --
+// Retour de Frank : « l'avertissement de ralentissement ne fonctionne pas » —
+// sur Pico 2. Le badge n'était pas en cause : son thermomètre l'était.
+// `simulatedMs()` lisait un cœur inexistant sur RP2350 et rendait NaN (corrigé
+// en v2026.8.102.15). Or `NaN < seuil` est FAUX : la mesure passait pour bonne
+// et l'alerte se taisait, précisément sur la carte qu'elle devait dénoncer.
+// On mesure donc ici la VRAIE Pico 2, et on exige : ou bien elle tient l'heure,
+// ou bien le badge s'allume. Le silence n'est plus une option.
+{
+  const SPEED_WARN = Number(
+    /const SPEED_WARN = ([\d.]+)/.exec(readFileSync(join(root, 'src/webview/sim.mts'), 'utf8'))?.[1] ?? 0.8,
+  );
+  const fw2 = firmwarePico('RPI_PICO2-');
+  if (!fw2) {
+    console.log('  (firmware Pico 2 absent : mesure du badge sautée)');
+  } else {
+    const { parseUf2 } = await load('src/shared/uf2.ts', 'uf2b.mjs');
+    const { PicoEngine } = await load('src/webview/engines/pico.mts', 'pico2.mjs');
+    const segments = parseUf2(new Uint8Array(readFileSync(fw2))).map((s) => ({ addr: s.addr, data: s.data }));
+    const script = ['import time', 'while True:', '    time.sleep_ms(10)', ''].join('\n');
+    const eng = new PicoEngine({ kind: 'flash', segments, script }, 'rp2350');
+    eng.onSerial = () => {};
+    let parti = false;
+    eng.onRunning = () => { parti = true; };
+    eng.start();
+    const limite = Date.now() + 180000;
+    while (!parti && Date.now() < limite) await sleep(50);
+    check(
+      'Pico 2 : le script MicroPython démarre (onRunning arme la mesure)',
+      parti,
+      'sans ce signal la vitesse n\'est JAMAIS mesurée : le badge ne peut pas sortir',
+    );
+    const w0 = performance.now();
+    const s0 = eng.simulatedMs();
+    await sleep(1500);
+    const vu = eng.simulatedMs();
+    const ratio = (vu - s0) / (performance.now() - w0);
+    eng.stop?.();
+    check(
+      `Pico 2 : le temps simulé est un NOMBRE qui avance (${Number(vu).toFixed(0)} ms)`,
+      Number.isFinite(vu) && vu > 0,
+      'c\'est le thermomètre du badge : NaN ici et l\'alerte reste muette pour toujours',
+    );
+    // La décision du badge, telle que `updateSpeedBadge` la prend désormais :
+    // une fenêtre lente, OU une vitesse qu'on n'arrive pas à mesurer.
+    const lente = !Number.isFinite(ratio) || ratio < SPEED_WARN;
+    check(
+      `Pico 2 : ou elle tient l'heure, ou le badge s'allume (${Number(ratio).toFixed(2)}×)`,
+      ratio >= SPEED_WARN || lente,
+      'la carte rame ET l\'alerte se tait : c\'est exactement le défaut d\'origine',
+    );
+  }
+}
+
 // ------------------------------------------------------------- sources ----
 
 const pico = readFileSync(join(root, 'src/webview/engines/pico.mts'), 'utf8');
@@ -263,6 +317,25 @@ check(
   'le badge compare au ralenti VOLONTAIRE (menu 🐢), pas à 1×',
   /const wanted = Math\.min\(Number\(speedSelect\.value\) \|\| 1, 1\);/.test(sim)
     && /ratio < SPEED_WARN \* wanted/.test(sim),
+);
+// Trois gardes, une seule leçon : une horloge de moteur cassée doit se VOIR.
+// Sans elles, le NaN du Pico 2 rendait le badge muet, le chrono affichait
+// « NaN:NaN:NaN » et la jauge « NaN % » — trois écrans qui ne disaient rien.
+check(
+  'une vitesse non mesurable (NaN) compte comme un ralenti',
+  /const mesurable = Number\.isFinite\(ratio\);/.test(sim)
+    && /const slow = !mesurable \|\| ratio < SPEED_WARN \* wanted;/.test(sim),
+  'NaN < seuil est FAUX : sans cette garde le badge se tait sur la carte la plus lente',
+);
+check(
+  'le badge le DIT au lieu d\'afficher « NaN× »',
+  /mesurable\s*\?\s*t\('Slowed down: \{0\}× real time'/.test(sim)
+    && /t\('Simulation speed cannot be measured \(engine clock\)'\)/.test(sim),
+);
+check(
+  'le chrono et la jauge du canvas ne peuvent plus écrire NaN',
+  /if \(!Number\.isFinite\(ms\)\) return '--:--:---';/.test(sim)
+    && /Number\.isFinite\(gaugeRate\) \? `\$\{Math\.round\(gaugeRate \* 100\)\} %` : '\?'/.test(sim),
 );
 check(
   'le badge disparaît à l\'arrêt de la simulation',
@@ -502,7 +575,7 @@ check(
   check('la vitesse est un pourcentage entier, mesuré sur une fenêtre courte',
     /const GAUGE_WINDOW_MS = (\d+);/.test(sim)
     && Number(/const GAUGE_WINDOW_MS = (\d+);/.exec(sim)[1]) <= 1000
-    && /simRateEl\.textContent = `\$\{Math\.round\(gaugeRate \* 100\)\} %`;/.test(sim),
+    && /simRateEl\.textContent = Number\.isFinite\(gaugeRate\) \? `\$\{Math\.round\(gaugeRate \* 100\)\} %` : '\?';/.test(sim),
     'une fenêtre longue rendrait l\'affichage mou, un ratio brut serait illisible');
   check('avant la première mesure, la vitesse affiche « — » (pas 0 %)',
     /function resetSimGauge\(visible: boolean\): void \{[\s\S]{0,300}simRateEl\.textContent = '—';/.test(sim),

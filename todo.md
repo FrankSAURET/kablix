@@ -7,7 +7,7 @@
 1. ✅ Ajoute un multimètre (tension courant sélectionnable par l'inter à bascule [ levier en haut = courant (DC), en bas = tension(DC)]). le dessin est dans composants2d.svg. Le multimetre sera stocké dans kablix pas dans la bibliothèque externe.
 1. ✅ Ajout un oscilloscope (oscillo dans composants2d.svg). Bouton volts/div pour l'echelle verticale. Le bouton s/div pas de limites, tourné vers la droite il dilate la courbe, vers la gauche il la rétracte (pas de 1, 2, 5). Affichage en bas à droite de l'écran (oscillo-ecran) du calibre en tension et en temps par exemple "Vert : 2v/div | Hor : 1 s/div".
 ## pico2
-1. l'avertissement de ralentissement de la barre d'état ne fonctionne pas
+1. ✅ l'avertissement de ralentissement de la barre d'état ne fonctionne pas
 1. elles sont super lentes. Quel moyen de les accélérer ? → cause trouvée (v2026.8.102.15, item 6) : le firmware RP2350 n'endort presque jamais le cœur (19 WFE/s contre ~1000 sur RP2040), donc aucun saut d'alarme. À reprendre.
 1. Projets qui ne marchent pas : 16 servo + alim, condo, dht11, dht22, dmx, ili9341, ledring, microsd, neopixel-matrix, neopixel, us-sensor,
 1. Traductions **EN** du lot Pico 2, à faire en un seul lot avant publication : `docs/en/composants/pico2.md` et `pico2w.md`, le paragraphe *Communication avec l'extérieur* de `picow.md`, et les deux précisions ajoutées à `USAGE.md`.
@@ -17,6 +17,17 @@
     1. Capteur d'humidité dans le sol grove
     1. Grove light sensor
     1. Lecteur RFID grove
+
+# >>>>  v2026.8.102.20 — Le badge de ralentissement ne peut plus se taire
+
+1. ✅ **L'avertissement de ralentissement remarche sur Pico 2** (item 1 de `## pico2`). Le badge n'était pas en cause : c'était son **thermomètre**. Sur RP2350, `simulatedMs()` lisait un cœur qui n'existait pas et rendait `NaN` — le mot que l'ordinateur emploie pour dire « ce n'est pas un nombre ». Or comparer « pas un nombre » à un seuil répond **toujours non** : `NaN < 0,8` est faux, donc la simulation passait pour rapide et l'alerte se taisait — précisément sur la carte la plus lente, celle qu'elle devait dénoncer. Le thermomètre lui-même a été réparé au lot précédent (v2026.8.102.15) ; ce lot **empêche la panne de redevenir un silence**.
+2. ✅ **Une vitesse qu'on n'arrive pas à mesurer compte désormais comme un ralenti** ([sim.mts](src/webview/sim.mts)) : `const mesurable = Number.isFinite(ratio); const slow = !mesurable || ratio < SPEED_WARN * wanted;`. Le badge sort et le **dit en toutes lettres** — « vitesse impossible à mesurer (horloge du moteur) » — au lieu d'afficher « NaN× ». Une horloge cassée est un défaut : elle doit se voir, pas disparaître.
+3. ✅ **Même garde pour les deux compteurs du canvas** : `formatElapsed()` rend `--:--:---` plutôt que `NaN:NaN:NaN`, et la jauge affiche `?` plutôt que `NaN %`. Trois écrans qui, avant, ne disaient rien du tout.
+4. ✅ **Le banc [verify:simspeed](scripts/verify-simspeed.mjs) mesure maintenant la VRAIE Pico 2** : firmware `RPI_PICO2-`, `PicoEngine(…, 'rp2350')`, attente de `onRunning`, puis une fenêtre de 1,5 s. Il exige que le temps simulé soit un nombre **qui avance** (2627 ms mesurés), et surtout : **ou la carte tient l'heure, ou le badge s'allume** — mesuré à **0,12×**, il s'allume. Trois contrôles de source en plus verrouillent les trois gardes. Banc au vert.
+5. ✅ **Outil de diagnostic versionné** : [scripts/_diag-badge-lent.mjs](scripts/_diag-badge-lent.mjs) rejoue la logique exacte de `updateSpeedBadge()` fenêtre par fenêtre sur un vrai moteur (`node scripts/_diag-badge-lent.mjs rp2350 25`). C'est lui qui a montré que l'échauffement, la série de deux fenêtres et l'armement par `onRunning` étaient tous sains — donc que le mal était ailleurs. Son en-tête prévient d'un piège de mesure : sous node, la cadence d'un `setInterval` est affamée par les tranches du moteur (fenêtres de 20 s au lieu d'1 s), ce qui n'arrive pas dans un navigateur.
+6. ⏳ **Traduction en attente de publication** : la nouvelle chaîne `Simulation speed cannot be measured (engine clock)` est en anglais dans le code (langue de base) et attend le lot de traductions FR, comme la règle le veut.
+
+---
 
 # >>>>  v2026.8.102.19 — Un oscilloscope qui dessine ce que le multimètre chiffre
 

@@ -964,7 +964,14 @@ function updateSpeedBadge(): void {
   // en permanence dès qu'on demande 500 % ne dirait rien de l'état du schéma.
   // Le badge reste donc la sentinelle du TEMPS RÉEL : plafonné à 1×.
   const wanted = Math.min(Number(speedSelect.value) || 1, 1);
-  const slow = ratio < SPEED_WARN * wanted;
+  // Une horloge de moteur cassée rend NaN (ou l'infini), et `NaN < seuil` est
+  // FAUX : le badge se taisait alors sur les cartes les plus lentes — exactement
+  // celles qu'il devait dénoncer. C'est ce qui est arrivé au Pico 2 jusqu'à la
+  // v2026.8.102.15 (`simulatedMs()` lisait un cœur inexistant). Une vitesse
+  // qu'on n'arrive pas à mesurer compte donc comme un ralenti, et le badge le
+  // dit en toutes lettres au lieu d'afficher « NaN× ».
+  const mesurable = Number.isFinite(ratio);
+  const slow = !mesurable || ratio < SPEED_WARN * wanted;
   speedWindows++;
   // Les fenêtres d'échauffement sont mesurées mais ne comptent PAS dans la série :
   // sinon un démarrage lent de deux secondes suffirait encore à faire clignoter le
@@ -974,7 +981,9 @@ function updateSpeedBadge(): void {
   simSpeedEl.hidden = !afficher;
   if (afficher) {
     const pc = (ms: number): string => Math.round((ms / wall) * 100).toString();
-    simSpeedEl.textContent = t('Slowed down: {0}× real time', ratio.toFixed(2).replace('.', ','));
+    simSpeedEl.textContent = mesurable
+      ? t('Slowed down: {0}× real time', ratio.toFixed(2).replace('.', ','))
+      : t('Simulation speed cannot be measured (engine clock)');
     // Deux ralentis très différents, et l'un ne se corrige pas. Quand le moteur
     // occupe presque toute la seconde, la page n'y est pour rien : l'interpréteur
     // ARM plafonne (mesuré : 0,29× sur l'horloge multiplexée, 0,07× sur l'écran
@@ -1016,6 +1025,9 @@ function resetSimGauge(visible: boolean): void {
 
 /** mm:ss:mmm — les minutes débordent au-delà de 60 (99:59:999 puis 100:…). */
 function formatElapsed(ms: number): string {
+  // Horloge de moteur cassée : mieux vaut des tirets qu'un « NaN:NaN:NaN », qui
+  // ne dit ni l'heure ni la panne (Pico 2 avant la v2026.8.102.15).
+  if (!Number.isFinite(ms)) return '--:--:---';
   const total = Math.max(0, Math.floor(ms));
   const min = Math.floor(total / 60000);
   const sec = Math.floor((total % 60000) / 1000);
@@ -1044,7 +1056,9 @@ function updateSimGauge(): void {
   gaugeRate = (sim - gaugeSimStart) / wall;
   gaugeWallStart = now;
   gaugeSimStart = sim;
-  simRateEl.textContent = `${Math.round(gaugeRate * 100)} %`;
+  // Même garde que le badge : une vitesse non mesurable s'affiche « ? », jamais
+  // « NaN % » — et le badge, lui, sort pour dire qu'il y a un problème.
+  simRateEl.textContent = Number.isFinite(gaugeRate) ? `${Math.round(gaugeRate * 100)} %` : '?';
 }
 
 /**
