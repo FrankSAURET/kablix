@@ -59,7 +59,7 @@ let mesure = false;
 // pluie d'interruptions rend donc tous les WFE inutiles. On compte les entrées
 // d'exception par numéro, et les WFE qui dorment vraiment.
 const irq = new Map();
-const evt = { armes: 0, consommes: 0, dodos: 0 };
+const evt = { armes: 0, consommes: 0, dodos: 0, quand: [] };
 if (core1) {
 	const entryOrig = core0.exceptionEntry.bind(core0);
 	core0.exceptionEntry = (n) => { if (mesure) irq.set(n, (irq.get(n) ?? 0) + 1); entryOrig(n); };
@@ -70,7 +70,7 @@ if (core1) {
 	});
 	Object.defineProperty(core0, 'waiting', {
 		get: () => wait,
-		set: (v) => { if (mesure && v && !wait) evt.dodos++; wait = v; },
+		set: (v) => { if (mesure && v && !wait) { evt.dodos++; evt.quand.push(puce.clock.nanos / 1e6); } wait = v; },
 	});
 }
 const c = { dort: 0, dortVrai: 0, c0: 0, c1: 0, sauts: 0, nanosSautes: 0, lots: 0 };
@@ -126,7 +126,9 @@ const ecritures = new Map();
 {
 	const ecrireOrig = puce.writeUint32.bind(puce);
 	puce.writeUint32 = (adr, v) => {
-		if (mesure && (adr & 0xfffff000) === (famille === 'rp2350' ? 0x400b0000 : 0x40054000)) {
+		// Les alias atomiques (+0x1000/0x2000/0x3000) sont le chemin NORMAL du SDK
+		// pour armer et désarmer : les manquer, c'est croire qu'il n'arme jamais.
+		if (mesure && (adr & 0xffff0000) === (famille === 'rp2350' ? 0x400b0000 : 0x40054000)) {
 			ecritures.set(adr, (ecritures.get(adr) ?? 0) + 1);
 		}
 		return ecrireOrig(adr, v);
@@ -157,6 +159,12 @@ console.log(`PC du cœur 0 quand il ne dort pas : ${top(pc0)}`);
 if (core1) console.log(`PC du cœur 1 quand il ne dort pas : ${top(pc1)}`);
 if (core1) {
 	console.log(`WFE qui dorment vraiment : ${evt.dodos} (${(evt.dodos / (mur / 1000)).toFixed(0)}/s)`);
+	// Tous groupés au début = le firmware a épuisé une réserve (cases du
+	// réveille-matin) et ne peut plus dormir ensuite ; étalés = autre chose.
+	if (evt.quand.length) {
+		const q = evt.quand;
+		console.log(`  dodos à (ms simulées) : ${q.slice(0, 6).map((v) => v.toFixed(0)).join(' · ')}${q.length > 6 ? ' … ' + q.slice(-3).map((v) => v.toFixed(0)).join(' · ') : ''}`);
+	}
 	console.log(`registre d'événement : ${evt.armes} armements (${(evt.armes / (mur / 1000)).toFixed(0)}/s), ${evt.consommes} désarmements`);
 	const tot = [...irq.values()].reduce((a, b) => a + b, 0);
 	console.log(`exceptions prises par le cœur 0 : ${tot} (${(tot / (mur / 1000)).toFixed(0)}/s) — ` +

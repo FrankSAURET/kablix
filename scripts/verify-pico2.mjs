@@ -82,6 +82,27 @@ const script = [
   't0 = time.ticks_ms()',
   'time.sleep_ms(300)',
   "print('SLEEP', time.ticks_diff(time.ticks_ms(), t0))",
+  // Attentes COURTES : c'est là que le saut d'attente active peut mentir. Le
+  // firmware ne dort pas pour vingt microsecondes, il compte les yeux ouverts ;
+  // un saut trop généreux les changeait en une milliseconde pleine (×50), et
+  // tout ce qui parle par impulsions — DHT, télémètre à ultrasons, DMX — en
+  // sortait faux. On mesure la moyenne ET le pire cas.
+  // Ni liste ni lambda : le tas du firmware est petit, et la première version
+  // gardait assez d'objets pour faire échouer le `Timer()` d'après (ENOMEM).
+  'def mesure(n, us):',
+  '    somme = 0',
+  '    pire = 0',
+  '    for _ in range(n):',
+  '        t = time.ticks_us()',
+  '        time.sleep_us(us)',
+  '        d = time.ticks_diff(time.ticks_us(), t)',
+  '        somme += d',
+  '        if d > pire:',
+  '            pire = d',
+  '    return somme // n, pire',
+  "print('US20', *mesure(50, 20))",
+  "print('US500', *mesure(20, 500))",
+  "print('MS1', *mesure(10, 1000))",
   // Relecture d'une sortie par le pad (correction Kablix).
   'led.value(1)',
   "print('READBACK', led.value())",
@@ -156,10 +177,20 @@ const timer = setInterval(() => {
     const sleepMs = Number(lire(/SLEEP (\d+)/));
     const ticks = Number(lire(/TICKS (\d+)/));
     const adc = Number(lire(/ADC (\d+)/));
+    const court = (nom) => {
+      const m = serial.match(new RegExp(`${nom} (\\d+) (\\d+)`));
+      return m ? [Number(m[1]), Number(m[2])] : [NaN, NaN];
+    };
+    const [us20, us20Max] = court('US20');
+    const [us500, us500Max] = court('US500');
+    const [ms1, ms1Max] = court('MS1');
     const controles = [
       [`carte ${ATTENDU.carte} annoncée`, new RegExp(`ID .*${ATTENDU.carte}`).test(serial)],
       [`fréquence ${ATTENDU.freq}`, serial.includes(`${ATTENDU.freq}`)],
       [`sleep_ms(300) mesuré à ${sleepMs} ms`, sleepMs >= 295 && sleepMs <= 340],
+      [`sleep_us(20) mesuré à ${us20} µs (pire ${us20Max})`, us20 >= 18 && us20 <= 80 && us20Max <= 400],
+      [`sleep_us(500) mesuré à ${us500} µs (pire ${us500Max})`, us500 >= 480 && us500 <= 700 && us500Max <= 1200],
+      [`sleep_ms(1) mesuré à ${ms1} µs (pire ${ms1Max})`, ms1 >= 950 && ms1 <= 1400 && ms1Max <= 2500],
       ['relecture d’une sortie (pad)', /READBACK 1/.test(serial)],
       [`LED GP25 vue côté JS (${fronts.GP25} fronts)`, fronts.GP25 >= 4],
       [`PWM GP16 vu côté JS (${fronts.GP16} fronts)`, fronts.GP16 >= 10],

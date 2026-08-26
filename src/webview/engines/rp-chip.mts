@@ -44,15 +44,47 @@ const TIMER0_CLE = 0x400b0;
 const TIMER_PENDULE_MAX = 0x28;
 /** Nombre de lectures d'heure rapprochées avant de conclure à une attente. */
 const ATTENTE_SERIE = 100;
-/** Au-delà de cet écart entre deux lectures d'heure, le cœur travaillait. */
-const ATTENTE_ECART_CYCLES = 20_000;
 /**
- * Pas d'un saut d'attente active (ns simulées). Un changement d'entrée décidé
- * par l'éditeur est donc vu au pire une milliseconde plus tard — c'est déjà la
- * granularité du moteur, qui exécute ses lots par tranches d'une milliseconde
- * sans regarder les entrées entre deux.
+ * Au-delà de cet écart entre deux lectures d'heure, le cœur travaillait et la
+ * série repart de zéro. Le chiffre est MESURÉ (`_diag-ecarts.mjs`) : dans sa
+ * boucle d'attente le firmware relit la pendule toutes les trente cycles, et
+ * jusqu'à deux cents quand des interruptions s'en mêlent ; entre deux attentes,
+ * l'interprète Python laisse un trou de mille à trois mille cycles. C'est ce
+ * trou qu'il faut voir : sans lui, deux `sleep_us(20)` de suite se soudent en
+ * une seule longue attente, et le saut grandit jusqu'à les faire durer
+ * cinquante fois trop longtemps.
  */
-const ATTENTE_PAS_NANOS = 1_000_000;
+const ATTENTE_ECART_CYCLES = 500;
+/**
+ * Durée minimale d'une attente avant tout saut (cycles, soit cinquante
+ * microsecondes à 150 MHz). En dessous, le firmware fait comme la vraie puce :
+ * il compte les microsecondes les yeux ouverts, et personne n'a le droit de
+ * l'aider — c'est le tempo d'un DHT11, d'un télémètre à ultrasons ou d'un
+ * NeoPixel, où dix microsecondes de trop changent le message reçu.
+ */
+const ATTENTE_MIN_CYCLES = 7_500;
+/**
+ * Un saut avance d'un SEIZIÈME de ce que la boucle a déjà attendu. Le firmware
+ * sort dès que l'heure dépasse sa cible : le dépassement ne peut donc pas
+ * excéder un pas, soit 6 % de l'attente. Un pas fixe, lui, faisait durer une
+ * milliseconde la moindre attente, si courte fût-elle.
+ */
+const ATTENTE_FRACTION = 16;
+/**
+ * Lectures d'heure rapprochées à refaire APRÈS un saut pour avoir le droit d'en
+ * refaire un. Sans cette reconfirmation, le moteur continue de sauter alors que
+ * la boucle d'attente est finie et que l'interprète a repris son travail : le
+ * temps simulé file pendant que le programme calcule, et une pause de dix
+ * millisecondes finit par en durer dix-huit.
+ */
+const ATTENTE_RECONFIRM = 8;
+/**
+ * Plafond d'un pas de saut d'attente (ns simulées). Un changement d'entrée
+ * décidé par l'éditeur est donc vu au pire une milliseconde plus tard — c'est
+ * déjà la granularité du moteur, qui exécute ses lots par tranches d'une
+ * milliseconde sans regarder les entrées entre deux.
+ */
+const ATTENTE_PAS_MAX_NANOS = 1_000_000;
 /**
  * Plafond d'un saut de sommeil (ns simulées). Sans rien à faire, le firmware
  * arme son rendez-vous sur « jamais » (0xFFFFFFFF µs) et s'endort : le saut
@@ -297,6 +329,8 @@ class Rp2350Chip implements PicoChip {
   private readonly puce: RP2350;
   /** Lectures d'heure rapprochées vues d'affilée (cf. `ATTENTE_SERIE`). */
   private serieHeure = 0;
+  /** Compteur de cycles au DÉBUT de la série : la durée déjà attendue en découle. */
+  private debutAttenteCycles = 0;
   /** Compteur de cycles à la dernière lecture d'heure, pour mesurer l'écart. */
   private cyclesDerniereHeure = 0;
   /** Le prochain saut est un saut d'attente active, pas un vrai sommeil. */
@@ -335,16 +369,22 @@ class Rp2350Chip implements PicoChip {
     const core0 = this.puce.core[0];
     const vuHeure = (): void => {
       const cycles = core0.cycles;
-      this.serieHeure =
-        cycles - this.cyclesDerniereHeure > ATTENTE_ECART_CYCLES ? 0 : this.serieHeure + 1;
+      if (cycles - this.cyclesDerniereHeure > ATTENTE_ECART_CYCLES) this.serieHeure = 0;
+      // Première lecture de la série : c'est d'ici que se compte la durée de
+      // l'attente, et c'est elle qui fixe la taille des sauts.
+      if (this.serieHeure === 0) this.debutAttenteCycles = cycles;
+      this.serieHeure++;
       this.cyclesDerniereHeure = cycles;
-      if (this.serieHeure >= ATTENTE_SERIE) {
-        // Le test ne tombe qu'une fois par série, jamais dans le chemin chaud :
-        // sans rendez-vous à viser, on n'a rien à sauter et il faut laisser le
+      if (
+        this.serieHeure >= ATTENTE_SERIE &&
+        cycles - this.debutAttenteCycles >= ATTENTE_MIN_CYCLES
+      ) {
+        // Sans rendez-vous à viser, on n'a rien à sauter et il faut laisser le
         // cœur tourner, sinon la boucle du moteur n'exécuterait plus une seule
-        // instruction.
+        // instruction. Le test ne doit pas retomber à chaque lecture — chemin
+        // chaud — d'où le recul du compteur : on réessaie dans cinquante tours.
         this.attente = this.clock.nanosToNextAlarm > 0;
-        if (!this.attente) this.serieHeure = 0;
+        if (!this.attente) this.serieHeure = ATTENTE_SERIE >> 1;
       }
     };
     for (const cle of Object.keys(this.puce.peripherals)) {
@@ -396,12 +436,20 @@ class Rp2350Chip implements PicoChip {
     if (this.sautAttente) {
       // Saut d'attente active : le cœur 0 n'est pas endormi, il tourne à vide.
       // On avance par petits pas plutôt que d'un bond jusqu'à l'échéance, pour
-      // lui rendre la main souvent — un caractère reçu sur l'USB ou une entrée
-      // changée doit encore pouvoir le sortir de sa boucle.
-      nanos = Math.min(nanos, ATTENTE_PAS_NANOS);
+      // deux raisons : lui rendre la main souvent — un caractère reçu sur l'USB
+      // ou une entrée changée doit encore pouvoir le sortir de sa boucle — et
+      // surtout ne jamais dépasser son heure de beaucoup. Le pas grandit avec
+      // l'attente : minuscule au début, il rattrape une longue sieste en une
+      // quarantaine de bonds sans jamais la dépasser de plus d'un seizième.
+      const attendus = (this.puce.core[0].cycles - this.debutAttenteCycles) * this.cycleNanos;
+      nanos = Math.min(nanos, ATTENTE_PAS_MAX_NANOS, Math.max(attendus / ATTENTE_FRACTION, 1));
       this.sautAttente = false;
+      // La série n'est pas remise à zéro — refaire compter cent lectures avant
+      // chaque bond coûterait plus cher que le bond ne rapporte — mais elle
+      // recule de quelques crans : la boucle doit se montrer encore vivante
+      // avant le bond suivant.
+      this.serieHeure = ATTENTE_SERIE - ATTENTE_RECONFIRM;
       this.attente = false;
-      this.serieHeure = 0;
     } else {
       nanos = Math.min(nanos, SOMMEIL_MAX_NANOS);
     }

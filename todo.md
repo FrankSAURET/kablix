@@ -8,15 +8,47 @@
 1. ✅ Ajout un oscilloscope (oscillo dans composants2d.svg). Bouton volts/div pour l'echelle verticale. Le bouton s/div pas de limites, tourné vers la droite il dilate la courbe, vers la gauche il la rétracte (pas de 1, 2, 5). Affichage en bas à droite de l'écran (oscillo-ecran) du calibre en tension et en temps par exemple "Vert : 2v/div | Hor : 1 s/div".
 ## pico2
 1. ✅ l'avertissement de ralentissement de la barre d'état ne fonctionne pas
-1. ✅ elles sont super lentes. Quel moyen de les accélérer ? → réglé en v2026.8.102.21 : saut d'attente active. `time.sleep_ms(10)` passe de 0,04× à **1,000×**.
+1. ✅ elles sont super lentes. Quel moyen de les accélérer ? → saut d'attente active en v2026.8.102.21 (`time.sleep_ms(10)` passe de 0,04× à **1,000×**), réglé sur les attentes courtes en v2026.8.102.22 (`time.sleep_us(20)` ne dure plus cinquante fois trop longtemps).
 1. Projets qui ne marchent pas : 16 servo + alim, condo, dht11, dht22, dmx, ili9341, ledring, microsd, neopixel-matrix, neopixel, us-sensor,
+1. Tu trouvera le modèle de la carte Grove-Uno. Cette carte se connecte sur la Arduino uno. Je n'ai mis les pastilles rouges que pour les pattes enfichables sur la uno. Le broches de connexion propres à la grove s'appellent Grove-Pin-0 à Grove-Pin-63. Tu leur donnera des noms sur le même modele que le nommage des broches de la grove-pico (Par exemple D4-GND, D4-D5...)
+Comme sur la grove-pico l'interrupteur switch-button doit pouvoir commuter le 3,3 ou 5v. ne gère pas le bouton  reset et la led.
+Attention elles est spéciale. Je n'ais pas réussis à placer toutes les connexions sur la grille de 10px (connecteur A2 et A0). 
+Elle va dans la librairie externe kablix_components et dans la catégorie Cartes & platines avec le nom Grove Shield (Uno).
+
 1. Traductions **EN** du lot Pico 2, à faire en un seul lot avant publication : `docs/en/composants/pico2.md` et `pico2w.md`, le paragraphe *Communication avec l'extérieur* de `picow.md`, et les deux précisions ajoutées à `USAGE.md`.
 ## ne pas faire pour l'instant 
 1. Ajouter :
-    1. shield grove uno
     1. Capteur d'humidité dans le sol grove
     1. Grove light sensor
     1. Lecteur RFID grove
+
+# >>>>  v2026.8.102.22 — Le Pico 2 rend les microsecondes qu'il avait avalées
+
+1. ✅ **Les attentes courtes du Pico 2 durent enfin le temps demandé.** `time.sleep_us(20)` durait **une milliseconde pleine — cinquante fois trop** ; il dure maintenant 20 µs. C'est le prix caché du saut d'attente du lot précédent, et c'est ce qui cassait tout ce qui parle par impulsions.
+2. ✅ **Ce qui n'allait pas.** Pour reconnaître une attente, le moteur compte les coups d'œil du firmware à la pendule : cent coups d'œil coup sur coup, c'est une attente. Encore faut-il savoir **où une attente s'arrête et où la suivante commence**. Le lot 21 exigeait un trou de vingt mille cycles entre deux coups d'œil pour couper la série — un trou qui n'arrive jamais. Deux `sleep_us(20)` de suite se **soudaient** donc en une seule attente sans fin, et le saut, qui valait une milliseconde d'un coup, se servait à chaque tour.
+3. ✅ **C'est une mesure qui a tranché, pas une intuition** ([_diag-ecarts.mjs](scripts/_diag-ecarts.mjs)) : sur 30 026 coups d'œil, **98,97 % sont espacés de moins de trente cycles** — la boucle d'attente — et il y a exactement **303 trous de mille à trois mille cycles** pour 300 tours de boucle : le travail de l'interprète Python entre deux attentes. La frontière était là, cent fois plus bas que le seuil du lot 21. `ATTENTE_ECART_CYCLES` passe de **20 000 à 500**.
+4. ✅ **Une attente de moins de cinquante microsecondes n'est plus jamais aidée** (`ATTENTE_MIN_CYCLES`). En dessous, le firmware fait exactement ce que fait la vraie puce : il compte les microsecondes les yeux ouverts, et on le laisse faire. C'est le tempo d'un DHT11, d'un télémètre à ultrasons, d'un NeoPixel — là où dix microsecondes de trop changent le message reçu.
+5. ✅ **Le saut ne vaut plus une milliseconde fixe : il vaut un seizième de ce qui a déjà été attendu** (`ATTENTE_FRACTION`). Minuscule au début, il grandit à chaque bond et rattrape une longue sieste en une quarantaine de sauts. Comme le firmware sort dès que l'heure dépasse sa cible, **le dépassement ne peut pas excéder un pas, soit 6 %** — quelle que soit la durée attendue. Le plafond d'une milliseconde par saut reste, pour que le cœur reprenne la main souvent.
+6. ✅ **La boucle doit se remontrer vivante entre deux sauts** (`ATTENTE_RECONFIRM`, huit coups d'œil). Sans cette reconfirmation, le moteur continuait de sauter **après** la fin de l'attente, pendant que l'interprète avait repris son travail : le temps simulé filait tout seul et une pause de dix millisecondes en durait dix-huit. Huit coups d'œil ne coûtent presque rien et l'interprète, lui, n'en fait jamais huit d'affilée.
+7. ✅ **Résultat, mesuré contre le Pico 1 pris comme règle** (durées simulées, la valeur juste étant celle du rp2040) :
+
+   | attente | rp2040 (référence) | rp2350 lot 21 | rp2350 lot 22 |
+   |---|---|---|---|
+   | `sleep_us(20)` × 5000 | 152 ms | **5068 ms** (×50) | **135 ms** |
+   | `sleep_us(50)` × 5000 | 304 ms | **5069 ms** (×20) | **289 ms** |
+   | `sleep_us(100)` × 5000 | 560 ms | **5069 ms** (×10) | **562 ms** |
+   | `sleep_us(500)` × 2000 | 1034 ms | **2027 ms** (×2) | **1039 ms** |
+   | `sleep_ms(1)` × 1000 | 1021 ms | 1011 ms | 1000 ms |
+   | `sleep_ms(10)` × 100 | 999 ms | 1001 ms | 1067 ms |
+   | `sleep_ms(100)` × 10 | 999 ms | 1000 ms | 1000 ms |
+
+8. ✅ **Et la vitesse n'est pas payée en retour** : `sleep_ms(1)` et `sleep_ms(10)` tournent à **1,00×**, `sleep_us(500)` à **0,94×** là où le Pico 1 plafonne à 0,25×. Sur les attentes de vingt à cent microsecondes, plus aucun saut n'est permis : on retombe au régime honnête du Pico 1 (0,13 à 0,26×), le prix de l'exactitude.
+9. ✅ **Le banc [verify:pico2](scripts/verify-pico2.mjs) contrôle désormais les attentes courtes**, moyenne **et pire cas** : `sleep_us(20)` à 29 µs, `sleep_us(500)` à 522 µs, `sleep_ms(1)` à 1016 µs sur Pico 2 — contre 33, 513 et 1014 µs sur Pico 1. Les deux cartes au vert. La mesure ne garde **ni liste ni fonction anonyme** : la première version en gardait assez pour faire manquer de mémoire le `Timer()` d'après.
+10. ✅ **Un piège de mesure évité deux fois, noté ici pour la prochaine.** Un banc qui lit `FIN (\d+)$` dans le flux série lit un nombre **coupé** : le flux arrive par bouts, et « FIN 9 » est le début de « FIN 999 ». Il faut exiger la fin de ligne. Et un espion posé dans la boucle chaude la ralentit **sept fois** : il change ce qu'il mesure. Les deux ont produit des chiffres faux avant d'être vus.
+11. ℹ️ **Outils de diagnostic versionnés** : [_diag-pico2-regime.mjs](scripts/_diag-pico2-regime.mjs) (le banc propre — c'est le programme MicroPython qui se chronomètre lui-même, rien n'est accroché à la puce), [_diag-ecarts.mjs](scripts/_diag-ecarts.mjs) (la distribution des écarts, avec l'espion à reposer documenté dans son en-tête) et [_diag-pico2-alarme-trace.mjs](scripts/_diag-pico2-alarme-trace.mjs) (journal des réveils du TIMER0, qui a innocenté la piste de la liste de réveils pleine).
+12. ℹ️ **Une piste fermée** : reconnaître la boucle à son **adresse** dans le programme plutôt qu'à son rythme. Mesuré : le firmware lit la pendule depuis **six adresses étalées sur onze cents octets**. L'adresse ne sépare rien, la variante tombait à 0,04×. Ne pas y revenir.
+
+---
 
 # >>>>  v2026.8.102.21 — Le Pico 2 arrête d'attendre les yeux ouverts
 
