@@ -399,6 +399,13 @@ export class PartCreator {
         params: params.length > 0 ? params : undefined,
         control: this.control ?? undefined,
         category: categorySelect.value || undefined,
+        // Blocs que le créateur ne sait pas encore montrer (carte fille, sortie
+        // à collecteur ouvert, bascules du dessin) : ils sont RECOPIÉS tels
+        // quels, sans quoi rouvrir un composant de bibliothèque pour changer son
+        // nom lui ferait perdre son cavalier ou son socle.
+        openDrain: this.existing?.openDrain,
+        shield: this.existing?.shield,
+        toggles: this.existing?.toggles,
       };
       this.close();
       this.onSave(data);

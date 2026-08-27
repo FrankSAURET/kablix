@@ -69,6 +69,7 @@ import { Plotter } from './plotter.mjs';
 import { Editor, KABLIX_BADGE, type PaletteState } from './diagram/editor.mjs';
 import { partDef, boardFamily, isPicoBoard, isBoardId, mcuPinRole, pca9685Address, controlMax, PARAM_ATTR_PREFIX, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
 import { compileExpr } from './diagram/expr.mjs';
+import { frontsRfid } from './diagram/rfid.mjs';
 import { toWokwiDiagram, fromWokwiDiagram } from './diagram/wokwi.mjs';
 import { partsCsv } from './diagram/bom.mjs';
 import {
@@ -95,6 +96,8 @@ import {
   analogSourceBindings,
   aoDoSensorBindings,
   customOpenDrainBindings,
+  customRfidBindings,
+  type RfidBinding,
   hallBindings,
   photoDeviceBindings,
   meterReadings,
@@ -2723,6 +2726,62 @@ function bindInputs(): void {
     }
     apply();
   }
+  // Lecteurs de badges (.kompix qui déclarent un bloc `rfid`) : tant que le badge
+  // est dans la boucle d'antenne, la carte REDIT son numéro, comme le vrai
+  // module. C'est le composant qui PARLE au microcontrôleur : son numéro part en
+  // fronts sur le fil (trame série ou impulsions Wiegand), à des vitesses mille
+  // fois plus courtes qu'une image — d'où `emitPulses`, qui les date en temps
+  // SIMULÉ au lieu de les poser une par une depuis la page.
+  for (const part of editor.diagram.parts) {
+    const rfid = partDef(part.type).custom?.rfid;
+    if (!rfid) continue;
+    const el = editor.elementOf(part.id);
+    if (!el) continue;
+    const ecrire = el.setSvgText as ((id: string, texte: string | null) => void) | undefined;
+    let lien: RfidBinding | undefined;
+    let timer: number | null = null;
+    const arrete = (): void => {
+      if (timer === null) return;
+      window.clearInterval(timer);
+      timer = null;
+    };
+    const envoie = (): void => {
+      if (!lien) return;
+      const mode =
+        rfid.modes.find((m) => m.value === el.getAttribute(rfid.modeAttr)) ?? rfid.modes[0];
+      if (!mode) return;
+      // Un badge parmi ceux fournis avec la carte, tiré au sort à chaque passage.
+      const code = mode.codes[Math.floor(Math.random() * mode.codes.length)] ?? '';
+      if (rfid.display) ecrire?.(rfid.display, code);
+      const trame = frontsRfid(mode, code);
+      if (lien.data) engine?.emitPulses?.(lien.data, trame.data);
+      if (lien.data1 && trame.data1.length > 0) engine?.emitPulses?.(lien.data1, trame.data1);
+    };
+    // Le cavalier change de mode EN COURS DE SIMULATION : les fils de données ne
+    // sont plus les mêmes, le câblage se relit donc à chaque bascule.
+    const apply = (): void => {
+      arrete();
+      lien = customRfidBindings(editor.diagram).find((b) => b.partId === part.id);
+      // Repos : les fils d'un lecteur qui ne parle pas sont HAUTS. Sans cette
+      // pose, l'entrée reste basse et le premier bit de départ passe inaperçu.
+      if (lien?.data) engine?.setInput(lien.data, true);
+      if (lien?.data1) engine?.setInput(lien.data1, true);
+      if (el.getAttribute(rfid.tagAttr) !== rfid.tagIn) {
+        if (rfid.display) ecrire?.(rfid.display, null);
+        return;
+      }
+      envoie();
+      timer = window.setInterval(envoie, Math.max(100, rfid.repeatMs ?? 1000));
+    };
+    apply();
+    el.addEventListener('toggle-change', apply);
+    inputRemovers.push(() => {
+      arrete();
+      if (rfid.display) ecrire?.(rfid.display, null);
+      el.removeEventListener('toggle-change', apply);
+    });
+  }
+
   // Multimètre : l'inter à bascule du dessin choisit la mesure EN SIMULATION.
   // Ce n'est pas un réglage d'affichage mais un changement de MONTAGE (voltmètre
   // en parallèle, ampèremètre en série) : il se range donc dans le schéma, par

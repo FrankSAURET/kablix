@@ -2517,6 +2517,35 @@ export function customOpenDrainBindings(diagram: Diagram): HallBinding[] {
   return out;
 }
 
+export interface RfidBinding {
+  partId: string;
+  /** Broche MCU reliée à la sortie de données du lecteur (UART Tx / Wiegand D0). */
+  data: string | null;
+  /** Broche MCU reliée au second fil Wiegand (D1), si le mode l'utilise. */
+  data1: string | null;
+}
+
+/**
+ * Lecteurs de badges du schéma (.kompix qui déclarent un bloc `rfid`) : les
+ * broches du microcontrôleur qui écoutent leurs fils, dans le mode COURANT du
+ * cavalier — c'est lui qui dit si le second fil sert de donnée.
+ */
+export function customRfidBindings(diagram: Diagram): RfidBinding[] {
+  const nets = buildNets(diagram);
+  const out: RfidBinding[] = [];
+  for (const part of diagram.parts) {
+    const rfid = partDef(part.type).custom?.rfid;
+    if (!rfid) continue;
+    const mode =
+      rfid.modes.find((m) => m.value === part.attrs?.[rfid.modeAttr]) ?? rfid.modes[0];
+    if (!mode) continue;
+    const brocheMcu = (nom?: string): string | null =>
+      nom ? mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin: nom })) : null;
+    out.push({ partId: part.id, data: brocheMcu(mode.pin), data1: brocheMcu(mode.pin1) });
+  }
+  return out;
+}
+
 /**
  * Lecture commune d'une sortie à collecteur/drain ouvert : la broche MCU qui
  * l'observe, l'alimentation de CHAQUE bloc du composant, et la résistance du

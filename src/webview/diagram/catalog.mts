@@ -245,6 +245,94 @@ export interface CustomOpenDrain {
   supplies: Array<[string, string]>;
 }
 
+/**
+ * Bascule de DESSIN : une pièce du dessin qu'un clic déplace, sans rapport avec
+ * la simulation — le cavalier d'une carte RFID qui choisit son mode, la flèche
+ * qui pousse le badge dans la boucle de lecture. La position est gardée dans un
+ * attribut du composant (donc dans le schéma) : le clic la fait tourner d'un
+ * cran. Déclaratif, comme l'interrupteur d'une carte fille : un composant qui
+ * bouge n'a besoin d'aucune ligne de code.
+ */
+export interface CustomToggleOption {
+  /** Valeur écrite dans l'attribut (ex. « uart », « in »). */
+  value: string;
+  /** Libellé montré dans l'inspecteur et la bulle d'aide. */
+  label: string;
+  /** Déplacement de la pièce dans cette position, en px du dessin. */
+  dx?: number;
+  dy?: number;
+  /** La pièce désignée par `flip` se retourne (miroir horizontal) ici. */
+  flip?: boolean;
+}
+
+export interface CustomToggle {
+  /** Attribut du composant qui garde la position (ex. `mode`, `tag`). */
+  attr: string;
+  /** Id du groupe SVG déplacé. */
+  knob: string;
+  /** Id de la forme cliquable, si ce n'est pas la pièce elle-même (la flèche). */
+  handle?: string;
+  /** Id du groupe retourné par les options qui portent `flip`. */
+  flip?: string;
+  /** Bulle d'aide de la zone cliquable. */
+  title?: string;
+  /** Zone cliquable dans le repère du dessin, à défaut de `handle`. */
+  zone?: { x: number; y: number; w: number; h: number };
+  options: CustomToggleOption[];
+}
+
+/** Position courante d'une bascule (repli : la première déclarée). */
+export function toggleOption(
+  tg: CustomToggle,
+  lire: (attr: string) => string | null | undefined
+): CustomToggleOption {
+  const v = lire(tg.attr);
+  return tg.options.find((o) => o.value === v) ?? tg.options[0];
+}
+
+/**
+ * Lecteur de badges (RFID) décrit par son manifeste : quand le badge entre dans
+ * la boucle de lecture, la carte ENVOIE son code au microcontrôleur sur un fil.
+ * Deux façons de parler, choisies par le cavalier du dessin :
+ *   - `uart` : le code en clair, caractère par caractère, comme le moniteur
+ *     série (9600 bauds par défaut) ;
+ *   - `wiegand` : deux fils et des impulsions très courtes, une par bit — le
+ *     langage des lecteurs de porte.
+ * Les codes sont ceux des badges fournis avec la carte : le lecteur en tire un
+ * au hasard à chaque passage, comme si on présentait un badge parmi trois.
+ */
+export interface CustomRfidMode {
+  /** Valeur de l'attribut de mode qui choisit cette liaison. */
+  value: string;
+  proto: 'uart' | 'wiegand';
+  /** Broche du composant qui porte les données (UART : Tx ; Wiegand : DATA0). */
+  pin: string;
+  /** Seconde broche, Wiegand seulement (DATA1). */
+  pin1?: string;
+  /** Vitesse de la liaison série, en bauds (UART, défaut 9600). */
+  baud?: number;
+  /** Durée d'une impulsion Wiegand, en µs (défaut 50). */
+  pulseUs?: number;
+  /** Écart entre deux bits Wiegand, en µs (défaut 2000). */
+  gapUs?: number;
+  /** Codes des badges, tels qu'ils s'affichent et s'envoient dans ce mode. */
+  codes: string[];
+}
+
+export interface CustomRfid {
+  /** Attribut de la bascule qui met le badge dans la boucle de lecture. */
+  tagAttr: string;
+  /** Valeur de cet attribut quand le badge EST lu. */
+  tagIn: string;
+  /** Attribut de la bascule qui choisit le mode de liaison. */
+  modeAttr: string;
+  modes: CustomRfidMode[];
+  /** Id de la zone de texte du dessin où s'affiche le code lu. */
+  display?: string;
+  /** Le lecteur relit le badge tant qu'il est là : période en ms (défaut 1000). */
+  repeatMs?: number;
+}
+
 /** Préfixe des attrs stockant la valeur courante d'un paramètre de composant. */
 export const PARAM_ATTR_PREFIX = 'prm_';
 
@@ -316,6 +404,10 @@ export interface PartDef {
     openDrain?: CustomOpenDrain;
     /** Carte fille : socle, pistes internes et interrupteur (voir shield.mts). */
     shield?: ShieldSpec;
+    /** Bascules du dessin : pièces déplacées par un clic (cavalier, badge…). */
+    toggles?: CustomToggle[];
+    /** Lecteur de badges : ce qu'il envoie, sur quel fil et dans quelle langue. */
+    rfid?: CustomRfid;
   };
   /**
    * Variante d'un composant déjà listé : le type reste parfaitement valide
@@ -365,6 +457,10 @@ export interface CustomPartData {
   openDrain?: CustomOpenDrain;
   /** Carte fille : socle, pistes internes et interrupteur (voir shield.mts). */
   shield?: ShieldSpec;
+  /** Bascules du dessin (voir CustomToggle). */
+  toggles?: CustomToggle[];
+  /** Lecteur de badges (voir CustomRfid). */
+  rfid?: CustomRfid;
   /** Script behavior.mjs embarqué (optionnel) : comportement de simulation. */
   behaviorScript?: string;
   /** Métadonnées provenance + confiance (kompix uniquement, Lot 2). */
@@ -1404,13 +1500,28 @@ export function registerCustomPart(data: CustomPartData): PartDef {
     options: sw.options.map((o) => o.value),
     optionLabels: Object.fromEntries(sw.options.map((o) => [o.value, o.label])),
   }] : [];
-  const props = [...baseProps, ...switchProps, ...paramProps];
+  // Bascules du dessin : le même choix que le clic sur la pièce, mais dans
+  // l'inspecteur — et leur position de départ entre dans les attrs par défaut,
+  // sans quoi une bascule jamais cliquée n'aurait aucune valeur à relire.
+  const toggles = data.toggles ?? [];
+  const toggleProps: PropDef[] = toggles.map((tg) => ({
+    attr: tg.attr,
+    label: tg.title || tg.attr,
+    kind: 'select',
+    options: tg.options.map((o) => o.value),
+    optionLabels: Object.fromEntries(tg.options.map((o) => [o.value, o.label])),
+  }));
+  const toggleAttrs = Object.fromEntries(toggles.map((tg) => [tg.attr, tg.options[0]?.value ?? '']));
+  const props = [...baseProps, ...switchProps, ...toggleProps, ...paramProps];
   const def: PartDef = {
     type: data.type,
     label: data.label,
     tag: 'kablix-custom-part',
     kind: data.kind,
-    attrs: Object.keys(paramAttrs).length > 0 ? { ...data.attrs, ...paramAttrs } : data.attrs,
+    attrs:
+      Object.keys(paramAttrs).length + Object.keys(toggleAttrs).length > 0
+        ? { ...toggleAttrs, ...data.attrs, ...paramAttrs }
+        : data.attrs,
     custom: {
       svg: withSvgSize(data.svg) ?? data.svg,
       pins: data.pins,
@@ -1423,6 +1534,8 @@ export function registerCustomPart(data: CustomPartData): PartDef {
       hasHelp: data.hasHelp,
       openDrain: data.openDrain,
       shield: data.shield,
+      toggles: data.toggles,
+      rfid: data.rfid,
     },
     analogPin: data.kind === 'analog-source' ? data.pinRoles?.['AO'] ?? 'AO' : undefined,
     digitalPin: data.kind === 'digital-source' ? data.pinRoles?.['OUT'] ?? 'OUT' : undefined,

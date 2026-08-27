@@ -7,7 +7,14 @@
 // setLocked comme pour les capteurs intégrés) ; le moteur relit `controlValue`
 // / `switchOn` sur l'événement `input` (cf. sim.mts).
 
-import { controlMax, type CustomControl, type CustomParam, type PartDef } from '../diagram/catalog.mjs';
+import {
+  controlMax,
+  toggleOption,
+  type CustomControl,
+  type CustomParam,
+  type CustomToggle,
+  type PartDef,
+} from '../diagram/catalog.mjs';
 import { shieldOption, type ShieldSwitch } from '../diagram/shield.mjs';
 import { simControlStyles } from './utils/sim-control-styles.mjs';
 
@@ -84,6 +91,11 @@ export class CustomPartElement extends HTMLElement {
   /** Surveille le paramètre qui donne la borne haute du curseur (`maxParam`). */
   private paramWatcher: MutationObserver | null = null;
 
+  /** Bascules du dessin (cavalier, badge…) : décrites par le manifeste. */
+  private toggles: readonly CustomToggle[] = [];
+  /** Surveille les attributs des bascules — leurs noms viennent du manifeste. */
+  private toggleWatcher: MutationObserver | null = null;
+
   /** Interrupteur d'une carte fille (Grove Shield…) : décrit par son manifeste. */
   private shieldSwitch: ShieldSwitch | null = null;
   /** Surveille l'attribut de l'interrupteur : son nom vient du manifeste, il ne
@@ -131,7 +143,9 @@ export class CustomPartElement extends HTMLElement {
     this.control = def.custom.control ?? null;
     this.controlParams = def.custom.params ?? [];
     this.shieldSwitch = def.custom.shield?.switch ?? null;
+    this.toggles = def.custom.toggles ?? [];
     this.setupShieldSwitch();
+    this.setupToggles();
     this.setupParamWatcher();
     if (this.control?.type === 'slider') {
       const min = this.control.min ?? 0;
@@ -510,6 +524,160 @@ export class CustomPartElement extends HTMLElement {
 
   /** Transform d'origine de chaque pièce déplacée (`null` = pas d'attribut). */
   private moveBase = new Map<SVGElement, string | null>();
+
+  /**
+   * Bascules du dessin : une pièce que le clic déplace d'un cran (le cavalier de
+   * mode d'une carte RFID, la flèche qui pousse le badge dans la boucle). Tout
+   * vient du manifeste — l'attribut qui garde la position, la pièce déplacée, la
+   * forme sur laquelle on clique, celle qui se retourne, et la course de chaque
+   * position. Le clic écrit l'attribut PUIS émet `toggle-change`, que l'éditeur
+   * persiste dans le schéma.
+   */
+  private setupToggles(): void {
+    this.toggleWatcher?.disconnect();
+    this.toggleWatcher = null;
+    if (this.toggles.length === 0) return;
+    const svg = this.wrapper.querySelector('svg');
+    if (!svg) return;
+    for (const tg of this.toggles) {
+      const piece = this.svgPiece(tg.handle ?? (tg.zone ? '' : tg.knob));
+      const zone = piece ?? this.zoneRect(tg);
+      if (!zone) continue;
+      if (!piece) svg.appendChild(zone);
+      zone.style.cursor = 'pointer';
+      // Une forme du dessin peut être déclarée non cliquable par sa feuille de
+      // style : on le force, sinon le clic passe au travers.
+      zone.style.pointerEvents = 'auto';
+      if (tg.title && !zone.querySelector('title')) {
+        const title = document.createElementNS(SVG_NS, 'title');
+        title.textContent = tg.title;
+        zone.appendChild(title);
+      }
+      // pointerdown + stopPropagation : le clic bascule la pièce sans démarrer
+      // le déplacement du composant (écouteur du corps dans l'éditeur).
+      zone.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const i = tg.options.indexOf(toggleOption(tg, (a) => this.getAttribute(a)));
+        const next = tg.options[(i + 1) % tg.options.length];
+        this.setAttribute(tg.attr, next.value);
+        this.dispatchEvent(
+          new CustomEvent('toggle-change', {
+            detail: { attr: tg.attr, value: next.value },
+            bubbles: true,
+            composed: true,
+          })
+        );
+      });
+    }
+    // L'éditeur pose les attributs APRÈS `definition`, et l'inspecteur les
+    // réécrit ensuite : c'est l'attribut lui-même qu'on suit, pas un appel.
+    this.toggleWatcher = new MutationObserver(() => this.applyToggles());
+    this.toggleWatcher.observe(this, {
+      attributes: true,
+      attributeFilter: this.toggles.map((tg) => tg.attr),
+    });
+    this.applyToggles();
+  }
+
+  /** Une pièce du dessin par son id (chaîne vide = aucune). */
+  private svgPiece(id: string): SVGGraphicsElement | null {
+    if (!id) return null;
+    const el = this.wrapper.querySelector(`#${CSS.escape(id)}`);
+    return el instanceof SVGGraphicsElement ? el : null;
+  }
+
+  /** Rectangle transparent posé sur la zone cliquable déclarée, s'il y en a une. */
+  private zoneRect(tg: CustomToggle): SVGGraphicsElement | null {
+    if (!tg.zone) return null;
+    const rect = document.createElementNS(SVG_NS, 'rect');
+    rect.setAttribute('x', String(tg.zone.x));
+    rect.setAttribute('y', String(tg.zone.y));
+    rect.setAttribute('width', String(tg.zone.w));
+    rect.setAttribute('height', String(tg.zone.h));
+    rect.setAttribute('fill', 'transparent');
+    return rect;
+  }
+
+  /** Replace (et retourne) les pièces des bascules sur leur position courante. */
+  private applyToggles(): void {
+    for (const tg of this.toggles) {
+      const opt = toggleOption(tg, (a) => this.getAttribute(a));
+      const knob = this.svgPiece(tg.knob);
+      if (knob) this.translatePiece(knob, opt.dx ?? 0, opt.dy ?? 0);
+      if (tg.flip) {
+        const piece = this.svgPiece(tg.flip);
+        if (piece) this.flipPiece(piece, Boolean(opt.flip));
+      }
+    }
+  }
+
+  /**
+   * Déplace une pièce de `dx`/`dy` PIXELS DU DESSIN. Même piège que `applyMove` :
+   * la forme vit sous le `matrix(3.78…)` d'Inkscape, on divise donc par l'échelle
+   * du parent pour que la course fasse la bonne distance à l'écran.
+   */
+  private translatePiece(piece: SVGElement, dx: number, dy: number): void {
+    if (!this.moveBase.has(piece)) this.moveBase.set(piece, piece.getAttribute('transform'));
+    const base = this.moveBase.get(piece) ?? null;
+    if (!dx && !dy) {
+      if (base === null) piece.removeAttribute('transform');
+      else piece.setAttribute('transform', base);
+      return;
+    }
+    const parent = piece.parentNode as SVGGraphicsElement | null;
+    const m = parent?.getCTM?.() ?? null;
+    const sx = m ? Math.hypot(m.a, m.b) || 1 : 1;
+    const sy = m ? Math.hypot(m.c, m.d) || 1 : 1;
+    const tx = (dx / sx).toFixed(4);
+    const ty = (dy / sy).toFixed(4);
+    piece.setAttribute('transform', `translate(${tx},${ty})${base ? ` ${base}` : ''}`);
+  }
+
+  /**
+   * Retourne une pièce sur elle-même (miroir horizontal) : la flèche du badge
+   * pointe vers la droite quand il est dehors, vers la gauche quand il est dans
+   * la boucle. Le miroir s'écrit APRÈS le transform d'origine — il travaille
+   * dans le repère de la forme, celui où sa boîte est mesurée.
+   */
+  private flipPiece(piece: SVGGraphicsElement, flipped: boolean): void {
+    if (!this.flipBase.has(piece)) this.flipBase.set(piece, piece.getAttribute('transform'));
+    const base = this.flipBase.get(piece) ?? null;
+    if (!flipped) {
+      if (base === null) piece.removeAttribute('transform');
+      else piece.setAttribute('transform', base);
+      return;
+    }
+    const box = piece.getBBox?.();
+    if (!box) return;
+    const cx = box.x + box.width / 2;
+    piece.setAttribute(
+      'transform',
+      `${base ? `${base} ` : ''}translate(${(2 * cx).toFixed(4)},0) scale(-1,1)`
+    );
+  }
+
+  /** Transform d'origine de chaque pièce retournée (`null` = pas d'attribut). */
+  private flipBase = new Map<SVGElement, string | null>();
+
+  /** Texte d'origine de chaque zone écrite : ce qui revient quand on la rend
+   *  (« Code RFID » réapparaît dès que le badge quitte la boucle). */
+  private texteBase = new Map<Element, string>();
+
+  /**
+   * Écrit un texte dans une zone de texte du dessin (le code lu par la carte
+   * RFID). Le `<text>` d'Inkscape porte un `<tspan>` : c'est LUI qu'il faut
+   * remplir, sinon le texte d'origine reste affiché. `null` remet ce qui était
+   * écrit sur la planche.
+   */
+  setSvgText(id: string, texte: string | null): void {
+    const el = this.wrapper.querySelector(`#${CSS.escape(id)}`);
+    if (!(el instanceof SVGElement)) return;
+    const cible = el.querySelector('tspan') ?? el;
+    if (!this.texteBase.has(cible)) this.texteBase.set(cible, cible.textContent ?? '');
+    const valeur = texte ?? this.texteBase.get(cible) ?? '';
+    if (cible.textContent !== valeur) cible.textContent = valeur;
+  }
 
   /** Retour visuel (LED/buzzer actif) : halo lumineux autour du dessin. */
   set active(value: boolean) {

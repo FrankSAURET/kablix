@@ -321,7 +321,16 @@ export class AvrEngine implements SimEngine {
 
   // Capteurs ultrason + actions d'entrée programmées en temps simulé (génération ECHO).
   private ultrasonic: UltrasonicSensor[] = [];
-  private scheduled: Array<{ cycle: number; name: string; value: boolean }> = [];
+  // `suite` : les fronts qui suivent celui-ci, datés en RELATIF (cycles après
+  // son application réelle). Une trame série fait des centaines de fronts :
+  // les empiler tous dans la file les ferait tous relire après CHAQUE
+  // instruction — un seul front attend, la suite se déroule d'elle-même.
+  private scheduled: Array<{
+    cycle: number; name: string; value: boolean;
+    suite?: Array<{ apres: number; value: boolean }>;
+    // Instant reel d'application de la TETE : toute la suite s'y rapporte.
+    base?: number;
+  }> = [];
 
   // Chaînes NeoPixel : décodeur WS2812 par broche DIN surveillée.
   private neopixels: Array<{ name: string; port: PortKey; bit: number; dec: Ws2812Decoder; last: boolean }> = [];
@@ -797,6 +806,26 @@ export class AvrEngine implements SimEngine {
     }
   }
 
+  /**
+   * Suite de fronts sur une broche (trame série d'une carte RFID…) : seul le
+   * premier entre dans la file, les autres le suivent au fur et à mesure.
+   */
+  emitPulses(pin: string, edges: Array<{ afterUs: number; level: boolean }>): void {
+    if (edges.length === 0) return;
+    const [premier, ...reste] = edges;
+    // Ecarts d'un front au suivant en entree, dates depuis la tete dans la file.
+    let cumul = 0;
+    this.scheduled.push({
+      cycle: this.cpu.cycles + Math.max(0, premier.afterUs) * CYCLES_PER_US,
+      name: pin,
+      value: premier.level,
+      suite: reste.map((e) => {
+        cumul += Math.max(0, e.afterUs) * CYCLES_PER_US;
+        return { apres: cumul, value: e.level };
+      }),
+    });
+  }
+
   setUltrasonic(sensors: UltrasonicSensor[]): void {
     this.ultrasonic = sensors;
     this.scheduled = [];
@@ -1009,6 +1038,17 @@ export class AvrEngine implements SimEngine {
         const a = this.scheduled[i];
         this.setInput(a.name, a.value);
         this.scheduled.splice(i, 1);
+        // La suite garde l'instant de depart de la tete : sinon le retard de
+        // chaque lot d'instructions s'ajouterait front apres front et la trame
+        // s'etirerait au point d'etre illisible.
+        const suite = a.suite;
+        if (suite && suite.length > 0) {
+          const base = a.base ?? now;
+          const [prochain, ...reste] = suite;
+          this.scheduled.push({
+            cycle: base + prochain.apres, name: a.name, value: prochain.value, suite: reste, base,
+          });
+        }
       }
     }
   }

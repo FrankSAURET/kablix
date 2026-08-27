@@ -267,6 +267,15 @@ export interface SimEngine {
   readDmx?(pin: string): Uint8Array | null;
   /** Force la valeur externe d'une broche d'entrée (bouton, capteur…). */
   setInput(name: string, value: boolean): void;
+  /**
+   * Programme une SUITE DE FRONTS sur une broche d'entrée, en temps SIMULÉ :
+   * c'est ainsi qu'un composant PARLE au microcontrôleur. Une carte RFID envoie
+   * son code sur un fil, à 9600 bauds (104 µs par bit) ou par impulsions
+   * Wiegand de 50 µs — mille fois trop court pour un `setInput` posé une fois
+   * par image. `afterUs` est le délai depuis le front PRÉCÉDENT (depuis
+   * maintenant pour le premier), en microsecondes simulées.
+   */
+  emitPulses?(pin: string, edges: Array<{ afterUs: number; level: boolean }>): void;
   /** Tension externe d'une broche analogique, en fraction 0..1 de VREF. */
   setAnalog(name: string, fraction: number): void;
   /**

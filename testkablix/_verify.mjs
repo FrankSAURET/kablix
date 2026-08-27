@@ -310,6 +310,18 @@ for (const t of TESTS) {
           b?.pullupOhms === e.pullupOhms, JSON.stringify(b));
         break;
       }
+      case 'rfid': {
+        // Lecteur de badges : c'est LUI qui parle. Ce qui compte est donc de
+        // savoir quelle broche du micro écoute quel fil — et le cavalier change
+        // la réponse : en UART le second fil ne sert pas, en Wiegand il porte
+        // les uns.
+        const b = model.customRfidBindings(diagram).find((x) => x.partId === e.partId);
+        check(`${t.name} : données → ${e.data}`, b?.data === e.data, JSON.stringify(b));
+        const attendu1 = e.data1 ?? null;
+        check(`${t.name} : ${attendu1 ? `second fil → ${attendu1}` : 'second fil inutilisé (mode UART)'}`,
+          (b?.data1 ?? null) === attendu1, JSON.stringify(b));
+        break;
+      }
       case 'analog-source': {
         const b = model.analogSourceBindings(diagram).find((x) => x.partId === e.partId);
         check(`${t.name} : sortie → ${e.mcuPin}`, b?.mcuPin === e.mcuPin, JSON.stringify(b));

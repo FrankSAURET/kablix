@@ -92,6 +92,7 @@ a pas de carte à remplacer.
 | DIP switch ×8 | `dip-switch-uno` | `dip-switch-pico` | `dip-switch-pico2` | 8 canaux 0/1 |
 | Joystick analogique | `joystick-uno` | `joystick-pico` | `joystick-pico2` | X/Y + bouton |
 | Capteur de lumière (LDR) | `photoresistor-uno` | `photoresistor-pico` | `photoresistor-pico2` | AO + DO (actif bas) |
+| Lecteur RFID Grove 125 kHz | `grove-rfid-uno` | `grove-rfid-pico` | `grove-rfid-pico2` | composant de la bibliothèque publique (`.kompix`) ; c'est le composant qui PARLE au micro : tant que le badge est dans la boucle, il redit son numéro une fois par seconde. Le cavalier choisit la langue — l'Uno l'écoute en **UART** (numéro en clair sur `Tx`, 9600 bauds, liaison série logicielle sur D2), la Pico en **Wiegand** (26 impulsions de 50 µs sur deux fils, `Tx` = DATA0 sur GP16 et `Rx` = DATA1 sur GP17, lues par interruption) |
 | Capteur PIR | `pir-uno` | `pir-pico` | `pir-pico2` | survol = mouvement |
 | Capteur d'inclinaison | `tilt-uno` | `tilt-pico` | `tilt-pico2` | clic maintenu = incliné |
 | Capteur à effet Hall | `hall-uno` | `hall-pico` | `hall-pico2` | aimant glissé = sortie basse ; rappel externe 10 kΩ (Uno) ou interne (Pico) |

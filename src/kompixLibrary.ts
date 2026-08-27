@@ -119,6 +119,37 @@ interface KompixManifest {
   openDrain?: { out: string; supplies: Array<[string, string]> };
   /** Carte fille (Grove Shield…) : socle, pistes internes, interrupteur. */
   shield?: KompixShield;
+  /** Bascules du dessin : pièces qu'un clic déplace (cavalier, badge RFID…).
+   *  Détaillé dans src/webview/diagram/catalog.mts (CustomToggle) — ici, le bloc
+   *  n'est que transporté tel quel du paquet jusqu'à la webview. */
+  toggles?: Array<{
+    attr: string;
+    knob: string;
+    handle?: string;
+    flip?: string;
+    title?: string;
+    zone?: { x: number; y: number; w: number; h: number };
+    options: Array<{ value: string; label: string; dx?: number; dy?: number; flip?: boolean }>;
+  }>;
+  /** Lecteur de badges : code envoyé au microcontrôleur quand le badge passe.
+   *  Détaillé dans src/webview/diagram/catalog.mts (CustomRfid). */
+  rfid?: {
+    tagAttr: string;
+    tagIn: string;
+    modeAttr: string;
+    display?: string;
+    repeatMs?: number;
+    modes: Array<{
+      value: string;
+      proto: 'uart' | 'wiegand';
+      pin: string;
+      pin1?: string;
+      baud?: number;
+      pulseUs?: number;
+      gapUs?: number;
+      codes: string[];
+    }>;
+  };
   innerOffset?: { x: number; y: number } | null;
   extAnchor?: { x: number; y: number } | null;
   intAnchor?: { x: number; y: number } | null;
@@ -148,6 +179,10 @@ interface CustomPartData {
   openDrain?: { out: string; supplies: Array<[string, string]> };
   /** Carte fille (voir KompixManifest.shield). */
   shield?: KompixShield;
+  /** Bascules du dessin (voir KompixManifest.toggles). */
+  toggles?: KompixManifest['toggles'];
+  /** Lecteur de badges (voir KompixManifest.rfid). */
+  rfid?: KompixManifest['rfid'];
   category?: string;
   /** Le .kompix embarque une fiche d'aide : l'inspecteur montre alors son
    *  bouton « Aide du composant ». Le texte, lui, reste dans le paquet — il est
@@ -398,6 +433,8 @@ export class KompixLibrary {
         control: traduit.control,
         openDrain: manifest.openDrain,
         shield: manifest.shield,
+        toggles: manifest.toggles,
+        rfid: manifest.rfid,
         category: manifest.category,
         hasHelp: langs.length > 0 || undefined,
         behaviorScript: behaviorScript,
@@ -818,6 +855,8 @@ export class KompixLibrary {
       control: data.control ?? null,
       openDrain: data.openDrain,
       shield: data.shield,
+      toggles: data.toggles,
+      rfid: data.rfid,
       innerOffset: data.innerOffset ?? null,
       extAnchor: data.extAnchor ?? null,
       intAnchor: data.intAnchor ?? null,

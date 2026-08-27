@@ -105,6 +105,8 @@ export async function lireKompix(ref) {
     control: manifest.control,
     openDrain: manifest.openDrain,
     shield: manifest.shield,
+    toggles: manifest.toggles,
+    rfid: manifest.rfid,
     category: manifest.category,
     hasHelp: helpLangs.length > 0 || undefined,
     behaviorScript,

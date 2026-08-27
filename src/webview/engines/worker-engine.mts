@@ -542,6 +542,10 @@ export class WorkerEngine implements SimEngine {
     this.post({ t: 'setPulseMonitors', pins: names });
   }
 
+  emitPulses(pin: string, edges: Array<{ afterUs: number; level: boolean }>): void {
+    this.post({ t: 'emitPulses', pin, edges });
+  }
+
   setUltrasonic(sensors: UltrasonicSensor[]): void {
     this.post({ t: 'setUltrasonic', sensors });
   }

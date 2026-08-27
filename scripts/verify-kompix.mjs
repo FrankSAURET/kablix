@@ -325,6 +325,64 @@ test('un composant sans contrôle de simulation n’en invente pas', async () =>
   if (relu.control) throw new Error(`contrôle inventé : ${JSON.stringify(relu.control)}`);
 });
 
+test('les pièces mobiles du dessin et le lecteur de badges reviennent intacts', async () => {
+  // Grove-RFID : deux blocs neufs du format. `toggles` dit quelles PIÈCES du
+  // dessin un clic déplace (le cavalier de mode, la flèche qui pousse le badge)
+  // et `rfid` dit ce que le module ENVOIE. Tout est déclaratif : perdre un seul
+  // de ces champs en route rendrait le composant muet ou immobile, sans erreur.
+  const relu = await allerRetour({
+    type: 'test-badges',
+    label: 'Lecteur',
+    kind: 'passive',
+    pins: [{ name: 'Tx', x: 0, y: 10 }, { name: 'Rx', x: 0, y: 20 }],
+    toggles: [
+      {
+        attr: 'mode', knob: 'Cavalier', title: 'Mode',
+        options: [{ value: 'uart', label: 'UART', dx: 0 }, { value: 'wiegand', label: 'Wiegand', dx: 10 }],
+      },
+      {
+        attr: 'tag', knob: 'Badge', handle: 'Fleche', flip: 'Fleche',
+        zone: { x: 22, y: 103, w: 40, h: 16 },
+        options: [{ value: 'out', label: 'Dehors' }, { value: 'in', label: 'Dans la boucle', dx: 100, flip: true }],
+      },
+    ],
+    rfid: {
+      tagAttr: 'tag', tagIn: 'in', modeAttr: 'mode', display: 'CodeRFID', repeatMs: 1000,
+      modes: [
+        { value: 'uart', proto: 'uart', pin: 'Tx', baud: 9600, codes: ['0F0034AB12'] },
+        { value: 'wiegand', proto: 'wiegand', pin: 'Tx', pin1: 'Rx', pulseUs: 50, gapUs: 2000, codes: ['1A34B12'] },
+      ],
+    },
+    svg: '<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><rect width="20" height="20"/></svg>',
+  });
+  eq(relu.toggles?.length, 2, 'nombre de bascules');
+  eq(relu.toggles[0].knob, 'Cavalier', 'pièce déplacée par la première bascule');
+  eq(relu.toggles[0].options[1].dx, 10, 'course du cavalier');
+  eq(relu.toggles[1].handle, 'Fleche', 'pièce cliquable de la seconde bascule');
+  eq(relu.toggles[1].flip, 'Fleche', 'pièce retournée');
+  eq(relu.toggles[1].options[1].flip, true, 'retournement de la flèche');
+  eq(relu.toggles[1].zone?.w, 40, 'zone cliquable de repli');
+  eq(relu.rfid?.display, 'CodeRFID', 'zone de texte du numéro');
+  eq(relu.rfid.repeatMs, 1000, 'cadence de répétition');
+  eq(relu.rfid.modes.length, 2, 'nombre de langues');
+  eq(relu.rfid.modes[0].baud, 9600, 'vitesse série');
+  eq(relu.rfid.modes[1].pin1, 'Rx', 'second fil Wiegand');
+  eq(relu.rfid.modes[1].gapUs, 2000, 'repos entre deux creux');
+  eq(relu.rfid.modes[1].codes[0], '1A34B12', 'numéro de badge');
+});
+
+test('un composant ordinaire n’invente ni pièce mobile ni lecteur de badges', async () => {
+  const relu = await allerRetour({
+    type: 'test-sans-bascule',
+    label: 'Ordinaire',
+    kind: 'passive',
+    pins: [],
+    svg: '<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><rect width="20" height="20"/></svg>',
+  });
+  if (relu.toggles) throw new Error(`bascule inventée : ${JSON.stringify(relu.toggles)}`);
+  if (relu.rfid) throw new Error(`lecteur inventé : ${JSON.stringify(relu.rfid)}`);
+});
+
 test('un composant sans schéma interne n’en invente pas', async () => {
   const relu = await allerRetour({
     type: 'test-sans-interne',

@@ -387,6 +387,71 @@
         "step": 1,
         "maxParam": "lxmax"
       }
+    },
+    {
+      "group": "Grove-RFID",
+      "type": "grove-rfid",
+      "label": "Grove 125 kHz RFID reader",
+      "description": "Grove 125 kHz RFID reader (EM4100 tags): while a tag sits in the antenna loop the module keeps sending its code to the board. A jumper picks the language — UART (the code as plain text on TX, 9600 baud) or Wiegand (two-wire pulses, TX = DATA0 and RX = DATA1). In simulation the arrow moves the tag in and out of the loop.",
+      "version": "2026.8.2",
+      "author": "Frank Sauret",
+      "reference": "https://wiki.seeedstudio.com/Grove-125KHz_RFID_Reader/",
+      "kind": "passive",
+      "category": "Sensors",
+      "toggles": [
+        {
+          "attr": "mode",
+          "knob": "Cavalier",
+          "title": "Reader mode (jumper)",
+          "options": [
+            { "value": "uart", "label": "UART", "dx": 0 },
+            { "value": "wiegand", "label": "Wiegand", "dx": 10 }
+          ]
+        },
+        {
+          "attr": "tag",
+          "knob": "Tag-RFID",
+          "handle": "rect620",
+          "flip": "rect620",
+          "title": "Move the tag in or out of the antenna loop",
+          "zone": { "x": 22, "y": 103, "w": 40, "h": 16 },
+          "options": [
+            { "value": "out", "label": "Tag away", "dx": 0 },
+            { "value": "in", "label": "Tag in the loop", "dx": 100, "flip": true }
+          ]
+        }
+      ],
+      "rfid": {
+        "tagAttr": "tag",
+        "tagIn": "in",
+        "modeAttr": "mode",
+        "display": "CodeRFID",
+        "repeatMs": 1000,
+        "modes": [
+          {
+            "value": "uart",
+            "proto": "uart",
+            "pin": "Tx",
+            "baud": 9600,
+            "codes": ["0F0034AB12", "0F00A17C45", "0F0059D3E8"]
+          },
+          {
+            "value": "wiegand",
+            "proto": "wiegand",
+            "pin": "Tx",
+            "pin1": "Rx",
+            "pulseUs": 50,
+            "gapUs": 2000,
+            "codes": ["1A34B12", "0C71D9E", "23F80A5"]
+          }
+        ]
+      },
+      "l10n": {
+        "fr": {
+          "label": "Lecteur RFID Grove 125 kHz",
+          "description": "Lecteur RFID Grove 125 kHz (badges EM4100) : tant qu'un badge reste dans la boucle d'antenne, le module envoie son code à la carte. Un cavalier choisit la langue — UART (le code en clair sur TX, 9600 bauds) ou Wiegand (impulsions sur deux fils, TX = DATA0 et RX = DATA1). En simulation, la flèche fait entrer et sortir le badge de la boucle."
+        }
+      }
     }
   ]
 }

@@ -267,6 +267,12 @@ async function main() {
       // [V+, GND] à alimenter. Sans ce bloc, Kablix ne saurait pas qu'il faut
       // un rappel au plus pour que le composant marche.
       openDrain: comp.openDrain,
+      // Bascules du DESSIN : les pièces qu'un clic déplace (le cavalier de mode
+      // d'une carte RFID, la flèche qui pousse le badge dans la boucle). Rien à
+      // voir avec la simulation : c'est de la mécanique, décrite une fois ici.
+      toggles: comp.toggles,
+      // Lecteur de badges : ce qu'il envoie, sur quel fil et dans quelle langue.
+      rfid: comp.rfid,
       // Traductions des libellés du composant : le catalogue de Kablix ne
       // connaît que ses composants natifs, un composant de bibliothèque emporte
       // donc les siennes dans son paquet (voir kompix_specification.md).

@@ -2419,6 +2419,20 @@ export class Editor {
         this.notify();
       });
     }
+    // Bascules du dessin (cavalier de mode, badge RFID…) : le clic sur la pièce
+    // écrit son attribut et émet `toggle-change` → on persiste dans le schéma et
+    // on resynchronise l'inspecteur s'il montre ce composant.
+    if (def.custom?.toggles?.length) {
+      el.addEventListener('toggle-change', (e) => {
+        const attr = (e as CustomEvent<{ attr: string; value: string }>).detail?.attr;
+        if (!attr) return;
+        part.attrs = { ...part.attrs, [attr]: el.getAttribute(attr) ?? '' };
+        if (this.selection?.kind === 'part' && this.selection.id === part.id) {
+          this.renderPartInspector(part.id);
+        }
+        this.notify();
+      });
+    }
 
     const hotspots = new Map<string, HTMLDivElement>();
     const pins = this.partPins(el);

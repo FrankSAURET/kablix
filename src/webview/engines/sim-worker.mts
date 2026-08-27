@@ -349,6 +349,9 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
       case 'setPulseMonitors':
         engine?.setPulseMonitors?.(msg.pins);
         return;
+      case 'emitPulses':
+        engine?.emitPulses?.(msg.pin, msg.edges);
+        break;
       case 'setUltrasonic':
         engine?.setUltrasonic?.(msg.sensors as never);
         return;

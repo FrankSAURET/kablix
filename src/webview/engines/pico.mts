@@ -387,6 +387,9 @@ export class PicoEngine implements SimEngine {
   private scheduled: Array<{
     nanos: number; name: string; value: boolean;
     suite?: Array<{ apres: number; value: boolean }>;
+    // Instant reel d'application de la TETE de la trame : toute la suite s'y
+    // rapporte, front apres front, sans jamais recompter le retard des lots.
+    base?: number;
   }> = [];
   // Capteurs DHT22 : même principe que l'ECHO ultrason (signal de départ détecté
   // en broche, réponse programmée en temps simulé). La broche est au repos HAUT
@@ -750,6 +753,31 @@ export class PicoEngine implements SimEngine {
     this.updateNextScheduled();
   }
 
+  /**
+   * Suite de fronts sur une broche (trame série d'une carte RFID…) : seul le
+   * premier entre dans la file, les autres suivent — et `updateNextScheduled`
+   * empêche le moteur de sauter par-dessus l'échéance.
+   */
+  emitPulses(pin: string, edges: Array<{ afterUs: number; level: boolean }>): void {
+    if (edges.length === 0) return;
+    const NANOS_PAR_US = 1000;
+    const [premier, ...reste] = edges;
+    // Les fronts d'une trame arrivent en ecarts d'un front au suivant ; la file,
+    // elle, date tout depuis la tete (comme le DHT et l'ultrason). Le cumul se
+    // fait donc ici, une fois pour toutes.
+    let cumul = 0;
+    this.scheduled.push({
+      nanos: this.sim.clock.nanos + Math.max(0, premier.afterUs) * NANOS_PAR_US,
+      name: pin,
+      value: premier.level,
+      suite: reste.map((e) => {
+        cumul += Math.max(0, e.afterUs) * NANOS_PAR_US;
+        return { apres: cumul, value: e.level };
+      }),
+    });
+    this.updateNextScheduled();
+  }
+
   setUltrasonic(sensors: UltrasonicSensor[]): void {
     this.scheduled = [];
     this.ultrasonic = sensors;
@@ -810,8 +838,18 @@ export class PicoEngine implements SimEngine {
         // Les fronts suivants, eux, tombaient pile : l'impulsion perdait ce
         // retard sur sa largeur (echo HC-SR04 lu 5,2 ms au lieu de 5,8, et
         // sautant de 300 us d'un tir a l'autre). D'ou le report en relatif.
-        for (const suivant of a.suite ?? []) {
-          this.scheduled.push({ nanos: now + suivant.apres, name: a.name, value: suivant.value });
+        // Un seul front attend a la fois : une trame serie en compte des
+        // centaines, et les empiler tous les ferait relire apres CHAQUE
+        // instruction. L'instant de depart voyage avec la suite (`base`), si
+        // bien que les dates restent celles de la tete : sans lui, le retard
+        // d'un lot s'ajouterait a chaque front et la trame s'etirerait.
+        const suite = a.suite;
+        if (suite && suite.length > 0) {
+          const base = a.base ?? now;
+          const [prochain, ...reste] = suite;
+          this.scheduled.push({
+            nanos: base + prochain.apres, name: a.name, value: prochain.value, suite: reste, base,
+          });
         }
       }
     }

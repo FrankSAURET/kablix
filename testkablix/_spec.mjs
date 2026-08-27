@@ -131,6 +131,10 @@ export const PART_PINS = {
   // « NC » ne sert à rien (il n'est relié à rien dans le module) et « SIG » est la
   // sortie ANALOGIQUE, qui monte avec la lumière reçue.
   'grove-light-sensor': ['GND', 'VCC', 'NC', 'SIG'],
+  // Lecteur RFID Grove 125 kHz : prise Grove à quatre fils. Le cavalier change
+  // le SENS des deux fils de données, jamais leur nom — en UART le module parle
+  // sur « Tx » seul, en Wiegand « Tx » devient DATA0 et « Rx » DATA1.
+  'grove-rfid': ['Tx', 'Rx', 'VCC', 'GND'],
 };
 
 // --- Grove Shield (Uno) : la carte fille qui se pose sur l'Arduino Uno ---------
@@ -2840,6 +2844,64 @@ void loop() {
 }
 `,
   }),
+
+  // Lecteur RFID Grove 125 kHz : le composant qui PARLE au microcontrôleur. Le
+  // cavalier est ici à gauche (mode UART) : le module envoie le numéro du badge
+  // en clair sur son fil « Tx », à 9600 bauds, tant que le badge reste dans la
+  // boucle d'antenne. Une liaison série LOGICIELLE le lit, la vraie (D0/D1)
+  // restant libre pour la console. Le second fil du module (« Rx ») ne sert que
+  // dans l'autre mode : il n'est pas câblé.
+  test({
+    name: 'grove-rfid-uno', board: 'uno', ext: 'ino',
+    kompix: ['grove-rfid'],
+    parts: [
+      MCU('uno'),
+      { id: 'Rfid1', type: 'grove-rfid', x: 620, y: 40, attrs: { mode: 'uart', tag: 'out' } },
+    ],
+    wires: () => [
+      w('Rfid1', 'VCC', 'U1', '5V', 'red'),
+      w('Rfid1', 'GND', 'U1', 'GND.1', 'black'),
+      w('Rfid1', 'Tx', 'U1', '2', 'yellow'),
+    ],
+    expect: { kind: 'rfid', partId: 'Rfid1', data: '2', data1: null },
+    code: `// Test lecteur RFID Grove 125 kHz : mode UART (cavalier à gauche).
+// Le module envoie le numéro du badge en clair sur son fil Tx, à 9600 bauds,
+// suivi d'un retour à la ligne, et le REDIT une fois par seconde tant que le
+// badge reste dans la boucle. En simulation, la flèche du dessin fait entrer et
+// sortir le badge ; le numéro envoyé s'affiche aussi dans la fenêtre du module.
+#include <SoftwareSerial.h>
+
+const int RFID_RX = 2;   // entrée : Tx du module
+const int RFID_TX = 3;   // sortie inutilisée (le module n'écoute rien)
+
+SoftwareSerial rfid(RFID_RX, RFID_TX);
+
+char badge[16];
+byte n = 0;
+
+void setup() {
+  Serial.begin(115200);
+  rfid.begin(9600);
+  Serial.println("Approchez un badge de la boucle.");
+}
+
+void loop() {
+  while (rfid.available()) {
+    char c = rfid.read();
+    if (c < ' ') {   // retour à la ligne : le numéro est complet
+      if (n > 0) {
+        badge[n] = 0;
+        Serial.print("badge = ");
+        Serial.println(badge);
+        n = 0;
+      }
+    } else if (n < sizeof(badge) - 1) {
+      badge[n++] = c;
+    }
+  }
+}
+`,
+  }),
 ];
 
 // ================================================================================
@@ -5280,6 +5342,66 @@ while True:
     client.send(ENTETE + PAGE % etat)
     client.close()
     print("LED", etat)
+`,
+  }),
+
+  // Lecteur RFID Grove 125 kHz : le composant qui PARLE au microcontrôleur. Le
+  // cavalier est ici à droite (mode Wiegand) : le numéro du badge part en
+  // impulsions sur DEUX fils — « Tx » porte les zéros, « Rx » les uns. Ce
+  // langage-là se lit par INTERRUPTION, ce qui lui va bien sur une Pico : les
+  // impulsions ne durent que 50 µs, aucune boucle de lecture ne les verrait.
+  test({
+    name: 'grove-rfid-pico', board: 'pico', ext: 'py',
+    kompix: ['grove-rfid'],
+    parts: [
+      MCU('pico'),
+      { id: 'Rfid1', type: 'grove-rfid', x: 680, y: 40, attrs: { mode: 'wiegand', tag: 'out' } },
+    ],
+    wires: () => [
+      w('Rfid1', 'VCC', 'U1', '3V3', 'red'),
+      w('Rfid1', 'GND', 'U1', 'GND.7', 'black'),
+      w('Rfid1', 'Tx', 'U1', 'GP16', 'green'),
+      w('Rfid1', 'Rx', 'U1', 'GP17', 'blue'),
+    ],
+    expect: { kind: 'rfid', partId: 'Rfid1', data: 'GP16', data1: 'GP17' },
+    code: `# Test lecteur RFID Grove 125 kHz : mode Wiegand (cavalier a droite).
+# Les deux fils restent hauts au repos. Un zero = une courte descente sur DATA0,
+# un un = une courte descente sur DATA1 : 50 microsecondes chacune, 2 ms entre
+# deux, 26 impulsions par badge, du bit de poids fort au bit de poids faible.
+# Trop bref pour une boucle de lecture : on compte les descentes par INTERRUPTION.
+# En simulation, la fleche du dessin fait entrer et sortir le badge de la boucle.
+from machine import Pin
+import time
+
+BITS = 26
+
+d0 = Pin(16, Pin.IN)   # les zeros
+d1 = Pin(17, Pin.IN)   # les uns
+
+recus = []
+
+
+def front0(broche):
+    recus.append(0)
+
+
+def front1(broche):
+    recus.append(1)
+
+
+d0.irq(trigger=Pin.IRQ_FALLING, handler=front0)
+d1.irq(trigger=Pin.IRQ_FALLING, handler=front1)
+
+print("Approchez un badge de la boucle.")
+
+while True:
+    if len(recus) >= BITS:
+        mot = 0
+        for b in recus[:BITS]:
+            mot = (mot << 1) | b
+        del recus[:BITS]
+        print("badge = {:07X}".format(mot))
+    time.sleep_ms(50)
 `,
   }),
 ];
