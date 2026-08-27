@@ -5,9 +5,11 @@
 //  - meterReadings : la même lecture qu'un voltmètre, jamais de court-circuit ;
 //  - aide : fiche FR présente, illustrée ;
 //  - rendu réel en Chrome headless : dessin, taille 1:1, broches, trace calée
-//    sur la grille DESSINÉE (19,82 px par carreau), fenêtre de temps, calibres
-//    affichés en bas à droite, boutons (butée des volts, tour complet du temps,
-//    inertes hors simulation), pastilles nues des prises banane.
+//    sur la grille DESSINÉE (19,82 px par carreau), fenêtre de temps, cartouche
+//    de trois lignes sous l'écran, boutons (butée des volts, tour complet du
+//    temps, inertes hors simulation), pastilles nues des prises banane ;
+//  - déclenchement : bouton de sens (montant/descendant) et curseur de niveau,
+//    l'écran commençant toujours sur le même passage du signal.
 import esbuild from 'esbuild';
 import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -53,6 +55,13 @@ check('catalogue : Volts/div = les cinq graduations du dessin',
   !!pv && pv.kind === 'select' && pv.options?.join(',') === '0.1,0.5,1,2,5');
 const ps = def.props?.find((p) => p.attr === 'sdiv');
 check('catalogue : s/div = nombre libre (pas de liste 1-2-5)', !!ps && ps.kind === 'number');
+// Déclenchement : le niveau part VIDE (le curseur se pose tout seul), le sens
+// part sur le front montant.
+check('catalogue : déclenchement au départ — niveau libre, front montant',
+  def.attrs?.trigger === '' && def.attrs?.triggeredge === 'rising');
+const pt = def.props?.find((p) => p.attr === 'triggeredge');
+check('catalogue : sens du déclenchement = montant ou descendant',
+  !!pt && pt.kind === 'select' && pt.options?.join(',') === 'rising,falling');
 
 // --- Aide locale ---------------------------------------------------------------
 const helpMd = join(root, 'docs', 'fr', 'composants', 'oscillo.md');
@@ -66,6 +75,8 @@ if (existsSync(helpMd)) {
   check('aide : bornes, carreaux et deux boutons documentés',
     /\*\*\+\*\*/.test(md) && /\*\*GND\*\*/.test(md) &&
     /`voltsdiv`/.test(md) && /`sdiv`/.test(md) && /carreau/i.test(md) && /parall[èe]le/i.test(md));
+  check('aide : déclenchement expliqué (curseur et sens du front)',
+    /d[ée]clench/i.test(md) && /`triggeredge`/.test(md) && /curseur/i.test(md));
 }
 
 // --- Schémas de banc -----------------------------------------------------------
@@ -162,17 +173,17 @@ async function run() {
 	res.size = [Math.round(box.width), Math.round(box.height)];
 	res.pins = el.pinInfo.map((p) => p.name + '@' + p.x + ',' + p.y).join(' ');
 	const trace = sh.querySelector('#oscillo-trace');
-	const cal = sh.querySelector('#oscillo-calibre');
+	// Les calibres s'écrivent dans le cartouche DESSINÉ sous l'écran : trois
+	// lignes empilées (calibre vertical, horizontal, déclenchement).
+	const info = sh.querySelector('#text-info');
+	const lignes = () => [].map.call(info.querySelectorAll('tspan'), (t) => t.textContent);
+	const cal = () => lignes().slice(0, 2).join(' | ');
+	const bb = (n) => { const b = n.getBoundingClientRect(); return [+b.left.toFixed(2), +b.top.toFixed(2), +b.width.toFixed(2), +b.height.toFixed(2)]; };
 	res.vide = trace.getAttribute('d') === '' && trace.style.display === 'none';
-	res.calDepart = cal.textContent;
-	// Le calibre s'écrit DANS l'écran, en bas à droite.
-	const dansEcran = () => {
-		const t = cal.getBoundingClientRect();
-		const e = sh.querySelector('#Ecran-4').getBoundingClientRect();
-		return t.left >= e.left && t.right <= e.right && t.bottom <= e.bottom
-			&& t.right > e.left + (e.width * 2) / 3 && t.bottom > e.top + (e.height * 2) / 3;
-	};
-	res.calDansEcran = dansEcran();
+	res.calDepart = cal();
+	res.calLignes = lignes().length;
+	// Le cartouche est SOUS l'écran, pas dedans : il ne cache aucune courbe.
+	res.calSousEcran = bb(info)[1] >= sh.querySelector('#Ecran-4').getBoundingClientRect().bottom - 0.5;
 	// --- Trace calée sur la grille DESSINÉE ------------------------------------
 	// Un carré 0/5 V à 1 V/div doit monter de exactement 5 carreaux, du zéro
 	// (croisement des axes) au trait du haut.
@@ -192,7 +203,7 @@ async function run() {
 	el.setAttribute('sdiv', '5');
 	await wait(10);
 	res.large = bbox();
-	res.calLarge = cal.textContent;
+	res.calLarge = cal();
 	el.setAttribute('sdiv', '1');
 	await wait(10);
 	// Écrêtage : 100 V à 1 V/div ne doit pas sortir de l'écran.
@@ -205,7 +216,7 @@ async function run() {
 	await wait(10);
 	res.videAuDemarrage = trace.getAttribute('d') === '';
 	// --- Unités du calibre horizontal ------------------------------------------
-	const calFor = async (s) => { el.setAttribute('sdiv', s); await wait(5); return cal.textContent; };
+	const calFor = async (s) => { el.setAttribute('sdiv', s); await wait(5); return cal(); };
 	res.calMs = await calFor('0.05');
 	res.calUs = await calFor('0.00002');
 	await calFor('1');
@@ -267,6 +278,92 @@ async function run() {
 	res.sdivLoin = Number(el.getAttribute('sdiv'));
 	el.removeAttribute('simulating');
 
+	// --- Déclenchement ---------------------------------------------------------
+	// Sans lui la courbe glisse : chaque image repartirait où le hasard l'a
+	// laissée. L'appareil cale le bord GAUCHE de l'écran sur un passage du signal
+	// par la tension de déclenchement, toujours dans le même sens.
+	const cur = sh.querySelector('#oscillo-trigger-cursor');
+	const zoneTrig = sh.querySelector('#oscillo-zone-trigger');
+	const mover = sh.querySelector('#trigger-button-mover');
+	res.trigNoExport = cur.hasAttribute('data-no-export') && zoneTrig.hasAttribute('data-no-export');
+	// La zone de clic recouvre PILE le bouton dessiné.
+	res.trigZone = bb(zoneTrig);
+	res.trigBouton = bb(sh.querySelector('#trigger-button'));
+	el.setAttribute('voltsdiv', '1');
+	el.setAttribute('sdiv', '1');
+	el.removeAttribute('trigger');
+	el.setAttribute('triggeredge', 'rising');
+	el.setAttribute('simulating', '');
+	await wait(5);
+	el.clearTrace();
+	// Créneau 0/5 V : une seconde en haut, une seconde en bas, 30 s d'historique
+	// (il faut plus d'un écran derrière soi pour trouver un front).
+	const creneau = () => { for (let i = 0; i <= 1800; i++) el.push(i * 1000 / 60, Math.floor(i / 60) % 2 ? 5 : 0); };
+	creneau();
+	await wait(10);
+	res.decAuto = lignes()[2];
+	res.curAuto = cur.getAttribute('d');
+	res.dMontant = trace.getAttribute('d').slice(0, 11);
+	res.moverHaut = bb(mover);
+	el.setAttribute('triggeredge', 'falling');
+	await wait(10);
+	res.dDescendant = trace.getAttribute('d').slice(0, 13);
+	res.moverBas = bb(mover);
+	el.setAttribute('triggeredge', 'rising');
+	await wait(5);
+	// Curseur pris à la souris. Le dessin est à l'échelle 1:1 : viser la 4e
+	// graduation au-dessus du zéro, c'est viser 108,86 − 4 × 19,82 = 29,58 px.
+	const tirer = (yDessin) => {
+		const boite = svg.getBoundingClientRect();
+		cur.dispatchEvent(new PointerEvent('pointerdown', {
+			bubbles: true, composed: true, cancelable: true,
+			clientX: boite.left + 12, clientY: boite.top + yDessin,
+		}));
+		window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+	};
+	el.removeAttribute('simulating');
+	await wait(5);
+	tirer(29.58);
+	res.curseurEdition = el.getAttribute('trigger');
+	el.setAttribute('simulating', '');
+	await wait(5);
+	el.clearTrace();
+	creneau();
+	await wait(5);
+	let vuT = null;
+	el.addEventListener('scope-scale', (e) => { vuT = e.detail; });
+	tirer(29.58);
+	await wait(5);
+	res.trigVolts = el.getAttribute('trigger');
+	res.decManuel = lignes()[2];
+	res.curManuel = cur.getAttribute('d');
+	res.evtTrig = vuT && [vuT.trigger, vuT.triggeredge];
+	res.dManuel = trace.getAttribute('d').slice(0, 11);
+	// Bouton de sens : inerte en édition, bascule en simulation.
+	const clicTrig = () => {
+		const b = zoneTrig.getBoundingClientRect();
+		zoneTrig.dispatchEvent(new PointerEvent('pointerdown', {
+			bubbles: true, composed: true, cancelable: true,
+			clientX: b.left + b.width / 2, clientY: b.top + b.height / 2,
+		}));
+	};
+	el.removeAttribute('simulating');
+	await wait(5);
+	clicTrig();
+	res.edgeEdition = el.getAttribute('triggeredge');
+	el.setAttribute('simulating', '');
+	await wait(5);
+	clicTrig();
+	await wait(5);
+	res.edgeClic = el.getAttribute('triggeredge');
+	clicTrig();
+	await wait(5);
+	res.edgeRetour = el.getAttribute('triggeredge');
+	el.removeAttribute('trigger');
+	el.removeAttribute('simulating');
+	el.clearTrace();
+	await wait(5);
+
 	// --- Éditeur réel : pastilles des prises banane -----------------------------
 	const editor = new Editor(
 		document.getElementById('canvas'), document.getElementById('palette'),
@@ -313,15 +410,16 @@ if (chrome) {
     const r = JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&'));
     // Grille DESSINÉE par Frank : 10 carreaux de 19,82 px, zéro au croisement
     // des axes (105,99 ; 108,86). Toute la trace se cale là-dessus.
-    const DIV = 19.82, ZERO_Y = 108.86, GAUCHE = 6.89, LARGEUR = 198.2;
+    const DIV = 19.82, ZERO_Y = 108.86, GAUCHE = 10.34, LARGEUR = 198.2;
     const pres = (a, b, eps = 0.6) => Math.abs(a - b) <= eps;
     check('rendu : dessin de Frank présent (écran + les deux boutons)', r.drawn === true);
     check('rendu : 220×270 px (1:1 viewBox)', r.size[0] === 220 && r.size[1] === 270);
-    check('rendu : broches +@40,250 GND@60,250', r.pins === '+@40,250 GND@60,250');
+    check('rendu : broches +@50,250 GND@70,250', r.pins === '+@50,250 GND@70,250');
     check('rendu : sans mesure, écran vierge (aucune courbe)', r.vide === true);
     check('rendu : calibres écrits « Vert : 1 V/div | Hor : 1 s/div »',
       r.calDepart === 'Vert : 1 V/div | Hor : 1 s/div');
-    check('rendu : calibres écrits en bas à DROITE, dans l\'écran', r.calDansEcran === true);
+    check('rendu : cartouche de trois lignes, SOUS l\'écran (aucune courbe cachée)',
+      r.calSousEcran === true && r.calLignes === 3);
     check(`rendu : carré 0/5 V à 1 V/div → 5 carreaux pile (${r.carre[3]} px)`,
       pres(r.carre[3], 5 * DIV) && pres(r.carre[1] + r.carre[3], ZERO_Y));
     check(`rendu : le même à 5 V/div → un seul carreau (${r.carre5[3]} px)`, pres(r.carre5[3], DIV));
@@ -353,6 +451,32 @@ if (chrome) {
     check(`rendu : 16 crans à gauche → retour à 10 s/div (${r.sdivRetour})`, near(r.sdivRetour, 10, 0.02));
     check(`rendu : le bouton s/div n'a pas de butée (50 crans de plus : ${r.sdivLoin} s/div)`,
       r.sdivLoin < 0.1 && r.sdivLoin > 0);
+    // --- Déclenchement ---------------------------------------------------------
+    const hauteurCurseur = (d) => Number(/L17\.34,([\d.]+)/.exec(d || '')?.[1]);
+    check('déclenchement : curseur et zone de clic hors du dessin exporté', r.trigNoExport === true);
+    check('déclenchement : la zone de clic recouvre le bouton dessiné',
+      r.trigZone.every((v, i) => pres(v, r.trigBouton[i], 0.6)));
+    check(`déclenchement : niveau posé tout seul à mi-hauteur du créneau (${r.decAuto})`,
+      r.decAuto === 'Dec : 2,5 V' && pres(hauteurCurseur(r.curAuto), ZERO_Y - 2.5 * DIV, 0.1));
+    check('déclenchement : front MONTANT → l\'écran commence en haut du créneau',
+      r.dMontant === 'M10.34,9.76');
+    check('déclenchement : front DESCENDANT → l\'écran commence en bas',
+      r.dDescendant === 'M10.34,108.86');
+    check('déclenchement : la moitié bleue du bouton descend d\'exactement sa hauteur',
+      pres(r.moverBas[1] - r.moverHaut[1], r.moverHaut[3], 0.3) &&
+      pres(r.moverBas[2], r.moverHaut[2], 0.1));
+    check('déclenchement : curseur INERTE en édition', r.curseurEdition === null);
+    check(`déclenchement : curseur tiré sur la 4e graduation → 4 V (${r.trigVolts})`,
+      near(Number(r.trigVolts), 4, 0.02) && r.decManuel === 'Dec : 4 V');
+    check('déclenchement : le triangle se pose à la hauteur réglée',
+      pres(hauteurCurseur(r.curManuel), ZERO_Y - 4 * DIV, 0.1));
+    check('déclenchement : réglage renvoyé à l\'hôte (scope-scale)',
+      !!r.evtTrig && near(Number(r.evtTrig[0]), 4, 0.02) && r.evtTrig[1] === 'rising');
+    check('déclenchement : à 4 V le créneau cale encore sur le front montant',
+      r.dManuel === 'M10.34,9.76');
+    check('déclenchement : bouton de sens INERTE en édition', r.edgeEdition === 'rising');
+    check('déclenchement : un clic bascule le sens, un autre le ramène',
+      r.edgeClic === 'falling' && r.edgeRetour === 'rising');
     check('éditeur : prises banane SANS pastille rouge/noire (2 .pin nus)',
       r.oscPads[0] === 2 && r.oscPads[1] === 0 && r.oscPads[2] === 0);
     check('éditeur : le servo garde ses pastilles V+/GND (contre-épreuve)',

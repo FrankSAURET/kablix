@@ -1347,12 +1347,18 @@ const meterFaults = new Map<string, string>();
 function refreshMeters(): void {
   if (!engine) return;
   const vcc = isPicoBoard(board) ? 3.3 : 5;
+  // Tension MOYENNE d'une broche qui hache (PWM) : c'est ce qu'affiche un vrai
+  // multimètre en continu. Sans ça, le chiffre sautait au hasard entre 0 V et la
+  // tension de la carte, selon l'instant où l'image était calculée.
+  const moyennePwm = (pin: string): number | null =>
+    engine!.pulseActive?.(pin) ? (engine!.readPwmDuty?.(pin) ?? 1) * vcc : null;
   const lus = meterReadings(
     editor.diagram,
     vcc,
     (pin) => engine!.readPinDrive?.(pin) ?? 'hiz',
     psuLiveVolts,
-    liveVariableOhms
+    liveVariableOhms,
+    moyennePwm
   );
   if (lus.length === 0 && meterFrame.size === 0) return;
   meterFrame = new Map(lus.map((m) => [m.partId, m]));
@@ -2804,10 +2810,15 @@ function bindInputs(): void {
     const el = editor.elementOf(part.id);
     if (!el) continue;
     const onScale = (e: Event): void => {
-      const d = (e as CustomEvent).detail as { voltsdiv?: number; sdiv?: number } | undefined;
+      const d = (e as CustomEvent).detail as
+        | { voltsdiv?: number; sdiv?: number; trigger?: string; triggeredge?: string }
+        | undefined;
       if (!d) return;
       editor.updatePartAttr(part.id, 'voltsdiv', String(d.voltsdiv ?? 1));
       editor.updatePartAttr(part.id, 'sdiv', String(d.sdiv ?? 1));
+      // Déclenchement : le sens, et la tension du curseur (vide = posée toute seule).
+      editor.updatePartAttr(part.id, 'trigger', d.trigger ?? '');
+      editor.updatePartAttr(part.id, 'triggeredge', d.triggeredge ?? 'rising');
     };
     el.addEventListener('scope-scale', onScale);
     inputRemovers.push(() => el.removeEventListener('scope-scale', onScale));

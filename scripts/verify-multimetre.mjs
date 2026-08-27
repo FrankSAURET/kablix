@@ -29,7 +29,7 @@ const buildTo = async (entry, outfile) => {
   });
   return import(pathToFileURL(join(tmp, outfile)).href);
 };
-const { meterReadings, meterMode, METER_SHORT_AMPS, buildNets } = await buildTo('src/webview/diagram/model.mts', 'model.mjs');
+const { meterReadings, meterMode, METER_SHORT_AMPS, buildNets, pulseMonitorPins } = await buildTo('src/webview/diagram/model.mts', 'model.mjs');
 const { partDef, partCategory, CATEGORY_ORDER } = await buildTo('src/webview/diagram/catalog.mts', 'catalog.mjs');
 
 let failures = 0;
@@ -76,7 +76,8 @@ const M = (id, mode) => ({ id, type: 'multimetre', x: 0, y: 0, attrs: { mode } }
 const R = (id, value) => ({ id, type: 'resistor', x: 0, y: 0, attrs: { value: String(value) } });
 const W = (id, a, b) => ({ id, a, b });
 const pin = (partId, p) => ({ partId, pin: p });
-const lire = (diagram, id, vcc = 5, drive) => meterReadings(diagram, vcc, drive).find((m) => m.partId === id);
+const lire = (diagram, id, vcc = 5, drive, pwm) =>
+	meterReadings(diagram, vcc, drive, undefined, undefined, pwm).find((m) => m.partId === id);
 
 check('meterMode : attribut current → ampèremètre, tout le reste → voltmètre',
   meterMode(M('m', 'current')) === 'current' && meterMode(M('m', 'voltage')) === 'voltage' &&
@@ -187,6 +188,40 @@ check(`broche D13 à l'état haut → ≈ 4,9 mA (${(iHigh.value * 1000).toFixed
   near(iHigh.value, 5 / 1026, 0.02));
 const iLow = lire(surBroche, 'm1', 5, () => 'low');
 check('broche D13 à l\'état bas → plus de courant', near(iLow.value, 0, 0.01) || Math.abs(iLow.value) < 1e-4);
+
+// 11. Broche qui HACHE (PWM) : le multimètre affiche la MOYENNE, pas le niveau
+//     instantané. Sans ça le chiffre sautait de 0 V à la tension de la carte
+//     d'une image à l'autre, au gré de l'instant où l'image était calculée.
+const surPwm = (type) => ({
+	parts: [{ id: 'uno', type: 'uno', x: 0, y: 0 }, { id: 'm1', type, x: 0, y: 0, attrs: { mode: 'voltage' } }],
+	wires: [
+		W('w1', pin('uno', '9'), pin('m1', '+')),
+		W('w2', pin('uno', 'GND.1'), pin('m1', 'GND')),
+	],
+});
+const pwm40 = (p) => (p === '9' ? 0.4 * 5 : null);
+const vInstant = lire(surPwm('multimetre'), 'm1', 5, (p) => (p === '9' ? 'high' : 'hiz'));
+check(`sans lissage, le niveau instantané d'une broche haute → 5 V (${vInstant.value.toFixed(2)} V)`,
+	near(vInstant.value, 5, 0.02));
+const vMoyen = lire(surPwm('multimetre'), 'm1', 5, (p) => (p === '9' ? 'high' : 'hiz'), pwm40);
+check(`PWM à 40 % vu au moment HAUT → moyenne 2,00 V (${vMoyen.value.toFixed(2)} V)`,
+	near(vMoyen.value, 2, 0.02));
+const vMoyenBas = lire(surPwm('multimetre'), 'm1', 5, (p) => (p === '9' ? 'low' : 'hiz'), pwm40);
+check(`… et au moment BAS, la MÊME moyenne (${vMoyenBas.value.toFixed(2)} V) — plus d'oscillation`,
+	near(vMoyenBas.value, 2, 0.02));
+
+// L'oscilloscope, lui, doit voir les créneaux : son métier est de les montrer.
+const oInstantHaut = lire(surPwm('oscillo'), 'm1', 5, (p) => (p === '9' ? 'high' : 'hiz'), pwm40);
+const oInstantBas = lire(surPwm('oscillo'), 'm1', 5, (p) => (p === '9' ? 'low' : 'hiz'), pwm40);
+check(`oscilloscope : PAS de lissage, il suit le créneau (${oInstantHaut.value.toFixed(2)} V / ${oInstantBas.value.toFixed(2)} V)`,
+	near(oInstantHaut.value, 5, 0.02) && Math.abs(oInstantBas.value) < 0.05);
+
+// Le rapport cyclique n'existe que sur une broche SURVEILLÉE : un multimètre
+// dans le schéma doit donc mettre les broches câblées sous surveillance.
+check('un multimètre met les broches câblées sous surveillance de rapport cyclique',
+	pulseMonitorPins(surPwm('multimetre'), 5).includes('9'));
+check('… et sans multimètre, rien n’est surveillé pour rien',
+	!pulseMonitorPins(surPwm('oscillo'), 5).includes('9'));
 
 // --- Rendu réel (Chrome headless) ----------------------------------------------
 const CACHE = join(root, 'node_modules', '.cache-multimetre');

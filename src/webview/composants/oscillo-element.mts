@@ -13,9 +13,20 @@
 //    courbe se dilate (moins de secondes par carreau), vers la gauche elle se
 //    rétracte. Un tour complet vaut un facteur 10, soit huit crans de 45°.
 //
-// EN SIMULATION : sim.mts appelle push(temps, volts) à chaque image ; la trace
-// défile vers la gauche (le présent est au bord droit de l'écran) et le coin bas
-// droit rappelle les deux calibres. Un point par image, donc ~60 par seconde :
+// DÉCLENCHEMENT (v2026.8.102.31) : sans lui la courbe glisse sans arrêt, parce
+// que chaque image commence là où le hasard l'a laissée. L'appareil cale donc le
+// début de l'écran sur un passage du signal par une TENSION DE DÉCLENCHEMENT,
+// toujours dans le même sens — comme on recale un film sur la même image. Deux
+// réglages :
+//  - le petit BOUTON du dessin (`trigger-button`) choisit le sens : sa moitié
+//    bleue en haut = front montant, en bas = front descendant ;
+//  - le CURSEUR au bord gauche de l'écran donne la tension. Tant qu'on n'y
+//    touche pas, il se pose tout seul à mi-hauteur du signal.
+// Sans passage trouvé (tension continue), la trace redéfile comme avant.
+//
+// EN SIMULATION : sim.mts appelle push(temps, volts) à chaque image ; les trois
+// lignes du cartouche `text-info` du dessin rappellent les deux calibres et la
+// tension de déclenchement. Un point par image, donc ~60 par seconde :
 // l'appareil montre les signaux lents, pas la forme d'une PWM à 500 Hz.
 import drawing from './externe/oscillo.svg';
 
@@ -26,11 +37,22 @@ export const SCOPE_H = 270;
 
 /** Grille DESSINÉE : 10 carreaux de 19,82 px, zéro au croisement des axes. */
 const DIV = 19.82;
-const PLOT = { x: 6.89, y: 9.76, w: 198.2, h: 198.2 };
-const ZERO = { x: 105.99, y: 108.86 };
+const PLOT = { x: 10.34, y: 9.76, w: 198.2, h: 198.2 };
+const ZERO = { x: 109.44, y: 108.86 };
 
-/** Coin bas droit de l'écran : rappel des deux calibres. */
-const CAL = { x: 202, y: 204, size: 8 };
+/** Cartouche de texte DESSINÉ sous l'écran : trois lignes empilées (calibre
+ *  vertical, calibre horizontal, tension de déclenchement). */
+const INFO_ID = 'text-info';
+
+/** Bouton de sens du déclenchement : le rectangle gris et sa moitié bleue, qui
+ *  descend d'une demi-hauteur pour dire « front descendant ». */
+const TRIG_BTN = 'trigger-button';
+const TRIG_MOVER = 'trigger-button-mover';
+/** Zone cliquable posée sur ce bouton (px du dessin, mesurés au rendu). */
+const TRIG_ZONE = { x: 178.6, y: 223.7, w: 10.5, h: 24 };
+
+/** Curseur de déclenchement : petit triangle collé au bord gauche de l'écran. */
+const TRIG_CURSOR_W = 7;
 
 /** Couleur de la courbe : bleu franc, l'écran est gris clair et la grille noire. */
 const TRACE_COLOR = '#1a5fb4';
@@ -46,11 +68,11 @@ const STEP_DEG = 75;
 type KnobRole = 'volts' | 'time';
 
 /** Pivot des deux boutons, dans le repère local de leur groupe. */
-const KNOB_PIVOT = { x: 243.68, y: 74.82 };
+const KNOB_PIVOT = { x: 243.662, y: 74.82 };
 /** Aiguille et zone cliquable de chaque bouton (le reste ne tourne pas). */
 const KNOBS: Record<KnobRole, { needle: string; cx: number; cy: number }> = {
-  volts: { needle: 'path1704', cx: 131.21, cy: 233.92 },
-  time: { needle: 'path2-6-0', cx: 173.58, cy: 233.92 },
+  volts: { needle: 'path1704', cx: 129.3, cy: 233.01 },
+  time: { needle: 'path2-6-0', cx: 161.87, cy: 233.01 },
 };
 /** Rayon de la zone cliquable posée sur un bouton (px du dessin). */
 const KNOB_R = 11;
@@ -102,12 +124,12 @@ function round4(x: number): number {
 export class OscilloElement extends HTMLElement {
   // Centres des prises banane du dessin (+ rouge à gauche, GND noire à droite).
   readonly pinInfo: PinInfo[] = [
-    { name: '+', x: 40, y: 250, signals: [] },
-    { name: 'GND', x: 60, y: 250, signals: [] },
+    { name: '+', x: 50, y: 250, signals: [] },
+    { name: 'GND', x: 70, y: 250, signals: [] },
   ];
 
   static get observedAttributes(): string[] {
-    return ['voltsdiv', 'sdiv', 'simulating'];
+    return ['voltsdiv', 'sdiv', 'trigger', 'triggeredge', 'simulating'];
   }
 
   private root: ShadowRoot;
@@ -139,6 +161,22 @@ export class OscilloElement extends HTMLElement {
     return VOLTS_DIV[this.voltsIndex];
   }
 
+  /** Sens du front qui déclenche : montant (défaut) ou descendant. */
+  get triggerEdge(): 'rising' | 'falling' {
+    return this.getAttribute('triggeredge') === 'falling' ? 'falling' : 'rising';
+  }
+
+  /** Tension de déclenchement RÉGLÉE À LA MAIN, ou null tant que le curseur n'a
+   *  pas été touché — dans ce cas elle se pose à mi-hauteur du signal. */
+  get triggerVolts(): number | null {
+    const s = this.getAttribute('trigger');
+    // Attribut ABSENT ou VIDE : personne n'a touché au curseur, il se pose tout
+    // seul. Une valeur vide n'est surtout pas « 0 V » — le schéma part avec.
+    if (s === null || s.trim() === '') return null;
+    const v = Number(s);
+    return Number.isFinite(v) ? v : null;
+  }
+
   /** Calibre horizontal : secondes par carreau. */
   get secondsDiv(): number {
     const v = Number(this.getAttribute('sdiv'));
@@ -156,6 +194,12 @@ export class OscilloElement extends HTMLElement {
     this.head = (this.head + 1) % BUF;
     if (this.count < BUF) this.count++;
     this.redraw();
+    // Curseur POSÉ TOUT SEUL : il suit la mi-hauteur du signal, qui change à
+    // chaque image. Réglé à la main, il ne bouge plus : rien à refaire.
+    if (this.triggerVolts === null) {
+      this.updateTrigger();
+      this.updateCalibre();
+    }
   }
 
   /** Écran effacé (nouveau lancement de la simulation). */
@@ -174,6 +218,7 @@ export class OscilloElement extends HTMLElement {
     // Nouveau lancement : l'écran repart vide, comme un appareil qu'on rallume.
     if (name === 'simulating' && old === null && val !== null) this.clearTrace();
     this.updateKnobs();
+    this.updateTrigger();
     this.updateCalibre();
     this.updateZones();
     this.redraw();
@@ -224,15 +269,27 @@ export class OscilloElement extends HTMLElement {
     trace.setAttribute('clip-path', 'url(#oscillo-clip)');
     svg.appendChild(trace);
 
-    const cal = document.createElementNS(SVG_NS, 'text');
-    cal.id = 'oscillo-calibre';
-    cal.setAttribute('x', String(CAL.x));
-    cal.setAttribute('y', String(CAL.y));
-    cal.setAttribute('text-anchor', 'end');
-    cal.setAttribute('font-size', String(CAL.size));
-    cal.setAttribute('font-family', 'sans-serif');
-    cal.setAttribute('fill', '#101010');
-    svg.appendChild(cal);
+    // Curseur de déclenchement : petit triangle collé au bord gauche de l'écran,
+    // à la hauteur de la tension qui déclenche. Il se prend à la souris.
+    // `data-no-export` : il ne fait pas partie du dessin de Frank.
+    const curseur = document.createElementNS(SVG_NS, 'path');
+    curseur.id = 'oscillo-trigger-cursor';
+    curseur.setAttribute('fill', TRACE_COLOR);
+    curseur.setAttribute('data-no-export', '');
+    curseur.addEventListener('pointerdown', (e) => this.onCursor(e as PointerEvent));
+    svg.appendChild(curseur);
+
+    // Zone cliquable du bouton de sens (montant / descendant).
+    const zoneTrig = document.createElementNS(SVG_NS, 'rect');
+    zoneTrig.id = 'oscillo-zone-trigger';
+    zoneTrig.setAttribute('x', String(TRIG_ZONE.x));
+    zoneTrig.setAttribute('y', String(TRIG_ZONE.y));
+    zoneTrig.setAttribute('width', String(TRIG_ZONE.w));
+    zoneTrig.setAttribute('height', String(TRIG_ZONE.h));
+    zoneTrig.setAttribute('fill', 'transparent');
+    zoneTrig.setAttribute('data-no-export', '');
+    zoneTrig.addEventListener('pointerdown', (e) => this.onTriggerButton(e as PointerEvent));
+    svg.appendChild(zoneTrig);
 
     // Zones cliquables des deux boutons (simulation seulement, comme l'inter du
     // multimètre : en édition le clic sert à sélectionner et déplacer).
@@ -269,9 +326,49 @@ export class OscilloElement extends HTMLElement {
     }
 
     this.updateKnobs();
+    this.updateTrigger();
     this.updateCalibre();
     this.updateZones();
     this.redraw();
+  }
+
+  /** Clic sur le bouton de sens : montant ↔ descendant, comme un inverseur. */
+  private onTriggerButton(e: PointerEvent): void {
+    if (!this.hasAttribute('simulating')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    this.setAttribute('triggeredge', this.triggerEdge === 'rising' ? 'falling' : 'rising');
+    this.announce();
+  }
+
+  /** Curseur de déclenchement pris à la souris : il suit le doigt tant qu'on ne
+   *  lâche pas, et la tension se lit sur la graduation verticale de l'écran. */
+  private onCursor(e: PointerEvent): void {
+    if (!this.hasAttribute('simulating')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const cible = e.currentTarget as SVGElement;
+    const svg = cible.ownerSVGElement;
+    if (!svg) return;
+    const suivre = (ev: PointerEvent): void => {
+      const boite = svg.getBoundingClientRect();
+      // Le dessin est posé à l'échelle 1:1 dans une boîte de SCOPE_H de haut :
+      // la règle de trois suffit à repasser des pixels d'écran à ceux du dessin.
+      const yDessin = ((ev.clientY - boite.top) / boite.height) * SCOPE_H;
+      const volts = (ZERO.y - yDessin) / (DIV / this.voltsDiv);
+      this.setAttribute('trigger', String(round4(volts)));
+      this.updateTrigger();
+      this.updateCalibre();
+      this.redraw();
+    };
+    const lacher = (): void => {
+      window.removeEventListener('pointermove', suivre);
+      window.removeEventListener('pointerup', lacher);
+      this.announce();
+    };
+    window.addEventListener('pointermove', suivre);
+    window.addEventListener('pointerup', lacher);
+    suivre(e);
   }
 
   /** Clic sur un bouton : la moitié droite le tourne à droite, la gauche à
@@ -305,9 +402,18 @@ export class OscilloElement extends HTMLElement {
       if (v === this.secondsDiv) return;
       this.setAttribute('sdiv', String(v));
     }
-    // L'hôte enregistre le réglage dans le schéma (comme le mode du multimètre).
+    this.announce();
+  }
+
+  /** L'hôte enregistre les réglages dans le schéma (comme le mode du multimètre). */
+  private announce(): void {
     this.dispatchEvent(new CustomEvent('scope-scale', {
-      detail: { voltsdiv: this.voltsDiv, sdiv: this.secondsDiv },
+      detail: {
+        voltsdiv: this.voltsDiv,
+        sdiv: this.secondsDiv,
+        trigger: this.getAttribute('trigger') ?? '',
+        triggeredge: this.triggerEdge,
+      },
       bubbles: true,
       composed: true,
     }));
@@ -319,6 +425,55 @@ export class OscilloElement extends HTMLElement {
       const zone = this.root.querySelector(`#oscillo-zone-${role}`) as SVGElement | null;
       if (zone) zone.style.cursor = curseur;
     }
+    const zt = this.root.querySelector('#oscillo-zone-trigger') as SVGElement | null;
+    if (zt) zt.style.cursor = curseur;
+    const cur = this.root.querySelector('#oscillo-trigger-cursor') as SVGElement | null;
+    if (cur) cur.style.cursor = this.hasAttribute('simulating') ? 'ns-resize' : '';
+  }
+
+  /**
+   * Tension à laquelle la trace se cale. Réglée à la main, c'est celle du
+   * curseur ; sinon elle se pose À MI-HAUTEUR du signal vu à l'écran, ce qui
+   * tombe juste sur à peu près tout (créneau, sinus, dent de scie).
+   */
+  private triggerLevel(): number {
+    const regle = this.triggerVolts;
+    if (regle !== null) return regle;
+    const bornes = this.envelope();
+    return bornes ? (bornes.min + bornes.max) / 2 : 0;
+  }
+
+  /** Plus basse et plus haute tension de la fenêtre affichée, ou null si vide. */
+  private envelope(): { min: number; max: number } | null {
+    if (this.count === 0) return null;
+    const fin = this.bufT[(this.head - 1 + BUF) % BUF];
+    const debut = fin - this.secondsDiv * 10;
+    let min = Infinity;
+    let max = -Infinity;
+    for (let n = 0; n < this.count; n++) {
+      const i = (this.head - this.count + n + 2 * BUF) % BUF;
+      if (this.bufT[i] < debut) continue;
+      const v = this.bufV[i];
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+    return min <= max ? { min, max } : null;
+  }
+
+  /** Bouton de sens et curseur latéral remis à leur place. */
+  private updateTrigger(): void {
+    // Moitié bleue du bouton : en haut pour le front montant, descendue d'une
+    // demi-hauteur (la sienne) pour le descendant.
+    const mover = this.root.querySelector(`#${TRIG_MOVER}`) as SVGRectElement | null;
+    if (mover) {
+      const h = mover.height?.baseVal?.value ?? 0;
+      mover.setAttribute('transform', this.triggerEdge === 'falling' ? `translate(0,${h})` : 'translate(0,0)');
+    }
+    const cur = this.root.querySelector('#oscillo-trigger-cursor') as SVGElement | null;
+    if (!cur) return;
+    const y = Math.min(PLOT.y + PLOT.h, Math.max(PLOT.y, ZERO.y - this.triggerLevel() * (DIV / this.voltsDiv)));
+    const x = PLOT.x;
+    cur.setAttribute('d', `M${x},${(y - TRIG_CURSOR_W / 2).toFixed(2)}L${x + TRIG_CURSOR_W},${y.toFixed(2)}L${x},${(y + TRIG_CURSOR_W / 2).toFixed(2)}Z`);
   }
 
   /** Aiguilles : le cran dessiné pour les volts, la position dans la décade
@@ -336,15 +491,50 @@ export class OscilloElement extends HTMLElement {
     }
   }
 
-  /** Coin bas droit de l'écran : « Vert : 2 V/div | Hor : 1 s/div ». */
+  /** Cartouche DESSINÉ sous l'écran : trois lignes empilées, dans l'ordre où
+   *  Frank les a posées (calibre vertical, calibre horizontal, déclenchement). */
   private updateCalibre(): void {
-    const el = this.root.querySelector('#oscillo-calibre');
-    if (el) el.textContent = `Vert : ${fmt(this.voltsDiv)} V/div | Hor : ${timeLabel(this.secondsDiv)}`;
+    const info = this.root.querySelector(`#${INFO_ID}`);
+    if (!info) return;
+    const lignes = info.querySelectorAll('tspan');
+    const textes = [
+      `Vert : ${fmt(this.voltsDiv)} V/div`,
+      `Hor : ${timeLabel(this.secondsDiv)}`,
+      `Dec : ${fmt(this.triggerLevel())} V`,
+    ];
+    for (let i = 0; i < lignes.length && i < textes.length; i++) lignes[i].textContent = textes[i];
   }
 
   /** Trace la courbe : une colonne par pixel de large, chacune tirée du plus bas
    *  au plus haut vu dans ce pixel — c'est ce que fait un oscilloscope
    *  numérique, et c'est ce qui donne son épaisseur à un signal qui pulse. */
+  /**
+   * Instant posé au BORD GAUCHE de l'écran. Sans déclenchement, c'est « il y a
+   * une largeur d'écran » : la trace défile, le présent au bord droit. Avec, on
+   * remonte le temps jusqu'au dernier passage du signal par la tension de
+   * déclenchement, dans le bon sens, ET assez ancien pour qu'un écran entier
+   * tienne derrière : la courbe se redessine alors toujours au même endroit,
+   * comme un film recalé sur la même image. Aucun passage (tension continue) :
+   * on redéfile, mieux vaut une trace qui glisse qu'un écran vide.
+   */
+  private windowStart(win: number): number {
+    const fin = this.bufT[(this.head - 1 + BUF) % BUF];
+    const defaut = fin - win;
+    if (this.count < 2) return defaut;
+    const niveau = this.triggerLevel();
+    const monte = this.triggerEdge === 'rising';
+    for (let n = this.count - 1; n >= 1; n--) {
+      const i = (this.head - this.count + n + 2 * BUF) % BUF;
+      const t = this.bufT[i];
+      if (t > defaut) continue; // trop récent : il manquerait la fin de l'écran
+      const j = (i - 1 + BUF) % BUF;
+      const a = this.bufV[j];
+      const b = this.bufV[i];
+      if (monte ? a < niveau && b >= niveau : a > niveau && b <= niveau) return t;
+    }
+    return defaut;
+  }
+
   private redraw(): void {
     const path = this.root.querySelector('#oscillo-trace') as SVGElement | null;
     if (!path) return;
@@ -354,7 +544,7 @@ export class OscilloElement extends HTMLElement {
       return;
     }
     const win = this.secondsDiv * 10;
-    const t0 = this.bufT[(this.head - 1 + BUF) % BUF] - win;
+    const t0 = this.windowStart(win);
     const perVolt = DIV / this.voltsDiv;
     const mins = new Float64Array(COLS);
     const maxs = new Float64Array(COLS);

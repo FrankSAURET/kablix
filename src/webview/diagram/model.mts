@@ -1252,7 +1252,8 @@ function circuitSources(
   vccNets: ReadonlySet<string>,
   gndNets: ReadonlySet<string>,
   drive?: (pin: string) => PinDrive,
-  psuVolts?: (partId: string) => number | null
+  psuVolts?: (partId: string) => number | null,
+  pwmVolts?: (pin: string) => number | null
 ): { sources: CircuitSource[]; pinsOnNet: Map<string, string[]> } {
   const sources: CircuitSource[] = [];
   for (const net of vccNets) {
@@ -1276,6 +1277,16 @@ function circuitSources(
       const list = pinsOnNet.get(net);
       if (list) list.push(role.name);
       else pinsOnNet.set(net, [role.name]);
+      // Broche en train de HACHER (PWM) : son niveau instantané ne veut rien
+      // dire pour un appareil qui affiche un chiffre — il vaut 0 V ou 5 V selon
+      // l'instant du coup d'oeil. La tension MOYENNE (rapport cyclique x tension
+      // de la carte) est ce que mesure un vrai voltmètre en continu. Le montage
+      // étant purement résistif, la moyenne se propage telle quelle.
+      const moyenne = pwmVolts?.(role.name) ?? null;
+      if (moyenne !== null && (drive?.(role.name) === 'high' || drive?.(role.name) === 'low')) {
+        sources.push({ net, volts: moyenne, ohms: MCU_OUTPUT_OHMS });
+        continue;
+      }
       switch (drive?.(role.name)) {
         case 'high':
           sources.push({ net, volts: vcc, ohms: MCU_OUTPUT_OHMS });
@@ -1378,7 +1389,8 @@ export function meterReadings(
   vcc: number,
   drive?: (pin: string) => PinDrive,
   psuVolts?: (partId: string) => number | null,
-  liveOhms?: (part: Part) => number | null
+  liveOhms?: (part: Part) => number | null,
+  pwmVolts?: (pin: string) => number | null
 ): MeterReading[] {
   // L'oscilloscope (kind 'scope') se lit EXACTEMENT comme un voltmètre : deux
   // prises, la différence des tensions de repos, aucune consommation. Seul son
@@ -1393,7 +1405,10 @@ export function meterReadings(
     const mode = meterMode(meter);
     const source = mode === 'current' ? openMeter(diagram, meter.id) : diagram;
     const { nets, adj, vccNets, gndNets } = resistiveGraph(source, liveOhms);
-    const { sources } = circuitSources(source, vcc, nets, vccNets, gndNets, drive, psuVolts);
+    // Le multimètre lisse le hachage, l'oscilloscope surtout PAS : son métier est
+    // justement de montrer les créneaux un par un.
+    const lisse = partDef(meter.type).kind === 'meter' ? pwmVolts : undefined;
+    const { sources } = circuitSources(source, vcc, nets, vccNets, gndNets, drive, psuVolts, lisse);
     const sourceNets = new Set(sources.map((s) => s.net));
     const plus = theveninNode(nets.netOf({ partId: meter.id, pin: '+' }), sources, sourceNets, adj);
     const minus = theveninNode(nets.netOf({ partId: meter.id, pin: 'GND' }), sources, sourceNets, adj);
@@ -2744,7 +2759,35 @@ export function pulseMonitorPins(diagram: Diagram, vcc: number): string[] {
     else if (kind === 'fan') pins.push(fanCircuit(diagram, part.id, vcc)?.mcuPin);
     else if (kind === 'motor') pins.push(motorMcuPin(diagram, part.id, vcc));
   }
+  pins.push(...meterWatchPins(diagram));
   return [...new Set(pins.filter((p): p is string => !!p))];
+}
+
+/**
+ * Broches à surveiller au rapport cyclique À CAUSE d'un multimètre : toutes les
+ * broches numériques CÂBLÉES de la carte. Un voltmètre peut être posé n'importe
+ * où dans le montage — pas seulement sur la broche elle-même —, et une broche
+ * dont le hachage n'est pas mesuré ferait sauter l'aiguille entre 0 V et la
+ * tension de la carte. Rien n'est surveillé s'il n'y a aucun multimètre : chaque
+ * broche surveillée est relue à chaque changement de port.
+ */
+function meterWatchPins(diagram: Diagram): string[] {
+  if (!diagram.parts.some((p) => partDef(p.type).kind === 'meter')) return [];
+  const nets = buildNets(diagram);
+  const cables = new Set<string>();
+  for (const w of diagram.wires) {
+    cables.add(nets.netOf(w.a));
+    cables.add(nets.netOf(w.b));
+  }
+  const out: string[] = [];
+  for (const { part, board } of mcuParts(diagram)) {
+    for (const pin of mcuPins(board)) {
+      const role = mcuPinRole(board, pin);
+      if (role.role !== 'digital' || !role.name) continue;
+      if (cables.has(nets.netOf({ partId: part.id, pin }))) out.push(role.name);
+    }
+  }
+  return out;
 }
 
 export interface SevenSegmentMuxBinding {

@@ -1,8 +1,4 @@
 # À faire
-1. Multimètre : si je met un signal pwm (exemple sur oscillo-pico) le multimètre devrait afficher la valeur moyenne et non une tension qui oscille de 0 à 1,63
-1. Oscilloscope :
-    1. la visu ne se fait plus dans l'écran mais dans text-info. Les 3 valeurs empilées.
-    1. Ajoute un petit curseur à gauche de l'écran pour stabiliser la courbe (déclenchement). Jai rajouté au dessin un trigger-button pour choisir entre front montant et descendant. Par défaut on est toujours sur front montant à 50% du signal. Le curseur latéral peut se bouger à la main. La zone de texte en bas rajoute l'info "dec : x,y V" tension de déclenchement.
 1. ili9341-pico2 est super rapide (génial) mais le temps affiché est bizarre 8% - 12% puis à la fin oscille entre 0 et 200% le même pour pico se stabilise à 116%
 1. neopixel ne marche plus complètement, seule la première led clignote un coup bref en rouge. Pareil pico et pico2. Uno ok.
 1. neopixel-matrix ne marche plus complètement, seule la diagonale blanche est remplie. Pareil pico et pico2. Uno ne fait plus rien.
@@ -11,6 +7,24 @@
 1. Traductions **EN** du lot Pico 2, à faire en un seul lot avant publication : `docs/en/composants/pico2.md` et `pico2w.md`, le paragraphe *Communication avec l'extérieur* de `picow.md`, et les deux précisions ajoutées à `USAGE.md`.
 ## ne pas faire pour l'instant
 
+
+# >>>>  v2026.8.102.31 — Le multimètre fait la moyenne, l'oscilloscope arrête l'image
+
+1. ✅ **Multimètre : une PWM se lit en MOYENNE** (item 1). Une broche qui hache allume et éteint des centaines de fois par seconde ; son niveau à l'instant du coup d'œil ne veut rien dire — d'où le chiffre qui sautait de 0 à 1,63 V. Un vrai voltmètre en continu ne voit pas ces créneaux : il voit leur **moyenne**, c'est-à-dire la tension de la carte multipliée par le temps passé en haut (40 % de 3,3 V = 1,32 V). Le montage étant fait de résistances, cette moyenne se promène telle quelle dans les fils : il suffit de la donner comme source à la place du niveau instantané ([model.mts](src/webview/diagram/model.mts), `circuitSources`).
+2. ✅ **L'oscilloscope, lui, n'est SURTOUT pas lissé**. Son métier est justement de montrer les créneaux un par un : le lissage n'est branché que pour les appareils qui affichent un chiffre (`kind: 'meter'`). Un même montage avec les deux appareils dit donc « 1,32 V » d'un côté et dessine le carré 0/3,3 V de l'autre.
+3. ✅ **Le hachage est SURVEILLÉ dès qu'un multimètre est posé** : sans cela le moteur ne comptait le rapport cyclique que pour les broches qu'un composant demandait explicitement, et le multimètre n'avait rien à moyenner. Toutes les broches numériques câblées passent maintenant sous surveillance quand un appareil de mesure est présent — et **seulement** dans ce cas, pour ne rien coûter au reste du temps.
+4. ✅ **Six contrôles neufs** au banc du multimètre ([verify:multimetre](scripts/verify-multimetre.mjs)) : moyenne juste à l'état haut ET à l'état bas de l'instant mesuré, oscilloscope non lissé en contre-épreuve, et la surveillance qui n'apparaît que s'il y a bien un appareil.
+5. ✅ **Oscilloscope : les calibres sont descendus dans le cartouche du dessin** (item 2.1). Ils s'écrivaient dans un coin de l'écran, par-dessus la courbe ; ils occupent maintenant les **trois lignes empilées** de `text-info` que tu as dessinées, sous l'écran : calibre vertical, calibre horizontal, tension de déclenchement.
+6. ✅ **Déclenchement : l'image s'arrête de courir** (item 2.2). Un signal qui se répète glissait sans arrêt, parce que chaque image repartait là où le hasard l'avait laissée. L'appareil cherche désormais, en remontant le temps, le dernier endroit où le signal **traverse une tension donnée dans un sens donné**, et met ce point-là au bord gauche de l'écran — comme on recale un film sur la même image. Rien à traverser (tension continue) : la trace redéfile, mieux vaut une courbe qui glisse qu'un écran vide.
+7. ✅ **Deux réglages, tous deux à la souris pendant la simulation.** Le **curseur** — petit triangle bleu au bord gauche de l'écran — donne la tension et se tire de haut en bas ; tant qu'on n'y touche pas il se pose tout seul **à mi-hauteur du signal**. Le **`trigger-button`** de ton dessin choisit le sens : sa moitié bleue en haut = front montant, descendue d'une demi-hauteur = front descendant. Les deux sont enregistrés dans le schéma (`trigger`, `triggeredge`) et retrouvés à la réouverture.
+8. ✅ **Le dessin a été réextrait** de `Composants2D.svg` : il apporte le bouton de déclenchement, le cartouche à trois lignes et les deux symboles de front. Les prises banane ont bougé de 10 px (`+` en 50,250 et `GND` en 70,250), et tous les repères de l'élément ont été **remesurés au rendu** plutôt que recopiés. L'illustration de la fiche d'aide a été refaite ([_capture-part.mjs](scripts/_capture-part.mjs)).
+9. ℹ️ **Deux lignes du cartouche portent les mots croisés dans ton dessin** (« Hor » sur la ligne des volts, « Vert » sur celle des millisecondes). Le code écrit les trois lignes dans le bon ordre physique — vertical, horizontal, déclenchement — donc l'affichage est juste ; c'est le texte de repli du fichier SVG qui restera bizarre tant qu'il n'est pas retouché.
+10. ✅ **Quinze contrôles neufs** au banc de l'oscilloscope ([verify:oscillo](scripts/verify-oscillo.mjs), 65 au total) : cartouche à trois lignes sous l'écran, zone de clic posée pile sur le bouton dessiné, niveau automatique à mi-hauteur, front montant qui fait commencer l'écran **en haut** du créneau et front descendant **en bas**, moitié bleue qui descend d'exactement sa hauteur, curseur inerte en édition, tiré sur la 4e graduation il vaut 4 V, et le réglage renvoyé à l'hôte.
+11. ✅ **Fiche d'aide FR complétée** : une section « Le déclenchement » et les deux propriétés dans le tableau ([oscillo.md](docs/fr/composants/oscillo.md)).
+12. ℹ️ **Un défaut connu reste au banc testkablix** : `grove-uno` (2 échecs de câblage sur 4618 contrôles, les prises `VCC` du shield confondues). Il était déjà là avant ce lot et appartient à l'item grove-uno de la liste.
+13. ✅ **Bancs au vert** : `verify:oscillo`, `verify:multimetre`, `verify:diagram`, typecheck et construction complète.
+
+---
 
 # >>>>  v2026.8.102.30 — Le lecteur de badges répond enfin, et les fils repassent devant
 

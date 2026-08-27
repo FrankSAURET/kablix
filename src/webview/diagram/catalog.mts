@@ -1163,10 +1163,17 @@ export const CATALOG: readonly PartDef[] = [
   // par sim.mts à chaque image.
   {
     type: 'oscillo', label: 'Oscilloscope', tag: 'kablix-oscillo', kind: 'scope',
-    simControl: true, attrs: { voltsdiv: '1', sdiv: '1' },
+    simControl: true, attrs: { voltsdiv: '1', sdiv: '1', trigger: '', triggeredge: 'rising' },
     props: [
       { attr: 'voltsdiv', label: 'Volts/div', kind: 'select', options: ['0.1', '0.5', '1', '2', '5'] },
       { attr: 'sdiv', label: 'Seconds/div', kind: 'number', min: 0.000001, max: 10000, step: 0.001 },
+      // La TENSION de déclenchement se règle au curseur du bord gauche de
+      // l'écran (attribut `trigger`, vide = posée toute seule à mi-hauteur du
+      // signal) : rien à saisir ici. Seul le SENS a sa liste.
+      {
+        attr: 'triggeredge', label: 'Trigger edge', kind: 'select', options: ['rising', 'falling'],
+        optionLabels: { rising: 'Rising edge', falling: 'Falling edge' },
+      },
     ],
   },
   // Patte de robot articulée : le fémur et le tibia DESSINÉS par Frank
