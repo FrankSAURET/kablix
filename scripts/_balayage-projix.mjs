@@ -1,12 +1,19 @@
 // Balayage de non-régression : autoroute CHAQUE .projix de testkablix et compte
 // les fils qui survolent une broche étrangère ou traversent un corps tiers.
-import { readdirSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/\\/g, '/').replace(/\/$/, '');
-const fichiers = readdirSync(ROOT + '/testkablix').filter((f) => f.endsWith('.projix'));
+// Les schémas Pico sont à plat, les schémas Arduino dans un dossier chacun.
+const fichiers = [
+	...readdirSync(ROOT + '/testkablix').filter((f) => f.endsWith('.projix')),
+	...readdirSync(ROOT + '/testkablix/Arduino', { withFileTypes: true })
+		.filter((d) => d.isDirectory())
+		.map((d) => `Arduino/${d.name}/${d.name}.projix`)
+		.filter((f) => existsSync(ROOT + '/testkablix/' + f)),
+];
 const bilan = [];
 for (const f of fichiers) {
 	let txt = '';

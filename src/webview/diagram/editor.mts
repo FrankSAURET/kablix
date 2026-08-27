@@ -3678,6 +3678,19 @@ export class Editor {
       }
       return true;
     };
+    // Une sortie ne vaut que si elle atterrit DEHORS. Sur un shield POSÉ SUR sa
+    // carte, sortir du corps du shield tombe en plein dans celui de l'Arduino :
+    // l'A\* ne peut pas partir de là, et la sortie sale restait la seule
+    // praticable. (Une platine d'essais ne compte pas : on câble par-dessus.)
+    const dedans = (p: XY): boolean => {
+      for (const [id, rc] of rects) {
+        if (id === end.partId || rc.board) continue;
+        if (p.x > rc.x && p.x < rc.x + rc.w && p.y > rc.y && p.y < rc.y + rc.h) return true;
+      }
+      return false;
+    };
+    /** Chemin de patte utilisable : ne rase aucune broche voisine ET sort dehors. */
+    const libre = (path: XY[]): boolean => clean(path) && !dedans(path[path.length - 1]);
     if (picked.some(clean)) return picked;
     // Broches ALIGNÉES en colonne/rangée (cas du PCA : PWM6 / P7.5V / P7.GND à
     // x=1730, espacées de 10 px) : la sortie perpendiculaire par le bord le plus
@@ -3686,9 +3699,8 @@ export class Editor {
     const extra: XY[][] = [];
     for (const lat of [top, bot, left, right]) {
       if (picked.some((p) => p[0] === lat)) continue;
-      if (clean([lat])) extra.push([lat]);
+      if (libre([lat])) extra.push([lat]);
     }
-    if (extra.length > 0) return [...picked, ...extra];
     // Broche ENCLAVÉE (P2.5V..P7.5V du PCA : broche du MILIEU d'une colonne de 3,
     // colonnes voisines à 10 px) : aucune sortie franche ne l'atteint sans écraser
     // une voisine — ni verticalement (PWMn / Pn.GND), ni horizontalement (les 5V
@@ -3713,16 +3725,27 @@ export class Editor {
           { x: box.x + box.w + len, y: e.y },
         ];
         outs.sort((u, v) => Math.hypot(u.x - e.x, u.y - e.y) - Math.hypot(v.x - e.x, v.y - e.y));
-        const out = outs.find((o) => clean([e, o]));
-        if (out) {
-          escapes.push([e, out]);
+        // DEUX sorties au plus par dégagement, pas seulement la plus proche : sur
+        // le shield Grove, la plus proche part vers la gauche et retombe dans
+        // l'Arduino, tandis que celle de droite — la bonne — n'était même pas
+        // proposée. Le coût tranche ensuite.
+        const outsOk = outs.filter((o) => libre([e, o])).slice(0, 2);
+        if (outsOk.length > 0) {
+          for (const o of outsOk) escapes.push([e, o]);
           break;
         }
       }
     }
-    // Les échappées passent devant : elles seules atteignent la broche proprement.
-    // On garde deux sorties franches en repli (l'A* peut échouer sur une échappée).
-    if (escapes.length > 0) return [...escapes, ...picked.slice(0, 2)];
+    // Échappées ET autres bords sont proposés ENSEMBLE, et c'est le coût qui
+    // tranche. Rendre le premier bord propre venu suffisait tant que le composant
+    // était seul sur le plan ; sur un SHIELD POSÉ SUR SA CARTE, ce bord tombe en
+    // plein dans le corps de la carte du dessous — l'A\* n'en part pas, la sortie
+    // sale restait donc la seule praticable et le fil descendait la colonne de la
+    // prise en écrasant ses voisines (repro `grove-uno.projix` : GND, VCC et D5
+    // de la prise D4 survolées).
+    const propres = [...escapes, ...extra];
+    // On garde UNE sortie franche en repli : l'A\* peut échouer partout ailleurs.
+    if (propres.length > 0) return [...propres.slice(0, 4), ...picked.slice(0, 1)];
     return picked;
   }
 
@@ -4312,10 +4335,18 @@ export class Editor {
         );
       };
       const origBends = polyLenBends(origPoly).bends;
+      const origFlaws = flaws(origPoly);
+      const newFlaws = flaws(newPoly);
       const rescue =
-        origBends > 4 &&
-        polyLenBends(newPoly).bends < origBends &&
-        flaws(newPoly) <= flaws(origPoly) + 0.01;
+        (origBends > 4 &&
+          polyLenBends(newPoly).bends < origBends &&
+          newFlaws <= origFlaws + 0.01) ||
+        // Un fil DÉJÀ ENREGISTRÉ qui écrase des broches voisines n'est pas un bon
+        // fil : le garde-fou n'a pas à le protéger quand le rerouté en écrase
+        // STRICTEMENT moins. (repro `grove-uno.projix` : deux fils sauvegardés
+        // descendaient toute une colonne de prise Grove ; l'A* en trouvait un
+        // propre, mais le score gardait l'ancien parce qu'il était plus court.)
+        newFlaws < origFlaws - 0.01;
       if (origOrtho && !rescue && origScore <= newScore + 0.01) {
         // Le reroutage n'améliore rien (ou dégrade) : on garde le fil tel quel, en
         // n'appliquant que l'optimisation colinéaire et le redressement des

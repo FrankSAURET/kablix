@@ -872,6 +872,28 @@ rows.push({
 	detail: soft ? soft[0].replace(/\s+/g, ' ').slice(0, 200) : 'softCost introuvable',
 });
 
+// --- Sorties de patte : sur un SHIELD, elles doivent atterrir DEHORS ----------
+// Une carte fille est posée SUR sa carte : sortir de son corps tombe en plein
+// dans celui du dessous, et l'A* ne peut pas partir de là. Le routeur descendait
+// alors la colonne de la prise Grove en écrasant ses voisines (repro
+// `grove-uno.projix`, v2026.8.102.34).
+const stubs = src.match(/private pinStubs\([\s\S]{0,9000}?\n  \}/);
+rows.push({
+	name: 'sortie de patte : celles qui tombent dans un autre corps sont écartées',
+	ok: !!stubs && /const dedans = \(p: XY\): boolean/.test(stubs[0]) && /const libre = \(path: XY\[\]\): boolean => clean\(path\) && !dedans\(/.test(stubs[0]),
+	detail: 'pinStubs ne filtre plus les sorties sur le seul « clean »',
+});
+rows.push({
+	name: 'dégagement latéral : DEUX sorties proposées, pas seulement la plus proche',
+	ok: !!stubs && /outs\.filter\(\(o\) => libre\(\[e, o\]\)\)\.slice\(0, 2\)/.test(stubs[0]),
+	detail: 'la plus proche partait vers la carte du dessous ; la bonne n était pas proposée',
+});
+rows.push({
+	name: 'un fil enregistré qui écrase PLUS de broches que le rerouté n est plus protégé',
+	ok: /newFlaws < origFlaws - 0\.01/.test(src),
+	detail: 'le garde-fou « ne jamais dégrader » gardait un vieux tracé sale parce qu il était plus court',
+});
+
 let fail = 0;
 for (const r of rows) {
 	if (!r.ok) fail++;

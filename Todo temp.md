@@ -1,3 +1,11 @@
+1. Grove-RFID rien ne se passe ni uno ni pico programme immédiatement arrêté. Pourtant nouveau composant installé.
+1. J'ai à nouveau des fils qui se recouvrent alors que ç'est interdit. Minimum une largeur de fil entre 2 fils.
+1. Le signal généré par la uno sur l'oscilloscope est trés variable. Beaucou plus que ce que j'observe en réel. Pourquoi.
+1. Si je sélectionne un fil et que je veux déplacer la broche de connexion, 2 pastilles se chevauchent. La verte et blanche qui permet de déplacer la connexion et la jaune qui permet de connecter un nouveau fil. Je voudrais que si un fil est sélectionner on puisse déplacer (blanche/verte) mais pas connecter (jaune) et le contraire di le fils n'est pas sélectionné (ça c'est déjà le cas)
+1. Le début du signal généré par al pico 2 est triangulaire dans oscillo-pico2 puis carré. Pourquoi.
+1. 
+1. 
+1. 
 1. Pour la barrière le nom qui doit apparaitre sur les patte des composant ne doit pas mettre ce qui suit le point. VCC, GND, OUT et VCC, GND
 1. Multimètre : 
     1. en simulation les fils passent derrière le multimètre ce qui ne doit pas.

@@ -1,8 +1,28 @@
 # À faire
-1. Sur la grove uno on retrouve les même problème que sur la pca9685 ou la grove pico : Le routage auto des fils passe par dessus des broches alignées.
+1. Grove-RFID rien ne se passe ni uno ni pico programme immédiatement arrêté. Pourtant nouveau composant installé.
+1. J'ai à nouveau des fils qui se recouvrent alors que ç'est interdit. Minimum une largeur de fil entre 2 fils.
+1. Le signal généré par la uno sur l'oscilloscope est trés variable. Beaucou plus que ce que j'observe en réel. Pourquoi.
+1. Si je sélectionne un fil et que je veux déplacer la broche de connexion, 2 pastilles se chevauchent. La verte et blanche qui permet de déplacer la connexion et la jaune qui permet de connecter un nouveau fil. Je voudrais que si un fil est sélectionner on puisse déplacer (blanche/verte) mais pas connecter (jaune) et le contraire di le fils n'est pas sélectionné (ça c'est déjà le cas)
+1. Le début du signal généré par al pico 2 est triangulaire dans oscillo-pico2 puis carré. Pourquoi.
 1. Traductions **EN** du lot Pico 2, à faire en un seul lot avant publication : `docs/en/composants/pico2.md` et `pico2w.md`, le paragraphe *Communication avec l'extérieur* de `picow.md`, et les deux précisions ajoutées à `USAGE.md`.
 ## ne pas faire pour l'instant
 
+
+# >>>>  v2026.8.102.34 — Le fil ne descend plus la colonne de la prise
+
+1. ✅ **Le routage écrasait les broches d'à côté sur le shield Grove (Uno)** (item 1). Pour sortir d'une patte, le routeur commence par proposer des **sorties** : « avance d'un pas, puis quitte le corps du composant ». Sur une carte fille, quitter son corps, c'est **tomber en plein dans l'Arduino du dessous** — le chercheur de chemin ne peut pas partir de là. Il ne lui restait que la sortie sale, et le fil **descendait la colonne de la prise** en passant sur GND, VCC et D5.
+2. ✅ **Deux corrections dans [editor.mts](src/webview/diagram/editor.mts)** : une sortie qui atterrit dans le corps d'un AUTRE composant est écartée ; et le dégagement latéral propose maintenant **deux** sorties au lieu de la seule plus proche — sur ce shield, la plus proche partait à gauche (dans l'Arduino) et la bonne, à droite le long d'un couloir libre, n'était même pas proposée. C'est le coût qui tranche ensuite.
+3. ✅ **Le garde-fou « ne jamais dégrader un fil existant » protégeait des fils sales** : un tracé déjà enregistré qui écrase des broches restait en place parce qu'il était plus court. Il cède désormais dès que le nouveau tracé écrase **strictement moins** de choses.
+4. ✅ **Le fichier de test portait de vieux fils sales** : cinq tracés de `grove-uno.projix` dataient d'avant. Refaits par le routeur — **les composants n'ont pas bougé d'un pixel** (règle : un schéma retouché par Frank garde ses emplacements).
+5. ✅ **Les deux échecs de nets du banc testkablix** venaient du même fichier : l'**interrupteur d'alimentation** du shield y était resté sur 3,3 V alors que le test attend 5 V — d'où « le 3,3 V et le 5 V confondus ». Remis sur 5 V, sans toucher aux emplacements. Banc : **4743 contrôles, 0 échec**.
+6. ℹ️ **Les 4 « traversées » qui restent sur ce schéma sont normales** : la carte fille est POSÉE sur l'Arduino, donc tout fil qui rejoint une prise passe forcément au-dessus de la carte du dessous.
+7. ✅ **Balayage de non-régression élargi** ([_balayage-projix.mjs](scripts/_balayage-projix.mjs)) : il ne voyait que les schémas Pico, il prend maintenant aussi les schémas Arduino — **190 schémas, 0 survol partout**.
+8. ✅ **Trois contrôles neufs** au banc du routage ([verify:route](scripts/verify-route.mjs), **64** au total) : les sorties qui tombent dans un autre corps sont écartées, le dégagement propose deux sorties, et le garde-fou ne protège plus un vieux tracé plus sale.
+9. ✅ **Nouvelle règle de numérotation** (item 7) : le manifeste porte désormais la version **déjà en ligne**, et on la lève **au moment même de publier** — prochaine publication : **`2026.8.103`**. Noté dans [CLAUDE.md](CLAUDE.md), dans la commande `/livre` et en mémoire.
+10. ⏳ **Le CLAUDE.md global n'a pas pu être modifié** (refus du contrôle d'accès) : sa ligne 75 dit encore « la PROCHAINE publication » — à corriger à la main.
+11. ✅ **Bancs au vert** : `testkablix` (4743), `verify:route` (64), balayage (190 schémas), typecheck et construction complète.
+
+---
 
 # >>>>  v2026.8.102.33 — Les couleurs et la distance repassent le mur du fil de calcul
 

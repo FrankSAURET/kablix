@@ -26,7 +26,9 @@ for (const p of diagram.parts) {
 	const base = dispo.map((f) => [f, f.replace(/\.mts$/, '').replace(/-(element|board)$/, '')]);
 	const hit = base.find(([, b]) => b === p.type) ?? base.find(([, b]) => b.endsWith(p.type));
 	if (hit) fichiers.add(hit[0].replace(/\.mts$/, '.mjs'));
-	else console.log('!! composant introuvable pour le type', p.type);
+	else if (!(diagram.customParts ?? []).some((c) => c.type === p.type)) {
+		console.log('!! composant introuvable pour le type', p.type);
+	}
 }
 const imports = [...fichiers].map((f) => `import '../../src/webview/composants/${f}';`).join('\n');
 console.log('composants importés :', [...fichiers].join(' '), '| types :', [...new Set(diagram.parts.map((p) => p.type))].join(' '));
@@ -64,6 +66,9 @@ async function run() {
 	const editor = new Editor(
 		document.getElementById('canvas'), document.getElementById('palette'),
 		document.getElementById('wires'), document.getElementById('inspector'));
+	// Composants de bibliothèque embarqués dans le projet (.kompix) : sans eux,
+	// un schéma à shield Grove ne s'ouvre même pas.
+	editor.loadCustomParts(DIAGRAM.customParts ?? []);
 	editor.loadDiagram(DIAGRAM);
 	await wait(1200);
 	const avant = editor.diagram.wires.map((w) => (w.points ?? []).length);
@@ -102,7 +107,10 @@ async function run() {
 			}
 		}
 		rows.push({ w: w.a.partId + '.' + w.a.pin + '→' + w.b.partId + '.' + w.b.pin,
-			avant: avant[i], apres: (w.points ?? []).length, pierce, surPins,
+			i, avant: avant[i], apres: (w.points ?? []).length, pierce, surPins,
+			// Les coudes tels quels : de quoi REÉCRIRE le tracé dans le .projix quand
+			// le fichier porte de vieux fils sales (ses composants, eux, ne bougent pas).
+			points: (w.points ?? []).map((p) => ({ x: p.x, y: p.y })),
 			pts: poly.map((p) => Math.round(p.x) + ',' + Math.round(p.y)).join(' ') });
 	});
 	const out = document.createElement('pre');
