@@ -239,6 +239,9 @@ function publish(): void {
       (c) => (o255(c.r) << 16) | (o255(c.g) << 8) | o255(c.b)
     );
   }
+  // Oscilloscope : le moteur a daté chaque bascule au fil de la simulation ; on
+  // vide son journal ici, la page le recolle bout à bout.
+  out.edges = engine.drainScopeEdges?.() ?? {};
   for (const id of lcdIds) out.lcd[id] = engine.readLcdParallel?.(id) ?? [];
   // Le latch a déjà été relevé front par front : ici on ne fait que publier ce qui
   // a bougé. Un afficheur qui montre le même nombre ne coûte aucun octet.
@@ -361,6 +364,9 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
         return;
       case 'setPulseMonitors':
         engine?.setPulseMonitors?.(msg.pins);
+        return;
+      case 'setScopeProbes':
+        engine?.setScopeProbes?.(msg.pins);
         return;
       case 'emitPulses':
         engine?.emitPulses?.(msg.pin, msg.edges);

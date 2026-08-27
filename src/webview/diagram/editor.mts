@@ -373,6 +373,9 @@ export class Editor {
     return c;
   })();
   private handles: HTMLDivElement[] = [];
+  /** Pastilles portant les extrémités du fil sélectionné : muettes tant qu'il
+   *  est choisi, pour que la poignée de déplacement gagne le clic (cf. styles). */
+  private endPins: HTMLElement[] = [];
   private guides: SVGLineElement[] = [];
   /** Platines dont des trous sont actuellement en surbrillance. */
   private highlightedBoards = new Set<string>();
@@ -3331,6 +3334,8 @@ export class Editor {
   private clearHandles(): void {
     for (const h of this.handles) h.remove();
     this.handles = [];
+    for (const d of this.endPins) d.classList.remove('pin--wire-end');
+    this.endPins = [];
     this.activeHandle = null;
     this.selectedHandles.clear();
     this.clearGuides();
@@ -3420,6 +3425,14 @@ export class Editor {
     for (const which of ['a', 'b'] as const) {
       const c = this.hotspotCenter(wire[which]);
       if (!c) continue;
+      // La pastille qui porte cette extrémité devient muette : sans cela elle
+      // s'allumait en jaune sous la poignée et volait le clic, si bien qu'on
+      // partait câbler un fil neuf au lieu de déplacer celui qu'on tenait.
+      const dot = this.rendered.get(wire[which].partId)?.hotspots.get(wire[which].pin);
+      if (dot) {
+        dot.classList.add('pin--wire-end');
+        this.endPins.push(dot);
+      }
       const handle = document.createElement('div');
       handle.className = 'wire-endpoint';
       handle.style.left = `${c.x}px`;

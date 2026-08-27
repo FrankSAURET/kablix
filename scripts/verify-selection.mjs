@@ -346,6 +346,44 @@ async function run() {
 	ok('extrémité lâchée : le fil est bien rebranché sur la broche nommée',
 		editor.diagram.wires[0].b.pin === 'A', JSON.stringify(editor.diagram.wires[0].b));
 
+// --- 10ter. Fil choisi : on DÉPLACE la connexion, on n'en câble pas une neuve --
+	// Les deux pastilles se superposent au pixel près. La broche gagnait le clic
+	// (elle s'allumait même en jaune sous la poignée), donc saisir l'extrémité
+	// partait câbler un fil neuf. Fil choisi → la broche se tait ; fil relâché →
+	// elle reconnecte comme avant.
+	{
+		for (const w of [...editor.diagram.wires]) editor.removeWire(w.id);
+		await wait(10);
+		editor.addWire({ partId: led1.id, pin: 'A' }, { partId: led2.id, pin: 'C' }, { color: 'green' });
+		editor.redrawWires();
+		const filP = editor.diagram.wires[0];
+		const brocheA = hotspotOf(led1.id, 'A');
+		// Une pastille « muette » ne reçoit plus le clic : c'est la poignée posée
+		// dessus (z=8, au-dessus des composants) qui le prend. elementFromPoint
+		// est inutilisable ici — la LED tombe hors de la fenêtre du navigateur
+		// sans tête — on lit donc le réglage appliqué à la pastille elle-même.
+		const clicable = (dot) => getComputedStyle(dot).pointerEvents !== 'none';
+		editor.select(null);
+		await wait(20);
+		ok('fil non choisi : la broche reste la cible du clic (câblage)',
+			clicable(brocheA), brocheA.className);
+		editor.select({ kind: 'wire', id: filP.id });
+		await wait(30);
+		ok('fil choisi : la broche ne prend plus le clic, la poignée le prend',
+			!clicable(brocheA) && document.querySelectorAll('.wire-endpoint').length === 2,
+			getComputedStyle(brocheA).pointerEvents);
+		ok('fil choisi : la broche porte la marque qui la rend muette',
+			brocheA.classList.contains('pin--wire-end'), brocheA.className);
+		ok('fil choisi : les deux extrémités sont marquées, pas une de plus',
+			document.querySelectorAll('.pin--wire-end').length === 2,
+			document.querySelectorAll('.pin--wire-end').length);
+		editor.select(null);
+		await wait(20);
+		ok('fil relâché : la marque est retirée, la broche reconnecte',
+			!brocheA.classList.contains('pin--wire-end') && clicable(brocheA),
+			brocheA.className);
+	}
+
 	// --- 11. Couleur de sélection --kx-select (v2026.7.119) ---------------------
 	// On repart d'un schéma propre : le fil de la section 8 a été supprimé et la
 	// section 10 (bulle) a pu créer un fil parasite → on efface tout et on en

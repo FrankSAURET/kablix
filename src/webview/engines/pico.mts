@@ -31,6 +31,7 @@ import type {
   SimEngine,
   UltrasonicSensor,
 } from './types.mjs';
+import { SCOPE_LOG_MAX } from './types.mjs';
 import { selectSpiDevice, Hd44780, type I2cDevice, type SpiDevice } from './i2c-devices.mjs';
 import { Ws2812Decoder } from './ws2812.mjs';
 import { DmxDecoder } from './dmx.mjs';
@@ -679,6 +680,11 @@ export class PicoEngine implements SimEngine {
     }
   }
 
+  // Sonde d'oscilloscope (cf. avr.mts) : chaque bascule datée au cycle près,
+  // à plat dans un journal que la page vide à chaque image.
+  private scopePins = new Set<string>();
+  private scopeLog = new Map<string, number[]>();
+
   setPulseMonitors(names: string[]): void {
     this.pulsePins = [];
     for (const name of names) {
@@ -994,6 +1000,33 @@ export class PicoEngine implements SimEngine {
     return this.pulseState.get(name)?.lastUs ?? 0;
   }
 
+  setScopeProbes(names: string[]): void {
+    this.scopePins = new Set(names);
+    for (const name of this.scopeLog.keys()) {
+      if (!this.scopePins.has(name)) this.scopeLog.delete(name);
+    }
+  }
+
+  drainScopeEdges(): Record<string, number[]> {
+    if (this.scopeLog.size === 0) return {};
+    const out: Record<string, number[]> = {};
+    for (const [name, log] of this.scopeLog) {
+      if (log.length > 0) out[name] = log.splice(0, log.length);
+    }
+    return out;
+  }
+
+  /** Note une bascule de broche sondée, datée en ms simulées. */
+  private noteScopeEdge(name: string, high: boolean): void {
+    let log = this.scopeLog.get(name);
+    if (!log) {
+      log = [];
+      this.scopeLog.set(name, log);
+    }
+    log.push(this.simulatedMs(), high ? 1 : 0);
+    if (log.length > SCOPE_LOG_MAX) log.splice(0, log.length - SCOPE_LOG_MAX);
+  }
+
   /**
    * Vrai si la broche OSCILLE : au moins une période complète mesurée, et un
    * front il y a moins de 60 ms simulées (cf. avr.mts). Un front isolé —
@@ -1050,6 +1083,10 @@ export class PicoEngine implements SimEngine {
       const high = this.mcu.gpio[pp.index].value === GPIOPinState.High;
       const st = this.pulseState.get(pp.name);
       if (!st) continue;
+      // Oscilloscope : la bascule est notée avant tout le reste (cf. avr.mts).
+      if (high !== st.high && this.scopePins.has(pp.name)) {
+        this.noteScopeEdge(pp.name, high);
+      }
       if (high && !st.high) {
         st.high = true;
         st.rise = now;

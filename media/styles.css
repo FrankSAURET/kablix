@@ -2122,6 +2122,21 @@ body.vscode-light .inspector__ref--nouveau {
   pointer-events: none;
 }
 
+/* Broche qui porte l'extrémité du fil sélectionné : muette. Les deux pastilles
+   se superposent au pixel près (la poignée de déplacement est POSÉE sur la
+   broche) ; c'est la broche qui gagnait, donc un clic partait câbler un fil neuf
+   au lieu de déplacer la connexion. Fil sélectionné → on déplace ; fil non
+   sélectionné → pas de poignée du tout, la broche connecte comme avant.
+   Exception : pendant qu'un fil se câble (tracé .wire--temp à l'écran) la broche
+   redevient visable, sinon on ne pourrait plus faire aboutir le fil neuf. */
+.pin.pin--wire-end {
+  pointer-events: none;
+}
+
+.canvas:has(.wire--temp) .pin.pin--wire-end {
+  pointer-events: auto;
+}
+
 .pin:hover {
   background: #ffd633;
   box-shadow: 0 0 6px 2px rgba(255, 214, 51, 0.7);

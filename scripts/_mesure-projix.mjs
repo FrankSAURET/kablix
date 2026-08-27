@@ -35,6 +35,7 @@ console.log('composants importés :', [...fichiers].join(' '), '| types :', [...
 
 const entry = `
 import { Editor } from '../../src/webview/diagram/editor.mjs';
+import { nameEquipotentials } from '../../src/webview/diagram/model.mjs';
 ${imports}
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const DIAGRAM = ${JSON.stringify(diagram)};
@@ -62,6 +63,33 @@ function onSeg(p, a, b, tol) {
 	return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy)) <= tol;
 }
 
+// Axe d'un segment aligne : 'h', 'v' ou null (diagonale).
+function axe(a, b) {
+	const dx = Math.abs(a.x - b.x), dy = Math.abs(a.y - b.y);
+	if (dy <= 0.5 && dx > 0.5) return 'h';
+	if (dx <= 0.5 && dy > 0.5) return 'v';
+	return null;
+}
+// Longueur de recouvrement de deux segments poses sur la MEME ligne.
+function recouvre(a, b, c, d) {
+	const ax = axe(a, b);
+	if (!ax || ax !== axe(c, d)) return 0;
+	const k = ax === 'h' ? 'y' : 'x', m = ax === 'h' ? 'x' : 'y';
+	if (Math.abs(a[k] - c[k]) > 0.5) return 0;
+	return Math.max(0, Math.min(Math.max(a[m], b[m]), Math.max(c[m], d[m]))
+		- Math.max(Math.min(a[m], b[m]), Math.min(c[m], d[m])));
+}
+// Longueur de cote a cote de deux paralleles distantes de moins de 'ecart'.
+function serre(a, b, c, d, ecart) {
+	const ax = axe(a, b);
+	if (!ax || ax !== axe(c, d)) return 0;
+	const k = ax === 'h' ? 'y' : 'x', m = ax === 'h' ? 'x' : 'y';
+	const off = Math.abs(a[k] - c[k]);
+	if (off <= 0.5 || off >= ecart) return 0;
+	return Math.max(0, Math.min(Math.max(a[m], b[m]), Math.max(c[m], d[m]))
+		- Math.max(Math.min(a[m], b[m]), Math.min(c[m], d[m])));
+}
+
 async function run() {
 	const editor = new Editor(
 		document.getElementById('canvas'), document.getElementById('palette'),
@@ -86,6 +114,9 @@ async function run() {
 		}
 	}
 	const rows = [];
+	const polys = [];
+	const eqps = [];
+	const EQP = nameEquipotentials(editor.diagram);
 	editor.diagram.wires.forEach((w, i) => {
 		const a = editor.hotspotCenter(w.a), b = editor.hotspotCenter(w.b);
 		if (!a || !b) return;
@@ -106,6 +137,9 @@ async function run() {
 				if (onSeg(p.c, poly[k], poly[k + 1], 4)) { surPins.push(p.partId + '.' + p.pin); break; }
 			}
 		}
+		// Fils poses SUR un autre fil, ou colles a moins d'une largeur de fil.
+		eqps[i] = EQP.eqpOfWire(w.id);
+		polys[i] = poly;
 		rows.push({ w: w.a.partId + '.' + w.a.pin + '→' + w.b.partId + '.' + w.b.pin,
 			i, avant: avant[i], apres: (w.points ?? []).length, pierce, surPins,
 			// Les coudes tels quels : de quoi REÉCRIRE le tracé dans le .projix quand
@@ -113,6 +147,33 @@ async function run() {
 			points: (w.points ?? []).map((p) => ({ x: p.x, y: p.y })),
 			pts: poly.map((p) => Math.round(p.x) + ',' + Math.round(p.y)).join(' ') });
 	});
+	// Un fil ne doit ni se poser SUR un autre, ni le longer de plus pres qu'une
+	// largeur de tracé (3 px) : deux fils colles ne se distinguent plus a l'oeil.
+	for (const r of rows) { r.dessus = []; r.colle = []; }
+	for (let i = 0; i < rows.length; i++) {
+		for (let j = i + 1; j < rows.length; j++) {
+			const pi = polys[rows[i].i], pj = polys[rows[j].i];
+			if (!pi || !pj) continue;
+			// Meme equipotentielle : la dorsale commune est VOULUE (les deux fils
+			// portent le meme potentiel, les confondre ne trompe personne).
+			const ei = eqps[rows[i].i], ej = eqps[rows[j].i];
+			if (ei !== undefined && ei === ej) continue;
+			let sur = 0, pres = 0;
+			for (let k = 0; k < pi.length - 1; k++)
+				for (let l = 0; l < pj.length - 1; l++) {
+					sur += recouvre(pi[k], pi[k + 1], pj[l], pj[l + 1]);
+					pres += serre(pi[k], pi[k + 1], pj[l], pj[l + 1], 3);
+				}
+			if (sur > 1) {
+				rows[i].dessus.push(rows[j].w + ':' + sur.toFixed(0));
+				rows[j].dessus.push(rows[i].w + ':' + sur.toFixed(0));
+			}
+			if (pres > 1) {
+				rows[i].colle.push(rows[j].w + ':' + pres.toFixed(0));
+				rows[j].colle.push(rows[i].w + ':' + pres.toFixed(0));
+			}
+		}
+	}
 	const out = document.createElement('pre');
 	out.id = 'measures';
 	out.textContent = JSON.stringify({

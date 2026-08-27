@@ -113,6 +113,7 @@ import {
   sevenSegmentBindings,
   sevenSegmentMuxBindings,
   pulseMonitorPins,
+  scopeProbePins,
   neopixelBindings,
   dmxBindings,
   lcdParallelBindings,
@@ -147,6 +148,7 @@ import {
   type ManualContactState,
   type Pca9685Binding,
   type SevenSegmentMuxBinding,
+  type PinDrive,
 } from './diagram/model.mjs';
 import { AvrEngine } from './engines/avr.mjs';
 import { PicoEngine, type PicoProgram } from './engines/pico.mjs';
@@ -1347,6 +1349,16 @@ let icFrame: readonly LogicIcState[] = [];
 /** Défauts d'alimentation signalés une seule fois par changement d'état. */
 const icFaults = new Map<string, IcFault>();
 
+/**
+ * Oscilloscopes posés sur une broche de la carte : identifiant de l'appareil et
+ * nom de la broche que le moteur date front par front (cf. scopeProbePins).
+ */
+let scopeProbes: Array<{ partId: string; pin: string }> = [];
+/** Tension des deux états de la broche sondée, mesurée sur le montage réel. */
+const scopeLevels = new Map<string, { hi: number; lo: number }>();
+/** Dernière tension tracée par appareil : c'est le palier que tient la courbe. */
+const scopeHeld = new Map<string, number>();
+
 /** Mesures des multimètres à cette frame (calculées UNE fois pour tous). */
 let meterFrame = new Map<string, MeterReading>();
 /** Multimètres en défaut, signalés une seule fois par changement d'état. */
@@ -1376,6 +1388,30 @@ function refreshMeters(): void {
   );
   if (lus.length === 0 && meterFrame.size === 0) return;
   meterFrame = new Map(lus.map((m) => [m.partId, m]));
+  // Oscilloscope sur une broche : la FORME de la courbe vient des fronts datés
+  // par le moteur, mais leur HAUTEUR dépend du montage — une LED en série, un
+  // pont diviseur ou une résistance de rappel ne donnent pas la tension de la
+  // carte. On refait donc la mesure deux fois pour la seule broche sondée,
+  // broche forcée haute puis forcée basse, et on garde ces deux tensions.
+  scopeLevels.clear();
+  for (const sonde of scopeProbes) {
+    const niveau = (force: PinDrive): number | null => {
+      const drive = (pin: string): PinDrive =>
+        pin === sonde.pin ? force : engine!.readPinDrive?.(pin) ?? 'hiz';
+      const r = meterReadings(
+        editor.diagram,
+        vcc,
+        drive,
+        psuLiveVolts,
+        liveVariableOhms,
+        moyennePwm
+      ).find((m) => m.partId === sonde.partId);
+      return r && r.value !== null && Number.isFinite(r.value) ? r.value : null;
+    };
+    const hi = niveau('high');
+    const lo = niveau('low');
+    if (hi !== null && lo !== null) scopeLevels.set(sonde.partId, { hi, lo });
+  }
   for (const m of meterFrame.values()) {
     if ((meterFaults.get(m.partId) ?? '') === m.fault) continue;
     meterFaults.set(m.partId, m.fault);
@@ -1689,6 +1725,9 @@ function refreshVisualsInner(): void {
   refreshMeters();
   // Sorties de portes câblées sur une broche de carte : le niveau y est injecté
   // à chaque frame, comme le fait un bouton ou un capteur.
+  // Fronts datés par le moteur depuis l'image précédente, pour tous les
+  // oscilloscopes à la fois (le journal est commun à toutes les broches).
+  const scopeEdges = scopeProbes.length > 0 ? engine.drainScopeEdges?.() ?? {} : {};
   for (const b of logicIcMcuInputs(editor.diagram, icFrame)) engine.setInput(b.mcuPin, b.level === 1);
   const read = (name: string): boolean => engine!.readDigital(name);
   const servoTargets = new Map(servoBindings(editor.diagram).map((b) => [b.partId, b.mcuPin]));
@@ -1820,14 +1859,48 @@ function refreshVisualsInner(): void {
         break;
       }
       case 'scope': {
-        // Oscilloscope : un point de plus sur la courbe à chaque image. Le temps
-        // est celui du PROGRAMME (simulatedMs) et non celui de la montre : au
-        // ralenti la courbe se dessine plus lentement mais garde la bonne
-        // échelle de temps, et l'écran reste lisible. Prises en l'air : rien à
-        // tracer, la courbe s'interrompt.
+        // Oscilloscope. Le temps est celui du PROGRAMME (simulatedMs) et non
+        // celui de la montre : au ralenti la courbe se dessine plus lentement
+        // mais garde la bonne échelle de temps, et l'écran reste lisible.
+        //
+        // Prise « + » sur une broche de la carte : le moteur a daté CHAQUE
+        // bascule, on redessine le créneau exact — palier tenu jusqu'au front,
+        // puis saut vertical. Un point par image ne suffisait pas : à 60 par
+        // seconde, un signal de quelques centaines de hertz était pris au
+        // hasard dans sa période et la courbe sautait (retour de Frank).
+        // Ailleurs dans le montage (pont diviseur, condensateur), pas de broche
+        // à sonder : un point par image, ces signaux-là sont lents.
         const m = meterFrame.get(part.id);
-        const scope = el as unknown as { push(tMs: number, volts: number | null): void };
-        scope.push(engine?.simulatedMs?.() ?? performance.now(), m ? m.value : null);
+        const scope = el as unknown as {
+          push(tMs: number, volts: number | null): void;
+          pushMany(flat: ArrayLike<number>): void;
+        };
+        const maintenant = engine?.simulatedMs?.() ?? performance.now();
+        const sonde = scopeProbes.find((q) => q.partId === part.id);
+        const lv = sonde ? scopeLevels.get(part.id) : undefined;
+        if (!sonde || !lv) {
+          scopeHeld.delete(part.id);
+          scope.push(maintenant, m ? m.value : null);
+          break;
+        }
+        const log = scopeEdges[sonde.pin] ?? [];
+        let tenu = scopeHeld.get(part.id);
+        if (tenu === undefined) tenu = engine!.readDigital(sonde.pin) ? lv.hi : lv.lo;
+        const salve: number[] = [];
+        for (let k = 0; k + 1 < log.length; k += 2) {
+          const t = log[k];
+          const v = log[k + 1] === 1 ? lv.hi : lv.lo;
+          // Deux points au MÊME instant : le palier finit, le saut commence.
+          // Sans le premier, la courbe monterait en pente douce d'un front au
+          // suivant — un créneau y devenait un triangle.
+          salve.push(t, tenu, t, v);
+          tenu = v;
+        }
+        // Le palier court jusqu'à maintenant, sinon la trace s'arrêterait au
+        // dernier front et l'écran paraîtrait figé entre deux basculements.
+        salve.push(maintenant, tenu);
+        scopeHeld.set(part.id, tenu);
+        scope.pushMany(salve);
         break;
       }
       case '7segment': {
@@ -2255,6 +2328,11 @@ function bindInputs(): void {
   engine.setPulseMonitors?.(
     pulseMonitorPins(editor.diagram, isPicoBoard(board) ? 3.3 : 5)
   );
+  // Oscilloscopes : le moteur date front par front la broche que chacun regarde.
+  scopeProbes = scopeProbePins(editor.diagram);
+  scopeLevels.clear();
+  scopeHeld.clear();
+  engine.setScopeProbes?.(scopeProbes.map((q) => q.pin));
 
   // Capteurs ultrason : distance ET température de l'air choisies EN SIMULATION
   // par les deux curseurs du composant (distance bornée par distancemin/distancemax

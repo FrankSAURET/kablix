@@ -2764,15 +2764,16 @@ export function pulseMonitorPins(diagram: Diagram, vcc: number): string[] {
 }
 
 /**
- * Broches à surveiller au rapport cyclique À CAUSE d'un multimètre : toutes les
- * broches numériques CÂBLÉES de la carte. Un voltmètre peut être posé n'importe
- * où dans le montage — pas seulement sur la broche elle-même —, et une broche
- * dont le hachage n'est pas mesuré ferait sauter l'aiguille entre 0 V et la
- * tension de la carte. Rien n'est surveillé s'il n'y a aucun multimètre : chaque
- * broche surveillée est relue à chaque changement de port.
+ * Broches à surveiller au rapport cyclique À CAUSE d'un appareil de mesure
+ * (multimètre ou oscilloscope) : toutes les broches numériques CÂBLÉES de la
+ * carte. Un voltmètre peut être posé n'importe où dans le montage — pas
+ * seulement sur la broche elle-même —, et une broche dont le hachage n'est pas
+ * mesuré ferait sauter l'aiguille entre 0 V et la tension de la carte. Rien
+ * n'est surveillé s'il n'y a aucun appareil au schéma : chaque broche
+ * surveillée est relue à chaque changement de port.
  */
 function meterWatchPins(diagram: Diagram): string[] {
-  if (!diagram.parts.some((p) => partDef(p.type).kind === 'meter')) return [];
+  if (!diagram.parts.some((p) => ['meter', 'scope'].includes(partDef(p.type).kind))) return [];
   const nets = buildNets(diagram);
   const cables = new Set<string>();
   for (const w of diagram.wires) {
@@ -2785,6 +2786,45 @@ function meterWatchPins(diagram: Diagram): string[] {
       const role = mcuPinRole(board, pin);
       if (role.role !== 'digital' || !role.name) continue;
       if (cables.has(nets.netOf({ partId: part.id, pin }))) out.push(role.name);
+    }
+  }
+  return out;
+}
+
+/**
+ * Broche MCU que chaque OSCILLOSCOPE regarde : celle qui se trouve sur le même
+ * nœud que sa prise « + ».
+ *
+ * Sans elle, l'appareil n'aurait qu'un point par image — 60 par seconde — et un
+ * signal de quelques centaines de hertz serait pris n'importe où dans sa
+ * période : la courbe sauterait d'une image à l'autre (retour de Frank). Le
+ * moteur, lui, date chaque bascule de CETTE broche au cycle près.
+ *
+ * Prise « + » en l'air, ou posée sur un point du montage qui n'est pas une
+ * broche (milieu d'un pont diviseur, bornes d'un condensateur) : rien à sonder,
+ * l'appareil retombe sur la mesure par image — ces signaux-là sont lents.
+ */
+export function scopeProbePins(diagram: Diagram): Array<{ partId: string; pin: string }> {
+  const scopes = diagram.parts.filter((p) => partDef(p.type).kind === 'scope');
+  if (scopes.length === 0) return [];
+  const nets = buildNets(diagram);
+  const out: Array<{ partId: string; pin: string }> = [];
+  for (const scope of scopes) {
+    const net = nets.netOf({ partId: scope.id, pin: '+' });
+    for (const { part, board } of mcuParts(diagram)) {
+      const trouve = mcuPins(board).find((pin) => {
+        const role = mcuPinRole(board, pin);
+        return (
+          role.role === 'digital' &&
+          !!role.name &&
+          nets.netOf({ partId: part.id, pin }) === net
+        );
+      });
+      const nom = trouve && mcuPinRole(board, trouve).name;
+      if (nom) {
+        out.push({ partId: scope.id, pin: nom });
+        break;
+      }
     }
   }
   return out;

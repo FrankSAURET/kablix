@@ -87,6 +87,13 @@ export interface PinSnapshot {
    * manqués. Publié seulement s'il a changé (le tableau est absent sinon).
    */
   sevenSeg: Record<string, Uint8Array>;
+  /**
+   * Oscilloscope : fronts datés par le moteur depuis la publication précédente,
+   * par broche sondée, à plat ([ms simulées, niveau, ms, niveau…]). Hors des
+   * vues typées : leur nombre varie d'une publication à l'autre, et sans
+   * oscilloscope au schéma ils ne coûtent rien.
+   */
+  edges: Record<string, number[]>;
 }
 
 /** Carte à simuler, telle que la page la choisit. */
@@ -127,6 +134,7 @@ export type ToWorker =
   | { t: 'setAnalogWaves'; waves: AnalogWave[] }
   | { t: 'writeSerial'; text: string }
   | { t: 'setPulseMonitors'; pins: string[] }
+  | { t: 'setScopeProbes'; pins: string[] }
   | { t: 'setUltrasonic'; sensors: unknown[] }
   | { t: 'emitPulses'; pin: string; edges: Array<{ afterUs: number; level: boolean }> }
   /**
@@ -242,5 +250,6 @@ export function emptySnapshot(count: number): PinSnapshot {
     neopixel: {},
     lcd: {},
     sevenSeg: {},
+    edges: {},
   };
 }

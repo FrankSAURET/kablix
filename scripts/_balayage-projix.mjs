@@ -32,7 +32,12 @@ for (const f of fichiers) {
 	if (j.err) { bilan.push([f, 'ERREUR', j.err.slice(0, 120)]); continue; }
 	const surv = j.rows.filter((r) => r.surPins.length);
 	const perc = j.rows.filter((r) => r.pierce.length);
-	bilan.push([f, `${surv.length} survol / ${perc.length} traversée / ${j.rows.length} fils`,
-		surv.map((r) => r.w + ' → ' + r.surPins.join(',')).join(' ; ')]);
+	// Fils poses sur un autre fil (equipotentielles differentes) ou colles.
+	const sur = j.rows.filter((r) => (r.dessus ?? []).length);
+	const col = j.rows.filter((r) => (r.colle ?? []).length);
+	bilan.push([f, `${surv.length} survol / ${perc.length} traversée / ${sur.length} superposé / ${col.length} collé / ${j.rows.length} fils`,
+		[...surv.map((r) => r.w + ' → ' + r.surPins.join(',')),
+			...sur.map((r) => 'SUR ' + r.w + ' → ' + r.dessus.join(',')),
+			...col.map((r) => 'COL ' + r.w + ' → ' + r.colle.join(','))].join(' ; ')]);
 }
 for (const [f, etat, det] of bilan) console.log(etat.padEnd(34), f, det ? '| ' + det : '');

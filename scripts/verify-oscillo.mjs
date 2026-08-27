@@ -8,6 +8,8 @@
 //    sur la grille DESSINÉE (19,82 px par carreau), fenêtre de temps, cartouche
 //    de trois lignes sous l'écran, boutons (butée des volts, tour complet du
 //    temps, inertes hors simulation), pastilles nues des prises banane ;
+//  - sonde : quand la prise « + » tombe sur une broche de la carte, le moteur
+//    date chaque bascule (scopeProbePins) et la courbe se dessine en escalier ;
 //  - déclenchement : bouton de sens (montant/descendant) et curseur de niveau,
 //    l'écran commençant toujours sur le même passage du signal.
 import esbuild from 'esbuild';
@@ -31,7 +33,7 @@ const buildTo = async (entry, outfile) => {
   });
   return import(pathToFileURL(join(tmp, outfile)).href);
 };
-const { meterReadings, buildNets } = await buildTo('src/webview/diagram/model.mts', 'model.mjs');
+const { meterReadings, buildNets, scopeProbePins, pulseMonitorPins } = await buildTo('src/webview/diagram/model.mts', 'model.mjs');
 const { partDef, partCategory } = await buildTo('src/webview/diagram/catalog.mts', 'catalog.mjs');
 
 let failures = 0;
@@ -151,6 +153,37 @@ check('broche D13 à l\'état haut → ≈ 5 V',
   near(lire(surBroche, 'o1', 5, (p) => (p === '13' ? 'high' : 'hiz')).value, 5, 0.02));
 check('broche D13 à l\'état bas → ≈ 0 V',
   Math.abs(lire(surBroche, 'o1', 5, () => 'low').value) < 0.01);
+
+// 7. Sonde : la broche que le moteur doit dater front par front.
+//    Sans elle, l'appareil n'aurait qu'un point par image — 60 par seconde — et
+//    un signal de quelques centaines de hertz serait pris n'importe où dans sa
+//    période : la courbe sauterait d'une image à l'autre.
+const sonde = scopeProbePins(surBroche);
+check('sonde : prise + sur D13 → le moteur date la broche 13',
+  sonde.length === 1 && sonde[0].pin === '13' && sonde[0].partId === 'o1');
+check('sonde : au milieu d’un pont diviseur, aucune broche à sonder (signal lent)',
+  scopeProbePins(pont(O('o1'))).length === 0);
+check('sonde : prises en l’air → rien à sonder',
+  scopeProbePins({ parts: [{ id: 'uno', type: 'uno', x: 0, y: 0 }, O('o1')], wires: [] }).length === 0);
+check('sonde : sans oscilloscope au schéma, rien à sonder (aucun coût)',
+  scopeProbePins(bornes(M('m1', 'voltage'))).length === 0);
+// Deux appareils : chacun sa broche.
+const deux = {
+  parts: [{ id: 'uno', type: 'uno', x: 0, y: 0 }, O('o1'), O('o2')],
+  wires: [
+    W('w1', pin('uno', '13'), pin('o1', '+')),
+    W('w2', pin('o1', 'GND'), pin('uno', 'GND.1')),
+    W('w3', pin('uno', '9'), pin('o2', '+')),
+    W('w4', pin('o2', 'GND'), pin('uno', 'GND.1')),
+  ],
+};
+check('sonde : deux oscilloscopes → deux broches datées',
+  scopeProbePins(deux).map((q) => q.partId + '@' + q.pin).sort().join(' ') === 'o1@13 o2@9');
+// Le hachage se surveille aussi pour un oscilloscope SEUL. Avant, il fallait un
+// multimètre au schéma : la broche n'était pas suivie du tout, et la tension
+// lue sautait entre 0 V et 5 V au hasard de l'image (retour de Frank).
+check('sonde : un oscilloscope seul suffit à faire surveiller la broche',
+  pulseMonitorPins(surBroche, 5).includes('13'));
 
 // --- Rendu réel (Chrome headless) ----------------------------------------------
 const CACHE = join(root, 'node_modules', '.cache-oscillo');
@@ -364,6 +397,32 @@ async function run() {
 	el.clearTrace();
 	await wait(5);
 
+	// --- Escalier : ce que verse la sonde du moteur -----------------------------
+	// Deux points au MÊME instant à chaque bascule, et RIEN entre deux : c'est
+	// tout ce que rend le moteur, qui date les fronts au cycle près.
+	el.setAttribute('voltsdiv', '1');
+	el.setAttribute('sdiv', '1');
+	await wait(5);
+	const fronts = [];
+	for (let k = 0; k <= 20; k++) {
+		const t = k * 500;
+		const v = k % 2 ? 5 : 0;
+		if (k > 0) fronts.push(t, k % 2 ? 0 : 5);
+		fronts.push(t, v);
+	}
+	el.pushMany(fronts);
+	await wait(10);
+	res.escalierD = trace.getAttribute('d');
+	res.escalierBox = bbox();
+	// Contre-épreuve : les MÊMES fronts versés un par un (mode instantanés).
+	el.clearTrace();
+	await wait(5);
+	for (let i = 0; i + 1 < fronts.length; i += 2) el.push(fronts[i], fronts[i + 1]);
+	await wait(10);
+	res.penteD = trace.getAttribute('d');
+	el.clearTrace();
+	await wait(5);
+
 	// --- Éditeur réel : pastilles des prises banane -----------------------------
 	const editor = new Editor(
 		document.getElementById('canvas'), document.getElementById('palette'),
@@ -477,6 +536,30 @@ if (chrome) {
     check('déclenchement : bouton de sens INERTE en édition', r.edgeEdition === 'rising');
     check('déclenchement : un clic bascule le sens, un autre le ramène',
       r.edgeClic === 'falling' && r.edgeRetour === 'rising');
+    // --- Escalier ---------------------------------------------------------------
+    // Un créneau ne se dessine correctement que si le trait TIENT le palier puis
+    // saute d'un coup : sinon il monte en pente d'un front au suivant, et
+    // l'écran montre des triangles (retour de Frank sur oscillo-pico2).
+    const pts = (d) => (d || '').slice(1).split('L').map((s) => s.split(',').map(Number));
+    const marches = (d) => {
+      const p = pts(d);
+      let plats = 0, sauts = 0, pentes = 0;
+      for (let i = 1; i < p.length; i++) {
+        const dx = p[i][0] - p[i - 1][0], dy = p[i][1] - p[i - 1][1];
+        if (Math.abs(dy) < 0.01) { if (dx > 0.01) plats++; }
+        else if (Math.abs(dx) < 0.01) sauts++;
+        else pentes++;
+      }
+      return { plats, sauts, pentes };
+    };
+    const esc = marches(r.escalierD);
+    check(`escalier : que des paliers et des sauts droits, aucune pente (${esc.plats} plats, ${esc.sauts} sauts, ${esc.pentes} pentes)`,
+      esc.pentes === 0 && esc.sauts >= 10 && esc.plats >= 10);
+    check(`escalier : créneau 0/5 V à 1 V/div → 5 carreaux pile (${r.escalierBox[3]} px)`,
+      pres(r.escalierBox[3], 5 * DIV) && pres(r.escalierBox[1] + r.escalierBox[3], ZERO_Y));
+    check(`contre-épreuve : les mêmes fronts pris un par un montent EN PENTE (${marches(r.penteD).pentes})`,
+      marches(r.penteD).pentes > 0);
+
     check('éditeur : prises banane SANS pastille rouge/noire (2 .pin nus)',
       r.oscPads[0] === 2 && r.oscPads[1] === 0 && r.oscPads[2] === 0);
     check('éditeur : le servo garde ses pastilles V+/GND (contre-épreuve)',

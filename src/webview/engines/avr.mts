@@ -52,6 +52,7 @@ import type {
   SimEngine,
   UltrasonicSensor,
 } from './types.mjs';
+import { SCOPE_LOG_MAX } from './types.mjs';
 import {
   buildDht22Schedule,
   dht22ResponseCycles,
@@ -318,6 +319,14 @@ export class AvrEngine implements SimEngine {
       lastPeriod: number; lastRead: number; lastDuty: number;
     }
   >();
+
+  // Sonde d'oscilloscope : broches dont CHAQUE bascule est datée, et le journal
+  // qui les accumule. À plat ([temps en ms, niveau, temps, niveau…]) : c'est ce
+  // que le fil de simulation renvoie à la page, un tableau de nombres se
+  // sérialise sans effort. Plafond : au-delà on jette les PLUS VIEUX, l'écran
+  // ne montre de toute façon que la fin.
+  private scopePins = new Set<string>();
+  private scopeLog = new Map<string, number[]>();
 
   // Capteurs ultrason + actions d'entrée programmées en temps simulé (génération ECHO).
   private ultrasonic: UltrasonicSensor[] = [];
@@ -600,6 +609,33 @@ export class AvrEngine implements SimEngine {
 
   readPulseUs(name: string): number {
     return this.pulseState.get(name)?.lastUs ?? 0;
+  }
+
+  setScopeProbes(names: string[]): void {
+    this.scopePins = new Set(names);
+    for (const name of this.scopeLog.keys()) {
+      if (!this.scopePins.has(name)) this.scopeLog.delete(name);
+    }
+  }
+
+  drainScopeEdges(): Record<string, number[]> {
+    if (this.scopeLog.size === 0) return {};
+    const out: Record<string, number[]> = {};
+    for (const [name, log] of this.scopeLog) {
+      if (log.length > 0) out[name] = log.splice(0, log.length);
+    }
+    return out;
+  }
+
+  /** Note une bascule de broche sondée, datée en ms simulées. */
+  private noteScopeEdge(name: string, cycles: number, high: boolean): void {
+    let log = this.scopeLog.get(name);
+    if (!log) {
+      log = [];
+      this.scopeLog.set(name, log);
+    }
+    log.push((cycles / CLOCK_HZ) * 1000, high ? 1 : 0);
+    if (log.length > SCOPE_LOG_MAX) log.splice(0, log.length - SCOPE_LOG_MAX);
   }
 
   /**
@@ -991,6 +1027,11 @@ export class AvrEngine implements SimEngine {
       const high = this.ports[pp.port]?.pinState(pp.bit) === PinState.High;
       const st = this.pulseState.get(pp.name);
       if (!st) continue;
+      // Oscilloscope : la bascule est notée AVANT tout le reste, avec l'heure
+      // du simulateur — c'est elle qui fait la forme de la courbe.
+      if (high !== st.high && this.scopePins.has(pp.name)) {
+        this.noteScopeEdge(pp.name, now, high);
+      }
       if (high && !st.high) {
         st.high = true;
         st.rise = now;

@@ -24,10 +24,17 @@
 //    touche pas, il se pose tout seul à mi-hauteur du signal.
 // Sans passage trouvé (tension continue), la trace redéfile comme avant.
 //
-// EN SIMULATION : sim.mts appelle push(temps, volts) à chaque image ; les trois
-// lignes du cartouche `text-info` du dessin rappellent les deux calibres et la
-// tension de déclenchement. Un point par image, donc ~60 par seconde :
-// l'appareil montre les signaux lents, pas la forme d'une PWM à 500 Hz.
+// EN SIMULATION : les trois lignes du cartouche `text-info` du dessin rappellent
+// les deux calibres et la tension de déclenchement.
+//
+// ÉCHANTILLONNAGE (v2026.8.102.36) : quand la prise « + » est posée sur une
+// broche de la carte, c'est le MOTEUR qui date chaque bascule du signal, au
+// cycle près, et sim.mts verse la salve par `pushMany`. Avant, la page prenait
+// un point par image — 60 par seconde : un signal de quelques centaines de
+// hertz était pris n'importe où dans sa période et la courbe sautait d'une image
+// à l'autre (retour de Frank). Ailleurs dans le montage (pont diviseur, bornes
+// d'un condensateur), il n'y a pas de broche à sonder : l'appareil retombe sur
+// un point par image, et ces signaux-là sont lents.
 import drawing from './externe/oscillo.svg';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -138,6 +145,14 @@ export class OscilloElement extends HTMLElement {
   private bufT = new Float64Array(BUF);
   private bufV = new Float64Array(BUF);
   private head = 0;
+  /**
+   * Vrai quand les relevés viennent de la SONDE du moteur (pushMany) : ce sont
+   * des bascules datées, le signal ne bouge pas entre deux, donc la courbe tient
+   * son palier puis saute d'un coup. Faux pour la mesure par image (push) : là
+   * les points sont des instantanés d'un signal qui varie sans arrêt, et les
+   * relier en pente est ce qu'il faut faire.
+   */
+  private hold = false;
   private count = 0;
 
   constructor() {
@@ -187,12 +202,36 @@ export class OscilloElement extends HTMLElement {
   /** Un relevé de plus (temps en ms de simulation, tension en volts). Prises en
    *  l'air : le modèle rend `null`, il n'y a rien à tracer, on saute l'image. */
   push(tMs: number, volts: number | null): void {
-    if (!this.rendered) return;
-    if (!Number.isFinite(tMs) || volts === null || !Number.isFinite(volts)) return;
-    this.bufT[this.head] = tMs / 1000;
-    this.bufV[this.head] = volts;
-    this.head = (this.head + 1) % BUF;
-    if (this.count < BUF) this.count++;
+    if (volts === null) return;
+    this.hold = false;
+    this.verser([tMs, volts]);
+  }
+
+  /**
+   * Une SALVE de relevés d'un coup, à plat ([ms, volts, ms, volts…]) : c'est ce
+   * que rend la sonde du moteur, qui date chaque bascule du signal au cycle
+   * près. L'écran n'est redessiné qu'UNE fois pour toute la salve — un redessin
+   * par point coûterait des milliers de tracés par seconde.
+   */
+  pushMany(flat: ArrayLike<number>): void {
+    this.hold = true;
+    this.verser(flat);
+  }
+
+  private verser(flat: ArrayLike<number>): void {
+    if (!this.rendered || flat.length < 2) return;
+    let pris = 0;
+    for (let i = 0; i + 1 < flat.length; i += 2) {
+      const tMs = flat[i];
+      const volts = flat[i + 1];
+      if (!Number.isFinite(tMs) || !Number.isFinite(volts)) continue;
+      this.bufT[this.head] = tMs / 1000;
+      this.bufV[this.head] = volts;
+      this.head = (this.head + 1) % BUF;
+      if (this.count < BUF) this.count++;
+      pris++;
+    }
+    if (pris === 0) return;
     this.redraw();
     // Curseur POSÉ TOUT SEUL : il suit la mi-hauteur du signal, qui change à
     // chaque image. Réglé à la main, il ne bouge plus : rien à refaire.
@@ -206,6 +245,7 @@ export class OscilloElement extends HTMLElement {
   clearTrace(): void {
     this.head = 0;
     this.count = 0;
+    this.hold = false;
     if (this.rendered) this.redraw();
   }
 
@@ -548,6 +588,11 @@ export class OscilloElement extends HTMLElement {
     const perVolt = DIV / this.voltsDiv;
     const mins = new Float64Array(COLS);
     const maxs = new Float64Array(COLS);
+    // Première et dernière valeur de la colonne : en mode retenue elles disent
+    // par où la plume entre et par où elle sort, donc dans quel sens tracer le
+    // saut vertical et quel palier tenir jusqu'à la colonne suivante.
+    const debuts = new Float64Array(COLS);
+    const fins = new Float64Array(COLS);
     const vus = new Uint8Array(COLS);
     for (let n = 0; n < this.count; n++) {
       const i = (this.head - this.count + n + 2 * BUF) % BUF;
@@ -561,10 +606,12 @@ export class OscilloElement extends HTMLElement {
         vus[c] = 1;
         mins[c] = v;
         maxs[c] = v;
+        debuts[c] = v;
       } else {
         if (v < mins[c]) mins[c] = v;
         if (v > maxs[c]) maxs[c] = v;
       }
+      fins[c] = v;
     }
     const pas = PLOT.w / (COLS - 1);
     const y = (v: number): number => {
@@ -572,13 +619,35 @@ export class OscilloElement extends HTMLElement {
       return py < PLOT.y ? PLOT.y : py > PLOT.y + PLOT.h ? PLOT.y + PLOT.h : py;
     };
     let d = '';
+    // Dernière tension tracée (mode retenue) : c'est le palier que tient la
+    // courbe jusqu'à la colonne suivante.
+    let tenu: number | null = null;
     for (let c = 0; c < COLS; c++) {
       if (!vus[c]) continue;
       const px = (PLOT.x + c * pas).toFixed(2);
       const haut = y(maxs[c]).toFixed(2);
       const bas = y(mins[c]).toFixed(2);
-      d += `${d ? 'L' : 'M'}${px},${haut}`;
-      if (haut !== bas) d += `L${px},${bas}`;
+      if (!this.hold) {
+        d += `${d ? 'L' : 'M'}${px},${haut}`;
+        if (haut !== bas) d += `L${px},${bas}`;
+        continue;
+      }
+      // Signal daté front par front : entre deux colonnes vues, le signal n'a
+      // PAS bougé. On rejoint donc la colonne à plat, puis on saute d'un coup.
+      // Sans ce palier, un créneau se dessinait en pente d'un front au suivant :
+      // il ressemblait à un triangle (retour de Frank sur oscillo-pico2).
+      if (!d) d += `M${px},${y(debuts[c]).toFixed(2)}`;
+      else if (tenu !== null) d += `L${px},${y(tenu).toFixed(2)}`;
+      if (haut !== bas) {
+        // Ordre du saut : la plume doit FINIR sur la dernière tension de la
+        // colonne, sinon le palier suivant repartirait du mauvais bord.
+        const fin = y(fins[c]);
+        const versHaut = Math.abs(fin - Number(haut)) <= Math.abs(fin - Number(bas));
+        d += `L${px},${versHaut ? bas : haut}L${px},${versHaut ? haut : bas}`;
+      } else {
+        d += `L${px},${haut}`;
+      }
+      tenu = fins[c];
     }
     path.setAttribute('d', d);
     path.style.display = d ? '' : 'none';

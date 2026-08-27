@@ -28,6 +28,7 @@ import type {
   SimEngine,
   UltrasonicSensor,
 } from './types.mjs';
+import { SCOPE_LOG_MAX } from './types.mjs';
 import {
   DRIVE_NAMES,
   SNAPSHOT_PERIOD_MS,
@@ -198,6 +199,8 @@ export class WorkerEngine implements SimEngine {
   private pins: string[];
   /** Position de chaque broche dans les vues typées de l'instantané. */
   private index = new Map<string, number>();
+  /** Fronts d'oscilloscope reçus et pas encore lus par la page (cf. drainScopeEdges). */
+  private scopeEdges = new Map<string, number[]>();
   private snap: PinSnapshot;
   /**
    * Miroir local de l'état de pause. `sim.mts` lit `engine.paused` DANS LA FOULÉE
@@ -291,6 +294,14 @@ export class WorkerEngine implements SimEngine {
         // l'instantané garde sa valeur, sinon un afficheur figé s'éteindrait.
         for (const [id, v] of Object.entries(msg.snap.sevenSeg)) {
           this.latches.set(id, Array.from(v));
+        }
+        for (const [pin, log] of Object.entries(msg.snap.edges ?? {})) {
+          let acc = this.scopeEdges.get(pin);
+          if (!acc) this.scopeEdges.set(pin, (acc = []));
+          // Recopie une par une : un `push(...log)` de milliers de nombres passe
+          // tout le tableau en arguments d'appel et fait déborder la pile.
+          for (const v of log) acc.push(v);
+          if (acc.length > SCOPE_LOG_MAX) acc.splice(0, acc.length - SCOPE_LOG_MAX);
         }
         this.pausedMirror = msg.snap.paused;
         this.onUpdate?.();
@@ -551,6 +562,24 @@ export class WorkerEngine implements SimEngine {
 
   setPulseMonitors(names: string[]): void {
     this.post({ t: 'setPulseMonitors', pins: names });
+  }
+
+  setScopeProbes(names: string[]): void {
+    this.post({ t: 'setScopeProbes', pins: names });
+  }
+
+  /**
+   * Fronts accumulés depuis la dernière image. Ils sont recollés à la réception
+   * de CHAQUE instantané : le fil de simulation en publie plusieurs entre deux
+   * images de la page, et ne garder que le dernier trouerait la courbe.
+   */
+  drainScopeEdges(): Record<string, number[]> {
+    if (this.scopeEdges.size === 0) return {};
+    const out: Record<string, number[]> = {};
+    for (const [name, log] of this.scopeEdges) {
+      if (log.length > 0) out[name] = log.splice(0, log.length);
+    }
+    return out;
   }
 
   emitPulses(pin: string, edges: Array<{ afterUs: number; level: boolean }>): void {

@@ -1,11 +1,24 @@
 # À faire
 1. J'ai à nouveau des fils qui se recouvrent alors que ç'est interdit. Minimum une largeur de fil entre 2 fils.
-1. Le signal généré par la uno sur l'oscilloscope est trés variable. Beaucou plus que ce que j'observe en réel. Pourquoi.
-1. Si je sélectionne un fil et que je veux déplacer la broche de connexion, 2 pastilles se chevauchent. La verte et blanche qui permet de déplacer la connexion et la jaune qui permet de connecter un nouveau fil. Je voudrais que si un fil est sélectionner on puisse déplacer (blanche/verte) mais pas connecter (jaune) et le contraire di le fils n'est pas sélectionné (ça c'est déjà le cas)
-1. Le début du signal généré par al pico 2 est triangulaire dans oscillo-pico2 puis carré. Pourquoi.
 1. Traductions **EN** du lot Pico 2, à faire en un seul lot avant publication : `docs/en/composants/pico2.md` et `pico2w.md`, le paragraphe *Communication avec l'extérieur* de `picow.md`, et les deux précisions ajoutées à `USAGE.md`.
 ## ne pas faire pour l'instant
 
+
+# >>>>  v2026.8.102.36 — L'oscilloscope regarde enfin la broche, pas l'écran
+
+1. ✅ **La courbe sautait parce qu'elle était prise EN PHOTO 60 fois par seconde** (items 2 et 4). À chaque image de l'écran, la page demandait « quelle tension, là, maintenant ? » et posait UN point. Un signal à quelques centaines de hertz fait des dizaines d'aller-retour entre deux images : la photo tombait chaque fois à un endroit différent de la période. D'où une courbe qui gigote sans raison — bien plus qu'en réel, où l'appareil regarde le fil sans arrêt.
+2. ✅ **Et personne ne surveillait la broche.** Le hachage d'une sortie n'est suivi que si un appareil le réclame ; la liste ne comptait que les **multimètres**. Un oscilloscope seul au schéma → broche non suivie du tout, tension lue au hasard de l'image. Corrigé dans [model.mts](src/webview/diagram/model.mts) : l'oscilloscope compte lui aussi.
+3. ✅ **Le moteur date maintenant CHAQUE bascule**, au cycle près, sur la seule broche que l'appareil regarde ([avr.mts](src/webview/engines/avr.mts), [pico.mts](src/webview/engines/pico.mts)). Le journal est plafonné à 10 000 bascules (`SCOPE_LOG_MAX`), les plus vieilles tombent : sans oscilloscope au schéma il ne coûte rien du tout.
+4. ✅ **Les fronts traversent le fil de calcul** ([worker-protocol.mts](src/webview/engines/worker-protocol.mts), [sim-worker.mts](src/webview/engines/sim-worker.mts), [worker-engine.mts](src/webview/engines/worker-engine.mts)). Le fil publie plusieurs relevés entre deux images de la page : ils sont **recollés bout à bout** à la réception, sinon la courbe serait trouée.
+5. ✅ **Le début triangulaire du Pico 2 vient de la MÊME cause** (item 4). Au démarrage les images sont rares (le firmware boote, le programme monte) : deux photos très espacées, reliées par un trait droit, donnent une **pente** — un triangle. Une fois le rythme installé, les photos se resserrent et le créneau réapparaît. Ce n'était pas le signal qui changeait, c'était le dessin.
+6. ✅ **La courbe se trace en escalier** ([oscillo-element.mts](src/webview/composants/oscillo-element.mts)) : entre deux bascules le signal ne bouge pas, le trait **tient son palier** puis **saute d'un coup**. Le mode reste choisi tout seul : relevés datés par le moteur → escalier ; mesure par image (milieu d'un pont diviseur, bornes d'un condensateur) → points reliés comme avant, ces signaux-là sont lents.
+7. ✅ **La HAUTEUR du créneau reste celle du montage** : à chaque image, la tension des deux états de la broche est mesurée sur le circuit réel, broche forcée haute puis basse ([sim.mts](src/webview/sim.mts)). Une LED en série, un pont diviseur ou une résistance de rappel donnent donc la bonne amplitude, pas 0/5 V d'office.
+8. ✅ **Fil sélectionné : on déplace la connexion, on n'en câble pas une neuve** (item 3). Les deux pastilles se superposent **au pixel près** — la poignée blanche est POSÉE sur la broche jaune — et une règle de style rendait la poignée muette dès qu'une broche était survolée : la broche gagnait toujours. Les broches qui portent les bouts du fil choisi sont désormais muettes ([styles.css](media/styles.css), [editor.mts](src/webview/diagram/editor.mts)) ; les broches voisines, elles, gardent la priorité, et un fil en cours de câblage les réveille toutes pour pouvoir aboutir.
+9. ✅ **Contrôles neufs** : six au banc de la sélection ([verify:selection](scripts/verify-selection.mjs), **204** au total) sur les pastilles ; neuf au banc de l'oscilloscope ([verify:oscillo](scripts/verify-oscillo.mjs)) sur la sonde et l'escalier — dont la contre-épreuve qui montre les MÊMES fronts pris un par un remontant en pente. Le banc du multimètre affirmait l'ancien comportement : contrôle retourné.
+10. ✅ **Bancs au vert** : `verify:oscillo`, `verify:multimetre`, `verify:selection` (204), `verify:route` (64), `verify:plotter`, typecheck et construction complète.
+11. ⏳ **Traduction EN** des chaines touchées : rien de neuf côté interface, la fiche d'aide FR de l'oscilloscope n'a pas bougé.
+
+---
 
 # >>>>  v2026.8.102.35 — Le lecteur de badges parle enfin aux deux cartes
 

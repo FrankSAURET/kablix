@@ -216,12 +216,16 @@ const oInstantBas = lire(surPwm('oscillo'), 'm1', 5, (p) => (p === '9' ? 'low' :
 check(`oscilloscope : PAS de lissage, il suit le créneau (${oInstantHaut.value.toFixed(2)} V / ${oInstantBas.value.toFixed(2)} V)`,
 	near(oInstantHaut.value, 5, 0.02) && Math.abs(oInstantBas.value) < 0.05);
 
-// Le rapport cyclique n'existe que sur une broche SURVEILLÉE : un multimètre
-// dans le schéma doit donc mettre les broches câblées sous surveillance.
+// Le rapport cyclique n'existe que sur une broche SURVEILLÉE : un appareil de
+// mesure dans le schéma doit donc mettre les broches câblées sous surveillance.
 check('un multimètre met les broches câblées sous surveillance de rapport cyclique',
 	pulseMonitorPins(surPwm('multimetre'), 5).includes('9'));
-check('… et sans multimètre, rien n’est surveillé pour rien',
-	!pulseMonitorPins(surPwm('oscillo'), 5).includes('9'));
+// L'oscilloscope aussi, depuis v2026.8.102.36 : sans cela sa broche n'était
+// suivie par personne, et la tension lue sautait au hasard de l'image.
+check('un oscilloscope SEUL met lui aussi la broche sous surveillance',
+	pulseMonitorPins(surPwm('oscillo'), 5).includes('9'));
+check('… et sans aucun appareil de mesure, rien n’est surveillé pour rien',
+	!pulseMonitorPins({ parts: [{ id: 'uno', type: 'uno', x: 0, y: 0 }], wires: [] }, 5).includes('9'));
 
 // --- Rendu réel (Chrome headless) ----------------------------------------------
 const CACHE = join(root, 'node_modules', '.cache-multimetre');

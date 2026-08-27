@@ -3,6 +3,13 @@ import type { BusDeviceSpec, BusDevices, I2cDevice, SpiDevice } from './i2c-devi
 import type { AnalogWave } from './analog-waves.mjs';
 import type { SevenSegMuxSpec } from './sevenseg.mjs';
 
+/**
+ * Plafond du journal de fronts d'un oscilloscope, en NOMBRES (deux par front).
+ * 20 000 nombres = 10 000 bascules : de quoi couvrir plusieurs écrans même sur
+ * un signal rapide, sans laisser le journal enfler si la page ne le vide plus.
+ */
+export const SCOPE_LOG_MAX = 20_000;
+
 export type { AnalogWave };
 
 /** Variable affichée dans le panneau de débogage. */
@@ -199,6 +206,19 @@ export interface SimEngine {
    * 1000–2000 µs ↔ 0–180°). À appeler au (re)câblage avec les broches de servo.
    */
   setPulseMonitors?(names: string[]): void;
+
+  /**
+   * Broches suivies pour l'OSCILLOSCOPE : le moteur date chaque bascule au
+   * cycle pres. Sans cela la page ne voit qu'un point par image (60 par
+   * seconde) et un signal de quelques centaines de hertz est echantillonne
+   * n'importe ou dans sa periode : la courbe saute d'une image a l'autre.
+   */
+  setScopeProbes?(names: string[]): void;
+  /**
+   * Fronts accumules depuis le dernier appel, puis VIDES : par broche, une
+   * liste plate [temps simule en ms, niveau 0/1, temps, niveau, ...].
+   */
+  drainScopeEdges?(): Record<string, number[]>;
   /** Largeur de la dernière impulsion haute mesurée sur une broche, en µs (0 si inconnue). */
   readPulseUs?(name: string): number;
   /** Vrai si la broche bascule actuellement (signal carré actif : tone()/PWM) — pour le son du buzzer. */
