@@ -32,7 +32,7 @@
     {
       "type": "grove-rfid",
       "label": "Grove 125 kHz RFID reader",
-      "version": "2026.8.2",
+      "version": "2026.8.3",
       "author": "Frank Sauret",
       "description": "Grove 125 kHz RFID reader (EM4100 tags): while a tag sits in the antenna loop the module keeps sending its code to the board. A jumper picks the language — UART (the code as plain text on TX, 9600 baud) or Wiegand (two-wire pulses, TX = DATA0 and RX = DATA1). In simulation the arrow moves the tag in and out of the loop.",
       "category": "Sensors",
@@ -109,5 +109,5 @@
       }
     }
   ],
-  "generated": "2026-08-27T08:15:00.231Z"
+  "generated": "2026-08-27T12:16:39.371Z"
 }

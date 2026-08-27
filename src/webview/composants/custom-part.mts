@@ -209,7 +209,7 @@ export class CustomPartElement extends HTMLElement {
     }
     const val = document.createElement('span');
     val.className = 'val val--wide';
-    const unit = this.control.unit ? ` ${this.control.unit}` : '';
+    const unite = this.control.unit;
     if (this.control.type === 'slider') {
       const input = document.createElement('input');
       input.type = 'range';
@@ -217,11 +217,11 @@ export class CustomPartElement extends HTMLElement {
       input.max = String(this.sliderMax());
       input.step = String(this.control.step ?? 1);
       input.value = String(this.controlValue);
-      val.textContent = `${this.controlValue}${unit}`;
+      val.textContent = valeurLisible(this.controlValue, unite);
       input.addEventListener('input', (e) => {
         e.stopPropagation();
         this.controlValue = Number(input.value);
-        val.textContent = `${this.controlValue}${unit}`;
+        val.textContent = valeurLisible(this.controlValue, unite);
         this.dispatchEvent(new Event('input'));
       });
       box.append(input, val);
@@ -739,6 +739,20 @@ export class CustomPartElement extends HTMLElement {
     this.behavior = null;
     this.behaviorContext = null;
   }
+}
+
+/**
+ * Valeur montrée à côté du curseur de simulation. Un éclairement de plein soleil
+ * s'écrit « 100 klx », pas « 100000 lx » : au-delà de trois chiffres la valeur
+ * passe au multiple (k puis M), si bien que l'étiquette tient toujours en trois
+ * chiffres et trois lettres — sinon l'unité partait à la ligne toute seule.
+ */
+function valeurLisible(valeur: number, unite?: string): string {
+  const u = unite ?? '';
+  const abs = Math.abs(valeur);
+  if (u && abs >= 1_000_000) return `${Math.round(valeur / 1_000_000)} M${u}`;
+  if (u && abs >= 1000) return `${Math.round(valeur / 1000)} k${u}`;
+  return u ? `${valeur} ${u}` : String(valeur);
 }
 
 if (!customElements.get('kablix-custom-part')) {

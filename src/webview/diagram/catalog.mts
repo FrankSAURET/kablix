@@ -1540,7 +1540,10 @@ export function registerCustomPart(data: CustomPartData): PartDef {
     analogPin: data.kind === 'analog-source' ? data.pinRoles?.['AO'] ?? 'AO' : undefined,
     digitalPin: data.kind === 'digital-source' ? data.pinRoles?.['OUT'] ?? 'OUT' : undefined,
     interactive: data.kind === 'pushbutton',
-    simControl: !!data.control,
+    // Un composant qui n'a pas de curseur mais des BASCULES DU DESSIN (cavalier,
+    // flèche du lecteur de badges) a le même besoin : sans ce drapeau, son corps
+    // reste sourd à la souris pendant la simulation et ses pièces ne bougent plus.
+    simControl: !!data.control || (data.toggles?.length ?? 0) > 0,
     props: props.length > 0 ? props : undefined,
   };
   customParts.set(def.type, def);

@@ -53,7 +53,9 @@ export const simControlStyles = css`
     text-align: right;
     color: #666;
   }
+  /* Assez large pour « 999 klx » : trois chiffres et trois lettres, l'unité
+     sur la MÊME ligne (elle partait à la ligne sur le capteur de lumière). */
   .sim-control .val--wide {
-    width: 46px;
+    width: 58px;
   }
 `;

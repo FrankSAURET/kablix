@@ -21,10 +21,13 @@ export type DhtModel = 'dht11' | 'dht22';
  * plages de mesure. Le DHT11 ne descend pas sous 0 °C ni sous 20 %HR — ses
  * curseurs sont bornés à sa plage réelle (précision ±2 °C / ±5 %HR, résolution
  * 1 °C / 1 %HR : c'est l'encodage des trames qui la reproduit, cf. engines/dht22.mts).
+ * `pas` : la marche du curseur, celle du capteur réel. Le DHT22 mesure au
+ * dixième (sa trame porte des dixièmes), le DHT11 à l'unité — un curseur au pas
+ * de 1 sur un DHT22 interdisait les nombres à virgule.
  */
 const MODELS = {
-  dht22: { svg: drawing22, w: 70, h: 124.99033, pinY: 120, hmin: 0, hmax: 100, tmin: -40, tmax: 80 },
-  dht11: { svg: drawing11, w: 70, h: 100, pinY: 90, hmin: 20, hmax: 90, tmin: 0, tmax: 50 },
+  dht22: { svg: drawing22, w: 70, h: 124.99033, pinY: 120, hmin: 0, hmax: 100, tmin: -40, tmax: 80, pas: 0.1 },
+  dht11: { svg: drawing11, w: 70, h: 100, pinY: 90, hmin: 20, hmax: 90, tmin: 0, tmax: 50, pas: 1 },
 } as const;
 
 export class DHT22Element extends LitElement {
@@ -78,8 +81,14 @@ export class DHT22Element extends LitElement {
       .sim-control .row { display: flex; align-items: center; gap: 2px; }
       .sim-control label { width: 14px; }
       .sim-control input[type='range'] { flex: 1; min-width: 44px; }
-      .sim-control .val { width: 34px; text-align: right; color: #666; }
+      /* Assez large pour « -40.0 °C » : le dixième ne doit pas passer à la ligne. */
+      .sim-control .val { width: 40px; text-align: right; color: #666; }
     `;
+  }
+
+  /** Valeur montrée à côté du curseur : au dixième si le capteur le mesure. */
+  private affiche(v: number): string {
+    return this.spec.pas < 1 ? v.toFixed(1) : String(Math.round(v));
   }
 
   private onHumidity = (e: Event) => {
@@ -107,13 +116,13 @@ export class DHT22Element extends LitElement {
             <div class="sim-control">
               <div class="row">
                 <label title="Humidité">💧</label>
-                <input type="range" min=${s.hmin} max=${s.hmax} step="1" .value=${String(this.humidity)} @input=${this.onHumidity} />
-                <span class="val">${Math.round(this.humidity)} %</span>
+                <input type="range" min=${s.hmin} max=${s.hmax} step=${s.pas} .value=${String(this.humidity)} @input=${this.onHumidity} />
+                <span class="val">${this.affiche(this.humidity)} %</span>
               </div>
               <div class="row">
                 <label title="Température">🌡</label>
-                <input type="range" min=${s.tmin} max=${s.tmax} step="1" .value=${String(this.temperature)} @input=${this.onTemperature} />
-                <span class="val">${Math.round(this.temperature)} °C</span>
+                <input type="range" min=${s.tmin} max=${s.tmax} step=${s.pas} .value=${String(this.temperature)} @input=${this.onTemperature} />
+                <span class="val">${this.affiche(this.temperature)} °C</span>
               </div>
             </div>
           `

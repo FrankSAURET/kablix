@@ -569,7 +569,18 @@ export class Editor {
       // plein (pas un <input> HTML) : il reste cliquable sous les fils dès que le
       // corps recapte les pointeurs. On la garde donc SOUS les fils en sim.
       if (partDef(r.part.type).simControl) {
-        const keepUnderWires = partDef(r.part.type).kind === 'psu';
+        const def = partDef(r.part.type);
+        // Contrôle DESSINÉ (bouton SVG plein, bascule du dessin) : il répond dès
+        // que le corps recapte les pointeurs, sans passer devant le câblage.
+        // L'alim, le multimètre et l'oscilloscope sont dans ce cas — Frank ne
+        // veut pas voir les fils disparaître derrière un appareil de mesure —,
+        // et un composant de bibliothèque dont tout le contrôle tient dans ses
+        // bascules (le cavalier et la flèche du lecteur de badges) aussi.
+        const keepUnderWires =
+          def.kind === 'psu' ||
+          def.kind === 'meter' ||
+          def.kind === 'scope' ||
+          (!def.custom?.control && (def.custom?.toggles?.length ?? 0) > 0);
         r.container.classList.toggle('part--sim-active', locked && !keepUnderWires);
         r.container.classList.toggle('part--sim-under-wires', locked && keepUnderWires);
         // `makeDrawingHitPainted` a posé `pointer-events:none` EN INLINE sur le
@@ -6724,6 +6735,15 @@ function pinDisplayName(
     const spec = type ? partDef(type).custom?.shield : undefined;
     const cible = spec ? shieldSignalTarget(spec, pinName) : groveSignalGpio(pinName);
     if (cible) return `${pinName}.${cible}`;
+  }
+  // Composant de la bibliothèque externe : un point dans le nom d'une pastille
+  // ne sert qu'à distinguer deux pastilles du MÊME signal (barrière optique :
+  // « Vcc.e » côté émetteur, « Vcc.r » côté récepteur). Ce qui suit le point est
+  // un repère de dessin, pas une information pour l'utilisateur : la bulle
+  // n'affiche que « Vcc ». Un nom qui EST un nombre à virgule (« 3.3V ») n'est
+  // évidemment pas coupé.
+  if (type && partDef(type).custom && pinName.includes('.') && !/^\d/.test(pinName)) {
+    return pinName.slice(0, pinName.indexOf('.'));
   }
   return pinName;
 }

@@ -320,7 +320,7 @@ async function run() {
 		lecteur.attrs && lecteur.attrs.mode === 'uart' && lecteur.attrs.tag === 'out',
 		JSON.stringify(lecteur.attrs));
 	const piece = (id) => sr.querySelector('[id="' + id + '"]');
-	const cavalier = piece('Cavalier'), badge = piece('Tag-RFID'), fleche = piece('rect620');
+	const cavalier = piece('Cavalier'), badge = piece('Tag-RFID'), fleche = piece('Fleche-Tag');
 	ok('les trois pièces du dessin sont là (cavalier, badge, flèche)',
 		!!cavalier && !!badge && !!fleche, '');
 	ok('cavalier et flèche sont cliquables (curseur main)',
@@ -400,6 +400,27 @@ async function run() {
 	editor.diagram.wires.length = 0;
 	ok('lecteur non câblé : aucune broche écoutée', lien().data === null && lien().data1 === null,
 		JSON.stringify(lien()));
+
+	// --- EN SIMULATION, les pièces doivent rester saisissables -------------------
+	// Le corps d un composant est sourd à la souris (il recouvrirait ses propres
+	// pastilles) : seuls ceux qui portent un contrôle de simulation le redeviennent
+	// au verrouillage. Un lecteur n a pas de curseur — mais ses bascules EN SONT
+	// un : sans ce réveil, la flèche ne poussait plus le badge une fois la
+	// simulation lancée, et « rien ne se passait ».
+	editor.setLocked(true);
+	await wait(60);
+	const corps = rr.container.querySelector('.part__body');
+	ok('en simulation : le corps du lecteur reçoit la souris',
+		getComputedStyle(corps).pointerEvents === 'auto', getComputedStyle(corps).pointerEvents);
+	ok('en simulation : le lecteur reste SOUS les fils',
+		rr.container.classList.contains('part--sim-under-wires') &&
+		!rr.container.classList.contains('part--sim-active'), rr.container.className);
+	const avant = el.getAttribute('tag');
+	clic(fleche);
+	await wait(40);
+	ok('clic sur la flèche EN SIMULATION : le badge change de place',
+		el.getAttribute('tag') !== avant, avant + ' → ' + el.getAttribute('tag'));
+	editor.setLocked(false);
 
 	rendre();
 }
