@@ -14,13 +14,28 @@
 Comme sur la grove-pico l'interrupteur switch-button doit pouvoir commuter le 3,3 ou 5v. ne gère pas le bouton  reset et la led.
 Attention elles est spéciale. Je n'ais pas réussis à placer toutes les connexions sur la grille de 10px (connecteur A2 et A0). 
 Elle va dans la librairie externe kablix_components et dans la catégorie Cartes & platines avec le nom Grove Shield (Uno). → livré en v2026.8.102.24 (pas encore dans l'index public : il attend ta validation, item 7).
-1. Ajoute soil-moisture-sensor avec en simulation un curseur de variation  d'humidité en % dans la librairie externe kablix_components et dans la catégorie "capteur"
+1. ✅ Ajoute soil-moisture-sensor avec en simulation un curseur de variation  d'humidité en % dans la librairie externe kablix_components et dans la catégorie "capteur" → livré en v2026.8.102.25 (pas encore dans l'index public : il attend ta validation, item 7).
 1. Ajoute Grove-Light-Sensor avec en simulation un curseur de variation  de luminosité en lux (de 0 à max). Une propriété qui se retrouvera dans la simulation la valeur **max** en lux. Par défaut 500 lx. dans la librairie externe kablix_components et dans la catégorie "capteur"
 1. Ajoute la carte Grove-RFID. Le cavalier peut bouger de 10 px vers la droite pour changer de mode à gauche **UART** et à droite **Wiegand**. Le tag-RFID bouge lui aussi vers la droite de 100 px quand on clic sur la flèche (verte bleue) le tag se déplace et la flèche se retourne vers la gauche. Un nouveau clic inverse. Quand le tag est dans la boucle (à droite) un code est émis (1 parmis 3 U ou 1 parmi 3 W). Le code s'affiche dans la zone de texte "CodeRFID". dans la librairie externe kablix_components et dans la catégorie "capteur".
 1. Nouvelle règle : Tu ne rends disponible les composants de la librairie externe kablix_components que quand je les ai validés.
 1. Traductions **EN** du lot Pico 2, à faire en un seul lot avant publication : `docs/en/composants/pico2.md` et `pico2w.md`, le paragraphe *Communication avec l'extérieur* de `picow.md`, et les deux précisions ajoutées à `USAGE.md`.
 ## ne pas faire pour l'instant 
 
+
+# >>>>  v2026.8.102.25 — Le capteur d'humidité du sol arrive avec son curseur
+
+1. ✅ **Le capteur d'humidité du sol existe** (item 4 de la liste). Il vit dans la bibliothèque externe `kablix_components/`, catégorie **Capteurs**, sous le nom **Soil moisture sensor**. Trois pattes : **+** (alimentation), **−** (masse) et **S**, la sortie **analogique** qui monte quand la terre est mouillée.
+2. ✅ **Zéro ligne de code de simulation.** Tout tient dans le manifeste du paquet `.kompix` : `kind: analog-source`, `pinRoles.AO = S`, et un bloc `control` qui décrit le curseur (`0` à `100`, pas de `1`, unité `%`). Le moteur fait le reste — sans formule, il étale la course du curseur en rampe droite : **0 % → 0 V**, **100 % → la tension de la carte** (5 V sur Uno, 3,3 V sur Pico). La propriété fixe « Value » disparaît de l'inspecteur dès qu'un curseur pilote la même sortie, pour qu'il n'y ait jamais deux commandes pour une seule tension.
+3. ✅ **Le curseur ne se montre qu'en simulation**, comme les autres : mesuré en vrai Chrome ([_probe-soil.mjs](scripts/_probe-soil.mjs)) — absent à l'arrêt, présent dès le départ de la simulation, bornes `0 / 100 / 1`, et l'étiquette suit la valeur (« Soil moisture 0 % », « … 50 % », « … 100 % »). C'est la **première fois** qu'un composant de la bibliothèque externe porte un curseur : le chemin n'avait jamais été exercé, il l'est maintenant.
+4. ✅ **Fiche d'aide FR** (`kablix_components/help/soil-moisture-sensor/fr.md`) : à quoi servent les deux dents, le tableau des trois pattes, ce que vaut la lecture en terre sèche / humide / trempée, l'exemple `if (analogRead(A0) < 350)`, le curseur en simulation, et les deux avertissements (les dents s'abîment si le capteur reste alimenté en permanence ; deux terres différentes ne donnent pas le même chiffre).
+5. ✅ **Trois tests testkablix** : `soil-moisture-sensor-uno` (sortie sur **A0**), `soil-moisture-sensor-pico` et son jumeau `soil-moisture-sensor-pico2` (sortie sur **GP26**, c'est-à-dire ADC0). Les programmes arrosent quand la terre est trop sèche. Fils tracés par l'autorouteur des jumeaux et rangés dans `_routage.json`. Ligne ajoutée à [testkablix/README.md](testkablix/README.md), avec le rappel : cette sortie est analogique, jamais sur une patte tout-ou-rien.
+6. ✅ **Le visualiseur de schémas était aveugle aux composants de bibliothèque** ([_view-projix.mjs](scripts/_view-projix.mjs)). Un projet qui embarque son `.kompix` s'ouvrait sur une page vide avec « Type de composant inconnu » — il ne les déclarait pas à l'éditeur avant de charger le schéma. Panne **antérieure à ce lot** (le test de la barrière infrarouge la montrait déjà). Une ligne, `loadCustomParts`, et les schémas se dessinent.
+7. ℹ️ **Les fils vers + et − ne prennent pas la couleur automatique** (rouge / noir). Les faire reconnaître voudrait dire traiter toute patte nommée `+` comme une alimentation — et la borne `+` du multimètre et de l'oscilloscope deviendrait rouge à tort. Les tests posent donc la couleur à la main.
+8. ⏳ **Traductions EN** : le libellé « Soil moisture » et la fiche `en.md` attendent le lot d'avant-publication.
+9. ℹ️ **Le capteur n'est PAS dans l'index public** (`kablix_components/index.json`) : il attend ta validation, comme le demande l'item 7 de la liste. Une fois validé : `node scripts/build-components-index.mjs`.
+10. ✅ **La suite complète : 99 bancs verts sur 100** (437 s). Le seul rouge reste `verify:i18n`, déjà noté ⏳ aux lots précédents. `verify:wirecolor` est tombé une fois puis repassé au vert seul et à la suite suivante : c'est la charge de la machine, pas le lot.
+
+---
 
 # >>>>  v2026.8.102.24 — La carte Grove se pose sur l'Uno
 

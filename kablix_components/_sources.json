@@ -339,6 +339,28 @@
           "description": "Carte Grove Base Shield V2 pour Arduino Uno : 16 prises Grove (4 analogiques, 7 numeriques, 4 I2C, 1 UART) cablees sur les connecteurs de la carte. Un interrupteur a glissiere leur donne 3,3 V ou 5 V."
         }
       }
+    },
+    {
+      "group": "soil-moisture-sensor",
+      "type": "soil-moisture-sensor",
+      "label": "Soil moisture sensor",
+      "description": "Resistive soil moisture probe (two prongs): wet soil conducts, so the analog output rises with moisture. In simulation a slider sets the moisture from 0 to 100 %.",
+      "version": "2026.8.1",
+      "author": "Frank Sauret",
+      "reference": "https://www.dfrobot.com/product-599.html",
+      "kind": "analog-source",
+      "category": "Sensors",
+      "pinRoles": {
+        "AO": "S"
+      },
+      "control": {
+        "type": "slider",
+        "label": "Soil moisture",
+        "unit": "%",
+        "min": 0,
+        "max": 100,
+        "step": 1
+      }
     }
   ]
 }

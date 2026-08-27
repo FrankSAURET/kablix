@@ -124,6 +124,9 @@ export const PART_PINS = {
   // Barrière optique : trois fils au récepteur (alim, masse, sortie) puis deux à
   // l'émetteur (alim, masse). `GND.r3` est le nom porté par le dessin.
   'ir-barrier': ['Vcc.r', 'GND.r3', 'Out', 'Vcc.e', 'GND.e'],
+  // Capteur d'humidité du sol : sonde résistive à deux dents. Trois fils,
+  // dont la sortie ANALOGIQUE « S » (les noms « + » et « - » sont ceux du dessin).
+  'soil-moisture-sensor': ['S', '+', '-'],
 };
 
 // --- Grove Shield (Uno) : la carte fille qui se pose sur l'Arduino Uno ---------
@@ -2757,6 +2760,43 @@ void loop() {
 }
 `,
   }),
+
+  // Capteur d'humidité du sol : sonde résistive à deux dents plantées dans la
+  // terre. Sa sortie est ANALOGIQUE — une tension qui monte avec l'humidité —
+  // donc une entrée capable de mesurer (A0), jamais une broche tout-ou-rien.
+  // En simulation, le curseur du composant règle l'humidité de 0 à 100 %.
+  test({
+    name: 'soil-moisture-sensor-uno', board: 'uno', ext: 'ino',
+    kompix: ['soil-moisture-sensor'],
+    parts: [
+      MCU('uno'),
+      { id: 'Capt1', type: 'soil-moisture-sensor', x: 620, y: 60 },
+    ],
+    wires: () => [
+      w('Capt1', '+', 'U1', '5V', 'red'),
+      w('Capt1', '-', 'U1', 'GND.1', 'black'),
+      w('Capt1', 'S', 'U1', 'A0', 'green'),
+    ],
+    expect: { kind: 'analog-source', partId: 'Capt1', mcuPin: 'A0' },
+    code: `// Test capteur d'humidité du sol : lecture analogique sur A0.
+// En simulation, le curseur du capteur règle l'humidité de 0 à 100 % :
+// 0 % donne 0 V (valeur 0), 100 % donne 5 V (valeur 1023).
+const int SONDE = A0;
+const int SEUIL_SEC = 350;
+
+void setup() {
+  Serial.begin(115200);
+}
+
+void loop() {
+  int mesure = analogRead(SONDE);
+  Serial.print("humidite = ");
+  Serial.print(mesure);
+  Serial.println(mesure < SEUIL_SEC ? "  -> TROP SEC, il faut arroser" : "  -> ok");
+  delay(300);
+}
+`,
+  }),
 ];
 
 // ================================================================================
@@ -5040,6 +5080,34 @@ while True:
     obstacle = barriere.value() == 1
     led.value(1 if obstacle else 0)
     print("OBSTACLE" if obstacle else "libre")
+    time.sleep(0.3)
+`,
+  }),
+
+  // Même capteur d'humidité que `soil-moisture-sensor-uno`, côté Pico : la
+  // sortie va sur GP26 (ADC0) et la tension pleine échelle est 3,3 V.
+  test({
+    name: 'soil-moisture-sensor-pico', board: 'pico', ext: 'py',
+    kompix: ['soil-moisture-sensor'],
+    parts: [MCU('pico'), { id: 'Capt1', type: 'soil-moisture-sensor', x: 680, y: 60 }],
+    wires: () => [
+      w('Capt1', '+', 'U1', '3V3', 'red'),
+      w('Capt1', '-', 'U1', 'GND.7', 'black'),
+      w('Capt1', 'S', 'U1', 'GP26', 'green'),
+    ],
+    expect: { kind: 'analog-source', partId: 'Capt1', mcuPin: 'GP26' },
+    code: `# Test capteur d'humidité du sol : lecture analogique sur GP26 (ADC0).
+# En simulation, le curseur du capteur règle l'humidité de 0 à 100 % :
+# 0 % donne 0 V (valeur 0), 100 % donne 3,3 V (valeur 65535).
+from machine import ADC
+import time
+
+sonde = ADC(26)
+SEUIL_SEC = 22000
+
+while True:
+    mesure = sonde.read_u16()
+    print("humidite =", mesure, "-> TROP SEC, il faut arroser" if mesure < SEUIL_SEC else "-> ok")
     time.sleep(0.3)
 `,
   }),

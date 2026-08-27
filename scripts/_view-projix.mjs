@@ -36,6 +36,10 @@ async function run() {
 	const editor = new Editor(
 		document.getElementById('canvas'), document.getElementById('palette'),
 		document.getElementById('wires'), document.getElementById('inspector'));
+	// Composants de bibliothèque (.kompix) embarqués dans le projet : la webview
+	// les enregistre à l'ouverture. Sans cela leur type est INCONNU et le schéma
+	// ne se dessine pas du tout (mesuré sur ir-barrier et sur le capteur d'humidité).
+	if (Array.isArray(DIAGRAM.customParts)) editor.loadCustomParts(DIAGRAM.customParts);
 	editor.loadDiagram(DIAGRAM);
 	// La vue de démarrage est centrée sur l'ORIGINE du monde : sans recadrage, le
 	// schéma est entièrement hors champ (mesuré : monde translaté de −1250,−997).
