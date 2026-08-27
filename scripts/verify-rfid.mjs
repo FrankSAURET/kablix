@@ -208,6 +208,27 @@ function trameAbsolue(code) {
 		w.data.length > 1 && w.data1.length > 1, `${w.data.length}/${w.data1.length}`);
 }
 
+// --- 2 bis. Une Pico n'entend pas un lecteur qui parle en serie ---------------
+// La liaison serie MATERIELLE de la Pico est emulee a part : elle n'a aucun lien
+// avec l'etat des broches. Une trame posee sur le fil n'arrive donc nulle part et
+// le programme attend un badge qui ne viendra jamais. Plutot que de laisser
+// croire a une panne, la simulation le DIT et montre ou est le cavalier.
+console.log('Mise en garde « série muette sur Pico » :');
+{
+	const simSrc = readFileSync(join(ROOT, 'src', 'webview', 'sim.mts'), 'utf8');
+	const d = simSrc.indexOf('Lecteurs de badges');
+	const zone = d < 0 ? '' : simSrc.slice(d, simSrc.indexOf('Multimètre', d));
+	check('la boucle des lecteurs relit le mode montré par le cavalier',
+		/const modeCourant = \(\)/.test(zone) && /modeCourant\(\)\?\.proto === 'uart'/.test(zone));
+	check('la mise en garde ne sort que sur une carte Pico',
+		/serie && isPicoBoard\(board\)/.test(zone));
+	check('elle ne se dit qu’une fois, et se réarme si le cavalier revient',
+		/if \(!prevenu\)/.test(zone) && /prevenu = false/.test(zone));
+	check('le message est traduisible et nomme le composant',
+		/flashStatus\(t\('\{0\}: this board cannot hear a UART reader/.test(zone) &&
+		/part\.id\)/.test(zone));
+}
+
 // --- 3. Les trames sur le VRAI moteur AVR --------------------------------------
 // Jusqu'ici, un composant ne savait que POSER un niveau ou une tension. Celui-ci
 // PARLE : `emitPulses` range une suite de fronts dans le temps simulé et le

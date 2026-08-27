@@ -1,5 +1,4 @@
 # À faire
-1. Grove-RFID rien ne se passe ni uno ni pico programme immédiatement arrêté. Pourtant nouveau composant installé.
 1. J'ai à nouveau des fils qui se recouvrent alors que ç'est interdit. Minimum une largeur de fil entre 2 fils.
 1. Le signal généré par la uno sur l'oscilloscope est trés variable. Beaucou plus que ce que j'observe en réel. Pourquoi.
 1. Si je sélectionne un fil et que je veux déplacer la broche de connexion, 2 pastilles se chevauchent. La verte et blanche qui permet de déplacer la connexion et la jaune qui permet de connecter un nouveau fil. Je voudrais que si un fil est sélectionner on puisse déplacer (blanche/verte) mais pas connecter (jaune) et le contraire di le fils n'est pas sélectionné (ça c'est déjà le cas)
@@ -7,6 +6,21 @@
 1. Traductions **EN** du lot Pico 2, à faire en un seul lot avant publication : `docs/en/composants/pico2.md` et `pico2w.md`, le paragraphe *Communication avec l'extérieur* de `picow.md`, et les deux précisions ajoutées à `USAGE.md`.
 ## ne pas faire pour l'instant
 
+
+# >>>>  v2026.8.102.35 — Le lecteur de badges parle enfin aux deux cartes
+
+1. ✅ **Côté Uno, le coupable était le COMPILATEUR** (item 1). Kablix compile les croquis sans aucune optimisation (`-O0`), pour que le pas à pas suive le programme ligne par ligne. Ce réglage vaut pour TOUT le code, bibliothèques comprises — or **SoftwareSerial** fabrique ses attentes en **comptant les instructions exécutées**. Sans optimisation, ses boucles ne tombent plus juste : elle avance de 10 à 17 % trop vite et **saute un bit sur six**. Le numéro de badge arrivait illisible, et rien ne s'affichait.
+2. ✅ **Mesuré noir sur blanc** : même croquis, mêmes fronts sur le fil. En `-O0` la bibliothèque lit `90 A6 90 90 93 94…` ; en `-Os` elle lit `30 46 30 30 33 34…` — exactement les octets attendus. Le signal, lui, était parfait des deux côtés : 67 fronts tombant pile sur les temps de bit.
+3. ✅ **Correction dans [compiler.ts](src/compiler.ts)** : un croquis qui inclut une **bibliothèque chronométrée** (liste `LIBS_CHRONOMETREES` : SoftwareSerial et sa cousine en écriture seule) part directement sur le jeu standard `-Os`, comme dans l'IDE Arduino, et le journal de compilation **dit pourquoi**. Le pas à pas y sera moins fidèle — c'est le prix, et il ne se paie que pour ce croquis-là : le choix n'est **pas mémorisé**, tous les autres gardent le pas à pas fidèle. La liste ne s'allonge que sur une mesure, jamais par précaution.
+4. ✅ **Côté Pico, ce n'était pas un défaut mais une LIMITE**, et elle n'était pas dite. Le schéma de test avait été renregistré avec le **cavalier sur UART** alors que le programme lit du **Wiegand**. Or la liaison série matérielle d'une Pico émulée n'a **aucun lien avec l'état des broches** : une trame posée sur le fil n'arrive nulle part. Le programme attendait un badge qui ne viendrait jamais.
+5. ✅ **La simulation le dit maintenant** ([sim.mts](src/webview/sim.mts)) : cavalier sur UART + carte Pico → message dans la barre d'état, nommant le composant, une seule fois, et qui se réarme si le cavalier repart et revient. La fiche d'aide du composant le disait déjà (« sur une Pico, choisissez le Wiegand ») ; l'atelier le dit désormais au moment où ça se joue.
+6. ✅ **Schéma de test Pico remis sur Wiegand**, et la spécification alignée sur le fichier de Frank — identifiant `Mod1`, emplacements conservés (règle : un schéma retouché garde ses emplacements). Le test Uno suit le même chemin. Banc `testkablix` des deux tests : **27 contrôles, 0 échec** (c'étaient 2 échecs de nets avant).
+7. ✅ **Le trou qui a laissé passer le défaut est bouché** : les bancs du lecteur relisaient les fronts avec **leur propre décodeur**, jamais avec la bibliothèque compilée — ils voyaient donc tout juste pendant que l'élève, lui, ne lisait rien. [verify:rfid:e2e](scripts/verify-rfid-e2e.mjs) compile maintenant le **vrai croquis de test** et le fait tourner sur le vrai moteur AVR : le badge `0F0034AB12` doit ressortir sur le moniteur série.
+8. ✅ **Huit contrôles neufs** : quatre au banc du compilateur ([verify:compiler](scripts/verify-compiler.mjs)) — jeu standard retenu, raison inscrite au journal, pas à pas fidèle écarté, et le croquis SUIVANT qui le retrouve ; quatre au banc du lecteur ([verify:rfid](scripts/verify-rfid.mjs)) sur la mise en garde Pico.
+9. ✅ **Bancs au vert** : `verify:rfid`, `verify:rfid:e2e` (Pico 1, Pico 2 et Uno), `verify:compiler`, `testkablix` sur les tests touchés, typecheck et construction complète.
+10. ⏳ **Traduction EN** de la mise en garde « série muette sur Pico » : la chaîne de base (EN) est écrite, le français de `l10n/bundle.l10n.fr.json` attend le lot d'avant publication.
+
+---
 
 # >>>>  v2026.8.102.34 — Le fil ne descend plus la colonne de la prise
 

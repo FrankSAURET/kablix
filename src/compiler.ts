@@ -1024,6 +1024,44 @@ function cacheStore(slot: CacheSlot, res: CompileResult): void {
 let avrStrategyMemo = 0;
 
 /**
+ * Bibliothèques dont les délais se comptent en CYCLES D'HORLOGE : elles fabriquent
+ * des attentes de quelques microsecondes en comptant les instructions exécutées.
+ * Compilées SANS optimisation, ces boucles ne tombent plus juste et la
+ * bibliothèque lit de travers — mesuré sur SoftwareSerial à 9600 bauds : un bit
+ * perdu tous les six, un numéro de badge RFID illisible. Un sketch qui en inclut
+ * une se compile donc comme dans l'IDE Arduino (-Os). La liste s'allonge quand un
+ * nouveau cas est MESURÉ, jamais par précaution.
+ */
+const LIBS_CHRONOMETREES = ['SoftwareSerial.h', 'SendOnlySoftwareSerial.h'];
+
+/**
+ * Nom de la première bibliothèque chronométrée incluse par le sketch (ou par un
+ * fichier voisin du même dossier), sinon null.
+ */
+function libChronometree(filePath: string): string | null {
+  const dir = dirname(filePath);
+  let sources: string[];
+  try {
+    sources = readdirSync(dir).filter((f) => SOURCE_EXTS.includes(extname(f).toLowerCase()));
+  } catch {
+    sources = [basename(filePath)];
+  }
+  for (const f of sources) {
+    let texte: string;
+    try {
+      texte = readFileSync(join(dir, f), 'utf8');
+    } catch {
+      continue;
+    }
+    for (const lib of LIBS_CHRONOMETREES) {
+      const motif = new RegExp(`^\\s*#\\s*include\\s*[<"]\\s*${lib.replace('.', '\\.')}`, 'im');
+      if (motif.test(texte)) return lib;
+    }
+  }
+  return null;
+}
+
+/**
  * Compile le fichier indiqué pour la carte choisie. `cacheDir` active le cache
  * disque : un croquis dont AUCUNE source n'a bougé n'est pas recompilé. Sans ce
  * dossier (bancs de vérification), la chaîne d'outils est toujours sollicitée.
@@ -1085,8 +1123,18 @@ async function compileFresh(
         { extra: ['--optimize-for-debug'], note: '--optimize-for-debug (-Og)' },
         { extra: [], note: 'standard (-Os)' },
       ];
+      // Une bibliothèque qui compte les CYCLES ne supporte pas `-O0` : ce
+      // sketch-là part directement du jeu standard (-Os), quitte à perdre en
+      // fidélité de pas à pas — sans quoi la bibliothèque lit de travers.
+      const chrono = libChronometree(filePath);
+      if (chrono) {
+        log.push(
+          `${chrono} compte ses délais en cycles d'horloge : compilation optimisée (-Os). ` +
+            'Le pas à pas y sera moins fidèle, mais les délais tombent juste.'
+        );
+      }
       // La stratégie retenue la dernière fois passe en tête (cache de build chaud).
-      const order = [avrStrategyMemo, ...attempts.keys()].filter(
+      const order = (chrono ? [attempts.length - 1, ...attempts.keys()] : [avrStrategyMemo, ...attempts.keys()]).filter(
         (i, k, all) => i < attempts.length && all.indexOf(i) === k
       );
       let compiled = false;
@@ -1098,7 +1146,9 @@ async function compileFresh(
         try {
           await compileWith(a.extra);
           log.push(`Compilation arduino-cli (${fqbn}) : ${a.note}.`);
-          avrStrategyMemo = i;
+          // Le repli forcé d'un sketch chronométré ne vaut que pour LUI : le
+          // mémoriser ferait perdre le pas à pas fidèle à tous les suivants.
+          if (!chrono) avrStrategyMemo = i;
           compiled = true;
           break;
         } catch (err) {

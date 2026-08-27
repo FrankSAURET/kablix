@@ -2856,7 +2856,7 @@ void loop() {
     kompix: ['grove-rfid'],
     parts: [
       MCU('uno'),
-      { id: 'Rfid1', type: 'grove-rfid', x: 620, y: 40, attrs: { mode: 'uart', tag: 'out' } },
+      { id: 'Rfid1', type: 'grove-rfid', x: 360, y: 0, attrs: { mode: 'uart', tag: 'out' } },
     ],
     wires: () => [
       w('Rfid1', 'VCC', 'U1', '5V', 'red'),
@@ -5354,16 +5354,16 @@ while True:
     name: 'grove-rfid-pico', board: 'pico', ext: 'py',
     kompix: ['grove-rfid'],
     parts: [
-      MCU('pico'),
-      { id: 'Rfid1', type: 'grove-rfid', x: 680, y: 40, attrs: { mode: 'wiegand', tag: 'out' } },
+      MCU('pico', 40, 150),
+      { id: 'Mod1', type: 'grove-rfid', x: 270, y: 40, attrs: { mode: 'wiegand', tag: 'out' } },
     ],
     wires: () => [
-      w('Rfid1', 'VCC', 'U1', '3V3', 'red'),
-      w('Rfid1', 'GND', 'U1', 'GND.7', 'black'),
-      w('Rfid1', 'Tx', 'U1', 'GP16', 'green'),
-      w('Rfid1', 'Rx', 'U1', 'GP17', 'blue'),
+      w('Mod1', 'VCC', 'U1', '3V3', 'red'),
+      w('Mod1', 'GND', 'U1', 'GND.7', 'black'),
+      w('Mod1', 'Tx', 'U1', 'GP16', 'green'),
+      w('Mod1', 'Rx', 'U1', 'GP17', 'blue'),
     ],
-    expect: { kind: 'rfid', partId: 'Rfid1', data: 'GP16', data1: 'GP17' },
+    expect: { kind: 'rfid', partId: 'Mod1', data: 'GP16', data1: 'GP17' },
     code: `# Test lecteur RFID Grove 125 kHz : mode Wiegand (cavalier a droite).
 # Les deux fils restent hauts au repos. Un zero = une courte descente sur DATA0,
 # un un = une courte descente sur DATA1 : 50 microsecondes chacune, 2 ms entre

@@ -187,6 +187,51 @@ if (tools.arduinoCli) {
   console.log('\nSKIP sketch cassé : arduino-cli absent.');
 }
 
+// --- Bibliothèque qui compte les CYCLES : compilée optimisée ------------------
+// SoftwareSerial fabrique ses délais de bit en comptant les instructions
+// exécutées. Compilée sans optimisation (le jeu d'options du pas à pas fidèle),
+// ses boucles ne tombent plus juste et elle lit un octet sur six de travers : un
+// numéro de badge RFID en ressort illisible. Un sketch qui l'inclut part donc
+// directement sur le jeu standard — et ce repli ne doit valoir que pour LUI.
+if (tools.arduinoCli) {
+  const dir = join(tmp, 'kx-chrono');
+  mkdirSync(dir, { recursive: true });
+  const ino = join(dir, 'kx-chrono.ino');
+  writeFileSync(
+    ino,
+    '#include <SoftwareSerial.h>\nSoftwareSerial s(2, 3);\n' +
+      'void setup() { s.begin(9600); }\nvoid loop() { if (s.available()) s.read(); }\n'
+  );
+
+  console.log('\nSketch à bibliothèque chronométrée :');
+  const chrono = await compile('uno', ino, root, avrPaths);
+  check('compilé avec le jeu standard (-Os)', /standard \(-Os\)/.test(chrono.log));
+  check(
+    'la raison du repli est écrite dans le journal',
+    /SoftwareSerial\.h[\s\S]*cycles/.test(chrono.log)
+  );
+  check('le jeu du pas à pas fidèle n’est PAS utilisé', !/-O0 -fno-lto/.test(chrono.log));
+
+  // Le repli est PROPRE à ce sketch : mémorisé, il ferait perdre le pas à pas
+  // fidèle à tous les suivants de la session. Le témoin est un sketch ORDINAIRE
+  // (un .ino, donc arduino-cli : un .c simple part chez avr-gcc en direct et son
+  // journal ne nomme aucune stratégie).
+  const dir2 = join(tmp, 'kx-ordinaire');
+  mkdirSync(dir2, { recursive: true });
+  const ino2 = join(dir2, 'kx-ordinaire.ino');
+  writeFileSync(
+    ino2,
+    'void setup() { pinMode(13, OUTPUT); }\nvoid loop() { digitalWrite(13, HIGH); }\n'
+  );
+  const suivant = await compile('uno', ino2, root, avrPaths);
+  check(
+    'le sketch suivant retrouve le pas à pas fidèle',
+    /-O0 -fno-lto/.test(suivant.log)
+  );
+} else {
+  console.log('\nSKIP bibliothèque chronométrée : arduino-cli absent.');
+}
+
 // --- Cache disque : un croquis inchangé ne se recompile pas ------------------
 // Sans lui, chaque ▶ après un rechargement de fenêtre repayait la compilation
 // entière (3 à 25 s selon la machine et l'antivirus).

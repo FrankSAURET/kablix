@@ -2765,15 +2765,18 @@ function bindInputs(): void {
     const ecrire = el.setSvgText as ((id: string, texte: string | null) => void) | undefined;
     let lien: RfidBinding | undefined;
     let timer: number | null = null;
+    let prevenu = false;   // l'avertissement « série muette sur Pico » ne se dit qu'une fois
     const arrete = (): void => {
       if (timer === null) return;
       window.clearInterval(timer);
       timer = null;
     };
+    // Le mode que montre le cavalier du dessin (repli : le premier de la liste).
+    const modeCourant = () =>
+      rfid.modes.find((m) => m.value === el.getAttribute(rfid.modeAttr)) ?? rfid.modes[0];
     const envoie = (): void => {
       if (!lien) return;
-      const mode =
-        rfid.modes.find((m) => m.value === el.getAttribute(rfid.modeAttr)) ?? rfid.modes[0];
+      const mode = modeCourant();
       if (!mode) return;
       // Un badge parmi ceux fournis avec la carte, tiré au sort à chaque passage.
       const code = mode.codes[Math.floor(Math.random() * mode.codes.length)] ?? '';
@@ -2791,6 +2794,19 @@ function bindInputs(): void {
       // pose, l'entrée reste basse et le premier bit de départ passe inaperçu.
       if (lien?.data) engine?.setInput(lien.data, true);
       if (lien?.data1) engine?.setInput(lien.data1, true);
+      // Une Pico n'ENTEND PAS un lecteur qui parle en série : sa liaison série
+      // est émulée à part, sans aucun lien avec l'état des broches, si bien que
+      // la trame envoyée sur le fil n'arrive nulle part. Le cavalier doit aller
+      // sur l'autre mode, celui qui se lit par interruption.
+      const serie = modeCourant()?.proto === 'uart';
+      if (serie && isPicoBoard(board)) {
+        if (!prevenu) {
+          prevenu = true;
+          flashStatus(t('{0}: this board cannot hear a UART reader — set the jumper to the other mode.', part.id));
+        }
+      } else {
+        prevenu = false;
+      }
       if (el.getAttribute(rfid.tagAttr) !== rfid.tagIn) {
         if (rfid.display) ecrire?.(rfid.display, null);
         return;
