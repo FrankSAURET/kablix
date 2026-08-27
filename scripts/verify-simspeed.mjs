@@ -202,7 +202,30 @@ const bloque = (ms) => {
       const s2 = eng.simulatedMs();
       await sleep(800);
       const revenu = (eng.simulatedMs() - s2) / (performance.now() - w2);
+      // Le temps affiché doit sortir de l'horloge de la PUCE — celle qui commande
+      // les alarmes, le SysTick et le cadencement temps réel. Lu sur le compteur
+      // de cycles du cœur, il avançait ~6 % plus vite (le cœur ajoute des cycles
+      // que la boucle ne retique pas) : la carte était pile à l'heure et la
+      // barre d'état annonçait 116 % (retour Frank sur ili9341-pico).
+      const horloge = eng.sim?.chip?.clock?.nanos;
+      const memeHorloge = Number.isFinite(horloge) && Math.abs(eng.simulatedMs() - horloge / 1e6) < 1e-6;
+      const parCycles = (eng.sim?.chip?.core?.cycles ?? 0) / (eng.sim?.chip?.mcu?.clkSys || 125e6) * 1000;
       eng.stop?.();
+      check(
+        'le temps simulé du Pico EST l\'horloge de la puce (pas le compteur de cycles)',
+        memeHorloge,
+        `simulatedMs=${eng.simulatedMs().toFixed(3)} ms, horloge=${(horloge / 1e6).toFixed(3)} ms`,
+      );
+      // L'écart entre les deux, noté sans en faire un échec : il DÉPEND du
+      // programme. Nul sur ce script-ci, qui passe sa vie à dormir (le saut
+      // d'alarme avance compteur et horloge du même pas) ; ~6 % sur une boucle
+      // Python serrée, où le cœur ajoute des cycles que la boucle ne retique pas.
+      // C'est ce régime-là qu'ili9341 fait tourner, et c'est de là que venaient
+      // les 116 % affichés.
+      console.log(
+        `  (compteur de cycles : ${parCycles.toFixed(0)} ms pour ${(horloge / 1e6).toFixed(0)} ms d'horloge` +
+        `, soit ${((parCycles / (horloge / 1e6) - 1) * 100).toFixed(1)} % d'écart)`,
+      );
       check(
         `le ralenti 10 % agit AUSSI sur le Pico : ${ralenti.toFixed(2)}×`,
         ralenti > 0.05 && ralenti < 0.25,
@@ -287,7 +310,8 @@ const pico = readFileSync(join(root, 'src/webview/engines/pico.mts'), 'utf8');
 const avr = readFileSync(join(root, 'src/webview/engines/avr.mts'), 'utf8');
 check(
   'le moteur Pico expose lui aussi simulatedMs()',
-  /simulatedMs\(\): number \{[\s\S]{0,200}core\.cycles/.test(pico),
+  /simulatedMs\(\): number \{[\s\S]{0,120}clock\.nanos/.test(pico),
+  'il doit rendre l\'horloge de la puce : le compteur de cycles du cœur dérive',
 );
 
 check(
@@ -363,6 +387,62 @@ check(
   /let speedArmed = true;/.test(sim),
   'sans valeur initiale vraie, un sketch Arduino ne serait jamais mesuré',
 );
+
+// --- Le pourcentage compare deux mesures prises au MÊME instant (v2026.8.102.32)
+// Retour de Frank : « ili9341-pico2 : 8-12 % puis ça oscille entre 0 et 200 % ».
+// Le temps simulé arrive du worker dans un instantané ; le temps réel, lui, était
+// lu dans la page au moment du rendu. Deux horloges, deux instants : dès que les
+// instantanés arrivent en retard ou en paquet — le Pico 2 enchaîne les tranches
+// sans laisser respirer le minuteur de publication — on divisait l'écart d'une
+// fenêtre par la durée d'une autre. D'où le grand écart, sans que rien ne rame.
+{
+  const { emptySnapshot } = await load('src/webview/engines/worker-protocol.mts', 'proto.mjs');
+  const vide = emptySnapshot(2);
+  check(
+    'l\'instantané porte l\'heure du worker (champ wallMs)',
+    'wallMs' in vide && vide.wallMs === 0,
+    'sans estampille, la page ne peut pas savoir de QUAND date le temps simulé',
+  );
+  const worker = readFileSync(join(root, 'src/webview/engines/sim-worker.mts'), 'utf8');
+  check(
+    'le worker estampille l\'instantané au moment de la relève',
+    /out\.simulatedMs = engine\.simulatedMs\?\.\(\) \?\? 0;\s*\n\s*out\.wallMs = performance\.now\(\);/.test(worker),
+    'estampillée ailleurs, l\'heure ne daterait pas la mesure qu\'elle accompagne',
+  );
+  check('wallClockMs est au contrat SimEngine', /wallClockMs\?\(\): number;/.test(types));
+  const we = readFileSync(join(root, 'src/webview/engines/worker-engine.mts'), 'utf8');
+  check(
+    'le moteur-relais rend cette heure à la page',
+    /wallClockMs\(\): number \{\s*return this\.snap\.wallMs;/.test(we),
+  );
+  // Les DEUX mesures de vitesse (badge de la barre d'état et pourcentage du
+  // canvas) doivent dater leur fenêtre avec l'horloge du moteur.
+  const fenetres = sim.match(/const now = engine\.wallClockMs\?\.\(\) \|\| performance\.now\(\);/g) ?? [];
+  check(
+    'badge et pourcentage mesurent leur fenêtre à l\'horloge du moteur',
+    fenetres.length === 2,
+    `${fenetres.length} mesure(s) sur 2 — l'autre compare encore deux horloges différentes`,
+  );
+  // Le repli compte : un moteur qui tourne DANS la page (AVR sans worker, ou
+  // rejeu de banc) n'a pas d'estampille, et la mesure doit marcher quand même.
+  check(
+    'sans estampille, la page retombe sur sa propre horloge',
+    /engine\.wallClockMs\?\.\(\) \|\| performance\.now\(\)/.test(sim),
+  );
+  // Le DÉMARRAGE ne se chiffre pas davantage dans le canvas que dans la barre
+  // d'état : « 8 % » pendant sept secondes de boot ne dit rien du programme.
+  check(
+    'le pourcentage du canvas attend lui aussi le démarrage du script',
+    /function updateSimGauge\(\): void \{[\s\S]{0,1200}if \(!speedArmed\) \{\s*\n\s*gaugeWallStart = 0;\s*\n\s*return;/.test(sim),
+    'il mesurait le boot du firmware et affichait un ralenti qui n\'existe pas',
+  );
+  // Le chrono, LUI, continue de compter pendant le boot : c'est bien du temps
+  // simulé écoulé. Seul le pourcentage attend.
+  check(
+    'le chrono du canvas, lui, tourne dès le lancement',
+    /simElapsedEl\.textContent = formatElapsed\(sim\);[\s\S]{0,600}if \(!speedArmed\)/.test(sim),
+  );
+}
 
 const html = readFileSync(join(root, 'src/webview-html.ts'), 'utf8');
 check('le badge existe dans la barre d\'état', /id="sim-speed"[^>]*hidden/.test(html));
@@ -570,7 +650,7 @@ check(
   check('arrêt : plus de compteurs à l\'écran',
     /stopRenderLoop\(\);[\s\S]{0,200}resetSimGauge\(false\);/.test(sim));
   check('en pause, la fenêtre de mesure repart de zéro',
-    /function updateSimGauge\(\): void \{[\s\S]{0,600}if \(engine\.paused\) \{\s*gaugeWallStart = 0;/.test(sim),
+    /function updateSimGauge\(\): void \{[\s\S]{0,1400}if \(engine\.paused\) \{\s*gaugeWallStart = 0;/.test(sim),
     'sinon la reprise afficherait 0 % pendant toute la durée de la pause');
   check('la vitesse est un pourcentage entier, mesuré sur une fenêtre courte',
     /const GAUGE_WINDOW_MS = (\d+);/.test(sim)

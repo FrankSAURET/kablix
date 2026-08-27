@@ -1,5 +1,4 @@
 # À faire
-1. ili9341-pico2 est super rapide (génial) mais le temps affiché est bizarre 8% - 12% puis à la fin oscille entre 0 et 200% le même pour pico se stabilise à 116%
 1. neopixel ne marche plus complètement, seule la première led clignote un coup bref en rouge. Pareil pico et pico2. Uno ok.
 1. neopixel-matrix ne marche plus complètement, seule la diagonale blanche est remplie. Pareil pico et pico2. Uno ne fait plus rien.
 1. us-sensor ne marche ni sur pico ni sur pico2. Distance figée à 19,8 cm pareil pour us-uno.
@@ -7,6 +6,18 @@
 1. Traductions **EN** du lot Pico 2, à faire en un seul lot avant publication : `docs/en/composants/pico2.md` et `pico2w.md`, le paragraphe *Communication avec l'extérieur* de `picow.md`, et les deux précisions ajoutées à `USAGE.md`.
 ## ne pas faire pour l'instant
 
+
+# >>>>  v2026.8.102.32 — Le temps affiché dit enfin l'heure
+
+1. ✅ **Le pourcentage comparait DEUX MONTRES** (item 1). Le calcul tourne dans un fil à part, à côté de la page ; il lui envoie des relevés — « voilà mes broches, et voilà mon temps simulé ». La page, elle, regardait SA montre pour savoir combien de temps réel avait passé. Chronométrer le départ avec une montre et l'arrivée avec une autre : dès que les relevés arrivent en retard ou par paquets, on divise l'écart d'une course par la durée d'une autre — d'où le saut de 0 à 200 % alors que rien ne ramait. Le relevé porte désormais **l'heure du fil de calcul** (`wallMs` dans [worker-protocol.mts](src/webview/engines/worker-protocol.mts)), et la page mesure sa fenêtre avec cette heure-là.
+2. ✅ **Pourquoi le Pico 2 et pas le Pico 1** : le Pico 2 va si vite qu'il enchaîne ses tranches de calcul sans laisser respirer le petit minuteur qui publie les relevés — ils partent alors en paquets. Le Pico 1 s'endort bien plus souvent : le minuteur passe entre deux siestes et les relevés arrivent réguliers. Même défaut chez les deux, visible chez un seul.
+3. ✅ **Les 116 % du Pico 1 : deux horloges dans la puce.** Le temps affiché se lisait sur le **compteur de tours du processeur**, alors que tout le reste — réveils programmés, minuteries, et le cadencement qui tient la simulation à l'heure réelle — suit **l'horloge de la puce**. Les deux dérivent : le cœur s'ajoute des tours que la boucle ne reporte pas sur l'horloge. Mesuré : **6 % de trop** sur une boucle Python serrée, rien du tout quand le script dort. La carte était donc pile à l'heure et la barre annonçait 116 % — et le chronomètre comptait une minute trop courte. `simulatedMs()` rend maintenant l'horloge de la puce ([pico.mts](src/webview/engines/pico.mts)).
+4. ✅ **Les 8-12 % du début, c'est le DÉMARRAGE**, pas un ralenti : le firmware boote, puis reçoit le programme morceau par morceau (7 secondes sur ili9341). L'avertissement de la barre d'état attendait déjà ce moment-là ; le pourcentage du plan de travail, non. Il attend le même signal et affiche « — » en attendant.
+5. ✅ **Mesuré avant de corriger** : moteur seul, sans fil séparé ni page, seize fenêtres d'une demi-seconde sur les deux cartes — le rapport ne bouge pas d'un poil (0,24 · 0,24 · 0,25… sur Pico 1, seize fois 0,13 sur Pico 2). Le moteur n'oscillait donc pas : le défaut était bien sur le trajet entre le fil de calcul et la page.
+6. ✅ **Neuf contrôles neufs** au banc de la vitesse ([verify:simspeed](scripts/verify-simspeed.mjs), 107 au total) : le temps simulé du Pico EST l'horloge de la puce (avec l'écart au compteur de tours affiché en clair), le relevé porte l'heure du fil de calcul, le fil l'estampille au moment de la relève, le contrat et le relais la transmettent, les DEUX mesures de vitesse datent leur fenêtre avec, le repli sur l'horloge de la page tient pour un moteur sans fil séparé, et le pourcentage attend le démarrage pendant que le chronomètre, lui, tourne tout de suite.
+7. ✅ **Bancs au vert** : `verify:simspeed` (107), `verify:worker` (132), `verify:micropython`, typecheck et construction complète.
+
+---
 
 # >>>>  v2026.8.102.31 — Le multimètre fait la moyenne, l'oscilloscope arrête l'image
 

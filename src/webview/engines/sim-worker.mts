@@ -237,6 +237,7 @@ function publish(): void {
     out.sevenSeg[id] = Uint8Array.from(latch);
   }
   out.simulatedMs = engine.simulatedMs?.() ?? 0;
+  out.wallMs = performance.now(); // relevé ICI : le temps simulé ci-dessus date de cet instant
   out.busyMs = engine.busyMs?.() ?? 0;
   out.lagMs = engine.lagMs?.() ?? 0;
   out.paused = engine.paused;

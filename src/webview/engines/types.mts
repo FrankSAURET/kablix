@@ -167,6 +167,13 @@ export interface SimEngine {
    */
   simulatedMs?(): number;
   /**
+   * Heure du fil où `simulatedMs()` a été relevé, en ms. Un moteur qui tourne
+   * dans la page n'en a pas besoin (l'appel est immédiat) ; celui qui tourne
+   * dans un worker rend l'heure de SON fil au moment de la relève, pour que la
+   * vitesse affichée compare deux mesures prises au même instant.
+   */
+  wallClockMs?(): number;
+  /**
    * Temps RÉEL cumulé passé dans la boucle du moteur, en ms. Comparé au temps mur,
    * il dit si le moteur sature le thread (il lui faut plus d'une ms réelle par ms
    * simulée) ou s'il attend — auquel cas le retard vient du reste de la page.

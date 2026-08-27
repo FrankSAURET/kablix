@@ -57,6 +57,15 @@ export interface PinSnapshot {
   pulseActive: Uint8Array;
   /** Temps SIMULÉ depuis le démarrage, en ms. */
   simulatedMs: number;
+  /**
+   * Heure du WORKER au moment de la relève, en ms (`performance.now()` de son
+   * propre fil). Elle n'a pas la même origine que celle de la page — seuls ses
+   * ÉCARTS servent. Sans elle, la page divisait un temps simulé daté d'ici par
+   * un temps réel lu là-bas : quand les instantanés arrivent en retard ou en
+   * paquet — le moteur enchaîne les tranches sans laisser tourner son timer de
+   * publication — le rapport sautait de 0 à 200 % sans que rien ne rame.
+   */
+  wallMs: number;
   /** Temps RÉEL cumulé passé dans la boucle du moteur, en ms. */
   busyMs: number;
   /** Retard (ms simulées) que le moteur doit encore à l'horloge du programme. */
@@ -226,6 +235,7 @@ export function emptySnapshot(count: number): PinSnapshot {
     pwmDuty: new Float32Array(count),
     pulseActive: new Uint8Array(count),
     simulatedMs: 0,
+    wallMs: 0,
     busyMs: 0,
     lagMs: 0,
     paused: false,

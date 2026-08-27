@@ -941,7 +941,7 @@ function updateSpeedBadge(): void {
     speedWallStart = 0;
     return;
   }
-  const now = performance.now();
+  const now = engine.wallClockMs?.() || performance.now();
   if (!speedWallStart) {
     speedWallStart = now;
     speedSimStart = engine.simulatedMs();
@@ -1042,13 +1042,27 @@ function updateSimGauge(): void {
   if (!engine?.simulatedMs) return;
   const sim = engine.simulatedMs();
   simElapsedEl.textContent = formatElapsed(sim);
+  // Le DÉMARRAGE ne se chiffre pas non plus ici. Le firmware MicroPython boote
+  // puis reçoit le script par le REPL : le temps simulé n'avance qu'à un dixième
+  // du temps réel pendant plusieurs secondes (7 s sur ili9341), et le compteur
+  // affichait « 8 % » d'un programme qui n'avait pas encore commencé. Même
+  // désarmement que le badge : la jauge attend `onRunning` et reste sur « — ».
+  if (!speedArmed) {
+    gaugeWallStart = 0;
+    return;
+  }
   // En pause, le temps simulé est figé : le pourcentage n'a plus de sens et la
   // fenêtre repart de zéro à la reprise (sinon la pause se lirait « 0 % »).
   if (engine.paused) {
     gaugeWallStart = 0;
     return;
   }
-  const now = performance.now();
+  // Le temps simulé vient du worker : on le date avec l'horloge du worker.
+  // Mesurée contre celle de la page, la fenêtre ne correspondait pas à l'écart
+  // de temps simulé qu'on lui rapportait, et le pourcentage sautait de 0 à
+  // 200 % dès que les instantanés arrivaient irrégulièrement (Pico 2, qui
+  // enchaîne les tranches sans laisser respirer son timer de publication).
+  const now = engine.wallClockMs?.() || performance.now();
   if (!gaugeWallStart) {
     gaugeWallStart = now;
     gaugeSimStart = sim;

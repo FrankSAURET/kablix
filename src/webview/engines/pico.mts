@@ -505,9 +505,20 @@ export class PicoEngine implements SimEngine {
     return out;
   }
 
-  /** Temps simulé depuis le démarrage (ms) : cycles du cœur ÷ horloge système. */
+  /**
+   * Temps simulé depuis le démarrage, en ms — l'horloge de la PUCE, celle qui
+   * commande tout le reste : alarmes, minuteries, SysTick, et le cadencement
+   * qui tient la simulation à l'heure réelle.
+   *
+   * Elle se lisait avant sur le compteur de cycles du cœur (`cycles ÷ clkSys`).
+   * Ce compteur avance à côté : le cœur ajoute des cycles que la boucle ne
+   * retique pas — mesuré ~6 % de trop sur Pico 1. Le cadencement tenant, lui,
+   * l'horloge de la puce à l'heure, le pourcentage affiché se stabilisait
+   * au-dessus de 100 % (116 % relevé sur ili9341-pico) et le chronomètre
+   * comptait une minute trop courte, alors que rien ne ramait.
+   */
   simulatedMs(): number {
-    return (this.core.cycles / (this.mcu.clkSys || 125_000_000)) * 1000;
+    return this.sim.chip.clock.nanos / 1e6;
   }
 
   /** Temps réel cumulé passé dans la boucle du moteur (ms) — voir SimEngine.busyMs. */
