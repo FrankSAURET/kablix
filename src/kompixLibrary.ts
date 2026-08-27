@@ -102,6 +102,8 @@ interface KompixManifest {
   reference?: string;
   kind: PartKind;
   category?: string;
+  /** Composant encore à l'essai : sa carte le dit dans le gestionnaire. */
+  experimental?: boolean;
   board?: string;
   pins: Array<{ name: string; x: number; y: number }>;
   pinRoles?: Record<string, string>;
@@ -211,6 +213,8 @@ export interface InstalledComponent {
   sourceUrl?: string;
   /** Vignette data: URI construite depuis le dessin externe. */
   thumbnail?: string;
+  /** Composant encore à l'essai (mention « Experimental » sur sa carte). */
+  experimental?: boolean;
 }
 
 /**
@@ -226,7 +230,7 @@ export class KompixLibrary {
   private workspaceWatcher: vscode.FileSystemWatcher | undefined;
   private components: Map<string, CustomPartData> = new Map();
   /** Métadonnées du manifeste (description, auteur, référence) que CustomPartData ne porte pas. */
-  private manifestMeta: Map<string, { description?: string; version?: string; author?: string; reference?: string }> = new Map();
+  private manifestMeta: Map<string, { description?: string; version?: string; author?: string; reference?: string; experimental?: boolean }> = new Map();
   /** Fichier .kompix d'où vient chaque composant : c'est là qu'on relira sa fiche
    *  d'aide. Le nom du paquet ne fait PAS foi (un fichier posé à la main peut
    *  s'appeler autrement que son type), on retient donc le chemin lu au scan. */
@@ -414,6 +418,7 @@ export class KompixLibrary {
         version: manifest.version,
         author: manifest.author,
         reference: manifest.reference,
+        experimental: manifest.experimental === true,
       });
 
       // Construire CustomPartData
@@ -774,6 +779,7 @@ export class KompixLibrary {
         reference: meta.reference || undefined,
         origin: entry?.origin ?? 'local',
         sourceUrl: entry?.sourceUrl,
+        experimental: meta.experimental === true,
         thumbnail: part.svg
           ? `data:image/svg+xml;base64,${Buffer.from(part.svg, 'utf8').toString('base64')}`
           : undefined,

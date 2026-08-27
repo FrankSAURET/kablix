@@ -64,6 +64,10 @@ async function generateIndex() {
       // l'index, AVANT tout téléchargement — sans ce report, un composant non
       // installé s'annoncerait en anglais chez un francophone.
       if (manifest.l10n && Object.keys(manifest.l10n).length) entry.l10n = manifest.l10n;
+      // Composant encore a l'essai : le gestionnaire le montre, mais dit ce
+      // qu'il en est. Sans ce report, la carte ne pourrait pas le savoir avant
+      // le telechargement.
+      if (manifest.experimental) entry.experimental = true;
 
       index.components.push(entry);
       entries.push(entry);
@@ -103,7 +107,9 @@ Voir [kompix_specification.md](../docs/kompix_specification.md) pour les détail
 
   for (const entry of entries.sort((a, b) => String(a.type).localeCompare(String(b.type)))) {
     const desc = (entry.description || '').replace(/[|\n]/g, ' ').slice(0, 50);
-    readme += `| \`${entry.type}\` | ${entry.label} | ${entry.version} | ${entry.category} | ${desc} |\n`;
+    // Le tableau porte la meme mention que la carte du gestionnaire.
+    const essai = entry.experimental ? ' **(expérimental)**' : '';
+    readme += `| \`${entry.type}\` | ${entry.label}${essai} | ${entry.version} | ${entry.category} | ${desc} |\n`;
   }
 
   readme += `\n## Utilisation

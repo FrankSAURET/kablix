@@ -27,6 +27,7 @@ Métadonnées du composant (JSON structuré). Reprend le schéma `CustomPartData
 - `behavior` : nom du fichier script optionnel
 - `help` : langues des fiches d'aide embarquées, ex. `["fr"]`
 - `l10n` : traductions des libellés du composant (voir plus bas)
+- `experimental` : `true` pour un composant encore à l'essai (voir plus bas)
 
 #### `schema.svg`
 
@@ -109,6 +110,24 @@ Une barrière optique en a deux, une par barillet : l'émetteur non alimenté
 n'éclaire rien, même parfaitement rappelé. Kablix signale alors trois pannes
 sur le composant : pas alimenté, sortie soudée en direct au plus
 (court-circuit), aucun rappel.
+
+### `experimental` — le composant est encore à l'essai
+
+Un composant peut être publié avant d'être tout à fait au point : son dessin, ses
+pattes ou sa simulation peuvent encore bouger. Le manifeste le dit :
+
+```json
+"experimental": true
+```
+
+La carte du composant, dans le gestionnaire, porte alors la mention
+**Experimental** — pastille et cadre en pointillés — aussi bien avant qu'après
+l'installation. Le drapeau est reporté dans `index.json` par
+`build-components-index.mjs` : sans lui, la carte d'un composant pas encore
+téléchargé ne saurait rien en dire. Champ absent = composant établi.
+
+Un composant qui devient stable perd simplement son drapeau : rien d'autre à
+changer, il suffit de reconstruire le paquet et l'index.
 
 ### `l10n` — les libellés traduits
 

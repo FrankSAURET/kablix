@@ -20,6 +20,8 @@ interface ComponentInfo {
   sourceUrl?: string; // URL complète du fichier .kompix
   installedVersion?: string; // version présente sur la machine (si installé)
   update?: boolean; // installé, mais le dépôt en propose une version plus récente
+  /** Composant encore à l'essai : sa carte porte la mention « Experimental ». */
+  experimental?: boolean;
   /** Traductions des libellés portées par le paquet (voir kompixI18n). */
   l10n?: Record<string, KompixL10nEntry>;
 }
@@ -218,6 +220,7 @@ export class ComponentManagerPanel {
     const downloadedText = l10n.t('downloaded');
     const madeHereText = l10n.t('created here');
     const updateText = l10n.t('Update available');
+    const experimentalText = l10n.t('Experimental');
 
     return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -342,6 +345,23 @@ export class ComponentManagerPanel {
       content: ${JSON.stringify(`⇩ ${updateText}`)};
       color: var(--vscode-charts-orange, #d18616);
     }
+    /* Composant pas encore validé : la carte le dit d'emblée. Cadre en
+       pointillés + pastille, pour que ça se voie sans avoir à lire. */
+    .component-card.experimental {
+      border-style: dashed;
+    }
+    .badge-experimental {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: bold;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 0.1rem 0.45rem;
+      margin-bottom: 0.5rem;
+      border-radius: 999px;
+      color: var(--vscode-charts-purple, #b180d7);
+      border: 1px solid currentColor;
+    }
     .component-meta .from-version {
       text-decoration: line-through;
       opacity: 0.7;
@@ -423,11 +443,13 @@ export class ComponentManagerPanel {
       } else {
         filteredComponents.forEach(comp => {
           const card = document.createElement('div');
-          card.className = 'component-card' + (comp.local ? ' local' : '') + (comp.update ? ' update' : '');
+          card.className = 'component-card' + (comp.local ? ' local' : '') + (comp.update ? ' update' : '')
+            + (comp.experimental ? ' experimental' : '');
           if (selectedTypes.has(comp.type)) card.classList.add('selected');
 
           card.innerHTML = \`
             \${comp.thumbnail ? \`<img src="\${comp.thumbnail}" alt="" class="thumbnail" />\` : '<div class="thumbnail"></div>'}
+            \${comp.experimental ? \`<div class="badge-experimental">${experimentalText}</div>\` : ''}
             <div class="component-label">\${escapeHtml(comp.label)}</div>
             \${comp.description ? \`<div class="component-description">\${escapeHtml(comp.description)}</div>\` : ''}
             <div class="component-meta">

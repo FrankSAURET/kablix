@@ -258,6 +258,10 @@ async function main() {
       reference: comp.reference,
       kind: comp.kind ?? 'passive',
       category: comp.category,
+      // Composant pas encore valide par Frank : sa carte le dit dans le
+      // gestionnaire, pour qu'on sache que le dessin ou la simulation peuvent
+      // encore bouger. Absent = composant etabli.
+      experimental: comp.experimental ? true : undefined,
       pins,
       pinRoles: comp.pinRoles,
       attrs: comp.attrs,

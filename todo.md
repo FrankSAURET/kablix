@@ -17,10 +17,22 @@ Elle va dans la librairie externe kablix_components et dans la catégorie Cartes
 1. ✅ Ajoute soil-moisture-sensor avec en simulation un curseur de variation  d'humidité en % dans la librairie externe kablix_components et dans la catégorie "capteur" → livré en v2026.8.102.25 (pas encore dans l'index public : il attend ta validation, item 7).
 1. ✅ Ajoute Grove-Light-Sensor avec en simulation un curseur de variation  de luminosité en lux (de 0 à max). Une propriété qui se retrouvera dans la simulation la valeur **max** en lux. Par défaut 500 lx. dans la librairie externe kablix_components et dans la catégorie "capteur" → livré en v2026.8.102.26 (pas encore dans l’index public : il attend ta validation, item 7).
 1. ✅ Ajoute la carte Grove-RFID. Le cavalier peut bouger de 10 px vers la droite pour changer de mode à gauche **UART** et à droite **Wiegand**. Le tag-RFID bouge lui aussi vers la droite de 100 px quand on clic sur la flèche (verte bleue) le tag se déplace et la flèche se retourne vers la gauche. Un nouveau clic inverse. Quand le tag est dans la boucle (à droite) un code est émis (1 parmis 3 U ou 1 parmi 3 W). Le code s'affiche dans la zone de texte "CodeRFID". dans la librairie externe kablix_components et dans la catégorie "capteur". → livré en v2026.8.102.27 (pas encore dans l’index public : il attend ta validation, item 7).
-1. Nouvelle règle : Les composants que je n'ai pas validé doivent avoir la mention "Expérimental" qui apparait dans la carte de sélection de la gestion de composants.
+1. ✅ Nouvelle règle : Les composants que je n'ai pas validé doivent avoir la mention "Expérimental" qui apparait dans la carte de sélection de la gestion de composants. → livré en v2026.8.102.28 ; les quatre en attente (Grove Shield, humidité du sol, capteur de lumière, lecteur RFID) sont **entrés dans l'index public** avec la mention.
 1. Traductions **EN** du lot Pico 2, à faire en un seul lot avant publication : `docs/en/composants/pico2.md` et `pico2w.md`, le paragraphe *Communication avec l'extérieur* de `picow.md`, et les deux précisions ajoutées à `USAGE.md`.
 ## ne pas faire pour l'instant 
 
+
+# >>>>  v2026.8.102.28 — Les composants à l'essai le disent sur leur carte
+
+1. ✅ **Nouvelle mention « Experimental »** (item 7 de la liste). Un composant que tu n'as pas encore validé est désormais **publié quand même**, mais sa carte le dit : une pastille violette en haut de la carte et un cadre en pointillés, dans le gestionnaire de composants. Avant, il restait invisible — il fallait attendre ton feu vert pour qu'il existe.
+2. ✅ **Un seul mot à écrire pour le poser** : `"experimental": true` dans l'entrée du composant de [_sources.json](kablix_components/_sources.json). Le drapeau descend tout seul dans le manifeste du paquet, dans `index.json`, dans le README des composants (mention *(expérimental)* au tableau) et jusqu'au dessin de la carte. Un composant qui devient stable perd son drapeau : rien d'autre à changer.
+3. ✅ **La carte le sait AVANT le téléchargement.** La carte d'un composant pas encore installé est dessinée depuis l'index du dépôt, pas depuis un paquet local : sans le report dans `index.json`, la mention ne serait apparue qu'une fois le composant installé — trop tard.
+4. ✅ **Les quatre en attente sont entrés dans l'index public**, tous marqués à l'essai : **Grove Shield (Uno)**, **capteur d'humidité du sol**, **capteur de lumière Grove** et le **lecteur RFID Grove**. L'index passe de 3 à **7 composants**.
+5. ✅ **Banc** : deux contrôles neufs dans [verify:kompix](scripts/verify-kompix.mjs) (40 tests au vert). Le premier suit le drapeau du paquet → index → bibliothèque installée (et vérifie qu'un composant validé n'en hérite pas) ; le second ouvre la page du gestionnaire dans un **vrai navigateur** et regarde quelle carte porte la pastille, ce qu'elle dit, et que l'autre carte n'a rien.
+6. ✅ **Documentation FR** : le champ dans [kompix_specification.md](docs/kompix_specification.md) et un paragraphe pour l'utilisateur dans [USAGE.md](docs/fr/USAGE.md) (« ça marche, mais ça peut encore bouger »).
+7. ⏳ **Traductions** : la chaîne « Experimental » est écrite en anglais dans le code (langue de base) ; le français de `l10n/bundle.l10n.fr.json` et la version EN des deux pages de doc attendent le lot d'avant-publication.
+
+---
 
 # >>>>  v2026.8.102.27 — Le lecteur de badges Grove parle aux deux cartes
 

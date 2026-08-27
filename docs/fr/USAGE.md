@@ -493,6 +493,8 @@ Le bouton **⚙ Gérer les composants**, en bas de la palette (ou la commande **
 - **Installés** : tout ce que contient la bibliothèque locale, y compris les composants créés ici et ceux qu'aucun dépôt ne propose ;
 - **Tous** : les deux.
 
+Une carte peut porter la mention **Experimental** (pastille et cadre en pointillés) : le composant est publié, il marche, mais il n'est pas encore figé — son dessin, ses pattes ou sa simulation peuvent changer d'une version à l'autre. Rien n'empêche de s'en servir ; il faut juste s'attendre à devoir le remettre à jour.
+
 On sélectionne les cartes au clic, puis **Télécharger** installe, **Supprimer** désinstalle. La suppression demande confirmation, efface le fichier `.kompix` de la bibliothèque et retire le composant de la palette **et** des schémas ouverts. Elle est définitive : réinstaller passe par le dépôt d'origine, ou par un `.kompix` exporté au préalable (**⇩**).
 
 Où vivent les composants installés : dans un dossier **partagé par tous les projets Kablix** de la machine — par défaut `%APPDATA%\Code\User\globalStorage\electropol-fr.kablix\kablix_components` sous Windows (`~/Library/Application Support/Code/User/globalStorage/...` sur macOS, `~/.config/Code/User/globalStorage/...` sous Linux). Le réglage **Kablix › Components Folder** en désigne un autre, et la commande **Kablix : Ouvrir la bibliothèque de composants** ouvre celui qui sert vraiment, réglage renseigné ou non. Les dépôts consultés par le gestionnaire se règlent de même (**Kablix › Component Repositories**).

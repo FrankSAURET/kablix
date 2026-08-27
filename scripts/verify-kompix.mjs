@@ -8,7 +8,8 @@
 // tronquait les dessins.
 //
 // Utilisation : npm run verify:kompix
-import { mkdirSync, rmSync, existsSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import JSZip from 'jszip';
 import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -678,6 +679,92 @@ test('la page, ouverte dans un vrai navigateur, sélectionne et demande la suppr
   if (rates.length > 0) {
     throw new Error(rates.map((r) => `${r.name} (${r.detail})`).join(' ; '));
   }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mention « Experimental » : un composant que Frank n'a pas encore validé est
+// visible dans le gestionnaire, mais sa carte le dit. Le drapeau part du
+// manifeste et doit arriver jusqu'au dessin de la carte, en passant par l'index
+// public (la carte d'un composant PAS ENCORE installé est dessinée depuis lui).
+// ─────────────────────────────────────────────────────────────────────────────
+
+test('la mention « Experimental » va du paquet jusqu’à la carte', async () => {
+  const paquet = join(ROOT, 'kablix_components', 'grove-rfid.kompix');
+  if (!existsSync(paquet)) {
+    console.log('    (grove-rfid.kompix absent — contrôle sauté)');
+    return;
+  }
+  const zip = await new JSZip().loadAsync(readFileSync(paquet));
+  const manifest = JSON.parse(await zip.file('manifest.json').async('string'));
+  eq(manifest.experimental, true, 'drapeau dans le manifeste du paquet');
+
+  // L'index public : sans lui, la carte ne saurait rien avant téléchargement.
+  const index = JSON.parse(readFileSync(join(ROOT, 'kablix_components', 'index.json'), 'utf8'));
+  const entree = index.components.find((c) => c.type === 'grove-rfid');
+  eq(entree && entree.experimental, true, 'drapeau dans index.json');
+  const etabli = index.components.find((c) => c.type === 'dmx-grove');
+  eq(etabli && etabli.experimental, undefined, 'un composant validé n’a aucune mention');
+
+  // Installé pour de bon : c'est la bibliothèque qui relit le manifeste.
+  await lib.saveKompix(paquet, 'remote', 'https://exemple/grove-rfid.kompix');
+  const installe = lib.listInstalled().find((c) => c.type === 'grove-rfid');
+  eq(installe && installe.experimental, true, 'drapeau relu par la bibliothèque');
+});
+
+test('la carte d’un composant à l’essai porte la mention, les autres non', () => {
+  const chrome = [
+    'C:/Program Files/Google/Chrome/Application/chrome.exe',
+    'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
+  ].find(existsSync);
+  if (!chrome) {
+    console.log('    (Chrome introuvable — contrôle sauté)');
+    return;
+  }
+
+  const nu = Object.create(ComponentManagerPanel.prototype);
+  const html = nu.generateHtml([
+    { type: 'essai', label: 'À l’essai', version: '2026.8.1', local: false, experimental: true },
+    { type: 'etabli', label: 'Établi', version: '2026.8.1', local: false },
+  ]);
+  const nonce = /<script nonce="([^"]+)">/.exec(html)[1];
+  const avant = `<script nonce="${nonce}">
+    window.acquireVsCodeApi = () => ({ postMessage: () => {}, getState: () => null, setState: () => {} });
+  </script>`;
+  const scenario = `<script nonce="${nonce}">
+    const res = [];
+    const ok = (name, cond, detail = '') => res.push({ name, ok: !!cond, detail: String(detail) });
+    const cartes = [...document.querySelectorAll('.component-card')];
+    const pastilles = document.querySelectorAll('.badge-experimental');
+    ok('une seule carte porte la pastille', pastilles.length === 1, pastilles.length);
+    ok('la pastille est sur le composant à l essai',
+      cartes[0] && cartes[0].querySelector('.badge-experimental'), cartes.length);
+    ok('la pastille dit Experimental',
+      pastilles[0] && /experimental/i.test(pastilles[0].textContent), pastilles[0] && pastilles[0].textContent);
+    ok('sa carte se distingue aussi au cadre',
+      cartes[0] && cartes[0].classList.contains('experimental'), cartes[0] && cartes[0].className);
+    ok('le composant établi n a rien',
+      cartes[1] && !cartes[1].classList.contains('experimental'), cartes[1] && cartes[1].className);
+    const out = document.createElement('pre');
+    out.id = 'mesures';
+    out.textContent = JSON.stringify(res);
+    document.body.appendChild(out);
+  </script>`;
+
+  const page = join(WORK_DIR, 'gestionnaire-essai.html');
+  writeFileSync(page, html.replace('</head>', `${avant}</head>`).replace('</body>', `${scenario}</body>`), 'utf8');
+  const dom = execFileSync(
+    chrome,
+    ['--headless=new', '--disable-gpu', '--no-sandbox', '--virtual-time-budget=8000', '--dump-dom',
+      `file:///${page.replace(/\\/g, '/')}`],
+    { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 }
+  );
+  const m = /<pre id="mesures"[^>]*>([\s\S]*?)<\/pre>/.exec(dom);
+  if (!m) throw new Error('la page n’a rien mesuré : son script ne s’est pas exécuté');
+  const rows = JSON.parse(
+    m[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+  );
+  const rates = rows.filter((r) => !r.ok);
+  if (rates.length > 0) throw new Error(rates.map((r) => `${r.name} (${r.detail})`).join(' ; '));
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

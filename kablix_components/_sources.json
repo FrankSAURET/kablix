@@ -1,5 +1,5 @@
 {
-  "_comment": "Composants de la bibliothèque publique dessinés dans Composants2D.svg. « group » est l'id du groupe Inkscape, « type » l'identifiant du composant. Régénérer : node scripts/build-kompix.mjs puis node scripts/build-components-index.mjs.",
+  "_comment": "Composants de la bibliothèque publique dessinés dans Composants2D.svg. « group » est l'id du groupe Inkscape, « type » l'identifiant du composant. « experimental »: true tant que Frank n'a pas valide le composant — sa carte porte alors la mention « Experimental » dans le gestionnaire. Régénérer : node scripts/build-kompix.mjs puis node scripts/build-components-index.mjs.",
   "components": [
     {
       "group": "DMX-Grove",
@@ -83,6 +83,7 @@
     {
       "group": "Grove-Uno",
       "type": "grove-uno",
+      "experimental": true,
       "label": "Grove Shield (Uno)",
       "description": "Grove Base Shield V2 for Arduino Uno: 16 Grove sockets (4 analog, 7 digital, 4 I2C, 1 UART) wired to the board headers. A slide switch feeds them 3.3 V or 5 V.",
       "version": "2026.8.1",
@@ -343,6 +344,7 @@
     {
       "group": "soil-moisture-sensor",
       "type": "soil-moisture-sensor",
+      "experimental": true,
       "label": "Soil moisture sensor",
       "description": "Resistive soil moisture probe (two prongs): wet soil conducts, so the analog output rises with moisture. In simulation a slider sets the moisture from 0 to 100 %.",
       "version": "2026.8.1",
@@ -365,6 +367,7 @@
     {
       "group": "Grove-Light-Sensor",
       "type": "grove-light-sensor",
+      "experimental": true,
       "label": "Grove light sensor",
       "description": "Grove ambient light sensor (LS06-S phototransistor): the analog output rises with the light falling on it. In simulation a slider sets the illuminance, from darkness to the maximum set in the inspector.",
       "version": "2026.8.1",
@@ -391,6 +394,7 @@
     {
       "group": "Grove-RFID",
       "type": "grove-rfid",
+      "experimental": true,
       "label": "Grove 125 kHz RFID reader",
       "description": "Grove 125 kHz RFID reader (EM4100 tags): while a tag sits in the antenna loop the module keeps sending its code to the board. A jumper picks the language — UART (the code as plain text on TX, 9600 baud) or Wiegand (two-wire pulses, TX = DATA0 and RX = DATA1). In simulation the arrow moves the tag in and out of the loop.",
       "version": "2026.8.2",
