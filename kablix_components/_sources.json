@@ -361,6 +361,32 @@
         "max": 100,
         "step": 1
       }
+    },
+    {
+      "group": "Grove-Light-Sensor",
+      "type": "grove-light-sensor",
+      "label": "Grove light sensor",
+      "description": "Grove ambient light sensor (LS06-S phototransistor): the analog output rises with the light falling on it. In simulation a slider sets the illuminance, from darkness to the maximum set in the inspector.",
+      "version": "2026.8.1",
+      "author": "Frank Sauret",
+      "reference": "https://wiki.seeedstudio.com/Grove-Light_Sensor/",
+      "kind": "analog-source",
+      "category": "Sensors",
+      "pinRoles": {
+        "AO": "SIG"
+      },
+      "params": [
+        { "name": "lxmax", "label": "Full-scale illuminance (lx)", "value": 500 }
+      ],
+      "control": {
+        "type": "slider",
+        "label": "Illuminance",
+        "unit": "lx",
+        "min": 0,
+        "max": 500,
+        "step": 1,
+        "maxParam": "lxmax"
+      }
     }
   ]
 }

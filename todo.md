@@ -15,12 +15,27 @@ Comme sur la grove-pico l'interrupteur switch-button doit pouvoir commuter le 3,
 Attention elles est spéciale. Je n'ais pas réussis à placer toutes les connexions sur la grille de 10px (connecteur A2 et A0). 
 Elle va dans la librairie externe kablix_components et dans la catégorie Cartes & platines avec le nom Grove Shield (Uno). → livré en v2026.8.102.24 (pas encore dans l'index public : il attend ta validation, item 7).
 1. ✅ Ajoute soil-moisture-sensor avec en simulation un curseur de variation  d'humidité en % dans la librairie externe kablix_components et dans la catégorie "capteur" → livré en v2026.8.102.25 (pas encore dans l'index public : il attend ta validation, item 7).
-1. Ajoute Grove-Light-Sensor avec en simulation un curseur de variation  de luminosité en lux (de 0 à max). Une propriété qui se retrouvera dans la simulation la valeur **max** en lux. Par défaut 500 lx. dans la librairie externe kablix_components et dans la catégorie "capteur"
+1. ✅ Ajoute Grove-Light-Sensor avec en simulation un curseur de variation  de luminosité en lux (de 0 à max). Une propriété qui se retrouvera dans la simulation la valeur **max** en lux. Par défaut 500 lx. dans la librairie externe kablix_components et dans la catégorie "capteur" → livré en v2026.8.102.26 (pas encore dans l’index public : il attend ta validation, item 7).
 1. Ajoute la carte Grove-RFID. Le cavalier peut bouger de 10 px vers la droite pour changer de mode à gauche **UART** et à droite **Wiegand**. Le tag-RFID bouge lui aussi vers la droite de 100 px quand on clic sur la flèche (verte bleue) le tag se déplace et la flèche se retourne vers la gauche. Un nouveau clic inverse. Quand le tag est dans la boucle (à droite) un code est émis (1 parmis 3 U ou 1 parmi 3 W). Le code s'affiche dans la zone de texte "CodeRFID". dans la librairie externe kablix_components et dans la catégorie "capteur".
 1. Nouvelle règle : Tu ne rends disponible les composants de la librairie externe kablix_components que quand je les ai validés.
 1. Traductions **EN** du lot Pico 2, à faire en un seul lot avant publication : `docs/en/composants/pico2.md` et `pico2w.md`, le paragraphe *Communication avec l'extérieur* de `picow.md`, et les deux précisions ajoutées à `USAGE.md`.
 ## ne pas faire pour l'instant 
 
+
+# >>>>  v2026.8.102.26 — Le capteur de lumière Grove et son curseur en lux
+
+1. ✅ **Le capteur de lumière Grove existe** (item 5 de la liste). Il vit dans la bibliothèque externe `kablix_components/`, catégorie **Capteurs**, sous le nom **Grove light sensor**. Prise Grove à quatre fils : `GND`, `VCC`, `NC` (celui-là ne sert à rien, il n'est câblé nulle part) et `SIG`, la sortie **analogique** qui monte avec la lumière reçue.
+2. ✅ **Le curseur prend sa graduation dans une propriété**, comme demandé : l'inspecteur porte un **éclairement de pleine échelle** en lux (`lxmax`, **500 lx** par défaut) et le curseur de simulation va de 0 à cette valeur. C'est un champ neuf du format `.kompix` — `control.maxParam`, le NOM du paramètre à suivre ([catalog.mts](src/webview/diagram/catalog.mts), fonction `controlMax`). Sans lui, la course du curseur serait figée au moment de la fabrication du paquet.
+3. ✅ **Changer la propriété change tout de suite la course du curseur ET l'échelle de la tension.** Le nom de l'attribut vient du manifeste : il ne peut pas figurer dans la liste statique des attributs surveillés, il se surveille donc à la main ([custom-part.mts](src/webview/composants/custom-part.mts)), comme l'interrupteur d'une carte fille. Mesuré en vrai Chrome ([_probe-light.mjs](scripts/_probe-light.mjs)) : curseur `0 / 500 / 1` au départ, puis `0 / 10000 / 1` dès que la pleine échelle passe à 10 000 lx, l'étiquette suivant la valeur (« Illuminance 5000 lx »).
+4. ✅ **La tension de sortie suit la même borne** ([sim.mts](src/webview/sim.mts)) : la rampe droite va de 0 lx → 0 V à la pleine échelle → tension de la carte (5 V sur Uno, 3,3 V sur Pico). Une seule fonction sert aux deux côtés, impossible qu'ils se contredisent.
+5. ✅ **Fiche d'aide FR** (`kablix_components/help/grove-light-sensor/fr.md`) : à quoi sert l'œil électronique, le tableau des quatre fils, ce que vaut la sortie dans le noir / une pièce / le plein soleil, ce qu'est un lux, la propriété de pleine échelle, le curseur en simulation, et les deux pièges (le capteur ne donne PAS des lux ; ne pas le mettre face à la lampe qu'il commande, sinon clignotement sans fin).
+6. ✅ **Trois tests testkablix** : `grove-light-sensor-uno` (sortie sur **A1**), `grove-light-sensor-pico` et son jumeau `grove-light-sensor-pico2` (sortie sur **GP27**, ADC1). Les programmes allument quand il fait sombre. Fils du jumeau tracés par l'autorouteur et rangés dans `_routage.json`. Ligne ajoutée à [testkablix/README.md](testkablix/README.md).
+7. ✅ **Un contrôle de plus au banc du format** ([verify:kompix](scripts/verify-kompix.mjs)) : un `maxParam` doit revenir intact de l'aller-retour dans le paquet, avec le paramètre qu'il désigne. 36 tests au vert.
+8. ⏳ **Traductions EN** : les libellés « Illuminance » et « Full-scale illuminance (lx) » et la fiche `en.md` attendent le lot d'avant-publication.
+9. ℹ️ **Le capteur n'est PAS dans l'index public** (`kablix_components/index.json`) : il attend ta validation, comme le demande l'item 7 de la liste. Une fois validé : `node scripts/build-components-index.mjs`.
+10. ✅ **La suite complète : 99 bancs verts sur 100** (403 s), rejouée APRÈS la reconstruction du paquet. Le seul rouge reste `verify:i18n`, déjà noté ⏳ aux lots précédents (photodiode, phototransistor, multimètre, oscilloscope et quelques phrases de `sim.mts` / `panel.ts`).
+
+---
 
 # >>>>  v2026.8.102.25 — Le capteur d'humidité du sol arrive avec son curseur
 

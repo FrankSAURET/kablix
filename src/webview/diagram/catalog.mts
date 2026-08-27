@@ -204,6 +204,30 @@ export interface CustomControl {
    * un composant qui bouge n'a pas besoin d'une ligne de code.
    */
   move?: { group: string; dx?: number; dy?: number };
+  /**
+   * La borne haute du curseur n'est pas figée : elle vaut le PARAMÈTRE de ce nom
+   * (déclaré dans `params`, réglable dans l'inspecteur). Le capteur de lumière
+   * Grove mesure ainsi de 0 à « max » lux — changer le paramètre change du même
+   * coup la course du curseur ET l'échelle de la tension de sortie.
+   */
+  maxParam?: string;
+}
+
+/**
+ * Borne haute d'un curseur : la valeur figée du contrôle, ou celle du paramètre
+ * qu'il désigne (`maxParam`). `lire` donne la valeur courante d'un attribut —
+ * l'élément la prend sur lui-même, la simulation dans les attrs du composant.
+ */
+export function controlMax(
+  ctrl: CustomControl,
+  params: readonly CustomParam[] | undefined,
+  lire: (attr: string) => string | null | undefined
+): number {
+  const fixe = ctrl.max ?? 100;
+  if (!ctrl.maxParam) return fixe;
+  const def = params?.find((p) => p.name === ctrl.maxParam);
+  const v = Number(lire(`${PARAM_ATTR_PREFIX}${ctrl.maxParam}`) ?? def?.value ?? fixe);
+  return Number.isFinite(v) && v > 0 ? v : fixe;
 }
 
 /**

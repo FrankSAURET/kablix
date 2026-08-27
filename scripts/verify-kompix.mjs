@@ -292,6 +292,26 @@ test('les propriétés et le contrôle de simulation reviennent intacts', async 
   eq(relu.control.expr, '5 * r1 / (r1 + x)', 'caractéristique du contrôle');
 });
 
+test('la borne haute du curseur peut venir d’un paramètre', async () => {
+  // Capteur de lumière Grove : sa pleine échelle se règle dans l'inspecteur, et
+  // le curseur de simulation doit suivre. Le manifeste ne porte alors qu'un NOM
+  // de paramètre (`maxParam`) ; sans lui, la course du curseur resterait figée
+  // sur la valeur écrite au moment de la fabrication du paquet.
+  const relu = await allerRetour({
+    type: 'test-pleine-echelle',
+    label: 'Pleine échelle',
+    kind: 'analog-source',
+    pins: [{ name: 'SIG', x: 0, y: 10 }, { name: 'GND', x: 20, y: 10 }],
+    pinRoles: { AO: 'SIG' },
+    params: [{ name: 'lxmax', label: 'Éclairement pleine échelle (lx)', value: 500 }],
+    control: { type: 'slider', label: 'Éclairement', unit: 'lx', min: 0, max: 500, step: 1, maxParam: 'lxmax' },
+    svg: '<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><rect width="20" height="20"/></svg>',
+  });
+  eq(relu.control.maxParam, 'lxmax', 'paramètre de borne haute');
+  eq(relu.params[0].name, 'lxmax', 'le paramètre désigné existe');
+  eq(relu.params[0].value, 500, 'valeur de départ de la pleine échelle');
+});
+
 test('un composant sans contrôle de simulation n’en invente pas', async () => {
   const relu = await allerRetour({
     type: 'test-sans-controle',

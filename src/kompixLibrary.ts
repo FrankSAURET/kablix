@@ -111,6 +111,8 @@ interface KompixManifest {
     type: string; label?: string; unit?: string; min?: number; max?: number; step?: number; expr?: string;
     /** Pièce du dessin déplacée par le contrôle (obstacle d'une barrière optique). */
     move?: { group: string; dx?: number; dy?: number };
+    /** Nom du paramètre qui donne la borne haute du curseur (capteur de lumière). */
+    maxParam?: string;
   } | null;
   /** Sortie à collecteur ouvert : elle ne sait que tirer à la masse, un rappel
    *  au plus est indispensable. `supplies` = paires [V+, GND] à alimenter. */

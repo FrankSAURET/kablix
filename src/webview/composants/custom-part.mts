@@ -7,7 +7,7 @@
 // setLocked comme pour les capteurs intégrés) ; le moteur relit `controlValue`
 // / `switchOn` sur l'événement `input` (cf. sim.mts).
 
-import type { CustomControl, PartDef } from '../diagram/catalog.mjs';
+import { controlMax, type CustomControl, type CustomParam, type PartDef } from '../diagram/catalog.mjs';
 import { shieldOption, type ShieldSwitch } from '../diagram/shield.mjs';
 import { simControlStyles } from './utils/sim-control-styles.mjs';
 
@@ -79,6 +79,10 @@ export class CustomPartElement extends HTMLElement {
   /** Contrôle de simulation défini dans le créateur (curseur/interrupteur). */
   private control: CustomControl | null = null;
   private controlBox: HTMLDivElement | null = null;
+  /** Paramètres du composant : un curseur peut y prendre sa borne haute. */
+  private controlParams: readonly CustomParam[] = [];
+  /** Surveille le paramètre qui donne la borne haute du curseur (`maxParam`). */
+  private paramWatcher: MutationObserver | null = null;
 
   /** Interrupteur d'une carte fille (Grove Shield…) : décrit par son manifeste. */
   private shieldSwitch: ShieldSwitch | null = null;
@@ -125,12 +129,13 @@ export class CustomPartElement extends HTMLElement {
     this.wrapper.innerHTML = def.custom.svg;
     this.pinInfo = def.custom.pins.map((p) => ({ name: p.name, x: p.x, y: p.y, signals: [] }));
     this.control = def.custom.control ?? null;
+    this.controlParams = def.custom.params ?? [];
     this.shieldSwitch = def.custom.shield?.switch ?? null;
     this.setupShieldSwitch();
+    this.setupParamWatcher();
     if (this.control?.type === 'slider') {
       const min = this.control.min ?? 0;
-      const max = this.control.max ?? 100;
-      this.controlValue = (min + max) / 2;
+      this.controlValue = (min + this.sliderMax()) / 2;
     }
     this.applyMove();
     if (def.kind === 'pushbutton') {
@@ -146,6 +151,32 @@ export class CustomPartElement extends HTMLElement {
   /** Attribut `simulating` (setLocked) : montre/cache le contrôle de simulation. */
   attributeChangedCallback(name: string): void {
     if (name === 'simulating') this.renderControl();
+  }
+
+  /** Borne haute du curseur : figée, ou prise dans le paramètre `maxParam`. */
+  private sliderMax(): number {
+    if (!this.control) return 100;
+    return controlMax(this.control, this.controlParams, (attr) => this.getAttribute(attr));
+  }
+
+  /**
+   * Le paramètre qui donne la borne haute du curseur se règle dans l'inspecteur :
+   * son attribut n'a pas de nom fixe (il vient du manifeste) et ne peut donc pas
+   * figurer dans `observedAttributes`, qui est statique — comme l'interrupteur
+   * d'une carte fille, il se surveille à la main.
+   */
+  private setupParamWatcher(): void {
+    this.paramWatcher?.disconnect();
+    this.paramWatcher = null;
+    const nom = this.control?.maxParam;
+    if (!nom) return;
+    this.paramWatcher = new MutationObserver(() => {
+      // La valeur courante ne peut pas dépasser la nouvelle course.
+      if (this.controlValue > this.sliderMax()) this.controlValue = this.sliderMax();
+      this.renderControl();
+      this.dispatchEvent(new Event('input'));
+    });
+    this.paramWatcher.observe(this, { attributes: true, attributeFilter: [`prm_${nom}`] });
   }
 
   private renderControl(): void {
@@ -169,7 +200,7 @@ export class CustomPartElement extends HTMLElement {
       const input = document.createElement('input');
       input.type = 'range';
       input.min = String(this.control.min ?? 0);
-      input.max = String(this.control.max ?? 100);
+      input.max = String(this.sliderMax());
       input.step = String(this.control.step ?? 1);
       input.value = String(this.controlValue);
       val.textContent = `${this.controlValue}${unit}`;
@@ -472,7 +503,7 @@ export class CustomPartElement extends HTMLElement {
     if (!this.control || !this.hasAttribute('simulating')) return 0;
     if (this.control.type === 'switch') return this.switchOnRaw ? 1 : 0;
     const min = this.control.min ?? 0;
-    const max = this.control.max ?? 100;
+    const max = this.sliderMax();
     if (max === min) return 0;
     return Math.min(1, Math.max(0, (this.controlValueRaw - min) / (max - min)));
   }

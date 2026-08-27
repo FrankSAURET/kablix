@@ -127,6 +127,10 @@ export const PART_PINS = {
   // Capteur d'humidité du sol : sonde résistive à deux dents. Trois fils,
   // dont la sortie ANALOGIQUE « S » (les noms « + » et « - » sont ceux du dessin).
   'soil-moisture-sensor': ['S', '+', '-'],
+  // Capteur de lumière Grove : prise Grove à quatre fils, dans l'ordre du câble.
+  // « NC » ne sert à rien (il n'est relié à rien dans le module) et « SIG » est la
+  // sortie ANALOGIQUE, qui monte avec la lumière reçue.
+  'grove-light-sensor': ['GND', 'VCC', 'NC', 'SIG'],
 };
 
 // --- Grove Shield (Uno) : la carte fille qui se pose sur l'Arduino Uno ---------
@@ -2797,6 +2801,45 @@ void loop() {
 }
 `,
   }),
+
+  // Capteur de lumière Grove : un œil électronique qui rend une tension montant
+  // avec la lumière reçue. Sortie ANALOGIQUE (A1 ici), jamais une broche
+  // tout-ou-rien. Le fil « NC » du câble Grove ne sert à rien : il n'est câblé
+  // nulle part. En simulation, le curseur va de 0 à la pleine échelle réglée
+  // dans l'inspecteur (500 lx par défaut).
+  test({
+    name: 'grove-light-sensor-uno', board: 'uno', ext: 'ino',
+    kompix: ['grove-light-sensor'],
+    parts: [
+      MCU('uno'),
+      { id: 'Capt1', type: 'grove-light-sensor', x: 620, y: 60 },
+    ],
+    wires: () => [
+      w('Capt1', 'VCC', 'U1', '5V', 'red'),
+      w('Capt1', 'GND', 'U1', 'GND.1', 'black'),
+      w('Capt1', 'SIG', 'U1', 'A1', 'yellow'),
+    ],
+    expect: { kind: 'analog-source', partId: 'Capt1', mcuPin: 'A1' },
+    code: `// Test capteur de lumière Grove : lecture analogique sur A1.
+// En simulation, le curseur du capteur règle l'éclairement de 0 lx à la pleine
+// échelle (500 lx par défaut) : 0 lx donne 0 V (valeur 0), la pleine échelle
+// donne 5 V (valeur 1023).
+const int CAPTEUR = A1;
+const int SEUIL_SOMBRE = 200;
+
+void setup() {
+  Serial.begin(115200);
+}
+
+void loop() {
+  int mesure = analogRead(CAPTEUR);
+  Serial.print("lumiere = ");
+  Serial.print(mesure);
+  Serial.println(mesure < SEUIL_SOMBRE ? "  -> SOMBRE, on allume" : "  -> assez clair");
+  delay(300);
+}
+`,
+  }),
 ];
 
 // ================================================================================
@@ -5108,6 +5151,35 @@ SEUIL_SEC = 22000
 while True:
     mesure = sonde.read_u16()
     print("humidite =", mesure, "-> TROP SEC, il faut arroser" if mesure < SEUIL_SEC else "-> ok")
+    time.sleep(0.3)
+`,
+  }),
+
+  // Même capteur de lumière que `grove-light-sensor-uno`, côté Pico : la sortie
+  // va sur GP27 (ADC1) et la tension pleine échelle est 3,3 V.
+  test({
+    name: 'grove-light-sensor-pico', board: 'pico', ext: 'py',
+    kompix: ['grove-light-sensor'],
+    parts: [MCU('pico'), { id: 'Capt1', type: 'grove-light-sensor', x: 680, y: 60 }],
+    wires: () => [
+      w('Capt1', 'VCC', 'U1', '3V3', 'red'),
+      w('Capt1', 'GND', 'U1', 'GND.7', 'black'),
+      w('Capt1', 'SIG', 'U1', 'GP27', 'yellow'),
+    ],
+    expect: { kind: 'analog-source', partId: 'Capt1', mcuPin: 'GP27' },
+    code: `# Test capteur de lumière Grove : lecture analogique sur GP27 (ADC1).
+# En simulation, le curseur du capteur règle l'éclairement de 0 lx à la pleine
+# échelle (500 lx par défaut) : 0 lx donne 0 V (valeur 0), la pleine échelle
+# donne 3,3 V (valeur 65535).
+from machine import ADC
+import time
+
+capteur = ADC(27)
+SEUIL_SOMBRE = 13000
+
+while True:
+    mesure = capteur.read_u16()
+    print("lumiere =", mesure, "-> SOMBRE, on allume" if mesure < SEUIL_SOMBRE else "-> assez clair")
     time.sleep(0.3)
 `,
   }),

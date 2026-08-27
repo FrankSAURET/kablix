@@ -708,6 +708,7 @@ export class PartCreator {
               max: ctrl.max ?? 100,
               step: ctrl.step ?? 1,
               expr: ctrl.expr,
+              maxParam: ctrl.maxParam,
             };
       this.renderControlForm(modal);
     });

@@ -67,7 +67,7 @@ import './composants/custom-part.mjs';
 import { initLocale, t } from './i18n.mjs';
 import { Plotter } from './plotter.mjs';
 import { Editor, KABLIX_BADGE, type PaletteState } from './diagram/editor.mjs';
-import { partDef, boardFamily, isPicoBoard, isBoardId, mcuPinRole, pca9685Address, PARAM_ATTR_PREFIX, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
+import { partDef, boardFamily, isPicoBoard, isBoardId, mcuPinRole, pca9685Address, controlMax, PARAM_ATTR_PREFIX, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
 import { compileExpr } from './diagram/expr.mjs';
 import { toWokwiDiagram, fromWokwiDiagram } from './diagram/wokwi.mjs';
 import { partsCsv } from './diagram/bom.mjs';
@@ -2662,7 +2662,9 @@ function bindInputs(): void {
             level = Math.min(1, Math.max(0, fn(vars) / vref));
           } else {
             const min = ctrl.min ?? 0;
-            const max = ctrl.max ?? 100;
+            // Borne haute figée, ou réglée dans l'inspecteur (`maxParam`) : le
+            // capteur de lumière Grove étale sa course sur 0 → « max » lux.
+            const max = controlMax(ctrl, params, (attr) => part.attrs?.[attr]);
             level = max > min ? Math.min(1, Math.max(0, (x - min) / (max - min))) : 0;
           }
           engine?.setAnalog(pin, level);
