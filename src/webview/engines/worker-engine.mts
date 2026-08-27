@@ -460,11 +460,17 @@ export class WorkerEngine implements SimEngine {
     return i >= 0 && this.snap.pulseActive[i] === 1;
   }
 
+  /**
+   * Couleurs de la chaîne WS2812, composantes de 0 à 1 — MÊME ÉCHELLE que les
+   * moteurs qui tournent dans la page (`AvrEngine`, `PicoEngine`) : c'est celle
+   * qu'attendent les éléments NeoPixel. L'instantané, lui, les transporte en
+   * octets empaquetés (0xRRGGBB) pour ne pas sérialiser trois champs par LED.
+   */
   readNeopixel(pin: string): Array<{ r: number; g: number; b: number }> {
     return (this.snap.neopixel[pin] ?? []).map((c) => ({
-      r: (c >> 16) & 0xff,
-      g: (c >> 8) & 0xff,
-      b: c & 0xff,
+      r: ((c >> 16) & 0xff) / 255,
+      g: ((c >> 8) & 0xff) / 255,
+      b: (c & 0xff) / 255,
     }));
   }
 

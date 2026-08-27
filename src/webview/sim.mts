@@ -2276,6 +2276,11 @@ function bindInputs(): void {
       const apply = () => {
         sensor.distanceCm = Number(el.distance ?? cur);
         sensor.temperatureC = clampAirTemp(Number(el.temperature ?? temp));
+        // Muter l'objet suffit au moteur qui tourne DANS la page — il tient la
+        // même référence. Sur son propre fil, il n'en a qu'une copie : il faut
+        // lui repasser la liste, sinon la distance reste bloquée sur celle du
+        // départ (20 cm lus à l'écran, curseur ignoré).
+        engine?.setUltrasonic?.(ultraSensors);
       };
       el.addEventListener('input', apply);
       inputRemovers.push(() => el.removeEventListener('input', apply));

@@ -202,6 +202,11 @@ function driveCode(name: string): number {
   return i < 0 ? 0 : i;
 }
 
+/** Composante de couleur 0..1 → octet 0..255 (bornée : le décodeur peut arrondir). */
+function o255(v: number): number {
+  return Math.max(0, Math.min(255, Math.round(v * 255)));
+}
+
 /**
  * Relève l'état de toutes les broches et l'envoie à la page. Les vues typées sont
  * réallouées à chaque publication : elles sont TRANSFÉRÉES (le buffer change de
@@ -223,8 +228,15 @@ function publish(): void {
   for (const p of neopixelPins) {
     // Empaqueté en 0xRRGGBB : un entier par LED plutôt qu'un objet à trois champs,
     // sinon un ruban de 256 LED sérialise 256 objets à chaque instantané.
+    //
+    // Le décodeur rend des composantes de 0 à 1 — il FAUT les remettre sur 255
+    // avant de les ranger dans l'entier. Sans ça, `0,95 << 16` vaut ZÉRO (le
+    // décalage tronque), et tout le ruban partait noir ; seule une composante
+    // pile à 1 passait, en valant 1/255 à l'arrivée. D'où la première LED qui
+    // s'allumait en rouge une fraction de seconde (le rouge plein du début de
+    // la roue des couleurs) puis plus rien du tout.
     out.neopixel[p] = (engine.readNeopixel?.(p) ?? []).map(
-      (c) => (c.r << 16) | (c.g << 8) | c.b
+      (c) => (o255(c.r) << 16) | (o255(c.g) << 8) | o255(c.b)
     );
   }
   for (const id of lcdIds) out.lcd[id] = engine.readLcdParallel?.(id) ?? [];

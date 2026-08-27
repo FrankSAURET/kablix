@@ -1,11 +1,21 @@
 # À faire
-1. neopixel ne marche plus complètement, seule la première led clignote un coup bref en rouge. Pareil pico et pico2. Uno ok.
-1. neopixel-matrix ne marche plus complètement, seule la diagonale blanche est remplie. Pareil pico et pico2. Uno ne fait plus rien.
-1. us-sensor ne marche ni sur pico ni sur pico2. Distance figée à 19,8 cm pareil pour us-uno.
 1. Sur la grove uno on retrouve les même problème que sur la pca9685 ou la grove pico : Le routage auto des fils passe par dessus des broches alignées.
 1. Traductions **EN** du lot Pico 2, à faire en un seul lot avant publication : `docs/en/composants/pico2.md` et `pico2w.md`, le paragraphe *Communication avec l'extérieur* de `picow.md`, et les deux précisions ajoutées à `USAGE.md`.
 ## ne pas faire pour l'instant
 
+
+# >>>>  v2026.8.102.33 — Les couleurs et la distance repassent le mur du fil de calcul
+
+1. ✅ **NeoPixel : les couleurs étaient écrasées en route** (items 1 et 2). Le décodeur WS2812 rend des couleurs en **fractions** — 0 = éteint, 1 = à fond. Pour les envoyer du fil de calcul à la page, on les range dans un seul nombre, un octet par couleur… en oubliant de les remettre sur 255 d'abord. Ranger « 0,95 » dans une case qui n'accepte que des entiers, c'est ranger **zéro** : tout le ruban partait noir. Seule une couleur PILE à fond (1) survivait, et valait alors 1 sur 255 à l'arrivée — donc quasi rien.
+2. ✅ **D'où les symptômes, tous les trois expliqués par la même ligne** : la roue des couleurs du test Pico commence par un rouge plein → la première LED s'allumait une fraction de seconde puis tout retombait à zéro ; la matrice écrit sa diagonale en blanc plein et le reste en dégradé → **seule la diagonale** apparaissait ; le test matrice Arduino baisse la luminosité à 60, donc plus AUCUNE composante à fond → **rien du tout**. Et le test NeoPixel Arduino, lui, n'affiche que du rouge, du vert et du bleu pleins : il avait l'air en parfaite santé.
+3. ✅ **Correction des deux bouts** : le fil de calcul remet les composantes sur 255 avant de les ranger ([sim-worker.mts](src/webview/engines/sim-worker.mts)), la page redivise en dépaquetant ([worker-engine.mts](src/webview/engines/worker-engine.mts)) — elle rend donc la MÊME échelle que les moteurs qui tournent dans la page, celle qu'attendent les éléments NeoPixel.
+4. ✅ **Capteur ultrason : le curseur ne franchissait plus le mur** (item 3). La page tenait un objet « distance » et le moteur relisait dedans à chaque tir : parfait tant qu'ils partagent le même objet. Depuis que le calcul tourne sur son **propre fil**, il n'en reçoit qu'une **photocopie** — bouger le curseur ne changeait plus rien chez lui, et la distance restait celle du départ (20 cm, lus 19,8 à l'écran). La page lui repasse maintenant la liste à chaque mouvement ([sim.mts](src/webview/sim.mts)).
+5. ✅ **Sans casser le tir en cours** : les deux moteurs vidaient TOUTES leurs échéances à chaque réglage — or cette file porte aussi l'écho en vol et les trames DHT22. Ils ne jettent plus que les échos des capteurs qui disparaissent vraiment du schéma ([pico.mts](src/webview/engines/pico.mts), [avr.mts](src/webview/engines/avr.mts)).
+6. ✅ **Prouvé avant de corriger** : le moteur seul, rejouant le vrai programme du test sur les deux cartes, décodait déjà les couleurs parfaitement (LED qui tourne, roue qui avance). Le défaut était donc bien sur le trajet entre le fil de calcul et la page — pas dans la simulation.
+7. ✅ **Sept contrôles neufs** au banc du fil de calcul ([verify:worker](scripts/verify-worker.mjs), 139 au total) : dépaquetage en fractions, aller-retour complet d'une couleur de la roue, le décalage qui ne tronque plus, les deux bouts de la conversion présents dans les sources, le curseur de distance renvoyé au moteur, et les deux moteurs qui ne vident plus leurs échéances en bloc.
+8. ✅ **Bancs au vert** : `verify:worker` (139), `verify:neopixel`, `verify:npchain`, `verify:ledring`, `verify:ultrasonic` (48), typecheck et construction complète.
+
+---
 
 # >>>>  v2026.8.102.32 — Le temps affiché dit enfin l'heure
 

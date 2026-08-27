@@ -23,6 +23,10 @@ const ok = (name, cond, detail = '') => checks.push({ name, ok: Boolean(cond), d
 const html = readFileSync(join(ROOT, 'src', 'webview-html.ts'), 'utf8');
 const build = readFileSync(join(ROOT, 'esbuild.js'), 'utf8');
 const sim = readFileSync(join(ROOT, 'src', 'webview', 'sim.mts'), 'utf8');
+const simWorkerSrc = readFileSync(join(ROOT, 'src', 'webview', 'engines', 'sim-worker.mts'), 'utf8');
+const workerEngineSrc = readFileSync(join(ROOT, 'src', 'webview', 'engines', 'worker-engine.mts'), 'utf8');
+const picoSrc = readFileSync(join(ROOT, 'src', 'webview', 'engines', 'pico.mts'), 'utf8');
+const avrSrc = readFileSync(join(ROOT, 'src', 'webview', 'engines', 'avr.mts'), 'utf8');
 const manifest = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
 const nls = JSON.parse(readFileSync(join(ROOT, 'package.nls.json'), 'utf8'));
 
@@ -268,9 +272,17 @@ ok('readPwmDuty lit l’instantané', Math.abs(engine.readPwmDuty('6') - 0.25) <
 ok('pulseActive lit l’instantané', engine.pulseActive('8') === true);
 ok('readPinDrive décode le code d’instantané', engine.readPinDrive('2') === 'pullup');
 ok('readPinDrive : broche inconnue → haute impédance', engine.readPinDrive('GP25') === 'hiz');
+// L'instantané transporte des OCTETS empaquetés, la page attend des fractions
+// de 0 à 1 — celles des éléments NeoPixel. Le relais fait la division ; s'il
+// l'oubliait, un ruban rendrait 255 là où l'élément lit « à fond » à 1.
+const np = engine.readNeopixel('7');
 ok(
-  'readNeopixel dépaquette 0xRRGGBB',
-  JSON.stringify(engine.readNeopixel('7')) === JSON.stringify([{ r: 0xff, g: 0x88, b: 0x00 }])
+  'readNeopixel dépaquette 0xRRGGBB en composantes 0..1',
+  np.length === 1 &&
+    Math.abs(np[0].r - 1) < 1e-6 &&
+    Math.abs(np[0].g - 0x88 / 255) < 1e-6 &&
+    np[0].b === 0,
+  JSON.stringify(np)
 );
 ok('readLcdParallel lit l’instantané', engine.readLcdParallel('lcd1')[0] === 'Bonjour');
 ok('simulatedMs vient de l’instantané', engine.simulatedMs() === 1234);
@@ -869,6 +881,65 @@ ok(
   ok(
     'après une mort, le worker n’est plus proposé aux lancements suivants',
     workerReady() === false
+  );
+}
+
+// Aller-retour complet sur l'échelle : le worker empaquette ce que rend un
+// décodeur WS2812 (composantes 0..1), la page doit relire la MÊME couleur.
+// Avant correctif, `0,95 << 16` valait zéro : tout le ruban partait noir et
+// seule une composante pile à 1 passait — d'où la LED rouge d'un instant.
+{
+  const emballe = (c) => {
+    const o = (v) => Math.max(0, Math.min(255, Math.round(v * 255)));
+    return (o(c.r) << 16) | (o(c.g) << 8) | o(c.b);
+  };
+  const source = { r: 243 / 255, g: 12 / 255, b: 0 }; // roue des couleurs du test Pico
+  const snap2 = emptySnapshot(20);
+  snap2.seq = snap.seq + 10;
+  snap2.neopixel['7'] = [emballe(source)];
+  deliver(engineWorker, { t: 'snapshot', snap: snap2 });
+  const relu = engine.readNeopixel('7')[0];
+  ok(
+    'une couleur 0..1 fait l’aller-retour sans se perdre',
+    Math.abs(relu.r - source.r) < 1 / 255 &&
+      Math.abs(relu.g - source.g) < 1 / 255 &&
+      Math.abs(relu.b - source.b) < 1 / 255,
+    JSON.stringify(relu)
+  );
+  ok(
+    'le décalage ne tronque plus les composantes fractionnaires',
+    emballe(source) !== 0,
+    'empaqueté à 0 : le ruban resterait noir'
+  );
+}
+
+// Les DEUX bouts de la conversion doivent être là : sans la multiplication,
+// le décalage écrase tout ; sans la division, la page lirait 255 pour « à fond »
+// alors que les éléments NeoPixel raisonnent de 0 à 1.
+ok(
+  'le worker remet les composantes sur 255 AVANT de les empaqueter',
+  /o255\(c\.r\) << 16/.test(simWorkerSrc) && /Math\.round\(v \* 255\)/.test(simWorkerSrc),
+  'sans ça, 0,95 << 16 vaut zéro : ruban noir'
+);
+ok(
+  'la page redivise par 255 en dépaquetant',
+  /\(\(c >> 16\) & 0xff\) \/ 255/.test(workerEngineSrc)
+);
+
+// Un réglage de curseur ne traverse PAS le fil de calcul en mutant un objet : le
+// moteur n'en a qu'une copie. La page doit lui repasser la liste des capteurs.
+ok(
+  'le curseur de distance ultrason est renvoyé au moteur',
+  /el\.temperature \?\? temp\)\);\s*\n(?:\s*\/\/[^\n]*\n)*\s*engine\?\.setUltrasonic\?\.\(ultraSensors\);/.test(sim),
+  'sans ça, la distance reste figée sur celle du départ'
+);
+// …et le moteur, rappelé à chaque mouvement, ne doit pas jeter l'écho en cours
+// (ni les trames DHT22, qui partagent la même file d'échéances).
+for (const [nom, src] of [['Pico', picoSrc], ['AVR', avrSrc]]) {
+  ok(
+    `le moteur ${nom} ne vide plus toutes les échéances à chaque réglage`,
+    /setUltrasonic\(sensors: UltrasonicSensor\[\]\): void \{[\s\S]{0,900}?partis\.has\(a\.name\)/.test(src) &&
+      !/setUltrasonic\(sensors: UltrasonicSensor\[\]\): void \{[\s\S]{0,300}?this\.scheduled = \[\];/.test(src)
   );
 }
 

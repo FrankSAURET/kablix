@@ -790,7 +790,18 @@ export class PicoEngine implements SimEngine {
   }
 
   setUltrasonic(sensors: UltrasonicSensor[]): void {
-    this.scheduled = [];
+    // La page rappelle cette méthode à CHAQUE coup de curseur : quand le moteur
+    // tourne sur son propre fil, les capteurs lui arrivent par recopie, donc la
+    // distance mutée dans la page ne le rejoint jamais autrement (elle restait
+    // figée sur la valeur de départ, 20 cm). On ne jette donc que les échos des
+    // capteurs qui DISPARAISSENT : vider tout couperait l'écho en cours à chaque
+    // mouvement du curseur, et `scheduled` porte aussi les trames DHT22.
+    const restent = new Set(sensors.map((s) => s.echo));
+    const partis = new Set(this.ultrasonic.map((s) => s.echo).filter((e) => !restent.has(e)));
+    if (partis.size > 0) {
+      this.scheduled = this.scheduled.filter((a) => !partis.has(a.name));
+      this.updateNextScheduled(); // la prochaine échéance vient peut-être de partir
+    }
     this.ultrasonic = sensors;
     // Surveille les broches TRIG (comme un pulseMonitor de plus).
     for (const s of sensors) {
