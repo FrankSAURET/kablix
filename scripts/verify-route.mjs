@@ -888,6 +888,46 @@ rows.push({
 	ok: !!stubs && /outs\.filter\(\(o\) => libre\(\[e, o\]\)\)\.slice\(0, 2\)/.test(stubs[0]),
 	detail: 'la plus proche partait vers la carte du dessous ; la bonne n était pas proposée',
 });
+// --- Écart mini entre deux fils : « minimum une largeur de fil » ------------
+// Un trait fait 3 px : à moins de 6 px d'axe à axe il ne reste plus de blanc
+// entre deux fils voisins et l'œil n'en voit qu'un. C'était une simple pénalité
+// (se serrer à 2 px coûtait ~2 px, moins que le plus petit détour) : c'est
+// devenu un INTERDIT dans l'A* (retour de Frank, v2026.8.102.37).
+rows.push({
+	name: 'écart mini entre fils : une largeur de trait, en constante',
+	ok: /const WIRE_SEP = 6;/.test(src),
+	detail: 'WIRE_SEP absent : plus rien ne dit quel blanc garder entre deux fils',
+});
+rows.push({
+	name: 'écart mini : INTERDIT dans l A*, pas une simple pénalité',
+	ok: /parallelTooClose\(p, q, s, t, sep\) > 2/.test(src) && /function parallelTooClose\(/.test(src),
+	detail: 'sans blocage dur, l A* se colle au fil voisin : c est toujours moins cher qu un détour',
+});
+rows.push({
+	name: 'écart mini : second essai sans la contrainte si l A* ne trouve rien',
+	ok: /for \(const sep of \[WIRE_SEP, 0\]\)/.test(src),
+	detail: 'un couloir d un seul pas de grille rendait l A* muet, et le coude de repli était pire',
+});
+rows.push({
+	name: 'partage de broche : l exemption se juge sur la BROCHE, pas sur le bout de patte',
+	ok: /ends\?: \{ a: XY; b: XY \}/.test(src) && /borne && pointOnSegment\(borne, s, t, 1\)/.test(src),
+	detail: 'jugée sur pa/pb, elle laissait passer tout fil traversant ce point (slide-switch-uno)',
+});
+rows.push({
+	name: 'superposition : seuil à un demi-pixel, pas à deux',
+	ok: /collinearOverlap\(p, q, s, t\) > 0\.5/.test(src),
+	detail: 'un recouvrement de 2 px passait, et il se voit : le trait fait 3 px de large',
+});
+rows.push({
+	name: 'un fil enregistré qui LONGE un autre de trop près n est plus un « bon fil »',
+	ok: /coutFils\.overlap > TOL \|\| coutFils\.tight > TOL/.test(src),
+	detail: 'sans ça, les fils déjà enregistrés gardaient leurs 1 px d écart (soil-moisture-sensor-uno)',
+});
+rows.push({
+	name: 'patte de sortie imposée : d autres longueurs proposées si elle tombe sur un fil',
+	ok: /const varierStubs = /.test(src) && /const stubSale = /.test(src),
+	detail: 'deux broches face à face : la patte qui monte se couche sur la patte qui descend',
+});
 rows.push({
 	name: 'un fil enregistré qui écrase PLUS de broches que le rerouté n est plus protégé',
 	ok: /newFlaws < origFlaws - 0\.01/.test(src),

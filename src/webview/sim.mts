@@ -2840,7 +2840,13 @@ function bindInputs(): void {
     if (!rfid) continue;
     const el = editor.elementOf(part.id);
     if (!el) continue;
-    const ecrire = el.setSvgText as ((id: string, texte: string | null) => void) | undefined;
+    // `setSvgText` est une MÉTHODE de l'élément : la ranger dans une variable la
+    // sépare de son objet, et elle ne retrouve plus ses affaires (`this.wrapper`)
+    // au premier appel. L'exception tuait le lancement AVANT `engine.start()` :
+    // la barre d'état restait sur « Arrêté » et rien ne démarrait, sur les deux
+    // cartes. On la relie donc à son élément.
+    const methodeTexte = el.setSvgText as ((id: string, texte: string | null) => void) | undefined;
+    const ecrire = methodeTexte ? methodeTexte.bind(el) : undefined;
     let lien: RfidBinding | undefined;
     let timer: number | null = null;
     let prevenu = false;   // l'avertissement « série muette sur Pico » ne se dit qu'une fois
@@ -3817,7 +3823,21 @@ function startRun(): void {
   analogWaves.clear(); // et sans forme d'onde héritée du run précédent
   clearRelayFaults(); // défauts de câblage des relais re-signalés au 1er enclenchement
   buildI2cDevices();
-  rebind();
+  // Filet : le câblage des entrées touche à tous les composants du schéma, y
+  // compris ceux de la bibliothèque. Une exception y laissait la simulation
+  // MORTE et MUETTE — barre d'état figée sur « Arrêté », aucun message. On
+  // préfère démarrer quand même, en disant tout haut ce qui a manqué.
+  try {
+    rebind();
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error('bindInputs', err);
+    appendSerial(`
+── ${t('Wiring error')} ──
+${detail}
+`);
+    flashStatus(t('Error: {0}', detail));
+  }
   engine.start();
   resetSpeedBadge(); // fenêtre de mesure de vitesse remise à zéro
   resetSimGauge(true); // compteurs du canvas : chrono à zéro, affichés

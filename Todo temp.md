@@ -1,3 +1,9 @@
+1. Grove-RFID rien ne se passe ni uno ni pico programme immédiatement arrêté. Je clic sur "Démarrer" (la simulation) et immédiatement la barre d'état indique "Arrêté"
+1. Pour l'oscilloscope, la variation de s/DIV devrait toujours être 1, 2, 5 (par exemple 0,1 ms, 0,2 ms, 0,5 ms, 1ms, 2ms, 5ms, 10ms, 20ms, 50ms, 100ms, 200ms, 500ms ...)
+1. Enlever le expérimentale pour tous les composants sauf grove-rfid
+
+
+
 1. Grove-RFID rien ne se passe ni uno ni pico programme immédiatement arrêté. Pourtant nouveau composant installé.
 1. J'ai à nouveau des fils qui se recouvrent alors que ç'est interdit. Minimum une largeur de fil entre 2 fils.
 1. Le signal généré par la uno sur l'oscilloscope est trés variable. Beaucou plus que ce que j'observe en réel. Pourquoi.

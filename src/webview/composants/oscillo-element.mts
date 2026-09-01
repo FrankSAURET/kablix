@@ -84,13 +84,29 @@ const KNOBS: Record<KnobRole, { needle: string; cx: number; cy: number }> = {
 /** Rayon de la zone cliquable posée sur un bouton (px du dessin). */
 const KNOB_R = 11;
 
-/** Bouton s/div : un tour = un facteur 10, en huit crans. */
-const TIME_STEPS = 8;
-const TIME_RATIO = Math.pow(10, 1 / TIME_STEPS);
+/** Bouton s/div : un tour = un facteur 10, en trois crans (voir SDIV_STEPS). */
+const TIME_STEPS = 3;
 /** Pas de butée dessinée, mais pas d'infini non plus : dix décades de chaque
  *  côté de la seconde suffisent largement à tout ce qui se simule. */
 const SDIV_MIN = 1e-6;
 const SDIV_MAX = 1e4;
+/**
+ * Crans du bouton s/div : la suite **1 - 2 - 5** par décade, celle de tous les
+ * oscilloscopes de paillasse (0,1 ms, 0,2 ms, 0,5 ms, 1 ms, 2 ms, 5 ms, 10 ms…).
+ * Le bouton avançait avant d'un huitième de décade à la fois, ce qui donnait des
+ * « calibres » comme 1,778 ms/div — illisibles et introuvables sur un vrai
+ * appareil (retour de Frank).
+ */
+export const SDIV_STEPS: readonly number[] = (() => {
+  const out: number[] = [];
+  for (let e = -6; e <= 4; e++) {
+    for (const m of [1, 2, 5]) {
+      const v = round4(m * Math.pow(10, e));
+      if (v >= SDIV_MIN && v <= SDIV_MAX) out.push(v);
+    }
+  }
+  return out;
+})();
 export const SDIV_DEFAULT = 1;
 
 /** Tampon de trace : ~68 s d'historique à 60 images/s. */
@@ -192,11 +208,23 @@ export class OscilloElement extends HTMLElement {
     return Number.isFinite(v) ? v : null;
   }
 
-  /** Calibre horizontal : secondes par carreau. */
-  get secondsDiv(): number {
+  /** Rang du calibre horizontal dans SDIV_STEPS (le cran le plus proche). */
+  private get sdivIndex(): number {
     const v = Number(this.getAttribute('sdiv'));
-    if (!Number.isFinite(v) || v <= 0) return SDIV_DEFAULT;
-    return Math.min(SDIV_MAX, Math.max(SDIV_MIN, v));
+    if (!Number.isFinite(v) || v <= 0) return SDIV_STEPS.indexOf(SDIV_DEFAULT);
+    let best = 0;
+    for (let i = 1; i < SDIV_STEPS.length; i++) {
+      // Comparaison en RAPPORT et non en écart : d'une décade à l'autre les
+      // valeurs n'ont pas du tout la même taille, et 1 s serait toujours « plus
+      // proche » que 2 µs de n'importe quoi.
+      if (Math.abs(Math.log(SDIV_STEPS[i] / v)) < Math.abs(Math.log(SDIV_STEPS[best] / v))) best = i;
+    }
+    return best;
+  }
+
+  /** Calibre horizontal : secondes par carreau, toujours un cran 1 - 2 - 5. */
+  get secondsDiv(): number {
+    return SDIV_STEPS[this.sdivIndex];
   }
 
   /** Un relevé de plus (temps en ms de simulation, tension en volts). Prises en
@@ -437,8 +465,8 @@ export class OscilloElement extends HTMLElement {
       this.setAttribute('voltsdiv', String(VOLTS_DIV[i]));
     } else {
       // Vers la DROITE la courbe se dilate : moins de secondes par carreau.
-      const brut = this.secondsDiv * (dir > 0 ? 1 / TIME_RATIO : TIME_RATIO);
-      const v = round4(Math.min(SDIV_MAX, Math.max(SDIV_MIN, brut)));
+      const i = Math.min(SDIV_STEPS.length - 1, Math.max(0, this.sdivIndex - dir));
+      const v = SDIV_STEPS[i];
       if (v === this.secondsDiv) return;
       this.setAttribute('sdiv', String(v));
     }

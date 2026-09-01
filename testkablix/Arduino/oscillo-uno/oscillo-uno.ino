@@ -13,8 +13,8 @@ void setup() {
 void loop() {
   digitalWrite(9, HIGH);
   Serial.println("D9 haut -> environ 2,5 V a l'ecran");
-  delay(100);
+  delay(1);
   digitalWrite(9, LOW);
   Serial.println("D9 bas  -> retour a 0 V");
-  delay(100);
+  delay(1);
 }

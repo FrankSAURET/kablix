@@ -227,6 +227,21 @@ console.log('Mise en garde « série muette sur Pico » :');
 	check('le message est traduisible et nomme le composant',
 		/flashStatus\(t\('\{0\}: this board cannot hear a UART reader/.test(zone) &&
 		/part\.id\)/.test(zone));
+	// La zone de texte du dessin s'écrit par une MÉTHODE de l'élément : rangée dans
+	// une variable sans son objet, elle lève dès le premier appel — et comme le
+	// câblage se fait AVANT `engine.start()`, plus rien ne démarrait.
+	check('la méthode d’écriture est reliée à son élément (.bind)',
+		/const ecrire = methodeTexte \? methodeTexte\.bind\(el\) : undefined;/.test(zone));
+	check('aucune méthode d’élément n’est appelée détachée dans cette boucle',
+		!/const ecrire = el\.setSvgText as/.test(zone));
+	// Et le filet : un câblage qui échoue ne doit plus emporter TOUTE la simulation
+	// en silence — le lancement continue et l'erreur se dit.
+	const lancement = simSrc.slice(simSrc.indexOf('function startRun'), simSrc.indexOf('function stopRun'));
+	check('le câblage des entrées est protégé au lancement',
+		/try \{\s*rebind\(\);\s*\} catch/.test(lancement) && /engine\.start\(\);/.test(lancement));
+	check('un câblage en échec est dit à l’élève (console + barre d’état)',
+		/appendSerial\(`\n── \$\{t\('Wiring error'\)\}/.test(lancement) &&
+		/flashStatus\(t\('Error: \{0\}', detail\)\)/.test(lancement));
 }
 
 // --- 3. Les trames sur le VRAI moteur AVR --------------------------------------
@@ -403,6 +418,19 @@ async function run() {
 	el.setSvgText('CodeRFID', null);
 	ok('badge retiré : la zone retrouve son texte de repos', texteDe('CodeRFID') === repos,
 		texteDe('CodeRFID') + ' attendu ' + repos);
+
+	// Ranger cette méthode dans une variable la SÉPARE de son élément : au premier
+	// appel elle ne retrouve plus ses affaires et lève. La simulation s'en servait
+	// ainsi et mourait AVANT de démarrer (barre d'état figée sur « Arrêté »).
+	const detachee = el.setSvgText;
+	let aLeve = false;
+	try { detachee('CodeRFID', 'X'); } catch (e) { aLeve = true; }
+	ok('la méthode détachée de son élément lève (d’où le liage côté simulation)', aLeve);
+	const reliee = el.setSvgText.bind(el);
+	reliee('CodeRFID', '1A34B12');
+	ok('la même méthode RELIÉE à son élément écrit bien', texteDe('CodeRFID') === '1A34B12',
+		texteDe('CodeRFID'));
+	reliee('CodeRFID', null);
 
 	// --- Sur quelles broches le programme écoute ------------------------------------
 	const uno = editor.addPart('uno', 40, 500);

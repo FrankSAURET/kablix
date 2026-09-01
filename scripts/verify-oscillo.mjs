@@ -295,17 +295,26 @@ async function run() {
 	await wait(5);
 	res.voltsMin = el.getAttribute('voltsdiv');
 	res.aiguilleMin = sh.querySelector('#oscillo-aiguille-volts').getAttribute('transform');
-	// Bouton s/div : SANS butée, un tour complet (huit crans) = facteur 10.
+	// Bouton s/div : la suite 1 - 2 - 5, donc UN TOUR = trois crans = facteur 10.
 	el.setAttribute('sdiv', '1');
 	await wait(5);
-	for (let i = 0; i < 8; i++) molette(zoneT, -100);
+	res.sdivSuite = [];
+	for (let i = 0; i < 9; i++) {
+		molette(zoneT, -100);
+		await wait(2);
+		res.sdivSuite.push(Number(el.getAttribute('sdiv')));
+	}
+	// Retour à 1 s, puis un tour plein à droite.
+	for (let i = 0; i < 9; i++) molette(zoneT, 100);
+	await wait(5);
+	for (let i = 0; i < 3; i++) molette(zoneT, -100);
 	await wait(5);
 	res.sdivTour = Number(el.getAttribute('sdiv'));
 	res.aiguilleTour = sh.querySelector('#oscillo-aiguille-time').getAttribute('transform');
-	for (let i = 0; i < 16; i++) molette(zoneT, 100);
+	for (let i = 0; i < 6; i++) molette(zoneT, 100);
 	await wait(5);
 	res.sdivRetour = Number(el.getAttribute('sdiv'));
-	// Cinquante crans de plus : toujours pas de butée qui bloque le bouton.
+	// Cinquante crans de plus : le bouton descend jusqu'à sa butée basse (1 µs).
 	for (let i = 0; i < 50; i++) molette(zoneT, -100);
 	await wait(5);
 	res.sdivLoin = Number(el.getAttribute('sdiv'));
@@ -505,11 +514,14 @@ if (chrome) {
       r.voltsMax === '5' && /rotate\(300 /.test(r.aiguilleMax));
     check('rendu : butée en bas du Volts/div (0,1 V/div, aiguille au repos)',
       r.voltsMin === '0.1' && /rotate\(0 /.test(r.aiguilleMin));
-    check(`rendu : s/div — un tour de bouton (8 crans à droite) = courbe 10 fois dilatée (${r.sdivTour})`,
+    check(`rendu : s/div — un tour de bouton (3 crans à droite) = courbe 10 fois dilatée (${r.sdivTour})`,
       near(r.sdivTour, 0.1, 0.02) && /rotate\(360/.test(r.aiguilleTour));
-    check(`rendu : 16 crans à gauche → retour à 10 s/div (${r.sdivRetour})`, near(r.sdivRetour, 10, 0.02));
-    check(`rendu : le bouton s/div n'a pas de butée (50 crans de plus : ${r.sdivLoin} s/div)`,
-      r.sdivLoin < 0.1 && r.sdivLoin > 0);
+    check(`rendu : 6 crans à gauche → retour à 10 s/div (${r.sdivRetour})`, near(r.sdivRetour, 10, 0.02));
+    // Neuf crans depuis 1 s : la suite d'un vrai appareil, trois décades pleines.
+    check(`rendu : s/div avance en 1 - 2 - 5 (${(r.sdivSuite || []).join(' ')})`,
+      JSON.stringify(r.sdivSuite) === JSON.stringify([0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005, 0.002, 0.001]));
+    check(`rendu : le bouton s/div s'arrête à sa butée basse (50 crans de plus : ${r.sdivLoin} s/div)`,
+      near(r.sdivLoin, 1e-6, 1e-9));
     // --- Déclenchement ---------------------------------------------------------
     const hauteurCurseur = (d) => Number(/L17\.34,([\d.]+)/.exec(d || '')?.[1]);
     check('déclenchement : curseur et zone de clic hors du dessin exporté', r.trigNoExport === true);

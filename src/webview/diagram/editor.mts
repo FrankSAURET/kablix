@@ -133,6 +133,15 @@ const PASTE_OFFSET = 2 * GRID;
  *  suivre la dorsale coûte (1 − RIDE) = 25 % de la longueur — le recouvrement
  *  même-net est PRÉFÉRÉ, l'embranchement se fait au plus près de la broche. */
 const RIDE = 0.75;
+/**
+ * Écart MINIMUM imposé entre les axes de deux fils parallèles d'équipotentielles
+ * différentes, en px monde. Un trait de fil fait 3 px de large : à 6 px d'axe à
+ * axe il reste tout juste 3 px de blanc entre les deux, soit « une largeur de
+ * fil » (demande de Frank). En dessous, l'œil ne voit plus qu'un seul gros fil.
+ * C'est un INTERDIT, pas une préférence : la pénalité douce (GAP) ne suffisait
+ * pas — se serrer à 2 px coûtait moins cher que le moindre détour.
+ */
+const WIRE_SEP = 6;
 /** Dimensions de la feuille de dessin (px monde) : origine (0,0) = coin
  * haut-gauche, centre = (SHEET_W/2, SHEET_H/2). Finie pour que « centrer la
  * feuille » ait un sens (bords jaunes visibles en vue ajustée). */
@@ -4010,7 +4019,11 @@ export class Editor {
           for (const [wid, s] of wireSegs) {
             if (wid !== wire.id && !sameEqpWire(wid, wire.id)) others.push(...s);
           }
-          const overWire = polylineWireCost(full, others, GAP).overlap > TOL;
+          // Un fil enregistré qui LONGE un autre à moins d'une largeur de fil n'est
+          // pas un « bon fil » non plus : sans blanc entre les deux traits, l'œil
+          // n'en voit qu'un. Il repasse donc par le routeur, qui impose l'écart.
+          const coutFils = polylineWireCost(full, others, GAP);
+          const overWire = coutFils.overlap > TOL || coutFils.tight > TOL;
           // Broche étrangère survolée (les 2 broches propres du fil exclues).
           const onForeignPin = pinCenters.some(
             (p) =>
@@ -4092,8 +4105,6 @@ export class Editor {
         .map((p) => p.c);
       const saList = this.pinStubs(wire.a, a, rectOf, STUB, foreignPinC);
       const sbList = this.pinStubs(wire.b, b, rectOf, STUB, foreignPinC);
-      const saCands: Array<XY[] | null> = saList.length > 0 ? saList : [null];
-      const sbCands: Array<XY[] | null> = sbList.length > 0 ? sbList : [null];
       // Ségrégation par équipotentielle : `otherSegs` (autres nets) restent des
       // obstacles ; `sameSegs` (même net, fils visibles) deviennent des dorsales
       // que le tracé est encouragé à suivre (bonus de recouvrement).
@@ -4104,6 +4115,52 @@ export class Editor {
         if (!autoWires.has(wid) && sameEqpWire(wid, wire.id)) sameSegs.push(...segs);
         else otherSegs.push(...segs);
       }
+      // PATTES DE SORTIE trop serrées. La patte est IMPOSÉE (perpendiculaire au
+      // bord, un pas de grille) : aucun A\* ne peut la rattraper. Or deux broches
+      // face à face partagent la même verticale, et la patte qui descend de
+      // l'une se couche sur la patte qui monte de l'autre — le défaut que Frank
+      // voyait sur led-ring, dmx et slide-switch. On propose donc la MÊME sortie
+      // à d'autres longueurs (plus courte d'abord : elle s'arrête avant l'autre),
+      // et seulement pour les pattes réellement en conflit — sinon le nombre de
+      // combinaisons à router exploserait.
+      const stubSale = (path: XY[], c: XY): boolean => {
+        const w = polylineWireCost([c, ...path], otherSegs, GAP);
+        return w.overlap > TOL || w.tight > TOL;
+      };
+      /** Le bout de la patte tombe-t-il dans un corps plein (le sien compris) ? */
+      const dansUnCorps = (q: XY): boolean => {
+        for (const rc of rectOf.values()) {
+          if (rc.board) continue;
+          if (q.x > rc.x && q.x < rc.x + rc.w && q.y > rc.y && q.y < rc.y + rc.h) return true;
+        }
+        return false;
+      };
+      const varierStubs = (list: XY[][], c: XY): XY[][] => {
+        const out = [...list];
+        for (const path of list) {
+          // Une échappée latérale (2 points) contourne déjà quelque chose : on n'y
+          // touche pas, on ne saurait pas où la couper.
+          if (path.length !== 1 || !stubSale(path, c)) continue;
+          const q0 = path[0];
+          const vertical = Math.abs(q0.x - c.x) < 0.5;
+          const ecart = vertical ? q0.y - c.y : q0.x - c.x;
+          const sens = ecart < 0 ? -1 : 1;
+          const base = Math.abs(ecart);
+          let pris = 0;
+          for (const L of [base - GRID / 2, base - 0.8 * GRID, base + GRID / 2, base + GRID]) {
+            if (pris >= 2 || L < 2) continue;
+            const q = vertical ? { x: c.x, y: c.y + sens * L } : { x: c.x + sens * L, y: c.y };
+            if (dansUnCorps(q) || stubSale([q], c)) continue;
+            out.push([q]);
+            pris++;
+          }
+        }
+        return out;
+      };
+      const saVar = varierStubs(saList, a);
+      const sbVar = varierStubs(sbList, b);
+      const saCands: Array<XY[] | null> = saVar.length > 0 ? saVar : [null];
+      const sbCands: Array<XY[] | null> = sbVar.length > 0 ? sbVar : [null];
       // Broches étrangères (ni a ni b du fil) : le tracé ne doit jamais passer
       // dessus — fournies à l'A* et au coût comme points interdits.
       const foreignPins = pinCenters.filter(
@@ -4125,7 +4182,7 @@ export class Editor {
       // tracés candidats ET pour comparer le tracé ORIGINAL au meilleur rerouté.
       const scorePoly = (poly: XY[], innerForComp: XY[], compObstacles: PartRect[] = solidObs): number => {
         const comp = polylineRectOverlap(innerForComp, compObstacles);
-        const { overlap, near } = polylineWireCost(poly, otherSegs, GAP);
+        const { overlap, near, tight } = polylineWireCost(poly, otherSegs, GAP);
         const { len, bends } = polyLenBends(poly);
         let selfOv = 0;
         for (let i = 0; i < poly.length - 1; i++) {
@@ -4149,7 +4206,12 @@ export class Editor {
         // Frank). Un fil aura toujours le droit de couper une rangée en travers
         // (1 trou) plutôt que de faire trois fois le tour de la carte.
         return (
-          onPin * 2000 + holesOf(poly) * 250 + comp * 1000 + (overlap + selfOv) * 100 +
+          onPin * 2000 + holesOf(poly) * 250 + comp * 1000 +
+          // Deux fils collés l'un à l'autre (moins d'une largeur de trait de
+          // blanc entre eux) sont aussi laids que deux fils superposés : même
+          // tarif. Sans ça, les pattes de sortie imposées se retrouvaient
+          // côte à côte à 2 px et rien ne les départageait.
+          (overlap + selfOv + tight) * 100 +
           cross * BEND * 1.5 + near * 0.6 + len + bends * BEND - sameOv * RIDE
         );
       };
@@ -4186,31 +4248,41 @@ export class Editor {
       // repartir en marche arrière sur le dernier segment de la patte).
       const tip = (leg: XY[] | null, pin: XY): XY => (leg && leg.length > 0 ? leg[leg.length - 1] : pin);
       const prev = (leg: XY[] | null, pin: XY): XY => (leg && leg.length > 1 ? leg[leg.length - 2] : pin);
-      for (const ca of saCands) {
-        for (const cb of sbCands) {
-          const path = astarRoute(tip(ca, a), tip(cb, b), solidObs, otherSegs, {
-            clr: GRID / 2,
-            bend: BEND,
-            gap: GAP,
-            startDir: ca ? dirOf(prev(ca, a), tip(ca, a)) : undefined,
-            endDir: cb ? dirOf(tip(cb, b), prev(cb, b)) : undefined,
-            same: sameSegs,
-            pins: foreignPins.map((p) => p.c),
-            // Les trous ne barrent pas la route, ils la taxent : l'A\* préfère
-            // le couloir entre deux rangées, mais peut couper en travers si le
-            // détour coûte plus cher.
-            holes: holeGrid.size > 0 ? holeCost : undefined,
-          });
-          if (!path || path.length < 2) continue;
-          const c = path.slice(1, -1);
-          const k = cost(ca, cb, c);
-          if (k < bestCost - 0.01) {
-            bestCost = k;
-            sa = ca;
-            sb = cb;
-            routed = c;
+      // Deux passes : la première impose l'écart mini (WIRE_SEP) entre fils de
+      // nets différents ; si AUCUNE combinaison de sorties n'aboutit — coin
+      // encombré, passage d'un seul pas de grille — on refait tout sans cette
+      // contrainte. Sinon l'A\* rendait les armes et l'appelant retombait sur un
+      // coude en L de repli, qui se couche sur les fils bien plus laidement.
+      for (const sep of [WIRE_SEP, 0]) {
+        for (const ca of saCands) {
+          for (const cb of sbCands) {
+            const path = astarRoute(tip(ca, a), tip(cb, b), solidObs, otherSegs, {
+              clr: GRID / 2,
+              bend: BEND,
+              gap: GAP,
+              sep,
+              ends: { a, b },
+              startDir: ca ? dirOf(prev(ca, a), tip(ca, a)) : undefined,
+              endDir: cb ? dirOf(tip(cb, b), prev(cb, b)) : undefined,
+              same: sameSegs,
+              pins: foreignPins.map((p) => p.c),
+              // Les trous ne barrent pas la route, ils la taxent : l'A\* préfère
+              // le couloir entre deux rangées, mais peut couper en travers si le
+              // détour coûte plus cher.
+              holes: holeGrid.size > 0 ? holeCost : undefined,
+            });
+            if (!path || path.length < 2) continue;
+            const c = path.slice(1, -1);
+            const k = cost(ca, cb, c);
+            if (k < bestCost - 0.01) {
+              bestCost = k;
+              sa = ca;
+              sb = cb;
+              routed = c;
+            }
           }
         }
+        if (routed) break;
       }
       const legA = sa ?? [];
       const legB = sb ? [...sb].reverse() : [];
@@ -6778,7 +6850,11 @@ function pinDisplayName(
   if (kind === 'grove-shield') {
     const spec = type ? partDef(type).custom?.shield : undefined;
     const cible = spec ? shieldSignalTarget(spec, pinName) : groveSignalGpio(pinName);
-    if (cible) return `${pinName}.${cible}`;
+    // Rien à ajouter quand le nom dit déjà la patte (« D4.D4 ») ou qu'il s'agit
+    // d'une alimentation (« I2C0.VCC ») : on rend le nom TEL QUEL. Et surtout on
+    // SORT ici — la carte fille vient de la bibliothèque, elle tomberait sinon
+    // dans la règle du point ci-dessous et « D4.D4 » s'afficherait « D4 ».
+    return cible ? `${pinName}.${cible}` : pinName;
   }
   // Composant de la bibliothèque externe : un point dans le nom d'une pastille
   // ne sert qu'à distinguer deux pastilles du MÊME signal (barrière optique :
@@ -7300,18 +7376,43 @@ function parallelPenalty(a: XY, b: XY, c: XY, d: XY, gap: number): number {
   return ov > 1 ? gap - off : 0;
 }
 
+/**
+ * Longueur sur laquelle deux segments PARALLÈLES distincts se côtoient de plus
+ * près que `sep` : ils se touchent presque. Contrairement à `parallelPenalty`
+ * (qui rend un coût d'autant plus fort qu'ils sont proches), on rend ici la
+ * LONGUEUR du défaut — c'est ce qui se compare à un recouvrement.
+ */
+function parallelTooClose(a: XY, b: XY, c: XY, d: XY, sep: number): number {
+  const ax = segAxis(a, b);
+  if (!ax || ax !== segAxis(c, d)) return 0;
+  const off = ax === 'h' ? Math.abs(a.y - c.y) : Math.abs(a.x - c.x);
+  if (off <= 0.5 || off >= sep) return 0;
+  const ov =
+    ax === 'h'
+      ? Math.min(Math.max(a.x, b.x), Math.max(c.x, d.x)) - Math.max(Math.min(a.x, b.x), Math.min(c.x, d.x))
+      : Math.min(Math.max(a.y, b.y), Math.max(c.y, d.y)) - Math.max(Math.min(a.y, b.y), Math.min(c.y, d.y));
+  return ov > 1 ? ov : 0;
+}
+
 /** Coût d'une polyligne vis-à-vis des segments d'autres fils : longueur totale de
- *  chevauchement colinéaire + somme des pénalités de proximité (< gap). */
-function polylineWireCost(pts: XY[], segs: Array<[XY, XY]>, gap: number): { overlap: number; near: number } {
+ *  chevauchement colinéaire, longueur de côtoiement trop serré (< WIRE_SEP) et
+ *  somme des pénalités de proximité (< gap). */
+function polylineWireCost(
+  pts: XY[],
+  segs: Array<[XY, XY]>,
+  gap: number
+): { overlap: number; near: number; tight: number } {
   let overlap = 0;
   let near = 0;
+  let tight = 0;
   for (let i = 0; i < pts.length - 1; i++) {
     for (const [c, d] of segs) {
       overlap += collinearOverlap(pts[i], pts[i + 1], c, d);
       near += parallelPenalty(pts[i], pts[i + 1], c, d, gap);
+      tight += parallelTooClose(pts[i], pts[i + 1], c, d, WIRE_SEP);
     }
   }
-  return { overlap, near };
+  return { overlap, near, tight };
 }
 
 /** Longueur totale d'une polyligne (segments H/V) recouvrant les rectangles. */
@@ -7466,9 +7567,27 @@ function astarRoute(
     same?: Array<[XY, XY]>;
     pins?: XY[];
     holes?: (p: XY, q: XY) => number;
+    /**
+     * Écart mini IMPOSÉ avec un fil d'un autre net (défaut WIRE_SEP). À 0, la
+     * contrainte tombe : c'est le second essai de l'appelant quand le premier
+     * n'a rien trouvé — dans un coin encombré, mieux vaut un fil un peu serré
+     * qu'un coude en L de repli qui traverse la moitié du schéma.
+     */
+    sep?: number;
+    /**
+     * Centres des deux BROCHES du fil (pa/pb n'en sont que les bouts de patte).
+     * Un fil qui part de la même broche a le droit de partager le début du
+     * chemin : c'est le seul cas où la superposition est tolérée, et il se juge
+     * sur la broche — juger sur le bout de patte laissait passer tout fil qui
+     * traversait ce point-là, sans rien avoir à y faire.
+     */
+    ends?: { a: XY; b: XY };
   },
 ): XY[] | null {
   const { clr, bend, gap } = o;
+  const sep = o.sep ?? WIRE_SEP;
+  const brocheA = o.ends?.a ?? pa;
+  const brocheB = o.ends?.b ?? pb;
   const same = o.same ?? [];
   const pins = o.pins ?? [];
   const startDir = o.startDir ?? 4;
@@ -7585,8 +7704,30 @@ function astarRoute(
   };
   // Interdit : un segment qui se superpose (colinéaire) à un fil existant — un
   // fil ne « suit » jamais un autre. En revanche les fils peuvent se croiser.
-  const wireBlocked = (p: XY, q: XY): boolean => {
-    for (const [s, t] of otherSegs) if (collinearOverlap(p, q, s, t) > 2) return true;
+  //
+  // Même interdit s'il le LONGE de trop près (moins de WIRE_SEP d'axe à axe) :
+  // sans blanc entre les deux traits, l'œil n'en voit qu'un. C'était auparavant
+  // une simple pénalité (wireCost), et longer à 2 px coûtait ~2 px — moins
+  // cher que le plus petit détour, donc l'A* s'y collait systématiquement.
+  //
+  // `borne` : la borne (pa ou pb) que l'arête touche, sinon null. Un fil qui PART
+  // DE LA MÊME broche a le droit de partager le début du chemin — mais lui seul :
+  // on vérifie que le segment gênant passe vraiment par cette borne. L'exemption
+  // était auparavant accordée à TOUTE arête touchant une borne, et comme la
+  // première arête saute jusqu'à la voie suivante (un pas de grille), un fil
+  // pouvait s'allonger sur 10 px de son voisin dès sa sortie de patte
+  // (slide-switch-uno : les trois fils du même inverseur à la même hauteur).
+  const wireBlocked = (p: XY, q: XY, borne: XY | null): boolean => {
+    for (const [s, t] of otherSegs) {
+      // Seuil à un demi-pixel, pas à deux : deux fils qui se marchent dessus sur
+      // 2 px passaient, et ça se voit (le trait fait 3 px de large). Un simple
+      // contact en un point ne compte pas — son recouvrement vaut zéro.
+      const sur = collinearOverlap(p, q, s, t) > 0.5;
+      const pres = sep > 0 && parallelTooClose(p, q, s, t, sep) > 2;
+      if (!sur && !pres) continue;
+      if (borne && pointOnSegment(borne, s, t, 1)) continue;
+      return true;
+    }
     return false;
   };
   // Interdit DUR : une arête qui passe sur une broche étrangère. Les bornes du
@@ -7691,12 +7832,16 @@ function astarRoute(
       const p = { x: xs[cur.i], y: ys[cur.j] };
       const q = { x: xs[ni], y: ys[nj] };
       if (blocked(p, q)) continue;
-      // Chevauchement de fil interdit — sauf sur une arête touchant une borne
-      // (plusieurs fils partagent parfois la même broche : la sortie est tolérée).
-      const endEdge =
-        (cur.i === ai && cur.j === aj) || (cur.i === bi && cur.j === bj) ||
-        (ni === ai && nj === aj) || (ni === bi && nj === bj);
-      if (!endEdge && wireBlocked(p, q)) continue;
+      // Chevauchement (ou côtoiement trop serré) interdit — sauf sur une arête
+      // touchant une borne du fil, et seulement vis-à-vis d'un fil qui passe par
+      // cette même borne (plusieurs fils partagent parfois une broche).
+      const borne =
+        (cur.i === ai && cur.j === aj) || (ni === ai && nj === aj)
+          ? brocheA
+          : (cur.i === bi && cur.j === bj) || (ni === bi && nj === bj)
+            ? brocheB
+            : null;
+      if (wireBlocked(p, q, borne)) continue;
       if (pinBlocked(p, q)) continue;
       const dir = di !== 0 ? (di > 0 ? 0 : 1) : dj > 0 ? 2 : 3;
       // Demi-tour (même axe, sens opposé) : interdit.

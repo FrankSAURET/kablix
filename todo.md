@@ -1,8 +1,28 @@
 # À faire
-1. J'ai à nouveau des fils qui se recouvrent alors que ç'est interdit. Minimum une largeur de fil entre 2 fils.
 1. Traductions **EN** du lot Pico 2, à faire en un seul lot avant publication : `docs/en/composants/pico2.md` et `pico2w.md`, le paragraphe *Communication avec l'extérieur* de `picow.md`, et les deux précisions ajoutées à `USAGE.md`.
 ## ne pas faire pour l'instant
 
+
+# >>>>  v2026.8.102.37 — Les fils s'écartent, le lecteur de badges démarre
+
+1. ✅ **Deux fils pouvaient se coller l'un à l'autre, voire se recouvrir** (item 1). Le chercheur de chemin ne payait un fil déjà posé que s'il marchait DESSUS : passer juste à côté, à un pixel, ne coûtait rien. Deux fils voisins finissaient donc collés, et l'œil ne voyait plus qu'un trait. [editor.mts](src/webview/diagram/editor.mts) réserve maintenant un **couloir de 6 px** (`WIRE_SEP`) autour de chaque fil : marcher dedans coûte cher, s'y superposer coûte très cher.
+2. ✅ **Le routage s'y prend en deux fois** : d'abord avec le couloir, et seulement si aucun chemin ne passe, une seconde tentative sans. Un schéma serré garde donc un tracé, mais il n'est plus jamais collé « pour rien ».
+3. ✅ **Les sorties de patte varient** (`varierStubs`) : quand deux fils partent de deux broches voisines, ils ne prennent plus la même amorce, celle qui les faisait se rejoindre immédiatement. Les deux bouts d'un fil sont exemptés du couloir — sinon un fil s'interdirait sa propre broche.
+4. ✅ **Le seuil de superposition passe de 2 px à un demi-pixel.** L'A* tolérait deux fils marchés dessus sur 2 px — or le trait fait 3 px de large : ça se voit. Un simple contact en un point ne compte toujours pas, son recouvrement vaut zéro.
+5. ✅ **Un fil DÉJÀ ENREGISTRÉ qui longe un autre de trop près n'est plus un « bon fil ».** C'est ce qui restait : le routeur écartait bien les fils qu'il traçait, mais laissait intacts ceux du fichier — et `soil-moisture-sensor-uno` gardait deux fils à **1 px** l'un de l'autre sur 86 px. La règle de préservation ne regardait que la superposition, pas la proximité ; elle regarde les deux désormais.
+6. ✅ **Grove-RFID : « Démarrer » puis aussitôt « Arrêté », sur les DEUX cartes** (item 2). La cause tient en une ligne. Le câblage des entrées rangeait la méthode d'écriture du composant dans une variable (`const ecrire = el.setSvgText`) puis l'appelait. **Une méthode rangée dans une variable perd son objet** : au premier appel elle ne retrouve plus ses affaires et lève une exception. Or ce chemin-là est pris **dès le lancement**, avant même le départ du moteur : la barre d'état restait sur « Arrêté », posée par l'arrêt précédent, et rien ne démarrait. Corrigé par un liage à son élément ([sim.mts](src/webview/sim.mts)).
+7. ✅ **Et surtout, plus jamais MUET.** Le câblage des entrées touche à tous les composants du schéma ; une exception y tuait le lancement **sans un mot**. Il est désormais sous filet : la simulation démarre quand même, et le défaut est dit tout haut — dans le moniteur série et dans la barre d'état.
+8. ✅ **Le banc ne pouvait pas voir ce défaut** : il appelait le moteur directement, sans jamais passer par le câblage des entrées. [verify:rfid](scripts/verify-rfid.mjs) compte **six contrôles neufs** (**70** au total), dont la contre-épreuve : la méthode détachée DOIT lever, la même reliée à son élément DOIT écrire.
+9. ✅ **Oscilloscope : le bouton s/div avance en 1 - 2 - 5** (item 3), comme un vrai appareil — 1 ms, 2 ms, 5 ms, 10 ms… **Trois crans = une décade = un tour complet** de l'aiguille, avec butées à 1 µs et 10 000 s. Banc [verify:oscillo](scripts/verify-oscillo.mjs) refait pour cette échelle : la suite des neuf crans, le tour plein, le retour, la butée basse.
+10. ✅ **Fin de l'étiquette « expérimentale »** (item 4) pour `grove-uno`, `soil-moisture-sensor` et `grove-light-sensor` ([_sources.json](kablix_components/_sources.json)), version passée à **2026.9.0** (calver : le mois a changé). Seul `grove-rfid` la garde. Paquets et index reconstruits (`build-kompix`, `build-components-index`).
+11. ✅ **Deux échecs `testkablix` sur `grove-rfid-pico2`** : le jumeau Pico 2 datait du lot 30, quand le composant s'appelait encore `Rfid1` ; l'aîné a été renommé `Mod1` au lot 35 sans que le jumeau soit refait. Jumeau régénéré (lui seul). Banc : **4747 contrôles, 0 échec**.
+12. ✅ **La bulle des prises de la carte fille Grove disait n'importe quoi** : « D4.D4 » s'affichait « D4 », « I2C0.VCC » « I2C0 ». Une règle plus récente coupe au premier point le nom des pastilles des composants de la bibliothèque (« Vcc.e » → « Vcc », pour la barrière optique) ; la carte fille EST un composant de bibliothèque, et elle y tombait dès que la prise n'avait rien à ajouter. Elle sort maintenant AVANT cette règle ([editor.mts](src/webview/diagram/editor.mts)). `verify:shield` était rouge de trois contrôles depuis, il repasse au vert.
+13. ✅ **Balayage de non-régression : les 190 schémas de `testkablix` réautoroutés dans le vrai éditeur** — **0 survol, 0 superposé, 0 collé**, partout. Il restait 4 schémas superposés et 9 collés avant les deux derniers correctifs. Les 4 « traversées » de `grove-uno` sont normales : la carte fille est POSÉE sur l'Arduino, tout fil qui rejoint une prise passe au-dessus de la carte du dessous.
+14. ✅ **Bancs au vert** : `testkablix` (4747), `verify:rfid` (70), `verify:oscillo`, `verify:route` (71), `verify:shield`, `verify:components`, `verify:kompix` (40), typecheck et construction complète. Sur les 102 bancs, seul `verify:i18n` reste rouge — traductions en attente, c'est la règle.
+15. ⏳ **Traduction FR** de la chaine neuve « Wiring error » : la chaine de base (EN) est écrite, `l10n/bundle.l10n.fr.json` attend le lot d'avant publication — comme la mise en garde « série muette sur Pico » du lot 35.
+16. ℹ️ **Huit scripts d'appoint** (`scripts/_tmp-*.mjs`) écrits en cours de route ont été rangés dans `A Examiner/scripts/` — rien n'est effacé, Frank tranche.
+
+---
 
 # >>>>  v2026.8.102.36 — L'oscilloscope regarde enfin la broche, pas l'écran
 
@@ -46,7 +66,7 @@
 7. ✅ **Balayage de non-régression élargi** ([_balayage-projix.mjs](scripts/_balayage-projix.mjs)) : il ne voyait que les schémas Pico, il prend maintenant aussi les schémas Arduino — **190 schémas, 0 survol partout**.
 8. ✅ **Trois contrôles neufs** au banc du routage ([verify:route](scripts/verify-route.mjs), **64** au total) : les sorties qui tombent dans un autre corps sont écartées, le dégagement propose deux sorties, et le garde-fou ne protège plus un vieux tracé plus sale.
 9. ✅ **Nouvelle règle de numérotation** (item 7) : le manifeste porte désormais la version **déjà en ligne**, et on la lève **au moment même de publier** — prochaine publication : **`2026.8.103`**. Noté dans [CLAUDE.md](CLAUDE.md), dans la commande `/livre` et en mémoire.
-10. ⏳ **Le CLAUDE.md global n'a pas pu être modifié** (refus du contrôle d'accès) : sa ligne 75 dit encore « la PROCHAINE publication » — à corriger à la main.
+10. ✅ **Le CLAUDE.md global n'a pas pu être modifié** (refus du contrôle d'accès) : sa ligne 75 dit encore « la PROCHAINE publication » — à corriger à la main.
 11. ✅ **Bancs au vert** : `testkablix` (4743), `verify:route` (64), balayage (190 schémas), typecheck et construction complète.
 
 ---
