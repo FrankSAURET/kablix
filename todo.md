@@ -1,8 +1,18 @@
 # À faire
-1. Préparation pour publication (upgrade de version et autre)
 ## ne pas faire pour l'instant
 
 
+# >>>>  v2026.9.0.40 — Tout est prêt pour la publication (mais rien n'est publié)
+
+1. ✅ **Version publique passée à `2026.9.0`** (item 4). La dernière **vraiment en ligne** est la `2026.8.99` du 21 août : les `.100`, `.101` et `.102` étaient des numéros de travail, posés avant qu'on sépare les deux compteurs. Le mois a tourné, donc l'incrément **repart à 0** — `2026.9.0`, et non `2026.8.103`. Le compteur interne, lui, ne repart jamais : `buildNumber` **40**.
+2. ⚠️ **Entorse assumée à la règle, écrite dans [CLAUDE.md](CLAUDE.md)** : d'habitude `version` porte le numéro DÉJÀ en ligne et n'avance qu'à la seconde où on publie. Là, tu as demandé la préparation, donc le numéro est posé d'avance. La note du CLAUDE.md dit l'exception et dit quelle version est réellement en ligne — pour qu'une prochaine session ne s'y trompe pas.
+3. ✅ **Entrée `2026.9.0` du [CHANGELOG](CHANGELOG.md)**, treize points côté utilisateur, qui couvrent les **42 lots** écoulés depuis la `2026.8.99` : les deux **Pico 2** et leur troisième moteur, le Pico 2 remis à la vitesse de la vraie carte, le **Pico W en serveur web**, le **multimètre** et l'**oscilloscope** de table, la **photodiode** et le **phototransistor**, les **cinq composants téléchargeables** (barrière IR, carte fille Grove pour Uno, humidité du sol, lumière Grove, lecteur de badges), la carte fille décrite dans son paquet, les composants de bibliothèque traduits, la mention **Experimental**, les fils qui ne se collent plus, et la liste des corrections visibles (NeoPixel, DHT et ultrason sur Pico, temps affiché, SoftwareSerial, bulles des prises Grove).
+4. ✅ **Le compte de composants était faux partout** : **68** annoncés alors que le tableau du README en listait déjà **70** — il n'avait pas suivi l'arrivée des Pico 2. Avec la photodiode, le phototransistor, le multimètre et l'oscilloscope, c'est **74**. Corrigé dans [README.md](README.md), [README.en.md](README.en.md), [docs/fr/USAGE.md](docs/fr/USAGE.md) et [docs/en/USAGE.md](docs/en/USAGE.md).
+5. ✅ **Nouvelle famille « Appareils de mesure »** dans les deux tableaux de README (3 : alimentation de laboratoire, multimètre, oscilloscope). L'alimentation quitte « Cartes et supports » — c'est là qu'elle est rangée dans la palette depuis l'arrivée du multimètre. Les deux tableaux **font maintenant leur total** : 10 + 10 + 10 + 9 + 11 + 7 + 12 + 2 + 3 = 74.
+6. ⏳ **RIEN n'est publié et rien n'est empaqueté.** `npm run package` et `vsce publish` attendent ta demande expresse, dans la conversation. Tant que tu n'as pas publié, la `2026.9.0` n'existe que sur ta machine — si tu publies un autre mois, il faudra renuméroter l'entrée du CHANGELOG et `version`.
+7. ✅ **Bancs au vert** : `verify:docs` (25), `verify:i18n` (11), `verify:help-bars` (66), typecheck et construction complète, plus la suite complète rejouée après coup.
+
+---
 # >>>>  v2026.8.102.39 — Le lecteur de badges est validé, le gestionnaire est rangé
 
 1. ✅ **Le lecteur de badges n'est plus « à l'essai »** (item 1). C'était le dernier composant de la bibliothèque à porter la mention **Experimental** — pastille violette et cadre en pointillés sur sa carte. Un mot retiré de [_sources.json](kablix_components/_sources.json), version passée à **2026.9.1**, paquet et index refaits (`build-kompix`, `build-components-index`). Plus aucun composant publié ne porte la mention.

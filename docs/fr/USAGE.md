@@ -136,7 +136,7 @@ Certains composant spéciaux (seulement LED RVB pour l'instant) ont des couleurs
 
 ### Composants disponibles
 
-La palette compte **68 composants intégrés** (plus leurs variantes : condensateur polarisé, transistors PN2222A/NPN/PNP, claviers 3×4 et 4×4…). Chacun a sa **fiche d'aide** — dessin, brochage, propriétés, ce qui est simulé et ce qui ne l'est pas — ouverte par le bouton **Aide du composant** de l'inspecteur quand le composant est sélectionné. D'autres composants s'ajoutent par la **bibliothèque** (voir [Gestionnaire de composants](#gestionnaire-de-composants-installer-et-désinstaller)).
+La palette compte **74 composants intégrés** (plus leurs variantes : condensateur polarisé, transistors PN2222A/NPN/PNP, claviers 3×4 et 4×4…). Chacun a sa **fiche d'aide** — dessin, brochage, propriétés, ce qui est simulé et ce qui ne l'est pas — ouverte par le bouton **Aide du composant** de l'inspecteur quand le composant est sélectionné. D'autres composants s'ajoutent par la **bibliothèque** (voir [Gestionnaire de composants](#gestionnaire-de-composants-installer-et-désinstaller)).
 
 **Cartes et supports**
 
