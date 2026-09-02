@@ -205,5 +205,7 @@
   "Component \"{0}\" runs custom code from a remote source.": "Le composant « {0} » exécute du code venu d’une source distante.",
   "Trust this component": "Faire confiance à ce composant",
   "Run without code": "Exécuter sans le code",
-  "Kablix: export failed: {0}": "Kablix : export impossible : {0}"
+  "Kablix: export failed: {0}": "Kablix : export impossible : {0}",
+  "Experimental": "Expérimental",
+  "Kablix: the simulated Pico W is serving on {0} — open it from a phone on the same network.": "Kablix : le Pico W simulé publie sur {0} — ouvrez-le depuis un téléphone du même réseau."
 }

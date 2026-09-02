@@ -279,6 +279,17 @@ When the simulation detects a wiring mistake or a destroyed part, it **surrounds
 
 The frame and the label only appear **during the simulation**; they disappear as soon as the fault is fixed, and on stop.
 
+### Adding libraries
+The Raspberry Pi Pico and the Arduino boards work differently, because of their software architecture and the way they handle memory.
+Arduino compiles the C++ code into machine language before sending it. The Pico (in MicroPython) carries a live interpreter that reads the script files directly.
+
+#### Arduino
+Because of the compilation, the library has to be installed on the PC that will upload the program to the Arduino board. That part is easy: start "Arduino VsCode IDE" by clicking its icon in the activity bar ![alt text](../../media/logo-arduino-ide.webp), the command panel opens. Click the library manager ![alt text](../../media/arduino-bib.webp), search for the library and install it. Once done, it stays available for all your projects.
+#### Pico pi
+It is quite different for the Pico boards in MicroPython. Your library must sit in the same folder as the program that calls it (other ways exist, but let us keep it simple). It must also be present on the board itself. The "send to the Pico" button sends the libraries the program needs, provided they are in the folder.
+The following modules are built into the MicroPython of the Pico boards: machine, rp2, framebuf, neopixel, time, math, cmath, os, gc, sys, struct, uctypes, json, network, socket, bluetooth (note that the last three need a model fitted with Wi-Fi/Bluetooth, such as the Pico W or the Pico 2 W). **In simulation**, the Wi-Fi chip is not emulated: Kablix replaces `network` with a façade and relays the real HTTP requests (`urequests`) through the host, while `socket` and `bluetooth` stay outside the simulation — see the [Pico W](composants/picow.md) sheet.
+The Pico is above all a microcontroller. You can therefore also program it in C, and Kablix allows it (Pico and Pico W; the RP2350 of the Pico 2 is not ported yet), but I have not built a development suite for that. Raspberry Pi provides one, so I recommend installing their extension.
+
 ### MicroPython on the Pico
 
 1. Open a `.py` file → **Compile & run the active file**.
@@ -481,6 +492,8 @@ The **⚙ Manage components** button, at the bottom of the palette (or the **Kab
 - **New**: what the repositories offer and that is not installed yet;
 - **Installed**: everything the local library holds, including the parts created here and those no repository offers;
 - **All**: both.
+
+A card may carry the **Experimental** mention (a badge and a dashed frame): the part is published and it works, but it is not settled yet — its drawing, its pins or its simulation may change from one version to the next. Nothing stops you from using it; just expect to have to bring it up to date.
 
 You select cards with a click, then **Download** installs and **Delete** uninstalls. Deleting asks for confirmation, erases the `.kompix` file from the library and removes the part from the palette **and** from open diagrams. It is final: reinstalling goes through the original repository, or through a `.kompix` exported beforehand (**⇩**).
 

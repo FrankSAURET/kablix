@@ -40,7 +40,7 @@ if (analogRead(A0) < 350) { /* trop sec : on arrose */ }
 
 ## Simulation
 
-En simulation, le composant affiche un curseur **Soil moisture**, gradué de
+En simulation, le composant affiche un curseur **Humidité du sol**, gradué de
 **0 à 100 %**. Tirez-le : la tension de la broche `S` suit tout de suite, en
 ligne droite — 0 % donne 0 V, 100 % donne la tension d'alimentation de la carte
 (5 V ou 3,3 V). Le programme lit le changement au tour suivant.

@@ -1,8 +1,24 @@
 # À faire
-1. Traductions **EN** du lot Pico 2, à faire en un seul lot avant publication : `docs/en/composants/pico2.md` et `pico2w.md`, le paragraphe *Communication avec l'extérieur* de `picow.md`, et les deux précisions ajoutées à `USAGE.md`.
+1. Retire "expérimentale" de grove rfid
+1. Dans le gestionnaire de composant j'ai plein de composant bizarre (Métadonnées, réglable, jetable...) fais le ménage.
 ## ne pas faire pour l'instant
 
 
+# >>>>  v2026.8.102.38 — Tout est traduit : anglais partout, français où il faut
+
+1. ✅ **Le lot d'avant publication des traductions** (item 1). Règle du projet : on n'écrit qu'une seule langue au fil de l'eau (l'anglais dans le code, le français dans `docs/`), et on rattrape TOUT en un coup avant de publier. C'est ce coup-ci. Rien de neuf dans le logiciel : que des mots.
+2. ✅ **21 chaînes du plan de travail passaient en anglais** ([i18n.mts](src/webview/i18n.mts)) : la photodiode et le phototransistor avec leurs réglages (éclairement max, résistance à l'obscurité), tout le **multimètre** (mesure, tension continue, courant continu), tout l'**oscilloscope** (volts/div, secondes/div, front montant, front descendant), et les trois messages de mise en garde — l'ampèremètre qui met le montage en court-circuit, la vitesse non mesurable, le cavalier du lecteur de badges.
+3. ✅ **Deux chaînes de l'extension** ([bundle.l10n.fr.json](l10n/bundle.l10n.fr.json)) : l'étiquette « Expérimental » du gestionnaire de composants, et le message du Pico W qui publie une page web sur le réseau.
+4. ✅ **Sept fiches d'aide anglaises écrites** (`docs/en/composants/`) : `picow` (refaite en entier — elle avait deux paragraphes de retard), `pico2`, `pico2w`, `photodiode`, `phototransistor`, `multimetre`, `oscillo`. Chacune suit sa jumelle française ligne pour ligne.
+5. ✅ **Le mode d'emploi anglais rattrape le français** ([USAGE.md](docs/en/USAGE.md)) : le chapitre « Ajouter des bibliothèques » (Arduino et Pico, avec ses deux images) et le paragraphe sur les composants marqués « expérimental ».
+6. ✅ **La vitrine anglaise disait faux** ([README.en.md](README.en.md)) : « deux moteurs » alors qu'il y en a **trois** depuis les Pico 2 (`rp2350js` manquait), les Pico 2 et Pico 2 W absentes des cartes prises en charge, le tableau de la bibliothèque bloqué à 9 cartes au lieu de 11, et deux lignes de crédits oubliées (le moteur RP2350, les dessins officiels Raspberry Pi).
+7. ✅ **Trois composants de la bibliothèque parlaient anglais dans l'atelier français** ([_sources.json](kablix_components/_sources.json)) : la barrière IR, le capteur d'humidité du sol et le capteur de lumière Grove n'avaient pas de bloc `l10n` — nom, description et étiquette de curseur traduits.
+8. ✅ **Cinq fiches d'aide anglaises pour les composants de la bibliothèque** (`kablix_components/help/*/en.md`) : barrière IR, humidité du sol, lumière Grove, carte fille Grove pour Uno, lecteur de badges. Deux fiches françaises citaient encore le curseur par son nom anglais (**Soil moisture**, **Illuminance**) : corrigées.
+9. ✅ **Versions des paquets bumpées en calver 2026.9.x** (le mois a tourné) pour les cinq composants touchés, puis paquets et index reconstruits (`build-kompix`, `build-components-index`).
+10. ⏳ **Le lecteur de badges garde deux réglages en anglais** : les états du curseur (« Tag away », « Tag in the loop ») et les modes (« UART », « Wiegand »). Ce n'est pas un oubli de traduction : le traducteur des composants de bibliothèque ne sait traduire QUE le nom, la description, les paramètres et l'étiquette du curseur. Les états et les modes demandent un changement de code — à faire hors d'un lot de traduction.
+11. ✅ **Bancs au vert** : `verify:i18n` passe de **6 échecs à 11 contrôles OK** (« rien ne sort en anglais »), `verify:docs` de « 1 traduction en attente » à **25 contrôles OK**, typecheck et construction complète.
+
+---
 # >>>>  v2026.8.102.37 — Les fils s'écartent, le lecteur de badges démarre
 
 1. ✅ **Deux fils pouvaient se coller l'un à l'autre, voire se recouvrir** (item 1). Le chercheur de chemin ne payait un fil déjà posé que s'il marchait DESSUS : passer juste à côté, à un pixel, ne coûtait rien. Deux fils voisins finissaient donc collés, et l'œil ne voyait plus qu'un trait. [editor.mts](src/webview/diagram/editor.mts) réserve maintenant un **couloir de 6 px** (`WIRE_SEP`) autour de chaque fil : marcher dedans coûte cher, s'y superposer coûte très cher.

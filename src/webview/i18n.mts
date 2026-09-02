@@ -527,6 +527,38 @@ const FR: Record<string, string> = {
   'Voltage': 'Tension',
   'Current limit': 'Courant limite',
 
+  // Photodiode et phototransistor : mêmes trois réglages (le modèle est le même,
+  // seul le gain change).
+  'Photodiode': 'Photodiode',
+  'Phototransistor': 'Phototransistor',
+  'Max irradiance (mW/cm²)': 'Éclairement max (mW/cm²)',
+  'Resistance at max irradiance (Ω)': 'Résistance à l\'éclairement max (Ω)',
+  'Dark resistance (Ω)': 'Résistance à l\'obscurité (Ω)',
+
+  // Appareils de mesure : multimètre et oscilloscope
+  'Multimeter': 'Multimètre',
+  'Measurement': 'Mesure',
+  'DC voltage': 'Tension continue',
+  'DC current': 'Courant continu',
+  'Current': 'Courant',
+  'Oscilloscope': 'Oscilloscope',
+  'Volts/div': 'Volts/div',
+  'Seconds/div': 'Secondes/div',
+  'Trigger edge': 'Front de déclenchement',
+  'Rising edge': 'Front montant',
+  'Falling edge': 'Front descendant',
+  'The ammeter is short-circuiting the supply':
+    'L\'ampèremètre met l\'alimentation en court-circuit',
+  'In current mode the multimeter is a plain wire: put it IN SERIES, inside the branch whose current you want. Straight across the supply it shorts it out.':
+    'En mode courant, le multimètre est un simple fil : placez-le EN SÉRIE, dans la branche dont vous voulez connaître le courant. Posé en travers de l\'alimentation, il la met en court-circuit.',
+
+  // Messages de simulation (mises en garde de la barre d'état)
+  'Simulation speed cannot be measured (engine clock)':
+    'Vitesse de simulation non mesurable (horloge du moteur)',
+  '{0}: this board cannot hear a UART reader — set the jumper to the other mode.':
+    '{0} : cette carte n\'entend pas un lecteur en liaison série — mettez le cavalier sur l\'autre mode.',
+  'Wiring error': 'Erreur de câblage',
+
   // Nomenclature exportée en CSV (en-tête du tableau)
   'Ref.': 'Repère',
   'Part': 'Composant',

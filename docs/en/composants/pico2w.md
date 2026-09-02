@@ -1,8 +1,8 @@
-# Raspberry Pi Pico W
+# Raspberry Pi Pico 2 W
 
-![Raspberry Pi Pico W](../../img/composants/picow.webp)
+![Raspberry Pi Pico 2 W](../../img/composants/pico2w.webp)
 
-Identical to the Pico (RP2040, 3.3 V, same pins) with a built-in **Wi-Fi/Bluetooth** module. The physical pinout is the same as the Pico.
+Identical to the Pico 2 (RP2350, dual-core Cortex-M33 at 150 MHz, 3.3 V, same pins) with a built-in **Wi-Fi/Bluetooth** module. The physical pinout is the same as the Pico.
 
 ## Pins
 
@@ -18,7 +18,11 @@ Identical to the Pico (RP2040, 3.3 V, same pins) with a built-in **Wi-Fi/Bluetoo
 
 - Full pinout via the **K** button.
 - **3.3 V** logic level (not 5 V tolerant).
+- Programmable in **MicroPython**: Kablix loads the `RPI_PICO2_W` firmware.
 - Wi-Fi is **not emulated** by the core: network requests go through the host — see *Talking to the outside world* below.
+
+> ℹ️ Bare-metal C/C++ is not supported on this board yet: use MicroPython, or the Pico W for an Arduino program.
+
 
 ## Talking to the outside world
 
@@ -88,4 +92,4 @@ while True:
 
 ---
 
-*Kablix in-house component (board drawing). RP2040 © Raspberry Pi Ltd.*
+*Kablix in-house component. Board drawing after the official Raspberry Pi Ltd artwork. RP2350 © Raspberry Pi Ltd.*

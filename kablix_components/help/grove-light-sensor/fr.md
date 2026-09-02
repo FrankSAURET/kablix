@@ -54,7 +54,7 @@ curseur va de 0 à 10 000.
 
 ## Simulation
 
-En simulation, le composant affiche un curseur **Illuminance**, gradué de **0**
+En simulation, le composant affiche un curseur **Éclairement**, gradué de **0**
 à la valeur de pleine échelle. Tirez-le : la tension de la broche `SIG` suit
 tout de suite, en ligne droite — 0 lx donne 0 V, la pleine échelle donne la
 tension d'alimentation de la carte (5 V ou 3,3 V). Le programme lit le

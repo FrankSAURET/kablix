@@ -12,9 +12,10 @@ A **Gaulish** application to simulate microcontrollers (**Arduino Uno / Raspberr
 - **100 % Open source**
 - **100 % Telemetry-free**
 
-The simulation relies on two open-source engines bundled with the extension:
-[avr8js](https://github.com/wokwi/avr8js) (ATmega328P) and
-[rp2040js](https://github.com/wokwi/rp2040js) (RP2040), both under the MIT licence.
+The simulation relies on three open-source engines bundled with the extension:
+[avr8js](https://github.com/wokwi/avr8js) (ATmega328P),
+[rp2040js](https://github.com/wokwi/rp2040js) (RP2040) and
+[rp2350js](https://github.com/c1570/rp2350js) (RP2350), all under the MIT licence.
 
 ## Tests
 My test library is available here: [TestKablix](https://github.com/FrankSAURET/kablix/tree/main/testkablix)
@@ -45,7 +46,7 @@ My test library is available here: [TestKablix](https://github.com/FrankSAURET/k
 - ✅ **A library of 68 parts** filed by families, each with its illustrated help sheet (❔ button) and its two test circuits, Arduino and Pico — [full list](#part-library).
 - ✅ **Component manager** (⚙ button at the bottom of the palette): a part fits in a single `.kompix` file — drawing, pinout, simulation and help sheet included. Install it from a repository with one click, or drop the file into the project folder.
 - ✅ **DMX512 lighting**: universe decoded from the hardware UART **or** from a bit-banged pin (DmxSimple), fixtures driven live.
-- ✅ **Supported development boards**: Arduino Uno, Nano, Mega 2560 and Raspberry Pi Pico/Pico W, all pluggable onto a breadboard.
+- ✅ **Supported development boards**: Arduino Uno, Nano, Mega 2560 and Raspberry Pi Pico/Pico W/Pico 2/Pico 2 W, all pluggable onto a breadboard.
 - ✅ **Real RP2040 flashing**.
 - ✅ **Direct artifact loading**: `.hex`, `.uf2`, `.elf`, `.bin` compiled elsewhere, loaded without recompiling
 - ✅ **Real C/C++ code compilation**
@@ -81,7 +82,7 @@ My test library is available here: [TestKablix](https://github.com/FrankSAURET/k
 
 | Category | Parts |
 | --- | --- |
-| **Boards and supports** (9) | Arduino Uno · Arduino Nano · Arduino Mega 2560 · Raspberry Pi Pico · Raspberry Pi Pico W · Grove Shield (Pico) · Breadboard · Bench power supply · Power bank |
+| **Boards and supports** (11) | Arduino Uno · Arduino Nano · Arduino Mega 2560 · Raspberry Pi Pico · Raspberry Pi Pico W · Raspberry Pi Pico 2 · Raspberry Pi Pico 2 W · Grove Shield (Pico) · Breadboard · Bench power supply · Power bank |
 | **Passives and semiconductors** (8) | Resistor · Capacitor (polarized or not) · Diode · Transistor (PN2222A, NPN, PNP — TO-92 package) · NTC thermistor · PTC thermistor · NTC temperature sensor · Photoresistor (LDR) |
 | **Indicators and displays** (10) | LED · RGB LED · 10-LED bar graph · 7-segment display (1 to 4 digits) · NeoPixel · NeoPixel matrix · NeoPixel ring · Text LCD 16×2 / 20×4 (I²C or parallel) · SSD1306 OLED display · ILI9341 TFT display (SPI) |
 | **Inputs** (9) | Pushbutton · 6 mm pushbutton · Slide switch · DIP switch ×8 · Membrane keypad 3×4 / 4×4 · Potentiometer · Slide potentiometer · Trimmer potentiometer · Analog joystick |
@@ -141,9 +142,11 @@ Kablix is developed by **[Frank SAURET](https://electropol.fr)** and builds on t
 | --- | --- | --- |
 | [avr8js](https://github.com/wokwi/avr8js) | ATmega328P simulation engine (Arduino Uno) | MIT |
 | [rp2040js](https://github.com/wokwi/rp2040js) | RP2040 simulation engine (Raspberry Pi Pico) | MIT |
+| [rp2350js](https://github.com/c1570/rp2350js) | RP2350 simulation engine (Raspberry Pi Pico 2) | MIT |
 | [@wokwi/elements](https://github.com/wokwi/wokwi-elements) | Visual parts (boards, LEDs, sensors…) | MIT |
 | [JSZip](https://stuk.github.io/jszip/) | Reading/writing `.projix` archives | MIT/GPLv3 |
 | RP2040 B1 bootrom | Boot of the simulated RP2040 | © Raspberry Pi (Trading) Ltd — BSD-3-Clause |
+| Official Raspberry Pi board artwork | Drawings of the Pico, Pico W, Pico 2 and Pico 2 W boards | © Raspberry Pi Ltd |
 | MicroPython | `.uf2` firmware run on the simulated Pico (supplied by the user) | MIT |
 | [LED Board-7](http://www.styleseven.com) font © Sizenko Alexander (Style-7) | LED-display look of the simulated LCD screens | Freeware (free use, credit required) |
 
