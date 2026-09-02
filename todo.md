@@ -1,10 +1,13 @@
 # À faire
-1. commit et push
-1. Je voudrais que pour les environnements arduino et uno, la coloration syntaxique soit valide (plus d'erreur ni soulignement). Comment faire ?
+1. J'ai retouché le fichier src\webview\composants\externe\uno.svg - Pas grand chose, juste uin décalage de texte - Intègre les modifications.
+1. Des fil noirs peuvent se superposer à d'autre couleurs. Renforce la règle : 2 fils ne peuvent pas se superposer sauf s'ils appartiennent au même noeud. Ne pas se superposer veut dire se toucher est possible (espace entre le centre des fils = largeur des fils)
+1. Je voudrais que pour les environnements arduino et uno, la coloration syntaxique soit toujours valide (plus d'erreur ni soulignement). Comment faire ? Sachant que j'ai obligatoirement les extensions `Arduino VsCode IDE` et `Raspberry Pi Pico`.
 1. mise à jour de avr8js en 0.21.1. Est-ce interessant de la faire ?
-1. Des fil noirs peuvent se superposer à d'autre couleurs.
+1. J'avais lancé une autre session en paralllèle tu trouvera donc des modifications dont tu n'est pas l'auteur.
+1. commit et push
+1. Préparation pour une publication
 ## ne pas faire pour l'instant
-1. Retoucher carte arduino décalage de textes
+
 
 
 
