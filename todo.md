@@ -1,7 +1,25 @@
 # À faire
+1. Deux chiffres à trancher sur le multimètre (voir v2026.9.0.41) : la LED rouge est à **1,8 V** dans la table du logiciel (tu comptes 1,6 V), et la sortie de la carte a **25 Ω** de résistance interne, donc M1 lit **4,77 V** et non 5,00 V pile. Dis lequel des deux tu veux voir changer — ou aucun.
+1. le programme de test button-uno.projix montre que le bouton BP3 n'est jamais détecté parce que IO3 n'est jamais lu à NL1.
 ## ne pas faire pour l'instant
+1. Reroucher carte arduino déclage de textes
+1. Voir pour mise à jour de avr8js en 0.21.1
+1. On voit toujours le point jaune quand on veut déplacer l'extrémité de connexion d'un fil. On ne devrait voir que le point blanc et vert si le fil est sélectionné.
+1. Des fil noirs peuvent se superposer à d'autre couleurs.
 
+# >>>>  v2026.9.0.41 — La LED existe enfin pour le multimètre
 
+1. ✅ **La LED n'était PAS dans le circuit** (item 1, ton schéma `jauneRouge`). Le calculateur électrique du logiciel connaît les résistances, les diodes, les bobines… mais pas les LED. Une LED au milieu d'une branche, c'était donc un **trou** : le courant s'arrêtait là. D'où tes quatre relevés faux — M2 à 0 V, M3 à 5 V, et M4 qui n'affichait **rien du tout**.
+2. ✅ **Une LED EST une diode** : elle laisse passer le courant dans un seul sens et garde sa tension de seuil au passage (1,8 V pour une rouge, 3 V pour une bleue — la table existait déjà, personne ne la lisait ici). Elle est maintenant une liaison à part entière du circuit, orientée dans le bon sens ([model.mts](src/webview/diagram/model.mts)).
+3. ✅ **Et le calcul de tension tient compte des seuils.** Deuxième moitié du défaut : même une fois la LED branchée, le calcul additionnait les résistances **en oubliant ce que chaque diode retient**. Une branche qui MONTE vers le plus vaut désormais « la source moins les seuils », une branche qui DESCEND vers la masse vaut « zéro plus les seuils ». C'est ce qui met enfin 1,8 V aux bornes de la LED rouge.
+4. ✅ **Une pile de diodes trop haute ne s'amorce pas** : trois LED bleues en série (9 V) sous 5 V ne conduisent pas — la branche est simplement ignorée, sinon le calcul sortait des tensions plus hautes que l'alimentation elle-même.
+5. ✅ **Ce que ton schéma affiche maintenant** : M1 = **4,77 V**, M2 = **2,97 V**, M3 = **1,80 V**, M4 = **8,99 mA**. Les trois lois tiennent : M1 = M2 + M3, et M4 = M2 / 330. Il reste deux écarts avec ton calcul de tête, **volontaires**, remontés en tête de « À faire » : la LED rouge est à **1,8 V** dans la table (tu comptes 1,6 V) et la sortie de la carte a **25 Ω** de résistance interne — un vrai ATmega chute bien d'un quart de volt quand il débite 9 mA. Tu tranches.
+6. ✅ **Effet de bord attrapé au vol : l'alim de laboratoire comptait la LED DEUX fois.** Depuis que la LED conduit, sa branche est aussi un « chemin du plus vers la masse » — l'alim y voyait 22,7 mA de charge résistive **en plus** des 14,5 mA de la LED, et une LED bleue trop peu alimentée tirait du courant sans même s'allumer. Le chemin résistif ignore désormais tout passage par une diode.
+7. ✅ **Huit contrôles neufs au banc du multimètre** ([verify:multimetre](scripts/verify-multimetre.mjs)) sur ta branche exacte — sortie, résistance, LED, ampèremètre, masse : le seuil lu aux bornes de la LED, le reste sur la résistance, la somme qui fait la sortie, le courant enfin affiché, la loi d'Ohm entre les deux, plus trois contre-épreuves (sortie au repos, **LED montée à l'envers** → rien ne passe, LED bleue → seuil de 3 V). Un neuvième au banc de l'alim, sur le double comptage.
+8. ✅ **Suite complète rejouée : 102 bancs sur 102 au vert** (495 s), plus typecheck et construction complète. `verify:psu` était devenu rouge en cours de route — c'est lui qui a révélé le double comptage.
+9. ℹ️ **Le script d'appoint** écrit pour rejouer ton schéma (`_tmp-repro-jauneRouge.mjs`) est rangé dans `A Examiner/scripts/` — rien n'est effacé, tu tranches.
+
+---
 # >>>>  v2026.9.0.40 — Tout est prêt pour la publication (mais rien n'est publié)
 
 1. ✅ **Version publique passée à `2026.9.0`** (item 4). La dernière **vraiment en ligne** est la `2026.8.99` du 21 août : les `.100`, `.101` et `.102` étaient des numéros de travail, posés avant qu'on sépare les deux compteurs. Le mois a tourné, donc l'incrément **repart à 0** — `2026.9.0`, et non `2026.8.103`. Le compteur interne, lui, ne repart jamais : `buildNumber` **40**.

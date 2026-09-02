@@ -767,6 +767,20 @@ function computeResistiveGraph(
       const drop = diodeForwardV(part);
       link(a, k, { ohms: 0, partId: part.id, oneWay: true, forward: true, drop });
       link(k, a, { ohms: 0, partId: part.id, oneWay: true, forward: false, drop });
+    } else if (kind === 'led') {
+      // Une LED EST une diode : elle conduit de l'anode vers la cathode en
+      // gardant sa tension de seuil (1,8 V pour une rouge, 3 V pour une bleue).
+      // Sans cette arête la branche était COUPÉE au niveau de la LED : plus
+      // aucun courant, un voltmètre à ses bornes lisait la tension d'alimen-
+      // tation entière et un ampèremètre en série ne mesurait rien du tout
+      // (Frank, jauneRouge). Les helpers propres à la LED (ledPowerCircuit)
+      // ne s'en trouvent pas gênés : une diode ne se traverse pas à contresens,
+      // donc aucun chemin ne repasse par la LED qu'il analyse.
+      const a = nets.netOf({ partId: part.id, pin: rolePin(part.type, 'A') });
+      const c = nets.netOf({ partId: part.id, pin: rolePin(part.type, 'C') });
+      const drop = ledForwardV(part);
+      link(a, c, { ohms: 0, partId: part.id, oneWay: true, forward: true, drop });
+      link(c, a, { ohms: 0, partId: part.id, oneWay: true, forward: false, drop });
     } else if (kind === 'relay') {
       // La bobine est une résistance comme une autre pour le reste du schéma
       // (U²/P, soit 125 Ω sous 5 V) : c'est elle qui fixe le courant appelé.
@@ -874,6 +888,11 @@ export function ledPowerCircuit(
   return { ohms: up + down, supplyVolts };
 }
 
+/** Tension de seuil (V) d'une LED, d'après sa couleur (2,0 V par défaut). */
+function ledForwardV(part: Part): number {
+  return LED_FORWARD_V[(part.attrs?.color ?? 'red').toLowerCase()] ?? 2.0;
+}
+
 /** Tension de seuil (V) d'une diode, depuis son attribut `vf` (0,6 V par défaut). */
 function diodeForwardV(part: Part): number {
   const v = Number(part.attrs?.vf);
@@ -906,8 +925,15 @@ export function psuLoadAmps(
   const vplus = nets.netOf({ partId: psuId, pin: 'V+' });
   let amps = extraAmps;
   // Pont résistif direct V+ → masse (un fil V+↔GND fusionne les nets → 0 Ω).
-  const bridge = gndNets.has(vplus) ? 0 : minOhmsPath(vplus, gndNets, adj);
-  if (bridge !== null) amps += bridge <= 0.5 ? PSU_SHORT_AMPS : volts / bridge;
+  // Un chemin qui traverse une DIODE (ou une LED, qui en est une) ne compte pas
+  // ici : sa consommation est calculée juste après, avec sa tension de seuil.
+  // Sans ce filtre la LED serait comptée DEUX fois — et une LED bleue sous
+  // 2,5 V, qui ne peut même pas s'allumer, tirerait quand même du courant.
+  const viaDiode = { drop: 0 };
+  const bridge = gndNets.has(vplus) ? 0 : minOhmsPath(vplus, gndNets, adj, undefined, viaDiode);
+  if (bridge !== null && !(viaDiode.drop > 0)) {
+    amps += bridge <= 0.5 ? PSU_SHORT_AMPS : volts / bridge;
+  }
   for (const part of diagram.parts) {
     const kind = partDef(part.type).kind;
     if (kind === 'led') {
@@ -1321,6 +1347,13 @@ function circuitSources(
  * cas classique, et la seule pull-up interne dans le montage « entrée +
  * condensateur » d'Arduino ou du Pico.
  *
+ * Les DIODES traversées en chemin (diode de redressement, LED) comptent : leur
+ * seuil est de la tension perdue. Une branche qui MONTE vers une source vaut
+ * donc `Vsource − seuils`, une branche qui DESCEND vers une masse vaut
+ * `0 + seuils` — c'est ce qui met 1,8 V aux bornes d'une LED rouge au lieu de
+ * zéro. Quand les seuils dépassent ce que le montage peut fournir, la diode
+ * bloque et la branche est simplement ignorée.
+ *
  * Retourne null quand aucune source n'est atteignable : le nœud est en l'air.
  */
 function theveninNode(
@@ -1331,6 +1364,9 @@ function theveninNode(
 ): { volts: number; ohms: number } | null {
   let cond = 0; // ΣGi
   let sum = 0; //  ΣViGi
+  // Tension la plus haute du montage : au-delà, une pile de diodes ne peut plus
+  // s'amorcer (trois LED bleues en série ne conduisent pas sous 5 V).
+  const vTop = sources.reduce((m, s) => Math.max(m, s.volts), 0);
   for (const src of sources) {
     const others = new Set(sourceNets);
     others.delete(src.net);
@@ -1339,13 +1375,18 @@ function theveninNode(
     // interne devenait la SEULE source vue — le condensateur d'antirebond
     // gardait 5 V, bouton appuyé ou non (Frank, ComLedRGB).
     others.delete(hot);
+    const reached: { drop?: number } = {};
     let path: number | null;
     if (src.net === hot) path = 0;
-    else path = minOhmsPath(hot, new Set([src.net]), adj, others, undefined, src.volts > 0 ? 'source' : 'sink');
+    else path = minOhmsPath(hot, new Set([src.net]), adj, others, reached, src.volts > 0 ? 'source' : 'sink');
     if (path === null) continue;
+    const drop = src.net === hot ? 0 : reached.drop ?? 0;
+    const volts = src.volts > 0 ? src.volts - drop : src.volts + drop;
+    // Seuil non franchi : la diode reste bloquée, cette branche ne conduit pas.
+    if (drop > 0 && (src.volts > 0 ? volts <= 0 : volts >= vTop)) continue;
     const g = 1 / Math.max(0.1, path + src.ohms);
     cond += g;
-    sum += src.volts * g;
+    sum += volts * g;
   }
   if (cond <= 0) return null;
   return { volts: sum / cond, ohms: 1 / cond };

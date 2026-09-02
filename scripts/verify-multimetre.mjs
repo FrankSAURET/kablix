@@ -227,6 +227,55 @@ check('un oscilloscope SEUL met lui aussi la broche sous surveillance',
 check('… et sans aucun appareil de mesure, rien n’est surveillé pour rien',
 	!pulseMonitorPins({ parts: [{ id: 'uno', type: 'uno', x: 0, y: 0 }], wires: [] }, 5).includes('9'));
 
+// 12. LED EN SÉRIE dans la branche mesurée (schéma jauneRouge de Frank) : une
+//     sortie de carte, une résistance, une LED rouge, un ampèremètre, la masse.
+//     La LED n'était PAS dans le graphe résistif : la branche était coupée à son
+//     niveau, donc le voltmètre à ses bornes lisait toute la tension d'alimen-
+//     tation (5 V au lieu de 1,8), celui aux bornes de la résistance lisait zéro
+//     et l'ampèremètre en série n'affichait rien du tout.
+const LED = (id, color) => ({ id, type: 'led', x: 0, y: 0, attrs: { color } });
+const branche = (sens = 'direct') => ({
+	parts: [{ id: 'uno', type: 'uno', x: 0, y: 0 }, R('r1', 330), LED('l1', 'red'),
+		M('mAlim', 'voltage'), M('mRes', 'voltage'), M('mLed', 'voltage'), M('mI', 'current')],
+	wires: [
+		W('w1', pin('uno', '2'), pin('r1', '1')),
+		// Sens inverse : la LED est retournée, plus rien ne doit passer.
+		W('w2', pin('r1', '2'), pin('l1', sens === 'direct' ? 'A' : 'C')),
+		W('w3', pin('l1', sens === 'direct' ? 'C' : 'A'), pin('mI', '+')),
+		W('w4', pin('mI', 'GND'), pin('uno', 'GND.1')),
+		W('w5', pin('uno', '2'), pin('mAlim', '+')),
+		W('w6', pin('uno', 'GND.1'), pin('mAlim', 'GND')),
+		W('w7', pin('r1', '1'), pin('mRes', '+')),
+		W('w8', pin('r1', '2'), pin('mRes', 'GND')),
+		W('w9', pin('r1', '2'), pin('mLed', '+')),
+		W('w10', pin('l1', sens === 'direct' ? 'C' : 'A'), pin('mLed', 'GND')),
+	],
+});
+const haute = (p) => (p === '2' ? 'high' : 'hiz');
+const vLed = lire(branche(), 'mLed', 5, haute).value;
+const vRes = lire(branche(), 'mRes', 5, haute).value;
+const vAlim = lire(branche(), 'mAlim', 5, haute).value;
+const iBranche = lire(branche(), 'mI', 5, haute).value;
+check(`LED en série : le voltmètre à ses bornes lit son SEUIL, pas 5 V (${vLed.toFixed(2)} V)`,
+	near(vLed, 1.8, 0.02));
+check(`… la résistance prend le reste (${vRes.toFixed(2)} V), et non zéro`, vRes > 2.5 && vRes < 3.5);
+check(`… la somme fait la tension de la sortie (${vAlim.toFixed(2)} V)`, near(vLed + vRes, vAlim, 0.02));
+check(`… l'ampèremètre en série AFFICHE un courant (${(iBranche * 1000).toFixed(2)} mA), il ne reste plus muet`,
+	iBranche !== null && iBranche > 0.007 && iBranche < 0.011);
+check("… et ce courant est bien celui de la résistance (loi d'Ohm sur ses bornes)",
+	near(iBranche, vRes / 330, 0.03));
+// Contre-épreuves : sortie au repos, puis LED montée à l'envers.
+const basse = () => 'low';
+check("sortie à l'état bas → plus de courant dans la branche",
+	Math.abs(lire(branche(), 'mI', 5, basse).value ?? 0) < 1e-4);
+const iEnvers = lire(branche('inverse'), 'mI', 5, haute).value;
+check("LED montée à l'ENVERS → aucun courant (une diode ne conduit que dans un sens)",
+	iEnvers === null || Math.abs(iEnvers) < 1e-4);
+// Une LED bleue perd 3 V au lieu de 1,8 : le seuil suit la couleur.
+const bleue = { ...branche(), parts: branche().parts.map((p) => (p.id === 'l1' ? LED('l1', 'blue') : p)) };
+check(`LED bleue à la place de la rouge → seuil de 3 V (${(lire(bleue, 'mLed', 5, haute).value).toFixed(2)} V)`,
+	near(lire(bleue, 'mLed', 5, haute).value, 3, 0.02));
+
 // --- Rendu réel (Chrome headless) ----------------------------------------------
 const CACHE = join(root, 'node_modules', '.cache-multimetre');
 mkdirSync(CACHE, { recursive: true });

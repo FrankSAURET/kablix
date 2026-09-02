@@ -107,6 +107,12 @@ check('charge : LED rouge + 220 Ω sous 5 V → ≈ 14,5 mA',
   near(psuLoadAmps(ledDiag, 'psu1', 5), (5 - 1.8) / 220, 1e-3));
 check('charge : LED bleue (Vf 3 V) sous 2,5 V → 0 A (ne conduit pas)',
   psuLoadAmps({ ...ledDiag, parts: [ALIM(), R('r1', 220), LED('led1', 'blue')] }, 'psu1', 2.5) === 0);
+// Depuis que la LED est une arête du graphe résistif (elle conduit, avec son
+// seuil), sa branche est aussi un « pont V+ → masse ». Elle ne doit être comptée
+// QU'UNE fois, et avec son seuil : sans ce garde-fou l'alim voyait 22,7 mA de
+// pont en plus des 14,5 mA de la LED, et la bleue trop peu alimentée débitait.
+check('charge : la LED est comptée une seule fois (le pont résistif ne traverse pas une diode)',
+  psuLoadAmps(ledDiag, 'psu1', 5) < 5 / 220);
 const bridgeDiag = {
   parts: [ALIM(), R('r1', 1000)],
   wires: [
