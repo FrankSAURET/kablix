@@ -382,6 +382,35 @@ async function run() {
 		ok('fil relâché : la marque est retirée, la broche reconnecte',
 			!brocheA.classList.contains('pin--wire-end') && clicable(brocheA),
 			brocheA.className);
+
+		// Halo jaune sous la poignée (item v2026.9.0.44) : quand le fil est choisi,
+		// on ne doit voir QUE le point blanc/vert de l'extrémité. Le halo, posé
+		// au-dessus de tout, brouillait le repère.
+		const canvasEl = document.getElementById('canvas');
+		const centreDe = (dot) => {
+			const b = dot.getBoundingClientRect();
+			return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+		};
+		const cA = centreDe(brocheA);
+		const survole = async (x, y) => {
+			canvasEl.dispatchEvent(new PointerEvent('pointermove',
+				{ bubbles: true, clientX: x, clientY: y, buttons: 0 }));
+			await wait(30);
+		};
+		await survole(cA.x + 400, cA.y + 400);
+		await survole(cA.x, cA.y);
+		ok('fil NON choisi : le halo jaune s’allume bien sur la broche survolée',
+			!!document.querySelector('.pin-hoist-dot'));
+		editor.select({ kind: 'wire', id: filP.id });
+		await wait(30);
+		ok('fil choisi : le halo jaune s’éteint sous la poignée d’extrémité',
+			!document.querySelector('.pin-hoist-dot'));
+		await survole(cA.x + 400, cA.y + 400);
+		await survole(cA.x, cA.y);
+		ok('fil choisi : re-survolée, l’extrémité n’allume toujours pas de halo',
+			!document.querySelector('.pin-hoist-dot'));
+		editor.select(null);
+		await wait(20);
 	}
 
 	// --- 11. Couleur de sélection --kx-select (v2026.7.119) ---------------------

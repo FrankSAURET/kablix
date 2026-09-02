@@ -752,6 +752,12 @@ export class Editor {
     let bestD = R * R;
     for (const [id, r] of this.rendered) {
       for (const [name, dot] of r.hotspots) {
+        // Extrémité d'un fil SÉLECTIONNÉ : sa poignée blanche est déjà posée
+        // dessus, et c'est elle qu'on vient attraper. Un halo jaune par-dessus
+        // brouille le repère (signalé par Frank). On saute donc ces pastilles —
+        // sauf pendant un câblage en cours, où le halo sert justement à
+        // TERMINER un fil sur une broche déjà occupée.
+        if (!this.pending && dot.classList.contains('pin--wire-end')) continue;
         const b = dot.getBoundingClientRect();
         const dx = e.clientX - (b.left + b.width / 2);
         const dy = e.clientY - (b.top + b.height / 2);
@@ -3454,6 +3460,13 @@ export class Editor {
       });
       this.world.appendChild(handle);
       this.handles.push(handle);
+      // Le halo jaune peut déjà être allumé sur cette pastille (on vient de
+      // cliquer le fil, la souris n'a pas bougé) : il masquerait la poignée
+      // qu'on vient d'y poser. On l'éteint tout de suite.
+      if (!this.pending && this.pinReachablePart === wire[which].partId
+        && this.pinReachablePin === wire[which].pin) {
+        this.clearPinReachable();
+      }
     }
   }
 
@@ -6137,8 +6150,10 @@ export class Editor {
     const row = document.createElement('div');
     row.className = 'inspector__transform';
     const buttons: Array<{ glyph: string; title: string; on: () => void; active?: boolean }> = [
-      { glyph: '↺', title: t('Rotate left (−45°)'), on: () => this.rotateSelection(-45) },
-      { glyph: '↻', title: t('Rotate right (+45°)'), on: () => this.rotateSelection(45) },
+      // Quart de tour : c'est le geste courant (poser un composant debout ou
+      // couché). Le pas de 45° reste sous les touches + et − pour les biais.
+      { glyph: '↺', title: t('Rotate left (−90°)'), on: () => this.rotateSelection(-90) },
+      { glyph: '↻', title: t('Rotate right (+90°)'), on: () => this.rotateSelection(90) },
       { glyph: '⇆', title: t('Flip horizontally'), on: () => this.flipSelection('h'), active: part?.flipH },
       { glyph: '⇅', title: t('Flip vertically'), on: () => this.flipSelection('v'), active: part?.flipV },
     ];

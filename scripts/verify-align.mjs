@@ -69,6 +69,28 @@ async function run() {
 		editor.removePart(part.id);
 	}
 
+	// --- 1 bis. Les boutons ↺ ↻ tournent d'un QUART de tour (demande de Frank) --
+	// Le pas de 45° reste sur les touches + et − : les boutons servent à poser un
+	// composant debout ou couché, ce qui se fait toujours par quart de tour.
+	{
+		const part = editor.addPart('resistor', 103, 57);
+		await wait(60);
+		const btns = [...document.querySelectorAll('.inspector__transform-btn')];
+		const droite = btns.find((b) => b.textContent === '↻');
+		const gauche = btns.find((b) => b.textContent === '↺');
+		ok('inspecteur : les deux boutons de rotation sont là', !!droite && !!gauche,
+			btns.map((b) => b.textContent).join(' '));
+		droite?.click();
+		await wait(20);
+		ok('bouton ↻ : un quart de tour (90°) et non 45°', part.rotation === 90, String(part.rotation));
+		ok('… et son infobulle annonce bien 90°', /90/.test(droite?.title ?? ''), droite?.title);
+		gauche?.click();
+		gauche?.click();
+		await wait(20);
+		ok('bouton ↺ : quart de tour dans l’autre sens', part.rotation === 270, String(part.rotation));
+		editor.removePart(part.id);
+	}
+
 	// --- 2. Miroir : broches sur la grille --------------------------------------
 	const led = editor.addPart('led', 103, 57);
 	await wait(60);

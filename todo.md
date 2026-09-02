@@ -1,16 +1,26 @@
 # À faire
-1. Modifie les boutons rotation des composants pour un pas de 90° à la place de 45°.
-1. On voit toujours le point jaune quand on veut déplacer l'extrémité de connexion d'un fil. On ne devrait voir que le point blanc et vert si le fil est sélectionné.
 1. commit et push
 1. Je voudrais que pour les environnements arduino et uno, la coloration syntaxique soit valide (plus d'erreur ni soulignement). Comment faire ?
+1. mise à jour de avr8js en 0.21.1. Est-ce interessant de la faire ?
+1. Des fil noirs peuvent se superposer à d'autre couleurs.
 ## ne pas faire pour l'instant
 1. Retoucher carte arduino décalage de textes
-1. Voir pour mise à jour de avr8js en 0.21.1
-
-1. Des fil noirs peuvent se superposer à d'autre couleurs.
 
 
 
+
+# >>>>  v2026.9.0.44 — Un quart de tour par clic, et plus de jaune sous la poignée
+
+1. ✅ **Les deux boutons de rotation tournent d'un quart de tour** (item 1). Un clic = 90°, donc quatre clics font le tour complet. C'est le geste courant : poser une pièce debout ou couchée ([editor.mts](src/webview/diagram/editor.mts)).
+2. ✅ **Le pas fin de 45° n'est pas perdu** : il reste sous les touches **+** et **−** du clavier, pour poser une pièce en biais. Dis-moi si tu préfères qu'elles passent aussi à 90°.
+3. ✅ **Infobulles remises à jour** (« Tourner à gauche (−90°) ») et **banc `verify:align` renforcé** : il attrape les vrais boutons, clique dessus et vérifie que la pièce arrive bien à 90° puis à 270° — 31 contrôles au vert.
+
+4. ✅ **Plus de point jaune sous la poignée d'extrémité** (item 2). Le rond jaune s'allume dès que la souris approche d'une pastille — il servait à rattraper une broche cachée sous le dessin d'un voisin. Il s'allumait aussi **sur l'extrémité du fil choisi**, pile sous le point blanc qu'on vient attraper.
+5. ✅ **Quand un fil est sélectionné, ses deux pastilles de bout sont sautées** : on ne voit plus que le point blanc de la poignée et le fil en couleur. Le rond déjà allumé au moment du clic s'éteint tout de suite lui aussi.
+6. ✅ **Sauf pendant un câblage en cours** : là le rond jaune reste, c'est lui qui permet de **terminer** un fil sur une broche déjà occupée. Rien de perdu de ce côté.
+7. ✅ **Trois contrôles neufs** dans `verify:selection` (207 au vert) : le rond s'allume fil non choisi, s'éteint fil choisi, et ne revient pas au re-survol. Contre-épreuve faite : sans le correctif, les deux derniers passent au rouge.
+
+---
 # >>>>  v2026.9.0.43 — L'atelier vierge se tait, la LED éteinte ne pousse plus rien
 
 1. ✅ **Le « nouveau projet » qui réclamait sans cesse un enregistrement** (item 1). VS Code range une copie de secours de CHAQUE onglet en se fermant, même d'un onglet intact. Au rechargement, Kablix remettait le point ● « à enregistrer » sur tout atelier sans nom, vide ou pas — d'où la question à chaque changement de dossier.
