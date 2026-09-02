@@ -268,6 +268,18 @@ check("… et ce courant est bien celui de la résistance (loi d'Ohm sur ses bor
 const basse = () => 'low';
 check("sortie à l'état bas → plus de courant dans la branche",
 	Math.abs(lire(branche(), 'mI', 5, basse).value ?? 0) < 1e-4);
+// … et à courant nul, plus AUCUNE tension nulle part : la LED bloquée ne doit
+// pas tirer son nœud à 1,8 V. Le voltmètre aux bornes de la résistance affichait
+// −1,67 V alors qu'il affichait bien i = 0 (Frank, jauneRouge).
+const vResBas = lire(branche(), 'mRes', 5, basse).value;
+const vLedBas = lire(branche(), 'mLed', 5, basse).value;
+const vAlimBas = lire(branche(), 'mAlim', 5, basse).value;
+check(`… et zéro volt aux bornes de la résistance (U = R × 0 ; lu ${(vResBas ?? 0).toFixed(2)} V)`,
+	Math.abs(vResBas ?? 0) < 0.02, 'une LED éteinte ne pousse aucune tension');
+check(`… zéro volt aux bornes de la LED éteinte (${(vLedBas ?? 0).toFixed(2)} V)`,
+	Math.abs(vLedBas ?? 0) < 0.02);
+check(`… et zéro à la sortie de la carte (${(vAlimBas ?? 0).toFixed(2)} V)`,
+	Math.abs(vAlimBas ?? 0) < 0.02);
 const iEnvers = lire(branche('inverse'), 'mI', 5, haute).value;
 check("LED montée à l'ENVERS → aucun courant (une diode ne conduit que dans un sens)",
 	iEnvers === null || Math.abs(iEnvers) < 1e-4);

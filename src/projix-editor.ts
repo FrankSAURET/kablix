@@ -24,6 +24,18 @@ const l10n = vscode.l10n;
  * event onDidChangeCustomDocument (→ ● natif).
  */
 
+/**
+ * Atelier VIERGE : pas un seul fil, et pas une seule pièce en dehors de la carte
+ * elle-même. Un projet dans cet état ne contient RIEN à perdre — le fermer sans
+ * rien enregistrer ne coûte pas une minute de travail.
+ */
+function schemaVierge(diagram: unknown, board: string): boolean {
+  if (!diagram || typeof diagram !== 'object') return true;
+  const d = diagram as { parts?: Array<{ type?: string } | null>; wires?: unknown[] };
+  if ((d.wires?.length ?? 0) > 0) return false;
+  return (d.parts ?? []).every((part) => part?.type === board);
+}
+
 /** Document .projix : juste l'URI + un miroir de l'état « modifié » de la
  *  session, pour que VS Code sache s'il reste des modifications. */
 class ProjixDocument implements vscode.CustomDocument {
@@ -144,27 +156,44 @@ export class ProjixEditorProvider implements vscode.CustomEditorProvider<ProjixD
     // le drapeau distingue « vraiment modifié » de « juste sauvegardé » sans aucune
     // comparaison (approche fiable et instantanée).
     let restoreDirty = false;
+    // Schéma restauré entièrement vide : rien à enregistrer, donc jamais de ●
+    // (voir plus bas). Prudent par défaut : tant qu'on n'a pas LU un schéma
+    // vierge, on considère qu'il y a quelque chose à protéger.
+    let restoreVierge = false;
     if (source.scheme !== 'untitled') {
       try {
         const bytes = await vscode.workspace.fs.readFile(source);
         if (bytes.length > 0) {
           if (document.backupUri) {
             try {
-              const { manifest } = await unpackProject(bytes);
+              const { manifest, diagram } = await unpackProject(bytes);
               restoreDirty = manifest.dirtyAtExit === true;
+              restoreVierge = schemaVierge(diagram, manifest.board);
             } catch {
               restoreDirty = true; // backup illisible : prudence, ● affiché
             }
           }
           await session.loadProjixBytes(bytes, document.uri);
+        } else if (document.backupUri) {
+          restoreVierge = true; // backup vide : il n'y a rien à restaurer
         }
       } catch {
         // fichier illisible / vide : atelier vide (l'utilisateur repart de zéro).
       }
     }
-    // Untitled restauré : toujours ● (aucun fichier de référence, tout est « non
+    // Untitled restauré : ● (aucun fichier de référence, tout est « non
     // enregistré »). Fichier restauré : ● seulement si dirtyAtExit était vrai.
-    if (document.backupUri && (document.uri.scheme === 'untitled' || restoreDirty)) {
+    //
+    // SAUF si le schéma restauré est VIERGE. VS Code sauve un backup de chaque
+    // onglet, même intact : un « nouveau projet » jamais touché revenait donc
+    // marqué ● à chaque rechargement de fenêtre, et réclamait un enregistrement
+    // au moindre changement de dossier. Pire, ce faux ● se regravait dans le
+    // backup suivant (dirtyAtExit), si bien que la demande revenait POUR
+    // TOUJOURS, dans tous les dossiers ouverts ensuite (signalé par Frank).
+    // Un atelier sans le moindre fil ni la moindre pièce ne perd rien à être
+    // fermé : pas de ●, pas de question. Dès qu'il contient quelque chose, le
+    // ● revient et le travail reste protégé comme avant.
+    if (document.backupUri && !restoreVierge && (document.uri.scheme === 'untitled' || restoreDirty)) {
       setTimeout(() => session.markDirtyFromRestore(), 0);
     }
 

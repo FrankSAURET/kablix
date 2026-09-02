@@ -1,7 +1,8 @@
 // Vérifie la netlist de l'atelier (model.mts) : résolution des LED et des
 // boutons, puis intégration avec avr8js (la LED câblée sur D13 suit la broche).
 import esbuild from 'esbuild';
-import { mkdtempSync } from 'node:fs';
+import JSZip from 'jszip';
+import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -111,6 +112,28 @@ const pullUpExterne = {
 const bindsPu = buttonBindings(pullUpExterne);
 check('bouton vers la MASSE avec rappel externe au plus : appui = niveau bas (contre-épreuve)',
   bindsPu.length === 1 && bindsPu[0].mcuPin === '3' && bindsPu[0].activeHigh !== true);
+
+// Le VRAI schéma de Frank, tel qu'il est enregistré : trois poussoirs, dont BP3
+// monté à l'envers. C'est le montage qui ne répondait pas.
+{
+  const zip = await JSZip.loadAsync(readFileSync(join(root, 'testkablix/Arduino/button-uno/button-uno.projix')));
+  const d = JSON.parse(await zip.file('diagram.json').async('string'));
+  const b = buttonBindings({ parts: d.parts, wires: d.wires });
+  const par = Object.fromEntries(b.map((x) => [x.partId, x]));
+  check('button-uno : les TROIS poussoirs sont liés à une broche', b.length === 3);
+  check('button-uno : BP1 sur D2, vers la masse', par.BP1?.mcuPin === '2' && par.BP1.activeHigh !== true);
+  check('button-uno : BP2 sur D1, vers la masse', par.BP2?.mcuPin === '1' && par.BP2.activeHigh !== true);
+  check('button-uno : BP3 sur D3, vers le PLUS (appui = niveau haut)',
+    par.BP3?.mcuPin === '3' && par.BP3.activeHigh === true);
+}
+
+// Côté simulation, le repos doit être l'INVERSE de l'appui, jamais « haut » en dur.
+{
+  const src = readFileSync(join(root, 'src/webview/sim.mts'), 'utf8');
+  check("sim : le niveau d'appui suit activeHigh", /niveauAppui = bind\?\.activeHigh === true/.test(src));
+  check("sim : au repos, la broche prend l'inverse de l'appui",
+    /setInput\(mcuPin, !niveauAppui\)/.test(src) && /setInput\(mcuPin, niveauAppui\)/.test(src));
+}
 
 // Schéma Pico : GP25 -> résistance -> LED(A) ; LED(C) -> GND ; bouton GP13 <-> GND ;
 // potentiomètre SIG -> GP26 ; buzzer entre GP14 et GND ; LED RGB R/G/B + COM -> GND.

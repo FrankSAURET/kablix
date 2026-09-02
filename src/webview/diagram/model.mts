@@ -1362,11 +1362,13 @@ function theveninNode(
   sourceNets: ReadonlySet<string>,
   adj: Map<string, ResistiveEdge[]>
 ): { volts: number; ohms: number } | null {
-  let cond = 0; // ΣGi
-  let sum = 0; //  ΣViGi
   // Tension la plus haute du montage : au-delà, une pile de diodes ne peut plus
   // s'amorcer (trois LED bleues en série ne conduisent pas sous 5 V).
   const vTop = sources.reduce((m, s) => Math.max(m, s.volts), 0);
+  // Ce que CHAQUE source imposerait au nœud, avec sa conductance et la chute de
+  // diode rencontrée en chemin. Le tri se fait après : une diode n'est pas une
+  // source, elle laisse passer ou elle bloque (voir plus bas).
+  const branches: Array<{ volts: number; g: number; drop: number; source: number }> = [];
   for (const src of sources) {
     const others = new Set(sourceNets);
     others.delete(src.net);
@@ -1382,14 +1384,41 @@ function theveninNode(
     if (path === null) continue;
     const drop = src.net === hot ? 0 : reached.drop ?? 0;
     const volts = src.volts > 0 ? src.volts - drop : src.volts + drop;
-    // Seuil non franchi : la diode reste bloquée, cette branche ne conduit pas.
-    if (drop > 0 && (src.volts > 0 ? volts <= 0 : volts >= vTop)) continue;
-    const g = 1 / Math.max(0.1, path + src.ohms);
-    cond += g;
-    sum += volts * g;
+    branches.push({ volts, drop, source: src.volts, g: 1 / Math.max(0.1, path + src.ohms) });
   }
-  if (cond <= 0) return null;
-  return { volts: sum / cond, ohms: 1 / cond };
+  // Millman : le générateur équivalent d'un paquet de branches en parallèle.
+  const millman = (
+    lot: readonly { volts: number; g: number }[]
+  ): { volts: number; ohms: number } | null => {
+    let cond = 0; // ΣGi
+    let sum = 0; //  ΣViGi
+    for (const b of lot) {
+      cond += b.g;
+      sum += b.volts * b.g;
+    }
+    return cond > 0 ? { volts: sum / cond, ohms: 1 / cond } : null;
+  };
+  // Amorçage impossible en toutes circonstances : une pile de diodes qui
+  // réclamerait plus que la plus haute tension du montage (ou moins que zéro).
+  const possibles = branches.filter(
+    (b) => b.drop <= 0 || (b.source > 0 ? b.volts > 0 : b.volts < vTop)
+  );
+  // Une diode ne FOURNIT pas de tension : elle laisse passer ou elle bloque. Le
+  // potentiel de repos du nœud est donc donné par les seuls chemins francs
+  // (fils, résistances) ; les branches à diode ne sont ajoutées qu'ensuite, et
+  // seulement si ce potentiel franchit vraiment leur seuil.
+  //
+  // Sans ces deux passes, une LED éteinte tirait quand même son nœud à 1,8 V :
+  // sortie de carte à 0, courant nul partout, et pourtant le voltmètre aux
+  // bornes de la résistance affichait −1,67 V (Frank, jauneRouge). Le nœud
+  // suspendu derrière la seule diode (aucun chemin franc) garde l'ancien calcul.
+  const franches = possibles.filter((b) => b.drop <= 0);
+  const repos = millman(franches);
+  if (repos === null) return millman(possibles);
+  const amorcees = possibles.filter(
+    (b) => b.drop > 0 && (b.source > 0 ? repos.volts < b.volts : repos.volts > b.volts)
+  );
+  return amorcees.length === 0 ? repos : millman(franches.concat(amorcees));
 }
 
 /** Ce qu'un multimètre mesure : 'current' (ampèremètre) ou 'voltage' (voltmètre). */

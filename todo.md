@@ -1,13 +1,32 @@
 # À faire
-1. Quand j'ouvre un nouveau dossier à partir de vscode il veut toujours enregistrer un fichier nouveauprojet.projix alors qu'il n'y en a pas d'ouvert.
+1. Modifie les boutons rotation des composants pour un pas de 90° à la place de 45°.
+1. On voit toujours le point jaune quand on veut déplacer l'extrémité de connexion d'un fil. On ne devrait voir que le point blanc et vert si le fil est sélectionné.
 1. commit et push
+1. Je voudrais que pour les environnements arduino et uno, la coloration syntaxique soit valide (plus d'erreur ni soulignement). Comment faire ?
 ## ne pas faire pour l'instant
 1. Retoucher carte arduino décalage de textes
 1. Voir pour mise à jour de avr8js en 0.21.1
-1. On voit toujours le point jaune quand on veut déplacer l'extrémité de connexion d'un fil. On ne devrait voir que le point blanc et vert si le fil est sélectionné.
+
 1. Des fil noirs peuvent se superposer à d'autre couleurs.
 
 
+
+# >>>>  v2026.9.0.43 — L'atelier vierge se tait, la LED éteinte ne pousse plus rien
+
+1. ✅ **Le « nouveau projet » qui réclamait sans cesse un enregistrement** (item 1). VS Code range une copie de secours de CHAQUE onglet en se fermant, même d'un onglet intact. Au rechargement, Kablix remettait le point ● « à enregistrer » sur tout atelier sans nom, vide ou pas — d'où la question à chaque changement de dossier.
+2. ✅ **Et le faux point ● se recopiait dans la copie de secours suivante**, donc la question revenait POUR TOUJOURS, dans tous les dossiers ouverts ensuite. Le cercle est cassé : un atelier **vierge** (aucun fil, aucune pièce en dehors de la carte) se ferme sans rien demander ([projix-editor.ts](src/projix-editor.ts)).
+3. ✅ **Le travail reste protégé** : dès qu'il y a une pièce ou un seul fil, le point ● revient exactement comme avant. Un projet enregistré, lui, suit toujours son drapeau `dirtyAtExit`.
+4. ✅ **Banc neuf `verify:vierge`** : il fait tourner le VRAI éditeur de projet avec de vraies archives .projix, sur 7 cas (vierge, copie vide, une pièce, un fil, fichier modifié, fichier propre, ouverture normale). Contre-épreuve faite : sans le correctif, 2 contrôles passent au rouge.
+
+5. ✅ **M2 affichait −1,67 V à courant nul** (item 2, montage jauneRouge, sortie IO2 à 0). Le calcul remontait à la masse **à travers la LED** et rapportait sa tension de seuil comme si elle sortait de nulle part : le point entre la résistance et la LED se retrouvait à 1,8 V alors que rien ne le poussait.
+6. ✅ **Une diode ne FOURNIT pas de tension** : elle laisse passer ou elle bloque. Le calcul se fait maintenant en deux temps ([model.mts](src/webview/diagram/model.mts)) — d'abord les chemins francs (fils, résistances) donnent la tension au repos du point, ensuite seulement les branches à diode s'ajoutent, et **seulement si cette tension franchit vraiment leur seuil**.
+7. ✅ **Résultat** : sortie à 0 → 0 V partout (M2, M3 et M1), courant nul, la loi U = R × I retombe juste. Sortie à 1 → les valeurs ne bougent pas d'un poil : M1 4,77 V, M2 2,97 V, M3 1,80 V, M4 8,99 mA.
+8. ✅ **Trois contrôles neufs** dans `verify:multimetre` : à courant nul, zéro volt aux bornes de la résistance, zéro aux bornes de la LED éteinte, zéro à la sortie de la carte.
+
+9. ✅ **Suite complète : 103 bancs joués, tout au vert** (494 s), plus typecheck et construction.
+10. ℹ️ **`verify:transistor` a clignoté en rouge une fois** pendant la passe groupée, et repasse vert seul comme au travers du lanceur. C'est la machine qui étouffait sous huit navigateurs en parallèle, pas le code : rien à corriger.
+
+---
 # >>>>  v2026.9.0.42 — Le bouton branché à l'envers existe enfin
 
 1. ✅ **BP3 n'était relié à RIEN** (item 2). Le logiciel ne reconnaissait qu'UN seul câblage de bouton : un côté sur une broche, l'autre côté à la masse. Le tien est le montage inverse — un côté au **+5 V**, l'autre sur la broche D3 avec une résistance de 10 kΩ qui la ramène à la masse. Ce montage-là n'était pas dans la liste, donc appuyer sur BP3 ne touchait aucune broche : D3 ne montait jamais à 1.
