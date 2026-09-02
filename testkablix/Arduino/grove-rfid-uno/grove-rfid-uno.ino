@@ -12,8 +12,9 @@ SoftwareSerial rfid(RFID_RX, RFID_TX);
 
 char badge[16];
 byte n = 0;
+char c;
 
-void setup() {
+void setup(){
   Serial.begin(115200);
   rfid.begin(9600);
   Serial.println("Approchez un badge de la boucle.");
@@ -21,7 +22,7 @@ void setup() {
 
 void loop() {
   while (rfid.available()) {
-    char c = rfid.read();
+    c = rfid.read();
     if (c < ' ') {   // retour à la ligne : le numéro est complet
       if (n > 0) {
         badge[n] = 0;

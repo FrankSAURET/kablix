@@ -689,26 +689,33 @@ test('la page, ouverte dans un vrai navigateur, sélectionne et demande la suppr
 // ─────────────────────────────────────────────────────────────────────────────
 
 test('la mention « Experimental » va du paquet jusqu’à la carte', async () => {
-  const paquet = join(ROOT, 'kablix_components', 'grove-rfid.kompix');
-  if (!existsSync(paquet)) {
-    console.log('    (grove-rfid.kompix absent — contrôle sauté)');
-    return;
-  }
-  const zip = await new JSZip().loadAsync(readFileSync(paquet));
-  const manifest = JSON.parse(await zip.file('manifest.json').async('string'));
-  eq(manifest.experimental, true, 'drapeau dans le manifeste du paquet');
-
-  // L'index public : sans lui, la carte ne saurait rien avant téléchargement.
+  // Le banc suit le drapeau tel qu'il est POSÉ dans _sources.json : tant qu'un
+  // composant est à l'essai on vérifie qu'il le dit partout ; quand Frank les a
+  // tous validés on vérifie l'inverse — plus une seule mention nulle part.
+  const sources = JSON.parse(readFileSync(join(ROOT, 'kablix_components', '_sources.json'), 'utf8'));
+  const essais = sources.components.filter((c) => c.experimental === true).map((c) => c.type);
   const index = JSON.parse(readFileSync(join(ROOT, 'kablix_components', 'index.json'), 'utf8'));
-  const entree = index.components.find((c) => c.type === 'grove-rfid');
-  eq(entree && entree.experimental, true, 'drapeau dans index.json');
-  const etabli = index.components.find((c) => c.type === 'dmx-grove');
-  eq(etabli && etabli.experimental, undefined, 'un composant validé n’a aucune mention');
 
-  // Installé pour de bon : c'est la bibliothèque qui relit le manifeste.
-  await lib.saveKompix(paquet, 'remote', 'https://exemple/grove-rfid.kompix');
-  const installe = lib.listInstalled().find((c) => c.type === 'grove-rfid');
-  eq(installe && installe.experimental, true, 'drapeau relu par la bibliothèque');
+  for (const comp of sources.components) {
+    const paquet = join(ROOT, 'kablix_components', `${comp.type}.kompix`);
+    if (!existsSync(paquet)) continue;
+    const attendu = essais.includes(comp.type) ? true : undefined;
+
+    const zip = await new JSZip().loadAsync(readFileSync(paquet));
+    const manifest = JSON.parse(await zip.file('manifest.json').async('string'));
+    eq(manifest.experimental, attendu, `${comp.type} : drapeau dans le manifeste du paquet`);
+
+    // L'index public : sans lui, la carte ne saurait rien avant téléchargement.
+    const entree = index.components.find((c) => c.type === comp.type);
+    if (entree) eq(entree.experimental, attendu, `${comp.type} : drapeau dans index.json`);
+
+    // Installé pour de bon : c'est la bibliothèque qui relit le manifeste.
+    await lib.saveKompix(paquet, 'remote', `https://exemple/${comp.type}.kompix`);
+    const installe = lib.listInstalled().find((c) => c.type === comp.type);
+    eq(!!installe, true, `${comp.type} : installé dans la bibliothèque`);
+    eq(installe.experimental, attendu === true, `${comp.type} : drapeau relu par la bibliothèque`);
+  }
+  console.log(`    (${essais.length} composant(s) à l'essai sur ${sources.components.length})`);
 });
 
 test('la carte d’un composant à l’essai porte la mention, les autres non', () => {

@@ -1,9 +1,19 @@
 # À faire
-1. Retire "expérimentale" de grove rfid
-1. Dans le gestionnaire de composant j'ai plein de composant bizarre (Métadonnées, réglable, jetable...) fais le ménage.
+1. Préparation pour publication (upgrade de version et autre)
 ## ne pas faire pour l'instant
 
 
+# >>>>  v2026.8.102.39 — Le lecteur de badges est validé, le gestionnaire est rangé
+
+1. ✅ **Le lecteur de badges n'est plus « à l'essai »** (item 1). C'était le dernier composant de la bibliothèque à porter la mention **Experimental** — pastille violette et cadre en pointillés sur sa carte. Un mot retiré de [_sources.json](kablix_components/_sources.json), version passée à **2026.9.1**, paquet et index refaits (`build-kompix`, `build-components-index`). Plus aucun composant publié ne porte la mention.
+2. ✅ **Le banc ne pouvait plus dire vrai** : il vérifiait que le lecteur, LUI, portait le drapeau — il devenait rouge dès qu'on le validait. Il lit maintenant `_sources.json` et **suit le drapeau tel qu'il est posé** : pour CHAQUE composant, il exige la mention partout (paquet, index public, bibliothèque installée) si elle est demandée, et son absence partout sinon. Il dit au passage combien de composants sont à l'essai — zéro aujourd'hui. Le contrôle du DESSIN de la carte, lui, garde ses deux composants inventés : la pastille reste testée même quand plus personne ne la porte.
+3. ✅ **Les composants bizarres du gestionnaire étaient des restes de banc d'essai** (item 2). « Métadonnées », « réglable », « jetable »… : **14 faux paquets** (`test-meta`, `test-reglages`, `test-annule`, `test-liste`…) traînaient depuis le **21 août** dans ta vraie bibliothèque, dans le dossier de rangement de VS Code. À l'époque le banc `verify:kompix` travaillait DANS ce dossier ; il travaille depuis dans son propre coin (`node_modules/.cache-verify-kompix`), donc **ça ne peut plus revenir** — les deux bancs qui touchent à la bibliothèque ont été revérifiés.
+4. ✅ **Rien n'est effacé** : les 14 fichiers sont rangés dans `A Examiner/globalStorage/kablix_components/` (≈ 11 Ko en tout), arborescence d'origine conservée. Tu tranches. L'index de confiance, lui, était déjà propre : aucune entrée à purger.
+5. ✅ **Ton lecteur de badges installé a été remis à jour** dans le même mouvement : sans ça la pastille « Experimental » serait restée affichée chez toi jusqu'à la prochaine mise à jour depuis GitHub. L'ancien paquet est rangé à côté des autres dans `A Examiner/`.
+6. ✅ **Toute la suite au vert** : **102 bancs sur 102** en 15 min, `verify:kompix` (40) compris — y compris `verify:i18n` et `verify:docs`, rouges depuis des semaines et repassés au vert au lot précédent. Plus typecheck et construction complète.
+7. ✅ **Enregistrement et envoi** (item 3) faits en fin de lot, comme d'habitude.
+
+---
 # >>>>  v2026.8.102.38 — Tout est traduit : anglais partout, français où il faut
 
 1. ✅ **Le lot d'avant publication des traductions** (item 1). Règle du projet : on n'écrit qu'une seule langue au fil de l'eau (l'anglais dans le code, le français dans `docs/`), et on rattrape TOUT en un coup avant de publier. C'est ce coup-ci. Rien de neuf dans le logiciel : que des mots.

@@ -20,7 +20,7 @@ Voir [kompix_specification.md](../docs/kompix_specification.md) pour les détail
 |------|-------|---------|-----------|-------------|
 | `dmx-grove` | Grove DMX512 | 2026.8.1 | Misc | Grove DMX512 shield (SP3485 line driver): turns th |
 | `grove-light-sensor` | Grove light sensor | 2026.9.1 | Sensors | Grove ambient light sensor (LS06-S phototransistor |
-| `grove-rfid` | Grove 125 kHz RFID reader **(expérimental)** | 2026.9.0 | Sensors | Grove 125 kHz RFID reader (EM4100 tags): while a t |
+| `grove-rfid` | Grove 125 kHz RFID reader | 2026.9.1 | Sensors | Grove 125 kHz RFID reader (EM4100 tags): while a t |
 | `grove-uno` | Grove Shield (Uno) | 2026.9.1 | Boards | Grove Base Shield V2 for Arduino Uno: 16 Grove soc |
 | `ir-barrier` | Through-beam IR barrier | 2026.9.0 | Sensors | Through-beam infrared barrier (emitter + receiver) |
 | `soil-moisture-sensor` | Soil moisture sensor | 2026.9.1 | Sensors | Resistive soil moisture probe (two prongs): wet so |
@@ -42,4 +42,4 @@ Pour proposer un composant :
 
 ---
 
-Généré le 02/09/2026 14:31:31 — Kablix v2026.8.102
+Généré le 02/09/2026 14:45:43 — Kablix v2026.8.102
