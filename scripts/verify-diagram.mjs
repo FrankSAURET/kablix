@@ -74,6 +74,43 @@ check('LED allumée quand D13 = HIGH', ledOn(diagram, 'led', (n) => n === '13'))
 check('LED éteinte quand D13 = LOW', !ledOn(diagram, 'led', () => false));
 const binds = buttonBindings(diagram);
 check('bouton lié à la broche D2', binds.length === 1 && binds[0].mcuPin === '2');
+check("… et c'est un montage vers la MASSE : appui = niveau bas", binds[0].activeHigh !== true);
+
+// Montage INVERSE : bouton entre la broche et le +5 V, rappel 10 kΩ vers la
+// masse. Il n'était lié à RIEN — à travers la résistance de rappel, le côté de
+// la broche compte comme « masse », donc les deux côtés du bouton semblaient
+// être masse et plus, sans broche à piloter. Appuyer ne changeait rien (Frank,
+// BP3 de button-uno).
+const pullDown = {
+  parts: [
+    { id: 'uno', type: 'uno', x: 0, y: 0 },
+    { id: 'rpd', type: 'resistor', x: 0, y: 0, attrs: { value: '10000' } },
+    { id: 'bp3', type: 'button', x: 0, y: 0 },
+  ],
+  wires: [
+    { id: 'p1', a: { partId: 'bp3', pin: '1.l' }, b: { partId: 'uno', pin: '5V' } },
+    { id: 'p2', a: { partId: 'bp3', pin: '2.l' }, b: { partId: 'uno', pin: '3' } },
+    { id: 'p3', a: { partId: 'bp3', pin: '2.l' }, b: { partId: 'rpd', pin: '2' } },
+    { id: 'p4', a: { partId: 'rpd', pin: '1' }, b: { partId: 'uno', pin: 'GND.1' } },
+  ],
+};
+const bindsPd = buttonBindings(pullDown);
+check('bouton vers le PLUS (rappel 10 kΩ à la masse) : lié à la broche D3',
+  bindsPd.length === 1 && bindsPd[0].mcuPin === '3');
+check('… et appui = niveau HAUT (le montage est inversé)', bindsPd[0].activeHigh === true);
+// Contre-épreuve : un rappel externe vers le PLUS ne doit PAS retourner le sens.
+const pullUpExterne = {
+  ...pullDown,
+  wires: [
+    { id: 'p1', a: { partId: 'bp3', pin: '1.l' }, b: { partId: 'uno', pin: 'GND.1' } },
+    { id: 'p2', a: { partId: 'bp3', pin: '2.l' }, b: { partId: 'uno', pin: '3' } },
+    { id: 'p3', a: { partId: 'bp3', pin: '2.l' }, b: { partId: 'rpd', pin: '2' } },
+    { id: 'p4', a: { partId: 'rpd', pin: '1' }, b: { partId: 'uno', pin: '5V' } },
+  ],
+};
+const bindsPu = buttonBindings(pullUpExterne);
+check('bouton vers la MASSE avec rappel externe au plus : appui = niveau bas (contre-épreuve)',
+  bindsPu.length === 1 && bindsPu[0].mcuPin === '3' && bindsPu[0].activeHigh !== true);
 
 // Schéma Pico : GP25 -> résistance -> LED(A) ; LED(C) -> GND ; bouton GP13 <-> GND ;
 // potentiomètre SIG -> GP26 ; buzzer entre GP14 et GND ; LED RGB R/G/B + COM -> GND.

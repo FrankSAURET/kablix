@@ -2358,13 +2358,31 @@ export function ledBarState(
 
 export interface ButtonBinding {
   partId: string;
-  /** Broche numérique du MCU pilotée par ce bouton (mise à LOW à l'appui). */
+  /** Broche numérique du MCU pilotée par ce bouton. */
   mcuPin: string;
+  /**
+   * Sens du montage. Faux (ou absent) = le classique bouton/masse : au repos la
+   * broche est HAUTE (rappel au plus), l'appui la tire à LOW. Vrai = le montage
+   * inverse, bouton entre la broche et le PLUS, avec un rappel à la masse : au
+   * repos la broche est BASSE et l'appui la monte à HIGH.
+   */
+  activeHigh?: boolean;
 }
 
 /**
- * Repère les boutons câblés entre une broche du MCU et la masse : appuyer
- * tire la broche à LOW (le programme active typiquement le pull-up interne).
+ * Repère les boutons câblés entre une broche du MCU et un rail, dans les DEUX
+ * sens :
+ *  - broche ↔ bouton ↔ masse : le montage courant, appui = LOW (le programme
+ *    active le rappel interne au plus, `INPUT_PULLUP`) ;
+ *  - broche ↔ bouton ↔ plus : le montage inverse, appui = HIGH. La broche y est
+ *    ramenée à la masse par une résistance externe (typiquement 10 kΩ) — et
+ *    c'est justement elle qui rendait ce montage invisible : à travers la
+ *    résistance, le côté de la broche EST relié à la masse, donc les deux
+ *    côtés du bouton semblaient être « masse » et « plus » sans broche à
+ *    piloter. Le bouton n'était lié à rien et son appui ne changeait rien
+ *    (Frank, BP3 de button-uno).
+ * Le montage vers la masse est examiné d'abord : quand la broche porte un
+ * rappel externe vers le PLUS, c'est bien un bouton/masse, pas l'inverse.
  */
 export function buttonBindings(diagram: Diagram): ButtonBinding[] {
   const nets = buildNets(diagram);
@@ -2380,7 +2398,13 @@ export function buttonBindings(diagram: Diagram): ButtonBinding[] {
     const gndA = netHasGnd(diagram, nets, netA);
     const gndB = netHasGnd(diagram, nets, netB);
 
-    if (mcuA && gndB) bindings.push({ partId: part.id, mcuPin: mcuA });
+    if (mcuA && gndB && !gndA) bindings.push({ partId: part.id, mcuPin: mcuA });
+    else if (mcuB && gndA && !gndB) bindings.push({ partId: part.id, mcuPin: mcuB });
+    else if (mcuA && netHasVcc(diagram, nets, netB)) {
+      bindings.push({ partId: part.id, mcuPin: mcuA, activeHigh: true });
+    } else if (mcuB && netHasVcc(diagram, nets, netA)) {
+      bindings.push({ partId: part.id, mcuPin: mcuB, activeHigh: true });
+    } else if (mcuA && gndB) bindings.push({ partId: part.id, mcuPin: mcuA });
     else if (mcuB && gndA) bindings.push({ partId: part.id, mcuPin: mcuB });
   }
   return bindings;

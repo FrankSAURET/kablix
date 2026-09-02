@@ -2539,27 +2539,32 @@ function bindInputs(): void {
   // TOUS les boutons sont suivis, pas seulement ceux câblés sur une broche :
   // l'appui FERME un contact que le modèle prend en compte (courant, réseaux RC).
   heldButtons.clear();
-  const buttonPin = new Map(buttonBindings(editor.diagram).map((b) => [b.partId, b.mcuPin]));
+  const buttonBind = new Map(buttonBindings(editor.diagram).map((b) => [b.partId, b]));
   for (const part of editor.diagram.parts) {
     if (partDef(part.type).kind !== 'pushbutton') continue;
     const el = editor.elementOf(part.id);
     if (!el) continue;
-    // L'entrée suit directement l'état enfoncé du bouton : appui = LOW, relâché
-    // = HIGH (pull-up). Un clic simple est transitoire ; Ctrl+clic maintient le
-    // bouton enfoncé (mode « sticky » natif de l'élément : aucun relâchement
-    // n'est émis), ce qui permet de le laisser dans cet état pour déboguer.
-    const mcuPin = buttonPin.get(part.id);
-    if (mcuPin) engine.setInput(mcuPin, true); // au repos = pull-up (haut)
+    // L'entrée suit directement l'état enfoncé du bouton. Montage courant
+    // (bouton vers la masse) : appui = LOW, relâché = HIGH. Montage inverse
+    // (bouton vers le plus, rappel à la masse) : c'est exactement le contraire —
+    // `activeHigh` dit lequel des deux, et le repos est toujours l'inverse de
+    // l'appui. Un clic simple est transitoire ; Ctrl+clic maintient le bouton
+    // enfoncé (mode « sticky » natif de l'élément : aucun relâchement n'est
+    // émis), ce qui permet de le laisser dans cet état pour déboguer.
+    const bind = buttonBind.get(part.id);
+    const mcuPin = bind?.mcuPin;
+    const niveauAppui = bind?.activeHigh === true;
+    if (mcuPin) engine.setInput(mcuPin, !niveauAppui); // au repos = l'inverse de l'appui
     // Appui prolongé d'au moins MIN_PRESS_MS : un clic bref reste vu par le firmware.
     const { press, release, cancel } = minHoldPress(
       () => {
         heldButtons.add(part.id);
-        if (mcuPin) engine?.setInput(mcuPin, false);
+        if (mcuPin) engine?.setInput(mcuPin, niveauAppui);
         queueRefresh(); // le contact fermé change le circuit dès maintenant
       },
       () => {
         heldButtons.delete(part.id);
-        if (mcuPin) engine?.setInput(mcuPin, true);
+        if (mcuPin) engine?.setInput(mcuPin, !niveauAppui);
         queueRefresh();
       }
     );

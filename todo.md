@@ -1,12 +1,27 @@
 # À faire
-1. Deux chiffres à trancher sur le multimètre (voir v2026.9.0.41) : la LED rouge est à **1,8 V** dans la table du logiciel (tu comptes 1,6 V), et la sortie de la carte a **25 Ω** de résistance interne, donc M1 lit **4,77 V** et non 5,00 V pile. Dis lequel des deux tu veux voir changer — ou aucun.
-1. le programme de test button-uno.projix montre que le bouton BP3 n'est jamais détecté parce que IO3 n'est jamais lu à NL1.
+1. Quand j'ouvre un nouveau dossier à partir de vscode il veut toujours enregistrer un fichier nouveauprojet.projix alors qu'il n'y en a pas d'ouvert.
+1. commit et push
 ## ne pas faire pour l'instant
-1. Reroucher carte arduino déclage de textes
+1. Retoucher carte arduino décalage de textes
 1. Voir pour mise à jour de avr8js en 0.21.1
 1. On voit toujours le point jaune quand on veut déplacer l'extrémité de connexion d'un fil. On ne devrait voir que le point blanc et vert si le fil est sélectionné.
 1. Des fil noirs peuvent se superposer à d'autre couleurs.
 
+
+# >>>>  v2026.9.0.42 — Le bouton branché à l'envers existe enfin
+
+1. ✅ **BP3 n'était relié à RIEN** (item 2). Le logiciel ne reconnaissait qu'UN seul câblage de bouton : un côté sur une broche, l'autre côté à la masse. Le tien est le montage inverse — un côté au **+5 V**, l'autre sur la broche D3 avec une résistance de 10 kΩ qui la ramène à la masse. Ce montage-là n'était pas dans la liste, donc appuyer sur BP3 ne touchait aucune broche : D3 ne montait jamais à 1.
+2. ✅ **Et la résistance de rappel brouillait la piste.** Pour le logiciel, une résistance est un simple fil quand il cherche « qui est relié à quoi » : le côté D3 du bouton comptait donc comme **de la masse**, à travers les 10 kΩ. Les deux côtés du bouton semblaient être « masse » et « plus » — pas de broche à piloter, pas de bouton. Le repérage regarde maintenant les DEUX sens ([model.mts](src/webview/diagram/model.mts)).
+3. ✅ **Le sens de l'appui suit le montage** : bouton vers la masse → repos haut, appui bas (le classique `INPUT_PULLUP`) ; bouton vers le plus → repos bas, appui **haut**. C'est le nouveau drapeau `activeHigh`, relu au lancement de la simulation ([sim.mts](src/webview/sim.mts)).
+4. ✅ **Le montage vers la masse garde la priorité.** Un bouton vers la masse avec un rappel externe vers le plus a lui aussi ses deux côtés « mixtes » : c'est bien un appui à niveau bas, et il est examiné en premier pour qu'aucun montage existant ne change de sens.
+5. ✅ **Le programme de test lisait la mauvaise broche** : `int BP = 5` alors que BP3 est câblé sur D3 ([button-uno.ino](testkablix/Arduino/button-uno/button-uno.ino)). Corrigé sur place, sans toucher au schéma ni à `_spec.mjs` — ta planche garde ses emplacements.
+6. ✅ **Cinq contrôles neufs** ([verify:diagram](scripts/verify-diagram.mjs)) : le bouton classique et son sens, le bouton vers le plus lié à D3 avec appui haut, et la contre-épreuve du rappel externe au plus qui ne doit PAS retourner le sens.
+7. ✅ **Les deux fiches d'aide FR** disent maintenant les deux montages, avec la résistance de 10 kΩ et la mise en garde sur la broche laissée en l'air ([button.md](docs/fr/composants/button.md), [button-6mm.md](docs/fr/composants/button-6mm.md)). ⏳ Version EN en attente de publication, comme la règle le veut.
+8. ℹ️ **Les deux chiffres du multimètre : tu as répondu « Aucun »** (item 1 du lot précédent). La LED rouge reste à 1,8 V et la sortie de carte garde ses 25 Ω — donc M1 à 4,77 V, M2 à 2,97 V, M3 à 1,80 V et M4 à 8,99 mA. Rien à changer.
+9. ✅ **Suite complète rejouée : 102 bancs sur 102 au vert** (432 s), plus typecheck et construction complète.
+10. ℹ️ **Script d'appoint** `_tmp-repro-bp3.mjs` rangé dans `A Examiner/scripts/` — rien n'est effacé.
+
+---
 # >>>>  v2026.9.0.41 — La LED existe enfin pour le multimètre
 
 1. ✅ **La LED n'était PAS dans le circuit** (item 1, ton schéma `jauneRouge`). Le calculateur électrique du logiciel connaît les résistances, les diodes, les bobines… mais pas les LED. Une LED au milieu d'une branche, c'était donc un **trou** : le courant s'arrêtait là. D'où tes quatre relevés faux — M2 à 0 V, M3 à 5 V, et M4 qui n'affichait **rien du tout**.

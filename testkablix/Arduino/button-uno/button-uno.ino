@@ -2,7 +2,7 @@
 bool appuye;
 bool appuye2;
 bool appuye3;
-int BP = 5;
+int BP = 3;   // BP3 : bouton vers le +5 V, rappel 10 k vers la masse
 
 void setup(){
   pinMode(2, INPUT_PULLUP);

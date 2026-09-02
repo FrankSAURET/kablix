@@ -21,7 +21,8 @@ Bouton tactile 12 mm momentané. Au repos le circuit est ouvert ; appuyé, il re
 
 ## Utilisation
 
-- Montage : un contact vers une broche en **`INPUT_PULLUP`**, l'autre à la masse → lecture `LOW` à l'appui.
+- Montage courant : un contact vers une broche en **`INPUT_PULLUP`**, l'autre à la masse → lecture `LOW` à l'appui.
+- Montage inverse : un contact vers le **+5 V**, l'autre vers une broche en **`INPUT`** avec une résistance de **10 kΩ** de cette broche à la masse → lecture `HIGH` à l'appui. Sans cette résistance la broche reste en l'air au repos, et sa lecture ne veut rien dire.
 - **Ctrl+clic** : maintient le bouton enfoncé.
 - Prévoir un **anti-rebond**.
 
