@@ -21,7 +21,8 @@
 
 ## Usage
 
-- Wiring: one contact to a pin in **`INPUT_PULLUP`**, the other to ground → reads `LOW` when pressed.
+- Common wiring: one contact to a pin in **`INPUT_PULLUP`**, the other to ground → reads `LOW` when pressed.
+- Reverse wiring: one contact to **+5 V**, the other to a pin in **`INPUT`** with a **10 kΩ** resistor from that pin to ground → reads `HIGH` when pressed. Without that resistor the pin floats at rest, and reading it means nothing.
 - **Ctrl+click**: keeps the button held down.
 - Provide **debouncing**.
 

@@ -20,7 +20,8 @@ Small 6 mm tactile button, same behavior as the 12 mm button.
 
 ## Usage
 
-- Same as the 12 mm button: `INPUT_PULLUP` + ground.
+- Same as the 12 mm button: `INPUT_PULLUP` + ground (pressed = `LOW`), or the reverse
+  wiring to **+5 V** with a **10 kΩ** pull-down to ground (pressed = `HIGH`).
 - Debouncing recommended.
 
 ---

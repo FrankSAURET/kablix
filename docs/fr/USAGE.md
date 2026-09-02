@@ -675,6 +675,23 @@ Trois garde-fous :
 
 Pour couper la synchronisation : réglage **`kablix.syncArduinoIdeBoard`** (actif par défaut).
 
+### Plus rien de souligné en rouge dans le code
+
+Un sketch `.ino` n'est pas du C++ de bureau, et un programme MicroPython n'est pas du Python de bureau. Sans un coup de pouce, l'analyseur de VS Code ne connaît ni `Serial` ni `pinMode` d'un côté, ni `machine` ni `neopixel` de l'autre : tout se retrouve souligné alors que le programme est bon. Kablix pose ce coup de pouce tout seul, parce qu'il sait de quelle carte on parle.
+
+- **Carte Arduino** (Uno, Nano, Mega) : juste après avoir écrit la carte dans `.vscode/arduino.yaml`, Kablix demande à **`electropol-fr.arduino-vscode-ide`** de refabriquer sa configuration IntelliSense pour cette carte-là. C'est elle qui écrit `.vscode/c_cpp_properties.json` ; Kablix n'y touche jamais.
+- **Carte Pico** (Pico, Pico W, Pico 2, Pico 2 W) : Kablix montre à Pylance le dossier de **déclarations MicroPython** livré avec l'extension **MicroPico** (`paulober.pico-w-go`). Trois réglages sont ajoutés dans le `.vscode/settings.json` du dossier de travail : `python.analysis.extraPaths`, `python.analysis.typeshedPaths` et `reportMissingModuleSource` à `none` — ce dernier parce que les déclarations sont des fiches `.pyi` sans code source : le vrai module vit dans la puce, il est normal de ne pas le trouver sur le disque.
+
+Trois garde-fous, là encore :
+
+- **Rien n'est écrasé** : vos propres chemins et vos propres réglages de diagnostic sont conservés, Kablix n'ajoute que ce qui manque.
+- **Rien n'est écrit** si l'extension correspondante n'est pas installée, ou si tout est déjà en place.
+- **Une fois par carte et par dossier** : rouvrir un projet ne relance pas le travail.
+
+Pour couper cette mise au point : réglage **`kablix.syncIntelliSense`** (actif par défaut).
+
+> L'extension **`raspberry-pi.raspberry-pi-pico`** sert au C/C++ du SDK Pico, pas au MicroPython : elle ne joue aucun rôle dans le soulignement d'un `.py`. C'est bien **MicroPico** qui apporte les déclarations.
+
 ## Raccourcis clavier
 
 | Touche                                       | Action                                                                                               |

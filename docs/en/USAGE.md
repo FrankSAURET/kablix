@@ -675,6 +675,23 @@ Three safeguards:
 
 To turn the synchronization off: the **`kablix.syncArduinoIdeBoard`** setting (on by default).
 
+### Nothing underlined in red in your code any more
+
+An `.ino` sketch is not desktop C++, and a MicroPython program is not desktop Python. Without a hint, the VS Code analyzer knows neither `Serial` nor `pinMode` on one side, nor `machine` nor `neopixel` on the other: everything ends up underlined although the program is fine. Kablix sets that hint on its own, because it knows which board you picked.
+
+- **Arduino board** (Uno, Nano, Mega): right after writing the board into `.vscode/arduino.yaml`, Kablix asks **`electropol-fr.arduino-vscode-ide`** to rebuild its IntelliSense configuration for that very board. That extension owns `.vscode/c_cpp_properties.json`; Kablix never touches it.
+- **Pico board** (Pico, Pico W, Pico 2, Pico 2 W): Kablix points Pylance at the **MicroPython declarations** shipped with the **MicroPico** extension (`paulober.pico-w-go`). Three settings are added to the workspace folder's `.vscode/settings.json`: `python.analysis.extraPaths`, `python.analysis.typeshedPaths` and `reportMissingModuleSource` set to `none` — the last one because those declarations are `.pyi` files with no source code: the real module lives inside the chip, so not finding it on disk is expected.
+
+Three safeguards here too:
+
+- **Nothing is overwritten**: your own paths and your own diagnostic settings are kept, Kablix only adds what is missing.
+- **Nothing is written** when the matching extension is not installed, or when everything is already in place.
+- **Once per board and per folder**: reopening a project does not redo the work.
+
+To turn this off: the **`kablix.syncIntelliSense`** setting (on by default).
+
+> The **`raspberry-pi.raspberry-pi-pico`** extension targets the Pico C/C++ SDK, not MicroPython: it plays no part in what gets underlined in a `.py` file. **MicroPico** is the one that brings the declarations.
+
 ## Keyboard shortcuts
 
 | Key                                  | Action                                                                                |

@@ -142,6 +142,14 @@ const RIDE = 0.75;
  * pas — se serrer à 2 px coûtait moins cher que le moindre détour.
  */
 const WIRE_SEP = 6;
+/**
+ * PLANCHER absolu entre les axes de deux fils parallèles d'équipotentielles
+ * différentes : la largeur du trait (3 px). À 3 px d'axe à axe les deux traits se
+ * TOUCHENT — c'est autorisé (règle de Frank) ; en dessous ils se RECOUVRENT — c'est
+ * interdit, sans exception. WIRE_SEP reste l'écart confortable visé ; WIRE_MIN est
+ * ce à quoi on retombe quand le confort ne passe pas.
+ */
+const WIRE_MIN = 3;
 /** Dimensions de la feuille de dessin (px monde) : origine (0,0) = coin
  * haut-gauche, centre = (SHEET_W/2, SHEET_H/2). Finie pour que « centrer la
  * feuille » ait un sens (bords jaunes visibles en vue ajustée). */
@@ -4263,10 +4271,14 @@ export class Editor {
       const prev = (leg: XY[] | null, pin: XY): XY => (leg && leg.length > 1 ? leg[leg.length - 2] : pin);
       // Deux passes : la première impose l'écart mini (WIRE_SEP) entre fils de
       // nets différents ; si AUCUNE combinaison de sorties n'aboutit — coin
-      // encombré, passage d'un seul pas de grille — on refait tout sans cette
-      // contrainte. Sinon l'A\* rendait les armes et l'appelant retombait sur un
+      // encombré, passage d'un seul pas de grille — on refait tout à l'écart
+      // minimal. Sinon l'A\* rendait les armes et l'appelant retombait sur un
       // coude en L de repli, qui se couche sur les fils bien plus laidement.
-      for (const sep of [WIRE_SEP, 0]) {
+      // Passe de secours au PLANCHER (WIRE_MIN) et non plus sans contrainte : les
+      // deux traits ont le droit de se TOUCHER, jamais de se recouvrir. À 0, deux
+      // fils de nets différents pouvaient finir à 1 px l'un de l'autre — l'œil n'en
+      // voyait plus qu'un (les fils noirs couchés sur les couleurs, repro Frank).
+      for (const sep of [WIRE_SEP, WIRE_MIN]) {
         for (const ca of saCands) {
           for (const cb of sbCands) {
             const path = astarRoute(tip(ca, a), tip(cb, b), solidObs, otherSegs, {
@@ -4327,8 +4339,14 @@ export class Editor {
           candidates.push([{ x: pa.x, y: midY + o }, { x: pb.x, y: midY + o }]);
         }
         inner = pick(candidates);
-      } else if (polylineWireCost([a, pa, pb, b], otherSegs, GAP).overlap > TOL) {
-        // Tracé droit qui se superposerait à un fil aligné : on insère un créneau
+      } else if (
+        (() => {
+          const w = polylineWireCost([a, pa, pb, b], otherSegs, GAP, WIRE_MIN);
+          return w.overlap > TOL || w.tight > TOL;
+        })()
+      ) {
+        // Tracé droit qui se superposerait à un fil aligné — ou qui s'y collerait à
+        // moins d'une largeur de trait, ce qui se voit pareil : on insère un créneau
         // (bosse perpendiculaire) pour le décaler, du côté le plus dégagé.
         const horizontal = Math.abs(pa.y - pb.y) <= TOL;
         const cands: XY[][] = [[]];
@@ -4425,6 +4443,12 @@ export class Editor {
           polylineRectOverlap(poly, thirdParty) +
           deepEnds(poly) +
           polylineWireCost(poly, otherSegs, GAP).overlap +
+          // Deux traits qui se RECOUVRENT (moins d'une largeur de fil d'axe à axe)
+          // sont un défaut au même titre qu'un chevauchement pur : sans ça, le
+          // garde-fou gardait un fil collé à son voisin alors que le rerouté était
+          // propre. Mesuré au PLANCHER (WIRE_MIN), pas au confort : perdre du
+          // confort n'est pas un défaut, se superposer si.
+          polylineWireCost(poly, otherSegs, GAP, WIRE_MIN).tight +
           onPin +
           // Recouvrir un trou de platine est un défaut comme un autre : sans ça,
           // le sauvetage anti-coudes pouvait remplacer un fil propre par un tracé
@@ -7410,12 +7434,14 @@ function parallelTooClose(a: XY, b: XY, c: XY, d: XY, sep: number): number {
 }
 
 /** Coût d'une polyligne vis-à-vis des segments d'autres fils : longueur totale de
- *  chevauchement colinéaire, longueur de côtoiement trop serré (< WIRE_SEP) et
- *  somme des pénalités de proximité (< gap). */
+ *  chevauchement colinéaire, longueur de côtoiement trop serré (< `sep`, par défaut
+ *  WIRE_SEP) et somme des pénalités de proximité (< gap). Passer WIRE_MIN à `sep`
+ *  ne compte QUE le vrai recouvrement de traits, pas le simple manque de confort. */
 function polylineWireCost(
   pts: XY[],
   segs: Array<[XY, XY]>,
-  gap: number
+  gap: number,
+  sep: number = WIRE_SEP
 ): { overlap: number; near: number; tight: number } {
   let overlap = 0;
   let near = 0;
@@ -7424,7 +7450,7 @@ function polylineWireCost(
     for (const [c, d] of segs) {
       overlap += collinearOverlap(pts[i], pts[i + 1], c, d);
       near += parallelPenalty(pts[i], pts[i + 1], c, d, gap);
-      tight += parallelTooClose(pts[i], pts[i + 1], c, d, WIRE_SEP);
+      tight += parallelTooClose(pts[i], pts[i + 1], c, d, sep);
     }
   }
   return { overlap, near, tight };
@@ -7583,10 +7609,11 @@ function astarRoute(
     pins?: XY[];
     holes?: (p: XY, q: XY) => number;
     /**
-     * Écart mini IMPOSÉ avec un fil d'un autre net (défaut WIRE_SEP). À 0, la
-     * contrainte tombe : c'est le second essai de l'appelant quand le premier
-     * n'a rien trouvé — dans un coin encombré, mieux vaut un fil un peu serré
-     * qu'un coude en L de repli qui traverse la moitié du schéma.
+     * Écart mini IMPOSÉ avec un fil d'un autre net (défaut WIRE_SEP). L'appelant
+     * retombe à WIRE_MIN — la largeur du trait — quand le confort ne passe pas :
+     * dans un coin encombré, mieux vaut deux fils qui se touchent qu'un coude en L
+     * de repli qui traverse la moitié du schéma. Jamais 0 : à 0 la contrainte tombe
+     * complètement et les traits se recouvrent.
      */
     sep?: number;
     /**

@@ -4,6 +4,9 @@
 // broches (circle/ellipse id="pin-*"), leurs libellés rouges, la grille, le
 // namedview ; garde le dessin + ses defs. viewBox conservé (= repère des broches).
 // Usage : node scripts/_clean-board-svg.mjs mega [uno ...]
+//         node scripts/_clean-board-svg.mjs --inplace uno   (Frank a retouché
+//         directement src/webview/composants/externe/uno.svg dans Inkscape :
+//         on relit ce fichier-là et on le réécrit nettoyé, au même endroit)
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
@@ -16,8 +19,10 @@ const OUTDIR = join(ROOT, 'src/webview/composants/externe');
 mkdirSync(OUTDIR, { recursive: true });
 const RETOUCHE = join(ROOT, 'svg retouche');
 
-const types = process.argv.slice(2);
-if (types.length === 0) { console.error('Usage: node scripts/_clean-board-svg.mjs <type> [...]'); process.exit(1); }
+const args = process.argv.slice(2);
+const INPLACE = args.includes('--inplace');
+const types = args.filter((a) => !a.startsWith('--'));
+if (types.length === 0) { console.error('Usage: node scripts/_clean-board-svg.mjs [--inplace] <type> [...]'); process.exit(1); }
 
 // Retrouve le fichier réel pour un type (avec/sans suffixe d'état OK/ok/PB).
 function findSvg(t) {
@@ -32,7 +37,8 @@ function findSvg(t) {
 
 let bodies = '';
 for (const t of types) {
-  const svg = readFileSync(join(RETOUCHE, findSvg(t)), 'utf8').replace(/<\?xml[^>]*\?>/, '');
+  const src = INPLACE ? join(OUTDIR, `${t}.svg`) : join(RETOUCHE, findSvg(t));
+  const svg = readFileSync(src, 'utf8').replace(/<\?xml[^>]*\?>/, '');
   bodies += `<div class="wrap" data-type="${t}">${svg}</div>`;
 }
 const script = `

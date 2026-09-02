@@ -904,9 +904,19 @@ rows.push({
 	detail: 'sans blocage dur, l A* se colle au fil voisin : c est toujours moins cher qu un détour',
 });
 rows.push({
-	name: 'écart mini : second essai sans la contrainte si l A* ne trouve rien',
-	ok: /for \(const sep of \[WIRE_SEP, 0\]\)/.test(src),
-	detail: 'un couloir d un seul pas de grille rendait l A* muet, et le coude de repli était pire',
+	name: 'écart mini : second essai au PLANCHER (WIRE_MIN), jamais sans contrainte',
+	ok: /const WIRE_MIN = 3;/.test(src) && /for \(const sep of \[WIRE_SEP, WIRE_MIN\]\)/.test(src),
+	detail: 'à sep=0 le second essai laissait deux nets différents se recouvrir (fils noirs couchés sur les couleurs)',
+});
+rows.push({
+	name: 'plancher : deux traits ont le droit de se TOUCHER, jamais de se recouvrir',
+	ok: /sep: number = WIRE_SEP/.test(src) && /parallelTooClose\(pts\[i\], pts\[i \+ 1\], c, d, sep\)/.test(src),
+	detail: 'polylineWireCost figeait WIRE_SEP : impossible de mesurer le seul vrai recouvrement',
+});
+rows.push({
+	name: 'garde-fou « ne jamais dégrader » : un fil COLLÉ compte comme un défaut',
+	ok: /polylineWireCost\(poly, otherSegs, GAP, WIRE_MIN\)\.tight/.test(src),
+	detail: 'flaws() ne comptait que le chevauchement pur : un fil collé à son voisin était gardé',
 });
 rows.push({
 	name: 'partage de broche : l exemption se juge sur la BROCHE, pas sur le bout de patte',

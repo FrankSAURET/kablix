@@ -1,17 +1,40 @@
 # À faire
-1. J'ai retouché le fichier src\webview\composants\externe\uno.svg - Pas grand chose, juste uin décalage de texte - Intègre les modifications.
-1. Des fil noirs peuvent se superposer à d'autre couleurs. Renforce la règle : 2 fils ne peuvent pas se superposer sauf s'ils appartiennent au même noeud. Ne pas se superposer veut dire se toucher est possible (espace entre le centre des fils = largeur des fils)
-1. Je voudrais que pour les environnements arduino et uno, la coloration syntaxique soit toujours valide (plus d'erreur ni soulignement). Comment faire ? Sachant que j'ai obligatoirement les extensions `Arduino VsCode IDE` et `Raspberry Pi Pico`.
-1. mise à jour de avr8js en 0.21.1. Est-ce interessant de la faire ?
-1. J'avais lancé une autre session en paralllèle tu trouvera donc des modifications dont tu n'est pas l'auteur.
-1. commit et push
-1. Préparation pour une publication
+1. **Fil tracé à la main** : l'autoroutage ne part QUE sur le bouton de la barre d'outils. Un fil que tu poses toi-même garde son tracé, même s'il chevauche un voisin. Veux-tu que la règle s'applique aussi **pendant le tracé** (le fil se décale tout seul quand tu le poses) ?
+2. **CHANGELOG** : la section `2026.9.0` est déjà écrite (ton enregistrement f2ac9fa). Dis-moi si j'y ajoute les lots .41 à .45 — LED vue par le multimètre, bouton branché à l'envers, atelier vierge, rotation d'un quart de tour, fils qui ne se recouvrent plus, coloration syntaxique toujours valide.
+3. **Paquet `.vsix`** et **publication** : rien ne se construit et rien ne part sans ton feu vert écrit.
 ## ne pas faire pour l'instant
 
 
 
 
+# >>>>  v2026.9.0.45 — Deux fils ne se recouvrent plus, et le code n'est plus souligné en rouge
 
+1. ✅ **Ton uno.svg retouché est intégré** (item 1). Le fichier sortait d'Inkscape avec tout son bagage (couches, calques de travail, en-tête de 60 lignes) : il est passé au nettoyeur maison en place ([_clean-board-svg.mjs](scripts/_clean-board-svg.mjs) gagne un mode `--inplace`), ton décalage de texte conservé au pixel. La carte reste à sa taille, les pastilles n'ont pas bougé d'un poil.
+
+2. ✅ **Deux fils ne peuvent plus se recouvrir** (item 2). La règle est celle que tu as dictée : **se toucher est permis** (les deux traits côte à côte, axes distants de la largeur du trait, 3 px), **se chevaucher est interdit** — sauf entre fils du **même nœud**, qui ont le droit d'être confondus puisqu'ils portent la même tension.
+3. ✅ **Le trou principal : la deuxième tentative du chercheur de chemin baissait la garde à ZÉRO.** Quand l'écart confortable de 6 px ne passait pas, il refaisait le calcul **sans aucune contrainte** — donc un fil pouvait se coucher pile sur un autre. Il retombe maintenant sur un **plancher** (`WIRE_MIN` = 3 px, la largeur du trait) au lieu de zéro ([editor.mts](src/webview/diagram/editor.mts)).
+4. ✅ **Deuxième trou : le juge de qualité ne comptait pas les fils trop serrés.** La fonction qui note un tracé additionnait les recouvrements francs, mais oubliait les « collés à moins de 3 px ». Un fil noir posé sur un fil jaune récoltait donc une note parfaite. Le comptage des serrés entre maintenant dans la note.
+5. ✅ **Troisième trou : le créneau de contournement.** Quand un fil droit ne passait pas, le routeur essayait un petit crochet — mais il ne déclenchait ce crochet que sur un recouvrement franc, jamais sur un simple « trop près ». Les deux cas le déclenchent désormais.
+6. ✅ **Contre-épreuve à froid, la plus dure qui soit** : **60 schémas de `testkablix/` retracés de zéro** (tous les fils effacés, le routeur repart de rien, c'est bien lui qu'on juge) — **0 fil superposé, 0 fil collé**. Avant le correctif, le même essai en sortait plusieurs par schéma.
+7. ✅ **Banc `verify:route` renforcé** : trois contrôles neufs verrouillent les trois trous bouchés, pour qu'ils ne se rouvrent pas. 73 contrôles au vert.
+
+8. ✅ **Plus rien de souligné en rouge dans le code** (item 3). Un sketch `.ino` n'est pas du C++ de bureau et un programme Pico n'est pas du Python de bureau : sans coup de pouce, l'analyseur de VS Code ne connaît ni `Serial` ni `pinMode`, ni `machine` ni `neopixel`. Kablix pose ce coup de pouce tout seul, puisqu'il sait de quelle carte on parle ([intellisense.ts](src/intellisense.ts)).
+9. ✅ **Carte Arduino** : juste après avoir écrit la carte dans `.vscode/arduino.yaml`, Kablix demande à ton extension **Arduino VS Code IDE** de refabriquer sa configuration IntelliSense pour CETTE carte. C'est elle qui possède `c_cpp_properties.json` ; Kablix n'y touche jamais.
+10. ✅ **Carte Pico** : Kablix montre à Pylance le dossier de déclarations MicroPython livré avec **MicroPico** (`paulober.pico-w-go`) — trois réglages ajoutés dans le `settings.json` du dossier de travail, dont `reportMissingModuleSource` à `none`, parce que ces déclarations n'ont pas de code source : le vrai module vit dans la puce.
+11. ℹ️ **Ton extension `Raspberry Pi Pico` ne joue aucun rôle ici** : elle sert au C/C++ du SDK, pas au MicroPython. C'est **MicroPico** qui apporte les déclarations — si elle n'est pas installée, Kablix n'écrit rien et se tait.
+12. ✅ **Trois garde-fous** : rien n'est écrasé (tes propres chemins sont gardés, on n'ajoute que ce qui manque), rien n'est écrit si l'extension n'est pas là ou si tout est déjà en place, et le travail ne se fait **qu'une fois par carte et par dossier**. Réglage `kablix.syncIntelliSense` pour couper, actif par défaut.
+13. ✅ **Banc neuf `verify:intellisense`** (34 contrôles) avec son faux VS Code : extension absente, réglages déjà posés, réglages de l'utilisateur préservés, une seule écriture par carte. La suite passe à **104 bancs**.
+14. ✅ **Aide mise à jour** en FR et en EN ([USAGE.md](docs/fr/USAGE.md)).
+
+15. ✅ **avr8js passé en 0.21.1** (item 4). Tu demandais si ça valait le coup : **oui, sans risque**. La nouveauté tient en un caractère — dans le convertisseur analogique-numérique, un test écrit `oldValue && ADEN` au lieu de `oldValue & ADEN`. Le premier demande « l'ancienne valeur n'est-elle pas nulle ? », le second « le convertisseur était-il allumé ? ». Le bon test est le second.
+16. ℹ️ **Effet visible : quasi nul** — il faut éteindre puis rallumer le convertisseur au même instant pour voir la différence. Mais c'est gratuit et ça ne casse rien : typecheck, construction et suite complète au vert après la mise à jour.
+
+17. ✅ **Modifications de ta session parallèle récupérées** (item 5) : c'est ton enregistrement f2ac9fa (CHANGELOG, uno.svg brut, `button-uno.projix`, todo.md). Tout est déjà en place, rien ne traînait.
+
+18. ✅ **Préparation de publication** (item 7) : les **traductions sont complètes** — 190 chaînes du code toutes présentes en FR (209 clés), les 79 fiches d'aide existent en FR **et** en EN, et les 7 composants de bibliothèque ont leur bloc `l10n`. Les fiches du bouton et l'aide générale ont reçu leur version EN dans ce lot.
+19. ⏳ **Ce qui attend TON feu vert** : le CHANGELOG (les lots .41 à .45 n'y sont pas), la construction du `.vsix`, et bien sûr l'envoi au magasin. Rien de tout ça ne part tout seul.
+
+---
 # >>>>  v2026.9.0.44 — Un quart de tour par clic, et plus de jaune sous la poignée
 
 1. ✅ **Les deux boutons de rotation tournent d'un quart de tour** (item 1). Un clic = 90°, donc quatre clics font le tour complet. C'est le geste courant : poser une pièce debout ou couchée ([editor.mts](src/webview/diagram/editor.mts)).

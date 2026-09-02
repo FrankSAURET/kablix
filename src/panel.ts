@@ -31,6 +31,7 @@ import { showPartHelp } from './partHelp';
 import { codeColumn, moveEditorToColumn, textTabColumn } from './layout';
 import { defaultAppsDirPath, detectSvgEditor, svgEditorLaunch } from './svgEditorDetect';
 import { syncArduinoIdeBoard } from './arduinoIde';
+import { syncIntelliSense } from './intellisense';
 import { versionPublique } from './version';
 import { PicoNetServer, lanAddress, enHexa, depuisHexa } from './netserver';
 
@@ -398,10 +399,16 @@ export class SimulatorPanel {
    * ouverture d'un projet, restauration d'un onglet) : une carte Arduino est
    * aussitôt reportée dans l'extension « Arduino VS Code IDE » si elle est
    * installée, pour que le sketch .ino soit reconnu sans la re-choisir là-bas.
+   *
+   * Dans la foulée, l'analyse de code est mise au point pour cette carte
+   * (intellisense.ts) : c_cpp_properties.json régénéré côté .ino, déclarations
+   * MicroPython montrées à Pylance côté Pico. L'ordre compte — la carte doit
+   * être écrite dans arduino.yaml AVANT que l'extension d'en face la relise.
    */
   private setCurrentBoard(board: Board): void {
     this.currentBoard = board;
-    void syncArduinoIdeBoard(board, this.codeFileUri ?? this.projectUri ?? this.documentUri);
+    const hint = this.codeFileUri ?? this.projectUri ?? this.documentUri;
+    void syncArduinoIdeBoard(board, hint).then(() => syncIntelliSense(board, hint));
   }
 
 
