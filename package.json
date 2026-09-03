@@ -2,7 +2,7 @@
   "name": "kablix",
   "displayName": "Kablix",
   "version": "2026.9.1",
-  "buildNumber": 46,
+  "buildNumber": 47,
   "description": "%kablix.description%",
   "publisher": "electropol-fr",
   "author": {
@@ -296,6 +296,11 @@
           "type": "boolean",
           "default": true,
           "description": "%kablix.config.syncIntelliSense%"
+        },
+        "kablix.showArduinoOutput": {
+          "type": "boolean",
+          "default": false,
+          "description": "%kablix.config.showArduinoOutput%"
         },
         "kablix.componentsFolder": {
           "type": "string",

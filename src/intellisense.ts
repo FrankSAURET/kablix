@@ -32,6 +32,24 @@ export const MICROPICO_EXTENSION_ID = 'paulober.pico-w-go';
 /** Commande de l'extension Arduino qui régénère `.vscode/c_cpp_properties.json`. */
 const ARDUINO_REBUILD = 'arduino.rebuildIntelliSenseConfig';
 
+/** Réglage utilisateur : laisser la fenêtre de sortie s'ouvrir. Muet par défaut. */
+const SHOW_OUTPUT_SETTING = 'kablix.showArduinoOutput';
+
+/** Commande VS Code qui referme le panneau du bas (sortie, terminal, problèmes). */
+const CLOSE_PANEL = 'workbench.action.closePanel';
+
+/**
+ * Instants (ms) où le panneau est refermé après une analyse demandée par
+ * Kablix. Trois passages, pas un de plus : l'extension d'en face montre sa
+ * sortie à CHAQUE compilation, analyse comprise — et elle re-analyse toute
+ * seule ~5 s après un changement de carte (son `arduino.analyzeOnSettingChange`),
+ * donc la sortie se rouvre une deuxième fois, bien après notre appel.
+ *
+ * Passé la dernière échéance, Kablix ne touche plus à rien : les boutons
+ * « Vérifier » et « Téléverser » ouvrent la sortie comme d'habitude.
+ */
+const MASQUAGES_MS = [0, 7000, 11000];
+
 /** Dossier des déclarations MicroPython livré dans MicroPico. */
 const STUBS_DIR = 'mpy_stubs';
 
@@ -102,13 +120,47 @@ async function poserSiAbsent(
   return true;
 }
 
+/** Vrai si l'utilisateur veut VOIR la fenêtre de sortie pendant ce travail. */
+function sortieVisible(): boolean {
+  return vscode.workspace.getConfiguration().get<boolean>(SHOW_OUTPUT_SETTING, false);
+}
+
+/** Referme le panneau du bas, sans bruit si la commande n'existe pas. */
+async function fermerPanneau(): Promise<void> {
+  try {
+    await vscode.commands.executeCommand(CLOSE_PANEL);
+  } catch {
+    /* confort pur */
+  }
+}
+
+/**
+ * Rend la mise au point de l'analyse SILENCIEUSE : le panneau du bas est
+ * refermé tout de suite, puis aux deux échéances de `MASQUAGES_MS` — le temps
+ * que l'analyse différée de l'extension d'en face passe à son tour.
+ */
+function masquerSortieArduino(): void {
+  for (const delai of MASQUAGES_MS) {
+    if (delai === 0) {
+      void fermerPanneau();
+      continue;
+    }
+    const timer = setTimeout(() => void fermerPanneau(), delai);
+    timer.unref?.(); // un test ou une fermeture de fenêtre n'attend pas ces échéances
+  }
+}
+
 /**
  * Sketch `.ino` : demande à l'extension Arduino de régénérer sa configuration
  * IntelliSense pour la carte que Kablix vient d'écrire dans `arduino.yaml`.
  * Sans ça, cpptools analyse le sketch comme du C++ nu — `Serial`, `pinMode`,
  * `digitalWrite` sont alors autant de soulignements rouges.
+ *
+ * `silencieux` : referme la fenêtre de sortie que l'extension d'en face ouvre
+ * en analysant. Vrai pour le travail automatique (on n'a rien demandé, on ne
+ * veut rien voir), faux quand l'utilisateur a lancé la commande lui-même.
  */
-async function miseAuPointArduino(): Promise<boolean> {
+async function miseAuPointArduino(silencieux = false): Promise<boolean> {
   if (!vscode.extensions.getExtension(ARDUINO_IDE_EXTENSION_ID)) return false;
   const commandes = await vscode.commands.getCommands(true);
   if (!commandes.includes(ARDUINO_REBUILD)) return false;
@@ -117,6 +169,9 @@ async function miseAuPointArduino(): Promise<boolean> {
   // dans arduino.yaml (arduinoIde.ts vient de l'écrire) — sans elle l'analyse
   // abandonne EN SILENCE, et le .ino reste tout rouge.
   await vscode.commands.executeCommand(ARDUINO_REBUILD);
+  // La commande n'a la main qu'à la FIN de l'analyse : c'est le bon moment pour
+  // refermer, et pour compter les échéances de la re-analyse automatique.
+  if (silencieux) masquerSortieArduino();
   return true;
 }
 
@@ -175,7 +230,11 @@ export async function syncIntelliSense(board: Board, hint?: vscode.Uri): Promise
     const cle = `${folder.uri.toString()}|${board}`;
     if (dejaFait.has(cle)) return false;
     dejaFait.add(cle);
-    return arduinoIdeTarget(board) ? await miseAuPointArduino() : await miseAuPointMicroPython(folder);
+    // Travail automatique : silencieux SAUF si l'utilisateur a demandé à voir la
+    // fenêtre de sortie (réglage kablix.showArduinoOutput).
+    return arduinoIdeTarget(board)
+      ? await miseAuPointArduino(!sortieVisible())
+      : await miseAuPointMicroPython(folder);
   } catch {
     return false; // confort pur : jamais d'erreur remontée à l'utilisateur
   }
@@ -201,7 +260,9 @@ export async function remettreAuPoint(board: Board, hint?: vscode.Uri): Promise<
     if (!/^sketch:\s*\S/m.test(yaml ?? '')) {
       return vscode.l10n.t('Open the .ino sketch of this project first: without it the Arduino extension cannot build the IntelliSense configuration.');
     }
-    const fait = await miseAuPointArduino();
+    // Demande explicite : la fenêtre de sortie reste ouverte, c'est là qu'on lit
+    // ce que fait l'extension d'en face (et pourquoi elle échoue, le cas échéant).
+    const fait = await miseAuPointArduino(false);
     return fait
       ? vscode.l10n.t('IntelliSense configuration requested for the Arduino board. It appears in .vscode/c_cpp_properties.json after a few seconds.')
       : vscode.l10n.t('The Arduino extension did not answer: reload the window and try again.');

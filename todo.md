@@ -6,6 +6,19 @@
 
 
 
+# >>>>  v2026.9.1.47 — La fenêtre de sortie ne surgit plus au choix d'une carte
+
+1. ✅ **Choisir une carte Arduino n'ouvre plus la fenêtre de sortie** (item 1). La cause n'était pas dans Kablix : l'extension **Arduino VS Code IDE** montre son panneau **à chaque compilation**, et fabriquer la configuration IntelliSense EST une compilation (à blanc, juste pour lire les ordres du compilateur). Depuis que le lot .46 lui donne enfin le nom du croquis, cette compilation réussit — et le panneau surgit.
+2. ✅ **Kablix referme derrière lui** ([intellisense.ts](src/intellisense.ts)). La commande de reconstruction ne rend la main qu'à la FIN de l'analyse : c'est là qu'on referme le panneau du bas.
+3. ✅ **Et deux fois encore, 7 puis 11 secondes plus tard.** L'extension d'en face **re-analyse toute seule** environ 5 secondes après un changement de carte (son réglage `arduino.analyzeOnSettingChange`) : la sortie se rouvrait donc une deuxième fois, bien après notre passage. Trois fermetures au total, pas une de plus.
+4. ✅ **Passé la 11ᵉ seconde, Kablix ne touche plus à rien** : les boutons **Vérifier** et **Téléverser** ouvrent leur sortie exactement comme avant, c'est leur travail de la montrer.
+5. ✅ **La commande de la palette, elle, laisse la sortie ouverte** : quand TU demandes la réparation, c'est justement là qu'on lit ce que fait l'extension d'en face.
+6. ✅ **Réglage neuf `kablix.showArduinoOutput`**, inactif par défaut : le mettre à vrai laisse la fenêtre de sortie s'afficher pendant la mise au point automatique.
+7. ✅ **Banc `verify:intellisense` à 58 contrôles** : la sortie est refermée APRÈS l'analyse (pas avant, elle s'ouvre pendant), le réglage à vrai la laisse visible, le Pico ne referme rien, et la commande explicite non plus. Les deux comptages « une seule reconstruction » comptent maintenant les vraies reconstructions, pas toutes les commandes.
+8. ✅ **Aide FR complétée** ([USAGE.md](docs/fr/USAGE.md)).
+9. ⏳ **Traduction FR du nouveau réglage** : elle attend le lot de publication, comme la règle le veut — `verify:i18n` signale donc la clé `kablix.config.showArduinoOutput` en français. C'est normal, ça ne bloque rien.
+
+---
 # >>>>  v2026.9.0.46 — L'ampèremètre a sa résistance, et le code n'est plus souligné
 
 1. ✅ **L'ampèremètre n'est plus un fil parfait** (item 1). Ses deux prises comptaient pour un seul et même point du circuit : la tension à ses bornes valait zéro par construction. Il porte maintenant sa **résistance interne de 0,1 Ω** — le shunt d'un vrai appareil ([model.mts](src/webview/diagram/model.mts), constante `METER_OHMS`).

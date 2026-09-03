@@ -140,6 +140,7 @@ const { syncIntelliSense, remettreAuPoint, resetIntelliSenseCache, MICROPICO_EXT
 const ARDUINO_ID = 'electropol-fr.arduino-vscode-ide';
 const PICO_HOME = 'W:/ext/pico-w-go';
 const REBUILD = 'arduino.rebuildIntelliSenseConfig';
+const CLOSE_PANEL = 'workbench.action.closePanel';
 
 /** Monde de départ : un dossier ouvert, les deux extensions installées. */
 const world = (over = {}) => {
@@ -177,12 +178,39 @@ world({ commands: ['workbench.action.reloadWindow'] });
 check((await syncIntelliSense('nano')) === false, 'commande de reconstruction inconnue : rien (version ancienne d’en face)');
 
 world();
+// On compte les RECONSTRUCTIONS, pas toutes les commandes : la fermeture de la
+// fenêtre de sortie en lance une autre à chaque passage (voir B bis).
+const reconstructions = () => globalThis.__is.executed.filter((c) => c === REBUILD).length;
 await syncIntelliSense('uno');
-const lance = globalThis.__is.executed.length;
+const lance = reconstructions();
 await syncIntelliSense('uno');
-check(globalThis.__is.executed.length === lance, 'deux fois la même carte : une seule reconstruction');
+check(reconstructions() === lance, 'deux fois la même carte : une seule reconstruction');
 await syncIntelliSense('mega');
-check(globalThis.__is.executed.length === lance + 1, 'carte CHANGÉE : on régénère (le c_cpp_properties.json n’est plus le bon)');
+check(reconstructions() === lance + 1, 'carte CHANGÉE : on régénère (le c_cpp_properties.json n’est plus le bon)');
+
+// ------------------------------- B bis. la fenêtre de sortie ne s'ouvre plus
+// L'extension d'en face montre sa sortie à CHAQUE compilation, analyse comprise :
+// choisir une carte n'est pas une compilation, Kablix la referme donc derrière.
+const propSortie = pkg.contributes.configuration.properties['kablix.showArduinoOutput'];
+check(!!propSortie, 'package.json : réglage kablix.showArduinoOutput');
+check(propSortie?.type === 'boolean' && propSortie?.default === false, 'sortie muette par défaut');
+check(!!nlsEn['kablix.config.showArduinoOutput'], 'description EN du réglage de sortie');
+
+world();
+await syncIntelliSense('uno');
+check(globalThis.__is.executed.includes(CLOSE_PANEL), 'Uno : la fenêtre de sortie ouverte par l’extension d’en face est refermée');
+check(
+  globalThis.__is.executed.indexOf(REBUILD) < globalThis.__is.executed.indexOf(CLOSE_PANEL),
+  'on referme APRÈS l’analyse : la sortie s’ouvre pendant, pas avant'
+);
+
+world({ config: { 'kablix.showArduinoOutput': true } });
+await syncIntelliSense('uno');
+check(!globalThis.__is.executed.includes(CLOSE_PANEL), 'réglage à vrai : la sortie reste visible');
+
+world();
+await syncIntelliSense('pico');
+check(!globalThis.__is.executed.includes(CLOSE_PANEL), 'Pico : aucun panneau refermé (rien ne s’ouvre de ce côté)');
 
 // ---------------------------------------------------------- C. côté MicroPython
 world();
@@ -291,13 +319,17 @@ check(!globalThis.__is.executed.includes(REBUILD), 'arduino.yaml sans sketch : l
 world({ files: { 'W:/projet/.vscode/arduino.yaml': 'board: arduino:avr:uno\nsketch: Arduino/blink/blink.ino\n' } });
 await remettreAuPoint('uno');
 check(globalThis.__is.executed.includes(REBUILD), 'arduino.yaml complet : la configuration IntelliSense est demandée');
+check(!globalThis.__is.executed.includes(CLOSE_PANEL), 'commande explicite : la sortie reste ouverte (c’est là qu’on lit ce qui se passe)');
 
 // Une demande explicite REFAIT le travail, même s'il a déjà eu lieu.
 world({ files: { 'W:/projet/.vscode/arduino.yaml': 'board: arduino:avr:uno\nsketch: blink.ino\n' } });
 await syncIntelliSense('uno');
-const avant = globalThis.__is.executed.length;
+const avant = globalThis.__is.executed.filter((c) => c === REBUILD).length;
 await remettreAuPoint('uno');
-check(globalThis.__is.executed.length === avant + 1, 'la commande oublie le « déjà fait » et refait le travail');
+check(
+  globalThis.__is.executed.filter((c) => c === REBUILD).length === avant + 1,
+  'la commande oublie le « déjà fait » et refait le travail'
+);
 
 world({ extensions: { [ARDUINO_ID]: 'W:/ext/arduino' } });
 check(/MicroPico/.test(await remettreAuPoint('pico')), 'MicroPico absent : la commande nomme l’extension à installer');

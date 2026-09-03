@@ -688,7 +688,9 @@ Trois garde-fous, là encore :
 - **Rien n'est écrit** si l'extension correspondante n'est pas installée, ou si tout est déjà en place.
 - **Une fois par carte et par dossier** : rouvrir un projet ne relance pas le travail.
 
-Ce travail automatique est **silencieux**. Quand il ne suffit pas, la palette de commandes (`Ctrl+Maj+P`) contient **Kablix : réparer l’analyse du code pour cette carte** : elle refait le travail à la demande **et dit ce qui manque** — extension à installer, sketch `.ino` à ouvrir d’abord, réglages posés, ou « tout est déjà en place, rechargez la fenêtre ».
+Ce travail automatique est **silencieux, fenêtre de sortie comprise**. L'extension Arduino affiche son panneau **à chaque compilation**, et la fabrication de la configuration IntelliSense en est une : choisir une carte faisait donc surgir la fenêtre de sortie. Kablix la referme derrière lui — tout de suite, puis encore quelques secondes plus tard, le temps que l'autre extension finisse sa re-analyse automatique. Passé ce délai il n'y touche plus : les boutons **Vérifier** et **Téléverser** ouvrent leur sortie comme d'habitude. Pour la voir quand même pendant la mise au point : réglage **`kablix.showArduinoOutput`** (inactif par défaut).
+
+Quand il ne suffit pas, la palette de commandes (`Ctrl+Maj+P`) contient **Kablix : réparer l’analyse du code pour cette carte** : elle refait le travail à la demande **et dit ce qui manque** — extension à installer, sketch `.ino` à ouvrir d’abord, réglages posés, ou « tout est déjà en place, rechargez la fenêtre ».
 
 > Une **fonction déclarée dans votre propre fichier** ou une **bibliothèque posée à côté** (`grove_16_channels_pwm.py`) sont trouvées par Pylance tout seul, sans réglage. Si elles restent soulignées, c’est que Pylance ne tourne pas encore : lancez la commande ci-dessus, puis rechargez la fenêtre.
 
