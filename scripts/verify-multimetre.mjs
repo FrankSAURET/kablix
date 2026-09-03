@@ -1,6 +1,7 @@
 // Vérifie le multimètre (kablix-multimetre, kind 'meter') :
 //  - catalogue : rangé dans Appareils de mesure, propriété `mode` à deux choix ;
-//  - netlist : ampèremètre = FIL (ses deux prises n'en font qu'une), voltmètre
+//  - netlist : ampèremètre = résistance de 0,1 Ω (prises réunies dans la netlist
+//    fusionnée, séparées par son shunt dans le graphe résistif), voltmètre
 //    = rien du tout (l'appareil n'existe pas pour le montage) ;
 //  - meterReadings : tension d'un pont diviseur, courant d'une branche, court-
 //    circuit quand l'ampèremètre est posé en travers de l'alimentation ;
@@ -29,7 +30,7 @@ const buildTo = async (entry, outfile) => {
   });
   return import(pathToFileURL(join(tmp, outfile)).href);
 };
-const { meterReadings, meterMode, METER_SHORT_AMPS, buildNets, pulseMonitorPins } = await buildTo('src/webview/diagram/model.mts', 'model.mjs');
+const { meterReadings, meterMode, METER_SHORT_AMPS, METER_OHMS, buildNets, pulseMonitorPins } = await buildTo('src/webview/diagram/model.mts', 'model.mjs');
 const { partDef, partCategory, CATEGORY_ORDER } = await buildTo('src/webview/diagram/catalog.mts', 'catalog.mjs');
 
 let failures = 0;
@@ -98,8 +99,14 @@ const netsV = buildNets(bornes('voltage'));
 const netsI = buildNets(bornes('current'));
 check('netlist : voltmètre → prises SÉPARÉES (aucune influence sur le montage)',
   netsV.netOf(pin('m1', '+')) !== netsV.netOf(pin('m1', 'GND')));
-check('netlist : ampèremètre → prises RÉUNIES (c\'est un fil)',
+check('netlist : ampèremètre → prises RÉUNIES dans la netlist fusionnée (il conduit)',
   netsI.netOf(pin('m1', '+')) === netsI.netOf(pin('m1', 'GND')));
+// Mais PAS dans la netlist non fusionnée, celle du calcul électrique : là il est
+// une résistance de 0,1 Ω comme une autre, donc deux nœuds distincts — sans quoi
+// la tension à ses bornes valait zéro par construction (Frank).
+const netsIsep = buildNets(bornes('current'), false);
+check('netlist : shunt de 0,1 ohm → prises SÉPARÉES dans le graphe résistif',
+  METER_OHMS === 0.1 && netsIsep.netOf(pin('m1', '+')) !== netsIsep.netOf(pin('m1', 'GND')));
 
 // 3. Voltmètre au milieu d'un pont 1 kΩ / 1 kΩ → la moitié de la tension.
 const pont = {
@@ -131,6 +138,25 @@ check(`ampèremètre en série 5 V / 1 kΩ → ≈ 5 mA (${(iSerie.value * 1000)
 const serie2k = { ...serie, parts: [ALIM('5'), R('r1', 2000), M('m1', 'current')] };
 check('ampèremètre : 2 kΩ → moitié moins de courant (≈ 2,5 mA)',
   near(lire(serie2k, 'm1').value, 0.0025, 0.01));
+
+// 5 bis. La résistance interne de l'ampèremètre EXISTE : un voltmètre à ses
+//    bornes lit la chute U = 0,1 × I, et le courant du montage n'en souffre pas.
+const shunt = {
+  parts: [ALIM('5'), R('r1', 1000), M('m1', 'current'), M('m2', 'voltage')],
+  wires: [
+    W('w1', pin('psu1', 'V+'), pin('r1', '1')),
+    W('w2', pin('r1', '2'), pin('m1', '+')),
+    W('w3', pin('m1', 'GND'), pin('psu1', 'GND')),
+    W('w4', pin('r1', '2'), pin('m2', '+')),
+    W('w5', pin('m1', 'GND'), pin('m2', 'GND')),
+  ],
+};
+const uShunt = lire(shunt, 'm2').value;
+const iShunt = lire(shunt, 'm1').value;
+check(`ampèremètre : tension à ses bornes = 0,1 ohm × I (${(uShunt * 1000).toFixed(2)} mV)`,
+  near(uShunt, METER_OHMS * iShunt, 0.02) && uShunt > 0);
+check(`ampèremètre : le shunt ne change pas le courant (${(iShunt * 1000).toFixed(3)} mA)`,
+  near(iShunt, 5 / (1000 + METER_OHMS), 0.001));
 
 // 6. Deux ampèremètres dans la MÊME branche : chacun lit le même courant (l'un
 //    ne doit pas voir l'autre comme une coupure).

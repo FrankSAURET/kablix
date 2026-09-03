@@ -31,7 +31,7 @@ import { showPartHelp } from './partHelp';
 import { codeColumn, moveEditorToColumn, textTabColumn } from './layout';
 import { defaultAppsDirPath, detectSvgEditor, svgEditorLaunch } from './svgEditorDetect';
 import { syncArduinoIdeBoard } from './arduinoIde';
-import { syncIntelliSense } from './intellisense';
+import { syncIntelliSense, remettreAuPoint } from './intellisense';
 import { versionPublique } from './version';
 import { PicoNetServer, lanAddress, enHexa, depuisHexa } from './netserver';
 
@@ -411,6 +411,16 @@ export class SimulatorPanel {
     void syncArduinoIdeBoard(board, hint).then(() => syncIntelliSense(board, hint));
   }
 
+
+  /**
+   * Commande « remettre l'analyse de code au point » : refait le travail de
+   * intellisense.ts pour la carte courante, même s'il a déjà eu lieu, et rend
+   * un compte rendu à afficher.
+   */
+  public fixIntelliSense(): Promise<string> {
+    const hint = this.codeFileUri ?? this.projectUri ?? this.documentUri;
+    return remettreAuPoint(this.currentBoard, hint);
+  }
 
   /** URI du document lié (fichier .projix ou untitled). */
   public getDocumentUri(): vscode.Uri | undefined {

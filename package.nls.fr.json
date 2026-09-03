@@ -15,6 +15,7 @@
   "kablix.cmd.saveDefaultLayout": "Kablix : Sauvegarder l'organisation par défaut",
   "kablix.cmd.rearrangeLayout": "Kablix : Réarranger les fenêtres",
   "kablix.cmd.associateProjix": "Kablix : Associer les fichiers .projix à Kablix",
+  "kablix.cmd.fixIntelliSense": "Kablix : réparer l’analyse du code pour cette carte",
   "kablix.cmd.recommendedExtensions": "Kablix : Extensions conseillées",
   "kablix.cmd.chooseSvgEditor": "Kablix : Choisir l'éditeur SVG…",
   "kablix.cmd.openComponentsFolder": "Kablix : Ouvrir la bibliothèque de composants",

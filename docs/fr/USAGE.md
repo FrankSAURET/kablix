@@ -679,14 +679,18 @@ Pour couper la synchronisation : réglage **`kablix.syncArduinoIdeBoard`** (acti
 
 Un sketch `.ino` n'est pas du C++ de bureau, et un programme MicroPython n'est pas du Python de bureau. Sans un coup de pouce, l'analyseur de VS Code ne connaît ni `Serial` ni `pinMode` d'un côté, ni `machine` ni `neopixel` de l'autre : tout se retrouve souligné alors que le programme est bon. Kablix pose ce coup de pouce tout seul, parce qu'il sait de quelle carte on parle.
 
-- **Carte Arduino** (Uno, Nano, Mega) : juste après avoir écrit la carte dans `.vscode/arduino.yaml`, Kablix demande à **`electropol-fr.arduino-vscode-ide`** de refabriquer sa configuration IntelliSense pour cette carte-là. C'est elle qui écrit `.vscode/c_cpp_properties.json` ; Kablix n'y touche jamais.
-- **Carte Pico** (Pico, Pico W, Pico 2, Pico 2 W) : Kablix montre à Pylance le dossier de **déclarations MicroPython** livré avec l'extension **MicroPico** (`paulober.pico-w-go`). Trois réglages sont ajoutés dans le `.vscode/settings.json` du dossier de travail : `python.analysis.extraPaths`, `python.analysis.typeshedPaths` et `reportMissingModuleSource` à `none` — ce dernier parce que les déclarations sont des fiches `.pyi` sans code source : le vrai module vit dans la puce, il est normal de ne pas le trouver sur le disque.
+- **Carte Arduino** (Uno, Nano, Mega) : juste après avoir écrit la carte dans `.vscode/arduino.yaml`, Kablix demande à **`electropol-fr.arduino-vscode-ide`** de refabriquer sa configuration IntelliSense pour cette carte-là. C'est elle qui écrit `.vscode/c_cpp_properties.json` ; Kablix n'y touche jamais. Le **sketch ouvert** est écrit dans le même fichier (clé `sketch:`) : sans lui, l'autre extension ne sait pas de quel programme on parle et abandonne sans rien dire.
+- **Carte Pico** (Pico, Pico W, Pico 2, Pico 2 W) : Kablix montre à Pylance le dossier de **déclarations MicroPython** livré avec l'extension **MicroPico** (`paulober.pico-w-go`). Cinq réglages sont ajoutés dans le `.vscode/settings.json` du dossier de travail : `python.analysis.extraPaths`, `python.analysis.typeshedPaths`, `reportMissingModuleSource` à `none`, plus `python.languageServer` à **Pylance** et `python.analysis.typeCheckingMode` à `basic` — les deux derniers parce qu’un autre analyseur ne lit ni les déclarations ni vos fichiers voisins — ce dernier parce que les déclarations sont des fiches `.pyi` sans code source : le vrai module vit dans la puce, il est normal de ne pas le trouver sur le disque.
 
 Trois garde-fous, là encore :
 
 - **Rien n'est écrasé** : vos propres chemins et vos propres réglages de diagnostic sont conservés, Kablix n'ajoute que ce qui manque.
 - **Rien n'est écrit** si l'extension correspondante n'est pas installée, ou si tout est déjà en place.
 - **Une fois par carte et par dossier** : rouvrir un projet ne relance pas le travail.
+
+Ce travail automatique est **silencieux**. Quand il ne suffit pas, la palette de commandes (`Ctrl+Maj+P`) contient **Kablix : réparer l’analyse du code pour cette carte** : elle refait le travail à la demande **et dit ce qui manque** — extension à installer, sketch `.ino` à ouvrir d’abord, réglages posés, ou « tout est déjà en place, rechargez la fenêtre ».
+
+> Une **fonction déclarée dans votre propre fichier** ou une **bibliothèque posée à côté** (`grove_16_channels_pwm.py`) sont trouvées par Pylance tout seul, sans réglage. Si elles restent soulignées, c’est que Pylance ne tourne pas encore : lancez la commande ci-dessus, puis rechargez la fenêtre.
 
 Pour couper cette mise au point : réglage **`kablix.syncIntelliSense`** (actif par défaut).
 

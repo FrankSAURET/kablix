@@ -1,12 +1,33 @@
 # À faire
-1. **Fil tracé à la main** : l'autoroutage ne part QUE sur le bouton de la barre d'outils. Un fil que tu poses toi-même garde son tracé, même s'il chevauche un voisin. Veux-tu que la règle s'applique aussi **pendant le tracé** (le fil se décale tout seul quand tu le poses) ?
-2. **CHANGELOG** : la section `2026.9.0` est déjà écrite (ton enregistrement f2ac9fa). Dis-moi si j'y ajoute les lots .41 à .45 — LED vue par le multimètre, bouton branché à l'envers, atelier vierge, rotation d'un quart de tour, fils qui ne se recouvrent plus, coloration syntaxique toujours valide.
-3. **Paquet `.vsix`** et **publication** : rien ne se construit et rien ne part sans ton feu vert écrit.
+1. 
+
 ## ne pas faire pour l'instant
 
 
 
 
+# >>>>  v2026.9.0.46 — L'ampèremètre a sa résistance, et le code n'est plus souligné
+
+1. ✅ **L'ampèremètre n'est plus un fil parfait** (item 1). Ses deux prises comptaient pour un seul et même point du circuit : la tension à ses bornes valait zéro par construction. Il porte maintenant sa **résistance interne de 0,1 Ω** — le shunt d'un vrai appareil ([model.mts](src/webview/diagram/model.mts), constante `METER_OHMS`).
+2. ✅ **Deux nœuds distincts dans le calcul, un seul dans la netlist.** Le graphe qui sert au calcul électrique voit une résistance de 0,1 Ω comme une autre ; la netlist fusionnée (celle qui répond à « qui est relié à quoi ») le voit toujours comme un fil, sinon un ampèremètre en série coupait le circuit pour tout le reste du logiciel.
+3. ✅ **Chiffres**: sur 1 kΩ sous 5 V, le courant passe de 5,000 mA à **4,990 mA** — la différence est invisible à l'écran, comme sur le matériel. Et un voltmètre posé aux bornes de l'ampèremètre lit bien **0,50 mV**, la loi d'Ohm sur 0,1 Ω.
+4. ✅ **L'ampèremètre en travers d'une alimentation reste un court-circuit** annoncé : le garde-fou n'a pas bougé.
+5. ✅ **Deux contrôles neufs** au banc du multimètre : le shunt qui sépare les deux prises dans le graphe résistif, et le schéma « alim + 1 kΩ + ampèremètre + voltmètre en parallèle » qui vérifie la chute et le courant.
+
+6. ✅ **Le croquis Arduino n'était PAS déclaré à l'extension d'en face** (item 2). Voilà pourquoi le `.ino` restait tout rouge : Kablix écrivait bien la carte dans `.vscode/arduino.yaml`, mais **sans la clé `sketch:`**. Or l'analyse non interactive de *Arduino VS Code IDE* abandonne **en silence** quand elle ne sait pas de quel croquis on parle. Le croquis ouvert dans Kablix est maintenant écrit avec la carte ([arduinoIde.ts](src/arduinoIde.ts), `sketchRelatif`).
+7. ✅ **Chemin du croquis toujours relatif au dossier et en barres obliques** : les antislashs de Windows ne passent pas dans ce fichier. Un fichier ouvert hors du dossier, ou qui n'est pas un `.ino`, n'écrit aucune clé — et un `sketch:` déjà présent n'est jamais effacé.
+8. ✅ **Côté Pico, deux réglages de plus** : `python.languageServer` à Pylance et `python.analysis.typeCheckingMode` à `basic`, exactement ceux que MicroPico pose lui-même. Sans le premier, VS Code peut être resté sur l'analyseur maigre, qui ne lit ni les déclarations ni tes fichiers voisins — d'où `i2c`, `impulsion` ou `pwm.servo_angle` soulignés ([intellisense.ts](src/intellisense.ts)).
+9. ℹ️ **Ce que Kablix ne peut pas faire pour toi** : une déclaration locale (`impulsion` dans `araignee-pico.py`) ou une bibliothèque du dossier (`grove_16_channels_pwm.py`) est trouvée par Pylance **tout seul**, à condition qu'il tourne. Si elles restent soulignées, c'est que l'analyseur n'est pas Pylance ou que la fenêtre n'a pas été rechargée : la commande ci-dessous le dit maintenant.
+10. ✅ **Commande neuve dans la palette : « Kablix : réparer l’analyse du code pour cette carte »**. Le travail automatique est muet par choix ; celui-ci **rend compte** — extension manquante nommée, croquis `.ino` à ouvrir, réglages posés, ou « tout est déjà en place, recharge la fenêtre » ([extension.ts](src/extension.ts), [panel.ts](src/panel.ts)).
+11. ✅ **Bancs renforcés** : `verify:intellisense` passe à **50 contrôles** (la commande et ses six comptes rendus, la clé `sketch` obligatoire, le « déjà fait » oublié sur demande explicite) et `verify:arduinoide` à **57** (clé `sketch` écrite, remplacée, conservée, et les quatre cas de `sketchRelatif`).
+
+12. ✅ **Version publique posée à `2026.9.1`** (item 3) : la `2026.9.0` est en ligne depuis le 2 septembre, le compteur du mois avance donc d’un cran. `buildNumber` à 46.
+13. ✅ **CHANGELOG complété** : une entrée `2026.9.1` qui couvre les lots .41 à .46 — LED dans le calcul électrique, résistance interne de l'ampèremètre, bouton câblé vers le plus, code plus souligné en rouge, fils qui ne se recouvrent plus, quart de tour par clic, atelier vierge silencieux, dessin de l'Uno et `avr8js` 0.21.1.
+14. ✅ **Traductions FR à jour** (lot de publication) : titre de la commande dans `package.nls.fr.json`, les 8 comptes rendus dans `l10n/bundle.l10n.fr.json`, et l’aide FR **et** EN complétées ([USAGE.md](docs/fr/USAGE.md)). `verify:i18n` a aussi attrapé une chaîne oubliée au lot précédent — 218 clés, plus rien ne sort en anglais.
+15. ✅ **Suite complète rejouée : 104 bancs sur 104 au vert** (491 s), plus typecheck et construction complète.
+16. ⏳ **Ce qui attend TON feu vert** : la construction du `.vsix` et l’envoi au magasin. Rien ne part tout seul.
+
+---
 # >>>>  v2026.9.0.45 — Deux fils ne se recouvrent plus, et le code n'est plus souligné en rouge
 
 1. ✅ **Ton uno.svg retouché est intégré** (item 1). Le fichier sortait d'Inkscape avec tout son bagage (couches, calques de travail, en-tête de 60 lignes) : il est passé au nettoyeur maison en place ([_clean-board-svg.mjs](scripts/_clean-board-svg.mjs) gagne un mode `--inplace`), ton décalage de texte conservé au pixel. La carte reste à sa taille, les pastilles n'ont pas bougé d'un poil.

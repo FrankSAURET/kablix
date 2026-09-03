@@ -146,7 +146,7 @@ const bundle = async (entry, name) => {
   return import(pathToFileURL(outfile).href);
 };
 
-const { arduinoIdeTarget, patchArduinoYaml, syncArduinoIdeBoard } = await bundle('src/arduinoIde.ts', 'arduinoide.mjs');
+const { arduinoIdeTarget, patchArduinoYaml, sketchRelatif, syncArduinoIdeBoard } = await bundle('src/arduinoIde.ts', 'arduinoide.mjs');
 const { SimulatorPanel } = await bundle('src/panel.ts', 'panel.mjs');
 
 const ARDUINO_ID = 'electropol-fr.arduino-vscode-ide';
@@ -211,6 +211,37 @@ check(/^board: arduino:avr:mega$/m.test(nested), 'carte remplacée malgré la va
 const crlf = patchArduinoYaml('sketch: blink.ino\r\nboard: arduino:avr:uno\r\n', arduinoIdeTarget('mega'));
 check(!/[^\r]\n/.test(crlf), 'fichier en CRLF : les fins de ligne sont conservées');
 
+// ------------------------------------------------- C bis. la clé `sketch`
+// Sans elle, l'extension d'en face abandonne l'analyse SANS RIEN DIRE : le .ino
+// restait tout rouge alors que la carte était bien écrite (Frank, v2026.9.0.46).
+const avecSketch = patchArduinoYaml('', { ...arduinoIdeTarget('uno'), sketch: 'blink.ino' });
+check(/^sketch: blink\.ino$/m.test(avecSketch ?? ''), 'le croquis ouvert est écrit dans arduino.yaml');
+
+const changeSketch = patchArduinoYaml(
+  'board: arduino:avr:uno\nsketch: vieux.ino\n',
+  { ...arduinoIdeTarget('uno'), sketch: 'neuf.ino' }
+);
+check(/^sketch: neuf\.ino$/m.test(changeSketch ?? ''), 'changer de croquis remplace la clé sur place');
+check((changeSketch ?? '').split('\n').filter((l) => l.startsWith('sketch:')).length === 1, 'une seule clé sketch');
+
+check(
+  patchArduinoYaml('board: arduino:avr:uno\nsketch: blink.ino\n', { ...arduinoIdeTarget('uno'), sketch: 'blink.ino' }) === undefined,
+  'tout est déjà bon : aucune réécriture (sinon l’autre extension repart en boucle)'
+);
+
+check(
+  /^sketch: garde\.ino$/m.test(patchArduinoYaml('sketch: garde.ino\nboard: arduino:avr:mega\n', arduinoIdeTarget('uno')) ?? ''),
+  'sans croquis à proposer, celui du fichier est CONSERVÉ'
+);
+
+// chemin du croquis : relatif au dossier, toujours en barres obliques
+check(sketchRelatif('W:/projet', 'W:/projet/blink.ino') === 'blink.ino', 'croquis à la racine du dossier');
+check(
+  sketchRelatif('W:\\projet', 'W:\\projet\\Arduino\\blink\\blink.ino') === 'Arduino/blink/blink.ino',
+  'sous-dossier : chemin relatif en barres obliques (les antislashs de Windows ne passent pas)'
+);
+check(sketchRelatif('W:/projet', 'W:/autre/blink.ino') === undefined, 'croquis hors du dossier : aucune clé sketch');
+check(sketchRelatif('W:/projet', 'W:/projet/main.py') === undefined, 'fichier qui n’est pas un .ino : aucune clé sketch');
 // ------------------------------------------- D. synchro complète (module seul)
 world();
 check((await syncArduinoIdeBoard('mega')) === true, 'carte Mega : le fichier est écrit');
@@ -249,6 +280,15 @@ const writes = globalThis.__ard.writes.length;
 await syncArduinoIdeBoard('uno');
 check(globalThis.__ard.writes.length === writes, 'deux fois la même carte : une seule écriture');
 
+// Le croquis ouvert dans Kablix devient celui du projet Arduino.
+world({ files: { 'W:/projet/Arduino/blink/blink.ino': 'void setup() {}' } });
+await syncArduinoIdeBoard('uno', { fsPath: 'W:/projet/Arduino/blink/blink.ino', scheme: 'file' });
+check(/^sketch: Arduino\/blink\/blink\.ino$/m.test(yamlOf() ?? ''), 'croquis ouvert → clé sketch écrite', yamlOf());
+check(/^board: arduino:avr:uno$/m.test(yamlOf() ?? ''), 'et la carte avec');
+
+world({ files: { 'W:/projet/main.py': '', 'W:/projet/.vscode/arduino.yaml': 'sketch: blink.ino\n' } });
+await syncArduinoIdeBoard('uno', { fsPath: 'W:/projet/main.py', scheme: 'file' });
+check(/^sketch: blink\.ino$/m.test(yamlOf() ?? ''), 'un .py ouvert ne remplace pas le croquis du projet');
 // Multi-dossiers : le fichier de code désigne SON dossier.
 world({
   folders: ['W:/autre', 'W:/projet'],

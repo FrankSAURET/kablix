@@ -207,5 +207,14 @@
   "Run without code": "Exécuter sans le code",
   "Kablix: export failed: {0}": "Kablix : export impossible : {0}",
   "Experimental": "Expérimental",
-  "Kablix: the simulated Pico W is serving on {0} — open it from a phone on the same network.": "Kablix : le Pico W simulé publie sur {0} — ouvrez-le depuis un téléphone du même réseau."
+  "Kablix: the simulated Pico W is serving on {0} — open it from a phone on the same network.": "Kablix : le Pico W simulé publie sur {0} — ouvrez-le depuis un téléphone du même réseau.",
+  "No folder is open, so there is nothing to set up.": "Aucun dossier n’est ouvert : il n’y a rien à régler.",
+  "Install the \"Arduino VS Code IDE\" extension: it is the one that writes the IntelliSense configuration of a sketch.": "Installe l’extension « Arduino VS Code IDE » : c’est elle qui écrit la configuration IntelliSense d’un croquis.",
+  "Open the .ino sketch of this project first: without it the Arduino extension cannot build the IntelliSense configuration.": "Ouvre d’abord le croquis .ino de ce projet : sans lui, l’extension Arduino ne peut pas fabriquer la configuration IntelliSense.",
+  "IntelliSense configuration requested for the Arduino board. It appears in .vscode/c_cpp_properties.json after a few seconds.": "Configuration IntelliSense demandée pour la carte Arduino. Elle apparaît dans .vscode/c_cpp_properties.json au bout de quelques secondes.",
+  "The Arduino extension did not answer: reload the window and try again.": "L’extension Arduino n’a pas répondu : recharge la fenêtre et réessaie.",
+  "Install the \"MicroPico\" extension: it ships the MicroPython declarations that Pylance needs.": "Installe l’extension « MicroPico » : c’est elle qui apporte les déclarations MicroPython dont Pylance a besoin.",
+  "MicroPython declarations shown to Pylance in the folder settings.": "Déclarations MicroPython montrées à Pylance dans les réglages du dossier.",
+  "Everything is already in place for MicroPython. If a symbol is still unknown, reload the window.": "Tout est déjà en place pour MicroPython. S’il reste un mot inconnu, recharge la fenêtre.",
+  "Open a Kablix project first: its board says which setup to apply.": "Ouvre d’abord un projet Kablix : c’est sa carte qui dit quels réglages poser."
 }

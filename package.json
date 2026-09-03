@@ -1,8 +1,8 @@
 {
   "name": "kablix",
   "displayName": "Kablix",
-  "version": "2026.9.0",
-  "buildNumber": 45,
+  "version": "2026.9.1",
+  "buildNumber": 46,
   "description": "%kablix.description%",
   "publisher": "electropol-fr",
   "author": {
@@ -115,6 +115,11 @@
       {
         "command": "kablix.associateProjix",
         "title": "%kablix.cmd.associateProjix%",
+        "category": "Kablix"
+      },
+      {
+        "command": "kablix.fixIntelliSense",
+        "title": "%kablix.cmd.fixIntelliSense%",
         "category": "Kablix"
       },
       {

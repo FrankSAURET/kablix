@@ -57,10 +57,16 @@ const ROOT_KEY = /^([A-Za-z_][\w-]*)\s*:/;
  */
 export function patchArduinoYaml(
   text: string,
-  target: { board: string; configuration: string }
+  target: { board: string; configuration: string; sketch?: string }
 ): string | undefined {
   const wanted = new Map<string, string>([['board', target.board]]);
   if (target.configuration) wanted.set('configuration', target.configuration);
+  // `sketch` n'est écrit que si Kablix sait de quel .ino il parle : sans cette
+  // clé, l'extension d'en face REFUSE en silence de fabriquer la configuration
+  // IntelliSense (son analyse tourne « non interactive » et abandonne dès que le
+  // sketch manque) — c'était la cause du soulignement rouge dans les .ino.
+  if (target.sketch) wanted.set('sketch', target.sketch);
+  const gerees = new Set(['board', 'configuration', ...(target.sketch ? ['sketch'] : [])]);
 
   const lines = text.split(/\r?\n/);
   const eol = /\r\n/.test(text) ? '\r\n' : '\n';
@@ -76,7 +82,7 @@ export function patchArduinoYaml(
     }
     skipIndented = false;
     const key = ROOT_KEY.exec(line)?.[1];
-    if (key === 'board' || key === 'configuration') {
+    if (key !== undefined && gerees.has(key)) {
       const value = wanted.get(key);
       if (value === undefined) {
         changed = true; // clé à retirer (configuration par défaut)
@@ -134,6 +140,20 @@ async function arduinoFolder(hint?: vscode.Uri): Promise<vscode.Uri | undefined>
   return folders[0].uri;
 }
 
+/**
+ * Chemin du sketch RELATIF au dossier de travail, en séparateurs `/` — la forme
+ * qu'attend l'extension d'en face (`path.join(rootPath, dc.sketch)`).
+ * `undefined` si le fichier n'est pas un `.ino`, ou s'il vit hors du dossier.
+ */
+export function sketchRelatif(folder: string, file: string): string | undefined {
+  const norm = (p: string) => p.replace(/\\/g, '/').replace(/\/+$/, '');
+  const base = norm(folder);
+  const cible = norm(file);
+  if (!cible.toLowerCase().endsWith('.ino')) return undefined;
+  if (!cible.toLowerCase().startsWith(base.toLowerCase() + '/')) return undefined;
+  return cible.slice(base.length + 1);
+}
+
 /** Vrai si ce dossier de travail contient au moins un sketch `.ino`. */
 async function hasSketch(folder: vscode.Uri): Promise<boolean> {
   try {
@@ -173,7 +193,10 @@ export async function syncArduinoIdeBoard(board: Board, hint?: vscode.Uri): Prom
     const isSketch = hint?.fsPath.toLowerCase().endsWith('.ino') === true;
     if (current === undefined && !isSketch && !(await hasSketch(folder))) return false;
 
-    const patched = patchArduinoYaml(current ?? '', target);
+    // Le sketch ouvert dans Kablix devient le sketch du projet Arduino : c'est
+    // lui qui débloque la fabrication de c_cpp_properties.json en face.
+    const sketch = hint ? sketchRelatif(folder.fsPath, hint.fsPath) : undefined;
+    const patched = patchArduinoYaml(current ?? '', sketch ? { ...target, sketch } : target);
     if (patched === undefined) return false; // déjà la bonne carte
     await vscode.workspace.fs.writeFile(config, new TextEncoder().encode(patched));
     return true;

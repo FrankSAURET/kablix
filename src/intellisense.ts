@@ -87,6 +87,22 @@ async function ajouterAuChemin(
 }
 
 /**
+ * Pose un réglage SIMPLE (une valeur, pas une liste) sur le dossier de travail,
+ * seulement s'il manque : si la valeur qui s'applique déjà est la bonne (venue
+ * des réglages utilisateur, par exemple), on n'écrit rien du tout.
+ */
+async function poserSiAbsent(
+  cfg: vscode.WorkspaceConfiguration,
+  cle: string,
+  valeur: string,
+  cible: vscode.ConfigurationTarget
+): Promise<boolean> {
+  if (cfg.get<string>(cle) === valeur) return false;
+  await cfg.update(cle, valeur, cible);
+  return true;
+}
+
+/**
  * Sketch `.ino` : demande à l'extension Arduino de régénérer sa configuration
  * IntelliSense pour la carte que Kablix vient d'écrire dans `arduino.yaml`.
  * Sans ça, cpptools analyse le sketch comme du C++ nu — `Serial`, `pinMode`,
@@ -96,6 +112,10 @@ async function miseAuPointArduino(): Promise<boolean> {
   if (!vscode.extensions.getExtension(ARDUINO_IDE_EXTENSION_ID)) return false;
   const commandes = await vscode.commands.getCommands(true);
   if (!commandes.includes(ARDUINO_REBUILD)) return false;
+  // La fabrication de c_cpp_properties.json compile le sketch « pour de faux »
+  // et lit les commandes du compilateur : elle a donc besoin de la clé `sketch`
+  // dans arduino.yaml (arduinoIde.ts vient de l'écrire) — sans elle l'analyse
+  // abandonne EN SILENCE, et le .ino reste tout rouge.
   await vscode.commands.executeCommand(ARDUINO_REBUILD);
   return true;
 }
@@ -120,6 +140,14 @@ async function miseAuPointMicroPython(folder: vscode.WorkspaceFolder): Promise<b
   let ecrit = false;
   ecrit = (await ajouterAuChemin(cfg, 'python.analysis.typeshedPaths', stubs.fsPath, cible)) || ecrit;
   ecrit = (await ajouterAuChemin(cfg, 'python.analysis.extraPaths', stubs.fsPath, cible)) || ecrit;
+
+  // Les deux réglages que MicroPico pose lui-même quand il crée un projet : sans
+  // eux Pylance peut rester sur un autre serveur d'analyse (donc ne rien savoir
+  // des déclarations qu'on vient de lui montrer) ou analyser en mode strict.
+  // Quand un type n'est pas résolu, la complétion meurt en chaîne : `I2C`
+  // inconnu → `i2c` de type inconnu → `i2c.writeto_mem` jamais proposé.
+  ecrit = (await poserSiAbsent(cfg, 'python.languageServer', 'Pylance', cible)) || ecrit;
+  ecrit = (await poserSiAbsent(cfg, 'python.analysis.typeCheckingMode', 'basic', cible)) || ecrit;
 
   // Import résolu par une déclaration seule : ce n'est pas un défaut ici.
   const vue = cfg.inspect<Record<string, string>>('python.analysis.diagnosticSeverityOverrides');
@@ -150,6 +178,50 @@ export async function syncIntelliSense(board: Board, hint?: vscode.Uri): Promise
     return arduinoIdeTarget(board) ? await miseAuPointArduino() : await miseAuPointMicroPython(folder);
   } catch {
     return false; // confort pur : jamais d'erreur remontée à l'utilisateur
+  }
+}
+
+/**
+ * Remet l'analyse de code au point À LA DEMANDE (commande de la palette), et
+ * rend compte en clair de ce qui s'est passé : le travail automatique est
+ * silencieux par choix, donc quand il ne suffit pas il faut bien un endroit où
+ * l'utilisateur lit POURQUOI. Le souvenir « déjà fait » est oublié d'abord :
+ * une demande explicite refait tout.
+ */
+export async function remettreAuPoint(board: Board, hint?: vscode.Uri): Promise<string> {
+  resetIntelliSenseCache();
+  const folder = dossier(hint);
+  if (!folder) return vscode.l10n.t('No folder is open, so there is nothing to set up.');
+
+  if (arduinoIdeTarget(board)) {
+    if (!vscode.extensions.getExtension(ARDUINO_IDE_EXTENSION_ID)) {
+      return vscode.l10n.t('Install the "Arduino VS Code IDE" extension: it is the one that writes the IntelliSense configuration of a sketch.');
+    }
+    const yaml = await lireTexte(vscode.Uri.joinPath(folder.uri, '.vscode', 'arduino.yaml'));
+    if (!/^sketch:\s*\S/m.test(yaml ?? '')) {
+      return vscode.l10n.t('Open the .ino sketch of this project first: without it the Arduino extension cannot build the IntelliSense configuration.');
+    }
+    const fait = await miseAuPointArduino();
+    return fait
+      ? vscode.l10n.t('IntelliSense configuration requested for the Arduino board. It appears in .vscode/c_cpp_properties.json after a few seconds.')
+      : vscode.l10n.t('The Arduino extension did not answer: reload the window and try again.');
+  }
+
+  if (!vscode.extensions.getExtension(MICROPICO_EXTENSION_ID)) {
+    return vscode.l10n.t('Install the "MicroPico" extension: it ships the MicroPython declarations that Pylance needs.');
+  }
+  const ecrit = await miseAuPointMicroPython(folder);
+  return ecrit
+    ? vscode.l10n.t('MicroPython declarations shown to Pylance in the folder settings.')
+    : vscode.l10n.t('Everything is already in place for MicroPython. If a symbol is still unknown, reload the window.');
+}
+
+/** Lit un fichier texte du disque, `undefined` s'il n'existe pas. */
+async function lireTexte(uri: vscode.Uri): Promise<string | undefined> {
+  try {
+    return new TextDecoder().decode(await vscode.workspace.fs.readFile(uri));
+  } catch {
+    return undefined;
   }
 }
 

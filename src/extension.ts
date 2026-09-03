@@ -199,6 +199,21 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('kablix.openComponentManager', () => {
       void ComponentManagerPanel.show(context.extensionUri, kompixLibrary);
     }),
+    // Analyse de code : le travail se fait tout seul au choix de la carte, mais
+    // il est silencieux. Cette commande le refait à la demande ET dit ce qui
+    // s'est passé — c'est le seul endroit où l'utilisateur voit ce qui manque.
+    vscode.commands.registerCommand('kablix.fixIntelliSense', () => {
+      const panel = SimulatorPanel.active();
+      if (!panel) {
+        void vscode.window.showInformationMessage(
+          vscode.l10n.t('Open a Kablix project first: its board says which setup to apply.')
+        );
+        return;
+      }
+      void panel.fixIntelliSense().then((compteRendu) => {
+        void vscode.window.showInformationMessage(compteRendu);
+      });
+    }),
     vscode.commands.registerCommand('kablix.recommendedExtensions', () => {
       void promptRecommendedExtensions(context, true);
     }),

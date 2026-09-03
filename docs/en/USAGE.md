@@ -679,14 +679,18 @@ To turn the synchronization off: the **`kablix.syncArduinoIdeBoard`** setting (o
 
 An `.ino` sketch is not desktop C++, and a MicroPython program is not desktop Python. Without a hint, the VS Code analyzer knows neither `Serial` nor `pinMode` on one side, nor `machine` nor `neopixel` on the other: everything ends up underlined although the program is fine. Kablix sets that hint on its own, because it knows which board you picked.
 
-- **Arduino board** (Uno, Nano, Mega): right after writing the board into `.vscode/arduino.yaml`, Kablix asks **`electropol-fr.arduino-vscode-ide`** to rebuild its IntelliSense configuration for that very board. That extension owns `.vscode/c_cpp_properties.json`; Kablix never touches it.
-- **Pico board** (Pico, Pico W, Pico 2, Pico 2 W): Kablix points Pylance at the **MicroPython declarations** shipped with the **MicroPico** extension (`paulober.pico-w-go`). Three settings are added to the workspace folder's `.vscode/settings.json`: `python.analysis.extraPaths`, `python.analysis.typeshedPaths` and `reportMissingModuleSource` set to `none` — the last one because those declarations are `.pyi` files with no source code: the real module lives inside the chip, so not finding it on disk is expected.
+- **Arduino board** (Uno, Nano, Mega): right after writing the board into `.vscode/arduino.yaml`, Kablix asks **`electropol-fr.arduino-vscode-ide`** to rebuild its IntelliSense configuration for that very board. That extension owns `.vscode/c_cpp_properties.json`; Kablix never touches it. The **open sketch** is written into the same file (`sketch:` key): without it, the other extension does not know which program is meant and gives up silently.
+- **Pico board** (Pico, Pico W, Pico 2, Pico 2 W): Kablix points Pylance at the **MicroPython declarations** shipped with the **MicroPico** extension (`paulober.pico-w-go`). Five settings are added to the workspace folder's `.vscode/settings.json`: `python.analysis.extraPaths`, `python.analysis.typeshedPaths` and `reportMissingModuleSource` set to `none`, plus `python.languageServer` set to **Pylance** and `python.analysis.typeCheckingMode` set to `basic` — the last two because another analyzer reads neither the stubs nor your neighbouring files — the last one because those declarations are `.pyi` files with no source code: the real module lives inside the chip, so not finding it on disk is expected.
 
 Three safeguards here too:
 
 - **Nothing is overwritten**: your own paths and your own diagnostic settings are kept, Kablix only adds what is missing.
 - **Nothing is written** when the matching extension is not installed, or when everything is already in place.
 - **Once per board and per folder**: reopening a project does not redo the work.
+
+This automatic work is **silent**. When it is not enough, the command palette (`Ctrl+Shift+P`) offers **Kablix: Fix code analysis for this board**: it redoes the work on demand **and says what is missing** — extension to install, `.ino` sketch to open first, settings written, or "everything is already in place, reload the window".
+
+> A **function declared in your own file** or a **library sitting next to it** (`grove_16_channels_pwm.py`) are found by Pylance on its own, with no setting at all. If they stay underlined, Pylance is not running yet: run the command above, then reload the window.
 
 To turn this off: the **`kablix.syncIntelliSense`** setting (on by default).
 

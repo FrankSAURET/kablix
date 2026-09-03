@@ -15,6 +15,7 @@
   "kablix.cmd.saveDefaultLayout": "Kablix: Save the default layout",
   "kablix.cmd.rearrangeLayout": "Kablix: Rearrange the windows",
   "kablix.cmd.associateProjix": "Kablix: Associate .projix files with Kablix",
+  "kablix.cmd.fixIntelliSense": "Kablix: Fix code analysis for this board",
   "kablix.cmd.recommendedExtensions": "Kablix: Recommended extensions",
   "kablix.cmd.chooseSvgEditor": "Kablix: Choose the SVG editor…",
   "kablix.cmd.openComponentsFolder": "Kablix: Open the components library",

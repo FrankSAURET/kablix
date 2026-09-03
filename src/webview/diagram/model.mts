@@ -265,11 +265,13 @@ function computeNets(diagram: Diagram, joinResistors: boolean): Nets {
         dsu.union(`${part.id}/${rolePin(part.type, '1')}`, `${part.id}/${rolePin(part.type, '2')}`);
       }
     } else if (kind === 'meter') {
-      // Multimètre en AMPÈREMÈTRE : c'est un FIL, ses deux prises ne font qu'un
-      // seul nœud — exactement ce qui se passe quand on l'insère en série dans
-      // un circuit. En VOLTMÈTRE il ne conduit rien : les prises restent
-      // séparées et l'appareil n'existe pas pour le montage.
-      if (meterMode(part) === 'current') {
+      // Multimètre en AMPÈREMÈTRE : un vrai appareil n'est pas un fil parfait,
+      // il a une petite résistance interne (shunt, METER_OHMS = 0,1 Ω). Il se
+      // traite donc EXACTEMENT comme une résistance : ses deux prises ne sont
+      // le même nœud que dans la netlist fusionnée (« qui est relié à quoi »),
+      // et le graphe résistif les garde séparées par 0,1 Ω. En VOLTMÈTRE il ne
+      // conduit rien : les prises restent séparées dans les deux cas.
+      if (joinResistors && meterMode(part) === 'current') {
         dsu.union(`${part.id}/+`, `${part.id}/GND`);
       }
     } else if (kind === 'pushbutton') {
@@ -781,6 +783,15 @@ function computeResistiveGraph(
       const drop = ledForwardV(part);
       link(a, c, { ohms: 0, partId: part.id, oneWay: true, forward: true, drop });
       link(c, a, { ohms: 0, partId: part.id, oneWay: true, forward: false, drop });
+    } else if (kind === 'meter' && meterMode(part) === 'current') {
+      // Ampèremètre : shunt interne de 0,1 Ω. Sans lui les deux prises étaient
+      // le même nœud partout, donc une tension nulle à ses bornes par
+      // construction (Frank) ; avec lui la chute U = 0,1 × I existe vraiment et
+      // se lit au voltmètre, sans peser sur le courant du montage.
+      const a = nets.netOf({ partId: part.id, pin: '+' });
+      const b = nets.netOf({ partId: part.id, pin: 'GND' });
+      link(a, b, { ohms: METER_OHMS, partId: part.id });
+      link(b, a, { ohms: METER_OHMS, partId: part.id });
     } else if (kind === 'relay') {
       // La bobine est une résistance comme une autre pour le reste du schéma
       // (U²/P, soit 125 Ω sous 5 V) : c'est elle qui fixe le courant appelé.
@@ -1426,6 +1437,9 @@ export function meterMode(part: Part): 'current' | 'voltage' {
   return part.attrs?.mode === 'current' ? 'current' : 'voltage';
 }
 
+/** Résistance interne (Ω) d'un ampèremètre : le shunt qu'il insère en série. */
+export const METER_OHMS = 0.1;
+
 /** Au-delà de ce courant l'ampèremètre ne mesure plus : il court-circuite. */
 export const METER_SHORT_AMPS = 1;
 
@@ -1446,13 +1460,13 @@ export interface MeterReading {
  * énorme, il ne prend pas de courant). La mesure est simplement la différence
  * des tensions de repos des deux nœuds où sont plantées ses prises.
  *
- * AMPÈREMÈTRE : c'est un fil, donc dans la netlist ses deux prises sont DÉJÀ le
- * même nœud et la tension à ses bornes vaut zéro par construction — impossible
- * d'en tirer un courant. On le ROUVRE donc le temps du calcul : les deux nœuds
- * qu'il relie réapparaissent, chacun avec son générateur équivalent, et le
- * courant qui le traverse est le courant de court-circuit entre eux,
- * I = (V1 − V2) / (R1 + R2). Les autres multimètres du schéma, eux, restent
- * fermés : deux ampèremètres en série se mesurent l'un l'autre correctement.
+ * AMPÈREMÈTRE : dans le circuit il n'est qu'un shunt de 0,1 Ω (METER_OHMS), donc
+ * en calculant sur le schéma tel quel on lirait le courant qui passe... par
+ * lui-même, une boucle. On le ROUVRE donc le temps du calcul : les deux nœuds
+ * qu'il relie sont vus chacun avec son générateur équivalent, et le courant qui
+ * le traverse est celui qui s'établit à travers son shunt,
+ * I = (V1 − V2) / (R1 + R2 + 0,1). Les autres multimètres du schéma, eux,
+ * gardent leur shunt : deux ampèremètres en série se mesurent correctement.
  */
 export function meterReadings(
   diagram: Diagram,
@@ -1491,7 +1505,9 @@ export function meterReadings(
       out.push({ partId: meter.id, mode, value: plus.volts - minus.volts, fault: '' });
       continue;
     }
-    const amps = (plus.volts - minus.volts) / Math.max(0.1, plus.ohms + minus.ohms);
+    // Le shunt de l'appareil est rouvert avec lui (openMeter) : on le remet ici,
+    // ce qui garantit au passage un dénominateur non nul.
+    const amps = (plus.volts - minus.volts) / (plus.ohms + minus.ohms + METER_OHMS);
     const fault = Math.abs(amps) > METER_SHORT_AMPS ? 'short' : '';
     out.push({ partId: meter.id, mode, value: amps, fault });
   }

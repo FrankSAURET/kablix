@@ -37,7 +37,7 @@ check(!!prop, 'package.json : réglage kablix.syncIntelliSense');
 check(prop?.type === 'boolean' && prop?.default === true, 'réglage booléen, actif par défaut');
 check(!!nlsEn['kablix.config.syncIntelliSense'], 'description EN du réglage');
 
-check(/import \{ syncIntelliSense \} from '\.\/intellisense'/.test(panelSrc), 'panel.ts : mise au point importée');
+check(/import \{ syncIntelliSense, remettreAuPoint \} from '\.\/intellisense'/.test(panelSrc), 'panel.ts : mise au point importée');
 check(
   /syncArduinoIdeBoard\(board, hint\)\.then\(\(\) => syncIntelliSense\(board, hint\)\)/.test(panelSrc),
   'panel.ts : la mise au point vient APRÈS l’écriture de arduino.yaml',
@@ -65,7 +65,12 @@ export const extensions = {
 };
 export const ConfigurationTarget = { Global: 1, Workspace: 2, WorkspaceFolder: 3 };
 const conf = (scope) => ({
-  get: (key, d) => (key in globalThis.__is.config ? globalThis.__is.config[key] : d),
+  get: (key, d) => {
+    const dossier = scope ? (globalThis.__is.folderSettings[norm(scope.fsPath)] ?? {}) : {};
+    if (key in dossier) return dossier[key];
+    if (key in globalThis.__is.workspaceSettings) return globalThis.__is.workspaceSettings[key];
+    return key in globalThis.__is.config ? globalThis.__is.config[key] : d;
+  },
   inspect: (key) => ({
     key,
     globalValue: undefined,
@@ -97,7 +102,11 @@ export const workspace = {
       if (!globalThis.__is.paths.includes(norm(target.fsPath))) throw new Error('ENOENT ' + norm(target.fsPath));
       return { type: 2 };
     },
-    readFile: async () => { throw new Error('non utilisé'); },
+    readFile: async (target) => {
+      const c = (globalThis.__is.files ?? {})[norm(target.fsPath)];
+      if (c === undefined) throw new Error('ENOENT ' + norm(target.fsPath));
+      return Buffer.from(c, 'utf8');
+    },
     writeFile: async () => {},
   },
 };
@@ -126,7 +135,7 @@ await esbuild.build({
   logLevel: 'silent',
   alias: { vscode: join(tmp, 'vscode-stub.mjs') },
 });
-const { syncIntelliSense, resetIntelliSenseCache, MICROPICO_EXTENSION_ID } = await import(pathToFileURL(outfile).href);
+const { syncIntelliSense, remettreAuPoint, resetIntelliSenseCache, MICROPICO_EXTENSION_ID } = await import(pathToFileURL(outfile).href);
 
 const ARDUINO_ID = 'electropol-fr.arduino-vscode-ide';
 const PICO_HOME = 'W:/ext/pico-w-go';
@@ -144,6 +153,7 @@ const world = (over = {}) => {
     folderSettings: {},
     executed: [],
     updates: [],
+    files: {},
     ...over,
   };
   resetIntelliSenseCache();
@@ -225,17 +235,76 @@ world({
       'python.analysis.extraPaths': [PICO_HOME + '/mpy_stubs'],
       'python.analysis.typeshedPaths': [PICO_HOME + '/mpy_stubs'],
       'python.analysis.diagnosticSeverityOverrides': { reportMissingModuleSource: 'none' },
+      'python.languageServer': 'Pylance',
+      'python.analysis.typeCheckingMode': 'basic',
     },
   },
 });
 await syncIntelliSense('pico');
 check(globalThis.__is.updates.length === 0, 'tout est déjà en place : aucune écriture (Pylance n’est pas réveillé pour rien)');
 
+// Les deux réglages que MicroPico pose lui-même : sans le bon serveur d'analyse,
+// les déclarations qu'on vient de montrer ne servent à personne.
+world();
+await syncIntelliSense('pico');
+const rp = reglagesDu();
+check(rp['python.languageServer'] === 'Pylance', 'Pico : le serveur d’analyse est Pylance (celui qui lit les .pyi)');
+check(rp['python.analysis.typeCheckingMode'] === 'basic', 'Pico : analyse en mode « basic », comme un projet MicroPico');
+
+// Déjà Pylance dans les réglages de l’utilisateur : on ne le réécrit pas.
+world({ config: { 'python.languageServer': 'Pylance', 'python.analysis.typeCheckingMode': 'basic' } });
+await syncIntelliSense('pico');
+check(
+  !globalThis.__is.updates.some((u) => u.key === 'python.languageServer' || u.key === 'python.analysis.typeCheckingMode'),
+  'réglage déjà bon chez l’utilisateur : pas recopié dans le dossier'
+);
+
 world({ extensions: { [ARDUINO_ID]: 'W:/ext/arduino' } });
 check((await syncIntelliSense('pico')) === false, 'MicroPico absent : rien, et aucune erreur');
 
 world({ paths: [] });
 check((await syncIntelliSense('pico')) === false, 'dossier de déclarations introuvable : rien (version d’en face inattendue)');
+
+// ------------------------------------ C bis. remise au point À LA DEMANDE
+// Le travail automatique est silencieux par choix : la commande de la palette
+// est le seul endroit où l'utilisateur lit CE QUI MANQUE quand ça ne suffit pas.
+const cmd = pkg.contributes.commands.find((c) => c.command === 'kablix.fixIntelliSense');
+check(!!cmd && cmd.category === 'Kablix', 'package.json : commande kablix.fixIntelliSense dans la palette');
+check(!!nlsEn['kablix.cmd.fixIntelliSense'], 'titre EN de la commande');
+const extSrc = readFileSync(join(ROOT, 'src/extension.ts'), 'utf8');
+check(extSrc.includes("registerCommand('kablix.fixIntelliSense'"), 'extension.ts : la commande est enregistrée');
+check(/public fixIntelliSense\(\): Promise<string>/.test(panelSrc), 'panel.ts : le panneau sait la faire pour SA carte');
+
+world({ folders: [] });
+check((await remettreAuPoint('uno')).length > 0, 'aucun dossier ouvert : la commande le DIT au lieu de se taire');
+
+world({ extensions: {} });
+check(/Arduino/.test(await remettreAuPoint('uno')), 'extension Arduino absente : la commande nomme celle qui manque');
+
+// Sans la clé `sketch` dans arduino.yaml, l'extension d'en face abandonne EN
+// SILENCE : c'était la cause du .ino tout rouge.
+world({ files: { 'W:/projet/.vscode/arduino.yaml': 'board: arduino:avr:uno\n' } });
+const sansSketch = await remettreAuPoint('uno');
+check(/sketch|\.ino/i.test(sansSketch), 'arduino.yaml sans sketch : la commande dit qu’il faut ouvrir le croquis');
+check(!globalThis.__is.executed.includes(REBUILD), 'arduino.yaml sans sketch : la reconstruction n’est même pas lancée');
+
+world({ files: { 'W:/projet/.vscode/arduino.yaml': 'board: arduino:avr:uno\nsketch: Arduino/blink/blink.ino\n' } });
+await remettreAuPoint('uno');
+check(globalThis.__is.executed.includes(REBUILD), 'arduino.yaml complet : la configuration IntelliSense est demandée');
+
+// Une demande explicite REFAIT le travail, même s'il a déjà eu lieu.
+world({ files: { 'W:/projet/.vscode/arduino.yaml': 'board: arduino:avr:uno\nsketch: blink.ino\n' } });
+await syncIntelliSense('uno');
+const avant = globalThis.__is.executed.length;
+await remettreAuPoint('uno');
+check(globalThis.__is.executed.length === avant + 1, 'la commande oublie le « déjà fait » et refait le travail');
+
+world({ extensions: { [ARDUINO_ID]: 'W:/ext/arduino' } });
+check(/MicroPico/.test(await remettreAuPoint('pico')), 'MicroPico absent : la commande nomme l’extension à installer');
+
+world();
+check((await remettreAuPoint('pico')).length > 0, 'Pico : la commande rend compte de ce qui a été posé');
+check(Object.keys(reglagesDu()).length > 0, 'Pico : et les réglages sont bien écrits');
 
 // ------------------------------------------------------------- D. garde-fous
 world({ config: { 'kablix.syncIntelliSense': false } });
