@@ -140,7 +140,6 @@ const { syncIntelliSense, remettreAuPoint, resetIntelliSenseCache, MICROPICO_EXT
 const ARDUINO_ID = 'electropol-fr.arduino-vscode-ide';
 const PICO_HOME = 'W:/ext/pico-w-go';
 const REBUILD = 'arduino.rebuildIntelliSenseConfig';
-const CLOSE_PANEL = 'workbench.action.closePanel';
 
 /** Monde de départ : un dossier ouvert, les deux extensions installées. */
 const world = (over = {}) => {
@@ -187,30 +186,6 @@ await syncIntelliSense('uno');
 check(reconstructions() === lance, 'deux fois la même carte : une seule reconstruction');
 await syncIntelliSense('mega');
 check(reconstructions() === lance + 1, 'carte CHANGÉE : on régénère (le c_cpp_properties.json n’est plus le bon)');
-
-// ------------------------------- B bis. la fenêtre de sortie ne s'ouvre plus
-// L'extension d'en face montre sa sortie à CHAQUE compilation, analyse comprise :
-// choisir une carte n'est pas une compilation, Kablix la referme donc derrière.
-const propSortie = pkg.contributes.configuration.properties['kablix.showArduinoOutput'];
-check(!!propSortie, 'package.json : réglage kablix.showArduinoOutput');
-check(propSortie?.type === 'boolean' && propSortie?.default === false, 'sortie muette par défaut');
-check(!!nlsEn['kablix.config.showArduinoOutput'], 'description EN du réglage de sortie');
-
-world();
-await syncIntelliSense('uno');
-check(globalThis.__is.executed.includes(CLOSE_PANEL), 'Uno : la fenêtre de sortie ouverte par l’extension d’en face est refermée');
-check(
-  globalThis.__is.executed.indexOf(REBUILD) < globalThis.__is.executed.indexOf(CLOSE_PANEL),
-  'on referme APRÈS l’analyse : la sortie s’ouvre pendant, pas avant'
-);
-
-world({ config: { 'kablix.showArduinoOutput': true } });
-await syncIntelliSense('uno');
-check(!globalThis.__is.executed.includes(CLOSE_PANEL), 'réglage à vrai : la sortie reste visible');
-
-world();
-await syncIntelliSense('pico');
-check(!globalThis.__is.executed.includes(CLOSE_PANEL), 'Pico : aucun panneau refermé (rien ne s’ouvre de ce côté)');
 
 // ---------------------------------------------------------- C. côté MicroPython
 world();

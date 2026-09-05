@@ -297,11 +297,6 @@
           "default": true,
           "description": "%kablix.config.syncIntelliSense%"
         },
-        "kablix.showArduinoOutput": {
-          "type": "boolean",
-          "default": false,
-          "description": "%kablix.config.showArduinoOutput%"
-        },
         "kablix.componentsFolder": {
           "type": "string",
           "default": "",

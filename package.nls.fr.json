@@ -1,5 +1,5 @@
 {
-  "kablix.description": "Une application gauloise de simulation de microcontrôleurs (Arduino Uno / Raspberry Pi Pico) directement dans VS Code, 100% offline.",
+  "kablix.description": "Une application gauloise de simulation de microcontrôleurs (Arduino [Uno, Mega, Nano] / Raspberry Pi [Pico, Pico2, PicoW, Pico2W]) directement dans VS Code, 100% déconnecté.",
   "kablix.cmd.openSimulator": "Kablix : Ouvrir le simulateur",
   "kablix.cmd.compileAndRun": "Kablix : Compiler",
   "kablix.cmd.loadWorkspaceArtifact": "Kablix : Charger l'artefact compilé du workspace",

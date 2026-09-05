@@ -4,14 +4,14 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ## 2026.9.1 (2026-09-03)
 
-- **Les LED comptent enfin dans le calcul électrique.** Une LED au milieu d'une branche était un trou : le courant s'arrêtait là et le multimètre relevait n'importe quoi. Elle est maintenant une **diode** à part entière — passage dans un seul sens, **tension de seuil** retenue au passage (1,8 V pour une rouge, 3 V pour une bleue) — et le calcul des tensions déduit ces seuils branche par branche. Une pile de diodes trop haute pour la source ne s'amorce simplement pas. Au passage, l'alimentation de laboratoire ne compte plus deux fois le courant d'une LED.
+- **Les LED sont prisent en compte dans les calculs électriques.** 
 - **L'ampèremètre n'est plus un fil parfait** : il insère sa **résistance interne de 0,1 Ω**, comme un vrai appareil avec son shunt. La chute à ses bornes existe donc et se mesure au voltmètre, sans changer le courant du montage de façon visible. Posé en travers d'une alimentation, il reste détecté comme court-circuit.
-- **Un bouton câblé vers le +5 V fonctionne.** Kablix ne reconnaissait qu'un seul montage (broche d'un côté, masse de l'autre) ; le montage inverse — un côté au plus, l'autre sur la broche avec une résistance de rappel de 10 kΩ vers la masse — ne touchait aucune broche. Les deux sens sont reconnus, et **le sens de l'appui suit le montage** : repos haut/appui bas vers la masse, repos bas/appui **haut** vers le plus.
-- **Plus rien n'est souligné en rouge dans le code.** Un croquis `.ino` n'est pas du C++ de bureau et un programme Pico n'est pas du Python de bureau : Kablix pose tout seul le réglage qui manque, pour la carte en cours. Côté **Arduino**, la carte ET le croquis ouvert sont écrits dans `.vscode/arduino.yaml`, puis l'extension *Arduino VS Code IDE* refabrique sa configuration — sans le nom du croquis, elle abandonnait en silence. Côté **Pico**, les déclarations MicroPython livrées avec *MicroPico* sont montrées à Pylance. Nouvelle commande **Kablix: Fix code analysis for this board** dans la palette pour refaire le travail à la demande — et surtout pour **dire ce qui manque** quand ça ne suffit pas.
-- **Deux fils ne peuvent plus se recouvrir.** Se toucher est permis, se chevaucher ne l'est plus — sauf entre fils du même nœud, qui portent la même tension. Trois trous du chercheur de chemin sont bouchés (garde tombée à zéro en deuxième tentative, fils trop serrés non comptés dans la note, crochet de contournement jamais déclenché). Contre-épreuve : **60 schémas retracés de zéro, aucun fil superposé**.
+- **Un bouton devient bidirectionnel.**
+- **Plus rien n'est souligné en rouge dans le code.** 
+- **Deux fils ne peuvent plus se recouvrir.**
 - **Un quart de tour par clic** sur les deux boutons de rotation : quatre clics font le tour. Le pas fin de 45° reste sous les touches **+** et **−**.
 - **Plus de point jaune sous la poignée d'un fil sélectionné** : on ne voit plus que le point blanc qu'on vient attraper. Le repère reste allumé pendant un câblage en cours, là où il sert.
-- **Un atelier vierge ne réclame plus d'enregistrement.** VS Code range une copie de secours de chaque onglet en se fermant : Kablix remettait le point ● « à enregistrer » sur tout atelier sans nom, et la question revenait dans tous les dossiers ouverts ensuite. Dès qu'il y a une pièce ou un seul fil, le point ● revient comme avant.
+- **Un atelier vierge ne réclame plus d'enregistrement.** 
 - **Dessin de la carte Uno retouché** (décalages de texte repris à la main) et **`avr8js` en 0.21.1** : le test d'allumage du convertisseur analogique-numérique était écrit avec un « et » de trop.
 
 ## 2026.9.0 (2026-09-02)

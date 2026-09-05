@@ -1,1 +1,3 @@
-board: arduino:avr:uno
+board: arduino:avr:nano
+sketch: Arduino/joystick-uno/joystick-uno.ino
+port: COM3

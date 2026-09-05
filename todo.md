@@ -1,8 +1,20 @@
 # À faire
-1. 
+1. ✅ J'ai retouché la description de l'application. Tu la gardes.
+1. ✅ L'ouverture automatique de la fenêtre de sortie reste et me gave. Supprime ce que tu as fais pour la refermer et fait moi un prompt pour que je modifie arduino-vscode-ide afin qu'elle ne s'ouvre plus au lancement mais toujours si on fait une action ou elle est nécessaire (vérifier, téléverser ...) → prompt sauvegardé dans le scratchpad
+1. ✅ J'ai modifié le pinout de la uno src\webview\composants\interne\uno-pinout.svg. Je n'ai mis qu'une pastille rouge sur la patte 0 (IO 0). Applique le.
+1. ✅ Crédite arduino pour les pinout arduino et raspberry pour ceux des raspberry en  ajoutant que jes les aie éventuellement modifiés.
+
+---
+
+# >>>>  v2026.9.1.48 — Items 2-4 (description, fermeture panneau, pinout, crédits)
+
+1. ✅ Description conservée (item 1 du lot précédent)
+2. ✅ Fermeture auto panneau sortie supprimée. Logique `masquerSortieArduino()` retirée de `src/intellisense.ts`. Réglage `kablix.showArduinoOutput` supprimé de package.json et package.nls.json. Tests intellisense mis à jour (section « B bis » fermée) — 104 bancs au vert.
+3. ✅ Pinout Uno retouché appliqué (une seule pastille rouge, patte 0).
+4. ✅ Crédits ajoutés aux SVG pinout : « Pinout: Arduino (modified) » et « Pinout: Raspberry Pi (modified) » insérés dans tous les fichiers (`uno-pinout.svg`, `nano pinout.svg`, `mega pinout.svg`, `pico-pinout.svg`, `picow-pinout.svg`, `pico2-pinout.svg`, `pico2w-pinout.svg`).
+5. ℹ️ Prompt pour modifier arduino-vscode-ide généré — comportement souhaité : ne pas ouvrir le panneau pendant l'analyse IntelliSense, seulement pendant les vraies compilations (Vérifier, Téléverser). Sauvegardé en scratchpad à l'attention de Frank.
 
 ## ne pas faire pour l'instant
-
 
 
 
