@@ -241,6 +241,26 @@ const insertTextAtCaret = (host: HTMLElement, texte: string): void => {
   }
   host.dispatchEvent(new Event('input', { bubbles: true }));
 };
+/** Texte d'une zone éditable tel qu'on le lit à l'écran : `innerText` rend les
+ *  sauts de ligne que contenteditable fabrique en `<br>`/`<div>`, là où
+ *  `textContent` collerait tout bout à bout. Mêmes nettoyages qu'au commit
+ *  (espaces insécables, blancs de fin). */
+const lisibleDe = (host: HTMLElement): string =>
+  host.innerText.replace(/ /g, ' ').replace(/\s+$/, '');
+/**
+ * Texte d'une portion sélectionnée. Un fragment cloné vit HORS du document :
+ * `innerText` y renvoie le brut sans mise en page, donc sans les sauts de ligne.
+ * On le repose donc dans un bloc hors écran le temps de la lecture.
+ */
+const texteDeFragment = (frag: DocumentFragment): string => {
+  const boite = document.createElement('div');
+  boite.style.cssText = 'position:fixed;left:-9999px;top:0;white-space:pre-wrap';
+  boite.appendChild(frag);
+  document.body.appendChild(boite);
+  const texte = lisibleDe(boite);
+  boite.remove();
+  return texte;
+};
 /** Retient d'un objet venu d'un fichier les seuls champs de style VALIDES : une
  *  couleur mal formée ou une taille absurde est ignorée (l'étiquette reprend la
  *  valeur d'origine) plutôt que gravée telle quelle dans le dessin. */
@@ -3422,6 +3442,23 @@ export class Editor {
     // le focus — les deux diffèrent quand un handler a redirigé l'événement.
     const target = (e.composedPath()[0] ?? e.target) as Element | null;
     const typing = isTextEntry(target) || isTextEntry(document.activeElement);
+    // Ctrl+C / Ctrl+X DANS une étiquette en saisie. Même cause que le Ctrl+V
+    // ci-dessous : la webview VS Code capte le raccourci en amont, l'événement
+    // `copy` n'atteint jamais le contenteditable et RIEN ne partait au
+    // presse-papier — on ne pouvait pas copier depuis une étiquette qu'on est en
+    // train d'écrire. On écrit donc nous-mêmes : la portion SÉLECTIONNÉE si elle
+    // existe, tout le texte de l'étiquette sinon (le geste courant : cliquer
+    // dedans et copier la ligne). Ctrl+X efface en plus la portion coupée.
+    if (e.ctrlKey && !e.altKey && typing && (e.key.toLowerCase() === 'c' || e.key.toLowerCase() === 'x')) {
+      const couper = e.key.toLowerCase() === 'x';
+      const corps = (document.activeElement as HTMLElement | null)?.closest?.('.text-note__body')
+        ?? (target as HTMLElement | null)?.closest?.('.text-note__body');
+      if (corps instanceof HTMLElement && corps.isContentEditable && !(couper && this.locked)) {
+        e.preventDefault();
+        this.copyFromTextNote(corps, couper);
+        return;
+      }
+    }
     // Ctrl+V DANS une étiquette en saisie : dans la webview VS Code l'événement
     // `paste` n'arrive pas toujours au contenteditable (le raccourci est capté
     // en amont), et rien ne se collait. On lit alors le presse-papier système
@@ -5746,8 +5783,12 @@ export class Editor {
       // type image/svg+xml non pris en charge : repli sur le texte brut.
     }
     try {
-      await navigator.clipboard?.writeText(svg);
-      return;
+      // API absente : ne PAS sortir en croyant avoir copié (l'appel optionnel
+      // rend `undefined` sans lever), il faut passer la main à l'hôte.
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(svg);
+        return;
+      }
     } catch {
       // presse-papier indisponible (focus/permission) : repli sur l'hôte.
     }
@@ -5761,8 +5802,13 @@ export class Editor {
    *  l'accès au presse-papier). */
   private async copyPlainText(texte: string): Promise<void> {
     try {
-      await navigator.clipboard?.writeText(texte);
-      return;
+      // Pas d'appel optionnel qui avale le cas : sans API presse-papier,
+      // `navigator.clipboard?.writeText()` rendait `undefined` SANS lever, on
+      // repartait en croyant avoir copié et le repli ne servait jamais.
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(texte);
+        return;
+      }
     } catch {
       // presse-papier indisponible : repli sur l'extension.
     }
@@ -7121,6 +7167,43 @@ export class Editor {
     const sel = window.getSelection();
     sel?.removeAllRanges();
     sel?.addRange(range);
+  }
+
+  /**
+   * Copie (ou coupe) depuis l'étiquette en saisie : filet quand l'événement
+   * `copy` n'atteint pas le contenteditable, symétrique de `pasteIntoTextNote`.
+   *
+   * Portion sélectionnée si elle est DANS ce corps, sinon tout le texte de
+   * l'étiquette — cliquer dans une annotation puis Ctrl+C en rend la ligne,
+   * c'est le geste attendu. Les sauts de ligne du DOM (`<br>`, `<div>`) sont
+   * ramenés à des « \n », sans quoi le presse-papier recevrait une ligne unique.
+   */
+  private copyFromTextNote(corps: HTMLElement, couper: boolean): void {
+    const sel = window.getSelection();
+    const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+    const dedans = !!range && !range.collapsed && corps.contains(range.commonAncestorContainer);
+    const texte = dedans ? texteDeFragment(range!.cloneContents()) : lisibleDe(corps);
+    if (!texte) return;
+    void this.copyPlainText(texte);
+    if (!couper || this.locked) return;
+    if (dedans) {
+      range!.deleteContents();
+      range!.collapse(true);
+      sel!.removeAllRanges();
+      sel!.addRange(range!);
+    } else corps.textContent = '';
+    corps.dispatchEvent(new Event('input', { bubbles: true }));
+    // Modèle relu tout de suite SAUF si la coupe a tout vidé : `commitTextNode`
+    // efface alors l'étiquette, et la voir disparaître sous le curseur au milieu
+    // d'une saisie serait brutal. Vide, elle part de toute façon au blur.
+    if (lisibleDe(corps).trim() === '') return;
+    const node = corps.closest('.text-note') as HTMLElement | null;
+    for (const [id, n] of this.textNodes) {
+      if (n === node) {
+        this.commitTextNode(id, corps);
+        break;
+      }
+    }
   }
 
   /** Colle le presse-papier système dans l'étiquette en saisie (filet quand

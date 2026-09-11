@@ -402,6 +402,57 @@ async function run() {
 	await wait(120);
 	ok('un schéma copié ne se colle PAS dans une étiquette',
 		corps(nq).innerText === avant, JSON.stringify(corps(nq).innerText));
+
+	// --- 11 bis. Ctrl+C / Ctrl+X DANS l'étiquette en saisie -----------------------
+	// Même cause que le Ctrl+V ci-dessus : l'événement 'copy' n'atteint pas le
+	// contenteditable dans la webview VS Code, l'éditeur écrit donc lui-même au
+	// presse-papier (ici capté par onClipboardWrite, navigator.clipboard ayant été
+	// neutralisé plus haut).
+	let ecrit = null;
+	editor.onClipboardWrite = (t) => { ecrit = t; };
+	corps(nq).focus();
+	// Sans sélection : Ctrl+C rend TOUTE la ligne de l'étiquette.
+	finDe(corps(nq));
+	window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', ctrlKey: true, bubbles: true }));
+	await wait(60);
+	ok('Ctrl+C sans sélection copie tout le texte de l étiquette',
+		ecrit !== null && ecrit === corps(nq).innerText.replace(/\\s+$/, ''), JSON.stringify(ecrit));
+	// Avec sélection : seule la portion sélectionnée part.
+	const tout = corps(nq).innerText;
+	const selPartielle = () => {
+		const n = corps(nq).firstChild;
+		const r = document.createRange();
+		r.setStart(n, 0);
+		r.setEnd(n, 5);
+		const s = window.getSelection();
+		s.removeAllRanges();
+		s.addRange(r);
+	};
+	ecrit = null;
+	selPartielle();
+	window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', ctrlKey: true, bubbles: true }));
+	await wait(60);
+	ok('Ctrl+C avec sélection ne copie QUE la portion sélectionnée',
+		ecrit === tout.slice(0, 5), JSON.stringify(ecrit));
+	ok('et Ctrl+C ne modifie pas le texte de l étiquette',
+		corps(nq).innerText === tout, JSON.stringify(corps(nq).innerText));
+	// Ctrl+X : la portion part au presse-papier ET disparaît de l'étiquette.
+	ecrit = null;
+	selPartielle();
+	window.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', ctrlKey: true, bubbles: true }));
+	await wait(60);
+	ok('Ctrl+X copie la portion sélectionnée', ecrit === tout.slice(0, 5), JSON.stringify(ecrit));
+	ok('et Ctrl+X l efface de l étiquette',
+		corps(nq).innerText === tout.slice(5), JSON.stringify(corps(nq).innerText));
+	ok('et le texte coupé est enregistré dans le modèle',
+		editor.diagram.texts.some((n) => n.text === tout.slice(5).replace(/\\s+$/, '')),
+		JSON.stringify(editor.diagram.texts.map((n) => n.text)));
+	// Le texte est remis tel qu'il était : les sections suivantes retrouvent leur
+	// étiquette « Debut… » par son contenu.
+	corps(nq).textContent = tout;
+	corps(nq).dispatchEvent(new Event('input', { bubbles: true }));
+	await wait(30);
+
 	corps(nq).dispatchEvent(new FocusEvent('blur'));
 	editor.toggleTextMode(false);
 	await wait(30);

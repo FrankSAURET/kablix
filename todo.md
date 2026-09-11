@@ -1,7 +1,23 @@
 # À faire
-1. Impossible de copier à partir du texte
+1. les cadres de sélection des clavier à touche dures ne sont pas bons. **→ question posée au lot .69 : le cadre colle au dessin, c'est le DESSIN dur qui est posé 28 unités plus bas que celui de la membrane dans le même viewBox de 330. Le recaler déplace la relation dessin↔broche (broches à y=320, dans le bandeau vert du connecteur). Dis-moi ce que tu veux.**
+
 ## ne pas faire pour l'instant
-- Ajouter résistance de puissance
+1. Ajouter résistance de puissance
+
+---
+
+# >>>>  v2026.9.3.69 — Copier depuis une étiquette, et cinq schémas remis d'aplomb
+
+1. ✅ **On peut enfin copier depuis une étiquette de texte.** Même cause que le Ctrl+V corrigé au lot .66 : la webview VS Code capte le raccourci en amont, l'événement `copy` n'atteint jamais le `contenteditable` et **rien** ne partait au presse-papier. L'éditeur écrit donc lui-même ([editor.mts](src/webview/diagram/editor.mts)) : **Ctrl+C** rend la portion sélectionnée si elle existe, **toute la ligne de l'étiquette sinon** (le geste courant : cliquer dedans, copier). **Ctrl+X** copie et efface en plus.
+2. ✅ **Un vrai défaut trouvé au passage, sur le chemin de repli du presse-papier** : `navigator.clipboard?.writeText()` rend `undefined` **sans lever** quand l'API est absente. On repartait en croyant avoir copié, et le repli sur l'hôte VS Code — le seul chemin qui marche dans une webview bridée — ne servait jamais. Corrigé pour le texte **et** pour la copie de schéma en image, qui avait la même faille.
+3. ✅ **Photodiode : A et K remis à l'endroit**, d'après ta correction dans [Composants2D.svg](Composants2D.svg). Schéma réextrait, pas retouché à la main.
+4. ✅ **LED : ton schéma remplace celui que le code calculait.** Ton groupe s'appelle `LED-Interne` et la LED n'a pas de groupe externe dans la planche : extrait en `LED-Interne@photodiode`, qui reprend le cadre de la photodiode — même boîtier 30×50, mêmes pattes K/A aux mêmes coordonnées. L'ancien tracé procédural (triangle + barre calculés depuis l'axe A→K) est supprimé ([internal-wiring.mts](src/webview/diagram/internal-wiring.mts)).
+5. ✅ **Lettres a…g des trois afficheurs 7 segments en rouge, opacité 70 %.** Le réglage est posé **par le code** (une classe sur le groupe + une règle dans [styles.css](media/styles.css)), pas dans les huit SVG : ceux-là sont RÉGÉNÉRÉS par `_clean-7seg-schema.mjs` / `_flip-7seg-diodes.mjs` et perdraient le style au premier passage.
+6. ✅ **Barre de LED et potentiomètre à glissière : traits deux fois plus fins.** L'épaisseur ne venait pas des SVG mais du `stroke-width="2"` de l'enveloppe de la vue interne — dix diodes serrées dans un boîtier étroit s'y touchaient presque. Demi-épaisseur locale pour ces deux schémas.
+7. ⬜ **Claviers à touches dures : diagnostic fait, décision à toi.** Mesuré au banc headless : le cadre épouse le dessin au pixel. Le vide vient du dessin lui-même — corps de la membrane à y=20, corps des touches dures à y=48,5, et son bandeau vert de connecteur descend jusqu'au bord bas (329,9) là où la membrane s'arrête à 307 avec sa nappe. Même viewBox de 330, deux occupations différentes. Recaler le dessin déplace les broches (posées à y=320, en plein dans le bandeau vert) : c'est ton appel, pas le mien.
+8. ✅ **Six contrôles de plus au banc du texte** ([verify-texte.mjs](scripts/verify-texte.mjs)) : Ctrl+C sans sélection, Ctrl+C avec sélection, texte inchangé après copie, Ctrl+X qui copie, Ctrl+X qui efface, et le modèle relu après la coupe. **83 contrôles**, et la suite complète passe : **108/108 bancs verts**.
+9. ℹ️ **`version` reste `2026.9.3`**, `buildNumber` à 69. Rien n'est publié, pas de `.vsix`, CHANGELOG intact.
+
 ---
 
 # >>>>  v2026.9.3.68 — La 2026.9.2 était en ligne, le journal le dit maintenant

@@ -2176,6 +2176,17 @@ body.vscode-light .inspector__ref--nouveau {
   fill: #111;
 }
 
+/* Lettres de segment d'un afficheur 7 segments (a…g) : elles NOMMENT les diodes,
+   elles ne font pas partie du câblage. En noir plein elles se lisaient comme des
+   traits du schéma ; en rouge translucide l'œil les range du bon côté (Frank).
+   Le groupe est marqué à la construction de l'overlay (internal-wiring.mts), car
+   les SVG sources sont régénérés et perdraient un style écrit dedans. */
+.part__internal .seg-letters text,
+.part__internal .seg-letters tspan {
+  fill: #cc0000;
+  fill-opacity: 0.7;
+}
+
 /* Même problème pour les symboles de fonction d'un circuit intégré (`&`, `≥1`,
    `=1`) : Inkscape les exporte en `<path>` — ils héritaient donc du contour de
    2 px et du `fill: none` de l'overlay, qui les dessinait en lettres creuses et

@@ -31,6 +31,9 @@ import ntcSchema from '../composants/interne/ntc-schema.svg';
 import ptcSchema from '../composants/interne/ptc-schema.svg';
 import phototransistorSchema from '../composants/interne/phototransistor-interne.svg';
 import photodiodeSchema from '../composants/interne/photodiode-interne.svg';
+// LED : symbole dessiné par Frank (groupe « LED-Interne », planche Composants2D),
+// extrait au cadre de la photodiode — même boîtier 30×50, mêmes pattes K/A.
+import ledSchema from '../composants/interne/led-interne.svg';
 // Symboles dessinés dans Composants.svg (groupes « <nom>-interne ») : même
 // viewBox que le dessin externe, donc superposables tels quels. Les deux
 // condensateurs polarisés partagent « condo-p-interne ».
@@ -182,33 +185,14 @@ function pushbutton(pins: PinPoint[]): string | null {
   ].join('');
 }
 
-/** LED : symbole de diode (triangle + barre de cathode) entre A et K. */
-function led(pins: PinPoint[]): string | null {
-  const a = find(pins, 'A');
-  const c = find(pins, 'C'); // cathode (affichée « K »)
-  if (!a || !c) return null;
-
-  const center = mid(a, c);
-  const dx = c.x - a.x;
-  const dy = c.y - a.y;
-  const len = Math.hypot(dx, dy) || 1;
-  const ux = dx / len;
-  const uy = dy / len; // axe A → K
-  const px = -uy;
-  const py = ux; // perpendiculaire
-  const s = Math.min(9, len / 3); // demi-taille du symbole
-
-  const baseL = { x: center.x - ux * s + px * s, y: center.y - uy * s + py * s };
-  const baseR = { x: center.x - ux * s - px * s, y: center.y - uy * s - py * s };
-  const apex = { x: center.x + ux * s, y: center.y + uy * s };
-  const barL = { x: apex.x + px * s, y: apex.y + py * s };
-  const barR = { x: apex.x - px * s, y: apex.y - py * s };
-
-  return [
-    `<path d="M ${baseL.x} ${baseL.y} L ${baseR.x} ${baseR.y} L ${apex.x} ${apex.y} Z" fill="#fff" fill-opacity="0.6"/>`,
-    line(a, c), // conducteur patte-à-patte, noir, par-dessus
-    line(barL, barR), // barre de cathode
-  ].join('');
+/**
+ * LED : symbole dessiné par Frank, calé sur le cadre du dessin externe (viewBox
+ * 30×50, cathode en (10,40) et anode en (20,40) — le brochage que rend
+ * `pinInfo` du composant, qui ne retourne jamais la pièce depuis le diagramme).
+ * Simple mise à l'échelle, comme la photodiode dont il partage le boîtier.
+ */
+function led(box?: { w: number; h: number }): string {
+  return scaledSchema(LED_SCHEMA, box);
 }
 
 /**
@@ -245,7 +229,11 @@ function resistor(pins: PinPoint[]): string | null {
   ].join('');
 }
 
-/** Barre de LED : une diode (A→K) par segment, sur les 10 paires A{i}/C{i}. */
+/**
+ * Barre de LED : une diode (A→K) par segment, sur les 10 paires A{i}/C{i}.
+ * Dix symboles serrés dans un boîtier étroit : au trait de 2 px de l'overlay ils
+ * se touchaient presque. Demi-épaisseur pour les rendre lisibles (Frank).
+ */
 function ledBar(pins: PinPoint[]): string | null {
   const out: string[] = [];
   for (let i = 1; i <= 10; i++) {
@@ -253,7 +241,7 @@ function ledBar(pins: PinPoint[]): string | null {
     const c = find(pins, `C${i}`);
     if (a && c) out.push(diode(a, c, true));
   }
-  return out.length > 0 ? out.join('') : null;
+  return out.length > 0 ? `<g stroke-width="1">${out.join('')}</g>` : null;
 }
 
 /**
@@ -277,14 +265,18 @@ function sevenSegment(
   const schema = clock
     ? SEVEN_SEG_CLOCK_SCHEMA[bank]
     : SEVEN_SEG_SCHEMA[bank][digits] ?? SEVEN_SEG_SCHEMA.cathode['1'];
-  if (!box) return schema.inner;
+  // La classe marque les LETTRES de segment (a…g), les seuls textes de ces
+  // schémas : le CSS les met en rouge translucide pour les distinguer du câblage
+  // (Frank). Posée sur le groupe plutôt que dans les SVG, qui sont RÉGÉNÉRÉS par
+  // _clean-7seg-schema.mjs / _flip-7seg-diodes.mjs et perdraient le réglage.
+  if (!box) return `<g class="seg-letters">${schema.inner}</g>`;
   // Scale simple : le schéma (repère = viewBox du SVG dessiné) est mis à l'échelle
   // de la boîte du composant. Le SVG de Frank a ses broches déjà posées au bon
   // endroit dans son repère → pas de calage supplémentaire (sinon le schéma
   // s'écrase quand pinInfo est resserré). Comme la v41.
   const sx = box.w / schema.w;
   const sy = box.h / schema.h;
-  return `<g transform="scale(${sx.toFixed(4)} ${sy.toFixed(4)})">${schema.inner}</g>`;
+  return `<g class="seg-letters" transform="scale(${sx.toFixed(4)} ${sy.toFixed(4)})">${schema.inner}</g>`;
 }
 
 /** Schéma interne dessiné à la main, par variante de colonnes. Le viewBox du SVG
@@ -335,6 +327,7 @@ const BATTERY_SCHEMA = parseSchema(batterySchema);
 const HALL_SCHEMA = parseSchema(hallSchema);
 const POT_ROT2_SCHEMA = parseSchema(potRot2Schema);
 const RES_VERT_SCHEMA = parseSchema(resVertSchema);
+const LED_SCHEMA = parseSchema(ledSchema);
 // Symboles internes choisis NOMMÉMENT par l'attribut `schema` : le dessin d'une
 // référence ne se déduit pas de sa famille (deux NPN peuvent porter NPN1 ou
 // NPN-Générique), c'est sa fiche qui le dit.
@@ -455,7 +448,9 @@ function potentiometer(pins: PinPoint[], box?: { w: number; h: number }): string
   const tail = { x: cx, y: cy + side * (bh + 10) }; // base de la flèche
   const inter1={x:sig.x+40,y:sig.y};
   const inter2={x:inter1.x,y:tail.y}
-  return [
+  // Demi-épaisseur : le trait de 2 px de l'overlay est trop gras pour un symbole
+  // de cette taille, la flèche du curseur s'empâtait sur la boîte (Frank).
+  return `<g stroke-width="1">` + [
     `<path d="M ${left.x} ${cy - bh} L ${right.x} ${cy - bh} L ${right.x} ${cy + bh} L ${left.x} ${cy + bh} Z"/>`,
     line(vcc, left), // amorce vers VCC
     line(gnd, right), // amorce vers GND
@@ -463,7 +458,7 @@ function potentiometer(pins: PinPoint[], box?: { w: number; h: number }): string
     line(inter1,inter2),
     line(inter2, tail),
     arrow(tail, tip), // flèche du curseur sur la boîte
-  ].join('');
+  ].join('') + `</g>`;
 }
 
 /**
@@ -525,7 +520,7 @@ export function internalWiringSvg(
     case 'pushbutton':
       return pushbutton(pins);
     case 'led':
-      return led(pins);
+      return led(box);
     case 'resistor':
       // Debout : symbole dessiné (corps vertical + patte repliée), calé sur le
       // cadre de son dessin externe. Couchée : boîte tracée entre les pattes.
