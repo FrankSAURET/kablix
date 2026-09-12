@@ -34,6 +34,7 @@ import { css, html, LitElement } from 'lit';
 import type { PropertyValues } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
+import { boumOverlay } from './utils/boum.mjs';
 import drawing from './externe/resistor.svg';
 import drawingVert from './externe/res-vert.svg';
 import drawingRp1 from './externe/rp1.svg';
@@ -114,6 +115,13 @@ const POWER_SKINS = {
 export type ResistorType = 'film' | keyof typeof POWER_SKINS;
 
 /**
+ * Taille écran de l'explosion, par boîtier (px). L'overlay Boum est dimensionné
+ * en pixels fixes, pas à l'échelle du dessin : une 10 W qui grille se voit donc
+ * plus large qu'une ¼ W, à l'image de son corps.
+ */
+const BOUM_PX = { film: 40, rp1: 70, rp2: 55 } as const;
+
+/**
  * Valeur en CODE D'ATELIER : le symbole de l'unité prend la place de la virgule.
  * 4,7 Ω → « 4R7 », 4,7 kΩ → « 4K7 », 470 Ω → « 470R », 1 MΩ → « 1M ».
  * `ohmSign` remplace le R par un Ω (marquage du boîtier céramique).
@@ -149,6 +157,8 @@ export class ResistorElement extends LitElement {
   declare rtype: ResistorType;
   /** Puissance que le boîtier dissipe sans mourir (W) — inscrite sur rp1/rp2. */
   declare power: string;
+  /** Résistance grillée (puissance dissipée au-delà du boîtier) : montre l'explosion. */
+  declare burned: boolean;
 
   /** Propriétés réactives lit (remplace les décorateurs @property du code d'origine). */
   static properties = {
@@ -156,6 +166,7 @@ export class ResistorElement extends LitElement {
     orientation: { type: String },
     rtype: { type: String },
     power: { type: String },
+    burned: { type: Boolean },
   };
 
   constructor() {
@@ -164,6 +175,7 @@ export class ResistorElement extends LitElement {
     this.orientation = 'h';
     this.rtype = 'film';
     this.power = '0.25';
+    this.burned = false;
   }
 
   /** Habillage de puissance en cours, ou null pour la résistance à anneaux. */
@@ -183,8 +195,10 @@ export class ResistorElement extends LitElement {
 
   static get styles() {
     return css`
+      /* position: relative — requis par boumOverlay (span centré en absolu). */
       :host {
         display: flex;
+        position: relative;
       }
     `;
   }
@@ -265,6 +279,7 @@ export class ResistorElement extends LitElement {
       >
         ${unsafeSVG(s.svg)}
       </svg>
+      ${this.burned ? boumOverlay(BOUM_PX[this.rtype] ?? BOUM_PX.film) : null}
     `;
   }
 }

@@ -171,6 +171,38 @@ async function run() {
 	ok('hors mode texte, un clic sur le fond ne pose aucune étiquette',
 		notes().length === 1, notes().length);
 
+	// --- 4 bis. Le double-clic ouvre la saisie ET allume le mode texte ----------
+	// (v71) Retoucher une annotation ne doit plus passer par la barre d'outils :
+	// le geste attendu sur du texte est le double-clic, et le bouton T suit.
+	vus.length = 0;
+	ok('avant le double-clic, le mode texte est bien éteint', editor.isTextMode() === false);
+	n1.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, composed: true, button: 0 }));
+	await wait(30);
+	ok('un double-clic sur une étiquette ouvre sa saisie',
+		corps(n1).contentEditable === 'true', corps(n1).contentEditable);
+	ok('et il allume le mode texte', editor.isTextMode() === true);
+	ok('le bouton T en est prévenu (une seule bascule, vers allumé)',
+		vus.length === 1 && vus[0] === true, JSON.stringify(vus));
+	// Re-double-cliquer dans une saisie déjà ouverte ne doit rien rejouer.
+	vus.length = 0;
+	n1.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, composed: true, button: 0 }));
+	await wait(20);
+	ok('re-double-cliquer dans une saisie ouverte ne rebascule rien',
+		vus.length === 0 && corps(n1).contentEditable === 'true', JSON.stringify(vus));
+	corps(n1).blur();
+	editor.toggleTextMode(false);
+	await wait(20);
+	// En simulation, rien n'est éditable : le double-clic ne doit pas rouvrir.
+	editor.setLocked?.(true);
+	vus.length = 0;
+	n1.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, composed: true, button: 0 }));
+	await wait(20);
+	ok('en simulation, le double-clic n ouvre RIEN',
+		corps(n1).contentEditable !== 'true' && editor.isTextMode() === false,
+		corps(n1).contentEditable + '/' + editor.isTextMode());
+	editor.setLocked?.(false);
+	await wait(20);
+
 	// --- 5. On quitte le mode texte en cliquant AILLEURS -------------------------
 	const led = editor.addPart('led', 800, 500);
 	await wait(120);

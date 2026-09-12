@@ -1,6 +1,23 @@
 # À faire
+1. Supprimer `C:\Users\Frank\.claude\commands\rclear.md` — bloqué par le garde-fou (suppression/déplacement dans `.claude` refusés). Plus rien n'y renvoie : à effacer à la main.
+
 ## ne pas faire pour l'instant
 
+
+---
+
+# >>>>  v2026.9.3.71 — Un double-clic pour écrire, une résistance qui prend feu
+
+1. ✅ **Double-clic sur une étiquette : la saisie s'ouvre ET le mode texte s'allume** ([editor.mts](src/webview/diagram/editor.mts)). Le geste attendu sur du texte est le double-clic, il fallait jusqu'ici passer par le bouton « T ». `toggleTextMode(true)` prévient la barre d'outils (`onTextModeChange`), le bouton s'enfonce donc tout seul. Trois gardes : rien ne s'ouvre en **simulation** (`locked`), rien ne se rejoue si la **saisie est déjà ouverte**, et le `pointerdown` du premier clic a déjà sélectionné — les deux chemins ne se marchent pas dessus.
+2. ✅ **La résistance grillée montre son explosion** ([resistor-element.mts](src/webview/composants/resistor-element.mts)). La cause était simple et entière : `sim.mts` appelait bien `markBurned` (message, cadre rouge, hissage z=70) et posait `el.burned = true`, mais **l'élément n'avait pas la propriété** — ni `burned`, ni `boumOverlay`, contrairement à la LED, au 7 segments, à la barre, au transistor, au moteur, au CI et au PCA9685. Propriété réactive ajoutée, `:host` passé en `position: relative` (exigé par l'overlay, centré en absolu), overlay posé au rendu.
+3. ✅ **L'explosion est dimensionnée par boîtier** (`BOUM_PX`) : 40 px pour la ¼ W, 55 px pour le boîtier céramique, 70 px pour l'aluminium à ailettes. L'overlay Boum est en **pixels écran fixes**, pas à l'échelle du dessin : sans cette table, une 10 W de 220 px aurait pris le même petit feu qu'une résistance de 80 px.
+4. ✅ **Quatre contrôles de plus au banc Boum** ([verify-boum.mjs](scripts/verify-boum.mjs)), dans le vrai éditeur en Chrome headless : les trois boîtiers grillés montrent leur explosion, à la bonne taille, et l'ordre des tailles est vérifié (rp1 > rp2 > film) — un feu figé à une constante passerait les trois premiers contrôles mais pas le quatrième. **22 contrôles verts.**
+5. ✅ **Six contrôles de plus au banc du texte** ([verify-texte.mjs](scripts/verify-texte.mjs), section 4 bis) : le mode éteint avant le geste, la saisie ouverte par le double-clic, le mode allumé avec, **une seule** bascule signalée au bouton, le re-double-clic qui ne rejoue rien, et le refus en simulation. **89 contrôles verts.**
+6. ✅ **CHANGELOG recoupé : la 2026.9.3 est publiée depuis le 10 septembre.** Coupure établie par l'historique et non au jugé — le dernier enregistrement du 10/09 est le lot .68 (12:31) ; les lots **.69 et .70** (11/09 et 12/09) lui sont postérieurs. La section `2026.9.3` prend donc sa date de publication et se ferme, une section **`2026.9.4 (prochaine publication)`** s'ouvre au-dessus avec les deux résistances de puissance, les schémas internes redressés et la copie depuis une étiquette (le lot .69 n'avait rien écrit au journal : la règle du fil de l'eau n'existait pas encore).
+7. ✅ **Règle générale posée dans les deux CLAUDE.md** : **une section DATÉE du CHANGELOG est une version PUBLIÉE**. On n'y ajoute plus rien, on ouvre la suivante ; en cas de doute on vérifie (historique git, place de marché) ou on demande.
+8. ✅ **Renommage de session déplacé au DÉBUT** ([CLAUDE.md global](file:///C:/Users/Frank/.claude/CLAUDE.md) + [reprend.md](file:///C:/Users/Frank/.claude/commands/reprend.md)) : sur un `/reprend`, la session se renomme dès que `todo.md` est lu et la tâche identifiée — plus à la fin, où la session est souvent déjà close. `/rclear` n'a plus de raison d'être, plus rien n'y renvoie.
+9. ⬜ **`rclear.md` pas encore effacé** : `rm` comme `Move-Item` sont refusés par le garde-fou sur `.claude`. Passé en tête de la liste à faire.
+10. ℹ️ **`version` reste `2026.9.3`** (publiée le 10 septembre), `buildNumber` à 71. Rien n'est publié, pas de `.vsix`.
 
 ---
 

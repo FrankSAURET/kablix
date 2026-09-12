@@ -7316,6 +7316,18 @@ export class Editor {
     });
     node.appendChild(body);
     node.addEventListener('pointerdown', (e) => this.onTextPointerDown(note, node, body, e));
+    // Double-clic : la saisie s'ouvre même HORS mode texte, et le mode s'allume
+    // avec (le bouton T bascule). Sans lui, retoucher une annotation obligeait à
+    // passer par la barre d'outils, alors que le geste attendu sur du texte est
+    // le double-clic. Le premier clic a déjà sélectionné (pointerdown).
+    node.addEventListener('dblclick', (e) => {
+      if (this.locked) return; // simulation : rien n'est éditable
+      e.preventDefault();
+      e.stopPropagation();
+      if (body.contentEditable === 'true') return; // saisie déjà ouverte
+      this.toggleTextMode(true);
+      this.editText(note.id);
+    });
     this.textLayer.appendChild(node);
     this.textNodes.set(note.id, node);
   }

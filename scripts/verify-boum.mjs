@@ -24,6 +24,7 @@ import { Editor } from '${SRC}/diagram/editor.mjs';
 import '${SRC}/composants/led-element.mjs';
 import '${SRC}/composants/7segment-element.mjs';
 import '${SRC}/composants/led-bar-graph-element.mjs';
+import '${SRC}/composants/resistor-element.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 async function run() {
   const editor = new Editor(
@@ -32,7 +33,21 @@ async function run() {
   const led = editor.addPart('led', 100, 100);
   const seg = editor.addPart('7seg', 300, 100);
   const bar = editor.addPart('led-bar', 500, 100);
+  // v71 : la résistance explose aussi (surpuissance). Un boîtier de chaque.
+  const rFilm = editor.addPart('resistor', 100, 300);
+  const rP1 = editor.addPart('resistor', 300, 300);
+  const rP2 = editor.addPart('resistor', 500, 300);
   await wait(80);
+  for (const [id, kind] of [[rP1.id, 'rp1'], [rP2.id, 'rp2']]) {
+    const el = editor.rendered.get(id).el;
+    el.rtype = kind;
+    await el.updateComplete;
+  }
+  for (const id of [rFilm.id, rP1.id, rP2.id]) {
+    const el = editor.rendered.get(id).el;
+    el.burned = true;
+    await el.updateComplete;
+  }
   for (const id of [led.id, seg.id, bar.id]) {
     const el = editor.rendered.get(id).el;
     el.burned = true;
@@ -79,6 +94,7 @@ async function run() {
     fireIsWebp: !!img && img.src.startsWith('data:image/webp;base64,'),
     fireBytes: img ? img.src.length : 0,
     ledSize: sizeOf(led.id), segSize: sizeOf(seg.id), barSize: sizeOf(bar.id),
+    rFilmSize: sizeOf(rFilm.id), rP1Size: sizeOf(rP1.id), rP2Size: sizeOf(rP2.id),
     overlayStableOnResilentRerender: idBefore === idStable,
     oldBehaviorRecreates: idA !== idB,
     zWires, zPlain, zBurned, zUnburned, classBurned,
@@ -108,6 +124,11 @@ if (!chrome) {
   check('LED : explosion ≈ 50 px (hauteur du corps)', r && r.ledSize >= 40 && r.ledSize <= 60);
   check('7 seg : explosion ≈ 90 px (hauteur du corps, pas minuscule)', r && r.segSize >= 80 && r.segSize <= 100);
   check('barre : explosion ≈ 110 px (hauteur du corps)', r && r.barSize >= 100 && r.barSize <= 120);
+  // v71 : la résistance grillée montre l'explosion, et pas seulement son message.
+  check('résistance ¼ W : explosion présente ≈ 40 px', r && r.rFilmSize >= 34 && r.rFilmSize <= 46);
+  check('résistance rp1 (10 W, ailettes) : explosion ≈ 70 px', r && r.rP1Size >= 62 && r.rP1Size <= 78);
+  check('résistance rp2 (10 W, céramique) : explosion ≈ 55 px', r && r.rP2Size >= 48 && r.rP2Size <= 62);
+  check('résistance : l\'explosion grandit avec le boîtier', r && r.rP1Size > r.rP2Size && r.rP2Size > r.rFilmSize);
   check('overlay STABLE si re-render à valeurs inchangées (fix sim.mts v158)', r && r.overlayStableOnResilentRerender);
   check('contre-épreuve : re-render à array neuve RECRÉE l\'overlay (bug d\'origine)', r && r.oldBehaviorRecreates);
   // v195 : l'explosion passe par-dessus TOUT (les fils la recouvraient).
