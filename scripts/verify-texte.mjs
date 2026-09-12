@@ -174,24 +174,28 @@ async function run() {
 	// --- 4 bis. Le double-clic ouvre la saisie ET allume le mode texte ----------
 	// (v71) Retoucher une annotation ne doit plus passer par la barre d'outils :
 	// le geste attendu sur du texte est le double-clic, et le bouton T suit.
-	// (v72) Le geste est rejoué comme le navigateur l'émet VRAIMENT : deux
-	// pointerdown dont le second porte detail 2. L'ancien banc envoyait un
-	// dblclick synthétique isolé — événement que le vrai enchaînement ne
-	// produit JAMAIS ici (le premier clic appelle preventDefault() et capture
-	// le pointeur), d'où un banc vert sur une fonction qui ne marchait pas.
-	const doubleClic = (n, detail2 = 2) => {
+	// (v73) Le geste est rejoué comme Chrome l'émet VRAIMENT — mesuré à la
+	// souris : deux pointerdown SANS detail (un pointerdown porte toujours
+	// detail 0) et AUCUN dblclick, que le preventDefault() du premier clic
+	// supprime. C'est l'écart entre les deux pointerdown qui fait le
+	// double-clic. Les deux bancs précédents inventaient des événements que le
+	// navigateur ne produit pas ici, d'où du vert sur une fonction morte.
+	const deuxClics = async (n, ecartMs = 0) => {
 		const b = n.getBoundingClientRect();
 		const pos = { clientX: b.left + 5, clientY: b.top + 5 };
-		n.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, composed: true,
-			button: 0, detail: 1, ...pos }));
-		window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }));
-		n.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, composed: true,
-			button: 0, detail: detail2, ...pos }));
-		window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }));
+		const clic = () => {
+			n.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, composed: true,
+				button: 0, ...pos }));
+			window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }));
+		};
+		clic();
+		if (ecartMs) await wait(ecartMs);
+		clic();
 	};
+	const doubleClic = (n) => deuxClics(n, 0);
 	vus.length = 0;
 	ok('avant le double-clic, le mode texte est bien éteint', editor.isTextMode() === false);
-	doubleClic(n1);
+	await doubleClic(n1);
 	await wait(30);
 	ok('un double-clic sur une étiquette ouvre sa saisie',
 		corps(n1).contentEditable === 'true', corps(n1).contentEditable);
@@ -200,24 +204,48 @@ async function run() {
 		vus.length === 1 && vus[0] === true, JSON.stringify(vus));
 	// Re-double-cliquer dans une saisie déjà ouverte ne doit rien rejouer.
 	vus.length = 0;
-	doubleClic(n1);
+	await doubleClic(n1);
 	await wait(20);
 	ok('re-double-cliquer dans une saisie ouverte ne rebascule rien',
 		vus.length === 0 && corps(n1).contentEditable === 'true', JSON.stringify(vus));
 	corps(n1).blur();
 	editor.toggleTextMode(false);
 	await wait(20);
-	// Un clic SIMPLE ne doit surtout pas ouvrir la saisie (il sélectionne).
+	// Deux clics ESPACÉS (plus de 500 ms) sont deux clics simples : ils
+	// sélectionnent, ils n'ouvrent rien. C'est ce qui sépare le double-clic du
+	// clic ordinaire — sans ce contrôle, un code qui ouvre à CHAQUE clic
+	// passerait tous les autres.
 	vus.length = 0;
-	doubleClic(n1, 1); // deux clics « séparés » : detail reste à 1
+	await deuxClics(n1, 600);
 	await wait(20);
-	ok('deux clics SÉPARÉS (detail 1) n ouvrent pas la saisie',
+	ok('deux clics ESPACÉS de 600 ms n ouvrent pas la saisie',
+		corps(n1).contentEditable !== 'true' && editor.isTextMode() === false,
+		corps(n1).contentEditable + '/' + editor.isTextMode());
+	// Un TROISIÈME clic rapproché ne doit pas rouvrir non plus : le compteur est
+	// remis à zéro dès qu'un double-clic est reconnu, sinon chaque clic d'une
+	// rafale rouvrirait la saisie. L'attente de 600 ms sépare franchement ce
+	// contrôle du précédent, sans quoi le premier clic du double-clic ci-dessous
+	// formerait une paire avec le dernier clic espacé.
+	await wait(600);
+	vus.length = 0;
+	await doubleClic(n1);
+	await wait(20);
+	corps(n1).blur();
+	editor.toggleTextMode(false);
+	await wait(20);
+	vus.length = 0;
+	const bTroisieme = n1.getBoundingClientRect();
+	n1.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, composed: true,
+		button: 0, clientX: bTroisieme.left + 5, clientY: bTroisieme.top + 5 }));
+	window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }));
+	await wait(20);
+	ok('un troisième clic rapproché ne rouvre pas la saisie',
 		corps(n1).contentEditable !== 'true' && editor.isTextMode() === false,
 		corps(n1).contentEditable + '/' + editor.isTextMode());
 	// En simulation, rien n'est éditable : le double-clic ne doit pas rouvrir.
 	editor.setLocked?.(true);
 	vus.length = 0;
-	doubleClic(n1);
+	await doubleClic(n1);
 	await wait(20);
 	ok('en simulation, le double-clic n ouvre RIEN',
 		corps(n1).contentEditable !== 'true' && editor.isTextMode() === false,

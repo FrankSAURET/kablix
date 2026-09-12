@@ -41,6 +41,11 @@ Un **boîtier** (`to92`…) sert à des dizaines de composants : c'est un DESSIN
 - Pièges Inkscape : `id="board"` perdu, ids dupliqués suffixés (`pin-VSS-1`).
 - Vérification géométrie/alignement : rendu Chrome headless (/preview) — ne jamais demander à Frank de coller des logs console.
 
+## Gestes de souris — banc à VRAIE souris obligatoire
+Les bancs ordinaires fabriquent leurs événements (`new PointerEvent(...)`), faute d'entrée sous `--dump-dom` : bon pour la logique, **incapable de prouver un geste**. Mesuré : un `preventDefault()` sur `pointerdown` supprime `mousedown`/`click`/**`dblclick`**, et un `pointerdown` porte toujours `detail = 0`. Deux lots (v.71, v.72) ont été livrés verts sur un double-clic mort.
+- Tout geste (double-clic, glisser, clic droit, molette) se vérifie dans [verify-souris.mjs](scripts/verify-souris.mjs) : Chrome headless piloté en CDP brut (`Input.dispatchMouseEvent`, port 9411, pas de puppeteer dans le projet).
+- **Contre-épreuve obligatoire** : `git stash`, relancer le banc — il DOIT échouer sur l'ancien code. Un banc qui passe avant et après ne prouve rien.
+
 ## Traductions — jamais au fil de l'eau
 Règle globale : **rien de traduit pendant le travail courant**. Langue de base seulement (FR pour `docs/`, EN pour les chaînes du code), les autres langues en un seul lot **avant publication**, sur demande de Frank. Concerne `docs/en/`, `l10n/bundle.l10n.fr.json`, README localisés et le bloc `l10n` des composants de bibliothèque (`kablix_components/_sources.json`, langue de base = EN). Le manque se note ⏳ dans `todo.md` et ne bloque pas un lot.
 

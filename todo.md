@@ -5,7 +5,20 @@
 
 ---
 
-# >>>>  v2026.9.3.72 — Le double-clic marche pour de vrai
+# >>>>  v2026.9.3.73 — Le double-clic, prouvé cette fois
+
+1. ✅ **Le double-clic ouvre la saisie, et c'est MESURÉ.** Les deux lots précédents corrigeaient à l'aveugle ; celui-ci part d'une mesure dans Chrome avec une vraie souris. Deux faits, tous deux fatals aux corrections .71 et .72 : le `preventDefault()` du premier `pointerdown` (indispensable, sinon le glisser sélectionne du texte) supprime **tous** les événements souris de compatibilité — `mousedown`, `click` et `dblclick` n'arrivent jamais sur le nœud ; et un `pointerdown` porte **`detail = 0`**, toujours, `detail` n'existant que sur les événements souris. Les deux chemins que le navigateur offre d'ordinaire sont donc fermés.
+2. ✅ **Le compte se fait à la main** ([editor.mts](src/webview/diagram/editor.mts)) : deux clics du même bouton à moins de 500 ms (`DOUBLE_CLIC_MS`) et 6 px (`DOUBLE_CLIC_PX`) l'un de l'autre valent un double-clic. Le repère est remis à zéro dès qu'un double-clic est reconnu — sinon chaque clic d'une rafale rouvrirait la saisie.
+3. ✅ **Nouveau banc [verify-souris.mjs](scripts/verify-souris.mjs) : de VRAIS clics de souris.** Tous les autres bancs fabriquent leurs événements (`new PointerEvent`), faute d'entrée sous `--dump-dom` — bon pour la logique, incapable de prouver un geste, puisqu'un événement fabriqué porte les champs qu'on lui donne. Ici Chrome est piloté par son protocole de mise au point (`Input.dispatchMouseEvent`, CDP brut sur le port 9411, pas de puppeteer dans le projet) : les clics sont émis par le navigateur. **10 contrôles** — pose d'une étiquette au clic, clic simple qui sélectionne sans ouvrir, deux clics espacés, le double-clic, le bouton T prévenu une seule fois, et le glisser qui déplace sans ouvrir.
+4. ✅ **Contre-épreuve faite** : `git stash`, banc relancé sur l'ancien code → **3 échecs** sur les trois contrôles du double-clic. Un banc qui passe avant ET après la correction ne prouve rien ; c'est exactement ce qui a laissé passer les lots .71 et .72.
+5. ✅ **Le banc du texte rejoue enfin le vrai enchaînement** ([verify-texte.mjs](scripts/verify-texte.mjs)) : deux `pointerdown` sans `detail`, séparés par un vrai délai. **Deux contrôles de plus** : deux clics espacés de 600 ms n'ouvrent rien, et un troisième clic rapproché ne rouvre pas. **91 contrôles verts.**
+6. ✅ **Règle écrite dans le [CLAUDE.md du projet](CLAUDE.md)** : tout geste de souris se vérifie dans `verify:souris`, avec contre-épreuve au `git stash` obligatoire.
+7. ⏳ **Traductions en attente** (inchangé) : le libellé de la puissance et les trois noms de boîtier de la résistance.
+8. ℹ️ **`version` reste `2026.9.3`**, `buildNumber` à 73. Rien n'est publié, pas de `.vsix`.
+
+---
+
+# >>>>  v2026.9.3.72 — Le double-clic (2e tentative ratée, corrigée en .73)
 
 1. ✅ **Le double-clic sur une étiquette ouvre enfin la saisie** ([editor.mts](src/webview/diagram/editor.mts)). Le lot .71 avait posé un écouteur `dblclick` sur le nœud : il n'est **jamais appelé**. Le `pointerdown` du premier clic fait `preventDefault()` (indispensable, sinon le glisser sélectionne du texte) et pose une capture de pointeur **sur le canvas** — les deux suppriment les événements souris de compatibilité, `dblclick` n'atteint donc pas le nœud. Le geste est détecté dans `onTextPointerDown` par `e.detail >= 2`, la même information portée par le pointeur. L'écouteur `dblclick` reste en filet pour les gestes synthétiques ; les deux passent par `openTextEditing()`.
 2. ✅ **Le banc validait du vide, c'est réparé** ([verify-texte.mjs](scripts/verify-texte.mjs)). Il envoyait un `dblclick` synthétique isolé — un événement que le vrai enchaînement ne produit jamais ici — d'où six contrôles verts sur une fonction morte. Il rejoue maintenant le geste du navigateur : deux `pointerdown`, `detail` 1 puis 2. **Un contrôle de plus** : deux clics séparés (`detail` reste à 1) ne doivent RIEN ouvrir — c'est ce qui distingue le double-clic du clic simple, et sans lui un code qui ouvre à chaque clic passerait. **90 contrôles verts.**

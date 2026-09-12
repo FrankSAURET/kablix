@@ -193,6 +193,12 @@ const TEXT_NOTE_FONTS: { value: string; label: string; css: string }[] = [
   { value: 'cursive', label: 'Handwriting', css: 'cursive' },
 ];
 const TEXT_NOTE_SIZES = [8, 9, 10, 11, 12, 14, 16, 20, 24, 32, 48];
+/** Double-clic compté à la main sur une étiquette : le `preventDefault()` du
+ *  premier clic supprime `dblclick`, et `pointerdown` ne porte pas le compte
+ *  des clics. Valeurs usuelles d'un bureau : 500 ms, et une tolérance de
+ *  déplacement qui laisse passer le tremblement de la main. */
+const DOUBLE_CLIC_MS = 500;
+const DOUBLE_CLIC_PX = 6;
 /** Couleurs proposées pour l'encre et le fond (le nuancier des fils est fait
  *  pour du câblage, celui-ci pour de l'écriture). */
 const TEXT_NOTE_INKS = ['#100ae5', '#000000', '#c00000', '#0a7d00', '#7a00c0', '#ffffff'];
@@ -508,6 +514,10 @@ export class Editor {
   private textNodes = new Map<string, HTMLDivElement>();
   /** Mode texte (bouton T de la barre) : un clic sur le fond pose une étiquette. */
   private textMode = false;
+  /** Dernier clic reçu sur une étiquette, pour compter le double-clic nous-même
+   *  (voir `DOUBLE_CLIC_MS`). Remis à null dès qu'un double-clic est reconnu,
+   *  sinon un troisième clic en rouvrirait un. */
+  private dernierClicTexte: { id: string; t: number; x: number; y: number } | null = null;
   private selection: Selection = null;
   /** Composants sélectionnés (sélection multiple : marquee, Ctrl+clic). */
   private selectedParts = new Set<string>();
@@ -7369,15 +7379,27 @@ export class Editor {
     e.stopPropagation();
     this.select({ kind: 'text', id: note.id });
 
-    // Le double-clic est détecté ICI et non par un écouteur `dblclick` : le
-    // premier clic appelle `preventDefault()` (indispensable, sinon le glisser
-    // sélectionne du texte) et pose une capture de pointeur sur le canvas. Les
-    // deux suppriment les événements souris de compatibilité — `dblclick`
-    // n'atteint jamais ce nœud. `e.detail` compte les clics rapprochés au même
-    // endroit, c'est la même information, disponible sur le pointeur.
-    if (e.button === 0 && e.detail >= 2) {
-      this.openTextEditing(note.id, body);
-      return; // pas de déplacement : on vient d'ouvrir la saisie
+    // Le double-clic est compté ICI, à la main. MESURÉ dans Chrome avec une
+    // vraie souris : le `preventDefault()` ci-dessus supprime TOUS les
+    // événements souris de compatibilité — `mousedown`, `click` et `dblclick`
+    // n'arrivent jamais sur ce nœud — et un `pointerdown` porte
+    // `detail = 0`, jamais le compte des clics. Les deux chemins que le
+    // navigateur offre d'ordinaire sont donc fermés : il reste l'horodatage.
+    // Deux clics du même bouton, à moins de DOUBLE_CLIC_MS l'un de l'autre et à
+    // moins de DOUBLE_CLIC_PX de distance, valent un double-clic.
+    if (e.button === 0) {
+      const t = e.timeStamp || performance.now();
+      const d = this.dernierClicTexte;
+      const proche =
+        d !== null &&
+        d.id === note.id &&
+        t - d.t < DOUBLE_CLIC_MS &&
+        Math.hypot(e.clientX - d.x, e.clientY - d.y) < DOUBLE_CLIC_PX;
+      this.dernierClicTexte = proche ? null : { id: note.id, t, x: e.clientX, y: e.clientY };
+      if (proche) {
+        this.openTextEditing(note.id, body);
+        return; // pas de déplacement : on vient d'ouvrir la saisie
+      }
     }
 
     const startX = e.clientX;
