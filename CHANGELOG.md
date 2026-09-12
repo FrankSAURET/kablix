@@ -6,18 +6,18 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Nouveauté
 
-- **Deux résistances de puissance.** La résistance ne se décline plus seulement en petit boîtier à anneaux : un **boîtier aluminium à ailettes** et un **boîtier céramique**, 10 W chacun, se choisissent dans ses propriétés. À cette taille la valeur n'est plus en couleurs, elle est **écrite** dessus en code d'atelier, puissance en tête : `10W 4R7` pour 4,7 Ω, `10W 4K7` pour 4,7 kΩ. Le boîtier céramique écrit l'unité avec un Ω (`10W 4Ω7`), comme dans la réalité. Ces deux-là sont trop massives pour tenir debout : la propriété de pose disparaît de leur inspecteur.
-- **Une résistance peut partir en fumée.** Nouvelle propriété **puissance** sur toutes les résistances — ¼ W pour la petite (rien n'est inscrit dessus), 10 W pour les deux boîtiers de puissance. La simulation calcule ce que chaque résistance dissipe VRAIMENT au point de fonctionnement du montage, et au-delà de son boîtier elle explose, avec l'étiquette qui dit quoi corriger. Deux choses à savoir : une sortie de carte, avec ses ~25 Ω internes, ne peut pas griller une 10 W (il faut une alimentation de laboratoire — 12 V sur 4,7 Ω font 30 W) ; et en commande hachée c'est la **puissance** qui est moyennée, pas le courant, sinon l'échauffement serait sous-estimé.
+- **Deux résistances de puissance.** Un **boîtier aluminium à ailettes** et un **boîtier céramique**, 10 W chacun, se choisissent dans les propriétés de la résistance. À cette taille la valeur est **écrite** dessus, puissance en tête : `10W 4R7`.
+- **Une résistance peut partir en fumée.** Nouvelle propriété **puissance** — ¼ W pour la petite, 10 W pour les deux boîtiers. Au-delà, elle explose et l'étiquette dit quoi corriger.
 
 ### Modification
 
-- **Un double-clic sur une étiquette la rouvre en écriture**, sans passer par la barre d'outils : le mode texte s'allume avec (le bouton « T » s'enfonce), et le curseur se pose dans le texte. Pendant une simulation, rien ne s'ouvre — le schéma se lit, il ne se retouche pas.
-- **Les schémas internes de cinq composants redressés.** La **photodiode** avait son anode et sa cathode inversées ; la **LED** reçoit le dessin de son symbole à la place du tracé que le programme calculait ; les lettres **a…g** des trois afficheurs 7 segments passent en rouge pâle, pour se distinguer des liaisons ; la **barre de LED** et le **potentiomètre à glissière** avaient des traits deux fois trop épais, au point que leurs diodes se touchaient presque.
+- **Un double-clic sur une étiquette la rouvre en écriture**, sans passer par la barre d'outils.
+- **Les schémas internes de cinq composants redressés** : photodiode, LED, les trois afficheurs 7 segments, la barre de LED et le potentiomètre à glissière.
 
 ### Correction
 
-- **Une résistance qui grille montre enfin son explosion.** Elle affichait le message et le cadre rouge, mais le composant restait intact à l'écran, contrairement à la LED, au transistor ou au moteur. Le feu est là, dimensionné selon le boîtier : une 10 W part plus large qu'une ¼ W.
-- **Copier depuis une étiquette de texte fonctionne.** Ctrl+C ne rendait rien au presse-papier : la webview captait le raccourci avant la zone de saisie. Kablix s'en charge lui-même — **Ctrl+C** copie la portion sélectionnée, ou **toute la ligne** si rien n'est sélectionné (le geste courant : cliquer dans l'étiquette et copier) ; **Ctrl+X** copie et efface. La copie d'un schéma **en image** souffrait du même défaut et est réparée au passage.
+- **Copier depuis une étiquette de texte fonctionne.** Ctrl+C copie la sélection, ou toute la ligne si rien n'est sélectionné ; Ctrl+X copie et efface.
+- **Une résistance qui grille montre son explosion**, dimensionnée selon le boîtier.
 
 ## 2026.9.3 (10 septembre 2026)
 

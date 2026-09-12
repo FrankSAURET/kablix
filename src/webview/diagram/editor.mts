@@ -7316,20 +7316,29 @@ export class Editor {
     });
     node.appendChild(body);
     node.addEventListener('pointerdown', (e) => this.onTextPointerDown(note, node, body, e));
-    // Double-clic : la saisie s'ouvre même HORS mode texte, et le mode s'allume
-    // avec (le bouton T bascule). Sans lui, retoucher une annotation obligeait à
-    // passer par la barre d'outils, alors que le geste attendu sur du texte est
-    // le double-clic. Le premier clic a déjà sélectionné (pointerdown).
+    // Filet de sécurité : si un `dblclick` natif arrive quand même (aucun
+    // `pointerdown` ne l'a précédé, cas des gestes synthétiques), il ouvre la
+    // saisie de la même façon. Le chemin RÉEL passe par `onTextPointerDown` —
+    // voir l'explication là-bas.
     node.addEventListener('dblclick', (e) => {
       if (this.locked) return; // simulation : rien n'est éditable
       e.preventDefault();
       e.stopPropagation();
-      if (body.contentEditable === 'true') return; // saisie déjà ouverte
-      this.toggleTextMode(true);
-      this.editText(note.id);
+      this.openTextEditing(note.id, body);
     });
     this.textLayer.appendChild(node);
     this.textNodes.set(note.id, node);
+  }
+
+  /**
+   * Ouvre une étiquette en écriture sur un double-clic, même HORS mode texte :
+   * le mode s'allume avec (le bouton T s'enfonce tout seul) et le curseur se
+   * pose dans le texte. Rien ne se rejoue si la saisie est déjà ouverte.
+   */
+  private openTextEditing(id: string, body: HTMLElement): void {
+    if (body.contentEditable === 'true') return; // saisie déjà ouverte
+    this.toggleTextMode(true);
+    this.editText(id);
   }
 
   /** Recale la position mémorisée après une saisie (l'étiquette ne bouge pas,
@@ -7359,6 +7368,17 @@ export class Editor {
     e.preventDefault();
     e.stopPropagation();
     this.select({ kind: 'text', id: note.id });
+
+    // Le double-clic est détecté ICI et non par un écouteur `dblclick` : le
+    // premier clic appelle `preventDefault()` (indispensable, sinon le glisser
+    // sélectionne du texte) et pose une capture de pointeur sur le canvas. Les
+    // deux suppriment les événements souris de compatibilité — `dblclick`
+    // n'atteint jamais ce nœud. `e.detail` compte les clics rapprochés au même
+    // endroit, c'est la même information, disponible sur le pointeur.
+    if (e.button === 0 && e.detail >= 2) {
+      this.openTextEditing(note.id, body);
+      return; // pas de déplacement : on vient d'ouvrir la saisie
+    }
 
     const startX = e.clientX;
     const startY = e.clientY;

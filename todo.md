@@ -1,8 +1,17 @@
 # À faire
-1. Supprimer `C:\Users\Frank\.claude\commands\rclear.md` — bloqué par le garde-fou (suppression/déplacement dans `.claude` refusés). Plus rien n'y renvoie : à effacer à la main.
 
 ## ne pas faire pour l'instant
 
+
+---
+
+# >>>>  v2026.9.3.72 — Le double-clic marche pour de vrai
+
+1. ✅ **Le double-clic sur une étiquette ouvre enfin la saisie** ([editor.mts](src/webview/diagram/editor.mts)). Le lot .71 avait posé un écouteur `dblclick` sur le nœud : il n'est **jamais appelé**. Le `pointerdown` du premier clic fait `preventDefault()` (indispensable, sinon le glisser sélectionne du texte) et pose une capture de pointeur **sur le canvas** — les deux suppriment les événements souris de compatibilité, `dblclick` n'atteint donc pas le nœud. Le geste est détecté dans `onTextPointerDown` par `e.detail >= 2`, la même information portée par le pointeur. L'écouteur `dblclick` reste en filet pour les gestes synthétiques ; les deux passent par `openTextEditing()`.
+2. ✅ **Le banc validait du vide, c'est réparé** ([verify-texte.mjs](scripts/verify-texte.mjs)). Il envoyait un `dblclick` synthétique isolé — un événement que le vrai enchaînement ne produit jamais ici — d'où six contrôles verts sur une fonction morte. Il rejoue maintenant le geste du navigateur : deux `pointerdown`, `detail` 1 puis 2. **Un contrôle de plus** : deux clics séparés (`detail` reste à 1) ne doivent RIEN ouvrir — c'est ce qui distingue le double-clic du clic simple, et sans lui un code qui ouvre à chaque clic passerait. **90 contrôles verts.**
+3. ✅ **Entrées du CHANGELOG raccourcies** ([CHANGELOG.md](CHANGELOG.md)), d'après tes coupes : une ou deux phrases par entrée, plus d'explication de cause ni de chiffre de mesure. Deux entrées que la coupe avait laissées en suspens sont terminées, l'explosion de la résistance est remise en Correction. Règle mémorisée pour les prochains lots — le détail reste ici, dans `todo.md`.
+4. ⏳ **Traductions en attente** (inchangé depuis .70) : le libellé de la puissance et les trois noms de boîtier de la résistance. `verify:i18n` les signale — c'est normal, elles partent avant publication.
+5. ℹ️ **107/108 bancs verts**, le seul échec étant ces traductions. **`version` reste `2026.9.3`**, `buildNumber` à 72. Rien n'est publié, pas de `.vsix`.
 
 ---
 
