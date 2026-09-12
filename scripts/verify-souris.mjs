@@ -22,7 +22,10 @@
 //   1. un double-clic sur une étiquette ouvre sa saisie et allume le mode texte ;
 //   2. un clic simple la sélectionne sans rien ouvrir ;
 //   3. deux clics espacés restent deux clics simples ;
-//   4. un glisser déplace l'étiquette au lieu d'ouvrir la saisie.
+//   4. un glisser déplace l'étiquette au lieu d'ouvrir la saisie ;
+//   5. un rectangle de sélection attrape plusieurs étiquettes d'un coup ;
+//   6. tirer l'une d'elles déplace TOUT le lot, et rien d'autre ;
+//   7. un clic droit quitte le mode étiquette sans en poser une.
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { join, dirname } from 'node:path';
@@ -198,6 +201,78 @@ try {
 	ok('un glisser DÉPLACE l étiquette', Math.abs(apres.x - avant.x) >= 40 && Math.abs(apres.y - avant.y) >= 40,
 		`${JSON.stringify(avant)} → ${JSON.stringify(apres)}`);
 	ok('et un glisser n ouvre pas la saisie', s.edit !== 'true', s.edit);
+
+	// --- 5. Le RECTANGLE de sélection attrape plusieurs étiquettes -------------
+	// On repart d'une feuille nette : trois étiquettes posées par programme à des
+	// places connues, deux dans la boîte à venir, une hors d'atteinte.
+	await ev(`(() => {
+		window.editor.clear();
+		window.editor.addText('Alpha', 200, 200);
+		window.editor.addText('Beta', 200, 260);
+		window.editor.addText('Gamma', 200, 600);
+	})()`);
+	await attendre(200);
+	// Coordonnées écran : le canvas commence après la palette, l'éditeur est à
+	// zoom 1 sans panoramique — on relit quand même la boîte pour ne rien supposer.
+	const orig = JSON.parse(await ev(`(() => { const b = document.getElementById('canvas').getBoundingClientRect();
+		return JSON.stringify({ x: Math.round(b.left), y: Math.round(b.top) }); })()`));
+	const lasso = async (x1, y1, x2, y2, boutons = 1) => {
+		await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x1, y: y1, button: 'left', buttons: 0 });
+		await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: x1, y: y1, button: 'left', buttons: boutons, clickCount: 1 });
+		const pas = 6;
+		for (let i = 1; i <= pas; i++) {
+			await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', button: 'left', buttons: boutons,
+				x: Math.round(x1 + ((x2 - x1) * i) / pas), y: Math.round(y1 + ((y2 - y1) * i) / pas) });
+		}
+		await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x: x2, y: y2, button: 'left', buttons: 0, clickCount: 1 });
+	};
+	const cadres = () => ev(`document.querySelectorAll('.text-note--selected').length`);
+	// Boîte (150,150)→(400,400) en coordonnées feuille : Alpha et Beta dedans,
+	// Gamma (y = 600) dehors.
+	await lasso(orig.x + 150, orig.y + 150, orig.x + 400, orig.y + 400);
+	await attendre(200);
+	ok('le rectangle sélectionne DEUX étiquettes', (await cadres()) === 2, String(await cadres()));
+	ok('et il laisse la troisième dehors',
+		(await ev(`document.querySelectorAll('.text-note').length`)) === 3);
+
+	// --- 6. Le lot d'étiquettes se déplace ENSEMBLE ----------------------------
+	const positions = () => ev(`JSON.stringify((window.editor.serialize().texts || [])
+		.map((n) => [n.text, n.x, n.y]).sort())`);
+	const avantLot = JSON.parse(await positions());
+	// On saisit Beta (y = 260 en feuille) et on tire de 100 px vers la droite.
+	const beta = JSON.parse(await ev(`(() => {
+		const n = [...document.querySelectorAll('.text-note')].find((e) => e.textContent.trim() === 'Beta');
+		const b = n.getBoundingClientRect();
+		return JSON.stringify({ x: Math.round(b.left + b.width / 2), y: Math.round(b.top + b.height / 2) }); })()`));
+	await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: beta.x, y: beta.y, button: 'left', buttons: 0 });
+	await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: beta.x, y: beta.y, button: 'left', buttons: 1, clickCount: 1 });
+	for (const d of [20, 50, 80, 100]) {
+		await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: beta.x + d, y: beta.y, button: 'left', buttons: 1 });
+	}
+	await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x: beta.x + 100, y: beta.y, button: 'left', buttons: 0, clickCount: 1 });
+	await attendre(200);
+	const apresLot = JSON.parse(await positions());
+	const bouge = (nom) => {
+		const a = avantLot.find((e) => e[0] === nom);
+		const b = apresLot.find((e) => e[0] === nom);
+		return b[1] - a[1];
+	};
+	ok('l étiquette tirée avance de 100 px', bouge('Beta') === 100, String(bouge('Beta')));
+	ok('l AUTRE étiquette du lot la suit', bouge('Alpha') === 100, String(bouge('Alpha')));
+	ok('celle hors du lot ne bouge pas', bouge('Gamma') === 0, String(bouge('Gamma')));
+
+	// --- 7. Le CLIC DROIT quitte le mode étiquette -----------------------------
+	await ev('window.editor.toggleTextMode(true)');
+	ok('le mode étiquette est bien allumé', (await ev('window.editor.isTextMode()')) === true);
+	const combien = await ev(`document.querySelectorAll('.text-note').length`);
+	await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: orig.x + 700, y: orig.y + 700, button: 'right', buttons: 0 });
+	await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: orig.x + 700, y: orig.y + 700, button: 'right', buttons: 2, clickCount: 1 });
+	await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x: orig.x + 700, y: orig.y + 700, button: 'right', buttons: 0, clickCount: 1 });
+	await attendre(200);
+	ok('un clic DROIT sur le fond éteint le mode étiquette',
+		(await ev('window.editor.isTextMode()')) === false);
+	ok('et il ne pose aucune étiquette',
+		(await ev(`document.querySelectorAll('.text-note').length`)) === combien);
 } finally {
 	try { ws?.close(); } catch { /* déjà fermé */ }
 	proc.kill();

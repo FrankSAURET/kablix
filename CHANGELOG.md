@@ -12,6 +12,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 ### Modification
 
 - **Un double-clic sur une étiquette la rouvre en écriture**, sans passer par la barre d'outils.
+- **Les étiquettes se sélectionnent au rectangle**, comme les composants, et tout ce qui est pris se déplace ensemble.
+- **Un clic droit quitte l'outil étiquette.**
 - **Les schémas internes de cinq composants redressés** : photodiode, LED, les trois afficheurs 7 segments, la barre de LED et le potentiomètre à glissière.
 
 ### Correction

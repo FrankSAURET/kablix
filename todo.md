@@ -5,6 +5,20 @@
 
 ---
 
+# >>>>  v2026.9.3.74 — Les étiquettes se prennent au lasso
+
+1. ✅ **Le rectangle de sélection attrape les étiquettes** ([editor.mts](src/webview/diagram/editor.mts)). Nouveau lot `selectedTexts`, tenu comme `selectedParts` : `textsInRect()` ramasse celles qui sont ENTIÈREMENT dans la boîte — même règle que les composants, effleurer ne suffit pas. Leur taille se lit sur le DOM et non sur le modèle : une étiquette n'a pas de largeur enregistrée, elle dépend du texte et de la police (CSS `width: max-content`).
+2. ✅ **Tout ce qui est pris bouge ensemble, dans les deux sens.** Tirer un COMPOSANT du lot emmène les étiquettes (`startDrag` : leurs bornes entrent dans le calcul du décalage commun, elles se déplacent du même vecteur) ; tirer une ÉTIQUETTE du lot emmène les composants et les autres étiquettes (`onTextPointerDown`, avec les grappes d'enfichage et le retracé des fils). Le meneur du geste commande l'accrochage à la grille, le reste recopie le décalage RÉELLEMENT appliqué — sinon le lot se déformerait au premier bord touché.
+3. ✅ **`inMulti` corrigé pour le cas mixte** : un lot d'UN composant et de deux étiquettes reste un lot. L'ancien test (`selectedParts.size > 1`) l'aurait dissous à l'appui, et les étiquettes seraient restées sur place.
+4. ✅ **Suppression, Ctrl+A, Ctrl+clic et inspecteur suivent.** Suppr efface le lot entier (étiquettes d'abord, puis fils, puis composants) ; Ctrl+A prend aussi les étiquettes ; Ctrl+clic sur une étiquette l'ajoute ou la retire du lot ; l'inspecteur annonce le nombre d'étiquettes prises et son bouton de suppression les emporte. Un lot d'étiquettes seules a son propre panneau.
+5. ✅ **Un clic droit quitte l'outil étiquette** — où qu'il tombe, fond de feuille compris. Le garde-fou `onTextModeOutside` exceptait justement le fond (c'est là qu'on POSE une étiquette) : le bouton droit passe désormais avant cette exception. C'est le geste d'abandon, le même qui annule déjà un câblage en cours.
+6. ✅ **Huit contrôles de plus au banc à VRAIE souris** ([verify-souris.mjs](scripts/verify-souris.mjs)) : le rectangle qui prend deux étiquettes sur trois, le lot qui se déplace de 100 px ensemble, celle restée dehors qui ne bouge pas, et le clic droit qui éteint le mode sans rien poser. **18 contrôles verts.**
+7. ✅ **Contre-épreuve faite** : `git stash` sur `editor.mts`, banc relancé → **3 échecs** sur les trois fonctions neuves (rectangle vide, étiquette voisine immobile, mode texte toujours allumé). Un banc qui passe avant et après ne prouverait rien.
+8. ⏳ **Traductions en attente** : les deux chaînes neuves de l'inspecteur (`{0} label(s) selected`, `Delete these labels`) s'ajoutent aux quatre de la résistance. `verify:i18n` les signale — c'est normal, elles partent avant publication.
+9. ℹ️ **108/109 bancs verts**, le seul échec étant ces traductions. **`version` reste `2026.9.3`**, `buildNumber` à 74. Rien n'est publié, pas de `.vsix`.
+
+---
+
 # >>>>  v2026.9.3.73 — Le double-clic, prouvé cette fois
 
 1. ✅ **Le double-clic ouvre la saisie, et c'est MESURÉ.** Les deux lots précédents corrigeaient à l'aveugle ; celui-ci part d'une mesure dans Chrome avec une vraie souris. Deux faits, tous deux fatals aux corrections .71 et .72 : le `preventDefault()` du premier `pointerdown` (indispensable, sinon le glisser sélectionne du texte) supprime **tous** les événements souris de compatibilité — `mousedown`, `click` et `dblclick` n'arrivent jamais sur le nœud ; et un `pointerdown` porte **`detail = 0`**, toujours, `detail` n'existant que sur les événements souris. Les deux chemins que le navigateur offre d'ordinaire sont donc fermés.

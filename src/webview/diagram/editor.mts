@@ -523,6 +523,9 @@ export class Editor {
   private selectedParts = new Set<string>();
   /** Câbles sélectionnés (Ctrl+clic sur les fils) — suppression groupée. */
   private selectedWires = new Set<string>();
+  /** Étiquettes sélectionnées (marquee, Ctrl+clic) : elles se déplacent et se
+   *  suppriment avec les composants pris dans le même lot. */
+  private selectedTexts = new Set<string>();
   /** Coudes sélectionnés du fil courant (Ctrl+clic / marquee) — déplacement groupé. */
   private selectedHandles = new Set<number>();
   private colorIndex = 0;
@@ -2320,6 +2323,7 @@ export class Editor {
     this.internalShown.clear();
     this.pinoutShown.clear();
     this.selectedParts.clear();
+    this.selectedTexts.clear();
     this.diagram.parts = [];
     this.diagram.wires = [];
     this.diagram.texts = [];
@@ -3075,8 +3079,11 @@ export class Editor {
 
     // Si le composant fait partie d'une sélection multiple, tout le lot bouge ;
     // sinon, juste lui + ce qui est enfiché dedans. Chaque racine entraîne sa
-    // grappe d'enfichage.
-    const inMulti = this.selectedParts.has(part.id) && this.selectedParts.size > 1;
+    // grappe d'enfichage. Un lot peut n'avoir qu'UN composant et des étiquettes
+    // (rectangle mixte) : il reste multiple, elles doivent le suivre.
+    const inMulti =
+      this.selectedParts.has(part.id) &&
+      this.selectedParts.size + this.selectedTexts.size > 1;
     // Un composant est sélectionné DÈS L'APPUI, sans attendre le relâchement :
     // le panneau montre ses propriétés pendant qu'on le glisse. Exception, le
     // membre d'une sélection multiple — réduire tout de suite la sélection à lui
@@ -3138,6 +3145,18 @@ export class Editor {
         maxDy: SHEET_H - e.h - e.dy - m.oy,
       };
     });
+    // Étiquettes du même lot : elles suivent le déplacement (rectangle de
+    // sélection mixte). Elles ne participent qu'au décalage, pas à l'accrochage
+    // sur la grille — c'est la première broche du meneur qui commande.
+    const notes = inMulti ? this.selectedTextNotes() : [];
+    for (const n of notes) {
+      bornes.push({
+        minDx: -n.note.x,
+        maxDx: SHEET_W - 20 - n.note.x,
+        minDy: -n.note.y,
+        maxDy: SHEET_H - 20 - n.note.y,
+      });
+    }
     const minDx = Math.max(...bornes.map((b) => b.minDx));
     const maxDx = Math.min(...bornes.map((b) => b.maxDx));
     const minDy = Math.max(...bornes.map((b) => b.minDy));
@@ -3176,6 +3195,7 @@ export class Editor {
       for (const iw of internalWires) {
         iw.wire.points = iw.orig.map((p) => ({ x: p.x + wdx, y: p.y + wdy }));
       }
+      this.moveTextNotes(notes, wdx, wdy);
       this.redrawWires();
       if (holes.length > 0) this.previewBreadboardSnap(part, holes);
     };
@@ -3525,7 +3545,8 @@ export class Editor {
       // Simulation : une touche d'édition (Suppr/Backspace sur une sélection) est
       // interdite → clignotement du message de simulation.
       if ((e.key === 'Delete' || e.key === 'Backspace') && !typing &&
-          (this.selectedParts.size > 0 || this.selectedWires.size > 0 || this.selection)) {
+          (this.selectedParts.size > 0 || this.selectedWires.size > 0 ||
+           this.selectedTexts.size > 0 || this.selection)) {
         this.onBlockedEdit?.();
       }
       return; // pas d'édition du schéma
@@ -3538,15 +3559,22 @@ export class Editor {
       // Retour arrière : sans ça, la webview pourrait encore l'entendre comme un
       // « page précédente » de navigateur.
       e.preventDefault();
-      if (this.selection?.kind === 'text') {
-        this.removeText(this.selection.id);
+      if (this.selectedParts.size === 0 && this.selectedTexts.size > 0) {
+        // Lot d'étiquettes seules (une ou plusieurs).
+        for (const id of [...this.selectedTexts]) this.removeText(id);
+        this.selectedTexts.clear();
+        this.select(null);
       } else if (this.selectedParts.size > 0) {
-        // Lot MIXTE (rectangle de sélection) : les câbles pris dans la boîte
-        // partent avec les composants. Les traiter d'abord évite de courir après
-        // ceux que `removePart` a déjà emportés (fils branchés sur le composant).
+        // Lot MIXTE (rectangle de sélection) : les câbles et les étiquettes pris
+        // dans la boîte partent avec les composants. Traiter les câbles d'abord
+        // évite de courir après ceux que `removePart` a déjà emportés (fils
+        // branchés sur le composant).
         const wires = [...this.selectedWires];
         const ids = [...this.selectedParts];
+        const textes = [...this.selectedTexts];
         this.selectedWires.clear();
+        this.selectedTexts.clear();
+        for (const id of textes) this.removeText(id);
         for (const id of wires) this.removeWire(id);
         for (const id of ids) this.removePart(id);
         this.select(null);
@@ -5127,6 +5155,9 @@ export class Editor {
       for (const wid of this.selectedWires) this.setWireHighlight(wid, false);
       this.selectedWires.clear();
     }
+    // Lot d'étiquettes (rectangle) : dissous de même. Celle qu'on vient de
+    // choisir reprend son cadre plus bas, avec les autres étiquettes.
+    if (this.selectedTexts.size > 0) this.setSelectedTexts(new Set());
     const keptId = sel?.kind === 'part' ? sel.id : null;
     for (const id of this.selectedParts) {
       const c = this.rendered.get(id)?.container;
@@ -5144,6 +5175,7 @@ export class Editor {
 
     this.selection = sel;
     this.selectedParts = sel?.kind === 'part' ? new Set([sel.id]) : new Set();
+    this.selectedTexts = sel?.kind === 'text' ? new Set([sel.id]) : new Set();
     this.clearHandles();
     this.setPartHighlight();
     // Étiquettes : cadre de sélection sur celle qui est retenue, et la saisie de
@@ -5429,9 +5461,9 @@ export class Editor {
   }
 
   /**
-   * Ctrl+A : sélectionne tout le schéma — tous les composants passent en
-   * sélection multiple ; les fils suivent (déplacement de groupe décale leurs
-   * coudes, suppression de groupe retire leurs fils).
+   * Ctrl+A : sélectionne tout le schéma — tous les composants ET toutes les
+   * étiquettes passent en sélection multiple ; les fils suivent (déplacement de
+   * groupe décale leurs coudes, suppression de groupe retire leurs fils).
    */
   private selectAllParts(): void {
     this.cancelPending();
@@ -5440,8 +5472,15 @@ export class Editor {
       this.clearHandles();
     }
     this.selectedParts = new Set(this.diagram.parts.map((p) => p.id));
+    this.setSelectedTexts(new Set((this.diagram.texts ?? []).map((n) => n.id)));
     const members = [...this.selectedParts];
-    this.selection = members.length === 1 ? { kind: 'part', id: members[0] } : null;
+    const textes = [...this.selectedTexts];
+    this.selection =
+      members.length + textes.length !== 1
+        ? null
+        : members.length === 1
+          ? { kind: 'part', id: members[0] }
+          : { kind: 'text', id: textes[0] };
     this.setPartHighlight();
     this.renderInspector();
   }
@@ -5510,6 +5549,7 @@ export class Editor {
   private startMarquee(e: PointerEvent): void {
     const start = this.canvasPoint(e.clientX, e.clientY);
     const baseSet = e.ctrlKey ? new Set(this.selectedParts) : new Set<string>();
+    const baseTexts = e.ctrlKey ? new Set(this.selectedTexts) : new Set<string>();
     // Un fil est sélectionné : le rectangle sert d'abord à attraper SES COUDES
     // (déplacement groupé) — on mémorise le fil car la sélection peut bouger.
     const wireId = this.selection?.kind === 'wire' ? this.selection.id : null;
@@ -5535,6 +5575,9 @@ export class Editor {
       rectEl.style.height = `${h}px`;
       this.selectedParts = new Set([...baseSet, ...this.partsInRect(x, y, w, h)]);
       this.setPartHighlight();
+      // Étiquettes prises dans la boîte : elles se sélectionnent comme les
+      // composants et bougeront avec eux (demande de Frank).
+      this.setSelectedTexts(new Set([...baseTexts, ...this.textsInRect(x, y, w, h)]));
       // Câbles pris dans la boîte : marqués sélectionnés (item de Frank — un
       // marquee ne marquait que les composants). Un fil ne sert de rectangle
       // à coudes que s'il était DÉJÀ le seul sélectionné (wireId) : dans ce
@@ -5562,7 +5605,7 @@ export class Editor {
       }
       // Fil sélectionné et aucun composant attrapé : le rectangle sélectionne
       // les coudes du fil qu'il contient (déplacement/suppression groupés).
-      if (wireId && this.selectedParts.size === 0) {
+      if (wireId && this.selectedParts.size === 0 && this.selectedTexts.size === 0) {
         const wire = this.diagram.wires.find((w) => w.id === wireId);
         const caught = new Set<number>();
         (wire?.points ?? []).forEach((pt, i) => {
@@ -5578,13 +5621,21 @@ export class Editor {
         }
       }
       const members = [...this.selectedParts];
-      // Un seul composant et aucun câble : sélection simple (inspecteur du
-      // composant). Sinon (plusieurs composants, ou des câbles) : pas de
-      // sélection unique — l'inspecteur montre le lot (composants ou câbles).
-      const soleWireSelection = members.length === 0 && this.selectedWires.size > 0;
-      this.selection = members.length === 1 && this.selectedWires.size === 0
-        ? { kind: 'part', id: members[0] }
-        : null;
+      const textes = [...this.selectedTexts];
+      // Un seul élément et rien d'autre : sélection simple, l'inspecteur montre
+      // ses propriétés (composant ou étiquette). Sinon (plusieurs éléments, ou
+      // des câbles) : pas de sélection unique — l'inspecteur montre le lot.
+      const soleWireSelection =
+        members.length === 0 && textes.length === 0 && this.selectedWires.size > 0;
+      const seul = this.selectedWires.size === 0 && members.length + textes.length === 1;
+      this.selection = !seul
+        ? null
+        : members.length === 1
+          ? { kind: 'part', id: members[0] }
+          : { kind: 'text', id: textes[0] };
+      // Une étiquette seule sélectionnée au rectangle porte le même cadre que si
+      // on l'avait cliquée : `select()` n'est pas appelé ici (il viderait le lot).
+      if (this.selection?.kind === 'text') this.markTextSelected(this.selection.id, true);
       // Ré-affirme le surlignage des câbles pris (idempotent) : robuste à tout
       // repositionnement de fil survenu pendant le glissé de la boîte.
       if (soleWireSelection || this.selectedWires.size > 0) {
@@ -5632,6 +5683,40 @@ export class Editor {
       }
     }
     return ids;
+  }
+
+  /**
+   * Étiquettes ENTIÈREMENT contenues dans le rectangle (coords monde), même
+   * règle que les composants : effleurer ne suffit pas, il faut l'encadrer. La
+   * taille se lit sur le DOM — le texte n'a pas de largeur au modèle, elle
+   * dépend du contenu et de la police (CSS `width: max-content`).
+   */
+  private textsInRect(x: number, y: number, w: number, h: number): Set<string> {
+    const ids = new Set<string>();
+    for (const note of this.diagram.texts ?? []) {
+      const node = this.textNodes.get(note.id);
+      if (!node) continue;
+      const nw = node.offsetWidth || 20;
+      const nh = node.offsetHeight || 20;
+      if (note.x >= x && note.x + nw <= x + w && note.y >= y && note.y + nh <= y + h) {
+        ids.add(note.id);
+      }
+    }
+    return ids;
+  }
+
+  /** Pose (ou retire) le cadre de sélection d'une étiquette. */
+  private markTextSelected(id: string, on: boolean): void {
+    this.textNodes.get(id)?.classList.toggle('text-note--selected', on);
+  }
+
+  /** Remplace le lot d'étiquettes sélectionnées et met les cadres à jour. */
+  private setSelectedTexts(next: Set<string>): void {
+    for (const id of this.selectedTexts) {
+      if (!next.has(id)) this.markTextSelected(id, false);
+    }
+    for (const id of next) this.markTextSelected(id, true);
+    this.selectedTexts = next;
   }
 
   // --- Copier / coller / dupliquer --------------------------------------------
@@ -6201,8 +6286,23 @@ export class Editor {
     this.inspector.appendChild(title);
 
     // Sélection multiple : résumé + actions de groupe (rotation/miroir/suppression).
-    if (this.selectedParts.size > 1) {
+    if (this.selectedParts.size > 1 || (this.selectedParts.size === 1 && this.selectedTexts.size > 0)) {
       this.renderMultiInspector();
+      return;
+    }
+
+    // Lot d'étiquettes seules (rectangle de sélection, Ctrl+clic) : résumé et
+    // suppression groupée. Le style ne s'édite qu'une étiquette à la fois.
+    if (this.selectedTexts.size > 1) {
+      const sub = document.createElement('p');
+      sub.className = 'inspector__hint';
+      sub.textContent = t('{0} label(s) selected', this.selectedTexts.size);
+      this.inspector.appendChild(sub);
+      this.appendDeleteButton(t('Delete these labels'), () => {
+        for (const id of [...this.selectedTexts]) this.removeText(id);
+        this.selectedTexts.clear();
+        this.select(null);
+      });
       return;
     }
 
@@ -6285,6 +6385,15 @@ export class Editor {
         : t('{0} parts selected', this.selectedParts.size);
     this.inspector.appendChild(subtitle);
 
+    // Le lot peut contenir des étiquettes (rectangle mixte) : on le dit, elles
+    // partiront avec la suppression et suivent déjà le déplacement.
+    if (this.selectedTexts.size > 0) {
+      const sub = document.createElement('p');
+      sub.className = 'inspector__hint';
+      sub.textContent = t('{0} label(s) selected', this.selectedTexts.size);
+      this.inspector.appendChild(sub);
+    }
+
     // Propriétés partagées : même type pour tous → on édite le groupe d'un coup.
     if (homogeneous) {
       const def = partDef(parts[0].type);
@@ -6304,6 +6413,9 @@ export class Editor {
     this.appendTransformControl(null);
     this.appendDeleteButton(t('Delete the selection'), () => {
       const ids = [...this.selectedParts];
+      const textes = [...this.selectedTexts];
+      this.selectedTexts.clear();
+      for (const id of textes) this.removeText(id);
       for (const id of ids) this.removePart(id);
       this.select(null);
     });
@@ -7098,6 +7210,13 @@ export class Editor {
    *  déjà refermé quand son propre clic arrive. */
   private onTextModeOutside = (e: PointerEvent): void => {
     if (!this.textMode) return;
+    // Clic DROIT : il quitte le mode où qu'il tombe, fond de feuille compris
+    // (demande de Frank). C'est le geste d'abandon de l'outil — le même qui sert
+    // déjà à annuler un câblage en cours.
+    if (e.button === 2) {
+      this.exitTextMode();
+      return;
+    }
     const cible = (e.composedPath()[0] ?? e.target) as Element | null;
     if (!cible) return;
     if (cible.closest?.('#text-mode')) return;      // le bouton lui-même
@@ -7173,6 +7292,7 @@ export class Editor {
     list.splice(i, 1);
     this.textNodes.get(id)?.remove();
     this.textNodes.delete(id);
+    this.selectedTexts.delete(id);
     if (this.selection?.kind === 'text' && this.selection.id === id) this.select(null);
     this.notify();
   }
@@ -7377,7 +7497,18 @@ export class Editor {
     if (e.button !== 0 && e.button !== 2) return;
     e.preventDefault();
     e.stopPropagation();
-    this.select({ kind: 'text', id: note.id });
+    // Ctrl+clic : l'étiquette entre ou sort du lot, comme pour un composant.
+    if (e.ctrlKey && e.button === 0) {
+      this.toggleTextInSelection(note.id);
+      return;
+    }
+    // Membre d'un lot : on ne réduit PAS la sélection à cette seule étiquette,
+    // sinon le lot serait dissous avant même d'avoir pu le déplacer. C'est le
+    // clic sans glissé (plus bas) qui la réduit.
+    const inMulti =
+      this.selectedTexts.has(note.id) &&
+      this.selectedTexts.size + this.selectedParts.size > 1;
+    if (!inMulti) this.select({ kind: 'text', id: note.id });
 
     // Le double-clic est compté ICI, à la main. MESURÉ dans Chrome avec une
     // vraie souris : le `preventDefault()` ci-dessus supprime TOUS les
@@ -7409,6 +7540,12 @@ export class Editor {
     let moved = false;
     const release = this.capturePointer(e);
 
+    // Lot : les AUTRES étiquettes et les composants sélectionnés suivent le même
+    // décalage. C'est cette étiquette-ci qui mène l'accrochage à la grille, les
+    // autres gardent leurs positions relatives.
+    const autres = inMulti ? this.selectedTextNotes(note.id) : [];
+    const parts = inMulti ? this.selectedPartOrigins() : [];
+
     const move = (ev: PointerEvent): void => {
       const dx = (ev.clientX - startX) / this.zoom;
       const dy = (ev.clientY - startY) / this.zoom;
@@ -7416,10 +7553,26 @@ export class Editor {
       moved = true;
       // Même grille magnétique que les composants : une annotation s'aligne sur
       // le montage qu'elle commente.
-      note.x = Math.max(0, Math.min(SHEET_W - 20, snapToGrid(ox + dx)));
-      note.y = Math.max(0, Math.min(SHEET_H - 20, snapToGrid(oy + dy)));
-      node.style.left = `${note.x}px`;
-      node.style.top = `${note.y}px`;
+      const nx = Math.max(0, Math.min(SHEET_W - 20, snapToGrid(ox + dx)));
+      const ny = Math.max(0, Math.min(SHEET_H - 20, snapToGrid(oy + dy)));
+      note.x = nx;
+      note.y = ny;
+      node.style.left = `${nx}px`;
+      node.style.top = `${ny}px`;
+      // Décalage RÉELLEMENT appliqué au meneur (grille et bords compris) : c'est
+      // lui que le reste du lot recopie, sinon le lot se déformerait.
+      const wdx = nx - ox;
+      const wdy = ny - oy;
+      this.moveTextNotes(autres, wdx, wdy);
+      if (parts.length > 0) {
+        for (const p of parts) {
+          p.rr.part.x = p.ox + wdx;
+          p.rr.part.y = p.oy + wdy;
+          p.rr.container.style.left = `${p.rr.part.x}px`;
+          p.rr.container.style.top = `${p.rr.part.y}px`;
+        }
+        this.redrawWires();
+      }
     };
 
     const up = (): void => {
@@ -7428,6 +7581,9 @@ export class Editor {
       release();
       if (moved) {
         this.notify();
+      } else if (inMulti) {
+        // Clic sans glissé sur un membre du lot : la sélection se réduit à lui.
+        this.select({ kind: 'text', id: note.id });
       } else if (this.textMode) {
         // Clic simple EN MODE TEXTE : on édite. Hors mode, le clic sélectionne
         // seulement — pas de saisie ouverte par mégarde sur un schéma qu'on lit.
@@ -7437,6 +7593,61 @@ export class Editor {
 
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
+  }
+
+  /** Étiquettes du lot courant avec leur position d'origine (déplacement groupé).
+   *  `sauf` écarte le meneur du geste, qui bouge par lui-même. */
+  private selectedTextNotes(sauf?: string): Array<{ note: TextNote; node: HTMLDivElement; ox: number; oy: number }> {
+    const out: Array<{ note: TextNote; node: HTMLDivElement; ox: number; oy: number }> = [];
+    for (const id of this.selectedTexts) {
+      if (id === sauf) continue;
+      const note = this.diagram.texts?.find((n) => n.id === id);
+      const node = this.textNodes.get(id);
+      if (note && node) out.push({ note, node, ox: note.x, oy: note.y });
+    }
+    return out;
+  }
+
+  /** Composants du lot courant avec leur position d'origine (déplacement mené
+   *  par une étiquette). Les grappes d'enfichage sont incluses. */
+  private selectedPartOrigins(): Array<{ rr: Rendered; ox: number; oy: number }> {
+    const ids = new Set<string>();
+    for (const id of this.selectedParts) for (const g of this.connectedGroup(id)) ids.add(g);
+    const out: Array<{ rr: Rendered; ox: number; oy: number }> = [];
+    for (const id of ids) {
+      const rr = this.rendered.get(id);
+      if (rr) out.push({ rr, ox: rr.part.x, oy: rr.part.y });
+    }
+    return out;
+  }
+
+  /** Applique un décalage commun à un lot d'étiquettes (bornes de la feuille). */
+  private moveTextNotes(
+    notes: Array<{ note: TextNote; node: HTMLDivElement; ox: number; oy: number }>,
+    wdx: number,
+    wdy: number
+  ): void {
+    for (const n of notes) {
+      n.note.x = Math.max(0, Math.min(SHEET_W - 20, n.ox + wdx));
+      n.note.y = Math.max(0, Math.min(SHEET_H - 20, n.oy + wdy));
+      n.node.style.left = `${n.note.x}px`;
+      n.node.style.top = `${n.note.y}px`;
+    }
+  }
+
+  /** Ctrl+clic sur une étiquette : elle entre ou sort du lot sélectionné. */
+  private toggleTextInSelection(id: string): void {
+    const next = new Set(this.selectedTexts);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    this.setSelectedTexts(next);
+    // Plus d'un élément dans le lot : pas de sélection unique, l'inspecteur
+    // montre le lot. Un seul : c'est une sélection simple d'étiquette.
+    const total = next.size + this.selectedParts.size;
+    this.selection =
+      total === 1 && next.size === 1 ? { kind: 'text', id: [...next][0] } : null;
+    this.renderInspector();
+    this.notifySelection();
   }
 
   /** Inspecteur d'une étiquette : rappel du geste + suppression. */
