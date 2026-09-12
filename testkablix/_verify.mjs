@@ -415,6 +415,28 @@ for (const t of TESTS) {
         }
         break;
       }
+      case 'resistor-power': {
+        // Puissance dissipée par chaque résistance FIXE du schéma, et verdict :
+        // au-delà de ce que son boîtier encaisse, elle part en fumée. Le modèle
+        // ouvre la résistance et prend le générateur de Thévenin à chacune de
+        // ses pattes — la tension d'alimentation n'est jamais toute la tension
+        // à ses bornes (rails et sortie du microcontrôleur comptent aussi),
+        // d'où la marge relative plutôt qu'une égalité stricte.
+        const powers = model.resistorPowers(diagram, e.volts,
+          (p) => (p === e.drivePin ? e.drive : 'hiz'));
+        for (const r of e.resistors) {
+          const got = powers.find((x) => x.partId === r.partId);
+          check(`${t.name} : résistance ${r.partId} mesurée`, !!got, JSON.stringify(powers));
+          if (!got) continue;
+          check(`${t.name} : ${r.partId} tient ${r.rating} W`,
+            Math.abs(got.rating - r.rating) < 1e-6, `nominal=${got.rating}`);
+          check(`${t.name} : ${r.partId} dissipe ${r.watts} W`,
+            Math.abs(got.watts - r.watts) / Math.max(r.watts, 1e-3) < 0.1, `mesuré=${got.watts}`);
+          check(`${t.name} : ${r.partId} ${r.over ? 'grille' : 'tient le coup'}`,
+            got.over === r.over, `over=${got.over}`);
+        }
+        break;
+      }
       case 'meter': {
         // Multimètres : chaque appareil est relu par le modèle, exactement comme
         // le fait la simulation à chaque image. `drive` fixe l'état des broches

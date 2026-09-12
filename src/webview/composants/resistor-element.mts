@@ -14,6 +14,14 @@
 // Les broches gardent leurs noms ('1' et '2') dans les deux cas : changer la pose
 // ne casse aucun fil.
 //
+// DEUX RÉSISTANCES DE PUISSANCE en plus (attribut `rtype`, dessins RP1/RP2 de la
+// planche) : boîtier aluminium à ailettes (rp1) et boîtier céramique (rp2). Elles
+// n'ont pas d'anneaux de couleur — la valeur et la puissance sont ÉCRITES dessus,
+// en code d'atelier : « 10W 4R7 » pour 4,7 Ω sous 10 W, « 10W 4K7 » pour 4,7 kΩ.
+// Le rp2 porte un Ω à la place du R (« 10W 4Ω7 »), c'est ainsi qu'il est marqué.
+// Leur corps est trop massif pour être posé debout : la pose ne les concerne pas
+// (l'inspecteur masque la propriété, cf. catalog.mts).
+//
 // RACCOURCI de la pose debout : le dessin source mesure 40×70 (53 px de haut à
 // l'écran), soit deux fois l'encombrement d'une résistance couchée pour la même
 // pièce. Il est ÉCRASÉ DE MOITIÉ en hauteur — `vb` (repère du dessin) découplé
@@ -28,6 +36,8 @@ import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { ElementPin } from './pin.mjs';
 import drawing from './externe/resistor.svg';
 import drawingVert from './externe/res-vert.svg';
+import drawingRp1 from './externe/rp1.svg';
+import drawingRp2 from './externe/rp2.svg';
 
 const bandColors: { [key: number]: string } = {
   [-2]: '#C3C7C0', // Silver
@@ -74,25 +84,95 @@ const SKINS = {
 
 export type ResistorOrientation = keyof typeof SKINS;
 
+/**
+ * Habillage des deux résistances de PUISSANCE (dessins RP1/RP2 de la planche).
+ * Pas d'anneaux : `mark` désigne le <text> où écrire l'inscription, et `ohmSign`
+ * dit si l'unité s'y écrit R (rp1) ou Ω (rp2) — c'est le seul écart entre les
+ * deux marquages.
+ */
+const POWER_SKINS = {
+  rp1: {
+    svg: drawingRp1,
+    vb: { w: 220, h: 100.0001 },
+    w: 220,
+    h: 100,
+    pins: [{ x: 10, y: 50 }, { x: 210, y: 50 }],
+    mark: '#text27-6',
+    ohmSign: false,
+  },
+  rp2: {
+    svg: drawingRp2,
+    vb: { w: 130, h: 60 },
+    w: 130,
+    h: 60,
+    pins: [{ x: 10, y: 30 }, { x: 120, y: 30 }],
+    mark: '#text11',
+    ohmSign: true,
+  },
+} as const;
+
+export type ResistorType = 'film' | keyof typeof POWER_SKINS;
+
+/**
+ * Valeur en CODE D'ATELIER : le symbole de l'unité prend la place de la virgule.
+ * 4,7 Ω → « 4R7 », 4,7 kΩ → « 4K7 », 470 Ω → « 470R », 1 MΩ → « 1M ».
+ * `ohmSign` remplace le R par un Ω (marquage du boîtier céramique).
+ */
+export function resistorCode(ohms: number, ohmSign = false): string {
+  if (!Number.isFinite(ohms) || ohms <= 0) return '';
+  const unites: Array<[number, string]> = [
+    [1e6, 'M'],
+    [1e3, 'K'],
+    [1, ohmSign ? 'Ω' : 'R'],
+  ];
+  const [echelle, lettre] = unites.find(([e]) => ohms >= e) ?? unites[2];
+  // Trois chiffres significatifs au plus, comme sur une vraie inscription.
+  const n = ohms / echelle;
+  const texte = n >= 100 ? String(Math.round(n)) : n.toFixed(n >= 10 ? 1 : 2);
+  const [ent, dec = ''] = texte.split('.');
+  const reste = dec.replace(/0+$/, '');
+  return reste ? `${ent}${lettre}${reste}` : `${ent}${lettre}`;
+}
+
+/** Puissance telle qu'elle est inscrite sur le boîtier : « 10W », « 0.5W ». */
+function powerCode(watts: number): string {
+  if (!Number.isFinite(watts) || watts <= 0) return '';
+  return `${watts >= 1 ? Math.round(watts * 10) / 10 : watts}W`;
+}
+
 export class ResistorElement extends LitElement {
   declare value: string;
-  /** Pose du composant : 'h' couchée (défaut), 'v' debout. */
+  /** Pose du composant : 'h' couchée (défaut), 'v' debout. Sans objet sur une
+   *  résistance de puissance, qui n'a qu'un dessin. */
   declare orientation: ResistorOrientation;
+  /** Boîtier : 'film' (la petite résistance à anneaux), 'rp1' ou 'rp2'. */
+  declare rtype: ResistorType;
+  /** Puissance que le boîtier dissipe sans mourir (W) — inscrite sur rp1/rp2. */
+  declare power: string;
 
   /** Propriétés réactives lit (remplace les décorateurs @property du code d'origine). */
   static properties = {
     value: {},
     orientation: { type: String },
+    rtype: { type: String },
+    power: { type: String },
   };
 
   constructor() {
     super();
     this.value = '1000';
     this.orientation = 'h';
+    this.rtype = 'film';
+    this.power = '0.25';
+  }
+
+  /** Habillage de puissance en cours, ou null pour la résistance à anneaux. */
+  private get powerSkin() {
+    return POWER_SKINS[this.rtype as keyof typeof POWER_SKINS] ?? null;
   }
 
   private get skin() {
-    return SKINS[this.orientation] ?? SKINS.h;
+    return this.powerSkin ?? SKINS[this.orientation] ?? SKINS.h;
   }
 
   // Broches : centre de chaque patte, recalé sur la grille de 10 px (repère du
@@ -150,9 +230,21 @@ export class ResistorElement extends LitElement {
 
   updated(changed: PropertyValues): void {
     super.updated(changed);
+    const puissance = this.powerSkin;
+    if (puissance) {
+      // Rien à colorier : l'inscription du boîtier PORTE la valeur. Le <text>
+      // vient de la planche de Frank, on n'en change que le contenu.
+      const cible = this.renderRoot.querySelector(puissance.mark);
+      if (cible) {
+        const p = powerCode(Number(this.power));
+        const r = resistorCode(Number(this.value), puissance.ohmSign);
+        cible.textContent = [p, r].filter(Boolean).join(' ');
+      }
+      return;
+    }
     const colors = this.bandColorsFor(this.value);
     // ids du dessin nettoyé (cf. SKINS) : anneaux 1, 2 et 3 dans cet ordre.
-    this.skin.bands.forEach((sel, i) => {
+    (SKINS[this.orientation] ?? SKINS.h).bands.forEach((sel, i) => {
       this.renderRoot.querySelector(sel)?.setAttribute('fill', colors[i]);
     });
   }

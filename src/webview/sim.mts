@@ -139,6 +139,7 @@ import {
   gateDriveSignature,
   relayStates,
   motorStates,
+  resistorPowers,
   type Part,
   type HallBinding,
   type RelayFault,
@@ -413,11 +414,15 @@ const blownDrivers = new Set<string>();
 // Circuits intégrés détruits pendant ce run : alimentés au-dessus du maximum de
 // leur famille. Définitif jusqu'au prochain lancement (boîtier « remplacé »).
 const burnedIcs = new Set<string>();
+// Résistances parties en fumée pendant ce run : elles dissipaient plus que ce
+// que leur boîtier encaisse. Définitif jusqu'au prochain lancement.
+const burnedResistors = new Set<string>();
 /**
  * Ce qu'on lit à côté d'un composant qui vient d'exploser. L'explosion dit QUI
  * est mort, l'étiquette dit POURQUOI et comment ne pas recommencer.
  */
 const BURN_NOTE = {
+  resistor: 'This resistor burned out: it turned more power into heat than its package can shed. Fit a higher wattage one, or raise the resistance.',
   led: 'This LED burned out: with no series resistor (or far too small a one) the current goes past what the junction can take.',
   cap: 'This capacitor broke down: the voltage across it went past its rated working voltage. Pick one rated well above the supply voltage.',
   pca: 'This board burned out: the V+ servo terminal takes 5 V, no more. Beyond 5.5 V the chip is destroyed.',
@@ -1768,12 +1773,45 @@ function clearCapSamplers(): void {
   capPinState.clear();
 }
 
+/**
+ * Résistances qui chauffent au-delà de leur boîtier. Une résistance ne « voit »
+ * pas la tension d'alimentation, elle voit le courant qui la traverse : c'est
+ * R·I² qu'il faut comparer à sa puissance nominale (¼ W pour la petite à
+ * anneaux, 10 W pour les deux boîtiers de puissance).
+ *
+ * Le calcul vit dans le modèle (`resistorPowers`) et emploie la méthode de
+ * l'ampèremètre : on OUVRE la résistance, on prend le générateur équivalent de
+ * Thévenin à chacune de ses deux pattes, et le courant tombe. En PWM, c'est la
+ * PUISSANCE qui est moyennée sur le rapport cyclique, pas le courant — R·I²
+ * n'est pas linéaire, moyenner le courant sous-estimerait l'échauffement.
+ *
+ * Avarie définitive pour ce run, comme les autres : une résistance grillée le
+ * reste jusqu'au prochain lancement (elle a été « remplacée »).
+ */
+function reportResistorFaults(): void {
+  if (!engine) return;
+  const vcc = isPicoBoard(board) ? 3.3 : 5;
+  const powers = resistorPowers(
+    editor.diagram,
+    vcc,
+    (pin) => engine!.readPinDrive?.(pin) ?? 'hiz',
+    psuLiveVolts,
+    liveVariableOhms
+  );
+  for (const p of powers) {
+    if (p.over) burnedResistors.add(p.partId);
+    const el = editor.elementOf(p.partId);
+    if (el) markBurned(p.partId, el, burnedResistors.has(p.partId), BURN_NOTE.resistor);
+  }
+}
+
 function refreshVisualsInner(): void {
   if (!engine) return;
   stepCapacitors();
   reportRelayFaults();
   reportMotorFaults();
   reportIcFaults();
+  reportResistorFaults();
   refreshMeters();
   // Sorties de portes câblées sur une broche de carte : le niveau y est injecté
   // à chaque frame, comme le fait un bouton ou un capteur.
@@ -3867,7 +3905,9 @@ function startRun(): void {
   for (const id of burnedMotors) editor.setBurned(id, false);
   for (const id of blownDrivers) editor.setBurned(id, false);
   for (const id of burnedIcs) editor.setBurned(id, false);
+  for (const id of burnedResistors) editor.setBurned(id, false);
   burnedIcs.clear(); // circuits intégrés détruits « remplacés » eux aussi
+  burnedResistors.clear(); // résistances parties en fumée « remplacées » de même
   burnedLeds.clear(); // LED grillées « remplacées » à chaque nouveau lancement
   burnedPcas.clear(); // carte 16 servos grillée « remplacée » à chaque lancement
   burnedCaps.clear(); // condensateurs claqués « remplacés » eux aussi

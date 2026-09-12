@@ -37,6 +37,12 @@ const PARTS = {
   pico2: { module: 'pico-board.mjs', tag: 'kablix-pico-board', height: 360, attrs: { variant: 'pico2' } },
   pico2w: { module: 'pico-board.mjs', tag: 'kablix-pico-board', height: 360, attrs: { variant: 'pico2w' } },
   diode: { module: 'diode-element.mjs', tag: 'kablix-diode' },
+  // Les deux boîtiers de PUISSANCE de la résistance (attribut `rtype`) : même
+  // élément que la petite résistance à anneaux, mais un dessin chacun, avec leur
+  // inscription d'atelier. Valeurs choisies pour montrer les deux écritures de
+  // l'unité — « 10W 4R7 » sur l'aluminium, « 10W 4Ω7 » sur la céramique.
+  rp1: { module: 'resistor-element.mjs', tag: 'kablix-resistor', width: 260, attrs: { rtype: 'rp1', value: '4.7', power: '10' } },
+  rp2: { module: 'resistor-element.mjs', tag: 'kablix-resistor', width: 200, attrs: { rtype: 'rp2', value: '4.7', power: '10' } },
   'condo-np': { module: 'capacitor-element.mjs', tag: 'kablix-capacitor', width: 190, attrs: { ctype: 'np', value: '1e-7' } },
   'condo-p-1': { module: 'capacitor-element.mjs', tag: 'kablix-capacitor', width: 165, attrs: { ctype: 'p', value: '1e-5' } },
   'condo-p-2': { module: 'capacitor-element.mjs', tag: 'kablix-capacitor', width: 125, attrs: { ctype: 'chem', value: '1e-4' } },

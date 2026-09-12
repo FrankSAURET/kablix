@@ -72,6 +72,7 @@ a pas de carte à remplacer.
 | Bouton poussoir | `button-uno` | `button-pico` | `button-pico2` | appui → « APPUYE » + LED |
 | Bouton 6 mm | — (retiré) | — (retiré) | — | couvert par `npm run verify:button-latch`, qui éprouve les DEUX poussoirs (souris, clavier, capuchon enfoncé, maintien Ctrl) |
 | Résistance | — (retiré) | — | — | en série dans la moitié des autres montages |
+| Résistances de puissance | `resistance-puissance-uno` | `resistance-puissance-pico` | `resistance-puissance-pico2` | les deux boîtiers 10 W en direct sur une alim de labo 12 V : celui de 4,7 Ω dissipe 30 W et part en fumée, l'autre tient (une sortie de carte, avec ses ~25 Ω, ne peut pas en griller une) |
 | Diode | `diode-uno` | `diode-pico` | `diode-pico2` | passante / à l'envers = bloquée |
 | Condensateurs | `condo-uno` | `condo-pico` | `condo-pico2` | 3 branches RC en parallèle (film 0,1 s, tantale 0,33 s, chimique 1 s) lues sur 3 ADC |
 | Transistor (sélecteur) | `transistor-uno` | `transistor-pico` | `transistor-pico2` | Une branche par famille — BC547 vs 2N3904 (à montage égal, le gain décide), BC557 (PNP) côté haut, BC517 (darlington) sur 100 kΩ, BS170 (MOSFET) grille directe |

@@ -575,6 +575,66 @@ void loop() {
   // DEUX poussoirs : souris, clavier, capuchon enfoncé, maintien Ctrl) ; la
   // résistance, elle, est en série dans la moitié des autres montages.
 
+  // Les deux résistances de PUISSANCE, elles, ont leur propre test : ce qui se
+  // vérifie ici n'est pas le câblage mais la CHALEUR. Une résistance ne voit pas
+  // la tension d'alimentation, elle voit le courant qui la traverse — c'est R·I²
+  // qu'il faut comparer à ce que son boîtier encaisse.
+  //
+  // Les deux sont branchées EN DIRECT sur une alimentation de laboratoire à
+  // 12 V, seule façon de leur faire vraiment dissiper quelque chose : une sortie
+  // de microcontrôleur a ~25 Ω de résistance interne et ne débite pas plus de
+  // 0,13 W dans 4,7 Ω, quelle que soit la résistance posée derrière.
+  //   RP1 (aluminium à ailettes) 4,7 Ω → 12²/4,7 = 30,6 W : elle part en fumée.
+  //   RP2 (céramique) 470 Ω → 12²/470 = 0,31 W : elle ne bronche pas.
+  // La LED et sa 220 Ω sont là pour que la carte ait quelque chose à faire.
+  test({
+    name: 'resistance-puissance-uno', board: 'uno', ext: 'ino',
+    parts: [
+      MCU('uno'),
+      { id: 'Alim1', type: 'alim', x: 620, y: 460, attrs: { voltage: '12', maxcurrent: '5' } },
+      { id: 'RP1', type: 'resistor', x: 620, y: 60, attrs: { rtype: 'rp1', value: '4.7', power: '10' } },
+      { id: 'RP2', type: 'resistor', x: 1060, y: 60, attrs: { rtype: 'rp2', value: '470', power: '10' } },
+      { id: 'R3', type: 'resistor', x: 300, y: 300, attrs: { value: '220' } },
+      { id: 'L1', type: 'led', x: 440, y: 300, attrs: { color: 'red' } },
+    ],
+    wires: () => [
+      w('RP1', '1', 'Alim1', 'V+', 'red'),
+      w('RP1', '2', 'Alim1', 'GND', 'black'),
+      w('RP2', '1', 'Alim1', 'V+', 'red'),
+      w('RP2', '2', 'Alim1', 'GND', 'black'),
+      w('R3', '1', 'U1', '9', 'green'),
+      w('R3', '2', 'L1', 'A', 'green'),
+      w('L1', 'C', 'U1', 'GND.1', 'black'),
+      w('Alim1', 'GND', 'U1', 'GND.2', 'black'),
+    ],
+    expect: {
+      kind: 'resistor-power', volts: 5, drivePin: '9', drive: 'high',
+      resistors: [
+        { partId: 'RP1', watts: 30.64, rating: 10, over: true },
+        { partId: 'RP2', watts: 0.306, rating: 10, over: false },
+        { partId: 'R3', watts: 0.0375, rating: 0.25, over: false },
+      ],
+    },
+    code: `// Test resistances de puissance : les deux sont branchees en direct sur
+// l'alimentation de laboratoire reglee a 12 V.
+//   RP1 (4,7 ohms, boitier aluminium 10 W) dissipe 30 W : elle explose.
+//   RP2 (470 ohms, boitier ceramique 10 W) dissipe 0,3 W : elle tient.
+// La LED clignote pour que la carte fasse quelque chose pendant ce temps.
+void setup() {
+  pinMode(9, OUTPUT);
+  Serial.begin(115200);
+  Serial.println("resistances de puissance sous 12 V");
+}
+
+void loop() {
+  digitalWrite(9, HIGH);
+  delay(500);
+  digitalWrite(9, LOW);
+  delay(500);
+}
+`,
+  }),
+
   test({
     name: 'buzzer-uno', board: 'uno', ext: 'ino',
     parts: [MCU('uno'), { id: 'Act1', type: 'buzzer', x: 620, y: 90 }],
@@ -4707,6 +4767,57 @@ while True:
         print("T =", capteur.temperature(), "C   H =", capteur.humidity(), "%")
     except OSError as e:
         print("lecture ratee :", e)
+`,
+  }),
+
+  // Pendant Pico du test `resistance-puissance-uno`, avec les deux boîtiers
+  // ÉCHANGÉS : c'est la céramique (rp2) qui grille ici et l'aluminium (rp1) qui
+  // tient. L'alimentation reste à 12 V — la chaleur d'une résistance ne dépend
+  // pas de la carte posée à côté, seule la commande de la LED passe à 3,3 V.
+  test({
+    name: 'resistance-puissance-pico', board: 'pico', ext: 'py',
+    parts: [
+      MCU('pico'),
+      { id: 'Alim1', type: 'alim', x: 620, y: 460, attrs: { voltage: '12', maxcurrent: '5' } },
+      { id: 'RP2', type: 'resistor', x: 620, y: 60, attrs: { rtype: 'rp2', value: '4.7', power: '10' } },
+      { id: 'RP1', type: 'resistor', x: 1060, y: 60, attrs: { rtype: 'rp1', value: '1000', power: '10' } },
+      { id: 'R3', type: 'resistor', x: 300, y: 300, attrs: { value: '220' } },
+      { id: 'L1', type: 'led', x: 440, y: 300, attrs: { color: 'green' } },
+    ],
+    wires: () => [
+      w('RP2', '1', 'Alim1', 'V+', 'red'),
+      w('RP2', '2', 'Alim1', 'GND', 'black'),
+      w('RP1', '1', 'Alim1', 'V+', 'red'),
+      w('RP1', '2', 'Alim1', 'GND', 'black'),
+      w('R3', '1', 'U1', 'GP15', 'green'),
+      w('R3', '2', 'L1', 'A', 'green'),
+      w('L1', 'C', 'U1', 'GND.5', 'black'),
+      w('Alim1', 'GND', 'U1', 'GND.3', 'black'),
+    ],
+    expect: {
+      kind: 'resistor-power', volts: 3.3, drivePin: 'GP15', drive: 'high',
+      resistors: [
+        { partId: 'RP2', watts: 30.64, rating: 10, over: true },
+        { partId: 'RP1', watts: 0.144, rating: 10, over: false },
+        { partId: 'R3', watts: 0.00528, rating: 0.25, over: false },
+      ],
+    },
+    code: `# Test resistances de puissance : les deux sont branchees en direct sur
+# l'alimentation de laboratoire reglee a 12 V.
+#   RP2 (4,7 ohms, boitier ceramique 10 W) dissipe 30 W : elle explose.
+#   RP1 (1000 ohms, boitier aluminium 10 W) dissipe 0,14 W : elle tient.
+# La LED clignote pour que la carte fasse quelque chose pendant ce temps.
+from machine import Pin
+import time
+
+led = Pin(15, Pin.OUT)
+print("resistances de puissance sous 12 V")
+
+while True:
+    led.value(1)
+    time.sleep(0.5)
+    led.value(0)
+    time.sleep(0.5)
 `,
   }),
 

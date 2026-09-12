@@ -1539,9 +1539,11 @@ for (const [fault, mot] of [
 // Composant qui explose : l'explosion dit QUI est mort, l'étiquette dit pourquoi.
 rows.push({
 	name: 'grillé : le composant qui explose reçoit lui aussi son explication',
-	ok: /const BURN_NOTE = \{[\s\S]{0,900}?\} as const;/.test(sim) &&
+	// La borne du bloc suit le nombre d'entrées : chaque composant qui peut
+	// griller en ajoute une (la résistance de puissance, v2026.9.3.70).
+	ok: /const BURN_NOTE = \{[\s\S]{0,1200}?\} as const;/.test(sim) &&
 		/function markBurned\([\s\S]{0,400}?editor\.setFaulty\(partId, !!note, note\)/.test(sim) &&
-		(sim.match(/markBurned\([^;]{0,120}?BURN_NOTE\.(led|cap|pca)\)/g) ?? []).length >= 6,
+		(sim.match(/markBurned\([^;]{0,120}?BURN_NOTE\.(led|cap|pca|resistor)\)/g) ?? []).length >= 7,
 	detail: 'BURN_NOTE absent, ou points d appel non câblés',
 });
 rows.push({

@@ -711,17 +711,38 @@ export const CATALOG: readonly PartDef[] = [
   },
   {
     type: 'resistor', label: 'Resistor', tag: 'kablix-resistor', kind: 'resistor',
-    attrs: { value: '220', orientation: 'h' },
+    attrs: { value: '220', orientation: 'h', rtype: 'film', power: '0.25' },
     props: [
+      // La VALEUR reste en tête : c'est ce qu'on vient régler sur une résistance,
+      // le boîtier n'est qu'un habillage. (Le banc de sélection multiple vise le
+      // premier champ de l'inspecteur — mettre le boîtier devant le lui volait.)
       { attr: 'value', label: 'Value (Ω)', kind: 'number', min: 1, max: 10_000_000, step: 1, suffixes: true },
+      // Boîtier : la petite résistance à anneaux, ou l'une des deux résistances
+      // de PUISSANCE (dessins RP1/RP2 de la planche). Le choix change le dessin,
+      // la boîte, la position des broches et le schéma interne — un fil déjà
+      // posé tient, les broches gardent leurs noms « 1 » et « 2 ».
+      {
+        attr: 'rtype', label: 'Package', kind: 'select', options: ['film', 'rp1', 'rp2'],
+        optionLabels: { film: 'Film (¼ W)', rp1: 'Power, finned aluminium', rp2: 'Power, ceramic' },
+      },
+      // Ce que le boîtier dissipe sans mourir. Au-delà la résistance explose
+      // pendant la simulation (cf. resistorPowers dans model.mts) : c'est la
+      // seule chose qui distingue une ¼ W d'une 10 W dans un montage.
+      {
+        attr: 'power', label: 'Power rating (W)', kind: 'number',
+        min: 0.05, max: 500, step: 0.05, suffixes: true,
+      },
       // Pose du composant : couchée (deux pattes écartées de 60 px) ou DEBOUT
       // (corps vertical, une patte repliée par-dessus, pattes à 20 px). Change
       // le dessin, la boîte, la position des broches et le schéma interne.
+      // Les résistances de puissance n'en ont qu'une : leur corps ne se pose pas
+      // debout, la propriété leur est masquée.
       {
         // Libellé « Mounting » et pas « Orientation » : la barre de rotation de
         // l'inspecteur porte déjà ce mot-là.
         attr: 'orientation', label: 'Mounting', kind: 'select', options: ['h', 'v'],
         optionLabels: { h: 'Horizontal', v: 'Vertical' },
+        showIf: { attr: 'rtype', equals: ['film'] },
       },
     ],
   },
@@ -1599,6 +1620,27 @@ export function partDef(type: string): PartDef {
  */
 export function capacitorDefOf(ctype: string): PartDef | undefined {
   return CATALOG.find((p) => p.kind === 'capacitor' && p.attrs?.ctype === ctype);
+}
+
+/**
+ * Puissance admissible par défaut du boîtier d'une résistance (W, en texte).
+ * ¼ W pour la petite à anneaux — la valeur de l'atelier, celle qu'on achète par
+ * cent — et 10 W pour les deux boîtiers de puissance. Rien à voir entre les deux,
+ * d'où le suivi automatique quand on change de boîtier (cf. editor.mts).
+ */
+export function resistorDefaultPower(rtype: string): string {
+  return rtype === 'rp1' || rtype === 'rp2' ? '10' : '0.25';
+}
+
+/**
+ * Puissance admissible (W) d'une résistance du schéma : son attribut `power`,
+ * ou à défaut celle de son boîtier — un projet d'avant la propriété n'en a pas,
+ * et sa résistance est une ¼ W comme elle l'a toujours été.
+ */
+export function resistorPowerRating(attrs?: Record<string, string>): number {
+  const w = Number(attrs?.power);
+  if (Number.isFinite(w) && w > 0) return w;
+  return Number(resistorDefaultPower(attrs?.rtype ?? 'film'));
 }
 
 /**

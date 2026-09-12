@@ -63,6 +63,12 @@ import potRot2Schema from '../composants/interne/pot-rot2-interne.svg';
 // que le tracé procédural (boîte entre deux pattes) ne saurait dessiner. Même
 // viewBox que `externe/res-vert.svg`, donc superposable tel quel.
 import resVertSchema from '../composants/interne/res-vert-interne.svg';
+// Résistances de PUISSANCE : symboles de Frank extraits au cadre de leur dessin
+// externe (RP1-Interne / RP2-Interne de la planche), donc superposables tels
+// quels. Le tracé procédural, calé sur les pattes, dessinerait une boîte deux
+// fois trop petite dans ces boîtiers massifs.
+import rp1Schema from '../composants/interne/rp1-interne.svg';
+import rp2Schema from '../composants/interne/rp2-interne.svg';
 // Symboles GÉNÉRIQUES (Composants.svg) : les électrodes y sont écrites (e/b/c,
 // g/d/s) mais jamais reliées aux pattes — le brochage change d'une référence à
 // l'autre, seul le nom écrit sur chaque pastille dit la vérité. Ils resservent
@@ -327,6 +333,11 @@ const BATTERY_SCHEMA = parseSchema(batterySchema);
 const HALL_SCHEMA = parseSchema(hallSchema);
 const POT_ROT2_SCHEMA = parseSchema(potRot2Schema);
 const RES_VERT_SCHEMA = parseSchema(resVertSchema);
+/** Symbole interne de chaque boîtier de puissance, par valeur de `rtype`. */
+const RES_POWER_SCHEMA: Record<string, Schema> = {
+  rp1: parseSchema(rp1Schema),
+  rp2: parseSchema(rp2Schema),
+};
 const LED_SCHEMA = parseSchema(ledSchema);
 // Symboles internes choisis NOMMÉMENT par l'attribut `schema` : le dessin d'une
 // référence ne se déduit pas de sa famille (deux NPN peuvent porter NPN1 ou
@@ -521,10 +532,14 @@ export function internalWiringSvg(
       return pushbutton(pins);
     case 'led':
       return led(box);
-    case 'resistor':
+    case 'resistor': {
+      // Boîtier de puissance : symbole de Frank au cadre de son dessin externe.
+      const puissance = RES_POWER_SCHEMA[attrs?.rtype ?? ''];
+      if (puissance) return scaledSchema(puissance, box);
       // Debout : symbole dessiné (corps vertical + patte repliée), calé sur le
       // cadre de son dessin externe. Couchée : boîte tracée entre les pattes.
       return attrs?.orientation === 'v' ? scaledSchema(RES_VERT_SCHEMA, box) : resistor(pins);
+    }
     case 'led-bar':
       return ledBar(pins);
     case '7segment':

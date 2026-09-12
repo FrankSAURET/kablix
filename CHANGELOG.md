@@ -2,7 +2,14 @@
 
 Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque mois.
 
-## 2026.9.3 (10 septembre 2026)
+## 2026.9.3 (prochaine publication)
+
+### Nouveauté
+
+- **Deux résistances de puissance.** La résistance ne se décline plus seulement en petit boîtier à anneaux : un **boîtier aluminium à ailettes** et un **boîtier céramique**, 10 W chacun, se choisissent dans ses propriétés. À cette taille la valeur n'est plus en couleurs, elle est **écrite** dessus en code d'atelier, puissance en tête : `10W 4R7` pour 4,7 Ω, `10W 4K7` pour 4,7 kΩ. Le boîtier céramique écrit l'unité avec un Ω (`10W 4Ω7`), comme dans la réalité. Ces deux-là sont trop massives pour tenir debout : la propriété de pose disparaît de leur inspecteur.
+- **Une résistance peut partir en fumée.** Nouvelle propriété **puissance** sur toutes les résistances — ¼ W pour la petite (rien n'est inscrit dessus), 10 W pour les deux boîtiers de puissance. La simulation calcule ce que chaque résistance dissipe VRAIMENT au point de fonctionnement du montage, et au-delà de son boîtier elle explose, avec l'étiquette qui dit quoi corriger. Deux choses à savoir : une sortie de carte, avec ses ~25 Ω internes, ne peut pas griller une 10 W (il faut une alimentation de laboratoire — 12 V sur 4,7 Ω font 30 W) ; et en commande hachée c'est la **puissance** qui est moyennée, pas le courant, sinon l'échauffement serait sous-estimé.
+
+### Modification
 
 - **Le montage entier se mesure enfin au voltmètre.** Plusieurs composants existaient à l'écran sans exister dans le circuit : posez un voltmètre dessus, il lisait zéro. C'est fini pour le **potentiomètre** (les trois modèles : rotatif, glissière, ajustable — un pont de 10 kΩ sur 5 V donne 0 V, 1,25 V, 2,5 V, 5 V selon la position), le **ventilateur** et le **moteur à courant continu**. Un même modèle sert désormais la mesure et l'animation : la vitesse affichée et la tension mesurée ne peuvent plus se contredire.
 - **Un transistor passant n'est plus un fil.** Ce qui reste à ses bornes dépend maintenant de sa nature : **chute fixe** pour un bipolaire saturé (nouvelle propriété **Vce(sat)**, de 0,2 à 0,7 V selon la référence, 0,9 V pour un darlington), **résistance** pour un canal MOSFET ouvert (**Rds(on)**, la chute suit donc le courant). Les 26 références du catalogue portent leur valeur de fiche technique.

@@ -19,6 +19,7 @@ import {
   pca9685AddressText,
   pinElectricalRole,
   registerCustomPart,
+  resistorDefaultPower,
   setSimModelPresets,
   unregisterCustomPart,
   type BoardId,
@@ -6033,6 +6034,18 @@ export class Editor {
         queueMicrotask(() => this.renderInspector());
       }
     }
+    // Résistance : même chose pour la puissance admissible, qui n'a rien à voir
+    // d'un boîtier à l'autre — ¼ W pour la petite à anneaux, 10 W pour les deux
+    // de puissance. Elle suit le boîtier TANT QU'ELLE n'a pas été saisie à la
+    // main : une valeur choisie (une 2 W, une 50 W) est gardée telle quelle.
+    if (attr === 'rtype' && partDef(r.part.type).kind === 'resistor') {
+      const avant = resistorDefaultPower(prevAttrs.rtype ?? 'film');
+      const apres = resistorDefaultPower(value);
+      if ((prevAttrs.power ?? '') === avant) {
+        r.part.attrs = { ...r.part.attrs, power: apres };
+        queueMicrotask(() => this.renderInspector());
+      }
+    }
     // LCD Texte : le format 16×2 / 20×4 pilote cols + rows de l'élément (et du
     // périphérique I²C simulé). Le changement de `pins` (i2c↔parallèle) change le
     // jeu de broches → re-rendu comme pour une taille.
@@ -6111,8 +6124,9 @@ export class Editor {
     // l'inscription du boîtier — les deux se voient sur le dessin.
     const rebuildsIc = (attr === 'ref' || attr === 'family') && partDef(r.part.type).kind === 'logic-ic';
     // Résistance : `orientation` change de DESSIN (80×20 couchée, 50×70 debout),
-    // donc de boîte et de position des pattes — même raison que `ctype`.
-    if (movesElectrode || rebuildsTransistor || rebuildsIc || attr === 'ctype' || attr === 'orientation' || attr === 'angle' || attr === 'flip' || attr === 'size' || attr === 'pins' || attr === 'lcdSize' || attr === 'columns' || attr === 'digits') {
+    // donc de boîte et de position des pattes — même raison que `ctype`. Le
+    // boîtier (`rtype`) fait de même, en plus large : 220×100 pour la RP1.
+    if (movesElectrode || rebuildsTransistor || rebuildsIc || attr === 'ctype' || attr === 'rtype' || attr === 'orientation' || attr === 'angle' || attr === 'flip' || attr === 'size' || attr === 'pins' || attr === 'lcdSize' || attr === 'columns' || attr === 'digits') {
       this.rerenderPart(partId); // renderPart restaure le câblage interne s'il était affiché
       if (this.selection?.kind === 'part' && this.selection.id === partId) {
         const again = this.rendered.get(partId);

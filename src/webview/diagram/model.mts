@@ -1,6 +1,6 @@
 // Modèle de schéma (pur, sans DOM) : composants, fils, calcul de la netlist et
 // résolution logique des composants. Entièrement testable hors navigateur.
-import { mcuInternalStrips, mcuPinRole, mcuPins, partDef, rolePin, PARAM_ATTR_PREFIX, type BoardId, type PartKind } from './catalog.mjs';
+import { mcuInternalStrips, mcuPinRole, mcuPins, partDef, resistorPowerRating, rolePin, PARAM_ATTR_PREFIX, type BoardId, type PartKind } from './catalog.mjs';
 import { breadboardStrips, normalizeSize } from './breadboard.mjs';
 import { groveShieldStrips, normalizePower } from './grove-shield.mjs';
 import { shieldStrips } from './shield.mjs';
@@ -1872,6 +1872,76 @@ function openMeter(diagram: Diagram, partId: string): Diagram {
       p.id === partId ? { ...p, attrs: { ...(p.attrs ?? {}), mode: 'voltage' } } : p
     ),
   };
+}
+
+/** Ce que dissipe une résistance du schéma, et ce que son boîtier supporte. */
+export interface ResistorPower {
+  partId: string;
+  /** Puissance dissipée (W) au point de fonctionnement actuel. */
+  watts: number;
+  /** Ce que le boîtier tient (W) : attribut `power`, ¼ W par défaut. */
+  rating: number;
+  /** Vrai dès que la dissipation dépasse ce que le boîtier tient. */
+  over: boolean;
+}
+
+/**
+ * Puissance dissipée par chaque résistance FIXE du schéma.
+ *
+ * Même méthode que l'ampèremètre (cf. meterReadings) : la résistance est OUVERTE
+ * le temps du calcul — sinon le courant qu'on cherche passerait déjà par elle,
+ * et le générateur équivalent de chacune de ses bornes contiendrait la branche
+ * qu'on veut mesurer. Le reste du montage se résume alors à deux générateurs de
+ * Thévenin, un par borne, et le courant qui s'établit à travers elle vaut
+ * I = (V1 − V2) / (R1 + R2 + R). La puissance suit : P = R·I².
+ *
+ * Les résistances VARIABLES (LDR, CTN, photodiode…) sont écartées : leur valeur
+ * suit un curseur, leur boîtier n'a pas de puissance inscrite, et personne
+ * n'achète une LDR pour sa tenue en watts.
+ *
+ * Un hachage en cours est moyenné comme partout ailleurs, mais sur la PUISSANCE
+ * et non sur le courant : une résistance qui voit 100 mA la moitié du temps
+ * dissipe la moitié de R·I², pas R·(I/2)² — quatre fois moins. C'est ce qui fait
+ * qu'un variateur PWM ne grille pas ce qu'un continu grillerait.
+ */
+export function resistorPowers(
+  diagram: Diagram,
+  vcc: number,
+  drive?: (pin: string) => PinDrive,
+  psuVolts?: (partId: string) => number | null,
+  liveOhms?: (part: Part) => number | null
+): ResistorPower[] {
+  const fixes = diagram.parts.filter(
+    (p) => partDef(p.type).kind === 'resistor' && !VARIABLE_RESISTOR_INPUT[p.type]
+  );
+  if (fixes.length === 0) return [];
+  const mesure = (): Map<string, number> => {
+    const { nets, adj, vccNets, gndNets } = resistiveGraph(diagram, liveOhms);
+    const { sources } = circuitSources(diagram, vcc, nets, vccNets, gndNets, drive, psuVolts);
+    const sourceNets = new Set(sources.map((s) => s.net));
+    const out = new Map<string, number>();
+    for (const part of fixes) {
+      const ohms = Math.max(0, liveOhms?.(part) ?? nominalOhms(part));
+      const ouvert = withoutPart(adj, part.id);
+      const a = theveninNode(nets.netOf({ partId: part.id, pin: rolePin(part.type, '1') }), sources, sourceNets, ouvert);
+      const b = theveninNode(nets.netOf({ partId: part.id, pin: rolePin(part.type, '2') }), sources, sourceNets, ouvert);
+      if (!a || !b) { out.set(part.id, 0); continue; }
+      const total = a.ohms + b.ohms + ohms;
+      const amps = total > 0 ? (a.volts - b.volts) / total : 0;
+      out.set(part.id, ohms * amps * amps);
+    }
+    return out;
+  };
+  const watts = averagedOverChopping(mesure, (ferme, ouvert, duty) => {
+    const melange = new Map<string, number>();
+    for (const [id, p] of ferme) melange.set(id, p * duty + (ouvert.get(id) ?? 0) * (1 - duty));
+    return melange;
+  });
+  return fixes.map((part) => {
+    const w = watts.get(part.id) ?? 0;
+    const rating = resistorPowerRating(part.attrs);
+    return { partId: part.id, watts: w, rating, over: w > rating };
+  });
 }
 
 /** Capacité (F) d'un condensateur, depuis son attribut `value` (100 nF par défaut). */
