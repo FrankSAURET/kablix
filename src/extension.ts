@@ -177,6 +177,11 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('kablix.saveDefaultLayout', () => {
       void saveDefaultLayout(context);
     }),
+    vscode.commands.registerCommand('kablix.openSettings', () => {
+      // Réglages de Kablix dans l'éditeur graphique de VS Code : le filtre
+      // « @ext:<publisher>.<name> » n'affiche que nos paramètres.
+      void vscode.commands.executeCommand('workbench.action.openSettings', '@ext:electropol-fr.kablix');
+    }),
     vscode.commands.registerCommand('kablix.rearrangeLayout', () => {
       // Icône « réarranger » : rétablit la disposition Kablix mémorisée (côté +
       // ratio). Force = action explicite, même si déjà posée cette session.

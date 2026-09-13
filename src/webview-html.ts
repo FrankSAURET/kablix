@@ -143,6 +143,8 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
         <li role="menuitem" data-cmd="kablix.checkLibraryUpdates">${l10n.t('Check for library updates')}</li>
         <li class="more-menu__sep" role="separator"></li>
         <li role="menuitem" data-cmd="kablix.saveDefaultLayout">${l10n.t('Save this layout as default')}</li>
+        <li class="more-menu__sep" role="separator"></li>
+        <li role="menuitem" data-cmd="kablix.openSettings">${l10n.t('Settings')}</li>
       </ul>
     </div>
     <button id="open-help" class="toolbar__icon-btn" title="${l10n.t('Open help')}"><img src="${aideIconUri}" alt="${l10n.t('Open help')}" /></button>

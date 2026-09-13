@@ -1634,6 +1634,7 @@ export class SimulatorPanel {
             'kablix.checkLibraryUpdates',
             'kablix.saveDefaultLayout',
             'kablix.rearrangeLayout',
+            'kablix.openSettings',
           ]);
           if (allowed.has(msg.command)) {
             void vscode.commands.executeCommand(msg.command);

@@ -2,7 +2,7 @@
   "name": "kablix",
   "displayName": "Kablix",
   "version": "2026.9.4",
-  "buildNumber": 76,
+  "buildNumber": 77,
   "description": "%kablix.description%",
   "publisher": "electropol-fr",
   "author": {
@@ -105,6 +105,11 @@
       {
         "command": "kablix.saveDefaultLayout",
         "title": "%kablix.cmd.saveDefaultLayout%",
+        "category": "Kablix"
+      },
+      {
+        "command": "kablix.openSettings",
+        "title": "%kablix.cmd.openSettings%",
         "category": "Kablix"
       },
       {

@@ -4,10 +4,14 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ## 2026.9.5 (prochaine publication)
 
+### Nouveauté
+
+- **Une ligne « Paramètres » dans le menu hamburger** : elle ouvre les réglages de Kablix, déjà filtrés.
+
 ### Modification
 
-- **Le tableau des composants du README suit les catégories de la palette**, avec les bons effectifs.
-- **La liste des composants téléchargeables est illustrée** : chacun montre sa miniature.
+- **Le tableau des composants du README suit les catégories de la palette**.
+- **La liste des composants téléchargeables est illustrée**.
 
 ## 2026.9.4 (13 septembre 2026)
 

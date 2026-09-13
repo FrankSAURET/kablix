@@ -13,6 +13,7 @@
   "kablix.cmd.upgradePicoFirmware": "Kablix: Upgrade Pico firmware",
   "kablix.cmd.openHelp": "Kablix: Help",
   "kablix.cmd.saveDefaultLayout": "Kablix: Save the default layout",
+  "kablix.cmd.openSettings": "Kablix: Settings",
   "kablix.cmd.rearrangeLayout": "Kablix: Rearrange the windows",
   "kablix.cmd.associateProjix": "Kablix: Associate .projix files with Kablix",
   "kablix.cmd.fixIntelliSense": "Kablix: Fix code analysis for this board",

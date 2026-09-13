@@ -1,7 +1,21 @@
 # À faire
-1. Rajoute dans le menu "autres fonctions" une ligen "Paramètres" qui ouvre le settings de vscode à la section kablix en mode graphique.
+1. Choisis parmi les options de navigation dans l'aide proposées en v2026.9.4.77 (recommandation : G + A + C + F).
+2. Rajoute une possibilité de sélectionner un segment d'un fil et de le déplacer perpendiculairement à sa direction par glisser/poser
 ## ne pas faire pour l'instant
 
+
+---
+
+# >>>>  v2026.9.4.77 — Les paramètres à portée de menu
+
+1. ✅ **Nouvelle ligne « Paramètres » au menu hamburger** (item 1), après un séparateur, sous « Sauvegarder cette organisation par défaut » ([webview-html.ts](src/webview-html.ts)). Elle ouvre l'écran de réglages de VS Code **en mode graphique**, filtré sur `@ext:electropol-fr.kablix` — les **17** paramètres de Kablix et rien d'autre.
+2. ✅ **Commande `kablix.openSettings`** ([extension.ts](src/extension.ts)), déclarée au manifeste avec son libellé ([package.json](package.json), [package.nls.json](package.nls.json)) : elle est donc aussi accessible à la palette de commandes, comme les autres entrées du menu.
+3. ✅ **Ajoutée à la liste blanche** du relais webview → extension ([panel.ts](src/panel.ts)). Sans elle le clic serait resté sans effet : la webview ne lance jamais une commande arbitraire.
+4. ✅ **Guide complété** ([USAGE.md](docs/fr/USAGE.md)) : la ligne des Paramètres est décrite avec les autres fonctions du hamburger.
+5. ✅ **Sept options de navigation dans l'aide proposées** (item 3), après lecture de [guide.ts](src/guide.ts) : sommaire auto-généré, sommaire latéral collant, précédent/suivant, bouton haut de page, sections repliables, champ de recherche, découpage du guide. Trois constats derrière : le guide fait **722 lignes** en une seule page, son sommaire est écrit à la main et **oublie 8 sections**, et la webview d'aide tourne **sans script** (une recherche imposerait de les ouvrir). Frank tranche.
+6. ⏳ **Traduction en attente** : la chaîne `Settings` du menu (langue de base EN au code, `l10n/bundle.l10n.fr.json` attend la publication) et la version EN du guide (item 2 — Frank a retouché `docs/fr/USAGE.md` et l'image de la barre).
+7. ✅ **Vérifié** : typecheck et construction verts.
+8. ℹ️ **`version` reste `2026.9.4`** (publiée le 13 septembre), `buildNumber` à 77. Rien n'est publié, pas de `.vsix`.
 
 ---
 
