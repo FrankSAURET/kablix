@@ -1,7 +1,22 @@
 # À faire
-
+1. Rajoute dans le menu "autres fonctions" une ligen "Paramètres" qui ouvre le settings de vscode à la section kablix en mode graphique.
 ## ne pas faire pour l'instant
 
+
+---
+
+# >>>>  v2026.9.4.76 — Le README remis d'aplomb, les composants illustrés
+
+1. ✅ **Les catégories du README sont désormais celles de la palette** ([README.md](README.md)). Tes noms sont gardés tels quels ; c'est le CONTENU qui était faux, et je l'ai recompté depuis `partCategory()` ([catalog.mts](src/webview/diagram/catalog.mts)) plutôt qu'à l'œil. Six erreurs : la batterie externe est rangée en **Divers** et non en Cartes ; LED, LED RGB et barre de 10 LED sont des **Discrets** (leur `kind` les y met) et non des Afficheurs ; le capteur de température CTN est un **Capteur** et non un Discret ; le PCA9685 et la carte microSD sont en **Divers** et non en Actionneurs ; PIR et inclinaison manquaient au compte des Capteurs ; le potentiomètre ajustable manquait aux Commandes.
+2. ✅ **Une dixième ligne ajoutée : « Divers » (3).** Elle n'existait pas au tableau alors que la palette l'affiche — batterie externe, carte microSD, pilote PWM 16 canaux. Sans elle, ces trois composants étaient forcés dans des catégories où l'atelier ne les range pas.
+3. ✅ **Les effectifs tombent juste** : 9 + 11 + 8 + 10 + 12 + 4 + 2 + 3 + 3 + 12 = **74**, le chiffre annoncé en tête de section. L'ordre des lignes suit `CATEGORY_ORDER`, circuits intégrés en dernier comme dans la palette.
+4. ✅ **Le paragraphe des aides reste le tien** (item 2) : `docs/code de pays/` et les noms de fichiers sans lien anticipent bien les autres langues. Rien à corriger, un double espace retiré.
+5. ✅ **Trois raccourcis vers le README des composants** (item 3) : sous le tableau de la bibliothèque ([README.md](README.md)), au gestionnaire de composants et au partage ([USAGE.md](docs/fr/USAGE.md)), et dans la [spécification kompix](docs/kompix_specification.md).
+6. ✅ **Chaque composant téléchargeable montre sa miniature** (item 4) — nouvelle première colonne du tableau de [kablix_components/README.md](kablix_components/README.md). Les miniatures étaient déjà dans les paquets, mais en **base64 dans `index.json`** : GitHub n'affiche pas une image `data:` dans un tableau Markdown, il lui faut un chemin. [build-components-index.mjs](scripts/build-components-index.mjs) les dépaquette donc aussi en fichiers, dans `kablix_components/thumbnails/<type>.webp`.
+7. ✅ **`index.json` n'a pas grossi d'un octet** : le chemin de la vignette est ajouté à la copie que lit le README, pas à l'entrée d'index — le gestionnaire de composants continue de lire `thumbnail`, le base64, qu'il affiche AVANT tout téléchargement. Seule la date de génération change.
+8. ✅ **Largeur imposée à 64 px** sur chaque `<img>` : les sept miniatures n'ont pas la même taille, une ligne du tableau aurait fait trois fois la hauteur de sa voisine.
+9. ✅ **Vérifié** : `verify:docs` (25 contrôles), `verify:kompix` (40), `verify:libpalette` (43), typecheck et construction — tout vert.
+10. ℹ️ **`version` reste `2026.9.4`** (publiée le 13 septembre), `buildNumber` à 76. Rien n'est publié, pas de `.vsix`.
 
 ---
 

@@ -494,6 +494,8 @@ Le bouton **⚙ Gérer les composants**, en bas de la palette (ou la commande **
 - **Installés** : tout ce que contient la bibliothèque locale, y compris les composants créés ici et ceux qu'aucun dépôt ne propose ;
 - **Tous** : les deux.
 
+> 📦 La liste illustrée de ce que propose le dépôt officiel est dans [kablix_components/README.md](../../kablix_components/README.md).
+
 Une carte peut porter la mention **Experimental** (pastille et cadre en pointillés) : le composant est publié, il marche, mais il n'est pas encore figé — son dessin, ses pattes ou sa simulation peuvent changer d'une version à l'autre. Rien n'empêche de s'en servir ; il faut juste s'attendre à devoir le remettre à jour.
 
 On sélectionne les cartes au clic, puis **Télécharger** installe, **Supprimer** désinstalle. La suppression demande confirmation, efface le fichier `.kompix` de la bibliothèque et retire le composant de la palette **et** des schémas ouverts. Elle est définitive : réinstaller passe par le dépôt d'origine, ou par un `.kompix` exporté au préalable (**⇩**).
@@ -611,7 +613,7 @@ L'aide correspondante (rôles, champs, contraintes) est dans la section [Format 
   - [SVG Repo](https://www.svgrepo.com) et [Openclipart](https://openclipart.org) (dessins libres) ;
   - les sources de [wokwi-elements](https://github.com/wokwi/wokwi-elements/tree/master/src) contiennent le SVG de chaque composant (MIT — réutilisable dans un composant personnalisé) ;
   - [Fritzing](https://github.com/fritzing/fritzing-parts) (vues « breadboard » en SVG, licence CC-BY-SA).
-- **Partage** : un composant exporté (`.kompix`) se dépose dans le dossier de la bibliothèque d'un autre poste (**Kablix : Ouvrir la bibliothèque de composants**), ou se publie sur un dépôt pour que **⚙ Gérer les composants** le propose au téléchargement.
+- **Partage** : un composant exporté (`.kompix`) se dépose dans le dossier de la bibliothèque d'un autre poste (**Kablix : Ouvrir la bibliothèque de composants**), ou se publie sur un dépôt pour que **⚙ Gérer les composants** le propose au téléchargement — voir [kablix_components/README.md](../../kablix_components/README.md) pour le dépôt officiel et la marche à suivre.
 
 ## Enregistrer / ouvrir un projet (.projix)
 

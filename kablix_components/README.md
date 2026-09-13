@@ -16,15 +16,15 @@ Voir [kompix_specification.md](../docs/kompix_specification.md) pour les détail
 
 ## Composants disponibles
 
-| Type | Label | Version | Catégorie | Description |
-|------|-------|---------|-----------|-------------|
-| `dmx-grove` | Grove DMX512 | 2026.8.1 | Misc | Grove DMX512 shield (SP3485 line driver): turns th |
-| `grove-light-sensor` | Grove light sensor | 2026.9.1 | Sensors | Grove ambient light sensor (LS06-S phototransistor |
-| `grove-rfid` | Grove 125 kHz RFID reader | 2026.9.1 | Sensors | Grove 125 kHz RFID reader (EM4100 tags): while a t |
-| `grove-uno` | Grove Shield (Uno) | 2026.9.1 | Boards | Grove Base Shield V2 for Arduino Uno: 16 Grove soc |
-| `ir-barrier` | Through-beam IR barrier | 2026.9.0 | Sensors | Through-beam infrared barrier (emitter + receiver) |
-| `soil-moisture-sensor` | Soil moisture sensor | 2026.9.1 | Sensors | Resistive soil moisture probe (two prongs): wet so |
-| `spot` | DMX PAR 38 spotlight | 2026.8.1 | Systems | PAR 38 LED spotlight driven over DMX512 (Contest): |
+| | Type | Label | Version | Catégorie | Description |
+|---|------|-------|---------|-----------|-------------|
+| <img src="thumbnails/dmx-grove.webp" alt="Grove DMX512" width="64"> | `dmx-grove` | Grove DMX512 | 2026.8.1 | Misc | Grove DMX512 shield (SP3485 line driver): turns th |
+| <img src="thumbnails/grove-light-sensor.webp" alt="Grove light sensor" width="64"> | `grove-light-sensor` | Grove light sensor | 2026.9.1 | Sensors | Grove ambient light sensor (LS06-S phototransistor |
+| <img src="thumbnails/grove-rfid.webp" alt="Grove 125 kHz RFID reader" width="64"> | `grove-rfid` | Grove 125 kHz RFID reader | 2026.9.1 | Sensors | Grove 125 kHz RFID reader (EM4100 tags): while a t |
+| <img src="thumbnails/grove-uno.webp" alt="Grove Shield (Uno)" width="64"> | `grove-uno` | Grove Shield (Uno) | 2026.9.1 | Boards | Grove Base Shield V2 for Arduino Uno: 16 Grove soc |
+| <img src="thumbnails/ir-barrier.webp" alt="Through-beam IR barrier" width="64"> | `ir-barrier` | Through-beam IR barrier | 2026.9.0 | Sensors | Through-beam infrared barrier (emitter + receiver) |
+| <img src="thumbnails/soil-moisture-sensor.webp" alt="Soil moisture sensor" width="64"> | `soil-moisture-sensor` | Soil moisture sensor | 2026.9.1 | Sensors | Resistive soil moisture probe (two prongs): wet so |
+| <img src="thumbnails/spot.webp" alt="DMX PAR 38 spotlight" width="64"> | `spot` | DMX PAR 38 spotlight | 2026.8.1 | Systems | PAR 38 LED spotlight driven over DMX512 (Contest): |
 
 ## Utilisation
 
@@ -42,4 +42,4 @@ Pour proposer un composant :
 
 ---
 
-Généré le 02/09/2026 14:45:43 — Kablix v2026.8.102
+Généré le 13/09/2026 18:10:39 — Kablix v2026.9.4

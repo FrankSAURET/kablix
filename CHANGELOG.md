@@ -2,6 +2,13 @@
 
 Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque mois.
 
+## 2026.9.5 (prochaine publication)
+
+### Modification
+
+- **Le tableau des composants du README suit les catégories de la palette**, avec les bons effectifs.
+- **La liste des composants téléchargeables est illustrée** : chacun montre sa miniature.
+
 ## 2026.9.4 (13 septembre 2026)
 
 ### Nouveauté

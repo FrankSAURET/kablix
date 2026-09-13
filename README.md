@@ -62,21 +62,16 @@ Ma bilothèque de test est disponible : [TestKablix](https://github.com/FrankSAU
 - ✅ **Traceur de courbes** : tracé en direct, plus des **sondes** posées sur une broche pour visualiser sa tension
 - ✅ **Simulation physique** : luminosité selon la résistance série, les LED sans résistance grillent, les servomoteurs ne démarrent pas, l’alimentation tient compte du courant…
 - ✅ **Capteurs interactifs** : curseurs et boutons pour flamme, gaz, son, lumière, température et mouvement, pilotant l’entrée du montage en direct.
-- ✅ **Intégrable à Windows**.
 
-> 📖 **Guide complet** : [docs/fr/USAGE.md](docs/fr/USAGE.md) (français)/  
-> [docs/en/USAGE.md](docs/en/USAGE.md) (English) — interface, câblage, création  
+> Les aides sont dans le dossier `docs/code de pays/`.  
+> 📖 **Guide complet** : USAGE.md — interface, câblage, création  
 > de composants personnalisés (avec prompt IA), format `.kompix`,  
-> gestionnaire de composants, sources de composants existants.
+> gestionnaire de composants, sources de composants existants.  
 > **Ajouter un composant à Kablix** (contributeurs, sur GitHub uniquement) :  
-> [docs/fr/Creating-components.md](docs/fr/Creating-components.md) (français) /  
-> [docs/en/Creating-components.md](docs/en/Creating-components.md) (English) —  
-> du dessin dans `Composants2D.svg` au composant simulé, testé et documenté,  
-> à la main ou avec une IA.
+> Creating-components.md — du dessin dans `Composants2D.svg` au composant simulé, testé et documenté,  
+> à la main ou avec une IA.  
 > **Dessiner les systèmes en volume** (araignée, pattes — contributeurs, sur GitHub uniquement) :  
-> [docs/fr/Drawing-systems.md](docs/fr/Drawing-systems.md) (français) /  
-> [docs/en/Drawing-systems.md](docs/en/Drawing-systems.md) (English) —  
-> vous tracez le contour d’une pièce, le moteur isométrique la met en volume.
+> Drawing-systems.md — vous tracez le contour d’une pièce, le moteur isométrique la met en volume.  
 > 🌍 **Interface bilingue** : français si VS Code est en français, anglais sinon.  
 > Le mécanisme est extensible à d’autres langues — voir [Internationalisation](#internationalisation).
 
@@ -84,19 +79,22 @@ Ma bilothèque de test est disponible : [TestKablix](https://github.com/FrankSAU
 
 **74 composants** posables à la souris, rangés dans l’ordre de la palette (plus leurs variantes : condensateur polarisé, transistors PN2222A/NPN/PNP, claviers 3×4 et 4×4, platines d’essai mini/half/full…). Chacun a sa **fiche d’aide illustrée** (bouton ❔ de l’inspecteur, hors-ligne, FR et EN) et **deux montages de test** prêts à simuler dans [testkablix](https://github.com/FrankSAURET/kablix/tree/main/testkablix) — un en C sur Arduino, un en MicroPython sur Pico.
 
-| Catégorie                              | Composants                                                                                                                                                                                                                                                                                                    |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Cartes et supports** (10)            | Arduino Uno · Arduino Nano · Arduino Mega 2560 · Raspberry Pi Pico · Raspberry Pi Pico W · Raspberry Pi Pico 2 · Raspberry Pi Pico 2 W · Grove Shield (Pico) · Platine d’essai · Batterie externe                                                                                                                              |
-| **Passifs et semi-conducteurs** (10)   | Résistance · Condensateur (polarisé ou non) · Diode · Transistor (PN2222A, NPN, PNP — boîtier TO-92) · Thermistance CTN · Thermistance CTP · Capteur de température CTN · Photorésistance (LDR) · Photodiode · Phototransistor                                                                                                                |
-| **Voyants et afficheurs** (10)         | LED · LED RGB · Barre de 10 LED · Afficheur 7 segments (1 à 4 digits) · NeoPixel · Matrice NeoPixel · Anneau NeoPixel · LCD texte 16×2 / 20×4 (I²C ou parallèle) · Écran OLED SSD1306 · Écran TFT ILI9341 (SPI)                                                                                                |
-| **Entrées** (9)                        | Bouton poussoir · Bouton poussoir 6 mm · Interrupteur à glissière · Interrupteur DIP ×8 · Clavier matriciel 3×4 / 4×4 · Potentiomètre · Potentiomètre à glissière · Potentiomètre ajustable · Joystick analogique                                                                                              |
-| **Capteurs** (11)                      | Capteur de lumière · Capteur de gaz (MQ) · Capteur de flamme · Capteur de son · Détecteur de mouvement PIR · Capteur d’inclinaison · Capteur à effet Hall · Capteur de pouls · Capteur à ultrason (HC-SR04) · Température/humidité DHT22 · Température/humidité DHT11                                          |
-| **Actionneurs et puissance** (7)       | Buzzer · Servomoteur · Ventilateur · Moteur à courant continu · Relais OMRON G5V · Pilote PWM 16 canaux (PCA9685) · Carte microSD (SPI)                                                                                                                                                                        |
-| **Logique (boîtiers DIP)** (12)        | **CMOS 4000** : CD4081 (4 × ET) · CD4071 (4 × OU) · CD4070 (4 × OU exclusif) · CD4011 (4 × NON-ET) · CD4001 (4 × NON-OU) · CD40106 (6 × NON, trigger de Schmitt) — **TTL/HC 74** : 74xx08 · 74xx32 · 74xx86 · 74xx00 · 74xx02 · 74xx14 (mêmes fonctions, la famille choisie décide de la plage d’alimentation) |
-| **Mécanique** (2)                      | Robot araignée · Patte d’araignée                                                                                                                                                                                                                                                                             |
-| **Appareils de mesure** (3)            | Alimentation de laboratoire · Multimètre de table · Oscilloscope de table                                                                                                                                                                                                                                     |
+| Catégorie                            | Composants                                                                                                                                                                                                                                                                                                     |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Cartes et platines** (9)           | Arduino Uno · Arduino Nano · Arduino Mega 2560 · Raspberry Pi Pico · Raspberry Pi Pico W · Raspberry Pi Pico 2 · Raspberry Pi Pico 2 W · Grove Shield (Pico) · Platine d’essai                                                                                                                                 |
+| **Composants discrets** (11)         | Résistance · Condensateur (polarisé ou non) · Diode · Transistor (PN2222A, NPN, PNP — boîtier TO-92) · LED · LED RGB · Thermistance CTN · Thermistance CTP · Photorésistance (LDR) · Photodiode · Phototransistor                                                                                              |
+| **Voyants et afficheurs** (8)        | Barre de 10 LED · Afficheur 7 segments (1 à 4 digits) · NeoPixel · Matrice NeoPixel · Anneau NeoPixel · LCD texte 16×2 / 20×4 (I²C ou parallèle) · Écran OLED SSD1306 · Écran TFT ILI9341 (SPI)                                                                                                               |
+| **Commandes** (10)                   | Bouton poussoir · Bouton poussoir 6 mm · Interrupteur à glissière · Interrupteur DIP ×8 · Clavier matriciel 3×4 / 4×4 · Potentiomètre · Potentiomètre à glissière · Potentiomètre ajustable · Relais OMRON G5V · Joystick analogique                                                                           |
+| **Capteurs** (12)                    | Capteur de lumière · Capteur de gaz (MQ) · Capteur de flamme · Capteur de son · Détecteur de mouvement PIR · Capteur d’inclinaison · Capteur à effet Hall · Capteur de pouls · Capteur de température CTN · Capteur à ultrason (HC-SR04) · Température/humidité DHT22 · Température/humidité DHT11             |
+| **Actionneurs** (4)                  | Buzzer · Servomoteur · Ventilateur · Moteur à courant continu                                                                                                                                                                                                                                                 |
+| **Systèmes** (2)                     | Robot araignée · Patte d’araignée                                                                                                                                                                                                                                                                             |
+| **Appareils de mesure** (3)          | Alimentation de laboratoire · Multimètre de table · Oscilloscope de table                                                                                                                                                                                                                                     |
+| **Divers** (3)                       | Batterie externe · Carte microSD (SPI) · Pilote PWM 16 canaux (PCA9685)                                                                                                                                                                                                                                       |
+| **Circuits intégrés** (12)           | **CMOS 4000** : CD4081 (4 × ET) · CD4071 (4 × OU) · CD4070 (4 × OU exclusif) · CD4011 (4 × NON-ET) · CD4001 (4 × NON-OU) · CD40106 (6 × NON, trigger de Schmitt) — **TTL/HC 74** : 74xx08 · 74xx32 · 74xx86 · 74xx00 · 74xx02 · 74xx14 (mêmes fonctions, la famille choisie décide de la plage d’alimentation) |
 
 À quoi s’ajoutent les **composants de bibliothèque** (`.kompix`), installés par le gestionnaire ou déposés dans le dossier du projet, et les **composants personnalisés** dessinés dans le créateur intégré.
+
+> 📦 **Bibliothèque publique** : la liste illustrée des composants téléchargeables est dans [kablix_components/README.md](kablix_components/README.md).
 
 ## Internationalisation
 
@@ -151,7 +149,7 @@ Kablix est développé par **[Frank SAURET](https://electropol.fr)** et s’app
 | [@wokwi/elements](https://github.com/wokwi/wokwi-elements)                    | Composants visuels (cartes, LED, capteurs…)                           | MIT                                         |
 | [JSZip](https://stuk.github.io/jszip/)                                        | Lecture/écriture des archives `.projix`                               | MIT/GPLv3                                   |
 | Bootrom B1 du RP2040                                                          | Démarrage du RP2040 simulé                                            | © Raspberry Pi (Trading) Ltd — BSD-3-Clause |
-| Visuels officiels des cartes Raspberry Pi                                     | Dessins des cartes Pico, Pico W, Pico 2 et Pico 2 W                    | © Raspberry Pi Ltd                          |
+| Visuels officiels des cartes Raspberry Pi                                     | Dessins des cartes Pico, Pico W, Pico 2 et Pico 2 W                   | © Raspberry Pi Ltd                          |
 | MicroPython                                                                   | Firmware `.uf2` exécuté sur le Pico simulé (fourni par l’utilisateur) | MIT                                         |
 | Police [LED Board-7](http://www.styleseven.com) © Sizenko Alexander (Style-7) | Texte façon afficheur LED des écrans LCD simulés                      | Freeware (usage libre, crédit requis)       |
 

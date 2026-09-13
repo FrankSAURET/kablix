@@ -9,6 +9,9 @@ import JSZip from 'jszip';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const KOMPONIX_DIR = join(ROOT, 'kablix_components');
+/** Miniatures dépaquetées pour le README : GitHub ne rend pas une image `data:`. */
+const THUMBS_REL = 'thumbnails';
+const THUMBS_DIR = join(KOMPONIX_DIR, THUMBS_REL);
 // Version de l'extension : `require` n'existe pas dans un .mjs.
 const VERSION = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
 
@@ -41,10 +44,16 @@ async function generateIndex() {
 
       // Extrait miniature optionnelle en base64.
       let thumbnail = undefined;
+      // Même miniature écrite EN FICHIER pour le README : GitHub n'affiche pas
+      // une image `data:` dans un tableau Markdown, il lui faut un chemin.
+      let vignette = undefined;
       const thumbFile = zip.file('thumbnail.webp');
       if (thumbFile) {
         const thumbData = await thumbFile.async('arraybuffer');
         thumbnail = `data:image/webp;base64,${Buffer.from(thumbData).toString('base64')}`;
+        mkdirSync(THUMBS_DIR, { recursive: true });
+        writeFileSync(join(THUMBS_DIR, `${manifest.type}.webp`), Buffer.from(thumbData));
+        vignette = `${THUMBS_REL}/${manifest.type}.webp`;
       }
 
       const entry = {
@@ -70,7 +79,9 @@ async function generateIndex() {
       if (manifest.experimental) entry.experimental = true;
 
       index.components.push(entry);
-      entries.push(entry);
+      // Le README lit `vignette` ; l'index, lui, ne la connaît pas — c'est un
+      // chemin relatif au dépôt, sans valeur pour le gestionnaire.
+      entries.push({ ...entry, vignette });
       console.log(`  ✓ ${manifest.type} (v${manifest.version})`);
     } catch (err) {
       console.error(`  ! ${file} : ${err instanceof Error ? err.message : String(err)}`);
@@ -101,15 +112,20 @@ Voir [kompix_specification.md](../docs/kompix_specification.md) pour les détail
 
 ## Composants disponibles
 
-| Type | Label | Version | Catégorie | Description |
-|------|-------|---------|-----------|-------------|
+| | Type | Label | Version | Catégorie | Description |
+|---|------|-------|---------|-----------|-------------|
 `;
 
   for (const entry of entries.sort((a, b) => String(a.type).localeCompare(String(b.type)))) {
     const desc = (entry.description || '').replace(/[|\n]/g, ' ').slice(0, 50);
     // Le tableau porte la meme mention que la carte du gestionnaire.
     const essai = entry.experimental ? ' **(expérimental)**' : '';
-    readme += `| \`${entry.type}\` | ${entry.label}${essai} | ${entry.version} | ${entry.category} | ${desc} |\n`;
+    // Largeur imposée : les miniatures n'ont pas toutes la même taille, sans
+    // ça une ligne du tableau ferait trois fois la hauteur de sa voisine.
+    const img = entry.vignette
+      ? `<img src="${entry.vignette}" alt="${entry.label}" width="64">`
+      : '';
+    readme += `| ${img} | \`${entry.type}\` | ${entry.label}${essai} | ${entry.version} | ${entry.category} | ${desc} |\n`;
   }
 
   readme += `\n## Utilisation
