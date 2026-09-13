@@ -2,7 +2,7 @@
 
 Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque mois.
 
-## 2026.9.4 (prochaine publication)
+## 2026.9.4 (13 septembre 2026)
 
 ### Nouveauté
 
@@ -14,7 +14,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Un double-clic sur une étiquette la rouvre en écriture**, sans passer par la barre d'outils.
 - **Les étiquettes se sélectionnent au rectangle**, comme les composants, et tout ce qui est pris se déplace ensemble.
 - **Un clic droit quitte l'outil étiquette.**
-- **Les schémas internes de cinq composants redressés** : photodiode, LED, les trois afficheurs 7 segments, la barre de LED et le potentiomètre à glissière.
+- **Les schémas internes de cinq composants corigés** : photodiode, LED, les trois afficheurs 7 segments, la barre de LED et le potentiomètre à glissière.
 
 ### Correction
 

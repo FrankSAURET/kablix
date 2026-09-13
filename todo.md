@@ -5,6 +5,18 @@
 
 ---
 
+# >>>>  v2026.9.4.75 — Préparation de la publication
+
+1. ✅ **Les six chaînes en attente sont traduites** ([i18n.mts](src/webview/i18n.mts)) : les deux de l'inspecteur d'étiquettes (`{0} label(s) selected`, `Delete these labels`, placées près de leurs jumelles des câbles) et les quatre de la résistance (`Power rating (W)`, plus les trois boîtiers `Film (¼ W)` / `Power, finned aluminium` / `Power, ceramic`, placées après `Nominal value (Ω)`). Le dictionnaire passe de 571 à **577 entrées**. C'est le lot de traduction d'avant publication : rien n'était traduit au fil de l'eau, conformément à la règle.
+2. ✅ **`verify:i18n` vert : 11 contrôles, plus rien ne sort en anglais.** Les trois échecs qui restaient (libellé de propriété, libellés de liste, appels `t('…')` de la webview) sont levés.
+3. ✅ **Rien d'autre ne manquait.** Vérifié avant de conclure : parité des fiches d'aide **79/79 FR et EN** (`verify:docs`, 25 contrôles), les **7** composants de la bibliothèque publique portent tous leur bloc `l10n`, et aucun numéro de version n'est écrit en dur dans le README ni dans les guides.
+4. ✅ **Suite complète rejouée : 109/109 bancs verts** en 999,6 s. C'était le seul verrou avant de figer les numéros.
+5. ✅ **CHANGELOG daté.** `## 2026.9.4` garde son numéro (il était déjà le bon) et `prochaine publication` devient **13 septembre 2026**. Le contenu du lot ne change pas : il était rempli au fil de l'eau.
+6. ✅ **Numéros figés pour la publication** : `version` passe de `2026.9.3` à **`2026.9.4`** — même mois que la dernière publication, donc l'incrément avance sans repartir à 0 — et `buildNumber` à **75**.
+7. ⏳ **Ni paquet ni publication.** Pas de `.vsix`, aucune commande `vsce` ou `ovsx` lancée : les deux attendent une demande explicite de Frank.
+
+---
+
 # >>>>  v2026.9.3.74 — Les étiquettes se prennent au lasso
 
 1. ✅ **Le rectangle de sélection attrape les étiquettes** ([editor.mts](src/webview/diagram/editor.mts)). Nouveau lot `selectedTexts`, tenu comme `selectedParts` : `textsInRect()` ramasse celles qui sont ENTIÈREMENT dans la boîte — même règle que les composants, effleurer ne suffit pas. Leur taille se lit sur le DOM et non sur le modèle : une étiquette n'a pas de largeur enregistrée, elle dépend du texte et de la police (CSS `width: max-content`).
@@ -14,7 +26,7 @@
 5. ✅ **Un clic droit quitte l'outil étiquette** — où qu'il tombe, fond de feuille compris. Le garde-fou `onTextModeOutside` exceptait justement le fond (c'est là qu'on POSE une étiquette) : le bouton droit passe désormais avant cette exception. C'est le geste d'abandon, le même qui annule déjà un câblage en cours.
 6. ✅ **Huit contrôles de plus au banc à VRAIE souris** ([verify-souris.mjs](scripts/verify-souris.mjs)) : le rectangle qui prend deux étiquettes sur trois, le lot qui se déplace de 100 px ensemble, celle restée dehors qui ne bouge pas, et le clic droit qui éteint le mode sans rien poser. **18 contrôles verts.**
 7. ✅ **Contre-épreuve faite** : `git stash` sur `editor.mts`, banc relancé → **3 échecs** sur les trois fonctions neuves (rectangle vide, étiquette voisine immobile, mode texte toujours allumé). Un banc qui passe avant et après ne prouverait rien.
-8. ⏳ **Traductions en attente** : les deux chaînes neuves de l'inspecteur (`{0} label(s) selected`, `Delete these labels`) s'ajoutent aux quatre de la résistance. `verify:i18n` les signale — c'est normal, elles partent avant publication.
+8. ✅ **Traductions faites depuis** (lot v2026.9.4.75) : les deux chaînes neuves de l'inspecteur (`{0} label(s) selected`, `Delete these labels`) et les quatre de la résistance sont au dictionnaire, `verify:i18n` est vert.
 9. ℹ️ **108/109 bancs verts**, le seul échec étant ces traductions. **`version` reste `2026.9.3`**, `buildNumber` à 74. Rien n'est publié, pas de `.vsix`.
 
 ---
