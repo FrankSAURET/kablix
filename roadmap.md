@@ -263,10 +263,32 @@ remonte locales et globales, avec conditions d'arrêt.
 s'appuie sur avr-gdb pour la partie AVR) fait mieux : locales, tableaux,
 structures et pile d'appels.
 
-**Faisable ?** Oui. Les informations sont dans le DWARF du `.elf`, déjà produit
-par la compilation et déjà lu en partie ([elf.ts](src/shared/elf.ts)). Il faut
-lire `.debug_info` (emplacement des locales, relatif au pointeur de pile) et
-`.debug_loc`. C'est un vrai morceau, mais borné et sans dépendance nouvelle.
+**Faisable ? Bien plus facilement que je ne l'avais écrit d'abord** — vérifié
+depuis dans [compiler.ts](src/compiler.ts). Le DWARF n'est pas « à lire un
+jour » : `parseDwarfGlobals()` **le lit déjà**, en analysant la sortie de
+`avr-objdump --dwarf=info`, et il construit au passage **l'arbre complet des DIE**
+indexé par offset de section (`dies`). Tout le mécanisme coûteux est en place.
+
+Ce qui limite l'affichage aux globales scalaires, ce sont **trois filtres
+explicites**, pas une information absente :
+
+1. `DW_OP_addr` exigé dans `DW_AT_location` → écarte d'office les locales, dont
+   l'emplacement s'écrit `DW_OP_fbreg <décalage>`, relatif au pointeur de trame ;
+2. `[1, 2, 4].includes(type.size)` → écarte tableaux et structures ;
+3. seuls les `DW_TAG_variable` de l'unité de compilation de l'élève sont retenus
+   (celui-là est un bon filtre, il reste).
+
+Côté moteur, le nécessaire est déjà exposé : `readVariables()`
+([avr.mts](src/webview/engines/avr.mts)) lit `this.cpu.data` par `DataView`, et
+`this.cpu.SP` sert déjà au pas à pas (`stepStartSp`). Sur AVR, le pointeur de
+trame est le **registre Y**, soit `cpu.data[28]` et `cpu.data[29]` — accessible
+par le même tableau, sans rien de nouveau. Il reste à descendre les
+`DW_TAG_subprogram` pour connaître la portée d'une locale (intervalle de PC) et
+à suivre `DW_AT_frame_base`.
+
+Reclassement : ce n'est pas un chantier **M**, c'est un **S+**. Tableaux et
+structures (filtre 2) sont même un lot séparé, presque trivial : la taille et le
+type sont déjà résolus par `resolveBaseType()`.
 
 **Recommandation** : le traiter avant les pistes d'agrément. Un débogueur qui ne
 montre pas la variable du `loop()` déçoit à chaque séance.

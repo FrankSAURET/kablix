@@ -1,8 +1,22 @@
 # À faire
-1. Propose des améliorations, évolutions en regardant les projets analogues
-1. Que fait exactement de mieux l'extension vscode de wokwi au niveau du débogage — *première réponse dans [roadmap.md](roadmap.md) §10 (locales, tableaux, pile d'appels) ; reste à confronter au reste de leur extension*
 ## ne pas faire pour l'instant
 
+
+---
+
+# >>>>  v2026.9.4.82 — Wokwi, Tinkercad et SimulIDE passés au banc
+
+1. ✅ **[concurrents.md](concurrents.md) écrit** : Kablix confronté à **Wokwi** (extension VS Code surtout), **Tinkercad Circuits** et **SimulIDE**, sur 20 critères. Les deux items de la liste « à faire » sont traités par ce document.
+2. ✅ **Réponse nette à l'item 2 (le débogage Wokwi)** : ils **n'ont pas écrit de débogueur**, ils ouvrent un **serveur GDB** sur un port TCP (3333, réglé par `gdbServerPort` dans `wokwi.toml`) et VS Code s'y branche par un `launch.json` ordinaire. Tout le travail — comprendre qu'une adresse porte un `int`, qu'une trame de pile appartient à `loop()`, qu'un pointeur mène à un tableau — est fait par le client `gdb` qui lit le DWARF de son côté. Ils obtiennent donc **gratuitement** locales, tableaux, structures, pile d'appels, registres, watchpoints et points d'arrêt conditionnels.
+3. ✅ **Ce que ça leur coûte, et pourquoi on ne copie pas** : quatre exécutables GDB différents selon la puce (`avr-gdb`, `arm-none-eabi-gdb`, `xtensa-esp32-elf-gdb`, `riscv32-esp-elf-gdb`), celui de l'IDE Arduino (7.8) étant **trop vieux et documenté comme cassé** sur AVR. Plus un `launch.json` à écrire. Deux obstacles avant la première variable affichée. Le prix d'entrée de Kablix — on ouvre, ça marche, hors-ligne — vaut plus cher que la pile d'appels.
+4. ✅ **Un point où nous sommes seuls** : Wokwi simule MicroPython mais **ne le débogue pas** (GDB débogue du code machine, pas un interpréteur). Kablix le débogue par instrumentation ([pydebug.ts](src/shared/pydebug.ts)), locales et conditions comprises.
+5. ✅ **Le §10 du roadmap corrigé, et le chantier réévalué à la baisse** : il renvoyait à [elf.ts](src/shared/elf.ts) en disant le DWARF « lu en partie ». Faux — ce fichier fait 48 lignes et ne lit que les segments de chargement. Le vrai lecteur est `parseDwarfGlobals()` dans [compiler.ts](src/compiler.ts) : il analyse `avr-objdump --dwarf=info` et **construit déjà l'arbre complet des DIE**. Ce qui limite l'affichage aux globales scalaires, ce sont **trois filtres explicites** (`DW_OP_addr` exigé, `size ∈ {1,2,4}`, fichier de l'élève), pas une information absente. Côté moteur tout est à portée : `cpu.data` couvre l'espace données registres compris — le pointeur de trame AVR est le registre Y, soit `cpu.data[28]/[29]` — et `cpu.SP` sert déjà au pas à pas (`stepStartSp`). Reclassé **M → S+**, tableaux et structures devenant un lot séparé presque trivial.
+6. ✅ **L'écart en électricité est franc, et dans notre sens** : **Wokwi ignore purement les résistances** dans un circuit analogique (documenté chez eux : une résistance associée à un potentiomètre ou une CTN n'est pas vue), et n'a **ni multimètre ni oscilloscope** — la demande traîne depuis des années. Kablix a les deux en composants posables et calcule ponts diviseurs, courant, puissance dissipée et physique LED ([model.mts](src/webview/diagram/model.mts)). Pour un cours d'électronique, c'est l'écart le plus important du tableau.
+7. ✅ **Analyseur logique confirmé** (piste n°4) : Wokwi et SimulIDE en ont un, 8 voies chacun. À faire avec **export VCD** (format normalisé, ouvre PulseView et ses décodeurs) mais **affichage intégré** — externaliser la visualisation comme Wokwi, c'est le même renoncement que leur `launch.json`. Un décodeur I²C/SPI/UART **dans la fenêtre** serait un avantage que personne n'a.
+8. ✅ **Vue des périphériques (n°8) maintenue en L, avec un avertissement tiré de SimulIDE** : eux montrent registres, PC, bits d'état, RAM/ROM/flash — mais **bruts, en hexadécimal**. Un élève qui ignore ce qu'est `TCCR1B` n'y apprend rien. La valeur est dans l'interprétation (« Timer1, PWM rapide, diviseur 64, 976 Hz »), pas dans le vidage.
+9. ✅ **Le linter électronique (n°2) confirmé comme l'atout non copiable** : Wokwi n'a pas le circuit électrique, Tinkercad n'a pas le code hors de son éditeur, SimulIDE n'a pas d'analyse statique. Seule case du tableau vide chez eux **par construction**, pas par retard.
+10. ⬜ **Deux idées à verser à [Pistes.md](Pistes.md)**, coût S chacune, prises chez Wokwi : un **mode confidentiel** pour projeter en classe (`wokwi.hidePersonalInfo` chez eux) et **voir le `.projix` en texte** (ils ouvrent leur `diagram.json` dans l'éditeur). Non ajoutées d'office — `Pistes.md` est le fichier de Frank.
+11. ℹ️ **Aucun code touché** — deux documents, rien d'autre. Rien au CHANGELOG : invisible pour qui se sert de Kablix. `version` reste `2026.9.4`, `buildNumber` passe à 82.
 
 ---
 
