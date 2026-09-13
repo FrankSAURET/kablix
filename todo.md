@@ -1,7 +1,27 @@
 # À faire
-1. Navigation dans l'aide : options **A** (sommaire latéral collant), **B** (champ de recherche), **E** (sections repliables), **G** (sommaire auto-généré) — retenues par Frank.
+1. Fait un audit complet du code et corrige les bugs, nettoie ce qui ne sert plus.
+1. Propose des améliorations, évolutions en regardant les projets analogues
+1. Que fait exactement de mieux l'extension vscode de wokwi au niveau du débogage
 ## ne pas faire pour l'instant
 
+
+---
+
+# >>>>  v2026.9.4.79 — L'aide se parcourt enfin
+
+1. ✅ **Sommaire latéral collant** (option A) ([guide.ts](src/guide.ts)) : deux colonnes, `position: sticky` à gauche, le guide à droite. Sous 900 px (panneau étroit, écran partagé) le sommaire repasse au-dessus du texte et cesse de coller — une colonne de 16 rem y mangerait tout.
+2. ✅ **Sommaire GÉNÉRÉ depuis les titres** (option G) : nouvelle fonction `markdownOutline()` ([markdown.ts](src/markdown.ts)), niveaux `##` et `###`. Le sommaire écrit à la main **oubliait 8 sections sur 14** ; celui-là ne peut pas dériver. Il est retiré du rendu par `stripTocSection()` — le fichier, lui, n'est pas touché : c'est le sommaire que voit un lecteur sur GitHub.
+3. ✅ **La section lue est marquée** dans le sommaire : c'est le seul repère de position dans un guide de 700 lignes. Le titre retenu est le **dernier passé au-dessus du tiers haut** de la fenêtre — prendre « le premier visible » sauterait en arrière dès qu'une image longue occupe l'écran. Les titres cachés (section repliée ou hors filtre) sont ignorés.
+4. ✅ **Sections repliables** (option E) : `foldSections()` enveloppe chaque `##` dans un `<details open>` dont le `<summary>` porte le `h2` — l'ancre est donc préservée. Boutons **Tout replier** / **Tout déplier**. Repliable mais pas replié : une section fermée n'est pas cherchable par le navigateur.
+5. ✅ **Champ de recherche** (option B) : à partir de deux lettres, seules les sections contenant le mot restent, les occurrences sont surlignées, le sommaire se réduit d'autant. **Accents et casse ignorés** (« repere » trouve « repère »). Échap vide le champ. Le surlignage ne touche QUE les nœuds de texte (les liens, images et tableaux survivent) et **saute les blocs de code** — y insérer des `<mark>` rendrait un exemple illisible.
+6. ✅ **Le pliage choisi à la main est rendu tel quel** après une recherche : elle ouvre ce qu'elle trouve, elle ne redispose pas la page.
+7. ✅ **`enableScripts: true`** sur le panneau d'aide (il était à `false`) + `script-src 'nonce-…'` à la CSP. Le seul script est celui de la page, écrit dans [guide.ts](src/guide.ts) : aucune ressource extérieure.
+8. ✅ **Défaut trouvé au banc : deux ancres identiques.** « Créer ses propres composants » existe en `##` et en `###` dans le guide — les deux entrées du sommaire menaient au premier. Nouvelle fabrique `slugMaker()` ([markdown.ts](src/markdown.ts)) : suffixe `-1`, `-2`… **comme GitHub**, donc les liens `#ancre` déjà écrits dans les docs continuent de viser le premier des homonymes. `renderMarkdown` et `markdownOutline` partagent la même règle et comptent TOUS les titres, sinon un homonyme trop profond décalerait les suffixes.
+9. ✅ **Nouveau banc : 30 contrôles verts** ([verify-guide-nav.mjs](scripts/verify-guide-nav.mjs), `npm run verify:guide-nav`). Le vrai guide est rendu dans Chrome headless avec son script, puis on joue les gestes du lecteur : repliage, boutons, défilement, clic dans le sommaire, recherche d'un mot, d'un mot accentué, d'un mot absent, champ vidé. `guide.ts` importe `vscode` : le banc lui donne un bouchon et fait transpiler le VRAI fichier par esbuild — pas une copie qui dériverait.
+10. ✅ **Contre-épreuve faite** : `git stash` sur `guide.ts` et `markdown.ts`, banc relancé → il s'effondre dès le premier contrôle (les fonctions n'existent pas).
+11. ✅ **Guide complété** ([USAGE.md](docs/fr/USAGE.md)) : nouvelle section « Se déplacer dans cette aide », et le sommaire écrit à la main **remis d'aplomb** (les 8 sections oubliées, les sous-titres, et le renvoi vers le sommaire du panneau).
+12. ⏳ **Traductions en attente** : `Settings`, `kablix.cmd.openSettings`, et les cinq libellés du panneau (`Contents`, `Search the guide`, `Nothing found`, `Collapse all`, `Expand all`), plus la version EN de `docs/en/USAGE.md`.
+13. ℹ️ **`version` reste `2026.9.4`** (publiée le 13 septembre), `buildNumber` à 79. Rien n'est publié, pas de `.vsix`.
 
 ---
 

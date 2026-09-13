@@ -7,6 +7,9 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 ### Nouveauté
 
 - **Une ligne « Paramètres » dans le menu hamburger** : elle ouvre les réglages de Kablix.
+- **L'aide a un sommaire à gauche** qui suit le défilement et marque la section lue.
+- **L'aide se cherche au mot** : un champ filtre les sections et surligne les occurrences, accents et casse ignorés.
+- **Les sections de l'aide se replient**, une à une ou toutes d'un coup.
 
 ### Modification
 

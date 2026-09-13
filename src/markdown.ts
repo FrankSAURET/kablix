@@ -85,6 +85,23 @@ function slug(text: string): string {
     .replace(/ /g, '-');
 }
 
+/**
+ * Fabrique d'ancres UNIQUES pour un document : deux titres de même texte
+ * (« Créer ses propres composants » existe en `##` et en `###` dans le guide)
+ * donneraient sinon deux `id` identiques — le sommaire mènerait toujours au
+ * premier. Suffixe `-1`, `-2`… comme GitHub, de sorte que les liens `#ancre`
+ * déjà écrits dans les docs continuent de viser le premier des homonymes.
+ */
+function slugMaker(): (text: string) => string {
+  const vus = new Map<string, number>();
+  return (text) => {
+    const base = slug(text);
+    const n = vus.get(base) ?? 0;
+    vus.set(base, n + 1);
+    return n === 0 ? base : `${base}-${n}`;
+  };
+}
+
 /** Rendu des marques EN LIGNE : code, images, liens, gras, italique. */
 function inline(src: string, opt: MarkdownOptions): string {
   // Le code en ligne et les <img> bruts sont mis de côté AVANT tout le reste :
@@ -185,6 +202,7 @@ const isTableSep = (line: string): boolean => /^\s*\|?[\s:|-]+\|[\s:|-]*$/.test(
 export function renderMarkdown(src: string, opt: MarkdownOptions): string {
   const lines = src.replace(/\r\n/g, '\n').split('\n');
   const html: string[] = [];
+  const ancre = slugMaker();
   let i = 0;
 
   // Un paragraphe = lignes consécutives non vides ; les fiches coupent leurs
@@ -218,7 +236,7 @@ export function renderMarkdown(src: string, opt: MarkdownOptions): string {
     if (h) {
       const level = h[1].length;
       const text = h[2].trim();
-      html.push(`<h${level} id="${slug(text)}">${inline(text, opt)}</h${level}>`);
+      html.push(`<h${level} id="${ancre(text)}">${inline(text, opt)}</h${level}>`);
       i++;
       continue;
     }
@@ -281,6 +299,47 @@ export function renderMarkdown(src: string, opt: MarkdownOptions): string {
   }
 
   return html.join('\n');
+}
+
+/** Une entrée du plan d'un document : son niveau, son texte, son ancre. */
+export interface OutlineEntry {
+  level: number;
+  text: string;
+  id: string;
+}
+
+/**
+ * Plan d'un document : les titres `##` et `###`, avec l'ancre que `renderMarkdown`
+ * leur pose. Sert à construire le SOMMAIRE de l'aide, plutôt que de l'écrire à la
+ * main dans le guide — un sommaire manuel dérive dès qu'une section est ajoutée
+ * (celui de USAGE.md en oubliait huit).
+ *
+ * Le `#` de tête est laissé de côté : c'est le titre du document, pas une section.
+ * Les titres à l'intérieur d'un bloc de code sont ignorés — un commentaire
+ * Python ou une ligne de shell commencent souvent par `#`.
+ *
+ * Les ancres se numérotent comme dans `renderMarkdown` : TOUS les titres passent
+ * par la même fabrique, y compris ceux qu'on ne garde pas au sommaire, sinon un
+ * homonyme trop profond décalerait les suffixes et le sommaire viserait à côté.
+ */
+export function markdownOutline(src: string, maxLevel = 3): OutlineEntry[] {
+  const out: OutlineEntry[] = [];
+  const ancre = slugMaker();
+  let inCode = false;
+  for (const line of src.replace(/\r\n/g, '\n').split('\n')) {
+    if (/^\s*```/.test(line)) { inCode = !inCode; continue; }
+    if (inCode) continue;
+    const m = line.match(/^\s*(#{1,6})\s+(.*)$/);
+    if (!m) continue;
+    const level = m[1].length;
+    const brut = m[2].trim();
+    const id = ancre(brut);
+    if (level < 2 || level > maxLevel) continue;
+    const text = brut.replace(/`/g, '');
+    if (!text) continue;
+    out.push({ level, text, id });
+  }
+  return out;
 }
 
 /** Titre (premier `# …`) d'une fiche, pour nommer l'onglet. */

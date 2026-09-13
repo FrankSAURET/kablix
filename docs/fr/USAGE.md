@@ -6,25 +6,44 @@
 
 ## Sommaire
 
+> Ce sommaire ne sert qu'à la lecture du fichier sur GitHub : dans Kablix, le
+> panneau d'aide affiche le sien, généré depuis les titres, à gauche du texte.
+
 1. [Démarrage](#démarrage)
 2. [L'interface](#linterface)
+   1. [Se déplacer dans cette aide](#se-déplacer-dans-cette-aide)
 3. [Construire un montage](#construire-un-montage)
+   1. [Poser et déplacer](#poser-et-déplacer)
+   2. [Platine d'essai](#platine-dessai)
+   3. [Câbler](#câbler)
+   4. [Retoucher un fil](#retoucher-un-fil)
+   5. [Composants disponibles](#composants-disponibles)
+   6. [Nouveaux composants](#nouveaux-composants)
 4. [Simuler](#simuler)
-  1. [Exécuter du code](#exécuter-du-code)
-  2. [MicroPython sur le Pico](#micropython-sur-le-pico)
-  3. [Envoyer le programme sur une vraie carte Pico](#envoyer-le-programme-sur-une-vraie-carte-pico)
-  4. [Déboguer](#déboguer)
-  5. [Moniteur série](#moniteur-série)
-  6. [Traceur de courbes](#traceur-de-courbes)
-  7. [Éclairage DMX512](#éclairage-dmx512)
-5. [Exporter le schéma en SVG](#exporter-le-schéma-en-svg)
-6. [Créer ses propres composants](#créer-ses-propres-composants)
-7. [Format des composants (.kompix)](#format-des-composants-kompix)
-8. [Où trouver des composants existants](#où-trouver-des-composants-existants)
-9. [Enregistrer / ouvrir un projet (.projix)](#enregistrer--ouvrir-un-projet-projix)
-10. [Interopérabilité Wokwi (diagram.json)](#interopérabilité-wokwi-diagramjson)
-11. [Mises à jour des bibliothèques](#mises-à-jour-des-bibliothèques)
-12. [Raccourcis clavier](#raccourcis-clavier)
+   1. [Exécuter du code](#exécuter-du-code)
+   2. [Ajouter des bibliothèques](#ajouter-des-bibliothèques)
+   3. [MicroPython sur le Pico](#micropython-sur-le-pico)
+   4. [Envoyer le programme sur une vraie carte Pico](#envoyer-le-programme-sur-une-vraie-carte-pico)
+   5. [Déboguer](#déboguer)
+   6. [Moniteur série](#moniteur-série)
+   7. [Traceur de courbes](#traceur-de-courbes)
+   8. [Éclairage DMX512](#éclairage-dmx512)
+5. [Exporter la liste des composants (nomenclature CSV)](#exporter-la-liste-des-composants-nomenclature-csv)
+6. [Exporter le schéma en SVG](#exporter-le-schéma-en-svg)
+7. [Créer ses propres composants](#créer-ses-propres-composants)
+   1. [Gestionnaire de composants (installer et désinstaller)](#gestionnaire-de-composants-installer-et-désinstaller)
+8. [Format des composants (.kompix)](#format-des-composants-kompix)
+   1. [Créer ses propres composants](#créer-ses-propres-composants-1)
+   2. [Faire générer un composant par une IA](#faire-générer-un-composant-par-une-ia)
+9. [Où trouver des composants existants](#où-trouver-des-composants-existants)
+10. [Enregistrer / ouvrir un projet (.projix)](#enregistrer--ouvrir-un-projet-projix)
+11. [Interopérabilité Wokwi (diagram.json)](#interopérabilité-wokwi-diagramjson)
+12. [Mises à jour des bibliothèques](#mises-à-jour-des-bibliothèques)
+13. [Extensions conseillées](#extensions-conseillées)
+    1. [La carte choisie dans Kablix devient celle du projet Arduino](#la-carte-choisie-dans-kablix-devient-celle-du-projet-arduino)
+    2. [Plus rien de souligné en rouge dans le code](#plus-rien-de-souligné-en-rouge-dans-le-code)
+14. [Raccourcis clavier](#raccourcis-clavier)
+    1. [Copier-coller d'un projet à l'autre](#copier-coller-dun-projet-à-lautre)
 
 ---
 
@@ -90,6 +109,14 @@
   - Pendant le dessin, édite le composant sélectionné (couleur, valeur, angle…) ou fil (couleur Dupont, suppression, noeud [équipotielle])
   - pendant la simulation, affiche les variables.
   - Les composants très réglables (le robot araignée et ses 33 réglages) rangent leurs propriétés en **tiroirs repliables**, tous fermés à la sélection. Ils fonctionnent **en accordéon** : ouvrir un tiroir ferme celui qui l'était.
+
+### Se déplacer dans cette aide
+
+Le guide s'ouvre avec son **sommaire à gauche**, qui reste en place pendant le défilement et **surligne la section en cours de lecture**. Il est construit à partir des titres du document : aucune section ne peut y manquer.
+
+- **Champ de recherche** (en haut du sommaire) : à partir de deux lettres, seules les sections qui contiennent le mot restent affichées, et les occurrences sont surlignées. Les accents et la casse sont ignorés — « repere » trouve « repère ». **Échap** vide le champ et rend la page entière.
+- **Sections repliables** : un clic sur un titre de section le referme. **Tout replier** donne la vue d'ensemble du guide en un écran ; **Tout déplier** la rouvre.
+- Un clic dans le sommaire **ouvre la section visée** même si elle était repliée.
 
 ## Construire un montage
 
