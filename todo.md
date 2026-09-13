@@ -1,9 +1,20 @@
 # À faire
 1. Propose des améliorations, évolutions en regardant les projets analogues
-1. Que fait exactement de mieux l'extension vscode de wokwi au niveau du débogage
-1. Explore chaque piste de pistes.md puis écris un roadmap.md  bien propre avec une estimation de l'intéret et du coup en token. L'objectif principal est pédagogique.
+1. Que fait exactement de mieux l'extension vscode de wokwi au niveau du débogage — *première réponse dans [roadmap.md](roadmap.md) §10 (locales, tableaux, pile d'appels) ; reste à confronter au reste de leur extension*
 ## ne pas faire pour l'instant
 
+
+---
+
+# >>>>  v2026.9.4.81 — Les quatorze pistes passées au crible
+
+1. ✅ **[roadmap.md](roadmap.md) écrit** : les 14 pistes de [Pistes.md](Pistes.md) classées par intérêt pédagogique, avec coût en jetons (S/M/L/XL) et, pour chacune, **ce qui existe déjà dans le code** — c'est ce qui fait vraiment le prix. Une piste qui se greffe sur une brique existante coûte trois fois moins qu'une piste à partir de rien.
+2. ✅ **Chaque piste confrontée au code, pas jugée au flair.** Relevé fait : le verrou d'édition existe (`setLocked`, [editor.mts](src/webview/diagram/editor.mts)) et le manifeste `.projix` est extensible → le **TP à trous** est un petit lot ; `psuLoadAmps()` ([model.mts](src/webview/diagram/model.mts)) **somme déjà le courant** d'une alimentation → la **consommation** n'a pas de physique à écrire ; le traceur donne échelle de temps, zoom et mode escalier → l'**analyseur logique** part à mi-chemin ; la résistance sait déjà rougir et exploser → la **thermique** n'ajoute qu'un seuil.
+3. ✅ **Le rembobinage est écarté, motif à l'appui** : aucun mécanisme de capture d'état moteur n'existe, et le moteur tourne dans un processus séparé ([worker-engine.mts](src/webview/engines/worker-engine.mts)) — il faudrait sauvegarder RAM, registres, périphériques et état de chaque composant. Plusieurs millions de jetons, avec un risque permanent de divergence entre l'état rejoué et l'état réel : le pire défaut possible dans un outil d'enseignement. L'analyseur logique donne 80 % du bénéfice pour 5 % du coût.
+4. ✅ **Un manque trouvé en chemin, hors liste** (§10 du roadmap, et c'est la réponse à l'item 2 de la liste à faire) : le débogueur **AVR ne montre que les globales scalaires** (`readVariables()`, [avr.mts](src/webview/engines/avr.mts)) — une variable déclarée dans `loop()`, c'est-à-dire la plupart de ce qu'écrit un élève, est invisible. Côté Pico, l'instrumentation ([pydebug.ts](src/shared/pydebug.ts)) remonte **locales ET globales** et accepte des **points d'arrêt conditionnels**. Ni l'un ni l'autre n'a la pile d'appels. C'est l'asymétrie la plus gênante du produit, et le point où Wokwi (adossé à avr-gdb) fait mieux. Faisable sans dépendance nouvelle : le DWARF du `.elf` est déjà produit et déjà lu en partie ([elf.ts](src/shared/elf.ts)).
+5. ✅ **Ordre proposé** : verrou de schéma → locales AVR → linter électronique et pièges à code → analyseur logique → consommation puis batterie → thermique en appoint. Le linter est l'atout que personne d'autre ne peut avoir : Kablix voit **le code ET le circuit**, un compilateur ne voit jamais le circuit.
+6. ⬜ **Item 1 de la liste (comparer aux projets analogues) pas traité** : il demande d'aller regarder Wokwi, Tinkercad et SimulIDE en dehors du dépôt, c'est un autre lot.
+7. ℹ️ **Aucun code touché** — un document, rien d'autre. `version` reste `2026.9.4`, `buildNumber` à 81.
 
 ---
 
