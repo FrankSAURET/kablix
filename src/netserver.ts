@@ -137,26 +137,26 @@ export class PicoNetServer {
     this.conns.set(cid, conn);
     socket.on('data', (d) => {
       conn.buf = joindre(conn.buf, new Uint8Array(d));
-      this.pump(cid, conn);
+      this.pump(conn);
     });
     socket.on('end', () => {
       conn.ended = true;
-      this.pump(cid, conn);
+      this.pump(conn);
     });
     socket.on('close', () => {
       conn.ended = true;
-      this.pump(cid, conn);
+      this.pump(conn);
       this.conns.delete(cid);
     });
     socket.on('error', () => {
       conn.ended = true;
-      this.pump(cid, conn);
+      this.pump(conn);
     });
     this.pending.push(cid);
   }
 
   /** Réveille ce qui attendait des octets sur cette connexion. */
-  private pump(cid: number, conn: Conn): void {
+  private pump(conn: Conn): void {
     if (conn.waiting && (conn.buf.length > 0 || conn.ended)) {
       const w = conn.waiting;
       conn.waiting = null;

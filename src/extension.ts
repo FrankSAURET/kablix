@@ -202,7 +202,7 @@ export function activate(context: vscode.ExtensionContext): void {
       void vscode.commands.executeCommand('revealFileInOS', folder);
     }),
     vscode.commands.registerCommand('kablix.openComponentManager', () => {
-      void ComponentManagerPanel.show(context.extensionUri, kompixLibrary);
+      void ComponentManagerPanel.show(kompixLibrary);
     }),
     // Analyse de code : le travail se fait tout seul au choix de la carte, mais
     // il est silencieux. Cette commande le refait à la demande ET dit ce qui

@@ -258,7 +258,6 @@ function ledBar(pins: PinPoint[]): string | null {
  * l'échelle de la boîte du composant. `attrs.common` choisit la variante.
  */
 function sevenSegment(
-  pins: PinPoint[],
   attrs?: Record<string, string>,
   box?: { w: number; h: number }
 ): string | null {
@@ -440,7 +439,7 @@ function keypad(attrs?: Record<string, string>, box?: { w: number; h: number }):
  * et GND, avec le curseur (SIG) qui tape le milieu via une flèche perpendiculaire.
  * Ne sert plus qu'au modèle à glissière (le rotatif a son schéma dessiné à la main).
  */
-function potentiometer(pins: PinPoint[], box?: { w: number; h: number }): string | null {
+function potentiometer(pins: PinPoint[]): string | null {
   const vcc = find(pins, 'VCC'); // Point de connexion
   const gnd = find(pins, 'GND'); // Point de connexion
   const sig = find(pins, 'SIG'); // Point de connexion
@@ -543,9 +542,9 @@ export function internalWiringSvg(
     case 'led-bar':
       return ledBar(pins);
     case '7segment':
-      return sevenSegment(pins, attrs, box);
+      return sevenSegment(attrs, box);
     case 'potentiometer':
-      return potentiometer(pins, box);
+      return potentiometer(pins);
     default:
       return null;
   }

@@ -51,9 +51,8 @@ const ZERO = { x: 109.44, y: 108.86 };
  *  vertical, calibre horizontal, tension de déclenchement). */
 const INFO_ID = 'text-info';
 
-/** Bouton de sens du déclenchement : le rectangle gris et sa moitié bleue, qui
- *  descend d'une demi-hauteur pour dire « front descendant ». */
-const TRIG_BTN = 'trigger-button';
+/** Moitié bleue du bouton de sens du déclenchement : elle descend d'une
+ *  demi-hauteur pour dire « front descendant ». */
 const TRIG_MOVER = 'trigger-button-mover';
 /** Zone cliquable posée sur ce bouton (px du dessin, mesurés au rendu). */
 const TRIG_ZONE = { x: 178.6, y: 223.7, w: 10.5, h: 24 };

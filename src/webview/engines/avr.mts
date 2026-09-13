@@ -245,7 +245,11 @@ export class AvrEngine implements SimEngine {
   private analogSamplers = new Map<number, () => number>();
   // Timers 0/1/2 : indispensables pour millis()/micros()/delay() (sans eux la
   // boucle de delay() ne se terminait jamais et la simulation semblait planter).
-  private timers: AVRTimer[];
+  // Le tableau n'est jamais RELU : chaque AVRTimer se branche sur le CPU dans
+  // son constructeur, et une simulation neuve reconstruit un moteur neuf (pas de
+  // reset()). Le champ n'est là que pour les garder en vie — à ne pas prendre
+  // pour du code mort lors d'un ménage.
+  private readonly timers: AVRTimer[];
   private rafId: number | null = null; // handle du timer de boucle (setTimeout)
   // Cadencement temps réel : ANCRE reliant le temps mur au temps simulé (même
   // principe que le moteur Pico). L'ancien « dt depuis la tranche précédente »

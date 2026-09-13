@@ -1827,59 +1827,6 @@ export class Editor {
     if (this.paletteEmpty) this.paletteEmpty.style.display = q && found === 0 ? '' : 'none';
   }
 
-  /** Valide puis enregistre un composant importé (fichier .json). */
-  private importCustomPart(raw: unknown): void {
-    const data = raw as Partial<CustomPartData>;
-    if (typeof data !== 'object' || data === null) throw new Error(t('invalid JSON.'));
-    if (typeof data.label !== 'string' || !data.label) throw new Error(t('missing "label" field.'));
-    if (typeof data.svg !== 'string' || !data.svg.includes('<svg')) throw new Error(t('missing or invalid "svg" field.'));
-    if (!Array.isArray(data.pins)) throw new Error(t('missing "pins" field.'));
-    for (const pin of data.pins) {
-      if (typeof pin?.name !== 'string' || typeof pin?.x !== 'number' || typeof pin?.y !== 'number') {
-        throw new Error(t('each pin needs name, x and y.'));
-      }
-    }
-    this.saveCustomPart({
-      type: typeof data.type === 'string' && data.type ? data.type : `custom-${Date.now().toString(36)}`,
-      label: data.label,
-      kind: (data.kind as CustomPartData['kind']) ?? 'passive',
-      svg: data.svg,
-      pins: data.pins,
-      pinRoles: data.pinRoles,
-      attrs: data.attrs,
-      // Vue interne optionnelle (schéma) et son calage sur le dessin externe.
-      innerSvg: typeof data.innerSvg === 'string' && data.innerSvg.includes('<svg') ? data.innerSvg : undefined,
-      innerOffset:
-        typeof data.innerOffset?.x === 'number' && typeof data.innerOffset?.y === 'number'
-          ? data.innerOffset
-          : undefined,
-      extAnchor: data.extAnchor,
-      intAnchor: data.intAnchor,
-      // Paramètres de définition et contrôle de simulation (validation légère).
-      params: Array.isArray(data.params)
-        ? data.params.filter(
-            (p) => typeof p?.name === 'string' && /^[A-Za-z_]\w*$/.test(p.name) && typeof p?.value === 'number'
-          )
-        : undefined,
-      control:
-        data.control?.type === 'slider' || data.control?.type === 'switch' ? data.control : undefined,
-      // Catégorie : seulement une clé connue de la palette (sinon ignorée).
-      category:
-        typeof data.category === 'string' && CATEGORY_ORDER.includes(data.category)
-          ? data.category
-          : undefined,
-    });
-  }
-
-  private showPaletteError(message: string): void {
-    const note = document.createElement('p');
-    note.className = 'inspector__hint';
-    note.style.color = '#ff8a8a';
-    note.textContent = message;
-    this.palette.appendChild(note);
-    setTimeout(() => note.remove(), 6000);
-  }
-
   // --- Composants personnalisés ------------------------------------------------
   /**
    * Recharge les composants personnalisés persistés (envoyés par l'extension).
@@ -2015,7 +1962,6 @@ export class Editor {
     // repris le composant. Mêmes règles d'éligibilité que `startDrag` ; les trous
     // ne bougent pas pendant le geste, une seule collecte suffit.
     const def = partDef(type);
-    const kind = def.kind;
     const holes = this.collectBreadboardHoles(part.id, plugRule(def));
     const preview = (): void => {
       if (holes.length > 0) this.previewBreadboardSnap(part, holes);
@@ -3839,11 +3785,6 @@ export class Editor {
         h.classList.contains('wire-handle') && this.selectedHandles.has(i)
       )
     );
-  }
-
-  /** Supprime un coude (point intermédiaire) d'un fil. */
-  private removeWirePoint(wireId: string, index: number): void {
-    this.removeWirePoints(wireId, [index]);
   }
 
   /** Supprime un lot de coudes (indices décroissants pour préserver les index). */

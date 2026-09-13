@@ -54,7 +54,6 @@ export class ComponentManagerPanel {
   private static current: ComponentManagerPanel | undefined;
 
   private readonly panel: vscode.WebviewPanel;
-  private readonly extensionUri: vscode.Uri;
   private readonly disposables: vscode.Disposable[] = [];
   private library: KompixLibrary | undefined;
   private allComponents: ComponentInfo[] = [];
@@ -63,7 +62,7 @@ export class ComponentManagerPanel {
   /**
    * Ouvre (ou réutilise) le panneau du gestionnaire de composants.
    */
-  public static async show(extensionUri: vscode.Uri, library?: KompixLibrary): Promise<void> {
+  public static async show(library?: KompixLibrary): Promise<void> {
     if (!ComponentManagerPanel.current) {
       const panel = vscode.window.createWebviewPanel(
         ComponentManagerPanel.viewType,
@@ -75,7 +74,7 @@ export class ComponentManagerPanel {
           localResourceRoots: [],
         }
       );
-      ComponentManagerPanel.current = new ComponentManagerPanel(panel, extensionUri, library);
+      ComponentManagerPanel.current = new ComponentManagerPanel(panel, library);
     }
     ComponentManagerPanel.current.panel.reveal(undefined, false);
     if (library) {
@@ -84,9 +83,8 @@ export class ComponentManagerPanel {
     }
   }
 
-  private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, library?: KompixLibrary) {
+  private constructor(panel: vscode.WebviewPanel, library?: KompixLibrary) {
     this.panel = panel;
-    this.extensionUri = extensionUri;
     this.library = library;
 
     this.panel.onDidDispose(() => this.onDispose(), null, this.disposables);
@@ -177,7 +175,9 @@ export class ComponentManagerPanel {
     const indexUrl = baseUrl + '/index.json';
     const response = await fetch(indexUrl);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
+    // `.json()` rend `any` : le typer ici est le seul endroit où la forme de
+    // l'index distant est vérifiée avant d'être servie au reste du panneau.
+    const data = (await response.json()) as Partial<RepositoryIndex>;
     const components: ComponentInfo[] = data.components ?? [];
     // Construit l'URL complète du .kompix pour chaque composant, et sert ses
     // libellés dans la langue de VS Code : la carte d'un composant PAS ENCORE

@@ -7,6 +7,11 @@
     "types": ["node"],
     "outDir": "dist",
     "strict": true,
+    // Un `case` qui déborde sur le suivant est presque toujours un `break`
+    // oublié : le code est plein de `switch` sur les types de composants et de
+    // messages, où l'erreur passerait inaperçue. Aucun débordement volontaire
+    // dans le projet, la règle ne coûte donc rien (audit du 13/09/2026).
+    "noFallthroughCasesInSwitch": true,
     "useDefineForClassFields": false,
     "esModuleInterop": true,
     "resolveJsonModule": true,
