@@ -6,10 +6,11 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Nouveauté
 
-- **Une ligne « Paramètres » dans le menu hamburger** : elle ouvre les réglages de Kablix, déjà filtrés.
+- **Une ligne « Paramètres » dans le menu hamburger** : elle ouvre les réglages de Kablix.
 
 ### Modification
 
+- **Un segment de fil se déplace au glisser**, perpendiculairement à sa direction. Les segments voisins suivent, le reste du tracé ne bouge pas.
 - **Le tableau des composants du README suit les catégories de la palette**.
 - **La liste des composants téléchargeables est illustrée**.
 

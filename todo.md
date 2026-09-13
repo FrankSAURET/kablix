@@ -1,8 +1,25 @@
 # À faire
-1. Choisis parmi les options de navigation dans l'aide proposées en v2026.9.4.77 (recommandation : G + A + C + F).
-2. Rajoute une possibilité de sélectionner un segment d'un fil et de le déplacer perpendiculairement à sa direction par glisser/poser
+1. Navigation dans l'aide : options **A** (sommaire latéral collant), **B** (champ de recherche), **E** (sections repliables), **G** (sommaire auto-généré) — retenues par Frank.
 ## ne pas faire pour l'instant
 
+
+---
+
+# >>>>  v2026.9.4.78 — Un segment de fil se pousse du doigt
+
+1. ✅ **Glisser un segment droit d'un fil le déplace perpendiculairement** ([editor.mts](src/webview/diagram/editor.mts)) : un segment horizontal ne monte et ne descend, un vertical ne va qu'à gauche et à droite. Les deux bouts gardent leur autre coordonnée, donc les segments voisins s'allongent ou raccourcissent et **le reste du tracé ne bouge pas** — c'est la retouche naturelle d'un fil autorouté, sans démonter ses coudes un à un.
+2. ✅ **Un bout posé sur une BROCHE ne peut pas suivre** : le fil se décrocherait. Un coude est alors créé à sa place au premier mouvement réel, ce qui transforme le segment d'extrémité en segment libre précédé d'une amorce. Les deux cas (segment du milieu, segment d'extrémité) sont couverts au banc.
+3. ✅ **Le déplacement suit la grille de 10 px, Ctrl le libère** — même convention que le reste de l'éditeur.
+4. ✅ **Les segments en biais sont refusés** : « perpendiculaire » n'a pas de sens pour la main sur une oblique. Le clic n'aura alors fait que sélectionner le fil. Le test d'axe tolère 2 px (`SEG_AXIS`).
+5. ✅ **Aucun `preventDefault()` sur le `pointerdown` du tracé** — la leçon de la v2026.9.3.73 : il supprimerait le `dblclick` qui insère un coude, juste à côté. Le glissé démarre donc au premier `pointermove` au-delà de `DRAG_THRESHOLD`, et un clic simple reste un clic simple.
+6. ✅ **Ménage des coudes après chaque glissé** (`pruneWirePoints`) : les points confondus et ceux qui tombent alignés entre leurs deux voisins partent. Sans lui, chaque retouche laisserait des points morts qui gêneraient la saisie suivante.
+7. ✅ **Neuf contrôles de plus au banc à VRAIE souris** ([verify-souris.mjs](scripts/verify-souris.mjs)) : segment vertical tiré de 80 px qui reste vertical, y des coudes inchangés, fil toujours accroché à ses deux broches, segment horizontal tiré EN DIAGONALE qui ne descend qu'en Y. **27 contrôles verts.** Le banc vérifie aussi que la souris **vise bien le tracé** avant de tirer : sans ce garde-fou, un geste qui rate le fil passerait pour un succès.
+8. ✅ **La résistance importée dans l'entrée du banc** : le composant se posait sans aucune pastille (élément non défini), donc aucun fil ne se traçait — c'est ce qui a fait échouer les deux premières tentatives.
+9. ✅ **Contre-épreuve faite** : `git stash` sur `editor.mts`, banc relancé → **2 échecs** sur les deux glissés. Un banc qui passe avant et après ne prouverait rien.
+10. ✅ **Guide complété** ([USAGE.md](docs/fr/USAGE.md)) : le geste dans « Retoucher un fil », et le Ctrl au tableau des raccourcis.
+11. ✅ **Suite complète rejouée : 108/109 bancs verts** en 984 s. Le seul échec est `verify:i18n`, sur les deux chaînes de « Paramètres » du lot précédent — attendu, les traductions se font avant publication.
+12. ⏳ **Traductions en attente** (inchangé) : `Settings` et `kablix.cmd.openSettings`.
+13. ℹ️ **`version` reste `2026.9.4`** (publiée le 13 septembre), `buildNumber` à 78. Rien n'est publié, pas de `.vsix`.
 
 ---
 

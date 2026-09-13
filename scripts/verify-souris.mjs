@@ -25,7 +25,8 @@
 //   4. un glisser déplace l'étiquette au lieu d'ouvrir la saisie ;
 //   5. un rectangle de sélection attrape plusieurs étiquettes d'un coup ;
 //   6. tirer l'une d'elles déplace TOUT le lot, et rien d'autre ;
-//   7. un clic droit quitte le mode étiquette sans en poser une.
+//   7. un clic droit quitte le mode étiquette sans en poser une ;
+//   8. glisser un segment de fil le déplace PERPENDICULAIREMENT à sa direction.
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { join, dirname } from 'node:path';
@@ -40,6 +41,9 @@ const PORT = 9411;
 // viennent de la souris pilotée depuis node, pas d'un script de page.
 const entry = `
 import { Editor } from '../../src/webview/diagram/editor.mjs';
+// La résistance sert au contrôle du glissé de segment (§8) : sans son élément,
+// le composant se pose mais n'a aucune pastille, donc aucun fil ne se trace.
+import '../../src/webview/composants/resistor-element.mjs';
 const canvas = document.getElementById('canvas');
 const editor = new Editor(canvas, document.getElementById('palette'),
 	document.getElementById('wires'), document.getElementById('inspector'));
@@ -273,6 +277,90 @@ try {
 		(await ev('window.editor.isTextMode()')) === false);
 	ok('et il ne pose aucune étiquette',
 		(await ev(`document.querySelectorAll('.text-note').length`)) === combien);
+
+	// --- 8. Un SEGMENT de fil se déplace perpendiculairement -------------------
+	// Deux résistances éloignées, reliées par un fil dont on impose le tracé :
+	// deux coudes, donc un segment vertical franc au milieu. On le saisit et on
+	// tire vers la droite : il doit glisser en X, et rester vertical.
+	await ev(`(() => {
+		window.editor.toggleTextMode(false);
+		window.editor.loadDiagram({
+			parts: [
+				{ id: 'r1', type: 'resistor', x: 100, y: 200, attrs: { value: '1000' } },
+				{ id: 'r2', type: 'resistor', x: 500, y: 500, attrs: { value: '1000' } },
+			],
+			wires: [{ id: 'w1', color: 'green',
+				a: { partId: 'r1', pin: '2' }, b: { partId: 'r2', pin: '1' },
+				points: [{ x: 300, y: 210 }, { x: 300, y: 510 }] }],
+		});
+		// Vue remise à plat : 80 px de souris doivent valoir 80 px de feuille.
+		window.editor.setCamera({ zoom: 1, panX: 0, panY: 0 });
+	})()`);
+	await attendre(250);
+	ok('la vue est bien à zoom 1', (await ev('window.editor.serialize().camera?.zoom ?? 1')) === 1);
+	// Milieu du segment vertical, en coordonnées écran (zoom 1, pas de panoramique).
+	const segAvant = JSON.parse(await ev(`JSON.stringify(window.editor.serialize().wires[0].points)`));
+	ok('le fil de départ a bien deux coudes', segAvant.length === 2, JSON.stringify(segAvant));
+	// Position ÉCRAN d'un point de la FEUILLE : le tracé vit dans `.canvas__world`,
+	// qui porte la transformation (panoramique + zoom) — on la traverse plutôt
+	// que de supposer que la feuille commence au coin du canvas.
+	const surEcran = async (x, y) => JSON.parse(await ev(`(() => {
+		const w = document.querySelector('.canvas__world');
+		const b = w.getBoundingClientRect();
+		const z = window.editor.serialize().camera?.zoom ?? 1;
+		return JSON.stringify({ x: Math.round(b.left + ${x} * z), y: Math.round(b.top + ${y} * z) }); })()`));
+	const mid = await surEcran(300, 360);
+	// Le geste ne prouve rien si la souris rate le fil : on vérifie que le point
+	// visé est bien SUR le tracé avant de tirer dessus.
+	ok('la souris vise bien le tracé du fil', (await ev(
+		`(() => { const e = document.elementFromPoint(${mid.x}, ${mid.y});
+			return !!e && e.classList.contains('wire'); })()`)) === true);
+	await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: mid.x, y: mid.y, button: 'left', buttons: 0 });
+	await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: mid.x, y: mid.y, button: 'left', buttons: 1, clickCount: 1 });
+	for (const d of [10, 30, 55, 80]) {
+		await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: mid.x + d, y: mid.y, button: 'left', buttons: 1 });
+	}
+	await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x: mid.x + 80, y: mid.y, button: 'left', buttons: 0, clickCount: 1 });
+	await attendre(250);
+	const segApres = JSON.parse(await ev(`JSON.stringify(window.editor.serialize().wires[0].points)`));
+	ok('le segment vertical a glissé vers la droite',
+		segApres.length === 2 && segApres[0].x === 380 && segApres[1].x === 380, JSON.stringify(segApres));
+	ok('et il est resté VERTICAL (même x aux deux bouts)',
+		segApres.length === 2 && segApres[0].x === segApres[1].x, JSON.stringify(segApres));
+	ok('les y des deux coudes n ont pas bougé',
+		segApres.length === 2 && segApres[0].y === segAvant[0].y && segApres[1].y === segAvant[1].y,
+		JSON.stringify(segApres));
+	ok('le fil reste accroché à ses deux broches',
+		(await ev(`(() => { const w = window.editor.serialize().wires[0];
+			return w.a.partId === 'r1' && w.b.partId === 'r2'; })()`)) === true);
+
+	// Un segment HORIZONTAL, lui, ne se déplace qu'en Y : on tire en diagonale,
+	// seul le Y doit suivre. Il touche une broche : un coude doit être créé.
+	await ev(`(() => { window.editor.loadDiagram({
+		parts: [
+			{ id: 'r1', type: 'resistor', x: 100, y: 200, attrs: { value: '1000' } },
+			{ id: 'r2', type: 'resistor', x: 500, y: 500, attrs: { value: '1000' } },
+		],
+		wires: [{ id: 'w1', color: 'green',
+			a: { partId: 'r1', pin: '2' }, b: { partId: 'r2', pin: '1' },
+			points: [{ x: 200, y: 400 }, { x: 400, y: 400 }] }],
+	}); window.editor.setCamera({ zoom: 1, panX: 0, panY: 0 }); })()`);
+	await attendre(250);
+	const horAvant = JSON.parse(await ev(`JSON.stringify(window.editor.serialize().wires[0].points)`));
+	const midH = await surEcran(300, 400);
+	await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: midH.x, y: midH.y, button: 'left', buttons: 0 });
+	await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: midH.x, y: midH.y, button: 'left', buttons: 1, clickCount: 1 });
+	for (const d of [10, 30, 50, 70]) {
+		await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: midH.x + d, y: midH.y + d, button: 'left', buttons: 1 });
+	}
+	await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x: midH.x + 70, y: midH.y + 70, button: 'left', buttons: 0, clickCount: 1 });
+	await attendre(250);
+	const horApres = JSON.parse(await ev(`JSON.stringify(window.editor.serialize().wires[0].points)`));
+	ok('le segment horizontal est descendu de 70 px',
+		horApres.length === 2 && horApres[0].y === 470 && horApres[1].y === 470, JSON.stringify(horApres));
+	ok('et il n a PAS suivi la souris en X',
+		horApres.length === 2 && horApres[0].x === horAvant[0].x && horApres[1].x === horAvant[1].x,
+		JSON.stringify(horApres));
 } finally {
 	try { ws?.close(); } catch { /* déjà fermé */ }
 	proc.kill();

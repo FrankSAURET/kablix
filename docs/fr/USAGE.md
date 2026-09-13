@@ -132,6 +132,7 @@ Certains composant spéciaux (seulement LED RVB pour l'instant) ont des couleurs
 - **Glisser une poignée** pour déplacer le coude.
 - **Ctrl maintenu** pendant le glissement : un **réticule horizontal/vertical** s'affiche et le coude s'aligne sur ses voisins — les segments deviennent exactement horizontaux ou verticaux.
 - **Double-clic sur le fil** : insère un nouveau coude à cet endroit.
+- **Glisser un segment droit du fil** : il se déplace **perpendiculairement** à sa direction — un segment horizontal monte et descend, un vertical va à gauche et à droite. Les segments voisins s'allongent d'autant, le reste du tracé ne bouge pas. C'est la façon rapide d'écarter une branche sans toucher aux coudes un à un. Le déplacement suit la grille ; **Ctrl maintenu** le libère. Un segment en biais ne se déplace pas.
 
 ### Composants disponibles
 
@@ -708,6 +709,7 @@ Pour couper cette mise au point : réglage **`kablix.syncIntelliSense`** (actif 
 | `Suppr` / `Retour arrière`                   | Supprimer la sélection : un composant, un fil, ou un lot entier (composants **et** câbles)           |
 | `Échap`                                      | Annuler le câblage en cours / désélectionner                                                         |
 | `Ctrl` (pendant le glissement d'une poignée) | Réticule + alignement H/V du coude                                                                   |
+| `Ctrl` (pendant le glissement d'un segment)  | Déplacement libre du segment, hors grille                                                            |
 | `Ctrl+A`                                     | Sélectionner tous les composants                                                                     |
 | `Ctrl+C`                                     | Copier la sélection (composants + fils) — autorisé même en simulation                                |
 | `Ctrl+V`                                     | Coller la sélection, **y compris dans un autre projet Kablix**                                       |

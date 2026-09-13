@@ -132,6 +132,8 @@ interface BreadboardHole {
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const DRAG_THRESHOLD = 4;
+/** Écart (px) sous lequel un segment est tenu pour horizontal ou vertical. */
+const SEG_AXIS = 2;
 /** Distance max (px) entre une broche et un trou de platine pour l'enfichage. */
 const BB_SNAP = 6;
 /** Rayon d'accrochage (px) pour reconnecter l'extrémité d'un fil à une broche. */
@@ -3611,6 +3613,10 @@ export class Editor {
         return;
       }
       this.select({ kind: 'wire', id: wire.id });
+      // Glisser le tracé lui-même déplace le SEGMENT saisi, perpendiculairement
+      // à sa direction. Surtout pas de `preventDefault()` ici : il supprimerait
+      // le `dblclick` ci-dessous (qui insère un coude) — mesuré en v2026.9.3.73.
+      if (!this.locked) this.dragWireSegment(wire, e);
     });
     // Double-clic : insère un coude à cet endroit (retouche du tracé).
     path.addEventListener('dblclick', (e) => {
@@ -3667,6 +3673,136 @@ export class Editor {
     this.positionWire(wire);
     this.select({ kind: 'wire', id: wireId }); // rafraîchit les poignées
     this.notify();
+  }
+
+  /**
+   * Glisser un SEGMENT droit d'un fil le déplace perpendiculairement à sa
+   * direction : un segment horizontal ne monte et ne descend, un vertical ne va
+   * qu'à gauche et à droite. C'est la retouche naturelle d'un tracé autorouté —
+   * écarter une branche d'un composant sans démonter ses coudes un à un.
+   *
+   * Les deux bouts du segment suivent, en gardant leur autre coordonnée : les
+   * segments voisins s'allongent ou raccourcissent, le reste du fil ne bouge
+   * pas. Un bout posé sur une BROCHE ne peut pas suivre (le fil se
+   * décrocherait) : un coude est alors créé à la place, ce qui transforme le
+   * segment d'extrémité en un segment libre précédé d'une amorce.
+   *
+   * Seuls les segments droits (H ou V à `SEG_AXIS` près) se déplacent : sur une
+   * oblique, « perpendiculaire » n'aurait pas de sens pour la main, et le geste
+   * est abandonné (le clic n'aura fait que sélectionner le fil).
+   */
+  private dragWireSegment(wire: Wire, down: PointerEvent): void {
+    const a = this.hotspotCenter(wire.a);
+    const b = this.hotspotCenter(wire.b);
+    if (!a || !b) return;
+    const start = this.canvasPoint(down.clientX, down.clientY);
+    const pts = [a, ...(wire.points ?? []), b];
+    // Segment le plus proche du point saisi (même choix qu'à l'insertion d'un coude).
+    let seg = 0;
+    let bestDist = Infinity;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const d = distToSegment(start, pts[i], pts[i + 1]);
+      if (d < bestDist) { bestDist = d; seg = i; }
+    }
+    const p = pts[seg];
+    const q = pts[seg + 1];
+    // Axe du segment : `horizontal` = il s'étend en X, donc il se déplace en Y.
+    const horizontal = Math.abs(p.y - q.y) <= SEG_AXIS;
+    const vertical = Math.abs(p.x - q.x) <= SEG_AXIS;
+    if (horizontal === vertical) return; // oblique (ou point double) : rien à faire
+
+    // Indices des deux bouts dans `wire.points` (−1 = une broche, pas un coude).
+    // `pts` porte les broches en tête et en queue, d'où le décalage de 1.
+    let iP = seg - 1;
+    let iQ = seg;
+    let moved = false;
+    let orig: { p: XY; q: XY } | null = null;
+
+    const move = (ev: PointerEvent) => {
+      auto.track(ev);
+      const cur = this.canvasPoint(ev.clientX, ev.clientY);
+      if (!moved) {
+        if (Math.hypot(cur.x - start.x, cur.y - start.y) * this.zoom < DRAG_THRESHOLD) return;
+        moved = true;
+        // Premier mouvement réel : on matérialise les bouts posés sur une
+        // broche en vrais coudes, sinon le fil se décrocherait en les tirant.
+        wire.points = wire.points ?? [];
+        if (iP < 0) {
+          wire.points.unshift({ x: p.x, y: p.y });
+          iP = 0;
+          iQ += 1;
+        }
+        if (iQ >= wire.points.length) {
+          wire.points.push({ x: q.x, y: q.y });
+          iQ = wire.points.length - 1;
+        }
+        orig = {
+          p: { ...wire.points[iP] },
+          q: { ...wire.points[iQ] },
+        };
+      }
+      if (!orig || !wire.points) return;
+      // Un seul axe bouge : l'autre coordonnée de chaque bout est conservée,
+      // ce sont les segments voisins qui absorbent la différence.
+      if (horizontal) {
+        const y = ev.ctrlKey ? cur.y : snapToGrid(cur.y);
+        wire.points[iP] = { x: orig.p.x, y };
+        wire.points[iQ] = { x: orig.q.x, y };
+      } else {
+        const x = ev.ctrlKey ? cur.x : snapToGrid(cur.x);
+        wire.points[iP] = { x, y: orig.p.y };
+        wire.points[iQ] = { x, y: orig.q.y };
+      }
+      this.positionWire(wire);
+    };
+    // Tirer un segment au bord entraîne la vue, comme pour un coude.
+    const auto = this.beginAutoPan<PointerEvent>(move);
+    const end = () => {
+      auto.stop();
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+      window.removeEventListener('blur', end);
+      if (!moved) return; // simple clic : la sélection a déjà tout fait
+      // Les coudes devenus inutiles (trois points alignés, ou deux confondus)
+      // partent : sans ce ménage, chaque glissé laisserait des points morts.
+      this.pruneWirePoints(wire);
+      this.buildHandles(wire.id); // les poignées suivent le nouveau tracé
+      this.notify();
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+    window.addEventListener('blur', end);
+  }
+
+  /**
+   * Nettoie les coudes d'un fil après une retouche : les points confondus et
+   * ceux qui tombent au milieu de leurs deux voisins (donc alignés) ne dessinent
+   * rien et gêneraient la prochaine saisie de segment.
+   */
+  private pruneWirePoints(wire: Wire): void {
+    if (!wire.points?.length) return;
+    const a = this.hotspotCenter(wire.a);
+    const b = this.hotspotCenter(wire.b);
+    if (!a || !b) return;
+    const chain: XY[] = [a, ...wire.points, b];
+    const out: XY[] = [chain[0]];
+    for (let i = 1; i < chain.length - 1; i++) {
+      const prev = out[out.length - 1];
+      const cur = chain[i];
+      const next = chain[i + 1];
+      // Confondu avec le précédent, ou aligné entre ses deux voisins.
+      const same = Math.abs(cur.x - prev.x) <= SEG_AXIS && Math.abs(cur.y - prev.y) <= SEG_AXIS;
+      const flat =
+        (Math.abs(prev.y - cur.y) <= SEG_AXIS && Math.abs(cur.y - next.y) <= SEG_AXIS) ||
+        (Math.abs(prev.x - cur.x) <= SEG_AXIS && Math.abs(cur.x - next.x) <= SEG_AXIS);
+      if (same || flat) continue;
+      out.push(cur);
+    }
+    const mids = out.slice(1);
+    wire.points = mids.length ? mids : undefined;
+    this.positionWire(wire);
   }
 
   // --- Poignées de retouche des coudes ----------------------------------------
