@@ -1,6 +1,26 @@
 # À faire
+1. **Deux idées à verser à [Pistes.md](Pistes.md)**, coût S chacune, prises chez Wokwi : un **mode confidentiel** pour projeter en classe (`wokwi.hidePersonalInfo` chez eux) et **voir le `.projix` en texte** (ils ouvrent leur `diagram.json` dans l'éditeur). Explique moi ça plus en détail.
+1. le débogueur **AVR ne montre que les globales scalaires** corrige ça.
+1. Comment s'assurer qu'on importe bien les fichiers wokwi ainsi que leur composants. La suppression de l'ANCIEN import de composant par fichier `.json` ne bloque telle pas cette fonctionnalité ?
+1. 
+1. 
 ## ne pas faire pour l'instant
 
+
+---
+
+# >>>>  v2026.9.4.83 — La barre d'outils de l'aide ne s'échappe plus
+
+1. ✅ **Le champ de recherche et les deux boutons restent en haut** ([guide.ts](src/guide.ts)) : la colonne du sommaire se découpe en une **tête figée** (titre, recherche, replier/déplier) et un **corps qui défile seul**. Jusqu'ici la colonne entière défilait — la liste des 14 sections dépassant la hauteur de la fenêtre, la recherche sortait par le haut dès qu'on cherchait une section du bas.
+2. ✅ **Défaut de collage trouvé en chemin, et corrigé** : le `padding-bottom: 4rem` était posé sur le `body`, donc SOUS la grille. Un élément `sticky` étant borné par sa piste de grille, le sommaire se décollait de 64 px sur les derniers pixels de la page. La marge de fin est passée sur `.wrap` : la piste couvre maintenant tout le document.
+3. ✅ **L'entrée marquée est ramenée dans la vue** : le corps du sommaire défilant seul, la section lue sortait de sa fenêtre sur un guide long. Le recentrage joue le `scrollTop` du conteneur et **pas** `scrollIntoView`, qui déplacerait aussi la page derrière — et seulement quand l'entrée est réellement dehors.
+4. ✅ **En colonne unique (sous 900 px), la tête reste figée** et le sommaire se borne à un tiers de la fenêtre : sans borne, la liste mangerait tout l'écran avant le premier mot du guide.
+5. ✅ **Défaut trouvé DANS le banc** ([verify-guide-nav.mjs](scripts/verify-guide-nav.mjs)) : il recopiait le balisage de la colonne à la main. Une copie dérive au premier remaniement, et le banc essaie alors une page que VS Code n'affiche plus. Le balisage est désormais **pris dans le source** comme l'était déjà le CSS, ses `${…}` remplacés par leur valeur — avec un contrôle qui rougit s'il en reste un.
+6. ✅ **8 contrôles neufs, 39 verts en tout** : tête et corps séparés, débordement réel de la liste (sinon les contrôles suivants ne prouveraient rien), corps qui défile seul, tête/champ/boutons mesurés dans la vue page poussée en bas, page immobile quand on pousse le sommaire, entrée marquée ramenée. Tout est **mesuré** dans Chrome headless, jamais lu dans le CSS écrit.
+7. ✅ **Contre-épreuve faite** : `git stash` sur `guide.ts`, banc relancé → **7 rouges**. Le banc prouve bien la correction.
+8. ✅ **L'aide d'un fil sélectionné affinée** ([editor.mts](src/webview/diagram/editor.mts)) : « Ctrl » y figurait seul, sans dire pendant quel geste le tenir, et le **glissement d'un segment** (v.78) n'y était pas du tout. Trois lignes disent maintenant le geste et ce que Ctrl y change — il n'agit pas de la même façon sur un coude (alignement sur les voisins) et sur un segment (déplacement hors grille).
+9. ⏳ **Traductions en attente** : les trois nouvelles lignes d'aide du fil sont en anglais dans [i18n.mts](src/webview/i18n.mts) (langue de base), et les deux anciennes entrées FR (`Cross handle: move a corner.`, `Ctrl: horizontal/vertical alignment.`) sont devenues orphelines. À traiter au lot d'avant publication.
+10. ℹ️ **`version` reste `2026.9.4`**, `buildNumber` à 83. CHANGELOG complété sous `2026.9.5 (prochaine publication)`.
 
 ---
 

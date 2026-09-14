@@ -7,13 +7,15 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 ### Nouveauté
 
 - **Une ligne « Paramètres » dans le menu hamburger** : elle ouvre les réglages de Kablix.
-- **L'aide a un sommaire à gauche** qui suit le défilement et marque la section lue.
-- **L'aide se cherche au mot** : un champ filtre les sections et surligne les occurrences, accents et casse ignorés.
+- **L'aide a un sommaire à gauche**.
+- **L'aide à un moteur de recherche**.
 - **Les sections de l'aide se replient**, une à une ou toutes d'un coup.
 
 ### Modification
 
 - **Un segment de fil se déplace au glisser**, perpendiculairement à sa direction. Les segments voisins suivent, le reste du tracé ne bouge pas.
+- **La recherche et les boutons de l'aide restent en haut** quand on descend dans le guide.
+- **L'aide d'un fil sélectionné détaille le glissement d'un segment** et ce que Ctrl y change.
 - **Le tableau des composants du README suit les catégories de la palette**.
 - **La liste des composants téléchargeables est illustrée**.
 

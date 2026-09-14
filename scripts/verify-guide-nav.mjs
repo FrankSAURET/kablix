@@ -114,6 +114,22 @@ check('le titre garde son ancre dans le <summary>',
   outline.filter((e) => e.level === 2).every((e) => corps.includes(`<summary><h2 id="${e.id}">`)));
 
 const css = source.match(/<style nonce="\$\{nonce\}">([\s\S]*?)<\/style>/)[1];
+
+// Le balisage du sommaire est PRIS DANS LE SOURCE, pas recopié ici : une copie
+// dériverait au premier remaniement de la colonne, et le banc essaierait alors
+// une page que VS Code n'affiche plus. Les `${…}` du gabarit sont remplacés par
+// leur valeur — les libellés par leur texte, le sommaire par sa liste rendue.
+const aside = source
+  .match(/<aside class="toc-col">[\s\S]*?<\/aside>/)[0]
+  .replace(/\$\{outlineHtml\(outline, lToc\)\}/, boite.outlineHtml(outline, 'Sommaire'))
+  .replace(/\$\{escapeHtml\(lToc\)\}/g, 'Sommaire')
+  .replace(/\$\{escapeHtml\(lSearch\)\}/g, 'Chercher')
+  .replace(/\$\{escapeHtml\(lNoHit\)\}/g, 'Rien trouvé')
+  .replace(/\$\{escapeHtml\(lFoldAll\)\}/g, 'Tout replier')
+  .replace(/\$\{escapeHtml\(lUnfoldAll\)\}/g, 'Tout déplier');
+check('le balisage du sommaire vient bien du source (aucun ${…} résiduel)',
+  !aside.includes('${'), aside.match(/\$\{[^}]*\}/)?.[0]);
+
 const page = `<!doctype html><meta charset="utf-8"><title>t</title><style>
   :root{--vscode-font-family:system-ui;--vscode-foreground:#e6e6e6;--vscode-editor-background:#1e1e1e;
   --vscode-textLink-foreground:#4daafc;--vscode-panel-border:#3c3c3c;--vscode-textCodeBlock-background:#2a2a2a;
@@ -121,16 +137,7 @@ const page = `<!doctype html><meta charset="utf-8"><title>t</title><style>
   ${css}</style>
 <body>
   <div class="page">
-    <aside class="toc-col">
-      <p class="toc__titre">Sommaire</p>
-      <input class="recherche" type="search" id="recherche" />
-      <div class="toc__outils">
-        <button type="button" id="tout-replier">Tout replier</button>
-        <button type="button" id="tout-deplier">Tout déplier</button>
-      </div>
-      ${boite.outlineHtml(outline, 'Sommaire')}
-      <p class="toc__vide" id="toc-vide" hidden>Rien trouvé</p>
-    </aside>
+${aside}
     <div class="wrap">${corps}</div>
   </div>
   <script>${boite.guideScript()}</script>
@@ -147,6 +154,43 @@ R.sectionsOuvertes = sections.filter((s) => s.open).length;
 
 // Le sommaire colle-t-il ? (option A : la propriété calculée, pas le CSS écrit)
 R.collant = getComputedStyle($('.toc-col')).position;
+
+// La tête du sommaire (recherche + les deux boutons) reste-t-elle dans la
+// fenêtre ? C'est le défaut corrigé en v2026.9.4.83 : la colonne entière
+// défilait, et la liste des sections étant plus haute que l'écran, le champ de
+// recherche sortait par le haut. On MESURE, on ne lit pas le CSS écrit.
+const tete = $('.toc__tete');
+const tocCorps = $('.toc__corps');
+R.teteExiste = !!tete && !!tocCorps;
+// La liste doit vraiment déborder, sinon le contrôle ne prouve rien.
+R.corpsDeborde = tocCorps ? tocCorps.scrollHeight > tocCorps.clientHeight + 4 : false;
+// On pousse le corps du sommaire à fond, puis la page : dans les deux cas la
+// tête doit rester entièrement visible.
+if (tocCorps) tocCorps.scrollTop = tocCorps.scrollHeight;
+R.corpsDefile = tocCorps ? tocCorps.scrollTop > 10 : false;
+window.scrollTo(0, document.body.scrollHeight);
+const mesureTete = () => {
+  const b = tete.getBoundingClientRect();
+  return Math.round(b.top) >= -1 && Math.round(b.bottom) <= window.innerHeight + 1;
+};
+R.teteEnVueBas = tete ? mesureTete() : false;
+R.teteBoite = tete ? JSON.stringify([Math.round(tete.getBoundingClientRect().top), Math.round(tete.getBoundingClientRect().bottom), window.innerHeight]) : '';
+R.colBoite = JSON.stringify([Math.round($('.toc-col').getBoundingClientRect().top), Math.round($('.toc-col').getBoundingClientRect().bottom)]);
+// Le champ et les deux boutons, eux-mêmes, cliquables au doigt.
+const dansLaVue = (el) => {
+  const b = el.getBoundingClientRect();
+  return b.height > 0 && b.top >= -1 && b.bottom <= window.innerHeight + 1;
+};
+R.champEnVueBas = dansLaVue($('#recherche'));
+R.boutonsEnVueBas = dansLaVue($('#tout-replier')) && dansLaVue($('#tout-deplier'));
+// Le corps du sommaire défile SEUL : la page ne doit pas avoir bougé quand on
+// le pousse (sinon on aurait juste déplacé le problème).
+window.scrollTo(0, 0);
+const avant = window.scrollY;
+if (tocCorps) tocCorps.scrollTop = tocCorps.scrollHeight;
+R.pageImmobile = window.scrollY === avant;
+tocCorps && (tocCorps.scrollTop = 0);
+window.scrollTo(0, 0);
 
 // Repliage : la section ne fait plus que la hauteur de son titre, et le titre
 // reste affiché — une section fermée doit rester repérable et rouvrable.
@@ -177,6 +221,19 @@ R.ancreDansLaSection = !!R.ancreCourante
   && sectionVisee.contains(document.getElementById(R.ancreCourante));
 // Une seule ligne à la fois doit être marquée.
 R.marquees = document.querySelectorAll('.toc__item--courant').length;
+
+// Le corps du sommaire défilant seul, l'entrée marquée doit être RAMENÉE dans
+// sa fenêtre : sur un guide de 14 sections, la dernière est hors vue sans cela.
+const bas = document.querySelectorAll('h2[id]');
+bas[bas.length - 1].scrollIntoView({ block: 'start' });
+document.dispatchEvent(new Event('scroll'));
+{
+  const li = document.querySelector('.toc__item--courant');
+  const b = tocCorps?.getBoundingClientRect();
+  const c = li?.getBoundingClientRect();
+  R.marqueeEnVue = !!(li && b && c && c.top >= b.top - 1 && c.bottom <= b.bottom + 1);
+  R.marqueeDetail = li && b && c ? Math.round(c.top - b.top) + '/' + Math.round(b.bottom - c.bottom) : 'absente';
+}
 
 // Remonté tout en haut, le repère doit tomber sur la première section.
 window.scrollTo(0, 0);
@@ -256,6 +313,19 @@ const R = JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace
 // --- Verdicts -----------------------------------------------------------------
 check('le sommaire latéral est rempli', R.sommairePlein === outline.length, `${R.sommairePlein} liens`);
 check('le sommaire est collant (position: sticky)', R.collant === 'sticky', R.collant);
+
+// --- Barre d'outils du sommaire figée (v2026.9.4.83) --------------------------
+check('la colonne se découpe en tête figée et corps défilant', R.teteExiste === true);
+check('la liste des sections déborde vraiment de sa fenêtre', R.corpsDeborde === true,
+  'sans débordement, les contrôles suivants ne prouvent rien');
+check('le corps du sommaire défile seul', R.corpsDefile === true);
+check('la page poussée en bas, la tête du sommaire reste visible', R.teteEnVueBas === true,
+  `tête ${R.teteBoite}, colonne ${R.colBoite}`);
+check('le champ de recherche reste atteignable en bas de page', R.champEnVueBas === true);
+check('les boutons replier/déplier restent atteignables en bas de page', R.boutonsEnVueBas === true);
+check('pousser le sommaire ne fait pas défiler la page', R.pageImmobile === true);
+check('l\'entrée marquée est ramenée dans la fenêtre du sommaire', R.marqueeEnVue === true,
+  `écarts haut/bas : ${R.marqueeDetail}`);
 check('toutes les sections s\'ouvrent au chargement', R.sectionsOuvertes === h2Rendu, `${R.sectionsOuvertes}/${h2Rendu}`);
 check('une section repliée cache son corps mais garde son titre',
   R.replieTitreVisible === true && R.replieHauteur < R.deplieHauteur / 3,

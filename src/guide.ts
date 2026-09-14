@@ -341,7 +341,10 @@ function pageHtml(
       background: var(--vscode-editor-background);
       line-height: 1.55;
       margin: 0;
-      padding: 0 1.5rem 4rem;
+      /* Pas de marge basse ICI : elle finirait SOUS la grille, et le sommaire
+         collant — borné par sa piste de grille — se décollerait sur les derniers
+         pixels de la page. Le blanc de fin est rendu par .wrap. */
+      padding: 0 1.5rem;
     }
     /* Deux colonnes : le sommaire à gauche, collant, et le guide à droite.
        Sous 900 px (panneau étroit, écran partagé) le sommaire passe au-dessus
@@ -355,23 +358,45 @@ function pageHtml(
     }
     @media (max-width: 900px) {
       .page { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; }
-      .toc-col { position: static !important; max-height: none !important; }
+      .toc-col { height: auto !important; }
     }
+    /* La colonne ne défile PAS elle-même : elle se découpe en une tête figée
+       (titre, recherche, boutons) et un corps qui défile seul. Sinon le champ
+       de recherche et les deux boutons sortent de l'écran dès que la liste des
+       sections dépasse la hauteur de la fenêtre. */
     .toc-col {
       position: sticky;
       top: 0;
-      max-height: 100vh;
-      overflow-y: auto;
-      padding: 1.5rem 1.2rem 2rem 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+      padding: 1.5rem 1.2rem 0 0;
       border-right: 1px solid var(--vscode-panel-border, rgba(128,128,128,.3));
       font-size: 0.95em;
+      box-sizing: border-box;
+    }
+    .toc__tete { flex: 0 0 auto; }
+    /* Le corps prend le reste et défile seul ; min-height: 0 est obligatoire,
+       sans lui un enfant flex refuse de descendre sous sa hauteur de contenu. */
+    .toc__corps {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      padding-bottom: 2rem;
     }
     @media (max-width: 900px) {
       .toc-col {
         border-right: none;
         border-bottom: 1px solid var(--vscode-panel-border, rgba(128,128,128,.3));
         padding-right: 0;
+        padding-bottom: 0.5rem;
+        /* En colonne unique la tête reste figée en haut, mais le sommaire ne
+           mange pas l'écran : il se limite à un tiers de la fenêtre. */
+        overflow: visible;
       }
+      .toc__corps { max-height: 33vh; padding-bottom: 0; }
     }
     .toc__list { list-style: none; margin: 0.4rem 0 0; padding: 0; }
     .toc__item a {
@@ -464,7 +489,7 @@ function pageHtml(
       color: inherit;
       border-radius: 2px;
     }
-    .wrap { max-width: 52rem; margin: 0 auto; }
+    .wrap { max-width: 52rem; margin: 0 auto; padding-bottom: 4rem; }
     h1 { font-size: 1.7rem; margin: 1.5rem 0 0.3rem; }
     h2 {
       font-size: 1.25rem;
@@ -517,15 +542,19 @@ function pageHtml(
 <body>
   <div class="page">
     <aside class="toc-col">
-      <p class="toc__titre">${escapeHtml(lToc)}</p>
-      <input class="recherche" type="search" id="recherche" placeholder="${escapeHtml(lSearch)}"
-        aria-label="${escapeHtml(lSearch)}" autocomplete="off" />
-      <div class="toc__outils">
-        <button type="button" id="tout-replier">${escapeHtml(lFoldAll)}</button>
-        <button type="button" id="tout-deplier">${escapeHtml(lUnfoldAll)}</button>
+      <div class="toc__tete">
+        <p class="toc__titre">${escapeHtml(lToc)}</p>
+        <input class="recherche" type="search" id="recherche" placeholder="${escapeHtml(lSearch)}"
+          aria-label="${escapeHtml(lSearch)}" autocomplete="off" />
+        <div class="toc__outils">
+          <button type="button" id="tout-replier">${escapeHtml(lFoldAll)}</button>
+          <button type="button" id="tout-deplier">${escapeHtml(lUnfoldAll)}</button>
+        </div>
       </div>
-      ${outlineHtml(outline, lToc)}
-      <p class="toc__vide" id="toc-vide" hidden>${escapeHtml(lNoHit)}</p>
+      <div class="toc__corps">
+        ${outlineHtml(outline, lToc)}
+        <p class="toc__vide" id="toc-vide" hidden>${escapeHtml(lNoHit)}</p>
+      </div>
     </aside>
     <div class="wrap">
 ${body}
@@ -572,7 +601,23 @@ function guideScript(): string {
     if (!vu || vu.id === courant) return;
     courant = vu.id;
     for (const li of parLien.values()) li.classList.remove('toc__item--courant');
-    parLien.get(vu.id)?.classList.add('toc__item--courant');
+    const li = parLien.get(vu.id);
+    li?.classList.add('toc__item--courant');
+    if (li) garderEnVue(li);
+  };
+
+  // Le corps du sommaire défile seul : sur un guide long, l'entrée marquée
+  // sortirait de sa fenêtre sans qu'on la ramène. scrollIntoView est écarté,
+  // il déplacerait AUSSI la page derrière — on ne touche qu'au scrollTop du
+  // conteneur, et seulement quand l'entrée est réellement dehors.
+  const tocCorps = document.querySelector('.toc__corps');
+  const garderEnVue = (li) => {
+    if (!tocCorps) return;
+    const boite = tocCorps.getBoundingClientRect();
+    const cible = li.getBoundingClientRect();
+    if (!cible.height) return;
+    if (cible.top < boite.top) tocCorps.scrollTop -= boite.top - cible.top;
+    else if (cible.bottom > boite.bottom) tocCorps.scrollTop += cible.bottom - boite.bottom;
   };
   document.addEventListener('scroll', suivre, { passive: true });
   window.addEventListener('resize', suivre);

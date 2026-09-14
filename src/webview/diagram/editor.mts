@@ -6554,9 +6554,13 @@ export class Editor {
 
     this.appendDeleteButton(t('Delete the wire'), () => this.removeWire(wireId));
     // Aide à l'édition des fils, sous les propriétés du fil sélectionné.
+    // Chaque ligne dit LE GESTE et ce que Ctrl y change : « Ctrl » tout seul
+    // ne disait pas pendant quoi le tenir, et il n'agit pas de la même façon
+    // sur un coude (alignement sur les voisins) et sur un segment (hors grille).
     this.appendHelp([
-      t('Cross handle: move a corner.'),
-      t('Ctrl: horizontal/vertical alignment.'),
+      t('Cross handle: move a corner (hold Ctrl to align it with its neighbours).'),
+      t('Drag a straight segment: it moves sideways, the neighbouring segments follow.'),
+      t('Segment move snaps to the grid; hold Ctrl to move it freely.'),
       t('Double-click the wire: add a corner.'),
       t('Click a corner then Del: remove it.'),
     ]);
