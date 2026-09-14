@@ -1245,6 +1245,14 @@ export class AvrEngine implements SimEngine {
       const type = (g.type ?? '').toLowerCase();
       const unsigned = type.includes('unsigned') || type.startsWith('uint') || type === 'bool';
       let value: string;
+      // Un pointeur (`int *`) est une ADRESSE : signé, il s'afficherait en
+      // négatif dès la moitié haute de l'espace. On le rend en hexadécimal,
+      // comme on l'écrit et comme le montrent les outils de mise au point.
+      if (type.endsWith('*')) {
+        const addr = view.getUint16(g.addr, true);
+        out.push({ name: g.name, value: `0x${addr.toString(16).padStart(4, '0')}`, type: g.type });
+        continue;
+      }
       // Sur AVR, `double` = flottant 32 bits (identique à float) : même décodage.
       if (g.size === 4 && (type.includes('float') || type.includes('double'))) {
         // Float IEEE 754 ; arrondi pour masquer le bruit binaire (3.1400001…).

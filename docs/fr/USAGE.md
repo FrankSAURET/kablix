@@ -343,13 +343,14 @@ Quand un fichier `.py` est ouvert, un bouton **⬆** apparaît dans la barre de 
 
 - **⏸ Pause / ▶ Reprendre** : gèle la simulation ; l'état des broches et des LED reste affiché. Le sélecteur d'animaux (🦅 500 % → 🐌 1 %) règle le régime d'exécution.
 - **Pas** : exécute une ligne du fichier source puis se remet en pause. Le panneau **Variables**  montre alors la ligne courante et les variables globales du programme ; la ligne est aussi surlignée dans l'éditeur VS Code. Une variable qui vient de changer est affichée en rouge
+- **Tableaux, structures et pointeurs** : chaque case et chaque champ a sa propre ligne, nommée comme on l'écrit en C — `notes[0]`, `p1.x`, et les deux combinés pour un tableau de structures (`chemin[1].y`). Une chaîne de caractères s'affiche lettre par lettre (`'s'`, `'a'`…) plutôt qu'en codes ASCII ; un pointeur montre l'adresse qu'il contient, en hexadécimal. Au-delà de 32 cases, un tableau n'affiche que son début.
 - **Points d'arrêt** : cliquer dans la gouttière de l'éditeur (à gauche des numéros de ligne) avant ou pendant l'exécution ; la simulation se met en pause en atteignant la ligne. Les points d'arrêt peuvent être conditionnels.
 
 Prérequis et limites :
 
 | Langage            | Comment                                                                                            | Limites                                                                                                      |
 | ------------------ | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| C / Arduino (Uno)  | Données de débogage extraites à la compilation (`avr-objdump`, fourni avec arduino-cli ou avr-gcc) | variables **globales** simples (int, float, bool…) ; un `delay()` long avance par tranches de 0,25 s simulée |
+| C / Arduino (Uno)  | Données de débogage extraites à la compilation (`avr-objdump`, fourni avec arduino-cli ou avr-gcc) | variables **globales** (les locales demanderaient un autre relevé) ; un `delay()` long avance par tranches de 0,25 s simulée |
 | MicroPython (Pico) | le script est instrumenté automatiquement avant injection                                          | variables **globales** uniquement ; la pause prend effet à la ligne suivante ; pas de ralenti                |
 
 Les artefacts chargés directement (`.hex`, `.uf2`, `.elf`, `.bin`) s'exécutent sans infos de débogage : pause et ralenti restent disponibles, pas le pas à pas.

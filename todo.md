@@ -1,9 +1,26 @@
 # À faire
-1. le débogueur **AVR ne montre que les globales scalaires** corrige ça.
+1. 
 1. 
 1. 
 ## ne pas faire pour l'instant
 
+
+---
+
+# >>>>  v2026.9.4.85 — Le débogueur AVR déplie tableaux, structures et pointeurs
+
+1. ✅ **Constat mesuré avant d'écrire une ligne** : sur un croquis à tableaux, le panneau affichait **2 variables sur 24**. Cause dans [compiler.ts](src/compiler.ts) : `resolveBaseType()` rendait `null` pour tout ce qui n'était pas un type de base, et le lecteur DWARF ignorait la **relation parent/enfant** des DIE. Or un tableau porte sa taille dans un enfant `DW_TAG_subrange_type` et une structure ses champs dans des `DW_TAG_member` : sans cette relation, ni le nombre de cases ni les champs n'étaient lisibles.
+2. ✅ **Sonde DWARF d'abord, regex ensuite** : un script du bac à sable a compilé un vrai programme et vidé `avr-objdump --dwarf=info` pour voir la forme exacte des DIE, plutôt que de la deviner. Les DIE sont un arbre **sérialisé à plat** — l'imbrication n'existe que par le numéro de niveau de l'en-tête (`<1><66b>:`). Le lecteur tient donc maintenant une **pile par profondeur** et rattache chaque DIE à son parent.
+3. ✅ **`resolveType()` remplace `resolveBaseType()`** : il traverse `typedef`, `const` et `volatile` (alias transparents) puis rend une description typée — `scalar`, `pointer` (2 octets sur AVR), `array` (taille lue en `DW_AT_count` ou `DW_AT_upper_bound + 1`), `struct`/`union` (champs et décalages en `DW_AT_data_member_location`). Garde-fou : profondeur et **budget de 400 DIE**, un type qui se référence en boucle ne peut pas figer la compilation.
+4. ✅ **Le panneau est un tableau plat : un agrégat n'y a pas de ligne à lui**, il est **déplié**. Les lignes portent le nom qu'un élève taperait en C — `notes[0]`, `p1.x`, et les deux combinés pour un tableau de structures (`chemin[1].y`). Bornes : 3 niveaux d'imbrication, **32 cases** affichées par tableau (au-delà, seul le début).
+5. ✅ **Un pointeur s'affiche en hexadécimal** ([avr.mts](src/webview/engines/avr.mts)) : c'est une **adresse**. Lue en signé, elle passerait en négatif dès la moitié haute de l'espace — `0x0102` dit ce que `258` cache.
+6. ✅ **Une chaîne s'affiche en lettres, pas en codes ASCII** ([varbase.mts](src/webview/varbase.mts)) : `char` et `signed char` prennent la base caractère par défaut, sinon un `char nom[6]` dépliait une colonne de nombres. `unsigned char` et `uint8_t` **restent en décimal** — ils servent à compter, pas à écrire. Le choix manuel de Frank prime toujours ; [sim.mts](src/webview/sim.mts) retient le type de chaque variable pour que la coche du menu et l'oubli d'un réglage revenu au défaut suivent la même règle.
+7. ✅ **Vérifié sur compilation réelle**, pas sur un vidage fabriqué : `notes[0..4]` = 1,2,3,4,5 · `p1.x` = 3, `p1.y` = 7 · `nom` = 115,97,108,117,116 (« salut ») · `ptr` = `0x0102`, soit **exactement l'adresse de `notes[1]`**.
+8. ✅ **24 contrôles verts sur [verify-debug-avr.mjs](scripts/verify-debug-avr.mjs)** (10 avant, donc **19 neufs**) et **52 sur [verify-debugvars.mjs](scripts/verify-debugvars.mjs)** (6 neufs, 2 réécrits car leur règle a changé). Le banc éprouve aussi ce qui ne doit **pas** apparaître : aucune ligne pour le tableau nu.
+9. ✅ **Contre-épreuve faite** : `git stash` sur les quatre sources, banc relancé → **14 rouges**, tous sur les agrégats, les contrôles scalaires restant verts. Le banc mesure la correction et rien d'autre.
+10. ✅ **[docs/fr/USAGE.md](docs/fr/USAGE.md) à jour** : la ligne des limites disait « variables globales **simples** (int, float, bool…) » — devenu faux. Un paragraphe décrit le dépliage. L'en-tête du panneau (« seules les variables globales ») et son infobulle restent **exacts** : la limite aux globales n'a pas bougé, rien à retoucher donc **aucune traduction rendue orpheline**.
+11. ⏳ **`verify:i18n` rouge — dette antérieure, pas de ce lot** : 3 chaînes d'aide du fil (v.83) et 6 chaînes du guide (v.79) sans traduction FR. Règle « jamais de traduction au fil de l'eau » : à traiter au lot d'avant publication. **110 bancs sur 111** verts.
+12. ℹ️ **`version` reste `2026.9.4`**, `buildNumber` à 85. CHANGELOG complété sous `2026.9.5 (prochaine publication)` — contrairement aux lots v.80 à v.84, celui-ci **se voit** côté utilisateur.
 
 ---
 

@@ -71,15 +71,24 @@ if (tools.arduinoCli) {
   writeFileSync(srcPath, [
     'int compteur;', // ligne 1
     'float seuil = 3.14;', // ligne 2
-    'void setup() { pinMode(13, OUTPUT); }',
+    'int notes[4] = {10, 20, 30, 40};',
+    'char nom[6] = "salut";',
+    'struct Point { int x; int y; };',
+    'struct Point p1 = {3, 7};',
+    'struct Point chemin[2];',
+    'int *ptr;',
+    'void setup() { pinMode(13, OUTPUT); ptr = &notes[1]; }',
     'void loop() {',
     '  digitalWrite(13, !digitalRead(13));',
-    '  compteur++;', // ligne 6
+    '  compteur++;', // ligne 12
     '  seuil += 0.5;',
+    '  notes[0]++;',
+    '  p1.x++;',
+    '  chemin[1].y = 5;',
     '  delay(5);',
     '}',
   ].join('\n'));
-  loopLine = 6;
+  loopLine = 12;
 } else {
   srcPath = join(tmp, 'prog.c');
   writeFileSync(srcPath, [
@@ -87,17 +96,27 @@ if (tools.arduinoCli) {
     '#include <util/delay.h>',
     'int compteur;',
     'float seuil = 3.14f;',
+    'int notes[4] = {10, 20, 30, 40};',
+    'char nom[6] = "salut";',
+    'struct Point { int x; int y; };',
+    'struct Point p1 = {3, 7};',
+    'struct Point chemin[2];',
+    'int *ptr;',
     'int main(void) {',
     '  DDRB |= (1 << 5);',
+    '  ptr = &notes[1];',
     '  for (;;) {',
     '    PORTB ^= (1 << 5);',
-    '    compteur++;', // ligne 9
+    '    compteur++;', // ligne 16
     '    seuil += 0.5f;',
+    '    notes[0]++;',
+    '    p1.x++;',
+    '    chemin[1].y = 5;',
     '    _delay_ms(5);',
     '  }',
     '}',
   ].join('\n'));
-  loopLine = 9;
+  loopLine = 16;
 }
 
 console.log(`Compilation de ${srcPath} (Arduino Uno, infos de débogage) :`);
@@ -114,6 +133,46 @@ check(`globale compteur (int, 2 octets, SRAM) : ${JSON.stringify(compteur)}`,
   !!compteur && compteur.size === 2 && compteur.addr >= 0x100);
 check(`globale seuil (float, 4 octets, SRAM) : ${JSON.stringify(seuil)}`,
   !!seuil && seuil.size === 4 && seuil.addr >= 0x100 && (seuil.type ?? '').includes('float'));
+
+// --- Agrégats : tableaux, structures, pointeurs -------------------------------
+// Jusqu'à la v2026.9.4.85, `resolveBaseType` rendait null pour tout ce qui
+// n'était pas scalaire : un croquis à tableaux n'affichait QUE ses scalaires.
+// Chaque case et chaque champ devient ici une ligne nommée comme on l'écrit en C.
+console.log('Agrégats (tableaux, structures, pointeurs) :');
+const byName = new Map(debug.globals.map((g) => [g.name, g]));
+const nom = (n) => byName.get(n);
+
+// Tableau : 4 cases nommées notes[0..3], contiguës et de la taille de l'élément.
+const cases = [0, 1, 2, 3].map((i) => nom(`notes[${i}]`));
+check(`tableau déplié case par case (notes[0..3])`, cases.every((c) => c && c.size === 2));
+check(`cases contiguës et dans l'ordre (${cases.map((c) => c?.addr).join(', ')})`,
+  cases.every((c, i) => i === 0 || (c && cases[i - 1] && c.addr === cases[i - 1].addr + 2)));
+check('aucune ligne pour le tableau NU (notes sans indice)', !nom('notes'));
+
+// Structure : un champ = une ligne, décalage pris dans DW_AT_data_member_location.
+const px = nom('p1.x');
+const py = nom('p1.y');
+check(`structure dépliée champ par champ (p1.x, p1.y) : ${JSON.stringify([px, py])}`,
+  !!px && !!py && px.size === 2 && py.size === 2);
+check(`décalage du 2e champ = +2 (${px?.addr} → ${py?.addr})`, !!px && !!py && py.addr === px.addr + 2);
+check('aucune ligne pour la structure NUE (p1 sans champ)', !nom('p1'));
+
+// Tableau de structures : les deux niveaux se combinent (chemin[1].y).
+const c1y = nom('chemin[1].y');
+const c0x = nom('chemin[0].x');
+check(`tableau de structures déplié (chemin[1].y) : ${JSON.stringify(c1y)}`, !!c1y && c1y.size === 2);
+check(`chemin[1].y placé après chemin[0].x (+6)`, !!c0x && !!c1y && c1y.addr === c0x.addr + 6);
+
+// Pointeur : lu sur 2 octets (AVR) et TYPÉ, ce qui commande son affichage en hexa.
+const ptr = nom('ptr');
+check(`pointeur lu (ptr, 2 octets, type « ${ptr?.type} »)`,
+  !!ptr && ptr.size === 2 && (ptr.type ?? '').endsWith('*'));
+
+// Chaîne : chaque caractère est une case de type char (l'affichage en 's', 'a'…
+// est fait au rendu par defaultVarBase, éprouvé dans verify:debugvars).
+const n0 = nom('nom[0]');
+check(`chaîne dépliée en caractères (nom[0], type « ${n0?.type} »)`,
+  !!n0 && n0.size === 1 && (n0.type ?? '').includes('char'));
 
 // --- Point d'arrêt dans la boucle d'exécution --------------------------------
 // Le moteur exécute sa boucle en tâches de fond (setTimeout / MessageChannel) et
@@ -160,6 +219,24 @@ const lastCompteur = last?.variables.find((v) => v.name === 'compteur');
 const lastSeuil = last?.variables.find((v) => v.name === 'seuil');
 check(`compteur incrémenté (${lastCompteur?.value})`, !!lastCompteur && parseInt(lastCompteur.value, 10) >= 1);
 check(`seuil flottant > 3 (${lastSeuil?.value})`, !!lastSeuil && parseFloat(lastSeuil.value) > 3);
+
+// Valeurs des agrégats : c'est ici que se prouvent les ADRESSES calculées. Une
+// erreur de décalage d'un seul octet donnerait des valeurs absurdes, pas une
+// panne — d'où des valeurs initiales toutes distinctes dans le programme.
+const val = (n) => last?.variables.find((v) => v.name === n)?.value;
+check(`notes[1..3] lus à la bonne adresse (${val('notes[1]')}, ${val('notes[2]')}, ${val('notes[3]')})`,
+  val('notes[1]') === '20' && val('notes[2]') === '30' && val('notes[3]') === '40');
+check(`notes[0] incrémenté depuis 10 (${val('notes[0]')})`, parseInt(val('notes[0]') ?? '0', 10) > 10);
+check(`champs de structure lus séparément (p1.y = ${val('p1.y')}, inchangé)`, val('p1.y') === '7');
+check(`p1.x incrémenté depuis 3 (${val('p1.x')})`, parseInt(val('p1.x') ?? '0', 10) > 3);
+check(`caractères de la chaîne lus (nom[0..4] = ${[0,1,2,3,4].map((i) => val(`nom[${i}]`)).join(',')})`,
+  [115, 97, 108, 117, 116].every((code, i) => val(`nom[${i}]`) === String(code))); // "salut"
+// Le pointeur vaut l'adresse de notes[1], affichée en hexadécimal (une adresse
+// signée s'afficherait en négatif dès la moitié haute de l'espace).
+const ptrVal = val('ptr');
+const notes1 = byName.get('notes[1]');
+check(`pointeur affiché en hexadécimal et pointant notes[1] (${ptrVal} = ${notes1?.addr})`,
+  !!ptrVal && /^0x[0-9a-f]{4}$/.test(ptrVal) && parseInt(ptrVal, 16) === notes1?.addr);
 
 // Reprise : on doit pouvoir repartir et retomber sur le même point d'arrêt.
 console.log('Reprise après le point d\'arrêt :');

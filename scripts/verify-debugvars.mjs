@@ -249,10 +249,34 @@ ok('base : une fine sépare le préfixe 0b / 0x des chiffres', gap.length === 0,
 ok('base : le décimal n’a ni préfixe ni fine en tête',
   /^1/.test(V.formatVarValue('1234', 'dec')), JSON.stringify(V.formatVarValue('1234', 'dec')));
 
+// 14 bis. Base par défaut selon le TYPE (v2026.9.4.85). Depuis que les tableaux
+// sont dépliés case par case, une chaîne apparaît comme une colonne de codes
+// ASCII : `char` s'affiche donc en caractère. Mais `unsigned char` / `uint8_t`
+// servent à COMPTER — ils restent en décimal, sinon un compteur d'octets
+// deviendrait une suite de glyphes arbitraires.
+const basesParType = [
+  ['char', 'char'], ['signed char', 'char'],
+  ['unsigned char', 'dec'], ['uint8_t', 'dec'], ['int', 'dec'], ['int *', 'dec'],
+  [undefined, 'dec'], ['', 'dec'], ['CHAR', 'char'], ['  char  ', 'char'],
+];
+const basesFausses = basesParType.filter(([t, want]) => V.defaultVarBase(t) !== want)
+  .map(([t, want]) => `${JSON.stringify(t)} → ${V.defaultVarBase(t)} ≠ ${want}`);
+ok(`base : le type commande la base par défaut (${basesParType.length} cas)`,
+  basesFausses.length === 0, basesFausses.join(' · '));
+ok('base : un char se lit en caractère, pas en code ASCII',
+  V.formatVarValue('115', V.defaultVarBase('char')) === "'s'",
+  JSON.stringify(V.formatVarValue('115', V.defaultVarBase('char'))));
+ok('base : un uint8_t reste un nombre',
+  V.formatVarValue('115', V.defaultVarBase('uint8_t')) === '115',
+  JSON.stringify(V.formatVarValue('115', V.defaultVarBase('uint8_t'))));
+
 // 15. Le panneau utilise bien ce module (et pas un formatage recopié sur place).
 ok('base : sim.mts formate les valeurs via varbase.mjs',
-  /import \{ formatVarValue, type VarBase \} from '\.\/varbase\.mjs'/.test(sim)
+  /import \{ defaultVarBase, formatVarValue, type VarBase \} from '\.\/varbase\.mjs'/.test(sim)
   && /formatVarValue\(v\.value, base\)/.test(sim), 'import ou appel absent de sim.mts');
+ok('base : le défaut du panneau vient de defaultVarBase(type), pas d’un « dec » écrit en dur',
+  /varBases\.get\(v\.name\) \?\? defaultVarBase\(v\.type\)/.test(sim),
+  'le rendu retombe encore sur une base fixe');
 
 // 16. Menu : les 4 bases demandées, dans l'ordre, la courante cochée, et le
 //     choix re-dessine le panneau (sinon il faudrait attendre le pas suivant).
@@ -264,8 +288,19 @@ ok('menu : les 4 bases proposées dans l’ordre binaire, hexa, décimal, caract
 ok('menu : la base courante est cochée (✓)', /base === current \? '✓'/.test(sim));
 ok('menu : le choix s’applique tout de suite (re-dessin du panneau)',
   /function setVarBase\([\s\S]{0,300}?refreshDebugVars\(\);/.test(sim), 'refreshDebugVars absent de setVarBase');
-ok('menu : « décimal » ne laisse pas d’entrée (c’est l’état par défaut)',
-  /if \(base === 'dec'\) varBases\.delete\(name\);/.test(sim));
+// Le défaut n'est plus 'dec' pour tout le monde : sur un `char`, il vaut 'char'.
+// Effacer l'entrée dès qu'on clique « décimal » ramènerait donc l'affichage en
+// caractère — l'inverse de ce qui vient d'être demandé. L'entrée n'est effacée
+// que si le choix REJOINT le défaut du type.
+ok('menu : une entrée n’est effacée que si le choix rejoint le défaut DU TYPE',
+  /if \(base === defaultVarBase\(varTypes\.get\(name\)\)\) varBases\.delete\(name\);/.test(sim),
+  'setVarBase efface encore sur un « dec » écrit en dur');
+ok('menu : la coche suit la base réellement appliquée (défaut du type compris)',
+  /const current = varBases\.get\(name\) \?\? defaultVarBase\(varTypes\.get\(name\)\);/.test(sim),
+  'openVarBaseMenu coche encore « décimal » par défaut');
+ok('menu : le type de chaque variable est retenu au rendu (varTypes)',
+  /varTypes\.set\(v\.name, v\.type\)/.test(sim) && /varTypes\.clear\(\)/.test(sim),
+  'varTypes non alimenté ou jamais réinitialisé');
 ok('menu : le flottant est refermé au clic ailleurs / Échap',
   /closeVarMenus\(\): void \{[\s\S]{0,200}?debug__menu--float'\)\?\.remove\(\)/.test(sim),
   'closeVarMenus ne retire pas le menu flottant');

@@ -746,6 +746,14 @@ function parseDecodedLines(text: string, srcPath: string): AvrDebugInfo['lines']
 interface DwarfDie {
   tag: string;
   attrs: Map<string, string>;
+  /** Profondeur du DIE (le « <1> » de l'en-tête) : sert à rattacher les enfants. */
+  depth: number;
+  /**
+   * DIE enfants. Un tableau porte sa taille dans un DW_TAG_subrange_type enfant,
+   * une structure ses champs dans des DW_TAG_member : sans cette relation, seul
+   * le type de l'élément serait lisible, jamais le nombre de cases ni les champs.
+   */
+  children: DwarfDie[];
 }
 
 /** Valeur d'attribut DWARF : retire le préfixe « (indirect string, …): ». */
@@ -754,37 +762,161 @@ function attrValue(raw: string): string {
   return (m ? m[1] : raw).trim();
 }
 
+/** Référence de type d'un DIE (`DW_AT_type : <0x636>`), en offset de section. */
+function typeRefOf(die: DwarfDie | undefined): number | null {
+  const m = /<0x([0-9a-fA-F]+)>/.exec(die?.attrs.get('DW_AT_type') ?? '');
+  return m ? parseInt(m[1], 16) : null;
+}
+
+/** Nom d'un DIE, préfixe « (indirect string…) » retiré. */
+function dieName(die: DwarfDie): string | undefined {
+  const raw = die.attrs.get('DW_AT_name');
+  return raw ? attrValue(raw) : undefined;
+}
+
 /**
- * Suit la chaîne typedef/const/volatile jusqu'au DW_TAG_base_type.
- * Retourne null pour les pointeurs/tableaux/structs (ignorés dans cette v1).
+ * Traverse typedef/const/volatile jusqu'au DIE porteur du vrai type, en gardant
+ * au passage le premier nom de typedef rencontré (`uint8_t` plutôt que
+ * `unsigned char` : c'est ce que l'élève a écrit).
  */
-function resolveBaseType(
+function stripAliases(
   dies: Map<number, DwarfDie>,
   ref: number
-): { name?: string; size?: number } | null {
-  let alias: string | undefined; // premier nom de typedef rencontré (uint8_t…)
+): { die: DwarfDie; alias?: string } | null {
+  let alias: string | undefined;
   for (let i = 0; i < 8; i++) {
     const die = dies.get(ref);
     if (!die) return null;
-    if (die.tag === 'DW_TAG_base_type') {
-      const nameRaw = die.attrs.get('DW_AT_name');
-      const sizeRaw = die.attrs.get('DW_AT_byte_size');
-      return {
-        name: alias ?? (nameRaw ? attrValue(nameRaw) : undefined),
-        size: sizeRaw ? parseInt(sizeRaw, 10) : undefined,
-      };
-    }
     if (!['DW_TAG_typedef', 'DW_TAG_const_type', 'DW_TAG_volatile_type'].includes(die.tag)) {
-      return null;
+      return { die, alias };
     }
-    if (die.tag === 'DW_TAG_typedef' && !alias && die.attrs.has('DW_AT_name')) {
-      alias = attrValue(die.attrs.get('DW_AT_name')!);
-    }
-    const next = /<0x([0-9a-fA-F]+)>/.exec(die.attrs.get('DW_AT_type') ?? '');
-    if (!next) return null;
-    ref = parseInt(next[1], 16);
+    if (die.tag === 'DW_TAG_typedef' && !alias) alias = dieName(die);
+    const next = typeRefOf(die);
+    if (next === null) return null;
+    ref = next;
   }
-  return null;
+  return null; // chaîne d'alias anormalement longue : on renonce plutôt que boucler
+}
+
+/**
+ * Type résolu d'une variable. `kind` dit comment la LIRE en mémoire :
+ *  - `scalar`  : un nombre, lu directement à son adresse ;
+ *  - `pointer` : un scalaire de 2 octets (AVR) dont la valeur est une adresse ;
+ *  - `array`   : `count` éléments de `element`, contigus ;
+ *  - `struct`  : des `members`, chacun à son décalage depuis le début.
+ */
+interface DwarfType {
+  kind: 'scalar' | 'pointer' | 'array' | 'struct';
+  name?: string;
+  size?: number;
+  /** Type des éléments (tableaux) ou du pointé (pointeurs). */
+  element?: DwarfType;
+  /** Nombre d'éléments d'un tableau. */
+  count?: number;
+  /** Champs d'une structure, avec leur décalage en octets. */
+  members?: Array<{ name: string; offset: number; type: DwarfType }>;
+}
+
+/**
+ * Nombre d'éléments d'un DW_TAG_array_type. La taille est portée par un
+ * DW_TAG_subrange_type ENFANT : `DW_AT_upper_bound` (dernier indice, donc
+ * taille − 1) ou, plus rarement, `DW_AT_count` directement. Un tableau sans
+ * borne (`int t[]`, déclaré ailleurs) n'en a aucun : il reste illisible.
+ */
+function arrayCount(die: DwarfDie): number | undefined {
+  for (const child of die.children) {
+    if (child.tag !== 'DW_TAG_subrange_type') continue;
+    const count = child.attrs.get('DW_AT_count');
+    if (count) return parseInt(count, 10);
+    const upper = child.attrs.get('DW_AT_upper_bound');
+    if (upper) {
+      const n = parseInt(upper, 10);
+      if (Number.isFinite(n)) return n + 1;
+    }
+  }
+  return undefined;
+}
+
+/** Nombre de DIE traversés par résolution : garde-fou contre un type récursif. */
+const DWARF_TYPE_BUDGET = 400;
+
+/**
+ * Résout le type d'une variable, agrégats compris. La récursion est BORNÉE de
+ * deux façons : par la profondeur (une liste chaînée `struct T { T* suivant; }`
+ * boucle sinon indéfiniment) et par un budget global de DIE traversés, qui
+ * protège d'un tableau de structures de tableaux au coût explosif.
+ */
+function resolveType(
+  dies: Map<number, DwarfDie>,
+  ref: number,
+  depth = 0,
+  budget = { left: DWARF_TYPE_BUDGET }
+): DwarfType | null {
+  if (depth > 4 || budget.left <= 0) return null;
+  budget.left--;
+  const stripped = stripAliases(dies, ref);
+  if (!stripped) return null;
+  const { die, alias } = stripped;
+  const sizeRaw = die.attrs.get('DW_AT_byte_size');
+  const size = sizeRaw ? parseInt(sizeRaw, 10) : undefined;
+
+  if (die.tag === 'DW_TAG_base_type' || die.tag === 'DW_TAG_enumeration_type') {
+    return { kind: 'scalar', name: alias ?? dieName(die), size };
+  }
+
+  if (die.tag === 'DW_TAG_pointer_type') {
+    // Le pointé n'est résolu que pour NOMMER le type (`int *`) : on n'affiche
+    // jamais la cible, faute de savoir si l'adresse est encore valide.
+    const inner = typeRefOf(die);
+    const element = inner !== null ? resolveType(dies, inner, depth + 1, budget) : null;
+    return {
+      kind: 'pointer',
+      name: alias ?? `${element?.name ?? 'void'} *`,
+      size: size ?? 2, // AVR : pointeur de données sur 2 octets
+      element: element ?? undefined,
+    };
+  }
+
+  if (die.tag === 'DW_TAG_array_type') {
+    const inner = typeRefOf(die);
+    const element = inner !== null ? resolveType(dies, inner, depth + 1, budget) : null;
+    const count = arrayCount(die);
+    if (!element || !element.size || count === undefined) return null;
+    return {
+      kind: 'array',
+      name: alias ?? `${element.name ?? '?'}[${count}]`,
+      size: element.size * count,
+      element,
+      count,
+    };
+  }
+
+  if (die.tag === 'DW_TAG_structure_type' || die.tag === 'DW_TAG_union_type') {
+    const members: NonNullable<DwarfType['members']> = [];
+    for (const child of die.children) {
+      if (child.tag !== 'DW_TAG_member') continue;
+      const name = dieName(child);
+      const inner = typeRefOf(child);
+      if (!name || inner === null) continue;
+      const type = resolveType(dies, inner, depth + 1, budget);
+      if (!type || !type.size) continue; // champ illisible : les autres restent
+      // Décalage : « 2 byte block: 23 2 (DW_OP_plus_uconst: 2) », ou un entier nu
+      // selon la version de DWARF. Une union n'en a pas : tous ses champs sont à 0.
+      const locRaw = child.attrs.get('DW_AT_data_member_location') ?? '0';
+      const viaOp = /DW_OP_plus_uconst:\s*(\d+)/.exec(locRaw);
+      const offset = viaOp ? parseInt(viaOp[1], 10) : parseInt(locRaw.trim(), 10);
+      members.push({ name, offset: Number.isFinite(offset) ? offset : 0, type });
+    }
+    if (members.length === 0) return null;
+    return {
+      kind: 'struct',
+      name: alias ?? dieName(die) ?? (die.tag === 'DW_TAG_union_type' ? 'union' : 'struct'),
+      size,
+      members,
+    };
+  }
+
+  return null; // fonction, type incomplet, tout ce qui ne se lit pas en mémoire
 }
 
 /** Parse `avr-objdump --dwarf=info` : globales de l'unité de compilation de l'élève. */
@@ -795,15 +927,29 @@ function parseDwarfGlobals(text: string, srcPath: string): AvrDebugInfo['globals
   const candidates: DwarfDie[] = []; // DW_TAG_variable du fichier de l'élève
   let current: DwarfDie | null = null;
   let cuMatches = false;
+  // Pile des DIE ouverts, indexée par profondeur : `stack[n]` est le dernier DIE
+  // vu au niveau n, donc le parent de tout DIE de niveau n+1. Le format est
+  // linéaire, l'imbrication n'existe que par ce numéro de niveau.
+  const stack: DwarfDie[] = [];
   for (const raw of text.split(/\r?\n/)) {
     // En-tête de DIE : " <1><66b>: Abbrev Number: 5 (DW_TAG_variable)".
-    const head = /^\s*<\d+><([0-9a-fA-F]+)>: Abbrev Number: \d+(?: \((DW_TAG_\w+)\))?/.exec(raw);
+    const head = /^\s*<(\d+)><([0-9a-fA-F]+)>: Abbrev Number: \d+(?: \((DW_TAG_\w+)\))?/.exec(raw);
     if (head) {
-      current = head[2] ? { tag: head[2], attrs: new Map() } : null;
+      const depth = parseInt(head[1], 10);
+      current = head[3] ? { tag: head[3], attrs: new Map(), depth, children: [] } : null;
       if (current) {
-        dies.set(parseInt(head[1], 16), current);
+        dies.set(parseInt(head[2], 16), current);
+        stack[depth] = current;
+        stack.length = depth + 1; // les niveaux plus profonds sont refermés
+        const parent = depth > 0 ? stack[depth - 1] : undefined;
+        parent?.children.push(current);
         if (current.tag === 'DW_TAG_compile_unit') cuMatches = false; // tranché par DW_AT_name
-        else if (current.tag === 'DW_TAG_variable' && cuMatches) candidates.push(current);
+        // Seules les variables de PREMIER niveau sont globales : une variable
+        // imbriquée plus profond appartient à une fonction (locale ou statique
+        // de bloc), dont l'adresse n'est pas lisible ici.
+        else if (current.tag === 'DW_TAG_variable' && cuMatches && depth === 1) {
+          candidates.push(current);
+        }
       }
       continue;
     }
@@ -822,21 +968,73 @@ function parseDwarfGlobals(text: string, srcPath: string): AvrDebugInfo['globals
   for (const die of candidates) {
     const nameRaw = die.attrs.get('DW_AT_name');
     const loc = /DW_OP_addr:?\s*([0-9a-fA-F]+)/.exec(die.attrs.get('DW_AT_location') ?? '');
-    const typeRef = /<0x([0-9a-fA-F]+)>/.exec(die.attrs.get('DW_AT_type') ?? '');
-    if (!nameRaw || !loc || !typeRef) continue;
+    const typeRef = typeRefOf(die);
+    if (!nameRaw || !loc || typeRef === null) continue;
     const name = attrValue(nameRaw);
     if (!name || name.startsWith('__') || seen.has(name)) continue;
     // Adresse fixe en SRAM uniquement (exclut registres/IO, EEPROM et flash).
     const addr = parseInt(loc[1], 16) - AVR_DATA_BIAS;
     if (addr < AVR_SRAM_START) continue;
-    const type = resolveBaseType(dies, parseInt(typeRef[1], 16));
-    if (!type || !type.size || ![1, 2, 4].includes(type.size)) continue;
+    const type = resolveType(dies, typeRef);
+    if (!type || !type.size) continue;
     if (addr + type.size > AVR_SRAM_END) continue;
     seen.add(name);
-    globals.push({ name, addr, size: type.size, type: type.name });
+    globals.push(...flattenGlobal(name, addr, type));
   }
   globals.sort((a, b) => a.name.localeCompare(b.name));
   return globals;
+}
+
+/**
+ * Nombre maximal de cases affichées d'un même tableau. Un `char tampon[512]`
+ * remplirait le panneau de 512 lignes inutiles et ferait ramer le rendu à chaque
+ * pas : au-delà, les cases suivantes sont muettes (le tableau reste lisible par
+ * son début, qui est ce qu'on regarde en pratique).
+ */
+const ARRAY_DISPLAY_MAX = 32;
+
+/**
+ * Aplatit une globale en lignes affichables. Le panneau de débogage est un
+ * tableau PLAT : une structure y devient une ligne par champ (`p1.x`, `p1.y`) et
+ * un tableau une ligne par case (`notes[0]`…), exactement comme on les écrit
+ * dans le code — l'élève retrouve le nom qu'il taperait.
+ *
+ * Les scalaires et les pointeurs produisent une seule ligne. Un agrégat ne
+ * produit PAS de ligne pour lui-même : sa valeur n'aurait aucun sens à afficher.
+ */
+function flattenGlobal(
+  name: string,
+  addr: number,
+  type: DwarfType,
+  depth = 0
+): AvrDebugInfo['globals'] {
+  // Un agrégat de plus de 3 niveaux (tableau de structs de tableaux…) est
+  // signalé mais pas déplié : passé cette profondeur, les noms deviennent
+  // illisibles et le panneau ingérable.
+  if (depth > 3) return [];
+
+  if (type.kind === 'array' && type.element?.size && type.count !== undefined) {
+    const out: AvrDebugInfo['globals'] = [];
+    const shown = Math.min(type.count, ARRAY_DISPLAY_MAX);
+    for (let i = 0; i < shown; i++) {
+      out.push(...flattenGlobal(`${name}[${i}]`, addr + i * type.element.size, type.element, depth + 1));
+    }
+    return out;
+  }
+
+  if (type.kind === 'struct' && type.members) {
+    const out: AvrDebugInfo['globals'] = [];
+    for (const m of type.members) {
+      out.push(...flattenGlobal(`${name}.${m.name}`, addr + m.offset, m.type, depth + 1));
+    }
+    return out;
+  }
+
+  // Scalaire ou pointeur : une ligne, lue directement à son adresse. Un scalaire
+  // d'une taille que le moteur ne sait pas décoder (long long sur 8 octets) est
+  // écarté ICI plutôt que d'afficher une valeur fausse.
+  if (!type.size || ![1, 2, 4].includes(type.size)) return [];
+  return [{ name, addr, size: type.size, type: type.name }];
 }
 
 /**

@@ -91,3 +91,18 @@ export function formatVarValue(raw: string, base: VarBase): string {
   const sep = prefix ? THIN : ''; // décimal : pas de préfixe, donc pas de fine
   return `${n < 0n ? '-' : ''}${prefix}${sep}${groupDigits(digits, group)}`;
 }
+
+/**
+ * Base d'affichage par défaut d'une variable, d'après son type C.
+ *
+ * Seul `char` échappe au décimal : depuis que les tableaux sont dépliés case par
+ * case, une chaîne apparaît comme une colonne de codes ASCII (`115`, `97`, …)
+ * que personne ne lit. En base « caractère » elle redevient `'s'`, `'a'`, `'l'`.
+ *
+ * `unsigned char` et `uint8_t` restent en DÉCIMAL : ces types-là servent à
+ * compter, pas à écrire du texte, et c'est ainsi que l'élève les a déclarés.
+ */
+export function defaultVarBase(type?: string): VarBase {
+  const t = (type ?? '').trim().toLowerCase();
+  return t === 'char' || t === 'signed char' ? 'char' : 'dec';
+}

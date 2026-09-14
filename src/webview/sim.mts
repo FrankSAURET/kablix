@@ -176,7 +176,7 @@ import type {
 import { clampAirTemp, DEFAULT_AIR_TEMP_C } from './engines/ultrasonic.mjs';
 import { UNO_DEMO } from './programs/uno-demo.mjs';
 import { PICO_BLINK } from './programs/pico-blink.mjs';
-import { formatVarValue, type VarBase } from './varbase.mjs';
+import { defaultVarBase, formatVarValue, type VarBase } from './varbase.mjs';
 import { wrapBehaviorModule, BEHAVIOR_REGISTRY } from './behavior-wrapper.mjs';
 
 interface VsCodeApi {
@@ -3481,6 +3481,12 @@ const hiddenVars = new Set<string>();
  * rien, `0b1010 0000` tout de suite plus. Mémorisée avec le projet elle aussi.
  */
 const varBases = new Map<string, VarBase>();
+/**
+ * Type C de chaque variable vue au dernier arrêt (`char`, `int *`…). Sert à
+ * connaître la base par défaut d'une variable AILLEURS que dans la boucle de
+ * rendu — le menu des bases et `setVarBase` n'ont que le nom sous la main.
+ */
+const varTypes = new Map<string, string | undefined>();
 /** Nom de la variable sélectionnée (clic gauche) : simple repère visuel. */
 let selectedVar: string | null = null;
 /** Dernier instantané reçu, pour re-dessiner après un masquage sans nouvelle pause. */
@@ -3489,6 +3495,7 @@ let lastPauseState: DebugPauseState | null = null;
 /** Réinitialise l'état des variables (au démarrage / à l'arrêt de la simulation). */
 function resetDebugVars(): void {
   previousVarValues = new Map();
+  varTypes.clear(); // un croquis recompilé peut redéclarer un nom avec un autre type
   lastPauseState = null;
   selectedVar = null;
   closeVarMenus();
@@ -3534,6 +3541,7 @@ function renderDebugPause(state: DebugPauseState, redraw = false): void {
   const next = new Map<string, string>();
   for (const v of state.variables) {
     next.set(v.name, v.value);
+    varTypes.set(v.name, v.type); // relu par le menu des bases et setVarBase
     if (hiddenVars.has(v.name)) continue; // masquée : suivie, mais pas affichée
     const changed = previousVarValues.has(v.name) && previousVarValues.get(v.name) !== v.value;
     const row = debugVarsEl.insertRow();
@@ -3557,7 +3565,11 @@ function renderDebugPause(state: DebugPauseState, redraw = false): void {
     nameCell.textContent = `${v.name} :`;
     const valueCell = row.insertCell();
     valueCell.className = 'debug__valcell';
-    const base = varBases.get(v.name) ?? 'dec';
+    // Base par défaut selon le TYPE : un `char` se lit en caractère (`'s'`), pas
+    // en code ASCII — sur une chaîne dépliée case par case (`nom[0]`…`nom[7]`),
+    // une colonne de nombres ne dit rien à l'élève. Un choix explicite au clic
+    // reste prioritaire : varBases ne contient que ce que l'utilisateur a réglé.
+    const base = varBases.get(v.name) ?? defaultVarBase(v.type);
     valueCell.textContent = formatVarValue(v.value, base);
     // Valeur brute en bulle dès qu'elle diffère de l'affichage (hexa, binaire,
     // caractère) : on ne perd jamais le nombre d'origine.
@@ -3616,7 +3628,9 @@ const VAR_BASES: { base: VarBase; label: () => string }[] = [
  */
 function openVarBaseMenu(name: string, x: number, y: number): void {
   closeVarMenus();
-  const current = varBases.get(name) ?? 'dec';
+  // Coche la base RÉELLEMENT appliquée : sans choix explicite, c'est celle que
+  // le type impose (caractère pour un `char`), pas le décimal.
+  const current = varBases.get(name) ?? defaultVarBase(varTypes.get(name));
   const menu = document.createElement('div');
   menu.className = 'debug__menu debug__menu--float';
   const head = document.createElement('div');
@@ -3638,9 +3652,14 @@ function openVarBaseMenu(name: string, x: number, y: number): void {
   menu.style.top = `${Math.min(y, window.innerHeight - r.height - 4)}px`;
 }
 
-/** Applique une base d'affichage à une variable (décimal = état par défaut). */
+/**
+ * Applique une base d'affichage à une variable. L'entrée n'est effacée que si le
+ * choix REJOINT le défaut du type : effacer sur 'dec' sans regarder le type
+ * rendrait un `char` à l'affichage caractère, alors qu'on vient de demander le
+ * décimal — le choix explicite doit gagner.
+ */
 function setVarBase(name: string, base: VarBase): void {
-  if (base === 'dec') varBases.delete(name);
+  if (base === defaultVarBase(varTypes.get(name))) varBases.delete(name);
   else varBases.set(name, base);
   closeVarMenus();
   refreshDebugVars();

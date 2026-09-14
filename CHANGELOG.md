@@ -13,6 +13,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Modification
 
+- **Le panneau Variables montre les tableaux, les structures et les pointeurs** en C/Arduino. Chaque case et chaque champ a sa ligne, nommée comme on l'écrit (`notes[0]`, `p1.x`). Seules les variables simples apparaissaient jusqu'ici.
 - **Un segment de fil se déplace au glisser**, perpendiculairement à sa direction. Les segments voisins suivent, le reste du tracé ne bouge pas.
 - **La recherche et les boutons de l'aide restent en haut** quand on descend dans le guide.
 - **L'aide d'un fil sélectionné détaille le glissement d'un segment** et ce que Ctrl y change.
