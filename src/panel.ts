@@ -14,6 +14,7 @@ import {
   type CompileResult,
   type ToolPaths,
 } from './compiler';
+import { pistesArduinoIde } from './arduinoCliPistes';
 import {
   packProject,
   unpackProject,
@@ -964,12 +965,17 @@ export class SimulatorPanel {
     });
   }
 
-  /** Chemins de toolchain fournis par l'utilisateur (réglages Kablix). */
+  /**
+   * Chemins de toolchain : réglages Kablix + pistes vers l'extension sœur
+   * « Arduino VS Code IDE ». Recalculé à CHAQUE appel — le CLI peut apparaître
+   * ou changer de place après le démarrage de l'éditeur.
+   */
   private toolPaths(): ToolPaths {
     const cfg = vscode.workspace.getConfiguration('kablix');
     return {
       arduinoCli: cfg.get<string>('arduinoCliPath')?.trim() || undefined,
       searchDir: cfg.get<string>('toolchainPath')?.trim() || undefined,
+      ...pistesArduinoIde(this.context),
     };
   }
 

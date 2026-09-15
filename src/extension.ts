@@ -14,6 +14,7 @@ import { openNewProjix, openOrRevealProjix } from './openproject';
 import { KompixLibrary } from './kompixLibrary';
 import { PicoUploader } from './picoUploader';
 import { memoriserModeExtension } from './version';
+import { redetecterArduinoCli } from './arduinoCliPistes';
 
 const l10n = vscode.l10n;
 
@@ -221,6 +222,12 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.commands.registerCommand('kablix.recommendedExtensions', () => {
       void promptRecommendedExtensions(context, true);
+    }),
+    // Redétection à la demande : le CLI peut être installé après le démarrage
+    // de l'éditeur, ou déplacé par une mise à jour de l'extension Arduino
+    // VS Code IDE (depuis sa v2026.9.3, il vit dans son stockage global).
+    vscode.commands.registerCommand('kablix.redetectArduinoCli', () => {
+      void redetecterArduinoCli(context);
     }),
     // Navigation d'une fiche d'aide à l'autre (liens `[texte](alim.md)` d'une
     // fiche). Commande interne : pas déclarée dans contributes.commands, donc

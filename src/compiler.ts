@@ -78,7 +78,25 @@ export interface ToolPaths {
   arduinoCli?: string;
   /** Dossier supplémentaire fouillé pour toutes les commandes (toolchain portable). */
   searchDir?: string;
+  /**
+   * Réglages de l'extension « Arduino VS Code IDE » : `arduino.commandPath`
+   * (nom ou chemin de l'exécutable) et `arduino.path` (dossier le contenant).
+   * L'utilisateur a pu y configurer un CLI à lui — il prime sur nos recherches.
+   */
+  autreCommandPath?: string;
+  autrePath?: string;
+  /**
+   * Stockage global de `electropol-fr.arduino-vscode-ide` (où sa v2026.9.3+
+   * range le CLI) et son dossier d'installation (ancien emplacement, encore
+   * utilisé par les versions antérieures). Calculés par l'hôte : ce module
+   * n'importe pas `vscode` (les bancs de test l'exécutent en Node nu).
+   */
+  autreStockageGlobal?: string;
+  autreInstallation?: string;
 }
+
+/** Nom de l'exécutable arduino-cli selon le système. */
+const NOM_ARDUINO_CLI = process.platform === 'win32' ? 'arduino-cli.exe' : 'arduino-cli';
 
 /** Vrai si le chemin existe ET désigne un fichier (jamais un dossier). */
 function isFileSync(path: string): boolean {
@@ -117,20 +135,59 @@ function whichSync(cmd: string): string | null {
   return null;
 }
 
-/** Emplacements d'installation usuels de arduino-cli sous Windows (hors PATH). */
-function windowsToolCandidates(cmd: string): string[] {
-  if (process.platform !== 'win32' || cmd !== 'arduino-cli') return [];
+/**
+ * Racines d'installation d'Arduino IDE 2, qui embarque son propre arduino-cli
+ * sous `resources/app/lib/backend/resources`.
+ */
+function racinesArduinoIde(): string[] {
+  const env = process.env;
+  if (process.platform === 'win32') {
+    return [
+      env.ProgramFiles && join(env.ProgramFiles, 'Arduino IDE'),
+      env['ProgramFiles(x86)'] && join(env['ProgramFiles(x86)'], 'Arduino IDE'),
+      env.LOCALAPPDATA && join(env.LOCALAPPDATA, 'Programs', 'Arduino IDE'),
+    ].filter((b): b is string => !!b);
+  }
+  if (process.platform === 'darwin') {
+    return [
+      '/Applications/Arduino IDE.app/Contents',
+      env.HOME && join(env.HOME, 'Applications', 'Arduino IDE.app', 'Contents'),
+    ].filter((b): b is string => !!b);
+  }
+  return [
+    '/opt/Arduino IDE',
+    '/usr/share/arduino-ide',
+    env.HOME && join(env.HOME, '.local', 'share', 'arduino-ide'),
+  ].filter((b): b is string => !!b);
+}
+
+/** Emplacements d'installation usuels de arduino-cli, hors PATH et hors extension sœur. */
+function candidatsUsuels(cmd: string): string[] {
+  if (cmd !== 'arduino-cli') return [];
   const env = process.env;
   const ideRel = ['resources', 'app', 'lib', 'backend', 'resources'];
-  const bases = [
-    env.ProgramFiles && join(env.ProgramFiles, 'Arduino IDE', ...ideRel),
-    env.LOCALAPPDATA && join(env.LOCALAPPDATA, 'Programs', 'Arduino IDE', ...ideRel),
-    env.USERPROFILE && join(env.USERPROFILE, 'scoop', 'shims'),
-    'C:\\ProgramData\\chocolatey\\bin',
-    env.LOCALAPPDATA && join(env.LOCALAPPDATA, 'Microsoft', 'WinGet', 'Links'),
-    env.USERPROFILE && join(env.USERPROFILE, '.arduino-cli', 'bin'),
-  ].filter((b): b is string => !!b);
-  return bases.map((b) => join(b, 'arduino-cli.exe'));
+  const bases = racinesArduinoIde().map((r) => join(r, ...ideRel));
+  if (process.platform === 'win32') {
+    bases.push(
+      ...[
+        env.USERPROFILE && join(env.USERPROFILE, 'scoop', 'shims'),
+        'C:\\ProgramData\\chocolatey\\bin',
+        env.LOCALAPPDATA && join(env.LOCALAPPDATA, 'Microsoft', 'WinGet', 'Links'),
+        env.USERPROFILE && join(env.USERPROFILE, '.arduino-cli', 'bin'),
+      ].filter((b): b is string => !!b)
+    );
+  } else {
+    bases.push(
+      ...[
+        '/usr/local/bin',
+        '/usr/bin',
+        '/opt/homebrew/bin',
+        env.HOME && join(env.HOME, '.local', 'bin'),
+        env.HOME && join(env.HOME, 'bin'),
+      ].filter((b): b is string => !!b)
+    );
+  }
+  return bases.map((b) => join(b, NOM_ARDUINO_CLI));
 }
 
 /**
@@ -156,20 +213,149 @@ function resolveTool(cmd: string, opts: { override?: string; searchDir?: string 
   }
   const onPath = whichSync(cmd);
   if (onPath) return onPath;
-  for (const candidate of windowsToolCandidates(cmd)) {
-    if (existsSync(candidate)) return candidate;
+  for (const candidate of candidatsUsuels(cmd)) {
+    if (isFileSync(candidate)) return candidate;
   }
   return null;
 }
 
+/** Une piste de recherche de arduino-cli : d'où elle vient, où elle mène. */
+export interface PisteCli {
+  /** Origine lisible, affichée à l'utilisateur quand rien n'est trouvé. */
+  origine: string;
+  /** Chemin (fichier ou dossier) réellement examiné ; absent si l'origine n'a rien fourni. */
+  chemin?: string;
+}
+
+/** Résultat détaillé d'une recherche de arduino-cli. */
+export interface RechercheCli {
+  /** Chemin de l'exécutable trouvé, ou null. */
+  chemin: string | null;
+  /** Origine qui a gagné (« PATH », « Arduino IDE 2 »…). */
+  origine?: string;
+  /** Toutes les pistes suivies, dans l'ordre — pour le message de diagnostic. */
+  pistes: PisteCli[];
+}
+
+/**
+ * Cherche arduino-cli en suivant, dans l'ordre : réglage Kablix, réglages de
+ * l'extension « Arduino VS Code IDE », PATH, Arduino IDE 2, stockage global de
+ * l'extension sœur, puis son dossier d'installation (emplacement d'avant sa
+ * v2026.9.3). Retient le PREMIER exécutable qui existe vraiment sur le disque —
+ * un dossier `arduino-cli` vide subsiste après migration, il ne compte pas.
+ *
+ * Rien n'est mémorisé : on rappelle cette fonction à chaque besoin, car le CLI
+ * peut être installé après le démarrage de l'éditeur, ou déplacé par une mise à
+ * jour de l'extension sœur.
+ */
+export function chercherArduinoCli(paths: ToolPaths = {}): RechercheCli {
+  const pistes: PisteCli[] = [];
+  const nom = NOM_ARDUINO_CLI;
+
+  /** Enregistre la piste et renvoie le chemin s'il mène à un vrai fichier. */
+  const essai = (origine: string, chemin: string | undefined | null, resoudre: () => string | null) => {
+    pistes.push(chemin ? { origine, chemin } : { origine });
+    return chemin ? resoudre() : null;
+  };
+
+  // 1) Réglage explicite de Kablix.
+  const reglage = paths.arduinoCli?.trim();
+  let trouve = essai('Réglage « kablix.arduinoCliPath »', reglage, () =>
+    resolveTool('arduino-cli', { override: reglage })
+  );
+  if (trouve) return { chemin: trouve, origine: pistes[pistes.length - 1].origine, pistes };
+
+  // 2) Réglages de l'extension « Arduino VS Code IDE » : un CLI choisi par
+  //    l'utilisateur là-bas vaut pour ici aussi. Attention à leur sémantique :
+  //    `arduino.path` est le DOSSIER, `arduino.commandPath` le NOM de
+  //    l'exécutable (ou d'un script d'habillage) RELATIF à ce dossier — pas un
+  //    chemin absolu. On les combine donc, tout en acceptant un `commandPath`
+  //    absolu au cas où l'utilisateur en aurait mis un.
+  const autrePath = paths.autrePath?.trim();
+  const cmdPath = paths.autreCommandPath?.trim();
+  const combine = cmdPath
+    ? autrePath
+      ? join(autrePath, cmdPath)
+      : cmdPath
+    : autrePath
+      ? join(autrePath, nom)
+      : undefined;
+  const origineAutre =
+    cmdPath && autrePath
+      ? 'Réglages « arduino.path » + « arduino.commandPath »'
+      : cmdPath
+        ? 'Réglage « arduino.commandPath »'
+        : 'Réglage « arduino.path »';
+  trouve = essai(origineAutre, combine, () => {
+    if (isFileSync(combine!)) return combine!;
+    // `commandPath` seul peut être un simple nom de commande (« arduino-cli »),
+    // à chercher dans le PATH ; Windows y ajoute les extensions de PATHEXT.
+    return whichSync(combine!);
+  });
+  if (trouve) return { chemin: trouve, origine: pistes[pistes.length - 1].origine, pistes };
+
+  // 3) PATH (et dossier de toolchain portable du réglage « kablix.toolchainPath »).
+  const searchDir = paths.searchDir?.trim();
+  if (searchDir) {
+    const dansSearch = join(searchDir, nom);
+    trouve = essai('Réglage « kablix.toolchainPath »', dansSearch, () =>
+      isFileSync(dansSearch) ? dansSearch : null
+    );
+    if (trouve) return { chemin: trouve, origine: pistes[pistes.length - 1].origine, pistes };
+  }
+  const surPath = whichSync('arduino-cli');
+  pistes.push({ origine: 'PATH' });
+  if (surPath) return { chemin: surPath, origine: 'PATH', pistes };
+
+  // 4) CLI embarqué d'Arduino IDE 2.
+  const ideRel = ['resources', 'app', 'lib', 'backend', 'resources'];
+  for (const racine of racinesArduinoIde()) {
+    const candidat = join(racine, ...ideRel, nom);
+    pistes.push({ origine: 'Arduino IDE 2', chemin: candidat });
+    if (isFileSync(candidat)) return { chemin: candidat, origine: 'Arduino IDE 2', pistes };
+  }
+
+  // 5) Stockage global de l'extension sœur (emplacement depuis sa v2026.9.3).
+  const stockage = paths.autreStockageGlobal?.trim();
+  const dansStockage = stockage ? join(stockage, 'arduino-cli', nom) : undefined;
+  trouve = essai('Extension Arduino VS Code IDE (stockage global)', dansStockage, () =>
+    isFileSync(dansStockage!) ? dansStockage! : null
+  );
+  if (trouve) return { chemin: trouve, origine: pistes[pistes.length - 1].origine, pistes };
+
+  // 6) Ancien emplacement : dossier d'installation de l'extension sœur (< v2026.9.3).
+  const install = paths.autreInstallation?.trim();
+  const dansInstall = install ? join(install, 'arduino-cli', nom) : undefined;
+  trouve = essai('Extension Arduino VS Code IDE (dossier d\'installation)', dansInstall, () =>
+    isFileSync(dansInstall!) ? dansInstall! : null
+  );
+  if (trouve) return { chemin: trouve, origine: pistes[pistes.length - 1].origine, pistes };
+
+  // 7) Derniers recours : emplacements d'installation usuels du système.
+  for (const candidat of candidatsUsuels('arduino-cli')) {
+    if (isFileSync(candidat)) return { chemin: candidat, origine: 'Installation système', pistes };
+  }
+  pistes.push({ origine: 'Emplacements usuels du système' });
+
+  return { chemin: null, pistes };
+}
+
+/** Message de diagnostic listant les emplacements réellement examinés. */
+export function diagnosticCliIntrouvable(recherche: RechercheCli): string {
+  const lignes = recherche.pistes.map((p) =>
+    p.chemin ? `  • ${p.origine} : ${p.chemin}` : `  • ${p.origine} : (non renseigné)`
+  );
+  return `Emplacements cherchés :\n${lignes.join('\n')}`;
+}
+
 /** Chemin retenu pour arduino-cli (null si introuvable) — utile aux bancs de test. */
 export function findArduinoCli(paths: ToolPaths = {}): string | null {
-  return resolveTool('arduino-cli', { override: paths.arduinoCli, searchDir: paths.searchDir });
+  return chercherArduinoCli(paths).chemin;
 }
 
 export function detectToolchain(paths: ToolPaths = {}): Toolchain {
   return {
-    arduinoCli: resolveTool('arduino-cli', { override: paths.arduinoCli, searchDir: paths.searchDir }) !== null,
+    arduinoCli: chercherArduinoCli(paths).chemin !== null,
     avrGcc: resolveTool('avr-gcc', { searchDir: paths.searchDir }) !== null,
     armGcc: resolveTool('arm-none-eabi-gcc', { searchDir: paths.searchDir }) !== null,
   };
@@ -1294,7 +1480,10 @@ async function compileFresh(
   if (isAvrBoard(board)) {
     const ext = extname(filePath).toLowerCase();
     const { fqbn, mmcu } = avrTarget(board);
-    const arduinoCli = resolveTool('arduino-cli', { override: toolPaths.arduinoCli, searchDir });
+    // Résolu ICI, à chaque compilation : le CLI a pu être installé (ou déplacé
+    // par une mise à jour de l'extension sœur) depuis le démarrage de l'éditeur.
+    const recherche = chercherArduinoCli(toolPaths);
+    const arduinoCli = recherche.chemin;
 
     // Sketch Arduino complet (API Arduino) via arduino-cli. Un .c/.cpp « nu »
     // n'est PAS un sketch valide pour arduino-cli (il lui faut un .ino dans un
@@ -1376,7 +1565,9 @@ async function compileFresh(
       if (arduinoCli) return withArduinoCli(arduinoCli);
       throw new Error(
         "arduino-cli est introuvable pour compiler un sketch .ino. Installez « arduino-cli » " +
-          "ou indiquez son chemin complet dans le réglage « kablix.arduinoCliPath », puis redémarrez VS Code."
+          "ou indiquez son chemin complet dans le réglage « kablix.arduinoCliPath ». " +
+          "Après installation, lancez « Kablix : redétecter arduino-cli » (pas besoin de redémarrer).\n" +
+          diagnosticCliIntrouvable(recherche)
       );
     }
 
@@ -1403,7 +1594,8 @@ async function compileFresh(
     throw new Error(
       "Aucune toolchain AVR trouvée pour ce fichier. Pour un sketch Arduino, ouvrez/sélectionnez un fichier .ino " +
         "et installez « arduino-cli » (réglage « kablix.arduinoCliPath » si déjà installé mais introuvable). " +
-        "Pour du C bare-metal, installez « avr-gcc » (ou indiquez « kablix.toolchainPath »). Redémarrez VS Code après."
+        "Pour du C bare-metal, installez « avr-gcc » (ou indiquez « kablix.toolchainPath »).\n" +
+        diagnosticCliIntrouvable(recherche)
     );
   }
 

@@ -18,6 +18,7 @@
   "kablix.cmd.associateProjix": "Kablix: Associate .projix files with Kablix",
   "kablix.cmd.fixIntelliSense": "Kablix: Fix code analysis for this board",
   "kablix.cmd.recommendedExtensions": "Kablix: Recommended extensions",
+  "kablix.cmd.redetectArduinoCli": "Kablix: Detect arduino-cli again",
   "kablix.cmd.chooseSvgEditor": "Kablix: Choose the SVG editor…",
   "kablix.cmd.openComponentsFolder": "Kablix: Open the components library",
   "kablix.cmd.openComponentManager": "Kablix: Manage components",
