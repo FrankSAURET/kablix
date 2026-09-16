@@ -1,10 +1,29 @@
 # À faire
-1. Rendre les panneaux bibliothèques et variables/propriété repliables avec les fleches traditionnelles pour les replier. De plus Bibliothèque sera replié par défaut lors du lancement de la simulation (une nouvelle propriété permettant de le garder par defaut)
-1. Ajouter un GBF
+1. Ajouter un GBF Tu prépares et je te mettrais le dessin svg ultétieurement génère courbes carré, sinus et triangle, réglage fréquence 1 à 1MHz, Amplitude 0 à 10 V, Offset -5 à +5, rapport cyclique 0 à 100%
 
 1.
 ## ne pas faire pour l'instant
 
+
+---
+
+# >>>>  v2026.9.4.89 — Bibliothèque et Propriétés se replient d'un chevron
+
+1. ✅ **Les deux panneaux latéraux se replient**, comme demandé : la **bibliothèque** à gauche, **Propriétés/Variables** à droite. Chevron « traditionnel » (deux bordures CSS pivotées, aucune police ni image), un par panneau, sur le bord côté canvas. Replié, le panneau devient une **bande de 22 px** portant son nom **à la verticale** (`writing-mode`) — l'élève voit ce qu'il rouvre, ce qu'une bande muette n'aurait pas dit.
+2. ✅ **Le chevron vit dans le SPLITTER, pas dans le panneau** — décision de fond. Le contenu des deux panneaux est refait à chaque rendu (`replaceChildren()` dans [editor.mts](src/webview/diagram/editor.mts) : `buildPalette`, `renderInspector`) : un bouton posé dedans aurait disparu à la première sélection de composant. Le splitter, lui, n'est jamais réécrit.
+3. ✅ **Le clic du chevron ne part PAS en glissement de largeur** : le splitter écoute `pointerdown` pour redimensionner, et le chevron est son enfant. `setupSplitter` sort donc tout de suite quand la cible est dans `.splitter__fold` — et aussi quand le panneau est **replié** : une bande de 22 px n'a pas de largeur à régler (son `flex` est forcé en `!important`, sinon la largeur en ligne posée par un glissement antérieur reprendrait le dessus).
+4. ✅ **Contenu masqué, pas détruit** (`display: none` sur les enfants) : rouvrir ne coûte aucun nouveau rendu de palette, et le panneau **retrouve exactement sa largeur d'avant** — c'est mesuré au pixel par le banc.
+5. ✅ **Le panneau de droite change d'identité en cours de route** : pendant la simulation, Variables prend la place des Propriétés (`useDebugAsInspector`). `applyPanelFolds()` retire donc la classe de repli des **deux** avant de la poser sur celui qui est visible — sans cela le panneau caché la gardait et **revenait replié sans que le chevron le dise**. Le libellé de la bande suit aussi : « Variables » en simulation, « Properties » hors simulation.
+6. ✅ **Repli automatique de la bibliothèque au démarrage de la simulation** (le schéma est figé, on n'y pose plus rien), **rouverte à l'arrêt**. Nouveau réglage **`kablix.foldLibraryOnRun`**, **activé par défaut** comme demandé, transporté par le message `config` déjà existant ([panel.ts](src/panel.ts) `postUiConfig`) : il s'applique donc **sans recharger l'atelier**.
+7. ✅ **Une bibliothèque repliée par l'ÉLÈVE est laissée tranquille** : le drapeau `paletteFoldedByRun` distingue le repli de course du choix de l'utilisateur. Sans lui, l'arrêt de la simulation aurait **rouvert** un panneau que l'élève avait fermé lui-même — son geste annulé par un run. Et le repli de course n'est **pas persisté** : ce n'est pas une préférence.
+8. ✅ **L'état de repli est persisté** (`paletteFolded`, `inspectorFolded` dans l'état d'interface, à côté des largeurs déjà mémorisées) et **restauré sans se réécrire**. Un atelier rouvert le lendemain retrouve ses panneaux comme ils étaient.
+9. ✅ **Banc dédié [verify-panneaux.mjs](scripts/verify-panneaux.mjs), 35 contrôles verts**, inscrit dans `verify:all:serie` donc joué par `verify:all`. Il monte le **VRAI atelier** — le HTML de `webview-html.ts`, la feuille `media/styles.css` et le module `sim.mts` avec un faux pont VS Code : sans le vrai CSS, la bande repliée n'aurait aucune largeur mesurable et le banc ne prouverait rien de ce que l'élève voit.
+10. ✅ **Vraie souris obligatoire ici, et c'est le cœur du banc** : replier est un GESTE, et ce geste se joue sur l'élément même qui écoute le glissement de largeur. Un événement fabriqué aurait « marché » même si le clic était parti en redimensionnement — le piège déjà payé deux fois sur le double-clic des étiquettes (v.71, v.72). Chrome est donc piloté en **CDP brut** (`Input.dispatchMouseEvent`, port 9413). Un contrôle glisse d'ailleurs pour de vrai sur le splitter replié et vérifie que la bande ne bouge pas.
+11. ✅ **Simulation démarrée par le VRAI chemin** dans le banc : le message `runProgram` (celui qui appelle `startRun()`), et non un clic sur ▶ — ▶ ne fait que **demander une compilation à l'hôte**, cliquer dessus n'aurait rien démarré et le contrôle serait passé à vide. Programme : un croquis AVR d'une instruction (boucle infinie), le banc ne mesure que l'interface.
+12. ✅ **Contre-épreuve faite** : `git stash` sur les quatre sources modifiées, banc relancé → **rouge dès le troisième contrôle** (aucun chevron dans le splitter), puis arrêt sur `getBoundingClientRect` d'un bouton absent. `stash pop` → 35 verts.
+13. ✅ **Aide FR complétée** ([docs/fr/USAGE.md](docs/fr/USAGE.md)) : le pliage des deux panneaux, la bande verticale, la mémorisation, le repli automatique en simulation et le réglage qui le désactive.
+14. ⏳ **Traductions en attente** (règle « jamais de traduction au fil de l'eau ») : chaînes neuves en **langue de base EN** — `Collapse the component library` / `Show the component library`, `Collapse the properties panel` / `Show the properties panel` ([webview-html.ts](src/webview-html.ts) et [sim.mts](src/webview/sim.mts)), et la description du réglage `kablix.config.foldLibraryOnRun` (`package.nls.json`). **Aide EN** (`docs/en/USAGE.md`) également en attente. À verser au lot d'avant publication avec la dette antérieure.
+15. ℹ️ **`version` reste `2026.9.4`**, `buildNumber` à 89. CHANGELOG complété sous `2026.9.5 (prochaine publication)` — ce lot **se voit** côté utilisateur.
 
 ---
 

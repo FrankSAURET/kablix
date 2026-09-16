@@ -975,7 +975,8 @@ export class SimulatorPanel {
    * Réglages qui décident de l'INTERFACE : trois boutons de barre, masqués par
    * défaut. « Charger binaire » (déjà là), plus « Réinitialiser les composants »
    * et « Effacer le schéma » — retour de Frank : ils ne servent plus, mais on
-   * les range derrière un réglage plutôt que de les supprimer.
+   * les range derrière un réglage plutôt que de les supprimer. Plus le repli
+   * automatique de la bibliothèque au démarrage de la simulation.
    * Renvoyés à chaque changement de réglage : pas besoin de recharger l'atelier.
    */
   private postUiConfig(): void {
@@ -985,6 +986,7 @@ export class SimulatorPanel {
       showLoadBinary: cfg.get<boolean>('showLoadBinaryButton', false),
       showResetParts: cfg.get<boolean>('showResetPartsButton', false),
       showClearDiagram: cfg.get<boolean>('showClearDiagramButton', false),
+      foldLibraryOnRun: cfg.get<boolean>('foldLibraryOnRun', true),
     });
   }
 

@@ -275,6 +275,130 @@ textarea {
   right: -4px;
 }
 
+/* Bouton de repli du panneau voisin. Posé en absolu DANS le splitter (large de
+   0 px) : il déborde donc sur le panneau, en haut, à hauteur de son titre.
+   Au-dessus du ::before de préhension (z-index) sinon le clic partirait en
+   glissement de largeur. */
+.splitter__fold {
+  position: absolute;
+  top: 0.45rem;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0;
+  width: 16px;
+  height: 18px;
+  justify-content: center;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+/* Le splitter de gauche a son panneau à GAUCHE, celui de droite à droite : le
+   bouton déborde du bon côté dans chaque cas. */
+#splitter-palette .splitter__fold {
+  right: 2px;
+}
+
+#splitter-inspector .splitter__fold {
+  left: 2px;
+}
+
+.splitter__fold:hover {
+  opacity: 1;
+  background: var(--vscode-toolbar-hoverBackground, rgba(255, 255, 255, 0.1));
+}
+
+/* Chevron dessiné en CSS (bordures) : il tourne selon le sens de pliage, sans
+   dépendre d'une police ni d'une image. */
+.splitter__chevron {
+  width: 6px;
+  height: 6px;
+  border-right: 1.6px solid currentColor;
+  border-bottom: 1.6px solid currentColor;
+  transform: rotate(135deg); /* pointe vers la GAUCHE : replie la bibliothèque */
+  transition: transform 0.12s ease;
+}
+
+#splitter-inspector .splitter__chevron {
+  transform: rotate(-45deg); /* pointe vers la DROITE : replie les propriétés */
+}
+
+/* Nom du panneau : invisible tant qu'il est déployé (le panneau porte déjà son
+   titre), écrit à la verticale quand il est replié. */
+.splitter__fold-label {
+  display: none;
+}
+
+/* --- Panneaux repliés ------------------------------------------------------- */
+/* Le panneau garde sa place dans le flux (bande étroite) : son titre vertical
+   reste lisible et le bouton revient au même endroit pour le rouvrir. */
+.palette.is-folded,
+.inspector.is-folded,
+.debug--side.is-folded {
+  flex: 0 0 22px !important; /* prime sur la largeur en ligne posée par le splitter */
+  padding: 0.6rem 0.1rem;
+  overflow: hidden;
+}
+
+/* Contenu masqué plutôt que détruit : rouvrir ne coûte aucun nouveau rendu. */
+.palette.is-folded > *,
+.inspector.is-folded > *,
+.debug--side.is-folded > * {
+  display: none !important;
+}
+
+.splitter--folded {
+  cursor: default;
+}
+
+.splitter--folded::before {
+  display: none; /* plus de préhension : un panneau replié ne se redimensionne pas */
+}
+
+.splitter--folded .splitter__fold {
+  width: 20px;
+  height: auto;
+  flex-direction: column;
+  padding: 0.3rem 0;
+  opacity: 0.85;
+}
+
+.splitter--folded .splitter__fold-label {
+  display: block;
+  writing-mode: vertical-rl;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  overflow: hidden;
+  max-height: 60vh;
+  text-overflow: ellipsis;
+}
+
+/* Replié, le chevron pointe dans l'autre sens : il rouvre. */
+#splitter-palette.splitter--folded .splitter__chevron {
+  transform: rotate(-45deg);
+}
+
+#splitter-inspector.splitter--folded .splitter__chevron {
+  transform: rotate(135deg);
+}
+
+/* Replié à gauche, le bouton se cale SUR la bande (elle est à gauche du
+   splitter) ; à droite, symétrique. */
+#splitter-palette.splitter--folded .splitter__fold {
+  right: 1px;
+}
+
+#splitter-inspector.splitter--folded .splitter__fold {
+  left: 1px;
+}
+
 .palette {
   flex: 0 0 150px;
   display: flex;

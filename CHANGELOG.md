@@ -15,6 +15,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **L'aide a un sommaire à gauche**.
 - **L'aide à un moteur de recherche**.
 - **Les sections de l'aide se replient**, une à une ou toutes d'un coup.
+- **La bibliothèque et le panneau Propriétés/Variables se replient** par la petite flèche de leur bord. Le panneau devient une bande étroite portant son nom, et l'état est mémorisé d'une ouverture à l'autre.
+- **La bibliothèque se replie au démarrage de la simulation** et se rouvre à l'arrêt : la place va au schéma. Un réglage désactive ce comportement.
 
 ### Modification
 

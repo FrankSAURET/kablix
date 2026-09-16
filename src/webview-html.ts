@@ -161,7 +161,16 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
   <main class="stage">
     <div class="workshop">
       <aside id="palette" class="palette"></aside>
-      <div class="splitter" id="splitter-palette" data-target="palette" title="${l10n.t('Drag to resize')}"></div>
+      <!-- Poignée de largeur ET bouton de repli du panneau. Le bouton vit dans le
+           splitter et non dans le panneau : le contenu des panneaux est refait à
+           chaque rendu (replaceChildren), il y serait effacé. Replié, le panneau
+           devient une bande étroite et le bouton porte son nom à la verticale. -->
+      <div class="splitter" id="splitter-palette" data-target="palette" title="${l10n.t('Drag to resize')}">
+        <button class="splitter__fold" id="fold-palette" data-target="palette" title="${l10n.t('Collapse the component library')}">
+          <span class="splitter__chevron" aria-hidden="true"></span>
+          <span class="splitter__fold-label">${l10n.t('Components')}</span>
+        </button>
+      </div>
       <div id="canvas" class="canvas">
         <!-- Commandes de simulation en surimpression du canvas (icônes + bulle). -->
         <div class="canvas-controls" role="toolbar">
@@ -240,7 +249,14 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
         </div>
         <svg id="wires" class="wires"></svg>
       </div>
-      <div class="splitter" id="splitter-inspector" data-target="inspector" title="${l10n.t('Drag to resize')}"></div>
+      <!-- Même poignée à droite. Le panneau visé change pendant la simulation
+           (Variables prend la place des Propriétés) : le libellé du bouton suit. -->
+      <div class="splitter" id="splitter-inspector" data-target="inspector" title="${l10n.t('Drag to resize')}">
+        <button class="splitter__fold" id="fold-inspector" data-target="inspector" title="${l10n.t('Collapse the properties panel')}">
+          <span class="splitter__chevron" aria-hidden="true"></span>
+          <span class="splitter__fold-label" id="fold-inspector-label">${l10n.t('Properties')}</span>
+        </button>
+      </div>
       <aside id="inspector" class="inspector"></aside>
     </div>
 

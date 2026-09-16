@@ -3570,6 +3570,9 @@ function useDebugAsInspector(on: boolean): void {
     stageEl.insertBefore(debugSection, serialEl0); // remet le panneau sous le canvas
     inspector.style.display = '';
   }
+  // La colonne de droite vient de changer d'identité : le repli et le nom de la
+  // bande suivent le panneau réellement visible.
+  applyPanelFolds();
 }
 
 // --- Débogage : pause, pas à pas, panneau des variables -----------------------
@@ -4104,6 +4107,14 @@ ${detail}
   editor.setLocked(true); // schéma figé pendant la simulation
   showSimBanner(true); // bandeau permanent « Simulation en cours »
   useDebugAsInspector(true); // Variables à la place des Propriétés
+  // Bibliothèque repliée pendant la simulation (réglage, actif par défaut) : le
+  // schéma est figé, on n'y pose plus de composant, et la place va au dessin.
+  // Repliée par la simulation seulement si l'élève l'avait laissée ouverte —
+  // sinon l'arrêt la rouvrirait alors qu'il l'avait fermée lui-même.
+  if (foldLibraryOnRun && !paletteFolded) {
+    paletteFoldedByRun = true;
+    setPaletteFolded(true, false); // pas persisté : c'est l'état de course, pas un choix
+  }
   runBtn.disabled = true;
   stopBtn.disabled = false;
   const isPython = isPicoBoard(board) && picoProgram.kind === 'flash' && !!picoProgram.script;
@@ -4180,6 +4191,11 @@ function stopRun(): void {
   dmxTargets.clear();
   editor.resetVisuals();
   useDebugAsInspector(false); // Propriétés de nouveau dans la colonne de droite
+  // La bibliothèque ne se rouvre QUE si c'est la simulation qui l'avait repliée.
+  if (paletteFoldedByRun) {
+    paletteFoldedByRun = false;
+    setPaletteFolded(false, false);
+  }
   runBtn.disabled = false;
   stopBtn.disabled = true;
   vscode.postMessage({ type: 'debugResumed' });
@@ -4511,19 +4527,104 @@ function applyPanelWidths(): void {
 function saveUiState(): void {
   vscode.postMessage({
     type: 'saveUiState',
-    state: { ...paletteState, labelsMode, showIds, paletteWidth, inspectorWidth, serialVisible, plotterVisible: plotterUserPref, gridShown, faultsShown },
+    state: {
+      ...paletteState,
+      labelsMode,
+      showIds,
+      paletteWidth,
+      inspectorWidth,
+      paletteFolded,
+      inspectorFolded,
+      serialVisible,
+      plotterVisible: plotterUserPref,
+      gridShown,
+      faultsShown,
+    },
   });
 }
+
+// --- Repli des panneaux latéraux ---------------------------------------------
+// Bibliothèque et Propriétés/Variables se replient en bande étroite (chevron du
+// splitter). L'état est persisté : un atelier rouvert retrouve ses panneaux
+// comme l'élève les avait laissés.
+const splitterPalette = document.getElementById('splitter-palette');
+const splitterInspector = document.getElementById('splitter-inspector');
+const foldPaletteBtn = document.getElementById('fold-palette');
+const foldInspectorBtn = document.getElementById('fold-inspector');
+const foldInspectorLabel = document.getElementById('fold-inspector-label');
+let paletteFolded = false;
+let inspectorFolded = false;
+/** Replier la bibliothèque au démarrage de la simulation (réglage de l'extension). */
+let foldLibraryOnRun = true;
+/** Vrai si c'est LA SIMULATION qui a replié la bibliothèque : à l'arrêt, on la rouvre. */
+let paletteFoldedByRun = false;
+
+/** Colonne de droite réellement affichée : Propriétés, ou Variables en simulation. */
+function rightColumn(): HTMLElement {
+  return inspector.style.display === 'none' ? debugSection : inspector;
+}
+
+/**
+ * Applique l'état de repli au DOM. Le panneau de droite change en cours de
+ * route (Variables remplace Propriétés), donc la classe est retirée des DEUX
+ * avant d'être posée sur celui qui est visible — sans cela un panneau caché
+ * garderait la classe et reviendrait replié sans que le chevron le dise.
+ */
+function applyPanelFolds(): void {
+  palette.classList.toggle('is-folded', paletteFolded);
+  splitterPalette?.classList.toggle('splitter--folded', paletteFolded);
+  const right = rightColumn();
+  inspector.classList.remove('is-folded');
+  debugSection.classList.remove('is-folded');
+  right.classList.toggle('is-folded', inspectorFolded);
+  splitterInspector?.classList.toggle('splitter--folded', inspectorFolded);
+  // Libellé de la bande : il nomme le panneau réellement derrière.
+  if (foldInspectorLabel) {
+    foldInspectorLabel.textContent = right === debugSection ? t('Variables') : t('Properties');
+  }
+  const paletteTitle = paletteFolded ? t('Show the component library') : t('Collapse the component library');
+  foldPaletteBtn?.setAttribute('title', paletteTitle);
+  const rightTitle = inspectorFolded
+    ? t('Show the properties panel')
+    : t('Collapse the properties panel');
+  foldInspectorBtn?.setAttribute('title', rightTitle);
+}
+
+function setPaletteFolded(folded: boolean, persist = true): void {
+  paletteFolded = folded;
+  applyPanelFolds();
+  if (persist) saveUiState();
+}
+
+function setInspectorFolded(folded: boolean, persist = true): void {
+  inspectorFolded = folded;
+  applyPanelFolds();
+  if (persist) saveUiState();
+}
+
+foldPaletteBtn?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  paletteFoldedByRun = false; // repli décidé à la main : la fin du run n'y touchera pas
+  setPaletteFolded(!paletteFolded);
+});
+foldInspectorBtn?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  setInspectorFolded(!inspectorFolded);
+});
 
 // Redimensionnement des colonnes (bibliothèque / propriétés-variables) par glissement.
 function setupSplitter(id: string, which: 'palette' | 'inspector'): void {
   const splitter = document.getElementById(id);
   if (!splitter) return;
   splitter.addEventListener('pointerdown', (e) => {
+    // Le chevron de repli est DANS le splitter : son appui ne doit pas lancer un
+    // glissement de largeur, et un panneau replié ne se redimensionne pas.
+    if ((e.target as HTMLElement | null)?.closest('.splitter__fold')) return;
+    if (which === 'palette' ? paletteFolded : inspectorFolded) return;
     e.preventDefault();
     const startX = (e as PointerEvent).clientX;
     // Colonne cible : l'inspecteur, ou le panneau Variables s'il l'a remplacé.
-    const col = which === 'palette' ? palette : inspector.style.display === 'none' ? debugSection : inspector;
+    const col = which === 'palette' ? palette : rightColumn();
     const startW = col.getBoundingClientRect().width;
     const sign = which === 'palette' ? 1 : -1;
     const move = (ev: PointerEvent) => {
@@ -4804,6 +4905,8 @@ window.addEventListener('message', (event: MessageEvent) => {
       loadBtn.hidden = !msg.showLoadBinary;
       resetSimBtn.hidden = !msg.showResetParts;
       clearCanvasBtn.hidden = !msg.showClearDiagram;
+      // Repli automatique de la bibliothèque au démarrage de la simulation.
+      if (typeof msg.foldLibraryOnRun === 'boolean') foldLibraryOnRun = msg.foldLibraryOnRun;
       break;
     case 'netResponse':
       // Réponse réseau de l'hôte : réinjectée dans le script (Pico W).
@@ -5048,6 +5151,14 @@ window.addEventListener('message', (event: MessageEvent) => {
       if (typeof state.paletteWidth === 'number') paletteWidth = state.paletteWidth;
       if (typeof state.inspectorWidth === 'number') inspectorWidth = state.inspectorWidth;
       applyPanelWidths();
+      // Panneaux repliés (défaut : déployés). Restauré SANS re-persister.
+      if (typeof (state as { paletteFolded?: boolean }).paletteFolded === 'boolean') {
+        paletteFolded = (state as { paletteFolded?: boolean }).paletteFolded!;
+      }
+      if (typeof (state as { inspectorFolded?: boolean }).inspectorFolded === 'boolean') {
+        inspectorFolded = (state as { inspectorFolded?: boolean }).inspectorFolded!;
+      }
+      applyPanelFolds();
       // Visibilité du moniteur série (défaut : affiché) restaurée sans re-persister.
       if (typeof (state as { serialVisible?: boolean }).serialVisible === 'boolean') {
         setSerialVisible((state as { serialVisible?: boolean }).serialVisible!, false);

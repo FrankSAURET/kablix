@@ -74,6 +74,8 @@
 *Interface de Kablix : **①** la **palette** des composants à gauche, **②** le **canvas** de montage au centre, **③** l'**inspecteur** (Propriétés/variables) à droite, **④** le **moniteur série/Console/REPL**, **⑤** le **Traceur** en bas et **⑥** les **barres d'outils** — celle de Kablix tout en haut, celle de **simulation** à gauche du canvas et celle de **dessin** à droite.*
 
 - **Palette** : cliquer un composant le pose sur le canvas. Deux tris au choix (boutons en haut) ![alt text](<../../media/boutons trie.webp>): alphabétique ou  par catégories Une zone **« Derniers utilisés »** (10 max) peut rester en tête (troisième bouton). Le dernier bouton permet de changer le mode de réaction de la bibliothèque.
+- **Replier les panneaux latéraux** : la **bibliothèque** (à gauche) et **Propriétés/Variables** (à droite) se replient chacune par la **petite flèche** posée sur leur bord, côté canvas. Le panneau devient une bande étroite portant son nom à la verticale ; la même flèche le rouvre à sa largeur d'avant. L'état est mémorisé : un atelier rouvert retrouve ses panneaux comme vous les avez laissés.
+  - Au **démarrage de la simulation**, la bibliothèque se replie d'elle-même (le schéma est figé, on n'y pose plus de composant) et se rouvre à l'arrêt. Si vous l'aviez repliée vous-même, la simulation la laisse comme elle est. Le réglage *Replier la bibliothèque pendant la simulation* des paramètres de Kablix désactive ce repli automatique.
 - **Barre d'outil Kablix** (en haut de la fenêtre)  
 ![alt text](<../../media/barre kablix.webp>)
   - **Charger un fichier Binaire** : charge un .hex/.uf2 déjà compilé du workspace, sans recompiler. **Masqué par défaut** — la case Afficher le bouton « Charger binaire » des paramètres de Kablix le ramène.
