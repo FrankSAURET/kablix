@@ -6,7 +6,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Nouveauté
 
-- **Un analyseur logique.** Une nouvelle **sonde logique** — une petite pince crocodile — se **pose** sur la pastille d'une broche, sans aucun fil. Chaque pince prend sa couleur, et le bouton **Logic** ouvre un onglet où l'on voit les créneaux de toutes les voies, dans la couleur de leur pince. Huit voies au maximum.
+- **Un analyseur logique.** Une nouvelle **sonde logique** — une petite pince crocodile — se **pose** sur la pastille d'une broche, sans aucun fil. Chaque pince prend sa couleur. Il n'y a **rien à cliquer** : dès qu'une pince est posée, le lancement de la simulation ouvre un onglet où l'on voit les créneaux de toutes les voies, dans la couleur de leur pince. Huit voies au maximum.
 - **L'analyseur décode l'I²C, le SPI et le DMX512** : les octets et les repères de trame s'écrivent sous les créneaux.
 - **L'analyseur se déclenche sur un front**, montant ou descendant, de la voie choisie : l'instant du front devient l'origine des temps.
 - **Une pince qui ne peut rien montrer dit pourquoi** : posée dans le vide, sur une patte de composant, sur une masse. Posée sur une entrée analogique, elle trace quand même et prévient qu'on ne verra que 0 ou 1.
@@ -17,6 +17,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Les sections de l'aide se replient**, une à une ou toutes d'un coup.
 - **La bibliothèque et le panneau Propriétés/Variables se replient** par la petite flèche de leur bord. Le panneau devient une bande étroite portant son nom, et l'état est mémorisé d'une ouverture à l'autre.
 - **La bibliothèque se replie au démarrage de la simulation** et se rouvre à l'arrêt : la place va au schéma. Un réglage désactive ce comportement.
+- **Un générateur BF.** Nouvel appareil des **Appareils de mesure** : il sort un **sinus**, un **triangle** ou un **carré**, de **1 Hz à 1 MHz**, jusqu'à **10 V** de crête, avec **décalage continu** de −5 à +5 V et **rapport cyclique** de 0 à 100 %. Le rapport cyclique déforme le carré **et** le triangle, jusqu'à la dent de scie. Les quatre boutons se tournent à la souris en simulation, et le curseur choisit la forme.
 
 ### Modification
 

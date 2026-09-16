@@ -98,8 +98,9 @@
   - **REPL** : pour Pico uniquement, affiche la console python traditionnelle (n'apparaît que si la carte posée est un Pico)
   - **moniteur série / console**
   - **Traceur** de courbes
-  - **Logic** ouvre l'**analyseur logique** dans un onglet, à poser à côté du schéma. Le bouton n'apparaît qu'une fois une [sonde logique](composants/sonde-logique.md) posée sur une broche — sans pince, l'analyseur n'aurait rien à montrer.
   - **explications de défaut** : le cadre rouge et l'étiquette jaune posés sur un composant en défaut. Actif par défaut ; le bouton les masque quand ils gênent la lecture du schéma.
+
+  Il n'y a **aucun bouton pour l'analyseur logique** : c'est la [sonde logique](composants/sonde-logique.md) qui le déclenche. Posez au moins une pince sur une broche, lancez la simulation, et son onglet s'ouvre tout seul, à poser à côté du schéma. Sans pince, rien ne s'ouvre — l'analyseur n'aurait rien à montrer.
 - **Barre de dessin** (à droite, par-dessus le canvas)  
 ![Barre de dessin](../../media/BarreDessin.webp)
   - **bouton du composant** : affiche le **schéma interne** du composant sélectionné, ou le **brochage complet** de la carte. N'apparaît que si le composant sélectionné en propose un.

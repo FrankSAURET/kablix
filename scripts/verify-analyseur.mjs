@@ -20,7 +20,7 @@
 //    canaux, start code non nul ignoré) — un décodeur nourri de fronts
 //    FABRIQUÉS à la main, pour que le banc prouve le décodage et non le moteur.
 import esbuild from 'esbuild';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -514,6 +514,47 @@ check('SPI : quatre rôles proposés (SCK, MOSI, MISO, CS)',
     && vue.pisteA(DISPOSITION.REGLE_H + DISPOSITION.PISTE_H + DISPOSITION.ANNOT_H + 5, 3) === 1
     && vue.pisteA(0, 3) === -1
     && vue.pisteA(10000, 3) === -1);
+}
+
+// --- Déclenchement : c'est la SONDE, pas un bouton (Frank, v2026.9.4.90) ------
+// L'analyseur n'a plus de bouton de barre. Poser au moins une pince et lancer la
+// simulation ouvre son onglet ; sans pince, rien ne s'ouvre — un onglet vide ne
+// dirait rien. On le contrôle sur les SOURCES : l'ancien bouton ne doit plus
+// exister nulle part, et `startRun` doit porter la condition « au moins une
+// pince ». Un contrôle de rendu ne verrait pas la disparition du bouton.
+{
+  const html = readFileSync(join(root, 'src', 'webview-html.ts'), 'utf8');
+  check('déclenchement : plus aucun bouton `open-analyseur` dans la barre',
+    !/open-analyseur/.test(html));
+
+  const sim = readFileSync(join(root, 'src', 'webview', 'sim.mts'), 'utf8');
+  check('déclenchement : plus aucun écouteur du bouton `open-analyseur`',
+    !/open-analyseur/.test(sim));
+  // La condition vit dans `startRun`, après le repli de la bibliothèque : on
+  // vérifie qu'elle compte les voies de pince ET qu'elle ouvre l'onglet.
+  // `startRun` est longue (~170 lignes) : on découpe jusqu'à la fonction
+  // suivante plutôt que sur un nombre de caractères deviné.
+  const debutRun = sim.indexOf('function startRun');
+  const run = sim.slice(debutRun, sim.indexOf('\nfunction ', debutRun + 1));
+  check('déclenchement : au lancement, ≥1 pince posée ouvre l\'onglet de l\'analyseur',
+    /logicProbeVoies\(editor\.diagram\)\.length\s*>\s*0\s*\)\s*ouvrirAnalyseur\(\)/.test(run));
+  check('déclenchement : la fonction d\'ouverture déclare aussi les voies à l\'hôte',
+    /function ouvrirAnalyseur[\s\S]{0,400}?'openAnalyseur'[\s\S]{0,200}?pousserVoiesLogiques\(\)/.test(sim));
+  // Contre-épreuve par le modèle : sans pince, `logicProbeVoies` rend une liste
+  // vide, donc la condition ci-dessus est fausse et aucun onglet ne s'ouvre.
+  check('déclenchement : aucune pince → aucune voie, donc aucun onglet',
+    logicProbeVoies(schema([])).length === 0);
+  check('déclenchement : une pince accrochée → une voie, donc l\'onglet s\'ouvre',
+    logicProbeVoies(schema([sonde('s1', 0, 'uno1/8')])).length === 1);
+
+  // L'aide utilisateur doit dire ce nouveau geste, sinon l'élève cherche un
+  // bouton qui n'existe plus.
+  const usage = readFileSync(join(root, 'docs', 'fr', 'USAGE.md'), 'utf8');
+  check('aide : USAGE.md explique qu\'il n\'y a aucun bouton et que la sonde déclenche',
+    /aucun bouton pour l'analyseur logique/i.test(usage) && /sonde/i.test(usage));
+  const fiche = readFileSync(join(root, 'docs', 'fr', 'composants', 'sonde-logique.md'), 'utf8');
+  check('aide : la fiche de la sonde dit qu\'il n\'y a rien à cliquer',
+    /rien à cliquer/i.test(fiche) && /onglet/i.test(fiche));
 }
 
 console.log(failures === 0 ? '\nTout est vert.' : `\n${failures} échec(s).`);

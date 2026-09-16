@@ -1157,6 +1157,30 @@ export const CATALOG: readonly PartDef[] = [
       { attr: 'maxcurrent', label: 'Max current supplied (A)', kind: 'number', min: 0.1, max: 10, step: 0.1 },
     ],
   },
+  // Générateur BF (dessin de Frank) : source de signal Vs/GND, sinus, triangle
+  // ou carré. Les cinq propriétés fixent l'état de DÉPART ; en simulation tout
+  // se règle sur le dessin — quatre boutons rotatifs et un curseur de forme à
+  // trois crans (gbf-element.mts). Le signal, lui, est calculé par le MOTEUR à
+  // l'instant de la conversion ADC (`kind: 'gbf'` de engines/analog-waves.mts) :
+  // à 1 MHz une période dure 1 µs, une valeur par image serait seize mille
+  // périodes en retard.
+  // `amplitude` est la valeur CRÊTE : la sortie va de offset−amplitude à
+  // offset+amplitude, écrêtée à la plage de l'entrée analogique reliée.
+  {
+    type: 'gbf', label: 'Function generator', tag: 'kablix-gbf', kind: 'analog-source',
+    analogPin: 'Vs', simControl: true,
+    attrs: { frequency: '1000', amplitude: '2.5', offset: '2.5', duty: '50', waveform: 'sinus' },
+    props: [
+      {
+        attr: 'waveform', label: 'Waveform', kind: 'select', options: ['sinus', 'triangle', 'carre'],
+        optionLabels: { sinus: 'Sine', triangle: 'Triangle', carre: 'Square' },
+      },
+      { attr: 'frequency', label: 'Frequency (Hz)', kind: 'number', min: 1, max: 1_000_000, step: 1, suffixes: true },
+      { attr: 'amplitude', label: 'Peak amplitude (V)', kind: 'number', min: 0, max: 10, step: 0.1 },
+      { attr: 'offset', label: 'DC offset (V)', kind: 'number', min: -5, max: 5, step: 0.1 },
+      { attr: 'duty', label: 'Duty cycle (%)', kind: 'number', min: 0, max: 100, step: 1 },
+    ],
+  },
   // Batterie externe USB (dessin de Frank) : source V+/GND comme l'alim de
   // laboratoire (kind 'psu'), mais sortie RÉGULÉE FIXE (pas de bouton). LED1..4
   // (jauge de charge du dessin) s'allument ensemble tant que la simulation
@@ -1360,6 +1384,10 @@ export function partCategory(def: PartDef): string {
   // Batterie portable (kind 'psu' comme l'alim de laboratoire, mais ce n'est
   // pas un appareil de mesure) : rangée avec les modules divers.
   if (def.type === 'powerbank') return 'Misc';
+  // Générateur BF : son `kind` est 'analog-source' (comme une photorésistance),
+  // mais c'est un APPAREIL de la salle de TP, pas un capteur — il se range avec
+  // l'alim, le multimètre, l'oscilloscope et la sonde (Frank, v2026.9.4.90).
+  if (def.type === 'gbf') return 'Instruments';
   switch (def.kind) {
     case 'mcu':
     case 'breadboard':

@@ -80,6 +80,14 @@ const PARTS = {
     attrs: { voltsdiv: '1', sdiv: '1' },
     js: 'for (let i = 0; i <= 600; i++) el.push(i * 1000 / 60, 2 + 1.6 * Math.sin((i / 60) * Math.PI * 2 / 2.5));',
   },
+  // Générateur BF : dessin de 160×140, illustré avec des réglages PARLANTS
+  // plutôt que les défauts — un carré à 12,5 kHz et 25 % montre d'un coup d'œil
+  // que l'appareil règle une forme, une fréquence et un rapport cyclique, là où
+  // un sinus 1 kHz à 50 % laisse tous les boutons dans une position neutre.
+  gbf: {
+    module: 'gbf-element.mjs', tag: 'kablix-gbf', width: 260,
+    attrs: { waveform: 'carre', frequency: '12500', amplitude: '2.5', offset: '2.5', duty: '25' },
+  },
   // Sonde de l'analyseur logique : dessin minuscule (80×80) — une largeur de
   // fiche pleine l'afficherait floue, d'où les 140 px. Illustrée POSÉE (`voie: 0`
   // = la première teinte) et ÉTIQUETÉE : une pince sans voie sort grise et sans

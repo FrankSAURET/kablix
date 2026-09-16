@@ -1,0 +1,476 @@
+// Vérifie le générateur BF (kablix-gbf, kind 'analog-source') :
+//  - la forme d'onde elle-même (gbfWaveform / evalAnalogWave) : sinus, triangle
+//    et carré, l'action du rapport cyclique sur le carré ET sur le triangle,
+//    l'écrêtage à la plage de l'entrée analogique, le temps SIMULÉ ;
+//  - catalogue : rangé dans Appareils de mesure, cinq propriétés bornées ;
+//  - netlist : Vs résolu sur l'entrée analogique reliée (analogSourceBindings) ;
+//  - rendu réel en Chrome headless : dessin de Frank, quatre boutons rotatifs,
+//    afficheurs, curseur de forme à trois crans, inertie hors simulation ;
+//  - GESTES À VRAIE SOURIS (CDP) : tourner un bouton et glisser le curseur de
+//    forme. Voir le commentaire du bloc, plus bas : c'est le cœur du banc.
+import esbuild from 'esbuild';
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
+import { execFileSync, spawn } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+const root = fileURLToPath(new URL('..', import.meta.url));
+const tmp = mkdtempSync(join(tmpdir(), 'kablix-gbf-'));
+const buildTo = async (entry, outfile) => {
+  await esbuild.build({
+    entryPoints: [join(root, entry)],
+    outfile: join(tmp, outfile),
+    bundle: true,
+    platform: 'node',
+    format: 'esm',
+    loader: { '.svg': 'text', '.webp': 'dataurl' },
+    logLevel: 'silent',
+  });
+  return import(pathToFileURL(join(tmp, outfile)).href);
+};
+const { gbfWaveform, evalAnalogWave } = await buildTo('src/webview/engines/analog-waves.mts', 'waves.mjs');
+const { partDef, partCategory, CATEGORY_ORDER } = await buildTo('src/webview/diagram/catalog.mts', 'catalog.mjs');
+const { analogSourceBindings } = await buildTo('src/webview/diagram/model.mts', 'model.mjs');
+
+let failures = 0;
+const check = (label, ok) => {
+  console.log(`${ok ? '✅' : '❌'} ${label}`);
+  if (!ok) failures++;
+};
+const near = (a, b, eps = 1e-6) => a !== null && a !== undefined && Math.abs(a - b) <= eps;
+
+// --- Catalogue -----------------------------------------------------------------
+const def = partDef('gbf');
+check('catalogue : gbf = kablix-gbf, kind analog-source sur Vs',
+  def.tag === 'kablix-gbf' && def.kind === 'analog-source' && def.analogPin === 'Vs');
+// Un GBF est un APPAREIL de la salle de TP, pas un capteur : son `kind` le
+// rangerait avec les photorésistances sans la règle par type de partCategory.
+check('catalogue : rangé dans Appareils de mesure (pas avec les capteurs)',
+  partCategory(def) === 'Instruments' && CATEGORY_ORDER.includes('Instruments'));
+check('catalogue : réglable à la souris en simulation (simControl)', def.simControl === true);
+const prop = (attr) => def.props?.find((p) => p.attr === attr);
+check('catalogue : fréquence 1 Hz .. 1 MHz au Hz près',
+  prop('frequency')?.min === 1 && prop('frequency')?.max === 1_000_000 && prop('frequency')?.step === 1);
+check('catalogue : amplitude 0 .. 10 V au dixième',
+  prop('amplitude')?.min === 0 && prop('amplitude')?.max === 10 && near(prop('amplitude')?.step, 0.1));
+check('catalogue : décalage -5 .. +5 V au dixième',
+  prop('offset')?.min === -5 && prop('offset')?.max === 5 && near(prop('offset')?.step, 0.1));
+check('catalogue : rapport cyclique 0 .. 100 % au pourcent',
+  prop('duty')?.min === 0 && prop('duty')?.max === 100 && prop('duty')?.step === 1);
+check('catalogue : trois formes proposées (sinus, triangle, carré)',
+  ['sinus', 'triangle', 'carre'].every((f) => prop('waveform')?.options?.includes(f)));
+
+// --- Aide locale (bouton d'aide de l'inspecteur → docs/fr/composants/gbf.md) ----
+const helpMd = join(root, 'docs', 'fr', 'composants', 'gbf.md');
+check('aide : fiche docs/fr/composants/gbf.md présente', existsSync(helpMd));
+if (existsSync(helpMd)) {
+  const md = readFileSync(helpMd, 'utf8');
+  const refs = [...md.matchAll(/\]\((?!https?:)([^)#]+)\)/g)].map((m) => decodeURIComponent(m[1]));
+  const missing = refs.filter((r) => !existsSync(join(root, 'docs', 'fr', 'composants', r)));
+  check(`aide : images et liens relatifs valides (${refs.length} réf.)${missing.length ? ` — manquant : ${missing.join(', ')}` : ''}`,
+    refs.length > 0 && missing.length === 0);
+  // Ce que la fiche doit dire : les bornes, les quatre plages, la déformation du
+  // triangle par le rapport cyclique, et l'écrêtage — le piège n°1 de l'élève.
+  check('aide : bornes, plages, déformation du triangle et écrêtage documentés',
+    /\*\*Vs\*\*/.test(md) && /\*\*GND\*\*/.test(md) &&
+    /1\s*MHz/.test(md) && /10\s*V/.test(md) && /triangle/i.test(md) &&
+    /rapport cyclique/i.test(md) && /écrêt/i.test(md));
+}
+
+// --- Forme d'onde --------------------------------------------------------------
+// Sinus : passages par zéro et extrema aux quarts de période.
+check('sinus : 0 à t=0, +1 au quart, 0 à la moitié, -1 aux trois quarts',
+  near(gbfWaveform('sinus', 0, 0.5), 0, 1e-9) &&
+  near(gbfWaveform('sinus', 0.25, 0.5), 1, 1e-9) &&
+  near(gbfWaveform('sinus', 0.5, 0.5), 0, 1e-9) &&
+  near(gbfWaveform('sinus', 0.75, 0.5), -1, 1e-9));
+// Le sinus IGNORE le rapport cyclique : un sinus déformé n'est plus un sinus, et
+// Frank n'a demandé la déformation que pour le carré et le triangle.
+check('sinus : insensible au rapport cyclique',
+  near(gbfWaveform('sinus', 0.3, 0.1), gbfWaveform('sinus', 0.3, 0.9), 1e-12));
+
+// Carré : haut avant le rapport cyclique, bas après.
+check('carré à 50 % : haut sur la 1re moitié, bas sur la 2e',
+  gbfWaveform('carre', 0.1, 0.5) === 1 && gbfWaveform('carre', 0.6, 0.5) === -1);
+check('carré à 25 % : haut seulement sur le 1er quart',
+  gbfWaveform('carre', 0.2, 0.25) === 1 && gbfWaveform('carre', 0.3, 0.25) === -1);
+// Les deux butées sont utiles : c'est ainsi qu'on fabrique un niveau continu.
+check('carré à 0 % : toujours bas / à 100 % : toujours haut',
+  gbfWaveform('carre', 0.5, 0) === -1 && gbfWaveform('carre', 0.5, 1) === 1);
+
+// Triangle : le rapport cyclique règle la durée de la MONTÉE.
+check('triangle à 50 % : -1 au départ, +1 au milieu, -1 à la fin',
+  near(gbfWaveform('triangle', 0, 0.5), -1, 1e-9) &&
+  near(gbfWaveform('triangle', 0.5, 0.5), 1, 1e-9) &&
+  near(gbfWaveform('triangle', 0.999, 0.5), -1, 5e-3));
+check('triangle à 50 % : pentes symétriques (± la même valeur de part et d\'autre du sommet)',
+  near(gbfWaveform('triangle', 0.25, 0.5), 0, 1e-9) &&
+  near(gbfWaveform('triangle', 0.75, 0.5), 0, 1e-9));
+// C'est l'item explicite de Frank : « Le bouton rapport cyclique déforme aussi
+// la courbe triangulaire ». À 25 % le sommet est au quart, pas au milieu.
+check('triangle à 25 % : sommet au QUART (le rapport cyclique déforme bien le triangle)',
+  near(gbfWaveform('triangle', 0.25, 0.25), 1, 1e-9) &&
+  gbfWaveform('triangle', 0.5, 0.25) < 0.5);
+// À 90 % la montée occupe neuf dixièmes de la période : le sommet est à 0,9, et
+// la descente est neuf fois plus RAIDE que la montée. C'est le rapport des deux
+// pentes qui fait la dent de scie, pas la valeur à un instant donné (à
+// mi-montée comme à mi-descente le signal vaut 0).
+const pente = (d, t) => (gbfWaveform('triangle', t + 0.001, d) - gbfWaveform('triangle', t, d)) / 0.001;
+check('triangle à 90 % : dent de scie (sommet à 0,9, descente 9× plus raide que la montée)',
+  near(gbfWaveform('triangle', 0.9, 0.9), 1, 1e-9) &&
+  near(-pente(0.9, 0.95) / pente(0.9, 0.45), 9, 0.1));
+// Pente jamais infinie : aux butées le triangle reste un triangle, pas un carré.
+check('triangle à 0 % et 100 % : reste continu (pente bornée, ce n\'est pas un carré)',
+  Math.abs(gbfWaveform('triangle', 0.5, 0)) < 1 && Math.abs(gbfWaveform('triangle', 0.5, 1)) < 1);
+
+// --- evalAnalogWave : volts → fraction d'ADC, temps SIMULÉ ---------------------
+const onde = (o) => ({
+  kind: 'gbf', pin: 'A0', forme: 'sinus', freq: 1000, amplitude: 2.5, offset: 2.5, duty: 50, vcc: 5, ...o,
+});
+// 1 kHz : période 1 ms. À t=0,25 ms le sinus est au sommet → 2,5 + 2,5 = 5 V = plein échelle.
+check('eval : sinus 2,5 V ± 2,5 V sous 5 V → sommet à 1,0 au quart de période',
+  near(evalAnalogWave(onde(), 0.25, 0), 1, 1e-9));
+check('eval : et fond de cuve à 0,0 aux trois quarts',
+  near(evalAnalogWave(onde(), 0.75, 0), 0, 1e-9));
+check('eval : milieu de course (offset seul) à la demi-période', near(evalAnalogWave(onde(), 0.5, 0), 0.5, 1e-9));
+// Le GBF suit l'heure SIMULÉE : c'est un signal électrique, il ne ralentit pas
+// avec l'affichage (à l'inverse du capteur de pouls, phénomène du monde réel).
+check('eval : c\'est le temps SIMULÉ qui cadence (l\'heure du mur est ignorée)',
+  near(evalAnalogWave(onde(), 0.25, 0), evalAnalogWave(onde(), 0.25, 123456), 1e-12));
+// Écrêtage : une entrée analogique ne lit ni le négatif ni au-delà de sa référence.
+check('eval : écrêté à 1,0 au-dessus de la référence (10 V crête sur une entrée 5 V)',
+  evalAnalogWave(onde({ amplitude: 10, offset: 0 }), 0.25, 0) === 1);
+check('eval : écrêté à 0,0 sous la masse (alternance négative)',
+  evalAnalogWave(onde({ amplitude: 10, offset: 0 }), 0.75, 0) === 0);
+check('eval : plein échelle 3,3 V (Pico) → 1,65 V vaut la moitié',
+  near(evalAnalogWave(onde({ amplitude: 0, offset: 1.65, vcc: 3.3 }), 0, 0), 0.5, 1e-9));
+// 1 MHz : période 1 µs. Deux instants distants d'un quart de µs doivent différer
+// — c'est tout l'intérêt d'évaluer à l'instant de la conversion et non par image.
+check('eval : à 1 MHz, deux instants à 0,25 µs d\'écart donnent deux valeurs',
+  Math.abs(
+    evalAnalogWave(onde({ freq: 1_000_000 }), 0.00025, 0) -
+    evalAnalogWave(onde({ freq: 1_000_000 }), 0.0005, 0),
+  ) > 0.4);
+check('eval : fréquence bornée à la plage demandée (0 Hz → 1 Hz, 9 MHz → 1 MHz)',
+  near(evalAnalogWave(onde({ freq: 0 }), 250, 0), 1, 1e-9) &&
+  near(evalAnalogWave(onde({ freq: 9_000_000 }), 0.00025, 0), 1, 1e-9));
+// Un temps simulé négatif ne doit pas renvoyer une phase négative (NaN/écrêtage
+// silencieux) : le modulo est ramené dans [0,1) avant d'évaluer.
+check('eval : phase correcte même à temps négatif', near(evalAnalogWave(onde(), -0.75, 0), 1, 1e-9));
+
+// --- Netlist : Vs résolu sur l'entrée analogique reliée ------------------------
+const diagramme = {
+  parts: [
+    { id: 'uno', type: 'uno', x: 0, y: 0 },
+    { id: 'g1', type: 'gbf', x: 0, y: 0, attrs: { frequency: '1000', waveform: 'sinus' } },
+  ],
+  wires: [
+    { id: 'w1', a: { partId: 'g1', pin: 'Vs' }, b: { partId: 'uno', pin: 'A0' } },
+    { id: 'w2', a: { partId: 'g1', pin: 'GND' }, b: { partId: 'uno', pin: 'GND.1' } },
+  ],
+};
+const liens = analogSourceBindings(diagramme);
+check('netlist : Vs câblé sur A0 → liaison résolue sur A0',
+  liens.length === 1 && liens[0].partId === 'g1' && /A0/.test(liens[0].mcuPin));
+// Contre-épreuve : sans fil, aucune liaison (le GBF ne pilote alors rien).
+check('netlist : GBF non câblé → aucune liaison (contre-épreuve)',
+  analogSourceBindings({ parts: diagramme.parts, wires: [] }).length === 0);
+
+// --- Rendu réel (Chrome headless, avec de VRAIS événements de souris) ----------
+//
+// Pourquoi une vraie souris ici. Régler ce GBF est un GESTE, et pas un geste
+// simple : quatre boutons rotatifs se touchent presque sur un appareil de
+// 160 px, et le curseur de forme se glisse. Un `new PointerEvent(...)` visé
+// à la main sur la zone attendue « réussirait » même si les zones se
+// chevauchaient, même si le clic partait au composant (qui se déplacerait) et
+// même si le drag ne suivait pas le doigt — ce sont précisément les pannes que
+// l'élève rencontrerait. Chrome est donc piloté en CDP brut
+// (`Input.dispatchMouseEvent`) : les événements viennent du navigateur, la page
+// choisit elle-même sa cible par le point touché.
+const CACHE = join(root, 'node_modules', '.cache-gbf');
+const PORT = 9414; // port propre à ce banc : la suite enchaîne les bancs CDP
+mkdirSync(CACHE, { recursive: true });
+const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
+
+const entry = `
+import '../../src/webview/composants/gbf-element.mjs';
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+async function run() {
+	const el = document.createElement('kablix-gbf');
+	el.setAttribute('frequency', '1000');
+	el.setAttribute('amplitude', '2.5');
+	el.setAttribute('offset', '0');
+	el.setAttribute('duty', '50');
+	el.setAttribute('waveform', 'sinus');
+	el.style.position = 'absolute';
+	el.style.left = '0px';
+	el.style.top = '0px';
+	document.body.appendChild(el);
+	window.__el = el;
+	await wait(100);
+	const sh = el.shadowRoot;
+	const svg = sh.querySelector('svg');
+	window.__svg = svg;
+	const res = {};
+	// Les quatre boutons du dessin. Le filtre exclut les groupes de ROTATION,
+	// ajoutés au rendu et dont l'id dérive de celui du bouton (suffixe -rot).
+	res.drawn = [...sh.querySelectorAll('[id^="bouton-"]')].filter((g) => !g.id.endsWith('-rot')).length === 4;
+	const box = svg.getBoundingClientRect();
+	res.size = [Math.round(box.width), Math.round(box.height)];
+	res.pins = el.pinInfo.map((p) => p.name + '@' + p.x + ',' + p.y).join(' ');
+	// Afficheurs : ils doivent suivre les attributs de DÉPART, dans l'écriture de
+	// l'appareil (unité qui suit la valeur, virgule décimale du dessin de Frank).
+	const lire = (id) => {
+		const n = sh.querySelector('[id="' + id + '"] tspan') || sh.querySelector('[id="' + id + '"]');
+		return n ? n.textContent : null;
+	};
+	window.__lire = lire;
+	res.afficheurs = [lire('valeur-fr__quence'), lire('valeur_amplitude'), lire('valeur_d__calage'), lire('valeur_rapport_cyclique')];
+	// Groupes de rotation recréés au rendu : sans eux, un transform CSS écraserait
+	// le matrix de PLACEMENT du bouton et celui-ci partirait hors vue.
+	res.rotGroupes = ['bouton-d__calage', 'bouton-rapport__cyclique', 'bouton-amplitude', 'bouton-fr__quence']
+		.filter((id) => !!sh.querySelector('[id="' + id + '-rot"]')).length;
+	// Le matrix de placement du bouton est INTACT sous le groupe de rotation.
+	res.matrixIntact = /matrix/.test(sh.querySelector('[id="bouton-amplitude"]').getAttribute('transform') || '');
+	const rot = (id) => sh.querySelector('[id="' + id + '-rot"]').style.transform;
+	window.__rot = rot;
+	// Amplitude 2,5 V sur 10 V = un quart de course = 75° des 300°.
+	res.rotAmpl = rot('bouton-amplitude');
+	// Décalage 0 V au milieu de -5..+5 = demi-course = 150°.
+	res.rotOffset = rot('bouton-d__calage');
+	// Fréquence LOGARITHMIQUE : 1 kHz sur 1 Hz..1 MHz = la moitié des six
+	// décades = 150°. En linéaire ce serait 0,3° — le banc verrait la différence.
+	res.rotFreq = rot('bouton-fr__quence');
+	// Curseur de forme : au cran du haut pour un sinus (pas de translation).
+	const curseur = sh.querySelector('[id="rect3092"]');
+	window.__curseur = curseur;
+	res.curseurSinus = curseur.style.transform || '(aucune)';
+	// Zones de clic : quatre ronds + le rail, tous marqués hors export (sinon
+	// Inkscape rendrait leur fill transparent en NOIR sur le dessin livré).
+	const zones = [...svg.querySelectorAll(':scope > circle, :scope > rect')];
+	res.zones = zones.length;
+	res.zonesHorsExport = zones.every((z) => z.hasAttribute('data-no-export'));
+	res.rotHorsExport = [...sh.querySelectorAll('[id$="-rot"]')].every((g) => g.hasAttribute('data-unwrap-export'));
+	// Position d'un point du cadran d'un bouton, en coordonnées ÉCRAN : c'est ce
+	// que la vraie souris devra viser.
+	window.__viser = (cx, cy, deg, r = 14) => {
+		const ctm = svg.getScreenCTM();
+		const rad = (deg * Math.PI) / 180;
+		const p = new DOMPoint(cx + r * Math.cos(rad), cy + r * Math.sin(rad)).matrixTransform(ctm);
+		return { x: p.x, y: p.y };
+	};
+	window.__viserPoint = (x, y) => {
+		const p = new DOMPoint(x, y).matrixTransform(svg.getScreenCTM());
+		return { x: p.x, y: p.y };
+	};
+	window.__inputs = 0;
+	el.addEventListener('input', () => { window.__inputs++; });
+	window.__etat = () => ({
+		freq: el.freq, amplitude: el.amplitude, offset: el.offset, duty: el.duty, forme: el.forme,
+		afficheurs: [lire('valeur-fr__quence'), lire('valeur_amplitude'), lire('valeur_d__calage'), lire('valeur_rapport_cyclique')],
+		rotAmpl: rot('bouton-amplitude'), rotFreq: rot('bouton-fr__quence'),
+		curseur: curseur.style.transform || '(aucune)',
+		inputs: window.__inputs,
+	});
+	const out = document.createElement('pre');
+	out.id = 'measures';
+	out.textContent = JSON.stringify(res);
+	document.body.appendChild(out);
+	window.__pret = true;
+}
+run();
+`;
+writeFileSync(join(CACHE, 'e.mjs'), entry);
+const b = await esbuild.build({
+  entryPoints: [join(CACHE, 'e.mjs')], bundle: true, format: 'iife', write: false,
+  loader: { '.svg': 'text', '.webp': 'dataurl' }, absWorkingDir: root, logLevel: 'silent',
+});
+const pageHtml = join(CACHE, 'p.html');
+writeFileSync(pageHtml, `<!doctype html><meta charset=utf8><body style="margin:0"><script>${b.outputFiles[0].text}</script></body>`);
+
+const chrome = [
+  'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
+].find(existsSync);
+
+if (!chrome) {
+  console.log('⚠️ Chrome introuvable : rendu et gestes sautés');
+} else {
+  // Première passe : les mesures statiques, en --dump-dom (rapide, pas de CDP).
+  const dom = execFileSync(chrome, [
+    '--headless=new', '--disable-gpu', '--no-sandbox', '--virtual-time-budget=12000', '--dump-dom',
+    `file:///${pageHtml.replace(/\\/g, '/')}`,
+  ], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  const m = dom.match(/<pre id="measures"[^>]*>([^<]+)<\/pre>/);
+  if (!m) {
+    check('rendu headless : mesures produites', false);
+  } else {
+    const r = JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&'));
+    check('rendu : dessin de Frank présent (quatre boutons)', r.drawn === true);
+    check('rendu : 160×140 px (1:1 viewBox)', r.size[0] === 160 && r.size[1] === 140);
+    check('rendu : bornes Vs@70,120 GND@90,120', r.pins === 'Vs@70,120 GND@90,120');
+    check(`rendu : afficheurs suivent les attributs de départ — ${JSON.stringify(r.afficheurs)}`,
+      r.afficheurs[0] === '1 kHz' && r.afficheurs[1] === '2,5 V' &&
+      r.afficheurs[2] === '0,0 V' && r.afficheurs[3] === '50 %');
+    check('rendu : quatre groupes de rotation recréés', r.rotGroupes === 4);
+    check('rendu : matrix de PLACEMENT du bouton intact sous le groupe de rotation', r.matrixIntact === true);
+    check(`rendu : amplitude 2,5/10 V → quart de course, 75° — ${r.rotAmpl}`, r.rotAmpl === 'rotate(75deg)');
+    check(`rendu : décalage 0 V au milieu de -5..+5 → 150° — ${r.rotOffset}`, r.rotOffset === 'rotate(150deg)');
+    check(`rendu : fréquence LOGARITHMIQUE, 1 kHz à mi-course → 150° — ${r.rotFreq}`, r.rotFreq === 'rotate(150deg)');
+    check(`rendu : curseur de forme au cran du haut pour un sinus — ${r.curseurSinus}`,
+      r.curseurSinus === '(aucune)' || /translateY\(0/.test(r.curseurSinus));
+    check('rendu : cinq zones de clic (quatre boutons + le rail du curseur)', r.zones === 5);
+    check('rendu : zones de clic marquées hors export (pas de ronds noirs sur le dessin livré)',
+      r.zonesHorsExport === true);
+    check('rendu : groupes de rotation aplatis à l\'export (aucun objet ajouté au dessin)',
+      r.rotHorsExport === true);
+  }
+
+  // Deuxième passe : les GESTES, avec de vrais événements de souris (CDP).
+  const proc = spawn(chrome, [
+    '--headless=new', '--disable-gpu', '--no-sandbox', '--mute-audio',
+    `--remote-debugging-port=${PORT}`, '--user-data-dir=' + join(CACHE, 'profil'),
+    `file:///${pageHtml.replace(/\\/g, '/')}`,
+  ], { stdio: 'ignore' });
+  let ws = null;
+  try {
+    // Attente de l'interface de débogage, puis raccordement au WebSocket de la page.
+    let cible = null;
+    for (let i = 0; i < 100 && !cible; i++) {
+      await attendre(100);
+      try {
+        const liste = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
+        cible = liste.find((t) => t.type === 'page' && t.webSocketDebuggerUrl);
+      } catch { /* Chrome n'écoute pas encore */ }
+    }
+    if (!cible) throw new Error(`interface CDP muette sur le port ${PORT}`);
+    // `WebSocket` est global depuis node 22 : pas de dépendance `ws` dans le projet.
+    ws = new WebSocket(cible.webSocketDebuggerUrl);
+    let id = 0;
+    const attente = new Map();
+    ws.addEventListener('message', (e) => {
+      const msg = JSON.parse(e.data);
+      const w = attente.get(msg.id);
+      if (w) { attente.delete(msg.id); w(msg); }
+    });
+    await new Promise((ok) => ws.addEventListener('open', ok, { once: true }));
+    const envoyer = (method, params = {}) => new Promise((ok) => {
+      const n = ++id;
+      attente.set(n, ok);
+      ws.send(JSON.stringify({ id: n, method, params }));
+    });
+    const ev = async (expr) => {
+      const r = await envoyer('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true });
+      if (r.result?.exceptionDetails) throw new Error(JSON.stringify(r.result.exceptionDetails));
+      return r.result?.result?.value;
+    };
+    // La page doit être prête (l'élément monté, les aides posées sur `window`).
+    for (let i = 0; i < 100 && !(await ev('window.__pret === true')); i++) await attendre(100);
+
+    /** Un vrai clic de souris au point écran donné. */
+    const souris = async (type, x, y) => {
+      await envoyer('Input.dispatchMouseEvent', {
+        type, x, y, button: 'left', buttons: type === 'mouseMoved' ? 0 : 1, clickCount: 1, pointerType: 'mouse',
+      });
+      await attendre(25);
+    };
+    /** Presser-glisser-relâcher : la souris passe par chaque point. */
+    const glisser = async (points) => {
+      await souris('mouseMoved', points[0].x, points[0].y);
+      await envoyer('Input.dispatchMouseEvent', {
+        type: 'mousePressed', x: points[0].x, y: points[0].y, button: 'left', buttons: 1, clickCount: 1, pointerType: 'mouse',
+      });
+      await attendre(25);
+      for (const p of points.slice(1)) {
+        await envoyer('Input.dispatchMouseEvent', {
+          type: 'mouseMoved', x: p.x, y: p.y, button: 'left', buttons: 1, pointerType: 'mouse',
+        });
+        await attendre(25);
+      }
+      const fin = points[points.length - 1];
+      await envoyer('Input.dispatchMouseEvent', {
+        type: 'mouseReleased', x: fin.x, y: fin.y, button: 'left', buttons: 0, clickCount: 1, pointerType: 'mouse',
+      });
+      await attendre(50);
+    };
+    const etat = () => ev('JSON.stringify(window.__etat())').then(JSON.parse);
+    /** Point du cadran d'un bouton, à l'angle donné (degrés, 0 = droite). */
+    const surCadran = (cx, cy, deg) => ev(`JSON.stringify(window.__viser(${cx}, ${cy}, ${deg}))`).then(JSON.parse);
+    const surPoint = (x, y) => ev(`JSON.stringify(window.__viserPoint(${x}, ${y}))`).then(JSON.parse);
+
+    // Centres des quatre boutons, mesurés sur le dessin.
+    const BTN = { offset: [32.85, 34.04], duty: [81.99, 34.04], amplitude: [32.85, 84.25], freq: [81.99, 84.25] };
+
+    // 1. HORS simulation, l'appareil est inerte : un vrai clic sur un bouton ne
+    //    doit RIEN régler (en édition, le clic sert à déplacer le composant).
+    let p = await surCadran(...BTN.amplitude, 60); // 300° de course = le maximum
+    await glisser([p]);
+    let e = await etat();
+    check(`geste : bouton INERTE hors simulation (amplitude reste 2,5 V) — ${e.amplitude} V`,
+      e.amplitude === 2.5 && e.inputs === 0);
+
+    await ev(`window.__el.setAttribute('simulating', '')`);
+    await attendre(80);
+
+    // 2. En simulation : tourner le bouton d'amplitude au maximum du cadran.
+    //    60° écran = 300° de course depuis le zéro à 120° → 10 V.
+    p = await surCadran(...BTN.amplitude, 60);
+    await glisser([p]);
+    e = await etat();
+    check(`geste : amplitude tournée au maximum → 10,0 V, afficheur et bouton suivent — ${e.amplitude} V / ${e.afficheurs[1]} / ${e.rotAmpl}`,
+      e.amplitude === 10 && e.afficheurs[1] === '10,0 V' && e.rotAmpl === 'rotate(300deg)' && e.inputs > 0);
+
+    // 3. Le bouton VOISIN n'a pas bougé : les quatre cadrans d'un appareil de
+    //    160 px se touchent presque, et une zone trop large les confondrait.
+    check(`geste : le bouton voisin (décalage) n'a pas bougé — ${e.offset} V`, e.offset === 0);
+
+    // 4. Glissement continu sur le cadran de fréquence : la course est
+    //    LOGARITHMIQUE, un quart de tour doit multiplier la fréquence, pas
+    //    l'augmenter d'un quart de la plage.
+    const trajet = [];
+    for (const deg of [120, 150, 180, 210, 240]) trajet.push(await surCadran(...BTN.freq, deg));
+    await glisser(trajet);
+    e = await etat();
+    // 120° écran = zéro du cadran → 1 Hz ; +120° de course sur 300 = 2/5 des six
+    // décades = 10^2,4 ≈ 251 Hz.
+    check(`geste : glissement sur le cadran de fréquence → ≈251 Hz (course logarithmique) — ${e.freq} Hz / ${e.afficheurs[0]}`,
+      e.freq >= 240 && e.freq <= 265 && /Hz$/.test(e.afficheurs[0]));
+
+    // 5. Le curseur de forme se GLISSE : sinus → carré (cran du bas), puis
+    //    retour au triangle (cran du milieu). C'est le geste de l'appareil.
+    const bas = await surPoint(120.24, 74);   // dernier tiers du rail
+    const milieu = await surPoint(120.24, 59); // tiers du milieu
+    await glisser([bas]);
+    e = await etat();
+    check(`geste : curseur glissé en bas → carré, bouton descendu de deux crans — ${e.forme} / ${e.curseur}`,
+      e.forme === 'carre' && /translateY\(6\.35px\)/.test(e.curseur));
+    await glisser([milieu]);
+    e = await etat();
+    check(`geste : curseur remonté au milieu → triangle, un seul cran — ${e.forme} / ${e.curseur}`,
+      e.forme === 'triangle' && /translateY\(3\.175px\)/.test(e.curseur));
+
+    // 6. Le rapport cyclique se règle, et son afficheur est en pourcent.
+    p = await surCadran(...BTN.duty, 300); // 180° de course → 60 %
+    await glisser([p]);
+    e = await etat();
+    check(`geste : rapport cyclique réglé au pourcent — ${e.duty} % / ${e.afficheurs[3]}`,
+      e.duty === 60 && e.afficheurs[3] === '60 %');
+
+    // 7. Sortie de simulation : l'appareil reprend ses réglages de DÉPART. Les
+    //    boutons tournés pendant la séance ne sont pas la consigne de l'énoncé.
+    await ev(`window.__el.removeAttribute('simulating')`);
+    await attendre(80);
+    e = await etat();
+    check(`geste : sortie de simulation → retour aux réglages de départ — ${e.amplitude} V / ${e.freq} Hz / ${e.forme}`,
+      e.amplitude === 2.5 && e.freq === 1000 && e.forme === 'sinus' && e.duty === 50);
+  } catch (err) {
+    check(`gestes à vraie souris : ${err.message}`, false);
+  } finally {
+    try { ws?.close(); } catch { /* déjà fermé */ }
+    try { proc.kill(); } catch { /* déjà mort */ }
+  }
+}
+
+console.log(failures === 0 ? '\nverify:gbf OK' : `\n${failures} échec(s)`);
+process.exit(failures === 0 ? 0 : 1);

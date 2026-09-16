@@ -60,6 +60,7 @@ import './composants/pca9685-element.mjs';
 import './composants/powerbank-element.mjs';
 import './composants/multimetre-element.mjs';
 import './composants/oscillo-element.mjs';
+import './composants/gbf-element.mjs';
 import './composants/sonde-logique-element.mjs';
 import './composants/patte-element.mjs';
 import './composants/araignee-element.mjs';
@@ -349,6 +350,9 @@ let buzzerTargets = new Map<string, string>();
 // La sortie OUT est régénérée à chaque frame en forme d'onde cardiaque (PPG).
 type SimElement = NonNullable<ReturnType<Editor['elementOf']>>;
 let pulseTargets: Array<{ pin: string; el: SimElement }> = [];
+// Générateurs BF : broche analogique MCU + élément (les cinq réglages vivent
+// dans l'élément, les boutons du dessin les font varier en simulation).
+let gbfTargets: Array<{ pin: string; el: SimElement }> = [];
 // Capteurs PIR : broche MCU + élément. La sortie suit `el.motion` (survol souris
 // / Ctrl+clic), relue à chaque frame car le survol n'émet pas d'événement.
 let motionTargets: Array<{ pin: string; el: SimElement; last: boolean }> = [];
@@ -688,12 +692,16 @@ plotter.onHoldFlush = (text) => appendSerial(text);
 togglePlotterBtn.addEventListener('click', () => setPlotterVisible(!plotterVisible));
 closePlotterBtn.addEventListener('click', () => setPlotterVisible(false));
 
-// Analyseur logique : ouverture de son onglet. On repousse les voies dans le
-// même geste — l'hôte lui répond avec l'état courant dès qu'il est prêt.
-document.getElementById('open-analyseur')?.addEventListener('click', () => {
+/**
+ * Ouvre l'onglet de l'analyseur logique et lui déclare les voies dans le même
+ * geste — l'hôte lui répond avec l'état courant dès qu'il est prêt.
+ * Appelée au lancement de la simulation quand au moins une pince est posée : il
+ * n'y a PAS de bouton pour l'analyseur (Frank, v2026.9.4.90), la sonde suffit.
+ */
+function ouvrirAnalyseur(): void {
   vscode.postMessage({ type: 'openAnalyseur' });
   pousserVoiesLogiques();
-});
+}
 
 /** Titre du panneau série : « Console » pour un Pico, « Moniteur série » sinon. */
 function updateSerialTitle(): void {
@@ -892,6 +900,7 @@ function renderTick(): void {
     return;
   }
   updatePulses();
+  updateGbfs();
   updateMotion();
   updateHall();
   updateOpenDrain();
@@ -1240,6 +1249,34 @@ function updatePulses(): void {
 }
 
 /**
+ * Décrit au moteur le signal de chaque générateur BF câblé sur une entrée
+ * analogique, d'après les réglages COURANTS de son dessin.
+ *
+ * Contrairement au pouls, aucune valeur de frame n'est posée en repli : à 1 MHz
+ * une période dure 1 µs, la valeur d'une image donnée n'a aucun sens et
+ * l'afficher dans le traceur ferait croire à un signal continu. C'est le moteur
+ * qui évalue l'onde, à l'instant exact de la conversion.
+ */
+function updateGbfs(): void {
+  if (!engine || gbfTargets.length === 0) return;
+  const vcc = isPicoBoard(board) ? 3.3 : 5;
+  for (const { pin, el } of gbfTargets) {
+    const forme = String(el.forme ?? 'sinus');
+    analogWaves.set(pin, {
+      kind: 'gbf',
+      pin,
+      forme: forme === 'triangle' || forme === 'carre' ? forme : 'sinus',
+      freq: Number(el.freq ?? 1000),
+      amplitude: Number(el.amplitude ?? 5),
+      offset: Number(el.offset ?? 0),
+      duty: Number(el.duty ?? 50),
+      vcc,
+    });
+  }
+  flushAnalogWaves(); // un bouton tourné s'entend tout de suite, pas à l'image d'après
+}
+
+/**
  * Confie au moteur toutes les formes d'onde analogiques de la frame.
  *
  * Un moteur qui sait les recevoir (`setAnalogWaves` — le moteur déporté dans un
@@ -1434,10 +1471,6 @@ function nomVoie(v: LogicProbeVoie): string {
 function pousserVoiesLogiques(): void {
   logicProbes = logicProbeVoies(editor.diagram);
   engine?.setLogicProbes?.(logicProbes.filter((v) => v.pin).map((v) => v.pin!));
-  // Le bouton n'a de sens qu'avec au moins une pince : sinon l'onglet s'ouvrirait
-  // sur un écran vide, ce qui ne dit rien à l'élève.
-  const btn = document.getElementById('open-analyseur');
-  if (btn) btn.hidden = logicProbes.length === 0;
   vscode.postMessage({
     type: 'analyseurVoies',
     voies: logicProbes.map((v) => ({
@@ -2922,6 +2955,7 @@ function bindInputs(): void {
   updateOpenDrain();
 
   pulseTargets = [];
+  gbfTargets = [];
   for (const binding of analogSourceBindings(editor.diagram)) {
     const part = editor.diagram.parts.find((p) => p.id === binding.partId);
     if (part?.type === 'heartbeat') {
@@ -2930,6 +2964,22 @@ function bindInputs(): void {
       if (el) {
         el.bpm = Number(part.attrs?.bpm ?? 72);
         pulseTargets.push({ pin: binding.mcuPin, el });
+      }
+      continue;
+    }
+    if (part?.type === 'gbf') {
+      // Générateur BF : la sortie est une FORME D'ONDE, pas une valeur. Elle est
+      // décrite au moteur (`kind: 'gbf'`), qui l'évalue à l'instant exact de la
+      // conversion ADC — à 1 MHz une période dure 1 µs, une valeur posée par
+      // image serait seize mille périodes en retard.
+      const el = editor.elementOf(binding.partId);
+      if (el) {
+        gbfTargets.push({ pin: binding.mcuPin, el });
+        // Les boutons du dessin repoussent l'onde tout de suite : tourner un
+        // bouton doit s'entendre sur le signal sans attendre l'image suivante.
+        const apply = (): void => updateGbfs();
+        el.addEventListener('input', apply);
+        inputRemovers.push(() => el.removeEventListener('input', apply));
       }
       continue;
     }
@@ -4115,6 +4165,11 @@ ${detail}
     paletteFoldedByRun = true;
     setPaletteFolded(true, false); // pas persisté : c'est l'état de course, pas un choix
   }
+  // Analyseur logique : au moins une pince posée = son onglet s'ouvre tout seul
+  // (Frank, v2026.9.4.90). `pousserVoiesLogiques()` relit le schéma, donc les
+  // voies partent à jour ; sans pince, on n'ouvre rien — un onglet vide ne dirait
+  // rien à l'élève.
+  if (logicProbeVoies(editor.diagram).length > 0) ouvrirAnalyseur();
   runBtn.disabled = true;
   stopBtn.disabled = false;
   const isPython = isPicoBoard(board) && picoProgram.kind === 'flash' && !!picoProgram.script;

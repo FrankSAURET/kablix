@@ -40,7 +40,7 @@ Deux attributs sont tenus par l'éditeur et n'ont pas de champ à remplir : `acc
 
 ## L'onglet « Analyseur logique »
 
-Le bouton **Logic** de la barre d'outils apparaît dès qu'une pince est sur la planche. Il ouvre un **onglet séparé**, que l'on peut poser **à côté du schéma** : on lit les créneaux et le câblage en même temps.
+Il n'y a **rien à cliquer** : dès qu'au moins une pince est posée, le **lancement de la simulation** ouvre l'analyseur dans un **onglet séparé**, que l'on peut poser **à côté du schéma** — on lit les créneaux et le câblage en même temps. Pas de pince sur la planche, pas d'onglet.
 
 L'onglet montre une **piste par voie**, dans la couleur de sa pince, avec une règle de temps en haut.
 

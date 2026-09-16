@@ -102,6 +102,8 @@ export const PART_PINS = {
   ],
   alim: ['V+', 'GND'],
   powerbank: ['V+', 'GND'],
+  // Générateur BF : sortie du signal et masse, deux prises banane.
+  gbf: ['Vs', 'GND'],
   // Multimètre : deux prises banane, rouge et noire.
   multimetre: ['+', 'GND'],
   // Oscilloscope : les mêmes deux prises banane que le multimètre.
@@ -1483,6 +1485,46 @@ void loop() {
   Serial.print("A0 = ");
   Serial.println(analogRead(A0));
   delay(300);
+}
+`,
+  }),
+
+  // Générateur BF : l'appareil de la salle de TP qui sort un SIGNAL, là où
+  // l'alimentation de laboratoire sort une tension fixe. Réglé ici sur un sinus
+  // lent (10 Hz) centré dans la plage de l'entrée analogique — 2,5 V de crête
+  // sur 2,5 V de décalage, donc 0 à 5 V pile. Un signal plus rapide serait
+  // illisible dans la console, et une amplitude plus forte serait écrêtée.
+  // Le programme lit A0 en boucle : c'est le sinus qu'il doit voir défiler.
+  test({
+    name: 'gbf-uno', board: 'uno', ext: 'ino',
+    parts: [
+      MCU('uno'),
+      {
+        id: 'Gen1', type: 'gbf', x: 620, y: 90,
+        attrs: { waveform: 'sinus', frequency: '10', amplitude: '2.5', offset: '2.5', duty: '50' },
+      },
+    ],
+    wires: () => [
+      w('Gen1', 'Vs', 'U1', 'A0', 'green'),
+      w('Gen1', 'GND', 'U1', 'GND.1', 'black'),
+    ],
+    expect: { kind: 'analog-source', partId: 'Gen1', mcuPin: 'A0' },
+    code: `// Test generateur BF : sinus de 10 Hz, 0 a 5 V (2,5 V de crete sur 2,5 V de
+// decalage), lu sur A0. En simulation, les quatre boutons de l'appareil font
+// varier forme, frequence, amplitude, decalage et rapport cyclique a la souris.
+void setup() {
+  Serial.begin(115200);
+  Serial.println("Generateur BF sur A0");
+}
+
+void loop() {
+  int brut = analogRead(A0);
+  Serial.print("A0 = ");
+  Serial.print(brut);
+  Serial.print("  soit ");
+  Serial.print(brut * 5.0 / 1023.0, 2);
+  Serial.println(" V");
+  delay(20);                       // ~50 points par periode a 10 Hz
 }
 `,
   }),
@@ -4669,6 +4711,39 @@ capteur = ADC(26)
 while True:
     print("ADC0 =", capteur.read_u16())
     time.sleep(0.3)
+`,
+  }),
+
+  // Générateur BF côté Pico : l'entrée ADC y monte à 3,3 V et non 5 V, donc
+  // l'appareil est réglé pour ne pas écrêter — 1,5 V de crête sur 1,65 V de
+  // décalage, soit 0,15 à 3,15 V. Forme TRIANGLE, choisie exprès : c'est celle
+  // dont le rapport cyclique change le dessin (montée plus ou moins longue), ce
+  // que le sinus du test Arduino ne montre pas.
+  test({
+    name: 'gbf-pico', board: 'pico', ext: 'py',
+    parts: [
+      MCU('pico'),
+      {
+        id: 'Gen1', type: 'gbf', x: 680, y: 90,
+        attrs: { waveform: 'triangle', frequency: '20', amplitude: '1.5', offset: '1.65', duty: '30' },
+      },
+    ],
+    wires: () => [
+      w('Gen1', 'Vs', 'U1', 'GP26', 'green'),
+      w('Gen1', 'GND', 'U1', 'GND.7', 'black'),
+    ],
+    expect: { kind: 'analog-source', partId: 'Gen1', mcuPin: 'GP26' },
+    code: `# Test generateur BF : triangle de 20 Hz, rapport cyclique 30 % (montee
+# courte, descente longue), 0,15 a 3,15 V pour rester dans la plage de l'ADC
+# du Pico. Lecture sur GP26 (ADC0).
+from machine import ADC
+import time
+
+entree = ADC(26)
+while True:
+    brut = entree.read_u16()
+    print("ADC0 =", brut, " soit %.2f V" % (brut * 3.3 / 65535))
+    time.sleep(0.01)              # ~5 points par periode a 20 Hz
 `,
   }),
 
