@@ -3097,7 +3097,7 @@ body.vscode-light .inspector__ref--nouveau {
   background: var(--vscode-list-activeSelectionBackground, rgba(80, 140, 255, 0.25));
 }
 
-/* En-tête permanent (C/Arduino) : seules les globales sont lisibles. Cliquable. */
+/* En-tête permanent (C/Arduino) : seules les globales et statics sont lisibles. */
 .debug__vars td.debug__cinfo {
   font-size: 0.78rem;
   color: var(--vscode-descriptionForeground, #9aa);
@@ -3108,4 +3108,11 @@ body.vscode-light .inspector__ref--nouveau {
 .debug__vars td.debug__cinfo:hover {
   color: var(--vscode-textLink-foreground, #4fa3ff);
   text-decoration: underline;
+}
+
+/* Noms des locales non lisibles : discrètes, sur une ligne qui peut être longue. */
+.debug__vars td.debug__cinfo--locals {
+  font-style: italic;
+  opacity: 0.85;
+  word-break: break-word;
 }

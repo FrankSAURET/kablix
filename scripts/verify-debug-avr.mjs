@@ -78,17 +78,23 @@ if (tools.arduinoCli) {
     'struct Point chemin[2];',
     'int *ptr;',
     'void setup() { pinMode(13, OUTPUT); ptr = &notes[1]; }',
+    // `static` homonyme dans une autre fonction : doit rester distinct de celui
+    // de loop() grâce au nom qualifié.
+    'int lireBouton() { static int memo = 7; return memo; }',
     'void loop() {',
+    '  static int memo = 0;', // static de fonction : adresse fixe, LISIBLE
+    '  int travail = lireBouton();', // locale ordinaire : NON lisible
     '  digitalWrite(13, !digitalRead(13));',
-    '  compteur++;', // ligne 12
+    '  compteur++;', // ligne 14
     '  seuil += 0.5;',
     '  notes[0]++;',
     '  p1.x++;',
     '  chemin[1].y = 5;',
+    '  memo += travail;',
     '  delay(5);',
     '}',
   ].join('\n'));
-  loopLine = 12;
+  loopLine = 14;
 } else {
   srcPath = join(tmp, 'prog.c');
   writeFileSync(srcPath, [
@@ -102,21 +108,25 @@ if (tools.arduinoCli) {
     'struct Point p1 = {3, 7};',
     'struct Point chemin[2];',
     'int *ptr;',
+    'int lireBouton(void) { static int memo = 7; return memo; }',
     'int main(void) {',
+    '  static int memo = 0;', // static de fonction : adresse fixe, LISIBLE
+    '  int travail = lireBouton();', // locale ordinaire : NON lisible
     '  DDRB |= (1 << 5);',
     '  ptr = &notes[1];',
     '  for (;;) {',
     '    PORTB ^= (1 << 5);',
-    '    compteur++;', // ligne 16
+    '    compteur++;', // ligne 19
     '    seuil += 0.5f;',
     '    notes[0]++;',
     '    p1.x++;',
     '    chemin[1].y = 5;',
+    '    memo += travail;',
     '    _delay_ms(5);',
     '  }',
     '}',
   ].join('\n'));
-  loopLine = 16;
+  loopLine = 19;
 }
 
 console.log(`Compilation de ${srcPath} (Arduino Uno, infos de débogage) :`);
@@ -173,6 +183,32 @@ check(`pointeur lu (ptr, 2 octets, type « ${ptr?.type} »)`,
 const n0 = nom('nom[0]');
 check(`chaîne dépliée en caractères (nom[0], type « ${n0?.type} »)`,
   !!n0 && n0.size === 1 && (n0.type ?? '').includes('char'));
+
+// --- Statics de fonction et locales non lisibles ------------------------------
+// Jusqu'à la v2026.9.4.86, le parseur ne gardait que les DIE de profondeur 1 :
+// un `static` déclaré DANS une fonction était jeté alors que son adresse est
+// aussi fixe que celle d'une globale. Le tri se fait désormais sur la présence
+// de DW_OP_addr, et les locales sans adresse sont NOMMÉES pour le panneau.
+console.log('Statics de fonction et locales :');
+const fn = tools.arduinoCli ? 'loop' : 'main';
+const memoLoop = nom(`${fn}::memo`);
+const memoBouton = nom('lireBouton::memo');
+check(`static de ${fn}() lu (${fn}::memo, 2 octets, SRAM) : ${JSON.stringify(memoLoop)}`,
+  !!memoLoop && memoLoop.size === 2 && memoLoop.addr >= 0x100);
+check(`static homonyme d'une autre fonction lu (lireBouton::memo) : ${JSON.stringify(memoBouton)}`,
+  !!memoBouton && memoBouton.size === 2 && memoBouton.addr >= 0x100);
+check(`les deux « memo » ont des adresses DISTINCTES (${memoLoop?.addr} ≠ ${memoBouton?.addr})`,
+  !!memoLoop && !!memoBouton && memoLoop.addr !== memoBouton.addr);
+check('aucune ligne pour « memo » non qualifié', !nom('memo'));
+// La locale ordinaire n'a pas d'adresse fixe : absente des variables lisibles,
+// mais citée dans `locals` pour que le panneau explique le manque.
+check('locale ordinaire absente des variables lisibles (travail)',
+  !nom('travail') && !nom(`${fn}::travail`));
+const locals = debug.locals ?? [];
+check(`locale ordinaire nommée dans locals (${JSON.stringify(locals)})`,
+  locals.some((l) => l.includes('travail')));
+check('aucun static cité à tort comme non lisible',
+  !locals.some((l) => l.includes('memo')));
 
 // --- Point d'arrêt dans la boucle d'exécution --------------------------------
 // Le moteur exécute sa boucle en tâches de fond (setTimeout / MessageChannel) et

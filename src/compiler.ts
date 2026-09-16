@@ -880,6 +880,12 @@ export interface AvrDebugInfo {
   lines: Array<{ addr: number; line: number; file?: string }>;
   /** Globales : adresse espace données AVR (biais ELF 0x800000 retiré). */
   globals: Array<{ name: string; addr: number; size: number; type?: string }>;
+  /**
+   * Locales repérées dans le source mais NON lisibles (pile ou registre, pas
+   * d'adresse fixe). Sert uniquement à nommer le manque dans le panneau : sans
+   * cette liste, l'élève cherche une variable qui n'apparaît nulle part.
+   */
+  locals?: string[];
 }
 
 const AVR_DATA_BIAS = 0x800000; // biais ELF de l'espace données AVR
@@ -1105,12 +1111,28 @@ function resolveType(
   return null; // fonction, type incomplet, tout ce qui ne se lit pas en mémoire
 }
 
-/** Parse `avr-objdump --dwarf=info` : globales de l'unité de compilation de l'élève. */
-function parseDwarfGlobals(text: string, srcPath: string): AvrDebugInfo['globals'] {
+/**
+ * Parse `avr-objdump --dwarf=info` : variables lisibles de l'unité de
+ * compilation de l'élève, plus le nom des locales qui ne le sont pas.
+ *
+ * Est lisible toute variable ayant une ADRESSE FIXE (`DW_OP_addr`) : les
+ * globales, mais aussi les `static` déclarées DANS une fonction — elles vivent
+ * en .bss/.data exactement comme une globale, seule leur portée de nom diffère.
+ * Une locale ordinaire vit dans le cadre de pile (`DW_OP_fbreg`) ou un registre
+ * (`DW_OP_regN`) : son adresse change à chaque appel, elle n'est pas lisible
+ * ici. On retient tout de même son NOM pour l'expliquer dans le panneau.
+ */
+function parseDwarfVariables(
+  text: string,
+  srcPath: string
+): { globals: AvrDebugInfo['globals']; locals: string[] } {
   const srcBase = basename(srcPath).toLowerCase();
   const srcStem = srcBase.replace(/\.[^.]+$/, '');
   const dies = new Map<number, DwarfDie>(); // tous les DIE, par offset de section
   const candidates: DwarfDie[] = []; // DW_TAG_variable du fichier de l'élève
+  // Fonction englobante de chaque candidat (vide pour une globale) : sert à
+  // qualifier le nom, deux fonctions pouvant déclarer un `static` homonyme.
+  const scopeOf = new Map<DwarfDie, string>();
   let current: DwarfDie | null = null;
   let cuMatches = false;
   // Pile des DIE ouverts, indexée par profondeur : `stack[n]` est le dernier DIE
@@ -1130,11 +1152,20 @@ function parseDwarfGlobals(text: string, srcPath: string): AvrDebugInfo['globals
         const parent = depth > 0 ? stack[depth - 1] : undefined;
         parent?.children.push(current);
         if (current.tag === 'DW_TAG_compile_unit') cuMatches = false; // tranché par DW_AT_name
-        // Seules les variables de PREMIER niveau sont globales : une variable
-        // imbriquée plus profond appartient à une fonction (locale ou statique
-        // de bloc), dont l'adresse n'est pas lisible ici.
-        else if (current.tag === 'DW_TAG_variable' && cuMatches && depth === 1) {
+        else if (current.tag === 'DW_TAG_variable' && cuMatches) {
+          // Niveau 1 = globale. Plus profond = déclarée dans une fonction : c'est
+          // soit un `static` (adresse fixe, donc lisible), soit une locale
+          // ordinaire — le tri se fait plus bas sur la PRÉSENCE de DW_OP_addr,
+          // seul critère fiable. On remonte la pile des DIE ouverts pour
+          // retrouver la fonction englobante, en traversant les blocs lexicaux
+          // (`static` déclaré dans un `if` ou une boucle).
           candidates.push(current);
+          for (let d = depth - 1; d > 0; d--) {
+            if (stack[d]?.tag === 'DW_TAG_subprogram') {
+              scopeOf.set(current, dieName(stack[d]) ?? '');
+              break;
+            }
+          }
         }
       }
       continue;
@@ -1150,25 +1181,38 @@ function parseDwarfGlobals(text: string, srcPath: string): AvrDebugInfo['globals
   }
 
   const globals: AvrDebugInfo['globals'] = [];
+  const locals = new Set<string>();
   const seen = new Set<string>();
   for (const die of candidates) {
     const nameRaw = die.attrs.get('DW_AT_name');
-    const loc = /DW_OP_addr:?\s*([0-9a-fA-F]+)/.exec(die.attrs.get('DW_AT_location') ?? '');
     const typeRef = typeRefOf(die);
-    if (!nameRaw || !loc || typeRef === null) continue;
-    const name = attrValue(nameRaw);
-    if (!name || name.startsWith('__') || seen.has(name)) continue;
+    if (!nameRaw || typeRef === null) continue;
+    const bare = attrValue(nameRaw);
+    if (!bare || bare.startsWith('__')) continue;
+    const scope = scopeOf.get(die) ?? '';
+    const loc = /DW_OP_addr:?\s*([0-9a-fA-F]+)/.exec(die.attrs.get('DW_AT_location') ?? '');
+    if (!loc) {
+      // Pas d'adresse fixe : locale en pile ou en registre. Le panneau la
+      // nommera comme non lisible plutôt que de la passer sous silence. Une
+      // variable de fonction déclarée SANS `static` passe toujours par ici.
+      if (scope) locals.add(`${scope}() : ${bare}`);
+      continue;
+    }
     // Adresse fixe en SRAM uniquement (exclut registres/IO, EEPROM et flash).
     const addr = parseInt(loc[1], 16) - AVR_DATA_BIAS;
     if (addr < AVR_SRAM_START) continue;
     const type = resolveType(dies, typeRef);
     if (!type || !type.size) continue;
     if (addr + type.size > AVR_SRAM_END) continue;
+    // Un `static` de fonction est qualifié par elle : deux fonctions peuvent
+    // déclarer `compteur` sans que l'une masque l'autre dans le panneau.
+    const name = scope ? `${scope}::${bare}` : bare;
+    if (seen.has(name)) continue;
     seen.add(name);
     globals.push(...flattenGlobal(name, addr, type));
   }
   globals.sort((a, b) => a.name.localeCompare(b.name));
-  return globals;
+  return { globals, locals: [...locals].sort((a, b) => a.localeCompare(b)) };
 }
 
 /**
@@ -1249,10 +1293,13 @@ async function extractAvrDebug(
       run(objdump, ['--dwarf=info', elfPath]),
     ]);
     const lines = parseDecodedLines(decoded, srcPath);
-    const globals = parseDwarfGlobals(info, srcPath);
+    const { globals, locals } = parseDwarfVariables(info, srcPath);
     if (lines.length === 0 && globals.length === 0) return undefined;
-    log.push(`Infos de débogage : ${lines.length} point(s) de ligne, ${globals.length} globale(s).`);
-    return { lines, globals };
+    log.push(
+      `Infos de débogage : ${lines.length} point(s) de ligne, ${globals.length} variable(s) lisible(s)` +
+        (locals.length > 0 ? `, ${locals.length} locale(s) non lisible(s).` : '.')
+    );
+    return { lines, globals, locals: locals.length > 0 ? locals : undefined };
   } catch (err) {
     log.push(`Infos de débogage indisponibles : ${(err as Error).message}`);
     return undefined;

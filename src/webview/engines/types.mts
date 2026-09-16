@@ -147,6 +147,8 @@ export interface AvrDebugInfo {
   lines: Array<{ addr: number; line: number; file?: string }>;
   /** Variables globales : adresse dans l'espace données AVR, taille, type. */
   globals: Array<{ name: string; addr: number; size: number; type?: string }>;
+  /** Locales repérées mais non lisibles (pile/registre) : nommées dans le panneau. */
+  locals?: string[];
 }
 
 export interface SimEngine {

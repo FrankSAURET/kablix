@@ -3487,6 +3487,12 @@ const varBases = new Map<string, VarBase>();
  * rendu — le menu des bases et `setVarBase` n'ont que le nom sous la main.
  */
 const varTypes = new Map<string, string | undefined>();
+/**
+ * Nombre de locales non lisibles citées NOMMÉMENT sous l'en-tête du panneau.
+ * Au-delà, le surplus est compté : une fonction à quinze variables de travail
+ * remplirait sinon le panneau d'un message plus long que les vraies valeurs.
+ */
+const LOCALS_NAMED_MAX = 4;
 /** Nom de la variable sélectionnée (clic gauche) : simple repère visuel. */
 let selectedVar: string | null = null;
 /** Dernier instantané reçu, pour re-dessiner après un masquage sans nouvelle pause. */
@@ -3512,16 +3518,33 @@ function renderDebugPause(state: DebugPauseState, redraw = false): void {
   debugSection.hidden = false;
   debugLineEl.textContent = state.line !== undefined ? t('Line {0}', state.line) : '';
   debugVarsEl.innerHTML = '';
-  // En-tête permanent en C/Arduino : seules les variables GLOBALES sont lisibles
-  // (les locales demanderaient l'analyse CFI DWARF). En MicroPython, pas de cette
-  // restriction → en-tête omis.
+  // En-tête permanent en C/Arduino : ne sont lisibles que les variables à
+  // ADRESSE FIXE — les globales et les `static` de fonction. Une locale
+  // ordinaire vit dans la pile ou un registre, sans adresse stable. Quand la
+  // compilation en a repéré, on les NOMME : sinon l'élève cherche en vain une
+  // variable absente du panneau sans savoir pourquoi. En MicroPython, pas de
+  // cette restriction → en-tête omis.
   if (!runIsPython) {
     const hRow = debugVarsEl.insertRow();
     const hCell = hRow.insertCell();
     hCell.colSpan = 3;
     hCell.className = 'debug__cinfo';
-    hCell.textContent = t('ℹ Only global variables are shown');
-    hCell.title = t('In C/Arduino, declare a variable outside setup() and loop() (global) to inspect it here.');
+    hCell.textContent = t('ℹ Only global and static variables are shown');
+    hCell.title = t('In C/Arduino, a variable declared inside setup() or loop() has no fixed address. Declare it outside any function (global), or add “static” before its type, to inspect it here.');
+    const missing = unoDebugInfo?.locals ?? [];
+    if (missing.length > 0) {
+      const mRow = debugVarsEl.insertRow();
+      const mCell = mRow.insertCell();
+      mCell.colSpan = 3;
+      mCell.className = 'debug__cinfo debug__cinfo--locals';
+      // Au-delà de quelques noms la liste noierait le panneau : on cite les
+      // premiers et on compte le reste.
+      const shownNames = missing.slice(0, LOCALS_NAMED_MAX);
+      const rest = missing.length - shownNames.length;
+      const list = shownNames.join(', ') + (rest > 0 ? t(' and {0} more', rest) : '');
+      mCell.textContent = t('Not readable here: {0}', list);
+      mCell.title = t('These variables are declared inside a function, so they live on the stack and have no fixed address. Declare them outside any function, or add “static”, to follow them.');
+    }
   }
   const shown = state.variables.filter((v) => !hiddenVars.has(v.name));
   if (shown.length === 0) {
