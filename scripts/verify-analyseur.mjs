@@ -73,15 +73,18 @@ check('palette : au-delà de 8 voies, teinte de débordement grise (jamais un do
   couleurVoie(8, false) === '#888888' && couleurVoie(-1, false) === '#888888');
 
 // --- Modèle : résolution de l'accroche -----------------------------------------
-/** Schéma minimal : une carte, une résistance, et les sondes qu'on lui donne. */
-const schema = (sondes) => ({
+/** Schéma minimal : une carte, une résistance, et les sondes qu'on lui donne.
+ *  `fils` permet de CÂBLER la résistance pour éprouver le suivi de fil. */
+const schema = (sondes, fils = []) => ({
   parts: [
     { id: 'uno1', type: 'uno', x: 0, y: 0, attrs: {} },
     { id: 'r1', type: 'resistor', x: 300, y: 0, attrs: { value: '220' } },
     ...sondes,
   ],
-  wires: [],
+  wires: fils,
 });
+/** La patte 1 de la résistance reliée à la broche 8 de la carte. */
+const filR1vers8 = [{ id: 'w1', a: { partId: 'uno1', pin: '8' }, b: { partId: 'r1', pin: '1' }, path: [] }];
 const sonde = (id, voie, accroche, etiquette = '') => ({
   id,
   type: 'sonde-logique',
@@ -102,12 +105,34 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
     v[0].probleme === 'nowhere' && v[0].pin === undefined, JSON.stringify(v[0]));
 }
 {
-  // Posée sur une patte de résistance : ce n'est PAS une broche de carte. On ne
-  // remonte pas au nœud exprès — si l'élève sonde le mauvais bout, il doit le
-  // voir, pas obtenir par magie le signal d'à côté.
+  // Patte CÂBLÉE à la broche 8 : la pince SUIT LE FIL (décision de Frank, .92).
+  // Une vraie pince crocodile mesure le potentiel du point où on l'accroche, et
+  // ce point est électriquement la broche qui le pilote. C'est le cas ordinaire
+  // d'un montage à modules : on pince la borne du module qu'on observe.
+  const v = logicProbeVoies(schema([sonde('s1', 0, 'r1/1')], filR1vers8));
+  check('modèle : pastille sur une patte câblée à la broche 8 → suit le fil, broche 8',
+    !v[0].probleme && v[0].pin === '8' && v[0].suivi === true, JSON.stringify(v[0]));
+}
+{
+  // L'AUTRE patte : ce n'est pas le même potentiel. Suivre le fil jusque-là
+  // afficherait un signal que le point pincé n'a pas — la netlist du suivi ne
+  // fusionne donc PAS les résistances.
+  const v = logicProbeVoies(schema([sonde('s1', 0, 'r1/2')], filR1vers8));
+  check('modèle : pastille sur l’AUTRE patte → muette (une résistance n’est pas un fil)',
+    v[0].probleme === 'not-mcu' && v[0].pin === undefined, JSON.stringify(v[0]));
+}
+{
+  // Patte non câblée : rien au bout du fil, la voie reste muette avec sa raison.
   const v = logicProbeVoies(schema([sonde('s1', 0, 'r1/1')]));
-  check('modèle : pastille sur une patte de résistance → `not-mcu` (aucune remontée au nœud)',
-    v[0].probleme === 'not-mcu', JSON.stringify(v[0]));
+  check('modèle : pastille sur une patte en l’air → `not-mcu`, aucune broche',
+    v[0].probleme === 'not-mcu' && v[0].pin === undefined, JSON.stringify(v[0]));
+}
+{
+  // Posée DIRECTEMENT sur la broche : pas de remontée, et surtout pas de
+  // drapeau `suivi` — la pince est bien là où le nom l'indique.
+  const v = logicProbeVoies(schema([sonde('s1', 0, 'uno1/8')], filR1vers8));
+  check('modèle : pastille sur la broche même → broche 8 sans drapeau `suivi`',
+    v[0].pin === '8' && v[0].suivi === undefined, JSON.stringify(v[0]));
 }
 {
   const v = logicProbeVoies(schema([sonde('s1', 0, 'uno1/GND.1')]));

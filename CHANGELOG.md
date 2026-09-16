@@ -38,6 +38,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Les flèches de repliement des deux panneaux sont visibles** : elles débordaient sur l'ascenseur de la bibliothèque et sur le titre des propriétés. Elles sont maintenant plus grosses, plus grasses, dans leur propre gouttière.
 - **Le bout de la sonde logique se voit sur la grille** : sa tige était de la couleur du quadrillage et passait sous le dessin. Sa pastille rouge tombe désormais pile sur une intersection.
 - **Une sonde posée retrouve exactement sa pastille** à l'ouverture d'un projet : une fraction de pixel la décalait et elle n'accrochait plus rien.
+- **Le dessin du générateur BF ne passe plus devant les fils** au lancement de la simulation.
+- **Le générateur BF relié à l'oscilloscope trace enfin sa courbe.** Sa sortie est maintenant une vraie source pour le montage : l'oscilloscope et le voltmètre la mesurent, alternance négative comprise. En basse fréquence, le traceur de courbes la suit aussi.
+- **Le bouton de fréquence du générateur BF se règle par paliers** : au hertz sous 100 Hz, aux 10 Hz jusqu'à 10 kHz, aux 100 Hz au-delà.
+- **Une pince posée ailleurs que sur la carte suit le fil** jusqu'à la broche qui la commande : pincer la borne d'un module montre enfin son signal. La voie porte le nom de la broche trouvée, suivi d'une flèche.
 
 ## 2026.9.4 (13 septembre 2026)
 

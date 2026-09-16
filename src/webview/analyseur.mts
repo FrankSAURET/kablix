@@ -48,6 +48,8 @@ type MessageEntrant =
         pin: string;
         probleme: 'nowhere' | 'not-mcu' | 'power' | null;
         analogique: boolean;
+        /** Broche trouvée en suivant le fil, la pince n'étant pas sur la carte. */
+        suivi?: boolean;
       }>;
     }
   /** Salve de fronts : `{ broche: [t, niveau, …] }`, en ms simulées. */
@@ -95,7 +97,7 @@ const textes = (): TextesVue => ({
   aucuneSonde: t('No logic probe on the board — clip one onto a pin.'),
   aucuneDonnee: t('No edge captured yet.'),
   nowhere: t('This probe is not on any pad.'),
-  notMcu: t('This pad is not a board pin.'),
+  notMcu: t('This point is not wired to any board pin.'),
   power: t('Power pin: a constant level, no edge to show.'),
   analogique: t('analog-capable pin: only 0/1 shown'),
   enAttente: t('Waiting for the trigger edge…'),
@@ -279,7 +281,12 @@ function majEtiquettes(): void {
     const puce = document.createElement('i');
     puce.style.background = couleurVoie(d.voie, sombre);
     chip.append(puce);
-    chip.append(document.createTextNode(d.pin ? `${d.nom} · ${d.pin}` : d.nom));
+    // « SD2 · GP3 ↝ » : la flèche dit que la pince n'est pas sur la broche
+    // nommée mais sur un point relié à elle. L'infobulle l'écrit en toutes
+    // lettres — un symbole seul n'explique rien.
+    const nom = d.pin ? `${d.nom} · ${d.pin}` : d.nom;
+    chip.append(document.createTextNode(d.suivi ? `${nom} ↝` : nom));
+    if (d.suivi) chip.title = t('Clipped away from the board: this point is wired to {0}.', d.pin);
     if (d.probleme) chip.classList.add('chip--muet');
     legende.append(chip);
   }
@@ -331,6 +338,7 @@ window.addEventListener('message', (ev) => {
         pin: v.pin,
         probleme: v.probleme,
         analogique: v.analogique,
+        suivi: v.suivi === true,
       }));
       // Seules les voies traçables entrent dans la capture : une sonde en l'air
       // n'a pas de broche, donc rien à quoi rattacher des fronts.

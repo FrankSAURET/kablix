@@ -978,6 +978,13 @@ function computeResistiveGraph(
     vccNets.add(nets.netOf({ partId: part.id, pin: 'V+' }));
     gndNets.add(nets.netOf({ partId: part.id, pin: 'GND' }));
   }
+  // Générateur BF : sa borne GND est une masse comme les autres. Sa sortie `Vs`
+  // n'est PAS un rail — sa tension change à chaque instant — et n'entre donc
+  // pas dans `vccNets` : elle est posée comme source datée par `circuitSources`.
+  for (const part of diagram.parts) {
+    if (part.type !== 'gbf') continue;
+    gndNets.add(nets.netOf({ partId: part.id, pin: 'GND' }));
+  }
   // Sortie de porte logique : une source au même titre qu'une broche de carte —
   // haute elle alimente (la LED qu'elle pilote s'allume vraiment, avec son
   // courant), basse elle sert de retour à la masse.
@@ -1435,6 +1442,9 @@ export function capacitorNodes(
   return out;
 }
 
+/** Résistance de sortie d'un générateur BF (Ω) — la valeur normalisée. */
+const GBF_OUT_OHMS = 50;
+
 /** Une branche du montage qui impose une tension : rail, sortie ou rappel MCU. */
 interface CircuitSource {
   net: string;
@@ -1460,7 +1470,8 @@ function circuitSources(
   gndNets: ReadonlySet<string>,
   drive?: (pin: string) => PinDrive,
   psuVolts?: (partId: string) => number | null,
-  pwmVolts?: (pin: string) => number | null
+  pwmVolts?: (pin: string) => number | null,
+  gbfVolts?: (partId: string) => number | null
 ): { sources: CircuitSource[]; pinsOnNet: Map<string, string[]> } {
   const sources: CircuitSource[] = [];
   // Tension PROPRE à chaque rail. Une carte n'a pas UN rail mais plusieurs, à
@@ -1493,6 +1504,26 @@ function circuitSources(
     sources.push({ net, volts: railVolts.get(net) ?? vcc, ohms: 0 });
   }
   for (const net of gndNets) sources.push({ net, volts: 0, ohms: 0 });
+  // GÉNÉRATEUR BF : une source de tension VARIABLE dans le temps. Sa borne `Vs`
+  // impose la tension que l'appareil sort À CET INSTANT — c'est l'appelant qui
+  // la calcule (`gbfVolts`), parce que seul lui connaît l'heure simulée.
+  //
+  // Sans cette source, le GBF n'existait QUE pour le moteur, à l'instant de la
+  // conversion ADC : le montage, lui, ne le voyait pas. Un oscilloscope ou un
+  // traceur branché dessus ne lisait donc rien du tout (retour Frank, .92).
+  //
+  // Résistance de sortie de 50 Ω, la valeur normalisée des générateurs de
+  // paillasse : ce n'est pas une source idéale, et chargée elle chute — ce que
+  // l'élève doit pouvoir constater. Elle reste négligeable devant les charges
+  // usuelles (une entrée analogique, une résistance de quelques kΩ).
+  if (gbfVolts) {
+    for (const part of diagram.parts) {
+      if (part.type !== 'gbf') continue;
+      const v = gbfVolts(part.id);
+      if (v === null || !Number.isFinite(v)) continue;
+      sources.push({ net: nets.netOf({ partId: part.id, pin: 'Vs' }), volts: v, ohms: GBF_OUT_OHMS });
+    }
+  }
   const pinsOnNet = new Map<string, string[]>();
   for (const { part, board } of mcuParts(diagram)) {
     for (const pin of mcuPins(board)) {
@@ -1692,7 +1723,10 @@ export function meterReadings(
   drive?: (pin: string) => PinDrive,
   psuVolts?: (partId: string) => number | null,
   liveOhms?: (part: Part) => number | null,
-  pwmVolts?: (pin: string) => number | null
+  pwmVolts?: (pin: string) => number | null,
+  /** Tension INSTANTANÉE de la sortie d'un générateur BF (l'appelant tient
+   *  l'heure simulée). Absent = le GBF n'impose rien, comme avant .92. */
+  gbfVolts?: (partId: string) => number | null
 ): MeterReading[] {
   // L'oscilloscope (kind 'scope') se lit EXACTEMENT comme un voltmètre : deux
   // prises, la différence des tensions de repos, aucune consommation. Seul son
@@ -1706,7 +1740,7 @@ export function meterReadings(
   // temporelle des deux circuits, pont fermé et pont ouvert. Un appareil qui ne
   // lit rien dans l'un des deux (prise en l'air) ne lit rien du tout.
   return averagedOverChopping(
-    () => readMetersOnce(diagram, meters, vcc, drive, psuVolts, liveOhms, pwmVolts),
+    () => readMetersOnce(diagram, meters, vcc, drive, psuVolts, liveOhms, pwmVolts, gbfVolts),
     (ferme, ouvert, duty) => {
       const parOuvert = new Map(ouvert.map((m) => [m.partId, m]));
       return ferme.map((m) => {
@@ -1749,7 +1783,8 @@ function readMetersOnce(
   drive?: (pin: string) => PinDrive,
   psuVolts?: (partId: string) => number | null,
   liveOhms?: (part: Part) => number | null,
-  pwmVolts?: (pin: string) => number | null
+  pwmVolts?: (pin: string) => number | null,
+  gbfVolts?: (partId: string) => number | null
 ): MeterReading[] {
   const out: MeterReading[] = [];
   for (const meter of meters) {
@@ -1759,7 +1794,7 @@ function readMetersOnce(
     // Le multimètre lisse le hachage, l'oscilloscope surtout PAS : son métier est
     // justement de montrer les créneaux un par un.
     const lisse = partDef(meter.type).kind === 'meter' ? pwmVolts : undefined;
-    const { sources } = circuitSources(source, vcc, nets, vccNets, gndNets, drive, psuVolts, lisse);
+    const { sources } = circuitSources(source, vcc, nets, vccNets, gndNets, drive, psuVolts, lisse, gbfVolts);
     const sourceNets = new Set(sources.map((s) => s.net));
     const plus = theveninNode(nets.netOf({ partId: meter.id, pin: '+' }), sources, sourceNets, adj);
     const minus = theveninNode(nets.netOf({ partId: meter.id, pin: 'GND' }), sources, sourceNets, adj);
@@ -3688,6 +3723,13 @@ export interface LogicProbeVoie {
   /** Broche du schéma sur laquelle la pastille est posée (`id/patte`), si posée. */
   accroche?: string;
   /**
+   * Vrai si la broche écoutée a été trouvée EN SUIVANT LE FIL depuis un point
+   * qui n'est pas la carte (borne de module, patte de composant). L'analyseur
+   * l'écrit dans l'étiquette de la voie : l'élève a pincé une borne de module
+   * et lit un nom de broche — sans cette mention, il croirait s'être trompé.
+   */
+  suivi?: boolean;
+  /**
    * Pourquoi cette voie ne trace rien. Absent = la voie est bonne.
    *  - `nowhere`  : la sonde n'est posée sur aucune pastille ;
    *  - `not-mcu`  : elle est posée sur une pastille qui n'est pas une broche de
@@ -3709,17 +3751,51 @@ export interface LogicProbeVoie {
  * Voies de l'analyseur logique : pour chaque sonde posée sur la planche, la
  * broche MCU qu'elle écoute.
  *
- * À la différence de l'oscilloscope (`scopeProbePins`, juste en dessous), une
- * sonde ne se CÂBLE pas : elle se POSE, pastille sur pastille, et l'éditeur a
- * écrit ce qu'elle recouvre dans son attribut `accroche`. On ne passe donc pas
- * par les nets — c'est voulu : une sonde posée sur la broche 8 doit montrer LA
- * BROCHE 8, pas « le nœud auquel la broche 8 appartient ». Si l'élève câble mal,
- * l'analyseur doit le laisser voir.
+ * Une sonde se POSE, pastille sur pastille, et l'éditeur a écrit ce qu'elle
+ * recouvre dans son attribut `accroche` — elle ne se câble pas.
  *
- * Une sonde qui n'écoute rien est rendue QUAND MÊME, avec sa raison : l'élève
- * qui a posé une pince de travers doit lire pourquoi sa voie est vide, au lieu
- * de la croire cassée.
+ * Posée SUR une broche de la carte, c'est CETTE broche qu'elle montre, sans
+ * passer par les nets : si l'élève câble mal, l'analyseur doit le laisser voir.
+ *
+ * Posée AILLEURS (borne de module, patte de composant), elle SUIT LE FIL
+ * jusqu'à la broche du microcontrôleur qui se trouve sur le même nœud — comme
+ * une vraie pince crocodile, qui mesure le potentiel du point où on l'accroche
+ * (décision de Frank, .92). C'est le cas ordinaire d'un montage à modules :
+ * on pince la borne du module qu'on observe, pas la broche de la carte à
+ * l'autre bout du fil. Le comportement d'avant (`not-mcu` immédiat) rendait
+ * ces poses muettes.
+ *
+ * Une sonde qui n'écoute VRAIMENT rien est rendue QUAND MÊME, avec sa raison :
+ * l'élève qui a posé une pince de travers doit lire pourquoi sa voie est vide,
+ * au lieu de la croire cassée.
  */
+/**
+ * Broche MCU du même nœud qu'un point du montage, pour une pince posée hors de
+ * la carte. Rend aussi le drapeau « entrée analogique » de cette broche.
+ *
+ * On ne fusionne PAS les résistances (`joinResistors = false`) : les deux
+ * pattes d'une résistance ne sont pas le même potentiel. Pincer la sortie d'un
+ * pont diviseur doit rester muet, pas afficher le créneau de la broche qui
+ * l'attaque — ce serait montrer un signal que le point pincé n'a pas.
+ */
+function suivreFilVersMcu(
+  diagram: Diagram,
+  point: { partId: string; pin: string },
+): { pin: string; analogique: boolean } | null {
+  if (!point.partId || !point.pin) return null;
+  const nets = buildNets(diagram, false);
+  const net = nets.netOf(point);
+  for (const { part, board } of mcuParts(diagram)) {
+    for (const pin of mcuPins(board)) {
+      const role = mcuPinRole(board, pin);
+      if (role.role !== 'digital' || !role.name) continue;
+      if (nets.netOf({ partId: part.id, pin }) !== net) continue;
+      return { pin: role.name, analogique: role.adcChannel !== undefined };
+    }
+  }
+  return null;
+}
+
 export function logicProbeVoies(diagram: Diagram): LogicProbeVoie[] {
   const sondes = diagram.parts.filter((p) => partDef(p.type).kind === 'logic-probe');
   if (sondes.length === 0) return [];
@@ -3744,9 +3820,16 @@ export function logicProbeVoies(diagram: Diagram): LogicProbeVoie[] {
     const cible = diagram.parts.find((p) => p.id === cibleId);
     const def = cible && partDef(cible.type);
     if (!cible || !def || def.kind !== 'mcu' || !def.board) {
-      // Posée sur un composant qui n'est pas la carte (ou sur un composant
-      // depuis supprimé) : aucune broche de microcontrôleur à écouter.
-      out.push({ ...base, accroche, probleme: 'not-mcu' });
+      // Posée ailleurs que sur la carte : on SUIT LE FIL. La pince prend le
+      // potentiel du point qu'elle pince, et ce point est électriquement la
+      // broche qui le pilote. Rien au bout du fil → la voie reste muette,
+      // avec sa raison.
+      const suivie = suivreFilVersMcu(diagram, { partId: cibleId, pin: ciblePin });
+      if (!suivie) {
+        out.push({ ...base, accroche, probleme: 'not-mcu' });
+        continue;
+      }
+      out.push({ ...base, accroche, pin: suivie.pin, suivi: true, analogique: suivie.analogique });
       continue;
     }
     const role = mcuPinRole(def.board, ciblePin);
@@ -3756,8 +3839,14 @@ export function logicProbeVoies(diagram: Diagram): LogicProbeVoie[] {
     }
     if (role.role !== 'digital' || !role.name) {
       // AREF, RESET, IOREF… : des broches de la carte, mais que le firmware ne
-      // pilote pas — le moteur n'a rien à en dire.
-      out.push({ ...base, accroche, probleme: 'not-mcu' });
+      // pilote pas. Elles peuvent tout de même être CÂBLÉES à une broche utile
+      // (un strap de RESET vers une sortie) : on suit le fil avant d'abandonner.
+      const suivie = suivreFilVersMcu(diagram, { partId: cibleId, pin: ciblePin });
+      if (!suivie) {
+        out.push({ ...base, accroche, probleme: 'not-mcu' });
+        continue;
+      }
+      out.push({ ...base, accroche, pin: suivie.pin, suivi: true, analogique: suivie.analogique });
       continue;
     }
     out.push({

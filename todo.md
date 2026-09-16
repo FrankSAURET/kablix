@@ -1,12 +1,29 @@
 # À faire
-1. GBF
-    1. Le dessin du GBF est par dessus les fils.
-    1. Si je relie le GBF à l'oscillo rien ne se passe. Le traceur ne le vois pas non plus
-    1. Variation de la fréquence par pas de 1Hz de 1 à 100, 10 Hz de 10 à 10kHz et 100 Hz de 10 kHz à 1 MHz.
 
 
 ## ne pas faire pour l'instant
 
+
+---
+
+# >>>>  v2026.9.4.92 — Le générateur BF existe pour le montage
+
+1. ✅ **Le dessin du GBF reste sous les fils** (item 1.1). Il était hissé à `z = 60` par la règle qui remonte les appareils « à commande dessinée » au lancement de la simulation — règle juste pour l'alim ou le multimètre, dont les boutons doivent rester cliquables, mais le GBF y entrait par la porte des `toggles`. Il rejoint la liste explicite des appareils gardés sous le câblage ([editor.mts](src/webview/diagram/editor.mts)) : gros dessin de paillasse, quatre boutons rotatifs et un curseur tous **dessinés en SVG**, aucun `<input>` HTML à protéger.
+2. ✅ **Le GBF existe enfin dans le MODÈLE ÉLECTRIQUE** (item 1.2) — c'était la vraie cause du « rien ne se passe ». Diagnostic sans appel : `grep gbf src/webview/diagram/model.mts` ne rendait **aucun résultat**. Le générateur n'existait que pour le moteur, à l'instant de la conversion ADC ; le montage, lui, ne le voyait pas du tout, d'où l'oscilloscope plat.
+3. ✅ **Sa sortie est une SOURCE DATÉE, pas un rail** ([model.mts](src/webview/diagram/model.mts)) : `Vs` entre dans `circuitSources` avec une résistance de sortie de **50 Ω** (la valeur normalisée), et **pas** dans `vccNets` — sa tension change à chaque instant, un rail est constant. Sa borne `GND`, elle, est une masse du montage comme une autre.
+4. ✅ **L'alternance négative n'est PAS écrêtée** côté oscilloscope, et c'est délibéré : l'écrêtage 0–VREF est un phénomène de l'**entrée ADC** (diodes de protection), pas du générateur. Un GBF réglé à ±5 V descend réellement sous la masse, et l'oscilloscope doit le tracer. D'où deux chemins distincts : `evalAnalogWave` (fraction de VREF écrêtée, pour le moteur) et `gbfVoltsAt` (volts bruts, pour le montage) — le commentaire de chacun renvoie à l'autre.
+5. ✅ **Le rappel `gbfVolts` est optionnel et en FIN de signature** (`circuitSources`, `readMetersOnce`, `meterReadings`) : une vingtaine d'appelants positionnels, bancs compris, passent sans être touchés.
+6. ✅ **Les GBF se recensent sur les COMPOSANTS, plus sur les liaisons analogiques** ([sim.mts](src/webview/sim.mts)). `analogSourceBindings` ne retient que ceux reliés à une entrée ADC — un générateur branché sur un oscilloscope n'en a aucune en face et échappait au recensement, donc à tout. L'écoute des boutons est déplacée là aussi : sans ça, tourner un bouton ne se serait pas entendu sur un montage sans carte.
+7. ✅ **Le traceur voit le signal en basse fréquence** (fin de l'item 1.2). Aucune valeur de frame n'était posée pour le GBF — décision du lot .90, juste en haut de plage mais qui privait l'élève de sa courbe en bas. Une valeur est maintenant posée **sous 10 Hz** (`GBF_FREQ_TRACABLE`) : à cette fréquence une image de 16 ms tient encore six points par période. Au-dessus on s'en abstient toujours — les points tomberaient au hasard dans la période et le tracé serait un bruit trompeur, pas un signal.
+8. ✅ **Le bouton de fréquence se règle par paliers** (item 1.3), aux trois plages demandées : **1 Hz** sous 100 Hz, **10 Hz** jusqu'à 10 kHz, **100 Hz** au-delà (`pasDeFreq`, [gbf-element.mts](src/webview/composants/gbf-element.mts)). L'arrondi se fait au pas de la plage de la valeur **brute** : caler d'abord au hertz puis chercher le pas ferait bégayer une valeur juste sous un seuil.
+9. ✅ **Le pas n'est pas imposé à l'inspecteur** : la saisie clavier y reste au hertz près sur toute la plage. Les paliers sont ceux du **cadran** — ils existent parce qu'un bouton rotatif a une course finie, pas pour interdire une valeur.
+10. ✅ **Cinq contrôles ajoutés à [verify-gbf.mjs](scripts/verify-gbf.mjs)**, dont trois sur le modèle (l'oscilloscope lit la tension, le négatif passe, et sans tension datée il n'y a rien à lire) et deux à la **vraie souris** sur les paliers : le cadran est balayé **degré par degré** (100 positions, de 1 Hz à 912 kHz) et chaque fréquence atteinte doit être un multiple du pas de sa plage. Un balayage grossier n'aurait rien prouvé — c'est **entre** deux crans qu'une valeur non calée apparaîtrait ; un second contrôle vérifie d'ailleurs que le balayage traverse bien les trois plages, sans quoi le premier ne vérifierait qu'un seul pas.
+11. ✅ **Contre-épreuves faites, les deux concluantes** : `git stash` sur [model.mts](src/webview/diagram/model.mts) → l'oscilloscope relit `null` (les deux contrôles tombent, celui qui doit rester vert reste vert) ; `git stash` sur [gbf-element.mts](src/webview/composants/gbf-element.mts) → **60 des 100 positions hors pas**.
+12. ✅ **Item 4.1 du lot .91 tranché et livré** : sur ton « oui une sonde suit le fil », une pince posée ailleurs que sur la carte **remonte le fil** jusqu'à la broche du microcontrôleur (`suivreFilVersMcu`, [model.mts](src/webview/diagram/model.mts)). La voie porte le nom trouvé suivi d'une flèche `↝`, et l'infobulle l'écrit en toutes lettres — sans cette mention, l'élève croirait s'être trompé de point.
+13. ✅ **Les résistances ne sont PAS fusionnées** dans cette remontée (`joinResistors = false`), et c'est le cœur de la décision : les deux pattes d'une résistance ne sont pas au même potentiel. Pincer l'autre patte reste muet, comme sur la paillasse. Quatre contrôles à [verify-analyseur.mjs](scripts/verify-analyseur.mjs) le mesurent (patte câblée → suit, autre patte → muette, patte en l'air → `not-mcu`, broche même → pas de drapeau).
+14. ℹ️ **Les deux sondes de `dmx-pico.projix` restent muettes, légitimement** — mesuré, pas supposé : `SD1` n'est accrochée à rien (`accroche` vide, plus un fil parasite vers `Mod1/+`), et `SD2` est sur `Mod1/-`, un nœud qui ne rejoint **aucune** broche du Pico (il ne va qu'au spot DMX). Le suivi de fil ne pouvait pas les sauver, et rien n'a été forcé pour faire croire le contraire.
+15. ⏳ **Traductions en attente** (règle « jamais de traduction au fil de l'eau ») : pas de chaîne neuve ce lot, la dette reste celle des lots .90/.91 — `This point is not wired to any board pin.` et `Clipped away from the board: this point is wired to {0}.` s'y ajoutent. À verser au lot d'avant publication.
+16. ℹ️ **`version` reste `2026.9.4`**, `buildNumber` à 92. CHANGELOG complété sous `2026.9.5 (prochaine publication)`.
 
 ---
 

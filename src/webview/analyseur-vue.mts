@@ -47,6 +47,13 @@ export interface VoieVue {
   probleme: ProblemeVoie | null;
   /** Vrai si la broche porte aussi un convertisseur analogique (A0…, GP26…). */
   analogique: boolean;
+  /**
+   * Vrai si la pince n'est pas posée sur la carte et que la broche a été
+   * trouvée en suivant le fil. La légende le dit : sans cela, l'élève qui a
+   * pincé la borne d'un module lirait un nom de broche sans comprendre d'où
+   * il sort.
+   */
+  suivi?: boolean;
 }
 
 /** État du zoom / défilement, conservé entre deux rendus. */

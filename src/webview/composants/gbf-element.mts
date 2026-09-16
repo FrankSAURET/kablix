@@ -114,10 +114,30 @@ export interface PinInfo {
   signals: unknown[];
 }
 
+/**
+ * Pas de réglage de la fréquence, en Hz, selon la plage où l'on se trouve.
+ *
+ * Un pas CONSTANT ne convient pas sur six décades : au Hz près, il faudrait un
+ * million de crans pour monter à 1 MHz ; au kHz près, on ne pourrait plus régler
+ * le bas de la plage, où 1 Hz d'écart s'entend. Le pas grossit donc avec la
+ * fréquence, comme sur un vrai générateur (plages demandées par Frank, .92) :
+ *   1 Hz en dessous de 100 Hz · 10 Hz jusqu'à 10 kHz · 100 Hz au-delà.
+ */
+function pasDeFreq(hz: number): number {
+  if (hz < 100) return 1;
+  if (hz < 10_000) return 10;
+  return 100;
+}
+
 /** Fréquence (Hz) ↔ fraction de course (0..1), en logarithmique. */
 function freqDepuisFraction(f: number): number {
   const decades = Math.log10(FREQ_MAX / FREQ_MIN);
-  return Math.round(FREQ_MIN * Math.pow(10, f * decades));
+  const brute = FREQ_MIN * Math.pow(10, f * decades);
+  // Arrondi au pas de SA plage, celle de la valeur brute : arrondir d'abord au
+  // Hz puis chercher le pas ferait bégayer la valeur juste sous un seuil.
+  const pas = pasDeFreq(brute);
+  const cale = Math.round(brute / pas) * pas;
+  return Math.max(FREQ_MIN, Math.min(FREQ_MAX, cale));
 }
 function fractionDepuisFreq(hz: number): number {
   const decades = Math.log10(FREQ_MAX / FREQ_MIN);

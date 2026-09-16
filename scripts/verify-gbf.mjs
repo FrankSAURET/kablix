@@ -31,7 +31,7 @@ const buildTo = async (entry, outfile) => {
 };
 const { gbfWaveform, evalAnalogWave } = await buildTo('src/webview/engines/analog-waves.mts', 'waves.mjs');
 const { partDef, partCategory, CATEGORY_ORDER } = await buildTo('src/webview/diagram/catalog.mts', 'catalog.mjs');
-const { analogSourceBindings } = await buildTo('src/webview/diagram/model.mts', 'model.mjs');
+const { analogSourceBindings, meterReadings } = await buildTo('src/webview/diagram/model.mts', 'model.mjs');
 
 let failures = 0;
 const check = (label, ok) => {
@@ -176,6 +176,43 @@ check('netlist : Vs câblé sur A0 → liaison résolue sur A0',
 // Contre-épreuve : sans fil, aucune liaison (le GBF ne pilote alors rien).
 check('netlist : GBF non câblé → aucune liaison (contre-épreuve)',
   analogSourceBindings({ parts: diagramme.parts, wires: [] }).length === 0);
+
+// --- Le GBF dans le MODÈLE ÉLECTRIQUE (v2026.9.4.92) --------------------------
+//
+// Jusqu'au lot .91 le générateur n'existait que pour le moteur, à l'instant de
+// la conversion ADC : le montage ne le voyait pas. Un oscilloscope branché sur
+// sa sortie lisait `null` — d'où le « si je relie le GBF à l'oscillo rien ne se
+// passe » de Frank. Sa sortie est maintenant posée comme SOURCE datée (50 Ω) et
+// sa masse compte comme une masse du montage.
+{
+  const montage = {
+    parts: [
+      { id: 'G1', type: 'gbf', x: 0, y: 0, attrs: {} },
+      { id: 'OSC1', type: 'oscillo', x: 300, y: 0, attrs: {} },
+    ],
+    wires: [
+      { id: 'w1', a: { partId: 'G1', pin: 'Vs' }, b: { partId: 'OSC1', pin: '+' }, path: [] },
+      { id: 'w2', a: { partId: 'G1', pin: 'GND' }, b: { partId: 'OSC1', pin: 'GND' }, path: [] },
+    ],
+  };
+  const lire = (volts) =>
+    meterReadings(montage, 5, () => 'hiz', null, null, null, () => volts)
+      .find((m) => m.partId === 'OSC1');
+  const haut = lire(2.5);
+  const bas = lire(-2.5);
+  check(`modèle : oscilloscope sur la sortie du GBF → il lit la tension — ${haut && haut.value} V`,
+    haut && haut.mode === 'voltage' && Math.abs(haut.value - 2.5) < 0.01);
+  // L'alternance NÉGATIVE doit passer telle quelle : ce n'est pas une entrée
+  // d'ADC, rien ne l'écrête. Un GBF réglé à ±5 V descend sous la masse et
+  // l'oscilloscope doit le tracer.
+  check(`modèle : l'alternance négative n'est PAS écrêtée — ${bas && bas.value} V`,
+    bas && Math.abs(bas.value + 2.5) < 0.01);
+  // Sans rappel de tension (hors simulation), rien à lire : la sortie n'est pas
+  // un rail, elle n'existe qu'à un instant donné.
+  const sans = meterReadings(montage, 5, () => 'hiz').find((m) => m.partId === 'OSC1');
+  check('modèle : GBF sans tension datée → rien à lire (contre-épreuve)',
+    sans && sans.value === null);
+}
 
 // --- Rendu réel (Chrome headless, avec de VRAIS événements de souris) ----------
 //
@@ -436,6 +473,28 @@ if (!chrome) {
     // décades = 10^2,4 ≈ 251 Hz.
     check(`geste : glissement sur le cadran de fréquence → ≈251 Hz (course logarithmique) — ${e.freq} Hz / ${e.afficheurs[0]}`,
       e.freq >= 240 && e.freq <= 265 && /Hz$/.test(e.afficheurs[0]));
+
+    // 4 bis. PAS DE RÉGLAGE par plage (demande de Frank, .92) : 1 Hz sous
+    //    100 Hz, 10 Hz jusqu'à 10 kHz, 100 Hz au-delà. On balaie le cadran
+    //    degré par degré et on vérifie que CHAQUE fréquence atteinte est un
+    //    multiple du pas de SA plage. Un balayage grossier ne prouverait rien :
+    //    c'est entre deux crans que la valeur non calée apparaîtrait.
+    const vues = [];
+    for (let deg = 121; deg <= 420; deg += 3) {
+      await glisser([await surCadran(...BTN.freq, deg)]);
+      vues.push((await etat()).freq);
+    }
+    const horsPas = vues.filter((hz) => {
+      const pas = hz < 100 ? 1 : hz < 10_000 ? 10 : 100;
+      return hz % pas !== 0;
+    });
+    check(`geste : fréquence calée sur le pas de sa plage (1/10/100 Hz) — ${vues.length} positions, ${horsPas.length} hors pas`,
+      vues.length > 80 && horsPas.length === 0,
+    );
+    // Et le balayage doit vraiment TRAVERSER les trois plages, sinon le
+    // contrôle ci-dessus ne vérifierait qu'un seul pas.
+    check(`geste : le balayage traverse les trois plages — min ${Math.min(...vues)} Hz, max ${Math.max(...vues)} Hz`,
+      Math.min(...vues) < 100 && vues.some((hz) => hz >= 100 && hz < 10_000) && Math.max(...vues) >= 10_000);
 
     // 5. Le curseur de forme se GLISSE : sinus → carré (cran du bas), puis
     //    retour au triangle (cran du milieu). C'est le geste de l'appareil.

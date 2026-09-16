@@ -168,7 +168,7 @@ import {
   Ili9341Device,
   type BusDeviceSpec,
 } from './engines/i2c-devices.mjs';
-import { evalAnalogWave, type AnalogWave } from './engines/analog-waves.mjs';
+import { evalAnalogWave, gbfWaveform, type AnalogWave } from './engines/analog-waves.mjs';
 import { sampleSevenSeg } from './engines/sevenseg.mjs';
 import type {
   AvrDebugInfo,
@@ -353,6 +353,16 @@ let pulseTargets: Array<{ pin: string; el: SimElement }> = [];
 // Générateurs BF : broche analogique MCU + élément (les cinq réglages vivent
 // dans l'élément, les boutons du dessin les font varier en simulation).
 let gbfTargets: Array<{ pin: string; el: SimElement }> = [];
+/**
+ * TOUS les générateurs BF du schéma, câblés à une entrée analogique ou non.
+ *
+ * `gbfTargets` (ci-dessus) ne retient que ceux reliés à un ADC, parce que seuls
+ * ceux-là ont une onde à décrire au moteur. Mais un GBF branché sur un
+ * oscilloscope ou lu par le traceur n'a pas d'entrée analogique en face, et il
+ * doit quand même imposer sa tension au montage : sans cette liste, l'appareil
+ * n'existait pour personne et l'oscilloscope restait plat (retour Frank, .92).
+ */
+let gbfParts: Array<{ partId: string; el: SimElement }> = [];
 // Capteurs PIR : broche MCU + élément. La sortie suit `el.motion` (survol souris
 // / Ctrl+clic), relue à chaque frame car le survol n'émet pas d'événement.
 let motionTargets: Array<{ pin: string; el: SimElement; last: boolean }> = [];
@@ -1249,20 +1259,64 @@ function updatePulses(): void {
 }
 
 /**
+ * Au-delà de cette fréquence (Hz), le traceur n'est plus échantillonné.
+ *
+ * Une image dure ~16 ms : à 10 Hz on tient encore six points par période, assez
+ * pour reconnaître la courbe. Plus haut, les points tomberaient au hasard dans
+ * la période et le tracé serait un bruit trompeur.
+ */
+const GBF_FREQ_TRACABLE = 10;
+
+/**
+ * Tension instantanée à la sortie d'un générateur BF, en volts.
+ *
+ * C'est ce que le MONTAGE voit : l'oscilloscope, le voltmètre, le traceur. Rien
+ * à voir avec `updateGbfs`, qui décrit l'onde au moteur pour la conversion ADC
+ * et rend une fraction de VREF écrêtée entre 0 et 1 — un GBF réglé à ±5 V sort
+ * bel et bien du négatif, et l'oscilloscope doit le tracer.
+ *
+ * L'heure lue est celle du PROGRAMME (`simulatedMs`) : quand la simulation
+ * ralentit, le signal ralentit avec elle, sinon la courbe sauterait.
+ */
+function gbfVoltsAt(partId: string): number | null {
+  const cible = gbfParts.find((g) => g.partId === partId);
+  if (!cible) return null;
+  const el = cible.el;
+  const forme = String(el.forme ?? 'sinus');
+  const freq = Math.max(1, Math.min(1_000_000, Number(el.freq ?? 1000)));
+  const amplitude = Number(el.amplitude ?? 5);
+  const offset = Number(el.offset ?? 0);
+  const duty = Number(el.duty ?? 50);
+  if (!Number.isFinite(amplitude) || !Number.isFinite(offset)) return null;
+  const now = performance.now();
+  const t = engine?.simulatedMs?.() ?? now;
+  const periodMs = 1000 / freq;
+  const phase = (((t % periodMs) + periodMs) % periodMs) / periodMs;
+  const norme = gbfWaveform(
+    forme === 'triangle' || forme === 'carre' ? forme : 'sinus',
+    phase,
+    Math.max(0, Math.min(1, duty / 100)),
+  );
+  return offset + amplitude * norme;
+}
+
+/**
  * Décrit au moteur le signal de chaque générateur BF câblé sur une entrée
  * analogique, d'après les réglages COURANTS de son dessin.
  *
- * Contrairement au pouls, aucune valeur de frame n'est posée en repli : à 1 MHz
- * une période dure 1 µs, la valeur d'une image donnée n'a aucun sens et
- * l'afficher dans le traceur ferait croire à un signal continu. C'est le moteur
- * qui évalue l'onde, à l'instant exact de la conversion.
+ * Une valeur de frame n'est posée qu'en BASSE fréquence (voir
+ * `GBF_FREQ_TRACABLE`) : c'est elle qui nourrit le traceur. Au-dessus, on s'en
+ * abstient — à 1 MHz une période dure 1 µs, la valeur d'une image donnée n'a
+ * aucun sens et l'afficher ferait croire à un signal continu. Dans tous les cas
+ * c'est le moteur qui évalue l'onde à l'instant exact de la conversion ADC.
  */
 function updateGbfs(): void {
   if (!engine || gbfTargets.length === 0) return;
   const vcc = isPicoBoard(board) ? 3.3 : 5;
+  const now = performance.now();
   for (const { pin, el } of gbfTargets) {
     const forme = String(el.forme ?? 'sinus');
-    analogWaves.set(pin, {
+    const onde: AnalogWave = {
       kind: 'gbf',
       pin,
       forme: forme === 'triangle' || forme === 'carre' ? forme : 'sinus',
@@ -1271,7 +1325,18 @@ function updateGbfs(): void {
       offset: Number(el.offset ?? 0),
       duty: Number(el.duty ?? 50),
       vcc,
-    });
+    };
+    analogWaves.set(pin, onde);
+    // Valeur de la FRAME, posée seulement en BASSE fréquence : c'est elle qui
+    // alimente les sondes du traceur (elles écoutent `setAnalog`), sinon un GBF
+    // branché sur une entrée analogique ne traçait aucune courbe (retour Frank,
+    // .92). Au-delà de quelques hertz on s'en abstient : une image dure ~16 ms,
+    // la valeur serait prise au hasard dans la période et le traceur dessinerait
+    // un bruit qui ne ressemble en rien au signal. Le moteur, lui, continue
+    // d'évaluer l'onde à l'instant exact de la conversion, à toute fréquence.
+    if (onde.freq <= GBF_FREQ_TRACABLE) {
+      engine.setAnalog(pin, evalAnalogWave(onde, engine.simulatedMs?.() ?? now, now));
+    }
   }
   flushAnalogWaves(); // un bouton tourné s'entend tout de suite, pas à l'image d'après
 }
@@ -1479,6 +1544,7 @@ function pousserVoiesLogiques(): void {
       pin: v.pin ?? '',
       probleme: v.probleme ?? null,
       analogique: v.analogique === true,
+      suivi: v.suivi === true,
     })),
   });
 }
@@ -1556,7 +1622,8 @@ function refreshMeters(): void {
     (pin) => engine!.readPinDrive?.(pin) ?? 'hiz',
     psuLiveVolts,
     liveVariableOhms,
-    moyennePwm
+    moyennePwm,
+    gbfVoltsAt
   );
   if (lus.length === 0 && meterFrame.size === 0) return;
   meterFrame = new Map(lus.map((m) => [m.partId, m]));
@@ -1576,7 +1643,8 @@ function refreshMeters(): void {
         drive,
         psuLiveVolts,
         liveVariableOhms,
-        moyennePwm
+        moyennePwm,
+        gbfVoltsAt
       ).find((m) => m.partId === sonde.partId);
       return r && r.value !== null && Number.isFinite(r.value) ? r.value : null;
     };
@@ -2956,6 +3024,23 @@ function bindInputs(): void {
 
   pulseTargets = [];
   gbfTargets = [];
+  // Les GBF se recensent sur les COMPOSANTS, pas sur les liaisons analogiques :
+  // un générateur branché sur un oscilloscope n'a aucune entrée ADC en face,
+  // mais il impose tout de même sa tension au montage.
+  gbfParts = [];
+  for (const part of editor.diagram.parts) {
+    if (part.type !== 'gbf') continue;
+    const el = editor.elementOf(part.id);
+    if (!el) continue;
+    gbfParts.push({ partId: part.id, el });
+    // Les boutons du dessin repoussent l'onde tout de suite : tourner un bouton
+    // doit s'entendre sur le signal sans attendre l'image suivante. L'écoute est
+    // posée ICI — sur le composant — et non sur la liaison ADC : sinon un GBF
+    // branché sur un oscilloscope ne réagissait pas à ses propres boutons.
+    const apply = (): void => updateGbfs();
+    el.addEventListener('input', apply);
+    inputRemovers.push(() => el.removeEventListener('input', apply));
+  }
   for (const binding of analogSourceBindings(editor.diagram)) {
     const part = editor.diagram.parts.find((p) => p.id === binding.partId);
     if (part?.type === 'heartbeat') {
@@ -2973,14 +3058,10 @@ function bindInputs(): void {
       // conversion ADC — à 1 MHz une période dure 1 µs, une valeur posée par
       // image serait seize mille périodes en retard.
       const el = editor.elementOf(binding.partId);
-      if (el) {
-        gbfTargets.push({ pin: binding.mcuPin, el });
-        // Les boutons du dessin repoussent l'onde tout de suite : tourner un
-        // bouton doit s'entendre sur le signal sans attendre l'image suivante.
-        const apply = (): void => updateGbfs();
-        el.addEventListener('input', apply);
-        inputRemovers.push(() => el.removeEventListener('input', apply));
-      }
+      // L'écoute des boutons n'est PAS posée ici : elle l'est sur le composant,
+      // au recensement de `gbfParts` juste au-dessus, qui couvre aussi les GBF
+      // sans entrée ADC en face (oscilloscope seul).
+      if (el) gbfTargets.push({ pin: binding.mcuPin, el });
       continue;
     }
     if (part?.type === 'ntc-temp') {

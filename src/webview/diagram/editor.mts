@@ -778,11 +778,18 @@ export class Editor {
         // veut pas voir les fils disparaître derrière un appareil de mesure —,
         // et un composant de bibliothèque dont tout le contrôle tient dans ses
         // bascules (le cavalier et la flèche du lecteur de badges) aussi.
+        //
+        // Le GÉNÉRATEUR BF est du même bois : gros dessin d'appareil de paillasse,
+        // quatre boutons rotatifs et un curseur tous DESSINÉS en SVG (aucun
+        // <input> HTML). Hissé à z=60, il passait devant tout le câblage au
+        // lancement de la simulation (retour Frank, .92) — exactement le défaut
+        // déjà corrigé sur l'alim.
         const keepUnderWires =
           def.kind === 'psu' ||
           def.kind === 'meter' ||
           def.kind === 'scope' ||
           def.kind === 'logic-probe' ||
+          def.type === 'gbf' ||
           (!def.custom?.control && (def.custom?.toggles?.length ?? 0) > 0);
         r.container.classList.toggle('part--sim-active', locked && !keepUnderWires);
         r.container.classList.toggle('part--sim-under-wires', locked && keepUnderWires);
