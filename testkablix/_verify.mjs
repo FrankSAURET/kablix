@@ -657,6 +657,38 @@ for (const t of TESTS) {
         checkNets(t, diagram, e.nets);
         break;
       }
+      case 'sonde-logique': {
+        // Analyseur logique : les voies ne se câblent pas, elles se POSENT.
+        // Ce qu'on contrôle est donc la résolution de l'accrochage par
+        // superposition de pastilles (`logicProbeVoies`) : chaque pince tombe
+        // sur la broche attendue, avec sa teinte, et les pinces mal posées
+        // sortent avec LEUR diagnostic au lieu d'être tues.
+        const voies = model.logicProbeVoies(diagram);
+        for (const v of e.voies) {
+          const got = voies.find((x) => x.partId === v.partId);
+          check(`${t.name} : ${v.partId} accrochée à ${v.pin ?? v.probleme}`,
+            (v.pin ? got?.pin === v.pin : got?.probleme === v.probleme),
+            JSON.stringify(got));
+          if (v.voie !== undefined) {
+            check(`${t.name} : ${v.partId} sur la voie ${v.voie}`,
+              got?.voie === v.voie, JSON.stringify(got));
+          }
+          if (v.etiquette !== undefined) {
+            check(`${t.name} : ${v.partId} nommée « ${v.etiquette} »`,
+              got?.etiquette === v.etiquette, JSON.stringify(got));
+          }
+        }
+        // Sans cette ligne, `samplePulses` ne balaierait pas les broches
+        // sondées et la capture resterait vide SANS rien signaler.
+        const surveillees = model.pulseMonitorPins(diagram, 5);
+        for (const v of e.voies) {
+          if (!v.pin) continue;
+          check(`${t.name} : ${v.pin} est surveillée par le moteur`,
+            surveillees.includes(v.pin), surveillees.join(','));
+        }
+        if (e.nets) checkNets(t, diagram, e.nets);
+        break;
+      }
       case 'nets':
         // Continuité pure : aucun modèle de simulation derrière le composant
         // (liaison DMX512, câblage passif).

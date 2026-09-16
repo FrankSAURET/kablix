@@ -568,6 +568,10 @@ export class WorkerEngine implements SimEngine {
     this.post({ t: 'setScopeProbes', pins: names });
   }
 
+  setLogicProbes(names: string[]): void {
+    this.post({ t: 'setLogicProbes', pins: names });
+  }
+
   /**
    * Fronts accumulés depuis la dernière image. Ils sont recollés à la réception
    * de CHAQUE instantané : le fil de simulation en publie plusieurs entre deux

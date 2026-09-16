@@ -15,12 +15,14 @@ import {
   type ToolPaths,
 } from './compiler';
 import { pistesArduinoIde } from './arduinoCliPistes';
+import { AnalyseurPanel, type AnalyseurVersHote } from './analyseur-panel';
 import {
   packProject,
   unpackProject,
   PROJIX_FORMAT_VERSION,
   type ProjixManifest,
   type ProjixDebugVars,
+  type ProjixAnalyseur,
 } from './projix';
 import {
   resolveMicropythonFirmware,
@@ -448,6 +450,10 @@ export class SimulatorPanel {
   private readonly extensionUri: vscode.Uri;
   private readonly context: vscode.ExtensionContext;
   private readonly disposables: vscode.Disposable[] = [];
+  /** Compteur de sessions : identifie un atelier encore sans .projix. */
+  private static sessionSeq = 0;
+  /** Identifiant de cette session (clé de son onglet d'analyseur). */
+  private readonly panelId = ++SimulatorPanel.sessionSeq;
   /**
    * Prise TCP tenue pour le compte d'un script Pico W qui fait le serveur.
    * Créée à la première demande du script, jamais avant : tant qu'aucun
@@ -498,6 +504,23 @@ export class SimulatorPanel {
   private pendingCodeReveal: vscode.Uri | undefined;
   /** Décoration de la ligne en pause (créée à la demande, détruite avec le panneau). */
   private debugLineDecoration: vscode.TextEditorDecorationType | undefined;
+  /**
+   * ANALYSEUR LOGIQUE. L'onglet de l'analyseur est une autre webview : deux
+   * webviews ne se parlent pas, l'extension est leur seul point commun. Elle
+   * garde donc ici les voies déclarées et la dernière capture, pour pouvoir
+   * remplir un onglet ouvert APRÈS le début d'un run (ou rouvert le lendemain).
+   */
+  private analyseurVoies: unknown[] = [];
+  /** Dernière capture de l'analyseur : ce que l'onglet réaffiche hors simulation. */
+  private analyseurCapture: unknown | null = null;
+  /** Réglages de l'analyseur (déclenchement, décodage) à écrire dans le .projix. */
+  private analyseurReglages: unknown | null = null;
+  /**
+   * Clé sous laquelle l'onglet d'analyseur est rangé. Elle vaut l'URI du
+   * .projix, donc un « enregistrer sous » la CHANGE : on garde la précédente
+   * pour pouvoir réétiqueter l'onglet déjà ouvert au lieu d'en perdre la trace.
+   */
+  private analyseurCleRangee: string | undefined;
   /** Dessins du créateur ouverts dans l'éditeur SVG du système (surveillés). */
   private svgWatches = new Map<
     'ext' | 'int',
@@ -1133,6 +1156,9 @@ export class SimulatorPanel {
     // Onglet d'un éditeur personnalisé : son titre est le nom du fichier, pas
     // celui construit ici — c'est l'hôte qui le barre.
     this.panel.setDeletedIndicator?.(gone);
+    // L'onglet de l'analyseur porte aussi le nom du projet : il le suit ici,
+    // en même temps que celui de l'atelier.
+    this.suivreAnalyseur();
   }
 
   /** Référence du fichier de code pour le .projix : chemin relatif au workspace, sinon nom. */
@@ -1396,6 +1422,114 @@ export class SimulatorPanel {
     }
   }
 
+  // --- Analyseur logique -----------------------------------------------------
+
+  /**
+   * Clé de l'onglet d'analyseur de CETTE session. Le .projix quand il en a un,
+   * sinon une clé propre au panneau : deux projets ouverts côte à côte doivent
+   * avoir chacun son analyseur, sinon les voies de l'un écraseraient l'autre.
+   */
+  private analyseurCle(): string {
+    return this.projectUri?.toString() ?? `panel:${this.panelId}`;
+  }
+
+  /** Titre de l'onglet d'analyseur : il porte le nom du projet, comme l'atelier. */
+  private analyseurTitre(): string {
+    return l10n.t('Logic analyzer — {0}', this.projectBaseName ?? l10n.t('Kablix'));
+  }
+
+  /**
+   * L'onglet d'analyseur suit le projet quand il change de nom. Sans cet appel,
+   * un « enregistrer sous » laissait l'onglet rangé sous l'ANCIENNE URI : le
+   * bouton en ouvrait un second et le premier ne recevait plus rien.
+   */
+  private suivreAnalyseur(): void {
+    const ancienne = this.analyseurCleRangee;
+    const nouvelle = this.analyseurCle();
+    if (ancienne === undefined) {
+      this.analyseurCleRangee = nouvelle;
+      return;
+    }
+    AnalyseurPanel.suivreProjet(ancienne, nouvelle, this.analyseurTitre());
+    this.analyseurCleRangee = nouvelle;
+  }
+
+  /** Onglet d'analyseur de cette session, s'il est ouvert. */
+  private analyseur(): AnalyseurPanel | undefined {
+    return AnalyseurPanel.pour(this.analyseurCleRangee ?? this.analyseurCle());
+  }
+
+  /** Ce que l'analyseur grave dans le .projix, ou undefined s'il n'a rien. */
+  private analyseurPourProjix(): ProjixAnalyseur | undefined {
+    const cap = this.analyseurCapture as ProjixAnalyseur | null;
+    const reg = this.analyseurReglages as
+      | { declenchement?: ProjixAnalyseur['declenchement']; decodage?: unknown }
+      | null;
+    const voies = cap?.voies;
+    const aQuelqueChose =
+      (voies && voies.length > 0) || reg?.declenchement != null || reg?.decodage != null;
+    if (!aQuelqueChose) return undefined;
+    return {
+      ...(voies && voies.length > 0 ? { voies } : {}),
+      ...(reg?.declenchement != null ? { declenchement: reg.declenchement } : {}),
+      ...(reg?.decodage != null ? { decodage: reg.decodage } : {}),
+    };
+  }
+
+  /** Reprend la capture et les réglages gravés dans un .projix qu'on ouvre. */
+  private chargerAnalyseur(a: ProjixAnalyseur | undefined): void {
+    if (!a) {
+      this.analyseurCapture = null;
+      this.analyseurReglages = null;
+      return;
+    }
+    this.analyseurCapture = a.voies && a.voies.length > 0 ? { voies: a.voies } : null;
+    this.analyseurReglages =
+      a.declenchement != null || a.decodage != null
+        ? { declenchement: a.declenchement ?? null, decodage: a.decodage ?? null }
+        : null;
+    // Un onglet déjà ouvert (projet rechargé dans la même session) reçoit
+    // directement la capture : sinon il garderait celle du projet précédent.
+    const onglet = this.analyseur();
+    if (onglet && this.analyseurCapture) {
+      onglet.envoyer({
+        type: 'restaure',
+        etat: { ...(this.analyseurCapture as object), ...(this.analyseurReglages as object) },
+      });
+    }
+  }
+
+  /** Ouvre (ou révèle) l'onglet de l'analyseur logique de cette session. */
+  private ouvrirAnalyseur(): void {
+    this.analyseurCleRangee = this.analyseurCle();
+    AnalyseurPanel.ouvrir(
+      this.extensionUri,
+      this.analyseurCleRangee,
+      this.analyseurTitre(),
+      // L'état est FOURNI À LA DEMANDE : l'onglet peut s'ouvrir bien après le
+      // début d'un run, il doit alors recevoir les voies déjà déclarées et la
+      // capture déjà faite, pas partir du vide.
+      () => ({
+        voies: this.analyseurVoies,
+        // La capture PORTE les réglages : l'onglet les applique dans le même
+        // geste (message `restaure`), sinon il afficherait la bonne capture avec
+        // le déclenchement de personne.
+        capture: this.analyseurCapture
+          ? { ...(this.analyseurCapture as object), ...((this.analyseurReglages as object) ?? {}) }
+          : this.analyseurReglages
+            ? { voies: [], ...(this.analyseurReglages as object) }
+            : null,
+      }),
+      (m: AnalyseurVersHote) => {
+        if (m.type === 'analyseurReglages') {
+          // Réglages de l'instrument : ils appartiennent au projet (personne ne
+          // rerègle un analyseur à chaque ouverture).
+          this.analyseurReglages = { declenchement: m.declenchement, decodage: m.decodage };
+        }
+      }
+    );
+  }
+
   private onMessage(msg: {
     type?: string;
     board?: Board;
@@ -1421,6 +1555,10 @@ export class SimulatorPanel {
     /** Presse-papier système (messages `clipboardRead` / `clipboardWrite`). */
     id?: number;
     text?: string;
+    /** Analyseur logique : voies déclarées, salves de fronts, capture à plat. */
+    voies?: unknown[];
+    salves?: unknown;
+    capture?: unknown;
   }): void {
     // Toute interaction de la webview marque cette session comme « active » :
     // les commandes globales (Enregistrer, Wokwi…) la ciblent.
@@ -1616,6 +1754,36 @@ export class SimulatorPanel {
       case 'newProjectTab':
         // Nouveau projet = nouvel onglet .projix untitled (ne touche pas le courant).
         void vscode.commands.executeCommand('kablix.openSimulator');
+        break;
+      // --- Analyseur logique : l'extension relaie l'atelier vers son onglet ---
+      case 'openAnalyseur':
+        this.ouvrirAnalyseur();
+        break;
+      case 'analyseurVoies':
+        // Les voies suivent le SCHÉMA (une pince posée, déplacée, étiquetée) :
+        // elles arrivent donc aussi hors simulation.
+        this.analyseurVoies = Array.isArray(msg.voies) ? msg.voies : [];
+        this.analyseur()?.envoyer({ type: 'voies', voies: this.analyseurVoies });
+        break;
+      case 'analyseurFronts':
+        if (msg.salves && typeof msg.salves === 'object') {
+          this.analyseur()?.envoyer({
+            type: 'fronts',
+            salves: msg.salves as Record<string, number[]>,
+          });
+        }
+        break;
+      case 'analyseurDepart':
+        this.analyseurCapture = null; // nouveau lancement = nouvelle mesure
+        this.analyseur()?.envoyer({ type: 'depart' });
+        break;
+      case 'analyseurArret':
+        this.analyseur()?.envoyer({ type: 'arret' });
+        break;
+      case 'analyseurCapture':
+        // Capture à plat, envoyée par l'atelier à l'enregistrement : c'est ce que
+        // l'onglet réaffichera à la réouverture du projet.
+        this.analyseurCapture = msg.capture ?? null;
         break;
       case 'newProject':
         // (legacy WebviewPanel) Nouveau projet en place : la webview a déjà vidé
@@ -2004,6 +2172,11 @@ export class SimulatorPanel {
     // enregistrement les fait passer dans le .projix.
     const debugVars = this.effectiveDebugVars();
     if (!SimulatorPanel.emptyDebugVars(debugVars)) manifest.debugVars = debugVars;
+    // Analyseur logique : la dernière capture et les réglages de l'instrument.
+    // Omis quand il n'y a rien à graver — un projet sans pince n'emporte pas un
+    // champ vide.
+    const analyseur = this.analyseurPourProjix();
+    if (analyseur) manifest.analyseur = analyseur;
     // Backup hot-exit : grave l'état ● du moment (consommé ici). Les .projix
     // enregistrés normalement n'ont jamais ce champ (toujours « propre »).
     if (this.backupDirtyFlag !== undefined) {
@@ -2183,6 +2356,10 @@ export class SimulatorPanel {
     // n'en porte aucun.
     this.setDebugVars(project.manifest.debugVars?.hidden, project.manifest.debugVars?.bases);
     this.postDebugVars();
+    // Analyseur logique : la mesure du projet et les réglages de l'instrument.
+    // Repris AVANT l'ouverture de l'onglet, pour qu'il ait de quoi afficher dès
+    // le premier rendu (consigne : jamais du vide hors simulation).
+    this.chargerAnalyseur(project.manifest.analyseur);
     this.post({
       type: 'loadProject',
       diagram: project.diagram,

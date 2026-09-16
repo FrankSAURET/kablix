@@ -106,6 +106,10 @@ export const PART_PINS = {
   multimetre: ['+', 'GND'],
   // Oscilloscope : les mêmes deux prises banane que le multimètre.
   oscillo: ['+', 'GND'],
+  // Sonde de l'analyseur logique : UNE seule pastille, la pointe de la pince.
+  // Elle ne se CÂBLE pas — on la pose par-dessus la pastille d'une broche, et
+  // l'attribut `accroche` retient laquelle. Aucun fil ne part d'ici.
+  'sonde-logique': ['G'],
   // Patte de robot à 2 articulations : chacune a son propre bornier 3 fils
   // (comme un servo), électriquement indépendant de l'autre.
   patte: ['coxa.GND', 'coxa.V+', 'coxa.PWM', 'patella.GND', 'patella.V+', 'patella.PWM'],
@@ -2782,6 +2786,75 @@ void loop() {
   digitalWrite(9, LOW);
   Serial.println("D9 bas  -> retour a 0 V");
   delay(500);
+}
+`,
+  }),
+
+  // ANALYSEUR LOGIQUE : quatre pinces posées sur une même planche, et les
+  // quatre cas que l'élève rencontre. La sonde ne se CÂBLE pas — elle se POSE
+  // par-dessus la pastille d'une broche (attribut `accroche`), ce qui explique
+  // qu'aucun fil ne part d'elle. Le programme fait battre D8 et D9 à des
+  // rythmes différents : à l'écran, deux voies décalées.
+  //   SD1 sur D8   : le cas normal, étiquetée « horloge » ;
+  //   SD2 sur D9   : voie suivante, teinte suivante, sans étiquette ;
+  //   SD3 sur GND.3: broche d'alimentation — un niveau constant, rien à tracer ;
+  //   SD4 sur A0   : numériquement lisible, donc tracée, mais SIGNALÉE comme
+  //                  analogique (l'élève doit savoir qu'il ne verra que 0 / 1).
+  test({
+    name: 'sonde-logique-uno', board: 'uno', ext: 'ino',
+    parts: [
+      MCU('uno'),
+      { id: 'R1', type: 'resistor', x: 400, y: 320, attrs: { value: '1000' } },
+      { id: 'L1', type: 'led', x: 400, y: 420, attrs: { color: 'red' } },
+      { id: 'SD1', type: 'sonde-logique', x: 220, y: 10, attrs: { voie: '0', accroche: 'U1/8', etiquette: 'horloge' } },
+      { id: 'SD2', type: 'sonde-logique', x: 300, y: 10, attrs: { voie: '1', accroche: 'U1/9' } },
+      { id: 'SD3', type: 'sonde-logique', x: 380, y: 10, attrs: { voie: '2', accroche: 'U1/GND.3' } },
+      { id: 'SD4', type: 'sonde-logique', x: 460, y: 240, attrs: { voie: '3', accroche: 'U1/A0' } },
+    ],
+    wires: () => [
+      w('R1', '1', 'U1', '9', 'green'),
+      w('R1', '2', 'L1', 'A', 'blue'),
+      w('L1', 'C', 'U1', 'GND.1', 'black'),
+    ],
+    expect: {
+      kind: 'sonde-logique',
+      voies: [
+        { partId: 'SD1', pin: '8', voie: 0, etiquette: 'horloge' },
+        { partId: 'SD2', pin: '9', voie: 1, etiquette: '' },
+        { partId: 'SD3', probleme: 'power', voie: 2 },
+        { partId: 'SD4', pin: 'A0', voie: 3 },
+      ],
+      // La résistance relie ses deux pattes : D9, R1 et l'anode de la LED ne
+      // font qu'UN seul nœud. La cathode, elle, est de l'autre côté de la LED.
+      nets: [['U1/9', 'R1/1', 'R1/2', 'L1/A'], ['L1/C', 'U1/GND.1']],
+    },
+    code: `// Test analyseur logique : les pinces (SD1..SD4) sont POSEES sur des
+// pastilles de la carte, il n'y a AUCUN fil a tirer vers elles.
+// D8 bat vite, D9 bat deux fois moins vite : dans l'onglet de l'analyseur,
+// deux creneaux decales, chacun de la couleur de sa pince sur la planche.
+// Le bouton « Logic » de la barre ouvre l'onglet a cote du schema.
+//   SD1 (D8)  : cas normal, nommee « horloge » ;
+//   SD2 (D9)  : voie suivante, sans etiquette (elle s'appellera « 9 ») ;
+//   SD3 (GND) : broche d'alimentation, l'analyseur explique qu'il n'y a
+//               aucun front a montrer ;
+//   SD4 (A0)  : broche analogique lisible en numerique — tracee, mais
+//               signalee : on ne verra que 0 ou 1, pas la tension.
+void setup() {
+  pinMode(8, OUTPUT);
+  pinMode(9, OUTPUT);
+  pinMode(A0, INPUT);
+}
+
+void loop() {
+  // D8 : un cycle complet par tour de boucle.
+  digitalWrite(8, HIGH);
+  delayMicroseconds(200);
+  digitalWrite(8, LOW);
+  delayMicroseconds(200);
+  // D9 : un tour sur deux, donc deux fois plus lent que D8.
+  static bool lent = false;
+  lent = !lent;
+  digitalWrite(9, lent ? HIGH : LOW);
 }
 `,
   }),
@@ -5744,6 +5817,64 @@ while True:
     sortie.value(0)
     print("GP15 bas  -> retour a 0 V")
     time.sleep(0.5)
+`,
+  }),
+
+  // Le même analyseur logique côté Pico. Les noms de broches changent (GP…),
+  // les quatre cas sont les mêmes, et GP26 remplace A0 : c'est ADC0, donc
+  // numériquement lisible ET signalée comme analogique.
+  test({
+    name: 'sonde-logique-pico', board: 'pico', ext: 'py',
+    parts: [
+      MCU('pico'),
+      { id: 'R1', type: 'resistor', x: 400, y: 320, attrs: { value: '1000' } },
+      { id: 'L1', type: 'led', x: 400, y: 420, attrs: { color: 'red' } },
+      { id: 'SD1', type: 'sonde-logique', x: 220, y: 10, attrs: { voie: '0', accroche: 'U1/GP14', etiquette: 'horloge' } },
+      { id: 'SD2', type: 'sonde-logique', x: 300, y: 10, attrs: { voie: '1', accroche: 'U1/GP15' } },
+      { id: 'SD3', type: 'sonde-logique', x: 380, y: 10, attrs: { voie: '2', accroche: 'U1/GND.4' } },
+      { id: 'SD4', type: 'sonde-logique', x: 460, y: 240, attrs: { voie: '3', accroche: 'U1/GP26' } },
+    ],
+    wires: () => [
+      w('R1', '1', 'U1', 'GP15', 'green'),
+      w('R1', '2', 'L1', 'A', 'blue'),
+      w('L1', 'C', 'U1', 'GND.1', 'black'),
+    ],
+    expect: {
+      kind: 'sonde-logique',
+      voies: [
+        { partId: 'SD1', pin: 'GP14', voie: 0, etiquette: 'horloge' },
+        { partId: 'SD2', pin: 'GP15', voie: 1, etiquette: '' },
+        { partId: 'SD3', probleme: 'power', voie: 2 },
+        { partId: 'SD4', pin: 'GP26', voie: 3 },
+      ],
+      // Même remarque que côté Uno : la résistance fusionne ses deux pattes.
+      nets: [['U1/GP15', 'R1/1', 'R1/2', 'L1/A'], ['L1/C', 'U1/GND.1']],
+    },
+    code: `# Test analyseur logique : les pinces (SD1..SD4) sont POSEES sur des
+# pastilles de la carte, il n'y a AUCUN fil a tirer vers elles.
+# GP14 bat vite, GP15 bat deux fois moins vite : dans l'onglet de l'analyseur,
+# deux creneaux decales, chacun de la couleur de sa pince sur la planche.
+# Le bouton « Logic » de la barre ouvre l'onglet a cote du schema.
+#   SD1 (GP14) : cas normal, nommee « horloge » ;
+#   SD2 (GP15) : voie suivante, sans etiquette (elle s'appellera « GP15 ») ;
+#   SD3 (GND)  : broche d'alimentation, l'analyseur explique qu'il n'y a
+#                aucun front a montrer ;
+#   SD4 (GP26) : entree ADC0, lisible en numerique — tracee, mais signalee :
+#                on ne verra que 0 ou 1, pas la tension.
+from machine import Pin
+import time
+
+rapide = Pin(14, Pin.OUT)
+lente = Pin(15, Pin.OUT)
+etat = 0
+while True:
+    rapide.value(1)
+    time.sleep_us(200)
+    rapide.value(0)
+    time.sleep_us(200)
+    # Un tour sur deux : GP15 bat deux fois moins vite que GP14.
+    etat = 1 - etat
+    lente.value(etat)
 `,
   }),
 

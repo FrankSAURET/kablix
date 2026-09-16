@@ -1,8 +1,10 @@
 // Build de l'extension Kablix.
-// Produit trois bundles :
+// Produit cinq bundles :
 //   - dist/extension.js : code de l'extension (hôte Node, externe : vscode)
 //   - dist/zip.js       : JSZip seul, chargé au premier .projix (cf. src/zip.ts)
 //   - dist/webview.js   : code du simulateur exécuté dans la webview (navigateur)
+//   - dist/webview-worker.js : le moteur de simulation, dans un Web Worker
+//   - dist/analyseur.js : l'onglet de l'analyseur logique (page à part)
 const esbuild = require('esbuild');
 const fs = require('fs');
 const path = require('path');
@@ -141,6 +143,24 @@ const workerConfig = {
   logLevel: 'info',
 };
 
+/**
+ * Onglet de l'analyseur logique : une page à part, donc un bundle à part. Elle
+ * n'a besoin ni de Lit, ni des dessins de composants, ni de l'éditeur — juste
+ * de la capture, du décodage, du rendu et du dictionnaire de traduction.
+ * @type {import('esbuild').BuildOptions}
+ */
+const analyseurConfig = {
+  entryPoints: ['src/webview/analyseur.mts'],
+  bundle: true,
+  outfile: 'dist/analyseur.js',
+  platform: 'browser',
+  format: 'iife',
+  target: 'es2020',
+  sourcemap: !production,
+  minify: production,
+  logLevel: 'info',
+};
+
 async function main() {
   copyPinouts();
   if (watch) {
@@ -148,7 +168,14 @@ async function main() {
     const ctxZip = await esbuild.context(zipConfig);
     const ctxWeb = await esbuild.context(webviewConfig);
     const ctxWorker = await esbuild.context(workerConfig);
-    await Promise.all([ctxExt.watch(), ctxZip.watch(), ctxWeb.watch(), ctxWorker.watch()]);
+    const ctxAnal = await esbuild.context(analyseurConfig);
+    await Promise.all([
+      ctxExt.watch(),
+      ctxZip.watch(),
+      ctxWeb.watch(),
+      ctxWorker.watch(),
+      ctxAnal.watch(),
+    ]);
     console.log('[watch] build initial terminé, surveillance des fichiers…');
   } else {
     await Promise.all([
@@ -156,6 +183,7 @@ async function main() {
       esbuild.build(zipConfig),
       esbuild.build(webviewConfig),
       esbuild.build(workerConfig),
+      esbuild.build(analyseurConfig),
     ]);
   }
 }

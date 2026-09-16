@@ -52,7 +52,7 @@ import type {
   SimEngine,
   UltrasonicSensor,
 } from './types.mjs';
-import { SCOPE_LOG_MAX } from './types.mjs';
+import { LOGIC_LOG_MAX, SCOPE_LOG_MAX } from './types.mjs';
 import {
   buildDht22Schedule,
   dht22ResponseCycles,
@@ -331,6 +331,9 @@ export class AvrEngine implements SimEngine {
   // ne montre de toute façon que la fin.
   private scopePins = new Set<string>();
   private scopeLog = new Map<string, number[]>();
+  // Broches écoutées par une SONDE de l'analyseur logique : même journal, mais
+  // un plafond bien plus profond (une trame entière, pas un écran).
+  private logicPins = new Set<string>();
 
   // Capteurs ultrason + actions d'entrée programmées en temps simulé (génération ECHO).
   private ultrasonic: UltrasonicSensor[] = [];
@@ -617,9 +620,29 @@ export class AvrEngine implements SimEngine {
 
   setScopeProbes(names: string[]): void {
     this.scopePins = new Set(names);
+    this.purgeLogs();
+  }
+
+  setLogicProbes(names: string[]): void {
+    this.logicPins = new Set(names);
+    this.purgeLogs();
+  }
+
+  /** Oublie le journal des broches que plus aucun instrument n'écoute. */
+  private purgeLogs(): void {
     for (const name of this.scopeLog.keys()) {
-      if (!this.scopePins.has(name)) this.scopeLog.delete(name);
+      if (!this.scopePins.has(name) && !this.logicPins.has(name)) this.scopeLog.delete(name);
     }
+  }
+
+  /**
+   * Profondeur du journal d'une broche : le plafond le PLUS LARGE des
+   * instruments qui l'écoutent. Une broche regardée à la fois par un
+   * oscilloscope et par une sonde ne doit pas être tronquée au plafond de
+   * l'oscilloscope — l'analyseur y perdrait le début de sa trame.
+   */
+  private logPlafond(name: string): number {
+    return this.logicPins.has(name) ? LOGIC_LOG_MAX : SCOPE_LOG_MAX;
   }
 
   drainScopeEdges(): Record<string, number[]> {
@@ -639,7 +662,8 @@ export class AvrEngine implements SimEngine {
       this.scopeLog.set(name, log);
     }
     log.push((cycles / CLOCK_HZ) * 1000, high ? 1 : 0);
-    if (log.length > SCOPE_LOG_MAX) log.splice(0, log.length - SCOPE_LOG_MAX);
+    const max = this.logPlafond(name);
+    if (log.length > max) log.splice(0, log.length - max);
   }
 
   /**
@@ -1033,7 +1057,7 @@ export class AvrEngine implements SimEngine {
       if (!st) continue;
       // Oscilloscope : la bascule est notée AVANT tout le reste, avec l'heure
       // du simulateur — c'est elle qui fait la forme de la courbe.
-      if (high !== st.high && this.scopePins.has(pp.name)) {
+      if (high !== st.high && (this.scopePins.has(pp.name) || this.logicPins.has(pp.name))) {
         this.noteScopeEdge(pp.name, now, high);
       }
       if (high && !st.high) {

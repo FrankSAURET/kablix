@@ -80,6 +80,16 @@ const PARTS = {
     attrs: { voltsdiv: '1', sdiv: '1' },
     js: 'for (let i = 0; i <= 600; i++) el.push(i * 1000 / 60, 2 + 1.6 * Math.sin((i / 60) * Math.PI * 2 / 2.5));',
   },
+  // Sonde de l'analyseur logique : dessin minuscule (80×80) — une largeur de
+  // fiche pleine l'afficherait floue, d'où les 140 px. Illustrée POSÉE (`voie: 0`
+  // = la première teinte) et ÉTIQUETÉE : une pince sans voie sort grise et sans
+  // nom, ce qui ne montre ni la couleur de voie ni l'étiquette. Étiquette COURTE
+  // (« SCL ») : le cadrage est borné au viewBox, un nom long en sortirait et
+  // serait coupé — sur la planche, lui, il déborde librement.
+  'sonde-logique': {
+    module: 'sonde-logique-element.mjs', tag: 'kablix-sonde-logique', width: 140,
+    attrs: { voie: '0', etiquette: 'SCL' },
+  },
   // Patte seule : illustrée patella PLIÉ (une patte bien droite se lit comme un
   // simple tube — la pose montre les deux articulations).
   patte: {

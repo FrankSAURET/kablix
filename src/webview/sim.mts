@@ -60,6 +60,7 @@ import './composants/pca9685-element.mjs';
 import './composants/powerbank-element.mjs';
 import './composants/multimetre-element.mjs';
 import './composants/oscillo-element.mjs';
+import './composants/sonde-logique-element.mjs';
 import './composants/patte-element.mjs';
 import './composants/araignee-element.mjs';
 import './composants/custom-part.mjs';
@@ -114,6 +115,8 @@ import {
   sevenSegmentMuxBindings,
   pulseMonitorPins,
   scopeProbePins,
+  logicProbeVoies,
+  type LogicProbeVoie,
   neopixelBindings,
   dmxBindings,
   lcdParallelBindings,
@@ -684,6 +687,13 @@ plotter.onExportCsv = (csv) => {
 plotter.onHoldFlush = (text) => appendSerial(text);
 togglePlotterBtn.addEventListener('click', () => setPlotterVisible(!plotterVisible));
 closePlotterBtn.addEventListener('click', () => setPlotterVisible(false));
+
+// Analyseur logique : ouverture de son onglet. On repousse les voies dans le
+// même geste — l'hôte lui répond avec l'état courant dès qu'il est prêt.
+document.getElementById('open-analyseur')?.addEventListener('click', () => {
+  vscode.postMessage({ type: 'openAnalyseur' });
+  pousserVoiesLogiques();
+});
 
 /** Titre du panneau série : « Console » pour un Pico, « Moniteur série » sinon. */
 function updateSerialTitle(): void {
@@ -1398,6 +1408,96 @@ const scopeLevels = new Map<string, { hi: number; lo: number }>();
 /** Dernière tension tracée par appareil : c'est le palier que tient la courbe. */
 const scopeHeld = new Map<string, number>();
 
+/**
+ * Sondes de l'ANALYSEUR LOGIQUE posées sur le schéma, telles que le modèle les
+ * résout (broche écoutée, ou pourquoi il n'y en a pas). Elles sont relues au
+ * lancement de la simulation ET à chaque changement du schéma : poser une pince
+ * sans relancer doit suffire à voir apparaître la voie dans l'onglet.
+ */
+let logicProbes: LogicProbeVoie[] = [];
+/**
+ * Dernière capture envoyée à l'onglet, gardée à plat pour l'enregistrement dans
+ * le .projix : c'est ce que l'onglet réaffiche quand il est ouvert hors
+ * simulation, la consigne étant qu'il ne montre jamais du vide.
+ */
+let logicCapture: { pin: string; voie: number; nom: string; fronts: number[]; niveauInitial: 0 | 1 | null }[] = [];
+
+/** Nom d'affichage d'une voie : l'étiquette de la pince, sinon sa broche. */
+function nomVoie(v: LogicProbeVoie): string {
+  if (v.etiquette) return v.etiquette;
+  // Sans étiquette, le nom dérive de la broche écoutée — c'est la sonde qui sait
+  // où elle est posée, pas l'élève qui doit le retaper.
+  return v.pin ?? t('unclipped');
+}
+
+/** Déclare les voies à l'onglet de l'analyseur (et au moteur). */
+function pousserVoiesLogiques(): void {
+  logicProbes = logicProbeVoies(editor.diagram);
+  engine?.setLogicProbes?.(logicProbes.filter((v) => v.pin).map((v) => v.pin!));
+  // Le bouton n'a de sens qu'avec au moins une pince : sinon l'onglet s'ouvrirait
+  // sur un écran vide, ce qui ne dit rien à l'élève.
+  const btn = document.getElementById('open-analyseur');
+  if (btn) btn.hidden = logicProbes.length === 0;
+  vscode.postMessage({
+    type: 'analyseurVoies',
+    voies: logicProbes.map((v) => ({
+      voie: v.voie,
+      nom: nomVoie(v),
+      pin: v.pin ?? '',
+      probleme: v.probleme ?? null,
+      analogique: v.analogique === true,
+    })),
+  });
+}
+
+/**
+ * Plafond de fronts gardés PAR VOIE pour l'enregistrement dans le .projix. Bien
+ * plus bas que ce que l'onglet affiche (60 000) : un .projix est un fichier que
+ * l'élève envoie par mail, il ne doit pas peser des mégaoctets parce qu'une
+ * pince a écouté une horloge SPI pendant dix secondes. C'est la FIN de la
+ * capture qu'on garde — c'est ce que l'élève regardait.
+ */
+const LOGIC_SAUVE_MAX = 4_000;
+
+/**
+ * Relaie une salve de fronts à l'onglet et en garde une trace pour le .projix.
+ * Rien n'est calculé ici : le décodage, le zoom et le dessin appartiennent à
+ * l'onglet. L'atelier n'est qu'une source.
+ */
+function verserFrontsAnalyseur(edges: Record<string, number[]>): void {
+  if (logicProbes.length === 0) return;
+  const salves: Record<string, number[]> = {};
+  let quelqueChose = false;
+  for (const v of logicProbes) {
+    if (!v.pin) continue;
+    const log = edges[v.pin];
+    if (!log || log.length === 0) continue;
+    salves[v.pin] = log;
+    quelqueChose = true;
+    let garde = logicCapture.find((c) => c.pin === v.pin && c.voie === v.voie);
+    if (!garde) {
+      garde = { pin: v.pin, voie: v.voie, nom: nomVoie(v), fronts: [], niveauInitial: null };
+      logicCapture.push(garde);
+    }
+    // Le niveau AVANT le premier front se déduit de ce premier front : une
+    // broche qui monte était basse. Seule information fiable sur le passé.
+    if (garde.fronts.length === 0 && garde.niveauInitial === null && log.length >= 2) {
+      garde.niveauInitial = log[1] === 1 ? 0 : 1;
+    }
+    garde.fronts.push(...log);
+    if (garde.fronts.length > LOGIC_SAUVE_MAX * 2) {
+      const trop = garde.fronts.length - LOGIC_SAUVE_MAX * 2;
+      // On coupe sur un nombre PAIR : chaque front occupe deux nombres, couper
+      // au milieu décalerait tout le reste d'un cran (les temps deviendraient
+      // des niveaux).
+      const coupe = trop + (trop % 2);
+      garde.niveauInitial = garde.fronts[coupe + 1] === 1 ? 0 : 1;
+      garde.fronts.splice(0, coupe);
+    }
+  }
+  if (quelqueChose) vscode.postMessage({ type: 'analyseurFronts', salves });
+}
+
 /** Mesures des multimètres à cette frame (calculées UNE fois pour tous). */
 let meterFrame = new Map<string, MeterReading>();
 /** Multimètres en défaut, signalés une seule fois par changement d'état. */
@@ -1817,7 +1917,15 @@ function refreshVisualsInner(): void {
   // à chaque frame, comme le fait un bouton ou un capteur.
   // Fronts datés par le moteur depuis l'image précédente, pour tous les
   // oscilloscopes à la fois (le journal est commun à toutes les broches).
-  const scopeEdges = scopeProbes.length > 0 ? engine.drainScopeEdges?.() ?? {} : {};
+  // Le journal du moteur est COMMUN aux deux instruments et le drainer le vide :
+  // un second appel rendrait un journal vide, donc l'oscilloscope ou l'analyseur
+  // perdrait ses fronts. On draine UNE fois, et on sert les deux avec la même
+  // carte (les clés sont des noms de broche, chacun prend les siennes).
+  const scopeEdges =
+    scopeProbes.length > 0 || logicProbes.some((v) => v.pin)
+      ? engine.drainScopeEdges?.() ?? {}
+      : {};
+  verserFrontsAnalyseur(scopeEdges);
   for (const b of logicIcMcuInputs(editor.diagram, icFrame)) engine.setInput(b.mcuPin, b.level === 1);
   const read = (name: string): boolean => engine!.readDigital(name);
   const servoTargets = new Map(servoBindings(editor.diagram).map((b) => [b.partId, b.mcuPin]));
@@ -2423,6 +2531,12 @@ function bindInputs(): void {
   scopeLevels.clear();
   scopeHeld.clear();
   engine.setScopeProbes?.(scopeProbes.map((q) => q.pin));
+  // Analyseur logique : même chaîne de fronts datés, un plafond de journal plus
+  // profond (une trame DMX fait déjà 10 000 fronts à elle seule). La capture
+  // précédente est effacée : un nouveau lancement est une nouvelle mesure.
+  logicCapture = [];
+  pousserVoiesLogiques();
+  vscode.postMessage({ type: 'analyseurDepart' });
 
   // Capteurs ultrason : distance ET température de l'air choisies EN SIMULATION
   // par les deux curseurs du composant (distance bornée par distancemin/distancemax
@@ -4018,6 +4132,25 @@ function stopRun(): void {
   clearCapSamplers(); // plus de moteur : les échantillonneurs RC n'ont plus de sens
   setReplMode(false);
   plotter.stop(); // courbes figées mais conservées pour analyse
+  // L'analyseur fige sa vue sur ce qu'il a capturé : c'est la mesure, on ne
+  // l'effacera qu'au prochain lancement. La capture part aussi vers l'hôte pour
+  // être écrite dans le .projix — un onglet rouvert demain doit montrer la
+  // dernière mesure, pas du vide.
+  vscode.postMessage({ type: 'analyseurArret' });
+  if (logicCapture.length > 0) {
+    vscode.postMessage({
+      type: 'analyseurCapture',
+      capture: {
+        voies: logicCapture.map((c) => ({
+          voie: c.voie,
+          nom: c.nom,
+          pin: c.pin,
+          fronts: c.fronts,
+          niveauInitial: c.niveauInitial,
+        })),
+      },
+    });
+  }
   stopRenderLoop(); // fin du rendu continu
   resetSpeedBadge(); // plus de simulation : plus d'alerte de ralentissement
   resetSimGauge(false); // ni chrono ni vitesse hors simulation
@@ -4115,6 +4248,10 @@ editor.onChange = () => {
     }
   }
   if (engine) rebind();
+  // Sondes de l'analyseur : une pince posée, déplacée ou étiquetée doit
+  // apparaître dans l'onglet TOUT DE SUITE, simulation ou non. Sans cela
+  // l'élève poserait sa pince et ne verrait rien avant le lancement suivant.
+  pousserVoiesLogiques();
 };
 
 // Changement de VUE (zoom / déplacement de la page) : on persiste la caméra sans

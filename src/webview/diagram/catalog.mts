@@ -46,6 +46,7 @@ export type PartKind =
   | 'psu'
   | 'meter'
   | 'scope'
+  | 'logic-probe'
   | 'display'
   | 'passive';
 
@@ -1215,6 +1216,25 @@ export const CATALOG: readonly PartDef[] = [
       METER_TAG_PROP,
     ],
   },
+  // Sonde de l'analyseur logique (dessin de Frank : une pince crocodile de
+  // mesure, volontairement petite). Elle ne se CÂBLE pas : l'élève POSE sa
+  // pastille par-dessus la pastille d'une broche, et l'éditeur mémorise
+  // l'accrochage dans l'attribut `accroche` (« idDuComposant/nomDeLaPatte »).
+  // Elle n'impose rien au circuit — pas de signal déclaré, aucune union dans la
+  // netlist : une sonde qui chargerait la broche qu'elle écoute serait un
+  // défaut, pas un instrument.
+  //   voie      : indice de couleur attribué À LA POSE, jamais recyclé dans la
+  //               session (c'est l'identité visuelle de la voie : pince bleue
+  //               sur la planche = voie bleue dans l'analyseur) ;
+  //   accroche  : la broche écoutée, posée par l'éditeur et non par l'élève —
+  //               d'où l'absence de `props` pour elle ;
+  //   etiquette : nom de la voie dans l'analyseur (vide = nom dérivé de la
+  //               broche accrochée, composé par l'analyseur).
+  {
+    type: 'sonde-logique', label: 'Logic probe', tag: 'kablix-sonde-logique', kind: 'logic-probe',
+    attrs: { voie: '', accroche: '', etiquette: '' },
+    props: [METER_TAG_PROP],
+  },
   // Patte de robot articulée : le fémur et le tibia DESSINÉS par Frank
   // (assemblages `araignee-patte-*` de Composants3D.svg), montés tout nus et vus
   // en volume — la même patte que celles du robot (v2026.8.48). 2 servos
@@ -1365,6 +1385,7 @@ export function partCategory(def: PartDef): string {
     case 'psu':
     case 'meter':
     case 'scope':
+    case 'logic-probe':
       return 'Instruments'; // « Appareils de mesure » : alim de laboratoire, multimètre…
     case 'spi-sd':
     case 'i2c-pwm':

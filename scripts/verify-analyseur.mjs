@@ -1,0 +1,520 @@
+// Vérifie l'ANALYSEUR LOGIQUE (sonde-logique + capture + décodage).
+//
+// Ce que le banc couvre :
+//  - catalogue : la sonde est rangée dans les Instruments, elle ne porte aucun
+//    `signals` (une sonde qui chargerait la broche qu'elle écoute serait un
+//    défaut, pas un instrument) ;
+//  - modèle (`logicProbeVoies`) : résolution de l'accroche par SUPERPOSITION de
+//    pastilles — délibérément SANS passer par les nœuds, pour qu'un mauvais
+//    câblage reste visible — et les trois diagnostics (`nowhere`, `not-mcu`,
+//    `power`) plus le drapeau `analogique` des broches A0…/GP26… ;
+//  - `pulseMonitorPins` : les broches sondées y entrent, sinon `samplePulses`
+//    ne les balaierait pas et la capture serait vide (le défaut le plus
+//    silencieux de toute la chaîne) ;
+//  - capture (`AnalyseurCapture`) : niveau initial déduit du premier front,
+//    niveau INCONNU tant qu'aucun front n'est venu, déclenchement qui ne bouge
+//    plus après le premier front qualifiant, conservation des voies inchangées
+//    quand une seule sonde est replacée ;
+//  - décodage depuis les CRÉNEAUX : I²C (adresse + R/W, ACK/NACK, start répété,
+//    stop), SPI (les quatre modes, cadrage par CS), DMX512 (BREAK, start code,
+//    canaux, start code non nul ignoré) — un décodeur nourri de fronts
+//    FABRIQUÉS à la main, pour que le banc prouve le décodage et non le moteur.
+import esbuild from 'esbuild';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+const root = fileURLToPath(new URL('..', import.meta.url));
+const tmp = mkdtempSync(join(tmpdir(), 'kablix-analyseur-'));
+const buildTo = async (entry, outfile) => {
+  await esbuild.build({
+    entryPoints: [join(root, entry)],
+    outfile: join(tmp, outfile),
+    bundle: true,
+    platform: 'node',
+    format: 'esm',
+    loader: { '.svg': 'text', '.webp': 'dataurl' },
+    logLevel: 'silent',
+  });
+  return import(pathToFileURL(join(tmp, outfile)).href);
+};
+
+const { logicProbeVoies, pulseMonitorPins } = await buildTo('src/webview/diagram/model.mts', 'model.mjs');
+const { partDef, partCategory } = await buildTo('src/webview/diagram/catalog.mts', 'catalog.mjs');
+const { AnalyseurCapture, VOIES_MAX } = await buildTo('src/webview/analyseur-capture.mts', 'capture.mjs');
+const { decoder, reglageComplet, rolesDe } = await buildTo('src/webview/analyseur-decodage.mts', 'decodage.mjs');
+const { PALETTE_LIGHT, PALETTE_DARK, couleurVoie } = await buildTo('src/webview/voies-couleurs.mts', 'couleurs.mjs');
+
+let failures = 0;
+const check = (label, ok, detail = '') => {
+  console.log(`${ok ? '✅' : '❌'} ${label}${ok || !detail ? '' : ` — ${detail}`}`);
+  if (!ok) failures++;
+};
+
+// --- Catalogue -----------------------------------------------------------------
+const def = partDef('sonde-logique');
+check(
+  'catalogue : sonde-logique = kablix-sonde-logique, kind logic-probe, catégorie Instruments',
+  def.tag === 'kablix-sonde-logique' && def.kind === 'logic-probe' && partCategory(def) === 'Instruments',
+  `${def.tag} / ${def.kind} / ${partCategory(def)}`
+);
+check(
+  'catalogue : les trois attributs de la sonde (voie, accroche, etiquette)',
+  'voie' in def.attrs && 'accroche' in def.attrs && 'etiquette' in def.attrs
+);
+
+// --- Palette de voies ----------------------------------------------------------
+check('palette : 8 teintes claires et 8 sombres (une par voie, jamais recyclées)',
+  PALETTE_LIGHT.length === 8 && PALETTE_DARK.length === 8 && VOIES_MAX === 8);
+check('palette : la voie 0 a bien deux teintes distinctes selon le thème',
+  couleurVoie(0, false) === PALETTE_LIGHT[0] && couleurVoie(0, true) === PALETTE_DARK[0]);
+check('palette : au-delà de 8 voies, teinte de débordement grise (jamais un doublon)',
+  couleurVoie(8, false) === '#888888' && couleurVoie(-1, false) === '#888888');
+
+// --- Modèle : résolution de l'accroche -----------------------------------------
+/** Schéma minimal : une carte, une résistance, et les sondes qu'on lui donne. */
+const schema = (sondes) => ({
+  parts: [
+    { id: 'uno1', type: 'uno', x: 0, y: 0, attrs: {} },
+    { id: 'r1', type: 'resistor', x: 300, y: 0, attrs: { value: '220' } },
+    ...sondes,
+  ],
+  wires: [],
+});
+const sonde = (id, voie, accroche, etiquette = '') => ({
+  id,
+  type: 'sonde-logique',
+  x: 10,
+  y: 10,
+  attrs: { voie: String(voie), accroche, etiquette },
+});
+
+{
+  const v = logicProbeVoies(schema([sonde('s1', 0, 'uno1/8', 'horloge')]));
+  check('modèle : sonde sur la broche 8 → voie traçable, broche 8, étiquette reprise',
+    v.length === 1 && v[0].pin === '8' && v[0].etiquette === 'horloge' && !v[0].probleme,
+    JSON.stringify(v[0]));
+}
+{
+  const v = logicProbeVoies(schema([sonde('s1', 0, '')]));
+  check('modèle : pastille sur rien → diagnostic `nowhere`, aucune broche',
+    v[0].probleme === 'nowhere' && v[0].pin === undefined, JSON.stringify(v[0]));
+}
+{
+  // Posée sur une patte de résistance : ce n'est PAS une broche de carte. On ne
+  // remonte pas au nœud exprès — si l'élève sonde le mauvais bout, il doit le
+  // voir, pas obtenir par magie le signal d'à côté.
+  const v = logicProbeVoies(schema([sonde('s1', 0, 'r1/1')]));
+  check('modèle : pastille sur une patte de résistance → `not-mcu` (aucune remontée au nœud)',
+    v[0].probleme === 'not-mcu', JSON.stringify(v[0]));
+}
+{
+  const v = logicProbeVoies(schema([sonde('s1', 0, 'uno1/GND.1')]));
+  check('modèle : pastille sur une masse → `power` (un niveau constant, aucun front)',
+    v[0].probleme === 'power', JSON.stringify(v[0]));
+}
+{
+  // A0 est numériquement lisible (digitalRead(A0) est du code légitime) : on la
+  // trace, avec un drapeau qui sert à AVERTIR, pas à refuser.
+  const v = logicProbeVoies(schema([sonde('s1', 0, 'uno1/A0')]));
+  check('modèle : pastille sur A0 → voie traçable ET marquée analogique',
+    !v[0].probleme && v[0].pin === 'A0' && v[0].analogique === true, JSON.stringify(v[0]));
+}
+{
+  const v = logicProbeVoies(schema([sonde('s1', 0, 'uno1/AREF')]));
+  check('modèle : pastille sur AREF → `not-mcu` (broche de carte, mais que le firmware ne pilote pas)',
+    v[0].probleme === 'not-mcu', JSON.stringify(v[0]));
+}
+{
+  // Même règle côté Pico : GP26 = ADC0, numériquement lisible donc tracée.
+  const pico = {
+    parts: [
+      { id: 'pico1', type: 'pico', x: 0, y: 0, attrs: {} },
+      sonde('s1', 0, 'pico1/GP26'),
+      sonde('s2', 1, 'pico1/GP15'),
+      sonde('s3', 2, 'pico1/3V3'),
+    ],
+    wires: [],
+  };
+  const v = logicProbeVoies(pico);
+  check('modèle Pico : GP26 tracée et marquée analogique, GP15 propre, 3V3 → `power`',
+    v[0].analogique === true && !v[0].probleme && !v[1].probleme && v[1].analogique === false
+    && v[2].probleme === 'power',
+    JSON.stringify(v));
+}
+{
+  const v = logicProbeVoies(schema([sonde('s2', 3, 'uno1/9'), sonde('s1', 1, 'uno1/8')]));
+  check('modèle : les voies sortent dans l\'ordre des couleurs, pas de création',
+    v.map((x) => x.voie).join(',') === '1,3', v.map((x) => x.voie).join(','));
+}
+{
+  // Sans cette ligne, `samplePulses` ne balaierait pas la broche et l'analyseur
+  // resterait vide sans rien signaler : c'est LE défaut silencieux de la chaîne.
+  const pins = pulseMonitorPins(schema([sonde('s1', 0, 'uno1/8')]), 5);
+  check('pulseMonitorPins : la broche sondée y entre (sinon rien n\'est capturé)',
+    pins.includes('8'), pins.join(','));
+  const sansSonde = pulseMonitorPins(schema([]), 5);
+  check('pulseMonitorPins : contre-épreuve, sans sonde la broche 8 n\'y est pas',
+    !sansSonde.includes('8'), sansSonde.join(','));
+}
+
+// --- Capture --------------------------------------------------------------------
+{
+  const c = new AnalyseurCapture();
+  c.declarerVoies([{ voie: 0, pin: '8', nom: 'CLK' }]);
+  check('capture : broches à demander au moteur', c.pins.join(',') === '8');
+  check('capture : niveau INCONNU (null) tant qu\'aucun front n\'est venu',
+    c.niveauA(0, 0) === null && !c.aDesDonnees);
+  // Premier front montant : la broche était donc basse avant. C'est la seule
+  // information fiable sur un passé qu'on n'a pas observé.
+  c.verser({ 8: [1.0, 1, 2.0, 0, 3.0, 1] });
+  check('capture : niveau initial déduit du premier front (montée → était bas)',
+    c.niveauA(0, 0.5) === 0, String(c.niveauA(0, 0.5)));
+  check('capture : niveau relu entre deux fronts',
+    c.niveauA(0, 1.5) === 1 && c.niveauA(0, 2.5) === 0 && c.niveauA(0, 9) === 1);
+  check('capture : borne droite = dernier front', c.tFin === 3.0, String(c.tFin));
+  // Le journal du moteur est commun à l'oscilloscope : les broches qu'on ne
+  // regarde pas doivent être ignorées en silence, pas créer une voie fantôme.
+  c.verser({ 13: [4.0, 1] });
+  check('capture : broche inconnue ignorée (journal partagé avec l\'oscilloscope)',
+    c.listeVoies.length === 1 && c.tFin === 3.0);
+}
+{
+  const c = new AnalyseurCapture();
+  c.declarerVoies([{ voie: 0, pin: '8', nom: 'CLK' }, { voie: 1, pin: '9', nom: 'DATA' }]);
+  c.verser({ 8: [1, 1, 2, 0], 9: [1.5, 1] });
+  // Replacer UNE sonde ne doit pas effacer la capture des autres : sinon
+  // rebrancher une pince pendant un run coûterait la mesure entière.
+  c.declarerVoies([{ voie: 0, pin: '8', nom: 'CLK' }, { voie: 1, pin: '10', nom: 'DATA' }]);
+  const v0 = c.listeVoies.find((v) => v.voie === 0);
+  const v1 = c.listeVoies.find((v) => v.voie === 1);
+  check('capture : sonde déplacée → sa voie repart de zéro, les autres sont gardées',
+    v0.fronts.length === 2 && v1.fronts.length === 0,
+    `${v0.fronts.length} / ${v1.fronts.length}`);
+}
+{
+  const c = new AnalyseurCapture();
+  c.declarerVoies([{ voie: 0, pin: '8', nom: 'CLK' }]);
+  c.reglerDeclenchement({ voie: 0, sens: 'rising' });
+  check('déclenchement : armé, en attente', c.enAttente && c.tTrigger === null);
+  c.verser({ 8: [1.0, 0, 2.0, 1, 3.0, 0, 4.0, 1] });
+  // Seul le PREMIER front qualifiant compte : un déclenchement qui se
+  // redéplacerait à chaque front ferait glisser l'écran sans arrêt — exactement
+  // le défaut qu'un déclenchement est censé corriger.
+  check('déclenchement : figé sur le PREMIER front montant (2,0 ms), pas le dernier',
+    c.tTrigger === 2.0 && !c.enAttente, String(c.tTrigger));
+  c.reglerDeclenchement({ voie: 0, sens: 'falling' });
+  check('déclenchement : changer le réglage réarme', c.tTrigger === null && c.enAttente);
+  c.verser({ 8: [5.0, 0] });
+  check('déclenchement : descendant pris sur le front descendant', c.tTrigger === 5.0);
+}
+{
+  const c = new AnalyseurCapture();
+  c.declarerVoies([{ voie: 0, pin: '8', nom: 'CLK' }]);
+  c.verser({ 8: [1, 1, 5, 0, 9, 1] });
+  // Le niveau qui ENTRE par le bord gauche : sans lui, un créneau commencé avant
+  // la fenêtre serait dessiné à partir du vide.
+  const f = c.fenetre(0, 6, 12);
+  check('fenêtre : rend le niveau entrant (bas à 6 ms) et les fronts de la plage',
+    f.entrant === 0 && f.fronts.length === 1 && f.fronts[0].t === 9,
+    `${f.entrant} / ${f.fronts.length}`);
+}
+
+// --- Décodage : outils de fabrication de créneaux --------------------------------
+/** Construit une voie de capture à partir d'une liste [t, niveau]. */
+const voieDe = (voie, pin, paires, niveauInitial) => ({
+  voie,
+  pin,
+  nom: pin,
+  niveauInitial,
+  fronts: paires.map(([t, niveau]) => ({ t, niveau })),
+});
+
+// --- I²C -------------------------------------------------------------------------
+{
+  // Trame fabriquée à la main : START, adresse 0x27 en écriture (0x4E sur le
+  // fil), ACK, octet 0x55, ACK, STOP. Les temps sont en ms simulées, un bit
+  // d'horloge dure 10 µs (100 kHz).
+  const T = 0.01; // demi-période d'horloge, en ms
+  const sclF = [];
+  const sdaF = [];
+  let t = 1.0;
+  // START : SDA descend pendant que SCL est haut (les deux lignes sont au repos
+  // à 1 — pas de front redondant, une pince ne voit que des CHANGEMENTS).
+  // Une pince ne voit que les CHANGEMENTS : deux bits identiques de suite ne
+  // produisent aucun front. Le banc doit fabriquer un signal réaliste, sinon il
+  // prouve un décodeur nourri de données qu'il ne recevra jamais.
+  let sda = 1;
+  t += T;
+  sdaF.push([t, 0]); // START (SCL haut depuis le repos)
+  sda = 0;
+  t += T;
+  /** Pousse un bit : SDA posé horloge basse, lu sur le front montant. */
+  const bit = (b) => {
+    sclF.push([t, 0]);
+    t += T / 2;
+    if (b !== sda) {
+      sdaF.push([t, b]);
+      sda = b;
+    }
+    t += T / 2;
+    sclF.push([t, 1]);
+    t += T;
+  };
+  const octet = (o, ack) => {
+    for (let i = 7; i >= 0; i--) bit((o >> i) & 1);
+    bit(ack ? 0 : 1);
+  };
+  octet(0x4e, true); // adresse 0x27, bit R/W à 0 → écriture
+  octet(0x55, true);
+  // STOP : après le dernier ACK, SCL est resté HAUT (`bit` le laisse en haut) et
+  // SDA bas. Le maître relâche SDA horloge haute : c'est le STOP, et il n'y a
+  // AUCUNE impulsion d'horloge de plus — en ajouter une ferait compter un 9e bit.
+  t += T;
+  sdaF.push([t, 1]); // STOP
+
+  const voies = [voieDe(0, 'SCL', sclF, 1), voieDe(1, 'SDA', sdaF, 1)];
+  const ann = decoder(voies, { protocole: 'i2c', horloge: 0, donnees: 1 });
+  const textes = ann.map((a) => a.texte);
+  check('I²C : START et STOP repérés (SDA bougeant horloge HAUTE)',
+    textes[0] === 'START' && textes[textes.length - 1] === 'STOP', textes.join(' | '));
+  check('I²C : adresse 0x27 en écriture (0x4E sur le fil = adresse décalée + R/W)',
+    textes.includes('adr 0x27 W'), textes.join(' | '));
+  check('I²C : l\'octet de données est décodé', textes.includes('0x55'), textes.join(' | '));
+  check('I²C : les deux acquittements sont lus',
+    textes.filter((x) => x === 'ACK').length === 2, textes.join(' | '));
+  check('I²C : rien de décodé sans les deux voies',
+    decoder(voies, { protocole: 'i2c', horloge: 0 }).length === 0);
+}
+
+// --- SPI --------------------------------------------------------------------------
+/**
+ * Fabrique un échange SPI mode 0 (horloge au repos basse, donnée posée avant le
+ * front montant). `avecCs` encadre l'octet par une sélection active basse.
+ * Ne pousse que les VRAIS fronts : sans ça le banc nourrirait le décodeur de
+ * doublons qu'aucune pince ne produit.
+ */
+const spiMode0 = (octets, avecCs) => {
+  const T = 0.001;
+  const sck = [];
+  const mosi = [];
+  const miso = [];
+  const cs = [];
+  let t = 1.0;
+  let nMosi = 0;
+  let nMiso = 0;
+  if (avecCs) {
+    cs.push([t, 0]);
+    t += T;
+  }
+  for (const { out, in: ent } of octets) {
+    for (let i = 7; i >= 0; i--) {
+      const bo = (out >> i) & 1;
+      const bi = (ent >> i) & 1;
+      if (bo !== nMosi) { mosi.push([t, bo]); nMosi = bo; }
+      if (bi !== nMiso) { miso.push([t, bi]); nMiso = bi; }
+      t += T / 2;
+      sck.push([t, 1]); // front montant : les deux côtés échantillonnent
+      t += T / 2;
+      sck.push([t, 0]);
+      t += T / 2;
+    }
+  }
+  if (avecCs) cs.push([t, 1]);
+  return { sck, mosi, miso, cs };
+};
+
+{
+  const { sck, mosi, miso, cs } = spiMode0([{ out: 0xa5, in: 0x3c }], true);
+  const voies = [
+    voieDe(0, 'SCK', sck, 0),
+    voieDe(1, 'MOSI', mosi, 0),
+    voieDe(2, 'MISO', miso, 0),
+    voieDe(3, 'CS', cs, 1),
+  ];
+  const base = { protocole: 'spi', horloge: 0, donnees: 1, donnees2: 2, selection: 3 };
+  const textes = decoder(voies, { ...base, mode: 0 }).map((a) => a.texte);
+  check('SPI mode 0 : les deux sens décodés (MOSI 0xA5 · MISO 0x3C)',
+    textes.some((x) => x === 'MOSI 0xA5 · MISO 0x3C'), textes.join(' | '));
+  check('SPI : les bascules de CS sont annoncées',
+    textes.includes('CS ↓') && textes.includes('CS ↑'), textes.join(' | '));
+  // Mode 3 échantillonne aussi sur le front montant : même résultat que mode 0.
+  const mode3 = decoder(voies, { ...base, mode: 3 }).map((a) => a.texte);
+  check('SPI : mode 3 échantillonne comme le mode 0 (même front actif)',
+    mode3.some((x) => x === 'MOSI 0xA5 · MISO 0x3C'), mode3.join(' | '));
+}
+{
+  // Contre-épreuve du réglage de mode. Vrai signal mode 1 : la donnée est posée
+  // SUR le front montant et lue sur le descendant. Le décodeur réglé en mode 1
+  // doit retrouver l'octet ; réglé en mode 0, il échantillonne au moment même du
+  // changement et ne doit PAS tomber dessus. Sans cette épreuve, le sélecteur de
+  // mode pourrait être purement décoratif.
+  const T = 0.001;
+  const sck = [];
+  const mosi = [];
+  let t = 1.0;
+  let n = 0;
+  const OCTET = 0x6b; // motif alterné : tout décalage se voit
+  for (let i = 7; i >= 0; i--) {
+    const b = (OCTET >> i) & 1;
+    sck.push([t, 1]); // montant
+    // La donnée sort juste APRÈS le montant (temps de propagation du maître) :
+    // un lecteur réglé en mode 0 échantillonne donc le bit PRÉCÉDENT.
+    if (b !== n) { mosi.push([t + T / 20, b]); n = b; }
+    t += T / 2;
+    sck.push([t, 0]); // descendant : l'esclave lit
+    t += T / 2;
+  }
+  const voies = [voieDe(0, 'SCK', sck, 0), voieDe(1, 'MOSI', mosi, 0)];
+  const m1 = decoder(voies, { protocole: 'spi', horloge: 0, donnees: 1, mode: 1 }).map((a) => a.texte);
+  const m0 = decoder(voies, { protocole: 'spi', horloge: 0, donnees: 1, mode: 0 }).map((a) => a.texte);
+  check('SPI mode 1 : signal posé sur le montant, lu sur le descendant → 0x6B',
+    m1.some((x) => x === 'MOSI 0x6B'), m1.join(' | '));
+  check('SPI : le réglage de mode compte vraiment (mode 0 ne lit pas 0x6B ici)',
+    !m0.some((x) => x === 'MOSI 0x6B'), m0.join(' | '));
+}
+{
+  // Sans CS : deux octets d'affilée, le décodeur compte simplement de 8 en 8.
+  const { sck, mosi } = spiMode0([{ out: 0x01, in: 0 }, { out: 0xff, in: 0 }], false);
+  const textes = decoder(
+    [voieDe(0, 'SCK', sck, 0), voieDe(1, 'MOSI', mosi, 0)],
+    { protocole: 'spi', horloge: 0, donnees: 1, mode: 0 }
+  ).map((a) => a.texte);
+  check('SPI sans CS : deux octets décodés bout à bout (0x01 puis 0xFF)',
+    textes.join(' | ') === 'MOSI 0x01 | MOSI 0xFF', textes.join(' | '));
+}
+{
+  // Octet incomplet : 5 coups d'horloge puis plus rien. Se taire ici masquerait
+  // le cas le plus courant — une pince posée sur la mauvaise broche d'horloge.
+  const { sck, mosi } = spiMode0([{ out: 0xa5, in: 0 }], false);
+  const textes = decoder(
+    [voieDe(0, 'SCK', sck.slice(0, 10), 0), voieDe(1, 'MOSI', mosi, 0)],
+    { protocole: 'spi', horloge: 0, donnees: 1, mode: 0 }
+  ).map((a) => a.texte);
+  check('SPI : octet tronqué signalé au lieu d\'être tu', textes.includes('5 bits'), textes.join(' | '));
+}
+check('SPI : réglage incomplet détecté (aucune ligne de donnée)',
+  !reglageComplet({ protocole: 'spi', horloge: 0 }) &&
+  reglageComplet({ protocole: 'spi', horloge: 0, donnees: 1 }));
+check('SPI : quatre rôles proposés (SCK, MOSI, MISO, CS)',
+  rolesDe('spi').map((r) => r.nom).join(',') === 'SCK,MOSI,MISO,CS');
+
+// --- DMX512 -----------------------------------------------------------------------
+{
+  // 250 kbauds : un bit dure 4 µs = 0,004 ms. Trame = BREAK (≥ 88 µs bas),
+  // MAB (haut), puis des octets 8N2 (start 0, 8 bits LSB d'abord, 2 stop à 1).
+  const BIT = 0.004;
+  const fronts = [];
+  let t = 1.0;
+  let niveau = 1;
+  const palier = (n, bits) => {
+    if (n !== niveau) {
+      fronts.push([t, n]);
+      niveau = n;
+    }
+    t += bits * BIT;
+  };
+  palier(1, 10); // repos
+  palier(0, 25); // BREAK (100 µs)
+  palier(1, 3); // MAB
+  const octet = (o) => {
+    palier(0, 1); // start bit
+    for (let i = 0; i < 8; i++) palier((o >> i) & 1, 1); // LSB d'abord
+    palier(1, 2); // deux stop bits
+  };
+  octet(0x00); // start code « éclairage »
+  octet(200); // canal 1
+  octet(50); // canal 2
+  palier(1, 20); // repos final (ferme les stop bits)
+
+  const voies = [voieDe(0, 'DMX', fronts, 1)];
+  const ann = decoder(voies, { protocole: 'dmx', donnees: 0 });
+  const textes = ann.map((a) => a.texte);
+  check('DMX : le BREAK est repéré (palier bas ≥ 88 µs)', textes.includes('BREAK'), textes.join(' | '));
+  check('DMX : start code 0 accepté', textes.includes('start 0'), textes.join(' | '));
+  check('DMX : les deux canaux sont décodés (c1=200, c2=50)',
+    textes.includes('c1=200') && textes.includes('c2=50'), textes.join(' | '));
+  check('DMX : un seul rôle de voie', rolesDe('dmx').length === 1);
+}
+{
+  // Start code non nul (RDM, test…) : la trame ne porte pas de niveaux de
+  // projecteur et ne doit PAS être lue comme un univers.
+  const BIT = 0.004;
+  const fronts = [];
+  let t = 1.0;
+  let niveau = 1;
+  const palier = (n, bits) => {
+    if (n !== niveau) {
+      fronts.push([t, n]);
+      niveau = n;
+    }
+    t += bits * BIT;
+  };
+  palier(1, 10);
+  palier(0, 25); // BREAK
+  palier(1, 3); // MAB
+  const octet = (o) => {
+    palier(0, 1);
+    for (let i = 0; i < 8; i++) palier((o >> i) & 1, 1);
+    palier(1, 2);
+  };
+  octet(0xcc); // start code RDM
+  octet(200); // ne doit PAS ressortir comme un canal
+  palier(1, 20);
+
+  const textes = decoder([voieDe(0, 'DMX', fronts, 1)], { protocole: 'dmx', donnees: 0 })
+    .map((a) => a.texte);
+  check('DMX : start code non nul → trame ignorée, aucun canal publié',
+    textes.some((x) => x.includes('ignoré')) && !textes.some((x) => x.startsWith('c')),
+    textes.join(' | '));
+}
+
+// --- Rendu : géométrie et graduations -------------------------------------------
+// Le tracé lui-même se vérifie à l'œil (et par les gestes dans verify:souris) ;
+// ici on prouve les CONVERSIONS, parce qu'un réticule décalé de 100 px vient
+// toujours d'une marge oubliée dans l'une des deux formules.
+{
+  const { AnalyseurVue, formatTemps, pasRond, DISPOSITION } =
+    await buildTo('src/webview/analyseur-vue.mts', 'vue.mjs');
+  const vue = new AnalyseurVue({}); // le canvas ne sert qu'au dessin
+
+  check('temps : unité choisie d\'après l\'ordre de grandeur (s / ms / µs / ns)',
+    formatTemps(2500).endsWith(' s') && formatTemps(12).endsWith(' ms')
+    && formatTemps(0.004).endsWith(' µs') && formatTemps(0.0000005).endsWith(' ns'),
+    [formatTemps(2500), formatTemps(12), formatTemps(0.004), formatTemps(0.0000005)].join(' / '));
+  check('temps : un bit DMX (4 µs) s\'affiche en microsecondes, pas en 0,004 ms',
+    formatTemps(0.004, 'en') === '4 µs', formatTemps(0.004, 'en'));
+
+  check('graduation : pas arrondi en 1-2-5 × 10ⁿ',
+    pasRond(0.0037) === 0.005 && pasRond(0.11) === 0.2 && pasRond(7) === 10 && pasRond(1) === 1,
+    [pasRond(0.0037), pasRond(0.11), pasRond(7), pasRond(1)].join(','));
+  check('graduation : une durée nulle ou négative ne casse pas le pas',
+    pasRond(0) === 1 && pasRond(-3) === 1);
+
+  const L = 800;
+  const f = { t0: 10, duree: 5 };
+  const plot = L - DISPOSITION.MARGE_G - DISPOSITION.MARGE_D;
+  check('géométrie : le bord gauche du tracé est à MARGE_G, le droit à L − MARGE_D',
+    vue.xDe(10, f, L) === DISPOSITION.MARGE_G && Math.abs(vue.xDe(15, f, L) - (L - DISPOSITION.MARGE_D)) < 1e-9,
+    `${vue.xDe(10, f, L)} / ${vue.xDe(15, f, L)}`);
+  check('géométrie : xDe et tDe sont réciproques (réticule posé au bon temps)',
+    Math.abs(vue.tDe(vue.xDe(12.345, f, L), f, L) - 12.345) < 1e-9);
+  check('géométrie : un temps hors fenêtre sort hors de la zone de tracé',
+    vue.xDe(5, f, L) < DISPOSITION.MARGE_G && vue.xDe(20, f, L) > L - DISPOSITION.MARGE_D);
+  check('géométrie : largeur de tracé cohérente avec les deux marges', plot === 800 - 104 - 12);
+
+  check('hauteur : une voie de plus = une piste et sa bande d\'annotations de plus',
+    vue.hauteurPour(3) - vue.hauteurPour(2) === DISPOSITION.PISTE_H + DISPOSITION.ANNOT_H);
+  check('hauteur : zéro voie garde la place d\'une piste (pour y écrire le message)',
+    vue.hauteurPour(0) === vue.hauteurPour(1));
+
+  check('pistes : l\'ordonnée retombe sur la bonne voie, -1 au-dessus et en dessous',
+    vue.pisteA(DISPOSITION.REGLE_H + 5, 3) === 0
+    && vue.pisteA(DISPOSITION.REGLE_H + DISPOSITION.PISTE_H + DISPOSITION.ANNOT_H + 5, 3) === 1
+    && vue.pisteA(0, 3) === -1
+    && vue.pisteA(10000, 3) === -1);
+}
+
+console.log(failures === 0 ? '\nTout est vert.' : `\n${failures} échec(s).`);
+process.exit(failures === 0 ? 0 : 1);

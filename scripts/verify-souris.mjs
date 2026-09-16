@@ -26,7 +26,10 @@
 //   5. un rectangle de sélection attrape plusieurs étiquettes d'un coup ;
 //   6. tirer l'une d'elles déplace TOUT le lot, et rien d'autre ;
 //   7. un clic droit quitte le mode étiquette sans en poser une ;
-//   8. glisser un segment de fil le déplace PERPENDICULAIREMENT à sa direction.
+//   8. glisser un segment de fil le déplace PERPENDICULAIREMENT à sa direction ;
+//   9. lâcher une sonde logique SUR la pastille d'une broche l'y accroche et lui
+//      attribue sa teinte de voie — le choix des voies de l'analyseur est un
+//      GESTE, pas une liste à cocher, donc il se prouve à la vraie souris.
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { join, dirname } from 'node:path';
@@ -44,6 +47,10 @@ import { Editor } from '../../src/webview/diagram/editor.mjs';
 // La résistance sert au contrôle du glissé de segment (§8) : sans son élément,
 // le composant se pose mais n'a aucune pastille, donc aucun fil ne se trace.
 import '../../src/webview/composants/resistor-element.mjs';
+// La carte et la sonde servent au contrôle de la POSE de sonde (§9) : sans leurs
+// éléments, aucune pastille n'existe, donc aucune superposition à résoudre.
+import '../../src/webview/composants/arduino-uno-element.mjs';
+import '../../src/webview/composants/sonde-logique-element.mjs';
 const canvas = document.getElementById('canvas');
 const editor = new Editor(canvas, document.getElementById('palette'),
 	document.getElementById('wires'), document.getElementById('inspector'));
@@ -361,6 +368,84 @@ try {
 	ok('et il n a PAS suivi la souris en X',
 		horApres.length === 2 && horApres[0].x === horAvant[0].x && horApres[1].x === horAvant[1].x,
 		JSON.stringify(horApres));
+
+	// --- 9. POSER une sonde logique sur une broche -----------------------------
+	// Le choix des voies de l'analyseur est un GESTE, pas une liste à cocher :
+	// l'élève lâche la pastille de la pince PAR-DESSUS celle d'une broche. Rien
+	// de tout ça ne se prouve avec un `PointerEvent` fabriqué — l'accrochage est
+	// résolu au `pointerup`, et c'est le navigateur qui décide si le glissé a
+	// bien eu lieu. Trois choses à démontrer : l'accrochage s'écrit, la couleur
+	// est attribuée à la pose, et reposée dans le vide la sonde se désaccroche
+	// SANS perdre sa teinte.
+	const uno = { id: 'uno1', type: 'uno', x: 100, y: 100, attrs: {} };
+	await ev(`(() => { window.editor.loadDiagram({
+		parts: [
+			${JSON.stringify(uno)},
+			{ id: 'sd1', type: 'sonde-logique', x: 700, y: 600, attrs: {} },
+		],
+		wires: [],
+	}); window.editor.setCamera({ zoom: 1, panX: 0, panY: 0 }); })()`);
+	await attendre(400);
+	const sonde1 = () => ev(`(() => { const p = window.editor.serialize().parts
+		.find((x) => x.id === 'sd1');
+		return JSON.stringify({ accroche: p.attrs?.accroche ?? '', voie: p.attrs?.voie ?? '',
+			x: p.x, y: p.y }); })()`);
+	ok('la sonde part sans accrochage et sans voie',
+		(JSON.parse(await sonde1()).accroche === '') && JSON.parse(await sonde1()).voie === '',
+		await sonde1());
+
+	// Centre FEUILLE de la pastille de la broche 8 de l'Uno : on ne suppose pas
+	// sa position, on la mesure — c'est l'éditeur lui-même qui la donne, comme
+	// il le fait pour résoudre l'accrochage. Même chose pour la pointe de la
+	// pince : le geste doit amener l'une exactement sur l'autre.
+	const centreFeuille = async (partId, pin) => JSON.parse(await ev(
+		`JSON.stringify(window.editor.hotspotCenter({ partId: '${partId}', pin: '${pin}' }) ?? null)`));
+	const broche8 = await centreFeuille('uno1', '8');
+	const pointe = await centreFeuille('sd1', 'G');
+	ok('les deux pastilles sont mesurables sur le dessin',
+		!!broche8 && !!pointe, JSON.stringify({ broche8, pointe }));
+
+	if (broche8 && pointe) {
+		// On saisit la pince par son CORPS (son centre), pas par sa pastille : le
+		// déplacement de la souris est celui du composant, et la pastille suit.
+		const avant = JSON.parse(await sonde1());
+		const prise = await surEcran(avant.x + 40, avant.y + 40); // milieu du 80×80
+		const dx = broche8.x - pointe.x;
+		const dy = broche8.y - pointe.y;
+		const arrivee = await surEcran(avant.x + 40 + dx, avant.y + 40 + dy);
+		await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: prise.x, y: prise.y, button: 'left', buttons: 0 });
+		await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: prise.x, y: prise.y, button: 'left', buttons: 1, clickCount: 1 });
+		// Plusieurs étapes : un seul saut ne compte pas comme un glissé.
+		for (const k of [0.25, 0.5, 0.75, 1]) {
+			await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', button: 'left', buttons: 1,
+				x: Math.round(prise.x + (arrivee.x - prise.x) * k),
+				y: Math.round(prise.y + (arrivee.y - prise.y) * k) });
+		}
+		await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x: arrivee.x, y: arrivee.y, button: 'left', buttons: 0, clickCount: 1 });
+		await attendre(350);
+		const posee = JSON.parse(await sonde1());
+		ok('lâcher la pince SUR la pastille de la broche 8 écrit l accrochage',
+			posee.accroche === 'uno1/8', JSON.stringify(posee));
+		ok('et la pose attribue la première teinte libre (voie 0)',
+			posee.voie === '0', JSON.stringify(posee));
+
+		// Reposée LOIN de toute broche : l'accrochage s'effface, la teinte reste.
+		const loin = await surEcran(posee.x + 40 + 260, posee.y + 40 + 200);
+		const p2 = await surEcran(posee.x + 40, posee.y + 40);
+		await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p2.x, y: p2.y, button: 'left', buttons: 0 });
+		await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: p2.x, y: p2.y, button: 'left', buttons: 1, clickCount: 1 });
+		for (const k of [0.3, 0.6, 1]) {
+			await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', button: 'left', buttons: 1,
+				x: Math.round(p2.x + (loin.x - p2.x) * k), y: Math.round(p2.y + (loin.y - p2.y) * k) });
+		}
+		await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x: loin.x, y: loin.y, button: 'left', buttons: 0, clickCount: 1 });
+		await attendre(350);
+		const enlevee = JSON.parse(await sonde1());
+		ok('reposée dans le vide, la pince se DÉSACCROCHE',
+			enlevee.accroche === '', JSON.stringify(enlevee));
+		ok('mais elle GARDE sa teinte (le repère visuel de l élève ne bouge pas)',
+			enlevee.voie === '0', JSON.stringify(enlevee));
+	}
 } finally {
 	try { ws?.close(); } catch { /* déjà fermé */ }
 	proc.kill();

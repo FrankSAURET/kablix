@@ -187,6 +187,13 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
           <button id="repl" class="canvas-controls__btn canvas-controls__btn--repl" hidden title="${l10n.t('Start an interactive MicroPython REPL (no script)')}">REPL</button>
           <button id="toggle-serial" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Show/hide the serial monitor')}"><img class="canvas-controls__icon" src="${serialMonitorUri}" alt="${l10n.t('Show/hide the serial monitor')}" /></button>
           <button id="toggle-plotter" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Show/hide the plotter (curves)')}"><img class="canvas-controls__icon" src="${plotterIconUri}" alt="${l10n.t('Show/hide the plotter (curves)')}" /></button>
+          <!-- Analyseur logique : ouvre son ONGLET (rien ne s'affiche sous le
+               dessin — huit voies de créneaux et leurs trames décodées ont besoin
+               de toute la place d'un onglet). Caché tant qu'aucune pince n'est
+               posée : sans sonde, l'analyseur n'aurait rien à montrer.
+               Libellé texte et non icône : les icônes de la barre sont dessinées
+               par Frank, celle-ci est notée dans todo.md. -->
+          <button id="open-analyseur" class="canvas-controls__btn" hidden title="${l10n.t('Open the logic analyzer in a tab')}">${l10n.t('Logic')}</button>
           <button id="toggle-faults" class="canvas-controls__btn canvas-controls__btn--faults canvas-controls__btn--icon is-on" title="${l10n.t('Show/hide the fault explanations')}"><img class="canvas-controls__icon" src="${erreurIconUri}" alt="${l10n.t('Show/hide the fault explanations')}" /></button>
         </div>
         <!-- Barre droite : recentrer/ajuster, réinitialiser, effacer (alignée et de

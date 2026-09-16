@@ -36,6 +36,12 @@ const FAMILIES = {
   // Appareil de mesure (multimètre, oscilloscope…) : « M » dans les deux
   // langues. Les moteurs, eux, sont des actionneurs (Act) : la lettre est libre.
   meter: { en: 'M', fr: 'M' },
+  // Sonde de l'analyseur logique : « SD » dans les deux langues. Famille à
+  // elle, et non `meter` : un multimètre se BRANCHE dans le montage et compte
+  // parmi ses appareils, une pince se POSE par-dessus une broche et ne fait
+  // partie de rien. Les numéroter ensemble mêlerait deux séries que l'élève
+  // lit séparément (M1, M2 sur la table · SD1, SD2 sur les broches).
+  probe: { en: 'SD', fr: 'SD' },
 } as const;
 
 export type RefFamily = keyof typeof FAMILIES;
@@ -88,6 +94,7 @@ const BY_KIND: Record<string, RefFamily> = {
   meter: 'meter',
   // Un oscilloscope est un appareil de mesure comme un autre : M1, M2…
   scope: 'meter',
+  'logic-probe': 'probe',
 };
 
 /** Exceptions par TYPE : un même `kind` peut servir à deux familles. */

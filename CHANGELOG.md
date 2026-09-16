@@ -6,6 +6,11 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Nouveauté
 
+- **Un analyseur logique.** Une nouvelle **sonde logique** — une petite pince crocodile — se **pose** sur la pastille d'une broche, sans aucun fil. Chaque pince prend sa couleur, et le bouton **Logic** ouvre un onglet où l'on voit les créneaux de toutes les voies, dans la couleur de leur pince. Huit voies au maximum.
+- **L'analyseur décode l'I²C, le SPI et le DMX512** : les octets et les repères de trame s'écrivent sous les créneaux.
+- **L'analyseur se déclenche sur un front**, montant ou descendant, de la voie choisie : l'instant du front devient l'origine des temps.
+- **Une pince qui ne peut rien montrer dit pourquoi** : posée dans le vide, sur une patte de composant, sur une masse. Posée sur une entrée analogique, elle trace quand même et prévient qu'on ne verra que 0 ou 1.
+- **La dernière capture est enregistrée avec le projet** : l'onglet rouvert hors simulation montre ce qui a été mesuré la dernière fois.
 - **Une ligne « Paramètres » dans le menu hamburger** : elle ouvre les réglages de Kablix.
 - **L'aide a un sommaire à gauche**.
 - **L'aide à un moteur de recherche**.

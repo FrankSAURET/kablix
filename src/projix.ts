@@ -28,6 +28,26 @@ export interface ProjixDebugVars {
   bases?: Record<string, 'hex' | 'bin' | 'char'>;
 }
 
+/**
+ * Analyseur logique rangé dans le manifeste : la dernière capture et les
+ * réglages de l'instrument (voir `ProjixManifest.analyseur`). Les fronts sont à
+ * plat — `[temps, niveau, temps, niveau, …]`, temps en millisecondes SIMULÉES —
+ * ce qui divise par trois la taille par rapport à un tableau d'objets.
+ */
+export interface ProjixAnalyseur {
+  voies?: Array<{
+    voie: number;
+    nom: string;
+    pin: string;
+    fronts: number[];
+    niveauInitial: 0 | 1 | null;
+  }>;
+  /** Voie et sens du déclenchement, ou absent si aucun n'est réglé. */
+  declenchement?: { voie: number; sens: 'rising' | 'falling' } | null;
+  /** Protocole décodé et affectation des voies, ou absent. */
+  decodage?: unknown;
+}
+
 /** Manifeste écrit dans `kablix.json` à la racine de l'archive. */
 export interface ProjixManifest {
   format: 'projix';
@@ -45,6 +65,19 @@ export interface ProjixManifest {
    *  clic droit, mémorisées AVEC LE PROJET (v2026.7.194) et non plus dans l'état
    *  global de l'extension — elles décrivent la façon de lire CE montage. */
   debugVars?: ProjixDebugVars;
+  /**
+   * ANALYSEUR LOGIQUE : dernière capture et réglages de l'instrument. Les
+   * PINCES, elles, sont des composants du schéma — elles sont déjà enregistrées
+   * avec lui (et gelables par le verrou de l'enseignant). Ce qui vient ici,
+   * c'est la MESURE : l'onglet ouvert hors simulation doit montrer la dernière
+   * capture et non du vide, et personne ne rerègle son déclenchement à chaque
+   * ouverture de projet.
+   *
+   * La capture est tronquée par la webview (fin de l'enregistrement, quelques
+   * milliers de fronts par voie) : un .projix s'envoie par mail, il ne doit pas
+   * peser des mégaoctets parce qu'une pince a écouté une horloge SPI.
+   */
+  analyseur?: ProjixAnalyseur;
   /** Présent UNIQUEMENT dans les backups hot-exit : reflète si le projet avait
    *  des modifications non enregistrées au moment de la fermeture. À la
    *  restauration, on remet le point ● « non enregistré » ssi ce drapeau est vrai.

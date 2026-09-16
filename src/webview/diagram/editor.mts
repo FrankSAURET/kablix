@@ -498,6 +498,9 @@ export class Editor {
   /** Vrai tant qu'on tire l'EXTRÉMITÉ d'un fil existant : la bulle de nom doit
    *  s'afficher là aussi, comme pendant un câblage neuf (retour de Frank). */
   private endpointDrag = false;
+  /** Vrai tant qu'on POSE une sonde logique : même bulle de nom, alors qu'aucun
+   *  fil n'est tiré — c'est la superposition des pastilles qui fait la liaison. */
+  private sondeDrag = false;
   /** Couche (au-dessus des fils) où l'on dessine le rond de sélection de la broche
    *  atteignable au survol, sans hisser le corps du composant. */
   private pinHoistLayer!: HTMLDivElement;
@@ -770,6 +773,7 @@ export class Editor {
           def.kind === 'psu' ||
           def.kind === 'meter' ||
           def.kind === 'scope' ||
+          def.kind === 'logic-probe' ||
           (!def.custom?.control && (def.custom?.toggles?.length ?? 0) > 0);
         r.container.classList.toggle('part--sim-active', locked && !keepUnderWires);
         r.container.classList.toggle('part--sim-under-wires', locked && keepUnderWires);
@@ -2793,7 +2797,7 @@ export class Editor {
 
   /** Bulle de nom instantanée sur la broche visée pendant le câblage. */
   private showPinBubble(dot: HTMLDivElement, endpoint: Endpoint): void {
-    if ((!this.pending && !this.endpointDrag) || this.locked) return;
+    if ((!this.pending && !this.endpointDrag && !this.sondeDrag) || this.locked) return;
     this.hidePinBubble();
     this.pinBubbleFor = endpoint;
     const p = this.hotspotCenter(endpoint);
@@ -3064,6 +3068,12 @@ export class Editor {
       )
       .map((w) => ({ wire: w, orig: w.points!.map((p) => ({ x: p.x, y: p.y })) }));
 
+    // Sonde logique déplacée seule : son accrochage se résout au lâcher, par
+    // SUPERPOSITION de pastilles (aucun fil tiré). Dans un lot multiple on ne
+    // touche pas aux accrochages — le lot garde ses positions relatives, donc
+    // chaque sonde reste sur sa broche.
+    const isSonde = !isGroup && partDef(part.type).kind === 'logic-probe';
+    this.sondeDrag = isSonde;
     // Enfichage : seulement pour un composant seul (pas un support qui emmène
     // déjà sa grappe), et hors cartes/platines — SAUF la Pico / Pico W, qui
     // s'enfiche sur le socle du Grove Shield (et uniquement là).
@@ -3146,6 +3156,10 @@ export class Editor {
       this.moveTextNotes(notes, wdx, wdy);
       this.redrawWires();
       if (holes.length > 0) this.previewBreadboardSnap(part, holes);
+      // Sonde logique en cours de pose : la bulle annonce la broche qu'elle
+      // écouterait si on lâchait maintenant (même retour que pendant un
+      // câblage — le geste doit dire ce qu'il va faire).
+      if (isSonde) this.trackPinBubble(this.sondeCible(part.id));
     };
     const auto = this.beginAutoPan<PointerEvent>(move);
     const release = this.capturePointer(e);
@@ -3157,10 +3171,19 @@ export class Editor {
       window.removeEventListener('pointercancel', end);
       window.removeEventListener('blur', end);
       this.clearBreadboardHighlights();
+      if (isSonde) {
+        this.hidePinBubble();
+        this.sondeDrag = false;
+      }
       if (!moved) {
         // Déjà sélectionné à l'appui ; ne reste que le cas d'une sélection
         // multiple, qu'un clic sans glissé réduit à ce seul composant.
         if (inMulti) this.select({ kind: 'part', id: part.id });
+      } else if (isSonde) {
+        // La sonde est posée : on écrit la broche qu'elle recouvre (ou on efface
+        // l'accrochage si elle a été reposée dans le vide).
+        this.poserSonde(part);
+        this.notify();
       } else if (pluggable) {
         this.plugIntoBreadboard(part, holes); // notifie si des fils auto changent
         this.notify(); // persiste la nouvelle position même sans enfichage
@@ -3924,6 +3947,91 @@ export class Editor {
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', end);
+  }
+
+  // --- Sonde logique : accrochage par superposition --------------------------
+
+  /**
+   * Broche qu'une sonde logique RECOUVRE actuellement, ou null si sa pointe
+   * n'est posée sur aucune pastille.
+   *
+   * On part du centre de la propre pastille de la sonde (sa pointe) et on
+   * cherche la pastille la plus proche — en s'excluant soi-même, et en excluant
+   * les autres sondes : empiler deux sondes ne veut rien dire, et la seconde
+   * aurait « écouté » la première au lieu de la broche du dessous.
+   */
+  private sondeCible(sondeId: string): Endpoint | null {
+    const r = this.rendered.get(sondeId);
+    if (!r) return null;
+    const pointe = [...r.hotspots.keys()][0];
+    if (pointe === undefined) return null;
+    const at = this.hotspotCenter({ partId: sondeId, pin: pointe });
+    if (!at) return null;
+    let best: Endpoint | null = null;
+    let bestD = PIN_SNAP;
+    for (const [id, rr] of this.rendered) {
+      if (id === sondeId) continue;
+      if (partDef(rr.part.type).kind === 'logic-probe') continue;
+      for (const pin of rr.hotspots.keys()) {
+        const c = this.hotspotCenter({ partId: id, pin });
+        if (!c) continue;
+        const d = Math.hypot(c.x - at.x, c.y - at.y);
+        if (d <= bestD) {
+          bestD = d;
+          best = { partId: id, pin };
+        }
+      }
+    }
+    return best;
+  }
+
+  /**
+   * Écrit l'accrochage d'une sonde qu'on vient de lâcher, sous la forme
+   * « idDuComposant/nomDeLaPatte » (vide si elle n'est posée sur rien).
+   *
+   * La COULEUR de voie est attribuée ICI, à la première pose réussie, et ne
+   * change plus : une sonde qu'on déplace d'une broche à l'autre garde sa
+   * teinte, sinon l'élève perdrait le repère visuel qu'il venait de se
+   * construire. Reposée dans le vide, la sonde garde aussi son indice — elle
+   * redeviendra cette même voie dès qu'on la remettra sur une broche.
+   */
+  private poserSonde(part: Part): void {
+    const cible = this.sondeCible(part.id);
+    const accroche = cible ? `${cible.partId}/${cible.pin}` : '';
+    const attrs: Record<string, string> = { ...part.attrs, accroche };
+    // Première pose réussie : la sonde prend la plus petite teinte libre.
+    if (cible && !(part.attrs?.voie ?? '').trim()) {
+      attrs.voie = String(this.voieLibre(part.id));
+    }
+    part.attrs = attrs;
+    const el = this.rendered.get(part.id)?.el as unknown as HTMLElement | undefined;
+    el?.setAttribute('accroche', accroche);
+    if (attrs.voie !== undefined) el?.setAttribute('voie', attrs.voie);
+    // L'inspecteur affiche l'accrochage : il doit suivre la pose.
+    if (this.selection?.kind === 'part' && this.selection.id === part.id) {
+      this.renderPartInspector(part.id);
+    }
+  }
+
+  /**
+   * Plus petit indice de voie non utilisé par une AUTRE sonde du schéma.
+   *
+   * « Jamais recyclée dans la session » se joue ici : on ne comble un trou que
+   * si la sonde qui portait cette teinte a réellement disparu du schéma. Deux
+   * sondes ne peuvent donc jamais porter la même couleur — ce qui casserait le
+   * lien visuel entre la pince et la voie tracée.
+   */
+  private voieLibre(exceptId: string): number {
+    const prises = new Set<number>();
+    for (const p of this.diagram.parts) {
+      if (p.id === exceptId) continue;
+      if (partDef(p.type).kind !== 'logic-probe') continue;
+      const v = Number.parseInt(p.attrs?.voie ?? '', 10);
+      if (Number.isInteger(v) && v >= 0) prises.add(v);
+    }
+    let v = 0;
+    while (prises.has(v)) v++;
+    return v;
   }
 
   /** Broche (hotspot) la plus proche d'un point monde, dans le rayon d'accrochage. */

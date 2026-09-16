@@ -135,6 +135,7 @@ export type ToWorker =
   | { t: 'writeSerial'; text: string }
   | { t: 'setPulseMonitors'; pins: string[] }
   | { t: 'setScopeProbes'; pins: string[] }
+  | { t: 'setLogicProbes'; pins: string[] }
   | { t: 'setUltrasonic'; sensors: unknown[] }
   | { t: 'emitPulses'; pin: string; edges: Array<{ afterUs: number; level: boolean }> }
   /**

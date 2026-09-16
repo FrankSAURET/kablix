@@ -3636,6 +3636,11 @@ export function pulseMonitorPins(diagram: Diagram, vcc: number): string[] {
     else if (kind === 'motor') pins.push(motorMcuPin(diagram, part.id, vcc));
   }
   pins.push(...meterWatchPins(diagram));
+  // Broches écoutées par une sonde de l'analyseur logique. Sans elles, rien ne
+  // serait capturé : c'est `samplePulses` — qui ne balaie QUE les broches
+  // listées ici — qui date les bascules. Une sonde posée sur une broche qui ne
+  // fait pas de PWM (une entrée de bouton, SDA, SCL) n'aurait donné aucun front.
+  for (const v of logicProbeVoies(diagram)) if (v.pin) pins.push(v.pin);
   return [...new Set(pins.filter((p): p is string => !!p))];
 }
 
@@ -3665,6 +3670,108 @@ function meterWatchPins(diagram: Diagram): string[] {
     }
   }
   return out;
+}
+
+/**
+ * Une voie de l'analyseur logique : la sonde posée, la broche qu'elle écoute,
+ * et — le cas échéant — la RAISON pour laquelle elle n'écoute rien.
+ */
+export interface LogicProbeVoie {
+  /** Identifiant de la sonde dans le schéma. */
+  partId: string;
+  /** Indice de couleur attribué à la pose (identité visuelle de la voie). */
+  voie: number;
+  /** Étiquette saisie par l'élève, vide si aucune. */
+  etiquette: string;
+  /** Broche MCU écoutée (nom vu du firmware), absente si la sonde n'écoute rien. */
+  pin?: string;
+  /** Broche du schéma sur laquelle la pastille est posée (`id/patte`), si posée. */
+  accroche?: string;
+  /**
+   * Pourquoi cette voie ne trace rien. Absent = la voie est bonne.
+   *  - `nowhere`  : la sonde n'est posée sur aucune pastille ;
+   *  - `not-mcu`  : elle est posée sur une pastille qui n'est pas une broche de
+   *                 la carte (patte de résistance, borne de condensateur…) ;
+   *  - `power`    : elle est posée sur une alimentation ou une masse — un niveau
+   *                 constant, il n'y a aucun front à montrer.
+   */
+  probleme?: 'nowhere' | 'not-mcu' | 'power';
+  /**
+   * Vrai si la broche écoutée est AUSSI une entrée analogique (A0-A5, GP26-28)
+   * et que le programme s'en sert en analogique. La voie trace quand même —
+   * `digitalRead(A0)` est parfaitement licite — mais l'analyseur avertit que
+   * d'un signal continu il ne verra jamais que 0 ou 1.
+   */
+  analogique?: boolean;
+}
+
+/**
+ * Voies de l'analyseur logique : pour chaque sonde posée sur la planche, la
+ * broche MCU qu'elle écoute.
+ *
+ * À la différence de l'oscilloscope (`scopeProbePins`, juste en dessous), une
+ * sonde ne se CÂBLE pas : elle se POSE, pastille sur pastille, et l'éditeur a
+ * écrit ce qu'elle recouvre dans son attribut `accroche`. On ne passe donc pas
+ * par les nets — c'est voulu : une sonde posée sur la broche 8 doit montrer LA
+ * BROCHE 8, pas « le nœud auquel la broche 8 appartient ». Si l'élève câble mal,
+ * l'analyseur doit le laisser voir.
+ *
+ * Une sonde qui n'écoute rien est rendue QUAND MÊME, avec sa raison : l'élève
+ * qui a posé une pince de travers doit lire pourquoi sa voie est vide, au lieu
+ * de la croire cassée.
+ */
+export function logicProbeVoies(diagram: Diagram): LogicProbeVoie[] {
+  const sondes = diagram.parts.filter((p) => partDef(p.type).kind === 'logic-probe');
+  if (sondes.length === 0) return [];
+  const out: LogicProbeVoie[] = [];
+  for (const sonde of sondes) {
+    const voie = Number.parseInt(sonde.attrs?.voie ?? '', 10);
+    const base: LogicProbeVoie = {
+      partId: sonde.id,
+      voie: Number.isInteger(voie) && voie >= 0 ? voie : 0,
+      etiquette: (sonde.attrs?.etiquette ?? '').trim(),
+    };
+    const accroche = (sonde.attrs?.accroche ?? '').trim();
+    if (!accroche) {
+      out.push({ ...base, probleme: 'nowhere' });
+      continue;
+    }
+    // « idDuComposant/nomDeLaPatte » — l'id peut contenir des tirets, la patte
+    // jamais de barre oblique : on coupe à la DERNIÈRE.
+    const coupe = accroche.lastIndexOf('/');
+    const cibleId = coupe < 0 ? '' : accroche.slice(0, coupe);
+    const ciblePin = coupe < 0 ? '' : accroche.slice(coupe + 1);
+    const cible = diagram.parts.find((p) => p.id === cibleId);
+    const def = cible && partDef(cible.type);
+    if (!cible || !def || def.kind !== 'mcu' || !def.board) {
+      // Posée sur un composant qui n'est pas la carte (ou sur un composant
+      // depuis supprimé) : aucune broche de microcontrôleur à écouter.
+      out.push({ ...base, accroche, probleme: 'not-mcu' });
+      continue;
+    }
+    const role = mcuPinRole(def.board, ciblePin);
+    if (role.role === 'gnd' || role.role === 'vcc') {
+      out.push({ ...base, accroche, probleme: 'power' });
+      continue;
+    }
+    if (role.role !== 'digital' || !role.name) {
+      // AREF, RESET, IOREF… : des broches de la carte, mais que le firmware ne
+      // pilote pas — le moteur n'a rien à en dire.
+      out.push({ ...base, accroche, probleme: 'not-mcu' });
+      continue;
+    }
+    out.push({
+      ...base,
+      accroche,
+      pin: role.name,
+      // A0-A5 / GP26-28 : numériquement lisibles (role 'digital'), donc tracées.
+      // Le drapeau sert à AVERTIR, pas à refuser — voir LogicProbeVoie.
+      analogique: role.adcChannel !== undefined,
+    });
+  }
+  // Ordre d'affichage = ordre des voies (couleur), pas ordre de création dans
+  // le schéma : c'est ce que l'élève lit dans l'analyseur.
+  return out.sort((a, b) => a.voie - b.voie);
 }
 
 /**

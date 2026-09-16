@@ -93,6 +93,11 @@ const ATTENDU = {
   repl: [/REPL/, /REPL/],
   'toggle-serial': [/moniteur série/i, /serial monitor/i],
   'toggle-plotter': [/traceur/i, /plotter/i],
+  // Analyseur logique (v2026.9.4.88). La moitié EN reste ROUGE tant que le lot
+  // de traduction d'avant publication n'a pas touché docs/en — règle « jamais de
+  // traduction au fil de l'eau ». Ne pas la passer à `null` pour faire vert :
+  // ce serait perdre l'exigence au moment même où elle sert.
+  'open-analyseur': [/analyseur logique/i, /logic analyzer/i],
   'toggle-faults': [/explications de défaut/i, /fault explanations/i],
   // Barre de dessin
   'internal-toggle': [/schéma interne/i, /internal schematic/i],

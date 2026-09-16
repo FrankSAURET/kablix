@@ -10,6 +10,23 @@ import type { SevenSegMuxSpec } from './sevenseg.mjs';
  */
 export const SCOPE_LOG_MAX = 20_000;
 
+/**
+ * Plafond du journal de fronts d'une broche écoutée par une SONDE de
+ * l'analyseur logique, en NOMBRES (deux par front) — 50 000 bascules.
+ *
+ * Bien plus profond que celui de l'oscilloscope, et pour une raison mesurable :
+ * l'oscillo montre un écran de signal, l'analyseur doit tenir une TRAME
+ * ENTIÈRE. Une trame DMX (513 octets, 11 bits chacun à 250 kbauds) fait à elle
+ * seule près de 10 000 bascules : au plafond de l'oscilloscope, le début de la
+ * trame — l'adresse, justement ce qu'on veut lire — serait jeté avant que la
+ * page ait pu le décoder.
+ *
+ * Le plafond de l'oscilloscope n'est PAS relevé pour autant : il est réglé et
+ * mesuré, et une broche partagée entre les deux instruments prend le plafond le
+ * plus large (cf. `logPlafond` dans les moteurs).
+ */
+export const LOGIC_LOG_MAX = 100_000;
+
 export type { AnalogWave };
 
 /** Variable affichée dans le panneau de débogage. */
@@ -217,8 +234,18 @@ export interface SimEngine {
    */
   setScopeProbes?(names: string[]): void;
   /**
+   * Broches ecoutees par une SONDE de l'analyseur logique. Meme datation que
+   * `setScopeProbes` — c'est le meme journal —, mais un plafond bien plus
+   * profond (cf. LOGIC_LOG_MAX) : l'analyseur doit tenir une trame entiere, la
+   * ou l'oscilloscope ne montre qu'un ecran.
+   */
+  setLogicProbes?(names: string[]): void;
+  /**
    * Fronts accumules depuis le dernier appel, puis VIDES : par broche, une
    * liste plate [temps simule en ms, niveau 0/1, temps, niveau, ...].
+   *
+   * Un seul journal sert les deux instruments : une broche regardee a la fois
+   * par un oscilloscope et par une sonde n'est datee qu'une fois.
    */
   drainScopeEdges?(): Record<string, number[]>;
   /** Largeur de la dernière impulsion haute mesurée sur une broche, en µs (0 si inconnue). */

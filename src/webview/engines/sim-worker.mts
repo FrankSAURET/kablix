@@ -368,6 +368,9 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
       case 'setScopeProbes':
         engine?.setScopeProbes?.(msg.pins);
         return;
+      case 'setLogicProbes':
+        engine?.setLogicProbes?.(msg.pins);
+        return;
       case 'emitPulses':
         engine?.emitPulses?.(msg.pin, msg.edges);
         break;
