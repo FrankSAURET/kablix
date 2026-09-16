@@ -3704,13 +3704,32 @@ function renderDebugPause(state: DebugPauseState, redraw = false): void {
       const mCell = mRow.insertCell();
       mCell.colSpan = 3;
       mCell.className = 'debug__cinfo debug__cinfo--locals';
-      // Au-delà de quelques noms la liste noierait le panneau : on cite les
-      // premiers et on compte le reste.
+      // Une variable PAR LIGNE, indentée sous son titre : en une seule ligne
+      // séparée par des virgules, quatre noms qualifiés se lisaient mal
+      // (Frank, .91). Au-delà de quelques noms la liste noierait le panneau :
+      // on cite les premiers et on compte le reste.
       const shownNames = missing.slice(0, LOCALS_NAMED_MAX);
       const rest = missing.length - shownNames.length;
-      const list = shownNames.join(', ') + (rest > 0 ? t(' and {0} more', rest) : '');
-      mCell.textContent = t('Not readable here: {0}', list);
-      mCell.title = t('These variables are declared inside a function, so they live on the stack and have no fixed address. Declare them outside any function, or add “static”, to follow them.');
+      const titre = document.createElement('div');
+      titre.textContent = t('Variables not readable here:');
+      mCell.appendChild(titre);
+      const liste = document.createElement('ul');
+      liste.className = 'debug__locals-list';
+      for (const nom of shownNames) {
+        const li = document.createElement('li');
+        li.textContent = nom;
+        liste.appendChild(li);
+      }
+      if (rest > 0) {
+        const li = document.createElement('li');
+        li.textContent = t('and {0} more', rest);
+        liste.appendChild(li);
+      }
+      mCell.appendChild(liste);
+      const aide = document.createElement('div');
+      aide.className = 'debug__locals-hint';
+      aide.textContent = t('To be seen, declare variables outside any function, or add the word static in front (e.g. static int myVar = analogRead(A0);).');
+      mCell.appendChild(aide);
     }
   }
   const shown = state.variables.filter((v) => !hiddenVars.has(v.name));

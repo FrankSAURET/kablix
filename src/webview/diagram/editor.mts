@@ -48,6 +48,7 @@ import { icAttrs, icRef } from './ics.mjs';
 import { PACKAGE_LABELS, type TransistorPackage } from '../composants/transistor-element.mjs';
 import { nextPartId } from './refnames.mjs';
 import { colorDisplayName, colorSwatchBackground } from './colors.mjs';
+import { couleurVoie, themeSombre } from '../voies-couleurs.mjs';
 import { breadboardPins, normalizeSize, stripOfPin } from './breadboard.mjs';
 import { embedClipboardInSvg, encodeClipboard, extractClipboard, type ClipboardPayload } from './clipboard.mjs';
 import { groveSignalGpio, groveSocketPins } from './grove-shield.mjs';
@@ -179,6 +180,14 @@ const SHEET_W = 4000;
 const SHEET_H = 3000;
 /** Aligne une coordonnée sur la grille magnétique. */
 const snapToGrid = (v: number): number => Math.round(v / GRID) * GRID;
+/** Bruit toléré sur une mesure DOM : au-delà, l'écart est de la géométrie. */
+const EPS_MESURE = 0.05;
+/** Rabat sur l'entier le BRUIT d'une mesure au sous-pixel, et lui seul : une
+ *  valeur franchement fractionnaire (composant tourné à 45°) sort intacte. */
+const debruite = (v: number): number => {
+  const e = Math.round(v);
+  return Math.abs(v - e) < EPS_MESURE ? e : v;
+};
 /** Étiquettes de texte libres — couleurs et gabarit choisis par Frank. Repris à
  *  l'identique par le CSS (`.text-note`) et par l'export SVG, qui ne partage pas
  *  la feuille de style : les deux doivent rendre la MÊME étiquette. */
@@ -2109,7 +2118,26 @@ export class Editor {
     return nextPartId(type, this.diagram.parts.map((p) => p.id));
   }
 
-  /** Décalage (monde) de la première broche par rapport à l'origine d'un composant. */
+  /**
+   * Décalage (monde) de la première broche par rapport à l'origine d'un
+   * composant.
+   *
+   * DÉBRUITÉ, et il le faut : ce décalage vient d'un
+   * `getBoundingClientRect()`, donc d'une mesure au SOUS-PIXEL, divisée par le
+   * zoom. `snapPartToGrid` fait ensuite `snap(x + off) - off` : un résidu de
+   * 0,009 px dans `off` se retrouve tel quel dans la position enregistrée, et
+   * le composant n'est plus sur la grille (mesuré sur `dmx-pico.projix` :
+   * sonde en x = 550,0092 au lieu de 550). Invisible sur une résistance, pas
+   * sur une sonde logique — dont toute la fonction est de recouvrir EXACTEMENT
+   * la pastille d'une broche (retour Frank, .91).
+   *
+   * Mais on n'arrondit PAS au pixel sans condition : un composant tourné à 45°
+   * a un décalage de broche légitimement fractionnaire (42,43 px pour une
+   * diagonale de 60), et l'arrondir le déplacerait d'un demi-pixel réel. On ne
+   * rabat donc que le BRUIT de mesure : un écart à l'entier inférieur à
+   * `EPS_MESURE` est une erreur d'arrondi du navigateur, au-delà c'est la
+   * géométrie du composant et on la laisse telle quelle.
+   */
   private gridOffset(partId: string): XY | null {
     const r = this.rendered.get(partId);
     if (!r) return null;
@@ -2117,7 +2145,7 @@ export class Editor {
     if (!first) return null;
     const c = this.hotspotCenter({ partId, pin: first });
     if (!c) return null;
-    return { x: c.x - r.part.x, y: c.y - r.part.y };
+    return { x: debruite(c.x - r.part.x), y: debruite(c.y - r.part.y) };
   }
 
   /** Décale un composant pour que sa première broche tombe sur la grille.
@@ -2131,7 +2159,13 @@ export class Editor {
     const off = this.gridOffset(partId);
     const r = this.rendered.get(partId);
     if (!off || !r) return;
-    if (onlyRotated && !(r.part.rotation ?? 0)) return;
+    // Une SONDE logique se recolle toujours, tournée ou non : sa pastille doit
+    // recouvrir CELLE d'une broche, et une fraction de pixel suffit à ce qu'elle
+    // n'accroche plus rien. Les anciens schémas en portent (mesuré sur
+    // `dmx-pico.projix`, sonde en 550,0092) — ils se remettent d'aplomb à
+    // l'ouverture.
+    const estSonde = partDef(r.part.type).kind === 'logic-probe';
+    if (onlyRotated && !estSonde && !(r.part.rotation ?? 0)) return;
     const cale = this.clampToSheet(partId, snapToGrid(r.part.x + off.x) - off.x,
       snapToGrid(r.part.y + off.y) - off.y);
     r.part.x = cale.x;
@@ -7168,7 +7202,40 @@ export class Editor {
       label.prepend(box);
       return;
     }
-    if (prop.attr === 'color' && prop.kind === 'select') {
+    if (prop.attr === 'voie' && prop.kind === 'select') {
+      // Couleur d'une SONDE logique : pastilles des huit teintes de voie, aux
+      // valeurs réellement tracées par l'analyseur (donc relues dans le thème
+      // courant). Une teinte DÉJÀ PRISE par une autre sonde est proposée
+      // barrée et refuse le clic : deux sondes de même couleur casseraient le
+      // lien pince ↔ courbe, qui est tout l'intérêt de la couleur.
+      const sombre = themeSombre();
+      const prises = new Set<string>();
+      for (const p of this.diagram.parts) {
+        if (p.id === first.id) continue;
+        if (partDef(p.type).kind !== 'logic-probe') continue;
+        const v = (p.attrs?.voie ?? '').trim();
+        if (v) prises.add(v);
+      }
+      const swatches = document.createElement('div');
+      swatches.className = 'inspector__swatches';
+      for (const opt of prop.options ?? []) {
+        const pris = prises.has(opt);
+        const sw = document.createElement('button');
+        sw.className = 'inspector__swatch'
+          + (opt === current ? ' inspector__swatch--active' : '')
+          + (pris ? ' inspector__swatch--taken' : '');
+        sw.style.background = couleurVoie(Number(opt), sombre);
+        const nom = t(prop.optionLabels?.[opt] ?? opt);
+        sw.title = pris ? t('{0} — already used by another probe', nom) : nom;
+        sw.disabled = pris;
+        sw.addEventListener('click', () => {
+          setAttr(prop.attr, opt);
+          this.renderInspector();
+        });
+        swatches.appendChild(sw);
+      }
+      host.appendChild(swatches);
+    } else if (prop.attr === 'color' && prop.kind === 'select') {
       // Choix de couleur par boutons colorés (au lieu d'une liste déroulante).
       const swatches = document.createElement('div');
       swatches.className = 'inspector__swatches';

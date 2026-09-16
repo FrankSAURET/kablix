@@ -5,6 +5,7 @@
 // (<kablix-custom-part>, enregistrés à l'exécution).
 import { DEFAULT_IC74_FAMILY, IC74_FAMILY_OPTIONS, IC_REFS, IC_REF_OPTIONS, icAttrs, icLabel } from './ics.mjs';
 import type { ShieldSpec } from './shield.mjs';
+import { NOMS_VOIES } from '../voies-couleurs.mjs';
 
 export type PartKind =
   | 'mcu'
@@ -1254,10 +1255,23 @@ export const CATALOG: readonly PartDef[] = [
   //               d'où l'absence de `props` pour elle ;
   //   etiquette : nom de la voie dans l'analyseur (vide = nom dérivé de la
   //               broche accrochée, composé par l'analyseur).
+  //   La COULEUR se choisit (Frank, .91) : la liste donne les huit teintes de
+  //   `voies-couleurs.mts`, celles-là mêmes que trace l'analyseur — choisir ici
+  //   change donc la pince ET sa courbe, en un seul geste. Aucune couleur libre :
+  //   une teinte quelconque (blanc, noir, rouge, gris) se confondrait avec le
+  //   fond, les pastilles ou les défauts, et l'analyseur ne saurait plus quelle
+  //   voie tracer de quelle couleur. Valeur vide = teinte attribuée à la pose.
   {
     type: 'sonde-logique', label: 'Logic probe', tag: 'kablix-sonde-logique', kind: 'logic-probe',
     attrs: { voie: '', accroche: '', etiquette: '' },
-    props: [METER_TAG_PROP],
+    props: [
+      {
+        attr: 'voie', label: 'Colour', kind: 'select',
+        options: NOMS_VOIES.map((_, i) => String(i)),
+        optionLabels: Object.fromEntries(NOMS_VOIES.map((nom, i) => [String(i), nom])),
+      },
+      METER_TAG_PROP,
+    ],
   },
   // Patte de robot articulée : le fémur et le tibia DESSINÉS par Frank
   // (assemblages `araignee-patte-*` de Composants3D.svg), montés tout nus et vus

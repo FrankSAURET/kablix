@@ -232,8 +232,10 @@ export class AnalyseurPanel {
     </select>
   </label>
   <div id="roles"></div>
-  <button id="tout" type="button">${l.t('Fit')}</button>
-  <button id="suivre" type="button">${l.t('Follow')}</button>
+  <!-- Deux boutons nommés en clair : « Fit » et « Follow » ne disaient pas ce
+       qu'ils font une fois dans un analyseur (retour Frank, .91). -->
+  <button id="tout" type="button" title="${l.t('Zoom out until the whole capture, from the start to the last edge, fits the window.')}">${l.t('Whole capture')}</button>
+  <button id="suivre" type="button" title="${l.t('Keep the window on the last captured edges: the view scrolls by itself while the simulation runs. Zooming with the wheel turns it off.')}">${l.t('Follow live')}</button>
   <span id="etat"></span>
 </div>
 <div id="legende"></div>

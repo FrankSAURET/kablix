@@ -256,12 +256,14 @@ textarea {
 }
 
 /* Poignée de redimensionnement entre la bibliothèque/inspecteur et le canvas. */
-/* Aucun séparateur visible : les zones se touchent (leurs arrondis restent).
-   La zone de préhension est élargie de façon invisible (::before déborde de
-   ±4 px) pour rester facile à attraper. */
+/* GOUTTIÈRE de 14 px, et non une poignée de largeur nulle : le bouton de repli
+   y tient en entier. Avant, le splitter était large de 0 px et le bouton
+   débordait DANS le panneau — il tombait sur l'ascenseur de la bibliothèque et
+   sur le titre « Propriétés », donc invisible. La zone de préhension reste
+   élargie de ±4 px par le ::before. */
 .splitter {
   position: relative;
-  flex: 0 0 0;
+  flex: 0 0 14px;
   align-self: stretch;
   cursor: col-resize;
 }
@@ -275,37 +277,30 @@ textarea {
   right: -4px;
 }
 
-/* Bouton de repli du panneau voisin. Posé en absolu DANS le splitter (large de
-   0 px) : il déborde donc sur le panneau, en haut, à hauteur de son titre.
-   Au-dessus du ::before de préhension (z-index) sinon le clic partirait en
-   glissement de largeur. */
+/* Bouton de repli du panneau voisin, CENTRÉ dans la gouttière : il ne recouvre
+   plus rien. Fond opaque (couleur du panneau voisin) pour rester lisible même
+   au-dessus de la grille du canvas. Au-dessus du ::before de préhension
+   (z-index) sinon le clic partirait en glissement de largeur. */
 .splitter__fold {
   position: absolute;
   top: 0.45rem;
+  left: 0;
+  right: 0;
+  margin: 0 auto;
   z-index: 2;
   display: flex;
   align-items: center;
   gap: 0.15rem;
   padding: 0;
-  width: 16px;
-  height: 18px;
+  width: 14px;
+  height: 26px;
   justify-content: center;
-  border: none;
+  border: 1px solid var(--vscode-panel-border, #444);
   border-radius: 4px;
-  background: transparent;
+  background: var(--vscode-editorWidget-background, rgba(255, 255, 255, 0.04));
   color: inherit;
-  opacity: 0.55;
+  opacity: 0.85;
   cursor: pointer;
-}
-
-/* Le splitter de gauche a son panneau à GAUCHE, celui de droite à droite : le
-   bouton déborde du bon côté dans chaque cas. */
-#splitter-palette .splitter__fold {
-  right: 2px;
-}
-
-#splitter-inspector .splitter__fold {
-  left: 2px;
 }
 
 .splitter__fold:hover {
@@ -314,12 +309,13 @@ textarea {
 }
 
 /* Chevron dessiné en CSS (bordures) : il tourne selon le sens de pliage, sans
-   dépendre d'une police ni d'une image. */
+   dépendre d'une police ni d'une image. Gros et épais — à 6 px et 1,6 px il ne
+   se voyait pas. */
 .splitter__chevron {
-  width: 6px;
-  height: 6px;
-  border-right: 1.6px solid currentColor;
-  border-bottom: 1.6px solid currentColor;
+  width: 9px;
+  height: 9px;
+  border-right: 2.4px solid currentColor;
+  border-bottom: 2.4px solid currentColor;
   transform: rotate(135deg); /* pointe vers la GAUCHE : replie la bibliothèque */
   transition: transform 0.12s ease;
 }
@@ -361,11 +357,11 @@ textarea {
 }
 
 .splitter--folded .splitter__fold {
-  width: 20px;
+  width: 22px;
   height: auto;
   flex-direction: column;
   padding: 0.3rem 0;
-  opacity: 0.85;
+  opacity: 0.9;
 }
 
 .splitter--folded .splitter__fold-label {
@@ -389,15 +385,8 @@ textarea {
   transform: rotate(135deg);
 }
 
-/* Replié à gauche, le bouton se cale SUR la bande (elle est à gauche du
-   splitter) ; à droite, symétrique. */
-#splitter-palette.splitter--folded .splitter__fold {
-  right: 1px;
-}
-
-#splitter-inspector.splitter--folded .splitter__fold {
-  left: 1px;
-}
+/* Replié, le bouton reste centré dans la gouttière (left/right/margin auto de
+   la règle de base) : plus de calage latéral, il ne mord sur aucun panneau. */
 
 .palette {
   flex: 0 0 150px;
@@ -1678,6 +1667,32 @@ body.vscode-light .inspector__ref--nouveau {
 .inspector__swatch--active {
   border-color: #ffffff;
   box-shadow: 0 0 4px rgba(255, 255, 255, 0.6);
+}
+
+/* Teinte de voie DÉJÀ portée par une autre sonde : barrée et inerte. Grisée
+   tout court, on aurait cru la couleur indisponible dans l'application ; la
+   barre dit « prise ailleurs ». */
+.inspector__swatch--taken {
+  opacity: 0.4;
+  cursor: not-allowed;
+  position: relative;
+}
+
+.inspector__swatch--taken::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom right,
+    transparent calc(50% - 1px),
+    var(--vscode-foreground, #ddd) calc(50% - 1px),
+    var(--vscode-foreground, #ddd) calc(50% + 1px),
+    transparent calc(50% + 1px)
+  );
+}
+
+.inspector__swatch--taken:hover {
+  border-color: transparent;
 }
 
 .inspector__delete {
@@ -3234,9 +3249,36 @@ body.vscode-light .inspector__ref--nouveau {
   text-decoration: underline;
 }
 
-/* Noms des locales non lisibles : discrètes, sur une ligne qui peut être longue. */
+/* Locales non lisibles : un bloc à la ligne, une variable par ligne. Aligné à
+   GAUCHE (le .debug__cinfo générique centre) et sans soulignement au survol :
+   l'explication est écrite sous la liste, plus besoin d'aller la chercher dans
+   une infobulle. */
 .debug__vars td.debug__cinfo--locals {
   font-style: italic;
   opacity: 0.85;
   word-break: break-word;
+  text-align: left;
+  cursor: default;
+}
+
+.debug__vars td.debug__cinfo--locals:hover {
+  color: var(--vscode-descriptionForeground, #9aa);
+  text-decoration: none;
+}
+
+.debug__locals-list {
+  margin: 0.15rem 0 0.3rem;
+  padding-left: 1.4rem;
+  list-style: none;
+}
+
+.debug__locals-list li {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-style: normal;
+}
+
+/* Le conseil : non italique, il se lit comme une phrase. */
+.debug__locals-hint {
+  font-style: normal;
+  opacity: 0.9;
 }

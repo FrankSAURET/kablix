@@ -1195,7 +1195,9 @@ function parseDwarfVariables(
       // Pas d'adresse fixe : locale en pile ou en registre. Le panneau la
       // nommera comme non lisible plutôt que de la passer sous silence. Une
       // variable de fonction déclarée SANS `static` passe toujours par ici.
-      if (scope) locals.add(`${scope}() : ${bare}`);
+      // La VARIABLE d'abord, sa fonction ensuite (`valeurCtn -> loop()`) :
+      // l'élève cherche un nom qu'il a écrit, pas une fonction (Frank, .91).
+      if (scope) locals.add(`${bare} -> ${scope}()`);
       continue;
     }
     // Adresse fixe en SRAM uniquement (exclut registres/IO, EEPROM et flash).

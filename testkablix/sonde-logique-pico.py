@@ -2,7 +2,8 @@
 # pastilles de la carte, il n'y a AUCUN fil a tirer vers elles.
 # GP14 bat vite, GP15 bat deux fois moins vite : dans l'onglet de l'analyseur,
 # deux creneaux decales, chacun de la couleur de sa pince sur la planche.
-# Le bouton « Logic » de la barre ouvre l'onglet a cote du schema.
+# RIEN A CLIQUER : au demarrage de la simulation, l'onglet de l'analyseur
+# s'ouvre tout seul parce qu'il y a au moins une pince sur la planche.
 #   SD1 (GP14) : cas normal, nommee « horloge » ;
 #   SD2 (GP15) : voie suivante, sans etiquette (elle s'appellera « GP15 ») ;
 #   SD3 (GND)  : broche d'alimentation, l'analyseur explique qu'il n'y a

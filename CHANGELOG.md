@@ -10,6 +10,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **L'analyseur décode l'I²C, le SPI et le DMX512** : les octets et les repères de trame s'écrivent sous les créneaux.
 - **L'analyseur se déclenche sur un front**, montant ou descendant, de la voie choisie : l'instant du front devient l'origine des temps.
 - **Une pince qui ne peut rien montrer dit pourquoi** : posée dans le vide, sur une patte de composant, sur une masse. Posée sur une entrée analogique, elle trace quand même et prévient qu'on ne verra que 0 ou 1.
+- **La couleur d'une pince se choisit** dans ses propriétés, parmi huit pastilles. La voie change de couleur dans l'analyseur en même temps. Deux pinces ne peuvent pas prendre la même teinte.
 - **La dernière capture est enregistrée avec le projet** : l'onglet rouvert hors simulation montre ce qui a été mesuré la dernière fois.
 - **Une ligne « Paramètres » dans le menu hamburger** : elle ouvre les réglages de Kablix.
 - **L'aide a un sommaire à gauche**.
@@ -25,11 +26,18 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Une commande « Kablix : Detect arduino-cli again »** relance la recherche sans redémarrer l'éditeur. Quand rien n'est trouvé, le message liste les emplacements consultés.
 - **Le panneau Variables montre les tableaux, les structures et les pointeurs** en C/Arduino. Chaque case et chaque champ a sa ligne, nommée comme on l'écrit (`notes[0]`, `p1.x`). Seules les variables simples apparaissaient jusqu'ici.
 - **Le panneau Variables montre aussi les variables `static` déclarées dans une fonction**, sous le nom `loop::memo`. Elles n'apparaissaient pas du tout auparavant.
-- **Les variables qu'on ne peut pas suivre sont nommées** sous le panneau, avec la raison et le remède, au lieu d'être simplement absentes.
+- **Les variables qu'on ne peut pas suivre sont nommées** sous le panneau, avec la raison et le remède, au lieu d'être simplement absentes. Elles s'écrivent maintenant **une par ligne**, la variable d'abord et sa fonction ensuite (`valeurCtn -> loop()`), suivies du remède en clair.
+- **Les deux boutons de l'analyseur disent ce qu'ils font** : « Capture entière » et « Suivre en direct », avec une infobulle qui l'explique.
 - **Un segment de fil se déplace au glisser**, perpendiculairement à sa direction. Les segments voisins suivent, le reste du tracé ne bouge pas.
 - **L'aide d'un fil sélectionné détaille le glissement d'un segment** et ce que Ctrl y change.
 - **Le tableau des composants du README suit les catégories de la palette**.
 - **La liste des composants téléchargeables est illustrée**.
+
+### Correction
+
+- **Les flèches de repliement des deux panneaux sont visibles** : elles débordaient sur l'ascenseur de la bibliothèque et sur le titre des propriétés. Elles sont maintenant plus grosses, plus grasses, dans leur propre gouttière.
+- **Le bout de la sonde logique se voit sur la grille** : sa tige était de la couleur du quadrillage et passait sous le dessin. Sa pastille rouge tombe désormais pile sur une intersection.
+- **Une sonde posée retrouve exactement sa pastille** à l'ouverture d'un projet : une fraction de pixel la décalait et elle n'accrochait plus rien.
 
 ## 2026.9.4 (13 septembre 2026)
 

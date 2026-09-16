@@ -22,6 +22,7 @@ import '../../src/webview/composants/led-element.mjs';
 import '../../src/webview/composants/ldr-element.mjs';
 import '../../src/webview/composants/ntc-element.mjs';
 import '../../src/webview/composants/ptc-element.mjs';
+import '../../src/webview/composants/sonde-logique-element.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const checks = [];
 const ok = (name, cond, detail = '') => checks.push({ name, ok: !!cond, detail: String(detail) });
@@ -121,6 +122,25 @@ async function run() {
 		}));
 	ok('chargement sale : ' + all.length + ' broches recollées sur la grille',
 		all.length >= 6 && all.every((p) => offGrid(p.x) < 0.05 && offGrid(p.y) < 0.05), fmt(all));
+
+	// --- 4. Sonde logique : recollée même DROITE (v2026.9.4.91) ---------------
+	// Une sonde n'accroche une broche qu'en la recouvrant exactement. Les .projix
+	// existants en portent à des positions fractionnaires (dmx-pico : x=550,0092,
+	// résidu de mesure sous-pixel passé dans gridOffset). Le recollage au
+	// chargement ne visait que les composants TOURNÉS : une sonde droite restait
+	// donc à côté de sa pastille. Elle se recolle maintenant quelle que soit sa
+	// rotation.
+	editor.loadDiagram({ parts: [
+		{ id: 'SD1', type: 'sonde-logique', x: 550.0092, y: 319.9917,
+			attrs: { voie: '0' }, rotation: 0 },
+	], wires: [] });
+	for (let i = 0; i < 6; i++) await wait(40);
+	// On mesure la position ENREGISTRÉE, pas le DOM : c'est elle qui repart dans
+	// le .projix, et c'est elle que le résidu sous-pixel polluait.
+	const sd = editor.diagram.parts.find((p) => p.id === 'SD1');
+	ok('sonde droite : position recollée sur la grille',
+		sd && offGrid(sd.x) < 0.001 && offGrid(sd.y) < 0.001,
+		sd ? '(' + sd.x + ',' + sd.y + ')' : 'sonde absente');
 
 	const out = document.createElement('pre');
 	out.id = 'measures';

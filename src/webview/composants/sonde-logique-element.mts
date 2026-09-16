@@ -167,8 +167,38 @@ export class SondeLogiqueElement extends HTMLElement {
     wrap.appendChild(svg);
     this.root.replaceChildren(wrap);
 
+    this.remonterTige();
     this.updateCouleur();
     this.updateEtiquette();
+  }
+
+  /**
+   * Remet la TIGE MÉTALLIQUE en vue (`#path944`, le seul trait du dessin à
+   * porter le dégradé argenté). Dans la planche, Frank l'a dessinée EN PREMIER
+   * dans son groupe : la lame verte passait donc par-dessus et la recouvrait
+   * entièrement — mesuré, le segment (10,70)→(13,67) ressortait vert plein,
+   * plus la moindre trace de gris. On la remonte donc en DERNIER enfant de son
+   * parent, et on l'épaissit : à 0,53 mm de trait, le peu qui dépassait était
+   * déjà de la couleur de la grille.
+   *
+   * Corrigé ICI et non dans le SVG : `externe/grip-fil.svg` est extrait de
+   * `Composants2D.svg` (`_extract-composants.mjs`) — une retouche du fichier
+   * serait perdue à la prochaine extraction. Le dessin de Frank reste intact.
+   */
+  private remonterTige(): void {
+    const tige = this.root.querySelector('#path944') as SVGElement | null;
+    const parent = tige?.parentNode;
+    if (!tige || !parent) return;
+    parent.appendChild(tige); // dernier enfant = peint en dernier, donc visible
+    const st = tige.getAttribute('style') ?? '';
+    // Trait plus épais (la tige d'une sonde se voit) et fond transparent : le
+    // blanc à 15 % ne servait qu'à voiler ce qui passait dessous.
+    tige.setAttribute(
+      'style',
+      st
+        .replace(/stroke-width:[^;]*/i, 'stroke-width:0.95')
+        .replace(/fill-opacity:[^;]*/i, 'fill-opacity:0'),
+    );
   }
 
   /**
