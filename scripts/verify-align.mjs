@@ -151,6 +151,33 @@ async function run() {
 			pins.length === 1 && offGrid(pins[0].x) < 0.05 && offGrid(pins[0].y) < 0.05, fmt(pins));
 	}
 
+	// Et TOURNÉE. Le cas de la sonde n'est pas celui d'une résistance : sa
+	// pastille unique est en bas à GAUCHE du dessin, très loin du centre de
+	// rotation. Un quart de tour la promène donc d'une trentaine de pixels, et
+	// un résidu qui passait inaperçu à 0° l'écarte assez du croisement pour
+	// qu'elle n'accroche plus rien. Une sonde se pose très souvent tournée —
+	// c'est l'angle qui décide de quel côté part son câble.
+	// rotateSelection agit sur la SÉLECTION : sans ce clic, elle tournerait
+	// dans le vide et les trois contrôles passeraient sans rien mesurer.
+	// (Pas de backtick dans ce bloc : tout le banc est un gabarit entre
+	// backticks, un seul refermerait la chaîne et casserait le fichier.)
+	// addPart sélectionne tout seul (c'est ce qui fait marcher la section 1),
+	// mais loadDiagram ne sélectionne rien : il faut le faire à la main.
+	editor.select({ kind: 'part', id: 'SD1' });
+	await wait(20);
+	for (const [i, step] of [90, 90, 90].entries()) { // 90 puis 180 puis 270 cumulés
+		editor.rotateSelection(step);
+		await wait(20);
+		const pins = pinCenters();
+		const rot = editor.diagram.parts.find((p) => p.id === 'SD1')?.rotation;
+		ok('sonde tournée à ' + ((i + 1) * 90) + '° : la pastille reste sur un croisement',
+			rot === (i + 1) * 90 % 360 && pins.length === 1
+				&& offGrid(pins[0].x) < 0.05 && offGrid(pins[0].y) < 0.05,
+			'rotation=' + rot + ' ' + fmt(pins));
+	}
+	editor.rotateSelection(90); // retour à 0° pour les contrôles suivants
+	await wait(20);
+
 	// --- 5. Le CROCHET métallique se voit (v2026.9.4.94) ---------------------
 	// Il était noyé sous la mâchoire verte : 4,5 px de long en diagonale, dont
 	// tout sauf le dernier millimètre recouvert par path14-32. On mesure donc

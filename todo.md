@@ -2,12 +2,34 @@
 1. Analyseur Logique
     1. ✅ Sur dmx-pico, je ne vois tjs rien *(lot .95 : l'UART émulé ne bougeait jamais sa broche TX — les fronts de la ligne série sont désormais synthétisés, sur Pico ET sur Arduino)*
     1. ✅ On doit pouvoir changer les paramètres par courbe *(lot .94 : décodages multiples, réglages d'affichage par voie, seuils et temps par voie)*
-    1. ⬜ la sonde n'a pas été réparé ; l'extrémité (le crochet) doit récupérer son dégradé métallique afin  d'être visible dur la grille. Le point de connexion (en bas à gauche : le centre de la pastille rouge sur mon  dessin) doit être sur la grille.
-    1. ⬜ Comportement, on la prend, elle est grise et dès qu'elle est connectée elle prend la couleur suivante. Si on la déconnecte elle redevient grise et si on la reconnect elle se recolore.
+    1. ✅ la sonde n'a pas été réparé ; l'extrémité (le crochet) doit récupérer son dégradé métallique afin  d'être visible dur la grille. Le point de connexion (en bas à gauche : le centre de la pastille rouge sur mon  dessin) doit être sur la grille. *(déjà corrigé au lot .94, le jour même où l'item a été écrit — vérifié au lot .96, et étendu à la sonde TOURNÉE)*
+    1. ✅ Comportement, on la prend, elle est grise et dès qu'elle est connectée elle prend la couleur suivante. Si on la déconnecte elle redevient grise et si on la reconnect elle se recolore. *(déjà corrigé au lot .94 — les quatre temps du geste sont mesurés)*
 1. ✅ De temps en temps les propriétés d'un objet sont triplés. Je l'ai remarqué sur les nouveaus objets mais ce sont aussi ceux sue je test le plus. Une désélection resélection résoud le PB mais corrige ce bug. *(lot .94 : ce n'était pas l'inspecteur mais la pose — plusieurs composants empilés au même point)*
-
+1. GBF
+    1. En français amplitude désigne la valeur peak to peak en anglais don le GBF qui a une amplitude de 5 V et un décalage de 0 Affiche une courbe de -2,5 à + 2,5V
+    1. Sur gbf-pico si je branche le GBF à l'oscillo je vois les courbes, si le branche aussi la carte pico je ne vois plus rien à l'oscillo. Et l'affichage de l'oscillo doit aussi être écrété
+    1. au dela de 5 V en entrée les cartes pico doivent griller (explosion + explication)
+    1. 
+    1. 
+1. Pour le changelog tu ne donnes les amélioration et correction que par rapport à la dernière version publiée pas tout ce qu'on a fait entre 2.
+1. Dans le change log tu réorganise ce qui est dit sur l'analyseur logique en un seul paragraphe
+1. Roadmap
+    1. Réorganise roadmap en supprimant ce q'on a fait et ce qui est noté supprime (suppression  du tableau et suppression du paragraphe)
+    1. chiffre "Associer des composants entre eux" j'a précisé
+    1. Pour les badges, fait une proposition de badges 'preuve de maîtrise', 'qui récompensent l'effort ou le processus'
 ## ne pas faire pour l'instant
 
+
+---
+
+# >>>>  v2026.9.4.96 — La sonde tournée, et un banc qui mesurait dans le vide
+
+1. ℹ️ **Items 1.3 et 1.4 : rien à réparer, c'était déjà fait.** Les deux lignes (« la sonde n'a pas été réparé », « elle est grise et dès qu'elle est connectée elle prend la couleur ») ont été écrites le **17/09/2026**, et le lot **.94** du même jour a corrigé le composant en passant, pendant qu'il traitait l'item 1.2. Le `todo.md` n'avait simplement pas été décoché. Vérifié avant de conclure : les onze contrôles qui couvrent exactement ces deux demandes passent — crochet d'au moins 6 unités dans chaque sens, pointe dépassant sous la mâchoire verte, peint en dernier, dégradé métallique recalé en travers du trait, pastille sur un croisement, et les quatre temps du geste (grise, posée, décrochée, reposée à l'identique).
+2. ✅ **Un vrai trou trouvé quand même : la sonde n'était mesurée qu'à 0°.** Son cas n'est pas celui d'une résistance — sa pastille unique est en bas à **gauche** du dessin, très loin du centre de rotation, si bien qu'un quart de tour la promène d'une trentaine de pixels. Un résidu invisible à 0° l'écarterait assez du croisement pour qu'elle n'accroche plus rien, et une sonde se pose très souvent tournée : c'est l'angle qui décide du côté où part son câble. Trois contrôles ajoutés à [verify-align.mjs](scripts/verify-align.mjs) (90°, 180°, 270°) — le code passe.
+3. ✅ **Ces trois contrôles ont d'abord été ÉCRITS FAUX, et c'est la leçon du lot.** Première version : verte du premier coup. Elle ne mesurait rien. `rotateSelection` agit sur la **sélection**, or `loadDiagram` ne sélectionne rien (contrairement à `addPart`, qui sélectionne tout seul — d'où le fait que la section 1 du banc, elle, fonctionne). La sonde ne tournait donc jamais et les trois contrôles constataient qu'une sonde à 0° est sur la grille. Ils affichent désormais la **rotation obtenue** et la comparent à celle attendue : un contrôle qui ne peut plus passer sans que la rotation ait eu lieu.
+4. ℹ️ **Piège d'écriture rencontré** : tout le banc `verify-align.mjs` est un gabarit entre backticks. Un seul backtick dans un commentaire ferme la chaîne et casse le fichier (`SyntaxError`). Noté sur place.
+5. ⏳ **Traductions en attente** : aucune chaîne neuve ce lot.
+6. ℹ️ **`version` reste `2026.9.4`**, `buildNumber` à 96. Rien au CHANGELOG : ce lot ne change rien pour l'utilisateur (les corrections visibles sont déjà décrites sous le lot .94).
 
 ---
 
