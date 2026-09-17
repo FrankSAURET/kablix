@@ -10,7 +10,7 @@ Auteur: Frank SAURET(frank.sauret.prof@gmail.com)
 rv.ino(Ɔ) 2026
 Description : Saisissez la description puis « Tab »
 Créé le :  samedi 18 juillet 2026 à 10:58:00 
-Dernière modification : dimanche 26 juillet 2026 à 15:38:03
+Dernière modification : mardi 15 septembre 2026 à 8:32:16
 */
 
 const uint8_t PIN_LDR = A0;

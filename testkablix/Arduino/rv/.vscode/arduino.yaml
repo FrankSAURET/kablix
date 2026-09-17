@@ -1,4 +1,3 @@
 board: arduino:avr:uno
-sketch: Arduino/rv/rv.ino
-port: COM3
 output: .build
+sketch: rv.ino

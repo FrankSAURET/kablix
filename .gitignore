@@ -12,3 +12,4 @@ debug.log
 
 # Sorties de compilation Arduino des schemas de test (locales)
 testkablix/.build/
+testkablix/**/.build/

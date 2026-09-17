@@ -1,5 +1,5 @@
 {
-    "workbench.colorTheme": "Colored Theme (Yellow)",
+    "workbench.colorTheme": "Arduino light",
 
     // Kablix est un projet TypeScript ; le C/C++ n'y est présent que sous forme
     // de croquis de test (testkablix/*.ino, *.c). L'extension ms-vscode.cpptools

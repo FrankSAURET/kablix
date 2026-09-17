@@ -11,6 +11,7 @@ print("resistances de puissance sous 12 V")
 
 while True:
     led.value(1)
-    time.sleep(0.5)
+    time.sleep(3)
     led.value(0)
-    time.sleep(0.5)
+    time.sleep(0.3)
+    
