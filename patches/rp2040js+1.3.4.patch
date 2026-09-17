@@ -1731,11 +1731,61 @@ index f87e56c..85a7f48 100644
      run() {
          for (let i = 0; i < 1000 && !this.stopped; i++) {
              this.step();
+diff --git a/node_modules/rp2040js/dist/esm/peripherals/uart.d.ts b/node_modules/rp2040js/dist/esm/peripherals/uart.d.ts
+index 5aeec3f..ef1ca34 100644
+--- a/node_modules/rp2040js/dist/esm/peripherals/uart.d.ts
++++ b/node_modules/rp2040js/dist/esm/peripherals/uart.d.ts
+@@ -17,6 +17,14 @@ export declare class RPUART extends BasePeripheral implements Peripheral {
+     private fracDivisor;
+     onByte?: (value: number) => void;
+     onBaudRateChange?: (baudRate: number) => void;
++    onTxFrame?: (frame: {
++        value: number;
++        baudRate: number;
++        dataBits: number;
++        stopBits: number;
++        parity: 'none' | 'even' | 'odd';
++    }) => void;
++    onTxBreak?: (baudRate: number) => void;
+     constructor(rp2040: RP2040, name: string, irq: number, dreq: IUARTDMAChannels);
+     get enabled(): boolean;
+     get txEnabled(): boolean;
+@@ -26,6 +34,9 @@ export declare class RPUART extends BasePeripheral implements Peripheral {
+      * Number of bits per UART character
+      */
+     get wordLength(): 5 | 6 | 7 | 8 | undefined;
++    get stopBits(): number;
++    get parity(): 'none' | 'even' | 'odd';
++    get breakAsserted(): boolean;
+     get baudDivider(): number;
+     get baudRate(): number;
+     get flags(): number;
 diff --git a/node_modules/rp2040js/dist/esm/peripherals/uart.js b/node_modules/rp2040js/dist/esm/peripherals/uart.js
-index 61f14b7..3fbe362 100644
+index 61f14b7..a474593 100644
 --- a/node_modules/rp2040js/dist/esm/peripherals/uart.js
 +++ b/node_modules/rp2040js/dist/esm/peripherals/uart.js
-@@ -81,8 +81,13 @@ export class RPUART extends BasePeripheral {
+@@ -71,6 +71,20 @@ export class RPUART extends BasePeripheral {
+                 return 8;
+         }
+     }
++    // Kablix : UARTLCR_H bit 3 (STP2) — deux bits d'arrêt au lieu d'un.
++    get stopBits() {
++        return this.lineCtrlRegister & (1 << 3) ? 2 : 1;
++    }
++    // Kablix : UARTLCR_H bits 1 (PEN) et 2 (EPS) — parité de la trame.
++    get parity() {
++        if (!(this.lineCtrlRegister & (1 << 1)))
++            return 'none';
++        return this.lineCtrlRegister & (1 << 2) ? 'even' : 'odd';
++    }
++    // Kablix : UARTLCR_H bit 0 (BRK) — la ligne est tenue basse volontairement.
++    get breakAsserted() {
++        return !!(this.lineCtrlRegister & (1 << 0));
++    }
+     get baudDivider() {
+         return this.intDivisor + this.fracDivisor / 64;
+     }
+@@ -81,8 +95,13 @@ export class RPUART extends BasePeripheral {
          return (this.rxFIFO.full ? RXFF : 0) | (this.rxFIFO.empty ? RXFE : 0) | TXFE;
      }
      checkInterrupts() {
@@ -1751,10 +1801,23 @@ index 61f14b7..3fbe362 100644
          this.rp2040.setInterrupt(this.irq, !!(this.interruptStatus & this.interruptMask));
      }
      feedByte(value) {
-@@ -144,6 +149,10 @@ export class RPUART extends BasePeripheral {
+@@ -144,6 +163,23 @@ export class RPUART extends BasePeripheral {
          switch (offset) {
              case UARTDR:
                  (_a = this.onByte) === null || _a === void 0 ? void 0 : _a.call(this, value & 0xff);
++                // Kablix : l'UART émulé ne pilote PAS sa broche TX — l'octet part
++                // droit à onByte et la broche ne bouge pas. Une pince d'analyseur
++                // posée dessus voyait donc une ligne plate. On déclare ce que la
++                // LIGNE porte, le moteur en synthétise les fronts.
++                if (this.onTxFrame) {
++                    this.onTxFrame({
++                        value: value & 0xff,
++                        baudRate: this.baudRate,
++                        dataBits: this.wordLength || 8,
++                        stopBits: this.stopBits,
++                        parity: this.parity,
++                    });
++                }
 +                // Kablix : l'octet part tout de suite, la FIFO d'émission retombe
 +                // sous son seuil — c'est ce passage-là qui lève TXRIS.
 +                this.interruptStatus |= UARTTXINTR;
@@ -1762,6 +1825,25 @@ index 61f14b7..3fbe362 100644
                  break;
              case UARTIBRD:
                  this.intDivisor = value & 0xffff;
+@@ -153,9 +189,17 @@ export class RPUART extends BasePeripheral {
+                 this.fracDivisor = value & 0x3f;
+                 (_c = this.onBaudRateChange) === null || _c === void 0 ? void 0 : _c.call(this, this.baudRate);
+                 break;
+-            case UARTLCR_H:
++            case UARTLCR_H: {
++                // Kablix : un BREAK n'est pas un octet — sendbreak() pose BRK,
++                // attend, puis le relâche. C'est le début de trame du DMX512, donc
++                // l'analyseur doit le voir. Signalé au RELÂCHEMENT.
++                const avantBreak = this.breakAsserted;
+                 this.lineCtrlRegister = value;
++                if (avantBreak && !this.breakAsserted && this.onTxBreak) {
++                    this.onTxBreak(this.baudRate);
++                }
+                 break;
++            }
+             case UARTCR:
+                 this.ctrlRegister = value;
+                 if (this.enabled) {
 diff --git a/node_modules/rp2040js/dist/esm/rp2040.js b/node_modules/rp2040js/dist/esm/rp2040.js
 index 2a29f91..98ea905 100644
 --- a/node_modules/rp2040js/dist/esm/rp2040.js

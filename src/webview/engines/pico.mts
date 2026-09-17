@@ -35,6 +35,7 @@ import { LOGIC_LOG_MAX, SCOPE_LOG_MAX } from './types.mjs';
 import { selectSpiDevice, Hd44780, type I2cDevice, type SpiDevice } from './i2c-devices.mjs';
 import { Ws2812Decoder } from './ws2812.mjs';
 import { DmxDecoder } from './dmx.mjs';
+import { frontsDeTrame, dureeTrameUs, frontsDeBreak, type TrameSerie } from './uart-fronts.mjs';
 import { buildDht22Schedule, DHT22_START_LOW_US, type DhtModel, type DhtTransition } from './dht22.mjs';
 import { DEFAULT_AIR_TEMP_C, echoUsPerCm } from './ultrasonic.mjs';
 
@@ -304,6 +305,20 @@ export class PicoEngine implements SimEngine {
   private dmxByPin = new Map<string, DmxDecoder>();
   /** Décodeur DMX de chaque UART matériel, indexé 0/1. */
   private dmxByUart: Array<DmxDecoder | null> = [];
+  /**
+   * Broches TX sondées, par UART : l'analyseur y reçoit les fronts SYNTHÉTISÉS
+   * de la ligne série (cf. uart-fronts.mts). Vide tant qu'aucune pince n'est
+   * posée sur une broche TX — le calcul ne coûte alors rien.
+   */
+  private uartTxSondee: Array<string[]> = [];
+  /**
+   * Fin de la dernière trame émise sur chaque broche TX, en µs simulées. Deux
+   * trames qui se suivent de près (une trame DMX, c'est 513 octets d'affilée)
+   * ne doivent pas se chevaucher : on repousse la suivante après la précédente.
+   * Sans ça, les 513 octets d'une trame se dateraient tous à l'instant du même
+   * relevé et l'analyseur montrerait une bouillie.
+   */
+  private uartFinTrameUs = new Map<string, number>();
   /** Canaux ADC dont la tension est CALCULÉE à la conversion (cf. setAnalogSampler). */
   private analogSamplers = new Map<number, () => number>();
   private cdc: PicoCdc | null = null;
@@ -471,7 +486,69 @@ export class PicoEngine implements SimEngine {
         this.dmxByUart[1]?.feed(value, this.simulatedMs() * 1000);
       };
     }
+    // Fronts de la LIGNE série, pour l'analyseur logique. L'UART émulé ne
+    // pilote pas sa broche TX (cf. uart-fronts.mts) : sans ça, une pince posée
+    // sur GP0 reste plate pendant qu'une trame DMX défile.
+    for (const uart of [0, 1]) {
+      const p = this.mcu.uart[uart];
+      if (!p) continue;
+      p.onTxFrame = (trame) => this.verserTrameSerie(uart, trame);
+      p.onTxBreak = (baud) => this.verserBreakSerie(uart, baud);
+    }
   }
+
+  /**
+   * Fronts d'une trame série sur les broches TX SONDÉES de cet UART.
+   *
+   * Les octets d'une trame DMX arrivent tous pendant le même relevé de cycles :
+   * les dater à l'heure simulée courante les empilerait au même instant. On
+   * chaîne donc chaque trame après la précédente, à la durée réelle qu'elle
+   * occupe sur la ligne — c'est la même heure que celle du programme, donc un
+   * ralenti de simulation ralentit le signal avec lui.
+   */
+  private verserTrameSerie(uart: number, trame: TrameSerie): void {
+    const pins = this.uartTxSondee[uart];
+    if (!pins || pins.length === 0) return;
+    const fronts = frontsDeTrame(trame);
+    const duree = dureeTrameUs(trame);
+    for (const pin of pins) this.chainerFrontsSerie(pin, fronts, duree);
+  }
+
+  /** Fronts d'un BREAK (début de trame DMX) sur les broches TX sondées. */
+  private verserBreakSerie(uart: number, baudRate: number): void {
+    const pins = this.uartTxSondee[uart];
+    if (!pins || pins.length === 0) return;
+    const { fronts, dureeUs } = frontsDeBreak(baudRate);
+    for (const pin of pins) this.chainerFrontsSerie(pin, fronts, dureeUs);
+  }
+
+  /** Verse des fronts relatifs au journal d'une broche, à la suite des précédents. */
+  private chainerFrontsSerie(pin: string, fronts: number[], dureeUs: number): void {
+    const maintenant = this.simulatedMs() * 1000;
+    // On repart de la fin de la trame précédente si elle n'est pas écoulée,
+    // sinon de l'heure courante : un silence sur la ligne reste un silence.
+    const debut = Math.max(maintenant, this.uartFinTrameUs.get(pin) ?? 0);
+    this.uartFinTrameUs.set(pin, debut + dureeUs);
+    let log = this.scopeLog.get(pin);
+    if (!log) {
+      log = [];
+      this.scopeLog.set(pin, log);
+    }
+    for (let i = 0; i < fronts.length; i += 2) {
+      log.push((debut + fronts[i]) / 1000, fronts[i + 1]); // journal daté en ms
+    }
+    const max = this.logPlafond(pin);
+    if (log.length > max) log.splice(0, log.length - max);
+  }
+
+  /**
+   * Broches TX des UART matériels du Pico, telles que le shield Grove les
+   * câble (même table que `setDmx`). Une broche absente d'ici n'a pas d'UART
+   * matériel : rien à synthétiser.
+   */
+  private static readonly UART_TX: Record<string, number | undefined> = {
+    GP0: 0, GP12: 0, GP16: 0, GP4: 1, GP8: 1, GP20: 1,
+  };
 
   /**
    * Broches TX qui portent une ligne DMX512 (cf. SimEngine.setDmx). GP0 et GP4
@@ -1010,6 +1087,16 @@ export class PicoEngine implements SimEngine {
 
   setLogicProbes(names: string[]): void {
     this.logicPins = new Set(names);
+    // Pince posée sur une broche TX : la ligne série lui sera synthétisée
+    // (cf. verserTrameSerie). Recalculé à chaque déclaration de voies, comme le
+    // reste — une pince se déplace en cours de route.
+    this.uartTxSondee = [];
+    this.uartFinTrameUs.clear();
+    for (const name of names) {
+      const uart = PicoEngine.UART_TX[name];
+      if (uart === undefined) continue;
+      (this.uartTxSondee[uart] ??= []).push(name);
+    }
     this.purgeLogs();
   }
 

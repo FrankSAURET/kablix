@@ -6,21 +6,20 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Nouveauté
 
-- **Un analyseur logique.** Une nouvelle **sonde logique** — une petite pince crocodile — se **pose** sur la pastille d'une broche, sans aucun fil. Chaque pince prend sa couleur. Il n'y a **rien à cliquer** : dès qu'une pince est posée, le lancement de la simulation ouvre un onglet où l'on voit les créneaux de toutes les voies, dans la couleur de leur pince. Huit voies au maximum.
+- **Un analyseur logique.** Une nouvelle **sonde logique** — un petit grip-fil — se **pose** sur la pastille d'une broche, éventuellement sans aucun fil. Chaque pince prend sa couleur. Il n'y a **rien à cliquer** : dès qu'une pince est posée, le lancement de la simulation ouvre un onglet où l'on voit les créneaux de toutes les voies, dans la couleur de leur pince. Huit voies au maximum.
 - **L'analyseur décode l'I²C, le SPI et le DMX512** : les octets et les repères de trame s'écrivent sous les créneaux.
 - **L'analyseur se déclenche sur un front**, montant ou descendant, de la voie choisie : l'instant du front devient l'origine des temps.
 - **Une pince qui ne peut rien montrer dit pourquoi** : posée dans le vide, sur une patte de composant, sur une masse. Posée sur une entrée analogique, elle trace quand même et prévient qu'on ne verra que 0 ou 1.
 - **La couleur d'une pince se choisit** dans ses propriétés, parmi huit pastilles. La voie change de couleur dans l'analyseur en même temps. Deux pinces ne peuvent pas prendre la même teinte.
 - **La dernière capture est enregistrée avec le projet** : l'onglet rouvert hors simulation montre ce qui a été mesuré la dernière fois.
 - **Une ligne « Paramètres » dans le menu hamburger** : elle ouvre les réglages de Kablix.
-- **L'aide a un sommaire à gauche**.
-- **L'aide à un moteur de recherche**.
+- **L'aide a un sommaire à gauche **et ** un moteur de recherche**.
 - **Les sections de l'aide se replient**, une à une ou toutes d'un coup.
 - **La bibliothèque et le panneau Propriétés/Variables se replient** par la petite flèche de leur bord. Le panneau devient une bande étroite portant son nom, et l'état est mémorisé d'une ouverture à l'autre.
 - **La bibliothèque se replie au démarrage de la simulation** et se rouvre à l'arrêt : la place va au schéma. Un réglage désactive ce comportement.
 - **L'analyseur décode plusieurs bus à la fois.** Le bouton « + Decode » ajoute un décodage de plus sur la même capture : chacun a son protocole, ses réglages, et écrit sous sa propre voie de données. On peut donc lire un bus I²C et une liaison série d'une seule prise de vue.
 - **Chaque voie de l'analyseur se règle à part** : son nom, sa couleur, sa vitesse en bauds et sa tolérance, et la lecture à l'envers pour une ligne au repos à l'état haut. Une voie peut être masquée : elle quitte l'écran mais garde sa capture.
-- **Un générateur BF.** Nouvel appareil des **Appareils de mesure** : il sort un **sinus**, un **triangle** ou un **carré**, de **1 Hz à 1 MHz**, jusqu'à **10 V** de crête, avec **décalage continu** de −5 à +5 V et **rapport cyclique** de 0 à 100 %. Le rapport cyclique déforme le carré **et** le triangle, jusqu'à la dent de scie. Les quatre boutons se tournent à la souris en simulation, et le curseur choisit la forme.
+- **Un générateur BF.**  Il sort un **sinus**, un **triangle** ou un **carré**, de **1 Hz à 1 MHz**, jusqu'à **10 V** de crête, avec **décalage continu** de −5 à +5 V et **rapport cyclique** de 0 à 100 %. Le rapport cyclique déforme le carré **et** le triangle, jusqu'à la dent de scie. Les quatre boutons se tournent à la souris en simulation, et le curseur choisit la forme.
 
 ### Modification
 
@@ -47,6 +46,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Le bouton de fréquence du générateur BF se règle par paliers** : au hertz sous 100 Hz, aux 10 Hz jusqu'à 10 kHz, aux 100 Hz au-delà.
 - **Une pince posée ailleurs que sur la carte suit le fil** jusqu'à la broche qui la commande : pincer la borne d'un module montre enfin son signal. La voie porte le nom de la broche trouvée, suivi d'une flèche.
 - **Un composant posé depuis la bibliothèque en pose un seul.** Un clic un peu vif, ou deux clics de suite, en déposait parfois deux ou trois exactement l'un sur l'autre : on n'en voyait qu'un, mais les propriétés affichées étaient celles d'un autre. Deux composants posés sans bouger la souris se rangent maintenant en escalier.
+- **Une pince posée sur une broche TX voit enfin la liaison série.** Elle montrait une ligne plate alors que le montage recevait bien les données — sur le projet DMX, le projecteur changeait de couleur pendant que l'analyseur n'affichait rien. Les créneaux de chaque octet apparaissent maintenant, bit de départ, données, parité et bits d'arrêt, au débit réglé par le programme. Vaut sur Pico comme sur Arduino, pour toute liaison série, DMX ou simple `print`.
 
 ## 2026.9.4 (13 septembre 2026)
 

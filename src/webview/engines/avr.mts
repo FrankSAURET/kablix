@@ -63,6 +63,9 @@ import { DEFAULT_AIR_TEMP_C, echoUsPerCm } from './ultrasonic.mjs';
 import { selectSpiDevice, Hd44780, type I2cDevice, type SpiDevice } from './i2c-devices.mjs';
 import { Ws2812Decoder } from './ws2812.mjs';
 import { DmxDecoder, DmxWire } from './dmx.mjs';
+// Pas de `frontsDeBreak` ici : l'USART de l'AVR n'a pas de bit BREAK (le DMX y
+// passe par bit-bang, décodé sur le fil par DmxWire).
+import { frontsDeTrame, dureeTrameUs, type TrameSerie } from './uart-fronts.mjs';
 
 export type AvrFamily = 'avr328' | 'avr2560';
 
@@ -294,6 +297,10 @@ export class AvrEngine implements SimEngine {
   private dmxByPin = new Map<string, DmxDecoder>();
   /** Décodeur DMX de chaque USART, indexé comme `usarts` (0 = Serial). */
   private dmxByUsart: Array<DmxDecoder | null> = [];
+  /** Broches TX sondées par l'analyseur, par numéro d'USART (cf. setLogicProbes). */
+  private uartTxSondee: Array<string[]> = [];
+  /** Fin de la dernière trame versée sur chaque broche, en µs simulées. */
+  private uartFinTrameUs = new Map<string, number>();
   /**
    * Lignes DMX512 bit-bangées : broches SANS UART matériel (DmxSimple sort sur
    * la broche 3 par défaut). Vide en temps normal — c'est ce qui rend
@@ -464,6 +471,9 @@ export class AvrEngine implements SimEngine {
       });
     }
     this.usart.onByteTransmit = (b: number) => {
+      // La ligne porte ces fronts que la sortie DMX aille au décodeur ou le
+      // texte au moniteur : l'analyseur regarde le FIL, pas le destinataire.
+      this.verserTrameSerie(0, this.usart, b);
       // Ligne DMX512 branchée sur cette sortie : l'octet part au décodeur et
       // S'ARRÊTE LÀ (voir setDmx). Une trame, ce sont 513 octets binaires : les
       // relayer noierait le moniteur série sous des caractères de contrôle.
@@ -483,6 +493,7 @@ export class AvrEngine implements SimEngine {
         const u = new AVRUSART(this.cpu, cfg, CLOCK_HZ);
         const decoder = new TextDecoder('utf-8');
         u.onByteTransmit = (b: number) => {
+          this.verserTrameSerie(i + 1, u, b);
           const dmx = this.dmxByUsart[i + 1];
           if (dmx) {
             dmx.feed(b, this.cpu.cycles / CYCLES_PER_US);
@@ -502,9 +513,7 @@ export class AvrEngine implements SimEngine {
    * (broche 1 = TX de Serial), le Mega en a quatre (1, 18, 16, 14).
    */
   setDmx(pins: string[]): void {
-    const TX = this.family === 'avr2560'
-      ? { '1': 0, '18': 1, '16': 2, '14': 3 }
-      : { '1': 0 };
+    const TX = this.brochesTx();
     const garde = new Map<string, DmxDecoder>();
     const fils: Array<{ port: PortKey; bit: number; wire: DmxWire }> = [];
     const gardeFils = new Map<string, DmxWire>();
@@ -529,6 +538,62 @@ export class AvrEngine implements SimEngine {
     this.dmxWiresByPin = gardeFils;
     this.dmxWires = fils;
     this.dmxByPin = garde;
+  }
+
+  /**
+   * Broche de sortie de chaque USART, par famille. Le 328P n'en a qu'un (la
+   * broche 1, TX de Serial) ; le Mega en a quatre. Sert au DMX comme à la
+   * synthèse des fronts de la ligne série.
+   */
+  private brochesTx(): Record<string, number | undefined> {
+    return this.family === 'avr2560'
+      ? { '1': 0, '18': 1, '16': 2, '14': 3 }
+      : { '1': 0 };
+  }
+
+  /**
+   * Fronts d'une trame émise par un USART, versés sur ses broches sondées.
+   *
+   * L'USART émulé n'agite PAS sa broche TX : l'octet écrit dans UDR part droit
+   * à `onByteTransmit` et le port ne bouge pas. Une pince d'analyseur posée sur
+   * la broche 1 voyait donc une ligne plate pendant que le moniteur série se
+   * remplissait. On rejoue ici le signal depuis sa formule (cf. uart-fronts).
+   */
+  private verserTrameSerie(usart: number, u: AVRUSART, value: number): void {
+    const pins = this.uartTxSondee[usart];
+    if (!pins || pins.length === 0) return;
+    const trame: TrameSerie = {
+      value,
+      baudRate: u.baudRate,
+      dataBits: u.bitsPerChar,
+      stopBits: u.stopBits,
+      parity: u.parityEnabled ? (u.parityOdd ? 'odd' : 'even') : 'none',
+    };
+    const fronts = frontsDeTrame(trame);
+    const duree = dureeTrameUs(trame);
+    for (const pin of pins) this.chainerFrontsSerie(pin, fronts, duree);
+  }
+
+  /**
+   * Ajoute les fronts d'une trame au journal d'une broche, à la SUITE de la
+   * précédente. Sans ce chaînage, les 513 octets d'une trame DMX — tous écrits
+   * dans UDR en quelques cycles simulés, la file d'émission étant instantanée —
+   * se superposeraient au même instant et l'analyseur n'y verrait qu'un tas.
+   */
+  private chainerFrontsSerie(pin: string, fronts: number[], dureeUs: number): void {
+    const maintenant = (this.cpu.cycles / CLOCK_HZ) * 1_000_000;
+    const debut = Math.max(maintenant, this.uartFinTrameUs.get(pin) ?? 0);
+    this.uartFinTrameUs.set(pin, debut + dureeUs);
+    let log = this.scopeLog.get(pin);
+    if (!log) {
+      log = [];
+      this.scopeLog.set(pin, log);
+    }
+    for (let i = 0; i < fronts.length; i += 2) {
+      log.push((debut + fronts[i]) / 1000, fronts[i + 1]); // journal daté en ms
+    }
+    const max = this.logPlafond(pin);
+    if (log.length > max) log.splice(0, log.length - max);
   }
 
   /**
@@ -625,6 +690,16 @@ export class AvrEngine implements SimEngine {
 
   setLogicProbes(names: string[]): void {
     this.logicPins = new Set(names);
+    // Une pince posée sur une broche TX fait naître la synthèse des fronts de la
+    // ligne série : sans sonde dessus, rien n'est calculé ni journalisé.
+    const TX = this.brochesTx();
+    this.uartTxSondee = [];
+    this.uartFinTrameUs.clear();
+    for (const name of names) {
+      const usart = TX[name];
+      if (usart === undefined) continue;
+      (this.uartTxSondee[usart] ??= []).push(name);
+    }
     this.purgeLogs();
   }
 

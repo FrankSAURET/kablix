@@ -1,6 +1,6 @@
 # À faire
 1. Analyseur Logique
-    1. ⬜ Sur dmx-pico, je ne vois tjs rien
+    1. ✅ Sur dmx-pico, je ne vois tjs rien *(lot .95 : l'UART émulé ne bougeait jamais sa broche TX — les fronts de la ligne série sont désormais synthétisés, sur Pico ET sur Arduino)*
     1. ✅ On doit pouvoir changer les paramètres par courbe *(lot .94 : décodages multiples, réglages d'affichage par voie, seuils et temps par voie)*
     1. ⬜ la sonde n'a pas été réparé ; l'extrémité (le crochet) doit récupérer son dégradé métallique afin  d'être visible dur la grille. Le point de connexion (en bas à gauche : le centre de la pastille rouge sur mon  dessin) doit être sur la grille.
     1. ⬜ Comportement, on la prend, elle est grise et dès qu'elle est connectée elle prend la couleur suivante. Si on la déconnecte elle redevient grise et si on la reconnect elle se recolore.
@@ -8,6 +8,30 @@
 
 ## ne pas faire pour l'instant
 
+
+---
+
+# >>>>  v2026.9.4.95 — La ligne série porte enfin ses fronts
+
+1. ✅ **Item 1.1 (« sur dmx-pico, je ne vois tjs rien ») : cause racine trouvée, et elle n'était pas du côté de la sonde.** Les quatre sondes du schéma sont résolues correctement — mesuré : `SD4` (« DMX ») suit le fil `Mod1/SIG` → `U1/GP0` et sort bien `GP0`, les trois autres sont muettes **à juste titre** (`nowhere` : rien d'accroché, `not-mcu` : pastille hors carte, `power` : posée sur le 3V3). Le modèle électrique faisait son travail.
+2. ✅ **Le défaut : l'UART émulé ne pilote JAMAIS sa broche TX.** `grep -c gpio vendor/rp2350js/src/peripherals/uart.ts` rendait **0**. L'octet écrit dans `UARTDR` part droit à `onByte` — décodeur DMX ou moniteur série — et le port ne bouge pas d'un cheveu. Or les fronts de l'analyseur naissent dans `samplePulses()`, appelé **uniquement** par les écouteurs de changement de broche ([pico.mts](src/webview/engines/pico.mts)) : pas de mouvement, pas d'écouteur, **pas un seul front**. Le DMX « marchait » précisément parce qu'il court-circuite la broche. Le même trou existait côté AVR.
+3. ✅ **Les fronts sont REJOUÉS depuis la formule de la trame** ([uart-fronts.mts](src/webview/engines/uart-fronts.mts)) — même méthode que la salve du générateur BF au lot .93 : le signal est connu exactement, inutile de l'échantillonner. Un octet, c'est un bit de départ, ses bits de données du poids faible au poids fort, une parité éventuelle et ses bits d'arrêt, tous de la même durée. Seuls les **changements** sont émis : `0x00` ne fait que deux fronts, pas dix, ce que verrait un vrai analyseur.
+4. ✅ **Écrire un sérialiseur bit à bit a été écarté**, et c'est le choix de fond du lot : il ferait tourner un décalage à chaque cycle pour rien la plupart du temps, alors que la synthèse ne coûte que si une pince est posée sur la broche.
+5. ✅ **Portée retenue : tout UART, toute broche TX** (choix de Frank). Pas seulement le DMX — un `print()` série ou une trame GPS produit ses créneaux de la même façon. Les six sorties possibles du Pico sont couvertes (`GP0/12/16` pour UART0, `GP4/8/20` pour UART1), et les quatre de l'AVR (broche 1 sur Uno ; 1, 18, 16, 14 sur Mega).
+6. ✅ **Les deux cartes dans le même lot** (choix de Frank) : l'élève ne doit pas rencontrer une différence de comportement entre un Pico et un Arduino.
+7. ✅ **Pico : deux rappels ajoutés au périphérique** ([vendor/rp2350js](vendor/rp2350js/src/peripherals/uart.ts) et le correctif npm `rp2040js`) — `onTxFrame` déclare ce que la ligne porte, `onTxBreak` signale le relâchement du bit BRK. Trois accesseurs les accompagnent (`stopBits`, `parity`, `breakAsserted`), lus dans `UARTLCR_H`. Le correctif a été **régénéré** (`npx patch-package rp2040js`) : il survivra à un `npm install`.
+8. ✅ **Le BREAK est un front, pas un octet.** `uart.sendbreak()` de `dmx-pico.py` tient la ligne basse douze temps-bit — c'est le début de trame du DMX512, l'analyseur doit le voir, et aucun `onByte` ne l'aurait jamais signalé. Signalé au **relâchement**, seul instant que l'émulateur date.
+9. ✅ **AVR : aucun correctif npm nécessaire.** `avr8js` expose déjà `onByteTransmit`, `baudRate`, `bitsPerChar`, `stopBits`, `parityEnabled` et `parityOdd` — la synthèse se greffe sur le rappel existant ([avr.mts](src/webview/engines/avr.mts)). Pas de `frontsDeBreak` de ce côté : l'USART de l'AVR n'a pas de bit BREAK, le DMX y passe par bit-bang et son fil est déjà décodé front par front par `DmxWire`.
+10. ✅ **Les trames sont CHAÎNÉES, pas empilées.** Les 513 octets d'une trame DMX sont tous écrits dans le registre en quelques cycles simulés — la file d'émission est instantanée dans les deux émulateurs. Sans chaînage ils tomberaient tous au même instant et l'analyseur n'y verrait qu'un tas. Chaque trame est datée à la suite de la précédente (`uartFinTrameUs` par broche).
+11. ✅ **Rien n'est calculé sans pince.** La synthèse est armée par `setLogicProbes` : une broche TX non sondée ne coûte pas une opération. C'est ce qui permet de la laisser branchée en permanence sur les deux moteurs.
+12. ✅ **Dix-neuf contrôles ajoutés à [verify-analyseur.mjs](scripts/verify-analyseur.mjs)** : la formule (front descendant à t=0, `0x55` qui bascule à chaque temps-bit, `0x00` en deux fronts seulement, `0xFF` qui ne creuse que son départ, retour au repos, durée 8N2, parité paire ≠ impaire, BREAK ≥ 88 µs et sa marque), puis le branchement des deux moteurs.
+13. ✅ **Deux contrôles de bout en bout ajoutés à [verify-dmx.mjs](scripts/verify-dmx.mjs)**, dans les vraies étapes 4 à 6 : une pince est posée sur la broche TX pendant que `dmx-pico.py` tourne dans le **vrai firmware**, et les fronts sont drainés. C'est le contrôle qui manquait — le banc DMX prouvait que le projecteur s'allume, jamais que la sonde voit quelque chose.
+14. ✅ **Contre-épreuve concluante, et sur les deux plans.** `git stash` sur les trois fichiers moteurs → **19 ❌ nommés** dans `verify:analyseur`, et surtout, dans `verify:dmx`, **`0 front(s)` / `niveaux vus : aucun`** sur Pico 1 comme sur Pico 2 : le défaut de Frank reproduit exactement, puis corrigé.
+15. ✅ **Second filet anti-banc-vert-muet** (après celui du lot .94) : le module neuf étant non suivi par git, la contre-épreuve l'emportait et **esbuild mourait** — le banc n'imprimait alors pas un seul ❌ et serait passé pour vert. Un module absent est désormais un échec nommé.
+16. ℹ️ **Piège de banc corrigé** : un contrôle comparait des durées en microsecondes par égalité stricte, or `1 000 000 / 9600` ne tombe pas juste en binaire. Il compte maintenant en **temps-bit**.
+17. ⏳ **Bout en bout AVR non mesuré sur cette machine** : `arduino-cli` est absent, les étapes 5 et 6 de `verify:dmx` se sautent d'elles-mêmes. Le chemin AVR reste couvert par les contrôles de source de `verify:analyseur` et par la formule partagée, qui est le même code sur les deux moteurs. À relancer sur une machine outillée.
+18. ⏳ **Traductions en attente** (règle « jamais de traduction au fil de l'eau ») : aucune chaîne neuve ce lot. La dette reste celle des lots .90 à .94, à verser au lot d'avant publication.
+19. ℹ️ **`version` reste `2026.9.4`**, `buildNumber` à 95. CHANGELOG complété sous `2026.9.5 (prochaine publication)`.
 
 ---
 

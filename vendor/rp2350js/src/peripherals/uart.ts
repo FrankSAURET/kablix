@@ -57,6 +57,22 @@ export class RPUART<ChipType extends IRPChip = IRPChip>
 
   public onByte?: (value: number) => void;
   public onBaudRateChange?: (baudRate: number) => void;
+  /**
+   * KABLIX PATCH: the emulated UART never drives its TX pin - the byte goes
+   * straight to `onByte`. A logic analyser clipped onto that pin therefore saw
+   * a flat line while the DMX fixture happily lit up, because the DMX decoder
+   * is fed from `onByte` and bypasses the pin entirely.
+   * These two hooks report what the LINE does, so the engine can synthesise the
+   * edges: one call per byte with the frame shape, one per BREAK.
+   */
+  public onTxFrame?: (frame: {
+    value: number;
+    baudRate: number;
+    dataBits: number;
+    stopBits: number;
+    parity: 'none' | 'even' | 'odd';
+  }) => void;
+  public onTxBreak?: (baudRate: number) => void;
 
   constructor(
     rpchip: ChipType,
@@ -97,6 +113,22 @@ export class RPUART<ChipType extends IRPChip = IRPChip>
       case 0b11:
         return 8;
     }
+  }
+
+  /** KABLIX PATCH: UARTLCR_H bit 3 (STP2) - two stop bits instead of one. */
+  get stopBits() {
+    return this.lineCtrlRegister & (1 << 3) ? 2 : 1;
+  }
+
+  /** KABLIX PATCH: UARTLCR_H bits 1 (PEN) and 2 (EPS) - parity of the frame. */
+  get parity(): 'none' | 'even' | 'odd' {
+    if (!(this.lineCtrlRegister & (1 << 1))) return 'none';
+    return this.lineCtrlRegister & (1 << 2) ? 'even' : 'odd';
+  }
+
+  /** KABLIX PATCH: UARTLCR_H bit 0 (BRK) - the line is held low on purpose. */
+  get breakAsserted() {
+    return !!(this.lineCtrlRegister & (1 << 0));
   }
 
   get baudDivider() {
@@ -182,6 +214,15 @@ export class RPUART<ChipType extends IRPChip = IRPChip>
     switch (offset) {
       case UARTDR:
         this.onByte?.(value & 0xff);
+        // KABLIX PATCH: tell the engine what the LINE carries, so a logic probe
+        // clipped onto the TX pin sees the frame (see onTxFrame).
+        this.onTxFrame?.({
+          value: value & 0xff,
+          baudRate: this.baudRate,
+          dataBits: this.wordLength ?? 8,
+          stopBits: this.stopBits,
+          parity: this.parity,
+        });
         // KABLIX PATCH: the byte leaves at once, so the TX FIFO drops back
         // below its threshold - that transition is what raises TXRIS.
         this.interruptStatus |= UARTTXINTR;
@@ -198,9 +239,16 @@ export class RPUART<ChipType extends IRPChip = IRPChip>
         this.onBaudRateChange?.(this.baudRate);
         break;
 
-      case UARTLCR_H:
+      case UARTLCR_H: {
+        // KABLIX PATCH: a BREAK is not a byte - MicroPython's sendbreak() sets
+        // BRK, waits, then clears it. It is the DMX start of frame, so the
+        // analyser must see it. Reported on the RELEASE, when its length is
+        // known to be at least the mandated minimum (see onTxBreak).
+        const avant = this.breakAsserted;
         this.lineCtrlRegister = value;
+        if (avant && !this.breakAsserted) this.onTxBreak?.(this.baudRate);
         break;
+      }
 
       case UARTCR:
         this.ctrlRegister = value;

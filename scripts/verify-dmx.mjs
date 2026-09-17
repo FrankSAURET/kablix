@@ -419,7 +419,22 @@ const ATTENDUES = ['255,0,0', '0,255,0', '0,0,255'];
 
 async function boutEnBout(nom, engine, pin, limiteMs) {
 	const vues = new Set();
+	// La sonde de l'analyseur posée sur la broche TX. Le défaut corrigé au lot
+	// .95 : l'UART émulé ne bouge PAS sa broche, l'octet part droit au décodeur
+	// DMX. Le projecteur changeait donc de couleur pendant que la sonde montrait
+	// une ligne parfaitement plate. On draine ici les fronts pour de vrai.
+	engine.setLogicProbes?.([pin]);
+	let fronts = 0;
+	let niveaux = new Set();
+	const draine = () => {
+		const lots = engine.drainScopeEdges?.() ?? {};
+		const log = lots[pin];
+		if (!log) return;
+		fronts += log.length / 2;
+		for (let i = 1; i < log.length; i += 2) niveaux.add(log[i]);
+	};
 	const releve = () => {
+		draine();
 		const u = engine.readDmx(pin);
 		if (u) vues.add(`${u[1]},${u[2]},${u[3]}`);
 	};
@@ -441,6 +456,13 @@ async function boutEnBout(nom, engine, pin, limiteMs) {
 	for (const c of ATTENDUES) check(`${nom} : couleur ${c} reçue sur les canaux 1-2-3`, vues.has(c));
 	check(`${nom} : rien d'autre que les trois couleurs (hors univers vierge)`,
 		[...vues].every((c) => c === '0,0,0' || ATTENDUES.includes(c)), [...vues].join(' | '));
+	// Le contrôle qui manquait : la SONDE voit-elle quelque chose ? Trois couleurs
+	// reçues, ce sont au moins trois trames de 513 octets — des milliers de fronts.
+	// Le seuil est volontairement bas : on prouve que la ligne vit, pas son débit.
+	check(`${nom} : la sonde posée sur ${pin} voit les fronts de la ligne série`,
+		fronts > 100, `${fronts} front(s)`);
+	check(`${nom} : la ligne monte ET descend, pas un niveau figé`,
+		niveaux.has(0) && niveaux.has(1), `niveaux vus : ${[...niveaux].join(',') || 'aucun'}`);
 }
 
 // Les DEUX cartes : le projet dmx a sa version Pico 2, et il y restait muet.

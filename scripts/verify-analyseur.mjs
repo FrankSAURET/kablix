@@ -742,6 +742,106 @@ check('SPI : quatre rôles proposés (SCK, MOSI, MISO, CS)',
     /occupe = new Map/.test(vue) && /occupe\.set\(piste/.test(vue));
 }
 
+// --- La ligne série porte enfin des fronts ------------------------------------
+//
+// Le défaut : dans les DEUX émulateurs, l'UART matériel ne pilote pas sa broche
+// TX. L'octet écrit dans le registre de données part droit au consommateur
+// (moniteur série, décodeur DMX) et le port ne bouge pas d'un cheveu. Or les
+// fronts de l'analyseur naissent dans `samplePulses`, appelé UNIQUEMENT par les
+// écouteurs de changement de broche : pas de mouvement, pas d'écouteur, pas un
+// seul front. Sur `dmx-pico`, le projecteur changeait sagement de couleur
+// pendant que la sonde posée sur GP0 montrait une ligne parfaitement plate.
+{
+  // Module ABSENT = échec nommé, jamais une exception. Sans ce filet, la
+  // contre-épreuve au `git stash` (qui emporte le fichier, non suivi avant ce
+  // lot) faisait mourir esbuild et le banc n'imprimait pas un seul ❌ : un banc
+  // muet serait alors passé pour un banc vert.
+  let fronts_ = {};
+  try {
+    fronts_ = await buildTo('src/webview/engines/uart-fronts.mts', 'uart-fronts.mjs');
+  } catch (e) {
+    check('série : le calcul des fronts de la ligne série existe', false, String(e).split('\n')[0]);
+  }
+  const { frontsDeTrame, dureeTrameUs, frontsDeBreak } = fronts_;
+
+  // Un octet à 250 kbauds, 8N2 : 4 µs le temps-bit. 0x55 = 01010101, poids
+  // faible d'abord, donc la ligne bascule à CHAQUE bit — le cas le plus bavard.
+  const t55 = { value: 0x55, baudRate: 250_000, dataBits: 8, stopBits: 2, parity: 'none' };
+  const f55 = appel(frontsDeTrame, t55) ?? [];
+  check('série : la trame démarre par un front DESCENDANT à t=0 (bit de départ)',
+    f55[0] === 0 && f55[1] === 0, JSON.stringify(f55.slice(0, 4)));
+  check('série : 0x55 à 250 kbauds fait basculer la ligne à chaque temps-bit',
+    f55.length === 20 && f55[2] === 4 && f55[3] === 1 && f55[4] === 8 && f55[5] === 0,
+    JSON.stringify(f55));
+  check('série : la trame se termine au REPOS, ligne haute',
+    f55[f55.length - 1] === 1, JSON.stringify(f55.slice(-4)));
+  check('série : 8N2 à 250 kbauds dure 11 temps-bit, soit 44 µs',
+    appel(dureeTrameUs, t55) === 44, String(appel(dureeTrameUs, t55)));
+
+  // 0x00 : huit bits bas collés au bit de départ. Un analyseur ne voit alors
+  // qu'UN front descendant puis UN remontant — pas dix.
+  const f00 = appel(frontsDeTrame, { ...t55, value: 0x00 }) ?? [];
+  check('série : des bits identiques ne font qu\'un seul front (0x00 = 2 fronts)',
+    f00.length === 4 && f00[0] === 0 && f00[1] === 0 && f00[2] === 36 && f00[3] === 1,
+    JSON.stringify(f00));
+  // 0xFF : les huit bits sont hauts, seul le bit de départ se voit.
+  const fff = appel(frontsDeTrame, { ...t55, value: 0xff }) ?? [];
+  check('série : 0xFF ne creuse que son bit de départ',
+    fff.length === 4 && fff[2] === 4 && fff[3] === 1, JSON.stringify(fff));
+
+  // Parité : 0x03 porte deux uns. En parité PAIRE le bit vaut 0, en IMPAIRE 1.
+  const paire = appel(frontsDeTrame, { value: 0x03, baudRate: 9600, dataBits: 8, stopBits: 1, parity: 'even' }) ?? [];
+  const impaire = appel(frontsDeTrame, { value: 0x03, baudRate: 9600, dataBits: 8, stopBits: 1, parity: 'odd' }) ?? [];
+  // Comparaison en TEMPS-BIT et non en microsecondes : 1 000 000 / 9600 ne
+  // tombe pas juste en binaire, une égalité stricte sur des µs mentirait.
+  const bits9600 = (t) => appel(dureeTrameUs, t) / (1_000_000 / 9600);
+  const sansParite = { value: 0, baudRate: 9600, dataBits: 8, stopBits: 1, parity: 'none' };
+  check('série : la parité ajoute un temps-bit à la trame',
+    Math.round(bits9600(sansParite)) === 10 &&
+      Math.round(bits9600({ ...sansParite, parity: 'even' })) === 11,
+    `${bits9600(sansParite)} puis ${bits9600({ ...sansParite, parity: 'even' })}`);
+  check('série : parité paire et impaire ne donnent PAS les mêmes fronts',
+    JSON.stringify(paire) !== JSON.stringify(impaire),
+    `${JSON.stringify(paire)} vs ${JSON.stringify(impaire)}`);
+
+  // BREAK : la ligne est tenue basse plus longtemps qu'une trame entière. C'est
+  // le début de trame du DMX512, qui impose au moins 88 µs de bas.
+  const brk = appel(frontsDeBreak, 250_000) ?? {};
+  check('série : le BREAK descend à t=0 et remonte après au moins 88 µs',
+    brk.fronts?.[0] === 0 && brk.fronts?.[1] === 0 && brk.fronts?.[2] >= 88 && brk.fronts?.[3] === 1,
+    JSON.stringify(brk));
+  check('série : le BREAK réserve la marque qui le suit (au moins 8 µs)',
+    brk.dureeUs >= brk.fronts?.[2] + 8, JSON.stringify(brk));
+
+  // Le moteur Pico : les deux rappels branchés, la table des broches TX, et le
+  // chaînage. Sans chaînage, les 513 octets d'une trame DMX — tous écrits dans
+  // le registre en quelques cycles simulés — se superposeraient au même instant.
+  const pico = readFileSync(join(root, 'src', 'webview', 'engines', 'pico.mts'), 'utf8');
+  check('série (Pico) : les deux rappels de l\'UART sont branchés sur les deux UART',
+    /onTxFrame = /.test(pico) && /onTxBreak = /.test(pico) && /for \(const uart of \[0, 1\]\)/.test(pico));
+  check('série (Pico) : la table des broches TX couvre les six sorties possibles',
+    /GP0: 0/.test(pico) && /GP12: 0/.test(pico) && /GP16: 0/.test(pico) &&
+      /GP4: 1/.test(pico) && /GP8: 1/.test(pico) && /GP20: 1/.test(pico));
+  check('série (Pico) : poser une sonde sur une broche TX arme la synthèse',
+    /uartTxSondee\[uart\] \?\?= \[\]/.test(pico) && /setLogicProbes/.test(pico));
+  check('série (Pico) : chaque trame est datée à la SUITE de la précédente',
+    /Math\.max\(maintenant, this\.uartFinTrameUs\.get\(pin\)/.test(pico));
+
+  // Le moteur AVR : même synthèse, greffée sur `onByteTransmit` (avr8js expose
+  // déjà baudRate/bitsPerChar/stopBits/parity — aucun correctif npm requis).
+  const avr = readFileSync(join(root, 'src', 'webview', 'engines', 'avr.mts'), 'utf8');
+  check('série (AVR) : Serial verse sa trame avant de router l\'octet',
+    /this\.verserTrameSerie\(0, this\.usart, b\)/.test(avr));
+  check('série (AVR) : Serial1\/2\/3 du Mega la versent aussi',
+    /this\.verserTrameSerie\(i \+ 1, u, b\)/.test(avr));
+  check('série (AVR) : la trame reprend la forme déclarée par le périphérique',
+    /baudRate: u\.baudRate/.test(avr) && /dataBits: u\.bitsPerChar/.test(avr) &&
+      /stopBits: u\.stopBits/.test(avr) && /u\.parityEnabled/.test(avr));
+  check('série (AVR) : la table des broches TX est partagée avec le DMX',
+    /brochesTx\(\)/.test(avr) && /const TX = this\.brochesTx\(\)/.test(avr));
+  check('série (AVR) : le chaînage évite l\'empilement au même instant',
+    /Math\.max\(maintenant, this\.uartFinTrameUs\.get\(pin\)/.test(avr));
+}
 
 console.log(failures === 0 ? '\nTout est vert.' : `\n${failures} échec(s).`);
 process.exit(failures === 0 ? 0 : 1);
