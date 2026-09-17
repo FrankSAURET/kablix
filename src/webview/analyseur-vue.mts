@@ -54,6 +54,17 @@ export interface VoieVue {
    * il sort.
    */
   suivi?: boolean;
+  /**
+   * Nom choisi par l'élève, qui remplace `nom` à l'affichage. Le nom
+   * automatique reste dans `nom` : on y revient en vidant celui-ci.
+   */
+  nomChoisi?: string;
+  /**
+   * Indice de teinte à prendre dans la palette, quand l'élève a voulu une
+   * autre couleur que celle de son indice de voie. Absent = la teinte de la
+   * pince, qui reste le lien visuel avec le schéma.
+   */
+  couleur?: number;
 }
 
 /** État du zoom / défilement, conservé entre deux rendus. */
@@ -80,6 +91,17 @@ export interface TextesVue {
   analogique: string;
   /** Déclenchement réglé, pas encore survenu. */
   enAttente: string;
+}
+
+/** Teinte effective d'une voie : celle qu'on lui a choisie, sinon la sienne. */
+export function teinteVoie(vv: VoieVue, sombre: boolean): string {
+  return couleurVoie(vv.couleur ?? vv.voie, sombre);
+}
+
+/** Nom effectif d'une voie : celui qu'on lui a donné, sinon l'automatique. */
+export function nomVoie(vv: VoieVue): string {
+  const n = (vv.nomChoisi ?? '').trim();
+  return n === '' ? vv.nom : n;
 }
 
 /** Formatage d'une durée en ms simulées, unité choisie d'après l'ordre. */
@@ -263,7 +285,7 @@ export class AnalyseurVue {
     faible: string,
     sombre: boolean
   ): void {
-    const couleur = couleurVoie(vv.voie, sombre);
+    const couleur = teinteVoie(vv, sombre);
     const yBas = haut + (PISTE_H + CRENEAU_H) / 2;
     const yHaut = haut + (PISTE_H - CRENEAU_H) / 2;
 
@@ -271,7 +293,7 @@ export class AnalyseurVue {
     ctx.save();
     ctx.fillStyle = couleur;
     ctx.textAlign = 'left';
-    ctx.fillText(this.tronquer(ctx, vv.nom, MARGE_G - 14), 8, haut + PISTE_H / 2);
+    ctx.fillText(this.tronquer(ctx, nomVoie(vv), MARGE_G - 14), 8, haut + PISTE_H / 2);
     ctx.restore();
 
     // Séparateur de piste.
@@ -402,9 +424,16 @@ export class AnalyseurVue {
     sombre: boolean
   ): void {
     if (e.annotations.length === 0) return;
-    // Les annotations décrivent une TRAME, pas une voie : on les pose sous la
-    // dernière piste, où elles restent lisibles quel que soit le protocole.
-    const y = REGLE_H + (e.voies.length - 1) * (PISTE_H + ANNOT_H) + PISTE_H + 1;
+    // Chaque annotation se pose sous la piste de SA voie de données. Depuis
+    // qu'on décode plusieurs bus à la fois, tout empiler sous la dernière
+    // piste mélangeait les trames de deux protocoles sans rien pour les
+    // distinguer. Une annotation sans voie (ou dont la voie n'est pas
+    // affichée) retombe sous la dernière piste, comme avant.
+    const derniere = e.voies.length - 1;
+    const rang = new Map<number, number>();
+    for (let i = 0; i < e.voies.length; i++) rang.set(e.voies[i]!.voie, i);
+    const yDePiste = (i: number): number =>
+      REGLE_H + i * (PISTE_H + ANNOT_H) + PISTE_H + 1;
     const xMin = MARGE_G;
     const xMax = w - MARGE_D;
     const couleurs: Record<Annotation['nature'], string> = {
@@ -417,10 +446,16 @@ export class AnalyseurVue {
     ctx.font = `9px ${getComputedStyle(document.body).getPropertyValue('--vscode-editor-font-family').trim() || 'monospace'}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    // Dernier x occupé : une annotation qui chevaucherait la précédente est
-    // dessinée en trait seul, sans texte — l'élève zoome pour la lire.
-    let occupe = -Infinity;
+    // Dernier x occupé, PAR PISTE : une annotation qui chevaucherait la
+    // précédente est dessinée en trait seul, sans texte — l'élève zoome pour
+    // la lire. Le suivi est par piste depuis qu'on décode plusieurs bus : un
+    // compteur global laissait un bus muet parce que l'autre avait écrit au
+    // même instant sur une AUTRE ligne.
+    const occupe = new Map<number, number>();
     for (const a of e.annotations) {
+      const piste = (a.voie !== undefined ? rang.get(a.voie) : undefined) ?? derniere;
+      if (piste < 0) continue;
+      const y = yDePiste(piste);
       const x0 = this.xDe(a.t0, e.fenetre, w);
       const x1 = this.xDe(Math.max(a.t1, a.t0), e.fenetre, w);
       if (x1 < xMin || x0 > xMax) continue;
@@ -438,10 +473,10 @@ export class AnalyseurVue {
       ctx.stroke();
       const largeurTexte = ctx.measureText(a.texte).width;
       const centre = (g + d) / 2;
-      if (g >= occupe && d - g >= largeurTexte + 4) {
+      if (g >= (occupe.get(piste) ?? -Infinity) && d - g >= largeurTexte + 4) {
         ctx.fillStyle = fg;
         ctx.fillText(a.texte, centre, y + (ANNOT_H - 3) / 2);
-        occupe = d;
+        occupe.set(piste, d);
       }
     }
     ctx.restore();

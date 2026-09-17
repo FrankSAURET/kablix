@@ -142,6 +142,96 @@ async function run() {
 		sd && offGrid(sd.x) < 0.001 && offGrid(sd.y) < 0.001,
 		sd ? '(' + sd.x + ',' + sd.y + ')' : 'sonde absente');
 
+	// Et la PASTILLE elle-même, pas seulement la position enregistrée : c'est
+	// son centre que l'élève pose sur la broche, donc c'est lui qui doit tomber
+	// sur un croisement de la grille de 10 px.
+	{
+		const pins = pinCenters();
+		ok('sonde : centre de la pastille sur un croisement de la grille',
+			pins.length === 1 && offGrid(pins[0].x) < 0.05 && offGrid(pins[0].y) < 0.05, fmt(pins));
+	}
+
+	// --- 5. Le CROCHET métallique se voit (v2026.9.4.94) ---------------------
+	// Il était noyé sous la mâchoire verte : 4,5 px de long en diagonale, dont
+	// tout sauf le dernier millimètre recouvert par path14-32. On mesure donc
+	// deux choses — sa taille, et le fait qu'il ressorte du dessin coloré.
+	{
+		const el = document.querySelector('[id="SD1"] kablix-sonde-logique')
+			|| [...document.querySelectorAll('kablix-sonde-logique')].pop();
+		const r = el && el.shadowRoot;
+		const tige = r && r.querySelector('#path944');
+		const bb = tige && tige.getBBox();
+		// 8×8 unités de viewBox pour un demi-crochet de 4 : un trait en diagonale
+		// qui traverse la pastille et sort de la mâchoire des deux côtés.
+		ok('crochet : au moins 6 unités de viewBox dans chaque sens',
+			bb && bb.width >= 6 && bb.height >= 6,
+			bb ? bb.width.toFixed(2) + 'x' + bb.height.toFixed(2) : 'tige introuvable');
+		// La mâchoire commence à ~5,5 unités de la pastille : un crochet qui ne
+		// dépasse pas ce bord reste invisible, quelle que soit sa longueur.
+		const mach = r && r.querySelector('#path14-32');
+		const mb = mach && mach.getBBox();
+		const svg = r && r.querySelector('svg > svg');
+		// Comparaison en coordonnées ÉCRAN : les deux vivent dans des repères
+		// différents (le crochet dans le viewBox, la mâchoire dans le groupe
+		// tourné de la planche).
+		const rc = tige && tige.getBoundingClientRect();
+		const rm = mach && mach.getBoundingClientRect();
+		ok('crochet : sa pointe dépasse sous la mâchoire verte',
+			rc && rm && rc.bottom > rm.bottom + 2,
+			rc && rm ? 'crochet bas=' + rc.bottom.toFixed(1) + ' mâchoire bas=' + rm.bottom.toFixed(1) : 'introuvable');
+		ok('crochet : peint APRÈS le dessin coloré (dernier enfant du SVG)',
+			tige && tige.parentNode.lastElementChild === tige,
+			tige ? String(tige.parentNode.nodeName) : 'tige introuvable');
+		// Dégradé argenté : recalé sur le nouveau segment, sinon le trait sort
+		// d'une seule teinte plate (le dégradé d'origine est posé à des centaines
+		// d'unités de là, userSpaceOnUse + gradientTransform hérité).
+		const grad = r && r.querySelector('#linearGradient996');
+		const gx1 = grad && Number(grad.getAttribute('x1'));
+		ok('crochet : dégradé métallique recalé en travers du trait',
+			grad && Math.abs(gx1 - 10) < 2 && grad.getAttribute('gradientTransform') === 'translate(0,0)',
+			grad ? 'x1=' + gx1 + ' gt=' + grad.getAttribute('gradientTransform') : 'dégradé introuvable');
+	}
+
+	// --- 6. Grise tant qu'elle n'est accrochée à rien (v2026.9.4.94) ---------
+	// Le geste demandé : on prend une pince, elle est grise ; posée elle prend
+	// sa couleur ; décrochée elle redevient grise ; reposée elle RETROUVE la
+	// même. L'indice de voie ne bouge jamais — seule la peinture change.
+	{
+		const el = [...document.querySelectorAll('kablix-sonde-logique')].pop();
+		const GRIS = '#9e9e9e';
+		el.setAttribute('accroche', '');
+		await wait(20);
+		const inerte = el.couleur;
+		el.setAttribute('accroche', 'uno/13');
+		await wait(20);
+		const posee = el.couleur;
+		el.setAttribute('accroche', '');
+		await wait(20);
+		const relachee = el.couleur;
+		el.setAttribute('accroche', 'uno/12');
+		await wait(20);
+		const reposee = el.couleur;
+		ok('sonde non accrochée : grise', inerte === GRIS, inerte);
+		ok('sonde accrochée : elle prend la couleur de sa voie', posee !== GRIS, posee);
+		ok('sonde décrochée : elle redevient grise', relachee === GRIS, relachee);
+		ok('sonde reposée : elle retrouve EXACTEMENT sa couleur',
+			reposee === posee, reposee + ' vs ' + posee);
+		ok('décrochage : l’indice de voie survit (la teinte est retrouvable)',
+			el.getAttribute('voie') === '0', el.getAttribute('voie'));
+		// Et la peinture du dessin suit vraiment, pas seulement le getter : c'est
+		// updateCouleur qui repeint le corps, et il ne tournait pas sur un
+		// changement d accroche avant ce lot.
+		const corps = el.shadowRoot.querySelector('#rect2-4');
+		el.setAttribute('accroche', '');
+		await wait(20);
+		const gris = corps && corps.getAttribute('fill');
+		el.setAttribute('accroche', 'uno/13');
+		await wait(20);
+		const colore = corps && corps.getAttribute('fill');
+		ok('décrochage : le CORPS de la pince est repeint en gris', gris === GRIS, String(gris));
+		ok('repose : le CORPS reprend la teinte de la voie', colore && colore !== GRIS, String(colore));
+	}
+
 	const out = document.createElement('pre');
 	out.id = 'measures';
 	out.textContent = JSON.stringify(checks);

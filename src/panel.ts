@@ -1465,16 +1465,27 @@ export class SimulatorPanel {
   private analyseurPourProjix(): ProjixAnalyseur | undefined {
     const cap = this.analyseurCapture as ProjixAnalyseur | null;
     const reg = this.analyseurReglages as
-      | { declenchement?: ProjixAnalyseur['declenchement']; decodage?: unknown }
+      | {
+          declenchement?: ProjixAnalyseur['declenchement'];
+          decodages?: unknown[];
+          voiesReglages?: Record<string, unknown>;
+        }
       | null;
     const voies = cap?.voies;
+    const decodages = Array.isArray(reg?.decodages) ? reg.decodages : [];
+    const aDesDecodages = decodages.length > 0;
+    const aDesReglagesVoies = Object.keys(reg?.voiesReglages ?? {}).length > 0;
     const aQuelqueChose =
-      (voies && voies.length > 0) || reg?.declenchement != null || reg?.decodage != null;
+      (voies && voies.length > 0) ||
+      reg?.declenchement != null ||
+      aDesDecodages ||
+      aDesReglagesVoies;
     if (!aQuelqueChose) return undefined;
     return {
       ...(voies && voies.length > 0 ? { voies } : {}),
       ...(reg?.declenchement != null ? { declenchement: reg.declenchement } : {}),
-      ...(reg?.decodage != null ? { decodage: reg.decodage } : {}),
+      ...(aDesDecodages ? { decodages } : {}),
+      ...(aDesReglagesVoies ? { voiesReglages: reg?.voiesReglages } : {}),
     };
   }
 
@@ -1486,9 +1497,18 @@ export class SimulatorPanel {
       return;
     }
     this.analyseurCapture = a.voies && a.voies.length > 0 ? { voies: a.voies } : null;
+    // `decodage` (un seul) est ce qu'écrivaient les projets d'avant
+    // v2026.9.4.94 : on le relève en liste d'un élément, sinon un projet
+    // d'alors rouvrirait sans son décodage.
+    const decodages = Array.isArray(a.decodages)
+      ? a.decodages
+      : a.decodage != null
+        ? [a.decodage]
+        : [];
+    const voiesReglages = (a.voiesReglages ?? {}) as Record<string, unknown>;
     this.analyseurReglages =
-      a.declenchement != null || a.decodage != null
-        ? { declenchement: a.declenchement ?? null, decodage: a.decodage ?? null }
+      a.declenchement != null || decodages.length > 0 || Object.keys(voiesReglages).length > 0
+        ? { declenchement: a.declenchement ?? null, decodages, voiesReglages }
         : null;
     // Un onglet déjà ouvert (projet rechargé dans la même session) reçoit
     // directement la capture : sinon il garderait celle du projet précédent.
@@ -1526,7 +1546,11 @@ export class SimulatorPanel {
         if (m.type === 'analyseurReglages') {
           // Réglages de l'instrument : ils appartiennent au projet (personne ne
           // rerègle un analyseur à chaque ouverture).
-          this.analyseurReglages = { declenchement: m.declenchement, decodage: m.decodage };
+          this.analyseurReglages = {
+            declenchement: m.declenchement,
+            decodages: m.decodages,
+            voiesReglages: m.voiesReglages,
+          };
         }
       }
     );

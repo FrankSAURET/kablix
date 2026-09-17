@@ -43,8 +43,19 @@ const buildTo = async (entry, outfile) => {
 const { logicProbeVoies, pulseMonitorPins } = await buildTo('src/webview/diagram/model.mts', 'model.mjs');
 const { partDef, partCategory } = await buildTo('src/webview/diagram/catalog.mts', 'catalog.mjs');
 const { AnalyseurCapture, VOIES_MAX } = await buildTo('src/webview/analyseur-capture.mts', 'capture.mjs');
-const { decoder, reglageComplet, rolesDe } = await buildTo('src/webview/analyseur-decodage.mts', 'decodage.mjs');
+const { decoder, decoderTous, reglageComplet, rolesDe } = await buildTo('src/webview/analyseur-decodage.mts', 'decodage.mjs');
 const { PALETTE_LIGHT, PALETTE_DARK, couleurVoie } = await buildTo('src/webview/voies-couleurs.mts', 'couleurs.mjs');
+// La vue touche au DOM à l'exécution, mais `nomVoie`/`teinteVoie` sont pures :
+// les importer ici prouve les réglages d'affichage sans rendu.
+const { nomVoie, teinteVoie } = await buildTo('src/webview/analyseur-vue.mts', 'vue.mjs');
+
+/**
+ * Appelle une fonction que le code SOUS TEST est censé exporter, sans faire
+ * mourir le banc si elle manque. Sans ce garde-fou, la contre-épreuve au
+ * `git stash` s'arrête sur une exception au premier contrôle et n'affiche AUCUN
+ * échec — un banc muet passerait alors pour un banc vert.
+ */
+const appel = (fn, ...args) => (typeof fn === 'function' ? fn(...args) : undefined);
 
 let failures = 0;
 const check = (label, ok, detail = '') => {
@@ -581,6 +592,156 @@ check('SPI : quatre rôles proposés (SCK, MOSI, MISO, CS)',
   check('aide : la fiche de la sonde dit qu\'il n\'y a rien à cliquer',
     /rien à cliquer/i.test(fiche) && /onglet/i.test(fiche));
 }
+
+// --- Paramètres PAR COURBE (v2026.9.4.94) --------------------------------------
+//
+// Trois volets, demandés ensemble : plusieurs décodages de front, les réglages
+// d'AFFICHAGE d'une voie (nom, teinte, masquage) et ses SEUILS (sens au repos,
+// vitesse, tolérance). Le banc les prend là où ils se prouvent : le décodage et
+// la capture pour le fond, les sources pour l'interface.
+{
+  // Deux bus décodés en même temps : chaque annotation doit porter SA voie de
+  // données, sinon la vue les empile toutes sous la dernière piste et les
+  // trames des deux bus se mélangent sans rien pour les distinguer.
+  const BIT = 0.004;
+  const trameDmx = (depart, voie) => {
+    const fronts = [];
+    let t = depart;
+    let niveau = 1;
+    const palier = (n, bits) => {
+      if (n !== niveau) {
+        fronts.push([t, n]);
+        niveau = n;
+      }
+      t += bits * BIT;
+    };
+    palier(1, 10);
+    palier(0, 25); // BREAK
+    palier(1, 3); // MAB
+    const octet = (o) => {
+      palier(0, 1);
+      for (let i = 0; i < 8; i++) palier((o >> i) & 1, 1);
+      palier(1, 2);
+    };
+    octet(0); // start code
+    octet(200);
+    palier(1, 20);
+    return {
+      voie,
+      pin: 'P' + voie,
+      nom: 'V' + voie,
+      niveauInitial: 1,
+      fronts: fronts.map(([tt, n]) => ({ t: tt, niveau: n })),
+    };
+  };
+
+  const voies = [trameDmx(1.0, 0), trameDmx(1.0, 1)];
+  const a0 = decoder(voies, { protocole: 'dmx', donnees: 0 });
+  const a1 = decoder(voies, { protocole: 'dmx', donnees: 1 });
+  check('par courbe : une annotation porte la voie de DONNÉES de son décodage',
+    a0.length > 0 && a0.every((a) => a.voie === 0) && a1.every((a) => a.voie === 1),
+    JSON.stringify([a0[0]?.voie, a1[0]?.voie]));
+
+  const tous = appel(decoderTous, voies, [
+    { protocole: 'dmx', donnees: 0 },
+    { protocole: 'dmx', donnees: 1 },
+  ]) ?? [];
+  check('par courbe : deux décodages de front rendent les annotations des DEUX voies',
+    tous.some((a) => a.voie === 0) && tous.some((a) => a.voie === 1));
+  check('par courbe : les annotations de deux décodages sortent triées par le temps',
+    tous.every((a, i) => i === 0 || tous[i - 1].t0 <= a.t0));
+  check('par courbe : un décodage incomplet est sauté, il ne casse pas les autres',
+    (appel(decoderTous, voies, [{ protocole: 'dmx' }, { protocole: 'dmx', donnees: 1 }]) ?? [])
+      .every((a) => a.voie === 1));
+  check('par courbe : aucun décodage = aucune annotation',
+    (appel(decoderTous, voies, []) ?? [-1]).length === 0);
+
+  // Tolérance : à vitesse deux fois trop basse, les paliers ne tombent plus sur
+  // un nombre entier de bits. Le décodeur doit le DIRE au lieu d'arrondir en
+  // silence — c'est tout l'intérêt d'un seuil réglable par voie.
+  const justes = decoder(voies, { protocole: 'dmx', donnees: 0 });
+  const faux = decoder(voies, { protocole: 'dmx', donnees: 0, bauds: 166_666 });
+  check('par courbe : une vitesse fausse fait apparaître des erreurs de cadrage',
+    faux.filter((a) => a.nature === 'erreur').length >
+      justes.filter((a) => a.nature === 'erreur').length,
+    justes.filter((a) => a.nature === 'erreur').length + ' → ' +
+      faux.filter((a) => a.nature === 'erreur').length);
+  check('par courbe : une tolérance large ravale les mêmes écarts de cadrage',
+    decoder(voies, { protocole: 'dmx', donnees: 0, bauds: 166_666, tolerance: 0.9 })
+      .filter((a) => a.nature === 'erreur').length <
+      faux.filter((a) => a.nature === 'erreur').length);
+
+  // Inversion : elle vit dans la CAPTURE, pas dans les décodeurs — c'est la
+  // seule place qui garantit que ce que la vue dessine est ce que le décodeur
+  // a lu. On le prouve sur les deux sorties que la vue consomme.
+  const cap = new AnalyseurCapture();
+  cap.declarerVoies([{ voie: 0, pin: 'GP0', nom: 'SIG' }]);
+  cap.verser({ GP0: [1.0, 1, 2.0, 0, 3.0, 1] });
+  const avant = cap.niveauA(0, 2.5);
+  appel(cap.reglerInversion?.bind(cap), [0]);
+  const apres = cap.niveauA(0, 2.5);
+  check('par courbe : le niveau au repos inverse ce que rend niveauA',
+    avant === 0 && apres === 1, avant + ' → ' + apres);
+  const fen = cap.fenetre(0, 0, 4);
+  check('par courbe : les fronts de fenetre sortent inversés eux aussi',
+    fen.fronts.length === 3 && fen.fronts[1].niveau === 1,
+    JSON.stringify(fen.fronts.map((f) => f.niveau)));
+  check('par courbe : le niveau qui ENTRE par le bord gauche est inversé de même',
+    cap.fenetre(0, 2.5, 4).entrant === 1);
+  appel(cap.reglerInversion?.bind(cap), []);
+  check('par courbe : remise à l\'endroit, la capture retrouve ses vrais fronts',
+    cap.niveauA(0, 2.5) === 0 && appel(cap.estInversee?.bind(cap), 0) !== true);
+
+  // Affichage : nom et teinte effectifs. Vider le nom REVIENT à l'automatique,
+  // qui suit la pince quand on la déplace — sans quoi un nom tapé une fois
+  // resterait collé à une voie qui n'écoute plus la même broche.
+  const v = { voie: 2, nom: 'GP4', pin: 'GP4', probleme: null, analogique: false };
+  check('par courbe : sans réglage, la voie garde son nom et sa teinte d\'origine',
+    appel(nomVoie, v) === 'GP4' && appel(teinteVoie, v, false) === couleurVoie(2, false));
+  check('par courbe : un nom choisi remplace le nom automatique',
+    appel(nomVoie, { ...v, nomChoisi: 'SCL' }) === 'SCL');
+  check('par courbe : un nom vidé revient au nom automatique',
+    appel(nomVoie, { ...v, nomChoisi: '  ' }) === 'GP4');
+  check('par courbe : une teinte choisie remplace celle de l\'indice de voie',
+    appel(teinteVoie, { ...v, couleur: 5 }, false) === couleurVoie(5, false) &&
+      appel(teinteVoie, { ...v, couleur: 5 }, true) === couleurVoie(5, true));
+
+  // Interface : les trois volets doivent être ATTEIGNABLES. Un réglage qu'on ne
+  // peut pas ouvrir n'existe pas pour l'élève.
+  const page = readFileSync(join(root, 'src', 'analyseur-panel.ts'), 'utf8');
+  check('par courbe : le sélecteur de protocole UNIQUE a disparu de la page',
+    !/id="proto"/.test(page));
+  check('par courbe : la page porte la zone des décodages et son bouton d\'ajout',
+    /id="decodages"/.test(page) && /id="ajout-decodage"/.test(page));
+
+  const js = readFileSync(join(root, 'src', 'webview', 'analyseur.mts'), 'utf8');
+  check('par courbe : la page décode TOUS les réglages, pas un seul',
+    /decoderTous\(/.test(js) && !/\bdecoder\(tranche/.test(js));
+  check('par courbe : la pastille de la légende ouvre les réglages de la voie',
+    /voieReglee/.test(js) && /panneauReglages/.test(js));
+  check('par courbe : le panneau porte les quatre réglages d\'affichage et de seuils',
+    /r\.nom\s*=/.test(js) && /r\.couleur\s*=/.test(js) && /r\.repos\s*=/.test(js) &&
+      /r\.masquee\s*=/.test(js) && /r\.bauds\s*=/.test(js) && /r\.tolerance\s*=/.test(js));
+  check('par courbe : une voie masquée quitte la liste dessinée',
+    /masquee\)/.test(js) && /voiesVisibles/.test(js));
+  check('par courbe : les réglages partent à l\'hôte pour être gravés dans le .projix',
+    /decodages,/.test(js) && /voiesReglages: reglagesVoies/.test(js));
+
+  // Compatibilité : un .projix d'avant ce lot porte `decodage` (un seul). Il
+  // doit rouvrir avec son réglage, sinon on perd le travail de l'élève.
+  check('par courbe : un ancien .projix à décodage unique est relevé en liste',
+    /etat\.decodages \?\? \(etat\.decodage \? \[etat\.decodage\] : \[\]\)/.test(js));
+  const hote = readFileSync(join(root, 'src', 'panel.ts'), 'utf8');
+  check('par courbe : l\'hôte aussi relève l\'ancien champ unique',
+    /Array\.isArray\(a\.decodages\)/.test(hote) && /a\.decodage != null/.test(hote));
+
+  const vue = readFileSync(join(root, 'src', 'webview', 'analyseur-vue.mts'), 'utf8');
+  check('par courbe : la vue ancre chaque annotation sous la piste de sa voie',
+    /a\.voie !== undefined \? rang\.get\(a\.voie\)/.test(vue));
+  check('par courbe : le suivi du dernier x occupé est PAR piste, plus global',
+    /occupe = new Map/.test(vue) && /occupe\.set\(piste/.test(vue));
+}
+
 
 console.log(failures === 0 ? '\nTout est vert.' : `\n${failures} échec(s).`);
 process.exit(failures === 0 ? 0 : 1);

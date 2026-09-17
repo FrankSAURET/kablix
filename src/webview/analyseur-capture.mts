@@ -211,7 +211,31 @@ export class AnalyseurCapture {
    * Rend null si l'instant précède tout front connu et que le niveau initial
    * n'a jamais pu être déduit.
    */
+  /**
+   * Voies lues à l'envers (niveau au repos à 1). L'inversion est appliquée EN
+   * SORTIE, sur `niveauA` et `fenetre` : la capture garde ce que le moteur a
+   * mesuré, et une voie qu'on remet à l'endroit retrouve ses vrais fronts sans
+   * qu'on ait rien à recapturer.
+   */
+  private inversees = new Set<number>();
+
+  /** Déclare les voies à lire à l'envers (lignes actives-bas). */
+  reglerInversion(voies: Iterable<number>): void {
+    this.inversees = new Set(voies);
+  }
+
+  /** Vrai si la voie est lue à l'envers. */
+  estInversee(voie: number): boolean {
+    return this.inversees.has(voie);
+  }
+
   niveauA(voie: number, t: number): 0 | 1 | null {
+    const n = this.niveauBrut(voie, t);
+    return n === null || !this.inversees.has(voie) ? n : n === 1 ? 0 : 1;
+  }
+
+  /** Niveau réellement capturé, sans tenir compte de l'inversion. */
+  private niveauBrut(voie: number, t: number): 0 | 1 | null {
     const v = this.voies.get(voie);
     if (!v) return null;
     // Recherche dichotomique : le dernier front dont l'instant est ≤ t.
@@ -238,9 +262,12 @@ export class AnalyseurCapture {
   fenetre(voie: number, t0: number, t1: number): { entrant: 0 | 1 | null; fronts: Front[] } {
     const v = this.voies.get(voie);
     if (!v) return { entrant: null, fronts: [] };
+    const fronts = v.fronts.filter((f) => f.t >= t0 && f.t <= t1);
     return {
       entrant: this.niveauA(voie, t0),
-      fronts: v.fronts.filter((f) => f.t >= t0 && f.t <= t1),
+      fronts: this.inversees.has(voie)
+        ? fronts.map((f) => ({ t: f.t, niveau: (f.niveau === 1 ? 0 : 1) as 0 | 1 }))
+        : fronts,
     };
   }
 }

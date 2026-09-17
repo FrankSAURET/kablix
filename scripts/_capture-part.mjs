@@ -94,9 +94,13 @@ const PARTS = {
   // nom, ce qui ne montre ni la couleur de voie ni l'étiquette. Étiquette COURTE
   // (« SCL ») : le cadrage est borné au viewBox, un nom long en sortirait et
   // serait coupé — sur la planche, lui, il déborde librement.
+  // `accroche` non vide : une pince qui n'est posée sur rien sort GRISE
+  // (v2026.9.4.94), ce qui ne montrerait ni la couleur de voie ni le lien avec
+  // la courbe. La valeur n'a pas à désigner une vraie broche — seul son
+  // caractère non vide compte pour la teinte.
   'sonde-logique': {
     module: 'sonde-logique-element.mjs', tag: 'kablix-sonde-logique', width: 140,
-    attrs: { voie: '0', etiquette: 'SCL' },
+    attrs: { voie: '0', etiquette: 'SCL', accroche: 'uno/13' },
   },
   // Patte seule : illustrée patella PLIÉ (une patte bien droite se lit comme un
   // simple tube — la pose montre les deux articulations).

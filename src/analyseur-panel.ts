@@ -18,7 +18,14 @@ export type AnalyseurVersHote =
   /** La page est prête : l'hôte lui renvoie l'état courant. */
   | { type: 'analyseurPret' }
   /** Réglages changés (déclenchement, décodage) : à enregistrer dans le .projix. */
-  | { type: 'analyseurReglages'; declenchement: unknown; decodage: unknown };
+  | {
+      type: 'analyseurReglages';
+      declenchement: unknown;
+      /** Décodages actifs : plusieurs bus peuvent être décodés de front. */
+      decodages: unknown[];
+      /** Réglages d'affichage et de seuils, par indice de voie. */
+      voiesReglages: Record<string, unknown>;
+    };
 
 /** Ce que l'atelier veut faire parvenir à l'onglet. */
 export type HoteVersAnalyseur =
@@ -203,13 +210,44 @@ export class AnalyseurPanel {
   }
   .barre button { cursor: pointer; }
   .barre button:hover { background: var(--vscode-toolbar-hoverBackground, rgba(128,128,128,.2)); }
-  #roles { display: inline-flex; gap: 8px; }
-  #roles .role { gap: 3px; }
+  #decodages { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .deco {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 1px 4px; border-radius: 4px;
+    border: 1px solid var(--vscode-dropdown-border, rgba(128,128,128,.4));
+  }
+  .deco .role { gap: 3px; }
+  .deco .oter {
+    border: none; background: none; padding: 0 2px;
+    opacity: .6; cursor: pointer; font-size: 1.1em; line-height: 1;
+  }
+  .deco .oter:hover { opacity: 1; background: none; }
   #etat { opacity: .7; margin-left: auto; }
   #legende { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 5px 10px 0; }
   .chip { display: inline-flex; align-items: center; gap: 5px; opacity: .95; }
-  .chip i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+  .chip i {
+    width: 10px; height: 10px; border-radius: 2px; display: inline-block;
+    border: none; padding: 0; cursor: pointer;
+  }
   .chip--muet { opacity: .45; text-decoration: line-through; }
+  /* Réglages d'une voie : dépliés sous la légende, au clic sur sa pastille. */
+  .reglages {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px;
+    margin: 4px 10px 0; padding: 5px 8px;
+    border: 1px solid var(--vscode-dropdown-border, rgba(128,128,128,.4));
+    border-radius: 4px;
+  }
+  .reglages label { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .reglages input, .reglages select, .reglages button {
+    font: inherit; color: var(--vscode-foreground);
+    background: var(--vscode-input-background, transparent);
+    border: 1px solid var(--vscode-dropdown-border, rgba(128,128,128,.4));
+    border-radius: 3px; padding: 1px 4px;
+  }
+  .reglages input[type=checkbox] { padding: 0; }
+  .reglages .teintes { display: inline-flex; gap: 3px; }
+  .reglages .teintes button { width: 14px; height: 14px; padding: 0; border-radius: 2px; cursor: pointer; }
+  .reglages .teintes button[aria-pressed=true] { outline: 2px solid var(--vscode-focusBorder, #07f); }
   #trace { display: block; width: 100%; }
   .aide { padding: 4px 10px 8px; opacity: .6; }
 </style>
@@ -223,15 +261,10 @@ export class AnalyseurPanel {
       <option value="falling">${l.t('falling')}</option>
     </select>
   </label>
-  <label>${l.t('Decode')}
-    <select id="proto">
-      <option value="">${l.t('none')}</option>
-      <option value="i2c">I²C</option>
-      <option value="spi">SPI</option>
-      <option value="dmx">DMX512</option>
-    </select>
-  </label>
-  <div id="roles"></div>
+  <!-- Plusieurs décodages de front : un montage porte souvent deux bus, et
+       devoir choisir lequel regarder empêchait de voir ce qui les relie. -->
+  <div id="decodages"></div>
+  <button id="ajout-decodage" type="button" title="${l.t('Decode one more bus at the same time: each decoding writes under its own data channel.')}">${l.t('+ Decode')}</button>
   <!-- Deux boutons nommés en clair : « Fit » et « Follow » ne disaient pas ce
        qu'ils font une fois dans un analyseur (retour Frank, .91). -->
   <button id="tout" type="button" title="${l.t('Zoom out until the whole capture, from the start to the last edge, fits the window.')}">${l.t('Whole capture')}</button>

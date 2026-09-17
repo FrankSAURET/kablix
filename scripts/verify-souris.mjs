@@ -29,7 +29,9 @@
 //   8. glisser un segment de fil le déplace PERPENDICULAIREMENT à sa direction ;
 //   9. lâcher une sonde logique SUR la pastille d'une broche l'y accroche et lui
 //      attribue sa teinte de voie — le choix des voies de l'analyseur est un
-//      GESTE, pas une liste à cocher, donc il se prouve à la vraie souris.
+//      GESTE, pas une liste à cocher, donc il se prouve à la vraie souris ;
+//  10. une pose depuis la palette = UN composant, jamais une pile invisible
+//      (c'était la cause des « propriétés triplées », v2026.9.4.94).
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { join, dirname } from 'node:path';
@@ -446,9 +448,130 @@ try {
 		ok('mais elle GARDE sa teinte (le repère visuel de l élève ne bouge pas)',
 			enlevee.voie === '0', JSON.stringify(enlevee));
 	}
+
+	// --- 10. POSER depuis la palette : UNE pose par geste ----------------------
+	// Défaut corrigé en v2026.9.4.94 (« de temps en temps les propriétés d'un
+	// objet sont triplées »). Deux causes, toutes deux invisibles à l'écran
+	// parce que les composants se posaient EXACTEMENT l'un sur l'autre :
+	//   a) un second appui reçu avant le relâché lançait une SECONDE pose. Pire :
+	//      dès le premier appui le composant naît sous le curseur et la palette
+	//      bouge dessous, si bien que l'appui suivant tombe sur un AUTRE bouton —
+	//      mesuré : résistance, puis phototransistor, puis photodiode, empilés ;
+	//   b) deux poses SANS déplacement (clic sec) visaient le même centre de vue
+	//      au pixel près, la seconde recouvrant la première.
+	// L'élève voyait un seul objet, l'inspecteur montrait celui du dessus, et sa
+	// désélection/resélection tombait sur un autre exemplaire de la pile — d'où
+	// l'impression de propriétés en double ou en triple.
+	// Rien de tout ça ne se prouve avec des événements fabriqués : c'est le
+	// navigateur qui décide de l'ordre des appuis et de qui les reçoit.
+	await ev('window.editor.clear()');
+	await attendre(200);
+	// Toutes les sections de palette dépliées : un bouton dans une section
+	// repliée n'a aucune position à l'écran, donc aucun geste possible dessus.
+	await ev(`(() => { for (const h of document.querySelectorAll('.palette__section--collapsed')) h.click(); })()`);
+	await attendre(300);
+	const boutonPalette = JSON.parse(await ev(`(() => {
+		const b = [...document.querySelectorAll('.palette__item')].find((el) => (el.title || '') === 'Resistor');
+		if (!b) return JSON.stringify(null);
+		b.scrollIntoView({ block: 'center' });
+		const r = b.getBoundingClientRect();
+		return JSON.stringify({ x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) });
+	})()`));
+	ok('le bouton Resistor de la palette est atteignable à la souris', !!boutonPalette,
+		JSON.stringify(boutonPalette));
+
+	if (boutonPalette) {
+		const poses = () => ev(`JSON.stringify(window.editor.serialize().parts
+			.map((p) => p.type + '@' + Math.round(p.x) + ',' + Math.round(p.y)))`);
+
+		// (a) TROIS appuis, un seul relâché : une seule pose doit en sortir.
+		await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: boutonPalette.x, y: boutonPalette.y, button: 'none', buttons: 0 });
+		for (let i = 0; i < 3; i++) {
+			await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: boutonPalette.x, y: boutonPalette.y, button: 'left', buttons: 1, clickCount: 1 });
+			await attendre(30);
+		}
+		for (let i = 1; i <= 6; i++) {
+			await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', button: 'left', buttons: 1,
+				x: Math.round(boutonPalette.x + (500 - boutonPalette.x) * i / 6),
+				y: Math.round(boutonPalette.y + (400 - boutonPalette.y) * i / 6) });
+		}
+		await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 500, y: 400, button: 'left', buttons: 0, clickCount: 1 });
+		await attendre(450);
+		const apresA = JSON.parse(await poses());
+		ok('trois appuis sur la palette, un seul relâché : UN seul composant posé',
+			apresA.length === 1, apresA.join(' | '));
+		ok('et c est bien celui du bouton visé, pas le voisin attrapé au vol',
+			apresA.length === 1 && apresA[0].startsWith('resistor@'), apresA.join(' | '));
+
+		// (b) TROIS clics secs : trois composants, mais aucun caché sous un autre.
+		await ev('window.editor.clear()');
+		await attendre(200);
+		// Remesure avant chaque clic : la palette a pu défiler entre-temps, et une
+		// position gardée finirait par désigner le bouton du voisin.
+		for (let i = 0; i < 3; i++) {
+			const btnB = JSON.parse(await ev(`(() => {
+				const b = [...document.querySelectorAll('.palette__item')].find((el) => (el.title || '') === 'Resistor');
+				if (!b) return JSON.stringify(null);
+				b.scrollIntoView({ block: 'center' });
+				const r = b.getBoundingClientRect();
+				return JSON.stringify({ x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) });
+			})()`)) ?? boutonPalette;
+			await attendre(120);
+			await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: btnB.x, y: btnB.y, button: 'none', buttons: 0 });
+			await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: btnB.x, y: btnB.y, button: 'left', buttons: 1, clickCount: 1 });
+			await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x: btnB.x, y: btnB.y, button: 'left', buttons: 0, clickCount: 1 });
+			await attendre(140);
+		}
+		await attendre(400);
+		const apresB = JSON.parse(await poses());
+		ok('trois clics secs sur la palette posent bien trois composants',
+			apresB.length === 3 && apresB.every((s) => s.startsWith('resistor@')), apresB.join(' | '));
+		ok('et AUCUN ne recouvre exactement un autre : plus de pile invisible',
+			apresB.length > 0 && new Set(apresB.map((s) => s.split('@')[1])).size === apresB.length,
+			apresB.join(' | '));
+
+		// (c) Le geste normal ne doit RIEN perdre au passage : un appui, un glissé,
+		// un relâché posent un composant, un seul, là où on l'a lâché.
+		await ev('window.editor.clear()');
+		await attendre(200);
+		// Le bouton se REMESURE : les gestes précédents ont fait défiler la palette,
+		// et l'ancienne position désigne désormais un AUTRE bouton (mesuré : une
+		// LED au lieu de la résistance). Une position d'écran ne se garde pas.
+		const btnC = JSON.parse(await ev(`(() => {
+			const b = [...document.querySelectorAll('.palette__item')].find((el) => (el.title || '') === 'Resistor');
+			if (!b) return JSON.stringify(null);
+			b.scrollIntoView({ block: 'center' });
+			const r = b.getBoundingClientRect();
+			return JSON.stringify({ x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) });
+		})()`)) ?? boutonPalette;
+		await attendre(200);
+		await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: btnC.x, y: btnC.y, button: 'none', buttons: 0 });
+		await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: btnC.x, y: btnC.y, button: 'left', buttons: 1, clickCount: 1 });
+		for (let i = 1; i <= 8; i++) {
+			await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', button: 'left', buttons: 1,
+				x: Math.round(btnC.x + (620 - btnC.x) * i / 8),
+				y: Math.round(btnC.y + (300 - btnC.y) * i / 8) });
+		}
+		await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 620, y: 300, button: 'left', buttons: 0, clickCount: 1 });
+		await attendre(450);
+		const apresC = JSON.parse(await poses());
+		ok('le geste normal (appui, glissé, relâché) pose toujours UN composant',
+			apresC.length === 1 && apresC[0].startsWith('resistor@'), apresC.join(' | '));
+	}
+} catch (e) {
+	// Sans ce filet, une exception (sélecteur disparu, éditeur non monté, page
+	// morte) sortait par le `finally` SANS le moindre ❌ : le banc rendait 0
+	// contrôle et passait pour vert. La contre-épreuve au `git stash` ne prouvait
+	// alors plus rien. Une exception est désormais un ÉCHEC nommé.
+	ok('le banc va jusqu au bout sans exception', false, (e && e.stack) || String(e));
 } finally {
 	try { ws?.close(); } catch { /* déjà fermé */ }
 	proc.kill();
+}
+
+// Un banc qui n'a rien mesuré n'est pas un banc vert.
+if (checks.length < 20) {
+	ok('le banc a joué tous ses contrôles', false, `seulement ${checks.length} contrôle(s) exécuté(s)`);
 }
 
 const fail = checks.filter((c) => !c.ok).length;

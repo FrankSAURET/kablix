@@ -50,8 +50,21 @@ const TEINTES_VERTES: Array<{ hex: string; delta: number }> = [
   { hex: '#c3f488', delta: +18 },   // reflet de la mâchoire
 ];
 
-/** Teinte du corps quand la sonde n'a pas encore de voie (posée nulle part). */
+/** Teinte du corps quand la sonde n'est posée nulle part. */
 const GRIS_INERTE = '#9e9e9e';
+
+/**
+ * Demi-longueur du crochet métallique, en unités de viewBox, mesurée de part et
+ * d'autre de la pastille. 4 px de chaque côté font un trait de 11 px en
+ * diagonale : il dépasse franchement de la mâchoire (qui commence à 5,5 px de
+ * la pastille) tout en restant dans le viewBox — la pastille est à (10,70), un
+ * crochet plus long sortirait par le bas à gauche et serait rogné.
+ */
+const CROCHET = 4;
+
+/** Épaisseur du crochet. Assez pour tenir sur la grille de 10 px sans manger la
+ *  pastille de connexion qu'il traverse. */
+const CROCHET_EP = 1.3;
 
 /** Pile de repli de la police du dessin (Arial Rounded MT Bold n'existe pas
  *  partout : sans repli, l'étiquette tombait sur une police à empattements). */
@@ -62,6 +75,15 @@ export interface PinInfo {
   x: number;
   y: number;
   signals: unknown[];
+}
+
+/** Une pièce du dessin qui porte une teinte de voie, avec sa valeur d'ORIGINE :
+ *  c'est d'elle qu'on repart à chaque reteinte, jamais de la couleur en place. */
+interface Piece {
+  el: SVGElement;
+  attr: 'fill' | 'stroke' | 'style';
+  delta: number;
+  origine: string;
 }
 
 /** #rrggbb → [r,g,b] (0..255). */
@@ -104,6 +126,9 @@ export class SondeLogiqueElement extends HTMLElement {
   private root: ShadowRoot;
   private rendered = false;
   private themeObs: MutationObserver | undefined;
+  /** Relevé des pièces à reteinter, avec leur teinte d'ORIGINE (voir
+   *  `relevePieces`). Indéfini tant que le dessin n'a pas été relevé. */
+  private pieces: Piece[] | undefined;
 
   constructor() {
     super();
@@ -116,10 +141,24 @@ export class SondeLogiqueElement extends HTMLElement {
     return Number.isInteger(v) && v >= 0 ? v : -1;
   }
 
-  /** Teinte courante de la voie, ou le gris inerte si la sonde n'en a pas. */
+  /** Vrai quand la pince recouvre bien une pastille (attribut `accroche`
+   *  non vide, écrit par l'éditeur au lâcher). */
+  get branchee(): boolean {
+    return (this.getAttribute('accroche') ?? '').trim() !== '';
+  }
+
+  /**
+   * Teinte courante. GRISE tant que la pince n'est accrochée à rien — c'est
+   * l'état qu'on voit sur la paillasse : une pince qui pend ne mesure rien.
+   * Elle ne reprend sa couleur qu'une fois posée sur une pastille.
+   *
+   * L'indice de voie, lui, SURVIT au décrochage (il reste dans l'attribut
+   * `voie`) : la même pince reposée retrouve exactement la même teinte, et
+   * l'élève ne perd pas le repère qu'il vient de se construire.
+   */
   get couleur(): string {
     const v = this.voie;
-    return v < 0 ? GRIS_INERTE : couleurVoie(v, themeSombre());
+    return v < 0 || !this.branchee ? GRIS_INERTE : couleurVoie(v, themeSombre());
   }
 
   connectedCallback(): void {
@@ -174,12 +213,24 @@ export class SondeLogiqueElement extends HTMLElement {
 
   /**
    * Remet la TIGE MÉTALLIQUE en vue (`#path944`, le seul trait du dessin à
-   * porter le dégradé argenté). Dans la planche, Frank l'a dessinée EN PREMIER
-   * dans son groupe : la lame verte passait donc par-dessus et la recouvrait
-   * entièrement — mesuré, le segment (10,70)→(13,67) ressortait vert plein,
-   * plus la moindre trace de gris. On la remonte donc en DERNIER enfant de son
-   * parent, et on l'épaissit : à 0,53 mm de trait, le peu qui dépassait était
-   * déjà de la couleur de la grille.
+   * porter le dégradé argenté) et lui donne une VRAIE longueur.
+   *
+   * Deux défauts mesurés dans la planche, l'un après l'autre :
+   *
+   *  1. Frank l'a dessinée EN PREMIER dans son groupe : la lame verte passait
+   *     par-dessus et la recouvrait — le segment ressortait vert plein. Elle
+   *     est donc remontée en DERNIER enfant de son parent (peint en dernier).
+   *  2. Remontée, elle restait invisible pour une raison de GÉOMÉTRIE : mesurée
+   *     dans le repère du viewBox, elle va de (10,0 ; 69,9) à (13,2 ; 66,7),
+   *     soit 4,5 px en diagonale — et la mâchoire verte (`path14-32`) occupe
+   *     cette même diagonale à partir de (11,0 ; 65,4). Il n'en dépassait
+   *     qu'un millimètre de dessin, à la taille d'un carreau de grille.
+   *
+   * D'où le CROCHET redessiné ici : le trait part toujours de la pastille et
+   * ressort maintenant de l'AUTRE côté, vers le bas-gauche, là où rien ne le
+   * couvre — c'est la pointe qu'on pose sur la broche, elle doit se voir
+   * dépasser de la pince. Le point de connexion, lui, ne bouge pas : il reste
+   * le centre de la pastille de Frank, `SONDE_PIN`.
    *
    * Corrigé ICI et non dans le SVG : `externe/grip-fil.svg` est extrait de
    * `Composants2D.svg` (`_extract-composants.mjs`) — une retouche du fichier
@@ -187,50 +238,107 @@ export class SondeLogiqueElement extends HTMLElement {
    */
   private remonterTige(): void {
     const tige = this.root.querySelector('#path944') as SVGElement | null;
-    const parent = tige?.parentNode;
-    if (!tige || !parent) return;
-    parent.appendChild(tige); // dernier enfant = peint en dernier, donc visible
-    const st = tige.getAttribute('style') ?? '';
-    // Trait plus épais (la tige d'une sonde se voit) et fond transparent : le
-    // blanc à 15 % ne servait qu'à voiler ce qui passait dessous.
+    if (!tige) return;
+
+    // La tige d'origine vit dans un groupe tourné de 45° et mis à l'échelle
+    // (`matrix(3.78,…,-850,-760)`), avec en plus une transformation à elle.
+    // La rallonger DANS ce repère serait illisible et fragile : on la sort donc
+    // au niveau du SVG qui porte le viewBox 0..80, où le crochet s'écrit en
+    // coordonnées lisibles — et où, dernier enfant, il est peint par-dessus la
+    // mâchoire verte qui le masquait.
+    const hote = this.root.querySelector('svg > svg') ?? this.root.querySelector('svg');
+    if (!hote) return;
+    hote.appendChild(tige);
+    tige.removeAttribute('transform');
+    const { x, y } = SONDE_PIN;
+    tige.setAttribute('d', `M ${x + CROCHET} ${y - CROCHET} L ${x - CROCHET} ${y + CROCHET}`);
     tige.setAttribute(
       'style',
-      st
-        .replace(/stroke-width:[^;]*/i, 'stroke-width:0.95')
-        .replace(/fill-opacity:[^;]*/i, 'fill-opacity:0'),
+      'fill:none;stroke:url(#linearGradient996);'
+      + `stroke-width:${CROCHET_EP};stroke-linecap:round;stroke-opacity:1`,
     );
+
+    // Le dégradé de Frank est calé (`userSpaceOnUse`) sur la position d'ORIGINE
+    // de la tige, à l'autre bout du repère : laissé tel quel, le trait déplacé
+    // tomberait hors de sa plage et sortirait d'une seule teinte plate. On le
+    // recale en travers du nouveau segment — c'est ce travers qui donne le
+    // reflet d'un métal cylindrique.
+    const grad = this.root.querySelector('#linearGradient996') as SVGElement | null;
+    if (grad) {
+      grad.setAttribute('x1', String(x - CROCHET_EP / 2));
+      grad.setAttribute('y1', String(y - CROCHET_EP / 2));
+      grad.setAttribute('x2', String(x + CROCHET_EP / 2));
+      grad.setAttribute('y2', String(y + CROCHET_EP / 2));
+      // `gradientTransform` est HÉRITÉ de `linearGradient427` via xlink:href :
+      // l'enlever ne suffit pas, il faut poser l'identité par-dessus. Sans ça
+      // l'échelle (2,13 × 0,47) de la planche s'appliquerait encore et le
+      // dégradé repartirait à des centaines d'unités du trait.
+      grad.setAttribute('gradientTransform', 'translate(0,0)');
+    }
   }
 
   /**
-   * Reteinte les pièces vertes du dessin avec la couleur de la voie. Les
-   * teintes sont posées en `fill` ou dans `style` selon la pièce (Inkscape
-   * mélange les deux) : les deux cas sont traités, sinon la moitié de la pince
-   * restait verte.
+   * Relève UNE FOIS quelles pièces du dessin portent une teinte verte, et où
+   * (attribut `fill`, `stroke`, ou dans le texte d'un `style` — Inkscape mêle
+   * les trois). Le texte d'origine du `style` est gardé tel quel.
+   *
+   * Sans ce relevé, la reteinte était à SENS UNIQUE : elle cherchait les
+   * teintes vertes de la planche, or dès le premier passage il n'y en a plus
+   * une seule dans le dessin. Un deuxième appel ne trouvait donc rien et la
+   * pince restait figée sur sa première couleur — visible dès qu'on décroche
+   * la pince (retour au gris) ou qu'on bascule le thème.
+   */
+  private relevePieces(): void {
+    const pieces: Piece[] = [];
+    for (const { hex, delta } of TEINTES_VERTES) {
+      for (const el of this.root.querySelectorAll<SVGElement>(`[fill="${hex}"]`)) {
+        pieces.push({ el, attr: 'fill', delta, origine: hex });
+      }
+      for (const el of this.root.querySelectorAll<SVGElement>(`[stroke="${hex}"]`)) {
+        pieces.push({ el, attr: 'stroke', delta, origine: hex });
+      }
+    }
+    // Les `style` sont relevés à part : une même règle peut porter plusieurs
+    // teintes, et c'est son texte ENTIER qu'il faut garder pour rejouer les
+    // remplacements à chaque changement de couleur.
+    const vus = new Set<SVGElement>();
+    for (const el of this.root.querySelectorAll<SVGElement>('[style]')) {
+      const st = el.getAttribute('style') ?? '';
+      const bas = st.toLowerCase();
+      if (vus.has(el) || !TEINTES_VERTES.some(({ hex }) => bas.includes(hex))) continue;
+      vus.add(el);
+      pieces.push({ el, attr: 'style', delta: 0, origine: st });
+    }
+    this.pieces = pieces;
+  }
+
+  /**
+   * Reteinte les pièces vertes du dessin avec la couleur de la voie, à partir
+   * du relevé d'origine (voir `relevePieces`).
    */
   private updateCouleur(): void {
+    if (!this.pieces) this.relevePieces();
     const base = this.couleur;
-    for (const { hex, delta } of TEINTES_VERTES) {
-      const cible = nuance(base, delta);
-      for (const el of this.root.querySelectorAll<SVGElement>(`[fill="${hex}"]`)) {
-        el.setAttribute('fill', cible);
-      }
-      // Même teinte écrite dans un `style` (fill: ou stroke:).
-      for (const el of this.root.querySelectorAll<SVGElement>('[style]')) {
-        const st = el.getAttribute('style') ?? '';
-        if (st.toLowerCase().includes(hex)) {
-          el.setAttribute('style', st.replace(new RegExp(hex, 'gi'), cible));
+    for (const p of this.pieces ?? []) {
+      const cible = nuance(base, p.delta);
+      if (p.attr === 'style') {
+        // Une même règle `style` peut porter DEUX teintes vertes (fill et
+        // stroke) : on repart du texte d'origine et on les remplace toutes,
+        // chacune avec son propre écart.
+        let st = p.origine;
+        for (const { hex, delta } of TEINTES_VERTES) {
+          st = st.replace(new RegExp(hex, 'gi'), nuance(base, delta));
         }
-      }
-      // Contours posés en attribut `stroke`.
-      for (const el of this.root.querySelectorAll<SVGElement>(`[stroke="${hex}"]`)) {
-        el.setAttribute('stroke', cible);
+        p.el.setAttribute('style', st);
+      } else {
+        p.el.setAttribute(p.attr, cible);
       }
     }
     // L'étiquette se lit sur le fond de la planche, pas sur la pince : elle
     // prend la couleur de la voie, en plus foncé pour rester lisible en clair.
     const txt = this.root.querySelector('#etiquette') as SVGElement | null;
     if (txt) {
-      const encre = this.voie < 0 ? GRIS_INERTE : nuance(base, themeSombre() ? +25 : -25);
+      const encre = base === GRIS_INERTE ? GRIS_INERTE : nuance(base, themeSombre() ? +25 : -25);
       txt.setAttribute('fill', encre);
       for (const sp of txt.querySelectorAll<SVGElement>('tspan')) sp.setAttribute('fill', encre);
     }

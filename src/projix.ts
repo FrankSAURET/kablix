@@ -44,8 +44,15 @@ export interface ProjixAnalyseur {
   }>;
   /** Voie et sens du déclenchement, ou absent si aucun n'est réglé. */
   declenchement?: { voie: number; sens: 'rising' | 'falling' } | null;
-  /** Protocole décodé et affectation des voies, ou absent. */
+  /**
+   * Ancien champ : UN seul décodage. Écrit par les versions antérieures à
+   * v2026.9.4.94 ; encore relu pour qu'un projet d'alors rouvre avec le sien.
+   */
   decodage?: unknown;
+  /** Décodages actifs, depuis qu'on peut en mener plusieurs de front. */
+  decodages?: unknown;
+  /** Réglages d'affichage et de seuils, par indice de voie. */
+  voiesReglages?: unknown;
 }
 
 /** Manifeste écrit dans `kablix.json` à la racine de l'archive. */

@@ -1933,13 +1933,59 @@ export class Editor {
    * réelle connue, puis aligné sur la grille de 10 px.
    */
   addPartAtVisibleCenter(type: string): Part {
-    const center = this.visibleWorldCenter();
+    const center = this.decaleSiOccupe(this.visibleWorldCenter());
     // silent : addPart + centrage + snap = UNE pose ; seul le snap final notifie.
     const part = this.addPart(type, center.x, center.y, true);
     this.centerPartOn(part.id, center);
     this.snapPartToGrid(part.id);
     return part;
   }
+
+  /**
+   * Écarte le point de pose tant qu'un composant y est DÉJÀ posé (v2026.9.4.94).
+   * Deux poses sans déplacement — deux clics secs sur la palette, deux « Entrée »
+   * — visaient le même centre de vue au pixel près : le second recouvrait le
+   * premier EXACTEMENT. À l'écran, un seul objet ; dans le schéma, deux. C'est
+   * l'autre moitié des « propriétés triplées » : on croit régler un composant et
+   * on en règle un autre, caché dessous.
+   *
+   * Le décalage est d'un pas de grille en diagonale, répété jusqu'à trouver la
+   * place — ni recherche savante ni refus de poser : l'élève voit ses composants
+   * en escalier, il les range ensuite comme il veut.
+   */
+  private decaleSiOccupe(center: XY): XY {
+    // On ne peut PAS comparer aux composants déjà posés : au moment où la pose
+    // choisit son point, le corps du dessin n'est pas encore rendu (mesuré :
+    // `offsetWidth` vaut 0) et son coin n'est donc pas encore connu. On se
+    // rappelle à la place le DERNIER point de pose sans déplacement : tant qu'on
+    // revise le même, on s'en écarte d'un pas de grille en diagonale.
+    const memeQue = (a: XY, b: XY): boolean =>
+      Math.abs(a.x - b.x) < GRID / 2 && Math.abs(a.y - b.y) < GRID / 2;
+    let p = center;
+    if (this.dernierePoseCentree && memeQue(this.dernierePoseCentree, center)) {
+      // Escalier depuis le point d'origine : le 2e composant à +10/+10, le 3e à
+      // +20/+20… Vingt marches au plus, au-delà la feuille est à ranger de toute
+      // façon et on repart du centre.
+      this.marchesPoseCentree = (this.marchesPoseCentree + 1) % 20;
+      p = {
+        x: center.x + GRID * this.marchesPoseCentree,
+        y: center.y + GRID * this.marchesPoseCentree,
+      };
+    } else {
+      this.dernierePoseCentree = center;
+      this.marchesPoseCentree = 0;
+    }
+    return p;
+  }
+
+  /**
+   * Dernier point de pose SANS déplacement (clic sec sur la palette, « Entrée »)
+   * et nombre de marches déjà servies dessus. Sert à `decaleSiOccupe`. Un
+   * déplacement de la vue change le centre visible, donc l'escalier repart tout
+   * seul — c'est voulu : l'élève a bougé, il pose ailleurs.
+   */
+  private dernierePoseCentree: XY | null = null;
+  private marchesPoseCentree = 0;
 
   /**
    * Pose depuis la BIBLIOTHÈQUE en un seul geste (v2026.7.136, item « il serait
@@ -1958,6 +2004,17 @@ export class Editor {
    */
   private startPlaceFromPalette(e: PointerEvent, type: string): void {
     if (this.locked || this.pending) return;
+    // UNE pose à la fois (v2026.9.4.94). Sans cette garde, un second appui reçu
+    // avant le relâché créait un SECOND composant : les deux gestes suivaient
+    // alors la même souris et se posaient l'un SUR l'autre, à la même position.
+    // À l'écran, un seul objet — mais le schéma en contenait deux ou trois, d'où
+    // les « propriétés triplées » (l'inspecteur montrait celles du dessus, et
+    // une désélection/resélection tombait sur un autre exemplaire de la pile).
+    // Le cas arrive tout seul : dès le premier appui, le composant naît sous le
+    // curseur et la palette bouge dessous, si bien qu'un appui vif suivant porte
+    // sur un AUTRE bouton — c'est ce qui a été mesuré (résistance, puis
+    // phototransistor, puis photodiode, tous empilés au même point).
+    if (this.placingFromPalette) return;
     e.preventDefault();
     const part = this.addPart(type, 0, 0, true); // silent : seul le notify() du lâcher compte
     this.placingFromPalette = part.id;
@@ -2012,7 +2069,9 @@ export class Editor {
       window.removeEventListener('pointerup', end);
       this.clearBreadboardHighlights();
       // Clic sec (jamais déplacé) : pose au centre de la vue. Sinon : sous le curseur.
-      at = dragged ? this.canvasPoint(ev.clientX, ev.clientY) : this.visibleWorldCenter();
+      at = dragged
+        ? this.canvasPoint(ev.clientX, ev.clientY)
+        : this.decaleSiOccupe(this.visibleWorldCenter());
       this.centerPartOn(part.id, at);
       this.placingFromPalette = null;
       // Alignement final sur la grille (comme toute pose) puis enfichage

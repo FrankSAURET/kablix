@@ -20,12 +20,12 @@
 import { AnalyseurCapture } from './analyseur-capture.mjs';
 import { AnalyseurVue, type Fenetre, type TextesVue, type VoieVue } from './analyseur-vue.mjs';
 import {
-  decoder,
-  reglageComplet,
+  decoderTous,
   rolesDe,
   type Annotation,
   type Protocole,
   type ReglageDecodage,
+  type ReglagesVoies,
 } from './analyseur-decodage.mjs';
 import { couleurVoie, themeSombre } from './voies-couleurs.mjs';
 import { initLocale, locale, t } from './i18n.mjs';
@@ -72,7 +72,15 @@ export interface EtatSerialise {
     niveauInitial: 0 | 1 | null;
   }>;
   declenchement?: { voie: number; sens: 'rising' | 'falling' } | null;
+  /**
+   * Ancien champ : UN seul décodage. Gardé en lecture pour les .projix
+   * enregistrés avant v2026.9.4.94, qui doivent rouvrir avec leur réglage.
+   */
   decodage?: ReglageDecodage | null;
+  /** Décodages actifs, depuis qu'on peut en mener plusieurs de front. */
+  decodages?: ReglageDecodage[];
+  /** Réglages d'affichage et de seuils, par indice de voie. */
+  voiesReglages?: ReglagesVoies;
 }
 
 const vscode = window.acquireVsCodeApi?.();
@@ -86,7 +94,16 @@ let fenetre: Fenetre = { t0: 0, duree: 10 };
 let suivi = true;
 let souris: { x: number; y: number } | null = null;
 let annotations: Annotation[] = [];
-let reglage: ReglageDecodage | null = null;
+/**
+ * Décodages actifs. Plusieurs à la fois : un montage porte souvent deux bus
+ * (l'I²C d'un capteur et la ligne DMX qu'il commande), et devoir choisir lequel
+ * regarder empêchait justement de voir ce qui relie les deux.
+ */
+let decodages: ReglageDecodage[] = [];
+/** Réglages par voie : nom, teinte, inversion, masquage, seuils. */
+let reglagesVoies: ReglagesVoies = {};
+/** Compteur d'identifiants de décodage (stable le temps de la session). */
+let idDecodage = 0;
 /** Vrai pendant un run : la vue se redessine en continu. */
 let enCours = false;
 
@@ -96,9 +113,13 @@ const vue = new AnalyseurVue(canvas);
 const textes = (): TextesVue => ({
   aucuneSonde: t('No logic probe on the board — clip one onto a pin.'),
   aucuneDonnee: t('No edge captured yet.'),
-  nowhere: t('This probe is not on any pad.'),
-  notMcu: t('This point is not wired to any board pin.'),
-  power: t('Power pin: a constant level, no edge to show.'),
+  // Les trois raisons d'être muette disent ce qu'il faut FAIRE, pas seulement
+  // ce qui ne va pas : sans cela l'élève relit dix fois la même phrase sans
+  // savoir où déplacer sa pince (retour de Frank sur dmx-pico, où les trois
+  // sondes étaient muettes chacune pour une raison différente).
+  nowhere: t('Probe not clipped: drop its tip right onto a pad.'),
+  notMcu: t('Nothing to listen to here: this point never reaches a board pin. Clip onto the signal pad.'),
+  power: t('Power pad (VCC/GND): a steady level, no edge. Clip onto the signal pad.'),
   analogique: t('analog-capable pin: only 0/1 shown'),
   enAttente: t('Waiting for the trigger edge…'),
 });
@@ -153,14 +174,26 @@ function dessiner(): void {
   });
 }
 
+/** Voies effectivement dessinées : les masquées gardent leur capture, pas leur piste. */
+function voiesVisibles(): VoieVue[] {
+  return diagnostics
+    .filter((d) => !reglagesVoies[d.voie]?.masquee)
+    .map((d) => ({
+      ...d,
+      nomChoisi: reglagesVoies[d.voie]?.nom,
+      couleur: reglagesVoies[d.voie]?.couleur,
+    }));
+}
+
 function rendu(): void {
-  const n = Math.max(diagnostics.length, 1);
+  const voies = voiesVisibles();
+  const n = Math.max(voies.length, 1);
   const hauteur = vue.hauteurPour(n);
   if (canvas.style.height !== `${hauteur}px`) canvas.style.height = `${hauteur}px`;
   annotations = calculerAnnotations();
   vue.dessiner({
     capture,
-    voies: diagnostics,
+    voies,
     fenetre,
     annotations,
     souris,
@@ -170,9 +203,22 @@ function rendu(): void {
   majEtiquettes();
 }
 
+/**
+ * Répercute les inversions sur la capture. Appelé à chaque changement de
+ * réglage : c'est la capture qui inverse, une fois, pour la vue ET pour le
+ * décodage — ce que l'élève voit est donc toujours ce que le décodeur a lu.
+ */
+function majInversions(): void {
+  capture.reglerInversion(
+    Object.entries(reglagesVoies)
+      .filter(([, r]) => r?.repos === 1)
+      .map(([v]) => Number(v))
+  );
+}
+
 /** Décodage : recalculé à chaque rendu, sur la fenêtre visible seulement. */
 function calculerAnnotations(): Annotation[] {
-  if (!reglage || !reglageComplet(reglage)) return [];
+  if (decodages.length === 0) return [];
   // On ne décode QUE la fenêtre visible, marge d'un octet de chaque côté : à
   // pleine profondeur (60 000 fronts par voie) décoder tout l'enregistrement à
   // chaque image de l'écran coûterait des centaines de milliers d'opérations
@@ -180,20 +226,32 @@ function calculerAnnotations(): Annotation[] {
   const marge = fenetre.duree * 0.1;
   const t0 = fenetre.t0 - marge;
   const t1 = fenetre.t0 + fenetre.duree + marge;
-  const tranche = capture.listeVoies.map((v) => ({
-    ...v,
-    niveauInitial: capture.niveauA(v.voie, t0),
-    fronts: v.fronts.filter((f) => f.t >= t0 && f.t <= t1),
-  }));
-  return decoder(tranche, reglage);
+  // `capture.fenetre` rend déjà les fronts INVERSÉS sur les voies réglées
+  // actives-bas : le décodeur lit donc exactement ce que la vue dessine.
+  const tranche = capture.listeVoies.map((v) => {
+    const f = capture.fenetre(v.voie, t0, t1);
+    return { ...v, niveauInitial: f.entrant, fronts: f.fronts };
+  });
+  // Les seuils de voie (vitesse, tolérance) priment sur ceux du décodage : deux
+  // lignes série d'un même montage ne tournent pas forcément à la même vitesse.
+  const avecSeuils = decodages.map((d) => {
+    const rv = d.donnees !== undefined ? reglagesVoies[d.donnees] : undefined;
+    if (!rv?.bauds && !rv?.tolerance) return d;
+    return {
+      ...d,
+      ...(rv.bauds ? { bauds: rv.bauds } : {}),
+      ...(rv.tolerance ? { tolerance: rv.tolerance } : {}),
+    };
+  });
+  return decoderTous(tranche, avecSeuils);
 }
 
 // --- Barre d'outils ----------------------------------------------------------
 
 const selDeclVoie = document.getElementById('decl-voie') as HTMLSelectElement;
 const selDeclSens = document.getElementById('decl-sens') as HTMLSelectElement;
-const selProto = document.getElementById('proto') as HTMLSelectElement;
-const zoneRoles = document.getElementById('roles') as HTMLDivElement;
+const zoneDecodages = document.getElementById('decodages') as HTMLDivElement;
+const boutonAjoutDecodage = document.getElementById('ajout-decodage') as HTMLButtonElement;
 const etatTexte = document.getElementById('etat') as HTMLSpanElement;
 const legende = document.getElementById('legende') as HTMLDivElement;
 
@@ -209,43 +267,79 @@ function remplirVoies(sel: HTMLSelectElement, aucun: string): void {
     if (d.probleme) continue; // une voie en défaut ne déclenche ni ne décode rien
     const o = document.createElement('option');
     o.value = String(d.voie);
-    o.textContent = d.nom;
+    o.textContent = nomAffiche(d);
     sel.append(o);
   }
   sel.value = [...sel.options].some((o) => o.value === avant) ? avant : '';
 }
 
-/** Reconstruit les sélecteurs de rôle du protocole choisi. */
-function majRoles(): void {
-  zoneRoles.textContent = '';
-  const p = selProto.value as Protocole | '';
-  if (!p) {
-    reglage = null;
-    return;
+/** Nom d'une voie tel qu'il s'affiche : celui choisi, sinon l'automatique. */
+function nomAffiche(d: VoieVue): string {
+  const n = (reglagesVoies[d.voie]?.nom ?? '').trim();
+  return n === '' ? d.nom : n;
+}
+
+/** Reconstruit la zone des décodages : un groupe par décodage actif. */
+function majDecodages(): void {
+  zoneDecodages.textContent = '';
+  for (const d of decodages) zoneDecodages.append(groupeDecodage(d));
+}
+
+/** Un décodage dans la barre : son protocole, ses rôles de voie, sa croix. */
+function groupeDecodage(d: ReglageDecodage): HTMLElement {
+  const boite = document.createElement('div');
+  boite.className = 'deco';
+
+  const labProto = document.createElement('label');
+  labProto.className = 'role';
+  labProto.textContent = t('Decode');
+  const selProto = document.createElement('select');
+  for (const [v, nom] of [
+    ['i2c', 'I²C'],
+    ['spi', 'SPI'],
+    ['dmx', 'DMX512'],
+  ] as Array<[Protocole, string]>) {
+    const o = document.createElement('option');
+    o.value = v;
+    o.textContent = nom;
+    selProto.append(o);
   }
-  const precedent = reglage && reglage.protocole === p ? reglage : null;
-  const neuf: ReglageDecodage = precedent ?? { protocole: p };
-  neuf.protocole = p;
-  for (const role of rolesDe(p)) {
+  selProto.value = d.protocole;
+  selProto.addEventListener('change', () => {
+    // Changer de protocole vide les rôles : les voies d'un I²C (SCL/SDA) ne
+    // veulent rien dire pour un DMX, et les garder ferait décoder n'importe quoi.
+    const id = d.id;
+    for (const k of Object.keys(d)) delete (d as unknown as Record<string, unknown>)[k];
+    d.protocole = selProto.value as Protocole;
+    d.id = id;
+    majDecodages();
+    dessiner();
+    envoyerReglages();
+  });
+  labProto.append(selProto);
+  boite.append(labProto);
+
+  for (const role of rolesDe(d.protocole)) {
     const lab = document.createElement('label');
     lab.className = 'role';
     lab.textContent = role.nom;
     const sel = document.createElement('select');
     remplirVoies(sel, role.obligatoire ? '—' : t('none'));
-    const courant = neuf[role.cle];
+    const courant = d[role.cle];
     if (typeof courant === 'number') sel.value = String(courant);
     sel.addEventListener('change', () => {
       const v = sel.value === '' ? -1 : Number(sel.value);
       // Les rôles de voie (`horloge`, `donnees`…) sont tous des indices de voie :
       // l'écriture indexée est sûre, le nom de clé vient de `rolesDe`.
-      (neuf as unknown as Record<string, number>)[role.cle] = v;
+      (d as unknown as Record<string, number>)[role.cle] = v;
       dessiner();
       envoyerReglages();
     });
     lab.append(sel);
-    zoneRoles.append(lab);
+    boite.append(lab);
   }
-  if (p === 'spi') {
+
+  if (d.protocole === 'spi') {
     // Le mode SPI (CPOL/CPHA) n'est pas devinable depuis les créneaux : deux
     // modes donnent les mêmes fronts et des octets différents. C'est un réglage,
     // comme sur un analyseur du commerce.
@@ -259,17 +353,41 @@ function majRoles(): void {
       o.textContent = String(m);
       sel.append(o);
     }
-    sel.value = String(neuf.mode ?? 0);
+    sel.value = String(d.mode ?? 0);
     sel.addEventListener('change', () => {
-      neuf.mode = Number(sel.value) as 0 | 1 | 2 | 3;
+      d.mode = Number(sel.value) as 0 | 1 | 2 | 3;
       dessiner();
       envoyerReglages();
     });
     lab.append(sel);
-    zoneRoles.append(lab);
+    boite.append(lab);
   }
-  reglage = neuf;
+
+  const oter = document.createElement('button');
+  oter.type = 'button';
+  oter.className = 'oter';
+  oter.textContent = '×';
+  oter.title = t('Remove this decoding');
+  oter.addEventListener('click', () => {
+    decodages = decodages.filter((x) => x !== d);
+    majDecodages();
+    dessiner();
+    envoyerReglages();
+  });
+  boite.append(oter);
+  return boite;
 }
+
+boutonAjoutDecodage.addEventListener('click', () => {
+  idDecodage += 1;
+  decodages.push({ protocole: 'i2c', id: `d${idDecodage}` });
+  majDecodages();
+  dessiner();
+  envoyerReglages();
+});
+
+/** Voie dont les réglages sont dépliés sous la légende, ou null. */
+let voieReglee: number | null = null;
 
 /** Légende : une puce de la couleur de la pince, son nom, sa broche. */
 function majEtiquettes(): void {
@@ -278,17 +396,32 @@ function majEtiquettes(): void {
   for (const d of diagnostics) {
     const chip = document.createElement('span');
     chip.className = 'chip';
-    const puce = document.createElement('i');
-    puce.style.background = couleurVoie(d.voie, sombre);
+    // La pastille est un BOUTON : c'est là qu'on règle la voie (nom, teinte,
+    // sens de lecture, masquage, vitesse). Régler la courbe au même endroit
+    // qu'on la reconnaît évite un panneau de plus dans la barre.
+    const puce = document.createElement('button');
+    puce.type = 'button';
+    puce.style.background = couleurVoie(reglagesVoies[d.voie]?.couleur ?? d.voie, sombre);
+    puce.title = t('Channel settings');
+    puce.addEventListener('click', () => {
+      voieReglee = voieReglee === d.voie ? null : d.voie;
+      majEtiquettes();
+    });
     chip.append(puce);
     // « SD2 · GP3 ↝ » : la flèche dit que la pince n'est pas sur la broche
     // nommée mais sur un point relié à elle. L'infobulle l'écrit en toutes
     // lettres — un symbole seul n'explique rien.
-    const nom = d.pin ? `${d.nom} · ${d.pin}` : d.nom;
+    const base = nomAffiche(d);
+    const nom = d.pin ? `${base} · ${d.pin}` : base;
     chip.append(document.createTextNode(d.suivi ? `${nom} ↝` : nom));
     if (d.suivi) chip.title = t('Clipped away from the board: this point is wired to {0}.', d.pin);
-    if (d.probleme) chip.classList.add('chip--muet');
+    if (d.probleme || reglagesVoies[d.voie]?.masquee) chip.classList.add('chip--muet');
     legende.append(chip);
+  }
+  if (voieReglee !== null) {
+    const d = diagnostics.find((x) => x.voie === voieReglee);
+    if (d) legende.append(panneauReglages(d));
+    else voieReglee = null;
   }
   const fin = capture.tFin;
   etatTexte.textContent = enCours
@@ -296,6 +429,127 @@ function majEtiquettes(): void {
     : capture.aDesDonnees
       ? t('Last capture: {0} ms', fin.toFixed(1))
       : '';
+}
+
+/**
+ * Réglages d'UNE voie, dépliés sous la légende. Tout y est propre à la voie :
+ * ce qu'elle montre (nom, teinte, masquage) et comment elle se lit (sens au
+ * repos, vitesse). Rien de tout cela ne dépend d'un protocole — une voie garde
+ * son nom et son sens même sans décodage.
+ */
+function panneauReglages(d: VoieVue): HTMLElement {
+  const sombre = themeSombre();
+  const boite = document.createElement('div');
+  boite.className = 'reglages';
+  const r = (reglagesVoies[d.voie] ??= {});
+  const change = (): void => {
+    majInversions();
+    majEtiquettes();
+    dessiner();
+    envoyerReglages();
+  };
+
+  // Nom : vide = on revient au nom automatique, qui suit la pince.
+  const labNom = document.createElement('label');
+  labNom.textContent = t('Name');
+  const champNom = document.createElement('input');
+  champNom.type = 'text';
+  champNom.size = 10;
+  champNom.value = r.nom ?? '';
+  champNom.placeholder = d.nom;
+  champNom.addEventListener('input', () => {
+    r.nom = champNom.value;
+    change();
+    // Réécrire la légende reprend le focus : on le rend au champ, sinon on ne
+    // peut pas taper deux lettres de suite.
+    (legende.querySelector('.reglages input[type=text]') as HTMLInputElement | null)?.focus();
+  });
+  labNom.append(champNom);
+  boite.append(labNom);
+
+  // Teinte : la palette des voies, pas un choix libre — les huit teintes sont
+  // celles qui se distinguent sur les deux thèmes.
+  const labTeinte = document.createElement('label');
+  labTeinte.textContent = t('Color');
+  const teintes = document.createElement('span');
+  teintes.className = 'teintes';
+  for (let i = 0; i < 8; i++) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.style.background = couleurVoie(i, sombre);
+    b.setAttribute('aria-pressed', String((r.couleur ?? d.voie) === i));
+    b.addEventListener('click', () => {
+      r.couleur = i === d.voie ? undefined : i;
+      change();
+    });
+    teintes.append(b);
+  }
+  labTeinte.append(teintes);
+  boite.append(labTeinte);
+
+  // Niveau au repos : une ligne active-bas (RESET, CS, bus à collecteur ouvert)
+  // se lit à l'envers. Sans ce réglage l'élève lit le complément de ses octets.
+  const labRepos = document.createElement('label');
+  labRepos.title = t('Active-low line: read the channel upside down (idle high).');
+  const caseRepos = document.createElement('input');
+  caseRepos.type = 'checkbox';
+  caseRepos.checked = r.repos === 1;
+  caseRepos.addEventListener('change', () => {
+    r.repos = caseRepos.checked ? 1 : 0;
+    change();
+  });
+  labRepos.append(caseRepos, document.createTextNode(t('Idle high')));
+  boite.append(labRepos);
+
+  const labMasque = document.createElement('label');
+  labMasque.title = t('Hide this channel: it keeps its capture, it just leaves the screen.');
+  const caseMasque = document.createElement('input');
+  caseMasque.type = 'checkbox';
+  caseMasque.checked = r.masquee === true;
+  caseMasque.addEventListener('change', () => {
+    r.masquee = caseMasque.checked;
+    change();
+  });
+  labMasque.append(caseMasque, document.createTextNode(t('Hide')));
+  boite.append(labMasque);
+
+  // Vitesse : elle prime sur celle du décodage. Vide = celle du protocole.
+  const labBauds = document.createElement('label');
+  labBauds.textContent = t('Baud');
+  const champBauds = document.createElement('input');
+  champBauds.type = 'number';
+  champBauds.min = '1';
+  champBauds.size = 8;
+  champBauds.value = r.bauds ? String(r.bauds) : '';
+  champBauds.placeholder = t('auto');
+  champBauds.addEventListener('change', () => {
+    const n = Number(champBauds.value);
+    r.bauds = Number.isFinite(n) && n > 0 ? n : undefined;
+    change();
+  });
+  labBauds.append(champBauds);
+  boite.append(labBauds);
+
+  // Tolérance sur la durée d'un bit, en pourcentage : un signal bruité cadre
+  // mal avec la valeur par défaut, et le décodeur rend alors des erreurs.
+  const labTol = document.createElement('label');
+  labTol.textContent = t('Tolerance %');
+  const champTol = document.createElement('input');
+  champTol.type = 'number';
+  champTol.min = '1';
+  champTol.max = '90';
+  champTol.size = 4;
+  champTol.value = r.tolerance ? String(Math.round(r.tolerance * 100)) : '';
+  champTol.placeholder = t('auto');
+  champTol.addEventListener('change', () => {
+    const n = Number(champTol.value);
+    r.tolerance = Number.isFinite(n) && n > 0 ? n / 100 : undefined;
+    change();
+  });
+  labTol.append(champTol);
+  boite.append(labTol);
+
+  return boite;
 }
 
 /** Applique le réglage de déclenchement choisi dans la barre. */
@@ -322,7 +576,8 @@ function envoyerReglages(): void {
   vscode?.postMessage({
     type: 'analyseurReglages',
     declenchement: capture.reglageDeclenchement,
-    decodage: reglage,
+    decodages,
+    voiesReglages: reglagesVoies,
   });
 }
 
@@ -348,7 +603,7 @@ window.addEventListener('message', (ev) => {
           .map((d) => ({ voie: d.voie, pin: d.pin, nom: d.nom }))
       );
       remplirVoies(selDeclVoie, t('none'));
-      majRoles();
+      majDecodages();
       dessiner();
       return;
     }
@@ -383,11 +638,18 @@ function restaurer(etat: EtatSerialise): void {
     selDeclVoie.value = String(etat.declenchement.voie);
     selDeclSens.value = etat.declenchement.sens;
   }
-  if (etat.decodage) {
-    selProto.value = etat.decodage.protocole;
-    reglage = etat.decodage;
-    majRoles();
+  // `decodages` depuis v2026.9.4.94 ; `decodage` (un seul) est ce qu'ont écrit
+  // les .projix d'avant, qui doivent rouvrir avec leur réglage.
+  decodages = etat.decodages ?? (etat.decodage ? [etat.decodage] : []);
+  for (const d of decodages) {
+    if (!d.id) {
+      idDecodage += 1;
+      d.id = `d${idDecodage}`;
+    }
   }
+  reglagesVoies = etat.voiesReglages ?? {};
+  majInversions();
+  majDecodages();
   ajuster();
 }
 
@@ -438,11 +700,6 @@ canvas.addEventListener('pointerup', (ev) => {
 
 selDeclVoie.addEventListener('change', majDeclenchement);
 selDeclSens.addEventListener('change', majDeclenchement);
-selProto.addEventListener('change', () => {
-  majRoles();
-  dessiner();
-  envoyerReglages();
-});
 document.getElementById('tout')?.addEventListener('click', ajuster);
 document.getElementById('suivre')?.addEventListener('click', suivreFinDemande);
 window.addEventListener('resize', () => dessiner());

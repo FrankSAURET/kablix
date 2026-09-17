@@ -18,6 +18,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Les sections de l'aide se replient**, une à une ou toutes d'un coup.
 - **La bibliothèque et le panneau Propriétés/Variables se replient** par la petite flèche de leur bord. Le panneau devient une bande étroite portant son nom, et l'état est mémorisé d'une ouverture à l'autre.
 - **La bibliothèque se replie au démarrage de la simulation** et se rouvre à l'arrêt : la place va au schéma. Un réglage désactive ce comportement.
+- **L'analyseur décode plusieurs bus à la fois.** Le bouton « + Decode » ajoute un décodage de plus sur la même capture : chacun a son protocole, ses réglages, et écrit sous sa propre voie de données. On peut donc lire un bus I²C et une liaison série d'une seule prise de vue.
+- **Chaque voie de l'analyseur se règle à part** : son nom, sa couleur, sa vitesse en bauds et sa tolérance, et la lecture à l'envers pour une ligne au repos à l'état haut. Une voie peut être masquée : elle quitte l'écran mais garde sa capture.
 - **Un générateur BF.** Nouvel appareil des **Appareils de mesure** : il sort un **sinus**, un **triangle** ou un **carré**, de **1 Hz à 1 MHz**, jusqu'à **10 V** de crête, avec **décalage continu** de −5 à +5 V et **rapport cyclique** de 0 à 100 %. Le rapport cyclique déforme le carré **et** le triangle, jusqu'à la dent de scie. Les quatre boutons se tournent à la souris en simulation, et le curseur choisit la forme.
 
 ### Modification
@@ -44,6 +46,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Le générateur BF démarre avec un décalage nul**, comme un appareil de paillasse : son signal est centré sur la masse. Sur une entrée analogique, l'alternance négative est donc coupée — à l'élève d'ajouter le décalage.
 - **Le bouton de fréquence du générateur BF se règle par paliers** : au hertz sous 100 Hz, aux 10 Hz jusqu'à 10 kHz, aux 100 Hz au-delà.
 - **Une pince posée ailleurs que sur la carte suit le fil** jusqu'à la broche qui la commande : pincer la borne d'un module montre enfin son signal. La voie porte le nom de la broche trouvée, suivi d'une flèche.
+- **Un composant posé depuis la bibliothèque en pose un seul.** Un clic un peu vif, ou deux clics de suite, en déposait parfois deux ou trois exactement l'un sur l'autre : on n'en voyait qu'un, mais les propriétés affichées étaient celles d'un autre. Deux composants posés sans bouger la souris se rangent maintenant en escalier.
 
 ## 2026.9.4 (13 septembre 2026)
 

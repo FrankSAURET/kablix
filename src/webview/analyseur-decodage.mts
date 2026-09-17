@@ -39,6 +39,14 @@ export interface Annotation {
   /** Texte affiché (court : il doit tenir dans l'intervalle). */
   texte: string;
   nature: NatureAnnotation;
+  /**
+   * Voie sous laquelle poser l'annotation : la ligne de DONNÉES du décodage qui
+   * l'a produite. Indispensable depuis qu'on décode plusieurs protocoles à la
+   * fois (v2026.9.4.94) — tout empiler sous la dernière piste mélangeait les
+   * trames de deux bus. Absente (anciens appels), la vue retombe sur la
+   * dernière piste, comme avant.
+   */
+  voie?: number;
 }
 
 /** Protocoles décodables. */
@@ -59,7 +67,70 @@ export interface ReglageDecodage {
   mode?: 0 | 1 | 2 | 3;
   /** DMX : vitesse en bauds (250 000 par la norme). */
   bauds?: number;
+  /**
+   * Tolérance relative sur la durée d'un bit (0,25 = ±25 %). Un palier qui
+   * tombe au-delà est signalé comme mal cadré au lieu d'être arrondi en
+   * silence : un signal qui dérive donnait jusqu'ici des octets faux sans que
+   * rien ne dise pourquoi.
+   */
+  tolerance?: number;
+  /**
+   * Identifiant stable du réglage, pour que l'interface puisse en éditer un
+   * parmi plusieurs sans se tromper de ligne. Le décodage ne s'en sert pas.
+   */
+  id?: string;
 }
+
+/**
+ * Réglages propres à UNE voie, indépendants de tout protocole : ils changent
+ * ce que la voie MONTRE, pas ce qu'elle a capturé.
+ *
+ * Ils sont volontairement séparés du réglage de décodage : une voie garde son
+ * nom et son sens de lecture même quand aucun protocole n'est choisi, et deux
+ * décodages qui partagent une voie doivent la voir pareil.
+ */
+export interface ReglageVoie {
+  /**
+   * Nom affiché à la place de celui déduit de la broche. Vide = on garde le
+   * nom automatique, qui suit la pince quand on la déplace.
+   */
+  nom?: string;
+  /**
+   * Indice de teinte dans la palette des voies. Absent = la teinte de l'indice
+   * de la voie, celle de la pince sur la planche.
+   */
+  couleur?: number;
+  /**
+   * Niveau au repos. `1` inverse la lecture : la voie est dessinée et décodée
+   * à l'envers, ce qu'il faut pour toute ligne ACTIVE-BAS (RESET, CS, un bus
+   * à collecteur ouvert sans tirage) — sans quoi l'élève lit le complément de
+   * ses octets sans savoir pourquoi.
+   */
+  repos?: 0 | 1;
+  /** Voie masquée : elle garde sa capture, elle n'est plus dessinée. */
+  masquee?: boolean;
+  /**
+   * Vitesse propre à cette voie, en bauds, pour une ligne série. Elle prime sur
+   * le `bauds` du réglage de décodage : deux lignes série d'un même montage ne
+   * tournent pas forcément à la même vitesse.
+   */
+  bauds?: number;
+  /**
+   * Tolérance relative sur la durée d'un bit (0,25 = ±25 %). Sert aux
+   * décodeurs qui cadrent sur une durée. Absente = la valeur par défaut du
+   * décodeur, qui convient à un signal propre.
+   */
+  tolerance?: number;
+}
+
+/** Réglages de voie, par indice de voie. */
+export type ReglagesVoies = Record<number, ReglageVoie>;
+
+// L'INVERSION N'EST PAS ICI. Une voie réglée active-bas est inversée par la
+// capture elle-même (`AnalyseurCapture.reglerInversion`), en sortie de
+// `niveauA` et `fenetre`. C'est le seul endroit qui garantit que ce que l'élève
+// VOIT est ce que le décodeur a LU : inverser d'un côté seulement donnerait un
+// créneau qui contredit les octets affichés dessous.
 
 /** Deux chiffres hexadécimaux, majuscules. */
 function hex2(n: number): string {
@@ -351,6 +422,12 @@ function decoderDmx(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
   const bauds = r.bauds && r.bauds > 0 ? r.bauds : 250_000;
   /** Durée d'un bit en ms simulées. */
   const bitMs = 1000 / bauds;
+  /**
+   * Écart admis entre la durée mesurée d'un palier et un nombre entier de bits.
+   * 0,25 bit par défaut : au-delà, un signal propre ne dérive pas — c'est le
+   * réglage de vitesse qui est faux.
+   */
+  const tol = r.tolerance && r.tolerance > 0 ? r.tolerance : 0.25;
   const breakMs = DMX_BREAK_US / 1000;
   const out: Annotation[] = [];
 
@@ -418,7 +495,15 @@ function decoderDmx(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
       attendStart = true;
       continue;
     }
-    const bits = Math.min(Math.round(duree / bitMs), MAX_BITS);
+    const brut = duree / bitMs;
+    const bits = Math.min(Math.round(brut), MAX_BITS);
+    // Un palier qui n'est pas un multiple à peu près entier de la durée d'un
+    // bit signale une vitesse mal réglée (ou un signal qui dérive). Arrondir en
+    // silence donnait des octets faux sans rien dire ; on le DIT, une fois par
+    // palier, et on continue de décoder — l'élève voit où ça déraille.
+    if (bits > 0 && bits < MAX_BITS && Math.abs(brut - bits) > tol) {
+      out.push({ t0: f.t - duree, t1: f.t, texte: 'cadrage', nature: 'erreur' });
+    }
     for (let i = 0; i < bits; i++) {
       pousserBit(fini, (f.t - duree) + (i + 1) * bitMs);
     }
@@ -442,14 +527,55 @@ function decoderDmx(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
  * chose utile à montrer.
  */
 export function decoder(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
-  switch (r.protocole) {
-    case 'i2c':
-      return decoderI2c(voies, r);
-    case 'spi':
-      return decoderSpi(voies, r);
-    case 'dmx':
-      return decoderDmx(voies, r);
+  const sorties = (() => {
+    switch (r.protocole) {
+      case 'i2c':
+        return decoderI2c(voies, r);
+      case 'spi':
+        return decoderSpi(voies, r);
+      case 'dmx':
+        return decoderDmx(voies, r);
+    }
+  })();
+  // Chaque annotation part avec SA voie de données : c'est ce qui permet à la
+  // vue de poser deux décodages simultanés sous deux pistes différentes.
+  const ancre = ancreDe(r);
+  return ancre === undefined ? sorties : sorties.map((a) => ({ ...a, voie: ancre }));
+}
+
+/**
+ * Voie de DONNÉES d'un réglage — celle sous laquelle poser ses annotations.
+ * Pour SPI, MOSI d'abord : c'est la ligne que l'élève regarde, MISO ne sert
+ * que si le montage lit quelque chose.
+ */
+function ancreDe(r: ReglageDecodage): number | undefined {
+  for (const cle of ['donnees', 'donnees2', 'horloge'] as const) {
+    const v = r[cle];
+    if (typeof v === 'number' && v >= 0) return v;
   }
+  return undefined;
+}
+
+/**
+ * Décode PLUSIEURS protocoles sur la même capture et rend leurs annotations
+ * fondues dans l'ordre du temps.
+ *
+ * Un montage porte couramment deux bus (un écran en I²C et une carte SD en SPI,
+ * un DMX et son horloge) : l'analyseur n'avait qu'un protocole pour tout le
+ * monde, il fallait choisir lequel des deux on renonçait à lire. Chaque réglage
+ * garde ses propres voies, son mode et sa vitesse — d'où une LISTE de réglages
+ * et non un réglage à plusieurs lignes.
+ *
+ * Les réglages incomplets sont sautés en silence : c'est l'état normal pendant
+ * qu'on affecte les voies dans l'interface.
+ */
+export function decoderTous(voies: VoieCapture[], reglages: ReglageDecodage[]): Annotation[] {
+  const out: Annotation[] = [];
+  for (const r of reglages) {
+    if (!reglageComplet(r)) continue;
+    out.push(...decoder(voies, r));
+  }
+  return out.sort((a, b) => a.t0 - b.t0);
 }
 
 /**

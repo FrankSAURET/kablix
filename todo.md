@@ -1,13 +1,32 @@
 # À faire
 1. Analyseur Logique
-    1. Sur dmx-pico, je ne vois tjs rien
-    1. On doit pouvoir changer les paramètres par courbe
-    1. la sonde n'a pas été réparé ; l'extrémité (le crochet) doit récupérer son dégradé métallique afin  d'être visible dur la grille. Le point de connexion (en bas à gauche : le centre de la pastille rouge sur mon  dessin) doit être sur la grille.
-    1. Comportement, on la prend, elle est grise et dès qu'elle est connectée elle prend la couleur suivante. Si on la déconnecte elle redevient grise et si on la reconnect elle se recolore.
-1. De temps en temps les propriétés d'un objet sont triplés. Je l'ai remarqué sur les nouveaus objets mais ce sont aussi ceux sue je test le plus. Une désélection resélection résoud le PB mais corrige ce bug.
+    1. ⬜ Sur dmx-pico, je ne vois tjs rien
+    1. ✅ On doit pouvoir changer les paramètres par courbe *(lot .94 : décodages multiples, réglages d'affichage par voie, seuils et temps par voie)*
+    1. ⬜ la sonde n'a pas été réparé ; l'extrémité (le crochet) doit récupérer son dégradé métallique afin  d'être visible dur la grille. Le point de connexion (en bas à gauche : le centre de la pastille rouge sur mon  dessin) doit être sur la grille.
+    1. ⬜ Comportement, on la prend, elle est grise et dès qu'elle est connectée elle prend la couleur suivante. Si on la déconnecte elle redevient grise et si on la reconnect elle se recolore.
+1. ✅ De temps en temps les propriétés d'un objet sont triplés. Je l'ai remarqué sur les nouveaus objets mais ce sont aussi ceux sue je test le plus. Une désélection resélection résoud le PB mais corrige ce bug. *(lot .94 : ce n'était pas l'inspecteur mais la pose — plusieurs composants empilés au même point)*
 
 ## ne pas faire pour l'instant
 
+
+---
+
+# >>>>  v2026.9.4.94 — Réglages par courbe, et la fin des propriétés triplées
+
+1. ✅ **Plusieurs décodages en même temps** (item 1.2). Un bouton `+ Decode` ajoute un décodage de plus sur la même capture : chacun écrit **sous sa propre voie de données**, avec son propre protocole et ses propres réglages. Avant, changer de protocole remplaçait le décodage précédent ; on ne pouvait pas lire un bus I²C et une liaison série sur la même prise de vue ([analyseur-decodage.mts](src/webview/analyseur-decodage.mts), [analyseur-vue.mts](src/webview/analyseur-vue.mts)).
+2. ✅ **Réglages d'affichage PAR VOIE** (item 1.2 toujours) : nom, teinte, ligne inversée (`Idle high`, lecture à l'envers) et masquage. Une voie masquée **garde sa capture** — elle quitte l'écran, elle ne s'efface pas : l'élève qui la ré-affiche retrouve ses données.
+3. ✅ **Seuils et temps par voie** : vitesse en bauds et tolérance en pourcent se règlent voie par voie, avec `auto` pour laisser l'analyseur trouver. Un montage mélange des bus qui n'ont **pas** la même vitesse ; un réglage global ne pouvait convenir qu'à l'un d'eux.
+4. ✅ **Item 2 (« de temps en temps les propriétés d'un objet sont triplées ») : cause trouvée, et ce n'était PAS l'inspecteur.** L'inspecteur est structurellement incapable de tripler — il commence par `replaceChildren()`. Le défaut était dans la **pose** : plusieurs composants réellement empilés **au même point**, donc un seul visible. L'inspecteur montrait celui du dessus, et la désélection/resélection de Frank tombait sur un **autre exemplaire** de la pile — d'où l'impression de propriétés en double ou en triple, et d'où le fait que son remède « marchait ».
+5. ✅ **Première cause : une seule pose à la fois** ([editor.mts](src/webview/diagram/editor.mts), `startPlaceFromPalette`). Un second appui reçu **avant le relâché** lançait une seconde pose, et les deux gestes suivaient ensuite la même souris jusqu'au même point. Le cas arrive tout seul : dès le premier appui le composant naît sous le curseur et **la palette bouge dessous**, si bien qu'un appui vif suivant porte sur un **autre bouton**. Mesuré exactement ça : résistance, puis phototransistor, puis photodiode, tous au même endroit.
+6. ✅ **Seconde cause : deux poses sans déplacement visaient le même centre de vue au pixel près** (`decaleSiOccupe`). Deux clics secs sur la palette, deux « Entrée » : le second recouvrait le premier **exactement**. Le point de pose s'écarte désormais d'un pas de grille en diagonale tant qu'on revise le même — l'élève voit ses composants en escalier et les range ensuite comme il veut. Vingt marches au plus, puis on repart du centre.
+7. ✅ **Le décalage ne mesure PAS le dessin, et c'est la leçon de mise au point du lot** : la première version comparait le point visé aux centres des composants déjà posés. Sans effet. Mesuré au banc : à l'instant de la pose, le corps Lit n'est pas encore rendu et `offsetWidth` vaut **0** — pas `undefined`, donc le repli `?? 40` ne s'appliquait même pas. Tous les centres tombaient sur le coin, jamais près du centre de vue. La version retenue se rappelle simplement le **dernier point de pose sans déplacement**.
+8. ✅ **Cinq contrôles à la VRAIE souris ajoutés à [verify-souris.mjs](scripts/verify-souris.mjs)** (§10) : trois appuis sans relâché → un seul composant, et c'est bien celui du bouton visé ; trois clics secs → trois composants dont **aucun** n'en recouvre un autre ; le geste normal inchangé. Aucun de ces contrôles n'était possible avec des événements fabriqués — c'est le navigateur qui décide de l'ordre des appuis et de qui les reçoit.
+9. ✅ **Contre-épreuve concluante** : `git stash` sur [editor.mts](src/webview/diagram/editor.mts) → **3 ❌ nommés**, `resistor | phototransistor | photodiode` empilés pour le premier cas, `resistor | resistor | resistor` tous en `460,470` pour le second. Le banc distingue bien les deux causes.
+10. ✅ **Filet anti-banc-vert-muet posé au passage** : le `try` de [verify-souris.mjs](scripts/verify-souris.mjs) n'avait **aucun** `catch`. Une exception (sélecteur disparu, page morte) sortait par le `finally` sans le moindre ❌ et le banc rendait 0 contrôle en passant pour vert — la contre-épreuve n'aurait alors rien prouvé. Une exception est maintenant un échec nommé, et un banc qui joue moins de 20 contrôles échoue aussi.
+11. ℹ️ **Piège de banc rencontré et corrigé** : la position d'écran d'un bouton de palette **ne se garde pas** d'un geste à l'autre — un `scrollIntoView` intermédiaire fait défiler la palette et l'ancienne position désigne alors le bouton du voisin (mesuré : une LED au lieu de la résistance). Le bouton se remesure avant chaque geste.
+12. ℹ️ **Fausses pistes écartées, toutes vérifiées** : `propGroupBody` non remis à `null`, doublons dans `def.props`, mutation des tableaux `props` partagés (aucun `props.push` dans tout le code), écouteurs empilés sur la palette (`buildPalette` fait `replaceChildren()`), plusieurs écrivains de l'inspecteur (un seul, `readonly`). Le `vcemax`/`icmax` signalé sur les transistors est un **faux positif** : même attribut, libellés distincts, exclus mutuellement par `showIf`.
+13. ⏳ **Traductions en attente** (règle « jamais de traduction au fil de l'eau ») : `verify:i18n` compte 7 manques, dont toutes les chaînes neuves de ce lot — `+ Decode`, `Remove this decoding`, `Channel settings`, `Name`, `Color`, `Idle high`, `Hide`, `Baud`, `Tolerance %`, `auto` et leurs infobulles — plus la dette des lots .90/.91/.92. À verser au lot d'avant publication.
+14. ℹ️ **`version` reste `2026.9.4`**, `buildNumber` à 94. CHANGELOG complété sous `2026.9.5 (prochaine publication)`.
 
 ---
 
