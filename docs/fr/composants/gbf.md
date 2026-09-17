@@ -24,12 +24,14 @@ Les deux prises sont espacées de 20 px (deux pas de grille). Câblez **Vs** sur
 | `waveform` | Forme : sinus, triangle ou carré | `sinus` |
 | `frequency` | **Fréquence** (Hz), 1 à 1 000 000 au **Hz près** | `1000` |
 | `amplitude` | **Amplitude crête** (V), 0 à 10 par pas de **0,1** | `2,5` |
-| `offset` | **Décalage continu** (V), −5 à +5 par pas de **0,1** | `2,5` |
+| `offset` | **Décalage continu** (V), −5 à +5 par pas de **0,1** | `0` |
 | `duty` | **Rapport cyclique** (%), 0 à 100 au **pourcent** | `50` |
 
 > Ces valeurs sont l'état de **départ** : ce sont elles qui reviennent à chaque lancement de simulation. Les boutons tournés en cours de séance ne modifient pas le projet — l'énoncé garde ses réglages d'origine.
 
 L'amplitude est une amplitude **crête**, pas crête-à-crête : `amplitude = 2,5` et `offset = 2,5` donnent un signal qui va de **0 à 5 V**, soit 5 V crête-à-crête.
+
+Sorti de son carton, l'appareil a un **décalage nul** : son signal est centré sur la masse, comme sur une paillasse. Branché tel quel sur une entrée analogique, il est donc **écrêté** sur toute son alternance négative (voir plus bas) — c'est à vous d'ajouter le décalage.
 
 ## Régler l'appareil en cours de simulation
 

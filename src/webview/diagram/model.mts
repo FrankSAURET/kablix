@@ -3902,6 +3902,36 @@ export function scopeProbePins(diagram: Diagram): Array<{ partId: string; pin: s
   return out;
 }
 
+/**
+ * GÉNÉRATEUR BF que chaque oscilloscope regarde : celui dont la sortie `Vs` se
+ * trouve sur le même nœud que sa prise « + ».
+ *
+ * Même raison d'être que `scopeProbePins`, pour un signal qui n'est pas un
+ * créneau de broche : sans ça l'appareil n'a qu'UN point par image. À 1 kHz,
+ * seize périodes s'écoulent entre deux images et la courbe obtenue n'a plus
+ * aucun rapport avec le signal — c'est le « l'oscilloscope n'affiche pas du
+ * tout ce qui est généré par le GBF » de Frank. L'onde étant connue par sa
+ * formule, l'appelant peut la rééchantillonner autant de fois qu'il faut.
+ *
+ * Une broche MCU sur le même nœud gagne : elle est datée au cycle près par le
+ * moteur, c'est plus fidèle qu'une formule rejouée.
+ */
+export function scopeGbfSources(diagram: Diagram): Array<{ partId: string; gbfId: string }> {
+  const scopes = diagram.parts.filter((p) => partDef(p.type).kind === 'scope');
+  const gbfs = diagram.parts.filter((p) => p.type === 'gbf');
+  if (scopes.length === 0 || gbfs.length === 0) return [];
+  const nets = buildNets(diagram);
+  const dejaSonde = new Set(scopeProbePins(diagram).map((q) => q.partId));
+  const out: Array<{ partId: string; gbfId: string }> = [];
+  for (const scope of scopes) {
+    if (dejaSonde.has(scope.id)) continue;
+    const net = nets.netOf({ partId: scope.id, pin: '+' });
+    const gbf = gbfs.find((g) => nets.netOf({ partId: g.id, pin: 'Vs' }) === net);
+    if (gbf) out.push({ partId: scope.id, gbfId: gbf.id });
+  }
+  return out;
+}
+
 export interface SevenSegmentMuxBinding {
   partId: string;
   digits: number;

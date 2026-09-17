@@ -1,8 +1,33 @@
 # À faire
-
+1. Analyseur Logique
+    1. Sur dmx-pico, je ne vois tjs rien
+    1. On doit pouvoir changer les paramètres par courbe
+    1. la sonde n'a pas été réparé ; l'extrémité (le crochet) doit récupérer son dégradé métallique afin  d'être visible dur la grille. Le point de connexion (en bas à gauche : le centre de la pastille rouge sur mon  dessin) doit être sur la grille.
+    1. Comportement, on la prend, elle est grise et dès qu'elle est connectée elle prend la couleur suivante. Si on la déconnecte elle redevient grise et si on la reconnect elle se recolore.
+1. De temps en temps les propriétés d'un objet sont triplés. Je l'ai remarqué sur les nouveaus objets mais ce sont aussi ceux sue je test le plus. Une désélection resélection résoud le PB mais corrige ce bug.
 
 ## ne pas faire pour l'instant
 
+
+---
+
+# >>>>  v2026.9.4.93 — L'oscilloscope voit enfin le générateur
+
+1. ✅ **Décalage du GBF à 0 V par défaut** (item 1.2), et **rapport cyclique déjà à 50 %** (item 1.1 : c'était le cas depuis le lot .90, vérifié avant de toucher quoi que ce soit). Le décalage valait `2,5` — commode, parce que le sinus tenait alors pile dans la plage d'un ADC Arduino, mais ce n'est pas un appareil qu'on trouve sur une paillasse. Sorti de son carton, un GBF sort un signal **centré sur la masse** ([catalog.mts](src/webview/diagram/catalog.mts)).
+2. ✅ **Conséquence assumée et écrite** : branché tel quel sur une entrée analogique, l'appareil est maintenant **écrêté sur toute son alternance négative**. C'est exact — c'est ce que l'élève verrait sur une vraie carte — et c'est à lui d'ajouter le décalage. La [fiche d'aide](docs/fr/composants/gbf.md) le dit à l'endroit du tableau des défauts, pas seulement dans le paragraphe sur l'écrêtage qui existait déjà plus bas.
+3. ✅ **La vraie cause du « l'oscilloscope n'affiche pas du tout ce qui est généré par le GBF »** (item 1.3) : l'appareil ne relevait qu'**UN point par image**. Le lot .92 avait posé la source dans le modèle — la tension était donc juste — mais à 60 images par seconde et 1 kHz, **seize périodes** s'écoulent entre deux points : la courbe obtenue n'a aucun rapport avec le signal. C'est le même défaut que le lot .36 avait réglé pour les broches de la carte, sauf qu'un générateur n'a aucun front à dater.
+4. ✅ **L'onde est REJOUÉE par sa formule, pas échantillonnée plus vite** ([sim.mts](src/webview/sim.mts), `salveGbf`). On connaît le signal exactement : 1 200 points sont recalculés à chaque image et versés d'un coup. Aucun moteur à accélérer, aucune horloge à changer — et l'heure reste celle du **programme** (`simulatedMs`), donc au ralenti la courbe ralentit avec lui.
+5. ✅ **L'intervalle rejoué est plafonné à DEUX largeurs d'écran.** Une image dure ~16 ms, un écran vaut souvent moins (5 ms à 0,5 ms/div) : remplir tout l'intervalle enverrait des points par le bord gauche sans qu'ils aient jamais été affichés. Deux écrans, c'est ce dont le **déclenchement** a besoin pour remonter le temps et caler la trace.
+6. ✅ **La charge du montage est rattrapée, pas ignorée** : le rapport entre la tension **lue** sur le montage et la tension à vide du générateur est mesuré à chaque image et appliqué à toute la salve. Il est mis à jour **seulement** quand la tension du générateur est à plus de 0,2 V de zéro — sinon, au passage par zéro, on diviserait par presque rien et le gain partirait en vrille. Vaut 1 en branchement direct, le cas courant.
+7. ✅ **La salve est versée SANS retenue** ([oscillo-element.mts](src/webview/composants/oscillo-element.mts), `pushMany(flat, hold)`). La retenue était codée en dur : elle est juste pour des fronts datés (palier, puis saut droit), mais elle transformerait un sinus en **escalier**. Le défaut du paramètre reste `true` — aucun appelant existant n'est touché.
+8. ✅ **L'oscilloscope sait QUEL générateur il regarde** ([model.mts](src/webview/diagram/model.mts), `scopeGbfSources`) : celui dont la sortie `Vs` est sur le nœud de sa prise « + ». Une **broche numérique** sur le même nœud **gagne** — le moteur la date au cycle près, c'est plus fidèle qu'une formule rejouée. Une entrée analogique, elle, ne compte pas : c'est justement le cas de `gbf-pico.projix`, où `Vs` va à la fois à l'oscilloscope et à `GP26`.
+9. ✅ **Cinq contrôles de modèle à [verify-gbf.mjs](scripts/verify-gbf.mjs)** (les deux défauts, le générateur reconnu, la prise posée sur la masse qui ne reconnaît rien, la broche numérique qui gagne) et **trois sur les sources de `sim.mts`** — même méthode que `verify-analyseur` : faire tourner `salveGbf` demanderait un moteur, une carte et une simulation lancée.
+10. ✅ **Quatre contrôles de rendu réel à [verify-oscillo.mjs](scripts/verify-oscillo.mjs)** : hauteur et centrage de l'enveloppe (5 carreaux pile pour ±2,5 V à 1 V/div), cinq périodes lisibles à l'écran, trace couvrant les 199 colonnes, et le **mode** lui-même.
+11. ✅ **Premier contrôle du mode ABANDONNÉ parce qu'il ne prouvait rien** : posé sur la salve dense, il passait **avant comme après** le correctif. Normal — à six points par colonne, la retenue et la pente donnent exactement la même enveloppe. Il mesure maintenant une salve **clairsemée** (40 points pour 199 colonnes), là où les deux modes dessinent vraiment deux choses différentes.
+12. ✅ **Contre-épreuve concluante** : `git stash` sur [oscillo-element.mts](src/webview/composants/oscillo-element.mts) → `0 pentes, 39 sauts` au lieu de `39 pentes, 0 sauts`, le banc tombe sur ce seul contrôle. `git stash` sur le modèle et le catalogue → le décalage par défaut est vu rouge (`2.5 V`).
+13. ✅ **Schéma `gbf-pico.projix` laissé tel que Frank l'a remis** (sa consigne), avec son oscilloscope. `_generate.mjs` n'a pas été lancé : il écrase les `.projix` sans les filtrer (dégât déjà payé au lot .91).
+14. ⏳ **Traductions en attente** (règle « jamais de traduction au fil de l'eau ») : aucune chaîne neuve ce lot. La dette reste celle des lots .90/.91/.92, à verser au lot d'avant publication.
+15. ℹ️ **`version` reste `2026.9.4`**, `buildNumber` à 93. CHANGELOG complété sous `2026.9.5 (prochaine publication)`.
 
 ---
 

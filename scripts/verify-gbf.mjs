@@ -31,7 +31,8 @@ const buildTo = async (entry, outfile) => {
 };
 const { gbfWaveform, evalAnalogWave } = await buildTo('src/webview/engines/analog-waves.mts', 'waves.mjs');
 const { partDef, partCategory, CATEGORY_ORDER } = await buildTo('src/webview/diagram/catalog.mts', 'catalog.mjs');
-const { analogSourceBindings, meterReadings } = await buildTo('src/webview/diagram/model.mts', 'model.mjs');
+const { analogSourceBindings, meterReadings, scopeGbfSources, scopeProbePins } =
+  await buildTo('src/webview/diagram/model.mts', 'model.mjs');
 
 let failures = 0;
 const check = (label, ok) => {
@@ -60,6 +61,14 @@ check('catalogue : rapport cyclique 0 .. 100 % au pourcent',
   prop('duty')?.min === 0 && prop('duty')?.max === 100 && prop('duty')?.step === 1);
 check('catalogue : trois formes proposées (sinus, triangle, carré)',
   ['sinus', 'triangle', 'carre'].every((f) => prop('waveform')?.options?.includes(f)));
+// Défauts d'un VRAI GBF sorti de son carton (Frank, .93) : signal CENTRÉ sur la
+// masse et rapport cyclique symétrique. Le décalage valait 2,5 V, ce qui faisait
+// tenir le sinus dans la plage d'un ADC Arduino — commode, mais ce n'est pas un
+// générateur qu'on trouve sur une paillasse.
+check(`catalogue : décalage nul par défaut — ${def.attrs?.offset} V`,
+  Number(def.attrs?.offset) === 0);
+check(`catalogue : rapport cyclique à 50 % par défaut — ${def.attrs?.duty} %`,
+  Number(def.attrs?.duty) === 50);
 
 // --- Aide locale (bouton d'aide de l'inspecteur → docs/fr/composants/gbf.md) ----
 const helpMd = join(root, 'docs', 'fr', 'composants', 'gbf.md');
@@ -212,6 +221,59 @@ check('netlist : GBF non câblé → aucune liaison (contre-épreuve)',
   const sans = meterReadings(montage, 5, () => 'hiz').find((m) => m.partId === 'OSC1');
   check('modèle : GBF sans tension datée → rien à lire (contre-épreuve)',
     sans && sans.value === null);
+
+  // --- L'oscilloscope RECONNAÎT le générateur qu'il regarde (v2026.9.4.93) ----
+  //
+  // Lire la tension ne suffisait pas : l'appareil n'en prenait qu'UN point par
+  // image. À 1 kHz, seize périodes s'écoulent entre deux images — la courbe
+  // affichée n'avait plus aucun rapport avec le signal (« l'oscilloscope
+  // n'affiche pas du tout ce qui est généré par le GBF », Frank). sim.mts
+  // rééchantillonne maintenant l'onde, encore faut-il qu'il sache QUEL
+  // générateur alimente la prise « + ».
+  const vus = scopeGbfSources(montage);
+  check('modèle : oscilloscope branché sur Vs → son générateur est reconnu',
+    vus.length === 1 && vus[0].partId === 'OSC1' && vus[0].gbfId === 'G1');
+  // Prise « + » sur la MASSE du générateur : ce n'est pas sa sortie, il n'y a
+  // pas d'onde à rejouer — sans cette garde, l'appareil aurait tracé le signal
+  // sur un fil où il n'est pas.
+  check('modèle : prise + sur la masse → aucun générateur reconnu (contre-épreuve)',
+    scopeGbfSources({
+      parts: montage.parts,
+      wires: [{ id: 'w1', a: { partId: 'G1', pin: 'GND' }, b: { partId: 'OSC1', pin: '+' }, path: [] }],
+    }).length === 0);
+  // Une BROCHE de la carte sur le même nœud gagne : le moteur la date au cycle
+  // près, c'est plus fidèle qu'une formule rejouée. Le schéma de test réel
+  // (gbf-pico) est justement dans ce cas — sauf que GP26 y est une entrée
+  // ANALOGIQUE, que `scopeProbePins` ne retient pas : le rééchantillonnage doit
+  // donc bien s'appliquer là.
+  const surDigitale = {
+    parts: [...montage.parts, { id: 'U1', type: 'uno', x: 0, y: 300, attrs: {} }],
+    wires: [
+      ...montage.wires,
+      { id: 'w3', a: { partId: 'G1', pin: 'Vs' }, b: { partId: 'U1', pin: '3' }, path: [] },
+    ],
+  };
+  check('modèle : broche numérique sur le même nœud → la sonde datée gagne',
+    scopeProbePins(surDigitale).length === 1 && scopeGbfSources(surDigitale).length === 0);
+}
+
+// --- La chaîne de rééchantillonnage dans sim.mts (contrôle sur les SOURCES) ----
+//
+// `salveGbf` vit au cœur de la boucle d'image : le faire tourner demanderait un
+// moteur, une carte et une simulation lancée. On vérifie donc que la chaîne est
+// bien en place — c'est la même méthode que pour les autres branchements de
+// sim.mts (cf. verify-analyseur).
+{
+  const sim = readFileSync(join(root, 'src', 'webview', 'sim.mts'), 'utf8');
+  check('sim : les oscilloscopes branchés sur un GBF sont recensés au lancement',
+    /scopeGbfs\s*=\s*scopeGbfSources\(editor\.diagram\)/.test(sim));
+  // La salve part au mode PENTE : un sinus versé en retenue serait un escalier.
+  check("sim : la salve est versée sans retenue (onde continue, pas de créneau)",
+    /scope\.pushMany\(salveG,\s*false\)/.test(sim));
+  // Elle ne remplace le point par image que si un générateur est reconnu :
+  // ailleurs dans le montage (pont diviseur, condensateur) rien ne change.
+  check('sim : sans générateur reconnu, on garde le point par image',
+    /if\s*\(salveG\)\s*scope\.pushMany\(salveG,\s*false\);\s*\n\s*else\s+scope\.push\(/.test(sim));
 }
 
 // --- Rendu réel (Chrome headless, avec de VRAIS événements de souris) ----------

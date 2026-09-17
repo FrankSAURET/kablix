@@ -116,6 +116,7 @@ import {
   sevenSegmentMuxBindings,
   pulseMonitorPins,
   scopeProbePins,
+  scopeGbfSources,
   logicProbeVoies,
   type LogicProbeVoie,
   neopixelBindings,
@@ -1290,14 +1291,103 @@ function gbfVoltsAt(partId: string): number | null {
   if (!Number.isFinite(amplitude) || !Number.isFinite(offset)) return null;
   const now = performance.now();
   const t = engine?.simulatedMs?.() ?? now;
-  const periodMs = 1000 / freq;
-  const phase = (((t % periodMs) + periodMs) % periodMs) / periodMs;
+  return gbfVoltsInstant({ forme, freq, amplitude, offset, duty }, t);
+}
+
+/** Réglages d'un générateur BF, lus une fois puis rejoués à plusieurs instants. */
+interface GbfReglages {
+  forme: string;
+  freq: number;
+  amplitude: number;
+  offset: number;
+  duty: number;
+}
+
+/** Réglages COURANTS du dessin d'un générateur, ou `null` s'il n'est pas posé. */
+function gbfReglages(partId: string): GbfReglages | null {
+  const cible = gbfParts.find((g) => g.partId === partId);
+  if (!cible) return null;
+  const el = cible.el;
+  const amplitude = Number(el.amplitude ?? 5);
+  const offset = Number(el.offset ?? 0);
+  if (!Number.isFinite(amplitude) || !Number.isFinite(offset)) return null;
+  return {
+    forme: String(el.forme ?? 'sinus'),
+    freq: Math.max(1, Math.min(1_000_000, Number(el.freq ?? 1000))),
+    amplitude,
+    offset,
+    duty: Number(el.duty ?? 50),
+  };
+}
+
+/** Tension du générateur à un instant PRÉCIS (ms simulées), en volts. */
+function gbfVoltsInstant(r: GbfReglages, tMs: number): number {
+  const periodMs = 1000 / r.freq;
+  const phase = (((tMs % periodMs) + periodMs) % periodMs) / periodMs;
   const norme = gbfWaveform(
-    forme === 'triangle' || forme === 'carre' ? forme : 'sinus',
+    r.forme === 'triangle' || r.forme === 'carre' ? r.forme : 'sinus',
     phase,
-    Math.max(0, Math.min(1, duty / 100)),
+    Math.max(0, Math.min(1, r.duty / 100)),
   );
-  return offset + amplitude * norme;
+  return r.offset + r.amplitude * norme;
+}
+
+/**
+ * Nombre de points rééchantillonnés par image pour un oscilloscope branché sur
+ * un générateur BF. L'écran fait 199 colonnes : au-delà de quelques points par
+ * colonne, on paierait des tracés que personne ne voit. Le plafond tient deux
+ * images dans le tampon de l'appareil (4096 points).
+ */
+const GBF_POINTS_PAR_IMAGE = 1200;
+
+/**
+ * Salve de points d'un oscilloscope branché sur la sortie d'un générateur BF,
+ * à plat ([ms, volts, ms, volts…]), depuis le dernier point tracé jusqu'à
+ * maintenant.
+ *
+ * L'intervalle couvert est plafonné à DEUX largeurs d'écran : au-delà, les
+ * points sortiraient par le bord gauche sans avoir jamais été affichés, et la
+ * recherche du déclenchement n'a besoin que d'un écran de recul. Une image dure
+ * ~16 ms, un écran vaut souvent moins — c'est le cas courant, pas l'exception.
+ *
+ * `charge` rattrape la chute due au montage : l'oscilloscope ne lit pas la
+ * tension à vide du générateur s'il est branché derrière une résistance. Le
+ * rapport est mesuré sur la lecture RÉELLE de l'image (`lu`), et seulement
+ * quand la tension du générateur est assez loin de zéro — sinon on diviserait
+ * par presque rien et le gain partirait en vrille au passage par zéro.
+ */
+function salveGbf(
+  scopeId: string,
+  gbfId: string,
+  maintenant: number,
+  el: SimElement,
+  lu: number | null,
+): number[] | null {
+  const r = gbfReglages(gbfId);
+  if (!r) return null;
+  const secDiv = Number((el as unknown as { secondsDiv?: number }).secondsDiv ?? 0.001);
+  const ecranMs = Math.max(0.01, (Number.isFinite(secDiv) ? secDiv : 0.001) * 10 * 1000);
+  const aVide = gbfVoltsInstant(r, maintenant);
+  let charge = scopeGbfCharge.get(scopeId) ?? 1;
+  if (lu !== null && Number.isFinite(lu) && Math.abs(aVide) > 0.2) {
+    charge = lu / aVide;
+    scopeGbfCharge.set(scopeId, charge);
+  }
+  const precedent = scopeGbfDernier.get(scopeId);
+  const debut = Math.max(
+    maintenant - 2 * ecranMs,
+    precedent !== undefined && precedent < maintenant ? precedent : maintenant - ecranMs,
+  );
+  const duree = maintenant - debut;
+  if (!(duree > 0)) return null;
+  const n = GBF_POINTS_PAR_IMAGE;
+  const salve: number[] = [];
+  for (let i = 1; i <= n; i++) {
+    const t = debut + (duree * i) / n;
+    salve.push(t, gbfVoltsInstant(r, t) * charge);
+  }
+  scopeGbfDernier.set(scopeId, maintenant);
+  return salve;
 }
 
 /**
@@ -1509,6 +1599,22 @@ let scopeProbes: Array<{ partId: string; pin: string }> = [];
 const scopeLevels = new Map<string, { hi: number; lo: number }>();
 /** Dernière tension tracée par appareil : c'est le palier que tient la courbe. */
 const scopeHeld = new Map<string, number>();
+
+/**
+ * Oscilloscopes branchés sur la sortie d'un GÉNÉRATEUR BF (cf. scopeGbfSources).
+ * Leur signal n'est pas un créneau de broche mais une onde connue par sa
+ * formule : elle est rééchantillonnée à chaque image (`salveGbf`).
+ */
+let scopeGbfs: Array<{ partId: string; gbfId: string }> = [];
+/** Instant (ms simulées) du dernier point tracé, par appareil rééchantillonné. */
+const scopeGbfDernier = new Map<string, number>();
+/**
+ * Rapport entre la tension LUE sur le montage et la tension à vide du
+ * générateur, retenu d'une image à l'autre : il rattrape la chute d'un pont
+ * diviseur ou d'une résistance de charge. Vaut 1 pour un appareil branché en
+ * parallèle direct, le cas courant.
+ */
+const scopeGbfCharge = new Map<string, number>();
 
 /**
  * Sondes de l'ANALYSEUR LOGIQUE posées sur le schéma, telles que le modèle les
@@ -2172,14 +2278,23 @@ function refreshVisualsInner(): void {
         const m = meterFrame.get(part.id);
         const scope = el as unknown as {
           push(tMs: number, volts: number | null): void;
-          pushMany(flat: ArrayLike<number>): void;
+          pushMany(flat: ArrayLike<number>, hold?: boolean): void;
         };
         const maintenant = engine?.simulatedMs?.() ?? performance.now();
         const sonde = scopeProbes.find((q) => q.partId === part.id);
         const lv = sonde ? scopeLevels.get(part.id) : undefined;
         if (!sonde || !lv) {
           scopeHeld.delete(part.id);
-          scope.push(maintenant, m ? m.value : null);
+          // Prise « + » sur la sortie d'un GÉNÉRATEUR BF : pas de front à
+          // dater, mais l'onde est connue par sa FORMULE — on la rejoue autant
+          // de fois qu'il faut pour remplir l'écran. Sans ça l'appareil n'avait
+          // qu'un point par image : à 1 kHz, seize périodes s'écoulaient entre
+          // deux points et la courbe n'avait plus aucun rapport avec le signal
+          // (retour de Frank, .93).
+          const gen = scopeGbfs.find((g) => g.partId === part.id);
+          const salveG = gen ? salveGbf(part.id, gen.gbfId, maintenant, el, m ? m.value : null) : null;
+          if (salveG) scope.pushMany(salveG, false);
+          else scope.push(maintenant, m ? m.value : null);
           break;
         }
         const log = scopeEdges[sonde.pin] ?? [];
@@ -2632,6 +2747,11 @@ function bindInputs(): void {
   scopeLevels.clear();
   scopeHeld.clear();
   engine.setScopeProbes?.(scopeProbes.map((q) => q.pin));
+  // Oscilloscopes branchés sur un générateur BF : pas de front à dater, mais une
+  // onde dont on a la formule — elle sera rééchantillonnée par image.
+  scopeGbfs = scopeGbfSources(editor.diagram);
+  scopeGbfDernier.clear();
+  scopeGbfCharge.clear();
   // Analyseur logique : même chaîne de fronts datés, un plafond de journal plus
   // profond (une trame DMX fait déjà 10 000 fronts à elle seule). La capture
   // précédente est effacée : un nouveau lancement est une nouvelle mesure.

@@ -239,9 +239,13 @@ export class OscilloElement extends HTMLElement {
    * que rend la sonde du moteur, qui date chaque bascule du signal au cycle
    * près. L'écran n'est redessiné qu'UNE fois pour toute la salve — un redessin
    * par point coûterait des milliers de tracés par seconde.
+   *
+   * `hold` à faux pour une salve d'onde CONTINUE (générateur BF rééchantillonné
+   * par sim.mts) : ses points sont des instantanés d'un signal qui varie sans
+   * cesse, à relier en pente. En retenue, un sinus deviendrait un escalier.
    */
-  pushMany(flat: ArrayLike<number>): void {
-    this.hold = true;
+  pushMany(flat: ArrayLike<number>, hold = true): void {
+    this.hold = hold;
     this.verser(flat);
   }
 

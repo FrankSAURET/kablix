@@ -40,6 +40,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Une sonde posée retrouve exactement sa pastille** à l'ouverture d'un projet : une fraction de pixel la décalait et elle n'accrochait plus rien.
 - **Le dessin du générateur BF ne passe plus devant les fils** au lancement de la simulation.
 - **Le générateur BF relié à l'oscilloscope trace enfin sa courbe.** Sa sortie est maintenant une vraie source pour le montage : l'oscilloscope et le voltmètre la mesurent, alternance négative comprise. En basse fréquence, le traceur de courbes la suit aussi.
+- **L'oscilloscope montre vraiment le signal du générateur BF**, à toutes les fréquences. Il n'en relevait qu'un point par image : à 1 kHz, seize périodes passaient entre deux points et la courbe n'avait plus aucun rapport avec le signal.
+- **Le générateur BF démarre avec un décalage nul**, comme un appareil de paillasse : son signal est centré sur la masse. Sur une entrée analogique, l'alternance négative est donc coupée — à l'élève d'ajouter le décalage.
 - **Le bouton de fréquence du générateur BF se règle par paliers** : au hertz sous 100 Hz, aux 10 Hz jusqu'à 10 kHz, aux 100 Hz au-delà.
 - **Une pince posée ailleurs que sur la carte suit le fil** jusqu'à la broche qui la commande : pincer la borne d'un module montre enfin son signal. La voie porte le nom de la broche trouvée, suivi d'une flèche.
 

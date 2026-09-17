@@ -1170,7 +1170,11 @@ export const CATALOG: readonly PartDef[] = [
   {
     type: 'gbf', label: 'Function generator', tag: 'kablix-gbf', kind: 'analog-source',
     analogPin: 'Vs', simControl: true,
-    attrs: { frequency: '1000', amplitude: '2.5', offset: '2.5', duty: '50', waveform: 'sinus' },
+    // Défauts d'un VRAI GBF sorti de son carton : décalage nul (signal centré
+    // sur la masse) et rapport cyclique à 50 %. Sur une entrée ADC 0–VREF
+    // l'alternance négative est donc écrêtée — c'est exact, et c'est à l'élève
+    // d'ajouter le décalage (la fiche d'aide le dit).
+    attrs: { frequency: '1000', amplitude: '2.5', offset: '0', duty: '50', waveform: 'sinus' },
     props: [
       {
         attr: 'waveform', label: 'Waveform', kind: 'select', options: ['sinus', 'triangle', 'carre'],

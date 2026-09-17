@@ -432,6 +432,50 @@ async function run() {
 	el.clearTrace();
 	await wait(5);
 
+	// --- Salve d'onde CONTINUE : le générateur BF rééchantillonné ---------------
+	// Un GBF n'a pas de front à dater : sim.mts rejoue sa formule des centaines de
+	// fois par image et verse la salve avec la retenue à FAUX. Sans ce mode, un
+	// sinus serait dessiné en escalier au lieu d'être relié en pente. Un point
+	// par image ne marchait pas du tout : à 1 kHz, seize périodes s'écoulent entre
+	// deux images (« l'oscilloscope n'affiche pas du tout ce qui est généré par le
+	// GBF », Frank).
+	el.setAttribute('voltsdiv', '1');
+	el.setAttribute('sdiv', '0.0005'); // 5 ms d'écran = 5 périodes à 1 kHz
+	el.removeAttribute('trigger');
+	await wait(5);
+	const sinus = [];
+	for (let k = 1; k <= 1200; k++) {
+		const t = (10 * k) / 1200; // 10 ms, deux largeurs d'écran
+		sinus.push(t, 2.5 * Math.sin(2 * Math.PI * 1000 * (t / 1000)));
+	}
+	el.pushMany(sinus, false);
+	await wait(10);
+	res.ondeD = trace.getAttribute('d');
+	res.ondeBox = bbox();
+	// Le MODE lui-même se prouve sur une salve CLAIRSEMÉE, moins dense que les
+	// 199 colonnes de l'écran : là, la retenue et la pente ne dessinent pas la
+	// même chose. Sur la salve dense d'au-dessus, chaque colonne reçoit six
+	// points et l'enveloppe est identique des deux côtés — un contrôle posé là
+	// passerait avant comme après, donc ne prouverait rien.
+	el.clearTrace();
+	await wait(5);
+	const clair = [];
+	for (let k = 1; k <= 40; k++) {
+		const t = (5 * k) / 40; // 5 ms, une largeur d'écran, 40 points seulement
+		clair.push(t, 2.5 * Math.sin(2 * Math.PI * 200 * (t / 1000)));
+	}
+	el.pushMany(clair, false);
+	await wait(10);
+	res.clairPenteD = trace.getAttribute('d');
+	// Contre-épreuve DANS LE BANC : la même salve au mode de retenue (le défaut).
+	el.clearTrace();
+	await wait(5);
+	el.pushMany(clair);
+	await wait(10);
+	res.clairHoldD = trace.getAttribute('d');
+	el.clearTrace();
+	await wait(5);
+
 	// --- Éditeur réel : pastilles des prises banane -----------------------------
 	const editor = new Editor(
 		document.getElementById('canvas'), document.getElementById('palette'),
@@ -571,6 +615,59 @@ if (chrome) {
       pres(r.escalierBox[3], 5 * DIV) && pres(r.escalierBox[1] + r.escalierBox[3], ZERO_Y));
     check(`contre-épreuve : les mêmes fronts pris un par un montent EN PENTE (${marches(r.penteD).pentes})`,
       marches(r.penteD).pentes > 0);
+
+    // --- Onde continue (générateur BF rééchantillonné) -------------------------
+    //
+    // La trace est dessinée COLONNE PAR COLONNE, du plus bas au plus haut vu
+    // dans le pixel : une salve dense donne donc des barres verticales, et non
+    // une polyligne. Compter les pentes ou les passages par zéro ne dirait rien
+    // ici — ce qui compte, c'est l'ENVELOPPE : sa hauteur et son ondulation.
+    //
+    // Amplitude crête 2,5 V à 1 V/div = 5 carreaux du creux au sommet, centrés
+    // sur le zéro. Si le rééchantillonnage tombait au hasard dans la période (le
+    // défaut d'avant, un point par image), la hauteur serait plus faible et le
+    // centre partirait.
+    check(`onde : sinus ±2,5 V à 1 V/div → 5 carreaux centrés sur le zéro (${r.ondeBox[3]} px)`,
+      pres(r.ondeBox[3], 5 * DIV) && pres(r.ondeBox[1] + r.ondeBox[3] / 2, ZERO_Y));
+    {
+      const p = (r.ondeD || '').slice(1).split('L').map((s) => s.split(',').map(Number));
+      // Sommet de l'enveloppe colonne par colonne (y le plus PETIT à l'écran).
+      const hauts = new Map();
+      for (const [x, y] of p) {
+        const c = Math.round(x);
+        const v = hauts.get(c);
+        if (v === undefined || y < v) hauts.set(c, y);
+      }
+      const suite = [...hauts.keys()].sort((a, b) => a - b).map((c) => hauts.get(c));
+      // Alternances du sommet autour du zéro : un sinus de 1 kHz sur un écran de
+      // 5 ms passe cinq fois au-dessus et cinq fois en dessous. Six si une bosse
+      // est coupée par chaque bord — ça dépend d'où tombe le déclenchement. Un
+      // trait plat en ferait zéro, un bruit d'échantillonnage n'importe combien.
+      let bosses = 0;
+      let dessus = null;
+      for (const y of suite) {
+        const d = y < ZERO_Y - DIV; // plus d'un carreau au-dessus du zéro
+        const b = y > ZERO_Y + DIV;
+        if (d && dessus !== true) { bosses++; dessus = true; }
+        else if (b && dessus !== false) { dessus = false; }
+      }
+      check(`onde : cinq périodes lisibles à l'écran (${bosses} bosses)`,
+        bosses >= 5 && bosses <= 6);
+      // Le tracé occupe TOUTE la largeur : une salve trop courte laisserait un
+      // bout d'écran vide, et l'élève verrait la courbe s'arrêter en chemin.
+      check(`onde : la trace couvre tout l'écran (${suite.length} colonnes)`,
+        suite.length >= 190);
+    }
+    // Le MODE se prouve sur une salve clairsemée (40 points pour 199 colonnes) :
+    // reliée EN PENTE, elle n'a aucun saut droit ; en retenue, elle devient un
+    // escalier de paliers et de sauts. Sur la salve dense d'au-dessus les deux
+    // modes donnent la même enveloppe — un contrôle posé là ne prouverait rien.
+    const pente = marches(r.clairPenteD);
+    const tenu = marches(r.clairHoldD);
+    check(`onde : salve clairsemée reliée EN PENTE (${pente.pentes} pentes, ${pente.sauts} sauts)`,
+      pente.pentes > 20 && pente.sauts === 0);
+    check(`contre-épreuve : la MÊME salve en retenue fait un escalier (${tenu.plats} plats, ${tenu.sauts} sauts, ${tenu.pentes} pentes)`,
+      tenu.sauts > 20 && tenu.pentes === 0);
 
     check('éditeur : prises banane SANS pastille rouge/noire (2 .pin nus)',
       r.oscPads[0] === 2 && r.oscPads[1] === 0 && r.oscPads[2] === 0);

@@ -1,4 +1,4 @@
 board: arduino:avr:uno
-sketch: Arduino/rv/rv.ino
+sketch: Arduino/sonde-logique-uno/sonde-logique-uno.ino
 port: COM3
 output: .build
